@@ -6,8 +6,18 @@
 
 ## What's here
 
-- `prototype/index.html` — clickable UI prototype (open in browser, or `npx serve prototype`)
+- `app/` — the real app: Expo (React Native) + TypeScript + Supabase
+- `prototype/index.html` — clickable UI prototype (open in browser)
 - `docs/product-notes.md` — product decisions, open questions, roadmap
+
+## Run the app
+
+```bash
+cd app
+npm install
+cp .env.example .env   # fill in Supabase keys (supabase.com → free project)
+npx expo start         # scan QR with Expo Go on your phone
+```
 
 ## Prototype
 
