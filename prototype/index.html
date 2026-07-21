@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>댕런 DaengRun — 프로토타입</title>
+<link href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#171a10;
+  --cream:#f2efe6;
+  --volt:#c8f24e;
+  --volt-deep:#9ecf1e;
+  --tang:#ff5c38;
+  --card:#ffffff;
+  --line:#e2ddcf;
+  --dim:#8a8877;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{
+  background:var(--ink);
+  background-image:radial-gradient(circle at 20% 10%, #24291a 0%, transparent 50%),radial-gradient(circle at 85% 90%, #20240f 0%, transparent 45%);
+  min-height:100vh;
+  font-family:'IBM Plex Sans KR',sans-serif;
+  display:flex;align-items:center;justify-content:center;gap:48px;
+  padding:32px;color:var(--cream);
+}
+.side{max-width:300px}
+.side h1{font-family:'Do Hyeon',sans-serif;font-size:52px;line-height:1;color:var(--volt);letter-spacing:-1px}
+.side h1 span{color:var(--cream)}
+.side .tag{margin-top:10px;font-size:14px;color:#b9b6a4;line-height:1.6}
+.side .jump{margin-top:28px;display:flex;flex-direction:column;gap:8px}
+.side .jump p{font-size:11px;text-transform:uppercase;letter-spacing:2px;color:#6d6b5b;margin-bottom:2px}
+.side button{
+  background:transparent;border:1px solid #3a3e2c;color:#cfcdbd;font-family:inherit;
+  padding:9px 14px;border-radius:10px;font-size:13px;cursor:pointer;text-align:left;transition:all .15s;
+}
+.side button:hover{border-color:var(--volt);color:var(--volt)}
+/* ---------- PHONE ---------- */
+.phone{
+  width:390px;height:820px;background:var(--cream);border-radius:52px;
+  border:10px solid #0b0c07;box-shadow:0 40px 100px rgba(0,0,0,.6),0 0 0 2px #2c3020;
+  overflow:hidden;position:relative;flex-shrink:0;color:var(--ink);
+}
+.notch{position:absolute;top:12px;left:50%;transform:translateX(-50%);width:120px;height:26px;background:#0b0c07;border-radius:20px;z-index:99}
+.screen{position:absolute;inset:0;display:none;flex-direction:column;overflow-y:auto;scrollbar-width:none}
+.screen::-webkit-scrollbar{display:none}
+.screen.on{display:flex}
+.pad{padding:64px 22px 24px}
+/* ---------- SHARED UI ---------- */
+.h-display{font-family:'Do Hyeon',sans-serif;letter-spacing:-.5px}
+.btn{
+  display:block;width:100%;padding:17px;border:none;border-radius:16px;
+  background:var(--ink);color:var(--volt);font-family:'Do Hyeon',sans-serif;
+  font-size:19px;cursor:pointer;letter-spacing:1px;transition:transform .1s;
+}
+.btn:active{transform:scale(.97)}
+.btn.volt{background:var(--volt);color:var(--ink)}
+.btn.ghost{background:transparent;border:2px solid var(--ink);color:var(--ink)}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:60px 22px 10px}
+.back{background:none;border:none;font-size:22px;cursor:pointer;color:var(--ink);padding:4px 8px}
+.topbar b{font-family:'Do Hyeon',sans-serif;font-size:18px;letter-spacing:.5px}
+.card{background:var(--card);border-radius:20px;padding:18px;border:1px solid var(--line)}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:99px;border:1.5px solid var(--line);background:#fff;font-size:13px;font-weight:500;cursor:pointer}
+.chip.sel{background:var(--ink);color:var(--volt);border-color:var(--ink)}
+.badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:3px 9px;border-radius:99px}
+.badge.v{background:#e4f7c0;color:#4a7208}
+.badge.t{background:#ffe4dc;color:#c2340f}
+.stat-num{font-family:'Do Hyeon',sans-serif;font-size:34px;line-height:1}
+.divider{height:1px;background:var(--line);margin:14px 0}
+.paw{width:16px;height:16px;fill:currentColor}
+/* ---------- SPLASH ---------- */
+#s-splash{background:var(--ink);color:var(--cream);justify-content:flex-end}
+#s-splash .hero{padding:0 26px 40px;position:relative;z-index:2}
+#s-splash .big{font-family:'Do Hyeon',sans-serif;font-size:72px;line-height:.95;color:var(--volt)}
+#s-splash .big em{font-style:normal;color:var(--cream)}
+#s-splash .sub{margin:18px 0 30px;font-size:15px;color:#b9b6a4;line-height:1.7}
+.track-deco{position:absolute;top:-40px;right:-60px;width:420px;height:420px;border:2px dashed #3a3e2c;border-radius:50%;opacity:.7}
+.track-deco.b{top:auto;bottom:180px;left:-140px;width:300px;height:300px;border-color:#2e321f}
+.run-dot{position:absolute;width:14px;height:14px;background:var(--tang);border-radius:50%;top:120px;right:80px;box-shadow:0 0 20px var(--tang)}
+/* ---------- ROLE ---------- */
+#s-role{background:var(--cream)}
+.role-card{
+  flex:1;border-radius:24px;padding:26px;cursor:pointer;position:relative;overflow:hidden;
+  border:2px solid var(--ink);transition:transform .12s;display:flex;flex-direction:column;justify-content:flex-end;min-height:250px;
+}
+.role-card:active{transform:scale(.97)}
+.role-card h3{font-family:'Do Hyeon',sans-serif;font-size:30px;margin-bottom:6px}
+.role-card p{font-size:13px;line-height:1.6;opacity:.75}
+.role-card.owner{background:var(--volt)}
+.role-card.runner{background:var(--ink);color:var(--cream)}
+.role-card.runner h3{color:var(--volt)}
+.role-tag{position:absolute;top:20px;left:24px;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;opacity:.6}
+/* ---------- MAP ---------- */
+.map{position:relative;background:#e7e9dc;overflow:hidden}
+.map svg{display:block;width:100%;height:100%}
+.livebar{
+  position:absolute;left:16px;right:16px;bottom:16px;background:var(--ink);color:var(--cream);
+  border-radius:20px;padding:16px 18px;
+}
+.pulse{animation:pulse 1.6s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,92,56,.5)}70%{box-shadow:0 0 0 14px rgba(255,92,56,0)}100%{box-shadow:0 0 0 0 rgba(255,92,56,0)}}
+/* stars */
+.stars{display:flex;gap:8px;justify-content:center;font-size:38px;cursor:pointer;user-select:none}
+.stars span{color:#d8d4c4;transition:color .1s}
+.stars span.lit{color:var(--tang)}
+.toggle{width:56px;height:32px;border-radius:99px;background:#d8d4c4;position:relative;cursor:pointer;transition:background .2s}
+.toggle::after{content:'';position:absolute;top:3px;left:3px;width:26px;height:26px;border-radius:50%;background:#fff;transition:left .2s}
+.toggle.on{background:var(--volt-deep)}
+.toggle.on::after{left:27px}
+.bottomnav{margin-top:auto;display:flex;border-top:1px solid var(--line);background:#fff}
+.bottomnav div{flex:1;text-align:center;padding:14px 0 26px;font-size:11px;color:var(--dim);font-weight:500}
+.bottomnav div.act{color:var(--ink);font-weight:700}
+.bottomnav .ico{font-size:18px;display:block;margin-bottom:3px}
+@media(max-width:860px){.side{display:none}body{padding:8px}}
+</style>
+</head>
+<body>
+
+<div class="side">
+  <h1>댕런<br><span>DaengRun</span></h1>
+  <p class="tag">바쁜 보호자를 위한 반려견 러닝 매칭 서비스 — 클릭 가능한 MVP 프로토타입입니다. 폰 화면을 직접 눌러보세요.</p>
+  <div class="jump">
+    <p>Demo Jump</p>
+    <button onclick="go('s-splash')">처음부터</button>
+    <button onclick="go('o-home')">보호자 홈</button>
+    <button onclick="go('o-live')">라이브 러닝 (보호자 뷰)</button>
+    <button onclick="go('r-home')">러너 홈</button>
+  </div>
+</div>
+
+<div class="phone">
+  <div class="notch"></div>
+
+  <!-- ================= SPLASH ================= -->
+  <div class="screen on" id="s-splash">
+    <div class="track-deco"></div>
+    <div class="track-deco b"></div>
+    <div class="run-dot pulse"></div>
+    <div class="hero">
+      <div class="big">우리 개는<br><em>오늘도</em><br>달린다</div>
+      <p class="sub">바쁜 당신 대신, 검증된 러너가<br>반려견과 함께 달립니다.<br>실시간 GPS로 전 과정을 지켜보세요.</p>
+      <button class="btn volt" onclick="go('s-role')">시작하기</button>
+      <p style="text-align:center;margin-top:14px;font-size:12px;color:#6d6b5b">카카오로 3초 만에 가입</p>
+    </div>
+  </div>
+
+  <!-- ================= ROLE SELECT ================= -->
+  <div class="screen" id="s-role">
+    <div class="pad" style="flex:1;display:flex;flex-direction:column;gap:16px">
+      <div>
+        <div class="h-display" style="font-size:34px;line-height:1.2">어떻게<br>함께할까요?</div>
+        <p style="color:var(--dim);font-size:13px;margin-top:8px">역할은 나중에 언제든 바꿀 수 있어요</p>
+      </div>
+      <div class="role-card owner" onclick="go('o-home')">
+        <span class="role-tag">OWNER</span>
+        <h3>보호자예요</h3>
+        <p>믿을 수 있는 러너에게<br>우리 아이의 러닝을 맡겨요</p>
+      </div>
+      <div class="role-card runner" onclick="go('r-home')">
+        <span class="role-tag">RUNNER</span>
+        <h3>러너예요</h3>
+        <p>달리면서 수익도 얻는<br>반려견 러닝 파트너</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= OWNER HOME ================= -->
+  <div class="screen" id="o-home">
+    <div class="pad" style="padding-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <p style="font-size:13px;color:var(--dim)">성수동 · 맑음 24°</p>
+          <div class="h-display" style="font-size:28px">초코 보호자님</div>
+        </div>
+        <div style="width:46px;height:46px;border-radius:50%;background:var(--volt);display:flex;align-items:center;justify-content:center;font-family:'Do Hyeon';font-size:20px">초</div>
+      </div>
+
+      <div class="card" style="margin-top:18px;background:var(--ink);color:var(--cream);border:none">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <p style="font-size:12px;color:#9a987f">이번 주 초코의 러닝</p>
+            <div class="stat-num" style="color:var(--volt);margin-top:4px">12.4 <span style="font-size:16px">km</span></div>
+          </div>
+          <div style="text-align:right;font-size:12px;color:#9a987f;line-height:1.8">
+            3회 완료<br>평균 페이스 7'20"
+          </div>
+        </div>
+      </div>
+
+      <button class="btn volt" style="margin-top:14px" onclick="go('o-request')">러닝 요청하기</button>
+
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:24px">
+        <b class="h-display" style="font-size:18px">내 주변 인기 러너</b>
+        <span style="font-size:12px;color:var(--dim)">전체보기</span>
+      </div>
+
+      <div class="card" style="margin-top:10px;display:flex;gap:14px;align-items:center" onclick="go('o-runner')">
+        <div style="width:52px;height:52px;border-radius:16px;background:var(--tang);display:flex;align-items:center;justify-content:center;font-family:'Do Hyeon';color:#fff;font-size:22px">민</div>
+        <div style="flex:1">
+          <b style="font-size:15px">김민준</b> <span class="badge v">신원인증</span>
+          <p style="font-size:12px;color:var(--dim);margin-top:3px">★ 4.9 · 러닝 214회 · 성수동 0.8km</p>
+        </div>
+        <span style="color:var(--dim)">›</span>
+      </div>
+      <div class="card" style="margin-top:8px;display:flex;gap:14px;align-items:center">
+        <div style="width:52px;height:52px;border-radius:16px;background:#5b8c2a;display:flex;align-items:center;justify-content:center;font-family:'Do Hyeon';color:#fff;font-size:22px">서</div>
+        <div style="flex:1">
+          <b style="font-size:15px">이서연</b> <span class="badge v">신원인증</span> <span class="badge t">훈련사</span>
+          <p style="font-size:12px;color:var(--dim);margin-top:3px">★ 5.0 · 러닝 89회 · 성수동 1.2km</p>
+        </div>
+        <span style="color:var(--dim)">›</span>
+      </div>
+    </div>
+    <div class="bottomnav">
+      <div class="act"><span class="ico">⌂</span>홈</div>
+      <div><span class="ico">◎</span>러닝기록</div>
+      <div><span class="ico">✉</span>채팅</div>
+      <div><span class="ico">☰</span>마이</div>
+    </div>
+  </div>
+
+  <!-- ================= REQUEST ================= -->
+  <div class="screen" id="o-request">
+    <div class="topbar"><button class="back" onclick="go('o-home')">‹</button><b>러닝 요청</b><span style="width:30px"></span></div>
+    <div style="padding:8px 22px 24px;flex:1">
+      <p style="font-size:13px;font-weight:700;margin-bottom:8px">누가 달릴까요?</p>
+      <div style="display:flex;gap:8px">
+        <span class="chip sel">초코 · 웰시코기 · 11kg</span>
+        <span class="chip">+ 추가</span>
+      </div>
+
+      <p style="font-size:13px;font-weight:700;margin:20px 0 8px">거리</p>
+      <div style="display:flex;gap:8px" id="dist-chips">
+        <span class="chip" onclick="setDist(this,3)">3km</span>
+        <span class="chip sel" onclick="setDist(this,5)">5km</span>
+        <span class="chip" onclick="setDist(this,7)">7km</span>
+      </div>
+
+      <p style="font-size:13px;font-weight:700;margin:20px 0 8px">페이스</p>
+      <div style="display:flex;gap:8px">
+        <span class="chip" onclick="selOnly(this)">가볍게 8'+</span>
+        <span class="chip sel" onclick="selOnly(this)">보통 7'</span>
+        <span class="chip" onclick="selOnly(this)">신나게 6'</span>
+      </div>
+
+      <p style="font-size:13px;font-weight:700;margin:20px 0 8px">언제 달릴까요?</p>
+      <div class="card" style="display:flex;justify-content:space-between;align-items:center;padding:14px 18px">
+        <span style="font-size:14px;font-weight:500">오늘 오후 6:30</span>
+        <span style="font-size:12px;color:var(--dim)">변경 ›</span>
+      </div>
+
+      <p style="font-size:13px;font-weight:700;margin:20px 0 8px">픽업 장소</p>
+      <div class="card" style="display:flex;justify-content:space-between;align-items:center;padding:14px 18px">
+        <span style="font-size:14px;font-weight:500">서울숲 2번 출입구</span>
+        <span style="font-size:12px;color:var(--dim)">지도 ›</span>
+      </div>
+
+      <div class="card" style="margin-top:22px;background:#faf8f0">
+        <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--dim)"><span>기본요금</span><span>9,900원</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--dim);margin-top:6px"><span>거리요금 <span id="km-label">5</span>km × 3,000원</span><span id="km-fee">15,000원</span></div>
+        <div class="divider"></div>
+        <div style="display:flex;justify-content:space-between;align-items:center"><b>예상 결제금액</b><b class="h-display" style="font-size:24px" id="total-fee">24,900원</b></div>
+      </div>
+
+      <button class="btn" style="margin-top:16px" onclick="go('o-matching')">러너 찾기</button>
+    </div>
+  </div>
+
+  <!-- ================= MATCHING ================= -->
+  <div class="screen" id="o-matching">
+    <div class="topbar"><button class="back" onclick="go('o-request')">‹</button><b>러너 선택</b><span style="width:30px"></span></div>
+    <div style="padding:4px 22px 24px;flex:1">
+      <p style="font-size:13px;color:var(--dim);margin-bottom:14px">오늘 6:30 · 서울숲 근처에서 <b style="color:var(--ink)">3명</b>의 러너가 가능해요</p>
+
+      <div class="card" style="border:2px solid var(--ink)" onclick="go('o-runner')">
+        <div style="display:flex;gap:14px;align-items:center">
+          <div style="width:56px;height:56px;border-radius:18px;background:var(--tang);display:flex;align-items:center;justify-content:center;font-family:'Do Hyeon';color:#fff;font-size:24px">민</div>
+          <div style="flex:1">
+            <b style="font-size:16px">김민준</b> <span class="badge v">신원인증</span>
+            <p style="font-size:12px;color:var(--dim);margin-top:3px">★ 4.9 (127) · 러닝 214회</p>
+          </div>
+          <div style="text-align:right">
+            <div class="h-display" style="font-size:20px">24,900원</div>
+            <p style="font-size:11px;color:var(--dim)">0.8km 거리</p>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <p style="font-size:12px;color:var(--dim)">평균 페이스 6'50" · 중형견 전문 · 응답률 98%</p>
+      </div>
+
+      <div class="card" style="margin-top:10px">
+        <div style="display:flex;gap:14px;align-items:center">
+          <div style="width:56px;height:56px;border-radius:18px;background:#5b8c2a;display:flex;align-items:center;justify-content:center;font-family:'Do Hyeon';color:#fff;font-size:24px">서</div>
+          <div style="flex:1">
+            <b style="font-size:16px">이서연</b> <span class="badge t">훈련사</span>
+            <p style="font-size:12px;color:var(--dim);margin-top:3px">★ 5.0 (89) · 러닝 89회</p>
+          </div>
+          <div style="text-align:right">
+            <div class="h-display" style="font-size:20px">31,900원</div>
+            <p style="font-size:11px;color:var(--dim)">1.2km 거리</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:10px">
+        <div style="display:flex;gap:14px;align-items:center">
+          <div style="width:56px;height:56px;border-radius:18px;background:#38506b;display:flex;align-items:center;justify-content:center;font-family:'Do Hyeon';color:#fff;font-size:24px">태</div>
+          <div style="flex:1">
+            <b style="font-size:16px">박태오</b> <span class="badge v">신원인증</span>
+            <p style="font-size:12px;color:var(--dim);margin-top:3px">★ 4.7 (56) · 러닝 78회</p>
+          </div>
+          <div style="text-align:right">
+            <div class="h-display" style="font-size:20px">22,900원</div>
+            <p style="font-size:11px;color:var(--dim)">2.1km 거리</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= RUNNER PROFILE ================= -->
+  <div class="screen" id="o-runner">
+    <div class="topbar"><button class="back" onclick="go('o-matching')">‹</button><b>러너 프로필</b><span style="width:30px"></span></div>
+    <div style="padding:4px 22px 24px;flex:1">
+      <div style="display:flex;gap:16px;align-items:center">
+        <div style="width:72px;height:72px;border-radius:24px;background:var(--tang);display:flex;align-items:center;justify-content:center;font-family:'Do Hyeon';color:#fff;font-size:32px">민</div>
+        <div>
+          <b style="font-size:20px">김민준</b>
+          <div style="margin-top:5px"><span class="badge v">신원인증</span> <span class="badge v">펫보험 가입</span></div>
+          <p style="font-size:12px;color:var(--dim);margin-top:5px">★ 4.9 (리뷰 127) · 성수동</p>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:18px;background:var(--ink);color:var(--cream);border:none">
+        <p style="font-size:11px;letter-spacing:2px;color:#9a987f;text-transform:uppercase">Running Record</p>
+        <div style="display:flex;justify-content:space-between;margin-top:12px;text-align:center">
+          <div><div class="stat-num" style="color:var(--volt)">214</div><p style="font-size:11px;color:#9a987f;margin-top:4px">총 러닝</p></div>
+          <div><div class="stat-num" style="color:var(--volt)">1,182</div><p style="font-size:11px;color:#9a987f;margin-top:4px">누적 km</p></div>
+          <div><div class="stat-num" style="color:var(--volt)">6'50"</div><p style="font-size:11px;color:#9a987f;margin-top:4px">평균 페이스</p></div>
+        </div>
+      </div>
+
+      <p style="font-size:13px;font-weight:700;margin:18px 0 8px">최근 리뷰</p>
+      <div class="card">
+        <p style="font-size:13px;line-height:1.6">"초코가 민준님만 보면 꼬리부터 흔들어요. 러닝 후 사진도 꼭 보내주셔서 안심돼요."</p>
+        <p style="font-size:11px;color:var(--dim);margin-top:8px">★★★★★ · 웰시코기 초코 보호자 · 3일 전</p>
+      </div>
+      <div class="card" style="margin-top:8px">
+        <p style="font-size:13px;line-height:1.6">"페이스 조절을 정말 잘하세요. 노즈워크 시간도 챙겨주십니다."</p>
+        <p style="font-size:11px;color:var(--dim);margin-top:8px">★★★★★ · 보더콜리 두부 보호자 · 1주 전</p>
+      </div>
+
+      <button class="btn volt" style="margin-top:18px" onclick="startMatch()">이 러너에게 요청하기</button>
+    </div>
+  </div>
+
+  <!-- ================= WAITING / ACCEPTED ================= -->
+  <div class="screen" id="o-wait">
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:22px;text-align:center">
+      <div id="wait-anim" style="width:90px;height:90px;border-radius:50%;border:3px dashed var(--ink);display:flex;align-items:center;justify-content:center;font-family:'Do Hyeon';font-size:36px;animation:spin 6s linear infinite">민</div>
+      <div class="h-display" style="font-size:26px;margin-top:24px" id="wait-title">요청을 보냈어요</div>
+      <p style="font-size:13px;color:var(--dim);margin-top:8px;line-height:1.7" id="wait-sub">김민준 러너의 수락을 기다리는 중...</p>
+    </div>
+  </div>
+
+  <!-- ================= LIVE RUN (OWNER VIEW) ================= -->
+  <div class="screen" id="o-live">
+    <div class="map" style="flex:1">
+      <svg viewBox="0 0 390 620" preserveAspectRatio="xMidYMid slice">
+        <rect width="390" height="620" fill="#e7e9dc"/>
+        <path d="M0 90 H390 M0 210 H390 M0 340 H390 M0 470 H390 M60 0 V620 M170 0 V620 M290 0 V620" stroke="#d5d8c6" stroke-width="10"/>
+        <rect x="185" y="230" width="180" height="200" rx="18" fill="#cfe3b8"/>
+        <text x="275" y="335" text-anchor="middle" font-size="13" fill="#7d9a5c" font-family="IBM Plex Sans KR">서울숲</text>
+        <path id="route" d="M80 560 C120 480 90 420 150 380 C210 340 200 300 250 280 C300 260 310 220 290 160" fill="none" stroke="#171a10" stroke-width="4" stroke-dasharray="2 8" opacity=".25"/>
+        <path id="route-done" d="M80 560 C120 480 90 420 150 380 C210 340 200 300 250 280 C300 260 310 220 290 160" fill="none" stroke="#ff5c38" stroke-width="5" stroke-linecap="round"/>
+        <circle id="live-dot" r="9" fill="#ff5c38" stroke="#fff" stroke-width="3"/>
+      </svg>
+      <div style="position:absolute;top:60px;left:16px;right:16px;display:flex;justify-content:space-between;align-items:center">
+        <button class="back" style="background:#fff;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,.1)" onclick="go('o-home')">‹</button>
+        <span class="badge" style="background:var(--ink);color:var(--volt);padding:8px 14px;font-size:12px" id="live-status">● LIVE · 초코가 달리는 중</span>
+      </div>
+      <div class="livebar">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div style="display:flex;gap:10px;align-items:center">
+            <div style="width:40px;height:40px;border-radius:12px;background:var(--tang);display:flex;align-items:center;justify-content:center;font-family:'Do Hyeon';color:#fff;font-size:18px">민</div>
+            <div>
+              <b style="font-size:14px">김민준 러너</b>
+              <p style="font-size:11px;color:#9a987f">초코와 러닝 중</p>
+            </div>
+          </div>
+          <button class="chip" style="border-color:#3a3e2c;background:transparent;color:var(--volt)">채팅</button>
+        </div>
+        <div class="divider" style="background:#33371f"></div>
+        <div style="display:flex;justify-content:space-between;text-align:center">
+          <div><div class="h-display" style="font-size:26px;color:var(--volt)" id="lv-dist">0.0</div><p style="font-size:10px;color:#9a987f">킬로미터</p></div>
+          <div><div class="h-display" style="font-size:26px;color:var(--volt)" id="lv-time">00:00</div><p style="font-size:10px;color:#9a987f">시간</p></div>
+          <div><div class="h-display" style="font-size:26px;color:var(--volt)" id="lv-pace">-'--"</div><p style="font-size:10px;color:#9a987f">페이스</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= PAYMENT ================= -->
+  <div class="screen" id="o-pay">
+    <div class="topbar"><span style="width:30px"></span><b>러닝 완료</b><span style="width:30px"></span></div>
+    <div style="padding:4px 22px 24px;flex:1">
+      <div class="card" style="background:var(--ink);color:var(--cream);border:none;text-align:center;padding:26px">
+        <p style="font-size:12px;color:#9a987f;letter-spacing:2px">TODAY'S RUN</p>
+        <div class="h-display" style="font-size:52px;color:var(--volt);margin:10px 0 4px">5.02 km</div>
+        <p style="font-size:13px;color:#9a987f">34분 12초 · 평균 페이스 6'49"</p>
+        <div style="display:flex;justify-content:center;gap:8px;margin-top:16px">
+          <span class="badge" style="background:#2c3020;color:var(--volt)">배변 2회</span>
+          <span class="badge" style="background:#2c3020;color:var(--volt)">물 급여 완료</span>
+          <span class="badge" style="background:#2c3020;color:var(--volt)">사진 4장</span>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--dim)"><span>기본요금</span><span>9,900원</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--dim);margin-top:6px"><span>거리요금 5.02km × 3,000원</span><span>15,060원</span></div>
+        <div class="divider"></div>
+        <div style="display:flex;justify-content:space-between;align-items:center"><b>결제금액</b><b class="h-display" style="font-size:24px">24,960원</b></div>
+        <p style="font-size:11px;color:var(--dim);margin-top:8px">카카오페이 ···· 3841</p>
+      </div>
+
+      <button class="btn volt" style="margin-top:16px" onclick="go('o-review')">결제하고 리뷰 남기기</button>
+    </div>
+  </div>
+
+  <!-- ================= REVIEW ================= -->
+  <div class="screen" id="o-review">
+    <div style="flex:1;display:flex;flex-direction:column;justify-content:center;padding:22px;text-align:center">
+      <p style="font-size:13px;color:var(--dim)">결제 완료</p>
+      <div class="h-display" style="font-size:28px;margin-top:6px">오늘 러닝 어땠나요?</div>
+      <div class="stars" style="margin-top:22px" id="stars">
+        <span onclick="rate(1)">★</span><span onclick="rate(2)">★</span><span onclick="rate(3)">★</span><span onclick="rate(4)">★</span><span onclick="rate(5)">★</span>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:24px">
+        <span class="chip" onclick="this.classList.toggle('sel')">시간 약속을 잘 지켜요</span>
+        <span class="chip" onclick="this.classList.toggle('sel')">우리 아이가 좋아해요</span>
+        <span class="chip" onclick="this.classList.toggle('sel')">소통이 빨라요</span>
+        <span class="chip" onclick="this.classList.toggle('sel')">사진을 잘 보내줘요</span>
+      </div>
+      <button class="btn" style="margin-top:30px" onclick="go('o-home')">완료</button>
+    </div>
+  </div>
+
+  <!-- ================= RUNNER HOME ================= -->
+  <div class="screen" id="r-home">
+    <div class="pad" style="padding-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <p style="font-size:13px;color:var(--dim)">러너 모드</p>
+          <div class="h-display" style="font-size:28px">김민준 님</div>
+        </div>
+        <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+      </div>
+
+      <div class="card" style="margin-top:18px;background:var(--ink);color:var(--cream);border:none">
+        <div style="display:flex;justify-content:space-between;text-align:center">
+          <div><div class="stat-num" style="color:var(--volt)">128,400</div><p style="font-size:11px;color:#9a987f;margin-top:4px">이번 주 수익(원)</p></div>
+          <div><div class="stat-num" style="color:var(--volt)">6</div><p style="font-size:11px;color:#9a987f;margin-top:4px">완료 러닝</p></div>
+          <div><div class="stat-num" style="color:var(--volt)">31.2</div><p style="font-size:11px;color:#9a987f;margin-top:4px">km</p></div>
+        </div>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:24px">
+        <b class="h-display" style="font-size:18px">새 러닝 요청</b>
+        <span class="badge t">2건</span>
+      </div>
+
+      <div class="card" style="margin-top:10px;border:2px solid var(--ink)" onclick="go('r-detail')">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div style="display:flex;gap:12px;align-items:center">
+            <div style="width:48px;height:48px;border-radius:14px;background:#e8b04b;display:flex;align-items:center;justify-content:center;font-family:'Do Hyeon';color:#fff;font-size:20px">초</div>
+            <div>
+              <b style="font-size:15px">초코 · 웰시코기 11kg</b>
+              <p style="font-size:12px;color:var(--dim);margin-top:3px">오늘 18:30 · 서울숲 · 5km · 페이스 7'</p>
+            </div>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:12px;color:var(--dim)">픽업까지 0.8km</span>
+          <b class="h-display" style="font-size:20px;color:var(--volt-deep)">+19,900원</b>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:8px;opacity:.7">
+        <div style="display:flex;gap:12px;align-items:center">
+          <div style="width:48px;height:48px;border-radius:14px;background:#9b8bb4;display:flex;align-items:center;justify-content:center;font-family:'Do Hyeon';color:#fff;font-size:20px">몽</div>
+          <div style="flex:1">
+            <b style="font-size:15px">몽이 · 푸들 6kg</b>
+            <p style="font-size:12px;color:var(--dim);margin-top:3px">내일 07:00 · 뚝섬한강공원 · 3km</p>
+          </div>
+          <b class="h-display" style="font-size:17px;color:var(--volt-deep)">+15,200원</b>
+        </div>
+      </div>
+    </div>
+    <div class="bottomnav">
+      <div class="act"><span class="ico">⌂</span>홈</div>
+      <div><span class="ico">◎</span>내 기록</div>
+      <div><span class="ico">✉</span>채팅</div>
+      <div><span class="ico">₩</span>수익</div>
+    </div>
+  </div>
+
+  <!-- ================= RUNNER: REQUEST DETAIL ================= -->
+  <div class="screen" id="r-detail">
+    <div class="topbar"><button class="back" onclick="go('r-home')">‹</button><b>요청 상세</b><span style="width:30px"></span></div>
+    <div style="padding:4px 22px 24px;flex:1">
+      <div class="card">
+        <div style="display:flex;gap:14px;align-items:center">
+          <div style="width:60px;height:60px;border-radius:18px;background:#e8b04b;display:flex;align-items:center;justify-content:center;font-family:'Do Hyeon';color:#fff;font-size:26px">초</div>
+          <div>
+            <b style="font-size:17px">초코</b>
+            <p style="font-size:12px;color:var(--dim);margin-top:3px">웰시코기 · 3살 · 11kg · 중성화 O</p>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <p style="font-size:12px;line-height:1.8;color:#55533f"><b style="color:var(--ink)">보호자 메모</b><br>겁이 없어서 큰 개한테도 달려들어요. 자전거를 보면 짖으니 자전거도로는 피해주세요. 물은 30분마다 한 번씩 부탁드려요.</p>
+      </div>
+
+      <div class="card" style="margin-top:10px">
+        <div style="display:flex;justify-content:space-between;font-size:13px"><span style="color:var(--dim)">일시</span><b>오늘 오후 6:30</b></div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-top:8px"><span style="color:var(--dim)">픽업</span><b>서울숲 2번 출입구</b></div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-top:8px"><span style="color:var(--dim)">코스</span><b>5km · 보호자 지정 코스</b></div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-top:8px"><span style="color:var(--dim)">페이스</span><b>보통 7'00"</b></div>
+      </div>
+
+      <div class="card" style="margin-top:10px;background:#faf8f0">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:13px;color:var(--dim)">예상 수익 (수수료 20% 제외)</span>
+          <b class="h-display" style="font-size:24px;color:var(--volt-deep)">19,900원</b>
+        </div>
+      </div>
+
+      <button class="btn volt" style="margin-top:16px" onclick="go('r-run')">수락하기</button>
+      <button class="btn ghost" style="margin-top:8px" onclick="go('r-home')">거절</button>
+    </div>
+  </div>
+
+  <!-- ================= RUNNER: ACTIVE RUN ================= -->
+  <div class="screen" id="r-run">
+    <div style="background:var(--ink);color:var(--cream);flex:1;display:flex;flex-direction:column;padding:64px 24px 30px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span class="badge" style="background:#2c3020;color:var(--volt)" id="r-status">초코와 러닝 준비</span>
+        <span style="font-size:12px;color:#9a987f">서울숲 코스 5km</span>
+      </div>
+      <div style="flex:1;display:flex;flex-direction:column;justify-content:center;text-align:center">
+        <p style="font-size:12px;color:#9a987f;letter-spacing:3px">DISTANCE</p>
+        <div class="h-display" style="font-size:88px;color:var(--volt);line-height:1" id="r-dist">0.00</div>
+        <p style="font-size:14px;color:#9a987f;margin-top:4px">km</p>
+        <div style="display:flex;justify-content:center;gap:40px;margin-top:30px">
+          <div><div class="h-display" style="font-size:30px" id="r-time">00:00</div><p style="font-size:11px;color:#9a987f;margin-top:2px">시간</p></div>
+          <div><div class="h-display" style="font-size:30px" id="r-pace">-'--"</div><p style="font-size:11px;color:#9a987f;margin-top:2px">페이스</p></div>
+          <div><div class="h-display" style="font-size:30px">132</div><p style="font-size:11px;color:#9a987f;margin-top:2px">BPM</p></div>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px">
+        <button class="btn" style="background:#2c3020;color:var(--cream);flex:1" onclick="alert('사진이 보호자에게 전송되었습니다 (프로토타입)')">사진 전송</button>
+        <button class="btn volt" style="flex:1" id="r-runbtn" onclick="runnerRun()">러닝 시작</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= RUNNER: DONE ================= -->
+  <div class="screen" id="r-done">
+    <div style="flex:1;display:flex;flex-direction:column;justify-content:center;padding:22px;text-align:center">
+      <div class="h-display" style="font-size:30px">러닝 완료!</div>
+      <p style="font-size:13px;color:var(--dim);margin-top:8px">초코를 보호자에게 안전하게 인계해 주세요</p>
+      <div class="card" style="margin-top:24px;background:var(--ink);color:var(--cream);border:none;padding:26px">
+        <p style="font-size:12px;color:#9a987f;letter-spacing:2px">오늘의 수익</p>
+        <div class="h-display" style="font-size:48px;color:var(--volt);margin-top:8px">+19,900원</div>
+        <p style="font-size:12px;color:#9a987f;margin-top:8px">5.02km · 34분 12초 · 초코</p>
+      </div>
+      <p style="font-size:12px;color:var(--dim);margin-top:14px">수익은 매주 수요일 정산됩니다</p>
+      <button class="btn" style="margin-top:20px" onclick="go('r-home')">홈으로</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let liveTimer=null, runnerTimer=null;
+
+function go(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));
+  document.getElementById(id).classList.add('on');
+  document.getElementById(id).scrollTop=0;
+  if(liveTimer){clearInterval(liveTimer);liveTimer=null}
+  if(runnerTimer){clearInterval(runnerTimer);runnerTimer=null}
+  if(id==='o-live') startLive();
+  if(id==='r-run') resetRunnerRun();
+}
+
+/* request form */
+function selOnly(el){
+  [...el.parentElement.children].forEach(c=>c.classList.remove('sel'));
+  el.classList.add('sel');
+}
+function setDist(el,km){
+  selOnly(el);
+  document.getElementById('km-label').textContent=km;
+  document.getElementById('km-fee').textContent=(km*3000).toLocaleString()+'원';
+  document.getElementById('total-fee').textContent=(9900+km*3000).toLocaleString()+'원';
+}
+
+/* matching wait → accepted → live */
+function startMatch(){
+  go('o-wait');
+  document.getElementById('wait-title').textContent='요청을 보냈어요';
+  document.getElementById('wait-sub').textContent='김민준 러너의 수락을 기다리는 중...';
+  setTimeout(()=>{
+    document.getElementById('wait-title').textContent='매칭 완료!';
+    document.getElementById('wait-sub').innerHTML='김민준 러너가 수락했어요.<br>6:30에 서울숲 2번 출입구에서 만나요.';
+    setTimeout(()=>go('o-live'),1600);
+  },1800);
+}
+
+/* owner live view simulation */
+function startLive(){
+  const route=document.getElementById('route-done');
+  const dot=document.getElementById('live-dot');
+  const len=route.getTotalLength();
+  let t=0; // 0→1 over ~40s, sped up
+  const totalSec=2052; // 34:12 simulated
+  route.style.strokeDasharray=len;
+  route.style.strokeDashoffset=len;
+  const p0=route.getPointAtLength(0);
+  dot.setAttribute('cx',p0.x);dot.setAttribute('cy',p0.y);
+  document.getElementById('live-status').textContent='● LIVE · 초코가 달리는 중';
+  liveTimer=setInterval(()=>{
+    t=Math.min(t+0.004,1);
+    route.style.strokeDashoffset=len*(1-t);
+    const p=route.getPointAtLength(len*t);
+    dot.setAttribute('cx',p.x);dot.setAttribute('cy',p.y);
+    const km=(5.02*t);
+    const sec=Math.round(totalSec*t);
+    document.getElementById('lv-dist').textContent=km.toFixed(1);
+    document.getElementById('lv-time').textContent=fmt(sec);
+    document.getElementById('lv-pace').textContent=km>0.05?pace(sec,km):"-'--\"";
+    if(t>=1){
+      clearInterval(liveTimer);liveTimer=null;
+      document.getElementById('live-status').textContent='러닝 완료!';
+      setTimeout(()=>go('o-pay'),1200);
+    }
+  },80);
+}
+
+/* runner active run */
+function resetRunnerRun(){
+  document.getElementById('r-runbtn').textContent='러닝 시작';
+  document.getElementById('r-status').textContent='초코와 러닝 준비';
+  document.getElementById('r-dist').textContent='0.00';
+  document.getElementById('r-time').textContent='00:00';
+  document.getElementById('r-pace').textContent="-'--\"";
+}
+function runnerRun(){
+  const btn=document.getElementById('r-runbtn');
+  if(runnerTimer){ // finish
+    clearInterval(runnerTimer);runnerTimer=null;
+    go('r-done');return;
+  }
+  btn.textContent='러닝 종료';
+  document.getElementById('r-status').textContent='● 초코와 러닝 중';
+  let sec=0;
+  runnerTimer=setInterval(()=>{
+    sec+=8; // accelerated demo time
+    const km=Math.min(sec/409,5.02); // ~6'49" pace
+    document.getElementById('r-dist').textContent=km.toFixed(2);
+    document.getElementById('r-time').textContent=fmt(sec);
+    document.getElementById('r-pace').textContent=km>0.05?pace(sec,km):"-'--\"";
+    if(km>=5.02){clearInterval(runnerTimer);runnerTimer=null;go('r-done')}
+  },100);
+}
+
+function fmt(s){const m=Math.floor(s/60),ss=s%60;return String(m).padStart(2,'0')+':'+String(ss).padStart(2,'0')}
+function pace(sec,km){const p=sec/km;const m=Math.floor(p/60),s=Math.round(p%60);return m+"'"+String(s).padStart(2,'0')+'"'}
+
+/* review stars */
+function rate(n){
+  document.querySelectorAll('#stars span').forEach((s,i)=>s.classList.toggle('lit',i<n));
+}
+
+const spin=document.createElement('style');
+spin.textContent='@keyframes spin{to{transform:rotate(360deg)}}';
+document.head.appendChild(spin);
+</script>
+</body>
+</html>
