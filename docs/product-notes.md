@@ -2,6 +2,8 @@
 
 ## Decisions made
 
+- **2026-07-21 — Positioning: 반려견 피트니스, not 산책 대행.** Direct competitor 비포펫 (funded, SK/Naver partnerships, 9,900원/30min subscriptions) owns cheap walk delegation. We sell exercise outcomes for high-energy breeds at premium pricing. Never use "산책" in marketing. See `positioning.md`. Next gate: 15-20 validation interviews (`validation-interviews.md`) before major build investment.
+
 - **One app, role toggle at signup** (switch anytime later; many runners are also owners)
 - **Korean-first** UI, Kakao login/pay conventions
 - **MVP core**: request → match → live GPS run → payment → review
