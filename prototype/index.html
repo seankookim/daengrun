@@ -112,6 +112,45 @@ body{
 .bottomnav div{flex:1;text-align:center;padding:14px 0 26px;font-size:11px;color:var(--dim);font-weight:500}
 .bottomnav div.act{color:var(--ink);font-weight:700}
 .bottomnav .ico{font-size:18px;display:block;margin-bottom:3px}
+/* ---------- ADD-ONS ---------- */
+.addon{display:flex;justify-content:space-between;align-items:center;padding:13px 16px;border:1.5px solid var(--line);border-radius:14px;background:#fff;cursor:pointer;transition:all .12s}
+.addon.sel{border-color:var(--ink);background:#f4f8e6}
+.addon b{font-size:13px}
+.addon p{font-size:11px;color:var(--dim);margin-top:2px}
+.addon .price{font-family:'Do Hyeon',sans-serif;font-size:15px;color:var(--volt-deep)}
+/* ---------- MATCH RECOMMEND ---------- */
+.match-badge{display:inline-flex;align-items:center;gap:6px;background:var(--ink);color:var(--volt);font-size:11px;font-weight:700;padding:5px 12px;border-radius:99px;letter-spacing:.5px}
+.match-bar{height:6px;border-radius:99px;background:var(--line);overflow:hidden;margin-top:6px}
+.match-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--volt-deep),var(--volt));border-radius:99px}
+/* ---------- BODYCAM ---------- */
+.bodycam{position:absolute;top:112px;right:16px;width:118px;height:158px;border-radius:16px;overflow:hidden;border:3px solid var(--ink);cursor:pointer;transition:all .25s;z-index:5;box-shadow:0 8px 30px rgba(0,0,0,.35)}
+.bodycam.big{width:260px;height:340px}
+.camfeed{position:absolute;inset:0;background:linear-gradient(160deg,#5a6b47 0%,#7d8f63 30%,#9aa87e 55%,#6b7a52 80%,#4a5839 100%);animation:camshake 3s ease-in-out infinite}
+.camfeed::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(0deg,rgba(255,255,255,.04) 0 1px,transparent 1px 3px)}
+.camfeed .blob{position:absolute;border-radius:50%;filter:blur(6px)}
+@keyframes camshake{0%,100%{transform:translate(0,0) scale(1.05)}25%{transform:translate(-3px,2px) scale(1.06)}50%{transform:translate(2px,-2px) scale(1.05)}75%{transform:translate(-1px,3px) scale(1.07)}}
+.rec{position:absolute;top:8px;left:8px;display:flex;align-items:center;gap:5px;font-size:9px;font-weight:700;color:#fff;letter-spacing:1px;text-shadow:0 1px 3px rgba(0,0,0,.5)}
+.rec i{width:7px;height:7px;border-radius:50%;background:#ff3b30;animation:blink 1s infinite}
+@keyframes blink{50%{opacity:.2}}
+.cam-label{position:absolute;bottom:8px;left:8px;right:8px;font-size:9px;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.6);display:flex;justify-content:space-between}
+/* ---------- SHOP ---------- */
+.shopgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.prod{background:#fff;border:1px solid var(--line);border-radius:18px;overflow:hidden;cursor:pointer}
+.prod .ph{height:110px;display:flex;align-items:center;justify-content:center;font-family:'Do Hyeon',sans-serif;font-size:15px;letter-spacing:1px}
+.prod .info{padding:12px 14px 14px}
+.prod .info p{font-size:12px;font-weight:500;line-height:1.4}
+.prod .info b{font-family:'Do Hyeon',sans-serif;font-size:16px;display:block;margin-top:5px}
+.prod .collab{font-size:10px;color:var(--dim);letter-spacing:.5px}
+/* ---------- COMMUNITY ---------- */
+.feedcard{background:#fff;border:1px solid var(--line);border-radius:20px;padding:16px;margin-top:12px}
+.feedhead{display:flex;gap:10px;align-items:center}
+.avatar{width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-family:'Do Hyeon',sans-serif;color:#fff;font-size:16px;flex-shrink:0}
+.feedhead b{font-size:13px}
+.feedhead p{font-size:11px;color:var(--dim)}
+.feedact{display:flex;gap:16px;margin-top:12px;font-size:12px;color:var(--dim)}
+.streak-pill{display:inline-flex;align-items:center;gap:4px;background:#fff3ec;color:#c2340f;font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px}
+.runthumb{margin-top:12px;border-radius:14px;overflow:hidden;background:#e7e9dc;position:relative}
+.phototile{margin-top:12px;border-radius:14px;height:170px;display:flex;align-items:flex-end;padding:12px;color:#fff;font-size:12px;text-shadow:0 1px 4px rgba(0,0,0,.5)}
 @media(max-width:860px){.side{display:none}body{padding:8px}}
 </style>
 </head>
@@ -124,7 +163,10 @@ body{
     <p>Demo Jump</p>
     <button onclick="go('s-splash')">처음부터</button>
     <button onclick="go('o-home')">보호자 홈</button>
-    <button onclick="go('o-live')">라이브 러닝 (보호자 뷰)</button>
+    <button onclick="go('o-live')">라이브 러닝 + 바디캠</button>
+    <button onclick="go('o-dog')">도그 프로필</button>
+    <button onclick="go('c-feed')">커뮤니티</button>
+    <button onclick="go('c-shop')">샵</button>
     <button onclick="go('r-home')">러너 홈</button>
   </div>
 </div>
@@ -176,7 +218,7 @@ body{
         <div style="width:46px;height:46px;border-radius:50%;background:var(--volt);display:flex;align-items:center;justify-content:center;font-family:'Do Hyeon';font-size:20px">초</div>
       </div>
 
-      <div class="card" style="margin-top:18px;background:var(--ink);color:var(--cream);border:none">
+      <div class="card" style="margin-top:18px;background:var(--ink);color:var(--cream);border:none;cursor:pointer" onclick="go('o-dog')">
         <div style="display:flex;justify-content:space-between;align-items:center">
           <div>
             <p style="font-size:12px;color:#9a987f">이번 주 초코의 러닝</p>
@@ -185,6 +227,11 @@ body{
           <div style="text-align:right;font-size:12px;color:#9a987f;line-height:1.8">
             3회 완료<br>평균 페이스 7'20"
           </div>
+        </div>
+        <div class="divider" style="background:#33371f"></div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span class="streak-pill">연속 12일 러닝 중</span>
+          <span style="font-size:11px;color:#9a987f">초코 프로필 ›</span>
         </div>
       </div>
 
@@ -214,8 +261,8 @@ body{
     </div>
     <div class="bottomnav">
       <div class="act"><span class="ico">⌂</span>홈</div>
-      <div><span class="ico">◎</span>러닝기록</div>
-      <div><span class="ico">✉</span>채팅</div>
+      <div onclick="go('c-feed')" style="cursor:pointer"><span class="ico">◎</span>커뮤니티</div>
+      <div onclick="go('c-shop')" style="cursor:pointer"><span class="ico">◈</span>샵</div>
       <div><span class="ico">☰</span>마이</div>
     </div>
   </div>
@@ -256,9 +303,30 @@ body{
         <span style="font-size:12px;color:var(--dim)">지도 ›</span>
       </div>
 
-      <div class="card" style="margin-top:22px;background:#faf8f0">
+      <p style="font-size:13px;font-weight:700;margin:22px 0 4px">프리미엄 옵션 <span style="font-weight:400;color:var(--dim);font-size:11px">· 원하는 만큼 추가하세요</span></p>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:6px">
+        <div class="addon" onclick="toggleAddon(this,'river',3000)">
+          <div><b>리버뷰 코스</b><p>한강·중랑천 물길 따라 달려요</p></div>
+          <span class="price">+3,000</span>
+        </div>
+        <div class="addon" onclick="toggleAddon(this,'dirt',2000)">
+          <div><b>흙길 온리</b><p>관절에 부담 없는 비포장 코스만</p></div>
+          <span class="price">+2,000</span>
+        </div>
+        <div class="addon" onclick="toggleAddon(this,'snack',2000)">
+          <div><b>간식 타임</b><p>중간 휴식 + 보호자 지정 간식 급여</p></div>
+          <span class="price">+2,000</span>
+        </div>
+        <div class="addon" onclick="toggleAddon(this,'meetup',4000)">
+          <div><b>댕댕 밋업</b><p>근처 러닝 중인 친구와 합류해서 함께</p></div>
+          <span class="price">+4,000</span>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:18px;background:#faf8f0">
         <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--dim)"><span>기본요금</span><span>9,900원</span></div>
         <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--dim);margin-top:6px"><span>거리요금 <span id="km-label">5</span>km × 3,000원</span><span id="km-fee">15,000원</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--dim);margin-top:6px" id="addon-row" hidden><span>프리미엄 옵션</span><span id="addon-fee">0원</span></div>
         <div class="divider"></div>
         <div style="display:flex;justify-content:space-between;align-items:center"><b>예상 결제금액</b><b class="h-display" style="font-size:24px" id="total-fee">24,900원</b></div>
       </div>
@@ -271,9 +339,13 @@ body{
   <div class="screen" id="o-matching">
     <div class="topbar"><button class="back" onclick="go('o-request')">‹</button><b>러너 선택</b><span style="width:30px"></span></div>
     <div style="padding:4px 22px 24px;flex:1">
-      <p style="font-size:13px;color:var(--dim);margin-bottom:14px">오늘 6:30 · 서울숲 근처에서 <b style="color:var(--ink)">3명</b>의 러너가 가능해요</p>
+      <p style="font-size:13px;color:var(--dim);margin-bottom:14px">초코와 보호자님의 선호도, 러너의 선호도를 양방향으로 분석했어요</p>
 
-      <div class="card" style="border:2px solid var(--ink)" onclick="go('o-runner')">
+      <div class="card" style="border:2px solid var(--ink);box-shadow:0 6px 24px rgba(23,26,16,.12)" onclick="go('o-runner')">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <span class="match-badge">댕런 추천 · 98% 매치</span>
+          <span style="font-size:11px;color:var(--dim)">왜 추천했나요?</span>
+        </div>
         <div style="display:flex;gap:14px;align-items:center">
           <div style="width:56px;height:56px;border-radius:18px;background:var(--tang);display:flex;align-items:center;justify-content:center;font-family:'Do Hyeon';color:#fff;font-size:24px">민</div>
           <div style="flex:1">
@@ -286,10 +358,16 @@ body{
           </div>
         </div>
         <div class="divider"></div>
-        <p style="font-size:12px;color:var(--dim)">평균 페이스 6'50" · 중형견 전문 · 응답률 98%</p>
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:12px">
+          <div><div style="display:flex;justify-content:space-between"><span style="color:var(--dim)">페이스 궁합 (7'00" 요청 ↔ 6'50" 평균)</span><b>96%</b></div><div class="match-bar"><i style="width:96%"></i></div></div>
+          <div><div style="display:flex;justify-content:space-between"><span style="color:var(--dim)">중형견 경험 (웰시코기 31회)</span><b>99%</b></div><div class="match-bar"><i style="width:99%"></i></div></div>
+          <div><div style="display:flex;justify-content:space-between"><span style="color:var(--dim)">선호 코스 겹침 (서울숲 주 4회)</span><b>92%</b></div><div class="match-bar"><i style="width:92%"></i></div></div>
+        </div>
       </div>
 
-      <div class="card" style="margin-top:10px">
+      <p style="font-size:12px;color:var(--dim);margin:16px 0 8px">다른 러너도 볼 수 있어요</p>
+
+      <div class="card">
         <div style="display:flex;gap:14px;align-items:center">
           <div style="width:56px;height:56px;border-radius:18px;background:#5b8c2a;display:flex;align-items:center;justify-content:center;font-family:'Do Hyeon';color:#fff;font-size:24px">서</div>
           <div style="flex:1">
@@ -380,6 +458,15 @@ body{
         <button class="back" style="background:#fff;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,.1)" onclick="go('o-home')">‹</button>
         <span class="badge" style="background:var(--ink);color:var(--volt);padding:8px 14px;font-size:12px" id="live-status">● LIVE · 초코가 달리는 중</span>
       </div>
+      <div class="bodycam" onclick="this.classList.toggle('big')" title="탭하면 확대">
+        <div class="camfeed">
+          <div class="blob" style="width:70px;height:40px;background:#3d4a2e;bottom:18px;left:10px"></div>
+          <div class="blob" style="width:50px;height:50px;background:#b8c49a;top:20px;right:-10px;opacity:.7"></div>
+          <div class="blob" style="width:36px;height:22px;background:#8a6f4d;bottom:34px;right:22px"></div>
+        </div>
+        <div class="rec"><i></i>REC</div>
+        <div class="cam-label"><span>러너 바디캠</span><span id="cam-time">18:31</span></div>
+      </div>
       <div class="livebar">
         <div style="display:flex;justify-content:space-between;align-items:center">
           <div style="display:flex;gap:10px;align-items:center">
@@ -446,6 +533,178 @@ body{
     </div>
   </div>
 
+  <!-- ================= DOG PROFILE ================= -->
+  <div class="screen" id="o-dog">
+    <div style="height:230px;background:linear-gradient(160deg,var(--volt) 0%,#a8d838 60%,#8bbf2a 100%);position:relative;flex-shrink:0">
+      <button class="back" style="position:absolute;top:56px;left:16px;background:#fff;border-radius:12px" onclick="go('o-home')">‹</button>
+      <div style="position:absolute;bottom:-36px;left:22px;width:88px;height:88px;border-radius:28px;background:var(--ink);display:flex;align-items:center;justify-content:center;font-family:'Do Hyeon';font-size:40px;color:var(--volt);border:4px solid var(--cream)">초</div>
+      <span class="streak-pill" style="position:absolute;bottom:14px;right:18px;background:#fff">연속 12일 러닝</span>
+    </div>
+    <div style="padding:48px 22px 24px;flex:1">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <b class="h-display" style="font-size:28px">초코</b>
+          <p style="font-size:12px;color:var(--dim);margin-top:2px">웰시코기 · 3살 · 수컷(중성화) · 11kg</p>
+        </div>
+        <span class="chip">수정</span>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:12px;flex-wrap:wrap">
+        <span class="badge v">종합백신 완료</span>
+        <span class="badge v">광견병 접종</span>
+        <span class="badge v">펫보험 가입</span>
+      </div>
+
+      <div class="card" style="margin-top:16px;background:var(--ink);color:var(--cream);border:none">
+        <div style="display:flex;justify-content:space-between;text-align:center">
+          <div><div class="stat-num" style="color:var(--volt)">86.2</div><p style="font-size:11px;color:#9a987f;margin-top:4px">누적 km</p></div>
+          <div><div class="stat-num" style="color:var(--volt)">21</div><p style="font-size:11px;color:#9a987f;margin-top:4px">총 러닝</p></div>
+          <div><div class="stat-num" style="color:var(--volt)">7'18"</div><p style="font-size:11px;color:#9a987f;margin-top:4px">평균 페이스</p></div>
+        </div>
+      </div>
+
+      <p style="font-size:13px;font-weight:700;margin:18px 0 8px">러너에게 전달되는 성향 메모</p>
+      <div class="card">
+        <p style="font-size:13px;line-height:1.8">겁이 없어서 큰 개한테도 달려듭니다. 자전거를 보면 짖어요 — 자전거도로 회피 필수. 물은 30분마다. 오른쪽 뒷다리 슬개골 주의(급정거 금지).</p>
+      </div>
+
+      <p style="font-size:13px;font-weight:700;margin:18px 0 8px">선호 러닝 조건</p>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <span class="chip sel">흙길 선호</span>
+        <span class="chip sel">페이스 7' 내외</span>
+        <span class="chip sel">저녁 시간대</span>
+        <span class="chip sel">서울숲 코스</span>
+      </div>
+
+      <p style="font-size:13px;font-weight:700;margin:18px 0 8px">최근 러닝 사진</p>
+      <div style="display:flex;gap:8px">
+        <div style="flex:1;height:80px;border-radius:14px;background:linear-gradient(140deg,#cfe3b8,#9ab87a)"></div>
+        <div style="flex:1;height:80px;border-radius:14px;background:linear-gradient(140deg,#e8d5b0,#c9a86e)"></div>
+        <div style="flex:1;height:80px;border-radius:14px;background:linear-gradient(140deg,#b8ccd8,#7fa3b8)"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= SHOP ================= -->
+  <div class="screen" id="c-shop">
+    <div class="topbar"><button class="back" onclick="go('o-home')">‹</button><b>댕런 샵</b><span style="font-size:18px">◌</span></div>
+    <div style="padding:4px 22px 20px;flex:1">
+      <div class="card" style="background:var(--ink);color:var(--cream);border:none;display:flex;justify-content:space-between;align-items:center;padding:14px 18px">
+        <p style="font-size:12px;line-height:1.5">멤버는 전 상품 <b style="color:var(--volt)">10% 할인</b><br><span style="color:#9a987f;font-size:11px">이번 달 러닝 12.4km — 4,900P 적립됨</span></p>
+        <span class="badge" style="background:var(--volt);color:var(--ink)">MEMBER</span>
+      </div>
+      <div style="display:flex;gap:8px;margin:14px 0;overflow-x:auto">
+        <span class="chip sel">전체</span><span class="chip">간식</span><span class="chip">용품</span><span class="chip">의류</span><span class="chip">영양제</span>
+      </div>
+      <div class="shopgrid">
+        <div class="prod">
+          <div class="ph" style="background:linear-gradient(140deg,#ffd9cc,#ff8f6e);color:#8f2b0e">리드줄</div>
+          <div class="info"><span class="collab">댕런 × 바잇미</span><p>야간 반사 러닝 전용 리드줄</p><b>24,000원</b></div>
+        </div>
+        <div class="prod">
+          <div class="ph" style="background:linear-gradient(140deg,#f3e6bd,#dcc26a);color:#7a651f">간식</div>
+          <div class="info"><span class="collab">댕런 × 페스룸</span><p>동결건조 북어 트릿 80g</p><b>12,900원</b></div>
+        </div>
+        <div class="prod">
+          <div class="ph" style="background:linear-gradient(140deg,#c9e4f2,#7db8d6);color:#1f5a7a">쿨링</div>
+          <div class="info"><span class="collab">댕런 에디션</span><p>여름 러닝 쿨링 조끼</p><b>19,800원</b></div>
+        </div>
+        <div class="prod">
+          <div class="ph" style="background:linear-gradient(140deg,#dcd2f0,#a390d4);color:#463175">영양제</div>
+          <div class="info"><span class="collab">댕러민 Dog-a-mins</span><p>관절 케어 츄어블 60정</p><b>29,000원</b></div>
+        </div>
+        <div class="prod">
+          <div class="ph" style="background:linear-gradient(140deg,#d4ecc3,#93c46e);color:#3d6b1e">LED</div>
+          <div class="info"><span class="collab">댕런 에디션</span><p>야간 러닝 LED 목걸이</p><b>15,500원</b></div>
+        </div>
+        <div class="prod">
+          <div class="ph" style="background:linear-gradient(140deg,#f2d9c9,#d8a077);color:#7a4a22">물병</div>
+          <div class="info"><span class="collab">댕런 × 페티즌</span><p>원핸드 러닝 물병 350ml</p><b>13,000원</b></div>
+        </div>
+      </div>
+    </div>
+    <div class="bottomnav">
+      <div onclick="go('o-home')" style="cursor:pointer"><span class="ico">⌂</span>홈</div>
+      <div onclick="go('c-feed')" style="cursor:pointer"><span class="ico">◎</span>커뮤니티</div>
+      <div class="act"><span class="ico">◈</span>샵</div>
+      <div><span class="ico">☰</span>마이</div>
+    </div>
+  </div>
+
+  <!-- ================= COMMUNITY ================= -->
+  <div class="screen" id="c-feed">
+    <div class="topbar"><button class="back" onclick="go('o-home')">‹</button><b>커뮤니티</b><span style="font-size:18px">＋</span></div>
+    <div style="padding:4px 22px 20px;flex:1">
+
+      <div class="card" style="background:var(--ink);color:var(--cream);border:none;padding:14px 18px">
+        <p style="font-size:11px;letter-spacing:2px;color:#9a987f">이번 주 스트릭 랭킹</p>
+        <div style="display:flex;justify-content:space-between;margin-top:10px;font-size:12px">
+          <span>1. 김민준 <b style="color:var(--volt)">47일</b></span>
+          <span>2. 초코네 <b style="color:var(--volt)">12일</b></span>
+          <span>3. 두부네 <b style="color:var(--volt)">9일</b></span>
+        </div>
+      </div>
+
+      <div class="feedcard">
+        <div class="feedhead">
+          <div class="avatar" style="background:var(--tang)">민</div>
+          <div style="flex:1"><b>김민준</b> <span class="badge v" style="font-size:9px">러너</span><p>34분 전 · 서울숲</p></div>
+          <span class="streak-pill">47일 연속</span>
+        </div>
+        <div class="runthumb">
+          <svg viewBox="0 0 320 110" style="display:block;width:100%">
+            <rect width="320" height="110" fill="#e7e9dc"/>
+            <path d="M20 90 C70 60 60 40 120 45 C180 50 200 25 250 30 C280 33 295 20 300 15" fill="none" stroke="#ff5c38" stroke-width="4" stroke-linecap="round"/>
+            <circle cx="300" cy="15" r="6" fill="#ff5c38" stroke="#fff" stroke-width="2"/>
+          </svg>
+          <div style="position:absolute;bottom:8px;left:10px;display:flex;gap:12px;font-family:'Do Hyeon';font-size:15px">
+            <span>5.02km</span><span>6'49"</span><span>34:12</span>
+          </div>
+        </div>
+        <p style="font-size:13px;margin-top:10px;line-height:1.6">초코 오늘 컨디션 최상. 자전거 3대 만났는데 한 번도 안 짖음. 성장했다</p>
+        <div class="feedact"><span>♥ 24</span><span>댓글 6</span><span>공유</span></div>
+      </div>
+
+      <div class="feedcard">
+        <div class="feedhead">
+          <div class="avatar" style="background:#e8b04b">초</div>
+          <div style="flex:1"><b>초코네</b> <span class="badge t" style="font-size:9px">보호자</span><p>2시간 전 · 성수동</p></div>
+        </div>
+        <div class="phototile" style="background:linear-gradient(140deg,#9ab87a 0%,#5f7a43 70%,#3d5229 100%)">퇴근하고 바디캠 다시보기 하는 중. 이 각도 실화냐</div>
+        <div class="feedact"><span>♥ 87</span><span>댓글 19</span><span>공유</span></div>
+      </div>
+
+      <div class="feedcard">
+        <div class="feedhead">
+          <div class="avatar" style="background:#9b8bb4">두</div>
+          <div style="flex:1"><b>두부네</b> <span class="badge t" style="font-size:9px">보호자</span><p>5시간 전</p></div>
+        </div>
+        <p style="font-size:13px;margin-top:10px;line-height:1.6">두부가 요즘 저녁 6시만 되면 현관 앞에서 기다립니다. 러너님 오는 시간을 외웠어요...</p>
+        <div class="feedact"><span>♥ 142</span><span>댓글 31</span><span>공유</span></div>
+      </div>
+
+      <div class="feedcard">
+        <div class="feedhead">
+          <div class="avatar" style="background:#5b8c2a">서</div>
+          <div style="flex:1"><b>이서연</b> <span class="badge v" style="font-size:9px">러너 · 훈련사</span><p>어제</p></div>
+        </div>
+        <p style="font-size:13px;margin-top:10px;line-height:1.6">북어 트릿 재구매. 회수율 100% 간식은 이것뿐. 러닝 중 리콜 연습에 최고입니다</p>
+        <div class="card" style="margin-top:10px;display:flex;gap:10px;align-items:center;padding:10px 14px;background:#faf8f0">
+          <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(140deg,#f3e6bd,#dcc26a)"></div>
+          <div style="flex:1"><p style="font-size:12px;font-weight:500">동결건조 북어 트릿 80g</p><p style="font-size:11px;color:var(--dim)">댕런 샵 · 12,900원</p></div>
+          <span class="chip" onclick="event.stopPropagation();go('c-shop')">보기</span>
+        </div>
+        <div class="feedact"><span>♥ 56</span><span>댓글 8</span><span>공유</span></div>
+      </div>
+
+    </div>
+    <div class="bottomnav">
+      <div onclick="go('o-home')" style="cursor:pointer"><span class="ico">⌂</span>홈</div>
+      <div class="act"><span class="ico">◎</span>커뮤니티</div>
+      <div onclick="go('c-shop')" style="cursor:pointer"><span class="ico">◈</span>샵</div>
+      <div><span class="ico">☰</span>마이</div>
+    </div>
+  </div>
+
   <!-- ================= RUNNER HOME ================= -->
   <div class="screen" id="r-home">
     <div class="pad" style="padding-bottom:12px">
@@ -500,7 +759,7 @@ body{
     </div>
     <div class="bottomnav">
       <div class="act"><span class="ico">⌂</span>홈</div>
-      <div><span class="ico">◎</span>내 기록</div>
+      <div onclick="go('c-feed')" style="cursor:pointer"><span class="ico">◎</span>커뮤니티</div>
       <div><span class="ico">✉</span>채팅</div>
       <div><span class="ico">₩</span>수익</div>
     </div>
@@ -600,11 +859,26 @@ function selOnly(el){
   [...el.parentElement.children].forEach(c=>c.classList.remove('sel'));
   el.classList.add('sel');
 }
+let curKm=5;
+const addons={};
 function setDist(el,km){
   selOnly(el);
-  document.getElementById('km-label').textContent=km;
-  document.getElementById('km-fee').textContent=(km*3000).toLocaleString()+'원';
-  document.getElementById('total-fee').textContent=(9900+km*3000).toLocaleString()+'원';
+  curKm=km;
+  updTotal();
+}
+function toggleAddon(el,key,price){
+  el.classList.toggle('sel');
+  if(el.classList.contains('sel')) addons[key]=price; else delete addons[key];
+  updTotal();
+}
+function updTotal(){
+  const addonSum=Object.values(addons).reduce((a,b)=>a+b,0);
+  document.getElementById('km-label').textContent=curKm;
+  document.getElementById('km-fee').textContent=(curKm*3000).toLocaleString()+'원';
+  const row=document.getElementById('addon-row');
+  row.hidden=addonSum===0;
+  document.getElementById('addon-fee').textContent=addonSum.toLocaleString()+'원';
+  document.getElementById('total-fee').textContent=(9900+curKm*3000+addonSum).toLocaleString()+'원';
 }
 
 /* matching wait → accepted → live */
