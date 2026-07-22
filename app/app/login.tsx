@@ -50,7 +50,8 @@ export default function Login() {
     try {
       setBusy(true);
       // 이전 시도의 잔여 세션 정리 ("Another web browser is already open" 방지)
-      await WebBrowser.dismissAuthSession().catch(() => {});
+      // iOS에서는 void 반환 — promise 아님
+      try { WebBrowser.dismissAuthSession(); } catch { /* no-op */ }
       const redirectTo = Linking.createURL('login'); // daengrun://login
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'kakao',
