@@ -9,14 +9,18 @@ import { Monogram } from '../../src/components/ui';
 import { dog, myCards, runners } from '../../src/store';
 import { colors } from '../../src/theme';
 
-// Owner home — dark glow theme. The weekly ring starts big and centered,
-// then shrinks toward the top-right of the hero card as you scroll,
-// while the goal text block fades in on the left (hero scrolls with content).
+// Owner home — dark glow theme with a sticky collapsing hero:
+// on load the ring is big and centered; scrolling shrinks the hero card into a
+// compact pinned rectangle (ring right, goal data left) that stays at the top.
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const CARD_W = SCREEN_W - 44;
 const RING_BIG = 216;
-const SCROLL_RANGE = 130;
+const PAD_TOP = 56;
+const HEADER_H = 62;
+const HERO_BIG = 348;
+const HERO_SMALL = 148;
+const SCROLL_RANGE = 150;
 
 export default function OwnerHome() {
   const pct = dog.weekKm / dog.weeklyGoalKm;
@@ -25,67 +29,69 @@ export default function OwnerHome() {
   const latestCard = myCards.find((c) => c.run);
   const scrollY = useRef(new Animated.Value(0)).current;
 
+  // height animation → JS driver everywhere
   const t = scrollY.interpolate({ inputRange: [0, SCROLL_RANGE], outputRange: [0, 1], extrapolate: 'clamp' });
-  const ringScale = t.interpolate({ inputRange: [0, 1], outputRange: [1, 0.55] });
-  const ringX = t.interpolate({ inputRange: [0, 1], outputRange: [0, CARD_W / 2 - RING_BIG * 0.55 * 0.5 - 26] });
-  const ringY = t.interpolate({ inputRange: [0, 1], outputRange: [0, -14] });
-  const infoOpacity = t.interpolate({ inputRange: [0, 0.45, 1], outputRange: [0, 0, 1] });
-  const infoX = t.interpolate({ inputRange: [0, 1], outputRange: [-24, 0] });
+  const heroH = t.interpolate({ inputRange: [0, 1], outputRange: [HERO_BIG, HERO_SMALL] });
+  const headerH = t.interpolate({ inputRange: [0, 0.6], outputRange: [HEADER_H, 0], extrapolate: 'clamp' });
+  const headerOpacity = t.interpolate({ inputRange: [0, 0.45], outputRange: [1, 0], extrapolate: 'clamp' });
+  const ringScale = t.interpolate({ inputRange: [0, 1], outputRange: [1, 0.5] });
+  const ringX = t.interpolate({ inputRange: [0, 1], outputRange: [0, CARD_W / 2 - RING_BIG * 0.25 - 30] });
+  const ringY = t.interpolate({ inputRange: [0, 1], outputRange: [0, -66] });
+  const infoOpacity = t.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, 0, 1] });
+  const infoX = t.interpolate({ inputRange: [0, 1], outputRange: [-20, 0] });
+  const bigMsgOpacity = t.interpolate({ inputRange: [0, 0.35], outputRange: [1, 0], extrapolate: 'clamp' });
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bgDark }}>
       <StatusBar style="light" />
-      <Animated.ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={{ padding: 22, paddingTop: 64, paddingBottom: 30 }}
-        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
-        scrollEventThrottle={16}
-      >
-        {/* ---------- header ---------- */}
-        <View style={s.headerRow}>
-          <Monogram char={dog.name[0]} bg={colors.volt} size={46} />
-          <View style={{ flex: 1, marginLeft: 12 }}>
-            <Text style={{ fontSize: 17, fontWeight: '800', color: '#fff' }}>안녕하세요, {dog.name} 보호자님</Text>
-            <Text style={{ fontSize: 12, color: colors.dimDark, marginTop: 2 }}>
-              {dog.name}와 함께 건강한 하루 보내세요!
-            </Text>
-          </View>
-          <View style={s.bell}>
-            <View style={s.bellDot} />
-            <Text style={{ fontSize: 15, color: colors.dimDark }}>◔</Text>
-          </View>
-        </View>
 
-        {/* ---------- hero: morphing ring ---------- */}
+      {/* ---------- pinned overlay: greeting + collapsing hero ---------- */}
+      <View style={s.overlay}>
+        <Animated.View style={{ height: headerH, opacity: headerOpacity, overflow: 'hidden' }}>
+          <View style={s.headerRow}>
+            <Monogram char={dog.name[0]} bg={colors.volt} size={46} />
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <Text style={{ fontSize: 17, fontWeight: '800', color: '#fff' }}>안녕하세요, {dog.name} 보호자님</Text>
+              <Text style={{ fontSize: 12, color: colors.dimDark, marginTop: 2 }}>
+                {dog.name}와 함께 건강한 하루 보내세요!
+              </Text>
+            </View>
+            <View style={s.bell}>
+              <View style={s.bellDot} />
+              <Text style={{ fontSize: 15, color: colors.dimDark }}>◔</Text>
+            </View>
+          </View>
+        </Animated.View>
+
         <Pressable onPress={() => router.push('/owner/dog')}>
-          <View style={s.hero}>
+          <Animated.View style={[s.hero, { height: heroH }]}>
             <View style={s.weekChip}>
               <Text style={{ fontSize: 11, fontWeight: '700', color: colors.cream }}>이번 주 ▾</Text>
             </View>
 
-            {/* compact info block (fades in on scroll) */}
+            {/* compact info block (left side, fades in) */}
             <Animated.View style={[s.info, { opacity: infoOpacity, transform: [{ translateX: infoX }] }]}>
-              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.cream }}>{dog.name}의 주간 목표</Text>
-              <Text style={{ marginTop: 6 }}>
-                <Text style={{ fontSize: 40, fontWeight: '900', color: colors.volt }}>{dog.weekKm}</Text>
-                <Text style={{ fontSize: 14, color: colors.dimDark }}> / {dog.weeklyGoalKm} km</Text>
+              <Text style={{ fontSize: 12, fontWeight: '700', color: colors.cream }}>{dog.name}의 주간 목표</Text>
+              <Text style={{ marginTop: 2 }}>
+                <Text style={{ fontSize: 32, fontWeight: '900', color: colors.volt }}>{dog.weekKm}</Text>
+                <Text style={{ fontSize: 13, color: colors.dimDark }}> / {dog.weeklyGoalKm} km</Text>
               </Text>
-              <Text style={{ fontSize: 12, color: colors.cream, marginTop: 6 }}>
+              <Text style={{ fontSize: 11, color: colors.cream, marginTop: 3 }}>
                 {goalHit ? '이번 주 목표 달성!' : `목표까지 ${remaining.toFixed(1)}km 남았어요!`}
-              </Text>
-              <Text style={{ fontSize: 11, fontWeight: '800', color: colors.volt, marginTop: 10 }}>
-                {Math.round(pct * 100)}% 달성
               </Text>
               <View style={s.miniBar}>
                 <View style={[s.miniBarFill, { width: `${Math.min(pct, 1) * 100}%` }]} />
               </View>
+              <Text style={{ fontSize: 10, fontWeight: '800', color: colors.volt, marginTop: 4 }}>
+                {Math.round(pct * 100)}% 달성
+              </Text>
             </Animated.View>
 
             {/* the ring */}
             <Animated.View
               style={{
                 alignSelf: 'center',
-                marginTop: 12,
+                marginTop: 6,
                 transform: [{ translateX: ringX }, { translateY: ringY }, { scale: ringScale }],
               }}
             >
@@ -104,20 +110,27 @@ export default function OwnerHome() {
               </Ring>
             </Animated.View>
 
-            {/* big-state goal message (fades out as info fades in) */}
-            <Animated.Text
-              style={{
-                textAlign: 'center', marginTop: 10, fontSize: 13, fontWeight: '700', color: colors.cream,
-                opacity: t.interpolate({ inputRange: [0, 0.4], outputRange: [1, 0], extrapolate: 'clamp' }),
-              }}
-            >
+            {/* big-state goal message */}
+            <Animated.Text style={[s.bigMsg, { opacity: bigMsgOpacity }]}>
               {goalHit ? `이번 주 목표 달성! ${dog.name} 최고예요` : `목표까지 ${remaining.toFixed(1)}km 남았어요!`}
             </Animated.Text>
-          </View>
+          </Animated.View>
         </Pressable>
+      </View>
 
+      {/* ---------- scroll content (starts below expanded hero) ---------- */}
+      <Animated.ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{
+          paddingHorizontal: 22,
+          paddingTop: PAD_TOP + HEADER_H + HERO_BIG + 14,
+          paddingBottom: 30,
+        }}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: false })}
+        scrollEventThrottle={16}
+      >
         {/* ---------- stat chips ---------- */}
-        <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
           <StatChip top={`연속 ${dog.streakDays}일`} bottom="연속 기록" accent="#ff9d5c" />
           <StatChip top="3회 완료" bottom="이번 주" accent={colors.volt} />
           <StatChip top={`평균 7'20"`} bottom="평균 페이스" accent="#9fc3e8" />
@@ -185,7 +198,12 @@ function StatChip({ top, bottom, accent }: { top: string; bottom: string; accent
 }
 
 const s = StyleSheet.create({
-  headerRow: { flexDirection: 'row', alignItems: 'center' },
+  overlay: {
+    position: 'absolute', top: 0, left: 0, right: 0, zIndex: 20,
+    backgroundColor: colors.bgDark,
+    paddingTop: PAD_TOP, paddingHorizontal: 22, paddingBottom: 10,
+  },
+  headerRow: { flexDirection: 'row', alignItems: 'center', height: HEADER_H - 12, marginBottom: 12 },
   bell: {
     width: 40, height: 40, borderRadius: 20, borderWidth: 1, borderColor: colors.lineDark,
     alignItems: 'center', justifyContent: 'center',
@@ -196,28 +214,24 @@ const s = StyleSheet.create({
     shadowColor: colors.volt, shadowOpacity: 1, shadowRadius: 4, shadowOffset: { width: 0, height: 0 },
   },
   hero: {
-    marginTop: 18, backgroundColor: colors.cardDark, borderRadius: 28, padding: 20, paddingBottom: 24,
-    borderWidth: 1, borderColor: colors.lineDark, minHeight: RING_BIG + 110, overflow: 'hidden',
+    backgroundColor: colors.cardDark, borderRadius: 28, padding: 18, overflow: 'hidden',
+    borderWidth: 1, borderColor: colors.lineDark,
     shadowColor: colors.volt, shadowOpacity: 0.1, shadowRadius: 24, shadowOffset: { width: 0, height: 6 },
   },
   weekChip: {
-    alignSelf: 'flex-start', backgroundColor: '#1c2113', borderRadius: 99,
-    paddingVertical: 6, paddingHorizontal: 12,
+    position: 'absolute', top: 14, left: 16, zIndex: 4,
+    backgroundColor: '#1c2113', borderRadius: 99, paddingVertical: 6, paddingHorizontal: 12,
   },
-  info: { position: 'absolute', left: 20, top: 64, width: CARD_W * 0.48, zIndex: 3 },
+  info: { position: 'absolute', left: 18, top: 40, width: CARD_W * 0.5, zIndex: 3 },
   miniBar: { height: 4, borderRadius: 99, backgroundColor: '#20250f', marginTop: 6, overflow: 'hidden' },
   miniBarFill: { height: 4, borderRadius: 99, backgroundColor: colors.volt },
-  goalChip: {
-    marginTop: 8, backgroundColor: '#1c2113', borderRadius: 99, paddingVertical: 4, paddingHorizontal: 10,
-  },
+  goalChip: { marginTop: 8, backgroundColor: '#1c2113', borderRadius: 99, paddingVertical: 4, paddingHorizontal: 10 },
+  bigMsg: { textAlign: 'center', marginTop: 8, fontSize: 13, fontWeight: '700', color: colors.cream },
   statChip: {
     flex: 1, backgroundColor: colors.cardDark, borderRadius: 18, borderWidth: 1, borderColor: colors.lineDark,
     paddingVertical: 12, paddingHorizontal: 12,
   },
-  statDot: {
-    width: 8, height: 8, borderRadius: 4,
-    shadowOpacity: 0.9, shadowRadius: 5, shadowOffset: { width: 0, height: 0 },
-  },
+  statDot: { width: 8, height: 8, borderRadius: 4, shadowOpacity: 0.9, shadowRadius: 5, shadowOffset: { width: 0, height: 0 } },
   cta: {
     marginTop: 14, backgroundColor: colors.volt, borderRadius: 22, paddingVertical: 19, paddingHorizontal: 24,
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
@@ -230,7 +244,5 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', backgroundColor: colors.cardDark,
     borderRadius: 18, borderWidth: 1, borderColor: colors.lineDark, padding: 14, marginBottom: 8,
   },
-  runnerBadge: {
-    borderWidth: 1, borderColor: colors.lineDark, borderRadius: 99, paddingVertical: 2, paddingHorizontal: 7,
-  },
+  runnerBadge: { borderWidth: 1, borderColor: colors.lineDark, borderRadius: 99, paddingVertical: 2, paddingHorizontal: 7 },
 });
