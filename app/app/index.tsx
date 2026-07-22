@@ -10,8 +10,8 @@ export default function RoleSelect() {
   const [role, setRole] = useState<Role>(null);
 
   const start = () => {
-    if (role === 'owner') router.push('/home');
-    // runner flow: 다음 마일스톤
+    if (role === 'owner') router.push('/owner/home');
+    if (role === 'runner') router.push('/runner/home');
   };
 
   return (
@@ -38,14 +38,14 @@ export default function RoleSelect() {
           onPress={() => setRole('runner')}
         >
           <Text style={[s.roleTitle, { color: colors.volt }]}>러너예요</Text>
-          <Text style={[s.roleDesc, { color: colors.cream }]}>달리면서 수익도 얻어요 (준비 중)</Text>
+          <Text style={[s.roleDesc, { color: colors.cream }]}>달리면서 수익도 얻어요</Text>
         </Pressable>
       </View>
 
       <Btn
         label={role ? '시작하기' : '역할을 선택하세요'}
         variant="volt"
-        disabled={!role || role === 'runner'}
+        disabled={!role}
         onPress={start}
         style={{ marginTop: 20, marginBottom: 24 }}
       />

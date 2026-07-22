@@ -21,7 +21,7 @@ export default function Request() {
 
   const next = () => {
     Object.assign(draft, { km, pace, addons });
-    router.push('/matching');
+    router.push('/owner/matching');
   };
 
   return (

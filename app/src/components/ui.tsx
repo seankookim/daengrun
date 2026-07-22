@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, TextStyle, View, ViewStyle } from 'react-native';
+import { Pressable, StyleProp, StyleSheet, Text, TextStyle, View, ViewStyle } from 'react-native';
 import { colors, radius } from '../theme';
 
 // 댕런 shared UI kit — mirrors the prototype's design system.
@@ -29,7 +29,7 @@ export function Btn({
   );
 }
 
-export function Card({ children, dark, style }: { children: ReactNode; dark?: boolean; style?: ViewStyle }) {
+export function Card({ children, dark, style }: { children: ReactNode; dark?: boolean; style?: StyleProp<ViewStyle> }) {
   return <View style={[s.card, dark && s.cardDark, style]}>{children}</View>;
 }
 

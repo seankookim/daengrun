@@ -34,7 +34,7 @@ export default function Live() {
 
   useEffect(() => {
     if (t >= 1) {
-      const id = setTimeout(() => router.replace('/pay'), 1200);
+      const id = setTimeout(() => router.replace('/owner/pay'), 1200);
       return () => clearTimeout(id);
     }
   }, [t]);

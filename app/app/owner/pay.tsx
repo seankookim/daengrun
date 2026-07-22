@@ -50,7 +50,7 @@ export default function Pay() {
         <Text style={[text.dim, { marginTop: 8, fontSize: 11 }]}>카카오페이 ···· 3841</Text>
       </Card>
 
-      <Btn label="결제하고 리뷰 남기기" variant="volt" style={{ marginTop: 16 }} onPress={() => router.push('/review')} />
+      <Btn label="결제하고 리뷰 남기기" variant="volt" style={{ marginTop: 16 }} onPress={() => router.push('/owner/review')} />
     </ScrollView>
   );
 }

@@ -1,11 +1,13 @@
 import { router } from 'expo-router';
 import { Pressable, ScrollView, Text, View } from 'react-native';
-import { Badge, Btn, Card, Monogram, Row, StatBlock, text } from '../../src/components/ui';
+import { BottomNav } from '../../src/components/bottomnav';
+import { Badge, Btn, Card, Monogram, Row, text } from '../../src/components/ui';
 import { dog, runners } from '../../src/store';
 import { colors } from '../../src/theme';
 
 export default function OwnerHome() {
   return (
+    <View style={{ flex: 1 }}>
     <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 22, paddingTop: 64 }}>
       <Row style={{ justifyContent: 'space-between' }}>
         <View>
@@ -15,6 +17,7 @@ export default function OwnerHome() {
         <Monogram char={dog.name[0]} bg={colors.volt} size={46} />
       </Row>
 
+      <Pressable onPress={() => router.push('/owner/dog')}>
       <Card dark style={{ marginTop: 18 }}>
         <Row style={{ justifyContent: 'space-between' }}>
           <View>
@@ -33,8 +36,9 @@ export default function OwnerHome() {
           <Text style={{ fontSize: 11, color: '#9a987f' }}>{dog.name} 프로필 ›</Text>
         </Row>
       </Card>
+      </Pressable>
 
-      <Btn label="러닝 요청하기" variant="volt" style={{ marginTop: 14 }} onPress={() => router.push('/request')} />
+      <Btn label="러닝 요청하기" variant="volt" style={{ marginTop: 14 }} onPress={() => router.push('/owner/request')} />
 
       <Row style={{ justifyContent: 'space-between', marginTop: 24, marginBottom: 10 }}>
         <Text style={text.h2}>내 주변 인기 러너</Text>
@@ -42,7 +46,7 @@ export default function OwnerHome() {
       </Row>
 
       {runners.slice(0, 2).map((r) => (
-        <Pressable key={r.id} onPress={() => router.push('/matching')}>
+        <Pressable key={r.id} onPress={() => router.push('/owner/matching')}>
           <Card style={{ marginBottom: 8 }}>
             <Row style={{ gap: 14 }}>
               <Monogram char={r.char} bg={r.color} />
@@ -61,5 +65,7 @@ export default function OwnerHome() {
         </Pressable>
       ))}
     </ScrollView>
+    <BottomNav role="owner" />
+    </View>
   );
 }

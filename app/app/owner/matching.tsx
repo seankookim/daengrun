@@ -7,7 +7,7 @@ import { colors } from '../../src/theme';
 export default function Matching() {
   const pick = (id: string) => {
     draft.runnerId = id;
-    router.push('/live'); // 실제로는 수락 대기 → live. 목업에서는 바로 이동.
+    router.push('/owner/live'); // 실제로는 수락 대기 → live. 목업에서는 바로 이동.
   };
 
   const recommended = runners.find((r) => r.match)!;

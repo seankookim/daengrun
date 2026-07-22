@@ -32,7 +32,7 @@ export default function Review() {
         ))}
       </Row>
 
-      <Btn label="완료" style={{ marginTop: 30 }} onPress={() => router.dismissTo('/home')} />
+      <Btn label="완료" style={{ marginTop: 30 }} onPress={() => router.dismissTo('/owner/home')} />
     </View>
   );
 }
