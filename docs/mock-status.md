@@ -55,6 +55,14 @@
 | 기어 수령/배송 | Alert | gear_claims + 배송 연동 |
 | 매칭 부스트 적용 | UI만 | 매칭 랭킹 가중치 |
 
+## 백엔드 진행 상황
+
+- ✅ 스키마 v1 (`supabase/migrations/0001_init.sql`) — 28 테이블, 상태 머신 트리거, pglast 구문 검증 완료
+- ✅ RLS v1 (`0002_rls.sql`) — 역할별 접근, platform_only 리뷰, 돈 테이블 서버 전용
+- ✅ 시드 (`seed.sql`) + 셋업 가이드 (`docs/backend.md`)
+- ⏳ Sean: Supabase 프로젝트 생성 + db push + Kakao provider (backend.md 1–3단계)
+- ⏳ Phase 2: Edge Functions (홀드/전이/정산/드랍), 가용성 뷰, Realtime, 앱 연결
+
 ## 다음 실화(實化) 순서 (제안)
 
 1. Supabase: auth + bookings + 상태 머신 → 수락 알림이 진짜가 되는 지점
