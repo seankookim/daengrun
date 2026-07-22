@@ -50,6 +50,18 @@ export default function DogProfile() {
           </Row>
         </Card>
 
+        <Card style={{ marginTop: 10, backgroundColor: '#f4f8e6', borderColor: colors.voltDeep }}>
+          <Row style={{ justifyContent: 'space-between' }}>
+            <View>
+              <Text style={text.label}>체력 나이</Text>
+              <Text style={[text.dim, { marginTop: 2 }]}>꾸준한 러닝으로 실제 나이보다 젊어요</Text>
+            </View>
+            <Text style={{ fontSize: 26, fontWeight: '900', color: colors.voltDeep }}>
+              {dog.fitnessAge}살 <Text style={{ fontSize: 13, color: colors.dim, fontWeight: '500' }}>/ 실제 {dog.age}살</Text>
+            </Text>
+          </Row>
+        </Card>
+
         <Text style={[text.label, { marginTop: 18, marginBottom: 8 }]}>러너에게 전달되는 성향 메모</Text>
         <Card>
           <Text style={text.body}>{dog.memo}</Text>

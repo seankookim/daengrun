@@ -34,9 +34,53 @@ export const dog = {
   age: 3,
   weightKg: 11,
   weekKm: 12.4,
+  weeklyGoalKm: 15, // breed/age/weight-based (mock — vet-validate formula later)
+  fitnessAge: 1.8, // 체력 나이 — secondary metric, shown in dog profile
   streakDays: 12,
   memo: '겁이 없어서 큰 개한테도 달려듭니다. 자전거를 보면 짖어요. 물은 30분마다. 오른쪽 뒷다리 슬개골 주의.',
 };
+
+// ---------- Run cards ----------
+// Heat trace: route points in 0..1 coords, v = normalized speed (1 = fastest).
+export interface TracePoint { x: number; y: number; v: number }
+
+export const lastRunTrace: TracePoint[] = [
+  { x: 0.08, y: 0.86, v: 0.2 }, { x: 0.12, y: 0.78, v: 0.3 }, { x: 0.14, y: 0.69, v: 0.4 },
+  { x: 0.18, y: 0.61, v: 0.5 }, { x: 0.24, y: 0.55, v: 0.6 }, { x: 0.31, y: 0.52, v: 0.75 },
+  { x: 0.38, y: 0.48, v: 0.9 }, { x: 0.45, y: 0.43, v: 1.0 }, { x: 0.52, y: 0.38, v: 0.95 },
+  { x: 0.58, y: 0.32, v: 0.8 }, { x: 0.63, y: 0.25, v: 0.6 }, { x: 0.67, y: 0.18, v: 0.4 },
+  { x: 0.72, y: 0.13, v: 0.3 }, { x: 0.78, y: 0.11, v: 0.45 }, { x: 0.84, y: 0.14, v: 0.6 },
+  { x: 0.88, y: 0.21, v: 0.75 }, { x: 0.90, y: 0.30, v: 0.85 }, { x: 0.89, y: 0.39, v: 0.7 },
+  { x: 0.85, y: 0.47, v: 0.55 }, { x: 0.79, y: 0.53, v: 0.5 }, { x: 0.72, y: 0.58, v: 0.65 },
+  { x: 0.65, y: 0.64, v: 0.8 }, { x: 0.58, y: 0.70, v: 0.9 }, { x: 0.51, y: 0.76, v: 0.75 },
+  { x: 0.44, y: 0.81, v: 0.55 }, { x: 0.36, y: 0.85, v: 0.4 }, { x: 0.28, y: 0.87, v: 0.3 },
+  { x: 0.20, y: 0.88, v: 0.2 },
+];
+
+export type CardTier = '일반' | '레어' | '에픽';
+
+export interface CollectCard {
+  id: string;
+  title: string;
+  date?: string;
+  tier: CardTier;
+  locked?: boolean;
+  run?: { km: string; pace: string; time: string; trace?: TracePoint[] };
+  emblem?: string; // milestone cards: big glyph/number instead of trace
+  series?: string;
+}
+
+export const myCards: CollectCard[] = [
+  {
+    id: 'c1', title: '서울숲 이브닝 런', date: '7.21', tier: '일반',
+    run: { km: '5.02', pace: "6'49\"", time: '34:12', trace: lastRunTrace },
+  },
+  { id: 'c2', title: '누적 50km 달성', date: '7.02', tier: '레어', emblem: '50' },
+  { id: 'c3', title: '스트릭 12일', date: '7.21', tier: '레어', emblem: '12' },
+  { id: 'c4', title: '첫 러닝', date: '5.14', tier: '일반', emblem: '1st' },
+  { id: 'c5', title: '한강 시리즈 I', tier: '에픽', locked: true, emblem: '漢', series: '한강 시리즈' },
+  { id: 'c6', title: '누적 100km', tier: '에픽', locked: true, emblem: '100' },
+];
 
 export const runners: Runner[] = [
   {

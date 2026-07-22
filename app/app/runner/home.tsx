@@ -37,7 +37,11 @@ export default function RunnerHome() {
           </Row>
         </Card>
 
-        <Row style={{ justifyContent: 'space-between', marginTop: 24, marginBottom: 10 }}>
+        <Pressable onPress={() => router.push('/cards')} style={{ marginTop: 10 }}>
+          <Text style={[text.dim, { textAlign: 'right', fontWeight: '700' }]}>마이 카드 ›</Text>
+        </Pressable>
+
+        <Row style={{ justifyContent: 'space-between', marginTop: 14, marginBottom: 10 }}>
           <Text style={text.h2}>새 러닝 요청</Text>
           <Badge label={`${runRequests.length}건`} tone="red" />
         </Row>
