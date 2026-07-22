@@ -18,6 +18,34 @@ export const colors = {
 
 export const radius = { card: 20, btn: 16, chip: 99 } as const;
 
+// Surface palettes for themed screens (home, cards). Toggled by ThemeProvider.
+export type ThemeMode = 'dark' | 'light';
+
+export const surfaces = {
+  dark: {
+    bg: colors.bgDark,
+    card: colors.cardDark,
+    line: colors.lineDark,
+    chip: '#1e2c22',
+    track: '#233827',
+    dim: colors.dimDark,
+    textStrong: '#ffffff',
+    textSoft: colors.cream,
+    nav: true,
+  },
+  light: {
+    bg: colors.cream,
+    card: '#ffffff',
+    line: colors.line,
+    chip: '#eef4e4',
+    track: '#DDE8D4',
+    dim: colors.dim,
+    textStrong: colors.ink,
+    textSoft: '#3d453d',
+    nav: false,
+  },
+} as const;
+
 // Pricing (placeholder — validate against competitor research)
 export const pricing = {
   baseFare: 9900,

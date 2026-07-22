@@ -1,6 +1,7 @@
 import { Text, View } from 'react-native';
 import { CollectCard, TracePoint } from '../store';
 import { colors } from '../theme';
+import { useTheme } from '../theme-context';
 
 // Strava-style run card on a dark map backdrop.
 // Heat line: faster = red-orange, slower = green. Glowing segments.
@@ -94,19 +95,22 @@ function Marker({ x, y, label }: { x: number; y: number; label: string }) {
 const TIER_COLORS: Record<string, string> = { 일반: '#8fa093', 레어: '#B9F23A', 에픽: '#FF6347' };
 
 export function RunCard({ card, width = 340 }: { card: CollectCard; width?: number }) {
+  const { mode, p } = useTheme();
   const traceH = width * 0.5;
   const inner = width - 34;
+  const tierColor = (tier: string) =>
+    mode === 'light' && tier === '레어' ? colors.voltDeep : TIER_COLORS[tier];
 
   return (
     <View
       style={{
         width,
-        backgroundColor: colors.cardDark,
+        backgroundColor: p.card,
         borderRadius: 24,
         padding: 16,
         borderWidth: 1,
-        borderColor: card.locked ? '#1a1e12' : colors.lineDark,
-        opacity: card.locked ? 0.5 : 1,
+        borderColor: p.line,
+        opacity: card.locked ? 0.55 : 1,
         shadowColor: card.locked ? 'transparent' : colors.volt,
         shadowOpacity: 0.12,
         shadowRadius: 16,
@@ -115,14 +119,14 @@ export function RunCard({ card, width = 340 }: { card: CollectCard; width?: numb
     >
       {/* header */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-        <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: '#1e2c22', alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontSize: 13, fontWeight: '900', color: colors.volt }}>런</Text>
+        <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: p.chip, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ fontSize: 13, fontWeight: '900', color: mode === 'dark' ? colors.volt : colors.voltDeep }}>런</Text>
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 16, fontWeight: '800', color: card.locked ? colors.dimDark : '#fff' }}>
+          <Text style={{ fontSize: 16, fontWeight: '800', color: card.locked ? p.dim : p.textStrong }}>
             {card.title}
           </Text>
-          <Text style={{ fontSize: 11, color: colors.dimDark, marginTop: 1 }}>
+          <Text style={{ fontSize: 11, color: p.dim, marginTop: 1 }}>
             {card.series ? `${card.series} · ` : ''}
             {card.run?.location ? `${card.run.location} · ` : ''}
             {card.date ?? '달성 조건: 시리즈 코스 완주'}
@@ -130,11 +134,11 @@ export function RunCard({ card, width = 340 }: { card: CollectCard; width?: numb
         </View>
         <View
           style={{
-            borderWidth: 1, borderColor: card.locked ? colors.lineDark : TIER_COLORS[card.tier],
+            borderWidth: 1, borderColor: card.locked ? p.line : tierColor(card.tier),
             borderRadius: 99, paddingVertical: 4, paddingHorizontal: 10,
           }}
         >
-          <Text style={{ fontSize: 10, fontWeight: '800', color: card.locked ? colors.dimDark : TIER_COLORS[card.tier] }}>
+          <Text style={{ fontSize: 10, fontWeight: '800', color: card.locked ? p.dim : tierColor(card.tier) }}>
             {card.locked ? '잠금' : card.run ? '댕런' : card.tier}
           </Text>
         </View>
@@ -179,26 +183,26 @@ export function RunCard({ card, width = 340 }: { card: CollectCard; width?: numb
       {/* stats */}
       {card.run && (
         <View style={{ flexDirection: 'row', marginTop: 14 }}>
-          <CardStat value={card.run.km} unit="거리 (km)" />
-          <Divider />
-          <CardStat value={card.run.pace} unit="평균 페이스" />
-          <Divider />
-          <CardStat value={card.run.time} unit="시간" />
+          <CardStat value={card.run.km} unit="거리 (km)" color={p.textStrong} dim={p.dim} />
+          <Divider color={p.line} />
+          <CardStat value={card.run.pace} unit="평균 페이스" color={p.textStrong} dim={p.dim} />
+          <Divider color={p.line} />
+          <CardStat value={card.run.time} unit="시간" color={p.textStrong} dim={p.dim} />
         </View>
       )}
     </View>
   );
 }
 
-function Divider() {
-  return <View style={{ width: 1, backgroundColor: colors.lineDark, marginVertical: 4 }} />;
+function Divider({ color }: { color: string }) {
+  return <View style={{ width: 1, backgroundColor: color, marginVertical: 4 }} />;
 }
 
-function CardStat({ value, unit }: { value: string; unit: string }) {
+function CardStat({ value, unit, color, dim }: { value: string; unit: string; color: string; dim: string }) {
   return (
     <View style={{ flex: 1, alignItems: 'center' }}>
-      <Text style={{ fontSize: 20, fontWeight: '900', color: '#fff' }}>{value}</Text>
-      <Text style={{ fontSize: 10, color: colors.dimDark, marginTop: 2 }}>{unit}</Text>
+      <Text style={{ fontSize: 20, fontWeight: '900', color }}>{value}</Text>
+      <Text style={{ fontSize: 10, color: dim, marginTop: 2 }}>{unit}</Text>
     </View>
   );
 }
