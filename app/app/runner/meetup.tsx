@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Monogram, Row } from '../../src/components/ui';
 import { runRequests } from '../../src/store';
 import { colors } from '../../src/theme';
@@ -11,6 +11,20 @@ import { colors } from '../../src/theme';
 
 const FOREST = '#132117';
 type Stage = 'enroute' | 'arrived' | 'waiting' | 'confirmed';
+
+// 네이버 지도 도보 길찾기 — 출발지 생략 시 현재 위치에서 시작 (nmap URL scheme)
+const PICKUP = { lat: 37.5443, lng: 127.0398, name: '서울숲 2번 출입구' };
+
+async function openNaverRoute() {
+  const app = `nmap://route/walk?dlat=${PICKUP.lat}&dlng=${PICKUP.lng}&dname=${encodeURIComponent(PICKUP.name)}&appname=com.daengrun.app`;
+  const web = `https://map.naver.com/p/directions/-/${PICKUP.lng},${PICKUP.lat},${encodeURIComponent(PICKUP.name)}/-/walk`;
+  try {
+    const canApp = await Linking.canOpenURL(app);
+    await Linking.openURL(canApp ? app : web);
+  } catch {
+    Linking.openURL(web).catch(() => {});
+  }
+}
 
 export default function Meetup() {
   const req = runRequests[0];
@@ -54,8 +68,10 @@ export default function Meetup() {
         {/* pickup info */}
         <View style={s.card}>
           <Row style={{ justifyContent: 'space-between' }}>
-            <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST }}>서울숲 2번 출입구</Text>
-            <Text style={{ fontSize: 11.5, fontWeight: '700', color: '#5a7a3c' }}>길찾기 열기 ›</Text>
+            <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST }}>{PICKUP.name}</Text>
+            <Pressable onPress={openNaverRoute} style={{ backgroundColor: '#eef4e0', borderRadius: 99, paddingVertical: 7, paddingHorizontal: 12 }}>
+              <Text style={{ fontSize: 11.5, fontWeight: '800', color: '#4a6d1f' }}>네이버 길찾기 ›</Text>
+            </Pressable>
           </Row>
           <Text style={{ fontSize: 12, color: '#5d655d', marginTop: 5, lineHeight: 17 }}>
             성동구 뚝섬로 273 · 출입구 옆 벤치에서 만나요{'\n'}보호자 지침: 초코가 낯을 안 가려서 바로 인사해도 괜찮아요

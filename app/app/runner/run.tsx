@@ -126,7 +126,7 @@ export default function ActiveRun() {
         <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
           {running && (
             <Pressable style={s.moreBtn} onPress={() => setEndSheet(true)}>
-              <Text style={{ fontSize: 15, color: '#8fa093' }}>⋯</Text>
+              <Text style={{ fontSize: 14, color: '#8fa093', fontWeight: '900' }}>❙❙</Text>
             </Pressable>
           )}
           <Pressable
