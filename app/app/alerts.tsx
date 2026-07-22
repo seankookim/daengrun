@@ -1,0 +1,147 @@
+import { router } from 'expo-router';
+import { useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { BottomNav } from '../src/components/bottomnav';
+import { Row } from '../src/components/ui';
+import { dog, Noti, notifications } from '../src/store';
+import { colors } from '../src/theme';
+
+// 알림 — notification center per mock: filter tabs, unread section, history.
+
+const FOREST = '#132117';
+const TABS = ['전체', '예약', '커뮤니티', '샵'];
+
+export default function Alerts() {
+  const [tab, setTab] = useState('전체');
+  const unread = notifications.filter((n) => n.unread);
+  const past = notifications.filter((n) => !n.unread);
+
+  return (
+    <View style={{ flex: 1, backgroundColor: colors.cream }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 22, paddingTop: 64, paddingBottom: 24 }}>
+        {/* header */}
+        <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <View>
+            <Row style={{ gap: 5 }}>
+              <Text style={s.h1}>알림</Text>
+              <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: colors.voltDeep, marginTop: 8 }} />
+            </Row>
+            <Text style={s.sub}>{dog.name}와 관련된 소식을 한눈에 확인하세요!</Text>
+          </View>
+          <Row style={{ gap: 8 }}>
+            <HeaderBtn glyph="⚙" label="필터" />
+            <Pressable onPress={() => router.back()}><HeaderBtn glyph="◔" label="모두 읽음" /></Pressable>
+          </Row>
+        </Row>
+
+        {/* tabs */}
+        <View style={s.tabsWrap}>
+          {TABS.map((t, i) => (
+            <Pressable key={t} onPress={() => setTab(t)} style={[s.tab, tab === t && s.tabSel]}>
+              <Text style={[s.tabText, tab === t && { color: '#fff' }]}>{t}</Text>
+              {i < TABS.length - 1 && tab !== t && TABS[i + 1] !== tab && <View style={s.tabDivider} />}
+            </Pressable>
+          ))}
+        </View>
+
+        {/* unread */}
+        <Row style={{ gap: 8, marginTop: 22, marginBottom: 10 }}>
+          <Text style={s.section}>읽지 않은 알림</Text>
+          <View style={s.countBadge}><Text style={{ fontSize: 11, fontWeight: '900', color: FOREST }}>{unread.length}</Text></View>
+        </Row>
+        <View style={{ gap: 10 }}>
+          {unread.map((n) => <NotiCard key={n.id} n={n} highlight />)}
+        </View>
+
+        {/* past */}
+        <Text style={[s.section, { marginTop: 24, marginBottom: 10 }]}>이전 알림</Text>
+        <View style={{ gap: 10 }}>
+          {past.map((n) => <NotiCard key={n.id} n={n} />)}
+        </View>
+      </ScrollView>
+      <BottomNav />
+    </View>
+  );
+}
+
+function HeaderBtn({ glyph, label }: { glyph: string; label: string }) {
+  return (
+    <View style={{ alignItems: 'center', gap: 3 }}>
+      <View style={s.hBtn}><Text style={{ fontSize: 14, color: '#5d655d' }}>{glyph}</Text></View>
+      <Text style={{ fontSize: 10, color: '#5d655d' }}>{label}</Text>
+    </View>
+  );
+}
+
+function NotiCard({ n, highlight }: { n: Noti; highlight?: boolean }) {
+  return (
+    <View style={[s.noti, highlight && s.notiHi]}>
+      <View style={[s.notiIcon, { backgroundColor: n.glyphBg }]}>
+        {n.unread && <View style={s.unreadDot} />}
+        <Text style={{ fontSize: 13, fontWeight: '900', color: n.glyphFg }}>{n.glyph}</Text>
+      </View>
+      <View style={{ flex: 1 }}>
+        <Row style={{ gap: 6, justifyContent: 'space-between' }}>
+          <Row style={{ gap: 6, flex: 1 }}>
+            <Text style={{ fontSize: 14.5, fontWeight: '900', color: FOREST }}>{n.title}</Text>
+            {n.unread && (
+              <View style={s.newBadge}><Text style={{ fontSize: 9, fontWeight: '900', color: '#4a6d1f' }}>NEW</Text></View>
+            )}
+          </Row>
+          {!n.unread && <Text style={{ fontSize: 11, color: colors.dim }}>{n.when}</Text>}
+        </Row>
+        <Text style={{ fontSize: 12.5, color: '#5d655d', marginTop: 3 }}>{n.body}</Text>
+        {n.meta && <Text style={{ fontSize: 11, color: colors.dim, marginTop: 4 }}>{n.meta}</Text>}
+      </View>
+      {n.badge ? (
+        <View style={s.pointBadge}><Text style={{ fontSize: 11, fontWeight: '900', color: '#4a6d1f' }}>{n.badge}</Text></View>
+      ) : n.thumb ? (
+        <Thumb kind={n.thumb} />
+      ) : (
+        <Text style={{ fontSize: 16, color: colors.dim }}>›</Text>
+      )}
+    </View>
+  );
+}
+
+function Thumb({ kind }: { kind: NonNullable<Noti['thumb']> }) {
+  if (kind === 'map') {
+    return (
+      <View style={[s.thumb, { backgroundColor: '#eef2e4', padding: 6 }]}>
+        <View style={{ flex: 1 }}>
+          <View style={{ position: 'absolute', left: 4, bottom: 6, width: 8, height: 8, borderRadius: 4, borderWidth: 2, borderColor: '#5a7a3c' }} />
+          <View style={{ position: 'absolute', left: 9, bottom: 11, width: 22, height: 3, borderRadius: 2, backgroundColor: '#6aa53c', transform: [{ rotate: '-40deg' }] }} />
+          <View style={{ position: 'absolute', left: 22, bottom: 22, width: 18, height: 3, borderRadius: 2, backgroundColor: '#6aa53c', transform: [{ rotate: '20deg' }] }} />
+          <View style={{ position: 'absolute', right: 4, top: 6, width: 8, height: 8, borderRadius: 4, backgroundColor: '#3d5a2b' }} />
+        </View>
+      </View>
+    );
+  }
+  const bg = kind === 'runner' ? '#c9a86e' : kind === 'photo' ? '#b98a52' : '#8fae7a';
+  const label = kind === 'runner' ? '러너' : kind === 'photo' ? '초코' : '상품';
+  return (
+    <View style={[s.thumb, { backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }]}>
+      <Text style={{ fontSize: 11, fontWeight: '900', color: '#ffffffdd' }}>{label}</Text>
+    </View>
+  );
+}
+
+const s = StyleSheet.create({
+  h1: { fontSize: 30, fontWeight: '900', color: FOREST },
+  sub: { fontSize: 13, color: '#5d655d', marginTop: 6 },
+  hBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#fff', borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
+  tabsWrap: { flexDirection: 'row', backgroundColor: '#fff', borderRadius: 99, padding: 4, marginTop: 18, borderWidth: 1, borderColor: '#eceadf' },
+  tab: { flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: 99, flexDirection: 'row', justifyContent: 'center' },
+  tabSel: { backgroundColor: FOREST },
+  tabText: { fontSize: 13, fontWeight: '700', color: '#5d655d' },
+  tabDivider: { position: 'absolute', right: 0, top: 10, bottom: 10, width: 1, backgroundColor: '#eceadf' },
+  section: { fontSize: 15, fontWeight: '900', color: FOREST },
+  countBadge: { width: 20, height: 20, borderRadius: 10, backgroundColor: colors.volt, alignItems: 'center', justifyContent: 'center' },
+  noti: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#fff', borderRadius: 18, padding: 14, borderWidth: 1, borderColor: '#eceadf' },
+  notiHi: { backgroundColor: '#f7faee', borderColor: '#dde8c4' },
+  notiIcon: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
+  unreadDot: { position: 'absolute', top: 2, right: 2, width: 8, height: 8, borderRadius: 4, backgroundColor: colors.voltDeep, zIndex: 2 },
+  newBadge: { backgroundColor: '#e3f0c4', borderRadius: 99, paddingVertical: 2, paddingHorizontal: 7, alignSelf: 'center' },
+  pointBadge: { backgroundColor: '#e3f0c4', borderRadius: 99, paddingVertical: 5, paddingHorizontal: 9 },
+  thumb: { width: 52, height: 52, borderRadius: 12, overflow: 'hidden' },
+});

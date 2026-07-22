@@ -8,14 +8,16 @@ import { colors } from '../theme';
 const OWNER_TABS = [
   { icon: '⌂', label: '홈', path: '/owner/home' },
   { icon: '◎', label: '커뮤니티', path: '/community' },
+  { icon: '⌗', label: '기록', path: '/cards' },
   { icon: '◈', label: '샵', path: '/shop' },
-  { icon: '☰', label: '마이', path: null },
+  { icon: '✚', label: '안심', path: '/safety' },
 ] as const;
 
 const RUNNER_TABS = [
   { icon: '⌂', label: '홈', path: '/runner/home' },
   { icon: '◎', label: '커뮤니티', path: '/community' },
-  { icon: '✉', label: '채팅', path: null },
+  { icon: '⌗', label: '기록', path: '/cards' },
+  { icon: '✚', label: '안심', path: '/safety' },
   { icon: '₩', label: '수익', path: null },
 ] as const;
 

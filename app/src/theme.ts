@@ -52,9 +52,9 @@ export const pricing = {
   perKm: 3000,
   commission: 0.2,
   addons: {
-    river: { label: '리버뷰 코스', price: 3000 },
-    dirt: { label: '흙길 온리', price: 2000 },
-    snack: { label: '간식 타임', price: 2000 },
-    meetup: { label: '댕댕 밋업', price: 4000 },
+    river: { label: '리버뷰 코스', desc: '한강을 따라 더 시원하게', price: 3000 },
+    homecare: { label: '홈길 온리', desc: '집까지 안전하게 케어', price: 2000 },
+    snack: { label: '간식 타임', desc: '러닝 후 맛있는 보상', price: 2000 },
+    snap: { label: '댕댕 스냅', desc: '러닝 사진 · 영상 기록', price: 4000 },
   },
 } as const;

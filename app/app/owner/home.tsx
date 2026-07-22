@@ -60,11 +60,15 @@ export default function OwnerHome() {
                 {dog.name}와 함께 건강한 하루 보내세요!
               </Text>
             </View>
-            {/* theme toggle */}
+            {/* theme toggle + notifications */}
             <Pressable onPress={toggle} style={[s.themeBtn, { borderColor: p.line }]}>
               <Text style={{ fontSize: 16, color: mode === 'dark' ? colors.volt : colors.ink }}>
                 {mode === 'dark' ? '☀' : '☾'}
               </Text>
+            </Pressable>
+            <Pressable onPress={() => router.push('/alerts')} style={[s.themeBtn, { borderColor: p.line, marginLeft: 8 }]}>
+              <View style={s.bellDot} />
+              <Text style={{ fontSize: 15, color: p.dim }}>◔</Text>
             </Pressable>
           </View>
         </Animated.View>
@@ -218,6 +222,11 @@ const s = StyleSheet.create({
   themeBtn: {
     width: 40, height: 40, borderRadius: 20, borderWidth: 1,
     alignItems: 'center', justifyContent: 'center',
+  },
+  bellDot: {
+    position: 'absolute', top: 8, right: 9, width: 7, height: 7, borderRadius: 4,
+    backgroundColor: colors.volt, zIndex: 2,
+    shadowColor: colors.volt, shadowOpacity: 1, shadowRadius: 4, shadowOffset: { width: 0, height: 0 },
   },
   hero: {
     borderRadius: 28, padding: 18, overflow: 'hidden', borderWidth: 1,

@@ -204,3 +204,67 @@ export const runRequests: RunRequest[] = [
 
 export const runnerStats = { weekEarnings: 128400, weekRuns: 6, weekKm: 31.2 };
 
+// ---------- Notifications ----------
+export interface Noti {
+  id: string;
+  glyph: string;
+  glyphBg: string; // icon circle bg
+  glyphFg: string;
+  title: string;
+  body: string;
+  meta?: string;
+  when: string;
+  unread?: boolean;
+  badge?: string; // e.g. '+120P'
+  thumb?: 'runner' | 'map' | 'photo' | 'product';
+}
+
+export const notifications: Noti[] = [
+  {
+    id: 'n1', glyph: '런', glyphBg: '#e7efd8', glyphFg: '#3d5a2b', unread: true, thumb: 'runner',
+    title: '러너 매칭 완료', body: '초코의 러닝 파트너가 매칭되었어요!', meta: '김민준 러너 · 오늘 09:30', when: '오늘 09:30',
+  },
+  {
+    id: 'n2', glyph: '출발', glyphBg: '#e7efd8', glyphFg: '#3d5a2b', unread: true, thumb: 'map',
+    title: '러닝 시작', body: '초코가 러닝을 시작했어요!', meta: '서울숲 코스 · 오늘 09:32', when: '오늘 09:32',
+  },
+  {
+    id: 'n3', glyph: '샷', glyphBg: '#e7efd8', glyphFg: '#3d5a2b', unread: true, thumb: 'photo',
+    title: '러닝 사진 도착', body: '멋진 순간을 확인해보세요.', when: '오늘 10:12',
+  },
+  {
+    id: 'n4', glyph: '♥', glyphBg: '#fde8e3', glyphFg: '#d84a2f', thumb: 'photo',
+    title: '커뮤니티 좋아요', body: '멍멍맘님이 초코의 사진을 좋아해요!', when: '어제 18:45',
+  },
+  {
+    id: 'n5', glyph: '댓', glyphBg: '#e7efd8', glyphFg: '#3d5a2b', thumb: 'photo',
+    title: '커뮤니티 댓글', body: '댕댕이파파님이 댓글을 남겼어요.', when: '어제 18:22',
+  },
+  {
+    id: 'n6', glyph: '배', glyphBg: '#e7efd8', glyphFg: '#3d5a2b', thumb: 'product',
+    title: '샵 주문 배송 시작', body: '주문하신 상품이 배송을 시작했어요.', when: '어제 14:08',
+  },
+  {
+    id: 'n7', glyph: 'P', glyphBg: '#fbf0d4', glyphFg: '#a97c12', badge: '+120P',
+    title: '멤버십 포인트 적립', body: '러닝 완료 보너스로 120P가 적립되었어요.', when: '어제 11:24',
+  },
+  {
+    id: 'n8', glyph: '!', glyphBg: '#fdeee3', glyphFg: '#d8752f',
+    title: '안전 알림', body: '미세먼지 농도가 높아요. 짧은 러닝을 추천해요.', when: '어제 07:30',
+  },
+];
+
+// ---------- Safety center ----------
+export const emergencyContacts = [
+  { name: '엄마', phone: '010-1234-5678' },
+  { name: '아빠', phone: '010-8765-4321' },
+];
+
+export const safetyChecklist = [
+  '러닝 전 반려견 컨디션을 체크했어요.',
+  '목줄, 하네스 등 안전 장비를 확인했어요.',
+  '날씨와 미세먼지, 온도를 확인했어요.',
+  '적정 거리와 시간으로 계획했어요.',
+  '러닝 중 반려견의 상태를 수시로 관찰할게요.',
+];
+
