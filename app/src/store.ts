@@ -65,7 +65,7 @@ export interface CollectCard {
   date?: string;
   tier: CardTier;
   locked?: boolean;
-  run?: { km: string; pace: string; time: string; trace?: TracePoint[] };
+  run?: { km: string; pace: string; time: string; location?: string; trace?: TracePoint[] };
   emblem?: string; // milestone cards: big glyph/number instead of trace
   series?: string;
 }
@@ -73,7 +73,7 @@ export interface CollectCard {
 export const myCards: CollectCard[] = [
   {
     id: 'c1', title: '서울숲 이브닝 런', date: '7.21', tier: '일반',
-    run: { km: '5.02', pace: "6'49\"", time: '34:12', trace: lastRunTrace },
+    run: { km: '5.02', pace: "6'49\"", time: '34:12', location: '서울숲, 성수동', trace: lastRunTrace },
   },
   { id: 'c2', title: '누적 50km 달성', date: '7.02', tier: '레어', emblem: '50' },
   { id: 'c3', title: '스트릭 12일', date: '7.21', tier: '레어', emblem: '12' },

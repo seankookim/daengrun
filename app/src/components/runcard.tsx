@@ -20,24 +20,52 @@ function lerpColor(a: string, b: string, t: number): string {
   return `#${mix.map((x) => x.toString(16).padStart(2, '0')).join('')}`;
 }
 
+const LINE_W = 4;
+
 export function HeatTrace({ points, width, height }: { points: TracePoint[]; width: number; height: number }) {
+  const segments = points.slice(0, -1).map((p, i) => {
+    const q = points[i + 1];
+    const x1 = p.x * width, y1 = p.y * height;
+    const x2 = q.x * width, y2 = q.y * height;
+    const dx = x2 - x1, dy = y2 - y1;
+    const len = Math.hypot(dx, dy);
+    const angle = Math.atan2(dy, dx);
+    return {
+      key: i,
+      left: (x1 + x2) / 2 - len / 2,
+      top: (y1 + y2) / 2 - LINE_W / 2,
+      len,
+      angle,
+      color: heatColor((p.v + q.v) / 2),
+    };
+  });
+
   return (
     <View style={{ width, height }}>
+      {/* continuous heat line: rotated segments + joint dots for smooth corners */}
+      {segments.map((s) => (
+        <View
+          key={s.key}
+          style={{
+            position: 'absolute', left: s.left, top: s.top,
+            width: s.len, height: LINE_W, borderRadius: LINE_W / 2,
+            backgroundColor: s.color,
+            transform: [{ rotate: `${s.angle}rad` }],
+          }}
+        />
+      ))}
       {points.map((p, i) => (
         <View
-          key={i}
+          key={`j${i}`}
           style={{
             position: 'absolute',
-            left: p.x * width - 4,
-            top: p.y * height - 4,
-            width: 8,
-            height: 8,
-            borderRadius: 4,
+            left: p.x * width - LINE_W / 2,
+            top: p.y * height - LINE_W / 2,
+            width: LINE_W, height: LINE_W, borderRadius: LINE_W / 2,
             backgroundColor: heatColor(p.v),
           }}
         />
       ))}
-      {/* start + end markers */}
       <Marker x={points[0].x * width} y={points[0].y * height} label="S" />
       <Marker x={points[points.length - 1].x * width} y={points[points.length - 1].y * height} label="F" />
     </View>
@@ -89,9 +117,11 @@ export function RunCard({ card, width = 300 }: { card: CollectCard; width?: numb
       <Text style={{ fontSize: 16, fontWeight: '800', color: card.locked ? colors.dim : colors.cream, marginTop: 10 }}>
         {card.title}
       </Text>
-      {(card.date || card.series) && (
+      {(card.date || card.series || card.run?.location) && (
         <Text style={{ fontSize: 11, color: '#9a987f', marginTop: 2 }}>
-          {card.series ? `${card.series} · ` : ''}{card.date ?? '달성 조건: 시리즈 코스 완주'}
+          {card.series ? `${card.series} · ` : ''}
+          {card.run?.location ? `${card.run.location} · ` : ''}
+          {card.date ?? '달성 조건: 시리즈 코스 완주'}
         </Text>
       )}
 

@@ -62,7 +62,7 @@ export default function OwnerHome() {
           </Pressable>
         </Row>
         {latestCard && (
-          <Pressable onPress={() => router.push('/cards')}>
+          <Pressable onPress={() => router.push('/cards')} style={{ alignItems: 'center' }}>
             <RunCard card={latestCard} width={340} />
           </Pressable>
         )}
