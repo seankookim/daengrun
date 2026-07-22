@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useAuth } from '../src/auth-context';
 import { BottomNav } from '../src/components/bottomnav';
 import { Monogram, Row } from '../src/components/ui';
 import { dog, session } from '../src/store';
@@ -12,6 +13,7 @@ const FOREST = '#132117';
 
 export default function My() {
   const isRunner = session.role === 'runner';
+  const { session: auth, signOut } = useAuth();
 
   const MENU = [
     { glyph: '✚', label: '안심 센터', desc: 'SOS · 실시간 위치 · 보험', path: '/safety' as const },
@@ -65,6 +67,14 @@ export default function My() {
 
         <Pressable style={s.roleSwitch} onPress={() => router.dismissTo('/')}>
           <Text style={{ fontSize: 12.5, fontWeight: '700', color: '#5d655d' }}>역할 전환 (보호자 ↔ 러너)</Text>
+        </Pressable>
+        <Pressable
+          style={s.roleSwitch}
+          onPress={async () => { await signOut(); router.dismissTo('/login'); }}
+        >
+          <Text style={{ fontSize: 12.5, fontWeight: '700', color: '#d84a2f' }}>
+            로그아웃{auth?.user.email ? ` (${auth.user.email})` : ''}
+          </Text>
         </Pressable>
       </ScrollView>
       <BottomNav />

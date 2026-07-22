@@ -1,10 +1,12 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { AuthProvider } from '../src/auth-context';
 import { ThemeProvider } from '../src/theme-context';
 import { colors } from '../src/theme';
 
 export default function RootLayout() {
   return (
+    <AuthProvider>
     <ThemeProvider>
       <StatusBar style="dark" />
       <Stack
@@ -17,5 +19,6 @@ export default function RootLayout() {
         }}
       />
     </ThemeProvider>
+    </AuthProvider>
   );
 }

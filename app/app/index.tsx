@@ -1,17 +1,38 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useAuth } from '../src/auth-context';
 import { Btn } from '../src/components/ui';
+import { supabase } from '../src/lib/supabase';
 import { session } from '../src/store';
 import { colors } from '../src/theme';
 
 type Role = 'owner' | 'runner' | null;
 
 export default function RoleSelect() {
+  const { session: auth, loading } = useAuth();
   const [role, setRole] = useState<Role>(null);
+  const [busy, setBusy] = useState(false);
 
-  const start = () => {
-    if (!role) return;
+  // route guard: 로그인 없으면 로그인 화면으로
+  useEffect(() => {
+    if (!loading && !auth) router.replace('/login');
+  }, [loading, auth]);
+
+  const start = async () => {
+    if (!role || !auth) return;
+    setBusy(true);
+    // 프로필 실화: profiles 행 upsert (RLS self-insert)
+    const { error } = await supabase.from('profiles').upsert({
+      id: auth.user.id,
+      role,
+      name: auth.user.email?.split('@')[0] ?? '사용자',
+    });
+    setBusy(false);
+    if (error) {
+      Alert.alert('프로필 저장 실패', error.message);
+      return;
+    }
     session.role = role;
     router.push(role === 'owner' ? '/owner/home' : '/runner/home');
   };
@@ -45,9 +66,9 @@ export default function RoleSelect() {
       </View>
 
       <Btn
-        label={role ? '시작하기' : '역할을 선택하세요'}
+        label={busy ? '저장 중...' : role ? '시작하기' : '역할을 선택하세요'}
         variant="volt"
-        disabled={!role}
+        disabled={!role || busy}
         onPress={start}
         style={{ marginTop: 20, marginBottom: 24 }}
       />

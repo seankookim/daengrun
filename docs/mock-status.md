@@ -67,7 +67,9 @@
 - ✅ Sean: 프로젝트 생성 + db push + routes 시드 완료 (2026-07-22)
 - ✅ Phase 2 코드: 가용성 엔진 (`0003` — is_slot_available/count_available_runners/purge_expired_holds), Edge Functions 4종 (create-booking-hold, transition-booking, settle-run, open-drop)
 - ⏳ Sean: `npx supabase db push` (0003) + `npx supabase functions deploy` + Kakao provider
-- ⏳ Phase 3: 로그인 화면 + auth, bookings 화면 연결, Realtime (chat/status), 매칭 자동배정, 실좌표 트레이스
+- ✅ Phase 3a: 로그인 (이메일 OTP 실동작 + 카카오 스텁), 세션 유지 (AsyncStorage), 라우트 가드, 역할 선택 시 profiles upsert, 로그아웃
+- ⏳ Sean: `cd app && npx expo install @react-native-async-storage/async-storage` 후 재시작 (버전은 package.json에 지정됨 — `npm install`로도 충분)
+- ⏳ Phase 3b: 카카오 OAuth (provider 설정 후), bookings 화면 → 상태 머신 연결, Realtime (chat/status), 매칭 자동배정, 실좌표 트레이스
 
 ## 다음 실화(實化) 순서 (제안)
 
