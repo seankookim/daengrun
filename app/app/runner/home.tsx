@@ -37,6 +37,18 @@ export default function RunnerHome() {
           </Row>
         </Card>
 
+        {/* drop progress strip */}
+        <Pressable onPress={() => router.push('/runner/rewards')} style={{
+          flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12,
+          backgroundColor: '#fff', borderRadius: 14, padding: 12, borderWidth: 1.3, borderColor: '#dde8c4',
+        }}>
+          <Text style={{ fontSize: 13 }}>▣</Text>
+          <Text style={{ flex: 1, fontSize: 12, fontWeight: '700', color: '#132117' }}>
+            다음 보급 드랍까지 <Text style={{ color: '#5a7a3c', fontWeight: '900' }}>5회</Text> · 픽 드랍까지 <Text style={{ color: '#5a7a3c', fontWeight: '900' }}>5회</Text>
+          </Text>
+          <Text style={{ fontSize: 13, color: colors.dim }}>›</Text>
+        </Pressable>
+
         <Row style={{ justifyContent: 'flex-end', gap: 16, marginTop: 10 }}>
           <Pressable onPress={() => router.push('/community')}>
             <Text style={[text.dim, { fontWeight: '700' }]}>커뮤니티 ›</Text>

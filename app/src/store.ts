@@ -256,6 +256,38 @@ export const addresses: SavedAddress[] = [
 // ---------- Two-sided review: runner → dog/owner ----------
 export const dogReviewTags = ['리드 매너 좋아요', '회수 반응 좋아요', '에너지 넘쳐요', '다른 개 반응 있어요', '자전거 반응 있어요', '수줍음이 많아요'];
 
+// ---------- Retention rewards (schema seed: drops, gear_claims, boosts, miles ledger) ----------
+// Rhythm: every 5 runs = 보급 드랍 (variable, guaranteed floor) · every 10 = 픽 드랍 (choose 1 of 3)
+export const rewardStatus = {
+  totalRuns: 215, // 이번 러닝으로 215회 → 보급 드랍 발생 (215 % 5 === 0)
+  toMini: 5, // 다음 보급까지
+  toPick: 5, // 다음 픽 드랍(220회)까지
+  boostActive: false,
+  daengMiles: 12400,
+};
+
+// 이번 보급 상자 내용물 (mock roll — 실제는 서버 확률)
+export const currentDrop = { miles: 800, card: '스트릭 파트너 (레어)' };
+
+export interface GearStep { at: number; item: string; got?: boolean; claimable?: boolean }
+
+// 러너: 러닝 어패럴 사다리 (누적 러닝 횟수)
+export const runnerGearLadder: GearStep[] = [
+  { at: 10, item: '댕런 반다나', got: true },
+  { at: 50, item: '러닝 삭스', got: true },
+  { at: 100, item: '리플렉티브 밴드', got: true },
+  { at: 250, item: '윈드브레이커', claimable: false }, // 35회 남음
+  { at: 1000, item: '마스터 재킷 (자수 네임)', claimable: false },
+];
+
+// 보호자: 펫 브랜드 콜라보 사다리 (반려견 누적 km — 초코 86.2km)
+export const ownerGearLadder: GearStep[] = [
+  { at: 25, item: '댕런 × 바잇미 반다나', got: true },
+  { at: 75, item: '댕런 × 페스룸 간식 세트', claimable: true },
+  { at: 150, item: '댕런 × 페티즌 LED 목걸이' },
+  { at: 300, item: '콜라보 쿨링 조끼 (한정)' },
+];
+
 // ---------- Runner certification funnel status ----------
 export const applyStatus = {
   tier: '인증 러너', nextTier: '베테랑',

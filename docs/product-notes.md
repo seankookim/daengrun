@@ -19,6 +19,8 @@
 
 - **2026-07-22 — 안심 코스 (certified routes).** Curated sample routes with safety certification (blue check = 댕런 직접 검수, checked-date shown). Carousel in request flow fitted to pace/location/breed w/ 추천. Certification needs written criteria + re-verification cadence (liability). Founder curates initial routes personally. Ties to 에픽 card series. Later: AI-generated routes from dog profile.
 
+- **2026-07-22 — 러너 리텐션 리워드 (전부 채택, v0.16 목업)**: 5회마다 보급 드랍 (댕마일 보장 하한 + 카드/기어 확률), 10회마다 픽 드랍 (부스트 24h / 5,000 댕마일 / 기어 교환권 중 택1 — 선택 데이터로 러너 동기 파악). 기어 사다리 양측: 러너=어패럴(반다나→삭스→밴드→윈드브레이커→마스터 재킷), 보호자=펫 브랜드 콜라보(누적 km 기준). 티어(수수료 인하)는 장기 아크로 유지. 경제 가드레일: 드랍 원가 GMV 1.5% 이내, 부스트는 원가 0. 확률·구성 투명 공개. 주의: 리워드는 수요 부족을 못 고침 — 예약 볼륨이 진짜 리텐션.
+
 ## Backlog (agreed, build when time comes)
 
 - **Run cards (Strava-style, collectible)**: shareable run summary card w/ pace heat-map trace (fast=red, slow=green). Milestone cards (첫 러닝, 누적 100km, 30일 스트릭), seasonal series (한강 시리즈), rarity tiers. Owners collect dog's cards; runners collect performance cards. 마이 카드 section both roles. → NEXT SESSION (with dopamine home)
