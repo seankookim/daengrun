@@ -52,7 +52,8 @@ export default function Login() {
       // 이전 시도의 잔여 세션 정리 ("Another web browser is already open" 방지)
       // iOS에서는 void 반환 — promise 아님
       try { WebBrowser.dismissAuthSession(); } catch { /* no-op */ }
-      const redirectTo = Linking.createURL('login'); // daengrun://login
+      const redirectTo = Linking.createURL('login'); // Expo Go: exp://IP:8081/--/login · prod: daengrun://login
+      console.log('[kakao] redirectTo =', redirectTo, '— 이 값이 Supabase Redirect URLs에 있어야 함');
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'kakao',
         options: { redirectTo, skipBrowserRedirect: true },
