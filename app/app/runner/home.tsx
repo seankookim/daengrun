@@ -37,9 +37,17 @@ export default function RunnerHome() {
           </Row>
         </Card>
 
-        <Pressable onPress={() => router.push('/cards')} style={{ marginTop: 10 }}>
-          <Text style={[text.dim, { textAlign: 'right', fontWeight: '700' }]}>마이 카드 ›</Text>
-        </Pressable>
+        <Row style={{ justifyContent: 'flex-end', gap: 16, marginTop: 10 }}>
+          <Pressable onPress={() => router.push('/community')}>
+            <Text style={[text.dim, { fontWeight: '700' }]}>커뮤니티 ›</Text>
+          </Pressable>
+          <Pressable onPress={() => router.push('/safety')}>
+            <Text style={[text.dim, { fontWeight: '700' }]}>안심 센터 ›</Text>
+          </Pressable>
+          <Pressable onPress={() => router.push('/cards')}>
+            <Text style={[text.dim, { fontWeight: '700' }]}>마이 카드 ›</Text>
+          </Pressable>
+        </Row>
 
         <Row style={{ justifyContent: 'space-between', marginTop: 14, marginBottom: 10 }}>
           <Text style={text.h2}>새 러닝 요청</Text>

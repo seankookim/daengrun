@@ -121,6 +121,11 @@ export default function Live() {
         <View style={[s.circleBtn, { position: 'absolute', left: 20, bottom: 18 }]}>
           <Text style={{ fontSize: 14, color: FOREST }}>➤</Text>
         </View>
+
+        {/* SOS — 안심 센터 (safety matters most mid-run) */}
+        <Pressable onPress={() => router.push('/safety')} style={s.sosBtn}>
+          <Text style={{ fontSize: 11, fontWeight: '900', color: '#fff' }}>SOS</Text>
+        </Pressable>
       </View>
 
       {/* ---------- progress strip ---------- */}
@@ -206,6 +211,11 @@ const s = StyleSheet.create({
     position: 'absolute', width: 22, height: 22, borderRadius: 11,
     backgroundColor: colors.tang, borderWidth: 4, borderColor: '#fff',
     shadowColor: colors.tang, shadowOpacity: 0.8, shadowRadius: 8, shadowOffset: { width: 0, height: 0 },
+  },
+  sosBtn: {
+    position: 'absolute', right: 20, bottom: 18, width: 46, height: 46, borderRadius: 23,
+    backgroundColor: '#e8492a', alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#e8492a', shadowOpacity: 0.5, shadowRadius: 10, shadowOffset: { width: 0, height: 3 }, elevation: 6,
   },
   progressStrip: { backgroundColor: '#f6f4ec', paddingHorizontal: 22, paddingVertical: 14 },
   progressTrack: { height: 8, borderRadius: 99, backgroundColor: '#e2dfd2' },

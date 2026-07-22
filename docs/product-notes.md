@@ -15,6 +15,8 @@
 
 - **2026-07-21 — 체력 나이 (fitness age): secondary metric for now.** Show in dog profile + monthly report; don't lead with it until formula is vet-validated. Brand loop: km run → mileage points → shop (fitness/recovery products only). Payout policy: prorated to actual km; early-stop for dog condition = no completion-rate penalty ("개의 컨디션이 우선").
 
+- **2026-07-22 — Calendar system designed** (see `calendar.md`): owners get home widget + booking CTA (no calendar tab); runners get dedicated 캘린더 + 요청 tabs. One-screen request flow kept (not 7 steps) — only adding scheduling-method + time-slot bottom sheet. Booking state machine + availability engine spec'd for Supabase. 10 core mock screens; ChatGPT mockups to be implemented batch-by-batch. Nav updated: owner 홈/커뮤니티/기록/샵/마이, runner 홈/캘린더/요청/수익/마이; 안심 → 마이 + home quick-card + live SOS.
+
 ## Backlog (agreed, build when time comes)
 
 - **Run cards (Strava-style, collectible)**: shareable run summary card w/ pace heat-map trace (fast=red, slow=green). Milestone cards (첫 러닝, 누적 100km, 30일 스트릭), seasonal series (한강 시리즈), rarity tiers. Owners collect dog's cards; runners collect performance cards. 마이 카드 section both roles. → NEXT SESSION (with dopamine home)

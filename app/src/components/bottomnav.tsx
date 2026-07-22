@@ -5,20 +5,23 @@ import { colors } from '../theme';
 
 // Prototype-style bottom nav, role-aware via session. Swap for expo-router Tabs later.
 
+// Calendar decision (docs/calendar.md): owners get no calendar tab (home widget
+// + booking CTA); runners get dedicated 캘린더 + 요청 tabs. 안심 lives in 마이,
+// home quick-card, and live screens.
 const OWNER_TABS = [
   { icon: '⌂', label: '홈', path: '/owner/home' },
   { icon: '◎', label: '커뮤니티', path: '/community' },
   { icon: '⌗', label: '기록', path: '/cards' },
   { icon: '◈', label: '샵', path: '/shop' },
-  { icon: '✚', label: '안심', path: '/safety' },
+  { icon: '☰', label: '마이', path: '/my' },
 ] as const;
 
 const RUNNER_TABS = [
   { icon: '⌂', label: '홈', path: '/runner/home' },
-  { icon: '◎', label: '커뮤니티', path: '/community' },
-  { icon: '⌗', label: '기록', path: '/cards' },
-  { icon: '✚', label: '안심', path: '/safety' },
+  { icon: '▦', label: '캘린더', path: null }, // Phase 1 목업 예정
+  { icon: '✉', label: '요청', path: null }, // Phase 1 목업 예정
   { icon: '₩', label: '수익', path: null },
+  { icon: '☰', label: '마이', path: '/my' },
 ] as const;
 
 export function homePath(): '/owner/home' | '/runner/home' {
