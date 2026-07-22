@@ -106,7 +106,7 @@ export default function OwnerHome() {
             <Animated.View style={[s.info, { opacity: infoOpacity, transform: [{ translateX: infoX }] }]}>
               <Text style={{ fontSize: 12, fontWeight: '700', color: hp.textSoft }}>{dog.name}의 주간 목표</Text>
               <Text style={{ marginTop: 2 }}>
-                <Text style={{ fontSize: 32, fontWeight: '900', color: heroAccent }}>
+                <Text style={{ fontSize: 32, fontWeight: '900', color: colors.tang }}>
                   {dog.weekKm}
                 </Text>
                 <Text style={{ fontSize: 13, color: hp.dim }}> / {dog.weeklyGoalKm} km</Text>
@@ -133,7 +133,7 @@ export default function OwnerHome() {
               <Ring pct={pct} size={RING_BIG} trackColor={hp.track}>
                 <View style={{ alignItems: 'center' }}>
                   <Text style={{ fontSize: 13, color: hp.dim }}>이번 주</Text>
-                  <Text style={{ fontSize: 46, fontWeight: '900', color: hp.textStrong, lineHeight: 50 }}>
+                  <Text style={{ fontSize: 46, fontWeight: '900', color: colors.tang, lineHeight: 50 }}>
                     {dog.weekKm}
                     <Text style={{ fontSize: 16, color: hp.dim }}> km</Text>
                   </Text>

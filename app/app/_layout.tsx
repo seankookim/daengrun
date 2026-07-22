@@ -11,7 +11,8 @@ export default function RootLayout() {
         screenOptions={{
           headerShown: false,
           contentStyle: { backgroundColor: colors.cream },
-          animation: 'slide_from_right',
+          animation: 'none', // no slide transitions — also frees the edge for the slide-to-book gesture
+          gestureEnabled: false, // back-swipe conflicted with the slider
         }}
       />
     </ThemeProvider>
