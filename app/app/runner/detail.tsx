@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { Btn, Card, Monogram, Row, text } from '../../src/components/ui';
 import { runRequests } from '../../src/store';
 import { colors } from '../../src/theme';
@@ -57,7 +57,15 @@ export default function RequestDetail() {
         </Row>
       </Card>
 
-      <Btn label="수락하기" variant="volt" style={{ marginTop: 16 }} onPress={() => router.push('/runner/run')} />
+      <Btn
+        label="수락하기"
+        variant="volt"
+        style={{ marginTop: 16 }}
+        onPress={() => {
+          Alert.alert('수락 완료', '보호자에게 수락 알림이 전송되었어요 (목업)');
+          router.push('/runner/meetup');
+        }}
+      />
       <Btn label="거절" variant="ghost" style={{ marginTop: 8 }} onPress={() => router.back()} />
     </ScrollView>
   );

@@ -220,7 +220,9 @@ export default function Schedule() {
                           ★ {runner.rating} ({runner.reviews}) · 러닝 {runner.runs}회 · 평균 {runner.pace}
                         </Text>
                       </View>
-                      <Pressable style={s.chatChip}><Text style={{ fontSize: 11, fontWeight: '800', color: '#4a6d1f' }}>채팅</Text></Pressable>
+                      <Pressable style={s.chatChip} onPress={() => { close(); router.push('/chat'); }}>
+                        <Text style={{ fontSize: 11, fontWeight: '800', color: '#4a6d1f' }}>채팅</Text>
+                      </Pressable>
                     </Row>
                     {runner.desc && (
                       <Text style={{ fontSize: 11.5, color: '#75806f', marginTop: 10, lineHeight: 17 }}>{runner.desc}</Text>

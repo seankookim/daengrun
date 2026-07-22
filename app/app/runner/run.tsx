@@ -82,7 +82,7 @@ export default function ActiveRun() {
         {/* 고정된 고객 채팅 */}
         <Pressable
           style={s.chatPin}
-          onPress={() => Alert.alert('채팅', `${req.dogName} 보호자님과의 채팅 (목업)`)}
+          onPress={() => router.push('/chat')}
         >
           <Monogram char={req.dogChar} bg={req.dogColor} size={36} />
           <View style={{ flex: 1 }}>

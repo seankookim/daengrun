@@ -157,20 +157,24 @@ export default function OwnerHome() {
         </Pressable>
 
         {/* ---------- upcoming schedule widget (docs/calendar.md: 4-state component; mock shows 예정 state) ---------- */}
-        <View style={[s.scheduleCard, { backgroundColor: p.card, borderColor: p.line }]}>
+        {/* whole card taps through to 내 일정 — buttons stop propagation */}
+        <Pressable onPress={() => router.push('/owner/schedule')} style={[s.scheduleCard, { backgroundColor: p.card }]}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Text style={{ fontSize: 12, fontWeight: '800', color: p.dim }}>다가오는 일정</Text>
-            <Pressable onPress={() => router.push('/owner/schedule')}>
-              <Text style={{ fontSize: 12, fontWeight: '700', color: mode === 'dark' ? colors.volt : colors.voltDeep }}>전체 일정 ›</Text>
-            </Pressable>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <View style={s.liveDotSm} />
+              <Text style={{ fontSize: 12.5, fontWeight: '900', color: p.textStrong }}>다가오는 일정</Text>
+            </View>
+            <View style={s.allScheduleChip}>
+              <Text style={{ fontSize: 11.5, fontWeight: '900', color: colors.ink }}>전체 일정 ›</Text>
+            </View>
           </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 10 }}>
-            <Monogram char={nextBooking.runnerName[1]} bg="#FF6347" size={42} />
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 12 }}>
+            <Monogram char={nextBooking.runnerName[1]} bg="#FF6347" size={46} />
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 15, fontWeight: '900', color: p.textStrong }}>
+              <Text style={{ fontSize: 17, fontWeight: '900', color: p.textStrong }}>
                 {nextBooking.timeLabel} · {nextBooking.dogName}
               </Text>
-              <Text style={{ fontSize: 11.5, color: p.dim, marginTop: 2 }}>
+              <Text style={{ fontSize: 11.5, color: p.dim, marginTop: 3 }}>
                 {nextBooking.runnerName} 러너 ✓ · 서울숲 2번 출입구
               </Text>
             </View>
@@ -178,15 +182,21 @@ export default function OwnerHome() {
               <Text style={{ fontSize: 10.5, fontWeight: '900', color: mode === 'dark' ? colors.volt : '#4a6d1f' }}>3시간 12분 후</Text>
             </View>
           </View>
-          <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
-            <Pressable style={[s.widgetBtn, { borderColor: p.line }]}>
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 13 }}>
+            <Pressable
+              style={[s.widgetBtn, { borderColor: p.line }]}
+              onPress={(e) => { e.stopPropagation(); router.push('/owner/schedule'); }}
+            >
               <Text style={{ fontSize: 11.5, fontWeight: '700', color: p.textSoft }}>일정 변경</Text>
             </Pressable>
-            <Pressable style={[s.widgetBtn, { borderColor: p.line }]}>
+            <Pressable
+              style={[s.widgetBtn, { borderColor: p.line }]}
+              onPress={(e) => { e.stopPropagation(); router.push('/chat'); }}
+            >
               <Text style={{ fontSize: 11.5, fontWeight: '700', color: p.textSoft }}>러너와 채팅</Text>
             </Pressable>
           </View>
-        </View>
+        </Pressable>
 
         {/* ---------- safety quick card ---------- */}
         <Pressable onPress={() => router.push('/safety')} style={[s.safetyStrip, { backgroundColor: p.card }]}>
@@ -290,7 +300,17 @@ const s = StyleSheet.create({
     shadowColor: colors.volt, shadowOpacity: 0.45, shadowRadius: 18, shadowOffset: { width: 0, height: 6 },
     elevation: 8,
   },
-  scheduleCard: { borderRadius: 20, borderWidth: 1, padding: 16, marginTop: 12 },
+  scheduleCard: {
+    borderRadius: 22, padding: 17, marginTop: 12,
+    borderWidth: 1.4, borderColor: '#b9f23a55', // lime accent — the widget earns its emphasis
+    shadowColor: colors.volt, shadowOpacity: 0.2, shadowRadius: 12, shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
+  },
+  liveDotSm: {
+    width: 7, height: 7, borderRadius: 4, backgroundColor: colors.volt,
+    shadowColor: colors.volt, shadowOpacity: 1, shadowRadius: 4, shadowOffset: { width: 0, height: 0 },
+  },
+  allScheduleChip: { backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 6, paddingHorizontal: 12 },
   countdownPill: { borderRadius: 99, paddingVertical: 6, paddingHorizontal: 10 },
   widgetBtn: { flex: 1, borderWidth: 1, borderRadius: 12, alignItems: 'center', paddingVertical: 9 },
   safetyStrip: {

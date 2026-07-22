@@ -79,7 +79,13 @@ export default function Requests() {
               )}
 
               <Row style={{ gap: 8, marginTop: 12 }}>
-                <Pressable style={s.accept} onPress={() => router.push('/runner/detail')}>
+                <Pressable
+                  style={s.accept}
+                  onPress={() => {
+                    Alert.alert('수락 완료', '보호자에게 수락 알림이 전송되었어요 (목업)');
+                    router.push('/runner/meetup');
+                  }}
+                >
                   <Text style={{ fontSize: 13.5, fontWeight: '900', color: FOREST }}>수락하기</Text>
                 </Pressable>
                 <Pressable style={s.secondary} onPress={() => Alert.alert('다른 시간 제안', '대체 시간 제안 (목업)')}>

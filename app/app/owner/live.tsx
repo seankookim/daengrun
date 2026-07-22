@@ -126,6 +126,15 @@ export default function Live() {
         <Pressable onPress={() => router.push('/safety')} style={s.sosBtn}>
           <Text style={{ fontSize: 11, fontWeight: '900', color: '#fff' }}>SOS</Text>
         </Pressable>
+
+        {/* 종료 — deliberately small; owners shouldn't need it, but it must be findable */}
+        <Pressable
+          onPress={() => router.replace('/owner/pay')}
+          style={s.stopBtn}
+        >
+          <Text style={{ fontSize: 10, fontWeight: '900', color: '#fff' }}>■</Text>
+          <Text style={{ fontSize: 7.5, fontWeight: '800', color: '#ffffffcc', marginTop: 1 }}>종료</Text>
+        </Pressable>
       </View>
 
       {/* ---------- progress strip ---------- */}
@@ -168,11 +177,11 @@ export default function Live() {
           <Text style={s.secStat}><Text style={{ color: '#9fc3e8' }}>➶</Text> {Math.round(160 + t * 10)} <Text style={s.secUnit}>SPM</Text></Text>
         </View>
 
-        {/* controls */}
+        {/* controls — chat is the owner's primary mid-run action, not stopping */}
         <Row style={{ gap: 12, marginTop: 16 }}>
           <View style={s.smallCtrl}><Text style={{ fontSize: 14, color: '#b8c4ae' }}>⊙</Text></View>
-          <Pressable onPress={() => router.replace('/owner/pay')} style={s.endBtn}>
-            <Text style={{ fontSize: 16, fontWeight: '900', color: '#fff' }}>■ 러닝 종료</Text>
+          <Pressable onPress={() => router.push('/chat')} style={s.chatBtn}>
+            <Text style={{ fontSize: 15, fontWeight: '900', color: '#fff' }}>러너와 채팅</Text>
           </Pressable>
           <View style={s.smallCtrl}><Text style={{ fontSize: 14, color: '#b8c4ae' }}>‖</Text></View>
         </Row>
@@ -229,5 +238,9 @@ const s = StyleSheet.create({
   secStat: { fontSize: 14, fontWeight: '900', color: '#fff' },
   secUnit: { fontSize: 10, color: '#b8c4ae', fontWeight: '600' },
   smallCtrl: { width: 52, height: 52, borderRadius: 26, backgroundColor: '#1d3023', alignItems: 'center', justifyContent: 'center' },
-  endBtn: { flex: 1, backgroundColor: '#e8492a', borderRadius: 99, alignItems: 'center', justifyContent: 'center', paddingVertical: 15 },
+  chatBtn: { flex: 1, backgroundColor: '#1d3023', borderWidth: 1, borderColor: '#2c4034', borderRadius: 99, alignItems: 'center', justifyContent: 'center', paddingVertical: 15 },
+  stopBtn: {
+    position: 'absolute', right: 20, bottom: 74, width: 40, height: 40, borderRadius: 20,
+    backgroundColor: '#00000088', alignItems: 'center', justifyContent: 'center',
+  },
 });
