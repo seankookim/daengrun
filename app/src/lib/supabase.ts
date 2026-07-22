@@ -15,5 +15,6 @@ export const supabase = createClient(url ?? '', anonKey ?? '', {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false, // RN — URL 세션 감지 없음
+    flowType: 'pkce', // 카카오 OAuth 코드 교환용
   },
 });

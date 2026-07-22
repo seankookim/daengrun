@@ -1,4 +1,6 @@
+import * as Linking from 'expo-linking';
 import { router } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import { useEffect, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useAuth } from '../src/auth-context';
@@ -43,9 +45,34 @@ export default function Login() {
     router.replace('/'); // 역할 선택으로
   };
 
-  const kakao = () => {
-    // TODO: provider 설정 후 signInWithOAuth({ provider: 'kakao' }) + expo-web-browser
-    Alert.alert('카카오 로그인', '카카오 개발자 설정 후 활성화돼요.\n지금은 이메일 코드로 로그인해주세요 (backend.md §3)');
+  const kakao = async () => {
+    try {
+      setBusy(true);
+      const redirectTo = Linking.createURL('login'); // daengrun://login
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'kakao',
+        options: { redirectTo, skipBrowserRedirect: true },
+      });
+      if (error || !data?.url) throw error ?? new Error('no auth url');
+
+      const res = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+      if (res.type === 'success' && res.url) {
+        const code = new URL(res.url).searchParams.get('code');
+        if (code) {
+          const { error: xErr } = await supabase.auth.exchangeCodeForSession(code);
+          if (xErr) throw xErr;
+          router.replace('/');
+          return;
+        }
+      }
+    } catch (e) {
+      Alert.alert(
+        '카카오 로그인 실패',
+        `${(e as Error)?.message ?? e}\n\nSupabase provider 설정을 확인해주세요 (backend.md §3)`,
+      );
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
