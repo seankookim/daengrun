@@ -11,9 +11,9 @@ export const colors = {
   dim: '#8a8877',
   // dark glow theme (owner home / cards)
   bgDark: '#0b0d07',
-  cardDark: '#12150c',
-  lineDark: '#252a1a',
-  dimDark: '#7a8065',
+  cardDark: '#1a1f12',
+  lineDark: '#2f361f',
+  dimDark: '#8b9173',
 } as const;
 
 export const radius = { card: 20, btn: 16, chip: 99 } as const;

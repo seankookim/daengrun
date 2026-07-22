@@ -115,7 +115,7 @@ export function RunCard({ card, width = 340 }: { card: CollectCard; width?: numb
     >
       {/* header */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-        <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: '#1c2113', alignItems: 'center', justifyContent: 'center' }}>
+        <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: '#242b16', alignItems: 'center', justifyContent: 'center' }}>
           <Text style={{ fontSize: 13, fontWeight: '900', color: colors.volt }}>런</Text>
         </View>
         <View style={{ flex: 1 }}>
@@ -145,11 +145,11 @@ export function RunCard({ card, width = 340 }: { card: CollectCard; width?: numb
         <View style={{ marginTop: 14, borderRadius: 16, backgroundColor: '#0e120a', padding: 12, overflow: 'hidden' }}>
           <HeatTrace points={card.run.trace} width={inner - 24} height={traceH} />
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#16210f', borderRadius: 10, paddingVertical: 6, paddingHorizontal: 10 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#1e2712', borderRadius: 10, paddingVertical: 6, paddingHorizontal: 10 }}>
               <Text style={{ fontSize: 11, fontWeight: '800', color: colors.volt }}>컨디션 좋음</Text>
               <Text style={{ fontSize: 10, color: colors.dimDark }}>평소보다 +12% 활동량</Text>
             </View>
-            <View style={{ backgroundColor: '#141a20', borderRadius: 10, paddingVertical: 6, paddingHorizontal: 10 }}>
+            <View style={{ backgroundColor: '#1b2330', borderRadius: 10, paddingVertical: 6, paddingHorizontal: 10 }}>
               <Text style={{ fontSize: 11, fontWeight: '700', color: '#9fc3e8' }}>24°</Text>
             </View>
           </View>

@@ -220,12 +220,12 @@ const s = StyleSheet.create({
   },
   weekChip: {
     position: 'absolute', top: 14, left: 16, zIndex: 4,
-    backgroundColor: '#1c2113', borderRadius: 99, paddingVertical: 6, paddingHorizontal: 12,
+    backgroundColor: '#242b16', borderRadius: 99, paddingVertical: 6, paddingHorizontal: 12,
   },
   info: { position: 'absolute', left: 18, top: 40, width: CARD_W * 0.5, zIndex: 3 },
-  miniBar: { height: 4, borderRadius: 99, backgroundColor: '#20250f', marginTop: 6, overflow: 'hidden' },
+  miniBar: { height: 4, borderRadius: 99, backgroundColor: '#272e17', marginTop: 6, overflow: 'hidden' },
   miniBarFill: { height: 4, borderRadius: 99, backgroundColor: colors.volt },
-  goalChip: { marginTop: 8, backgroundColor: '#1c2113', borderRadius: 99, paddingVertical: 4, paddingHorizontal: 10 },
+  goalChip: { marginTop: 8, backgroundColor: '#242b16', borderRadius: 99, paddingVertical: 4, paddingHorizontal: 10 },
   bigMsg: { textAlign: 'center', marginTop: 8, fontSize: 13, fontWeight: '700', color: colors.cream },
   statChip: {
     flex: 1, backgroundColor: colors.cardDark, borderRadius: 18, borderWidth: 1, borderColor: colors.lineDark,
