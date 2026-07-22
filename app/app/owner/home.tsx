@@ -18,7 +18,7 @@ const CARD_W = SCREEN_W - 44;
 const RING_BIG = 216;
 const PAD_TOP = 56;
 const HEADER_H = 62;
-const HERO_BIG = 348;
+const HERO_BIG = 296;
 const HERO_SMALL = 148;
 const SCROLL_RANGE = 150;
 
@@ -36,7 +36,7 @@ export default function OwnerHome() {
   const headerOpacity = t.interpolate({ inputRange: [0, 0.45], outputRange: [1, 0], extrapolate: 'clamp' });
   const ringScale = t.interpolate({ inputRange: [0, 1], outputRange: [1, 0.5] });
   const ringX = t.interpolate({ inputRange: [0, 1], outputRange: [0, CARD_W / 2 - RING_BIG * 0.25 - 30] });
-  const ringY = t.interpolate({ inputRange: [0, 1], outputRange: [0, -66] });
+  const ringY = t.interpolate({ inputRange: [0, 1], outputRange: [0, -58] });
   const infoOpacity = t.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, 0, 1] });
   const infoX = t.interpolate({ inputRange: [0, 1], outputRange: [-20, 0] });
   const bigMsgOpacity = t.interpolate({ inputRange: [0, 0.35], outputRange: [1, 0], extrapolate: 'clamp' });
@@ -220,12 +220,12 @@ const s = StyleSheet.create({
   },
   weekChip: {
     position: 'absolute', top: 14, left: 16, zIndex: 4,
-    backgroundColor: '#242b16', borderRadius: 99, paddingVertical: 6, paddingHorizontal: 12,
+    backgroundColor: '#1f2937', borderRadius: 99, paddingVertical: 6, paddingHorizontal: 12,
   },
   info: { position: 'absolute', left: 18, top: 40, width: CARD_W * 0.5, zIndex: 3 },
-  miniBar: { height: 4, borderRadius: 99, backgroundColor: '#272e17', marginTop: 6, overflow: 'hidden' },
+  miniBar: { height: 4, borderRadius: 99, backgroundColor: '#233040', marginTop: 6, overflow: 'hidden' },
   miniBarFill: { height: 4, borderRadius: 99, backgroundColor: colors.volt },
-  goalChip: { marginTop: 8, backgroundColor: '#242b16', borderRadius: 99, paddingVertical: 4, paddingHorizontal: 10 },
+  goalChip: { marginTop: 8, backgroundColor: '#1f2937', borderRadius: 99, paddingVertical: 4, paddingHorizontal: 10 },
   bigMsg: { textAlign: 'center', marginTop: 8, fontSize: 13, fontWeight: '700', color: colors.cream },
   statChip: {
     flex: 1, backgroundColor: colors.cardDark, borderRadius: 18, borderWidth: 1, borderColor: colors.lineDark,

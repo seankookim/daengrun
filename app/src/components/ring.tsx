@@ -16,7 +16,7 @@ export function Ring({
   dots = 48,
   dotSize = 10,
   pct,
-  trackColor = '#2a3118',
+  trackColor = '#223040',
   children,
 }: {
   size?: number;

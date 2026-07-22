@@ -2,18 +2,18 @@
 export const colors = {
   ink: '#171a10',
   cream: '#f2efe6',
-  volt: '#c8f24e',
-  voltDeep: '#9ecf1e',
-  voltBright: '#dcff5e',
+  volt: '#4db8ff',
+  voltDeep: '#2f9ae8',
+  voltBright: '#8fd8ff',
   tang: '#ff5c38',
   card: '#ffffff',
   line: '#e2ddcf',
   dim: '#8a8877',
   // dark glow theme (owner home / cards)
-  bgDark: '#0b0d07',
-  cardDark: '#1a1f12',
-  lineDark: '#2f361f',
-  dimDark: '#8b9173',
+  bgDark: '#070b10',
+  cardDark: '#161d26',
+  lineDark: '#28323f',
+  dimDark: '#7f8b9a',
 } as const;
 
 export const radius = { card: 20, btn: 16, chip: 99 } as const;

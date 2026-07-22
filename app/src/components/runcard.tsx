@@ -44,7 +44,7 @@ export function HeatTrace({ points, width, height }: { points: TracePoint[]; wid
         <View key={`v${t}`} style={{ position: 'absolute', top: 0, bottom: 0, left: t * width, width: 1, backgroundColor: '#ffffff08' }} />
       ))}
       {/* park blob */}
-      <View style={{ position: 'absolute', left: width * 0.3, top: height * 0.3, width: width * 0.34, height: height * 0.36, borderRadius: 24, backgroundColor: '#1a2410' }} />
+      <View style={{ position: 'absolute', left: width * 0.3, top: height * 0.3, width: width * 0.34, height: height * 0.36, borderRadius: 24, backgroundColor: '#14261f' }} />
 
       {/* glowing heat line */}
       {segments.map((s) => (
@@ -91,7 +91,7 @@ function Marker({ x, y, label }: { x: number; y: number; label: string }) {
   );
 }
 
-const TIER_COLORS: Record<string, string> = { 일반: '#9a987f', 레어: '#c8f24e', 에픽: '#ff5c38' };
+const TIER_COLORS: Record<string, string> = { 일반: '#8fa0b3', 레어: '#4db8ff', 에픽: '#ff5c38' };
 
 export function RunCard({ card, width = 340 }: { card: CollectCard; width?: number }) {
   const traceH = width * 0.5;
@@ -115,7 +115,7 @@ export function RunCard({ card, width = 340 }: { card: CollectCard; width?: numb
     >
       {/* header */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-        <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: '#242b16', alignItems: 'center', justifyContent: 'center' }}>
+        <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: '#1f2937', alignItems: 'center', justifyContent: 'center' }}>
           <Text style={{ fontSize: 13, fontWeight: '900', color: colors.volt }}>런</Text>
         </View>
         <View style={{ flex: 1 }}>
@@ -142,10 +142,10 @@ export function RunCard({ card, width = 340 }: { card: CollectCard; width?: numb
 
       {/* trace / emblem */}
       {card.run?.trace ? (
-        <View style={{ marginTop: 14, borderRadius: 16, backgroundColor: '#0e120a', padding: 12, overflow: 'hidden' }}>
+        <View style={{ marginTop: 14, borderRadius: 16, backgroundColor: '#0a111a', padding: 12, overflow: 'hidden' }}>
           <HeatTrace points={card.run.trace} width={inner - 24} height={traceH} />
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#1e2712', borderRadius: 10, paddingVertical: 6, paddingHorizontal: 10 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#182635', borderRadius: 10, paddingVertical: 6, paddingHorizontal: 10 }}>
               <Text style={{ fontSize: 11, fontWeight: '800', color: colors.volt }}>컨디션 좋음</Text>
               <Text style={{ fontSize: 10, color: colors.dimDark }}>평소보다 +12% 활동량</Text>
             </View>
@@ -158,7 +158,7 @@ export function RunCard({ card, width = 340 }: { card: CollectCard; width?: numb
         <View
           style={{
             marginTop: 14, height: traceH * 0.62, borderRadius: 16,
-            backgroundColor: '#0e120a', alignItems: 'center', justifyContent: 'center',
+            backgroundColor: '#0a111a', alignItems: 'center', justifyContent: 'center',
           }}
         >
           <Text

@@ -82,14 +82,14 @@ export default function Live() {
             <Monogram char={runner.char} bg={runner.color} size={40} />
             <View>
               <Text style={{ fontSize: 14, fontWeight: '700', color: colors.cream }}>{runner.name} 러너</Text>
-              <Text style={{ fontSize: 11, color: '#9a987f' }}>{dog.name}와 러닝 중</Text>
+              <Text style={{ fontSize: 11, color: '#8fa0b3' }}>{dog.name}와 러닝 중</Text>
             </View>
           </Row>
           <Pressable style={s.chatBtn}>
             <Text style={{ fontSize: 12, color: colors.volt }}>채팅</Text>
           </Pressable>
         </Row>
-        <View style={{ height: 1, backgroundColor: '#33371f', marginVertical: 14 }} />
+        <View style={{ height: 1, backgroundColor: '#28323f', marginVertical: 14 }} />
         <Row style={{ justifyContent: 'space-around' }}>
           <Stat value={km.toFixed(1)} label="킬로미터" />
           <Stat value={fmt(sec)} label="시간" />
@@ -104,7 +104,7 @@ function Stat({ value, label }: { value: string; label: string }) {
   return (
     <View style={{ alignItems: 'center' }}>
       <Text style={{ fontSize: 26, fontWeight: '900', color: colors.volt }}>{value}</Text>
-      <Text style={{ fontSize: 10, color: '#9a987f', marginTop: 2 }}>{label}</Text>
+      <Text style={{ fontSize: 10, color: '#8fa0b3', marginTop: 2 }}>{label}</Text>
     </View>
   );
 }

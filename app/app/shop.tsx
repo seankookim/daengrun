@@ -23,7 +23,7 @@ export default function Shop() {
               <Text style={{ fontSize: 12, color: colors.cream, lineHeight: 19 }}>
                 멤버는 전 상품 <Text style={{ color: colors.volt, fontWeight: '800' }}>10% 할인</Text>
               </Text>
-              <Text style={{ fontSize: 11, color: '#9a987f', marginTop: 2 }}>이번 달 러닝 12.4km — 4,900P 적립됨</Text>
+              <Text style={{ fontSize: 11, color: '#8fa0b3', marginTop: 2 }}>이번 달 러닝 12.4km — 4,900P 적립됨</Text>
             </View>
             <View style={{ backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 4, paddingHorizontal: 10, alignSelf: 'center' }}>
               <Text style={{ fontSize: 11, fontWeight: '800', color: colors.ink }}>MEMBER</Text>
