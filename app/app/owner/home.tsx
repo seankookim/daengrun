@@ -1,13 +1,13 @@
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Animated, Dimensions, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Animated, Dimensions, Modal, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
 import { BottomNav } from '../../src/components/bottomnav';
 import { Ring } from '../../src/components/ring';
 import { RunCard } from '../../src/components/runcard';
 import { Monogram } from '../../src/components/ui';
 import { demoImminent, dog, myCards, nextBooking, ownerGearLadder, runners } from '../../src/store';
-import { colors } from '../../src/theme';
+import { colors, surfaces } from '../../src/theme';
 import { useTheme } from '../../src/theme-context';
 
 // Owner home — themed (dark/light toggle in header) with a sticky collapsing hero:
@@ -62,6 +62,10 @@ export default function OwnerHome() {
   const infoX = t.interpolate({ inputRange: [0, 1], outputRange: [-20, 0] });
   const bigMsgOpacity = t.interpolate({ inputRange: [0, 0.35], outputRange: [1, 0], extrapolate: 'clamp' });
 
+  // hero uses the OPPOSITE theme's surfaces — contrast is the point
+  const hp = surfaces[mode === 'dark' ? 'light' : 'dark'];
+  const heroAccent = mode === 'dark' ? colors.voltDeep : colors.volt;
+
   return (
     <View style={{ flex: 1, backgroundColor: p.bg }}>
       <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
@@ -93,27 +97,27 @@ export default function OwnerHome() {
         </Animated.View>
 
         <Pressable onPress={() => router.push('/owner/dog')}>
-          <Animated.View style={[s.hero, { height: heroH, backgroundColor: p.card, borderColor: p.line }]}>
-            <View style={[s.weekChip, { backgroundColor: p.chip }]}>
-              <Text style={{ fontSize: 11, fontWeight: '700', color: p.textSoft }}>이번 주 ▾</Text>
+          <Animated.View style={[s.hero, { height: heroH, backgroundColor: hp.card, borderColor: hp.line }]}>
+            <View style={[s.weekChip, { backgroundColor: hp.chip }]}>
+              <Text style={{ fontSize: 11, fontWeight: '700', color: hp.textSoft }}>이번 주 ▾</Text>
             </View>
 
             {/* compact info block (left side, fades in) */}
             <Animated.View style={[s.info, { opacity: infoOpacity, transform: [{ translateX: infoX }] }]}>
-              <Text style={{ fontSize: 12, fontWeight: '700', color: p.textSoft }}>{dog.name}의 주간 목표</Text>
+              <Text style={{ fontSize: 12, fontWeight: '700', color: hp.textSoft }}>{dog.name}의 주간 목표</Text>
               <Text style={{ marginTop: 2 }}>
-                <Text style={{ fontSize: 32, fontWeight: '900', color: mode === 'dark' ? colors.volt : colors.voltDeep }}>
+                <Text style={{ fontSize: 32, fontWeight: '900', color: heroAccent }}>
                   {dog.weekKm}
                 </Text>
-                <Text style={{ fontSize: 13, color: p.dim }}> / {dog.weeklyGoalKm} km</Text>
+                <Text style={{ fontSize: 13, color: hp.dim }}> / {dog.weeklyGoalKm} km</Text>
               </Text>
-              <Text style={{ fontSize: 11, color: p.textSoft, marginTop: 3 }}>
-                {goalHit ? '이번 주 목표 달성!' : `목표까지 ${remaining.toFixed(1)}km 남았어요!`}
+              <Text style={{ fontSize: 11, color: hp.textSoft, marginTop: 3 }}>
+                체력 나이 {dog.fitnessAge}살 · 실제보다 젊어요
               </Text>
-              <View style={[s.miniBar, { backgroundColor: p.track }]}>
+              <View style={[s.miniBar, { backgroundColor: hp.track }]}>
                 <View style={[s.miniBarFill, { width: `${Math.min(pct, 1) * 100}%` }]} />
               </View>
-              <Text style={{ fontSize: 10, fontWeight: '800', color: mode === 'dark' ? colors.volt : colors.voltDeep, marginTop: 4 }}>
+              <Text style={{ fontSize: 10, fontWeight: '800', color: heroAccent, marginTop: 4 }}>
                 {Math.round(pct * 100)}% 달성
               </Text>
             </Animated.View>
@@ -126,26 +130,29 @@ export default function OwnerHome() {
                 transform: [{ translateX: ringX }, { translateY: ringY }, { scale: ringScale }],
               }}
             >
-              <Ring pct={pct} size={RING_BIG} trackColor={p.track}>
+              <Ring pct={pct} size={RING_BIG} trackColor={hp.track}>
                 <View style={{ alignItems: 'center' }}>
-                  <Text style={{ fontSize: 13, color: p.dim }}>이번 주</Text>
-                  <Text style={{ fontSize: 46, fontWeight: '900', color: p.textStrong, lineHeight: 50 }}>
+                  <Text style={{ fontSize: 13, color: hp.dim }}>이번 주</Text>
+                  <Text style={{ fontSize: 46, fontWeight: '900', color: hp.textStrong, lineHeight: 50 }}>
                     {dog.weekKm}
-                    <Text style={{ fontSize: 16, color: p.dim }}> km</Text>
+                    <Text style={{ fontSize: 16, color: hp.dim }}> km</Text>
                   </Text>
-                  <Text style={{ fontSize: 13, color: mode === 'dark' ? colors.volt : colors.voltDeep, marginTop: 2 }}>
+                  <Text style={{ fontSize: 13, color: heroAccent, marginTop: 2 }}>
                     / {dog.weeklyGoalKm}km
                   </Text>
-                  <View style={[s.goalChip, { backgroundColor: p.chip }]}>
-                    <Text style={{ fontSize: 10, fontWeight: '800', color: p.textSoft }}>주간 목표</Text>
+                  {/* 체력 나이 — our concept, front and center */}
+                  <View style={[s.goalChip, { backgroundColor: hp.chip, flexDirection: 'row', gap: 4, alignItems: 'center' }]}>
+                    <Text style={{ fontSize: 10, fontWeight: '800', color: hp.textSoft }}>체력 나이</Text>
+                    <Text style={{ fontSize: 12, fontWeight: '900', color: heroAccent }}>{dog.fitnessAge}살</Text>
+                    <Text style={{ fontSize: 9, fontWeight: '800', color: colors.tang }}>▼{(dog.age - dog.fitnessAge).toFixed(1)}</Text>
                   </View>
                 </View>
               </Ring>
             </Animated.View>
 
             {/* big-state goal message */}
-            <Animated.Text style={[s.bigMsg, { opacity: bigMsgOpacity, color: p.textSoft }]}>
-              {goalHit ? `이번 주 목표 달성! ${dog.name} 최고예요` : `목표까지 ${remaining.toFixed(1)}km 남았어요!`}
+            <Animated.Text style={[s.bigMsg, { opacity: bigMsgOpacity, color: hp.textSoft }]}>
+              {goalHit ? `이번 주 목표 달성! ${dog.name} 최고예요` : `실제 나이보다 ${(dog.age - dog.fitnessAge).toFixed(1)}살 젊게 달리는 중`}
             </Animated.Text>
           </Animated.View>
         </Pressable>
@@ -168,6 +175,9 @@ export default function OwnerHome() {
           <StatChip top="3회 완료" bottom="이번 주" accent={mode === 'dark' ? colors.volt : colors.voltDeep} />
           <StatChip top={`평균 7'20"`} bottom="평균 페이스" accent="#9fc3e8" />
         </View>
+
+        {/* ---------- slide-to-book ---------- */}
+        <SlideToBook onComplete={() => router.push('/owner/request')} />
 
         {/* ---------- reward beacon (dopamine: unclaimed collab gear) ---------- */}
         {claimable && (
@@ -195,12 +205,6 @@ export default function OwnerHome() {
             </Pressable>
           </Pressable>
         )}
-
-        {/* ---------- CTA ---------- */}
-        <Pressable onPress={() => router.push('/owner/request')} style={({ pressed }) => [s.cta, pressed && { transform: [{ scale: 0.98 }] }]}>
-          <Text style={{ fontSize: 18, fontWeight: '900', color: colors.ink, letterSpacing: 0.5 }}>러닝 요청하기</Text>
-          <Text style={{ fontSize: 18, fontWeight: '900', color: colors.ink }}>›</Text>
-        </Pressable>
 
         {/* ---------- upcoming schedule widget (docs/calendar.md: 4-state component; mock shows 예정 state) ---------- */}
         {/* whole card taps through to 내 일정 — buttons stop propagation */}
@@ -372,6 +376,40 @@ export default function OwnerHome() {
   }
 }
 
+// Slide-to-book — commitment gesture beats a tap; also just more fun.
+function SlideToBook({ onComplete }: { onComplete: () => void }) {
+  const KNOB = 56;
+  const MAX = CARD_W - KNOB - 12;
+  const x = useRef(new Animated.Value(0)).current;
+  const pan = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_e, g) => Math.abs(g.dx) > 4,
+      onPanResponderMove: (_e, g) => x.setValue(Math.min(Math.max(g.dx, 0), MAX)),
+      onPanResponderRelease: (_e, g) => {
+        if (g.dx > MAX * 0.7) {
+          Animated.timing(x, { toValue: MAX, duration: 120, useNativeDriver: false }).start(() => {
+            onComplete();
+            setTimeout(() => x.setValue(0), 500);
+          });
+        } else {
+          Animated.spring(x, { toValue: 0, useNativeDriver: false }).start();
+        }
+      },
+    }),
+  ).current;
+  const labelOpacity = x.interpolate({ inputRange: [0, MAX * 0.6], outputRange: [1, 0], extrapolate: 'clamp' });
+
+  return (
+    <View style={s.slideTrack}>
+      <Animated.Text style={[s.slideLabel, { opacity: labelOpacity }]}>밀어서 러닝 요청 ›››</Animated.Text>
+      <Animated.View {...pan.panHandlers} style={[s.slideKnob, { transform: [{ translateX: x }] }]}>
+        <Text style={{ fontSize: 20, fontWeight: '900', color: colors.volt }}>❯</Text>
+      </Animated.View>
+    </View>
+  );
+}
+
 const s = StyleSheet.create({
   overlay: {
     position: 'absolute', top: 0, left: 0, right: 0, zIndex: 20,
@@ -421,11 +459,16 @@ const s = StyleSheet.create({
   claimBtn: { backgroundColor: colors.volt, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 13 },
   ladderSheet: { backgroundColor: '#F6F2E9', borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 22, paddingBottom: 40 },
   sheetHandle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: '#d8d5c8', marginBottom: 14 },
-  cta: {
-    marginTop: 14, backgroundColor: colors.volt, borderRadius: 22, paddingVertical: 19, paddingHorizontal: 24,
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    shadowColor: colors.volt, shadowOpacity: 0.45, shadowRadius: 18, shadowOffset: { width: 0, height: 6 },
+  slideTrack: {
+    marginTop: 14, height: 68, borderRadius: 24, backgroundColor: colors.volt, justifyContent: 'center',
+    shadowColor: colors.volt, shadowOpacity: 0.5, shadowRadius: 20, shadowOffset: { width: 0, height: 6 },
     elevation: 8,
+  },
+  slideLabel: { alignSelf: 'center', fontSize: 17, fontWeight: '900', color: colors.ink, letterSpacing: 0.5 },
+  slideKnob: {
+    position: 'absolute', left: 6, width: 56, height: 56, borderRadius: 20,
+    backgroundColor: '#132117', alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 6, shadowOffset: { width: 2, height: 2 },
   },
   scheduleCard: {
     borderRadius: 22, padding: 17, marginTop: 12,
