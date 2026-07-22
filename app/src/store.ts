@@ -25,7 +25,12 @@ export interface Runner {
   distanceKm: number; // distance from pickup
   pace: string;
   badges: string[];
-  match?: { total: number; reasons: { label: string; pct: number }[] };
+  desc?: string; // AI recommendation summary
+  tags?: string[]; // specialty tags
+  breedExp?: number; // 웰시코기 경험 횟수
+  compliance?: number; // 신호 준수율 %
+  respondRate?: number;
+  match?: { total: number; reasons: { label: string; pct: number; glyph: string }[] };
 }
 
 export const dog = {
@@ -87,12 +92,14 @@ export const runners: Runner[] = [
     id: 'minjun', name: '김민준', char: '민', color: '#FF6347',
     rating: 4.9, reviews: 127, runs: 214, distanceKm: 0.8, pace: "6'50\"",
     badges: ['신원인증', '펫보험'],
+    desc: '초코의 페이스와 체력에 최적화된 러너예요.\n꾸준한 중장거리 경험이 많고, 신호 준수율이 높아요.',
+    breedExp: 31, compliance: 97, respondRate: 98,
     match: {
       total: 98,
       reasons: [
-        { label: "페이스 궁합 (7'00\" 요청 ↔ 6'50\" 평균)", pct: 96 },
-        { label: '중형견 경험 (웰시코기 31회)', pct: 99 },
-        { label: '선호 코스 겹침 (서울숲 주 4회)', pct: 92 },
+        { label: "페이스 궁합 (7'00\" 요청 ↔ 6'50\" 평균)", pct: 96, glyph: '⇢' },
+        { label: '중장거리 경험 (웰시코기 31회)', pct: 99, glyph: '♥' },
+        { label: '선호 코스 적합도 (서울숲 주 4회)', pct: 92, glyph: '⌘' },
       ],
     },
   },
@@ -100,11 +107,15 @@ export const runners: Runner[] = [
     id: 'seoyeon', name: '이서연', char: '서', color: '#5b8c2a',
     rating: 5.0, reviews: 89, runs: 89, distanceKm: 1.2, pace: "7'10\"",
     badges: ['신원인증', '훈련사'],
+    tags: ['훈련사 자격 보유', '행동교정 전문'],
+    breedExp: 42, compliance: 94,
   },
   {
     id: 'taeo', name: '박태오', char: '태', color: '#38506b',
-    rating: 4.7, reviews: 56, runs: 78, distanceKm: 2.1, pace: "6'30\"",
+    rating: 4.7, reviews: 56, runs: 78, distanceKm: 2.1, pace: "6'40\"",
     badges: ['신원인증'],
+    tags: ['대형견 경험 다수'],
+    breedExp: 18, compliance: 88,
   },
 ];
 
