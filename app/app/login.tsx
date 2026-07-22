@@ -46,8 +46,11 @@ export default function Login() {
   };
 
   const kakao = async () => {
+    if (busy) return; // 더블탭 가드
     try {
       setBusy(true);
+      // 이전 시도의 잔여 세션 정리 ("Another web browser is already open" 방지)
+      await WebBrowser.dismissAuthSession().catch(() => {});
       const redirectTo = Linking.createURL('login'); // daengrun://login
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'kakao',
