@@ -107,6 +107,7 @@ export const runners: Runner[] = [
     id: 'seoyeon', name: '이서연', char: '서', color: '#5b8c2a',
     rating: 5.0, reviews: 89, runs: 89, distanceKm: 1.2, pace: "7'10\"",
     badges: ['신원인증', '훈련사'],
+    desc: '훈련사 자격을 보유한 러너예요. 행동교정 경험이 많아\n겁 많거나 예민한 아이도 안정적으로 이끌어요.',
     tags: ['훈련사 자격 보유', '행동교정 전문'],
     breedExp: 42, compliance: 94,
   },
@@ -129,6 +130,7 @@ export interface RouteInfo {
   km: number;
   terrain: string;
   tags: string[];
+  features: { g: string; label: string }[]; // 뷰/식수/공원/흙길/도심 등
   fit: number; // 초코 기준 적합도 % (mock)
   checkedAt: string; // 마지막 안전 점검일
   desc: string;
@@ -156,25 +158,33 @@ const longTrace: TracePoint[] = [
 export const sampleRoutes: RouteInfo[] = [
   {
     id: 'seoulforest-loop', name: '서울숲 순환 코스', area: '성수동', km: 5, terrain: '흙길 70%',
-    tags: ['중형견 최적', '그늘 많음', '식수대 2곳'], fit: 96, checkedAt: '7.18 점검',
+    tags: ['중형견 최적', '그늘 많음', '식수대 2곳'],
+    features: [{ g: '❋', label: '공원' }, { g: '⏚', label: '흙길' }, { g: '♒', label: '식수대 2곳' }, { g: '☂', label: '그늘' }],
+    fit: 96, checkedAt: '7.18 점검',
     desc: '자전거도로와 완전 분리된 순환로. 초코의 페이스와 슬개골 메모에 잘 맞아요.',
     trace: lastRunTrace,
   },
   {
     id: 'ttukseom-river', name: '뚝섬 리버뷰 코스', area: '뚝섬한강공원', km: 5, terrain: '포장 60%',
-    tags: ['리버뷰', '평지', '야간 조명'], fit: 88, checkedAt: '7.20 점검',
+    tags: ['리버뷰', '평지', '야간 조명'],
+    features: [{ g: '♒', label: '리버뷰' }, { g: '—', label: '평지' }, { g: '☀', label: '야간 조명' }, { g: '⌂', label: '도심 접근' }],
+    fit: 88, checkedAt: '7.20 점검',
     desc: '한강을 따라 달리는 시원한 직선 코스. 저녁 러닝에 인기.',
     trace: riverTrace,
   },
   {
     id: 'forest-short', name: '서울숲 숲길 3km', area: '성수동', km: 3, terrain: '흙길 90%',
-    tags: ['소형견·시니어', '완만', '조용함'], fit: 82, checkedAt: '7.15 점검',
+    tags: ['소형견·시니어', '완만', '조용함'],
+    features: [{ g: '❋', label: '숲길' }, { g: '⏚', label: '흙길 90%' }, { g: '◡', label: '완만' }, { g: '♪', label: '조용함' }],
+    fit: 82, checkedAt: '7.15 점검',
     desc: '짧고 부드러운 숲길. 회복 러닝이나 컨디션 낮은 날 추천.',
     trace: forestTrace,
   },
   {
     id: 'han-7k', name: '뚝섬–잠원 7km', area: '한강', km: 7, terrain: '포장 80%',
-    tags: ['고에너지견', '장거리', '한강 시리즈'], fit: 74, checkedAt: '7.19 점검',
+    tags: ['고에너지견', '장거리', '한강 시리즈'],
+    features: [{ g: '♒', label: '리버뷰' }, { g: '⇢', label: '장거리' }, { g: '⌂', label: '도심' }, { g: '✦', label: '에픽 코스' }],
+    fit: 74, checkedAt: '7.19 점검',
     desc: '에너지 넘치는 날을 위한 장거리. 한강 시리즈 에픽 카드 코스.',
     trace: longTrace,
   },
@@ -188,20 +198,26 @@ export interface Booking {
   dateLabel: string; // 그룹 헤더
   timeLabel: string;
   dogName: string;
+  runnerId: string;
   runnerName: string;
+  routeId: string;
   routeName: string;
   km: number;
+  paceLabel: string; // 요청 페이스
   price: number;
   status: BookingStatus;
   recurring?: boolean;
 }
 
 export const bookings: Booking[] = [
-  { id: 'b1', dateLabel: '오늘 · 7월 22일 (수)', timeLabel: '오후 6:30', dogName: '초코', runnerName: '김민준', routeName: '서울숲 순환 코스', km: 5, price: 24900, status: 'confirmed' },
-  { id: 'b2', dateLabel: '내일 · 7월 23일 (목)', timeLabel: '오전 7:00', dogName: '초코', runnerName: '이서연', routeName: '서울숲 숲길 3km', km: 3, price: 18900, status: 'pending' },
-  { id: 'b3', dateLabel: '7월 25일 (토)', timeLabel: '오전 8:00', dogName: '초코', runnerName: '김민준', routeName: '뚝섬 리버뷰 코스', km: 5, price: 24900, status: 'confirmed', recurring: true },
-  { id: 'b4', dateLabel: '7월 21일 (화)', timeLabel: '오후 7:12', dogName: '초코', runnerName: '김민준', routeName: '서울숲 순환 코스', km: 5, price: 24960, status: 'completed' },
+  { id: 'b1', dateLabel: '오늘 · 7월 22일 (수)', timeLabel: '오후 6:30', dogName: '초코', runnerId: 'minjun', runnerName: '김민준', routeId: 'seoulforest-loop', routeName: '서울숲 순환 코스', km: 5, paceLabel: "보통 7'", price: 24900, status: 'confirmed' },
+  { id: 'b2', dateLabel: '내일 · 7월 23일 (목)', timeLabel: '오전 7:00', dogName: '초코', runnerId: 'seoyeon', runnerName: '이서연', routeId: 'forest-short', routeName: '서울숲 숲길 3km', km: 3, paceLabel: "가볍게 8'+", price: 18900, status: 'pending' },
+  { id: 'b3', dateLabel: '7월 25일 (토)', timeLabel: '오전 8:00', dogName: '초코', runnerId: 'minjun', runnerName: '김민준', routeId: 'ttukseom-river', routeName: '뚝섬 리버뷰 코스', km: 5, paceLabel: "보통 7'", price: 24900, status: 'confirmed', recurring: true },
+  { id: 'b4', dateLabel: '7월 21일 (화)', timeLabel: '오후 7:12', dogName: '초코', runnerId: 'minjun', runnerName: '김민준', routeId: 'seoulforest-loop', routeName: '서울숲 순환 코스', km: 5, paceLabel: "보통 7'", price: 24960, status: 'completed' },
 ];
+
+// Cancel policy (mock): 10% fee, split 50/50 runner·platform
+export const cancelPolicy = { feeRate: 0.1, runnerShare: 0.5 };
 
 export const nextBooking = bookings[0];
 
