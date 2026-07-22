@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState } from 'react';
-import { Dimensions, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Dimensions, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { HeatTrace } from '../../src/components/runcard';
 import { Monogram, Row } from '../../src/components/ui';
 import { dog, draft, lastRunTrace, runners } from '../../src/store';
@@ -29,10 +29,23 @@ const POIS = [
   { label: '가족마당', x: 0.72, y: 0.85 },
 ];
 
+const STOP_REASONS = ['아이 컨디션이 걱정돼요', '급한 일정이 생겼어요', '기타 사유'];
+
 export default function Live() {
   const [t, setT] = useState(0);
+  const [stopSheet, setStopSheet] = useState(false);
+  const [stopReason, setStopReason] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
   const runner = runners.find((r) => r.id === draft.runnerId) ?? runners[0];
+
+  const confirmStop = () => {
+    setStopSheet(false);
+    Alert.alert(
+      '종료 요청 전송됨',
+      `${runner.name} 러너에게 강제 알림이 전송됐어요.\n러너가 안전하게 정지한 뒤 ${dog.name}를 데리고 복귀합니다 (목업)`,
+    );
+    router.replace('/owner/pay');
+  };
 
   useEffect(() => {
     timer.current = setInterval(() => setT((prev) => (prev >= 1 ? 1 : Math.min(prev + 0.004, 1))), 80);
@@ -129,7 +142,7 @@ export default function Live() {
 
         {/* 종료 — deliberately small; owners shouldn't need it, but it must be findable */}
         <Pressable
-          onPress={() => router.replace('/owner/pay')}
+          onPress={() => { setStopReason(null); setStopSheet(true); }}
           style={s.stopBtn}
         >
           <Text style={{ fontSize: 10, fontWeight: '900', color: '#fff' }}>■</Text>
@@ -179,13 +192,65 @@ export default function Live() {
 
         {/* controls — chat is the owner's primary mid-run action, not stopping */}
         <Row style={{ gap: 12, marginTop: 16 }}>
-          <View style={s.smallCtrl}><Text style={{ fontSize: 14, color: '#b8c4ae' }}>⊙</Text></View>
+          <Pressable
+            style={s.smallCtrl}
+            onPress={() => Alert.alert('사진 요청', `${runner.name} 러너에게 사진 요청을 보냈어요 (목업)`)}
+          >
+            <Text style={{ fontSize: 13, color: '#b8c4ae' }}>▣</Text>
+            <Text style={s.ctrlLabel}>사진</Text>
+          </Pressable>
           <Pressable onPress={() => router.push('/chat')} style={s.chatBtn}>
             <Text style={{ fontSize: 15, fontWeight: '900', color: '#fff' }}>러너와 채팅</Text>
           </Pressable>
-          <View style={s.smallCtrl}><Text style={{ fontSize: 14, color: '#b8c4ae' }}>‖</Text></View>
+          <Pressable
+            style={s.smallCtrl}
+            onPress={() => Alert.alert('휴식 요청', `${runner.name} 러너에게 잠시 휴식을 요청했어요 (목업)`)}
+          >
+            <Text style={{ fontSize: 13, color: '#b8c4ae' }}>‖</Text>
+            <Text style={s.ctrlLabel}>휴식</Text>
+          </Pressable>
         </Row>
       </View>
+
+      {/* ---------- stop confirmation sheet ---------- */}
+      <Modal visible={stopSheet} transparent animationType="slide" onRequestClose={() => setStopSheet(false)}>
+        <Pressable style={s.sheetBackdrop} onPress={() => setStopSheet(false)} />
+        <View style={s.stopSheet}>
+          <View style={s.sheetHandle} />
+          <Text style={{ fontSize: 18, fontWeight: '900', color: FOREST }}>정말 러닝을 종료할까요?</Text>
+          <Text style={{ fontSize: 12, color: '#5d655d', marginTop: 5, lineHeight: 18 }}>
+            러너에게 강제 알림이 가고, 안전하게 정지한 뒤{'\n'}{dog.name}를 데리고 픽업 장소로 복귀해요.
+          </Text>
+
+          <Text style={{ fontSize: 12.5, fontWeight: '800', color: FOREST, marginTop: 16, marginBottom: 8 }}>종료 사유</Text>
+          {STOP_REASONS.map((r) => (
+            <Pressable key={r} onPress={() => setStopReason(r)} style={[s.reasonRow, stopReason === r && { borderColor: '#a9c47e', backgroundColor: '#f4f8ea' }]}>
+              <View style={[s.radio, stopReason === r && { borderColor: '#5a7a3c' }]}>
+                {stopReason === r && <View style={s.radioDot} />}
+              </View>
+              <Text style={{ fontSize: 13.5, color: '#3d453d', fontWeight: stopReason === r ? '800' : '500' }}>{r}</Text>
+            </Pressable>
+          ))}
+
+          <View style={s.feeNote}>
+            <Text style={{ fontSize: 11.5, color: '#75806f', lineHeight: 17 }}>
+              지금까지 달린 {km.toFixed(1)}km 기준으로 정산돼요.{'\n'}
+              최소 기본요금 {'9,900'}원은 결제되며, 러너에게는 잔여 거리 보장이 적용돼요.
+            </Text>
+          </View>
+
+          <Pressable
+            style={[s.stopConfirm, !stopReason && { opacity: 0.4 }]}
+            disabled={!stopReason}
+            onPress={confirmStop}
+          >
+            <Text style={{ fontSize: 14.5, fontWeight: '900', color: '#fff' }}>종료 요청 보내기</Text>
+          </Pressable>
+          <Pressable style={{ alignItems: 'center', paddingVertical: 13 }} onPress={() => setStopSheet(false)}>
+            <Text style={{ fontSize: 13, fontWeight: '700', color: '#5d655d' }}>계속 지켜볼게요</Text>
+          </Pressable>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -237,7 +302,20 @@ const s = StyleSheet.create({
   secondary: { flexDirection: 'row', justifyContent: 'space-around', backgroundColor: '#1d3023', borderRadius: 14, paddingVertical: 11, marginTop: 16 },
   secStat: { fontSize: 14, fontWeight: '900', color: '#fff' },
   secUnit: { fontSize: 10, color: '#b8c4ae', fontWeight: '600' },
-  smallCtrl: { width: 52, height: 52, borderRadius: 26, backgroundColor: '#1d3023', alignItems: 'center', justifyContent: 'center' },
+  smallCtrl: { width: 56, height: 52, borderRadius: 18, backgroundColor: '#1d3023', alignItems: 'center', justifyContent: 'center' },
+  ctrlLabel: { fontSize: 8, color: '#7a8a6d', marginTop: 2, fontWeight: '700' },
+  sheetBackdrop: { flex: 1, backgroundColor: '#00000055' },
+  stopSheet: { backgroundColor: '#F6F2E9', borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 22, paddingBottom: 36 },
+  sheetHandle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: '#d8d5c8', marginBottom: 14 },
+  reasonRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: '#fff', borderWidth: 1.4, borderColor: '#eceadf', borderRadius: 14,
+    paddingVertical: 12, paddingHorizontal: 14, marginTop: 7,
+  },
+  radio: { width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: '#d8d5c8', alignItems: 'center', justifyContent: 'center' },
+  radioDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: '#5a7a3c' },
+  feeNote: { backgroundColor: '#f4f2ea', borderRadius: 12, padding: 12, marginTop: 14 },
+  stopConfirm: { backgroundColor: '#e8492a', borderRadius: 16, alignItems: 'center', paddingVertical: 15, marginTop: 14 },
   chatBtn: { flex: 1, backgroundColor: '#1d3023', borderWidth: 1, borderColor: '#2c4034', borderRadius: 99, alignItems: 'center', justifyContent: 'center', paddingVertical: 15 },
   stopBtn: {
     position: 'absolute', right: 20, bottom: 74, width: 40, height: 40, borderRadius: 20,

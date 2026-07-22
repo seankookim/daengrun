@@ -1,8 +1,8 @@
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Monogram, Row } from '../../src/components/ui';
-import { payoutFor, runRequests, runResult } from '../../src/store';
+import { EndReason, payoutFor, runRequests, runResult } from '../../src/store';
 import { colors } from '../../src/theme';
 
 // Runner-side live run: route progress map (placeholder), camera status,
@@ -20,6 +20,7 @@ export default function ActiveRun() {
   const req = runRequests[0];
   const [running, setRunning] = useState(false);
   const [sec, setSec] = useState(0);
+  const [endSheet, setEndSheet] = useState(false);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const km = Math.min(sec / 409, req.km + 0.02); // ~6'49" pace, demo-accelerated
@@ -33,8 +34,24 @@ export default function ActiveRun() {
     return () => { if (timer.current) clearInterval(timer.current); };
   }, [running]);
 
+  // per-reason payout (docs/product-notes: all pay actual km — never incentivize pushing a hurt dog)
+  const payoutByReason = (reason: EndReason): number => {
+    const actual = payoutFor(km);
+    if (reason === 'owner') return actual + Math.round((payoutFor(req.km) - actual) * 0.5); // + 잔여 50% 보장
+    return actual; // dog / runner: actual km
+  };
+
+  const endWith = (reason: EndReason) => {
+    setEndSheet(false);
+    Object.assign(runResult, { km, sec, payout: payoutByReason(reason), completed: false, reason });
+    if (reason === 'dog') {
+      Alert.alert('컨디션 종료', '보호자에게 알림 전송됨 · 상태 사진과 메모를 남겨주세요 (목업)\n근처 동물병원: 성수동물병원 650m');
+    }
+    router.replace('/runner/done');
+  };
+
   const finish = (completed: boolean) => {
-    Object.assign(runResult, { km, sec, payout: payoutFor(km), completed });
+    Object.assign(runResult, { km, sec, payout: payoutFor(km), completed, reason: null });
     router.replace('/runner/done');
   };
 
@@ -106,7 +123,12 @@ export default function ActiveRun() {
           </Text>
         </Row>
 
-        <View style={{ flexDirection: 'row', gap: 10 }}>
+        <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
+          {running && (
+            <Pressable style={s.moreBtn} onPress={() => setEndSheet(true)}>
+              <Text style={{ fontSize: 15, color: '#8fa093' }}>⋯</Text>
+            </Pressable>
+          )}
           <Pressable
             style={[s.btn, { backgroundColor: '#1c2b21' }]}
             onPress={() => Alert.alert('전송 완료', '사진이 보호자에게 전송되었습니다 (목업)')}
@@ -115,7 +137,7 @@ export default function ActiveRun() {
           </Pressable>
           <Pressable
             style={[s.btn, { backgroundColor: colors.volt }]}
-            onPress={() => (running ? finish(false) : setRunning(true))}
+            onPress={() => (running ? setEndSheet(true) : setRunning(true))}
           >
             <Text style={{ fontSize: 16, fontWeight: '800', color: colors.ink }}>
               {running ? '러닝 종료' : '러닝 시작'}
@@ -123,7 +145,59 @@ export default function ActiveRun() {
           </Pressable>
         </View>
       </View>
+
+      {/* ---------- end-run options sheet ---------- */}
+      <Modal visible={endSheet} transparent animationType="slide" onRequestClose={() => setEndSheet(false)}>
+        <Pressable style={s.sheetBackdrop} onPress={() => setEndSheet(false)} />
+        <View style={s.sheet}>
+          <View style={s.sheetHandle} />
+          <Text style={{ fontSize: 17, fontWeight: '900', color: colors.cream }}>어떤 이유로 종료하나요?</Text>
+          <Text style={{ fontSize: 11.5, color: '#8fa093', marginTop: 4 }}>
+            지금까지 {km.toFixed(2)}km · 이유에 따라 정산이 달라져요
+          </Text>
+
+          <EndOption
+            title="강아지 컨디션"
+            desc="지친 기색·이상 징후 등. 사진과 메모를 남겨요"
+            pay={`${payoutByReason('dog').toLocaleString()}원 · 완주율 무영향`}
+            accent="#B9F23A"
+            onPress={() => endWith('dog')}
+          />
+          <EndOption
+            title="보호자 요청"
+            desc="보호자가 조기 종료를 요청했어요"
+            pay={`${payoutByReason('owner').toLocaleString()}원 · 잔여 거리 50% 보장 포함`}
+            accent="#9fc3e8"
+            onPress={() => endWith('owner')}
+          />
+          <EndOption
+            title="러너 개인 사유"
+            desc="부상·일정 등 러너 사정으로 종료해요"
+            pay={`${payoutByReason('runner').toLocaleString()}원 · 완주율에 반영`}
+            accent="#e2c56b"
+            onPress={() => endWith('runner')}
+          />
+
+          <Pressable style={s.sheetCancel} onPress={() => setEndSheet(false)}>
+            <Text style={{ fontSize: 13, fontWeight: '700', color: '#8fa093' }}>계속 달릴게요</Text>
+          </Pressable>
+        </View>
+      </Modal>
     </View>
+  );
+}
+
+function EndOption({ title, desc, pay, accent, onPress }: { title: string; desc: string; pay: string; accent: string; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} style={s.endOption}>
+      <View style={[s.endRail, { backgroundColor: accent }]} />
+      <View style={{ flex: 1 }}>
+        <Text style={{ fontSize: 14.5, fontWeight: '900', color: colors.cream }}>{title}</Text>
+        <Text style={{ fontSize: 11, color: '#8fa093', marginTop: 2 }}>{desc}</Text>
+        <Text style={{ fontSize: 11.5, fontWeight: '800', color: accent, marginTop: 5 }}>{pay}</Text>
+      </View>
+      <Text style={{ fontSize: 15, color: '#8fa093' }}>›</Text>
+    </Pressable>
   );
 }
 
@@ -158,4 +232,14 @@ const s = StyleSheet.create({
     backgroundColor: '#1c2b21', borderRadius: 16, padding: 12,
   },
   btn: { flex: 1, borderRadius: 16, padding: 16, alignItems: 'center' },
+  moreBtn: { width: 44, height: 52, borderRadius: 16, backgroundColor: '#1c2b21', alignItems: 'center', justifyContent: 'center' },
+  sheetBackdrop: { flex: 1, backgroundColor: '#00000066' },
+  sheet: { backgroundColor: '#10160f', borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 22, paddingBottom: 40 },
+  sheetHandle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: '#2c3a2c', marginBottom: 14 },
+  endOption: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: '#1a231a', borderRadius: 16, padding: 14, marginTop: 10,
+  },
+  endRail: { width: 4, height: 44, borderRadius: 2 },
+  sheetCancel: { alignItems: 'center', paddingVertical: 14, marginTop: 6 },
 });

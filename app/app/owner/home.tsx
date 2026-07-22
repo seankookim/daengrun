@@ -6,7 +6,7 @@ import { BottomNav } from '../../src/components/bottomnav';
 import { Ring } from '../../src/components/ring';
 import { RunCard } from '../../src/components/runcard';
 import { Monogram } from '../../src/components/ui';
-import { dog, myCards, nextBooking, runners } from '../../src/store';
+import { demoImminent, dog, myCards, nextBooking, runners } from '../../src/store';
 import { colors } from '../../src/theme';
 import { useTheme } from '../../src/theme-context';
 
@@ -178,24 +178,44 @@ export default function OwnerHome() {
                 {nextBooking.runnerName} 러너 ✓ · 서울숲 2번 출입구
               </Text>
             </View>
-            <View style={[s.countdownPill, { backgroundColor: mode === 'dark' ? '#1e2c22' : '#eef4e0' }]}>
-              <Text style={{ fontSize: 10.5, fontWeight: '900', color: mode === 'dark' ? colors.volt : '#4a6d1f' }}>3시간 12분 후</Text>
+            <View style={[s.countdownPill, { backgroundColor: demoImminent ? '#fde8e3' : mode === 'dark' ? '#1e2c22' : '#eef4e0' }]}>
+              <Text style={{ fontSize: 10.5, fontWeight: '900', color: demoImminent ? '#d84a2f' : mode === 'dark' ? colors.volt : '#4a6d1f' }}>
+                {demoImminent ? '22분 후 시작' : '3시간 12분 후'}
+              </Text>
             </View>
           </View>
-          <View style={{ flexDirection: 'row', gap: 8, marginTop: 13 }}>
-            <Pressable
-              style={[s.widgetBtn, { borderColor: p.line }]}
-              onPress={(e) => { e.stopPropagation(); router.push('/owner/schedule'); }}
-            >
-              <Text style={{ fontSize: 11.5, fontWeight: '700', color: p.textSoft }}>일정 변경</Text>
-            </Pressable>
-            <Pressable
-              style={[s.widgetBtn, { borderColor: p.line }]}
-              onPress={(e) => { e.stopPropagation(); router.push('/chat'); }}
-            >
-              <Text style={{ fontSize: 11.5, fontWeight: '700', color: p.textSoft }}>러너와 채팅</Text>
-            </Pressable>
-          </View>
+          {/* 30분 전부터: 확인·시작 액션이 위젯에 올라온다 */}
+          {demoImminent ? (
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 13 }}>
+              <Pressable
+                style={s.meetBtn}
+                onPress={(e) => { e.stopPropagation(); router.push('/owner/meetup'); }}
+              >
+                <Text style={{ fontSize: 12.5, fontWeight: '900', color: colors.ink }}>러너 만나기 · 인계 확인 ›</Text>
+              </Pressable>
+              <Pressable
+                style={[s.widgetBtn, { borderColor: p.line, flex: 0.6 }]}
+                onPress={(e) => { e.stopPropagation(); router.push('/chat'); }}
+              >
+                <Text style={{ fontSize: 11.5, fontWeight: '700', color: p.textSoft }}>채팅</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 13 }}>
+              <Pressable
+                style={[s.widgetBtn, { borderColor: p.line }]}
+                onPress={(e) => { e.stopPropagation(); router.push('/owner/schedule'); }}
+              >
+                <Text style={{ fontSize: 11.5, fontWeight: '700', color: p.textSoft }}>일정 변경</Text>
+              </Pressable>
+              <Pressable
+                style={[s.widgetBtn, { borderColor: p.line }]}
+                onPress={(e) => { e.stopPropagation(); router.push('/chat'); }}
+              >
+                <Text style={{ fontSize: 11.5, fontWeight: '700', color: p.textSoft }}>러너와 채팅</Text>
+              </Pressable>
+            </View>
+          )}
         </Pressable>
 
         {/* ---------- safety quick card ---------- */}
@@ -311,6 +331,10 @@ const s = StyleSheet.create({
     shadowColor: colors.volt, shadowOpacity: 1, shadowRadius: 4, shadowOffset: { width: 0, height: 0 },
   },
   allScheduleChip: { backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 6, paddingHorizontal: 12 },
+  meetBtn: {
+    flex: 1, backgroundColor: colors.volt, borderRadius: 12, alignItems: 'center', paddingVertical: 11,
+    shadowColor: colors.volt, shadowOpacity: 0.4, shadowRadius: 8, shadowOffset: { width: 0, height: 2 },
+  },
   countdownPill: { borderRadius: 99, paddingVertical: 6, paddingHorizontal: 10 },
   widgetBtn: { flex: 1, borderWidth: 1, borderRadius: 12, alignItems: 'center', paddingVertical: 9 },
   safetyStrip: {

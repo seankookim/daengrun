@@ -5,7 +5,11 @@ import { pricing } from './theme';
 export const session = { role: 'owner' as 'owner' | 'runner' };
 
 // Result of the runner's latest run (set by run screen, read by done screen).
-export const runResult = { km: 0, sec: 0, payout: 0, completed: false };
+export type EndReason = 'dog' | 'owner' | 'runner' | null;
+export const runResult = { km: 0, sec: 0, payout: 0, completed: false, reason: null as EndReason };
+
+// Demo flag: shows the home widget in "imminent" (곧 시작) state
+export const demoImminent = true;
 
 // Prorated payout: actual distance, minus platform commission.
 export function payoutFor(km: number): number {

@@ -29,7 +29,10 @@ export default function RunDone() {
         </Text>
         {!runResult.completed && (
           <Text style={{ fontSize: 11, color: '#c9a15e', marginTop: 10, textAlign: 'center' }}>
-            조기 종료 — 실제 뛴 거리만큼 정산됩니다{'\n'}(개 컨디션 사유는 완주율에 반영되지 않아요)
+            {runResult.reason === 'dog' && '컨디션 종료 — 실제 거리 정산 · 완주율 무영향\n상태 사진과 메모가 보호자에게 전달돼요'}
+            {runResult.reason === 'owner' && '보호자 요청 종료 — 실제 거리 + 잔여 거리 50% 보장 포함'}
+            {runResult.reason === 'runner' && '개인 사유 종료 — 실제 거리 정산 · 완주율에 반영돼요'}
+            {!runResult.reason && '조기 종료 — 실제 뛴 거리만큼 정산됩니다'}
           </Text>
         )}
       </Card>
