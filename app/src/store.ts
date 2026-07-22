@@ -119,12 +119,100 @@ export const runners: Runner[] = [
   },
 ];
 
+// ---------- Certified routes (댕런 안심 코스) ----------
+// Curated + safety-checked routes. Blue check = 댕런 직접 검수.
+// Later: AI-generated routes fitted to dog profile.
+export interface RouteInfo {
+  id: string;
+  name: string;
+  area: string;
+  km: number;
+  terrain: string;
+  tags: string[];
+  fit: number; // 초코 기준 적합도 % (mock)
+  checkedAt: string; // 마지막 안전 점검일
+  desc: string;
+  trace: TracePoint[];
+}
+
+const riverTrace: TracePoint[] = [
+  { x: 0.05, y: 0.62, v: 0.3 }, { x: 0.16, y: 0.5, v: 0.3 }, { x: 0.28, y: 0.44, v: 0.3 },
+  { x: 0.4, y: 0.46, v: 0.3 }, { x: 0.52, y: 0.54, v: 0.3 }, { x: 0.64, y: 0.56, v: 0.3 },
+  { x: 0.76, y: 0.48, v: 0.3 }, { x: 0.88, y: 0.38, v: 0.3 }, { x: 0.95, y: 0.3, v: 0.3 },
+];
+
+const forestTrace: TracePoint[] = [
+  { x: 0.15, y: 0.8, v: 0.3 }, { x: 0.3, y: 0.6, v: 0.3 }, { x: 0.22, y: 0.4, v: 0.3 },
+  { x: 0.42, y: 0.3, v: 0.3 }, { x: 0.6, y: 0.42, v: 0.3 }, { x: 0.55, y: 0.62, v: 0.3 },
+  { x: 0.75, y: 0.72, v: 0.3 }, { x: 0.85, y: 0.55, v: 0.3 },
+];
+
+const longTrace: TracePoint[] = [
+  { x: 0.05, y: 0.85, v: 0.3 }, { x: 0.2, y: 0.7, v: 0.3 }, { x: 0.32, y: 0.5, v: 0.3 },
+  { x: 0.45, y: 0.35, v: 0.3 }, { x: 0.6, y: 0.25, v: 0.3 }, { x: 0.75, y: 0.22, v: 0.3 },
+  { x: 0.88, y: 0.3, v: 0.3 }, { x: 0.94, y: 0.45, v: 0.3 }, { x: 0.88, y: 0.6, v: 0.3 },
+];
+
+export const sampleRoutes: RouteInfo[] = [
+  {
+    id: 'seoulforest-loop', name: '서울숲 순환 코스', area: '성수동', km: 5, terrain: '흙길 70%',
+    tags: ['중형견 최적', '그늘 많음', '식수대 2곳'], fit: 96, checkedAt: '7.18 점검',
+    desc: '자전거도로와 완전 분리된 순환로. 초코의 페이스와 슬개골 메모에 잘 맞아요.',
+    trace: lastRunTrace,
+  },
+  {
+    id: 'ttukseom-river', name: '뚝섬 리버뷰 코스', area: '뚝섬한강공원', km: 5, terrain: '포장 60%',
+    tags: ['리버뷰', '평지', '야간 조명'], fit: 88, checkedAt: '7.20 점검',
+    desc: '한강을 따라 달리는 시원한 직선 코스. 저녁 러닝에 인기.',
+    trace: riverTrace,
+  },
+  {
+    id: 'forest-short', name: '서울숲 숲길 3km', area: '성수동', km: 3, terrain: '흙길 90%',
+    tags: ['소형견·시니어', '완만', '조용함'], fit: 82, checkedAt: '7.15 점검',
+    desc: '짧고 부드러운 숲길. 회복 러닝이나 컨디션 낮은 날 추천.',
+    trace: forestTrace,
+  },
+  {
+    id: 'han-7k', name: '뚝섬–잠원 7km', area: '한강', km: 7, terrain: '포장 80%',
+    tags: ['고에너지견', '장거리', '한강 시리즈'], fit: 74, checkedAt: '7.19 점검',
+    desc: '에너지 넘치는 날을 위한 장거리. 한강 시리즈 에픽 카드 코스.',
+    trace: longTrace,
+  },
+];
+
+// ---------- Bookings (calendar mock) ----------
+export type BookingStatus = 'confirmed' | 'pending' | 'active' | 'completed' | 'cancelled';
+
+export interface Booking {
+  id: string;
+  dateLabel: string; // 그룹 헤더
+  timeLabel: string;
+  dogName: string;
+  runnerName: string;
+  routeName: string;
+  km: number;
+  price: number;
+  status: BookingStatus;
+  recurring?: boolean;
+}
+
+export const bookings: Booking[] = [
+  { id: 'b1', dateLabel: '오늘 · 7월 22일 (수)', timeLabel: '오후 6:30', dogName: '초코', runnerName: '김민준', routeName: '서울숲 순환 코스', km: 5, price: 24900, status: 'confirmed' },
+  { id: 'b2', dateLabel: '내일 · 7월 23일 (목)', timeLabel: '오전 7:00', dogName: '초코', runnerName: '이서연', routeName: '서울숲 숲길 3km', km: 3, price: 18900, status: 'pending' },
+  { id: 'b3', dateLabel: '7월 25일 (토)', timeLabel: '오전 8:00', dogName: '초코', runnerName: '김민준', routeName: '뚝섬 리버뷰 코스', km: 5, price: 24900, status: 'confirmed', recurring: true },
+  { id: 'b4', dateLabel: '7월 21일 (화)', timeLabel: '오후 7:12', dogName: '초코', runnerName: '김민준', routeName: '서울숲 순환 코스', km: 5, price: 24960, status: 'completed' },
+];
+
+export const nextBooking = bookings[0];
+
 // Mutable request draft (mock). Fine for prototype-stage navigation.
 export const draft = {
   km: 5,
   pace: '보통 7\'',
   addons: [] as AddonKey[],
   runnerId: 'minjun',
+  routeId: 'seoulforest-loop',
+  timeLabel: '오늘 오후 6:30',
 };
 
 export function draftTotal(): number {

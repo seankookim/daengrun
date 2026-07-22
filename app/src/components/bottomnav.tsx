@@ -18,8 +18,8 @@ const OWNER_TABS = [
 
 const RUNNER_TABS = [
   { icon: '⌂', label: '홈', path: '/runner/home' },
-  { icon: '▦', label: '캘린더', path: null }, // Phase 1 목업 예정
-  { icon: '✉', label: '요청', path: null }, // Phase 1 목업 예정
+  { icon: '▦', label: '캘린더', path: '/runner/calendar' },
+  { icon: '✉', label: '요청', path: '/runner/requests' },
   { icon: '₩', label: '수익', path: null },
   { icon: '☰', label: '마이', path: '/my' },
 ] as const;

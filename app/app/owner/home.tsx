@@ -6,7 +6,7 @@ import { BottomNav } from '../../src/components/bottomnav';
 import { Ring } from '../../src/components/ring';
 import { RunCard } from '../../src/components/runcard';
 import { Monogram } from '../../src/components/ui';
-import { dog, myCards, runners } from '../../src/store';
+import { dog, myCards, nextBooking, runners } from '../../src/store';
 import { colors } from '../../src/theme';
 import { useTheme } from '../../src/theme-context';
 
@@ -156,6 +156,38 @@ export default function OwnerHome() {
           <Text style={{ fontSize: 18, fontWeight: '900', color: colors.ink }}>›</Text>
         </Pressable>
 
+        {/* ---------- upcoming schedule widget (docs/calendar.md: 4-state component; mock shows 예정 state) ---------- */}
+        <View style={[s.scheduleCard, { backgroundColor: p.card, borderColor: p.line }]}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text style={{ fontSize: 12, fontWeight: '800', color: p.dim }}>다가오는 일정</Text>
+            <Pressable onPress={() => router.push('/owner/schedule')}>
+              <Text style={{ fontSize: 12, fontWeight: '700', color: mode === 'dark' ? colors.volt : colors.voltDeep }}>전체 일정 ›</Text>
+            </Pressable>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 10 }}>
+            <Monogram char={nextBooking.runnerName[1]} bg="#FF6347" size={42} />
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 15, fontWeight: '900', color: p.textStrong }}>
+                {nextBooking.timeLabel} · {nextBooking.dogName}
+              </Text>
+              <Text style={{ fontSize: 11.5, color: p.dim, marginTop: 2 }}>
+                {nextBooking.runnerName} 러너 ✓ · 서울숲 2번 출입구
+              </Text>
+            </View>
+            <View style={[s.countdownPill, { backgroundColor: mode === 'dark' ? '#1e2c22' : '#eef4e0' }]}>
+              <Text style={{ fontSize: 10.5, fontWeight: '900', color: mode === 'dark' ? colors.volt : '#4a6d1f' }}>3시간 12분 후</Text>
+            </View>
+          </View>
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
+            <Pressable style={[s.widgetBtn, { borderColor: p.line }]}>
+              <Text style={{ fontSize: 11.5, fontWeight: '700', color: p.textSoft }}>일정 변경</Text>
+            </Pressable>
+            <Pressable style={[s.widgetBtn, { borderColor: p.line }]}>
+              <Text style={{ fontSize: 11.5, fontWeight: '700', color: p.textSoft }}>러너와 채팅</Text>
+            </Pressable>
+          </View>
+        </View>
+
         {/* ---------- safety quick card ---------- */}
         <Pressable onPress={() => router.push('/safety')} style={[s.safetyStrip, { backgroundColor: p.card }]}>
           <View style={s.safetyIcon}><Text style={{ fontSize: 13, color: '#5a7a3c' }}>✚</Text></View>
@@ -258,6 +290,9 @@ const s = StyleSheet.create({
     shadowColor: colors.volt, shadowOpacity: 0.45, shadowRadius: 18, shadowOffset: { width: 0, height: 6 },
     elevation: 8,
   },
+  scheduleCard: { borderRadius: 20, borderWidth: 1, padding: 16, marginTop: 12 },
+  countdownPill: { borderRadius: 99, paddingVertical: 6, paddingHorizontal: 10 },
+  widgetBtn: { flex: 1, borderWidth: 1, borderRadius: 12, alignItems: 'center', paddingVertical: 9 },
   safetyStrip: {
     flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 16,
     paddingVertical: 12, paddingHorizontal: 14, marginTop: 12,
