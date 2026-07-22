@@ -157,7 +157,7 @@ export default function OwnerHome() {
         </Pressable>
 
         {/* ---------- safety quick card ---------- */}
-        <Pressable onPress={() => router.push('/safety')} style={[s.safetyStrip, { backgroundColor: p.card, borderColor: p.line }]}>
+        <Pressable onPress={() => router.push('/safety')} style={[s.safetyStrip, { backgroundColor: p.card }]}>
           <View style={s.safetyIcon}><Text style={{ fontSize: 13, color: '#5a7a3c' }}>✚</Text></View>
           <Text style={{ flex: 1, fontSize: 12.5, fontWeight: '700', color: p.textStrong }}>
             안심 센터 <Text style={{ fontWeight: '400', color: p.dim }}>· SOS · 실시간 위치 · 보험</Text>
@@ -258,7 +258,13 @@ const s = StyleSheet.create({
     shadowColor: colors.volt, shadowOpacity: 0.45, shadowRadius: 18, shadowOffset: { width: 0, height: 6 },
     elevation: 8,
   },
-  safetyStrip: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 16, borderWidth: 1, paddingVertical: 12, paddingHorizontal: 14, marginTop: 12 },
+  safetyStrip: {
+    flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 16,
+    paddingVertical: 12, paddingHorizontal: 14, marginTop: 12,
+    borderWidth: 1.2, borderColor: '#ff634745', // faint coral outline
+    shadowColor: colors.tang, shadowOpacity: 0.22, shadowRadius: 10, shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+  },
   safetyIcon: { width: 28, height: 28, borderRadius: 9, backgroundColor: '#eef4e0', alignItems: 'center', justifyContent: 'center' },
   sectionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 26, marginBottom: 12 },
   sectionTitle: { fontSize: 17, fontWeight: '800' },
