@@ -38,7 +38,8 @@ export default function RunDone() {
       </Card>
 
       <Text style={[text.dim, { textAlign: 'center', marginTop: 14 }]}>수익은 매주 수요일 정산됩니다</Text>
-      <Btn label="홈으로" style={{ marginTop: 20 }} onPress={() => router.dismissTo('/runner/home')} />
+      <Btn label={`${req.dogName} 리뷰 남기기`} variant="volt" style={{ marginTop: 20 }} onPress={() => router.push('/runner/review')} />
+      <Btn label="홈으로" style={{ marginTop: 8 }} onPress={() => router.dismissTo('/runner/home')} />
     </View>
   );
 }

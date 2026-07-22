@@ -223,6 +223,52 @@ export const bookings: Booking[] = [
 // Cancel policy (mock): 10% fee, split 50/50 runner·platform
 export const cancelPolicy = { feeRate: 0.1, runnerShare: 0.5 };
 
+// ---------- Runner earnings ledger (schema seed: payouts/ledger tables) ----------
+export interface LedgerItem {
+  id: string; date: string; dogName: string; km: number;
+  base: number; distancePay: number; addonPay: number; tip: number; fee: number; // fee = platform commission
+}
+export const ledgerNet = (l: LedgerItem) => l.base + l.distancePay + l.addonPay + l.tip - l.fee;
+
+export const ledger: LedgerItem[] = [
+  { id: 'l1', date: '7.22 (수)', dogName: '초코', km: 5.02, base: 9900, distancePay: 15060, addonPay: 4000, tip: 2000, fee: 5792 },
+  { id: 'l2', date: '7.21 (화)', dogName: '몽이', km: 3.0, base: 9900, distancePay: 9000, addonPay: 0, tip: 0, fee: 3780 },
+  { id: 'l3', date: '7.20 (월)', dogName: '두부', km: 5.0, base: 9900, distancePay: 15000, addonPay: 2000, tip: 1000, fee: 5380 },
+  { id: 'l4', date: '7.19 (일)', dogName: '초코', km: 7.01, base: 9900, distancePay: 21030, addonPay: 3000, tip: 0, fee: 6786 },
+];
+
+export const payoutInfo = {
+  bank: '카카오뱅크', last4: '4821', holder: '김민준',
+  nextDate: '7월 24일 (수)', pendingSum: 83700, taxRate: 0.033,
+};
+
+// ---------- Saved addresses (schema seed: addresses table, encrypted gate codes) ----------
+export interface SavedAddress {
+  id: string; label: string; addr: string; detail?: string;
+  gateCode?: string; // 암호화 저장, 러닝 시간에만 러너에게 노출
+  isDefault?: boolean;
+}
+export const addresses: SavedAddress[] = [
+  { id: 'a1', label: '서울숲 2번 출입구', addr: '성동구 뚝섬로 273', detail: '출입구 옆 벤치에서 만나요', isDefault: true },
+  { id: 'a2', label: '집', addr: '성동구 왕십리로 000, 101동', detail: '1층 로비 인계', gateCode: '1234*' },
+];
+
+// ---------- Two-sided review: runner → dog/owner ----------
+export const dogReviewTags = ['리드 매너 좋아요', '회수 반응 좋아요', '에너지 넘쳐요', '다른 개 반응 있어요', '자전거 반응 있어요', '수줍음이 많아요'];
+
+// ---------- Runner certification funnel status ----------
+export const applyStatus = {
+  tier: '인증 러너', nextTier: '베테랑',
+  runsToNext: 36, // 250회 달성 시
+  steps: [
+    { key: 'info', label: '기본 정보', desc: '활동 지역 · 페이스 · 가능 견종 크기', done: true },
+    { key: 'kyc', label: '신원 확인', desc: 'PASS 본인인증 · 신분증 · 범죄경력회보서', done: true },
+    { key: 'edu', label: '안전 교육 & 퀴즈', desc: '6개 모듈 중 4개 완료 · 합격선 90점', done: false, active: true },
+    { key: 'trial', label: '시범 러닝', desc: '베테랑 러너 동행 1회 평가', done: false },
+    { key: 'cert', label: '인증 완료', desc: '프로필에 배지 표시 · 요청 수신 시작', done: false },
+  ],
+};
+
 export const nextBooking = bookings[0];
 
 // Mutable request draft (mock). Fine for prototype-stage navigation.

@@ -15,7 +15,10 @@ export default function My() {
 
   const MENU = [
     { glyph: '✚', label: '안심 센터', desc: 'SOS · 실시간 위치 · 보험', path: '/safety' as const },
-    { glyph: '▦', label: '예약 관리', desc: '다가오는 일정과 지난 예약', path: null },
+    isRunner
+      ? { glyph: '✓', label: '러너 인증 센터', desc: '지원 절차 · 등급 사다리 · 교육', path: '/runner/apply' as const }
+      : { glyph: '⌂', label: '주소 관리', desc: '픽업 장소 · 공동현관 정보', path: '/owner/addresses' as const },
+    { glyph: '▦', label: '예약 관리', desc: '다가오는 일정과 지난 예약', path: isRunner ? null : ('/owner/schedule' as const) },
     { glyph: '⌗', label: isRunner ? '내 러닝 기록' : `${dog.name}의 기록`, desc: '마이 카드 · 러닝 히스토리', path: '/cards' as const },
     { glyph: '◔', label: '알림', desc: '알림 확인 및 설정', path: '/alerts' as const },
     { glyph: '⚙', label: '설정', desc: '계정 · 결제 수단 · 보안', path: null },

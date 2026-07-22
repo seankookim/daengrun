@@ -129,10 +129,10 @@ export default function Request() {
 
         {/* pickup */}
         <SectionHead glyph="➤" title="픽업 장소" />
-        <View style={[s.card, s.rowCard]}>
+        <Pressable style={[s.card, s.rowCard]} onPress={() => router.push('/owner/addresses')}>
           <Text style={{ fontSize: 14, fontWeight: '700', color: FOREST }}>서울숲 2번 출입구</Text>
-          <Text style={{ fontSize: 12, color: colors.dim }}>지도 ›</Text>
-        </View>
+          <Text style={{ fontSize: 12, color: colors.dim }}>주소 관리 ›</Text>
+        </Pressable>
 
         {/* ---------- 안심 코스 carousel ---------- */}
         <SectionHead glyph="✓" title="코스 선택" sub="· 모든 코스는 댕런이 직접 점검해요" />
