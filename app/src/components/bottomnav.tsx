@@ -23,12 +23,14 @@ export function homePath(): '/owner/home' | '/runner/home' {
   return session.role === 'runner' ? '/runner/home' : '/owner/home';
 }
 
-export function BottomNav() {
+export function BottomNav({ dark }: { dark?: boolean }) {
   const pathname = usePathname();
   const tabs = session.role === 'runner' ? RUNNER_TABS : OWNER_TABS;
+  const activeColor = dark ? colors.volt : colors.ink;
+  const idleColor = dark ? colors.dimDark : colors.dim;
 
   return (
-    <View style={s.bar}>
+    <View style={[s.bar, dark && s.barDark]}>
       {tabs.map((t) => {
         const active = t.path === pathname;
         return (
@@ -37,8 +39,10 @@ export function BottomNav() {
             style={s.tab}
             onPress={() => { if (t.path && !active) router.replace(t.path); }}
           >
-            <Text style={[s.icon, active && { color: colors.ink }]}>{t.icon}</Text>
-            <Text style={[s.label, active && s.labelActive]}>{t.label}</Text>
+            <Text style={[s.icon, { color: active ? activeColor : idleColor }]}>{t.icon}</Text>
+            <Text style={[s.label, { color: active ? activeColor : idleColor }, active && { fontWeight: '700' }]}>
+              {t.label}
+            </Text>
           </Pressable>
         );
       })}
@@ -48,8 +52,8 @@ export function BottomNav() {
 
 const s = StyleSheet.create({
   bar: { flexDirection: 'row', borderTopWidth: 1, borderTopColor: colors.line, backgroundColor: '#fff', paddingBottom: 22 },
+  barDark: { backgroundColor: '#0f120a', borderTopColor: colors.lineDark },
   tab: { flex: 1, alignItems: 'center', paddingVertical: 12 },
-  icon: { fontSize: 18, color: colors.dim, marginBottom: 3 },
-  label: { fontSize: 11, color: colors.dim, fontWeight: '500' },
-  labelActive: { color: colors.ink, fontWeight: '700' },
+  icon: { fontSize: 18, marginBottom: 3 },
+  label: { fontSize: 11, fontWeight: '500' },
 });

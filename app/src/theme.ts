@@ -4,10 +4,16 @@ export const colors = {
   cream: '#f2efe6',
   volt: '#c8f24e',
   voltDeep: '#9ecf1e',
+  voltBright: '#dcff5e',
   tang: '#ff5c38',
   card: '#ffffff',
   line: '#e2ddcf',
   dim: '#8a8877',
+  // dark glow theme (owner home / cards)
+  bgDark: '#0b0d07',
+  cardDark: '#12150c',
+  lineDark: '#252a1a',
+  dimDark: '#7a8065',
 } as const;
 
 export const radius = { card: 20, btn: 16, chip: 99 } as const;

@@ -1,99 +1,236 @@
 import { router } from 'expo-router';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
+import { useRef } from 'react';
+import { Animated, Dimensions, Pressable, StyleSheet, Text, View } from 'react-native';
 import { BottomNav } from '../../src/components/bottomnav';
 import { Ring } from '../../src/components/ring';
 import { RunCard } from '../../src/components/runcard';
-import { Badge, Btn, Card, Monogram, Row, text } from '../../src/components/ui';
+import { Monogram } from '../../src/components/ui';
 import { dog, myCards, runners } from '../../src/store';
 import { colors } from '../../src/theme';
 
-// Owner home = the dopamine hub. Leads with the dog's fitness, not chores.
+// Owner home — dark glow theme. The weekly ring starts big and centered,
+// then shrinks toward the top-right of the hero card as you scroll,
+// while the goal text block fades in on the left (hero scrolls with content).
+
+const { width: SCREEN_W } = Dimensions.get('window');
+const CARD_W = SCREEN_W - 44;
+const RING_BIG = 216;
+const SCROLL_RANGE = 130;
 
 export default function OwnerHome() {
   const pct = dog.weekKm / dog.weeklyGoalKm;
   const remaining = Math.max(dog.weeklyGoalKm - dog.weekKm, 0);
   const goalHit = pct >= 1;
   const latestCard = myCards.find((c) => c.run);
+  const scrollY = useRef(new Animated.Value(0)).current;
+
+  const t = scrollY.interpolate({ inputRange: [0, SCROLL_RANGE], outputRange: [0, 1], extrapolate: 'clamp' });
+  const ringScale = t.interpolate({ inputRange: [0, 1], outputRange: [1, 0.55] });
+  const ringX = t.interpolate({ inputRange: [0, 1], outputRange: [0, CARD_W / 2 - RING_BIG * 0.55 * 0.5 - 26] });
+  const ringY = t.interpolate({ inputRange: [0, 1], outputRange: [0, -14] });
+  const infoOpacity = t.interpolate({ inputRange: [0, 0.45, 1], outputRange: [0, 0, 1] });
+  const infoX = t.interpolate({ inputRange: [0, 1], outputRange: [-24, 0] });
 
   return (
-    <View style={{ flex: 1 }}>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 22, paddingTop: 64 }}>
-        <Row style={{ justifyContent: 'space-between' }}>
-          <View>
-            <Text style={text.dim}>성수동 · 맑음 24°</Text>
-            <Text style={[text.h1, { marginTop: 2 }]}>{dog.name} 보호자님</Text>
-          </View>
+    <View style={{ flex: 1, backgroundColor: colors.bgDark }}>
+      <StatusBar style="light" />
+      <Animated.ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: 22, paddingTop: 64, paddingBottom: 30 }}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
+        scrollEventThrottle={16}
+      >
+        {/* ---------- header ---------- */}
+        <View style={s.headerRow}>
           <Monogram char={dog.name[0]} bg={colors.volt} size={46} />
-        </Row>
-
-        {/* ---------- 주간 러닝 링 (dopamine hero) ---------- */}
-        <Pressable onPress={() => router.push('/owner/dog')}>
-          <Card dark style={{ marginTop: 18, alignItems: 'center', paddingVertical: 24 }}>
-            <Ring pct={pct} size={200}>
-              <View style={{ alignItems: 'center' }}>
-                <Text style={{ fontSize: 44, fontWeight: '900', color: colors.volt, lineHeight: 48 }}>
-                  {dog.weekKm}
-                </Text>
-                <Text style={{ fontSize: 12, color: '#9a987f' }}>/ {dog.weeklyGoalKm}km 이번 주</Text>
-              </View>
-            </Ring>
-
-            <Text style={{ fontSize: 14, fontWeight: '700', color: colors.cream, marginTop: 16 }}>
-              {goalHit
-                ? `이번 주 목표 달성! ${dog.name} 최고예요`
-                : `목표까지 ${remaining.toFixed(1)}km — 거의 다 왔어요`}
+          <View style={{ flex: 1, marginLeft: 12 }}>
+            <Text style={{ fontSize: 17, fontWeight: '800', color: '#fff' }}>안녕하세요, {dog.name} 보호자님</Text>
+            <Text style={{ fontSize: 12, color: colors.dimDark, marginTop: 2 }}>
+              {dog.name}와 함께 건강한 하루 보내세요!
             </Text>
+          </View>
+          <View style={s.bell}>
+            <View style={s.bellDot} />
+            <Text style={{ fontSize: 15, color: colors.dimDark }}>◔</Text>
+          </View>
+        </View>
 
-            <Row style={{ gap: 8, marginTop: 12 }}>
-              <Badge label={`연속 ${dog.streakDays}일`} tone="red" />
-              <Badge label="3회 완료" tone="ink" />
-              <Badge label={`평균 7'20"`} tone="ink" />
-            </Row>
-          </Card>
+        {/* ---------- hero: morphing ring ---------- */}
+        <Pressable onPress={() => router.push('/owner/dog')}>
+          <View style={s.hero}>
+            <View style={s.weekChip}>
+              <Text style={{ fontSize: 11, fontWeight: '700', color: colors.cream }}>이번 주 ▾</Text>
+            </View>
+
+            {/* compact info block (fades in on scroll) */}
+            <Animated.View style={[s.info, { opacity: infoOpacity, transform: [{ translateX: infoX }] }]}>
+              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.cream }}>{dog.name}의 주간 목표</Text>
+              <Text style={{ marginTop: 6 }}>
+                <Text style={{ fontSize: 40, fontWeight: '900', color: colors.volt }}>{dog.weekKm}</Text>
+                <Text style={{ fontSize: 14, color: colors.dimDark }}> / {dog.weeklyGoalKm} km</Text>
+              </Text>
+              <Text style={{ fontSize: 12, color: colors.cream, marginTop: 6 }}>
+                {goalHit ? '이번 주 목표 달성!' : `목표까지 ${remaining.toFixed(1)}km 남았어요!`}
+              </Text>
+              <Text style={{ fontSize: 11, fontWeight: '800', color: colors.volt, marginTop: 10 }}>
+                {Math.round(pct * 100)}% 달성
+              </Text>
+              <View style={s.miniBar}>
+                <View style={[s.miniBarFill, { width: `${Math.min(pct, 1) * 100}%` }]} />
+              </View>
+            </Animated.View>
+
+            {/* the ring */}
+            <Animated.View
+              style={{
+                alignSelf: 'center',
+                marginTop: 12,
+                transform: [{ translateX: ringX }, { translateY: ringY }, { scale: ringScale }],
+              }}
+            >
+              <Ring pct={pct} size={RING_BIG}>
+                <View style={{ alignItems: 'center' }}>
+                  <Text style={{ fontSize: 13, color: colors.dimDark }}>이번 주</Text>
+                  <Text style={{ fontSize: 46, fontWeight: '900', color: '#fff', lineHeight: 50 }}>
+                    {dog.weekKm}
+                    <Text style={{ fontSize: 16, color: colors.dimDark }}> km</Text>
+                  </Text>
+                  <Text style={{ fontSize: 13, color: colors.volt, marginTop: 2 }}>/ {dog.weeklyGoalKm}km</Text>
+                  <View style={s.goalChip}>
+                    <Text style={{ fontSize: 10, fontWeight: '800', color: colors.cream }}>주간 목표</Text>
+                  </View>
+                </View>
+              </Ring>
+            </Animated.View>
+
+            {/* big-state goal message (fades out as info fades in) */}
+            <Animated.Text
+              style={{
+                textAlign: 'center', marginTop: 10, fontSize: 13, fontWeight: '700', color: colors.cream,
+                opacity: t.interpolate({ inputRange: [0, 0.4], outputRange: [1, 0], extrapolate: 'clamp' }),
+              }}
+            >
+              {goalHit ? `이번 주 목표 달성! ${dog.name} 최고예요` : `목표까지 ${remaining.toFixed(1)}km 남았어요!`}
+            </Animated.Text>
+          </View>
         </Pressable>
 
-        <Btn label="러닝 요청하기" variant="volt" style={{ marginTop: 14 }} onPress={() => router.push('/owner/request')} />
+        {/* ---------- stat chips ---------- */}
+        <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
+          <StatChip top={`연속 ${dog.streakDays}일`} bottom="연속 기록" accent="#ff9d5c" />
+          <StatChip top="3회 완료" bottom="이번 주" accent={colors.volt} />
+          <StatChip top={`평균 7'20"`} bottom="평균 페이스" accent="#9fc3e8" />
+        </View>
 
-        {/* ---------- 최신 러닝 카드 ---------- */}
-        <Row style={{ justifyContent: 'space-between', marginTop: 24, marginBottom: 10 }}>
-          <Text style={text.h2}>{dog.name}의 최신 카드</Text>
+        {/* ---------- CTA ---------- */}
+        <Pressable onPress={() => router.push('/owner/request')} style={({ pressed }) => [s.cta, pressed && { transform: [{ scale: 0.98 }] }]}>
+          <Text style={{ fontSize: 18, fontWeight: '900', color: colors.ink, letterSpacing: 0.5 }}>러닝 요청하기</Text>
+          <Text style={{ fontSize: 18, fontWeight: '900', color: colors.ink }}>›</Text>
+        </Pressable>
+
+        {/* ---------- latest card ---------- */}
+        <View style={s.sectionRow}>
+          <Text style={s.sectionTitle}>최근 활동</Text>
           <Pressable onPress={() => router.push('/cards')}>
-            <Text style={[text.dim, { fontWeight: '700' }]}>마이 카드 ›</Text>
+            <Text style={{ fontSize: 12, color: colors.dimDark, fontWeight: '700' }}>모두 보기 ›</Text>
           </Pressable>
-        </Row>
+        </View>
         {latestCard && (
           <Pressable onPress={() => router.push('/cards')} style={{ alignItems: 'center' }}>
-            <RunCard card={latestCard} width={340} />
+            <RunCard card={latestCard} width={CARD_W} />
           </Pressable>
         )}
 
-        {/* ---------- 인기 러너 ---------- */}
-        <Row style={{ justifyContent: 'space-between', marginTop: 24, marginBottom: 10 }}>
-          <Text style={text.h2}>내 주변 인기 러너</Text>
-          <Text style={text.dim}>전체보기</Text>
-        </Row>
-
+        {/* ---------- runners ---------- */}
+        <View style={s.sectionRow}>
+          <Text style={s.sectionTitle}>내 주변 인기 러너</Text>
+          <Text style={{ fontSize: 12, color: colors.dimDark }}>전체보기</Text>
+        </View>
         {runners.slice(0, 2).map((r) => (
           <Pressable key={r.id} onPress={() => router.push('/owner/matching')}>
-            <Card style={{ marginBottom: 8 }}>
-              <Row style={{ gap: 14 }}>
-                <Monogram char={r.char} bg={r.color} />
-                <View style={{ flex: 1 }}>
-                  <Row style={{ gap: 6 }}>
-                    <Text style={{ fontSize: 15, fontWeight: '700' }}>{r.name}</Text>
-                    {r.badges.map((b) => <Badge key={b} label={b} tone={b === '훈련사' ? 'red' : 'green'} />)}
-                  </Row>
-                  <Text style={[text.dim, { marginTop: 3 }]}>
-                    ★ {r.rating} · 러닝 {r.runs}회 · 성수동 {r.distanceKm}km
-                  </Text>
+            <View style={s.runnerCard}>
+              <Monogram char={r.char} bg={r.color} />
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: '#fff' }}>{r.name}</Text>
+                  {r.badges.map((b) => (
+                    <View key={b} style={s.runnerBadge}>
+                      <Text style={{ fontSize: 9, fontWeight: '800', color: b === '훈련사' ? '#ff9d5c' : colors.volt }}>{b}</Text>
+                    </View>
+                  ))}
                 </View>
-                <Text style={{ color: colors.dim, fontSize: 18 }}>›</Text>
-              </Row>
-            </Card>
+                <Text style={{ fontSize: 12, color: colors.dimDark, marginTop: 3 }}>
+                  ★ {r.rating} · 러닝 {r.runs}회 · 성수동 {r.distanceKm}km
+                </Text>
+              </View>
+              <Text style={{ color: colors.dimDark, fontSize: 18 }}>›</Text>
+            </View>
           </Pressable>
         ))}
-      </ScrollView>
-      <BottomNav />
+      </Animated.ScrollView>
+      <BottomNav dark />
     </View>
   );
 }
+
+function StatChip({ top, bottom, accent }: { top: string; bottom: string; accent: string }) {
+  return (
+    <View style={s.statChip}>
+      <View style={[s.statDot, { backgroundColor: accent, shadowColor: accent }]} />
+      <Text style={{ fontSize: 13, fontWeight: '800', color: '#fff', marginTop: 6 }}>{top}</Text>
+      <Text style={{ fontSize: 10, color: colors.dimDark, marginTop: 2 }}>{bottom}</Text>
+    </View>
+  );
+}
+
+const s = StyleSheet.create({
+  headerRow: { flexDirection: 'row', alignItems: 'center' },
+  bell: {
+    width: 40, height: 40, borderRadius: 20, borderWidth: 1, borderColor: colors.lineDark,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  bellDot: {
+    position: 'absolute', top: 8, right: 9, width: 7, height: 7, borderRadius: 4,
+    backgroundColor: colors.volt, zIndex: 2,
+    shadowColor: colors.volt, shadowOpacity: 1, shadowRadius: 4, shadowOffset: { width: 0, height: 0 },
+  },
+  hero: {
+    marginTop: 18, backgroundColor: colors.cardDark, borderRadius: 28, padding: 20, paddingBottom: 24,
+    borderWidth: 1, borderColor: colors.lineDark, minHeight: RING_BIG + 110, overflow: 'hidden',
+    shadowColor: colors.volt, shadowOpacity: 0.1, shadowRadius: 24, shadowOffset: { width: 0, height: 6 },
+  },
+  weekChip: {
+    alignSelf: 'flex-start', backgroundColor: '#1c2113', borderRadius: 99,
+    paddingVertical: 6, paddingHorizontal: 12,
+  },
+  info: { position: 'absolute', left: 20, top: 64, width: CARD_W * 0.48, zIndex: 3 },
+  miniBar: { height: 4, borderRadius: 99, backgroundColor: '#20250f', marginTop: 6, overflow: 'hidden' },
+  miniBarFill: { height: 4, borderRadius: 99, backgroundColor: colors.volt },
+  goalChip: {
+    marginTop: 8, backgroundColor: '#1c2113', borderRadius: 99, paddingVertical: 4, paddingHorizontal: 10,
+  },
+  statChip: {
+    flex: 1, backgroundColor: colors.cardDark, borderRadius: 18, borderWidth: 1, borderColor: colors.lineDark,
+    paddingVertical: 12, paddingHorizontal: 12,
+  },
+  statDot: {
+    width: 8, height: 8, borderRadius: 4,
+    shadowOpacity: 0.9, shadowRadius: 5, shadowOffset: { width: 0, height: 0 },
+  },
+  cta: {
+    marginTop: 14, backgroundColor: colors.volt, borderRadius: 22, paddingVertical: 19, paddingHorizontal: 24,
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    shadowColor: colors.volt, shadowOpacity: 0.45, shadowRadius: 18, shadowOffset: { width: 0, height: 6 },
+    elevation: 8,
+  },
+  sectionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 26, marginBottom: 12 },
+  sectionTitle: { fontSize: 17, fontWeight: '800', color: '#fff' },
+  runnerCard: {
+    flexDirection: 'row', alignItems: 'center', backgroundColor: colors.cardDark,
+    borderRadius: 18, borderWidth: 1, borderColor: colors.lineDark, padding: 14, marginBottom: 8,
+  },
+  runnerBadge: {
+    borderWidth: 1, borderColor: colors.lineDark, borderRadius: 99, paddingVertical: 2, paddingHorizontal: 7,
+  },
+});
