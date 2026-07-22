@@ -16,6 +16,9 @@ export default function Safety() {
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 22, paddingTop: 64, paddingBottom: 24 }}>
         {/* header */}
         <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <Pressable onPress={() => router.back()} style={[s.bell, { marginRight: 12 }]}>
+            <Text style={{ fontSize: 18, color: FOREST }}>‹</Text>
+          </Pressable>
           <View style={{ flex: 1 }}>
             <Row style={{ gap: 8 }}>
               <Text style={s.h1}>안심 센터</Text>

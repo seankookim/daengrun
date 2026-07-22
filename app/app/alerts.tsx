@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BottomNav } from '../src/components/bottomnav';
 import { Row } from '../src/components/ui';
 import { dog, Noti, notifications } from '../src/store';
@@ -21,7 +21,10 @@ export default function Alerts() {
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 22, paddingTop: 64, paddingBottom: 24 }}>
         {/* header */}
         <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <View>
+          <Pressable onPress={() => router.back()} style={[s.hBtn, { marginRight: 12 }]}>
+            <Text style={{ fontSize: 18, color: FOREST }}>‹</Text>
+          </Pressable>
+          <View style={{ flex: 1 }}>
             <Row style={{ gap: 5 }}>
               <Text style={s.h1}>알림</Text>
               <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: colors.voltDeep, marginTop: 8 }} />
@@ -30,7 +33,9 @@ export default function Alerts() {
           </View>
           <Row style={{ gap: 8 }}>
             <HeaderBtn glyph="⚙" label="필터" />
-            <Pressable onPress={() => router.back()}><HeaderBtn glyph="◔" label="모두 읽음" /></Pressable>
+            <Pressable onPress={() => Alert.alert('모두 읽음', '모든 알림을 읽음 처리했어요 (목업)')}>
+              <HeaderBtn glyph="✓" label="모두 읽음" />
+            </Pressable>
           </Row>
         </Row>
 
