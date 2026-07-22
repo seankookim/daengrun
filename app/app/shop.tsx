@@ -1,9 +1,9 @@
 import { router } from 'expo-router';
 import { Pressable, ScrollView, Text, View } from 'react-native';
-import { BottomNav } from '../../src/components/bottomnav';
-import { Card, Chip, Row, text } from '../../src/components/ui';
-import { products } from '../../src/store';
-import { colors } from '../../src/theme';
+import { BottomNav, homePath } from '../src/components/bottomnav';
+import { Card, Chip, Row, text } from '../src/components/ui';
+import { products } from '../src/store';
+import { colors } from '../src/theme';
 
 const CATS = ['전체', '간식', '용품', '의류', '영양제'];
 
@@ -12,7 +12,7 @@ export default function Shop() {
     <View style={{ flex: 1 }}>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 22, paddingTop: 56 }}>
         <Row style={{ justifyContent: 'space-between', marginBottom: 14 }}>
-          <Pressable onPress={() => router.replace('/owner/home')}><Text style={{ fontSize: 24 }}>‹</Text></Pressable>
+          <Pressable onPress={() => router.replace(homePath())}><Text style={{ fontSize: 24 }}>‹</Text></Pressable>
           <Text style={text.h2}>댕런 샵</Text>
           <View style={{ width: 24 }} />
         </Row>
@@ -50,7 +50,7 @@ export default function Shop() {
           ))}
         </View>
       </ScrollView>
-      <BottomNav role="owner" />
+      <BottomNav />
     </View>
   );
 }

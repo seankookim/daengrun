@@ -1,26 +1,31 @@
 import { router, usePathname } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { session } from '../store';
 import { colors } from '../theme';
 
-// Prototype-style bottom nav. Swap for expo-router Tabs when flows stabilize.
+// Prototype-style bottom nav, role-aware via session. Swap for expo-router Tabs later.
 
 const OWNER_TABS = [
   { icon: '⌂', label: '홈', path: '/owner/home' },
-  { icon: '◎', label: '커뮤니티', path: '/owner/community' },
-  { icon: '◈', label: '샵', path: '/owner/shop' },
+  { icon: '◎', label: '커뮤니티', path: '/community' },
+  { icon: '◈', label: '샵', path: '/shop' },
   { icon: '☰', label: '마이', path: null },
 ] as const;
 
 const RUNNER_TABS = [
   { icon: '⌂', label: '홈', path: '/runner/home' },
-  { icon: '◎', label: '커뮤니티', path: '/owner/community' },
+  { icon: '◎', label: '커뮤니티', path: '/community' },
   { icon: '✉', label: '채팅', path: null },
   { icon: '₩', label: '수익', path: null },
 ] as const;
 
-export function BottomNav({ role }: { role: 'owner' | 'runner' }) {
+export function homePath(): '/owner/home' | '/runner/home' {
+  return session.role === 'runner' ? '/runner/home' : '/owner/home';
+}
+
+export function BottomNav() {
   const pathname = usePathname();
-  const tabs = role === 'owner' ? OWNER_TABS : RUNNER_TABS;
+  const tabs = session.role === 'runner' ? RUNNER_TABS : OWNER_TABS;
 
   return (
     <View style={s.bar}>

@@ -13,6 +13,8 @@
 - **Community tab**: shared feed for owners + runners — run records, streaks, mileage, dog photos, snack purchases, mini tweets
 - **Shop**: co-branded pet products (leashes, snacks, premium food, apparel, dog-a-mins, toys)
 
+- **2026-07-21 — 체력 나이 (fitness age): secondary metric for now.** Show in dog profile + monthly report; don't lead with it until formula is vet-validated. Brand loop: km run → mileage points → shop (fitness/recovery products only). Payout policy: prorated to actual km; early-stop for dog condition = no completion-rate penalty ("개의 컨디션이 우선").
+
 ## Open questions
 
 - Commission rate (20% placeholder in prototype) — decide later

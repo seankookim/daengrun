@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Btn } from '../src/components/ui';
+import { session } from '../src/store';
 import { colors } from '../src/theme';
 
 type Role = 'owner' | 'runner' | null;
@@ -10,8 +11,9 @@ export default function RoleSelect() {
   const [role, setRole] = useState<Role>(null);
 
   const start = () => {
-    if (role === 'owner') router.push('/owner/home');
-    if (role === 'runner') router.push('/runner/home');
+    if (!role) return;
+    session.role = role;
+    router.push(role === 'owner' ? '/owner/home' : '/runner/home');
   };
 
   return (

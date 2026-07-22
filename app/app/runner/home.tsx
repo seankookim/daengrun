@@ -67,7 +67,7 @@ export default function RunnerHome() {
           </Pressable>
         ))}
       </ScrollView>
-      <BottomNav role="runner" />
+      <BottomNav />
     </View>
   );
 }

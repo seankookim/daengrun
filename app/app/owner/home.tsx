@@ -65,7 +65,7 @@ export default function OwnerHome() {
         </Pressable>
       ))}
     </ScrollView>
-    <BottomNav role="owner" />
+    <BottomNav />
     </View>
   );
 }

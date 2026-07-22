@@ -1,16 +1,16 @@
 import { router } from 'expo-router';
 import { Pressable, ScrollView, Text, View } from 'react-native';
-import { BottomNav } from '../../src/components/bottomnav';
-import { Badge, Card, Chip, Monogram, Row, text } from '../../src/components/ui';
-import { posts, streakRanking } from '../../src/store';
-import { colors } from '../../src/theme';
+import { BottomNav, homePath } from '../src/components/bottomnav';
+import { Badge, Card, Chip, Monogram, Row, text } from '../src/components/ui';
+import { posts, streakRanking } from '../src/store';
+import { colors } from '../src/theme';
 
 export default function Community() {
   return (
     <View style={{ flex: 1 }}>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 22, paddingTop: 56 }}>
         <Row style={{ justifyContent: 'space-between', marginBottom: 14 }}>
-          <Pressable onPress={() => router.replace('/owner/home')}><Text style={{ fontSize: 24 }}>‹</Text></Pressable>
+          <Pressable onPress={() => router.replace(homePath())}><Text style={{ fontSize: 24 }}>‹</Text></Pressable>
           <Text style={text.h2}>커뮤니티</Text>
           <Text style={{ fontSize: 18 }}>＋</Text>
         </Row>
@@ -67,7 +67,7 @@ export default function Community() {
                     <Text style={{ fontSize: 12, fontWeight: '500' }}>{p.product.name}</Text>
                     <Text style={{ fontSize: 11, color: colors.dim }}>댕런 샵 · {p.product.price.toLocaleString()}원</Text>
                   </View>
-                  <Chip label="보기" onPress={() => router.replace('/owner/shop')} />
+                  <Chip label="보기" onPress={() => router.replace('/shop')} />
                 </Row>
               </Card>
             )}
@@ -80,7 +80,7 @@ export default function Community() {
           </Card>
         ))}
       </ScrollView>
-      <BottomNav role="owner" />
+      <BottomNav />
     </View>
   );
 }
