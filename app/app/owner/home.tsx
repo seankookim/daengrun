@@ -1,12 +1,12 @@
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useRef } from 'react';
-import { Animated, Dimensions, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Alert, Animated, Dimensions, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { BottomNav } from '../../src/components/bottomnav';
 import { Ring } from '../../src/components/ring';
 import { RunCard } from '../../src/components/runcard';
 import { Monogram } from '../../src/components/ui';
-import { demoImminent, dog, myCards, nextBooking, runners } from '../../src/store';
+import { demoImminent, dog, myCards, nextBooking, ownerGearLadder, runners } from '../../src/store';
 import { colors } from '../../src/theme';
 import { useTheme } from '../../src/theme-context';
 
@@ -30,6 +30,25 @@ export default function OwnerHome() {
   const goalHit = pct >= 1;
   const latestCard = myCards.find((c) => c.run);
   const scrollY = useRef(new Animated.Value(0)).current;
+
+  // reward pulse — dopamine beacon for unclaimed rewards
+  const [ladderOpen, setLadderOpen] = useState(false);
+  const claimable = ownerGearLadder.find((g) => g.claimable);
+  const nextLocked = ownerGearLadder.find((g) => !g.got && !g.claimable);
+  const pulse = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!claimable) return;
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 1, duration: 900, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 0, duration: 900, useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [claimable, pulse]);
+  const pulseScale = pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.12] });
+  const pulseOpacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0.9] });
 
   // height animation → JS driver everywhere
   const t = scrollY.interpolate({ inputRange: [0, SCROLL_RANGE], outputRange: [0, 1], extrapolate: 'clamp' });
@@ -149,6 +168,33 @@ export default function OwnerHome() {
           <StatChip top="3회 완료" bottom="이번 주" accent={mode === 'dark' ? colors.volt : colors.voltDeep} />
           <StatChip top={`평균 7'20"`} bottom="평균 페이스" accent="#9fc3e8" />
         </View>
+
+        {/* ---------- reward beacon (dopamine: unclaimed collab gear) ---------- */}
+        {claimable && (
+          <Pressable onPress={() => setLadderOpen(true)} style={[s.rewardCard, { backgroundColor: mode === 'dark' ? '#1e2c22' : '#fff' }]}>
+            {/* pulsing halo */}
+            <View style={s.giftWrap}>
+              <Animated.View style={[s.giftHalo, { opacity: pulseOpacity, transform: [{ scale: pulseScale }] }]} />
+              <View style={s.giftBox}><Text style={{ fontSize: 16, color: colors.ink }}>▣</Text></View>
+              <View style={s.giftBadge}><Text style={{ fontSize: 8, fontWeight: '900', color: '#fff' }}>1</Text></View>
+            </View>
+            <View style={{ flex: 1, marginLeft: 13 }}>
+              <Text style={{ fontSize: 11, fontWeight: '900', color: colors.tang, letterSpacing: 0.5 }}>수령 대기 리워드</Text>
+              <Text style={{ fontSize: 14.5, fontWeight: '900', color: p.textStrong, marginTop: 2 }} numberOfLines={1}>
+                {claimable.item}
+              </Text>
+              <Text style={{ fontSize: 10.5, color: p.dim, marginTop: 2 }}>
+                {claimable.at}km 달성! · 다음: {nextLocked ? `${nextLocked.item.split(' ').pop()}까지 ${(nextLocked.at - 86.2).toFixed(0)}km` : '완료'}
+              </Text>
+            </View>
+            <Pressable
+              onPress={(e) => { e.stopPropagation(); Alert.alert('수령 신청', '배송지로 콜라보 굿즈를 보내드려요 (목업)'); }}
+              style={s.claimBtn}
+            >
+              <Text style={{ fontSize: 12, fontWeight: '900', color: colors.ink }}>수령하기</Text>
+            </Pressable>
+          </Pressable>
+        )}
 
         {/* ---------- CTA ---------- */}
         <Pressable onPress={() => router.push('/owner/request')} style={({ pressed }) => [s.cta, pressed && { transform: [{ scale: 0.98 }] }]}>
@@ -270,6 +316,48 @@ export default function OwnerHome() {
         ))}
       </Animated.ScrollView>
       <BottomNav dark={mode === 'dark'} />
+
+      {/* ---------- milestone ladder sheet ---------- */}
+      <Modal visible={ladderOpen} transparent animationType="slide" onRequestClose={() => setLadderOpen(false)}>
+        <Pressable style={{ flex: 1, backgroundColor: '#00000055' }} onPress={() => setLadderOpen(false)} />
+        <View style={s.ladderSheet}>
+          <View style={s.sheetHandle} />
+          <Text style={{ fontSize: 18, fontWeight: '900', color: '#132117' }}>마일스톤 리워드</Text>
+          <Text style={{ fontSize: 12, color: colors.dim, marginTop: 4, marginBottom: 12 }}>
+            {dog.name}의 누적 86.2km — 달릴수록 콜라보 굿즈가 열려요
+          </Text>
+          {ownerGearLadder.map((g, i) => (
+            <View key={g.at}>
+              {i > 0 && <View style={{ height: 1, backgroundColor: '#f0eee3' }} />}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 }}>
+                <View style={{
+                  width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center',
+                  backgroundColor: g.got ? '#6aa53c' : g.claimable ? colors.volt : '#eceadf',
+                }}>
+                  {g.got && <Text style={{ fontSize: 9, fontWeight: '900', color: '#fff' }}>✓</Text>}
+                  {g.claimable && <Text style={{ fontSize: 9, fontWeight: '900', color: '#132117' }}>!</Text>}
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 13.5, fontWeight: '800', color: g.got || g.claimable ? '#132117' : '#9a9a90' }}>{g.item}</Text>
+                  <Text style={{ fontSize: 10.5, color: colors.dim, marginTop: 1 }}>누적 {g.at}km</Text>
+                </View>
+                {g.claimable ? (
+                  <Pressable
+                    onPress={() => Alert.alert('수령 신청', '배송지로 콜라보 굿즈를 보내드려요 (목업)')}
+                    style={{ backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 7, paddingHorizontal: 12 }}
+                  >
+                    <Text style={{ fontSize: 11, fontWeight: '900', color: '#132117' }}>수령하기</Text>
+                  </Pressable>
+                ) : g.got ? (
+                  <Text style={{ fontSize: 10.5, fontWeight: '700', color: '#5a7a3c' }}>수령 완료</Text>
+                ) : (
+                  <Text style={{ fontSize: 10.5, color: colors.dim }}>{(g.at - 86.2).toFixed(0)}km 남음</Text>
+                )}
+              </View>
+            </View>
+          ))}
+        </View>
+      </Modal>
     </View>
   );
 
@@ -314,6 +402,25 @@ const s = StyleSheet.create({
   bigMsg: { textAlign: 'center', marginTop: 8, fontSize: 13, fontWeight: '700' },
   statChip: { flex: 1, borderRadius: 18, borderWidth: 1, paddingVertical: 12, paddingHorizontal: 12 },
   statDot: { width: 8, height: 8, borderRadius: 4, shadowOpacity: 0.9, shadowRadius: 5, shadowOffset: { width: 0, height: 0 } },
+  rewardCard: {
+    flexDirection: 'row', alignItems: 'center', borderRadius: 20, padding: 15, marginTop: 12,
+    borderWidth: 1.6, borderColor: colors.tang + '66',
+    shadowColor: colors.tang, shadowOpacity: 0.3, shadowRadius: 14, shadowOffset: { width: 0, height: 3 },
+    elevation: 4,
+  },
+  giftWrap: { width: 46, height: 46, alignItems: 'center', justifyContent: 'center' },
+  giftHalo: {
+    position: 'absolute', width: 46, height: 46, borderRadius: 23,
+    backgroundColor: colors.volt,
+  },
+  giftBox: { width: 38, height: 38, borderRadius: 13, backgroundColor: colors.volt, alignItems: 'center', justifyContent: 'center' },
+  giftBadge: {
+    position: 'absolute', top: 0, right: 0, width: 15, height: 15, borderRadius: 8,
+    backgroundColor: colors.tang, alignItems: 'center', justifyContent: 'center', zIndex: 2,
+  },
+  claimBtn: { backgroundColor: colors.volt, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 13 },
+  ladderSheet: { backgroundColor: '#F6F2E9', borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 22, paddingBottom: 40 },
+  sheetHandle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: '#d8d5c8', marginBottom: 14 },
   cta: {
     marginTop: 14, backgroundColor: colors.volt, borderRadius: 22, paddingVertical: 19, paddingHorizontal: 24,
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
