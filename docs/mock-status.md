@@ -55,13 +55,19 @@
 | 기어 수령/배송 | Alert | gear_claims + 배송 연동 |
 | 매칭 부스트 적용 | UI만 | 매칭 랭킹 가중치 |
 
+## ✅ 실화(實化) 완료
+
+- **안심 코스 카탈로그** — request 화면이 Supabase `routes`에서 로드 (실패 시 목업 폴백, "실시간 코스 정보" 표시). 첫 라이브 데이터.
+
 ## 백엔드 진행 상황
 
 - ✅ 스키마 v1 (`supabase/migrations/0001_init.sql`) — 28 테이블, 상태 머신 트리거, pglast 구문 검증 완료
 - ✅ RLS v1 (`0002_rls.sql`) — 역할별 접근, platform_only 리뷰, 돈 테이블 서버 전용
 - ✅ 시드 (`seed.sql`) + 셋업 가이드 (`docs/backend.md`)
-- ⏳ Sean: Supabase 프로젝트 생성 + db push + Kakao provider (backend.md 1–3단계)
-- ⏳ Phase 2: Edge Functions (홀드/전이/정산/드랍), 가용성 뷰, Realtime, 앱 연결
+- ✅ Sean: 프로젝트 생성 + db push + routes 시드 완료 (2026-07-22)
+- ✅ Phase 2 코드: 가용성 엔진 (`0003` — is_slot_available/count_available_runners/purge_expired_holds), Edge Functions 4종 (create-booking-hold, transition-booking, settle-run, open-drop)
+- ⏳ Sean: `npx supabase db push` (0003) + `npx supabase functions deploy` + Kakao provider
+- ⏳ Phase 3: 로그인 화면 + auth, bookings 화면 연결, Realtime (chat/status), 매칭 자동배정, 실좌표 트레이스
 
 ## 다음 실화(實化) 순서 (제안)
 

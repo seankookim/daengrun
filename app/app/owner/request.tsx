@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { fetchRoutes } from '../../src/lib/api';
 import { HeatTrace } from '../../src/components/runcard';
 import { Monogram, Row } from '../../src/components/ui';
 import { AddonKey, dog, draft, fmtWon, sampleRoutes } from '../../src/store';
@@ -31,6 +32,22 @@ export default function Request() {
   const [addons, setAddons] = useState<AddonKey[]>(draft.addons);
   const [routeId, setRouteId] = useState(draft.routeId);
   const [timeLabel, setTimeLabel] = useState(draft.timeLabel);
+  const [routes, setRoutes] = useState(sampleRoutes);
+  const [routesLive, setRoutesLive] = useState(false);
+
+  // 첫 실화(實化) 지점: 안심 코스는 서버에서 온다. 실패 시 목업 유지.
+  useEffect(() => {
+    fetchRoutes()
+      .then((r) => {
+        if (r.length > 0) {
+          setRoutes(r);
+          setRoutesLive(true);
+          if (!r.some((x) => x.id === draft.routeId)) setRouteId(r[0].id);
+        }
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [slotSheet, setSlotSheet] = useState(false);
   const [holdVisible, setHoldVisible] = useState(false);
   const [holdSec, setHoldSec] = useState(300);
@@ -38,7 +55,7 @@ export default function Request() {
 
   const addonSum = addons.reduce((s2, k) => s2 + pricing.addons[k].price, 0);
   const total = pricing.baseFare + km * pricing.perKm + addonSum;
-  const bestRoute = sampleRoutes.reduce((a, b) => (a.fit > b.fit ? a : b));
+  const bestRoute = routes.reduce((a, b) => (a.fit > b.fit ? a : b));
 
   const toggleAddon = (k: AddonKey) =>
     setAddons((a) => (a.includes(k) ? a.filter((x) => x !== k) : [...a, k]));
@@ -134,10 +151,14 @@ export default function Request() {
           <Text style={{ fontSize: 12, color: colors.dim }}>주소 관리 ›</Text>
         </Pressable>
 
-        {/* ---------- 안심 코스 carousel ---------- */}
-        <SectionHead glyph="✓" title="코스 선택" sub="· 모든 코스는 댕런이 직접 점검해요" />
+        {/* ---------- 안심 코스 carousel (live from Supabase, mock fallback) ---------- */}
+        <SectionHead
+          glyph="✓"
+          title="코스 선택"
+          sub={routesLive ? '· 실시간 코스 정보' : '· 모든 코스는 댕런이 직접 점검해요'}
+        />
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingRight: 22 }}>
-          {sampleRoutes.map((r) => {
+          {routes.map((r) => {
             const sel = routeId === r.id;
             const isBest = r.id === bestRoute.id;
             return (
