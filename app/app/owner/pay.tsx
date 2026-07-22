@@ -13,11 +13,11 @@ export default function Pay() {
       <Text style={[text.h2, { textAlign: 'center', marginBottom: 16 }]}>러닝 완료</Text>
 
       <Card dark style={{ alignItems: 'center', padding: 26 }}>
-        <Text style={{ fontSize: 12, color: '#8fa0b3', letterSpacing: 2 }}>TODAY'S RUN</Text>
+        <Text style={{ fontSize: 12, color: '#8fa093', letterSpacing: 2 }}>TODAY'S RUN</Text>
         <Text style={{ fontSize: 48, fontWeight: '900', color: colors.volt, marginVertical: 8 }}>
           {actualKm.toFixed(2)} km
         </Text>
-        <Text style={{ fontSize: 13, color: '#8fa0b3' }}>34분 12초 · 평균 페이스 6'49"</Text>
+        <Text style={{ fontSize: 13, color: '#8fa093' }}>34분 12초 · 평균 페이스 6'49"</Text>
         <Row style={{ gap: 8, marginTop: 16 }}>
           <Badge label="배변 2회" tone="ink" />
           <Badge label="물 급여 완료" tone="ink" />

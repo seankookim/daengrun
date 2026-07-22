@@ -50,7 +50,7 @@ export default function DogProfile() {
           </Row>
         </Card>
 
-        <Card style={{ marginTop: 10, backgroundColor: '#e8f3fb', borderColor: colors.voltDeep }}>
+        <Card style={{ marginTop: 10, backgroundColor: '#eef4e4', borderColor: colors.voltDeep }}>
           <Row style={{ justifyContent: 'space-between' }}>
             <View>
               <Text style={text.label}>체력 나이</Text>

@@ -16,7 +16,7 @@ export default function Community() {
         </Row>
 
         <Card dark style={{ paddingVertical: 14 }}>
-          <Text style={{ fontSize: 11, letterSpacing: 2, color: '#8fa0b3' }}>이번 주 스트릭 랭킹</Text>
+          <Text style={{ fontSize: 11, letterSpacing: 2, color: '#8fa093' }}>이번 주 스트릭 랭킹</Text>
           <Row style={{ justifyContent: 'space-between', marginTop: 10 }}>
             {streakRanking.map((r, i) => (
               <Text key={r.name} style={{ fontSize: 12, color: colors.cream }}>

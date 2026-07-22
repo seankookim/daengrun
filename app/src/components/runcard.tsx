@@ -7,7 +7,7 @@ import { colors } from '../theme';
 
 function heatColor(v: number): string {
   if (v < 0.5) return lerpColor('#5b8c2a', '#e8b04b', v / 0.5);
-  return lerpColor('#e8b04b', '#ff5c38', (v - 0.5) / 0.5);
+  return lerpColor('#e8b04b', '#FF6347', (v - 0.5) / 0.5);
 }
 
 function lerpColor(a: string, b: string, t: number): string {
@@ -91,7 +91,7 @@ function Marker({ x, y, label }: { x: number; y: number; label: string }) {
   );
 }
 
-const TIER_COLORS: Record<string, string> = { 일반: '#8fa0b3', 레어: '#4db8ff', 에픽: '#ff5c38' };
+const TIER_COLORS: Record<string, string> = { 일반: '#8fa093', 레어: '#B9F23A', 에픽: '#FF6347' };
 
 export function RunCard({ card, width = 340 }: { card: CollectCard; width?: number }) {
   const traceH = width * 0.5;
@@ -115,7 +115,7 @@ export function RunCard({ card, width = 340 }: { card: CollectCard; width?: numb
     >
       {/* header */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-        <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: '#1f2937', alignItems: 'center', justifyContent: 'center' }}>
+        <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: '#1e2c22', alignItems: 'center', justifyContent: 'center' }}>
           <Text style={{ fontSize: 13, fontWeight: '900', color: colors.volt }}>런</Text>
         </View>
         <View style={{ flex: 1 }}>
@@ -142,10 +142,10 @@ export function RunCard({ card, width = 340 }: { card: CollectCard; width?: numb
 
       {/* trace / emblem */}
       {card.run?.trace ? (
-        <View style={{ marginTop: 14, borderRadius: 16, backgroundColor: '#0a111a', padding: 12, overflow: 'hidden' }}>
+        <View style={{ marginTop: 14, borderRadius: 16, backgroundColor: '#0a120d', padding: 12, overflow: 'hidden' }}>
           <HeatTrace points={card.run.trace} width={inner - 24} height={traceH} />
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#182635', borderRadius: 10, paddingVertical: 6, paddingHorizontal: 10 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#1b2f21', borderRadius: 10, paddingVertical: 6, paddingHorizontal: 10 }}>
               <Text style={{ fontSize: 11, fontWeight: '800', color: colors.volt }}>컨디션 좋음</Text>
               <Text style={{ fontSize: 10, color: colors.dimDark }}>평소보다 +12% 활동량</Text>
             </View>
@@ -158,7 +158,7 @@ export function RunCard({ card, width = 340 }: { card: CollectCard; width?: numb
         <View
           style={{
             marginTop: 14, height: traceH * 0.62, borderRadius: 16,
-            backgroundColor: '#0a111a', alignItems: 'center', justifyContent: 'center',
+            backgroundColor: '#0a120d', alignItems: 'center', justifyContent: 'center',
           }}
         >
           <Text

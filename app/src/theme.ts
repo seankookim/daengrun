@@ -1,19 +1,19 @@
 // 댕런 design tokens — mirrors prototype/index.html
 export const colors = {
-  ink: '#171a10',
-  cream: '#f2efe6',
-  volt: '#4db8ff',
-  voltDeep: '#2f9ae8',
-  voltBright: '#8fd8ff',
-  tang: '#ff5c38',
+  ink: '#171A17',
+  cream: '#F6F2E9',
+  volt: '#B9F23A',
+  voltDeep: '#82b016',
+  voltBright: '#d4ff66',
+  tang: '#FF6347',
   card: '#ffffff',
-  line: '#e2ddcf',
+  line: '#DDE8D4',
   dim: '#8a8877',
   // dark glow theme (owner home / cards)
-  bgDark: '#070b10',
-  cardDark: '#161d26',
-  lineDark: '#28323f',
-  dimDark: '#7f8b9a',
+  bgDark: '#0d1410',
+  cardDark: '#132117',
+  lineDark: '#24352a',
+  dimDark: '#8fa093',
 } as const;
 
 export const radius = { card: 20, btn: 16, chip: 99 } as const;

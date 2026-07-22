@@ -84,7 +84,7 @@ export const myCards: CollectCard[] = [
 
 export const runners: Runner[] = [
   {
-    id: 'minjun', name: '김민준', char: '민', color: '#ff5c38',
+    id: 'minjun', name: '김민준', char: '민', color: '#FF6347',
     rating: 4.9, reviews: 127, runs: 214, distanceKm: 0.8, pace: "6'50\"",
     badges: ['신원인증', '펫보험'],
     match: {
@@ -155,7 +155,7 @@ export interface Post {
 
 export const posts: Post[] = [
   {
-    id: 'p1', author: '김민준', char: '민', color: '#ff5c38', roleBadge: '러너', when: '34분 전 · 서울숲',
+    id: 'p1', author: '김민준', char: '민', color: '#FF6347', roleBadge: '러너', when: '34분 전 · 서울숲',
     body: '초코 오늘 컨디션 최상. 자전거 3대 만났는데 한 번도 안 짖음. 성장했다',
     likes: 24, comments: 6, streak: 47, run: { km: '5.02km', pace: "6'49\"", time: '34:12' },
   },

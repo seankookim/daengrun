@@ -44,8 +44,8 @@ export function Chip({
 }
 
 export function Badge({ label, tone = 'green' }: { label: string; tone?: 'green' | 'red' | 'ink' }) {
-  const bg = tone === 'green' ? '#e4f7c0' : tone === 'red' ? '#ffe4dc' : colors.ink;
-  const fg = tone === 'green' ? '#4a7208' : tone === 'red' ? '#c2340f' : colors.volt;
+  const bg = tone === 'green' ? '#DDE8D4' : tone === 'red' ? '#ffe4dc' : colors.ink;
+  const fg = tone === 'green' ? '#2f4a35' : tone === 'red' ? '#c2340f' : colors.volt;
   return (
     <View style={[s.badge, { backgroundColor: bg }]}>
       <Text style={{ fontSize: 11, fontWeight: '700', color: fg }}>{label}</Text>
@@ -65,7 +65,7 @@ export function StatBlock({ value, label, valueColor = colors.volt }: { value: s
   return (
     <View style={{ alignItems: 'center' }}>
       <Text style={{ fontSize: 28, fontWeight: '900', color: valueColor }}>{value}</Text>
-      <Text style={{ fontSize: 11, color: '#8fa0b3', marginTop: 3 }}>{label}</Text>
+      <Text style={{ fontSize: 11, color: '#8fa093', marginTop: 3 }}>{label}</Text>
     </View>
   );
 }

@@ -131,7 +131,7 @@ export default function OwnerHome() {
       >
         {/* ---------- stat chips ---------- */}
         <View style={{ flexDirection: 'row', gap: 8 }}>
-          <StatChip top={`연속 ${dog.streakDays}일`} bottom="연속 기록" accent="#ff9d5c" />
+          <StatChip top={`연속 ${dog.streakDays}일`} bottom="연속 기록" accent="#FF6347" />
           <StatChip top="3회 완료" bottom="이번 주" accent={colors.volt} />
           <StatChip top={`평균 7'20"`} bottom="평균 페이스" accent="#9fc3e8" />
         </View>
@@ -169,7 +169,7 @@ export default function OwnerHome() {
                   <Text style={{ fontSize: 15, fontWeight: '700', color: '#fff' }}>{r.name}</Text>
                   {r.badges.map((b) => (
                     <View key={b} style={s.runnerBadge}>
-                      <Text style={{ fontSize: 9, fontWeight: '800', color: b === '훈련사' ? '#ff9d5c' : colors.volt }}>{b}</Text>
+                      <Text style={{ fontSize: 9, fontWeight: '800', color: b === '훈련사' ? '#FF6347' : colors.volt }}>{b}</Text>
                     </View>
                   ))}
                 </View>
@@ -220,12 +220,12 @@ const s = StyleSheet.create({
   },
   weekChip: {
     position: 'absolute', top: 14, left: 16, zIndex: 4,
-    backgroundColor: '#1f2937', borderRadius: 99, paddingVertical: 6, paddingHorizontal: 12,
+    backgroundColor: '#1e2c22', borderRadius: 99, paddingVertical: 6, paddingHorizontal: 12,
   },
   info: { position: 'absolute', left: 18, top: 40, width: CARD_W * 0.5, zIndex: 3 },
-  miniBar: { height: 4, borderRadius: 99, backgroundColor: '#233040', marginTop: 6, overflow: 'hidden' },
+  miniBar: { height: 4, borderRadius: 99, backgroundColor: '#22352a', marginTop: 6, overflow: 'hidden' },
   miniBarFill: { height: 4, borderRadius: 99, backgroundColor: colors.volt },
-  goalChip: { marginTop: 8, backgroundColor: '#1f2937', borderRadius: 99, paddingVertical: 4, paddingHorizontal: 10 },
+  goalChip: { marginTop: 8, backgroundColor: '#1e2c22', borderRadius: 99, paddingVertical: 4, paddingHorizontal: 10 },
   bigMsg: { textAlign: 'center', marginTop: 8, fontSize: 13, fontWeight: '700', color: colors.cream },
   statChip: {
     flex: 1, backgroundColor: colors.cardDark, borderRadius: 18, borderWidth: 1, borderColor: colors.lineDark,

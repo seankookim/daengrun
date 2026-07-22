@@ -20,11 +20,11 @@ export default function RunDone() {
       </Text>
 
       <Card dark style={{ marginTop: 24, alignItems: 'center', padding: 26 }}>
-        <Text style={{ fontSize: 12, color: '#8fa0b3', letterSpacing: 2 }}>오늘의 수익</Text>
+        <Text style={{ fontSize: 12, color: '#8fa093', letterSpacing: 2 }}>오늘의 수익</Text>
         <Text style={{ fontSize: 44, fontWeight: '900', color: colors.volt, marginTop: 8 }}>
           +{runResult.payout.toLocaleString()}원
         </Text>
-        <Text style={{ fontSize: 12, color: '#8fa0b3', marginTop: 8 }}>
+        <Text style={{ fontSize: 12, color: '#8fa093', marginTop: 8 }}>
           {runResult.km.toFixed(2)}km · {fmt(runResult.sec)} · {req.dogName}
         </Text>
         {!runResult.completed && (

@@ -87,7 +87,7 @@ export default function ActiveRun() {
           <Monogram char={req.dogChar} bg={req.dogColor} size={36} />
           <View style={{ flex: 1 }}>
             <Text style={{ fontSize: 13, fontWeight: '700', color: colors.cream }}>{req.dogName} 보호자님</Text>
-            <Text style={{ fontSize: 11, color: '#8fa0b3' }} numberOfLines={1}>
+            <Text style={{ fontSize: 11, color: '#8fa093' }} numberOfLines={1}>
               "자전거도로만 피해주시면 돼요!"
             </Text>
           </View>
@@ -101,14 +101,14 @@ export default function ActiveRun() {
         </Row>
 
         <Row style={{ justifyContent: 'center', marginBottom: 14 }}>
-          <Text style={{ fontSize: 12, color: '#8fa0b3' }}>
+          <Text style={{ fontSize: 12, color: '#8fa093' }}>
             현재 예상 수익 <Text style={{ color: colors.volt, fontWeight: '800' }}>{payoutFor(km).toLocaleString()}원</Text> · 완주 시 {payoutFor(req.km + 0.02).toLocaleString()}원
           </Text>
         </Row>
 
         <View style={{ flexDirection: 'row', gap: 10 }}>
           <Pressable
-            style={[s.btn, { backgroundColor: '#212b38' }]}
+            style={[s.btn, { backgroundColor: '#1c2b21' }]}
             onPress={() => Alert.alert('전송 완료', '사진이 보호자에게 전송되었습니다 (목업)')}
           >
             <Text style={{ fontSize: 16, fontWeight: '800', color: colors.cream }}>사진 전송</Text>
@@ -133,7 +133,7 @@ function MiniStat({ value, label, big }: { value: string; label: string; big?: b
       <Text style={{ fontSize: big ? 44 : 28, fontWeight: '900', color: big ? colors.volt : colors.cream }}>
         {value}
       </Text>
-      <Text style={{ fontSize: 11, color: '#8fa0b3', marginTop: 2 }}>{label}</Text>
+      <Text style={{ fontSize: 11, color: '#8fa093', marginTop: 2 }}>{label}</Text>
     </View>
   );
 }
@@ -155,7 +155,7 @@ const s = StyleSheet.create({
   panel: { backgroundColor: colors.ink, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 34 },
   chatPin: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: '#212b38', borderRadius: 16, padding: 12,
+    backgroundColor: '#1c2b21', borderRadius: 16, padding: 12,
   },
   btn: { flex: 1, borderRadius: 16, padding: 16, alignItems: 'center' },
 });

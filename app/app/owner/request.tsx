@@ -83,7 +83,7 @@ export default function Request() {
                 flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
                 padding: 14, borderRadius: 14, borderWidth: 1.5,
                 borderColor: sel ? colors.ink : colors.line,
-                backgroundColor: sel ? '#e8f3fb' : '#fff',
+                backgroundColor: sel ? '#eef4e4' : '#fff',
               }}
             >
               <Text style={{ fontSize: 13, fontWeight: '700' }}>{a.label}</Text>

@@ -36,7 +36,7 @@ export default function RoleSelect() {
           <Text style={[s.roleDesc, { color: colors.ink }]}>믿을 수 있는 러너에게 맡겨요</Text>
         </Pressable>
         <Pressable
-          style={[s.roleCard, { backgroundColor: '#212b38' }, role === 'runner' && s.sel]}
+          style={[s.roleCard, { backgroundColor: '#1c2b21' }, role === 'runner' && s.sel]}
           onPress={() => setRole('runner')}
         >
           <Text style={[s.roleTitle, { color: colors.volt }]}>러너예요</Text>
