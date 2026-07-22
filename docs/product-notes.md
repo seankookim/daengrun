@@ -15,6 +15,18 @@
 
 - **2026-07-21 — 체력 나이 (fitness age): secondary metric for now.** Show in dog profile + monthly report; don't lead with it until formula is vet-validated. Brand loop: km run → mileage points → shop (fitness/recovery products only). Payout policy: prorated to actual km; early-stop for dog condition = no completion-rate penalty ("개의 컨디션이 우선").
 
+## Backlog (agreed, build when time comes)
+
+- **Run cards (Strava-style, collectible)**: shareable run summary card w/ pace heat-map trace (fast=red, slow=green). Milestone cards (첫 러닝, 누적 100km, 30일 스트릭), seasonal series (한강 시리즈), rarity tiers. Owners collect dog's cards; runners collect performance cards. 마이 카드 section both roles. → NEXT SESSION (with dopamine home)
+- **Dopamine owner home**: weekly km ring vs breed/age goal, streak flame, latest run card, goal-hit celebration. Owner home = emotional; runner home = operational. → NEXT SESSION
+- **Runner dashboard home**: new requests, today/upcoming schedule, earnings chart, availability toggle, quick-start session. Data-centric, fast decisions.
+- **End-run options sheet**: small 3rd button on live run → 강아지 컨디션 (actual km, no penalty, incident photo+note, owner call, nearest 동물병원) / 보호자 요청 (actual + ~50% of unrun distance) / 러너 개인 사유 (actual only, hits completion rate). All pay actual km — never incentivize pushing a hurt dog.
+- **km credits (러닝권)**: prepaid 10/30/50km packs w/ bonus km, later monthly auto-refill subscription. Partial runs deduct actual km — no refunds. Covers base+distance; add-ons pay-per-use. ⚠ 선불전자지급수단/전자금융거래법 check before real money. Keep distinct from 댕마일 (earned reward points → shop).
+- **Shop v2**: product detail view (images, description, buy), filters/sort (category, price, popularity), clickable products.
+- **Chat**: conversation list (pfp, name, last message preview) → full-screen thread w/ attachments + location share.
+- **Settings/account**: personal info, notifications, payment methods, security. Clean forms, toggles.
+- **P1 still pending**: Kakao signup mock, 마이 pages, runner storefront profile (photos, bio, specialties — their self-advertising surface).
+
 ## Open questions
 
 - Commission rate (20% placeholder in prototype) — decide later
