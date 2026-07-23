@@ -3,16 +3,19 @@ import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { BottomNav } from '../../src/components/bottomnav';
 import { Badge, Card, Monogram, Row, StatBlock, text } from '../../src/components/ui';
-import { fetchRunnerInbox, OpenRequest } from '../../src/lib/api';
-import { runnerStats } from '../../src/store';
+import { fetchMyName, fetchRunnerInbox, fetchRunnerWeekStats, OpenRequest, RunnerWeekStats } from '../../src/lib/api';
 import { colors } from '../../src/theme';
 
 export default function RunnerHome() {
   const [available, setAvailable] = useState(true);
   const [inbox, setInbox] = useState<OpenRequest[]>([]);
+  const [name, setName] = useState<string | null>(null);
+  const [stats, setStats] = useState<RunnerWeekStats>({ net: 0, runs: 0, km: 0 });
 
   useFocusEffect(useCallback(() => {
     fetchRunnerInbox().then(setInbox).catch(() => {});
+    fetchMyName().then(setName).catch(() => {});
+    fetchRunnerWeekStats().then(setStats).catch(() => {});
   }, []));
 
   return (
@@ -21,7 +24,7 @@ export default function RunnerHome() {
         <Row style={{ justifyContent: 'space-between' }}>
           <View>
             <Text style={text.dim}>러너 모드</Text>
-            <Text style={[text.h1, { marginTop: 2 }]}>김민준 님</Text>
+            <Text style={[text.h1, { marginTop: 2 }]}>{name ?? '러너'} 님</Text>
           </View>
           <Pressable
             onPress={() => setAvailable((v) => !v)}
@@ -37,9 +40,9 @@ export default function RunnerHome() {
 
         <Card dark style={{ marginTop: 18 }}>
           <Row style={{ justifyContent: 'space-around' }}>
-            <StatBlock value={runnerStats.weekEarnings.toLocaleString()} label="이번 주 수익(원)" />
-            <StatBlock value={String(runnerStats.weekRuns)} label="완료 러닝" />
-            <StatBlock value={String(runnerStats.weekKm)} label="km" />
+            <StatBlock value={stats.net.toLocaleString()} label="이번 주 수익(원)" />
+            <StatBlock value={String(stats.runs)} label="완료 러닝" />
+            <StatBlock value={String(stats.km)} label="km" />
           </Row>
         </Card>
 

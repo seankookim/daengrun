@@ -17,10 +17,12 @@ const JOB_STATUS = {
 // Blocks: confirmed / travel buffer / available / blocked / pending.
 
 const FOREST = '#132117';
-const DATES = [
-  { d: '22', w: '수', today: true }, { d: '23', w: '목' }, { d: '24', w: '금' },
-  { d: '25', w: '토' }, { d: '26', w: '일' }, { d: '27', w: '월' }, { d: '28', w: '화' },
-];
+// 실제 오늘부터 7일 — 하드코딩 없음
+const DATES = Array.from({ length: 7 }, (_, i) => {
+  const d = new Date(Date.now() + i * 86400_000);
+  return { d: String(d.getDate()), w: '일월화수목금토'[d.getDay()], today: i === 0 };
+});
+const MONTH_LABEL = `${new Date().getFullYear()}년 ${new Date().getMonth() + 1}월`;
 
 // (데모 타임라인 제거 — 실작업만 표시. 시간대 타임라인 뷰·이동 버퍼 경고는 실좌표 붙는 세션에서 실데이터로 복귀)
 
@@ -49,7 +51,7 @@ export default function RunnerCalendar() {
           <View>
             <Text style={{ fontSize: 26, fontWeight: '900', color: FOREST }}>캘린더</Text>
             <Text style={{ fontSize: 12, color: colors.dim, marginTop: 3 }}>
-              2026년 7월 · 확정 {jobs.filter((j) => j.status !== 'completed').length}건 · 예상 +
+              {MONTH_LABEL} · 확정 {jobs.filter((j) => j.status !== 'completed').length}건 · 예상 +
               {jobs.filter((j) => j.status !== 'completed').reduce((sum, j) => sum + j.payout, 0).toLocaleString()}원
             </Text>
           </View>

@@ -354,6 +354,74 @@ export async function fetchRunnerJobs(): Promise<RunnerJob[]> {
 
 export const runnerEnroute = (id: string) => invokeTransition(id, 'enroute');
 
+// ---------- runner identity & money (tabula rasa) ----------
+export async function fetchMyName(): Promise<string | null> {
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) return null;
+  const { data } = await supabase.from('profiles').select('name').eq('id', user.user.id).maybeSingle();
+  return data?.name ?? user.user.email?.split('@')[0] ?? null;
+}
+
+export interface RunnerWeekStats { net: number; runs: number; km: number }
+
+export async function fetchRunnerWeekStats(): Promise<RunnerWeekStats> {
+  const since = new Date(Date.now() - 7 * 86400_000).toISOString();
+  const { data, error } = await supabase
+    .from('ledger_items')
+    .select('base, distance_pay, addon_pay, tip, platform_fee, booking_id')
+    .gte('created_at', since);
+  if (error) throw error;
+  const rows = data ?? [];
+  const net = rows.reduce((s, l: any) => s + l.base + l.distance_pay + l.addon_pay + l.tip - l.platform_fee, 0);
+  let km = 0;
+  const ids = rows.map((l: any) => l.booking_id);
+  if (ids.length > 0) {
+    const { data: runsD } = await supabase.from('runs').select('actual_km').in('booking_id', ids);
+    km = (runsD ?? []).reduce((s, r: any) => s + Number(r.actual_km ?? 0), 0);
+  }
+  return { net, runs: rows.length, km: Math.round(km * 10) / 10 };
+}
+
+export interface LiveLedgerItem {
+  id: string;
+  when: string;
+  dogName: string;
+  km: number;
+  base: number;
+  distancePay: number;
+  addonPay: number;
+  tip: number;
+  guarantee: number;
+  fee: number;
+  net: number;
+}
+
+export async function fetchLedger(): Promise<LiveLedgerItem[]> {
+  const { data, error } = await supabase
+    .from('ledger_items')
+    .select('id, base, distance_pay, addon_pay, tip, remaining_guarantee, platform_fee, created_at, bookings(km, dogs(name))')
+    .order('created_at', { ascending: false })
+    .limit(30);
+  if (error) throw error;
+  return (data ?? []).map((l: any) => {
+    const { dateLabel } = kstParts(l.created_at);
+    const net = l.base + l.distance_pay + l.addon_pay + l.tip + l.remaining_guarantee - l.platform_fee;
+    return {
+      id: l.id,
+      when: dateLabel,
+      dogName: l.bookings?.dogs?.name ?? '반려견',
+      km: Number(l.bookings?.km ?? 0),
+      base: l.base,
+      distancePay: l.distance_pay,
+      addonPay: l.addon_pay,
+      tip: l.tip,
+      guarantee: l.remaining_guarantee,
+      fee: l.platform_fee,
+      net,
+    };
+  });
+}
+
 // ---------- notifications (읽기 — 실시간 배달은 Realtime 세션에서) ----------
 export interface LiveNoti { id: string; title: string; body: string | null; when: string; unread: boolean }
 
