@@ -487,6 +487,49 @@ export async function deleteRunnerPhoto(url: string): Promise<string[]> {
   return photos;
 }
 
+// 러닝 사진 업로드 (러너, 종료 후) — runs.photos + avatars 버킷 {uid}/runs/{booking}/*
+export async function uploadRunPhoto(bookingId: string, base64: string): Promise<string[]> {
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) throw new Error('not signed in');
+  const path = `${user.user.id}/runs/${bookingId}/${Date.now()}.jpg`;
+  const { error } = await supabase.storage.from('avatars')
+    .upload(path, b64ToBytes(base64), { contentType: 'image/jpeg' });
+  if (error) throw error;
+  const { data: pub } = supabase.storage.from('avatars').getPublicUrl(path);
+  const { data: row } = await supabase.from('runs').select('photos').eq('booking_id', bookingId).single();
+  const photos = [...(row?.photos ?? []), pub.publicUrl];
+  const { error: e2 } = await supabase.from('runs').update({ photos }).eq('booking_id', bookingId);
+  if (e2) throw e2;
+  return photos;
+}
+
+// 이 러닝의 개인 기록 순위 — 내 완료 러닝 안에서 (RLS상 타인 비교는 서버 집계 함수로, 추후 리더보드)
+export interface RunStandings { nth: number; total: number; kmRank: number; paceRank: number | null }
+
+export async function fetchRunStandings(bookingId: string): Promise<RunStandings | null> {
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) return null;
+  const { data } = await supabase
+    .from('bookings')
+    .select('id, scheduled_at, runs(actual_km, avg_pace_sec_per_km)')
+    .eq('owner_id', user.user.id).eq('status', 'completed')
+    .order('scheduled_at');
+  const rows = (data ?? [])
+    .map((b: any) => {
+      const r = Array.isArray(b.runs) ? b.runs[0] : b.runs;
+      return r ? { id: b.id, km: Number(r.actual_km ?? 0), pace: r.avg_pace_sec_per_km as number | null } : null;
+    })
+    .filter(Boolean) as { id: string; km: number; pace: number | null }[];
+  const idx = rows.findIndex((r) => r.id === bookingId);
+  if (idx < 0) return null;
+  const me = rows[idx];
+  const kmRank = rows.filter((r) => r.km > me.km).length + 1;
+  const paceRank = me.pace != null
+    ? rows.filter((r) => r.pace != null && r.pace < me.pace!).length + 1
+    : null;
+  return { nth: idx + 1, total: rows.length, kmRank, paceRank };
+}
+
 // 러너 자기소개 (스토어프런트) — runners.bio
 export async function updateRunnerBio(bio: string): Promise<void> {
   const { data: user } = await supabase.auth.getUser();
