@@ -211,6 +211,8 @@ export interface Booking {
   price: number;
   status: BookingStatus;
   recurring?: boolean;
+  live?: boolean; // 서버에서 온 실예약
+  matched?: boolean; // 러너 확정 여부 (live 전용)
 }
 
 export const bookings: Booking[] = [
@@ -311,6 +313,7 @@ export const draft = {
   runnerId: 'minjun',
   routeId: 'seoulforest-loop',
   timeLabel: '오늘 오후 6:30',
+  bookingId: null as string | null, // 서버 예약 id (실화 후)
 };
 
 export function draftTotal(): number {

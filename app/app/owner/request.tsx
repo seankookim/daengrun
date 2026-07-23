@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { fetchRoutes } from '../../src/lib/api';
+import { confirmPayment, createBookingHold, ensureDog, fetchRoutes } from '../../src/lib/api';
 import { HeatTrace } from '../../src/components/runcard';
 import { Monogram, Row } from '../../src/components/ui';
 import { AddonKey, dog, draft, fmtWon, sampleRoutes } from '../../src/store';
@@ -51,6 +51,7 @@ export default function Request() {
   const [slotSheet, setSlotSheet] = useState(false);
   const [holdVisible, setHoldVisible] = useState(false);
   const [holdSec, setHoldSec] = useState(300);
+  const [holdLive, setHoldLive] = useState<null | boolean>(null); // null=진행, true=서버 홀드, false=목업 폴백
   const [dateIdx, setDateIdx] = useState(0);
 
   const addonSum = addons.reduce((s2, k) => s2 + pricing.addons[k].price, 0);
@@ -66,20 +67,40 @@ export default function Request() {
     setSlotSheet(false);
   };
 
-  const pay = () => {
+  const pay = async () => {
     Object.assign(draft, { km, pace, addons, routeId, timeLabel });
     setHoldSec(300);
+    setHoldLive(null);
     setHoldVisible(true);
+
+    // 실화: 서버에 원자적 홀드 + 예약 생성 (draft→quoted→payment_hold→matching)
+    try {
+      const dogId = await ensureDog();
+      const res = await createBookingHold({
+        dog_id: dogId,
+        route_id: routesLive ? routeId : undefined, // 목업 코스 id는 uuid가 아님
+        scheduled_at: new Date(Date.now() + 3 * 3600_000).toISOString(), // TODO: timeLabel → 실제 시각
+        km,
+        pace_label: pace,
+        addons,
+      });
+      await confirmPayment(res.booking_id); // 결제 성공 시뮬레이션 → matching
+      draft.bookingId = res.booking_id;
+      setHoldLive(true);
+    } catch {
+      draft.bookingId = null;
+      setHoldLive(false); // 서버 실패 → 목업 흐름 유지
+    }
   };
 
-  // slot-hold: brief countdown demo, then continue to matching
+  // slot-hold: brief countdown, then continue to matching
   useEffect(() => {
     if (!holdVisible) return;
     const tick = setInterval(() => setHoldSec((v) => v - 1), 1000);
     const go = setTimeout(() => {
       setHoldVisible(false);
       router.push('/owner/matching');
-    }, 2200);
+    }, 2600);
     return () => { clearInterval(tick); clearTimeout(go); };
   }, [holdVisible]);
 
@@ -315,6 +336,9 @@ export default function Request() {
             </Text>
             <Text style={{ fontSize: 11.5, color: colors.dim, marginTop: 8, textAlign: 'center' }}>
               {timeLabel} 슬롯이 결제 완료까지{'\n'}다른 보호자에게 보이지 않아요
+            </Text>
+            <Text style={{ fontSize: 10, fontWeight: '800', marginTop: 10, color: holdLive === true ? '#4a6d1f' : holdLive === false ? '#a97c12' : colors.dim }}>
+              {holdLive === true ? '● 서버 홀드 확보 — 예약이 생성됐어요' : holdLive === false ? '오프라인 데모 모드' : '서버 연결 중...'}
             </Text>
           </View>
         </View>

@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { fetchMyBookings } from '../../src/lib/api';
 import { BottomNav } from '../../src/components/bottomnav';
 import { HeatTrace } from '../../src/components/runcard';
 import { Monogram, Row } from '../../src/components/ui';
@@ -36,14 +37,29 @@ export default function Schedule() {
   const [filterIdx, setFilterIdx] = useState(0);
   const [selected, setSelected] = useState<Booking | null>(null);
   const [sheetMode, setSheetMode] = useState<'detail' | 'cancel'>('detail');
+  const [liveBookings, setLiveBookings] = useState<Booking[]>([]);
 
-  const visible = bookings.filter(FILTERS[filterIdx].match);
+  // 실예약 로드 — 실패 시 목업만 표시
+  useEffect(() => {
+    fetchMyBookings().then(setLiveBookings).catch(() => {});
+  }, []);
+
+  const all = [...liveBookings, ...bookings];
+  const visible = all.filter(FILTERS[filterIdx].match);
   const groups = visible.reduce<Record<string, Booking[]>>((acc, b) => {
     (acc[b.dateLabel] = acc[b.dateLabel] ?? []).push(b);
     return acc;
   }, {});
 
-  const open = (b: Booking) => { setSheetMode('detail'); setSelected(b); };
+  const open = (b: Booking) => {
+    // 실예약이 러너 확정 전이면 관리 시트 대신 상태 안내
+    if (b.live && !b.matched) {
+      Alert.alert('매칭 중', '러너를 찾고 있어요.\n러너가 확정되면 여기서 일정 변경·취소를 관리할 수 있어요.');
+      return;
+    }
+    setSheetMode('detail');
+    setSelected(b);
+  };
   const close = () => setSelected(null);
 
   const route = selected ? sampleRoutes.find((r) => r.id === selected.routeId) : undefined;
@@ -110,6 +126,9 @@ export default function Schedule() {
                         <Text style={{ fontSize: 15.5, fontWeight: '900', color: FOREST }}>{b.timeLabel}</Text>
                         {b.recurring && (
                           <View style={s.recurPill}><Text style={{ fontSize: 8.5, fontWeight: '800', color: '#4a6d1f' }}>⟳ 매주</Text></View>
+                        )}
+                        {b.live && (
+                          <View style={s.livePillSm}><Text style={{ fontSize: 8.5, fontWeight: '900', color: '#fff' }}>● LIVE</Text></View>
                         )}
                       </Row>
                       <View style={[s.statusPill, { backgroundColor: st.bg }]}>
@@ -318,6 +337,7 @@ const s = StyleSheet.create({
   bookingCard: { flexDirection: 'row', backgroundColor: '#fff', borderRadius: 18, borderWidth: 1, borderColor: '#eceadf', marginTop: 8, overflow: 'hidden' },
   rail: { width: 5 },
   recurPill: { backgroundColor: '#e3f0c4', borderRadius: 99, paddingVertical: 2, paddingHorizontal: 7, alignSelf: 'center' },
+  livePillSm: { backgroundColor: '#5a7a3c', borderRadius: 99, paddingVertical: 2, paddingHorizontal: 7, alignSelf: 'center' },
   statusPill: { borderRadius: 99, paddingVertical: 4, paddingHorizontal: 9 },
   thumbMap: { width: 68, height: 52, borderRadius: 10, backgroundColor: '#0e150f', padding: 2, overflow: 'hidden' },
   certDot: { width: 13, height: 13, borderRadius: 7, backgroundColor: '#3d8fd4', alignItems: 'center', justifyContent: 'center', alignSelf: 'center' },
