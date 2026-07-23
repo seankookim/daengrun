@@ -168,8 +168,8 @@ function Stepper({ value, onMinus, onPlus }: { value: string; onMinus: () => voi
   return (
     <Row style={{ gap: 0, backgroundColor: '#f4f2ea', borderRadius: 12, overflow: 'hidden' }}>
       <Pressable onPress={onMinus} style={s.stepBtn}><Text style={s.stepBtnText}>−</Text></Pressable>
-      <View style={{ paddingHorizontal: 10, justifyContent: 'center' }}>
-        <Text style={{ fontSize: 14.5, fontWeight: '900', color: FOREST }}>{value}</Text>
+      <View style={{ paddingHorizontal: 12, justifyContent: 'center' }}>
+        <Text style={{ fontSize: 17, fontWeight: '900', color: FOREST }}>{value}</Text>
       </View>
       <Pressable onPress={onPlus} style={s.stepBtn}><Text style={s.stepBtnText}>＋</Text></Pressable>
     </Row>
@@ -180,9 +180,9 @@ const s = StyleSheet.create({
   circleBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#eceadf' },
   card: { backgroundColor: '#fff', borderRadius: 18, paddingHorizontal: 16, paddingVertical: 6, borderWidth: 1, borderColor: '#eceadf' },
   div: { height: 1, backgroundColor: '#f0eee3' },
-  togglePill: { backgroundColor: '#f0efe8', borderRadius: 99, paddingVertical: 5, paddingHorizontal: 11 },
-  stepBtn: { width: 34, height: 38, alignItems: 'center', justifyContent: 'center' },
-  stepBtnText: { fontSize: 17, fontWeight: '900', color: '#5a7a3c' },
+  togglePill: { backgroundColor: '#f0efe8', borderRadius: 99, paddingVertical: 8, paddingHorizontal: 15 },
+  stepBtn: { width: 46, height: 46, alignItems: 'center', justifyContent: 'center' },
+  stepBtnText: { fontSize: 20, fontWeight: '900', color: '#5a7a3c' },
   saveBar: {
     position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: colors.cream,
     paddingHorizontal: 22, paddingTop: 10, paddingBottom: 30, borderTopWidth: 1, borderTopColor: '#eceadf',

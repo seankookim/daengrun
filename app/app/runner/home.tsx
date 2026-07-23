@@ -4,8 +4,8 @@ import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-na
 import { BottomNav } from '../../src/components/bottomnav';
 import { Card, Row, StatBlock, text } from '../../src/components/ui';
 import {
-  fetchMyName, fetchMyRunnerStatus, fetchRunnerInbox, fetchRunnerJobs, fetchRunnerWeekStats,
-  MyRunnerStatus, OpenRequest, RunnerJob, RunnerWeekStats, setRunnerOnline,
+  AvailRule, fetchMyAvailability, fetchMyName, fetchMyRunnerStatus, fetchRunnerInbox, fetchRunnerJobs,
+  fetchRunnerWeekStats, MyRunnerStatus, OpenRequest, RunnerJob, RunnerWeekStats, saveMyAvailability, setRunnerOnline,
 } from '../../src/lib/api';
 import { runnerJob } from '../../src/store';
 import { colors } from '../../src/theme';
@@ -14,6 +14,9 @@ import { colors } from '../../src/theme';
 // 진행 중 작업 + 단계, 지도 숏컷, 다음 예약, 드랍 트레일(실카운트), 최근 완료.
 
 const FOREST = '#132117';
+const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0]; // 월…일
+const DAY_NAME = '일월화수목금토';
+const hh = (m: number) => String(Math.floor(m / 60)).padStart(2, '0');
 
 // 진행 단계 메타 — 서버 상태 → 러너가 지금 뭘 해야 하는지
 const STAGE: Record<string, { label: string; action: string; color: string }> = {
@@ -40,8 +43,10 @@ export default function RunnerHome() {
   const [stats, setStats] = useState<RunnerWeekStats>({ net: 0, runs: 0, km: 0 });
   const [jobs, setJobs] = useState<RunnerJob[]>([]);
   const [rs, setRs] = useState<MyRunnerStatus>({ totalRuns: 0, totalKm: 0, online: false });
+  const [avail, setAvail] = useState<AvailRule[] | null>(null);
 
   useFocusEffect(useCallback(() => {
+    fetchMyAvailability().then(setAvail).catch((e) => console.warn('[rhome] avail:', e?.message ?? e));
     fetchRunnerInbox().then(setInbox).catch((e) => console.warn('[rhome] inbox:', e?.message ?? e));
     fetchMyName().then(setName).catch(() => {});
     fetchRunnerWeekStats().then(setStats).catch((e) => console.warn('[rhome] stats:', e?.message ?? e));
@@ -56,6 +61,21 @@ export default function RunnerHome() {
     setRunnerOnline(next).catch((e) => {
       setRs((v) => ({ ...v, online: !next }));
       console.warn('[rhome] online:', e?.message ?? e);
+    });
+  };
+
+  // 요일 탭 = 즉시 열기/닫기 (저장 버튼 없음 — 충동적 슬롯 오픈은 홈에서 바로)
+  const toggleDay = (wd: number) => {
+    if (!avail) return;
+    const has = avail.some((r) => r.weekday === wd);
+    const prev = avail;
+    const next = has
+      ? avail.filter((r) => r.weekday !== wd)
+      : [...avail, { weekday: wd, startMin: 360, endMin: 1320 }];
+    setAvail(next);
+    saveMyAvailability(next).catch((e) => {
+      setAvail(prev);
+      console.warn('[rhome] avail save:', e?.message ?? e);
     });
   };
 
@@ -137,6 +157,41 @@ export default function RunnerHome() {
             <StatBlock value={String(stats.km)} label="km" />
           </Row>
         </Card>
+
+        {/* ---------- 러닝 가능 시간 — 홈에서 바로 열고 닫기 ---------- */}
+        <View style={s.availCard}>
+          <Row style={{ justifyContent: 'space-between' }}>
+            <Text style={{ fontSize: 13, fontWeight: '900', color: FOREST }}>러닝 가능 시간</Text>
+            <Pressable onPress={() => router.push('/runner/availability')}>
+              <Text style={{ fontSize: 11.5, fontWeight: '800', color: '#5a7a3c' }}>시간 조정 ›</Text>
+            </Pressable>
+          </Row>
+          {!avail ? (
+            <Text style={{ fontSize: 11.5, color: colors.dim, marginTop: 10 }}>불러오는 중...</Text>
+          ) : (
+            <>
+              <Row style={{ gap: 6, marginTop: 12 }}>
+                {DAY_ORDER.map((wd) => {
+                  const rule = avail.find((r) => r.weekday === wd);
+                  const on = !!rule;
+                  return (
+                    <Pressable key={wd} onPress={() => toggleDay(wd)} style={[s.availDay, on && s.availDayOn]}>
+                      <Text style={{ fontSize: 15, fontWeight: '900', color: on ? FOREST : '#b3b3ab' }}>
+                        {DAY_NAME[wd]}
+                      </Text>
+                      <Text style={{ fontSize: 8.5, fontWeight: '700', color: on ? '#4a6d1f' : '#c2c0b4', marginTop: 2 }}>
+                        {rule ? `${hh(rule.startMin)}–${hh(rule.endMin)}` : '쉼'}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </Row>
+              <Text style={{ fontSize: 10.5, color: colors.dim, marginTop: 9 }}>
+                요일을 탭하면 바로 열리고 닫혀요 (기본 06–22시) · 보호자 예약 화면에 즉시 반영
+              </Text>
+            </>
+          )}
+        </View>
 
         {/* ---------- 드랍 트레일 (실카운트) ---------- */}
         <Pressable onPress={() => router.push('/runner/rewards')} style={s.trailCard}>
@@ -264,6 +319,12 @@ const s = StyleSheet.create({
   stagePill: { borderRadius: 99, paddingVertical: 4, paddingHorizontal: 9 },
   currentBtn: { borderRadius: 13, alignItems: 'center', paddingVertical: 12 },
   trailCard: { backgroundColor: '#fff', borderRadius: 18, padding: 15, marginTop: 12, borderWidth: 1.3, borderColor: '#dde8c4' },
+  availCard: { backgroundColor: '#fff', borderRadius: 18, padding: 15, marginTop: 12, borderWidth: 1, borderColor: '#eceadf' },
+  availDay: {
+    flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: 13,
+    backgroundColor: '#f4f2ea', borderWidth: 1.5, borderColor: '#eceadf',
+  },
+  availDayOn: { backgroundColor: '#eaf7c8', borderColor: '#a9c47e' },
   gem: {
     width: 16, height: 16, borderRadius: 4, backgroundColor: '#f0efe8',
     borderWidth: 1.5, borderColor: '#dcd9cc', transform: [{ rotate: '45deg' }],
