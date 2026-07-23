@@ -253,7 +253,10 @@ export default function OwnerHome() {
           {/* 30분 전부터/러너 확정 시: 확인·시작 액션이 위젯에 올라온다 */}
           {liveNext?.status === 'active' ? (
             <View style={{ flexDirection: 'row', gap: 8, marginTop: 13 }}>
-              <Pressable style={s.meetBtn} onPress={(e) => { e.stopPropagation(); router.push('/owner/live'); }}>
+              <Pressable
+                style={s.meetBtn}
+                onPress={(e) => { e.stopPropagation(); if (liveNext) draft.bookingId = liveNext.id; router.push('/owner/live'); }}
+              >
                 <Text style={{ fontSize: 12.5, fontWeight: '900', color: colors.ink }}>실시간 보기 ›</Text>
               </Pressable>
             </View>

@@ -292,6 +292,28 @@ export async function fetchBookingSync(id: string): Promise<BookingSync> {
   };
 }
 
+// 진행 중 예약 복원 — 인메모리 id가 리로드로 날아가도 화면이 서버에서 스스로 찾는다.
+// 트랜잭션 화면(미트업/런)이 데모로 조용히 전락하는 것을 막는 핵심.
+const IN_FLIGHT = ['confirmed', 'runner_enroute', 'picked_up', 'active'];
+
+export async function fetchCurrentOwnerBookingId(): Promise<string | null> {
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) return null;
+  const { data } = await supabase.from('bookings').select('id')
+    .eq('owner_id', user.user.id).in('status', IN_FLIGHT)
+    .order('scheduled_at', { ascending: false }).limit(1);
+  return data?.[0]?.id ?? null;
+}
+
+export async function fetchCurrentRunnerJobId(): Promise<string | null> {
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) return null;
+  const { data } = await supabase.from('bookings').select('id')
+    .eq('runner_id', user.user.id).in('status', IN_FLIGHT)
+    .order('scheduled_at', { ascending: false }).limit(1);
+  return data?.[0]?.id ?? null;
+}
+
 export const acceptBooking = (id: string) => invokeTransition(id, 'runner_accept');
 // side 필수 — 한 계정이 양측인 솔로 테스트에서 서버가 역할을 추측할 수 없음
 export const confirmHandoff = (id: string, side: 'owner' | 'runner') =>

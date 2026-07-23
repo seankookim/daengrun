@@ -1,8 +1,9 @@
 // 댕런 E2E — 예약 루프 전체를 실서버에 대해 자동 실행한다.
 //
-//   node scripts/e2e.mjs          2인 모드: e2e-owner / e2e-runner 별도 계정 (실제 시나리오)
-//   node scripts/e2e.mjs --solo   1인 모드: 한 계정이 양측 (Sean의 수동 솔로 테스트 재현)
-//   node scripts/e2e.mjs --keep   테스트 데이터 삭제 생략 (앱에서 눈으로 확인하고 싶을 때)
+//   node scripts/e2e.mjs             2인 모드: e2e-owner / e2e-runner 별도 계정 (실제 시나리오)
+//   node scripts/e2e.mjs --solo      1인 모드: 한 계정이 양측 (Sean의 수동 솔로 테스트 재현)
+//   node scripts/e2e.mjs --directed  오픈 풀 대신 지명(request_runner) 경로로 매칭
+//   node scripts/e2e.mjs --keep      테스트 데이터 삭제 생략 (앱에서 눈으로 확인하고 싶을 때)
 //
 // 필요: 리포 루트 .env 에 SUPABASE_SERVICE_ROLE_KEY=... (Dashboard → Settings → API)
 // .env 는 gitignore 됨 — 서비스 키는 절대 커밋 금지.
@@ -17,6 +18,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SOLO = process.argv.includes('--solo');
 const KEEP = process.argv.includes('--keep');
+const DIRECTED = process.argv.includes('--directed');
 
 // ---------- env ----------
 function loadEnv(path) {
@@ -143,7 +145,7 @@ function tomorrow10KST() {
 }
 
 // ================================================================
-console.log(`\n댕런 E2E — ${SOLO ? '솔로 모드 (한 계정 양측)' : '2인 모드 (별도 계정)'}\n`);
+console.log(`\n댕런 E2E — ${SOLO ? '솔로 모드 (한 계정 양측)' : '2인 모드 (별도 계정)'}${DIRECTED ? ' · 지명 매칭' : ' · 오픈 풀'}\n`);
 let bookingId = null;
 let owner, runner;
 
@@ -191,9 +193,18 @@ try {
     expect(b.body?.[0]?.status === 'matching', `expected matching, got ${b.body?.[0]?.status}`);
   });
 
+  if (DIRECTED) {
+    await step('request_runner → runner_pending (지명)', async () => {
+      const r = await fn('transition-booking', owner.token, { booking_id: bookingId, action: 'request_runner', meta: { runner_id: runner.id } });
+      expect(r.status === 200, 'request_runner failed — transition-booking 배포됐는지 확인', r.body);
+      const b = await admin(`/rest/v1/bookings?id=eq.${bookingId}&select=status,runner_id`);
+      expect(b.body?.[0]?.status === 'runner_pending' && b.body?.[0]?.runner_id === runner.id, 'not runner_pending/assigned', b.body);
+    });
+  }
+
   await step('러너 인박스 노출 (RLS 검증)', async () => {
     const r = await call(`/rest/v1/bookings?id=eq.${bookingId}&select=id,status`, { token: runner.token });
-    expect(Array.isArray(r.body) && r.body.length === 1, '러너에게 matching 예약이 안 보임 — 0004 정책 확인', r.body);
+    expect(Array.isArray(r.body) && r.body.length === 1, `러너에게 ${DIRECTED ? '지명' : 'matching'} 예약이 안 보임 — RLS 정책 확인`, r.body);
   });
 
   await step('runner_accept → confirmed', async () => {

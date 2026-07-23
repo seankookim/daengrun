@@ -1,8 +1,8 @@
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Monogram, Row } from '../../src/components/ui';
-import { confirmHandoff, fetchBookingSync } from '../../src/lib/api';
+import { confirmHandoff, fetchBookingSync, fetchCurrentOwnerBookingId } from '../../src/lib/api';
 import { dog, draft, nextBooking, runners } from '../../src/store';
 import { colors } from '../../src/theme';
 
@@ -17,12 +17,26 @@ export default function OwnerMeetup() {
   const [stage, setStage] = useState<Stage>('enroute');
 
   const poll = useRef<ReturnType<typeof setInterval> | null>(null);
-  const live = !!draft.bookingId;
+  const [bookingId, setBookingId] = useState<string | null>(draft.bookingId ?? null);
 
-  // 실예약: 모든 단계가 서버 진실을 따른다 — 가짜 도착 없음
+  // id 복원 — 리로드로 draft가 비어도 서버가 진실을 안다 (데모 전락 사고 방지, 2026-07-23)
   useEffect(() => {
-    if (!live) return;
-    const bid = draft.bookingId!;
+    if (bookingId) return;
+    fetchCurrentOwnerBookingId()
+      .then((id) => {
+        if (id) { draft.bookingId = id; setBookingId(id); }
+        else {
+          Alert.alert('진행 중인 예약이 없어요', '러너가 확정된 예약이 있을 때 이 화면이 열려요');
+          router.back();
+        }
+      })
+      .catch((e) => console.warn('[o-meetup] resolve:', e?.message ?? e));
+  }, [bookingId]);
+
+  // 모든 단계가 서버 진실을 따른다 — 가짜 도착 없음
+  useEffect(() => {
+    if (!bookingId) return;
+    const bid = bookingId;
     poll.current = setInterval(async () => {
       try {
         const sync = await fetchBookingSync(bid);
@@ -38,35 +52,18 @@ export default function OwnerMeetup() {
       } catch { /* keep polling */ }
     }, 2500);
     return () => { if (poll.current) clearInterval(poll.current); };
-  }, [live]);
+  }, [bookingId]);
 
-  // 데모 경로만 타이머 사용
+  // 유일하게 허용되는 타이머: 양측 확인 완료 → 라이브 화면 이동 연출
   useEffect(() => {
-    if (live) {
-      if (stage === 'confirmed') {
-        const id = setTimeout(() => router.replace('/owner/live'), 1200);
-        return () => clearTimeout(id);
-      }
-      return;
-    }
-    if (stage === 'enroute') {
-      const id = setTimeout(() => setStage('arrived'), 2500);
-      return () => clearTimeout(id);
-    }
-    if (stage === 'waiting') {
-      const id = setTimeout(() => setStage('confirmed'), 1500);
-      return () => clearTimeout(id);
-    }
-    if (stage === 'confirmed') {
-      const id = setTimeout(() => router.replace('/owner/live'), 1200);
-      return () => clearTimeout(id);
-    }
-  }, [stage, live]);
+    if (stage !== 'confirmed') return;
+    const id = setTimeout(() => router.replace('/owner/live'), 1200);
+    return () => clearTimeout(id);
+  }, [stage]);
 
   const handoff = async () => {
-    if (draft.bookingId) {
-      try { await confirmHandoff(draft.bookingId, 'owner'); } catch { /* 폴링이 따라잡음 */ }
-    }
+    if (!bookingId) return;
+    try { await confirmHandoff(bookingId, 'owner'); } catch { /* 폴링이 따라잡음 */ }
     setStage('waiting');
   };
 

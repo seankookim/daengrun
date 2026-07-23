@@ -5,7 +5,7 @@ import { fetchMyBookings } from '../../src/lib/api';
 import { BottomNav } from '../../src/components/bottomnav';
 import { HeatTrace } from '../../src/components/runcard';
 import { Monogram, Row } from '../../src/components/ui';
-import { Booking, BookingStatus, cancelPolicy, runners, sampleRoutes } from '../../src/store';
+import { Booking, BookingStatus, cancelPolicy, draft, runners, sampleRoutes } from '../../src/store';
 import { colors } from '../../src/theme';
 
 // 내 일정 — agenda view. Tapping a booking opens a management sheet
@@ -165,6 +165,14 @@ export default function Schedule() {
                       </View>
                       <Text style={{ fontSize: 14, color: colors.dim, alignSelf: 'center' }}>›</Text>
                     </Row>
+                    {b.status === 'active' && (
+                      <Pressable
+                        onPress={(e) => { e.stopPropagation(); draft.bookingId = b.id; router.push('/owner/live'); }}
+                        style={s.goLiveBtn}
+                      >
+                        <Text style={{ fontSize: 13, fontWeight: '900', color: '#d84a2f' }}>● 실시간 보기 ›</Text>
+                      </Pressable>
+                    )}
                   </View>
                 </Pressable>
               );
@@ -351,6 +359,10 @@ const s = StyleSheet.create({
   recurPill: { backgroundColor: '#e3f0c4', borderRadius: 99, paddingVertical: 2, paddingHorizontal: 7, alignSelf: 'center' },
   livePillSm: { backgroundColor: '#5a7a3c', borderRadius: 99, paddingVertical: 2, paddingHorizontal: 7, alignSelf: 'center' },
   statusPill: { borderRadius: 99, paddingVertical: 4, paddingHorizontal: 9 },
+  goLiveBtn: {
+    marginTop: 11, backgroundColor: '#ffe9e2', borderRadius: 12, alignItems: 'center',
+    paddingVertical: 12, borderWidth: 1.2, borderColor: '#ffc9b8',
+  },
   thumbMap: { width: 68, height: 52, borderRadius: 10, backgroundColor: '#0e150f', padding: 2, overflow: 'hidden' },
   certDot: { width: 13, height: 13, borderRadius: 7, backgroundColor: '#3d8fd4', alignItems: 'center', justifyContent: 'center', alignSelf: 'center' },
   emptyCta: {

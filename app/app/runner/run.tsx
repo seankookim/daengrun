@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Monogram, Row } from '../../src/components/ui';
-import { settleRun, startRunServer } from '../../src/lib/api';
+import { fetchCurrentRunnerJobId, settleRun, startRunServer } from '../../src/lib/api';
 import { EndReason, payoutFor, runnerJob, runRequests, runResult } from '../../src/store';
 import { colors } from '../../src/theme';
 
@@ -25,6 +25,15 @@ export default function ActiveRun() {
   const [sec, setSec] = useState(0);
   const [endSheet, setEndSheet] = useState(false);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const settled = useRef(false); // 중복 정산 방지 (자동완주 + 수동종료 레이스)
+
+  // id 복원 — 리로드로 유실돼도 서버의 active 예약으로 정산이 연결되게
+  useEffect(() => {
+    if (runnerJob.bookingId) return;
+    fetchCurrentRunnerJobId()
+      .then((id) => { if (id) runnerJob.bookingId = id; })
+      .catch((e) => console.warn('[run] resolve:', e?.message ?? e));
+  }, []);
 
   const km = Math.min(sec / 409, req.km + 0.02); // ~6'49" pace, demo-accelerated
   const remaining = Math.max(req.km - km, 0);
@@ -46,6 +55,8 @@ export default function ActiveRun() {
 
   // 실예약이면 서버 정산 (사유별 금액·드랍은 settle-run이 계산), 아니면 로컬 계산
   const settle = async (reason: EndReason, completed: boolean) => {
+    if (settled.current) return;
+    settled.current = true;
     const localPayout = completed ? payoutFor(km) : payoutByReason(reason);
     Object.assign(runResult, { km, sec, payout: localPayout, completed, reason, bookingId: runnerJob.bookingId });
 
@@ -80,11 +91,12 @@ export default function ActiveRun() {
     settle(null, true);
   };
 
+  // 자동 완주도 반드시 서버 정산을 거친다 — 예전엔 여기서 정산 없이 done으로 직행해
+  // 예약이 영원히 active로 남았음 (보호자 위젯 ● LIVE 좀비의 원인, 2026-07-23)
   useEffect(() => {
     if (km >= req.km) {
       setRunning(false);
-      Object.assign(runResult, { km, sec, payout: payoutFor(km), completed: true });
-      router.replace('/runner/done');
+      settle(null, true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [km >= req.km]);

@@ -1,8 +1,8 @@
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Monogram, Row } from '../../src/components/ui';
-import { confirmHandoff, fetchBookingStatus, fetchBookingSync, runnerEnroute, startRunServer } from '../../src/lib/api';
+import { confirmHandoff, fetchBookingStatus, fetchBookingSync, fetchCurrentRunnerJobId, runnerEnroute, startRunServer } from '../../src/lib/api';
 import { runnerJob, runRequests } from '../../src/store';
 import { colors } from '../../src/theme';
 
@@ -30,41 +30,50 @@ async function openNaverRoute() {
 export default function Meetup() {
   const req = runRequests[0];
   const [stage, setStage] = useState<Stage>('enroute');
+  const [jobId, setJobId] = useState<string | null>(runnerJob.bookingId ?? null);
   const poll = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // 실예약: 서버에 '이동 중' 보고 + 재진입 시 현재 단계 복원
+  // id 복원 — 인메모리 유실 시 서버에서 현재 작업을 찾는다 (데모 전락 방지, 2026-07-23)
   useEffect(() => {
-    if (!runnerJob.bookingId) return;
-    runnerEnroute(runnerJob.bookingId).catch(() => { /* 이미 지난 상태면 무시 */ });
-    fetchBookingSync(runnerJob.bookingId)
+    if (jobId) return;
+    fetchCurrentRunnerJobId()
+      .then((id) => {
+        if (id) { runnerJob.bookingId = id; setJobId(id); }
+        else {
+          Alert.alert('진행 중인 작업이 없어요', '요청 탭에서 수락하면 이 화면으로 이어져요');
+          router.back();
+        }
+      })
+      .catch((e) => console.warn('[r-meetup] resolve:', e?.message ?? e));
+  }, [jobId]);
+
+  // 서버에 '이동 중' 보고 + 재진입 시 현재 단계 복원
+  useEffect(() => {
+    if (!jobId) return;
+    runnerEnroute(jobId).catch(() => { /* 이미 지난 상태면 무시 */ });
+    fetchBookingSync(jobId)
       .then((s2) => {
         if (s2.status === 'picked_up' || s2.status === 'active') setStage('confirmed');
         else if (s2.runnerConfirmed) setStage('waiting');
       })
       .catch(() => {});
-  }, []);
+  }, [jobId]);
 
-  // waiting: 실예약이면 상대 확인을 서버에서 폴링, 아니면 2초 목업
+  // waiting: 상대 확인을 서버에서 폴링 — 목업 타이머 없음
   useEffect(() => {
-    if (stage !== 'waiting') return;
-    if (runnerJob.bookingId) {
-      const id = runnerJob.bookingId;
-      poll.current = setInterval(async () => {
-        try {
-          const st = await fetchBookingStatus(id);
-          if (st === 'picked_up' || st === 'active') setStage('confirmed');
-        } catch { /* keep polling */ }
-      }, 2500);
-      return () => { if (poll.current) clearInterval(poll.current); };
-    }
-    const t = setTimeout(() => setStage('confirmed'), 2000);
-    return () => clearTimeout(t);
-  }, [stage]);
+    if (stage !== 'waiting' || !jobId) return;
+    poll.current = setInterval(async () => {
+      try {
+        const st = await fetchBookingStatus(jobId);
+        if (st === 'picked_up' || st === 'active') setStage('confirmed');
+      } catch { /* keep polling */ }
+    }, 2500);
+    return () => { if (poll.current) clearInterval(poll.current); };
+  }, [stage, jobId]);
 
   const handoff = async () => {
-    if (runnerJob.bookingId) {
-      try { await confirmHandoff(runnerJob.bookingId, 'runner'); } catch { /* 폴링이 상태를 따라잡음 */ }
-    }
+    if (!jobId) return;
+    try { await confirmHandoff(jobId, 'runner'); } catch { /* 폴링이 상태를 따라잡음 */ }
     setStage('waiting');
   };
 
