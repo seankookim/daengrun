@@ -28,6 +28,8 @@ export default function OwnerMeetup() {
         const sync = await fetchBookingSync(bid);
         if (sync.status === 'picked_up' || sync.status === 'active') {
           setStage('confirmed');
+        } else if (sync.ownerConfirmed) {
+          setStage('waiting'); // 이미 확인함 — 재진입해도 버튼 재노출 없이 러너 대기
         } else if (sync.status === 'runner_enroute') {
           setStage((cur) => (cur === 'waiting' ? cur : 'arrived')); // 러너 이동 중 → 인계 버튼 활성
         } else {
@@ -63,7 +65,7 @@ export default function OwnerMeetup() {
 
   const handoff = async () => {
     if (draft.bookingId) {
-      try { await confirmHandoff(draft.bookingId); } catch { /* 폴링이 따라잡음 */ }
+      try { await confirmHandoff(draft.bookingId, 'owner'); } catch { /* 폴링이 따라잡음 */ }
     }
     setStage('waiting');
   };

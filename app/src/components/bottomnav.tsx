@@ -8,10 +8,11 @@ import { colors } from '../theme';
 // Calendar decision (docs/calendar.md): owners get no calendar tab (home widget
 // + booking CTA); runners get dedicated 캘린더 + 요청 tabs. 안심 lives in 마이,
 // home quick-card, and live screens.
+// 기록(/cards)은 탭에서 빠지고 홈 히어로/스탯에서 진입 — 예약 관리가 탭 자격 (사용자 피드백 2026-07)
 const OWNER_TABS = [
   { icon: '⌂', label: '홈', path: '/owner/home' },
+  { icon: '▦', label: '내 일정', path: '/owner/schedule' },
   { icon: '◎', label: '커뮤니티', path: '/community' },
-  { icon: '⌗', label: '기록', path: '/cards' },
   { icon: '◈', label: '샵', path: '/shop' },
   { icon: '☰', label: '마이', path: '/my' },
 ] as const;

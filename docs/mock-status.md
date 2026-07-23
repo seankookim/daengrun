@@ -80,6 +80,14 @@
 - ⏳ Sean: `cd app && npx expo install @react-native-async-storage/async-storage` 후 재시작 (버전은 package.json에 지정됨 — `npm install`로도 충분)
 - ⏳ Phase 3b: 카카오 OAuth (provider 설정 후), bookings 화면 → 상태 머신 연결, Realtime (chat/status), 매칭 자동배정, 실좌표 트레이스
 
+## 2026-07-23 세션: 인계 side 버그 + E2E 하네스
+
+- ✅ **confirm_handoff side 버그 수정** — 한 계정이 양측(솔로 테스트)이면 `isOwner` 우선 검사 때문에 양쪽 확인이 모두 owner 타임스탬프에 기록 → 영원히 picked_up 불가. 이제 클라이언트가 `meta.side`('owner'|'runner') 선언, 서버가 자격 검증 + 확인 후 재조회(동시 확인 레이스 방지). **⏳ Sean: `npx supabase functions deploy transition-booking` 필수** (request_runner 배포도 아직이면 함께 해결됨)
+- ✅ 보호자 미트업 재진입 시 이미 확인했으면 'waiting' 복원 (버튼 재노출 방지)
+- ✅ **E2E 하네스** `scripts/e2e.mjs` — 전체 루프(hold→결제→RLS 노출→수락→enroute→양측 인계→start→settle→원장 검증)를 자동 실행. `--solo`(한 계정 양측 = Sean 수동 테스트 재현), `--keep`(데이터 유지). **⏳ Sean: 루트 `.env`에 `SUPABASE_SERVICE_ROLE_KEY=` 추가 후 `node scripts/e2e.mjs`** (Dashboard → Settings → API). 샌드박스에서 supabase.co 직접 접근이 차단되어 잔심부름은 이 스크립트 한 줄로 대체
+- ✅ 보안: `app/.env`를 git 추적에서 제거(+.gitignore) — 서비스 키 커밋 사고 예방
+- ✅ 보호자 탭 개편: '기록' 탭 → **'내 일정'** 탭 (예약 관리가 접근 빈도상 탭 자격; 기록은 홈 히어로·스탯에서 진입 유지)
+
 ## 다음 실화(實化) 순서 (제안)
 
 1. Supabase: auth + bookings + 상태 머신 → 수락 알림이 진짜가 되는 지점

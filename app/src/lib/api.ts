@@ -293,7 +293,9 @@ export async function fetchBookingSync(id: string): Promise<BookingSync> {
 }
 
 export const acceptBooking = (id: string) => invokeTransition(id, 'runner_accept');
-export const confirmHandoff = (id: string) => invokeTransition(id, 'confirm_handoff');
+// side 필수 — 한 계정이 양측인 솔로 테스트에서 서버가 역할을 추측할 수 없음
+export const confirmHandoff = (id: string, side: 'owner' | 'runner') =>
+  invokeTransition(id, 'confirm_handoff', { side });
 export const startRunServer = (id: string) => invokeTransition(id, 'start_run');
 
 export async function fetchBookingStatus(id: string): Promise<string> {

@@ -63,7 +63,7 @@ export default function Meetup() {
 
   const handoff = async () => {
     if (runnerJob.bookingId) {
-      try { await confirmHandoff(runnerJob.bookingId); } catch { /* 폴링이 상태를 따라잡음 */ }
+      try { await confirmHandoff(runnerJob.bookingId, 'runner'); } catch { /* 폴링이 상태를 따라잡음 */ }
     }
     setStage('waiting');
   };

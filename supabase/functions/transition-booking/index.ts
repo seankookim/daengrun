@@ -63,17 +63,32 @@ Deno.serve(handle(async (req) => {
 
     case "confirm_handoff": {
       // 양측 인계 확인 — 둘 다 눌러야 picked_up (보험 기점)
-      const patch = isOwner
-        ? { owner_confirmed_handoff_at: new Date().toISOString() }
-        : { runner_confirmed_handoff_at: new Date().toISOString() };
-      await set(patch);
-      const other = isOwner ? bk.runner_confirmed_handoff_at : bk.owner_confirmed_handoff_at;
-      if (other) {
-        await set({ status: "picked_up" });
-        await notify(bk.owner_id, "인계 완료", "지금부터 펫보험이 적용됩니다");
-        if (bk.runner_id) await notify(bk.runner_id, "인계 완료", "러닝을 시작할 수 있어요");
+      // 클라이언트가 어느 쪽으로 확인하는지 선언(meta.side)하고 서버가 자격을 검증한다.
+      // 이유: 솔로 테스트처럼 한 계정이 양측일 때 isOwner 우선 검사로는 러너 확인이 영원히 기록되지 않음.
+      let side: "owner" | "runner";
+      if (meta?.side === "owner" || meta?.side === "runner") {
+        side = meta.side;
+        if (side === "owner" ? !isOwner : !isRunner) throw new HttpError(403, `not the ${side}`);
+      } else if (isOwner && isRunner) {
+        throw new HttpError(400, "meta.side required (owner|runner)");
       } else {
-        const target = isOwner ? bk.runner_id : bk.owner_id;
+        side = isOwner ? "owner" : "runner";
+      }
+      await set(side === "owner"
+        ? { owner_confirmed_handoff_at: new Date().toISOString() }
+        : { runner_confirmed_handoff_at: new Date().toISOString() });
+      // 재조회 후 판정 — 처음 읽은 bk 스냅샷은 stale (양측이 거의 동시에 눌러도 안전)
+      const { data: fresh } = await db.from("bookings")
+        .select("status, owner_confirmed_handoff_at, runner_confirmed_handoff_at")
+        .eq("id", booking_id).single();
+      if (fresh?.owner_confirmed_handoff_at && fresh?.runner_confirmed_handoff_at) {
+        if (fresh.status !== "picked_up" && fresh.status !== "active") {
+          await set({ status: "picked_up" });
+          await notify(bk.owner_id, "인계 완료", "지금부터 펫보험이 적용됩니다");
+          if (bk.runner_id) await notify(bk.runner_id, "인계 완료", "러닝을 시작할 수 있어요");
+        }
+      } else {
+        const target = side === "owner" ? bk.runner_id : bk.owner_id;
         if (target) await notify(target, "인계 확인 요청", "상대방이 인계를 확인했어요 — 확인해주세요");
       }
       break;
