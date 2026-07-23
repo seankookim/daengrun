@@ -1,12 +1,13 @@
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Animated, Dimensions, Modal, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
 import { BottomNav } from '../../src/components/bottomnav';
 import { Ring } from '../../src/components/ring';
 import { RunCard } from '../../src/components/runcard';
 import { Monogram } from '../../src/components/ui';
-import { demoImminent, dog, myCards, nextBooking, ownerGearLadder, runners } from '../../src/store';
+import { fetchMyBookings } from '../../src/lib/api';
+import { Booking, demoImminent, dog, draft, myCards, nextBooking, ownerGearLadder, runners } from '../../src/store';
 import { colors, surfaces } from '../../src/theme';
 import { useTheme } from '../../src/theme-context';
 
@@ -30,6 +31,14 @@ export default function OwnerHome() {
   const goalHit = pct >= 1;
   const latestCard = myCards.find((c) => c.run);
   const scrollY = useRef(new Animated.Value(0)).current;
+
+  // 실예약 next booking — 위젯이 진짜 다음 일정을 보여준다 (없으면 목업)
+  const [liveNext, setLiveNext] = useState<Booking | null>(null);
+  useFocusEffect(useCallback(() => {
+    fetchMyBookings()
+      .then((bs) => setLiveNext(bs.find((b) => b.status === 'pending' || b.status === 'confirmed' || b.status === 'active') ?? null))
+      .catch(() => {});
+  }, []));
 
   // reward pulse — dopamine beacon for unclaimed rewards
   const [ladderOpen, setLadderOpen] = useState(false);
@@ -219,27 +228,39 @@ export default function OwnerHome() {
             </View>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 12 }}>
-            <Monogram char={nextBooking.runnerName[1]} bg="#FF6347" size={46} />
+            <Monogram char={liveNext ? liveNext.dogName[0] : nextBooking.runnerName[1]} bg="#FF6347" size={46} />
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 17, fontWeight: '900', color: p.textStrong }}>
-                {nextBooking.timeLabel} · {nextBooking.dogName}
+                {liveNext ? `${liveNext.dateLabel.split(' ')[0]} ${liveNext.timeLabel} · ${liveNext.dogName}` : `${nextBooking.timeLabel} · ${nextBooking.dogName}`}
               </Text>
               <Text style={{ fontSize: 11.5, color: p.dim, marginTop: 3 }}>
-                {nextBooking.runnerName} 러너 ✓ · 서울숲 2번 출입구
+                {liveNext
+                  ? `${liveNext.routeName} · ${liveNext.status === 'pending' ? '러너 응답 대기' : liveNext.status === 'active' ? '러닝 진행 중' : `${liveNext.runnerName} ✓ 확정`}`
+                  : `${nextBooking.runnerName} 러너 ✓ · 서울숲 2번 출입구`}
               </Text>
             </View>
-            <View style={[s.countdownPill, { backgroundColor: demoImminent ? '#fde8e3' : mode === 'dark' ? '#1e2c22' : '#eef4e0' }]}>
-              <Text style={{ fontSize: 10.5, fontWeight: '900', color: demoImminent ? '#d84a2f' : mode === 'dark' ? colors.volt : '#4a6d1f' }}>
-                {demoImminent ? '22분 후 시작' : '3시간 12분 후'}
+            <View style={[s.countdownPill, { backgroundColor: liveNext?.status === 'pending' ? '#fbf0d4' : demoImminent || liveNext ? '#fde8e3' : mode === 'dark' ? '#1e2c22' : '#eef4e0' }]}>
+              <Text style={{ fontSize: 10.5, fontWeight: '900', color: liveNext?.status === 'pending' ? '#a97c12' : demoImminent || liveNext ? '#d84a2f' : mode === 'dark' ? colors.volt : '#4a6d1f' }}>
+                {liveNext ? (liveNext.status === 'pending' ? '매칭 중' : liveNext.status === 'active' ? '● LIVE' : '확정됨') : demoImminent ? '22분 후 시작' : '3시간 12분 후'}
               </Text>
             </View>
           </View>
-          {/* 30분 전부터: 확인·시작 액션이 위젯에 올라온다 */}
-          {demoImminent ? (
+          {/* 30분 전부터/러너 확정 시: 확인·시작 액션이 위젯에 올라온다 */}
+          {liveNext?.status === 'active' ? (
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 13 }}>
+              <Pressable style={s.meetBtn} onPress={(e) => { e.stopPropagation(); router.push('/owner/live'); }}>
+                <Text style={{ fontSize: 12.5, fontWeight: '900', color: colors.ink }}>실시간 보기 ›</Text>
+              </Pressable>
+            </View>
+          ) : liveNext?.status === 'confirmed' || (!liveNext && demoImminent) ? (
             <View style={{ flexDirection: 'row', gap: 8, marginTop: 13 }}>
               <Pressable
                 style={s.meetBtn}
-                onPress={(e) => { e.stopPropagation(); router.push('/owner/meetup'); }}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  if (liveNext) draft.bookingId = liveNext.id; // 재시작 후에도 실예약으로 인계 재개
+                  router.push('/owner/meetup');
+                }}
               >
                 <Text style={{ fontSize: 12.5, fontWeight: '900', color: colors.ink }}>러너 만나기 · 인계 확인 ›</Text>
               </Pressable>

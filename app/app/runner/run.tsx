@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Monogram, Row } from '../../src/components/ui';
-import { settleRun } from '../../src/lib/api';
+import { settleRun, startRunServer } from '../../src/lib/api';
 import { EndReason, payoutFor, runnerJob, runRequests, runResult } from '../../src/store';
 import { colors } from '../../src/theme';
 
@@ -162,7 +162,12 @@ export default function ActiveRun() {
           </Pressable>
           <Pressable
             style={[s.btn, { backgroundColor: colors.volt }]}
-            onPress={() => (running ? setEndSheet(true) : setRunning(true))}
+            onPress={() => {
+              if (running) { setEndSheet(true); return; }
+              // 캘린더에서 picked_up 상태로 재진입한 경우에도 start_run이 호출되도록
+              if (runnerJob.bookingId) startRunServer(runnerJob.bookingId).catch(() => { /* 이미 active면 무시 */ });
+              setRunning(true);
+            }}
           >
             <Text style={{ fontSize: 16, fontWeight: '800', color: colors.ink }}>
               {running ? '러닝 종료' : '러닝 시작'}

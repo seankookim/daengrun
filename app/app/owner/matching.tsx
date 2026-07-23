@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Monogram, Row } from '../../src/components/ui';
 import { draft, fmtWon, priceForRunner, runners } from '../../src/store';
 import { colors } from '../../src/theme';
@@ -15,7 +15,16 @@ export default function Matching() {
 
   const pick = (id: string) => {
     draft.runnerId = id;
-    router.push('/owner/live'); // 실제로는 수락 대기 → live. 목업에서는 바로 이동.
+    if (draft.bookingId) {
+      // 실예약: 러너 응답을 기다린다 — live로 점프하지 않고 내 일정에서 대기
+      Alert.alert(
+        '매칭 요청 완료',
+        '러너가 수락하면 알려드릴게요.\n내 일정에서 진행 상황을 확인하세요.',
+      );
+      router.replace('/owner/schedule');
+      return;
+    }
+    router.push('/owner/live'); // 데모 경로만 바로 이동
   };
 
   return (
