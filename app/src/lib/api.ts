@@ -247,12 +247,13 @@ export interface LiveRunner {
   paceSec: number;
   respondRate: number | null;
   avatarUrl: string | null;
+  bio: string | null;
 }
 
 export async function fetchCertifiedRunners(): Promise<LiveRunner[]> {
   const { data, error } = await supabase
     .from('runners')
-    .select('profile_id, tier, avg_pace_sec_per_km, total_runs, respond_rate_pct, profiles(name, district, avatar_url)')
+    .select('profile_id, tier, bio, avg_pace_sec_per_km, total_runs, respond_rate_pct, profiles(name, district, avatar_url)')
     .neq('tier', 'applicant')
     .eq('online', true)
     .limit(10);
@@ -269,6 +270,7 @@ export async function fetchCertifiedRunners(): Promise<LiveRunner[]> {
       paceSec: pace,
       respondRate: r.respond_rate_pct,
       avatarUrl: r.profiles?.avatar_url ?? null,
+      bio: r.bio ?? null,
     };
   });
 }
@@ -403,6 +405,80 @@ export async function updateMyProfile(p: { name?: string; district?: string }): 
   if (!user.user) throw new Error('not signed in');
   const { error } = await supabase.from('profiles').update(p).eq('id', user.user.id);
   if (error) throw error;
+}
+
+export async function fetchMyRunnerBio(): Promise<string | null> {
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) return null;
+  const { data } = await supabase.from('runners').select('bio').eq('profile_id', user.user.id).maybeSingle();
+  return data?.bio ?? null;
+}
+
+// 러너 자기소개 (스토어프런트) — runners.bio
+export async function updateRunnerBio(bio: string): Promise<void> {
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) throw new Error('not signed in');
+  const { error } = await supabase.from('runners').update({ bio }).eq('profile_id', user.user.id);
+  if (error) throw error;
+}
+
+// ---------- 러너 공개 프로필 (스토어프런트) ----------
+export interface RunnerPublicProfile {
+  profileId: string;
+  name: string;
+  district: string;
+  avatarUrl: string | null;
+  tier: string;
+  bio: string | null;
+  specialties: string[];
+  totalRuns: number;
+  totalKm: number;
+  paceLabel: string;
+  respondRate: number | null;
+  trainerCertified: boolean;
+  online: boolean;
+  availability: { weekday: number; startMin: number; endMin: number }[];
+  reviews: { rating: number | null; note: string | null; tags: string[]; when: string }[];
+  avgRating: number | null;
+}
+
+export async function fetchRunnerProfile(profileId: string): Promise<RunnerPublicProfile> {
+  const { data: r, error } = await supabase
+    .from('runners')
+    .select('profile_id, tier, bio, specialties, avg_pace_sec_per_km, total_runs, total_km, respond_rate_pct, trainer_certified, online, profiles(name, district, avatar_url)')
+    .eq('profile_id', profileId)
+    .single();
+  if (error) throw error;
+  const rr = r as any;
+  // 가용시간·리뷰는 실패해도 프로필은 뜬다
+  const [availRes, revRes] = await Promise.all([
+    supabase.from('runner_availability_rules').select('weekday, start_min, end_min').eq('runner_id', profileId).then((x) => x, () => ({ data: null } as any)),
+    supabase.from('reviews').select('rating, note, tags, created_at').eq('target_id', profileId).eq('target_kind', 'runner').eq('visibility', 'public').order('created_at', { ascending: false }).limit(5).then((x) => x, () => ({ data: null } as any)),
+  ]);
+  const pace = rr.avg_pace_sec_per_km ?? 420;
+  const reviews = (revRes.data ?? []).map((v: any) => {
+    const { dateLabel } = kstParts(v.created_at);
+    return { rating: v.rating, note: v.note, tags: v.tags ?? [], when: dateLabel };
+  });
+  const rated = reviews.filter((v: any) => v.rating != null);
+  return {
+    profileId: rr.profile_id,
+    name: rr.profiles?.name ?? '러너',
+    district: rr.profiles?.district ?? '',
+    avatarUrl: rr.profiles?.avatar_url ?? null,
+    tier: rr.tier === 'certified' ? '인증 러너' : rr.tier === 'veteran' ? '베테랑' : rr.tier === 'master' ? '마스터' : '지원자',
+    bio: rr.bio ?? null,
+    specialties: rr.specialties ?? [],
+    totalRuns: rr.total_runs ?? 0,
+    totalKm: Number(rr.total_km ?? 0),
+    paceLabel: `${Math.floor(pace / 60)}'${String(pace % 60).padStart(2, '0')}"`,
+    respondRate: rr.respond_rate_pct,
+    trainerCertified: !!rr.trainer_certified,
+    online: !!rr.online,
+    availability: (availRes.data ?? []).map((a: any) => ({ weekday: a.weekday, startMin: a.start_min, endMin: a.end_min })),
+    reviews,
+    avgRating: rated.length > 0 ? Math.round(rated.reduce((s: number, v: any) => s + v.rating, 0) / rated.length * 10) / 10 : null,
+  };
 }
 
 // base64 → bytes (Hermes atob 유무와 무관하게 동작)

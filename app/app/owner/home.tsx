@@ -1,12 +1,12 @@
 import { router, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Animated, Dimensions, Modal, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Animated, Dimensions, Modal, PanResponder, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BottomNav } from '../../src/components/bottomnav';
 import { Ring } from '../../src/components/ring';
 import { RunCard } from '../../src/components/runcard';
-import { Monogram } from '../../src/components/ui';
-import { fetchFitness, fetchMyBookings, Fitness } from '../../src/lib/api';
+import { Avatar, Monogram } from '../../src/components/ui';
+import { fetchCertifiedRunners, fetchFitness, fetchMyBookings, Fitness, LiveRunner } from '../../src/lib/api';
 import { Booking, demoImminent, dog, draft, myCards, nextBooking, ownerGearLadder, runners } from '../../src/store';
 import { colors, surfaces } from '../../src/theme';
 import { useTheme } from '../../src/theme-context';
@@ -43,7 +43,11 @@ export default function OwnerHome() {
       .then((bs) => setLiveNext(bs.find((b) => ['pending', 'confirmed', 'handoff', 'active'].includes(b.status)) ?? null))
       .catch((e) => console.warn('[home] bookings:', e?.message ?? e));
     fetchFitness().then(setFit).catch((e) => console.warn('[home] fitness:', e?.message ?? e));
+    fetchCertifiedRunners().then(setLocalRunners).catch((e) => console.warn('[home] runners:', e?.message ?? e));
   }, []));
+
+  // 우리 동네 러너 — 온라인 러너 셸프 (탐색형 매칭의 시작점)
+  const [localRunners, setLocalRunners] = useState<LiveRunner[]>([]);
 
   // reward pulse — dopamine beacon for unclaimed rewards
   const [ladderOpen, setLadderOpen] = useState(false);
@@ -326,6 +330,44 @@ export default function OwnerHome() {
             </View>
           )}
         </Pressable>
+
+        {/* ---------- 우리 동네 러너 (탐색형 매칭) ---------- */}
+        {localRunners.length > 0 && (
+          <View style={{ marginTop: 14 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 9 }}>
+              <Text style={[s.sectionTitle, { color: p.textStrong }]}>우리 동네 러너</Text>
+              <View style={{ backgroundColor: '#5a7a3c', borderRadius: 99, paddingVertical: 2, paddingHorizontal: 7 }}>
+                <Text style={{ fontSize: 8.5, fontWeight: '900', color: '#fff' }}>● {localRunners.length}명 온라인</Text>
+              </View>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
+              {localRunners.map((r) => (
+                <Pressable
+                  key={r.profileId}
+                  onPress={() => router.push(`/runner-profile/${r.profileId}`)}
+                  style={{
+                    width: 150, backgroundColor: p.card, borderRadius: 18, padding: 13,
+                    borderWidth: 1, borderColor: p.line, alignItems: 'center',
+                  }}
+                >
+                  <Avatar url={r.avatarUrl} char={r.name[0]} bg="#5a7a3c" size={54} />
+                  <Text style={{ fontSize: 13.5, fontWeight: '900', color: p.textStrong, marginTop: 8 }} numberOfLines={1}>
+                    {r.name}
+                  </Text>
+                  <Text style={{ fontSize: 10.5, color: p.dim, marginTop: 2 }} numberOfLines={1}>
+                    {r.district || '근처'} · {r.tier}
+                  </Text>
+                  <Text style={{ fontSize: 10.5, color: p.dim, marginTop: 1 }}>
+                    러닝 {r.totalRuns}회 · {r.paceLabel}
+                  </Text>
+                  <View style={{ backgroundColor: '#eef4e0', borderRadius: 99, paddingVertical: 5, paddingHorizontal: 11, marginTop: 8 }}>
+                    <Text style={{ fontSize: 10.5, fontWeight: '800', color: '#4a6d1f' }}>프로필 보기 ›</Text>
+                  </View>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        )}
 
         {/* ---------- safety quick card ---------- */}
         <Pressable onPress={() => router.push('/safety')} style={[s.safetyStrip, { backgroundColor: p.card }]}>

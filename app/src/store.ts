@@ -318,6 +318,7 @@ export const draft = {
   routeId: 'seoulforest-loop',
   timeLabel: '오늘 오후 6:30',
   bookingId: null as string | null, // 서버 예약 id (실화 후)
+  preferredRunnerId: null as string | null, // 프로필에서 '이 러너와 예약하기'로 진입한 경우
 };
 
 export function draftTotal(): number {

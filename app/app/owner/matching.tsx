@@ -39,19 +39,26 @@ export default function Matching() {
     if (live) fetchCertifiedRunners().then(setLiveRunners).catch((e) => console.warn('[matching] runners:', e?.message ?? e));
   }, [live]);
 
-  // 점수순 정렬 — 1위는 추천 카드, 나머지는 대안 리스트
-  const scored = useMemo(
-    () => liveRunners.map((r) => ({ r, m: matchFor(r) })).sort((a, b) => b.m.total - a.m.total),
-    [liveRunners],
-  );
+  // 점수순 정렬 — 1위는 추천 카드, 나머지는 대안 리스트.
+  // 프로필에서 '이 러너와 예약하기'로 왔으면 그 러너가 최상단.
+  const scored = useMemo(() => {
+    const arr = liveRunners.map((r) => ({ r, m: matchFor(r) })).sort((a, b) => b.m.total - a.m.total);
+    if (draft.preferredRunnerId) {
+      const i = arr.findIndex((x) => x.r.profileId === draft.preferredRunnerId);
+      if (i > 0) arr.unshift(arr.splice(i, 1)[0]);
+    }
+    return arr;
+  }, [liveRunners]);
   const top = scored[0];
   const rest = scored.slice(1);
+  const topIsPreferred = !!top && top.r.profileId === draft.preferredRunnerId;
 
   const nominate = async (r: LiveRunner) => {
     if (!draft.bookingId) return;
     setNominating(r.profileId);
     try {
       await requestRunner(draft.bookingId, r.profileId);
+      draft.preferredRunnerId = null; // 지명 완료 — 선호 러너 상태 소거
       Alert.alert('지명 요청 전송', `${r.name} 러너에게 요청을 보냈어요.\n수락하면 알림으로 알려드릴게요.`);
       router.replace('/owner/schedule');
     } catch (e) {
@@ -105,11 +112,15 @@ export default function Matching() {
 
           {/* 1순위 card */}
           <View style={s.topCard}>
-            <View style={s.rankTab}><Text style={{ fontSize: 11, fontWeight: '900', color: FOREST }}>1순위 추천</Text></View>
+            <View style={s.rankTab}><Text style={{ fontSize: 11, fontWeight: '900', color: FOREST }}>{topIsPreferred ? '내가 고른 러너' : '1순위 추천'}</Text></View>
+            <Pressable onPress={() => router.push(`/runner-profile/${top.r.profileId}`)}>
             <Row style={{ gap: 12, marginTop: 18 }}>
               <Avatar url={top.r.avatarUrl} char={top.r.name[0]} bg="#5a7a3c" size={58} />
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 17, fontWeight: '900', color: '#fff' }}>{top.r.name} 러너</Text>
+                <Row style={{ gap: 7 }}>
+                  <Text style={{ fontSize: 17, fontWeight: '900', color: '#fff' }}>{top.r.name} 러너</Text>
+                  <Text style={{ fontSize: 11, fontWeight: '800', color: colors.volt, alignSelf: 'center' }}>프로필 ›</Text>
+                </Row>
                 <Row style={{ gap: 5, marginTop: 5 }}>
                   <View style={s.limePill}><Text style={{ fontSize: 9.5, fontWeight: '800', color: FOREST }}>✓ {top.r.tier}</Text></View>
                   <View style={s.limePill}><Text style={{ fontSize: 9.5, fontWeight: '800', color: FOREST }}>✓ 신원인증</Text></View>
@@ -119,6 +130,7 @@ export default function Matching() {
                 </Text>
               </View>
             </Row>
+            </Pressable>
 
             {/* match bars */}
             <View style={{ gap: 13, marginTop: 16 }}>
@@ -164,7 +176,7 @@ export default function Matching() {
             </Text>
           )}
           {rest.map(({ r, m }) => (
-            <View key={r.profileId} style={s.altCard}>
+            <Pressable key={r.profileId} onPress={() => router.push(`/runner-profile/${r.profileId}`)} style={s.altCard}>
               <Row style={{ gap: 12 }}>
                 <Avatar url={r.avatarUrl} char={r.name[0]} bg="#5a7a3c" size={46} />
                 <View style={{ flex: 1 }}>
@@ -187,7 +199,7 @@ export default function Matching() {
                   </Text>
                 </Pressable>
               </Row>
-            </View>
+            </Pressable>
           ))}
 
           <View style={s.trustNote}>

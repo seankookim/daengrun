@@ -4,7 +4,7 @@ import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View 
 import { useAuth } from '../src/auth-context';
 import { BottomNav } from '../src/components/bottomnav';
 import { Avatar, Row } from '../src/components/ui';
-import { fetchMyProfile, MyProfile, updateMyProfile, uploadAvatar } from '../src/lib/api';
+import { fetchMyProfile, fetchMyRunnerBio, MyProfile, updateMyProfile, updateRunnerBio, uploadAvatar } from '../src/lib/api';
 import { dog, session } from '../src/store';
 import { colors } from '../src/theme';
 
@@ -19,16 +19,20 @@ export default function My() {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState('');
   const [district, setDistrict] = useState('');
+  const [bio, setBio] = useState('');
+  const [savedBio, setSavedBio] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useFocusEffect(useCallback(() => {
     fetchMyProfile().then(setProfile).catch((e) => console.warn('[my] profile:', e?.message ?? e));
-  }, []));
+    if (isRunner) fetchMyRunnerBio().then(setSavedBio).catch(() => {});
+  }, [isRunner]));
 
   const openEdit = () => {
     setName(profile?.name ?? '');
     setDistrict(profile?.district ?? '');
+    setBio(savedBio ?? '');
     setEditing(true);
   };
 
@@ -63,6 +67,10 @@ export default function My() {
     setSaving(true);
     try {
       await updateMyProfile({ name: name.trim() || undefined, district: district.trim() || undefined });
+      if (isRunner) {
+        await updateRunnerBio(bio.trim());
+        setSavedBio(bio.trim());
+      }
       setProfile((p) => (p ? { ...p, name: name.trim() || p.name, district: district.trim() || p.district } : p));
       setEditing(false);
     } catch (e) {
@@ -73,6 +81,7 @@ export default function My() {
   };
 
   const MENU = [
+    ...(isRunner ? [{ glyph: '◉', label: '내 공개 프로필', desc: '보호자에게 보이는 내 스토어프런트', path: null }] : []),
     { glyph: '✚', label: '안심 센터', desc: 'SOS · 실시간 위치 · 보험', path: '/safety' as const },
     isRunner
       ? { glyph: '✓', label: '러너 인증 센터', desc: '지원 절차 · 등급 사다리 · 교육', path: '/runner/apply' as const }
@@ -116,7 +125,14 @@ export default function My() {
             <Pressable
               key={m.label}
               style={s.menuRow}
-              onPress={() => (m.path ? router.push(m.path) : Alert.alert(m.label, '준비 중이에요'))}
+              onPress={() => {
+                if (m.label === '내 공개 프로필') {
+                  if (profile) router.push(`/runner-profile/${profile.id}`);
+                  return;
+                }
+                if (m.path) router.push(m.path);
+                else Alert.alert(m.label, '준비 중이에요');
+              }}
             >
               <View style={s.menuIcon}><Text style={{ fontSize: 15, color: '#5a7a3c' }}>{m.glyph}</Text></View>
               <View style={{ flex: 1 }}>
@@ -167,6 +183,20 @@ export default function My() {
             style={s.input}
             maxLength={20}
           />
+          {isRunner && (
+            <>
+              <Text style={s.fieldLabel}>자기소개 (스토어프런트)</Text>
+              <TextInput
+                value={bio}
+                onChangeText={setBio}
+                placeholder="보호자에게 보여줄 소개를 적어보세요 — 러닝 경력, 반려견 경험, 나의 강점"
+                placeholderTextColor="#b0ada0"
+                style={[s.input, { height: 96, textAlignVertical: 'top', paddingTop: 12 }]}
+                multiline
+                maxLength={300}
+              />
+            </>
+          )}
           <Text style={{ fontSize: 10.5, color: colors.dim, marginTop: 8, lineHeight: 15 }}>
             이름과 동네는 매칭 화면에서 상대방에게 보여요{'\n'}프로필 사진은 마이 화면에서 사진을 탭해 변경해요
           </Text>
