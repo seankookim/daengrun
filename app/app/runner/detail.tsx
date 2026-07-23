@@ -58,11 +58,11 @@ export default function RequestDetail() {
       </Card>
 
       <Btn
-        label="수락하기"
+        label="수락하기 (데모)"
         variant="volt"
         style={{ marginTop: 16 }}
         onPress={() => {
-          Alert.alert('수락 완료', '보호자에게 수락 알림이 전송되었어요 (목업)');
+          Alert.alert('데모 수락', '이 카드는 데모예요 — 서버에 반영되지 않아요.\n실요청은 요청 탭의 ● LIVE 카드에서 수락하세요');
           router.push('/runner/meetup');
         }}
       />

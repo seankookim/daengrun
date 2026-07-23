@@ -1,9 +1,17 @@
-import { router } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BottomNav } from '../../src/components/bottomnav';
 import { Row } from '../../src/components/ui';
+import { fetchRunnerJobs, RunnerJob } from '../../src/lib/api';
+import { runnerJob } from '../../src/store';
 import { colors } from '../../src/theme';
+
+const JOB_STATUS = {
+  confirmed: { label: '확정', bg: '#e3f0c4', fg: '#3d5a2b' },
+  in_progress: { label: '진행 중', bg: '#eaf7c8', fg: '#4a6d1f' },
+  completed: { label: '완료', bg: '#e9ebe2', fg: '#75806f' },
+} as const;
 
 // 러너 캘린더 — day timeline (default per docs/calendar.md).
 // Blocks: confirmed / travel buffer / available / blocked / pending.
@@ -32,6 +40,23 @@ const TIMELINE: Block[] = [
 
 export default function RunnerCalendar() {
   const [dateIdx, setDateIdx] = useState(0);
+  const [jobs, setJobs] = useState<RunnerJob[]>([]);
+
+  useFocusEffect(useCallback(() => {
+    fetchRunnerJobs().then(setJobs).catch(() => {});
+  }, []));
+
+  const openJob = (j: RunnerJob) => {
+    if (j.status === 'confirmed') {
+      runnerJob.bookingId = j.bookingId;
+      router.push('/runner/meetup');
+    } else if (j.status === 'in_progress') {
+      runnerJob.bookingId = j.bookingId;
+      router.push('/runner/run');
+    } else {
+      Alert.alert('완료된 러닝', `${j.dogName} · ${j.km}km · +${j.payout.toLocaleString()}원\n수익 탭에서 정산 내역을 확인하세요`);
+    }
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.cream }}>
@@ -57,8 +82,46 @@ export default function RunnerCalendar() {
           ))}
         </ScrollView>
 
+        {/* ---------- 내 작업 (LIVE) ---------- */}
+        {jobs.length > 0 && (
+          <View style={{ marginTop: 18 }}>
+            <Row style={{ gap: 6, marginBottom: 8 }}>
+              <Text style={{ fontSize: 14, fontWeight: '900', color: FOREST }}>내 작업</Text>
+              <View style={{ backgroundColor: '#5a7a3c', borderRadius: 99, paddingVertical: 2, paddingHorizontal: 7 }}>
+                <Text style={{ fontSize: 8.5, fontWeight: '900', color: '#fff' }}>● LIVE</Text>
+              </View>
+            </Row>
+            {jobs.map((j) => {
+              const st = JOB_STATUS[j.status];
+              return (
+                <Pressable key={j.bookingId} onPress={() => openJob(j)} style={[s.session, { marginBottom: 8 }]}>
+                  <View style={[s.timeRail, j.status === 'completed' && { backgroundColor: '#c9ccc0' }]} />
+                  <View style={{ flex: 1 }}>
+                    <Row style={{ justifyContent: 'space-between' }}>
+                      <Text style={{ fontSize: 12, fontWeight: '800', color: '#5d655d' }}>{j.when}</Text>
+                      <View style={[s.statusPill, { backgroundColor: st.bg }]}>
+                        <Text style={{ fontSize: 9.5, fontWeight: '800', color: st.fg }}>{st.label}</Text>
+                      </View>
+                    </Row>
+                    <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST, marginTop: 3 }}>
+                      {j.dogName} · {j.km}km 러닝
+                    </Text>
+                    <Row style={{ justifyContent: 'space-between', marginTop: 2 }}>
+                      <Text style={{ fontSize: 11.5, color: colors.dim }}>
+                        {j.status === 'confirmed' ? '탭하여 픽업 진행 ›' : j.status === 'in_progress' ? '탭하여 러닝 화면 ›' : '정산 완료'}
+                      </Text>
+                      <Text style={{ fontSize: 13, fontWeight: '900', color: '#5a7a3c' }}>+{j.payout.toLocaleString()}원</Text>
+                    </Row>
+                  </View>
+                </Pressable>
+              );
+            })}
+            <Text style={{ fontSize: 11, fontWeight: '800', color: colors.dim, marginTop: 10, marginBottom: 2 }}>데모 타임라인</Text>
+          </View>
+        )}
+
         {/* timeline */}
-        <View style={{ marginTop: 18, gap: 8 }}>
+        <View style={{ marginTop: jobs.length > 0 ? 8 : 18, gap: 8 }}>
           {TIMELINE.map((b, i) => {
             if (b.kind === 'session') {
               const pending = b.status === '대기';

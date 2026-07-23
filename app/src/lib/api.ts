@@ -226,6 +226,40 @@ export async function settleRun(p: {
   return data as SettleResult;
 }
 
+// 러너의 확정/진행/완료 작업 목록 (캘린더 = 내 커밋먼트 뷰)
+export interface RunnerJob {
+  bookingId: string;
+  when: string;
+  dogName: string;
+  km: number;
+  payout: number;
+  status: 'confirmed' | 'in_progress' | 'completed';
+}
+
+export async function fetchRunnerJobs(): Promise<RunnerJob[]> {
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) return [];
+  const { data, error } = await supabase
+    .from('bookings')
+    .select('id, scheduled_at, km, base_fare, distance_fare, addon_fare, status, dogs(name)')
+    .eq('runner_id', user.user.id)
+    .in('status', ['confirmed', 'runner_enroute', 'picked_up', 'active', 'completed'])
+    .order('scheduled_at', { ascending: false })
+    .limit(20);
+  if (error) throw error;
+  return (data ?? []).map((r: any) => {
+    const { dateLabel, timeLabel } = kstParts(r.scheduled_at);
+    return {
+      bookingId: r.id,
+      when: `${dateLabel} ${timeLabel}`,
+      dogName: r.dogs?.name ?? '반려견',
+      km: Number(r.km),
+      payout: Math.round((r.base_fare + r.distance_fare + r.addon_fare) * 0.8),
+      status: r.status === 'completed' ? 'completed' : r.status === 'confirmed' ? 'confirmed' : 'in_progress',
+    };
+  });
+}
+
 export async function fetchMyBookings(): Promise<Booking[]> {
   const { data, error } = await supabase
     .from('bookings')

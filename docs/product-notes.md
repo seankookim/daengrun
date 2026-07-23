@@ -32,6 +32,7 @@
 - **Chat**: conversation list (pfp, name, last message preview) → full-screen thread w/ attachments + location share.
 - **Settings/account**: personal info, notifications, payment methods, security. Clean forms, toggles.
 - **P1 still pending**: Kakao signup mock, 마이 pages, runner storefront profile (photos, bio, specialties — their self-advertising surface).
+- **booking_declines 테이블 + 거절 내역 섹션**: 현재 거절은 un-assign만 하고 기록이 없음. 러너별 거절 사유 로그 → 매칭 품질·정책에 활용. 섹션 구조 결정: 보호자=내 일정 필터(기존), 러너=요청(오픈 인박스)/캘린더(내 커밋먼트) 분리 — 긱앱 표준.
 
 ## Open questions
 
