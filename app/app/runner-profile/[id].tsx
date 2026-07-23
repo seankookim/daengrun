@@ -1,21 +1,23 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Dimensions, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Avatar, Row } from '../../src/components/ui';
-import { checkSlot, fetchRunnerProfile, RunnerPublicProfile } from '../../src/lib/api';
+import { checkSlot, deleteRunnerPhoto, fetchRunnerProfile, RunnerPublicProfile, uploadRunnerPhoto } from '../../src/lib/api';
 import { supabase } from '../../src/lib/supabase';
 import { draft } from '../../src/store';
 import { colors } from '../../src/theme';
 
-// 러너 공개 프로필 — 러너의 스토어프런트. 매칭 카드·동네 러너 셸프에서 진입.
-// 러너 본인이 보면 미리보기 모드 (CTA 숨김).
+// 러너 공개 프로필 — 풀블리드(인스타 스타일) 스토어프런트.
+// 갤러리(runners.photos) · 실슬롯 예약 · 본인이 보면 편집/미리보기 모드.
+// 솔로 테스트: 본인 슬롯 예약도 허용 (owner==runner 루프가 테스트 체제)
 
 const FOREST = '#132117';
 const DAY = '일월화수목금토';
+const W = Dimensions.get('window').width;
+const TILE = (W - 4) / 3; // 3열 엣지-투-엣지, 2px 갭
 
 const fmtMin = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 
-// 가용시간 압축: 모든 요일 동일하면 '매일 HH:MM–HH:MM'
 function availabilitySummary(rules: RunnerPublicProfile['availability']): string[] {
   if (rules.length === 0) return [];
   const key = (r: { startMin: number; endMin: number }) => `${r.startMin}-${r.endMin}`;
@@ -33,8 +35,8 @@ export default function RunnerProfileScreen() {
   const [err, setErr] = useState<string | null>(null);
   const [isMe, setIsMe] = useState(false);
   const [dayIdx, setDayIdx] = useState(0);
-  // 슬롯별 가능 여부 — 서버 is_slot_available (규칙+예약충돌+휴식버퍼)
   const [slotOk, setSlotOk] = useState<Record<string, boolean | null>>({});
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   useEffect(() => {
     if (!id) { setErr('러너 정보가 없어요'); return; }
@@ -44,13 +46,11 @@ export default function RunnerProfileScreen() {
 
   const avail = p ? availabilitySummary(p.availability) : [];
 
-  // 다음 7일 날짜 스트립
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => {
     const d = new Date(Date.now() + i * 86400_000);
     return { date: d, label: i === 0 ? '오늘' : i === 1 ? '내일' : undefined, d: d.getDate(), w: DAY[d.getDay()] };
   }), []);
 
-  // 선택한 날의 슬롯 후보 — 요일 규칙에서 60분 단위 생성, 오늘은 2시간 전 통보 반영
   const daySlots = useMemo(() => {
     if (!p) return [] as { key: string; label: string; start: Date }[];
     const day = days[dayIdx];
@@ -68,7 +68,6 @@ export default function RunnerProfileScreen() {
     return out;
   }, [p, dayIdx, days]);
 
-  // 선택한 날의 슬롯 충돌 검사 (병렬)
   useEffect(() => {
     if (!p || daySlots.length === 0) return;
     let alive = true;
@@ -81,7 +80,7 @@ export default function RunnerProfileScreen() {
       const end = new Date(sl.start.getTime() + 60 * 60_000);
       checkSlot(p.profileId, sl.start.toISOString(), end.toISOString())
         .then((ok) => { if (alive) setSlotOk((m) => ({ ...m, [sl.key]: ok })); })
-        .catch(() => { if (alive) setSlotOk((m) => ({ ...m, [sl.key]: true })); }); // 검사 실패 시 서버 홀드가 최종 방어
+        .catch(() => { if (alive) setSlotOk((m) => ({ ...m, [sl.key]: true })); });
     });
     return () => { alive = false; };
   }, [p, daySlots]);
@@ -96,10 +95,46 @@ export default function RunnerProfileScreen() {
     router.push('/owner/request');
   };
 
+  const addPhoto = async () => {
+    let ImagePicker: any;
+    try { ImagePicker = require('expo-image-picker'); } catch {
+      Alert.alert('개발 빌드 업데이트 필요', '사진 기능은 새 빌드에 포함돼요'); return;
+    }
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) { Alert.alert('사진 접근 권한이 필요해요'); return; }
+      const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.7, base64: true });
+      if (res.canceled || !res.assets?.[0]?.base64) return;
+      setUploadingPhoto(true);
+      const photos = await uploadRunnerPhoto(res.assets[0].base64);
+      setP((prev) => (prev ? { ...prev, photos } : prev));
+    } catch (e) {
+      Alert.alert('업로드 실패', (e as Error).message);
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  const removePhoto = (url: string) => {
+    Alert.alert('사진 삭제', '이 사진을 갤러리에서 삭제할까요?', [
+      { text: '취소', style: 'cancel' },
+      {
+        text: '삭제', style: 'destructive',
+        onPress: async () => {
+          try {
+            const photos = await deleteRunnerPhoto(url);
+            setP((prev) => (prev ? { ...prev, photos } : prev));
+          } catch (e) { Alert.alert('삭제 실패', (e as Error).message); }
+        },
+      },
+    ]);
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.cream }}>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 22, paddingTop: 56, paddingBottom: 40 }}>
-        <Row style={{ justifyContent: 'space-between' }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 40 }}>
+        {/* header (패딩 있는 유일한 상단 영역) */}
+        <Row style={{ justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 56 }}>
           <Pressable onPress={() => router.back()} style={s.backBtn}><Text style={{ fontSize: 18 }}>‹</Text></Pressable>
           <Text style={{ fontSize: 20, fontWeight: '900', color: FOREST }}>러너 프로필</Text>
           <View style={{ width: 40 }} />
@@ -110,13 +145,13 @@ export default function RunnerProfileScreen() {
 
         {p && (
           <>
-            {/* ---------- hero ---------- */}
+            {/* ---------- hero: 풀블리드 ---------- */}
             <View style={s.hero}>
               <Row style={{ gap: 14 }}>
-                <Avatar url={p.avatarUrl} char={p.name[0]} bg="#5a7a3c" size={72} />
+                <Avatar url={p.avatarUrl} char={p.name[0]} bg="#5a7a3c" size={76} />
                 <View style={{ flex: 1, justifyContent: 'center' }}>
                   <Row style={{ gap: 6 }}>
-                    <Text style={{ fontSize: 20, fontWeight: '900', color: '#fff' }}>{p.name}</Text>
+                    <Text style={{ fontSize: 21, fontWeight: '900', color: '#fff' }}>{p.name}</Text>
                     {p.online && <View style={s.onlineDot} />}
                   </Row>
                   <Row style={{ gap: 5, marginTop: 6 }}>
@@ -143,10 +178,32 @@ export default function RunnerProfileScreen() {
               </Row>
             </View>
 
+            {/* ---------- 갤러리: 엣지-투-엣지 3열 ---------- */}
+            {(p.photos.length > 0 || isMe) && (
+              <View style={{ backgroundColor: '#fff' }}>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 2 }}>
+                  {p.photos.map((url) => (
+                    <Pressable key={url} onLongPress={isMe ? () => removePhoto(url) : undefined}>
+                      <Image source={{ uri: url }} style={{ width: TILE, height: TILE, backgroundColor: '#e2e0d4' }} />
+                    </Pressable>
+                  ))}
+                  {isMe && (
+                    <Pressable onPress={addPhoto} disabled={uploadingPhoto} style={s.addTile}>
+                      <Text style={{ fontSize: 22, color: '#5a7a3c' }}>{uploadingPhoto ? '…' : '＋'}</Text>
+                      <Text style={{ fontSize: 9.5, color: colors.dim, marginTop: 2 }}>사진 추가</Text>
+                    </Pressable>
+                  )}
+                </View>
+                {isMe && p.photos.length > 0 && (
+                  <Text style={{ fontSize: 10, color: colors.dim, padding: 8, textAlign: 'center' }}>길게 눌러 삭제</Text>
+                )}
+              </View>
+            )}
+
             {/* ---------- 자기소개 ---------- */}
-            <View style={s.card}>
-              <Text style={s.cardTitle}>자기소개</Text>
-              <Text style={{ fontSize: 13, color: p.bio ? '#3d453d' : colors.dim, lineHeight: 20 }}>
+            <View style={s.section}>
+              <Text style={s.sectionTitle}>자기소개</Text>
+              <Text style={{ fontSize: 13.5, color: p.bio ? '#3d453d' : colors.dim, lineHeight: 21 }}>
                 {p.bio ?? (isMe ? '아직 소개가 없어요 — 마이 > 프로필 설정에서 작성해보세요' : '아직 소개가 없어요')}
               </Text>
               {p.specialties.length > 0 && (
@@ -159,14 +216,13 @@ export default function RunnerProfileScreen() {
             </View>
 
             {/* ---------- 가능 시간 + 슬롯 예약 ---------- */}
-            <View style={s.card}>
-              <Text style={s.cardTitle}>러닝 가능 시간</Text>
+            <View style={s.section}>
+              <Text style={s.sectionTitle}>러닝 가능 시간</Text>
               {avail.length === 0 ? (
                 <Text style={{ fontSize: 12.5, color: colors.dim }}>가용 시간 미설정 — 오픈 매칭으로만 예약할 수 있어요</Text>
               ) : (
                 <>
-                  <Text style={{ fontSize: 12, color: colors.dim, marginBottom: 8 }}>{avail.join(' · ')}</Text>
-                  {/* day strip */}
+                  <Text style={{ fontSize: 12, color: colors.dim, marginBottom: 10 }}>{avail.join(' · ')}</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
                     {days.map((d, i) => (
                       <Pressable key={d.date.toISOString()} onPress={() => setDayIdx(i)} style={[s.dayChip, dayIdx === i && { backgroundColor: FOREST }]}>
@@ -176,7 +232,6 @@ export default function RunnerProfileScreen() {
                       </Pressable>
                     ))}
                   </ScrollView>
-                  {/* slot grid — 서버 충돌검사 반영 */}
                   {daySlots.length === 0 ? (
                     <Text style={{ fontSize: 12, color: colors.dim, marginTop: 12 }}>이 날은 가능한 시간이 없어요</Text>
                   ) : (
@@ -186,7 +241,7 @@ export default function RunnerProfileScreen() {
                         return (
                           <Pressable
                             key={sl.key}
-                            disabled={isMe || ok === false}
+                            disabled={ok === false}
                             onPress={() => pickSlot(sl)}
                             style={[s.slotChip, ok === false && { opacity: 0.35 }, ok === null && { opacity: 0.6 }]}
                           >
@@ -200,15 +255,15 @@ export default function RunnerProfileScreen() {
                     </View>
                   )}
                   <Text style={{ fontSize: 10.5, color: colors.dim, marginTop: 10 }}>
-                    {isMe ? '보호자는 여기서 시간을 골라 바로 예약해요' : '시간을 고르면 코스·옵션 선택으로 이어져요'}
+                    시간을 고르면 코스·옵션 선택으로 이어져요
                   </Text>
                 </>
               )}
             </View>
 
             {/* ---------- 후기 ---------- */}
-            <View style={s.card}>
-              <Text style={s.cardTitle}>
+            <View style={s.section}>
+              <Text style={s.sectionTitle}>
                 보호자 후기{p.avgRating != null ? ` · ★ ${p.avgRating}` : ''}
               </Text>
               {p.reviews.length === 0 && (
@@ -235,32 +290,33 @@ export default function RunnerProfileScreen() {
             </View>
 
             {/* ---------- CTA ---------- */}
-            {!isMe && (
-              <>
-                <Pressable
-                  style={s.cta}
-                  onPress={() => {
-                    draft.preferredRunnerId = p.profileId;
-                    draft.preferredRunnerName = p.name;
-                    router.push('/owner/request');
-                  }}
-                >
-                  <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST }}>{p.name} 러너와 예약하기</Text>
-                  <Text style={{ fontSize: 10.5, color: '#5d6b4a', marginTop: 2 }}>결제 후 이 러너에게 지명 요청이 우선 안내돼요</Text>
-                </Pressable>
-                <Pressable
-                  style={s.ghostCta}
-                  onPress={() => Alert.alert('채팅', '러너와의 채팅은 예약 후 열려요 (실시간 채팅 준비 중)')}
-                >
-                  <Text style={{ fontSize: 13, fontWeight: '800', color: '#3d453d' }}>채팅 문의</Text>
-                </Pressable>
-              </>
-            )}
-            {isMe && (
-              <Text style={{ fontSize: 11.5, color: colors.dim, textAlign: 'center', marginTop: 14 }}>
-                내 공개 프로필 미리보기 — 보호자에게 이렇게 보여요
-              </Text>
-            )}
+            <View style={{ paddingHorizontal: 20 }}>
+              {!isMe ? (
+                <>
+                  <Pressable
+                    style={s.cta}
+                    onPress={() => {
+                      draft.preferredRunnerId = p.profileId;
+                      draft.preferredRunnerName = p.name;
+                      router.push('/owner/request');
+                    }}
+                  >
+                    <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST }}>{p.name} 러너와 예약하기</Text>
+                    <Text style={{ fontSize: 10.5, color: '#5d6b4a', marginTop: 2 }}>결제 후 이 러너에게 지명 요청이 우선 안내돼요</Text>
+                  </Pressable>
+                  <Pressable
+                    style={s.ghostCta}
+                    onPress={() => Alert.alert('채팅', '러너와의 채팅은 예약 후 열려요 (실시간 채팅 준비 중)')}
+                  >
+                    <Text style={{ fontSize: 13, fontWeight: '800', color: '#3d453d' }}>채팅 문의</Text>
+                  </Pressable>
+                </>
+              ) : (
+                <Text style={{ fontSize: 11.5, color: colors.dim, textAlign: 'center', marginTop: 14 }}>
+                  내 공개 프로필 미리보기 — 보호자에게 이렇게 보여요
+                </Text>
+              )}
+            </View>
           </>
         )}
       </ScrollView>
@@ -279,18 +335,20 @@ function HeroStat({ value, label }: { value: string; label: string }) {
 
 const s = StyleSheet.create({
   backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#eceadf' },
-  hero: { backgroundColor: FOREST, borderRadius: 22, padding: 18, marginTop: 18 },
+  // 풀블리드: 히어로·섹션 모두 좌우 마진 없음, 내부 패딩만
+  hero: { backgroundColor: FOREST, padding: 20, marginTop: 14 },
   heroDiv: { width: 1, backgroundColor: '#2c4034' },
   onlineDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: colors.volt, alignSelf: 'center' },
   limePill: { backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 3, paddingHorizontal: 8 },
-  card: { backgroundColor: '#fff', borderRadius: 18, padding: 15, borderWidth: 1, borderColor: '#eceadf', marginTop: 12 },
-  cardTitle: { fontSize: 13.5, fontWeight: '900', color: FOREST, marginBottom: 8 },
+  section: { backgroundColor: '#fff', paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#eceadf' },
+  sectionTitle: { fontSize: 13.5, fontWeight: '900', color: FOREST, marginBottom: 8 },
   specChip: { backgroundColor: '#eef4e0', borderRadius: 99, paddingVertical: 4, paddingHorizontal: 10 },
   reviewRow: { paddingVertical: 10 },
   dayChip: { width: 46, borderRadius: 13, backgroundColor: '#f4f2ea', alignItems: 'center', paddingVertical: 8, gap: 1 },
   slotChip: { width: '22.5%', backgroundColor: '#f7f9f0', borderRadius: 12, borderWidth: 1, borderColor: '#dde8c4', alignItems: 'center', paddingVertical: 9 },
+  addTile: { width: TILE, height: TILE, backgroundColor: '#f4f2ea', alignItems: 'center', justifyContent: 'center' },
   cta: { backgroundColor: colors.volt, borderRadius: 18, alignItems: 'center', paddingVertical: 15, marginTop: 16 },
   ghostCta: { backgroundColor: '#fff', borderRadius: 16, alignItems: 'center', paddingVertical: 13, marginTop: 8, borderWidth: 1, borderColor: '#eceadf' },
-  emptyBox: { marginTop: 24, backgroundColor: '#f4f2ea', borderRadius: 18, padding: 26, alignItems: 'center' },
+  emptyBox: { margin: 20, backgroundColor: '#f4f2ea', borderRadius: 18, padding: 26, alignItems: 'center' },
   emptyText: { fontSize: 13, color: colors.dim, textAlign: 'center', lineHeight: 19 },
 });

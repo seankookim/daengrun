@@ -457,6 +457,36 @@ export async function fetchMyRunnerBio(): Promise<string | null> {
   return data?.bio ?? null;
 }
 
+// 갤러리 사진 업로드 — avatars 버킷 {uid}/gallery/* + runners.photos 배열
+export async function uploadRunnerPhoto(base64: string): Promise<string[]> {
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) throw new Error('not signed in');
+  const uid = user.user.id;
+  const path = `${uid}/gallery/${Date.now()}.jpg`;
+  const { error } = await supabase.storage.from('avatars')
+    .upload(path, b64ToBytes(base64), { contentType: 'image/jpeg' });
+  if (error) throw error;
+  const { data: pub } = supabase.storage.from('avatars').getPublicUrl(path);
+  const { data: row } = await supabase.from('runners').select('photos').eq('profile_id', uid).single();
+  const photos = [...(row?.photos ?? []), pub.publicUrl];
+  const { error: e2 } = await supabase.from('runners').update({ photos }).eq('profile_id', uid);
+  if (e2) throw e2;
+  return photos;
+}
+
+export async function deleteRunnerPhoto(url: string): Promise<string[]> {
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) throw new Error('not signed in');
+  const uid = user.user.id;
+  const { data: row } = await supabase.from('runners').select('photos').eq('profile_id', uid).single();
+  const photos = (row?.photos ?? []).filter((p: string) => p !== url);
+  const { error } = await supabase.from('runners').update({ photos }).eq('profile_id', uid);
+  if (error) throw error;
+  const storagePath = url.split('/avatars/')[1];
+  if (storagePath) await supabase.storage.from('avatars').remove([storagePath]).then(() => {}, () => {});
+  return photos;
+}
+
 // 러너 자기소개 (스토어프런트) — runners.bio
 export async function updateRunnerBio(bio: string): Promise<void> {
   const { data: user } = await supabase.auth.getUser();
@@ -480,6 +510,7 @@ export interface RunnerPublicProfile {
   respondRate: number | null;
   trainerCertified: boolean;
   online: boolean;
+  photos: string[];
   availability: { weekday: number; startMin: number; endMin: number }[];
   reviews: { rating: number | null; note: string | null; tags: string[]; when: string }[];
   avgRating: number | null;
@@ -488,7 +519,7 @@ export interface RunnerPublicProfile {
 export async function fetchRunnerProfile(profileId: string): Promise<RunnerPublicProfile> {
   const { data: r, error } = await supabase
     .from('runners')
-    .select('profile_id, tier, bio, specialties, avg_pace_sec_per_km, total_runs, total_km, respond_rate_pct, trainer_certified, online, profiles(name, district, avatar_url)')
+    .select('profile_id, tier, bio, specialties, photos, avg_pace_sec_per_km, total_runs, total_km, respond_rate_pct, trainer_certified, online, profiles(name, district, avatar_url)')
     .eq('profile_id', profileId)
     .single();
   if (error) throw error;
@@ -518,6 +549,7 @@ export async function fetchRunnerProfile(profileId: string): Promise<RunnerPubli
     respondRate: rr.respond_rate_pct,
     trainerCertified: !!rr.trainer_certified,
     online: !!rr.online,
+    photos: rr.photos ?? [],
     availability: (availRes.data ?? []).map((a: any) => ({ weekday: a.weekday, startMin: a.start_min, endMin: a.end_min })),
     reviews,
     avgRating: rated.length > 0 ? Math.round(rated.reduce((s: number, v: any) => s + v.rating, 0) / rated.length * 10) / 10 : null,
