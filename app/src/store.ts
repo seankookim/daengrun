@@ -9,7 +9,7 @@ export const runnerJob = { bookingId: null as string | null };
 
 // Result of the runner's latest run (set by run screen, read by done screen).
 export type EndReason = 'dog' | 'owner' | 'runner' | null;
-export const runResult = { km: 0, sec: 0, payout: 0, completed: false, reason: null as EndReason };
+export const runResult = { km: 0, sec: 0, payout: 0, completed: false, reason: null as EndReason, bookingId: null as string | null };
 
 // Demo flag: shows the home widget in "imminent" (곧 시작) state
 export const demoImminent = true;

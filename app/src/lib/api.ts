@@ -1,7 +1,20 @@
 // Live API layer — replaces store.ts mocks screen by screen.
 // Pattern: fetch → map to the app's existing types → screens fall back to mock on failure.
+import { FunctionsHttpError } from '@supabase/supabase-js';
 import { AddonKey, Booking, BookingStatus, dog as mockDog, lastRunTrace, RouteInfo, sampleRoutes, TracePoint } from '../store';
 import { supabase } from './supabase';
+
+// Edge Function 오류 본문에서 실제 메시지 추출 ("non-2xx" 무의미 문구 대체)
+async function fnError(error: unknown, data?: any): Promise<Error> {
+  if (data?.error) return new Error(data.error);
+  if (error instanceof FunctionsHttpError) {
+    try {
+      const body = await error.context.json();
+      if (body?.error) return new Error(body.error);
+    } catch { /* fallthrough */ }
+  }
+  return error instanceof Error ? error : new Error(String(error));
+}
 
 interface RouteRow {
   id: string;
@@ -82,8 +95,7 @@ export async function createBookingHold(p: {
   addons: AddonKey[];
 }): Promise<HoldResult> {
   const { data, error } = await supabase.functions.invoke('create-booking-hold', { body: p });
-  if (error) throw error;
-  if (data?.error) throw new Error(data.error);
+  if (error || data?.error) throw await fnError(error, data);
   return data as HoldResult;
 }
 
@@ -186,8 +198,7 @@ async function invokeTransition(bookingId: string, action: string): Promise<any>
   const { data, error } = await supabase.functions.invoke('transition-booking', {
     body: { booking_id: bookingId, action },
   });
-  if (error) throw error;
-  if (data?.error) throw new Error(data.error);
+  if (error || data?.error) throw await fnError(error, data);
   return data;
 }
 
@@ -211,8 +222,7 @@ export async function settleRun(p: {
   condition_note?: string;
 }): Promise<SettleResult> {
   const { data, error } = await supabase.functions.invoke('settle-run', { body: p });
-  if (error) throw error;
-  if (data?.error) throw new Error(data.error);
+  if (error || data?.error) throw await fnError(error, data);
   return data as SettleResult;
 }
 

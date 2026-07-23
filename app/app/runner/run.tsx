@@ -47,7 +47,7 @@ export default function ActiveRun() {
   // 실예약이면 서버 정산 (사유별 금액·드랍은 settle-run이 계산), 아니면 로컬 계산
   const settle = async (reason: EndReason, completed: boolean) => {
     const localPayout = completed ? payoutFor(km) : payoutByReason(reason);
-    Object.assign(runResult, { km, sec, payout: localPayout, completed, reason });
+    Object.assign(runResult, { km, sec, payout: localPayout, completed, reason, bookingId: runnerJob.bookingId });
 
     if (runnerJob.bookingId) {
       try {

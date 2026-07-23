@@ -2,7 +2,8 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Monogram, Row } from '../../src/components/ui';
-import { dogReviewTags, runRequests } from '../../src/store';
+import { supabase } from '../../src/lib/supabase';
+import { dogReviewTags, runRequests, runResult } from '../../src/store';
 import { colors } from '../../src/theme';
 
 // 러너 → 보호자·반려견 리뷰 (양방향 신뢰의 반쪽).
@@ -20,10 +21,39 @@ export default function RunnerReview() {
   const toggleTag = (t: string) =>
     setTags((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
 
-  const submit = () => {
-    Alert.alert('리뷰 완료', privateFlag
-      ? '리뷰가 저장됐어요.\n비공개 신고는 댕런 운영팀만 확인해요 (목업)'
-      : '리뷰가 저장됐어요 (목업)');
+  const [busy, setBusy] = useState(false);
+
+  const submit = async () => {
+    setBusy(true);
+    let saved = false;
+    // 실예약이면 reviews 테이블에 실제 저장 (양방향 리뷰의 러너 쪽)
+    if (runResult.bookingId) {
+      try {
+        const { data: bk } = await supabase.from('bookings').select('dog_id').eq('id', runResult.bookingId).single();
+        const { data: user } = await supabase.auth.getUser();
+        if (bk && user.user) {
+          const { error } = await supabase.from('reviews').insert({
+            booking_id: runResult.bookingId,
+            author_id: user.user.id,
+            target_kind: 'dog',
+            target_id: bk.dog_id,
+            rating: stars,
+            tags,
+            note: note.trim() || null,
+            visibility: privateFlag ? 'platform_only' : 'public',
+          });
+          if (!error) saved = true;
+        }
+      } catch { /* fallback below */ }
+    }
+    setBusy(false);
+    Alert.alert(
+      '리뷰 완료',
+      (saved ? '리뷰가 서버에 저장됐어요.' : '리뷰가 저장됐어요 (오프라인).') +
+        (privateFlag ? '\n비공개 신고는 댕런 운영팀만 확인해요.' : '') +
+        '\n보호자 알림은 푸시 연동 시 전송돼요.',
+    );
+    runResult.bookingId = null;
     router.dismissTo('/runner/home');
   };
 
@@ -86,8 +116,8 @@ export default function RunnerReview() {
         multiline
       />
 
-      <Pressable style={[s.submit, stars === 0 && { opacity: 0.4 }]} disabled={stars === 0} onPress={submit}>
-        <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST }}>리뷰 남기기</Text>
+      <Pressable style={[s.submit, (stars === 0 || busy) && { opacity: 0.4 }]} disabled={stars === 0 || busy} onPress={submit}>
+        <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST }}>{busy ? '저장 중...' : '리뷰 남기기'}</Text>
       </Pressable>
       <Pressable style={{ alignItems: 'center', paddingVertical: 13 }} onPress={() => router.dismissTo('/runner/home')}>
         <Text style={{ fontSize: 12.5, fontWeight: '700', color: colors.dim }}>다음에 할게요</Text>

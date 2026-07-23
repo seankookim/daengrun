@@ -1,5 +1,5 @@
-import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BottomNav } from '../../src/components/bottomnav';
 import { Monogram, Row } from '../../src/components/ui';
@@ -21,7 +21,8 @@ export default function Requests() {
   const [accepting, setAccepting] = useState<string | null>(null);
 
   const load = () => fetchOpenRequests().then(setLive).catch(() => {});
-  useEffect(() => { load(); }, []);
+  // 화면에 돌아올 때마다 갱신 — 수락/완료된 요청 카드가 남지 않게
+  useFocusEffect(useCallback(() => { load(); }, []));
 
   const accept = async (req: OpenRequest) => {
     setAccepting(req.bookingId);
