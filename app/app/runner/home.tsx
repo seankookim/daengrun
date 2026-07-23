@@ -1,13 +1,19 @@
-import { router } from 'expo-router';
-import { useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { BottomNav } from '../../src/components/bottomnav';
 import { Badge, Card, Monogram, Row, StatBlock, text } from '../../src/components/ui';
+import { fetchRunnerInbox, OpenRequest } from '../../src/lib/api';
 import { runnerStats, runRequests } from '../../src/store';
 import { colors } from '../../src/theme';
 
 export default function RunnerHome() {
   const [available, setAvailable] = useState(true);
+  const [inbox, setInbox] = useState<OpenRequest[]>([]);
+
+  useFocusEffect(useCallback(() => {
+    fetchRunnerInbox().then(setInbox).catch(() => {});
+  }, []));
 
   return (
     <View style={{ flex: 1 }}>
@@ -61,8 +67,27 @@ export default function RunnerHome() {
           </Pressable>
         </Row>
 
+        {/* 실시간 요청 요약 (탭하면 요청 탭) */}
+        {inbox.length > 0 && (
+          <Pressable
+            onPress={() => router.push('/runner/requests')}
+            style={{
+              flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 14,
+              backgroundColor: '#132117', borderRadius: 16, padding: 14,
+            }}
+          >
+            <View style={{ backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 3, paddingHorizontal: 8 }}>
+              <Text style={{ fontSize: 9, fontWeight: '900', color: '#132117' }}>● LIVE</Text>
+            </View>
+            <Text style={{ flex: 1, fontSize: 13, fontWeight: '800', color: '#fff' }} numberOfLines={1}>
+              새 요청 {inbox.length}건 — {inbox[0].dogName} {inbox[0].km}km{inbox[0].directed ? ' (지명!)' : ''}
+            </Text>
+            <Text style={{ fontSize: 13, color: colors.volt, fontWeight: '900' }}>응답 ›</Text>
+          </Pressable>
+        )}
+
         <Row style={{ justifyContent: 'space-between', marginTop: 14, marginBottom: 10 }}>
-          <Text style={text.h2}>새 러닝 요청</Text>
+          <Text style={text.h2}>새 러닝 요청 (데모)</Text>
           <Badge label={`${runRequests.length}건`} tone="red" />
         </Row>
 

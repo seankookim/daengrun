@@ -6,7 +6,7 @@ import { admin, caller, handle, HttpError } from "../_shared/ctx.ts";
 Deno.serve(handle(async (req) => {
   const db = admin();
   const uid = await caller(req, db);
-  const { booking_id, action } = await req.json();
+  const { booking_id, action, meta } = await req.json();
   if (!booking_id || !action) throw new HttpError(400, "missing fields");
 
   const { data: bk, error } = await db.from("bookings").select("*").eq("id", booking_id).single();
@@ -36,6 +36,16 @@ Deno.serve(handle(async (req) => {
       if (bk.runner_id && bk.runner_id !== uid) throw new HttpError(409, "assigned to another runner");
       await set({ runner_id: uid, status: "confirmed" });
       await notify(bk.owner_id, "러너 매칭 완료", "러닝 파트너가 매칭되었어요!");
+      break;
+    }
+
+    case "request_runner": {
+      // 보호자가 특정 러너 지명: matching → runner_pending (+ 러너 알림)
+      if (!isOwner) throw new HttpError(403, "owner only");
+      const target = meta?.runner_id;
+      if (!target) throw new HttpError(400, "meta.runner_id required");
+      await set({ runner_id: target, status: "runner_pending" });
+      await notify(target, "지명 러닝 요청", "보호자가 회원님을 지명했어요 — 요청 탭에서 응답해주세요");
       break;
     }
 

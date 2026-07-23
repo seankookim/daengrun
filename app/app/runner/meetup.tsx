@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Monogram, Row } from '../../src/components/ui';
-import { confirmHandoff, fetchBookingStatus, startRunServer } from '../../src/lib/api';
+import { confirmHandoff, fetchBookingStatus, runnerEnroute, startRunServer } from '../../src/lib/api';
 import { runnerJob, runRequests } from '../../src/store';
 import { colors } from '../../src/theme';
 
@@ -31,6 +31,11 @@ export default function Meetup() {
   const req = runRequests[0];
   const [stage, setStage] = useState<Stage>('enroute');
   const poll = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // 실예약: 서버에 '이동 중' 보고 → 보호자 화면이 실상태를 본다
+  useEffect(() => {
+    if (runnerJob.bookingId) runnerEnroute(runnerJob.bookingId).catch(() => { /* 이미 enroute면 무시 */ });
+  }, []);
 
   // waiting: 실예약이면 상대 확인을 서버에서 폴링, 아니면 2초 목업
   useEffect(() => {

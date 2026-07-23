@@ -3,7 +3,7 @@ import { useCallback, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BottomNav } from '../../src/components/bottomnav';
 import { Monogram, Row } from '../../src/components/ui';
-import { acceptBooking, fetchOpenRequests, OpenRequest } from '../../src/lib/api';
+import { acceptBooking, fetchRunnerInbox, OpenRequest } from '../../src/lib/api';
 import { runnerJob, runRequests } from '../../src/store';
 import { colors } from '../../src/theme';
 
@@ -20,7 +20,7 @@ export default function Requests() {
   const [live, setLive] = useState<OpenRequest[]>([]);
   const [accepting, setAccepting] = useState<string | null>(null);
 
-  const load = () => fetchOpenRequests().then(setLive).catch(() => {});
+  const load = () => fetchRunnerInbox().then(setLive).catch(() => {});
   // 화면에 돌아올 때마다 갱신 — 수락/완료된 요청 카드가 남지 않게
   useFocusEffect(useCallback(() => { load(); }, []));
 
@@ -56,13 +56,15 @@ export default function Requests() {
 
         {/* ---------- 실시간 요청 (Supabase) ---------- */}
         {live.map((req) => (
-          <View key={req.bookingId} style={[s.reqCard, { borderColor: '#5a7a3c', borderWidth: 1.8 }]}>
+          <View key={req.bookingId} style={[s.reqCard, req.directed ? { borderColor: '#e2c56b', borderWidth: 2 } : { borderColor: '#5a7a3c', borderWidth: 1.8 }]}>
             <Row style={{ justifyContent: 'space-between' }}>
-              <View style={[s.deadline, { backgroundColor: '#e3f0c4' }]}>
-                <Text style={{ fontSize: 10, fontWeight: '900', color: '#3d5a2b' }}>● LIVE 요청</Text>
+              <View style={[s.deadline, { backgroundColor: req.directed ? '#fbf0d4' : '#e3f0c4' }]}>
+                <Text style={{ fontSize: 10, fontWeight: '900', color: req.directed ? '#a97c12' : '#3d5a2b' }}>
+                  {req.directed ? '★ 지명 요청' : '● LIVE 요청'}
+                </Text>
               </View>
               <View style={s.matchPill}>
-                <Text style={{ fontSize: 10, fontWeight: '900', color: '#4a6d1f' }}>매칭 대기</Text>
+                <Text style={{ fontSize: 10, fontWeight: '900', color: '#4a6d1f' }}>{req.directed ? '나를 지명함' : '매칭 대기'}</Text>
               </View>
             </Row>
             <Row style={{ gap: 12, marginTop: 12 }}>

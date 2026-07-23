@@ -167,6 +167,40 @@ export interface OpenRequest {
   km: number;
   paceLabel: string;
   payout: number; // 수수료 20% 제외 추정
+  directed?: boolean; // 지명 요청 여부
+}
+
+function mapOpenRequest(r: any, directed: boolean): OpenRequest {
+  const { dateLabel, timeLabel } = kstParts(r.scheduled_at);
+  return {
+    bookingId: r.id,
+    dogName: r.dogs?.name ?? '반려견',
+    breed: r.dogs?.breed ?? '',
+    weightKg: Number(r.dogs?.weight_kg ?? 0),
+    memo: r.dogs?.memo ?? null,
+    when: `${dateLabel} ${timeLabel}`,
+    km: Number(r.km),
+    paceLabel: r.pace_label ?? "보통 7'",
+    payout: Math.round((r.base_fare + r.distance_fare + r.addon_fare) * 0.8),
+    directed,
+  };
+}
+
+const REQ_SELECT = 'id, scheduled_at, km, pace_label, base_fare, distance_fare, addon_fare, dogs(name, breed, weight_kg, memo)';
+
+// 러너 인박스: 지명 요청(runner_pending, 나에게) + 오픈 요청(matching, 미배정)
+export async function fetchRunnerInbox(): Promise<OpenRequest[]> {
+  const { data: user } = await supabase.auth.getUser();
+  const [openRes, directedRes] = await Promise.all([
+    supabase.from('bookings').select(REQ_SELECT).eq('status', 'matching').is('runner_id', null).order('scheduled_at').limit(10),
+    user.user
+      ? supabase.from('bookings').select(REQ_SELECT).eq('status', 'runner_pending').eq('runner_id', user.user.id).order('scheduled_at').limit(10)
+      : Promise.resolve({ data: [], error: null } as any),
+  ]);
+  if (openRes.error) throw openRes.error;
+  const directed = (directedRes.data ?? []).map((r: any) => mapOpenRequest(r, true));
+  const open = (openRes.data ?? []).map((r: any) => mapOpenRequest(r, false));
+  return [...directed, ...open];
 }
 
 export async function fetchOpenRequests(): Promise<OpenRequest[]> {
@@ -194,12 +228,68 @@ export async function fetchOpenRequests(): Promise<OpenRequest[]> {
   });
 }
 
-async function invokeTransition(bookingId: string, action: string): Promise<any> {
+async function invokeTransition(bookingId: string, action: string, meta?: Record<string, unknown>): Promise<any> {
   const { data, error } = await supabase.functions.invoke('transition-booking', {
-    body: { booking_id: bookingId, action },
+    body: { booking_id: bookingId, action, meta },
   });
   if (error || data?.error) throw await fnError(error, data);
   return data;
+}
+
+// ---------- directed matching ----------
+export interface LiveRunner {
+  profileId: string;
+  name: string;
+  district: string;
+  tier: string;
+  totalRuns: number;
+  paceLabel: string;
+  respondRate: number | null;
+}
+
+export async function fetchCertifiedRunners(): Promise<LiveRunner[]> {
+  const { data, error } = await supabase
+    .from('runners')
+    .select('profile_id, tier, avg_pace_sec_per_km, total_runs, respond_rate_pct, profiles(name, district)')
+    .neq('tier', 'applicant')
+    .eq('online', true)
+    .limit(10);
+  if (error) throw error;
+  return (data ?? []).map((r: any) => {
+    const pace = r.avg_pace_sec_per_km ?? 420;
+    return {
+      profileId: r.profile_id,
+      name: r.profiles?.name ?? '러너',
+      district: r.profiles?.district ?? '',
+      tier: r.tier === 'certified' ? '인증 러너' : r.tier === 'veteran' ? '베테랑' : '마스터',
+      totalRuns: r.total_runs ?? 0,
+      paceLabel: `${Math.floor(pace / 60)}'${String(pace % 60).padStart(2, '0')}"`,
+      respondRate: r.respond_rate_pct,
+    };
+  });
+}
+
+export const requestRunner = (bookingId: string, runnerId: string) =>
+  invokeTransition(bookingId, 'request_runner', { runner_id: runnerId });
+
+// 예약 상세 (인계 동기화용): 상태 + 양측 확인 타임스탬프
+export interface BookingSync {
+  status: string;
+  ownerConfirmed: boolean;
+  runnerConfirmed: boolean;
+}
+export async function fetchBookingSync(id: string): Promise<BookingSync> {
+  const { data, error } = await supabase
+    .from('bookings')
+    .select('status, owner_confirmed_handoff_at, runner_confirmed_handoff_at')
+    .eq('id', id)
+    .single();
+  if (error) throw error;
+  return {
+    status: data.status,
+    ownerConfirmed: !!data.owner_confirmed_handoff_at,
+    runnerConfirmed: !!data.runner_confirmed_handoff_at,
+  };
 }
 
 export const acceptBooking = (id: string) => invokeTransition(id, 'runner_accept');
@@ -258,6 +348,32 @@ export async function fetchRunnerJobs(): Promise<RunnerJob[]> {
       status: r.status === 'completed' ? 'completed' : r.status === 'confirmed' ? 'confirmed' : 'in_progress',
     };
   });
+}
+
+export const runnerEnroute = (id: string) => invokeTransition(id, 'enroute');
+
+// ---------- notifications (읽기 — 실시간 배달은 Realtime 세션에서) ----------
+export interface LiveNoti { id: string; title: string; body: string | null; when: string; unread: boolean }
+
+export async function fetchNotifications(): Promise<LiveNoti[]> {
+  const { data, error } = await supabase
+    .from('notifications')
+    .select('id, title, body, created_at, read_at')
+    .order('created_at', { ascending: false })
+    .limit(20);
+  if (error) throw error;
+  return (data ?? []).map((n: any) => {
+    const { dateLabel, timeLabel } = kstParts(n.created_at);
+    return { id: n.id, title: n.title, body: n.body, when: `${dateLabel} ${timeLabel}`, unread: !n.read_at };
+  });
+}
+
+export async function markAllNotificationsRead(): Promise<void> {
+  const { error } = await supabase
+    .from('notifications')
+    .update({ read_at: new Date().toISOString() })
+    .is('read_at', null);
+  if (error) throw error;
 }
 
 export async function fetchMyBookings(): Promise<Booking[]> {

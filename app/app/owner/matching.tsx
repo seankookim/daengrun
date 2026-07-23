@@ -1,6 +1,8 @@
 import { router } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Monogram, Row } from '../../src/components/ui';
+import { fetchCertifiedRunners, LiveRunner, requestRunner } from '../../src/lib/api';
 import { draft, fmtWon, priceForRunner, runners } from '../../src/store';
 import { colors } from '../../src/theme';
 
@@ -12,6 +14,27 @@ const FOREST_INNER = '#1d3023';
 export default function Matching() {
   const recommended = runners.find((r) => r.match)!;
   const others = runners.filter((r) => !r.match);
+  const live = !!draft.bookingId;
+  const [liveRunners, setLiveRunners] = useState<LiveRunner[]>([]);
+  const [nominating, setNominating] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (live) fetchCertifiedRunners().then(setLiveRunners).catch(() => {});
+  }, [live]);
+
+  const nominate = async (r: LiveRunner) => {
+    if (!draft.bookingId) return;
+    setNominating(r.profileId);
+    try {
+      await requestRunner(draft.bookingId, r.profileId);
+      Alert.alert('지명 요청 전송', `${r.name} 러너에게 요청을 보냈어요.\n수락하면 알림으로 알려드릴게요.`);
+      router.replace('/owner/schedule');
+    } catch (e) {
+      Alert.alert('요청 실패', (e as Error).message);
+    } finally {
+      setNominating(null);
+    }
+  };
 
   const pick = (id: string) => {
     draft.runnerId = id;
@@ -49,6 +72,46 @@ export default function Matching() {
         </View>
         <View style={s.aiChip}><Text style={{ fontSize: 11, fontWeight: '700', color: '#e8efe0' }}>추천 기준 ▾</Text></View>
       </View>
+
+      {/* ---------- 실시간 가능 러너 (지명 요청) ---------- */}
+      {live && liveRunners.length > 0 && (
+        <View style={{ marginTop: 12 }}>
+          <Row style={{ gap: 6, marginBottom: 8 }}>
+            <Text style={{ fontSize: 13.5, fontWeight: '900', color: FOREST }}>실시간 가능 러너</Text>
+            <View style={{ backgroundColor: '#5a7a3c', borderRadius: 99, paddingVertical: 2, paddingHorizontal: 7 }}>
+              <Text style={{ fontSize: 8.5, fontWeight: '900', color: '#fff' }}>● LIVE</Text>
+            </View>
+          </Row>
+          {liveRunners.map((r) => (
+            <View key={r.profileId} style={[s.altCard, { borderColor: '#a9c47e', borderWidth: 1.6 }]}>
+              <Row style={{ gap: 12 }}>
+                <Monogram char={r.name[0]} bg="#5a7a3c" size={46} />
+                <View style={{ flex: 1 }}>
+                  <Row style={{ gap: 6 }}>
+                    <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST }}>{r.name} 러너</Text>
+                    <View style={s.sagePill}><Text style={{ fontSize: 9.5, fontWeight: '800', color: '#4a6d1f' }}>{r.tier}</Text></View>
+                  </Row>
+                  <Text style={{ fontSize: 11.5, color: colors.dim, marginTop: 3 }}>
+                    {r.district || '근처'} · 러닝 {r.totalRuns}회 · 평균 {r.paceLabel}
+                  </Text>
+                </View>
+                <Pressable
+                  onPress={() => nominate(r)}
+                  disabled={nominating !== null}
+                  style={{ backgroundColor: colors.volt, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 13, alignSelf: 'center', opacity: nominating === r.profileId ? 0.5 : 1 }}
+                >
+                  <Text style={{ fontSize: 12, fontWeight: '900', color: FOREST }}>
+                    {nominating === r.profileId ? '전송 중...' : '지명 요청'}
+                  </Text>
+                </Pressable>
+              </Row>
+            </View>
+          ))}
+          <Text style={{ fontSize: 11, color: colors.dim, marginTop: 4, marginBottom: 8 }}>
+            지명 없이 두면 오픈 매칭으로 모든 러너에게 보여요 · 아래 카드는 데모
+          </Text>
+        </View>
+      )}
 
       {/* 1순위 card */}
       <Pressable onPress={() => pick(recommended.id)}>

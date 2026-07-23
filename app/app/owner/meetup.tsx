@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Monogram, Row } from '../../src/components/ui';
-import { confirmHandoff, fetchBookingStatus } from '../../src/lib/api';
+import { confirmHandoff, fetchBookingSync } from '../../src/lib/api';
 import { dog, draft, nextBooking, runners } from '../../src/store';
 import { colors } from '../../src/theme';
 
@@ -17,24 +17,41 @@ export default function OwnerMeetup() {
   const [stage, setStage] = useState<Stage>('enroute');
 
   const poll = useRef<ReturnType<typeof setInterval> | null>(null);
+  const live = !!draft.bookingId;
 
-  // enroute→arrived는 목업 타이머 (러너 GPS는 후속) · waiting은 실예약이면 서버 폴링
+  // 실예약: 모든 단계가 서버 진실을 따른다 — 가짜 도착 없음
   useEffect(() => {
+    if (!live) return;
+    const bid = draft.bookingId!;
+    poll.current = setInterval(async () => {
+      try {
+        const sync = await fetchBookingSync(bid);
+        if (sync.status === 'picked_up' || sync.status === 'active') {
+          setStage('confirmed');
+        } else if (sync.status === 'runner_enroute') {
+          setStage((cur) => (cur === 'waiting' ? cur : 'arrived')); // 러너 이동 중 → 인계 버튼 활성
+        } else {
+          setStage((cur) => (cur === 'waiting' ? cur : 'enroute')); // 아직 수락/출발 전
+        }
+      } catch { /* keep polling */ }
+    }, 2500);
+    return () => { if (poll.current) clearInterval(poll.current); };
+  }, [live]);
+
+  // 데모 경로만 타이머 사용
+  useEffect(() => {
+    if (live) {
+      if (stage === 'confirmed') {
+        const id = setTimeout(() => router.replace('/owner/live'), 1200);
+        return () => clearTimeout(id);
+      }
+      return;
+    }
     if (stage === 'enroute') {
       const id = setTimeout(() => setStage('arrived'), 2500);
       return () => clearTimeout(id);
     }
     if (stage === 'waiting') {
-      if (draft.bookingId) {
-        const bid = draft.bookingId;
-        poll.current = setInterval(async () => {
-          try {
-            const st = await fetchBookingStatus(bid);
-            if (st === 'picked_up' || st === 'active') setStage('confirmed');
-          } catch { /* keep polling */ }
-        }, 2500);
-        return () => { if (poll.current) clearInterval(poll.current); };
-      }
       const id = setTimeout(() => setStage('confirmed'), 1500);
       return () => clearTimeout(id);
     }
@@ -42,7 +59,7 @@ export default function OwnerMeetup() {
       const id = setTimeout(() => router.replace('/owner/live'), 1200);
       return () => clearTimeout(id);
     }
-  }, [stage]);
+  }, [stage, live]);
 
   const handoff = async () => {
     if (draft.bookingId) {

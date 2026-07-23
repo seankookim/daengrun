@@ -1,8 +1,9 @@
-import { router } from 'expo-router';
-import { useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BottomNav } from '../src/components/bottomnav';
 import { Row } from '../src/components/ui';
+import { fetchNotifications, LiveNoti, markAllNotificationsRead } from '../src/lib/api';
 import { dog, Noti, notifications } from '../src/store';
 import { colors } from '../src/theme';
 
@@ -13,8 +14,22 @@ const TABS = ['전체', '예약', '커뮤니티', '샵'];
 
 export default function Alerts() {
   const [tab, setTab] = useState('전체');
+  const [liveNotis, setLiveNotis] = useState<LiveNoti[]>([]);
   const unread = notifications.filter((n) => n.unread);
   const past = notifications.filter((n) => !n.unread);
+
+  const load = () => fetchNotifications().then(setLiveNotis).catch(() => {});
+  useFocusEffect(useCallback(() => { load(); }, []));
+
+  const markAll = async () => {
+    try {
+      await markAllNotificationsRead();
+      load();
+      Alert.alert('모두 읽음', '모든 알림을 읽음 처리했어요');
+    } catch {
+      Alert.alert('모두 읽음', '모든 알림을 읽음 처리했어요 (데모)');
+    }
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.cream }}>
@@ -33,7 +48,7 @@ export default function Alerts() {
           </View>
           <Row style={{ gap: 8 }}>
             <HeaderBtn glyph="⚙" label="필터" />
-            <Pressable onPress={() => Alert.alert('모두 읽음', '모든 알림을 읽음 처리했어요 (목업)')}>
+            <Pressable onPress={markAll}>
               <HeaderBtn glyph="✓" label="모두 읽음" />
             </Pressable>
           </Row>
@@ -49,9 +64,38 @@ export default function Alerts() {
           ))}
         </View>
 
-        {/* unread */}
+        {/* ---------- 실시간 알림 (서버) ---------- */}
+        {liveNotis.length > 0 && (
+          <View style={{ marginTop: 22 }}>
+            <Row style={{ gap: 8, marginBottom: 10 }}>
+              <Text style={s.section}>내 알림</Text>
+              <View style={{ backgroundColor: '#5a7a3c', borderRadius: 99, paddingVertical: 2, paddingHorizontal: 7, alignSelf: 'center' }}>
+                <Text style={{ fontSize: 8.5, fontWeight: '900', color: '#fff' }}>● LIVE</Text>
+              </View>
+            </Row>
+            <View style={{ gap: 10 }}>
+              {liveNotis.map((n) => (
+                <View key={n.id} style={[s.noti, n.unread && s.notiHi]}>
+                  <View style={[s.notiIcon, { backgroundColor: '#e7efd8' }]}>
+                    {n.unread && <View style={s.unreadDot} />}
+                    <Text style={{ fontSize: 13, fontWeight: '900', color: '#3d5a2b' }}>런</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Row style={{ justifyContent: 'space-between' }}>
+                      <Text style={{ fontSize: 14.5, fontWeight: '900', color: FOREST }}>{n.title}</Text>
+                      <Text style={{ fontSize: 10.5, color: colors.dim }}>{n.when}</Text>
+                    </Row>
+                    {n.body && <Text style={{ fontSize: 12.5, color: '#5d655d', marginTop: 3 }}>{n.body}</Text>}
+                  </View>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* unread (데모) */}
         <Row style={{ gap: 8, marginTop: 22, marginBottom: 10 }}>
-          <Text style={s.section}>읽지 않은 알림</Text>
+          <Text style={s.section}>읽지 않은 알림 (데모)</Text>
           <View style={s.countBadge}><Text style={{ fontSize: 11, fontWeight: '900', color: FOREST }}>{unread.length}</Text></View>
         </Row>
         <View style={{ gap: 10 }}>
