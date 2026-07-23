@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Monogram, Row } from '../../src/components/ui';
 import { fetchCertifiedRunners, LiveRunner, requestRunner } from '../../src/lib/api';
@@ -11,6 +11,23 @@ import { colors } from '../../src/theme';
 const FOREST = '#132117';
 const FOREST_INNER = '#1d3023';
 
+// 실러너 추천 점수 — 응답률·경험·페이스 적합의 가중합.
+// 데이터가 쌓이면 매칭 엔진(견종 경험·후기·거리)으로 교체. 병원 레지던트식 하이브리드 매칭의 v1.
+interface Match { total: number; reasons: { glyph: string; label: string; pct: number }[] }
+function matchFor(r: LiveRunner, targetPaceSec = 420): Match {
+  const respond = r.respondRate ?? 88;
+  const exp = Math.min(97, 62 + r.totalRuns * 5);
+  const paceFit = Math.max(58, 100 - Math.round(Math.abs(r.paceSec - targetPaceSec) / 4));
+  return {
+    total: Math.round(respond * 0.35 + exp * 0.3 + paceFit * 0.35),
+    reasons: [
+      { glyph: '⚡', label: '응답 신뢰도', pct: respond },
+      { glyph: '⛨', label: '러닝 경험', pct: exp },
+      { glyph: '➤', label: '페이스 적합', pct: paceFit },
+    ],
+  };
+}
+
 export default function Matching() {
   const recommended = runners.find((r) => r.match)!;
   const others = runners.filter((r) => !r.match);
@@ -21,6 +38,14 @@ export default function Matching() {
   useEffect(() => {
     if (live) fetchCertifiedRunners().then(setLiveRunners).catch((e) => console.warn('[matching] runners:', e?.message ?? e));
   }, [live]);
+
+  // 점수순 정렬 — 1위는 추천 카드, 나머지는 대안 리스트
+  const scored = useMemo(
+    () => liveRunners.map((r) => ({ r, m: matchFor(r) })).sort((a, b) => b.m.total - a.m.total),
+    [liveRunners],
+  );
+  const top = scored[0];
+  const rest = scored.slice(1);
 
   const nominate = async (r: LiveRunner) => {
     if (!draft.bookingId) return;
@@ -61,23 +86,92 @@ export default function Matching() {
         {live ? '러너를 지명하거나, 오픈 매칭으로 응답을 기다릴 수 있어요' : '보호자님과 러너의 선호도를 종합 분석했어요'}
       </Text>
 
-      {/* ---------- 실시간 가능 러너 (지명 요청) ---------- */}
-      {live && liveRunners.length > 0 && (
-        <View style={{ marginTop: 12 }}>
-          <Row style={{ gap: 6, marginBottom: 8 }}>
-            <Text style={{ fontSize: 13.5, fontWeight: '900', color: FOREST }}>실시간 가능 러너</Text>
-            <View style={{ backgroundColor: '#5a7a3c', borderRadius: 99, paddingVertical: 2, paddingHorizontal: 7 }}>
-              <Text style={{ fontSize: 8.5, fontWeight: '900', color: '#fff' }}>● LIVE</Text>
+      {/* ---------- 실러너 추천 (지명 요청) — 데모와 같은 추천 경험, 실데이터 기반 ---------- */}
+      {live && top && (
+        <>
+          {/* 추천 banner */}
+          <View style={s.aiBanner}>
+            <View style={{ flex: 1 }}>
+              <Row style={{ gap: 6 }}>
+                <Text style={{ fontSize: 13, color: colors.volt }}>✿</Text>
+                <Text style={{ fontSize: 14, fontWeight: '900', color: colors.volt }}>추천 매칭 · 확신도 {top.m.total}%</Text>
+              </Row>
+              <Text style={{ fontSize: 12, color: '#b8c4ae', marginTop: 3 }}>응답률·경험·페이스를 종합 분석했어요</Text>
             </View>
-          </Row>
-          {liveRunners.map((r) => (
-            <View key={r.profileId} style={[s.altCard, { borderColor: '#a9c47e', borderWidth: 1.6 }]}>
+            <View style={{ backgroundColor: '#5a7a3c', borderRadius: 99, paddingVertical: 4, paddingHorizontal: 9, alignSelf: 'center' }}>
+              <Text style={{ fontSize: 9, fontWeight: '900', color: '#fff' }}>● LIVE</Text>
+            </View>
+          </View>
+
+          {/* 1순위 card */}
+          <View style={s.topCard}>
+            <View style={s.rankTab}><Text style={{ fontSize: 11, fontWeight: '900', color: FOREST }}>1순위 추천</Text></View>
+            <Row style={{ gap: 12, marginTop: 18 }}>
+              <Monogram char={top.r.name[0]} bg="#5a7a3c" size={58} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 17, fontWeight: '900', color: '#fff' }}>{top.r.name} 러너</Text>
+                <Row style={{ gap: 5, marginTop: 5 }}>
+                  <View style={s.limePill}><Text style={{ fontSize: 9.5, fontWeight: '800', color: FOREST }}>✓ {top.r.tier}</Text></View>
+                  <View style={s.limePill}><Text style={{ fontSize: 9.5, fontWeight: '800', color: FOREST }}>✓ 신원인증</Text></View>
+                </Row>
+                <Text style={{ fontSize: 12, color: '#b8c4ae', marginTop: 5 }}>
+                  {top.r.district || '근처'} · 러닝 {top.r.totalRuns}회
+                </Text>
+              </View>
+            </Row>
+
+            {/* match bars */}
+            <View style={{ gap: 13, marginTop: 16 }}>
+              {top.m.reasons.map((reason) => (
+                <View key={reason.label}>
+                  <Row style={{ justifyContent: 'space-between' }}>
+                    <Row style={{ gap: 7, flex: 1 }}>
+                      <Text style={{ fontSize: 12, color: colors.volt }}>{reason.glyph}</Text>
+                      <Text style={{ fontSize: 12, color: '#dfe7d8', flex: 1 }}>{reason.label}</Text>
+                    </Row>
+                    <Text style={{ fontSize: 13, fontWeight: '900', color: '#fff' }}>{reason.pct}%</Text>
+                  </Row>
+                  <View style={s.barTrack}>
+                    <View style={[s.barFill, { width: `${reason.pct}%` }]} />
+                  </View>
+                </View>
+              ))}
+            </View>
+
+            {/* stat strip */}
+            <View style={s.statStrip}>
+              <StripStat label="평균 페이스" value={`${top.r.paceLabel} / km`} />
+              <View style={s.stripDiv} />
+              <StripStat label="완료 러닝" value={`${top.r.totalRuns}회`} />
+              <View style={s.stripDiv} />
+              <StripStat label="응답률" value={top.r.respondRate != null ? `${top.r.respondRate}%` : '신규'} />
+            </View>
+
+            <Pressable
+              onPress={() => nominate(top.r)}
+              disabled={nominating !== null}
+              style={[s.topNominate, nominating === top.r.profileId && { opacity: 0.5 }]}
+            >
+              <Text style={{ fontSize: 14.5, fontWeight: '900', color: FOREST }}>
+                {nominating === top.r.profileId ? '전송 중...' : `${top.r.name} 러너 지명 요청`}
+              </Text>
+            </Pressable>
+          </View>
+
+          {rest.length > 0 && (
+            <Text style={{ fontSize: 13, fontWeight: '700', color: '#5d655d', marginTop: 20, marginBottom: 10 }}>
+              다른 러너도 살펴보세요
+            </Text>
+          )}
+          {rest.map(({ r, m }) => (
+            <View key={r.profileId} style={s.altCard}>
               <Row style={{ gap: 12 }}>
                 <Monogram char={r.name[0]} bg="#5a7a3c" size={46} />
                 <View style={{ flex: 1 }}>
                   <Row style={{ gap: 6 }}>
                     <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST }}>{r.name} 러너</Text>
                     <View style={s.sagePill}><Text style={{ fontSize: 9.5, fontWeight: '800', color: '#4a6d1f' }}>{r.tier}</Text></View>
+                    <View style={s.sagePill}><Text style={{ fontSize: 9.5, fontWeight: '800', color: '#4a6d1f' }}>적합 {m.total}%</Text></View>
                   </Row>
                   <Text style={{ fontSize: 11.5, color: colors.dim, marginTop: 3 }}>
                     {r.district || '근처'} · 러닝 {r.totalRuns}회 · 평균 {r.paceLabel}
@@ -95,10 +189,11 @@ export default function Matching() {
               </Row>
             </View>
           ))}
-          <Text style={{ fontSize: 11, color: colors.dim, marginTop: 4, marginBottom: 8 }}>
-            지명 없이 두면 오픈 매칭으로 모든 러너에게 보여요
-          </Text>
-        </View>
+
+          <View style={s.trustNote}>
+            <Text style={{ fontSize: 12, color: '#5d655d' }}>지명 없이 두면 오픈 매칭으로 모든 러너에게 보여요</Text>
+          </View>
+        </>
       )}
 
       {/* 데모 매칭 UI — 실예약(지명 가능) 시 숨김 */}
@@ -272,6 +367,7 @@ const s = StyleSheet.create({
   barTrack: { height: 7, borderRadius: 99, backgroundColor: '#2c4034', marginTop: 6, overflow: 'hidden' },
   barFill: { height: 7, borderRadius: 99, backgroundColor: colors.volt },
   statStrip: { flexDirection: 'row', backgroundColor: FOREST_INNER, borderRadius: 14, paddingVertical: 12, marginTop: 16 },
+  topNominate: { backgroundColor: colors.volt, borderRadius: 14, alignItems: 'center', paddingVertical: 14, marginTop: 16 },
   stripDiv: { width: 1, backgroundColor: '#2c4034', marginVertical: 2 },
   altCard: { backgroundColor: '#fff', borderRadius: 20, padding: 16, borderWidth: 1, borderColor: '#eceadf', marginBottom: 10 },
   sagePill: { backgroundColor: '#e3f0c4', borderRadius: 99, paddingVertical: 3, paddingHorizontal: 8, alignSelf: 'center' },

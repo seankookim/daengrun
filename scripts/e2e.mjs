@@ -122,17 +122,19 @@ async function ensureRunnerRow(user) {
 }
 
 // ---------- cleanup ----------
-async function cleanup(bookingId, runnerUserId) {
+async function cleanup(bookingId, userIds) {
   if (KEEP) { console.log('\n  (--keep: 테스트 데이터 유지 — 앱에서 확인 가능)'); return; }
-  if (!bookingId) return;
-  for (const t of ['reviews', 'runs', 'ledger_items', 'chat_messages', 'notifications', 'slot_holds']) {
-    const col = t === 'notifications' ? 'ref_id' : 'booking_id';
-    await admin(`/rest/v1/${t}?${col}=eq.${bookingId}`, { method: 'DELETE' });
+  if (bookingId) {
+    for (const t of ['reviews', 'runs', 'ledger_items', 'chat_messages', 'notifications', 'slot_holds']) {
+      const col = t === 'notifications' ? 'ref_id' : 'booking_id';
+      await admin(`/rest/v1/${t}?${col}=eq.${bookingId}`, { method: 'DELETE' });
+    }
+    await admin(`/rest/v1/bookings?id=eq.${bookingId}`, { method: 'DELETE' });
   }
-  await admin(`/rest/v1/bookings?id=eq.${bookingId}`, { method: 'DELETE' });
-  if (runnerUserId) {
-    await admin(`/rest/v1/drops?runner_id=eq.${runnerUserId}`, { method: 'DELETE' });
-    await admin(`/rest/v1/runners?profile_id=eq.${runnerUserId}`, { method: 'PATCH', body: { total_runs: 0, total_km: 0 } });
+  // online=false — E2E 계정이 앱의 러너 추천 목록에 나타나지 않게 (양쪽 계정 모두)
+  for (const uid of [...new Set(userIds.filter(Boolean))]) {
+    await admin(`/rest/v1/drops?runner_id=eq.${uid}`, { method: 'DELETE' });
+    await admin(`/rest/v1/runners?profile_id=eq.${uid}`, { method: 'PATCH', body: { total_runs: 0, total_km: 0, online: false } });
   }
   console.log('\n  🧹 테스트 데이터 삭제 완료 (--keep 으로 유지 가능)');
 }
@@ -270,6 +272,6 @@ try {
 } catch {
   console.log('\n❌ 루프 실패 — 위 ✗ 단계의 response가 서버의 실제 답변이에요');
 } finally {
-  try { await cleanup(bookingId, runner?.id); } catch (e) { console.log(`  (cleanup 일부 실패: ${e.message})`); }
+  try { await cleanup(bookingId, [owner?.id, runner?.id]); } catch (e) { console.log(`  (cleanup 일부 실패: ${e.message})`); }
 }
 process.exit(failures > 0 ? 1 : 0);

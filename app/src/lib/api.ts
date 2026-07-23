@@ -244,6 +244,7 @@ export interface LiveRunner {
   tier: string;
   totalRuns: number;
   paceLabel: string;
+  paceSec: number;
   respondRate: number | null;
 }
 
@@ -264,6 +265,7 @@ export async function fetchCertifiedRunners(): Promise<LiveRunner[]> {
       tier: r.tier === 'certified' ? '인증 러너' : r.tier === 'veteran' ? '베테랑' : '마스터',
       totalRuns: r.total_runs ?? 0,
       paceLabel: `${Math.floor(pace / 60)}'${String(pace % 60).padStart(2, '0')}"`,
+      paceSec: pace,
       respondRate: r.respond_rate_pct,
     };
   });
@@ -447,19 +449,59 @@ export async function fetchLedger(): Promise<LiveLedgerItem[]> {
 }
 
 // ---------- notifications (읽기 — 실시간 배달은 Realtime 세션에서) ----------
-export interface LiveNoti { id: string; title: string; body: string | null; when: string; unread: boolean }
+export interface LiveNoti { id: string; title: string; body: string | null; when: string; unread: boolean; kind: string; refId: string | null }
 
 export async function fetchNotifications(): Promise<LiveNoti[]> {
   const { data, error } = await supabase
     .from('notifications')
-    .select('id, title, body, created_at, read_at')
+    .select('id, title, body, created_at, read_at, kind, ref_id')
     .order('created_at', { ascending: false })
     .limit(20);
   if (error) throw error;
   return (data ?? []).map((n: any) => {
     const { dateLabel, timeLabel } = kstParts(n.created_at);
-    return { id: n.id, title: n.title, body: n.body, when: `${dateLabel} ${timeLabel}`, unread: !n.read_at };
+    return { id: n.id, title: n.title, body: n.body, when: `${dateLabel} ${timeLabel}`, unread: !n.read_at, kind: n.kind, refId: n.ref_id };
   });
+}
+
+// ---------- 러닝 리포트 (보호자) ----------
+export interface RunReport {
+  dogName: string; routeName: string; when: string;
+  plannedKm: number; paceLabel: string; price: number; status: string;
+  run: null | {
+    actualKm: number; durationSec: number; paceSecPerKm: number | null;
+    endReason: string | null; conditionNote: string | null;
+  };
+}
+
+export async function fetchRunReport(bookingId: string): Promise<RunReport> {
+  const { data, error } = await supabase
+    .from('bookings')
+    .select('scheduled_at, km, pace_label, total_price, status, routes(name), dogs(name), runs(actual_km, duration_sec, avg_pace_sec_per_km, end_reason, condition_note)')
+    .eq('id', bookingId)
+    .single();
+  if (error) throw error;
+  const d = data as any;
+  const { dateLabel, timeLabel } = kstParts(d.scheduled_at);
+  const raw = Array.isArray(d.runs) ? d.runs[0] : d.runs; // unique FK — 어느 형태든 안전하게
+  return {
+    dogName: d.dogs?.name ?? '반려견',
+    routeName: d.routes?.name ?? '코스 미지정',
+    when: `${dateLabel} ${timeLabel}`,
+    plannedKm: Number(d.km),
+    paceLabel: d.pace_label ?? "보통 7'",
+    price: d.total_price,
+    status: d.status,
+    run: raw
+      ? {
+          actualKm: Number(raw.actual_km ?? 0),
+          durationSec: raw.duration_sec ?? 0,
+          paceSecPerKm: raw.avg_pace_sec_per_km,
+          endReason: raw.end_reason,
+          conditionNote: raw.condition_note,
+        }
+      : null,
+  };
 }
 
 export async function markAllNotificationsRead(): Promise<void> {

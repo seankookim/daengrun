@@ -4,7 +4,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { BottomNav } from '../src/components/bottomnav';
 import { Row } from '../src/components/ui';
 import { fetchNotifications, LiveNoti, markAllNotificationsRead } from '../src/lib/api';
-import { dog } from '../src/store';
+import { dog, session } from '../src/store';
 import { colors } from '../src/theme';
 
 // 알림 — notification center per mock: filter tabs, unread section, history.
@@ -18,6 +18,16 @@ export default function Alerts() {
 
   const load = () => fetchNotifications().then(setLiveNotis).catch(() => {});
   useFocusEffect(useCallback(() => { load(); }, []));
+
+  // 알림 탭 도착지 — 역할별: 보호자는 리포트(러닝 전이면 상태 안내), 러너는 요청/캘린더
+  const openNoti = (n: LiveNoti) => {
+    if (!n.refId || n.kind !== 'booking') return;
+    if (session.role === 'runner') {
+      router.push(n.title.includes('요청') ? '/runner/requests' : '/runner/calendar');
+    } else {
+      router.push({ pathname: '/owner/report', params: { bid: n.refId } });
+    }
+  };
 
   const markAll = async () => {
     try {
@@ -73,7 +83,7 @@ export default function Alerts() {
             </Row>
             <View style={{ gap: 10 }}>
               {liveNotis.map((n) => (
-                <View key={n.id} style={[s.noti, n.unread && s.notiHi]}>
+                <Pressable key={n.id} onPress={() => openNoti(n)} style={[s.noti, n.unread && s.notiHi]}>
                   <View style={[s.notiIcon, { backgroundColor: '#e7efd8' }]}>
                     {n.unread && <View style={s.unreadDot} />}
                     <Text style={{ fontSize: 13, fontWeight: '900', color: '#3d5a2b' }}>런</Text>
@@ -84,8 +94,11 @@ export default function Alerts() {
                       <Text style={{ fontSize: 10.5, color: colors.dim }}>{n.when}</Text>
                     </Row>
                     {n.body && <Text style={{ fontSize: 12.5, color: '#5d655d', marginTop: 3 }}>{n.body}</Text>}
+                    {n.refId && n.kind === 'booking' && (
+                      <Text style={{ fontSize: 11, fontWeight: '800', color: '#5a7a3c', marginTop: 5 }}>자세히 보기 ›</Text>
+                    )}
                   </View>
-                </View>
+                </Pressable>
               ))}
             </View>
           </View>
