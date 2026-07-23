@@ -1,11 +1,11 @@
-import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { fetchMyBookings } from '../../src/lib/api';
 import { BottomNav } from '../../src/components/bottomnav';
 import { HeatTrace } from '../../src/components/runcard';
 import { Monogram, Row } from '../../src/components/ui';
-import { Booking, bookings, BookingStatus, cancelPolicy, runners, sampleRoutes } from '../../src/store';
+import { Booking, BookingStatus, cancelPolicy, runners, sampleRoutes } from '../../src/store';
 import { colors } from '../../src/theme';
 
 // 내 일정 — agenda view. Tapping a booking opens a management sheet
@@ -39,12 +39,11 @@ export default function Schedule() {
   const [sheetMode, setSheetMode] = useState<'detail' | 'cancel'>('detail');
   const [liveBookings, setLiveBookings] = useState<Booking[]>([]);
 
-  // 실예약 로드 — 실패 시 목업만 표시
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     fetchMyBookings().then(setLiveBookings).catch(() => {});
-  }, []);
+  }, []));
 
-  const all = [...liveBookings, ...bookings];
+  const all = liveBookings; // 데모 예약 제거 — 실예약만
   const visible = all.filter(FILTERS[filterIdx].match);
   const groups = visible.reduce<Record<string, Booking[]>>((acc, b) => {
     (acc[b.dateLabel] = acc[b.dateLabel] ?? []).push(b);
@@ -75,7 +74,7 @@ export default function Schedule() {
           <Pressable onPress={() => router.back()} style={s.circleBtn}><Text style={{ fontSize: 18 }}>‹</Text></Pressable>
           <View style={{ alignItems: 'center' }}>
             <Text style={{ fontSize: 19, fontWeight: '900', color: FOREST }}>내 일정</Text>
-            <Text style={{ fontSize: 11, color: colors.dim, marginTop: 1 }}>2026년 7월 · 이번 주 3건 · 다음 러닝 3시간 후</Text>
+            <Text style={{ fontSize: 11, color: colors.dim, marginTop: 1 }}>실예약 {liveBookings.length}건</Text>
           </View>
           <Pressable onPress={() => router.push('/owner/request')} style={[s.circleBtn, { backgroundColor: FOREST }]}>
             <Text style={{ fontSize: 17, color: colors.volt }}>＋</Text>
@@ -108,7 +107,9 @@ export default function Schedule() {
         {/* agenda */}
         {visible.length === 0 && (
           <View style={s.emptyBox}>
-            <Text style={{ fontSize: 13, color: colors.dim, textAlign: 'center' }}>이 조건의 일정이 없어요</Text>
+            <Text style={{ fontSize: 13, color: colors.dim, textAlign: 'center', lineHeight: 20 }}>
+              {liveBookings.length === 0 ? '예정된 러닝이 없어요\n홈에서 슬라이드로 예약해보세요' : '이 조건의 일정이 없어요'}
+            </Text>
           </View>
         )}
         {Object.entries(groups).map(([dateLabel, items]) => (

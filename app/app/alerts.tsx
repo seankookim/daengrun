@@ -4,7 +4,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { BottomNav } from '../src/components/bottomnav';
 import { Row } from '../src/components/ui';
 import { fetchNotifications, LiveNoti, markAllNotificationsRead } from '../src/lib/api';
-import { dog, Noti, notifications } from '../src/store';
+import { dog } from '../src/store';
 import { colors } from '../src/theme';
 
 // 알림 — notification center per mock: filter tabs, unread section, history.
@@ -15,8 +15,6 @@ const TABS = ['전체', '예약', '커뮤니티', '샵'];
 export default function Alerts() {
   const [tab, setTab] = useState('전체');
   const [liveNotis, setLiveNotis] = useState<LiveNoti[]>([]);
-  const unread = notifications.filter((n) => n.unread);
-  const past = notifications.filter((n) => !n.unread);
 
   const load = () => fetchNotifications().then(setLiveNotis).catch(() => {});
   useFocusEffect(useCallback(() => { load(); }, []));
@@ -93,20 +91,14 @@ export default function Alerts() {
           </View>
         )}
 
-        {/* unread (데모) */}
-        <Row style={{ gap: 8, marginTop: 22, marginBottom: 10 }}>
-          <Text style={s.section}>읽지 않은 알림 (데모)</Text>
-          <View style={s.countBadge}><Text style={{ fontSize: 11, fontWeight: '900', color: FOREST }}>{unread.length}</Text></View>
-        </Row>
-        <View style={{ gap: 10 }}>
-          {unread.map((n) => <NotiCard key={n.id} n={n} highlight />)}
-        </View>
+        {liveNotis.length === 0 && (
+          <View style={{ marginTop: 24, backgroundColor: '#fff', borderRadius: 16, padding: 24, alignItems: 'center', borderWidth: 1, borderColor: '#eceadf' }}>
+            <Text style={{ fontSize: 13, color: colors.dim, textAlign: 'center', lineHeight: 20 }}>
+              아직 알림이 없어요{'\n'}예약·러닝 소식이 여기에 도착해요
+            </Text>
+          </View>
+        )}
 
-        {/* past */}
-        <Text style={[s.section, { marginTop: 24, marginBottom: 10 }]}>이전 알림</Text>
-        <View style={{ gap: 10 }}>
-          {past.map((n) => <NotiCard key={n.id} n={n} />)}
-        </View>
       </ScrollView>
       <BottomNav />
     </View>
@@ -118,59 +110,6 @@ function HeaderBtn({ glyph, label }: { glyph: string; label: string }) {
     <View style={{ alignItems: 'center', gap: 3 }}>
       <View style={s.hBtn}><Text style={{ fontSize: 14, color: '#5d655d' }}>{glyph}</Text></View>
       <Text style={{ fontSize: 10, color: '#5d655d' }}>{label}</Text>
-    </View>
-  );
-}
-
-function NotiCard({ n, highlight }: { n: Noti; highlight?: boolean }) {
-  return (
-    <View style={[s.noti, highlight && s.notiHi]}>
-      <View style={[s.notiIcon, { backgroundColor: n.glyphBg }]}>
-        {n.unread && <View style={s.unreadDot} />}
-        <Text style={{ fontSize: 13, fontWeight: '900', color: n.glyphFg }}>{n.glyph}</Text>
-      </View>
-      <View style={{ flex: 1 }}>
-        <Row style={{ gap: 6, justifyContent: 'space-between' }}>
-          <Row style={{ gap: 6, flex: 1 }}>
-            <Text style={{ fontSize: 14.5, fontWeight: '900', color: FOREST }}>{n.title}</Text>
-            {n.unread && (
-              <View style={s.newBadge}><Text style={{ fontSize: 9, fontWeight: '900', color: '#4a6d1f' }}>NEW</Text></View>
-            )}
-          </Row>
-          {!n.unread && <Text style={{ fontSize: 11, color: colors.dim }}>{n.when}</Text>}
-        </Row>
-        <Text style={{ fontSize: 12.5, color: '#5d655d', marginTop: 3 }}>{n.body}</Text>
-        {n.meta && <Text style={{ fontSize: 11, color: colors.dim, marginTop: 4 }}>{n.meta}</Text>}
-      </View>
-      {n.badge ? (
-        <View style={s.pointBadge}><Text style={{ fontSize: 11, fontWeight: '900', color: '#4a6d1f' }}>{n.badge}</Text></View>
-      ) : n.thumb ? (
-        <Thumb kind={n.thumb} />
-      ) : (
-        <Text style={{ fontSize: 16, color: colors.dim }}>›</Text>
-      )}
-    </View>
-  );
-}
-
-function Thumb({ kind }: { kind: NonNullable<Noti['thumb']> }) {
-  if (kind === 'map') {
-    return (
-      <View style={[s.thumb, { backgroundColor: '#eef2e4', padding: 6 }]}>
-        <View style={{ flex: 1 }}>
-          <View style={{ position: 'absolute', left: 4, bottom: 6, width: 8, height: 8, borderRadius: 4, borderWidth: 2, borderColor: '#5a7a3c' }} />
-          <View style={{ position: 'absolute', left: 9, bottom: 11, width: 22, height: 3, borderRadius: 2, backgroundColor: '#6aa53c', transform: [{ rotate: '-40deg' }] }} />
-          <View style={{ position: 'absolute', left: 22, bottom: 22, width: 18, height: 3, borderRadius: 2, backgroundColor: '#6aa53c', transform: [{ rotate: '20deg' }] }} />
-          <View style={{ position: 'absolute', right: 4, top: 6, width: 8, height: 8, borderRadius: 4, backgroundColor: '#3d5a2b' }} />
-        </View>
-      </View>
-    );
-  }
-  const bg = kind === 'runner' ? '#c9a86e' : kind === 'photo' ? '#b98a52' : '#8fae7a';
-  const label = kind === 'runner' ? '러너' : kind === 'photo' ? '초코' : '상품';
-  return (
-    <View style={[s.thumb, { backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }]}>
-      <Text style={{ fontSize: 11, fontWeight: '900', color: '#ffffffdd' }}>{label}</Text>
     </View>
   );
 }

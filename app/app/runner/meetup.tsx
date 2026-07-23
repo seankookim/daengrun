@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Monogram, Row } from '../../src/components/ui';
-import { confirmHandoff, fetchBookingStatus, runnerEnroute, startRunServer } from '../../src/lib/api';
+import { confirmHandoff, fetchBookingStatus, fetchBookingSync, runnerEnroute, startRunServer } from '../../src/lib/api';
 import { runnerJob, runRequests } from '../../src/store';
 import { colors } from '../../src/theme';
 
@@ -32,9 +32,16 @@ export default function Meetup() {
   const [stage, setStage] = useState<Stage>('enroute');
   const poll = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // 실예약: 서버에 '이동 중' 보고 → 보호자 화면이 실상태를 본다
+  // 실예약: 서버에 '이동 중' 보고 + 재진입 시 현재 단계 복원
   useEffect(() => {
-    if (runnerJob.bookingId) runnerEnroute(runnerJob.bookingId).catch(() => { /* 이미 enroute면 무시 */ });
+    if (!runnerJob.bookingId) return;
+    runnerEnroute(runnerJob.bookingId).catch(() => { /* 이미 지난 상태면 무시 */ });
+    fetchBookingSync(runnerJob.bookingId)
+      .then((s2) => {
+        if (s2.status === 'picked_up' || s2.status === 'active') setStage('confirmed');
+        else if (s2.runnerConfirmed) setStage('waiting');
+      })
+      .catch(() => {});
   }, []);
 
   // waiting: 실예약이면 상대 확인을 서버에서 폴링, 아니면 2초 목업

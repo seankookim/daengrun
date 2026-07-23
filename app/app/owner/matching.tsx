@@ -58,9 +58,11 @@ export default function Matching() {
         <View style={{ width: 40 }} />
       </Row>
       <Text style={{ fontSize: 13, color: '#5d655d', textAlign: 'center', marginBottom: 16 }}>
-        보호자님과 러너의 선호도를 종합 분석했어요
+        {live ? '러너를 지명하거나, 오픈 매칭으로 응답을 기다릴 수 있어요' : '보호자님과 러너의 선호도를 종합 분석했어요'}
       </Text>
 
+      {/* 데모 매칭 UI — 실예약(지명 가능) 시 숨김 */}
+      {!live && (<>
       {/* AI banner */}
       <View style={s.aiBanner}>
         <View style={{ flex: 1 }}>
@@ -222,6 +224,15 @@ export default function Matching() {
         <Text style={{ fontSize: 12, color: '#5d655d' }}>✓ 모든 러너는 신원 확인 및 펫보험에 가입되어 있어요.</Text>
         <Text style={{ fontSize: 14, color: colors.dim }}>›</Text>
       </View>
+      </>)}
+
+      {live && liveRunners.length === 0 && (
+        <View style={{ marginTop: 16, backgroundColor: '#fff', borderRadius: 16, padding: 24, alignItems: 'center', borderWidth: 1, borderColor: '#eceadf' }}>
+          <Text style={{ fontSize: 13, color: colors.dim, textAlign: 'center', lineHeight: 20 }}>
+            지금 온라인인 러너가 없어요{'\n'}오픈 매칭으로 등록되어 러너들이 응답할 수 있어요
+          </Text>
+        </View>
+      )}
     </ScrollView>
   );
 }

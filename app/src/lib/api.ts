@@ -324,6 +324,7 @@ export interface RunnerJob {
   km: number;
   payout: number;
   status: 'confirmed' | 'in_progress' | 'completed';
+  rawStatus: string;
 }
 
 export async function fetchRunnerJobs(): Promise<RunnerJob[]> {
@@ -346,6 +347,7 @@ export async function fetchRunnerJobs(): Promise<RunnerJob[]> {
       km: Number(r.km),
       payout: Math.round((r.base_fare + r.distance_fare + r.addon_fare) * 0.8),
       status: r.status === 'completed' ? 'completed' : r.status === 'confirmed' ? 'confirmed' : 'in_progress',
+      rawStatus: r.status,
     };
   });
 }

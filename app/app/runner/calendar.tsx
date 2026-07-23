@@ -33,15 +33,13 @@ export default function RunnerCalendar() {
   }, []));
 
   const openJob = (j: RunnerJob) => {
-    if (j.status === 'confirmed') {
-      runnerJob.bookingId = j.bookingId;
-      router.push('/runner/meetup');
-    } else if (j.status === 'in_progress') {
-      runnerJob.bookingId = j.bookingId;
-      router.push('/runner/run');
-    } else {
+    if (j.status === 'completed') {
       Alert.alert('완료된 러닝', `${j.dogName} · ${j.km}km · +${j.payout.toLocaleString()}원\n수익 탭에서 정산 내역을 확인하세요`);
+      return;
     }
+    runnerJob.bookingId = j.bookingId;
+    // active(러닝 중)만 러닝 화면으로 — picked_up(인계 완료)은 미트업의 '러닝 시작하기' 단계로
+    router.push(j.rawStatus === 'active' ? '/runner/run' : '/runner/meetup');
   };
 
   return (

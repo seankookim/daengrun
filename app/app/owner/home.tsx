@@ -227,24 +227,29 @@ export default function OwnerHome() {
               <Text style={{ fontSize: 11.5, fontWeight: '900', color: colors.ink }}>전체 일정 ›</Text>
             </View>
           </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 12 }}>
-            <Monogram char={liveNext ? liveNext.dogName[0] : nextBooking.runnerName[1]} bg="#FF6347" size={46} />
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 17, fontWeight: '900', color: p.textStrong }}>
-                {liveNext ? `${liveNext.dateLabel.split(' ')[0]} ${liveNext.timeLabel} · ${liveNext.dogName}` : `${nextBooking.timeLabel} · ${nextBooking.dogName}`}
-              </Text>
-              <Text style={{ fontSize: 11.5, color: p.dim, marginTop: 3 }}>
-                {liveNext
-                  ? `${liveNext.routeName} · ${liveNext.status === 'pending' ? '러너 응답 대기' : liveNext.status === 'active' ? '러닝 진행 중' : `${liveNext.runnerName} ✓ 확정`}`
-                  : `${nextBooking.runnerName} 러너 ✓ · 서울숲 2번 출입구`}
-              </Text>
+          {liveNext ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 12 }}>
+              <Monogram char={liveNext.dogName[0]} bg="#FF6347" size={46} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 17, fontWeight: '900', color: p.textStrong }}>
+                  {liveNext.dateLabel.split(' ')[0]} {liveNext.timeLabel} · {liveNext.dogName}
+                </Text>
+                <Text style={{ fontSize: 11.5, color: p.dim, marginTop: 3 }}>
+                  {liveNext.routeName} · {liveNext.status === 'pending' ? '러너 응답 대기' : liveNext.status === 'active' ? '러닝 진행 중' : '러너 확정 ✓'}
+                </Text>
+              </View>
+              <View style={[s.countdownPill, { backgroundColor: liveNext.status === 'pending' ? '#fbf0d4' : '#fde8e3' }]}>
+                <Text style={{ fontSize: 10.5, fontWeight: '900', color: liveNext.status === 'pending' ? '#a97c12' : '#d84a2f' }}>
+                  {liveNext.status === 'pending' ? '매칭 중' : liveNext.status === 'active' ? '● LIVE' : '확정됨'}
+                </Text>
+              </View>
             </View>
-            <View style={[s.countdownPill, { backgroundColor: liveNext?.status === 'pending' ? '#fbf0d4' : demoImminent || liveNext ? '#fde8e3' : mode === 'dark' ? '#1e2c22' : '#eef4e0' }]}>
-              <Text style={{ fontSize: 10.5, fontWeight: '900', color: liveNext?.status === 'pending' ? '#a97c12' : demoImminent || liveNext ? '#d84a2f' : mode === 'dark' ? colors.volt : '#4a6d1f' }}>
-                {liveNext ? (liveNext.status === 'pending' ? '매칭 중' : liveNext.status === 'active' ? '● LIVE' : '확정됨') : demoImminent ? '22분 후 시작' : '3시간 12분 후'}
-              </Text>
+          ) : (
+            <View style={{ marginTop: 12, alignItems: 'center', paddingVertical: 6 }}>
+              <Text style={{ fontSize: 14.5, fontWeight: '800', color: p.textStrong }}>예정된 러닝이 없어요</Text>
+              <Text style={{ fontSize: 11.5, color: p.dim, marginTop: 4 }}>아래 슬라이더로 첫 러닝을 예약해보세요</Text>
             </View>
-          </View>
+          )}
           {/* 30분 전부터/러너 확정 시: 확인·시작 액션이 위젯에 올라온다 */}
           {liveNext?.status === 'active' ? (
             <View style={{ flexDirection: 'row', gap: 8, marginTop: 13 }}>
@@ -252,7 +257,7 @@ export default function OwnerHome() {
                 <Text style={{ fontSize: 12.5, fontWeight: '900', color: colors.ink }}>실시간 보기 ›</Text>
               </Pressable>
             </View>
-          ) : liveNext?.status === 'confirmed' || (!liveNext && demoImminent) ? (
+          ) : liveNext?.status === 'confirmed' ? (
             <View style={{ flexDirection: 'row', gap: 8, marginTop: 13 }}>
               <Pressable
                 style={s.meetBtn}

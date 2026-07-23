@@ -4,7 +4,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { BottomNav } from '../../src/components/bottomnav';
 import { Badge, Card, Monogram, Row, StatBlock, text } from '../../src/components/ui';
 import { fetchRunnerInbox, OpenRequest } from '../../src/lib/api';
-import { runnerStats, runRequests } from '../../src/store';
+import { runnerStats } from '../../src/store';
 import { colors } from '../../src/theme';
 
 export default function RunnerHome() {
@@ -86,35 +86,14 @@ export default function RunnerHome() {
           </Pressable>
         )}
 
-        <Row style={{ justifyContent: 'space-between', marginTop: 14, marginBottom: 10 }}>
-          <Text style={text.h2}>새 러닝 요청 (데모)</Text>
-          <Badge label={`${runRequests.length}건`} tone="red" />
-        </Row>
+        {inbox.length === 0 && (
+          <View style={{ marginTop: 14, backgroundColor: '#fff', borderRadius: 16, padding: 20, alignItems: 'center', borderWidth: 1, borderColor: '#eceadf' }}>
+            <Text style={{ fontSize: 13, color: colors.dim, textAlign: 'center', lineHeight: 20 }}>
+              지금은 새 요청이 없어요{'\n'}온라인 상태면 요청이 오는 대로 표시돼요
+            </Text>
+          </View>
+        )}
 
-        {runRequests.map((req, i) => (
-          <Pressable key={req.id} onPress={() => router.push('/runner/detail')} disabled={i > 0}>
-            <Card style={[{ marginBottom: 8 }, i === 0 ? { borderWidth: 2, borderColor: colors.ink } : { opacity: 0.7 }]}>
-              <Row style={{ gap: 12 }}>
-                <Monogram char={req.dogChar} bg={req.dogColor} size={48} />
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 15, fontWeight: '700' }}>
-                    {req.dogName} · {req.breed} {req.weightKg}kg
-                  </Text>
-                  <Text style={[text.dim, { marginTop: 3 }]}>
-                    {req.when} · {req.place} · {req.km}km · 페이스 {req.pace}
-                  </Text>
-                </View>
-              </Row>
-              <View style={{ height: 1, backgroundColor: colors.line, marginVertical: 12 }} />
-              <Row style={{ justifyContent: 'space-between' }}>
-                <Text style={text.dim}>픽업까지 {req.pickupKm}km</Text>
-                <Text style={{ fontSize: 18, fontWeight: '900', color: colors.voltDeep }}>
-                  +{req.payout.toLocaleString()}원
-                </Text>
-              </Row>
-            </Card>
-          </Pressable>
-        ))}
       </ScrollView>
       <BottomNav />
     </View>
