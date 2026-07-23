@@ -1,6 +1,6 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BottomNav } from '../../src/components/bottomnav';
 import { Row } from '../../src/components/ui';
 import { fetchLedger, LiveLedgerItem } from '../../src/lib/api';
@@ -20,16 +20,21 @@ function nextWednesday(): string {
 export default function Earnings() {
   const [ledger, setLedger] = useState<LiveLedgerItem[]>([]);
 
-  useFocusEffect(useCallback(() => {
-    fetchLedger().then(setLedger).catch((e) => console.warn('[earnings] ledger:', e?.message ?? e));
-  }, []));
+  const load = () => fetchLedger().then(setLedger).catch((e) => console.warn('[earnings] ledger:', e?.message ?? e));
+  useFocusEffect(useCallback(() => { load(); }, []));
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = () => { setRefreshing(true); load().finally(() => setRefreshing(false)); };
 
   const pendingSum = ledger.reduce((sum, l) => sum + l.net, 0);
   const tax = Math.round(pendingSum * 0.033);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.cream }}>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 22, paddingTop: 60, paddingBottom: 30 }}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: 22, paddingTop: 60, paddingBottom: 30 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
         <Row style={{ gap: 6 }}>
           <Text style={{ fontSize: 26, fontWeight: '900', color: FOREST }}>수익</Text>
           <View style={{ backgroundColor: '#5a7a3c', borderRadius: 99, paddingVertical: 2, paddingHorizontal: 7, alignSelf: 'center' }}>

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Dimensions, Image, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { Monogram, Row } from '../../src/components/ui';
 import { fetchRunReport, fetchRunStandings, RunReport, RunStandings } from '../../src/lib/api';
+import { draft } from '../../src/store';
 import { colors } from '../../src/theme';
 
 // 러닝 리포트 — 러닝 하나의 '프로필 페이지'. 풀블리드 · 공유 가능 · 사진 · 개인 기록 배지.
@@ -219,6 +220,25 @@ export default function Report() {
               <Pressable onPress={share} style={s.cta}>
                 <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST }}>↗ 자랑하기</Text>
                 <Text style={{ fontSize: 10.5, color: '#5d6b4a', marginTop: 2 }}>카카오톡·인스타그램으로 오늘의 러닝을 공유해요</Text>
+              </Pressable>
+              {/* 재예약 = 두 번째 예약이 첫 예약보다 중요하다 — 설정 전부 프리필, 시간만 고르면 끝 */}
+              <Pressable
+                onPress={() => {
+                  draft.km = report.plannedKm;
+                  draft.pace = report.paceLabel;
+                  if (report.routeId) draft.routeId = report.routeId;
+                  draft.preferredRunnerId = report.runnerProfileId;
+                  draft.preferredRunnerName = report.runnerName;
+                  draft.scheduledAtIso = null;
+                  draft.timeLabel = '시간을 선택해주세요';
+                  router.push('/owner/request');
+                }}
+                style={[s.cta, { backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#a9c47e' }]}
+              >
+                <Text style={{ fontSize: 14, fontWeight: '900', color: '#3d5a2b' }}>⟳ 이대로 다시 예약</Text>
+                <Text style={{ fontSize: 10.5, color: colors.dim, marginTop: 2 }}>
+                  같은 코스·거리{report.runnerName ? ` · ${report.runnerName} 러너 지명` : ''} — 시간만 고르면 돼요
+                </Text>
               </Pressable>
               <Pressable onPress={() => router.replace('/owner/home')} style={s.ghostCta}>
                 <Text style={{ fontSize: 13, fontWeight: '800', color: '#3d453d' }}>홈으로</Text>

@@ -1,6 +1,6 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BottomNav } from '../src/components/bottomnav';
 import { Row } from '../src/components/ui';
 import { fetchNotifications, LiveNoti, markAllNotificationsRead } from '../src/lib/api';
@@ -18,6 +18,8 @@ export default function Alerts() {
 
   const load = () => fetchNotifications().then(setLiveNotis).catch(() => {});
   useFocusEffect(useCallback(() => { load(); }, []));
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = () => { setRefreshing(true); load().finally(() => setRefreshing(false)); };
 
   // 알림 탭 도착지 — 역할별: 보호자는 리포트(러닝 전이면 상태 안내), 러너는 요청/캘린더
   const openNoti = (n: LiveNoti) => {
@@ -41,7 +43,11 @@ export default function Alerts() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.cream }}>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 22, paddingTop: 64, paddingBottom: 24 }}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: 22, paddingTop: 64, paddingBottom: 24 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
         {/* header */}
         <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <Pressable onPress={() => router.back()} style={[s.hBtn, { marginRight: 12 }]}>

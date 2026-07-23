@@ -159,6 +159,7 @@ export async function ensureRunner(): Promise<void> {
 
 export interface OpenRequest {
   bookingId: string;
+  dogId: string | null;
   dogName: string;
   breed: string;
   weightKg: number;
@@ -168,12 +169,14 @@ export interface OpenRequest {
   paceLabel: string;
   payout: number; // 수수료 20% 제외 추정
   directed?: boolean; // 지명 요청 여부
+  repeatPrior?: number; // 이 강아지와 이미 함께한 완료 러닝 수 (단골)
 }
 
 function mapOpenRequest(r: any, directed: boolean): OpenRequest {
   const { dateLabel, timeLabel } = kstParts(r.scheduled_at);
   return {
     bookingId: r.id,
+    dogId: r.dogs?.id ?? null,
     dogName: r.dogs?.name ?? '반려견',
     breed: r.dogs?.breed ?? '',
     weightKg: Number(r.dogs?.weight_kg ?? 0),
@@ -186,9 +189,10 @@ function mapOpenRequest(r: any, directed: boolean): OpenRequest {
   };
 }
 
-const REQ_SELECT = 'id, scheduled_at, km, pace_label, base_fare, distance_fare, addon_fare, dogs(name, breed, weight_kg, memo)';
+const REQ_SELECT = 'id, scheduled_at, km, pace_label, base_fare, distance_fare, addon_fare, dogs(id, name, breed, weight_kg, memo)';
 
 // 러너 인박스: 지명 요청(runner_pending, 나에게) + 오픈 요청(matching, 미배정)
+// + 단골 감지: 함께 완주한 이력이 있는 강아지엔 repeatPrior (수락 결정이 쉬워진다)
 export async function fetchRunnerInbox(): Promise<OpenRequest[]> {
   const { data: user } = await supabase.auth.getUser();
   const [openRes, directedRes] = await Promise.all([
@@ -200,7 +204,18 @@ export async function fetchRunnerInbox(): Promise<OpenRequest[]> {
   if (openRes.error) throw openRes.error;
   const directed = (directedRes.data ?? []).map((r: any) => mapOpenRequest(r, true));
   const open = (openRes.data ?? []).map((r: any) => mapOpenRequest(r, false));
-  return [...directed, ...open];
+  const all = [...directed, ...open];
+
+  const dogIds = [...new Set(all.map((r) => r.dogId).filter(Boolean))] as string[];
+  if (user.user && dogIds.length > 0) {
+    const { data: hist } = await supabase
+      .from('bookings').select('dog_id')
+      .eq('runner_id', user.user.id).eq('status', 'completed').in('dog_id', dogIds);
+    const counts: Record<string, number> = {};
+    (hist ?? []).forEach((h: any) => { counts[h.dog_id] = (counts[h.dog_id] ?? 0) + 1; });
+    all.forEach((r) => { if (r.dogId && counts[r.dogId]) r.repeatPrior = counts[r.dogId]; });
+  }
+  return all;
 }
 
 export async function fetchOpenRequests(): Promise<OpenRequest[]> {
@@ -216,6 +231,7 @@ export async function fetchOpenRequests(): Promise<OpenRequest[]> {
     const { dateLabel, timeLabel } = kstParts(r.scheduled_at);
     return {
       bookingId: r.id,
+      dogId: r.dogs?.id ?? null,
       dogName: r.dogs?.name ?? '반려견',
       breed: r.dogs?.breed ?? '',
       weightKg: Number(r.dogs?.weight_kg ?? 0),
@@ -814,6 +830,8 @@ export async function fetchNotifications(): Promise<LiveNoti[]> {
 export interface RunReport {
   dogName: string; routeName: string; routeArea: string; when: string;
   runnerName: string | null;
+  runnerProfileId: string | null;
+  routeId: string | null;
   plannedKm: number; paceLabel: string; price: number; status: string;
   run: null | {
     actualKm: number; durationSec: number; paceSecPerKm: number | null;
@@ -824,7 +842,7 @@ export interface RunReport {
 export async function fetchRunReport(bookingId: string): Promise<RunReport> {
   const { data, error } = await supabase
     .from('bookings')
-    .select('scheduled_at, km, pace_label, total_price, status, routes(name, area), dogs(name), runners(profiles(name)), runs(actual_km, duration_sec, avg_pace_sec_per_km, end_reason, condition_note, photos)')
+    .select('scheduled_at, km, pace_label, total_price, status, runner_id, route_id, routes(name, area), dogs(name), runners(profiles(name)), runs(actual_km, duration_sec, avg_pace_sec_per_km, end_reason, condition_note, photos)')
     .eq('id', bookingId)
     .single();
   if (error) throw error;
@@ -837,6 +855,8 @@ export async function fetchRunReport(bookingId: string): Promise<RunReport> {
     routeArea: d.routes?.area ?? '',
     when: `${dateLabel} ${timeLabel}`,
     runnerName: d.runners?.profiles?.name ?? null,
+    runnerProfileId: d.runner_id ?? null,
+    routeId: d.route_id ?? null,
     plannedKm: Number(d.km),
     paceLabel: d.pace_label ?? "보통 7'",
     price: d.total_price,
@@ -889,6 +909,7 @@ export async function fetchMyBookings(): Promise<Booking[]> {
       status: STATUS_MAP[r.status] ?? 'pending',
       live: true,
       matched: !!r.runner_id,
+      runnerProfileId: r.runner_id ?? null,
     };
   });
 }

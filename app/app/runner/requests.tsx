@@ -1,6 +1,6 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BottomNav } from '../../src/components/bottomnav';
 import { Monogram, Row } from '../../src/components/ui';
 import { acceptBooking, fetchRunnerInbox, OpenRequest } from '../../src/lib/api';
@@ -18,6 +18,8 @@ export default function Requests() {
   const load = () => fetchRunnerInbox().then(setLive).catch((e) => console.warn('[requests] inbox:', e?.message ?? e));
   // 화면에 돌아올 때마다 갱신 — 수락/완료된 요청 카드가 남지 않게
   useFocusEffect(useCallback(() => { load(); }, []));
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = () => { setRefreshing(true); load().finally(() => setRefreshing(false)); };
 
   const accept = async (req: OpenRequest) => {
     setAccepting(req.bookingId);
@@ -36,7 +38,11 @@ export default function Requests() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.cream }}>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 22, paddingTop: 60, paddingBottom: 30 }}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: 22, paddingTop: 60, paddingBottom: 30 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
         <Row style={{ justifyContent: 'space-between' }}>
           <View>
             <Text style={{ fontSize: 26, fontWeight: '900', color: FOREST }}>요청</Text>
@@ -58,9 +64,16 @@ export default function Requests() {
                   {req.directed ? '★ 지명 요청' : '● LIVE 요청'}
                 </Text>
               </View>
-              <View style={s.matchPill}>
-                <Text style={{ fontSize: 10, fontWeight: '900', color: '#4a6d1f' }}>{req.directed ? '나를 지명함' : '매칭 대기'}</Text>
-              </View>
+              <Row style={{ gap: 5 }}>
+                {req.repeatPrior != null && req.repeatPrior > 0 && (
+                  <View style={[s.matchPill, { backgroundColor: '#fbf0d4' }]}>
+                    <Text style={{ fontSize: 10, fontWeight: '900', color: '#a97c12' }}>⟳ {req.repeatPrior + 1}번째 함께</Text>
+                  </View>
+                )}
+                <View style={s.matchPill}>
+                  <Text style={{ fontSize: 10, fontWeight: '900', color: '#4a6d1f' }}>{req.directed ? '나를 지명함' : '매칭 대기'}</Text>
+                </View>
+              </Row>
             </Row>
             <Row style={{ gap: 12, marginTop: 12 }}>
               <Monogram char={req.dogName[0]} bg="#c9a86e" size={48} />

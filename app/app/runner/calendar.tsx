@@ -1,6 +1,6 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BottomNav } from '../../src/components/bottomnav';
 import { Row } from '../../src/components/ui';
 import { fetchRunnerJobs, RunnerJob } from '../../src/lib/api';
@@ -30,9 +30,10 @@ export default function RunnerCalendar() {
   const [dateIdx, setDateIdx] = useState(0);
   const [jobs, setJobs] = useState<RunnerJob[]>([]);
 
-  useFocusEffect(useCallback(() => {
-    fetchRunnerJobs().then(setJobs).catch((e) => console.warn('[calendar] jobs:', e?.message ?? e));
-  }, []));
+  const load = () => fetchRunnerJobs().then(setJobs).catch((e) => console.warn('[calendar] jobs:', e?.message ?? e));
+  useFocusEffect(useCallback(() => { load(); }, []));
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = () => { setRefreshing(true); load().finally(() => setRefreshing(false)); };
 
   const openJob = (j: RunnerJob) => {
     if (j.status === 'completed') {
@@ -46,7 +47,11 @@ export default function RunnerCalendar() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.cream }}>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 22, paddingTop: 60, paddingBottom: 30 }}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: 22, paddingTop: 60, paddingBottom: 30 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
         <Row style={{ justifyContent: 'space-between' }}>
           <View>
             <Text style={{ fontSize: 26, fontWeight: '900', color: FOREST }}>캘린더</Text>

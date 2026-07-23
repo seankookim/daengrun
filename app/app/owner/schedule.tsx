@@ -1,6 +1,6 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { fetchMyBookings } from '../../src/lib/api';
 import { BottomNav } from '../../src/components/bottomnav';
 import { HeatTrace } from '../../src/components/runcard';
@@ -39,10 +39,11 @@ export default function Schedule() {
   const [selected, setSelected] = useState<Booking | null>(null);
   const [sheetMode, setSheetMode] = useState<'detail' | 'cancel'>('detail');
   const [liveBookings, setLiveBookings] = useState<Booking[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useFocusEffect(useCallback(() => {
-    fetchMyBookings().then(setLiveBookings).catch((e) => console.warn('[schedule] bookings:', e?.message ?? e));
-  }, []));
+  const load = () => fetchMyBookings().then(setLiveBookings).catch((e) => console.warn('[schedule] bookings:', e?.message ?? e));
+  useFocusEffect(useCallback(() => { load(); }, []));
+  const onRefresh = () => { setRefreshing(true); load().finally(() => setRefreshing(false)); };
 
   const all = liveBookings; // 데모 예약 제거 — 실예약만
   const visible = all.filter(FILTERS[filterIdx].match);
@@ -78,7 +79,11 @@ export default function Schedule() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.cream }}>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 22, paddingTop: 56, paddingBottom: 30 }}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: 22, paddingTop: 56, paddingBottom: 30 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
         {/* header */}
         <Row style={{ justifyContent: 'space-between' }}>
           <Pressable onPress={() => router.back()} style={s.circleBtn}><Text style={{ fontSize: 18 }}>‹</Text></Pressable>
@@ -288,13 +293,31 @@ export default function Schedule() {
                       인계가 완료됐어요 — 러너가 러닝을 시작하면{'\n'}실시간 보기가 열려요 · 변경·취소는 불가능해요
                     </Text>
                   ) : selected.status === 'completed' ? (
-                    <Pressable
-                      style={s.primaryAction}
-                      onPress={() => { const bid = selected.id; close(); router.push({ pathname: '/owner/report', params: { bid } }); }}
-                    >
-                      <Text style={{ fontSize: 14.5, fontWeight: '900', color: FOREST }}>러닝 리포트 보기</Text>
-                      <Text style={{ fontSize: 10.5, color: '#5d6b4a', marginTop: 2 }}>실거리·시간·페이스·종료 사유를 확인해요</Text>
-                    </Pressable>
+                    <>
+                      <Pressable
+                        style={s.primaryAction}
+                        onPress={() => { const bid = selected.id; close(); router.push({ pathname: '/owner/report', params: { bid } }); }}
+                      >
+                        <Text style={{ fontSize: 14.5, fontWeight: '900', color: FOREST }}>러닝 리포트 보기</Text>
+                        <Text style={{ fontSize: 10.5, color: '#5d6b4a', marginTop: 2 }}>실거리·시간·페이스·종료 사유를 확인해요</Text>
+                      </Pressable>
+                      <Pressable
+                        style={s.ghostAction}
+                        onPress={() => {
+                          draft.km = selected.km;
+                          draft.pace = selected.paceLabel;
+                          draft.preferredRunnerId = selected.runnerProfileId ?? null;
+                          draft.preferredRunnerName = selected.runnerProfileId ? selected.runnerName : null;
+                          draft.scheduledAtIso = null;
+                          draft.timeLabel = '시간을 선택해주세요';
+                          close();
+                          router.push('/owner/request');
+                        }}
+                      >
+                        <Text style={{ fontSize: 13.5, fontWeight: '800', color: '#3d5a2b' }}>⟳ 이대로 다시 예약</Text>
+                        <Text style={{ fontSize: 10.5, color: colors.dim, marginTop: 2 }}>같은 거리·페이스{selected.runnerProfileId ? ` · ${selected.runnerName} 러너 지명` : ''} — 시간만 골라요</Text>
+                      </Pressable>
+                    </>
                   ) : (
                     <>
                       <Pressable

@@ -217,6 +217,7 @@ export interface Booking {
   recurring?: boolean;
   live?: boolean; // 서버에서 온 실예약
   matched?: boolean; // 러너 확정 여부 (live 전용)
+  runnerProfileId?: string | null; // 실러너 uuid — 다시 예약 시 지명 프리필
 }
 
 export const bookings: Booking[] = [
