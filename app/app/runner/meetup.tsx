@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Monogram, Row } from '../../src/components/ui';
-import { confirmHandoff, fetchBookingStatus, fetchBookingSync, fetchCurrentRunnerJobId, runnerEnroute, startRunServer } from '../../src/lib/api';
+import { confirmHandoff, fetchBookingSync, fetchCurrentRunnerJobId, runnerEnroute, startRunServer } from '../../src/lib/api';
 import { runnerJob, runRequests } from '../../src/store';
 import { colors } from '../../src/theme';
 
@@ -31,6 +31,7 @@ export default function Meetup() {
   const req = runRequests[0];
   const [stage, setStage] = useState<Stage>('enroute');
   const [jobId, setJobId] = useState<string | null>(runnerJob.bookingId ?? null);
+  const [peerConfirmed, setPeerConfirmed] = useState(false); // 보호자 측 인계 확인 (서버 진실)
   const poll = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // id 복원 — 인메모리 유실 시 서버에서 현재 작업을 찾는다 (데모 전락 방지, 2026-07-23)
@@ -53,19 +54,21 @@ export default function Meetup() {
     runnerEnroute(jobId).catch(() => { /* 이미 지난 상태면 무시 */ });
     fetchBookingSync(jobId)
       .then((s2) => {
+        setPeerConfirmed(s2.ownerConfirmed);
         if (s2.status === 'picked_up' || s2.status === 'active') setStage('confirmed');
         else if (s2.runnerConfirmed) setStage('waiting');
       })
       .catch(() => {});
   }, [jobId]);
 
-  // waiting: 상대 확인을 서버에서 폴링 — 목업 타이머 없음
+  // 상대(보호자) 확인을 서버에서 폴링 — 목업 타이머 없음
   useEffect(() => {
-    if (stage !== 'waiting' || !jobId) return;
+    if (stage === 'confirmed' || !jobId) return;
     poll.current = setInterval(async () => {
       try {
-        const st = await fetchBookingStatus(jobId);
-        if (st === 'picked_up' || st === 'active') setStage('confirmed');
+        const s2 = await fetchBookingSync(jobId);
+        setPeerConfirmed(s2.ownerConfirmed);
+        if (s2.status === 'picked_up' || s2.status === 'active') setStage('confirmed');
       } catch { /* keep polling */ }
     }, 2500);
     return () => { if (poll.current) clearInterval(poll.current); };
@@ -138,14 +141,16 @@ export default function Meetup() {
           <Text style={{ fontSize: 13.5, fontWeight: '900', color: FOREST, marginBottom: 10 }}>인계 확인</Text>
           <Step done label="예약 수락 완료 — 보호자에게 알림 전송됨" />
           <Step done={stage !== 'enroute'} label="픽업 장소 도착" active={stage === 'enroute'} />
+          {/* 양측 확인 상태를 각각 서버 진실로 표시 */}
           <Step
-            done={stage === 'confirmed'}
-            active={stage === 'arrived' || stage === 'waiting'}
-            label={
-              stage === 'waiting' ? '보호자 확인 대기 중...'
-              : stage === 'confirmed' ? '양측 인계 확인 완료'
-              : '양측 인계 확인 (보호자와 러너 모두 확인해야 시작돼요)'
-            }
+            done={stage === 'waiting' || stage === 'confirmed'}
+            active={stage === 'arrived'}
+            label={stage === 'waiting' || stage === 'confirmed' ? '내 인계 확인 완료' : '내 인계 확인 (양측 모두 확인해야 시작돼요)'}
+          />
+          <Step
+            done={peerConfirmed || stage === 'confirmed'}
+            active={!peerConfirmed && stage === 'waiting'}
+            label={peerConfirmed || stage === 'confirmed' ? '보호자 인계 확인 완료' : '보호자 인계 확인 대기'}
           />
         </View>
 

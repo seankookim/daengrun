@@ -34,7 +34,8 @@ Deno.serve(handle(async (req) => {
       const { data: r } = await db.from("runners").select("profile_id").eq("profile_id", uid).single();
       if (!r) throw new HttpError(403, "runner only");
       if (bk.runner_id && bk.runner_id !== uid) throw new HttpError(409, "assigned to another runner");
-      await set({ runner_id: uid, status: "confirmed" });
+      // 인계 타임스탬프 초기화 — 이전 시도/재매칭의 잔재가 남으면 한쪽 확인만으로 즉시 picked_up 되는 사고
+      await set({ runner_id: uid, status: "confirmed", owner_confirmed_handoff_at: null, runner_confirmed_handoff_at: null });
       await notify(bk.owner_id, "러너 매칭 완료", "러닝 파트너가 매칭되었어요!");
       break;
     }
@@ -51,7 +52,7 @@ Deno.serve(handle(async (req) => {
 
     case "runner_decline":
       if (!isRunner) throw new HttpError(403, "runner only");
-      await set({ runner_id: null, status: "matching" });
+      await set({ runner_id: null, status: "matching", owner_confirmed_handoff_at: null, runner_confirmed_handoff_at: null });
       await notify(bk.owner_id, "러너 재탐색 중", "다른 러너를 찾고 있어요");
       break;
 

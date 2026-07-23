@@ -268,28 +268,50 @@ export default function Schedule() {
                     )}
                   </View>
 
-                  {/* actions */}
-                  <Pressable
-                    style={s.primaryAction}
-                    onPress={() => {
-                      close();
-                      Alert.alert('같은 러너로 일정 변경', `${runner.name} 러너의 가능한 슬롯만 표시된 예약 화면으로 이동해요 (목업)`);
-                      router.push('/owner/request');
-                    }}
-                  >
-                    <Text style={{ fontSize: 14.5, fontWeight: '900', color: FOREST }}>같은 러너로 일정 변경</Text>
-                    <Text style={{ fontSize: 10.5, color: '#5d6b4a', marginTop: 2 }}>{runner.name} 러너의 열린 슬롯에서 다시 선택해요</Text>
-                  </Pressable>
-                  <Pressable
-                    style={s.ghostAction}
-                    onPress={() => { close(); router.push('/owner/request'); }}
-                  >
-                    <Text style={{ fontSize: 13.5, fontWeight: '800', color: '#3d453d' }}>러너 변경</Text>
-                    <Text style={{ fontSize: 10.5, color: colors.dim, marginTop: 2 }}>처음부터 일반 예약 과정으로 돌아가요</Text>
-                  </Pressable>
-                  <Pressable style={s.cancelLink} onPress={() => setSheetMode('cancel')}>
-                    <Text style={{ fontSize: 12.5, fontWeight: '700', color: '#d84a2f' }}>일정 취소하기</Text>
-                  </Pressable>
+                  {/* actions — 상태별: 진행 중엔 라이브만, 완료엔 기록만, 시작 전에만 변경·취소 */}
+                  {selected.status === 'active' ? (
+                    <>
+                      <Pressable
+                        style={[s.primaryAction, { backgroundColor: '#ffe9e2', borderWidth: 1.2, borderColor: '#ffc9b8' }]}
+                        onPress={() => { draft.bookingId = selected.id; close(); router.push('/owner/live'); }}
+                      >
+                        <Text style={{ fontSize: 14.5, fontWeight: '900', color: '#d84a2f' }}>● 실시간 보기</Text>
+                        <Text style={{ fontSize: 10.5, color: '#b06a56', marginTop: 2 }}>러닝이 진행 중이에요 — GPS·바디캠으로 지켜보세요</Text>
+                      </Pressable>
+                      <Text style={{ fontSize: 11, color: colors.dim, textAlign: 'center', marginTop: 12, lineHeight: 16 }}>
+                        이미 시작된 러닝은 일정 변경·취소가 불가능해요{'\n'}긴급 상황은 안심 센터 SOS를 이용해주세요
+                      </Text>
+                    </>
+                  ) : selected.status === 'completed' ? (
+                    <Pressable style={s.ghostAction} onPress={() => { close(); router.push('/cards'); }}>
+                      <Text style={{ fontSize: 13.5, fontWeight: '800', color: '#3d453d' }}>러닝 기록 보기</Text>
+                      <Text style={{ fontSize: 10.5, color: colors.dim, marginTop: 2 }}>완료된 러닝의 카드와 기록을 확인해요</Text>
+                    </Pressable>
+                  ) : (
+                    <>
+                      <Pressable
+                        style={s.primaryAction}
+                        onPress={() => {
+                          close();
+                          Alert.alert('같은 러너로 일정 변경', `${runner.name} 러너의 가능한 슬롯만 표시된 예약 화면으로 이동해요 (목업)`);
+                          router.push('/owner/request');
+                        }}
+                      >
+                        <Text style={{ fontSize: 14.5, fontWeight: '900', color: FOREST }}>같은 러너로 일정 변경</Text>
+                        <Text style={{ fontSize: 10.5, color: '#5d6b4a', marginTop: 2 }}>{runner.name} 러너의 열린 슬롯에서 다시 선택해요</Text>
+                      </Pressable>
+                      <Pressable
+                        style={s.ghostAction}
+                        onPress={() => { close(); router.push('/owner/request'); }}
+                      >
+                        <Text style={{ fontSize: 13.5, fontWeight: '800', color: '#3d453d' }}>러너 변경</Text>
+                        <Text style={{ fontSize: 10.5, color: colors.dim, marginTop: 2 }}>처음부터 일반 예약 과정으로 돌아가요</Text>
+                      </Pressable>
+                      <Pressable style={s.cancelLink} onPress={() => setSheetMode('cancel')}>
+                        <Text style={{ fontSize: 12.5, fontWeight: '700', color: '#d84a2f' }}>일정 취소하기</Text>
+                      </Pressable>
+                    </>
+                  )}
                 </>
               ) : (
                 <>

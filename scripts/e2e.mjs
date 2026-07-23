@@ -210,8 +210,9 @@ try {
   await step('runner_accept → confirmed', async () => {
     const r = await fn('transition-booking', runner.token, { booking_id: bookingId, action: 'runner_accept' });
     expect(r.status === 200, 'accept failed', r.body);
-    const b = await admin(`/rest/v1/bookings?id=eq.${bookingId}&select=status,runner_id`);
+    const b = await admin(`/rest/v1/bookings?id=eq.${bookingId}&select=status,runner_id,owner_confirmed_handoff_at,runner_confirmed_handoff_at`);
     expect(b.body?.[0]?.status === 'confirmed' && b.body?.[0]?.runner_id === runner.id, 'not confirmed/assigned', b.body);
+    expect(!b.body[0].owner_confirmed_handoff_at && !b.body[0].runner_confirmed_handoff_at, '수락 시 인계 타임스탬프가 초기화되지 않음 (stale → 즉시 picked_up 사고 위험)', b.body);
   });
 
   await step('enroute → runner_enroute', async () => {

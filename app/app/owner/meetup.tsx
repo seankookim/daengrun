@@ -18,6 +18,7 @@ export default function OwnerMeetup() {
 
   const poll = useRef<ReturnType<typeof setInterval> | null>(null);
   const [bookingId, setBookingId] = useState<string | null>(draft.bookingId ?? null);
+  const [peerConfirmed, setPeerConfirmed] = useState(false); // 러너 측 인계 확인 (서버 진실)
 
   // id 복원 — 리로드로 draft가 비어도 서버가 진실을 안다 (데모 전락 사고 방지, 2026-07-23)
   useEffect(() => {
@@ -40,6 +41,7 @@ export default function OwnerMeetup() {
     poll.current = setInterval(async () => {
       try {
         const sync = await fetchBookingSync(bid);
+        setPeerConfirmed(sync.runnerConfirmed);
         if (sync.status === 'picked_up' || sync.status === 'active') {
           setStage('confirmed');
         } else if (sync.ownerConfirmed) {
@@ -119,14 +121,19 @@ export default function OwnerMeetup() {
           <Text style={{ fontSize: 13.5, fontWeight: '900', color: FOREST, marginBottom: 10 }}>인계 확인</Text>
           <Step done label="러너 수락 완료" />
           <Step done={stage !== 'enroute'} active={stage === 'enroute'} label={stage === 'enroute' ? '러너 이동 중 — 실시간 위치가 위 지도에 보여요' : '러너 픽업 장소 도착'} />
+          {/* 양측 확인 상태를 각각 서버 진실로 표시 — 누가 누굴 기다리는지 추측 금지 */}
           <Step
-            done={stage === 'confirmed'}
-            active={stage === 'arrived' || stage === 'waiting'}
+            done={stage === 'waiting' || stage === 'confirmed'}
+            active={stage === 'arrived'}
             label={
-              stage === 'waiting' ? '러너 확인 대기 중...'
-              : stage === 'confirmed' ? '양측 인계 확인 완료 — 러닝이 시작돼요'
+              stage === 'waiting' || stage === 'confirmed' ? '내 인계 확인 완료'
               : `${dog.name} 인계 확인 (양측 모두 확인해야 시작돼요)`
             }
+          />
+          <Step
+            done={peerConfirmed || stage === 'confirmed'}
+            active={!peerConfirmed && stage === 'waiting'}
+            label={peerConfirmed || stage === 'confirmed' ? '러너 인계 확인 완료' : '러너 인계 확인 대기'}
           />
         </View>
 
