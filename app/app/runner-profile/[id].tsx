@@ -4,7 +4,7 @@ import { Alert, Dimensions, Image, Pressable, ScrollView, StyleSheet, Text, View
 import { Avatar, Row } from '../../src/components/ui';
 import { checkSlot, deleteRunnerPhoto, fetchRunnerProfile, RunnerPublicProfile, uploadRunnerPhoto } from '../../src/lib/api';
 import { supabase } from '../../src/lib/supabase';
-import { draft } from '../../src/store';
+import { draft, session } from '../../src/store';
 import { colors } from '../../src/theme';
 
 // 러너 공개 프로필 — 풀블리드(인스타 스타일) 스토어프런트.
@@ -47,6 +47,11 @@ export default function RunnerProfileScreen() {
   }, [id]);
 
   const avail = p ? availabilitySummary(p.availability) : [];
+
+  // 역할 기반 모드 분리 — 편집은 러너 모드 + 본인, 예약은 보호자 모드에서만.
+  // (솔로 계정에서 두 모드가 겹쳐 보이던 혼선 수정, 2026-07-23)
+  const canEdit = isMe && session.role === 'runner';
+  const canBook = session.role === 'owner';
 
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => {
     const d = new Date(Date.now() + i * 86400_000);
@@ -180,23 +185,23 @@ export default function RunnerProfileScreen() {
               </Row>
             </View>
 
-            {/* ---------- 갤러리: 엣지-투-엣지 3열 ---------- */}
-            {(p.photos.length > 0 || isMe) && (
+            {/* ---------- 갤러리: 엣지-투-엣지 3열 (편집은 러너 모드 + 본인만) ---------- */}
+            {(p.photos.length > 0 || canEdit) && (
               <View style={{ backgroundColor: '#fff' }}>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 2 }}>
                   {p.photos.map((url) => (
-                    <Pressable key={url} onLongPress={isMe ? () => removePhoto(url) : undefined}>
+                    <Pressable key={url} onLongPress={canEdit ? () => removePhoto(url) : undefined}>
                       <Image source={{ uri: url }} style={{ width: TILE, height: TILE, backgroundColor: '#e2e0d4' }} />
                     </Pressable>
                   ))}
-                  {isMe && (
+                  {canEdit && (
                     <Pressable onPress={addPhoto} disabled={uploadingPhoto} style={s.addTile}>
                       <Text style={{ fontSize: 22, color: '#5a7a3c' }}>{uploadingPhoto ? '…' : '＋'}</Text>
                       <Text style={{ fontSize: 9.5, color: colors.dim, marginTop: 2 }}>사진 추가</Text>
                     </Pressable>
                   )}
                 </View>
-                {isMe && p.photos.length > 0 && (
+                {canEdit && p.photos.length > 0 && (
                   <Text style={{ fontSize: 10, color: colors.dim, padding: 8, textAlign: 'center' }}>길게 눌러 삭제</Text>
                 )}
               </View>
@@ -222,6 +227,15 @@ export default function RunnerProfileScreen() {
               <Text style={s.sectionTitle}>러닝 가능 시간</Text>
               {avail.length === 0 ? (
                 <Text style={{ fontSize: 12.5, color: colors.dim }}>가용 시간 미설정 — 오픈 매칭으로만 예약할 수 있어요</Text>
+              ) : !canBook ? (
+                <>
+                  {avail.map((line) => (
+                    <Text key={line} style={{ fontSize: 13, color: '#3d453d', lineHeight: 21 }}>{line}</Text>
+                  ))}
+                  <Text style={{ fontSize: 10.5, color: colors.dim, marginTop: 8 }}>
+                    보호자에게는 여기가 시간대 선택 그리드로 보여요 — 예약은 보호자 모드에서
+                  </Text>
+                </>
               ) : (
                 <>
                   <Text style={{ fontSize: 12, color: colors.dim, marginBottom: 10 }}>{avail.join(' · ')}</Text>
@@ -297,9 +311,9 @@ export default function RunnerProfileScreen() {
               ))}
             </View>
 
-            {/* ---------- CTA ---------- */}
+            {/* ---------- CTA (보호자 모드만) ---------- */}
             <View style={{ paddingHorizontal: 20 }}>
-              {!isMe ? (
+              {canBook ? (
                 <>
                   <Pressable
                     style={s.cta}
@@ -321,7 +335,7 @@ export default function RunnerProfileScreen() {
                 </>
               ) : (
                 <Text style={{ fontSize: 11.5, color: colors.dim, textAlign: 'center', marginTop: 14 }}>
-                  내 공개 프로필 미리보기 — 보호자에게 이렇게 보여요
+                  {isMe ? '내 공개 프로필 — 사진은 여기서, 소개는 마이 > 프로필 설정에서 편집해요' : '예약은 보호자 모드에서 가능해요'}
                 </Text>
               )}
             </View>
@@ -330,7 +344,7 @@ export default function RunnerProfileScreen() {
       </ScrollView>
 
       {/* ---------- 슬롯 확인 바 — 결제 바와 같은 확인 패턴 ---------- */}
-      {selected && p && (
+      {selected && p && canBook && (
         <View style={s.confirmBar}>
           <View style={{ flex: 1 }}>
             <Text style={{ fontSize: 13, fontWeight: '900', color: '#fff' }}>

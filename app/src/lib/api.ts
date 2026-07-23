@@ -450,6 +450,24 @@ export async function checkSlot(runnerId: string, startIso: string, endIso: stri
   return !!data;
 }
 
+// 러너 홈 상태 — 실누적/온라인 (드랍 트레일·온라인 토글의 진실)
+export interface MyRunnerStatus { totalRuns: number; totalKm: number; online: boolean }
+
+export async function fetchMyRunnerStatus(): Promise<MyRunnerStatus> {
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) return { totalRuns: 0, totalKm: 0, online: false };
+  const { data } = await supabase.from('runners')
+    .select('total_runs, total_km, online').eq('profile_id', user.user.id).maybeSingle();
+  return { totalRuns: data?.total_runs ?? 0, totalKm: Number(data?.total_km ?? 0), online: !!data?.online };
+}
+
+export async function setRunnerOnline(online: boolean): Promise<void> {
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) throw new Error('not signed in');
+  const { error } = await supabase.from('runners').update({ online }).eq('profile_id', user.user.id);
+  if (error) throw error;
+}
+
 export async function fetchMyRunnerBio(): Promise<string | null> {
   const { data: user } = await supabase.auth.getUser();
   if (!user.user) return null;
