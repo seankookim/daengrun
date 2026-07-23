@@ -1,5 +1,4 @@
 import { router, useFocusEffect } from 'expo-router';
-import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useAuth } from '../src/auth-context';
@@ -34,6 +33,15 @@ export default function My() {
   };
 
   const pickPhoto = async () => {
+    // 지연 로드 — 네이티브 모듈이 없는 빌드(구 dev build/Expo Go)에서 앱 전체가 죽지 않게.
+    // 상단 import는 라우터의 라우트 스캔 단계에서 앱을 통째로 크래시시킨다 (2026-07-23).
+    let ImagePicker: any;
+    try {
+      ImagePicker = require('expo-image-picker');
+    } catch {
+      Alert.alert('개발 빌드 업데이트 필요', '프로필 사진 기능은 새 빌드에 포함돼요\n터미널에서: npx expo run:ios');
+      return;
+    }
     try {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!perm.granted) { Alert.alert('사진 접근 권한이 필요해요'); return; }
