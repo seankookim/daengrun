@@ -30,7 +30,13 @@
     "scheme": "daengrun",
     "plugins": [
       "expo-router",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "프로필 사진을 설정하기 위해 사진 보관함에 접근해요."
+        }
+      ]
     ]
   }
 }
