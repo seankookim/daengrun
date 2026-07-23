@@ -40,7 +40,7 @@ export default function Schedule() {
   const [liveBookings, setLiveBookings] = useState<Booking[]>([]);
 
   useFocusEffect(useCallback(() => {
-    fetchMyBookings().then(setLiveBookings).catch(() => {});
+    fetchMyBookings().then(setLiveBookings).catch((e) => console.warn('[schedule] bookings:', e?.message ?? e));
   }, []));
 
   const all = liveBookings; // 데모 예약 제거 — 실예약만
@@ -62,7 +62,16 @@ export default function Schedule() {
   const close = () => setSelected(null);
 
   const route = selected ? sampleRoutes.find((r) => r.id === selected.routeId) : undefined;
-  const runner = selected ? runners.find((r) => r.id === selected.runnerId) : undefined;
+  // live 예약은 실러너 이름으로 뷰 구성 — 목업 프로필 조회 금지
+  const mockRunner = selected && !selected.live ? runners.find((r) => r.id === selected.runnerId) : undefined;
+  const runner = selected
+    ? mockRunner ?? {
+        id: 'live', name: selected.runnerName, char: selected.runnerName[0] ?? '러', color: '#5a7a3c',
+        rating: null as number | null, reviews: null as number | null, runs: null as number | null,
+        pace: null as string | null, badges: ['신원인증'], desc: null as string | null,
+        distanceKm: 0,
+      }
+    : undefined;
   const runMin = selected ? selected.km * paceMin(selected.paceLabel) : 0;
   const fee = selected ? Math.round(selected.price * cancelPolicy.feeRate) : 0;
 
@@ -237,7 +246,9 @@ export default function Schedule() {
                           ))}
                         </Row>
                         <Text style={{ fontSize: 11.5, color: colors.dim, marginTop: 3 }}>
-                          ★ {runner.rating} ({runner.reviews}) · 러닝 {runner.runs}회 · 평균 {runner.pace}
+                          {runner.rating != null
+                            ? `★ ${runner.rating} (${runner.reviews}) · 러닝 ${runner.runs}회 · 평균 ${runner.pace}`
+                            : '실러너 · 상세 프로필 준비 중'}
                         </Text>
                       </View>
                       <Pressable style={s.chatChip} onPress={() => { close(); router.push('/chat'); }}>

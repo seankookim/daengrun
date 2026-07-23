@@ -37,7 +37,7 @@ export default function OwnerHome() {
   useFocusEffect(useCallback(() => {
     fetchMyBookings()
       .then((bs) => setLiveNext(bs.find((b) => b.status === 'pending' || b.status === 'confirmed' || b.status === 'active') ?? null))
-      .catch(() => {});
+      .catch((e) => console.warn('[home] bookings:', e?.message ?? e));
   }, []));
 
   // reward pulse — dopamine beacon for unclaimed rewards

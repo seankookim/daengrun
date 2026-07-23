@@ -21,7 +21,7 @@ export default function Earnings() {
   const [ledger, setLedger] = useState<LiveLedgerItem[]>([]);
 
   useFocusEffect(useCallback(() => {
-    fetchLedger().then(setLedger).catch(() => {});
+    fetchLedger().then(setLedger).catch((e) => console.warn('[earnings] ledger:', e?.message ?? e));
   }, []));
 
   const pendingSum = ledger.reduce((sum, l) => sum + l.net, 0);

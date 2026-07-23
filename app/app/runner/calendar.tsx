@@ -31,7 +31,7 @@ export default function RunnerCalendar() {
   const [jobs, setJobs] = useState<RunnerJob[]>([]);
 
   useFocusEffect(useCallback(() => {
-    fetchRunnerJobs().then(setJobs).catch(() => {});
+    fetchRunnerJobs().then(setJobs).catch((e) => console.warn('[calendar] jobs:', e?.message ?? e));
   }, []));
 
   const openJob = (j: RunnerJob) => {

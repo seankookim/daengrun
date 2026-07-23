@@ -13,9 +13,9 @@ export default function RunnerHome() {
   const [stats, setStats] = useState<RunnerWeekStats>({ net: 0, runs: 0, km: 0 });
 
   useFocusEffect(useCallback(() => {
-    fetchRunnerInbox().then(setInbox).catch(() => {});
+    fetchRunnerInbox().then(setInbox).catch((e) => console.warn('[rhome] inbox:', e?.message ?? e));
     fetchMyName().then(setName).catch(() => {});
-    fetchRunnerWeekStats().then(setStats).catch(() => {});
+    fetchRunnerWeekStats().then(setStats).catch((e) => console.warn('[rhome] stats:', e?.message ?? e));
   }, []));
 
   return (

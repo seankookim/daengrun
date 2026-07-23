@@ -19,7 +19,7 @@ export default function Matching() {
   const [nominating, setNominating] = useState<string | null>(null);
 
   useEffect(() => {
-    if (live) fetchCertifiedRunners().then(setLiveRunners).catch(() => {});
+    if (live) fetchCertifiedRunners().then(setLiveRunners).catch((e) => console.warn('[matching] runners:', e?.message ?? e));
   }, [live]);
 
   const nominate = async (r: LiveRunner) => {
@@ -61,20 +61,6 @@ export default function Matching() {
         {live ? '러너를 지명하거나, 오픈 매칭으로 응답을 기다릴 수 있어요' : '보호자님과 러너의 선호도를 종합 분석했어요'}
       </Text>
 
-      {/* 데모 매칭 UI — 실예약(지명 가능) 시 숨김 */}
-      {!live && (<>
-      {/* AI banner */}
-      <View style={s.aiBanner}>
-        <View style={{ flex: 1 }}>
-          <Row style={{ gap: 6 }}>
-            <Text style={{ fontSize: 13, color: colors.volt }}>✿</Text>
-            <Text style={{ fontSize: 14, fontWeight: '900', color: colors.volt }}>AI 추천 · 매칭 확신도 {recommended.match!.total}%</Text>
-          </Row>
-          <Text style={{ fontSize: 12, color: '#b8c4ae', marginTop: 3 }}>반려견 초코와 가장 잘 맞는 러너예요</Text>
-        </View>
-        <View style={s.aiChip}><Text style={{ fontSize: 11, fontWeight: '700', color: '#e8efe0' }}>추천 기준 ▾</Text></View>
-      </View>
-
       {/* ---------- 실시간 가능 러너 (지명 요청) ---------- */}
       {live && liveRunners.length > 0 && (
         <View style={{ marginTop: 12 }}>
@@ -110,10 +96,24 @@ export default function Matching() {
             </View>
           ))}
           <Text style={{ fontSize: 11, color: colors.dim, marginTop: 4, marginBottom: 8 }}>
-            지명 없이 두면 오픈 매칭으로 모든 러너에게 보여요 · 아래 카드는 데모
+            지명 없이 두면 오픈 매칭으로 모든 러너에게 보여요
           </Text>
         </View>
       )}
+
+      {/* 데모 매칭 UI — 실예약(지명 가능) 시 숨김 */}
+      {!live && (<>
+      {/* AI banner */}
+      <View style={s.aiBanner}>
+        <View style={{ flex: 1 }}>
+          <Row style={{ gap: 6 }}>
+            <Text style={{ fontSize: 13, color: colors.volt }}>✿</Text>
+            <Text style={{ fontSize: 14, fontWeight: '900', color: colors.volt }}>AI 추천 · 매칭 확신도 {recommended.match!.total}%</Text>
+          </Row>
+          <Text style={{ fontSize: 12, color: '#b8c4ae', marginTop: 3 }}>반려견 초코와 가장 잘 맞는 러너예요</Text>
+        </View>
+        <View style={s.aiChip}><Text style={{ fontSize: 11, fontWeight: '700', color: '#e8efe0' }}>추천 기준 ▾</Text></View>
+      </View>
 
       {/* 1순위 card */}
       <Pressable onPress={() => pick(recommended.id)}>

@@ -15,7 +15,7 @@ export default function Requests() {
   const [live, setLive] = useState<OpenRequest[]>([]);
   const [accepting, setAccepting] = useState<string | null>(null);
 
-  const load = () => fetchRunnerInbox().then(setLive).catch(() => {});
+  const load = () => fetchRunnerInbox().then(setLive).catch((e) => console.warn('[requests] inbox:', e?.message ?? e));
   // 화면에 돌아올 때마다 갱신 — 수락/완료된 요청 카드가 남지 않게
   useFocusEffect(useCallback(() => { load(); }, []));
 
@@ -72,9 +72,12 @@ export default function Requests() {
                   {req.when} · {req.km}km · {req.paceLabel}
                 </Text>
               </View>
-              <Text style={{ fontSize: 16, fontWeight: '900', color: '#5a7a3c', alignSelf: 'center' }}>
-                +{req.payout.toLocaleString()}
-              </Text>
+              <View style={{ alignItems: 'flex-end', alignSelf: 'center' }}>
+                <Text style={{ fontSize: 16, fontWeight: '900', color: '#5a7a3c' }}>
+                  +{req.payout.toLocaleString()}
+                </Text>
+                <Text style={{ fontSize: 9, color: colors.dim, marginTop: 1 }}>수수료 20% 제외</Text>
+              </View>
             </Row>
             {req.memo && (
               <View style={s.memo}>

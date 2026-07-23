@@ -449,7 +449,7 @@ export async function markAllNotificationsRead(): Promise<void> {
 export async function fetchMyBookings(): Promise<Booking[]> {
   const { data, error } = await supabase
     .from('bookings')
-    .select('id, scheduled_at, km, pace_label, total_price, status, runner_id, routes(name), dogs(name)')
+    .select('id, scheduled_at, km, pace_label, total_price, status, runner_id, routes(name), dogs(name), runners(profiles(name))')
     .order('scheduled_at', { ascending: false })
     .limit(20);
   if (error) throw error;
@@ -463,8 +463,8 @@ export async function fetchMyBookings(): Promise<Booking[]> {
       dateLabel,
       timeLabel,
       dogName: r.dogs?.name ?? '반려견',
-      runnerId: 'minjun', // 러너 확정 전 placeholder (sheet는 matched 전 게이트됨)
-      runnerName: r.runner_id ? '러너' : '매칭 중',
+      runnerId: 'minjun', // sheet mock-lookup용 (live는 sheet에서 별도 처리)
+      runnerName: r.runner_id ? (r.runners?.profiles?.name ?? '러너') : '매칭 중',
       routeId: mockTwin?.id ?? 'seoulforest-loop',
       routeName,
       km: Number(r.km),
