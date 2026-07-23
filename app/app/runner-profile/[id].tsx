@@ -37,6 +37,8 @@ export default function RunnerProfileScreen() {
   const [dayIdx, setDayIdx] = useState(0);
   const [slotOk, setSlotOk] = useState<Record<string, boolean | null>>({});
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  // 선택 → 하단 확인 바 → 진행 (즉시 이동 없음 — 결제 바와 같은 확인 패턴)
+  const [selected, setSelected] = useState<{ key: string; label: string; start: Date } | null>(null);
 
   useEffect(() => {
     if (!id) { setErr('러너 정보가 없어요'); return; }
@@ -85,7 +87,7 @@ export default function RunnerProfileScreen() {
     return () => { alive = false; };
   }, [p, daySlots]);
 
-  const pickSlot = (sl: { label: string; start: Date }) => {
+  const confirmSlot = (sl: { label: string; start: Date }) => {
     if (!p) return;
     draft.preferredRunnerId = p.profileId;
     draft.preferredRunnerName = p.name;
@@ -132,7 +134,7 @@ export default function RunnerProfileScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.cream }}>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 40 }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: selected ? 140 : 40 }}>
         {/* header (패딩 있는 유일한 상단 영역) */}
         <Row style={{ justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 56 }}>
           <Pressable onPress={() => router.back()} style={s.backBtn}><Text style={{ fontSize: 18 }}>‹</Text></Pressable>
@@ -225,7 +227,7 @@ export default function RunnerProfileScreen() {
                   <Text style={{ fontSize: 12, color: colors.dim, marginBottom: 10 }}>{avail.join(' · ')}</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
                     {days.map((d, i) => (
-                      <Pressable key={d.date.toISOString()} onPress={() => setDayIdx(i)} style={[s.dayChip, dayIdx === i && { backgroundColor: FOREST }]}>
+                      <Pressable key={d.date.toISOString()} onPress={() => { setDayIdx(i); setSelected(null); }} style={[s.dayChip, dayIdx === i && { backgroundColor: FOREST }]}>
                         <Text style={{ fontSize: 9.5, color: dayIdx === i ? '#b8c4ae' : colors.dim }}>{d.w}</Text>
                         <Text style={{ fontSize: 15, fontWeight: '900', color: dayIdx === i ? '#fff' : FOREST }}>{d.d}</Text>
                         {d.label && <Text style={{ fontSize: 8, fontWeight: '700', color: dayIdx === i ? colors.volt : '#5a7a3c' }}>{d.label}</Text>}
@@ -238,16 +240,22 @@ export default function RunnerProfileScreen() {
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
                       {daySlots.map((sl) => {
                         const ok = slotOk[sl.key];
+                        const sel = selected?.key === sl.key;
                         return (
                           <Pressable
                             key={sl.key}
                             disabled={ok === false}
-                            onPress={() => pickSlot(sl)}
-                            style={[s.slotChip, ok === false && { opacity: 0.35 }, ok === null && { opacity: 0.6 }]}
+                            onPress={() => setSelected(sel ? null : sl)}
+                            style={[
+                              s.slotChip,
+                              ok === false && { opacity: 0.35 },
+                              ok === null && { opacity: 0.6 },
+                              sel && { backgroundColor: FOREST, borderColor: FOREST },
+                            ]}
                           >
-                            <Text style={{ fontSize: 13, fontWeight: '800', color: FOREST }}>{sl.label}</Text>
-                            <Text style={{ fontSize: 8.5, color: ok === false ? '#d84a2f' : ok === null ? colors.dim : '#5a7a3c', marginTop: 1 }}>
-                              {ok === false ? '마감' : ok === null ? '확인 중' : '가능'}
+                            <Text style={{ fontSize: 13, fontWeight: '800', color: sel ? '#fff' : FOREST }}>{sl.label}</Text>
+                            <Text style={{ fontSize: 8.5, marginTop: 1, color: sel ? colors.volt : ok === false ? '#d84a2f' : ok === null ? colors.dim : '#5a7a3c' }}>
+                              {sel ? '선택됨 ✓' : ok === false ? '마감' : ok === null ? '확인 중' : '가능'}
                             </Text>
                           </Pressable>
                         );
@@ -320,6 +328,23 @@ export default function RunnerProfileScreen() {
           </>
         )}
       </ScrollView>
+
+      {/* ---------- 슬롯 확인 바 — 결제 바와 같은 확인 패턴 ---------- */}
+      {selected && p && (
+        <View style={s.confirmBar}>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 13, fontWeight: '900', color: '#fff' }}>
+              {selected.start.getMonth() + 1}월 {selected.start.getDate()}일 ({DAY[selected.start.getDay()]}) {selected.label}
+            </Text>
+            <Text style={{ fontSize: 10.5, color: '#b8c4ae', marginTop: 2 }}>
+              {p.name} 러너 · 코스·옵션 선택으로 이어져요
+            </Text>
+          </View>
+          <Pressable onPress={() => confirmSlot(selected)} style={s.confirmBtn}>
+            <Text style={{ fontSize: 14, fontWeight: '900', color: FOREST }}>이 시간으로 ›</Text>
+          </Pressable>
+        </View>
+      )}
     </View>
   );
 }
@@ -349,6 +374,13 @@ const s = StyleSheet.create({
   addTile: { width: TILE, height: TILE, backgroundColor: '#f4f2ea', alignItems: 'center', justifyContent: 'center' },
   cta: { backgroundColor: colors.volt, borderRadius: 18, alignItems: 'center', paddingVertical: 15, marginTop: 16 },
   ghostCta: { backgroundColor: '#fff', borderRadius: 16, alignItems: 'center', paddingVertical: 13, marginTop: 8, borderWidth: 1, borderColor: '#eceadf' },
+  confirmBar: {
+    position: 'absolute', left: 0, right: 0, bottom: 0,
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: FOREST, paddingHorizontal: 20, paddingTop: 14, paddingBottom: 30,
+    borderTopLeftRadius: 24, borderTopRightRadius: 24,
+  },
+  confirmBtn: { backgroundColor: colors.volt, borderRadius: 16, paddingVertical: 13, paddingHorizontal: 16 },
   emptyBox: { margin: 20, backgroundColor: '#f4f2ea', borderRadius: 18, padding: 26, alignItems: 'center' },
   emptyText: { fontSize: 13, color: colors.dim, textAlign: 'center', lineHeight: 19 },
 });
