@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { confirmPayment, createBookingHold, ensureDog, fetchRoutes } from '../../src/lib/api';
+import { AvailRule, confirmPayment, createBookingHold, ensureDog, fetchRoutes, fetchRunnerAvailability } from '../../src/lib/api';
 import { HeatTrace } from '../../src/components/runcard';
 import { Monogram, Row } from '../../src/components/ui';
 import { AddonKey, dog, draft, fmtWon, sampleRoutes } from '../../src/store';
@@ -16,15 +16,27 @@ const DISTANCES = [3, 5, 7];
 const PACES = ["가볍게 8'+", "보통 7'", "신나게 6'"];
 const ADDON_GLYPHS: Record<string, string> = { river: '♒', homecare: '⌂', snack: '≽', snap: '▣' };
 
-const DATES = [
-  { d: '22', w: '수', label: '오늘' }, { d: '23', w: '목', label: '내일' }, { d: '24', w: '금' },
-  { d: '25', w: '토' }, { d: '26', w: '일' }, { d: '27', w: '월' }, { d: '28', w: '화' },
-];
+// 실제 오늘부터 7일 — 하드코딩 날짜 금지
+const DATES = Array.from({ length: 7 }, (_, i) => {
+  const date = new Date(Date.now() + i * 86400_000);
+  return {
+    date,
+    d: String(date.getDate()),
+    w: '일월화수목금토'[date.getDay()],
+    label: i === 0 ? '오늘' : i === 1 ? '내일' : undefined,
+  };
+});
 const SLOT_GROUPS = [
-  { name: '오전', slots: [{ t: '06:30', n: 5 }, { t: '07:30', n: 8 }, { t: '09:00', n: 3 }] },
-  { name: '오후', slots: [{ t: '13:00', n: 2 }, { t: '15:30', n: 0 }, { t: '17:00', n: 6 }] },
-  { name: '저녁', slots: [{ t: '18:30', n: 8, hot: true }, { t: '19:30', n: 4 }, { t: '21:00', n: 2, sale: true }] },
+  { name: '오전', times: ['06:30', '07:30', '09:00'] },
+  { name: '오후', times: ['13:00', '15:30', '17:00'] },
+  { name: '저녁', times: ['18:30', '19:30', '21:00'] },
 ];
+
+const toDate = (dateIdx: number, t: string): Date => {
+  const base = DATES[dateIdx].date;
+  const [h, m] = t.split(':').map(Number);
+  return new Date(base.getFullYear(), base.getMonth(), base.getDate(), h, m);
+};
 
 export default function Request() {
   const [km, setKm] = useState(draft.km);
@@ -54,6 +66,23 @@ export default function Request() {
   const [holdLive, setHoldLive] = useState<null | boolean>(null); // null=진행, true=서버 홀드, false=목업 폴백
   const [dateIdx, setDateIdx] = useState(0);
 
+  // 지명 러너 컨텍스트 — 그 러너의 가용시간 밖 슬롯은 비활성
+  const preferred = draft.preferredRunnerId;
+  const [prefRules, setPrefRules] = useState<AvailRule[] | null>(null);
+  useEffect(() => {
+    if (!preferred) { setPrefRules(null); return; }
+    fetchRunnerAvailability(preferred).then(setPrefRules).catch(() => setPrefRules(null));
+  }, [preferred]);
+
+  const slotAllowed = (di: number, t: string): boolean => {
+    const start = toDate(di, t);
+    if (start.getTime() < Date.now() + 2 * 3600_000) return false; // 최소 2시간 통보
+    if (!prefRules) return true; // 오픈 매칭 — 서버 홀드가 최종 검증
+    const wd = start.getDay();
+    const min = start.getHours() * 60 + start.getMinutes();
+    return prefRules.some((r) => r.weekday === wd && r.startMin <= min && r.endMin >= min + 60);
+  };
+
   const addonSum = addons.reduce((s2, k) => s2 + pricing.addons[k].price, 0);
   const total = pricing.baseFare + km * pricing.perKm + addonSum;
   const bestRoute = routes.reduce((a, b) => (a.fit > b.fit ? a : b));
@@ -61,10 +90,23 @@ export default function Request() {
   const toggleAddon = (k: AddonKey) =>
     setAddons((a) => (a.includes(k) ? a.filter((x) => x !== k) : [...a, k]));
 
-  const pickSlot = (t: string) => {
-    const day = DATES[dateIdx].label ?? `7월 ${DATES[dateIdx].d}일`;
+  const pickSlot = (t: string, di = dateIdx) => {
+    const when = toDate(di, t);
+    draft.scheduledAtIso = when.toISOString(); // 실제 예약 시각 — +3h 하드코드 은퇴
+    const day = DATES[di].label ?? `${when.getMonth() + 1}월 ${when.getDate()}일`;
     setTimeLabel(`${day} ${t}`);
     setSlotSheet(false);
+  };
+
+  // 가장 빠른 가능 슬롯
+  const pickEarliest = () => {
+    for (let di = 0; di < DATES.length; di++) {
+      for (const g of SLOT_GROUPS) {
+        for (const t of g.times) {
+          if (slotAllowed(di, t)) { setDateIdx(di); pickSlot(t, di); return; }
+        }
+      }
+    }
   };
 
   const pay = async () => {
@@ -79,7 +121,7 @@ export default function Request() {
       const res = await createBookingHold({
         dog_id: dogId,
         route_id: routesLive ? routeId : undefined, // 목업 코스 id는 uuid가 아님
-        scheduled_at: new Date(Date.now() + 3 * 3600_000).toISOString(), // TODO: timeLabel → 실제 시각
+        scheduled_at: draft.scheduledAtIso ?? new Date(Date.now() + 3 * 3600_000).toISOString(), // 슬롯 미선택 시에만 +3h
         km,
         pace_label: pace,
         addons,
@@ -114,7 +156,9 @@ export default function Request() {
             <Text style={{ fontSize: 24, fontWeight: '900', color: FOREST }}>러닝 요청</Text>
           </View>
           <View style={s.livePill}>
-            <Text style={{ fontSize: 11, fontWeight: '800', color: '#4a6d1f' }}>● LIVE 러너 12명</Text>
+            <Text style={{ fontSize: 11, fontWeight: '800', color: '#4a6d1f' }}>
+              {preferred ? `★ ${draft.preferredRunnerName ?? '지명'} 러너` : '● 안심 결제'}
+            </Text>
           </View>
         </Row>
         <Text style={{ fontSize: 12.5, color: '#5d655d', marginTop: 6 }}>
@@ -271,12 +315,17 @@ export default function Request() {
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
           <Text style={{ fontSize: 17, fontWeight: '900', color: FOREST }}>언제 달릴까요?</Text>
+          {preferred && (
+            <Text style={{ fontSize: 11, color: '#5a7a3c', marginTop: 4, fontWeight: '700' }}>
+              ★ {draft.preferredRunnerName ?? '지명'} 러너의 가능 시간만 선택할 수 있어요
+            </Text>
+          )}
 
           <Row style={{ gap: 8, marginTop: 12 }}>
             <View style={[s.methodChip, { backgroundColor: FOREST }]}>
               <Text style={{ fontSize: 11.5, fontWeight: '800', color: '#fff' }}>날짜·시간 선택</Text>
             </View>
-            <Pressable style={s.methodChip} onPress={() => pickSlot('18:30')}>
+            <Pressable style={s.methodChip} onPress={pickEarliest}>
               <Text style={{ fontSize: 11.5, fontWeight: '700', color: '#3d453d' }}>가장 빠른 시간</Text>
             </Pressable>
             <View style={[s.methodChip, { opacity: 0.45 }]}>
@@ -287,7 +336,7 @@ export default function Request() {
           {/* date strip */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 16 }} contentContainerStyle={{ gap: 8 }}>
             {DATES.map((d, i) => (
-              <Pressable key={d.d} onPress={() => setDateIdx(i)} style={[s.dateChip, dateIdx === i && { backgroundColor: FOREST }]}>
+              <Pressable key={d.date.toISOString()} onPress={() => setDateIdx(i)} style={[s.dateChip, dateIdx === i && { backgroundColor: FOREST }]}>
                 <Text style={{ fontSize: 10, color: dateIdx === i ? '#b8c4ae' : colors.dim }}>{d.w}</Text>
                 <Text style={{ fontSize: 16, fontWeight: '900', color: dateIdx === i ? '#fff' : FOREST }}>{d.d}</Text>
                 {d.label && <Text style={{ fontSize: 8.5, fontWeight: '700', color: dateIdx === i ? colors.volt : '#5a7a3c' }}>{d.label}</Text>}
@@ -295,27 +344,25 @@ export default function Request() {
             ))}
           </ScrollView>
 
-          {/* slot groups */}
+          {/* slot groups — 지명 러너면 가용시간 밖 비활성, 과거/2시간 내 비활성 */}
           <ScrollView style={{ marginTop: 6, maxHeight: 300 }}>
             {SLOT_GROUPS.map((g) => (
               <View key={g.name} style={{ marginTop: 12 }}>
                 <Text style={{ fontSize: 12.5, fontWeight: '800', color: '#5d655d' }}>{g.name}</Text>
                 <Row style={{ gap: 8, marginTop: 8 }}>
-                  {g.slots.map((slot) => {
-                    const disabled = slot.n === 0;
+                  {g.times.map((t) => {
+                    const ok = slotAllowed(dateIdx, t);
                     return (
                       <Pressable
-                        key={slot.t}
-                        disabled={disabled}
-                        onPress={() => pickSlot(slot.t)}
-                        style={[s.slot, disabled && { opacity: 0.35 }]}
+                        key={t}
+                        disabled={!ok}
+                        onPress={() => pickSlot(t)}
+                        style={[s.slot, !ok && { opacity: 0.35 }]}
                       >
-                        <Text style={{ fontSize: 14, fontWeight: '800', color: FOREST }}>{slot.t}</Text>
-                        <Text style={{ fontSize: 9.5, color: disabled ? colors.dim : '#5a7a3c', marginTop: 2 }}>
-                          {disabled ? '마감' : `러너 ${slot.n}명`}
+                        <Text style={{ fontSize: 14, fontWeight: '800', color: FOREST }}>{t}</Text>
+                        <Text style={{ fontSize: 9.5, color: ok ? '#5a7a3c' : colors.dim, marginTop: 2 }}>
+                          {ok ? '가능' : prefRules ? '러너 불가' : '마감'}
                         </Text>
-                        {slot.hot && <View style={s.hotPill}><Text style={{ fontSize: 8, fontWeight: '900', color: '#d84a2f' }}>인기</Text></View>}
-                        {slot.sale && <View style={[s.hotPill, { backgroundColor: '#e3f0c4' }]}><Text style={{ fontSize: 8, fontWeight: '900', color: '#4a6d1f' }}>-2,000</Text></View>}
                       </Pressable>
                     );
                   })}

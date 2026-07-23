@@ -407,6 +407,49 @@ export async function updateMyProfile(p: { name?: string; district?: string }): 
   if (error) throw error;
 }
 
+// ---------- 가용시간 (availability) ----------
+export interface AvailRule { weekday: number; startMin: number; endMin: number }
+
+export async function fetchRunnerAvailability(runnerId: string): Promise<AvailRule[]> {
+  const { data, error } = await supabase
+    .from('runner_availability_rules')
+    .select('weekday, start_min, end_min')
+    .eq('runner_id', runnerId)
+    .order('weekday');
+  if (error) throw error;
+  return (data ?? []).map((r: any) => ({ weekday: r.weekday, startMin: r.start_min, endMin: r.end_min }));
+}
+
+export async function fetchMyAvailability(): Promise<AvailRule[]> {
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) return [];
+  return fetchRunnerAvailability(user.user.id);
+}
+
+// 전체 교체 저장 — 요일당 1구간 (다구간은 v2)
+export async function saveMyAvailability(rules: AvailRule[]): Promise<void> {
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) throw new Error('not signed in');
+  const uid = user.user.id;
+  const del = await supabase.from('runner_availability_rules').delete().eq('runner_id', uid);
+  if (del.error) throw del.error;
+  if (rules.length > 0) {
+    const ins = await supabase.from('runner_availability_rules').insert(
+      rules.map((r) => ({ runner_id: uid, weekday: r.weekday, start_min: r.startMin, end_min: r.endMin })),
+    );
+    if (ins.error) throw ins.error;
+  }
+}
+
+// 슬롯 충돌 검사 — 서버 함수(규칙+확정예약+홀드+휴식버퍼)가 판정
+export async function checkSlot(runnerId: string, startIso: string, endIso: string): Promise<boolean> {
+  const { data, error } = await supabase.rpc('is_slot_available', {
+    p_runner: runnerId, p_start: startIso, p_end: endIso,
+  });
+  if (error) throw error;
+  return !!data;
+}
+
 export async function fetchMyRunnerBio(): Promise<string | null> {
   const { data: user } = await supabase.auth.getUser();
   if (!user.user) return null;

@@ -1,8 +1,8 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Avatar, Row } from '../../src/components/ui';
-import { fetchRunnerProfile, RunnerPublicProfile } from '../../src/lib/api';
+import { checkSlot, fetchRunnerProfile, RunnerPublicProfile } from '../../src/lib/api';
 import { supabase } from '../../src/lib/supabase';
 import { draft } from '../../src/store';
 import { colors } from '../../src/theme';
@@ -32,6 +32,9 @@ export default function RunnerProfileScreen() {
   const [p, setP] = useState<RunnerPublicProfile | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [isMe, setIsMe] = useState(false);
+  const [dayIdx, setDayIdx] = useState(0);
+  // 슬롯별 가능 여부 — 서버 is_slot_available (규칙+예약충돌+휴식버퍼)
+  const [slotOk, setSlotOk] = useState<Record<string, boolean | null>>({});
 
   useEffect(() => {
     if (!id) { setErr('러너 정보가 없어요'); return; }
@@ -40,6 +43,58 @@ export default function RunnerProfileScreen() {
   }, [id]);
 
   const avail = p ? availabilitySummary(p.availability) : [];
+
+  // 다음 7일 날짜 스트립
+  const days = useMemo(() => Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(Date.now() + i * 86400_000);
+    return { date: d, label: i === 0 ? '오늘' : i === 1 ? '내일' : undefined, d: d.getDate(), w: DAY[d.getDay()] };
+  }), []);
+
+  // 선택한 날의 슬롯 후보 — 요일 규칙에서 60분 단위 생성, 오늘은 2시간 전 통보 반영
+  const daySlots = useMemo(() => {
+    if (!p) return [] as { key: string; label: string; start: Date }[];
+    const day = days[dayIdx];
+    const wd = day.date.getDay();
+    const rules = p.availability.filter((r) => r.weekday === wd);
+    const out: { key: string; label: string; start: Date }[] = [];
+    const minStart = Date.now() + 2 * 3600_000;
+    rules.forEach((r) => {
+      for (let m = r.startMin; m + 60 <= r.endMin; m += 60) {
+        const start = new Date(day.date.getFullYear(), day.date.getMonth(), day.date.getDate(), Math.floor(m / 60), m % 60);
+        if (start.getTime() < minStart) continue;
+        out.push({ key: start.toISOString(), label: fmtMin(m), start });
+      }
+    });
+    return out;
+  }, [p, dayIdx, days]);
+
+  // 선택한 날의 슬롯 충돌 검사 (병렬)
+  useEffect(() => {
+    if (!p || daySlots.length === 0) return;
+    let alive = true;
+    setSlotOk((prev) => {
+      const next = { ...prev };
+      daySlots.forEach((sl) => { if (!(sl.key in next)) next[sl.key] = null; });
+      return next;
+    });
+    daySlots.forEach((sl) => {
+      const end = new Date(sl.start.getTime() + 60 * 60_000);
+      checkSlot(p.profileId, sl.start.toISOString(), end.toISOString())
+        .then((ok) => { if (alive) setSlotOk((m) => ({ ...m, [sl.key]: ok })); })
+        .catch(() => { if (alive) setSlotOk((m) => ({ ...m, [sl.key]: true })); }); // 검사 실패 시 서버 홀드가 최종 방어
+    });
+    return () => { alive = false; };
+  }, [p, daySlots]);
+
+  const pickSlot = (sl: { label: string; start: Date }) => {
+    if (!p) return;
+    draft.preferredRunnerId = p.profileId;
+    draft.preferredRunnerName = p.name;
+    draft.scheduledAtIso = sl.start.toISOString();
+    const d = sl.start;
+    draft.timeLabel = `${d.getMonth() + 1}월 ${d.getDate()}일 (${DAY[d.getDay()]}) ${sl.label}`;
+    router.push('/owner/request');
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.cream }}>
@@ -103,19 +158,52 @@ export default function RunnerProfileScreen() {
               )}
             </View>
 
-            {/* ---------- 가능 시간 ---------- */}
+            {/* ---------- 가능 시간 + 슬롯 예약 ---------- */}
             <View style={s.card}>
               <Text style={s.cardTitle}>러닝 가능 시간</Text>
               {avail.length === 0 ? (
-                <Text style={{ fontSize: 12.5, color: colors.dim }}>가용 시간 미설정</Text>
+                <Text style={{ fontSize: 12.5, color: colors.dim }}>가용 시간 미설정 — 오픈 매칭으로만 예약할 수 있어요</Text>
               ) : (
-                avail.map((line) => (
-                  <Text key={line} style={{ fontSize: 13, color: '#3d453d', lineHeight: 21 }}>{line}</Text>
-                ))
+                <>
+                  <Text style={{ fontSize: 12, color: colors.dim, marginBottom: 8 }}>{avail.join(' · ')}</Text>
+                  {/* day strip */}
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                    {days.map((d, i) => (
+                      <Pressable key={d.date.toISOString()} onPress={() => setDayIdx(i)} style={[s.dayChip, dayIdx === i && { backgroundColor: FOREST }]}>
+                        <Text style={{ fontSize: 9.5, color: dayIdx === i ? '#b8c4ae' : colors.dim }}>{d.w}</Text>
+                        <Text style={{ fontSize: 15, fontWeight: '900', color: dayIdx === i ? '#fff' : FOREST }}>{d.d}</Text>
+                        {d.label && <Text style={{ fontSize: 8, fontWeight: '700', color: dayIdx === i ? colors.volt : '#5a7a3c' }}>{d.label}</Text>}
+                      </Pressable>
+                    ))}
+                  </ScrollView>
+                  {/* slot grid — 서버 충돌검사 반영 */}
+                  {daySlots.length === 0 ? (
+                    <Text style={{ fontSize: 12, color: colors.dim, marginTop: 12 }}>이 날은 가능한 시간이 없어요</Text>
+                  ) : (
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
+                      {daySlots.map((sl) => {
+                        const ok = slotOk[sl.key];
+                        return (
+                          <Pressable
+                            key={sl.key}
+                            disabled={isMe || ok === false}
+                            onPress={() => pickSlot(sl)}
+                            style={[s.slotChip, ok === false && { opacity: 0.35 }, ok === null && { opacity: 0.6 }]}
+                          >
+                            <Text style={{ fontSize: 13, fontWeight: '800', color: FOREST }}>{sl.label}</Text>
+                            <Text style={{ fontSize: 8.5, color: ok === false ? '#d84a2f' : ok === null ? colors.dim : '#5a7a3c', marginTop: 1 }}>
+                              {ok === false ? '마감' : ok === null ? '확인 중' : '가능'}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  )}
+                  <Text style={{ fontSize: 10.5, color: colors.dim, marginTop: 10 }}>
+                    {isMe ? '보호자는 여기서 시간을 골라 바로 예약해요' : '시간을 고르면 코스·옵션 선택으로 이어져요'}
+                  </Text>
+                </>
               )}
-              <Text style={{ fontSize: 10.5, color: colors.dim, marginTop: 6 }}>
-                시간대별 예약 선택은 곧 이 화면에서 바로 가능해져요
-              </Text>
             </View>
 
             {/* ---------- 후기 ---------- */}
@@ -153,6 +241,7 @@ export default function RunnerProfileScreen() {
                   style={s.cta}
                   onPress={() => {
                     draft.preferredRunnerId = p.profileId;
+                    draft.preferredRunnerName = p.name;
                     router.push('/owner/request');
                   }}
                 >
@@ -198,6 +287,8 @@ const s = StyleSheet.create({
   cardTitle: { fontSize: 13.5, fontWeight: '900', color: FOREST, marginBottom: 8 },
   specChip: { backgroundColor: '#eef4e0', borderRadius: 99, paddingVertical: 4, paddingHorizontal: 10 },
   reviewRow: { paddingVertical: 10 },
+  dayChip: { width: 46, borderRadius: 13, backgroundColor: '#f4f2ea', alignItems: 'center', paddingVertical: 8, gap: 1 },
+  slotChip: { width: '22.5%', backgroundColor: '#f7f9f0', borderRadius: 12, borderWidth: 1, borderColor: '#dde8c4', alignItems: 'center', paddingVertical: 9 },
   cta: { backgroundColor: colors.volt, borderRadius: 18, alignItems: 'center', paddingVertical: 15, marginTop: 16 },
   ghostCta: { backgroundColor: '#fff', borderRadius: 16, alignItems: 'center', paddingVertical: 13, marginTop: 8, borderWidth: 1, borderColor: '#eceadf' },
   emptyBox: { marginTop: 24, backgroundColor: '#f4f2ea', borderRadius: 18, padding: 26, alignItems: 'center' },

@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Avatar, Monogram, Row } from '../../src/components/ui';
 import { fetchCertifiedRunners, LiveRunner, requestRunner } from '../../src/lib/api';
@@ -37,6 +37,26 @@ export default function Matching() {
 
   useEffect(() => {
     if (live) fetchCertifiedRunners().then(setLiveRunners).catch((e) => console.warn('[matching] runners:', e?.message ?? e));
+  }, [live]);
+
+  // 프로필→슬롯→결제로 온 경우: 이미 러너를 골랐으므로 지명을 자동 전송 (CTA 약속 이행)
+  const autoRef = useRef(false);
+  useEffect(() => {
+    const pref = draft.preferredRunnerId;
+    if (!live || !pref || !draft.bookingId || autoRef.current) return;
+    autoRef.current = true;
+    requestRunner(draft.bookingId, pref)
+      .then(() => {
+        const name = draft.preferredRunnerName ?? '선택한';
+        draft.preferredRunnerId = null;
+        draft.preferredRunnerName = null;
+        Alert.alert('지명 요청 전송', `${name} 러너에게 우선 요청을 보냈어요.\n수락하면 알림으로 알려드릴게요.`);
+        router.replace('/owner/schedule');
+      })
+      .catch((e) => {
+        autoRef.current = false; // 실패 → 수동 지명 리스트로 폴백
+        console.warn('[matching] auto-nominate:', e?.message ?? e);
+      });
   }, [live]);
 
   // 점수순 정렬 — 1위는 추천 카드, 나머지는 대안 리스트.
