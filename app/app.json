@@ -12,7 +12,8 @@
         "LSApplicationQueriesSchemes": [
           "nmap"
         ]
-      }
+      },
+      "bundleIdentifier": "com.seankookim.daengrun"
     },
     "android": {
       "adaptiveIcon": {
