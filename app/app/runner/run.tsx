@@ -2,8 +2,11 @@ import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Monogram, Row } from '../../src/components/ui';
-import { EndReason, payoutFor, runRequests, runResult } from '../../src/store';
+import { settleRun } from '../../src/lib/api';
+import { EndReason, payoutFor, runnerJob, runRequests, runResult } from '../../src/store';
 import { colors } from '../../src/theme';
+
+const REASON_MAP = { dog: 'dog_condition', owner: 'owner_request', runner: 'runner_personal' } as const;
 
 // Runner-side live run: route progress map (placeholder), camera status,
 // pinned customer chat. Real version: expo-location + react-native-maps + camera stream.
@@ -41,18 +44,40 @@ export default function ActiveRun() {
     return actual; // dog / runner: actual km
   };
 
-  const endWith = (reason: EndReason) => {
-    setEndSheet(false);
-    Object.assign(runResult, { km, sec, payout: payoutByReason(reason), completed: false, reason });
-    if (reason === 'dog') {
-      Alert.alert('컨디션 종료', '보호자에게 알림 전송됨 · 상태 사진과 메모를 남겨주세요 (목업)\n근처 동물병원: 성수동물병원 650m');
+  // 실예약이면 서버 정산 (사유별 금액·드랍은 settle-run이 계산), 아니면 로컬 계산
+  const settle = async (reason: EndReason, completed: boolean) => {
+    const localPayout = completed ? payoutFor(km) : payoutByReason(reason);
+    Object.assign(runResult, { km, sec, payout: localPayout, completed, reason });
+
+    if (runnerJob.bookingId) {
+      try {
+        const res = await settleRun({
+          booking_id: runnerJob.bookingId,
+          end_reason: completed ? 'completed' : REASON_MAP[reason as keyof typeof REASON_MAP],
+          actual_km: Number(km.toFixed(2)),
+          duration_sec: sec,
+          condition_note: reason === 'dog' ? '러너 판단: 컨디션 저하 관찰' : undefined,
+        });
+        runResult.payout = res.net; // 서버가 계산한 실지급액
+        runnerJob.bookingId = null;
+        if (res.drop) Alert.alert('드랍 도착!', res.drop === 'pick' ? '픽 드랍 — 리워드 센터에서 선택하세요' : '보급 상자가 도착했어요');
+      } catch (e) {
+        Alert.alert('정산 지연', `서버 정산 실패 — 로컬 추정치 표시\n${(e as Error).message}`);
+      }
     }
     router.replace('/runner/done');
   };
 
-  const finish = (completed: boolean) => {
-    Object.assign(runResult, { km, sec, payout: payoutFor(km), completed, reason: null });
-    router.replace('/runner/done');
+  const endWith = (reason: EndReason) => {
+    setEndSheet(false);
+    if (reason === 'dog') {
+      Alert.alert('컨디션 종료', '보호자에게 알림 전송됨 · 상태 사진과 메모를 남겨주세요\n근처 동물병원: 성수동물병원 650m');
+    }
+    settle(reason, false);
+  };
+
+  const finish = (_completed: boolean) => {
+    settle(null, true);
   };
 
   useEffect(() => {

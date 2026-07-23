@@ -1,8 +1,9 @@
 import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Monogram, Row } from '../../src/components/ui';
-import { dog, nextBooking, runners } from '../../src/store';
+import { confirmHandoff, fetchBookingStatus } from '../../src/lib/api';
+import { dog, draft, nextBooking, runners } from '../../src/store';
 import { colors } from '../../src/theme';
 
 // 보호자 인계 화면 — the owner-side mirror of runner/meetup.
@@ -15,13 +16,25 @@ export default function OwnerMeetup() {
   const runner = runners.find((r) => r.id === nextBooking.runnerId) ?? runners[0];
   const [stage, setStage] = useState<Stage>('enroute');
 
-  // mock: runner arrives after 2.5s; runner-side confirm 1.5s after owner's
+  const poll = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // enroute→arrived는 목업 타이머 (러너 GPS는 후속) · waiting은 실예약이면 서버 폴링
   useEffect(() => {
     if (stage === 'enroute') {
       const id = setTimeout(() => setStage('arrived'), 2500);
       return () => clearTimeout(id);
     }
     if (stage === 'waiting') {
+      if (draft.bookingId) {
+        const bid = draft.bookingId;
+        poll.current = setInterval(async () => {
+          try {
+            const st = await fetchBookingStatus(bid);
+            if (st === 'picked_up' || st === 'active') setStage('confirmed');
+          } catch { /* keep polling */ }
+        }, 2500);
+        return () => { if (poll.current) clearInterval(poll.current); };
+      }
       const id = setTimeout(() => setStage('confirmed'), 1500);
       return () => clearTimeout(id);
     }
@@ -30,6 +43,13 @@ export default function OwnerMeetup() {
       return () => clearTimeout(id);
     }
   }, [stage]);
+
+  const handoff = async () => {
+    if (draft.bookingId) {
+      try { await confirmHandoff(draft.bookingId); } catch { /* 폴링이 따라잡음 */ }
+    }
+    setStage('waiting');
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: '#eef2e4' }}>
@@ -102,7 +122,7 @@ export default function OwnerMeetup() {
           </View>
         )}
         {stage === 'arrived' && (
-          <Pressable style={[s.primary, { backgroundColor: colors.volt }]} onPress={() => setStage('waiting')}>
+          <Pressable style={[s.primary, { backgroundColor: colors.volt }]} onPress={handoff}>
             <Text style={[s.primaryText, { color: FOREST }]}>{dog.name}를 인계했어요</Text>
             <Text style={[s.primarySub, { color: '#5d6b4a' }]}>러너도 확인하면 러닝이 시작돼요</Text>
           </Pressable>

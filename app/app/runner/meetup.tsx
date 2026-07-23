@@ -1,8 +1,9 @@
 import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Monogram, Row } from '../../src/components/ui';
-import { runRequests } from '../../src/store';
+import { confirmHandoff, fetchBookingStatus, startRunServer } from '../../src/lib/api';
+import { runnerJob, runRequests } from '../../src/store';
 import { colors } from '../../src/theme';
 
 // 픽업 이동 & 인계 확인 — the trust-critical handoff moment.
@@ -29,14 +30,31 @@ async function openNaverRoute() {
 export default function Meetup() {
   const req = runRequests[0];
   const [stage, setStage] = useState<Stage>('enroute');
+  const poll = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // mock: owner confirms ~2s after runner arrival confirmation
+  // waiting: 실예약이면 상대 확인을 서버에서 폴링, 아니면 2초 목업
   useEffect(() => {
-    if (stage === 'waiting') {
-      const id = setTimeout(() => setStage('confirmed'), 2000);
-      return () => clearTimeout(id);
+    if (stage !== 'waiting') return;
+    if (runnerJob.bookingId) {
+      const id = runnerJob.bookingId;
+      poll.current = setInterval(async () => {
+        try {
+          const st = await fetchBookingStatus(id);
+          if (st === 'picked_up' || st === 'active') setStage('confirmed');
+        } catch { /* keep polling */ }
+      }, 2500);
+      return () => { if (poll.current) clearInterval(poll.current); };
     }
+    const t = setTimeout(() => setStage('confirmed'), 2000);
+    return () => clearTimeout(t);
   }, [stage]);
+
+  const handoff = async () => {
+    if (runnerJob.bookingId) {
+      try { await confirmHandoff(runnerJob.bookingId); } catch { /* 폴링이 상태를 따라잡음 */ }
+    }
+    setStage('waiting');
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: '#eef2e4' }}>
@@ -118,7 +136,7 @@ export default function Meetup() {
           </Pressable>
         )}
         {stage === 'arrived' && (
-          <Pressable style={s.primary} onPress={() => setStage('waiting')}>
+          <Pressable style={s.primary} onPress={handoff}>
             <Text style={s.primaryText}>{req.dogName} 인계 받았어요</Text>
             <Text style={s.primarySub}>보호자도 확인하면 러닝을 시작할 수 있어요</Text>
           </Pressable>
@@ -130,7 +148,15 @@ export default function Meetup() {
           </View>
         )}
         {stage === 'confirmed' && (
-          <Pressable style={[s.primary, { backgroundColor: colors.volt }]} onPress={() => router.replace('/runner/run')}>
+          <Pressable
+            style={[s.primary, { backgroundColor: colors.volt }]}
+            onPress={async () => {
+              if (runnerJob.bookingId) {
+                try { await startRunServer(runnerJob.bookingId); } catch { /* run 화면에서 재시도 */ }
+              }
+              router.replace('/runner/run');
+            }}
+          >
             <Text style={[s.primaryText, { color: FOREST }]}>러닝 시작하기 ›</Text>
             <Text style={[s.primarySub, { color: '#5d6b4a' }]}>인계 완료 · GPS와 바디캠이 켜져요</Text>
           </Pressable>

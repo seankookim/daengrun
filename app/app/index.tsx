@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useAuth } from '../src/auth-context';
 import { Btn } from '../src/components/ui';
+import { ensureRunner } from '../src/lib/api';
 import { supabase } from '../src/lib/supabase';
 import { session } from '../src/store';
 import { colors } from '../src/theme';
@@ -28,11 +29,16 @@ export default function RoleSelect() {
       role,
       name: auth.user.email?.split('@')[0] ?? '사용자',
     });
-    setBusy(false);
     if (error) {
+      setBusy(false);
       Alert.alert('프로필 저장 실패', error.message);
       return;
     }
+    // 러너 선택 시 runners 행 + 기본 가용시간 확보 (루프 테스트용 즉시 인증)
+    if (role === 'runner') {
+      try { await ensureRunner(); } catch (e) { console.warn('ensureRunner:', e); }
+    }
+    setBusy(false);
     session.role = role;
     router.push(role === 'owner' ? '/owner/home' : '/runner/home');
   };

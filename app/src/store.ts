@@ -4,6 +4,9 @@ import { pricing } from './theme';
 // Session role — set at role select. Later: from auth/account.
 export const session = { role: 'owner' as 'owner' | 'runner' };
 
+// 러너가 수락한 현재 작업 (실예약 컨텍스트)
+export const runnerJob = { bookingId: null as string | null };
+
 // Result of the runner's latest run (set by run screen, read by done screen).
 export type EndReason = 'dog' | 'owner' | 'runner' | null;
 export const runResult = { km: 0, sec: 0, payout: 0, completed: false, reason: null as EndReason };

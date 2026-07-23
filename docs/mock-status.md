@@ -61,6 +61,7 @@
 - **인증** — 이메일 OTP 로그인 실동작, 세션 유지, profiles upsert. (카카오: Expo Go 리다이렉트 이슈 — dev build에서 해결 예정)
 - **예약 생성 파이프라인** — 결제하기 → ensureDog → create-booking-hold (서버 가격·원자 홀드) → payment_ok → matching 상태. 홀드 모달에 "서버 홀드 확보" 표시. 실패 시 오프라인 데모 모드 폴백.
 - **내 일정 실예약 표시** — DB 예약이 LIVE 배지로 목업 위에 병합. 매칭 전 예약은 관리 시트 게이트.
+- **러너 루프 전체 (v0.17)** — 역할 선택 시 runners 행+가용시간 생성(테스트용 즉시 인증), 요청 인박스가 실 matching 예약 표시, 수락→confirmed, 양측 인계 confirm_handoff+상태 폴링→picked_up, 러닝 시작→active+runs 행, 종료→settle-run(사유별 실지급·원장·드랍 롤). **한 예약이 상태 머신 전 구간을 실주행.** 필요: `supabase db push` (0004 — 러너 인박스 가시성 정책).
 
 ## 백엔드 진행 상황
 

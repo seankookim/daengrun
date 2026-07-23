@@ -119,6 +119,103 @@ const STATUS_MAP: Record<string, BookingStatus> = {
   cancelled_runner: 'cancelled',
 };
 
+// ---------- runner side ----------
+// 러너 행 확보 — 루프 테스트용으로 즉시 'certified' (실 퍼널은 /runner/apply가 대체 예정)
+export async function ensureRunner(): Promise<void> {
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) throw new Error('not signed in');
+  const uid = user.user.id;
+
+  const { data: existing } = await supabase.from('runners').select('profile_id').eq('profile_id', uid).maybeSingle();
+  if (existing) return;
+
+  const { error } = await supabase.from('runners').insert({
+    profile_id: uid,
+    tier: 'certified',
+    funnel_step: 'certified',
+    avg_pace_sec_per_km: 420,
+    identity_verified: true, // TODO: 실 KYC 후 false 기본으로
+    online: true,
+  });
+  if (error) throw error;
+  // 기본 가용시간: 매일 06:00–22:00 (편집은 가용시간 설정 화면)
+  await supabase.from('runner_availability_rules').insert(
+    [0, 1, 2, 3, 4, 5, 6].map((wd) => ({ runner_id: uid, weekday: wd, start_min: 360, end_min: 1320 })),
+  );
+  await supabase.from('runner_booking_rules').insert({ runner_id: uid });
+}
+
+export interface OpenRequest {
+  bookingId: string;
+  dogName: string;
+  breed: string;
+  weightKg: number;
+  memo: string | null;
+  when: string;
+  km: number;
+  paceLabel: string;
+  payout: number; // 수수료 20% 제외 추정
+}
+
+export async function fetchOpenRequests(): Promise<OpenRequest[]> {
+  const { data, error } = await supabase
+    .from('bookings')
+    .select('id, scheduled_at, km, pace_label, base_fare, distance_fare, addon_fare, dogs(name, breed, weight_kg, memo)')
+    .eq('status', 'matching')
+    .is('runner_id', null)
+    .order('scheduled_at')
+    .limit(10);
+  if (error) throw error;
+  return (data ?? []).map((r: any) => {
+    const { dateLabel, timeLabel } = kstParts(r.scheduled_at);
+    return {
+      bookingId: r.id,
+      dogName: r.dogs?.name ?? '반려견',
+      breed: r.dogs?.breed ?? '',
+      weightKg: Number(r.dogs?.weight_kg ?? 0),
+      memo: r.dogs?.memo ?? null,
+      when: `${dateLabel} ${timeLabel}`,
+      km: Number(r.km),
+      paceLabel: r.pace_label ?? "보통 7'",
+      payout: Math.round((r.base_fare + r.distance_fare + r.addon_fare) * 0.8),
+    };
+  });
+}
+
+async function invokeTransition(bookingId: string, action: string): Promise<any> {
+  const { data, error } = await supabase.functions.invoke('transition-booking', {
+    body: { booking_id: bookingId, action },
+  });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
+
+export const acceptBooking = (id: string) => invokeTransition(id, 'runner_accept');
+export const confirmHandoff = (id: string) => invokeTransition(id, 'confirm_handoff');
+export const startRunServer = (id: string) => invokeTransition(id, 'start_run');
+
+export async function fetchBookingStatus(id: string): Promise<string> {
+  const { data, error } = await supabase.from('bookings').select('status').eq('id', id).single();
+  if (error) throw error;
+  return data.status;
+}
+
+export interface SettleResult { net: number; gross: number; fee: number; guarantee: number; total_runs: number; drop: string | null }
+
+export async function settleRun(p: {
+  booking_id: string;
+  end_reason: 'completed' | 'dog_condition' | 'owner_request' | 'runner_personal';
+  actual_km: number;
+  duration_sec: number;
+  condition_note?: string;
+}): Promise<SettleResult> {
+  const { data, error } = await supabase.functions.invoke('settle-run', { body: p });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data as SettleResult;
+}
+
 export async function fetchMyBookings(): Promise<Booking[]> {
   const { data, error } = await supabase
     .from('bookings')
