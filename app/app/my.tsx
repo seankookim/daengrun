@@ -1,19 +1,68 @@
-import { router } from 'expo-router';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { router, useFocusEffect } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
+import { useCallback, useState } from 'react';
+import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useAuth } from '../src/auth-context';
 import { BottomNav } from '../src/components/bottomnav';
-import { Monogram, Row } from '../src/components/ui';
+import { Avatar, Row } from '../src/components/ui';
+import { fetchMyProfile, MyProfile, updateMyProfile, uploadAvatar } from '../src/lib/api';
 import { dog, session } from '../src/store';
 import { colors } from '../src/theme';
 
-// 마이 — stub for P1 (profile setup, 예약 관리, settings come later).
-// For now: profile header + menu incl. 안심 센터 entry.
+// 마이 — 실프로필 (사진·이름·동네). 김민준은 은퇴했다.
 
 const FOREST = '#132117';
 
 export default function My() {
   const isRunner = session.role === 'runner';
   const { session: auth, signOut } = useAuth();
+  const [profile, setProfile] = useState<MyProfile | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState('');
+  const [district, setDistrict] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useFocusEffect(useCallback(() => {
+    fetchMyProfile().then(setProfile).catch((e) => console.warn('[my] profile:', e?.message ?? e));
+  }, []));
+
+  const openEdit = () => {
+    setName(profile?.name ?? '');
+    setDistrict(profile?.district ?? '');
+    setEditing(true);
+  };
+
+  const pickPhoto = async () => {
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) { Alert.alert('사진 접근 권한이 필요해요'); return; }
+      const res = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.6, base64: true,
+      });
+      if (res.canceled || !res.assets?.[0]?.base64) return;
+      setUploading(true);
+      const url = await uploadAvatar(res.assets[0].base64);
+      setProfile((p) => (p ? { ...p, avatarUrl: url } : p));
+    } catch (e) {
+      Alert.alert('업로드 실패', (e as Error).message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await updateMyProfile({ name: name.trim() || undefined, district: district.trim() || undefined });
+      setProfile((p) => (p ? { ...p, name: name.trim() || p.name, district: district.trim() || p.district } : p));
+      setEditing(false);
+    } catch (e) {
+      Alert.alert('저장 실패', (e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const MENU = [
     { glyph: '✚', label: '안심 센터', desc: 'SOS · 실시간 위치 · 보험', path: '/safety' as const },
@@ -31,24 +80,30 @@ export default function My() {
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 22, paddingTop: 64, paddingBottom: 24 }}>
         <Text style={s.h1}>마이</Text>
 
-        {/* profile header */}
+        {/* profile header — 실데이터 */}
         <View style={s.profile}>
-          <Monogram char={isRunner ? '민' : dog.name[0]} bg={isRunner ? '#FF6347' : colors.volt} size={56} />
+          <Pressable onPress={pickPhoto} disabled={uploading}>
+            <Avatar url={profile?.avatarUrl} char={(profile?.name ?? '나')[0]} bg={isRunner ? '#FF6347' : colors.volt} size={56} />
+            <View style={s.camBadge}><Text style={{ fontSize: 9, color: '#fff' }}>{uploading ? '…' : '✎'}</Text></View>
+          </Pressable>
           <View style={{ flex: 1, marginLeft: 14 }}>
             <Text style={{ fontSize: 17, fontWeight: '900', color: FOREST }}>
-              {isRunner ? '김민준 러너' : `${dog.name} 보호자님`}
+              {profile?.name ?? '...'} {isRunner ? '러너' : '보호자님'}
             </Text>
             <Text style={{ fontSize: 12, color: colors.dim, marginTop: 3 }}>
-              {isRunner ? '신원인증 · 펫보험 가입' : `${dog.name} · ${dog.breed} · 성수동`}
+              {profile?.district ? `${profile.district} · ` : ''}{isRunner ? '신원인증 · 펫보험 가입' : `${dog.name} · ${dog.breed}`}
             </Text>
           </View>
-          <Pressable style={s.editBtn} onPress={() => Alert.alert('프로필', '프로필 설정 (P1 예정)')}>
+          <Pressable style={s.editBtn} onPress={openEdit}>
             <Text style={{ fontSize: 11, fontWeight: '700', color: '#3d453d' }}>프로필 설정</Text>
           </Pressable>
         </View>
+        <Text style={{ fontSize: 10.5, color: colors.dim, marginTop: 6, marginLeft: 4 }}>
+          사진을 탭하면 프로필 사진을 바꿀 수 있어요
+        </Text>
 
         {/* menu */}
-        <View style={{ gap: 10, marginTop: 16 }}>
+        <View style={{ gap: 10, marginTop: 12 }}>
           {MENU.map((m) => (
             <Pressable
               key={m.label}
@@ -78,6 +133,41 @@ export default function My() {
         </Pressable>
       </ScrollView>
       <BottomNav />
+
+      {/* ---------- 프로필 편집 시트 ---------- */}
+      <Modal visible={editing} transparent animationType="slide" onRequestClose={() => setEditing(false)}>
+        <Pressable style={s.backdrop} onPress={() => setEditing(false)} />
+        <View style={s.sheet}>
+          <View style={s.handle} />
+          <Text style={{ fontSize: 19, fontWeight: '900', color: FOREST }}>프로필 설정</Text>
+
+          <Text style={s.fieldLabel}>이름</Text>
+          <TextInput
+            value={name}
+            onChangeText={setName}
+            placeholder="이름 또는 닉네임"
+            placeholderTextColor="#b0ada0"
+            style={s.input}
+            maxLength={20}
+          />
+          <Text style={s.fieldLabel}>활동 동네</Text>
+          <TextInput
+            value={district}
+            onChangeText={setDistrict}
+            placeholder="예: 성수동"
+            placeholderTextColor="#b0ada0"
+            style={s.input}
+            maxLength={20}
+          />
+          <Text style={{ fontSize: 10.5, color: colors.dim, marginTop: 8, lineHeight: 15 }}>
+            이름과 동네는 매칭 화면에서 상대방에게 보여요{'\n'}프로필 사진은 마이 화면에서 사진을 탭해 변경해요
+          </Text>
+
+          <Pressable onPress={save} disabled={saving} style={[s.saveBtn, saving && { opacity: 0.5 }]}>
+            <Text style={{ fontSize: 14, fontWeight: '900', color: FOREST }}>{saving ? '저장 중...' : '저장'}</Text>
+          </Pressable>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -88,6 +178,10 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff',
     borderRadius: 20, padding: 16, borderWidth: 1, borderColor: '#eceadf', marginTop: 16,
   },
+  camBadge: {
+    position: 'absolute', right: -3, bottom: -3, width: 18, height: 18, borderRadius: 9,
+    backgroundColor: '#5a7a3c', alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: '#fff',
+  },
   editBtn: { backgroundColor: '#f4f2ea', borderRadius: 99, paddingVertical: 7, paddingHorizontal: 11 },
   menuRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
@@ -95,4 +189,13 @@ const s = StyleSheet.create({
   },
   menuIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#eef4e0', alignItems: 'center', justifyContent: 'center' },
   roleSwitch: { alignItems: 'center', marginTop: 20, padding: 12 },
+  backdrop: { flex: 1, backgroundColor: '#00000055' },
+  sheet: { backgroundColor: colors.cream, borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 22, paddingBottom: 40 },
+  handle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: '#d8d5c8', marginBottom: 14 },
+  fieldLabel: { fontSize: 12, fontWeight: '800', color: '#3d453d', marginTop: 14, marginBottom: 6 },
+  input: {
+    backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: '#eceadf',
+    paddingVertical: 12, paddingHorizontal: 14, fontSize: 14.5, color: FOREST,
+  },
+  saveBtn: { backgroundColor: colors.volt, borderRadius: 16, alignItems: 'center', paddingVertical: 14, marginTop: 18 },
 });

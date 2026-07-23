@@ -6,7 +6,7 @@ import { BottomNav } from '../../src/components/bottomnav';
 import { Ring } from '../../src/components/ring';
 import { RunCard } from '../../src/components/runcard';
 import { Monogram } from '../../src/components/ui';
-import { fetchMyBookings } from '../../src/lib/api';
+import { fetchFitness, fetchMyBookings, Fitness } from '../../src/lib/api';
 import { Booking, demoImminent, dog, draft, myCards, nextBooking, ownerGearLadder, runners } from '../../src/store';
 import { colors, surfaces } from '../../src/theme';
 import { useTheme } from '../../src/theme-context';
@@ -26,8 +26,12 @@ const SCROLL_RANGE = 150;
 
 export default function OwnerHome() {
   const { mode, toggle, p } = useTheme();
-  const pct = dog.weekKm / dog.weeklyGoalKm;
-  const remaining = Math.max(dog.weeklyGoalKm - dog.weekKm, 0);
+  // 링 실데이터 — 완료 러닝 집계 (로드 전엔 0, 가짜 숫자 없음)
+  const [fit, setFit] = useState<Fitness | null>(null);
+  const weekKm = fit?.weekKm ?? 0;
+  const goalKm = fit?.goalKm ?? dog.weeklyGoalKm;
+  const fitnessAge = fit?.fitnessAge ?? null;
+  const pct = goalKm > 0 ? weekKm / goalKm : 0;
   const goalHit = pct >= 1;
   const latestCard = myCards.find((c) => c.run);
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -38,6 +42,7 @@ export default function OwnerHome() {
     fetchMyBookings()
       .then((bs) => setLiveNext(bs.find((b) => ['pending', 'confirmed', 'handoff', 'active'].includes(b.status)) ?? null))
       .catch((e) => console.warn('[home] bookings:', e?.message ?? e));
+    fetchFitness().then(setFit).catch((e) => console.warn('[home] fitness:', e?.message ?? e));
   }, []));
 
   // reward pulse — dopamine beacon for unclaimed rewards
@@ -105,7 +110,7 @@ export default function OwnerHome() {
           </View>
         </Animated.View>
 
-        <Pressable onPress={() => router.push('/owner/dog')}>
+        <Pressable onPress={() => router.push('/owner/fitness')}>
           <Animated.View style={[s.hero, { height: heroH, backgroundColor: hp.card, borderColor: hp.line }]}>
             <View style={[s.weekChip, { backgroundColor: hp.chip }]}>
               <Text style={{ fontSize: 11, fontWeight: '700', color: hp.textSoft }}>이번 주 ▾</Text>
@@ -116,12 +121,12 @@ export default function OwnerHome() {
               <Text style={{ fontSize: 12, fontWeight: '700', color: hp.textSoft }}>{dog.name}의 주간 목표</Text>
               <Text style={{ marginTop: 2 }}>
                 <Text style={{ fontSize: 32, fontWeight: '900', color: colors.tang }}>
-                  {dog.weekKm}
+                  {weekKm}
                 </Text>
-                <Text style={{ fontSize: 13, color: hp.dim }}> / {dog.weeklyGoalKm} km</Text>
+                <Text style={{ fontSize: 13, color: hp.dim }}> / {goalKm} km</Text>
               </Text>
               <Text style={{ fontSize: 11, color: hp.textSoft, marginTop: 3 }}>
-                체력 나이 {dog.fitnessAge}살 · 실제보다 젊어요
+                {fitnessAge != null ? `체력 나이 ${fitnessAge}살 · 실제보다 젊어요` : '체력 나이 측정 준비 중'}
               </Text>
               <View style={[s.miniBar, { backgroundColor: hp.track }]}>
                 <View style={[s.miniBarFill, { width: `${Math.min(pct, 1) * 100}%` }]} />
@@ -143,17 +148,21 @@ export default function OwnerHome() {
                 <View style={{ alignItems: 'center' }}>
                   <Text style={{ fontSize: 13, color: hp.dim }}>이번 주</Text>
                   <Text style={{ fontSize: 46, fontWeight: '900', color: colors.tang, lineHeight: 50 }}>
-                    {dog.weekKm}
+                    {weekKm}
                     <Text style={{ fontSize: 16, color: hp.dim }}> km</Text>
                   </Text>
                   <Text style={{ fontSize: 13, color: heroAccent, marginTop: 2 }}>
-                    / {dog.weeklyGoalKm}km
+                    / {goalKm}km
                   </Text>
                   {/* 체력 나이 — our concept, front and center */}
                   <View style={[s.goalChip, { backgroundColor: hp.chip, flexDirection: 'row', gap: 4, alignItems: 'center' }]}>
                     <Text style={{ fontSize: 10, fontWeight: '800', color: hp.textSoft }}>체력 나이</Text>
-                    <Text style={{ fontSize: 12, fontWeight: '900', color: heroAccent }}>{dog.fitnessAge}살</Text>
-                    <Text style={{ fontSize: 9, fontWeight: '800', color: colors.tang }}>▼{(dog.age - dog.fitnessAge).toFixed(1)}</Text>
+                    <Text style={{ fontSize: 12, fontWeight: '900', color: heroAccent }}>
+                      {fitnessAge != null ? `${fitnessAge}살` : '측정 전'}
+                    </Text>
+                    {fitnessAge != null && (
+                      <Text style={{ fontSize: 9, fontWeight: '800', color: colors.tang }}>▼{Math.max(dog.age - fitnessAge, 0).toFixed(1)}</Text>
+                    )}
                   </View>
                 </View>
               </Ring>
@@ -161,7 +170,11 @@ export default function OwnerHome() {
 
             {/* big-state goal message */}
             <Animated.Text style={[s.bigMsg, { opacity: bigMsgOpacity, color: hp.textSoft }]}>
-              {goalHit ? `이번 주 목표 달성! ${dog.name} 최고예요` : `실제 나이보다 ${(dog.age - dog.fitnessAge).toFixed(1)}살 젊게 달리는 중`}
+              {goalHit
+                ? `이번 주 목표 달성! ${dog.name} 최고예요`
+                : weekKm > 0
+                  ? `목표까지 ${Math.max(Math.round((goalKm - weekKm) * 10) / 10, 0)}km — 좋은 페이스예요`
+                  : '이번 주 첫 러닝을 예약해보세요'}
             </Animated.Text>
           </Animated.View>
         </Pressable>
@@ -180,9 +193,13 @@ export default function OwnerHome() {
       >
         {/* ---------- stat chips ---------- */}
         <View style={{ flexDirection: 'row', gap: 8 }}>
-          <StatChip top={`연속 ${dog.streakDays}일`} bottom="연속 기록" accent={colors.tang} />
-          <StatChip top="3회 완료" bottom="이번 주" accent={mode === 'dark' ? colors.volt : colors.voltDeep} />
-          <StatChip top={`평균 7'20"`} bottom="평균 페이스" accent="#9fc3e8" />
+          <StatChip top={`연속 ${fit?.streakDays ?? 0}일`} bottom="연속 기록" accent={colors.tang} />
+          <StatChip top={`${fit?.weekRuns ?? 0}회 완료`} bottom="이번 주" accent={mode === 'dark' ? colors.volt : colors.voltDeep} />
+          <StatChip
+            top={fit?.avgPaceSec ? `평균 ${Math.floor(fit.avgPaceSec / 60)}'${String(fit.avgPaceSec % 60).padStart(2, '0')}"` : '페이스 —'}
+            bottom="평균 페이스"
+            accent="#9fc3e8"
+          />
         </View>
 
         {/* ---------- slide-to-book ---------- */}

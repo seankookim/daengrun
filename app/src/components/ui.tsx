@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { Pressable, StyleProp, StyleSheet, Text, TextStyle, View, ViewStyle } from 'react-native';
+import { Image, Pressable, StyleProp, StyleSheet, Text, TextStyle, View, ViewStyle } from 'react-native';
 import { colors, radius } from '../theme';
 
 // 댕런 shared UI kit — mirrors the prototype's design system.
@@ -58,6 +58,17 @@ export function Monogram({ char, bg, size = 52 }: { char: string; bg: string; si
     <View style={{ width: size, height: size, borderRadius: size * 0.3, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
       <Text style={{ fontFamily: undefined, fontSize: size * 0.42, fontWeight: '800', color: '#fff' }}>{char}</Text>
     </View>
+  );
+}
+
+// 실사진 아바타 — url 없으면 Monogram 폴백. 신뢰 표면 전부가 이걸 쓴다.
+export function Avatar({ url, char, bg, size = 52 }: { url?: string | null; char: string; bg: string; size?: number }) {
+  if (!url) return <Monogram char={char} bg={bg} size={size} />;
+  return (
+    <Image
+      source={{ uri: url }}
+      style={{ width: size, height: size, borderRadius: size * 0.3, backgroundColor: '#e2e0d4' }}
+    />
   );
 }
 

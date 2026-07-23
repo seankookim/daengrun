@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Monogram, Row } from '../../src/components/ui';
+import { Avatar, Monogram, Row } from '../../src/components/ui';
 import { fetchCertifiedRunners, LiveRunner, requestRunner } from '../../src/lib/api';
 import { draft, fmtWon, priceForRunner, runners } from '../../src/store';
 import { colors } from '../../src/theme';
@@ -107,7 +107,7 @@ export default function Matching() {
           <View style={s.topCard}>
             <View style={s.rankTab}><Text style={{ fontSize: 11, fontWeight: '900', color: FOREST }}>1순위 추천</Text></View>
             <Row style={{ gap: 12, marginTop: 18 }}>
-              <Monogram char={top.r.name[0]} bg="#5a7a3c" size={58} />
+              <Avatar url={top.r.avatarUrl} char={top.r.name[0]} bg="#5a7a3c" size={58} />
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: 17, fontWeight: '900', color: '#fff' }}>{top.r.name} 러너</Text>
                 <Row style={{ gap: 5, marginTop: 5 }}>
@@ -166,7 +166,7 @@ export default function Matching() {
           {rest.map(({ r, m }) => (
             <View key={r.profileId} style={s.altCard}>
               <Row style={{ gap: 12 }}>
-                <Monogram char={r.name[0]} bg="#5a7a3c" size={46} />
+                <Avatar url={r.avatarUrl} char={r.name[0]} bg="#5a7a3c" size={46} />
                 <View style={{ flex: 1 }}>
                   <Row style={{ gap: 6 }}>
                     <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST }}>{r.name} 러너</Text>

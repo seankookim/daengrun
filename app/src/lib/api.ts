@@ -246,12 +246,13 @@ export interface LiveRunner {
   paceLabel: string;
   paceSec: number;
   respondRate: number | null;
+  avatarUrl: string | null;
 }
 
 export async function fetchCertifiedRunners(): Promise<LiveRunner[]> {
   const { data, error } = await supabase
     .from('runners')
-    .select('profile_id, tier, avg_pace_sec_per_km, total_runs, respond_rate_pct, profiles(name, district)')
+    .select('profile_id, tier, avg_pace_sec_per_km, total_runs, respond_rate_pct, profiles(name, district, avatar_url)')
     .neq('tier', 'applicant')
     .eq('online', true)
     .limit(10);
@@ -267,6 +268,7 @@ export async function fetchCertifiedRunners(): Promise<LiveRunner[]> {
       paceLabel: `${Math.floor(pace / 60)}'${String(pace % 60).padStart(2, '0')}"`,
       paceSec: pace,
       respondRate: r.respond_rate_pct,
+      avatarUrl: r.profiles?.avatar_url ?? null,
     };
   });
 }
@@ -379,6 +381,138 @@ export async function fetchRunnerJobs(): Promise<RunnerJob[]> {
 }
 
 export const runnerEnroute = (id: string) => invokeTransition(id, 'enroute');
+
+// ---------- profile (identity layer) ----------
+export interface MyProfile { id: string; name: string | null; district: string | null; avatarUrl: string | null; email: string | null }
+
+export async function fetchMyProfile(): Promise<MyProfile | null> {
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) return null;
+  const { data } = await supabase.from('profiles').select('name, district, avatar_url').eq('id', user.user.id).maybeSingle();
+  return {
+    id: user.user.id,
+    name: data?.name ?? user.user.email?.split('@')[0] ?? null,
+    district: data?.district ?? null,
+    avatarUrl: data?.avatar_url ?? null,
+    email: user.user.email ?? null,
+  };
+}
+
+export async function updateMyProfile(p: { name?: string; district?: string }): Promise<void> {
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) throw new Error('not signed in');
+  const { error } = await supabase.from('profiles').update(p).eq('id', user.user.id);
+  if (error) throw error;
+}
+
+// base64 → bytes (Hermes atob 유무와 무관하게 동작)
+const B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+function b64ToBytes(b64: string): Uint8Array {
+  const clean = b64.replace(/[^A-Za-z0-9+/]/g, '');
+  const len = Math.floor(clean.length * 3 / 4);
+  const out = new Uint8Array(len);
+  let o = 0;
+  for (let i = 0; i + 3 < clean.length + 1; i += 4) {
+    const n = (B64.indexOf(clean[i]) << 18) | (B64.indexOf(clean[i + 1]) << 12)
+      | ((B64.indexOf(clean[i + 2]) & 63) << 6) | (B64.indexOf(clean[i + 3]) & 63);
+    if (o < len) out[o++] = (n >> 16) & 255;
+    if (o < len && clean[i + 2] !== undefined) out[o++] = (n >> 8) & 255;
+    if (o < len && clean[i + 3] !== undefined) out[o++] = n & 255;
+  }
+  return out;
+}
+
+// 사진 업로드 → 공개 URL → profiles.avatar_url 저장. 캐시 무효화용 ?v= 부착.
+export async function uploadAvatar(base64: string): Promise<string> {
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) throw new Error('not signed in');
+  const path = `${user.user.id}/avatar.jpg`;
+  const { error } = await supabase.storage.from('avatars')
+    .upload(path, b64ToBytes(base64), { contentType: 'image/jpeg', upsert: true });
+  if (error) throw error;
+  const { data: pub } = supabase.storage.from('avatars').getPublicUrl(path);
+  const url = `${pub.publicUrl}?v=${Date.now()}`;
+  const { error: e2 } = await supabase.from('profiles').update({ avatar_url: url }).eq('id', user.user.id);
+  if (e2) throw e2;
+  return url;
+}
+
+// ---------- 체력 리포트 (fitness hub) ----------
+export interface FitnessWeek { label: string; km: number }
+export interface FitnessRecent { bookingId: string; when: string; km: number; durationSec: number }
+export interface Fitness {
+  dogId: string | null;
+  dogName: string;
+  goalKm: number;
+  fitnessAge: number | null;
+  weekKm: number;       // 최근 7일
+  weekRuns: number;
+  avgPaceSec: number | null;
+  streakDays: number;   // 러닝 있는 연속 일수 (오늘 또는 어제부터 역산)
+  weeks: FitnessWeek[]; // 최근 8주 (과거→현재)
+  recent: FitnessRecent[];
+}
+
+export async function fetchFitness(): Promise<Fitness> {
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) throw new Error('not signed in');
+  const [dogRes, runRes] = await Promise.all([
+    supabase.from('dogs').select('id, name, weekly_goal_km, fitness_age').eq('owner_id', user.user.id).limit(1),
+    supabase.from('bookings')
+      .select('id, scheduled_at, runs(actual_km, duration_sec)')
+      .eq('owner_id', user.user.id).eq('status', 'completed')
+      .order('scheduled_at', { ascending: false }).limit(120),
+  ]);
+  const d = dogRes.data?.[0];
+  const rows = (runRes.data ?? [])
+    .map((b: any) => {
+      const r = Array.isArray(b.runs) ? b.runs[0] : b.runs;
+      return r ? { bookingId: b.id, at: new Date(b.scheduled_at), km: Number(r.actual_km ?? 0), dur: r.duration_sec ?? 0 } : null;
+    })
+    .filter(Boolean) as { bookingId: string; at: Date; km: number; dur: number }[];
+
+  const now = Date.now();
+  const weekAgo = now - 7 * 86400_000;
+  const thisWeek = rows.filter((r) => r.at.getTime() >= weekAgo);
+  const weekKm = Math.round(thisWeek.reduce((s, r) => s + r.km, 0) * 10) / 10;
+  const totKm = thisWeek.reduce((s, r) => s + r.km, 0);
+  const totSec = thisWeek.reduce((s, r) => s + r.dur, 0);
+  const avgPaceSec = totKm > 0.05 ? Math.round(totSec / totKm) : null;
+
+  // 8주 버킷
+  const weeks: FitnessWeek[] = [];
+  for (let w = 7; w >= 0; w--) {
+    const start = now - (w + 1) * 7 * 86400_000;
+    const end = now - w * 7 * 86400_000;
+    const km = rows.filter((r) => r.at.getTime() >= start && r.at.getTime() < end).reduce((s, r) => s + r.km, 0);
+    weeks.push({ label: w === 0 ? '이번 주' : `${w}주 전`, km: Math.round(km * 10) / 10 });
+  }
+
+  // 스트릭: 러닝이 있는 날짜의 연속성 (오늘 비어도 어제부터 이어지면 유지)
+  const days = new Set(rows.map((r) => Math.floor((r.at.getTime() + 9 * 3_600_000) / 86400_000)));
+  const today = Math.floor((now + 9 * 3_600_000) / 86400_000);
+  let streakDays = 0;
+  let cursor = days.has(today) ? today : today - 1;
+  while (days.has(cursor)) { streakDays++; cursor--; }
+
+  const recent = rows.slice(0, 10).map((r) => {
+    const { dateLabel, timeLabel } = kstParts(r.at.toISOString());
+    return { bookingId: r.bookingId, when: `${dateLabel} ${timeLabel}`, km: r.km, durationSec: r.dur };
+  });
+
+  return {
+    dogId: d?.id ?? null,
+    dogName: d?.name ?? '반려견',
+    goalKm: Number(d?.weekly_goal_km ?? 15),
+    fitnessAge: d?.fitness_age != null ? Number(d.fitness_age) : null,
+    weekKm, weekRuns: thisWeek.length, avgPaceSec, streakDays, weeks, recent,
+  };
+}
+
+export async function updateDogGoal(dogId: string, km: number): Promise<void> {
+  const { error } = await supabase.from('dogs').update({ weekly_goal_km: km }).eq('id', dogId);
+  if (error) throw error;
+}
 
 // ---------- runner identity & money (tabula rasa) ----------
 export async function fetchMyName(): Promise<string | null> {
