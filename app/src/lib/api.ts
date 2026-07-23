@@ -124,7 +124,7 @@ const STATUS_MAP: Record<string, BookingStatus> = {
   runner_pending: 'pending',
   confirmed: 'confirmed',
   runner_enroute: 'confirmed',
-  picked_up: 'active',
+  picked_up: 'handoff', // 인계 완료 ≠ 러닝 중 — 라이브 UI는 active부터
   active: 'active',
   completed: 'completed',
   cancelled_owner: 'cancelled',

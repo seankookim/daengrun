@@ -36,7 +36,7 @@ export default function OwnerHome() {
   const [liveNext, setLiveNext] = useState<Booking | null>(null);
   useFocusEffect(useCallback(() => {
     fetchMyBookings()
-      .then((bs) => setLiveNext(bs.find((b) => b.status === 'pending' || b.status === 'confirmed' || b.status === 'active') ?? null))
+      .then((bs) => setLiveNext(bs.find((b) => ['pending', 'confirmed', 'handoff', 'active'].includes(b.status)) ?? null))
       .catch((e) => console.warn('[home] bookings:', e?.message ?? e));
   }, []));
 
@@ -235,12 +235,12 @@ export default function OwnerHome() {
                   {liveNext.dateLabel.split(' ')[0]} {liveNext.timeLabel} · {liveNext.dogName}
                 </Text>
                 <Text style={{ fontSize: 11.5, color: p.dim, marginTop: 3 }}>
-                  {liveNext.routeName} · {liveNext.status === 'pending' ? '러너 응답 대기' : liveNext.status === 'active' ? '러닝 진행 중' : '러너 확정 ✓'}
+                  {liveNext.routeName} · {liveNext.status === 'pending' ? '러너 응답 대기' : liveNext.status === 'active' ? '러닝 진행 중' : liveNext.status === 'handoff' ? '인계 완료 — 곧 시작돼요' : '러너 확정 ✓'}
                 </Text>
               </View>
               <View style={[s.countdownPill, { backgroundColor: liveNext.status === 'pending' ? '#fbf0d4' : '#fde8e3' }]}>
                 <Text style={{ fontSize: 10.5, fontWeight: '900', color: liveNext.status === 'pending' ? '#a97c12' : '#d84a2f' }}>
-                  {liveNext.status === 'pending' ? '매칭 중' : liveNext.status === 'active' ? '● LIVE' : '확정됨'}
+                  {liveNext.status === 'pending' ? '매칭 중' : liveNext.status === 'active' ? '● LIVE' : liveNext.status === 'handoff' ? '시작 대기' : '확정됨'}
                 </Text>
               </View>
             </View>
@@ -258,6 +258,19 @@ export default function OwnerHome() {
                 onPress={(e) => { e.stopPropagation(); if (liveNext) draft.bookingId = liveNext.id; router.push('/owner/live'); }}
               >
                 <Text style={{ fontSize: 12.5, fontWeight: '900', color: colors.ink }}>실시간 보기 ›</Text>
+              </Pressable>
+            </View>
+          ) : liveNext?.status === 'handoff' ? (
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 13 }}>
+              <Pressable
+                style={[s.widgetBtn, { borderColor: p.line, flex: 1 }]}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  if (liveNext) draft.bookingId = liveNext.id;
+                  router.push('/owner/meetup'); // 시작되면 미트업이 라이브로 자동 전환
+                }}
+              >
+                <Text style={{ fontSize: 11.5, fontWeight: '700', color: p.textSoft }}>인계 완료 · 러닝 시작 대기 중 ›</Text>
               </Pressable>
             </View>
           ) : liveNext?.status === 'confirmed' ? (

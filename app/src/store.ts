@@ -198,7 +198,8 @@ export const sampleRoutes: RouteInfo[] = [
 ];
 
 // ---------- Bookings (calendar mock) ----------
-export type BookingStatus = 'confirmed' | 'pending' | 'active' | 'completed' | 'cancelled';
+// handoff = picked_up: 인계 완료·시작 대기 — active(러닝 중)와 구분해야 라이브 UI가 조기 점화 안 됨
+export type BookingStatus = 'confirmed' | 'pending' | 'handoff' | 'active' | 'completed' | 'cancelled';
 
 export interface Booking {
   id: string;

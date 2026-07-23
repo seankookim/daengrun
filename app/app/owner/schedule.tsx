@@ -25,6 +25,7 @@ const FILTERS: { label: string; match: (b: Booking) => boolean }[] = [
 const STATUS_STYLE: Record<BookingStatus, { label: string; bg: string; fg: string; rail: string }> = {
   confirmed: { label: '예약 확정', bg: '#e3f0c4', fg: '#3d5a2b', rail: '#5a7a3c' },
   pending: { label: '러너 응답 대기', bg: '#fbf0d4', fg: '#a97c12', rail: '#e2c56b' },
+  handoff: { label: '인계 완료 · 시작 대기', bg: '#e3f0c4', fg: '#3d5a2b', rail: '#5a7a3c' },
   active: { label: '러닝 중 · LIVE', bg: '#eaf7c8', fg: '#4a6d1f', rail: colors.volt },
   completed: { label: '완료', bg: '#e9ebe2', fg: '#75806f', rail: '#c9ccc0' },
   cancelled: { label: '취소됨', bg: '#ececec', fg: '#8a8a8a', rail: '#c9c9c9' },
@@ -282,6 +283,10 @@ export default function Schedule() {
                         이미 시작된 러닝은 일정 변경·취소가 불가능해요{'\n'}긴급 상황은 안심 센터 SOS를 이용해주세요
                       </Text>
                     </>
+                  ) : selected.status === 'handoff' ? (
+                    <Text style={{ fontSize: 11.5, color: colors.dim, textAlign: 'center', marginTop: 16, lineHeight: 17 }}>
+                      인계가 완료됐어요 — 러너가 러닝을 시작하면{'\n'}실시간 보기가 열려요 · 변경·취소는 불가능해요
+                    </Text>
                   ) : selected.status === 'completed' ? (
                     <Pressable style={s.ghostAction} onPress={() => { close(); router.push('/cards'); }}>
                       <Text style={{ fontSize: 13.5, fontWeight: '800', color: '#3d453d' }}>러닝 기록 보기</Text>

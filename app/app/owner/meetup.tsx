@@ -42,8 +42,10 @@ export default function OwnerMeetup() {
       try {
         const sync = await fetchBookingSync(bid);
         setPeerConfirmed(sync.runnerConfirmed);
-        if (sync.status === 'picked_up' || sync.status === 'active') {
-          setStage('confirmed');
+        if (sync.status === 'active') {
+          router.replace('/owner/live'); // 러너가 start_run을 눌렀을 때만 라이브 진입
+        } else if (sync.status === 'picked_up') {
+          setStage('confirmed'); // 인계 완료 — 시작 대기 (라이브 아님)
         } else if (sync.ownerConfirmed) {
           setStage('waiting'); // 이미 확인함 — 재진입해도 버튼 재노출 없이 러너 대기
         } else if (sync.status === 'runner_enroute') {
@@ -55,13 +57,6 @@ export default function OwnerMeetup() {
     }, 2500);
     return () => { if (poll.current) clearInterval(poll.current); };
   }, [bookingId]);
-
-  // 유일하게 허용되는 타이머: 양측 확인 완료 → 라이브 화면 이동 연출
-  useEffect(() => {
-    if (stage !== 'confirmed') return;
-    const id = setTimeout(() => router.replace('/owner/live'), 1200);
-    return () => clearTimeout(id);
-  }, [stage]);
 
   const handoff = async () => {
     if (!bookingId) return;
@@ -157,8 +152,8 @@ export default function OwnerMeetup() {
         )}
         {stage === 'confirmed' && (
           <View style={s.primary}>
-            <Text style={s.primaryText}>인계 완료! 라이브 화면으로 이동해요</Text>
-            <Text style={s.primarySub}>GPS · 바디캠이 켜졌어요</Text>
+            <Text style={s.primaryText}>인계 완료! 러너가 곧 러닝을 시작해요</Text>
+            <Text style={s.primarySub}>시작되면 자동으로 라이브 화면으로 전환돼요</Text>
           </View>
         )}
 
