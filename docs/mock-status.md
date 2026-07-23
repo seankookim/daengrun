@@ -121,6 +121,11 @@
 - ✅ **알림 탭 가능** — kind/ref_id 로드, 보호자→리포트, 러너→요청/캘린더 ('자세히 보기 ›' 표시)
 - ✅ e2e cleanup이 양쪽 E2E 계정 러너를 online=false 처리 (추천 목록 오염 방지). 이미 떠 있는 E2E 계정 제거는 SQL 1줄: `UPDATE runners SET online = false WHERE profile_id IN (SELECT id FROM auth.users WHERE email LIKE '%daengrun.test');`
 
+## 2026-07-23 세션 6: 러닝 리포트 = 개별 러닝 기록 페이지로 승격
+
+- ✅ 리포트 확장 — 히어로(코랄 실거리 km + 시간·페이스·계획), **목표 달성 바**(거리 %, 페이스 목표 대비 %), 러너·코스·지역 카드, 러너 노트(메디컬), 하이라이트 사진 슬롯(runs.photos — 실사진은 카메라 연동 후), 결제. 내 일정 완료 카드 '러닝 기록 보기' → 리포트 (콜렉터블 /cards 아님)
+- 방향: /cards(콜렉터블)는 도파민 갤러리로 홈 최근 활동 위젯에서만 진입 — 기록의 진실은 리포트가 담당
+
 ## 다음 실화(實化) 순서 (제안)
 
 1. Supabase: auth + bookings + 상태 머신 → 수락 알림이 진짜가 되는 지점

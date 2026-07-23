@@ -288,9 +288,12 @@ export default function Schedule() {
                       인계가 완료됐어요 — 러너가 러닝을 시작하면{'\n'}실시간 보기가 열려요 · 변경·취소는 불가능해요
                     </Text>
                   ) : selected.status === 'completed' ? (
-                    <Pressable style={s.ghostAction} onPress={() => { close(); router.push('/cards'); }}>
-                      <Text style={{ fontSize: 13.5, fontWeight: '800', color: '#3d453d' }}>러닝 기록 보기</Text>
-                      <Text style={{ fontSize: 10.5, color: colors.dim, marginTop: 2 }}>완료된 러닝의 카드와 기록을 확인해요</Text>
+                    <Pressable
+                      style={s.primaryAction}
+                      onPress={() => { const bid = selected.id; close(); router.push({ pathname: '/owner/report', params: { bid } }); }}
+                    >
+                      <Text style={{ fontSize: 14.5, fontWeight: '900', color: FOREST }}>러닝 리포트 보기</Text>
+                      <Text style={{ fontSize: 10.5, color: '#5d6b4a', marginTop: 2 }}>실거리·시간·페이스·종료 사유를 확인해요</Text>
                     </Pressable>
                   ) : (
                     <>

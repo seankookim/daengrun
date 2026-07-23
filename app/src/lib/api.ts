@@ -466,18 +466,19 @@ export async function fetchNotifications(): Promise<LiveNoti[]> {
 
 // ---------- 러닝 리포트 (보호자) ----------
 export interface RunReport {
-  dogName: string; routeName: string; when: string;
+  dogName: string; routeName: string; routeArea: string; when: string;
+  runnerName: string | null;
   plannedKm: number; paceLabel: string; price: number; status: string;
   run: null | {
     actualKm: number; durationSec: number; paceSecPerKm: number | null;
-    endReason: string | null; conditionNote: string | null;
+    endReason: string | null; conditionNote: string | null; photos: string[];
   };
 }
 
 export async function fetchRunReport(bookingId: string): Promise<RunReport> {
   const { data, error } = await supabase
     .from('bookings')
-    .select('scheduled_at, km, pace_label, total_price, status, routes(name), dogs(name), runs(actual_km, duration_sec, avg_pace_sec_per_km, end_reason, condition_note)')
+    .select('scheduled_at, km, pace_label, total_price, status, routes(name, area), dogs(name), runners(profiles(name)), runs(actual_km, duration_sec, avg_pace_sec_per_km, end_reason, condition_note, photos)')
     .eq('id', bookingId)
     .single();
   if (error) throw error;
@@ -487,7 +488,9 @@ export async function fetchRunReport(bookingId: string): Promise<RunReport> {
   return {
     dogName: d.dogs?.name ?? '반려견',
     routeName: d.routes?.name ?? '코스 미지정',
+    routeArea: d.routes?.area ?? '',
     when: `${dateLabel} ${timeLabel}`,
+    runnerName: d.runners?.profiles?.name ?? null,
     plannedKm: Number(d.km),
     paceLabel: d.pace_label ?? "보통 7'",
     price: d.total_price,
@@ -499,6 +502,7 @@ export async function fetchRunReport(bookingId: string): Promise<RunReport> {
           paceSecPerKm: raw.avg_pace_sec_per_km,
           endReason: raw.end_reason,
           conditionNote: raw.condition_note,
+          photos: raw.photos ?? [],
         }
       : null,
   };
