@@ -1,8 +1,8 @@
 import { router } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Monogram, Row } from '../../src/components/ui';
-import { confirmHandoff, fetchBookingSync, fetchCurrentOwnerBookingId } from '../../src/lib/api';
+import { confirmHandoff, fetchBookingSync, fetchCurrentOwnerBookingId, subscribeBooking } from '../../src/lib/api';
 import { dog, draft, nextBooking, runners } from '../../src/store';
 import { colors } from '../../src/theme';
 
@@ -35,28 +35,33 @@ export default function OwnerMeetup() {
   }, [bookingId]);
 
   // 모든 단계가 서버 진실을 따른다 — 가짜 도착 없음
+  const refresh = useCallback(async () => {
+    if (!bookingId) return;
+    try {
+      const sync = await fetchBookingSync(bookingId);
+      setPeerConfirmed(sync.runnerConfirmed);
+      if (sync.status === 'active') {
+        router.replace('/owner/live'); // 러너가 start_run을 눌렀을 때만 라이브 진입
+      } else if (sync.status === 'picked_up') {
+        setStage('confirmed'); // 인계 완료 — 시작 대기 (라이브 아님)
+      } else if (sync.ownerConfirmed) {
+        setStage('waiting'); // 이미 확인함 — 재진입해도 버튼 재노출 없이 러너 대기
+      } else if (sync.status === 'runner_enroute') {
+        setStage((cur) => (cur === 'waiting' ? cur : 'arrived')); // 러너 이동 중 → 인계 버튼 활성
+      } else {
+        setStage((cur) => (cur === 'waiting' ? cur : 'enroute')); // 아직 수락/출발 전
+      }
+    } catch { /* 다음 이벤트/폴백이 처리 */ }
+  }, [bookingId]);
+
   useEffect(() => {
     if (!bookingId) return;
-    const bid = bookingId;
-    poll.current = setInterval(async () => {
-      try {
-        const sync = await fetchBookingSync(bid);
-        setPeerConfirmed(sync.runnerConfirmed);
-        if (sync.status === 'active') {
-          router.replace('/owner/live'); // 러너가 start_run을 눌렀을 때만 라이브 진입
-        } else if (sync.status === 'picked_up') {
-          setStage('confirmed'); // 인계 완료 — 시작 대기 (라이브 아님)
-        } else if (sync.ownerConfirmed) {
-          setStage('waiting'); // 이미 확인함 — 재진입해도 버튼 재노출 없이 러너 대기
-        } else if (sync.status === 'runner_enroute') {
-          setStage((cur) => (cur === 'waiting' ? cur : 'arrived')); // 러너 이동 중 → 인계 버튼 활성
-        } else {
-          setStage((cur) => (cur === 'waiting' ? cur : 'enroute')); // 아직 수락/출발 전
-        }
-      } catch { /* keep polling */ }
-    }, 2500);
-    return () => { if (poll.current) clearInterval(poll.current); };
-  }, [bookingId]);
+    refresh();
+    // Realtime이 주채널, 8초 폴링은 폴백
+    const unsub = subscribeBooking(bookingId, refresh);
+    poll.current = setInterval(refresh, 8000);
+    return () => { if (poll.current) clearInterval(poll.current); unsub(); };
+  }, [bookingId, refresh]);
 
   const handoff = async () => {
     if (!bookingId) return;
@@ -105,7 +110,7 @@ export default function OwnerMeetup() {
                 ★ {runner.rating} · {nextBooking.timeLabel} · {nextBooking.routeName}
               </Text>
             </View>
-            <Pressable style={s.chatChip} onPress={() => router.push('/chat')}>
+            <Pressable style={s.chatChip} onPress={() => router.push({ pathname: '/chat', params: bookingId ? { bid: bookingId } : {} })}>
               <Text style={{ fontSize: 11, fontWeight: '800', color: '#4a6d1f' }}>채팅</Text>
             </Pressable>
           </Row>

@@ -265,7 +265,7 @@ export default function Schedule() {
                             : '실러너 · 상세 프로필 준비 중'}
                         </Text>
                       </View>
-                      <Pressable style={s.chatChip} onPress={() => { close(); router.push('/chat'); }}>
+                      <Pressable style={s.chatChip} onPress={() => { const bid = selected.id; close(); router.push({ pathname: '/chat', params: { bid } }); }}>
                         <Text style={{ fontSize: 11, fontWeight: '800', color: '#4a6d1f' }}>채팅</Text>
                       </Pressable>
                     </Row>

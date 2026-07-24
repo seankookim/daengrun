@@ -1,8 +1,8 @@
 import { router } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Monogram, Row } from '../../src/components/ui';
-import { confirmHandoff, fetchBookingSync, fetchCurrentRunnerJobId, runnerEnroute, startRunServer } from '../../src/lib/api';
+import { confirmHandoff, fetchBookingSync, fetchCurrentRunnerJobId, runnerEnroute, startRunServer, subscribeBooking } from '../../src/lib/api';
 import { runnerJob, runRequests } from '../../src/store';
 import { colors } from '../../src/theme';
 
@@ -48,31 +48,25 @@ export default function Meetup() {
       .catch((e) => console.warn('[r-meetup] resolve:', e?.message ?? e));
   }, [jobId]);
 
-  // 서버에 '이동 중' 보고 + 재진입 시 현재 단계 복원
+  const syncNow = useCallback(async () => {
+    if (!jobId) return;
+    try {
+      const s2 = await fetchBookingSync(jobId);
+      setPeerConfirmed(s2.ownerConfirmed);
+      if (s2.status === 'picked_up' || s2.status === 'active') setStage('confirmed');
+      else if (s2.runnerConfirmed) setStage('waiting');
+    } catch { /* 다음 이벤트/폴백이 처리 */ }
+  }, [jobId]);
+
+  // 서버에 '이동 중' 보고 + 실시간 구독 (8초 폴링은 폴백)
   useEffect(() => {
     if (!jobId) return;
     runnerEnroute(jobId).catch(() => { /* 이미 지난 상태면 무시 */ });
-    fetchBookingSync(jobId)
-      .then((s2) => {
-        setPeerConfirmed(s2.ownerConfirmed);
-        if (s2.status === 'picked_up' || s2.status === 'active') setStage('confirmed');
-        else if (s2.runnerConfirmed) setStage('waiting');
-      })
-      .catch(() => {});
-  }, [jobId]);
-
-  // 상대(보호자) 확인을 서버에서 폴링 — 목업 타이머 없음
-  useEffect(() => {
-    if (stage === 'confirmed' || !jobId) return;
-    poll.current = setInterval(async () => {
-      try {
-        const s2 = await fetchBookingSync(jobId);
-        setPeerConfirmed(s2.ownerConfirmed);
-        if (s2.status === 'picked_up' || s2.status === 'active') setStage('confirmed');
-      } catch { /* keep polling */ }
-    }, 2500);
-    return () => { if (poll.current) clearInterval(poll.current); };
-  }, [stage, jobId]);
+    syncNow();
+    const unsub = subscribeBooking(jobId, syncNow);
+    poll.current = setInterval(syncNow, 8000);
+    return () => { if (poll.current) clearInterval(poll.current); unsub(); };
+  }, [jobId, syncNow]);
 
   const handoff = async () => {
     if (!jobId) return;
@@ -130,7 +124,7 @@ export default function Meetup() {
               </Text>
               <Text style={{ fontSize: 11.5, color: colors.dim, marginTop: 2 }}>{req.when} · {req.km}km · 페이스 {req.pace}</Text>
             </View>
-            <Pressable style={s.chatChip} onPress={() => router.push('/chat')}>
+            <Pressable style={s.chatChip} onPress={() => router.push({ pathname: '/chat', params: jobId ? { bid: jobId } : {} })}>
               <Text style={{ fontSize: 11, fontWeight: '800', color: '#4a6d1f' }}>보호자 채팅</Text>
             </Pressable>
           </Row>

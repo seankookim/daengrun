@@ -810,6 +810,103 @@ export async function fetchLedger(): Promise<LiveLedgerItem[]> {
   });
 }
 
+// ---------- chat (Realtime) ----------
+export interface ChatMsg { id: number; mine: boolean; body: string; when: string }
+
+function mapMsg(m: any, uid?: string | null): ChatMsg {
+  const d = new Date(m.created_at);
+  const h = d.getHours();
+  return {
+    id: m.id,
+    mine: m.sender_id === uid,
+    body: m.body ?? '',
+    when: `${h < 12 ? '오전' : '오후'} ${h % 12 === 0 ? 12 : h % 12}:${String(d.getMinutes()).padStart(2, '0')}`,
+  };
+}
+
+// 예약당 스레드 1개 — 없으면 생성 (동시 생성 레이스 시 재조회)
+export async function ensureThread(bookingId: string): Promise<string> {
+  const { data: existing } = await supabase.from('chat_threads').select('id').eq('booking_id', bookingId).maybeSingle();
+  if (existing) return existing.id;
+  const { data, error } = await supabase.from('chat_threads').insert({ booking_id: bookingId }).select('id').single();
+  if (error) {
+    const { data: again } = await supabase.from('chat_threads').select('id').eq('booking_id', bookingId).maybeSingle();
+    if (again) return again.id;
+    throw error;
+  }
+  return data.id;
+}
+
+export async function fetchMessages(threadId: string): Promise<ChatMsg[]> {
+  const { data: user } = await supabase.auth.getUser();
+  const { data, error } = await supabase
+    .from('chat_messages')
+    .select('id, sender_id, body, created_at')
+    .eq('thread_id', threadId)
+    .order('created_at')
+    .limit(100);
+  if (error) throw error;
+  return (data ?? []).map((m: any) => mapMsg(m, user.user?.id));
+}
+
+export async function sendChatMessage(threadId: string, body: string): Promise<void> {
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) throw new Error('not signed in');
+  const { error } = await supabase.from('chat_messages').insert({ thread_id: threadId, sender_id: user.user.id, body });
+  if (error) throw error;
+}
+
+// 새 메시지 실시간 구독 — 해제 함수 반환
+export function subscribeMessages(threadId: string, uid: string | null, onMsg: (m: ChatMsg) => void): () => void {
+  const ch = supabase
+    .channel(`chat-${threadId}`)
+    .on('postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `thread_id=eq.${threadId}` },
+      (payload) => onMsg(mapMsg(payload.new, uid)))
+    .subscribe();
+  return () => { supabase.removeChannel(ch); };
+}
+
+// 예약 상태 실시간 구독 — 폴링을 대체 (폴백 폴링은 화면이 유지)
+export function subscribeBooking(bookingId: string, onChange: () => void): () => void {
+  const ch = supabase
+    .channel(`bk-${bookingId}`)
+    .on('postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'bookings', filter: `id=eq.${bookingId}` },
+      () => onChange())
+    .subscribe();
+  return () => { supabase.removeChannel(ch); };
+}
+
+// 채팅 컨텍스트 — 상대 이름 + 예약 라벨
+export interface ChatContext { threadId: string; peerName: string; label: string }
+
+export async function openChatForBooking(bookingId: string): Promise<ChatContext> {
+  const { data: user } = await supabase.auth.getUser();
+  const uid = user.user?.id;
+  const { data: bk, error } = await supabase
+    .from('bookings')
+    .select('owner_id, runner_id, scheduled_at, km, dogs(name), routes(name)')
+    .eq('id', bookingId)
+    .single();
+  if (error) throw error;
+  const b = bk as any;
+  const iAmOwner = b.owner_id === uid;
+  const peerId = iAmOwner ? b.runner_id : b.owner_id;
+  let peerName = iAmOwner ? '러너 (매칭 전)' : '보호자';
+  if (peerId) {
+    const { data: p } = await supabase.from('profiles').select('name').eq('id', peerId).maybeSingle();
+    if (p?.name) peerName = iAmOwner ? `${p.name} 러너` : `${p.name} 보호자님`;
+  }
+  const { dateLabel, timeLabel } = kstParts(b.scheduled_at);
+  const threadId = await ensureThread(bookingId);
+  return {
+    threadId,
+    peerName,
+    label: `${dateLabel} ${timeLabel} · ${b.dogs?.name ?? '반려견'} · ${b.routes?.name ?? '코스 미지정'} ${b.km}km`,
+  };
+}
+
 // ---------- notifications (읽기 — 실시간 배달은 Realtime 세션에서) ----------
 export interface LiveNoti { id: string; title: string; body: string | null; when: string; unread: boolean; kind: string; refId: string | null }
 

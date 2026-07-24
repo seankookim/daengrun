@@ -308,7 +308,7 @@ export default function OwnerHome() {
               </Pressable>
               <Pressable
                 style={[s.widgetBtn, { borderColor: p.line, flex: 0.6 }]}
-                onPress={(e) => { e.stopPropagation(); router.push('/chat'); }}
+                onPress={(e) => { e.stopPropagation(); router.push({ pathname: '/chat', params: liveNext ? { bid: liveNext.id } : {} }); }}
               >
                 <Text style={{ fontSize: 11.5, fontWeight: '700', color: p.textSoft }}>채팅</Text>
               </Pressable>
@@ -323,7 +323,7 @@ export default function OwnerHome() {
               </Pressable>
               <Pressable
                 style={[s.widgetBtn, { borderColor: p.line }]}
-                onPress={(e) => { e.stopPropagation(); router.push('/chat'); }}
+                onPress={(e) => { e.stopPropagation(); router.push({ pathname: '/chat', params: liveNext ? { bid: liveNext.id } : {} }); }}
               >
                 <Text style={{ fontSize: 11.5, fontWeight: '700', color: p.textSoft }}>러너와 채팅</Text>
               </Pressable>

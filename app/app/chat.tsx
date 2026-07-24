@@ -1,41 +1,80 @@
-import { router } from 'expo-router';
-import { useRef, useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useEffect, useRef, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Monogram, Row } from '../src/components/ui';
-import { dog, session } from '../src/store';
+import {
+  ChatContext, ChatMsg, fetchCurrentOwnerBookingId, fetchCurrentRunnerJobId,
+  fetchMessages, openChatForBooking, sendChatMessage, subscribeMessages,
+} from '../src/lib/api';
+import { supabase } from '../src/lib/supabase';
+import { session } from '../src/store';
 import { colors } from '../src/theme';
 
-// 채팅 — role-aware thread (owner ↔ runner). Realtime later via Supabase.
+// 채팅 — 예약당 스레드 1개, Supabase Realtime 실배달.
+// 진입: 위젯·일정 시트·미트업의 채팅 버튼(bid 전달) 또는 역할별 진행 중 예약 자동 해석.
 
 const FOREST = '#132117';
-
-interface Msg { id: number; mine: boolean; text: string; time: string }
-
-const SEED: Msg[] = [
-  { id: 1, mine: false, text: '안녕하세요! 오늘 6:30 초코 러닝 맡은 김민준입니다 :)', time: '오후 3:02' },
-  { id: 2, mine: true, text: '안녕하세요! 잘 부탁드려요', time: '오후 3:05' },
-  { id: 3, mine: true, text: '자전거도로만 피해주시면 돼요! 초코가 자전거 보면 짖어서요', time: '오후 3:05' },
-  { id: 4, mine: false, text: '네 메모 확인했어요. 서울숲 순환 코스는 자전거도로랑 완전 분리돼 있어서 안심하셔도 돼요', time: '오후 3:07' },
-  { id: 5, mine: false, text: '물은 30분마다 챙길게요. 6:25쯤 2번 출입구 도착 예정입니다', time: '오후 3:08' },
-];
 
 const QUICK = ['네 좋아요!', '조금 늦을 것 같아요', '지금 어디쯤이세요?', '사진 부탁드려요'];
 
 export default function Chat() {
+  const { bid } = useLocalSearchParams<{ bid?: string }>();
   const isRunner = session.role === 'runner';
-  const peer = isRunner
-    ? { name: `${dog.name} 보호자님`, char: dog.name[0], color: '#c9a86e', sub: '응답 빠름' }
-    : { name: '김민준 러너', char: '민', color: '#FF6347', sub: '신원인증 · 보통 5분 내 응답' };
-
-  const [msgs, setMsgs] = useState<Msg[]>(SEED);
+  const [ctx, setCtx] = useState<ChatContext | null>(null);
+  const [state, setState] = useState<'loading' | 'ready' | 'none' | 'error'>('loading');
+  const [msgs, setMsgs] = useState<ChatMsg[]>([]);
   const [input, setInput] = useState('');
+  const [sending, setSending] = useState(false);
   const scroller = useRef<ScrollView>(null);
 
-  const send = (text: string) => {
-    if (!text.trim()) return;
-    setMsgs((m) => [...m, { id: m.length + 1, mine: true, text: text.trim(), time: '지금' }]);
+  // 스레드 준비: bid 없으면 진행 중 예약을 서버에서 해석
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const bookingId = bid ?? (isRunner ? await fetchCurrentRunnerJobId() : await fetchCurrentOwnerBookingId());
+        if (!bookingId) { if (alive) setState('none'); return; }
+        const c = await openChatForBooking(bookingId);
+        if (!alive) return;
+        setCtx(c);
+        setMsgs(await fetchMessages(c.threadId));
+        setState('ready');
+      } catch (e) {
+        console.warn('[chat] open:', (e as Error)?.message);
+        if (alive) setState('error');
+      }
+    })();
+    return () => { alive = false; };
+  }, [bid, isRunner]);
+
+  // 실시간 수신 — 내 발신도 서버 에코로 수신 (중복은 id로 방지)
+  useEffect(() => {
+    if (!ctx) return;
+    let unsub = () => {};
+    supabase.auth.getUser().then(({ data }) => {
+      unsub = subscribeMessages(ctx.threadId, data.user?.id ?? null, (m) => {
+        setMsgs((prev) => (prev.some((x) => x.id === m.id) ? prev : [...prev, m]));
+        setTimeout(() => scroller.current?.scrollToEnd({ animated: true }), 60);
+      });
+    });
+    return () => unsub();
+  }, [ctx]);
+
+  const send = async (body: string) => {
+    if (!body.trim() || !ctx || sending) return;
+    setSending(true);
     setInput('');
-    setTimeout(() => scroller.current?.scrollToEnd({ animated: true }), 60);
+    try {
+      await sendChatMessage(ctx.threadId, body.trim());
+      // Realtime 에코가 못 오는 경우 대비 — 리페치로 정합
+      setMsgs(await fetchMessages(ctx.threadId));
+      setTimeout(() => scroller.current?.scrollToEnd({ animated: true }), 60);
+    } catch (e) {
+      Alert.alert('전송 실패', (e as Error).message);
+      setInput(body);
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -43,70 +82,96 @@ export default function Chat() {
       {/* header */}
       <Row style={s.header}>
         <Pressable onPress={() => router.back()} style={s.circleBtn}><Text style={{ fontSize: 18 }}>‹</Text></Pressable>
-        <Monogram char={peer.char} bg={peer.color} size={40} />
+        <Monogram char={(ctx?.peerName ?? '·')[0]} bg={isRunner ? '#c9a86e' : '#5a7a3c'} size={40} />
         <View style={{ flex: 1, marginLeft: 10 }}>
-          <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST }}>{peer.name}</Text>
-          <Text style={{ fontSize: 10.5, color: colors.dim, marginTop: 1 }}>{peer.sub}</Text>
+          <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST }}>{ctx?.peerName ?? '채팅'}</Text>
+          <Text style={{ fontSize: 10.5, color: colors.dim, marginTop: 1 }}>
+            {state === 'ready' ? '● 실시간 연결됨' : state === 'loading' ? '연결 중...' : ''}
+          </Text>
         </View>
-        <Pressable style={s.circleBtn} onPress={() => Alert.alert('안심 통화', '번호 노출 없는 안심 통화로 연결돼요 (목업)')}>
+        <Pressable style={s.circleBtn} onPress={() => Alert.alert('안심 통화', '번호 노출 없는 안심 통화로 연결돼요 (준비 중)')}>
           <Text style={{ fontSize: 14, color: '#5a7a3c' }}>✆</Text>
         </Pressable>
       </Row>
 
       {/* booking context strip */}
-      <View style={s.contextStrip}>
-        <Text style={{ fontSize: 11, fontWeight: '700', color: '#3d5a2b' }}>
-          오늘 오후 6:30 · {dog.name} · 서울숲 순환 코스 5km · 서울숲 2번 출입구
-        </Text>
-      </View>
+      {ctx && (
+        <View style={s.contextStrip}>
+          <Text style={{ fontSize: 11, fontWeight: '700', color: '#3d5a2b' }}>{ctx.label}</Text>
+        </View>
+      )}
 
-      {/* messages */}
-      <ScrollView
-        ref={scroller}
-        style={{ flex: 1 }}
-        contentContainerStyle={{ padding: 18, gap: 8 }}
-        onContentSizeChange={() => scroller.current?.scrollToEnd({ animated: false })}
-      >
-        {msgs.map((m) => (
-          <View key={m.id} style={[s.bubbleRow, m.mine && { justifyContent: 'flex-end' }]}>
-            <View style={[s.bubble, m.mine ? s.bubbleMine : s.bubblePeer]}>
-              <Text style={{ fontSize: 13.5, lineHeight: 19, color: m.mine ? FOREST : '#2c332c' }}>{m.text}</Text>
+      {/* body */}
+      {state === 'none' && (
+        <View style={s.emptyWrap}>
+          <Text style={{ fontSize: 14, fontWeight: '900', color: FOREST, textAlign: 'center' }}>진행 중인 예약이 없어요</Text>
+          <Text style={{ fontSize: 12, color: colors.dim, textAlign: 'center', marginTop: 6, lineHeight: 18 }}>
+            채팅은 예약이 생기면 상대방과 자동으로 연결돼요
+          </Text>
+        </View>
+      )}
+      {state === 'error' && (
+        <View style={s.emptyWrap}>
+          <Text style={{ fontSize: 12.5, color: colors.dim, textAlign: 'center' }}>채팅을 불러오지 못했어요 — 잠시 후 다시 시도해주세요</Text>
+        </View>
+      )}
+
+      {(state === 'ready' || state === 'loading') && (
+        <ScrollView
+          ref={scroller}
+          style={{ flex: 1 }}
+          contentContainerStyle={{ padding: 18, gap: 8 }}
+          onContentSizeChange={() => scroller.current?.scrollToEnd({ animated: false })}
+        >
+          {state === 'ready' && msgs.length === 0 && (
+            <Text style={{ fontSize: 12, color: colors.dim, textAlign: 'center', marginTop: 20 }}>
+              첫 메시지를 보내보세요 — 픽업 장소나 아이 성향을 미리 나누면 좋아요
+            </Text>
+          )}
+          {msgs.map((m) => (
+            <View key={m.id} style={[s.bubbleRow, m.mine && { justifyContent: 'flex-end' }]}>
+              {m.mine && <Text style={s.time}>{m.when}</Text>}
+              <View style={[s.bubble, m.mine ? s.bubbleMine : s.bubblePeer]}>
+                <Text style={{ fontSize: 13.5, lineHeight: 19, color: m.mine ? FOREST : '#2c332c' }}>{m.body}</Text>
+              </View>
+              {!m.mine && <Text style={s.time}>{m.when}</Text>}
             </View>
-            <Text style={s.time}>{m.time}</Text>
-          </View>
-        ))}
-        <Text style={{ fontSize: 10, color: colors.dim, textAlign: 'center', marginTop: 8 }}>
-          안전을 위해 모든 대화는 러닝 종료 후 30일간 보관돼요
-        </Text>
-      </ScrollView>
+          ))}
+          {msgs.length > 0 && (
+            <Text style={{ fontSize: 10, color: colors.dim, textAlign: 'center', marginTop: 8 }}>
+              안전을 위해 모든 대화는 러닝 종료 후 30일간 보관돼요
+            </Text>
+          )}
+        </ScrollView>
+      )}
 
       {/* quick replies */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 46 }} contentContainerStyle={{ gap: 8, paddingHorizontal: 18 }}>
-        {QUICK.map((q) => (
-          <Pressable key={q} style={s.quick} onPress={() => send(q)}>
-            <Text style={{ fontSize: 12, fontWeight: '700', color: '#3d453d' }}>{q}</Text>
-          </Pressable>
-        ))}
-      </ScrollView>
+      {state === 'ready' && (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 46 }} contentContainerStyle={{ gap: 8, paddingHorizontal: 18 }}>
+          {QUICK.map((q) => (
+            <Pressable key={q} style={s.quick} onPress={() => send(q)}>
+              <Text style={{ fontSize: 12, fontWeight: '700', color: '#3d453d' }}>{q}</Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+      )}
 
       {/* input bar */}
       <Row style={s.inputBar}>
-        <Pressable style={s.attach} onPress={() => Alert.alert('사진', '사진 첨부 (목업)')}>
+        <Pressable style={s.attach} onPress={() => Alert.alert('사진', '사진 첨부는 준비 중이에요')}>
           <Text style={{ fontSize: 15, color: colors.dim }}>▣</Text>
-        </Pressable>
-        <Pressable style={s.attach} onPress={() => Alert.alert('위치', '현재 위치 공유 (목업)')}>
-          <Text style={{ fontSize: 15, color: colors.dim }}>⌖</Text>
         </Pressable>
         <TextInput
           style={s.input}
           value={input}
           onChangeText={setInput}
-          placeholder="메시지 보내기"
+          placeholder={state === 'ready' ? '메시지 보내기' : '연결 중...'}
           placeholderTextColor="#a9a795"
+          editable={state === 'ready'}
           onSubmitEditing={() => send(input)}
           returnKeyType="send"
         />
-        <Pressable style={s.sendBtn} onPress={() => send(input)}>
+        <Pressable style={[s.sendBtn, (sending || state !== 'ready') && { opacity: 0.5 }]} onPress={() => send(input)}>
           <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST }}>↑</Text>
         </Pressable>
       </Row>
@@ -118,6 +183,7 @@ const s = StyleSheet.create({
   header: { paddingTop: 56, paddingHorizontal: 18, paddingBottom: 12, gap: 10, backgroundColor: colors.cream, borderBottomWidth: 1, borderBottomColor: '#eceadf' },
   circleBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#eceadf' },
   contextStrip: { backgroundColor: '#eef4e0', paddingVertical: 8, paddingHorizontal: 18 },
+  emptyWrap: { flex: 1, justifyContent: 'center', padding: 30 },
   bubbleRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 6 },
   bubble: { maxWidth: '76%', borderRadius: 18, paddingVertical: 10, paddingHorizontal: 14 },
   bubblePeer: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#eceadf', borderBottomLeftRadius: 6 },
