@@ -1,9 +1,9 @@
 import { router } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Monogram, Row } from '../../src/components/ui';
-import { confirmHandoff, fetchBookingSync, fetchCurrentRunnerJobId, runnerEnroute, startRunServer, subscribeBooking } from '../../src/lib/api';
-import { runnerJob, runRequests } from '../../src/store';
+import { Avatar, Row } from '../../src/components/ui';
+import { confirmHandoff, fetchBookingSync, fetchCurrentRunnerJobId, fetchMeetupInfo, MeetupInfo, runnerEnroute, startRunServer, subscribeBooking } from '../../src/lib/api';
+import { runnerJob } from '../../src/store';
 import { colors } from '../../src/theme';
 
 // 픽업 이동 & 인계 확인 — the trust-critical handoff moment.
@@ -28,7 +28,8 @@ async function openNaverRoute() {
 }
 
 export default function Meetup() {
-  const req = runRequests[0];
+  const [info, setInfo] = useState<MeetupInfo | null>(null);
+  const dogName = info?.dogName ?? '반려견';
   const [stage, setStage] = useState<Stage>('enroute');
   const [jobId, setJobId] = useState<string | null>(runnerJob.bookingId ?? null);
   const [peerConfirmed, setPeerConfirmed] = useState(false); // 보호자 측 인계 확인 (서버 진실)
@@ -46,6 +47,12 @@ export default function Meetup() {
         }
       })
       .catch((e) => console.warn('[r-meetup] resolve:', e?.message ?? e));
+  }, [jobId]);
+
+  // 실컨텍스트 — 강아지·코스 실명/실메모 (runRequests 목업 은퇴, ui-audit P0)
+  useEffect(() => {
+    if (!jobId) return;
+    fetchMeetupInfo(jobId).then(setInfo).catch((e) => console.warn('[r-meetup] info:', e?.message ?? e));
   }, [jobId]);
 
   const syncNow = useCallback(async () => {
@@ -110,19 +117,22 @@ export default function Meetup() {
             </Pressable>
           </Row>
           <Text style={{ fontSize: 12, color: '#5d655d', marginTop: 5, lineHeight: 17 }}>
-            성동구 뚝섬로 273 · 출입구 옆 벤치에서 만나요{'\n'}보호자 지침: 초코가 낯을 안 가려서 바로 인사해도 괜찮아요
+            성동구 뚝섬로 273 · 출입구 옆 벤치에서 만나요 (실주소는 곧){'\n'}
+            {info?.dogMemo ? `보호자 메모: ${info.dogMemo}` : '보호자 메모가 없어요 — 채팅으로 미리 인사해보세요'}
           </Text>
         </View>
 
         {/* dog + owner */}
         <View style={s.card}>
           <Row style={{ gap: 12 }}>
-            <Monogram char={req.dogChar} bg={req.dogColor} size={44} />
+            <Avatar url={info?.dogPhotoUrl} char={dogName[0]} bg="#c9a86e" size={44} />
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 14.5, fontWeight: '900', color: FOREST }}>
-                {req.dogName} · {req.breed} {req.weightKg}kg
+                {dogName}{info?.dogBreed ? ` · ${info.dogBreed}` : ''}{info?.dogWeightKg != null ? ` ${info.dogWeightKg}kg` : ''}
               </Text>
-              <Text style={{ fontSize: 11.5, color: colors.dim, marginTop: 2 }}>{req.when} · {req.km}km · 페이스 {req.pace}</Text>
+              <Text style={{ fontSize: 11.5, color: colors.dim, marginTop: 2 }}>
+                {info ? `${info.when} · ${info.km}km · ${info.paceLabel}` : '예약 정보 불러오는 중...'}
+              </Text>
             </View>
             <Pressable style={s.chatChip} onPress={() => router.push({ pathname: '/chat', params: jobId ? { bid: jobId } : {} })}>
               <Text style={{ fontSize: 11, fontWeight: '800', color: '#4a6d1f' }}>보호자 채팅</Text>
@@ -157,7 +167,7 @@ export default function Meetup() {
         )}
         {stage === 'arrived' && (
           <Pressable style={s.primary} onPress={handoff}>
-            <Text style={s.primaryText}>{req.dogName} 인계 받았어요</Text>
+            <Text style={s.primaryText}>{dogName} 인계 받았어요</Text>
             <Text style={s.primarySub}>보호자도 확인하면 러닝을 시작할 수 있어요</Text>
           </Pressable>
         )}

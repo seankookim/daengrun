@@ -13,7 +13,6 @@ import { colors } from '../../src/theme';
 // A confirmed booking is a contract — never re-routes to runner selection.
 
 const FOREST = '#132117';
-const VIEWS = ['일정', '주간', '월간'];
 const FILTERS: { label: string; match: (b: Booking) => boolean }[] = [
   { label: '전체', match: () => true },
   { label: '예약 확정', match: (b) => b.status === 'confirmed' },
@@ -34,7 +33,6 @@ const STATUS_STYLE: Record<BookingStatus, { label: string; bg: string; fg: strin
 const paceMin = (label: string) => (label.includes('8') ? 8 : label.includes('6') ? 6 : 7);
 
 export default function Schedule() {
-  const [view, setView] = useState('일정');
   const [filterIdx, setFilterIdx] = useState(0);
   const [selected, setSelected] = useState<Booking | null>(null);
   const [sheetMode, setSheetMode] = useState<'detail' | 'cancel'>('detail');
@@ -96,19 +94,7 @@ export default function Schedule() {
           </Pressable>
         </Row>
 
-        {/* view toggle */}
-        <View style={s.viewToggle}>
-          {VIEWS.map((v) => (
-            <Pressable key={v} onPress={() => setView(v)} style={[s.viewTab, view === v && { backgroundColor: FOREST }]}>
-              <Text style={{ fontSize: 12.5, fontWeight: '700', color: view === v ? '#fff' : '#5d655d' }}>{v}</Text>
-            </Pressable>
-          ))}
-        </View>
-        {view !== '일정' && (
-          <View style={s.comingSoon}>
-            <Text style={{ fontSize: 12, color: colors.dim, textAlign: 'center' }}>{view} 뷰는 준비 중이에요 — 일정 뷰를 이용해주세요</Text>
-          </View>
-        )}
+        {/* 주간/월간 데드 토글 은퇴 (ui-audit P1) — 기능이 생길 때 복귀 */}
 
         {/* filters (functional) */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12 }} contentContainerStyle={{ gap: 8 }}>
@@ -323,13 +309,19 @@ export default function Schedule() {
                       <Pressable
                         style={s.primaryAction}
                         onPress={() => {
+                          // 실동작: 같은 러너 지명 프리필로 예약 플로우 재진입 (목업 알럿 은퇴, ui-audit P1)
+                          draft.km = selected.km;
+                          draft.pace = selected.paceLabel;
+                          draft.preferredRunnerId = selected.runnerProfileId ?? null;
+                          draft.preferredRunnerName = selected.runnerProfileId ? selected.runnerName : null;
+                          draft.scheduledAtIso = null;
+                          draft.timeLabel = '시간을 선택해주세요';
                           close();
-                          Alert.alert('같은 러너로 일정 변경', `${runner.name} 러너의 가능한 슬롯만 표시된 예약 화면으로 이동해요 (목업)`);
                           router.push('/owner/request');
                         }}
                       >
                         <Text style={{ fontSize: 14.5, fontWeight: '900', color: FOREST }}>같은 러너로 일정 변경</Text>
-                        <Text style={{ fontSize: 10.5, color: '#5d6b4a', marginTop: 2 }}>{runner.name} 러너의 열린 슬롯에서 다시 선택해요</Text>
+                        <Text style={{ fontSize: 10.5, color: '#5d6b4a', marginTop: 2 }}>{runner.name} 러너의 가능 시간에서 다시 골라요</Text>
                       </Pressable>
                       <Pressable
                         style={s.ghostAction}

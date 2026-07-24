@@ -42,7 +42,7 @@ export default function RunnerHome() {
   const [name, setName] = useState<string | null>(null);
   const [stats, setStats] = useState<RunnerWeekStats>({ net: 0, runs: 0, km: 0 });
   const [jobs, setJobs] = useState<RunnerJob[]>([]);
-  const [rs, setRs] = useState<MyRunnerStatus>({ totalRuns: 0, totalKm: 0, online: false });
+  const [rs, setRs] = useState<MyRunnerStatus>({ totalRuns: 0, totalKm: 0, online: false, tier: 'certified' });
   const [avail, setAvail] = useState<AvailRule[] | null>(null);
 
   useFocusEffect(useCallback(() => {
@@ -229,6 +229,41 @@ export default function RunnerHome() {
           </Row>
         </Pressable>
 
+        {/* ---------- 티어 진행 — 수수료 사다리 (최강 동기, ui-audit P2) ---------- */}
+        {(() => {
+          // v1 승급 기준: 베테랑 30회(수수료 18%), 마스터 100회(15%) — 심사 도입 전 잠정
+          const t = rs.tier === 'veteran'
+            ? { next: '마스터', at: 100, fee: '15%' }
+            : rs.tier === 'master'
+              ? null
+              : { next: '베테랑', at: 30, fee: '18%' };
+          if (!t) {
+            return (
+              <View style={s.tierCard}>
+                <Text style={{ fontSize: 12.5, fontWeight: '900', color: FOREST }}>🏅 마스터 러너 — 최저 수수료 15%</Text>
+              </View>
+            );
+          }
+          const left = Math.max(t.at - rs.totalRuns, 0);
+          const pct = Math.min(rs.totalRuns / t.at, 1);
+          return (
+            <View style={s.tierCard}>
+              <Row style={{ justifyContent: 'space-between' }}>
+                <Text style={{ fontSize: 12.5, fontWeight: '900', color: FOREST }}>
+                  {t.next}까지 러닝 <Text style={{ color: '#d84a2f' }}>{left}회</Text>
+                </Text>
+                <Text style={{ fontSize: 11.5, fontWeight: '800', color: '#5a7a3c' }}>수수료 20% → {t.fee}</Text>
+              </Row>
+              <View style={s.tierTrack}>
+                <View style={[s.tierFill, { width: `${pct * 100}%` }]} />
+              </View>
+              <Text style={{ fontSize: 10, color: colors.dim, marginTop: 5 }}>
+                같은 수익 기준 정산액이 늘어나요 · 승급 기준은 파일럿 중 조정될 수 있어요
+              </Text>
+            </View>
+          );
+        })()}
+
         {/* ---------- 새 요청 ---------- */}
         {inbox.length > 0 ? (
           <Pressable onPress={() => router.push('/runner/requests')} style={s.inboxBanner}>
@@ -325,6 +360,9 @@ const s = StyleSheet.create({
     backgroundColor: '#f4f2ea', borderWidth: 1.5, borderColor: '#eceadf',
   },
   availDayOn: { backgroundColor: '#eaf7c8', borderColor: '#a9c47e' },
+  tierCard: { backgroundColor: '#fff', borderRadius: 16, padding: 14, marginTop: 12, borderWidth: 1, borderColor: '#eceadf' },
+  tierTrack: { height: 7, borderRadius: 99, backgroundColor: '#f0eee3', marginTop: 9, overflow: 'hidden' },
+  tierFill: { height: 7, borderRadius: 99, backgroundColor: colors.volt },
   gem: {
     width: 16, height: 16, borderRadius: 4, backgroundColor: '#f0efe8',
     borderWidth: 1.5, borderColor: '#dcd9cc', transform: [{ rotate: '45deg' }],

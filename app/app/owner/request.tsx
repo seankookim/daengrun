@@ -43,7 +43,8 @@ export default function Request() {
   const [pace, setPace] = useState(draft.pace);
   const [addons, setAddons] = useState<AddonKey[]>(draft.addons);
   const [routeId, setRouteId] = useState(draft.routeId);
-  const [timeLabel, setTimeLabel] = useState(draft.timeLabel);
+  // 시간은 명시 선택 필수 — 라벨과 실예약 시각이 어긋나는 정직성 버그 방지 (ui-audit P0)
+  const [timeLabel, setTimeLabel] = useState(draft.scheduledAtIso ? draft.timeLabel : '시간을 선택해주세요');
   const [routes, setRoutes] = useState(sampleRoutes);
   const [routesLive, setRoutesLive] = useState(false);
   const [myDogs, setMyDogs] = useState<DogProfile[]>([]);
@@ -114,6 +115,10 @@ export default function Request() {
   };
 
   const pay = async () => {
+    if (!draft.scheduledAtIso) {
+      setSlotSheet(true); // 시간 미선택 → 결제 대신 슬롯 시트
+      return;
+    }
     Object.assign(draft, { km, pace, addons, routeId, timeLabel });
     setHoldSec(300);
     setHoldLive(null);
@@ -125,7 +130,7 @@ export default function Request() {
       const res = await createBookingHold({
         dog_id: dogId,
         route_id: routesLive ? routeId : undefined, // 목업 코스 id는 uuid가 아님
-        scheduled_at: draft.scheduledAtIso ?? new Date(Date.now() + 3 * 3600_000).toISOString(), // 슬롯 미선택 시에만 +3h
+        scheduled_at: draft.scheduledAtIso!, // pay()에서 선택 강제됨 — +3h 폴백 은퇴
         km,
         pace_label: pace,
         addons,
@@ -224,7 +229,7 @@ export default function Request() {
         </Row>
 
         {/* pace */}
-        <SectionHead glyph="⇢" title="페이스" side="페이스 가이드" />
+        <SectionHead glyph="⇢" title="페이스" />
         <Row style={{ gap: 10 }}>
           {PACES.map((pc) => (
             <Pressable key={pc} onPress={() => setPace(pc)} style={[s.bigChip, pace === pc && s.bigChipSel]}>

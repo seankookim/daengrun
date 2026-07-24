@@ -110,7 +110,7 @@ export default function Matching() {
         <View style={{ width: 40 }} />
       </Row>
       <Text style={{ fontSize: 13, color: '#5d655d', textAlign: 'center', marginBottom: 16 }}>
-        {live ? '러너를 지명하거나, 오픈 매칭으로 응답을 기다릴 수 있어요' : '보호자님과 러너의 선호도를 종합 분석했어요'}
+        {live ? '러너를 지명하거나, 오픈 매칭으로 기다릴 수 있어요\n보통 몇 분 안에 응답이 오고, 확정되면 알림으로 알려드려요' : '보호자님과 러너의 선호도를 종합 분석했어요'}
       </Text>
 
       {/* ---------- 실러너 추천 (지명 요청) — 데모와 같은 추천 경험, 실데이터 기반 ---------- */}

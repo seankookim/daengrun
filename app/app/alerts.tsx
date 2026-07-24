@@ -10,10 +10,8 @@ import { colors } from '../src/theme';
 // 알림 — notification center per mock: filter tabs, unread section, history.
 
 const FOREST = '#132117';
-const TABS = ['전체', '예약', '커뮤니티', '샵'];
 
 export default function Alerts() {
-  const [tab, setTab] = useState('전체');
   const [liveNotis, setLiveNotis] = useState<LiveNoti[]>([]);
 
   const load = () => fetchNotifications().then(setLiveNotis).catch(() => {});
@@ -60,23 +58,12 @@ export default function Alerts() {
             </Row>
             <Text style={s.sub}>{dog.name}와 관련된 소식을 한눈에 확인하세요!</Text>
           </View>
-          <Row style={{ gap: 8 }}>
-            <HeaderBtn glyph="⚙" label="필터" />
-            <Pressable onPress={markAll}>
-              <HeaderBtn glyph="✓" label="모두 읽음" />
-            </Pressable>
-          </Row>
+          <Pressable onPress={markAll}>
+            <HeaderBtn glyph="✓" label="모두 읽음" />
+          </Pressable>
         </Row>
 
-        {/* tabs */}
-        <View style={s.tabsWrap}>
-          {TABS.map((t, i) => (
-            <Pressable key={t} onPress={() => setTab(t)} style={[s.tab, tab === t && s.tabSel]}>
-              <Text style={[s.tabText, tab === t && { color: '#fff' }]}>{t}</Text>
-              {i < TABS.length - 1 && tab !== t && TABS[i + 1] !== tab && <View style={s.tabDivider} />}
-            </Pressable>
-          ))}
-        </View>
+        {/* 필터 탭 은퇴 (ui-audit P1) — 알림 종류가 늘면 실필터로 복귀 */}
 
         {/* ---------- 실시간 알림 (서버) ---------- */}
         {liveNotis.length > 0 && (

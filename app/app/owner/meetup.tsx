@@ -2,19 +2,21 @@ import { router } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Monogram, Row } from '../../src/components/ui';
-import { confirmHandoff, fetchBookingSync, fetchCurrentOwnerBookingId, subscribeBooking } from '../../src/lib/api';
-import { dog, draft, nextBooking, runners } from '../../src/store';
+import { confirmHandoff, fetchBookingSync, fetchCurrentOwnerBookingId, fetchMeetupInfo, MeetupInfo, subscribeBooking } from '../../src/lib/api';
+import { draft } from '../../src/store';
 import { colors } from '../../src/theme';
 
-// 보호자 인계 화면 — the owner-side mirror of runner/meetup.
-// Runner en route → arrived → owner confirms handoff → both confirmed → live.
+// 보호자 인계 화면 — 실신원만 (김민준·초코 목업 은퇴, ui-audit P0).
+// 모든 이름·상태는 서버에서. 가짜 ETA 문구 없음.
 
 const FOREST = '#132117';
 type Stage = 'enroute' | 'arrived' | 'waiting' | 'confirmed';
 
 export default function OwnerMeetup() {
-  const runner = runners.find((r) => r.id === nextBooking.runnerId) ?? runners[0];
+  const [info, setInfo] = useState<MeetupInfo | null>(null);
   const [stage, setStage] = useState<Stage>('enroute');
+  const runnerName = info?.runnerName ?? '러너';
+  const dogName = info?.dogName ?? '반려견';
 
   const poll = useRef<ReturnType<typeof setInterval> | null>(null);
   const [bookingId, setBookingId] = useState<string | null>(draft.bookingId ?? null);
@@ -32,6 +34,12 @@ export default function OwnerMeetup() {
         }
       })
       .catch((e) => console.warn('[o-meetup] resolve:', e?.message ?? e));
+  }, [bookingId]);
+
+  // 실컨텍스트 로드 — 러너·강아지·코스 실명
+  useEffect(() => {
+    if (!bookingId) return;
+    fetchMeetupInfo(bookingId).then(setInfo).catch((e) => console.warn('[o-meetup] info:', e?.message ?? e));
   }, [bookingId]);
 
   // 모든 단계가 서버 진실을 따른다 — 가짜 도착 없음
@@ -79,7 +87,7 @@ export default function OwnerMeetup() {
           <View key={i} style={[s.pathDot, { right: 60 + i * 42, top: 80 + i * 26, opacity: stage === 'enroute' ? 1 : 0.3 }]} />
         ))}
         <View style={[s.runnerPin, stage !== 'enroute' && { right: 260, top: 196 }]}>
-          <Text style={{ fontSize: 9, fontWeight: '900', color: '#fff' }}>{runner.char}</Text>
+          <Text style={{ fontSize: 9, fontWeight: '900', color: '#fff' }}>{runnerName[0]}</Text>
         </View>
         <View style={s.pickupPin}><Text style={{ fontSize: 9, fontWeight: '900', color: '#fff' }}>픽업</Text></View>
 
@@ -87,7 +95,7 @@ export default function OwnerMeetup() {
           <Pressable onPress={() => router.back()} style={s.circleBtn}><Text style={{ fontSize: 18 }}>‹</Text></Pressable>
           <View style={s.etaPill}>
             <Text style={{ fontSize: 12, fontWeight: '900', color: colors.volt }}>
-              {stage === 'enroute' ? `${runner.name} 러너 도착까지 약 6분` : `${runner.name} 러너 도착!`}
+              {stage === 'enroute' ? `${runnerName} 러너 매칭됨 — 출발 대기` : `${runnerName} 러너 이동 중`}
             </Text>
           </View>
           <View style={{ width: 40 }} />
@@ -98,16 +106,14 @@ export default function OwnerMeetup() {
         {/* runner card */}
         <View style={s.card}>
           <Row style={{ gap: 12 }}>
-            <Monogram char={runner.char} bg={runner.color} size={46} />
+            <Monogram char={runnerName[0]} bg="#5a7a3c" size={46} />
             <View style={{ flex: 1 }}>
               <Row style={{ gap: 6 }}>
-                <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST }}>{runner.name} 러너</Text>
-                {runner.badges.map((b) => (
-                  <View key={b} style={s.badgePill}><Text style={{ fontSize: 8.5, fontWeight: '800', color: '#4a6d1f' }}>{b}</Text></View>
-                ))}
+                <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST }}>{runnerName} 러너</Text>
+                <View style={s.badgePill}><Text style={{ fontSize: 8.5, fontWeight: '800', color: '#4a6d1f' }}>신원인증</Text></View>
               </Row>
               <Text style={{ fontSize: 11.5, color: colors.dim, marginTop: 3 }}>
-                ★ {runner.rating} · {nextBooking.timeLabel} · {nextBooking.routeName}
+                {info ? `${info.when} · ${info.routeName} ${info.km}km` : '예약 정보 불러오는 중...'}
               </Text>
             </View>
             <Pressable style={s.chatChip} onPress={() => router.push({ pathname: '/chat', params: bookingId ? { bid: bookingId } : {} })}>
@@ -127,7 +133,7 @@ export default function OwnerMeetup() {
             active={stage === 'arrived'}
             label={
               stage === 'waiting' || stage === 'confirmed' ? '내 인계 확인 완료'
-              : `${dog.name} 인계 확인 (양측 모두 확인해야 시작돼요)`
+              : `${dogName} 인계 확인 (양측 모두 확인해야 시작돼요)`
             }
           />
           <Step
@@ -146,7 +152,7 @@ export default function OwnerMeetup() {
         )}
         {stage === 'arrived' && (
           <Pressable style={[s.primary, { backgroundColor: colors.volt }]} onPress={handoff}>
-            <Text style={[s.primaryText, { color: FOREST }]}>{dog.name}를 인계했어요</Text>
+            <Text style={[s.primaryText, { color: FOREST }]}>{dogName}를 인계했어요</Text>
             <Text style={[s.primarySub, { color: '#5d6b4a' }]}>러너도 확인하면 러닝이 시작돼요</Text>
           </Pressable>
         )}

@@ -557,15 +557,57 @@ export async function checkSlot(runnerId: string, startIso: string, endIso: stri
   return !!data;
 }
 
-// 러너 홈 상태 — 실누적/온라인 (드랍 트레일·온라인 토글의 진실)
-export interface MyRunnerStatus { totalRuns: number; totalKm: number; online: boolean }
+// 러너 홈 상태 — 실누적/온라인/티어 (드랍 트레일·온라인 토글·티어 진행바의 진실)
+export interface MyRunnerStatus { totalRuns: number; totalKm: number; online: boolean; tier: string }
 
 export async function fetchMyRunnerStatus(): Promise<MyRunnerStatus> {
   const { data: user } = await supabase.auth.getUser();
-  if (!user.user) return { totalRuns: 0, totalKm: 0, online: false };
+  if (!user.user) return { totalRuns: 0, totalKm: 0, online: false, tier: 'certified' };
   const { data } = await supabase.from('runners')
-    .select('total_runs, total_km, online').eq('profile_id', user.user.id).maybeSingle();
-  return { totalRuns: data?.total_runs ?? 0, totalKm: Number(data?.total_km ?? 0), online: !!data?.online };
+    .select('total_runs, total_km, online, tier').eq('profile_id', user.user.id).maybeSingle();
+  return {
+    totalRuns: data?.total_runs ?? 0,
+    totalKm: Number(data?.total_km ?? 0),
+    online: !!data?.online,
+    tier: data?.tier ?? 'certified',
+  };
+}
+
+// 미트업 실컨텍스트 — 목업 김민준/초코 잔재 제거용 (양쪽 인계 화면의 진실)
+export interface MeetupInfo {
+  runnerName: string | null;
+  dogName: string;
+  dogBreed: string | null;
+  dogWeightKg: number | null;
+  dogMemo: string | null;
+  dogPhotoUrl: string | null;
+  routeName: string;
+  km: number;
+  paceLabel: string;
+  when: string;
+}
+
+export async function fetchMeetupInfo(bookingId: string): Promise<MeetupInfo> {
+  const { data, error } = await supabase
+    .from('bookings')
+    .select('scheduled_at, km, pace_label, routes(name), dogs(name, breed, weight_kg, memo, photo_url), runners(profiles(name))')
+    .eq('id', bookingId)
+    .single();
+  if (error) throw error;
+  const d = data as any;
+  const { dateLabel, timeLabel } = kstParts(d.scheduled_at);
+  return {
+    runnerName: d.runners?.profiles?.name ?? null,
+    dogName: d.dogs?.name ?? '반려견',
+    dogBreed: d.dogs?.breed ?? null,
+    dogWeightKg: d.dogs?.weight_kg != null ? Number(d.dogs.weight_kg) : null,
+    dogMemo: d.dogs?.memo ?? null,
+    dogPhotoUrl: d.dogs?.photo_url ?? null,
+    routeName: d.routes?.name ?? '코스 미지정',
+    km: Number(d.km),
+    paceLabel: d.pace_label ?? "보통 7'",
+    when: `${dateLabel} ${timeLabel}`,
+  };
 }
 
 export async function setRunnerOnline(online: boolean): Promise<void> {

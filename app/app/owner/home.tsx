@@ -39,9 +39,13 @@ export default function OwnerHome() {
 
   // 실예약 next booking — 위젯이 진짜 다음 일정을 보여준다 (없으면 목업)
   const [liveNext, setLiveNext] = useState<Booking | null>(null);
+  const [lastDone, setLastDone] = useState<Booking | null>(null);
   useFocusEffect(useCallback(() => {
     fetchMyBookings()
-      .then((bs) => setLiveNext(bs.find((b) => ['pending', 'confirmed', 'handoff', 'active'].includes(b.status)) ?? null))
+      .then((bs) => {
+        setLiveNext(bs.find((b) => ['pending', 'confirmed', 'handoff', 'active'].includes(b.status)) ?? null);
+        setLastDone(bs.find((b) => b.status === 'completed') ?? null);
+      })
       .catch((e) => console.warn('[home] bookings:', e?.message ?? e));
     fetchFitness().then(setFit).catch((e) => console.warn('[home] fitness:', e?.message ?? e));
     fetchCertifiedRunners().then(setLocalRunners).catch((e) => console.warn('[home] runners:', e?.message ?? e));
@@ -50,9 +54,9 @@ export default function OwnerHome() {
   // 우리 동네 러너 — 온라인 러너 셸프 (탐색형 매칭의 시작점)
   const [localRunners, setLocalRunners] = useState<LiveRunner[]>([]);
 
-  // reward pulse — dopamine beacon for unclaimed rewards
+  // reward beacon — 실보상 경제 전까지 숨김 (상시 가짜 도파민 = 학습된 무시, ui-audit P0)
   const [ladderOpen, setLadderOpen] = useState(false);
-  const claimable = ownerGearLadder.find((g) => g.claimable);
+  const claimable = null as (typeof ownerGearLadder)[number] | null;
   const nextLocked = ownerGearLadder.find((g) => !g.got && !g.claimable);
   const pulse = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -206,6 +210,35 @@ export default function OwnerHome() {
             accent="#9fc3e8"
           />
         </View>
+
+        {/* ---------- retention nudges (실데이터 기반, ui-audit P2) ---------- */}
+        {weekKm > 0 && weekKm < goalKm && new Date().getDay() >= 4 && (
+          <Pressable onPress={() => router.push('/owner/request')} style={[s.nudge, { backgroundColor: p.card, borderColor: p.line }]}>
+            <Text style={{ flex: 1, fontSize: 12.5, fontWeight: '800', color: p.textStrong }}>
+              주간 목표까지 <Text style={{ color: colors.tang, fontWeight: '900' }}>{Math.round((goalKm - weekKm) * 10) / 10}km</Text> — 주말 러닝으로 채워볼까요?
+            </Text>
+            <Text style={{ fontSize: 12, color: colors.tang, fontWeight: '900' }}>예약 ›</Text>
+          </Pressable>
+        )}
+        {!liveNext && lastDone && (
+          <Pressable
+            onPress={() => {
+              draft.km = lastDone.km;
+              draft.pace = lastDone.paceLabel;
+              draft.preferredRunnerId = lastDone.runnerProfileId ?? null;
+              draft.preferredRunnerName = lastDone.runnerProfileId ? lastDone.runnerName : null;
+              draft.scheduledAtIso = null;
+              draft.timeLabel = '시간을 선택해주세요';
+              router.push('/owner/request');
+            }}
+            style={[s.nudge, { backgroundColor: p.card, borderColor: p.line }]}
+          >
+            <Text style={{ flex: 1, fontSize: 12.5, fontWeight: '800', color: p.textStrong }}>
+              ⟳ 지난번처럼 다시 예약할까요? <Text style={{ color: p.dim, fontWeight: '600' }}>{lastDone.km}km{lastDone.runnerProfileId ? ` · ${lastDone.runnerName} 러너` : ''}</Text>
+            </Text>
+            <Text style={{ fontSize: 12, color: '#5a7a3c', fontWeight: '900' }}>시간만 고르기 ›</Text>
+          </Pressable>
+        )}
 
         {/* ---------- slide-to-book ---------- */}
         <SlideToBook onComplete={() => router.push('/owner/request')} />
@@ -379,47 +412,8 @@ export default function OwnerHome() {
           <Text style={{ fontSize: 14, color: p.dim }}>›</Text>
         </Pressable>
 
-        {/* ---------- latest card ---------- */}
-        <View style={s.sectionRow}>
-          <Text style={[s.sectionTitle, { color: p.textStrong }]}>최근 활동</Text>
-          <Pressable onPress={() => router.push('/cards')}>
-            <Text style={{ fontSize: 12, color: p.dim, fontWeight: '700' }}>모두 보기 ›</Text>
-          </Pressable>
-        </View>
-        {latestCard && (
-          <Pressable onPress={() => router.push('/cards')} style={{ alignItems: 'center' }}>
-            <RunCard card={latestCard} width={CARD_W} />
-          </Pressable>
-        )}
-
-        {/* ---------- runners ---------- */}
-        <View style={s.sectionRow}>
-          <Text style={[s.sectionTitle, { color: p.textStrong }]}>내 주변 인기 러너</Text>
-          <Text style={{ fontSize: 12, color: p.dim }}>전체보기</Text>
-        </View>
-        {runners.slice(0, 2).map((r) => (
-          <Pressable key={r.id} onPress={() => router.push('/owner/matching')}>
-            <View style={[s.runnerCard, { backgroundColor: p.card, borderColor: p.line }]}>
-              <Monogram char={r.char} bg={r.color} />
-              <View style={{ flex: 1, marginLeft: 12 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Text style={{ fontSize: 15, fontWeight: '700', color: p.textStrong }}>{r.name}</Text>
-                  {r.badges.map((b) => (
-                    <View key={b} style={[s.runnerBadge, { borderColor: p.line }]}>
-                      <Text style={{ fontSize: 9, fontWeight: '800', color: b === '훈련사' ? colors.tang : mode === 'dark' ? colors.volt : colors.voltDeep }}>
-                        {b}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-                <Text style={{ fontSize: 12, color: p.dim, marginTop: 3 }}>
-                  ★ {r.rating} · 러닝 {r.runs}회 · 성수동 {r.distanceKm}km
-                </Text>
-              </View>
-              <Text style={{ color: p.dim, fontSize: 18 }}>›</Text>
-            </View>
-          </Pressable>
-        ))}
+        {/* 최근 활동 목업 카드·'내 주변 인기 러너' 목업 섹션 은퇴 (ui-audit P0)
+            — 실카드는 리포트/기록이, 실러너는 위 동네 러너 셸프가 담당 */}
       </Animated.ScrollView>
       <BottomNav dark={mode === 'dark'} />
 
@@ -589,6 +583,10 @@ const s = StyleSheet.create({
   },
   countdownPill: { borderRadius: 99, paddingVertical: 6, paddingHorizontal: 10 },
   widgetBtn: { flex: 1, borderWidth: 1, borderRadius: 12, alignItems: 'center', paddingVertical: 9 },
+  nudge: {
+    flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10,
+    borderRadius: 14, borderWidth: 1.2, paddingVertical: 12, paddingHorizontal: 14,
+  },
   safetyStrip: {
     flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 16,
     paddingVertical: 12, paddingHorizontal: 14, marginTop: 12,
