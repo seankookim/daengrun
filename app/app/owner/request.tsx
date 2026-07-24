@@ -1,9 +1,9 @@
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { AvailRule, confirmPayment, createBookingHold, ensureDog, fetchRoutes, fetchRunnerAvailability } from '../../src/lib/api';
+import { AvailRule, confirmPayment, createBookingHold, DogProfile, ensureDog, fetchMyDog, fetchRoutes, fetchRunnerAvailability } from '../../src/lib/api';
 import { HeatTrace } from '../../src/components/runcard';
-import { Monogram, Row } from '../../src/components/ui';
+import { Avatar, Row } from '../../src/components/ui';
 import { AddonKey, dog, draft, fmtWon, sampleRoutes } from '../../src/store';
 import { colors, pricing } from '../../src/theme';
 
@@ -46,6 +46,7 @@ export default function Request() {
   const [timeLabel, setTimeLabel] = useState(draft.timeLabel);
   const [routes, setRoutes] = useState(sampleRoutes);
   const [routesLive, setRoutesLive] = useState(false);
+  const [myDog, setMyDog] = useState<DogProfile | null>(null);
 
   // 첫 실화(實化) 지점: 안심 코스는 서버에서 온다. 실패 시 목업 유지.
   useEffect(() => {
@@ -58,6 +59,7 @@ export default function Request() {
         }
       })
       .catch(() => {});
+    fetchMyDog().then(setMyDog).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [slotSheet, setSlotSheet] = useState(false);
@@ -168,13 +170,16 @@ export default function Request() {
         {/* dog */}
         <SectionHead glyph="◉" title="누가 달릴까요?" />
         <Row style={{ gap: 10 }}>
-          <View style={[s.card, { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 }]}>
-            <Monogram char={dog.name[0]} bg="#c9a86e" size={40} />
+          <Pressable
+            onPress={() => router.push('/owner/dog')}
+            style={[s.card, { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 }]}
+          >
+            <Avatar url={myDog?.photoUrl} char={(myDog?.name ?? dog.name)[0]} bg="#c9a86e" size={40} />
             <Text style={{ flex: 1, fontSize: 14, fontWeight: '700', color: FOREST }}>
-              {dog.name} · {dog.breed} · {dog.weightKg}kg
+              {myDog?.name ?? dog.name} · {myDog?.breed ?? dog.breed} · {myDog?.weightKg ?? dog.weightKg}kg
             </Text>
-            <Text style={{ fontSize: 12, color: colors.dim }}>▾</Text>
-          </View>
+            <Text style={{ fontSize: 11.5, fontWeight: '700', color: '#5a7a3c' }}>프로필 ›</Text>
+          </Pressable>
           <View style={s.addDog}>
             <Text style={{ fontSize: 18, color: FOREST }}>＋</Text>
             <Text style={{ fontSize: 9, color: colors.dim, marginTop: 2 }}>반려견 추가</Text>

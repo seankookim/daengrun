@@ -83,6 +83,69 @@ export async function ensureDog(): Promise<string> {
   return created.id;
 }
 
+// ---------- dog profile (실초코) ----------
+export interface DogProfile {
+  id: string;
+  name: string;
+  breed: string | null;
+  birthDate: string | null; // YYYY-MM-DD
+  weightKg: number | null;
+  neutered: boolean | null;
+  memo: string | null;
+  prefTags: string[];
+  photoUrl: string | null;
+  weeklyGoalKm: number;
+}
+
+export async function fetchMyDog(): Promise<DogProfile | null> {
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) return null;
+  const { data } = await supabase
+    .from('dogs')
+    .select('id, name, breed, birth_date, weight_kg, neutered, memo, preferences, photo_url, weekly_goal_km')
+    .eq('owner_id', user.user.id)
+    .limit(1);
+  const d = data?.[0];
+  if (!d) return null;
+  return {
+    id: d.id,
+    name: d.name,
+    breed: d.breed,
+    birthDate: d.birth_date,
+    weightKg: d.weight_kg != null ? Number(d.weight_kg) : null,
+    neutered: d.neutered,
+    memo: d.memo,
+    prefTags: (d.preferences as any)?.tags ?? [],
+    photoUrl: d.photo_url,
+    weeklyGoalKm: Number(d.weekly_goal_km ?? 15),
+  };
+}
+
+export async function updateMyDog(dogId: string, p: {
+  name?: string; breed?: string; birth_date?: string | null; weight_kg?: number | null;
+  neutered?: boolean; memo?: string; prefTags?: string[];
+}): Promise<void> {
+  const { prefTags, ...rest } = p;
+  const patch: Record<string, unknown> = { ...rest };
+  if (prefTags) patch.preferences = { tags: prefTags };
+  const { error } = await supabase.from('dogs').update(patch).eq('id', dogId);
+  if (error) throw error;
+}
+
+export async function uploadDogPhoto(dogId: string, base64: string): Promise<string> {
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) throw new Error('not signed in');
+  const path = `${user.user.id}/dogs/${dogId}.jpg`;
+  const { error } = await supabase.storage.from('avatars')
+    .upload(path, b64ToBytes(base64), { contentType: 'image/jpeg', upsert: true });
+  if (error) throw error;
+  const { data: pub } = supabase.storage.from('avatars').getPublicUrl(path);
+  const url = `${pub.publicUrl}?v=${Date.now()}`;
+  const { error: e2 } = await supabase.from('dogs').update({ photo_url: url }).eq('id', dogId);
+  if (e2) throw e2;
+  return url;
+}
+
 // ---------- bookings (edge functions) ----------
 export interface HoldResult { booking_id: string; hold_expires_at: string; total_price: number }
 
@@ -170,6 +233,8 @@ export interface OpenRequest {
   payout: number; // 수수료 20% 제외 추정
   directed?: boolean; // 지명 요청 여부
   repeatPrior?: number; // 이 강아지와 이미 함께한 완료 러닝 수 (단골)
+  photoUrl: string | null;
+  prefTags: string[];
 }
 
 function mapOpenRequest(r: any, directed: boolean): OpenRequest {
@@ -186,10 +251,12 @@ function mapOpenRequest(r: any, directed: boolean): OpenRequest {
     paceLabel: r.pace_label ?? "보통 7'",
     payout: Math.round((r.base_fare + r.distance_fare + r.addon_fare) * 0.8),
     directed,
+    photoUrl: r.dogs?.photo_url ?? null,
+    prefTags: (r.dogs?.preferences as any)?.tags ?? [],
   };
 }
 
-const REQ_SELECT = 'id, scheduled_at, km, pace_label, base_fare, distance_fare, addon_fare, dogs(id, name, breed, weight_kg, memo)';
+const REQ_SELECT = 'id, scheduled_at, km, pace_label, base_fare, distance_fare, addon_fare, dogs(id, name, breed, weight_kg, memo, photo_url, preferences)';
 
 // 러너 인박스: 지명 요청(runner_pending, 나에게) + 오픈 요청(matching, 미배정)
 // + 단골 감지: 함께 완주한 이력이 있는 강아지엔 repeatPrior (수락 결정이 쉬워진다)
@@ -240,6 +307,8 @@ export async function fetchOpenRequests(): Promise<OpenRequest[]> {
       km: Number(r.km),
       paceLabel: r.pace_label ?? "보통 7'",
       payout: Math.round((r.base_fare + r.distance_fare + r.addon_fare) * 0.8),
+      photoUrl: r.dogs?.photo_url ?? null,
+      prefTags: (r.dogs?.preferences as any)?.tags ?? [],
     };
   });
 }

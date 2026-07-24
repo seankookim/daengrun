@@ -2,7 +2,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BottomNav } from '../../src/components/bottomnav';
-import { Monogram, Row } from '../../src/components/ui';
+import { Avatar, Row } from '../../src/components/ui';
 import { acceptBooking, fetchRunnerInbox, OpenRequest } from '../../src/lib/api';
 import { runnerJob } from '../../src/store';
 import { colors } from '../../src/theme';
@@ -76,7 +76,7 @@ export default function Requests() {
               </Row>
             </Row>
             <Row style={{ gap: 12, marginTop: 12 }}>
-              <Monogram char={req.dogName[0]} bg="#c9a86e" size={48} />
+              <Avatar url={req.photoUrl} char={req.dogName[0]} bg="#c9a86e" size={48} />
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: 15.5, fontWeight: '900', color: FOREST }}>
                   {req.dogName} · {req.breed} {req.weightKg}kg
@@ -92,6 +92,15 @@ export default function Requests() {
                 <Text style={{ fontSize: 9, color: colors.dim, marginTop: 1 }}>수수료 20% 제외</Text>
               </View>
             </Row>
+            {req.prefTags.length > 0 && (
+              <Row style={{ gap: 5, marginTop: 9, flexWrap: 'wrap' }}>
+                {req.prefTags.map((t) => (
+                  <View key={t} style={{ backgroundColor: '#eef4e0', borderRadius: 99, paddingVertical: 3, paddingHorizontal: 8 }}>
+                    <Text style={{ fontSize: 10, fontWeight: '700', color: '#3d5a2b' }}>{t}</Text>
+                  </View>
+                ))}
+              </Row>
+            )}
             {req.memo && (
               <View style={s.memo}>
                 <Text style={{ fontSize: 11.5, color: '#5d655d', lineHeight: 17 }} numberOfLines={2}>메모: {req.memo}</Text>

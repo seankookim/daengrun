@@ -31,6 +31,7 @@ export default function OwnerHome() {
   const weekKm = fit?.weekKm ?? 0;
   const goalKm = fit?.goalKm ?? dog.weeklyGoalKm;
   const fitnessAge = fit?.fitnessAge ?? null;
+  const dogName = fit?.dogName ?? dog.name; // 실반려견 이름 (프로필 위저드 반영)
   const pct = goalKm > 0 ? weekKm / goalKm : 0;
   const goalHit = pct >= 1;
   const latestCard = myCards.find((c) => c.run);
@@ -92,13 +93,13 @@ export default function OwnerHome() {
       <View style={[s.overlay, { backgroundColor: p.bg }]}>
         <Animated.View style={{ height: headerH, opacity: headerOpacity, overflow: 'hidden' }}>
           <View style={s.headerRow}>
-            <Monogram char={dog.name[0]} bg={colors.volt} size={46} />
+            <Monogram char={dogName[0]} bg={colors.volt} size={46} />
             <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={{ fontSize: 17, fontWeight: '800', color: p.textStrong }}>
-                안녕하세요, {dog.name} 보호자님
+                안녕하세요, {dogName} 보호자님
               </Text>
               <Text style={{ fontSize: 12, color: p.dim, marginTop: 2 }}>
-                {dog.name}와 함께 건강한 하루 보내세요!
+                {dogName}와 함께 건강한 하루 보내세요!
               </Text>
             </View>
             {/* theme toggle + notifications */}
@@ -122,7 +123,7 @@ export default function OwnerHome() {
 
             {/* compact info block (left side, fades in) */}
             <Animated.View style={[s.info, { opacity: infoOpacity, transform: [{ translateX: infoX }] }]}>
-              <Text style={{ fontSize: 12, fontWeight: '700', color: hp.textSoft }}>{dog.name}의 주간 목표</Text>
+              <Text style={{ fontSize: 12, fontWeight: '700', color: hp.textSoft }}>{dogName}의 주간 목표</Text>
               <Text style={{ marginTop: 2 }}>
                 <Text style={{ fontSize: 32, fontWeight: '900', color: colors.tang }}>
                   {weekKm}
@@ -175,7 +176,7 @@ export default function OwnerHome() {
             {/* big-state goal message */}
             <Animated.Text style={[s.bigMsg, { opacity: bigMsgOpacity, color: hp.textSoft }]}>
               {goalHit
-                ? `이번 주 목표 달성! ${dog.name} 최고예요`
+                ? `이번 주 목표 달성! ${dogName} 최고예요`
                 : weekKm > 0
                   ? `목표까지 ${Math.max(Math.round((goalKm - weekKm) * 10) / 10, 0)}km — 좋은 페이스예요`
                   : '이번 주 첫 러닝을 예약해보세요'}
