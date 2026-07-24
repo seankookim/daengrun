@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Monogram, Row } from '../../src/components/ui';
 import { confirmHandoff, fetchBookingSync, fetchCurrentOwnerBookingId, fetchMeetupInfo, MeetupInfo, subscribeBooking } from '../../src/lib/api';
+import { haptic } from '../../src/lib/haptics';
 import { draft } from '../../src/store';
 import { colors } from '../../src/theme';
 
@@ -73,6 +74,7 @@ export default function OwnerMeetup() {
 
   const handoff = async () => {
     if (!bookingId) return;
+    haptic('success');
     try { await confirmHandoff(bookingId, 'owner'); } catch { /* 폴링이 따라잡음 */ }
     setStage('waiting');
   };

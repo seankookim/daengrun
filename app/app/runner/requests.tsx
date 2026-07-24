@@ -4,6 +4,7 @@ import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } 
 import { BottomNav } from '../../src/components/bottomnav';
 import { Avatar, Row } from '../../src/components/ui';
 import { acceptBooking, fetchRunnerInbox, OpenRequest } from '../../src/lib/api';
+import { haptic } from '../../src/lib/haptics';
 import { runnerJob } from '../../src/store';
 import { colors } from '../../src/theme';
 
@@ -25,6 +26,7 @@ export default function Requests() {
     setAccepting(req.bookingId);
     try {
       await acceptBooking(req.bookingId);
+      haptic('success');
       runnerJob.bookingId = req.bookingId;
       Alert.alert('수락 완료', '보호자에게 수락 알림이 전송되었어요');
       router.push('/runner/meetup');

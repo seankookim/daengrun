@@ -5,7 +5,7 @@ import { Alert, Animated, Dimensions, Modal, PanResponder, Pressable, ScrollView
 import { BottomNav } from '../../src/components/bottomnav';
 import { Ring } from '../../src/components/ring';
 import { RunCard } from '../../src/components/runcard';
-import { Avatar, Monogram } from '../../src/components/ui';
+import { Avatar } from '../../src/components/ui';
 import { fetchCertifiedRunners, fetchFitness, fetchMyBookings, Fitness, LiveRunner } from '../../src/lib/api';
 import { Booking, demoImminent, dog, draft, myCards, nextBooking, ownerGearLadder, runners } from '../../src/store';
 import { colors, surfaces } from '../../src/theme';
@@ -97,7 +97,7 @@ export default function OwnerHome() {
       <View style={[s.overlay, { backgroundColor: p.bg }]}>
         <Animated.View style={{ height: headerH, opacity: headerOpacity, overflow: 'hidden' }}>
           <View style={s.headerRow}>
-            <Monogram char={dogName[0]} bg={colors.volt} size={46} />
+            <Avatar url={fit?.dogPhotoUrl} char={dogName[0]} bg={colors.volt} size={46} />
             <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={{ fontSize: 17, fontWeight: '800', color: p.textStrong }}>
                 안녕하세요, {dogName} 보호자님
@@ -106,12 +106,7 @@ export default function OwnerHome() {
                 {dogName}와 함께 건강한 하루 보내세요!
               </Text>
             </View>
-            {/* theme toggle + notifications */}
-            <Pressable onPress={toggle} style={[s.themeBtn, { borderColor: p.line }]}>
-              <Text style={{ fontSize: 16, color: mode === 'dark' ? colors.volt : colors.ink }}>
-                {mode === 'dark' ? '☀' : '☾'}
-              </Text>
-            </Pressable>
+            {/* 다크 토글 은퇴 — '나이트 러너' 테마로 전 화면 완성 후 복귀 (반쪽 다크는 깨져 보임, ui-audit) */}
             <Pressable onPress={() => router.push('/alerts')} style={[s.themeBtn, { borderColor: p.line, marginLeft: 8 }]}>
               <View style={s.bellDot} />
               <Text style={{ fontSize: 15, color: p.dim }}>◔</Text>
@@ -284,7 +279,7 @@ export default function OwnerHome() {
           </View>
           {liveNext ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 12 }}>
-              <Monogram char={liveNext.dogName[0]} bg="#FF6347" size={46} />
+              <Avatar url={fit?.dogPhotoUrl} char={liveNext.dogName[0]} bg="#FF6347" size={46} />
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: 17, fontWeight: '900', color: p.textStrong }}>
                   {liveNext.dateLabel.split(' ')[0]} {liveNext.timeLabel} · {liveNext.dogName}

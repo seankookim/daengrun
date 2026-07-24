@@ -1,9 +1,10 @@
-import { ReactNode } from 'react';
-import { View } from 'react-native';
+import { ReactNode, useEffect, useRef, useState } from 'react';
+import { Animated, View } from 'react-native';
 import { colors } from '../theme';
 
 // Glowing dot-ring progress — pure RN, no SVG dependency.
 // Lit dots shade deep→bright volt along the arc; a larger glowing head dot marks progress.
+// animate: 마운트 시 0→pct로 차오름 (진행이 '벌어들인 것'처럼 느껴지게 — motion = meaning)
 
 function lerpColor(a: string, b: string, t: number): string {
   const pa = [1, 3, 5].map((i) => parseInt(a.slice(i, i + 2), 16));
@@ -17,6 +18,7 @@ export function Ring({
   dotSize = 10,
   pct,
   trackColor = '#233827',
+  animate = true,
   children,
 }: {
   size?: number;
@@ -24,9 +26,20 @@ export function Ring({
   dotSize?: number;
   pct: number; // 0..1
   trackColor?: string;
+  animate?: boolean;
   children?: ReactNode;
 }) {
-  const p = Math.min(Math.max(pct, 0), 1);
+  const target = Math.min(Math.max(pct, 0), 1);
+  const anim = useRef(new Animated.Value(0)).current;
+  const [p, setP] = useState(animate ? 0 : target);
+
+  useEffect(() => {
+    if (!animate) { setP(target); return; }
+    const id = anim.addListener(({ value }) => setP(value));
+    Animated.timing(anim, { toValue: target, duration: 750, useNativeDriver: false }).start();
+    return () => anim.removeListener(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [target, animate]);
   const lit = Math.round(p * dots);
   const r = size / 2 - dotSize;
   const c = size / 2;

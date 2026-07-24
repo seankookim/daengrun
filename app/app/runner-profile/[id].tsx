@@ -1,8 +1,9 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
-import { Alert, Dimensions, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, Animated, Dimensions, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Avatar, Row } from '../../src/components/ui';
 import { checkSlot, deleteRunnerPhoto, fetchRunnerProfile, RunnerPublicProfile, uploadRunnerPhoto } from '../../src/lib/api';
+import { haptic } from '../../src/lib/haptics';
 import { supabase } from '../../src/lib/supabase';
 import { draft, session } from '../../src/store';
 import { colors } from '../../src/theme';
@@ -39,6 +40,14 @@ export default function RunnerProfileScreen() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   // 선택 → 하단 확인 바 → 진행 (즉시 이동 없음 — 결제 바와 같은 확인 패턴)
   const [selected, setSelected] = useState<{ key: string; label: string; start: Date } | null>(null);
+  // 확인 바 스프링 등장 — 선택이라는 상태 변화를 모션으로
+  const barY = useRef(new Animated.Value(90)).current;
+  useEffect(() => {
+    if (!selected) return;
+    barY.setValue(90);
+    Animated.spring(barY, { toValue: 0, useNativeDriver: true, friction: 9, tension: 70 }).start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected?.key]);
 
   useEffect(() => {
     if (!id) { setErr('러너 정보가 없어요'); return; }
@@ -94,6 +103,7 @@ export default function RunnerProfileScreen() {
 
   const confirmSlot = (sl: { label: string; start: Date }) => {
     if (!p) return;
+    haptic('medium');
     draft.preferredRunnerId = p.profileId;
     draft.preferredRunnerName = p.name;
     draft.scheduledAtIso = sl.start.toISOString();
@@ -152,8 +162,15 @@ export default function RunnerProfileScreen() {
 
         {p && (
           <>
-            {/* ---------- hero: 풀블리드 ---------- */}
-            <View style={s.hero}>
+            {/* ---------- hero: 풀블리드 + 갤러리 첫 사진 배경 (사진이 디자인이다) ---------- */}
+            <View style={[s.hero, { overflow: 'hidden' }]}>
+              {p.photos[0] && (
+                <Image
+                  source={{ uri: p.photos[0] }}
+                  style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, opacity: 0.25 }}
+                  resizeMode="cover"
+                />
+              )}
               <Row style={{ gap: 14 }}>
                 <Avatar url={p.avatarUrl} char={p.name[0]} bg="#5a7a3c" size={76} />
                 <View style={{ flex: 1, justifyContent: 'center' }}>
@@ -345,7 +362,7 @@ export default function RunnerProfileScreen() {
 
       {/* ---------- 슬롯 확인 바 — 결제 바와 같은 확인 패턴 ---------- */}
       {selected && p && canBook && (
-        <View style={s.confirmBar}>
+        <Animated.View style={[s.confirmBar, { transform: [{ translateY: barY }] }]}>
           <View style={{ flex: 1 }}>
             <Text style={{ fontSize: 13, fontWeight: '900', color: '#fff' }}>
               {selected.start.getMonth() + 1}월 {selected.start.getDate()}일 ({DAY[selected.start.getDay()]}) {selected.label}
@@ -357,7 +374,7 @@ export default function RunnerProfileScreen() {
           <Pressable onPress={() => confirmSlot(selected)} style={s.confirmBtn}>
             <Text style={{ fontSize: 14, fontWeight: '900', color: FOREST }}>이 시간으로 ›</Text>
           </Pressable>
-        </View>
+        </Animated.View>
       )}
     </View>
   );

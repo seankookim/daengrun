@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Avatar, Row } from '../../src/components/ui';
 import { confirmHandoff, fetchBookingSync, fetchCurrentRunnerJobId, fetchMeetupInfo, MeetupInfo, runnerEnroute, startRunServer, subscribeBooking } from '../../src/lib/api';
+import { haptic } from '../../src/lib/haptics';
 import { runnerJob } from '../../src/store';
 import { colors } from '../../src/theme';
 
@@ -77,6 +78,7 @@ export default function Meetup() {
 
   const handoff = async () => {
     if (!jobId) return;
+    haptic('success');
     try { await confirmHandoff(jobId, 'runner'); } catch { /* 폴링이 상태를 따라잡음 */ }
     setStage('waiting');
   };

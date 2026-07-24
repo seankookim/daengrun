@@ -1,13 +1,18 @@
 // 댕런 design tokens — mirrors prototype/index.html
+// 브랜드 = athletic editorial: 숫자는 애슬레틱하게(코랄·900·크게), 순간은 따뜻하게(크림·사진).
 export const colors = {
   ink: '#171A17',
+  forest: '#132117',     // 다크 카드/히어로 (파일 로컬 FOREST 상수를 이걸로 수렴)
   cream: '#F6F2E9',
   volt: '#B9F23A',
   voltDeep: '#82b016',
   voltBright: '#d4ff66',
-  tang: '#FF6347',
+  tang: '#FF6347',       // 밝은 코랄 — 도파민 숫자·라이브 전용
+  coralText: '#d84a2f',  // 읽는 코랄 — 경고·조기종료 텍스트 (tang의 텍스트 버전, 의도적 2단)
   card: '#ffffff',
   line: '#DDE8D4',
+  border: '#eceadf',     // 흰 카드 테두리 (산재한 리터럴 수렴용)
+  green: '#5a7a3c',      // 기능 그린 — 라벨·강조 (volt의 텍스트 버전)
   dim: '#8a8877',
   // dark glow theme (owner home / cards)
   bgDark: '#0d1410',
@@ -17,6 +22,18 @@ export const colors = {
 } as const;
 
 export const radius = { card: 20, btn: 16, chip: 99 } as const;
+
+// 타이포 스케일 — 규칙: 900은 오직 숫자(display)와 화면 제목(title)에만.
+// 본문·라벨이 전부 900이면 위계가 무너진다 (ui-audit). 새 코드는 이 프리셋을 쓸 것.
+export const type = {
+  display: { fontSize: 42, fontWeight: '900', fontVariant: ['tabular-nums'] } as const, // 큰 숫자 전용
+  numeric: { fontSize: 22, fontWeight: '900', fontVariant: ['tabular-nums'] } as const, // 중간 숫자
+  title: { fontSize: 21, fontWeight: '900' } as const,   // 화면 제목
+  heading: { fontSize: 14.5, fontWeight: '800' } as const, // 섹션/카드 제목
+  body: { fontSize: 13.5, fontWeight: '600' } as const,
+  label: { fontSize: 11.5, fontWeight: '700' } as const,
+  caption: { fontSize: 10.5, fontWeight: '400' } as const,
+} as const;
 
 // Surface palettes for themed screens (home, cards). Toggled by ThemeProvider.
 export type ThemeMode = 'dark' | 'light';

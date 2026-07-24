@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Monogram, Row } from '../../src/components/ui';
 import { addRunEvent, fetchCurrentRunnerJobId, RunEventKind, settleRun, startRunServer, uploadRunPhoto } from '../../src/lib/api';
+import { haptic } from '../../src/lib/haptics';
 import { EndReason, payoutFor, runnerJob, runRequests, runResult } from '../../src/store';
 import { colors } from '../../src/theme';
 
@@ -31,6 +32,7 @@ export default function ActiveRun() {
   // 러닝 이벤트 원탭 — 기록 + 보호자 즉시 알림 (응가 도장 = 케어 증거이자 건강 데이터)
   const fireEvent = (kind: Exclude<RunEventKind, 'photo'>) => {
     if (!runnerJob.bookingId) { Alert.alert('실예약에서만 기록돼요'); return; }
+    haptic('light');
     setEvCounts((c) => ({ ...c, [kind]: (c[kind] ?? 0) + 1 }));
     addRunEvent(runnerJob.bookingId, kind).catch((e) => console.warn('[run] event:', e?.message ?? e));
   };

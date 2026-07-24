@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { Dimensions, Image, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, Dimensions, Image, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { Monogram, Row } from '../../src/components/ui';
 import { fetchRunReport, fetchRunStandings, RunReport, RunStandings } from '../../src/lib/api';
 import { draft } from '../../src/store';
@@ -109,8 +109,15 @@ export default function Report() {
 
         {report && run && (
           <>
-            {/* ---------- hero: 풀블리드 ---------- */}
-            <View style={s.hero}>
+            {/* ---------- hero: 풀블리드 + 사진 구조화 (사진이 디자인이다) ---------- */}
+            <View style={[s.hero, { overflow: 'hidden' }]}>
+              {run.photos[0] && (
+                <Image
+                  source={{ uri: run.photos[0] }}
+                  style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, opacity: 0.28 }}
+                  resizeMode="cover"
+                />
+              )}
               <Row style={{ justifyContent: 'space-between' }}>
                 <Text style={{ fontSize: 12, color: '#b8c4ae' }}>{report.when} · {report.routeName}</Text>
                 {reason && (
@@ -281,6 +288,12 @@ function HeroStat({ value, label }: { value: string; label: string }) {
 }
 
 function GoalBar({ label, pct, detail }: { label: string; pct: number; detail: string }) {
+  // 채워지는 모션 — 진행이 '벌어들인 것'처럼 (motion = meaning)
+  const w = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(w, { toValue: pct, duration: 700, useNativeDriver: false }).start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pct]);
   return (
     <View style={{ marginTop: 10 }}>
       <Row style={{ justifyContent: 'space-between' }}>
@@ -288,7 +301,13 @@ function GoalBar({ label, pct, detail }: { label: string; pct: number; detail: s
         <Text style={{ fontSize: 13, fontWeight: '900', color: pct >= 100 ? '#5a7a3c' : FOREST }}>{pct}%</Text>
       </Row>
       <View style={s.barTrack}>
-        <View style={[s.barFill, { width: `${pct}%` }, pct >= 100 && { backgroundColor: '#82b016' }]} />
+        <Animated.View
+          style={[
+            s.barFill,
+            { width: w.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'] }) },
+            pct >= 100 && { backgroundColor: '#82b016' },
+          ]}
+        />
       </View>
       <Text style={{ fontSize: 10.5, color: colors.dim, marginTop: 4 }}>{detail}</Text>
     </View>

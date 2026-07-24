@@ -1,0 +1,14 @@
+// 햅틱 — motion = meaning의 촉각 버전. 상태가 바뀌는 순간에만 쓴다 (장식 금지).
+// expo-haptics 네이티브 모듈이 없는 빌드(구 dev build)에선 조용히 무시 — 다음 리빌드부터 동작.
+
+export function haptic(style: 'light' | 'medium' | 'success' = 'light'): void {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const H = require('expo-haptics');
+    if (style === 'success') {
+      H.notificationAsync(H.NotificationFeedbackType.Success).catch(() => {});
+    } else {
+      H.impactAsync(style === 'medium' ? H.ImpactFeedbackStyle.Medium : H.ImpactFeedbackStyle.Light).catch(() => {});
+    }
+  } catch { /* 미설치 빌드 — no-op */ }
+}

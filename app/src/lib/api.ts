@@ -828,6 +828,7 @@ export interface FitnessRecent { bookingId: string; when: string; km: number; du
 export interface Fitness {
   dogId: string | null;
   dogName: string;
+  dogPhotoUrl: string | null;
   goalKm: number;
   fitnessAge: number | null;
   weekKm: number;       // 최근 7일
@@ -842,7 +843,7 @@ export async function fetchFitness(): Promise<Fitness> {
   const { data: user } = await supabase.auth.getUser();
   if (!user.user) throw new Error('not signed in');
   const [dogRes, runRes] = await Promise.all([
-    supabase.from('dogs').select('id, name, weekly_goal_km, fitness_age, birth_date').eq('owner_id', user.user.id).limit(1),
+    supabase.from('dogs').select('id, name, weekly_goal_km, fitness_age, birth_date, photo_url').eq('owner_id', user.user.id).limit(1),
     supabase.from('bookings')
       .select('id, scheduled_at, runs(actual_km, duration_sec)')
       .eq('owner_id', user.user.id).eq('status', 'completed')
@@ -903,6 +904,7 @@ export async function fetchFitness(): Promise<Fitness> {
   return {
     dogId: d?.id ?? null,
     dogName: d?.name ?? '반려견',
+    dogPhotoUrl: d?.photo_url ?? null,
     goalKm: Number(d?.weekly_goal_km ?? 15),
     fitnessAge,
     weekKm, weekRuns: thisWeek.length, avgPaceSec, streakDays, weeks, recent,

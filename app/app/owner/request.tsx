@@ -4,6 +4,7 @@ import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'rea
 import { addDog, AvailRule, confirmPayment, createBookingHold, DogProfile, ensureDog, fetchMyDogs, fetchRoutes, fetchRunnerAvailability } from '../../src/lib/api';
 import { HeatTrace } from '../../src/components/runcard';
 import { Avatar, Row } from '../../src/components/ui';
+import { haptic } from '../../src/lib/haptics';
 import { AddonKey, dog, draft, fmtWon, sampleRoutes } from '../../src/store';
 import { colors, pricing } from '../../src/theme';
 
@@ -119,6 +120,7 @@ export default function Request() {
       setSlotSheet(true); // 시간 미선택 → 결제 대신 슬롯 시트
       return;
     }
+    haptic('medium');
     Object.assign(draft, { km, pace, addons, routeId, timeLabel });
     setHoldSec(300);
     setHoldLive(null);
