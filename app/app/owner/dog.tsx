@@ -1,8 +1,8 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Avatar, Row } from '../../src/components/ui';
-import { DogProfile, fetchMyDog, updateMyDog, uploadDogPhoto } from '../../src/lib/api';
+import { addDog, DogProfile, fetchMyDogs, updateMyDog, uploadDogPhoto } from '../../src/lib/api';
 import { colors } from '../../src/theme';
 
 // 반려견 프로필 — 실초코. 사진·정보·성향 메모·선호 태그가 러너에게 전달된다.
@@ -15,8 +15,11 @@ const PREF_CATALOG = [
   '흙길 선호', '이른 아침', '저녁 선호', '자전거 주의', '사람 좋아함',
   '강아지 좋아함', '소심해요', '간식 러버', '물 자주 필요', '천천히 워밍업',
 ];
+const VACCINE_CATALOG = ['종합백신', '광견병', '코로나 장염', '켄넬코프'];
 
 export default function DogProfileScreen() {
+  const { dogId } = useLocalSearchParams<{ dogId?: string }>();
+  const [dogs, setDogs] = useState<DogProfile[]>([]);
   const [dog, setDog] = useState<DogProfile | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [name, setName] = useState('');
@@ -26,26 +29,44 @@ export default function DogProfileScreen() {
   const [neutered, setNeutered] = useState<boolean | null>(null);
   const [memo, setMemo] = useState('');
   const [tags, setTags] = useState<string[]>([]);
+  const [vaccines, setVaccines] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
 
-  useEffect(() => {
-    fetchMyDog()
-      .then((d) => {
-        if (d) {
-          setDog(d);
-          setName(d.name);
-          setBreed(d.breed ?? '');
-          setBirth(d.birthDate ?? '');
-          setWeight(d.weightKg != null ? String(d.weightKg) : '');
-          setNeutered(d.neutered);
-          setMemo(d.memo ?? '');
-          setTags(d.prefTags);
-        }
-        setLoaded(true);
-      })
-      .catch((e) => { console.warn('[dog] load:', e?.message ?? e); setLoaded(true); });
-  }, []);
+  const selectDog = (d: DogProfile) => {
+    setDog(d);
+    setName(d.name);
+    setBreed(d.breed ?? '');
+    setBirth(d.birthDate ?? '');
+    setWeight(d.weightKg != null ? String(d.weightKg) : '');
+    setNeutered(d.neutered);
+    setMemo(d.memo ?? '');
+    setTags(d.prefTags);
+    setVaccines(d.vaccines);
+  };
+
+  const load = (preferId?: string) => fetchMyDogs()
+    .then((list) => {
+      setDogs(list);
+      const target = list.find((x) => x.id === (preferId ?? dogId)) ?? list[0];
+      if (target) selectDog(target);
+      setLoaded(true);
+    })
+    .catch((e) => { console.warn('[dog] load:', e?.message ?? e); setLoaded(true); });
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load(); }, []);
+
+  // 다견 가구 — 새 아이 추가 후 바로 편집
+  const onAddDog = () => {
+    Alert.prompt?.('반려견 추가', '이름을 입력해주세요', async (n) => {
+      if (!n?.trim()) return;
+      try {
+        const id = await addDog(n.trim());
+        await load(id);
+      } catch (e) { Alert.alert('추가 실패', (e as Error).message); }
+    }) ?? Alert.alert('반려견 추가', 'iOS에서 지원돼요');
+  };
 
   const pickPhoto = async () => {
     if (!dog) return;
@@ -89,6 +110,7 @@ export default function DogProfileScreen() {
         neutered: neutered ?? undefined,
         memo: memo.trim() || undefined,
         prefTags: tags,
+        vaccines,
       });
       Alert.alert('저장 완료', '러너에게 전달되는 프로필이 업데이트됐어요');
     } catch (e) {
@@ -124,6 +146,18 @@ export default function DogProfileScreen() {
 
         {dog && (
           <View style={{ paddingHorizontal: 22, marginTop: 14 }}>
+            {/* 다견 스위처 */}
+            <Row style={{ gap: 8, flexWrap: 'wrap' }}>
+              {dogs.map((d) => (
+                <Pressable key={d.id} onPress={() => selectDog(d)} style={[s.dogChip, dog.id === d.id && { backgroundColor: FOREST }]}>
+                  <Text style={{ fontSize: 12.5, fontWeight: '800', color: dog.id === d.id ? '#fff' : '#3d453d' }}>{d.name}</Text>
+                </Pressable>
+              ))}
+              <Pressable onPress={onAddDog} style={[s.dogChip, { borderStyle: 'dashed' }]}>
+                <Text style={{ fontSize: 12.5, fontWeight: '800', color: '#5a7a3c' }}>＋ 추가</Text>
+              </Pressable>
+            </Row>
+
             {/* 기본 정보 */}
             <Text style={s.label}>이름</Text>
             <TextInput value={name} onChangeText={setName} style={s.input} maxLength={12} placeholder="초코" placeholderTextColor="#b0ada0" />
@@ -165,6 +199,23 @@ export default function DogProfileScreen() {
               placeholder="예: 자전거를 보면 짖어요. 낯은 안 가려서 바로 인사해도 괜찮아요"
               placeholderTextColor="#b0ada0"
             />
+
+            {/* 예방접종 */}
+            <Text style={s.label}>예방접종 (완료한 항목 선택)</Text>
+            <Row style={{ gap: 8, flexWrap: 'wrap' }}>
+              {VACCINE_CATALOG.map((v) => {
+                const on = vaccines.includes(v);
+                return (
+                  <Pressable
+                    key={v}
+                    onPress={() => setVaccines((cur) => (on ? cur.filter((x) => x !== v) : [...cur, v]))}
+                    style={[s.tagChip, on && { backgroundColor: '#e3eff9', borderColor: '#9fc3e8' }]}
+                  >
+                    <Text style={{ fontSize: 12.5, fontWeight: '700', color: on ? '#2d6da8' : '#5d655d' }}>{on ? '💉 ' : ''}{v}</Text>
+                  </Pressable>
+                );
+              })}
+            </Row>
 
             {/* 선호 태그 */}
             <Text style={s.label}>선호 러닝 조건 · 성향 태그</Text>
@@ -208,6 +259,7 @@ const s = StyleSheet.create({
     paddingVertical: 12, paddingHorizontal: 14, fontSize: 14.5, color: FOREST,
   },
   neuterChip: { flex: 1, backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: '#eceadf', alignItems: 'center', paddingVertical: 13 },
+  dogChip: { backgroundColor: '#fff', borderRadius: 99, borderWidth: 1.3, borderColor: '#dcd9cc', paddingVertical: 9, paddingHorizontal: 16 },
   tagChip: { backgroundColor: '#fff', borderRadius: 99, borderWidth: 1.3, borderColor: '#eceadf', paddingVertical: 9, paddingHorizontal: 14 },
   saveBar: {
     position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: colors.cream,

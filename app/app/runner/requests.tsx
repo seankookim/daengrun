@@ -92,8 +92,13 @@ export default function Requests() {
                 <Text style={{ fontSize: 9, color: colors.dim, marginTop: 1 }}>수수료 20% 제외</Text>
               </View>
             </Row>
-            {req.prefTags.length > 0 && (
+            {(req.prefTags.length > 0 || req.vaccines.length > 0) && (
               <Row style={{ gap: 5, marginTop: 9, flexWrap: 'wrap' }}>
+                {req.vaccines.length > 0 && (
+                  <View style={{ backgroundColor: '#e3eff9', borderRadius: 99, paddingVertical: 3, paddingHorizontal: 8 }}>
+                    <Text style={{ fontSize: 10, fontWeight: '700', color: '#2d6da8' }}>💉 백신 {req.vaccines.length}종</Text>
+                  </View>
+                )}
                 {req.prefTags.map((t) => (
                   <View key={t} style={{ backgroundColor: '#eef4e0', borderRadius: 99, paddingVertical: 3, paddingHorizontal: 8 }}>
                     <Text style={{ fontSize: 10, fontWeight: '700', color: '#3d5a2b' }}>{t}</Text>

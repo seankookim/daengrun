@@ -93,20 +93,12 @@ export interface DogProfile {
   neutered: boolean | null;
   memo: string | null;
   prefTags: string[];
+  vaccines: string[]; // 접종 완료 백신 타입
   photoUrl: string | null;
   weeklyGoalKm: number;
 }
 
-export async function fetchMyDog(): Promise<DogProfile | null> {
-  const { data: user } = await supabase.auth.getUser();
-  if (!user.user) return null;
-  const { data } = await supabase
-    .from('dogs')
-    .select('id, name, breed, birth_date, weight_kg, neutered, memo, preferences, photo_url, weekly_goal_km')
-    .eq('owner_id', user.user.id)
-    .limit(1);
-  const d = data?.[0];
-  if (!d) return null;
+function mapDog(d: any): DogProfile {
   return {
     id: d.id,
     name: d.name,
@@ -116,18 +108,45 @@ export async function fetchMyDog(): Promise<DogProfile | null> {
     neutered: d.neutered,
     memo: d.memo,
     prefTags: (d.preferences as any)?.tags ?? [],
+    vaccines: ((d.vaccinations as any[]) ?? []).map((v) => v.type),
     photoUrl: d.photo_url,
     weeklyGoalKm: Number(d.weekly_goal_km ?? 15),
   };
 }
 
+const DOG_SELECT = 'id, name, breed, birth_date, weight_kg, neutered, memo, preferences, vaccinations, photo_url, weekly_goal_km';
+
+// 다견 가구 지원 — 전체 목록
+export async function fetchMyDogs(): Promise<DogProfile[]> {
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) return [];
+  const { data } = await supabase.from('dogs').select(DOG_SELECT)
+    .eq('owner_id', user.user.id).order('created_at', { ascending: true });
+  return (data ?? []).map(mapDog);
+}
+
+export async function fetchMyDog(): Promise<DogProfile | null> {
+  const dogs = await fetchMyDogs();
+  return dogs[0] ?? null;
+}
+
+export async function addDog(name: string): Promise<string> {
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) throw new Error('not signed in');
+  const { data, error } = await supabase.from('dogs')
+    .insert({ owner_id: user.user.id, name }).select('id').single();
+  if (error) throw error;
+  return data.id;
+}
+
 export async function updateMyDog(dogId: string, p: {
   name?: string; breed?: string; birth_date?: string | null; weight_kg?: number | null;
-  neutered?: boolean; memo?: string; prefTags?: string[];
+  neutered?: boolean; memo?: string; prefTags?: string[]; vaccines?: string[];
 }): Promise<void> {
-  const { prefTags, ...rest } = p;
+  const { prefTags, vaccines, ...rest } = p;
   const patch: Record<string, unknown> = { ...rest };
   if (prefTags) patch.preferences = { tags: prefTags };
+  if (vaccines) patch.vaccinations = vaccines.map((type) => ({ type, at: null }));
   const { error } = await supabase.from('dogs').update(patch).eq('id', dogId);
   if (error) throw error;
 }
@@ -235,6 +254,7 @@ export interface OpenRequest {
   repeatPrior?: number; // 이 강아지와 이미 함께한 완료 러닝 수 (단골)
   photoUrl: string | null;
   prefTags: string[];
+  vaccines: string[];
 }
 
 function mapOpenRequest(r: any, directed: boolean): OpenRequest {
@@ -253,10 +273,11 @@ function mapOpenRequest(r: any, directed: boolean): OpenRequest {
     directed,
     photoUrl: r.dogs?.photo_url ?? null,
     prefTags: (r.dogs?.preferences as any)?.tags ?? [],
+    vaccines: ((r.dogs?.vaccinations as any[]) ?? []).map((v) => v.type),
   };
 }
 
-const REQ_SELECT = 'id, scheduled_at, km, pace_label, base_fare, distance_fare, addon_fare, dogs(id, name, breed, weight_kg, memo, photo_url, preferences)';
+const REQ_SELECT = 'id, scheduled_at, km, pace_label, base_fare, distance_fare, addon_fare, dogs(id, name, breed, weight_kg, memo, photo_url, preferences, vaccinations)';
 
 // 러너 인박스: 지명 요청(runner_pending, 나에게) + 오픈 요청(matching, 미배정)
 // + 단골 감지: 함께 완주한 이력이 있는 강아지엔 repeatPrior (수락 결정이 쉬워진다)
@@ -309,6 +330,7 @@ export async function fetchOpenRequests(): Promise<OpenRequest[]> {
       payout: Math.round((r.base_fare + r.distance_fare + r.addon_fare) * 0.8),
       photoUrl: r.dogs?.photo_url ?? null,
       prefTags: (r.dogs?.preferences as any)?.tags ?? [],
+      vaccines: [] as string[],
     };
   });
 }
@@ -778,7 +800,7 @@ export async function fetchFitness(): Promise<Fitness> {
   const { data: user } = await supabase.auth.getUser();
   if (!user.user) throw new Error('not signed in');
   const [dogRes, runRes] = await Promise.all([
-    supabase.from('dogs').select('id, name, weekly_goal_km, fitness_age').eq('owner_id', user.user.id).limit(1),
+    supabase.from('dogs').select('id, name, weekly_goal_km, fitness_age, birth_date').eq('owner_id', user.user.id).limit(1),
     supabase.from('bookings')
       .select('id, scheduled_at, runs(actual_km, duration_sec)')
       .eq('owner_id', user.user.id).eq('status', 'completed')
@@ -821,11 +843,26 @@ export async function fetchFitness(): Promise<Fitness> {
     return { bookingId: r.bookingId, when: `${dateLabel} ${timeLabel}`, km: r.km, durationSec: r.dur };
   });
 
+  // 체력 나이 v1 (베타 휴리스틱) — 실제 나이 − 활동 보정(최근 4주 주간 평균/목표 비율 + 스트릭).
+  // 수의 검증 산식으로 교체 예정. 생일 없으면 측정 불가.
+  let fitnessAge: number | null = d?.fitness_age != null ? Number(d.fitness_age) : null;
+  if (d?.birth_date) {
+    const ageYears = (now - new Date(d.birth_date).getTime()) / (365.25 * 86400_000);
+    const last28Km = rows.filter((r) => r.at.getTime() >= now - 28 * 86400_000).reduce((s, r) => s + r.km, 0);
+    const goal = Number(d.weekly_goal_km ?? 15);
+    const ratio = goal > 0 ? Math.min(last28Km / 4 / goal, 1.5) : 0;
+    const calc = Math.max(0.5, Math.round((ageYears - 1.8 * ratio - 0.05 * Math.min(streakDays, 14)) * 10) / 10);
+    fitnessAge = calc;
+    if (d.fitness_age == null || Math.abs(Number(d.fitness_age) - calc) >= 0.1) {
+      supabase.from('dogs').update({ fitness_age: calc }).eq('id', d.id).then(() => {}, () => {});
+    }
+  }
+
   return {
     dogId: d?.id ?? null,
     dogName: d?.name ?? '반려견',
     goalKm: Number(d?.weekly_goal_km ?? 15),
-    fitnessAge: d?.fitness_age != null ? Number(d.fitness_age) : null,
+    fitnessAge,
     weekKm, weekRuns: thisWeek.length, avgPaceSec, streakDays, weeks, recent,
   };
 }

@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { AvailRule, confirmPayment, createBookingHold, DogProfile, ensureDog, fetchMyDog, fetchRoutes, fetchRunnerAvailability } from '../../src/lib/api';
+import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { addDog, AvailRule, confirmPayment, createBookingHold, DogProfile, ensureDog, fetchMyDogs, fetchRoutes, fetchRunnerAvailability } from '../../src/lib/api';
 import { HeatTrace } from '../../src/components/runcard';
 import { Avatar, Row } from '../../src/components/ui';
 import { AddonKey, dog, draft, fmtWon, sampleRoutes } from '../../src/store';
@@ -46,7 +46,9 @@ export default function Request() {
   const [timeLabel, setTimeLabel] = useState(draft.timeLabel);
   const [routes, setRoutes] = useState(sampleRoutes);
   const [routesLive, setRoutesLive] = useState(false);
-  const [myDog, setMyDog] = useState<DogProfile | null>(null);
+  const [myDogs, setMyDogs] = useState<DogProfile[]>([]);
+  const [dogIdx, setDogIdx] = useState(0);
+  const myDog = myDogs[dogIdx] ?? null;
 
   // 첫 실화(實化) 지점: 안심 코스는 서버에서 온다. 실패 시 목업 유지.
   useEffect(() => {
@@ -59,7 +61,7 @@ export default function Request() {
         }
       })
       .catch(() => {});
-    fetchMyDog().then(setMyDog).catch(() => {});
+    fetchMyDogs().then(setMyDogs).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [slotSheet, setSlotSheet] = useState(false);
@@ -119,7 +121,7 @@ export default function Request() {
 
     // 실화: 서버에 원자적 홀드 + 예약 생성 (draft→quoted→payment_hold→matching)
     try {
-      const dogId = await ensureDog();
+      const dogId = myDog?.id ?? await ensureDog(); // 선택한 아이로 예약 (다견 가구)
       const res = await createBookingHold({
         dog_id: dogId,
         route_id: routesLive ? routeId : undefined, // 목업 코스 id는 uuid가 아님
@@ -180,11 +182,35 @@ export default function Request() {
             </Text>
             <Text style={{ fontSize: 11.5, fontWeight: '700', color: '#5a7a3c' }}>프로필 ›</Text>
           </Pressable>
-          <View style={s.addDog}>
+          <Pressable
+            style={s.addDog}
+            onPress={() => {
+              Alert.prompt?.('반려견 추가', '이름을 입력해주세요', async (n) => {
+                if (!n?.trim()) return;
+                try {
+                  const id = await addDog(n.trim());
+                  const list = await fetchMyDogs();
+                  setMyDogs(list);
+                  setDogIdx(Math.max(list.findIndex((d) => d.id === id), 0));
+                  router.push({ pathname: '/owner/dog', params: { dogId: id } });
+                } catch (e) { Alert.alert('추가 실패', (e as Error).message); }
+              }) ?? Alert.alert('반려견 추가', 'iOS에서 지원돼요');
+            }}
+          >
             <Text style={{ fontSize: 18, color: FOREST }}>＋</Text>
             <Text style={{ fontSize: 9, color: colors.dim, marginTop: 2 }}>반려견 추가</Text>
-          </View>
+          </Pressable>
         </Row>
+        {/* 다견 선택 */}
+        {myDogs.length > 1 && (
+          <Row style={{ gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+            {myDogs.map((d, i) => (
+              <Pressable key={d.id} onPress={() => setDogIdx(i)} style={[s.dogSelChip, dogIdx === i && { backgroundColor: FOREST }]}>
+                <Text style={{ fontSize: 12, fontWeight: '800', color: dogIdx === i ? '#fff' : '#3d453d' }}>{d.name}</Text>
+              </Pressable>
+            ))}
+          </Row>
+        )}
 
         {/* distance */}
         <SectionHead glyph="⌖" title="거리" />
@@ -429,6 +455,7 @@ const s = StyleSheet.create({
   card: { backgroundColor: '#fff', borderRadius: 18, padding: 16, borderWidth: 1, borderColor: '#eceadf' },
   rowCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 15 },
   addDog: { width: 64, borderRadius: 18, backgroundColor: '#fff', borderWidth: 1, borderColor: '#eceadf', alignItems: 'center', justifyContent: 'center' },
+  dogSelChip: { backgroundColor: '#fff', borderRadius: 99, borderWidth: 1.3, borderColor: '#dcd9cc', paddingVertical: 8, paddingHorizontal: 15 },
   bigChip: { flex: 1, backgroundColor: '#fff', borderRadius: 18, paddingVertical: 16, alignItems: 'center', borderWidth: 1, borderColor: '#eceadf' },
   bigChipSel: { backgroundColor: FOREST, borderWidth: 2, borderColor: colors.volt },
   bigChipText: { fontSize: 16, fontWeight: '800', color: '#3d453d' },

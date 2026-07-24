@@ -87,9 +87,13 @@ export default function FitnessHub() {
               {fit?.fitnessAge != null ? `${fit.fitnessAge}살` : '측정 전'}
             </Text>
           </Row>
-          {fit?.fitnessAge == null && (
+          {fit?.fitnessAge == null ? (
             <Text style={{ fontSize: 10.5, color: colors.dim, marginTop: 8 }}>
-              러닝이 쌓이면 수의학 공식 기반으로 산출돼요 (준비 중)
+              반려견 프로필에 생일을 등록하면 측정돼요
+            </Text>
+          ) : (
+            <Text style={{ fontSize: 10.5, color: colors.dim, marginTop: 8 }}>
+              베타 산식: 실제 나이 − 최근 4주 활동량·연속 기록 보정 (수의 검증 산식으로 교체 예정)
             </Text>
           )}
         </View>
