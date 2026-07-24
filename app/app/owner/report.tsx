@@ -144,6 +144,26 @@ export default function Report() {
               </Row>
             </View>
 
+            {/* ---------- 러닝 순간 스탬프 (응가 도장 등) ---------- */}
+            {run.events.length > 0 && (
+              <View style={[s.section, { flexDirection: 'row', gap: 8, flexWrap: 'wrap' }]}>
+                {(
+                  [['poop', '💩 응가'], ['snack', '🍖 간식'], ['water', '💧 물'], ['photo', '📷 사진']] as const
+                ).map(([kind, label]) => {
+                  const n = run.events.filter((e) => e.kind === kind).length;
+                  if (n === 0) return null;
+                  return (
+                    <View key={kind} style={s.stampChip}>
+                      <Text style={{ fontSize: 12.5, fontWeight: '900', color: '#3d5a2b' }}>{label} ×{n}</Text>
+                    </View>
+                  );
+                })}
+                <Text style={{ fontSize: 10, color: colors.dim, width: '100%', marginTop: 4 }}>
+                  러너가 러닝 중 실시간으로 기록한 순간들이에요
+                </Text>
+              </View>
+            )}
+
             {/* ---------- 사진: 엣지-투-엣지 ---------- */}
             {run.photos.length > 0 ? (
               <View style={{ backgroundColor: '#fff', flexDirection: 'row', flexWrap: 'wrap', gap: 2 }}>
@@ -286,6 +306,7 @@ const s = StyleSheet.create({
   barTrack: { height: 8, borderRadius: 99, backgroundColor: '#f0eee3', marginTop: 6, overflow: 'hidden' },
   barFill: { height: 8, borderRadius: 99, backgroundColor: colors.volt },
   certPill: { backgroundColor: '#e3f0c4', borderRadius: 99, paddingVertical: 4, paddingHorizontal: 9, alignSelf: 'center' },
+  stampChip: { backgroundColor: '#eef4e0', borderRadius: 99, paddingVertical: 7, paddingHorizontal: 13 },
   photoSlot: { width: TILE, height: TILE * 0.6, backgroundColor: '#f4f2ea', alignItems: 'center', justifyContent: 'center' },
   emptyBox: { margin: 20, backgroundColor: '#f4f2ea', borderRadius: 18, padding: 26, alignItems: 'center' },
   emptyText: { fontSize: 13, color: colors.dim, textAlign: 'center', lineHeight: 19 },

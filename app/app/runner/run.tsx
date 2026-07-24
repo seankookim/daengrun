@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Monogram, Row } from '../../src/components/ui';
-import { fetchCurrentRunnerJobId, settleRun, startRunServer } from '../../src/lib/api';
+import { addRunEvent, fetchCurrentRunnerJobId, RunEventKind, settleRun, startRunServer, uploadRunPhoto } from '../../src/lib/api';
 import { EndReason, payoutFor, runnerJob, runRequests, runResult } from '../../src/store';
 import { colors } from '../../src/theme';
 
@@ -26,6 +26,33 @@ export default function ActiveRun() {
   const [endSheet, setEndSheet] = useState(false);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
   const settled = useRef(false); // 중복 정산 방지 (자동완주 + 수동종료 레이스)
+  const [evCounts, setEvCounts] = useState<Record<string, number>>({});
+
+  // 러닝 이벤트 원탭 — 기록 + 보호자 즉시 알림 (응가 도장 = 케어 증거이자 건강 데이터)
+  const fireEvent = (kind: Exclude<RunEventKind, 'photo'>) => {
+    if (!runnerJob.bookingId) { Alert.alert('실예약에서만 기록돼요'); return; }
+    setEvCounts((c) => ({ ...c, [kind]: (c[kind] ?? 0) + 1 }));
+    addRunEvent(runnerJob.bookingId, kind).catch((e) => console.warn('[run] event:', e?.message ?? e));
+  };
+
+  const firePhoto = async () => {
+    if (!runnerJob.bookingId) { Alert.alert('실예약에서만 기록돼요'); return; }
+    let ImagePicker: any;
+    try { ImagePicker = require('expo-image-picker'); } catch {
+      Alert.alert('개발 빌드 업데이트 필요', '사진 기능은 새 빌드에 포함돼요'); return;
+    }
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) return;
+      const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.7, base64: true });
+      if (res.canceled || !res.assets?.[0]?.base64) return;
+      await uploadRunPhoto(runnerJob.bookingId, res.assets[0].base64);
+      await addRunEvent(runnerJob.bookingId, 'photo');
+      setEvCounts((c) => ({ ...c, photo: (c.photo ?? 0) + 1 }));
+    } catch (e) {
+      Alert.alert('전송 실패', (e as Error).message);
+    }
+  };
 
   // id 복원 — 리로드로 유실돼도 서버의 active 예약으로 정산이 연결되게
   useEffect(() => {
@@ -160,18 +187,32 @@ export default function ActiveRun() {
           </Text>
         </Row>
 
+        {/* 러닝 이벤트 스트립 — 원탭이 보호자 알림으로 (응가 도장 포함) */}
+        {running && (
+          <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14 }}>
+            {([['poop', '💩', '응가'], ['snack', '🍖', '간식'], ['water', '💧', '물']] as const).map(([k, g, label]) => (
+              <Pressable key={k} onPress={() => fireEvent(k)} style={s.eventBtn}>
+                <Text style={{ fontSize: 16 }}>{g}</Text>
+                <Text style={{ fontSize: 10, fontWeight: '800', color: colors.cream, marginTop: 2 }}>
+                  {label}{evCounts[k] ? ` ${evCounts[k]}` : ''}
+                </Text>
+              </Pressable>
+            ))}
+            <Pressable onPress={firePhoto} style={s.eventBtn}>
+              <Text style={{ fontSize: 16 }}>📷</Text>
+              <Text style={{ fontSize: 10, fontWeight: '800', color: colors.cream, marginTop: 2 }}>
+                사진{evCounts.photo ? ` ${evCounts.photo}` : ''}
+              </Text>
+            </Pressable>
+          </View>
+        )}
+
         <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
           {running && (
             <Pressable style={s.moreBtn} onPress={() => setEndSheet(true)}>
               <Text style={{ fontSize: 14, color: '#8fa093', fontWeight: '900' }}>❙❙</Text>
             </Pressable>
           )}
-          <Pressable
-            style={[s.btn, { backgroundColor: '#1c2b21' }]}
-            onPress={() => Alert.alert('전송 완료', '사진이 보호자에게 전송되었습니다 (목업)')}
-          >
-            <Text style={{ fontSize: 16, fontWeight: '800', color: colors.cream }}>사진 전송</Text>
-          </Pressable>
           <Pressable
             style={[s.btn, { backgroundColor: colors.volt }]}
             onPress={() => {
@@ -275,6 +316,7 @@ const s = StyleSheet.create({
   },
   btn: { flex: 1, borderRadius: 16, padding: 16, alignItems: 'center' },
   moreBtn: { width: 44, height: 52, borderRadius: 16, backgroundColor: '#1c2b21', alignItems: 'center', justifyContent: 'center' },
+  eventBtn: { flex: 1, backgroundColor: '#1c2b21', borderRadius: 14, alignItems: 'center', paddingVertical: 9, borderWidth: 1, borderColor: '#2c4034' },
   sheetBackdrop: { flex: 1, backgroundColor: '#00000066' },
   sheet: { backgroundColor: '#10160f', borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 22, paddingBottom: 40 },
   sheetHandle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: '#2c3a2c', marginBottom: 14 },

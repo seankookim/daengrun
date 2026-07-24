@@ -14,7 +14,7 @@ const FOREST = '#132117';
 const CERT_BLUE = '#3d8fd4'; // 안심 코스 인증 블루 — certification only
 const DISTANCES = [3, 5, 7];
 const PACES = ["가볍게 8'+", "보통 7'", "신나게 6'"];
-const ADDON_GLYPHS: Record<string, string> = { river: '♒', homecare: '⌂', snack: '≽', snap: '▣' };
+const ADDON_GLYPHS: Record<string, string> = { river: '♒', homecare: '⌂', snack: '≽', snap: '▣', livecam: '▶' };
 
 // 실제 오늘부터 7일 — 하드코딩 날짜 금지
 const DATES = Array.from({ length: 7 }, (_, i) => {

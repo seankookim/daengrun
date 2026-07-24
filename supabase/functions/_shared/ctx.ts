@@ -10,6 +10,7 @@ export const PRICING = {
     homecare: 2000,
     snack: 2000,
     snap: 4000,
+    livecam: 3900, // 라이브캠 — 프리미엄 (기본은 GPS+사진; 카메라 실장비는 추후, 수요 측정용 SKU)
   } as Record<string, number>,
 };
 

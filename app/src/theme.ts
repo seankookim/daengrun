@@ -56,5 +56,6 @@ export const pricing = {
     homecare: { label: '홈길 온리', desc: '집까지 안전하게 케어', price: 2000 },
     snack: { label: '간식 타임', desc: '러닝 후 맛있는 보상', price: 2000 },
     snap: { label: '댕댕 스냅', desc: '러닝 사진 · 영상 기록', price: 4000 },
+    livecam: { label: '라이브캠', desc: '러닝을 실시간 영상으로', price: 3900 },
   },
 } as const;

@@ -537,6 +537,30 @@ export async function uploadRunPhoto(bookingId: string, base64: string): Promise
   return photos;
 }
 
+// ---------- 러닝 이벤트 (응가 도장 등) — 러너 원탭 → 기록 + 보호자 즉시 알림 ----------
+export type RunEventKind = 'poop' | 'snack' | 'water' | 'photo';
+
+const EVENT_NOTI: Record<RunEventKind, (dog: string) => [string, string]> = {
+  poop: (d) => ['응가 완료 💩', `${d} 응가 성공! 러너가 응가 도장을 찍었어요`],
+  snack: (d) => ['간식 타임 🍖', `${d}가 간식을 맛있게 먹었어요`],
+  water: (d) => ['수분 보충 💧', `${d}가 물을 마시고 있어요`],
+  photo: (d) => ['새 사진 도착 📷', `${d}의 러닝 사진이 추가됐어요 — 리포트에서 확인하세요`],
+};
+
+export async function addRunEvent(bookingId: string, kind: RunEventKind): Promise<void> {
+  const { data: run } = await supabase.from('runs').select('events').eq('booking_id', bookingId).single();
+  const events = [...((run?.events as any[]) ?? []), { kind, at: new Date().toISOString() }];
+  const { error } = await supabase.from('runs').update({ events }).eq('booking_id', bookingId);
+  if (error) throw error;
+  const { data: bk } = await supabase.from('bookings').select('owner_id, dogs(name)').eq('id', bookingId).single();
+  if (bk) {
+    const [title, body] = EVENT_NOTI[kind]((bk as any).dogs?.name ?? '반려견');
+    await supabase.from('notifications').insert({
+      profile_id: (bk as any).owner_id, kind: 'booking', title, body, ref_id: bookingId,
+    });
+  }
+}
+
 // 이 러닝의 개인 기록 순위 — 내 완료 러닝 안에서 (RLS상 타인 비교는 서버 집계 함수로, 추후 리더보드)
 export interface RunStandings { nth: number; total: number; kmRank: number; paceRank: number | null }
 
@@ -933,13 +957,14 @@ export interface RunReport {
   run: null | {
     actualKm: number; durationSec: number; paceSecPerKm: number | null;
     endReason: string | null; conditionNote: string | null; photos: string[];
+    events: { kind: string; at: string }[];
   };
 }
 
 export async function fetchRunReport(bookingId: string): Promise<RunReport> {
   const { data, error } = await supabase
     .from('bookings')
-    .select('scheduled_at, km, pace_label, total_price, status, runner_id, route_id, routes(name, area), dogs(name), runners(profiles(name)), runs(actual_km, duration_sec, avg_pace_sec_per_km, end_reason, condition_note, photos)')
+    .select('scheduled_at, km, pace_label, total_price, status, runner_id, route_id, routes(name, area), dogs(name), runners(profiles(name)), runs(actual_km, duration_sec, avg_pace_sec_per_km, end_reason, condition_note, photos, events)')
     .eq('id', bookingId)
     .single();
   if (error) throw error;
@@ -966,6 +991,7 @@ export async function fetchRunReport(bookingId: string): Promise<RunReport> {
           endReason: raw.end_reason,
           conditionNote: raw.condition_note,
           photos: raw.photos ?? [],
+          events: raw.events ?? [],
         }
       : null,
   };
