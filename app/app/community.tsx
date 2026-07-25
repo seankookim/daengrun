@@ -1,170 +1,138 @@
-import { router } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
+import { Alert, Dimensions, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BottomNav } from '../src/components/bottomnav';
-import { Monogram, Row } from '../src/components/ui';
-import { posts, streakRanking } from '../src/store';
+import { Avatar, Row } from '../src/components/ui';
+import { deleteFeedPost, FeedPost, fetchFeed, toggleFeedLike } from '../src/lib/api';
+import { haptic } from '../src/lib/haptics';
 import { colors } from '../src/theme';
 
-// 커뮤니티 — streak medals, filter chips, rich post cards, FAB, per mock.
+// 동네 피드 — 완료 러닝 자랑 (옵트인: 리포트에서 공유한 것만). 미니 인스타의 v1.
+// 좋아요 실동작 · 본인 포스트 길게 눌러 삭제 · 랭킹 진입. 목업 스트릭랭킹·필터·글쓰기 은퇴.
 
 const FOREST = '#132117';
-const FILTERS = ['전체', '러너', '보호자', '질문', '팁 & 후기'];
-const MEDALS = ['①', '②', '③'];
+const W = Dimensions.get('window').width;
+
+const fmtDur = (sec?: number) => (sec ? `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}` : null);
 
 export default function Community() {
-  const [filter, setFilter] = useState('전체');
+  const [posts, setPosts] = useState<FeedPost[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const load = () => fetchFeed()
+    .then((p) => { setPosts(p); setLoaded(true); })
+    .catch((e) => { console.warn('[feed]:', e?.message ?? e); setLoaded(true); });
+  useFocusEffect(useCallback(() => { load(); }, []));
+  const onRefresh = () => { setRefreshing(true); load().finally(() => setRefreshing(false)); };
+
+  const like = (p: FeedPost) => {
+    haptic('light');
+    // 낙관적 반영 — 실패 시 리로드로 정합
+    setPosts((cur) => cur.map((x) => (x.id === p.id
+      ? { ...x, likedByMe: !p.likedByMe, likes: p.likes + (p.likedByMe ? -1 : 1) }
+      : x)));
+    toggleFeedLike(p.id, p.likedByMe).catch(() => load());
+  };
+
+  const remove = (p: FeedPost) => {
+    if (!p.mine) return;
+    Alert.alert('포스트 삭제', '피드에서 이 러닝을 내릴까요?', [
+      { text: '취소', style: 'cancel' },
+      { text: '삭제', style: 'destructive', onPress: () => deleteFeedPost(p.id).then(load).catch((e) => Alert.alert('삭제 실패', (e as Error).message)) },
+    ]);
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.cream }}>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 22, paddingTop: 60, paddingBottom: 30 }}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingTop: 60, paddingBottom: 30 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
         {/* header */}
-        <Row style={{ justifyContent: 'space-between' }}>
+        <Row style={{ justifyContent: 'space-between', paddingHorizontal: 22 }}>
           <View>
             <Row style={{ gap: 6 }}>
-              <Text style={{ fontSize: 26, fontWeight: '900', color: FOREST }}>커뮤니티</Text>
-              <Text style={{ fontSize: 14, color: '#5a7a3c', alignSelf: 'center' }}>❋</Text>
+              <Text style={{ fontSize: 26, fontWeight: '900', color: FOREST }}>동네 피드</Text>
+              <View style={{ backgroundColor: '#5a7a3c', borderRadius: 99, paddingVertical: 2, paddingHorizontal: 7, alignSelf: 'center' }}>
+                <Text style={{ fontSize: 8.5, fontWeight: '900', color: '#fff' }}>● LIVE</Text>
+              </View>
             </Row>
-            <Text style={{ fontSize: 12.5, color: '#5d655d', marginTop: 4 }}>함께 달리고, 함께 성장해요</Text>
+            <Text style={{ fontSize: 12.5, color: '#5d655d', marginTop: 4 }}>우리 동네 강아지들의 오늘 러닝</Text>
           </View>
-          <Pressable style={s.writeBtn}>
-            <Text style={{ fontSize: 13, fontWeight: '800', color: '#fff' }}>＋ 글쓰기</Text>
+          <Pressable onPress={() => router.push('/leaderboard')} style={s.rankBtn}>
+            <Text style={{ fontSize: 12, fontWeight: '900', color: colors.tang }}>🏆 랭킹</Text>
           </Pressable>
         </Row>
 
-        {/* streak ranking */}
-        <View style={s.ranking}>
-          <Row style={{ justifyContent: 'space-between', marginBottom: 12 }}>
-            <Row style={{ gap: 6 }}>
-              <Text style={{ fontSize: 12, color: colors.tang }}>▲</Text>
-              <Text style={{ fontSize: 13, fontWeight: '900', color: '#fff' }}>이번 주 스트릭 랭킹</Text>
-            </Row>
-            <Text style={{ fontSize: 11, color: '#b8c4ae' }}>더보기 ›</Text>
-          </Row>
-          <Row style={{ justifyContent: 'space-between' }}>
-            {streakRanking.map((r, i) => (
-              <Row key={r.name} style={{ gap: 7 }}>
-                <Text style={{ fontSize: 16, color: i === 0 ? '#f2c94c' : i === 1 ? '#c8ccd0' : '#c99a6b' }}>{MEDALS[i]}</Text>
-                <Monogram char={r.name[0]} bg={['#c9a86e', '#e8b04b', '#9b8bb4'][i]} size={34} />
-                <View>
-                  <Text style={{ fontSize: 12, fontWeight: '700', color: '#fff' }}>{r.name}</Text>
-                  <Text style={{ fontSize: 12, fontWeight: '900', color: colors.volt }}>{r.days}일</Text>
-                </View>
-              </Row>
-            ))}
-          </Row>
-        </View>
-
-        {/* filters */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginVertical: 16 }} contentContainerStyle={{ gap: 8 }}>
-          {FILTERS.map((f) => (
-            <Pressable key={f} onPress={() => setFilter(f)} style={[s.filter, filter === f && { backgroundColor: FOREST, borderColor: FOREST }]}>
-              <Text style={{ fontSize: 12.5, fontWeight: '700', color: filter === f ? '#fff' : '#3d453d' }}>{f}</Text>
-            </Pressable>
-          ))}
-        </ScrollView>
-
-        {/* posts */}
-        {posts.map((post) => (
-          <View key={post.id} style={s.post}>
-            <Row style={{ gap: 10 }}>
-              <Monogram char={post.char} bg={post.color} size={44} />
-              <View style={{ flex: 1 }}>
-                <Row style={{ gap: 6 }}>
-                  <View style={[s.rolePill, post.roleBadge.includes('보호자') && { backgroundColor: '#fde8e3' }]}>
-                    <Text style={{ fontSize: 9.5, fontWeight: '800', color: post.roleBadge.includes('보호자') ? '#d84a2f' : '#4a6d1f' }}>
-                      {post.roleBadge}
-                    </Text>
-                  </View>
-                  <Text style={{ fontSize: 14, fontWeight: '900', color: FOREST }}>{post.author}</Text>
-                </Row>
-                <Text style={{ fontSize: 11, color: colors.dim, marginTop: 3 }}>⌖ {post.when}</Text>
-              </View>
-              {post.streak != null && (
-                <View style={s.streakPill}>
-                  <Text style={{ fontSize: 10.5, fontWeight: '800', color: '#d84a2f' }}>▲ {post.streak}일 연속</Text>
-                </View>
-              )}
-            </Row>
-
-            {post.run && (
-              <View style={s.runPill}>
-                <Text style={s.runStat}>⌖ {post.run.km}</Text>
-                <Text style={s.runStat}>◷ {post.run.time}</Text>
-                <Text style={s.runStat}>⇢ {post.run.pace}</Text>
-              </View>
-            )}
-
-            <Row style={{ gap: 12, marginTop: 10, alignItems: 'flex-start' }}>
-              <Text style={{ flex: 1, fontSize: 13.5, color: '#3d453d', lineHeight: 21 }}>{post.body}</Text>
-              {(post.photo || post.run) && (
-                <View style={[s.photo, { backgroundColor: post.photo ? post.photo[0] : '#c9b68a' }]}>
-                  {post.photo && (
-                    <View style={s.playBtn}><Text style={{ fontSize: 11, color: '#fff' }}>▶</Text></View>
-                  )}
-                </View>
-              )}
-            </Row>
-
-            {post.photo && (
-              <Row style={{ gap: 6, marginTop: 10 }}>
-                {['#바디캠', '#성수동', '#컨디션굿'].map((tag) => (
-                  <View key={tag} style={s.hashtag}><Text style={{ fontSize: 10.5, fontWeight: '700', color: '#5a7a3c' }}>{tag}</Text></View>
-                ))}
-              </Row>
-            )}
-
-            {post.product && (
-              <View style={s.productRow}>
-                <View style={{ width: 34, height: 34, borderRadius: 9, backgroundColor: post.product.colors[0] }} />
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 12, fontWeight: '600', color: FOREST }}>{post.product.name}</Text>
-                  <Text style={{ fontSize: 10.5, color: colors.dim }}>댕런 샵 · {post.product.price.toLocaleString()}원</Text>
-                </View>
-                <Pressable onPress={() => router.replace('/shop')} style={s.viewBtn}>
-                  <Text style={{ fontSize: 11, fontWeight: '700', color: '#3d453d' }}>보기</Text>
-                </Pressable>
-              </View>
-            )}
-
-            <Row style={{ gap: 18, marginTop: 12 }}>
-              <Text style={{ fontSize: 12.5, color: '#d84a2f', fontWeight: '700' }}>♥ {post.likes}</Text>
-              <Text style={s.action}>◒ {post.comments}</Text>
-              <Text style={s.action}>↥ 공유</Text>
-              <View style={{ flex: 1 }} />
-              <Text style={s.action}>⊐</Text>
-            </Row>
+        {/* feed */}
+        {loaded && posts.length === 0 && (
+          <View style={s.emptyBox}>
+            <Text style={{ fontSize: 14, fontWeight: '900', color: FOREST, textAlign: 'center' }}>아직 포스트가 없어요</Text>
+            <Text style={{ fontSize: 12.5, color: colors.dim, textAlign: 'center', marginTop: 6, lineHeight: 19 }}>
+              러닝을 완료하고 리포트에서 '동네 피드에 자랑하기'를 눌러보세요{'\n'}첫 포스트의 주인공이 되어주세요 🐕
+            </Text>
           </View>
+        )}
+
+        {posts.map((p) => (
+          <Pressable key={p.id} onLongPress={() => remove(p)} style={s.post}>
+            {/* author */}
+            <Row style={{ gap: 10, paddingHorizontal: 16, paddingVertical: 12 }}>
+              <Avatar url={p.authorAvatar} char={p.authorName[0]} bg="#5a7a3c" size={38} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 13.5, fontWeight: '800', color: FOREST }}>{p.authorName}</Text>
+                <Text style={{ fontSize: 10.5, color: colors.dim, marginTop: 1 }}>{p.when}{p.mine ? ' · 내 포스트 (길게 눌러 삭제)' : ''}</Text>
+              </View>
+            </Row>
+
+            {/* photo — 엣지-투-엣지 (사진이 디자인이다) */}
+            {p.photoUrl && (
+              <Image source={{ uri: p.photoUrl }} style={{ width: W, height: W * 0.75, backgroundColor: '#e2e0d4' }} resizeMode="cover" />
+            )}
+
+            {/* run stats strip */}
+            <Row style={{ gap: 10, paddingHorizontal: 16, paddingTop: 11, flexWrap: 'wrap' }}>
+              {p.meta.dogName && (
+                <Text style={{ fontSize: 13.5, fontWeight: '900', color: FOREST }}>🐕 {p.meta.dogName}</Text>
+              )}
+              {p.meta.km != null && (
+                <Text style={{ fontSize: 13.5, fontWeight: '900', color: colors.tang }}>{p.meta.km}km</Text>
+              )}
+              {fmtDur(p.meta.durationSec) && (
+                <Text style={{ fontSize: 12.5, color: colors.dim, alignSelf: 'center' }}>⏱ {fmtDur(p.meta.durationSec)}</Text>
+              )}
+              {(p.meta.badges ?? []).map((b) => (
+                <View key={b} style={s.badge}><Text style={{ fontSize: 10, fontWeight: '900', color: '#3d5a2b' }}>{b}</Text></View>
+              ))}
+            </Row>
+
+            {p.body && (
+              <Text style={{ fontSize: 13, color: '#3d453d', lineHeight: 19, paddingHorizontal: 16, paddingTop: 7 }}>{p.body}</Text>
+            )}
+
+            {/* like row */}
+            <Row style={{ paddingHorizontal: 16, paddingVertical: 11, gap: 6 }}>
+              <Pressable onPress={() => like(p)} style={s.likeBtn}>
+                <Text style={{ fontSize: 15 }}>{p.likedByMe ? '❤️' : '🤍'}</Text>
+                <Text style={{ fontSize: 12.5, fontWeight: '800', color: p.likedByMe ? colors.tang : '#5d655d' }}>
+                  {p.likes > 0 ? p.likes : '응원하기'}
+                </Text>
+              </Pressable>
+            </Row>
+          </Pressable>
         ))}
       </ScrollView>
-
-      {/* FAB */}
-      <Pressable style={s.fab}>
-        <Text style={{ fontSize: 18, color: colors.volt }}>❋</Text>
-      </Pressable>
       <BottomNav />
     </View>
   );
 }
 
 const s = StyleSheet.create({
-  writeBtn: { backgroundColor: FOREST, borderRadius: 99, paddingVertical: 11, paddingHorizontal: 16, alignSelf: 'flex-start' },
-  ranking: { backgroundColor: FOREST, borderRadius: 20, padding: 16, marginTop: 16 },
-  filter: { backgroundColor: '#fff', borderRadius: 99, paddingVertical: 9, paddingHorizontal: 16, borderWidth: 1, borderColor: '#eceadf' },
-  post: { backgroundColor: '#fff', borderRadius: 20, padding: 16, borderWidth: 1, borderColor: '#eceadf', marginBottom: 12 },
-  rolePill: { backgroundColor: '#e3f0c4', borderRadius: 8, paddingVertical: 3, paddingHorizontal: 7, alignSelf: 'center' },
-  streakPill: { backgroundColor: '#fde8e3', borderRadius: 99, paddingVertical: 5, paddingHorizontal: 10, alignSelf: 'flex-start' },
-  runPill: { flexDirection: 'row', gap: 14, backgroundColor: '#eef4e0', borderRadius: 12, paddingVertical: 9, paddingHorizontal: 13, marginTop: 12, alignSelf: 'flex-start' },
-  runStat: { fontSize: 12.5, fontWeight: '900', color: '#3d5a2b' },
-  photo: { width: 96, height: 96, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  playBtn: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#00000066', alignItems: 'center', justifyContent: 'center' },
-  hashtag: { backgroundColor: '#eef4e0', borderRadius: 8, paddingVertical: 4, paddingHorizontal: 8 },
-  productRow: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#faf9f3', borderRadius: 12, padding: 10, marginTop: 10 },
-  viewBtn: { backgroundColor: '#fff', borderRadius: 99, paddingVertical: 6, paddingHorizontal: 12, borderWidth: 1, borderColor: '#eceadf' },
-  action: { fontSize: 12.5, color: '#75806f', fontWeight: '600' },
-  fab: {
-    position: 'absolute', right: 20, bottom: 100, width: 54, height: 54, borderRadius: 27,
-    backgroundColor: FOREST, alignItems: 'center', justifyContent: 'center',
-    shadowColor: FOREST, shadowOpacity: 0.4, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 8,
-  },
+  rankBtn: { backgroundColor: '#fff', borderRadius: 99, paddingVertical: 9, paddingHorizontal: 13, borderWidth: 1, borderColor: '#eceadf', alignSelf: 'flex-start' },
+  emptyBox: { margin: 22, marginTop: 26, backgroundColor: '#f4f2ea', borderRadius: 18, padding: 26 },
+  post: { backgroundColor: '#fff', marginTop: 14, borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#eceadf' },
+  badge: { backgroundColor: '#eaf7c8', borderRadius: 99, paddingVertical: 3, paddingHorizontal: 8, alignSelf: 'center' },
+  likeBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#faf9f3', borderRadius: 99, paddingVertical: 8, paddingHorizontal: 14 },
 });

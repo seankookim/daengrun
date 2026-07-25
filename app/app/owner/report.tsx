@@ -1,9 +1,9 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Dimensions, Image, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { Alert, Animated, Dimensions, Image, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { HeatTrace } from '../../src/components/runcard';
 import { Monogram, Row, Skeleton } from '../../src/components/ui';
-import { fetchRunReport, fetchRunStandings, RunReport, RunStandings } from '../../src/lib/api';
+import { fetchRunReport, fetchRunStandings, RunReport, RunStandings, shareRunToFeed } from '../../src/lib/api';
 import { getMaps } from '../../src/lib/geo';
 import { draft, TracePoint } from '../../src/store';
 import { colors } from '../../src/theme';
@@ -349,6 +349,20 @@ export default function Report() {
               <Pressable onPress={() => setShotOpen(true)} style={s.cta}>
                 <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST }}>📸 인증샷 만들기</Text>
                 <Text style={{ fontSize: 10.5, color: '#5d6b4a', marginTop: 2 }}>인스타그램용 브랜디드 카드로 자랑해요</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  if (!bid) return;
+                  shareRunToFeed(bid)
+                    .then(() => {
+                      Alert.alert('피드에 올렸어요', '동네 이웃들이 응원할 거예요 🐕');
+                      router.push('/community');
+                    })
+                    .catch((e) => Alert.alert('공유 실패', (e as Error).message));
+                }}
+                style={s.ghostCta}
+              >
+                <Text style={{ fontSize: 13, fontWeight: '800', color: '#3d5a2b' }}>🐕 동네 피드에 자랑하기</Text>
               </Pressable>
               <Pressable onPress={share} style={s.ghostCta}>
                 <Text style={{ fontSize: 13, fontWeight: '800', color: '#3d453d' }}>↗ 텍스트로 공유</Text>

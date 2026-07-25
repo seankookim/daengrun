@@ -1099,6 +1099,88 @@ export async function openChatForBooking(bookingId: string): Promise<ChatContext
   };
 }
 
+// ---------- 동네 피드 (옵트인 러닝 자랑) ----------
+export interface FeedPost {
+  id: string;
+  authorName: string;
+  authorAvatar: string | null;
+  body: string | null;
+  photoUrl: string | null;
+  meta: { dogName?: string; km?: number; durationSec?: number; badges?: string[] };
+  when: string;
+  likes: number;
+  likedByMe: boolean;
+  mine: boolean;
+}
+
+export async function shareRunToFeed(bookingId: string, body?: string): Promise<void> {
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) throw new Error('not signed in');
+  const report = await fetchRunReport(bookingId);
+  if (!report.run) throw new Error('완료된 러닝만 공유할 수 있어요');
+  const standings = await fetchRunStandings(bookingId).catch(() => null);
+  const badges: string[] = [];
+  if (standings && standings.total > 1) {
+    if (standings.kmRank === 1) badges.push('🏆 역대 최장 거리');
+    if (standings.paceRank === 1) badges.push('⚡ 역대 최고 페이스');
+  }
+  const { error } = await supabase.from('feed_posts').insert({
+    author_id: user.user.id,
+    booking_id: bookingId,
+    body: body ?? null,
+    photo_url: report.run.photos[0] ?? null,
+    meta: { dogName: report.dogName, km: report.run.actualKm, durationSec: report.run.durationSec, badges },
+  });
+  if (error) {
+    if (error.code === '23505') throw new Error('이미 피드에 공유한 러닝이에요');
+    throw error;
+  }
+}
+
+export async function fetchFeed(): Promise<FeedPost[]> {
+  const { data: user } = await supabase.auth.getUser();
+  const uid = user.user?.id;
+  const { data, error } = await supabase
+    .from('feed_posts')
+    .select('id, author_id, body, photo_url, meta, created_at, profiles(name, avatar_url), feed_likes(profile_id)')
+    .order('created_at', { ascending: false })
+    .limit(30);
+  if (error) throw error;
+  return (data ?? []).map((p: any) => {
+    const { dateLabel, timeLabel } = kstParts(p.created_at);
+    const likes: { profile_id: string }[] = p.feed_likes ?? [];
+    return {
+      id: p.id,
+      authorName: p.profiles?.name ?? '이웃',
+      authorAvatar: p.profiles?.avatar_url ?? null,
+      body: p.body,
+      photoUrl: p.photo_url,
+      meta: p.meta ?? {},
+      when: `${dateLabel} ${timeLabel}`,
+      likes: likes.length,
+      likedByMe: !!uid && likes.some((l) => l.profile_id === uid),
+      mine: p.author_id === uid,
+    };
+  });
+}
+
+export async function toggleFeedLike(postId: string, liked: boolean): Promise<void> {
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) throw new Error('not signed in');
+  if (liked) {
+    await supabase.from('feed_likes').delete().eq('post_id', postId).eq('profile_id', user.user.id);
+  } else {
+    await supabase.from('feed_likes').insert({ post_id: postId, profile_id: user.user.id }).then((r) => {
+      if (r.error && r.error.code !== '23505') throw r.error;
+    });
+  }
+}
+
+export async function deleteFeedPost(postId: string): Promise<void> {
+  const { error } = await supabase.from('feed_posts').delete().eq('id', postId);
+  if (error) throw error;
+}
+
 // ---------- 댕마일 + 리더보드 (통합 인센티브 경제) ----------
 export interface MilesInfo { balance: number; recent: { delta: number; reason: string; when: string }[] }
 
