@@ -230,6 +230,16 @@
 - ✅ **다음 리빌드 동승 준비** — expo-haptics 57.0.1 + react-native-svg + lucide-react-native 설치·package.json 반영 (import는 리빌드 후 아이콘 스왑 세션에서). **⏳ Sean: `npx expo run:ios` 시 함께 컴파일됨**
 - 보류: 마스코트 vs 사진-온리 (브랜드 인격 결정 — 숙고 대상), 나이트 러너 테마 완성
 
+## 2026-07-23 세션 20: GPS/지도 실화 (마지막 대형 목업)
+
+- ✅ **실GPS 거리** — 러너 러닝 화면: expo-location watchPosition(5m/2s), 하버사인 누적(노이즈 필터 2–120m), 실시간 초. GPS 불가(권한 거부·구 빌드)면 데모 타이머 폴백 + '데모 거리' 표기. **정산이 드디어 실거리 기반**
+- ✅ **실트레이스** — 정산 후 runs.trace 저장 (리포트 지도의 원천)
+- ✅ **km 마일스톤 알림** — 실거리에서만: 'N km 돌파 🏃' 보호자 알림 + 러너 햅틱
+- ✅ **위치 브로드캐스트** — Realtime 채널(DB 무기록)로 러너 위치 발행, 보호자 라이브 화면 구독
+- ✅ **보호자 라이브 실모드** — 실지도(react-native-maps, 새 빌드) + 러너 마커 + 경로 폴리라인, 위치 수신 대기 상태 정직 표기, 실통계(가짜 BPM/KCAL/SPM·가짜 REC 숨김), 완료 감지 → 리포트로 (데모의 '/owner/pay' 라우팅은 데모만), 강제 종료 → 채팅 조율
+- ✅ expo-location 57.0.6 + react-native-maps 1.29.0 + 위치 권한 plugin. **⏳ Sean: `npx expo run:ios` (이번 리빌드에 haptics·svg·lucide·maps·location 전부 동승)**
+- 남은 것: 리포트에 실트레이스 지도 렌더(다음 폴리시 세션), 픽업 실좌표(주소 실화)
+
 ## 다음 실화(實化) 순서 (제안)
 
 1. Supabase: auth + bookings + 상태 머신 → 수락 알림이 진짜가 되는 지점

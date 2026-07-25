@@ -694,6 +694,24 @@ export async function addRunEvent(bookingId: string, kind: RunEventKind): Promis
   }
 }
 
+// km 마일스톤 알림 — 실GPS 거리에서만 호출 (가짜 거리로 실알림 금지)
+export async function notifyKmMilestone(bookingId: string, km: number): Promise<void> {
+  const { data: bk } = await supabase.from('bookings').select('owner_id, dogs(name)').eq('id', bookingId).single();
+  if (!bk) return;
+  const dog = (bk as any).dogs?.name ?? '반려견';
+  await supabase.from('notifications').insert({
+    profile_id: (bk as any).owner_id, kind: 'booking',
+    title: `${km}km 돌파 🏃`, body: `${dog}가 ${km}km를 달렸어요 — 실시간 지도에서 확인하세요`,
+    ref_id: bookingId,
+  });
+}
+
+// 러닝 트레이스 저장 (정산 후 러너가 기록 — runs runner update RLS)
+export async function saveRunTrace(bookingId: string, trace: { lat: number; lng: number; t: number }[]): Promise<void> {
+  const { error } = await supabase.from('runs').update({ trace }).eq('booking_id', bookingId);
+  if (error) throw error;
+}
+
 // 이 러닝의 개인 기록 순위 — 내 완료 러닝 안에서 (RLS상 타인 비교는 서버 집계 함수로, 추후 리더보드)
 export interface RunStandings { nth: number; total: number; kmRank: number; paceRank: number | null }
 

@@ -2,7 +2,8 @@ import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Monogram, Row } from '../../src/components/ui';
-import { addRunEvent, fetchCurrentRunnerJobId, RunEventKind, settleRun, startRunServer, uploadRunPhoto } from '../../src/lib/api';
+import { addRunEvent, fetchCurrentRunnerJobId, notifyKmMilestone, RunEventKind, saveRunTrace, settleRun, startRunServer, uploadRunPhoto } from '../../src/lib/api';
+import { distM, GeoPoint, publishPos, startTracking, stopPublishing } from '../../src/lib/geo';
 import { haptic } from '../../src/lib/haptics';
 import { EndReason, payoutFor, runnerJob, runRequests, runResult } from '../../src/store';
 import { colors } from '../../src/theme';
@@ -64,16 +65,67 @@ export default function ActiveRun() {
       .catch((e) => console.warn('[run] resolve:', e?.message ?? e));
   }, []);
 
-  const km = Math.min(sec / 409, req.km + 0.02); // ~6'49" pace, demo-accelerated
+  // ---------- 실GPS 거리 (핵심 실화) ----------
+  // gps=true: 실좌표 누적 거리 · 실시간 초 · 위치 브로드캐스트 · km 마일스톤 알림
+  // gps=false(모듈 없음/권한 거부/구 빌드): 가속 데모 타이머 폴백 — 화면에 '데모 거리' 표기
+  const [gps, setGps] = useState(false);
+  const [gpsKm, setGpsKm] = useState(0);
+  const trace = useRef<GeoPoint[]>([]);
+  const lastMilestone = useRef(0);
+  const stopTrack = useRef<null | (() => void)>(null);
+
+  useEffect(() => {
+    if (!running) {
+      if (stopTrack.current) { stopTrack.current(); stopTrack.current = null; }
+      return;
+    }
+    let alive = true;
+    startTracking((p) => {
+      if (!alive) return;
+      const prev = trace.current[trace.current.length - 1];
+      trace.current.push(p);
+      if (prev) {
+        const d = distM(prev, p);
+        if (d > 2 && d < 120) { // GPS 노이즈/텔레포트 필터
+          setGpsKm((cur) => {
+            const next = cur + d / 1000;
+            // km 마일스톤 — 실거리에서만 실알림
+            const crossed = Math.floor(next);
+            if (crossed > lastMilestone.current && runnerJob.bookingId) {
+              lastMilestone.current = crossed;
+              notifyKmMilestone(runnerJob.bookingId, crossed).catch(() => {});
+              haptic('success');
+            }
+            return next;
+          });
+        }
+      }
+      if (runnerJob.bookingId) {
+        publishPos(runnerJob.bookingId, { lat: p.lat, lng: p.lng, km: gpsKmRef.current, paceSec: null });
+      }
+    }).then((stop) => {
+      if (!alive) { stop?.(); return; }
+      if (stop) { stopTrack.current = stop; setGps(true); }
+    });
+    return () => { alive = false; if (stopTrack.current) { stopTrack.current(); stopTrack.current = null; } };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [running]);
+
+  // publishPos 클로저용 최신 km
+  const gpsKmRef = useRef(0);
+  useEffect(() => { gpsKmRef.current = gpsKm; }, [gpsKm]);
+
+  const demoKm = Math.min(sec / 409, req.km + 0.02); // 데모 폴백: ~6'49" 가속
+  const km = gps ? gpsKm : demoKm;
   const remaining = Math.max(req.km - km, 0);
   const progress = Math.min(km / req.km, 1);
 
   useEffect(() => {
     if (running) {
-      timer.current = setInterval(() => setSec((s) => s + 8), 100); // accelerated demo time
+      timer.current = setInterval(() => setSec((s) => s + (gps ? 1 : 8)), gps ? 1000 : 100); // GPS면 실시간
     }
     return () => { if (timer.current) clearInterval(timer.current); };
-  }, [running]);
+  }, [running, gps]);
 
   // per-reason payout (docs/product-notes: all pay actual km — never incentivize pushing a hurt dog)
   const payoutByReason = (reason: EndReason): number => {
@@ -86,13 +138,17 @@ export default function ActiveRun() {
   const settle = async (reason: EndReason, completed: boolean) => {
     if (settled.current) return;
     settled.current = true;
+    const bid = runnerJob.bookingId;
+    // 추적 종료 + 브로드캐스트 정리
+    if (stopTrack.current) { stopTrack.current(); stopTrack.current = null; }
+    stopPublishing();
     const localPayout = completed ? payoutFor(km) : payoutByReason(reason);
-    Object.assign(runResult, { km, sec, payout: localPayout, completed, reason, bookingId: runnerJob.bookingId });
+    Object.assign(runResult, { km, sec, payout: localPayout, completed, reason, bookingId: bid });
 
-    if (runnerJob.bookingId) {
+    if (bid) {
       try {
         const res = await settleRun({
-          booking_id: runnerJob.bookingId,
+          booking_id: bid,
           end_reason: completed ? 'completed' : REASON_MAP[reason as keyof typeof REASON_MAP],
           actual_km: Number(km.toFixed(2)),
           duration_sec: sec,
@@ -100,6 +156,8 @@ export default function ActiveRun() {
         });
         runResult.payout = res.net; // 서버가 계산한 실지급액
         runnerJob.bookingId = null;
+        // 실트레이스 저장 — 리포트 지도·기록의 원천
+        if (trace.current.length > 1) saveRunTrace(bid, trace.current).catch((e) => console.warn('[run] trace:', e?.message ?? e));
         if (res.drop) Alert.alert('드랍 도착!', res.drop === 'pick' ? '픽 드랍 — 리워드 센터에서 선택하세요' : '보급 상자가 도착했어요');
       } catch (e) {
         Alert.alert('정산 지연', `서버 정산 실패 — 로컬 추정치 표시\n${(e as Error).message}`);
@@ -137,7 +195,7 @@ export default function ActiveRun() {
         <Row style={{ justifyContent: 'space-between', paddingHorizontal: 16 }}>
           <View style={s.statusBadge}>
             <Text style={{ fontSize: 12, fontWeight: '700', color: colors.volt }}>
-              {running ? `● ${req.dogName}와 러닝 중` : `${req.dogName}와 러닝 준비`}
+              {running ? `● ${req.dogName}와 러닝 중${gps ? ' · GPS' : ' · 데모 거리'}` : `${req.dogName}와 러닝 준비`}
             </Text>
           </View>
           <View style={s.camStatus}>

@@ -4,12 +4,13 @@ import { useEffect, useRef, useState } from 'react';
 import { Alert, Dimensions, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { HeatTrace } from '../../src/components/runcard';
 import { Monogram, Row } from '../../src/components/ui';
+import { fetchBookingStatus, fetchMeetupInfo, MeetupInfo, subscribeBooking } from '../../src/lib/api';
+import { getMaps, LivePos, subscribePos } from '../../src/lib/geo';
 import { dog, draft, lastRunTrace, runners } from '../../src/store';
 import { colors } from '../../src/theme';
 
-// 라이브 런 (보호자 뷰) — light map + heat route + POI, bodycam PIP,
-// dark stat panel w/ BPM/KCAL/SPM, coral 종료. Simulated progress.
-// Real version: expo-location → Supabase realtime → react-native-maps + stream.
+// 라이브 런 (보호자 뷰) — 실예약: 러너 위치 브로드캐스트 구독 + 실지도(새 빌드) + 실통계,
+// 가짜 바이탈·가짜 진행 없음, 완료 시 리포트로. 데모(예약 없음): 기존 연출 유지.
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const FOREST = '#132117';
@@ -32,14 +33,52 @@ const POIS = [
 const STOP_REASONS = ['아이 컨디션이 걱정돼요', '급한 일정이 생겼어요', '기타 사유'];
 
 export default function Live() {
+  const live = !!draft.bookingId;
   const [t, setT] = useState(0);
   const [stopSheet, setStopSheet] = useState(false);
   const [stopReason, setStopReason] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
   const runner = runners.find((r) => r.id === draft.runnerId) ?? runners[0];
 
+  // ---------- 실모드: 위치 브로드캐스트 + 상태 구독 + 실컨텍스트 ----------
+  const [info, setInfo] = useState<MeetupInfo | null>(null);
+  const [pos, setPos] = useState<LivePos | null>(null);
+  const path = useRef<{ latitude: number; longitude: number }[]>([]);
+  const [pathLen, setPathLen] = useState(0);
+  const startAt = useRef<number | null>(null);
+  const [liveSec, setLiveSec] = useState(0);
+  const maps = live ? getMaps() : null;
+
+  useEffect(() => {
+    if (!live) return;
+    const bid = draft.bookingId!;
+    fetchMeetupInfo(bid).then(setInfo).catch(() => {});
+    const unsubPos = subscribePos(bid, (p) => {
+      if (!startAt.current) startAt.current = Date.now();
+      path.current.push({ latitude: p.lat, longitude: p.lng });
+      setPathLen(path.current.length);
+      setPos(p);
+    });
+    const done = async () => {
+      try {
+        const st = await fetchBookingStatus(bid);
+        if (st === 'completed') router.replace({ pathname: '/owner/report', params: { bid } });
+      } catch { /* 폴백이 처리 */ }
+    };
+    const unsubBk = subscribeBooking(bid, done);
+    const poll = setInterval(done, 10000);
+    const tick = setInterval(() => { if (startAt.current) setLiveSec(Math.floor((Date.now() - startAt.current) / 1000)); }, 1000);
+    return () => { unsubPos(); unsubBk(); clearInterval(poll); clearInterval(tick); };
+  }, [live]);
+
   const confirmStop = () => {
     setStopSheet(false);
+    if (live) {
+      // 실예약: 강제 종료는 러너와 조율 — 채팅으로 (일방 정지 목업 은퇴)
+      Alert.alert('러너에게 알렸어요', '안전한 지점에서 정지 후 조율해요 — 채팅으로 이어드릴게요');
+      router.push({ pathname: '/chat', params: { bid: draft.bookingId! } });
+      return;
+    }
     Alert.alert(
       '종료 요청 전송됨',
       `${runner.name} 러너에게 강제 알림이 전송됐어요.\n러너가 안전하게 정지한 뒤 ${dog.name}를 데리고 복귀합니다 (목업)`,
@@ -47,20 +86,27 @@ export default function Live() {
     router.replace('/owner/pay');
   };
 
+  // 데모 전용 타이머 (실모드는 서버·브로드캐스트가 진실)
   useEffect(() => {
+    if (live) return;
     timer.current = setInterval(() => setT((prev) => (prev >= 1 ? 1 : Math.min(prev + 0.004, 1))), 80);
     return () => { if (timer.current) clearInterval(timer.current); };
-  }, []);
+  }, [live]);
 
   useEffect(() => {
+    if (live) return;
     if (t >= 1) {
       const id = setTimeout(() => router.replace('/owner/pay'), 1200);
       return () => clearTimeout(id);
     }
-  }, [t]);
+  }, [t, live]);
 
-  const km = draft.km * t;
-  const sec = TOTAL_SEC * t;
+  const dogName = live ? (info?.dogName ?? '반려견') : dog.name;
+  const runnerName = live ? (info?.runnerName ?? '러너') : runner.name;
+  const targetKm = live ? (info?.km ?? draft.km) : draft.km;
+  const km = live ? (pos?.km ?? 0) : draft.km * t;
+  const sec = live ? liveSec : TOTAL_SEC * t;
+  const progressT = live ? Math.min(km / Math.max(targetKm, 0.1), 1) : t;
   const mapW = SCREEN_W;
   const mapH = 420;
   const dotIdx = Math.min(Math.floor(t * (lastRunTrace.length - 1)), lastRunTrace.length - 1);
@@ -72,37 +118,53 @@ export default function Live() {
 
       {/* ---------- map ---------- */}
       <View style={{ height: mapH + 90, overflow: 'hidden' }}>
-        {/* map texture */}
-        <View style={s.mapRoadH} />
-        <View style={s.mapRoadV} />
-        <View style={s.mapWater} />
-
-        {/* heat route */}
-        <View style={{ position: 'absolute', left: 24, right: 24, top: 100, height: mapH - 60 }}>
-          <HeatTrace points={lastRunTrace} width={mapW - 48} height={mapH - 60} />
-          {/* live position dot */}
-          <View
-            style={[s.liveDot, {
-              left: dot.x * (mapW - 48) - 11,
-              top: dot.y * (mapH - 60) - 11,
-            }]}
-          />
-        </View>
-
-        {/* POIs */}
-        {POIS.map((poi) => (
-          <View key={poi.label} style={{ position: 'absolute', left: poi.x * mapW, top: 100 + poi.y * (mapH - 60), flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#6aa53c' }} />
-            <Text style={{ fontSize: 11, fontWeight: '700', color: '#7a8a6d' }}>{poi.label}</Text>
+        {live && maps && pos ? (
+          // 실지도: 러너 위치 + 이동 경로 (react-native-maps — 새 빌드)
+          <maps.MapView
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+            region={{ latitude: pos.lat, longitude: pos.lng, latitudeDelta: 0.008, longitudeDelta: 0.008 }}
+          >
+            {pathLen > 1 && <maps.Polyline coordinates={path.current} strokeColor={colors.voltDeep} strokeWidth={5} />}
+            <maps.Marker coordinate={{ latitude: pos.lat, longitude: pos.lng }} title={`${dogName} · ${runnerName} 러너`} />
+          </maps.MapView>
+        ) : live ? (
+          // 실모드지만 아직 위치 없음/구 빌드 — 정직한 대기 화면
+          <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: '#e6ecdc' }}>
+            <Text style={{ fontSize: 14, fontWeight: '900', color: FOREST }}>러너 위치 수신 대기 중...</Text>
+            <Text style={{ fontSize: 11.5, color: '#75806f', marginTop: 6, textAlign: 'center', lineHeight: 17 }}>
+              러너가 달리기 시작하면 실시간 경로가 여기에 그려져요{'\n'}{!maps ? '(실지도는 새 개발 빌드에서 표시돼요)' : ''}
+            </Text>
           </View>
-        ))}
+        ) : (
+          <>
+            {/* 데모 연출 지도 */}
+            <View style={s.mapRoadH} />
+            <View style={s.mapRoadV} />
+            <View style={s.mapWater} />
+            <View style={{ position: 'absolute', left: 24, right: 24, top: 100, height: mapH - 60 }}>
+              <HeatTrace points={lastRunTrace} width={mapW - 48} height={mapH - 60} />
+              <View
+                style={[s.liveDot, {
+                  left: dot.x * (mapW - 48) - 11,
+                  top: dot.y * (mapH - 60) - 11,
+                }]}
+              />
+            </View>
+            {POIS.map((poi) => (
+              <View key={poi.label} style={{ position: 'absolute', left: poi.x * mapW, top: 100 + poi.y * (mapH - 60), flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#6aa53c' }} />
+                <Text style={{ fontSize: 11, fontWeight: '700', color: '#7a8a6d' }}>{poi.label}</Text>
+              </View>
+            ))}
+          </>
+        )}
 
         {/* top bar */}
         <Row style={s.topBar}>
           <Pressable onPress={() => router.back()} style={s.circleBtn}><Text style={{ fontSize: 18 }}>‹</Text></Pressable>
           <View style={s.livePill}>
             <Text style={{ fontSize: 12, fontWeight: '900', color: colors.volt }}>
-              ● LIVE · {t >= 1 ? '러닝 완료!' : `${dog.name}가 달리는 중`}
+              ● LIVE · {!live && t >= 1 ? '러닝 완료!' : `${dogName}가 달리는 중`}
             </Text>
           </View>
           <Pressable style={s.circleBtn}><Text style={{ fontSize: 14 }}>▣</Text></Pressable>
@@ -110,12 +172,12 @@ export default function Live() {
 
         {/* course chip */}
         <View style={s.courseChip}>
-          <Text style={{ fontSize: 11.5, fontWeight: '800', color: '#fff' }}>서울숲 코스</Text>
-          <Text style={{ fontSize: 12, fontWeight: '900', color: colors.volt }}>{draft.km}km</Text>
+          <Text style={{ fontSize: 11.5, fontWeight: '800', color: '#fff' }}>{live ? (info?.routeName ?? '코스') : '서울숲 코스'}</Text>
+          <Text style={{ fontSize: 12, fontWeight: '900', color: colors.volt }}>{targetKm}km</Text>
         </View>
 
-        {/* bodycam PIP */}
-        <View style={s.bodycam}>
+        {/* bodycam PIP — 실모드에선 숨김 (가짜 REC 금지, 카메라 실장비 후 복귀) */}
+        <View style={[s.bodycam, live && { display: 'none' }]}>
           <View style={s.camVisual}>
             <View style={{ position: 'absolute', bottom: 0, left: 10, right: 10, height: 54, borderTopLeftRadius: 26, borderTopRightRadius: 26, backgroundColor: '#a97e4f' }} />
             <View style={{ position: 'absolute', bottom: 30, alignSelf: 'center', width: 34, height: 9, borderRadius: 4, backgroundColor: '#2c2c2c' }} />
@@ -153,25 +215,34 @@ export default function Live() {
       {/* ---------- progress strip ---------- */}
       <View style={s.progressStrip}>
         <Row style={{ justifyContent: 'space-between', marginBottom: 7 }}>
-          <Text style={{ fontSize: 12, fontWeight: '700', color: '#3d453d' }}>서울숲 코스 · {draft.km}km</Text>
-          <Text style={{ fontSize: 12, fontWeight: '900', color: FOREST }}>{Math.round(t * 100)}%</Text>
+          <Text style={{ fontSize: 12, fontWeight: '700', color: '#3d453d' }}>
+            {live ? (info?.routeName ?? '코스') : '서울숲 코스'} · {targetKm}km
+          </Text>
+          <Text style={{ fontSize: 12, fontWeight: '900', color: FOREST }}>{Math.round(progressT * 100)}%</Text>
         </Row>
         <View style={s.progressTrack}>
-          <View style={[s.progressFill, { width: `${t * 100}%` }]} />
-          <View style={[s.progressDot, { left: `${Math.max(t * 100 - 3, 0)}%` }]} />
+          <View style={[s.progressFill, { width: `${progressT * 100}%` }]} />
+          <View style={[s.progressDot, { left: `${Math.max(progressT * 100 - 3, 0)}%` }]} />
         </View>
       </View>
 
       {/* ---------- dark panel ---------- */}
       <View style={s.panel}>
         <Row style={{ gap: 11 }}>
-          <Monogram char={runner.char} bg={runner.color} size={44} />
+          <Monogram char={runnerName[0]} bg={live ? '#5a7a3c' : runner.color} size={44} />
           <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 15, fontWeight: '900', color: '#fff' }}>{runner.name} 러너</Text>
-            <Text style={{ fontSize: 11.5, color: '#b8c4ae', marginTop: 2 }}>{dog.name}와 러닝 중</Text>
+            <Text style={{ fontSize: 15, fontWeight: '900', color: '#fff' }}>{runnerName} 러너</Text>
+            <Text style={{ fontSize: 11.5, color: '#b8c4ae', marginTop: 2 }}>{dogName}와 러닝 중</Text>
           </View>
-          <View style={s.signalPill}><Text style={{ fontSize: 11, fontWeight: '800', color: colors.volt }}>ılı 좋음</Text></View>
-          <View style={s.gearBtn}><Text style={{ fontSize: 13, color: '#b8c4ae' }}>⚙</Text></View>
+          {live ? (
+            <View style={s.signalPill}>
+              <Text style={{ fontSize: 11, fontWeight: '800', color: pos ? colors.volt : '#b8c4ae' }}>
+                {pos ? 'ılı 위치 수신' : '수신 대기'}
+              </Text>
+            </View>
+          ) : (
+            <View style={s.signalPill}><Text style={{ fontSize: 11, fontWeight: '800', color: colors.volt }}>ılı 좋음</Text></View>
+          )}
         </Row>
 
         {/* big stats */}
@@ -183,12 +254,14 @@ export default function Live() {
           <BigStat glyph="⇢" value={paceStr(sec, km)} label="페이스" />
         </Row>
 
-        {/* secondary stats */}
-        <View style={s.secondary}>
-          <Text style={s.secStat}><Text style={{ color: colors.tang }}>♥</Text> {Math.round(128 + t * 18)} <Text style={s.secUnit}>BPM</Text></Text>
-          <Text style={s.secStat}><Text style={{ color: '#f2a33c' }}>▲</Text> {Math.round(t * 164)} <Text style={s.secUnit}>KCAL</Text></Text>
-          <Text style={s.secStat}><Text style={{ color: '#9fc3e8' }}>➶</Text> {Math.round(160 + t * 10)} <Text style={s.secUnit}>SPM</Text></Text>
-        </View>
+        {/* secondary stats — 실모드에선 숨김 (가짜 바이탈 금지; 웨어러블 연동 후 복귀) */}
+        {!live && (
+          <View style={s.secondary}>
+            <Text style={s.secStat}><Text style={{ color: colors.tang }}>♥</Text> {Math.round(128 + t * 18)} <Text style={s.secUnit}>BPM</Text></Text>
+            <Text style={s.secStat}><Text style={{ color: '#f2a33c' }}>▲</Text> {Math.round(t * 164)} <Text style={s.secUnit}>KCAL</Text></Text>
+            <Text style={s.secStat}><Text style={{ color: '#9fc3e8' }}>➶</Text> {Math.round(160 + t * 10)} <Text style={s.secUnit}>SPM</Text></Text>
+          </View>
+        )}
 
         {/* controls — chat is the owner's primary mid-run action, not stopping */}
         <Row style={{ gap: 12, marginTop: 16 }}>
