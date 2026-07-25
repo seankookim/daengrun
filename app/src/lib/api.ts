@@ -1126,13 +1126,14 @@ export interface RunReport {
     actualKm: number; durationSec: number; paceSecPerKm: number | null;
     endReason: string | null; conditionNote: string | null; photos: string[];
     events: { kind: string; at: string }[];
+    trace: { lat: number; lng: number; t: number }[];
   };
 }
 
 export async function fetchRunReport(bookingId: string): Promise<RunReport> {
   const { data, error } = await supabase
     .from('bookings')
-    .select('scheduled_at, km, pace_label, total_price, status, runner_id, route_id, routes(name, area), dogs(name), runners(profiles(name)), runs(actual_km, duration_sec, avg_pace_sec_per_km, end_reason, condition_note, photos, events)')
+    .select('scheduled_at, km, pace_label, total_price, status, runner_id, route_id, routes(name, area), dogs(name), runners(profiles(name)), runs(actual_km, duration_sec, avg_pace_sec_per_km, end_reason, condition_note, photos, events, trace)')
     .eq('id', bookingId)
     .single();
   if (error) throw error;
@@ -1160,6 +1161,7 @@ export async function fetchRunReport(bookingId: string): Promise<RunReport> {
           conditionNote: raw.condition_note,
           photos: raw.photos ?? [],
           events: raw.events ?? [],
+          trace: raw.trace ?? [],
         }
       : null,
   };

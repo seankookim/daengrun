@@ -1,9 +1,11 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Dimensions, Image, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
-import { Monogram, Row } from '../../src/components/ui';
+import { HeatTrace } from '../../src/components/runcard';
+import { Monogram, Row, Skeleton } from '../../src/components/ui';
 import { fetchRunReport, fetchRunStandings, RunReport, RunStandings } from '../../src/lib/api';
-import { draft } from '../../src/store';
+import { getMaps } from '../../src/lib/geo';
+import { draft, TracePoint } from '../../src/store';
 import { colors } from '../../src/theme';
 
 // 러닝 리포트 — 러닝 하나의 '프로필 페이지'. 풀블리드 · 공유 가능 · 사진 · 개인 기록 배지.
@@ -29,6 +31,21 @@ const STATUS_LABEL: Record<string, string> = {
   runner_enroute: '러너 이동 중', picked_up: '인계 완료 — 시작 대기', active: '러닝 진행 중',
 };
 
+// 실트레이스 → HeatTrace 정규화 (지도 모듈 없는 빌드 폴백)
+function normalizeTrace(trace: { lat: number; lng: number }[]): TracePoint[] {
+  const lats = trace.map((p) => p.lat);
+  const lngs = trace.map((p) => p.lng);
+  const [minLa, maxLa] = [Math.min(...lats), Math.max(...lats)];
+  const [minLo, maxLo] = [Math.min(...lngs), Math.max(...lngs)];
+  const dLa = Math.max(maxLa - minLa, 1e-6);
+  const dLo = Math.max(maxLo - minLo, 1e-6);
+  return trace.map((p, i) => ({
+    x: (p.lng - minLo) / dLo,
+    y: 1 - (p.lat - minLa) / dLa,
+    v: i / Math.max(trace.length - 1, 1),
+  }));
+}
+
 const fmtDur = (sec: number) => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
 const fmtPace = (sec: number | null) => (sec ? `${Math.floor(sec / 60)}'${String(sec % 60).padStart(2, '0')}"` : '—');
 const targetPaceSec = (label: string) => (label.includes('8') ? 480 : label.includes('6') ? 360 : 420);
@@ -51,6 +68,19 @@ export default function Report() {
   const [report, setReport] = useState<RunReport | null>(null);
   const [standings, setStandings] = useState<RunStandings | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  // 간편 인증샷 — 브랜디드 카드 캡처 (view-shot 새 빌드; 없으면 텍스트 공유 폴백)
+  const [shotOpen, setShotOpen] = useState(false);
+  const shotRef = useRef<View>(null);
+
+  const captureShot = async () => {
+    try {
+      const VS = require('react-native-view-shot');
+      const uri = await VS.captureRef(shotRef, { format: 'jpg', quality: 0.92 });
+      await Share.share({ url: uri });
+    } catch {
+      share(); // 구 빌드/실패 → 텍스트 공유
+    }
+  };
 
   useEffect(() => {
     if (!bid) { setErr('예약 정보가 없어요'); return; }
@@ -93,7 +123,13 @@ export default function Report() {
         </Row>
 
         {err && <View style={s.emptyBox}><Text style={s.emptyText}>{err}</Text></View>}
-        {!err && !report && <View style={s.emptyBox}><Text style={s.emptyText}>불러오는 중...</Text></View>}
+        {!err && !report && (
+          <View style={{ paddingHorizontal: 20, marginTop: 14, gap: 12 }}>
+            <Skeleton width="100%" height={210} radius={0} />
+            <Skeleton width="100%" height={90} />
+            <Skeleton width="70%" height={20} />
+          </View>
+        )}
 
         {report && !run && (
           <View style={s.emptyBox}>
@@ -104,6 +140,40 @@ export default function Report() {
             <Pressable onPress={() => router.replace('/owner/schedule')} style={s.ctaGhost}>
               <Text style={{ fontSize: 12.5, fontWeight: '800', color: FOREST }}>내 일정에서 보기 ›</Text>
             </Pressable>
+          </View>
+        )}
+
+        {/* ---------- 인증샷 카드 모달 ---------- */}
+        {report && run && shotOpen && (
+          <View style={s.shotBackdrop}>
+            <View ref={shotRef} collapsable={false} style={s.shotCard}>
+              {run.photos[0] && (
+                <Image source={{ uri: run.photos[0] }} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, opacity: 0.38 }} resizeMode="cover" />
+              )}
+              <Text style={{ fontSize: 11, fontWeight: '900', color: colors.volt, letterSpacing: 3 }}>댕런 DAENGRUN</Text>
+              <Text style={{ fontSize: 21, fontWeight: '900', color: '#fff', marginTop: 12 }}>{report.dogName}의 러닝 🐕</Text>
+              <Text style={{ fontSize: 54, fontWeight: '900', color: colors.tang, marginTop: 6 }}>
+                {run.actualKm}<Text style={{ fontSize: 20, color: '#b8c4ae' }}> km</Text>
+              </Text>
+              <Text style={{ fontSize: 13, color: '#dfe7d8', marginTop: 8 }}>
+                ⏱ {fmtDur(run.durationSec)} · 페이스 {fmtPace(run.paceSecPerKm)}/km
+              </Text>
+              <Text style={{ fontSize: 11, color: '#b8c4ae', marginTop: 4 }}>{report.when} · {report.routeName}</Text>
+              {bList.length > 1 && (
+                <Text style={{ fontSize: 12, fontWeight: '900', color: colors.volt, marginTop: 10 }}>
+                  {bList.filter((b) => b.includes('역대') || b.includes('TOP')).join(' · ') || bList[0]}
+                </Text>
+              )}
+              <Text style={{ fontSize: 9.5, color: '#8fa093', marginTop: 14 }}>반려견 피트니스 · 댕런</Text>
+            </View>
+            <Row style={{ gap: 10, marginTop: 16 }}>
+              <Pressable onPress={captureShot} style={[s.cta, { flex: 1, marginTop: 0 }]}>
+                <Text style={{ fontSize: 14, fontWeight: '900', color: FOREST }}>공유하기</Text>
+              </Pressable>
+              <Pressable onPress={() => setShotOpen(false)} style={[s.ghostCta, { flex: 0.6, marginTop: 0 }]}>
+                <Text style={{ fontSize: 13, fontWeight: '800', color: '#3d453d' }}>닫기</Text>
+              </Pressable>
+            </Row>
           </View>
         )}
 
@@ -150,6 +220,38 @@ export default function Report() {
                 <HeroStat value={`${report.plannedKm}km`} label="계획 거리" />
               </Row>
             </View>
+
+            {/* ---------- 러닝 경로 (실트레이스) ---------- */}
+            {run.trace.length > 1 && (() => {
+              const maps = getMaps();
+              if (maps) {
+                const lats = run.trace.map((p) => p.lat);
+                const lngs = run.trace.map((p) => p.lng);
+                const region = {
+                  latitude: (Math.min(...lats) + Math.max(...lats)) / 2,
+                  longitude: (Math.min(...lngs) + Math.max(...lngs)) / 2,
+                  latitudeDelta: Math.max((Math.max(...lats) - Math.min(...lats)) * 1.4, 0.004),
+                  longitudeDelta: Math.max((Math.max(...lngs) - Math.min(...lngs)) * 1.4, 0.004),
+                };
+                return (
+                  <View style={{ height: 190, backgroundColor: '#fff' }}>
+                    <maps.MapView style={{ flex: 1 }} region={region} scrollEnabled={false} zoomEnabled={false} pitchEnabled={false} rotateEnabled={false}>
+                      <maps.Polyline
+                        coordinates={run.trace.map((p) => ({ latitude: p.lat, longitude: p.lng }))}
+                        strokeColor={colors.voltDeep}
+                        strokeWidth={4}
+                      />
+                    </maps.MapView>
+                  </View>
+                );
+              }
+              return (
+                <View style={{ backgroundColor: '#0e150f', alignItems: 'center', paddingVertical: 12 }}>
+                  <HeatTrace points={normalizeTrace(run.trace)} width={W - 60} height={140} />
+                  <Text style={{ fontSize: 9.5, color: '#8fa093', marginTop: 6 }}>실제 GPS 경로 · 지도 배경은 새 빌드에서</Text>
+                </View>
+              );
+            })()}
 
             {/* ---------- 러닝 순간 스탬프 (응가 도장 등) ---------- */}
             {run.events.length > 0 && (
@@ -244,10 +346,21 @@ export default function Report() {
 
             {/* ---------- CTA ---------- */}
             <View style={{ paddingHorizontal: 20 }}>
-              <Pressable onPress={share} style={s.cta}>
-                <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST }}>↗ 자랑하기</Text>
-                <Text style={{ fontSize: 10.5, color: '#5d6b4a', marginTop: 2 }}>카카오톡·인스타그램으로 오늘의 러닝을 공유해요</Text>
+              <Pressable onPress={() => setShotOpen(true)} style={s.cta}>
+                <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST }}>📸 인증샷 만들기</Text>
+                <Text style={{ fontSize: 10.5, color: '#5d6b4a', marginTop: 2 }}>인스타그램용 브랜디드 카드로 자랑해요</Text>
               </Pressable>
+              <Pressable onPress={share} style={s.ghostCta}>
+                <Text style={{ fontSize: 13, fontWeight: '800', color: '#3d453d' }}>↗ 텍스트로 공유</Text>
+              </Pressable>
+              {report.status === 'completed' && report.runnerProfileId && (
+                <Pressable
+                  onPress={() => router.push({ pathname: '/owner/review', params: { bid: bid!, rid: report.runnerProfileId!, rname: report.runnerName ?? '러너' } })}
+                  style={s.ghostCta}
+                >
+                  <Text style={{ fontSize: 13, fontWeight: '800', color: '#a97c12' }}>★ {report.runnerName ?? ''} 러너 후기 남기기</Text>
+                </Pressable>
+              )}
               {/* 재예약 = 두 번째 예약이 첫 예약보다 중요하다 — 설정 전부 프리필, 시간만 고르면 끝 */}
               <Pressable
                 onPress={() => {
@@ -332,4 +445,6 @@ const s = StyleSheet.create({
   ctaGhost: { marginTop: 14, backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 10, paddingHorizontal: 18 },
   cta: { backgroundColor: colors.volt, borderRadius: 18, alignItems: 'center', paddingVertical: 15, marginTop: 16 },
   ghostCta: { backgroundColor: '#fff', borderRadius: 16, alignItems: 'center', paddingVertical: 13, marginTop: 8, borderWidth: 1, borderColor: '#eceadf' },
+  shotBackdrop: { paddingHorizontal: 24, paddingVertical: 18, backgroundColor: '#0d1410' },
+  shotCard: { backgroundColor: FOREST, borderRadius: 24, padding: 24, overflow: 'hidden', alignItems: 'center', paddingVertical: 34 },
 });

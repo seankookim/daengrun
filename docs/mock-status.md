@@ -240,6 +240,18 @@
 - ✅ expo-location 57.0.6 + react-native-maps 1.29.0 + 위치 권한 plugin. **⏳ Sean: `npx expo run:ios` (이번 리빌드에 haptics·svg·lucide·maps·location 전부 동승)**
 - 남은 것: 리포트에 실트레이스 지도 렌더(다음 폴리시 세션), 픽업 실좌표(주소 실화)
 
+## 2026-07-23 세션 21–22: 폴리시 배치 + 리뷰 실화
+
+**세션 21 (폴리시):**
+- ✅ **Icon 컴포넌트** — lucide 지연 로드 + 글리프 폴백 (리빌드하면 자동 실아이콘). 바텀 내비 5탭 적용 (House/CalendarDays/Users/ShoppingBag/CircleUserRound/Inbox/Wallet)
+- ✅ **리포트 실경로 지도** — runs.trace → MapView 폴리라인(새 빌드) / HeatTrace 정규화 폴백(구 빌드, '지도 배경은 새 빌드에서' 표기)
+- ✅ **📸 인증샷 만들기** — 브랜디드 카드(사진 배경 + 코랄 km + 기록 배지 + 댕런 워드마크) → view-shot 캡처 → 네이티브 공유. 구 빌드는 텍스트 공유 폴백. react-native-view-shot 5.1.1 설치(리빌드 동승)
+- ✅ **스켈레톤 로더** — Skeleton 컴포넌트, 리포트 로딩 적용
+
+**세션 22 (리뷰):**
+- ✅ **보호자 → 러너 후기 실화** — /owner/review (별점·태그 6종·노트·플랫폼 전용 플래그), reviews 실저장, 중복 방지(23505), 리포트 '★ 러너 후기 남기기' 진입. 러너→강아지 리뷰는 기존 실저장 확인
+- ✅ **0011 스토어프런트 리뷰 정책** — public 러너 리뷰 전체 공개 읽기 (기존엔 당사자만 → 프로필 후기가 타인에게 항상 빈 표시). **⏳ Sean: `npx supabase db push`**
+
 ## 다음 실화(實化) 순서 (제안)
 
 1. Supabase: auth + bookings + 상태 머신 → 수락 알림이 진짜가 되는 지점

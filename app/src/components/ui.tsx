@@ -61,6 +61,21 @@ export function Monogram({ char, bg, size = 52 }: { char: string; bg: string; si
   );
 }
 
+// 아이콘 — lucide(새 빌드) 지연 로드, 없으면 텍스트 글리프 폴백. 리빌드하면 자동 업그레이드.
+let Lucide: any = null;
+try { Lucide = require('lucide-react-native'); } catch { /* 구 빌드 — 글리프 폴백 */ }
+
+export function Icon({ name, glyph, size = 18, color }: { name: string; glyph: string; size?: number; color: string }) {
+  const L = Lucide?.[name];
+  if (L) return <L size={size} color={color} strokeWidth={1.8} />;
+  return <Text style={{ fontSize: size * 0.9, color }}>{glyph}</Text>;
+}
+
+// 스켈레톤 — '불러오는 중...' 텍스트 대체 (은은한 펄스)
+export function Skeleton({ width, height, radius: r = 12, style }: { width: number | `${number}%`; height: number; radius?: number; style?: ViewStyle }) {
+  return <View style={[{ width, height, borderRadius: r, backgroundColor: '#e8e5d8', opacity: 0.7 }, style]} />;
+}
+
 // 실사진 아바타 — url 없으면 Monogram 폴백. 신뢰 표면 전부가 이걸 쓴다.
 export function Avatar({ url, char, bg, size = 52 }: { url?: string | null; char: string; bg: string; size?: number }) {
   if (!url) return <Monogram char={char} bg={bg} size={size} />;
