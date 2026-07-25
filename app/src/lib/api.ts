@@ -1099,6 +1099,45 @@ export async function openChatForBooking(bookingId: string): Promise<ChatContext
   };
 }
 
+// ---------- 댕마일 + 리더보드 (통합 인센티브 경제) ----------
+export interface MilesInfo { balance: number; recent: { delta: number; reason: string; when: string }[] }
+
+const MILE_REASON: Record<string, string> = {
+  run_complete: '러닝 완주', poop_bonus: '응가 도장 보너스', drop: '드랍 보상', shop_spend: '샵 사용',
+};
+
+export async function fetchMiles(): Promise<MilesInfo> {
+  const { data, error } = await supabase
+    .from('miles_ledger')
+    .select('delta, reason, created_at')
+    .order('created_at', { ascending: false })
+    .limit(50);
+  if (error) throw error;
+  const rows = data ?? [];
+  return {
+    balance: rows.reduce((s, r: any) => s + r.delta, 0),
+    recent: rows.slice(0, 10).map((r: any) => {
+      const { dateLabel } = kstParts(r.created_at);
+      return { delta: r.delta, reason: MILE_REASON[r.reason] ?? r.reason, when: dateLabel };
+    }),
+  };
+}
+
+export interface BoardRow { name: string; photoUrl: string | null; km: number; runs: number }
+
+export async function fetchLeaderboards(): Promise<{ dogs: BoardRow[]; runners: BoardRow[] }> {
+  const [d, r] = await Promise.all([
+    supabase.rpc('leaderboard_dogs_weekly'),
+    supabase.rpc('leaderboard_runners_weekly'),
+  ]);
+  if (d.error) throw d.error;
+  if (r.error) throw r.error;
+  return {
+    dogs: (d.data ?? []).map((x: any) => ({ name: x.dog_name, photoUrl: x.photo_url, km: Number(x.km), runs: Number(x.runs) })),
+    runners: (r.data ?? []).map((x: any) => ({ name: x.runner_name, photoUrl: x.avatar_url, km: Number(x.km), runs: Number(x.runs) })),
+  };
+}
+
 // ---------- notifications (읽기 — 실시간 배달은 Realtime 세션에서) ----------
 export interface LiveNoti { id: string; title: string; body: string | null; when: string; unread: boolean; kind: string; refId: string | null }
 

@@ -333,6 +333,9 @@ export default function RunnerHome() {
 
         {/* ---------- quick links ---------- */}
         <Row style={{ justifyContent: 'flex-end', gap: 16, marginTop: 16 }}>
+          <Pressable onPress={() => router.push('/leaderboard')}>
+            <Text style={[text.dim, { fontWeight: '700' }]}>🏆 랭킹 ›</Text>
+          </Pressable>
           <Pressable onPress={() => router.push('/community')}>
             <Text style={[text.dim, { fontWeight: '700' }]}>커뮤니티 ›</Text>
           </Pressable>

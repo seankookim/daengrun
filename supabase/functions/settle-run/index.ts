@@ -52,6 +52,21 @@ Deno.serve(handle(async (req) => {
     tip: 0, remaining_guarantee: guarantee, platform_fee: fee,
   });
 
+  // ---------- 댕마일 — 통합 인센티브 원장 (드랍·쿠폰·상점이 전부 이 화폐로) ----------
+  // 완주 적립 양측 +50 · 응가 도장 보너스 양측 +30 (러닝당 1회, 케어 증거 인센티브)
+  // 중복 방지: 상태머신이 completed 전이를 1회만 허용 → 여기 도달도 1회
+  const { data: runRow } = await db.from("runs").select("events").eq("booking_id", p.booking_id).single();
+  const hasPoop = ((runRow?.events as { kind: string }[]) ?? []).some((e) => e.kind === "poop");
+  const milesRows = [
+    { profile_id: uid, delta: 50, reason: "run_complete", ref_id: p.booking_id },
+    { profile_id: bk.owner_id, delta: 50, reason: "run_complete", ref_id: p.booking_id },
+  ];
+  if (hasPoop) {
+    milesRows.push({ profile_id: uid, delta: 30, reason: "poop_bonus", ref_id: p.booking_id });
+    milesRows.push({ profile_id: bk.owner_id, delta: 30, reason: "poop_bonus", ref_id: p.booking_id });
+  }
+  await db.from("miles_ledger").insert(milesRows);
+
   // 러너 스탯 + 완주율 (runner_personal만 미완주로 침)
   const totalRuns = (runner?.total_runs ?? 0) + 1;
   await db.from("runners").update({

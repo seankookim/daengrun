@@ -368,6 +368,10 @@ export default function OwnerHome() {
               <View style={{ backgroundColor: '#5a7a3c', borderRadius: 99, paddingVertical: 2, paddingHorizontal: 7 }}>
                 <Text style={{ fontSize: 8.5, fontWeight: '900', color: '#fff' }}>● {localRunners.length}명 온라인</Text>
               </View>
+              <View style={{ flex: 1 }} />
+              <Pressable onPress={() => router.push('/leaderboard')}>
+                <Text style={{ fontSize: 12, fontWeight: '800', color: colors.tang }}>🏆 동네 랭킹 ›</Text>
+              </Pressable>
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
               {localRunners.map((r) => (
