@@ -1,10 +1,10 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Monogram, Row } from '../src/components/ui';
 import {
   ChatContext, ChatMsg, fetchCurrentOwnerBookingId, fetchCurrentRunnerJobId,
-  fetchMessages, openChatForBooking, sendChatMessage, subscribeMessages,
+  fetchMessages, openChatForBooking, sendChatMessage, sendChatPhoto, subscribeMessages,
 } from '../src/lib/api';
 import { supabase } from '../src/lib/supabase';
 import { session } from '../src/store';
@@ -59,6 +59,26 @@ export default function Chat() {
     });
     return () => unsub();
   }, [ctx]);
+
+  // 사진 메시지 — 픽업 장소·아이 상태 공유의 핵심 수단
+  const sendPhoto = async () => {
+    if (!ctx) return;
+    let ImagePicker: any;
+    try { ImagePicker = require('expo-image-picker'); } catch {
+      Alert.alert('개발 빌드 업데이트 필요', '사진 기능은 새 빌드에 포함돼요'); return;
+    }
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) return;
+      const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.6, base64: true });
+      if (res.canceled || !res.assets?.[0]?.base64) return;
+      await sendChatPhoto(ctx.threadId, res.assets[0].base64);
+      setMsgs(await fetchMessages(ctx.threadId));
+      setTimeout(() => scroller.current?.scrollToEnd({ animated: true }), 60);
+    } catch (e) {
+      Alert.alert('전송 실패', (e as Error).message);
+    }
+  };
 
   const send = async (body: string) => {
     if (!body.trim() || !ctx || sending) return;
@@ -131,8 +151,12 @@ export default function Chat() {
           {msgs.map((m) => (
             <View key={m.id} style={[s.bubbleRow, m.mine && { justifyContent: 'flex-end' }]}>
               {m.mine && <Text style={s.time}>{m.when}</Text>}
-              <View style={[s.bubble, m.mine ? s.bubbleMine : s.bubblePeer]}>
-                <Text style={{ fontSize: 13.5, lineHeight: 19, color: m.mine ? FOREST : '#2c332c' }}>{m.body}</Text>
+              <View style={[s.bubble, m.mine ? s.bubbleMine : s.bubblePeer, m.mediaUrl != null && { padding: 4 }]}>
+                {m.mediaUrl ? (
+                  <Image source={{ uri: m.mediaUrl }} style={{ width: 190, height: 190, borderRadius: 14 }} resizeMode="cover" />
+                ) : (
+                  <Text style={{ fontSize: 13.5, lineHeight: 19, color: m.mine ? FOREST : '#2c332c' }}>{m.body}</Text>
+                )}
               </View>
               {!m.mine && <Text style={s.time}>{m.when}</Text>}
             </View>
@@ -158,8 +182,8 @@ export default function Chat() {
 
       {/* input bar */}
       <Row style={s.inputBar}>
-        <Pressable style={s.attach} onPress={() => Alert.alert('사진', '사진 첨부는 준비 중이에요')}>
-          <Text style={{ fontSize: 15, color: colors.dim }}>▣</Text>
+        <Pressable style={s.attach} onPress={sendPhoto} disabled={state !== 'ready'}>
+          <Text style={{ fontSize: 15, color: state === 'ready' ? '#5a7a3c' : colors.dim }}>▣</Text>
         </Pressable>
         <TextInput
           style={s.input}

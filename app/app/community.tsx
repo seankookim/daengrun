@@ -1,9 +1,9 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, Dimensions, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Dimensions, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { BottomNav } from '../src/components/bottomnav';
 import { Avatar, Row } from '../src/components/ui';
-import { deleteFeedPost, FeedPost, fetchFeed, toggleFeedLike } from '../src/lib/api';
+import { addComment, deleteFeedPost, FeedComment, FeedPost, fetchComments, fetchFeed, toggleFeedLike } from '../src/lib/api';
 import { haptic } from '../src/lib/haptics';
 import { colors } from '../src/theme';
 
@@ -33,6 +33,36 @@ export default function Community() {
       ? { ...x, likedByMe: !p.likedByMe, likes: p.likes + (p.likedByMe ? -1 : 1) }
       : x)));
     toggleFeedLike(p.id, p.likedByMe).catch(() => load());
+  };
+
+  // 댓글 — 포스트당 인라인 펼침
+  const [openComments, setOpenComments] = useState<string | null>(null);
+  const [comments, setComments] = useState<FeedComment[]>([]);
+  const [commentInput, setCommentInput] = useState('');
+  const [sending, setSending] = useState(false);
+
+  const toggleComments = (p: FeedPost) => {
+    if (openComments === p.id) { setOpenComments(null); return; }
+    setOpenComments(p.id);
+    setComments([]);
+    fetchComments(p.id).then(setComments).catch(() => {});
+  };
+
+  const submitComment = async (postId: string) => {
+    const body = commentInput.trim();
+    if (!body || sending) return;
+    setSending(true);
+    setCommentInput('');
+    try {
+      await addComment(postId, body);
+      setComments(await fetchComments(postId));
+      setPosts((cur) => cur.map((x) => (x.id === postId ? { ...x, commentCount: x.commentCount + 1 } : x)));
+    } catch (e) {
+      Alert.alert('댓글 실패', (e as Error).message);
+      setCommentInput(body);
+    } finally {
+      setSending(false);
+    }
   };
 
   const remove = (p: FeedPost) => {
@@ -112,15 +142,55 @@ export default function Community() {
               <Text style={{ fontSize: 13, color: '#3d453d', lineHeight: 19, paddingHorizontal: 16, paddingTop: 7 }}>{p.body}</Text>
             )}
 
-            {/* like row */}
-            <Row style={{ paddingHorizontal: 16, paddingVertical: 11, gap: 6 }}>
+            {/* like + comment row */}
+            <Row style={{ paddingHorizontal: 16, paddingVertical: 11, gap: 8 }}>
               <Pressable onPress={() => like(p)} style={s.likeBtn}>
                 <Text style={{ fontSize: 15 }}>{p.likedByMe ? '❤️' : '🤍'}</Text>
                 <Text style={{ fontSize: 12.5, fontWeight: '800', color: p.likedByMe ? colors.tang : '#5d655d' }}>
                   {p.likes > 0 ? p.likes : '응원하기'}
                 </Text>
               </Pressable>
+              <Pressable onPress={() => toggleComments(p)} style={s.likeBtn}>
+                <Text style={{ fontSize: 14 }}>💬</Text>
+                <Text style={{ fontSize: 12.5, fontWeight: '800', color: '#5d655d' }}>
+                  {p.commentCount > 0 ? p.commentCount : '댓글'}
+                </Text>
+              </Pressable>
             </Row>
+
+            {/* comments (inline expand) */}
+            {openComments === p.id && (
+              <View style={s.commentsWrap}>
+                {comments.map((c) => (
+                  <Row key={c.id} style={{ gap: 8, marginBottom: 9 }}>
+                    <Avatar url={c.authorAvatar} char={c.authorName[0]} bg="#c9a86e" size={26} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 12 }}>
+                        <Text style={{ fontWeight: '800', color: FOREST }}>{c.authorName}</Text>
+                        <Text style={{ color: '#3d453d' }}>  {c.body}</Text>
+                      </Text>
+                    </View>
+                  </Row>
+                ))}
+                {comments.length === 0 && (
+                  <Text style={{ fontSize: 11.5, color: colors.dim, marginBottom: 8 }}>첫 댓글을 남겨보세요</Text>
+                )}
+                <Row style={{ gap: 8 }}>
+                  <TextInput
+                    value={commentInput}
+                    onChangeText={setCommentInput}
+                    placeholder="응원 한마디..."
+                    placeholderTextColor="#b0ada0"
+                    style={s.commentInput}
+                    onSubmitEditing={() => submitComment(p.id)}
+                    returnKeyType="send"
+                  />
+                  <Pressable onPress={() => submitComment(p.id)} style={[s.commentSend, sending && { opacity: 0.5 }]}>
+                    <Text style={{ fontSize: 13, fontWeight: '900', color: FOREST }}>↑</Text>
+                  </Pressable>
+                </Row>
+              </View>
+            )}
           </Pressable>
         ))}
       </ScrollView>
@@ -135,4 +205,10 @@ const s = StyleSheet.create({
   post: { backgroundColor: '#fff', marginTop: 14, borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#eceadf' },
   badge: { backgroundColor: '#eaf7c8', borderRadius: 99, paddingVertical: 3, paddingHorizontal: 8, alignSelf: 'center' },
   likeBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#faf9f3', borderRadius: 99, paddingVertical: 8, paddingHorizontal: 14 },
+  commentsWrap: { paddingHorizontal: 16, paddingBottom: 14, borderTopWidth: 1, borderTopColor: '#f0eee3', paddingTop: 11 },
+  commentInput: {
+    flex: 1, backgroundColor: '#faf9f3', borderRadius: 99, borderWidth: 1, borderColor: '#eceadf',
+    paddingVertical: 9, paddingHorizontal: 14, fontSize: 13, color: FOREST,
+  },
+  commentSend: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.volt, alignItems: 'center', justifyContent: 'center' },
 });

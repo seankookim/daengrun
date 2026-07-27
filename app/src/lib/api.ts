@@ -1003,7 +1003,7 @@ export async function fetchLedger(): Promise<LiveLedgerItem[]> {
 }
 
 // ---------- chat (Realtime) ----------
-export interface ChatMsg { id: number; mine: boolean; body: string; when: string }
+export interface ChatMsg { id: number; mine: boolean; body: string; mediaUrl: string | null; when: string }
 
 function mapMsg(m: any, uid?: string | null): ChatMsg {
   const d = new Date(m.created_at);
@@ -1012,6 +1012,7 @@ function mapMsg(m: any, uid?: string | null): ChatMsg {
     id: m.id,
     mine: m.sender_id === uid,
     body: m.body ?? '',
+    mediaUrl: m.media_path ?? null,
     when: `${h < 12 ? '오전' : '오후'} ${h % 12 === 0 ? 12 : h % 12}:${String(d.getMinutes()).padStart(2, '0')}`,
   };
 }
@@ -1033,7 +1034,7 @@ export async function fetchMessages(threadId: string): Promise<ChatMsg[]> {
   const { data: user } = await supabase.auth.getUser();
   const { data, error } = await supabase
     .from('chat_messages')
-    .select('id, sender_id, body, created_at')
+    .select('id, sender_id, body, media_path, created_at')
     .eq('thread_id', threadId)
     .order('created_at')
     .limit(100);
@@ -1046,6 +1047,21 @@ export async function sendChatMessage(threadId: string, body: string): Promise<v
   if (!user.user) throw new Error('not signed in');
   const { error } = await supabase.from('chat_messages').insert({ thread_id: threadId, sender_id: user.user.id, body });
   if (error) throw error;
+}
+
+// 사진 메시지 — avatars 버킷 {uid}/chat/{thread}/* + kind 'photo'
+export async function sendChatPhoto(threadId: string, base64: string): Promise<void> {
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) throw new Error('not signed in');
+  const path = `${user.user.id}/chat/${threadId}/${Date.now()}.jpg`;
+  const { error } = await supabase.storage.from('avatars')
+    .upload(path, b64ToBytes(base64), { contentType: 'image/jpeg' });
+  if (error) throw error;
+  const { data: pub } = supabase.storage.from('avatars').getPublicUrl(path);
+  const { error: e2 } = await supabase.from('chat_messages').insert({
+    thread_id: threadId, sender_id: user.user.id, kind: 'photo', media_path: pub.publicUrl, body: null,
+  });
+  if (e2) throw e2;
 }
 
 // 새 메시지 실시간 구독 — 해제 함수 반환
@@ -1111,6 +1127,38 @@ export interface FeedPost {
   likes: number;
   likedByMe: boolean;
   mine: boolean;
+  commentCount: number;
+}
+
+export interface FeedComment { id: number; authorName: string; authorAvatar: string | null; body: string; when: string; mine: boolean }
+
+export async function fetchComments(postId: string): Promise<FeedComment[]> {
+  const { data: user } = await supabase.auth.getUser();
+  const { data, error } = await supabase
+    .from('feed_comments')
+    .select('id, author_id, body, created_at, profiles!feed_comments_author_id_fkey(name, avatar_url)')
+    .eq('post_id', postId)
+    .order('created_at')
+    .limit(50);
+  if (error) throw error;
+  return (data ?? []).map((c: any) => {
+    const { dateLabel } = kstParts(c.created_at);
+    return {
+      id: c.id,
+      authorName: c.profiles?.name ?? '이웃',
+      authorAvatar: c.profiles?.avatar_url ?? null,
+      body: c.body,
+      when: dateLabel,
+      mine: c.author_id === user.user?.id,
+    };
+  });
+}
+
+export async function addComment(postId: string, body: string): Promise<void> {
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) throw new Error('not signed in');
+  const { error } = await supabase.from('feed_comments').insert({ post_id: postId, author_id: user.user.id, body });
+  if (error) throw error;
 }
 
 export async function shareRunToFeed(bookingId: string, body?: string): Promise<void> {
@@ -1142,7 +1190,7 @@ export async function fetchFeed(): Promise<FeedPost[]> {
   const uid = user.user?.id;
   const { data, error } = await supabase
     .from('feed_posts')
-    .select('id, author_id, body, photo_url, meta, created_at, profiles!feed_posts_author_id_fkey(name, avatar_url), feed_likes(profile_id)')
+    .select('id, author_id, body, photo_url, meta, created_at, profiles!feed_posts_author_id_fkey(name, avatar_url), feed_likes(profile_id), feed_comments(count)')
     .order('created_at', { ascending: false })
     .limit(30);
   if (error) throw error;
@@ -1160,6 +1208,7 @@ export async function fetchFeed(): Promise<FeedPost[]> {
       likes: likes.length,
       likedByMe: !!uid && likes.some((l) => l.profile_id === uid),
       mine: p.author_id === uid,
+      commentCount: p.feed_comments?.[0]?.count ?? 0,
     };
   });
 }
