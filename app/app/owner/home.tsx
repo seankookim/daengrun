@@ -6,7 +6,7 @@ import { BottomNav } from '../../src/components/bottomnav';
 import { Ring } from '../../src/components/ring';
 import { RunCard } from '../../src/components/runcard';
 import { Avatar } from '../../src/components/ui';
-import { Addr, confirmPayment, createBookingHold, DogProfile, fetchAddresses, fetchCertifiedRunners, fetchFitness, fetchMyBookings, fetchMyDogs, Fitness, LiveRunner } from '../../src/lib/api';
+import { Addr, confirmPayment, createBookingHold, DogProfile, fetchAddresses, fetchAvailableRunners, fetchCertifiedRunners, fetchFitness, fetchMyBookings, fetchMyDogs, Fitness, LiveRunner } from '../../src/lib/api';
 import { haptic } from '../../src/lib/haptics';
 import { Booking, demoImminent, dog, draft, myCards, nextBooking, ownerGearLadder, runners } from '../../src/store';
 import { colors, pricing, surfaces } from '../../src/theme';
@@ -50,6 +50,8 @@ export default function OwnerHome() {
       .catch((e) => console.warn('[home] bookings:', e?.message ?? e));
     fetchFitness().then(setFit).catch((e) => console.warn('[home] fitness:', e?.message ?? e));
     fetchCertifiedRunners().then(setLocalRunners).catch((e) => console.warn('[home] runners:', e?.message ?? e));
+    // 가용 러너 — 러닝 중인 러너는 히어로 카운트/레이더에서 제외 (기대 오염 방지)
+    fetchAvailableRunners().then(setFnAvail).catch((e) => console.warn('[home] avail:', e?.message ?? e));
   }, []));
 
   // 우리 동네 러너 — 온라인 러너 셸프 (탐색형 매칭의 시작점)
@@ -57,6 +59,7 @@ export default function OwnerHome() {
 
   // ── 지금 러너 찾기 — 원탭 히어로 → 프리필 시트(2탭) → 오픈 브로드캐스트 + 레이더
   const [fnOpen, setFnOpen] = useState(false);
+  const [fnAvail, setFnAvail] = useState<LiveRunner[]>([]);
   const [fnDogs, setFnDogs] = useState<DogProfile[]>([]);
   const [fnDogIdx, setFnDogIdx] = useState(0);
   const [fnAddrs, setFnAddrs] = useState<Addr[]>([]);
@@ -275,43 +278,60 @@ export default function OwnerHome() {
           />
         </View>
 
-        {/* ---------- 지금 러너 찾기 히어로 — 액션을 원탭 거리로 (매칭 중이면 레이더 재입장) ---------- */}
+        {/* ---------- 지금 러너 찾기 히어로 — 우버식: 탭 = 검색 시작, 결제·코스 자동 ---------- */}
         {(!liveNext || liveNext.status === 'pending') && (
           <Pressable
             onPress={() => {
               if (liveNext?.status === 'pending') { draft.bookingId = liveNext.id; router.push('/owner/radar'); return; }
-              if (localRunners.length === 0) { router.push('/owner/request'); return; }
+              if (fnAvail.length === 0) { router.push('/owner/request'); return; }
               openFindNow();
             }}
             style={s.findNow}
           >
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 18, fontWeight: '900', color: '#fff' }}>
-                {liveNext?.status === 'pending' ? '러너 찾는 중…' : '지금 러너 찾기'}
-              </Text>
-              <Text style={{ fontSize: 11.5, color: '#b8c4ae', marginTop: 5, lineHeight: 16 }}>
-                {liveNext?.status === 'pending'
-                  ? '레이더로 돌아가 진행 상황을 볼 수 있어요'
-                  : localRunners.length > 0
-                    ? `지금 온라인 러너 ${localRunners.length}명 — 약 40분 내 시작`
-                    : '지금은 온라인 러너가 없어요 — 예약으로 잡아두세요'}
-              </Text>
-              {localRunners.length > 0 && (
-                <View style={{ flexDirection: 'row', marginTop: 9 }}>
-                  {localRunners.slice(0, 4).map((r, idx) => (
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 18, fontWeight: '900', color: '#fff' }}>
+                  {liveNext?.status === 'pending' ? '러너 찾는 중…' : '지금 러너 찾기'}
+                </Text>
+                <Text style={{ fontSize: 11.5, color: '#b8c4ae', marginTop: 5, lineHeight: 16 }}>
+                  {liveNext?.status === 'pending'
+                    ? '탭하면 레이더로 돌아가요'
+                    : fnAvail.length > 0
+                      ? `주변 러너 ${fnAvail.length}명이 바로 받을 수 있어요\n결제·코스는 자동 — 확인만 하면 끝`
+                      : '지금 바로 가능한 러너가 없어요 — 예약으로 잡아두세요'}
+                </Text>
+              </View>
+              {fnAvail.length > 0 && !liveNext && (
+                <View style={{ flexDirection: 'row' }}>
+                  {fnAvail.slice(0, 3).map((r, idx) => (
                     <View key={r.profileId} style={[s.fnAvatarRim, idx > 0 && { marginLeft: -9 }]}>
-                      <Avatar url={r.avatarUrl} char={r.name[0]} bg="#5a7a3c" size={26} />
+                      <Avatar url={r.avatarUrl} char={r.name[0]} bg="#5a7a3c" size={30} />
                     </View>
                   ))}
                 </View>
               )}
             </View>
-            <View style={{ width: 62, height: 62, alignItems: 'center', justifyContent: 'center' }}>
-              <Animated.View style={[s.fnPulseRing, {
-                opacity: fnPulse.interpolate({ inputRange: [0, 1], outputRange: [0.45, 0] }),
-                transform: [{ scale: fnPulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.55] }) }],
-              }]} />
-              <View style={s.fnGo}><Text style={{ fontSize: 20, color: '#132117' }}>➤</Text></View>
+
+            {/* 버튼처럼 보이는 버튼 — 탭하면 무슨 일이 생기는지 그대로 쓴다 */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 14 }}>
+              <View style={s.fnCta}>
+                <Animated.View style={[s.fnPulseRing, {
+                  opacity: fnPulse.interpolate({ inputRange: [0, 1], outputRange: [0.4, 0] }),
+                  transform: [{ scaleX: fnPulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.06] }) },
+                              { scaleY: fnPulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.5] }) }],
+                }]} />
+                <Text style={{ fontSize: 14.5, fontWeight: '900', color: '#132117' }}>
+                  {liveNext?.status === 'pending' ? '레이더 보기 ➤' : '주변 러너 검색 시작 ➤'}
+                </Text>
+              </View>
+              {!liveNext && (
+                <Pressable
+                  onPress={(e) => { e.stopPropagation(); router.push('/owner/request'); }}
+                  style={s.fnCustom}
+                >
+                  <Text style={{ fontSize: 12, fontWeight: '800', color: '#b8c4ae' }}>직접 설정 ›</Text>
+                </Pressable>
+              )}
             </View>
           </Pressable>
         )}
@@ -680,16 +700,20 @@ function SlideToBook({ onComplete }: { onComplete: () => void }) {
 const s = StyleSheet.create({
   // 지금 러너 찾기 히어로 + 시트
   findNow: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: '#132117',
-    borderRadius: 24, padding: 18, marginTop: 14, borderWidth: 1.5, borderColor: colors.volt,
+    backgroundColor: '#132117', borderRadius: 24, padding: 18, marginTop: 14,
+    borderWidth: 1.5, borderColor: colors.volt,
     shadowColor: '#132117', shadowOpacity: 0.25, shadowRadius: 14, shadowOffset: { width: 0, height: 8 },
   },
-  fnAvatarRim: { borderWidth: 2, borderColor: '#132117', borderRadius: 15 },
-  fnPulseRing: { position: 'absolute', width: 54, height: 54, borderRadius: 27, borderWidth: 2, borderColor: colors.volt },
-  fnGo: {
-    width: 54, height: 54, borderRadius: 27, backgroundColor: colors.volt,
-    alignItems: 'center', justifyContent: 'center',
+  fnAvatarRim: { borderWidth: 2, borderColor: '#132117', borderRadius: 17 },
+  fnCta: {
+    flex: 1, backgroundColor: colors.volt, borderRadius: 14, alignItems: 'center',
+    justifyContent: 'center', paddingVertical: 13, overflow: 'visible',
   },
+  fnPulseRing: {
+    position: 'absolute', left: 0, right: 0, top: 0, bottom: 0,
+    borderRadius: 14, borderWidth: 2, borderColor: colors.volt,
+  },
+  fnCustom: { paddingVertical: 13, paddingHorizontal: 12 },
   fnSheet: {
     backgroundColor: '#fff', borderTopLeftRadius: 28, borderTopRightRadius: 28,
     paddingHorizontal: 22, paddingTop: 12, paddingBottom: 40,

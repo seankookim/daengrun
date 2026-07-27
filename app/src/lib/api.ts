@@ -383,6 +383,28 @@ export async function fetchCertifiedRunners(): Promise<LiveRunner[]> {
   });
 }
 
+// 가용 러너 — 온라인이면서 러닝 중(확정~진행)이 아닌 러너만 (0015 뷰).
+// find-now 히어로 카운트/레이더용: 바쁜 러너에게 기대를 걸게 하지 않는다.
+export async function fetchAvailableRunners(): Promise<LiveRunner[]> {
+  const { data, error } = await supabase.from('available_runners').select('*').limit(10);
+  if (error) throw error;
+  return (data ?? []).map((r: any) => {
+    const pace = r.avg_pace_sec_per_km ?? 420;
+    return {
+      profileId: r.profile_id,
+      name: r.name ?? '러너',
+      district: r.district ?? '',
+      tier: r.tier === 'certified' ? '인증 러너' : r.tier === 'veteran' ? '베테랑' : '마스터',
+      totalRuns: r.total_runs ?? 0,
+      paceLabel: `${Math.floor(pace / 60)}'${String(pace % 60).padStart(2, '0')}"`,
+      paceSec: pace,
+      respondRate: r.respond_rate_pct,
+      avatarUrl: r.avatar_url ?? null,
+      bio: r.bio ?? null,
+    };
+  });
+}
+
 export const requestRunner = (bookingId: string, runnerId: string) =>
   invokeTransition(bookingId, 'request_runner', { runner_id: runnerId });
 

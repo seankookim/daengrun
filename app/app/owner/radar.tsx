@@ -1,27 +1,29 @@
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Animated, Easing, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Avatar, Row } from '../../src/components/ui';
 import {
-  cancelBooking, fetchBookingBrief, fetchCertifiedRunners, LiveRunner, subscribeBooking,
+  cancelBooking, fetchAvailableRunners, fetchBookingBrief, LiveRunner, subscribeBooking,
 } from '../../src/lib/api';
 import { haptic } from '../../src/lib/haptics';
 import { draft } from '../../src/store';
 import { colors } from '../../src/theme';
 
-// 지금 러너 찾기 → 오픈 브로드캐스트 대기 화면 (레이더).
-// 온라인 러너 전원에게 뿌려진 요청을 누가 수락하면 실시간으로 잡아채 확정 화면으로.
-// 정직 원칙: 가짜 진행률 없음 — 경과 시간, 실제 온라인 러너, 실제 상태만.
+// 지금 러너 찾기 → 오픈 브로드캐스트 대기 화면 (라이트 + 코랄 웨이브).
+// 결과는 이 화면에 뜬다: 수락한 러너가 매치 카드로 나타나고 일정으로 이동.
+// 정직 원칙: 가짜 진행률/가짜 지도 점 없음 — 실가용 러너 목록, 경과 시간, 실상태만.
 
 const FOREST = '#132117';
+const CORAL = colors.tang; // #FF6347 — 워터 리플
 
 const fmtElapsed = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
-function PulseRing({ delay }: { delay: number }) {
+// 코랄 물결 — 잔잔한 리플이 퍼져나간다 (소나가 아니라 산책로 물웅덩이 느낌)
+function Ripple({ delay }: { delay: number }) {
   const v = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     const loop = Animated.loop(
-      Animated.timing(v, { toValue: 1, duration: 2400, delay, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+      Animated.timing(v, { toValue: 1, duration: 3200, delay, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
     );
     loop.start();
     return () => loop.stop();
@@ -30,10 +32,10 @@ function PulseRing({ delay }: { delay: number }) {
     <Animated.View
       pointerEvents="none"
       style={{
-        position: 'absolute', width: 120, height: 120, borderRadius: 60,
-        borderWidth: 1.5, borderColor: colors.volt,
-        opacity: v.interpolate({ inputRange: [0, 0.7, 1], outputRange: [0.5, 0.15, 0] }),
-        transform: [{ scale: v.interpolate({ inputRange: [0, 1], outputRange: [1, 2.6] }) }],
+        position: 'absolute', width: 130, height: 130, borderRadius: 65,
+        borderWidth: 2, borderColor: CORAL,
+        opacity: v.interpolate({ inputRange: [0, 0.6, 1], outputRange: [0.4, 0.14, 0] }),
+        transform: [{ scale: v.interpolate({ inputRange: [0, 1], outputRange: [1, 2.5] }) }],
       }}
     />
   );
@@ -42,10 +44,21 @@ function PulseRing({ delay }: { delay: number }) {
 export default function Radar() {
   const bookingId = draft.bookingId;
   const [elapsed, setElapsed] = useState(0);
-  const [online, setOnline] = useState<LiveRunner[]>([]);
+  const [avail, setAvail] = useState<LiveRunner[] | null>(null);
   const [matchedName, setMatchedName] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const matchedRef = useRef(false);
+
+  // 강아지 둥실둥실 — 기다림이 덜 지루하게
+  const bob = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(Animated.sequence([
+      Animated.timing(bob, { toValue: 1, duration: 1300, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+      Animated.timing(bob, { toValue: 0, duration: 1300, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+    ]));
+    loop.start();
+    return () => loop.stop();
+  }, [bob]);
 
   // 부킹 없이 진입하면 홈으로 (딥링크/백스택 잔재 방어)
   useEffect(() => {
@@ -57,8 +70,12 @@ export default function Radar() {
     return () => clearInterval(t);
   }, []);
 
+  // 가용 러너 = 요청을 실제로 받을 수 있는 사람들 (러닝 중 제외, 0015 뷰) — 30초마다 갱신
   useEffect(() => {
-    fetchCertifiedRunners().then(setOnline).catch(() => {});
+    const load = () => fetchAvailableRunners().then(setAvail).catch(() => {});
+    load();
+    const t = setInterval(load, 30_000);
+    return () => clearInterval(t);
   }, []);
 
   // 수락 감지 — realtime 구독 + 10초 폴링 (벨트+서스펜더)
@@ -72,7 +89,7 @@ export default function Radar() {
           matchedRef.current = true;
           haptic('success');
           setMatchedName(b.runnerName ?? '러너');
-          setTimeout(() => router.replace('/owner/schedule'), 1600);
+          setTimeout(() => router.replace('/owner/schedule'), 1800);
         } else if (b.status.startsWith('cancelled')) {
           matchedRef.current = true;
           router.replace('/owner/home');
@@ -113,77 +130,104 @@ export default function Radar() {
   const stale = elapsed >= 600; // 10분 무응답 — 정직하게 대안 제시
 
   return (
-    <View style={{ flex: 1, backgroundColor: FOREST, paddingTop: 64, paddingHorizontal: 24 }}>
-      <Row style={{ justifyContent: 'space-between' }}>
-        <Pressable onPress={() => router.replace('/owner/home')} style={s.backBtn}>
-          <Text style={{ fontSize: 18, color: '#f3f1e7' }}>‹</Text>
-        </Pressable>
-        <View style={s.livePill}>
-          <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: colors.volt }} />
-          <Text style={{ fontSize: 11, fontWeight: '900', color: colors.volt }}>오픈 매칭</Text>
-        </View>
-        <View style={{ width: 40 }} />
-      </Row>
-
-      {/* ---------- 레이더 코어 ---------- */}
-      <View style={{ alignItems: 'center', justifyContent: 'center', marginTop: 70, height: 240 }}>
-        {!matchedName && (
-          <>
-            <PulseRing delay={0} />
-            <PulseRing delay={800} />
-            <PulseRing delay={1600} />
-          </>
-        )}
-        <View style={[s.core, matchedName != null && { borderColor: colors.volt, borderWidth: 2 }]}>
-          <Text style={{ fontSize: 40 }}>{matchedName ? '✓' : '🐕'}</Text>
-        </View>
+    <View style={{ flex: 1, backgroundColor: colors.cream }}>
+      <View style={{ paddingTop: 64, paddingHorizontal: 24 }}>
+        <Row style={{ justifyContent: 'space-between' }}>
+          <Pressable onPress={() => router.replace('/owner/home')} style={s.backBtn}>
+            <Text style={{ fontSize: 18, color: FOREST }}>‹</Text>
+          </Pressable>
+          <View style={s.livePill}>
+            <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: CORAL }} />
+            <Text style={{ fontSize: 11, fontWeight: '900', color: CORAL }}>주변 러너에게 요청 중</Text>
+          </View>
+          <View style={{ width: 40 }} />
+        </Row>
       </View>
 
-      {matchedName ? (
-        <View style={{ alignItems: 'center', marginTop: 28 }}>
-          <Text style={{ fontSize: 22, fontWeight: '900', color: colors.volt }}>{matchedName} 러너가 수락했어요!</Text>
-          <Text style={{ fontSize: 13, color: '#8fa093', marginTop: 8 }}>일정 화면으로 이동할게요</Text>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 150 }}>
+        {/* ---------- 리플 코어 ---------- */}
+        <View style={{ alignItems: 'center', justifyContent: 'center', marginTop: 44, height: 210 }}>
+          {!matchedName && (
+            <>
+              <Ripple delay={0} />
+              <Ripple delay={1050} />
+              <Ripple delay={2100} />
+            </>
+          )}
+          <Animated.View
+            style={[
+              s.core,
+              matchedName != null && { borderColor: colors.voltDeep, borderWidth: 2.5 },
+              { transform: [{ translateY: bob.interpolate({ inputRange: [0, 1], outputRange: [0, -6] }) }] },
+            ]}
+          >
+            <Text style={{ fontSize: 42 }}>{matchedName ? '🎉' : '🐕'}</Text>
+          </Animated.View>
         </View>
-      ) : (
-        <View style={{ alignItems: 'center', marginTop: 28 }}>
-          <Text style={{ fontSize: 22, fontWeight: '900', color: '#fff' }}>러너를 찾고 있어요</Text>
-          <Text style={{ fontSize: 14, color: '#8fa093', marginTop: 8 }}>
-            경과 {fmtElapsed(elapsed)} · 보통 몇 분 안에 응답이 와요
-          </Text>
 
-          {/* 실제 온라인 러너 — 지금 이 요청을 볼 수 있는 사람들 */}
-          {online.length > 0 && (
-            <View style={{ alignItems: 'center', marginTop: 26 }}>
-              <Row style={{ gap: -8 }}>
-                {online.slice(0, 5).map((r) => (
-                  <View key={r.profileId} style={s.avatarRim}>
-                    <Avatar url={r.avatarUrl} char={r.name[0]} bg="#5a7a3c" size={40} />
-                  </View>
-                ))}
+        {matchedName ? (
+          <View style={{ alignItems: 'center', marginTop: 18 }}>
+            <Text style={{ fontSize: 22, fontWeight: '900', color: colors.voltDeep }}>{matchedName} 러너가 수락했어요!</Text>
+            <Text style={{ fontSize: 13, color: '#5d655d', marginTop: 8 }}>일정 화면으로 이동할게요</Text>
+          </View>
+        ) : (
+          <>
+            <View style={{ alignItems: 'center', marginTop: 14 }}>
+              <Text style={{ fontSize: 22, fontWeight: '900', color: FOREST }}>러너를 찾고 있어요</Text>
+              <Text style={{ fontSize: 13.5, color: '#5d655d', marginTop: 7 }}>
+                경과 {fmtElapsed(elapsed)} · 수락한 러너가 이 화면에 바로 나타나요
+              </Text>
+            </View>
+
+            {/* ---------- 요청을 받은 러너들 — 실가용 (러닝 중 제외) ---------- */}
+            <View style={{ marginTop: 26 }}>
+              <Row style={{ justifyContent: 'space-between', marginBottom: 10 }}>
+                <Text style={{ fontSize: 13.5, fontWeight: '900', color: FOREST }}>요청을 받은 러너</Text>
+                <Text style={{ fontSize: 11.5, color: '#5d655d' }}>
+                  {avail == null ? '확인 중…' : `${avail.length}명 가능`}
+                </Text>
               </Row>
-              <Text style={{ fontSize: 12, color: '#b8c4ae', marginTop: 10 }}>
-                지금 온라인 러너 {online.length}명이 요청을 받았어요
-              </Text>
+              {avail != null && avail.length === 0 && (
+                <View style={s.emptyBox}>
+                  <Text style={{ fontSize: 12.5, color: '#5d655d', textAlign: 'center', lineHeight: 19 }}>
+                    지금 바로 가능한 러너가 없어요{'\n'}요청은 살아있어요 — 러너가 온라인되면 바로 보여요
+                  </Text>
+                </View>
+              )}
+              {(avail ?? []).map((r) => (
+                <Pressable key={r.profileId} onPress={() => router.push(`/runner-profile/${r.profileId}`)} style={s.runnerRow}>
+                  <Avatar url={r.avatarUrl} char={r.name[0]} bg="#5a7a3c" size={42} />
+                  <View style={{ flex: 1, marginLeft: 11 }}>
+                    <Text style={{ fontSize: 14.5, fontWeight: '900', color: FOREST }}>{r.name}</Text>
+                    <Text style={{ fontSize: 11, color: '#5d655d', marginTop: 2 }}>
+                      {r.tier} · {r.district || '근처'} · 러닝 {r.totalRuns}회
+                    </Text>
+                  </View>
+                  <View style={s.pacePill}>
+                    <Text style={{ fontSize: 11, fontWeight: '900', color: '#3f5a26' }}>{r.paceLabel}</Text>
+                  </View>
+                </Pressable>
+              ))}
             </View>
-          )}
 
-          {stale && (
-            <View style={s.staleBox}>
-              <Text style={{ fontSize: 12.5, color: '#e8c87a', textAlign: 'center', lineHeight: 19 }}>
-                아직 응답이 없어요 — 마음에 드는 러너를 직접 지명하면{'\n'}응답 확률이 올라가요
-              </Text>
-            </View>
-          )}
-        </View>
-      )}
+            {stale && (
+              <View style={s.staleBox}>
+                <Text style={{ fontSize: 12.5, color: '#a97c12', textAlign: 'center', lineHeight: 19 }}>
+                  아직 응답이 없어요 — 마음에 드는 러너를 직접 지명하면{'\n'}응답 확률이 올라가요
+                </Text>
+              </View>
+            )}
+          </>
+        )}
+      </ScrollView>
 
       {!matchedName && (
-        <View style={{ position: 'absolute', left: 24, right: 24, bottom: 46, gap: 10 }}>
+        <View style={s.footer}>
           <Pressable onPress={() => router.push('/owner/matching')} style={s.pickBtn}>
-            <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST }}>직접 고를래요 — 러너 카드 보기</Text>
+            <Text style={{ fontSize: 15, fontWeight: '900', color: '#fff' }}>직접 고를래요 — 러너 카드 보기</Text>
           </Pressable>
           <Pressable onPress={cancel} disabled={cancelling} style={s.cancelBtn}>
-            <Text style={{ fontSize: 13, fontWeight: '800', color: '#8fa093' }}>
+            <Text style={{ fontSize: 13, fontWeight: '800', color: '#8a917f' }}>
               {cancelling ? '취소 중...' : '요청 취소'}
             </Text>
           </Pressable>
@@ -195,22 +239,36 @@ export default function Radar() {
 
 const s = StyleSheet.create({
   backBtn: {
-    width: 40, height: 40, borderRadius: 20, backgroundColor: '#26332a',
-    alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#3a4a3e',
+    width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff',
+    alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#e5e2d5',
   },
   livePill: {
-    flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#1d3023',
-    borderRadius: 99, paddingVertical: 7, paddingHorizontal: 14, borderWidth: 1, borderColor: '#2c4034',
+    flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#fdece7',
+    borderRadius: 99, paddingVertical: 7, paddingHorizontal: 14, borderWidth: 1, borderColor: '#f8cfc2',
   },
   core: {
-    width: 120, height: 120, borderRadius: 60, backgroundColor: '#1d3023',
-    alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#2c4034',
+    width: 130, height: 130, borderRadius: 65, backgroundColor: '#fff',
+    alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: '#f8cfc2',
+    shadowColor: CORAL, shadowOpacity: 0.2, shadowRadius: 18, shadowOffset: { width: 0, height: 8 },
   },
-  avatarRim: { borderWidth: 2, borderColor: FOREST, borderRadius: 22 },
+  runnerRow: {
+    flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 16,
+    padding: 12, marginBottom: 8, borderWidth: 1, borderColor: '#eceadf',
+  },
+  pacePill: { backgroundColor: '#eaf7c8', borderRadius: 99, paddingVertical: 5, paddingHorizontal: 10 },
+  emptyBox: {
+    backgroundColor: '#fff', borderRadius: 16, padding: 18, borderWidth: 1, borderColor: '#eceadf',
+  },
   staleBox: {
-    marginTop: 22, backgroundColor: '#241f12', borderRadius: 14, padding: 14,
-    borderWidth: 1, borderColor: '#4a3d1e', marginHorizontal: 6,
+    marginTop: 16, backgroundColor: '#fbf0d4', borderRadius: 14, padding: 14,
+    borderWidth: 1, borderColor: '#ecd9a0',
   },
-  pickBtn: { backgroundColor: colors.volt, borderRadius: 16, alignItems: 'center', paddingVertical: 16 },
-  cancelBtn: { alignItems: 'center', paddingVertical: 10 },
+  footer: {
+    position: 'absolute', left: 24, right: 24, bottom: 42, gap: 8,
+  },
+  pickBtn: {
+    backgroundColor: FOREST, borderRadius: 16, alignItems: 'center', paddingVertical: 16,
+    shadowColor: FOREST, shadowOpacity: 0.25, shadowRadius: 12, shadowOffset: { width: 0, height: 6 },
+  },
+  cancelBtn: { alignItems: 'center', paddingVertical: 9 },
 });
