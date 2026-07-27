@@ -126,7 +126,7 @@ export default function Live() {
           <View style={s.mapRoadH} />
           <View style={s.mapRoadV} />
           <View style={s.mapWater} />
-          <View style={{ position: 'absolute', left: 24, right: 24, top: 130, height: 360 }}>
+          <View style={{ position: 'absolute', left: 12, right: 12, top: 130, height: 360 }}>
             <HeatTrace points={lastRunTrace} width={340} height={360} />
             <View style={[s.liveDot, { left: dot.x * 340 - 11, top: dot.y * 360 - 11 }]} />
           </View>
@@ -251,14 +251,14 @@ const s = StyleSheet.create({
     backgroundColor: colors.tang, borderWidth: 4, borderColor: '#fff',
     shadowColor: colors.tang, shadowOpacity: 0.8, shadowRadius: 8, shadowOffset: { width: 0, height: 0 },
   },
-  topBar: { position: 'absolute', top: 56, left: 16, right: 16, justifyContent: 'space-between' },
+  topBar: { position: 'absolute', top: 56, left: 10, right: 10, justifyContent: 'space-between' },
   circleBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } },
   livePill: { backgroundColor: FOREST, borderRadius: 99, paddingVertical: 11, paddingHorizontal: 16, alignSelf: 'center' },
   // 플로팅 아일랜드 — 지도 위에 떠 있는 정보 카드 (레퍼런스: 배달 트래킹)
   island: {
-    position: 'absolute', left: 14, right: 14, bottom: 26,
-    backgroundColor: '#fff', borderRadius: 28, padding: 18,
-    shadowColor: '#000', shadowOpacity: 0.16, shadowRadius: 20, shadowOffset: { width: 0, height: 8 },
+    position: 'absolute', left: 10, right: 10, bottom: 26,
+    backgroundColor: '#fff', borderRadius: 22, padding: 18,
+    shadowColor: '#000', shadowOpacity: 0.16, shadowRadius: 11, shadowOffset: { width: 0, height: 4 },
     elevation: 10,
   },
   signalPill: { borderRadius: 99, paddingVertical: 5, paddingHorizontal: 10, alignSelf: 'center' },
@@ -270,11 +270,11 @@ const s = StyleSheet.create({
     borderWidth: 1.5, borderColor: '#f2d4ca', alignItems: 'center', justifyContent: 'center',
   },
   sheetBackdrop: { flex: 1, backgroundColor: '#00000055' },
-  stopSheet: { backgroundColor: colors.cream, borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 22, paddingBottom: 40 },
+  stopSheet: { backgroundColor: colors.cream, borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 16, paddingBottom: 40 },
   sheetHandle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: '#d8d5c8', marginBottom: 14 },
   reasonRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#fff',
-    borderRadius: 14, borderWidth: 1.3, borderColor: '#eceadf', padding: 13, marginBottom: 8,
+    borderRadius: 14, borderWidth: 1.3, borderColor: '#dedacb', padding: 13, marginBottom: 8,
   },
   radio: { width: 18, height: 18, borderRadius: 10, borderWidth: 2, borderColor: '#dcd9cc', alignItems: 'center', justifyContent: 'center' },
   radioDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: '#5a7a3c' },

@@ -42,7 +42,7 @@ export default function Requests() {
     <View style={{ flex: 1, backgroundColor: colors.cream }}>
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ padding: 22, paddingTop: 60, paddingBottom: 30 }}
+        contentContainerStyle={{ padding: 16, paddingTop: 60, paddingBottom: 30 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         <Row style={{ justifyContent: 'space-between' }}>
@@ -126,7 +126,7 @@ export default function Requests() {
         ))}
 
         {live.length === 0 && (
-          <View style={{ marginTop: 24, backgroundColor: '#f4f2ea', borderRadius: 16, padding: 24, alignItems: 'center' }}>
+          <View style={{ marginTop: 24, backgroundColor: '#f4f2ea', borderRadius: 16, padding: 18, alignItems: 'center' }}>
             <Text style={{ fontSize: 13, color: '#8a8877', textAlign: 'center', lineHeight: 20 }}>
               지금은 열린 요청이 없어요{'\n'}새 요청이 오면 여기에 표시돼요
             </Text>
@@ -145,8 +145,8 @@ export default function Requests() {
 }
 
 const s = StyleSheet.create({
-  autoPill: { backgroundColor: '#fff', borderRadius: 99, paddingVertical: 9, paddingHorizontal: 13, borderWidth: 1, borderColor: '#eceadf', alignSelf: 'flex-start' },
-  reqCard: { backgroundColor: '#fff', borderRadius: 20, padding: 15, borderWidth: 1, borderColor: '#eceadf', marginTop: 14 },
+  autoPill: { backgroundColor: '#fff', borderRadius: 99, paddingVertical: 9, paddingHorizontal: 13, borderWidth: 1, borderColor: '#dedacb', alignSelf: 'flex-start' },
+  reqCard: { backgroundColor: '#fff', borderRadius: 20, padding: 15, borderWidth: 1, borderColor: '#dedacb', marginTop: 14 },
   deadline: { backgroundColor: '#fbf0d4', borderRadius: 99, paddingVertical: 4, paddingHorizontal: 9 },
   matchPill: { backgroundColor: '#e3f0c4', borderRadius: 99, paddingVertical: 4, paddingHorizontal: 9 },
   conflict: { backgroundColor: '#fdeae5', borderRadius: 10, padding: 9, marginTop: 10 },

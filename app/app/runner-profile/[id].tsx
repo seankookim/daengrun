@@ -179,7 +179,7 @@ export default function RunnerProfileScreen() {
     <View style={{ flex: 1, backgroundColor: colors.cream }}>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: selected ? 140 : 40 }}>
         {/* header (패딩 있는 유일한 상단 영역) */}
-        <Row style={{ justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 56 }}>
+        <Row style={{ justifyContent: 'space-between', paddingHorizontal: 12, paddingTop: 56 }}>
           <Pressable onPress={() => router.back()} style={s.backBtn}><Text style={{ fontSize: 18 }}>‹</Text></Pressable>
           <Text style={{ fontSize: 20, fontWeight: '900', color: FOREST }}>러너 프로필</Text>
           <View style={{ width: 40 }} />
@@ -241,7 +241,7 @@ export default function RunnerProfileScreen() {
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 2 }}>
                   {p.photos.map((url) => (
                     <Pressable key={url} onLongPress={canEdit ? () => removePhoto(url) : undefined}>
-                      <Image source={{ uri: url }} style={{ width: TILE, height: TILE, backgroundColor: '#e2e0d4' }} />
+                      <Image source={{ uri: url }} style={{ width: TILE, height: TILE, backgroundColor: '#d9d5c6' }} />
                     </Pressable>
                   ))}
                   {canEdit && (
@@ -362,7 +362,7 @@ export default function RunnerProfileScreen() {
             </View>
 
             {/* ---------- CTA (보호자 모드만) ---------- */}
-            <View style={{ paddingHorizontal: 20 }}>
+            <View style={{ paddingHorizontal: 12 }}>
               {canBook ? (
                 <>
                   <Pressable
@@ -450,13 +450,13 @@ function HeroStat({ value, label }: { value: string; label: string }) {
 }
 
 const s = StyleSheet.create({
-  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#eceadf' },
+  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#dedacb' },
   // 풀블리드: 히어로·섹션 모두 좌우 마진 없음, 내부 패딩만
   hero: { backgroundColor: FOREST, padding: 20, marginTop: 14 },
   heroDiv: { width: 1, backgroundColor: '#2c4034' },
   onlineDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: colors.volt, alignSelf: 'center' },
   limePill: { backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 3, paddingHorizontal: 8 },
-  section: { backgroundColor: '#fff', paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#eceadf' },
+  section: { backgroundColor: '#fff', paddingHorizontal: 12, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#dedacb' },
   sectionTitle: { fontSize: 13.5, fontWeight: '900', color: FOREST, marginBottom: 8 },
   specChip: { backgroundColor: '#eef4e0', borderRadius: 99, paddingVertical: 4, paddingHorizontal: 10 },
   reviewRow: { paddingVertical: 10 },
@@ -464,18 +464,18 @@ const s = StyleSheet.create({
   slotChip: { width: '22.5%', backgroundColor: '#f7f9f0', borderRadius: 12, borderWidth: 1, borderColor: '#dde8c4', alignItems: 'center', paddingVertical: 9 },
   addTile: { width: TILE, height: TILE, backgroundColor: '#f4f2ea', alignItems: 'center', justifyContent: 'center' },
   cta: { backgroundColor: colors.volt, borderRadius: 18, alignItems: 'center', paddingVertical: 15, marginTop: 16 },
-  ghostCta: { backgroundColor: '#fff', borderRadius: 16, alignItems: 'center', paddingVertical: 13, marginTop: 8, borderWidth: 1, borderColor: '#eceadf' },
+  ghostCta: { backgroundColor: '#fff', borderRadius: 16, alignItems: 'center', paddingVertical: 13, marginTop: 8, borderWidth: 1, borderColor: '#dedacb' },
   editChip: { backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 7, paddingHorizontal: 12, alignSelf: 'flex-start' },
   editBackdrop: { flex: 1, backgroundColor: '#00000055' },
-  editSheet: { backgroundColor: colors.cream, borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 22, paddingBottom: 40 },
+  editSheet: { backgroundColor: colors.cream, borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 16, paddingBottom: 40 },
   editHandle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: '#d8d5c8', marginBottom: 14 },
   editLabel: { fontSize: 12, fontWeight: '800', color: '#3d453d', marginTop: 14, marginBottom: 6 },
-  editInput: { backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: '#eceadf', paddingVertical: 12, paddingHorizontal: 14, fontSize: 14.5, color: FOREST },
+  editInput: { backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: '#dedacb', paddingVertical: 12, paddingHorizontal: 14, fontSize: 14.5, color: FOREST },
   editSave: { backgroundColor: colors.volt, borderRadius: 16, alignItems: 'center', paddingVertical: 14, marginTop: 18 },
   confirmBar: {
     position: 'absolute', left: 0, right: 0, bottom: 0,
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: FOREST, paddingHorizontal: 20, paddingTop: 14, paddingBottom: 30,
+    backgroundColor: FOREST, paddingHorizontal: 12, paddingTop: 14, paddingBottom: 30,
     borderTopLeftRadius: 24, borderTopRightRadius: 24,
   },
   confirmBtn: { backgroundColor: colors.volt, borderRadius: 16, paddingVertical: 13, paddingHorizontal: 16 },

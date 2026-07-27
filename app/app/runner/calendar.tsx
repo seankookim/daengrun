@@ -49,7 +49,7 @@ export default function RunnerCalendar() {
     <View style={{ flex: 1, backgroundColor: colors.cream }}>
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ padding: 22, paddingTop: 60, paddingBottom: 30 }}
+        contentContainerStyle={{ padding: 16, paddingTop: 60, paddingBottom: 30 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         <Row style={{ justifyContent: 'space-between' }}>
@@ -128,8 +128,8 @@ export default function RunnerCalendar() {
 
 const s = StyleSheet.create({
   availBtn: { backgroundColor: FOREST, borderRadius: 99, paddingVertical: 10, paddingHorizontal: 14, alignSelf: 'flex-start' },
-  dateChip: { width: 52, borderRadius: 14, backgroundColor: '#fff', borderWidth: 1, borderColor: '#eceadf', alignItems: 'center', paddingVertical: 9, gap: 2 },
-  session: { flexDirection: 'row', gap: 12, backgroundColor: '#fff', borderRadius: 16, padding: 13, borderWidth: 1, borderColor: '#eceadf' },
+  dateChip: { width: 52, borderRadius: 14, backgroundColor: '#fff', borderWidth: 1, borderColor: '#dedacb', alignItems: 'center', paddingVertical: 9, gap: 2 },
+  session: { flexDirection: 'row', gap: 12, backgroundColor: '#fff', borderRadius: 16, padding: 13, borderWidth: 1, borderColor: '#dedacb' },
   timeRail: { width: 4, borderRadius: 2, backgroundColor: '#5a7a3c' },
   statusPill: { backgroundColor: '#e3f0c4', borderRadius: 99, paddingVertical: 3, paddingHorizontal: 8 },
   emptyJobs: {

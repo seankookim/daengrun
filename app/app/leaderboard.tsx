@@ -30,7 +30,7 @@ export default function Leaderboard() {
     <View style={{ flex: 1, backgroundColor: colors.cream }}>
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ padding: 22, paddingTop: 56, paddingBottom: 40 }}
+        contentContainerStyle={{ padding: 16, paddingTop: 56, paddingBottom: 40 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         <Row style={{ justifyContent: 'space-between' }}>
@@ -109,13 +109,13 @@ export default function Leaderboard() {
 }
 
 const s = StyleSheet.create({
-  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#eceadf' },
+  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#dedacb' },
   milesCard: { backgroundColor: FOREST, borderRadius: 20, padding: 18, marginTop: 16 },
-  tabWrap: { flexDirection: 'row', backgroundColor: '#fff', borderRadius: 99, padding: 4, marginTop: 16, borderWidth: 1, borderColor: '#eceadf' },
+  tabWrap: { flexDirection: 'row', backgroundColor: '#fff', borderRadius: 99, padding: 4, marginTop: 16, borderWidth: 1, borderColor: '#dedacb' },
   tab: { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 99 },
-  emptyBox: { marginTop: 20, backgroundColor: '#f4f2ea', borderRadius: 16, padding: 24 },
+  emptyBox: { marginTop: 20, backgroundColor: '#f4f2ea', borderRadius: 16, padding: 18 },
   row: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff',
-    borderRadius: 16, padding: 12, borderWidth: 1, borderColor: '#eceadf', marginTop: 8,
+    borderRadius: 16, padding: 12, borderWidth: 1, borderColor: '#dedacb', marginTop: 8,
   },
 });

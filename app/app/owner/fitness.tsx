@@ -43,7 +43,7 @@ export default function FitnessHub() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.cream }}>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 22, paddingTop: 56, paddingBottom: 40 }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingTop: 56, paddingBottom: 40 }}>
         <Row style={{ justifyContent: 'space-between' }}>
           <Pressable onPress={() => router.back()} style={s.backBtn}><Text style={{ fontSize: 18 }}>‹</Text></Pressable>
           <Text style={{ fontSize: 20, fontWeight: '900', color: FOREST }}>체력 리포트</Text>
@@ -171,17 +171,17 @@ function HeroStat({ value, label }: { value: string; label: string }) {
 }
 
 const s = StyleSheet.create({
-  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#eceadf' },
+  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#dedacb' },
   hero: { backgroundColor: FOREST, borderRadius: 22, padding: 18, marginTop: 18 },
   heroDiv: { width: 1, backgroundColor: '#2c4034' },
-  card: { backgroundColor: '#fff', borderRadius: 18, padding: 15, borderWidth: 1, borderColor: '#eceadf', marginTop: 12 },
+  card: { backgroundColor: '#fff', borderRadius: 18, padding: 15, borderWidth: 1, borderColor: '#dedacb', marginTop: 12 },
   cardTitle: { fontSize: 13.5, fontWeight: '900', color: FOREST },
   goalBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#eef4e0', alignItems: 'center', justifyContent: 'center' },
   goalBtnText: { fontSize: 20, fontWeight: '900', color: '#4a6d1f' },
-  emptyBox: { backgroundColor: '#f4f2ea', borderRadius: 16, padding: 22, alignItems: 'center' },
+  emptyBox: { backgroundColor: '#f4f2ea', borderRadius: 16, padding: 16, alignItems: 'center' },
   runRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#fff',
-    borderRadius: 16, padding: 13, borderWidth: 1, borderColor: '#eceadf', marginBottom: 8,
+    borderRadius: 16, padding: 13, borderWidth: 1, borderColor: '#dedacb', marginBottom: 8,
   },
   runRail: { width: 4, height: 34, borderRadius: 2, backgroundColor: '#5a7a3c' },
 });

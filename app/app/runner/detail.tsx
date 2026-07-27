@@ -8,7 +8,7 @@ export default function RequestDetail() {
   const req = runRequests[0];
 
   return (
-    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 22, paddingTop: 56, paddingBottom: 40 }}>
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingTop: 56, paddingBottom: 40 }}>
       <Row style={{ justifyContent: 'space-between', marginBottom: 14 }}>
         <Pressable onPress={() => router.back()}><Text style={{ fontSize: 24 }}>‹</Text></Pressable>
         <Text style={text.h2}>요청 상세</Text>

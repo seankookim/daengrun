@@ -96,7 +96,7 @@ export default function RunnerHome() {
 
   return (
     <View style={{ flex: 1 }}>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 22, paddingTop: 64, paddingBottom: 24 }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingTop: 64, paddingBottom: 24 }}>
         <Row style={{ justifyContent: 'space-between' }}>
           <View>
             <Text style={text.dim}>러너 모드 · {rs.online ? '온라인' : '오프라인'}</Text>
@@ -377,27 +377,27 @@ const s = StyleSheet.create({
   stagePill: { borderRadius: 99, paddingVertical: 4, paddingHorizontal: 9 },
   currentBtn: { borderRadius: 13, alignItems: 'center', paddingVertical: 12 },
   trailCard: {
-    backgroundColor: '#d9f294', borderRadius: 24, padding: 16, paddingTop: 12, marginTop: 12,
+    backgroundColor: '#d9f294', borderRadius: 18, padding: 16, paddingTop: 12, marginTop: 12,
     borderWidth: 1, borderColor: '#c3dd76', overflow: 'hidden',
   },
   trailTab: {
     position: 'absolute', top: 0, left: 0, backgroundColor: '#132117',
     borderTopLeftRadius: 22, borderBottomRightRadius: 15, paddingVertical: 7, paddingHorizontal: 13,
   },
-  availCard: { backgroundColor: '#fff', borderRadius: 18, padding: 15, marginTop: 12, borderWidth: 1, borderColor: '#eceadf' },
+  availCard: { backgroundColor: '#fff', borderRadius: 18, padding: 15, marginTop: 12, borderWidth: 1, borderColor: '#dedacb' },
   availDay: {
     flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: 13,
-    backgroundColor: '#f4f2ea', borderWidth: 1.5, borderColor: '#eceadf',
+    backgroundColor: '#f4f2ea', borderWidth: 1.5, borderColor: '#dedacb',
   },
   availDayOn: { backgroundColor: '#eaf7c8', borderColor: '#a9c47e' },
-  tierCard: { backgroundColor: '#fff', borderRadius: 16, padding: 14, marginTop: 12, borderWidth: 1, borderColor: '#eceadf' },
+  tierCard: { backgroundColor: '#fff', borderRadius: 16, padding: 14, marginTop: 12, borderWidth: 1, borderColor: '#dedacb' },
   tierTrack: { height: 7, borderRadius: 99, backgroundColor: '#f0eee3', marginTop: 9, overflow: 'hidden' },
   tierFill: { height: 7, borderRadius: 99, backgroundColor: colors.volt },
   gem: {
     width: 16, height: 16, borderRadius: 4, backgroundColor: '#f0efe8',
     borderWidth: 1.5, borderColor: '#dcd9cc', transform: [{ rotate: '45deg' }],
   },
-  trailLine: { flex: 1, height: 2.5, backgroundColor: '#eceadf', marginHorizontal: 3 },
+  trailLine: { flex: 1, height: 2.5, backgroundColor: '#dedacb', marginHorizontal: 3 },
   giftBox: {
     width: 30, height: 30, borderRadius: 9, backgroundColor: '#f0efe8',
     alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: '#dcd9cc',
@@ -412,7 +412,7 @@ const s = StyleSheet.create({
   sectionTitle: { fontSize: 14, fontWeight: '900', color: FOREST },
   jobRow: {
     flexDirection: 'row', alignItems: 'center', gap: 11, backgroundColor: '#fff',
-    borderRadius: 14, padding: 12, borderWidth: 1, borderColor: '#eceadf', marginBottom: 7,
+    borderRadius: 14, padding: 12, borderWidth: 1, borderColor: '#dedacb', marginBottom: 7,
   },
   jobRail: { width: 4, height: 32, borderRadius: 2, backgroundColor: '#5a7a3c' },
 });

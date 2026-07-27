@@ -517,8 +517,8 @@ const s = StyleSheet.create({
   panel: { backgroundColor: colors.ink, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 34 },
   panelIsland: {
     position: 'absolute', left: 12, right: 12, bottom: 22,
-    borderRadius: 28, paddingBottom: 20,
-    shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 22, shadowOffset: { width: 0, height: 10 },
+    borderRadius: 22, paddingBottom: 20,
+    shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 22, shadowOffset: { width: 0, height: 5 },
     elevation: 12,
   },
   layoutBtn: {
@@ -533,7 +533,7 @@ const s = StyleSheet.create({
   moreBtn: { width: 44, height: 52, borderRadius: 16, backgroundColor: '#1c2b21', alignItems: 'center', justifyContent: 'center' },
   eventBtn: { flex: 1, backgroundColor: '#1c2b21', borderRadius: 14, alignItems: 'center', paddingVertical: 9, borderWidth: 1, borderColor: '#2c4034' },
   sheetBackdrop: { flex: 1, backgroundColor: '#00000066' },
-  sheet: { backgroundColor: '#10160f', borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 22, paddingBottom: 40 },
+  sheet: { backgroundColor: '#10160f', borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 16, paddingBottom: 40 },
   sheetHandle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: '#2c3a2c', marginBottom: 14 },
   endOption: {
     flexDirection: 'row', alignItems: 'center', gap: 12,

@@ -9,7 +9,7 @@ export default function Pay() {
   const addonSum = draft.addons.reduce((s, k) => s + pricing.addons[k].price, 0);
 
   return (
-    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 22, paddingTop: 64, paddingBottom: 40 }}>
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingTop: 64, paddingBottom: 40 }}>
       <Text style={[text.h2, { textAlign: 'center', marginBottom: 16 }]}>러닝 완료</Text>
 
       <Card dark style={{ alignItems: 'center', padding: 26 }}>

@@ -58,7 +58,7 @@ export default function RunnerReview() {
   };
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: colors.cream }} contentContainerStyle={{ padding: 22, paddingTop: 56, paddingBottom: 40 }}>
+    <ScrollView style={{ flex: 1, backgroundColor: colors.cream }} contentContainerStyle={{ padding: 16, paddingTop: 56, paddingBottom: 40 }}>
       <Text style={{ fontSize: 22, fontWeight: '900', color: FOREST, textAlign: 'center' }}>오늘 러닝 어땠나요?</Text>
       <Text style={{ fontSize: 12, color: colors.dim, textAlign: 'center', marginTop: 5 }}>
         러너의 리뷰가 다음 러너를 지켜요
@@ -129,20 +129,20 @@ export default function RunnerReview() {
 const s = StyleSheet.create({
   dogCard: {
     flexDirection: 'row', alignItems: 'center', alignSelf: 'center',
-    backgroundColor: '#fff', borderRadius: 18, padding: 14, paddingHorizontal: 20,
-    borderWidth: 1, borderColor: '#eceadf', marginTop: 18,
+    backgroundColor: '#fff', borderRadius: 18, padding: 14, paddingHorizontal: 12,
+    borderWidth: 1, borderColor: '#dedacb', marginTop: 18,
   },
   label: { fontSize: 13.5, fontWeight: '900', color: FOREST, marginTop: 22, marginBottom: 9 },
-  tag: { backgroundColor: '#fff', borderRadius: 99, paddingVertical: 9, paddingHorizontal: 14, borderWidth: 1, borderColor: '#eceadf' },
+  tag: { backgroundColor: '#fff', borderRadius: 99, paddingVertical: 9, paddingHorizontal: 14, borderWidth: 1, borderColor: '#dedacb' },
   tagSel: { backgroundColor: FOREST, borderColor: FOREST },
   flagCard: {
     flexDirection: 'row', alignItems: 'center', gap: 11,
-    backgroundColor: '#fff', borderWidth: 1.4, borderColor: '#eceadf', borderRadius: 16,
+    backgroundColor: '#fff', borderWidth: 1.4, borderColor: '#dedacb', borderRadius: 16,
     padding: 14, marginTop: 20,
   },
   flagCheck: { width: 22, height: 22, borderRadius: 7, borderWidth: 1.6, borderColor: '#dcd9cc', alignItems: 'center', justifyContent: 'center' },
   noteInput: {
-    backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: '#eceadf',
+    backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: '#dedacb',
     padding: 14, minHeight: 80, fontSize: 13.5, color: FOREST, textAlignVertical: 'top',
   },
   submit: { backgroundColor: colors.volt, borderRadius: 16, alignItems: 'center', paddingVertical: 15, marginTop: 20 },

@@ -59,7 +59,7 @@ export default function Safety() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.cream }}>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 22, paddingTop: 64, paddingBottom: 24 }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingTop: 64, paddingBottom: 24 }}>
         <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <Pressable onPress={() => router.back()} style={[s.bell, { marginRight: 12 }]}>
             <Text style={{ fontSize: 18, color: FOREST }}>‹</Text>
@@ -179,7 +179,7 @@ function InfoRow({ glyph, title, desc }: { glyph: string; title: string; desc: s
 const s = StyleSheet.create({
   h1: { fontSize: 26, fontWeight: '900', color: FOREST },
   sub: { fontSize: 12, color: colors.dim, marginTop: 4 },
-  bell: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#eceadf' },
+  bell: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#dedacb' },
   shieldChip: { width: 24, height: 24, borderRadius: 12, backgroundColor: colors.volt, alignItems: 'center', justifyContent: 'center', alignSelf: 'center' },
   sosCard: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: '#e8492a',
@@ -187,10 +187,10 @@ const s = StyleSheet.create({
   },
   callBtn: { flex: 1, backgroundColor: '#fff', borderRadius: 14, alignItems: 'center', paddingVertical: 12, borderWidth: 1.3, borderColor: '#f2d4ca' },
   section: { fontSize: 15, fontWeight: '900', color: FOREST, marginTop: 20, marginBottom: 8 },
-  card: { backgroundColor: '#fff', borderRadius: 18, padding: 14, borderWidth: 1, borderColor: '#eceadf' },
+  card: { backgroundColor: '#fff', borderRadius: 18, padding: 14, borderWidth: 1, borderColor: '#dedacb' },
   div: { height: 1, backgroundColor: '#f0eee3' },
   miniBtn: { backgroundColor: '#f4f2ea', borderRadius: 99, paddingVertical: 7, paddingHorizontal: 12 },
   addRow: { marginTop: 6, borderRadius: 12, borderWidth: 1.3, borderColor: '#cfd8c2', borderStyle: 'dashed', alignItems: 'center', paddingVertical: 11 },
-  input: { backgroundColor: '#faf9f3', borderRadius: 12, borderWidth: 1, borderColor: '#eceadf', paddingVertical: 10, paddingHorizontal: 12, fontSize: 13.5, color: FOREST },
+  input: { backgroundColor: '#faf9f3', borderRadius: 12, borderWidth: 1, borderColor: '#dedacb', paddingVertical: 10, paddingHorizontal: 12, fontSize: 13.5, color: FOREST },
   saveBtn: { backgroundColor: colors.volt, borderRadius: 12, alignItems: 'center', paddingVertical: 11 },
 });

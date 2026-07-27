@@ -82,7 +82,7 @@ export function Avatar({ url, char, bg, size = 52 }: { url?: string | null; char
   return (
     <Image
       source={{ uri: url }}
-      style={{ width: size, height: size, borderRadius: size * 0.3, backgroundColor: '#e2e0d4' }}
+      style={{ width: size, height: size, borderRadius: size * 0.3, backgroundColor: '#d9d5c6' }}
     />
   );
 }

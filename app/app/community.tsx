@@ -81,7 +81,7 @@ export default function Community() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         {/* header */}
-        <Row style={{ justifyContent: 'space-between', paddingHorizontal: 22 }}>
+        <Row style={{ justifyContent: 'space-between', paddingHorizontal: 12 }}>
           <View>
             <Row style={{ gap: 6 }}>
               <Text style={{ fontSize: 26, fontWeight: '900', color: FOREST }}>동네 피드</Text>
@@ -119,7 +119,7 @@ export default function Community() {
 
             {/* photo — 엣지-투-엣지 (사진이 디자인이다) */}
             {p.photoUrl && (
-              <Image source={{ uri: p.photoUrl }} style={{ width: W, height: W * 0.75, backgroundColor: '#e2e0d4' }} resizeMode="cover" />
+              <Image source={{ uri: p.photoUrl }} style={{ width: W, height: W * 0.75, backgroundColor: '#d9d5c6' }} resizeMode="cover" />
             )}
 
             {/* run stats strip */}
@@ -200,14 +200,14 @@ export default function Community() {
 }
 
 const s = StyleSheet.create({
-  rankBtn: { backgroundColor: '#fff', borderRadius: 99, paddingVertical: 9, paddingHorizontal: 13, borderWidth: 1, borderColor: '#eceadf', alignSelf: 'flex-start' },
+  rankBtn: { backgroundColor: '#fff', borderRadius: 99, paddingVertical: 9, paddingHorizontal: 13, borderWidth: 1, borderColor: '#dedacb', alignSelf: 'flex-start' },
   emptyBox: { margin: 22, marginTop: 26, backgroundColor: '#f4f2ea', borderRadius: 18, padding: 26 },
-  post: { backgroundColor: '#fff', marginTop: 14, borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#eceadf' },
+  post: { backgroundColor: '#fff', marginTop: 14, borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#dedacb' },
   badge: { backgroundColor: '#eaf7c8', borderRadius: 99, paddingVertical: 3, paddingHorizontal: 8, alignSelf: 'center' },
   likeBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#faf9f3', borderRadius: 99, paddingVertical: 8, paddingHorizontal: 14 },
   commentsWrap: { paddingHorizontal: 16, paddingBottom: 14, borderTopWidth: 1, borderTopColor: '#f0eee3', paddingTop: 11 },
   commentInput: {
-    flex: 1, backgroundColor: '#faf9f3', borderRadius: 99, borderWidth: 1, borderColor: '#eceadf',
+    flex: 1, backgroundColor: '#faf9f3', borderRadius: 99, borderWidth: 1, borderColor: '#dedacb',
     paddingVertical: 9, paddingHorizontal: 14, fontSize: 13, color: FOREST,
   },
   commentSend: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.volt, alignItems: 'center', justifyContent: 'center' },

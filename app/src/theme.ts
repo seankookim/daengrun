@@ -3,17 +3,17 @@
 export const colors = {
   ink: '#171A17',
   forest: '#132117',     // 다크 카드/히어로 (파일 로컬 FOREST 상수를 이걸로 수렴)
-  cream: '#F6F2E9',
+  cream: '#F2F1EB',   // 클린 오프화이트 — 파스텔 헤이즈 제거 (2026-07-27 샤프닝)
   volt: '#B9F23A',
   voltDeep: '#82b016',
   voltBright: '#d4ff66',
   tang: '#FF6347',       // 밝은 코랄 — 도파민 숫자·라이브 전용
   coralText: '#d84a2f',  // 읽는 코랄 — 경고·조기종료 텍스트 (tang의 텍스트 버전, 의도적 2단)
   card: '#ffffff',
-  line: '#DDE8D4',
-  border: '#eceadf',     // 흰 카드 테두리 (산재한 리터럴 수렴용)
+  line: '#D6D3C4',
+  border: '#DEDACB',  // 헤어라인 강화 — 서피스 정의는 소프트함이 아니라 스트로크로     // 흰 카드 테두리 (산재한 리터럴 수렴용)
   green: '#5a7a3c',      // 기능 그린 — 라벨·강조 (volt의 텍스트 버전)
-  dim: '#8a8877',
+  dim: '#6E6C5E',      // 텍스트 대비 강화
   // dark glow theme (owner home / cards)
   bgDark: '#0d1410',
   cardDark: '#132117',
@@ -21,7 +21,9 @@ export const colors = {
   dimDark: '#8fa093',
 } as const;
 
-export const radius = { card: 20, btn: 16, chip: 99 } as const;
+export const radius = { card: 16, btn: 13, chip: 99 } as const;
+// 글로벌 거터 — 화면 좌우 여백은 이 값 하나로 (에지-투-에지 프리미엄)
+export const layout = { gutter: 12 } as const;
 
 // 타이포 스케일 — 규칙: 900은 오직 숫자(display)와 화면 제목(title)에만.
 // 본문·라벨이 전부 900이면 위계가 무너진다 (ui-audit). 새 코드는 이 프리셋을 쓸 것.

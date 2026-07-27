@@ -127,9 +127,9 @@ export default function DogProfileScreen() {
         <View style={{ height: 150, backgroundColor: colors.volt }}>
           <Pressable onPress={() => router.back()} style={s.backBtn}><Text style={{ fontSize: 18 }}>‹</Text></Pressable>
         </View>
-        <View style={{ paddingHorizontal: 22, marginTop: -44 }}>
+        <View style={{ paddingHorizontal: 12, marginTop: -44 }}>
           <Pressable onPress={pickPhoto} disabled={uploading} style={{ alignSelf: 'flex-start' }}>
-            <View style={{ borderWidth: 4, borderColor: colors.cream, borderRadius: 30 }}>
+            <View style={{ borderWidth: 4, borderColor: colors.cream, borderRadius: 22 }}>
               <Avatar url={dog?.photoUrl} char={(name || '멍')[0]} bg={FOREST} size={88} />
             </View>
             <View style={s.camBadge}><Text style={{ fontSize: 10, color: '#fff' }}>{uploading ? '…' : '✎'}</Text></View>
@@ -137,15 +137,15 @@ export default function DogProfileScreen() {
           <Text style={{ fontSize: 11, color: colors.dim, marginTop: 6 }}>사진을 탭해서 변경 — 러너가 픽업 때 알아봐요</Text>
         </View>
 
-        {!loaded && <Text style={{ padding: 22, fontSize: 12.5, color: colors.dim }}>불러오는 중...</Text>}
+        {!loaded && <Text style={{ padding: 16, fontSize: 12.5, color: colors.dim }}>불러오는 중...</Text>}
         {loaded && !dog && (
-          <Text style={{ padding: 22, fontSize: 12.5, color: colors.dim }}>
+          <Text style={{ padding: 16, fontSize: 12.5, color: colors.dim }}>
             아직 반려견이 없어요 — 첫 예약 때 자동으로 만들어져요
           </Text>
         )}
 
         {dog && (
-          <View style={{ paddingHorizontal: 22, marginTop: 14 }}>
+          <View style={{ paddingHorizontal: 12, marginTop: 14 }}>
             {/* 다견 스위처 */}
             <Row style={{ gap: 8, flexWrap: 'wrap' }}>
               {dogs.map((d) => (
@@ -255,15 +255,15 @@ const s = StyleSheet.create({
   },
   label: { fontSize: 12, fontWeight: '800', color: '#3d453d', marginTop: 16, marginBottom: 6 },
   input: {
-    backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: '#eceadf',
+    backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: '#dedacb',
     paddingVertical: 12, paddingHorizontal: 14, fontSize: 14.5, color: FOREST,
   },
-  neuterChip: { flex: 1, backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: '#eceadf', alignItems: 'center', paddingVertical: 13 },
+  neuterChip: { flex: 1, backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: '#dedacb', alignItems: 'center', paddingVertical: 13 },
   dogChip: { backgroundColor: '#fff', borderRadius: 99, borderWidth: 1.3, borderColor: '#dcd9cc', paddingVertical: 9, paddingHorizontal: 16 },
-  tagChip: { backgroundColor: '#fff', borderRadius: 99, borderWidth: 1.3, borderColor: '#eceadf', paddingVertical: 9, paddingHorizontal: 14 },
+  tagChip: { backgroundColor: '#fff', borderRadius: 99, borderWidth: 1.3, borderColor: '#dedacb', paddingVertical: 9, paddingHorizontal: 14 },
   saveBar: {
     position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: colors.cream,
-    paddingHorizontal: 22, paddingTop: 10, paddingBottom: 30, borderTopWidth: 1, borderTopColor: '#eceadf',
+    paddingHorizontal: 12, paddingTop: 10, paddingBottom: 30, borderTopWidth: 1, borderTopColor: '#dedacb',
   },
   saveBtn: { backgroundColor: colors.volt, borderRadius: 16, alignItems: 'center', paddingVertical: 15 },
 });

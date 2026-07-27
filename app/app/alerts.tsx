@@ -43,7 +43,7 @@ export default function Alerts() {
     <View style={{ flex: 1, backgroundColor: colors.cream }}>
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ padding: 22, paddingTop: 64, paddingBottom: 24 }}
+        contentContainerStyle={{ padding: 16, paddingTop: 64, paddingBottom: 24 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         {/* header */}
@@ -98,7 +98,7 @@ export default function Alerts() {
         )}
 
         {liveNotis.length === 0 && (
-          <View style={{ marginTop: 24, backgroundColor: '#fff', borderRadius: 16, padding: 24, alignItems: 'center', borderWidth: 1, borderColor: '#eceadf' }}>
+          <View style={{ marginTop: 24, backgroundColor: '#fff', borderRadius: 16, padding: 18, alignItems: 'center', borderWidth: 1, borderColor: '#dedacb' }}>
             <Text style={{ fontSize: 13, color: colors.dim, textAlign: 'center', lineHeight: 20 }}>
               아직 알림이 없어요{'\n'}예약·러닝 소식이 여기에 도착해요
             </Text>
@@ -124,14 +124,14 @@ const s = StyleSheet.create({
   h1: { fontSize: 30, fontWeight: '900', color: FOREST },
   sub: { fontSize: 13, color: '#5d655d', marginTop: 6 },
   hBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#fff', borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
-  tabsWrap: { flexDirection: 'row', backgroundColor: '#fff', borderRadius: 99, padding: 4, marginTop: 18, borderWidth: 1, borderColor: '#eceadf' },
+  tabsWrap: { flexDirection: 'row', backgroundColor: '#fff', borderRadius: 99, padding: 4, marginTop: 18, borderWidth: 1, borderColor: '#dedacb' },
   tab: { flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: 99, flexDirection: 'row', justifyContent: 'center' },
   tabSel: { backgroundColor: FOREST },
   tabText: { fontSize: 13, fontWeight: '700', color: '#5d655d' },
-  tabDivider: { position: 'absolute', right: 0, top: 10, bottom: 10, width: 1, backgroundColor: '#eceadf' },
+  tabDivider: { position: 'absolute', right: 0, top: 10, bottom: 10, width: 1, backgroundColor: '#dedacb' },
   section: { fontSize: 15, fontWeight: '900', color: FOREST },
   countBadge: { width: 20, height: 20, borderRadius: 10, backgroundColor: colors.volt, alignItems: 'center', justifyContent: 'center' },
-  noti: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#fff', borderRadius: 18, padding: 14, borderWidth: 1, borderColor: '#eceadf' },
+  noti: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#fff', borderRadius: 18, padding: 14, borderWidth: 1, borderColor: '#dedacb' },
   notiHi: { backgroundColor: '#f7faee', borderColor: '#dde8c4' },
   notiIcon: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
   unreadDot: { position: 'absolute', top: 2, right: 2, width: 8, height: 8, borderRadius: 4, backgroundColor: colors.voltDeep, zIndex: 2 },

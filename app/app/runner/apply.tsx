@@ -17,7 +17,7 @@ const TIERS = [
 
 export default function Apply() {
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: colors.cream }} contentContainerStyle={{ padding: 22, paddingTop: 56, paddingBottom: 40 }}>
+    <ScrollView style={{ flex: 1, backgroundColor: colors.cream }} contentContainerStyle={{ padding: 16, paddingTop: 56, paddingBottom: 40 }}>
       <Row style={{ justifyContent: 'space-between', marginBottom: 4 }}>
         <Pressable onPress={() => router.back()} style={s.circleBtn}><Text style={{ fontSize: 18 }}>‹</Text></Pressable>
         <Text style={{ fontSize: 19, fontWeight: '900', color: FOREST }}>러너 인증 센터</Text>
@@ -98,14 +98,14 @@ export default function Apply() {
 }
 
 const s = StyleSheet.create({
-  circleBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#eceadf' },
+  circleBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#dedacb' },
   tierCard: { backgroundColor: FOREST, borderRadius: 20, padding: 18 },
   tierBar: { height: 7, borderRadius: 99, backgroundColor: '#2c4034', marginTop: 14, overflow: 'hidden' },
   tierFill: { height: 7, borderRadius: 99, backgroundColor: colors.volt },
   section: { fontSize: 15, fontWeight: '900', color: FOREST, marginTop: 20, marginBottom: 10 },
-  card: { backgroundColor: '#fff', borderRadius: 18, padding: 15, borderWidth: 1, borderColor: '#eceadf' },
-  stepLine: { width: 2, height: 14, backgroundColor: '#e2e0d4', marginLeft: 10, marginVertical: 2 },
-  stepDot: { width: 22, height: 22, borderRadius: 11, backgroundColor: '#eceadf', alignItems: 'center', justifyContent: 'center' },
+  card: { backgroundColor: '#fff', borderRadius: 18, padding: 15, borderWidth: 1, borderColor: '#dedacb' },
+  stepLine: { width: 2, height: 14, backgroundColor: '#d9d5c6', marginLeft: 10, marginVertical: 2 },
+  stepDot: { width: 22, height: 22, borderRadius: 11, backgroundColor: '#dedacb', alignItems: 'center', justifyContent: 'center' },
   stepActive: { backgroundColor: '#fbf0d4', borderWidth: 1.6, borderColor: '#e2c56b' },
   nowPill: { backgroundColor: '#e3f0c4', borderRadius: 99, paddingVertical: 2, paddingHorizontal: 7, alignSelf: 'center' },
   continueBtn: { backgroundColor: colors.volt, borderRadius: 16, alignItems: 'center', paddingVertical: 14, marginTop: 12 },

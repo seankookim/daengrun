@@ -87,7 +87,7 @@ const s = StyleSheet.create({
   hero: { marginBottom: 36 },
   big: { fontSize: 56, lineHeight: 60, fontWeight: '900', color: colors.volt },
   sub: { marginTop: 16, fontSize: 15, lineHeight: 24, color: '#b9b6a4' },
-  roleCard: { borderRadius: 24, padding: 22, borderWidth: 2, borderColor: 'transparent' },
+  roleCard: { borderRadius: 18, padding: 16, borderWidth: 2, borderColor: 'transparent' },
   sel: { borderColor: colors.tang },
   roleTitle: { fontSize: 24, fontWeight: '800' },
   roleDesc: { fontSize: 13, marginTop: 4, opacity: 0.75 },

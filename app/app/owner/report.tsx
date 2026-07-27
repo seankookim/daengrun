@@ -114,7 +114,7 @@ export default function Report() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.cream }}>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 40 }}>
-        <Row style={{ justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 56 }}>
+        <Row style={{ justifyContent: 'space-between', paddingHorizontal: 12, paddingTop: 56 }}>
           <Pressable onPress={() => router.back()} style={s.backBtn}><Text style={{ fontSize: 18 }}>‹</Text></Pressable>
           <Text style={{ fontSize: 20, fontWeight: '900', color: FOREST }}>러닝 리포트</Text>
           {run ? (
@@ -124,7 +124,7 @@ export default function Report() {
 
         {err && <View style={s.emptyBox}><Text style={s.emptyText}>{err}</Text></View>}
         {!err && !report && (
-          <View style={{ paddingHorizontal: 20, marginTop: 14, gap: 12 }}>
+          <View style={{ paddingHorizontal: 12, marginTop: 14, gap: 12 }}>
             <Skeleton width="100%" height={210} radius={0} />
             <Skeleton width="100%" height={90} />
             <Skeleton width="70%" height={20} />
@@ -277,7 +277,7 @@ export default function Report() {
             {run.photos.length > 0 ? (
               <View style={{ backgroundColor: '#fff', flexDirection: 'row', flexWrap: 'wrap', gap: 2 }}>
                 {run.photos.map((url) => (
-                  <Image key={url} source={{ uri: url }} style={{ width: TILE, height: TILE, backgroundColor: '#e2e0d4' }} />
+                  <Image key={url} source={{ uri: url }} style={{ width: TILE, height: TILE, backgroundColor: '#d9d5c6' }} />
                 ))}
               </View>
             ) : (
@@ -345,7 +345,7 @@ export default function Report() {
             </View>
 
             {/* ---------- CTA ---------- */}
-            <View style={{ paddingHorizontal: 20 }}>
+            <View style={{ paddingHorizontal: 12 }}>
               <Pressable onPress={() => setShotOpen(true)} style={s.cta}>
                 <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST }}>📸 인증샷 만들기</Text>
                 <Text style={{ fontSize: 10.5, color: '#5d6b4a', marginTop: 2 }}>인스타그램용 브랜디드 카드로 자랑해요</Text>
@@ -442,12 +442,12 @@ function GoalBar({ label, pct, detail }: { label: string; pct: number; detail: s
 }
 
 const s = StyleSheet.create({
-  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#eceadf' },
+  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#dedacb' },
   hero: { backgroundColor: FOREST, padding: 20, marginTop: 14 },
   heroReason: { borderRadius: 99, paddingVertical: 4, paddingHorizontal: 9 },
   heroDiv: { width: 1, backgroundColor: '#2c4034' },
   badgePill: { backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 4, paddingHorizontal: 10 },
-  section: { backgroundColor: '#fff', paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#eceadf' },
+  section: { backgroundColor: '#fff', paddingHorizontal: 12, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#dedacb' },
   sectionTitle: { fontSize: 13.5, fontWeight: '900', color: FOREST, marginBottom: 6 },
   barTrack: { height: 8, borderRadius: 99, backgroundColor: '#f0eee3', marginTop: 6, overflow: 'hidden' },
   barFill: { height: 8, borderRadius: 99, backgroundColor: colors.volt },
@@ -458,7 +458,7 @@ const s = StyleSheet.create({
   emptyText: { fontSize: 13, color: colors.dim, textAlign: 'center', lineHeight: 19 },
   ctaGhost: { marginTop: 14, backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 10, paddingHorizontal: 18 },
   cta: { backgroundColor: colors.volt, borderRadius: 18, alignItems: 'center', paddingVertical: 15, marginTop: 16 },
-  ghostCta: { backgroundColor: '#fff', borderRadius: 16, alignItems: 'center', paddingVertical: 13, marginTop: 8, borderWidth: 1, borderColor: '#eceadf' },
-  shotBackdrop: { paddingHorizontal: 24, paddingVertical: 18, backgroundColor: '#0d1410' },
-  shotCard: { backgroundColor: FOREST, borderRadius: 24, padding: 24, overflow: 'hidden', alignItems: 'center', paddingVertical: 34 },
+  ghostCta: { backgroundColor: '#fff', borderRadius: 16, alignItems: 'center', paddingVertical: 13, marginTop: 8, borderWidth: 1, borderColor: '#dedacb' },
+  shotBackdrop: { paddingHorizontal: 12, paddingVertical: 18, backgroundColor: '#0d1410' },
+  shotCard: { backgroundColor: FOREST, borderRadius: 18, padding: 18, overflow: 'hidden', alignItems: 'center', paddingVertical: 34 },
 });

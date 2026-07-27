@@ -45,12 +45,12 @@ function RunnerFullCard({ r, m, i, topIsPreferred, nominating, onNominate, onLay
         s.fullCard,
         { backgroundColor: bg },
         // 라임 아우터 글로우 (드롭 섀도우는 래퍼가 담당 — 뷰당 그림자 1개 제한)
-        dark && { borderWidth: 1.5, borderColor: colors.volt, shadowColor: colors.volt, shadowOpacity: 0.3, shadowRadius: 16, shadowOffset: { width: 0, height: 0 } },
+        dark && { borderWidth: 1.5, borderColor: colors.volt, shadowColor: colors.volt, shadowOpacity: 0.3, shadowRadius: 9, shadowOffset: { width: 0, height: 0 } },
       ]}
     >
       {/* 포커스 카드 장식 — 상단 미광(수직 그라데이션 근사) + 우측 컨투어 라인 */}
       {dark && (
-        <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 30, overflow: 'hidden' }}>
+        <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 22, overflow: 'hidden' }}>
           <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '45%', backgroundColor: 'rgba(255,255,255,0.03)' }} />
           <View style={s.contour1} />
           <View style={s.contour2} />
@@ -272,7 +272,7 @@ export default function Matching() {
   return (
     <View style={{ flex: 1, backgroundColor: '#E9E7DE' }}>
       {/* 고정 헤더 — 캐러셀과 분리, 포커스 좌표가 흔들리지 않게 */}
-      <View style={{ paddingTop: 58, paddingHorizontal: 20 }}>
+      <View style={{ paddingTop: 58, paddingHorizontal: 12 }}>
         <Row style={{ justifyContent: 'space-between', marginBottom: 4 }}>
           <Pressable onPress={() => router.back()} style={s.backBtn}><Text style={{ fontSize: 18, color: FOREST }}>‹</Text></Pressable>
           <Text style={{ fontSize: 20, fontWeight: '900', color: FOREST }}>러너 선택</Text>
@@ -351,7 +351,7 @@ export default function Matching() {
           {/* 데모 매칭 섹션 은퇴 (2026-07-23) — 목업 김민준 화면이 결제 실패를 숨기는 함정이었음.
               이 화면은 이제 실예약 전용. */}
           {!live && (
-            <View style={{ marginTop: 16, marginHorizontal: 20, backgroundColor: '#fff', borderRadius: 16, padding: 24, alignItems: 'center', borderWidth: 1, borderColor: '#dddace' }}>
+            <View style={{ marginTop: 16, marginHorizontal: 12, backgroundColor: '#fff', borderRadius: 16, padding: 18, alignItems: 'center', borderWidth: 1, borderColor: '#dddace' }}>
               <Text style={{ fontSize: 13, color: colors.dim, textAlign: 'center', lineHeight: 20 }}>
                 진행 중인 예약이 없어요{'\n'}예약 화면에서 결제하면 러너 선택이 열려요
               </Text>
@@ -359,7 +359,7 @@ export default function Matching() {
           )}
 
           {live && liveRunners.length === 0 && (
-            <View style={{ marginTop: 16, marginHorizontal: 20, backgroundColor: '#fff', borderRadius: 16, padding: 24, alignItems: 'center', borderWidth: 1, borderColor: '#dddace' }}>
+            <View style={{ marginTop: 16, marginHorizontal: 12, backgroundColor: '#fff', borderRadius: 16, padding: 18, alignItems: 'center', borderWidth: 1, borderColor: '#dddace' }}>
               <Text style={{ fontSize: 13, color: colors.dim, textAlign: 'center', lineHeight: 20 }}>
                 지금 온라인인 러너가 없어요{'\n'}오픈 매칭으로 등록되어 러너들이 응답할 수 있어요
               </Text>
@@ -430,21 +430,21 @@ const s = StyleSheet.create({
   aiChip: { borderWidth: 1, borderColor: '#3d5245', borderRadius: 99, paddingVertical: 7, paddingHorizontal: 12 },
   // 스택 카드 시스템 — 풀와이드, 큰 라운드, 겹침 (모던 패스)
   topCard: {
-    marginTop: 10, backgroundColor: FOREST, borderRadius: 32, padding: 22, paddingTop: 46, paddingBottom: 52,
+    marginTop: 10, backgroundColor: FOREST, borderRadius: 18, padding: 16, paddingTop: 46, paddingBottom: 52,
     borderWidth: 2, borderColor: colors.volt,
   },
   stackCard: {
-    borderRadius: 32, padding: 22, paddingBottom: 54,
+    borderRadius: 18, padding: 16, paddingBottom: 54,
     shadowColor: '#000', shadowOpacity: 0.07, shadowRadius: 10, shadowOffset: { width: 0, height: -4 },
   },
   // 통합 캐러셀 풀 카드 — 모든 러너가 1순위급 정보 밀도
   fullCard: {
-    borderRadius: 32, padding: 22, paddingTop: 44, paddingBottom: 60,
+    borderRadius: 18, padding: 16, paddingTop: 44, paddingBottom: 60,
     borderWidth: 1, borderColor: 'rgba(19,33,23,0.15)', // 모든 카드에 반투명 다크 보더 — 배경 분리
   },
   // 그림자 계층 (래퍼에 적용 — 카드 뷰의 그림자 슬롯은 포커스 라임 글로우가 사용)
   cardShadowFocus: {
-    shadowColor: '#132117', shadowOpacity: 0.28, shadowRadius: 26, shadowOffset: { width: 0, height: 16 },
+    shadowColor: '#132117', shadowOpacity: 0.28, shadowRadius: 8, shadowOffset: { width: 0, height: 4 },
   },
   cardShadowAmbient: {
     shadowColor: '#132117', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 4 },
@@ -471,10 +471,10 @@ const s = StyleSheet.create({
   statStrip: { flexDirection: 'row', backgroundColor: FOREST_INNER, borderRadius: 14, paddingVertical: 12, marginTop: 16 },
   topNominate: { backgroundColor: colors.volt, borderRadius: 14, alignItems: 'center', paddingVertical: 14, marginTop: 16 },
   stripDiv: { width: 1, backgroundColor: '#2c4034', marginVertical: 2 },
-  altCard: { backgroundColor: '#fff', borderRadius: 20, padding: 16, borderWidth: 1, borderColor: '#eceadf', marginBottom: 10 },
+  altCard: { backgroundColor: '#fff', borderRadius: 20, padding: 16, borderWidth: 1, borderColor: '#dedacb', marginBottom: 10 },
   sagePill: { backgroundColor: '#e3f0c4', borderRadius: 99, paddingVertical: 3, paddingHorizontal: 8, alignSelf: 'center' },
   tagChip: { backgroundColor: '#f4f2ea', borderRadius: 99, paddingVertical: 5, paddingHorizontal: 10 },
-  altDivider: { height: 1, backgroundColor: '#eceadf', marginVertical: 12 },
-  altStatDiv: { width: 1, backgroundColor: '#eceadf' },
-  trustNote: { alignItems: 'center', paddingTop: 22, paddingBottom: 10, paddingHorizontal: 20 },
+  altDivider: { height: 1, backgroundColor: '#dedacb', marginVertical: 12 },
+  altStatDiv: { width: 1, backgroundColor: '#dedacb' },
+  trustNote: { alignItems: 'center', paddingTop: 22, paddingBottom: 10, paddingHorizontal: 12 },
 });

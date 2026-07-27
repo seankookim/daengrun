@@ -94,7 +94,7 @@ export function Ring({
             borderColor: '#ffffff55',
             shadowColor: colors.volt,
             shadowOpacity: 1,
-            shadowRadius: 12,
+            shadowRadius: 7,
             shadowOffset: { width: 0, height: 0 },
             elevation: 8,
           }}

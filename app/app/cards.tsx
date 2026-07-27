@@ -15,7 +15,7 @@ export default function Cards() {
 
   return (
     <View style={{ flex: 1, backgroundColor: p.bg }}>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 22, paddingTop: 56, paddingBottom: 30 }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingTop: 56, paddingBottom: 30 }}>
         <Row style={{ justifyContent: 'space-between', marginBottom: 4 }}>
           <Pressable onPress={() => router.replace(homePath())}><Text style={{ fontSize: 24, color: p.textStrong }}>‹</Text></Pressable>
           <Text style={[text.h2, { color: p.textStrong }]}>마이 카드</Text>

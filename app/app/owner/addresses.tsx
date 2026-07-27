@@ -37,7 +37,7 @@ export default function Addresses() {
   };
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: colors.cream }} contentContainerStyle={{ padding: 22, paddingTop: 56, paddingBottom: 40 }}>
+    <ScrollView style={{ flex: 1, backgroundColor: colors.cream }} contentContainerStyle={{ padding: 16, paddingTop: 56, paddingBottom: 40 }}>
       <Row style={{ justifyContent: 'space-between' }}>
         <Pressable onPress={() => router.back()} style={s.backBtn}><Text style={{ fontSize: 18 }}>‹</Text></Pressable>
         <Text style={{ fontSize: 20, fontWeight: '900', color: FOREST }}>주소 관리</Text>
@@ -105,11 +105,11 @@ export default function Addresses() {
 }
 
 const s = StyleSheet.create({
-  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#eceadf' },
-  emptyBox: { backgroundColor: '#f4f2ea', borderRadius: 16, padding: 22 },
-  card: { backgroundColor: '#fff', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#eceadf' },
+  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#dedacb' },
+  emptyBox: { backgroundColor: '#f4f2ea', borderRadius: 16, padding: 16 },
+  card: { backgroundColor: '#fff', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#dedacb' },
   defaultPill: { backgroundColor: '#eaf7c8', borderRadius: 99, paddingVertical: 3, paddingHorizontal: 8, alignSelf: 'center' },
-  input: { backgroundColor: '#faf9f3', borderRadius: 12, borderWidth: 1, borderColor: '#eceadf', paddingVertical: 11, paddingHorizontal: 12, fontSize: 13.5, color: FOREST },
+  input: { backgroundColor: '#faf9f3', borderRadius: 12, borderWidth: 1, borderColor: '#dedacb', paddingVertical: 11, paddingHorizontal: 12, fontSize: 13.5, color: FOREST },
   saveBtn: { backgroundColor: colors.volt, borderRadius: 12, alignItems: 'center', paddingVertical: 12 },
   cancelBtn: { flex: 1, backgroundColor: '#f4f2ea', borderRadius: 12, alignItems: 'center', paddingVertical: 12 },
   addBtn: { borderRadius: 16, borderWidth: 1.4, borderColor: '#cfd8c2', borderStyle: 'dashed', alignItems: 'center', paddingVertical: 14 },

@@ -56,7 +56,7 @@ export default function OwnerReview() {
   };
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: colors.cream }} contentContainerStyle={{ padding: 22, paddingTop: 56, paddingBottom: 40 }}>
+    <ScrollView style={{ flex: 1, backgroundColor: colors.cream }} contentContainerStyle={{ padding: 16, paddingTop: 56, paddingBottom: 40 }}>
       <Row style={{ justifyContent: 'space-between' }}>
         <Pressable onPress={() => router.back()} style={s.backBtn}><Text style={{ fontSize: 18 }}>‹</Text></Pressable>
         <Text style={{ fontSize: 20, fontWeight: '900', color: FOREST }}>러너 후기</Text>
@@ -117,10 +117,10 @@ export default function OwnerReview() {
 }
 
 const s = StyleSheet.create({
-  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#eceadf' },
-  tag: { backgroundColor: '#fff', borderRadius: 99, borderWidth: 1.3, borderColor: '#eceadf', paddingVertical: 9, paddingHorizontal: 14 },
+  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#dedacb' },
+  tag: { backgroundColor: '#fff', borderRadius: 99, borderWidth: 1.3, borderColor: '#dedacb', paddingVertical: 9, paddingHorizontal: 14 },
   input: {
-    backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: '#eceadf',
+    backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: '#dedacb',
     padding: 14, marginTop: 20, height: 100, textAlignVertical: 'top', fontSize: 13.5, color: FOREST,
   },
   privRow: { flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 14 },

@@ -17,7 +17,7 @@ import { useTheme } from '../../src/theme-context';
 // compact pinned rectangle (ring right, goal data left) that stays at the top.
 
 const { width: SCREEN_W } = Dimensions.get('window');
-const CARD_W = SCREEN_W - 44;
+const CARD_W = SCREEN_W - 24; // 거터 12*2
 const RING_BIG = 216;
 const PAD_TOP = 56;
 const HEADER_H = 62;
@@ -286,7 +286,7 @@ export default function OwnerHome() {
       <Animated.ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{
-          paddingHorizontal: 22,
+          paddingHorizontal: 12,
           paddingTop: PAD_TOP + HEADER_H + HERO_BIG + 14,
           paddingBottom: 30,
         }}
@@ -558,7 +558,7 @@ export default function OwnerHome() {
                 <Text style={{ fontSize: 12, fontWeight: '800', color: colors.tang }}>🏆 동네 랭킹 ›</Text>
               </Pressable>
             </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 11, paddingRight: 22 }}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 11, paddingRight: 12 }}>
               {localRunners.map((r, ri) => {
                 const bgArr = ['#cfe0bb', '#f8cbb4', '#f2dc92', '#c7d5e8'];
                 const sqArr = ['#e8734a', '#5a7a3c', '#3c5a74', '#c9a86e'];
@@ -567,7 +567,7 @@ export default function OwnerHome() {
                     key={r.profileId}
                     onPress={() => router.push(`/runner-profile/${r.profileId}`)}
                     style={{
-                      width: 156, backgroundColor: bgArr[ri % 4], borderRadius: 24, padding: 15,
+                      width: 156, backgroundColor: bgArr[ri % 4], borderRadius: 18, padding: 15,
                       paddingVertical: 18, alignItems: 'center',
                       shadowColor: '#132117', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 4 },
                     }}
@@ -692,7 +692,7 @@ export default function OwnerHome() {
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 }}>
                 <View style={{
                   width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center',
-                  backgroundColor: g.got ? '#6aa53c' : g.claimable ? colors.volt : '#eceadf',
+                  backgroundColor: g.got ? '#6aa53c' : g.claimable ? colors.volt : '#dedacb',
                 }}>
                   {g.got && <Text style={{ fontSize: 9, fontWeight: '900', color: '#fff' }}>✓</Text>}
                   {g.claimable && <Text style={{ fontSize: 9, fontWeight: '900', color: '#132117' }}>!</Text>}
@@ -769,9 +769,9 @@ function SlideToBook({ onComplete }: { onComplete: () => void }) {
 const s = StyleSheet.create({
   // 지금 러너 찾기 히어로 + 시트
   findNow: {
-    backgroundColor: '#132117', borderRadius: 24, padding: 18, marginTop: 14,
+    backgroundColor: '#132117', borderRadius: 18, padding: 18, marginTop: 14,
     borderWidth: 1.5, borderColor: colors.volt, overflow: 'hidden', // 레이더 아크 클리핑
-    shadowColor: '#132117', shadowOpacity: 0.25, shadowRadius: 14, shadowOffset: { width: 0, height: 8 },
+    shadowColor: '#132117', shadowOpacity: 0.25, shadowRadius: 8, shadowOffset: { width: 0, height: 4 },
   },
   // 레이더 중심점 — 카드 우측 가장자리 살짝 밖, 아크/스윕/블립의 원점
   radarLayer: { position: 'absolute', right: -14, top: 44 },
@@ -791,21 +791,21 @@ const s = StyleSheet.create({
   fnCustom: { paddingVertical: 13, paddingHorizontal: 12 },
   fnSheet: {
     backgroundColor: '#fff', borderTopLeftRadius: 28, borderTopRightRadius: 28,
-    paddingHorizontal: 22, paddingTop: 12, paddingBottom: 40,
+    paddingHorizontal: 12, paddingTop: 12, paddingBottom: 40,
   },
-  fnGrip: { alignSelf: 'center', width: 42, height: 5, borderRadius: 3, backgroundColor: '#e2e0d4', marginBottom: 14 },
+  fnGrip: { alignSelf: 'center', width: 42, height: 5, borderRadius: 3, backgroundColor: '#d9d5c6', marginBottom: 14 },
   fnChip: {
     backgroundColor: '#f4f2ea', borderRadius: 99, paddingVertical: 9, paddingHorizontal: 14,
-    borderWidth: 1, borderColor: '#e5e2d5',
+    borderWidth: 1, borderColor: '#d9d5c6',
   },
   fnChipText: { fontSize: 12.5, fontWeight: '800', color: '#132117' },
   fnKmRow: {
     flexDirection: 'row', alignItems: 'center', marginTop: 16, backgroundColor: '#f8f7f1',
-    borderRadius: 18, padding: 14, borderWidth: 1, borderColor: '#eceadf',
+    borderRadius: 18, padding: 14, borderWidth: 1, borderColor: '#dedacb',
   },
   fnStep: {
     width: 44, height: 44, borderRadius: 22, backgroundColor: '#fff', alignItems: 'center',
-    justifyContent: 'center', borderWidth: 1, borderColor: '#e2e0d4',
+    justifyContent: 'center', borderWidth: 1, borderColor: '#d9d5c6',
   },
   fnStepText: { fontSize: 22, fontWeight: '800', color: '#132117' },
   fnPriceRow: {
@@ -815,7 +815,7 @@ const s = StyleSheet.create({
   fnPay: { backgroundColor: colors.volt, borderRadius: 16, alignItems: 'center', paddingVertical: 16, marginTop: 12 },
   overlay: {
     position: 'absolute', top: 0, left: 0, right: 0, zIndex: 20,
-    paddingTop: PAD_TOP, paddingHorizontal: 22, paddingBottom: 10,
+    paddingTop: PAD_TOP, paddingHorizontal: 12, paddingBottom: 10,
   },
   headerRow: { flexDirection: 'row', alignItems: 'center', height: HEADER_H - 12, marginBottom: 12 },
   themeBtn: {
@@ -828,8 +828,8 @@ const s = StyleSheet.create({
     shadowColor: colors.volt, shadowOpacity: 1, shadowRadius: 4, shadowOffset: { width: 0, height: 0 },
   },
   hero: {
-    borderRadius: 28, padding: 18, overflow: 'hidden', borderWidth: 1,
-    shadowColor: colors.volt, shadowOpacity: 0.1, shadowRadius: 24, shadowOffset: { width: 0, height: 6 },
+    borderRadius: 22, padding: 18, overflow: 'hidden', borderWidth: 1,
+    shadowColor: colors.volt, shadowOpacity: 0.1, shadowRadius: 7, shadowOffset: { width: 0, height: 6 },
   },
   weekChip: {
     position: 'absolute', top: 14, left: 16, zIndex: 4,
@@ -845,7 +845,7 @@ const s = StyleSheet.create({
   rewardCard: {
     flexDirection: 'row', alignItems: 'center', borderRadius: 20, padding: 15, marginTop: 12,
     borderWidth: 1.6, borderColor: colors.tang + '66',
-    shadowColor: colors.tang, shadowOpacity: 0.3, shadowRadius: 14, shadowOffset: { width: 0, height: 3 },
+    shadowColor: colors.tang, shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 3 },
     elevation: 4,
   },
   giftWrap: { width: 46, height: 46, alignItems: 'center', justifyContent: 'center' },
@@ -859,11 +859,11 @@ const s = StyleSheet.create({
     backgroundColor: colors.tang, alignItems: 'center', justifyContent: 'center', zIndex: 2,
   },
   claimBtn: { backgroundColor: colors.volt, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 13 },
-  ladderSheet: { backgroundColor: '#F6F2E9', borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 22, paddingBottom: 40 },
+  ladderSheet: { backgroundColor: '#F6F2E9', borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 16, paddingBottom: 40 },
   sheetHandle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: '#d8d5c8', marginBottom: 14 },
   slideTrack: {
-    marginTop: 14, height: 68, borderRadius: 24, backgroundColor: colors.volt, justifyContent: 'center',
-    shadowColor: colors.volt, shadowOpacity: 0.5, shadowRadius: 20, shadowOffset: { width: 0, height: 6 },
+    marginTop: 14, height: 68, borderRadius: 18, backgroundColor: colors.volt, justifyContent: 'center',
+    shadowColor: colors.volt, shadowOpacity: 0.5, shadowRadius: 11, shadowOffset: { width: 0, height: 6 },
     elevation: 8,
   },
   slideLabel: { alignSelf: 'center', fontSize: 17, fontWeight: '900', color: colors.ink, letterSpacing: 0.5 },
@@ -875,7 +875,7 @@ const s = StyleSheet.create({
   scheduleCard: {
     borderRadius: 22, padding: 17, marginTop: 12,
     borderWidth: 1.4, borderColor: '#b9f23a55', // lime accent — the widget earns its emphasis
-    shadowColor: colors.volt, shadowOpacity: 0.2, shadowRadius: 12, shadowOffset: { width: 0, height: 3 },
+    shadowColor: colors.volt, shadowOpacity: 0.2, shadowRadius: 7, shadowOffset: { width: 0, height: 3 },
     elevation: 3,
   },
   liveDotSm: {

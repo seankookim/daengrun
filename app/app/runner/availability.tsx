@@ -76,7 +76,7 @@ export default function Availability() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.cream }}>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 22, paddingTop: 56, paddingBottom: 120 }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingTop: 56, paddingBottom: 120 }}>
         <Row style={{ justifyContent: 'space-between', marginBottom: 4 }}>
           <Pressable onPress={() => router.back()} style={s.circleBtn}><Text style={{ fontSize: 18 }}>‹</Text></Pressable>
           <Text style={{ fontSize: 19, fontWeight: '900', color: FOREST }}>가용시간 설정</Text>
@@ -177,15 +177,15 @@ function Stepper({ value, onMinus, onPlus }: { value: string; onMinus: () => voi
 }
 
 const s = StyleSheet.create({
-  circleBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#eceadf' },
-  card: { backgroundColor: '#fff', borderRadius: 18, paddingHorizontal: 16, paddingVertical: 6, borderWidth: 1, borderColor: '#eceadf' },
+  circleBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#dedacb' },
+  card: { backgroundColor: '#fff', borderRadius: 18, paddingHorizontal: 16, paddingVertical: 6, borderWidth: 1, borderColor: '#dedacb' },
   div: { height: 1, backgroundColor: '#f0eee3' },
   togglePill: { backgroundColor: '#f0efe8', borderRadius: 99, paddingVertical: 8, paddingHorizontal: 15 },
   stepBtn: { width: 46, height: 46, alignItems: 'center', justifyContent: 'center' },
   stepBtnText: { fontSize: 20, fontWeight: '900', color: '#5a7a3c' },
   saveBar: {
     position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: colors.cream,
-    paddingHorizontal: 22, paddingTop: 10, paddingBottom: 30, borderTopWidth: 1, borderTopColor: '#eceadf',
+    paddingHorizontal: 12, paddingTop: 10, paddingBottom: 30, borderTopWidth: 1, borderTopColor: '#dedacb',
   },
   saveBtn: { backgroundColor: colors.volt, borderRadius: 16, alignItems: 'center', paddingVertical: 15 },
 });

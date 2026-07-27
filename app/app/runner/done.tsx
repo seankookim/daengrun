@@ -42,7 +42,7 @@ export default function RunDone() {
   };
 
   return (
-    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ justifyContent: 'center', padding: 22, paddingTop: 70, paddingBottom: 40, flexGrow: 1 }}>
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ justifyContent: 'center', padding: 16, paddingTop: 70, paddingBottom: 40, flexGrow: 1 }}>
       <Text style={[text.h1, { textAlign: 'center' }]}>
         {runResult.completed ? '러닝 완료!' : '러닝 종료'}
       </Text>
@@ -72,7 +72,7 @@ export default function RunDone() {
       {runResult.bookingId && (
         <View style={{
           marginTop: 14, backgroundColor: '#fff', borderRadius: 18, padding: 15,
-          borderWidth: 1, borderColor: '#eceadf',
+          borderWidth: 1, borderColor: '#dedacb',
         }}>
           <Row style={{ justifyContent: 'space-between' }}>
             <Text style={{ fontSize: 13.5, fontWeight: '900', color: '#132117' }}>오늘의 순간</Text>
@@ -80,7 +80,7 @@ export default function RunDone() {
           </Row>
           <Row style={{ gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
             {photos.map((url) => (
-              <Image key={url} source={{ uri: url }} style={{ width: 64, height: 64, borderRadius: 10, backgroundColor: '#e2e0d4' }} />
+              <Image key={url} source={{ uri: url }} style={{ width: 64, height: 64, borderRadius: 10, backgroundColor: '#d9d5c6' }} />
             ))}
             {photos.length < 6 && (
               <Pressable
@@ -108,7 +108,7 @@ export default function RunDone() {
           style={{
             marginTop: 14, borderRadius: 18, padding: 18, alignItems: 'center',
             backgroundColor: colors.ink, borderWidth: 1.5, borderColor: colors.volt,
-            shadowColor: colors.volt, shadowOpacity: 0.35, shadowRadius: 12, shadowOffset: { width: 0, height: 3 },
+            shadowColor: colors.volt, shadowOpacity: 0.35, shadowRadius: 7, shadowOffset: { width: 0, height: 3 },
           }}
         >
           <Text style={{ fontSize: 22 }}>{pendingDrop.kind === 'pick' ? '🎁' : '▣'}</Text>

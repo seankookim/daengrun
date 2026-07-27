@@ -131,7 +131,7 @@ export default function Radar() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.cream }}>
-      <View style={{ paddingTop: 64, paddingHorizontal: 24 }}>
+      <View style={{ paddingTop: 64, paddingHorizontal: 12 }}>
         <Row style={{ justifyContent: 'space-between' }}>
           <Pressable onPress={() => router.replace('/owner/home')} style={s.backBtn}>
             <Text style={{ fontSize: 18, color: FOREST }}>‹</Text>
@@ -144,7 +144,7 @@ export default function Radar() {
         </Row>
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 150 }}>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 150 }}>
         {/* ---------- 리플 코어 ---------- */}
         <View style={{ alignItems: 'center', justifyContent: 'center', marginTop: 44, height: 210 }}>
           {!matchedName && (
@@ -240,7 +240,7 @@ export default function Radar() {
 const s = StyleSheet.create({
   backBtn: {
     width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff',
-    alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#e5e2d5',
+    alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#d9d5c6',
   },
   livePill: {
     flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#fdece7',
@@ -249,26 +249,26 @@ const s = StyleSheet.create({
   core: {
     width: 130, height: 130, borderRadius: 65, backgroundColor: '#fff',
     alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: '#f8cfc2',
-    shadowColor: CORAL, shadowOpacity: 0.2, shadowRadius: 18, shadowOffset: { width: 0, height: 8 },
+    shadowColor: CORAL, shadowOpacity: 0.2, shadowRadius: 10, shadowOffset: { width: 0, height: 4 },
   },
   runnerRow: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 16,
-    padding: 12, marginBottom: 8, borderWidth: 1, borderColor: '#eceadf',
+    padding: 12, marginBottom: 8, borderWidth: 1, borderColor: '#dedacb',
   },
   pacePill: { backgroundColor: '#eaf7c8', borderRadius: 99, paddingVertical: 5, paddingHorizontal: 10 },
   emptyBox: {
-    backgroundColor: '#fff', borderRadius: 16, padding: 18, borderWidth: 1, borderColor: '#eceadf',
+    backgroundColor: '#fff', borderRadius: 16, padding: 18, borderWidth: 1, borderColor: '#dedacb',
   },
   staleBox: {
     marginTop: 16, backgroundColor: '#fbf0d4', borderRadius: 14, padding: 14,
     borderWidth: 1, borderColor: '#ecd9a0',
   },
   footer: {
-    position: 'absolute', left: 24, right: 24, bottom: 42, gap: 8,
+    position: 'absolute', left: 12, right: 12, bottom: 42, gap: 8,
   },
   pickBtn: {
     backgroundColor: FOREST, borderRadius: 16, alignItems: 'center', paddingVertical: 16,
-    shadowColor: FOREST, shadowOpacity: 0.25, shadowRadius: 12, shadowOffset: { width: 0, height: 6 },
+    shadowColor: FOREST, shadowOpacity: 0.25, shadowRadius: 7, shadowOffset: { width: 0, height: 6 },
   },
   cancelBtn: { alignItems: 'center', paddingVertical: 9 },
 });

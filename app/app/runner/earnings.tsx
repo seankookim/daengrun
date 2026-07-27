@@ -32,7 +32,7 @@ export default function Earnings() {
     <View style={{ flex: 1, backgroundColor: colors.cream }}>
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ padding: 22, paddingTop: 60, paddingBottom: 30 }}
+        contentContainerStyle={{ padding: 16, paddingTop: 60, paddingBottom: 30 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         <Row style={{ gap: 6 }}>
@@ -73,7 +73,7 @@ export default function Earnings() {
         {/* ledger */}
         <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST, marginTop: 20, marginBottom: 10 }}>러닝별 내역</Text>
         {ledger.length === 0 && (
-          <View style={{ backgroundColor: '#fff', borderRadius: 16, padding: 24, alignItems: 'center', borderWidth: 1, borderColor: '#eceadf' }}>
+          <View style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, alignItems: 'center', borderWidth: 1, borderColor: '#dedacb' }}>
             <Text style={{ fontSize: 13, color: colors.dim, textAlign: 'center', lineHeight: 20 }}>
               아직 정산 내역이 없어요{'\n'}러닝을 완료하면 여기에 기록돼요
             </Text>
@@ -120,6 +120,6 @@ function Bd({ label, v, coral, accent }: { label: string; v: number; coral?: boo
 const s = StyleSheet.create({
   settleCard: { backgroundColor: FOREST, borderRadius: 20, padding: 18, marginTop: 16 },
   settleBtn: { backgroundColor: colors.volt, borderRadius: 12, alignItems: 'center', paddingVertical: 11, marginTop: 14 },
-  card: { backgroundColor: '#fff', borderRadius: 18, padding: 15, borderWidth: 1, borderColor: '#eceadf', marginTop: 12 },
+  card: { backgroundColor: '#fff', borderRadius: 18, padding: 15, borderWidth: 1, borderColor: '#dedacb', marginTop: 12 },
   changeChip: { backgroundColor: '#f4f2ea', borderRadius: 99, paddingVertical: 7, paddingHorizontal: 12, alignSelf: 'center' },
 });

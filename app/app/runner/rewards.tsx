@@ -54,7 +54,7 @@ export default function Rewards() {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: colors.cream }}
-      contentContainerStyle={{ padding: 22, paddingTop: 56, paddingBottom: 40 }}
+      contentContainerStyle={{ padding: 16, paddingTop: 56, paddingBottom: 40 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
       <Row style={{ justifyContent: 'space-between' }}>
@@ -162,14 +162,14 @@ export default function Rewards() {
 }
 
 const s = StyleSheet.create({
-  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#eceadf' },
+  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#dedacb' },
   milesCard: { backgroundColor: FOREST, borderRadius: 20, padding: 18, marginTop: 16 },
   section: { fontSize: 15, fontWeight: '900', color: FOREST, marginTop: 20, marginBottom: 8 },
   emptyBox: { backgroundColor: '#f4f2ea', borderRadius: 16, padding: 20 },
   dropCard: { backgroundColor: FOREST, borderRadius: 18, padding: 16, marginBottom: 10, borderWidth: 1.5, borderColor: colors.volt },
   openBtn: { backgroundColor: colors.volt, borderRadius: 13, alignItems: 'center', paddingVertical: 12, marginTop: 12 },
   pickBtn: { flex: 1, backgroundColor: colors.volt, borderRadius: 12, alignItems: 'center', paddingVertical: 11 },
-  card: { backgroundColor: '#fff', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#eceadf' },
+  card: { backgroundColor: '#fff', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#dedacb' },
   div: { height: 1, backgroundColor: '#f0eee3' },
   claimPill: { backgroundColor: '#eaf7c8', borderRadius: 99, paddingVertical: 5, paddingHorizontal: 10, alignSelf: 'center' },
   rankLink: { alignItems: 'center', marginTop: 18, padding: 10 },

@@ -94,7 +94,7 @@ export default function My() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.cream }}>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 22, paddingTop: 64, paddingBottom: 24 }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingTop: 64, paddingBottom: 24 }}>
         <Text style={s.h1}>마이</Text>
 
         {/* profile header — 실데이터 */}
@@ -220,7 +220,7 @@ const s = StyleSheet.create({
   h1: { fontSize: 30, fontWeight: '900', color: FOREST },
   profile: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff',
-    borderRadius: 20, padding: 16, borderWidth: 1, borderColor: '#eceadf', marginTop: 16,
+    borderRadius: 20, padding: 16, borderWidth: 1, borderColor: '#dedacb', marginTop: 16,
   },
   camBadge: {
     position: 'absolute', right: -3, bottom: -3, width: 18, height: 18, borderRadius: 9,
@@ -229,16 +229,16 @@ const s = StyleSheet.create({
   editBtn: { backgroundColor: '#f4f2ea', borderRadius: 99, paddingVertical: 7, paddingHorizontal: 11 },
   menuRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: '#fff', borderRadius: 18, padding: 15, borderWidth: 1, borderColor: '#eceadf',
+    backgroundColor: '#fff', borderRadius: 18, padding: 15, borderWidth: 1, borderColor: '#dedacb',
   },
   menuIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#eef4e0', alignItems: 'center', justifyContent: 'center' },
   roleSwitch: { alignItems: 'center', marginTop: 20, padding: 12 },
   backdrop: { flex: 1, backgroundColor: '#00000055' },
-  sheet: { backgroundColor: colors.cream, borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 22, paddingBottom: 40 },
+  sheet: { backgroundColor: colors.cream, borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 16, paddingBottom: 40 },
   handle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: '#d8d5c8', marginBottom: 14 },
   fieldLabel: { fontSize: 12, fontWeight: '800', color: '#3d453d', marginTop: 14, marginBottom: 6 },
   input: {
-    backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: '#eceadf',
+    backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: '#dedacb',
     paddingVertical: 12, paddingHorizontal: 14, fontSize: 14.5, color: FOREST,
   },
   saveBtn: { backgroundColor: colors.volt, borderRadius: 16, alignItems: 'center', paddingVertical: 14, marginTop: 18 },

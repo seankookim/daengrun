@@ -13,7 +13,7 @@ const CATS = ['전체', '간식', '용품', '의류', '영양제'];
 export default function Shop() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.cream }}>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 22, paddingTop: 56 }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingTop: 56 }}>
         <Row style={{ justifyContent: 'space-between', marginBottom: 16 }}>
           <Pressable onPress={() => router.replace(homePath())} style={s.circleBtn}><Text style={{ fontSize: 18 }}>‹</Text></Pressable>
           <Text style={{ fontSize: 20, fontWeight: '900', color: FOREST }}>댕런 샵</Text>
@@ -73,10 +73,10 @@ export default function Shop() {
 }
 
 const s = StyleSheet.create({
-  circleBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#eceadf' },
+  circleBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#dedacb' },
   banner: { flexDirection: 'row', alignItems: 'center', backgroundColor: FOREST, borderRadius: 20, padding: 18 },
   bannerGo: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.volt, alignItems: 'center', justifyContent: 'center' },
-  cat: { borderRadius: 99, paddingVertical: 10, paddingHorizontal: 18, backgroundColor: '#fff', borderWidth: 1, borderColor: '#eceadf' },
+  cat: { borderRadius: 99, paddingVertical: 10, paddingHorizontal: 18, backgroundColor: '#fff', borderWidth: 1, borderColor: '#dedacb' },
   prod: { width: '47.5%', borderRadius: 20, padding: 14, minHeight: 210 },
   prodName: { fontSize: 14.5, fontWeight: '900', color: FOREST, marginTop: 6, lineHeight: 20 },
   prodVisual: { flex: 1, alignItems: 'center', justifyContent: 'center', marginVertical: 8 },

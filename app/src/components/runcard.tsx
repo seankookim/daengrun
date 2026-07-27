@@ -45,7 +45,7 @@ export function HeatTrace({ points, width, height }: { points: TracePoint[]; wid
         <View key={`v${t}`} style={{ position: 'absolute', top: 0, bottom: 0, left: t * width, width: 1, backgroundColor: '#ffffff08' }} />
       ))}
       {/* park blob */}
-      <View style={{ position: 'absolute', left: width * 0.3, top: height * 0.3, width: width * 0.34, height: height * 0.36, borderRadius: 24, backgroundColor: '#14261f' }} />
+      <View style={{ position: 'absolute', left: width * 0.3, top: height * 0.3, width: width * 0.34, height: height * 0.36, borderRadius: 18, backgroundColor: '#14261f' }} />
 
       {/* glowing heat line */}
       {segments.map((s) => (
@@ -106,14 +106,14 @@ export function RunCard({ card, width = 340 }: { card: CollectCard; width?: numb
       style={{
         width,
         backgroundColor: p.card,
-        borderRadius: 24,
+        borderRadius: 18,
         padding: 16,
         borderWidth: 1,
         borderColor: p.line,
         opacity: card.locked ? 0.55 : 1,
         shadowColor: card.locked ? 'transparent' : colors.volt,
         shadowOpacity: 0.12,
-        shadowRadius: 16,
+        shadowRadius: 9,
         shadowOffset: { width: 0, height: 4 },
       }}
     >

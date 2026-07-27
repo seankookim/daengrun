@@ -82,7 +82,7 @@ export default function Schedule() {
         contentContainerStyle={{ paddingTop: 56, paddingBottom: 30 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
-        <View style={{ paddingHorizontal: 22 }}>
+        <View style={{ paddingHorizontal: 12 }}>
         {/* header */}
         <Row style={{ justifyContent: 'space-between' }}>
           <Pressable onPress={() => router.back()} style={s.circleBtn}><Text style={{ fontSize: 18 }}>‹</Text></Pressable>
@@ -118,7 +118,7 @@ export default function Schedule() {
         )}
         {Object.entries(groups).map(([dateLabel, items]) => (
           <View key={dateLabel} style={{ marginTop: 18 }}>
-            <Text style={{ fontSize: 13, fontWeight: '900', color: '#5d655d', paddingHorizontal: 22, marginBottom: 8 }}>{dateLabel}</Text>
+            <Text style={{ fontSize: 13, fontWeight: '900', color: '#5d655d', paddingHorizontal: 12, marginBottom: 8 }}>{dateLabel}</Text>
             {items.map((b) => {
               const st = STATUS_STYLE[b.status];
               const rt = sampleRoutes.find((r) => r.id === b.routeId);
@@ -410,13 +410,13 @@ function FeeLine({ label, value, coral, bold }: { label: string; value: string; 
 }
 
 const s = StyleSheet.create({
-  circleBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#eceadf' },
-  viewToggle: { flexDirection: 'row', backgroundColor: '#fff', borderRadius: 99, padding: 4, marginTop: 16, borderWidth: 1, borderColor: '#eceadf' },
+  circleBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#dedacb' },
+  viewToggle: { flexDirection: 'row', backgroundColor: '#fff', borderRadius: 99, padding: 4, marginTop: 16, borderWidth: 1, borderColor: '#dedacb' },
   viewTab: { flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: 99 },
   comingSoon: { backgroundColor: '#f4f2ea', borderRadius: 12, padding: 10, marginTop: 10 },
-  filter: { backgroundColor: '#fff', borderRadius: 99, paddingVertical: 8, paddingHorizontal: 14, borderWidth: 1, borderColor: '#eceadf' },
-  emptyBox: { marginTop: 24, marginHorizontal: 22, padding: 24, backgroundColor: '#f4f2ea', borderRadius: 16 },
-  bookingCard: { flexDirection: 'row', backgroundColor: '#fff', borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#eceadf', marginTop: -1, overflow: 'hidden' },
+  filter: { backgroundColor: '#fff', borderRadius: 99, paddingVertical: 8, paddingHorizontal: 14, borderWidth: 1, borderColor: '#dedacb' },
+  emptyBox: { marginTop: 24, marginHorizontal: 12, padding: 18, backgroundColor: '#f4f2ea', borderRadius: 16 },
+  bookingCard: { flexDirection: 'row', backgroundColor: '#fff', borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#dedacb', marginTop: -1, overflow: 'hidden' },
   rail: { width: 5 },
   recurPill: { backgroundColor: '#e3f0c4', borderRadius: 99, paddingVertical: 2, paddingHorizontal: 7, alignSelf: 'center' },
   livePillSm: { backgroundColor: '#5a7a3c', borderRadius: 99, paddingVertical: 2, paddingHorizontal: 7, alignSelf: 'center' },
@@ -428,21 +428,21 @@ const s = StyleSheet.create({
   thumbMap: { width: 68, height: 52, borderRadius: 10, backgroundColor: '#0e150f', padding: 2, overflow: 'hidden' },
   certDot: { width: 13, height: 13, borderRadius: 7, backgroundColor: '#3d8fd4', alignItems: 'center', justifyContent: 'center', alignSelf: 'center' },
   emptyCta: {
-    marginTop: 20, marginHorizontal: 22, borderRadius: 16, borderWidth: 1.4, borderColor: '#cfd8c2', borderStyle: 'dashed',
+    marginTop: 20, marginHorizontal: 12, borderRadius: 16, borderWidth: 1.4, borderColor: '#cfd8c2', borderStyle: 'dashed',
     alignItems: 'center', paddingVertical: 14,
   },
   // sheet
   backdrop: { flex: 1, backgroundColor: '#00000055' },
-  sheet: { backgroundColor: colors.cream, borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 22, paddingBottom: 36 },
+  sheet: { backgroundColor: colors.cream, borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 16, paddingBottom: 36 },
   handle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: '#d8d5c8', marginBottom: 14 },
-  sheetCard: { backgroundColor: '#fff', borderRadius: 18, padding: 15, borderWidth: 1, borderColor: '#eceadf', marginTop: 12 },
+  sheetCard: { backgroundColor: '#fff', borderRadius: 18, padding: 15, borderWidth: 1, borderColor: '#dedacb', marginTop: 12 },
   sheetMap: { marginTop: 10, borderRadius: 14, backgroundColor: '#0e150f', paddingVertical: 6, paddingHorizontal: 4, overflow: 'hidden', alignItems: 'center' },
   featChip: { flexDirection: 'row', gap: 4, alignItems: 'center', backgroundColor: '#eef4e0', borderRadius: 9, paddingVertical: 4, paddingHorizontal: 8 },
   vDiv: { width: 1, backgroundColor: '#f0eee3' },
   badgePill: { backgroundColor: '#e3f0c4', borderRadius: 99, paddingVertical: 2, paddingHorizontal: 7, alignSelf: 'center' },
   chatChip: { backgroundColor: '#eef4e0', borderRadius: 99, paddingVertical: 8, paddingHorizontal: 13, alignSelf: 'center' },
   primaryAction: { backgroundColor: colors.volt, borderRadius: 16, alignItems: 'center', paddingVertical: 14, marginTop: 16 },
-  ghostAction: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#eceadf', borderRadius: 16, alignItems: 'center', paddingVertical: 13, marginTop: 8 },
+  ghostAction: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#dedacb', borderRadius: 16, alignItems: 'center', paddingVertical: 13, marginTop: 8 },
   cancelLink: { alignItems: 'center', paddingVertical: 14, marginTop: 4 },
   cancelConfirm: { backgroundColor: '#e8492a', borderRadius: 16, alignItems: 'center', paddingVertical: 15, marginTop: 16 },
 });
