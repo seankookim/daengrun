@@ -6,9 +6,10 @@ import { BottomNav } from '../../src/components/bottomnav';
 import { Ring } from '../../src/components/ring';
 import { RunCard } from '../../src/components/runcard';
 import { Avatar } from '../../src/components/ui';
-import { fetchCertifiedRunners, fetchFitness, fetchMyBookings, Fitness, LiveRunner } from '../../src/lib/api';
+import { Addr, confirmPayment, createBookingHold, DogProfile, fetchAddresses, fetchCertifiedRunners, fetchFitness, fetchMyBookings, fetchMyDogs, Fitness, LiveRunner } from '../../src/lib/api';
+import { haptic } from '../../src/lib/haptics';
 import { Booking, demoImminent, dog, draft, myCards, nextBooking, ownerGearLadder, runners } from '../../src/store';
-import { colors, surfaces } from '../../src/theme';
+import { colors, pricing, surfaces } from '../../src/theme';
 import { useTheme } from '../../src/theme-context';
 
 // Owner home — themed (dark/light toggle in header) with a sticky collapsing hero:
@@ -53,6 +54,74 @@ export default function OwnerHome() {
 
   // 우리 동네 러너 — 온라인 러너 셸프 (탐색형 매칭의 시작점)
   const [localRunners, setLocalRunners] = useState<LiveRunner[]>([]);
+
+  // ── 지금 러너 찾기 — 원탭 히어로 → 프리필 시트(2탭) → 오픈 브로드캐스트 + 레이더
+  const [fnOpen, setFnOpen] = useState(false);
+  const [fnDogs, setFnDogs] = useState<DogProfile[]>([]);
+  const [fnDogIdx, setFnDogIdx] = useState(0);
+  const [fnAddrs, setFnAddrs] = useState<Addr[]>([]);
+  const [fnAddrIdx, setFnAddrIdx] = useState(0);
+  const [fnKm, setFnKm] = useState(3);
+  const [fnBusy, setFnBusy] = useState(false);
+  const fnPulse = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(Animated.sequence([
+      Animated.timing(fnPulse, { toValue: 1, duration: 1100, useNativeDriver: true }),
+      Animated.timing(fnPulse, { toValue: 0, duration: 1100, useNativeDriver: true }),
+    ]));
+    loop.start();
+    return () => loop.stop();
+  }, [fnPulse]);
+
+  const openFindNow = async () => {
+    haptic('medium');
+    try {
+      const [dogs, addrs] = await Promise.all([fetchMyDogs(), fetchAddresses().catch(() => [] as Addr[])]);
+      if (dogs.length === 0) {
+        Alert.alert('강아지 프로필이 필요해요', '먼저 아이를 등록하면 바로 찾을 수 있어요', [
+          { text: '나중에', style: 'cancel' },
+          { text: '등록하기', onPress: () => router.push('/owner/dog') },
+        ]);
+        return;
+      }
+      setFnDogs(dogs); setFnDogIdx(0);
+      setFnAddrs(addrs); setFnAddrIdx(Math.max(0, addrs.findIndex((a) => a.isDefault)));
+      setFnKm(lastDone?.km ?? draft.km); // 지난 러닝 거리로 프리필
+      setFnOpen(true);
+    } catch (e) {
+      Alert.alert('불러오기 실패', (e as Error).message);
+    }
+  };
+
+  const findNowPay = async () => {
+    const dogPick = fnDogs[fnDogIdx];
+    if (!dogPick || fnBusy) return;
+    setFnBusy(true);
+    haptic('medium');
+    // ASAP = 지금 + 40분 (러너 이동·준비 리드타임) — 예약형의 2시간 룰과 별개
+    const when = new Date(Date.now() + 40 * 60_000);
+    when.setSeconds(0, 0);
+    try {
+      const res = await createBookingHold({
+        dog_id: dogPick.id,
+        address_id: fnAddrs[fnAddrIdx]?.id,
+        scheduled_at: when.toISOString(),
+        km: fnKm,
+        pace_label: draft.pace,
+        addons: [], // find-now는 스피드가 본질 — 옵션은 예약 플로우에서
+      });
+      await confirmPayment(res.booking_id); // 결제 시뮬레이션 → matching (오픈 브로드캐스트)
+      draft.bookingId = res.booking_id;
+      draft.km = fnKm;
+      setFnOpen(false);
+      router.push('/owner/radar');
+    } catch (e) {
+      Alert.alert('요청 실패', (e as Error).message); // 정직: 실패는 실패 — 데모 폴백 없음
+    } finally {
+      setFnBusy(false);
+    }
+  };
+  const fnPrice = pricing.baseFare + fnKm * pricing.perKm;
 
   // reward beacon — 실보상 경제 전까지 숨김 (상시 가짜 도파민 = 학습된 무시, ui-audit P0)
   const [ladderOpen, setLadderOpen] = useState(false);
@@ -205,6 +274,47 @@ export default function OwnerHome() {
             accent="#9fc3e8"
           />
         </View>
+
+        {/* ---------- 지금 러너 찾기 히어로 — 액션을 원탭 거리로 (매칭 중이면 레이더 재입장) ---------- */}
+        {(!liveNext || liveNext.status === 'pending') && (
+          <Pressable
+            onPress={() => {
+              if (liveNext?.status === 'pending') { draft.bookingId = liveNext.id; router.push('/owner/radar'); return; }
+              if (localRunners.length === 0) { router.push('/owner/request'); return; }
+              openFindNow();
+            }}
+            style={s.findNow}
+          >
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 18, fontWeight: '900', color: '#fff' }}>
+                {liveNext?.status === 'pending' ? '러너 찾는 중…' : '지금 러너 찾기'}
+              </Text>
+              <Text style={{ fontSize: 11.5, color: '#b8c4ae', marginTop: 5, lineHeight: 16 }}>
+                {liveNext?.status === 'pending'
+                  ? '레이더로 돌아가 진행 상황을 볼 수 있어요'
+                  : localRunners.length > 0
+                    ? `지금 온라인 러너 ${localRunners.length}명 — 약 40분 내 시작`
+                    : '지금은 온라인 러너가 없어요 — 예약으로 잡아두세요'}
+              </Text>
+              {localRunners.length > 0 && (
+                <View style={{ flexDirection: 'row', marginTop: 9 }}>
+                  {localRunners.slice(0, 4).map((r, idx) => (
+                    <View key={r.profileId} style={[s.fnAvatarRim, idx > 0 && { marginLeft: -9 }]}>
+                      <Avatar url={r.avatarUrl} char={r.name[0]} bg="#5a7a3c" size={26} />
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+            <View style={{ width: 62, height: 62, alignItems: 'center', justifyContent: 'center' }}>
+              <Animated.View style={[s.fnPulseRing, {
+                opacity: fnPulse.interpolate({ inputRange: [0, 1], outputRange: [0.45, 0] }),
+                transform: [{ scale: fnPulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.55] }) }],
+              }]} />
+              <View style={s.fnGo}><Text style={{ fontSize: 20, color: '#132117' }}>➤</Text></View>
+            </View>
+          </Pressable>
+        )}
 
         {/* ---------- retention nudges (실데이터 기반, ui-audit P2) ---------- */}
         {weekKm > 0 && weekKm < goalKm && new Date().getDay() >= 4 && (
@@ -414,6 +524,68 @@ export default function OwnerHome() {
         {/* 최근 활동 목업 카드·'내 주변 인기 러너' 목업 섹션 은퇴 (ui-audit P0)
             — 실카드는 리포트/기록이, 실러너는 위 동네 러너 셸프가 담당 */}
       </Animated.ScrollView>
+      {/* ---------- 지금 러너 찾기 — 프리필 시트 (모두 채워져 있음, 탭 2번이면 끝) ---------- */}
+      <Modal visible={fnOpen} transparent animationType="slide" onRequestClose={() => setFnOpen(false)}>
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)' }} onPress={() => setFnOpen(false)} />
+        <View style={s.fnSheet}>
+          <View style={s.fnGrip} />
+          <Text style={{ fontSize: 19, fontWeight: '900', color: '#132117' }}>지금 바로 러닝 찾기</Text>
+          <Text style={{ fontSize: 12, color: '#5d655d', marginTop: 4 }}>
+            모두 채워뒀어요 — 바꾸고 싶은 것만 눌러서 바꾸세요
+          </Text>
+
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 16 }}>
+            {/* 강아지 — 다견이면 탭으로 순환 */}
+            <Pressable
+              onPress={() => fnDogs.length > 1 && setFnDogIdx((i) => (i + 1) % fnDogs.length)}
+              style={s.fnChip}
+            >
+              <Text style={s.fnChipText}>🐕 {fnDogs[fnDogIdx]?.name ?? '—'}{fnDogs.length > 1 ? ' ▾' : ''}</Text>
+            </Pressable>
+            {/* 주소 — 기본 주소, 탭으로 순환 */}
+            <Pressable
+              onPress={() => {
+                if (fnAddrs.length === 0) { setFnOpen(false); router.push('/owner/addresses'); return; }
+                setFnAddrIdx((i) => (i + 1) % fnAddrs.length);
+              }}
+              style={s.fnChip}
+            >
+              <Text style={s.fnChipText}>
+                ⌂ {fnAddrs[fnAddrIdx] ? fnAddrs[fnAddrIdx].label : '주소 등록'}{fnAddrs.length > 1 ? ' ▾' : ''}
+              </Text>
+            </Pressable>
+            {/* 시간 — ASAP 고정 (예약은 기존 플로우) */}
+            <View style={[s.fnChip, { backgroundColor: '#eaf7c8', borderColor: '#c9dd9a' }]}>
+              <Text style={[s.fnChipText, { color: '#3f5a26' }]}>⚡ 지금 바로 · 약 40분 내</Text>
+            </View>
+          </View>
+
+          {/* 거리 스테퍼 */}
+          <View style={s.fnKmRow}>
+            <Pressable onPress={() => setFnKm((k) => Math.max(1, k - 1))} style={s.fnStep}><Text style={s.fnStepText}>−</Text></Pressable>
+            <View style={{ alignItems: 'center', flex: 1 }}>
+              <Text style={{ fontSize: 30, fontWeight: '900', color: '#132117' }}>{fnKm}km</Text>
+              <Text style={{ fontSize: 10.5, color: '#5d655d', marginTop: 2 }}>러닝 거리</Text>
+            </View>
+            <Pressable onPress={() => setFnKm((k) => Math.min(10, k + 1))} style={s.fnStep}><Text style={s.fnStepText}>＋</Text></Pressable>
+          </View>
+
+          <View style={s.fnPriceRow}>
+            <Text style={{ fontSize: 12.5, color: '#5d655d' }}>결제 금액</Text>
+            <Text style={{ fontSize: 20, fontWeight: '900', color: '#132117' }}>{fnPrice.toLocaleString()}원</Text>
+          </View>
+
+          <Pressable onPress={findNowPay} disabled={fnBusy} style={[s.fnPay, fnBusy && { opacity: 0.5 }]}>
+            <Text style={{ fontSize: 15, fontWeight: '900', color: '#132117' }}>
+              {fnBusy ? '요청 보내는 중...' : '결제하고 바로 찾기 ➤'}
+            </Text>
+          </Pressable>
+          <Text style={{ fontSize: 10.5, color: '#9aa08f', textAlign: 'center', marginTop: 10 }}>
+            온라인 러너 전원에게 요청이 전송돼요 · 매칭 전 취소는 전액 환불
+          </Text>
+        </View>
+      </Modal>
+
       <BottomNav dark={mode === 'dark'} />
 
       {/* ---------- milestone ladder sheet ---------- */}
@@ -506,6 +678,42 @@ function SlideToBook({ onComplete }: { onComplete: () => void }) {
 }
 
 const s = StyleSheet.create({
+  // 지금 러너 찾기 히어로 + 시트
+  findNow: {
+    flexDirection: 'row', alignItems: 'center', backgroundColor: '#132117',
+    borderRadius: 24, padding: 18, marginTop: 14, borderWidth: 1.5, borderColor: colors.volt,
+    shadowColor: '#132117', shadowOpacity: 0.25, shadowRadius: 14, shadowOffset: { width: 0, height: 8 },
+  },
+  fnAvatarRim: { borderWidth: 2, borderColor: '#132117', borderRadius: 15 },
+  fnPulseRing: { position: 'absolute', width: 54, height: 54, borderRadius: 27, borderWidth: 2, borderColor: colors.volt },
+  fnGo: {
+    width: 54, height: 54, borderRadius: 27, backgroundColor: colors.volt,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  fnSheet: {
+    backgroundColor: '#fff', borderTopLeftRadius: 28, borderTopRightRadius: 28,
+    paddingHorizontal: 22, paddingTop: 12, paddingBottom: 40,
+  },
+  fnGrip: { alignSelf: 'center', width: 42, height: 5, borderRadius: 3, backgroundColor: '#e2e0d4', marginBottom: 14 },
+  fnChip: {
+    backgroundColor: '#f4f2ea', borderRadius: 99, paddingVertical: 9, paddingHorizontal: 14,
+    borderWidth: 1, borderColor: '#e5e2d5',
+  },
+  fnChipText: { fontSize: 12.5, fontWeight: '800', color: '#132117' },
+  fnKmRow: {
+    flexDirection: 'row', alignItems: 'center', marginTop: 16, backgroundColor: '#f8f7f1',
+    borderRadius: 18, padding: 14, borderWidth: 1, borderColor: '#eceadf',
+  },
+  fnStep: {
+    width: 44, height: 44, borderRadius: 22, backgroundColor: '#fff', alignItems: 'center',
+    justifyContent: 'center', borderWidth: 1, borderColor: '#e2e0d4',
+  },
+  fnStepText: { fontSize: 22, fontWeight: '800', color: '#132117' },
+  fnPriceRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    marginTop: 14, paddingHorizontal: 4,
+  },
+  fnPay: { backgroundColor: colors.volt, borderRadius: 16, alignItems: 'center', paddingVertical: 16, marginTop: 12 },
   overlay: {
     position: 'absolute', top: 0, left: 0, right: 0, zIndex: 20,
     paddingTop: PAD_TOP, paddingHorizontal: 22, paddingBottom: 10,

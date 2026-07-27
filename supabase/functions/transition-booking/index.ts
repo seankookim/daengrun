@@ -30,12 +30,20 @@ Deno.serve(handle(async (req) => {
       break;
 
     case "runner_accept": {
-      // 지정 러너 수락 (matching 자동배정은 v2)
       const { data: r } = await db.from("runners").select("profile_id").eq("profile_id", uid).single();
       if (!r) throw new HttpError(403, "runner only");
       if (bk.runner_id && bk.runner_id !== uid) throw new HttpError(409, "assigned to another runner");
       // 인계 타임스탬프 초기화 — 이전 시도/재매칭의 잔재가 남으면 한쪽 확인만으로 즉시 picked_up 되는 사고
-      await set({ runner_id: uid, status: "confirmed", owner_confirmed_handoff_at: null, runner_confirmed_handoff_at: null });
+      const resetPatch = { runner_id: uid, status: "confirmed", owner_confirmed_handoff_at: null, runner_confirmed_handoff_at: null };
+      if (!bk.runner_id) {
+        // 오픈 매칭 선점 — 원자적 조건부 업데이트: 동시 수락 시 첫 번째만 승리 (find-now 브로드캐스트)
+        const { data: claimed, error: ce } = await db.from("bookings")
+          .update(resetPatch).eq("id", booking_id).is("runner_id", null).select("id");
+        if (ce) throw new HttpError(409, ce.message);
+        if (!claimed || claimed.length === 0) throw new HttpError(409, "이미 다른 러너가 수락했어요");
+      } else {
+        await set(resetPatch);
+      }
       await notify(bk.owner_id, "러너 매칭 완료", "러닝 파트너가 매칭되었어요!");
       break;
     }

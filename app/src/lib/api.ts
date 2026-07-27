@@ -1080,6 +1080,15 @@ export function subscribeMessages(threadId: string, uid: string | null, onMsg: (
 }
 
 // 예약 상태 실시간 구독 — 폴링을 대체 (폴백 폴링은 화면이 유지)
+// 레이더(찾는 중) 화면용 — 상태 + 수락 러너 이름만 가볍게
+export async function fetchBookingBrief(id: string): Promise<{ status: string; runnerName: string | null }> {
+  const { data, error } = await supabase.from('bookings')
+    .select('status, runners(profiles(name))').eq('id', id).single();
+  if (error) throw error;
+  const d = data as any;
+  return { status: d.status, runnerName: d.runners?.profiles?.name ?? null };
+}
+
 export function subscribeBooking(bookingId: string, onChange: () => void): () => void {
   const ch = supabase
     .channel(`bk-${bookingId}`)
