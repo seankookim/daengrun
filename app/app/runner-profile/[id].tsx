@@ -1,8 +1,8 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Animated, Dimensions, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Animated, Dimensions, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Avatar, Row } from '../../src/components/ui';
-import { checkSlot, deleteRunnerPhoto, fetchRunnerProfile, RunnerPublicProfile, uploadRunnerPhoto } from '../../src/lib/api';
+import { checkSlot, deleteRunnerPhoto, fetchRunnerProfile, RunnerPublicProfile, updateMyProfile, updateRunnerBio, uploadRunnerPhoto } from '../../src/lib/api';
 import { haptic } from '../../src/lib/haptics';
 import { supabase } from '../../src/lib/supabase';
 import { draft, session } from '../../src/store';
@@ -38,6 +38,34 @@ export default function RunnerProfileScreen() {
   const [dayIdx, setDayIdx] = useState(0);
   const [slotOk, setSlotOk] = useState<Record<string, boolean | null>>({});
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  // 단일 프로필 편집기 — 마이의 별도 시트 대신 여기서 이름·동네·소개 전부 (혼선 제거)
+  const [editing, setEditing] = useState(false);
+  const [eName, setEName] = useState('');
+  const [eDistrict, setEDistrict] = useState('');
+  const [eBio, setEBio] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const openEdit = () => {
+    if (!p) return;
+    setEName(p.name);
+    setEDistrict(p.district);
+    setEBio(p.bio ?? '');
+    setEditing(true);
+  };
+
+  const saveEdit = async () => {
+    setSaving(true);
+    try {
+      await updateMyProfile({ name: eName.trim() || undefined, district: eDistrict.trim() || undefined });
+      await updateRunnerBio(eBio.trim());
+      setEditing(false);
+      if (id) fetchRunnerProfile(id).then(setP).catch(() => {});
+    } catch (e) {
+      Alert.alert('저장 실패', (e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
   // 선택 → 하단 확인 바 → 진행 (즉시 이동 없음 — 결제 바와 같은 확인 패턴)
   const [selected, setSelected] = useState<{ key: string; label: string; start: Date } | null>(null);
   // 확인 바 스프링 등장 — 선택이라는 상태 변화를 모션으로
@@ -190,6 +218,11 @@ export default function RunnerProfileScreen() {
                     {p.district || '동네 미설정'}{p.avgRating != null ? ` · ★ ${p.avgRating}` : ''}
                   </Text>
                 </View>
+                {canEdit && (
+                  <Pressable onPress={openEdit} style={s.editChip}>
+                    <Text style={{ fontSize: 11.5, fontWeight: '800', color: FOREST }}>✎ 편집</Text>
+                  </Pressable>
+                )}
               </Row>
               <Row style={{ marginTop: 16, backgroundColor: '#1d3023', borderRadius: 14, paddingVertical: 12, justifyContent: 'space-around' }}>
                 <HeroStat value={`${p.totalRuns}회`} label="완료 러닝" />
@@ -360,6 +393,33 @@ export default function RunnerProfileScreen() {
         )}
       </ScrollView>
 
+      {/* ---------- 프로필 편집 시트 (러너 단일 편집기) ---------- */}
+      <Modal visible={editing} transparent animationType="slide" onRequestClose={() => setEditing(false)}>
+        <Pressable style={s.editBackdrop} onPress={() => setEditing(false)} />
+        <View style={s.editSheet}>
+          <View style={s.editHandle} />
+          <Text style={{ fontSize: 19, fontWeight: '900', color: FOREST }}>프로필 편집</Text>
+          <Text style={s.editLabel}>이름</Text>
+          <TextInput value={eName} onChangeText={setEName} style={s.editInput} maxLength={20} placeholder="이름 또는 닉네임" placeholderTextColor="#b0ada0" />
+          <Text style={s.editLabel}>활동 동네</Text>
+          <TextInput value={eDistrict} onChangeText={setEDistrict} style={s.editInput} maxLength={20} placeholder="예: 성수동" placeholderTextColor="#b0ada0" />
+          <Text style={s.editLabel}>자기소개</Text>
+          <TextInput
+            value={eBio}
+            onChangeText={setEBio}
+            style={[s.editInput, { height: 96, textAlignVertical: 'top', paddingTop: 12 }]}
+            multiline
+            maxLength={300}
+            placeholder="러닝 경력, 반려견 경험, 나의 강점"
+            placeholderTextColor="#b0ada0"
+          />
+          <Text style={{ fontSize: 10.5, color: colors.dim, marginTop: 8 }}>사진·갤러리는 이 페이지에서 바로 편집해요</Text>
+          <Pressable onPress={saveEdit} disabled={saving} style={[s.editSave, saving && { opacity: 0.5 }]}>
+            <Text style={{ fontSize: 14, fontWeight: '900', color: FOREST }}>{saving ? '저장 중...' : '저장'}</Text>
+          </Pressable>
+        </View>
+      </Modal>
+
       {/* ---------- 슬롯 확인 바 — 결제 바와 같은 확인 패턴 ---------- */}
       {selected && p && canBook && (
         <Animated.View style={[s.confirmBar, { transform: [{ translateY: barY }] }]}>
@@ -405,6 +465,13 @@ const s = StyleSheet.create({
   addTile: { width: TILE, height: TILE, backgroundColor: '#f4f2ea', alignItems: 'center', justifyContent: 'center' },
   cta: { backgroundColor: colors.volt, borderRadius: 18, alignItems: 'center', paddingVertical: 15, marginTop: 16 },
   ghostCta: { backgroundColor: '#fff', borderRadius: 16, alignItems: 'center', paddingVertical: 13, marginTop: 8, borderWidth: 1, borderColor: '#eceadf' },
+  editChip: { backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 7, paddingHorizontal: 12, alignSelf: 'flex-start' },
+  editBackdrop: { flex: 1, backgroundColor: '#00000055' },
+  editSheet: { backgroundColor: colors.cream, borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 22, paddingBottom: 40 },
+  editHandle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: '#d8d5c8', marginBottom: 14 },
+  editLabel: { fontSize: 12, fontWeight: '800', color: '#3d453d', marginTop: 14, marginBottom: 6 },
+  editInput: { backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: '#eceadf', paddingVertical: 12, paddingHorizontal: 14, fontSize: 14.5, color: FOREST },
+  editSave: { backgroundColor: colors.volt, borderRadius: 16, alignItems: 'center', paddingVertical: 14, marginTop: 18 },
   confirmBar: {
     position: 'absolute', left: 0, right: 0, bottom: 0,
     flexDirection: 'row', alignItems: 'center', gap: 12,

@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { addDog, AvailRule, confirmPayment, createBookingHold, DogProfile, ensureDog, fetchMyDogs, fetchRoutes, fetchRunnerAvailability, requestRunner } from '../../src/lib/api';
+import { addDog, Addr, AvailRule, confirmPayment, createBookingHold, DogProfile, ensureDog, fetchAddresses, fetchMyDogs, fetchRoutes, fetchRunnerAvailability, requestRunner } from '../../src/lib/api';
 import { HeatTrace } from '../../src/components/runcard';
 import { Avatar, Row } from '../../src/components/ui';
 import { haptic } from '../../src/lib/haptics';
@@ -49,6 +49,7 @@ export default function Request() {
   const [routes, setRoutes] = useState(sampleRoutes);
   const [routesLive, setRoutesLive] = useState(false);
   const [myDogs, setMyDogs] = useState<DogProfile[]>([]);
+  const [pickupAddr, setPickupAddr] = useState<Addr | null>(null);
   const [dogIdx, setDogIdx] = useState(0);
   const myDog = myDogs[dogIdx] ?? null;
 
@@ -64,6 +65,7 @@ export default function Request() {
       })
       .catch(() => {});
     fetchMyDogs().then(setMyDogs).catch(() => {});
+    fetchAddresses().then((l) => setPickupAddr(l.find((a) => a.isDefault) ?? l[0] ?? null)).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [slotSheet, setSlotSheet] = useState(false);
@@ -133,6 +135,7 @@ export default function Request() {
       const res = await createBookingHold({
         dog_id: dogId,
         route_id: routesLive ? routeId : undefined, // 목업 코스 id는 uuid가 아님
+        address_id: pickupAddr?.id,
         scheduled_at: draft.scheduledAtIso!, // pay()에서 선택 강제됨 — +3h 폴백 은퇴
         km,
         pace_label: pace,
@@ -277,7 +280,14 @@ export default function Request() {
         {/* pickup */}
         <SectionHead glyph="➤" title="픽업 장소" />
         <Pressable style={[s.card, s.rowCard]} onPress={() => router.push('/owner/addresses')}>
-          <Text style={{ fontSize: 14, fontWeight: '700', color: FOREST }}>서울숲 2번 출입구</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: FOREST }}>
+              {pickupAddr ? pickupAddr.label : '픽업 주소를 등록해주세요'}
+            </Text>
+            <Text style={{ fontSize: 11, color: colors.dim, marginTop: 2 }} numberOfLines={1}>
+              {pickupAddr ? pickupAddr.addr : '주소 관리에서 첫 주소를 추가하면 기본 픽업이 돼요'}
+            </Text>
+          </View>
           <Text style={{ fontSize: 12, color: colors.dim }}>주소 관리 ›</Text>
         </Pressable>
 

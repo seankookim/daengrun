@@ -171,6 +171,7 @@ export interface HoldResult { booking_id: string; hold_expires_at: string; total
 export async function createBookingHold(p: {
   dog_id: string;
   route_id?: string;
+  address_id?: string;
   scheduled_at: string;
   km: number;
   pace_label?: string;
@@ -1116,6 +1117,110 @@ export async function openChatForBooking(bookingId: string): Promise<ChatContext
     peerName,
     label: `${dateLabel} ${timeLabel} · ${b.dogs?.name ?? '반려견'} · ${b.routes?.name ?? '코스 미지정'} ${b.km}km`,
   };
+}
+
+// ---------- 안심 센터 (SOS·긴급 연락처) ----------
+export interface EmContact { id: string; name: string; phone: string }
+
+export async function fetchEmergencyContacts(): Promise<EmContact[]> {
+  const { data, error } = await supabase.from('emergency_contacts').select('id, name, phone').order('name');
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function addEmergencyContact(name: string, phone: string): Promise<void> {
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) throw new Error('not signed in');
+  const { error } = await supabase.from('emergency_contacts').insert({ profile_id: user.user.id, name, phone });
+  if (error) throw error;
+}
+
+export async function deleteEmergencyContact(id: string): Promise<void> {
+  const { error } = await supabase.from('emergency_contacts').delete().eq('id', id);
+  if (error) throw error;
+}
+
+// SOS — 진행 중 예약의 상대방에게 즉시 알림 (푸시 도입 전엔 인앱 알림 + 실시간)
+export async function sendSOS(role: 'owner' | 'runner'): Promise<string | null> {
+  const bookingId = role === 'runner' ? await fetchCurrentRunnerJobId() : await fetchCurrentOwnerBookingId();
+  if (!bookingId) return null;
+  const { data: bk } = await supabase.from('bookings').select('owner_id, runner_id').eq('id', bookingId).single();
+  if (!bk) return null;
+  const target = role === 'owner' ? (bk as any).runner_id : (bk as any).owner_id;
+  if (!target) return null;
+  const { error } = await supabase.from('notifications').insert({
+    profile_id: target, kind: 'booking',
+    title: '🚨 SOS', body: '상대방이 긴급 도움을 요청했어요 — 즉시 연락해주세요',
+    ref_id: bookingId,
+  });
+  if (error) throw error;
+  return bookingId;
+}
+
+// ---------- 리워드 (드랍·기어) ----------
+export interface DropRow {
+  id: string; kind: string; runCountAt: number;
+  contents: { miles?: number; card?: string; gear?: string };
+  pickChoice: string | null; openedAt: string | null; when: string;
+}
+
+export async function fetchDrops(): Promise<DropRow[]> {
+  const { data, error } = await supabase
+    .from('drops').select('id, kind, run_count_at, contents, pick_choice, opened_at, created_at')
+    .order('created_at', { ascending: false }).limit(20);
+  if (error) throw error;
+  return (data ?? []).map((d: any) => {
+    const { dateLabel } = kstParts(d.created_at);
+    return { id: d.id, kind: d.kind, runCountAt: d.run_count_at, contents: d.contents ?? {}, pickChoice: d.pick_choice, openedAt: d.opened_at, when: dateLabel };
+  });
+}
+
+export async function openDrop(dropId: string, pickChoice?: string): Promise<Record<string, unknown>> {
+  const { data, error } = await supabase.functions.invoke('open-drop', { body: { drop_id: dropId, pick_choice: pickChoice } });
+  if (error || data?.error) throw await fnError(error, data);
+  return data;
+}
+
+export interface GearClaim { id: string; item: string; milestone: number; status: string }
+
+export async function fetchGearClaims(): Promise<GearClaim[]> {
+  const { data, error } = await supabase.from('gear_claims').select('id, item, milestone, status').order('milestone');
+  if (error) throw error;
+  return data ?? [];
+}
+
+// ---------- 주소 (픽업 장소) ----------
+export interface Addr { id: string; label: string; addr: string; detail: string | null; isDefault: boolean }
+
+export async function fetchAddresses(): Promise<Addr[]> {
+  const { data, error } = await supabase.from('addresses')
+    .select('id, label, addr, detail, is_default').order('created_at');
+  if (error) throw error;
+  return (data ?? []).map((a: any) => ({ id: a.id, label: a.label, addr: a.addr, detail: a.detail, isDefault: a.is_default }));
+}
+
+export async function addAddress(p: { label: string; addr: string; detail?: string }): Promise<void> {
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) throw new Error('not signed in');
+  const existing = await fetchAddresses();
+  const { error } = await supabase.from('addresses').insert({
+    owner_id: user.user.id, label: p.label, addr: p.addr, detail: p.detail ?? null,
+    is_default: existing.length === 0, // 첫 주소 자동 기본
+  });
+  if (error) throw error;
+}
+
+export async function setDefaultAddress(id: string): Promise<void> {
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) throw new Error('not signed in');
+  await supabase.from('addresses').update({ is_default: false }).eq('owner_id', user.user.id);
+  const { error } = await supabase.from('addresses').update({ is_default: true }).eq('id', id);
+  if (error) throw error;
+}
+
+export async function deleteAddress(id: string): Promise<void> {
+  const { error } = await supabase.from('addresses').delete().eq('id', id);
+  if (error) throw error;
 }
 
 // ---------- 동네 피드 (옵트인 러닝 자랑) ----------

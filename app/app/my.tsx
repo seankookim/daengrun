@@ -81,8 +81,7 @@ export default function My() {
   };
 
   const MENU = [
-    ...(isRunner ? [{ glyph: '◉', label: '내 공개 프로필', desc: '보호자에게 보이는 내 스토어프런트', path: null }] : []),
-    { glyph: '✚', label: '안심 센터', desc: 'SOS · 실시간 위치 · 보험', path: '/safety' as const },
+    { glyph: '✚', label: '안심 센터', desc: 'SOS · 긴급 연락처 · 보험', path: '/safety' as const },
     isRunner
       ? { glyph: '✓', label: '러너 인증 센터', desc: '지원 절차 · 등급 사다리 · 교육', path: '/runner/apply' as const }
       : { glyph: '⌂', label: '주소 관리', desc: '픽업 장소 · 공동현관 정보', path: '/owner/addresses' as const },
@@ -90,7 +89,7 @@ export default function My() {
     { glyph: '▦', label: '예약 관리', desc: '다가오는 일정과 지난 예약', path: isRunner ? null : ('/owner/schedule' as const) },
     { glyph: '⌗', label: isRunner ? '내 러닝 기록' : `${dog.name}의 기록`, desc: '마이 카드 · 러닝 히스토리', path: '/cards' as const },
     { glyph: '◔', label: '알림', desc: '알림 확인 및 설정', path: '/alerts' as const },
-    { glyph: '⚙', label: '설정', desc: '계정 · 결제 수단 · 보안', path: null },
+    { glyph: '⚙', label: '설정', desc: '계정 · 로그아웃 · 문의', path: '/settings' as const },
   ];
 
   return (
@@ -112,8 +111,18 @@ export default function My() {
               {profile?.district ? `${profile.district} · ` : ''}{isRunner ? '신원인증 · 펫보험 가입' : `${dog.name} · ${dog.breed}`}
             </Text>
           </View>
-          <Pressable style={s.editBtn} onPress={openEdit}>
-            <Text style={{ fontSize: 11, fontWeight: '700', color: '#3d453d' }}>프로필 설정</Text>
+          <Pressable
+            style={s.editBtn}
+            onPress={() => {
+              // 프로필 편집 단일화 — 러너는 스토어프런트에서, 보호자는 여기 시트에서 (혼선 제거)
+              if (isRunner) {
+                if (profile) router.push(`/runner-profile/${profile.id}`);
+              } else {
+                openEdit();
+              }
+            }}
+          >
+            <Text style={{ fontSize: 11, fontWeight: '700', color: '#3d453d' }}>{isRunner ? '프로필 편집 ›' : '프로필 설정'}</Text>
           </Pressable>
         </View>
         <Text style={{ fontSize: 10.5, color: colors.dim, marginTop: 6, marginLeft: 4 }}>
@@ -127,10 +136,6 @@ export default function My() {
               key={m.label}
               style={s.menuRow}
               onPress={() => {
-                if (m.label === '내 공개 프로필') {
-                  if (profile) router.push(`/runner-profile/${profile.id}`);
-                  return;
-                }
                 if (m.path) router.push(m.path);
                 else Alert.alert(m.label, '준비 중이에요');
               }}

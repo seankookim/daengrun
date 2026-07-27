@@ -1,20 +1,65 @@
-import { router } from 'expo-router';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
+import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { BottomNav } from '../src/components/bottomnav';
 import { Row } from '../src/components/ui';
-import { dog, emergencyContacts, safetyChecklist } from '../src/store';
+import { addEmergencyContact, deleteEmergencyContact, EmContact, fetchEmergencyContacts, sendSOS } from '../src/lib/api';
+import { haptic } from '../src/lib/haptics';
+import { session } from '../src/store';
 import { colors } from '../src/theme';
 
-// 안심 센터 — safety hub: SOS, live location, verification/insurance,
-// emergency contacts, checklist, incident report, medical notes.
+// 안심 센터 — 실동작: SOS(진행 중 예약 상대에게 즉시 알림), 긴급 연락처 CRUD, 전화 걸기.
+// 신고·의료노트는 각각 향후 세션(incidents 플로우 / 반려견 프로필 메모가 대체).
 
 const FOREST = '#132117';
 
 export default function Safety() {
+  const [contacts, setContacts] = useState<EmContact[]>([]);
+  const [adding, setAdding] = useState(false);
+  const [cName, setCName] = useState('');
+  const [cPhone, setCPhone] = useState('');
+
+  const load = () => fetchEmergencyContacts().then(setContacts).catch((e) => console.warn('[safety]:', e?.message ?? e));
+  useFocusEffect(useCallback(() => { load(); }, []));
+
+  const sos = () => {
+    Alert.alert('🚨 SOS', '진행 중인 러닝의 상대방에게 긴급 알림을 보낼까요?', [
+      { text: '취소', style: 'cancel' },
+      {
+        text: 'SOS 전송', style: 'destructive',
+        onPress: async () => {
+          haptic('success');
+          try {
+            const bid = await sendSOS(session.role === 'runner' ? 'runner' : 'owner');
+            if (bid) Alert.alert('전송 완료', '상대방에게 긴급 알림이 전송됐어요.\n위급 상황이면 즉시 112/119에 연락하세요.');
+            else Alert.alert('진행 중인 러닝이 없어요', '위급 상황이면 즉시 112/119에 연락하세요.');
+          } catch (e) {
+            Alert.alert('전송 실패', `${(e as Error).message}\n위급 상황이면 즉시 112/119에 연락하세요.`);
+          }
+        },
+      },
+    ]);
+  };
+
+  const saveContact = async () => {
+    if (!cName.trim() || !cPhone.trim()) { Alert.alert('이름과 전화번호를 입력해주세요'); return; }
+    try {
+      await addEmergencyContact(cName.trim(), cPhone.trim());
+      setCName(''); setCPhone(''); setAdding(false);
+      load();
+    } catch (e) { Alert.alert('추가 실패', (e as Error).message); }
+  };
+
+  const removeContact = (c: EmContact) => {
+    Alert.alert('연락처 삭제', `${c.name}을(를) 긴급 연락처에서 삭제할까요?`, [
+      { text: '취소', style: 'cancel' },
+      { text: '삭제', style: 'destructive', onPress: () => deleteEmergencyContact(c.id).then(load).catch(() => {}) },
+    ]);
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.cream }}>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 22, paddingTop: 64, paddingBottom: 24 }}>
-        {/* header */}
         <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <Pressable onPress={() => router.back()} style={[s.bell, { marginRight: 12 }]}>
             <Text style={{ fontSize: 18, color: FOREST }}>‹</Text>
@@ -24,143 +69,128 @@ export default function Safety() {
               <Text style={s.h1}>안심 센터</Text>
               <View style={s.shieldChip}><Text style={{ fontSize: 12, color: FOREST }}>✚</Text></View>
             </Row>
-            <Text style={s.sub}>
-              {dog.name}와 러너의 안전하고 즐거운 러닝을 위해{'\n'}꼼꼼하게 준비했어요.
+            <Text style={s.sub}>안전하고 즐거운 러닝을 위한 실비상 체계</Text>
+          </View>
+        </Row>
+
+        {/* ---------- SOS (실동작) ---------- */}
+        <Pressable style={s.sosCard} onPress={sos}>
+          <Text style={{ fontSize: 26 }}>🚨</Text>
+          <View style={{ flex: 1, marginLeft: 14 }}>
+            <Text style={{ fontSize: 16, fontWeight: '900', color: '#fff' }}>SOS 긴급 알림</Text>
+            <Text style={{ fontSize: 11.5, color: '#ffd9cf', marginTop: 3, lineHeight: 16 }}>
+              진행 중인 러닝의 상대방에게 즉시 알림{'\n'}위급 시엔 112·119가 항상 우선이에요
             </Text>
           </View>
-          <Pressable onPress={() => router.push('/alerts')} style={s.bell}>
-            <View style={s.bellDot} />
-            <Text style={{ fontSize: 15, color: colors.dim }}>◔</Text>
-          </Pressable>
-        </Row>
-
-        {/* SOS */}
-        <Pressable style={[s.card, { marginTop: 20 }]} onPress={() => Alert.alert('SOS', '보호자와 러너에게 즉시 알림이 전송됩니다 (목업)')}>
-          <Row style={{ gap: 14 }}>
-            <View style={s.sosCircle}><Text style={{ fontSize: 15, fontWeight: '900', color: colors.tang }}>SOS</Text></View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 12, fontWeight: '800', color: colors.tang }}>긴급 상황 시</Text>
-              <Text style={{ fontSize: 19, fontWeight: '900', color: FOREST, marginTop: 2 }}>SOS 버튼을 눌러주세요</Text>
-              <Text style={s.dim13}>보호자와 러너에게 즉시 알림이 전송됩니다.</Text>
-            </View>
-            <View style={s.sosGo}><Text style={{ color: '#fff', fontSize: 18, fontWeight: '900' }}>›</Text></View>
-          </Row>
         </Pressable>
-
-        {/* live location */}
-        <View style={[s.card, { marginTop: 12 }]}>
-          <Row style={{ justifyContent: 'space-between' }}>
-            <Text style={s.cardTitle}>실시간 위치 공유</Text>
-            <View style={s.outlineChip}><Text style={{ fontSize: 11, fontWeight: '700', color: '#5a7a3c' }}>상세보기</Text></View>
-          </Row>
-          <Row style={{ gap: 14, marginTop: 12 }}>
-            <View style={s.iconCircle}><Text style={{ fontSize: 20, color: '#5a7a3c' }}>⌖</Text></View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 15, fontWeight: '900', color: '#5a7a3c' }}>공유 중 ●</Text>
-              <Text style={s.dim13}>{dog.name}의 위치가 보호자와 러너에게{'\n'}실시간으로 공유되고 있어요.</Text>
-            </View>
-          </Row>
-        </View>
-
-        {/* verification + insurance */}
-        <Row style={{ gap: 10, marginTop: 12 }}>
-          <MiniCard title="러너 인증" status="인증 완료 ✓" desc={'신원 및 배경 확인이 완료된\n안전한 러너예요.'} glyph="✓" />
-          <MiniCard title="보험 가입" status="보장 중 ✓" desc={'러닝 중 발생할 수 있는\n사고를 보장해 드려요.'} glyph="☂" />
+        <Row style={{ gap: 10, marginTop: 10 }}>
+          <Pressable style={s.callBtn} onPress={() => Linking.openURL('tel:112')}>
+            <Text style={{ fontSize: 13.5, fontWeight: '900', color: '#d84a2f' }}>📞 112</Text>
+          </Pressable>
+          <Pressable style={s.callBtn} onPress={() => Linking.openURL('tel:119')}>
+            <Text style={{ fontSize: 13.5, fontWeight: '900', color: '#d84a2f' }}>📞 119</Text>
+          </Pressable>
         </Row>
 
-        {/* emergency contacts */}
-        <View style={[s.card, { marginTop: 12 }]}>
-          <Row style={{ justifyContent: 'space-between' }}>
-            <Text style={s.cardTitle}>긴급 연락처</Text>
-            <Text style={{ fontSize: 11, color: colors.dim }}>총 {emergencyContacts.length}명 등록됨</Text>
-          </Row>
-          <Row style={{ gap: 8, marginTop: 12 }}>
-            {emergencyContacts.map((c) => (
-              <View key={c.name} style={s.contact}>
-                <Text style={{ fontSize: 12, fontWeight: '800', color: FOREST }}>{c.name}</Text>
-                <Text style={{ fontSize: 10, color: colors.dim, marginTop: 1 }}>{c.phone}</Text>
-              </View>
-            ))}
-            <Pressable style={s.contactAdd} onPress={() => Alert.alert('추가', '긴급 연락처 추가 (목업)')}>
-              <Text style={{ fontSize: 13, fontWeight: '800', color: '#5a7a3c' }}>+ 추가</Text>
-            </Pressable>
-          </Row>
-        </View>
-
-        {/* checklist */}
-        <View style={[s.card, { marginTop: 12 }]}>
-          <Text style={s.cardTitle}>산책/러닝 안전 수칙</Text>
-          <View style={{ marginTop: 10, gap: 9 }}>
-            {safetyChecklist.map((item) => (
-              <Row key={item} style={{ gap: 8 }}>
-                <View style={s.check}><Text style={{ fontSize: 9, color: '#fff', fontWeight: '900' }}>✓</Text></View>
-                <Text style={{ fontSize: 13, color: '#3d453d', flex: 1 }}>{item}</Text>
+        {/* ---------- 긴급 연락처 (실CRUD) ---------- */}
+        <Text style={s.section}>긴급 연락처</Text>
+        <View style={s.card}>
+          {contacts.length === 0 && !adding && (
+            <Text style={{ fontSize: 12.5, color: colors.dim, paddingVertical: 6 }}>
+              아직 없어요 — 위급 시 연락할 가족·지인을 등록해두세요
+            </Text>
+          )}
+          {contacts.map((c, i) => (
+            <View key={c.id}>
+              {i > 0 && <View style={s.div} />}
+              <Row style={{ paddingVertical: 10, alignItems: 'center' }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '800', color: FOREST }}>{c.name}</Text>
+                  <Text style={{ fontSize: 12, color: colors.dim, marginTop: 2 }}>{c.phone}</Text>
+                </View>
+                <Pressable onPress={() => Linking.openURL(`tel:${c.phone}`)} style={s.miniBtn}>
+                  <Text style={{ fontSize: 11.5, fontWeight: '800', color: '#3d5a2b' }}>전화</Text>
+                </Pressable>
+                <Pressable onPress={() => removeContact(c)} style={[s.miniBtn, { marginLeft: 6 }]}>
+                  <Text style={{ fontSize: 11.5, fontWeight: '800', color: '#d84a2f' }}>삭제</Text>
+                </Pressable>
               </Row>
-            ))}
-          </View>
+            </View>
+          ))}
+          {adding ? (
+            <View style={{ marginTop: 8, gap: 8 }}>
+              <TextInput value={cName} onChangeText={setCName} placeholder="이름 (예: 엄마)" placeholderTextColor="#b0ada0" style={s.input} maxLength={12} />
+              <TextInput value={cPhone} onChangeText={setCPhone} placeholder="전화번호" placeholderTextColor="#b0ada0" style={s.input} keyboardType="phone-pad" maxLength={15} />
+              <Row style={{ gap: 8 }}>
+                <Pressable onPress={saveContact} style={[s.saveBtn, { flex: 1.4 }]}>
+                  <Text style={{ fontSize: 12.5, fontWeight: '900', color: FOREST }}>저장</Text>
+                </Pressable>
+                <Pressable onPress={() => setAdding(false)} style={[s.miniBtn, { flex: 1, alignItems: 'center', paddingVertical: 11 }]}>
+                  <Text style={{ fontSize: 12.5, fontWeight: '700', color: '#5d655d' }}>취소</Text>
+                </Pressable>
+              </Row>
+            </View>
+          ) : (
+            <Pressable onPress={() => setAdding(true)} style={s.addRow}>
+              <Text style={{ fontSize: 12.5, fontWeight: '800', color: '#5a7a3c' }}>＋ 연락처 추가</Text>
+            </Pressable>
+          )}
         </View>
 
-        {/* report + medical */}
-        <Row style={{ gap: 10, marginTop: 12 }}>
-          <Pressable style={[s.card, { flex: 1 }]} onPress={() => Alert.alert('신고', '사고/이상 신고 (목업)')}>
-            <View style={[s.iconCircle, { backgroundColor: '#fde8e3' }]}><Text style={{ fontSize: 16, color: colors.tang }}>⚠</Text></View>
-            <Text style={[s.cardTitle, { marginTop: 10 }]}>사고/이상 신고하기</Text>
-            <Text style={s.dim12}>긴급하지 않은 사고나{'\n'}이상을 신고할 수 있어요.</Text>
-          </Pressable>
-          <Pressable style={[s.card, { flex: 1 }]} onPress={() => Alert.alert('의료 노트', '반려견 의료 노트 (목업)')}>
-            <View style={s.iconCircle}><Text style={{ fontSize: 16, color: '#5a7a3c' }}>♥</Text></View>
-            <Text style={[s.cardTitle, { marginTop: 10 }]}>반려견 의료 노트</Text>
-            <Text style={s.dim12}>기록된 건강 정보와{'\n'}진료 기록을 확인해요.</Text>
+        {/* ---------- 보험·안전 안내 (정보성) ---------- */}
+        <Text style={s.section}>안전 체계</Text>
+        <View style={s.card}>
+          <InfoRow glyph="🛡" title="펫보험" desc="인계 확인 시점부터 러닝 종료까지 적용 (파일럿 보험 파트너 협의 중)" />
+          <View style={s.div} />
+          <InfoRow glyph="📍" title="실시간 위치" desc="러닝 중 보호자 라이브 지도에 러너 경로가 실시간 표시돼요" />
+          <View style={s.div} />
+          <InfoRow glyph="✓" title="러너 신원" desc="모든 러너는 신원 확인을 거쳐요 (본인인증 고도화 예정)" />
+        </View>
+
+        {/* ---------- 준비 중 (정직 라벨) ---------- */}
+        <Row style={{ gap: 10, marginTop: 14 }}>
+          <View style={[s.card, { flex: 1, opacity: 0.55, marginTop: 0 }]}>
+            <Text style={{ fontSize: 13, fontWeight: '800', color: FOREST }}>사고 신고</Text>
+            <Text style={{ fontSize: 10.5, color: colors.dim, marginTop: 3 }}>인시던트 플로우 준비 중</Text>
+          </View>
+          <Pressable style={[s.card, { flex: 1, marginTop: 0 }]} onPress={() => router.push('/owner/dog')}>
+            <Text style={{ fontSize: 13, fontWeight: '800', color: FOREST }}>의료·성향 메모</Text>
+            <Text style={{ fontSize: 10.5, color: colors.dim, marginTop: 3 }}>반려견 프로필에서 관리 ›</Text>
           </Pressable>
         </Row>
-
-        {/* help */}
-        <View style={[s.card, { marginTop: 12 }]}>
-          <Row style={{ gap: 12 }}>
-            <View style={s.iconCircle}><Text style={{ fontSize: 16, color: '#5a7a3c' }}>◍</Text></View>
-            <View style={{ flex: 1 }}>
-              <Text style={s.cardTitle}>도움이 필요하신가요?</Text>
-              <Text style={s.dim12}>자주 묻는 질문, 1:1 문의, 고객센터 전화 연결까지</Text>
-            </View>
-            <View style={s.outlineChip}><Text style={{ fontSize: 11, fontWeight: '700', color: '#5a7a3c' }}>도움말 보기</Text></View>
-          </Row>
-        </View>
       </ScrollView>
       <BottomNav />
     </View>
   );
 }
 
-function MiniCard({ title, status, desc, glyph }: { title: string; status: string; desc: string; glyph: string }) {
+function InfoRow({ glyph, title, desc }: { glyph: string; title: string; desc: string }) {
   return (
-    <View style={[s.card, { flex: 1 }]}>
-      <Text style={s.cardTitle}>{title}</Text>
-      <Row style={{ gap: 10, marginTop: 10 }}>
-        <View style={s.iconCircle}><Text style={{ fontSize: 15, color: '#5a7a3c' }}>{glyph}</Text></View>
-        <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 13, fontWeight: '900', color: '#5a7a3c' }}>{status}</Text>
-          <Text style={[s.dim12, { marginTop: 2 }]}>{desc}</Text>
-        </View>
-      </Row>
-    </View>
+    <Row style={{ paddingVertical: 10, gap: 10 }}>
+      <Text style={{ fontSize: 16 }}>{glyph}</Text>
+      <View style={{ flex: 1 }}>
+        <Text style={{ fontSize: 13.5, fontWeight: '800', color: FOREST }}>{title}</Text>
+        <Text style={{ fontSize: 11.5, color: colors.dim, marginTop: 2, lineHeight: 16 }}>{desc}</Text>
+      </View>
+    </Row>
   );
 }
 
 const s = StyleSheet.create({
-  h1: { fontSize: 30, fontWeight: '900', color: FOREST },
-  shieldChip: { width: 26, height: 26, borderRadius: 13, backgroundColor: '#e7efd8', alignItems: 'center', justifyContent: 'center', marginTop: 6 },
-  sub: { fontSize: 13, color: '#5d655d', marginTop: 8, lineHeight: 20 },
-  bell: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.line },
-  bellDot: { position: 'absolute', top: 9, right: 10, width: 7, height: 7, borderRadius: 4, backgroundColor: colors.voltDeep, zIndex: 2 },
-  card: { backgroundColor: '#fff', borderRadius: 20, padding: 16, borderWidth: 1, borderColor: '#eceadf' },
-  cardTitle: { fontSize: 15, fontWeight: '900', color: FOREST },
-  dim13: { fontSize: 12.5, color: '#75806f', marginTop: 3, lineHeight: 18 },
-  dim12: { fontSize: 11.5, color: '#75806f', marginTop: 3, lineHeight: 17 },
-  sosCircle: { width: 56, height: 56, borderRadius: 28, backgroundColor: '#fde3dd', alignItems: 'center', justifyContent: 'center' },
-  sosGo: { width: 46, height: 46, borderRadius: 23, backgroundColor: '#e8492a', alignItems: 'center', justifyContent: 'center', alignSelf: 'center' },
-  outlineChip: { borderWidth: 1.2, borderColor: '#a9c47e', borderRadius: 99, paddingVertical: 6, paddingHorizontal: 12 },
-  iconCircle: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#e7efd8', alignItems: 'center', justifyContent: 'center' },
-  contact: { flex: 1, backgroundColor: '#faf9f3', borderRadius: 14, borderWidth: 1, borderColor: '#eceadf', paddingVertical: 10, paddingHorizontal: 12 },
-  contactAdd: { flex: 0.7, borderRadius: 14, borderWidth: 1.4, borderColor: '#cfd8c2', borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' },
-  check: { width: 16, height: 16, borderRadius: 8, backgroundColor: '#6aa53c', alignItems: 'center', justifyContent: 'center' },
+  h1: { fontSize: 26, fontWeight: '900', color: FOREST },
+  sub: { fontSize: 12, color: colors.dim, marginTop: 4 },
+  bell: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#eceadf' },
+  shieldChip: { width: 24, height: 24, borderRadius: 12, backgroundColor: colors.volt, alignItems: 'center', justifyContent: 'center', alignSelf: 'center' },
+  sosCard: {
+    flexDirection: 'row', alignItems: 'center', backgroundColor: '#e8492a',
+    borderRadius: 20, padding: 18, marginTop: 18,
+  },
+  callBtn: { flex: 1, backgroundColor: '#fff', borderRadius: 14, alignItems: 'center', paddingVertical: 12, borderWidth: 1.3, borderColor: '#f2d4ca' },
+  section: { fontSize: 15, fontWeight: '900', color: FOREST, marginTop: 20, marginBottom: 8 },
+  card: { backgroundColor: '#fff', borderRadius: 18, padding: 14, borderWidth: 1, borderColor: '#eceadf' },
+  div: { height: 1, backgroundColor: '#f0eee3' },
+  miniBtn: { backgroundColor: '#f4f2ea', borderRadius: 99, paddingVertical: 7, paddingHorizontal: 12 },
+  addRow: { marginTop: 6, borderRadius: 12, borderWidth: 1.3, borderColor: '#cfd8c2', borderStyle: 'dashed', alignItems: 'center', paddingVertical: 11 },
+  input: { backgroundColor: '#faf9f3', borderRadius: 12, borderWidth: 1, borderColor: '#eceadf', paddingVertical: 10, paddingHorizontal: 12, fontSize: 13.5, color: FOREST },
+  saveBtn: { backgroundColor: colors.volt, borderRadius: 12, alignItems: 'center', paddingVertical: 11 },
 });
