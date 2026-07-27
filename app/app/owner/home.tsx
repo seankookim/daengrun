@@ -312,13 +312,20 @@ export default function OwnerHome() {
             {/* 레이더 백드롭 — 아크는 상시(브리딩), 스윕은 검색 중에만, 블립은 실가용 러너.
                 반경/각도는 연출값 (거리 의미 없음 — 거리 라벨은 금지: GPS 없는 위치 조작 방지) */}
             <View pointerEvents="none" style={s.radarLayer}>
-              <Animated.View style={{ opacity: radarBreath.interpolate({ inputRange: [0, 1], outputRange: fnSearching ? [0.85, 1] : [0.45, 0.75] }) }}>
-                {[64, 120, 176, 232].map((d) => (
+              <Animated.View style={{ opacity: radarBreath.interpolate({ inputRange: [0, 1], outputRange: fnSearching ? [0.9, 1] : [0.55, 1] }) }}>
+                {[56, 110, 164, 218, 272].map((d, di) => (
                   <View key={d} style={{
                     position: 'absolute', width: d, height: d, borderRadius: d / 2,
-                    left: -d / 2, top: -d / 2, borderWidth: 1, borderColor: 'rgba(214,242,148,0.17)',
+                    left: -d / 2, top: -d / 2, borderWidth: di === 0 ? 1.5 : 1,
+                    borderColor: `rgba(214,242,148,${0.42 - di * 0.07})`,
                   }} />
                 ))}
+                {/* 레이더 원점 — volt 코어 도트 */}
+                <View style={{
+                  position: 'absolute', left: -5, top: -5, width: 10, height: 10, borderRadius: 5,
+                  backgroundColor: colors.volt, shadowColor: colors.volt, shadowOpacity: 0.9,
+                  shadowRadius: 8, shadowOffset: { width: 0, height: 0 },
+                }} />
               </Animated.View>
               {fnSearching && (
                 <Animated.View style={{ position: 'absolute', transform: [{ rotate: sweep.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) }] }}>
@@ -333,8 +340,8 @@ export default function OwnerHome() {
                 const x = Math.cos((P.a * Math.PI) / 180) * P.rr;
                 const y = Math.sin((P.a * Math.PI) / 180) * P.rr;
                 return (
-                  <View key={r.profileId} style={[s.fnAvatarRim, { position: 'absolute', left: x - 15, top: y - 15 }]}>
-                    <Avatar url={r.avatarUrl} char={r.name[0]} bg="#5a7a3c" size={26} />
+                  <View key={r.profileId} style={[s.fnBlip, { position: 'absolute', left: x - 17, top: y - 17 }]}>
+                    <Avatar url={r.avatarUrl} char={r.name[0]} bg="#5a7a3c" size={28} />
                   </View>
                 );
               })}
@@ -750,6 +757,10 @@ const s = StyleSheet.create({
   // 레이더 중심점 — 카드 우측 가장자리 살짝 밖, 아크/스윕/블립의 원점
   radarLayer: { position: 'absolute', right: -14, top: 44 },
   fnAvatarRim: { borderWidth: 2, borderColor: '#132117', borderRadius: 17 },
+  fnBlip: {
+    borderWidth: 2, borderColor: colors.volt, borderRadius: 18, backgroundColor: '#132117',
+    shadowColor: colors.volt, shadowOpacity: 0.6, shadowRadius: 6, shadowOffset: { width: 0, height: 0 },
+  },
   fnCta: {
     flex: 1, backgroundColor: colors.volt, borderRadius: 14, alignItems: 'center',
     justifyContent: 'center', paddingVertical: 13, overflow: 'visible',
