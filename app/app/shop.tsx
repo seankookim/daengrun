@@ -22,6 +22,11 @@ export default function Shop() {
           </Pressable>
         </Row>
 
+        {/* 검색 — 스토어 오픈 전이라 정직하게 안내 */}
+        <Pressable onPress={() => Alert.alert('준비 중', '스토어 오픈 시 검색이 열려요')} style={s.search}>
+          <Text style={{ fontSize: 13, color: '#9a978a' }}>⌕  제품 검색</Text>
+        </Pressable>
+
         {/* member banner */}
         <View style={s.banner}>
           <View style={{ flex: 1 }}>
@@ -32,7 +37,7 @@ export default function Shop() {
             <Text style={{ fontSize: 18, fontWeight: '900', color: '#fff', marginTop: 6 }}>
               멤버는 전 상품 <Text style={{ color: colors.volt }}>10%</Text> 할인
             </Text>
-            <Text style={{ fontSize: 12, color: '#b8c4ae', marginTop: 6 }}>이번 달 러닝 12.4km — 4,900P 적립됨</Text>
+            <Text style={{ fontSize: 12, color: '#b8c4ae', marginTop: 6 }}>스토어 오픈 준비 중 — 댕마일과 연동돼요</Text>
           </View>
           <View style={s.bannerGo}><Text style={{ fontSize: 17, fontWeight: '900', color: FOREST }}>→</Text></View>
         </View>
@@ -49,7 +54,7 @@ export default function Shop() {
         {/* product grid */}
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
           {products.map((p) => (
-            <Pressable key={p.id} style={[s.prod, { backgroundColor: p.colors[0] }]} onPress={() => Alert.alert(p.name, '상품 상세 (목업)')}>
+            <Pressable key={p.id} style={[s.prod, { backgroundColor: '#fff', borderWidth: 1, borderColor: '#dedacb' }]} onPress={() => Alert.alert(p.name, '스토어 오픈 준비 중이에요')}>
               <Text style={{ fontSize: 11, fontWeight: '900', color: p.fg }}>{p.tag}</Text>
               <Text style={s.prodName} numberOfLines={2}>{p.name}</Text>
               <Text style={{ fontSize: 10.5, color: '#00000066', marginTop: 3 }}>{p.collab}</Text>
@@ -73,6 +78,7 @@ export default function Shop() {
 }
 
 const s = StyleSheet.create({
+  search: { backgroundColor: '#fff', borderRadius: 13, paddingVertical: 12, paddingHorizontal: 14, borderWidth: 1, borderColor: '#dedacb', marginBottom: 12 },
   circleBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#dedacb' },
   banner: { flexDirection: 'row', alignItems: 'center', backgroundColor: FOREST, borderRadius: 20, padding: 18 },
   bannerGo: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.volt, alignItems: 'center', justifyContent: 'center' },

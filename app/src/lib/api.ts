@@ -1111,6 +1111,28 @@ export async function fetchBookingBrief(id: string): Promise<{ status: string; r
   return { status: d.status, runnerName: d.runners?.profiles?.name ?? null };
 }
 
+// 커뮤니티 '러너 후기' 탭 — 최근 공개 후기 + 러너 이름 (2-step, 임베드 FK명 의존 없음)
+export interface PublicReview { runnerName: string; rating: number | null; note: string | null; tags: string[]; when: string }
+export async function fetchRecentReviews(): Promise<PublicReview[]> {
+  const { data, error } = await supabase.from('reviews')
+    .select('rating, note, tags, created_at, target_id')
+    .eq('target_kind', 'runner').eq('visibility', 'public')
+    .order('created_at', { ascending: false }).limit(20);
+  if (error) throw error;
+  const rows = data ?? [];
+  const ids = [...new Set(rows.map((r: any) => r.target_id))];
+  const names: Record<string, string> = {};
+  if (ids.length) {
+    const { data: ps } = await supabase.from('profiles').select('id, name').in('id', ids);
+    for (const pr of ps ?? []) names[pr.id] = pr.name;
+  }
+  return rows.map((r: any) => ({
+    runnerName: names[r.target_id] ?? '러너',
+    rating: r.rating, note: r.note, tags: r.tags ?? [],
+    when: new Date(r.created_at).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }),
+  }));
+}
+
 export function subscribeBooking(bookingId: string, onChange: () => void): () => void {
   const ch = supabase
     .channel(`bk-${bookingId}`)

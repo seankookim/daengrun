@@ -1,9 +1,9 @@
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Alert, Dimensions, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { BottomNav } from '../src/components/bottomnav';
 import { Avatar, Row } from '../src/components/ui';
-import { addComment, deleteFeedPost, FeedComment, FeedPost, fetchComments, fetchFeed, toggleFeedLike } from '../src/lib/api';
+import { addComment, deleteFeedPost, FeedComment, FeedPost, fetchComments, fetchFeed, fetchRecentReviews, PublicReview, toggleFeedLike } from '../src/lib/api';
 import { haptic } from '../src/lib/haptics';
 import { colors } from '../src/theme';
 
@@ -17,6 +17,14 @@ const fmtDur = (sec?: number) => (sec ? `${Math.floor(sec / 60)}:${String(sec % 
 
 export default function Community() {
   const [posts, setPosts] = useState<FeedPost[]>([]);
+  // 탭: 피드(실) | 러너 후기(실 공개 리뷰). 챌린지는 실시스템 생기면 추가 — 가짜 탭 금지.
+  const [tab, setTab] = useState<'feed' | 'reviews'>('feed');
+  const [reviews, setReviews] = useState<PublicReview[] | null>(null);
+  useEffect(() => {
+    if (tab === 'reviews' && reviews == null) {
+      fetchRecentReviews().then(setReviews).catch(() => setReviews([]));
+    }
+  }, [tab, reviews]);
   const [loaded, setLoaded] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -96,8 +104,52 @@ export default function Community() {
           </Pressable>
         </Row>
 
+        {/* 탭바 — 피드 | 러너 후기 (밑줄 인디케이터) */}
+        <Row style={{ marginTop: 14, paddingHorizontal: 12, gap: 20, borderBottomWidth: 1, borderBottomColor: '#dedacb' }}>
+          {([['feed', '피드'], ['reviews', '러너 후기']] as const).map(([k, label]) => (
+            <Pressable key={k} onPress={() => setTab(k)} style={{ paddingBottom: 9, borderBottomWidth: 2.5, borderBottomColor: tab === k ? FOREST : 'transparent', marginBottom: -1 }}>
+              <Text style={{ fontSize: 14, fontWeight: '900', color: tab === k ? FOREST : '#9a978a' }}>{label}</Text>
+            </Pressable>
+          ))}
+        </Row>
+
+        {/* ---------- 러너 후기 탭 — 실 공개 리뷰 ---------- */}
+        {tab === 'reviews' && (
+          <View style={{ paddingHorizontal: 12, marginTop: 14, gap: 9 }}>
+            {reviews == null && <Text style={{ fontSize: 12, color: colors.dim, textAlign: 'center', marginTop: 30 }}>불러오는 중...</Text>}
+            {reviews != null && reviews.length === 0 && (
+              <View style={s.revCard}>
+                <Text style={{ fontSize: 12.5, color: colors.dim, textAlign: 'center', lineHeight: 19 }}>
+                  아직 공개 후기가 없어요{'\n'}러닝이 끝나면 첫 후기를 남겨보세요
+                </Text>
+              </View>
+            )}
+            {(reviews ?? []).map((rv, i) => (
+              <View key={i} style={s.revCard}>
+                <Row style={{ justifyContent: 'space-between' }}>
+                  <Text style={{ fontSize: 13.5, fontWeight: '900', color: FOREST }}>{rv.runnerName} 러너</Text>
+                  <Text style={{ fontSize: 11, color: colors.dim }}>{rv.when}</Text>
+                </Row>
+                {rv.rating != null && (
+                  <Text style={{ fontSize: 12, color: '#e8a13c', marginTop: 4 }}>{'★'.repeat(rv.rating)}{'☆'.repeat(Math.max(0, 5 - rv.rating))}</Text>
+                )}
+                {!!rv.note && <Text style={{ fontSize: 12.5, color: '#3d453d', marginTop: 6, lineHeight: 18 }}>{rv.note}</Text>}
+                {rv.tags.length > 0 && (
+                  <Row style={{ gap: 5, marginTop: 8, flexWrap: 'wrap' }}>
+                    {rv.tags.map((t) => (
+                      <View key={t} style={{ backgroundColor: '#eef4e4', borderRadius: 99, paddingVertical: 3, paddingHorizontal: 8 }}>
+                        <Text style={{ fontSize: 9.5, fontWeight: '700', color: '#4a6d1f' }}>{t}</Text>
+                      </View>
+                    ))}
+                  </Row>
+                )}
+              </View>
+            ))}
+          </View>
+        )}
+
         {/* feed */}
-        {loaded && posts.length === 0 && (
+        {tab === 'feed' && loaded && posts.length === 0 && (
           <View style={s.emptyBox}>
             <Text style={{ fontSize: 14, fontWeight: '900', color: FOREST, textAlign: 'center' }}>아직 포스트가 없어요</Text>
             <Text style={{ fontSize: 12.5, color: colors.dim, textAlign: 'center', marginTop: 6, lineHeight: 19 }}>
@@ -106,7 +158,7 @@ export default function Community() {
           </View>
         )}
 
-        {posts.map((p) => (
+        {tab === 'feed' && posts.map((p) => (
           <Pressable key={p.id} onLongPress={() => remove(p)} style={s.post}>
             {/* author */}
             <Row style={{ gap: 10, paddingHorizontal: 16, paddingVertical: 12 }}>
@@ -200,6 +252,7 @@ export default function Community() {
 }
 
 const s = StyleSheet.create({
+  revCard: { backgroundColor: '#fff', borderRadius: 14, padding: 14, borderWidth: 1, borderColor: '#dedacb' },
   rankBtn: { backgroundColor: '#fff', borderRadius: 99, paddingVertical: 9, paddingHorizontal: 13, borderWidth: 1, borderColor: '#dedacb', alignSelf: 'flex-start' },
   emptyBox: { margin: 22, marginTop: 26, backgroundColor: '#f4f2ea', borderRadius: 18, padding: 26 },
   post: { backgroundColor: '#fff', marginTop: 14, borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#dedacb' },

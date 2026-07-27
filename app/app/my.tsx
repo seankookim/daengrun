@@ -1,9 +1,10 @@
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useAuth } from '../src/auth-context';
 import { BottomNav } from '../src/components/bottomnav';
 import { Avatar, Row } from '../src/components/ui';
+import { fetchFitness, fetchMyRunnerStatus } from '../src/lib/api';
 import { fetchMyProfile, fetchMyRunnerBio, MyProfile, updateMyProfile, updateRunnerBio, uploadAvatar } from '../src/lib/api';
 import { dog, session } from '../src/store';
 import { colors } from '../src/theme';
@@ -14,6 +15,18 @@ const FOREST = '#132117';
 
 export default function My() {
   const isRunner = session.role === 'runner';
+  // 나의 러닝 기록 — 실데이터 (보호자: fitness 집계 / 러너: 누적 스탯)
+  const [rec, setRec] = useState<{ km: number; runs: number; pace: string } | null>(null);
+  useEffect(() => {
+    if (isRunner) {
+      fetchMyRunnerStatus().then((r: any) => setRec({ km: r.totalKm ?? 0, runs: r.totalRuns ?? 0, pace: r.paceLabel ?? '—' })).catch(() => {});
+    } else {
+      fetchFitness().then((f: any) => setRec({
+        km: f.totalKm ?? f.weekKm ?? 0, runs: f.totalRuns ?? f.weekRuns ?? 0,
+        pace: f.avgPaceSec ? `${Math.floor(f.avgPaceSec / 60)}'${String(f.avgPaceSec % 60).padStart(2, '0')}"` : '—',
+      })).catch(() => {});
+    }
+  }, [isRunner]);
   const { session: auth, signOut } = useAuth();
   const [profile, setProfile] = useState<MyProfile | null>(null);
   const [editing, setEditing] = useState(false);
@@ -128,6 +141,29 @@ export default function My() {
         <Text style={{ fontSize: 10.5, color: colors.dim, marginTop: 6, marginLeft: 4 }}>
           사진을 탭하면 프로필 사진을 바꿀 수 있어요
         </Text>
+
+        {/* 나의 러닝 기록 — 다크 앵커 카드 (실데이터, 모던 목업) */}
+        <Pressable
+          onPress={() => router.push(isRunner ? '/runner/home' : '/owner/fitness')}
+          style={{ backgroundColor: FOREST, borderRadius: 18, padding: 16, marginTop: 12 }}
+        >
+          <Text style={{ fontSize: 11.5, fontWeight: '800', color: '#b8c4ae' }}>나의 러닝 기록</Text>
+          <View style={{ flexDirection: 'row', marginTop: 12 }}>
+            {[
+              { v: (rec?.km ?? 0).toFixed(1), u: ' km', l: '총 거리' },
+              { v: `${rec?.runs ?? 0}`, u: ' 회', l: '총 횟수' },
+              { v: rec?.pace ?? '—', u: '', l: '평균 페이스' },
+            ].map((c) => (
+              <View key={c.l} style={{ flex: 1 }}>
+                <Text style={{ fontSize: 19, fontWeight: '900', color: '#fff' }}>
+                  {c.v}<Text style={{ fontSize: 11, color: '#8fa093' }}>{c.u}</Text>
+                </Text>
+                <Text style={{ fontSize: 10, color: '#8fa093', marginTop: 3 }}>{c.l}</Text>
+              </View>
+            ))}
+          </View>
+          <Text style={{ fontSize: 11, fontWeight: '800', color: colors.volt, textAlign: 'right', marginTop: 10 }}>상세 기록 보기 ›</Text>
+        </Pressable>
 
         {/* menu */}
         <View style={{ gap: 10, marginTop: 12 }}>

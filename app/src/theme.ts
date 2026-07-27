@@ -3,7 +3,7 @@
 export const colors = {
   ink: '#171A17',
   forest: '#132117',     // 다크 카드/히어로 (파일 로컬 FOREST 상수를 이걸로 수렴)
-  cream: '#F2F1EB',   // 클린 오프화이트 — 파스텔 헤이즈 제거 (2026-07-27 샤프닝)
+  cream: '#F8F7F3',   // 클린 오프화이트 — 파스텔 헤이즈 제거 (2026-07-27 샤프닝)
   volt: '#B9F23A',
   voltDeep: '#82b016',
   voltBright: '#d4ff66',
