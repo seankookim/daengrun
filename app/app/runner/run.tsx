@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Monogram, Row } from '../../src/components/ui';
-import { addRunEvent, fetchCurrentRunnerJobId, notifyKmMilestone, RunEventKind, saveRunTrace, settleRun, startRunServer, uploadRunPhoto } from '../../src/lib/api';
+import { addRunEvent, fetchCurrentRunnerJobId, fetchMeetupInfo, MeetupInfo, notifyKmMilestone, RunEventKind, saveRunTrace, settleRun, startRunServer, uploadRunPhoto } from '../../src/lib/api';
 import { distM, GeoPoint, publishPos, startTracking, stopPublishing } from '../../src/lib/geo';
 import { haptic } from '../../src/lib/haptics';
 import { EndReason, payoutFor, runnerJob, runRequests, runResult } from '../../src/store';
@@ -22,7 +22,11 @@ const paceStr = (sec: number, km: number) => {
 };
 
 export default function ActiveRun() {
-  const req = runRequests[0];
+  const req = runRequests[0]; // 시각 폴백 전용 — 실값은 info가 우선
+  const [info, setInfo] = useState<MeetupInfo | null>(null);
+  const dogName = info?.dogName ?? req.dogName;
+  // 🔴 목표 거리 실화 — mock 5km가 진행/자동완주 임계로 쓰이던 버그 수정 (fake-inventory)
+  const targetKm = info?.km ?? req.km;
   const [running, setRunning] = useState(false);
   const [sec, setSec] = useState(0);
   const [endSheet, setEndSheet] = useState(false);
@@ -59,10 +63,17 @@ export default function ActiveRun() {
 
   // id 복원 — 리로드로 유실돼도 서버의 active 예약으로 정산이 연결되게
   useEffect(() => {
-    if (runnerJob.bookingId) return;
-    fetchCurrentRunnerJobId()
-      .then((id) => { if (id) runnerJob.bookingId = id; })
-      .catch((e) => console.warn('[run] resolve:', e?.message ?? e));
+    (async () => {
+      if (!runnerJob.bookingId) {
+        try {
+          const id = await fetchCurrentRunnerJobId();
+          if (id) runnerJob.bookingId = id;
+        } catch (e) { console.warn('[run] resolve:', (e as Error)?.message); }
+      }
+      if (runnerJob.bookingId) {
+        fetchMeetupInfo(runnerJob.bookingId).then(setInfo).catch((e) => console.warn('[run] info:', e?.message ?? e));
+      }
+    })();
   }, []);
 
   // ---------- 실GPS 거리 (핵심 실화) ----------
@@ -115,10 +126,10 @@ export default function ActiveRun() {
   const gpsKmRef = useRef(0);
   useEffect(() => { gpsKmRef.current = gpsKm; }, [gpsKm]);
 
-  const demoKm = Math.min(sec / 409, req.km + 0.02); // 데모 폴백: ~6'49" 가속
+  const demoKm = Math.min(sec / 409, targetKm + 0.02); // 데모 폴백: ~6'49" 가속
   const km = gps ? gpsKm : demoKm;
-  const remaining = Math.max(req.km - km, 0);
-  const progress = Math.min(km / req.km, 1);
+  const remaining = Math.max(targetKm - km, 0);
+  const progress = Math.min(km / targetKm, 1);
 
   useEffect(() => {
     if (running) {
@@ -130,7 +141,7 @@ export default function ActiveRun() {
   // per-reason payout (docs/product-notes: all pay actual km — never incentivize pushing a hurt dog)
   const payoutByReason = (reason: EndReason): number => {
     const actual = payoutFor(km);
-    if (reason === 'owner') return actual + Math.round((payoutFor(req.km) - actual) * 0.5); // + 잔여 50% 보장
+    if (reason === 'owner') return actual + Math.round((payoutFor(targetKm) - actual) * 0.5); // + 잔여 50% 보장
     return actual; // dog / runner: actual km
   };
 
@@ -181,12 +192,12 @@ export default function ActiveRun() {
   // 자동 완주도 반드시 서버 정산을 거친다 — 예전엔 여기서 정산 없이 done으로 직행해
   // 예약이 영원히 active로 남았음 (보호자 위젯 ● LIVE 좀비의 원인, 2026-07-23)
   useEffect(() => {
-    if (km >= req.km) {
+    if (km >= targetKm) {
       setRunning(false);
       settle(null, true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [km >= req.km]);
+  }, [km >= targetKm]);
 
   return (
     <View style={s.root}>
@@ -195,7 +206,7 @@ export default function ActiveRun() {
         <Row style={{ justifyContent: 'space-between', paddingHorizontal: 16 }}>
           <View style={s.statusBadge}>
             <Text style={{ fontSize: 12, fontWeight: '700', color: colors.volt }}>
-              {running ? `● ${req.dogName}와 러닝 중${gps ? ' · GPS' : ' · 데모 거리'}` : `${req.dogName}와 러닝 준비`}
+              {running ? `● ${dogName}와 러닝 중${gps ? ' · GPS' : ' · 데모 거리'}` : `${dogName}와 러닝 준비`}
             </Text>
           </View>
           <View style={s.camStatus}>
@@ -206,7 +217,7 @@ export default function ActiveRun() {
 
         <View style={s.trackWrap}>
           <Row style={{ justifyContent: 'space-between', marginBottom: 8 }}>
-            <Text style={{ fontSize: 12, color: colors.dim }}>{req.place} 코스 · {req.km}km</Text>
+            <Text style={{ fontSize: 12, color: colors.dim }}>{info?.routeName ?? req.place} 코스 · {targetKm}km</Text>
             <Text style={{ fontSize: 12, fontWeight: '800', color: colors.ink }}>
               남은 거리 {remaining.toFixed(1)}km
             </Text>
@@ -227,9 +238,9 @@ export default function ActiveRun() {
         >
           <Monogram char={req.dogChar} bg={req.dogColor} size={36} />
           <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 13, fontWeight: '700', color: colors.cream }}>{req.dogName} 보호자님</Text>
+            <Text style={{ fontSize: 13, fontWeight: '700', color: colors.cream }}>{dogName} 보호자님</Text>
             <Text style={{ fontSize: 11, color: '#8fa093' }} numberOfLines={1}>
-              "자전거도로만 피해주시면 돼요!"
+              {info?.dogMemo ?? '채팅으로 이동'}
             </Text>
           </View>
           <Text style={{ fontSize: 12, color: colors.volt }}>채팅 ›</Text>
@@ -243,7 +254,7 @@ export default function ActiveRun() {
 
         <Row style={{ justifyContent: 'center', marginBottom: 14 }}>
           <Text style={{ fontSize: 12, color: '#8fa093' }}>
-            현재 예상 수익 <Text style={{ color: colors.volt, fontWeight: '800' }}>{payoutFor(km).toLocaleString()}원</Text> · 완주 시 {payoutFor(req.km + 0.02).toLocaleString()}원
+            현재 예상 수익 <Text style={{ color: colors.volt, fontWeight: '800' }}>{payoutFor(km).toLocaleString()}원</Text> · 완주 시 {payoutFor(targetKm + 0.02).toLocaleString()}원
           </Text>
         </Row>
 

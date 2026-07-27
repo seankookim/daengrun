@@ -1,7 +1,7 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { fetchMyBookings } from '../../src/lib/api';
+import { cancelBooking, fetchMyBookings } from '../../src/lib/api';
 import { BottomNav } from '../../src/components/bottomnav';
 import { HeatTrace } from '../../src/components/runcard';
 import { Monogram, Row } from '../../src/components/ui';
@@ -356,7 +356,21 @@ export default function Schedule() {
 
                   <Pressable
                     style={s.cancelConfirm}
-                    onPress={() => { close(); Alert.alert('취소 완료', `환불 ${(selected.price - fee).toLocaleString()}원이 3일 내 처리돼요 (목업)`); }}
+                    onPress={async () => {
+                      // 🔴 실취소 — 서버 cancel_owner가 수수료 계산 + 상태 전이 (목업 알럿 은퇴, fake-inventory)
+                      const bid = selected.id;
+                      close();
+                      try {
+                        const r = await cancelBooking(bid);
+                        Alert.alert(
+                          '취소 완료',
+                          `환불 ${r.refund.toLocaleString()}원${r.cancel_fee > 0 ? ` (수수료 ${r.cancel_fee.toLocaleString()}원 차감)` : ' (수수료 없음)'}\n결제 실연동 후엔 3일 내 환불 처리돼요`,
+                        );
+                        load();
+                      } catch (e) {
+                        Alert.alert('취소 실패', (e as Error).message);
+                      }
+                    }}
                   >
                     <Text style={{ fontSize: 14.5, fontWeight: '900', color: '#fff' }}>취소하고 {(selected.price - fee).toLocaleString()}원 환불받기</Text>
                   </Pressable>

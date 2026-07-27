@@ -428,6 +428,9 @@ export async function fetchCurrentRunnerJobId(): Promise<string | null> {
 }
 
 export const acceptBooking = (id: string) => invokeTransition(id, 'runner_accept');
+// 취소 — 서버가 수수료(24h 전 무료/이후 10%) 계산·상태 전이. { cancel_fee, refund } 반환
+export const cancelBooking = (id: string): Promise<{ cancel_fee: number; refund: number }> =>
+  invokeTransition(id, 'cancel_owner');
 // side 필수 — 한 계정이 양측인 솔로 테스트에서 서버가 역할을 추측할 수 없음
 export const confirmHandoff = (id: string, side: 'owner' | 'runner') =>
   invokeTransition(id, 'confirm_handoff', { side });
