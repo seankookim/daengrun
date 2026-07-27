@@ -20,19 +20,25 @@ export type RunActivityProps = {
   eventLine: string; // '💩1 · 💧2' ('' 가능)
 };
 
-const RunActivity = (props: RunActivityProps, _env: LiveActivityEnvironment) => {
+const RunActivity = (props: RunActivityProps, env: LiveActivityEnvironment) => {
   'widget';
 
+  // 잠금화면 배너 배경은 시스템(밝은 배경화면 = 밝은 소재)을 따르므로 텍스트를 스킴에 맞춘다 (HIG).
+  // 아일랜드 3종은 항상 검정 배경 — 고정 라이트 텍스트가 정답.
+  const bannerText = env.colorScheme === 'dark' ? CREAM : '#132117';
+  const bannerDim = env.colorScheme === 'dark' ? DIMTEXT : '#5d655d';
+  const bannerGreen = env.colorScheme === 'dark' ? VOLT : '#5a7a3c';
+
   return {
-    // ---------- 잠금화면 배너 ----------
+    // ---------- 잠금화면 배너 (비-아일랜드 기기·StandBy·워치 스마트 스택도 이 뷰) ----------
     banner: (
       <VStack modifiers={[padding({ all: 14 })]}>
         <HStack>
-          <Image systemName="pawprint.fill" color={VOLT} />
-          <Text modifiers={[font({ weight: 'bold', size: 15 }), foregroundStyle(CREAM), padding({ leading: 6 })]}>
+          <Image systemName="pawprint.fill" color={bannerGreen} />
+          <Text modifiers={[font({ weight: 'bold', size: 15 }), foregroundStyle(bannerText), padding({ leading: 6 })]}>
             {props.dogName} 러닝 중
           </Text>
-          <Text modifiers={[font({ size: 12 }), foregroundStyle(DIMTEXT), padding({ leading: 8 })]}>
+          <Text modifiers={[font({ size: 12 }), foregroundStyle(bannerDim), padding({ leading: 8 })]}>
             ⏱ {props.elapsed}
           </Text>
         </HStack>
@@ -40,17 +46,33 @@ const RunActivity = (props: RunActivityProps, _env: LiveActivityEnvironment) => 
           <Text modifiers={[font({ weight: 'bold', size: 30 }), foregroundStyle(CORAL)]}>
             {props.km}
           </Text>
-          <Text modifiers={[font({ size: 14 }), foregroundStyle(DIMTEXT), padding({ leading: 3 })]}>
+          <Text modifiers={[font({ size: 14 }), foregroundStyle(bannerDim), padding({ leading: 3 })]}>
             / {props.targetKm}km
           </Text>
-          <Text modifiers={[font({ size: 13 }), foregroundStyle(VOLT), padding({ leading: 12 })]}>
+          <Text modifiers={[font({ size: 13 }), foregroundStyle(bannerGreen), padding({ leading: 12 })]}>
             {props.pace}/km
           </Text>
         </HStack>
-        <Text modifiers={[font({ size: 12 }), foregroundStyle(DIMTEXT), padding({ top: 5 })]}>
+        <Text modifiers={[font({ size: 12 }), foregroundStyle(bannerDim), padding({ top: 5 })]}>
           {props.eventLine !== '' ? props.eventLine : '댕런 · 반려견 피트니스'}
         </Text>
       </VStack>
+    ),
+
+    // ---------- 워치 스마트 스택 · CarPlay (작은 배너) ----------
+    bannerSmall: (
+      <HStack modifiers={[padding({ all: 10 })]}>
+        <Image systemName="pawprint.fill" color={bannerGreen} />
+        <Text modifiers={[font({ weight: 'bold', size: 14 }), foregroundStyle(bannerText), padding({ leading: 5 })]}>
+          {props.dogName}
+        </Text>
+        <Text modifiers={[font({ weight: 'bold', size: 14 }), foregroundStyle(CORAL), padding({ leading: 8 })]}>
+          {props.km}km
+        </Text>
+        <Text modifiers={[font({ size: 11 }), foregroundStyle(bannerDim), padding({ leading: 6 })]}>
+          ⏱ {props.elapsed}
+        </Text>
+      </HStack>
     ),
 
     // ---------- 다이내믹 아일랜드: 컴팩트 ----------
