@@ -304,8 +304,10 @@ export default function ActiveRun() {
             </Text>
           </View>
           <View style={s.camStatus}>
-            <View style={[s.recDot, !running && { backgroundColor: '#8a8877' }]} />
-            <Text style={s.camText}>{running ? 'REC · 보호자 시청 중' : '카메라 대기'} · 배터리 82%</Text>
+            <View style={[s.recDot, !(running && gps) && { backgroundColor: '#8a8877' }]} />
+            <Text style={s.camText}>
+              {running && gps ? '보호자에게 위치 공유 중' : running ? '위치 공유 대기' : '시작 전'}
+            </Text>
           </View>
         </Row>
 
