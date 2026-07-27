@@ -11,6 +11,16 @@ import { colors } from '../../src/theme';
 const FOREST = '#132117';
 const FOREST_INNER = '#1d3023';
 
+// 캐러셀 카드 내부 스탯 컬럼 (배경색에 따라 텍스트 색 가변)
+function MiniCol({ v, l, main, dim }: { v: string; l: string; main: string; dim: string }) {
+  return (
+    <View style={{ alignItems: 'center' }}>
+      <Text style={{ fontSize: 14.5, fontWeight: '900', color: main }}>{v}</Text>
+      <Text style={{ fontSize: 9.5, color: dim, marginTop: 2 }}>{l}</Text>
+    </View>
+  );
+}
+
 // 실러너 추천 점수 — 응답률·경험·페이스 적합의 가중합.
 // 데이터가 쌓이면 매칭 엔진(견종 경험·후기·거리)으로 교체. 병원 레지던트식 하이브리드 매칭의 v1.
 interface Match { total: number; reasons: { glyph: string; label: string; pct: number }[] }
@@ -107,7 +117,7 @@ export default function Matching() {
 
   // 세로 캐러셀 물리 — 포커스 존의 카드가 커지고, 지나간/아직인 카드는 줄어든다 (spin&roll)
   const scrollY = useRef(new Animated.Value(0)).current;
-  const STEP = 100; // 스택 카드 유효 높이 (겹침 반영)
+  const STEP = 360; // 풀 정보 카드 유효 높이 (겹침 -36 반영) — 포커스가 상단 존에 오도록 실높이와 일치시킴
 
   return (
     <Animated.ScrollView
@@ -128,114 +138,101 @@ export default function Matching() {
       {/* ---------- 스택 카드: 1순위(포레스트) 위에 파스텔 대안들이 겹겹이 ---------- */}
       {live && top && (
         <>
-          {/* 1순위 card — 풀와이드 */}
-          <View style={s.topCard}>
-            <Row style={{ gap: 6, marginBottom: 4 }}>
-              <Text style={{ fontSize: 13, color: colors.volt }}>✿</Text>
-              <Text style={{ fontSize: 13.5, fontWeight: '900', color: colors.volt }}>추천 매칭 · 확신도 {top.m.total}%</Text>
-              <View style={{ flex: 1 }} />
-              <View style={{ backgroundColor: '#5a7a3c', borderRadius: 99, paddingVertical: 3, paddingHorizontal: 8 }}>
-                <Text style={{ fontSize: 8.5, fontWeight: '900', color: '#fff' }}>● LIVE</Text>
-              </View>
-            </Row>
-            <View style={s.rankTab}><Text style={{ fontSize: 11, fontWeight: '900', color: FOREST }}>{topIsPreferred ? '내가 고른 러너' : '1순위 추천'}</Text></View>
-            <Pressable onPress={() => router.push(`/runner-profile/${top.r.profileId}`)}>
-            <Row style={{ gap: 12, marginTop: 18 }}>
-              <Avatar url={top.r.avatarUrl} char={top.r.name[0]} bg="#5a7a3c" size={58} />
-              <View style={{ flex: 1 }}>
-                <Row style={{ gap: 7 }}>
-                  <Text style={{ fontSize: 17, fontWeight: '900', color: '#fff' }}>{top.r.name} 러너</Text>
-                  <Text style={{ fontSize: 11, fontWeight: '800', color: colors.volt, alignSelf: 'center' }}>프로필 ›</Text>
-                </Row>
-                <Row style={{ gap: 5, marginTop: 5 }}>
-                  <View style={s.limePill}><Text style={{ fontSize: 9.5, fontWeight: '800', color: FOREST }}>✓ {top.r.tier}</Text></View>
-                  <View style={s.limePill}><Text style={{ fontSize: 9.5, fontWeight: '800', color: FOREST }}>✓ 신원인증</Text></View>
-                </Row>
-                <Text style={{ fontSize: 12, color: '#b8c4ae', marginTop: 5 }}>
-                  {top.r.district || '근처'} · 러닝 {top.r.totalRuns}회
-                </Text>
-              </View>
-            </Row>
-            </Pressable>
-
-            {/* match bars */}
-            <View style={{ gap: 13, marginTop: 16 }}>
-              {top.m.reasons.map((reason) => (
-                <View key={reason.label}>
-                  <Row style={{ justifyContent: 'space-between' }}>
-                    <Row style={{ gap: 7, flex: 1 }}>
-                      <Text style={{ fontSize: 12, color: colors.volt }}>{reason.glyph}</Text>
-                      <Text style={{ fontSize: 12, color: '#dfe7d8', flex: 1 }}>{reason.label}</Text>
-                    </Row>
-                    <Text style={{ fontSize: 13, fontWeight: '900', color: '#fff' }}>{reason.pct}%</Text>
-                  </Row>
-                  <View style={s.barTrack}>
-                    <View style={[s.barFill, { width: `${reason.pct}%` }]} />
-                  </View>
-                </View>
-              ))}
-            </View>
-
-            {/* stat strip */}
-            <View style={s.statStrip}>
-              <StripStat label="평균 페이스" value={`${top.r.paceLabel} / km`} />
-              <View style={s.stripDiv} />
-              <StripStat label="완료 러닝" value={`${top.r.totalRuns}회`} />
-              <View style={s.stripDiv} />
-              <StripStat label="응답률" value={top.r.respondRate != null ? `${top.r.respondRate}%` : '신규'} />
-            </View>
-
-            <Pressable
-              onPress={() => nominate(top.r)}
-              disabled={nominating !== null}
-              style={[s.topNominate, nominating === top.r.profileId && { opacity: 0.5 }]}
-            >
-              <Text style={{ fontSize: 14.5, fontWeight: '900', color: FOREST }}>
-                {nominating === top.r.profileId ? '전송 중...' : `${top.r.name} 러너 지명 요청`}
-              </Text>
-            </Pressable>
-          </View>
-
-          {/* 대안 러너 — 겹겹이 쌓인 풀와이드 파스텔 카드 + 스크롤 스케일 캐러셀 */}
-          {rest.map(({ r, m }, i) => (
-            <Animated.View
-              key={r.profileId}
-              style={{
-                marginTop: -30,
-                transform: [{
-                  scale: scrollY.interpolate({
-                    inputRange: [(i - 2) * STEP, i * STEP, (i + 2) * STEP],
-                    outputRange: [0.9, 1, 0.93],
+          {/* 통합 캐러셀 — 전 러너가 풀 정보 카드, 포커스 존은 화면 상단, 3D 휠 물리 */}
+          {scored.map(({ r, m }, i) => {
+            const dark = i === 0;
+            const bg = dark ? FOREST : PALETTE[(i - 1) % PALETTE.length];
+            const tMain = dark ? '#fff' : FOREST;
+            const tDim = dark ? '#b8c4ae' : '#5d655d';
+            const barTrack = dark ? '#2c4034' : '#ffffff99';
+            const barFill = dark ? colors.volt : colors.voltDeep;
+            const focus = i * STEP;
+            return (
+              <Animated.View
+                key={r.profileId}
+                style={{
+                  marginTop: i === 0 ? 8 : -36,
+                  opacity: scrollY.interpolate({
+                    inputRange: [focus - 2 * STEP, focus, focus + 2 * STEP],
+                    outputRange: [0.88, 1, 0.85],
                     extrapolate: 'clamp',
                   }),
-                }],
-              }}
-            >
-            <Pressable
-              onPress={() => router.push(`/runner-profile/${r.profileId}`)}
-              style={[s.stackCard, { backgroundColor: PALETTE[i % PALETTE.length] }]}
-            >
-              <Row style={{ gap: 13, alignItems: 'center' }}>
-                <Avatar url={r.avatarUrl} char={r.name[0]} bg="#5a7a3c" size={54} />
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 19, fontWeight: '900', color: FOREST }}>{r.name}</Text>
-                  <Text style={{ fontSize: 12, color: '#5d655d', marginTop: 3 }}>
-                    {r.tier} · 적합 {m.total}% · {r.district || '근처'} · 러닝 {r.totalRuns}회
-                  </Text>
+                  transform: [
+                    { perspective: 900 },
+                    {
+                      scale: scrollY.interpolate({
+                        inputRange: [focus - 1.5 * STEP, focus, focus + 1.5 * STEP],
+                        outputRange: [0.84, 1, 0.88],
+                        extrapolate: 'clamp',
+                      }),
+                    },
+                    {
+                      rotateX: scrollY.interpolate({
+                        inputRange: [focus - 1.5 * STEP, focus, focus + 1.5 * STEP],
+                        outputRange: ['-8deg', '0deg', '10deg'],
+                        extrapolate: 'clamp',
+                      }),
+                    },
+                  ],
+                }}
+              >
+                <View style={[s.fullCard, { backgroundColor: bg }, dark && { borderWidth: 2, borderColor: colors.volt }]}>
+                  <View style={[s.rankTab, !dark && { backgroundColor: FOREST }]}>
+                    <Text style={{ fontSize: 11, fontWeight: '900', color: dark ? FOREST : '#fff' }}>
+                      {i === 0 ? (topIsPreferred ? '내가 고른 러너' : '1순위 추천') : `${i + 1}순위 · 적합 ${m.total}%`}
+                    </Text>
+                  </View>
+
+                  <Pressable onPress={() => router.push(`/runner-profile/${r.profileId}`)}>
+                    <Row style={{ gap: 12, marginTop: 4 }}>
+                      <Avatar url={r.avatarUrl} char={r.name[0]} bg="#5a7a3c" size={56} />
+                      <View style={{ flex: 1 }}>
+                        <Row style={{ gap: 7 }}>
+                          <Text style={{ fontSize: 20, fontWeight: '900', color: tMain }}>{r.name}</Text>
+                          <Text style={{ fontSize: 11, fontWeight: '800', color: dark ? colors.volt : '#5a7a3c', alignSelf: 'center' }}>프로필 ›</Text>
+                        </Row>
+                        <Text style={{ fontSize: 11.5, color: tDim, marginTop: 4 }}>
+                          {r.tier} · {r.district || '근처'} · 러닝 {r.totalRuns}회
+                        </Text>
+                      </View>
+                    </Row>
+                  </Pressable>
+
+                  {/* match bars — 모든 카드에 */}
+                  <View style={{ gap: 10, marginTop: 14 }}>
+                    {m.reasons.map((reason) => (
+                      <View key={reason.label}>
+                        <Row style={{ justifyContent: 'space-between' }}>
+                          <Text style={{ fontSize: 11.5, color: tDim }}>{reason.glyph} {reason.label}</Text>
+                          <Text style={{ fontSize: 12, fontWeight: '900', color: tMain }}>{reason.pct}%</Text>
+                        </Row>
+                        <View style={{ height: 6, borderRadius: 99, backgroundColor: barTrack, marginTop: 5, overflow: 'hidden' }}>
+                          <View style={{ height: 6, borderRadius: 99, backgroundColor: barFill, width: `${reason.pct}%` }} />
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+
+                  {/* stat strip — 모든 카드에 */}
+                  <Row style={{ marginTop: 14, borderRadius: 14, backgroundColor: dark ? FOREST_INNER : '#ffffff88', paddingVertical: 11, justifyContent: 'space-around' }}>
+                    <MiniCol v={r.paceLabel} l="평균 페이스" main={tMain} dim={tDim} />
+                    <MiniCol v={`${r.totalRuns}회`} l="완료 러닝" main={tMain} dim={tDim} />
+                    <MiniCol v={r.respondRate != null ? `${r.respondRate}%` : '신규'} l="응답률" main={tMain} dim={tDim} />
+                  </Row>
+
+                  <Pressable
+                    onPress={() => nominate(r)}
+                    disabled={nominating !== null}
+                    style={[s.fullNominate, { backgroundColor: dark ? colors.volt : FOREST }, nominating === r.profileId && { opacity: 0.5 }]}
+                  >
+                    <Text style={{ fontSize: 14, fontWeight: '900', color: dark ? FOREST : '#fff' }}>
+                      {nominating === r.profileId ? '전송 중...' : `${r.name} 러너 지명 요청`}
+                    </Text>
+                  </Pressable>
                 </View>
-                <Pressable
-                  onPress={() => nominate(r)}
-                  disabled={nominating !== null}
-                  style={[s.stackNominate, nominating === r.profileId && { opacity: 0.5 }]}
-                >
-                  <Text style={{ fontSize: 12, fontWeight: '900', color: '#fff' }}>
-                    {nominating === r.profileId ? '전송 중' : '지명'}
-                  </Text>
-                </Pressable>
-              </Row>
-            </Pressable>
-            </Animated.View>
-          ))}
+              </Animated.View>
+            );
+          })}
 
           <View style={s.trustNote}>
             <Text style={{ fontSize: 12, color: '#5d655d' }}>지명 없이 두면 오픈 매칭으로 모든 러너에게 보여요</Text>
@@ -295,6 +292,12 @@ const s = StyleSheet.create({
     borderRadius: 32, padding: 22, paddingBottom: 54,
     shadowColor: '#000', shadowOpacity: 0.07, shadowRadius: 10, shadowOffset: { width: 0, height: -4 },
   },
+  // 통합 캐러셀 풀 카드 — 모든 러너가 1순위급 정보 밀도
+  fullCard: {
+    borderRadius: 32, padding: 22, paddingTop: 44, paddingBottom: 60,
+    shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 14, shadowOffset: { width: 0, height: -5 },
+  },
+  fullNominate: { borderRadius: 16, alignItems: 'center', paddingVertical: 14, marginTop: 14 },
   stackNominate: { backgroundColor: FOREST, borderRadius: 99, paddingVertical: 11, paddingHorizontal: 17 },
   rankTab: {
     position: 'absolute', top: -1, left: -1, backgroundColor: colors.volt,
