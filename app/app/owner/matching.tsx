@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Avatar, Monogram, Row } from '../../src/components/ui';
 import { fetchCertifiedRunners, fetchRunnerProfile, LiveRunner, requestRunner } from '../../src/lib/api';
 import { draft } from '../../src/store';
@@ -105,8 +105,17 @@ export default function Matching() {
   // 스택 카드 팔레트 — 풀와이드 파스텔 (모던 패스 레퍼런스: 겹겹이 쌓인 카드)
   const PALETTE = ['#eaf7c8', '#DDE8D4', '#fde8e3', '#f2ead8'];
 
+  // 세로 캐러셀 물리 — 포커스 존의 카드가 커지고, 지나간/아직인 카드는 줄어든다 (spin&roll)
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const STEP = 100; // 스택 카드 유효 높이 (겹침 반영)
+
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: colors.cream }} contentContainerStyle={{ paddingTop: 56, paddingBottom: 40 }}>
+    <Animated.ScrollView
+      style={{ flex: 1, backgroundColor: colors.cream }}
+      contentContainerStyle={{ paddingTop: 56, paddingBottom: 80 }}
+      onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
+      scrollEventThrottle={16}
+    >
       <Row style={{ justifyContent: 'space-between', marginBottom: 4, paddingHorizontal: 20 }}>
         <Pressable onPress={() => router.back()} style={s.backBtn}><Text style={{ fontSize: 18 }}>‹</Text></Pressable>
         <Text style={{ fontSize: 20, fontWeight: '900', color: FOREST }}>러너 선택</Text>
@@ -187,10 +196,22 @@ export default function Matching() {
             </Pressable>
           </View>
 
-          {/* 대안 러너 — 겹겹이 쌓인 풀와이드 파스텔 카드 (콘텐츠는 상단, 하단은 다음 카드에 덮임) */}
+          {/* 대안 러너 — 겹겹이 쌓인 풀와이드 파스텔 카드 + 스크롤 스케일 캐러셀 */}
           {rest.map(({ r, m }, i) => (
-            <Pressable
+            <Animated.View
               key={r.profileId}
+              style={{
+                marginTop: -30,
+                transform: [{
+                  scale: scrollY.interpolate({
+                    inputRange: [(i - 2) * STEP, i * STEP, (i + 2) * STEP],
+                    outputRange: [0.9, 1, 0.93],
+                    extrapolate: 'clamp',
+                  }),
+                }],
+              }}
+            >
+            <Pressable
               onPress={() => router.push(`/runner-profile/${r.profileId}`)}
               style={[s.stackCard, { backgroundColor: PALETTE[i % PALETTE.length] }]}
             >
@@ -213,6 +234,7 @@ export default function Matching() {
                 </Pressable>
               </Row>
             </Pressable>
+            </Animated.View>
           ))}
 
           <View style={s.trustNote}>
@@ -238,7 +260,7 @@ export default function Matching() {
           </Text>
         </View>
       )}
-    </ScrollView>
+    </Animated.ScrollView>
   );
 }
 
@@ -266,11 +288,11 @@ const s = StyleSheet.create({
   aiChip: { borderWidth: 1, borderColor: '#3d5245', borderRadius: 99, paddingVertical: 7, paddingHorizontal: 12 },
   // 스택 카드 시스템 — 풀와이드, 큰 라운드, 겹침 (모던 패스)
   topCard: {
-    marginTop: 10, backgroundColor: FOREST, borderRadius: 32, padding: 22, paddingBottom: 52,
+    marginTop: 10, backgroundColor: FOREST, borderRadius: 32, padding: 22, paddingTop: 46, paddingBottom: 52,
     borderWidth: 2, borderColor: colors.volt,
   },
   stackCard: {
-    borderRadius: 32, padding: 22, paddingBottom: 54, marginTop: -30,
+    borderRadius: 32, padding: 22, paddingBottom: 54,
     shadowColor: '#000', shadowOpacity: 0.07, shadowRadius: 10, shadowOffset: { width: 0, height: -4 },
   },
   stackNominate: { backgroundColor: FOREST, borderRadius: 99, paddingVertical: 11, paddingHorizontal: 17 },

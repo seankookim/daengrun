@@ -33,6 +33,23 @@ export default function ActiveRun() {
   const [endSheet, setEndSheet] = useState(false);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
   const settled = useRef(false); // 중복 정산 방지 (자동완주 + 수동종료 레이스)
+
+  // 레이아웃 A/B — 'panel'(하단 고정 패널) vs 'island'(지도 위 플로팅 카드). ⧉ 토글, 선택 유지.
+  const [layout, setLayout] = useState<'panel' | 'island'>('panel');
+  useEffect(() => {
+    try {
+      const AS = require('@react-native-async-storage/async-storage').default;
+      AS.getItem('@runLayout').then((v: string | null) => { if (v === 'island') setLayout('island'); }).catch(() => {});
+    } catch { /* no-op */ }
+  }, []);
+  const toggleLayout = () => {
+    const next = layout === 'panel' ? 'island' : 'panel';
+    setLayout(next);
+    try {
+      const AS = require('@react-native-async-storage/async-storage').default;
+      AS.setItem('@runLayout', next).catch(() => {});
+    } catch { /* no-op */ }
+  };
   const [evCounts, setEvCounts] = useState<Record<string, number>>({});
 
   // 러닝 이벤트 원탭 — 기록 + 보호자 즉시 알림 (응가 도장 = 케어 증거이자 건강 데이터)
@@ -303,15 +320,20 @@ export default function ActiveRun() {
               {running ? `● ${dogName}와 러닝 중${gps ? ' · GPS' : ' · 데모 거리'}` : `${dogName}와 러닝 준비`}
             </Text>
           </View>
-          <View style={s.camStatus}>
-            <View style={[s.recDot, !(running && gps) && { backgroundColor: '#8a8877' }]} />
-            <Text style={s.camText}>
-              {running && gps ? '보호자에게 위치 공유 중' : running ? '위치 공유 대기' : '시작 전'}
-            </Text>
-          </View>
+          <Row style={{ gap: 8 }}>
+            <View style={s.camStatus}>
+              <View style={[s.recDot, !(running && gps) && { backgroundColor: '#8a8877' }]} />
+              <Text style={s.camText}>
+                {running && gps ? '보호자에게 위치 공유 중' : running ? '위치 공유 대기' : '시작 전'}
+              </Text>
+            </View>
+            <Pressable onPress={toggleLayout} style={s.layoutBtn}>
+              <Text style={{ fontSize: 13, color: '#fff' }}>⧉</Text>
+            </Pressable>
+          </Row>
         </Row>
 
-        <View style={s.trackWrap}>
+        <View style={[s.trackWrap, layout === 'island' && { display: 'none' }]}>
           <Row style={{ justifyContent: 'space-between', marginBottom: 8 }}>
             <Text style={{ fontSize: 12, color: colors.dim }}>{info?.routeName ?? req.place} 코스 · {targetKm}km</Text>
             <Text style={{ fontSize: 12, fontWeight: '800', color: colors.ink }}>
@@ -325,8 +347,8 @@ export default function ActiveRun() {
         </View>
       </View>
 
-      {/* 스탯 + 컨트롤 */}
-      <View style={s.panel}>
+      {/* 스탯 + 컨트롤 — panel: 하단 고정 / island: 지도 위 플로팅 */}
+      <View style={[s.panel, layout === 'island' && s.panelIsland]}>
         {/* 고정된 고객 채팅 */}
         <Pressable
           style={s.chatPin}
@@ -477,6 +499,16 @@ const s = StyleSheet.create({
     backgroundColor: colors.tang, borderWidth: 3, borderColor: '#fff',
   },
   panel: { backgroundColor: colors.ink, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 34 },
+  panelIsland: {
+    position: 'absolute', left: 12, right: 12, bottom: 22,
+    borderRadius: 28, paddingBottom: 20,
+    shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 22, shadowOffset: { width: 0, height: 10 },
+    elevation: 12,
+  },
+  layoutBtn: {
+    width: 32, height: 32, borderRadius: 16, backgroundColor: '#00000055',
+    alignItems: 'center', justifyContent: 'center', alignSelf: 'center',
+  },
   chatPin: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     backgroundColor: '#1c2b21', borderRadius: 16, padding: 12,
