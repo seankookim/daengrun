@@ -1142,7 +1142,7 @@ export async function fetchFeed(): Promise<FeedPost[]> {
   const uid = user.user?.id;
   const { data, error } = await supabase
     .from('feed_posts')
-    .select('id, author_id, body, photo_url, meta, created_at, profiles(name, avatar_url), feed_likes(profile_id)')
+    .select('id, author_id, body, photo_url, meta, created_at, profiles!feed_posts_author_id_fkey(name, avatar_url), feed_likes(profile_id)')
     .order('created_at', { ascending: false })
     .limit(30);
   if (error) throw error;
