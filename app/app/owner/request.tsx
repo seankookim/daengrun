@@ -153,16 +153,23 @@ export default function Request() {
         }
       }
       setHoldLive(true);
-    } catch {
+    } catch (e) {
+      // 실패는 실패로 — 데모 폴백 은퇴 (목업 김민준 화면이 실패를 숨기던 함정, 2026-07-23)
       draft.bookingId = null;
-      setHoldLive(false); // 서버 실패 → 목업 흐름 유지
+      setHoldVisible(false);
+      Alert.alert('예약 실패', (e as Error).message ?? '잠시 후 다시 시도해주세요');
     }
   };
 
-  // slot-hold: brief countdown, then continue to matching
+  // slot-hold: 서버 홀드가 확보된 경우에만 다음 화면으로 (실패는 pay()가 Alert로 처리)
   useEffect(() => {
     if (!holdVisible) return;
     const tick = setInterval(() => setHoldSec((v) => v - 1), 1000);
+    return () => clearInterval(tick);
+  }, [holdVisible]);
+
+  useEffect(() => {
+    if (!holdVisible || holdLive !== true) return;
     const go = setTimeout(() => {
       setHoldVisible(false);
       if (nominatedName.current) {
@@ -173,9 +180,9 @@ export default function Request() {
         return;
       }
       router.push('/owner/matching');
-    }, 2600);
-    return () => { clearInterval(tick); clearTimeout(go); };
-  }, [holdVisible]);
+    }, 1400);
+    return () => clearTimeout(go);
+  }, [holdVisible, holdLive]);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.cream }}>
@@ -442,8 +449,8 @@ export default function Request() {
             <Text style={{ fontSize: 11.5, color: colors.dim, marginTop: 8, textAlign: 'center' }}>
               {timeLabel} 슬롯이 결제 완료까지{'\n'}다른 보호자에게 보이지 않아요
             </Text>
-            <Text style={{ fontSize: 10, fontWeight: '800', marginTop: 10, color: holdLive === true ? '#4a6d1f' : holdLive === false ? '#a97c12' : colors.dim }}>
-              {holdLive === true ? '● 서버 홀드 확보 — 예약이 생성됐어요' : holdLive === false ? '오프라인 데모 모드' : '서버 연결 중...'}
+            <Text style={{ fontSize: 10, fontWeight: '800', marginTop: 10, color: holdLive === true ? '#4a6d1f' : colors.dim }}>
+              {holdLive === true ? '● 서버 홀드 확보 — 예약이 생성됐어요' : '서버 연결 중...'}
             </Text>
           </View>
         </View>
