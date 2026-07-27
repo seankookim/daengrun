@@ -5,6 +5,7 @@ import { Monogram, Row } from '../../src/components/ui';
 import { addRunEvent, fetchCurrentRunnerJobId, fetchMeetupInfo, MeetupInfo, notifyKmMilestone, RunEventKind, saveRunTrace, settleRun, startRunServer, uploadRunPhoto } from '../../src/lib/api';
 import { distM, GeoPoint, publishPos, startTracking, stopPublishing } from '../../src/lib/geo';
 import { haptic } from '../../src/lib/haptics';
+import { endRunActivity, RunLAProps, startRunActivity, updateRunActivity } from '../../src/lib/runActivity';
 import { EndReason, payoutFor, runnerJob, runRequests, runResult } from '../../src/store';
 import { colors } from '../../src/theme';
 
@@ -131,6 +132,40 @@ export default function ActiveRun() {
   const remaining = Math.max(targetKm - km, 0);
   const progress = Math.min(km / targetKm, 1);
 
+  // ---------- 라이브 액티비티 (다이내믹 아일랜드 + 잠금화면) ----------
+  const laProps = (): RunLAProps => ({
+    dogName,
+    km: km.toFixed(2),
+    targetKm: String(targetKm),
+    pace: paceStr(sec, km),
+    elapsed: fmt(sec),
+    eventLine: [
+      evCounts.poop ? `💩${evCounts.poop}` : '',
+      evCounts.snack ? `🍖${evCounts.snack}` : '',
+      evCounts.water ? `💧${evCounts.water}` : '',
+      evCounts.photo ? `📷${evCounts.photo}` : '',
+    ].filter(Boolean).join(' · '),
+  });
+  const laStarted = useRef(false);
+  const laLastUpdate = useRef(0);
+
+  useEffect(() => {
+    if (running && !laStarted.current) {
+      laStarted.current = true;
+      startRunActivity(laProps());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [running]);
+
+  useEffect(() => {
+    if (!running || !laStarted.current) return;
+    const now = Date.now();
+    if (now - laLastUpdate.current < 5000) return; // 5초 스로틀
+    laLastUpdate.current = now;
+    updateRunActivity(laProps());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sec]);
+
   useEffect(() => {
     if (running) {
       timer.current = setInterval(() => setSec((s) => s + (gps ? 1 : 8)), gps ? 1000 : 100); // GPS면 실시간
@@ -150,9 +185,10 @@ export default function ActiveRun() {
     if (settled.current) return;
     settled.current = true;
     const bid = runnerJob.bookingId;
-    // 추적 종료 + 브로드캐스트 정리
+    // 추적 종료 + 브로드캐스트 + 라이브 액티비티 정리
     if (stopTrack.current) { stopTrack.current(); stopTrack.current = null; }
     stopPublishing();
+    endRunActivity(laProps());
     const localPayout = completed ? payoutFor(km) : payoutByReason(reason);
     Object.assign(runResult, { km, sec, payout: localPayout, completed, reason, bookingId: bid });
 

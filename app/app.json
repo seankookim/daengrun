@@ -12,7 +12,8 @@
         "LSApplicationQueriesSchemes": [
           "nmap"
         ],
-        "NSLocationWhenInUseUsageDescription": "러닝 거리 측정과 보호자 실시간 지도를 위해 위치를 사용해요."
+        "NSLocationWhenInUseUsageDescription": "러닝 거리 측정과 보호자 실시간 지도를 위해 위치를 사용해요.",
+        "NSSupportsLiveActivities": true
       },
       "bundleIdentifier": "com.seankookim.daengrun"
     },
@@ -42,6 +43,12 @@
         "expo-location",
         {
           "locationWhenInUsePermission": "러닝 거리 측정과 보호자 실시간 지도를 위해 위치를 사용해요."
+        }
+      ],
+      [
+        "expo-widgets",
+        {
+          "widgets": []
         }
       ]
     ]
