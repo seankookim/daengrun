@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Monogram, Row } from '../../src/components/ui';
 import { addRunEvent, ensureThread, fetchCurrentRunnerJobId, fetchMeetupInfo, MeetupInfo, notifyKmMilestone, RunEventKind, saveRunTrace, sendChatMessage, sendChatPhoto, settleRun, startRunServer, uploadRunPhoto } from '../../src/lib/api';
-import { distM, GeoPoint, publishPos, startTracking, stopPublishing } from '../../src/lib/geo';
+import { distM, GeoPoint, getMaps, publishPos, startTracking, stopPublishing } from '../../src/lib/geo';
 import { haptic } from '../../src/lib/haptics';
 import { endRunActivity, RunLAProps, startRunActivity, updateRunActivity } from '../../src/lib/runActivity';
 import { EndReason, payoutFor, runnerJob, runRequests, runResult } from '../../src/store';
@@ -117,6 +117,8 @@ export default function ActiveRun() {
   // gps=false(모듈 없음/권한 거부/구 빌드): 가속 데모 타이머 폴백 — 화면에 '데모 거리' 표기
   const [gps, setGps] = useState(false);
   const [gpsKm, setGpsKm] = useState(0);
+  const [lastPos, setLastPos] = useState<GeoPoint | null>(null);
+  const maps = getMaps();
   const trace = useRef<GeoPoint[]>([]);
   const lastMilestone = useRef(0);
   const stopTrack = useRef<null | (() => void)>(null);
@@ -129,6 +131,7 @@ export default function ActiveRun() {
     let alive = true;
     startTracking((p) => {
       if (!alive) return;
+      setLastPos(p);
       const prev = trace.current[trace.current.length - 1];
       trace.current.push(p);
       if (prev) {
@@ -272,8 +275,28 @@ export default function ActiveRun() {
 
   return (
     <View style={s.root}>
-      {/* 코스 맵 placeholder */}
+      {/* 코스 맵 — 실지도 (GPS 픽스 수신 시), 아니면 대기 배경 */}
       <View style={s.mapArea}>
+        {maps && lastPos && (
+          <maps.MapView
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+            region={{ latitude: lastPos.lat, longitude: lastPos.lng, latitudeDelta: 0.006, longitudeDelta: 0.006 }}
+            showsUserLocation
+          >
+            {trace.current.length > 1 && (
+              <maps.Polyline
+                coordinates={trace.current.map((p) => ({ latitude: p.lat, longitude: p.lng }))}
+                strokeColor="#82b016"
+                strokeWidth={5}
+              />
+            )}
+          </maps.MapView>
+        )}
+        {maps && !lastPos && running && (
+          <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ fontSize: 12.5, color: '#8fa093' }}>GPS 신호 잡는 중... (실외에서 몇 초 걸려요)</Text>
+          </View>
+        )}
         <Row style={{ justifyContent: 'space-between', paddingHorizontal: 16 }}>
           <View style={s.statusBadge}>
             <Text style={{ fontSize: 12, fontWeight: '700', color: colors.volt }}>

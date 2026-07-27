@@ -6,11 +6,6 @@ import { createLiveActivity, type LiveActivityEnvironment } from 'expo-widgets';
 // 러너의 폰에서 러닝 중 항상 보이는 상태: 강아지·거리/목표·페이스·경과.
 // 업데이트는 앱이 update()를 호출할 때 (포그라운드 러닝 기준 — 백그라운드 추적은 후속).
 
-const VOLT = '#B9F23A';
-const CORAL = '#FF6347';
-const CREAM = '#F6F2E9';
-const DIMTEXT = '#8fa093';
-
 export type RunActivityProps = {
   dogName: string;
   km: string;        // '2.34' — 표시용 고정 포맷
@@ -22,6 +17,13 @@ export type RunActivityProps = {
 
 const RunActivity = (props: RunActivityProps, env: LiveActivityEnvironment) => {
   'widget';
+
+  // ⚠️ 모든 상수는 함수 안에 — 'widget' 함수는 문자열화되어 위젯 컨텍스트에서 실행되므로
+  // 모듈 스코프 클로저가 존재하지 않는다 (CORAL ReferenceError의 원인, 2026-07-23)
+  const VOLT = '#B9F23A';
+  const CORAL = '#FF6347';
+  const CREAM = '#F6F2E9';
+  const DIMTEXT = '#8fa093';
 
   // 잠금화면 배너 배경은 시스템(밝은 배경화면 = 밝은 소재)을 따르므로 텍스트를 스킴에 맞춘다 (HIG).
   // 아일랜드 3종은 항상 검정 배경 — 고정 라이트 텍스트가 정답.

@@ -44,14 +44,18 @@ export interface LivePos { lat: number; lng: number; km: number; paceSec: number
 
 let pubCh: ReturnType<typeof supabase.channel> | null = null;
 let pubId: string | null = null;
+let pubJoined = false;
 
 export function publishPos(bookingId: string, pos: LivePos): void {
   if (!pubCh || pubId !== bookingId) {
     if (pubCh) supabase.removeChannel(pubCh);
+    pubJoined = false;
     pubCh = supabase.channel(`run-${bookingId}`);
     pubId = bookingId;
-    pubCh.subscribe();
+    pubCh.subscribe((status) => { pubJoined = status === 'SUBSCRIBED'; });
   }
+  // 채널 조인 전 전송은 스킵 (REST 폴백 경고 방지 — 2초마다 다음 픽스가 어차피 온다)
+  if (!pubJoined) return;
   pubCh.send({ type: 'broadcast', event: 'pos', payload: pos }).catch(() => {});
 }
 
