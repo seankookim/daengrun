@@ -46,14 +46,15 @@ for (const r of RUNNERS) {
   }
   if (!uid) { console.log(`✗ ${r.name}: user 생성 실패`); continue; }
 
-  // 2) profile
-  await fetch(`${URL_}/rest/v1/profiles?on_conflict=id`, {
+  // 2) profile — 실패를 소리내서 (조용한 실패가 '러너 안 보임'의 원인이 됨)
+  const pRes = await fetch(`${URL_}/rest/v1/profiles?on_conflict=id`, {
     method: 'POST', headers: { ...H, Prefer: 'resolution=merge-duplicates' },
     body: JSON.stringify({ id: uid, name: r.name, role: 'runner', district: r.district }),
   });
+  if (!pRes.ok) { console.log(`  ✗ ${r.name} profile: ${await pRes.text()}`); continue; }
 
   // 3) runner row
-  await fetch(`${URL_}/rest/v1/runners?on_conflict=profile_id`, {
+  const rRes = await fetch(`${URL_}/rest/v1/runners?on_conflict=profile_id`, {
     method: 'POST', headers: { ...H, Prefer: 'resolution=merge-duplicates' },
     body: JSON.stringify({
       profile_id: uid, tier: r.tier, funnel_step: 'certified', bio: r.bio,
@@ -62,6 +63,7 @@ for (const r of RUNNERS) {
       commission_rate: r.tier === 'master' ? 0.15 : r.tier === 'veteran' ? 0.18 : 0.2,
     }),
   });
+  if (!rRes.ok) { console.log(`  ✗ ${r.name} runner: ${await rRes.text()}`); continue; }
 
   // 4) 가용시간 (매일 06–22) — 이미 있으면 스킵
   const rules = await fetch(`${URL_}/rest/v1/runner_availability_rules?runner_id=eq.${uid}&select=weekday`, { headers: H }).then((x) => x.json());

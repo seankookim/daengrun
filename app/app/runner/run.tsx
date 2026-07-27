@@ -349,6 +349,22 @@ export default function ActiveRun() {
 
       {/* 스탯 + 컨트롤 — panel: 하단 고정 / island: 지도 위 플로팅 */}
       <View style={[s.panel, layout === 'island' && s.panelIsland]}>
+        {/* island 모드: 코스·남은 거리·진행바가 카드 안으로 들어온다 (숨기지 않는다) */}
+        {layout === 'island' && (
+          <View style={{ marginBottom: 12 }}>
+            <Row style={{ justifyContent: 'space-between', marginBottom: 7 }}>
+              <Text style={{ fontSize: 11.5, color: '#8fa093' }} numberOfLines={1}>
+                {info?.routeName ?? req.place} 코스 · {targetKm}km
+              </Text>
+              <Text style={{ fontSize: 11.5, fontWeight: '800', color: colors.cream }}>
+                남은 거리 {remaining.toFixed(1)}km
+              </Text>
+            </Row>
+            <View style={{ height: 5, borderRadius: 99, backgroundColor: '#2c4034', overflow: 'hidden' }}>
+              <View style={{ height: 5, borderRadius: 99, backgroundColor: colors.volt, width: `${progress * 100}%` }} />
+            </View>
+          </View>
+        )}
         {/* 고정된 고객 채팅 */}
         <Pressable
           style={s.chatPin}

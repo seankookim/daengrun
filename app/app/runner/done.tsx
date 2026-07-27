@@ -1,9 +1,9 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { Btn, Card, Row, text } from '../../src/components/ui';
-import { uploadRunPhoto } from '../../src/lib/api';
-import { currentDrop, rewardStatus, runRequests, runResult } from '../../src/store';
+import { DropRow, fetchDrops, uploadRunPhoto } from '../../src/lib/api';
+import { runRequests, runResult } from '../../src/store';
 import { colors } from '../../src/theme';
 
 const fmt = (sec: number) =>
@@ -11,8 +11,11 @@ const fmt = (sec: number) =>
 
 export default function RunDone() {
   const req = runRequests[0];
-  const dropDue = rewardStatus.totalRuns % 5 === 0; // 이번 러닝으로 보급 드랍
-  const [opened, setOpened] = useState(false);
+  // 실드랍 — settle-run이 굴린 결과를 DB에서 읽는다 (목업 215회 은퇴, fake-inventory)
+  const [pendingDrop, setPendingDrop] = useState<DropRow | null>(null);
+  useEffect(() => {
+    fetchDrops().then((ds) => setPendingDrop(ds.find((d) => !d.openedAt) ?? null)).catch(() => {});
+  }, []);
   const [photos, setPhotos] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
 
@@ -98,34 +101,21 @@ export default function RunDone() {
         </View>
       )}
 
-      {/* 보급 드랍 — every 5th run */}
-      {dropDue && (
+      {/* 실드랍 — 미오픈 드랍이 있을 때만, 오픈은 리워드 센터에서 */}
+      {pendingDrop && (
         <Pressable
-          onPress={() => (opened ? router.push('/runner/rewards') : setOpened(true))}
+          onPress={() => router.push('/runner/rewards')}
           style={{
             marginTop: 14, borderRadius: 18, padding: 18, alignItems: 'center',
-            backgroundColor: opened ? '#eef4e0' : colors.ink,
-            borderWidth: 1.5, borderColor: opened ? '#a9c47e' : colors.volt,
+            backgroundColor: colors.ink, borderWidth: 1.5, borderColor: colors.volt,
             shadowColor: colors.volt, shadowOpacity: 0.35, shadowRadius: 12, shadowOffset: { width: 0, height: 3 },
           }}
         >
-          {opened ? (
-            <>
-              <Text style={{ fontSize: 13, fontWeight: '900', color: '#3d5a2b' }}>보급 상자 오픈!</Text>
-              <Text style={{ fontSize: 17, fontWeight: '900', color: '#132117', marginTop: 6 }}>
-                +{currentDrop.miles} 댕마일 · 카드 「{currentDrop.card}」
-              </Text>
-              <Text style={{ fontSize: 10.5, color: '#75806f', marginTop: 5 }}>리워드 센터에서 확인 ›</Text>
-            </>
-          ) : (
-            <>
-              <Text style={{ fontSize: 22 }}>▣</Text>
-              <Text style={{ fontSize: 14, fontWeight: '900', color: colors.volt, marginTop: 5 }}>
-                {rewardStatus.totalRuns}회 달성 — 보급 상자 도착!
-              </Text>
-              <Text style={{ fontSize: 10.5, color: '#8fa093', marginTop: 3 }}>탭해서 열기</Text>
-            </>
-          )}
+          <Text style={{ fontSize: 22 }}>{pendingDrop.kind === 'pick' ? '🎁' : '▣'}</Text>
+          <Text style={{ fontSize: 14, fontWeight: '900', color: colors.volt, marginTop: 5 }}>
+            {pendingDrop.runCountAt}회 달성 — {pendingDrop.kind === 'pick' ? '픽 드랍' : '보급 상자'} 도착!
+          </Text>
+          <Text style={{ fontSize: 10.5, color: '#8fa093', marginTop: 3 }}>리워드 센터에서 열기 ›</Text>
         </Pressable>
       )}
 
