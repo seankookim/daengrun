@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { addDog, AvailRule, confirmPayment, createBookingHold, DogProfile, ensureDog, fetchMyDogs, fetchRoutes, fetchRunnerAvailability } from '../../src/lib/api';
+import { addDog, AvailRule, confirmPayment, createBookingHold, DogProfile, ensureDog, fetchMyDogs, fetchRoutes, fetchRunnerAvailability, requestRunner } from '../../src/lib/api';
 import { HeatTrace } from '../../src/components/runcard';
 import { Avatar, Row } from '../../src/components/ui';
 import { haptic } from '../../src/lib/haptics';
@@ -68,6 +68,7 @@ export default function Request() {
   }, []);
   const [slotSheet, setSlotSheet] = useState(false);
   const [holdVisible, setHoldVisible] = useState(false);
+  const nominatedName = useRef<string | null>(null); // 결제 중 지명 성공 시 러너 이름
   const [holdSec, setHoldSec] = useState(300);
   const [holdLive, setHoldLive] = useState<null | boolean>(null); // null=진행, true=서버 홀드, false=목업 폴백
   const [dateIdx, setDateIdx] = useState(0);
@@ -139,6 +140,18 @@ export default function Request() {
       });
       await confirmPayment(res.booking_id); // 결제 성공 시뮬레이션 → matching
       draft.bookingId = res.booking_id;
+      // 지명 예약: 결제 직후 여기서 바로 지명 전송 — 러너 선택 화면을 아예 거치지 않는다
+      // (매칭 화면에 위임하던 방식은 실패 시 조용히 선택 화면에 좌초, 2026-07-23)
+      if (draft.preferredRunnerId) {
+        try {
+          await requestRunner(res.booking_id, draft.preferredRunnerId);
+          nominatedName.current = draft.preferredRunnerName ?? '선택한';
+          draft.preferredRunnerId = null;
+          draft.preferredRunnerName = null;
+        } catch (e) {
+          console.warn('[pay] nominate:', (e as Error)?.message); // 실패 → 매칭 화면 폴백 (preferred 유지)
+        }
+      }
       setHoldLive(true);
     } catch {
       draft.bookingId = null;
@@ -152,6 +165,13 @@ export default function Request() {
     const tick = setInterval(() => setHoldSec((v) => v - 1), 1000);
     const go = setTimeout(() => {
       setHoldVisible(false);
+      if (nominatedName.current) {
+        // 지명 완료 — 러너 선택 화면 건너뛰고 내 일정에서 대기
+        Alert.alert('지명 요청 전송', `${nominatedName.current} 러너에게 우선 요청을 보냈어요.\n수락하면 알림으로 알려드릴게요.`);
+        nominatedName.current = null;
+        router.replace('/owner/schedule');
+        return;
+      }
       router.push('/owner/matching');
     }, 2600);
     return () => { clearInterval(tick); clearTimeout(go); };

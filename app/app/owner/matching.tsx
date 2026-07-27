@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Avatar, Monogram, Row } from '../../src/components/ui';
-import { fetchCertifiedRunners, LiveRunner, requestRunner } from '../../src/lib/api';
+import { fetchCertifiedRunners, fetchRunnerProfile, LiveRunner, requestRunner } from '../../src/lib/api';
 import { draft, fmtWon, priceForRunner, runners } from '../../src/store';
 import { colors } from '../../src/theme';
 
@@ -38,6 +38,21 @@ export default function Matching() {
   useEffect(() => {
     if (live) fetchCertifiedRunners().then(setLiveRunners).catch((e) => console.warn('[matching] runners:', e?.message ?? e));
   }, [live]);
+
+  // 선호 러너가 오프라인이라 목록에 없어도 반드시 보이게 주입 (지명은 오프라인이어도 가능)
+  useEffect(() => {
+    const pref = draft.preferredRunnerId;
+    if (!live || !pref || liveRunners.some((r) => r.profileId === pref)) return;
+    fetchRunnerProfile(pref)
+      .then((p) => {
+        setLiveRunners((cur) => (cur.some((r) => r.profileId === pref) ? cur : [{
+          profileId: p.profileId, name: p.name, district: p.district, tier: p.tier,
+          totalRuns: p.totalRuns, paceLabel: p.paceLabel, paceSec: 420,
+          respondRate: p.respondRate, avatarUrl: p.avatarUrl, bio: p.bio,
+        }, ...cur]));
+      })
+      .catch((e) => console.warn('[matching] pref inject:', e?.message ?? e));
+  }, [live, liveRunners]);
 
   // 프로필→슬롯→결제로 온 경우: 이미 러너를 골랐으므로 지명을 자동 전송 (CTA 약속 이행)
   const autoRef = useRef(false);
