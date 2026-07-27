@@ -123,6 +123,10 @@ export default function Matching() {
   const STEP = cardH - OVERLAP;
   const FOCUS_TOP = 16;                          // 스크롤러 상단(=헤더 하단)에서 포커스 카드 top까지
   const SCREEN_H = Dimensions.get('window').height;
+  const TAIL = Math.max(140, SCREEN_H - cardH - 160); // 마지막 카드 스냅용 꼬리
+  const N = scored.length;
+  // 카드가 절대좌표(top = FOCUS_TOP + i*STEP)라 콘텐츠 높이를 명시
+  const contentH = N > 0 ? FOCUS_TOP + cardH + (N - 1) * STEP + TAIL : undefined;
 
   const scrollY = useRef(new Animated.Value(0)).current;
   const [focusIdx, setFocusIdx] = useState(0);
@@ -148,13 +152,9 @@ export default function Matching() {
       </View>
 
       <Animated.ScrollView
-        style={{ flex: 1 }}
+        style={{ flex: 1, overflow: 'visible' }}
         removeClippedSubviews={false}
-        contentContainerStyle={{
-          paddingTop: FOCUS_TOP,
-          // 마지막 카드도 포커스 좌표까지 스냅되도록 뷰포트만큼 꼬리 확보
-          paddingBottom: Math.max(140, SCREEN_H - cardH - 160),
-        }}
+        contentContainerStyle={{ height: live && top ? contentH : undefined, overflow: 'visible' }}
         snapToInterval={STEP}
         disableIntervalMomentum
         decelerationRate="fast"
@@ -172,7 +172,11 @@ export default function Matching() {
         {/* ---------- 3D 버티컬 커버플로우: 포커스 카드가 뷰어에 가장 가깝게 ---------- */}
         {live && top && (
           <>
-            {scored.map(({ r, m }, i) => {
+            {scored
+              .map((item, i) => ({ item, i }))
+              // 페인트 순서: 먼 카드 → 이웃 → 포커스(맨 마지막 = 최상위). 키가 안정적이라 리렌더 시 네이티브 순서도 재정렬됨.
+              .sort((a, b) => Math.abs(b.i - focusIdx) - Math.abs(a.i - focusIdx))
+              .map(({ item: { r, m }, i }) => {
               const dark = i === 0;
               const bg = dark ? FOREST : PALETTE[(i - 1) % PALETTE.length];
               const tMain = dark ? '#fff' : FOREST;
@@ -187,10 +191,11 @@ export default function Matching() {
                 <Animated.View
                   key={r.profileId}
                   style={{
-                    marginTop: i === 0 ? 0 : -OVERLAP,
-                    // 스태킹 = 포커스 거리 계층: 포커스 > 바로 옆 > 먼 카드 (배열 순서 아님)
-                    zIndex: 100 - dist * 10,
-                    elevation: dist === 0 ? 14 : Math.max(1, 6 - dist * 2),
+                    // 절대좌표 — 레이아웃은 인덱스가, 페인트 순서는 렌더 순서가 담당
+                    position: 'absolute', top: FOCUS_TOP + i * STEP, left: 0, right: 0,
+                    // 스태킹 티어: 포커스 1000 > 이웃 100 > 2칸 10 > 나머지 1
+                    zIndex: dist === 0 ? 1000 : dist === 1 ? 100 : dist === 2 ? 10 : 1,
+                    elevation: dist === 0 ? 30 : dist === 1 ? 8 : 1,
                     opacity: scrollY.interpolate({
                       inputRange, outputRange: [0.42, 0.78, 1, 0.78, 0.42], extrapolate: 'clamp',
                     }),
@@ -284,7 +289,7 @@ export default function Matching() {
               );
             })}
 
-            <View style={s.trustNote}>
+            <View style={[s.trustNote, { position: 'absolute', top: FOCUS_TOP + cardH + (N - 1) * STEP + 14, left: 0, right: 0, zIndex: 0 }]}>
               <Text style={{ fontSize: 12, color: '#5d655d' }}>지명 없이 두면 오픈 매칭으로 모든 러너에게 보여요</Text>
             </View>
           </>
