@@ -102,36 +102,33 @@ export default function Matching() {
     }
   };
 
+  // 스택 카드 팔레트 — 풀와이드 파스텔 (모던 패스 레퍼런스: 겹겹이 쌓인 카드)
+  const PALETTE = ['#eaf7c8', '#DDE8D4', '#fde8e3', '#f2ead8'];
+
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: colors.cream }} contentContainerStyle={{ padding: 22, paddingTop: 56, paddingBottom: 40 }}>
-      <Row style={{ justifyContent: 'space-between', marginBottom: 4 }}>
+    <ScrollView style={{ flex: 1, backgroundColor: colors.cream }} contentContainerStyle={{ paddingTop: 56, paddingBottom: 40 }}>
+      <Row style={{ justifyContent: 'space-between', marginBottom: 4, paddingHorizontal: 20 }}>
         <Pressable onPress={() => router.back()} style={s.backBtn}><Text style={{ fontSize: 18 }}>‹</Text></Pressable>
         <Text style={{ fontSize: 20, fontWeight: '900', color: FOREST }}>러너 선택</Text>
         <View style={{ width: 40 }} />
       </Row>
-      <Text style={{ fontSize: 13, color: '#5d655d', textAlign: 'center', marginBottom: 16 }}>
-        {live ? '러너를 지명하거나, 오픈 매칭으로 기다릴 수 있어요\n보통 몇 분 안에 응답이 오고, 확정되면 알림으로 알려드려요' : '보호자님과 러너의 선호도를 종합 분석했어요'}
+      <Text style={{ fontSize: 13, color: '#5d655d', textAlign: 'center', marginBottom: 14, paddingHorizontal: 20 }}>
+        {live ? '러너를 지명하거나, 오픈 매칭으로 기다릴 수 있어요\n보통 몇 분 안에 응답이 와요' : '보호자님과 러너의 선호도를 종합 분석했어요'}
       </Text>
 
-      {/* ---------- 실러너 추천 (지명 요청) — 데모와 같은 추천 경험, 실데이터 기반 ---------- */}
+      {/* ---------- 스택 카드: 1순위(포레스트) 위에 파스텔 대안들이 겹겹이 ---------- */}
       {live && top && (
         <>
-          {/* 추천 banner */}
-          <View style={s.aiBanner}>
-            <View style={{ flex: 1 }}>
-              <Row style={{ gap: 6 }}>
-                <Text style={{ fontSize: 13, color: colors.volt }}>✿</Text>
-                <Text style={{ fontSize: 14, fontWeight: '900', color: colors.volt }}>추천 매칭 · 확신도 {top.m.total}%</Text>
-              </Row>
-              <Text style={{ fontSize: 12, color: '#b8c4ae', marginTop: 3 }}>응답률·경험·페이스를 종합 분석했어요</Text>
-            </View>
-            <View style={{ backgroundColor: '#5a7a3c', borderRadius: 99, paddingVertical: 4, paddingHorizontal: 9, alignSelf: 'center' }}>
-              <Text style={{ fontSize: 9, fontWeight: '900', color: '#fff' }}>● LIVE</Text>
-            </View>
-          </View>
-
-          {/* 1순위 card */}
+          {/* 1순위 card — 풀와이드 */}
           <View style={s.topCard}>
+            <Row style={{ gap: 6, marginBottom: 4 }}>
+              <Text style={{ fontSize: 13, color: colors.volt }}>✿</Text>
+              <Text style={{ fontSize: 13.5, fontWeight: '900', color: colors.volt }}>추천 매칭 · 확신도 {top.m.total}%</Text>
+              <View style={{ flex: 1 }} />
+              <View style={{ backgroundColor: '#5a7a3c', borderRadius: 99, paddingVertical: 3, paddingHorizontal: 8 }}>
+                <Text style={{ fontSize: 8.5, fontWeight: '900', color: '#fff' }}>● LIVE</Text>
+              </View>
+            </Row>
             <View style={s.rankTab}><Text style={{ fontSize: 11, fontWeight: '900', color: FOREST }}>{topIsPreferred ? '내가 고른 러너' : '1순위 추천'}</Text></View>
             <Pressable onPress={() => router.push(`/runner-profile/${top.r.profileId}`)}>
             <Row style={{ gap: 12, marginTop: 18 }}>
@@ -190,32 +187,28 @@ export default function Matching() {
             </Pressable>
           </View>
 
-          {rest.length > 0 && (
-            <Text style={{ fontSize: 13, fontWeight: '700', color: '#5d655d', marginTop: 20, marginBottom: 10 }}>
-              다른 러너도 살펴보세요
-            </Text>
-          )}
-          {rest.map(({ r, m }) => (
-            <Pressable key={r.profileId} onPress={() => router.push(`/runner-profile/${r.profileId}`)} style={s.altCard}>
-              <Row style={{ gap: 12 }}>
-                <Avatar url={r.avatarUrl} char={r.name[0]} bg="#5a7a3c" size={46} />
+          {/* 대안 러너 — 겹겹이 쌓인 풀와이드 파스텔 카드 (콘텐츠는 상단, 하단은 다음 카드에 덮임) */}
+          {rest.map(({ r, m }, i) => (
+            <Pressable
+              key={r.profileId}
+              onPress={() => router.push(`/runner-profile/${r.profileId}`)}
+              style={[s.stackCard, { backgroundColor: PALETTE[i % PALETTE.length] }]}
+            >
+              <Row style={{ gap: 13, alignItems: 'center' }}>
+                <Avatar url={r.avatarUrl} char={r.name[0]} bg="#5a7a3c" size={54} />
                 <View style={{ flex: 1 }}>
-                  <Row style={{ gap: 6 }}>
-                    <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST }}>{r.name} 러너</Text>
-                    <View style={s.sagePill}><Text style={{ fontSize: 9.5, fontWeight: '800', color: '#4a6d1f' }}>{r.tier}</Text></View>
-                    <View style={s.sagePill}><Text style={{ fontSize: 9.5, fontWeight: '800', color: '#4a6d1f' }}>적합 {m.total}%</Text></View>
-                  </Row>
-                  <Text style={{ fontSize: 11.5, color: colors.dim, marginTop: 3 }}>
-                    {r.district || '근처'} · 러닝 {r.totalRuns}회 · 평균 {r.paceLabel}
+                  <Text style={{ fontSize: 19, fontWeight: '900', color: FOREST }}>{r.name}</Text>
+                  <Text style={{ fontSize: 12, color: '#5d655d', marginTop: 3 }}>
+                    {r.tier} · 적합 {m.total}% · {r.district || '근처'} · 러닝 {r.totalRuns}회
                   </Text>
                 </View>
                 <Pressable
                   onPress={() => nominate(r)}
                   disabled={nominating !== null}
-                  style={{ backgroundColor: colors.volt, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 13, alignSelf: 'center', opacity: nominating === r.profileId ? 0.5 : 1 }}
+                  style={[s.stackNominate, nominating === r.profileId && { opacity: 0.5 }]}
                 >
-                  <Text style={{ fontSize: 12, fontWeight: '900', color: FOREST }}>
-                    {nominating === r.profileId ? '전송 중...' : '지명 요청'}
+                  <Text style={{ fontSize: 12, fontWeight: '900', color: '#fff' }}>
+                    {nominating === r.profileId ? '전송 중' : '지명'}
                   </Text>
                 </Pressable>
               </Row>
@@ -231,7 +224,7 @@ export default function Matching() {
       {/* 데모 매칭 섹션 은퇴 (2026-07-23) — 목업 김민준 화면이 결제 실패를 숨기는 함정이었음.
           이 화면은 이제 실예약 전용. */}
       {!live && (
-        <View style={{ marginTop: 16, backgroundColor: '#fff', borderRadius: 16, padding: 24, alignItems: 'center', borderWidth: 1, borderColor: '#eceadf' }}>
+        <View style={{ marginTop: 16, marginHorizontal: 20, backgroundColor: '#fff', borderRadius: 16, padding: 24, alignItems: 'center', borderWidth: 1, borderColor: '#eceadf' }}>
           <Text style={{ fontSize: 13, color: colors.dim, textAlign: 'center', lineHeight: 20 }}>
             진행 중인 예약이 없어요{'\n'}예약 화면에서 결제하면 러너 선택이 열려요
           </Text>
@@ -239,7 +232,7 @@ export default function Matching() {
       )}
 
       {live && liveRunners.length === 0 && (
-        <View style={{ marginTop: 16, backgroundColor: '#fff', borderRadius: 16, padding: 24, alignItems: 'center', borderWidth: 1, borderColor: '#eceadf' }}>
+        <View style={{ marginTop: 16, marginHorizontal: 20, backgroundColor: '#fff', borderRadius: 16, padding: 24, alignItems: 'center', borderWidth: 1, borderColor: '#eceadf' }}>
           <Text style={{ fontSize: 13, color: colors.dim, textAlign: 'center', lineHeight: 20 }}>
             지금 온라인인 러너가 없어요{'\n'}오픈 매칭으로 등록되어 러너들이 응답할 수 있어요
           </Text>
@@ -271,13 +264,19 @@ const s = StyleSheet.create({
   backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#eceadf' },
   aiBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: FOREST, borderRadius: 18, padding: 16, gap: 10 },
   aiChip: { borderWidth: 1, borderColor: '#3d5245', borderRadius: 99, paddingVertical: 7, paddingHorizontal: 12 },
+  // 스택 카드 시스템 — 풀와이드, 큰 라운드, 겹침 (모던 패스)
   topCard: {
-    marginTop: 12, backgroundColor: FOREST, borderRadius: 22, padding: 16,
+    marginTop: 10, backgroundColor: FOREST, borderRadius: 32, padding: 22, paddingBottom: 52,
     borderWidth: 2, borderColor: colors.volt,
   },
+  stackCard: {
+    borderRadius: 32, padding: 22, paddingBottom: 54, marginTop: -30,
+    shadowColor: '#000', shadowOpacity: 0.07, shadowRadius: 10, shadowOffset: { width: 0, height: -4 },
+  },
+  stackNominate: { backgroundColor: FOREST, borderRadius: 99, paddingVertical: 11, paddingHorizontal: 17 },
   rankTab: {
     position: 'absolute', top: -1, left: -1, backgroundColor: colors.volt,
-    borderTopLeftRadius: 20, borderBottomRightRadius: 16, paddingVertical: 6, paddingHorizontal: 14,
+    borderTopLeftRadius: 30, borderBottomRightRadius: 18, paddingVertical: 7, paddingHorizontal: 16,
   },
   limePill: { backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 3, paddingHorizontal: 8 },
   descBox: { backgroundColor: FOREST_INNER, borderRadius: 14, padding: 13, marginTop: 14 },
@@ -292,7 +291,7 @@ const s = StyleSheet.create({
   altDivider: { height: 1, backgroundColor: '#eceadf', marginVertical: 12 },
   altStatDiv: { width: 1, backgroundColor: '#eceadf' },
   trustNote: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    backgroundColor: '#f4f2ea', borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14, marginTop: 8,
+    alignItems: 'center', marginTop: -14, backgroundColor: '#f4f2ea',
+    borderTopLeftRadius: 0, borderTopRightRadius: 0, paddingTop: 26, paddingBottom: 14, paddingHorizontal: 20,
   },
 });

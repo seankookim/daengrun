@@ -79,9 +79,10 @@ export default function Schedule() {
     <View style={{ flex: 1, backgroundColor: colors.cream }}>
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ padding: 22, paddingTop: 56, paddingBottom: 30 }}
+        contentContainerStyle={{ paddingTop: 56, paddingBottom: 30 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
+        <View style={{ paddingHorizontal: 22 }}>
         {/* header */}
         <Row style={{ justifyContent: 'space-between' }}>
           <Pressable onPress={() => router.back()} style={s.circleBtn}><Text style={{ fontSize: 18 }}>‹</Text></Pressable>
@@ -105,7 +106,9 @@ export default function Schedule() {
           ))}
         </ScrollView>
 
-        {/* agenda */}
+        </View>
+
+        {/* agenda — 풀와이드 밴드 (모던 패스: 카드 수프 → 엣지-투-엣지) */}
         {visible.length === 0 && (
           <View style={s.emptyBox}>
             <Text style={{ fontSize: 13, color: colors.dim, textAlign: 'center', lineHeight: 20 }}>
@@ -115,7 +118,7 @@ export default function Schedule() {
         )}
         {Object.entries(groups).map(([dateLabel, items]) => (
           <View key={dateLabel} style={{ marginTop: 18 }}>
-            <Text style={{ fontSize: 13, fontWeight: '900', color: '#5d655d' }}>{dateLabel}</Text>
+            <Text style={{ fontSize: 13, fontWeight: '900', color: '#5d655d', paddingHorizontal: 22, marginBottom: 8 }}>{dateLabel}</Text>
             {items.map((b) => {
               const st = STATUS_STYLE[b.status];
               const rt = sampleRoutes.find((r) => r.id === b.routeId);
@@ -412,8 +415,8 @@ const s = StyleSheet.create({
   viewTab: { flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: 99 },
   comingSoon: { backgroundColor: '#f4f2ea', borderRadius: 12, padding: 10, marginTop: 10 },
   filter: { backgroundColor: '#fff', borderRadius: 99, paddingVertical: 8, paddingHorizontal: 14, borderWidth: 1, borderColor: '#eceadf' },
-  emptyBox: { marginTop: 24, padding: 24, backgroundColor: '#f4f2ea', borderRadius: 16 },
-  bookingCard: { flexDirection: 'row', backgroundColor: '#fff', borderRadius: 18, borderWidth: 1, borderColor: '#eceadf', marginTop: 8, overflow: 'hidden' },
+  emptyBox: { marginTop: 24, marginHorizontal: 22, padding: 24, backgroundColor: '#f4f2ea', borderRadius: 16 },
+  bookingCard: { flexDirection: 'row', backgroundColor: '#fff', borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#eceadf', marginTop: -1, overflow: 'hidden' },
   rail: { width: 5 },
   recurPill: { backgroundColor: '#e3f0c4', borderRadius: 99, paddingVertical: 2, paddingHorizontal: 7, alignSelf: 'center' },
   livePillSm: { backgroundColor: '#5a7a3c', borderRadius: 99, paddingVertical: 2, paddingHorizontal: 7, alignSelf: 'center' },
@@ -425,7 +428,7 @@ const s = StyleSheet.create({
   thumbMap: { width: 68, height: 52, borderRadius: 10, backgroundColor: '#0e150f', padding: 2, overflow: 'hidden' },
   certDot: { width: 13, height: 13, borderRadius: 7, backgroundColor: '#3d8fd4', alignItems: 'center', justifyContent: 'center', alignSelf: 'center' },
   emptyCta: {
-    marginTop: 20, borderRadius: 16, borderWidth: 1.4, borderColor: '#cfd8c2', borderStyle: 'dashed',
+    marginTop: 20, marginHorizontal: 22, borderRadius: 16, borderWidth: 1.4, borderColor: '#cfd8c2', borderStyle: 'dashed',
     alignItems: 'center', paddingVertical: 14,
   },
   // sheet
