@@ -189,7 +189,7 @@ export default function Request() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.cream }}>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 22, paddingTop: 56, paddingBottom: 130 }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 22, paddingTop: 56, paddingBottom: 190 }}>
         {/* header */}
         <Row style={{ gap: 12 }}>
           <Pressable onPress={() => router.back()} style={s.circleBtn}><Text style={{ fontSize: 18 }}>‹</Text></Pressable>
@@ -203,24 +203,49 @@ export default function Request() {
           </View>
         </Row>
         <Text style={{ fontSize: 12.5, color: '#5d655d', marginTop: 6 }}>
-          믿을 수 있는 러너와 우리 아이의 건강한 러닝을 시작해요.
+          고르는 대로 아래 티켓이 완성돼요 🎫
         </Text>
 
-        {/* dog */}
-        <SectionHead glyph="◉" title="누가 달릴까요?" />
-        <Row style={{ gap: 10 }}>
+        {/* 누가 · 어디서 — 한 카드 (모던 목업: 티켓형 정보 블록) */}
+        <SectionHead glyph="◉" title="누가 · 어디서" />
+        <View style={s.card}>
           <Pressable
             onPress={() => router.push('/owner/dog')}
-            style={[s.card, { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 }]}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}
           >
-            <Avatar url={myDog?.photoUrl} char={(myDog?.name ?? dog.name)[0]} bg="#c9a86e" size={40} />
-            <Text style={{ flex: 1, fontSize: 14, fontWeight: '700', color: FOREST }}>
-              {myDog?.name ?? dog.name} · {myDog?.breed ?? dog.breed} · {myDog?.weightKg ?? dog.weightKg}kg
+            <Avatar url={myDog?.photoUrl} char={(myDog?.name ?? dog.name)[0]} bg="#c9a86e" size={42} />
+            <Text style={{ flex: 1, fontSize: 14.5, fontWeight: '800', color: FOREST }}>
+              <Text style={{ fontWeight: '900' }}>{myDog?.name ?? dog.name}</Text>
+              {'  ·  '}{myDog?.breed ?? dog.breed}{'  ·  '}{myDog?.weightKg ?? dog.weightKg}kg
             </Text>
-            <Text style={{ fontSize: 11.5, fontWeight: '700', color: '#5a7a3c' }}>프로필 ›</Text>
+            <Text style={{ fontSize: 11.5, fontWeight: '800', color: '#5a7a3c' }}>프로필 ›</Text>
           </Pressable>
+          <View style={{ height: 1, backgroundColor: '#eceadf', marginVertical: 13 }} />
           <Pressable
-            style={s.addDog}
+            onPress={() => router.push('/owner/addresses')}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}
+          >
+            <View style={s.addrIcon}><Text style={{ fontSize: 15, color: '#5a7a3c' }}>➤</Text></View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 14, fontWeight: '900', color: FOREST }} numberOfLines={1}>
+                {pickupAddr ? pickupAddr.label : '픽업 주소를 등록해주세요'}
+              </Text>
+              <Text style={{ fontSize: 11, color: colors.dim, marginTop: 2 }} numberOfLines={1}>
+                {pickupAddr ? pickupAddr.addr : '첫 주소가 기본 픽업이 돼요'}
+              </Text>
+            </View>
+            <Text style={{ fontSize: 11.5, fontWeight: '800', color: colors.dim }}>변경 ›</Text>
+          </Pressable>
+        </View>
+        {/* 다견 선택 + 추가 */}
+        <Row style={{ gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+          {myDogs.length > 1 && myDogs.map((d, i) => (
+            <Pressable key={d.id} onPress={() => setDogIdx(i)} style={[s.dogSelChip, dogIdx === i && { backgroundColor: FOREST }]}>
+              <Text style={{ fontSize: 12, fontWeight: '800', color: dogIdx === i ? '#fff' : '#3d453d' }}>{d.name}</Text>
+            </Pressable>
+          ))}
+          <Pressable
+            style={s.dogSelChip}
             onPress={() => {
               Alert.prompt?.('반려견 추가', '이름을 입력해주세요', async (n) => {
                 if (!n?.trim()) return;
@@ -234,62 +259,50 @@ export default function Request() {
               }) ?? Alert.alert('반려견 추가', 'iOS에서 지원돼요');
             }}
           >
-            <Text style={{ fontSize: 18, color: FOREST }}>＋</Text>
-            <Text style={{ fontSize: 9, color: colors.dim, marginTop: 2 }}>반려견 추가</Text>
+            <Text style={{ fontSize: 12, fontWeight: '800', color: '#3d453d' }}>＋ 반려견 추가</Text>
           </Pressable>
         </Row>
-        {/* 다견 선택 */}
-        {myDogs.length > 1 && (
-          <Row style={{ gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-            {myDogs.map((d, i) => (
-              <Pressable key={d.id} onPress={() => setDogIdx(i)} style={[s.dogSelChip, dogIdx === i && { backgroundColor: FOREST }]}>
-                <Text style={{ fontSize: 12, fontWeight: '800', color: dogIdx === i ? '#fff' : '#3d453d' }}>{d.name}</Text>
-              </Pressable>
-            ))}
-          </Row>
-        )}
 
         {/* distance */}
         <SectionHead glyph="⌖" title="거리" />
-        <Row style={{ gap: 10 }}>
-          {DISTANCES.map((d) => (
-            <Pressable key={d} onPress={() => setKm(d)} style={[s.bigChip, km === d && s.bigChipSel]}>
-              {km === d && <View style={s.bolt}><Text style={{ fontSize: 9, color: FOREST }}>⚡</Text></View>}
-              <Text style={[s.bigChipText, km === d && { color: '#fff' }]}>{d}km</Text>
-            </Pressable>
-          ))}
+        <Row style={{ justifyContent: 'space-around', alignItems: 'flex-end', marginTop: 2 }}>
+          {DISTANCES.map((d) => {
+            const optPrice = pricing.baseFare + d * pricing.perKm;
+            const sel = km === d;
+            return (
+              <Pressable key={d} onPress={() => setKm(d)} style={{ alignItems: 'center', paddingHorizontal: 8 }}>
+                <Text style={{ fontSize: sel ? 46 : 36, fontWeight: '900', color: sel ? colors.tang : '#c9c5b8', lineHeight: sel ? 50 : 42 }}>
+                  {d}<Text style={{ fontSize: sel ? 19 : 15 }}>km</Text>
+                </Text>
+                <View style={{ width: 36, height: 5, borderRadius: 3, backgroundColor: sel ? colors.volt : 'transparent', marginTop: 3 }} />
+                <Text style={{ fontSize: 12.5, fontWeight: sel ? '900' : '600', color: sel ? FOREST : '#a09c8e', marginTop: 5 }}>
+                  {optPrice.toLocaleString()}원
+                </Text>
+              </Pressable>
+            );
+          })}
         </Row>
 
         {/* pace */}
         <SectionHead glyph="⇢" title="페이스" />
         <Row style={{ gap: 10 }}>
-          {PACES.map((pc) => (
-            <Pressable key={pc} onPress={() => setPace(pc)} style={[s.bigChip, pace === pc && s.bigChipSel]}>
-              <Text style={[s.bigChipText, { fontSize: 14 }, pace === pc && { color: '#fff' }]}>{pc}</Text>
-            </Pressable>
-          ))}
+          {PACES.map((pc) => {
+            const sel = pace === pc;
+            return (
+              <Pressable key={pc} onPress={() => setPace(pc)} style={[s.paceChip, sel && s.paceChipSel]}>
+                <Row style={{ gap: 2.5, alignItems: 'flex-end', marginBottom: 7 }}>
+                  {[7, 10, 13].map((h, bi) => (
+                    <View key={bi} style={{
+                      width: 4.5, height: h, borderRadius: 2,
+                      backgroundColor: sel ? (bi < 2 ? colors.volt : '#3a4a3e') : (bi < 2 ? '#a9c47e' : '#dcd9ca'),
+                    }} />
+                  ))}
+                </Row>
+                <Text style={{ fontSize: 13.5, fontWeight: '900', color: sel ? '#fff' : FOREST }}>{pc}</Text>
+              </Pressable>
+            );
+          })}
         </Row>
-
-        {/* when — opens slot sheet */}
-        <SectionHead glyph="◷" title="언제 달릴까요?" />
-        <Pressable style={[s.card, s.rowCard]} onPress={() => setSlotSheet(true)}>
-          <Text style={{ fontSize: 14, fontWeight: '700', color: FOREST }}>{timeLabel}</Text>
-          <Text style={{ fontSize: 12, color: colors.dim }}>변경 ›</Text>
-        </Pressable>
-
-        {/* pickup */}
-        <SectionHead glyph="➤" title="픽업 장소" />
-        <Pressable style={[s.card, s.rowCard]} onPress={() => router.push('/owner/addresses')}>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 14, fontWeight: '700', color: FOREST }}>
-              {pickupAddr ? pickupAddr.label : '픽업 주소를 등록해주세요'}
-            </Text>
-            <Text style={{ fontSize: 11, color: colors.dim, marginTop: 2 }} numberOfLines={1}>
-              {pickupAddr ? pickupAddr.addr : '주소 관리에서 첫 주소를 추가하면 기본 픽업이 돼요'}
-            </Text>
-          </View>
-          <Text style={{ fontSize: 12, color: colors.dim }}>주소 관리 ›</Text>
-        </Pressable>
 
         {/* ---------- 안심 코스 carousel (live from Supabase, mock fallback) ---------- */}
         <SectionHead
@@ -302,33 +315,40 @@ export default function Request() {
             const sel = routeId === r.id;
             const isBest = r.id === bestRoute.id;
             return (
-              <Pressable key={r.id} onPress={() => setRouteId(r.id)} style={[s.routeCard, sel && { borderColor: colors.volt, borderWidth: 2 }]}>
-                <Row style={{ justifyContent: 'space-between' }}>
-                  <Row style={{ gap: 5, flex: 1 }}>
-                    <Text style={{ fontSize: 14, fontWeight: '900', color: FOREST }} numberOfLines={1}>{r.name}</Text>
-                    <View style={s.certBadge}><Text style={{ fontSize: 8, fontWeight: '900', color: '#fff' }}>✓</Text></View>
-                  </Row>
-                  {isBest && <View style={s.bestPill}><Text style={{ fontSize: 9, fontWeight: '900', color: FOREST }}>추천</Text></View>}
+              <Pressable
+                key={r.id}
+                onPress={() => setRouteId(r.id)}
+                style={[s.routeCard, isBest && { backgroundColor: '#d9f294', borderColor: '#c3dd76' }, sel && { borderColor: colors.volt, borderWidth: 2 }]}
+              >
+                <View style={[s.routeTab, !isBest && { backgroundColor: FOREST }]}>
+                  <Text style={{ fontSize: 10, fontWeight: '900', color: isBest ? colors.volt : '#fff' }}>
+                    {isBest ? '★ 추천 코스' : '안심 코스'}
+                  </Text>
+                </View>
+                <View style={s.fitPillR}>
+                  <Text style={{ fontSize: 10, fontWeight: '900', color: FOREST }}>적합도 {r.fit}%</Text>
+                </View>
+
+                <Row style={{ gap: 5, marginTop: 22 }}>
+                  <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST }} numberOfLines={1}>{r.name}</Text>
+                  <View style={s.certBadge}><Text style={{ fontSize: 8, fontWeight: '900', color: '#fff' }}>✓</Text></View>
                 </Row>
-                <Text style={{ fontSize: 10.5, color: colors.dim, marginTop: 2 }}>
-                  {r.area} · {r.km}km · {r.terrain} · 안심 코스 {r.checkedAt}
+                <Text style={{ fontSize: 10.5, color: '#5d655d', marginTop: 2 }}>
+                  {r.area} · {r.km}km · {r.terrain} · {r.checkedAt} 점검
                 </Text>
 
                 <View style={s.routeMap}>
-                  <HeatTrace points={r.trace} width={196} height={86} />
+                  <HeatTrace points={r.trace} width={208} height={92} />
                 </View>
 
-                <Row style={{ gap: 4, marginTop: 8, flexWrap: 'wrap' }}>
+                <Row style={{ gap: 4, marginTop: 9, flexWrap: 'wrap' }}>
                   {r.tags.map((tag) => (
-                    <View key={tag} style={s.routeTag}><Text style={{ fontSize: 9, fontWeight: '700', color: '#4a6d1f' }}>{tag}</Text></View>
+                    <View key={tag} style={[s.routeTag, isBest && { backgroundColor: '#ffffffcc' }]}>
+                      <Text style={{ fontSize: 9.5, fontWeight: '800', color: '#4a6d1f' }}>{tag}</Text>
+                    </View>
                   ))}
                 </Row>
-                <Row style={{ justifyContent: 'space-between', marginTop: 8 }}>
-                  <Text style={{ fontSize: 10.5, color: '#75806f', flex: 1 }} numberOfLines={2}>{r.desc}</Text>
-                </Row>
-                <Text style={{ fontSize: 11, fontWeight: '900', color: '#5a7a3c', marginTop: 6 }}>
-                  {dog.name} 적합도 {r.fit}%
-                </Text>
+                <Text style={{ fontSize: 10.5, color: '#5d655d', marginTop: 8, lineHeight: 15 }} numberOfLines={2}>{r.desc}</Text>
               </Pressable>
             );
           })}
@@ -356,32 +376,51 @@ export default function Request() {
           })}
         </View>
 
-        {/* fee detail */}
-        <View style={[s.card, { marginTop: 18 }]}>
-          <Row style={{ justifyContent: 'space-between', marginBottom: 10 }}>
-            <Text style={{ fontSize: 14, fontWeight: '900', color: FOREST }}>요금 상세</Text>
-            <Text style={{ fontSize: 12, color: colors.dim }}>접기 ⌃</Text>
-          </Row>
-          <FeeRow label="기본요금" value={fmtWon(pricing.baseFare)} />
-          <FeeRow label={`거리요금 ${km}km`} value={fmtWon(km * pricing.perKm)} />
-          {addonSum > 0 && <FeeRow label={`프리미엄 옵션 ${addons.length}개`} value={`+${fmtWon(addonSum)}`} />}
-          <View style={{ height: 1, backgroundColor: '#eceadf', marginVertical: 12 }} />
-          <Row style={{ justifyContent: 'space-between' }}>
-            <Text style={{ fontSize: 14, fontWeight: '800', color: FOREST }}>총 결제 금액</Text>
-            <Text style={{ fontSize: 24, fontWeight: '900', color: FOREST }}>{fmtWon(total)}</Text>
-          </Row>
-        </View>
+        {/* 요금 요약 한 줄 — 총액은 아래 티켓이 보여준다 */}
+        <Text style={{ fontSize: 11, color: '#a09c8e', textAlign: 'center', marginTop: 20 }}>
+          기본 {fmtWon(pricing.baseFare)} · 거리 {fmtWon(km * pricing.perKm)}{addonSum > 0 ? ` · 옵션 ${fmtWon(addonSum)}` : ''} · 취소 수수료 없음
+        </Text>
       </ScrollView>
 
-      {/* sticky pay bar */}
-      <View style={s.payBar}>
-        <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 12.5, fontWeight: '800', color: '#fff' }}>지금 결제하고 러너 매칭하기</Text>
-          <Text style={{ fontSize: 10.5, color: '#b8c4ae', marginTop: 2 }}>안전 결제 · 취소 수수료 없음</Text>
+      {/* 티켓 푸터 — 고르는 대로 완성되는 티켓 (절취선 + 노치) */}
+      <View style={s.ticket}>
+        <Row style={{ gap: 11, alignItems: 'center' }}>
+          <Avatar url={myDog?.photoUrl} char={(myDog?.name ?? dog.name)[0]} bg="#c9a86e" size={40} />
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 14, fontWeight: '900', color: '#fff' }} numberOfLines={1}>
+              {myDog?.name ?? dog.name} · <Text style={{ color: colors.tang }}>{km}km</Text> · {pace}
+            </Text>
+            <Text style={{ fontSize: 11, color: '#b8c4ae', marginTop: 2 }} numberOfLines={1}>
+              {routes.find((r) => r.id === routeId)?.name ?? '코스 선택'}
+            </Text>
+          </View>
+          <Pressable onPress={() => setSlotSheet(true)} style={s.timeChip}>
+            <Text style={{ fontSize: 11.5, fontWeight: '900', color: '#132117' }} numberOfLines={1}>
+              {draft.scheduledAtIso ? timeLabel : '시간 선택 ›'}
+            </Text>
+          </Pressable>
+        </Row>
+
+        {/* 절취선 */}
+        <View style={{ marginVertical: 13, height: 1 }}>
+          <View style={s.tickDash} />
+          <View style={[s.notch, { left: -28 }]} />
+          <View style={[s.notch, { right: -28 }]} />
         </View>
-        <Pressable onPress={pay} style={s.payBtn}>
-          <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST }}>{fmtWon(total)} 결제하기 ›</Text>
-        </Pressable>
+
+        <Row style={{ alignItems: 'center' }}>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 10.5, color: '#8fa093' }}>총 결제 금액</Text>
+            <Text style={{ fontSize: 25, fontWeight: '900', color: '#fff', marginTop: 1 }}>
+              {fmtWon(total)}<Text style={{ fontSize: 13, color: '#b8c4ae' }}> 원</Text>
+            </Text>
+          </View>
+          <Pressable onPress={pay} style={s.payBtn}>
+            <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST }}>
+              {draft.scheduledAtIso ? '결제하기 ›' : '시간부터 ›'}
+            </Text>
+          </Pressable>
+        </Row>
       </View>
 
       {/* ---------- time-slot bottom sheet ---------- */}
@@ -509,7 +548,24 @@ const s = StyleSheet.create({
   },
   sideBtn: { backgroundColor: '#fff', borderRadius: 99, paddingVertical: 6, paddingHorizontal: 11, borderWidth: 1, borderColor: '#eceadf' },
   // route carousel
-  routeCard: { width: 224, backgroundColor: '#fff', borderRadius: 18, padding: 13, borderWidth: 1.5, borderColor: '#eceadf' },
+  routeCard: { width: 240, backgroundColor: '#fff', borderRadius: 22, padding: 14, paddingTop: 12, borderWidth: 1.5, borderColor: '#eceadf', overflow: 'hidden' },
+  routeTab: {
+    position: 'absolute', top: 0, left: 0, backgroundColor: '#132117',
+    borderTopLeftRadius: 20, borderBottomRightRadius: 14, paddingVertical: 6, paddingHorizontal: 12,
+  },
+  fitPillR: {
+    position: 'absolute', top: 9, right: 10, backgroundColor: colors.volt,
+    borderRadius: 99, paddingVertical: 4, paddingHorizontal: 9,
+  },
+  paceChip: {
+    flex: 1, backgroundColor: '#fff', borderRadius: 18, paddingVertical: 14,
+    alignItems: 'center', borderWidth: 1.5, borderColor: '#eceadf',
+  },
+  paceChipSel: { backgroundColor: FOREST, borderWidth: 2, borderColor: colors.volt },
+  addrIcon: {
+    width: 34, height: 34, borderRadius: 11, backgroundColor: '#eef4e4',
+    alignItems: 'center', justifyContent: 'center',
+  },
   certBadge: {
     width: 15, height: 15, borderRadius: 8, backgroundColor: '#3d8fd4',
     alignItems: 'center', justifyContent: 'center', alignSelf: 'center',
@@ -520,13 +576,20 @@ const s = StyleSheet.create({
   addon: { width: '47.8%', backgroundColor: '#fff', borderRadius: 18, padding: 13, borderWidth: 1.5, borderColor: '#eceadf' },
   addonIcon: { width: 34, height: 34, borderRadius: 10, backgroundColor: '#eef4e0', alignItems: 'center', justifyContent: 'center' },
   checkCircle: { width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, borderColor: '#dcd9cc', alignItems: 'center', justifyContent: 'center' },
-  payBar: {
-    position: 'absolute', left: 0, right: 0, bottom: 0,
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: FOREST, paddingHorizontal: 20, paddingTop: 14, paddingBottom: 30,
-    borderTopLeftRadius: 24, borderTopRightRadius: 24,
+  ticket: {
+    position: 'absolute', left: 14, right: 14, bottom: 26, backgroundColor: '#132117',
+    borderRadius: 26, padding: 17, overflow: 'hidden',
+    shadowColor: '#132117', shadowOpacity: 0.35, shadowRadius: 18, shadowOffset: { width: 0, height: 10 },
   },
-  payBtn: { backgroundColor: colors.volt, borderRadius: 16, paddingVertical: 14, paddingHorizontal: 18 },
+  tickDash: { height: 1, borderWidth: 0.7, borderColor: '#3a4a3e', borderStyle: 'dashed', borderRadius: 1 },
+  notch: {
+    position: 'absolute', top: -8, width: 16, height: 16, borderRadius: 8, backgroundColor: colors.cream,
+  },
+  timeChip: {
+    backgroundColor: '#f2ead8', borderRadius: 99, paddingVertical: 9, paddingHorizontal: 13,
+    maxWidth: 128,
+  },
+  payBtn: { backgroundColor: colors.volt, borderRadius: 16, paddingVertical: 14, paddingHorizontal: 20 },
   // slot sheet
   sheetBackdrop: { flex: 1, backgroundColor: '#00000055' },
   sheet: { backgroundColor: colors.cream, borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 22, paddingBottom: 40 },

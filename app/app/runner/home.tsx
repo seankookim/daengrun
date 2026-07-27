@@ -193,25 +193,45 @@ export default function RunnerHome() {
           )}
         </View>
 
-        {/* ---------- 드랍 트레일 (실카운트) ---------- */}
+        {/* ---------- 드랍 트레일 (실카운트) — 지그재그 체크포인트 (모던 목업) ---------- */}
         <Pressable onPress={() => router.push('/runner/rewards')} style={s.trailCard}>
-          <Row style={{ justifyContent: 'space-between' }}>
-            <Text style={{ fontSize: 13, fontWeight: '900', color: FOREST }}>보급 드랍 트레일</Text>
-            <Text style={{ fontSize: 11, color: colors.dim }}>누적 {rs.totalRuns}회 ›</Text>
-          </Row>
-          {/* 5칸 보석길 + 보급상자 */}
-          <Row style={{ alignItems: 'center', marginTop: 14 }}>
+          <View style={s.trailTab}>
+            <Text style={{ fontSize: 10.5, fontWeight: '900', color: colors.volt }}>▣ 보급 드랍 트레일</Text>
+          </View>
+          <Text style={{ fontSize: 11, color: '#4a6d1f', textAlign: 'right' }}>누적 {rs.totalRuns}회 ›</Text>
+
+          {/* 지그재그 다이아몬드 길 — i<cycle5 지남(볼트), i===cycle5 다음(화이트+볼트링), 끝 = 보급상자 */}
+          <Row style={{ alignItems: 'center', marginTop: 16, height: 62 }}>
             {[0, 1, 2, 3, 4].map((i) => (
               <Row key={i} style={{ flex: 1, alignItems: 'center' }}>
-                <View style={[s.gem, i < cycle5 && { backgroundColor: colors.volt, borderColor: '#82b016' }]} />
-                <View style={[s.trailLine, i < cycle5 && { backgroundColor: '#b9d879' }]} />
+                <View style={{
+                  transform: [{ translateY: i % 2 === 0 ? 12 : -12 }, { rotate: '45deg' }],
+                  width: 23, height: 23, borderRadius: 6,
+                  backgroundColor: i < cycle5 ? '#a3d431' : '#ffffff',
+                  borderWidth: 2,
+                  borderColor: i < cycle5 ? '#82b016' : i === cycle5 ? '#a3d431' : '#e4ecc9',
+                  shadowColor: '#82b016', shadowOpacity: i < cycle5 ? 0.35 : 0,
+                  shadowRadius: 5, shadowOffset: { width: 0, height: 2 },
+                }} />
+                <View style={{
+                  flex: 1, height: 3, borderRadius: 2, marginHorizontal: 1,
+                  backgroundColor: i < cycle5 ? '#a3d431' : '#ffffffaa',
+                  transform: [{ rotate: i % 2 === 0 ? '-14deg' : '14deg' }],
+                }} />
               </Row>
             ))}
-            <View style={[s.giftBox, cycle5 === 0 && rs.totalRuns > 0 && { backgroundColor: colors.volt, borderColor: '#82b016' }]}>
-              <Text style={{ fontSize: 14 }}>▣</Text>
+            <View style={{
+              transform: [{ translateY: 12 }],
+              width: 34, height: 34, borderRadius: 11, backgroundColor: '#fff',
+              alignItems: 'center', justifyContent: 'center',
+              borderWidth: 2, borderColor: cycle5 === 0 && rs.totalRuns > 0 ? '#82b016' : '#e4ecc9',
+              shadowColor: '#132117', shadowOpacity: 0.12, shadowRadius: 6, shadowOffset: { width: 0, height: 3 },
+            }}>
+              <Text style={{ fontSize: 15 }}>▣</Text>
             </View>
           </Row>
-          <Text style={{ fontSize: 11, color: '#5a7a3c', fontWeight: '700', marginTop: 9 }}>
+
+          <Text style={{ fontSize: 13, color: FOREST, fontWeight: '900', marginTop: 12 }}>
             {rs.totalRuns === 0
               ? '첫 러닝을 완료하면 트레일이 시작돼요'
               : cycle5 === 0
@@ -219,13 +239,13 @@ export default function RunnerHome() {
                 : `${remaining5}번 더 달리면 보급 드랍!`}
           </Text>
           {/* 픽 드랍 (10회) 미니 진행바 — 깃발 */}
-          <Row style={{ alignItems: 'center', gap: 8, marginTop: 10 }}>
-            <Text style={{ fontSize: 10, color: colors.dim }}>픽 드랍</Text>
+          <Row style={{ alignItems: 'center', gap: 8, marginTop: 9 }}>
+            <Text style={{ fontSize: 10, color: '#4a6d1f' }}>픽 드랍</Text>
             <View style={s.flagTrack}>
               <View style={[s.flagFill, { width: `${(cycle10 / 10) * 100}%` }]} />
             </View>
             <Text style={{ fontSize: 10.5 }}>⚑</Text>
-            <Text style={{ fontSize: 10, color: colors.dim }}>{cycle10}/10</Text>
+            <Text style={{ fontSize: 10, color: '#4a6d1f', fontWeight: '800' }}>{cycle10}/10</Text>
           </Row>
         </Pressable>
 
@@ -356,7 +376,14 @@ const s = StyleSheet.create({
   currentCard: { backgroundColor: FOREST, borderRadius: 20, padding: 16, marginTop: 16, borderWidth: 2, borderColor: colors.volt },
   stagePill: { borderRadius: 99, paddingVertical: 4, paddingHorizontal: 9 },
   currentBtn: { borderRadius: 13, alignItems: 'center', paddingVertical: 12 },
-  trailCard: { backgroundColor: '#fff', borderRadius: 18, padding: 15, marginTop: 12, borderWidth: 1.3, borderColor: '#dde8c4' },
+  trailCard: {
+    backgroundColor: '#d9f294', borderRadius: 24, padding: 16, paddingTop: 12, marginTop: 12,
+    borderWidth: 1, borderColor: '#c3dd76', overflow: 'hidden',
+  },
+  trailTab: {
+    position: 'absolute', top: 0, left: 0, backgroundColor: '#132117',
+    borderTopLeftRadius: 22, borderBottomRightRadius: 15, paddingVertical: 7, paddingHorizontal: 13,
+  },
   availCard: { backgroundColor: '#fff', borderRadius: 18, padding: 15, marginTop: 12, borderWidth: 1, borderColor: '#eceadf' },
   availDay: {
     flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: 13,
@@ -375,8 +402,8 @@ const s = StyleSheet.create({
     width: 30, height: 30, borderRadius: 9, backgroundColor: '#f0efe8',
     alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: '#dcd9cc',
   },
-  flagTrack: { flex: 1, height: 5, borderRadius: 99, backgroundColor: '#f0eee3', overflow: 'hidden' },
-  flagFill: { height: 5, borderRadius: 99, backgroundColor: '#82b016' },
+  flagTrack: { flex: 1, height: 6, borderRadius: 99, backgroundColor: '#ffffffbb', overflow: 'hidden' },
+  flagFill: { height: 6, borderRadius: 99, backgroundColor: '#82b016' },
   inboxBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12,
     backgroundColor: FOREST, borderRadius: 16, padding: 14,
