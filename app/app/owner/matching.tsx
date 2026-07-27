@@ -31,9 +31,9 @@ function RunnerFullCard({ r, m, i, topIsPreferred, nominating, onNominate, onLay
   nominating: string | null; onNominate: (r: LiveRunner) => void;
   onLayout?: (e: any) => void; focused: boolean;
 }) {
-  // 포커스 카드 = 딥 포레스트 + 라임 보더/글로우 (레퍼런스), 비포커스 = 저채도 파스텔
-  const dark = focused;
-  const bg = dark ? FOREST : PALETTE[i % PALETTE.length];
+  // 다크 트리트먼트는 1순위 카드 고정 — 포커스 연동 색 전환은 급작스러워 제거 (2026-07-27)
+  const dark = i === 0;
+  const bg = dark ? FOREST : PALETTE[(i - 1 + PALETTE.length) % PALETTE.length];
   const tMain = dark ? '#fff' : FOREST;
   const tDim = dark ? '#b8c4ae' : '#5d655d';
   const barTrack = dark ? '#2c4034' : '#ffffff99';
@@ -60,10 +60,10 @@ function RunnerFullCard({ r, m, i, topIsPreferred, nominating, onNominate, onLay
 
       <View style={[s.rankTab, !dark && { backgroundColor: FOREST }]}>
         <Text style={{ fontSize: 11, fontWeight: '900', color: dark ? FOREST : '#fff' }}>
-          {i === 0 ? (topIsPreferred ? '★ 내가 고른 러너' : '★ 추천 1순위') : `${i + 1}순위`}
+          {i === 0 ? (topIsPreferred ? '★ 내가 고른 러너' : '★ 추천 1순위') : `${i + 1}순위 · 적합 ${m.total}%`}
         </Text>
       </View>
-      {focused && (
+      {dark && (
         <View style={s.fitPill}><Text style={{ fontSize: 11, fontWeight: '900', color: FOREST }}>적합도 {m.total}%</Text></View>
       )}
 
