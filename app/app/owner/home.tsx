@@ -1,7 +1,7 @@
 import { router, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Animated, Dimensions, Modal, PanResponder, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Animated, Dimensions, Easing, Modal, PanResponder, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BottomNav } from '../../src/components/bottomnav';
 import { Ring } from '../../src/components/ring';
 import { RunCard } from '../../src/components/runcard';
@@ -67,6 +67,27 @@ export default function OwnerHome() {
   const [fnKm, setFnKm] = useState(3);
   const [fnBusy, setFnBusy] = useState(false);
   const fnPulse = useRef(new Animated.Value(0)).current;
+  const fnSearching = liveNext?.status === 'pending';
+  // 레이더 아크 브리딩 — 평상시 잔잔하게
+  const radarBreath = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(Animated.sequence([
+      Animated.timing(radarBreath, { toValue: 1, duration: 2600, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+      Animated.timing(radarBreath, { toValue: 0, duration: 2600, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+    ]));
+    loop.start();
+    return () => loop.stop();
+  }, [radarBreath]);
+  // 스윕 회전 — 브로드캐스트가 실제로 살아있을 때만 (idle에 돌리면 거짓 모션)
+  const sweep = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!fnSearching) { sweep.setValue(0); return; }
+    const loop = Animated.loop(
+      Animated.timing(sweep, { toValue: 1, duration: 2800, easing: Easing.linear, useNativeDriver: true }),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [fnSearching, sweep]);
   useEffect(() => {
     const loop = Animated.loop(Animated.sequence([
       Animated.timing(fnPulse, { toValue: 1, duration: 1100, useNativeDriver: true }),
@@ -288,6 +309,37 @@ export default function OwnerHome() {
             }}
             style={s.findNow}
           >
+            {/* 레이더 백드롭 — 아크는 상시(브리딩), 스윕은 검색 중에만, 블립은 실가용 러너.
+                반경/각도는 연출값 (거리 의미 없음 — 거리 라벨은 금지: GPS 없는 위치 조작 방지) */}
+            <View pointerEvents="none" style={s.radarLayer}>
+              <Animated.View style={{ opacity: radarBreath.interpolate({ inputRange: [0, 1], outputRange: fnSearching ? [0.85, 1] : [0.45, 0.75] }) }}>
+                {[64, 120, 176, 232].map((d) => (
+                  <View key={d} style={{
+                    position: 'absolute', width: d, height: d, borderRadius: d / 2,
+                    left: -d / 2, top: -d / 2, borderWidth: 1, borderColor: 'rgba(214,242,148,0.17)',
+                  }} />
+                ))}
+              </Animated.View>
+              {fnSearching && (
+                <Animated.View style={{ position: 'absolute', transform: [{ rotate: sweep.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) }] }}>
+                  <View style={{ position: 'absolute', left: 0, top: -1, width: 116, height: 2, backgroundColor: 'rgba(214,242,148,0.55)' }} />
+                  <View style={{ position: 'absolute', transform: [{ rotate: '-12deg' }] }}>
+                    <View style={{ position: 'absolute', left: 0, top: -1, width: 116, height: 2, backgroundColor: 'rgba(214,242,148,0.18)' }} />
+                  </View>
+                </Animated.View>
+              )}
+              {!fnSearching && fnAvail.slice(0, 3).map((r, idx) => {
+                const P = [{ a: 150, rr: 85 }, { a: 196, rr: 132 }, { a: 170, rr: 178 }][idx];
+                const x = Math.cos((P.a * Math.PI) / 180) * P.rr;
+                const y = Math.sin((P.a * Math.PI) / 180) * P.rr;
+                return (
+                  <View key={r.profileId} style={[s.fnAvatarRim, { position: 'absolute', left: x - 15, top: y - 15 }]}>
+                    <Avatar url={r.avatarUrl} char={r.name[0]} bg="#5a7a3c" size={26} />
+                  </View>
+                );
+              })}
+            </View>
+
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: 18, fontWeight: '900', color: '#fff' }}>
@@ -301,15 +353,6 @@ export default function OwnerHome() {
                       : '지금 바로 가능한 러너가 없어요 — 예약으로 잡아두세요'}
                 </Text>
               </View>
-              {fnAvail.length > 0 && !liveNext && (
-                <View style={{ flexDirection: 'row' }}>
-                  {fnAvail.slice(0, 3).map((r, idx) => (
-                    <View key={r.profileId} style={[s.fnAvatarRim, idx > 0 && { marginLeft: -9 }]}>
-                      <Avatar url={r.avatarUrl} char={r.name[0]} bg="#5a7a3c" size={30} />
-                    </View>
-                  ))}
-                </View>
-              )}
             </View>
 
             {/* 버튼처럼 보이는 버튼 — 탭하면 무슨 일이 생기는지 그대로 쓴다 */}
@@ -701,9 +744,11 @@ const s = StyleSheet.create({
   // 지금 러너 찾기 히어로 + 시트
   findNow: {
     backgroundColor: '#132117', borderRadius: 24, padding: 18, marginTop: 14,
-    borderWidth: 1.5, borderColor: colors.volt,
+    borderWidth: 1.5, borderColor: colors.volt, overflow: 'hidden', // 레이더 아크 클리핑
     shadowColor: '#132117', shadowOpacity: 0.25, shadowRadius: 14, shadowOffset: { width: 0, height: 8 },
   },
+  // 레이더 중심점 — 카드 우측 가장자리 살짝 밖, 아크/스윕/블립의 원점
+  radarLayer: { position: 'absolute', right: -14, top: 44 },
   fnAvatarRim: { borderWidth: 2, borderColor: '#132117', borderRadius: 17 },
   fnCta: {
     flex: 1, backgroundColor: colors.volt, borderRadius: 14, alignItems: 'center',
