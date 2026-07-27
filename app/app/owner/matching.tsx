@@ -12,9 +12,10 @@ const FOREST = '#132117';
 const FOREST_INNER = '#1d3023';
 
 // 캐러셀 카드 내부 스탯 컬럼 (배경색에 따라 텍스트 색 가변)
-function MiniCol({ v, l, main, dim }: { v: string; l: string; main: string; dim: string }) {
+function MiniCol({ v, l, g, main, dim }: { v: string; l: string; g?: string; main: string; dim: string }) {
   return (
     <View style={{ alignItems: 'center' }}>
+      {g ? <Text style={{ fontSize: 11, color: dim, marginBottom: 3 }}>{g}</Text> : null}
       <Text style={{ fontSize: 14.5, fontWeight: '900', color: main }}>{v}</Text>
       <Text style={{ fontSize: 9.5, color: dim, marginTop: 2 }}>{l}</Text>
     </View>
@@ -30,8 +31,9 @@ function RunnerFullCard({ r, m, i, topIsPreferred, nominating, onNominate, onLay
   nominating: string | null; onNominate: (r: LiveRunner) => void;
   onLayout?: (e: any) => void; focused: boolean;
 }) {
-  const dark = i === 0;
-  const bg = dark ? FOREST : PALETTE[(i - 1) % PALETTE.length];
+  // 포커스 카드 = 딥 포레스트 + 라임 보더/글로우 (레퍼런스), 비포커스 = 저채도 파스텔
+  const dark = focused;
+  const bg = dark ? FOREST : PALETTE[i % PALETTE.length];
   const tMain = dark ? '#fff' : FOREST;
   const tDim = dark ? '#b8c4ae' : '#5d655d';
   const barTrack = dark ? '#2c4034' : '#ffffff99';
@@ -42,19 +44,35 @@ function RunnerFullCard({ r, m, i, topIsPreferred, nominating, onNominate, onLay
       style={[
         s.fullCard,
         { backgroundColor: bg },
-        focused ? s.cardShadowFocus : s.cardShadowAmbient,
-        dark && { borderWidth: 2, borderColor: colors.volt },
+        // 라임 아우터 글로우 (드롭 섀도우는 래퍼가 담당 — 뷰당 그림자 1개 제한)
+        dark && { borderWidth: 1.5, borderColor: colors.volt, shadowColor: colors.volt, shadowOpacity: 0.3, shadowRadius: 16, shadowOffset: { width: 0, height: 0 } },
       ]}
     >
+      {/* 포커스 카드 장식 — 상단 미광(수직 그라데이션 근사) + 우측 컨투어 라인 */}
+      {dark && (
+        <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 30, overflow: 'hidden' }}>
+          <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '45%', backgroundColor: 'rgba(255,255,255,0.03)' }} />
+          <View style={s.contour1} />
+          <View style={s.contour2} />
+          <View style={s.contour3} />
+        </View>
+      )}
+
       <View style={[s.rankTab, !dark && { backgroundColor: FOREST }]}>
         <Text style={{ fontSize: 11, fontWeight: '900', color: dark ? FOREST : '#fff' }}>
-          {i === 0 ? (topIsPreferred ? '내가 고른 러너' : '1순위 추천') : `${i + 1}순위 · 적합 ${m.total}%`}
+          {i === 0 ? (topIsPreferred ? '★ 내가 고른 러너' : '★ 추천 1순위') : `${i + 1}순위`}
         </Text>
       </View>
+      {focused && (
+        <View style={s.fitPill}><Text style={{ fontSize: 11, fontWeight: '900', color: FOREST }}>적합도 {m.total}%</Text></View>
+      )}
 
       <Pressable onPress={() => router.push(`/runner-profile/${r.profileId}`)}>
         <Row style={{ gap: 12, marginTop: 4 }}>
-          <Avatar url={r.avatarUrl} char={r.name[0]} bg="#5a7a3c" size={56} />
+          <View style={{ width: 56, height: 56 }}>
+            <Avatar url={r.avatarUrl} char={r.name[0]} bg="#5a7a3c" size={56} />
+            {dark && <View style={s.checkBadge}><Text style={{ fontSize: 10, fontWeight: '900', color: FOREST }}>✓</Text></View>}
+          </View>
           <View style={{ flex: 1 }}>
             <Row style={{ gap: 7 }}>
               <Text style={{ fontSize: 20, fontWeight: '900', color: tMain }}>{r.name}</Text>
@@ -84,9 +102,9 @@ function RunnerFullCard({ r, m, i, topIsPreferred, nominating, onNominate, onLay
 
       {/* stat strip — 모든 카드에 */}
       <Row style={{ marginTop: 14, borderRadius: 14, backgroundColor: dark ? FOREST_INNER : '#ffffff88', paddingVertical: 11, justifyContent: 'space-around' }}>
-        <MiniCol v={r.paceLabel} l="평균 페이스" main={tMain} dim={tDim} />
-        <MiniCol v={`${r.totalRuns}회`} l="완료 러닝" main={tMain} dim={tDim} />
-        <MiniCol v={r.respondRate != null ? `${r.respondRate}%` : '신규'} l="응답률" main={tMain} dim={tDim} />
+        <MiniCol v={r.paceLabel} l="평균 페이스" g="◷" main={tMain} dim={tDim} />
+        <MiniCol v={`${r.totalRuns}회`} l="완료 러닝" g="⚑" main={tMain} dim={tDim} />
+        <MiniCol v={r.respondRate != null ? `${r.respondRate}%` : '신규'} l="응답률" g="✦" main={tMain} dim={tDim} />
       </Row>
 
       <Pressable
@@ -94,9 +112,12 @@ function RunnerFullCard({ r, m, i, topIsPreferred, nominating, onNominate, onLay
         disabled={nominating !== null}
         style={[s.fullNominate, { backgroundColor: dark ? colors.volt : FOREST }, nominating === r.profileId && { opacity: 0.5 }]}
       >
-        <Text style={{ fontSize: 14, fontWeight: '900', color: dark ? FOREST : '#fff' }}>
-          {nominating === r.profileId ? '전송 중...' : `${r.name} 러너 지명 요청`}
-        </Text>
+        <Row style={{ gap: 8 }}>
+          <Text style={{ fontSize: 14, fontWeight: '900', color: dark ? FOREST : '#fff' }}>
+            {nominating === r.profileId ? '전송 중...' : `${r.name} 러너 지명 요청`}
+          </Text>
+          <Text style={{ fontSize: 15, fontWeight: '900', color: dark ? FOREST : '#fff' }}>›</Text>
+        </Row>
       </Pressable>
     </View>
   );
@@ -194,11 +215,10 @@ export default function Matching() {
   };
 
   // ── 캐러셀 지오메트리 ─────────────────────────────────────────
-  // 실측 카드 높이 기반: STEP = cardH - OVERLAP. 추정치 STEP의 포커스 드리프트를 구조적으로 제거.
-  // 스냅 y = i*STEP 에서 카드 i의 top 이 항상 FOCUS_TOP(헤더 하단 고정 좌표)에 온다.
+  // 애플 월렛식 덱: STEP은 카드당 스크롤 트래블(고정), 이웃 카드는 translateY 클램프로
+  // 액티브 곁에 붙는다 — 이전 카드는 상단 ~140px 피크, 다음 카드는 액티브 하단 아래 피크.
   const [cardH, setCardH] = useState(470);      // onLayout 실측으로 갱신
-  const OVERLAP = 32;                            // 이웃 카드의 의도된 겹침 폭 (24–40px)
-  const STEP = cardH - OVERLAP;
+  const STEP = 260;                              // 카드 1장당 스크롤 거리
   const FOCUS_TOP = 16;                          // 스크롤러 상단(=헤더 하단)에서 포커스 카드 top까지
   const SCREEN_H = Dimensions.get('window').height;
   const TAIL = Math.max(140, SCREEN_H - cardH - 160); // 마지막 카드 스냅용 꼬리
@@ -216,15 +236,31 @@ export default function Matching() {
     try { require('expo-haptics').impactAsync(require('expo-haptics').ImpactFeedbackStyle.Light); } catch {}
   };
 
-  // 물리 커브 — 두 레이어(배경/오버레이)가 완전히 동일한 scrollY 함수를 공유해 픽셀 단위로 일치
+  // 물리 커브 — 두 레이어(배경/오버레이)가 완전히 동일한 scrollY 함수를 공유해 픽셀 단위로 일치.
+  // 입력축 = 카드의 부호 있는 포커스 거리. 비선형(포커스 근처 라운드) 벌지 + 엣지 기준 회전 + 덱 클램프.
   const physicsFor = (i: number) => {
-    const focus = i * STEP;
-    const inputRange = [focus - 2 * STEP, focus - STEP, focus, focus + STEP, focus + 2 * STEP];
+    const f = i * STEP;
+    const in5 = [f - 2 * STEP, f - STEP, f, f + STEP, f + 2 * STEP];
+    // 포커스 ±S/2에 중간점 — 스케일이 선형이 아니라 스프링처럼 둥글게 부풀도록
+    const in7 = [f - 2 * STEP, f - STEP, f - STEP / 2, f, f + STEP / 2, f + STEP, f + 2 * STEP];
+    const H2 = cardH / 2;
+    // 덱 클램프 translateY: 이전 카드는 액티브 위 ~140px 피크로, 다음 카드는 액티브 하단 밑으로.
+    // (스케일 수축으로 인한 엣지 이동을 0.05/0.10*cardH 로 보정)
+    const T_m2 = Math.round(1.1 * cardH + 380 - 2 * STEP); // 두 칸 아래 — 화면 밖
+    const T_m1 = Math.round(1.05 * cardH - 30 - STEP);     // 다음 — top이 액티브 하단에 ~30px 겹침
+    const T_p1 = Math.round(STEP - 140 - 0.05 * cardH);    // 이전 — 상단 140px 피크
+    // 두 칸 위: 이전 카드(반투명 0.72) 뒤로 완전히 숨김 — 비치면 지저분 (레퍼런스도 위는 1장만 피크)
+    const T_p2 = Math.round(2 * STEP - 150 - 0.9 * cardH);
     return {
-      opacity: scrollY.interpolate({ inputRange, outputRange: [0.42, 0.78, 1, 0.78, 0.42], extrapolate: 'clamp' as const }),
-      translateY: scrollY.interpolate({ inputRange, outputRange: [-26, -16, 0, 16, 26], extrapolate: 'clamp' as const }),
-      scale: scrollY.interpolate({ inputRange, outputRange: [0.82, 0.9, 1.03, 0.9, 0.82], extrapolate: 'clamp' as const }),
-      rotateX: scrollY.interpolate({ inputRange, outputRange: ['-11deg', '-7deg', '0deg', '7deg', '11deg'], extrapolate: 'clamp' as const }),
+      opacity: scrollY.interpolate({ inputRange: in5, outputRange: [0.35, 0.72, 1, 0.72, 0.35], extrapolate: 'clamp' as const }),
+      translateY: scrollY.interpolate({ inputRange: in5, outputRange: [T_m2, T_m1, 0, T_p1, T_p2], extrapolate: 'clamp' as const }),
+      scale: scrollY.interpolate({ inputRange: in7, outputRange: [0.8, 0.9, 0.985, 1.04, 0.985, 0.9, 0.8], extrapolate: 'clamp' as const }),
+      scaleX: scrollY.interpolate({ inputRange: in5, outputRange: [0.94, 0.965, 1, 0.965, 0.94], extrapolate: 'clamp' as const }),
+      rotateX: scrollY.interpolate({ inputRange: in5, outputRange: ['-15deg', '-10deg', '0deg', '10deg', '15deg'], extrapolate: 'clamp' as const }),
+      // transform-origin 에뮬레이션: 액티브에 가까운 엣지가 힌지 —
+      // 위 카드는 하단 엣지(+H2), 아래 카드는 상단 엣지(-H2). translate → rotate → 역translate.
+      oShift: scrollY.interpolate({ inputRange: in5, outputRange: [-H2, -H2, 0, H2, H2], extrapolate: 'clamp' as const }),
+      oShiftBack: scrollY.interpolate({ inputRange: in5, outputRange: [H2, H2, 0, -H2, -H2], extrapolate: 'clamp' as const }),
     };
   };
 
@@ -277,7 +313,7 @@ export default function Matching() {
                 return (
                   <Animated.View
                     key={r.profileId}
-                    style={{
+                    style={[active ? null : s.cardShadowAmbient, {
                       position: 'absolute', top: FOCUS_TOP + i * STEP, left: 0, right: 0,
                       zIndex: dist === 0 ? 1000 : dist === 1 ? 100 : dist === 2 ? 10 : 1,
                       elevation: dist === 0 ? 30 : dist === 1 ? 8 : 1,
@@ -286,12 +322,15 @@ export default function Matching() {
                       // zIndex 1000이라 스크롤 레이어 최상단 = 터치 좌표는 오버레이 비주얼과 픽셀 일치)
                       opacity: active ? 0 : ph.opacity,
                       transform: [
-                        { perspective: 1400 },
+                        { perspective: 1100 },
                         { translateY: ph.translateY },
-                        { scale: ph.scale },
+                        { translateY: ph.oShift },
                         { rotateX: ph.rotateX },
+                        { translateY: ph.oShiftBack },
+                        { scale: ph.scale },
+                        { scaleX: ph.scaleX },
                       ],
-                    }}
+                    }]}
                   >
                     <RunnerFullCard
                       r={r} m={m} i={i} topIsPreferred={topIsPreferred}
@@ -337,18 +376,21 @@ export default function Matching() {
           return (
             <View pointerEvents="none" style={[StyleSheet.absoluteFill, { zIndex: 99999, elevation: 50, overflow: 'visible' }]}>
               <Animated.View
-                style={{
+                style={[s.cardShadowFocus, {
                   position: 'absolute', left: 0, right: 0, top: 0, zIndex: 99999, elevation: 50,
                   opacity: ph.opacity,
                   transform: [
                     // 콘텐츠 좌표 → 뷰포트 좌표 변환: base - scrollY
                     { translateY: scrollY.interpolate({ inputRange: [0, 1], outputRange: [base, base - 1] }) },
-                    { perspective: 1400 },
+                    { perspective: 1100 },
                     { translateY: ph.translateY },
-                    { scale: ph.scale },
+                    { translateY: ph.oShift },
                     { rotateX: ph.rotateX },
+                    { translateY: ph.oShiftBack },
+                    { scale: ph.scale },
+                    { scaleX: ph.scaleX },
                   ],
-                }}
+                }]}
               >
                 <RunnerFullCard
                   r={r} m={m} i={safeFocus} topIsPreferred={topIsPreferred}
@@ -359,12 +401,6 @@ export default function Matching() {
           );
         })()}
 
-        {/* 임시 디버그 — 액티브 인덱스 검증용. 스태킹 확인 후 제거 */}
-        {live && top && (
-          <View pointerEvents="none" style={{ position: 'absolute', bottom: 12, alignSelf: 'center', zIndex: 100000, backgroundColor: '#132117cc', borderRadius: 99, paddingVertical: 5, paddingHorizontal: 12 }}>
-            <Text style={{ color: '#d9f294', fontSize: 11, fontWeight: '800' }}>ACTIVE {safeFocus} — {scored[safeFocus]?.r.name}</Text>
-          </View>
-        )}
       </View>
     </View>
   );
@@ -406,12 +442,21 @@ const s = StyleSheet.create({
     borderRadius: 32, padding: 22, paddingTop: 44, paddingBottom: 60,
     borderWidth: 1, borderColor: 'rgba(19,33,23,0.15)', // 모든 카드에 반투명 다크 보더 — 배경 분리
   },
-  // 그림자 계층: 포커스 카드는 크고 넓게(뷰어에 가장 가깝다는 신호), 나머지는 은은하게
+  // 그림자 계층 (래퍼에 적용 — 카드 뷰의 그림자 슬롯은 포커스 라임 글로우가 사용)
   cardShadowFocus: {
-    shadowColor: '#132117', shadowOpacity: 0.3, shadowRadius: 26, shadowOffset: { width: 0, height: 14 },
+    shadowColor: '#132117', shadowOpacity: 0.28, shadowRadius: 26, shadowOffset: { width: 0, height: 16 },
   },
   cardShadowAmbient: {
-    shadowColor: '#132117', shadowOpacity: 0.1, shadowRadius: 10, shadowOffset: { width: 0, height: 5 },
+    shadowColor: '#132117', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 4 },
+  },
+  // 포커스 카드 장식 — 우측 컨투어 아크 (레퍼런스의 웨이브 라인)
+  contour1: { position: 'absolute', right: -100, top: -30, width: 280, height: 280, borderRadius: 140, borderWidth: 1, borderColor: 'rgba(214,242,148,0.10)' },
+  contour2: { position: 'absolute', right: -70, top: 10, width: 210, height: 210, borderRadius: 105, borderWidth: 1, borderColor: 'rgba(214,242,148,0.08)' },
+  contour3: { position: 'absolute', right: -130, top: -80, width: 360, height: 360, borderRadius: 180, borderWidth: 1, borderColor: 'rgba(214,242,148,0.06)' },
+  fitPill: { position: 'absolute', top: 14, right: 14, backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 6, paddingHorizontal: 12, zIndex: 2 },
+  checkBadge: {
+    position: 'absolute', bottom: -3, right: -3, width: 20, height: 20, borderRadius: 10,
+    backgroundColor: colors.volt, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: FOREST,
   },
   fullNominate: { borderRadius: 16, alignItems: 'center', paddingVertical: 14, marginTop: 14 },
   stackNominate: { backgroundColor: FOREST, borderRadius: 99, paddingVertical: 11, paddingHorizontal: 17 },
