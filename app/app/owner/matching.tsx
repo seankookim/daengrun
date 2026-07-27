@@ -113,25 +113,34 @@ export default function Matching() {
   };
 
   // 스택 카드 팔레트 — 풀와이드 파스텔 (모던 패스 레퍼런스: 겹겹이 쌓인 카드)
-  const PALETTE = ['#eaf7c8', '#DDE8D4', '#fde8e3', '#f2ead8'];
+  const PALETTE = ['#d9f294', '#c3d8b0', '#ffcdb8', '#f2dc9e']; // 채도 ↑ — 크림 배경과 또렷이 분리
 
   // 세로 캐러셀 물리 — 포커스 존의 카드가 커지고, 지나간/아직인 카드는 줄어든다 (spin&roll)
   const scrollY = useRef(new Animated.Value(0)).current;
+  const [focusIdx, setFocusIdx] = useState(0);
+  const focusRef = useRef(0);
   const STEP = 360; // 풀 정보 카드 유효 높이 (겹침 -36 반영) — 포커스가 상단 존에 오도록 실높이와 일치시킴
 
   return (
     <Animated.ScrollView
-      style={{ flex: 1, backgroundColor: colors.cream }}
+      style={{ flex: 1, backgroundColor: '#171f18' }} // 다크 백드롭 — 파스텔 카드 모션이 또렷하게
       contentContainerStyle={{ paddingTop: 56, paddingBottom: 80 }}
-      onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
+      onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
+        useNativeDriver: true,
+        // 포커스 카드가 최상위 레이어에 오도록 (눈에 가장 가까운 카드 = z 최상단)
+        listener: (e: any) => {
+          const idx = Math.max(0, Math.round(e.nativeEvent.contentOffset.y / STEP));
+          if (idx !== focusRef.current) { focusRef.current = idx; setFocusIdx(idx); }
+        },
+      })}
       scrollEventThrottle={16}
     >
       <Row style={{ justifyContent: 'space-between', marginBottom: 4, paddingHorizontal: 20 }}>
-        <Pressable onPress={() => router.back()} style={s.backBtn}><Text style={{ fontSize: 18 }}>‹</Text></Pressable>
-        <Text style={{ fontSize: 20, fontWeight: '900', color: FOREST }}>러너 선택</Text>
+        <Pressable onPress={() => router.back()} style={s.backBtn}><Text style={{ fontSize: 18, color: '#f3f1e7' }}>‹</Text></Pressable>
+        <Text style={{ fontSize: 20, fontWeight: '900', color: '#f3f1e7' }}>러너 선택</Text>
         <View style={{ width: 40 }} />
       </Row>
-      <Text style={{ fontSize: 13, color: '#5d655d', textAlign: 'center', marginBottom: 14, paddingHorizontal: 20 }}>
+      <Text style={{ fontSize: 13, color: '#9aa694', textAlign: 'center', marginBottom: 14, paddingHorizontal: 20 }}>
         {live ? '러너를 지명하거나, 오픈 매칭으로 기다릴 수 있어요\n보통 몇 분 안에 응답이 와요' : '보호자님과 러너의 선호도를 종합 분석했어요'}
       </Text>
 
@@ -152,24 +161,26 @@ export default function Matching() {
                 key={r.profileId}
                 style={{
                   marginTop: i === 0 ? 8 : -36,
+                  // 포커스 카드가 이웃들 위로 — 눈에 가장 가까운 레이어
+                  zIndex: 100 - Math.abs(i - focusIdx) * 10,
                   opacity: scrollY.interpolate({
                     inputRange: [focus - 2 * STEP, focus, focus + 2 * STEP],
-                    outputRange: [0.88, 1, 0.85],
+                    outputRange: [0.7, 1, 0.75],
                     extrapolate: 'clamp',
                   }),
                   transform: [
-                    { perspective: 900 },
+                    { perspective: 800 },
                     {
                       scale: scrollY.interpolate({
-                        inputRange: [focus - 1.5 * STEP, focus, focus + 1.5 * STEP],
-                        outputRange: [0.84, 1, 0.88],
+                        inputRange: [focus - 1.2 * STEP, focus, focus + 1.2 * STEP],
+                        outputRange: [0.78, 1.05, 0.82], // 포커스는 1.0을 넘겨 튀어나오고, 이웃은 확 줄어든다
                         extrapolate: 'clamp',
                       }),
                     },
                     {
                       rotateX: scrollY.interpolate({
-                        inputRange: [focus - 1.5 * STEP, focus, focus + 1.5 * STEP],
-                        outputRange: ['-8deg', '0deg', '10deg'],
+                        inputRange: [focus - 1.2 * STEP, focus, focus + 1.2 * STEP],
+                        outputRange: ['-16deg', '0deg', '18deg'], // 훨씬 또렷한 휠 각도
                         extrapolate: 'clamp',
                       }),
                     },
@@ -235,7 +246,7 @@ export default function Matching() {
           })}
 
           <View style={s.trustNote}>
-            <Text style={{ fontSize: 12, color: '#5d655d' }}>지명 없이 두면 오픈 매칭으로 모든 러너에게 보여요</Text>
+            <Text style={{ fontSize: 12, color: '#9aa694' }}>지명 없이 두면 오픈 매칭으로 모든 러너에게 보여요</Text>
           </View>
         </>
       )}
@@ -280,7 +291,7 @@ function AltStat({ label, value }: { label: string; value: string }) {
 }
 
 const s = StyleSheet.create({
-  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#eceadf' },
+  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#26332a', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#3a4a3e' },
   aiBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: FOREST, borderRadius: 18, padding: 16, gap: 10 },
   aiChip: { borderWidth: 1, borderColor: '#3d5245', borderRadius: 99, paddingVertical: 7, paddingHorizontal: 12 },
   // 스택 카드 시스템 — 풀와이드, 큰 라운드, 겹침 (모던 패스)
@@ -295,7 +306,8 @@ const s = StyleSheet.create({
   // 통합 캐러셀 풀 카드 — 모든 러너가 1순위급 정보 밀도
   fullCard: {
     borderRadius: 32, padding: 22, paddingTop: 44, paddingBottom: 60,
-    shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 14, shadowOffset: { width: 0, height: -5 },
+    shadowColor: '#132117', shadowOpacity: 0.22, shadowRadius: 18, shadowOffset: { width: 0, height: 6 },
+    elevation: 8,
   },
   fullNominate: { borderRadius: 16, alignItems: 'center', paddingVertical: 14, marginTop: 14 },
   stackNominate: { backgroundColor: FOREST, borderRadius: 99, paddingVertical: 11, paddingHorizontal: 17 },
