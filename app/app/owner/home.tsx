@@ -445,90 +445,66 @@ export default function OwnerHome() {
           </Pressable>
         )}
 
-        {/* ---------- 다가오는 일정 — 라임 카드 + 빅타임 + 듀얼 아바타 (모던 목업) ---------- */}
+        {/* ---------- upcoming schedule widget (docs/calendar.md: 4-state component; mock shows 예정 state) ---------- */}
         {/* whole card taps through to 내 일정 — buttons stop propagation */}
-        <Pressable onPress={() => router.push('/owner/schedule')} style={s.scheduleCard}>
-          <View style={s.schedTab}>
-            <Text style={{ fontSize: 10.5, fontWeight: '900', color: colors.volt }}>● 다가오는 일정</Text>
+        <Pressable onPress={() => router.push('/owner/schedule')} style={[s.scheduleCard, { backgroundColor: p.card }]}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <View style={s.liveDotSm} />
+              <Text style={{ fontSize: 12.5, fontWeight: '900', color: p.textStrong }}>다가오는 일정</Text>
+            </View>
+            <View style={s.allScheduleChip}>
+              <Text style={{ fontSize: 11.5, fontWeight: '900', color: colors.ink }}>전체 일정 ›</Text>
+            </View>
           </View>
-          {liveNext && (
-            <View style={[s.schedStatusPill, liveNext.status === 'pending' && { backgroundColor: '#fbf0d4' }]}>
-              <Text style={{ fontSize: 10.5, fontWeight: '900', color: liveNext.status === 'pending' ? '#a97c12' : '#d84a2f' }}>
-                {liveNext.status === 'pending' ? '매칭 중' : liveNext.status === 'active' ? '● LIVE' : liveNext.status === 'handoff' ? '시작 대기' : '확정됨'}
-              </Text>
-            </View>
-          )}
-
           {liveNext ? (
-            <>
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 26 }}>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 31, fontWeight: '900', color: colors.ink, letterSpacing: -0.5 }}>
-                    {(() => {
-                      // dateLabel "7월 27일 (일)" → 오늘/내일/그대로
-                      const m = liveNext.dateLabel.match(/(\d+)월 (\d+)일/);
-                      if (m) {
-                        const now = new Date();
-                        const dd = new Date(now.getFullYear(), Number(m[1]) - 1, Number(m[2]));
-                        const diff = Math.round((dd.getTime() - new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()) / 86400000);
-                        if (diff === 0) return '오늘';
-                        if (diff === 1) return '내일';
-                      }
-                      return liveNext.dateLabel.split(' (')[0];
-                    })()} {liveNext.timeLabel}
-                  </Text>
-                  <Text style={{ fontSize: 12, color: '#4a6d1f', marginTop: 5 }} numberOfLines={1}>
-                    {liveNext.dogName} · {liveNext.routeName} {liveNext.km}km
-                    {liveNext.runnerName ? ` · ${liveNext.runnerName} 러너 ✓` : ''}
-                  </Text>
-                </View>
-                {/* 듀얼 아바타 — 강아지(코랄) + 러너(포레스트) 겹침 */}
-                <View style={{ flexDirection: 'row' }}>
-                  <View style={[s.schedSq, { backgroundColor: colors.tang, zIndex: 2 }]}>
-                    {fit?.dogPhotoUrl
-                      ? <Avatar url={fit.dogPhotoUrl} char={liveNext.dogName[0]} bg={colors.tang} size={50} />
-                      : <Text style={{ fontSize: 20, fontWeight: '900', color: '#fff' }}>{liveNext.dogName[0]}</Text>}
-                  </View>
-                  {liveNext.runnerName && (
-                    <View style={[s.schedSq, { backgroundColor: '#5a7a3c', marginLeft: -12 }]}>
-                      <Text style={{ fontSize: 20, fontWeight: '900', color: '#fff' }}>{liveNext.runnerName[0]}</Text>
-                    </View>
-                  )}
-                </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 12 }}>
+              <Avatar url={fit?.dogPhotoUrl} char={liveNext.dogName[0]} bg="#FF6347" size={46} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 17, fontWeight: '900', color: p.textStrong }}>
+                  {liveNext.dateLabel.split(' ')[0]} {liveNext.timeLabel} · {liveNext.dogName}
+                </Text>
+                <Text style={{ fontSize: 11.5, color: p.dim, marginTop: 3 }}>
+                  {liveNext.routeName} · {liveNext.status === 'pending' ? '러너 응답 대기' : liveNext.status === 'active' ? '러닝 진행 중' : liveNext.status === 'handoff' ? '인계 완료 — 곧 시작돼요' : '러너 확정 ✓'}
+                </Text>
               </View>
-            </>
+              <View style={[s.countdownPill, { backgroundColor: liveNext.status === 'pending' ? '#fbf0d4' : '#fde8e3' }]}>
+                <Text style={{ fontSize: 10.5, fontWeight: '900', color: liveNext.status === 'pending' ? '#a97c12' : '#d84a2f' }}>
+                  {liveNext.status === 'pending' ? '매칭 중' : liveNext.status === 'active' ? '● LIVE' : liveNext.status === 'handoff' ? '시작 대기' : '확정됨'}
+                </Text>
+              </View>
+            </View>
           ) : (
-            <View style={{ marginTop: 28, alignItems: 'center', paddingVertical: 4 }}>
-              <Text style={{ fontSize: 14.5, fontWeight: '900', color: colors.ink }}>예정된 러닝이 없어요</Text>
-              <Text style={{ fontSize: 11.5, color: '#4a6d1f', marginTop: 4 }}>위의 찾기 버튼으로 바로 시작해보세요</Text>
+            <View style={{ marginTop: 12, alignItems: 'center', paddingVertical: 6 }}>
+              <Text style={{ fontSize: 14.5, fontWeight: '800', color: p.textStrong }}>예정된 러닝이 없어요</Text>
+              <Text style={{ fontSize: 11.5, color: p.dim, marginTop: 4 }}>아래 슬라이더로 첫 러닝을 예약해보세요</Text>
             </View>
           )}
-
-          {/* 상태별 액션 — 다크 프라이머리 + 화이트 채팅 (모던 목업) */}
+          {/* 30분 전부터/러너 확정 시: 확인·시작 액션이 위젯에 올라온다 */}
           {liveNext?.status === 'active' ? (
-            <View style={{ flexDirection: 'row', gap: 8, marginTop: 15 }}>
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 13 }}>
               <Pressable
                 style={s.meetBtn}
                 onPress={(e) => { e.stopPropagation(); if (liveNext) draft.bookingId = liveNext.id; router.push('/owner/live'); }}
               >
-                <Text style={{ fontSize: 13, fontWeight: '900', color: '#fff' }}>실시간 보기 ›</Text>
+                <Text style={{ fontSize: 12.5, fontWeight: '900', color: colors.ink }}>실시간 보기 ›</Text>
               </Pressable>
             </View>
           ) : liveNext?.status === 'handoff' ? (
-            <View style={{ flexDirection: 'row', gap: 8, marginTop: 15 }}>
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 13 }}>
               <Pressable
-                style={s.meetBtn}
+                style={[s.widgetBtn, { borderColor: p.line, flex: 1 }]}
                 onPress={(e) => {
                   e.stopPropagation();
                   if (liveNext) draft.bookingId = liveNext.id;
                   router.push('/owner/meetup'); // 시작되면 미트업이 라이브로 자동 전환
                 }}
               >
-                <Text style={{ fontSize: 13, fontWeight: '900', color: '#fff' }}>인계 완료 · 러닝 시작 대기 중 ›</Text>
+                <Text style={{ fontSize: 11.5, fontWeight: '700', color: p.textSoft }}>인계 완료 · 러닝 시작 대기 중 ›</Text>
               </Pressable>
             </View>
           ) : liveNext?.status === 'confirmed' ? (
-            <View style={{ flexDirection: 'row', gap: 8, marginTop: 15 }}>
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 13 }}>
               <Pressable
                 style={s.meetBtn}
                 onPress={(e) => {
@@ -537,31 +513,31 @@ export default function OwnerHome() {
                   router.push('/owner/meetup');
                 }}
               >
-                <Text style={{ fontSize: 13, fontWeight: '900', color: '#fff' }}>러너 만나기 · 인계 확인 ›</Text>
+                <Text style={{ fontSize: 12.5, fontWeight: '900', color: colors.ink }}>러너 만나기 · 인계 확인 ›</Text>
               </Pressable>
               <Pressable
-                style={s.chatBtnW}
+                style={[s.widgetBtn, { borderColor: p.line, flex: 0.6 }]}
                 onPress={(e) => { e.stopPropagation(); router.push({ pathname: '/chat', params: liveNext ? { bid: liveNext.id } : {} }); }}
               >
-                <Text style={{ fontSize: 13, fontWeight: '900', color: colors.ink }}>채팅</Text>
+                <Text style={{ fontSize: 11.5, fontWeight: '700', color: p.textSoft }}>채팅</Text>
               </Pressable>
             </View>
-          ) : liveNext ? (
-            <View style={{ flexDirection: 'row', gap: 8, marginTop: 15 }}>
+          ) : (
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 13 }}>
               <Pressable
-                style={s.chatBtnW}
+                style={[s.widgetBtn, { borderColor: p.line }]}
                 onPress={(e) => { e.stopPropagation(); router.push('/owner/schedule'); }}
               >
-                <Text style={{ fontSize: 12.5, fontWeight: '800', color: colors.ink }}>일정 변경</Text>
+                <Text style={{ fontSize: 11.5, fontWeight: '700', color: p.textSoft }}>일정 변경</Text>
               </Pressable>
               <Pressable
-                style={s.chatBtnW}
-                onPress={(e) => { e.stopPropagation(); router.push({ pathname: '/chat', params: { bid: liveNext.id } }); }}
+                style={[s.widgetBtn, { borderColor: p.line }]}
+                onPress={(e) => { e.stopPropagation(); router.push({ pathname: '/chat', params: liveNext ? { bid: liveNext.id } : {} }); }}
               >
-                <Text style={{ fontSize: 12.5, fontWeight: '800', color: colors.ink }}>러너와 채팅</Text>
+                <Text style={{ fontSize: 11.5, fontWeight: '700', color: p.textSoft }}>러너와 채팅</Text>
               </Pressable>
             </View>
-          ) : null}
+          )}
         </Pressable>
 
         {/* ---------- 우리 동네 러너 (탐색형 매칭) ---------- */}
@@ -892,32 +868,19 @@ const s = StyleSheet.create({
     shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 6, shadowOffset: { width: 2, height: 2 },
   },
   scheduleCard: {
-    backgroundColor: '#d9f294', borderRadius: 26, padding: 17, paddingTop: 13, marginTop: 14,
-    borderWidth: 1, borderColor: '#c3dd76', overflow: 'hidden',
-    shadowColor: '#132117', shadowOpacity: 0.1, shadowRadius: 10, shadowOffset: { width: 0, height: 5 },
-  },
-  schedTab: {
-    position: 'absolute', top: 0, left: 0, backgroundColor: '#132117',
-    borderTopLeftRadius: 24, borderBottomRightRadius: 16, paddingVertical: 7, paddingHorizontal: 13,
-  },
-  schedStatusPill: {
-    position: 'absolute', top: 11, right: 12, backgroundColor: '#fde8e3',
-    borderRadius: 99, paddingVertical: 6, paddingHorizontal: 11,
-  },
-  schedSq: {
-    width: 50, height: 50, borderRadius: 16, alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2.5, borderColor: '#d9f294', overflow: 'hidden',
+    borderRadius: 22, padding: 17, marginTop: 12,
+    borderWidth: 1.4, borderColor: '#b9f23a55', // lime accent — the widget earns its emphasis
+    shadowColor: colors.volt, shadowOpacity: 0.2, shadowRadius: 12, shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
   },
   liveDotSm: {
-    width: 7, height: 7, borderRadius: 4, backgroundColor: '#82b016',
+    width: 7, height: 7, borderRadius: 4, backgroundColor: colors.volt,
+    shadowColor: colors.volt, shadowOpacity: 1, shadowRadius: 4, shadowOffset: { width: 0, height: 0 },
   },
   allScheduleChip: { backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 6, paddingHorizontal: 12 },
   meetBtn: {
-    flex: 1.5, backgroundColor: colors.ink, borderRadius: 99, alignItems: 'center', paddingVertical: 13,
-  },
-  chatBtnW: {
-    flex: 1, backgroundColor: '#fff', borderRadius: 99, alignItems: 'center', paddingVertical: 13,
-    borderWidth: 1, borderColor: '#c3dd76',
+    flex: 1, backgroundColor: colors.volt, borderRadius: 12, alignItems: 'center', paddingVertical: 11,
+    shadowColor: colors.volt, shadowOpacity: 0.4, shadowRadius: 8, shadowOffset: { width: 0, height: 2 },
   },
   countdownPill: { borderRadius: 99, paddingVertical: 6, paddingHorizontal: 10 },
   widgetBtn: { flex: 1, borderWidth: 1, borderRadius: 12, alignItems: 'center', paddingVertical: 9 },
