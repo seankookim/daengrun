@@ -44,7 +44,12 @@ export default function OwnerHome() {
   useFocusEffect(useCallback(() => {
     fetchMyBookings()
       .then((bs) => {
-        setLiveNext(bs.find((b) => ['pending', 'confirmed', 'handoff', 'active'].includes(b.status)) ?? null);
+        // 가장 액션 가능한 예약 우선: active > handoff > confirmed > pending —
+        // 스테일 '매칭 중'이 확정 러닝(인계 확인 위젯)을 가리는 사고 방지
+        const RANK: Record<string, number> = { active: 0, handoff: 1, confirmed: 2, pending: 3 };
+        setLiveNext(
+          bs.filter((b) => b.status in RANK).sort((a, b) => RANK[a.status] - RANK[b.status])[0] ?? null,
+        );
         setLastDone(bs.find((b) => b.status === 'completed') ?? null);
       })
       .catch((e) => console.warn('[home] bookings:', e?.message ?? e));

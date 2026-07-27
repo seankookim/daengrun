@@ -39,14 +39,24 @@ const del = async (table) => {
   console.log(`  ${res.ok ? '🧹' : '✗'} ${table}${res.ok ? ` (${count === '*' ? '' : count}건)` : ` — ${res.status} ${await res.text()}`}`);
 };
 
-// FK 순서: 자식 → 부모
-for (const t of ['reviews', 'runs', 'ledger_items', 'slot_holds', 'chat_messages', 'chat_threads', 'gate_code_access_log', 'notifications', 'drops', 'bookings']) {
+// FK 순서: 자식 → 부모 (피드·마일 등 신규 테이블 포함, 2026-07-27)
+for (const t of [
+  'reviews', 'runs', 'feed_comments', 'feed_likes', 'feed_posts', 'miles_ledger',
+  'ledger_items', 'gear_claims', 'slot_holds', 'chat_messages', 'chat_threads',
+  'gate_code_access_log', 'notifications', 'drops', 'incidents', 'bookings',
+]) {
   await del(t);
 }
-const r = await fetch(`${URL_}/rest/v1/runners?profile_id=not.is.null`, {
+// 스탯 초기화 — 시드 러너(@daengrun.seed)는 제외 (마켓플레이스 데모 프로필 보존)
+const users = await fetch(`${URL_}/auth/v1/admin/users?per_page=100`, {
+  headers: { apikey: SERVICE, Authorization: `Bearer ${SERVICE}` },
+}).then((x) => x.json());
+const seedIds = (users.users ?? []).filter((u) => u.email?.endsWith('@daengrun.seed')).map((u) => u.id);
+const notSeed = seedIds.length ? `&profile_id=not.in.(${seedIds.join(',')})` : '';
+const r = await fetch(`${URL_}/rest/v1/runners?profile_id=not.is.null${notSeed}`, {
   method: 'PATCH',
   headers: { apikey: SERVICE, Authorization: `Bearer ${SERVICE}`, 'Content-Type': 'application/json' },
   body: JSON.stringify({ total_runs: 0, total_km: 0 }),
 });
-console.log(`  ${r.ok ? '↺' : '✗'} runners 누적 스탯 초기화`);
+console.log(`  ${r.ok ? '↺' : '✗'} runners 누적 스탯 초기화 (시드 ${seedIds.length}명 보존)`);
 console.log('\n완료 — 앱을 리로드하면 완전한 백지 상태예요');
