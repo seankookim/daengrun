@@ -6,7 +6,7 @@ import { BottomNav } from '../../src/components/bottomnav';
 import { Ring } from '../../src/components/ring';
 import { RunCard } from '../../src/components/runcard';
 import { Avatar } from '../../src/components/ui';
-import { Addr, confirmPayment, createBookingHold, DogProfile, fetchAddresses, fetchAvailableRunners, fetchCertifiedRunners, fetchFitness, fetchMyBookings, fetchMyDogs, Fitness, LiveRunner } from '../../src/lib/api';
+import { Addr, confirmPayment, createBookingHold, DogProfile, fetchAddresses, fetchAvailableRunners, fetchCertifiedRunners, fetchFitness, fetchMyBookings, fetchMyDogs, fetchMyProfile, Fitness, LiveRunner, MyProfile } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { haptic } from '../../src/lib/haptics';
 import { Booking, demoImminent, dog, draft, myCards, nextBooking, ownerGearLadder, runners } from '../../src/store';
@@ -21,7 +21,7 @@ const { width: SCREEN_W } = Dimensions.get('window');
 const CARD_W = SCREEN_W - 24; // 거터 12*2
 const RING_BIG = 216;
 const PAD_TOP = 56;
-const HEADER_H = 108; // 로테이팅 그리팅 2줄(플립 라인 + 이름 라인)이 상단을 채우는 높이
+const HEADER_H = 84; // 로테이팅 그리팅 1줄 — pfp와 알림 버튼 사이를 꽉 채운다
 
 // 로테이팅 그리팅 — 5초마다 수직 플립으로 순환. 이름 라인('우리 {이름}')은 고정 앵커.
 const GREETINGS = [
@@ -75,6 +75,7 @@ export default function OwnerHome() {
       })
       .catch((e) => console.warn('[home] bookings:', e?.message ?? e));
     fetchFitness().then(setFit).catch((e) => console.warn('[home] fitness:', e?.message ?? e));
+    fetchMyProfile().then(setMe).catch((e) => console.warn('[home] me:', e?.message ?? e));
     fetchCertifiedRunners().then(setLocalRunners).catch((e) => console.warn('[home] runners:', e?.message ?? e));
     // 가용 러너 — 러닝 중인 러너는 히어로 카운트/레이더에서 제외 (기대 오염 방지)
     fetchAvailableRunners().then(setFnAvail).catch((e) => console.warn('[home] avail:', e?.message ?? e));
@@ -82,6 +83,8 @@ export default function OwnerHome() {
 
   // 우리 동네 러너 — 온라인 러너 셸프 (탐색형 매칭의 시작점)
   const [localRunners, setLocalRunners] = useState<LiveRunner[]>([]);
+  // 보호자 pfp — 헤더 좌측 (마이 프로필 사진과 동일 소스)
+  const [me, setMe] = useState<MyProfile | null>(null);
 
   // ── 지금 러너 찾기 — 원탭 히어로 → 프리필 시트(2탭) → 오픈 브로드캐스트 + 레이더
   const [fnOpen, setFnOpen] = useState(false);
@@ -217,11 +220,13 @@ export default function OwnerHome() {
       <View style={[s.overlay, { backgroundColor: p.bg }]}>
         <Animated.View style={{ height: headerH, opacity: headerOpacity, overflow: 'hidden' }}>
           <View style={s.headerRow}>
-            <View style={{ flex: 1 }}>
-              {/* 플립 라인 — 5초 로테이션, rotateX 접힘 (상단 엣지 힌지 느낌) */}
+            {/* pfp — 보호자 프로필 사진 (profiles.avatar_url), 없으면 모노그램. 홈 상단의 '나' 자리 */}
+            <Avatar url={me?.avatarUrl} char={(me?.name ?? dogName)[0]} bg={colors.forest} size={46} />
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              {/* 원라인 모토 — pfp↔알림 버튼 사이 전폭. 문구별 폭 차이는 adjustsFontSizeToFit이 흡수 */}
               <Animated.Text
                 style={[{
-                  fontSize: 26, fontWeight: '800', color: '#49524a',
+                  fontSize: 30, fontWeight: '900', color: colors.forest,
                   opacity: gFlip.interpolate({ inputRange: [0, 1], outputRange: [1, 0.1] }),
                   transform: [
                     { perspective: 600 },
@@ -229,13 +234,11 @@ export default function OwnerHome() {
                   ],
                 }, df]}
                 numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.55}
               >
-                {GREETINGS[gIdx]},
+                {GREETINGS[gIdx]}, <Text style={{ color: colors.voltDeep }}>우리 {dogName}</Text>
               </Animated.Text>
-              {/* 이름 라인 — 고정 앵커, 히어로 사이즈 */}
-              <Text style={[{ fontSize: 37, fontWeight: '900', color: p.textStrong, marginTop: 2 }, df]} numberOfLines={1}>
-                우리 <Text style={{ color: colors.voltDeep }}>{dogName}</Text>
-              </Text>
             </View>
             {/* 다크 토글 은퇴 — '나이트 러너' 테마로 전 화면 완성 후 복귀 (반쪽 다크는 깨져 보임, ui-audit) */}
             <Pressable onPress={() => router.push('/alerts')} style={[s.themeBtn, { borderColor: p.line, marginLeft: 8 }]}>
