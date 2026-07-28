@@ -310,7 +310,7 @@ export default function Request() {
         <SectionHead
           glyph="✓"
           title="코스 선택"
-          sub={routesLive ? '· 실시간 코스 정보' : '· 모든 코스는 도그스하이이 직접 점검해요'}
+          sub={routesLive ? '· 실시간 코스 정보' : '· 모든 코스는 도그스하이가 직접 점검해요'}
         />
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingRight: 12 }}>
           {routes.map((r) => {
@@ -336,7 +336,8 @@ export default function Request() {
                   <View style={s.certBadge}><Text style={{ fontSize: 9, fontWeight: '900', color: '#fff' }}>✓</Text></View>
                 </Row>
                 <Text style={{ fontSize: 12, color: '#49524a', marginTop: 2 }}>
-                  {r.area} · {r.km}km · {r.terrain} · {r.checkedAt} 점검
+                  {/* checkedAt이 이미 '7.15 점검' 형태 — '점검' 재접미 금지 (점검 점검 버그) */}
+                  {r.area} · {r.km}km · {r.terrain} · {r.checkedAt}
                 </Text>
 
                 <View style={s.routeMap}>
