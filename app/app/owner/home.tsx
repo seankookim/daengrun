@@ -178,9 +178,9 @@ export default function OwnerHome() {
   const heroH = t.interpolate({ inputRange: [0, 1], outputRange: [HERO_BIG, HERO_SMALL] });
   const headerH = t.interpolate({ inputRange: [0, 0.6], outputRange: [HEADER_H, 0], extrapolate: 'clamp' });
   const headerOpacity = t.interpolate({ inputRange: [0, 0.45], outputRange: [1, 0], extrapolate: 'clamp' });
-  // 컬랩스 링 0.5 → 0.62 — 176 높이 사각형에서 108px 링은 겉돌았다 (134px가 자리를 잡는다)
-  const ringScale = t.interpolate({ inputRange: [0, 1], outputRange: [1, 0.62] });
-  const ringX = t.interpolate({ inputRange: [0, 1], outputRange: [0, CARD_W / 2 - RING_BIG * 0.31 - 26] });
+  // 컬랩스 링 0.71 (0.62의 1.15배) — 153px, 176 높이 사각형을 꽉 채우는 앵커
+  const ringScale = t.interpolate({ inputRange: [0, 1], outputRange: [1, 0.71] });
+  const ringX = t.interpolate({ inputRange: [0, 1], outputRange: [0, CARD_W / 2 - RING_BIG * 0.355 - 24] });
   const ringY = t.interpolate({ inputRange: [0, 1], outputRange: [0, -44] });
   const infoOpacity = t.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, 0, 1] });
   const infoX = t.interpolate({ inputRange: [0, 1], outputRange: [-20, 0] });
@@ -847,7 +847,7 @@ const s = StyleSheet.create({
     position: 'absolute', top: 14, left: 16, zIndex: 4,
     borderRadius: 99, paddingVertical: 6, paddingHorizontal: 12,
   },
-  info: { position: 'absolute', left: 18, top: 40, width: CARD_W * 0.5, zIndex: 3 },
+  info: { position: 'absolute', left: 18, top: 40, width: CARD_W * 0.46, zIndex: 3 }, // 커진 링(0.71)과 겹치지 않는 폭
   miniBar: { height: 4, borderRadius: 99, marginTop: 6, overflow: 'hidden' },
   miniBarFill: { height: 4, borderRadius: 99, backgroundColor: colors.volt },
   goalChip: { marginTop: 8, borderRadius: 99, paddingVertical: 4, paddingHorizontal: 10 },
