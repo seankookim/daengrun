@@ -417,7 +417,7 @@ const s = StyleSheet.create({
   filter: { backgroundColor: '#fff', borderRadius: 99, paddingVertical: 8, paddingHorizontal: 14, borderWidth: 1, borderColor: '#DCD6C4' },
   emptyBox: { marginTop: 24, marginHorizontal: 12, padding: 18, backgroundColor: '#f4f2ea', borderRadius: 16 },
   bookingCard: { flexDirection: 'row', backgroundColor: '#fff', borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#DCD6C4', marginTop: -1, overflow: 'hidden' },
-  rail: { width: 5 },
+  rail: { width: 8 }, // 상태 컬러 레일 1.6배 (5→8)
   recurPill: { backgroundColor: '#e3f0c4', borderRadius: 99, paddingVertical: 2, paddingHorizontal: 7, alignSelf: 'center' },
   livePillSm: { backgroundColor: '#5a7a3c', borderRadius: 99, paddingVertical: 2, paddingHorizontal: 7, alignSelf: 'center' },
   statusPill: { borderRadius: 99, paddingVertical: 4, paddingHorizontal: 9 },

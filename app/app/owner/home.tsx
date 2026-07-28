@@ -21,14 +21,33 @@ const { width: SCREEN_W } = Dimensions.get('window');
 const CARD_W = SCREEN_W - 24; // 거터 12*2
 const RING_BIG = 216;
 const PAD_TOP = 56;
-const HEADER_H = 62;
+const HEADER_H = 108; // 로테이팅 그리팅 2줄(플립 라인 + 이름 라인)이 상단을 채우는 높이
+
+// 로테이팅 그리팅 — 5초마다 수직 플립으로 순환. 이름 라인('우리 {이름}')은 고정 앵커.
+const GREETINGS = [
+  '오늘도 달린다', '오늘도 젊어진다', '오늘도 건강이다', '오늘도 뜨겁게', '오늘도 화이팅',
+  '남들과는 다른', '가볍게 화이팅', '산책은 기본인', '이 정도면 선수다', '준비는 끝났다',
+] as const;
 const HERO_BIG = 296;
 const HERO_SMALL = 176; // 1.15배 타입 스케일 후 좌측 정보 블록('N% 달성'까지)이 잘리지 않는 높이
 const SCROLL_RANGE = 150;
 
 export default function OwnerHome() {
   const { mode, toggle, p } = useTheme();
-  const df = useDisplayFont(); // 디스플레이 서체 — 화면당 1회 규칙: find-now 히어로 타이틀에만
+  const df = useDisplayFont(); // 디스플레이 서체 — 그리팅·find-now 히어로 타이틀
+
+  // 로테이팅 그리팅 — 5초마다 수직 플립 (접힘 → 문구 교체 → 펼침)
+  const [gIdx, setGIdx] = useState(0);
+  const gFlip = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const id = setInterval(() => {
+      Animated.timing(gFlip, { toValue: 1, duration: 240, easing: Easing.in(Easing.quad), useNativeDriver: true }).start(() => {
+        setGIdx((i) => (i + 1) % GREETINGS.length);
+        Animated.timing(gFlip, { toValue: 0, duration: 260, easing: Easing.out(Easing.quad), useNativeDriver: true }).start();
+      });
+    }, 5000);
+    return () => clearInterval(id);
+  }, [gFlip]);
   // 링 실데이터 — 완료 러닝 집계 (로드 전엔 0, 가짜 숫자 없음)
   const [fit, setFit] = useState<Fitness | null>(null);
   const weekKm = fit?.weekKm ?? 0;
@@ -198,13 +217,24 @@ export default function OwnerHome() {
       <View style={[s.overlay, { backgroundColor: p.bg }]}>
         <Animated.View style={{ height: headerH, opacity: headerOpacity, overflow: 'hidden' }}>
           <View style={s.headerRow}>
-            <Avatar url={fit?.dogPhotoUrl} char={dogName[0]} bg={colors.volt} size={46} />
-            <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={[{ fontSize: 24, fontWeight: '800', color: p.textStrong }, df]}>
-                오늘도 달린다, {dogName}
-              </Text>
-              <Text style={{ fontSize: 14.5, fontWeight: '600', color: '#3d453d', marginTop: 3 }}>
-                러너스 하이를, 우리 아이에게
+            <View style={{ flex: 1 }}>
+              {/* 플립 라인 — 5초 로테이션, rotateX 접힘 (상단 엣지 힌지 느낌) */}
+              <Animated.Text
+                style={[{
+                  fontSize: 26, fontWeight: '800', color: '#49524a',
+                  opacity: gFlip.interpolate({ inputRange: [0, 1], outputRange: [1, 0.1] }),
+                  transform: [
+                    { perspective: 600 },
+                    { rotateX: gFlip.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '86deg'] }) },
+                  ],
+                }, df]}
+                numberOfLines={1}
+              >
+                {GREETINGS[gIdx]},
+              </Animated.Text>
+              {/* 이름 라인 — 고정 앵커, 히어로 사이즈 */}
+              <Text style={[{ fontSize: 37, fontWeight: '900', color: p.textStrong, marginTop: 2 }, df]} numberOfLines={1}>
+                우리 <Text style={{ color: colors.voltDeep }}>{dogName}</Text>
               </Text>
             </View>
             {/* 다크 토글 은퇴 — '나이트 러너' 테마로 전 화면 완성 후 복귀 (반쪽 다크는 깨져 보임, ui-audit) */}
