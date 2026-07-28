@@ -60,7 +60,7 @@ function RunnerFullCard({ r, m, i, topIsPreferred, nominating, onNominate, onLay
         </View>
       )}
 
-      <View style={[s.rankTab, !dark && { backgroundColor: FOREST }]}>
+      <View style={[s.rankTab, !dark && { backgroundColor: '#0F1D13B3' }]}>
         <Text style={{ fontSize: 12.5, fontWeight: '900', color: dark ? FOREST : '#fff' }}>
           {i === 0 ? (topIsPreferred ? '★ 내가 고른 러너' : '★ 추천 1순위') : `${i + 1}순위 · 적합 ${m.total}%`}
         </Text>
@@ -499,7 +499,8 @@ const s = StyleSheet.create({
   fullNominate: { borderRadius: 16, alignItems: 'center', paddingVertical: 13, marginTop: 12 },
   stackNominate: { backgroundColor: FOREST, borderRadius: 99, paddingVertical: 11, paddingHorizontal: 17 },
   rankTab: {
-    position: 'absolute', top: -1, left: -1, backgroundColor: colors.volt,
+    // 세미 투명 티켓 — 카드 배경이 살짝 비쳐 스티커가 아닌 '붙은 태그'처럼 (Sean, 2026-07-28)
+    position: 'absolute', top: -1, left: -1, backgroundColor: '#C6F542B3',
     borderTopLeftRadius: 30, borderBottomRightRadius: 18, paddingVertical: 7, paddingHorizontal: 16,
   },
   limePill: { backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 3, paddingHorizontal: 8 },
