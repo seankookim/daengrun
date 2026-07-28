@@ -733,12 +733,16 @@ export default function OwnerHome() {
     </View>
   );
 
-  // 파스텔 필 스탬프 — 흰 카드+도트 은퇴. 밸류 900 forest, 라벨은 유니버설 다크 (파스텔 3색 공용)
+  // 미니 레이스 빕 — 상단 파스텔 밴드(라벨 + 펀치홀 2개) + 큰 숫자. 히어로 빕 필과 같은 모티프.
   function StatChip({ top, bottom, bg }: { top: string; bottom: string; bg: string }) {
     return (
-      <View style={[s.statChip, { backgroundColor: bg }]}>
-        <Text style={{ fontSize: 16.5, fontWeight: '900', color: colors.forest }}>{top}</Text>
-        <Text style={{ fontSize: 12.5, fontWeight: '600', color: 'rgba(21,24,15,0.55)', marginTop: 3 }}>{bottom}</Text>
+      <View style={s.statChip}>
+        <View style={[s.bibBand, { backgroundColor: bg }]}>
+          <View style={s.bibHole} />
+          <Text style={s.bibLabel} numberOfLines={1}>{bottom}</Text>
+          <View style={s.bibHole} />
+        </View>
+        <Text style={s.bibValue} numberOfLines={1}>{top}</Text>
       </View>
     );
   }
@@ -852,7 +856,18 @@ const s = StyleSheet.create({
   miniBarFill: { height: 4, borderRadius: 99, backgroundColor: colors.volt },
   goalChip: { marginTop: 8, borderRadius: 99, paddingVertical: 4, paddingHorizontal: 10 },
   bigMsg: { textAlign: 'center', marginTop: 8, fontSize: 15, fontWeight: '700' },
-  statChip: { flex: 1, borderRadius: 20, paddingVertical: 15, paddingHorizontal: 13 },
+  // 미니 레이스 빕 세트 — 흰 몸통 + 파스텔 상단 밴드 + 펀치홀 (실제 빕의 조형)
+  statChip: {
+    flex: 1, borderRadius: 16, backgroundColor: '#fff', borderWidth: 1.2, borderColor: '#DCD6C4',
+    overflow: 'hidden', alignItems: 'center', paddingBottom: 13,
+  },
+  bibBand: {
+    alignSelf: 'stretch', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingVertical: 6, paddingHorizontal: 9,
+  },
+  bibHole: { width: 5, height: 5, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.8)' },
+  bibLabel: { fontSize: 10.5, fontWeight: '800', color: 'rgba(21,24,15,0.62)', letterSpacing: 0.2 },
+  bibValue: { fontSize: 19, fontWeight: '900', color: '#0F1D13', marginTop: 10, fontVariant: ['tabular-nums'] },
   rewardCard: {
     flexDirection: 'row', alignItems: 'center', borderRadius: 20, padding: 15, marginTop: 12,
     borderWidth: 1.6, borderColor: colors.tang + '66',
