@@ -3,11 +3,13 @@
   "version": "1.0.0",
   "main": "expo-router/entry",
   "dependencies": {
+    "@expo-google-fonts/black-han-sans": "^0.4.1",
     "@expo/ui": "^57.0.7",
     "@react-native-async-storage/async-storage": "2.1.2",
     "@supabase/supabase-js": "^2.49.0",
     "expo": "~57.0.7",
     "expo-constants": "~57.0.6",
+    "expo-font": "~57.0.1",
     "expo-haptics": "^57.0.1",
     "expo-image-picker": "~57.0.6",
     "expo-linking": "~57.0.3",

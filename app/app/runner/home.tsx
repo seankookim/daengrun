@@ -1,3 +1,4 @@
+import { useDisplayFont } from '../../src/lib/displayFont';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -38,6 +39,7 @@ async function openNaverRoute() {
 }
 
 export default function RunnerHome() {
+  const df = useDisplayFont(); // 디스플레이 서체 — 화면 타이틀
   const [inbox, setInbox] = useState<OpenRequest[]>([]);
   const [name, setName] = useState<string | null>(null);
   const [stats, setStats] = useState<RunnerWeekStats>({ net: 0, runs: 0, km: 0 });
@@ -100,7 +102,7 @@ export default function RunnerHome() {
         <Row style={{ justifyContent: 'space-between' }}>
           <View>
             <Text style={text.dim}>러너 모드 · {rs.online ? '온라인' : '오프라인'}</Text>
-            <Text style={[text.h1, { marginTop: 2 }]}>{name ?? '러너'} 님</Text>
+            <Text style={[text.h1, { marginTop: 2 }, df]}>{name ?? '러너'} 러너</Text>
           </View>
           <Pressable
             onPress={toggleOnline}

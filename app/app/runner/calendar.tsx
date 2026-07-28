@@ -1,3 +1,4 @@
+import { useDisplayFont } from '../../src/lib/displayFont';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -27,6 +28,7 @@ const MONTH_LABEL = `${new Date().getFullYear()}년 ${new Date().getMonth() + 1}
 // (데모 타임라인 제거 — 실작업만 표시. 시간대 타임라인 뷰·이동 버퍼 경고는 실좌표 붙는 세션에서 실데이터로 복귀)
 
 export default function RunnerCalendar() {
+  const df = useDisplayFont(); // 디스플레이 서체 — 화면 타이틀
   const [dateIdx, setDateIdx] = useState(0);
   const [jobs, setJobs] = useState<RunnerJob[]>([]);
 
@@ -54,7 +56,7 @@ export default function RunnerCalendar() {
       >
         <Row style={{ justifyContent: 'space-between' }}>
           <View>
-            <Text style={{ fontSize: 26, fontWeight: '900', color: FOREST }}>캘린더</Text>
+            <Text style={[{ fontSize: 26, fontWeight: '900', color: FOREST }, df]}>캘린더</Text>
             <Text style={{ fontSize: 12, color: colors.dim, marginTop: 3 }}>
               {MONTH_LABEL} · 확정 {jobs.filter((j) => j.status !== 'completed').length}건 · 예상 +
               {jobs.filter((j) => j.status !== 'completed').reduce((sum, j) => sum + j.payout, 0).toLocaleString()}원

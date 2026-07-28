@@ -1,3 +1,4 @@
+import { useDisplayFont } from '../src/lib/displayFont';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -14,6 +15,7 @@ import { colors } from '../src/theme';
 const FOREST = '#0F1D13';
 
 export default function My() {
+  const df = useDisplayFont(); // 디스플레이 서체 — 화면 타이틀
   const isRunner = session.role === 'runner';
   // 나의 러닝 기록 — 실데이터 (보호자: fitness 집계 / 러너: 누적 스탯)
   const [rec, setRec] = useState<{ km: number; runs: number; pace: string } | null>(null);
@@ -108,7 +110,7 @@ export default function My() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.cream }}>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingTop: 64, paddingBottom: 24 }}>
-        <Text style={s.h1}>마이</Text>
+        <Text style={[s.h1, df]}>마이</Text>
 
         {/* profile header — 실데이터 */}
         <View style={s.profile}>

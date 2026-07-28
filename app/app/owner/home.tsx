@@ -199,11 +199,11 @@ export default function OwnerHome() {
           <View style={s.headerRow}>
             <Avatar url={fit?.dogPhotoUrl} char={dogName[0]} bg={colors.volt} size={46} />
             <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={{ fontSize: 17, fontWeight: '800', color: p.textStrong }}>
-                안녕하세요, {dogName} 보호자님
+              <Text style={[{ fontSize: 18, fontWeight: '800', color: p.textStrong }, df]}>
+                오늘도 달린다, {dogName}
               </Text>
               <Text style={{ fontSize: 12, color: p.dim, marginTop: 2 }}>
-                {dogName}와 함께 건강한 하루 보내세요!
+                러너스 하이를, 우리 아이에게
               </Text>
             </View>
             {/* 다크 토글 은퇴 — '나이트 러너' 테마로 전 화면 완성 후 복귀 (반쪽 다크는 깨져 보임, ui-audit) */}

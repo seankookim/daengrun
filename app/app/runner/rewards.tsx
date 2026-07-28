@@ -1,3 +1,4 @@
+import { useDisplayFont } from '../../src/lib/displayFont';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -12,6 +13,7 @@ import { colors } from '../../src/theme';
 const FOREST = '#0F1D13';
 
 export default function Rewards() {
+  const df = useDisplayFont(); // 디스플레이 서체 — 화면 타이틀
   const [miles, setMiles] = useState<MilesInfo | null>(null);
   const [drops, setDrops] = useState<DropRow[]>([]);
   const [claims, setClaims] = useState<GearClaim[]>([]);
@@ -59,7 +61,7 @@ export default function Rewards() {
     >
       <Row style={{ justifyContent: 'space-between' }}>
         <Pressable onPress={() => router.back()} style={s.backBtn}><Text style={{ fontSize: 18 }}>‹</Text></Pressable>
-        <Text style={{ fontSize: 20, fontWeight: '900', color: FOREST }}>리워드 센터</Text>
+        <Text style={[{ fontSize: 20, fontWeight: '900', color: FOREST }, df]}>리워드 센터</Text>
         <View style={{ width: 40 }} />
       </Row>
 

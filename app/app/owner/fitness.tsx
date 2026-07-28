@@ -1,3 +1,4 @@
+import { useDisplayFont } from '../../src/lib/displayFont';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -15,6 +16,7 @@ const FOREST_INNER = '#1d3023';
 const fmtPace = (sec: number | null) => (sec ? `${Math.floor(sec / 60)}'${String(sec % 60).padStart(2, '0')}"` : '—');
 
 export default function FitnessHub() {
+  const df = useDisplayFont(); // 디스플레이 서체 — 화면 타이틀
   const [fit, setFit] = useState<Fitness | null>(null);
   const [savingGoal, setSavingGoal] = useState(false);
 
@@ -46,7 +48,7 @@ export default function FitnessHub() {
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingTop: 56, paddingBottom: 40 }}>
         <Row style={{ justifyContent: 'space-between' }}>
           <Pressable onPress={() => router.back()} style={s.backBtn}><Text style={{ fontSize: 18 }}>‹</Text></Pressable>
-          <Text style={{ fontSize: 20, fontWeight: '900', color: FOREST }}>체력 리포트</Text>
+          <Text style={[{ fontSize: 20, fontWeight: '900', color: FOREST }, df]}>체력 리포트</Text>
           <View style={{ width: 40 }} />
         </Row>
 

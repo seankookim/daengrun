@@ -1,3 +1,4 @@
+import { useDisplayFont } from '../../src/lib/displayFont';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -18,6 +19,7 @@ function nextWednesday(): string {
 }
 
 export default function Earnings() {
+  const df = useDisplayFont(); // 디스플레이 서체 — 화면 타이틀
   const [ledger, setLedger] = useState<LiveLedgerItem[]>([]);
 
   const load = () => fetchLedger().then(setLedger).catch((e) => console.warn('[earnings] ledger:', e?.message ?? e));
@@ -36,7 +38,7 @@ export default function Earnings() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         <Row style={{ gap: 6 }}>
-          <Text style={{ fontSize: 26, fontWeight: '900', color: FOREST }}>수익</Text>
+          <Text style={[{ fontSize: 26, fontWeight: '900', color: FOREST }, df]}>수익</Text>
           <View style={{ backgroundColor: '#5a7a3c', borderRadius: 99, paddingVertical: 2, paddingHorizontal: 7, alignSelf: 'center' }}>
             <Text style={{ fontSize: 8.5, fontWeight: '900', color: '#fff' }}>● LIVE</Text>
           </View>

@@ -1,3 +1,4 @@
+import { useDisplayFont } from '../src/lib/displayFont';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Dimensions, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -16,6 +17,7 @@ const W = Dimensions.get('window').width;
 const fmtDur = (sec?: number) => (sec ? `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}` : null);
 
 export default function Community() {
+  const df = useDisplayFont(); // 디스플레이 서체 — 화면 타이틀
   const [posts, setPosts] = useState<FeedPost[]>([]);
   // 탭: 피드(실) | 러너 후기(실 공개 리뷰). 챌린지는 실시스템 생기면 추가 — 가짜 탭 금지.
   const [tab, setTab] = useState<'feed' | 'reviews'>('feed');
@@ -92,7 +94,7 @@ export default function Community() {
         <Row style={{ justifyContent: 'space-between', paddingHorizontal: 12 }}>
           <View>
             <Row style={{ gap: 6 }}>
-              <Text style={{ fontSize: 26, fontWeight: '900', color: FOREST }}>동네 피드</Text>
+              <Text style={[{ fontSize: 26, fontWeight: '900', color: FOREST }, df]}>동네 피드</Text>
               <View style={{ backgroundColor: '#5a7a3c', borderRadius: 99, paddingVertical: 2, paddingHorizontal: 7, alignSelf: 'center' }}>
                 <Text style={{ fontSize: 8.5, fontWeight: '900', color: '#fff' }}>● LIVE</Text>
               </View>

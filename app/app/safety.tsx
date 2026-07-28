@@ -1,3 +1,4 @@
+import { useDisplayFont } from '../src/lib/displayFont';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -14,6 +15,7 @@ import { colors } from '../src/theme';
 const FOREST = '#0F1D13';
 
 export default function Safety() {
+  const df = useDisplayFont(); // 디스플레이 서체 — 화면 타이틀
   const [contacts, setContacts] = useState<EmContact[]>([]);
   const [adding, setAdding] = useState(false);
   const [cName, setCName] = useState('');
@@ -66,7 +68,7 @@ export default function Safety() {
           </Pressable>
           <View style={{ flex: 1 }}>
             <Row style={{ gap: 8 }}>
-              <Text style={s.h1}>안심 센터</Text>
+              <Text style={[s.h1, df]}>안심 센터</Text>
               <View style={s.shieldChip}><Text style={{ fontSize: 12, color: FOREST }}>✚</Text></View>
             </Row>
             <Text style={s.sub}>안전하고 즐거운 러닝을 위한 실비상 체계</Text>

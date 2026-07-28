@@ -1,3 +1,4 @@
+import { useDisplayFont } from '../src/lib/displayFont';
 import { router } from 'expo-router';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BottomNav, homePath } from '../src/components/bottomnav';
@@ -11,12 +12,13 @@ const FOREST = '#0F1D13';
 const CATS = ['전체', '간식', '용품', '의류', '영양제'];
 
 export default function Shop() {
+  const df = useDisplayFont(); // 디스플레이 서체 — 화면 타이틀
   return (
     <View style={{ flex: 1, backgroundColor: colors.cream }}>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingTop: 56 }}>
         <Row style={{ justifyContent: 'space-between', marginBottom: 16 }}>
           <Pressable onPress={() => router.replace(homePath())} style={s.circleBtn}><Text style={{ fontSize: 18 }}>‹</Text></Pressable>
-          <Text style={{ fontSize: 20, fontWeight: '900', color: FOREST }}>도그스하이 샵</Text>
+          <Text style={[{ fontSize: 20, fontWeight: '900', color: FOREST }, df]}>도그스하이 샵</Text>
           <Pressable style={s.circleBtn} onPress={() => Alert.alert('장바구니', '장바구니 (목업)')}>
             <Text style={{ fontSize: 15, color: FOREST }}>◱</Text>
           </Pressable>

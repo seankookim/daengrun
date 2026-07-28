@@ -1,3 +1,4 @@
+import { useDisplayFont } from '../../src/lib/displayFont';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -13,6 +14,7 @@ import { colors } from '../../src/theme';
 const FOREST = '#0F1D13';
 
 export default function Requests() {
+  const df = useDisplayFont(); // 디스플레이 서체 — 화면 타이틀
   const [live, setLive] = useState<OpenRequest[]>([]);
   const [accepting, setAccepting] = useState<string | null>(null);
 
@@ -47,7 +49,7 @@ export default function Requests() {
       >
         <Row style={{ justifyContent: 'space-between' }}>
           <View>
-            <Text style={{ fontSize: 26, fontWeight: '900', color: FOREST }}>요청</Text>
+            <Text style={[{ fontSize: 26, fontWeight: '900', color: FOREST }, df]}>요청</Text>
             <Text style={{ fontSize: 12, color: colors.dim, marginTop: 3 }}>
               새 요청 {live.length}건
             </Text>

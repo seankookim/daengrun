@@ -1,3 +1,4 @@
+import { useDisplayFont } from '../src/lib/displayFont';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -12,6 +13,7 @@ const FOREST = '#0F1D13';
 const MEDAL = ['🥇', '🥈', '🥉'];
 
 export default function Leaderboard() {
+  const df = useDisplayFont(); // 디스플레이 서체 — 화면 타이틀
   const [tab, setTab] = useState<'dogs' | 'runners'>('dogs');
   const [boards, setBoards] = useState<{ dogs: BoardRow[]; runners: BoardRow[] }>({ dogs: [], runners: [] });
   const [miles, setMiles] = useState<MilesInfo | null>(null);
@@ -35,7 +37,7 @@ export default function Leaderboard() {
       >
         <Row style={{ justifyContent: 'space-between' }}>
           <Pressable onPress={() => router.back()} style={s.backBtn}><Text style={{ fontSize: 18 }}>‹</Text></Pressable>
-          <Text style={{ fontSize: 20, fontWeight: '900', color: FOREST }}>동네 랭킹</Text>
+          <Text style={[{ fontSize: 20, fontWeight: '900', color: FOREST }, df]}>동네 랭킹</Text>
           <View style={{ width: 40 }} />
         </Row>
         <Text style={{ fontSize: 11.5, color: colors.dim, textAlign: 'center', marginTop: 6 }}>

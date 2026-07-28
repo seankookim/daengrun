@@ -1,3 +1,4 @@
+import { useDisplayFont } from '../../src/lib/displayFont';
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -40,6 +41,7 @@ const toDate = (dateIdx: number, t: string): Date => {
 };
 
 export default function Request() {
+  const df = useDisplayFont(); // 디스플레이 서체 — 화면 타이틀
   const [km, setKm] = useState(draft.km);
   const [pace, setPace] = useState(draft.pace);
   const [addons, setAddons] = useState<AddonKey[]>(draft.addons);
@@ -194,7 +196,7 @@ export default function Request() {
         <Row style={{ gap: 12 }}>
           <Pressable onPress={() => router.back()} style={s.circleBtn}><Text style={{ fontSize: 18 }}>‹</Text></Pressable>
           <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 24, fontWeight: '900', color: FOREST }}>러닝 요청</Text>
+            <Text style={[{ fontSize: 24, fontWeight: '900', color: FOREST }, df]}>러닝 요청</Text>
           </View>
           <View style={s.livePill}>
             <Text style={{ fontSize: 11, fontWeight: '800', color: '#4a6d1f' }}>
