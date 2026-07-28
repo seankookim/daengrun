@@ -470,7 +470,12 @@ export default function OwnerHome() {
               </View>
               {!liveNext && (
                 <Pressable
-                  onPress={(e) => { e.stopPropagation(); router.push('/owner/request'); }}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    draft.preferredRunnerId = null; // 직접 설정도 제네릭 진입 — 지명 잔재 소거
+                    draft.preferredRunnerName = null;
+                    router.push('/owner/request');
+                  }}
                   style={s.fnCustom}
                 >
                   <Text style={{ fontSize: 14, fontWeight: '800', color: '#b8c4ae' }}>직접 설정 ›</Text>
@@ -510,7 +515,14 @@ export default function OwnerHome() {
         )}
 
         {/* ---------- slide-to-book ---------- */}
-        <SlideToBook onComplete={() => router.push('/owner/request')} />
+        <SlideToBook onComplete={() => {
+          // 제네릭 예약 = 오픈 브로드캐스트 — 이전 플로우의 지명/시각 잔재를 소거 (스테일 지명이 슬롯을 한 러너로 묶던 버그)
+          draft.preferredRunnerId = null;
+          draft.preferredRunnerName = null;
+          draft.scheduledAtIso = null;
+          draft.timeLabel = '시간을 선택해주세요';
+          router.push('/owner/request');
+        }} />
 
         {/* ---------- reward beacon (dopamine: unclaimed collab gear) ---------- */}
         {claimable && (
@@ -610,7 +622,16 @@ export default function OwnerHome() {
                 <Text style={{ fontSize: 14.5, fontWeight: '900', color: colors.ink }}>러너 만나기 · 인계 확인 ›</Text>
               </Pressable>
               <Pressable
-                style={[s.widgetBtn, { borderColor: p.line, flex: 0.6 }]}
+                style={[s.widgetBtn, { borderColor: p.line, flex: 0.55 }]}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  if (liveNext) router.push({ pathname: '/owner/reschedule', params: { bid: liveNext.id } });
+                }}
+              >
+                <Text style={{ fontSize: 13, fontWeight: '700', color: p.textSoft }}>변경</Text>
+              </Pressable>
+              <Pressable
+                style={[s.widgetBtn, { borderColor: p.line, flex: 0.55 }]}
                 onPress={(e) => { e.stopPropagation(); router.push({ pathname: '/chat', params: liveNext ? { bid: liveNext.id } : {} }); }}
               >
                 <Text style={{ fontSize: 13, fontWeight: '700', color: p.textSoft }}>채팅</Text>
