@@ -1,12 +1,12 @@
 import { router, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Animated, Dimensions, Easing, Modal, PanResponder, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Animated, Dimensions, Easing, Image, Modal, PanResponder, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BottomNav } from '../../src/components/bottomnav';
 import { Ring } from '../../src/components/ring';
 import { RunCard } from '../../src/components/runcard';
 import { Avatar } from '../../src/components/ui';
-import { Addr, confirmPayment, createBookingHold, DogProfile, fetchAddresses, fetchAvailableRunners, fetchCertifiedRunners, fetchFitness, fetchMyBookings, fetchMyDogs, Fitness, LiveRunner } from '../../src/lib/api';
+import { Addr, confirmPayment, createBookingHold, DogProfile, fetchAddresses, fetchAvailableRunners, fetchCertifiedRunners, fetchFitness, fetchMyBookings, fetchMyDogs, fetchRecentMoments, Fitness, LiveRunner, Moment } from '../../src/lib/api';
 import { haptic } from '../../src/lib/haptics';
 import { Booking, demoImminent, dog, draft, myCards, nextBooking, ownerGearLadder, runners } from '../../src/store';
 import { colors, pricing, surfaces } from '../../src/theme';
@@ -19,6 +19,7 @@ import { useTheme } from '../../src/theme-context';
 const { width: SCREEN_W } = Dimensions.get('window');
 const CARD_W = SCREEN_W - 24; // 거터 12*2
 const RING_BIG = 216;
+const RING_PHOTO = 168; // 링 내부 실사진 지름 — 도트(r=98)·헤드 도트 안쪽에 4px 숨 쉴 틈
 const PAD_TOP = 56;
 const HEADER_H = 62;
 const HERO_BIG = 296;
@@ -54,6 +55,8 @@ export default function OwnerHome() {
       })
       .catch((e) => console.warn('[home] bookings:', e?.message ?? e));
     fetchFitness().then(setFit).catch((e) => console.warn('[home] fitness:', e?.message ?? e));
+    // 최근 순간 — 실러닝 사진 (없으면 섹션 숨김, 홈 생기 패스)
+    fetchRecentMoments().then(setMoments).catch((e) => console.warn('[home] moments:', e?.message ?? e));
     fetchCertifiedRunners().then(setLocalRunners).catch((e) => console.warn('[home] runners:', e?.message ?? e));
     // 가용 러너 — 러닝 중인 러너는 히어로 카운트/레이더에서 제외 (기대 오염 방지)
     fetchAvailableRunners().then(setFnAvail).catch((e) => console.warn('[home] avail:', e?.message ?? e));
@@ -61,6 +64,8 @@ export default function OwnerHome() {
 
   // 우리 동네 러너 — 온라인 러너 셸프 (탐색형 매칭의 시작점)
   const [localRunners, setLocalRunners] = useState<LiveRunner[]>([]);
+  // 최근 순간 — 러너가 담아온 실사진 스트립 (runs.photos)
+  const [moments, setMoments] = useState<Moment[]>([]);
 
   // ── 지금 러너 찾기 — 원탭 히어로 → 프리필 시트(2탭) → 오픈 브로드캐스트 + 레이더
   const [fnOpen, setFnOpen] = useState(false);
@@ -217,6 +222,18 @@ export default function OwnerHome() {
             <View style={[s.weekChip, { backgroundColor: hp.chip }]}>
               <Text style={{ fontSize: 11, fontWeight: '700', color: hp.textSoft }}>이번 주 ▾</Text>
             </View>
+            {/* 사진 모드에선 체력 나이가 우상단 칩으로 — 링 중앙은 아이 얼굴이 차지한다 */}
+            {fit?.dogPhotoUrl && (
+              <Animated.View style={[s.ageChip, { backgroundColor: hp.chip, opacity: bigMsgOpacity }]}>
+                <Text style={{ fontSize: 10, fontWeight: '800', color: hp.textSoft }}>체력 나이</Text>
+                <Text style={{ fontSize: 12, fontWeight: '900', color: heroAccent }}>
+                  {fitnessAge != null ? `${fitnessAge}살` : '측정 전'}
+                </Text>
+                {fitnessAge != null && (
+                  <Text style={{ fontSize: 9, fontWeight: '800', color: colors.tang }}>▼{Math.max(dog.age - fitnessAge, 0).toFixed(1)}</Text>
+                )}
+              </Animated.View>
+            )}
 
             {/* compact info block (left side, fades in) */}
             <Animated.View style={[s.info, { opacity: infoOpacity, transform: [{ translateX: infoX }] }]}>
@@ -247,27 +264,44 @@ export default function OwnerHome() {
               }}
             >
               <Ring pct={pct} size={RING_BIG} trackColor={hp.track}>
-                <View style={{ alignItems: 'center' }}>
-                  <Text style={{ fontSize: 13, color: hp.dim }}>이번 주</Text>
-                  <Text style={{ fontSize: 46, fontWeight: '900', color: colors.tang, lineHeight: 50 }}>
-                    {weekKm}
-                    <Text style={{ fontSize: 16, color: hp.dim }}> km</Text>
-                  </Text>
-                  <Text style={{ fontSize: 13, color: heroAccent, marginTop: 2 }}>
-                    / {goalKm}km
-                  </Text>
-                  {/* 체력 나이 — our concept, front and center */}
-                  <View style={[s.goalChip, { backgroundColor: hp.chip, flexDirection: 'row', gap: 4, alignItems: 'center' }]}>
-                    <Text style={{ fontSize: 10, fontWeight: '800', color: hp.textSoft }}>체력 나이</Text>
-                    <Text style={{ fontSize: 12, fontWeight: '900', color: heroAccent }}>
-                      {fitnessAge != null ? `${fitnessAge}살` : '측정 전'}
-                    </Text>
-                    {fitnessAge != null && (
-                      <Text style={{ fontSize: 9, fontWeight: '800', color: colors.tang }}>▼{Math.max(dog.age - fitnessAge, 0).toFixed(1)}</Text>
-                    )}
+                {fit?.dogPhotoUrl ? (
+                  // 홈 생기 패스 — 링이 아이를 감싼다: 진행은 숫자가 아니라 아이의 것
+                  <View style={s.ringPhotoWrap}>
+                    <Image source={{ uri: fit.dogPhotoUrl }} style={{ width: '100%', height: '100%' }} />
                   </View>
-                </View>
+                ) : (
+                  // 사진 없으면 기존 숫자 센터 유지 — 스톡/가짜 이미지 금지 (정직 원칙)
+                  <View style={{ alignItems: 'center' }}>
+                    <Text style={{ fontSize: 13, color: hp.dim }}>이번 주</Text>
+                    <Text style={{ fontSize: 46, fontWeight: '900', color: colors.tang, lineHeight: 50 }}>
+                      {weekKm}
+                      <Text style={{ fontSize: 16, color: hp.dim }}> km</Text>
+                    </Text>
+                    <Text style={{ fontSize: 13, color: heroAccent, marginTop: 2 }}>
+                      / {goalKm}km
+                    </Text>
+                    {/* 체력 나이 — our concept, front and center */}
+                    <View style={[s.goalChip, { backgroundColor: hp.chip, flexDirection: 'row', gap: 4, alignItems: 'center' }]}>
+                      <Text style={{ fontSize: 10, fontWeight: '800', color: hp.textSoft }}>체력 나이</Text>
+                      <Text style={{ fontSize: 12, fontWeight: '900', color: heroAccent }}>
+                        {fitnessAge != null ? `${fitnessAge}살` : '측정 전'}
+                      </Text>
+                      {fitnessAge != null && (
+                        <Text style={{ fontSize: 9, fontWeight: '800', color: colors.tang }}>▼{Math.max(dog.age - fitnessAge, 0).toFixed(1)}</Text>
+                      )}
+                    </View>
+                  </View>
+                )}
               </Ring>
+              {/* 레이스 빕 — 사진 하단에 걸치는 주간 km 필 (접히면 좌측 정보 블록이 이어받는다) */}
+              {fit?.dogPhotoUrl && (
+                <Animated.View style={[s.bibPill, { opacity: bigMsgOpacity }]}>
+                  <Text style={{ fontSize: 19, fontWeight: '900', color: colors.tang, fontVariant: ['tabular-nums'] }}>
+                    {weekKm}
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: colors.cream }}> / {goalKm}km</Text>
+                  </Text>
+                </Animated.View>
+              )}
             </Animated.View>
 
             {/* big-state goal message */}
@@ -544,6 +578,34 @@ export default function OwnerHome() {
             </View>
           )}
         </Pressable>
+
+        {/* ---------- 최근 순간 — 러너가 담아온 실러닝 사진 (runs.photos 재사용) ----------
+            사진이 0장이면 섹션 자체가 없다 — 플레이스홀더/스톡 금지 (정직 원칙) */}
+        {moments.length > 0 && (
+          <View style={{ marginTop: 16 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 7, marginBottom: 9 }}>
+              <Text style={[s.sectionTitle, { color: p.textStrong }]}>최근 순간</Text>
+              <Text style={{ fontSize: 11, color: p.dim }}>러너가 담아온 {dogName}의 러닝</Text>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 9, paddingRight: 12 }}>
+              {moments.map((m, mi) => (
+                <Pressable
+                  key={`${m.bookingId}-${mi}`}
+                  onPress={() => router.push({ pathname: '/owner/report', params: { bid: m.bookingId } })}
+                  style={[s.momentCard, mi === 0 && { width: 158 }]}
+                >
+                  <Image source={{ uri: m.url }} style={{ width: '100%', height: '100%' }} />
+                  <View style={s.momentPill}>
+                    <Text style={{ fontSize: 11, fontWeight: '900', color: colors.volt, fontVariant: ['tabular-nums'] }}>
+                      {m.km}km
+                      <Text style={{ fontSize: 9, fontWeight: '600', color: 'rgba(255,255,255,0.8)' }}>  {m.when}</Text>
+                    </Text>
+                  </View>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        )}
 
         {/* ---------- 우리 동네 러너 (탐색형 매칭) ---------- */}
         {localRunners.length > 0 && (
@@ -834,6 +896,33 @@ const s = StyleSheet.create({
   weekChip: {
     position: 'absolute', top: 14, left: 16, zIndex: 4,
     borderRadius: 99, paddingVertical: 6, paddingHorizontal: 12,
+  },
+  // 사진 모드 전용 — 체력 나이 우상단 칩 (링 중앙을 아이에게 내준 대가)
+  ageChip: {
+    position: 'absolute', top: 14, right: 16, zIndex: 4,
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    borderRadius: 99, paddingVertical: 6, paddingHorizontal: 12,
+  },
+  // 링 내부 실사진 — 도트 궤도 안쪽 원형 크롭
+  ringPhotoWrap: {
+    width: RING_PHOTO, height: RING_PHOTO, borderRadius: RING_PHOTO / 2,
+    overflow: 'hidden', backgroundColor: '#d9d5c6',
+  },
+  // 레이스 빕 — 사진 하단에 걸치는 주간 km 필
+  bibPill: {
+    position: 'absolute', bottom: 8, alignSelf: 'center',
+    backgroundColor: colors.forest, borderRadius: 99,
+    paddingVertical: 6, paddingHorizontal: 15,
+    borderWidth: 1.2, borderColor: 'rgba(185,242,58,0.45)',
+    shadowColor: '#132117', shadowOpacity: 0.22, shadowRadius: 4, shadowOffset: { width: 0, height: 2 },
+  },
+  momentCard: {
+    width: 124, height: 156, borderRadius: 18, overflow: 'hidden', backgroundColor: '#e8e5d8',
+  },
+  momentPill: {
+    position: 'absolute', left: 8, bottom: 8,
+    backgroundColor: 'rgba(19,33,23,0.62)', borderRadius: 99,
+    paddingVertical: 4, paddingHorizontal: 9,
   },
   info: { position: 'absolute', left: 18, top: 40, width: CARD_W * 0.5, zIndex: 3 },
   miniBar: { height: 4, borderRadius: 99, marginTop: 6, overflow: 'hidden' },
