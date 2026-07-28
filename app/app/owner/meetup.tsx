@@ -48,6 +48,16 @@ export default function OwnerMeetup() {
     if (!bookingId) return;
     try {
       const sync = await fetchBookingSync(bookingId);
+      // 종말 상태 — 화면에 좌초하지 않고 정직하게 이탈 (감사 ③)
+      if (sync.status === 'completed') {
+        router.replace({ pathname: '/owner/report', params: { bid: bookingId } });
+        return;
+      }
+      if (sync.status === 'matching' || sync.status.startsWith('cancelled') || sync.status === 'expired') {
+        Alert.alert('예약 상태가 바뀌었어요', sync.status === 'matching' ? '러너가 응답을 취소했어요 — 다른 러너를 찾고 있어요' : '이 예약은 종료됐어요');
+        router.back();
+        return;
+      }
       setPeerConfirmed(sync.runnerConfirmed);
       if (sync.status === 'active') {
         router.replace('/owner/live'); // 러너가 start_run을 눌렀을 때만 라이브 진입

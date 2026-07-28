@@ -60,6 +60,12 @@ export default function Meetup() {
     if (!jobId) return;
     try {
       const s2 = await fetchBookingSync(jobId);
+      // 종말 상태 — 취소/만료된 예약의 미트업에 좌초 금지 (감사 ③)
+      if (s2.status === 'completed' || s2.status.startsWith('cancelled') || s2.status === 'expired' || s2.status === 'matching') {
+        Alert.alert('예약 상태가 바뀌었어요', s2.status === 'completed' ? '이미 완료된 러닝이에요' : '이 예약은 더 진행할 수 없어요');
+        router.back();
+        return;
+      }
       setPeerConfirmed(s2.ownerConfirmed);
       if (s2.status === 'picked_up' || s2.status === 'active') setStage('confirmed');
       else if (s2.runnerConfirmed) setStage('waiting');

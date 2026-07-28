@@ -91,7 +91,9 @@ export default function Request() {
     if (!prefRules) return true; // 오픈 매칭 — 서버 홀드가 최종 검증
     const wd = start.getDay();
     const min = start.getHours() * 60 + start.getMinutes();
-    return prefRules.some((r) => r.weekday === wd && r.startMin <= min && r.endMin >= min + 60);
+    // 실소요 = km×8 + 25분 버퍼 (서버 hold와 동일 — 60분 고정은 7km+에서 러너 가용시간을 넘겼다)
+    const durMin = km * 8 + 25; // draft.km은 pay() 전까지 lag — 화면 상태값 사용
+    return prefRules.some((r) => r.weekday === wd && r.startMin <= min && r.endMin >= min + durMin);
   };
 
   const addonSum = addons.reduce((s2, k) => s2 + pricing.addons[k].price, 0);

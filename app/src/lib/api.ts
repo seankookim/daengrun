@@ -1065,7 +1065,7 @@ export async function fetchRunnerWeekStats(): Promise<RunnerWeekStats> {
   const since = new Date(Date.now() - 7 * 86400_000).toISOString();
   const { data, error } = await supabase
     .from('ledger_items')
-    .select('base, distance_pay, addon_pay, tip, platform_fee, booking_id')
+    .select('base, distance_pay, addon_pay, tip, remaining_guarantee, platform_fee, booking_id')
     .gte('created_at', since);
   if (error) throw error;
   const rows = data ?? [];
