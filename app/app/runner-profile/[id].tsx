@@ -2,7 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Animated, Dimensions, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Avatar, Row } from '../../src/components/ui';
-import { checkSlot, deleteRunnerPhoto, fetchRunnerProfile, RunnerPublicProfile, updateMyProfile, updateRunnerBio, uploadRunnerPhoto } from '../../src/lib/api';
+import { checkSlot, deleteGear, deleteRunnerPhoto, fetchGear, fetchRunnerProfile, GEAR_KINDS, GEAR_META, GearItem, GearKind, RunnerPublicProfile, updateMyProfile, updateRunnerBio, uploadRunnerPhoto, upsertGear } from '../../src/lib/api';
 import { haptic } from '../../src/lib/haptics';
 import { supabase } from '../../src/lib/supabase';
 import { draft, session } from '../../src/store';
@@ -38,6 +38,9 @@ export default function RunnerProfileScreen() {
   const [dayIdx, setDayIdx] = useState(0);
   const [slotOk, setSlotOk] = useState<Record<string, boolean | null>>({});
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  // 러너 장비 로드아웃 (0019) — kind당 1슬롯, 사진이 곧 인증
+  const [gear, setGear] = useState<GearItem[]>([]);
+  const [gearBusy, setGearBusy] = useState<GearKind | null>(null);
   // 단일 프로필 편집기 — 마이의 별도 시트 대신 여기서 이름·동네·소개 전부 (혼선 제거)
   const [editing, setEditing] = useState(false);
   const [eName, setEName] = useState('');
@@ -80,6 +83,7 @@ export default function RunnerProfileScreen() {
   useEffect(() => {
     if (!id) { setErr('러너 정보가 없어요'); return; }
     fetchRunnerProfile(id).then(setP).catch((e) => setErr(e?.message ?? '불러오기 실패'));
+    fetchGear(id).then(setGear).catch(() => {}); // 장비는 실패해도 프로필은 뜬다
     supabase.auth.getUser().then(({ data }) => setIsMe(data.user?.id === id)).catch(() => {});
   }, [id]);
 
@@ -158,6 +162,45 @@ export default function RunnerProfileScreen() {
     } finally {
       setUploadingPhoto(false);
     }
+  };
+
+  // 장비 슬롯 등록/교체 — 사진 필수 (사진이 곧 인증, 0019 도그마)
+  const registerGear = async (kind: GearKind) => {
+    let ImagePicker: any;
+    try { ImagePicker = require('expo-image-picker'); } catch {
+      Alert.alert('개발 빌드 업데이트 필요', '사진 기능은 새 빌드에 포함돼요'); return;
+    }
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) { Alert.alert('사진 접근 권한이 필요해요'); return; }
+      const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.7, base64: true });
+      if (res.canceled || !res.assets?.[0]?.base64) return;
+      setGearBusy(kind);
+      const item = await upsertGear(kind, res.assets[0].base64);
+      setGear((cur) => [...cur.filter((g) => g.kind !== kind), item]);
+    } catch (e) {
+      Alert.alert('장비 등록 실패', (e as Error).message);
+    } finally {
+      setGearBusy(null);
+    }
+  };
+
+  const onGearSlot = (kind: GearKind) => {
+    const existing = gear.find((g) => g.kind === kind);
+    if (!existing) { registerGear(kind); return; }
+    Alert.alert(`${GEAR_META[kind].glyph} ${GEAR_META[kind].name}`, '이 장비 슬롯을 어떻게 할까요?', [
+      { text: '사진 교체', onPress: () => registerGear(kind) },
+      {
+        text: '삭제', style: 'destructive',
+        onPress: async () => {
+          try {
+            await deleteGear(kind);
+            setGear((cur) => cur.filter((g) => g.kind !== kind));
+          } catch (e) { Alert.alert('삭제 실패', (e as Error).message); }
+        },
+      },
+      { text: '취소', style: 'cancel' },
+    ]);
   };
 
   const removePhoto = (url: string) => {
@@ -271,6 +314,52 @@ export default function RunnerProfileScreen() {
                 </Row>
               )}
             </View>
+
+            {/* ---------- 러닝 장비 로드아웃 (0019) — 슬롯제, 사진이 곧 인증 ---------- */}
+            {(gear.length > 0 || canEdit) && (
+              <View style={s.section}>
+                <Row style={{ justifyContent: 'space-between' }}>
+                  <Text style={s.sectionTitle}>러닝 장비</Text>
+                  <Text style={{ fontSize: 11.5, color: colors.dim }}>사진으로 인증된 장비예요</Text>
+                </Row>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingTop: 2 }}>
+                  {GEAR_KINDS.map((kind) => {
+                    const item = gear.find((g) => g.kind === kind);
+                    if (!item && !canEdit) return null; // 없는 데이터는 그리지 않는다
+                    const meta = GEAR_META[kind];
+                    return (
+                      <Pressable
+                        key={kind}
+                        disabled={!canEdit || gearBusy !== null}
+                        onPress={() => onGearSlot(kind)}
+                        style={[s.gearSlot, !item && s.gearSlotEmpty]}
+                      >
+                        {item?.photoUrl ? (
+                          <Image source={{ uri: item.photoUrl }} style={s.gearPhoto} />
+                        ) : (
+                          <View style={[s.gearPhoto, { alignItems: 'center', justifyContent: 'center', backgroundColor: '#f1eee3' }]}>
+                            <Text style={{ fontSize: 27 }}>{gearBusy === kind ? '…' : item ? meta.glyph : '＋'}</Text>
+                          </View>
+                        )}
+                        <Text style={{ fontSize: 12.5, fontWeight: '800', color: item ? FOREST : colors.dim, marginTop: 6 }}>
+                          {meta.glyph} {meta.name}
+                        </Text>
+                        {item?.verified ? (
+                          <View style={s.gearBadge}><Text style={{ fontSize: 10, fontWeight: '900', color: '#3d5a2b' }}>✓ 인증</Text></View>
+                        ) : (
+                          <Text style={{ fontSize: 10, color: colors.dim, marginTop: 3 }}>{meta.hint}</Text>
+                        )}
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+                {canEdit && (
+                  <Text style={{ fontSize: 11.5, color: colors.dim, marginTop: 8 }}>
+                    슬롯을 눌러 장비 사진을 올리면 매칭 카드에 인증 배지로 보여요
+                  </Text>
+                )}
+              </View>
+            )}
 
             {/* ---------- 가능 시간 + 슬롯 예약 ---------- */}
             <View style={s.section}>
@@ -459,6 +548,11 @@ const s = StyleSheet.create({
   section: { backgroundColor: '#fff', paddingHorizontal: 12, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#DCD6C4' },
   sectionTitle: { fontSize: 15.5, fontWeight: '900', color: FOREST, marginBottom: 8 },
   specChip: { backgroundColor: '#eef4e0', borderRadius: 99, paddingVertical: 4, paddingHorizontal: 10 },
+  // 장비 로드아웃 슬롯 (0019)
+  gearSlot: { width: 104, backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: '#DCD6C4', padding: 8, alignItems: 'center' },
+  gearSlotEmpty: { borderStyle: 'dashed', backgroundColor: '#faf8f1' },
+  gearPhoto: { width: 88, height: 66, borderRadius: 10, backgroundColor: '#DCD6C4' },
+  gearBadge: { backgroundColor: '#DDF0A6', borderRadius: 99, paddingVertical: 2, paddingHorizontal: 8, marginTop: 3 },
   reviewRow: { paddingVertical: 10 },
   dayChip: { width: 46, borderRadius: 13, backgroundColor: '#f4f2ea', alignItems: 'center', paddingVertical: 8, gap: 1 },
   slotChip: { width: '22.5%', backgroundColor: '#f7f9f0', borderRadius: 12, borderWidth: 1, borderColor: '#dde8c4', alignItems: 'center', paddingVertical: 9 },

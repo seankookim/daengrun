@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Animated, Dimensions, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Avatar, Monogram, Row } from '../../src/components/ui';
-import { fetchCertifiedRunners, fetchRunnerProfile, LiveRunner, requestRunner } from '../../src/lib/api';
+import { fetchCertifiedRunners, fetchGearFor, fetchRunnerProfile, GEAR_META, GearItem, LiveRunner, requestRunner } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { draft } from '../../src/store';
 import { colors } from '../../src/theme';
@@ -27,10 +27,10 @@ function MiniCol({ v, l, g, main, dim }: { v: string; l: string; g?: string; mai
 const PALETTE = ['#DDF0A6', '#C3D9AE', '#FFCDB6', '#F2DA96'];
 
 // 러너 풀 카드 — 배경 캐러셀 레이어와 액티브 오버레이가 정확히 같은 컴포넌트를 공유
-function RunnerFullCard({ r, m, i, topIsPreferred, nominating, onNominate, onLayout, focused }: {
+function RunnerFullCard({ r, m, i, topIsPreferred, nominating, onNominate, onLayout, focused, gear }: {
   r: LiveRunner; m: Match; i: number; topIsPreferred: boolean;
   nominating: string | null; onNominate: (r: LiveRunner) => void;
-  onLayout?: (e: any) => void; focused: boolean;
+  onLayout?: (e: any) => void; focused: boolean; gear?: GearItem[];
 }) {
   // 다크 트리트먼트는 1순위 카드 고정 — 포커스 연동 색 전환은 급작스러워 제거 (2026-07-27)
   const df = useDisplayFont();
@@ -109,6 +109,19 @@ function RunnerFullCard({ r, m, i, topIsPreferred, nominating, onNominate, onLay
         <MiniCol v={r.respondRate != null ? `${r.respondRate}%` : '신규'} l="응답률" g="✦" main={tMain} dim={tDim} />
       </Row>
 
+      {/* 인증 장비 칩 (0019) — 사진으로 인증된 슬롯만. 없으면 그리지 않는다 */}
+      {gear && gear.some((g) => g.verified) && (
+        <Row style={{ gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
+          {gear.filter((g) => g.verified).map((g) => (
+            <View key={g.id} style={[s.gearChip, dark && { backgroundColor: FOREST_INNER }]}>
+              <Text style={{ fontSize: 11.5, fontWeight: '800', color: dark ? colors.volt : '#3d5a2b' }}>
+                {GEAR_META[g.kind].glyph} {GEAR_META[g.kind].name} ✓
+              </Text>
+            </View>
+          ))}
+        </Row>
+      )}
+
       <Pressable
         onPress={() => onNominate(r)}
         disabled={nominating !== null}
@@ -128,12 +141,13 @@ function RunnerFullCard({ r, m, i, topIsPreferred, nominating, onNominate, onLay
 // 실러너 추천 점수 — 응답률·경험·페이스 적합의 가중합.
 // 데이터가 쌓이면 매칭 엔진(견종 경험·후기·거리)으로 교체. 병원 레지던트식 하이브리드 매칭의 v1.
 interface Match { total: number; reasons: { glyph: string; label: string; pct: number }[] }
-function matchFor(r: LiveRunner, targetPaceSec = 420): Match {
+// gearVerified: 인증 장비 부스트 — 슬롯당 +1, 최대 +2 (가드레일: 핵심 점수 불변, 장비는 승부축이 아니다)
+function matchFor(r: LiveRunner, gearVerified = 0, targetPaceSec = 420): Match {
   const respond = r.respondRate ?? 88;
   const exp = Math.min(97, 62 + r.totalRuns * 5);
   const paceFit = Math.max(58, 100 - Math.round(Math.abs(r.paceSec - targetPaceSec) / 4));
   return {
-    total: Math.round(respond * 0.35 + exp * 0.3 + paceFit * 0.35),
+    total: Math.min(99, Math.round(respond * 0.35 + exp * 0.3 + paceFit * 0.35) + Math.min(2, gearVerified)),
     reasons: [
       { glyph: '⚡', label: '응답 신뢰도', pct: respond },
       { glyph: '⛨', label: '러닝 경험', pct: exp },
@@ -148,6 +162,14 @@ export default function Matching() {
   const live = !!draft.bookingId;
   const [liveRunners, setLiveRunners] = useState<LiveRunner[]>([]);
   const [nominating, setNominating] = useState<string | null>(null);
+  // 러너별 장비 로드아웃 (0019) — 배치 조회, 실패해도 카드는 뜬다
+  const [gearMap, setGearMap] = useState<Record<string, GearItem[]>>({});
+
+  useEffect(() => {
+    const ids = liveRunners.map((r) => r.profileId);
+    if (ids.length === 0) return;
+    fetchGearFor(ids).then(setGearMap).catch((e) => console.warn('[matching] gear:', e?.message ?? e));
+  }, [liveRunners]);
 
   useEffect(() => {
     if (live) fetchCertifiedRunners().then(setLiveRunners).catch((e) => console.warn('[matching] runners:', e?.message ?? e));
@@ -191,13 +213,15 @@ export default function Matching() {
   // 점수순 정렬 — 1위는 추천 카드, 나머지는 대안 리스트.
   // 프로필에서 '이 러너와 예약하기'로 왔으면 그 러너가 최상단.
   const scored = useMemo(() => {
-    const arr = liveRunners.map((r) => ({ r, m: matchFor(r) })).sort((a, b) => b.m.total - a.m.total);
+    const arr = liveRunners
+      .map((r) => ({ r, m: matchFor(r, (gearMap[r.profileId] ?? []).filter((g) => g.verified).length) }))
+      .sort((a, b) => b.m.total - a.m.total);
     if (draft.preferredRunnerId) {
       const i = arr.findIndex((x) => x.r.profileId === draft.preferredRunnerId);
       if (i > 0) arr.unshift(arr.splice(i, 1)[0]);
     }
     return arr;
-  }, [liveRunners]);
+  }, [liveRunners, gearMap]);
   const top = scored[0];
   const rest = scored.slice(1);
   const topIsPreferred = !!top && top.r.profileId === draft.preferredRunnerId;
@@ -347,7 +371,7 @@ export default function Matching() {
                     <RunnerFullCard
                       r={r} m={m} i={i} topIsPreferred={topIsPreferred}
                       nominating={nominating} onNominate={nominate}
-                      focused={active}
+                      focused={active} gear={gearMap[r.profileId]}
                       onLayout={i === 0 ? measureCard : undefined}
                     />
                   </Animated.View>
@@ -407,6 +431,7 @@ export default function Matching() {
                 <RunnerFullCard
                   r={r} m={m} i={safeFocus} topIsPreferred={topIsPreferred}
                   nominating={nominating} onNominate={nominate} focused
+                  gear={gearMap[r.profileId]}
                 />
               </Animated.View>
             </View>
@@ -466,6 +491,7 @@ const s = StyleSheet.create({
   contour2: { position: 'absolute', right: -70, top: 10, width: 210, height: 210, borderRadius: 105, borderWidth: 1, borderColor: 'rgba(221,240,166,0.08)' },
   contour3: { position: 'absolute', right: -130, top: -80, width: 360, height: 360, borderRadius: 180, borderWidth: 1, borderColor: 'rgba(221,240,166,0.06)' },
   fitPill: { position: 'absolute', top: 14, right: 14, backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 6, paddingHorizontal: 12, zIndex: 2 },
+  gearChip: { backgroundColor: '#ffffff99', borderRadius: 99, paddingVertical: 4, paddingHorizontal: 9 },
   checkBadge: {
     position: 'absolute', bottom: -3, right: -3, width: 20, height: 20, borderRadius: 10,
     backgroundColor: colors.volt, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: FOREST,

@@ -34,6 +34,10 @@ export default function Meetup() {
   const [stage, setStage] = useState<Stage>('enroute');
   const [jobId, setJobId] = useState<string | null>(runnerJob.bookingId ?? null);
   const [peerConfirmed, setPeerConfirmed] = useState(false); // 보호자 측 인계 확인 (서버 진실)
+  // 인계 전 장비 체크리스트 (0019 연계) — 세 가지 모두 체크해야 인계 버튼이 열린다.
+  // 로컬 상태로 충분: 서버 계약은 양측 confirm이고, 이 체크는 러너 자신을 위한 프리플라이트.
+  const [check, setCheck] = useState({ leash: false, water: false, treats: false });
+  const allChecked = check.leash && check.water && check.treats;
   const poll = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // id 복원 — 인메모리 유실 시 서버에서 현재 작업을 찾는다 (데모 전락 방지, 2026-07-23)
@@ -166,6 +170,17 @@ export default function Meetup() {
           />
         </View>
 
+        {/* 인계 전 장비 체크 — 도착 후에만 노출, 전부 체크해야 인계 가능 */}
+        {stage === 'arrived' && (
+          <View style={s.card}>
+            <Text style={{ fontSize: 15.5, fontWeight: '900', color: FOREST, marginBottom: 4 }}>인계 전 장비 체크</Text>
+            <Text style={{ fontSize: 12.5, color: colors.dim, marginBottom: 6 }}>세 가지를 확인해야 {dogName} 인계를 받을 수 있어요</Text>
+            <CheckRow glyph="🦮" label="러닝 리드줄로 교체했어요" on={check.leash} onPress={() => { haptic('light'); setCheck((c) => ({ ...c, leash: !c.leash })); }} />
+            <CheckRow glyph="💧" label={`${dogName} 급수 준비 완료`} on={check.water} onPress={() => { haptic('light'); setCheck((c) => ({ ...c, water: !c.water })); }} />
+            <CheckRow glyph="🦴" label="간식 파우치 챙겼어요" on={check.treats} onPress={() => { haptic('light'); setCheck((c) => ({ ...c, treats: !c.treats })); }} />
+          </View>
+        )}
+
         {/* action */}
         {stage === 'enroute' && (
           <Pressable style={s.primary} onPress={() => setStage('arrived')}>
@@ -174,9 +189,11 @@ export default function Meetup() {
           </Pressable>
         )}
         {stage === 'arrived' && (
-          <Pressable style={s.primary} onPress={handoff}>
-            <Text style={s.primaryText}>{dogName} 인계 받았어요</Text>
-            <Text style={s.primarySub}>보호자도 확인하면 러닝을 시작할 수 있어요</Text>
+          <Pressable style={[s.primary, !allChecked && { backgroundColor: '#e9ebe2' }]} disabled={!allChecked} onPress={handoff}>
+            <Text style={[s.primaryText, !allChecked && { color: '#75806f' }]}>{dogName} 인계 받았어요</Text>
+            <Text style={[s.primarySub, !allChecked && { color: '#9aa393' }]}>
+              {allChecked ? '보호자도 확인하면 러닝을 시작할 수 있어요' : '장비 체크를 완료하면 인계할 수 있어요'}
+            </Text>
           </Pressable>
         )}
         {stage === 'waiting' && (
@@ -208,6 +225,19 @@ export default function Meetup() {
   );
 }
 
+// 인계 전 장비 체크 행 — 탭 토글, 완료 시 볼트 틱
+function CheckRow({ glyph, label, on, onPress }: { glyph: string; label: string; on: boolean; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} style={[s.checkRow, on && { backgroundColor: '#f2f8e2', borderColor: '#c6e08a' }]}>
+      <Text style={{ fontSize: 17 }}>{glyph}</Text>
+      <Text style={{ flex: 1, fontSize: 14.5, fontWeight: on ? '800' : '500', color: on ? '#3d5a2b' : '#49524a' }}>{label}</Text>
+      <View style={[s.checkBox, on && { backgroundColor: '#6aa53c', borderColor: '#6aa53c' }]}>
+        {on && <Text style={{ fontSize: 12, fontWeight: '900', color: '#fff' }}>✓</Text>}
+      </View>
+    </Pressable>
+  );
+}
+
 function Step({ label, done, active }: { label: string; done?: boolean; active?: boolean }) {
   return (
     <Row style={{ gap: 9, marginTop: 7 }}>
@@ -234,6 +264,8 @@ const s = StyleSheet.create({
   card: { backgroundColor: '#fff', borderRadius: 18, padding: 15, borderWidth: 1, borderColor: '#DCD6C4', marginBottom: 10 },
   chatChip: { backgroundColor: '#eef4e0', borderRadius: 99, paddingVertical: 8, paddingHorizontal: 12, alignSelf: 'center' },
   stepDot: { width: 18, height: 18, borderRadius: 10, backgroundColor: '#DCD6C4', alignItems: 'center', justifyContent: 'center' },
+  checkRow: { flexDirection: 'row', alignItems: 'center', gap: 9, borderWidth: 1, borderColor: '#DCD6C4', borderRadius: 12, paddingVertical: 10, paddingHorizontal: 11, marginTop: 7 },
+  checkBox: { width: 21, height: 21, borderRadius: 7, borderWidth: 1.5, borderColor: '#c9c3ae', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
   primary: { backgroundColor: FOREST, borderRadius: 18, alignItems: 'center', paddingVertical: 16, marginTop: 6 },
   primaryText: { fontSize: 18, fontWeight: '900', color: '#fff' },
   primarySub: { fontSize: 12, color: '#b8c4ae', marginTop: 3 },

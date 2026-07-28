@@ -923,6 +923,78 @@ export async function fetchRunnerProfile(profileId: string): Promise<RunnerPubli
   };
 }
 
+// ---------- 러너 장비 (loadout, 0019) — 슬롯제 · 사진이 곧 인증 ----------
+// kind당 1슬롯 (DB unique). verified는 photo_url 존재와 동치 — DB 체크 제약이 강제.
+// 매칭 기여는 인증 슬롯당 +1, 최대 +2 (핵심 점수 불변 — 장비는 신뢰 신호이지 승부축이 아니다).
+export type GearKind = 'leash' | 'apparel' | 'water' | 'treats' | 'bodycam';
+export interface GearItem {
+  id: string;
+  runnerId: string;
+  kind: GearKind;
+  label: string;
+  photoUrl: string | null;
+  verified: boolean;
+}
+export const GEAR_KINDS: GearKind[] = ['leash', 'apparel', 'water', 'treats', 'bodycam'];
+export const GEAR_META: Record<GearKind, { glyph: string; name: string; hint: string }> = {
+  leash: { glyph: '🦮', name: '리드줄', hint: '러닝 전용 리드줄' },
+  apparel: { glyph: '🎽', name: '러닝 장비', hint: '러닝복 · 러닝화' },
+  water: { glyph: '💧', name: '급수', hint: '아이용 물병 · 급수기' },
+  treats: { glyph: '🦴', name: '간식', hint: '보상용 간식 파우치' },
+  bodycam: { glyph: '📹', name: '바디캠', hint: '러닝 중 영상 기록' },
+};
+
+const mapGear = (g: any): GearItem => ({
+  id: g.id, runnerId: g.runner_id, kind: g.kind, label: g.label,
+  photoUrl: g.photo_url ?? null, verified: !!g.verified_at,
+});
+
+export async function fetchGear(runnerId: string): Promise<GearItem[]> {
+  const { data, error } = await supabase.from('runner_gear').select('*').eq('runner_id', runnerId);
+  if (error) throw error;
+  return (data ?? []).map(mapGear);
+}
+
+// 매칭 카드용 배치 조회 — 러너별 그룹핑 (N+1 금지)
+export async function fetchGearFor(runnerIds: string[]): Promise<Record<string, GearItem[]>> {
+  if (runnerIds.length === 0) return {};
+  const { data, error } = await supabase.from('runner_gear').select('*').in('runner_id', runnerIds);
+  if (error) throw error;
+  const out: Record<string, GearItem[]> = {};
+  (data ?? []).forEach((g: any) => { (out[g.runner_id] ??= []).push(mapGear(g)); });
+  return out;
+}
+
+// 슬롯 등록/사진 교체 — 사진이 있어야만 verified_at (없으면 미인증 슬롯)
+export async function upsertGear(kind: GearKind, base64?: string): Promise<GearItem> {
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) throw new Error('not signed in');
+  const uid = user.user.id;
+  let photoUrl: string | null = null;
+  if (base64) {
+    const path = `${uid}/gear/${kind}-${Date.now()}.jpg`; // 타임스탬프 — 교체 시 CDN 캐시 회피
+    const { error } = await supabase.storage.from('avatars')
+      .upload(path, b64ToBytes(base64), { contentType: 'image/jpeg' });
+    if (error) throw error;
+    const { data: pub } = supabase.storage.from('avatars').getPublicUrl(path);
+    photoUrl = pub.publicUrl;
+  }
+  const { data, error } = await supabase.from('runner_gear').upsert({
+    runner_id: uid, kind, label: GEAR_META[kind].name,
+    photo_url: photoUrl, verified_at: photoUrl ? new Date().toISOString() : null,
+  }, { onConflict: 'runner_id,kind' }).select('*').single();
+  if (error) throw error;
+  return mapGear(data);
+}
+
+export async function deleteGear(kind: GearKind): Promise<void> {
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) throw new Error('not signed in');
+  const { error } = await supabase.from('runner_gear').delete()
+    .eq('runner_id', user.user.id).eq('kind', kind);
+  if (error) throw error;
+}
+
 // base64 → bytes (Hermes atob 유무와 무관하게 동작)
 const B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 function b64ToBytes(b64: string): Uint8Array {
