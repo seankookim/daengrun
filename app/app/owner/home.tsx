@@ -6,10 +6,10 @@ import { BottomNav } from '../../src/components/bottomnav';
 import { Ring } from '../../src/components/ring';
 import { RunCard } from '../../src/components/runcard';
 import { Avatar } from '../../src/components/ui';
-import { Addr, BoardRow, confirmPayment, createBookingHold, DogProfile, fetchAddresses, fetchAvailableRunners, fetchCertifiedRunners, fetchFitness, fetchLeaderboards, fetchMyBookings, fetchMyDogs, fetchMyProfile, fetchRecentMoments, Fitness, LiveRunner, Moment, MyProfile } from '../../src/lib/api';
+import { Addr, BoardRow, confirmPayment, createBookingHold, DogProfile, fetchAddresses, fetchAvailableRunners, fetchCertifiedRunners, fetchFitness, fetchLeaderboards, fetchMyBookings, fetchMyDogs, fetchMyProfile, fetchRecentMoments, fetchRoutes, Fitness, LiveRunner, Moment, MyProfile } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { haptic } from '../../src/lib/haptics';
-import { Booking, demoImminent, dog, draft, myCards, nextBooking, ownerGearLadder, runners } from '../../src/store';
+import { Booking, demoImminent, dog, draft, myCards, nextBooking, ownerGearLadder, RouteInfo, runners } from '../../src/store';
 import { colors, pricing, surfaces } from '../../src/theme';
 import { useTheme } from '../../src/theme-context';
 
@@ -112,6 +112,16 @@ export default function OwnerHome() {
   const [fnAddrIdx, setFnAddrIdx] = useState(0);
   const [fnKm, setFnKm] = useState(3);
   const [fnBusy, setFnBusy] = useState(false);
+  // 코스 자동 선택 — '결제·코스는 자동' 약속의 실화: 요청 km에 가장 가까운 실코스를 항상 배정
+  // (코스 미지정 예약 근절 — 탭으로 순환 변경 가능, km 바꾸면 다시 최적 코스로)
+  const [fnRoutes, setFnRoutes] = useState<RouteInfo[]>([]);
+  const [fnRouteIdx, setFnRouteIdx] = useState(0);
+  const pickRouteFor = (km: number, routes: RouteInfo[]) => {
+    if (routes.length === 0) return 0;
+    let best = 0;
+    routes.forEach((r, i) => { if (Math.abs(r.km - km) < Math.abs(routes[best].km - km)) best = i; });
+    return best;
+  };
   const fnPulse = useRef(new Animated.Value(0)).current;
   const fnSearching = liveNext?.status === 'pending';
   // 레이더 아크 브리딩 — 평상시 잔잔하게
@@ -156,7 +166,9 @@ export default function OwnerHome() {
       }
       setFnDogs(dogs); setFnDogIdx(0);
       setFnAddrs(addrs); setFnAddrIdx(Math.max(0, addrs.findIndex((a) => a.isDefault)));
-      setFnKm(lastDone?.km ?? draft.km); // 지난 러닝 거리로 프리필
+      const km = lastDone?.km ?? draft.km;
+      setFnKm(km); // 지난 러닝 거리로 프리필
+      fetchRoutes().then((rs) => { setFnRoutes(rs); setFnRouteIdx(pickRouteFor(km, rs)); }).catch(() => setFnRoutes([]));
       setFnOpen(true);
     } catch (e) {
       Alert.alert('불러오기 실패', (e as Error).message);
@@ -177,6 +189,7 @@ export default function OwnerHome() {
         address_id: fnAddrs[fnAddrIdx]?.id,
         scheduled_at: when.toISOString(),
         km: fnKm,
+        route_id: fnRoutes[fnRouteIdx]?.id, // 자동 배정 코스 — '코스 미지정' 근절
         pace_label: draft.pace,
         addons: [], // find-now는 스피드가 본질 — 옵션은 예약 플로우에서
       });
@@ -567,11 +580,12 @@ export default function OwnerHome() {
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 12 }}>
               <Avatar url={fit?.dogPhotoUrl} char={liveNext.dogName[0]} bg="#FF5C3D" size={46} />
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 19.5, fontWeight: '900', color: p.textStrong }}>
-                  {liveNext.dateLabel.split(' ')[0]} {liveNext.timeLabel} · {liveNext.dogName}
+                <Text style={{ fontSize: 19.5, fontWeight: '900', color: p.textStrong }} numberOfLines={1}>
+                  {/* split(' ')[0] 이 '7월'만 남기던 버그 — 요일 괄호만 떼고 날짜 전체 표기 */}
+                  {liveNext.dateLabel.replace(/ \(.+\)$/, '')} {liveNext.timeLabel}
                 </Text>
-                <Text style={{ fontSize: 13, color: p.dim, marginTop: 3 }}>
-                  {liveNext.routeName} · {liveNext.status === 'pending' ? '러너 응답 대기' : liveNext.status === 'active' ? '러닝 진행 중' : liveNext.status === 'handoff' ? '인계 완료 — 곧 시작돼요' : '러너 확정 ✓'}
+                <Text style={{ fontSize: 13, color: p.dim, marginTop: 3 }} numberOfLines={1}>
+                  {liveNext.dogName} · {liveNext.routeName}
                 </Text>
               </View>
               <View style={[s.countdownPill, { backgroundColor: liveNext.status === 'pending' ? '#fbf0d4' : '#fde8e3' }]}>
@@ -610,7 +624,8 @@ export default function OwnerHome() {
               </Pressable>
             </View>
           ) : liveNext?.status === 'confirmed' ? (
-            <View style={{ flexDirection: 'row', gap: 8, marginTop: 13 }}>
+            <View style={{ marginTop: 13, gap: 8 }}>
+              {/* 3버튼 한 줄은 과밀 — 주 액션 전폭 + 보조 2개 반반 (2단) */}
               <Pressable
                 style={s.meetBtn}
                 onPress={(e) => {
@@ -621,21 +636,23 @@ export default function OwnerHome() {
               >
                 <Text style={{ fontSize: 14.5, fontWeight: '900', color: colors.ink }}>러너 만나기 · 인계 확인 ›</Text>
               </Pressable>
-              <Pressable
-                style={[s.widgetBtn, { borderColor: p.line, flex: 0.55 }]}
-                onPress={(e) => {
-                  e.stopPropagation();
-                  if (liveNext) router.push({ pathname: '/owner/reschedule', params: { bid: liveNext.id } });
-                }}
-              >
-                <Text style={{ fontSize: 13, fontWeight: '700', color: p.textSoft }}>변경</Text>
-              </Pressable>
-              <Pressable
-                style={[s.widgetBtn, { borderColor: p.line, flex: 0.55 }]}
-                onPress={(e) => { e.stopPropagation(); router.push({ pathname: '/chat', params: liveNext ? { bid: liveNext.id } : {} }); }}
-              >
-                <Text style={{ fontSize: 13, fontWeight: '700', color: p.textSoft }}>채팅</Text>
-              </Pressable>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <Pressable
+                  style={[s.widgetBtn, { borderColor: p.line }]}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    if (liveNext) router.push({ pathname: '/owner/reschedule', params: { bid: liveNext.id } });
+                  }}
+                >
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: p.textSoft }}>일정 변경</Text>
+                </Pressable>
+                <Pressable
+                  style={[s.widgetBtn, { borderColor: p.line }]}
+                  onPress={(e) => { e.stopPropagation(); router.push({ pathname: '/chat', params: liveNext ? { bid: liveNext.id } : {} }); }}
+                >
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: p.textSoft }}>러너와 채팅</Text>
+                </Pressable>
+              </View>
             </View>
           ) : (
             <View style={{ flexDirection: 'row', gap: 8, marginTop: 13 }}>
@@ -786,6 +803,17 @@ export default function OwnerHome() {
                 ⌂ {fnAddrs[fnAddrIdx] ? fnAddrs[fnAddrIdx].label : '주소 등록'}{fnAddrs.length > 1 ? ' ▾' : ''}
               </Text>
             </Pressable>
+            {/* 코스 — km 최적 코스 자동, 탭으로 순환 */}
+            {fnRoutes.length > 0 && (
+              <Pressable
+                onPress={() => fnRoutes.length > 1 && setFnRouteIdx((i) => (i + 1) % fnRoutes.length)}
+                style={s.fnChip}
+              >
+                <Text style={s.fnChipText}>
+                  ⛳ {fnRoutes[fnRouteIdx]?.name}{fnRoutes.length > 1 ? ' ▾' : ''}
+                </Text>
+              </Pressable>
+            )}
             {/* 시간 — ASAP 고정 (예약은 기존 플로우) */}
             <View style={[s.fnChip, { backgroundColor: '#eaf7c8', borderColor: '#c9dd9a' }]}>
               <Text style={[s.fnChipText, { color: '#3f5a26' }]}>⚡ 지금 바로 · 약 40분 내</Text>
@@ -794,12 +822,12 @@ export default function OwnerHome() {
 
           {/* 거리 스테퍼 */}
           <View style={s.fnKmRow}>
-            <Pressable onPress={() => setFnKm((k) => Math.max(1, k - 1))} style={s.fnStep}><Text style={s.fnStepText}>−</Text></Pressable>
+            <Pressable onPress={() => setFnKm((k) => { const n = Math.max(1, k - 1); setFnRouteIdx(pickRouteFor(n, fnRoutes)); return n; })} style={s.fnStep}><Text style={s.fnStepText}>−</Text></Pressable>
             <View style={{ alignItems: 'center', flex: 1 }}>
               <Text style={{ fontSize: 34.5, fontWeight: '900', color: '#0F1D13' }}>{fnKm}km</Text>
               <Text style={{ fontSize: 12, color: '#49524a', marginTop: 2 }}>러닝 거리</Text>
             </View>
-            <Pressable onPress={() => setFnKm((k) => Math.min(10, k + 1))} style={s.fnStep}><Text style={s.fnStepText}>＋</Text></Pressable>
+            <Pressable onPress={() => setFnKm((k) => { const n = Math.min(10, k + 1); setFnRouteIdx(pickRouteFor(n, fnRoutes)); return n; })} style={s.fnStep}><Text style={s.fnStepText}>＋</Text></Pressable>
           </View>
 
           <View style={s.fnPriceRow}>
