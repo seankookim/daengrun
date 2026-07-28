@@ -13,6 +13,12 @@ import { colors } from '../../src/theme';
 
 const FOREST = '#0F1D13';
 
+// "7월 31일 (목) 15:30" → ["7월 31일 (목)", "15:30"] — 시간을 1급 정보로 분리
+const splitWhen = (w: string): [string, string] => {
+  const i = w.lastIndexOf(' ');
+  return i < 0 ? [w, ''] : [w.slice(0, i), w.slice(i + 1)];
+};
+
 export default function Requests() {
   const df = useDisplayFont(); // 디스플레이 서체 — 화면 타이틀
   const [live, setLive] = useState<OpenRequest[]>([]);
@@ -76,17 +82,19 @@ export default function Requests() {
             </Text>
             <Row style={{ gap: 8, marginTop: 8, alignItems: 'center' }}>
               <View style={s.timeBox}>
-                <Text style={{ fontSize: 10.5, fontWeight: '700', color: colors.dim }}>기존</Text>
-                <Text style={{ fontSize: 13.5, fontWeight: '800', color: '#82887a', textDecorationLine: 'line-through' }}>
-                  {rq.curDate} {rq.curTime}
+                <Text style={{ fontSize: 11, fontWeight: '700', color: colors.dim }}>기존</Text>
+                <Text style={{ fontSize: 12.5, fontWeight: '700', color: '#82887a', textDecorationLine: 'line-through', marginTop: 1 }}>
+                  {rq.curDate}
+                </Text>
+                <Text style={{ fontSize: 17, fontWeight: '800', color: '#82887a', textDecorationLine: 'line-through' }}>
+                  {rq.curTime}
                 </Text>
               </View>
-              <Text style={{ fontSize: 15, fontWeight: '900', color: '#F59A43' }}>→</Text>
+              <Text style={{ fontSize: 17, fontWeight: '900', color: '#F59A43' }}>→</Text>
               <View style={[s.timeBox, { backgroundColor: '#FDE8D0' }]}>
-                <Text style={{ fontSize: 10.5, fontWeight: '700', color: '#9D580A' }}>제안</Text>
-                <Text style={{ fontSize: 13.5, fontWeight: '900', color: '#9D580A' }}>
-                  {rq.newDate} {rq.newTime}
-                </Text>
+                <Text style={{ fontSize: 11, fontWeight: '700', color: '#9D580A' }}>제안</Text>
+                <Text style={{ fontSize: 12.5, fontWeight: '800', color: '#9D580A', marginTop: 1 }}>{rq.newDate}</Text>
+                <Text style={{ fontSize: 17, fontWeight: '900', color: '#9D580A' }}>{rq.newTime}</Text>
               </View>
             </Row>
             <Row style={{ gap: 8, marginTop: 12 }}>
@@ -142,6 +150,13 @@ export default function Requests() {
                 </View>
               </Row>
             </Row>
+            {/* 언제 뛰는가 — 요청의 1급 정보 (회색 각주 은퇴, 정보 위계 수정 2026-07-28) */}
+            {(() => { const [wd, wt] = splitWhen(req.when); return (
+              <Row style={s.whenBar}>
+                <Text style={{ fontSize: 14.5, fontWeight: '800', color: '#3d5a2b' }}>{wd}</Text>
+                <Text style={{ fontSize: 21, fontWeight: '900', color: FOREST }}>{wt}</Text>
+              </Row>
+            ); })()}
             <Row style={{ gap: 12, marginTop: 12 }}>
               <Avatar url={req.photoUrl} char={req.dogName[0]} bg="#c9a86e" size={48} />
               <View style={{ flex: 1 }}>
@@ -149,7 +164,7 @@ export default function Requests() {
                   {req.dogName} · {req.breed} {req.weightKg}kg
                 </Text>
                 <Text style={{ fontSize: 14, color: colors.dim, marginTop: 3 }}>
-                  {req.when} · {req.km}km · {req.paceLabel}
+                  <Text style={{ fontWeight: '900', color: '#3d5a2b' }}>{req.km}km</Text> · {req.paceLabel}
                 </Text>
               </View>
               <View style={{ alignItems: 'flex-end', alignSelf: 'center' }}>
@@ -224,6 +239,7 @@ const s = StyleSheet.create({
   conflict: { backgroundColor: '#fdeae5', borderRadius: 10, padding: 9, marginTop: 10 },
   memo: { backgroundColor: '#faf9f3', borderRadius: 10, padding: 9, marginTop: 8 },
   courseLink: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#eef4e0', borderRadius: 10, paddingVertical: 9, paddingHorizontal: 11, marginTop: 8 },
+  whenBar: { justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f2f8e2', borderRadius: 12, paddingVertical: 8, paddingHorizontal: 13, marginTop: 10 },
   timeBox: { flex: 1, backgroundColor: '#f4f2ea', borderRadius: 10, paddingVertical: 7, paddingHorizontal: 10 },
   accept: { flex: 1.4, backgroundColor: colors.volt, borderRadius: 13, alignItems: 'center', paddingVertical: 12 },
   secondary: { flex: 1, backgroundColor: '#f4f2ea', borderRadius: 13, alignItems: 'center', paddingVertical: 12 },

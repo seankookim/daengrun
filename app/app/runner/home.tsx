@@ -293,9 +293,15 @@ export default function RunnerHome() {
             <View style={{ backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 3, paddingHorizontal: 8 }}>
               <Text style={{ fontSize: 10.5, fontWeight: '900', color: FOREST }}>● LIVE</Text>
             </View>
-            <Text style={{ flex: 1, fontSize: 15, fontWeight: '800', color: '#fff' }} numberOfLines={1}>
-              새 요청 {inbox.length}건 — {inbox[0].dogName} {inbox[0].km}km{inbox[0].directed ? ' (지명!)' : ''}
-            </Text>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 15, fontWeight: '800', color: '#fff' }} numberOfLines={1}>
+                새 요청 {inbox.length}건 — {inbox[0].dogName} {inbox[0].km}km{inbox[0].directed ? ' (지명!)' : ''}
+              </Text>
+              {/* 언제인지가 응답 결정의 핵심 — 배너에서도 시간을 숨기지 않는다 */}
+              <Text style={{ fontSize: 13, fontWeight: '900', color: colors.volt, marginTop: 2 }} numberOfLines={1}>
+                {inbox[0].when}
+              </Text>
+            </View>
             <Text style={{ fontSize: 15, color: colors.volt, fontWeight: '900' }}>응답 ›</Text>
           </Pressable>
         ) : (
@@ -315,18 +321,26 @@ export default function RunnerHome() {
                 <Text style={{ fontSize: 13, color: colors.dim, fontWeight: '700' }}>캘린더 ›</Text>
               </Pressable>
             </Row>
-            {upcoming.map((j) => (
-              <Pressable key={j.bookingId} onPress={() => openJob(j)} style={s.jobRow}>
-                <View style={s.jobRail} />
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 14.5, fontWeight: '800', color: '#49524a' }}>{j.when}</Text>
-                  <Text style={{ fontSize: 16, fontWeight: '900', color: FOREST, marginTop: 2 }}>
-                    {j.dogName} · {j.km}km
-                  </Text>
-                </View>
-                <Text style={{ fontSize: 15, fontWeight: '900', color: '#5a7a3c' }}>+{j.payout.toLocaleString()}</Text>
-              </Pressable>
-            ))}
+            {upcoming.map((j) => {
+              // 시간이 1급 정보 — 회색 각주 대신 포레스트 볼드 (정보 위계 수정 2026-07-28)
+              const i = j.when.lastIndexOf(' ');
+              const [wd, wt] = i < 0 ? [j.when, ''] : [j.when.slice(0, i), j.when.slice(i + 1)];
+              return (
+                <Pressable key={j.bookingId} onPress={() => openJob(j)} style={s.jobRow}>
+                  <View style={s.jobRail} />
+                  <View style={{ flex: 1 }}>
+                    <Row style={{ gap: 7, alignItems: 'baseline' }}>
+                      <Text style={{ fontSize: 19, fontWeight: '900', color: FOREST }}>{wt}</Text>
+                      <Text style={{ fontSize: 13.5, fontWeight: '800', color: '#5a7a3c' }}>{wd}</Text>
+                    </Row>
+                    <Text style={{ fontSize: 15, fontWeight: '800', color: '#49524a', marginTop: 2 }}>
+                      {j.dogName} · {j.km}km
+                    </Text>
+                  </View>
+                  <Text style={{ fontSize: 15, fontWeight: '900', color: '#5a7a3c' }}>+{j.payout.toLocaleString()}</Text>
+                </Pressable>
+              );
+            })}
           </>
         )}
 
