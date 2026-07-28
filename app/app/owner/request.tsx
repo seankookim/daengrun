@@ -56,6 +56,15 @@ export default function Request() {
   const [myDogs, setMyDogs] = useState<DogProfile[]>([]);
   const [pickupAddr, setPickupAddr] = useState<Addr | null>(null);
   const [dogIdx, setDogIdx] = useState(0);
+
+  // 코스가 km을 따른다 (2026-07-28 결정) — 가격·정산의 진실은 km. km 변경 시 최근접 실코스 자동 선택,
+  // 수동으로 다른 코스를 고르면 존중하되 불일치를 배지로 정직하게 표기 (find-now와 동일 원칙)
+  const pickRouteForKm = (target: number) => {
+    if (!routesLive || routes.length === 0) return;
+    let best = routes[0];
+    routes.forEach((r) => { if (Math.abs(r.km - target) < Math.abs(best.km - target)) best = r; });
+    setRouteId(best.id);
+  };
   const myDog = myDogs[dogIdx] ?? null;
 
   // 첫 실화(實化) 지점: 안심 코스는 서버에서 온다. 실패 시 목업 유지.
@@ -277,7 +286,7 @@ export default function Request() {
             const optPrice = pricing.baseFare + d * pricing.perKm;
             const sel = km === d;
             return (
-              <Pressable key={d} onPress={() => setKm(d)} style={{ alignItems: 'center', paddingHorizontal: 8 }}>
+              <Pressable key={d} onPress={() => { setKm(d); pickRouteForKm(d); }} style={{ alignItems: 'center', paddingHorizontal: 8 }}>
                 <Text style={{ fontSize: sel ? 46 : 36, fontWeight: '900', color: sel ? colors.tang : '#c9c5b8', lineHeight: sel ? 50 : 42 }}>
                   {d}<Text style={{ fontSize: sel ? 19 : 15 }}>km</Text>
                 </Text>
@@ -317,6 +326,10 @@ export default function Request() {
           title="코스 선택"
           sub={routesLive ? '· 실시간 코스 정보' : '· 모든 코스는 도그스하이가 직접 점검해요'}
         />
+        {/* 지리 고지 — 코스와 픽업지는 별개라는 걸 예약 전에 정직하게 (좌표 모델링 전 v1) */}
+        <Text style={{ fontSize: 12, color: '#82887a', marginBottom: 10 }}>
+          픽업 후 코스까지는 러너가 아이와 함께 이동해요
+        </Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingRight: 12 }}>
           {routes.map((r) => {
             const sel = routeId === r.id;
@@ -344,6 +357,13 @@ export default function Request() {
                   {/* checkedAt이 이미 '7.15 점검' 형태 — '점검' 재접미 금지 (점검 점검 버그) */}
                   {r.area} · {r.km}km · {r.terrain} · {r.checkedAt}
                 </Text>
+                {r.km !== km && (
+                  <View style={s.kmMismatch}>
+                    <Text style={{ fontSize: 10.5, fontWeight: '800', color: '#9D580A' }}>
+                      선택 거리와 달라요 — 요금·기록은 {km}km 기준
+                    </Text>
+                  </View>
+                )}
 
                 <View style={s.routeMap}>
                   <HeatTrace points={r.trace} width={208} height={92} />
@@ -541,6 +561,7 @@ function FeeRow({ label, value }: { label: string; value: string }) {
 }
 
 const s = StyleSheet.create({
+  kmMismatch: { backgroundColor: '#FDE8D0', borderRadius: 8, paddingVertical: 4, paddingHorizontal: 8, marginTop: 6, alignSelf: 'flex-start' },
   circleBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DCD6C4' },
   livePill: { backgroundColor: '#f0f6e2', borderRadius: 99, paddingVertical: 8, paddingHorizontal: 12, borderWidth: 1, borderColor: '#dde8c4', alignSelf: 'center' },
   card: { backgroundColor: '#fff', borderRadius: 18, padding: 16, borderWidth: 1, borderColor: '#DCD6C4' },
