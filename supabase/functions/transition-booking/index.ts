@@ -147,7 +147,8 @@ Deno.serve(handle(async (req) => {
       const nt = new Date(bk.reschedule_new_time);
       if (nt.getTime() < Date.now() + 2 * 3_600_000) throw new HttpError(409, "제안된 시간이 이미 임박했어요 — 거절 처리해주세요");
       // 수락 시점 슬롯 재검증 — 제안 이후 다른 확정 예약이 생겼을 수 있다
-      const end = new Date(nt.getTime() + 60 * 60_000);
+      // 실소요 = km×8분 + 픽업·인계 버퍼 25분 (create-booking-hold와 동일 공식 — 60분 고정은 장거리 겹침을 놓쳤다)
+      const end = new Date(nt.getTime() + (Number(bk.km) * 8 + 25) * 60_000);
       const { data: ok, error: se } = await db.rpc("is_slot_available",
         { p_runner: uid, p_start: nt.toISOString(), p_end: end.toISOString() });
       if (se) throw new HttpError(409, se.message);
