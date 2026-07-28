@@ -17,8 +17,8 @@ export default function Shop() {
     <View style={{ flex: 1, backgroundColor: colors.cream }}>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingTop: 56 }}>
         <Row style={{ justifyContent: 'space-between', marginBottom: 16 }}>
-          <Pressable onPress={() => router.replace(homePath())} style={s.circleBtn}><Text style={{ fontSize: 20.5 }}>‹</Text></Pressable>
-          <Text style={[{ fontSize: 23, fontWeight: '900', color: FOREST }, df]}>도그스하이 샵</Text>
+          {/* 탭 루트 — 뒤로가기 없음 (표준 탭 헤더) */}
+          <Text style={[{ fontSize: 30, fontWeight: '900', color: FOREST }, df]}>도그스하이 샵</Text>
           <Pressable style={s.circleBtn} onPress={() => Alert.alert('장바구니', '장바구니 (목업)')}>
             <Text style={{ fontSize: 17, color: FOREST }}>◱</Text>
           </Pressable>

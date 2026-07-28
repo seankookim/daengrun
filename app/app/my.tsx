@@ -255,7 +255,7 @@ export default function My() {
 }
 
 const s = StyleSheet.create({
-  h1: { fontSize: 34.5, fontWeight: '900', color: FOREST },
+  h1: { fontSize: 30, fontWeight: '900', color: FOREST }, // 표준 탭 헤더 사이즈
   profile: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff',
     borderRadius: 20, padding: 16, borderWidth: 1, borderColor: '#DCD6C4', marginTop: 16,

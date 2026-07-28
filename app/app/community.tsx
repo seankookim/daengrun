@@ -91,7 +91,7 @@ export default function Community() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         {/* header */}
-        <Row style={{ justifyContent: 'space-between', paddingHorizontal: 12 }}>
+        <Row style={{ justifyContent: 'space-between', paddingHorizontal: 16 }}>
           <View>
             <Row style={{ gap: 6 }}>
               <Text style={[{ fontSize: 30, fontWeight: '900', color: FOREST }, df]}>동네 피드</Text>
@@ -107,7 +107,7 @@ export default function Community() {
         </Row>
 
         {/* 탭바 — 피드 | 러너 후기 (밑줄 인디케이터) */}
-        <Row style={{ marginTop: 14, paddingHorizontal: 12, gap: 20, borderBottomWidth: 1, borderBottomColor: '#DCD6C4' }}>
+        <Row style={{ marginTop: 14, paddingHorizontal: 16, gap: 20, borderBottomWidth: 1, borderBottomColor: '#DCD6C4' }}>
           {([['feed', '피드'], ['reviews', '러너 후기']] as const).map(([k, label]) => (
             <Pressable key={k} onPress={() => setTab(k)} style={{ paddingBottom: 9, borderBottomWidth: 2.5, borderBottomColor: tab === k ? FOREST : 'transparent', marginBottom: -1 }}>
               <Text style={{ fontSize: 16, fontWeight: '900', color: tab === k ? FOREST : '#9a978a' }}>{label}</Text>

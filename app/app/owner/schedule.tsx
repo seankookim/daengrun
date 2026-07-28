@@ -2,6 +2,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { cancelBooking, fetchMyBookings } from '../../src/lib/api';
+import { useDisplayFont } from '../../src/lib/displayFont';
 import { BottomNav } from '../../src/components/bottomnav';
 import { HeatTrace } from '../../src/components/runcard';
 import { Monogram, Row } from '../../src/components/ui';
@@ -35,6 +36,8 @@ const STATUS_STYLE: Record<BookingStatus, { label: string; bg: string; fg: strin
 const paceMin = (label: string) => (label.includes('8') ? 8 : label.includes('6') ? 6 : 7);
 
 export default function Schedule() {
+  const df = useDisplayFont(); // 표준 탭 헤더 — 좌측 BHS 30
+
   const [filterIdx, setFilterIdx] = useState(0);
   const [selected, setSelected] = useState<Booking | null>(null);
   const [sheetMode, setSheetMode] = useState<'detail' | 'cancel'>('detail');
@@ -84,13 +87,12 @@ export default function Schedule() {
         contentContainerStyle={{ paddingTop: 56, paddingBottom: 30 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
-        <View style={{ paddingHorizontal: 12 }}>
-        {/* header */}
-        <Row style={{ justifyContent: 'space-between' }}>
-          <Pressable onPress={() => router.back()} style={s.circleBtn}><Text style={{ fontSize: 20.5 }}>‹</Text></Pressable>
-          <View style={{ alignItems: 'center' }}>
-            <Text style={{ fontSize: 22, fontWeight: '900', color: FOREST }}>내 일정</Text>
-            <Text style={{ fontSize: 12.5, color: colors.dim, marginTop: 1 }}>실예약 {liveBookings.length}건</Text>
+        <View style={{ paddingHorizontal: 16 }}>
+        {/* 표준 탭 헤더 — 탭 루트엔 뒤로가기 없음 (바텀 내비가 탈출구), 좌측 타이틀 + 그레이 서브 */}
+        <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <View>
+            <Text style={[{ fontSize: 30, fontWeight: '900', color: FOREST }, df]}>내 일정</Text>
+            <Text style={{ fontSize: 14.5, color: '#49524a', marginTop: 4 }}>실예약 {liveBookings.length}건</Text>
           </View>
           <Pressable onPress={() => router.push('/owner/request')} style={[s.circleBtn, { backgroundColor: FOREST }]}>
             <Text style={{ fontSize: 19.5, color: colors.volt }}>＋</Text>
