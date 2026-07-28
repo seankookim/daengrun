@@ -66,7 +66,7 @@ function badges(st: RunStandings | null): string[] {
 
 export default function Report() {
   const df = useDisplayFont(); // 피니셔 증서 서체 — 타이틀·완주 도장 (숫자 금지)
-  const { bid } = useLocalSearchParams<{ bid: string }>();
+  const { bid, shot } = useLocalSearchParams<{ bid: string; shot?: string }>();
   const [report, setReport] = useState<RunReport | null>(null);
   const [standings, setStandings] = useState<RunStandings | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -89,6 +89,15 @@ export default function Report() {
     fetchRunReport(bid).then(setReport).catch((e) => setErr(e?.message ?? '불러오기 실패'));
     fetchRunStandings(bid).then(setStandings).catch(() => {});
   }, [bid]);
+
+  // 일정 탭 '인증샷 만들기' 딥링크 — 리포트가 러닝을 확보하면 인증샷 모달을 바로 연다
+  const shotAuto = useRef(false);
+  useEffect(() => {
+    if (shot === '1' && report?.run && !shotAuto.current) {
+      shotAuto.current = true;
+      setShotOpen(true);
+    }
+  }, [shot, report]);
 
   const run = report?.run ?? null;
   const reason = run?.endReason ? REASON[run.endReason] : null;

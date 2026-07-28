@@ -298,6 +298,13 @@ export default function Schedule() {
                         <Text style={{ fontSize: 16.5, fontWeight: '900', color: FOREST }}>러닝 리포트 보기</Text>
                         <Text style={{ fontSize: 12, color: '#5d6b4a', marginTop: 2 }}>실거리·시간·페이스·종료 사유를 확인해요</Text>
                       </Pressable>
+                      {/* 인증샷 바로가기 — 완료 러닝의 자랑 동선 한 탭 단축 (공유가 곧 마케팅) */}
+                      <Pressable
+                        style={s.ghostAction}
+                        onPress={() => { const bid = selected.id; close(); router.push({ pathname: '/owner/report', params: { bid, shot: '1' } }); }}
+                      >
+                        <Text style={{ fontSize: 15, fontWeight: '800', color: '#3d5a2b' }}>📸 인증샷 만들기</Text>
+                      </Pressable>
                       <Pressable
                         style={s.ghostAction}
                         onPress={() => {
