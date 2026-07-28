@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Animated, Dimensions, Easing, Image, Modal, PanResponder, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BottomNav } from '../../src/components/bottomnav';
 import { CourseStrip } from '../../src/components/CourseStrip';
-import { Ring } from '../../src/components/ring';
 import { RunCard } from '../../src/components/runcard';
 import { Avatar } from '../../src/components/ui';
 import { Addr, BoardRow, confirmPayment, createBookingHold, DogProfile, fetchAddresses, fetchAvailableRunners, fetchCertifiedRunners, fetchFitness, fetchLeaderboards, fetchMyBookings, fetchMyDogs, fetchMyProfile, fetchRecentMoments, fetchRoutes, Fitness, LiveRunner, Moment, MyProfile } from '../../src/lib/api';
@@ -21,6 +20,58 @@ import { useTheme } from '../../src/theme-context';
 const { width: SCREEN_W } = Dimensions.get('window');
 const CARD_W = SCREEN_W - 22; // 거터 11*2 (0.9x 축소)
 const RING_BIG = 216;
+// ── 모프 도트 상수 — 원(큰 상태) ↔ 하단 진행선(컬랩스) ──
+const MORPH_DOTS = 36;
+const MORPH_DOT = 9;
+const LINE_Y_HERO = 154; // 컬랩스 히어로(176) 하단 진행선 y — 정보 블록 '% 달성' 아래
+
+function lerpHex(a: string, b: string, tt: number): string {
+  const pa = [1, 3, 5].map((i) => parseInt(a.slice(i, i + 2), 16));
+  const pb = [1, 3, 5].map((i) => parseInt(b.slice(i, i + 2), 16));
+  return `#${pa.map((x, i) => Math.round(x + (pb[i] - x) * tt).toString(16).padStart(2, '0')).join('')}`;
+}
+
+// 점 하나하나가 원 좌표 ↔ 선 좌표를 스크롤 t로 보간 — 12시에서 시계방향으로 감긴 링을
+// 왼쪽→오른쪽 선으로 '풀어낸' 매핑 (인접성 보존, 진행 점등도 그대로 이어진다)
+function MorphDots({ pct, t, containerX, containerY, track }: {
+  pct: number; t: Animated.AnimatedInterpolation<number>;
+  containerX: number; containerY: number; track: string;
+}) {
+  const n = MORPH_DOTS;
+  const lit = Math.round(Math.min(Math.max(pct, 0), 1) * n);
+  const r = RING_BIG / 2 - MORPH_DOT;
+  const c = RING_BIG / 2;
+  const lineY = LINE_Y_HERO - containerY - MORPH_DOT / 2;
+  return (
+    <>
+      {Array.from({ length: n }).map((_, i) => {
+        const angle = -Math.PI / 2 + (i / n) * Math.PI * 2;
+        const cx = c + r * Math.cos(angle) - MORPH_DOT / 2;
+        const cy = c + r * Math.sin(angle) - MORPH_DOT / 2;
+        const lx = 18 + (i / (n - 1)) * (CARD_W - 36) - containerX - MORPH_DOT / 2;
+        const active = i < lit;
+        const head = active && i === lit - 1;
+        return (
+          <Animated.View
+            key={i}
+            pointerEvents="none"
+            style={{
+              position: 'absolute', left: 0, top: 0,
+              width: MORPH_DOT, height: MORPH_DOT, borderRadius: MORPH_DOT / 2,
+              backgroundColor: active ? lerpHex(colors.voltDeep, colors.voltBright, i / n) : track,
+              ...(head ? { shadowColor: colors.volt, shadowOpacity: 0.9, shadowRadius: 5, shadowOffset: { width: 0, height: 0 } } : {}),
+              transform: [
+                { translateX: t.interpolate({ inputRange: [0, 1], outputRange: [cx, lx] }) },
+                { translateY: t.interpolate({ inputRange: [0, 1], outputRange: [cy, lineY] }) },
+                ...(head ? [{ scale: 1.55 }] : []),
+              ],
+            }}
+          />
+        );
+      })}
+    </>
+  );
+}
 const PAD_TOP = 56;
 const HEADER_H = 104; // 그리팅 1줄 + 동네 랭킹 티커 스트립
 
@@ -57,6 +108,11 @@ export default function OwnerHome() {
   const dogName = fit?.dogName ?? dog.name; // 실반려견 이름 (프로필 위저드 반영)
   const pct = goalKm > 0 ? weekKm / goalKm : 0;
   const goalHit = pct >= 1;
+  // 요일 스탬프 — 이번 주(KST 월~일) 러닝 요일 + 오늘 하이라이트
+  const runDays = fit?.runDays ?? [];
+  const runDayCount = runDays.filter(Boolean).length;
+  const todayIdx = (new Date(Date.now() + 9 * 3_600_000).getUTCDay() + 6) % 7;
+  const [dotBoxY, setDotBoxY] = useState(34); // 모프 도트 컨테이너 y (onLayout 실측)
   const latestCard = myCards.find((c) => c.run);
   const scrollY = useRef(new Animated.Value(0)).current;
 
@@ -236,10 +292,9 @@ export default function OwnerHome() {
   const heroH = t.interpolate({ inputRange: [0, 1], outputRange: [HERO_BIG, HERO_SMALL] });
   const headerH = t.interpolate({ inputRange: [0, 0.6], outputRange: [HEADER_H, 0], extrapolate: 'clamp' });
   const headerOpacity = t.interpolate({ inputRange: [0, 0.45], outputRange: [1, 0], extrapolate: 'clamp' });
-  // 컬랩스 링 0.71 (0.62의 1.15배) — 153px, 176 높이 사각형을 꽉 채우는 앵커
-  const ringScale = t.interpolate({ inputRange: [0, 1], outputRange: [1, 0.71] });
-  const ringX = t.interpolate({ inputRange: [0, 1], outputRange: [0, CARD_W / 2 - RING_BIG * 0.355 - 24] });
-  const ringY = t.interpolate({ inputRange: [0, 1], outputRange: [0, -44] });
+  // 모프 도트 — 링이 축소되는 대신 점들이 하단 진행선으로 '풀린다' (Sean 안, 2026-07-28).
+  // 데이터 객체(점)는 하나, 배열만 원↔선으로 바뀐다 — 원/미니바 이중 표기 은퇴.
+  const centerOpacity = t.interpolate({ inputRange: [0, 0.45], outputRange: [1, 0], extrapolate: 'clamp' });
   const infoOpacity = t.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, 0, 1] });
   const infoX = t.interpolate({ inputRange: [0, 1], outputRange: [-20, 0] });
   const bigMsgOpacity = t.interpolate({ inputRange: [0, 0.35], outputRange: [1, 0], extrapolate: 'clamp' });
@@ -329,23 +384,49 @@ export default function OwnerHome() {
               <Text style={{ fontSize: 12.5, color: hp.textSoft, marginTop: 3 }}>
                 {fitnessAge != null ? `체력 나이 ${fitnessAge}살 · 실제보다 젊어요` : '체력 나이 측정 준비 중'}
               </Text>
-              <View style={[s.miniBar, { backgroundColor: hp.track }]}>
-                <View style={[s.miniBarFill, { width: `${Math.min(pct, 1) * 100}%` }]} />
-              </View>
+              {/* 미니바 은퇴 — 진행바는 링에서 풀려 내려온 도트 라인이 담당 */}
               <Text style={{ fontSize: 11.5, fontWeight: '800', color: heroAccent, marginTop: 4 }}>
                 {Math.round(pct * 100)}% 달성
               </Text>
             </Animated.View>
 
-            {/* the ring */}
-            <Animated.View
-              style={{
-                alignSelf: 'center',
-                marginTop: 6,
-                transform: [{ translateX: ringX }, { translateY: ringY }, { scale: ringScale }],
+            {/* 요일 스탬프 — 링이 떠난 자리: km는 '얼마나', 스탬프는 '얼마나 꾸준히' */}
+            <Animated.View style={[s.stampBox, { opacity: infoOpacity }]}>
+              <Text style={{ fontSize: 12, fontWeight: '700', color: hp.textSoft }}>
+                이번 주 러닝{runDayCount > 0 ? ` ${runDayCount}일` : ''}
+              </Text>
+              <View style={{ flexDirection: 'row', gap: 3, marginTop: 7 }}>
+                {['월', '화', '수', '목', '금', '토', '일'].map((dLabel, i) => {
+                  const ran = runDays[i] === true;
+                  const isToday = i === todayIdx;
+                  return (
+                    <View
+                      key={dLabel}
+                      style={{
+                        width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center',
+                        backgroundColor: ran ? colors.volt : 'transparent',
+                        borderWidth: isToday && !ran ? 1.7 : 1.2,
+                        borderColor: ran ? colors.volt : isToday ? heroAccent : hp.line,
+                      }}
+                    >
+                      <Text style={{ fontSize: 9.5, fontWeight: '900', color: ran ? '#0F1D13' : hp.dim }}>{dLabel}</Text>
+                    </View>
+                  );
+                })}
+              </View>
+            </Animated.View>
+
+            {/* 모프 도트 — 큰 상태: 원형 링 / 컬랩스: 하단 진행선. 점이 곧 데이터, 배열만 바뀐다 */}
+            <View
+              onLayout={(e) => {
+                const y = Math.round(e.nativeEvent.layout.y);
+                if (Math.abs(y - dotBoxY) > 1) setDotBoxY(y);
               }}
+              style={{ alignSelf: 'center', marginTop: 6, width: RING_BIG, height: RING_BIG }}
             >
-              <Ring pct={pct} size={RING_BIG} trackColor={hp.track}>
+              <MorphDots pct={pct} t={t} containerX={(CARD_W - RING_BIG) / 2} containerY={dotBoxY} track={hp.track} />
+              {/* 큰 상태 센터 콘텐츠 — 컬랩스 전에 사라진다 (컴팩트 정보는 좌측 블록 전담, 이중 표기 금지) */}
+              <Animated.View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', opacity: centerOpacity }}>
                 <View style={{ alignItems: 'center' }}>
                   <Text style={{ fontSize: 15, color: hp.dim }}>이번 주</Text>
                   <Text style={{ fontSize: 53, fontWeight: '900', color: colors.tang, lineHeight: 57.5 }}>
@@ -366,8 +447,8 @@ export default function OwnerHome() {
                     )}
                   </View>
                 </View>
-              </Ring>
-            </Animated.View>
+              </Animated.View>
+            </View>
 
             {/* big-state goal message */}
             <Animated.Text style={[s.bigMsg, { opacity: bigMsgOpacity, color: hp.textSoft }]}>
@@ -1022,9 +1103,8 @@ const s = StyleSheet.create({
     position: 'absolute', top: 14, left: 16, zIndex: 4,
     borderRadius: 99, paddingVertical: 6, paddingHorizontal: 12,
   },
-  info: { position: 'absolute', left: 18, top: 40, width: CARD_W * 0.46, zIndex: 3 }, // 커진 링(0.71)과 겹치지 않는 폭
-  miniBar: { height: 4, borderRadius: 99, marginTop: 6, overflow: 'hidden' },
-  miniBarFill: { height: 4, borderRadius: 99, backgroundColor: colors.volt },
+  info: { position: 'absolute', left: 18, top: 40, width: CARD_W * 0.46, zIndex: 3 }, // 요일 스탬프와 좌우 분담
+  stampBox: { position: 'absolute', right: 18, top: 46, zIndex: 3, alignItems: 'flex-end' }, // 링이 떠난 자리 (컬랩스)
   goalChip: { marginTop: 8, borderRadius: 99, paddingVertical: 4, paddingHorizontal: 10 },
   bigMsg: { textAlign: 'center', marginTop: 8, fontSize: 15, fontWeight: '700' },
   // 미니 레이스 빕 세트 — 흰 몸통 + 파스텔 상단 밴드 + 펀치홀 (실제 빕의 조형)

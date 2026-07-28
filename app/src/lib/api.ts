@@ -1072,6 +1072,7 @@ export interface Fitness {
   weekRuns: number;
   avgPaceSec: number | null;
   streakDays: number;   // 러닝 있는 연속 일수 (오늘 또는 어제부터 역산)
+  runDays: boolean[];   // KST 월~일 — 이번 주 러닝 있는 요일 (홈 히어로 요일 스탬프)
   weeks: FitnessWeek[]; // 최근 8주 (과거→현재)
   recent: FitnessRecent[];
 }
@@ -1141,13 +1142,20 @@ export async function fetchFitness(): Promise<Fitness> {
     }
   }
 
+  // 요일 스탬프 — 이번 주(KST 월~일) 러닝이 있었던 요일
+  const runDays = Array.from({ length: 7 }, () => false);
+  thisWeek.forEach((r) => {
+    const idx = Math.floor((r.at.getTime() - weekStart) / 86400_000);
+    if (idx >= 0 && idx < 7) runDays[idx] = true;
+  });
+
   return {
     dogId: d?.id ?? null,
     dogName: d?.name ?? '반려견',
     dogPhotoUrl: d?.photo_url ?? null,
     goalKm: Number(d?.weekly_goal_km ?? 15),
     fitnessAge,
-    weekKm, weekRuns: thisWeek.length, avgPaceSec, streakDays, weeks, recent,
+    weekKm, weekRuns: thisWeek.length, avgPaceSec, streakDays, weeks, recent, runDays,
   };
 }
 
