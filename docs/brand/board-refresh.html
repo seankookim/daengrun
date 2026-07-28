@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>댕런 — Visual Refresh (v2 of the current system)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Archivo:ital,wght@0,400;0,600;0,700;0,800;0,900;1,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+  :root{
+    /* ── refreshed tokens (evolution, not revolution) ── */
+    --forest:#0F1D13;        /* deepened from #132117 — richer anchor */
+    --forest-2:#1A2E20;
+    --volt:#C6F542;          /* +sat +lum from #B9F23A — calibrated for cream bg */
+    --volt-deep:#7FA818;
+    --coral:#FF5C3D;         /* tightened from #FF6347 — punchier numbers */
+    --coral-text:#D8431F;
+    --cream:#F8F6F0;         /* one step warmer than #F8F7F3 */
+    --paper:#FFFFFF;
+    --clay:#EDE8DA;          /* NEW: warm mid-neutral — chips, wells */
+    --hairline:#DCD6C4;
+    --ink:#15180F;
+    --dim:#6D6B5C;
+    --pastel-1:#DDF0A6; --pastel-2:#C3D9AE; --pastel-3:#FFCDB6; --pastel-4:#F2DA96;
+    --r:24px;
+    --disp:'Black Han Sans','Archivo',sans-serif;
+    --num:'Archivo','Pretendard Variable',sans-serif;
+    --body:'Pretendard Variable','Pretendard',-apple-system,sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{background:var(--cream);color:var(--ink);font-family:var(--body);-webkit-font-smoothing:antialiased;
+    background-image:radial-gradient(rgba(15,29,19,.035) 1px,transparent 1px);background-size:22px 22px}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 32px}
+
+  /* ───────── masthead ───────── */
+  header{padding:64px 0 46px;border-bottom:1.5px solid var(--hairline)}
+  .kicker{display:inline-flex;align-items:center;gap:8px;font-size:11px;font-weight:800;letter-spacing:.22em;
+    color:var(--volt-deep);text-transform:uppercase;margin-bottom:18px}
+  .kicker::before{content:'';width:26px;height:2px;background:var(--volt-deep)}
+  h1{font-family:var(--disp);font-size:clamp(40px,6vw,64px);line-height:1.04;font-weight:400;letter-spacing:-.01em}
+  h1 .accent{color:transparent;-webkit-text-stroke:2px var(--forest)}
+  .lede{margin-top:18px;max-width:560px;font-size:15px;line-height:1.7;color:var(--dim)}
+  .lede b{color:var(--ink);font-weight:700}
+
+  /* ───────── section chrome ───────── */
+  section{padding:56px 0;border-bottom:1.5px solid var(--hairline)}
+  .sec-head{display:flex;align-items:baseline;gap:14px;margin-bottom:30px}
+  .sec-num{font-family:var(--num);font-weight:900;font-size:13px;color:var(--coral);letter-spacing:.05em}
+  .sec-title{font-family:var(--disp);font-size:26px;font-weight:400}
+  .sec-note{margin-left:auto;font-size:12px;color:var(--dim);max-width:320px;text-align:right;line-height:1.5}
+
+  /* ───────── 01 wordmark ───────── */
+  .logo-stage{display:grid;grid-template-columns:1.35fr 1fr;gap:16px}
+  @media(max-width:840px){.logo-stage{grid-template-columns:1fr}}
+  .logo-hero{background:var(--forest);border-radius:var(--r);padding:56px 48px;position:relative;overflow:hidden;
+    display:flex;flex-direction:column;justify-content:center;min-height:320px}
+  .logo-hero::after{content:'';position:absolute;right:-60px;top:-60px;width:260px;height:260px;border-radius:50%;
+    border:1.5px solid rgba(198,245,66,.22)}
+  .logo-hero::before{content:'';position:absolute;right:-20px;top:-20px;width:180px;height:180px;border-radius:50%;
+    border:1.5px solid rgba(198,245,66,.14)}
+  .wordmark{font-family:var(--disp);font-size:clamp(56px,8vw,88px);color:#fff;line-height:.95;letter-spacing:-.015em;position:relative;display:inline-block}
+  .wordmark .cut{color:var(--volt);position:relative}
+  .wordmark .cut::after{content:'';position:absolute;left:0;right:0;top:54%;height:7px;background:var(--forest);transform:skewY(-6deg)}
+  .wm-sub{margin-top:16px;font-family:var(--num);font-weight:800;font-size:12px;letter-spacing:.42em;color:rgba(255,255,255,.55)}
+  .wm-bib{position:absolute;left:48px;bottom:34px;background:var(--volt);color:var(--forest);border-radius:99px;
+    padding:7px 16px;font-family:var(--num);font-weight:900;font-size:13px;letter-spacing:.02em}
+  .logo-cells{display:grid;grid-template-rows:1fr 1fr;gap:16px}
+  .logo-cell{background:var(--paper);border:1.5px solid var(--hairline);border-radius:var(--r);padding:26px 30px;
+    display:flex;align-items:center;gap:22px}
+  .mark{width:78px;height:78px;flex:none;border-radius:26px;background:var(--forest);position:relative;overflow:hidden}
+  .mark svg{position:absolute;inset:0}
+  .logo-cell.on-volt{background:var(--volt);border-color:var(--volt)}
+  .logo-cell.on-volt .mark{background:var(--forest)}
+  .logo-cell h4{font-size:14px;font-weight:800;margin-bottom:5px}
+  .logo-cell p{font-size:12px;line-height:1.55;color:var(--dim)}
+  .logo-cell.on-volt p{color:rgba(15,29,19,.65)}
+
+  /* ───────── 02 palette ───────── */
+  .pal{display:grid;grid-template-columns:repeat(12,1fr);gap:12px}
+  @media(max-width:840px){.pal{grid-template-columns:repeat(6,1fr)}}
+  .sw{border-radius:18px;padding:14px 12px;min-height:150px;display:flex;flex-direction:column;justify-content:flex-end;
+    border:1.5px solid transparent;position:relative}
+  .sw .nm{font-size:11px;font-weight:800}
+  .sw .hx{font-family:var(--num);font-size:10px;font-weight:600;opacity:.65;margin-top:2px}
+  .sw .delta{position:absolute;top:12px;left:12px;font-size:9px;font-weight:800;letter-spacing:.08em;
+    padding:3px 7px;border-radius:99px;background:rgba(255,255,255,.85);color:var(--ink)}
+  .sw.dark .delta{background:rgba(255,255,255,.16);color:#fff}
+  .c-forest{grid-column:span 4;background:var(--forest);color:#fff}
+  .c-volt{grid-column:span 4;background:var(--volt);color:var(--forest)}
+  .c-coral{grid-column:span 4;background:var(--coral);color:#fff}
+  .c-cream{grid-column:span 3;background:var(--cream);border-color:var(--hairline)}
+  .c-clay{grid-column:span 3;background:var(--clay)}
+  .c-paper{grid-column:span 2;background:#fff;border-color:var(--hairline)}
+  .c-hair{grid-column:span 2;background:var(--hairline)}
+  .c-dim{grid-column:span 2;background:var(--dim);color:#fff}
+  .c-p1{grid-column:span 3;background:var(--pastel-1)}
+  .c-p2{grid-column:span 3;background:var(--pastel-2)}
+  .c-p3{grid-column:span 3;background:var(--pastel-3)}
+  .c-p4{grid-column:span 3;background:var(--pastel-4)}
+
+  /* ───────── 03 type ───────── */
+  .type-grid{display:grid;grid-template-columns:1.2fr .8fr;gap:16px}
+  @media(max-width:840px){.type-grid{grid-template-columns:1fr}}
+  .type-card{background:var(--paper);border:1.5px solid var(--hairline);border-radius:var(--r);padding:34px 36px}
+  .type-row{padding:18px 0;border-bottom:1px dashed var(--hairline);display:flex;align-items:baseline;gap:20px}
+  .type-row:last-child{border-bottom:none}
+  .type-tag{flex:none;width:96px;font-family:var(--num);font-size:10px;font-weight:800;letter-spacing:.14em;color:var(--dim);text-transform:uppercase}
+  .t-display{font-family:var(--disp);font-size:40px;line-height:1.05}
+  .t-num{font-family:var(--num);font-weight:900;font-size:44px;color:var(--coral);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+  .t-num small{font-size:16px;color:var(--dim);font-weight:700}
+  .t-head{font-size:17px;font-weight:800}
+  .t-body{font-size:14px;line-height:1.65;font-weight:500;max-width:400px}
+  .t-label{font-size:11.5px;font-weight:700;letter-spacing:.02em;color:var(--dim)}
+  .type-rules{background:var(--forest);color:#fff;border-radius:var(--r);padding:34px 36px}
+  .type-rules h4{font-family:var(--disp);font-size:19px;font-weight:400;margin-bottom:18px;color:var(--volt)}
+  .rule{display:flex;gap:12px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.09);font-size:13px;line-height:1.55}
+  .rule:last-child{border:none}
+  .rule .no{flex:none;font-family:var(--num);font-weight:900;font-size:11px;color:var(--volt);padding-top:2px}
+  .rule b{color:var(--volt)}
+
+  /* ───────── 04 components ───────── */
+  .comp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  @media(max-width:840px){.comp-grid{grid-template-columns:1fr}}
+  .comp{background:var(--paper);border:1.5px solid var(--hairline);border-radius:var(--r);padding:26px;display:flex;flex-direction:column;gap:14px}
+  .comp h5{font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
+  .btn{border:none;cursor:pointer;font-family:var(--body);border-radius:16px;padding:15px 22px;font-size:14.5px;font-weight:800;
+    display:flex;align-items:center;justify-content:center;gap:8px;transition:transform .15s}
+  .btn:hover{transform:translateY(-1px)}
+  .btn-volt{background:var(--volt);color:var(--forest);box-shadow:0 4px 14px rgba(198,245,66,.45)}
+  .btn-ink{background:var(--forest);color:var(--volt)}
+  .btn-ghost{background:transparent;border:1.5px solid var(--hairline);color:var(--ink);font-weight:700}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{border-radius:99px;padding:9px 15px;font-size:12.5px;font-weight:700;background:var(--clay);color:var(--ink)}
+  .chip.sel{background:var(--forest);color:var(--volt)}
+  .chip.volt{background:var(--pastel-1);color:var(--volt-deep)}
+  .stat-tile{background:var(--forest);border-radius:20px;padding:20px;color:#fff;position:relative;overflow:hidden}
+  .stat-tile::after{content:'';position:absolute;right:-30px;bottom:-30px;width:110px;height:110px;border-radius:50%;border:1.5px solid rgba(198,245,66,.25)}
+  .stat-tile .lb{font-size:11px;font-weight:700;color:rgba(255,255,255,.55)}
+  .stat-tile .vl{font-family:var(--num);font-weight:900;font-size:36px;color:var(--volt);margin-top:4px;font-variant-numeric:tabular-nums}
+  .stat-tile .vl small{font-size:14px;color:rgba(255,255,255,.5);font-weight:700}
+  .bib{display:inline-flex;align-items:baseline;gap:6px;background:var(--forest);border:1.5px solid rgba(198,245,66,.5);
+    border-radius:99px;padding:8px 18px;font-family:var(--num);font-weight:900;font-size:19px;color:var(--coral);font-variant-numeric:tabular-nums}
+  .bib small{font-size:11px;color:var(--cream);font-weight:700}
+  .review-card{border:1.5px solid var(--hairline);border-radius:18px;padding:16px;display:flex;gap:12px;align-items:flex-start}
+  .avatar{width:42px;height:42px;border-radius:14px;background:linear-gradient(135deg,var(--pastel-2),var(--pastel-1));
+    display:flex;align-items:center;justify-content:center;font-size:20px;flex:none}
+  .review-card .who{font-size:13px;font-weight:800}
+  .review-card .txt{font-size:12px;color:var(--dim);line-height:1.5;margin-top:3px}
+  .stars{color:var(--coral);font-size:11px;letter-spacing:1px}
+
+  /* ───────── 05 app mock ───────── */
+  .mock-stage{display:grid;grid-template-columns:340px 1fr;gap:40px;align-items:center}
+  @media(max-width:840px){.mock-stage{grid-template-columns:1fr}}
+  .phone{width:340px;background:var(--forest);border-radius:52px;padding:12px;box-shadow:0 30px 70px rgba(15,29,19,.28)}
+  .screen{background:var(--cream);border-radius:42px;overflow:hidden;height:700px;position:relative;display:flex;flex-direction:column}
+  .p-status{display:flex;justify-content:space-between;padding:16px 26px 6px;font-size:12px;font-weight:800}
+  .p-body{flex:1;overflow:hidden;padding:8px 14px 0}
+  .p-greet{display:flex;align-items:center;gap:11px;padding:8px 8px 14px}
+  .p-greet .av{width:44px;height:44px;border-radius:16px;background:linear-gradient(135deg,var(--pastel-3),var(--pastel-4));display:flex;align-items:center;justify-content:center;font-size:22px}
+  .p-greet .t1{font-size:14.5px;font-weight:800}
+  .p-greet .t2{font-size:10.5px;color:var(--dim);margin-top:1px}
+  .p-hero{background:#fff;border:1.5px solid var(--hairline);border-radius:26px;padding:20px;position:relative;overflow:hidden;text-align:center}
+  .ring{width:196px;height:196px;margin:6px auto 0;border-radius:50%;position:relative;
+    background:conic-gradient(var(--volt) 0 62%,#E4E9D8 62% 100%)}
+  .ring::before{content:'';position:absolute;inset:11px;border-radius:50%;background:#fff}
+  .ring .photo{position:absolute;inset:20px;border-radius:50%;background:linear-gradient(160deg,#C8B69A,#8F7B5E 60%,#6B5B44);overflow:hidden;display:flex;align-items:flex-end;justify-content:center}
+  .ring .photo span{font-size:74px;line-height:1;transform:translateY(8px)}
+  .ring .bib{position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);padding:6px 14px;font-size:15px}
+  .p-hero .age{position:absolute;top:14px;right:14px;background:var(--clay);border-radius:99px;padding:6px 11px;font-size:10px;font-weight:800}
+  .p-hero .age b{color:var(--volt-deep)}
+  .p-hero .wk{position:absolute;top:14px;left:14px;background:var(--clay);border-radius:99px;padding:6px 11px;font-size:10px;font-weight:800}
+  .p-hero .msg{margin-top:18px;font-size:11.5px;font-weight:700;color:var(--dim)}
+  .p-find{margin-top:11px;background:var(--forest);border:1.5px solid var(--volt);border-radius:22px;padding:16px;position:relative;overflow:hidden;color:#fff;text-align:left}
+  .p-find::after{content:'';position:absolute;right:-36px;top:-8px;width:130px;height:130px;border-radius:50%;border:1px solid rgba(198,245,66,.35);box-shadow:0 0 0 26px rgba(198,245,66,.06),0 0 0 52px rgba(198,245,66,.04)}
+  .p-find .t{font-family:var(--disp);font-size:16px;letter-spacing:.01em}
+  .p-find .d{font-size:10px;color:rgba(255,255,255,.55);margin-top:4px;line-height:1.5}
+  .p-find .cta{margin-top:11px;background:var(--volt);color:var(--forest);border-radius:13px;padding:11px;text-align:center;font-size:12px;font-weight:900;width:78%}
+  .p-strip{margin-top:11px}
+  .p-strip .h{display:flex;align-items:baseline;gap:6px;padding:0 6px 8px}
+  .p-strip .h b{font-size:13px;font-weight:800}
+  .p-strip .h span{font-size:9.5px;color:var(--dim)}
+  .p-strip .row{display:flex;gap:8px;overflow:hidden}
+  .p-ph{flex:none;width:96px;height:118px;border-radius:18px;position:relative;overflow:hidden}
+  .p-ph:nth-child(1){width:118px;background:linear-gradient(160deg,#A8C08A,#5F7A48)}
+  .p-ph:nth-child(2){background:linear-gradient(160deg,#D9B98F,#9A7B54)}
+  .p-ph:nth-child(3){background:linear-gradient(160deg,#9FB6C9,#5E7A93)}
+  .p-ph .tag{position:absolute;left:7px;bottom:7px;background:rgba(15,29,19,.66);border-radius:99px;padding:3px 8px;font-size:9px;font-weight:900;color:var(--volt)}
+  .p-ph .pup{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:34px;opacity:.9}
+  .p-nav{display:flex;justify-content:space-around;padding:13px 10px 26px;background:#fff;border-top:1.5px solid var(--hairline)}
+  .p-nav div{font-size:10px;font-weight:700;color:var(--dim);text-align:center}
+  .p-nav div.on{color:var(--forest);font-weight:900}
+  .p-nav div span{display:block;font-size:16px;margin-bottom:2px}
+  .mock-notes h3{font-family:var(--disp);font-size:24px;margin-bottom:16px}
+  .mock-notes .n{display:flex;gap:12px;padding:12px 0;border-bottom:1px dashed var(--hairline);font-size:13.5px;line-height:1.6;color:var(--dim)}
+  .mock-notes .n:last-child{border:none}
+  .mock-notes .n b{color:var(--ink)}
+  .mock-notes .dot{flex:none;width:8px;height:8px;border-radius:50%;background:var(--coral);margin-top:7px}
+
+  footer{padding:44px 0 80px;font-size:12px;color:var(--dim);line-height:1.7}
+  footer b{color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="kicker">Daengrun Rebrand · Option A</div>
+    <h1>비주얼 리프레시<br><span class="accent">같은 DNA, 더 단단한 근육</span></h1>
+    <p class="lede">지금의 <b>volt × forest 애슬레틱 에디토리얼</b>을 버리지 않고 조인다.
+    토큰을 재보정하고, 워드마크에 '컷'을 넣고, 웜 뉴트럴(clay) 한 층을 추가해
+    화면이 덜 차갑게 숨 쉬게 한다. 앱 코드 기준 마이그레이션 비용이 가장 낮은 방향.</p>
+  </header>
+
+  <!-- 01 wordmark -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">01</span>
+      <span class="sec-title">워드마크 &amp; 마크</span>
+      <span class="sec-note">'런'의 스피드 컷 — 달리는 브랜드라는 걸 글자가 직접 말한다</span>
+    </div>
+    <div class="logo-stage">
+      <div class="logo-hero">
+        <div>
+          <span class="wordmark">댕<span class="cut">런</span></span>
+          <div class="wm-sub">DAENGRUN — RUN CLUB FOR DOGS</div>
+        </div>
+        <div class="wm-bib">BIB № 001</div>
+      </div>
+      <div class="logo-cells">
+        <div class="logo-cell">
+          <div class="mark">
+            <svg viewBox="0 0 78 78"><g fill="none" stroke="#C6F542" stroke-width="5" stroke-linecap="round">
+              <path d="M14 52 Q30 24 44 40 T70 34" />
+            </g>
+            <circle cx="24" cy="30" r="4.5" fill="#C6F542"/><circle cx="34" cy="24" r="4.5" fill="#C6F542"/>
+            <circle cx="45" cy="24" r="4.5" fill="#C6F542"/><circle cx="55" cy="30" r="4.5" fill="#C6F542"/>
+            </svg>
+          </div>
+          <div>
+            <h4>트레일 마크</h4>
+            <p>발가락 네 개 + 페이스 곡선. 발자국이 아니라 '궤적'을 그린다 — GPS 트레이스와 같은 언어.</p>
+          </div>
+        </div>
+        <div class="logo-cell on-volt">
+          <div class="mark">
+            <svg viewBox="0 0 78 78">
+              <text x="39" y="52" text-anchor="middle" font-family="'Black Han Sans',sans-serif" font-size="34" fill="#C6F542">댕</text>
+            </svg>
+          </div>
+          <div>
+            <h4>앱 아이콘 · 리버스</h4>
+            <p>volt 위 forest, forest 위 volt — 두 색이 서로의 배경. 아이콘은 '댕' 한 글자로 충분.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 02 palette -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">02</span>
+      <span class="sec-title">팔레트 재보정</span>
+      <span class="sec-note">전부 미세 조정 — 기존 화면과 나란히 놓아도 '고장'이 아니라 '선명해짐'으로 읽히는 폭</span>
+    </div>
+    <div class="pal">
+      <div class="sw dark c-forest"><span class="delta">#132117 → 딥</span><span class="nm">Forest</span><span class="hx">#0F1D13</span></div>
+      <div class="sw c-volt"><span class="delta">채도 ↑</span><span class="nm">Volt</span><span class="hx">#C6F542</span></div>
+      <div class="sw dark c-coral"><span class="delta">#FF6347 → 펀치</span><span class="nm">Coral</span><span class="hx">#FF5C3D</span></div>
+      <div class="sw c-cream"><span class="delta">한 톤 웜</span><span class="nm">Cream</span><span class="hx">#F8F6F0</span></div>
+      <div class="sw c-clay"><span class="delta">NEW</span><span class="nm">Clay</span><span class="hx">#EDE8DA</span></div>
+      <div class="sw c-paper"><span class="nm">Paper</span><span class="hx">#FFFFFF</span></div>
+      <div class="sw c-hair"><span class="nm">Hairline</span><span class="hx">#DCD6C4</span></div>
+      <div class="sw dark c-dim"><span class="nm">Dim</span><span class="hx">#6D6B5C</span></div>
+      <div class="sw c-p1"><span class="nm">Pastel Lime</span><span class="hx">#DDF0A6</span></div>
+      <div class="sw c-p2"><span class="nm">Pastel Sage</span><span class="hx">#C3D9AE</span></div>
+      <div class="sw c-p3"><span class="nm">Pastel Peach</span><span class="hx">#FFCDB6</span></div>
+      <div class="sw c-p4"><span class="nm">Pastel Honey</span><span class="hx">#F2DA96</span></div>
+    </div>
+  </section>
+
+  <!-- 03 type -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">03</span>
+      <span class="sec-title">타이포그래피</span>
+      <span class="sec-note">디스플레이에만 새 얼굴 — 본문은 Pretendard 유지 (마이그레이션 0)</span>
+    </div>
+    <div class="type-grid">
+      <div class="type-card">
+        <div class="type-row"><span class="type-tag">Display</span><span class="t-display">오늘도 달린다, 초코</span></div>
+        <div class="type-row"><span class="type-tag">Numeric</span><span class="t-num">12.4<small> / 15 km</small></span></div>
+        <div class="type-row"><span class="type-tag">Heading</span><span class="t-head">이번 주 러닝 리포트</span></div>
+        <div class="type-row"><span class="type-tag">Body</span><span class="t-body">러너가 담아온 순간과 함께, 아이의 체력 나이가 실제 나이보다 젊어지는 과정을 기록합니다.</span></div>
+        <div class="type-row"><span class="type-tag">Label</span><span class="t-label">평균 페이스 · 연속 기록 · 주간 목표</span></div>
+      </div>
+      <div class="type-rules">
+        <h4>위계 규칙 (기존 유지 + 강화)</h4>
+        <div class="rule"><span class="no">R1</span><div><b>900은 숫자와 화면 제목만.</b> 본문이 전부 굵으면 위계가 죽는다 — 기존 ui-audit 원칙 그대로.</div></div>
+        <div class="rule"><span class="no">R2</span><div>디스플레이(Black Han Sans)는 <b>화면당 1회</b> — 히어로 카피 또는 섹션 넘버링에만.</div></div>
+        <div class="rule"><span class="no">R3</span><div>숫자는 <b>Archivo 900 + tabular-nums</b> — 코랄은 '벌어들인 숫자'(거리·기록)에만, 가격은 ink.</div></div>
+        <div class="rule"><span class="no">R4</span><div>다크 앵커는 <b>화면당 1개</b> — forest 카드가 둘이면 어느 쪽도 앵커가 아니다.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 04 components -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">04</span>
+      <span class="sec-title">컴포넌트 리터치</span>
+      <span class="sec-note">라디우스 24 통일 · clay 웜 뉴트럴 · 아키텍처럴 섀도 유지</span>
+    </div>
+    <div class="comp-grid">
+      <div class="comp">
+        <h5>Buttons</h5>
+        <button class="btn btn-volt">주변 러너 검색 시작 ➤</button>
+        <button class="btn btn-ink">장바구니 담기</button>
+        <button class="btn btn-ghost">직접 설정 ›</button>
+      </div>
+      <div class="comp">
+        <h5>Chips · Race Bib</h5>
+        <div class="chips">
+          <span class="chip sel">3km</span><span class="chip">5km</span><span class="chip">7km</span>
+          <span class="chip volt">⚡ 지금 바로</span>
+        </div>
+        <div><span class="bib">12.4 <small>/ 15km</small></span></div>
+        <div class="chips"><span class="chip" style="background:var(--pastel-3);color:#8a3d24">💩 응가 ×2</span>
+        <span class="chip" style="background:var(--pastel-4);color:#7a5c12">🍖 간식 ×1</span></div>
+      </div>
+      <div class="comp">
+        <h5>Cards</h5>
+        <div class="stat-tile">
+          <div class="lb">이번 주</div>
+          <div class="vl">12.4 <small>km</small></div>
+        </div>
+        <div class="review-card">
+          <div class="avatar">🐕</div>
+          <div>
+            <div class="who">초코 보호자 <span class="stars">★★★★★</span></div>
+            <div class="txt">"페이스 조절이 정말 섬세해요. 아이가 러너님만 기다려요."</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 05 app mock -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">05</span>
+      <span class="sec-title">홈 화면 적용</span>
+      <span class="sec-note">오늘 커밋한 '생기 패스' 레이아웃 그대로 — 토큰만 리프레시 버전</span>
+    </div>
+    <div class="mock-stage">
+      <div class="phone">
+        <div class="screen">
+          <div class="p-status"><span>9:41</span><span>●●●</span></div>
+          <div class="p-body">
+            <div class="p-greet">
+              <div class="av">🐕</div>
+              <div>
+                <div class="t1">안녕하세요, 초코 보호자님</div>
+                <div class="t2">초코와 함께 건강한 하루 보내세요!</div>
+              </div>
+            </div>
+            <div class="p-hero">
+              <span class="wk">이번 주 ▾</span>
+              <span class="age">체력 나이 <b>1.8살</b></span>
+              <div class="ring">
+                <div class="photo"><span>🐕‍🦺</span></div>
+                <span class="bib">12.4 <small>/ 15km</small></span>
+              </div>
+              <div class="msg">목표까지 2.6km — 좋은 페이스예요</div>
+            </div>
+            <div class="p-find">
+              <div class="t">지금 러너 찾기</div>
+              <div class="d">주변 러너 3명이 바로 받을 수 있어요<br>결제·코스는 자동 — 확인만 하면 끝</div>
+              <div class="cta">주변 러너 검색 시작 ➤</div>
+            </div>
+            <div class="p-strip">
+              <div class="h"><b>최근 순간</b><span>러너가 담아온 초코의 러닝</span></div>
+              <div class="row">
+                <div class="p-ph"><div class="pup">🐕</div><span class="tag">3.2km · 7.26</span></div>
+                <div class="p-ph"><div class="pup">🦮</div><span class="tag">5km · 7.24</span></div>
+                <div class="p-ph"><div class="pup">🐩</div><span class="tag">3km · 7.21</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="p-nav">
+            <div class="on"><span>⌂</span>홈</div>
+            <div><span>▦</span>일정</div>
+            <div><span>♥</span>커뮤니티</div>
+            <div><span>▣</span>샵</div>
+            <div><span>◔</span>마이</div>
+          </div>
+        </div>
+      </div>
+      <div class="mock-notes">
+        <h3>무엇이 달라졌나</h3>
+        <div class="n"><span class="dot"></span><div><b>Clay 뉴트럴 층.</b> 흰 카드와 크림 배경 사이에 웜 뉴트럴이 한 층 생겨 칩·웰이 하얗게 떠 보이지 않는다.</div></div>
+        <div class="n"><span class="dot"></span><div><b>디스플레이 서체.</b> find-now 타이틀·화면 제목이 Black Han Sans로 — '앱 UI'에서 '러닝 클럽 포스터'로 톤이 이동.</div></div>
+        <div class="n"><span class="dot"></span><div><b>토큰 미세 보정.</b> forest는 더 깊게, volt는 크림 위에서 더 정확하게, coral은 더 펀치 있게 — 코드에선 theme.ts 여섯 줄.</div></div>
+        <div class="n"><span class="dot"></span><div><b>레이스 빕 모티프 승격.</b> 오늘 만든 빕 필을 브랜드 전체 모티프로 — 리포트 공유 카드, 러너 프로필, 샵 배지까지 같은 언어.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <b>마이그레이션 비용:</b> theme.ts 토큰 6줄 + 디스플레이 폰트 1종 번들 + 워드마크 에셋 교체. 레이아웃 변경 없음.<br>
+    모든 사진 자리는 실사진(강아지 프로필·runs.photos)이 채운다 — 이 보드의 이모지는 자리 표시일 뿐, 앱에는 스톡/일러스트를 넣지 않는다 (정직 원칙 유지).
+  </footer>
+
+</div>
+</body>
+</html>

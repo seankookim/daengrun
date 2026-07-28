@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>도그스하이 — Icon Lab v3 (풀블리드 스택 × 마스코트 재론)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Archivo:wght@600;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+  :root{
+    --forest:#0F1D13;--forest2:#1A2E20;--volt:#C6F542;--volt-deep:#7FA818;
+    --coral:#FF5C3D;--cream:#F8F6F0;--clay:#EDE8DA;--hairline:#DCD6C4;
+    --ink:#15180F;--dim:#6D6B5C;--fur:#F6F1E4;
+    --disp:'Black Han Sans',sans-serif;--num:'Archivo',sans-serif;
+    --body:'Pretendard Variable',-apple-system,sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--cream);color:var(--ink);font-family:var(--body);-webkit-font-smoothing:antialiased;
+    background-image:radial-gradient(rgba(15,29,19,.035) 1px,transparent 1px);background-size:22px 22px}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 32px}
+  header{padding:56px 0 38px;border-bottom:1.5px solid var(--hairline)}
+  .kicker{display:inline-flex;align-items:center;gap:8px;font-size:11px;font-weight:800;letter-spacing:.22em;
+    color:var(--volt-deep);text-transform:uppercase;margin-bottom:16px}
+  .kicker::before{content:'';width:26px;height:2px;background:var(--volt-deep)}
+  h1{font-family:var(--disp);font-size:clamp(32px,4.6vw,48px);line-height:1.1;font-weight:400}
+  .lede{margin-top:14px;max-width:640px;font-size:14px;line-height:1.7;color:var(--dim)}
+  .lede b{color:var(--ink)}
+  section{padding:46px 0;border-bottom:1.5px solid var(--hairline)}
+  .sec-head{display:flex;align-items:baseline;gap:14px;margin-bottom:26px}
+  .sec-num{font-family:var(--num);font-weight:900;font-size:13px;color:var(--coral)}
+  .sec-title{font-family:var(--disp);font-size:23px;font-weight:400}
+  .sec-note{margin-left:auto;font-size:12px;color:var(--dim);max-width:340px;text-align:right;line-height:1.5}
+
+  /* ─── base icon 180, full-bleed type ───
+     플렉스 센터링 — 절대 top 값 대신 글자 블록 자체를 수직 중앙 정렬 (폰트 내부 여백에 흔들리지 않음) */
+  .icon{width:180px;height:180px;border-radius:40px;background:var(--forest);position:relative;overflow:hidden;flex:none;
+    display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .icon .txt{font-family:var(--disp);color:#fff;line-height:.86;text-align:center}
+  /* A: justified full-bleed stack */
+  .icA .l1{font-size:55px;letter-spacing:-1px}
+  .icA .l2{font-size:86px;color:var(--volt);letter-spacing:-3px;margin-top:9px}
+  /* B: stack + mascot front — 글자는 위로 몰고 아래는 마스코트 존 */
+  .icB{justify-content:flex-start;padding-top:14px}
+  .icB .l1{font-size:49px;letter-spacing:-1px}
+  .icB .l2{font-size:76px;color:var(--volt);letter-spacing:-3px;margin-top:7px}
+  .icB .mascot{position:absolute;left:50%;bottom:-8px;transform:translateX(-50%);width:88px}
+  /* C: stack + peek (Sean's pick) — 센터링은 A와 동일, 빼꼼이만 절대 위치 */
+  .icC .l1{font-size:52px;letter-spacing:-1px}
+  .icC .l2{font-size:82px;color:var(--volt);letter-spacing:-3px;margin-top:9px}
+  .icC .peek{position:absolute;right:5px;top:-3px;width:56px;transform:rotate(7deg)}
+  /* D: 하이 + mascot */
+  .icD{justify-content:flex-start;padding-top:20px}
+  .icD .l2{font-size:90px;color:var(--volt);letter-spacing:-3px}
+  .icD .mascot{position:absolute;left:50%;bottom:-10px;transform:translateX(-50%);width:100px}
+  /* E: mascot solo */
+  .icE .mascot{position:absolute;left:50%;bottom:-12px;transform:translateX(-50%);width:144px}
+  /* F: 하이 solo full-bleed */
+  .icF .l2{font-size:96px;color:var(--volt);letter-spacing:-4px}
+
+  .lab{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  @media(max-width:900px){.lab{grid-template-columns:1fr 1fr}}
+  @media(max-width:640px){.lab{grid-template-columns:1fr}}
+  .slot{background:#fff;border:1.5px solid var(--hairline);border-radius:24px;padding:22px;display:flex;flex-direction:column;align-items:center}
+  .slot.fav{border:2px solid var(--volt-deep);position:relative}
+  .slot.fav::before{content:'SEAN PICK';position:absolute;top:-11px;left:20px;background:var(--volt);color:var(--forest);
+    font-family:var(--num);font-weight:900;font-size:9px;letter-spacing:.1em;border-radius:99px;padding:4px 10px}
+  .slot h4{font-size:13px;font-weight:800;align-self:flex-start}
+  .slot .sub{font-size:10.5px;color:var(--dim);align-self:flex-start;margin-top:3px;margin-bottom:16px}
+  .sizes{display:flex;align-items:flex-end;gap:18px;margin-top:16px}
+  .sz{display:flex;flex-direction:column;align-items:center;gap:6px}
+  .sz .cap{font-size:9px;font-weight:800;color:var(--dim);letter-spacing:.06em}
+  .scale60{width:64px;height:64px;overflow:hidden;border-radius:14px}
+  .scale60 .icon{transform:scale(.3555);transform-origin:top left}
+  .scale29{width:31px;height:31px;overflow:hidden;border-radius:7px}
+  .scale29 .icon{transform:scale(.1722);transform-origin:top left}
+  .verdict{margin-top:16px;align-self:stretch;border-top:1.5px dashed var(--hairline);padding-top:12px;font-size:11.5px;line-height:1.6;color:var(--dim)}
+  .verdict b{color:var(--ink)}
+  .chip{display:inline-block;font-size:9.5px;font-weight:800;border-radius:99px;padding:4px 10px;margin-bottom:7px}
+  .ok{background:#E4F3C4;color:#4a6410}
+  .meh{background:#FBEBC8;color:#8a6410}
+  .bad{background:#FFE3D6;color:#a03818}
+
+  /* ─── mascot ponder ─── */
+  .ponder{display:grid;grid-template-columns:1.05fr .95fr;gap:16px;margin-bottom:16px}
+  @media(max-width:840px){.ponder{grid-template-columns:1fr}}
+  .ponder-card{background:var(--forest);color:#fff;border-radius:24px;padding:32px}
+  .ponder-card h4{font-family:var(--disp);font-size:20px;color:var(--volt);font-weight:400;margin-bottom:16px}
+  .ponder-card p{font-size:13px;line-height:1.75;color:rgba(255,255,255,.78);margin-bottom:12px}
+  .ponder-card p b{color:#fff}
+  .ponder-card p:last-child{margin-bottom:0}
+  .autopsy{background:#fff;border:1.5px solid var(--hairline);border-radius:24px;padding:32px}
+  .autopsy h4{font-family:var(--disp);font-size:20px;font-weight:400;margin-bottom:16px}
+  .autopsy .row{display:flex;gap:12px;padding:10px 0;border-bottom:1px dashed var(--hairline);font-size:13px;line-height:1.65;color:var(--dim)}
+  .autopsy .row:last-child{border:none}
+  .autopsy .row b{color:var(--ink)}
+  .autopsy .x{flex:none;color:var(--coral);font-weight:900}
+
+  .treats{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  @media(max-width:840px){.treats{grid-template-columns:1fr}}
+  .treat{background:#fff;border:1.5px solid var(--hairline);border-radius:24px;padding:24px;text-align:center}
+  .treat.lead{border:2px solid var(--volt-deep)}
+  .treat .stage{height:170px;border-radius:18px;display:flex;align-items:flex-end;justify-content:center;overflow:hidden;margin-bottom:16px}
+  .treat h5{font-size:13.5px;font-weight:800}
+  .treat p{font-size:11.5px;color:var(--dim);line-height:1.65;margin-top:6px;text-align:left}
+  .treat p b{color:var(--ink)}
+
+  footer{padding:38px 0 80px;font-size:12px;color:var(--dim);line-height:1.7}
+  footer b{color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ── mascot v2: cream jindo, volt lives in the bandana not the fur ── -->
+  <svg width="0" height="0" style="position:absolute">
+    <defs>
+      <g id="jindo">
+        <!-- curled tail (jindo curl = donut) -->
+        <circle cx="80" cy="92" r="11" fill="#F6F1E4"/>
+        <circle cx="80" cy="92" r="4.5" fill="#0F1D13"/>
+        <!-- sitting body -->
+        <ellipse cx="50" cy="102" rx="28" ry="21" fill="#F6F1E4"/>
+        <rect x="35" y="86" width="9" height="28" rx="4.5" fill="#F6F1E4"/>
+        <rect x="56" y="86" width="9" height="28" rx="4.5" fill="#F6F1E4"/>
+        <!-- pointed jindo ears -->
+        <path d="M28 26 L34 2 L46 20 Z" fill="#F6F1E4"/>
+        <path d="M33 21 L35.5 9 L42 18 Z" fill="#FFCDB6"/>
+        <path d="M72 26 L66 2 L54 20 Z" fill="#F6F1E4"/>
+        <path d="M67 21 L64.5 9 L58 18 Z" fill="#FFCDB6"/>
+        <!-- head -->
+        <rect x="23" y="16" width="54" height="46" rx="22" fill="#F6F1E4"/>
+        <!-- face -->
+        <circle cx="40" cy="36" r="4" fill="#0F1D13"/>
+        <circle cx="60" cy="36" r="4" fill="#0F1D13"/>
+        <circle cx="41.5" cy="34.5" r="1.3" fill="#fff"/>
+        <circle cx="61.5" cy="34.5" r="1.3" fill="#fff"/>
+        <path d="M46 46 h8 l-4 5 z" fill="#0F1D13"/>
+        <path d="M50 51 q-4 4 -8 1 M50 51 q4 4 8 1" stroke="#0F1D13" stroke-width="2" fill="none" stroke-linecap="round"/>
+        <!-- volt bandana — 브랜드 컬러는 털이 아니라 장비에 -->
+        <path d="M27 59 L73 59 L50 80 Z" fill="#C6F542"/>
+        <path d="M27 59 L73 59 L69 66 L31 66 Z" fill="#AEDC2E"/>
+      </g>
+      <!-- head-only for treatments -->
+      <g id="jindoHead">
+        <path d="M18 34 L26 2 L42 26 Z" fill="#F6F1E4"/>
+        <path d="M82 34 L74 2 L58 26 Z" fill="#F6F1E4"/>
+        <path d="M24 27 L27.5 11 L36 23 Z" fill="#FFCDB6"/>
+        <path d="M76 27 L72.5 11 L64 23 Z" fill="#FFCDB6"/>
+        <rect x="12" y="20" width="76" height="62" rx="30" fill="#F6F1E4"/>
+        <circle cx="36" cy="47" r="5.5" fill="#0F1D13"/>
+        <circle cx="64" cy="47" r="5.5" fill="#0F1D13"/>
+        <circle cx="38" cy="45" r="1.8" fill="#fff"/>
+        <circle cx="66" cy="45" r="1.8" fill="#fff"/>
+        <path d="M44.5 60 h11 l-5.5 7 z" fill="#0F1D13"/>
+        <path d="M50 67 q-5 5 -11 1.5 M50 67 q5 5 11 1.5" stroke="#0F1D13" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+      </g>
+      <g id="jindoLine">
+        <path d="M18 34 L26 2 L42 26 M82 34 L74 2 L58 26" stroke="#C6F542" stroke-width="5" fill="none" stroke-linejoin="round"/>
+        <rect x="12" y="20" width="76" height="62" rx="30" stroke="#C6F542" stroke-width="5" fill="none"/>
+        <circle cx="36" cy="47" r="4" fill="#C6F542"/>
+        <circle cx="64" cy="47" r="4" fill="#C6F542"/>
+        <path d="M44.5 59 h11 l-5.5 7 z" fill="#C6F542"/>
+        <path d="M50 66 q-5 5 -11 1.5 M50 66 q5 5 11 1.5" stroke="#C6F542" stroke-width="3" fill="none" stroke-linecap="round"/>
+      </g>
+      <g id="jindoSil">
+        <path d="M18 34 L26 2 L42 26 Z M82 34 L74 2 L58 26 Z" fill="#0F1D13"/>
+        <rect x="12" y="20" width="76" height="62" rx="30" fill="#0F1D13"/>
+        <rect x="20" y="76" width="60" height="9" rx="4.5" fill="#C6F542"/>
+      </g>
+    </defs>
+  </svg>
+
+  <header>
+    <div class="kicker">Dogs High · Icon Lab v3</div>
+    <h1>글자로 꽉 채우고, 고블린은 은퇴시킨다</h1>
+    <p class="lede">피드백 반영 두 가지: <b>① 타이포가 아이콘을 가득 채운다</b> — 여백은 라운드 코너가 먹는 만큼만.
+    <b>② 마스코트 전면 재설계</b> — volt 털이 문제였다. 개를 volt로 칠하면 고블린이 되고,
+    <b>크림 진돗개에 volt 반다나</b>를 매면 브랜드가 된다. 색은 털이 아니라 장비의 것.</p>
+  </header>
+
+  <!-- 01 lab -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">01</span>
+      <span class="sec-title">풀블리드 아이콘 랩</span>
+      <span class="sec-note">C가 선두 — 빼꼼이는 새 마스코트로 교체됨</span>
+    </div>
+    <div class="lab">
+
+      <!-- A -->
+      <div class="slot">
+        <h4>A · 풀블리드 스택</h4>
+        <div class="sub">타이포만 — 두 줄이 프레임을 꽉 문다</div>
+        <div class="icon icA">
+          <div class="txt l1">도그스</div>
+          <div class="txt l2">하이</div>
+        </div>
+        <div class="sizes">
+          <div class="sz"><div class="scale60"><div class="icon icA"><div class="txt l1">도그스</div><div class="txt l2">하이</div></div></div><span class="cap">홈 60pt</span></div>
+          <div class="sz"><div class="scale29"><div class="icon icA"><div class="txt l1">도그스</div><div class="txt l2">하이</div></div></div><span class="cap">설정 29pt</span></div>
+        </div>
+        <div class="verdict"><span class="chip ok">홈에서 강함</span><br><b>여백을 버리니 스티커가 됐다.</b> 60pt에서 존재감이 앞판 최고 — 홈 화면의 다른 앱들 사이에서 '검정 바탕에 형광 글자'가 소리를 지른다.</div>
+      </div>
+
+      <!-- C (fav) -->
+      <div class="slot fav">
+        <h4>C · 풀블리드 + 빼꼼</h4>
+        <div class="sub">새 마스코트가 상단 모서리에서 구경</div>
+        <div class="icon icC">
+          <svg class="peek" viewBox="0 0 100 88"><use href="#jindoHead"/></svg>
+          <div class="txt l1">도그스</div>
+          <div class="txt l2">하이</div>
+        </div>
+        <div class="sizes">
+          <div class="sz"><div class="scale60"><div class="icon icC"><svg class="peek" viewBox="0 0 100 88"><use href="#jindoHead"/></svg><div class="txt l1">도그스</div><div class="txt l2">하이</div></div></div><span class="cap">홈 60pt</span></div>
+          <div class="sz"><div class="scale29"><div class="icon icC"><svg class="peek" viewBox="0 0 100 88"><use href="#jindoHead"/></svg><div class="txt l1">도그스</div><div class="txt l2">하이</div></div></div><span class="cap">설정 29pt</span></div>
+        </div>
+        <div class="verdict"><span class="chip ok">C 승격</span><br><b>크림 머리가 얼룩 문제를 해결했다.</b> forest 위 밝은 크림은 60pt에서도 '개'로 읽힌다 (volt 개는 여기서 이끼로 보였다). 쫑긋 귀가 프레임 밖으로 살짝 잘리는 게 오히려 빼꼼의 문법.</div>
+      </div>
+
+      <!-- B -->
+      <div class="slot">
+        <h4>B · 스택 + 마스코트 앞</h4>
+        <div class="sub">배민식 — 스토어/마케팅 전용 유지</div>
+        <div class="icon icB">
+          <div class="txt l1">도그스</div>
+          <div class="txt l2">하이</div>
+          <svg class="mascot" viewBox="0 0 100 126"><use href="#jindo"/></svg>
+        </div>
+        <div class="sizes">
+          <div class="sz"><div class="scale60"><div class="icon icB"><div class="txt l1">도그스</div><div class="txt l2">하이</div><svg class="mascot" viewBox="0 0 100 126"><use href="#jindo"/></svg></div></div><span class="cap">홈 60pt</span></div>
+          <div class="sz"><div class="scale29"><div class="icon icB"><div class="txt l1">도그스</div><div class="txt l2">하이</div><svg class="mascot" viewBox="0 0 100 126"><use href="#jindo"/></svg></div></div><span class="cap">설정 29pt</span></div>
+        </div>
+        <div class="verdict"><span class="chip meh">스토어 전용</span><br><b>새 마스코트로 한결 나아졌지만</b> 풀블리드 타이포와는 더 세게 부딪힌다. 1024 스토어 아이콘·스크린샷 히어로로.</div>
+      </div>
+
+      <!-- D -->
+      <div class="slot">
+        <h4>D · 하이 + 마스코트</h4>
+        <div class="sub">글자를 줄여 개에게 자리를</div>
+        <div class="icon icD">
+          <div class="txt l2">하이</div>
+          <svg class="mascot" viewBox="0 0 100 126"><use href="#jindo"/></svg>
+        </div>
+        <div class="sizes">
+          <div class="sz"><div class="scale60"><div class="icon icD"><div class="txt l2">하이</div><svg class="mascot" viewBox="0 0 100 126"><use href="#jindo"/></svg></div></div><span class="cap">홈 60pt</span></div>
+          <div class="sz"><div class="scale29"><div class="icon icD"><div class="txt l2">하이</div><svg class="mascot" viewBox="0 0 100 126"><use href="#jindo"/></svg></div></div><span class="cap">설정 29pt</span></div>
+        </div>
+        <div class="verdict"><span class="chip ok">대체 아이콘 후보</span><br><b>크림 개 + volt 하이 = 두 색 두 레이어.</b> 인사하는 개로 읽힌다. C의 서브로 iOS 대체 아이콘 슬롯에.</div>
+      </div>
+
+      <!-- E -->
+      <div class="slot">
+        <h4>E · 마스코트 솔로</h4>
+        <div class="sub">캐릭터 인지도가 생긴 뒤의 옵션</div>
+        <div class="icon icE">
+          <svg class="mascot" viewBox="0 0 100 126"><use href="#jindo"/></svg>
+        </div>
+        <div class="sizes">
+          <div class="sz"><div class="scale60"><div class="icon icE"><svg class="mascot" viewBox="0 0 100 126"><use href="#jindo"/></svg></div></div><span class="cap">홈 60pt</span></div>
+          <div class="sz"><div class="scale29"><div class="icon icE"><svg class="mascot" viewBox="0 0 100 126"><use href="#jindo"/></svg></div></div><span class="cap">설정 29pt</span></div>
+        </div>
+        <div class="verdict"><span class="chip meh">시기상조</span><br>여전히 2년 뒤 안건. 다만 이제는 고블린이 아니라 개라서, 그날이 오면 쓸 수 있는 얼굴이긴 하다.</div>
+      </div>
+
+      <!-- F -->
+      <div class="slot">
+        <h4>F · 하이 솔로 풀블리드</h4>
+        <div class="sub">컨트롤 — 가장 강인한 안</div>
+        <div class="icon icF">
+          <div class="txt l2">하이</div>
+        </div>
+        <div class="sizes">
+          <div class="sz"><div class="scale60"><div class="icon icF"><div class="txt l2">하이</div></div></div><span class="cap">홈 60pt</span></div>
+          <div class="sz"><div class="scale29"><div class="icon icF"><div class="txt l2">하이</div></div></div><span class="cap">설정 29pt</span></div>
+        </div>
+        <div class="verdict"><span class="chip ok">전 사이즈 생존</span><br>풀블리드로 더 세졌다. 29pt 최강자 자리는 여전히 이 안의 것.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 02 mascot ponder -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">02</span>
+      <span class="sec-title">마스코트 재론 — 왜 초록 개는 고블린이 되나</span>
+      <span class="sec-note">긴 고민의 요약 · 결론: 개를 칠하지 말고 입혀라</span>
+    </div>
+    <div class="ponder">
+      <div class="ponder-card">
+        <h4>고민의 결</h4>
+        <p><b>털 색에는 자연 색역(gamut)이 있다.</b> 갈색·크림·흰색·검정 — 여기서 벗어난 포유류는 뇌가 '동물'이 아니라
+        '괴물'로 분류한다. 두루뭉술한 초록 몸뚱이 = 고블린. 듀오링고 부엉이가 초록으로 사는 건 부엉이가
+        애초에 만화적 존재라서다. 개는 다르다 — <b>우리 유저는 매일 진짜 개를 만지는 사람들</b>이라
+        틀린 개에 대한 감도가 극도로 높다.</p>
+        <p><b>그래서 원칙: 개를 칠하지 말고 입혀라.</b> 털은 자연색(크림), 브랜드 컬러는 장비(반다나·리드줄·빕)에.
+        이건 미학이 아니라 제품 전략과 동형이다 — 러너 장비 경제(인증 리드줄, 장비 배지)의 마스코트 버전.
+        마스코트가 두르는 volt 반다나는 곧 '인증 장비'의 상징이 된다.</p>
+        <p><b>견종은 진돗개.</b> 둥근 무국적 강아지 대신 쫑긋 귀·말린 꼬리의 진도 — 한국 러닝 클럽의 개라는
+        정체성이 조형에서 나온다. 진돗개는 실제로 지구력 러너이기도 하다. 흰 진도는 실루엣이 단순해
+        60pt에서도 깨지지 않는다.</p>
+        <p><b>그리고 정직하게: '마스코트 없음'도 여전히 유효한 답이다.</b> 실사진이 이 브랜드의 얼굴이라는 원칙은
+        이미 앱에서 이기고 있는 전략이다. 마스코트는 빈 상태·온보딩·에러의 온기 담당으로 한정하고,
+        아이콘은 C처럼 '빼꼼'까지만 — 캐릭터가 브랜드를 먹기 시작하면 사진이 밀린다.</p>
+      </div>
+      <div class="autopsy">
+        <h4>고블린 부검</h4>
+        <div class="row"><span class="x">✕</span><div><b>volt 털</b> — 초록 포유류는 자연 색역 밖. 뇌가 '개' 판정을 거부.</div></div>
+        <div class="row"><span class="x">✕</span><div><b>volt 위 volt</b> — 개와 '하이'가 같은 색이라 실루엣이 글자에 녹아 얼룩이 됐다.</div></div>
+        <div class="row"><span class="x">✕</span><div><b>둥근 무국적 조형</b> — 귀가 처지고 몸이 두루뭉술 → 종을 알 수 없는 생물 = 고블린 판정 가속.</div></div>
+        <div class="row"><span class="x">✕</span><div><b>디테일 과다</b> — 목걸이 참·혀·발가락이 60pt에서 노이즈로 뭉개짐.</div></div>
+        <div class="row"><span class="x">✓</span><div><b>교정:</b> 크림 털 + volt는 반다나에만 + 진도 실루엣(쫑긋 귀·말린 꼬리) + 디테일 다이어트.</div></div>
+      </div>
+    </div>
+
+    <div class="treats">
+      <div class="treat lead">
+        <div class="stage" style="background:var(--forest)">
+          <svg viewBox="0 0 100 126" style="width:112px"><use href="#jindo"/></svg>
+        </div>
+        <h5>① 크림 진도 + volt 반다나 (기본형)</h5>
+        <p><b>위 랩에 적용된 안.</b> 자연색 개 + 장비에 실린 브랜드 컬러. 빈 상태·온보딩·스탬프 연출까지
+        전 표면에서 '개'로 읽힌다. 반다나는 장비 경제의 상징으로 확장 가능.</p>
+      </div>
+      <div class="treat">
+        <div class="stage" style="background:var(--forest);align-items:center">
+          <svg viewBox="0 0 100 92" style="width:104px"><use href="#jindoLine"/></svg>
+        </div>
+        <h5>② volt 모노라인</h5>
+        <p>색이 아니라 <b>선으로만 존재하는 개</b> — 트레일 마크(발자국+페이스 곡선)와 같은 언어라 시스템 정합은 최고.
+        대신 온기가 덜해 '마스코트'라기보다 아이코노그래피. 빈 상태엔 약간 차갑다.</p>
+      </div>
+      <div class="treat">
+        <div class="stage" style="background:var(--cream);align-items:center;border:1.5px solid var(--hairline)">
+          <svg viewBox="0 0 100 92" style="width:104px"><use href="#jindoSil"/></svg>
+        </div>
+        <h5>③ forest 실루엣 + volt 칼라</h5>
+        <p>라이트 표면(크림 배경)용 대응 — 다크 개 실루엣에 volt 목줄 한 줄. <b>①의 네거티브 버전</b>으로
+        세트 운용하면 다크/라이트 어디서든 마스코트가 산다.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <b>정리:</b> 디바이스 아이콘 = C (풀블리드 스택 + 크림 진도 빼꼼), 대체 아이콘 = D·F, 스토어 1024 = B.
+    마스코트는 ①크림 진도를 기본, ③실루엣을 라이트 표면 대응으로 — 사는 곳은 여전히 빈 상태·온보딩·스탬프·에러·마케팅까지만 (실사진 구역 불가침).
+    이 조형은 2차 스케치 — 컨펌되면 표정·포즈 시트(앉기/달리기/하이파이브/미안/응가 경례)로 확장. 캐릭터명은 KIPRIS 리스트에 추가.
+  </footer>
+
+</div>
+</body>
+</html>

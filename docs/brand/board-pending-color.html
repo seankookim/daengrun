@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>응답 대기 컬러 — 기대감 후보 4종</title>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+  :root{--forest:#0F1D13;--cream:#F8F6F0;--hairline:#DCD6C4;--ink:#15180F;--dim:#5B594A}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--cream);font-family:'Pretendard Variable',sans-serif;color:var(--ink);padding:40px 32px;
+    background-image:radial-gradient(rgba(15,29,19,.035) 1px,transparent 1px);background-size:22px 22px}
+  h1{font-family:'Black Han Sans',sans-serif;font-size:30px;font-weight:400}
+  .lede{margin-top:8px;color:var(--dim);font-size:13.5px;max-width:640px;line-height:1.6;margin-bottom:30px}
+  .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;max-width:1000px}
+  @media(max-width:760px){.grid{grid-template-columns:1fr}}
+  .cand{background:#fff;border:1.5px solid var(--hairline);border-radius:22px;padding:22px}
+  .cand.rec{border:2px solid #7FA818;position:relative}
+  .cand.rec::before{content:'추천';position:absolute;top:-11px;left:20px;background:#C6F542;color:var(--forest);
+    font-size:10px;font-weight:900;border-radius:99px;padding:4px 11px;letter-spacing:.08em}
+  .cand h3{font-size:15px;font-weight:800}
+  .cand .why{font-size:12px;color:var(--dim);line-height:1.6;margin:6px 0 16px}
+  .demo{display:flex;flex-direction:column;gap:10px}
+  .chips{display:flex;gap:7px}
+  .chip{border-radius:99px;padding:8px 14px;font-size:13px;font-weight:700;border:1.5px solid var(--hairline)}
+  .chip.all{background:var(--forest);border-color:var(--forest);color:#fff;font-weight:800}
+  .chip.done{background:#E3EEF8;color:#4A6E93}
+  .card{display:flex;border:1.5px solid var(--hairline);border-radius:16px;overflow:hidden;background:#fff}
+  .rail{width:8px}
+  .card .body{flex:1;padding:12px 14px;display:flex;align-items:center;justify-content:space-between}
+  .card .t1{font-size:14px;font-weight:800}
+  .card .t2{font-size:11px;color:var(--dim);margin-top:2px}
+  .badge{border-radius:99px;padding:5px 10px;font-size:11px;font-weight:800}
+  .hexes{margin-top:12px;font-family:monospace;font-size:10.5px;color:var(--dim)}
+</style>
+</head>
+<body>
+  <h1>응답 대기 — 기대감의 색</h1>
+  <p class="lede">기준: 신호등 문법(진행=그린 · 대기=웜 · 완료=블루) 유지, 코랄(tang·도파민 숫자)과 volt(브랜드 액센트)를 침범하지 않으면서
+  '멈춤'이 아니라 '카운트다운'으로 읽힐 것. 각 후보를 선택 칩 + 카드 레일 + 배지 3면으로 시뮬레이션.</p>
+  <div class="grid">
+
+    <div class="cand rec">
+      <h3>① 앰버 글로우 — Amber Glow</h3>
+      <p class="why">출발 신호 직전의 호박색 불. 현재 샌드 옐로의 채도·온도를 올린 정통 진화형 — 기존 문법을 지키면서 심장박동만 빨라진다.</p>
+      <div class="demo">
+        <div class="chips"><span class="chip all">전체</span><span class="chip" style="background:#F5A93B;border-color:#F5A93B;color:#fff">응답 대기</span><span class="chip done">완료</span></div>
+        <div class="card"><div class="rail" style="background:#F5A93B"></div><div class="body"><div><div class="t1">7.29 (화) 18:00 · 초코</div><div class="t2">서울숲 숲길 3km</div></div><span class="badge" style="background:#FDEBCC;color:#9A6200">러너 응답 대기</span></div></div>
+      </div>
+      <div class="hexes">sel/rail #F5A93B · tint #FDEBCC · fg #9A6200</div>
+    </div>
+
+    <div class="cand">
+      <h3>② 탠저린 히트 — Tangerine Heat</h3>
+      <p class="why">가장 뜨거운 기대감 — 다만 코랄(#FF5C3D)과 한 끗 차이라 '도파민 숫자' 전용색의 영역을 침범할 위험. 라이브·경고와 헷갈릴 수 있다.</p>
+      <div class="demo">
+        <div class="chips"><span class="chip all">전체</span><span class="chip" style="background:#F58A4B;border-color:#F58A4B;color:#fff">응답 대기</span><span class="chip done">완료</span></div>
+        <div class="card"><div class="rail" style="background:#F58A4B"></div><div class="body"><div><div class="t1">7.29 (화) 18:00 · 초코</div><div class="t2">서울숲 숲길 3km</div></div><span class="badge" style="background:#FDE4D4;color:#A04E14">러너 응답 대기</span></div></div>
+      </div>
+      <div class="hexes">sel/rail #F58A4B · tint #FDE4D4 · fg #A04E14</div>
+    </div>
+
+    <div class="cand">
+      <h3>③ 골든 스타트 — Golden Start</h3>
+      <p class="why">노랑을 유지하되 금빛으로 — 밝고 낙관적. 다만 volt(연두)와 크림 배경 사이에서 살짝 묽어 보일 수 있고, ①보다 긴박감이 덜하다.</p>
+      <div class="demo">
+        <div class="chips"><span class="chip all">전체</span><span class="chip" style="background:#F2C230;border-color:#F2C230;color:#5A4300">응답 대기</span><span class="chip done">완료</span></div>
+        <div class="card"><div class="rail" style="background:#F2C230"></div><div class="body"><div><div class="t1">7.29 (화) 18:00 · 초코</div><div class="t2">서울숲 숲길 3km</div></div><span class="badge" style="background:#FBF0C4;color:#7A5C00">러너 응답 대기</span></div></div>
+      </div>
+      <div class="hexes">sel/rail #F2C230 · tint #FBF0C4 · fg #7A5C00</div>
+    </div>
+
+    <div class="cand">
+      <h3>④ 선셋 레이스 — Sunset Race</h3>
+      <p class="why">파스텔 피치(#FFCDB6, 이벤트 필·매칭 카드)와 같은 가족의 진한 버전 — 시스템 정합은 최고, 다만 '대기'보다 '따뜻함'이 먼저 읽힌다.</p>
+      <div class="demo">
+        <div class="chips"><span class="chip all">전체</span><span class="chip" style="background:#ED9A6F;border-color:#ED9A6F;color:#fff">응답 대기</span><span class="chip done">완료</span></div>
+        <div class="card"><div class="rail" style="background:#ED9A6F"></div><div class="body"><div><div class="t1">7.29 (화) 18:00 · 초코</div><div class="t2">서울숲 숲길 3km</div></div><span class="badge" style="background:#FBE3D6;color:#96552C">러너 응답 대기</span></div></div>
+      </div>
+      <div class="hexes">sel/rail #ED9A6F · tint #FBE3D6 · fg #96552C</div>
+    </div>
+  </div>
+</body>
+</html>

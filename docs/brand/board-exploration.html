@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>댕런 — Full Identity Exploration (3 directions)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Gowun+Batang:wght@400;700&family=Chakra+Petch:wght@500;600;700&family=Jua&family=Black+Han+Sans&family=Archivo:wght@500;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{font-family:'Pretendard Variable',-apple-system,sans-serif;-webkit-font-smoothing:antialiased;background:#111;color:#111}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 32px}
+
+  /* ── cover ── */
+  .cover{background:#111;color:#F4F1E8;padding:80px 0 64px;text-align:center}
+  .cover .k{font-size:11px;font-weight:800;letter-spacing:.3em;color:#8a8878;text-transform:uppercase}
+  .cover h1{font-family:'Black Han Sans',sans-serif;font-size:clamp(38px,5.5vw,58px);margin-top:18px;line-height:1.15}
+  .cover h1 em{font-style:normal}
+  .cover h1 .a{color:#E8B84B}.cover h1 .b{color:#C6F542}.cover h1 .c{color:#FFB88F}
+  .cover p{margin-top:16px;font-size:14px;color:#8a8878;line-height:1.7;max-width:520px;margin-left:auto;margin-right:auto}
+  .toc{display:flex;justify-content:center;gap:12px;margin-top:32px;flex-wrap:wrap}
+  .toc a{text-decoration:none;font-size:12px;font-weight:800;padding:10px 18px;border-radius:99px;border:1.5px solid #333;color:#F4F1E8;transition:.2s}
+  .toc a:hover{border-color:#777}
+
+  /* ── shared direction chrome ── */
+  .dir{padding:72px 0 80px}
+  .dir-head{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;margin-bottom:10px}
+  .dir-no{font-family:'Archivo',sans-serif;font-weight:900;font-size:13px;letter-spacing:.1em}
+  .dir-name{font-size:clamp(30px,4.5vw,44px);line-height:1.1}
+  .dir-tag{font-size:12px;opacity:.65;margin-left:auto;max-width:300px;text-align:right;line-height:1.5}
+  .concept{max-width:640px;font-size:14.5px;line-height:1.75;margin-bottom:36px}
+  .grid{display:grid;grid-template-columns:1fr 340px;gap:36px;align-items:start}
+  @media(max-width:900px){.grid{grid-template-columns:1fr}}
+  .cell{border-radius:24px;padding:30px;margin-bottom:16px}
+  .cell h5{font-size:10.5px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;opacity:.55;margin-bottom:16px}
+  .swatches{display:flex;gap:10px;flex-wrap:wrap}
+  .swx{width:104px;height:104px;border-radius:18px;padding:10px;display:flex;flex-direction:column;justify-content:flex-end;font-size:10px;font-weight:800}
+  .swx small{font-family:'Archivo',sans-serif;font-weight:600;opacity:.7;font-size:9px}
+  .vibes{display:flex;gap:8px;flex-wrap:wrap;margin-top:2px}
+  .vibe{font-size:11.5px;font-weight:700;padding:7px 13px;border-radius:99px}
+
+  /* phone frame (shared skeleton, theme via vars) */
+  .phone{width:340px;border-radius:52px;padding:12px;margin:0 auto}
+  .screen{border-radius:42px;overflow:hidden;height:680px;display:flex;flex-direction:column;position:relative}
+  .p-status{display:flex;justify-content:space-between;padding:16px 26px 6px;font-size:12px;font-weight:800}
+  .p-body{flex:1;overflow:hidden;padding:8px 14px 0}
+  .p-nav{display:flex;justify-content:space-around;padding:13px 10px 24px;border-top:1.5px solid transparent}
+  .p-nav div{font-size:10px;font-weight:700;text-align:center;opacity:.55}
+  .p-nav div.on{opacity:1;font-weight:900}
+  .p-nav div span{display:block;font-size:15px;margin-bottom:2px}
+
+  /* ═══════════ DIRECTION 1 — 헤리티지 러닝 클럽 ═══════════ */
+  .d1{background:#F4EFE3;color:#20261C}
+  .d1 .dir-no{color:#B5541F}
+  .d1 .dir-name{font-family:'Alfa Slab One',serif;font-weight:400;color:#1F3A26}
+  .d1 .concept b{color:#B5541F}
+  .d1 .cell{background:#FDFBF4;border:1.5px solid #DCD3BC}
+  .d1 .logo-stage{background:#1F3A26;border:none;padding:52px 40px;text-align:center;position:relative;overflow:hidden}
+  .d1 .badge{width:190px;height:190px;margin:0 auto;border-radius:50%;border:3px solid #E8B84B;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;position:relative;background:radial-gradient(circle at 50% 30%,#27492F,#1F3A26)}
+  .d1 .badge::before{content:'';position:absolute;inset:8px;border-radius:50%;border:1px solid rgba(232,184,75,.5)}
+  .d1 .badge .est{font-family:'Archivo',sans-serif;font-size:9px;font-weight:800;letter-spacing:.32em;color:#E8B84B}
+  .d1 .badge .nm{font-family:'Alfa Slab One',serif;font-size:38px;color:#F4EFE3;line-height:1.05}
+  .d1 .badge .paw{font-size:17px;margin-top:2px}
+  .d1 .badge .lat{font-family:'Archivo',sans-serif;font-size:8.5px;font-weight:800;letter-spacing:.26em;color:#E8B84B}
+  .d1 .logo-stage .stripes{position:absolute;left:0;right:0;bottom:0;height:14px;display:flex}
+  .d1 .logo-stage .stripes i{flex:1}
+  .d1 .logo-stage .stripes i:nth-child(1){background:#E8B84B}
+  .d1 .logo-stage .stripes i:nth-child(2){background:#B5541F}
+  .d1 .logo-stage .stripes i:nth-child(3){background:#F4EFE3}
+  .d1 .type-d{font-family:'Alfa Slab One',serif;font-size:30px;color:#1F3A26;line-height:1.25}
+  .d1 .type-s{font-family:'Gowun Batang',serif;font-weight:700;font-size:15px;line-height:1.7;margin-top:12px}
+  .d1 .type-b{font-size:13px;line-height:1.7;color:#5d5a4c;margin-top:10px}
+  .d1 .vibe{background:#E4DCC6;color:#4a4636}
+  .d1 .phone{background:#1F3A26;box-shadow:0 26px 60px rgba(31,58,38,.4)}
+  .d1 .screen{background:#F4EFE3}
+  .d1 .p-hero1{background:#1F3A26;border-radius:24px;padding:20px;color:#F4EFE3;text-align:center;position:relative;overflow:hidden}
+  .d1 .p-hero1 .est{font-family:'Archivo',sans-serif;font-size:8px;font-weight:800;letter-spacing:.3em;color:#E8B84B}
+  .d1 .p-hero1 .big{font-family:'Alfa Slab One',serif;font-size:24px;margin-top:6px}
+  .d1 .p-hero1 .ring1{width:150px;height:150px;margin:14px auto 4px;border-radius:50%;border:3px solid #E8B84B;position:relative;background:linear-gradient(160deg,#C8B69A,#8F7B5E)}
+  .d1 .p-hero1 .ring1 span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:64px}
+  .d1 .p-hero1 .laurel{position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);background:#E8B84B;color:#1F3A26;font-family:'Archivo',sans-serif;font-weight:900;font-size:13px;border-radius:99px;padding:5px 14px}
+  .d1 .p-hero1 .sub{font-family:'Gowun Batang',serif;font-size:11px;margin-top:14px;color:rgba(244,239,227,.75)}
+  .d1 .p-card{background:#FDFBF4;border:1.5px solid #DCD3BC;border-radius:20px;padding:15px;margin-top:11px}
+  .d1 .p-card .h{font-family:'Alfa Slab One',serif;font-size:13px;color:#1F3A26}
+  .d1 .p-card .d{font-size:10.5px;color:#5d5a4c;margin-top:4px;line-height:1.55}
+  .d1 .p-card .cta{margin-top:10px;background:#B5541F;color:#F4EFE3;border-radius:12px;padding:10px;text-align:center;font-size:11.5px;font-weight:900}
+  .d1 .medal-row{display:flex;gap:8px;margin-top:11px}
+  .d1 .medal{flex:1;background:#FDFBF4;border:1.5px solid #DCD3BC;border-radius:16px;padding:11px 8px;text-align:center}
+  .d1 .medal .v{font-family:'Alfa Slab One',serif;font-size:15px;color:#B5541F}
+  .d1 .medal .l{font-size:8.5px;font-weight:700;color:#5d5a4c;margin-top:2px}
+  .d1 .p-nav{background:#FDFBF4;border-top-color:#DCD3BC;color:#1F3A26}
+
+  /* ═══════════ DIRECTION 2 — 나이트 서킷 ═══════════ */
+  .d2{background:#0B0E0C;color:#E8ECE6}
+  .d2 .dir-no{color:#C6F542}
+  .d2 .dir-name{font-family:'Chakra Petch',sans-serif;font-weight:700;color:#fff;letter-spacing:.02em}
+  .d2 .concept{color:#9aa194}
+  .d2 .concept b{color:#C6F542}
+  .d2 .cell{background:#12160F;border:1.5px solid #232B1E}
+  .d2 .logo-stage{background:#0B0E0C;border:1.5px solid #2A331F;padding:52px 40px;text-align:center;position:relative;overflow:hidden}
+  .d2 .logo-stage::before{content:'';position:absolute;left:-10%;right:-10%;top:58%;height:1px;background:linear-gradient(90deg,transparent,#C6F542 30%,#C6F542 70%,transparent);opacity:.5}
+  .d2 .logo-stage::after{content:'';position:absolute;left:-10%;right:-10%;top:65%;height:1px;background:linear-gradient(90deg,transparent,#FF7A3D 40%,transparent);opacity:.35}
+  .d2 .wm2{font-family:'Chakra Petch',sans-serif;font-weight:700;font-size:56px;letter-spacing:.14em;color:#fff;position:relative;display:inline-block}
+  .d2 .wm2 i{font-style:normal;color:#C6F542;text-shadow:0 0 18px rgba(198,245,66,.7)}
+  .d2 .wm2-sub{font-family:'Chakra Petch',sans-serif;font-size:10px;font-weight:600;letter-spacing:.52em;color:#5c6653;margin-top:12px}
+  .d2 .reflect{display:inline-flex;gap:5px;margin-top:22px}
+  .d2 .reflect i{width:34px;height:9px;background:#C6F542;transform:skewX(-24deg);box-shadow:0 0 12px rgba(198,245,66,.6)}
+  .d2 .reflect i:nth-child(2){background:#FF7A3D;box-shadow:0 0 12px rgba(255,122,61,.5)}
+  .d2 .reflect i:nth-child(3){width:14px;background:#E8ECE6;box-shadow:none;opacity:.6}
+  .d2 .type-d{font-family:'Chakra Petch',sans-serif;font-weight:700;font-size:26px;color:#fff;letter-spacing:.03em;line-height:1.35}
+  .d2 .type-d i{font-style:normal;color:#C6F542}
+  .d2 .type-b{font-size:13px;line-height:1.7;color:#9aa194;margin-top:12px}
+  .d2 .mono-num{font-family:'Chakra Petch',sans-serif;font-weight:700;font-size:40px;color:#C6F542;text-shadow:0 0 20px rgba(198,245,66,.45);margin-top:8px}
+  .d2 .mono-num small{font-size:14px;color:#5c6653;text-shadow:none}
+  .d2 .vibe{background:#1B2214;color:#C6F542;border:1px solid #2A331F}
+  .d2 .phone{background:#000;box-shadow:0 26px 70px rgba(198,245,66,.12)}
+  .d2 .screen{background:#0B0E0C}
+  .d2 .p-status{color:#E8ECE6}
+  .d2 .p-hero2{background:#12160F;border:1.5px solid #2A331F;border-radius:24px;padding:20px;text-align:center;position:relative;overflow:hidden}
+  .d2 .p-hero2::after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(198,245,66,.02) 3px 4px)}
+  .d2 .p-hero2 .lb{font-family:'Chakra Petch',sans-serif;font-size:9px;letter-spacing:.4em;color:#5c6653}
+  .d2 .ring2{width:170px;height:170px;margin:14px auto 4px;border-radius:50%;position:relative;
+    background:conic-gradient(#C6F542 0 62%,#1B2214 62% 100%);filter:drop-shadow(0 0 14px rgba(198,245,66,.35))}
+  .d2 .ring2::before{content:'';position:absolute;inset:8px;border-radius:50%;background:#12160F}
+  .d2 .ring2 .ph{position:absolute;inset:16px;border-radius:50%;background:linear-gradient(160deg,#3d4437,#20261c);display:flex;align-items:center;justify-content:center;font-size:64px}
+  .d2 .ring2 .bib2{position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);background:#000;border:1px solid #C6F542;font-family:'Chakra Petch',sans-serif;font-weight:700;color:#C6F542;font-size:14px;border-radius:4px;padding:5px 12px;letter-spacing:.06em;box-shadow:0 0 14px rgba(198,245,66,.4)}
+  .d2 .p-hero2 .sub{font-size:10.5px;color:#9aa194;margin-top:16px}
+  .d2 .p-live{margin-top:11px;background:linear-gradient(135deg,#1B2214,#12160F);border:1.5px solid #C6F542;border-radius:20px;padding:15px;text-align:left;position:relative;overflow:hidden}
+  .d2 .p-live .t{font-family:'Chakra Petch',sans-serif;font-weight:700;color:#fff;font-size:14px;letter-spacing:.04em}
+  .d2 .p-live .t i{font-style:normal;color:#FF7A3D}
+  .d2 .p-live .d{font-size:10px;color:#9aa194;margin-top:4px;line-height:1.5}
+  .d2 .p-live .cta{margin-top:10px;background:#C6F542;color:#0B0E0C;border-radius:10px;padding:10px;text-align:center;font-family:'Chakra Petch',sans-serif;font-weight:700;font-size:11px;letter-spacing:.06em;box-shadow:0 0 16px rgba(198,245,66,.35)}
+  .d2 .stat-row{display:flex;gap:8px;margin-top:11px}
+  .d2 .stat2{flex:1;background:#12160F;border:1.5px solid #232B1E;border-radius:14px;padding:10px 8px;text-align:center}
+  .d2 .stat2 .v{font-family:'Chakra Petch',sans-serif;font-weight:700;font-size:14px;color:#C6F542}
+  .d2 .stat2 .l{font-size:8.5px;color:#5c6653;margin-top:2px}
+  .d2 .p-nav{background:#000;border-top-color:#1B2214;color:#E8ECE6}
+  .d2 .p-nav div.on{color:#C6F542}
+
+  /* ═══════════ DIRECTION 3 — 소프트 조이 ═══════════ */
+  .d3{background:#FFF7E8;color:#4A3B2A}
+  .d3 .dir-no{color:#F2762E}
+  .d3 .dir-name{font-family:'Jua',sans-serif;font-weight:400;color:#3D5A3C}
+  .d3 .concept b{color:#F2762E}
+  .d3 .cell{background:#fff;border:2px solid #F0E2C6}
+  .d3 .logo-stage{background:#FFDE59;border:none;padding:52px 40px;text-align:center;position:relative;overflow:hidden}
+  .d3 .logo-stage .cloud{position:absolute;border-radius:50%;background:rgba(255,255,255,.5)}
+  .d3 .wm3{font-family:'Jua',sans-serif;font-size:72px;color:#3D5A3C;line-height:1;position:relative;display:inline-block;transform:rotate(-2deg)}
+  .d3 .wm3 .tail{position:absolute;right:-34px;top:2px;font-size:34px;transform:rotate(14deg)}
+  .d3 .wm3-sub{font-family:'Jua',sans-serif;font-size:13px;color:#8a6d3a;margin-top:10px;letter-spacing:.14em}
+  .d3 .sticker{display:inline-block;background:#fff;border-radius:99px;padding:8px 18px;font-family:'Jua',sans-serif;font-size:14px;color:#F2762E;box-shadow:0 4px 0 #E8C84A;margin-top:22px;transform:rotate(2deg)}
+  .d3 .type-d{font-family:'Jua',sans-serif;font-size:30px;color:#3D5A3C;line-height:1.35}
+  .d3 .type-d em{font-style:normal;color:#F2762E}
+  .d3 .type-b{font-size:13.5px;line-height:1.75;color:#7a6a52;margin-top:12px}
+  .d3 .vibe{background:#FFEFC2;color:#8a6d3a}
+  .d3 .phone{background:#3D5A3C;box-shadow:0 26px 60px rgba(61,90,60,.35)}
+  .d3 .screen{background:#FFF7E8}
+  .d3 .p-hero3{background:#fff;border:2px solid #F0E2C6;border-radius:28px;padding:20px;text-align:center;position:relative}
+  .d3 .p-hero3 .hi{font-family:'Jua',sans-serif;font-size:15px;color:#3D5A3C}
+  .d3 .ring3{width:170px;height:170px;margin:12px auto 4px;position:relative}
+  .d3 .ring3 .blob{position:absolute;inset:0;background:#B8D98D;border-radius:53% 47% 52% 48%/48% 54% 46% 52%;transform:rotate(-6deg)}
+  .d3 .ring3 .ph{position:absolute;inset:12px;border-radius:50% 50% 48% 52%/52% 48% 52% 48%;background:linear-gradient(160deg,#E8C79A,#C09A66);display:flex;align-items:center;justify-content:center;font-size:66px;overflow:hidden}
+  .d3 .ring3 .bib3{position:absolute;bottom:-6px;left:50%;transform:translateX(-50%) rotate(-2deg);background:#F2762E;color:#fff;font-family:'Jua',sans-serif;font-size:15px;border-radius:99px;padding:6px 15px;box-shadow:0 3px 0 #C4581B}
+  .d3 .p-hero3 .sub{font-family:'Jua',sans-serif;font-size:11.5px;color:#8a6d3a;margin-top:14px}
+  .d3 .p-find3{margin-top:11px;background:#3D5A3C;border-radius:24px;padding:16px;text-align:left;position:relative;overflow:hidden}
+  .d3 .p-find3 .t{font-family:'Jua',sans-serif;font-size:16px;color:#FFDE59}
+  .d3 .p-find3 .d{font-size:10.5px;color:rgba(255,247,232,.75);margin-top:4px;line-height:1.55}
+  .d3 .p-find3 .cta{margin-top:11px;background:#FFDE59;color:#3D5A3C;border-radius:14px;padding:11px;text-align:center;font-family:'Jua',sans-serif;font-size:13px;box-shadow:0 3px 0 #D9B93E;width:80%}
+  .d3 .p-find3 .pup-peek{position:absolute;right:-6px;bottom:-10px;font-size:56px;transform:rotate(-8deg);opacity:.9}
+  .d3 .stamp-row{display:flex;gap:8px;margin-top:11px}
+  .d3 .stamp{flex:1;background:#fff;border:2px solid #F0E2C6;border-radius:18px;padding:10px 6px;text-align:center}
+  .d3 .stamp .e{font-size:19px}
+  .d3 .stamp .l{font-family:'Jua',sans-serif;font-size:9.5px;color:#8a6d3a;margin-top:3px}
+  .d3 .p-nav{background:#fff;border-top-color:#F0E2C6;color:#3D5A3C}
+  .d3 .p-nav div.on{color:#F2762E}
+
+  /* ── verdict strip ── */
+  .verdict{background:#111;color:#F4F1E8;padding:64px 0 90px}
+  .verdict h2{font-family:'Black Han Sans',sans-serif;font-size:30px;margin-bottom:28px}
+  .v-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  @media(max-width:840px){.v-grid{grid-template-columns:1fr}}
+  .v-card{border:1.5px solid #2e2e2a;border-radius:22px;padding:26px}
+  .v-card h4{font-size:16px;font-weight:800;margin-bottom:12px}
+  .v-card .win,.v-card .risk{font-size:12.5px;line-height:1.65;padding:8px 0;display:flex;gap:9px}
+  .v-card .win::before{content:'＋';color:#C6F542;font-weight:900;flex:none}
+  .v-card .risk::before{content:'－';color:#FF7A3D;font-weight:900;flex:none}
+  .v-card .fit{margin-top:14px;padding-top:14px;border-top:1px dashed #2e2e2a;font-size:11.5px;color:#8a8878;line-height:1.6}
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <div class="wrap">
+    <div class="k">Daengrun Rebrand · Option B — Full Exploration</div>
+    <h1>같은 제품, <em class="a">세 개의 인격</em><br><span class="b">어디까지 갈 수 있는지</span> 보는 보드</h1>
+    <p>셋 다 '반려견 피트니스 마켓플레이스'라는 본질은 유지한다.
+    달라지는 건 브랜드가 누구처럼 말하느냐 — 헤리티지 클럽의 코치, 나이트 서킷의 페이서, 동네 놀이터의 단짝.</p>
+    <div class="toc">
+      <a href="#d1">① 헤리티지 러닝 클럽</a>
+      <a href="#d2">② 나이트 서킷</a>
+      <a href="#d3">③ 소프트 조이</a>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ D1 ═══════════ -->
+<section class="dir d1" id="d1">
+  <div class="wrap">
+    <div class="dir-head">
+      <span class="dir-no">DIRECTION 01</span>
+      <span class="dir-name">헤리티지 러닝 클럽</span>
+      <span class="dir-tag">varsity · 크래프트 · '우리 클럽에 온 걸 환영해'</span>
+    </div>
+    <p class="concept">댕런을 <b>1974년부터 있었을 법한 동네 러닝 클럽</b>으로 상상한다.
+    배지, 라우렐, 빕 넘버, 클럽 스트라이프 — 러너의 티어(인증/베테랑/마스터)가 '클럽 서열'이라는
+    이미 있는 세계관과 정확히 맞물린다. 체력 나이는 '클럽 기록부'가 된다.</p>
+    <div class="grid">
+      <div>
+        <div class="cell logo-stage">
+          <div class="badge">
+            <span class="est">EST. 2026 · SEOUL</span>
+            <span class="nm">댕런</span>
+            <span class="paw">🐾</span>
+            <span class="lat">DAENGRUN RUN CLUB</span>
+          </div>
+          <div class="stripes"><i></i><i></i><i></i></div>
+        </div>
+        <div class="cell">
+          <h5>Palette — Racing Green &amp; Gold</h5>
+          <div class="swatches">
+            <div class="swx" style="background:#1F3A26;color:#F4EFE3">Club Green<br><small>#1F3A26</small></div>
+            <div class="swx" style="background:#E8B84B;color:#4a3a10">Medal Gold<br><small>#E8B84B</small></div>
+            <div class="swx" style="background:#B5541F;color:#fff">Track Rust<br><small>#B5541F</small></div>
+            <div class="swx" style="background:#F4EFE3;color:#4a4636;border:1.5px solid #DCD3BC">Paper Cream<br><small>#F4EFE3</small></div>
+            <div class="swx" style="background:#8FA07A;color:#243018">Field Sage<br><small>#8FA07A</small></div>
+          </div>
+        </div>
+        <div class="cell">
+          <h5>Type — Slab Display × Batang Serif</h5>
+          <div class="type-d">제32회 성수동 댕댕 마일 — 오늘의 출전견</div>
+          <div class="type-s">"기록은 숫자가 아니라 이야기다. 초코의 12.4km에는 열두 번의 아침이 들어 있다."</div>
+          <div class="type-b">본문은 Pretendard 유지, 인용·리포트 서사에만 Gowun Batang — 크래프트 잡지의 결.</div>
+          <div class="vibes" style="margin-top:16px">
+            <span class="vibe">클럽 배지</span><span class="vibe">라우렐</span><span class="vibe">빕 넘버</span>
+            <span class="vibe">아카이브</span><span class="vibe">크래프트</span>
+          </div>
+        </div>
+      </div>
+      <div class="phone">
+        <div class="screen">
+          <div class="p-status"><span>9:41</span><span>●●●</span></div>
+          <div class="p-body">
+            <div class="p-hero1">
+              <span class="est">DAENGRUN RUN CLUB · MEMBER 001</span>
+              <div class="big">초코의 기록부</div>
+              <div class="ring1"><span>🐕‍🦺</span><div class="laurel">12.4 / 15km</div></div>
+              <div class="sub">체력 나이 1.8살 — 클럽 평균보다 젊습니다</div>
+            </div>
+            <div class="p-card">
+              <div class="h">지금 페이서 찾기</div>
+              <div class="d">클럽 소속 러너 3명이 출전 대기 중 — 결제·코스는 자동</div>
+              <div class="cta">페이서 호출 ➤</div>
+            </div>
+            <div class="medal-row">
+              <div class="medal"><div class="v">7일</div><div class="l">연속 출전</div></div>
+              <div class="medal"><div class="v">3회</div><div class="l">이번 주</div></div>
+              <div class="medal"><div class="v">6'40"</div><div class="l">평균 페이스</div></div>
+            </div>
+          </div>
+          <div class="p-nav">
+            <div class="on"><span>⌂</span>클럽</div><div><span>▦</span>일정</div>
+            <div><span>♥</span>게시판</div><div><span>▣</span>용품점</div><div><span>◔</span>마이</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ D2 ═══════════ -->
+<section class="dir d2" id="d2">
+  <div class="wrap">
+    <div class="dir-head">
+      <span class="dir-no">DIRECTION 02</span>
+      <span class="dir-name">나이트 서킷 <i style="color:#C6F542">NIGHT CIRCUIT</i></span>
+      <span class="dir-tag">테크 퍼포먼스 · 리플렉티브 · 도시의 밤</span>
+    </div>
+    <p class="concept">보류해 둔 '나이트 러너' 테마를 브랜드 전체의 인격으로 승격한 버전.
+    <b>리플렉티브 테이프, 새벽 트랙, GPS 궤적의 글로우</b> — volt는 유지하되 '형광 안전색'이라는
+    원래 의미를 되찾는다. 러닝 이벤트·라이브 트래킹·페이스 데이터가 주인공인 세계.</p>
+    <div class="grid">
+      <div>
+        <div class="cell logo-stage">
+          <div class="wm2">DAENG<i>RUN</i></div>
+          <div class="wm2-sub">NIGHT CIRCUIT — SEONGSU DIVISION</div>
+          <div class="reflect"><i></i><i></i><i></i></div>
+        </div>
+        <div class="cell">
+          <h5>Palette — Asphalt &amp; Reflective</h5>
+          <div class="swatches">
+            <div class="swx" style="background:#0B0E0C;color:#E8ECE6;border:1px solid #232B1E">Asphalt<br><small>#0B0E0C</small></div>
+            <div class="swx" style="background:#C6F542;color:#20261C">Reflective Volt<br><small>#C6F542</small></div>
+            <div class="swx" style="background:#FF7A3D;color:#2b1206">Safety Orange<br><small>#FF7A3D</small></div>
+            <div class="swx" style="background:#12160F;color:#9aa194;border:1px solid #232B1E">Track Shadow<br><small>#12160F</small></div>
+            <div class="swx" style="background:#E8ECE6;color:#20261C">Headlight<br><small>#E8ECE6</small></div>
+          </div>
+        </div>
+        <div class="cell">
+          <h5>Type — Chakra Petch (기술 · 계기판)</h5>
+          <div class="type-d">PACE <i>6'40"</i> — 초코, 오늘 밤 서킷 <i>3.2KM</i> 완주</div>
+          <div class="mono-num">12.4 <small>/ 15 KM</small></div>
+          <div class="type-b">숫자가 계기판처럼 발광한다. 다크는 '반쪽 다크' 사고를 반복하지 않도록 전 화면 커밋이 전제 — 이 방향을 고르면 라이트 모드가 오히려 서브가 된다.</div>
+          <div class="vibes" style="margin-top:16px">
+            <span class="vibe">리플렉티브</span><span class="vibe">글로우</span><span class="vibe">계기판</span>
+            <span class="vibe">GPS 궤적</span><span class="vibe">새벽 트랙</span>
+          </div>
+        </div>
+      </div>
+      <div class="phone">
+        <div class="screen">
+          <div class="p-status"><span>21:41</span><span>●●●</span></div>
+          <div class="p-body">
+            <div class="p-hero2">
+              <div class="lb">TONIGHT'S RUNNER — CHOCO</div>
+              <div class="ring2"><div class="ph">🐕‍🦺</div><div class="bib2">12.4/15KM</div></div>
+              <div class="sub">체력 나이 1.8살 · 서킷 레코드 갱신까지 2.6km</div>
+            </div>
+            <div class="p-live">
+              <div class="t"><i>●</i> LIVE — 러너 찾기</div>
+              <div class="d">반경 내 러너 3명 온라인 · 평균 응답 90초</div>
+              <div class="cta">START SEARCH ➤</div>
+            </div>
+            <div class="stat-row">
+              <div class="stat2"><div class="v">7D</div><div class="l">STREAK</div></div>
+              <div class="stat2"><div class="v">3</div><div class="l">RUNS/WK</div></div>
+              <div class="stat2"><div class="v">6'40"</div><div class="l">AVG PACE</div></div>
+            </div>
+          </div>
+          <div class="p-nav">
+            <div class="on"><span>⌂</span>홈</div><div><span>▦</span>일정</div>
+            <div><span>♥</span>피드</div><div><span>▣</span>기어</div><div><span>◔</span>마이</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ D3 ═══════════ -->
+<section class="dir d3" id="d3">
+  <div class="wrap">
+    <div class="dir-head">
+      <span class="dir-no">DIRECTION 03</span>
+      <span class="dir-name">소프트 조이</span>
+      <span class="dir-tag">스티커 · 도장 · '오늘도 잘 뛰었어!'</span>
+    </div>
+    <p class="concept">한국 펫 시장의 정서를 정면으로 끌어안는 방향 — <b>귀엽고, 말랑하고, 자랑하고 싶은</b>.
+    응가 도장·간식 타임·댕마일 같은 기존 장치들이 사실 이미 이 인격이다.
+    러닝 데이터는 성적표가 아니라 <b>붙이고 싶은 스티커</b>가 된다.</p>
+    <div class="grid">
+      <div>
+        <div class="cell logo-stage">
+          <div class="cloud" style="width:120px;height:120px;left:-30px;top:-40px"></div>
+          <div class="cloud" style="width:80px;height:80px;right:20px;bottom:-20px"></div>
+          <div class="wm3">댕런<span class="tail">🐾</span></div>
+          <div class="wm3-sub">오늘도 신나게, 댕런!</div>
+          <div class="sticker">💩 응가 도장 +30 댕마일</div>
+        </div>
+        <div class="cell">
+          <h5>Palette — Butter &amp; Garden</h5>
+          <div class="swatches">
+            <div class="swx" style="background:#FFDE59;color:#6b5410">Butter<br><small>#FFDE59</small></div>
+            <div class="swx" style="background:#3D5A3C;color:#FFF7E8">Garden Green<br><small>#3D5A3C</small></div>
+            <div class="swx" style="background:#F2762E;color:#fff">Tangerine<br><small>#F2762E</small></div>
+            <div class="swx" style="background:#B8D98D;color:#33441f">Sprout<br><small>#B8D98D</small></div>
+            <div class="swx" style="background:#FFF7E8;color:#8a6d3a;border:2px solid #F0E2C6">Milk Cream<br><small>#FFF7E8</small></div>
+          </div>
+        </div>
+        <div class="cell">
+          <h5>Type — Jua (둥글둥글 디스플레이)</h5>
+          <div class="type-d">초코가 오늘 <em>3.2km</em>나 달렸어요! 도장 <em>쾅!</em></div>
+          <div class="type-b">모든 모서리가 크게 둥글고, 버튼엔 '눌리는' 그림자 단차. 블롭 마스크가 사진을 감싼다.
+          단, 신뢰 표면(결제·안전·정산)은 Pretendard로 톤을 내려 진지함을 지킨다 — 귀여움은 축하의 언어지 계약의 언어가 아니다.</div>
+          <div class="vibes" style="margin-top:16px">
+            <span class="vibe">스티커</span><span class="vibe">도장</span><span class="vibe">블롭</span>
+            <span class="vibe">말랑 버튼</span><span class="vibe">자랑</span>
+          </div>
+        </div>
+      </div>
+      <div class="phone">
+        <div class="screen">
+          <div class="p-status"><span>9:41</span><span>●●●</span></div>
+          <div class="p-body">
+            <div class="p-hero3">
+              <div class="hi">초코, 오늘도 달릴 준비 됐어요?</div>
+              <div class="ring3">
+                <div class="blob"></div>
+                <div class="ph">🐕‍🦺</div>
+                <div class="bib3">12.4 / 15km</div>
+              </div>
+              <div class="sub">체력 나이 1.8살 — 실제보다 젊어요! 🎉</div>
+            </div>
+            <div class="p-find3">
+              <div class="t">지금 러너 부르기</div>
+              <div class="d">근처 러너 셋이 기다리고 있어요<br>확인만 하면 바로 출발!</div>
+              <div class="cta">러너 불러오기 🐾</div>
+              <div class="pup-peek">🦮</div>
+            </div>
+            <div class="stamp-row">
+              <div class="stamp"><div class="e">💩</div><div class="l">응가 ×2</div></div>
+              <div class="stamp"><div class="e">🍖</div><div class="l">간식 ×1</div></div>
+              <div class="stamp"><div class="e">📷</div><div class="l">순간 ×3</div></div>
+              <div class="stamp"><div class="e">🔥</div><div class="l">7일 연속</div></div>
+            </div>
+          </div>
+          <div class="p-nav">
+            <div class="on"><span>⌂</span>홈</div><div><span>▦</span>일정</div>
+            <div><span>♥</span>동네</div><div><span>▣</span>샵</div><div><span>◔</span>마이</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ verdict ═══════════ -->
+<section class="verdict">
+  <div class="wrap">
+    <h2>솔직한 트레이드오프</h2>
+    <div class="v-grid">
+      <div class="v-card">
+        <h4 style="color:#E8B84B">① 헤리티지 클럽</h4>
+        <div class="win">티어·빕·기록부 — 기존 세계관(러너 티어, 개인 기록 배지)과 서사가 정확히 맞물림</div>
+        <div class="win">샵/장비 경제와 최고 궁합 — '클럽 용품점'은 커머스에 명분을 준다</div>
+        <div class="risk">'피트니스 테크' 신뢰(GPS·실시간·데이터)가 빈티지 톤에 묻힐 수 있음</div>
+        <div class="risk">volt 포기 = 기존 자산 리셋 비용 최대</div>
+        <div class="fit">어울리는 순간: 브랜드를 커뮤니티/멤버십으로 키울 때</div>
+      </div>
+      <div class="v-card">
+        <h4 style="color:#C6F542">② 나이트 서킷</h4>
+        <div class="win">volt를 버리지 않고 의미를 강화 — 자산 연속성 있음</div>
+        <div class="win">라이브 트래킹·페이스·Live Activity 등 실기능이 이미 이 인격</div>
+        <div class="risk">전 화면 다크 커밋 필요 — '반쪽 다크' 사고의 교훈상 비용이 가장 큼</div>
+        <div class="risk">보호자(구매자)의 정서적 니즈('아이를 맡긴다')엔 차가울 수 있음</div>
+        <div class="fit">어울리는 순간: 러너(공급자) 브랜드로 분리하거나, 나이트 테마를 서브 브랜드로</div>
+      </div>
+      <div class="v-card">
+        <h4 style="color:#FFB88F">③ 소프트 조이</h4>
+        <div class="win">응가 도장·댕마일·피드 자랑 — 기존 장치들이 이미 이 언어를 쓰고 있음</div>
+        <div class="win">한국 펫 시장 정서 적합도 최고, 바이럴(공유 카드) 잠재력 최대</div>
+        <div class="risk">'운동 결과를 판다'는 차별화(비포펫과의 거리)가 산책 대행처럼 뭉개질 위험</div>
+        <div class="risk">신뢰 표면(결제·안전)과 톤 충돌 — 이중 톤 운영 규칙이 필수</div>
+        <div class="fit">어울리는 순간: 보호자 그로스에 올인할 때 — 단 데이터 서사는 지켜야 함</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</body>
+</html>

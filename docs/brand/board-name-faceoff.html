@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>도그스하이 vs 독스하이 — Name Face-off</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Archivo:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+  :root{
+    --forest:#0F1D13;--forest2:#1A2E20;--volt:#C6F542;--volt-deep:#7FA818;
+    --coral:#FF5C3D;--cream:#F8F6F0;--clay:#EDE8DA;--hairline:#DCD6C4;
+    --ink:#15180F;--dim:#6D6B5C;
+    --disp:'Black Han Sans',sans-serif;--num:'Archivo',sans-serif;
+    --body:'Pretendard Variable',-apple-system,sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--cream);color:var(--ink);font-family:var(--body);-webkit-font-smoothing:antialiased;
+    background-image:radial-gradient(rgba(15,29,19,.035) 1px,transparent 1px);background-size:22px 22px}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 32px}
+
+  header{padding:56px 0 40px;border-bottom:1.5px solid var(--hairline)}
+  .kicker{display:inline-flex;align-items:center;gap:8px;font-size:11px;font-weight:800;letter-spacing:.22em;
+    color:var(--volt-deep);text-transform:uppercase;margin-bottom:16px}
+  .kicker::before{content:'';width:26px;height:2px;background:var(--volt-deep)}
+  h1{font-family:var(--disp);font-size:clamp(34px,5vw,52px);line-height:1.08;font-weight:400}
+  h1 .vs{font-family:var(--num);font-weight:900;font-size:.45em;color:var(--coral);vertical-align:middle;margin:0 10px}
+  .lede{margin-top:14px;max-width:620px;font-size:14px;line-height:1.7;color:var(--dim)}
+  .lede b{color:var(--ink)}
+
+  section{padding:48px 0;border-bottom:1.5px solid var(--hairline)}
+  .sec-head{display:flex;align-items:baseline;gap:14px;margin-bottom:26px}
+  .sec-num{font-family:var(--num);font-weight:900;font-size:13px;color:var(--coral)}
+  .sec-title{font-family:var(--disp);font-size:24px;font-weight:400}
+  .sec-note{margin-left:auto;font-size:12px;color:var(--dim);max-width:340px;text-align:right;line-height:1.5}
+
+  /* ── 01 rhythm ── */
+  .rhythm{display:flex;flex-direction:column;gap:14px}
+  .r-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .r-label{width:120px;flex:none;font-size:11.5px;font-weight:800;color:var(--dim)}
+  .r-label b{display:block;font-size:13px;color:var(--ink)}
+  .syl{width:64px;height:64px;border-radius:18px;display:flex;align-items:center;justify-content:center;
+    font-family:var(--disp);font-size:24px;background:#fff;border:1.5px solid var(--hairline)}
+  .syl.hi{background:var(--volt);border-color:var(--volt);color:var(--forest)}
+  .syl.ghost{background:transparent;border-style:dashed;color:var(--hairline)}
+  .r-verdict{margin-left:8px;font-size:11px;font-weight:800;padding:6px 12px;border-radius:99px}
+  .r-good{background:#E4F3C4;color:#4a6410}
+  .r-warn{background:#FFE3D6;color:#a03818}
+  .r-ref .syl{background:var(--forest);border-color:var(--forest);color:#fff}
+  .r-ref .syl.hi{background:var(--volt);color:var(--forest)}
+
+  /* ── 02 face-off columns ── */
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:840px){.cols{grid-template-columns:1fr}}
+  .col{border:1.5px solid var(--hairline);border-radius:24px;overflow:hidden;background:#fff}
+  .col-tag{padding:14px 22px;display:flex;align-items:center;gap:10px;border-bottom:1.5px solid var(--hairline)}
+  .col-tag .ab{font-family:var(--num);font-weight:900;font-size:12px;width:26px;height:26px;border-radius:9px;
+    display:flex;align-items:center;justify-content:center}
+  .col-a .ab{background:var(--volt);color:var(--forest)}
+  .col-b .ab{background:var(--clay);color:var(--ink)}
+  .col-tag b{font-size:14px}
+  .col-tag span{font-size:11px;color:var(--dim);margin-left:auto}
+  .hero-cell{background:var(--forest);padding:46px 30px 40px;text-align:center;position:relative;overflow:hidden}
+  .hero-cell::after{content:'';position:absolute;right:-70px;top:-70px;width:230px;height:230px;border-radius:50%;border:1.5px solid rgba(198,245,66,.2)}
+  .wm{font-family:var(--disp);color:#fff;line-height:1;letter-spacing:-.01em;position:relative;display:inline-block}
+  .col-a .wm{font-size:54px}
+  .col-b .wm{font-size:60px}
+  .wm .cut{color:var(--volt);position:relative}
+  .wm .cut::after{content:'';position:absolute;left:-2%;right:-2%;top:54%;height:6px;background:var(--forest);transform:skewY(-6deg)}
+  .wm-sub{margin-top:14px;font-family:var(--num);font-weight:800;font-size:11px;letter-spacing:.4em;color:rgba(255,255,255,.5)}
+  .bib{display:inline-flex;align-items:baseline;gap:6px;background:var(--forest);border:1.5px solid rgba(198,245,66,.5);
+    border-radius:99px;padding:7px 16px;font-family:var(--num);font-weight:900;font-size:16px;color:var(--coral)}
+  .bib small{font-size:10px;color:var(--cream);font-weight:700}
+  .cell{padding:22px;border-top:1.5px solid var(--hairline)}
+  .cell h6{font-size:10px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);margin-bottom:12px}
+  .icon-row{display:flex;gap:14px;align-items:flex-end}
+  .appicon{border-radius:22px;background:var(--forest);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+  .appicon.big{width:88px;height:88px}
+  .appicon.small{width:56px;height:56px;border-radius:16px}
+  .appicon.tiny{width:34px;height:34px;border-radius:10px}
+  .appicon span{font-family:var(--disp);color:var(--volt)}
+  .appicon.big span{font-size:30px}
+  .appicon.small span{font-size:19px}
+  .appicon.tiny span{font-size:11px}
+  .appicon.voltbg{background:var(--volt)}
+  .appicon.voltbg span{color:var(--forest)}
+  .icon-note{font-size:10.5px;color:var(--dim);margin-left:6px;line-height:1.5}
+  .ui-line{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1.5px solid var(--hairline);border-radius:14px;margin-bottom:8px;background:var(--cream)}
+  .ui-line:last-child{margin-bottom:0}
+  .ui-line .t{font-size:12.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ui-line .t b{font-weight:900}
+  .ui-line .k{flex:none;font-size:9px;font-weight:800;color:var(--dim);letter-spacing:.08em;width:64px}
+  .pill-noti{width:8px;height:8px;border-radius:50%;background:var(--coral);flex:none}
+  .pros{padding:22px;border-top:1.5px solid var(--hairline);background:var(--cream)}
+  .pros .p,.pros .c{display:flex;gap:9px;font-size:12.5px;line-height:1.6;padding:5px 0}
+  .pros .p::before{content:'＋';color:var(--volt-deep);font-weight:900;flex:none}
+  .pros .c::before{content:'－';color:var(--coral);font-weight:900;flex:none}
+
+  /* ── 03 live toggle phone ── */
+  .toggle-stage{display:grid;grid-template-columns:340px 1fr;gap:40px;align-items:center}
+  @media(max-width:840px){.toggle-stage{grid-template-columns:1fr}}
+  .phone{width:340px;background:var(--forest);border-radius:52px;padding:12px;box-shadow:0 30px 70px rgba(15,29,19,.28)}
+  .screen{background:var(--cream);border-radius:42px;overflow:hidden;height:640px;display:flex;flex-direction:column}
+  .p-status{display:flex;justify-content:space-between;padding:16px 26px 6px;font-size:12px;font-weight:800}
+  .p-body{flex:1;overflow:hidden;padding:8px 14px 0}
+  .p-brandbar{display:flex;align-items:center;gap:9px;padding:6px 8px 12px}
+  .p-brandbar .ic{width:30px;height:30px;border-radius:10px;background:var(--forest);display:flex;align-items:center;justify-content:center}
+  .p-brandbar .ic span{font-family:var(--disp);font-size:10px;color:var(--volt)}
+  .p-brandbar .nm{font-family:var(--disp);font-size:16px}
+  .p-brandbar .bell{margin-left:auto;width:34px;height:34px;border-radius:50%;border:1.5px solid var(--hairline);display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--dim)}
+  .p-hero{background:#fff;border:1.5px solid var(--hairline);border-radius:26px;padding:18px;text-align:center;position:relative}
+  .p-hero .age{position:absolute;top:13px;right:13px;background:var(--clay);border-radius:99px;padding:5px 10px;font-size:9.5px;font-weight:800}
+  .p-hero .age b{color:var(--volt-deep)}
+  .ring{width:180px;height:180px;margin:4px auto 0;border-radius:50%;position:relative;background:conic-gradient(var(--volt) 0 62%,#E4E9D8 62% 100%)}
+  .ring::before{content:'';position:absolute;inset:10px;border-radius:50%;background:#fff}
+  .ring .photo{position:absolute;inset:18px;border-radius:50%;background:linear-gradient(160deg,#C8B69A,#8F7B5E 60%,#6B5B44);display:flex;align-items:flex-end;justify-content:center;overflow:hidden}
+  .ring .photo span{font-size:66px;transform:translateY(7px)}
+  .ring .rbib{position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);background:var(--forest);border:1.5px solid rgba(198,245,66,.5);border-radius:99px;padding:5px 13px;font-family:var(--num);font-weight:900;font-size:14px;color:var(--coral)}
+  .ring .rbib small{font-size:9.5px;color:var(--cream);font-weight:700}
+  .p-hero .msg{margin-top:16px;font-size:11px;font-weight:700;color:var(--dim)}
+  .p-hi{margin-top:11px;background:var(--forest);border:1.5px solid var(--volt);border-radius:22px;padding:15px;color:#fff}
+  .p-hi .t{font-family:var(--disp);font-size:15px}
+  .p-hi .d{font-size:10px;color:rgba(255,255,255,.55);margin-top:4px;line-height:1.5}
+  .p-hi .cta{margin-top:10px;background:var(--volt);color:var(--forest);border-radius:12px;padding:10px;text-align:center;font-size:11.5px;font-weight:900;width:80%}
+  .p-noti{margin-top:11px;background:#fff;border:1.5px solid var(--hairline);border-radius:16px;padding:12px 14px;display:flex;gap:10px;align-items:flex-start}
+  .p-noti .ic2{width:26px;height:26px;border-radius:8px;background:var(--forest);display:flex;align-items:center;justify-content:center;flex:none}
+  .p-noti .ic2 span{font-family:var(--disp);font-size:9px;color:var(--volt)}
+  .p-noti .tt{font-size:11px;font-weight:800}
+  .p-noti .bb{font-size:10px;color:var(--dim);margin-top:2px;line-height:1.5}
+  .switch{display:flex;gap:8px;margin-bottom:22px}
+  .sw-btn{border:1.5px solid var(--hairline);background:#fff;border-radius:99px;padding:11px 20px;font-family:var(--body);
+    font-size:13px;font-weight:800;cursor:pointer;transition:.15s}
+  .sw-btn.on{background:var(--forest);border-color:var(--forest);color:var(--volt)}
+  .toggle-notes h3{font-family:var(--disp);font-size:22px;margin-bottom:14px}
+  .toggle-notes p{font-size:13.5px;line-height:1.7;color:var(--dim);margin-bottom:12px}
+  .toggle-notes p b{color:var(--ink)}
+
+  /* ── 04 shared system ── */
+  .sys{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  @media(max-width:840px){.sys{grid-template-columns:repeat(2,1fr)}}
+  .sys-card{background:#fff;border:1.5px solid var(--hairline);border-radius:20px;padding:20px}
+  .sys-card .e{font-size:22px}
+  .sys-card h5{font-size:13.5px;font-weight:800;margin-top:10px}
+  .sys-card p{font-size:11.5px;color:var(--dim);line-height:1.6;margin-top:5px}
+  .sys-card h5 s{text-decoration-color:var(--coral);color:var(--dim);font-weight:600;font-size:11px}
+
+  footer{padding:40px 0 80px;font-size:12px;color:var(--dim);line-height:1.7}
+  footer b{color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="kicker">Name Face-off · Refresh System</div>
+    <h1>도그스하이<span class="vs">VS</span>독스하이</h1>
+    <p class="lede">같은 리프레시 시스템(Black Han Sans · forest · volt · 레이스 빕)에 두 이름을 똑같이 앉혔다.
+    비교 조건이 같아야 이름만 평가된다. <b>컷은 두 경우 모두 '하이'를 지난다</b> — 히어로 음절은 하이다.</p>
+  </header>
+
+  <!-- 01 rhythm -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">01</span>
+      <span class="sec-title">러너스하이 미러 테스트</span>
+      <span class="sec-note">이 이름의 존재 이유가 '러너스하이 인용'이라면 — 운율이 곧 심사 기준</span>
+    </div>
+    <div class="rhythm">
+      <div class="r-row r-ref">
+        <span class="r-label">원전<b>러너스하이</b></span>
+        <span class="syl">러</span><span class="syl">너</span><span class="syl">스</span><span class="syl hi">하</span><span class="syl hi">이</span>
+        <span class="r-verdict r-good">5음절 · 기준 운율</span>
+      </div>
+      <div class="r-row">
+        <span class="r-label">A안<b>도그스하이</b></span>
+        <span class="syl">도</span><span class="syl">그</span><span class="syl">스</span><span class="syl hi">하</span><span class="syl hi">이</span>
+        <span class="r-verdict r-good">5음절 · 1:1 치환 — 농담이 그대로 들린다</span>
+      </div>
+      <div class="r-row">
+        <span class="r-label">B안<b>독스하이</b></span>
+        <span class="syl">독</span><span class="syl">스</span><span class="syl hi">하</span><span class="syl hi">이</span><span class="syl ghost">–</span>
+        <span class="r-verdict r-warn">4음절 · 반 박자 어긋남 — 듣고 한 번 번역해야 함</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 02 columns -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">02</span>
+      <span class="sec-title">동일 락업 비교</span>
+      <span class="sec-note">워드마크 · 앱 아이콘 · 시스템 표면(내비/푸시/스토어) — 길이가 문제되는 곳 전부</span>
+    </div>
+    <div class="cols">
+
+      <!-- A -->
+      <div class="col col-a">
+        <div class="col-tag"><span class="ab">A</span><b>도그스하이</b><span>DOGS HIGH · 5음절</span></div>
+        <div class="hero-cell">
+          <div><span class="wm">도그스<span class="cut">하이</span></span></div>
+          <div class="wm-sub">DOGS HIGH — RUN CLUB FOR DOGS</div>
+          <div style="margin-top:20px"><span class="bib">12.4 <small>/ 15km</small></span></div>
+        </div>
+        <div class="cell">
+          <h6>App Icon — 아이콘은 두 안 모두 '하이'가 산다</h6>
+          <div class="icon-row">
+            <div class="appicon big"><span>하이</span></div>
+            <div class="appicon small voltbg"><span>하이</span></div>
+            <div class="appicon tiny"><span>하이</span></div>
+            <div class="icon-note">아이콘엔 풀네임이 못 들어간다 —<br>어차피 '하이'가 아이콘. 무승부.</div>
+          </div>
+        </div>
+        <div class="cell">
+          <h6>길이 스트레스 테스트</h6>
+          <div class="ui-line"><span class="k">NAV BAR</span><span class="t"><b>도그스하이</b></span></div>
+          <div class="ui-line"><span class="pill-noti"></span><span class="t"><b>도그스하이</b> · 김러너님이 요청을 수락했어요</span></div>
+          <div class="ui-line"><span class="k">APP STORE</span><span class="t"><b>도그스하이</b> — 반려견 러닝 파트너</span></div>
+          <div class="ui-line"><span class="k">HANDLE</span><span class="t">@dogs.high · dogshigh.run</span></div>
+        </div>
+        <div class="pros">
+          <div class="p">러너스하이 운율 1:1 — 타깃(러닝 크루)에게 설명 없이 통한다</div>
+          <div class="p">도그 = 표준 표기, 毒 그림자 없음 · 발음이 굴러간다</div>
+          <div class="c">5음절 — 일상어에선 축약 필요 ('하이' 유닛화로 해결)</div>
+          <div class="c">워드마크 폭이 넓다 — 작은 지면에선 '하이' 단독 락업 병행</div>
+        </div>
+      </div>
+
+      <!-- B -->
+      <div class="col col-b">
+        <div class="col-tag"><span class="ab">B</span><b>독스하이</b><span>DOGS HIGH · 4음절</span></div>
+        <div class="hero-cell">
+          <div><span class="wm">독스<span class="cut">하이</span></span></div>
+          <div class="wm-sub">DOGS HIGH — RUN CLUB FOR DOGS</div>
+          <div style="margin-top:20px"><span class="bib">12.4 <small>/ 15km</small></span></div>
+        </div>
+        <div class="cell">
+          <h6>App Icon — 동일</h6>
+          <div class="icon-row">
+            <div class="appicon big"><span>하이</span></div>
+            <div class="appicon small voltbg"><span>하이</span></div>
+            <div class="appicon tiny"><span>하이</span></div>
+            <div class="icon-note">동일 — 아이콘은 이름 싸움에서<br>중립 지대다.</div>
+          </div>
+        </div>
+        <div class="cell">
+          <h6>길이 스트레스 테스트</h6>
+          <div class="ui-line"><span class="k">NAV BAR</span><span class="t"><b>독스하이</b></span></div>
+          <div class="ui-line"><span class="pill-noti"></span><span class="t"><b>독스하이</b> · 김러너님이 요청을 수락했어요</span></div>
+          <div class="ui-line"><span class="k">APP STORE</span><span class="t"><b>독스하이</b> — 반려견 러닝 파트너</span></div>
+          <div class="ui-line"><span class="k">HANDLE</span><span class="t">@dogs.high · dogshigh.run</span></div>
+        </div>
+        <div class="pros">
+          <div class="p">4음절 — 짧고 단단, 워드마크가 더 크게 앉는다 (위 히어로 비교)</div>
+          <div class="p">발음이 빠르다 — 구어 축약 없이도 쓸 만한 길이</div>
+          <div class="c">러너스하이 운율이 깨진다 — 인용이 반 박자 늦게 도착</div>
+          <div class="c">첫 음절 '독' — 毒 동형이의 + 파열음이 세다 (펫 감수성)</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 03 live toggle -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">03</span>
+      <span class="sec-title">홈에서 토글해 보기</span>
+      <span class="sec-note">고백 가능(go-backable) 비교 — 버튼으로 즉시 전환</span>
+    </div>
+    <div class="toggle-stage">
+      <div>
+        <div class="switch">
+          <button class="sw-btn on" id="btnA" onclick="setName('A')">A · 도그스하이</button>
+          <button class="sw-btn" id="btnB" onclick="setName('B')">B · 독스하이</button>
+        </div>
+        <div class="phone">
+          <div class="screen">
+            <div class="p-status"><span>9:41</span><span>●●●</span></div>
+            <div class="p-body">
+              <div class="p-brandbar">
+                <div class="ic"><span>하이</span></div>
+                <div class="nm" id="brandName">도그스하이</div>
+                <div class="bell">◔</div>
+              </div>
+              <div class="p-hero">
+                <span class="age">체력 나이 <b>1.8살</b></span>
+                <div class="ring">
+                  <div class="photo"><span>🐕‍🦺</span></div>
+                  <div class="rbib">12.4 <small>/ 15km</small></div>
+                </div>
+                <div class="msg">목표까지 2.6km — 오늘 하이 찍을까요?</div>
+              </div>
+              <div class="p-hi">
+                <div class="t">지금 러너 찾기</div>
+                <div class="d">주변 러너 3명이 바로 받을 수 있어요 · 하이 포인트 +50</div>
+                <div class="cta">주변 러너 검색 시작 ➤</div>
+              </div>
+              <div class="p-noti">
+                <div class="ic2"><span>하이</span></div>
+                <div>
+                  <div class="tt" id="notiName">도그스하이</div>
+                  <div class="bb">초코가 오늘의 하이를 찍었어요 — 3.2km 완주 🐾</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="toggle-notes">
+        <h3>보이는 것 vs 들리는 것</h3>
+        <p><b>화면에서는 B가 이긴다.</b> 4음절이 내비 바에도, 워드마크에도 더 단단하게 앉는다.
+        길이만 보면 독스하이다.</p>
+        <p><b>입에서는 A가 이긴다.</b> 이 이름의 전략적 가치는 '러너스하이의 강아지 버전'이라는
+        즉각 인식이고, 그 인식은 운율에서 온다. 브랜드는 화면보다 입소문에서 더 오래 산다.</p>
+        <p><b>절충안이 이미 시스템 안에 있다.</b> 풀네임은 도그스하이로 운율을 지키고,
+        UI의 좁은 지면·아이콘·일상어는 '하이' 단독 락업이 담당한다 —
+        배달의민족이 화면에선 '배민'으로 사는 것과 같은 구조. 길이 문제는 이름이 아니라
+        락업 체계로 푸는 것.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 04 shared system -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">04</span>
+      <span class="sec-title">'하이' 시스템 — 어느 쪽이든 따라오는 것</span>
+      <span class="sec-note">이름이 낳는 언어 체계 — 두 안 공통 자산</span>
+    </div>
+    <div class="sys">
+      <div class="sys-card"><div class="e">✋</div><h5>하이파이브 <s>인계 확인</s></h5><p>미트업 양측 확인이 '하이파이브'가 된다 — 절차가 의식(ritual)으로.</p></div>
+      <div class="sys-card"><div class="e">🪙</div><h5>하이 포인트 <s>댕마일</s></h5><p>완주 +50, 응가 보너스 +30 — 원장 구조는 그대로, 이름만 갈아탄다.</p></div>
+      <div class="sys-card"><div class="e">📸</div><h5>오늘의 하이 <s>최근 순간</s></h5><p>러너가 담아온 사진 스트립 — 오늘 만든 그 컴포넌트가 이 이름을 기다리고 있었다.</p></div>
+      <div class="sys-card"><div class="e">🐾</div><h5>하이 찍다 <s>러닝 완료</s></h5><p>동사 문제의 해법 — "오늘 초코 하이 찍었어." 도장 문화(응가 도장)와 같은 어법.</p></div>
+    </div>
+  </section>
+
+  <footer>
+    <b>커밋 전 필수:</b> KIPRIS 상표 검색 (도그스하이 · 독스하이 · DOGS HIGH, 반려동물 서비스류) + 앱스토어 검색 충돌 + @dogs.high / dogshigh.run 핸들·도메인 확인.<br>
+    이 보드는 목업 전용 — 앱 코드·에셋은 이름 확정 후 일괄 마이그레이션 (theme.ts처럼 문자열도 한 곳에 모아 rename 비용을 낮추는 걸 권장).
+  </footer>
+
+</div>
+<script>
+  const names={A:'도그스하이',B:'독스하이'};
+  function setName(k){
+    document.getElementById('brandName').textContent=names[k];
+    document.getElementById('notiName').textContent=names[k];
+    document.getElementById('btnA').classList.toggle('on',k==='A');
+    document.getElementById('btnB').classList.toggle('on',k==='B');
+  }
+</script>
+</body>
+</html>

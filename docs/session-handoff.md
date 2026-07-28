@@ -105,3 +105,95 @@
 - 앱 아이콘 = 옵션 A 풀블리드 스택 (assets/icon.png 교체 — prebuild 반영). app.json 표시명 변경, scheme/slug/bundleId는 KIPRIS 후.
 - 마스코트: 크림 진돗개+volt 반다나 방향 (미구현) — "개를 칠하지 말고 입혀라". 실사진 구역 불가침.
 - 보류: 인계 확인→하이파이브(안전 명료성), 최근 순간→오늘의 하이(정직성), 댕댕 스냅 애드온명, prototype/index.html.
+
+---
+# 세션 핸드오프 — 2026-07-28 (리브랜드 + 홈 개편 + 리스케줄 + 로직 감사)
+
+새 세션 시작 시: 이 섹션 + docs/rebrand.md + docs/mock-status.md(하단 2026-07-28 항목) + project memory(project-status.md의 감사 백로그)를 먼저 읽을 것. 위 2026-07-27 섹션의 디자인 언어 수치는 이 섹션이 대체한다.
+
+## 태그 규약
+[V] = 이 세션에서 코드/DB로 검증됨 · [H] = 대화 기억 기반(재확인 권장) · [?] = 가정(신뢰 전 검증 필수)
+
+## 1. 목표 & 현재 상태
+- **리브랜드 댕런→도그스하이(DOGS HIGH)**: 완료 [V]. 근거: 러너스하이(5음절) 1:1 운율 미러 — 러닝 크루 타깃에 설명 없는 인용. '하이' 시스템: 하이 포인트(구 댕마일, UI 라벨만·DB 불변), 하이 찍다(동사). KIPRIS/앱스토어/@dogs.high/dogshigh.run 스윕 **미실시** — 대외 공개 전 필수 [V].
+- **홈 개편**: 완료, Sean 스크린샷 루프 수차례 통과 [V]. 링 실사진 히어로 + 원라인 로테이팅 그리팅 + 랭킹 티커 + 미니 빕 칩 + 최근 순간 스트립.
+- **리스케줄(0016)**: 전 구간 실동작 배포 확인(컬럼 존재 SQL로 검증) [V].
+- **로직 감사**: 3면 병렬 감사 24건 발견 → 8건 크리티컬 수리 완료(배치 1: c5aabb2, 배치 2: a4b3344) [V], 잔여 16건 백로그(§9).
+- **미신뢰 상태**: 배치 2의 서버 3함수는 코드만 커밋 — **Sean 배포 전** (§7). 배포 전 정산/취소/중복가드는 구버전으로 동작 중 [V].
+
+## 2. 불변 원칙 (기존 유지 + 신규)
+- 정직 원칙 전체 유지 (목업/가짜 숫자/데모 폴백 금지, 실패는 크게 실패).
+- [신규] **확정 예약은 계약** — 시간 변경은 러너 수락제(제안 기반). 조용한 scheduled_at UPDATE 금지 [V].
+- [신규] **인센티브는 완주만** — 마일/total_runs/드랍은 end_reason='completed'만. total_km은 실주행이라 항상 [V].
+- [신규] **데모 거리는 정산 불가** — GPS 없으면 실예약 정산 차단 [V].
+- [신규] **없는 데이터는 그리지 않는다** — 티커 ▲▼는 지난주 델타 RPC 생기기 전 금지 [V].
+- 빌드/커밋 규칙 기존 그대로 (tsc 후 커밋·한국어 상세 메시지·Sean이 push/deploy). ⚠ tsc와 commit을 한 명령에 체이닝하지 말 것 — tsc 실패해도 커밋되는 사고 1회(da3eea7→ede545b로 수습) [V].
+
+## 3. 디자인 언어 (2026-07-28 확정판 — 27일 수치 대체)
+- 토큰 [V]: forest #0F1D13 · volt #C6F542 · tang #FF5C3D · cream #F8F6F0 · clay #EDE8DA(신규 웜 뉴트럴) · 헤어라인 #DCD6C4(3종 수렴) · dim #5B594A · voltDeep #7FA818 · 파스텔 DDF0A6/C3D9AE/FFCDB6/F2DA96. 거터 11(홈·설정 적용, 나머지 점진).
+- 상태 컬러 [V]: 확정 그린 #5a7a3c / 대기 앰버×탠저린 #F59A43(틴트 #FDE8D0·fg #9D580A) / 완료 소프트 블루 #6E9BC5(틴트 #E3EEF8·fg #4A6E93). 일정 필터 칩 = 레일과 동일 스키마(칩이 범례).
+- 서체 [V]: Black Han Sans = 화면 타이틀·히어로 카피·주요 CTA만. 숫자는 900 tabular(BHS 금지 — tabular 없음). displayFont.ts 지연 로드, 미설치 폴백. Sean이 expo install 실행함(리빌드 후 발현).
+- 탭 헤더 표준 [V]: 좌측 BHS 30 + 서브 14.5 #49524a + 인셋 16. 탭 루트에 뒤로가기 금지.
+- 타입 스케일 1.15배 전면 적용(41파일, 실험 커밋 0cc7ba4 — 통째 리버트 가능) [V]. Sean "i like the new font sizes" [H].
+- 아이콘 = 옵션 A 풀블리드 저스티파이드 스택(도그스 55/하이 86, 플렉스 센터링) [V]. assets/icon.png 교체됨, 마스터 docs/brand/dogshigh-icon-a-1024.png. 보드 5종 docs/brand/board-*.html.
+
+## 4. 의사결정 로그 (왜)
+- **이름 도그스하이 > 독스하이**: 러너스하이와 5음절 1:1 — 운율이 곧 인용. 독스하이는 반 박자 어긋남 + 毒 그림자. 하이테일은 영어 원어민 워드플레이라 탈락 [V].
+- **아이콘 풀블리드 + 저스티파이드**: 두 줄 같은 폭 → 하이(2글자)가 커져 위계 자동 생성. Sean 픽 = C(빼꼼)였다가 최종 A 채택 [H].
+- **마스코트**: volt 털 = 고블린(포유류 자연 색역 이탈) → **"개를 칠하지 말고 입혀라"** — 크림 진돗개 + volt 반다나(장비 경제와 동형). 구현은 안 함. 구역: 빈 상태·온보딩·스탬프·에러·마케팅만, 실사진 구역 불가침 [V-보드].
+- **캐러셀 아래 덱**: 반투명 월렛 z역전(내 안) 실패 → Sean 안 채택: 불투명 '밑으로 턱'(아래 카드들이 액티브 뒤로 올라와 바닥 엣지 56px 계단만 노출). 포커스 스케일 1.04→1.0(풀와이드 클리핑) [V].
+- **그리팅**: 2줄 → 1줄 '{문구}, 우리 {이름}'(문구 10종 5s rotateX 플립, adjustsFontSizeToFit) + 좌측 pfp(profiles.avatar_url) + 아래 랭킹 티커. 회색 서브 → forest+voltDeep [V].
+- **리스케줄 = 제안**: 취소·재예약 프리필(구 '같은 러너로 일정 변경') 은퇴. 러너 수락 시에만 적용, 수락 시점 슬롯 재검증 + 제안값 일치 조건부 UPDATE(레이스 방지), 레이지 만료(원 시간 2h 전) [V].
+- **km↔코스**: **코스가 km을 따른다**로 결정(가격·정산의 진실은 km) — request 화면 구현은 백로그 [H].
+- **보류 리네임**: 인계 확인→하이파이브(안전 명료성 우선), 최근 순간→오늘의 하이(과거 사진에 '오늘' 라벨은 부정직) [V].
+
+## 5. 아키텍처 & 계약 (신규분)
+- 0016 [V]: bookings.reschedule_new_time/proposed_at. transition-booking 액션 4종(request/accept/decline/withdraw_reschedule).
+- 0017 [V-코드]: expire_unmatched_bookings() — matching/runner_pending && scheduled_at<now → expired + 알림, pg_cron 5분. **배포 미확인** — db push가 "up to date"를 거짓 반환한 전례 2회, `npx supabase migration list`로 확인 후 필요시 `db push --include-all`.
+- settle-run [V-코드]: 원자 클레임(.eq status active → completed)이 중복 정산 락. 전 쓰기 에러 throw. 트랜잭션 RPC화는 백로그.
+- create-booking-hold [V-코드]: 같은 강아지 겹침 가드(라이브 상태만: matching~active — draft/payment_hold 잔재는 차단 사유 아님·오탐 방지 의도, DO-NOT-"FIX").
+- 실소요 공식 = **km×8분 + 25분 버퍼** (hold·accept_reschedule·리스케줄 화면 공통). 프로필 탐색 그리드만 60분(km 미정 — 의도, hold가 최종 검증).
+- fetchCurrent*Id = FLIGHT_RANK(active>picked_up>enroute>confirmed) 정렬 — scheduled_at 최신순 금지 (엉뚱한 예약에 정산 붙던 버그) [V].
+- matching.tsx 2층 컴포지터 불변 — 물리 상수(physicsFor)만 조정 가능. 헤더는 zIndex 50 + 불투명(뒤로가기 복원) [V].
+- draft(store.ts) = 가변 싱글턴 — 제네릭 진입(슬라이드/직접 설정/findNowPay)에서 preferredRunner 소거 필수. 새 진입점 추가 시 동일 규칙 [V].
+
+## 6. 파일 맵 (이 세션 신규/핵심)
+- app/src/lib/displayFont.ts — BHS 지연 로더(useDisplayFont → TextStyle|null)
+- app/app/owner/reschedule.tsx — 제안 화면(러너 바인딩 슬롯 그리드)
+- supabase/migrations/0015~0017 — available_runners 뷰 / 리스케줄 컬럼 / 만료 크론
+- docs/rebrand.md — 리브랜드 정본 · docs/brand/ — 아이콘 마스터 + 보드 5종
+- scripts/wipe-test-data.mjs — 클린 슬레이트(`node scripts/wipe-test-data.mjs --yes`)
+
+## 7. Sean 쪽 미완 (순서대로)
+1. `npx supabase functions deploy transition-booking settle-run create-booking-hold` — 감사 배치 2 서버분. **미배포 시 구버전 정산(조용한 미지급 가능) 동작 중**
+2. `npx supabase migration list` → 0017 원격 미적용이면 `npx supabase db push --include-all`
+3. `npx expo prebuild -p ios --clean && npx expo run:ios` — 아이콘·앱명·BHS·카메라·LA 일괄 발현
+4. `git push` (전부 로컬 커밋됨, 927a7d8~) · _to_delete/ 삭제
+5. KIPRIS + 앱스토어 + 핸들 스윕 (도그스하이/DOGS HIGH) — 대외 공개 게이트
+
+## 8. 환경 특이점 (다음 세션 필독)
+- git: 커밋마다 lock/tmp 파일 unlink 불가 → **mkdir -p _to_delete/git-locks 후 mv** 의식 필수. Sean이 _to_delete를 지우면 mkdir부터 (전례 1회) [V].
+- device_stage_files는 같은 경로 재스테이징 시 **스테일 캐시** 반환 가능 — 세션 중 수정된 파일은 device_bash python으로 직접 편집하거나 base64로 끌어올 것 [V].
+- **파일 유실 사고 2회**: 최근 순간 스트립이 home.tsx와 api.ts 양쪽에서 사라진 채 발견(원인 미상 — Sean 편집 or 스테일 기반 커밋). 수리 전 반드시 대상 파일 최신본 확인 [V].
+- supabase db push "Remote database is up to date" 거짓 반환 전례 — migration list로 검증 [V].
+- python 편집 시 replace 뒤 후행 콤마 → 튜플 → 파일 truncate 사고 1회. write 전 assert + len 체크 습관 [V].
+
+## 9. 감사 잔여 백로그 (16건 — 상세는 project memory와 동일)
+MED: ① 지명 예약 서버 가용성 미검증(hold에 runner_id 미전달 + request_runner/runner_accept 재검증 없음 → 동시각 이중 계약) ② runner_pending이 클라 'pending'으로 뭉개져 지명 대기가 레이더 'N명 가능' 허위 표시 ③ 미트업 양측 종말 상태(completed/decline) 미처리로 화면 좌초 ④ runs.events/photos 클라 RMW 레이스(연타 시 응가 보너스 증발) — 서버 jsonb append RPC로 ⑤ 수익 표시 3종(주간 스탯 guarantee 누락·견적 일괄 20%가 티어 15/18% 무시·'정산 예정' 30행 캡) ⑥ '이번 주' 창 불일치(롤링 7일 vs 리더보드 월요일 리셋 — KST 캘린더 주로 통일)
+LOW: ⑦ request 60분 슬롯 체크·DATES 자정 고정·체력나이 시드 1.8 표시+미래생일·open-drop 에러 미체크+동시 오픈 이중 적립
+설계: ⑧ 코스가 km을 따른다(request 필터) · 코스↔픽업지 고지 · 티커 델타 RPC · 정산 트랜잭션 RPC · 리스케줄 만료 알림 크론
+
+## 10. 미구현 아이디어 (유실 주의)
+- 러너 장비 v1 (27일 섹션 상세 그대로 유효 — 다음 빅 피처 후보)
+- 마스코트: 크림 진돗개+volt 반다나 확정 → 포즈 시트(앉기/달리기/하이파이브/미안/응가 경례) + 캐릭터명(KIPRIS 동반)
+- iOS 대체 아이콘 A/D/F 세트 · 스탯 칩 에스컬레이션(7일 스트릭 시 필 심화) · pending 레일 브리딩 펄스(제안만 됨)
+- 샵 셸 확장(27일 목업 10종 전사 유효) · 나이트 러너 테마
+
+## 11. 다음 1–3 스텝 (권장)
+1. [needs-user 먼저] §7의 1·2 배포 확인 → 솔로 루프 재검증: wipe → 예약 → 수락 → 리스케줄 제안/수락 → 러닝(GPS) → 정산 → 중복 예약 시도(409 확인) → 매칭 전 취소(전액 환불 확인)
+2. [local-edit] 감사 백로그 ①+② (지명 가용성 검증 + pending/지명 분리 — 한 배치로 자연스러움)
+3. [local-edit] ⑥ 주간 창 통일 or 러너 장비 v1 착수 (Sean 선택)
+
+## 12. 검증 명령
+- 읽기 전용: `npx supabase migration list` · 대시보드 SQL: `select column_name from information_schema.columns where table_name='bookings' and column_name like 'reschedule%';` · `node scripts/e2e.mjs --solo --keep` [H-스크립트 존재]
+- 파괴적: `node scripts/wipe-test-data.mjs --yes` (테스트 초기화) · prebuild --clean (풀 리빌드 유발)
