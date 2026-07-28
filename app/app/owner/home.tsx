@@ -1,12 +1,12 @@
 import { router, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Animated, Dimensions, Easing, Modal, PanResponder, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Animated, Dimensions, Easing, Image, Modal, PanResponder, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BottomNav } from '../../src/components/bottomnav';
 import { Ring } from '../../src/components/ring';
 import { RunCard } from '../../src/components/runcard';
 import { Avatar } from '../../src/components/ui';
-import { Addr, confirmPayment, createBookingHold, DogProfile, fetchAddresses, fetchAvailableRunners, fetchCertifiedRunners, fetchFitness, fetchMyBookings, fetchMyDogs, fetchMyProfile, Fitness, LiveRunner, MyProfile } from '../../src/lib/api';
+import { Addr, BoardRow, confirmPayment, createBookingHold, DogProfile, fetchAddresses, fetchAvailableRunners, fetchCertifiedRunners, fetchFitness, fetchLeaderboards, fetchMyBookings, fetchMyDogs, fetchMyProfile, fetchRecentMoments, Fitness, LiveRunner, Moment, MyProfile } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { haptic } from '../../src/lib/haptics';
 import { Booking, demoImminent, dog, draft, myCards, nextBooking, ownerGearLadder, runners } from '../../src/store';
@@ -21,7 +21,7 @@ const { width: SCREEN_W } = Dimensions.get('window');
 const CARD_W = SCREEN_W - 24; // 거터 12*2
 const RING_BIG = 216;
 const PAD_TOP = 56;
-const HEADER_H = 84; // 로테이팅 그리팅 1줄 — pfp와 알림 버튼 사이를 꽉 채운다
+const HEADER_H = 104; // 그리팅 1줄 + 동네 랭킹 티커 스트립
 
 // 로테이팅 그리팅 — 5초마다 수직 플립으로 순환. 이름 라인('우리 {이름}')은 고정 앵커.
 const GREETINGS = [
@@ -76,6 +76,8 @@ export default function OwnerHome() {
       .catch((e) => console.warn('[home] bookings:', e?.message ?? e));
     fetchFitness().then(setFit).catch((e) => console.warn('[home] fitness:', e?.message ?? e));
     fetchMyProfile().then(setMe).catch((e) => console.warn('[home] me:', e?.message ?? e));
+    fetchRecentMoments().then(setMoments).catch((e) => console.warn('[home] moments:', e?.message ?? e));
+    fetchLeaderboards().then((b) => setTicker(b.dogs)).catch((e) => console.warn('[home] ticker:', e?.message ?? e));
     fetchCertifiedRunners().then(setLocalRunners).catch((e) => console.warn('[home] runners:', e?.message ?? e));
     // 가용 러너 — 러닝 중인 러너는 히어로 카운트/레이더에서 제외 (기대 오염 방지)
     fetchAvailableRunners().then(setFnAvail).catch((e) => console.warn('[home] avail:', e?.message ?? e));
@@ -85,6 +87,21 @@ export default function OwnerHome() {
   const [localRunners, setLocalRunners] = useState<LiveRunner[]>([]);
   // 보호자 pfp — 헤더 좌측 (마이 프로필 사진과 동일 소스)
   const [me, setMe] = useState<MyProfile | null>(null);
+  // 최근 순간 — 러너가 담아온 실사진 (runs.photos, 0장이면 섹션 숨김)
+  const [moments, setMoments] = useState<Moment[]>([]);
+  // 동네 랭킹 티커 — 주간 강아지 km TOP (실집계, 리더보드와 동일 소스). 빈 주엔 렌더 안 함
+  const [ticker, setTicker] = useState<BoardRow[]>([]);
+  const tickerX = useRef(new Animated.Value(0)).current;
+  const [tickerW, setTickerW] = useState(0);
+  useEffect(() => {
+    if (tickerW <= 0) return;
+    tickerX.setValue(0);
+    const loop = Animated.loop(
+      Animated.timing(tickerX, { toValue: -tickerW, duration: Math.max(9000, tickerW * 35), easing: Easing.linear, useNativeDriver: true }),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [tickerW, tickerX]);
 
   // ── 지금 러너 찾기 — 원탭 히어로 → 프리필 시트(2탭) → 오픈 브로드캐스트 + 레이더
   const [fnOpen, setFnOpen] = useState(false);
@@ -246,6 +263,33 @@ export default function OwnerHome() {
               <Text style={{ fontSize: 17, color: p.dim }}>◔</Text>
             </Pressable>
           </View>
+          {/* 동네 랭킹 티커 — 주식 시세줄처럼 흐르는 실집계 (탭 → 리더보드).
+              ▲▼ 등락 화살표는 지난주 대비 델타 RPC가 생기기 전까지 금지 — 없는 데이터는 그리지 않는다 */}
+          {ticker.length > 0 && (
+            <Pressable onPress={() => router.push('/leaderboard')} style={{ overflow: 'hidden', marginTop: 2 }}>
+              <Animated.View style={{ flexDirection: 'row', transform: [{ translateX: tickerX }] }}>
+                {[0, 1].map((dup) => (
+                  <View
+                    key={dup}
+                    style={{ flexDirection: 'row', alignItems: 'center' }}
+                    onLayout={dup === 0 ? (e) => { const w = Math.round(e.nativeEvent.layout.width); if (Math.abs(w - tickerW) > 2) setTickerW(w); } : undefined}
+                  >
+                    <Text style={s.tickerItem}>🏆 이번 주 동네 랭킹</Text>
+                    <Text style={s.tickerDot}>·</Text>
+                    {ticker.map((d, i) => (
+                      <View key={`${dup}-${i}`} style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Text style={s.tickerItem}>
+                          <Text style={{ color: colors.voltDeep, fontWeight: '900' }}>{i + 1}위 </Text>
+                          {d.name} <Text style={{ color: colors.tang, fontWeight: '900' }}>{d.km}km</Text>
+                        </Text>
+                        <Text style={s.tickerDot}>·</Text>
+                      </View>
+                    ))}
+                  </View>
+                ))}
+              </Animated.View>
+            </Pressable>
+          )}
         </Animated.View>
 
         <Pressable onPress={() => router.push('/owner/fitness')}>
@@ -590,6 +634,34 @@ export default function OwnerHome() {
           )}
         </Pressable>
 
+        {/* ---------- 최근 순간 — 러너가 담아온 실러닝 사진 (runs.photos 재사용).
+            사진 0장이면 섹션 자체 숨김 — 플레이스홀더/스톡 금지 (정직 원칙) ---------- */}
+        {moments.length > 0 && (
+          <View style={{ marginTop: 16 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 7, marginBottom: 9 }}>
+              <Text style={[s.sectionTitle, { color: p.textStrong }]}>최근 순간</Text>
+              <Text style={{ fontSize: 12.5, color: p.dim }}>러너가 담아온 {dogName}의 러닝</Text>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 9, paddingRight: 12 }}>
+              {moments.map((m, mi) => (
+                <Pressable
+                  key={`${m.bookingId}-${mi}`}
+                  onPress={() => router.push({ pathname: '/owner/report', params: { bid: m.bookingId } })}
+                  style={[s.momentCard, mi === 0 && { width: 162 }]}
+                >
+                  <Image source={{ uri: m.url }} style={{ width: '100%', height: '100%' }} />
+                  <View style={s.momentPill}>
+                    <Text style={{ fontSize: 12.5, fontWeight: '900', color: colors.volt, fontVariant: ['tabular-nums'] }}>
+                      {m.km}km
+                      <Text style={{ fontSize: 10.5, fontWeight: '600', color: 'rgba(255,255,255,0.8)' }}>  {m.when}</Text>
+                    </Text>
+                  </View>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
         {/* ---------- 우리 동네 러너 (탐색형 매칭) ---------- */}
         {localRunners.length > 0 && (
           <View style={{ marginTop: 14 }}>
@@ -866,7 +938,7 @@ const s = StyleSheet.create({
     position: 'absolute', top: 0, left: 0, right: 0, zIndex: 20,
     paddingTop: PAD_TOP, paddingHorizontal: 12, paddingBottom: 10,
   },
-  headerRow: { flexDirection: 'row', alignItems: 'center', height: HEADER_H - 12, marginBottom: 12 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', height: 58, marginBottom: 8 }, // 그리팅 줄 (아래 티커가 나머지를 채움)
   themeBtn: {
     width: 40, height: 40, borderRadius: 20, borderWidth: 1,
     alignItems: 'center', justifyContent: 'center',
@@ -962,6 +1034,13 @@ const s = StyleSheet.create({
   safetyIcon: { width: 28, height: 28, borderRadius: 9, backgroundColor: '#eef4e0', alignItems: 'center', justifyContent: 'center' },
   sectionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 26, marginBottom: 12 },
   sectionTitle: { fontSize: 19.5, fontWeight: '800' },
+  momentCard: { width: 126, height: 158, borderRadius: 18, overflow: 'hidden', backgroundColor: '#e8e5d8' },
+  momentPill: {
+    position: 'absolute', left: 8, bottom: 8,
+    backgroundColor: 'rgba(15,29,19,0.62)', borderRadius: 99, paddingVertical: 4, paddingHorizontal: 9,
+  },
+  tickerItem: { fontSize: 13, fontWeight: '600', color: '#49524a' },
+  tickerDot: { fontSize: 13, color: '#b6b19e', marginHorizontal: 8 },
   runnerCard: { flexDirection: 'row', alignItems: 'center', borderRadius: 18, borderWidth: 1, padding: 14, marginBottom: 8 },
   runnerBadge: { borderWidth: 1, borderRadius: 99, paddingVertical: 2, paddingHorizontal: 7 },
 });
