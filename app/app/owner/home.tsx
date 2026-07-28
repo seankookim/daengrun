@@ -23,7 +23,7 @@ const RING_BIG = 216;
 const PAD_TOP = 56;
 const HEADER_H = 62;
 const HERO_BIG = 296;
-const HERO_SMALL = 148;
+const HERO_SMALL = 176; // 1.15배 타입 스케일 후 좌측 정보 블록('N% 달성'까지)이 잘리지 않는 높이
 const SCROLL_RANGE = 150;
 
 export default function OwnerHome() {

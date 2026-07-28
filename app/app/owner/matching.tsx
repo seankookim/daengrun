@@ -247,22 +247,27 @@ export default function Matching() {
     // 포커스 ±S/2에 중간점 — 스케일이 선형이 아니라 스프링처럼 둥글게 부풀도록
     const in7 = [f - 2 * STEP, f - STEP, f - STEP / 2, f, f + STEP / 2, f + STEP, f + 2 * STEP];
     const H2 = cardH / 2;
-    // 덱 클램프 translateY: 이전 카드는 액티브 위 ~140px 피크로, 다음 카드는 액티브 하단 밑으로.
-    // (스케일 수축으로 인한 엣지 이동을 0.05/0.10*cardH 로 보정)
-    // 두 칸 아래: 다음 카드 top의 72px 아래 밴드로 피크 — 덱이 '2장 로드'로 보이게 (캐러셀감)
-    const T_m2 = Math.round(1.0 * cardH + 42 - 2 * STEP);
-    const T_m1 = Math.round(1.05 * cardH - 30 - STEP);     // 다음 — top이 액티브 하단에 ~30px 겹침
-    const T_p1 = Math.round(STEP - 140 - 0.05 * cardH);    // 이전 — 상단 140px 피크
-    // 두 칸 위: 이전 카드(반투명 0.72) 뒤로 완전히 숨김 — 비치면 지저분 (레퍼런스도 위는 1장만 피크)
+    // 덱 클램프 translateY:
+    // 위(이전) 카드는 기존대로 상단 ~140px 피크.
+    // 아래(다음) 카드들은 액티브 '밑으로 턱' — 상반신은 액티브(오버레이가 항상 위) 뒤에 숨고,
+    // 바닥 엣지만 56px 계단으로 노출: 액티브 아래로 +1 바닥, 그 아래 +2 바닥 (Sean 안).
+    // 반투명 이중노출 없이 전부 불투명 — 겹침은 z가 아니라 '아래 카드 바닥이 더 낮다'로 표현.
+    // effective bottom = top + T + cardH·(1+s)/2  (센터 스케일 보정)
+    const T_m1 = Math.round(0.05 * cardH + 56 - STEP);      // 다음 — 바닥이 액티브 바닥 +56px
+    const T_m2 = Math.round(0.10 * cardH + 112 - 2 * STEP); // 두 칸 아래 — 바닥 +112px
+    const T_p1 = Math.round(STEP - 140 - 0.05 * cardH);     // 이전 — 상단 140px 피크
+    // 두 칸 위: 이전 카드 뒤로 완전히 숨김 (레퍼런스도 위는 1장만 피크)
     const T_p2 = Math.round(2 * STEP - 150 - 0.9 * cardH);
     return {
-      opacity: scrollY.interpolate({ inputRange: in5, outputRange: [0.55, 0.72, 1, 0.72, 0.55], extrapolate: 'clamp' as const }),
+      // 아래 덱은 불투명(엣지 스택), 위 피크만 기존 반투명 유지
+      opacity: scrollY.interpolate({ inputRange: in5, outputRange: [1, 1, 1, 0.72, 0.5], extrapolate: 'clamp' as const }),
       translateY: scrollY.interpolate({ inputRange: in5, outputRange: [T_m2, T_m1, 0, T_p1, T_p2], extrapolate: 'clamp' as const }),
       // 포커스 스케일 1.04 → 1.0: 풀와이드 카드라 1 초과분이 화면 밖으로 잘려 나가던 문제
       // (우상단 모서리 클리핑). 벌지감은 이웃을 0.96으로 낮춰 상대값으로 보존.
       scale: scrollY.interpolate({ inputRange: in7, outputRange: [0.8, 0.9, 0.96, 1.0, 0.96, 0.9, 0.8], extrapolate: 'clamp' as const }),
       scaleX: scrollY.interpolate({ inputRange: in5, outputRange: [0.94, 0.965, 1, 0.965, 0.94], extrapolate: 'clamp' as const }),
-      rotateX: scrollY.interpolate({ inputRange: in5, outputRange: ['-15deg', '-10deg', '0deg', '10deg', '15deg'], extrapolate: 'clamp' as const }),
+      // 아래 덱은 평평하게(바닥 엣지에 회전은 어지럽다), 위 피크만 힌지 폴드 유지
+      rotateX: scrollY.interpolate({ inputRange: in5, outputRange: ['0deg', '0deg', '0deg', '10deg', '15deg'], extrapolate: 'clamp' as const }),
       // transform-origin 에뮬레이션: 액티브에 가까운 엣지가 힌지 —
       // 위 카드는 하단 엣지(+H2), 아래 카드는 상단 엣지(-H2). translate → rotate → 역translate.
       oShift: scrollY.interpolate({ inputRange: in5, outputRange: [-H2, -H2, 0, H2, H2], extrapolate: 'clamp' as const }),
@@ -313,8 +318,7 @@ export default function Matching() {
           {live && top && (
             <>
               {scored.map(({ r, m }, i) => {
-                const rel = i - safeFocus;          // 부호: 음수 = 위(이전), 양수 = 아래(다음)
-                const dist = Math.abs(rel);
+                const dist = Math.abs(i - safeFocus);
                 const active = dist === 0;
                 const ph = physicsFor(i);
                 return (
@@ -322,9 +326,8 @@ export default function Matching() {
                     key={r.profileId}
                     style={[active ? null : s.cardShadowAmbient, {
                       position: 'absolute', top: FOCUS_TOP + i * STEP, left: 0, right: 0,
-                      // 아래 덱은 월렛 스태킹(깊을수록 위) — 다음 카드의 top 밴드 아래로 두 번째 밴드가 보이게.
-                      // 위 덱은 기존대로(가까울수록 위) — 두 칸 위 카드는 이전 카드 뒤에 숨는 규칙 유지.
-                      zIndex: dist === 0 ? 1000 : rel > 0 ? 100 + Math.min(rel, 5) * 10 : dist === 1 ? 100 : 10,
+                      // 가까울수록 위 — 아래 덱은 '밑으로 턱'이라 가까운 카드가 먼 카드의 상반신을 가린다
+                      zIndex: dist === 0 ? 1000 : dist === 1 ? 100 : dist === 2 ? 10 : 1,
                       elevation: dist === 0 ? 30 : dist === 1 ? 8 : 1,
                       // 액티브 카드: 비주얼은 오버레이가 담당 → 여기선 투명 플레이스홀더.
                       // 터치는 이 투명 카드가 받는다 (단일 터치 레이어 — 이중 처리/스크롤 제스처 충돌 방지,
