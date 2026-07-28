@@ -18,14 +18,14 @@ const FOREST = '#0F1D13';
 const FILTERS: { label: string; match: (b: Booking) => boolean; tint: string; tintFg: string; sel: string; selFg: string }[] = [
   { label: '전체', match: () => true, tint: '#fff', tintFg: '#3d453d', sel: '#0F1D13', selFg: '#fff' },
   { label: '예약 확정', match: (b) => b.status === 'confirmed', tint: '#e3f0c4', tintFg: '#3d5a2b', sel: '#5a7a3c', selFg: '#fff' },
-  { label: '응답 대기', match: (b) => b.status === 'pending', tint: '#fbf0d4', tintFg: '#a97c12', sel: '#e2c56b', selFg: '#4a3a0c' },
+  { label: '응답 대기', match: (b) => b.status === 'pending', tint: '#FDE8D0', tintFg: '#9D580A', sel: '#F59A43', selFg: '#fff' },
   { label: '완료', match: (b) => b.status === 'completed', tint: '#E3EEF8', tintFg: '#4A6E93', sel: '#6E9BC5', selFg: '#fff' },
   { label: '반복', match: (b) => !!b.recurring, tint: '#fff', tintFg: '#3d453d', sel: '#0F1D13', selFg: '#fff' },
 ];
 
 const STATUS_STYLE: Record<BookingStatus, { label: string; bg: string; fg: string; rail: string }> = {
   confirmed: { label: '예약 확정', bg: '#e3f0c4', fg: '#3d5a2b', rail: '#5a7a3c' },
-  pending: { label: '러너 응답 대기', bg: '#fbf0d4', fg: '#a97c12', rail: '#e2c56b' },
+  pending: { label: '러너 응답 대기', bg: '#FDE8D0', fg: '#9D580A', rail: '#F59A43' }, // 앰버×탠저린 50:50 — 카운트다운의 색 (기대감, 코랄 불침범)
   handoff: { label: '인계 완료 · 시작 대기', bg: '#e3f0c4', fg: '#3d5a2b', rail: '#5a7a3c' },
   active: { label: '러닝 중 · LIVE', bg: '#eaf7c8', fg: '#4a6d1f', rail: colors.volt },
   completed: { label: '완료', bg: '#E3EEF8', fg: '#4A6E93', rail: '#6E9BC5' }, // 소프트 에너지 블루 — 그레이는 '끝'처럼 죽어 보였다; 완주는 성과다
