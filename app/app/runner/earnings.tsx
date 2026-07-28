@@ -4,7 +4,7 @@ import { useCallback, useState } from 'react';
 import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BottomNav } from '../../src/components/bottomnav';
 import { Row } from '../../src/components/ui';
-import { fetchLedger, LiveLedgerItem } from '../../src/lib/api';
+import { fetchLedger, fetchLedgerTotal, LiveLedgerItem } from '../../src/lib/api';
 import { colors } from '../../src/theme';
 
 // 수익 — 실원장(ledger_items)만 표시. 정산·계좌는 백엔드 후속.
@@ -22,12 +22,17 @@ export default function Earnings() {
   const df = useDisplayFont(); // 디스플레이 서체 — 화면 타이틀
   const [ledger, setLedger] = useState<LiveLedgerItem[]>([]);
 
-  const load = () => fetchLedger().then(setLedger).catch((e) => console.warn('[earnings] ledger:', e?.message ?? e));
+  const [total, setTotal] = useState<number | null>(null);
+  const load = () => Promise.all([
+    fetchLedger().then(setLedger),
+    fetchLedgerTotal().then(setTotal),
+  ]).catch((e) => console.warn('[earnings] ledger:', e?.message ?? e));
   useFocusEffect(useCallback(() => { load(); }, []));
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = () => { setRefreshing(true); load().finally(() => setRefreshing(false)); };
 
-  const pendingSum = ledger.reduce((sum, l) => sum + l.net, 0);
+  // 정산 예정 = 원장 전체 누적 (30행 캡 합계가 31번째 러닝부터 오히려 줄어들던 버그 — 로드 전엔 표시 리스트 합으로 폴백)
+  const pendingSum = total ?? ledger.reduce((sum, l) => sum + l.net, 0);
   const tax = Math.round(pendingSum * 0.033);
 
   return (

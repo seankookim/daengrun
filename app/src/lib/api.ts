@@ -193,6 +193,15 @@ export async function confirmPayment(bookingId: string): Promise<void> {
 // ---------- my bookings → UI Booking ----------
 const DAYS = ['일', '월', '화', '수', '목', '금', '토'];
 
+// KST 캘린더 주(월요일 00:00 시작) — '이번 주' 창을 리더보드(월요일 리셋)와 통일.
+// 롤링 7일 창은 일요일 러닝이 다음 주 토요일까지 '이번 주'로 남아 랭킹과 어긋났다.
+const KST_MS = 9 * 3_600_000;
+function kstWeekStartMs(t = Date.now()): number {
+  const k = new Date(t + KST_MS);
+  const day = (k.getUTCDay() + 6) % 7; // 월=0
+  return Date.UTC(k.getUTCFullYear(), k.getUTCMonth(), k.getUTCDate()) - day * 86400_000 - KST_MS;
+}
+
 function kstParts(iso: string) {
   const d = new Date(iso);
   const dateLabel = `${d.getMonth() + 1}월 ${d.getDate()}일 (${DAYS[d.getDay()]})`;
@@ -259,7 +268,7 @@ export interface OpenRequest {
   vaccines: string[];
 }
 
-function mapOpenRequest(r: any, directed: boolean): OpenRequest {
+function mapOpenRequest(r: any, directed: boolean, rate: number): OpenRequest {
   const { dateLabel, timeLabel } = kstParts(r.scheduled_at);
   return {
     bookingId: r.id,
@@ -271,7 +280,7 @@ function mapOpenRequest(r: any, directed: boolean): OpenRequest {
     when: `${dateLabel} ${timeLabel}`,
     km: Number(r.km),
     paceLabel: r.pace_label ?? "보통 7'",
-    payout: Math.round((r.base_fare + r.distance_fare + r.addon_fare) * 0.8),
+    payout: Math.round((r.base_fare + r.distance_fare + r.addon_fare) * (1 - rate)), // 티어 실수수료 (일괄 20% 은퇴)
     directed,
     photoUrl: r.dogs?.photo_url ?? null,
     prefTags: (r.dogs?.preferences as any)?.tags ?? [],
@@ -283,7 +292,19 @@ const REQ_SELECT = 'id, scheduled_at, km, pace_label, base_fare, distance_fare, 
 
 // 러너 인박스: 지명 요청(runner_pending, 나에게) + 오픈 요청(matching, 미배정)
 // + 단골 감지: 함께 완주한 이력이 있는 강아지엔 repeatPrior (수락 결정이 쉬워진다)
+// 내 수수료율 — 견적용 (티어: 인증 20% / 베테랑 18% / 마스터 15%). 세션 캐시.
+let _commissionRate: number | null = null;
+async function myCommissionRate(): Promise<number> {
+  if (_commissionRate != null) return _commissionRate;
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) return 0.2;
+  const { data } = await supabase.from('runners').select('commission_rate').eq('profile_id', user.user.id).maybeSingle();
+  _commissionRate = Number(data?.commission_rate ?? 0.2);
+  return _commissionRate;
+}
+
 export async function fetchRunnerInbox(): Promise<OpenRequest[]> {
+  const rate = await myCommissionRate();
   const { data: user } = await supabase.auth.getUser();
   const [openRes, directedRes] = await Promise.all([
     supabase.from('bookings').select(REQ_SELECT).eq('status', 'matching').is('runner_id', null).order('scheduled_at').limit(10),
@@ -292,8 +313,8 @@ export async function fetchRunnerInbox(): Promise<OpenRequest[]> {
       : Promise.resolve({ data: [], error: null } as any),
   ]);
   if (openRes.error) throw openRes.error;
-  const directed = (directedRes.data ?? []).map((r: any) => mapOpenRequest(r, true));
-  const open = (openRes.data ?? []).map((r: any) => mapOpenRequest(r, false));
+  const directed = (directedRes.data ?? []).map((r: any) => mapOpenRequest(r, true, rate));
+  const open = (openRes.data ?? []).map((r: any) => mapOpenRequest(r, false, rate));
   const all = [...directed, ...open];
 
   const dogIds = [...new Set(all.map((r) => r.dogId).filter(Boolean))] as string[];
@@ -309,6 +330,7 @@ export async function fetchRunnerInbox(): Promise<OpenRequest[]> {
 }
 
 export async function fetchOpenRequests(): Promise<OpenRequest[]> {
+  const rate = await myCommissionRate();
   const { data, error } = await supabase
     .from('bookings')
     .select('id, scheduled_at, km, pace_label, base_fare, distance_fare, addon_fare, dogs(name, breed, weight_kg, memo)')
@@ -329,7 +351,7 @@ export async function fetchOpenRequests(): Promise<OpenRequest[]> {
       when: `${dateLabel} ${timeLabel}`,
       km: Number(r.km),
       paceLabel: r.pace_label ?? "보통 7'",
-      payout: Math.round((r.base_fare + r.distance_fare + r.addon_fare) * 0.8),
+      payout: Math.round((r.base_fare + r.distance_fare + r.addon_fare) * (1 - rate)), // 티어 실수수료 (일괄 20% 은퇴)
       photoUrl: r.dogs?.photo_url ?? null,
       prefTags: (r.dogs?.preferences as any)?.tags ?? [],
       vaccines: [] as string[],
@@ -555,6 +577,7 @@ export interface RunnerJob {
 }
 
 export async function fetchRunnerJobs(): Promise<RunnerJob[]> {
+  const rate = await myCommissionRate();
   const { data: user } = await supabase.auth.getUser();
   if (!user.user) return [];
   const { data, error } = await supabase
@@ -572,7 +595,7 @@ export async function fetchRunnerJobs(): Promise<RunnerJob[]> {
       when: `${dateLabel} ${timeLabel}`,
       dogName: r.dogs?.name ?? '반려견',
       km: Number(r.km),
-      payout: Math.round((r.base_fare + r.distance_fare + r.addon_fare) * 0.8),
+      payout: Math.round((r.base_fare + r.distance_fare + r.addon_fare) * (1 - rate)), // 티어 실수수료 (일괄 20% 은퇴)
       status: r.status === 'completed' ? 'completed' : r.status === 'confirmed' ? 'confirmed' : 'in_progress',
       rawStatus: r.status,
     };
@@ -753,11 +776,12 @@ export async function uploadRunPhoto(bookingId: string, base64: string): Promise
     .upload(path, b64ToBytes(base64), { contentType: 'image/jpeg' });
   if (error) throw error;
   const { data: pub } = supabase.storage.from('avatars').getPublicUrl(path);
-  const { data: row } = await supabase.from('runs').select('photos').eq('booking_id', bookingId).single();
-  const photos = [...(row?.photos ?? []), pub.publicUrl];
-  const { error: e2 } = await supabase.from('runs').update({ photos }).eq('booking_id', bookingId);
+  // 원자 append (0018) — RMW 레이스 제거, 서버가 최신 photos 배열을 반환
+  const { data: photos, error: e2 } = await supabase.rpc('append_run_photo', {
+    p_booking: bookingId, p_url: pub.publicUrl,
+  });
   if (e2) throw e2;
-  return photos;
+  return (photos as string[] | null) ?? [];
 }
 
 // ---------- 러닝 이벤트 (응가 도장 등) — 러너 원탭 → 기록 + 보호자 즉시 알림 ----------
@@ -771,9 +795,10 @@ const EVENT_NOTI: Record<RunEventKind, (dog: string) => [string, string]> = {
 };
 
 export async function addRunEvent(bookingId: string, kind: RunEventKind): Promise<void> {
-  const { data: run } = await supabase.from('runs').select('events').eq('booking_id', bookingId).single();
-  const events = [...((run?.events as any[]) ?? []), { kind, at: new Date().toISOString() }];
-  const { error } = await supabase.from('runs').update({ events }).eq('booking_id', bookingId);
+  // 원자 append (0018) — 클라 read-modify-write는 연타 시 이벤트를 덮어써 응가 보너스가 증발했다
+  const { error } = await supabase.rpc('append_run_event', {
+    p_booking: bookingId, p_event: { kind, at: new Date().toISOString() },
+  });
   if (error) throw error;
   const { data: bk } = await supabase.from('bookings').select('owner_id, dogs(name)').eq('id', bookingId).single();
   if (bk) {
@@ -966,8 +991,8 @@ export async function fetchFitness(): Promise<Fitness> {
     .filter(Boolean) as { bookingId: string; at: Date; km: number; dur: number }[];
 
   const now = Date.now();
-  const weekAgo = now - 7 * 86400_000;
-  const thisWeek = rows.filter((r) => r.at.getTime() >= weekAgo);
+  const weekStart = kstWeekStartMs(now); // KST 월요일 — 리더보드·러너 주간과 동일 창
+  const thisWeek = rows.filter((r) => r.at.getTime() >= weekStart);
   const weekKm = Math.round(thisWeek.reduce((s, r) => s + r.km, 0) * 10) / 10;
   const totKm = thisWeek.reduce((s, r) => s + r.km, 0);
   const totSec = thisWeek.reduce((s, r) => s + r.dur, 0);
@@ -976,8 +1001,8 @@ export async function fetchFitness(): Promise<Fitness> {
   // 8주 버킷
   const weeks: FitnessWeek[] = [];
   for (let w = 7; w >= 0; w--) {
-    const start = now - (w + 1) * 7 * 86400_000;
-    const end = now - w * 7 * 86400_000;
+    const start = weekStart - w * 7 * 86400_000;
+    const end = start + 7 * 86400_000;
     const km = rows.filter((r) => r.at.getTime() >= start && r.at.getTime() < end).reduce((s, r) => s + r.km, 0);
     weeks.push({ label: w === 0 ? '이번 주' : `${w}주 전`, km: Math.round(km * 10) / 10 });
   }
@@ -1062,14 +1087,14 @@ export async function fetchMyName(): Promise<string | null> {
 export interface RunnerWeekStats { net: number; runs: number; km: number }
 
 export async function fetchRunnerWeekStats(): Promise<RunnerWeekStats> {
-  const since = new Date(Date.now() - 7 * 86400_000).toISOString();
+  const since = new Date(kstWeekStartMs()).toISOString(); // KST 월요일 시작 — 리더보드와 동일 창
   const { data, error } = await supabase
     .from('ledger_items')
     .select('base, distance_pay, addon_pay, tip, remaining_guarantee, platform_fee, booking_id')
     .gte('created_at', since);
   if (error) throw error;
   const rows = data ?? [];
-  const net = rows.reduce((s, l: any) => s + l.base + l.distance_pay + l.addon_pay + l.tip - l.platform_fee, 0);
+  const net = rows.reduce((s, l: any) => s + l.base + l.distance_pay + l.addon_pay + l.tip + (l.remaining_guarantee ?? 0) - l.platform_fee, 0);
   let km = 0;
   const ids = rows.map((l: any) => l.booking_id);
   if (ids.length > 0) {
@@ -1077,6 +1102,17 @@ export async function fetchRunnerWeekStats(): Promise<RunnerWeekStats> {
     km = (runsD ?? []).reduce((s, r: any) => s + Number(r.actual_km ?? 0), 0);
   }
   return { net, runs: rows.length, km: Math.round(km * 10) / 10 };
+}
+
+// 정산 예정 누적 — 원장 전체 net 합 (표시 리스트 30행 캡과 분리; 30행 합이 '정산 예정'으로 보이던 버그)
+export async function fetchLedgerTotal(): Promise<number> {
+  const { data, error } = await supabase
+    .from('ledger_items')
+    .select('base, distance_pay, addon_pay, tip, remaining_guarantee, platform_fee')
+    .limit(2000); // 파일럿 상한 — 실서비스 전 서버 집계로 (백로그)
+  if (error) throw error;
+  return (data ?? []).reduce((s2, l: any) =>
+    s2 + l.base + l.distance_pay + l.addon_pay + l.tip + (l.remaining_guarantee ?? 0) - l.platform_fee, 0);
 }
 
 export interface LiveLedgerItem {
