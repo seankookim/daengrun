@@ -606,7 +606,8 @@ const s = StyleSheet.create({
   addonIcon: { width: 34, height: 34, borderRadius: 10, backgroundColor: '#eef4e0', alignItems: 'center', justifyContent: 'center' },
   checkCircle: { width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, borderColor: '#dcd9cc', alignItems: 'center', justifyContent: 'center' },
   ticket: {
-    position: 'absolute', left: 10, right: 10, bottom: 26, backgroundColor: '#0F1D13',
+    // 세미 투명 (86%) — 뒤로 스크롤 콘텐츠가 은은히 비치는 플로팅 티켓 (Sean, 2026-07-28)
+    position: 'absolute', left: 10, right: 10, bottom: 26, backgroundColor: '#0F1D13DC',
     borderRadius: 20, padding: 17, overflow: 'hidden',
     shadowColor: '#0F1D13', shadowOpacity: 0.35, shadowRadius: 10, shadowOffset: { width: 0, height: 5 },
   },

@@ -60,7 +60,7 @@ function RunnerFullCard({ r, m, i, topIsPreferred, nominating, onNominate, onLay
         </View>
       )}
 
-      <View style={[s.rankTab, !dark && { backgroundColor: '#0F1D13B3' }]}>
+      <View style={[s.rankTab, !dark && { backgroundColor: FOREST }]}>
         <Text style={{ fontSize: 12.5, fontWeight: '900', color: dark ? FOREST : '#fff' }}>
           {i === 0 ? (topIsPreferred ? '★ 내가 고른 러너' : '★ 추천 1순위') : `${i + 1}순위 · 적합 ${m.total}%`}
         </Text>
@@ -499,9 +499,9 @@ const s = StyleSheet.create({
   fullNominate: { borderRadius: 16, alignItems: 'center', paddingVertical: 13, marginTop: 12 },
   stackNominate: { backgroundColor: FOREST, borderRadius: 99, paddingVertical: 11, paddingHorizontal: 17 },
   rankTab: {
-    // 세미 투명 티켓 — 카드 배경이 살짝 비쳐 스티커가 아닌 '붙은 태그'처럼 (Sean, 2026-07-28)
-    position: 'absolute', top: -1, left: -1, backgroundColor: '#C6F542B3',
-    borderTopLeftRadius: 30, borderBottomRightRadius: 18, paddingVertical: 7, paddingHorizontal: 16,
+    // top/left 0 + 카드와 같은 반경 18 — 태그 모서리가 카드 라운드 밖으로 삐져나오던 정렬 수정 (Sean, 2026-07-28)
+    position: 'absolute', top: 0, left: 0, backgroundColor: colors.volt,
+    borderTopLeftRadius: 18, borderBottomRightRadius: 18, paddingVertical: 7, paddingHorizontal: 16,
   },
   limePill: { backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 3, paddingHorizontal: 8 },
   descBox: { backgroundColor: FOREST_INNER, borderRadius: 14, padding: 13, marginTop: 14 },
