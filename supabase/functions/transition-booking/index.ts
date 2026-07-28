@@ -34,6 +34,26 @@ Deno.serve(handle(async (req) => {
       const { data: r } = await db.from("runners").select("profile_id").eq("profile_id", uid).single();
       if (!r) throw new HttpError(403, "runner only");
       if (bk.runner_id && bk.runner_id !== uid) throw new HttpError(409, "assigned to another runner");
+      // 수락 시점 시간 충돌 가드 — 러너의 다른 라이브 예약과 겹치면 이중 계약 차단 (감사 ①).
+      // is_slot_available을 안 쓰는 이유: 그 함수는 가용시간 '규칙'까지 검사하는데, find-now 오픈
+      // 브로드캐스트는 규칙 밖 시간에도 '지금 온라인'이면 받을 수 있어야 한다 — 충돌만 검사.
+      {
+        const aStart = new Date(bk.scheduled_at).getTime();
+        const aEnd = aStart + (Number(bk.km) * 8 + 25) * 60_000; // 실소요 공식 (hold와 동일)
+        const LIVE = ["confirmed", "runner_enroute", "picked_up", "active"];
+        const { data: mine, error: mErr } = await db.from("bookings")
+          .select("id, scheduled_at, km")
+          .eq("runner_id", uid).in("status", LIVE)
+          .gte("scheduled_at", new Date(aStart - 6 * 3600_000).toISOString())
+          .lte("scheduled_at", new Date(aEnd + 6 * 3600_000).toISOString());
+        if (mErr) throw new HttpError(500, mErr.message);
+        const busy = (mine ?? []).some((c) => {
+          const cs = new Date(c.scheduled_at).getTime();
+          const ce = cs + (Number(c.km) * 8 + 25) * 60_000;
+          return cs < aEnd && ce > aStart;
+        });
+        if (busy) throw new HttpError(409, "그 시간에 이미 확정된 일정이 있어요 — 수락할 수 없어요");
+      }
       // 인계 타임스탬프 초기화 — 이전 시도/재매칭의 잔재가 남으면 한쪽 확인만으로 즉시 picked_up 되는 사고
       const resetPatch = { runner_id: uid, status: "confirmed", owner_confirmed_handoff_at: null, runner_confirmed_handoff_at: null };
       if (!bk.runner_id) {

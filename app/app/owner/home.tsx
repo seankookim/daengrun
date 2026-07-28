@@ -123,7 +123,9 @@ export default function OwnerHome() {
     return best;
   };
   const fnPulse = useRef(new Animated.Value(0)).current;
-  const fnSearching = liveNext?.status === 'pending';
+  // 오픈 브로드캐스트만 '검색 중' — 지명 대기(runner_pending, matched)는 레이더가 거짓말이 된다
+  const fnSearching = liveNext?.status === 'pending' && !liveNext.matched;
+  const fnDirected = liveNext?.status === 'pending' && !!liveNext.matched; // ★ 지명 응답 대기
   // 레이더 아크 브리딩 — 평상시 잔잔하게
   const radarBreath = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -413,7 +415,8 @@ export default function OwnerHome() {
         {(!liveNext || liveNext.status === 'pending') && (
           <Pressable
             onPress={() => {
-              if (liveNext?.status === 'pending') { draft.bookingId = liveNext.id; router.push('/owner/radar'); return; }
+              if (fnDirected) { router.push('/owner/schedule'); return; } // 지명 대기 — 레이더는 허위 (아무도 브로드캐스트 안 받음)
+              if (fnSearching && liveNext) { draft.bookingId = liveNext.id; router.push('/owner/radar'); return; }
               if (fnAvail.length === 0) { router.push('/owner/request'); return; }
               openFindNow();
             }}
@@ -460,10 +463,12 @@ export default function OwnerHome() {
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <View style={{ flex: 1 }}>
                 <Text style={[{ fontSize: 20.5, fontWeight: '900', color: '#fff' }, df]}>
-                  {liveNext?.status === 'pending' ? '러너 찾는 중…' : '지금 러너 찾기'}
+                  {fnDirected ? '지명 러너 응답 대기 중' : fnSearching ? '러너 찾는 중…' : '지금 러너 찾기'}
                 </Text>
                 <Text style={{ fontSize: 13, color: '#b8c4ae', marginTop: 5, lineHeight: 18.5 }}>
-                  {liveNext?.status === 'pending'
+                  {fnDirected
+                    ? `${liveNext?.runnerName ?? '지명한 러너'}의 응답을 기다리고 있어요 — 탭하면 일정으로`
+                    : fnSearching
                     ? '탭하면 레이더로 돌아가요'
                     : fnAvail.length > 0
                       ? `주변 러너 ${fnAvail.length}명이 바로 받을 수 있어요\n결제·코스는 자동 — 확인만 하면 끝`
@@ -481,7 +486,7 @@ export default function OwnerHome() {
                               { scaleY: fnPulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.5] }) }],
                 }]} />
                 <Text style={{ fontSize: 16.5, fontWeight: '900', color: '#0F1D13' }}>
-                  {liveNext?.status === 'pending' ? '레이더 보기 ➤' : '주변 러너 검색 시작 ➤'}
+                  {fnDirected ? '일정에서 확인 ›' : fnSearching ? '레이더 보기 ➤' : '주변 러너 검색 시작 ➤'}
                 </Text>
               </View>
               {!liveNext && (
@@ -593,7 +598,7 @@ export default function OwnerHome() {
               </View>
               <View style={[s.countdownPill, { backgroundColor: liveNext.status === 'pending' ? '#fbf0d4' : '#fde8e3' }]}>
                 <Text style={{ fontSize: 12, fontWeight: '900', color: liveNext.status === 'pending' ? '#a97c12' : '#d84a2f' }}>
-                  {liveNext.status === 'pending' ? '매칭 중' : liveNext.status === 'active' ? '● LIVE' : liveNext.status === 'handoff' ? '시작 대기' : '확정됨'}
+                  {liveNext.status === 'pending' ? (liveNext.matched ? '지명 대기' : '매칭 중') : liveNext.status === 'active' ? '● LIVE' : liveNext.status === 'handoff' ? '시작 대기' : '확정됨'}
                 </Text>
               </View>
             </View>
