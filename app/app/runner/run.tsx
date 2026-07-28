@@ -174,7 +174,11 @@ export default function ActiveRun() {
       }
     }).then((stop) => {
       if (!alive) { stop?.(); return; }
-      if (stop) { stopTrack.current = stop; setGps(true); }
+      if (stop) {
+        stopTrack.current = stop;
+        setGps(true);
+        setSec(0); // 데모 카운터(80배속)가 GPS 대기 중 부풀린 시간 초기화 — 페이스·기록 오염 방지
+      }
     });
     return () => { alive = false; if (stopTrack.current) { stopTrack.current(); stopTrack.current = null; } };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -249,6 +253,16 @@ export default function ActiveRun() {
     const localPayout = completed ? payoutFor(km) : payoutByReason(reason);
     Object.assign(runResult, { km, sec, payout: localPayout, completed, reason, bookingId: bid });
 
+    if (bid && !gps) {
+      // 정직 가드 — 80배속 데모 거리는 실예약 정산 불가 (위치 권한 거부 상태에서
+      // 26초 만에 5km 완주·전액 지급되던 구멍). 데모는 데모로만 끝난다.
+      settled.current = false;
+      Alert.alert(
+        'GPS 없이 정산할 수 없어요',
+        '실예약 정산은 실측 거리로만 가능해요.\n설정에서 위치 권한을 켠 뒤 다시 시작해주세요.',
+      );
+      return;
+    }
     if (bid) {
       try {
         const res = await settleRun({

@@ -115,7 +115,10 @@ Deno.serve(handle(async (req) => {
       if (!isOwner) throw new HttpError(403, "owner only");
       // 24시간 전 무료, 이후 10% (50%는 러너 보상 — 정산에서 처리)
       const hrs = (new Date(bk.scheduled_at).getTime() - Date.now()) / 3_600_000;
-      const fee = hrs >= 24 ? 0 : Math.round(bk.total_price * 0.1);
+      // 매칭 전(러너 미배정/응답 대기)은 시점 무관 전액 환불 — find-now(+40분)가 24h 룰에 걸려
+      // '매칭 전 취소는 전액 환불' 약속을 어기고 10%를 물리던 버그
+      const unmatched = !bk.runner_id || ["matching", "runner_pending"].includes(bk.status);
+      const fee = (hrs >= 24 || unmatched) ? 0 : Math.round(bk.total_price * 0.1);
       await set({ status: "cancelled_owner", cancel_fee: fee });
       if (bk.runner_id) await notify(bk.runner_id, "예약 취소됨", "보호자가 예약을 취소했어요");
       return { cancel_fee: fee, refund: bk.total_price - fee };

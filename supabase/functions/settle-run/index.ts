@@ -28,57 +28,70 @@ Deno.serve(handle(async (req) => {
   let guarantee = 0;
   if (p.end_reason === "owner_request" || p.end_reason === "owner_forced") {
     const fullDistance = Math.round(bk.km * PRICING.perKm);
-    guarantee = Math.round((fullDistance - distancePay) * 0.5);
+    // 클램프 — 실거리가 계획을 넘어선 조기종료에서 보장이 음수가 되어 오히려 감봉되던 버그
+    guarantee = Math.max(0, Math.round((fullDistance - distancePay) * 0.5));
     gross += guarantee;
   }
   const fee = Math.round(gross * commission);
 
-  // run 기록 마감
-  await db.from("runs").update({
+  // 원자 클레임 — active에서만 completed로. 조건부 업데이트가 곧 중복 정산 락
+  // (자동완주 + 수동종료 레이스, 리로드 후 재정산 — 두 번째 호출은 여기서 멈춘다)
+  const { data: claimed, error: sErr } = await db.from("bookings")
+    .update({ status: "completed" }).eq("id", p.booking_id).eq("status", "active").select("id");
+  if (sErr) throw new HttpError(409, sErr.message);
+  if (!claimed || claimed.length === 0) throw new HttpError(409, "이미 정산됐거나 진행 중이 아닌 러닝이에요");
+
+  // run 기록 마감 — 이하 모든 쓰기는 에러를 삼키지 않는다 (조용한 미지급 금지)
+  const { error: rErr } = await db.from("runs").update({
     ended_at: new Date().toISOString(),
     actual_km: km, duration_sec: p.duration_sec ?? null,
     avg_pace_sec_per_km: p.duration_sec && km > 0 ? Math.round(p.duration_sec / km) : null,
     end_reason: p.end_reason, condition_note: p.condition_note ?? null,
   }).eq("booking_id", p.booking_id);
-
-  // 상태: 정상/조기 완료 → completed, 사고성은 별도 incident 플로우
-  const { error: sErr } = await db.from("bookings").update({ status: "completed" }).eq("id", p.booking_id);
-  if (sErr) throw new HttpError(409, sErr.message);
+  if (rErr) throw new HttpError(500, `run 기록 실패: ${rErr.message}`);
 
   // 원장 기록 (돈은 서버만 쓴다)
-  await db.from("ledger_items").insert({
+  const { error: lErr } = await db.from("ledger_items").insert({
     runner_id: uid, booking_id: p.booking_id,
     base, distance_pay: distancePay, addon_pay: addonPay,
     tip: 0, remaining_guarantee: guarantee, platform_fee: fee,
   });
+  if (lErr) throw new HttpError(500, `정산 원장 기록 실패 — 관리자 확인 필요: ${lErr.message}`);
 
   // ---------- 댕마일 — 통합 인센티브 원장 (드랍·쿠폰·상점이 전부 이 화폐로) ----------
   // 완주 적립 양측 +50 · 응가 도장 보너스 양측 +30 (러닝당 1회, 케어 증거 인센티브)
   // 중복 방지: 상태머신이 completed 전이를 1회만 허용 → 여기 도달도 1회
+  // 인센티브 게이트 — '완주'만 마일·러닝 카운트·드랍을 얻는다.
+  // (0.01km runner_personal 종료로 최소요금 + 마일 + 드랍 카운트를 파밍하던 루프 차단)
+  const isFull = p.end_reason === "completed";
   const { data: runRow } = await db.from("runs").select("events").eq("booking_id", p.booking_id).single();
   const hasPoop = ((runRow?.events as { kind: string }[]) ?? []).some((e) => e.kind === "poop");
-  const milesRows = [
-    { profile_id: uid, delta: 50, reason: "run_complete", ref_id: p.booking_id },
-    { profile_id: bk.owner_id, delta: 50, reason: "run_complete", ref_id: p.booking_id },
-  ];
-  if (hasPoop) {
-    milesRows.push({ profile_id: uid, delta: 30, reason: "poop_bonus", ref_id: p.booking_id });
-    milesRows.push({ profile_id: bk.owner_id, delta: 30, reason: "poop_bonus", ref_id: p.booking_id });
+  if (isFull) {
+    const milesRows = [
+      { profile_id: uid, delta: 50, reason: "run_complete", ref_id: p.booking_id },
+      { profile_id: bk.owner_id, delta: 50, reason: "run_complete", ref_id: p.booking_id },
+    ];
+    if (hasPoop) {
+      milesRows.push({ profile_id: uid, delta: 30, reason: "poop_bonus", ref_id: p.booking_id });
+      milesRows.push({ profile_id: bk.owner_id, delta: 30, reason: "poop_bonus", ref_id: p.booking_id });
+    }
+    const { error: mErr } = await db.from("miles_ledger").insert(milesRows);
+    if (mErr) throw new HttpError(500, `마일 적립 실패: ${mErr.message}`);
   }
-  await db.from("miles_ledger").insert(milesRows);
 
-  // 러너 스탯 + 완주율 (runner_personal만 미완주로 침)
-  const totalRuns = (runner?.total_runs ?? 0) + 1;
-  await db.from("runners").update({
+  // 러너 스탯 — total_km은 실주행이니 항상, total_runs(티어·드랍 진행)는 완주만
+  const totalRuns = (runner?.total_runs ?? 0) + (isFull ? 1 : 0);
+  const { error: stErr } = await db.from("runners").update({
     total_runs: totalRuns,
     total_km: Number(runner?.total_km ?? 0) + km,
   }).eq("profile_id", uid);
+  if (stErr) throw new HttpError(500, `러너 스탯 갱신 실패: ${stErr.message}`);
 
-  // 드랍 판정: 10회 우선, 아니면 5회
+  // 드랍 판정: 10회 우선, 아니면 5회 — 완주만 (미완주는 카운트도 안 오르므로 자연 배제)
   let drop: Record<string, unknown> | null = null;
-  if (totalRuns % 10 === 0) {
+  if (isFull && totalRuns % 10 === 0) {
     drop = { kind: "pick", contents: { options: ["boost", "miles", "gear"] } };
-  } else if (totalRuns % 5 === 0) {
+  } else if (isFull && totalRuns % 5 === 0) {
     const miles = 500 + Math.floor(Math.random() * 700);          // 보장 하한 500
     const roll = Math.random();
     const contents: Record<string, unknown> = { miles };
@@ -87,7 +100,8 @@ Deno.serve(handle(async (req) => {
     drop = { kind: "mini", contents };
   }
   if (drop) {
-    await db.from("drops").insert({ runner_id: uid, run_count_at: totalRuns, ...drop });
+    const { error: dErr } = await db.from("drops").insert({ runner_id: uid, run_count_at: totalRuns, ...drop });
+    if (dErr) throw new HttpError(500, `드랍 기록 실패: ${dErr.message}`);
   }
 
   await db.from("notifications").insert({

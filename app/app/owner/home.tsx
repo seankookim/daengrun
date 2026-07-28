@@ -196,6 +196,9 @@ export default function OwnerHome() {
       await confirmPayment(res.booking_id); // 결제 시뮬레이션 → matching (오픈 브로드캐스트)
       draft.bookingId = res.booking_id;
       draft.km = fnKm;
+      // 오픈 브로드캐스트에 지명 잔재가 붙으면 매칭 화면이 자동 지명으로 오발사 — 소거
+      draft.preferredRunnerId = null;
+      draft.preferredRunnerName = null;
       setFnOpen(false);
       router.push('/owner/radar');
     } catch (e) {

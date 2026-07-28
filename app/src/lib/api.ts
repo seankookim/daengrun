@@ -212,6 +212,7 @@ const STATUS_MAP: Record<string, BookingStatus> = {
   completed: 'completed',
   cancelled_owner: 'cancelled',
   cancelled_runner: 'cancelled',
+  expired: 'cancelled',
 };
 
 // ---------- runner side ----------
@@ -432,22 +433,31 @@ export async function fetchBookingSync(id: string): Promise<BookingSync> {
 // 트랜잭션 화면(미트업/런)이 데모로 조용히 전락하는 것을 막는 핵심.
 const IN_FLIGHT = ['confirmed', 'runner_enroute', 'picked_up', 'active'];
 
+// 현재 예약 해석 — '가장 진행된' 예약 우선 (scheduled_at 최신순은 러닝 중에 내일 예약을
+// 집어와 이벤트·정산이 엉뚱한 예약에 붙던 버그). active > picked_up > enroute > confirmed.
+const FLIGHT_RANK: Record<string, number> = { active: 0, picked_up: 1, runner_enroute: 2, confirmed: 3 };
+const pickCurrent = (rows: { id: string; status: string; scheduled_at: string }[] | null): string | null => {
+  if (!rows || rows.length === 0) return null;
+  return rows.sort((a, b) =>
+    (FLIGHT_RANK[a.status] ?? 9) - (FLIGHT_RANK[b.status] ?? 9)
+    || new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime(),
+  )[0].id;
+};
+
 export async function fetchCurrentOwnerBookingId(): Promise<string | null> {
   const { data: user } = await supabase.auth.getUser();
   if (!user.user) return null;
-  const { data } = await supabase.from('bookings').select('id')
-    .eq('owner_id', user.user.id).in('status', IN_FLIGHT)
-    .order('scheduled_at', { ascending: false }).limit(1);
-  return data?.[0]?.id ?? null;
+  const { data } = await supabase.from('bookings').select('id, status, scheduled_at')
+    .eq('owner_id', user.user.id).in('status', IN_FLIGHT);
+  return pickCurrent(data as any);
 }
 
 export async function fetchCurrentRunnerJobId(): Promise<string | null> {
   const { data: user } = await supabase.auth.getUser();
   if (!user.user) return null;
-  const { data } = await supabase.from('bookings').select('id')
-    .eq('runner_id', user.user.id).in('status', IN_FLIGHT)
-    .order('scheduled_at', { ascending: false }).limit(1);
-  return data?.[0]?.id ?? null;
+  const { data } = await supabase.from('bookings').select('id, status, scheduled_at')
+    .eq('runner_id', user.user.id).in('status', IN_FLIGHT);
+  return pickCurrent(data as any);
 }
 
 export const acceptBooking = (id: string) => invokeTransition(id, 'runner_accept');
@@ -1480,11 +1490,12 @@ const MILE_REASON: Record<string, string> = {
 };
 
 export async function fetchMiles(): Promise<MilesInfo> {
+  // 잔액 = 원장 전체 합 (최근 50행 합은 오래된 적립이 창밖으로 밀리면 잔액이 줄어드는 가짜)
   const { data, error } = await supabase
     .from('miles_ledger')
     .select('delta, reason, created_at')
     .order('created_at', { ascending: false })
-    .limit(50);
+    .limit(2000); // 파일럿 규모 상한 — 실서비스 전 서버 집계 RPC로 교체 (백로그)
   if (error) throw error;
   const rows = data ?? [];
   return {
@@ -1588,9 +1599,14 @@ export async function markAllNotificationsRead(): Promise<void> {
 }
 
 export async function fetchMyBookings(): Promise<Booking[]> {
+  const { data: user } = await supabase.auth.getUser();
   const { data, error } = await supabase
     .from('bookings')
-    .select('id, scheduled_at, km, pace_label, total_price, status, runner_id, routes(name), dogs(name), runners(profiles(name))')
+    .select('id, scheduled_at, km, pace_label, total_price, status, runner_id, owner_id, routes(name), dogs(name), runners(profiles(name))')
+    // 결제 미완 유령(draft/quoted/payment_hold)은 일정이 아니다 — '매칭 중'으로 위장 금지
+    .not('status', 'in', '(draft,quoted,payment_hold)')
+    // 듀얼 롤 계정에서 러너로 받은 예약이 '내 일정'에 섞이던 문제 — 보호자 소유만
+    .eq('owner_id', user.user?.id ?? '')
     .order('scheduled_at', { ascending: false })
     .limit(20);
   if (error) throw error;
