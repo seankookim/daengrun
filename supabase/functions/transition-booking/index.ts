@@ -1,6 +1,7 @@
 // 예약 상태 전이 — 액션 기반. DB 트리거가 최종 검증하고, 여기서 부수효과(알림·양측 인계) 처리.
 // input: { booking_id, action, meta? }
 // actions: payment_ok | runner_accept | runner_decline | enroute | confirm_handoff | start_run | cancel_owner
+//        | request_reschedule | accept_reschedule | decline_reschedule | withdraw_reschedule (0016)
 import { admin, caller, handle, HttpError } from "../_shared/ctx.ts";
 
 Deno.serve(handle(async (req) => {
@@ -119,6 +120,61 @@ Deno.serve(handle(async (req) => {
       if (bk.runner_id) await notify(bk.runner_id, "예약 취소됨", "보호자가 예약을 취소했어요");
       return { cancel_fee: fee, refund: bk.total_price - fee };
     }
+
+    // ── 일정 변경 = 제안 (0016) — 확정 예약은 계약: 러너가 수락해야만 시간이 바뀐다 ──
+    case "request_reschedule": {
+      if (!isOwner) throw new HttpError(403, "owner only");
+      if (bk.status !== "confirmed") throw new HttpError(409, "확정된 예약만 변경 요청이 가능해요");
+      const raw = meta?.new_time;
+      if (!raw) throw new HttpError(400, "meta.new_time required");
+      const nt = new Date(raw);
+      if (isNaN(nt.getTime())) throw new HttpError(400, "invalid new_time");
+      if (nt.getTime() < Date.now() + 2 * 3_600_000) throw new HttpError(400, "새 시간은 최소 2시간 이후여야 해요");
+      if (new Date(bk.scheduled_at).getTime() - Date.now() < 2 * 3_600_000)
+        throw new HttpError(409, "시작 2시간 전에는 변경할 수 없어요");
+      // 재제안은 덮어쓰기 — 마지막 제안만 유효
+      await set({ reschedule_new_time: nt.toISOString(), reschedule_proposed_at: new Date().toISOString() });
+      if (bk.runner_id) await notify(bk.runner_id, "일정 변경 요청", "보호자가 새 시간을 제안했어요 — 요청 탭에서 확인해주세요");
+      break;
+    }
+
+    case "accept_reschedule": {
+      if (!isRunner) throw new HttpError(403, "runner only");
+      if (bk.status !== "confirmed" || !bk.reschedule_new_time) throw new HttpError(409, "대기 중인 변경 요청이 없어요");
+      // 레이지 만료 — 원래 시작 2시간 전을 지나면 원 시간 확정 (림보 방지)
+      if (new Date(bk.scheduled_at).getTime() - Date.now() < 2 * 3_600_000)
+        throw new HttpError(409, "만료된 요청이에요 — 기존 시간이 유지돼요");
+      const nt = new Date(bk.reschedule_new_time);
+      if (nt.getTime() < Date.now() + 2 * 3_600_000) throw new HttpError(409, "제안된 시간이 이미 임박했어요 — 거절 처리해주세요");
+      // 수락 시점 슬롯 재검증 — 제안 이후 다른 확정 예약이 생겼을 수 있다
+      const end = new Date(nt.getTime() + 60 * 60_000);
+      const { data: ok, error: se } = await db.rpc("is_slot_available",
+        { p_runner: uid, p_start: nt.toISOString(), p_end: end.toISOString() });
+      if (se) throw new HttpError(409, se.message);
+      if (!ok) throw new HttpError(409, "그 시간에 다른 일정이 생겼어요 — 거절해주세요");
+      // 원자 적용 — 제안이 아직 살아있는 경우에만 (철회/재제안 레이스 방지)
+      const { data: applied, error: ae } = await db.from("bookings")
+        .update({ scheduled_at: nt.toISOString(), reschedule_new_time: null, reschedule_proposed_at: null })
+        .eq("id", booking_id).eq("status", "confirmed")
+        .eq("reschedule_new_time", bk.reschedule_new_time).select("id");
+      if (ae) throw new HttpError(409, ae.message);
+      if (!applied || applied.length === 0) throw new HttpError(409, "요청이 이미 변경/철회됐어요 — 새로고침해주세요");
+      await notify(bk.owner_id, "일정 변경 수락 ✓", "러너가 새 시간을 수락했어요 — 일정이 변경됐어요");
+      break;
+    }
+
+    case "decline_reschedule":
+      if (!isRunner) throw new HttpError(403, "runner only");
+      if (!bk.reschedule_new_time) throw new HttpError(409, "대기 중인 변경 요청이 없어요");
+      await set({ reschedule_new_time: null, reschedule_proposed_at: null });
+      await notify(bk.owner_id, "일정 변경 거절", "러너가 변경을 거절했어요 — 기존 시간이 유지돼요");
+      break;
+
+    case "withdraw_reschedule":
+      if (!isOwner) throw new HttpError(403, "owner only");
+      await set({ reschedule_new_time: null, reschedule_proposed_at: null });
+      if (bk.runner_id) await notify(bk.runner_id, "변경 요청 철회", "보호자가 일정 변경 요청을 거두었어요 — 기존 시간 그대로예요");
+      break;
 
     default:
       throw new HttpError(400, `unknown action ${action}`);

@@ -320,19 +320,14 @@ export default function Schedule() {
                       <Pressable
                         style={s.primaryAction}
                         onPress={() => {
-                          // 실동작: 같은 러너 지명 프리필로 예약 플로우 재진입 (목업 알럿 은퇴, ui-audit P1)
-                          draft.km = selected.km;
-                          draft.pace = selected.paceLabel;
-                          draft.preferredRunnerId = selected.runnerProfileId ?? null;
-                          draft.preferredRunnerName = selected.runnerProfileId ? selected.runnerName : null;
-                          draft.scheduledAtIso = null;
-                          draft.timeLabel = '시간을 선택해주세요';
+                          // 제안 화면 직행 (0016) — 취소·재예약이 아니라 러너 동의 기반 시간 변경
+                          const bid = selected.id;
                           close();
-                          router.push('/owner/request');
+                          router.push({ pathname: '/owner/reschedule', params: { bid } });
                         }}
                       >
-                        <Text style={{ fontSize: 16.5, fontWeight: '900', color: FOREST }}>같은 러너로 일정 변경</Text>
-                        <Text style={{ fontSize: 12, color: '#5d6b4a', marginTop: 2 }}>{runner.name} 러너의 가능 시간에서 다시 골라요</Text>
+                        <Text style={{ fontSize: 16.5, fontWeight: '900', color: FOREST }}>일정 변경 요청</Text>
+                        <Text style={{ fontSize: 12, color: '#5d6b4a', marginTop: 2 }}>{runner.name} 러너의 가능 시간에서 새 시간을 제안해요</Text>
                       </Pressable>
                       <Pressable
                         style={s.ghostAction}

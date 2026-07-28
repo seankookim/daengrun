@@ -620,7 +620,12 @@ export default function OwnerHome() {
             <View style={{ flexDirection: 'row', gap: 8, marginTop: 13 }}>
               <Pressable
                 style={[s.widgetBtn, { borderColor: p.line }]}
-                onPress={(e) => { e.stopPropagation(); router.push('/owner/schedule'); }}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  // 리스케줄 화면 직행 — 일정 탭 우회는 데드엔드였다 (러너 확정 전이면 화면이 정직하게 안내)
+                  if (liveNext) router.push({ pathname: '/owner/reschedule', params: { bid: liveNext.id } });
+                  else router.push('/owner/schedule');
+                }}
               >
                 <Text style={{ fontSize: 13, fontWeight: '700', color: p.textSoft }}>일정 변경</Text>
               </Pressable>

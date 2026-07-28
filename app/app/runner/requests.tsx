@@ -4,7 +4,7 @@ import { useCallback, useState } from 'react';
 import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BottomNav } from '../../src/components/bottomnav';
 import { Avatar, Row } from '../../src/components/ui';
-import { acceptBooking, fetchRunnerInbox, OpenRequest } from '../../src/lib/api';
+import { acceptBooking, acceptReschedule, declineReschedule, fetchRescheduleRequests, fetchRunnerInbox, OpenRequest, RescheduleRequest } from '../../src/lib/api';
 import { haptic } from '../../src/lib/haptics';
 import { runnerJob } from '../../src/store';
 import { colors } from '../../src/theme';
@@ -17,8 +17,14 @@ export default function Requests() {
   const df = useDisplayFont(); // 디스플레이 서체 — 화면 타이틀
   const [live, setLive] = useState<OpenRequest[]>([]);
   const [accepting, setAccepting] = useState<string | null>(null);
+  // 일정 변경 요청 (0016) — 확정 예약의 새 시간 제안, 수락해야만 시간이 바뀐다
+  const [resched, setResched] = useState<RescheduleRequest[]>([]);
+  const [reschedBusy, setReschedBusy] = useState<string | null>(null);
 
-  const load = () => fetchRunnerInbox().then(setLive).catch((e) => console.warn('[requests] inbox:', e?.message ?? e));
+  const load = () => Promise.all([
+    fetchRunnerInbox().then(setLive),
+    fetchRescheduleRequests().then(setResched),
+  ]).catch((e) => console.warn('[requests] inbox:', e?.message ?? e));
   // 화면에 돌아올 때마다 갱신 — 수락/완료된 요청 카드가 남지 않게
   useFocusEffect(useCallback(() => { load(); }, []));
   const [refreshing, setRefreshing] = useState(false);
@@ -51,13 +57,70 @@ export default function Requests() {
           <View>
             <Text style={[{ fontSize: 30, fontWeight: '900', color: FOREST }, df]}>요청</Text>
             <Text style={{ fontSize: 14, color: colors.dim, marginTop: 3 }}>
-              새 요청 {live.length}건
+              새 요청 {live.length}건{resched.length > 0 ? ` · 변경 요청 ${resched.length}건` : ''}
             </Text>
           </View>
           <Pressable style={s.autoPill} onPress={load}>
             <Text style={{ fontSize: 12.5, fontWeight: '700', color: '#3d453d' }}>↻ 새로고침</Text>
           </Pressable>
         </Row>
+
+        {/* ---------- 일정 변경 요청 (0016) — 기존→새 시간, 수락/거절 ---------- */}
+        {resched.map((rq) => (
+          <View key={`rs-${rq.bookingId}`} style={[s.reqCard, { borderColor: '#F59A43', borderWidth: 2 }]}>
+            <View style={[s.deadline, { backgroundColor: '#FDE8D0', alignSelf: 'flex-start' }]}>
+              <Text style={{ fontSize: 11.5, fontWeight: '900', color: '#9D580A' }}>⏱ 일정 변경 요청</Text>
+            </View>
+            <Text style={{ fontSize: 17, fontWeight: '900', color: FOREST, marginTop: 10 }}>
+              {rq.dogName} · {rq.km}km
+            </Text>
+            <Row style={{ gap: 8, marginTop: 8, alignItems: 'center' }}>
+              <View style={s.timeBox}>
+                <Text style={{ fontSize: 10.5, fontWeight: '700', color: colors.dim }}>기존</Text>
+                <Text style={{ fontSize: 13.5, fontWeight: '800', color: '#82887a', textDecorationLine: 'line-through' }}>
+                  {rq.curDate} {rq.curTime}
+                </Text>
+              </View>
+              <Text style={{ fontSize: 15, fontWeight: '900', color: '#F59A43' }}>→</Text>
+              <View style={[s.timeBox, { backgroundColor: '#FDE8D0' }]}>
+                <Text style={{ fontSize: 10.5, fontWeight: '700', color: '#9D580A' }}>제안</Text>
+                <Text style={{ fontSize: 13.5, fontWeight: '900', color: '#9D580A' }}>
+                  {rq.newDate} {rq.newTime}
+                </Text>
+              </View>
+            </Row>
+            <Row style={{ gap: 8, marginTop: 12 }}>
+              <Pressable
+                style={[s.secondary, reschedBusy === rq.bookingId && { opacity: 0.5 }]}
+                disabled={reschedBusy !== null}
+                onPress={async () => {
+                  setReschedBusy(rq.bookingId);
+                  try { await declineReschedule(rq.bookingId); haptic('light'); load(); }
+                  catch (e) { Alert.alert('처리 실패', (e as Error).message); }
+                  finally { setReschedBusy(null); }
+                }}
+              >
+                <Text style={{ fontSize: 14.5, fontWeight: '800', color: '#3d453d' }}>거절 (기존 유지)</Text>
+              </Pressable>
+              <Pressable
+                style={[s.accept, reschedBusy === rq.bookingId && { opacity: 0.5 }]}
+                disabled={reschedBusy !== null}
+                onPress={async () => {
+                  setReschedBusy(rq.bookingId);
+                  try {
+                    await acceptReschedule(rq.bookingId);
+                    haptic('success');
+                    Alert.alert('변경 수락', '일정이 새 시간으로 변경됐어요 — 캘린더에 반영됩니다');
+                    load();
+                  } catch (e) { Alert.alert('수락 실패', (e as Error).message); load(); }
+                  finally { setReschedBusy(null); }
+                }}
+              >
+                <Text style={{ fontSize: 15.5, fontWeight: '900', color: FOREST }}>새 시간 수락</Text>
+              </Pressable>
+            </Row>
+          </View>
+        ))}
 
         {/* ---------- 실시간 요청 (Supabase) ---------- */}
         {live.map((req) => (
@@ -127,7 +190,7 @@ export default function Requests() {
           </View>
         ))}
 
-        {live.length === 0 && (
+        {live.length === 0 && resched.length === 0 && (
           <View style={{ marginTop: 24, backgroundColor: '#f4f2ea', borderRadius: 16, padding: 18, alignItems: 'center' }}>
             <Text style={{ fontSize: 15, color: '#8a8877', textAlign: 'center', lineHeight: 23 }}>
               지금은 열린 요청이 없어요{'\n'}새 요청이 오면 여기에 표시돼요
@@ -153,6 +216,7 @@ const s = StyleSheet.create({
   matchPill: { backgroundColor: '#e3f0c4', borderRadius: 99, paddingVertical: 4, paddingHorizontal: 9 },
   conflict: { backgroundColor: '#fdeae5', borderRadius: 10, padding: 9, marginTop: 10 },
   memo: { backgroundColor: '#faf9f3', borderRadius: 10, padding: 9, marginTop: 8 },
+  timeBox: { flex: 1, backgroundColor: '#f4f2ea', borderRadius: 10, paddingVertical: 7, paddingHorizontal: 10 },
   accept: { flex: 1.4, backgroundColor: colors.volt, borderRadius: 13, alignItems: 'center', paddingVertical: 12 },
   secondary: { flex: 1, backgroundColor: '#f4f2ea', borderRadius: 13, alignItems: 'center', paddingVertical: 12 },
   note: { marginTop: 18, padding: 10 },

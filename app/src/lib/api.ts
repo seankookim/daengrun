@@ -459,6 +459,60 @@ export const confirmHandoff = (id: string, side: 'owner' | 'runner') =>
   invokeTransition(id, 'confirm_handoff', { side });
 export const startRunServer = (id: string) => invokeTransition(id, 'start_run');
 
+// ---------- 일정 변경 = 제안 (reschedule-as-proposal, 0016) ----------
+// 확정 예약은 계약 — scheduled_at은 러너가 수락해야만 바뀐다. 원 시간 2h 전 레이지 만료.
+export interface RescheduleInfo {
+  bookingId: string; status: string; scheduledAtIso: string; km: number;
+  dogName: string; runnerId: string | null; runnerName: string | null;
+  proposedIso: string | null; dateLabel: string; timeLabel: string;
+}
+
+export async function fetchRescheduleInfo(bookingId: string): Promise<RescheduleInfo> {
+  const { data, error } = await supabase.from('bookings')
+    .select('id, scheduled_at, km, status, runner_id, reschedule_new_time, dogs(name), runners(profiles(name))')
+    .eq('id', bookingId).single();
+  if (error) throw error;
+  const d = data as any;
+  const { dateLabel, timeLabel } = kstParts(d.scheduled_at);
+  return {
+    bookingId: d.id, status: d.status, scheduledAtIso: d.scheduled_at, km: Number(d.km),
+    dogName: d.dogs?.name ?? '반려견', runnerId: d.runner_id ?? null,
+    runnerName: d.runners?.profiles?.name ?? null,
+    proposedIso: d.reschedule_new_time ?? null, dateLabel, timeLabel,
+  };
+}
+
+export const requestReschedule = (id: string, newTimeIso: string) =>
+  invokeTransition(id, 'request_reschedule', { new_time: newTimeIso });
+export const acceptReschedule = (id: string) => invokeTransition(id, 'accept_reschedule');
+export const declineReschedule = (id: string) => invokeTransition(id, 'decline_reschedule');
+export const withdrawReschedule = (id: string) => invokeTransition(id, 'withdraw_reschedule');
+
+// 러너 인박스용 — 내게 온 변경 요청 (만료된 것은 클라이언트에서도 제외: 레이지 만료의 표시면)
+export interface RescheduleRequest {
+  bookingId: string; dogName: string; km: number;
+  curDate: string; curTime: string; newDate: string; newTime: string;
+}
+
+export async function fetchRescheduleRequests(): Promise<RescheduleRequest[]> {
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) return [];
+  const { data, error } = await supabase.from('bookings')
+    .select('id, scheduled_at, km, reschedule_new_time, dogs(name)')
+    .eq('runner_id', user.user.id).eq('status', 'confirmed').not('reschedule_new_time', 'is', null);
+  if (error) throw error;
+  return (data ?? [])
+    .filter((b: any) => new Date(b.scheduled_at).getTime() - Date.now() > 2 * 3_600_000)
+    .map((b: any) => {
+      const cur = kstParts(b.scheduled_at);
+      const nw = kstParts(b.reschedule_new_time);
+      return {
+        bookingId: b.id, dogName: b.dogs?.name ?? '반려견', km: Number(b.km),
+        curDate: cur.dateLabel, curTime: cur.timeLabel, newDate: nw.dateLabel, newTime: nw.timeLabel,
+      };
+    });
+}
+
 export async function fetchBookingStatus(id: string): Promise<string> {
   const { data, error } = await supabase.from('bookings').select('status').eq('id', id).single();
   if (error) throw error;
