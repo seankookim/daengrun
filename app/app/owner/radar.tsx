@@ -13,8 +13,8 @@ import { colors } from '../../src/theme';
 // 결과는 이 화면에 뜬다: 수락한 러너가 매치 카드로 나타나고 일정으로 이동.
 // 정직 원칙: 가짜 진행률/가짜 지도 점 없음 — 실가용 러너 목록, 경과 시간, 실상태만.
 
-const FOREST = '#132117';
-const CORAL = colors.tang; // #FF6347 — 워터 리플
+const FOREST = '#0F1D13';
+const CORAL = colors.tang; // #FF5C3D — 워터 리플
 
 const fmtElapsed = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
@@ -240,7 +240,7 @@ export default function Radar() {
 const s = StyleSheet.create({
   backBtn: {
     width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff',
-    alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#d9d5c6',
+    alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DCD6C4',
   },
   livePill: {
     flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#fdece7',
@@ -253,11 +253,11 @@ const s = StyleSheet.create({
   },
   runnerRow: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 16,
-    padding: 12, marginBottom: 8, borderWidth: 1, borderColor: '#dedacb',
+    padding: 12, marginBottom: 8, borderWidth: 1, borderColor: '#DCD6C4',
   },
   pacePill: { backgroundColor: '#eaf7c8', borderRadius: 99, paddingVertical: 5, paddingHorizontal: 10 },
   emptyBox: {
-    backgroundColor: '#fff', borderRadius: 16, padding: 18, borderWidth: 1, borderColor: '#dedacb',
+    backgroundColor: '#fff', borderRadius: 16, padding: 18, borderWidth: 1, borderColor: '#DCD6C4',
   },
   staleBox: {
     marginTop: 16, backgroundColor: '#fbf0d4', borderRadius: 14, padding: 14,

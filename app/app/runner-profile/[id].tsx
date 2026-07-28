@@ -12,7 +12,7 @@ import { colors } from '../../src/theme';
 // 갤러리(runners.photos) · 실슬롯 예약 · 본인이 보면 편집/미리보기 모드.
 // 솔로 테스트: 본인 슬롯 예약도 허용 (owner==runner 루프가 테스트 체제)
 
-const FOREST = '#132117';
+const FOREST = '#0F1D13';
 const DAY = '일월화수목금토';
 const W = Dimensions.get('window').width;
 const TILE = (W - 4) / 3; // 3열 엣지-투-엣지, 2px 갭
@@ -241,7 +241,7 @@ export default function RunnerProfileScreen() {
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 2 }}>
                   {p.photos.map((url) => (
                     <Pressable key={url} onLongPress={canEdit ? () => removePhoto(url) : undefined}>
-                      <Image source={{ uri: url }} style={{ width: TILE, height: TILE, backgroundColor: '#d9d5c6' }} />
+                      <Image source={{ uri: url }} style={{ width: TILE, height: TILE, backgroundColor: '#DCD6C4' }} />
                     </Pressable>
                   ))}
                   {canEdit && (
@@ -450,13 +450,13 @@ function HeroStat({ value, label }: { value: string; label: string }) {
 }
 
 const s = StyleSheet.create({
-  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#dedacb' },
+  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DCD6C4' },
   // 풀블리드: 히어로·섹션 모두 좌우 마진 없음, 내부 패딩만
   hero: { backgroundColor: FOREST, padding: 20, marginTop: 14 },
   heroDiv: { width: 1, backgroundColor: '#2c4034' },
   onlineDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: colors.volt, alignSelf: 'center' },
   limePill: { backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 3, paddingHorizontal: 8 },
-  section: { backgroundColor: '#fff', paddingHorizontal: 12, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#dedacb' },
+  section: { backgroundColor: '#fff', paddingHorizontal: 12, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#DCD6C4' },
   sectionTitle: { fontSize: 13.5, fontWeight: '900', color: FOREST, marginBottom: 8 },
   specChip: { backgroundColor: '#eef4e0', borderRadius: 99, paddingVertical: 4, paddingHorizontal: 10 },
   reviewRow: { paddingVertical: 10 },
@@ -464,13 +464,13 @@ const s = StyleSheet.create({
   slotChip: { width: '22.5%', backgroundColor: '#f7f9f0', borderRadius: 12, borderWidth: 1, borderColor: '#dde8c4', alignItems: 'center', paddingVertical: 9 },
   addTile: { width: TILE, height: TILE, backgroundColor: '#f4f2ea', alignItems: 'center', justifyContent: 'center' },
   cta: { backgroundColor: colors.volt, borderRadius: 18, alignItems: 'center', paddingVertical: 15, marginTop: 16 },
-  ghostCta: { backgroundColor: '#fff', borderRadius: 16, alignItems: 'center', paddingVertical: 13, marginTop: 8, borderWidth: 1, borderColor: '#dedacb' },
+  ghostCta: { backgroundColor: '#fff', borderRadius: 16, alignItems: 'center', paddingVertical: 13, marginTop: 8, borderWidth: 1, borderColor: '#DCD6C4' },
   editChip: { backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 7, paddingHorizontal: 12, alignSelf: 'flex-start' },
   editBackdrop: { flex: 1, backgroundColor: '#00000055' },
   editSheet: { backgroundColor: colors.cream, borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 16, paddingBottom: 40 },
-  editHandle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: '#d8d5c8', marginBottom: 14 },
+  editHandle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: '#DCD6C4', marginBottom: 14 },
   editLabel: { fontSize: 12, fontWeight: '800', color: '#3d453d', marginTop: 14, marginBottom: 6 },
-  editInput: { backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: '#dedacb', paddingVertical: 12, paddingHorizontal: 14, fontSize: 14.5, color: FOREST },
+  editInput: { backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: '#DCD6C4', paddingVertical: 12, paddingHorizontal: 14, fontSize: 14.5, color: FOREST },
   editSave: { backgroundColor: colors.volt, borderRadius: 16, alignItems: 'center', paddingVertical: 14, marginTop: 18 },
   confirmBar: {
     position: 'absolute', left: 0, right: 0, bottom: 0,

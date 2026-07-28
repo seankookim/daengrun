@@ -72,15 +72,15 @@ export default function RunDone() {
       {runResult.bookingId && (
         <View style={{
           marginTop: 14, backgroundColor: '#fff', borderRadius: 18, padding: 15,
-          borderWidth: 1, borderColor: '#dedacb',
+          borderWidth: 1, borderColor: '#DCD6C4',
         }}>
           <Row style={{ justifyContent: 'space-between' }}>
-            <Text style={{ fontSize: 13.5, fontWeight: '900', color: '#132117' }}>오늘의 순간</Text>
+            <Text style={{ fontSize: 13.5, fontWeight: '900', color: '#0F1D13' }}>오늘의 순간</Text>
             <Text style={{ fontSize: 10.5, color: colors.dim }}>보호자 리포트에 실려요</Text>
           </Row>
           <Row style={{ gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
             {photos.map((url) => (
-              <Image key={url} source={{ uri: url }} style={{ width: 64, height: 64, borderRadius: 10, backgroundColor: '#d9d5c6' }} />
+              <Image key={url} source={{ uri: url }} style={{ width: 64, height: 64, borderRadius: 10, backgroundColor: '#DCD6C4' }} />
             ))}
             {photos.length < 6 && (
               <Pressable

@@ -7,7 +7,7 @@ import { colors } from '../../src/theme';
 // 러너 인증 센터 — the supply funnel. Defines runners-table schema:
 // application fields, KYC artifacts, education progress, trial evaluation, tier.
 
-const FOREST = '#132117';
+const FOREST = '#0F1D13';
 
 const TIERS = [
   { name: '인증 러너', req: '지원 절차 완료', perk: '기본 요청 수신' },
@@ -98,14 +98,14 @@ export default function Apply() {
 }
 
 const s = StyleSheet.create({
-  circleBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#dedacb' },
+  circleBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DCD6C4' },
   tierCard: { backgroundColor: FOREST, borderRadius: 20, padding: 18 },
   tierBar: { height: 7, borderRadius: 99, backgroundColor: '#2c4034', marginTop: 14, overflow: 'hidden' },
   tierFill: { height: 7, borderRadius: 99, backgroundColor: colors.volt },
   section: { fontSize: 15, fontWeight: '900', color: FOREST, marginTop: 20, marginBottom: 10 },
-  card: { backgroundColor: '#fff', borderRadius: 18, padding: 15, borderWidth: 1, borderColor: '#dedacb' },
-  stepLine: { width: 2, height: 14, backgroundColor: '#d9d5c6', marginLeft: 10, marginVertical: 2 },
-  stepDot: { width: 22, height: 22, borderRadius: 11, backgroundColor: '#dedacb', alignItems: 'center', justifyContent: 'center' },
+  card: { backgroundColor: '#fff', borderRadius: 18, padding: 15, borderWidth: 1, borderColor: '#DCD6C4' },
+  stepLine: { width: 2, height: 14, backgroundColor: '#DCD6C4', marginLeft: 10, marginVertical: 2 },
+  stepDot: { width: 22, height: 22, borderRadius: 11, backgroundColor: '#DCD6C4', alignItems: 'center', justifyContent: 'center' },
   stepActive: { backgroundColor: '#fbf0d4', borderWidth: 1.6, borderColor: '#e2c56b' },
   nowPill: { backgroundColor: '#e3f0c4', borderRadius: 99, paddingVertical: 2, paddingHorizontal: 7, alignSelf: 'center' },
   continueBtn: { backgroundColor: colors.volt, borderRadius: 16, alignItems: 'center', paddingVertical: 14, marginTop: 12 },

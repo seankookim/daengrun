@@ -6,10 +6,10 @@ import { DropRow, fetchDrops, fetchGearClaims, fetchMiles, fetchMyRunnerStatus, 
 import { haptic } from '../../src/lib/haptics';
 import { colors } from '../../src/theme';
 
-// 리워드 센터 — 실화: 댕마일 잔액·드랍 오픈(open-drop)·기어 교환권. 목업 사다리 은퇴.
+// 리워드 센터 — 실화: 하이 포인트 잔액·드랍 오픈(open-drop)·기어 교환권. 목업 사다리 은퇴.
 // 5회 보급 드랍(랜덤·바닥 보장) · 10회 픽 드랍(3택1 — 선택 데이터 = 러너 동기 시그널)
 
-const FOREST = '#132117';
+const FOREST = '#0F1D13';
 
 export default function Rewards() {
   const [miles, setMiles] = useState<MilesInfo | null>(null);
@@ -34,7 +34,7 @@ export default function Rewards() {
       const applied = await openDrop(d.id, pick);
       haptic('success');
       const parts: string[] = [];
-      if (applied.miles) parts.push(`+${(applied.miles as number).toLocaleString()} 댕마일`);
+      if (applied.miles) parts.push(`+${(applied.miles as number).toLocaleString()} 하이 포인트`);
       if (applied.card) parts.push(`카드 「${applied.card}」`);
       if (applied.gear) parts.push(`기어: ${applied.gear}`);
       if (applied.boost_until) parts.push('부스트 24시간 활성');
@@ -63,9 +63,9 @@ export default function Rewards() {
         <View style={{ width: 40 }} />
       </Row>
 
-      {/* 댕마일 */}
+      {/* 하이 포인트 */}
       <View style={s.milesCard}>
-        <Text style={{ fontSize: 11, color: '#b8c4ae', letterSpacing: 1.5 }}>내 댕마일</Text>
+        <Text style={{ fontSize: 11, color: '#b8c4ae', letterSpacing: 1.5 }}>내 하이 포인트</Text>
         <Text style={{ fontSize: 34, fontWeight: '900', color: colors.volt, marginTop: 4 }}>
           {miles?.balance?.toLocaleString() ?? '—'}<Text style={{ fontSize: 13, color: '#b8c4ae' }}> 마일</Text>
         </Text>
@@ -162,14 +162,14 @@ export default function Rewards() {
 }
 
 const s = StyleSheet.create({
-  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#dedacb' },
+  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DCD6C4' },
   milesCard: { backgroundColor: FOREST, borderRadius: 20, padding: 18, marginTop: 16 },
   section: { fontSize: 15, fontWeight: '900', color: FOREST, marginTop: 20, marginBottom: 8 },
   emptyBox: { backgroundColor: '#f4f2ea', borderRadius: 16, padding: 20 },
   dropCard: { backgroundColor: FOREST, borderRadius: 18, padding: 16, marginBottom: 10, borderWidth: 1.5, borderColor: colors.volt },
   openBtn: { backgroundColor: colors.volt, borderRadius: 13, alignItems: 'center', paddingVertical: 12, marginTop: 12 },
   pickBtn: { flex: 1, backgroundColor: colors.volt, borderRadius: 12, alignItems: 'center', paddingVertical: 11 },
-  card: { backgroundColor: '#fff', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#dedacb' },
+  card: { backgroundColor: '#fff', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#DCD6C4' },
   div: { height: 1, backgroundColor: '#f0eee3' },
   claimPill: { backgroundColor: '#eaf7c8', borderRadius: 99, paddingVertical: 5, paddingHorizontal: 10, alignSelf: 'center' },
   rankLink: { alignItems: 'center', marginTop: 18, padding: 10 },

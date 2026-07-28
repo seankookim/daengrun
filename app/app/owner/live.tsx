@@ -13,7 +13,7 @@ import { colors } from '../../src/theme';
 // 실모드: 위치 브로드캐스트 구독 + 실지도, 완료 → 리포트, 종료 → 채팅 조율.
 // 데모: 연출 지도 유지 (예약 없을 때만).
 
-const FOREST = '#132117';
+const FOREST = '#0F1D13';
 const TOTAL_SEC = 2052;
 
 const fmt = (sec: number) =>
@@ -271,10 +271,10 @@ const s = StyleSheet.create({
   },
   sheetBackdrop: { flex: 1, backgroundColor: '#00000055' },
   stopSheet: { backgroundColor: colors.cream, borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 16, paddingBottom: 40 },
-  sheetHandle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: '#d8d5c8', marginBottom: 14 },
+  sheetHandle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: '#DCD6C4', marginBottom: 14 },
   reasonRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#fff',
-    borderRadius: 14, borderWidth: 1.3, borderColor: '#dedacb', padding: 13, marginBottom: 8,
+    borderRadius: 14, borderWidth: 1.3, borderColor: '#DCD6C4', padding: 13, marginBottom: 8,
   },
   radio: { width: 18, height: 18, borderRadius: 10, borderWidth: 2, borderColor: '#dcd9cc', alignItems: 'center', justifyContent: 'center' },
   radioDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: '#5a7a3c' },

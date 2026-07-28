@@ -9,7 +9,7 @@ import { colors } from '../../src/theme';
 // 반영 지점: 러너 공개 프로필 슬롯 그리드 · 보호자 예약 슬롯 시트 · 서버 is_slot_available.
 // v1: 요일당 1구간, 30분 단위. 다구간·예외일정·예약규칙은 v2.
 
-const FOREST = '#132117';
+const FOREST = '#0F1D13';
 const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0]; // 월…일
 const DAY_NAME = '일월화수목금토';
 
@@ -177,15 +177,15 @@ function Stepper({ value, onMinus, onPlus }: { value: string; onMinus: () => voi
 }
 
 const s = StyleSheet.create({
-  circleBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#dedacb' },
-  card: { backgroundColor: '#fff', borderRadius: 18, paddingHorizontal: 16, paddingVertical: 6, borderWidth: 1, borderColor: '#dedacb' },
+  circleBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DCD6C4' },
+  card: { backgroundColor: '#fff', borderRadius: 18, paddingHorizontal: 16, paddingVertical: 6, borderWidth: 1, borderColor: '#DCD6C4' },
   div: { height: 1, backgroundColor: '#f0eee3' },
   togglePill: { backgroundColor: '#f0efe8', borderRadius: 99, paddingVertical: 8, paddingHorizontal: 15 },
   stepBtn: { width: 46, height: 46, alignItems: 'center', justifyContent: 'center' },
   stepBtnText: { fontSize: 20, fontWeight: '900', color: '#5a7a3c' },
   saveBar: {
     position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: colors.cream,
-    paddingHorizontal: 12, paddingTop: 10, paddingBottom: 30, borderTopWidth: 1, borderTopColor: '#dedacb',
+    paddingHorizontal: 12, paddingTop: 10, paddingBottom: 30, borderTopWidth: 1, borderTopColor: '#DCD6C4',
   },
   saveBtn: { backgroundColor: colors.volt, borderRadius: 16, alignItems: 'center', paddingVertical: 15 },
 });

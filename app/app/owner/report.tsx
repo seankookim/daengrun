@@ -11,7 +11,7 @@ import { colors } from '../../src/theme';
 // 러닝 리포트 — 러닝 하나의 '프로필 페이지'. 풀블리드 · 공유 가능 · 사진 · 개인 기록 배지.
 // 진입: 알림 · 내 일정 완료 카드 · 체력 리포트 최근 러닝. 공유가 곧 마케팅 (자랑 = 전파).
 
-const FOREST = '#132117';
+const FOREST = '#0F1D13';
 const FOREST_INNER = '#1d3023';
 const W = Dimensions.get('window').width;
 const TILE = (W - 4) / 3;
@@ -106,7 +106,7 @@ export default function Report() {
           `⏱ ${fmtDur(run.durationSec)} · 페이스 ${fmtPace(run.paceSecPerKm)}/km\n` +
           `📍 ${report.routeName}${report.runnerName ? ` · ${report.runnerName} 러너와 함께` : ''}` +
           (bLine ? `\n${bLine}` : '') +
-          `\n\n반려견 피트니스, 댕런 🏃`,
+          `\n\n반려견 피트니스, 도그스하이 🏃`,
       });
     } catch { /* 사용자 취소 */ }
   };
@@ -150,7 +150,7 @@ export default function Report() {
               {run.photos[0] && (
                 <Image source={{ uri: run.photos[0] }} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, opacity: 0.38 }} resizeMode="cover" />
               )}
-              <Text style={{ fontSize: 11, fontWeight: '900', color: colors.volt, letterSpacing: 3 }}>댕런 DAENGRUN</Text>
+              <Text style={{ fontSize: 11, fontWeight: '900', color: colors.volt, letterSpacing: 3 }}>도그스하이 DAENGRUN</Text>
               <Text style={{ fontSize: 21, fontWeight: '900', color: '#fff', marginTop: 12 }}>{report.dogName}의 러닝 🐕</Text>
               <Text style={{ fontSize: 54, fontWeight: '900', color: colors.tang, marginTop: 6 }}>
                 {run.actualKm}<Text style={{ fontSize: 20, color: '#b8c4ae' }}> km</Text>
@@ -164,7 +164,7 @@ export default function Report() {
                   {bList.filter((b) => b.includes('역대') || b.includes('TOP')).join(' · ') || bList[0]}
                 </Text>
               )}
-              <Text style={{ fontSize: 9.5, color: '#8fa093', marginTop: 14 }}>반려견 피트니스 · 댕런</Text>
+              <Text style={{ fontSize: 9.5, color: '#8fa093', marginTop: 14 }}>반려견 피트니스 · 도그스하이</Text>
             </View>
             <Row style={{ gap: 10, marginTop: 16 }}>
               <Pressable onPress={captureShot} style={[s.cta, { flex: 1, marginTop: 0 }]}>
@@ -277,7 +277,7 @@ export default function Report() {
             {run.photos.length > 0 ? (
               <View style={{ backgroundColor: '#fff', flexDirection: 'row', flexWrap: 'wrap', gap: 2 }}>
                 {run.photos.map((url) => (
-                  <Image key={url} source={{ uri: url }} style={{ width: TILE, height: TILE, backgroundColor: '#d9d5c6' }} />
+                  <Image key={url} source={{ uri: url }} style={{ width: TILE, height: TILE, backgroundColor: '#DCD6C4' }} />
                 ))}
               </View>
             ) : (
@@ -432,7 +432,7 @@ function GoalBar({ label, pct, detail }: { label: string; pct: number; detail: s
           style={[
             s.barFill,
             { width: w.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'] }) },
-            pct >= 100 && { backgroundColor: '#82b016' },
+            pct >= 100 && { backgroundColor: '#7FA818' },
           ]}
         />
       </View>
@@ -442,12 +442,12 @@ function GoalBar({ label, pct, detail }: { label: string; pct: number; detail: s
 }
 
 const s = StyleSheet.create({
-  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#dedacb' },
+  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DCD6C4' },
   hero: { backgroundColor: FOREST, padding: 20, marginTop: 14 },
   heroReason: { borderRadius: 99, paddingVertical: 4, paddingHorizontal: 9 },
   heroDiv: { width: 1, backgroundColor: '#2c4034' },
   badgePill: { backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 4, paddingHorizontal: 10 },
-  section: { backgroundColor: '#fff', paddingHorizontal: 12, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#dedacb' },
+  section: { backgroundColor: '#fff', paddingHorizontal: 12, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#DCD6C4' },
   sectionTitle: { fontSize: 13.5, fontWeight: '900', color: FOREST, marginBottom: 6 },
   barTrack: { height: 8, borderRadius: 99, backgroundColor: '#f0eee3', marginTop: 6, overflow: 'hidden' },
   barFill: { height: 8, borderRadius: 99, backgroundColor: colors.volt },
@@ -458,7 +458,7 @@ const s = StyleSheet.create({
   emptyText: { fontSize: 13, color: colors.dim, textAlign: 'center', lineHeight: 19 },
   ctaGhost: { marginTop: 14, backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 10, paddingHorizontal: 18 },
   cta: { backgroundColor: colors.volt, borderRadius: 18, alignItems: 'center', paddingVertical: 15, marginTop: 16 },
-  ghostCta: { backgroundColor: '#fff', borderRadius: 16, alignItems: 'center', paddingVertical: 13, marginTop: 8, borderWidth: 1, borderColor: '#dedacb' },
-  shotBackdrop: { paddingHorizontal: 12, paddingVertical: 18, backgroundColor: '#0d1410' },
+  ghostCta: { backgroundColor: '#fff', borderRadius: 16, alignItems: 'center', paddingVertical: 13, marginTop: 8, borderWidth: 1, borderColor: '#DCD6C4' },
+  shotBackdrop: { paddingHorizontal: 12, paddingVertical: 18, backgroundColor: '#0C130E' },
   shotCard: { backgroundColor: FOREST, borderRadius: 18, padding: 18, overflow: 'hidden', alignItems: 'center', paddingVertical: 34 },
 });

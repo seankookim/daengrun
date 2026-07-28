@@ -8,7 +8,7 @@ import { colors } from '../../src/theme';
 // 반려견 프로필 — 실초코. 사진·정보·성향 메모·선호 태그가 러너에게 전달된다.
 // 진입: 예약 화면 강아지 카드 · 마이 메뉴. 저장은 섹션 하단 버튼 1개.
 
-const FOREST = '#132117';
+const FOREST = '#0F1D13';
 
 // 선호/성향 태그 카탈로그 — dogs.preferences.tags 로 저장, 러너 요청 카드에 표시
 const PREF_CATALOG = [
@@ -255,15 +255,15 @@ const s = StyleSheet.create({
   },
   label: { fontSize: 12, fontWeight: '800', color: '#3d453d', marginTop: 16, marginBottom: 6 },
   input: {
-    backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: '#dedacb',
+    backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: '#DCD6C4',
     paddingVertical: 12, paddingHorizontal: 14, fontSize: 14.5, color: FOREST,
   },
-  neuterChip: { flex: 1, backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: '#dedacb', alignItems: 'center', paddingVertical: 13 },
+  neuterChip: { flex: 1, backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: '#DCD6C4', alignItems: 'center', paddingVertical: 13 },
   dogChip: { backgroundColor: '#fff', borderRadius: 99, borderWidth: 1.3, borderColor: '#dcd9cc', paddingVertical: 9, paddingHorizontal: 16 },
-  tagChip: { backgroundColor: '#fff', borderRadius: 99, borderWidth: 1.3, borderColor: '#dedacb', paddingVertical: 9, paddingHorizontal: 14 },
+  tagChip: { backgroundColor: '#fff', borderRadius: 99, borderWidth: 1.3, borderColor: '#DCD6C4', paddingVertical: 9, paddingHorizontal: 14 },
   saveBar: {
     position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: colors.cream,
-    paddingHorizontal: 12, paddingTop: 10, paddingBottom: 30, borderTopWidth: 1, borderTopColor: '#dedacb',
+    paddingHorizontal: 12, paddingTop: 10, paddingBottom: 30, borderTopWidth: 1, borderTopColor: '#DCD6C4',
   },
   saveBtn: { backgroundColor: colors.volt, borderRadius: 16, alignItems: 'center', paddingVertical: 15 },
 });

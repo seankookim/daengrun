@@ -96,7 +96,7 @@ export const myCards: CollectCard[] = [
 
 export const runners: Runner[] = [
   {
-    id: 'minjun', name: '김민준', char: '민', color: '#FF6347',
+    id: 'minjun', name: '김민준', char: '민', color: '#FF5C3D',
     rating: 4.9, reviews: 127, runs: 214, distanceKm: 0.8, pace: "6'50\"",
     badges: ['신원인증', '펫보험'],
     desc: '초코의 페이스와 체력에 최적화된 러너예요.\n꾸준한 중장거리 경험이 많고, 신호 준수율이 높아요.',
@@ -127,8 +127,8 @@ export const runners: Runner[] = [
   },
 ];
 
-// ---------- Certified routes (댕런 안심 코스) ----------
-// Curated + safety-checked routes. Blue check = 댕런 직접 검수.
+// ---------- Certified routes (도그스하이 안심 코스) ----------
+// Curated + safety-checked routes. Blue check = 도그스하이 직접 검수.
 // Later: AI-generated routes fitted to dog profile.
 export interface RouteInfo {
   id: string;
@@ -280,7 +280,7 @@ export interface GearStep { at: number; item: string; got?: boolean; claimable?:
 
 // 러너: 러닝 어패럴 사다리 (누적 러닝 횟수)
 export const runnerGearLadder: GearStep[] = [
-  { at: 10, item: '댕런 반다나', got: true },
+  { at: 10, item: '도그스하이 반다나', got: true },
   { at: 50, item: '러닝 삭스', got: true },
   { at: 100, item: '리플렉티브 밴드', got: true },
   { at: 250, item: '윈드브레이커', claimable: false }, // 35회 남음
@@ -289,9 +289,9 @@ export const runnerGearLadder: GearStep[] = [
 
 // 보호자: 펫 브랜드 콜라보 사다리 (반려견 누적 km — 초코 86.2km)
 export const ownerGearLadder: GearStep[] = [
-  { at: 25, item: '댕런 × 바잇미 반다나', got: true },
-  { at: 75, item: '댕런 × 페스룸 간식 세트', claimable: true },
-  { at: 150, item: '댕런 × 페티즌 LED 목걸이' },
+  { at: 25, item: '도그스하이 × 바잇미 반다나', got: true },
+  { at: 75, item: '도그스하이 × 페스룸 간식 세트', claimable: true },
+  { at: 150, item: '도그스하이 × 페티즌 LED 목걸이' },
   { at: 300, item: '콜라보 쿨링 조끼 (한정)' },
 ];
 
@@ -345,12 +345,12 @@ export interface Product {
 }
 
 export const products: Product[] = [
-  { id: 'leash', collab: '댕런 × 바잇미', name: '야간 반사 러닝 전용 리드줄', price: 24000, tag: '리드줄', colors: ['#ffd9cc', '#ff8f6e'], fg: '#8f2b0e' },
-  { id: 'treat', collab: '댕런 × 페스룸', name: '동결건조 북어 트릿 80g', price: 12900, tag: '간식', colors: ['#f3e6bd', '#dcc26a'], fg: '#7a651f' },
-  { id: 'vest', collab: '댕런 에디션', name: '여름 러닝 쿨링 조끼', price: 19800, tag: '쿨링', colors: ['#c9e4f2', '#7db8d6'], fg: '#1f5a7a' },
+  { id: 'leash', collab: '도그스하이 × 바잇미', name: '야간 반사 러닝 전용 리드줄', price: 24000, tag: '리드줄', colors: ['#ffd9cc', '#ff8f6e'], fg: '#8f2b0e' },
+  { id: 'treat', collab: '도그스하이 × 페스룸', name: '동결건조 북어 트릿 80g', price: 12900, tag: '간식', colors: ['#f3e6bd', '#dcc26a'], fg: '#7a651f' },
+  { id: 'vest', collab: '도그스하이 에디션', name: '여름 러닝 쿨링 조끼', price: 19800, tag: '쿨링', colors: ['#c9e4f2', '#7db8d6'], fg: '#1f5a7a' },
   { id: 'vitamin', collab: '댕러민 Dog-a-mins', name: '관절 케어 츄어블 60정', price: 29000, tag: '영양제', colors: ['#dcd2f0', '#a390d4'], fg: '#463175' },
-  { id: 'led', collab: '댕런 에디션', name: '야간 러닝 LED 목걸이', price: 15500, tag: 'LED', colors: ['#d4ecc3', '#93c46e'], fg: '#3d6b1e' },
-  { id: 'bottle', collab: '댕런 × 페티즌', name: '원핸드 러닝 물병 350ml', price: 13000, tag: '물병', colors: ['#f2d9c9', '#d8a077'], fg: '#7a4a22' },
+  { id: 'led', collab: '도그스하이 에디션', name: '야간 러닝 LED 목걸이', price: 15500, tag: 'LED', colors: ['#d4ecc3', '#93c46e'], fg: '#3d6b1e' },
+  { id: 'bottle', collab: '도그스하이 × 페티즌', name: '원핸드 러닝 물병 350ml', price: 13000, tag: '물병', colors: ['#f2d9c9', '#d8a077'], fg: '#7a4a22' },
 ];
 
 // ---------- Community ----------
@@ -363,7 +363,7 @@ export interface Post {
 
 export const posts: Post[] = [
   {
-    id: 'p1', author: '김민준', char: '민', color: '#FF6347', roleBadge: '러너', when: '34분 전 · 서울숲',
+    id: 'p1', author: '김민준', char: '민', color: '#FF5C3D', roleBadge: '러너', when: '34분 전 · 서울숲',
     body: '초코 오늘 컨디션 최상. 자전거 3대 만났는데 한 번도 안 짖음. 성장했다',
     likes: 24, comments: 6, streak: 47, run: { km: '5.02km', pace: "6'49\"", time: '34:12' },
   },

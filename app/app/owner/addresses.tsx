@@ -8,7 +8,7 @@ import { colors } from '../../src/theme';
 // 주소 관리 — 실CRUD. 기본 픽업 주소가 예약 화면에 표시되고 예약에 연결된다.
 // 지도 핀·좌표·공동현관 코드는 지도 세션에서 (좌표가 있어야 길찾기 실화).
 
-const FOREST = '#132117';
+const FOREST = '#0F1D13';
 
 export default function Addresses() {
   const [list, setList] = useState<Addr[]>([]);
@@ -105,11 +105,11 @@ export default function Addresses() {
 }
 
 const s = StyleSheet.create({
-  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#dedacb' },
+  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DCD6C4' },
   emptyBox: { backgroundColor: '#f4f2ea', borderRadius: 16, padding: 16 },
-  card: { backgroundColor: '#fff', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#dedacb' },
+  card: { backgroundColor: '#fff', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#DCD6C4' },
   defaultPill: { backgroundColor: '#eaf7c8', borderRadius: 99, paddingVertical: 3, paddingHorizontal: 8, alignSelf: 'center' },
-  input: { backgroundColor: '#faf9f3', borderRadius: 12, borderWidth: 1, borderColor: '#dedacb', paddingVertical: 11, paddingHorizontal: 12, fontSize: 13.5, color: FOREST },
+  input: { backgroundColor: '#faf9f3', borderRadius: 12, borderWidth: 1, borderColor: '#DCD6C4', paddingVertical: 11, paddingHorizontal: 12, fontSize: 13.5, color: FOREST },
   saveBtn: { backgroundColor: colors.volt, borderRadius: 12, alignItems: 'center', paddingVertical: 12 },
   cancelBtn: { flex: 1, backgroundColor: '#f4f2ea', borderRadius: 12, alignItems: 'center', paddingVertical: 12 },
   addBtn: { borderRadius: 16, borderWidth: 1.4, borderColor: '#cfd8c2', borderStyle: 'dashed', alignItems: 'center', paddingVertical: 14 },

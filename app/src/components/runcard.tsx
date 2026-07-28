@@ -8,7 +8,7 @@ import { useTheme } from '../theme-context';
 
 function heatColor(v: number): string {
   if (v < 0.5) return lerpColor('#5b8c2a', '#e8b04b', v / 0.5);
-  return lerpColor('#e8b04b', '#FF6347', (v - 0.5) / 0.5);
+  return lerpColor('#e8b04b', '#FF5C3D', (v - 0.5) / 0.5);
 }
 
 function lerpColor(a: string, b: string, t: number): string {
@@ -92,7 +92,7 @@ function Marker({ x, y, label }: { x: number; y: number; label: string }) {
   );
 }
 
-const TIER_COLORS: Record<string, string> = { 일반: '#8fa093', 레어: '#B9F23A', 에픽: '#FF6347' };
+const TIER_COLORS: Record<string, string> = { 일반: '#8fa093', 레어: '#C6F542', 에픽: '#FF5C3D' };
 
 export function RunCard({ card, width = 340 }: { card: CollectCard; width?: number }) {
   const { mode, p } = useTheme();
@@ -139,7 +139,7 @@ export function RunCard({ card, width = 340 }: { card: CollectCard; width?: numb
           }}
         >
           <Text style={{ fontSize: 10, fontWeight: '800', color: card.locked ? p.dim : tierColor(card.tier) }}>
-            {card.locked ? '잠금' : card.run ? '댕런' : card.tier}
+            {card.locked ? '잠금' : card.run ? '도그스하이' : card.tier}
           </Text>
         </View>
       </View>

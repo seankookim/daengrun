@@ -5,9 +5,9 @@ import { Row } from '../src/components/ui';
 import { products } from '../src/store';
 import { colors } from '../src/theme';
 
-// 댕런 샵 — member banner, category chips, pastel product cards, per mock.
+// 도그스하이 샵 — member banner, category chips, pastel product cards, per mock.
 
-const FOREST = '#132117';
+const FOREST = '#0F1D13';
 const CATS = ['전체', '간식', '용품', '의류', '영양제'];
 
 export default function Shop() {
@@ -16,7 +16,7 @@ export default function Shop() {
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingTop: 56 }}>
         <Row style={{ justifyContent: 'space-between', marginBottom: 16 }}>
           <Pressable onPress={() => router.replace(homePath())} style={s.circleBtn}><Text style={{ fontSize: 18 }}>‹</Text></Pressable>
-          <Text style={{ fontSize: 20, fontWeight: '900', color: FOREST }}>댕런 샵</Text>
+          <Text style={{ fontSize: 20, fontWeight: '900', color: FOREST }}>도그스하이 샵</Text>
           <Pressable style={s.circleBtn} onPress={() => Alert.alert('장바구니', '장바구니 (목업)')}>
             <Text style={{ fontSize: 15, color: FOREST }}>◱</Text>
           </Pressable>
@@ -37,7 +37,7 @@ export default function Shop() {
             <Text style={{ fontSize: 18, fontWeight: '900', color: '#fff', marginTop: 6 }}>
               멤버는 전 상품 <Text style={{ color: colors.volt }}>10%</Text> 할인
             </Text>
-            <Text style={{ fontSize: 12, color: '#b8c4ae', marginTop: 6 }}>스토어 오픈 준비 중 — 댕마일과 연동돼요</Text>
+            <Text style={{ fontSize: 12, color: '#b8c4ae', marginTop: 6 }}>스토어 오픈 준비 중 — 하이 포인트와 연동돼요</Text>
           </View>
           <View style={s.bannerGo}><Text style={{ fontSize: 17, fontWeight: '900', color: FOREST }}>→</Text></View>
         </View>
@@ -54,7 +54,7 @@ export default function Shop() {
         {/* product grid */}
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
           {products.map((p) => (
-            <Pressable key={p.id} style={[s.prod, { backgroundColor: '#fff', borderWidth: 1, borderColor: '#dedacb' }]} onPress={() => Alert.alert(p.name, '스토어 오픈 준비 중이에요')}>
+            <Pressable key={p.id} style={[s.prod, { backgroundColor: '#fff', borderWidth: 1, borderColor: '#DCD6C4' }]} onPress={() => Alert.alert(p.name, '스토어 오픈 준비 중이에요')}>
               <Text style={{ fontSize: 11, fontWeight: '900', color: p.fg }}>{p.tag}</Text>
               <Text style={s.prodName} numberOfLines={2}>{p.name}</Text>
               <Text style={{ fontSize: 10.5, color: '#00000066', marginTop: 3 }}>{p.collab}</Text>
@@ -78,11 +78,11 @@ export default function Shop() {
 }
 
 const s = StyleSheet.create({
-  search: { backgroundColor: '#fff', borderRadius: 13, paddingVertical: 12, paddingHorizontal: 14, borderWidth: 1, borderColor: '#dedacb', marginBottom: 12 },
-  circleBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#dedacb' },
+  search: { backgroundColor: '#fff', borderRadius: 13, paddingVertical: 12, paddingHorizontal: 14, borderWidth: 1, borderColor: '#DCD6C4', marginBottom: 12 },
+  circleBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DCD6C4' },
   banner: { flexDirection: 'row', alignItems: 'center', backgroundColor: FOREST, borderRadius: 20, padding: 18 },
   bannerGo: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.volt, alignItems: 'center', justifyContent: 'center' },
-  cat: { borderRadius: 99, paddingVertical: 10, paddingHorizontal: 18, backgroundColor: '#fff', borderWidth: 1, borderColor: '#dedacb' },
+  cat: { borderRadius: 99, paddingVertical: 10, paddingHorizontal: 18, backgroundColor: '#fff', borderWidth: 1, borderColor: '#DCD6C4' },
   prod: { width: '47.5%', borderRadius: 20, padding: 14, minHeight: 210 },
   prodName: { fontSize: 14.5, fontWeight: '900', color: FOREST, marginTop: 6, lineHeight: 20 },
   prodVisual: { flex: 1, alignItems: 'center', justifyContent: 'center', marginVertical: 8 },

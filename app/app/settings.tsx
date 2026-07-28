@@ -9,7 +9,7 @@ import { colors } from '../src/theme';
 
 // 설정 — 실화면. 가짜 하위메뉴 없음: 실계정 정보 + 실동작만, 나머지는 정직 라벨.
 
-const FOREST = '#132117';
+const FOREST = '#0F1D13';
 const APP_VERSION = '0.9 (파일럿)';
 
 export default function Settings() {
@@ -46,7 +46,7 @@ export default function Settings() {
         </Pressable>
         <View style={s.div} />
         <Pressable
-          onPress={() => Linking.openURL('mailto:seankookim@uchicago.edu?subject=댕런 문의')}
+          onPress={() => Linking.openURL('mailto:seankookim@uchicago.edu?subject=도그스하이 문의')}
           style={s.actionRow}
         >
           <Text style={s.actionText}>문의하기</Text>
@@ -72,7 +72,7 @@ export default function Settings() {
       </View>
 
       <Text style={{ fontSize: 10.5, color: colors.dim, textAlign: 'center', marginTop: 18 }}>
-        댕런 {APP_VERSION} · 반려견 피트니스
+        도그스하이 {APP_VERSION} · 반려견 피트니스
       </Text>
     </ScrollView>
   );
@@ -88,9 +88,9 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 }
 
 const s = StyleSheet.create({
-  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#dedacb' },
+  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DCD6C4' },
   section: { fontSize: 15, fontWeight: '900', color: FOREST, marginTop: 20, marginBottom: 8 },
-  card: { backgroundColor: '#fff', borderRadius: 16, paddingHorizontal: 15, borderWidth: 1, borderColor: '#dedacb' },
+  card: { backgroundColor: '#fff', borderRadius: 16, paddingHorizontal: 15, borderWidth: 1, borderColor: '#DCD6C4' },
   div: { height: 1, backgroundColor: '#f0eee3' },
   actionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 14 },
   actionText: { fontSize: 14, fontWeight: '700', color: FOREST },

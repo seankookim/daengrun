@@ -2,7 +2,7 @@ import { ReactNode } from 'react';
 import { Image, Pressable, StyleProp, StyleSheet, Text, TextStyle, View, ViewStyle } from 'react-native';
 import { colors, radius } from '../theme';
 
-// 댕런 shared UI kit — mirrors the prototype's design system.
+// 도그스하이 shared UI kit — mirrors the prototype's design system.
 
 export function Btn({
   label, onPress, variant = 'ink', disabled, style,
@@ -82,7 +82,7 @@ export function Avatar({ url, char, bg, size = 52 }: { url?: string | null; char
   return (
     <Image
       source={{ uri: url }}
-      style={{ width: size, height: size, borderRadius: size * 0.3, backgroundColor: '#d9d5c6' }}
+      style={{ width: size, height: size, borderRadius: size * 0.3, backgroundColor: '#DCD6C4' }}
     />
   );
 }

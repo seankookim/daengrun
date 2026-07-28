@@ -10,7 +10,7 @@ import { colors } from '../../src/theme';
 // 보호자 인계 화면 — 실신원만 (김민준·초코 목업 은퇴, ui-audit P0).
 // 모든 이름·상태는 서버에서. 가짜 ETA 문구 없음.
 
-const FOREST = '#132117';
+const FOREST = '#0F1D13';
 type Stage = 'enroute' | 'arrived' | 'waiting' | 'confirmed';
 
 export default function OwnerMeetup() {
@@ -195,15 +195,15 @@ const s = StyleSheet.create({
   roadA: { position: 'absolute', top: 140, left: -20, right: -20, height: 16, backgroundColor: '#ffffffaa', transform: [{ rotate: '10deg' }] },
   roadB: { position: 'absolute', top: 0, bottom: 0, left: 200, width: 13, backgroundColor: '#ffffff88', transform: [{ rotate: '-14deg' }] },
   pathDot: { position: 'absolute', width: 8, height: 8, borderRadius: 4, backgroundColor: '#5a7a3c' },
-  runnerPin: { position: 'absolute', right: 34, top: 56, width: 26, height: 26, borderRadius: 13, backgroundColor: '#FF6347', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#fff' },
+  runnerPin: { position: 'absolute', right: 34, top: 56, width: 26, height: 26, borderRadius: 13, backgroundColor: '#FF5C3D', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#fff' },
   pickupPin: { position: 'absolute', left: 60, top: 200, width: 34, height: 26, borderRadius: 13, backgroundColor: FOREST, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#fff' },
   topBar: { position: 'absolute', top: 56, left: 10, right: 10, justifyContent: 'space-between' },
   circleBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } },
   etaPill: { backgroundColor: FOREST, borderRadius: 99, paddingVertical: 11, paddingHorizontal: 16 },
-  card: { backgroundColor: '#fff', borderRadius: 18, padding: 15, borderWidth: 1, borderColor: '#dedacb', marginBottom: 10 },
+  card: { backgroundColor: '#fff', borderRadius: 18, padding: 15, borderWidth: 1, borderColor: '#DCD6C4', marginBottom: 10 },
   badgePill: { backgroundColor: '#e3f0c4', borderRadius: 99, paddingVertical: 2, paddingHorizontal: 7, alignSelf: 'center' },
   chatChip: { backgroundColor: '#eef4e0', borderRadius: 99, paddingVertical: 8, paddingHorizontal: 12, alignSelf: 'center' },
-  stepDot: { width: 18, height: 18, borderRadius: 10, backgroundColor: '#d9d5c6', alignItems: 'center', justifyContent: 'center' },
+  stepDot: { width: 18, height: 18, borderRadius: 10, backgroundColor: '#DCD6C4', alignItems: 'center', justifyContent: 'center' },
   primary: { backgroundColor: FOREST, borderRadius: 18, alignItems: 'center', paddingVertical: 16, marginTop: 6 },
   primaryText: { fontSize: 15.5, fontWeight: '900', color: '#fff' },
   primarySub: { fontSize: 10.5, color: '#b8c4ae', marginTop: 3 },

@@ -11,7 +11,7 @@ import { colors } from '../src/theme';
 
 // 마이 — 실프로필 (사진·이름·동네). 김민준은 은퇴했다.
 
-const FOREST = '#132117';
+const FOREST = '#0F1D13';
 
 export default function My() {
   const isRunner = session.role === 'runner';
@@ -113,7 +113,7 @@ export default function My() {
         {/* profile header — 실데이터 */}
         <View style={s.profile}>
           <Pressable onPress={pickPhoto} disabled={uploading}>
-            <Avatar url={profile?.avatarUrl} char={(profile?.name ?? '나')[0]} bg={isRunner ? '#FF6347' : colors.volt} size={56} />
+            <Avatar url={profile?.avatarUrl} char={(profile?.name ?? '나')[0]} bg={isRunner ? '#FF5C3D' : colors.volt} size={56} />
             <View style={s.camBadge}><Text style={{ fontSize: 9, color: '#fff' }}>{uploading ? '…' : '✎'}</Text></View>
           </Pressable>
           <View style={{ flex: 1, marginLeft: 14 }}>
@@ -256,7 +256,7 @@ const s = StyleSheet.create({
   h1: { fontSize: 30, fontWeight: '900', color: FOREST },
   profile: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff',
-    borderRadius: 20, padding: 16, borderWidth: 1, borderColor: '#dedacb', marginTop: 16,
+    borderRadius: 20, padding: 16, borderWidth: 1, borderColor: '#DCD6C4', marginTop: 16,
   },
   camBadge: {
     position: 'absolute', right: -3, bottom: -3, width: 18, height: 18, borderRadius: 9,
@@ -265,16 +265,16 @@ const s = StyleSheet.create({
   editBtn: { backgroundColor: '#f4f2ea', borderRadius: 99, paddingVertical: 7, paddingHorizontal: 11 },
   menuRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: '#fff', borderRadius: 18, padding: 15, borderWidth: 1, borderColor: '#dedacb',
+    backgroundColor: '#fff', borderRadius: 18, padding: 15, borderWidth: 1, borderColor: '#DCD6C4',
   },
   menuIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#eef4e0', alignItems: 'center', justifyContent: 'center' },
   roleSwitch: { alignItems: 'center', marginTop: 20, padding: 12 },
   backdrop: { flex: 1, backgroundColor: '#00000055' },
   sheet: { backgroundColor: colors.cream, borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 16, paddingBottom: 40 },
-  handle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: '#d8d5c8', marginBottom: 14 },
+  handle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: '#DCD6C4', marginBottom: 14 },
   fieldLabel: { fontSize: 12, fontWeight: '800', color: '#3d453d', marginTop: 14, marginBottom: 6 },
   input: {
-    backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: '#dedacb',
+    backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: '#DCD6C4',
     paddingVertical: 12, paddingHorizontal: 14, fontSize: 14.5, color: FOREST,
   },
   saveBtn: { backgroundColor: colors.volt, borderRadius: 16, alignItems: 'center', paddingVertical: 14, marginTop: 18 },

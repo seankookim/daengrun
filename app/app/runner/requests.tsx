@@ -10,7 +10,7 @@ import { colors } from '../../src/theme';
 
 // 요청 인박스 — deadlines, match score, conflict warnings (docs/calendar.md).
 
-const FOREST = '#132117';
+const FOREST = '#0F1D13';
 
 export default function Requests() {
   const [live, setLive] = useState<OpenRequest[]>([]);
@@ -145,8 +145,8 @@ export default function Requests() {
 }
 
 const s = StyleSheet.create({
-  autoPill: { backgroundColor: '#fff', borderRadius: 99, paddingVertical: 9, paddingHorizontal: 13, borderWidth: 1, borderColor: '#dedacb', alignSelf: 'flex-start' },
-  reqCard: { backgroundColor: '#fff', borderRadius: 20, padding: 15, borderWidth: 1, borderColor: '#dedacb', marginTop: 14 },
+  autoPill: { backgroundColor: '#fff', borderRadius: 99, paddingVertical: 9, paddingHorizontal: 13, borderWidth: 1, borderColor: '#DCD6C4', alignSelf: 'flex-start' },
+  reqCard: { backgroundColor: '#fff', borderRadius: 20, padding: 15, borderWidth: 1, borderColor: '#DCD6C4', marginTop: 14 },
   deadline: { backgroundColor: '#fbf0d4', borderRadius: 99, paddingVertical: 4, paddingHorizontal: 9 },
   matchPill: { backgroundColor: '#e3f0c4', borderRadius: 99, paddingVertical: 4, paddingHorizontal: 9 },
   conflict: { backgroundColor: '#fdeae5', borderRadius: 10, padding: 9, marginTop: 10 },

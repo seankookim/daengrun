@@ -13,7 +13,7 @@ import { colors } from '../../src/theme';
 // 러너 홈 — 정보 밀도 우선 (보호자 홈이 도파민이라면 여기는 관제탑).
 // 진행 중 작업 + 단계, 지도 숏컷, 다음 예약, 드랍 트레일(실카운트), 최근 완료.
 
-const FOREST = '#132117';
+const FOREST = '#0F1D13';
 const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0]; // 월…일
 const DAY_NAME = '일월화수목금토';
 const hh = (m: number) => String(Math.floor(m / 60)).padStart(2, '0');
@@ -209,8 +209,8 @@ export default function RunnerHome() {
                   width: 23, height: 23, borderRadius: 6,
                   backgroundColor: i < cycle5 ? '#a3d431' : '#ffffff',
                   borderWidth: 2,
-                  borderColor: i < cycle5 ? '#82b016' : i === cycle5 ? '#a3d431' : '#e4ecc9',
-                  shadowColor: '#82b016', shadowOpacity: i < cycle5 ? 0.35 : 0,
+                  borderColor: i < cycle5 ? '#7FA818' : i === cycle5 ? '#a3d431' : '#e4ecc9',
+                  shadowColor: '#7FA818', shadowOpacity: i < cycle5 ? 0.35 : 0,
                   shadowRadius: 5, shadowOffset: { width: 0, height: 2 },
                 }} />
                 <View style={{
@@ -224,8 +224,8 @@ export default function RunnerHome() {
               transform: [{ translateY: 12 }],
               width: 34, height: 34, borderRadius: 11, backgroundColor: '#fff',
               alignItems: 'center', justifyContent: 'center',
-              borderWidth: 2, borderColor: cycle5 === 0 && rs.totalRuns > 0 ? '#82b016' : '#e4ecc9',
-              shadowColor: '#132117', shadowOpacity: 0.12, shadowRadius: 6, shadowOffset: { width: 0, height: 3 },
+              borderWidth: 2, borderColor: cycle5 === 0 && rs.totalRuns > 0 ? '#7FA818' : '#e4ecc9',
+              shadowColor: '#0F1D13', shadowOpacity: 0.12, shadowRadius: 6, shadowOffset: { width: 0, height: 3 },
             }}>
               <Text style={{ fontSize: 15 }}>▣</Text>
             </View>
@@ -377,33 +377,33 @@ const s = StyleSheet.create({
   stagePill: { borderRadius: 99, paddingVertical: 4, paddingHorizontal: 9 },
   currentBtn: { borderRadius: 13, alignItems: 'center', paddingVertical: 12 },
   trailCard: {
-    backgroundColor: '#d9f294', borderRadius: 18, padding: 16, paddingTop: 12, marginTop: 12,
+    backgroundColor: '#DDF0A6', borderRadius: 18, padding: 16, paddingTop: 12, marginTop: 12,
     borderWidth: 1, borderColor: '#c3dd76', overflow: 'hidden',
   },
   trailTab: {
-    position: 'absolute', top: 0, left: 0, backgroundColor: '#132117',
+    position: 'absolute', top: 0, left: 0, backgroundColor: '#0F1D13',
     borderTopLeftRadius: 22, borderBottomRightRadius: 15, paddingVertical: 7, paddingHorizontal: 13,
   },
-  availCard: { backgroundColor: '#fff', borderRadius: 18, padding: 15, marginTop: 12, borderWidth: 1, borderColor: '#dedacb' },
+  availCard: { backgroundColor: '#fff', borderRadius: 18, padding: 15, marginTop: 12, borderWidth: 1, borderColor: '#DCD6C4' },
   availDay: {
     flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: 13,
-    backgroundColor: '#f4f2ea', borderWidth: 1.5, borderColor: '#dedacb',
+    backgroundColor: '#f4f2ea', borderWidth: 1.5, borderColor: '#DCD6C4',
   },
   availDayOn: { backgroundColor: '#eaf7c8', borderColor: '#a9c47e' },
-  tierCard: { backgroundColor: '#fff', borderRadius: 16, padding: 14, marginTop: 12, borderWidth: 1, borderColor: '#dedacb' },
+  tierCard: { backgroundColor: '#fff', borderRadius: 16, padding: 14, marginTop: 12, borderWidth: 1, borderColor: '#DCD6C4' },
   tierTrack: { height: 7, borderRadius: 99, backgroundColor: '#f0eee3', marginTop: 9, overflow: 'hidden' },
   tierFill: { height: 7, borderRadius: 99, backgroundColor: colors.volt },
   gem: {
     width: 16, height: 16, borderRadius: 4, backgroundColor: '#f0efe8',
     borderWidth: 1.5, borderColor: '#dcd9cc', transform: [{ rotate: '45deg' }],
   },
-  trailLine: { flex: 1, height: 2.5, backgroundColor: '#dedacb', marginHorizontal: 3 },
+  trailLine: { flex: 1, height: 2.5, backgroundColor: '#DCD6C4', marginHorizontal: 3 },
   giftBox: {
     width: 30, height: 30, borderRadius: 9, backgroundColor: '#f0efe8',
     alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: '#dcd9cc',
   },
   flagTrack: { flex: 1, height: 6, borderRadius: 99, backgroundColor: '#ffffffbb', overflow: 'hidden' },
-  flagFill: { height: 6, borderRadius: 99, backgroundColor: '#82b016' },
+  flagFill: { height: 6, borderRadius: 99, backgroundColor: '#7FA818' },
   inboxBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12,
     backgroundColor: FOREST, borderRadius: 16, padding: 14,
@@ -412,7 +412,7 @@ const s = StyleSheet.create({
   sectionTitle: { fontSize: 14, fontWeight: '900', color: FOREST },
   jobRow: {
     flexDirection: 'row', alignItems: 'center', gap: 11, backgroundColor: '#fff',
-    borderRadius: 14, padding: 12, borderWidth: 1, borderColor: '#dedacb', marginBottom: 7,
+    borderRadius: 14, padding: 12, borderWidth: 1, borderColor: '#DCD6C4', marginBottom: 7,
   },
   jobRail: { width: 4, height: 32, borderRadius: 2, backgroundColor: '#5a7a3c' },
 });

@@ -960,33 +960,6 @@ export async function updateDogGoal(dogId: string, km: number): Promise<void> {
   if (error) throw error;
 }
 
-// ---------- 최근 순간 — 완료 러닝의 실사진만 (runs.photos, 러너가 담아온 순간) ----------
-// 홈 생기 패스의 데이터원. 사진이 없으면 빈 배열 — 섹션 자체를 숨긴다 (스톡/가짜 금지).
-export interface Moment { bookingId: string; url: string; when: string; km: number }
-
-export async function fetchRecentMoments(limit = 12): Promise<Moment[]> {
-  const { data: user } = await supabase.auth.getUser();
-  if (!user.user) return [];
-  const { data, error } = await supabase
-    .from('bookings')
-    .select('id, scheduled_at, runs(actual_km, photos)')
-    .eq('owner_id', user.user.id).eq('status', 'completed')
-    .order('scheduled_at', { ascending: false }).limit(30);
-  if (error) throw error;
-  const out: Moment[] = [];
-  for (const b of (data ?? []) as any[]) {
-    const r = Array.isArray(b.runs) ? b.runs[0] : b.runs; // unique FK — 어느 형태든 안전하게
-    const photos: string[] = r?.photos ?? [];
-    if (photos.length === 0) continue;
-    const { dateLabel } = kstParts(b.scheduled_at);
-    for (const url of photos) {
-      out.push({ bookingId: b.id, url, when: dateLabel, km: Math.round(Number(r?.actual_km ?? 0) * 10) / 10 });
-      if (out.length >= limit) return out;
-    }
-  }
-  return out;
-}
-
 // ---------- runner identity & money (tabula rasa) ----------
 export async function fetchMyName(): Promise<string | null> {
   const { data: user } = await supabase.auth.getUser();
@@ -1418,7 +1391,7 @@ export async function deleteFeedPost(postId: string): Promise<void> {
   if (error) throw error;
 }
 
-// ---------- 댕마일 + 리더보드 (통합 인센티브 경제) ----------
+// ---------- 하이 포인트 + 리더보드 (통합 인센티브 경제) ----------
 export interface MilesInfo { balance: number; recent: { delta: number; reason: string; when: string }[] }
 
 const MILE_REASON: Record<string, string> = {

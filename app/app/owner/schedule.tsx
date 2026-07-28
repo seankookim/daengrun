@@ -12,7 +12,7 @@ import { colors } from '../../src/theme';
 // (route card + predictions + runner + reschedule/cancel actions).
 // A confirmed booking is a contract — never re-routes to runner selection.
 
-const FOREST = '#132117';
+const FOREST = '#0F1D13';
 const FILTERS: { label: string; match: (b: Booking) => boolean }[] = [
   { label: '전체', match: () => true },
   { label: '예약 확정', match: (b) => b.status === 'confirmed' },
@@ -353,7 +353,7 @@ export default function Schedule() {
                     <View style={{ height: 1, backgroundColor: '#f0eee3', marginVertical: 10 }} />
                     <FeeLine label="환불 금액" value={`${(selected.price - fee).toLocaleString()}원`} bold />
                     <Text style={{ fontSize: 10.5, color: colors.dim, marginTop: 10, lineHeight: 15 }}>
-                      취소 수수료는 시간을 비워둔 러너에게 {Math.round(cancelPolicy.runnerShare * 100)}%, 댕런에 {Math.round((1 - cancelPolicy.runnerShare) * 100)}% 배분돼요.{'\n'}시작 24시간 전까지는 수수료가 없어요.
+                      취소 수수료는 시간을 비워둔 러너에게 {Math.round(cancelPolicy.runnerShare * 100)}%, 도그스하이에 {Math.round((1 - cancelPolicy.runnerShare) * 100)}% 배분돼요.{'\n'}시작 24시간 전까지는 수수료가 없어요.
                     </Text>
                   </View>
 
@@ -410,13 +410,13 @@ function FeeLine({ label, value, coral, bold }: { label: string; value: string; 
 }
 
 const s = StyleSheet.create({
-  circleBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#dedacb' },
-  viewToggle: { flexDirection: 'row', backgroundColor: '#fff', borderRadius: 99, padding: 4, marginTop: 16, borderWidth: 1, borderColor: '#dedacb' },
+  circleBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DCD6C4' },
+  viewToggle: { flexDirection: 'row', backgroundColor: '#fff', borderRadius: 99, padding: 4, marginTop: 16, borderWidth: 1, borderColor: '#DCD6C4' },
   viewTab: { flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: 99 },
   comingSoon: { backgroundColor: '#f4f2ea', borderRadius: 12, padding: 10, marginTop: 10 },
-  filter: { backgroundColor: '#fff', borderRadius: 99, paddingVertical: 8, paddingHorizontal: 14, borderWidth: 1, borderColor: '#dedacb' },
+  filter: { backgroundColor: '#fff', borderRadius: 99, paddingVertical: 8, paddingHorizontal: 14, borderWidth: 1, borderColor: '#DCD6C4' },
   emptyBox: { marginTop: 24, marginHorizontal: 12, padding: 18, backgroundColor: '#f4f2ea', borderRadius: 16 },
-  bookingCard: { flexDirection: 'row', backgroundColor: '#fff', borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#dedacb', marginTop: -1, overflow: 'hidden' },
+  bookingCard: { flexDirection: 'row', backgroundColor: '#fff', borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#DCD6C4', marginTop: -1, overflow: 'hidden' },
   rail: { width: 5 },
   recurPill: { backgroundColor: '#e3f0c4', borderRadius: 99, paddingVertical: 2, paddingHorizontal: 7, alignSelf: 'center' },
   livePillSm: { backgroundColor: '#5a7a3c', borderRadius: 99, paddingVertical: 2, paddingHorizontal: 7, alignSelf: 'center' },
@@ -434,15 +434,15 @@ const s = StyleSheet.create({
   // sheet
   backdrop: { flex: 1, backgroundColor: '#00000055' },
   sheet: { backgroundColor: colors.cream, borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 16, paddingBottom: 36 },
-  handle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: '#d8d5c8', marginBottom: 14 },
-  sheetCard: { backgroundColor: '#fff', borderRadius: 18, padding: 15, borderWidth: 1, borderColor: '#dedacb', marginTop: 12 },
+  handle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: '#DCD6C4', marginBottom: 14 },
+  sheetCard: { backgroundColor: '#fff', borderRadius: 18, padding: 15, borderWidth: 1, borderColor: '#DCD6C4', marginTop: 12 },
   sheetMap: { marginTop: 10, borderRadius: 14, backgroundColor: '#0e150f', paddingVertical: 6, paddingHorizontal: 4, overflow: 'hidden', alignItems: 'center' },
   featChip: { flexDirection: 'row', gap: 4, alignItems: 'center', backgroundColor: '#eef4e0', borderRadius: 9, paddingVertical: 4, paddingHorizontal: 8 },
   vDiv: { width: 1, backgroundColor: '#f0eee3' },
   badgePill: { backgroundColor: '#e3f0c4', borderRadius: 99, paddingVertical: 2, paddingHorizontal: 7, alignSelf: 'center' },
   chatChip: { backgroundColor: '#eef4e0', borderRadius: 99, paddingVertical: 8, paddingHorizontal: 13, alignSelf: 'center' },
   primaryAction: { backgroundColor: colors.volt, borderRadius: 16, alignItems: 'center', paddingVertical: 14, marginTop: 16 },
-  ghostAction: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#dedacb', borderRadius: 16, alignItems: 'center', paddingVertical: 13, marginTop: 8 },
+  ghostAction: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#DCD6C4', borderRadius: 16, alignItems: 'center', paddingVertical: 13, marginTop: 8 },
   cancelLink: { alignItems: 'center', paddingVertical: 14, marginTop: 4 },
   cancelConfirm: { backgroundColor: '#e8492a', borderRadius: 16, alignItems: 'center', paddingVertical: 15, marginTop: 16 },
 });

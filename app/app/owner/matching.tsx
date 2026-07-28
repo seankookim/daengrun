@@ -8,7 +8,7 @@ import { colors } from '../../src/theme';
 
 // 러너 선택 — AI 추천 banner + 1순위 dark card + alternatives, per mock.
 
-const FOREST = '#132117';
+const FOREST = '#0F1D13';
 const FOREST_INNER = '#1d3023';
 
 // 캐러셀 카드 내부 스탯 컬럼 (배경색에 따라 텍스트 색 가변)
@@ -23,7 +23,7 @@ function MiniCol({ v, l, g, main, dim }: { v: string; l: string; g?: string; mai
 }
 
 // 스택 카드 팔레트 — 풀와이드 파스텔, 채도 살짝 ↑ (페일 그레이 배경과 분리)
-const PALETTE = ['#d9f294', '#bfd8aa', '#ffc9b2', '#f2d992'];
+const PALETTE = ['#DDF0A6', '#C3D9AE', '#FFCDB6', '#F2DA96'];
 
 // 러너 풀 카드 — 배경 캐러셀 레이어와 액티브 오버레이가 정확히 같은 컴포넌트를 공유
 function RunnerFullCard({ r, m, i, topIsPreferred, nominating, onNominate, onLayout, focused }: {
@@ -440,19 +440,19 @@ const s = StyleSheet.create({
   // 통합 캐러셀 풀 카드 — 모든 러너가 1순위급 정보 밀도
   fullCard: {
     borderRadius: 18, padding: 16, paddingTop: 44, paddingBottom: 60,
-    borderWidth: 1, borderColor: 'rgba(19,33,23,0.15)', // 모든 카드에 반투명 다크 보더 — 배경 분리
+    borderWidth: 1, borderColor: 'rgba(15,29,19,0.15)', // 모든 카드에 반투명 다크 보더 — 배경 분리
   },
   // 그림자 계층 (래퍼에 적용 — 카드 뷰의 그림자 슬롯은 포커스 라임 글로우가 사용)
   cardShadowFocus: {
-    shadowColor: '#132117', shadowOpacity: 0.28, shadowRadius: 8, shadowOffset: { width: 0, height: 4 },
+    shadowColor: '#0F1D13', shadowOpacity: 0.28, shadowRadius: 8, shadowOffset: { width: 0, height: 4 },
   },
   cardShadowAmbient: {
-    shadowColor: '#132117', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 4 },
+    shadowColor: '#0F1D13', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 4 },
   },
   // 포커스 카드 장식 — 우측 컨투어 아크 (레퍼런스의 웨이브 라인)
-  contour1: { position: 'absolute', right: -100, top: -30, width: 280, height: 280, borderRadius: 140, borderWidth: 1, borderColor: 'rgba(214,242,148,0.10)' },
-  contour2: { position: 'absolute', right: -70, top: 10, width: 210, height: 210, borderRadius: 105, borderWidth: 1, borderColor: 'rgba(214,242,148,0.08)' },
-  contour3: { position: 'absolute', right: -130, top: -80, width: 360, height: 360, borderRadius: 180, borderWidth: 1, borderColor: 'rgba(214,242,148,0.06)' },
+  contour1: { position: 'absolute', right: -100, top: -30, width: 280, height: 280, borderRadius: 140, borderWidth: 1, borderColor: 'rgba(221,240,166,0.10)' },
+  contour2: { position: 'absolute', right: -70, top: 10, width: 210, height: 210, borderRadius: 105, borderWidth: 1, borderColor: 'rgba(221,240,166,0.08)' },
+  contour3: { position: 'absolute', right: -130, top: -80, width: 360, height: 360, borderRadius: 180, borderWidth: 1, borderColor: 'rgba(221,240,166,0.06)' },
   fitPill: { position: 'absolute', top: 14, right: 14, backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 6, paddingHorizontal: 12, zIndex: 2 },
   checkBadge: {
     position: 'absolute', bottom: -3, right: -3, width: 20, height: 20, borderRadius: 10,
@@ -471,10 +471,10 @@ const s = StyleSheet.create({
   statStrip: { flexDirection: 'row', backgroundColor: FOREST_INNER, borderRadius: 14, paddingVertical: 12, marginTop: 16 },
   topNominate: { backgroundColor: colors.volt, borderRadius: 14, alignItems: 'center', paddingVertical: 14, marginTop: 16 },
   stripDiv: { width: 1, backgroundColor: '#2c4034', marginVertical: 2 },
-  altCard: { backgroundColor: '#fff', borderRadius: 20, padding: 16, borderWidth: 1, borderColor: '#dedacb', marginBottom: 10 },
+  altCard: { backgroundColor: '#fff', borderRadius: 20, padding: 16, borderWidth: 1, borderColor: '#DCD6C4', marginBottom: 10 },
   sagePill: { backgroundColor: '#e3f0c4', borderRadius: 99, paddingVertical: 3, paddingHorizontal: 8, alignSelf: 'center' },
   tagChip: { backgroundColor: '#f4f2ea', borderRadius: 99, paddingVertical: 5, paddingHorizontal: 10 },
-  altDivider: { height: 1, backgroundColor: '#dedacb', marginVertical: 12 },
-  altStatDiv: { width: 1, backgroundColor: '#dedacb' },
+  altDivider: { height: 1, backgroundColor: '#DCD6C4', marginVertical: 12 },
+  altStatDiv: { width: 1, backgroundColor: '#DCD6C4' },
   trustNote: { alignItems: 'center', paddingTop: 22, paddingBottom: 10, paddingHorizontal: 12 },
 });

@@ -11,7 +11,7 @@ import { colors } from '../../src/theme';
 // accept → navigate to pickup → 도착 확인 → BOTH parties confirm → run unlocks.
 // Real version: live nav (maps), push to owner, mutual confirmation via backend.
 
-const FOREST = '#132117';
+const FOREST = '#0F1D13';
 type Stage = 'enroute' | 'arrived' | 'waiting' | 'confirmed';
 
 // 네이버 지도 도보 길찾기 — 출발지 생략 시 현재 위치에서 시작 (nmap URL scheme)
@@ -225,9 +225,9 @@ const s = StyleSheet.create({
   topBar: { position: 'absolute', top: 56, left: 10, right: 10, justifyContent: 'space-between' },
   circleBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } },
   etaPill: { backgroundColor: FOREST, borderRadius: 99, paddingVertical: 11, paddingHorizontal: 16 },
-  card: { backgroundColor: '#fff', borderRadius: 18, padding: 15, borderWidth: 1, borderColor: '#dedacb', marginBottom: 10 },
+  card: { backgroundColor: '#fff', borderRadius: 18, padding: 15, borderWidth: 1, borderColor: '#DCD6C4', marginBottom: 10 },
   chatChip: { backgroundColor: '#eef4e0', borderRadius: 99, paddingVertical: 8, paddingHorizontal: 12, alignSelf: 'center' },
-  stepDot: { width: 18, height: 18, borderRadius: 10, backgroundColor: '#d9d5c6', alignItems: 'center', justifyContent: 'center' },
+  stepDot: { width: 18, height: 18, borderRadius: 10, backgroundColor: '#DCD6C4', alignItems: 'center', justifyContent: 'center' },
   primary: { backgroundColor: FOREST, borderRadius: 18, alignItems: 'center', paddingVertical: 16, marginTop: 6 },
   primaryText: { fontSize: 15.5, fontWeight: '900', color: '#fff' },
   primarySub: { fontSize: 10.5, color: '#b8c4ae', marginTop: 3 },

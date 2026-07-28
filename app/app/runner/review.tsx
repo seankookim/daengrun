@@ -9,7 +9,7 @@ import { colors } from '../../src/theme';
 // 러너 → 보호자·반려견 리뷰 (양방향 신뢰의 반쪽).
 // Schema seed: reviews table is bidirectional; private flags go to platform only.
 
-const FOREST = '#132117';
+const FOREST = '#0F1D13';
 
 export default function RunnerReview() {
   const req = runRequests[0];
@@ -50,7 +50,7 @@ export default function RunnerReview() {
     Alert.alert(
       '리뷰 완료',
       (saved ? '리뷰가 서버에 저장됐어요.' : '리뷰가 저장됐어요 (오프라인).') +
-        (privateFlag ? '\n비공개 신고는 댕런 운영팀만 확인해요.' : '') +
+        (privateFlag ? '\n비공개 신고는 도그스하이 운영팀만 확인해요.' : '') +
         '\n보호자 알림은 푸시 연동 시 전송돼요.',
     );
     runResult.bookingId = null;
@@ -130,19 +130,19 @@ const s = StyleSheet.create({
   dogCard: {
     flexDirection: 'row', alignItems: 'center', alignSelf: 'center',
     backgroundColor: '#fff', borderRadius: 18, padding: 14, paddingHorizontal: 12,
-    borderWidth: 1, borderColor: '#dedacb', marginTop: 18,
+    borderWidth: 1, borderColor: '#DCD6C4', marginTop: 18,
   },
   label: { fontSize: 13.5, fontWeight: '900', color: FOREST, marginTop: 22, marginBottom: 9 },
-  tag: { backgroundColor: '#fff', borderRadius: 99, paddingVertical: 9, paddingHorizontal: 14, borderWidth: 1, borderColor: '#dedacb' },
+  tag: { backgroundColor: '#fff', borderRadius: 99, paddingVertical: 9, paddingHorizontal: 14, borderWidth: 1, borderColor: '#DCD6C4' },
   tagSel: { backgroundColor: FOREST, borderColor: FOREST },
   flagCard: {
     flexDirection: 'row', alignItems: 'center', gap: 11,
-    backgroundColor: '#fff', borderWidth: 1.4, borderColor: '#dedacb', borderRadius: 16,
+    backgroundColor: '#fff', borderWidth: 1.4, borderColor: '#DCD6C4', borderRadius: 16,
     padding: 14, marginTop: 20,
   },
   flagCheck: { width: 22, height: 22, borderRadius: 7, borderWidth: 1.6, borderColor: '#dcd9cc', alignItems: 'center', justifyContent: 'center' },
   noteInput: {
-    backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: '#dedacb',
+    backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: '#DCD6C4',
     padding: 14, minHeight: 80, fontSize: 13.5, color: FOREST, textAlignVertical: 'top',
   },
   submit: { backgroundColor: colors.volt, borderRadius: 16, alignItems: 'center', paddingVertical: 15, marginTop: 20 },

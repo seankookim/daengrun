@@ -8,10 +8,10 @@ import { haptic } from '../../src/lib/haptics';
 import { AddonKey, dog, draft, fmtWon, sampleRoutes } from '../../src/store';
 import { colors, pricing } from '../../src/theme';
 
-// 러닝 요청 — route carousel (댕런 안심 코스), time-slot bottom sheet,
+// 러닝 요청 — route carousel (도그스하이 안심 코스), time-slot bottom sheet,
 // slot-hold countdown on pay. See docs/calendar.md.
 
-const FOREST = '#132117';
+const FOREST = '#0F1D13';
 const CERT_BLUE = '#3d8fd4'; // 안심 코스 인증 블루 — certification only
 const DISTANCES = [3, 5, 7];
 const PACES = ["가볍게 8'+", "보통 7'", "신나게 6'"];
@@ -220,7 +220,7 @@ export default function Request() {
             </Text>
             <Text style={{ fontSize: 11.5, fontWeight: '800', color: '#5a7a3c' }}>프로필 ›</Text>
           </Pressable>
-          <View style={{ height: 1, backgroundColor: '#dedacb', marginVertical: 13 }} />
+          <View style={{ height: 1, backgroundColor: '#DCD6C4', marginVertical: 13 }} />
           <Pressable
             onPress={() => router.push('/owner/addresses')}
             style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}
@@ -308,7 +308,7 @@ export default function Request() {
         <SectionHead
           glyph="✓"
           title="코스 선택"
-          sub={routesLive ? '· 실시간 코스 정보' : '· 모든 코스는 댕런이 직접 점검해요'}
+          sub={routesLive ? '· 실시간 코스 정보' : '· 모든 코스는 도그스하이이 직접 점검해요'}
         />
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingRight: 12 }}>
           {routes.map((r) => {
@@ -318,7 +318,7 @@ export default function Request() {
               <Pressable
                 key={r.id}
                 onPress={() => setRouteId(r.id)}
-                style={[s.routeCard, isBest && { backgroundColor: '#d9f294', borderColor: '#c3dd76' }, sel && { borderColor: colors.volt, borderWidth: 2 }]}
+                style={[s.routeCard, isBest && { backgroundColor: '#DDF0A6', borderColor: '#c3dd76' }, sel && { borderColor: colors.volt, borderWidth: 2 }]}
               >
                 <View style={[s.routeTab, !isBest && { backgroundColor: FOREST }]}>
                   <Text style={{ fontSize: 10, fontWeight: '900', color: isBest ? colors.volt : '#fff' }}>
@@ -395,7 +395,7 @@ export default function Request() {
             </Text>
           </View>
           <Pressable onPress={() => setSlotSheet(true)} style={s.timeChip}>
-            <Text style={{ fontSize: 11.5, fontWeight: '900', color: '#132117' }} numberOfLines={1}>
+            <Text style={{ fontSize: 11.5, fontWeight: '900', color: '#0F1D13' }} numberOfLines={1}>
               {draft.scheduledAtIso ? timeLabel : '시간 선택 ›'}
             </Text>
           </Pressable>
@@ -533,24 +533,24 @@ function FeeRow({ label, value }: { label: string; value: string }) {
 }
 
 const s = StyleSheet.create({
-  circleBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#dedacb' },
+  circleBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DCD6C4' },
   livePill: { backgroundColor: '#f0f6e2', borderRadius: 99, paddingVertical: 8, paddingHorizontal: 12, borderWidth: 1, borderColor: '#dde8c4', alignSelf: 'center' },
-  card: { backgroundColor: '#fff', borderRadius: 18, padding: 16, borderWidth: 1, borderColor: '#dedacb' },
+  card: { backgroundColor: '#fff', borderRadius: 18, padding: 16, borderWidth: 1, borderColor: '#DCD6C4' },
   rowCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 15 },
-  addDog: { width: 64, borderRadius: 18, backgroundColor: '#fff', borderWidth: 1, borderColor: '#dedacb', alignItems: 'center', justifyContent: 'center' },
+  addDog: { width: 64, borderRadius: 18, backgroundColor: '#fff', borderWidth: 1, borderColor: '#DCD6C4', alignItems: 'center', justifyContent: 'center' },
   dogSelChip: { backgroundColor: '#fff', borderRadius: 99, borderWidth: 1.3, borderColor: '#dcd9cc', paddingVertical: 8, paddingHorizontal: 15 },
-  bigChip: { flex: 1, backgroundColor: '#fff', borderRadius: 18, paddingVertical: 16, alignItems: 'center', borderWidth: 1, borderColor: '#dedacb' },
+  bigChip: { flex: 1, backgroundColor: '#fff', borderRadius: 18, paddingVertical: 16, alignItems: 'center', borderWidth: 1, borderColor: '#DCD6C4' },
   bigChipSel: { backgroundColor: FOREST, borderWidth: 2, borderColor: colors.volt },
   bigChipText: { fontSize: 16, fontWeight: '800', color: '#3d453d' },
   bolt: {
     position: 'absolute', top: -9, alignSelf: 'center', width: 18, height: 18, borderRadius: 9,
     backgroundColor: colors.volt, alignItems: 'center', justifyContent: 'center', zIndex: 2,
   },
-  sideBtn: { backgroundColor: '#fff', borderRadius: 99, paddingVertical: 6, paddingHorizontal: 11, borderWidth: 1, borderColor: '#dedacb' },
+  sideBtn: { backgroundColor: '#fff', borderRadius: 99, paddingVertical: 6, paddingHorizontal: 11, borderWidth: 1, borderColor: '#DCD6C4' },
   // route carousel
-  routeCard: { width: 240, backgroundColor: '#fff', borderRadius: 22, padding: 14, paddingTop: 12, borderWidth: 1.5, borderColor: '#dedacb', overflow: 'hidden' },
+  routeCard: { width: 240, backgroundColor: '#fff', borderRadius: 22, padding: 14, paddingTop: 12, borderWidth: 1.5, borderColor: '#DCD6C4', overflow: 'hidden' },
   routeTab: {
-    position: 'absolute', top: 0, left: 0, backgroundColor: '#132117',
+    position: 'absolute', top: 0, left: 0, backgroundColor: '#0F1D13',
     borderTopLeftRadius: 20, borderBottomRightRadius: 14, paddingVertical: 6, paddingHorizontal: 12,
   },
   fitPillR: {
@@ -559,11 +559,11 @@ const s = StyleSheet.create({
   },
   paceChip: {
     flex: 1, backgroundColor: '#fff', borderRadius: 18, paddingVertical: 14,
-    alignItems: 'center', borderWidth: 1.5, borderColor: '#dedacb',
+    alignItems: 'center', borderWidth: 1.5, borderColor: '#DCD6C4',
   },
   paceChipSel: { backgroundColor: FOREST, borderWidth: 2, borderColor: colors.volt },
   addrIcon: {
-    width: 34, height: 34, borderRadius: 11, backgroundColor: '#eef4e4',
+    width: 34, height: 34, borderRadius: 11, backgroundColor: '#EDE8DA',
     alignItems: 'center', justifyContent: 'center',
   },
   certBadge: {
@@ -573,13 +573,13 @@ const s = StyleSheet.create({
   bestPill: { backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 3, paddingHorizontal: 8, alignSelf: 'flex-start' },
   routeMap: { marginTop: 10, borderRadius: 12, backgroundColor: '#0e150f', padding: 0, overflow: 'hidden', paddingVertical: 4, paddingHorizontal: 2 },
   routeTag: { backgroundColor: '#eef4e0', borderRadius: 7, paddingVertical: 3, paddingHorizontal: 6 },
-  addon: { width: '47.8%', backgroundColor: '#fff', borderRadius: 18, padding: 13, borderWidth: 1.5, borderColor: '#dedacb' },
+  addon: { width: '47.8%', backgroundColor: '#fff', borderRadius: 18, padding: 13, borderWidth: 1.5, borderColor: '#DCD6C4' },
   addonIcon: { width: 34, height: 34, borderRadius: 10, backgroundColor: '#eef4e0', alignItems: 'center', justifyContent: 'center' },
   checkCircle: { width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, borderColor: '#dcd9cc', alignItems: 'center', justifyContent: 'center' },
   ticket: {
-    position: 'absolute', left: 10, right: 10, bottom: 26, backgroundColor: '#132117',
+    position: 'absolute', left: 10, right: 10, bottom: 26, backgroundColor: '#0F1D13',
     borderRadius: 20, padding: 17, overflow: 'hidden',
-    shadowColor: '#132117', shadowOpacity: 0.35, shadowRadius: 10, shadowOffset: { width: 0, height: 5 },
+    shadowColor: '#0F1D13', shadowOpacity: 0.35, shadowRadius: 10, shadowOffset: { width: 0, height: 5 },
   },
   tickDash: { height: 1, borderWidth: 0.7, borderColor: '#3a4a3e', borderStyle: 'dashed', borderRadius: 1 },
   notch: {
@@ -593,10 +593,10 @@ const s = StyleSheet.create({
   // slot sheet
   sheetBackdrop: { flex: 1, backgroundColor: '#00000055' },
   sheet: { backgroundColor: colors.cream, borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 16, paddingBottom: 40 },
-  sheetHandle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: '#d8d5c8', marginBottom: 14 },
-  methodChip: { backgroundColor: '#fff', borderRadius: 99, paddingVertical: 9, paddingHorizontal: 13, borderWidth: 1, borderColor: '#dedacb' },
-  dateChip: { width: 52, borderRadius: 14, backgroundColor: '#fff', borderWidth: 1, borderColor: '#dedacb', alignItems: 'center', paddingVertical: 9, gap: 1 },
-  slot: { flex: 1, backgroundColor: '#fff', borderRadius: 13, borderWidth: 1, borderColor: '#dedacb', alignItems: 'center', paddingVertical: 11 },
+  sheetHandle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: '#DCD6C4', marginBottom: 14 },
+  methodChip: { backgroundColor: '#fff', borderRadius: 99, paddingVertical: 9, paddingHorizontal: 13, borderWidth: 1, borderColor: '#DCD6C4' },
+  dateChip: { width: 52, borderRadius: 14, backgroundColor: '#fff', borderWidth: 1, borderColor: '#DCD6C4', alignItems: 'center', paddingVertical: 9, gap: 1 },
+  slot: { flex: 1, backgroundColor: '#fff', borderRadius: 13, borderWidth: 1, borderColor: '#DCD6C4', alignItems: 'center', paddingVertical: 11 },
   hotPill: { position: 'absolute', top: -7, right: 6, backgroundColor: '#fde8e3', borderRadius: 99, paddingVertical: 2, paddingHorizontal: 6 },
   // hold modal
   holdBackdrop: { flex: 1, backgroundColor: '#00000066', alignItems: 'center', justifyContent: 'center' },

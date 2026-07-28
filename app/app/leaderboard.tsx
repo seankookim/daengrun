@@ -5,10 +5,10 @@ import { Avatar, Row } from '../src/components/ui';
 import { BoardRow, fetchLeaderboards, fetchMiles, MilesInfo } from '../src/lib/api';
 import { colors } from '../src/theme';
 
-// 동네 랭킹 — 주간 리더보드 (강아지 km / 러너 러닝 수) + 내 댕마일.
+// 동네 랭킹 — 주간 리더보드 (강아지 km / 러너 러닝 수) + 내 하이 포인트.
 // 서버 집계 함수(0012) 기반 — 개인 데이터는 비공개, 이름·사진·주간 합계만.
 
-const FOREST = '#132117';
+const FOREST = '#0F1D13';
 const MEDAL = ['🥇', '🥈', '🥉'];
 
 export default function Leaderboard() {
@@ -42,11 +42,11 @@ export default function Leaderboard() {
           이번 주 · 월요일마다 새로 시작해요
         </Text>
 
-        {/* 내 댕마일 */}
+        {/* 내 하이 포인트 */}
         <View style={s.milesCard}>
           <Row style={{ justifyContent: 'space-between' }}>
             <View>
-              <Text style={{ fontSize: 11, color: '#b8c4ae', letterSpacing: 1.5 }}>내 댕마일</Text>
+              <Text style={{ fontSize: 11, color: '#b8c4ae', letterSpacing: 1.5 }}>내 하이 포인트</Text>
               <Text style={{ fontSize: 32, fontWeight: '900', color: colors.volt, marginTop: 4 }}>
                 {miles?.balance?.toLocaleString() ?? '—'}<Text style={{ fontSize: 13, color: '#b8c4ae' }}> 마일</Text>
               </Text>
@@ -109,13 +109,13 @@ export default function Leaderboard() {
 }
 
 const s = StyleSheet.create({
-  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#dedacb' },
+  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DCD6C4' },
   milesCard: { backgroundColor: FOREST, borderRadius: 20, padding: 18, marginTop: 16 },
-  tabWrap: { flexDirection: 'row', backgroundColor: '#fff', borderRadius: 99, padding: 4, marginTop: 16, borderWidth: 1, borderColor: '#dedacb' },
+  tabWrap: { flexDirection: 'row', backgroundColor: '#fff', borderRadius: 99, padding: 4, marginTop: 16, borderWidth: 1, borderColor: '#DCD6C4' },
   tab: { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 99 },
   emptyBox: { marginTop: 20, backgroundColor: '#f4f2ea', borderRadius: 16, padding: 18 },
   row: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff',
-    borderRadius: 16, padding: 12, borderWidth: 1, borderColor: '#dedacb', marginTop: 8,
+    borderRadius: 16, padding: 12, borderWidth: 1, borderColor: '#DCD6C4', marginTop: 8,
   },
 });

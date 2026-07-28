@@ -20,14 +20,14 @@ const RunActivity = (props: RunActivityProps, env: LiveActivityEnvironment) => {
 
   // ⚠️ 모든 상수는 함수 안에 — 'widget' 함수는 문자열화되어 위젯 컨텍스트에서 실행되므로
   // 모듈 스코프 클로저가 존재하지 않는다 (CORAL ReferenceError의 원인, 2026-07-23)
-  const VOLT = '#B9F23A';
-  const CORAL = '#FF6347';
+  const VOLT = '#C6F542';
+  const CORAL = '#FF5C3D';
   const CREAM = '#F6F2E9';
   const DIMTEXT = '#8fa093';
 
   // 잠금화면 배너 배경은 시스템(밝은 배경화면 = 밝은 소재)을 따르므로 텍스트를 스킴에 맞춘다 (HIG).
   // 아일랜드 3종은 항상 검정 배경 — 고정 라이트 텍스트가 정답.
-  const bannerText = env.colorScheme === 'dark' ? CREAM : '#132117';
+  const bannerText = env.colorScheme === 'dark' ? CREAM : '#0F1D13';
   const bannerDim = env.colorScheme === 'dark' ? DIMTEXT : '#5d655d';
   const bannerGreen = env.colorScheme === 'dark' ? VOLT : '#5a7a3c';
 
@@ -56,7 +56,7 @@ const RunActivity = (props: RunActivityProps, env: LiveActivityEnvironment) => {
           </Text>
         </HStack>
         <Text modifiers={[font({ size: 12 }), foregroundStyle(bannerDim), padding({ top: 5 })]}>
-          {props.eventLine !== '' ? props.eventLine : '댕런 · 반려견 피트니스'}
+          {props.eventLine !== '' ? props.eventLine : '도그스하이 · 반려견 피트니스'}
         </Text>
       </VStack>
     ),

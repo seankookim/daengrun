@@ -4,6 +4,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { useEffect, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useAuth } from '../src/auth-context';
+import { useDisplayFont } from '../src/lib/displayFont';
 import { supabase } from '../src/lib/supabase';
 import { colors } from '../src/theme';
 
@@ -11,6 +12,7 @@ import { colors } from '../src/theme';
 
 export default function Login() {
   const { session } = useAuth();
+  const df = useDisplayFont(); // 브랜드 워드마크 — 디스플레이 서체 (미설치 시 시스템 900 폴백)
   const [stage, setStage] = useState<'email' | 'otp'>('email');
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
@@ -83,8 +85,8 @@ export default function Login() {
   return (
     <KeyboardAvoidingView style={s.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={{ flex: 1, justifyContent: 'center' }}>
-        <Text style={s.logo}>댕런</Text>
-        <Text style={s.tagline}>우리 개는 오늘도 달린다</Text>
+        <Text style={[s.logo, df]}>도그스<Text style={{ color: colors.volt }}>하이</Text></Text>
+        <Text style={s.tagline}>러너스 하이를, 우리 아이에게</Text>
 
         {stage === 'email' ? (
           <>
@@ -144,7 +146,8 @@ export default function Login() {
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.ink, paddingHorizontal: 28 },
-  logo: { fontSize: 56, fontWeight: '900', color: colors.volt, textAlign: 'center' },
+  // 아이콘 락업과 동일: 도그스 = 화이트, 하이 = volt (히어로 음절)
+  logo: { fontSize: 52, fontWeight: '900', color: '#fff', textAlign: 'center' },
   tagline: { fontSize: 14, color: '#8fa093', textAlign: 'center', marginTop: 6, marginBottom: 40 },
   input: {
     backgroundColor: '#1a231a', borderRadius: 16, borderWidth: 1, borderColor: '#2c3a2c',

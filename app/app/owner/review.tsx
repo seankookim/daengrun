@@ -10,7 +10,7 @@ import { colors } from '../../src/theme';
 // 러너 스토어프런트 ★평균·후기 리스트의 원천 (0011 정책으로 전체 공개 읽기).
 // 진입: 리포트 '러너 후기 남기기' (bid·rid·rname 파라미터)
 
-const FOREST = '#132117';
+const FOREST = '#0F1D13';
 const TAGS = ['시간 약속 철저', '사진 잘 찍어줘요', '소통이 빨라요', '아이를 잘 다뤄요', '페이스 조절 굿', '또 부르고 싶어요'];
 
 export default function OwnerReview() {
@@ -105,7 +105,7 @@ export default function OwnerReview() {
           {privateFlag && <Text style={{ fontSize: 10, fontWeight: '900', color: '#fff' }}>✓</Text>}
         </View>
         <Text style={{ flex: 1, fontSize: 12, color: '#5d655d', lineHeight: 17 }}>
-          댕런 팀에게만 전달 (프로필에 공개되지 않아요 — 불편했던 점을 솔직하게)
+          도그스하이 팀에게만 전달 (프로필에 공개되지 않아요 — 불편했던 점을 솔직하게)
         </Text>
       </Pressable>
 
@@ -117,10 +117,10 @@ export default function OwnerReview() {
 }
 
 const s = StyleSheet.create({
-  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#dedacb' },
-  tag: { backgroundColor: '#fff', borderRadius: 99, borderWidth: 1.3, borderColor: '#dedacb', paddingVertical: 9, paddingHorizontal: 14 },
+  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DCD6C4' },
+  tag: { backgroundColor: '#fff', borderRadius: 99, borderWidth: 1.3, borderColor: '#DCD6C4', paddingVertical: 9, paddingHorizontal: 14 },
   input: {
-    backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: '#dedacb',
+    backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: '#DCD6C4',
     padding: 14, marginTop: 20, height: 100, textAlignVertical: 'top', fontSize: 13.5, color: FOREST,
   },
   privRow: { flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 14 },

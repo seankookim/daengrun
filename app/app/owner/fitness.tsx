@@ -9,7 +9,7 @@ import { colors } from '../../src/theme';
 // 체력 리포트 — 모프 링의 도착지. 브랜드의 심장: 반려견 피트니스.
 // 주간 링 · 8주 추이 · 체력 나이 · 주간 목표 편집(실저장 → 홈 링 즉시 반영) · 최근 러닝 → 리포트.
 
-const FOREST = '#132117';
+const FOREST = '#0F1D13';
 const FOREST_INNER = '#1d3023';
 
 const fmtPace = (sec: number | null) => (sec ? `${Math.floor(sec / 60)}'${String(sec % 60).padStart(2, '0')}"` : '—');
@@ -171,17 +171,17 @@ function HeroStat({ value, label }: { value: string; label: string }) {
 }
 
 const s = StyleSheet.create({
-  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#dedacb' },
+  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DCD6C4' },
   hero: { backgroundColor: FOREST, borderRadius: 22, padding: 18, marginTop: 18 },
   heroDiv: { width: 1, backgroundColor: '#2c4034' },
-  card: { backgroundColor: '#fff', borderRadius: 18, padding: 15, borderWidth: 1, borderColor: '#dedacb', marginTop: 12 },
+  card: { backgroundColor: '#fff', borderRadius: 18, padding: 15, borderWidth: 1, borderColor: '#DCD6C4', marginTop: 12 },
   cardTitle: { fontSize: 13.5, fontWeight: '900', color: FOREST },
   goalBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#eef4e0', alignItems: 'center', justifyContent: 'center' },
   goalBtnText: { fontSize: 20, fontWeight: '900', color: '#4a6d1f' },
   emptyBox: { backgroundColor: '#f4f2ea', borderRadius: 16, padding: 16, alignItems: 'center' },
   runRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#fff',
-    borderRadius: 16, padding: 13, borderWidth: 1, borderColor: '#dedacb', marginBottom: 8,
+    borderRadius: 16, padding: 13, borderWidth: 1, borderColor: '#DCD6C4', marginBottom: 8,
   },
   runRail: { width: 4, height: 34, borderRadius: 2, backgroundColor: '#5a7a3c' },
 });

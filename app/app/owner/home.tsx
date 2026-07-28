@@ -1,12 +1,13 @@
 import { router, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Animated, Dimensions, Easing, Image, Modal, PanResponder, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Animated, Dimensions, Easing, Modal, PanResponder, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BottomNav } from '../../src/components/bottomnav';
 import { Ring } from '../../src/components/ring';
 import { RunCard } from '../../src/components/runcard';
 import { Avatar } from '../../src/components/ui';
-import { Addr, confirmPayment, createBookingHold, DogProfile, fetchAddresses, fetchAvailableRunners, fetchCertifiedRunners, fetchFitness, fetchMyBookings, fetchMyDogs, fetchRecentMoments, Fitness, LiveRunner, Moment } from '../../src/lib/api';
+import { Addr, confirmPayment, createBookingHold, DogProfile, fetchAddresses, fetchAvailableRunners, fetchCertifiedRunners, fetchFitness, fetchMyBookings, fetchMyDogs, Fitness, LiveRunner } from '../../src/lib/api';
+import { useDisplayFont } from '../../src/lib/displayFont';
 import { haptic } from '../../src/lib/haptics';
 import { Booking, demoImminent, dog, draft, myCards, nextBooking, ownerGearLadder, runners } from '../../src/store';
 import { colors, pricing, surfaces } from '../../src/theme';
@@ -19,7 +20,6 @@ import { useTheme } from '../../src/theme-context';
 const { width: SCREEN_W } = Dimensions.get('window');
 const CARD_W = SCREEN_W - 24; // 거터 12*2
 const RING_BIG = 216;
-const RING_PHOTO = 168; // 링 내부 실사진 지름 — 도트(r=98)·헤드 도트 안쪽에 4px 숨 쉴 틈
 const PAD_TOP = 56;
 const HEADER_H = 62;
 const HERO_BIG = 296;
@@ -28,6 +28,7 @@ const SCROLL_RANGE = 150;
 
 export default function OwnerHome() {
   const { mode, toggle, p } = useTheme();
+  const df = useDisplayFont(); // 디스플레이 서체 — 화면당 1회 규칙: find-now 히어로 타이틀에만
   // 링 실데이터 — 완료 러닝 집계 (로드 전엔 0, 가짜 숫자 없음)
   const [fit, setFit] = useState<Fitness | null>(null);
   const weekKm = fit?.weekKm ?? 0;
@@ -55,8 +56,6 @@ export default function OwnerHome() {
       })
       .catch((e) => console.warn('[home] bookings:', e?.message ?? e));
     fetchFitness().then(setFit).catch((e) => console.warn('[home] fitness:', e?.message ?? e));
-    // 최근 순간 — 실러닝 사진 (없으면 섹션 숨김, 홈 생기 패스)
-    fetchRecentMoments().then(setMoments).catch((e) => console.warn('[home] moments:', e?.message ?? e));
     fetchCertifiedRunners().then(setLocalRunners).catch((e) => console.warn('[home] runners:', e?.message ?? e));
     // 가용 러너 — 러닝 중인 러너는 히어로 카운트/레이더에서 제외 (기대 오염 방지)
     fetchAvailableRunners().then(setFnAvail).catch((e) => console.warn('[home] avail:', e?.message ?? e));
@@ -64,8 +63,6 @@ export default function OwnerHome() {
 
   // 우리 동네 러너 — 온라인 러너 셸프 (탐색형 매칭의 시작점)
   const [localRunners, setLocalRunners] = useState<LiveRunner[]>([]);
-  // 최근 순간 — 러너가 담아온 실사진 스트립 (runs.photos)
-  const [moments, setMoments] = useState<Moment[]>([]);
 
   // ── 지금 러너 찾기 — 원탭 히어로 → 프리필 시트(2탭) → 오픈 브로드캐스트 + 레이더
   const [fnOpen, setFnOpen] = useState(false);
@@ -222,18 +219,6 @@ export default function OwnerHome() {
             <View style={[s.weekChip, { backgroundColor: hp.chip }]}>
               <Text style={{ fontSize: 11, fontWeight: '700', color: hp.textSoft }}>이번 주 ▾</Text>
             </View>
-            {/* 사진 모드에선 체력 나이가 우상단 칩으로 — 링 중앙은 아이 얼굴이 차지한다 */}
-            {fit?.dogPhotoUrl && (
-              <Animated.View style={[s.ageChip, { backgroundColor: hp.chip, opacity: bigMsgOpacity }]}>
-                <Text style={{ fontSize: 10, fontWeight: '800', color: hp.textSoft }}>체력 나이</Text>
-                <Text style={{ fontSize: 12, fontWeight: '900', color: heroAccent }}>
-                  {fitnessAge != null ? `${fitnessAge}살` : '측정 전'}
-                </Text>
-                {fitnessAge != null && (
-                  <Text style={{ fontSize: 9, fontWeight: '800', color: colors.tang }}>▼{Math.max(dog.age - fitnessAge, 0).toFixed(1)}</Text>
-                )}
-              </Animated.View>
-            )}
 
             {/* compact info block (left side, fades in) */}
             <Animated.View style={[s.info, { opacity: infoOpacity, transform: [{ translateX: infoX }] }]}>
@@ -264,44 +249,27 @@ export default function OwnerHome() {
               }}
             >
               <Ring pct={pct} size={RING_BIG} trackColor={hp.track}>
-                {fit?.dogPhotoUrl ? (
-                  // 홈 생기 패스 — 링이 아이를 감싼다: 진행은 숫자가 아니라 아이의 것
-                  <View style={s.ringPhotoWrap}>
-                    <Image source={{ uri: fit.dogPhotoUrl }} style={{ width: '100%', height: '100%' }} />
-                  </View>
-                ) : (
-                  // 사진 없으면 기존 숫자 센터 유지 — 스톡/가짜 이미지 금지 (정직 원칙)
-                  <View style={{ alignItems: 'center' }}>
-                    <Text style={{ fontSize: 13, color: hp.dim }}>이번 주</Text>
-                    <Text style={{ fontSize: 46, fontWeight: '900', color: colors.tang, lineHeight: 50 }}>
-                      {weekKm}
-                      <Text style={{ fontSize: 16, color: hp.dim }}> km</Text>
-                    </Text>
-                    <Text style={{ fontSize: 13, color: heroAccent, marginTop: 2 }}>
-                      / {goalKm}km
-                    </Text>
-                    {/* 체력 나이 — our concept, front and center */}
-                    <View style={[s.goalChip, { backgroundColor: hp.chip, flexDirection: 'row', gap: 4, alignItems: 'center' }]}>
-                      <Text style={{ fontSize: 10, fontWeight: '800', color: hp.textSoft }}>체력 나이</Text>
-                      <Text style={{ fontSize: 12, fontWeight: '900', color: heroAccent }}>
-                        {fitnessAge != null ? `${fitnessAge}살` : '측정 전'}
-                      </Text>
-                      {fitnessAge != null && (
-                        <Text style={{ fontSize: 9, fontWeight: '800', color: colors.tang }}>▼{Math.max(dog.age - fitnessAge, 0).toFixed(1)}</Text>
-                      )}
-                    </View>
-                  </View>
-                )}
-              </Ring>
-              {/* 레이스 빕 — 사진 하단에 걸치는 주간 km 필 (접히면 좌측 정보 블록이 이어받는다) */}
-              {fit?.dogPhotoUrl && (
-                <Animated.View style={[s.bibPill, { opacity: bigMsgOpacity }]}>
-                  <Text style={{ fontSize: 19, fontWeight: '900', color: colors.tang, fontVariant: ['tabular-nums'] }}>
+                <View style={{ alignItems: 'center' }}>
+                  <Text style={{ fontSize: 13, color: hp.dim }}>이번 주</Text>
+                  <Text style={{ fontSize: 46, fontWeight: '900', color: colors.tang, lineHeight: 50 }}>
                     {weekKm}
-                    <Text style={{ fontSize: 11, fontWeight: '700', color: colors.cream }}> / {goalKm}km</Text>
+                    <Text style={{ fontSize: 16, color: hp.dim }}> km</Text>
                   </Text>
-                </Animated.View>
-              )}
+                  <Text style={{ fontSize: 13, color: heroAccent, marginTop: 2 }}>
+                    / {goalKm}km
+                  </Text>
+                  {/* 체력 나이 — our concept, front and center */}
+                  <View style={[s.goalChip, { backgroundColor: hp.chip, flexDirection: 'row', gap: 4, alignItems: 'center' }]}>
+                    <Text style={{ fontSize: 10, fontWeight: '800', color: hp.textSoft }}>체력 나이</Text>
+                    <Text style={{ fontSize: 12, fontWeight: '900', color: heroAccent }}>
+                      {fitnessAge != null ? `${fitnessAge}살` : '측정 전'}
+                    </Text>
+                    {fitnessAge != null && (
+                      <Text style={{ fontSize: 9, fontWeight: '800', color: colors.tang }}>▼{Math.max(dog.age - fitnessAge, 0).toFixed(1)}</Text>
+                    )}
+                  </View>
+                </View>
+              </Ring>
             </Animated.View>
 
             {/* big-state goal message */}
@@ -356,7 +324,7 @@ export default function OwnerHome() {
                   <View key={d} style={{
                     position: 'absolute', width: d, height: d, borderRadius: d / 2,
                     left: -d / 2, top: -d / 2, borderWidth: di === 0 ? 1.5 : 1,
-                    borderColor: `rgba(214,242,148,${0.42 - di * 0.07})`,
+                    borderColor: `rgba(221,240,166,${0.42 - di * 0.07})`,
                   }} />
                 ))}
                 {/* 레이더 원점 — volt 코어 도트 */}
@@ -368,9 +336,9 @@ export default function OwnerHome() {
               </Animated.View>
               {fnSearching && (
                 <Animated.View style={{ position: 'absolute', transform: [{ rotate: sweep.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) }] }}>
-                  <View style={{ position: 'absolute', left: 0, top: -1, width: 116, height: 2, backgroundColor: 'rgba(214,242,148,0.55)' }} />
+                  <View style={{ position: 'absolute', left: 0, top: -1, width: 116, height: 2, backgroundColor: 'rgba(221,240,166,0.55)' }} />
                   <View style={{ position: 'absolute', transform: [{ rotate: '-12deg' }] }}>
-                    <View style={{ position: 'absolute', left: 0, top: -1, width: 116, height: 2, backgroundColor: 'rgba(214,242,148,0.18)' }} />
+                    <View style={{ position: 'absolute', left: 0, top: -1, width: 116, height: 2, backgroundColor: 'rgba(221,240,166,0.18)' }} />
                   </View>
                 </Animated.View>
               )}
@@ -388,7 +356,7 @@ export default function OwnerHome() {
 
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 18, fontWeight: '900', color: '#fff' }}>
+                <Text style={[{ fontSize: 18, fontWeight: '900', color: '#fff' }, df]}>
                   {liveNext?.status === 'pending' ? '러너 찾는 중…' : '지금 러너 찾기'}
                 </Text>
                 <Text style={{ fontSize: 11.5, color: '#b8c4ae', marginTop: 5, lineHeight: 16 }}>
@@ -409,7 +377,7 @@ export default function OwnerHome() {
                   transform: [{ scaleX: fnPulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.06] }) },
                               { scaleY: fnPulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.5] }) }],
                 }]} />
-                <Text style={{ fontSize: 14.5, fontWeight: '900', color: '#132117' }}>
+                <Text style={{ fontSize: 14.5, fontWeight: '900', color: '#0F1D13' }}>
                   {liveNext?.status === 'pending' ? '레이더 보기 ➤' : '주변 러너 검색 시작 ➤'}
                 </Text>
               </View>
@@ -498,7 +466,7 @@ export default function OwnerHome() {
           </View>
           {liveNext ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 12 }}>
-              <Avatar url={fit?.dogPhotoUrl} char={liveNext.dogName[0]} bg="#FF6347" size={46} />
+              <Avatar url={fit?.dogPhotoUrl} char={liveNext.dogName[0]} bg="#FF5C3D" size={46} />
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: 17, fontWeight: '900', color: p.textStrong }}>
                   {liveNext.dateLabel.split(' ')[0]} {liveNext.timeLabel} · {liveNext.dogName}
@@ -579,34 +547,6 @@ export default function OwnerHome() {
           )}
         </Pressable>
 
-        {/* ---------- 최근 순간 — 러너가 담아온 실러닝 사진 (runs.photos 재사용) ----------
-            사진이 0장이면 섹션 자체가 없다 — 플레이스홀더/스톡 금지 (정직 원칙) */}
-        {moments.length > 0 && (
-          <View style={{ marginTop: 16 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 7, marginBottom: 9 }}>
-              <Text style={[s.sectionTitle, { color: p.textStrong }]}>최근 순간</Text>
-              <Text style={{ fontSize: 11, color: p.dim }}>러너가 담아온 {dogName}의 러닝</Text>
-            </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 9, paddingRight: 12 }}>
-              {moments.map((m, mi) => (
-                <Pressable
-                  key={`${m.bookingId}-${mi}`}
-                  onPress={() => router.push({ pathname: '/owner/report', params: { bid: m.bookingId } })}
-                  style={[s.momentCard, mi === 0 && { width: 158 }]}
-                >
-                  <Image source={{ uri: m.url }} style={{ width: '100%', height: '100%' }} />
-                  <View style={s.momentPill}>
-                    <Text style={{ fontSize: 11, fontWeight: '900', color: colors.volt, fontVariant: ['tabular-nums'] }}>
-                      {m.km}km
-                      <Text style={{ fontSize: 9, fontWeight: '600', color: 'rgba(255,255,255,0.8)' }}>  {m.when}</Text>
-                    </Text>
-                  </View>
-                </Pressable>
-              ))}
-            </ScrollView>
-          </View>
-        )}
-
         {/* ---------- 우리 동네 러너 (탐색형 매칭) ---------- */}
         {localRunners.length > 0 && (
           <View style={{ marginTop: 14 }}>
@@ -631,7 +571,7 @@ export default function OwnerHome() {
                     style={{
                       width: 156, backgroundColor: bgArr[ri % 4], borderRadius: 18, padding: 15,
                       paddingVertical: 18, alignItems: 'center',
-                      shadowColor: '#132117', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 4 },
+                      shadowColor: '#0F1D13', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 4 },
                     }}
                   >
                     {r.avatarUrl ? (
@@ -680,7 +620,7 @@ export default function OwnerHome() {
         <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)' }} onPress={() => setFnOpen(false)} />
         <View style={s.fnSheet}>
           <View style={s.fnGrip} />
-          <Text style={{ fontSize: 19, fontWeight: '900', color: '#132117' }}>지금 바로 러닝 찾기</Text>
+          <Text style={[{ fontSize: 19, fontWeight: '900', color: '#0F1D13' }, df]}>지금 바로 러닝 찾기</Text>
           <Text style={{ fontSize: 12, color: '#5d655d', marginTop: 4 }}>
             모두 채워뒀어요 — 바꾸고 싶은 것만 눌러서 바꾸세요
           </Text>
@@ -715,7 +655,7 @@ export default function OwnerHome() {
           <View style={s.fnKmRow}>
             <Pressable onPress={() => setFnKm((k) => Math.max(1, k - 1))} style={s.fnStep}><Text style={s.fnStepText}>−</Text></Pressable>
             <View style={{ alignItems: 'center', flex: 1 }}>
-              <Text style={{ fontSize: 30, fontWeight: '900', color: '#132117' }}>{fnKm}km</Text>
+              <Text style={{ fontSize: 30, fontWeight: '900', color: '#0F1D13' }}>{fnKm}km</Text>
               <Text style={{ fontSize: 10.5, color: '#5d655d', marginTop: 2 }}>러닝 거리</Text>
             </View>
             <Pressable onPress={() => setFnKm((k) => Math.min(10, k + 1))} style={s.fnStep}><Text style={s.fnStepText}>＋</Text></Pressable>
@@ -723,11 +663,11 @@ export default function OwnerHome() {
 
           <View style={s.fnPriceRow}>
             <Text style={{ fontSize: 12.5, color: '#5d655d' }}>결제 금액</Text>
-            <Text style={{ fontSize: 20, fontWeight: '900', color: '#132117' }}>{fnPrice.toLocaleString()}원</Text>
+            <Text style={{ fontSize: 20, fontWeight: '900', color: '#0F1D13' }}>{fnPrice.toLocaleString()}원</Text>
           </View>
 
           <Pressable onPress={findNowPay} disabled={fnBusy} style={[s.fnPay, fnBusy && { opacity: 0.5 }]}>
-            <Text style={{ fontSize: 15, fontWeight: '900', color: '#132117' }}>
+            <Text style={{ fontSize: 15, fontWeight: '900', color: '#0F1D13' }}>
               {fnBusy ? '요청 보내는 중...' : '결제하고 바로 찾기 ➤'}
             </Text>
           </Pressable>
@@ -744,7 +684,7 @@ export default function OwnerHome() {
         <Pressable style={{ flex: 1, backgroundColor: '#00000055' }} onPress={() => setLadderOpen(false)} />
         <View style={s.ladderSheet}>
           <View style={s.sheetHandle} />
-          <Text style={{ fontSize: 18, fontWeight: '900', color: '#132117' }}>마일스톤 리워드</Text>
+          <Text style={{ fontSize: 18, fontWeight: '900', color: '#0F1D13' }}>마일스톤 리워드</Text>
           <Text style={{ fontSize: 12, color: colors.dim, marginTop: 4, marginBottom: 12 }}>
             {dog.name}의 누적 86.2km — 달릴수록 콜라보 굿즈가 열려요
           </Text>
@@ -754,13 +694,13 @@ export default function OwnerHome() {
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 }}>
                 <View style={{
                   width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center',
-                  backgroundColor: g.got ? '#6aa53c' : g.claimable ? colors.volt : '#dedacb',
+                  backgroundColor: g.got ? '#6aa53c' : g.claimable ? colors.volt : '#DCD6C4',
                 }}>
                   {g.got && <Text style={{ fontSize: 9, fontWeight: '900', color: '#fff' }}>✓</Text>}
-                  {g.claimable && <Text style={{ fontSize: 9, fontWeight: '900', color: '#132117' }}>!</Text>}
+                  {g.claimable && <Text style={{ fontSize: 9, fontWeight: '900', color: '#0F1D13' }}>!</Text>}
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 13.5, fontWeight: '800', color: g.got || g.claimable ? '#132117' : '#9a9a90' }}>{g.item}</Text>
+                  <Text style={{ fontSize: 13.5, fontWeight: '800', color: g.got || g.claimable ? '#0F1D13' : '#9a9a90' }}>{g.item}</Text>
                   <Text style={{ fontSize: 10.5, color: colors.dim, marginTop: 1 }}>누적 {g.at}km</Text>
                 </View>
                 {g.claimable ? (
@@ -768,7 +708,7 @@ export default function OwnerHome() {
                     onPress={() => Alert.alert('수령 신청', '배송지로 콜라보 굿즈를 보내드려요 (목업)')}
                     style={{ backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 7, paddingHorizontal: 12 }}
                   >
-                    <Text style={{ fontSize: 11, fontWeight: '900', color: '#132117' }}>수령하기</Text>
+                    <Text style={{ fontSize: 11, fontWeight: '900', color: '#0F1D13' }}>수령하기</Text>
                   </Pressable>
                 ) : g.got ? (
                   <Text style={{ fontSize: 10.5, fontWeight: '700', color: '#5a7a3c' }}>수령 완료</Text>
@@ -831,15 +771,15 @@ function SlideToBook({ onComplete }: { onComplete: () => void }) {
 const s = StyleSheet.create({
   // 지금 러너 찾기 히어로 + 시트
   findNow: {
-    backgroundColor: '#132117', borderRadius: 18, padding: 18, marginTop: 14,
+    backgroundColor: '#0F1D13', borderRadius: 18, padding: 18, marginTop: 14,
     borderWidth: 1.5, borderColor: colors.volt, overflow: 'hidden', // 레이더 아크 클리핑
-    shadowColor: '#132117', shadowOpacity: 0.25, shadowRadius: 8, shadowOffset: { width: 0, height: 4 },
+    shadowColor: '#0F1D13', shadowOpacity: 0.25, shadowRadius: 8, shadowOffset: { width: 0, height: 4 },
   },
   // 레이더 중심점 — 카드 우측 가장자리 살짝 밖, 아크/스윕/블립의 원점
   radarLayer: { position: 'absolute', right: -14, top: 44 },
-  fnAvatarRim: { borderWidth: 2, borderColor: '#132117', borderRadius: 17 },
+  fnAvatarRim: { borderWidth: 2, borderColor: '#0F1D13', borderRadius: 17 },
   fnBlip: {
-    borderWidth: 2, borderColor: colors.volt, borderRadius: 18, backgroundColor: '#132117',
+    borderWidth: 2, borderColor: colors.volt, borderRadius: 18, backgroundColor: '#0F1D13',
     shadowColor: colors.volt, shadowOpacity: 0.6, shadowRadius: 6, shadowOffset: { width: 0, height: 0 },
   },
   fnCta: {
@@ -855,21 +795,21 @@ const s = StyleSheet.create({
     backgroundColor: '#fff', borderTopLeftRadius: 28, borderTopRightRadius: 28,
     paddingHorizontal: 12, paddingTop: 12, paddingBottom: 40,
   },
-  fnGrip: { alignSelf: 'center', width: 42, height: 5, borderRadius: 3, backgroundColor: '#d9d5c6', marginBottom: 14 },
+  fnGrip: { alignSelf: 'center', width: 42, height: 5, borderRadius: 3, backgroundColor: '#DCD6C4', marginBottom: 14 },
   fnChip: {
     backgroundColor: '#f4f2ea', borderRadius: 99, paddingVertical: 9, paddingHorizontal: 14,
-    borderWidth: 1, borderColor: '#d9d5c6',
+    borderWidth: 1, borderColor: '#DCD6C4',
   },
-  fnChipText: { fontSize: 12.5, fontWeight: '800', color: '#132117' },
+  fnChipText: { fontSize: 12.5, fontWeight: '800', color: '#0F1D13' },
   fnKmRow: {
-    flexDirection: 'row', alignItems: 'center', marginTop: 16, backgroundColor: '#f8f7f1',
-    borderRadius: 18, padding: 14, borderWidth: 1, borderColor: '#dedacb',
+    flexDirection: 'row', alignItems: 'center', marginTop: 16, backgroundColor: '#F8F6F0',
+    borderRadius: 18, padding: 14, borderWidth: 1, borderColor: '#DCD6C4',
   },
   fnStep: {
     width: 44, height: 44, borderRadius: 22, backgroundColor: '#fff', alignItems: 'center',
-    justifyContent: 'center', borderWidth: 1, borderColor: '#d9d5c6',
+    justifyContent: 'center', borderWidth: 1, borderColor: '#DCD6C4',
   },
-  fnStepText: { fontSize: 22, fontWeight: '800', color: '#132117' },
+  fnStepText: { fontSize: 22, fontWeight: '800', color: '#0F1D13' },
   fnPriceRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     marginTop: 14, paddingHorizontal: 4,
@@ -897,33 +837,6 @@ const s = StyleSheet.create({
     position: 'absolute', top: 14, left: 16, zIndex: 4,
     borderRadius: 99, paddingVertical: 6, paddingHorizontal: 12,
   },
-  // 사진 모드 전용 — 체력 나이 우상단 칩 (링 중앙을 아이에게 내준 대가)
-  ageChip: {
-    position: 'absolute', top: 14, right: 16, zIndex: 4,
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    borderRadius: 99, paddingVertical: 6, paddingHorizontal: 12,
-  },
-  // 링 내부 실사진 — 도트 궤도 안쪽 원형 크롭
-  ringPhotoWrap: {
-    width: RING_PHOTO, height: RING_PHOTO, borderRadius: RING_PHOTO / 2,
-    overflow: 'hidden', backgroundColor: '#d9d5c6',
-  },
-  // 레이스 빕 — 사진 하단에 걸치는 주간 km 필
-  bibPill: {
-    position: 'absolute', bottom: 8, alignSelf: 'center',
-    backgroundColor: colors.forest, borderRadius: 99,
-    paddingVertical: 6, paddingHorizontal: 15,
-    borderWidth: 1.2, borderColor: 'rgba(185,242,58,0.45)',
-    shadowColor: '#132117', shadowOpacity: 0.22, shadowRadius: 4, shadowOffset: { width: 0, height: 2 },
-  },
-  momentCard: {
-    width: 124, height: 156, borderRadius: 18, overflow: 'hidden', backgroundColor: '#e8e5d8',
-  },
-  momentPill: {
-    position: 'absolute', left: 8, bottom: 8,
-    backgroundColor: 'rgba(19,33,23,0.62)', borderRadius: 99,
-    paddingVertical: 4, paddingHorizontal: 9,
-  },
   info: { position: 'absolute', left: 18, top: 40, width: CARD_W * 0.5, zIndex: 3 },
   miniBar: { height: 4, borderRadius: 99, marginTop: 6, overflow: 'hidden' },
   miniBarFill: { height: 4, borderRadius: 99, backgroundColor: colors.volt },
@@ -949,7 +862,7 @@ const s = StyleSheet.create({
   },
   claimBtn: { backgroundColor: colors.volt, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 13 },
   ladderSheet: { backgroundColor: '#F6F2E9', borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 16, paddingBottom: 40 },
-  sheetHandle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: '#d8d5c8', marginBottom: 14 },
+  sheetHandle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: '#DCD6C4', marginBottom: 14 },
   slideTrack: {
     marginTop: 14, height: 68, borderRadius: 18, backgroundColor: colors.volt, justifyContent: 'center',
     shadowColor: colors.volt, shadowOpacity: 0.5, shadowRadius: 11, shadowOffset: { width: 0, height: 6 },
@@ -958,12 +871,12 @@ const s = StyleSheet.create({
   slideLabel: { alignSelf: 'center', fontSize: 17, fontWeight: '900', color: colors.ink, letterSpacing: 0.5 },
   slideKnob: {
     position: 'absolute', left: 6, width: 56, height: 56, borderRadius: 20,
-    backgroundColor: '#132117', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#0F1D13', alignItems: 'center', justifyContent: 'center',
     shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 6, shadowOffset: { width: 2, height: 2 },
   },
   scheduleCard: {
     borderRadius: 22, padding: 17, marginTop: 12,
-    borderWidth: 1.4, borderColor: '#b9f23a55', // lime accent — the widget earns its emphasis
+    borderWidth: 1.4, borderColor: '#C6F54255', // lime accent — the widget earns its emphasis
     shadowColor: colors.volt, shadowOpacity: 0.2, shadowRadius: 7, shadowOffset: { width: 0, height: 3 },
     elevation: 3,
   },
@@ -985,7 +898,7 @@ const s = StyleSheet.create({
   safetyStrip: {
     flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 16,
     paddingVertical: 12, paddingHorizontal: 14, marginTop: 12,
-    borderWidth: 1.2, borderColor: '#ff634745', // faint coral outline
+    borderWidth: 1.2, borderColor: '#FF5C3D45', // faint coral outline
     shadowColor: colors.tang, shadowOpacity: 0.22, shadowRadius: 10, shadowOffset: { width: 0, height: 2 },
     elevation: 3,
   },

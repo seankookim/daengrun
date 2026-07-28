@@ -11,7 +11,7 @@ import { colors } from '../src/theme';
 // 안심 센터 — 실동작: SOS(진행 중 예약 상대에게 즉시 알림), 긴급 연락처 CRUD, 전화 걸기.
 // 신고·의료노트는 각각 향후 세션(incidents 플로우 / 반려견 프로필 메모가 대체).
 
-const FOREST = '#132117';
+const FOREST = '#0F1D13';
 
 export default function Safety() {
   const [contacts, setContacts] = useState<EmContact[]>([]);
@@ -179,7 +179,7 @@ function InfoRow({ glyph, title, desc }: { glyph: string; title: string; desc: s
 const s = StyleSheet.create({
   h1: { fontSize: 26, fontWeight: '900', color: FOREST },
   sub: { fontSize: 12, color: colors.dim, marginTop: 4 },
-  bell: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#dedacb' },
+  bell: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DCD6C4' },
   shieldChip: { width: 24, height: 24, borderRadius: 12, backgroundColor: colors.volt, alignItems: 'center', justifyContent: 'center', alignSelf: 'center' },
   sosCard: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: '#e8492a',
@@ -187,10 +187,10 @@ const s = StyleSheet.create({
   },
   callBtn: { flex: 1, backgroundColor: '#fff', borderRadius: 14, alignItems: 'center', paddingVertical: 12, borderWidth: 1.3, borderColor: '#f2d4ca' },
   section: { fontSize: 15, fontWeight: '900', color: FOREST, marginTop: 20, marginBottom: 8 },
-  card: { backgroundColor: '#fff', borderRadius: 18, padding: 14, borderWidth: 1, borderColor: '#dedacb' },
+  card: { backgroundColor: '#fff', borderRadius: 18, padding: 14, borderWidth: 1, borderColor: '#DCD6C4' },
   div: { height: 1, backgroundColor: '#f0eee3' },
   miniBtn: { backgroundColor: '#f4f2ea', borderRadius: 99, paddingVertical: 7, paddingHorizontal: 12 },
   addRow: { marginTop: 6, borderRadius: 12, borderWidth: 1.3, borderColor: '#cfd8c2', borderStyle: 'dashed', alignItems: 'center', paddingVertical: 11 },
-  input: { backgroundColor: '#faf9f3', borderRadius: 12, borderWidth: 1, borderColor: '#dedacb', paddingVertical: 10, paddingHorizontal: 12, fontSize: 13.5, color: FOREST },
+  input: { backgroundColor: '#faf9f3', borderRadius: 12, borderWidth: 1, borderColor: '#DCD6C4', paddingVertical: 10, paddingHorizontal: 12, fontSize: 13.5, color: FOREST },
   saveBtn: { backgroundColor: colors.volt, borderRadius: 12, alignItems: 'center', paddingVertical: 11 },
 });

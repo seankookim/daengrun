@@ -96,3 +96,12 @@
 - 레이더 10분 무응답 배너만 있음 — 자동 만료/환불 크론 미구현(백로그).
 - 커뮤니티 후기 탭: 공개 리뷰 storefront 읽기는 0011 정책 — 실데이터 확인 필요(아직 실기기 검증 전).
 - 마이 스탯 카드: fetchFitness의 totalKm/totalRuns 필드 존재 가정 (weekKm 폴백) — 실기기에서 값 확인할 것.
+
+---
+# 2026-07-28 리브랜드 — 댕런 → 도그스하이 (상세: docs/rebrand.md)
+- 이름: **도그스하이 (DOGS HIGH)** — 러너스하이 5음절 미러. '하이' 시스템: 하이 포인트(구 댕마일, UI 라벨만)·하이 찍다. KIPRIS/핸들 스윕 미실시 — 커밋 전 필수.
+- 토큰 리프레시 적용됨: forest #0F1D13 · volt #C6F542 · tang #FF5C3D · cream #F8F6F0 · clay #EDE8DA(NEW) · 헤어라인 #DCD6C4 단일 수렴 · 파스텔 4종 재보정. 위 '디자인 언어' 섹션의 구 hex는 이 표로 대체.
+- 디스플레이 서체 Black Han Sans (displayFont.ts 지연 로드, 화면당 1회 규칙). **Sean: `cd app && npx expo install expo-font @expo-google-fonts/black-han-sans`**
+- 앱 아이콘 = 옵션 A 풀블리드 스택 (assets/icon.png 교체 — prebuild 반영). app.json 표시명 변경, scheme/slug/bundleId는 KIPRIS 후.
+- 마스코트: 크림 진돗개+volt 반다나 방향 (미구현) — "개를 칠하지 말고 입혀라". 실사진 구역 불가침.
+- 보류: 인계 확인→하이파이브(안전 명료성), 최근 순간→오늘의 하이(정직성), 댕댕 스냅 애드온명, prototype/index.html.

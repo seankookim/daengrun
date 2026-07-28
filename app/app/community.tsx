@@ -10,7 +10,7 @@ import { colors } from '../src/theme';
 // 동네 피드 — 완료 러닝 자랑 (옵트인: 리포트에서 공유한 것만). 미니 인스타의 v1.
 // 좋아요 실동작 · 본인 포스트 길게 눌러 삭제 · 랭킹 진입. 목업 스트릭랭킹·필터·글쓰기 은퇴.
 
-const FOREST = '#132117';
+const FOREST = '#0F1D13';
 const W = Dimensions.get('window').width;
 
 const fmtDur = (sec?: number) => (sec ? `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}` : null);
@@ -105,7 +105,7 @@ export default function Community() {
         </Row>
 
         {/* 탭바 — 피드 | 러너 후기 (밑줄 인디케이터) */}
-        <Row style={{ marginTop: 14, paddingHorizontal: 12, gap: 20, borderBottomWidth: 1, borderBottomColor: '#dedacb' }}>
+        <Row style={{ marginTop: 14, paddingHorizontal: 12, gap: 20, borderBottomWidth: 1, borderBottomColor: '#DCD6C4' }}>
           {([['feed', '피드'], ['reviews', '러너 후기']] as const).map(([k, label]) => (
             <Pressable key={k} onPress={() => setTab(k)} style={{ paddingBottom: 9, borderBottomWidth: 2.5, borderBottomColor: tab === k ? FOREST : 'transparent', marginBottom: -1 }}>
               <Text style={{ fontSize: 14, fontWeight: '900', color: tab === k ? FOREST : '#9a978a' }}>{label}</Text>
@@ -137,7 +137,7 @@ export default function Community() {
                 {rv.tags.length > 0 && (
                   <Row style={{ gap: 5, marginTop: 8, flexWrap: 'wrap' }}>
                     {rv.tags.map((t) => (
-                      <View key={t} style={{ backgroundColor: '#eef4e4', borderRadius: 99, paddingVertical: 3, paddingHorizontal: 8 }}>
+                      <View key={t} style={{ backgroundColor: '#EDE8DA', borderRadius: 99, paddingVertical: 3, paddingHorizontal: 8 }}>
                         <Text style={{ fontSize: 9.5, fontWeight: '700', color: '#4a6d1f' }}>{t}</Text>
                       </View>
                     ))}
@@ -171,7 +171,7 @@ export default function Community() {
 
             {/* photo — 엣지-투-엣지 (사진이 디자인이다) */}
             {p.photoUrl && (
-              <Image source={{ uri: p.photoUrl }} style={{ width: W, height: W * 0.75, backgroundColor: '#d9d5c6' }} resizeMode="cover" />
+              <Image source={{ uri: p.photoUrl }} style={{ width: W, height: W * 0.75, backgroundColor: '#DCD6C4' }} resizeMode="cover" />
             )}
 
             {/* run stats strip */}
@@ -252,15 +252,15 @@ export default function Community() {
 }
 
 const s = StyleSheet.create({
-  revCard: { backgroundColor: '#fff', borderRadius: 14, padding: 14, borderWidth: 1, borderColor: '#dedacb' },
-  rankBtn: { backgroundColor: '#fff', borderRadius: 99, paddingVertical: 9, paddingHorizontal: 13, borderWidth: 1, borderColor: '#dedacb', alignSelf: 'flex-start' },
+  revCard: { backgroundColor: '#fff', borderRadius: 14, padding: 14, borderWidth: 1, borderColor: '#DCD6C4' },
+  rankBtn: { backgroundColor: '#fff', borderRadius: 99, paddingVertical: 9, paddingHorizontal: 13, borderWidth: 1, borderColor: '#DCD6C4', alignSelf: 'flex-start' },
   emptyBox: { margin: 22, marginTop: 26, backgroundColor: '#f4f2ea', borderRadius: 18, padding: 26 },
-  post: { backgroundColor: '#fff', marginTop: 14, borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#dedacb' },
+  post: { backgroundColor: '#fff', marginTop: 14, borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#DCD6C4' },
   badge: { backgroundColor: '#eaf7c8', borderRadius: 99, paddingVertical: 3, paddingHorizontal: 8, alignSelf: 'center' },
   likeBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#faf9f3', borderRadius: 99, paddingVertical: 8, paddingHorizontal: 14 },
   commentsWrap: { paddingHorizontal: 16, paddingBottom: 14, borderTopWidth: 1, borderTopColor: '#f0eee3', paddingTop: 11 },
   commentInput: {
-    flex: 1, backgroundColor: '#faf9f3', borderRadius: 99, borderWidth: 1, borderColor: '#dedacb',
+    flex: 1, backgroundColor: '#faf9f3', borderRadius: 99, borderWidth: 1, borderColor: '#DCD6C4',
     paddingVertical: 9, paddingHorizontal: 14, fontSize: 13, color: FOREST,
   },
   commentSend: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.volt, alignItems: 'center', justifyContent: 'center' },

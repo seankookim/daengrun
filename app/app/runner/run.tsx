@@ -303,7 +303,7 @@ export default function ActiveRun() {
             {trace.current.length > 1 && (
               <maps.Polyline
                 coordinates={trace.current.map((p) => ({ latitude: p.lat, longitude: p.lng }))}
-                strokeColor="#82b016"
+                strokeColor="#7FA818"
                 strokeWidth={5}
               />
             )}
@@ -448,7 +448,7 @@ export default function ActiveRun() {
             title="강아지 컨디션"
             desc="지친 기색·이상 징후 등. 사진과 메모를 남겨요"
             pay={`${payoutByReason('dog').toLocaleString()}원 · 완주율 무영향`}
-            accent="#B9F23A"
+            accent="#C6F542"
             onPress={() => endWith('dog')}
           />
           <EndOption

@@ -1,25 +1,31 @@
-// 댕런 design tokens — mirrors prototype/index.html
+// 도그스하이 design tokens — 2026-07-28 리브랜드 리프레시 (rebrand.md)
 // 브랜드 = athletic editorial: 숫자는 애슬레틱하게(코랄·900·크게), 순간은 따뜻하게(크림·사진).
+// 러너스하이(5음절)의 강아지 버전 — '하이'가 히어로 음절: 하이 포인트 · 오늘의 하이 · 하이 찍다.
 export const colors = {
   ink: '#171A17',
-  forest: '#132117',     // 다크 카드/히어로 (파일 로컬 FOREST 상수를 이걸로 수렴)
-  cream: '#F8F7F3',   // 클린 오프화이트 — 파스텔 헤이즈 제거 (2026-07-27 샤프닝)
-  volt: '#B9F23A',
-  voltDeep: '#82b016',
+  forest: '#0F1D13',     // 딥 포레스트 (구 #132117 — 리프레시로 심화)
+  cream: '#F8F6F0',      // 한 톤 웜 (구 #F8F7F3)
+  volt: '#C6F542',       // 크림 위 발색 보정 (구 #B9F23A)
+  voltDeep: '#7FA818',
   voltBright: '#d4ff66',
-  tang: '#FF6347',       // 밝은 코랄 — 도파민 숫자·라이브 전용
+  tang: '#FF5C3D',       // 코랄 펀치 업 (구 #FF6347) — 도파민 숫자·라이브 전용
   coralText: '#d84a2f',  // 읽는 코랄 — 경고·조기종료 텍스트 (tang의 텍스트 버전, 의도적 2단)
   card: '#ffffff',
-  line: '#D6D3C4',
-  border: '#DEDACB',  // 헤어라인 강화 — 서피스 정의는 소프트함이 아니라 스트로크로     // 흰 카드 테두리 (산재한 리터럴 수렴용)
-  green: '#5a7a3c',      // 기능 그린 — 라벨·강조 (volt의 텍스트 버전)
-  dim: '#6E6C5E',      // 텍스트 대비 강화
+  clay: '#EDE8DA',       // NEW 웜 뉴트럴 — 칩·웰·인풋 바탕 (흰 카드가 크림 위에 뜨지 않게)
+  line: '#DCD6C4',       // 헤어라인 3종(#D6D3C4/#DEDACB/#d9d5c6) 단일 수렴
+  border: '#DCD6C4',     // line과 동치 — 점진 제거 예정 (line만 남긴다)
+  green: '#5a7a3c',      // 기능 그린 — 라벨·강조 (volt의 텍스트 버전, 대비 우선이라 유지)
+  dim: '#6D6B5C',
   // dark glow theme (owner home / cards)
-  bgDark: '#0d1410',
-  cardDark: '#132117',
+  bgDark: '#0C130E',
+  cardDark: '#0F1D13',
   lineDark: '#24352a',
   dimDark: '#8fa093',
 } as const;
+
+// 디스플레이 서체 — Black Han Sans (src/lib/displayFont.ts의 useDisplayFont로 지연 로드).
+// 규칙: 화면당 1회(히어로 카피·브랜드 워드마크)만. 로드 실패 시 시스템 900 폴백.
+export const DISPLAY_FONT = 'BlackHanSans_400Regular' as const;
 
 export const radius = { card: 16, btn: 13, chip: 99 } as const;
 // 글로벌 거터 — 화면 좌우 여백은 이 값 하나로 (에지-투-에지 프리미엄)
@@ -56,7 +62,7 @@ export const surfaces = {
     bg: colors.cream,
     card: '#ffffff',
     line: colors.line,
-    chip: '#eef4e4',
+    chip: '#EDE8DA',
     track: '#DDE8D4',
     dim: colors.dim,
     textStrong: colors.ink,
