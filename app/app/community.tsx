@@ -94,15 +94,15 @@ export default function Community() {
         <Row style={{ justifyContent: 'space-between', paddingHorizontal: 12 }}>
           <View>
             <Row style={{ gap: 6 }}>
-              <Text style={[{ fontSize: 26, fontWeight: '900', color: FOREST }, df]}>동네 피드</Text>
+              <Text style={[{ fontSize: 30, fontWeight: '900', color: FOREST }, df]}>동네 피드</Text>
               <View style={{ backgroundColor: '#5a7a3c', borderRadius: 99, paddingVertical: 2, paddingHorizontal: 7, alignSelf: 'center' }}>
-                <Text style={{ fontSize: 8.5, fontWeight: '900', color: '#fff' }}>● LIVE</Text>
+                <Text style={{ fontSize: 10, fontWeight: '900', color: '#fff' }}>● LIVE</Text>
               </View>
             </Row>
-            <Text style={{ fontSize: 12.5, color: '#5d655d', marginTop: 4 }}>우리 동네 강아지들의 오늘 러닝</Text>
+            <Text style={{ fontSize: 14.5, color: '#49524a', marginTop: 4 }}>우리 동네 강아지들의 오늘 러닝</Text>
           </View>
           <Pressable onPress={() => router.push('/leaderboard')} style={s.rankBtn}>
-            <Text style={{ fontSize: 12, fontWeight: '900', color: colors.tang }}>🏆 랭킹</Text>
+            <Text style={{ fontSize: 14, fontWeight: '900', color: colors.tang }}>🏆 랭킹</Text>
           </Pressable>
         </Row>
 
@@ -110,7 +110,7 @@ export default function Community() {
         <Row style={{ marginTop: 14, paddingHorizontal: 12, gap: 20, borderBottomWidth: 1, borderBottomColor: '#DCD6C4' }}>
           {([['feed', '피드'], ['reviews', '러너 후기']] as const).map(([k, label]) => (
             <Pressable key={k} onPress={() => setTab(k)} style={{ paddingBottom: 9, borderBottomWidth: 2.5, borderBottomColor: tab === k ? FOREST : 'transparent', marginBottom: -1 }}>
-              <Text style={{ fontSize: 14, fontWeight: '900', color: tab === k ? FOREST : '#9a978a' }}>{label}</Text>
+              <Text style={{ fontSize: 16, fontWeight: '900', color: tab === k ? FOREST : '#9a978a' }}>{label}</Text>
             </Pressable>
           ))}
         </Row>
@@ -118,10 +118,10 @@ export default function Community() {
         {/* ---------- 러너 후기 탭 — 실 공개 리뷰 ---------- */}
         {tab === 'reviews' && (
           <View style={{ paddingHorizontal: 12, marginTop: 14, gap: 9 }}>
-            {reviews == null && <Text style={{ fontSize: 12, color: colors.dim, textAlign: 'center', marginTop: 30 }}>불러오는 중...</Text>}
+            {reviews == null && <Text style={{ fontSize: 14, color: colors.dim, textAlign: 'center', marginTop: 30 }}>불러오는 중...</Text>}
             {reviews != null && reviews.length === 0 && (
               <View style={s.revCard}>
-                <Text style={{ fontSize: 12.5, color: colors.dim, textAlign: 'center', lineHeight: 19 }}>
+                <Text style={{ fontSize: 14.5, color: colors.dim, textAlign: 'center', lineHeight: 22 }}>
                   아직 공개 후기가 없어요{'\n'}러닝이 끝나면 첫 후기를 남겨보세요
                 </Text>
               </View>
@@ -129,18 +129,18 @@ export default function Community() {
             {(reviews ?? []).map((rv, i) => (
               <View key={i} style={s.revCard}>
                 <Row style={{ justifyContent: 'space-between' }}>
-                  <Text style={{ fontSize: 13.5, fontWeight: '900', color: FOREST }}>{rv.runnerName} 러너</Text>
-                  <Text style={{ fontSize: 11, color: colors.dim }}>{rv.when}</Text>
+                  <Text style={{ fontSize: 15.5, fontWeight: '900', color: FOREST }}>{rv.runnerName} 러너</Text>
+                  <Text style={{ fontSize: 12.5, color: colors.dim }}>{rv.when}</Text>
                 </Row>
                 {rv.rating != null && (
-                  <Text style={{ fontSize: 12, color: '#e8a13c', marginTop: 4 }}>{'★'.repeat(rv.rating)}{'☆'.repeat(Math.max(0, 5 - rv.rating))}</Text>
+                  <Text style={{ fontSize: 14, color: '#e8a13c', marginTop: 4 }}>{'★'.repeat(rv.rating)}{'☆'.repeat(Math.max(0, 5 - rv.rating))}</Text>
                 )}
-                {!!rv.note && <Text style={{ fontSize: 12.5, color: '#3d453d', marginTop: 6, lineHeight: 18 }}>{rv.note}</Text>}
+                {!!rv.note && <Text style={{ fontSize: 14.5, color: '#3d453d', marginTop: 6, lineHeight: 20.5 }}>{rv.note}</Text>}
                 {rv.tags.length > 0 && (
                   <Row style={{ gap: 5, marginTop: 8, flexWrap: 'wrap' }}>
                     {rv.tags.map((t) => (
                       <View key={t} style={{ backgroundColor: '#EDE8DA', borderRadius: 99, paddingVertical: 3, paddingHorizontal: 8 }}>
-                        <Text style={{ fontSize: 9.5, fontWeight: '700', color: '#4a6d1f' }}>{t}</Text>
+                        <Text style={{ fontSize: 11, fontWeight: '700', color: '#4a6d1f' }}>{t}</Text>
                       </View>
                     ))}
                   </Row>
@@ -153,8 +153,8 @@ export default function Community() {
         {/* feed */}
         {tab === 'feed' && loaded && posts.length === 0 && (
           <View style={s.emptyBox}>
-            <Text style={{ fontSize: 14, fontWeight: '900', color: FOREST, textAlign: 'center' }}>아직 포스트가 없어요</Text>
-            <Text style={{ fontSize: 12.5, color: colors.dim, textAlign: 'center', marginTop: 6, lineHeight: 19 }}>
+            <Text style={{ fontSize: 16, fontWeight: '900', color: FOREST, textAlign: 'center' }}>아직 포스트가 없어요</Text>
+            <Text style={{ fontSize: 14.5, color: colors.dim, textAlign: 'center', marginTop: 6, lineHeight: 22 }}>
               러닝을 완료하고 리포트에서 '동네 피드에 자랑하기'를 눌러보세요{'\n'}첫 포스트의 주인공이 되어주세요 🐕
             </Text>
           </View>
@@ -166,8 +166,8 @@ export default function Community() {
             <Row style={{ gap: 10, paddingHorizontal: 16, paddingVertical: 12 }}>
               <Avatar url={p.authorAvatar} char={p.authorName[0]} bg="#5a7a3c" size={38} />
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 13.5, fontWeight: '800', color: FOREST }}>{p.authorName}</Text>
-                <Text style={{ fontSize: 10.5, color: colors.dim, marginTop: 1 }}>{p.when}{p.mine ? ' · 내 포스트 (길게 눌러 삭제)' : ''}</Text>
+                <Text style={{ fontSize: 15.5, fontWeight: '800', color: FOREST }}>{p.authorName}</Text>
+                <Text style={{ fontSize: 12, color: colors.dim, marginTop: 1 }}>{p.when}{p.mine ? ' · 내 포스트 (길게 눌러 삭제)' : ''}</Text>
               </View>
             </Row>
 
@@ -179,34 +179,34 @@ export default function Community() {
             {/* run stats strip */}
             <Row style={{ gap: 10, paddingHorizontal: 16, paddingTop: 11, flexWrap: 'wrap' }}>
               {p.meta.dogName && (
-                <Text style={{ fontSize: 13.5, fontWeight: '900', color: FOREST }}>🐕 {p.meta.dogName}</Text>
+                <Text style={{ fontSize: 15.5, fontWeight: '900', color: FOREST }}>🐕 {p.meta.dogName}</Text>
               )}
               {p.meta.km != null && (
-                <Text style={{ fontSize: 13.5, fontWeight: '900', color: colors.tang }}>{p.meta.km}km</Text>
+                <Text style={{ fontSize: 15.5, fontWeight: '900', color: colors.tang }}>{p.meta.km}km</Text>
               )}
               {fmtDur(p.meta.durationSec) && (
-                <Text style={{ fontSize: 12.5, color: colors.dim, alignSelf: 'center' }}>⏱ {fmtDur(p.meta.durationSec)}</Text>
+                <Text style={{ fontSize: 14.5, color: colors.dim, alignSelf: 'center' }}>⏱ {fmtDur(p.meta.durationSec)}</Text>
               )}
               {(p.meta.badges ?? []).map((b) => (
-                <View key={b} style={s.badge}><Text style={{ fontSize: 10, fontWeight: '900', color: '#3d5a2b' }}>{b}</Text></View>
+                <View key={b} style={s.badge}><Text style={{ fontSize: 11.5, fontWeight: '900', color: '#3d5a2b' }}>{b}</Text></View>
               ))}
             </Row>
 
             {p.body && (
-              <Text style={{ fontSize: 13, color: '#3d453d', lineHeight: 19, paddingHorizontal: 16, paddingTop: 7 }}>{p.body}</Text>
+              <Text style={{ fontSize: 15, color: '#3d453d', lineHeight: 22, paddingHorizontal: 16, paddingTop: 7 }}>{p.body}</Text>
             )}
 
             {/* like + comment row */}
             <Row style={{ paddingHorizontal: 16, paddingVertical: 11, gap: 8 }}>
               <Pressable onPress={() => like(p)} style={s.likeBtn}>
-                <Text style={{ fontSize: 15 }}>{p.likedByMe ? '❤️' : '🤍'}</Text>
-                <Text style={{ fontSize: 12.5, fontWeight: '800', color: p.likedByMe ? colors.tang : '#5d655d' }}>
+                <Text style={{ fontSize: 17 }}>{p.likedByMe ? '❤️' : '🤍'}</Text>
+                <Text style={{ fontSize: 14.5, fontWeight: '800', color: p.likedByMe ? colors.tang : '#49524a' }}>
                   {p.likes > 0 ? p.likes : '응원하기'}
                 </Text>
               </Pressable>
               <Pressable onPress={() => toggleComments(p)} style={s.likeBtn}>
-                <Text style={{ fontSize: 14 }}>💬</Text>
-                <Text style={{ fontSize: 12.5, fontWeight: '800', color: '#5d655d' }}>
+                <Text style={{ fontSize: 16 }}>💬</Text>
+                <Text style={{ fontSize: 14.5, fontWeight: '800', color: '#49524a' }}>
                   {p.commentCount > 0 ? p.commentCount : '댓글'}
                 </Text>
               </Pressable>
@@ -219,7 +219,7 @@ export default function Community() {
                   <Row key={c.id} style={{ gap: 8, marginBottom: 9 }}>
                     <Avatar url={c.authorAvatar} char={c.authorName[0]} bg="#c9a86e" size={26} />
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 12 }}>
+                      <Text style={{ fontSize: 14 }}>
                         <Text style={{ fontWeight: '800', color: FOREST }}>{c.authorName}</Text>
                         <Text style={{ color: '#3d453d' }}>  {c.body}</Text>
                       </Text>
@@ -227,7 +227,7 @@ export default function Community() {
                   </Row>
                 ))}
                 {comments.length === 0 && (
-                  <Text style={{ fontSize: 11.5, color: colors.dim, marginBottom: 8 }}>첫 댓글을 남겨보세요</Text>
+                  <Text style={{ fontSize: 13, color: colors.dim, marginBottom: 8 }}>첫 댓글을 남겨보세요</Text>
                 )}
                 <Row style={{ gap: 8 }}>
                   <TextInput
@@ -240,7 +240,7 @@ export default function Community() {
                     returnKeyType="send"
                   />
                   <Pressable onPress={() => submitComment(p.id)} style={[s.commentSend, sending && { opacity: 0.5 }]}>
-                    <Text style={{ fontSize: 13, fontWeight: '900', color: FOREST }}>↑</Text>
+                    <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST }}>↑</Text>
                   </Pressable>
                 </Row>
               </View>
@@ -263,7 +263,7 @@ const s = StyleSheet.create({
   commentsWrap: { paddingHorizontal: 16, paddingBottom: 14, borderTopWidth: 1, borderTopColor: '#f0eee3', paddingTop: 11 },
   commentInput: {
     flex: 1, backgroundColor: '#faf9f3', borderRadius: 99, borderWidth: 1, borderColor: '#DCD6C4',
-    paddingVertical: 9, paddingHorizontal: 14, fontSize: 13, color: FOREST,
+    paddingVertical: 9, paddingHorizontal: 14, fontSize: 15, color: FOREST,
   },
   commentSend: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.volt, alignItems: 'center', justifyContent: 'center' },
 });

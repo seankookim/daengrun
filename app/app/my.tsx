@@ -116,13 +116,13 @@ export default function My() {
         <View style={s.profile}>
           <Pressable onPress={pickPhoto} disabled={uploading}>
             <Avatar url={profile?.avatarUrl} char={(profile?.name ?? '나')[0]} bg={isRunner ? '#FF5C3D' : colors.volt} size={56} />
-            <View style={s.camBadge}><Text style={{ fontSize: 9, color: '#fff' }}>{uploading ? '…' : '✎'}</Text></View>
+            <View style={s.camBadge}><Text style={{ fontSize: 10.5, color: '#fff' }}>{uploading ? '…' : '✎'}</Text></View>
           </Pressable>
           <View style={{ flex: 1, marginLeft: 14 }}>
-            <Text style={{ fontSize: 17, fontWeight: '900', color: FOREST }}>
+            <Text style={{ fontSize: 19.5, fontWeight: '900', color: FOREST }}>
               {profile?.name ?? '...'} {isRunner ? '러너' : '보호자님'}
             </Text>
-            <Text style={{ fontSize: 12, color: colors.dim, marginTop: 3 }}>
+            <Text style={{ fontSize: 14, color: colors.dim, marginTop: 3 }}>
               {profile?.district ? `${profile.district} · ` : ''}{isRunner ? '신원인증 · 펫보험 가입' : `${dog.name} · ${dog.breed}`}
             </Text>
           </View>
@@ -137,10 +137,10 @@ export default function My() {
               }
             }}
           >
-            <Text style={{ fontSize: 11, fontWeight: '700', color: '#3d453d' }}>{isRunner ? '프로필 편집 ›' : '프로필 설정'}</Text>
+            <Text style={{ fontSize: 12.5, fontWeight: '700', color: '#3d453d' }}>{isRunner ? '프로필 편집 ›' : '프로필 설정'}</Text>
           </Pressable>
         </View>
-        <Text style={{ fontSize: 10.5, color: colors.dim, marginTop: 6, marginLeft: 4 }}>
+        <Text style={{ fontSize: 12, color: colors.dim, marginTop: 6, marginLeft: 4 }}>
           사진을 탭하면 프로필 사진을 바꿀 수 있어요
         </Text>
 
@@ -149,7 +149,7 @@ export default function My() {
           onPress={() => router.push(isRunner ? '/runner/home' : '/owner/fitness')}
           style={{ backgroundColor: FOREST, borderRadius: 18, padding: 16, marginTop: 12 }}
         >
-          <Text style={{ fontSize: 11.5, fontWeight: '800', color: '#b8c4ae' }}>나의 러닝 기록</Text>
+          <Text style={{ fontSize: 13, fontWeight: '800', color: '#b8c4ae' }}>나의 러닝 기록</Text>
           <View style={{ flexDirection: 'row', marginTop: 12 }}>
             {[
               { v: (rec?.km ?? 0).toFixed(1), u: ' km', l: '총 거리' },
@@ -157,14 +157,14 @@ export default function My() {
               { v: rec?.pace ?? '—', u: '', l: '평균 페이스' },
             ].map((c) => (
               <View key={c.l} style={{ flex: 1 }}>
-                <Text style={{ fontSize: 19, fontWeight: '900', color: '#fff' }}>
-                  {c.v}<Text style={{ fontSize: 11, color: '#8fa093' }}>{c.u}</Text>
+                <Text style={{ fontSize: 22, fontWeight: '900', color: '#fff' }}>
+                  {c.v}<Text style={{ fontSize: 12.5, color: '#8fa093' }}>{c.u}</Text>
                 </Text>
-                <Text style={{ fontSize: 10, color: '#8fa093', marginTop: 3 }}>{c.l}</Text>
+                <Text style={{ fontSize: 11.5, color: '#8fa093', marginTop: 3 }}>{c.l}</Text>
               </View>
             ))}
           </View>
-          <Text style={{ fontSize: 11, fontWeight: '800', color: colors.volt, textAlign: 'right', marginTop: 10 }}>상세 기록 보기 ›</Text>
+          <Text style={{ fontSize: 12.5, fontWeight: '800', color: colors.volt, textAlign: 'right', marginTop: 10 }}>상세 기록 보기 ›</Text>
         </Pressable>
 
         {/* menu */}
@@ -178,24 +178,24 @@ export default function My() {
                 else Alert.alert(m.label, '준비 중이에요');
               }}
             >
-              <View style={s.menuIcon}><Text style={{ fontSize: 15, color: '#5a7a3c' }}>{m.glyph}</Text></View>
+              <View style={s.menuIcon}><Text style={{ fontSize: 17, color: '#5a7a3c' }}>{m.glyph}</Text></View>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 14.5, fontWeight: '800', color: FOREST }}>{m.label}</Text>
-                <Text style={{ fontSize: 11.5, color: colors.dim, marginTop: 2 }}>{m.desc}</Text>
+                <Text style={{ fontSize: 16.5, fontWeight: '800', color: FOREST }}>{m.label}</Text>
+                <Text style={{ fontSize: 13, color: colors.dim, marginTop: 2 }}>{m.desc}</Text>
               </View>
-              <Text style={{ fontSize: 16, color: colors.dim }}>›</Text>
+              <Text style={{ fontSize: 18.5, color: colors.dim }}>›</Text>
             </Pressable>
           ))}
         </View>
 
         <Pressable style={s.roleSwitch} onPress={() => router.dismissTo('/')}>
-          <Text style={{ fontSize: 12.5, fontWeight: '700', color: '#5d655d' }}>역할 전환 (보호자 ↔ 러너)</Text>
+          <Text style={{ fontSize: 14.5, fontWeight: '700', color: '#49524a' }}>역할 전환 (보호자 ↔ 러너)</Text>
         </Pressable>
         <Pressable
           style={s.roleSwitch}
           onPress={async () => { await signOut(); router.dismissTo('/login'); }}
         >
-          <Text style={{ fontSize: 12.5, fontWeight: '700', color: '#d84a2f' }}>
+          <Text style={{ fontSize: 14.5, fontWeight: '700', color: '#d84a2f' }}>
             로그아웃{auth?.user.email ? ` (${auth.user.email})` : ''}
           </Text>
         </Pressable>
@@ -207,7 +207,7 @@ export default function My() {
         <Pressable style={s.backdrop} onPress={() => setEditing(false)} />
         <View style={s.sheet}>
           <View style={s.handle} />
-          <Text style={{ fontSize: 19, fontWeight: '900', color: FOREST }}>프로필 설정</Text>
+          <Text style={{ fontSize: 22, fontWeight: '900', color: FOREST }}>프로필 설정</Text>
 
           <Text style={s.fieldLabel}>이름</Text>
           <TextInput
@@ -241,12 +241,12 @@ export default function My() {
               />
             </>
           )}
-          <Text style={{ fontSize: 10.5, color: colors.dim, marginTop: 8, lineHeight: 15 }}>
+          <Text style={{ fontSize: 12, color: colors.dim, marginTop: 8, lineHeight: 17 }}>
             이름과 동네는 매칭 화면에서 상대방에게 보여요{'\n'}프로필 사진은 마이 화면에서 사진을 탭해 변경해요
           </Text>
 
           <Pressable onPress={save} disabled={saving} style={[s.saveBtn, saving && { opacity: 0.5 }]}>
-            <Text style={{ fontSize: 14, fontWeight: '900', color: FOREST }}>{saving ? '저장 중...' : '저장'}</Text>
+            <Text style={{ fontSize: 16, fontWeight: '900', color: FOREST }}>{saving ? '저장 중...' : '저장'}</Text>
           </Pressable>
         </View>
       </Modal>
@@ -255,7 +255,7 @@ export default function My() {
 }
 
 const s = StyleSheet.create({
-  h1: { fontSize: 30, fontWeight: '900', color: FOREST },
+  h1: { fontSize: 34.5, fontWeight: '900', color: FOREST },
   profile: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff',
     borderRadius: 20, padding: 16, borderWidth: 1, borderColor: '#DCD6C4', marginTop: 16,
@@ -274,10 +274,10 @@ const s = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: '#00000055' },
   sheet: { backgroundColor: colors.cream, borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 16, paddingBottom: 40 },
   handle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: '#DCD6C4', marginBottom: 14 },
-  fieldLabel: { fontSize: 12, fontWeight: '800', color: '#3d453d', marginTop: 14, marginBottom: 6 },
+  fieldLabel: { fontSize: 14, fontWeight: '800', color: '#3d453d', marginTop: 14, marginBottom: 6 },
   input: {
     backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: '#DCD6C4',
-    paddingVertical: 12, paddingHorizontal: 14, fontSize: 14.5, color: FOREST,
+    paddingVertical: 12, paddingHorizontal: 14, fontSize: 16.5, color: FOREST,
   },
   saveBtn: { backgroundColor: colors.volt, borderRadius: 16, alignItems: 'center', paddingVertical: 14, marginTop: 18 },
 });

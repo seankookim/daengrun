@@ -115,8 +115,8 @@ export default function Live() {
         </maps.MapView>
       ) : live ? (
         <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}>
-          <Text style={{ fontSize: 14, fontWeight: '900', color: FOREST }}>러너 위치 수신 대기 중...</Text>
-          <Text style={{ fontSize: 11.5, color: '#75806f', marginTop: 6, textAlign: 'center', lineHeight: 17 }}>
+          <Text style={{ fontSize: 16, fontWeight: '900', color: FOREST }}>러너 위치 수신 대기 중...</Text>
+          <Text style={{ fontSize: 13, color: '#75806f', marginTop: 6, textAlign: 'center', lineHeight: 19.5 }}>
             러너가 달리기 시작하면 실시간 경로가 그려져요{'\n'}{!maps ? '(실지도는 새 개발 빌드에서)' : ''}
           </Text>
         </View>
@@ -135,14 +135,14 @@ export default function Live() {
 
       {/* ---------- 상단 오버레이 ---------- */}
       <Row style={s.topBar}>
-        <Pressable onPress={() => router.back()} style={s.circleBtn}><Text style={{ fontSize: 18 }}>‹</Text></Pressable>
+        <Pressable onPress={() => router.back()} style={s.circleBtn}><Text style={{ fontSize: 20.5 }}>‹</Text></Pressable>
         <View style={s.livePill}>
-          <Text style={{ fontSize: 12, fontWeight: '900', color: colors.volt }}>
+          <Text style={{ fontSize: 14, fontWeight: '900', color: colors.volt }}>
             ● LIVE · {dogName}가 달리는 중
           </Text>
         </View>
         <Pressable onPress={() => router.push('/safety')} style={[s.circleBtn, { backgroundColor: '#e8492a' }]}>
-          <Text style={{ fontSize: 10, fontWeight: '900', color: '#fff' }}>SOS</Text>
+          <Text style={{ fontSize: 11.5, fontWeight: '900', color: '#fff' }}>SOS</Text>
         </Pressable>
       </Row>
 
@@ -152,13 +152,13 @@ export default function Live() {
         <Row style={{ gap: 11, alignItems: 'center' }}>
           <Avatar url={null} char={runnerName[0]} bg="#5a7a3c" size={44} />
           <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST }}>{runnerName} 러너</Text>
-            <Text style={{ fontSize: 11.5, color: '#75806f', marginTop: 2 }}>
+            <Text style={{ fontSize: 17, fontWeight: '900', color: FOREST }}>{runnerName} 러너</Text>
+            <Text style={{ fontSize: 13, color: '#75806f', marginTop: 2 }}>
               {live ? (info?.routeName ?? '코스') : '서울숲 코스'} · {targetKm}km
             </Text>
           </View>
           <View style={[s.signalPill, { backgroundColor: (live ? !!pos : true) ? '#eaf7c8' : '#f0efe8' }]}>
-            <Text style={{ fontSize: 10.5, fontWeight: '800', color: (live ? !!pos : true) ? '#3d5a2b' : '#8a8877' }}>
+            <Text style={{ fontSize: 12, fontWeight: '800', color: (live ? !!pos : true) ? '#3d5a2b' : '#8a8877' }}>
               {live ? (pos ? 'ılı 위치 수신' : '수신 대기') : 'ılı 좋음'}
             </Text>
           </View>
@@ -167,17 +167,17 @@ export default function Live() {
         {/* stats */}
         <Row style={{ marginTop: 14, justifyContent: 'space-between' }}>
           <View>
-            <Text style={{ fontSize: 30, fontWeight: '900', color: colors.tang }}>
-              {km.toFixed(2)}<Text style={{ fontSize: 13, color: '#8a8877' }}> km</Text>
+            <Text style={{ fontSize: 34.5, fontWeight: '900', color: colors.tang }}>
+              {km.toFixed(2)}<Text style={{ fontSize: 15, color: '#8a8877' }}> km</Text>
             </Text>
           </View>
           <View style={{ alignItems: 'center' }}>
-            <Text style={{ fontSize: 20, fontWeight: '900', color: FOREST }}>{fmt(sec)}</Text>
-            <Text style={{ fontSize: 10, color: '#8a8877', marginTop: 1 }}>시간</Text>
+            <Text style={{ fontSize: 23, fontWeight: '900', color: FOREST }}>{fmt(sec)}</Text>
+            <Text style={{ fontSize: 11.5, color: '#8a8877', marginTop: 1 }}>시간</Text>
           </View>
           <View style={{ alignItems: 'flex-end' }}>
-            <Text style={{ fontSize: 20, fontWeight: '900', color: FOREST }}>{paceStr(sec, km)}</Text>
-            <Text style={{ fontSize: 10, color: '#8a8877', marginTop: 1 }}>페이스</Text>
+            <Text style={{ fontSize: 23, fontWeight: '900', color: FOREST }}>{paceStr(sec, km)}</Text>
+            <Text style={{ fontSize: 11.5, color: '#8a8877', marginTop: 1 }}>페이스</Text>
           </View>
         </Row>
         {/* thin progress */}
@@ -191,10 +191,10 @@ export default function Live() {
             onPress={() => router.push({ pathname: '/chat', params: live ? { bid: draft.bookingId! } : {} })}
             style={s.chatBtn}
           >
-            <Text style={{ fontSize: 14.5, fontWeight: '900', color: FOREST }}>💬 러너와 채팅</Text>
+            <Text style={{ fontSize: 16.5, fontWeight: '900', color: FOREST }}>💬 러너와 채팅</Text>
           </Pressable>
           <Pressable onPress={() => { setStopReason(null); setStopSheet(true); }} style={s.stopCircle}>
-            <Text style={{ fontSize: 12, fontWeight: '900', color: '#d84a2f' }}>■</Text>
+            <Text style={{ fontSize: 14, fontWeight: '900', color: '#d84a2f' }}>■</Text>
           </Pressable>
         </Row>
       </View>
@@ -204,23 +204,23 @@ export default function Live() {
         <Pressable style={s.sheetBackdrop} onPress={() => setStopSheet(false)} />
         <View style={s.stopSheet}>
           <View style={s.sheetHandle} />
-          <Text style={{ fontSize: 18, fontWeight: '900', color: FOREST }}>정말 러닝을 종료할까요?</Text>
-          <Text style={{ fontSize: 12, color: '#5d655d', marginTop: 5, lineHeight: 18 }}>
+          <Text style={{ fontSize: 20.5, fontWeight: '900', color: FOREST }}>정말 러닝을 종료할까요?</Text>
+          <Text style={{ fontSize: 14, color: '#49524a', marginTop: 5, lineHeight: 20.5 }}>
             러너에게 알림이 가고, 안전하게 정지한 뒤{'\n'}{dogName}를 데리고 픽업 장소로 복귀해요.
           </Text>
 
-          <Text style={{ fontSize: 12.5, fontWeight: '800', color: FOREST, marginTop: 16, marginBottom: 8 }}>종료 사유</Text>
+          <Text style={{ fontSize: 14.5, fontWeight: '800', color: FOREST, marginTop: 16, marginBottom: 8 }}>종료 사유</Text>
           {STOP_REASONS.map((r) => (
             <Pressable key={r} onPress={() => setStopReason(r)} style={[s.reasonRow, stopReason === r && { borderColor: '#a9c47e', backgroundColor: '#f4f8ea' }]}>
               <View style={[s.radio, stopReason === r && { borderColor: '#5a7a3c' }]}>
                 {stopReason === r && <View style={s.radioDot} />}
               </View>
-              <Text style={{ fontSize: 13.5, color: '#3d453d', fontWeight: stopReason === r ? '800' : '500' }}>{r}</Text>
+              <Text style={{ fontSize: 15.5, color: '#3d453d', fontWeight: stopReason === r ? '800' : '500' }}>{r}</Text>
             </Pressable>
           ))}
 
           <View style={s.feeNote}>
-            <Text style={{ fontSize: 11.5, color: '#75806f', lineHeight: 17 }}>
+            <Text style={{ fontSize: 13, color: '#75806f', lineHeight: 19.5 }}>
               지금까지 달린 {km.toFixed(1)}km 기준으로 정산돼요.{'\n'}
               최소 기본요금 9,900원은 결제되며, 러너에게는 잔여 거리 보장이 적용돼요.
             </Text>
@@ -231,10 +231,10 @@ export default function Live() {
             disabled={!stopReason}
             onPress={confirmStop}
           >
-            <Text style={{ fontSize: 14.5, fontWeight: '900', color: '#fff' }}>종료 요청 보내기</Text>
+            <Text style={{ fontSize: 16.5, fontWeight: '900', color: '#fff' }}>종료 요청 보내기</Text>
           </Pressable>
           <Pressable style={{ alignItems: 'center', paddingVertical: 13 }} onPress={() => setStopSheet(false)}>
-            <Text style={{ fontSize: 13, fontWeight: '700', color: '#5d655d' }}>계속 지켜볼게요</Text>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: '#49524a' }}>계속 지켜볼게요</Text>
           </Pressable>
         </View>
       </Modal>

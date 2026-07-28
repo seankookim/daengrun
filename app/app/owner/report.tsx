@@ -115,10 +115,10 @@ export default function Report() {
     <View style={{ flex: 1, backgroundColor: colors.cream }}>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 40 }}>
         <Row style={{ justifyContent: 'space-between', paddingHorizontal: 12, paddingTop: 56 }}>
-          <Pressable onPress={() => router.back()} style={s.backBtn}><Text style={{ fontSize: 18 }}>‹</Text></Pressable>
-          <Text style={{ fontSize: 20, fontWeight: '900', color: FOREST }}>러닝 리포트</Text>
+          <Pressable onPress={() => router.back()} style={s.backBtn}><Text style={{ fontSize: 20.5 }}>‹</Text></Pressable>
+          <Text style={{ fontSize: 23, fontWeight: '900', color: FOREST }}>러닝 리포트</Text>
           {run ? (
-            <Pressable onPress={share} style={s.backBtn}><Text style={{ fontSize: 15 }}>↗</Text></Pressable>
+            <Pressable onPress={share} style={s.backBtn}><Text style={{ fontSize: 17 }}>↗</Text></Pressable>
           ) : <View style={{ width: 40 }} />}
         </Row>
 
@@ -133,12 +133,12 @@ export default function Report() {
 
         {report && !run && (
           <View style={s.emptyBox}>
-            <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST }}>
+            <Text style={{ fontSize: 17, fontWeight: '900', color: FOREST }}>
               {STATUS_LABEL[report.status] ?? '진행 상황 확인 중'}
             </Text>
             <Text style={[s.emptyText, { marginTop: 6 }]}>러닝이 끝나면 여기서 기록을 볼 수 있어요</Text>
             <Pressable onPress={() => router.replace('/owner/schedule')} style={s.ctaGhost}>
-              <Text style={{ fontSize: 12.5, fontWeight: '800', color: FOREST }}>내 일정에서 보기 ›</Text>
+              <Text style={{ fontSize: 14.5, fontWeight: '800', color: FOREST }}>내 일정에서 보기 ›</Text>
             </Pressable>
           </View>
         )}
@@ -150,28 +150,28 @@ export default function Report() {
               {run.photos[0] && (
                 <Image source={{ uri: run.photos[0] }} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, opacity: 0.38 }} resizeMode="cover" />
               )}
-              <Text style={{ fontSize: 11, fontWeight: '900', color: colors.volt, letterSpacing: 3 }}>도그스하이 DAENGRUN</Text>
-              <Text style={{ fontSize: 21, fontWeight: '900', color: '#fff', marginTop: 12 }}>{report.dogName}의 러닝 🐕</Text>
-              <Text style={{ fontSize: 54, fontWeight: '900', color: colors.tang, marginTop: 6 }}>
-                {run.actualKm}<Text style={{ fontSize: 20, color: '#b8c4ae' }}> km</Text>
+              <Text style={{ fontSize: 12.5, fontWeight: '900', color: colors.volt, letterSpacing: 3 }}>도그스하이 DAENGRUN</Text>
+              <Text style={{ fontSize: 24, fontWeight: '900', color: '#fff', marginTop: 12 }}>{report.dogName}의 러닝 🐕</Text>
+              <Text style={{ fontSize: 62, fontWeight: '900', color: colors.tang, marginTop: 6 }}>
+                {run.actualKm}<Text style={{ fontSize: 23, color: '#b8c4ae' }}> km</Text>
               </Text>
-              <Text style={{ fontSize: 13, color: '#dfe7d8', marginTop: 8 }}>
+              <Text style={{ fontSize: 15, color: '#dfe7d8', marginTop: 8 }}>
                 ⏱ {fmtDur(run.durationSec)} · 페이스 {fmtPace(run.paceSecPerKm)}/km
               </Text>
-              <Text style={{ fontSize: 11, color: '#b8c4ae', marginTop: 4 }}>{report.when} · {report.routeName}</Text>
+              <Text style={{ fontSize: 12.5, color: '#b8c4ae', marginTop: 4 }}>{report.when} · {report.routeName}</Text>
               {bList.length > 1 && (
-                <Text style={{ fontSize: 12, fontWeight: '900', color: colors.volt, marginTop: 10 }}>
+                <Text style={{ fontSize: 14, fontWeight: '900', color: colors.volt, marginTop: 10 }}>
                   {bList.filter((b) => b.includes('역대') || b.includes('TOP')).join(' · ') || bList[0]}
                 </Text>
               )}
-              <Text style={{ fontSize: 9.5, color: '#8fa093', marginTop: 14 }}>반려견 피트니스 · 도그스하이</Text>
+              <Text style={{ fontSize: 11, color: '#8fa093', marginTop: 14 }}>반려견 피트니스 · 도그스하이</Text>
             </View>
             <Row style={{ gap: 10, marginTop: 16 }}>
               <Pressable onPress={captureShot} style={[s.cta, { flex: 1, marginTop: 0 }]}>
-                <Text style={{ fontSize: 14, fontWeight: '900', color: FOREST }}>공유하기</Text>
+                <Text style={{ fontSize: 16, fontWeight: '900', color: FOREST }}>공유하기</Text>
               </Pressable>
               <Pressable onPress={() => setShotOpen(false)} style={[s.ghostCta, { flex: 0.6, marginTop: 0 }]}>
-                <Text style={{ fontSize: 13, fontWeight: '800', color: '#3d453d' }}>닫기</Text>
+                <Text style={{ fontSize: 15, fontWeight: '800', color: '#3d453d' }}>닫기</Text>
               </Pressable>
             </Row>
           </View>
@@ -189,25 +189,25 @@ export default function Report() {
                 />
               )}
               <Row style={{ justifyContent: 'space-between' }}>
-                <Text style={{ fontSize: 12, color: '#b8c4ae' }}>{report.when} · {report.routeName}</Text>
+                <Text style={{ fontSize: 14, color: '#b8c4ae' }}>{report.when} · {report.routeName}</Text>
                 {reason && (
                   <View style={[s.heroReason, { backgroundColor: reason.bg }]}>
-                    <Text style={{ fontSize: 9.5, fontWeight: '900', color: reason.color }}>{reason.label}</Text>
+                    <Text style={{ fontSize: 11, fontWeight: '900', color: reason.color }}>{reason.label}</Text>
                   </View>
                 )}
               </Row>
-              <Text style={{ fontSize: 24, fontWeight: '900', color: '#fff', marginTop: 6 }}>
+              <Text style={{ fontSize: 27.5, fontWeight: '900', color: '#fff', marginTop: 6 }}>
                 {report.dogName}의 러닝
               </Text>
-              <Text style={{ fontSize: 44, fontWeight: '900', color: colors.tang, marginTop: 8 }}>
-                {run.actualKm}<Text style={{ fontSize: 18, color: '#b8c4ae' }}> km</Text>
+              <Text style={{ fontSize: 50.5, fontWeight: '900', color: colors.tang, marginTop: 8 }}>
+                {run.actualKm}<Text style={{ fontSize: 20.5, color: '#b8c4ae' }}> km</Text>
               </Text>
               {/* 개인 기록 배지 */}
               {bList.length > 0 && (
                 <Row style={{ gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
                   {bList.map((b) => (
                     <View key={b} style={s.badgePill}>
-                      <Text style={{ fontSize: 10, fontWeight: '900', color: FOREST }}>{b}</Text>
+                      <Text style={{ fontSize: 11.5, fontWeight: '900', color: FOREST }}>{b}</Text>
                     </View>
                   ))}
                 </Row>
@@ -248,7 +248,7 @@ export default function Report() {
               return (
                 <View style={{ backgroundColor: '#0e150f', alignItems: 'center', paddingVertical: 12 }}>
                   <HeatTrace points={normalizeTrace(run.trace)} width={W - 60} height={140} />
-                  <Text style={{ fontSize: 9.5, color: '#8fa093', marginTop: 6 }}>실제 GPS 경로 · 지도 배경은 새 빌드에서</Text>
+                  <Text style={{ fontSize: 11, color: '#8fa093', marginTop: 6 }}>실제 GPS 경로 · 지도 배경은 새 빌드에서</Text>
                 </View>
               );
             })()}
@@ -263,11 +263,11 @@ export default function Report() {
                   if (n === 0) return null;
                   return (
                     <View key={kind} style={s.stampChip}>
-                      <Text style={{ fontSize: 12.5, fontWeight: '900', color: '#3d5a2b' }}>{label} ×{n}</Text>
+                      <Text style={{ fontSize: 14.5, fontWeight: '900', color: '#3d5a2b' }}>{label} ×{n}</Text>
                     </View>
                   );
                 })}
-                <Text style={{ fontSize: 10, color: colors.dim, width: '100%', marginTop: 4 }}>
+                <Text style={{ fontSize: 11.5, color: colors.dim, width: '100%', marginTop: 4 }}>
                   러너가 러닝 중 실시간으로 기록한 순간들이에요
                 </Text>
               </View>
@@ -283,12 +283,12 @@ export default function Report() {
             ) : (
               <View style={[s.section, { flexDirection: 'row', gap: 2, paddingHorizontal: 0, paddingVertical: 0 }]}>
                 {[0, 1, 2].map((i) => (
-                  <View key={i} style={s.photoSlot}><Text style={{ fontSize: 16, color: '#c9ccc0' }}>▣</Text></View>
+                  <View key={i} style={s.photoSlot}><Text style={{ fontSize: 18.5, color: '#c9ccc0' }}>▣</Text></View>
                 ))}
               </View>
             )}
             {run.photos.length === 0 && (
-              <Text style={{ fontSize: 10, color: colors.dim, textAlign: 'center', backgroundColor: '#fff', paddingBottom: 10 }}>
+              <Text style={{ fontSize: 11.5, color: colors.dim, textAlign: 'center', backgroundColor: '#fff', paddingBottom: 10 }}>
                 러너가 남긴 사진과 바디캠 하이라이트가 여기에 담겨요
               </Text>
             )}
@@ -307,14 +307,14 @@ export default function Report() {
               <Row style={{ gap: 12 }}>
                 <Monogram char={(report.runnerName ?? '러')[0]} bg="#5a7a3c" size={44} />
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 14.5, fontWeight: '900', color: FOREST }}>
+                  <Text style={{ fontSize: 16.5, fontWeight: '900', color: FOREST }}>
                     {report.runnerName ?? '러너'} 러너
                   </Text>
-                  <Text style={{ fontSize: 11.5, color: colors.dim, marginTop: 2 }}>
+                  <Text style={{ fontSize: 13, color: colors.dim, marginTop: 2 }}>
                     {report.routeName}{report.routeArea ? ` · ${report.routeArea}` : ''}
                   </Text>
                 </View>
-                <View style={s.certPill}><Text style={{ fontSize: 9.5, fontWeight: '800', color: '#4a6d1f' }}>신원인증</Text></View>
+                <View style={s.certPill}><Text style={{ fontSize: 11, fontWeight: '800', color: '#4a6d1f' }}>신원인증</Text></View>
               </Row>
             </View>
 
@@ -323,10 +323,10 @@ export default function Report() {
               <View style={s.section}>
                 <Text style={s.sectionTitle}>러너 노트</Text>
                 {run.conditionNote && (
-                  <Text style={{ fontSize: 12.5, color: '#5d655d', lineHeight: 18 }}>{run.conditionNote}</Text>
+                  <Text style={{ fontSize: 14.5, color: '#49524a', lineHeight: 20.5 }}>{run.conditionNote}</Text>
                 )}
                 {reason?.note && (
-                  <Text style={{ fontSize: 11.5, color: reason.color, marginTop: run.conditionNote ? 8 : 0, lineHeight: 17 }}>
+                  <Text style={{ fontSize: 13, color: reason.color, marginTop: run.conditionNote ? 8 : 0, lineHeight: 19.5 }}>
                     {reason.note}
                   </Text>
                 )}
@@ -336,10 +336,10 @@ export default function Report() {
             {/* ---------- 결제 ---------- */}
             <View style={s.section}>
               <Row style={{ justifyContent: 'space-between' }}>
-                <Text style={{ fontSize: 13, fontWeight: '800', color: FOREST }}>결제 금액</Text>
-                <Text style={{ fontSize: 16, fontWeight: '900', color: FOREST }}>{report.price.toLocaleString()}원</Text>
+                <Text style={{ fontSize: 15, fontWeight: '800', color: FOREST }}>결제 금액</Text>
+                <Text style={{ fontSize: 18.5, fontWeight: '900', color: FOREST }}>{report.price.toLocaleString()}원</Text>
               </Row>
-              <Text style={{ fontSize: 10.5, color: colors.dim, marginTop: 5 }}>
+              <Text style={{ fontSize: 12, color: colors.dim, marginTop: 5 }}>
                 조기 종료 시 정산 조정은 고객센터를 통해 처리돼요
               </Text>
             </View>
@@ -347,8 +347,8 @@ export default function Report() {
             {/* ---------- CTA ---------- */}
             <View style={{ paddingHorizontal: 12 }}>
               <Pressable onPress={() => setShotOpen(true)} style={s.cta}>
-                <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST }}>📸 인증샷 만들기</Text>
-                <Text style={{ fontSize: 10.5, color: '#5d6b4a', marginTop: 2 }}>인스타그램용 브랜디드 카드로 자랑해요</Text>
+                <Text style={{ fontSize: 17, fontWeight: '900', color: FOREST }}>📸 인증샷 만들기</Text>
+                <Text style={{ fontSize: 12, color: '#5d6b4a', marginTop: 2 }}>인스타그램용 브랜디드 카드로 자랑해요</Text>
               </Pressable>
               <Pressable
                 onPress={() => {
@@ -362,17 +362,17 @@ export default function Report() {
                 }}
                 style={s.ghostCta}
               >
-                <Text style={{ fontSize: 13, fontWeight: '800', color: '#3d5a2b' }}>🐕 동네 피드에 자랑하기</Text>
+                <Text style={{ fontSize: 15, fontWeight: '800', color: '#3d5a2b' }}>🐕 동네 피드에 자랑하기</Text>
               </Pressable>
               <Pressable onPress={share} style={s.ghostCta}>
-                <Text style={{ fontSize: 13, fontWeight: '800', color: '#3d453d' }}>↗ 텍스트로 공유</Text>
+                <Text style={{ fontSize: 15, fontWeight: '800', color: '#3d453d' }}>↗ 텍스트로 공유</Text>
               </Pressable>
               {report.status === 'completed' && report.runnerProfileId && (
                 <Pressable
                   onPress={() => router.push({ pathname: '/owner/review', params: { bid: bid!, rid: report.runnerProfileId!, rname: report.runnerName ?? '러너' } })}
                   style={s.ghostCta}
                 >
-                  <Text style={{ fontSize: 13, fontWeight: '800', color: '#a97c12' }}>★ {report.runnerName ?? ''} 러너 후기 남기기</Text>
+                  <Text style={{ fontSize: 15, fontWeight: '800', color: '#a97c12' }}>★ {report.runnerName ?? ''} 러너 후기 남기기</Text>
                 </Pressable>
               )}
               {/* 재예약 = 두 번째 예약이 첫 예약보다 중요하다 — 설정 전부 프리필, 시간만 고르면 끝 */}
@@ -389,13 +389,13 @@ export default function Report() {
                 }}
                 style={[s.cta, { backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#a9c47e' }]}
               >
-                <Text style={{ fontSize: 14, fontWeight: '900', color: '#3d5a2b' }}>⟳ 이대로 다시 예약</Text>
-                <Text style={{ fontSize: 10.5, color: colors.dim, marginTop: 2 }}>
+                <Text style={{ fontSize: 16, fontWeight: '900', color: '#3d5a2b' }}>⟳ 이대로 다시 예약</Text>
+                <Text style={{ fontSize: 12, color: colors.dim, marginTop: 2 }}>
                   같은 코스·거리{report.runnerName ? ` · ${report.runnerName} 러너 지명` : ''} — 시간만 고르면 돼요
                 </Text>
               </Pressable>
               <Pressable onPress={() => router.replace('/owner/home')} style={s.ghostCta}>
-                <Text style={{ fontSize: 13, fontWeight: '800', color: '#3d453d' }}>홈으로</Text>
+                <Text style={{ fontSize: 15, fontWeight: '800', color: '#3d453d' }}>홈으로</Text>
               </Pressable>
             </View>
           </>
@@ -408,8 +408,8 @@ export default function Report() {
 function HeroStat({ value, label }: { value: string; label: string }) {
   return (
     <View style={{ alignItems: 'center' }}>
-      <Text style={{ fontSize: 16, fontWeight: '900', color: '#fff' }}>{value}</Text>
-      <Text style={{ fontSize: 10, color: '#b8c4ae', marginTop: 3 }}>{label}</Text>
+      <Text style={{ fontSize: 18.5, fontWeight: '900', color: '#fff' }}>{value}</Text>
+      <Text style={{ fontSize: 11.5, color: '#b8c4ae', marginTop: 3 }}>{label}</Text>
     </View>
   );
 }
@@ -424,8 +424,8 @@ function GoalBar({ label, pct, detail }: { label: string; pct: number; detail: s
   return (
     <View style={{ marginTop: 10 }}>
       <Row style={{ justifyContent: 'space-between' }}>
-        <Text style={{ fontSize: 12, fontWeight: '700', color: '#3d453d' }}>{label}</Text>
-        <Text style={{ fontSize: 13, fontWeight: '900', color: pct >= 100 ? '#5a7a3c' : FOREST }}>{pct}%</Text>
+        <Text style={{ fontSize: 14, fontWeight: '700', color: '#3d453d' }}>{label}</Text>
+        <Text style={{ fontSize: 15, fontWeight: '900', color: pct >= 100 ? '#5a7a3c' : FOREST }}>{pct}%</Text>
       </Row>
       <View style={s.barTrack}>
         <Animated.View
@@ -436,7 +436,7 @@ function GoalBar({ label, pct, detail }: { label: string; pct: number; detail: s
           ]}
         />
       </View>
-      <Text style={{ fontSize: 10.5, color: colors.dim, marginTop: 4 }}>{detail}</Text>
+      <Text style={{ fontSize: 12, color: colors.dim, marginTop: 4 }}>{detail}</Text>
     </View>
   );
 }
@@ -448,14 +448,14 @@ const s = StyleSheet.create({
   heroDiv: { width: 1, backgroundColor: '#2c4034' },
   badgePill: { backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 4, paddingHorizontal: 10 },
   section: { backgroundColor: '#fff', paddingHorizontal: 12, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#DCD6C4' },
-  sectionTitle: { fontSize: 13.5, fontWeight: '900', color: FOREST, marginBottom: 6 },
+  sectionTitle: { fontSize: 15.5, fontWeight: '900', color: FOREST, marginBottom: 6 },
   barTrack: { height: 8, borderRadius: 99, backgroundColor: '#f0eee3', marginTop: 6, overflow: 'hidden' },
   barFill: { height: 8, borderRadius: 99, backgroundColor: colors.volt },
   certPill: { backgroundColor: '#e3f0c4', borderRadius: 99, paddingVertical: 4, paddingHorizontal: 9, alignSelf: 'center' },
   stampChip: { backgroundColor: '#eef4e0', borderRadius: 99, paddingVertical: 7, paddingHorizontal: 13 },
   photoSlot: { width: TILE, height: TILE * 0.6, backgroundColor: '#f4f2ea', alignItems: 'center', justifyContent: 'center' },
   emptyBox: { margin: 20, backgroundColor: '#f4f2ea', borderRadius: 18, padding: 26, alignItems: 'center' },
-  emptyText: { fontSize: 13, color: colors.dim, textAlign: 'center', lineHeight: 19 },
+  emptyText: { fontSize: 15, color: colors.dim, textAlign: 'center', lineHeight: 22 },
   ctaGhost: { marginTop: 14, backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 10, paddingHorizontal: 18 },
   cta: { backgroundColor: colors.volt, borderRadius: 18, alignItems: 'center', paddingVertical: 15, marginTop: 16 },
   ghostCta: { backgroundColor: '#fff', borderRadius: 16, alignItems: 'center', paddingVertical: 13, marginTop: 8, borderWidth: 1, borderColor: '#DCD6C4' },

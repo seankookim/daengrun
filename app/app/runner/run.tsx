@@ -313,12 +313,12 @@ export default function ActiveRun() {
         )}
         {maps && !lastPos && running && (
           <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ fontSize: 12.5, color: '#8fa093' }}>GPS 신호 잡는 중... (실외에서 몇 초 걸려요)</Text>
+            <Text style={{ fontSize: 14.5, color: '#8fa093' }}>GPS 신호 잡는 중... (실외에서 몇 초 걸려요)</Text>
           </View>
         )}
         <Row style={{ justifyContent: 'space-between', paddingHorizontal: 16 }}>
           <View style={s.statusBadge}>
-            <Text style={{ fontSize: 12, fontWeight: '700', color: colors.volt }}>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: colors.volt }}>
               {running ? `● ${dogName}와 러닝 중${gps ? ' · GPS' : ' · 데모 거리'}` : `${dogName}와 러닝 준비`}
             </Text>
           </View>
@@ -330,15 +330,15 @@ export default function ActiveRun() {
               </Text>
             </View>
             <Pressable onPress={toggleLayout} style={s.layoutBtn}>
-              <Text style={{ fontSize: 13, color: '#fff' }}>⧉</Text>
+              <Text style={{ fontSize: 15, color: '#fff' }}>⧉</Text>
             </Pressable>
           </Row>
         </Row>
 
         <View style={[s.trackWrap, layout === 'island' && { display: 'none' }]}>
           <Row style={{ justifyContent: 'space-between', marginBottom: 8 }}>
-            <Text style={{ fontSize: 12, color: colors.dim }}>{info?.routeName ?? req.place} 코스 · {targetKm}km</Text>
-            <Text style={{ fontSize: 12, fontWeight: '800', color: colors.ink }}>
+            <Text style={{ fontSize: 14, color: colors.dim }}>{info?.routeName ?? req.place} 코스 · {targetKm}km</Text>
+            <Text style={{ fontSize: 14, fontWeight: '800', color: colors.ink }}>
               남은 거리 {remaining.toFixed(1)}km
             </Text>
           </Row>
@@ -355,10 +355,10 @@ export default function ActiveRun() {
         {layout === 'island' && (
           <View style={{ marginBottom: 12 }}>
             <Row style={{ justifyContent: 'space-between', marginBottom: 7 }}>
-              <Text style={{ fontSize: 11.5, color: '#8fa093' }} numberOfLines={1}>
+              <Text style={{ fontSize: 13, color: '#8fa093' }} numberOfLines={1}>
                 {info?.routeName ?? req.place} 코스 · {targetKm}km
               </Text>
-              <Text style={{ fontSize: 11.5, fontWeight: '800', color: colors.cream }}>
+              <Text style={{ fontSize: 13, fontWeight: '800', color: colors.cream }}>
                 남은 거리 {remaining.toFixed(1)}km
               </Text>
             </Row>
@@ -374,12 +374,12 @@ export default function ActiveRun() {
         >
           <Monogram char={req.dogChar} bg={req.dogColor} size={36} />
           <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 13, fontWeight: '700', color: colors.cream }}>{dogName} 보호자님</Text>
-            <Text style={{ fontSize: 11, color: '#8fa093' }} numberOfLines={1}>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: colors.cream }}>{dogName} 보호자님</Text>
+            <Text style={{ fontSize: 12.5, color: '#8fa093' }} numberOfLines={1}>
               {info?.dogMemo ?? '채팅으로 이동'}
             </Text>
           </View>
-          <Text style={{ fontSize: 12, color: colors.volt }}>채팅 ›</Text>
+          <Text style={{ fontSize: 14, color: colors.volt }}>채팅 ›</Text>
         </Pressable>
 
         <Row style={{ justifyContent: 'space-around', marginVertical: 22 }}>
@@ -389,7 +389,7 @@ export default function ActiveRun() {
         </Row>
 
         <Row style={{ justifyContent: 'center', marginBottom: 14 }}>
-          <Text style={{ fontSize: 12, color: '#8fa093' }}>
+          <Text style={{ fontSize: 14, color: '#8fa093' }}>
             현재 예상 수익 <Text style={{ color: colors.volt, fontWeight: '800' }}>{payoutFor(km).toLocaleString()}원</Text> · 완주 시 {payoutFor(targetKm + 0.02).toLocaleString()}원
           </Text>
         </Row>
@@ -400,15 +400,15 @@ export default function ActiveRun() {
           <View style={{ flexDirection: 'row', gap: 7, marginBottom: 14 }}>
             {([['poop', '💩', '응가', '#FFCDB6'], ['snack', '🍖', '간식', '#F2DA96'], ['water', '💧', '물', '#C3D9AE']] as const).map(([k, g, label, bg]) => (
               <Pressable key={k} onPress={() => fireEvent(k)} style={[s.eventBtn, { backgroundColor: bg }]}>
-                <Text style={{ fontSize: 15 }}>{g}</Text>
-                <Text style={{ fontSize: 12, fontWeight: '800', color: colors.forest }}>
+                <Text style={{ fontSize: 17 }}>{g}</Text>
+                <Text style={{ fontSize: 14, fontWeight: '800', color: colors.forest }}>
                   {label}{evCounts[k] ? ` ${evCounts[k]}` : ''}
                 </Text>
               </Pressable>
             ))}
             <Pressable onPress={firePhoto} disabled={snapBusy} style={[s.eventBtn, { backgroundColor: '#DDF0A6' }, snapBusy && { opacity: 0.5 }]}>
-              <Text style={{ fontSize: 15 }}>📷</Text>
-              <Text style={{ fontSize: 12, fontWeight: '800', color: colors.forest }}>
+              <Text style={{ fontSize: 17 }}>📷</Text>
+              <Text style={{ fontSize: 14, fontWeight: '800', color: colors.forest }}>
                 {snapBusy ? '전송 중' : `스냅${evCounts.photo ? ` ${evCounts.photo}` : ''}`}
               </Text>
             </Pressable>
@@ -418,7 +418,7 @@ export default function ActiveRun() {
         <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
           {running && (
             <Pressable style={s.moreBtn} onPress={() => setEndSheet(true)}>
-              <Text style={{ fontSize: 14, color: '#8fa093', fontWeight: '900' }}>❙❙</Text>
+              <Text style={{ fontSize: 16, color: '#8fa093', fontWeight: '900' }}>❙❙</Text>
             </Pressable>
           )}
           <Pressable
@@ -430,7 +430,7 @@ export default function ActiveRun() {
               setRunning(true);
             }}
           >
-            <Text style={[{ fontSize: 17, fontWeight: '800', color: colors.ink }, df]}>
+            <Text style={[{ fontSize: 19.5, fontWeight: '800', color: colors.ink }, df]}>
               {running ? '러닝 종료' : '러닝 시작'}
             </Text>
           </Pressable>
@@ -442,8 +442,8 @@ export default function ActiveRun() {
         <Pressable style={s.sheetBackdrop} onPress={() => setEndSheet(false)} />
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
-          <Text style={{ fontSize: 17, fontWeight: '900', color: colors.cream }}>어떤 이유로 종료하나요?</Text>
-          <Text style={{ fontSize: 11.5, color: '#8fa093', marginTop: 4 }}>
+          <Text style={{ fontSize: 19.5, fontWeight: '900', color: colors.cream }}>어떤 이유로 종료하나요?</Text>
+          <Text style={{ fontSize: 13, color: '#8fa093', marginTop: 4 }}>
             지금까지 {km.toFixed(2)}km · 이유에 따라 정산이 달라져요
           </Text>
 
@@ -470,7 +470,7 @@ export default function ActiveRun() {
           />
 
           <Pressable style={s.sheetCancel} onPress={() => setEndSheet(false)}>
-            <Text style={{ fontSize: 13, fontWeight: '700', color: '#8fa093' }}>계속 달릴게요</Text>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: '#8fa093' }}>계속 달릴게요</Text>
           </Pressable>
         </View>
       </Modal>
@@ -483,11 +483,11 @@ function EndOption({ title, desc, pay, accent, onPress }: { title: string; desc:
     <Pressable onPress={onPress} style={s.endOption}>
       <View style={[s.endRail, { backgroundColor: accent }]} />
       <View style={{ flex: 1 }}>
-        <Text style={{ fontSize: 14.5, fontWeight: '900', color: colors.cream }}>{title}</Text>
-        <Text style={{ fontSize: 11, color: '#8fa093', marginTop: 2 }}>{desc}</Text>
-        <Text style={{ fontSize: 11.5, fontWeight: '800', color: accent, marginTop: 5 }}>{pay}</Text>
+        <Text style={{ fontSize: 16.5, fontWeight: '900', color: colors.cream }}>{title}</Text>
+        <Text style={{ fontSize: 12.5, color: '#8fa093', marginTop: 2 }}>{desc}</Text>
+        <Text style={{ fontSize: 13, fontWeight: '800', color: accent, marginTop: 5 }}>{pay}</Text>
       </View>
-      <Text style={{ fontSize: 15, color: '#8fa093' }}>›</Text>
+      <Text style={{ fontSize: 17, color: '#8fa093' }}>›</Text>
     </Pressable>
   );
 }
@@ -498,7 +498,7 @@ function MiniStat({ value, label, big }: { value: string; label: string; big?: b
       <Text style={{ fontSize: big ? 44 : 28, fontWeight: '900', color: big ? colors.volt : colors.cream }}>
         {value}
       </Text>
-      <Text style={{ fontSize: 11, color: '#8fa093', marginTop: 2 }}>{label}</Text>
+      <Text style={{ fontSize: 12.5, color: '#8fa093', marginTop: 2 }}>{label}</Text>
     </View>
   );
 }
@@ -509,7 +509,7 @@ const s = StyleSheet.create({
   statusBadge: { backgroundColor: colors.ink, borderRadius: 99, paddingVertical: 8, paddingHorizontal: 14 },
   camStatus: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#fff', borderRadius: 99, paddingVertical: 8, paddingHorizontal: 12 },
   recDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#ff3b30' },
-  camText: { fontSize: 10, fontWeight: '700', color: colors.ink },
+  camText: { fontSize: 11.5, fontWeight: '700', color: colors.ink },
   trackWrap: { position: 'absolute', left: 20, right: 20, bottom: 24 },
   track: { height: 10, borderRadius: 99, backgroundColor: '#d5d8c6' },
   trackFill: { height: 10, borderRadius: 99, backgroundColor: colors.tang },

@@ -10,7 +10,7 @@ export default function RequestDetail() {
   return (
     <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingTop: 56, paddingBottom: 40 }}>
       <Row style={{ justifyContent: 'space-between', marginBottom: 14 }}>
-        <Pressable onPress={() => router.back()}><Text style={{ fontSize: 24 }}>‹</Text></Pressable>
+        <Pressable onPress={() => router.back()}><Text style={{ fontSize: 27.5 }}>‹</Text></Pressable>
         <Text style={text.h2}>요청 상세</Text>
         <View style={{ width: 24 }} />
       </Row>
@@ -19,7 +19,7 @@ export default function RequestDetail() {
         <Row style={{ gap: 14 }}>
           <Monogram char={req.dogChar} bg={req.dogColor} size={60} />
           <View>
-            <Text style={{ fontSize: 17, fontWeight: '700' }}>{req.dogName}</Text>
+            <Text style={{ fontSize: 19.5, fontWeight: '700' }}>{req.dogName}</Text>
             <Text style={[text.dim, { marginTop: 3 }]}>
               {req.breed} · 3살 · {req.weightKg}kg · 중성화 O
             </Text>
@@ -43,7 +43,7 @@ export default function RequestDetail() {
         ].map(([k, v]) => (
           <Row key={k} style={{ justifyContent: 'space-between', marginTop: k === '일시' ? 0 : 8 }}>
             <Text style={text.dim}>{k}</Text>
-            <Text style={{ fontSize: 13, fontWeight: '700' }}>{v}</Text>
+            <Text style={{ fontSize: 15, fontWeight: '700' }}>{v}</Text>
           </Row>
         ))}
       </Card>
@@ -51,7 +51,7 @@ export default function RequestDetail() {
       <Card style={{ marginTop: 10, backgroundColor: '#faf8f0' }}>
         <Row style={{ justifyContent: 'space-between' }}>
           <Text style={text.dim}>예상 수익 (수수료 20% 제외)</Text>
-          <Text style={{ fontSize: 22, fontWeight: '900', color: colors.voltDeep }}>
+          <Text style={{ fontSize: 25.5, fontWeight: '900', color: colors.voltDeep }}>
             {req.payout.toLocaleString()}원
           </Text>
         </Row>

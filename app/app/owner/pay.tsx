@@ -13,11 +13,11 @@ export default function Pay() {
       <Text style={[text.h2, { textAlign: 'center', marginBottom: 16 }]}>러닝 완료</Text>
 
       <Card dark style={{ alignItems: 'center', padding: 26 }}>
-        <Text style={{ fontSize: 12, color: '#8fa093', letterSpacing: 2 }}>TODAY'S RUN</Text>
-        <Text style={{ fontSize: 48, fontWeight: '900', color: colors.volt, marginVertical: 8 }}>
+        <Text style={{ fontSize: 14, color: '#8fa093', letterSpacing: 2 }}>TODAY'S RUN</Text>
+        <Text style={{ fontSize: 55, fontWeight: '900', color: colors.volt, marginVertical: 8 }}>
           {actualKm.toFixed(2)} km
         </Text>
-        <Text style={{ fontSize: 13, color: '#8fa093' }}>34분 12초 · 평균 페이스 6'49"</Text>
+        <Text style={{ fontSize: 15, color: '#8fa093' }}>34분 12초 · 평균 페이스 6'49"</Text>
         <Row style={{ gap: 8, marginTop: 16 }}>
           <Badge label="배변 2회" tone="ink" />
           <Badge label="물 급여 완료" tone="ink" />
@@ -43,11 +43,11 @@ export default function Pay() {
         <View style={{ height: 1, backgroundColor: colors.line, marginVertical: 12 }} />
         <Row style={{ justifyContent: 'space-between' }}>
           <Text style={{ fontWeight: '700' }}>결제금액</Text>
-          <Text style={{ fontSize: 22, fontWeight: '900' }}>
+          <Text style={{ fontSize: 25.5, fontWeight: '900' }}>
             {fmtWon(pricing.baseFare + Math.round(actualKm * pricing.perKm) + addonSum)}
           </Text>
         </Row>
-        <Text style={[text.dim, { marginTop: 8, fontSize: 11 }]}>카카오페이 ···· 3841</Text>
+        <Text style={[text.dim, { marginTop: 8, fontSize: 12.5 }]}>카카오페이 ···· 3841</Text>
       </Card>
 
       <Btn label="결제하고 리뷰 남기기" variant="volt" style={{ marginTop: 16 }} onPress={() => router.push('/owner/review')} />

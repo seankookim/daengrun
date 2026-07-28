@@ -121,21 +121,21 @@ export default function RunnerHome() {
           <Pressable onPress={() => openJob(current)} style={s.currentCard}>
             <Row style={{ justifyContent: 'space-between' }}>
               <View style={[s.stagePill, { backgroundColor: '#fff' }]}>
-                <Text style={{ fontSize: 10, fontWeight: '900', color: STAGE[current.rawStatus]?.color ?? FOREST }}>
+                <Text style={{ fontSize: 11.5, fontWeight: '900', color: STAGE[current.rawStatus]?.color ?? FOREST }}>
                   ● {STAGE[current.rawStatus]?.label ?? current.rawStatus}
                 </Text>
               </View>
-              <Text style={{ fontSize: 11.5, color: '#b8c4ae' }}>{current.when}</Text>
+              <Text style={{ fontSize: 13, color: '#b8c4ae' }}>{current.when}</Text>
             </Row>
-            <Text style={{ fontSize: 18, fontWeight: '900', color: '#fff', marginTop: 10 }}>
+            <Text style={{ fontSize: 20.5, fontWeight: '900', color: '#fff', marginTop: 10 }}>
               {current.dogName} · {current.km}km 러닝
             </Text>
-            <Text style={{ fontSize: 12, color: '#b8c4ae', marginTop: 3 }}>
+            <Text style={{ fontSize: 14, color: '#b8c4ae', marginTop: 3 }}>
               예상 수익 +{current.payout.toLocaleString()}원
             </Text>
             <Row style={{ gap: 8, marginTop: 12 }}>
               <View style={[s.currentBtn, { backgroundColor: colors.volt, flex: 1.4 }]}>
-                <Text style={{ fontSize: 12.5, fontWeight: '900', color: FOREST }}>
+                <Text style={{ fontSize: 14.5, fontWeight: '900', color: FOREST }}>
                   {STAGE[current.rawStatus]?.action ?? '이어서 진행 ›'}
                 </Text>
               </View>
@@ -144,7 +144,7 @@ export default function RunnerHome() {
                   onPress={(e) => { e.stopPropagation(); openNaverRoute(); }}
                   style={[s.currentBtn, { backgroundColor: '#1d3023', flex: 1 }]}
                 >
-                  <Text style={{ fontSize: 12, fontWeight: '800', color: '#fff' }}>➤ 픽업 길찾기</Text>
+                  <Text style={{ fontSize: 14, fontWeight: '800', color: '#fff' }}>➤ 픽업 길찾기</Text>
                 </Pressable>
               )}
             </Row>
@@ -163,13 +163,13 @@ export default function RunnerHome() {
         {/* ---------- 러닝 가능 시간 — 홈에서 바로 열고 닫기 ---------- */}
         <View style={s.availCard}>
           <Row style={{ justifyContent: 'space-between' }}>
-            <Text style={{ fontSize: 13, fontWeight: '900', color: FOREST }}>러닝 가능 시간</Text>
+            <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST }}>러닝 가능 시간</Text>
             <Pressable onPress={() => router.push('/runner/availability')}>
-              <Text style={{ fontSize: 11.5, fontWeight: '800', color: '#5a7a3c' }}>시간 조정 ›</Text>
+              <Text style={{ fontSize: 13, fontWeight: '800', color: '#5a7a3c' }}>시간 조정 ›</Text>
             </Pressable>
           </Row>
           {!avail ? (
-            <Text style={{ fontSize: 11.5, color: colors.dim, marginTop: 10 }}>불러오는 중...</Text>
+            <Text style={{ fontSize: 13, color: colors.dim, marginTop: 10 }}>불러오는 중...</Text>
           ) : (
             <>
               <Row style={{ gap: 6, marginTop: 12 }}>
@@ -178,17 +178,17 @@ export default function RunnerHome() {
                   const on = !!rule;
                   return (
                     <Pressable key={wd} onPress={() => toggleDay(wd)} style={[s.availDay, on && s.availDayOn]}>
-                      <Text style={{ fontSize: 15, fontWeight: '900', color: on ? FOREST : '#b3b3ab' }}>
+                      <Text style={{ fontSize: 17, fontWeight: '900', color: on ? FOREST : '#b3b3ab' }}>
                         {DAY_NAME[wd]}
                       </Text>
-                      <Text style={{ fontSize: 8.5, fontWeight: '700', color: on ? '#4a6d1f' : '#c2c0b4', marginTop: 2 }}>
+                      <Text style={{ fontSize: 10, fontWeight: '700', color: on ? '#4a6d1f' : '#c2c0b4', marginTop: 2 }}>
                         {rule ? `${hh(rule.startMin)}–${hh(rule.endMin)}` : '쉼'}
                       </Text>
                     </Pressable>
                   );
                 })}
               </Row>
-              <Text style={{ fontSize: 10.5, color: colors.dim, marginTop: 9 }}>
+              <Text style={{ fontSize: 12, color: colors.dim, marginTop: 9 }}>
                 요일을 탭하면 바로 열리고 닫혀요 (기본 06–22시) · 보호자 예약 화면에 즉시 반영
               </Text>
             </>
@@ -198,9 +198,9 @@ export default function RunnerHome() {
         {/* ---------- 드랍 트레일 (실카운트) — 지그재그 체크포인트 (모던 목업) ---------- */}
         <Pressable onPress={() => router.push('/runner/rewards')} style={s.trailCard}>
           <View style={s.trailTab}>
-            <Text style={{ fontSize: 10.5, fontWeight: '900', color: colors.volt }}>▣ 보급 드랍 트레일</Text>
+            <Text style={{ fontSize: 12, fontWeight: '900', color: colors.volt }}>▣ 보급 드랍 트레일</Text>
           </View>
-          <Text style={{ fontSize: 11, color: '#4a6d1f', textAlign: 'right' }}>누적 {rs.totalRuns}회 ›</Text>
+          <Text style={{ fontSize: 12.5, color: '#4a6d1f', textAlign: 'right' }}>누적 {rs.totalRuns}회 ›</Text>
 
           {/* 지그재그 다이아몬드 길 — i<cycle5 지남(볼트), i===cycle5 다음(화이트+볼트링), 끝 = 보급상자 */}
           <Row style={{ alignItems: 'center', marginTop: 16, height: 62 }}>
@@ -229,11 +229,11 @@ export default function RunnerHome() {
               borderWidth: 2, borderColor: cycle5 === 0 && rs.totalRuns > 0 ? '#7FA818' : '#e4ecc9',
               shadowColor: '#0F1D13', shadowOpacity: 0.12, shadowRadius: 6, shadowOffset: { width: 0, height: 3 },
             }}>
-              <Text style={{ fontSize: 15 }}>▣</Text>
+              <Text style={{ fontSize: 17 }}>▣</Text>
             </View>
           </Row>
 
-          <Text style={{ fontSize: 13, color: FOREST, fontWeight: '900', marginTop: 12 }}>
+          <Text style={{ fontSize: 15, color: FOREST, fontWeight: '900', marginTop: 12 }}>
             {rs.totalRuns === 0
               ? '첫 러닝을 완료하면 트레일이 시작돼요'
               : cycle5 === 0
@@ -242,12 +242,12 @@ export default function RunnerHome() {
           </Text>
           {/* 픽 드랍 (10회) 미니 진행바 — 깃발 */}
           <Row style={{ alignItems: 'center', gap: 8, marginTop: 9 }}>
-            <Text style={{ fontSize: 10, color: '#4a6d1f' }}>픽 드랍</Text>
+            <Text style={{ fontSize: 11.5, color: '#4a6d1f' }}>픽 드랍</Text>
             <View style={s.flagTrack}>
               <View style={[s.flagFill, { width: `${(cycle10 / 10) * 100}%` }]} />
             </View>
-            <Text style={{ fontSize: 10.5 }}>⚑</Text>
-            <Text style={{ fontSize: 10, color: '#4a6d1f', fontWeight: '800' }}>{cycle10}/10</Text>
+            <Text style={{ fontSize: 12 }}>⚑</Text>
+            <Text style={{ fontSize: 11.5, color: '#4a6d1f', fontWeight: '800' }}>{cycle10}/10</Text>
           </Row>
         </Pressable>
 
@@ -262,7 +262,7 @@ export default function RunnerHome() {
           if (!t) {
             return (
               <View style={s.tierCard}>
-                <Text style={{ fontSize: 12.5, fontWeight: '900', color: FOREST }}>🏅 마스터 러너 — 최저 수수료 15%</Text>
+                <Text style={{ fontSize: 14.5, fontWeight: '900', color: FOREST }}>🏅 마스터 러너 — 최저 수수료 15%</Text>
               </View>
             );
           }
@@ -271,15 +271,15 @@ export default function RunnerHome() {
           return (
             <View style={s.tierCard}>
               <Row style={{ justifyContent: 'space-between' }}>
-                <Text style={{ fontSize: 12.5, fontWeight: '900', color: FOREST }}>
+                <Text style={{ fontSize: 14.5, fontWeight: '900', color: FOREST }}>
                   {t.next}까지 러닝 <Text style={{ color: '#d84a2f' }}>{left}회</Text>
                 </Text>
-                <Text style={{ fontSize: 11.5, fontWeight: '800', color: '#5a7a3c' }}>수수료 20% → {t.fee}</Text>
+                <Text style={{ fontSize: 13, fontWeight: '800', color: '#5a7a3c' }}>수수료 20% → {t.fee}</Text>
               </Row>
               <View style={s.tierTrack}>
                 <View style={[s.tierFill, { width: `${pct * 100}%` }]} />
               </View>
-              <Text style={{ fontSize: 10, color: colors.dim, marginTop: 5 }}>
+              <Text style={{ fontSize: 11.5, color: colors.dim, marginTop: 5 }}>
                 같은 수익 기준 정산액이 늘어나요 · 승급 기준은 파일럿 중 조정될 수 있어요
               </Text>
             </View>
@@ -290,16 +290,16 @@ export default function RunnerHome() {
         {inbox.length > 0 ? (
           <Pressable onPress={() => router.push('/runner/requests')} style={s.inboxBanner}>
             <View style={{ backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 3, paddingHorizontal: 8 }}>
-              <Text style={{ fontSize: 9, fontWeight: '900', color: FOREST }}>● LIVE</Text>
+              <Text style={{ fontSize: 10.5, fontWeight: '900', color: FOREST }}>● LIVE</Text>
             </View>
-            <Text style={{ flex: 1, fontSize: 13, fontWeight: '800', color: '#fff' }} numberOfLines={1}>
+            <Text style={{ flex: 1, fontSize: 15, fontWeight: '800', color: '#fff' }} numberOfLines={1}>
               새 요청 {inbox.length}건 — {inbox[0].dogName} {inbox[0].km}km{inbox[0].directed ? ' (지명!)' : ''}
             </Text>
-            <Text style={{ fontSize: 13, color: colors.volt, fontWeight: '900' }}>응답 ›</Text>
+            <Text style={{ fontSize: 15, color: colors.volt, fontWeight: '900' }}>응답 ›</Text>
           </Pressable>
         ) : (
           <View style={s.emptyInbox}>
-            <Text style={{ fontSize: 12, color: colors.dim, textAlign: 'center' }}>
+            <Text style={{ fontSize: 14, color: colors.dim, textAlign: 'center' }}>
               {rs.online ? '지금은 새 요청이 없어요 — 오는 대로 여기에 떠요' : '오프라인 상태 — 켜야 요청을 받아요'}
             </Text>
           </View>
@@ -311,19 +311,19 @@ export default function RunnerHome() {
             <Row style={{ justifyContent: 'space-between', marginTop: 18, marginBottom: 8 }}>
               <Text style={s.sectionTitle}>다음 예약</Text>
               <Pressable onPress={() => router.push('/runner/calendar')}>
-                <Text style={{ fontSize: 11.5, color: colors.dim, fontWeight: '700' }}>캘린더 ›</Text>
+                <Text style={{ fontSize: 13, color: colors.dim, fontWeight: '700' }}>캘린더 ›</Text>
               </Pressable>
             </Row>
             {upcoming.map((j) => (
               <Pressable key={j.bookingId} onPress={() => openJob(j)} style={s.jobRow}>
                 <View style={s.jobRail} />
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 12.5, fontWeight: '800', color: '#5d655d' }}>{j.when}</Text>
-                  <Text style={{ fontSize: 14, fontWeight: '900', color: FOREST, marginTop: 2 }}>
+                  <Text style={{ fontSize: 14.5, fontWeight: '800', color: '#49524a' }}>{j.when}</Text>
+                  <Text style={{ fontSize: 16, fontWeight: '900', color: FOREST, marginTop: 2 }}>
                     {j.dogName} · {j.km}km
                   </Text>
                 </View>
-                <Text style={{ fontSize: 13, fontWeight: '900', color: '#5a7a3c' }}>+{j.payout.toLocaleString()}</Text>
+                <Text style={{ fontSize: 15, fontWeight: '900', color: '#5a7a3c' }}>+{j.payout.toLocaleString()}</Text>
               </Pressable>
             ))}
           </>
@@ -335,19 +335,19 @@ export default function RunnerHome() {
             <Row style={{ justifyContent: 'space-between', marginTop: 18, marginBottom: 8 }}>
               <Text style={s.sectionTitle}>최근 완료</Text>
               <Pressable onPress={() => router.push('/runner/earnings')}>
-                <Text style={{ fontSize: 11.5, color: colors.dim, fontWeight: '700' }}>수익 상세 ›</Text>
+                <Text style={{ fontSize: 13, color: colors.dim, fontWeight: '700' }}>수익 상세 ›</Text>
               </Pressable>
             </Row>
             {past.map((j) => (
               <View key={j.bookingId} style={[s.jobRow, { opacity: 0.75 }]}>
                 <View style={[s.jobRail, { backgroundColor: '#c9ccc0' }]} />
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 12.5, fontWeight: '800', color: '#5d655d' }}>{j.when}</Text>
-                  <Text style={{ fontSize: 14, fontWeight: '900', color: FOREST, marginTop: 2 }}>
+                  <Text style={{ fontSize: 14.5, fontWeight: '800', color: '#49524a' }}>{j.when}</Text>
+                  <Text style={{ fontSize: 16, fontWeight: '900', color: FOREST, marginTop: 2 }}>
                     {j.dogName} · {j.km}km · 완료
                   </Text>
                 </View>
-                <Text style={{ fontSize: 13, fontWeight: '900', color: '#75806f' }}>+{j.payout.toLocaleString()}</Text>
+                <Text style={{ fontSize: 15, fontWeight: '900', color: '#75806f' }}>+{j.payout.toLocaleString()}</Text>
               </View>
             ))}
           </>
@@ -411,7 +411,7 @@ const s = StyleSheet.create({
     backgroundColor: FOREST, borderRadius: 16, padding: 14,
   },
   emptyInbox: { marginTop: 12, backgroundColor: '#f4f2ea', borderRadius: 14, padding: 14 },
-  sectionTitle: { fontSize: 14, fontWeight: '900', color: FOREST },
+  sectionTitle: { fontSize: 16, fontWeight: '900', color: FOREST },
   jobRow: {
     flexDirection: 'row', alignItems: 'center', gap: 11, backgroundColor: '#fff',
     borderRadius: 14, padding: 12, borderWidth: 1, borderColor: '#DCD6C4', marginBottom: 7,

@@ -47,23 +47,23 @@ export default function FitnessHub() {
     <View style={{ flex: 1, backgroundColor: colors.cream }}>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingTop: 56, paddingBottom: 40 }}>
         <Row style={{ justifyContent: 'space-between' }}>
-          <Pressable onPress={() => router.back()} style={s.backBtn}><Text style={{ fontSize: 18 }}>‹</Text></Pressable>
-          <Text style={[{ fontSize: 20, fontWeight: '900', color: FOREST }, df]}>체력 리포트</Text>
+          <Pressable onPress={() => router.back()} style={s.backBtn}><Text style={{ fontSize: 20.5 }}>‹</Text></Pressable>
+          <Text style={[{ fontSize: 23, fontWeight: '900', color: FOREST }, df]}>체력 리포트</Text>
           <View style={{ width: 40 }} />
         </Row>
 
         {/* ---------- weekly ring hero ---------- */}
         <View style={s.hero}>
-          <Text style={{ fontSize: 12, color: '#b8c4ae' }}>{fit?.dogName ?? '반려견'}의 이번 주</Text>
+          <Text style={{ fontSize: 14, color: '#b8c4ae' }}>{fit?.dogName ?? '반려견'}의 이번 주</Text>
           <View style={{ alignItems: 'center', marginTop: 10 }}>
             <Ring pct={pct} size={190} trackColor="#233827">
               <View style={{ alignItems: 'center' }}>
-                <Text style={{ fontSize: 40, fontWeight: '900', color: colors.tang, lineHeight: 44 }}>
+                <Text style={{ fontSize: 46, fontWeight: '900', color: colors.tang, lineHeight: 50.5 }}>
                   {fit?.weekKm ?? 0}
-                  <Text style={{ fontSize: 15, color: '#b8c4ae' }}> km</Text>
+                  <Text style={{ fontSize: 17, color: '#b8c4ae' }}> km</Text>
                 </Text>
-                <Text style={{ fontSize: 12.5, color: colors.volt, marginTop: 2 }}>/ {fit?.goalKm ?? '—'}km 목표</Text>
-                <Text style={{ fontSize: 11, color: '#b8c4ae', marginTop: 4 }}>{Math.round(pct * 100)}% 달성</Text>
+                <Text style={{ fontSize: 14.5, color: colors.volt, marginTop: 2 }}>/ {fit?.goalKm ?? '—'}km 목표</Text>
+                <Text style={{ fontSize: 12.5, color: '#b8c4ae', marginTop: 4 }}>{Math.round(pct * 100)}% 달성</Text>
               </View>
             </Ring>
           </View>
@@ -81,20 +81,20 @@ export default function FitnessHub() {
           <Row style={{ justifyContent: 'space-between' }}>
             <View>
               <Text style={s.cardTitle}>체력 나이</Text>
-              <Text style={{ fontSize: 11.5, color: colors.dim, marginTop: 2 }}>
+              <Text style={{ fontSize: 13, color: colors.dim, marginTop: 2 }}>
                 꾸준한 러닝이 체력 나이를 젊게 유지해요
               </Text>
             </View>
-            <Text style={{ fontSize: 28, fontWeight: '900', color: colors.tang }}>
+            <Text style={{ fontSize: 32, fontWeight: '900', color: colors.tang }}>
               {fit?.fitnessAge != null ? `${fit.fitnessAge}살` : '측정 전'}
             </Text>
           </Row>
           {fit?.fitnessAge == null ? (
-            <Text style={{ fontSize: 10.5, color: colors.dim, marginTop: 8 }}>
+            <Text style={{ fontSize: 12, color: colors.dim, marginTop: 8 }}>
               반려견 프로필에 생일을 등록하면 측정돼요
             </Text>
           ) : (
-            <Text style={{ fontSize: 10.5, color: colors.dim, marginTop: 8 }}>
+            <Text style={{ fontSize: 12, color: colors.dim, marginTop: 8 }}>
               베타 산식: 실제 나이 − 최근 4주 활동량·연속 기록 보정 (수의 검증 산식으로 교체 예정)
             </Text>
           )}
@@ -106,8 +106,8 @@ export default function FitnessHub() {
           <Row style={{ justifyContent: 'space-between', marginTop: 8 }}>
             <Pressable onPress={() => bumpGoal(-1)} style={s.goalBtn}><Text style={s.goalBtnText}>−</Text></Pressable>
             <View style={{ alignItems: 'center' }}>
-              <Text style={{ fontSize: 26, fontWeight: '900', color: FOREST }}>{fit?.goalKm ?? '—'}km</Text>
-              <Text style={{ fontSize: 10.5, color: colors.dim, marginTop: 2 }}>홈 화면 링에 바로 반영돼요</Text>
+              <Text style={{ fontSize: 30, fontWeight: '900', color: FOREST }}>{fit?.goalKm ?? '—'}km</Text>
+              <Text style={{ fontSize: 12, color: colors.dim, marginTop: 2 }}>홈 화면 링에 바로 반영돼요</Text>
             </View>
             <Pressable onPress={() => bumpGoal(1)} style={s.goalBtn}><Text style={s.goalBtnText}>＋</Text></Pressable>
           </Row>
@@ -122,9 +122,9 @@ export default function FitnessHub() {
               const isNow = i === 7;
               return (
                 <View key={w.label} style={{ flex: 1, alignItems: 'center' }}>
-                  <Text style={{ fontSize: 8.5, color: colors.dim, marginBottom: 3 }}>{w.km > 0 ? w.km : ''}</Text>
+                  <Text style={{ fontSize: 10, color: colors.dim, marginBottom: 3 }}>{w.km > 0 ? w.km : ''}</Text>
                   <View style={{ width: '68%', height: h, borderRadius: 6, backgroundColor: isNow ? colors.volt : '#dde8d4' }} />
-                  <Text style={{ fontSize: 8, color: isNow ? '#4a6d1f' : colors.dim, marginTop: 4, fontWeight: isNow ? '800' : '400' }}>
+                  <Text style={{ fontSize: 9, color: isNow ? '#4a6d1f' : colors.dim, marginTop: 4, fontWeight: isNow ? '800' : '400' }}>
                     {isNow ? '이번주' : `${7 - i}주`}
                   </Text>
                 </View>
@@ -134,10 +134,10 @@ export default function FitnessHub() {
         </View>
 
         {/* ---------- 최근 러닝 → 리포트 ---------- */}
-        <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST, marginTop: 20, marginBottom: 8 }}>최근 러닝</Text>
+        <Text style={{ fontSize: 17, fontWeight: '900', color: FOREST, marginTop: 20, marginBottom: 8 }}>최근 러닝</Text>
         {(fit?.recent ?? []).length === 0 && (
           <View style={s.emptyBox}>
-            <Text style={{ fontSize: 13, color: colors.dim, textAlign: 'center', lineHeight: 19 }}>
+            <Text style={{ fontSize: 15, color: colors.dim, textAlign: 'center', lineHeight: 22 }}>
               아직 완료된 러닝이 없어요{'\n'}첫 러닝을 예약하면 여기부터 채워져요
             </Text>
           </View>
@@ -150,12 +150,12 @@ export default function FitnessHub() {
           >
             <View style={s.runRail} />
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 13.5, fontWeight: '800', color: FOREST }}>{r.when}</Text>
-              <Text style={{ fontSize: 11.5, color: colors.dim, marginTop: 2 }}>
+              <Text style={{ fontSize: 15.5, fontWeight: '800', color: FOREST }}>{r.when}</Text>
+              <Text style={{ fontSize: 13, color: colors.dim, marginTop: 2 }}>
                 {r.km}km · {Math.floor(r.durationSec / 60)}분 · 리포트 보기 ›
               </Text>
             </View>
-            <Text style={{ fontSize: 15, fontWeight: '900', color: '#5a7a3c' }}>{r.km}km</Text>
+            <Text style={{ fontSize: 17, fontWeight: '900', color: '#5a7a3c' }}>{r.km}km</Text>
           </Pressable>
         ))}
       </ScrollView>
@@ -166,8 +166,8 @@ export default function FitnessHub() {
 function HeroStat({ value, label }: { value: string; label: string }) {
   return (
     <View style={{ alignItems: 'center' }}>
-      <Text style={{ fontSize: 16, fontWeight: '900', color: '#fff' }}>{value}</Text>
-      <Text style={{ fontSize: 10, color: '#b8c4ae', marginTop: 3 }}>{label}</Text>
+      <Text style={{ fontSize: 18.5, fontWeight: '900', color: '#fff' }}>{value}</Text>
+      <Text style={{ fontSize: 11.5, color: '#b8c4ae', marginTop: 3 }}>{label}</Text>
     </View>
   );
 }
@@ -177,9 +177,9 @@ const s = StyleSheet.create({
   hero: { backgroundColor: FOREST, borderRadius: 22, padding: 18, marginTop: 18 },
   heroDiv: { width: 1, backgroundColor: '#2c4034' },
   card: { backgroundColor: '#fff', borderRadius: 18, padding: 15, borderWidth: 1, borderColor: '#DCD6C4', marginTop: 12 },
-  cardTitle: { fontSize: 13.5, fontWeight: '900', color: FOREST },
+  cardTitle: { fontSize: 15.5, fontWeight: '900', color: FOREST },
   goalBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#eef4e0', alignItems: 'center', justifyContent: 'center' },
-  goalBtnText: { fontSize: 20, fontWeight: '900', color: '#4a6d1f' },
+  goalBtnText: { fontSize: 23, fontWeight: '900', color: '#4a6d1f' },
   emptyBox: { backgroundColor: '#f4f2ea', borderRadius: 16, padding: 16, alignItems: 'center' },
   runRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#fff',

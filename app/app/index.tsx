@@ -85,10 +85,10 @@ export default function RoleSelect() {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.ink, padding: 26, justifyContent: 'flex-end' },
   hero: { marginBottom: 36 },
-  big: { fontSize: 56, lineHeight: 60, fontWeight: '900', color: colors.volt },
-  sub: { marginTop: 16, fontSize: 15, lineHeight: 24, color: '#b9b6a4' },
+  big: { fontSize: 64.5, lineHeight: 69, fontWeight: '900', color: colors.volt },
+  sub: { marginTop: 16, fontSize: 17, lineHeight: 27.5, color: '#b9b6a4' },
   roleCard: { borderRadius: 18, padding: 16, borderWidth: 2, borderColor: 'transparent' },
   sel: { borderColor: colors.tang },
-  roleTitle: { fontSize: 24, fontWeight: '800' },
-  roleDesc: { fontSize: 13, marginTop: 4, opacity: 0.75 },
+  roleTitle: { fontSize: 27.5, fontWeight: '800' },
+  roleDesc: { fontSize: 15, marginTop: 4, opacity: 0.75 },
 });

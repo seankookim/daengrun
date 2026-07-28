@@ -85,13 +85,13 @@ export default function Schedule() {
         <View style={{ paddingHorizontal: 12 }}>
         {/* header */}
         <Row style={{ justifyContent: 'space-between' }}>
-          <Pressable onPress={() => router.back()} style={s.circleBtn}><Text style={{ fontSize: 18 }}>‹</Text></Pressable>
+          <Pressable onPress={() => router.back()} style={s.circleBtn}><Text style={{ fontSize: 20.5 }}>‹</Text></Pressable>
           <View style={{ alignItems: 'center' }}>
-            <Text style={{ fontSize: 19, fontWeight: '900', color: FOREST }}>내 일정</Text>
-            <Text style={{ fontSize: 11, color: colors.dim, marginTop: 1 }}>실예약 {liveBookings.length}건</Text>
+            <Text style={{ fontSize: 22, fontWeight: '900', color: FOREST }}>내 일정</Text>
+            <Text style={{ fontSize: 12.5, color: colors.dim, marginTop: 1 }}>실예약 {liveBookings.length}건</Text>
           </View>
           <Pressable onPress={() => router.push('/owner/request')} style={[s.circleBtn, { backgroundColor: FOREST }]}>
-            <Text style={{ fontSize: 17, color: colors.volt }}>＋</Text>
+            <Text style={{ fontSize: 19.5, color: colors.volt }}>＋</Text>
           </Pressable>
         </Row>
 
@@ -101,7 +101,7 @@ export default function Schedule() {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12 }} contentContainerStyle={{ gap: 8 }}>
           {FILTERS.map((f, i) => (
             <Pressable key={f.label} onPress={() => setFilterIdx(i)} style={[s.filter, filterIdx === i && { backgroundColor: FOREST, borderColor: FOREST }]}>
-              <Text style={{ fontSize: 12, fontWeight: '700', color: filterIdx === i ? '#fff' : '#3d453d' }}>{f.label}</Text>
+              <Text style={{ fontSize: 14, fontWeight: '700', color: filterIdx === i ? '#fff' : '#3d453d' }}>{f.label}</Text>
             </Pressable>
           ))}
         </ScrollView>
@@ -111,14 +111,14 @@ export default function Schedule() {
         {/* agenda — 풀와이드 밴드 (모던 패스: 카드 수프 → 엣지-투-엣지) */}
         {visible.length === 0 && (
           <View style={s.emptyBox}>
-            <Text style={{ fontSize: 13, color: colors.dim, textAlign: 'center', lineHeight: 20 }}>
+            <Text style={{ fontSize: 15, color: colors.dim, textAlign: 'center', lineHeight: 23 }}>
               {liveBookings.length === 0 ? '예정된 러닝이 없어요\n홈에서 슬라이드로 예약해보세요' : '이 조건의 일정이 없어요'}
             </Text>
           </View>
         )}
         {Object.entries(groups).map(([dateLabel, items]) => (
           <View key={dateLabel} style={{ marginTop: 18 }}>
-            <Text style={{ fontSize: 13, fontWeight: '900', color: '#5d655d', paddingHorizontal: 12, marginBottom: 8 }}>{dateLabel}</Text>
+            <Text style={{ fontSize: 15, fontWeight: '900', color: '#49524a', paddingHorizontal: 12, marginBottom: 8 }}>{dateLabel}</Text>
             {items.map((b) => {
               const st = STATUS_STYLE[b.status];
               const rt = sampleRoutes.find((r) => r.id === b.routeId);
@@ -128,16 +128,16 @@ export default function Schedule() {
                   <View style={{ flex: 1, padding: 14 }}>
                     <Row style={{ justifyContent: 'space-between' }}>
                       <Row style={{ gap: 6 }}>
-                        <Text style={{ fontSize: 15.5, fontWeight: '900', color: FOREST }}>{b.timeLabel}</Text>
+                        <Text style={{ fontSize: 18, fontWeight: '900', color: FOREST }}>{b.timeLabel}</Text>
                         {b.recurring && (
-                          <View style={s.recurPill}><Text style={{ fontSize: 8.5, fontWeight: '800', color: '#4a6d1f' }}>⟳ 매주</Text></View>
+                          <View style={s.recurPill}><Text style={{ fontSize: 10, fontWeight: '800', color: '#4a6d1f' }}>⟳ 매주</Text></View>
                         )}
                         {b.live && (
-                          <View style={s.livePillSm}><Text style={{ fontSize: 8.5, fontWeight: '900', color: '#fff' }}>● LIVE</Text></View>
+                          <View style={s.livePillSm}><Text style={{ fontSize: 10, fontWeight: '900', color: '#fff' }}>● LIVE</Text></View>
                         )}
                       </Row>
                       <View style={[s.statusPill, { backgroundColor: st.bg }]}>
-                        <Text style={{ fontSize: 9.5, fontWeight: '800', color: st.fg }}>{st.label}</Text>
+                        <Text style={{ fontSize: 11, fontWeight: '800', color: st.fg }}>{st.label}</Text>
                       </View>
                     </Row>
                     <Row style={{ gap: 12, marginTop: 10 }}>
@@ -148,24 +148,24 @@ export default function Schedule() {
                       )}
                       <View style={{ flex: 1 }}>
                         <Row style={{ gap: 4 }}>
-                          <Text style={{ fontSize: 13, fontWeight: '800', color: FOREST }}>{b.routeName}</Text>
-                          <View style={s.certDot}><Text style={{ fontSize: 7, fontWeight: '900', color: '#fff' }}>✓</Text></View>
+                          <Text style={{ fontSize: 15, fontWeight: '800', color: FOREST }}>{b.routeName}</Text>
+                          <View style={s.certDot}><Text style={{ fontSize: 8, fontWeight: '900', color: '#fff' }}>✓</Text></View>
                         </Row>
-                        <Text style={{ fontSize: 11.5, color: '#5d655d', marginTop: 3 }}>
+                        <Text style={{ fontSize: 13, color: '#49524a', marginTop: 3 }}>
                           {b.dogName} · {b.runnerName} 러너 · {b.km}km
                         </Text>
-                        <Text style={{ fontSize: 11, color: colors.dim, marginTop: 2 }}>
+                        <Text style={{ fontSize: 12.5, color: colors.dim, marginTop: 2 }}>
                           {b.price.toLocaleString()}원 · {b.paceLabel}
                         </Text>
                       </View>
-                      <Text style={{ fontSize: 14, color: colors.dim, alignSelf: 'center' }}>›</Text>
+                      <Text style={{ fontSize: 16, color: colors.dim, alignSelf: 'center' }}>›</Text>
                     </Row>
                     {b.status === 'active' && (
                       <Pressable
                         onPress={(e) => { e.stopPropagation(); draft.bookingId = b.id; router.push('/owner/live'); }}
                         style={s.goLiveBtn}
                       >
-                        <Text style={{ fontSize: 13, fontWeight: '900', color: '#d84a2f' }}>● 실시간 보기 ›</Text>
+                        <Text style={{ fontSize: 15, fontWeight: '900', color: '#d84a2f' }}>● 실시간 보기 ›</Text>
                       </Pressable>
                     )}
                   </View>
@@ -176,7 +176,7 @@ export default function Schedule() {
         ))}
 
         <Pressable style={s.emptyCta} onPress={() => router.push('/owner/request')}>
-          <Text style={{ fontSize: 12.5, fontWeight: '700', color: '#5a7a3c' }}>＋ 새 러닝 예약하기</Text>
+          <Text style={{ fontSize: 14.5, fontWeight: '700', color: '#5a7a3c' }}>＋ 새 러닝 예약하기</Text>
         </Pressable>
       </ScrollView>
       <BottomNav />
@@ -193,13 +193,13 @@ export default function Schedule() {
                   {/* header */}
                   <Row style={{ justifyContent: 'space-between' }}>
                     <View>
-                      <Text style={{ fontSize: 12, color: colors.dim }}>{selected.dateLabel}</Text>
-                      <Text style={{ fontSize: 22, fontWeight: '900', color: FOREST, marginTop: 2 }}>
+                      <Text style={{ fontSize: 14, color: colors.dim }}>{selected.dateLabel}</Text>
+                      <Text style={{ fontSize: 25.5, fontWeight: '900', color: FOREST, marginTop: 2 }}>
                         {selected.timeLabel} · {selected.dogName}
                       </Text>
                     </View>
                     <View style={[s.statusPill, { backgroundColor: STATUS_STYLE[selected.status].bg, alignSelf: 'flex-start' }]}>
-                      <Text style={{ fontSize: 10, fontWeight: '800', color: STATUS_STYLE[selected.status].fg }}>
+                      <Text style={{ fontSize: 11.5, fontWeight: '800', color: STATUS_STYLE[selected.status].fg }}>
                         {STATUS_STYLE[selected.status].label}
                       </Text>
                     </View>
@@ -208,9 +208,9 @@ export default function Schedule() {
                   {/* route card */}
                   <View style={s.sheetCard}>
                     <Row style={{ gap: 5 }}>
-                      <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST }}>{route.name}</Text>
-                      <View style={s.certDot}><Text style={{ fontSize: 7, fontWeight: '900', color: '#fff' }}>✓</Text></View>
-                      <Text style={{ fontSize: 10.5, color: colors.dim, alignSelf: 'center' }}>안심 코스 · {route.checkedAt}</Text>
+                      <Text style={{ fontSize: 17, fontWeight: '900', color: FOREST }}>{route.name}</Text>
+                      <View style={s.certDot}><Text style={{ fontSize: 8, fontWeight: '900', color: '#fff' }}>✓</Text></View>
+                      <Text style={{ fontSize: 12, color: colors.dim, alignSelf: 'center' }}>안심 코스 · {route.checkedAt}</Text>
                     </Row>
                     <View style={s.sheetMap}>
                       <HeatTrace points={route.trace} width={278} height={110} />
@@ -218,12 +218,12 @@ export default function Schedule() {
                     <Row style={{ gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
                       {route.features.map((f) => (
                         <View key={f.label} style={s.featChip}>
-                          <Text style={{ fontSize: 10, color: '#5a7a3c' }}>{f.g}</Text>
-                          <Text style={{ fontSize: 10.5, fontWeight: '700', color: '#3d5a2b' }}>{f.label}</Text>
+                          <Text style={{ fontSize: 11.5, color: '#5a7a3c' }}>{f.g}</Text>
+                          <Text style={{ fontSize: 12, fontWeight: '700', color: '#3d5a2b' }}>{f.label}</Text>
                         </View>
                       ))}
                     </Row>
-                    <Text style={{ fontSize: 11.5, color: '#75806f', marginTop: 9, lineHeight: 17 }}>{route.desc}</Text>
+                    <Text style={{ fontSize: 13, color: '#75806f', marginTop: 9, lineHeight: 19.5 }}>{route.desc}</Text>
                   </View>
 
                   {/* predictions */}
@@ -243,23 +243,23 @@ export default function Schedule() {
                       <Monogram char={runner.char} bg={runner.color} size={46} />
                       <View style={{ flex: 1 }}>
                         <Row style={{ gap: 6 }}>
-                          <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST }}>{runner.name} 러너</Text>
+                          <Text style={{ fontSize: 17, fontWeight: '900', color: FOREST }}>{runner.name} 러너</Text>
                           {runner.badges.map((b) => (
-                            <View key={b} style={s.badgePill}><Text style={{ fontSize: 8.5, fontWeight: '800', color: '#4a6d1f' }}>{b}</Text></View>
+                            <View key={b} style={s.badgePill}><Text style={{ fontSize: 10, fontWeight: '800', color: '#4a6d1f' }}>{b}</Text></View>
                           ))}
                         </Row>
-                        <Text style={{ fontSize: 11.5, color: colors.dim, marginTop: 3 }}>
+                        <Text style={{ fontSize: 13, color: colors.dim, marginTop: 3 }}>
                           {runner.rating != null
                             ? `★ ${runner.rating} (${runner.reviews}) · 러닝 ${runner.runs}회 · 평균 ${runner.pace}`
                             : '실러너 · 상세 프로필 준비 중'}
                         </Text>
                       </View>
                       <Pressable style={s.chatChip} onPress={() => { const bid = selected.id; close(); router.push({ pathname: '/chat', params: { bid } }); }}>
-                        <Text style={{ fontSize: 11, fontWeight: '800', color: '#4a6d1f' }}>채팅</Text>
+                        <Text style={{ fontSize: 12.5, fontWeight: '800', color: '#4a6d1f' }}>채팅</Text>
                       </Pressable>
                     </Row>
                     {runner.desc && (
-                      <Text style={{ fontSize: 11.5, color: '#75806f', marginTop: 10, lineHeight: 17 }}>{runner.desc}</Text>
+                      <Text style={{ fontSize: 13, color: '#75806f', marginTop: 10, lineHeight: 19.5 }}>{runner.desc}</Text>
                     )}
                   </View>
 
@@ -270,15 +270,15 @@ export default function Schedule() {
                         style={[s.primaryAction, { backgroundColor: '#ffe9e2', borderWidth: 1.2, borderColor: '#ffc9b8' }]}
                         onPress={() => { draft.bookingId = selected.id; close(); router.push('/owner/live'); }}
                       >
-                        <Text style={{ fontSize: 14.5, fontWeight: '900', color: '#d84a2f' }}>● 실시간 보기</Text>
-                        <Text style={{ fontSize: 10.5, color: '#b06a56', marginTop: 2 }}>러닝이 진행 중이에요 — GPS·바디캠으로 지켜보세요</Text>
+                        <Text style={{ fontSize: 16.5, fontWeight: '900', color: '#d84a2f' }}>● 실시간 보기</Text>
+                        <Text style={{ fontSize: 12, color: '#b06a56', marginTop: 2 }}>러닝이 진행 중이에요 — GPS·바디캠으로 지켜보세요</Text>
                       </Pressable>
-                      <Text style={{ fontSize: 11, color: colors.dim, textAlign: 'center', marginTop: 12, lineHeight: 16 }}>
+                      <Text style={{ fontSize: 12.5, color: colors.dim, textAlign: 'center', marginTop: 12, lineHeight: 18.5 }}>
                         이미 시작된 러닝은 일정 변경·취소가 불가능해요{'\n'}긴급 상황은 안심 센터 SOS를 이용해주세요
                       </Text>
                     </>
                   ) : selected.status === 'handoff' ? (
-                    <Text style={{ fontSize: 11.5, color: colors.dim, textAlign: 'center', marginTop: 16, lineHeight: 17 }}>
+                    <Text style={{ fontSize: 13, color: colors.dim, textAlign: 'center', marginTop: 16, lineHeight: 19.5 }}>
                       인계가 완료됐어요 — 러너가 러닝을 시작하면{'\n'}실시간 보기가 열려요 · 변경·취소는 불가능해요
                     </Text>
                   ) : selected.status === 'completed' ? (
@@ -287,8 +287,8 @@ export default function Schedule() {
                         style={s.primaryAction}
                         onPress={() => { const bid = selected.id; close(); router.push({ pathname: '/owner/report', params: { bid } }); }}
                       >
-                        <Text style={{ fontSize: 14.5, fontWeight: '900', color: FOREST }}>러닝 리포트 보기</Text>
-                        <Text style={{ fontSize: 10.5, color: '#5d6b4a', marginTop: 2 }}>실거리·시간·페이스·종료 사유를 확인해요</Text>
+                        <Text style={{ fontSize: 16.5, fontWeight: '900', color: FOREST }}>러닝 리포트 보기</Text>
+                        <Text style={{ fontSize: 12, color: '#5d6b4a', marginTop: 2 }}>실거리·시간·페이스·종료 사유를 확인해요</Text>
                       </Pressable>
                       <Pressable
                         style={s.ghostAction}
@@ -303,8 +303,8 @@ export default function Schedule() {
                           router.push('/owner/request');
                         }}
                       >
-                        <Text style={{ fontSize: 13.5, fontWeight: '800', color: '#3d5a2b' }}>⟳ 이대로 다시 예약</Text>
-                        <Text style={{ fontSize: 10.5, color: colors.dim, marginTop: 2 }}>같은 거리·페이스{selected.runnerProfileId ? ` · ${selected.runnerName} 러너 지명` : ''} — 시간만 골라요</Text>
+                        <Text style={{ fontSize: 15.5, fontWeight: '800', color: '#3d5a2b' }}>⟳ 이대로 다시 예약</Text>
+                        <Text style={{ fontSize: 12, color: colors.dim, marginTop: 2 }}>같은 거리·페이스{selected.runnerProfileId ? ` · ${selected.runnerName} 러너 지명` : ''} — 시간만 골라요</Text>
                       </Pressable>
                     </>
                   ) : (
@@ -323,18 +323,18 @@ export default function Schedule() {
                           router.push('/owner/request');
                         }}
                       >
-                        <Text style={{ fontSize: 14.5, fontWeight: '900', color: FOREST }}>같은 러너로 일정 변경</Text>
-                        <Text style={{ fontSize: 10.5, color: '#5d6b4a', marginTop: 2 }}>{runner.name} 러너의 가능 시간에서 다시 골라요</Text>
+                        <Text style={{ fontSize: 16.5, fontWeight: '900', color: FOREST }}>같은 러너로 일정 변경</Text>
+                        <Text style={{ fontSize: 12, color: '#5d6b4a', marginTop: 2 }}>{runner.name} 러너의 가능 시간에서 다시 골라요</Text>
                       </Pressable>
                       <Pressable
                         style={s.ghostAction}
                         onPress={() => { close(); router.push('/owner/request'); }}
                       >
-                        <Text style={{ fontSize: 13.5, fontWeight: '800', color: '#3d453d' }}>러너 변경</Text>
-                        <Text style={{ fontSize: 10.5, color: colors.dim, marginTop: 2 }}>처음부터 일반 예약 과정으로 돌아가요</Text>
+                        <Text style={{ fontSize: 15.5, fontWeight: '800', color: '#3d453d' }}>러너 변경</Text>
+                        <Text style={{ fontSize: 12, color: colors.dim, marginTop: 2 }}>처음부터 일반 예약 과정으로 돌아가요</Text>
                       </Pressable>
                       <Pressable style={s.cancelLink} onPress={() => setSheetMode('cancel')}>
-                        <Text style={{ fontSize: 12.5, fontWeight: '700', color: '#d84a2f' }}>일정 취소하기</Text>
+                        <Text style={{ fontSize: 14.5, fontWeight: '700', color: '#d84a2f' }}>일정 취소하기</Text>
                       </Pressable>
                     </>
                   )}
@@ -342,8 +342,8 @@ export default function Schedule() {
               ) : (
                 <>
                   {/* cancel confirmation */}
-                  <Text style={{ fontSize: 20, fontWeight: '900', color: FOREST }}>일정을 취소할까요?</Text>
-                  <Text style={{ fontSize: 12.5, color: '#5d655d', marginTop: 6 }}>
+                  <Text style={{ fontSize: 23, fontWeight: '900', color: FOREST }}>일정을 취소할까요?</Text>
+                  <Text style={{ fontSize: 14.5, color: '#49524a', marginTop: 6 }}>
                     {selected.dateLabel} {selected.timeLabel} · {runner.name} 러너
                   </Text>
 
@@ -352,7 +352,7 @@ export default function Schedule() {
                     <FeeLine label={`취소 수수료 (${cancelPolicy.feeRate * 100}%)`} value={`−${fee.toLocaleString()}원`} coral />
                     <View style={{ height: 1, backgroundColor: '#f0eee3', marginVertical: 10 }} />
                     <FeeLine label="환불 금액" value={`${(selected.price - fee).toLocaleString()}원`} bold />
-                    <Text style={{ fontSize: 10.5, color: colors.dim, marginTop: 10, lineHeight: 15 }}>
+                    <Text style={{ fontSize: 12, color: colors.dim, marginTop: 10, lineHeight: 17 }}>
                       취소 수수료는 시간을 비워둔 러너에게 {Math.round(cancelPolicy.runnerShare * 100)}%, 도그스하이에 {Math.round((1 - cancelPolicy.runnerShare) * 100)}% 배분돼요.{'\n'}시작 24시간 전까지는 수수료가 없어요.
                     </Text>
                   </View>
@@ -375,10 +375,10 @@ export default function Schedule() {
                       }
                     }}
                   >
-                    <Text style={{ fontSize: 14.5, fontWeight: '900', color: '#fff' }}>취소하고 {(selected.price - fee).toLocaleString()}원 환불받기</Text>
+                    <Text style={{ fontSize: 16.5, fontWeight: '900', color: '#fff' }}>취소하고 {(selected.price - fee).toLocaleString()}원 환불받기</Text>
                   </Pressable>
                   <Pressable style={s.cancelLink} onPress={() => setSheetMode('detail')}>
-                    <Text style={{ fontSize: 12.5, fontWeight: '700', color: '#5d655d' }}>돌아가기</Text>
+                    <Text style={{ fontSize: 14.5, fontWeight: '700', color: '#49524a' }}>돌아가기</Text>
                   </Pressable>
                 </>
               )}
@@ -393,9 +393,9 @@ export default function Schedule() {
 function Pred({ label, value, sub }: { label: string; value: string; sub: string }) {
   return (
     <View style={{ alignItems: 'center', flex: 1 }}>
-      <Text style={{ fontSize: 10.5, color: colors.dim }}>{label}</Text>
-      <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST, marginTop: 3 }}>{value}</Text>
-      <Text style={{ fontSize: 9.5, color: colors.dim, marginTop: 2 }}>{sub}</Text>
+      <Text style={{ fontSize: 12, color: colors.dim }}>{label}</Text>
+      <Text style={{ fontSize: 17, fontWeight: '900', color: FOREST, marginTop: 3 }}>{value}</Text>
+      <Text style={{ fontSize: 11, color: colors.dim, marginTop: 2 }}>{sub}</Text>
     </View>
   );
 }
@@ -403,7 +403,7 @@ function Pred({ label, value, sub }: { label: string; value: string; sub: string
 function FeeLine({ label, value, coral, bold }: { label: string; value: string; coral?: boolean; bold?: boolean }) {
   return (
     <Row style={{ justifyContent: 'space-between', marginTop: 5 }}>
-      <Text style={{ fontSize: 12.5, color: bold ? FOREST : '#75806f', fontWeight: bold ? '800' : '400' }}>{label}</Text>
+      <Text style={{ fontSize: 14.5, color: bold ? FOREST : '#75806f', fontWeight: bold ? '800' : '400' }}>{label}</Text>
       <Text style={{ fontSize: bold ? 16 : 12.5, fontWeight: bold ? '900' : '600', color: coral ? '#d84a2f' : FOREST }}>{value}</Text>
     </Row>
   );

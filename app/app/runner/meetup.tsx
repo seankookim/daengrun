@@ -95,13 +95,13 @@ export default function Meetup() {
             <View key={i} style={[s.pathDot, { left: 40 + i * 44, top: 190 - i * 22 }]} />
           ))}
         </View>
-        <View style={s.mePin}><Text style={{ fontSize: 9, fontWeight: '900', color: '#fff' }}>나</Text></View>
-        <View style={s.pickupPin}><Text style={{ fontSize: 9, fontWeight: '900', color: '#fff' }}>픽업</Text></View>
+        <View style={s.mePin}><Text style={{ fontSize: 10.5, fontWeight: '900', color: '#fff' }}>나</Text></View>
+        <View style={s.pickupPin}><Text style={{ fontSize: 10.5, fontWeight: '900', color: '#fff' }}>픽업</Text></View>
 
         <Row style={s.topBar}>
-          <Pressable onPress={() => router.back()} style={s.circleBtn}><Text style={{ fontSize: 18 }}>‹</Text></Pressable>
+          <Pressable onPress={() => router.back()} style={s.circleBtn}><Text style={{ fontSize: 20.5 }}>‹</Text></Pressable>
           <View style={s.etaPill}>
-            <Text style={{ fontSize: 12, fontWeight: '900', color: colors.volt }}>
+            <Text style={{ fontSize: 14, fontWeight: '900', color: colors.volt }}>
               {stage === 'enroute' ? '픽업까지 도보 8분 · 0.8km' : '픽업 장소 도착'}
             </Text>
           </View>
@@ -113,12 +113,12 @@ export default function Meetup() {
         {/* pickup info */}
         <View style={s.card}>
           <Row style={{ justifyContent: 'space-between' }}>
-            <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST }}>{PICKUP.name}</Text>
+            <Text style={{ fontSize: 17, fontWeight: '900', color: FOREST }}>{PICKUP.name}</Text>
             <Pressable onPress={openNaverRoute} style={{ backgroundColor: '#eef4e0', borderRadius: 99, paddingVertical: 7, paddingHorizontal: 12 }}>
-              <Text style={{ fontSize: 11.5, fontWeight: '800', color: '#4a6d1f' }}>네이버 길찾기 ›</Text>
+              <Text style={{ fontSize: 13, fontWeight: '800', color: '#4a6d1f' }}>네이버 길찾기 ›</Text>
             </Pressable>
           </Row>
-          <Text style={{ fontSize: 12, color: '#5d655d', marginTop: 5, lineHeight: 17 }}>
+          <Text style={{ fontSize: 14, color: '#49524a', marginTop: 5, lineHeight: 19.5 }}>
             성동구 뚝섬로 273 · 출입구 옆 벤치에서 만나요 (실주소는 곧){'\n'}
             {info?.dogMemo ? `보호자 메모: ${info.dogMemo}` : '보호자 메모가 없어요 — 채팅으로 미리 인사해보세요'}
           </Text>
@@ -129,22 +129,22 @@ export default function Meetup() {
           <Row style={{ gap: 12 }}>
             <Avatar url={info?.dogPhotoUrl} char={dogName[0]} bg="#c9a86e" size={44} />
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 14.5, fontWeight: '900', color: FOREST }}>
+              <Text style={{ fontSize: 16.5, fontWeight: '900', color: FOREST }}>
                 {dogName}{info?.dogBreed ? ` · ${info.dogBreed}` : ''}{info?.dogWeightKg != null ? ` ${info.dogWeightKg}kg` : ''}
               </Text>
-              <Text style={{ fontSize: 11.5, color: colors.dim, marginTop: 2 }}>
+              <Text style={{ fontSize: 13, color: colors.dim, marginTop: 2 }}>
                 {info ? `${info.when} · ${info.km}km · ${info.paceLabel}` : '예약 정보 불러오는 중...'}
               </Text>
             </View>
             <Pressable style={s.chatChip} onPress={() => router.push({ pathname: '/chat', params: jobId ? { bid: jobId } : {} })}>
-              <Text style={{ fontSize: 11, fontWeight: '800', color: '#4a6d1f' }}>보호자 채팅</Text>
+              <Text style={{ fontSize: 12.5, fontWeight: '800', color: '#4a6d1f' }}>보호자 채팅</Text>
             </Pressable>
           </Row>
         </View>
 
         {/* handoff steps */}
         <View style={s.card}>
-          <Text style={{ fontSize: 13.5, fontWeight: '900', color: FOREST, marginBottom: 10 }}>인계 확인</Text>
+          <Text style={{ fontSize: 15.5, fontWeight: '900', color: FOREST, marginBottom: 10 }}>인계 확인</Text>
           <Step done label="예약 수락 완료 — 보호자에게 알림 전송됨" />
           <Step done={stage !== 'enroute'} label="픽업 장소 도착" active={stage === 'enroute'} />
           {/* 양측 확인 상태를 각각 서버 진실로 표시 */}
@@ -194,7 +194,7 @@ export default function Meetup() {
           </Pressable>
         )}
 
-        <Text style={{ fontSize: 10.5, color: colors.dim, textAlign: 'center', marginTop: 14, lineHeight: 15 }}>
+        <Text style={{ fontSize: 12, color: colors.dim, textAlign: 'center', marginTop: 14, lineHeight: 17 }}>
           양측 확인 없이는 러닝이 시작되지 않아요{'\n'}인계 시점부터 펫보험이 적용됩니다
         </Text>
       </ScrollView>
@@ -206,9 +206,9 @@ function Step({ label, done, active }: { label: string; done?: boolean; active?:
   return (
     <Row style={{ gap: 9, marginTop: 7 }}>
       <View style={[s.stepDot, done && { backgroundColor: '#6aa53c' }, active && !done && { borderColor: '#e2c56b', borderWidth: 2, backgroundColor: '#fff' }]}>
-        {done && <Text style={{ fontSize: 9, fontWeight: '900', color: '#fff' }}>✓</Text>}
+        {done && <Text style={{ fontSize: 10.5, fontWeight: '900', color: '#fff' }}>✓</Text>}
       </View>
-      <Text style={{ flex: 1, fontSize: 12.5, color: done ? '#3d5a2b' : active ? '#a97c12' : colors.dim, fontWeight: done || active ? '700' : '400' }}>
+      <Text style={{ flex: 1, fontSize: 14.5, color: done ? '#3d5a2b' : active ? '#a97c12' : colors.dim, fontWeight: done || active ? '700' : '400' }}>
         {label}
       </Text>
     </Row>
@@ -229,6 +229,6 @@ const s = StyleSheet.create({
   chatChip: { backgroundColor: '#eef4e0', borderRadius: 99, paddingVertical: 8, paddingHorizontal: 12, alignSelf: 'center' },
   stepDot: { width: 18, height: 18, borderRadius: 10, backgroundColor: '#DCD6C4', alignItems: 'center', justifyContent: 'center' },
   primary: { backgroundColor: FOREST, borderRadius: 18, alignItems: 'center', paddingVertical: 16, marginTop: 6 },
-  primaryText: { fontSize: 15.5, fontWeight: '900', color: '#fff' },
-  primarySub: { fontSize: 10.5, color: '#b8c4ae', marginTop: 3 },
+  primaryText: { fontSize: 18, fontWeight: '900', color: '#fff' },
+  primarySub: { fontSize: 12, color: '#b8c4ae', marginTop: 3 },
 });

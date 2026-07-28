@@ -134,11 +134,11 @@ export default function Radar() {
       <View style={{ paddingTop: 64, paddingHorizontal: 12 }}>
         <Row style={{ justifyContent: 'space-between' }}>
           <Pressable onPress={() => router.replace('/owner/home')} style={s.backBtn}>
-            <Text style={{ fontSize: 18, color: FOREST }}>‹</Text>
+            <Text style={{ fontSize: 20.5, color: FOREST }}>‹</Text>
           </Pressable>
           <View style={s.livePill}>
             <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: CORAL }} />
-            <Text style={{ fontSize: 11, fontWeight: '900', color: CORAL }}>주변 러너에게 요청 중</Text>
+            <Text style={{ fontSize: 12.5, fontWeight: '900', color: CORAL }}>주변 러너에게 요청 중</Text>
           </View>
           <View style={{ width: 40 }} />
         </Row>
@@ -161,20 +161,20 @@ export default function Radar() {
               { transform: [{ translateY: bob.interpolate({ inputRange: [0, 1], outputRange: [0, -6] }) }] },
             ]}
           >
-            <Text style={{ fontSize: 42 }}>{matchedName ? '🎉' : '🐕'}</Text>
+            <Text style={{ fontSize: 48.5 }}>{matchedName ? '🎉' : '🐕'}</Text>
           </Animated.View>
         </View>
 
         {matchedName ? (
           <View style={{ alignItems: 'center', marginTop: 18 }}>
-            <Text style={{ fontSize: 22, fontWeight: '900', color: colors.voltDeep }}>{matchedName} 러너가 수락했어요!</Text>
-            <Text style={{ fontSize: 13, color: '#5d655d', marginTop: 8 }}>일정 화면으로 이동할게요</Text>
+            <Text style={{ fontSize: 25.5, fontWeight: '900', color: colors.voltDeep }}>{matchedName} 러너가 수락했어요!</Text>
+            <Text style={{ fontSize: 15, color: '#49524a', marginTop: 8 }}>일정 화면으로 이동할게요</Text>
           </View>
         ) : (
           <>
             <View style={{ alignItems: 'center', marginTop: 14 }}>
-              <Text style={{ fontSize: 22, fontWeight: '900', color: FOREST }}>러너를 찾고 있어요</Text>
-              <Text style={{ fontSize: 13.5, color: '#5d655d', marginTop: 7 }}>
+              <Text style={{ fontSize: 25.5, fontWeight: '900', color: FOREST }}>러너를 찾고 있어요</Text>
+              <Text style={{ fontSize: 15.5, color: '#49524a', marginTop: 7 }}>
                 경과 {fmtElapsed(elapsed)} · 수락한 러너가 이 화면에 바로 나타나요
               </Text>
             </View>
@@ -182,14 +182,14 @@ export default function Radar() {
             {/* ---------- 요청을 받은 러너들 — 실가용 (러닝 중 제외) ---------- */}
             <View style={{ marginTop: 26 }}>
               <Row style={{ justifyContent: 'space-between', marginBottom: 10 }}>
-                <Text style={{ fontSize: 13.5, fontWeight: '900', color: FOREST }}>요청을 받은 러너</Text>
-                <Text style={{ fontSize: 11.5, color: '#5d655d' }}>
+                <Text style={{ fontSize: 15.5, fontWeight: '900', color: FOREST }}>요청을 받은 러너</Text>
+                <Text style={{ fontSize: 13, color: '#49524a' }}>
                   {avail == null ? '확인 중…' : `${avail.length}명 가능`}
                 </Text>
               </Row>
               {avail != null && avail.length === 0 && (
                 <View style={s.emptyBox}>
-                  <Text style={{ fontSize: 12.5, color: '#5d655d', textAlign: 'center', lineHeight: 19 }}>
+                  <Text style={{ fontSize: 14.5, color: '#49524a', textAlign: 'center', lineHeight: 22 }}>
                     지금 바로 가능한 러너가 없어요{'\n'}요청은 살아있어요 — 러너가 온라인되면 바로 보여요
                   </Text>
                 </View>
@@ -198,13 +198,13 @@ export default function Radar() {
                 <Pressable key={r.profileId} onPress={() => router.push(`/runner-profile/${r.profileId}`)} style={s.runnerRow}>
                   <Avatar url={r.avatarUrl} char={r.name[0]} bg="#5a7a3c" size={42} />
                   <View style={{ flex: 1, marginLeft: 11 }}>
-                    <Text style={{ fontSize: 14.5, fontWeight: '900', color: FOREST }}>{r.name}</Text>
-                    <Text style={{ fontSize: 11, color: '#5d655d', marginTop: 2 }}>
+                    <Text style={{ fontSize: 16.5, fontWeight: '900', color: FOREST }}>{r.name}</Text>
+                    <Text style={{ fontSize: 12.5, color: '#49524a', marginTop: 2 }}>
                       {r.tier} · {r.district || '근처'} · 러닝 {r.totalRuns}회
                     </Text>
                   </View>
                   <View style={s.pacePill}>
-                    <Text style={{ fontSize: 11, fontWeight: '900', color: '#3f5a26' }}>{r.paceLabel}</Text>
+                    <Text style={{ fontSize: 12.5, fontWeight: '900', color: '#3f5a26' }}>{r.paceLabel}</Text>
                   </View>
                 </Pressable>
               ))}
@@ -212,7 +212,7 @@ export default function Radar() {
 
             {stale && (
               <View style={s.staleBox}>
-                <Text style={{ fontSize: 12.5, color: '#a97c12', textAlign: 'center', lineHeight: 19 }}>
+                <Text style={{ fontSize: 14.5, color: '#a97c12', textAlign: 'center', lineHeight: 22 }}>
                   아직 응답이 없어요 — 마음에 드는 러너를 직접 지명하면{'\n'}응답 확률이 올라가요
                 </Text>
               </View>
@@ -224,10 +224,10 @@ export default function Radar() {
       {!matchedName && (
         <View style={s.footer}>
           <Pressable onPress={() => router.push('/owner/matching')} style={s.pickBtn}>
-            <Text style={{ fontSize: 15, fontWeight: '900', color: '#fff' }}>직접 고를래요 — 러너 카드 보기</Text>
+            <Text style={{ fontSize: 17, fontWeight: '900', color: '#fff' }}>직접 고를래요 — 러너 카드 보기</Text>
           </Pressable>
           <Pressable onPress={cancel} disabled={cancelling} style={s.cancelBtn}>
-            <Text style={{ fontSize: 13, fontWeight: '800', color: '#8a917f' }}>
+            <Text style={{ fontSize: 15, fontWeight: '800', color: '#8a917f' }}>
               {cancelling ? '취소 중...' : '요청 취소'}
             </Text>
           </Pressable>

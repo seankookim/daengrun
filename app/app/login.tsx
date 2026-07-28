@@ -108,7 +108,7 @@ export default function Login() {
           <>
             <Text style={s.otpHint}>{email}로 보낸 6자리 코드를 입력해주세요</Text>
             <TextInput
-              style={[s.input, { textAlign: 'center', fontSize: 24, letterSpacing: 8 }]}
+              style={[s.input, { textAlign: 'center', fontSize: 27.5, letterSpacing: 8 }]}
               value={code}
               onChangeText={setCode}
               placeholder="······"
@@ -121,19 +121,19 @@ export default function Login() {
               <Text style={s.primaryText}>{busy ? '확인 중...' : '로그인'}</Text>
             </Pressable>
             <Pressable style={{ alignItems: 'center', padding: 12 }} onPress={() => setStage('email')}>
-              <Text style={{ fontSize: 12.5, color: '#8fa093' }}>이메일 다시 입력</Text>
+              <Text style={{ fontSize: 14.5, color: '#8fa093' }}>이메일 다시 입력</Text>
             </Pressable>
           </>
         )}
 
         <View style={s.divider}>
           <View style={s.divLine} />
-          <Text style={{ fontSize: 11, color: '#6d7a68' }}>또는</Text>
+          <Text style={{ fontSize: 12.5, color: '#6d7a68' }}>또는</Text>
           <View style={s.divLine} />
         </View>
 
         <Pressable style={s.kakao} onPress={kakao}>
-          <Text style={{ fontSize: 15, fontWeight: '800', color: '#191919' }}>카카오로 3초 만에 시작하기</Text>
+          <Text style={{ fontSize: 17, fontWeight: '800', color: '#191919' }}>카카오로 3초 만에 시작하기</Text>
         </Pressable>
 
         <Text style={s.legal}>
@@ -147,17 +147,17 @@ export default function Login() {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.ink, paddingHorizontal: 28 },
   // 아이콘 락업과 동일: 도그스 = 화이트, 하이 = volt (히어로 음절)
-  logo: { fontSize: 52, fontWeight: '900', color: '#fff', textAlign: 'center' },
-  tagline: { fontSize: 14, color: '#8fa093', textAlign: 'center', marginTop: 6, marginBottom: 40 },
+  logo: { fontSize: 60, fontWeight: '900', color: '#fff', textAlign: 'center' },
+  tagline: { fontSize: 16, color: '#8fa093', textAlign: 'center', marginTop: 6, marginBottom: 40 },
   input: {
     backgroundColor: '#1a231a', borderRadius: 16, borderWidth: 1, borderColor: '#2c3a2c',
-    paddingHorizontal: 18, paddingVertical: 16, fontSize: 16, color: colors.cream,
+    paddingHorizontal: 18, paddingVertical: 16, fontSize: 18.5, color: colors.cream,
   },
-  otpHint: { fontSize: 13, color: colors.cream, textAlign: 'center', marginBottom: 14 },
+  otpHint: { fontSize: 15, color: colors.cream, textAlign: 'center', marginBottom: 14 },
   primary: { backgroundColor: colors.volt, borderRadius: 16, alignItems: 'center', paddingVertical: 17, marginTop: 12 },
-  primaryText: { fontSize: 16, fontWeight: '900', color: colors.ink },
+  primaryText: { fontSize: 18.5, fontWeight: '900', color: colors.ink },
   divider: { flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 26 },
   divLine: { flex: 1, height: 1, backgroundColor: '#2c3a2c' },
   kakao: { backgroundColor: '#FEE500', borderRadius: 16, alignItems: 'center', paddingVertical: 17 },
-  legal: { fontSize: 10.5, color: '#5d6b5d', textAlign: 'center', marginTop: 24, lineHeight: 15 },
+  legal: { fontSize: 12, color: '#5d6b5d', textAlign: 'center', marginTop: 24, lineHeight: 17 },
 });

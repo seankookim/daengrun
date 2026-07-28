@@ -101,38 +101,38 @@ export default function Chat() {
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.cream }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       {/* header */}
       <Row style={s.header}>
-        <Pressable onPress={() => router.back()} style={s.circleBtn}><Text style={{ fontSize: 18 }}>‹</Text></Pressable>
+        <Pressable onPress={() => router.back()} style={s.circleBtn}><Text style={{ fontSize: 20.5 }}>‹</Text></Pressable>
         <Monogram char={(ctx?.peerName ?? '·')[0]} bg={isRunner ? '#c9a86e' : '#5a7a3c'} size={40} />
         <View style={{ flex: 1, marginLeft: 10 }}>
-          <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST }}>{ctx?.peerName ?? '채팅'}</Text>
-          <Text style={{ fontSize: 10.5, color: colors.dim, marginTop: 1 }}>
+          <Text style={{ fontSize: 17, fontWeight: '900', color: FOREST }}>{ctx?.peerName ?? '채팅'}</Text>
+          <Text style={{ fontSize: 12, color: colors.dim, marginTop: 1 }}>
             {state === 'ready' ? '● 실시간 연결됨' : state === 'loading' ? '연결 중...' : ''}
           </Text>
         </View>
         <Pressable style={s.circleBtn} onPress={() => Alert.alert('안심 통화', '번호 노출 없는 안심 통화로 연결돼요 (준비 중)')}>
-          <Text style={{ fontSize: 14, color: '#5a7a3c' }}>✆</Text>
+          <Text style={{ fontSize: 16, color: '#5a7a3c' }}>✆</Text>
         </Pressable>
       </Row>
 
       {/* booking context strip */}
       {ctx && (
         <View style={s.contextStrip}>
-          <Text style={{ fontSize: 11, fontWeight: '700', color: '#3d5a2b' }}>{ctx.label}</Text>
+          <Text style={{ fontSize: 12.5, fontWeight: '700', color: '#3d5a2b' }}>{ctx.label}</Text>
         </View>
       )}
 
       {/* body */}
       {state === 'none' && (
         <View style={s.emptyWrap}>
-          <Text style={{ fontSize: 14, fontWeight: '900', color: FOREST, textAlign: 'center' }}>진행 중인 예약이 없어요</Text>
-          <Text style={{ fontSize: 12, color: colors.dim, textAlign: 'center', marginTop: 6, lineHeight: 18 }}>
+          <Text style={{ fontSize: 16, fontWeight: '900', color: FOREST, textAlign: 'center' }}>진행 중인 예약이 없어요</Text>
+          <Text style={{ fontSize: 14, color: colors.dim, textAlign: 'center', marginTop: 6, lineHeight: 20.5 }}>
             채팅은 예약이 생기면 상대방과 자동으로 연결돼요
           </Text>
         </View>
       )}
       {state === 'error' && (
         <View style={s.emptyWrap}>
-          <Text style={{ fontSize: 12.5, color: colors.dim, textAlign: 'center' }}>채팅을 불러오지 못했어요 — 잠시 후 다시 시도해주세요</Text>
+          <Text style={{ fontSize: 14.5, color: colors.dim, textAlign: 'center' }}>채팅을 불러오지 못했어요 — 잠시 후 다시 시도해주세요</Text>
         </View>
       )}
 
@@ -144,7 +144,7 @@ export default function Chat() {
           onContentSizeChange={() => scroller.current?.scrollToEnd({ animated: false })}
         >
           {state === 'ready' && msgs.length === 0 && (
-            <Text style={{ fontSize: 12, color: colors.dim, textAlign: 'center', marginTop: 20 }}>
+            <Text style={{ fontSize: 14, color: colors.dim, textAlign: 'center', marginTop: 20 }}>
               첫 메시지를 보내보세요 — 픽업 장소나 아이 성향을 미리 나누면 좋아요
             </Text>
           )}
@@ -155,14 +155,14 @@ export default function Chat() {
                 {m.mediaUrl ? (
                   <Image source={{ uri: m.mediaUrl }} style={{ width: 190, height: 190, borderRadius: 14 }} resizeMode="cover" />
                 ) : (
-                  <Text style={{ fontSize: 13.5, lineHeight: 19, color: m.mine ? FOREST : '#2c332c' }}>{m.body}</Text>
+                  <Text style={{ fontSize: 15.5, lineHeight: 22, color: m.mine ? FOREST : '#2c332c' }}>{m.body}</Text>
                 )}
               </View>
               {!m.mine && <Text style={s.time}>{m.when}</Text>}
             </View>
           ))}
           {msgs.length > 0 && (
-            <Text style={{ fontSize: 10, color: colors.dim, textAlign: 'center', marginTop: 8 }}>
+            <Text style={{ fontSize: 11.5, color: colors.dim, textAlign: 'center', marginTop: 8 }}>
               안전을 위해 모든 대화는 러닝 종료 후 30일간 보관돼요
             </Text>
           )}
@@ -174,7 +174,7 @@ export default function Chat() {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 46 }} contentContainerStyle={{ gap: 8, paddingHorizontal: 18 }}>
           {QUICK.map((q) => (
             <Pressable key={q} style={s.quick} onPress={() => send(q)}>
-              <Text style={{ fontSize: 12, fontWeight: '700', color: '#3d453d' }}>{q}</Text>
+              <Text style={{ fontSize: 14, fontWeight: '700', color: '#3d453d' }}>{q}</Text>
             </Pressable>
           ))}
         </ScrollView>
@@ -183,7 +183,7 @@ export default function Chat() {
       {/* input bar */}
       <Row style={s.inputBar}>
         <Pressable style={s.attach} onPress={sendPhoto} disabled={state !== 'ready'}>
-          <Text style={{ fontSize: 15, color: state === 'ready' ? '#5a7a3c' : colors.dim }}>▣</Text>
+          <Text style={{ fontSize: 17, color: state === 'ready' ? '#5a7a3c' : colors.dim }}>▣</Text>
         </Pressable>
         <TextInput
           style={s.input}
@@ -196,7 +196,7 @@ export default function Chat() {
           returnKeyType="send"
         />
         <Pressable style={[s.sendBtn, (sending || state !== 'ready') && { opacity: 0.5 }]} onPress={() => send(input)}>
-          <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST }}>↑</Text>
+          <Text style={{ fontSize: 17, fontWeight: '900', color: FOREST }}>↑</Text>
         </Pressable>
       </Row>
     </KeyboardAvoidingView>
@@ -212,10 +212,10 @@ const s = StyleSheet.create({
   bubble: { maxWidth: '76%', borderRadius: 18, paddingVertical: 10, paddingHorizontal: 14 },
   bubblePeer: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#DCD6C4', borderBottomLeftRadius: 6 },
   bubbleMine: { backgroundColor: colors.volt, borderBottomRightRadius: 6 },
-  time: { fontSize: 9, color: colors.dim, marginBottom: 3 },
+  time: { fontSize: 10.5, color: colors.dim, marginBottom: 3 },
   quick: { backgroundColor: '#fff', borderRadius: 99, paddingVertical: 9, paddingHorizontal: 14, borderWidth: 1, borderColor: '#DCD6C4', alignSelf: 'center' },
   inputBar: { padding: 14, paddingBottom: 30, gap: 8, backgroundColor: colors.cream },
   attach: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DCD6C4' },
-  input: { flex: 1, backgroundColor: '#fff', borderRadius: 22, paddingHorizontal: 16, paddingVertical: 11, fontSize: 14, borderWidth: 1, borderColor: '#DCD6C4', color: FOREST },
+  input: { flex: 1, backgroundColor: '#fff', borderRadius: 22, paddingHorizontal: 16, paddingVertical: 11, fontSize: 16, borderWidth: 1, borderColor: '#DCD6C4', color: FOREST },
   sendBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: colors.volt, alignItems: 'center', justifyContent: 'center' },
 });

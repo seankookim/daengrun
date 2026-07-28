@@ -199,17 +199,17 @@ export default function OwnerHome() {
           <View style={s.headerRow}>
             <Avatar url={fit?.dogPhotoUrl} char={dogName[0]} bg={colors.volt} size={46} />
             <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={[{ fontSize: 21, fontWeight: '800', color: p.textStrong }, df]}>
+              <Text style={[{ fontSize: 24, fontWeight: '800', color: p.textStrong }, df]}>
                 오늘도 달린다, {dogName}
               </Text>
-              <Text style={{ fontSize: 12.5, fontWeight: '600', color: '#3d453d', marginTop: 3 }}>
+              <Text style={{ fontSize: 14.5, fontWeight: '600', color: '#3d453d', marginTop: 3 }}>
                 러너스 하이를, 우리 아이에게
               </Text>
             </View>
             {/* 다크 토글 은퇴 — '나이트 러너' 테마로 전 화면 완성 후 복귀 (반쪽 다크는 깨져 보임, ui-audit) */}
             <Pressable onPress={() => router.push('/alerts')} style={[s.themeBtn, { borderColor: p.line, marginLeft: 8 }]}>
               <View style={s.bellDot} />
-              <Text style={{ fontSize: 15, color: p.dim }}>◔</Text>
+              <Text style={{ fontSize: 17, color: p.dim }}>◔</Text>
             </Pressable>
           </View>
         </Animated.View>
@@ -217,25 +217,25 @@ export default function OwnerHome() {
         <Pressable onPress={() => router.push('/owner/fitness')}>
           <Animated.View style={[s.hero, { height: heroH, backgroundColor: hp.card, borderColor: hp.line }]}>
             <View style={[s.weekChip, { backgroundColor: hp.chip }]}>
-              <Text style={{ fontSize: 11, fontWeight: '700', color: hp.textSoft }}>이번 주 ▾</Text>
+              <Text style={{ fontSize: 12.5, fontWeight: '700', color: hp.textSoft }}>이번 주 ▾</Text>
             </View>
 
             {/* compact info block (left side, fades in) */}
             <Animated.View style={[s.info, { opacity: infoOpacity, transform: [{ translateX: infoX }] }]}>
-              <Text style={{ fontSize: 12, fontWeight: '700', color: hp.textSoft }}>{dogName}의 주간 목표</Text>
+              <Text style={{ fontSize: 14, fontWeight: '700', color: hp.textSoft }}>{dogName}의 주간 목표</Text>
               <Text style={{ marginTop: 2 }}>
-                <Text style={{ fontSize: 32, fontWeight: '900', color: colors.tang }}>
+                <Text style={{ fontSize: 37, fontWeight: '900', color: colors.tang }}>
                   {weekKm}
                 </Text>
-                <Text style={{ fontSize: 13, color: hp.dim }}> / {goalKm} km</Text>
+                <Text style={{ fontSize: 15, color: hp.dim }}> / {goalKm} km</Text>
               </Text>
-              <Text style={{ fontSize: 11, color: hp.textSoft, marginTop: 3 }}>
+              <Text style={{ fontSize: 12.5, color: hp.textSoft, marginTop: 3 }}>
                 {fitnessAge != null ? `체력 나이 ${fitnessAge}살 · 실제보다 젊어요` : '체력 나이 측정 준비 중'}
               </Text>
               <View style={[s.miniBar, { backgroundColor: hp.track }]}>
                 <View style={[s.miniBarFill, { width: `${Math.min(pct, 1) * 100}%` }]} />
               </View>
-              <Text style={{ fontSize: 10, fontWeight: '800', color: heroAccent, marginTop: 4 }}>
+              <Text style={{ fontSize: 11.5, fontWeight: '800', color: heroAccent, marginTop: 4 }}>
                 {Math.round(pct * 100)}% 달성
               </Text>
             </Animated.View>
@@ -250,22 +250,22 @@ export default function OwnerHome() {
             >
               <Ring pct={pct} size={RING_BIG} trackColor={hp.track}>
                 <View style={{ alignItems: 'center' }}>
-                  <Text style={{ fontSize: 13, color: hp.dim }}>이번 주</Text>
-                  <Text style={{ fontSize: 46, fontWeight: '900', color: colors.tang, lineHeight: 50 }}>
+                  <Text style={{ fontSize: 15, color: hp.dim }}>이번 주</Text>
+                  <Text style={{ fontSize: 53, fontWeight: '900', color: colors.tang, lineHeight: 57.5 }}>
                     {weekKm}
-                    <Text style={{ fontSize: 16, color: hp.dim }}> km</Text>
+                    <Text style={{ fontSize: 18.5, color: hp.dim }}> km</Text>
                   </Text>
-                  <Text style={{ fontSize: 13, color: heroAccent, marginTop: 2 }}>
+                  <Text style={{ fontSize: 15, color: heroAccent, marginTop: 2 }}>
                     / {goalKm}km
                   </Text>
                   {/* 체력 나이 — our concept, front and center */}
                   <View style={[s.goalChip, { backgroundColor: hp.chip, flexDirection: 'row', gap: 4, alignItems: 'center' }]}>
-                    <Text style={{ fontSize: 10, fontWeight: '800', color: hp.textSoft }}>체력 나이</Text>
-                    <Text style={{ fontSize: 12, fontWeight: '900', color: heroAccent }}>
+                    <Text style={{ fontSize: 11.5, fontWeight: '800', color: hp.textSoft }}>체력 나이</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '900', color: heroAccent }}>
                       {fitnessAge != null ? `${fitnessAge}살` : '측정 전'}
                     </Text>
                     {fitnessAge != null && (
-                      <Text style={{ fontSize: 9, fontWeight: '800', color: colors.tang }}>▼{Math.max(dog.age - fitnessAge, 0).toFixed(1)}</Text>
+                      <Text style={{ fontSize: 10.5, fontWeight: '800', color: colors.tang }}>▼{Math.max(dog.age - fitnessAge, 0).toFixed(1)}</Text>
                     )}
                   </View>
                 </View>
@@ -356,10 +356,10 @@ export default function OwnerHome() {
 
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <View style={{ flex: 1 }}>
-                <Text style={[{ fontSize: 18, fontWeight: '900', color: '#fff' }, df]}>
+                <Text style={[{ fontSize: 20.5, fontWeight: '900', color: '#fff' }, df]}>
                   {liveNext?.status === 'pending' ? '러너 찾는 중…' : '지금 러너 찾기'}
                 </Text>
-                <Text style={{ fontSize: 11.5, color: '#b8c4ae', marginTop: 5, lineHeight: 16 }}>
+                <Text style={{ fontSize: 13, color: '#b8c4ae', marginTop: 5, lineHeight: 18.5 }}>
                   {liveNext?.status === 'pending'
                     ? '탭하면 레이더로 돌아가요'
                     : fnAvail.length > 0
@@ -377,7 +377,7 @@ export default function OwnerHome() {
                   transform: [{ scaleX: fnPulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.06] }) },
                               { scaleY: fnPulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.5] }) }],
                 }]} />
-                <Text style={{ fontSize: 14.5, fontWeight: '900', color: '#0F1D13' }}>
+                <Text style={{ fontSize: 16.5, fontWeight: '900', color: '#0F1D13' }}>
                   {liveNext?.status === 'pending' ? '레이더 보기 ➤' : '주변 러너 검색 시작 ➤'}
                 </Text>
               </View>
@@ -386,7 +386,7 @@ export default function OwnerHome() {
                   onPress={(e) => { e.stopPropagation(); router.push('/owner/request'); }}
                   style={s.fnCustom}
                 >
-                  <Text style={{ fontSize: 12, fontWeight: '800', color: '#b8c4ae' }}>직접 설정 ›</Text>
+                  <Text style={{ fontSize: 14, fontWeight: '800', color: '#b8c4ae' }}>직접 설정 ›</Text>
                 </Pressable>
               )}
             </View>
@@ -396,10 +396,10 @@ export default function OwnerHome() {
         {/* ---------- retention nudges (실데이터 기반, ui-audit P2) ---------- */}
         {weekKm > 0 && weekKm < goalKm && new Date().getDay() >= 4 && (
           <Pressable onPress={() => router.push('/owner/request')} style={[s.nudge, { backgroundColor: p.card, borderColor: p.line }]}>
-            <Text style={{ flex: 1, fontSize: 12.5, fontWeight: '800', color: p.textStrong }}>
+            <Text style={{ flex: 1, fontSize: 14.5, fontWeight: '800', color: p.textStrong }}>
               주간 목표까지 <Text style={{ color: colors.tang, fontWeight: '900' }}>{Math.round((goalKm - weekKm) * 10) / 10}km</Text> — 주말 러닝으로 채워볼까요?
             </Text>
-            <Text style={{ fontSize: 12, color: colors.tang, fontWeight: '900' }}>예약 ›</Text>
+            <Text style={{ fontSize: 14, color: colors.tang, fontWeight: '900' }}>예약 ›</Text>
           </Pressable>
         )}
         {!liveNext && lastDone && (
@@ -415,10 +415,10 @@ export default function OwnerHome() {
             }}
             style={[s.nudge, { backgroundColor: p.card, borderColor: p.line }]}
           >
-            <Text style={{ flex: 1, fontSize: 12.5, fontWeight: '800', color: p.textStrong }}>
+            <Text style={{ flex: 1, fontSize: 14.5, fontWeight: '800', color: p.textStrong }}>
               ⟳ 지난번처럼 다시 예약할까요? <Text style={{ color: p.dim, fontWeight: '600' }}>{lastDone.km}km{lastDone.runnerProfileId ? ` · ${lastDone.runnerName} 러너` : ''}</Text>
             </Text>
-            <Text style={{ fontSize: 12, color: '#5a7a3c', fontWeight: '900' }}>시간만 고르기 ›</Text>
+            <Text style={{ fontSize: 14, color: '#5a7a3c', fontWeight: '900' }}>시간만 고르기 ›</Text>
           </Pressable>
         )}
 
@@ -431,15 +431,15 @@ export default function OwnerHome() {
             {/* pulsing halo */}
             <View style={s.giftWrap}>
               <Animated.View style={[s.giftHalo, { opacity: pulseOpacity, transform: [{ scale: pulseScale }] }]} />
-              <View style={s.giftBox}><Text style={{ fontSize: 16, color: colors.ink }}>▣</Text></View>
-              <View style={s.giftBadge}><Text style={{ fontSize: 8, fontWeight: '900', color: '#fff' }}>1</Text></View>
+              <View style={s.giftBox}><Text style={{ fontSize: 18.5, color: colors.ink }}>▣</Text></View>
+              <View style={s.giftBadge}><Text style={{ fontSize: 9, fontWeight: '900', color: '#fff' }}>1</Text></View>
             </View>
             <View style={{ flex: 1, marginLeft: 13 }}>
-              <Text style={{ fontSize: 11, fontWeight: '900', color: colors.tang, letterSpacing: 0.5 }}>수령 대기 리워드</Text>
-              <Text style={{ fontSize: 14.5, fontWeight: '900', color: p.textStrong, marginTop: 2 }} numberOfLines={1}>
+              <Text style={{ fontSize: 12.5, fontWeight: '900', color: colors.tang, letterSpacing: 0.5 }}>수령 대기 리워드</Text>
+              <Text style={{ fontSize: 16.5, fontWeight: '900', color: p.textStrong, marginTop: 2 }} numberOfLines={1}>
                 {claimable.item}
               </Text>
-              <Text style={{ fontSize: 10.5, color: p.dim, marginTop: 2 }}>
+              <Text style={{ fontSize: 12, color: p.dim, marginTop: 2 }}>
                 {claimable.at}km 달성! · 다음: {nextLocked ? `${nextLocked.item.split(' ').pop()}까지 ${(nextLocked.at - 86.2).toFixed(0)}km` : '완료'}
               </Text>
             </View>
@@ -447,7 +447,7 @@ export default function OwnerHome() {
               onPress={(e) => { e.stopPropagation(); Alert.alert('수령 신청', '배송지로 콜라보 굿즈를 보내드려요 (목업)'); }}
               style={s.claimBtn}
             >
-              <Text style={{ fontSize: 12, fontWeight: '900', color: colors.ink }}>수령하기</Text>
+              <Text style={{ fontSize: 14, fontWeight: '900', color: colors.ink }}>수령하기</Text>
             </Pressable>
           </Pressable>
         )}
@@ -458,33 +458,33 @@ export default function OwnerHome() {
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <View style={s.liveDotSm} />
-              <Text style={{ fontSize: 12.5, fontWeight: '900', color: p.textStrong }}>다가오는 일정</Text>
+              <Text style={{ fontSize: 14.5, fontWeight: '900', color: p.textStrong }}>다가오는 일정</Text>
             </View>
             <View style={s.allScheduleChip}>
-              <Text style={{ fontSize: 11.5, fontWeight: '900', color: colors.ink }}>전체 일정 ›</Text>
+              <Text style={{ fontSize: 13, fontWeight: '900', color: colors.ink }}>전체 일정 ›</Text>
             </View>
           </View>
           {liveNext ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 12 }}>
               <Avatar url={fit?.dogPhotoUrl} char={liveNext.dogName[0]} bg="#FF5C3D" size={46} />
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 17, fontWeight: '900', color: p.textStrong }}>
+                <Text style={{ fontSize: 19.5, fontWeight: '900', color: p.textStrong }}>
                   {liveNext.dateLabel.split(' ')[0]} {liveNext.timeLabel} · {liveNext.dogName}
                 </Text>
-                <Text style={{ fontSize: 11.5, color: p.dim, marginTop: 3 }}>
+                <Text style={{ fontSize: 13, color: p.dim, marginTop: 3 }}>
                   {liveNext.routeName} · {liveNext.status === 'pending' ? '러너 응답 대기' : liveNext.status === 'active' ? '러닝 진행 중' : liveNext.status === 'handoff' ? '인계 완료 — 곧 시작돼요' : '러너 확정 ✓'}
                 </Text>
               </View>
               <View style={[s.countdownPill, { backgroundColor: liveNext.status === 'pending' ? '#fbf0d4' : '#fde8e3' }]}>
-                <Text style={{ fontSize: 10.5, fontWeight: '900', color: liveNext.status === 'pending' ? '#a97c12' : '#d84a2f' }}>
+                <Text style={{ fontSize: 12, fontWeight: '900', color: liveNext.status === 'pending' ? '#a97c12' : '#d84a2f' }}>
                   {liveNext.status === 'pending' ? '매칭 중' : liveNext.status === 'active' ? '● LIVE' : liveNext.status === 'handoff' ? '시작 대기' : '확정됨'}
                 </Text>
               </View>
             </View>
           ) : (
             <View style={{ marginTop: 12, alignItems: 'center', paddingVertical: 6 }}>
-              <Text style={{ fontSize: 14.5, fontWeight: '800', color: p.textStrong }}>예정된 러닝이 없어요</Text>
-              <Text style={{ fontSize: 11.5, color: p.dim, marginTop: 4 }}>아래 슬라이더로 첫 러닝을 예약해보세요</Text>
+              <Text style={{ fontSize: 16.5, fontWeight: '800', color: p.textStrong }}>예정된 러닝이 없어요</Text>
+              <Text style={{ fontSize: 13, color: p.dim, marginTop: 4 }}>아래 슬라이더로 첫 러닝을 예약해보세요</Text>
             </View>
           )}
           {/* 30분 전부터/러너 확정 시: 확인·시작 액션이 위젯에 올라온다 */}
@@ -494,7 +494,7 @@ export default function OwnerHome() {
                 style={s.meetBtn}
                 onPress={(e) => { e.stopPropagation(); if (liveNext) draft.bookingId = liveNext.id; router.push('/owner/live'); }}
               >
-                <Text style={{ fontSize: 12.5, fontWeight: '900', color: colors.ink }}>실시간 보기 ›</Text>
+                <Text style={{ fontSize: 14.5, fontWeight: '900', color: colors.ink }}>실시간 보기 ›</Text>
               </Pressable>
             </View>
           ) : liveNext?.status === 'handoff' ? (
@@ -507,7 +507,7 @@ export default function OwnerHome() {
                   router.push('/owner/meetup'); // 시작되면 미트업이 라이브로 자동 전환
                 }}
               >
-                <Text style={{ fontSize: 11.5, fontWeight: '700', color: p.textSoft }}>인계 완료 · 러닝 시작 대기 중 ›</Text>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: p.textSoft }}>인계 완료 · 러닝 시작 대기 중 ›</Text>
               </Pressable>
             </View>
           ) : liveNext?.status === 'confirmed' ? (
@@ -520,13 +520,13 @@ export default function OwnerHome() {
                   router.push('/owner/meetup');
                 }}
               >
-                <Text style={{ fontSize: 12.5, fontWeight: '900', color: colors.ink }}>러너 만나기 · 인계 확인 ›</Text>
+                <Text style={{ fontSize: 14.5, fontWeight: '900', color: colors.ink }}>러너 만나기 · 인계 확인 ›</Text>
               </Pressable>
               <Pressable
                 style={[s.widgetBtn, { borderColor: p.line, flex: 0.6 }]}
                 onPress={(e) => { e.stopPropagation(); router.push({ pathname: '/chat', params: liveNext ? { bid: liveNext.id } : {} }); }}
               >
-                <Text style={{ fontSize: 11.5, fontWeight: '700', color: p.textSoft }}>채팅</Text>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: p.textSoft }}>채팅</Text>
               </Pressable>
             </View>
           ) : (
@@ -535,13 +535,13 @@ export default function OwnerHome() {
                 style={[s.widgetBtn, { borderColor: p.line }]}
                 onPress={(e) => { e.stopPropagation(); router.push('/owner/schedule'); }}
               >
-                <Text style={{ fontSize: 11.5, fontWeight: '700', color: p.textSoft }}>일정 변경</Text>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: p.textSoft }}>일정 변경</Text>
               </Pressable>
               <Pressable
                 style={[s.widgetBtn, { borderColor: p.line }]}
                 onPress={(e) => { e.stopPropagation(); router.push({ pathname: '/chat', params: liveNext ? { bid: liveNext.id } : {} }); }}
               >
-                <Text style={{ fontSize: 11.5, fontWeight: '700', color: p.textSoft }}>러너와 채팅</Text>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: p.textSoft }}>러너와 채팅</Text>
               </Pressable>
             </View>
           )}
@@ -553,11 +553,11 @@ export default function OwnerHome() {
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 9 }}>
               <Text style={[s.sectionTitle, { color: p.textStrong }]}>우리 동네 러너</Text>
               <View style={{ backgroundColor: '#5a7a3c', borderRadius: 99, paddingVertical: 2, paddingHorizontal: 7 }}>
-                <Text style={{ fontSize: 8.5, fontWeight: '900', color: '#fff' }}>● {localRunners.length}명 온라인</Text>
+                <Text style={{ fontSize: 10, fontWeight: '900', color: '#fff' }}>● {localRunners.length}명 온라인</Text>
               </View>
               <View style={{ flex: 1 }} />
               <Pressable onPress={() => router.push('/leaderboard')}>
-                <Text style={{ fontSize: 12, fontWeight: '800', color: colors.tang }}>🏆 동네 랭킹 ›</Text>
+                <Text style={{ fontSize: 14, fontWeight: '800', color: colors.tang }}>🏆 동네 랭킹 ›</Text>
               </Pressable>
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 11, paddingRight: 12 }}>
@@ -581,20 +581,20 @@ export default function OwnerHome() {
                         width: 56, height: 56, borderRadius: 18, backgroundColor: sqArr[ri % 4],
                         alignItems: 'center', justifyContent: 'center',
                       }}>
-                        <Text style={{ fontSize: 23, fontWeight: '900', color: colors.volt }}>{r.name[0]}</Text>
+                        <Text style={{ fontSize: 26.5, fontWeight: '900', color: colors.volt }}>{r.name[0]}</Text>
                       </View>
                     )}
-                    <Text style={{ fontSize: 15, fontWeight: '900', color: colors.ink, marginTop: 10 }} numberOfLines={1}>
+                    <Text style={{ fontSize: 17, fontWeight: '900', color: colors.ink, marginTop: 10 }} numberOfLines={1}>
                       {r.name}
                     </Text>
-                    <Text style={{ fontSize: 10.5, color: '#3d453d', marginTop: 4 }} numberOfLines={1}>
+                    <Text style={{ fontSize: 12, color: '#3d453d', marginTop: 4 }} numberOfLines={1}>
                       {r.district || '근처'} · {r.tier}
                     </Text>
-                    <Text style={{ fontSize: 10.5, color: '#3d453d', marginTop: 1 }}>
+                    <Text style={{ fontSize: 12, color: '#3d453d', marginTop: 1 }}>
                       러닝 {r.totalRuns}회 · {r.paceLabel}
                     </Text>
                     <View style={{ backgroundColor: colors.ink, borderRadius: 99, paddingVertical: 7, paddingHorizontal: 15, marginTop: 10 }}>
-                      <Text style={{ fontSize: 10.5, fontWeight: '900', color: '#fff' }}>프로필 ›</Text>
+                      <Text style={{ fontSize: 12, fontWeight: '900', color: '#fff' }}>프로필 ›</Text>
                     </View>
                   </Pressable>
                 );
@@ -605,11 +605,11 @@ export default function OwnerHome() {
 
         {/* ---------- safety quick card ---------- */}
         <Pressable onPress={() => router.push('/safety')} style={[s.safetyStrip, { backgroundColor: p.card }]}>
-          <View style={s.safetyIcon}><Text style={{ fontSize: 13, color: '#5a7a3c' }}>✚</Text></View>
-          <Text style={{ flex: 1, fontSize: 12.5, fontWeight: '700', color: p.textStrong }}>
+          <View style={s.safetyIcon}><Text style={{ fontSize: 15, color: '#5a7a3c' }}>✚</Text></View>
+          <Text style={{ flex: 1, fontSize: 14.5, fontWeight: '700', color: p.textStrong }}>
             안심 센터 <Text style={{ fontWeight: '400', color: p.dim }}>· SOS · 실시간 위치 · 보험</Text>
           </Text>
-          <Text style={{ fontSize: 14, color: p.dim }}>›</Text>
+          <Text style={{ fontSize: 16, color: p.dim }}>›</Text>
         </Pressable>
 
         {/* 최근 활동 목업 카드·'내 주변 인기 러너' 목업 섹션 은퇴 (ui-audit P0)
@@ -620,8 +620,8 @@ export default function OwnerHome() {
         <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)' }} onPress={() => setFnOpen(false)} />
         <View style={s.fnSheet}>
           <View style={s.fnGrip} />
-          <Text style={[{ fontSize: 19, fontWeight: '900', color: '#0F1D13' }, df]}>지금 바로 러닝 찾기</Text>
-          <Text style={{ fontSize: 12, color: '#5d655d', marginTop: 4 }}>
+          <Text style={[{ fontSize: 22, fontWeight: '900', color: '#0F1D13' }, df]}>지금 바로 러닝 찾기</Text>
+          <Text style={{ fontSize: 14, color: '#49524a', marginTop: 4 }}>
             모두 채워뒀어요 — 바꾸고 싶은 것만 눌러서 바꾸세요
           </Text>
 
@@ -655,23 +655,23 @@ export default function OwnerHome() {
           <View style={s.fnKmRow}>
             <Pressable onPress={() => setFnKm((k) => Math.max(1, k - 1))} style={s.fnStep}><Text style={s.fnStepText}>−</Text></Pressable>
             <View style={{ alignItems: 'center', flex: 1 }}>
-              <Text style={{ fontSize: 30, fontWeight: '900', color: '#0F1D13' }}>{fnKm}km</Text>
-              <Text style={{ fontSize: 10.5, color: '#5d655d', marginTop: 2 }}>러닝 거리</Text>
+              <Text style={{ fontSize: 34.5, fontWeight: '900', color: '#0F1D13' }}>{fnKm}km</Text>
+              <Text style={{ fontSize: 12, color: '#49524a', marginTop: 2 }}>러닝 거리</Text>
             </View>
             <Pressable onPress={() => setFnKm((k) => Math.min(10, k + 1))} style={s.fnStep}><Text style={s.fnStepText}>＋</Text></Pressable>
           </View>
 
           <View style={s.fnPriceRow}>
-            <Text style={{ fontSize: 12.5, color: '#5d655d' }}>결제 금액</Text>
-            <Text style={{ fontSize: 20, fontWeight: '900', color: '#0F1D13' }}>{fnPrice.toLocaleString()}원</Text>
+            <Text style={{ fontSize: 14.5, color: '#49524a' }}>결제 금액</Text>
+            <Text style={{ fontSize: 23, fontWeight: '900', color: '#0F1D13' }}>{fnPrice.toLocaleString()}원</Text>
           </View>
 
           <Pressable onPress={findNowPay} disabled={fnBusy} style={[s.fnPay, fnBusy && { opacity: 0.5 }]}>
-            <Text style={{ fontSize: 15, fontWeight: '900', color: '#0F1D13' }}>
+            <Text style={{ fontSize: 17, fontWeight: '900', color: '#0F1D13' }}>
               {fnBusy ? '요청 보내는 중...' : '결제하고 바로 찾기 ➤'}
             </Text>
           </Pressable>
-          <Text style={{ fontSize: 10.5, color: '#9aa08f', textAlign: 'center', marginTop: 10 }}>
+          <Text style={{ fontSize: 12, color: '#82887a', textAlign: 'center', marginTop: 10 }}>
             온라인 러너 전원에게 요청이 전송돼요 · 매칭 전 취소는 전액 환불
           </Text>
         </View>
@@ -684,8 +684,8 @@ export default function OwnerHome() {
         <Pressable style={{ flex: 1, backgroundColor: '#00000055' }} onPress={() => setLadderOpen(false)} />
         <View style={s.ladderSheet}>
           <View style={s.sheetHandle} />
-          <Text style={{ fontSize: 18, fontWeight: '900', color: '#0F1D13' }}>마일스톤 리워드</Text>
-          <Text style={{ fontSize: 12, color: colors.dim, marginTop: 4, marginBottom: 12 }}>
+          <Text style={{ fontSize: 20.5, fontWeight: '900', color: '#0F1D13' }}>마일스톤 리워드</Text>
+          <Text style={{ fontSize: 14, color: colors.dim, marginTop: 4, marginBottom: 12 }}>
             {dog.name}의 누적 86.2km — 달릴수록 콜라보 굿즈가 열려요
           </Text>
           {ownerGearLadder.map((g, i) => (
@@ -696,24 +696,24 @@ export default function OwnerHome() {
                   width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center',
                   backgroundColor: g.got ? '#6aa53c' : g.claimable ? colors.volt : '#DCD6C4',
                 }}>
-                  {g.got && <Text style={{ fontSize: 9, fontWeight: '900', color: '#fff' }}>✓</Text>}
-                  {g.claimable && <Text style={{ fontSize: 9, fontWeight: '900', color: '#0F1D13' }}>!</Text>}
+                  {g.got && <Text style={{ fontSize: 10.5, fontWeight: '900', color: '#fff' }}>✓</Text>}
+                  {g.claimable && <Text style={{ fontSize: 10.5, fontWeight: '900', color: '#0F1D13' }}>!</Text>}
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 13.5, fontWeight: '800', color: g.got || g.claimable ? '#0F1D13' : '#9a9a90' }}>{g.item}</Text>
-                  <Text style={{ fontSize: 10.5, color: colors.dim, marginTop: 1 }}>누적 {g.at}km</Text>
+                  <Text style={{ fontSize: 15.5, fontWeight: '800', color: g.got || g.claimable ? '#0F1D13' : '#9a9a90' }}>{g.item}</Text>
+                  <Text style={{ fontSize: 12, color: colors.dim, marginTop: 1 }}>누적 {g.at}km</Text>
                 </View>
                 {g.claimable ? (
                   <Pressable
                     onPress={() => Alert.alert('수령 신청', '배송지로 콜라보 굿즈를 보내드려요 (목업)')}
                     style={{ backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 7, paddingHorizontal: 12 }}
                   >
-                    <Text style={{ fontSize: 11, fontWeight: '900', color: '#0F1D13' }}>수령하기</Text>
+                    <Text style={{ fontSize: 12.5, fontWeight: '900', color: '#0F1D13' }}>수령하기</Text>
                   </Pressable>
                 ) : g.got ? (
-                  <Text style={{ fontSize: 10.5, fontWeight: '700', color: '#5a7a3c' }}>수령 완료</Text>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: '#5a7a3c' }}>수령 완료</Text>
                 ) : (
-                  <Text style={{ fontSize: 10.5, color: colors.dim }}>{(g.at - 86.2).toFixed(0)}km 남음</Text>
+                  <Text style={{ fontSize: 12, color: colors.dim }}>{(g.at - 86.2).toFixed(0)}km 남음</Text>
                 )}
               </View>
             </View>
@@ -727,8 +727,8 @@ export default function OwnerHome() {
     return (
       <View style={[s.statChip, { backgroundColor: p.card, borderColor: p.line }]}>
         <View style={[s.statDot, { backgroundColor: accent, shadowColor: accent }]} />
-        <Text style={{ fontSize: 13, fontWeight: '800', color: p.textStrong, marginTop: 6 }}>{top}</Text>
-        <Text style={{ fontSize: 10, color: p.dim, marginTop: 2 }}>{bottom}</Text>
+        <Text style={{ fontSize: 15, fontWeight: '800', color: p.textStrong, marginTop: 6 }}>{top}</Text>
+        <Text style={{ fontSize: 11.5, color: p.dim, marginTop: 2 }}>{bottom}</Text>
       </View>
     );
   }
@@ -762,7 +762,7 @@ function SlideToBook({ onComplete }: { onComplete: () => void }) {
     <View style={s.slideTrack}>
       <Animated.Text style={[s.slideLabel, { opacity: labelOpacity }]}>밀어서 러닝 요청 ›››</Animated.Text>
       <Animated.View {...pan.panHandlers} style={[s.slideKnob, { transform: [{ translateX: x }] }]}>
-        <Text style={{ fontSize: 20, fontWeight: '900', color: colors.volt }}>❯</Text>
+        <Text style={{ fontSize: 23, fontWeight: '900', color: colors.volt }}>❯</Text>
       </Animated.View>
     </View>
   );
@@ -800,7 +800,7 @@ const s = StyleSheet.create({
     backgroundColor: '#f4f2ea', borderRadius: 99, paddingVertical: 9, paddingHorizontal: 14,
     borderWidth: 1, borderColor: '#DCD6C4',
   },
-  fnChipText: { fontSize: 12.5, fontWeight: '800', color: '#0F1D13' },
+  fnChipText: { fontSize: 14.5, fontWeight: '800', color: '#0F1D13' },
   fnKmRow: {
     flexDirection: 'row', alignItems: 'center', marginTop: 16, backgroundColor: '#F8F6F0',
     borderRadius: 18, padding: 14, borderWidth: 1, borderColor: '#DCD6C4',
@@ -809,7 +809,7 @@ const s = StyleSheet.create({
     width: 44, height: 44, borderRadius: 22, backgroundColor: '#fff', alignItems: 'center',
     justifyContent: 'center', borderWidth: 1, borderColor: '#DCD6C4',
   },
-  fnStepText: { fontSize: 22, fontWeight: '800', color: '#0F1D13' },
+  fnStepText: { fontSize: 25.5, fontWeight: '800', color: '#0F1D13' },
   fnPriceRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     marginTop: 14, paddingHorizontal: 4,
@@ -841,7 +841,7 @@ const s = StyleSheet.create({
   miniBar: { height: 4, borderRadius: 99, marginTop: 6, overflow: 'hidden' },
   miniBarFill: { height: 4, borderRadius: 99, backgroundColor: colors.volt },
   goalChip: { marginTop: 8, borderRadius: 99, paddingVertical: 4, paddingHorizontal: 10 },
-  bigMsg: { textAlign: 'center', marginTop: 8, fontSize: 13, fontWeight: '700' },
+  bigMsg: { textAlign: 'center', marginTop: 8, fontSize: 15, fontWeight: '700' },
   statChip: { flex: 1, borderRadius: 18, borderWidth: 1, paddingVertical: 12, paddingHorizontal: 12 },
   statDot: { width: 8, height: 8, borderRadius: 4, shadowOpacity: 0.9, shadowRadius: 5, shadowOffset: { width: 0, height: 0 } },
   rewardCard: {
@@ -868,7 +868,7 @@ const s = StyleSheet.create({
     shadowColor: colors.volt, shadowOpacity: 0.5, shadowRadius: 11, shadowOffset: { width: 0, height: 6 },
     elevation: 8,
   },
-  slideLabel: { alignSelf: 'center', fontSize: 17, fontWeight: '900', color: colors.ink, letterSpacing: 0.5 },
+  slideLabel: { alignSelf: 'center', fontSize: 19.5, fontWeight: '900', color: colors.ink, letterSpacing: 0.5 },
   slideKnob: {
     position: 'absolute', left: 6, width: 56, height: 56, borderRadius: 20,
     backgroundColor: '#0F1D13', alignItems: 'center', justifyContent: 'center',
@@ -904,7 +904,7 @@ const s = StyleSheet.create({
   },
   safetyIcon: { width: 28, height: 28, borderRadius: 9, backgroundColor: '#eef4e0', alignItems: 'center', justifyContent: 'center' },
   sectionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 26, marginBottom: 12 },
-  sectionTitle: { fontSize: 17, fontWeight: '800' },
+  sectionTitle: { fontSize: 19.5, fontWeight: '800' },
   runnerCard: { flexDirection: 'row', alignItems: 'center', borderRadius: 18, borderWidth: 1, padding: 14, marginBottom: 8 },
   runnerBadge: { borderWidth: 1, borderRadius: 99, paddingVertical: 2, paddingHorizontal: 7 },
 });

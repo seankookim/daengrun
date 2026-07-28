@@ -51,15 +51,15 @@ export default function RunDone() {
       </Text>
 
       <Card dark style={{ marginTop: 24, alignItems: 'center', padding: 26 }}>
-        <Text style={{ fontSize: 12, color: '#8fa093', letterSpacing: 2 }}>오늘의 수익</Text>
-        <Text style={{ fontSize: 44, fontWeight: '900', color: colors.volt, marginTop: 8 }}>
+        <Text style={{ fontSize: 14, color: '#8fa093', letterSpacing: 2 }}>오늘의 수익</Text>
+        <Text style={{ fontSize: 50.5, fontWeight: '900', color: colors.volt, marginTop: 8 }}>
           +{runResult.payout.toLocaleString()}원
         </Text>
-        <Text style={{ fontSize: 12, color: '#8fa093', marginTop: 8 }}>
+        <Text style={{ fontSize: 14, color: '#8fa093', marginTop: 8 }}>
           {runResult.km.toFixed(2)}km · {fmt(runResult.sec)} · {req.dogName}
         </Text>
         {!runResult.completed && (
-          <Text style={{ fontSize: 11, color: '#c9a15e', marginTop: 10, textAlign: 'center' }}>
+          <Text style={{ fontSize: 12.5, color: '#c9a15e', marginTop: 10, textAlign: 'center' }}>
             {runResult.reason === 'dog' && '컨디션 종료 — 실제 거리 정산 · 완주율 무영향\n상태 사진과 메모가 보호자에게 전달돼요'}
             {runResult.reason === 'owner' && '보호자 요청 종료 — 실제 거리 + 잔여 거리 50% 보장 포함'}
             {runResult.reason === 'runner' && '개인 사유 종료 — 실제 거리 정산 · 완주율에 반영돼요'}
@@ -75,8 +75,8 @@ export default function RunDone() {
           borderWidth: 1, borderColor: '#DCD6C4',
         }}>
           <Row style={{ justifyContent: 'space-between' }}>
-            <Text style={{ fontSize: 13.5, fontWeight: '900', color: '#0F1D13' }}>오늘의 순간</Text>
-            <Text style={{ fontSize: 10.5, color: colors.dim }}>보호자 리포트에 실려요</Text>
+            <Text style={{ fontSize: 15.5, fontWeight: '900', color: '#0F1D13' }}>오늘의 순간</Text>
+            <Text style={{ fontSize: 12, color: colors.dim }}>보호자 리포트에 실려요</Text>
           </Row>
           <Row style={{ gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
             {photos.map((url) => (
@@ -91,11 +91,11 @@ export default function RunDone() {
                   alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#dde8c4', borderStyle: 'dashed',
                 }}
               >
-                <Text style={{ fontSize: 18, color: '#5a7a3c' }}>{uploading ? '…' : '＋'}</Text>
+                <Text style={{ fontSize: 20.5, color: '#5a7a3c' }}>{uploading ? '…' : '＋'}</Text>
               </Pressable>
             )}
           </Row>
-          <Text style={{ fontSize: 10, color: colors.dim, marginTop: 8 }}>
+          <Text style={{ fontSize: 11.5, color: colors.dim, marginTop: 8 }}>
             {req.dogName}의 신나는 순간을 남겨주세요 — 보호자 만족도와 재지명율이 올라가요
           </Text>
         </View>
@@ -111,11 +111,11 @@ export default function RunDone() {
             shadowColor: colors.volt, shadowOpacity: 0.35, shadowRadius: 7, shadowOffset: { width: 0, height: 3 },
           }}
         >
-          <Text style={{ fontSize: 22 }}>{pendingDrop.kind === 'pick' ? '🎁' : '▣'}</Text>
-          <Text style={{ fontSize: 14, fontWeight: '900', color: colors.volt, marginTop: 5 }}>
+          <Text style={{ fontSize: 25.5 }}>{pendingDrop.kind === 'pick' ? '🎁' : '▣'}</Text>
+          <Text style={{ fontSize: 16, fontWeight: '900', color: colors.volt, marginTop: 5 }}>
             {pendingDrop.runCountAt}회 달성 — {pendingDrop.kind === 'pick' ? '픽 드랍' : '보급 상자'} 도착!
           </Text>
-          <Text style={{ fontSize: 10.5, color: '#8fa093', marginTop: 3 }}>리워드 센터에서 열기 ›</Text>
+          <Text style={{ fontSize: 12, color: '#8fa093', marginTop: 3 }}>리워드 센터에서 열기 ›</Text>
         </Pressable>
       )}
 

@@ -64,6 +64,6 @@ const s = StyleSheet.create({
   bar: { flexDirection: 'row', borderTopWidth: 1, borderTopColor: colors.line, backgroundColor: '#fff', paddingBottom: 22 },
   barDark: { backgroundColor: '#111c14', borderTopColor: colors.lineDark },
   tab: { flex: 1, alignItems: 'center', paddingVertical: 12 },
-  icon: { fontSize: 18, marginBottom: 3 },
-  label: { fontSize: 11, fontWeight: '500' },
+  icon: { fontSize: 20.5, marginBottom: 3 },
+  label: { fontSize: 12.5, fontWeight: '500' },
 });

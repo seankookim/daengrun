@@ -38,24 +38,24 @@ export default function Earnings() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         <Row style={{ gap: 6 }}>
-          <Text style={[{ fontSize: 26, fontWeight: '900', color: FOREST }, df]}>수익</Text>
+          <Text style={[{ fontSize: 30, fontWeight: '900', color: FOREST }, df]}>수익</Text>
           <View style={{ backgroundColor: '#5a7a3c', borderRadius: 99, paddingVertical: 2, paddingHorizontal: 7, alignSelf: 'center' }}>
-            <Text style={{ fontSize: 8.5, fontWeight: '900', color: '#fff' }}>● LIVE</Text>
+            <Text style={{ fontSize: 10, fontWeight: '900', color: '#fff' }}>● LIVE</Text>
           </View>
         </Row>
 
         {/* settlement card */}
         <View style={s.settleCard}>
-          <Text style={{ fontSize: 11, color: '#b8c4ae', letterSpacing: 1.5 }}>정산 예정 (원장 합계)</Text>
-          <Text style={{ fontSize: 38, fontWeight: '900', color: colors.volt, marginTop: 6 }}>
+          <Text style={{ fontSize: 12.5, color: '#b8c4ae', letterSpacing: 1.5 }}>정산 예정 (원장 합계)</Text>
+          <Text style={{ fontSize: 43.5, fontWeight: '900', color: colors.volt, marginTop: 6 }}>
             {pendingSum.toLocaleString()}원
           </Text>
           <Row style={{ justifyContent: 'space-between', marginTop: 10 }}>
-            <Text style={{ fontSize: 11.5, color: '#b8c4ae' }}>다음 정산일 {nextWednesday()}</Text>
-            <Text style={{ fontSize: 11.5, color: '#b8c4ae' }}>원천징수 3.3% 약 −{tax.toLocaleString()}원</Text>
+            <Text style={{ fontSize: 13, color: '#b8c4ae' }}>다음 정산일 {nextWednesday()}</Text>
+            <Text style={{ fontSize: 13, color: '#b8c4ae' }}>원천징수 3.3% 약 −{tax.toLocaleString()}원</Text>
           </Row>
           <Pressable style={s.settleBtn} onPress={() => Alert.alert('빠른 정산', '정산 자동화(오픈뱅킹) 연동 후 제공돼요')}>
-            <Text style={{ fontSize: 12.5, fontWeight: '900', color: FOREST }}>⚡ 빠른 정산 신청</Text>
+            <Text style={{ fontSize: 14.5, fontWeight: '900', color: FOREST }}>⚡ 빠른 정산 신청</Text>
           </Pressable>
         </View>
 
@@ -63,20 +63,20 @@ export default function Earnings() {
         <View style={s.card}>
           <Row style={{ justifyContent: 'space-between' }}>
             <View>
-              <Text style={{ fontSize: 13.5, fontWeight: '900', color: FOREST }}>정산 계좌</Text>
-              <Text style={{ fontSize: 12, color: colors.dim, marginTop: 3 }}>아직 등록된 계좌가 없어요</Text>
+              <Text style={{ fontSize: 15.5, fontWeight: '900', color: FOREST }}>정산 계좌</Text>
+              <Text style={{ fontSize: 14, color: colors.dim, marginTop: 3 }}>아직 등록된 계좌가 없어요</Text>
             </View>
             <Pressable style={s.changeChip} onPress={() => Alert.alert('계좌 등록', '본인 명의 계좌 인증과 함께 제공 예정')}>
-              <Text style={{ fontSize: 11, fontWeight: '700', color: '#3d453d' }}>등록</Text>
+              <Text style={{ fontSize: 12.5, fontWeight: '700', color: '#3d453d' }}>등록</Text>
             </Pressable>
           </Row>
         </View>
 
         {/* ledger */}
-        <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST, marginTop: 20, marginBottom: 10 }}>러닝별 내역</Text>
+        <Text style={{ fontSize: 17, fontWeight: '900', color: FOREST, marginTop: 20, marginBottom: 10 }}>러닝별 내역</Text>
         {ledger.length === 0 && (
           <View style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, alignItems: 'center', borderWidth: 1, borderColor: '#DCD6C4' }}>
-            <Text style={{ fontSize: 13, color: colors.dim, textAlign: 'center', lineHeight: 20 }}>
+            <Text style={{ fontSize: 15, color: colors.dim, textAlign: 'center', lineHeight: 23 }}>
               아직 정산 내역이 없어요{'\n'}러닝을 완료하면 여기에 기록돼요
             </Text>
           </View>
@@ -84,10 +84,10 @@ export default function Earnings() {
         {ledger.map((l) => (
           <View key={l.id} style={[s.card, { marginBottom: 8, marginTop: 0 }]}>
             <Row style={{ justifyContent: 'space-between' }}>
-              <Text style={{ fontSize: 14, fontWeight: '900', color: FOREST }}>
+              <Text style={{ fontSize: 16, fontWeight: '900', color: FOREST }}>
                 {l.when} · {l.dogName} {l.km}km
               </Text>
-              <Text style={{ fontSize: 16, fontWeight: '900', color: '#5a7a3c' }}>
+              <Text style={{ fontSize: 18.5, fontWeight: '900', color: '#5a7a3c' }}>
                 +{l.net.toLocaleString()}원
               </Text>
             </Row>
@@ -102,7 +102,7 @@ export default function Earnings() {
           </View>
         ))}
 
-        <Text style={{ fontSize: 10.5, color: colors.dim, textAlign: 'center', marginTop: 12, lineHeight: 15 }}>
+        <Text style={{ fontSize: 12, color: colors.dim, textAlign: 'center', marginTop: 12, lineHeight: 17 }}>
           정산은 매주 수요일 · 사업소득 3.3% 원천징수 후 지급
         </Text>
       </ScrollView>
@@ -113,7 +113,7 @@ export default function Earnings() {
 
 function Bd({ label, v, coral, accent }: { label: string; v: number; coral?: boolean; accent?: boolean }) {
   return (
-    <Text style={{ fontSize: 11, color: coral ? '#d84a2f' : accent ? '#5a7a3c' : colors.dim }}>
+    <Text style={{ fontSize: 12.5, color: coral ? '#d84a2f' : accent ? '#5a7a3c' : colors.dim }}>
       {label} {v >= 0 ? '' : '−'}{Math.abs(v).toLocaleString()}
     </Text>
   );

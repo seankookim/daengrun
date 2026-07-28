@@ -59,8 +59,8 @@ export default function RunnerReview() {
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: colors.cream }} contentContainerStyle={{ padding: 16, paddingTop: 56, paddingBottom: 40 }}>
-      <Text style={{ fontSize: 22, fontWeight: '900', color: FOREST, textAlign: 'center' }}>오늘 러닝 어땠나요?</Text>
-      <Text style={{ fontSize: 12, color: colors.dim, textAlign: 'center', marginTop: 5 }}>
+      <Text style={{ fontSize: 25.5, fontWeight: '900', color: FOREST, textAlign: 'center' }}>오늘 러닝 어땠나요?</Text>
+      <Text style={{ fontSize: 14, color: colors.dim, textAlign: 'center', marginTop: 5 }}>
         러너의 리뷰가 다음 러너를 지켜요
       </Text>
 
@@ -68,8 +68,8 @@ export default function RunnerReview() {
       <View style={s.dogCard}>
         <Monogram char={req.dogChar} bg={req.dogColor} size={52} />
         <View style={{ marginLeft: 12 }}>
-          <Text style={{ fontSize: 16, fontWeight: '900', color: FOREST }}>{req.dogName}</Text>
-          <Text style={{ fontSize: 11.5, color: colors.dim, marginTop: 2 }}>{req.breed} · 5.02km 완주</Text>
+          <Text style={{ fontSize: 18.5, fontWeight: '900', color: FOREST }}>{req.dogName}</Text>
+          <Text style={{ fontSize: 13, color: colors.dim, marginTop: 2 }}>{req.breed} · 5.02km 완주</Text>
         </View>
       </View>
 
@@ -77,7 +77,7 @@ export default function RunnerReview() {
       <Row style={{ justifyContent: 'center', gap: 8, marginTop: 18 }}>
         {[1, 2, 3, 4, 5].map((n) => (
           <Pressable key={n} onPress={() => setStars(n)}>
-            <Text style={{ fontSize: 36, color: n <= stars ? '#f2a33c' : '#dcd9cc' }}>★</Text>
+            <Text style={{ fontSize: 41.5, color: n <= stars ? '#f2a33c' : '#dcd9cc' }}>★</Text>
           </Pressable>
         ))}
       </Row>
@@ -87,7 +87,7 @@ export default function RunnerReview() {
       <Row style={{ flexWrap: 'wrap', gap: 8 }}>
         {dogReviewTags.map((t) => (
           <Pressable key={t} onPress={() => toggleTag(t)} style={[s.tag, tags.includes(t) && s.tagSel]}>
-            <Text style={{ fontSize: 12.5, fontWeight: '700', color: tags.includes(t) ? '#fff' : '#3d453d' }}>{t}</Text>
+            <Text style={{ fontSize: 14.5, fontWeight: '700', color: tags.includes(t) ? '#fff' : '#3d453d' }}>{t}</Text>
           </Pressable>
         ))}
       </Row>
@@ -95,11 +95,11 @@ export default function RunnerReview() {
       {/* private flag — protects the next runner */}
       <Pressable onPress={() => setPrivateFlag((v) => !v)} style={[s.flagCard, privateFlag && { borderColor: '#e8b0a0', backgroundColor: '#fdf3f0' }]}>
         <View style={[s.flagCheck, privateFlag && { backgroundColor: '#e8492a', borderColor: '#e8492a' }]}>
-          {privateFlag && <Text style={{ fontSize: 10, fontWeight: '900', color: '#fff' }}>✓</Text>}
+          {privateFlag && <Text style={{ fontSize: 11.5, fontWeight: '900', color: '#fff' }}>✓</Text>}
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 13.5, fontWeight: '800', color: FOREST }}>고지되지 않은 문제가 있었어요</Text>
-          <Text style={{ fontSize: 11, color: colors.dim, marginTop: 2 }}>
+          <Text style={{ fontSize: 15.5, fontWeight: '800', color: FOREST }}>고지되지 않은 문제가 있었어요</Text>
+          <Text style={{ fontSize: 12.5, color: colors.dim, marginTop: 2 }}>
             보호자에게 보이지 않아요 · 운영팀 확인 후 다음 러너 매칭에 반영
           </Text>
         </View>
@@ -117,10 +117,10 @@ export default function RunnerReview() {
       />
 
       <Pressable style={[s.submit, (stars === 0 || busy) && { opacity: 0.4 }]} disabled={stars === 0 || busy} onPress={submit}>
-        <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST }}>{busy ? '저장 중...' : '리뷰 남기기'}</Text>
+        <Text style={{ fontSize: 17, fontWeight: '900', color: FOREST }}>{busy ? '저장 중...' : '리뷰 남기기'}</Text>
       </Pressable>
       <Pressable style={{ alignItems: 'center', paddingVertical: 13 }} onPress={() => router.dismissTo('/runner/home')}>
-        <Text style={{ fontSize: 12.5, fontWeight: '700', color: colors.dim }}>다음에 할게요</Text>
+        <Text style={{ fontSize: 14.5, fontWeight: '700', color: colors.dim }}>다음에 할게요</Text>
       </Pressable>
     </ScrollView>
   );
@@ -132,7 +132,7 @@ const s = StyleSheet.create({
     backgroundColor: '#fff', borderRadius: 18, padding: 14, paddingHorizontal: 12,
     borderWidth: 1, borderColor: '#DCD6C4', marginTop: 18,
   },
-  label: { fontSize: 13.5, fontWeight: '900', color: FOREST, marginTop: 22, marginBottom: 9 },
+  label: { fontSize: 15.5, fontWeight: '900', color: FOREST, marginTop: 22, marginBottom: 9 },
   tag: { backgroundColor: '#fff', borderRadius: 99, paddingVertical: 9, paddingHorizontal: 14, borderWidth: 1, borderColor: '#DCD6C4' },
   tagSel: { backgroundColor: FOREST, borderColor: FOREST },
   flagCard: {
@@ -143,7 +143,7 @@ const s = StyleSheet.create({
   flagCheck: { width: 22, height: 22, borderRadius: 7, borderWidth: 1.6, borderColor: '#dcd9cc', alignItems: 'center', justifyContent: 'center' },
   noteInput: {
     backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: '#DCD6C4',
-    padding: 14, minHeight: 80, fontSize: 13.5, color: FOREST, textAlignVertical: 'top',
+    padding: 14, minHeight: 80, fontSize: 15.5, color: FOREST, textAlignVertical: 'top',
   },
   submit: { backgroundColor: colors.volt, borderRadius: 16, alignItems: 'center', paddingVertical: 15, marginTop: 20 },
 });

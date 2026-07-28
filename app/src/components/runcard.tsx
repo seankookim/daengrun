@@ -87,7 +87,7 @@ function Marker({ x, y, label }: { x: number; y: number; label: string }) {
         borderWidth: 2, borderColor: '#ffffffcc',
       }}
     >
-      <Text style={{ fontSize: 9, fontWeight: '900', color: '#fff' }}>{label}</Text>
+      <Text style={{ fontSize: 10.5, fontWeight: '900', color: '#fff' }}>{label}</Text>
     </View>
   );
 }
@@ -120,13 +120,13 @@ export function RunCard({ card, width = 340 }: { card: CollectCard; width?: numb
       {/* header */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
         <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: p.chip, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontSize: 13, fontWeight: '900', color: mode === 'dark' ? colors.volt : colors.voltDeep }}>런</Text>
+          <Text style={{ fontSize: 15, fontWeight: '900', color: mode === 'dark' ? colors.volt : colors.voltDeep }}>런</Text>
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 16, fontWeight: '800', color: card.locked ? p.dim : p.textStrong }}>
+          <Text style={{ fontSize: 18.5, fontWeight: '800', color: card.locked ? p.dim : p.textStrong }}>
             {card.title}
           </Text>
-          <Text style={{ fontSize: 11, color: p.dim, marginTop: 1 }}>
+          <Text style={{ fontSize: 12.5, color: p.dim, marginTop: 1 }}>
             {card.series ? `${card.series} · ` : ''}
             {card.run?.location ? `${card.run.location} · ` : ''}
             {card.date ?? '달성 조건: 시리즈 코스 완주'}
@@ -138,7 +138,7 @@ export function RunCard({ card, width = 340 }: { card: CollectCard; width?: numb
             borderRadius: 99, paddingVertical: 4, paddingHorizontal: 10,
           }}
         >
-          <Text style={{ fontSize: 10, fontWeight: '800', color: card.locked ? p.dim : tierColor(card.tier) }}>
+          <Text style={{ fontSize: 11.5, fontWeight: '800', color: card.locked ? p.dim : tierColor(card.tier) }}>
             {card.locked ? '잠금' : card.run ? '도그스하이' : card.tier}
           </Text>
         </View>
@@ -150,11 +150,11 @@ export function RunCard({ card, width = 340 }: { card: CollectCard; width?: numb
           <HeatTrace points={card.run.trace} width={inner - 24} height={traceH} />
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#1b2f21', borderRadius: 10, paddingVertical: 6, paddingHorizontal: 10 }}>
-              <Text style={{ fontSize: 11, fontWeight: '800', color: colors.volt }}>컨디션 좋음</Text>
-              <Text style={{ fontSize: 10, color: colors.dimDark }}>평소보다 +12% 활동량</Text>
+              <Text style={{ fontSize: 12.5, fontWeight: '800', color: colors.volt }}>컨디션 좋음</Text>
+              <Text style={{ fontSize: 11.5, color: colors.dimDark }}>평소보다 +12% 활동량</Text>
             </View>
             <View style={{ backgroundColor: '#1b2330', borderRadius: 10, paddingVertical: 6, paddingHorizontal: 10 }}>
-              <Text style={{ fontSize: 11, fontWeight: '700', color: '#9fc3e8' }}>24°</Text>
+              <Text style={{ fontSize: 12.5, fontWeight: '700', color: '#9fc3e8' }}>24°</Text>
             </View>
           </View>
         </View>
@@ -167,14 +167,14 @@ export function RunCard({ card, width = 340 }: { card: CollectCard; width?: numb
         >
           <Text
             style={{
-              fontSize: 46, fontWeight: '900',
+              fontSize: 53, fontWeight: '900',
               color: card.locked ? '#2c3222' : TIER_COLORS[card.tier],
               ...(card.locked ? {} : { textShadowColor: TIER_COLORS[card.tier], textShadowRadius: 18, textShadowOffset: { width: 0, height: 0 } }),
             }}
           >
             {card.emblem}
           </Text>
-          <Text style={{ fontSize: 10, color: colors.dimDark, marginTop: 6, letterSpacing: 2 }}>
+          <Text style={{ fontSize: 11.5, color: colors.dimDark, marginTop: 6, letterSpacing: 2 }}>
             {card.locked ? 'LOCKED' : card.tier.toUpperCase?.() ?? card.tier}
           </Text>
         </View>
@@ -201,8 +201,8 @@ function Divider({ color }: { color: string }) {
 function CardStat({ value, unit, color, dim }: { value: string; unit: string; color: string; dim: string }) {
   return (
     <View style={{ flex: 1, alignItems: 'center' }}>
-      <Text style={{ fontSize: 20, fontWeight: '900', color }}>{value}</Text>
-      <Text style={{ fontSize: 10, color: dim, marginTop: 2 }}>{unit}</Text>
+      <Text style={{ fontSize: 23, fontWeight: '900', color }}>{value}</Text>
+      <Text style={{ fontSize: 11.5, color: dim, marginTop: 2 }}>{unit}</Text>
     </View>
   );
 }

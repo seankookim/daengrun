@@ -180,8 +180,8 @@ export default function RunnerProfileScreen() {
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: selected ? 140 : 40 }}>
         {/* header (패딩 있는 유일한 상단 영역) */}
         <Row style={{ justifyContent: 'space-between', paddingHorizontal: 12, paddingTop: 56 }}>
-          <Pressable onPress={() => router.back()} style={s.backBtn}><Text style={{ fontSize: 18 }}>‹</Text></Pressable>
-          <Text style={{ fontSize: 20, fontWeight: '900', color: FOREST }}>러너 프로필</Text>
+          <Pressable onPress={() => router.back()} style={s.backBtn}><Text style={{ fontSize: 20.5 }}>‹</Text></Pressable>
+          <Text style={{ fontSize: 23, fontWeight: '900', color: FOREST }}>러너 프로필</Text>
           <View style={{ width: 40 }} />
         </Row>
 
@@ -203,24 +203,24 @@ export default function RunnerProfileScreen() {
                 <Avatar url={p.avatarUrl} char={p.name[0]} bg="#5a7a3c" size={76} />
                 <View style={{ flex: 1, justifyContent: 'center' }}>
                   <Row style={{ gap: 6 }}>
-                    <Text style={{ fontSize: 21, fontWeight: '900', color: '#fff' }}>{p.name}</Text>
+                    <Text style={{ fontSize: 24, fontWeight: '900', color: '#fff' }}>{p.name}</Text>
                     {p.online && <View style={s.onlineDot} />}
                   </Row>
                   <Row style={{ gap: 5, marginTop: 6 }}>
-                    <View style={s.limePill}><Text style={{ fontSize: 9.5, fontWeight: '800', color: FOREST }}>✓ {p.tier}</Text></View>
+                    <View style={s.limePill}><Text style={{ fontSize: 11, fontWeight: '800', color: FOREST }}>✓ {p.tier}</Text></View>
                     {p.trainerCertified && (
                       <View style={[s.limePill, { backgroundColor: '#fde8e3' }]}>
-                        <Text style={{ fontSize: 9.5, fontWeight: '800', color: '#d84a2f' }}>훈련사</Text>
+                        <Text style={{ fontSize: 11, fontWeight: '800', color: '#d84a2f' }}>훈련사</Text>
                       </View>
                     )}
                   </Row>
-                  <Text style={{ fontSize: 12, color: '#b8c4ae', marginTop: 6 }}>
+                  <Text style={{ fontSize: 14, color: '#b8c4ae', marginTop: 6 }}>
                     {p.district || '동네 미설정'}{p.avgRating != null ? ` · ★ ${p.avgRating}` : ''}
                   </Text>
                 </View>
                 {canEdit && (
                   <Pressable onPress={openEdit} style={s.editChip}>
-                    <Text style={{ fontSize: 11.5, fontWeight: '800', color: FOREST }}>✎ 편집</Text>
+                    <Text style={{ fontSize: 13, fontWeight: '800', color: FOREST }}>✎ 편집</Text>
                   </Pressable>
                 )}
               </Row>
@@ -246,13 +246,13 @@ export default function RunnerProfileScreen() {
                   ))}
                   {canEdit && (
                     <Pressable onPress={addPhoto} disabled={uploadingPhoto} style={s.addTile}>
-                      <Text style={{ fontSize: 22, color: '#5a7a3c' }}>{uploadingPhoto ? '…' : '＋'}</Text>
-                      <Text style={{ fontSize: 9.5, color: colors.dim, marginTop: 2 }}>사진 추가</Text>
+                      <Text style={{ fontSize: 25.5, color: '#5a7a3c' }}>{uploadingPhoto ? '…' : '＋'}</Text>
+                      <Text style={{ fontSize: 11, color: colors.dim, marginTop: 2 }}>사진 추가</Text>
                     </Pressable>
                   )}
                 </View>
                 {canEdit && p.photos.length > 0 && (
-                  <Text style={{ fontSize: 10, color: colors.dim, padding: 8, textAlign: 'center' }}>길게 눌러 삭제</Text>
+                  <Text style={{ fontSize: 11.5, color: colors.dim, padding: 8, textAlign: 'center' }}>길게 눌러 삭제</Text>
                 )}
               </View>
             )}
@@ -260,13 +260,13 @@ export default function RunnerProfileScreen() {
             {/* ---------- 자기소개 ---------- */}
             <View style={s.section}>
               <Text style={s.sectionTitle}>자기소개</Text>
-              <Text style={{ fontSize: 13.5, color: p.bio ? '#3d453d' : colors.dim, lineHeight: 21 }}>
+              <Text style={{ fontSize: 15.5, color: p.bio ? '#3d453d' : colors.dim, lineHeight: 24 }}>
                 {p.bio ?? (isMe ? '아직 소개가 없어요 — 마이 > 프로필 설정에서 작성해보세요' : '아직 소개가 없어요')}
               </Text>
               {p.specialties.length > 0 && (
                 <Row style={{ gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
                   {p.specialties.map((sp) => (
-                    <View key={sp} style={s.specChip}><Text style={{ fontSize: 10.5, fontWeight: '700', color: '#3d5a2b' }}>{sp}</Text></View>
+                    <View key={sp} style={s.specChip}><Text style={{ fontSize: 12, fontWeight: '700', color: '#3d5a2b' }}>{sp}</Text></View>
                   ))}
                 </Row>
               )}
@@ -276,30 +276,30 @@ export default function RunnerProfileScreen() {
             <View style={s.section}>
               <Text style={s.sectionTitle}>러닝 가능 시간</Text>
               {avail.length === 0 ? (
-                <Text style={{ fontSize: 12.5, color: colors.dim }}>가용 시간 미설정 — 오픈 매칭으로만 예약할 수 있어요</Text>
+                <Text style={{ fontSize: 14.5, color: colors.dim }}>가용 시간 미설정 — 오픈 매칭으로만 예약할 수 있어요</Text>
               ) : !canBook ? (
                 <>
                   {avail.map((line) => (
-                    <Text key={line} style={{ fontSize: 13, color: '#3d453d', lineHeight: 21 }}>{line}</Text>
+                    <Text key={line} style={{ fontSize: 15, color: '#3d453d', lineHeight: 24 }}>{line}</Text>
                   ))}
-                  <Text style={{ fontSize: 10.5, color: colors.dim, marginTop: 8 }}>
+                  <Text style={{ fontSize: 12, color: colors.dim, marginTop: 8 }}>
                     보호자에게는 여기가 시간대 선택 그리드로 보여요 — 예약은 보호자 모드에서
                   </Text>
                 </>
               ) : (
                 <>
-                  <Text style={{ fontSize: 12, color: colors.dim, marginBottom: 10 }}>{avail.join(' · ')}</Text>
+                  <Text style={{ fontSize: 14, color: colors.dim, marginBottom: 10 }}>{avail.join(' · ')}</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
                     {days.map((d, i) => (
                       <Pressable key={d.date.toISOString()} onPress={() => { setDayIdx(i); setSelected(null); }} style={[s.dayChip, dayIdx === i && { backgroundColor: FOREST }]}>
-                        <Text style={{ fontSize: 9.5, color: dayIdx === i ? '#b8c4ae' : colors.dim }}>{d.w}</Text>
-                        <Text style={{ fontSize: 15, fontWeight: '900', color: dayIdx === i ? '#fff' : FOREST }}>{d.d}</Text>
-                        {d.label && <Text style={{ fontSize: 8, fontWeight: '700', color: dayIdx === i ? colors.volt : '#5a7a3c' }}>{d.label}</Text>}
+                        <Text style={{ fontSize: 11, color: dayIdx === i ? '#b8c4ae' : colors.dim }}>{d.w}</Text>
+                        <Text style={{ fontSize: 17, fontWeight: '900', color: dayIdx === i ? '#fff' : FOREST }}>{d.d}</Text>
+                        {d.label && <Text style={{ fontSize: 9, fontWeight: '700', color: dayIdx === i ? colors.volt : '#5a7a3c' }}>{d.label}</Text>}
                       </Pressable>
                     ))}
                   </ScrollView>
                   {daySlots.length === 0 ? (
-                    <Text style={{ fontSize: 12, color: colors.dim, marginTop: 12 }}>이 날은 가능한 시간이 없어요</Text>
+                    <Text style={{ fontSize: 14, color: colors.dim, marginTop: 12 }}>이 날은 가능한 시간이 없어요</Text>
                   ) : (
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
                       {daySlots.map((sl) => {
@@ -317,8 +317,8 @@ export default function RunnerProfileScreen() {
                               sel && { backgroundColor: FOREST, borderColor: FOREST },
                             ]}
                           >
-                            <Text style={{ fontSize: 13, fontWeight: '800', color: sel ? '#fff' : FOREST }}>{sl.label}</Text>
-                            <Text style={{ fontSize: 8.5, marginTop: 1, color: sel ? colors.volt : ok === false ? '#d84a2f' : ok === null ? colors.dim : '#5a7a3c' }}>
+                            <Text style={{ fontSize: 15, fontWeight: '800', color: sel ? '#fff' : FOREST }}>{sl.label}</Text>
+                            <Text style={{ fontSize: 10, marginTop: 1, color: sel ? colors.volt : ok === false ? '#d84a2f' : ok === null ? colors.dim : '#5a7a3c' }}>
                               {sel ? '선택됨 ✓' : ok === false ? '마감' : ok === null ? '확인 중' : '가능'}
                             </Text>
                           </Pressable>
@@ -326,7 +326,7 @@ export default function RunnerProfileScreen() {
                       })}
                     </View>
                   )}
-                  <Text style={{ fontSize: 10.5, color: colors.dim, marginTop: 10 }}>
+                  <Text style={{ fontSize: 12, color: colors.dim, marginTop: 10 }}>
                     시간을 고르면 코스·옵션 선택으로 이어져요
                   </Text>
                 </>
@@ -339,21 +339,21 @@ export default function RunnerProfileScreen() {
                 보호자 후기{p.avgRating != null ? ` · ★ ${p.avgRating}` : ''}
               </Text>
               {p.reviews.length === 0 && (
-                <Text style={{ fontSize: 12.5, color: colors.dim }}>아직 후기가 없어요 — 첫 러닝의 주인공이 되어보세요</Text>
+                <Text style={{ fontSize: 14.5, color: colors.dim }}>아직 후기가 없어요 — 첫 러닝의 주인공이 되어보세요</Text>
               )}
               {p.reviews.map((v, i) => (
                 <View key={i} style={[s.reviewRow, i > 0 && { borderTopWidth: 1, borderTopColor: '#f0eee3' }]}>
                   <Row style={{ justifyContent: 'space-between' }}>
-                    <Text style={{ fontSize: 12, fontWeight: '800', color: '#5a7a3c' }}>
+                    <Text style={{ fontSize: 14, fontWeight: '800', color: '#5a7a3c' }}>
                       {v.rating != null ? '★'.repeat(v.rating) : '후기'}
                     </Text>
-                    <Text style={{ fontSize: 10.5, color: colors.dim }}>{v.when}</Text>
+                    <Text style={{ fontSize: 12, color: colors.dim }}>{v.when}</Text>
                   </Row>
-                  {v.note && <Text style={{ fontSize: 12.5, color: '#3d453d', marginTop: 4, lineHeight: 18 }}>{v.note}</Text>}
+                  {v.note && <Text style={{ fontSize: 14.5, color: '#3d453d', marginTop: 4, lineHeight: 20.5 }}>{v.note}</Text>}
                   {v.tags.length > 0 && (
                     <Row style={{ gap: 5, marginTop: 5, flexWrap: 'wrap' }}>
                       {v.tags.map((t) => (
-                        <Text key={t} style={{ fontSize: 10.5, color: colors.dim }}>#{t}</Text>
+                        <Text key={t} style={{ fontSize: 12, color: colors.dim }}>#{t}</Text>
                       ))}
                     </Row>
                   )}
@@ -373,18 +373,18 @@ export default function RunnerProfileScreen() {
                       router.push('/owner/request');
                     }}
                   >
-                    <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST }}>{p.name} 러너와 예약하기</Text>
-                    <Text style={{ fontSize: 10.5, color: '#5d6b4a', marginTop: 2 }}>결제 후 이 러너에게 지명 요청이 우선 안내돼요</Text>
+                    <Text style={{ fontSize: 17, fontWeight: '900', color: FOREST }}>{p.name} 러너와 예약하기</Text>
+                    <Text style={{ fontSize: 12, color: '#5d6b4a', marginTop: 2 }}>결제 후 이 러너에게 지명 요청이 우선 안내돼요</Text>
                   </Pressable>
                   <Pressable
                     style={s.ghostCta}
                     onPress={() => Alert.alert('채팅', '러너와의 채팅은 예약 후 열려요 (실시간 채팅 준비 중)')}
                   >
-                    <Text style={{ fontSize: 13, fontWeight: '800', color: '#3d453d' }}>채팅 문의</Text>
+                    <Text style={{ fontSize: 15, fontWeight: '800', color: '#3d453d' }}>채팅 문의</Text>
                   </Pressable>
                 </>
               ) : (
-                <Text style={{ fontSize: 11.5, color: colors.dim, textAlign: 'center', marginTop: 14 }}>
+                <Text style={{ fontSize: 13, color: colors.dim, textAlign: 'center', marginTop: 14 }}>
                   {isMe ? '내 공개 프로필 — 사진은 여기서, 소개는 마이 > 프로필 설정에서 편집해요' : '예약은 보호자 모드에서 가능해요'}
                 </Text>
               )}
@@ -398,7 +398,7 @@ export default function RunnerProfileScreen() {
         <Pressable style={s.editBackdrop} onPress={() => setEditing(false)} />
         <View style={s.editSheet}>
           <View style={s.editHandle} />
-          <Text style={{ fontSize: 19, fontWeight: '900', color: FOREST }}>프로필 편집</Text>
+          <Text style={{ fontSize: 22, fontWeight: '900', color: FOREST }}>프로필 편집</Text>
           <Text style={s.editLabel}>이름</Text>
           <TextInput value={eName} onChangeText={setEName} style={s.editInput} maxLength={20} placeholder="이름 또는 닉네임" placeholderTextColor="#b0ada0" />
           <Text style={s.editLabel}>활동 동네</Text>
@@ -413,9 +413,9 @@ export default function RunnerProfileScreen() {
             placeholder="러닝 경력, 반려견 경험, 나의 강점"
             placeholderTextColor="#b0ada0"
           />
-          <Text style={{ fontSize: 10.5, color: colors.dim, marginTop: 8 }}>사진·갤러리는 이 페이지에서 바로 편집해요</Text>
+          <Text style={{ fontSize: 12, color: colors.dim, marginTop: 8 }}>사진·갤러리는 이 페이지에서 바로 편집해요</Text>
           <Pressable onPress={saveEdit} disabled={saving} style={[s.editSave, saving && { opacity: 0.5 }]}>
-            <Text style={{ fontSize: 14, fontWeight: '900', color: FOREST }}>{saving ? '저장 중...' : '저장'}</Text>
+            <Text style={{ fontSize: 16, fontWeight: '900', color: FOREST }}>{saving ? '저장 중...' : '저장'}</Text>
           </Pressable>
         </View>
       </Modal>
@@ -424,15 +424,15 @@ export default function RunnerProfileScreen() {
       {selected && p && canBook && (
         <Animated.View style={[s.confirmBar, { transform: [{ translateY: barY }] }]}>
           <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 13, fontWeight: '900', color: '#fff' }}>
+            <Text style={{ fontSize: 15, fontWeight: '900', color: '#fff' }}>
               {selected.start.getMonth() + 1}월 {selected.start.getDate()}일 ({DAY[selected.start.getDay()]}) {selected.label}
             </Text>
-            <Text style={{ fontSize: 10.5, color: '#b8c4ae', marginTop: 2 }}>
+            <Text style={{ fontSize: 12, color: '#b8c4ae', marginTop: 2 }}>
               {p.name} 러너 · 코스·옵션 선택으로 이어져요
             </Text>
           </View>
           <Pressable onPress={() => confirmSlot(selected)} style={s.confirmBtn}>
-            <Text style={{ fontSize: 14, fontWeight: '900', color: FOREST }}>이 시간으로 ›</Text>
+            <Text style={{ fontSize: 16, fontWeight: '900', color: FOREST }}>이 시간으로 ›</Text>
           </Pressable>
         </Animated.View>
       )}
@@ -443,8 +443,8 @@ export default function RunnerProfileScreen() {
 function HeroStat({ value, label }: { value: string; label: string }) {
   return (
     <View style={{ alignItems: 'center' }}>
-      <Text style={{ fontSize: 14.5, fontWeight: '900', color: '#fff' }}>{value}</Text>
-      <Text style={{ fontSize: 9.5, color: '#b8c4ae', marginTop: 3 }}>{label}</Text>
+      <Text style={{ fontSize: 16.5, fontWeight: '900', color: '#fff' }}>{value}</Text>
+      <Text style={{ fontSize: 11, color: '#b8c4ae', marginTop: 3 }}>{label}</Text>
     </View>
   );
 }
@@ -457,7 +457,7 @@ const s = StyleSheet.create({
   onlineDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: colors.volt, alignSelf: 'center' },
   limePill: { backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 3, paddingHorizontal: 8 },
   section: { backgroundColor: '#fff', paddingHorizontal: 12, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#DCD6C4' },
-  sectionTitle: { fontSize: 13.5, fontWeight: '900', color: FOREST, marginBottom: 8 },
+  sectionTitle: { fontSize: 15.5, fontWeight: '900', color: FOREST, marginBottom: 8 },
   specChip: { backgroundColor: '#eef4e0', borderRadius: 99, paddingVertical: 4, paddingHorizontal: 10 },
   reviewRow: { paddingVertical: 10 },
   dayChip: { width: 46, borderRadius: 13, backgroundColor: '#f4f2ea', alignItems: 'center', paddingVertical: 8, gap: 1 },
@@ -469,8 +469,8 @@ const s = StyleSheet.create({
   editBackdrop: { flex: 1, backgroundColor: '#00000055' },
   editSheet: { backgroundColor: colors.cream, borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 16, paddingBottom: 40 },
   editHandle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: '#DCD6C4', marginBottom: 14 },
-  editLabel: { fontSize: 12, fontWeight: '800', color: '#3d453d', marginTop: 14, marginBottom: 6 },
-  editInput: { backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: '#DCD6C4', paddingVertical: 12, paddingHorizontal: 14, fontSize: 14.5, color: FOREST },
+  editLabel: { fontSize: 14, fontWeight: '800', color: '#3d453d', marginTop: 14, marginBottom: 6 },
+  editInput: { backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: '#DCD6C4', paddingVertical: 12, paddingHorizontal: 14, fontSize: 16.5, color: FOREST },
   editSave: { backgroundColor: colors.volt, borderRadius: 16, alignItems: 'center', paddingVertical: 14, marginTop: 18 },
   confirmBar: {
     position: 'absolute', left: 0, right: 0, bottom: 0,
@@ -480,5 +480,5 @@ const s = StyleSheet.create({
   },
   confirmBtn: { backgroundColor: colors.volt, borderRadius: 16, paddingVertical: 13, paddingHorizontal: 16 },
   emptyBox: { margin: 20, backgroundColor: '#f4f2ea', borderRadius: 18, padding: 26, alignItems: 'center' },
-  emptyText: { fontSize: 13, color: colors.dim, textAlign: 'center', lineHeight: 19 },
+  emptyText: { fontSize: 15, color: colors.dim, textAlign: 'center', lineHeight: 22 },
 });

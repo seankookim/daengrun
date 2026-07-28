@@ -16,9 +16,9 @@ const FOREST_INNER = '#1d3023';
 function MiniCol({ v, l, g, main, dim }: { v: string; l: string; g?: string; main: string; dim: string }) {
   return (
     <View style={{ alignItems: 'center' }}>
-      {g ? <Text style={{ fontSize: 11, color: dim, marginBottom: 3 }}>{g}</Text> : null}
-      <Text style={{ fontSize: 14.5, fontWeight: '900', color: main }}>{v}</Text>
-      <Text style={{ fontSize: 9.5, color: dim, marginTop: 2 }}>{l}</Text>
+      {g ? <Text style={{ fontSize: 12.5, color: dim, marginBottom: 3 }}>{g}</Text> : null}
+      <Text style={{ fontSize: 16.5, fontWeight: '900', color: main }}>{v}</Text>
+      <Text style={{ fontSize: 11, color: dim, marginTop: 2 }}>{l}</Text>
     </View>
   );
 }
@@ -37,7 +37,7 @@ function RunnerFullCard({ r, m, i, topIsPreferred, nominating, onNominate, onLay
   const dark = i === 0;
   const bg = dark ? FOREST : PALETTE[(i - 1 + PALETTE.length) % PALETTE.length];
   const tMain = dark ? '#fff' : FOREST;
-  const tDim = dark ? '#b8c4ae' : '#5d655d';
+  const tDim = dark ? '#b8c4ae' : '#49524a';
   const barTrack = dark ? '#2c4034' : '#ffffff99';
   const barFill = dark ? colors.volt : colors.voltDeep;
   return (
@@ -61,26 +61,26 @@ function RunnerFullCard({ r, m, i, topIsPreferred, nominating, onNominate, onLay
       )}
 
       <View style={[s.rankTab, !dark && { backgroundColor: FOREST }]}>
-        <Text style={{ fontSize: 11, fontWeight: '900', color: dark ? FOREST : '#fff' }}>
+        <Text style={{ fontSize: 12.5, fontWeight: '900', color: dark ? FOREST : '#fff' }}>
           {i === 0 ? (topIsPreferred ? '★ 내가 고른 러너' : '★ 추천 1순위') : `${i + 1}순위 · 적합 ${m.total}%`}
         </Text>
       </View>
       {dark && (
-        <View style={s.fitPill}><Text style={{ fontSize: 11, fontWeight: '900', color: FOREST }}>적합도 {m.total}%</Text></View>
+        <View style={s.fitPill}><Text style={{ fontSize: 12.5, fontWeight: '900', color: FOREST }}>적합도 {m.total}%</Text></View>
       )}
 
       <Pressable onPress={() => router.push(`/runner-profile/${r.profileId}`)}>
         <Row style={{ gap: 12, marginTop: 4 }}>
           <View style={{ width: 56, height: 56 }}>
             <Avatar url={r.avatarUrl} char={r.name[0]} bg="#5a7a3c" size={56} />
-            {dark && <View style={s.checkBadge}><Text style={{ fontSize: 10, fontWeight: '900', color: FOREST }}>✓</Text></View>}
+            {dark && <View style={s.checkBadge}><Text style={{ fontSize: 11.5, fontWeight: '900', color: FOREST }}>✓</Text></View>}
           </View>
           <View style={{ flex: 1 }}>
             <Row style={{ gap: 7 }}>
-              <Text style={{ fontSize: 20, fontWeight: '900', color: tMain }}>{r.name}</Text>
-              <Text style={{ fontSize: 11, fontWeight: '800', color: dark ? colors.volt : '#5a7a3c', alignSelf: 'center' }}>프로필 ›</Text>
+              <Text style={{ fontSize: 23, fontWeight: '900', color: tMain }}>{r.name}</Text>
+              <Text style={{ fontSize: 12.5, fontWeight: '800', color: dark ? colors.volt : '#5a7a3c', alignSelf: 'center' }}>프로필 ›</Text>
             </Row>
-            <Text style={{ fontSize: 11.5, color: tDim, marginTop: 4 }}>
+            <Text style={{ fontSize: 13, color: tDim, marginTop: 4 }}>
               {r.tier} · {r.district || '근처'} · 러닝 {r.totalRuns}회
             </Text>
           </View>
@@ -92,8 +92,8 @@ function RunnerFullCard({ r, m, i, topIsPreferred, nominating, onNominate, onLay
         {m.reasons.map((reason) => (
           <View key={reason.label}>
             <Row style={{ justifyContent: 'space-between' }}>
-              <Text style={{ fontSize: 11.5, color: tDim }}>{reason.glyph} {reason.label}</Text>
-              <Text style={{ fontSize: 12, fontWeight: '900', color: tMain }}>{reason.pct}%</Text>
+              <Text style={{ fontSize: 13, color: tDim }}>{reason.glyph} {reason.label}</Text>
+              <Text style={{ fontSize: 14, fontWeight: '900', color: tMain }}>{reason.pct}%</Text>
             </Row>
             <View style={{ height: 6, borderRadius: 99, backgroundColor: barTrack, marginTop: 5, overflow: 'hidden' }}>
               <View style={{ height: 6, borderRadius: 99, backgroundColor: barFill, width: `${reason.pct}%` }} />
@@ -115,10 +115,10 @@ function RunnerFullCard({ r, m, i, topIsPreferred, nominating, onNominate, onLay
         style={[s.fullNominate, { backgroundColor: dark ? colors.volt : FOREST }, nominating === r.profileId && { opacity: 0.5 }]}
       >
         <Row style={{ gap: 8 }}>
-          <Text style={[{ fontSize: 14, fontWeight: '900', color: dark ? FOREST : '#fff' }, df]}>
+          <Text style={[{ fontSize: 16, fontWeight: '900', color: dark ? FOREST : '#fff' }, df]}>
             {nominating === r.profileId ? '전송 중...' : `${r.name} 러너 지명 요청`}
           </Text>
-          <Text style={{ fontSize: 15, fontWeight: '900', color: dark ? FOREST : '#fff' }}>›</Text>
+          <Text style={{ fontSize: 17, fontWeight: '900', color: dark ? FOREST : '#fff' }}>›</Text>
         </Row>
       </Pressable>
     </View>
@@ -277,11 +277,11 @@ export default function Matching() {
       {/* 고정 헤더 — 캐러셀과 분리, 포커스 좌표가 흔들리지 않게 */}
       <View style={{ paddingTop: 58, paddingHorizontal: 12, zIndex: 50, backgroundColor: '#E9E7DE' }}>
         <Row style={{ justifyContent: 'space-between', marginBottom: 4 }}>
-          <Pressable onPress={() => router.back()} style={s.backBtn}><Text style={{ fontSize: 18, color: FOREST }}>‹</Text></Pressable>
-          <Text style={[{ fontSize: 20, fontWeight: '900', color: FOREST }, df]}>러너 선택</Text>
+          <Pressable onPress={() => router.back()} style={s.backBtn}><Text style={{ fontSize: 20.5, color: FOREST }}>‹</Text></Pressable>
+          <Text style={[{ fontSize: 23, fontWeight: '900', color: FOREST }, df]}>러너 선택</Text>
           <View style={{ width: 40 }} />
         </Row>
-        <Text style={{ fontSize: 13, color: '#5d655d', textAlign: 'center', marginBottom: 10 }}>
+        <Text style={{ fontSize: 15, color: '#49524a', textAlign: 'center', marginBottom: 10 }}>
           {live ? '러너를 지명하거나, 오픈 매칭으로 기다릴 수 있어요\n보통 몇 분 안에 응답이 와요' : '보호자님과 러너의 선호도를 종합 분석했어요'}
         </Text>
       </View>
@@ -346,7 +346,7 @@ export default function Matching() {
               })}
 
               <View style={[s.trustNote, { position: 'absolute', top: FOCUS_TOP + cardH + (N - 1) * STEP + 14, left: 0, right: 0, zIndex: 0 }]}>
-                <Text style={{ fontSize: 12, color: '#5d655d' }}>지명 없이 두면 오픈 매칭으로 모든 러너에게 보여요</Text>
+                <Text style={{ fontSize: 14, color: '#49524a' }}>지명 없이 두면 오픈 매칭으로 모든 러너에게 보여요</Text>
               </View>
             </>
           )}
@@ -355,7 +355,7 @@ export default function Matching() {
               이 화면은 이제 실예약 전용. */}
           {!live && (
             <View style={{ marginTop: 16, marginHorizontal: 12, backgroundColor: '#fff', borderRadius: 16, padding: 18, alignItems: 'center', borderWidth: 1, borderColor: '#dddace' }}>
-              <Text style={{ fontSize: 13, color: colors.dim, textAlign: 'center', lineHeight: 20 }}>
+              <Text style={{ fontSize: 15, color: colors.dim, textAlign: 'center', lineHeight: 23 }}>
                 진행 중인 예약이 없어요{'\n'}예약 화면에서 결제하면 러너 선택이 열려요
               </Text>
             </View>
@@ -363,7 +363,7 @@ export default function Matching() {
 
           {live && liveRunners.length === 0 && (
             <View style={{ marginTop: 16, marginHorizontal: 12, backgroundColor: '#fff', borderRadius: 16, padding: 18, alignItems: 'center', borderWidth: 1, borderColor: '#dddace' }}>
-              <Text style={{ fontSize: 13, color: colors.dim, textAlign: 'center', lineHeight: 20 }}>
+              <Text style={{ fontSize: 15, color: colors.dim, textAlign: 'center', lineHeight: 23 }}>
                 지금 온라인인 러너가 없어요{'\n'}오픈 매칭으로 등록되어 러너들이 응답할 수 있어요
               </Text>
             </View>
@@ -412,8 +412,8 @@ export default function Matching() {
 function StripStat({ label, value }: { label: string; value: string }) {
   return (
     <View style={{ flex: 1, alignItems: 'center' }}>
-      <Text style={{ fontSize: 10.5, color: '#b8c4ae' }}>{label}</Text>
-      <Text style={{ fontSize: 15, fontWeight: '900', color: '#fff', marginTop: 3 }}>{value}</Text>
+      <Text style={{ fontSize: 12, color: '#b8c4ae' }}>{label}</Text>
+      <Text style={{ fontSize: 17, fontWeight: '900', color: '#fff', marginTop: 3 }}>{value}</Text>
     </View>
   );
 }
@@ -421,8 +421,8 @@ function StripStat({ label, value }: { label: string; value: string }) {
 function AltStat({ label, value }: { label: string; value: string }) {
   return (
     <View style={{ flex: 1, alignItems: 'center' }}>
-      <Text style={{ fontSize: 10.5, color: colors.dim }}>{label}</Text>
-      <Text style={{ fontSize: 13.5, fontWeight: '900', color: FOREST, marginTop: 2 }}>{value}</Text>
+      <Text style={{ fontSize: 12, color: colors.dim }}>{label}</Text>
+      <Text style={{ fontSize: 15.5, fontWeight: '900', color: FOREST, marginTop: 2 }}>{value}</Text>
     </View>
   );
 }

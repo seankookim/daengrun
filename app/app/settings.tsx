@@ -23,8 +23,8 @@ export default function Settings() {
   return (
     <ScrollView style={{ flex: 1, backgroundColor: colors.cream }} contentContainerStyle={{ padding: 16, paddingTop: 56, paddingBottom: 40 }}>
       <Row style={{ justifyContent: 'space-between' }}>
-        <Pressable onPress={() => router.back()} style={s.backBtn}><Text style={{ fontSize: 18 }}>‹</Text></Pressable>
-        <Text style={{ fontSize: 20, fontWeight: '900', color: FOREST }}>설정</Text>
+        <Pressable onPress={() => router.back()} style={s.backBtn}><Text style={{ fontSize: 20.5 }}>‹</Text></Pressable>
+        <Text style={{ fontSize: 23, fontWeight: '900', color: FOREST }}>설정</Text>
         <View style={{ width: 40 }} />
       </Row>
 
@@ -42,7 +42,7 @@ export default function Settings() {
       <View style={[s.card, { marginTop: 10 }]}>
         <Pressable onPress={() => router.dismissTo('/')} style={s.actionRow}>
           <Text style={s.actionText}>역할 전환 (보호자 ↔ 러너)</Text>
-          <Text style={{ fontSize: 14, color: colors.dim }}>›</Text>
+          <Text style={{ fontSize: 16, color: colors.dim }}>›</Text>
         </Pressable>
         <View style={s.div} />
         <Pressable
@@ -50,7 +50,7 @@ export default function Settings() {
           style={s.actionRow}
         >
           <Text style={s.actionText}>문의하기</Text>
-          <Text style={{ fontSize: 14, color: colors.dim }}>›</Text>
+          <Text style={{ fontSize: 16, color: colors.dim }}>›</Text>
         </Pressable>
         <View style={s.div} />
         <Pressable
@@ -71,7 +71,7 @@ export default function Settings() {
         <InfoRow label="계정 삭제" value="문의로 처리" />
       </View>
 
-      <Text style={{ fontSize: 10.5, color: colors.dim, textAlign: 'center', marginTop: 18 }}>
+      <Text style={{ fontSize: 12, color: colors.dim, textAlign: 'center', marginTop: 18 }}>
         도그스하이 {APP_VERSION} · 반려견 피트니스
       </Text>
     </ScrollView>
@@ -81,17 +81,17 @@ export default function Settings() {
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
     <Row style={{ justifyContent: 'space-between', paddingVertical: 12 }}>
-      <Text style={{ fontSize: 13.5, color: '#3d453d' }}>{label}</Text>
-      <Text style={{ fontSize: 13.5, fontWeight: '700', color: FOREST }} numberOfLines={1}>{value}</Text>
+      <Text style={{ fontSize: 15.5, color: '#3d453d' }}>{label}</Text>
+      <Text style={{ fontSize: 15.5, fontWeight: '700', color: FOREST }} numberOfLines={1}>{value}</Text>
     </Row>
   );
 }
 
 const s = StyleSheet.create({
   backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DCD6C4' },
-  section: { fontSize: 15, fontWeight: '900', color: FOREST, marginTop: 20, marginBottom: 8 },
+  section: { fontSize: 17, fontWeight: '900', color: FOREST, marginTop: 20, marginBottom: 8 },
   card: { backgroundColor: '#fff', borderRadius: 16, paddingHorizontal: 15, borderWidth: 1, borderColor: '#DCD6C4' },
   div: { height: 1, backgroundColor: '#f0eee3' },
   actionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 14 },
-  actionText: { fontSize: 14, fontWeight: '700', color: FOREST },
+  actionText: { fontSize: 16, fontWeight: '700', color: FOREST },
 });

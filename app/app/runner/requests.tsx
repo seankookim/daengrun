@@ -49,13 +49,13 @@ export default function Requests() {
       >
         <Row style={{ justifyContent: 'space-between' }}>
           <View>
-            <Text style={[{ fontSize: 26, fontWeight: '900', color: FOREST }, df]}>요청</Text>
-            <Text style={{ fontSize: 12, color: colors.dim, marginTop: 3 }}>
+            <Text style={[{ fontSize: 30, fontWeight: '900', color: FOREST }, df]}>요청</Text>
+            <Text style={{ fontSize: 14, color: colors.dim, marginTop: 3 }}>
               새 요청 {live.length}건
             </Text>
           </View>
           <Pressable style={s.autoPill} onPress={load}>
-            <Text style={{ fontSize: 11, fontWeight: '700', color: '#3d453d' }}>↻ 새로고침</Text>
+            <Text style={{ fontSize: 12.5, fontWeight: '700', color: '#3d453d' }}>↻ 새로고침</Text>
           </Pressable>
         </Row>
 
@@ -64,55 +64,55 @@ export default function Requests() {
           <View key={req.bookingId} style={[s.reqCard, req.directed ? { borderColor: '#e2c56b', borderWidth: 2 } : { borderColor: '#5a7a3c', borderWidth: 1.8 }]}>
             <Row style={{ justifyContent: 'space-between' }}>
               <View style={[s.deadline, { backgroundColor: req.directed ? '#fbf0d4' : '#e3f0c4' }]}>
-                <Text style={{ fontSize: 10, fontWeight: '900', color: req.directed ? '#a97c12' : '#3d5a2b' }}>
+                <Text style={{ fontSize: 11.5, fontWeight: '900', color: req.directed ? '#a97c12' : '#3d5a2b' }}>
                   {req.directed ? '★ 지명 요청' : '● LIVE 요청'}
                 </Text>
               </View>
               <Row style={{ gap: 5 }}>
                 {req.repeatPrior != null && req.repeatPrior > 0 && (
                   <View style={[s.matchPill, { backgroundColor: '#fbf0d4' }]}>
-                    <Text style={{ fontSize: 10, fontWeight: '900', color: '#a97c12' }}>⟳ {req.repeatPrior + 1}번째 함께</Text>
+                    <Text style={{ fontSize: 11.5, fontWeight: '900', color: '#a97c12' }}>⟳ {req.repeatPrior + 1}번째 함께</Text>
                   </View>
                 )}
                 <View style={s.matchPill}>
-                  <Text style={{ fontSize: 10, fontWeight: '900', color: '#4a6d1f' }}>{req.directed ? '나를 지명함' : '매칭 대기'}</Text>
+                  <Text style={{ fontSize: 11.5, fontWeight: '900', color: '#4a6d1f' }}>{req.directed ? '나를 지명함' : '매칭 대기'}</Text>
                 </View>
               </Row>
             </Row>
             <Row style={{ gap: 12, marginTop: 12 }}>
               <Avatar url={req.photoUrl} char={req.dogName[0]} bg="#c9a86e" size={48} />
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 15.5, fontWeight: '900', color: FOREST }}>
+                <Text style={{ fontSize: 18, fontWeight: '900', color: FOREST }}>
                   {req.dogName} · {req.breed} {req.weightKg}kg
                 </Text>
-                <Text style={{ fontSize: 12, color: colors.dim, marginTop: 3 }}>
+                <Text style={{ fontSize: 14, color: colors.dim, marginTop: 3 }}>
                   {req.when} · {req.km}km · {req.paceLabel}
                 </Text>
               </View>
               <View style={{ alignItems: 'flex-end', alignSelf: 'center' }}>
-                <Text style={{ fontSize: 16, fontWeight: '900', color: '#5a7a3c' }}>
+                <Text style={{ fontSize: 18.5, fontWeight: '900', color: '#5a7a3c' }}>
                   +{req.payout.toLocaleString()}
                 </Text>
-                <Text style={{ fontSize: 9, color: colors.dim, marginTop: 1 }}>수수료 20% 제외</Text>
+                <Text style={{ fontSize: 10.5, color: colors.dim, marginTop: 1 }}>수수료 20% 제외</Text>
               </View>
             </Row>
             {(req.prefTags.length > 0 || req.vaccines.length > 0) && (
               <Row style={{ gap: 5, marginTop: 9, flexWrap: 'wrap' }}>
                 {req.vaccines.length > 0 && (
                   <View style={{ backgroundColor: '#e3eff9', borderRadius: 99, paddingVertical: 3, paddingHorizontal: 8 }}>
-                    <Text style={{ fontSize: 10, fontWeight: '700', color: '#2d6da8' }}>💉 백신 {req.vaccines.length}종</Text>
+                    <Text style={{ fontSize: 11.5, fontWeight: '700', color: '#2d6da8' }}>💉 백신 {req.vaccines.length}종</Text>
                   </View>
                 )}
                 {req.prefTags.map((t) => (
                   <View key={t} style={{ backgroundColor: '#eef4e0', borderRadius: 99, paddingVertical: 3, paddingHorizontal: 8 }}>
-                    <Text style={{ fontSize: 10, fontWeight: '700', color: '#3d5a2b' }}>{t}</Text>
+                    <Text style={{ fontSize: 11.5, fontWeight: '700', color: '#3d5a2b' }}>{t}</Text>
                   </View>
                 ))}
               </Row>
             )}
             {req.memo && (
               <View style={s.memo}>
-                <Text style={{ fontSize: 11.5, color: '#5d655d', lineHeight: 17 }} numberOfLines={2}>메모: {req.memo}</Text>
+                <Text style={{ fontSize: 13, color: '#49524a', lineHeight: 19.5 }} numberOfLines={2}>메모: {req.memo}</Text>
               </View>
             )}
             <Pressable
@@ -120,7 +120,7 @@ export default function Requests() {
               disabled={accepting !== null}
               onPress={() => accept(req)}
             >
-              <Text style={{ fontSize: 13.5, fontWeight: '900', color: FOREST }}>
+              <Text style={{ fontSize: 15.5, fontWeight: '900', color: FOREST }}>
                 {accepting === req.bookingId ? '수락 중...' : '수락하기'}
               </Text>
             </Pressable>
@@ -129,14 +129,14 @@ export default function Requests() {
 
         {live.length === 0 && (
           <View style={{ marginTop: 24, backgroundColor: '#f4f2ea', borderRadius: 16, padding: 18, alignItems: 'center' }}>
-            <Text style={{ fontSize: 13, color: '#8a8877', textAlign: 'center', lineHeight: 20 }}>
+            <Text style={{ fontSize: 15, color: '#8a8877', textAlign: 'center', lineHeight: 23 }}>
               지금은 열린 요청이 없어요{'\n'}새 요청이 오면 여기에 표시돼요
             </Text>
           </View>
         )}
 
         <View style={s.note}>
-          <Text style={{ fontSize: 11.5, color: colors.dim, textAlign: 'center' }}>
+          <Text style={{ fontSize: 13, color: colors.dim, textAlign: 'center' }}>
             수락하면 캘린더에 확정 일정으로 추가돼요{'\n'}응답 기한이 지나면 요청은 자동 만료됩니다
           </Text>
         </View>

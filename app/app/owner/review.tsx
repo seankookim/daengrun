@@ -58,12 +58,12 @@ export default function OwnerReview() {
   return (
     <ScrollView style={{ flex: 1, backgroundColor: colors.cream }} contentContainerStyle={{ padding: 16, paddingTop: 56, paddingBottom: 40 }}>
       <Row style={{ justifyContent: 'space-between' }}>
-        <Pressable onPress={() => router.back()} style={s.backBtn}><Text style={{ fontSize: 18 }}>‹</Text></Pressable>
-        <Text style={{ fontSize: 20, fontWeight: '900', color: FOREST }}>러너 후기</Text>
+        <Pressable onPress={() => router.back()} style={s.backBtn}><Text style={{ fontSize: 20.5 }}>‹</Text></Pressable>
+        <Text style={{ fontSize: 23, fontWeight: '900', color: FOREST }}>러너 후기</Text>
         <View style={{ width: 40 }} />
       </Row>
 
-      <Text style={{ fontSize: 15, fontWeight: '800', color: FOREST, textAlign: 'center', marginTop: 22 }}>
+      <Text style={{ fontSize: 17, fontWeight: '800', color: FOREST, textAlign: 'center', marginTop: 22 }}>
         {rname ?? '러너'}님과의 러닝, 어땠나요?
       </Text>
 
@@ -71,7 +71,7 @@ export default function OwnerReview() {
       <Row style={{ justifyContent: 'center', gap: 8, marginTop: 16 }}>
         {[1, 2, 3, 4, 5].map((n) => (
           <Pressable key={n} onPress={() => { setStars(n); haptic('light'); }}>
-            <Text style={{ fontSize: 38, color: n <= stars ? '#f2c14e' : '#dcd9cc' }}>★</Text>
+            <Text style={{ fontSize: 43.5, color: n <= stars ? '#f2c14e' : '#dcd9cc' }}>★</Text>
           </Pressable>
         ))}
       </Row>
@@ -82,7 +82,7 @@ export default function OwnerReview() {
           const on = tags.includes(t);
           return (
             <Pressable key={t} onPress={() => toggleTag(t)} style={[s.tag, on && { backgroundColor: '#eaf7c8', borderColor: '#a9c47e' }]}>
-              <Text style={{ fontSize: 12.5, fontWeight: '700', color: on ? '#3d5a2b' : '#5d655d' }}>{on ? '✓ ' : ''}{t}</Text>
+              <Text style={{ fontSize: 14.5, fontWeight: '700', color: on ? '#3d5a2b' : '#49524a' }}>{on ? '✓ ' : ''}{t}</Text>
             </Pressable>
           );
         })}
@@ -102,15 +102,15 @@ export default function OwnerReview() {
       {/* private flag */}
       <Pressable onPress={() => setPrivateFlag((v) => !v)} style={s.privRow}>
         <View style={[s.check, privateFlag && { backgroundColor: FOREST, borderColor: FOREST }]}>
-          {privateFlag && <Text style={{ fontSize: 10, fontWeight: '900', color: '#fff' }}>✓</Text>}
+          {privateFlag && <Text style={{ fontSize: 11.5, fontWeight: '900', color: '#fff' }}>✓</Text>}
         </View>
-        <Text style={{ flex: 1, fontSize: 12, color: '#5d655d', lineHeight: 17 }}>
+        <Text style={{ flex: 1, fontSize: 14, color: '#49524a', lineHeight: 19.5 }}>
           도그스하이 팀에게만 전달 (프로필에 공개되지 않아요 — 불편했던 점을 솔직하게)
         </Text>
       </Pressable>
 
       <Pressable onPress={submit} disabled={busy} style={[s.cta, busy && { opacity: 0.5 }]}>
-        <Text style={{ fontSize: 14.5, fontWeight: '900', color: FOREST }}>{busy ? '등록 중...' : '후기 등록'}</Text>
+        <Text style={{ fontSize: 16.5, fontWeight: '900', color: FOREST }}>{busy ? '등록 중...' : '후기 등록'}</Text>
       </Pressable>
     </ScrollView>
   );
@@ -121,7 +121,7 @@ const s = StyleSheet.create({
   tag: { backgroundColor: '#fff', borderRadius: 99, borderWidth: 1.3, borderColor: '#DCD6C4', paddingVertical: 9, paddingHorizontal: 14 },
   input: {
     backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: '#DCD6C4',
-    padding: 14, marginTop: 20, height: 100, textAlignVertical: 'top', fontSize: 13.5, color: FOREST,
+    padding: 14, marginTop: 20, height: 100, textAlignVertical: 'top', fontSize: 15.5, color: FOREST,
   },
   privRow: { flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 14 },
   check: { width: 20, height: 20, borderRadius: 6, borderWidth: 1.5, borderColor: '#dcd9cc', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },

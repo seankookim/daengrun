@@ -125,21 +125,21 @@ export default function DogProfileScreen() {
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 120 }}>
         {/* hero band + photo */}
         <View style={{ height: 150, backgroundColor: colors.volt }}>
-          <Pressable onPress={() => router.back()} style={s.backBtn}><Text style={{ fontSize: 18 }}>‹</Text></Pressable>
+          <Pressable onPress={() => router.back()} style={s.backBtn}><Text style={{ fontSize: 20.5 }}>‹</Text></Pressable>
         </View>
         <View style={{ paddingHorizontal: 12, marginTop: -44 }}>
           <Pressable onPress={pickPhoto} disabled={uploading} style={{ alignSelf: 'flex-start' }}>
             <View style={{ borderWidth: 4, borderColor: colors.cream, borderRadius: 22 }}>
               <Avatar url={dog?.photoUrl} char={(name || '멍')[0]} bg={FOREST} size={88} />
             </View>
-            <View style={s.camBadge}><Text style={{ fontSize: 10, color: '#fff' }}>{uploading ? '…' : '✎'}</Text></View>
+            <View style={s.camBadge}><Text style={{ fontSize: 11.5, color: '#fff' }}>{uploading ? '…' : '✎'}</Text></View>
           </Pressable>
-          <Text style={{ fontSize: 11, color: colors.dim, marginTop: 6 }}>사진을 탭해서 변경 — 러너가 픽업 때 알아봐요</Text>
+          <Text style={{ fontSize: 12.5, color: colors.dim, marginTop: 6 }}>사진을 탭해서 변경 — 러너가 픽업 때 알아봐요</Text>
         </View>
 
-        {!loaded && <Text style={{ padding: 16, fontSize: 12.5, color: colors.dim }}>불러오는 중...</Text>}
+        {!loaded && <Text style={{ padding: 16, fontSize: 14.5, color: colors.dim }}>불러오는 중...</Text>}
         {loaded && !dog && (
-          <Text style={{ padding: 16, fontSize: 12.5, color: colors.dim }}>
+          <Text style={{ padding: 16, fontSize: 14.5, color: colors.dim }}>
             아직 반려견이 없어요 — 첫 예약 때 자동으로 만들어져요
           </Text>
         )}
@@ -150,11 +150,11 @@ export default function DogProfileScreen() {
             <Row style={{ gap: 8, flexWrap: 'wrap' }}>
               {dogs.map((d) => (
                 <Pressable key={d.id} onPress={() => selectDog(d)} style={[s.dogChip, dog.id === d.id && { backgroundColor: FOREST }]}>
-                  <Text style={{ fontSize: 12.5, fontWeight: '800', color: dog.id === d.id ? '#fff' : '#3d453d' }}>{d.name}</Text>
+                  <Text style={{ fontSize: 14.5, fontWeight: '800', color: dog.id === d.id ? '#fff' : '#3d453d' }}>{d.name}</Text>
                 </Pressable>
               ))}
               <Pressable onPress={onAddDog} style={[s.dogChip, { borderStyle: 'dashed' }]}>
-                <Text style={{ fontSize: 12.5, fontWeight: '800', color: '#5a7a3c' }}>＋ 추가</Text>
+                <Text style={{ fontSize: 14.5, fontWeight: '800', color: '#5a7a3c' }}>＋ 추가</Text>
               </Pressable>
             </Row>
 
@@ -181,7 +181,7 @@ export default function DogProfileScreen() {
                 <Row style={{ gap: 8 }}>
                   {([[true, '했어요'], [false, '안 했어요']] as const).map(([v, label]) => (
                     <Pressable key={label} onPress={() => setNeutered(v)} style={[s.neuterChip, neutered === v && { backgroundColor: FOREST }]}>
-                      <Text style={{ fontSize: 12.5, fontWeight: '700', color: neutered === v ? '#fff' : '#3d453d' }}>{label}</Text>
+                      <Text style={{ fontSize: 14.5, fontWeight: '700', color: neutered === v ? '#fff' : '#3d453d' }}>{label}</Text>
                     </Pressable>
                   ))}
                 </Row>
@@ -211,7 +211,7 @@ export default function DogProfileScreen() {
                     onPress={() => setVaccines((cur) => (on ? cur.filter((x) => x !== v) : [...cur, v]))}
                     style={[s.tagChip, on && { backgroundColor: '#e3eff9', borderColor: '#9fc3e8' }]}
                   >
-                    <Text style={{ fontSize: 12.5, fontWeight: '700', color: on ? '#2d6da8' : '#5d655d' }}>{on ? '💉 ' : ''}{v}</Text>
+                    <Text style={{ fontSize: 14.5, fontWeight: '700', color: on ? '#2d6da8' : '#49524a' }}>{on ? '💉 ' : ''}{v}</Text>
                   </Pressable>
                 );
               })}
@@ -224,12 +224,12 @@ export default function DogProfileScreen() {
                 const on = tags.includes(t);
                 return (
                   <Pressable key={t} onPress={() => toggleTag(t)} style={[s.tagChip, on && { backgroundColor: '#eaf7c8', borderColor: '#a9c47e' }]}>
-                    <Text style={{ fontSize: 12.5, fontWeight: '700', color: on ? '#3d5a2b' : '#5d655d' }}>{on ? '✓ ' : ''}{t}</Text>
+                    <Text style={{ fontSize: 14.5, fontWeight: '700', color: on ? '#3d5a2b' : '#49524a' }}>{on ? '✓ ' : ''}{t}</Text>
                   </Pressable>
                 );
               })}
             </Row>
-            <Text style={{ fontSize: 10.5, color: colors.dim, marginTop: 8, lineHeight: 15 }}>
+            <Text style={{ fontSize: 12, color: colors.dim, marginTop: 8, lineHeight: 17 }}>
               태그와 메모는 러너의 요청 카드에 그대로 표시돼요{'\n'}주간 목표 거리는 체력 리포트에서 조정해요
             </Text>
           </View>
@@ -239,7 +239,7 @@ export default function DogProfileScreen() {
       {dog && (
         <View style={s.saveBar}>
           <Pressable onPress={save} disabled={saving} style={[s.saveBtn, saving && { opacity: 0.5 }]}>
-            <Text style={{ fontSize: 14.5, fontWeight: '900', color: FOREST }}>{saving ? '저장 중...' : '저장하기'}</Text>
+            <Text style={{ fontSize: 16.5, fontWeight: '900', color: FOREST }}>{saving ? '저장 중...' : '저장하기'}</Text>
           </Pressable>
         </View>
       )}
@@ -253,10 +253,10 @@ const s = StyleSheet.create({
     position: 'absolute', right: -2, bottom: -2, width: 22, height: 22, borderRadius: 11,
     backgroundColor: '#5a7a3c', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.cream,
   },
-  label: { fontSize: 12, fontWeight: '800', color: '#3d453d', marginTop: 16, marginBottom: 6 },
+  label: { fontSize: 14, fontWeight: '800', color: '#3d453d', marginTop: 16, marginBottom: 6 },
   input: {
     backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: '#DCD6C4',
-    paddingVertical: 12, paddingHorizontal: 14, fontSize: 14.5, color: FOREST,
+    paddingVertical: 12, paddingHorizontal: 14, fontSize: 16.5, color: FOREST,
   },
   neuterChip: { flex: 1, backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: '#DCD6C4', alignItems: 'center', paddingVertical: 13 },
   dogChip: { backgroundColor: '#fff', borderRadius: 99, borderWidth: 1.3, borderColor: '#dcd9cc', paddingVertical: 9, paddingHorizontal: 16 },

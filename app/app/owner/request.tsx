@@ -194,17 +194,17 @@ export default function Request() {
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingTop: 56, paddingBottom: 190 }}>
         {/* header */}
         <Row style={{ gap: 12 }}>
-          <Pressable onPress={() => router.back()} style={s.circleBtn}><Text style={{ fontSize: 18 }}>‹</Text></Pressable>
+          <Pressable onPress={() => router.back()} style={s.circleBtn}><Text style={{ fontSize: 20.5 }}>‹</Text></Pressable>
           <View style={{ flex: 1 }}>
-            <Text style={[{ fontSize: 24, fontWeight: '900', color: FOREST }, df]}>러닝 요청</Text>
+            <Text style={[{ fontSize: 27.5, fontWeight: '900', color: FOREST }, df]}>러닝 요청</Text>
           </View>
           <View style={s.livePill}>
-            <Text style={{ fontSize: 11, fontWeight: '800', color: '#4a6d1f' }}>
+            <Text style={{ fontSize: 12.5, fontWeight: '800', color: '#4a6d1f' }}>
               {preferred ? `★ ${draft.preferredRunnerName ?? '지명'} 러너` : '● 안심 결제'}
             </Text>
           </View>
         </Row>
-        <Text style={{ fontSize: 12.5, color: '#5d655d', marginTop: 6 }}>
+        <Text style={{ fontSize: 14.5, color: '#49524a', marginTop: 6 }}>
           고르는 대로 아래 티켓이 완성돼요 🎫
         </Text>
 
@@ -216,34 +216,34 @@ export default function Request() {
             style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}
           >
             <Avatar url={myDog?.photoUrl} char={(myDog?.name ?? dog.name)[0]} bg="#c9a86e" size={42} />
-            <Text style={{ flex: 1, fontSize: 14.5, fontWeight: '800', color: FOREST }}>
+            <Text style={{ flex: 1, fontSize: 16.5, fontWeight: '800', color: FOREST }}>
               <Text style={{ fontWeight: '900' }}>{myDog?.name ?? dog.name}</Text>
               {'  ·  '}{myDog?.breed ?? dog.breed}{'  ·  '}{myDog?.weightKg ?? dog.weightKg}kg
             </Text>
-            <Text style={{ fontSize: 11.5, fontWeight: '800', color: '#5a7a3c' }}>프로필 ›</Text>
+            <Text style={{ fontSize: 13, fontWeight: '800', color: '#5a7a3c' }}>프로필 ›</Text>
           </Pressable>
           <View style={{ height: 1, backgroundColor: '#DCD6C4', marginVertical: 13 }} />
           <Pressable
             onPress={() => router.push('/owner/addresses')}
             style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}
           >
-            <View style={s.addrIcon}><Text style={{ fontSize: 15, color: '#5a7a3c' }}>➤</Text></View>
+            <View style={s.addrIcon}><Text style={{ fontSize: 17, color: '#5a7a3c' }}>➤</Text></View>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 14, fontWeight: '900', color: FOREST }} numberOfLines={1}>
+              <Text style={{ fontSize: 16, fontWeight: '900', color: FOREST }} numberOfLines={1}>
                 {pickupAddr ? pickupAddr.label : '픽업 주소를 등록해주세요'}
               </Text>
-              <Text style={{ fontSize: 11, color: colors.dim, marginTop: 2 }} numberOfLines={1}>
+              <Text style={{ fontSize: 12.5, color: colors.dim, marginTop: 2 }} numberOfLines={1}>
                 {pickupAddr ? pickupAddr.addr : '첫 주소가 기본 픽업이 돼요'}
               </Text>
             </View>
-            <Text style={{ fontSize: 11.5, fontWeight: '800', color: colors.dim }}>변경 ›</Text>
+            <Text style={{ fontSize: 13, fontWeight: '800', color: colors.dim }}>변경 ›</Text>
           </Pressable>
         </View>
         {/* 다견 선택 + 추가 */}
         <Row style={{ gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
           {myDogs.length > 1 && myDogs.map((d, i) => (
             <Pressable key={d.id} onPress={() => setDogIdx(i)} style={[s.dogSelChip, dogIdx === i && { backgroundColor: FOREST }]}>
-              <Text style={{ fontSize: 12, fontWeight: '800', color: dogIdx === i ? '#fff' : '#3d453d' }}>{d.name}</Text>
+              <Text style={{ fontSize: 14, fontWeight: '800', color: dogIdx === i ? '#fff' : '#3d453d' }}>{d.name}</Text>
             </Pressable>
           ))}
           <Pressable
@@ -261,7 +261,7 @@ export default function Request() {
               }) ?? Alert.alert('반려견 추가', 'iOS에서 지원돼요');
             }}
           >
-            <Text style={{ fontSize: 12, fontWeight: '800', color: '#3d453d' }}>＋ 반려견 추가</Text>
+            <Text style={{ fontSize: 14, fontWeight: '800', color: '#3d453d' }}>＋ 반려견 추가</Text>
           </Pressable>
         </Row>
 
@@ -277,7 +277,7 @@ export default function Request() {
                   {d}<Text style={{ fontSize: sel ? 19 : 15 }}>km</Text>
                 </Text>
                 <View style={{ width: 36, height: 5, borderRadius: 3, backgroundColor: sel ? colors.volt : 'transparent', marginTop: 3 }} />
-                <Text style={{ fontSize: 12.5, fontWeight: sel ? '900' : '600', color: sel ? FOREST : '#a09c8e', marginTop: 5 }}>
+                <Text style={{ fontSize: 14.5, fontWeight: sel ? '900' : '600', color: sel ? FOREST : '#a09c8e', marginTop: 5 }}>
                   {optPrice.toLocaleString()}원
                 </Text>
               </Pressable>
@@ -300,7 +300,7 @@ export default function Request() {
                     }} />
                   ))}
                 </Row>
-                <Text style={{ fontSize: 13.5, fontWeight: '900', color: sel ? '#fff' : FOREST }}>{pc}</Text>
+                <Text style={{ fontSize: 15.5, fontWeight: '900', color: sel ? '#fff' : FOREST }}>{pc}</Text>
               </Pressable>
             );
           })}
@@ -323,19 +323,19 @@ export default function Request() {
                 style={[s.routeCard, isBest && { backgroundColor: '#DDF0A6', borderColor: '#c3dd76' }, sel && { borderColor: colors.volt, borderWidth: 2 }]}
               >
                 <View style={[s.routeTab, !isBest && { backgroundColor: FOREST }]}>
-                  <Text style={{ fontSize: 10, fontWeight: '900', color: isBest ? colors.volt : '#fff' }}>
+                  <Text style={{ fontSize: 11.5, fontWeight: '900', color: isBest ? colors.volt : '#fff' }}>
                     {isBest ? '★ 추천 코스' : '안심 코스'}
                   </Text>
                 </View>
                 <View style={s.fitPillR}>
-                  <Text style={{ fontSize: 10, fontWeight: '900', color: FOREST }}>적합도 {r.fit}%</Text>
+                  <Text style={{ fontSize: 11.5, fontWeight: '900', color: FOREST }}>적합도 {r.fit}%</Text>
                 </View>
 
                 <Row style={{ gap: 5, marginTop: 22 }}>
-                  <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST }} numberOfLines={1}>{r.name}</Text>
-                  <View style={s.certBadge}><Text style={{ fontSize: 8, fontWeight: '900', color: '#fff' }}>✓</Text></View>
+                  <Text style={{ fontSize: 17, fontWeight: '900', color: FOREST }} numberOfLines={1}>{r.name}</Text>
+                  <View style={s.certBadge}><Text style={{ fontSize: 9, fontWeight: '900', color: '#fff' }}>✓</Text></View>
                 </Row>
-                <Text style={{ fontSize: 10.5, color: '#5d655d', marginTop: 2 }}>
+                <Text style={{ fontSize: 12, color: '#49524a', marginTop: 2 }}>
                   {r.area} · {r.km}km · {r.terrain} · {r.checkedAt} 점검
                 </Text>
 
@@ -346,11 +346,11 @@ export default function Request() {
                 <Row style={{ gap: 4, marginTop: 9, flexWrap: 'wrap' }}>
                   {r.tags.map((tag) => (
                     <View key={tag} style={[s.routeTag, isBest && { backgroundColor: '#ffffffcc' }]}>
-                      <Text style={{ fontSize: 9.5, fontWeight: '800', color: '#4a6d1f' }}>{tag}</Text>
+                      <Text style={{ fontSize: 11, fontWeight: '800', color: '#4a6d1f' }}>{tag}</Text>
                     </View>
                   ))}
                 </Row>
-                <Text style={{ fontSize: 10.5, color: '#5d655d', marginTop: 8, lineHeight: 15 }} numberOfLines={2}>{r.desc}</Text>
+                <Text style={{ fontSize: 12, color: '#49524a', marginTop: 8, lineHeight: 17 }} numberOfLines={2}>{r.desc}</Text>
               </Pressable>
             );
           })}
@@ -365,21 +365,21 @@ export default function Request() {
             return (
               <Pressable key={k} onPress={() => toggleAddon(k)} style={[s.addon, sel && { borderColor: '#a9c47e' }]}>
                 <Row style={{ justifyContent: 'space-between' }}>
-                  <View style={s.addonIcon}><Text style={{ fontSize: 14, color: '#5a7a3c' }}>{ADDON_GLYPHS[k]}</Text></View>
+                  <View style={s.addonIcon}><Text style={{ fontSize: 16, color: '#5a7a3c' }}>{ADDON_GLYPHS[k]}</Text></View>
                   <View style={[s.checkCircle, sel && { backgroundColor: colors.volt, borderColor: colors.volt }]}>
-                    {sel && <Text style={{ fontSize: 10, fontWeight: '900', color: FOREST }}>✓</Text>}
+                    {sel && <Text style={{ fontSize: 11.5, fontWeight: '900', color: FOREST }}>✓</Text>}
                   </View>
                 </Row>
-                <Text style={{ fontSize: 14, fontWeight: '900', color: FOREST, marginTop: 10 }}>{a.label}</Text>
-                <Text style={{ fontSize: 11, color: '#75806f', marginTop: 2 }}>{a.desc}</Text>
-                <Text style={{ fontSize: 13, fontWeight: '900', color: '#5a7a3c', marginTop: 8 }}>+{a.price.toLocaleString()}원</Text>
+                <Text style={{ fontSize: 16, fontWeight: '900', color: FOREST, marginTop: 10 }}>{a.label}</Text>
+                <Text style={{ fontSize: 12.5, color: '#75806f', marginTop: 2 }}>{a.desc}</Text>
+                <Text style={{ fontSize: 15, fontWeight: '900', color: '#5a7a3c', marginTop: 8 }}>+{a.price.toLocaleString()}원</Text>
               </Pressable>
             );
           })}
         </View>
 
         {/* 요금 요약 한 줄 — 총액은 아래 티켓이 보여준다 */}
-        <Text style={{ fontSize: 11, color: '#a09c8e', textAlign: 'center', marginTop: 20 }}>
+        <Text style={{ fontSize: 12.5, color: '#a09c8e', textAlign: 'center', marginTop: 20 }}>
           기본 {fmtWon(pricing.baseFare)} · 거리 {fmtWon(km * pricing.perKm)}{addonSum > 0 ? ` · 옵션 ${fmtWon(addonSum)}` : ''} · 취소 수수료 없음
         </Text>
       </ScrollView>
@@ -389,15 +389,15 @@ export default function Request() {
         <Row style={{ gap: 11, alignItems: 'center' }}>
           <Avatar url={myDog?.photoUrl} char={(myDog?.name ?? dog.name)[0]} bg="#c9a86e" size={40} />
           <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 14, fontWeight: '900', color: '#fff' }} numberOfLines={1}>
+            <Text style={{ fontSize: 16, fontWeight: '900', color: '#fff' }} numberOfLines={1}>
               {myDog?.name ?? dog.name} · <Text style={{ color: colors.tang }}>{km}km</Text> · {pace}
             </Text>
-            <Text style={{ fontSize: 11, color: '#b8c4ae', marginTop: 2 }} numberOfLines={1}>
+            <Text style={{ fontSize: 12.5, color: '#b8c4ae', marginTop: 2 }} numberOfLines={1}>
               {routes.find((r) => r.id === routeId)?.name ?? '코스 선택'}
             </Text>
           </View>
           <Pressable onPress={() => setSlotSheet(true)} style={s.timeChip}>
-            <Text style={{ fontSize: 11.5, fontWeight: '900', color: '#0F1D13' }} numberOfLines={1}>
+            <Text style={{ fontSize: 13, fontWeight: '900', color: '#0F1D13' }} numberOfLines={1}>
               {draft.scheduledAtIso ? timeLabel : '시간 선택 ›'}
             </Text>
           </Pressable>
@@ -412,13 +412,13 @@ export default function Request() {
 
         <Row style={{ alignItems: 'center' }}>
           <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 10.5, color: '#8fa093' }}>총 결제 금액</Text>
-            <Text style={{ fontSize: 25, fontWeight: '900', color: '#fff', marginTop: 1 }}>
-              {fmtWon(total)}<Text style={{ fontSize: 13, color: '#b8c4ae' }}> 원</Text>
+            <Text style={{ fontSize: 12, color: '#8fa093' }}>총 결제 금액</Text>
+            <Text style={{ fontSize: 28.5, fontWeight: '900', color: '#fff', marginTop: 1 }}>
+              {fmtWon(total)}<Text style={{ fontSize: 15, color: '#b8c4ae' }}> 원</Text>
             </Text>
           </View>
           <Pressable onPress={pay} style={s.payBtn}>
-            <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST }}>
+            <Text style={{ fontSize: 17, fontWeight: '900', color: FOREST }}>
               {draft.scheduledAtIso ? '결제하기 ›' : '시간부터 ›'}
             </Text>
           </Pressable>
@@ -430,22 +430,22 @@ export default function Request() {
         <Pressable style={s.sheetBackdrop} onPress={() => setSlotSheet(false)} />
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
-          <Text style={{ fontSize: 17, fontWeight: '900', color: FOREST }}>언제 달릴까요?</Text>
+          <Text style={{ fontSize: 19.5, fontWeight: '900', color: FOREST }}>언제 달릴까요?</Text>
           {preferred && (
-            <Text style={{ fontSize: 11, color: '#5a7a3c', marginTop: 4, fontWeight: '700' }}>
+            <Text style={{ fontSize: 12.5, color: '#5a7a3c', marginTop: 4, fontWeight: '700' }}>
               ★ {draft.preferredRunnerName ?? '지명'} 러너의 가능 시간만 선택할 수 있어요
             </Text>
           )}
 
           <Row style={{ gap: 8, marginTop: 12 }}>
             <View style={[s.methodChip, { backgroundColor: FOREST }]}>
-              <Text style={{ fontSize: 11.5, fontWeight: '800', color: '#fff' }}>날짜·시간 선택</Text>
+              <Text style={{ fontSize: 13, fontWeight: '800', color: '#fff' }}>날짜·시간 선택</Text>
             </View>
             <Pressable style={s.methodChip} onPress={pickEarliest}>
-              <Text style={{ fontSize: 11.5, fontWeight: '700', color: '#3d453d' }}>가장 빠른 시간</Text>
+              <Text style={{ fontSize: 13, fontWeight: '700', color: '#3d453d' }}>가장 빠른 시간</Text>
             </Pressable>
             <View style={[s.methodChip, { opacity: 0.45 }]}>
-              <Text style={{ fontSize: 11.5, fontWeight: '700', color: '#3d453d' }}>반복 예약 (준비 중)</Text>
+              <Text style={{ fontSize: 13, fontWeight: '700', color: '#3d453d' }}>반복 예약 (준비 중)</Text>
             </View>
           </Row>
 
@@ -453,9 +453,9 @@ export default function Request() {
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 16 }} contentContainerStyle={{ gap: 8 }}>
             {DATES.map((d, i) => (
               <Pressable key={d.date.toISOString()} onPress={() => setDateIdx(i)} style={[s.dateChip, dateIdx === i && { backgroundColor: FOREST }]}>
-                <Text style={{ fontSize: 10, color: dateIdx === i ? '#b8c4ae' : colors.dim }}>{d.w}</Text>
-                <Text style={{ fontSize: 16, fontWeight: '900', color: dateIdx === i ? '#fff' : FOREST }}>{d.d}</Text>
-                {d.label && <Text style={{ fontSize: 8.5, fontWeight: '700', color: dateIdx === i ? colors.volt : '#5a7a3c' }}>{d.label}</Text>}
+                <Text style={{ fontSize: 11.5, color: dateIdx === i ? '#b8c4ae' : colors.dim }}>{d.w}</Text>
+                <Text style={{ fontSize: 18.5, fontWeight: '900', color: dateIdx === i ? '#fff' : FOREST }}>{d.d}</Text>
+                {d.label && <Text style={{ fontSize: 10, fontWeight: '700', color: dateIdx === i ? colors.volt : '#5a7a3c' }}>{d.label}</Text>}
               </Pressable>
             ))}
           </ScrollView>
@@ -464,7 +464,7 @@ export default function Request() {
           <ScrollView style={{ marginTop: 6, maxHeight: 300 }}>
             {SLOT_GROUPS.map((g) => (
               <View key={g.name} style={{ marginTop: 12 }}>
-                <Text style={{ fontSize: 12.5, fontWeight: '800', color: '#5d655d' }}>{g.name}</Text>
+                <Text style={{ fontSize: 14.5, fontWeight: '800', color: '#49524a' }}>{g.name}</Text>
                 <Row style={{ gap: 8, marginTop: 8 }}>
                   {g.times.map((t) => {
                     const ok = slotAllowed(dateIdx, t);
@@ -475,8 +475,8 @@ export default function Request() {
                         onPress={() => pickSlot(t)}
                         style={[s.slot, !ok && { opacity: 0.35 }]}
                       >
-                        <Text style={{ fontSize: 14, fontWeight: '800', color: FOREST }}>{t}</Text>
-                        <Text style={{ fontSize: 9.5, color: ok ? '#5a7a3c' : colors.dim, marginTop: 2 }}>
+                        <Text style={{ fontSize: 16, fontWeight: '800', color: FOREST }}>{t}</Text>
+                        <Text style={{ fontSize: 11, color: ok ? '#5a7a3c' : colors.dim, marginTop: 2 }}>
                           {ok ? '가능' : prefRules ? '러너 불가' : '마감'}
                         </Text>
                       </Pressable>
@@ -493,14 +493,14 @@ export default function Request() {
       <Modal visible={holdVisible} transparent animationType="fade">
         <View style={s.holdBackdrop}>
           <View style={s.holdCard}>
-            <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST }}>슬롯을 잡아두고 있어요</Text>
-            <Text style={{ fontSize: 30, fontWeight: '900', color: '#5a7a3c', marginTop: 10 }}>
+            <Text style={{ fontSize: 17, fontWeight: '900', color: FOREST }}>슬롯을 잡아두고 있어요</Text>
+            <Text style={{ fontSize: 34.5, fontWeight: '900', color: '#5a7a3c', marginTop: 10 }}>
               {Math.floor(holdSec / 60)}:{String(holdSec % 60).padStart(2, '0')}
             </Text>
-            <Text style={{ fontSize: 11.5, color: colors.dim, marginTop: 8, textAlign: 'center' }}>
+            <Text style={{ fontSize: 13, color: colors.dim, marginTop: 8, textAlign: 'center' }}>
               {timeLabel} 슬롯이 결제 완료까지{'\n'}다른 보호자에게 보이지 않아요
             </Text>
-            <Text style={{ fontSize: 10, fontWeight: '800', marginTop: 10, color: holdLive === true ? '#4a6d1f' : colors.dim }}>
+            <Text style={{ fontSize: 11.5, fontWeight: '800', marginTop: 10, color: holdLive === true ? '#4a6d1f' : colors.dim }}>
               {holdLive === true ? '● 서버 홀드 확보 — 예약이 생성됐어요' : '서버 연결 중...'}
             </Text>
           </View>
@@ -514,12 +514,12 @@ function SectionHead({ glyph, title, side, sub }: { glyph: string; title: string
   return (
     <Row style={{ justifyContent: 'space-between', marginTop: 22, marginBottom: 10 }}>
       <Row style={{ gap: 7, flex: 1 }}>
-        <Text style={{ fontSize: 13, color: '#5a7a3c' }}>{glyph}</Text>
-        <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST }}>{title}</Text>
-        {sub && <Text style={{ fontSize: 10.5, color: colors.dim, alignSelf: 'flex-end', flex: 1 }} numberOfLines={1}>{sub}</Text>}
+        <Text style={{ fontSize: 15, color: '#5a7a3c' }}>{glyph}</Text>
+        <Text style={{ fontSize: 17, fontWeight: '900', color: FOREST }}>{title}</Text>
+        {sub && <Text style={{ fontSize: 12, color: colors.dim, alignSelf: 'flex-end', flex: 1 }} numberOfLines={1}>{sub}</Text>}
       </Row>
       {side && (
-        <View style={s.sideBtn}><Text style={{ fontSize: 11, fontWeight: '700', color: '#3d453d' }}>{side}</Text></View>
+        <View style={s.sideBtn}><Text style={{ fontSize: 12.5, fontWeight: '700', color: '#3d453d' }}>{side}</Text></View>
       )}
     </Row>
   );
@@ -528,8 +528,8 @@ function SectionHead({ glyph, title, side, sub }: { glyph: string; title: string
 function FeeRow({ label, value }: { label: string; value: string }) {
   return (
     <Row style={{ justifyContent: 'space-between', marginTop: 6 }}>
-      <Text style={{ fontSize: 13, color: '#75806f' }}>{label}</Text>
-      <Text style={{ fontSize: 13, color: '#3d453d', fontWeight: '600' }}>{value}</Text>
+      <Text style={{ fontSize: 15, color: '#75806f' }}>{label}</Text>
+      <Text style={{ fontSize: 15, color: '#3d453d', fontWeight: '600' }}>{value}</Text>
     </Row>
   );
 }
@@ -543,7 +543,7 @@ const s = StyleSheet.create({
   dogSelChip: { backgroundColor: '#fff', borderRadius: 99, borderWidth: 1.3, borderColor: '#dcd9cc', paddingVertical: 8, paddingHorizontal: 15 },
   bigChip: { flex: 1, backgroundColor: '#fff', borderRadius: 18, paddingVertical: 16, alignItems: 'center', borderWidth: 1, borderColor: '#DCD6C4' },
   bigChipSel: { backgroundColor: FOREST, borderWidth: 2, borderColor: colors.volt },
-  bigChipText: { fontSize: 16, fontWeight: '800', color: '#3d453d' },
+  bigChipText: { fontSize: 18.5, fontWeight: '800', color: '#3d453d' },
   bolt: {
     position: 'absolute', top: -9, alignSelf: 'center', width: 18, height: 18, borderRadius: 9,
     backgroundColor: colors.volt, alignItems: 'center', justifyContent: 'center', zIndex: 2,

@@ -15,7 +15,7 @@ export const colors = {
   line: '#DCD6C4',       // 헤어라인 3종(#D6D3C4/#DEDACB/#d9d5c6) 단일 수렴
   border: '#DCD6C4',     // line과 동치 — 점진 제거 예정 (line만 남긴다)
   green: '#5a7a3c',      // 기능 그린 — 라벨·강조 (volt의 텍스트 버전, 대비 우선이라 유지)
-  dim: '#6D6B5C',
+  dim: '#5B594A',
   // dark glow theme (owner home / cards)
   bgDark: '#0C130E',
   cardDark: '#0F1D13',
@@ -34,13 +34,13 @@ export const layout = { gutter: 12 } as const;
 // 타이포 스케일 — 규칙: 900은 오직 숫자(display)와 화면 제목(title)에만.
 // 본문·라벨이 전부 900이면 위계가 무너진다 (ui-audit). 새 코드는 이 프리셋을 쓸 것.
 export const type = {
-  display: { fontSize: 42, fontWeight: '900', fontVariant: ['tabular-nums'] } as const, // 큰 숫자 전용
-  numeric: { fontSize: 22, fontWeight: '900', fontVariant: ['tabular-nums'] } as const, // 중간 숫자
-  title: { fontSize: 21, fontWeight: '900' } as const,   // 화면 제목
-  heading: { fontSize: 14.5, fontWeight: '800' } as const, // 섹션/카드 제목
-  body: { fontSize: 13.5, fontWeight: '600' } as const,
-  label: { fontSize: 11.5, fontWeight: '700' } as const,
-  caption: { fontSize: 10.5, fontWeight: '400' } as const,
+  display: { fontSize: 48.5, fontWeight: '900', fontVariant: ['tabular-nums'] } as const, // 큰 숫자 전용
+  numeric: { fontSize: 25.5, fontWeight: '900', fontVariant: ['tabular-nums'] } as const, // 중간 숫자
+  title: { fontSize: 24, fontWeight: '900' } as const,   // 화면 제목
+  heading: { fontSize: 16.5, fontWeight: '800' } as const, // 섹션/카드 제목
+  body: { fontSize: 15.5, fontWeight: '600' } as const,
+  label: { fontSize: 13, fontWeight: '700' } as const,
+  caption: { fontSize: 12, fontWeight: '400' } as const,
 } as const;
 
 // Surface palettes for themed screens (home, cards). Toggled by ThemeProvider.

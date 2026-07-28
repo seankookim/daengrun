@@ -89,14 +89,14 @@ export default function OwnerMeetup() {
           <View key={i} style={[s.pathDot, { right: 60 + i * 42, top: 80 + i * 26, opacity: stage === 'enroute' ? 1 : 0.3 }]} />
         ))}
         <View style={[s.runnerPin, stage !== 'enroute' && { right: 260, top: 196 }]}>
-          <Text style={{ fontSize: 9, fontWeight: '900', color: '#fff' }}>{runnerName[0]}</Text>
+          <Text style={{ fontSize: 10.5, fontWeight: '900', color: '#fff' }}>{runnerName[0]}</Text>
         </View>
-        <View style={s.pickupPin}><Text style={{ fontSize: 9, fontWeight: '900', color: '#fff' }}>픽업</Text></View>
+        <View style={s.pickupPin}><Text style={{ fontSize: 10.5, fontWeight: '900', color: '#fff' }}>픽업</Text></View>
 
         <Row style={s.topBar}>
-          <Pressable onPress={() => router.back()} style={s.circleBtn}><Text style={{ fontSize: 18 }}>‹</Text></Pressable>
+          <Pressable onPress={() => router.back()} style={s.circleBtn}><Text style={{ fontSize: 20.5 }}>‹</Text></Pressable>
           <View style={s.etaPill}>
-            <Text style={{ fontSize: 12, fontWeight: '900', color: colors.volt }}>
+            <Text style={{ fontSize: 14, fontWeight: '900', color: colors.volt }}>
               {stage === 'enroute' ? `${runnerName} 러너 매칭됨 — 출발 대기` : `${runnerName} 러너 이동 중`}
             </Text>
           </View>
@@ -111,22 +111,22 @@ export default function OwnerMeetup() {
             <Monogram char={runnerName[0]} bg="#5a7a3c" size={46} />
             <View style={{ flex: 1 }}>
               <Row style={{ gap: 6 }}>
-                <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST }}>{runnerName} 러너</Text>
-                <View style={s.badgePill}><Text style={{ fontSize: 8.5, fontWeight: '800', color: '#4a6d1f' }}>신원인증</Text></View>
+                <Text style={{ fontSize: 17, fontWeight: '900', color: FOREST }}>{runnerName} 러너</Text>
+                <View style={s.badgePill}><Text style={{ fontSize: 10, fontWeight: '800', color: '#4a6d1f' }}>신원인증</Text></View>
               </Row>
-              <Text style={{ fontSize: 11.5, color: colors.dim, marginTop: 3 }}>
+              <Text style={{ fontSize: 13, color: colors.dim, marginTop: 3 }}>
                 {info ? `${info.when} · ${info.routeName} ${info.km}km` : '예약 정보 불러오는 중...'}
               </Text>
             </View>
             <Pressable style={s.chatChip} onPress={() => router.push({ pathname: '/chat', params: bookingId ? { bid: bookingId } : {} })}>
-              <Text style={{ fontSize: 11, fontWeight: '800', color: '#4a6d1f' }}>채팅</Text>
+              <Text style={{ fontSize: 12.5, fontWeight: '800', color: '#4a6d1f' }}>채팅</Text>
             </Pressable>
           </Row>
         </View>
 
         {/* handoff steps */}
         <View style={s.card}>
-          <Text style={{ fontSize: 13.5, fontWeight: '900', color: FOREST, marginBottom: 10 }}>인계 확인</Text>
+          <Text style={{ fontSize: 15.5, fontWeight: '900', color: FOREST, marginBottom: 10 }}>인계 확인</Text>
           <Step done label="러너 수락 완료" />
           <Step done={stage !== 'enroute'} active={stage === 'enroute'} label={stage === 'enroute' ? '러너 이동 중 — 실시간 위치가 위 지도에 보여요' : '러너 픽업 장소 도착'} />
           {/* 양측 확인 상태를 각각 서버 진실로 표시 — 누가 누굴 기다리는지 추측 금지 */}
@@ -170,7 +170,7 @@ export default function OwnerMeetup() {
           </View>
         )}
 
-        <Text style={{ fontSize: 10.5, color: colors.dim, textAlign: 'center', marginTop: 14, lineHeight: 15 }}>
+        <Text style={{ fontSize: 12, color: colors.dim, textAlign: 'center', marginTop: 14, lineHeight: 17 }}>
           인계 시점부터 펫보험이 적용됩니다{'\n'}러너가 10분 내 도착하지 않으면 자동으로 고객센터가 연결돼요
         </Text>
       </ScrollView>
@@ -182,9 +182,9 @@ function Step({ label, done, active }: { label: string; done?: boolean; active?:
   return (
     <Row style={{ gap: 9, marginTop: 7 }}>
       <View style={[s.stepDot, done && { backgroundColor: '#6aa53c' }, active && !done && { borderColor: '#e2c56b', borderWidth: 2, backgroundColor: '#fff' }]}>
-        {done && <Text style={{ fontSize: 9, fontWeight: '900', color: '#fff' }}>✓</Text>}
+        {done && <Text style={{ fontSize: 10.5, fontWeight: '900', color: '#fff' }}>✓</Text>}
       </View>
-      <Text style={{ flex: 1, fontSize: 12.5, color: done ? '#3d5a2b' : active ? '#a97c12' : colors.dim, fontWeight: done || active ? '700' : '400' }}>
+      <Text style={{ flex: 1, fontSize: 14.5, color: done ? '#3d5a2b' : active ? '#a97c12' : colors.dim, fontWeight: done || active ? '700' : '400' }}>
         {label}
       </Text>
     </Row>
@@ -205,6 +205,6 @@ const s = StyleSheet.create({
   chatChip: { backgroundColor: '#eef4e0', borderRadius: 99, paddingVertical: 8, paddingHorizontal: 12, alignSelf: 'center' },
   stepDot: { width: 18, height: 18, borderRadius: 10, backgroundColor: '#DCD6C4', alignItems: 'center', justifyContent: 'center' },
   primary: { backgroundColor: FOREST, borderRadius: 18, alignItems: 'center', paddingVertical: 16, marginTop: 6 },
-  primaryText: { fontSize: 15.5, fontWeight: '900', color: '#fff' },
-  primarySub: { fontSize: 10.5, color: '#b8c4ae', marginTop: 3 },
+  primaryText: { fontSize: 18, fontWeight: '900', color: '#fff' },
+  primarySub: { fontSize: 12, color: '#b8c4ae', marginTop: 3 },
 });

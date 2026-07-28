@@ -36,11 +36,11 @@ export default function Leaderboard() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         <Row style={{ justifyContent: 'space-between' }}>
-          <Pressable onPress={() => router.back()} style={s.backBtn}><Text style={{ fontSize: 18 }}>‹</Text></Pressable>
-          <Text style={[{ fontSize: 20, fontWeight: '900', color: FOREST }, df]}>동네 랭킹</Text>
+          <Pressable onPress={() => router.back()} style={s.backBtn}><Text style={{ fontSize: 20.5 }}>‹</Text></Pressable>
+          <Text style={[{ fontSize: 23, fontWeight: '900', color: FOREST }, df]}>동네 랭킹</Text>
           <View style={{ width: 40 }} />
         </Row>
-        <Text style={{ fontSize: 11.5, color: colors.dim, textAlign: 'center', marginTop: 6 }}>
+        <Text style={{ fontSize: 13, color: colors.dim, textAlign: 'center', marginTop: 6 }}>
           이번 주 · 월요일마다 새로 시작해요
         </Text>
 
@@ -48,13 +48,13 @@ export default function Leaderboard() {
         <View style={s.milesCard}>
           <Row style={{ justifyContent: 'space-between' }}>
             <View>
-              <Text style={{ fontSize: 11, color: '#b8c4ae', letterSpacing: 1.5 }}>내 하이 포인트</Text>
-              <Text style={{ fontSize: 32, fontWeight: '900', color: colors.volt, marginTop: 4 }}>
-                {miles?.balance?.toLocaleString() ?? '—'}<Text style={{ fontSize: 13, color: '#b8c4ae' }}> 마일</Text>
+              <Text style={{ fontSize: 12.5, color: '#b8c4ae', letterSpacing: 1.5 }}>내 하이 포인트</Text>
+              <Text style={{ fontSize: 37, fontWeight: '900', color: colors.volt, marginTop: 4 }}>
+                {miles?.balance?.toLocaleString() ?? '—'}<Text style={{ fontSize: 15, color: '#b8c4ae' }}> 마일</Text>
               </Text>
             </View>
             <View style={{ alignItems: 'flex-end', justifyContent: 'center' }}>
-              <Text style={{ fontSize: 10.5, color: '#b8c4ae', lineHeight: 16, textAlign: 'right' }}>
+              <Text style={{ fontSize: 12, color: '#b8c4ae', lineHeight: 18.5, textAlign: 'right' }}>
                 러닝 완주 +50{'\n'}응가 도장 +30
               </Text>
             </View>
@@ -62,7 +62,7 @@ export default function Leaderboard() {
           {miles && miles.recent.length > 0 && (
             <Row style={{ gap: 10, marginTop: 10, flexWrap: 'wrap' }}>
               {miles.recent.slice(0, 3).map((m, i) => (
-                <Text key={i} style={{ fontSize: 10.5, color: '#8fa093' }}>
+                <Text key={i} style={{ fontSize: 12, color: '#8fa093' }}>
                   {m.reason} +{m.delta}
                 </Text>
               ))}
@@ -74,7 +74,7 @@ export default function Leaderboard() {
         <View style={s.tabWrap}>
           {([['dogs', '🐕 강아지 (거리)'], ['runners', '🏃 러너 (러닝 수)']] as const).map(([k, label]) => (
             <Pressable key={k} onPress={() => setTab(k)} style={[s.tab, tab === k && { backgroundColor: FOREST }]}>
-              <Text style={{ fontSize: 12.5, fontWeight: '800', color: tab === k ? '#fff' : '#5d655d' }}>{label}</Text>
+              <Text style={{ fontSize: 14.5, fontWeight: '800', color: tab === k ? '#fff' : '#49524a' }}>{label}</Text>
             </Pressable>
           ))}
         </View>
@@ -82,27 +82,27 @@ export default function Leaderboard() {
         {/* board */}
         {rows.length === 0 && (
           <View style={s.emptyBox}>
-            <Text style={{ fontSize: 13, color: colors.dim, textAlign: 'center', lineHeight: 20 }}>
+            <Text style={{ fontSize: 15, color: colors.dim, textAlign: 'center', lineHeight: 23 }}>
               이번 주 완주 기록이 아직 없어요{'\n'}첫 러닝이 1위가 되는 주예요 — 지금이 기회!
             </Text>
           </View>
         )}
         {rows.map((r, i) => (
           <View key={`${r.name}-${i}`} style={[s.row, i < 3 && { borderColor: '#e2c56b', borderWidth: 1.5 }]}>
-            <Text style={{ width: 34, fontSize: i < 3 ? 20 : 14, fontWeight: '900', color: '#5d655d', textAlign: 'center' }}>
+            <Text style={{ width: 34, fontSize: i < 3 ? 20 : 14, fontWeight: '900', color: '#49524a', textAlign: 'center' }}>
               {MEDAL[i] ?? i + 1}
             </Text>
             <Avatar url={r.photoUrl} char={r.name[0]} bg={tab === 'dogs' ? '#c9a86e' : '#5a7a3c'} size={40} />
-            <Text style={{ flex: 1, fontSize: 14.5, fontWeight: '800', color: FOREST, marginLeft: 10 }} numberOfLines={1}>
+            <Text style={{ flex: 1, fontSize: 16.5, fontWeight: '800', color: FOREST, marginLeft: 10 }} numberOfLines={1}>
               {r.name}
             </Text>
-            <Text style={{ fontSize: 15, fontWeight: '900', color: '#5a7a3c' }}>
+            <Text style={{ fontSize: 17, fontWeight: '900', color: '#5a7a3c' }}>
               {tab === 'dogs' ? `${r.km}km` : `${r.runs}회`}
             </Text>
           </View>
         ))}
 
-        <Text style={{ fontSize: 10.5, color: colors.dim, textAlign: 'center', marginTop: 16, lineHeight: 15 }}>
+        <Text style={{ fontSize: 12, color: colors.dim, textAlign: 'center', marginTop: 16, lineHeight: 17 }}>
           주간 TOP 3 시즌 보상은 곧 공개돼요{'\n'}랭킹은 완주한 러닝만 집계해요
         </Text>
       </ScrollView>

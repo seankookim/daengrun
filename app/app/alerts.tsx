@@ -49,7 +49,7 @@ export default function Alerts() {
         {/* header */}
         <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <Pressable onPress={() => router.back()} style={[s.hBtn, { marginRight: 12 }]}>
-            <Text style={{ fontSize: 18, color: FOREST }}>‹</Text>
+            <Text style={{ fontSize: 20.5, color: FOREST }}>‹</Text>
           </Pressable>
           <View style={{ flex: 1 }}>
             <Row style={{ gap: 5 }}>
@@ -71,7 +71,7 @@ export default function Alerts() {
             <Row style={{ gap: 8, marginBottom: 10 }}>
               <Text style={s.section}>내 알림</Text>
               <View style={{ backgroundColor: '#5a7a3c', borderRadius: 99, paddingVertical: 2, paddingHorizontal: 7, alignSelf: 'center' }}>
-                <Text style={{ fontSize: 8.5, fontWeight: '900', color: '#fff' }}>● LIVE</Text>
+                <Text style={{ fontSize: 10, fontWeight: '900', color: '#fff' }}>● LIVE</Text>
               </View>
             </Row>
             <View style={{ gap: 10 }}>
@@ -79,16 +79,16 @@ export default function Alerts() {
                 <Pressable key={n.id} onPress={() => openNoti(n)} style={[s.noti, n.unread && s.notiHi]}>
                   <View style={[s.notiIcon, { backgroundColor: '#e7efd8' }]}>
                     {n.unread && <View style={s.unreadDot} />}
-                    <Text style={{ fontSize: 13, fontWeight: '900', color: '#3d5a2b' }}>런</Text>
+                    <Text style={{ fontSize: 15, fontWeight: '900', color: '#3d5a2b' }}>런</Text>
                   </View>
                   <View style={{ flex: 1 }}>
                     <Row style={{ justifyContent: 'space-between' }}>
-                      <Text style={{ fontSize: 14.5, fontWeight: '900', color: FOREST }}>{n.title}</Text>
-                      <Text style={{ fontSize: 10.5, color: colors.dim }}>{n.when}</Text>
+                      <Text style={{ fontSize: 16.5, fontWeight: '900', color: FOREST }}>{n.title}</Text>
+                      <Text style={{ fontSize: 12, color: colors.dim }}>{n.when}</Text>
                     </Row>
-                    {n.body && <Text style={{ fontSize: 12.5, color: '#5d655d', marginTop: 3 }}>{n.body}</Text>}
+                    {n.body && <Text style={{ fontSize: 14.5, color: '#49524a', marginTop: 3 }}>{n.body}</Text>}
                     {n.refId && n.kind === 'booking' && (
-                      <Text style={{ fontSize: 11, fontWeight: '800', color: '#5a7a3c', marginTop: 5 }}>자세히 보기 ›</Text>
+                      <Text style={{ fontSize: 12.5, fontWeight: '800', color: '#5a7a3c', marginTop: 5 }}>자세히 보기 ›</Text>
                     )}
                   </View>
                 </Pressable>
@@ -99,7 +99,7 @@ export default function Alerts() {
 
         {liveNotis.length === 0 && (
           <View style={{ marginTop: 24, backgroundColor: '#fff', borderRadius: 16, padding: 18, alignItems: 'center', borderWidth: 1, borderColor: '#DCD6C4' }}>
-            <Text style={{ fontSize: 13, color: colors.dim, textAlign: 'center', lineHeight: 20 }}>
+            <Text style={{ fontSize: 15, color: colors.dim, textAlign: 'center', lineHeight: 23 }}>
               아직 알림이 없어요{'\n'}예약·러닝 소식이 여기에 도착해요
             </Text>
           </View>
@@ -114,22 +114,22 @@ export default function Alerts() {
 function HeaderBtn({ glyph, label }: { glyph: string; label: string }) {
   return (
     <View style={{ alignItems: 'center', gap: 3 }}>
-      <View style={s.hBtn}><Text style={{ fontSize: 14, color: '#5d655d' }}>{glyph}</Text></View>
-      <Text style={{ fontSize: 10, color: '#5d655d' }}>{label}</Text>
+      <View style={s.hBtn}><Text style={{ fontSize: 16, color: '#49524a' }}>{glyph}</Text></View>
+      <Text style={{ fontSize: 11.5, color: '#49524a' }}>{label}</Text>
     </View>
   );
 }
 
 const s = StyleSheet.create({
-  h1: { fontSize: 30, fontWeight: '900', color: FOREST },
-  sub: { fontSize: 13, color: '#5d655d', marginTop: 6 },
+  h1: { fontSize: 34.5, fontWeight: '900', color: FOREST },
+  sub: { fontSize: 15, color: '#49524a', marginTop: 6 },
   hBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#fff', borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
   tabsWrap: { flexDirection: 'row', backgroundColor: '#fff', borderRadius: 99, padding: 4, marginTop: 18, borderWidth: 1, borderColor: '#DCD6C4' },
   tab: { flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: 99, flexDirection: 'row', justifyContent: 'center' },
   tabSel: { backgroundColor: FOREST },
-  tabText: { fontSize: 13, fontWeight: '700', color: '#5d655d' },
+  tabText: { fontSize: 15, fontWeight: '700', color: '#49524a' },
   tabDivider: { position: 'absolute', right: 0, top: 10, bottom: 10, width: 1, backgroundColor: '#DCD6C4' },
-  section: { fontSize: 15, fontWeight: '900', color: FOREST },
+  section: { fontSize: 17, fontWeight: '900', color: FOREST },
   countBadge: { width: 20, height: 20, borderRadius: 10, backgroundColor: colors.volt, alignItems: 'center', justifyContent: 'center' },
   noti: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#fff', borderRadius: 18, padding: 14, borderWidth: 1, borderColor: '#DCD6C4' },
   notiHi: { backgroundColor: '#f7faee', borderColor: '#dde8c4' },

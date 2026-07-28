@@ -78,16 +78,16 @@ export default function Availability() {
     <View style={{ flex: 1, backgroundColor: colors.cream }}>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingTop: 56, paddingBottom: 120 }}>
         <Row style={{ justifyContent: 'space-between', marginBottom: 4 }}>
-          <Pressable onPress={() => router.back()} style={s.circleBtn}><Text style={{ fontSize: 18 }}>‹</Text></Pressable>
-          <Text style={{ fontSize: 19, fontWeight: '900', color: FOREST }}>가용시간 설정</Text>
+          <Pressable onPress={() => router.back()} style={s.circleBtn}><Text style={{ fontSize: 20.5 }}>‹</Text></Pressable>
+          <Text style={{ fontSize: 22, fontWeight: '900', color: FOREST }}>가용시간 설정</Text>
           <View style={{ width: 40 }} />
         </Row>
-        <Text style={{ fontSize: 12, color: colors.dim, textAlign: 'center', marginBottom: 16 }}>
+        <Text style={{ fontSize: 14, color: colors.dim, textAlign: 'center', marginBottom: 16 }}>
           설정한 시간에만 요청을 받아요 · 주 {activeCount}일 러닝
         </Text>
 
         {!loaded && (
-          <View style={s.card}><Text style={{ fontSize: 12.5, color: colors.dim, textAlign: 'center', paddingVertical: 10 }}>불러오는 중...</Text></View>
+          <View style={s.card}><Text style={{ fontSize: 14.5, color: colors.dim, textAlign: 'center', paddingVertical: 10 }}>불러오는 중...</Text></View>
         )}
 
         {loaded && (
@@ -100,28 +100,28 @@ export default function Availability() {
                   <View style={{ paddingVertical: 11 }}>
                     <Row style={{ justifyContent: 'space-between' }}>
                       <Row style={{ gap: 10 }}>
-                        <Text style={{ width: 24, fontSize: 15, fontWeight: '900', color: d.enabled ? FOREST : '#b3b3ab' }}>
+                        <Text style={{ width: 24, fontSize: 17, fontWeight: '900', color: d.enabled ? FOREST : '#b3b3ab' }}>
                           {DAY_NAME[wd]}
                         </Text>
                         <Pressable
                           onPress={() => mutate(wd, { enabled: !d.enabled })}
                           style={[s.togglePill, d.enabled && { backgroundColor: '#e3f0c4' }]}
                         >
-                          <Text style={{ fontSize: 11, fontWeight: '800', color: d.enabled ? '#3d5a2b' : '#8a8877' }}>
+                          <Text style={{ fontSize: 12.5, fontWeight: '800', color: d.enabled ? '#3d5a2b' : '#8a8877' }}>
                             {d.enabled ? '가능' : '쉬는 날'}
                           </Text>
                         </Pressable>
                       </Row>
                       {d.enabled && (
                         <Pressable onPress={() => applyToAll(wd)}>
-                          <Text style={{ fontSize: 10.5, fontWeight: '700', color: '#5a7a3c' }}>⧉ 전체 적용</Text>
+                          <Text style={{ fontSize: 12, fontWeight: '700', color: '#5a7a3c' }}>⧉ 전체 적용</Text>
                         </Pressable>
                       )}
                     </Row>
                     {d.enabled && (
                       <Row style={{ gap: 8, marginTop: 10, justifyContent: 'center' }}>
                         <Stepper value={fmtMin(d.startMin)} onMinus={() => bump(wd, 'startMin', -30)} onPlus={() => bump(wd, 'startMin', 30)} />
-                        <Text style={{ fontSize: 14, color: colors.dim, alignSelf: 'center' }}>—</Text>
+                        <Text style={{ fontSize: 16, color: colors.dim, alignSelf: 'center' }}>—</Text>
                         <Stepper value={fmtMin(d.endMin)} onMinus={() => bump(wd, 'endMin', -30)} onPlus={() => bump(wd, 'endMin', 30)} />
                       </Row>
                     )}
@@ -132,20 +132,20 @@ export default function Availability() {
           </View>
         )}
 
-        <Text style={{ fontSize: 10.5, color: colors.dim, textAlign: 'center', marginTop: 14, lineHeight: 15 }}>
+        <Text style={{ fontSize: 12, color: colors.dim, textAlign: 'center', marginTop: 14, lineHeight: 17 }}>
           30분 단위 · 요일당 1구간 (다구간·휴가 등 예외 일정은 준비 중){'\n'}
           변경 사항은 내 공개 프로필과 보호자 예약 화면에 즉시 반영돼요
         </Text>
 
         {/* 예약 규칙 — 서버 반영 전이므로 준비 중 표기 */}
-        <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST, marginTop: 22, marginBottom: 10 }}>예약 규칙 (준비 중)</Text>
+        <Text style={{ fontSize: 17, fontWeight: '900', color: FOREST, marginTop: 22, marginBottom: 10 }}>예약 규칙 (준비 중)</Text>
         <View style={[s.card, { opacity: 0.55 }]}>
           {[['최소 통보 시간', '2시간 전'], ['하루 최대 세션', '4건'], ['세션 후 휴식', '30분']].map(([label, value], i) => (
             <View key={label}>
               {i > 0 && <View style={s.div} />}
               <Row style={{ justifyContent: 'space-between', paddingVertical: 12 }}>
-                <Text style={{ fontSize: 13.5, color: '#3d453d' }}>{label}</Text>
-                <Text style={{ fontSize: 13.5, fontWeight: '900', color: FOREST }}>{value}</Text>
+                <Text style={{ fontSize: 15.5, color: '#3d453d' }}>{label}</Text>
+                <Text style={{ fontSize: 15.5, fontWeight: '900', color: FOREST }}>{value}</Text>
               </Row>
             </View>
           ))}
@@ -155,7 +155,7 @@ export default function Availability() {
       {/* sticky save */}
       <View style={s.saveBar}>
         <Pressable onPress={save} disabled={saving || !dirty} style={[s.saveBtn, (!dirty || saving) && { opacity: 0.45 }]}>
-          <Text style={{ fontSize: 14.5, fontWeight: '900', color: FOREST }}>
+          <Text style={{ fontSize: 16.5, fontWeight: '900', color: FOREST }}>
             {saving ? '저장 중...' : dirty ? '저장하기' : '저장됨 ✓'}
           </Text>
         </Pressable>
@@ -169,7 +169,7 @@ function Stepper({ value, onMinus, onPlus }: { value: string; onMinus: () => voi
     <Row style={{ gap: 0, backgroundColor: '#f4f2ea', borderRadius: 12, overflow: 'hidden' }}>
       <Pressable onPress={onMinus} style={s.stepBtn}><Text style={s.stepBtnText}>−</Text></Pressable>
       <View style={{ paddingHorizontal: 12, justifyContent: 'center' }}>
-        <Text style={{ fontSize: 17, fontWeight: '900', color: FOREST }}>{value}</Text>
+        <Text style={{ fontSize: 19.5, fontWeight: '900', color: FOREST }}>{value}</Text>
       </View>
       <Pressable onPress={onPlus} style={s.stepBtn}><Text style={s.stepBtnText}>＋</Text></Pressable>
     </Row>
@@ -182,7 +182,7 @@ const s = StyleSheet.create({
   div: { height: 1, backgroundColor: '#f0eee3' },
   togglePill: { backgroundColor: '#f0efe8', borderRadius: 99, paddingVertical: 8, paddingHorizontal: 15 },
   stepBtn: { width: 46, height: 46, alignItems: 'center', justifyContent: 'center' },
-  stepBtnText: { fontSize: 20, fontWeight: '900', color: '#5a7a3c' },
+  stepBtnText: { fontSize: 23, fontWeight: '900', color: '#5a7a3c' },
   saveBar: {
     position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: colors.cream,
     paddingHorizontal: 12, paddingTop: 10, paddingBottom: 30, borderTopWidth: 1, borderTopColor: '#DCD6C4',

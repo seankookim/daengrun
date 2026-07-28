@@ -56,14 +56,14 @@ export default function RunnerCalendar() {
       >
         <Row style={{ justifyContent: 'space-between' }}>
           <View>
-            <Text style={[{ fontSize: 26, fontWeight: '900', color: FOREST }, df]}>캘린더</Text>
-            <Text style={{ fontSize: 12, color: colors.dim, marginTop: 3 }}>
+            <Text style={[{ fontSize: 30, fontWeight: '900', color: FOREST }, df]}>캘린더</Text>
+            <Text style={{ fontSize: 14, color: colors.dim, marginTop: 3 }}>
               {MONTH_LABEL} · 확정 {jobs.filter((j) => j.status !== 'completed').length}건 · 예상 +
               {jobs.filter((j) => j.status !== 'completed').reduce((sum, j) => sum + j.payout, 0).toLocaleString()}원
             </Text>
           </View>
           <Pressable onPress={() => router.push('/runner/availability')} style={s.availBtn}>
-            <Text style={{ fontSize: 11.5, fontWeight: '800', color: '#fff' }}>가용시간 설정</Text>
+            <Text style={{ fontSize: 13, fontWeight: '800', color: '#fff' }}>가용시간 설정</Text>
           </Pressable>
         </Row>
 
@@ -71,8 +71,8 @@ export default function RunnerCalendar() {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 16 }} contentContainerStyle={{ gap: 8 }}>
           {DATES.map((d, i) => (
             <Pressable key={d.d} onPress={() => setDateIdx(i)} style={[s.dateChip, dateIdx === i && { backgroundColor: FOREST }]}>
-              <Text style={{ fontSize: 10, color: dateIdx === i ? '#b8c4ae' : colors.dim }}>{d.w}</Text>
-              <Text style={{ fontSize: 16, fontWeight: '900', color: dateIdx === i ? '#fff' : FOREST }}>{d.d}</Text>
+              <Text style={{ fontSize: 11.5, color: dateIdx === i ? '#b8c4ae' : colors.dim }}>{d.w}</Text>
+              <Text style={{ fontSize: 18.5, fontWeight: '900', color: dateIdx === i ? '#fff' : FOREST }}>{d.d}</Text>
               {d.today && <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: dateIdx === i ? colors.volt : '#5a7a3c' }} />}
             </Pressable>
           ))}
@@ -81,18 +81,18 @@ export default function RunnerCalendar() {
         {/* ---------- 내 작업 (실예약) ---------- */}
         <View style={{ marginTop: 18 }}>
           <Row style={{ gap: 6, marginBottom: 8 }}>
-            <Text style={{ fontSize: 14, fontWeight: '900', color: FOREST }}>내 작업</Text>
+            <Text style={{ fontSize: 16, fontWeight: '900', color: FOREST }}>내 작업</Text>
             <View style={{ backgroundColor: '#5a7a3c', borderRadius: 99, paddingVertical: 2, paddingHorizontal: 7 }}>
-              <Text style={{ fontSize: 8.5, fontWeight: '900', color: '#fff' }}>● LIVE</Text>
+              <Text style={{ fontSize: 10, fontWeight: '900', color: '#fff' }}>● LIVE</Text>
             </View>
           </Row>
           {jobs.length === 0 && (
             <View style={s.emptyJobs}>
-              <Text style={{ fontSize: 13, color: colors.dim, textAlign: 'center', lineHeight: 19 }}>
+              <Text style={{ fontSize: 15, color: colors.dim, textAlign: 'center', lineHeight: 22 }}>
                 확정된 작업이 아직 없어요{'\n'}요청 탭에서 새 요청을 수락해보세요
               </Text>
               <Pressable onPress={() => router.push('/runner/requests')} style={s.emptyBtn}>
-                <Text style={{ fontSize: 12.5, fontWeight: '800', color: FOREST }}>요청 보러 가기 ›</Text>
+                <Text style={{ fontSize: 14.5, fontWeight: '800', color: FOREST }}>요청 보러 가기 ›</Text>
               </Pressable>
             </View>
           )}
@@ -103,19 +103,19 @@ export default function RunnerCalendar() {
                   <View style={[s.timeRail, j.status === 'completed' && { backgroundColor: '#c9ccc0' }]} />
                   <View style={{ flex: 1 }}>
                     <Row style={{ justifyContent: 'space-between' }}>
-                      <Text style={{ fontSize: 12, fontWeight: '800', color: '#5d655d' }}>{j.when}</Text>
+                      <Text style={{ fontSize: 14, fontWeight: '800', color: '#49524a' }}>{j.when}</Text>
                       <View style={[s.statusPill, { backgroundColor: st.bg }]}>
-                        <Text style={{ fontSize: 9.5, fontWeight: '800', color: st.fg }}>{st.label}</Text>
+                        <Text style={{ fontSize: 11, fontWeight: '800', color: st.fg }}>{st.label}</Text>
                       </View>
                     </Row>
-                    <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST, marginTop: 3 }}>
+                    <Text style={{ fontSize: 17, fontWeight: '900', color: FOREST, marginTop: 3 }}>
                       {j.dogName} · {j.km}km 러닝
                     </Text>
                     <Row style={{ justifyContent: 'space-between', marginTop: 2 }}>
-                      <Text style={{ fontSize: 11.5, color: colors.dim }}>
+                      <Text style={{ fontSize: 13, color: colors.dim }}>
                         {j.status === 'confirmed' ? '탭하여 픽업 진행 ›' : j.status === 'in_progress' ? '탭하여 러닝 화면 ›' : '정산 완료'}
                       </Text>
-                      <Text style={{ fontSize: 13, fontWeight: '900', color: '#5a7a3c' }}>+{j.payout.toLocaleString()}원</Text>
+                      <Text style={{ fontSize: 15, fontWeight: '900', color: '#5a7a3c' }}>+{j.payout.toLocaleString()}원</Text>
                     </Row>
                   </View>
                 </Pressable>

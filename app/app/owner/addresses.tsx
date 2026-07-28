@@ -39,18 +39,18 @@ export default function Addresses() {
   return (
     <ScrollView style={{ flex: 1, backgroundColor: colors.cream }} contentContainerStyle={{ padding: 16, paddingTop: 56, paddingBottom: 40 }}>
       <Row style={{ justifyContent: 'space-between' }}>
-        <Pressable onPress={() => router.back()} style={s.backBtn}><Text style={{ fontSize: 18 }}>‹</Text></Pressable>
-        <Text style={{ fontSize: 20, fontWeight: '900', color: FOREST }}>주소 관리</Text>
+        <Pressable onPress={() => router.back()} style={s.backBtn}><Text style={{ fontSize: 20.5 }}>‹</Text></Pressable>
+        <Text style={{ fontSize: 23, fontWeight: '900', color: FOREST }}>주소 관리</Text>
         <View style={{ width: 40 }} />
       </Row>
-      <Text style={{ fontSize: 11.5, color: colors.dim, textAlign: 'center', marginTop: 6 }}>
+      <Text style={{ fontSize: 13, color: colors.dim, textAlign: 'center', marginTop: 6 }}>
         기본 주소가 예약의 픽업 장소로 쓰여요 · 탭해서 기본 지정
       </Text>
 
       <View style={{ marginTop: 16, gap: 10 }}>
         {list.length === 0 && !adding && (
           <View style={s.emptyBox}>
-            <Text style={{ fontSize: 12.5, color: colors.dim, textAlign: 'center', lineHeight: 19 }}>
+            <Text style={{ fontSize: 14.5, color: colors.dim, textAlign: 'center', lineHeight: 22 }}>
               등록된 주소가 없어요{'\n'}첫 주소를 추가하면 자동으로 기본 픽업이 돼요
             </Text>
           </View>
@@ -64,15 +64,15 @@ export default function Addresses() {
           >
             <Row style={{ justifyContent: 'space-between' }}>
               <Row style={{ gap: 7 }}>
-                <Text style={{ fontSize: 14.5, fontWeight: '900', color: FOREST }}>{a.label}</Text>
+                <Text style={{ fontSize: 16.5, fontWeight: '900', color: FOREST }}>{a.label}</Text>
                 {a.isDefault && (
-                  <View style={s.defaultPill}><Text style={{ fontSize: 9.5, fontWeight: '900', color: '#3d5a2b' }}>기본 픽업</Text></View>
+                  <View style={s.defaultPill}><Text style={{ fontSize: 11, fontWeight: '900', color: '#3d5a2b' }}>기본 픽업</Text></View>
                 )}
               </Row>
-              <Text style={{ fontSize: 10.5, color: colors.dim }}>길게 눌러 삭제</Text>
+              <Text style={{ fontSize: 12, color: colors.dim }}>길게 눌러 삭제</Text>
             </Row>
-            <Text style={{ fontSize: 12.5, color: '#5d655d', marginTop: 5 }}>{a.addr}</Text>
-            {a.detail && <Text style={{ fontSize: 11.5, color: colors.dim, marginTop: 2 }}>{a.detail}</Text>}
+            <Text style={{ fontSize: 14.5, color: '#49524a', marginTop: 5 }}>{a.addr}</Text>
+            {a.detail && <Text style={{ fontSize: 13, color: colors.dim, marginTop: 2 }}>{a.detail}</Text>}
           </Pressable>
         ))}
 
@@ -83,21 +83,21 @@ export default function Addresses() {
             <TextInput value={detail} onChangeText={setDetail} placeholder="상세 (동·호, 만날 지점 메모 — 선택)" placeholderTextColor="#b0ada0" style={[s.input, { marginTop: 8 }]} maxLength={60} />
             <Row style={{ gap: 8, marginTop: 10 }}>
               <Pressable onPress={save} style={[s.saveBtn, { flex: 1.4 }]}>
-                <Text style={{ fontSize: 12.5, fontWeight: '900', color: FOREST }}>저장</Text>
+                <Text style={{ fontSize: 14.5, fontWeight: '900', color: FOREST }}>저장</Text>
               </Pressable>
               <Pressable onPress={() => setAdding(false)} style={s.cancelBtn}>
-                <Text style={{ fontSize: 12.5, fontWeight: '700', color: '#5d655d' }}>취소</Text>
+                <Text style={{ fontSize: 14.5, fontWeight: '700', color: '#49524a' }}>취소</Text>
               </Pressable>
             </Row>
           </View>
         ) : (
           <Pressable style={s.addBtn} onPress={() => setAdding(true)}>
-            <Text style={{ fontSize: 12.5, fontWeight: '800', color: '#5a7a3c' }}>＋ 주소 추가</Text>
+            <Text style={{ fontSize: 14.5, fontWeight: '800', color: '#5a7a3c' }}>＋ 주소 추가</Text>
           </Pressable>
         )}
       </View>
 
-      <Text style={{ fontSize: 10.5, color: colors.dim, textAlign: 'center', marginTop: 16, lineHeight: 15 }}>
+      <Text style={{ fontSize: 12, color: colors.dim, textAlign: 'center', marginTop: 16, lineHeight: 17 }}>
         지도 핀 선택·공동현관 코드(암호화)는 지도 세션에서 추가돼요{'\n'}코드는 러닝 시간에만 러너에게 보여요
       </Text>
     </ScrollView>
@@ -109,7 +109,7 @@ const s = StyleSheet.create({
   emptyBox: { backgroundColor: '#f4f2ea', borderRadius: 16, padding: 16 },
   card: { backgroundColor: '#fff', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#DCD6C4' },
   defaultPill: { backgroundColor: '#eaf7c8', borderRadius: 99, paddingVertical: 3, paddingHorizontal: 8, alignSelf: 'center' },
-  input: { backgroundColor: '#faf9f3', borderRadius: 12, borderWidth: 1, borderColor: '#DCD6C4', paddingVertical: 11, paddingHorizontal: 12, fontSize: 13.5, color: FOREST },
+  input: { backgroundColor: '#faf9f3', borderRadius: 12, borderWidth: 1, borderColor: '#DCD6C4', paddingVertical: 11, paddingHorizontal: 12, fontSize: 15.5, color: FOREST },
   saveBtn: { backgroundColor: colors.volt, borderRadius: 12, alignItems: 'center', paddingVertical: 12 },
   cancelBtn: { flex: 1, backgroundColor: '#f4f2ea', borderRadius: 12, alignItems: 'center', paddingVertical: 12 },
   addBtn: { borderRadius: 16, borderWidth: 1.4, borderColor: '#cfd8c2', borderStyle: 'dashed', alignItems: 'center', paddingVertical: 14 },
