@@ -13,12 +13,14 @@ import { colors } from '../../src/theme';
 // A confirmed booking is a contract — never re-routes to runner selection.
 
 const FOREST = '#0F1D13';
-const FILTERS: { label: string; match: (b: Booking) => boolean }[] = [
-  { label: '전체', match: () => true },
-  { label: '예약 확정', match: (b) => b.status === 'confirmed' },
-  { label: '응답 대기', match: (b) => b.status === 'pending' },
-  { label: '완료', match: (b) => b.status === 'completed' },
-  { label: '반복', match: (b) => !!b.recurring },
+// 필터 칩 = 카드 좌측 레일과 같은 상태 컬러 스키마 — 칩이 곧 범례가 된다.
+// tint = 비선택(연한 상태색), sel = 선택(레일 원색). 상태가 아닌 칩(전체/반복)은 forest 중립.
+const FILTERS: { label: string; match: (b: Booking) => boolean; tint: string; tintFg: string; sel: string; selFg: string }[] = [
+  { label: '전체', match: () => true, tint: '#fff', tintFg: '#3d453d', sel: '#0F1D13', selFg: '#fff' },
+  { label: '예약 확정', match: (b) => b.status === 'confirmed', tint: '#e3f0c4', tintFg: '#3d5a2b', sel: '#5a7a3c', selFg: '#fff' },
+  { label: '응답 대기', match: (b) => b.status === 'pending', tint: '#fbf0d4', tintFg: '#a97c12', sel: '#e2c56b', selFg: '#4a3a0c' },
+  { label: '완료', match: (b) => b.status === 'completed', tint: '#e9ebe2', tintFg: '#75806f', sel: '#c9ccc0', selFg: '#3d453d' },
+  { label: '반복', match: (b) => !!b.recurring, tint: '#fff', tintFg: '#3d453d', sel: '#0F1D13', selFg: '#fff' },
 ];
 
 const STATUS_STYLE: Record<BookingStatus, { label: string; bg: string; fg: string; rail: string }> = {
@@ -100,8 +102,12 @@ export default function Schedule() {
         {/* filters (functional) */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12 }} contentContainerStyle={{ gap: 8 }}>
           {FILTERS.map((f, i) => (
-            <Pressable key={f.label} onPress={() => setFilterIdx(i)} style={[s.filter, filterIdx === i && { backgroundColor: FOREST, borderColor: FOREST }]}>
-              <Text style={{ fontSize: 14, fontWeight: '700', color: filterIdx === i ? '#fff' : '#3d453d' }}>{f.label}</Text>
+            <Pressable
+              key={f.label}
+              onPress={() => setFilterIdx(i)}
+              style={[s.filter, { backgroundColor: filterIdx === i ? f.sel : f.tint, borderColor: filterIdx === i ? f.sel : '#DCD6C4' }]}
+            >
+              <Text style={{ fontSize: 14, fontWeight: filterIdx === i ? '800' : '700', color: filterIdx === i ? f.selFg : f.tintFg }}>{f.label}</Text>
             </Pressable>
           ))}
         </ScrollView>
