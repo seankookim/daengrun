@@ -178,6 +178,13 @@ export default function Requests() {
                 <Text style={{ fontSize: 13, color: '#49524a', lineHeight: 19.5 }} numberOfLines={2}>메모: {req.memo}</Text>
               </View>
             )}
+            {/* 코스 미리보기 — 수락 전에 코스를 알고 결정한다 (트레이스·지형·점검일) */}
+            {req.routeId && req.routeName && (
+              <Pressable onPress={() => router.push(`/course/${req.routeId}`)} style={s.courseLink}>
+                <Text style={{ fontSize: 13, fontWeight: '800', color: '#3d5a2b' }}>⛳ {req.routeName}</Text>
+                <Text style={{ fontSize: 12.5, fontWeight: '900', color: '#5a7a3c' }}>코스 미리보기 ›</Text>
+              </Pressable>
+            )}
             <Pressable
               style={[s.accept, { marginTop: 12 }, accepting === req.bookingId && { opacity: 0.5 }]}
               disabled={accepting !== null}
@@ -216,6 +223,7 @@ const s = StyleSheet.create({
   matchPill: { backgroundColor: '#e3f0c4', borderRadius: 99, paddingVertical: 4, paddingHorizontal: 9 },
   conflict: { backgroundColor: '#fdeae5', borderRadius: 10, padding: 9, marginTop: 10 },
   memo: { backgroundColor: '#faf9f3', borderRadius: 10, padding: 9, marginTop: 8 },
+  courseLink: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#eef4e0', borderRadius: 10, paddingVertical: 9, paddingHorizontal: 11, marginTop: 8 },
   timeBox: { flex: 1, backgroundColor: '#f4f2ea', borderRadius: 10, paddingVertical: 7, paddingHorizontal: 10 },
   accept: { flex: 1.4, backgroundColor: colors.volt, borderRadius: 13, alignItems: 'center', paddingVertical: 12 },
   secondary: { flex: 1, backgroundColor: '#f4f2ea', borderRadius: 13, alignItems: 'center', paddingVertical: 12 },

@@ -61,6 +61,32 @@ export async function fetchRoutes(): Promise<RouteInfo[]> {
   });
 }
 
+// 코스 페이지 '우리 기록' — 이 코스에서 내가 (보호자 또는 러너로) 완주한 러닝의 실사진.
+// 타인 사진은 RLS가 막는다 — 공개 갤러리는 v2 (러닝 후 공개 동의 UI와 함께).
+export async function fetchMyRoutePhotos(routeId: string): Promise<string[]> {
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) return [];
+  const uid = user.user.id;
+  const { data: bks, error } = await supabase.from('bookings').select('id')
+    .eq('route_id', routeId).eq('status', 'completed')
+    .or(`owner_id.eq.${uid},runner_id.eq.${uid}`)
+    .order('scheduled_at', { ascending: false }).limit(20);
+  if (error) throw error;
+  const ids = (bks ?? []).map((b: any) => b.id);
+  if (ids.length === 0) return [];
+  const { data: runs, error: rErr } = await supabase.from('runs').select('photos, booking_id').in('booking_id', ids);
+  if (rErr) throw rErr;
+  return (runs ?? []).flatMap((r: any) => (r.photos as string[]) ?? []).slice(0, 12);
+}
+
+// 내 동네 — 코스 스트립 로컬 우선 정렬용 (profiles.district)
+export async function fetchMyDistrict(): Promise<string | null> {
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) return null;
+  const { data } = await supabase.from('profiles').select('district').eq('id', user.user.id).maybeSingle();
+  return data?.district ?? null;
+}
+
 // ---------- dogs ----------
 // 유저의 첫 반려견 확보 (없으면 목업 초코 프로필로 생성 — 실 프로필 위저드는 후속)
 export async function ensureDog(): Promise<string> {
@@ -266,6 +292,8 @@ export interface OpenRequest {
   photoUrl: string | null;
   prefTags: string[];
   vaccines: string[];
+  routeId: string | null;   // 코스 미리보기 링크 — 수락 전 코스를 알고 결정
+  routeName: string | null;
 }
 
 function mapOpenRequest(r: any, directed: boolean, rate: number): OpenRequest {
@@ -285,10 +313,12 @@ function mapOpenRequest(r: any, directed: boolean, rate: number): OpenRequest {
     photoUrl: r.dogs?.photo_url ?? null,
     prefTags: (r.dogs?.preferences as any)?.tags ?? [],
     vaccines: ((r.dogs?.vaccinations as any[]) ?? []).map((v) => v.type),
+    routeId: r.route_id ?? null,
+    routeName: r.routes?.name ?? null,
   };
 }
 
-const REQ_SELECT = 'id, scheduled_at, km, pace_label, base_fare, distance_fare, addon_fare, dogs(id, name, breed, weight_kg, memo, photo_url, preferences, vaccinations)';
+const REQ_SELECT = 'id, scheduled_at, km, pace_label, base_fare, distance_fare, addon_fare, route_id, routes(name), dogs(id, name, breed, weight_kg, memo, photo_url, preferences, vaccinations)';
 
 // 러너 인박스: 지명 요청(runner_pending, 나에게) + 오픈 요청(matching, 미배정)
 // + 단골 감지: 함께 완주한 이력이 있는 강아지엔 repeatPrior (수락 결정이 쉬워진다)
@@ -333,7 +363,7 @@ export async function fetchOpenRequests(): Promise<OpenRequest[]> {
   const rate = await myCommissionRate();
   const { data, error } = await supabase
     .from('bookings')
-    .select('id, scheduled_at, km, pace_label, base_fare, distance_fare, addon_fare, dogs(name, breed, weight_kg, memo)')
+    .select('id, scheduled_at, km, pace_label, base_fare, distance_fare, addon_fare, route_id, routes(name), dogs(name, breed, weight_kg, memo)')
     .eq('status', 'matching')
     .is('runner_id', null)
     .order('scheduled_at')
@@ -355,6 +385,8 @@ export async function fetchOpenRequests(): Promise<OpenRequest[]> {
       photoUrl: r.dogs?.photo_url ?? null,
       prefTags: (r.dogs?.preferences as any)?.tags ?? [],
       vaccines: [] as string[],
+      routeId: r.route_id ?? null,
+      routeName: r.routes?.name ?? null,
     };
   });
 }

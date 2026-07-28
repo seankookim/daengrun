@@ -1,5 +1,5 @@
 import { useDisplayFont } from '../../src/lib/displayFont';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { addDog, Addr, AvailRule, confirmPayment, createBookingHold, DogProfile, ensureDog, fetchAddresses, fetchMyDogs, fetchRoutes, fetchRunnerAvailability, requestRunner } from '../../src/lib/api';
@@ -66,6 +66,18 @@ export default function Request() {
     setRouteId(best.id);
   };
   const myDog = myDogs[dogIdx] ?? null;
+
+  // 코스 페이지 '이 코스로 예약하기' 진입 — 코스를 프리셀렉트하고 km 칩을 코스 거리에 맞춘다
+  const { routeId: paramRouteId } = useLocalSearchParams<{ routeId?: string }>();
+  const paramApplied = useRef(false);
+  useEffect(() => {
+    if (!paramRouteId || paramApplied.current) return;
+    const r = routes.find((x) => x.id === paramRouteId);
+    if (!r) return; // 코스 목록 로드 전 — 다음 렌더에서 재시도
+    paramApplied.current = true;
+    setRouteId(r.id);
+    setKm(DISTANCES.reduce((a, b) => (Math.abs(b - r.km) < Math.abs(a - r.km) ? b : a)));
+  }, [paramRouteId, routes]);
 
   // 첫 실화(實化) 지점: 안심 코스는 서버에서 온다. 실패 시 목업 유지.
   useEffect(() => {
@@ -367,6 +379,10 @@ export default function Request() {
 
                 <View style={s.routeMap}>
                   <HeatTrace points={r.trace} width={208} height={92} />
+                  {/* 코스 미리보기 — 트레이스·설명·점검일·우리 기록 (탭=선택은 카드가, 미리보기는 이 칩만) */}
+                  <Pressable onPress={() => router.push(`/course/${r.id}`)} style={s.previewChip} hitSlop={6}>
+                    <Text style={{ fontSize: 11, fontWeight: '900', color: FOREST }}>미리보기 ›</Text>
+                  </Pressable>
                 </View>
 
                 <Row style={{ gap: 4, marginTop: 9, flexWrap: 'wrap' }}>
@@ -562,6 +578,7 @@ function FeeRow({ label, value }: { label: string; value: string }) {
 
 const s = StyleSheet.create({
   kmMismatch: { backgroundColor: '#FDE8D0', borderRadius: 8, paddingVertical: 4, paddingHorizontal: 8, marginTop: 6, alignSelf: 'flex-start' },
+  previewChip: { position: 'absolute', right: 7, bottom: 7, backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 4, paddingHorizontal: 9 },
   circleBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DCD6C4' },
   livePill: { backgroundColor: '#f0f6e2', borderRadius: 99, paddingVertical: 8, paddingHorizontal: 12, borderWidth: 1, borderColor: '#dde8c4', alignSelf: 'center' },
   card: { backgroundColor: '#fff', borderRadius: 18, padding: 16, borderWidth: 1, borderColor: '#DCD6C4' },

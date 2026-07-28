@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Animated, Dimensions, Easing, Image, Modal, PanResponder, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BottomNav } from '../../src/components/bottomnav';
+import { CourseStrip } from '../../src/components/CourseStrip';
 import { Ring } from '../../src/components/ring';
 import { RunCard } from '../../src/components/runcard';
 import { Avatar } from '../../src/components/ui';
@@ -768,6 +769,9 @@ export default function OwnerHome() {
             </ScrollView>
           </View>
         )}
+
+        {/* ---------- 동네 코스 — 러너 아래, 코스 발견 (Sean 배치 결정 2026-07-28) ---------- */}
+        <CourseStrip />
 
         {/* ---------- safety quick card ---------- */}
         <Pressable onPress={() => router.push('/safety')} style={[s.safetyStrip, { backgroundColor: p.card }]}>
