@@ -4,6 +4,7 @@ import { Alert, Animated, Dimensions, Image, Pressable, ScrollView, Share, Style
 import { HeatTrace } from '../../src/components/runcard';
 import { Monogram, Row, Skeleton } from '../../src/components/ui';
 import { fetchRunReport, fetchRunStandings, RunReport, RunStandings, shareRunToFeed } from '../../src/lib/api';
+import { useDisplayFont } from '../../src/lib/displayFont';
 import { getMaps } from '../../src/lib/geo';
 import { draft, TracePoint } from '../../src/store';
 import { colors } from '../../src/theme';
@@ -64,6 +65,7 @@ function badges(st: RunStandings | null): string[] {
 }
 
 export default function Report() {
+  const df = useDisplayFont(); // 피니셔 증서 서체 — 타이틀·완주 도장 (숫자 금지)
   const { bid } = useLocalSearchParams<{ bid: string }>();
   const [report, setReport] = useState<RunReport | null>(null);
   const [standings, setStandings] = useState<RunStandings | null>(null);
@@ -116,7 +118,7 @@ export default function Report() {
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 40 }}>
         <Row style={{ justifyContent: 'space-between', paddingHorizontal: 12, paddingTop: 56 }}>
           <Pressable onPress={() => router.back()} style={s.backBtn}><Text style={{ fontSize: 20.5 }}>‹</Text></Pressable>
-          <Text style={{ fontSize: 23, fontWeight: '900', color: FOREST }}>러닝 리포트</Text>
+          <Text style={[{ fontSize: 23, fontWeight: '900', color: FOREST }, df]}>러닝 리포트</Text>
           {run ? (
             <Pressable onPress={share} style={s.backBtn}><Text style={{ fontSize: 17 }}>↗</Text></Pressable>
           ) : <View style={{ width: 40 }} />}
@@ -143,28 +145,53 @@ export default function Report() {
           </View>
         )}
 
-        {/* ---------- 인증샷 카드 모달 ---------- */}
+        {/* ---------- 인증샷 카드 모달 — 공유가 곧 마케팅. 이 카드가 인스타에 돌아다닌다 ---------- */}
         {report && run && shotOpen && (
           <View style={s.shotBackdrop}>
             <View ref={shotRef} collapsable={false} style={s.shotCard}>
               {run.photos[0] && (
-                <Image source={{ uri: run.photos[0] }} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, opacity: 0.38 }} resizeMode="cover" />
+                <Image source={{ uri: run.photos[0] }} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, opacity: 0.3 }} resizeMode="cover" />
               )}
-              <Text style={{ fontSize: 12.5, fontWeight: '900', color: colors.volt, letterSpacing: 3 }}>도그스하이 DAENGRUN</Text>
-              <Text style={{ fontSize: 24, fontWeight: '900', color: '#fff', marginTop: 12 }}>{report.dogName}의 러닝 🐕</Text>
-              <Text style={{ fontSize: 62, fontWeight: '900', color: colors.tang, marginTop: 6 }}>
+              {/* 브랜드 텍스처 — 매칭 카드와 같은 컨투어 아크 */}
+              <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 22, overflow: 'hidden' }}>
+                <View style={s.shotContour1} />
+                <View style={s.shotContour2} />
+              </View>
+
+              <Text style={{ fontSize: 12.5, fontWeight: '900', color: colors.volt, letterSpacing: 3.5 }}>도그스하이 · DOGS HIGH</Text>
+              <Text style={[{ fontSize: 26, fontWeight: '900', color: '#fff', marginTop: 12 }, df]}>{report.dogName}의 러닝</Text>
+              <Text style={{ fontSize: 64, fontWeight: '900', color: colors.tang, marginTop: 2 }}>
                 {run.actualKm}<Text style={{ fontSize: 23, color: '#b8c4ae' }}> km</Text>
               </Text>
-              <Text style={{ fontSize: 15, color: '#dfe7d8', marginTop: 8 }}>
+
+              {/* 실 GPS 트레이스 — 자랑의 증거 (없으면 안 그린다) */}
+              {run.trace.length > 1 && (
+                <View style={{ marginTop: 12, borderRadius: 14, backgroundColor: 'rgba(10,18,13,0.82)', padding: 10 }}>
+                  <HeatTrace points={normalizeTrace(run.trace)} width={W - 128} height={110} />
+                </View>
+              )}
+
+              <Text style={{ fontSize: 15.5, fontWeight: '800', color: '#dfe7d8', marginTop: 12 }}>
                 ⏱ {fmtDur(run.durationSec)} · 페이스 {fmtPace(run.paceSecPerKm)}/km
               </Text>
               <Text style={{ fontSize: 12.5, color: '#b8c4ae', marginTop: 4 }}>{report.when} · {report.routeName}</Text>
               {bList.length > 1 && (
-                <Text style={{ fontSize: 14, fontWeight: '900', color: colors.volt, marginTop: 10 }}>
-                  {bList.filter((b) => b.includes('역대') || b.includes('TOP')).join(' · ') || bList[0]}
-                </Text>
+                <View style={{ backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 5, paddingHorizontal: 13, marginTop: 11 }}>
+                  <Text style={{ fontSize: 13.5, fontWeight: '900', color: FOREST }}>
+                    {bList.filter((b) => b.includes('역대') || b.includes('TOP')).join(' · ') || bList[0]}
+                  </Text>
+                </View>
               )}
-              <Text style={{ fontSize: 11, color: '#8fa093', marginTop: 14 }}>반려견 피트니스 · 도그스하이</Text>
+
+              {/* 완주 도장 — 증서의 마침표 */}
+              {run.endReason === 'completed' && (
+                <View style={[s.finStamp, { top: 46, right: 14 }]}>
+                  <Text style={[{ fontSize: 15, fontWeight: '900', color: colors.volt, letterSpacing: 1 }, df]}>완주</Text>
+                  <Text style={{ fontSize: 8.5, fontWeight: '900', color: colors.volt, letterSpacing: 2.5, marginTop: 1 }}>FINISHER</Text>
+                </View>
+              )}
+
+              <Text style={{ fontSize: 11, color: '#8fa093', marginTop: 14, letterSpacing: 0.5 }}>반려견 피트니스 · 도그스하이 🐾</Text>
             </View>
             <Row style={{ gap: 10, marginTop: 16 }}>
               <Pressable onPress={captureShot} style={[s.cta, { flex: 1, marginTop: 0 }]}>
@@ -190,15 +217,22 @@ export default function Report() {
               )}
               <Row style={{ justifyContent: 'space-between' }}>
                 <Text style={{ fontSize: 14, color: '#b8c4ae' }}>{report.when} · {report.routeName}</Text>
-                {reason && (
+                {reason && run.endReason !== 'completed' && (
                   <View style={[s.heroReason, { backgroundColor: reason.bg }]}>
                     <Text style={{ fontSize: 11, fontWeight: '900', color: reason.color }}>{reason.label}</Text>
                   </View>
                 )}
               </Row>
-              <Text style={{ fontSize: 27.5, fontWeight: '900', color: '#fff', marginTop: 6 }}>
+              <Text style={[{ fontSize: 27.5, fontWeight: '900', color: '#fff', marginTop: 6 }, df]}>
                 {report.dogName}의 러닝
               </Text>
+              {/* 완주 도장 — 피니셔 증서 (점검 도장과 같은 스탬프 언어) */}
+              {run.endReason === 'completed' && (
+                <View style={s.finStamp}>
+                  <Text style={[{ fontSize: 15, fontWeight: '900', color: colors.volt, letterSpacing: 1 }, df]}>완주</Text>
+                  <Text style={{ fontSize: 8.5, fontWeight: '900', color: colors.volt, letterSpacing: 2.5, marginTop: 1 }}>FINISHER</Text>
+                </View>
+              )}
               <Text style={{ fontSize: 50.5, fontWeight: '900', color: colors.tang, marginTop: 8 }}>
                 {run.actualKm}<Text style={{ fontSize: 20.5, color: '#b8c4ae' }}> km</Text>
               </Text>
@@ -445,6 +479,11 @@ const s = StyleSheet.create({
   backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DCD6C4' },
   hero: { backgroundColor: FOREST, padding: 20, marginTop: 14 },
   heroReason: { borderRadius: 99, paddingVertical: 4, paddingHorizontal: 9 },
+  finStamp: {
+    position: 'absolute', top: 52, right: 18, alignItems: 'center',
+    borderWidth: 2.5, borderColor: colors.volt, borderRadius: 10,
+    paddingVertical: 6, paddingHorizontal: 12, transform: [{ rotate: '-9deg' }], opacity: 0.92,
+  },
   heroDiv: { width: 1, backgroundColor: '#2c4034' },
   badgePill: { backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 4, paddingHorizontal: 10 },
   section: { backgroundColor: '#fff', paddingHorizontal: 12, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#DCD6C4' },
@@ -460,5 +499,7 @@ const s = StyleSheet.create({
   cta: { backgroundColor: colors.volt, borderRadius: 18, alignItems: 'center', paddingVertical: 15, marginTop: 16 },
   ghostCta: { backgroundColor: '#fff', borderRadius: 16, alignItems: 'center', paddingVertical: 13, marginTop: 8, borderWidth: 1, borderColor: '#DCD6C4' },
   shotBackdrop: { paddingHorizontal: 12, paddingVertical: 18, backgroundColor: '#0C130E' },
-  shotCard: { backgroundColor: FOREST, borderRadius: 18, padding: 18, overflow: 'hidden', alignItems: 'center', paddingVertical: 34 },
+  shotCard: { backgroundColor: FOREST, borderRadius: 22, padding: 18, overflow: 'hidden', alignItems: 'center', paddingVertical: 30, borderWidth: 1.5, borderColor: colors.volt },
+  shotContour1: { position: 'absolute', right: -90, top: -40, width: 260, height: 260, borderRadius: 130, borderWidth: 1, borderColor: 'rgba(221,240,166,0.12)' },
+  shotContour2: { position: 'absolute', left: -110, bottom: -70, width: 300, height: 300, borderRadius: 150, borderWidth: 1, borderColor: 'rgba(221,240,166,0.08)' },
 });

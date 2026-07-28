@@ -49,13 +49,19 @@ export default function Earnings() {
           </View>
         </Row>
 
-        {/* settlement card */}
+        {/* settlement ticket — 결제 티켓(보호자)과 같은 오브젝트: 한 거래의 양면 (티켓 모티프) */}
         <View style={s.settleCard}>
           <Text style={{ fontSize: 12.5, color: '#b8c4ae', letterSpacing: 1.5 }}>정산 예정 (원장 합계)</Text>
           <Text style={{ fontSize: 43.5, fontWeight: '900', color: colors.volt, marginTop: 6 }}>
             {pendingSum.toLocaleString()}원
           </Text>
-          <Row style={{ justifyContent: 'space-between', marginTop: 10 }}>
+          {/* 절취선 + 노치 */}
+          <View style={{ marginVertical: 14, height: 1 }}>
+            <View style={s.tickDash} />
+            <View style={[s.notch, { left: -32 }]} />
+            <View style={[s.notch, { right: -32 }]} />
+          </View>
+          <Row style={{ justifyContent: 'space-between' }}>
             <Text style={{ fontSize: 13, color: '#b8c4ae' }}>다음 정산일 {nextWednesday()}</Text>
             <Text style={{ fontSize: 13, color: '#b8c4ae' }}>원천징수 3.3% 약 −{tax.toLocaleString()}원</Text>
           </Row>
@@ -86,23 +92,33 @@ export default function Earnings() {
             </Text>
           </View>
         )}
+        {/* 러닝 하나 = 티켓 스텁 하나 — 세로 절취선 왼쪽은 러닝, 오른쪽은 실수령 */}
         {ledger.map((l) => (
-          <View key={l.id} style={[s.card, { marginBottom: 8, marginTop: 0 }]}>
-            <Row style={{ justifyContent: 'space-between' }}>
-              <Text style={{ fontSize: 16, fontWeight: '900', color: FOREST }}>
-                {l.when} · {l.dogName} {l.km}km
-              </Text>
-              <Text style={{ fontSize: 18.5, fontWeight: '900', color: '#5a7a3c' }}>
-                +{l.net.toLocaleString()}원
-              </Text>
-            </Row>
-            <Row style={{ gap: 10, marginTop: 7, flexWrap: 'wrap' }}>
-              <Bd label="기본" v={l.base} />
-              <Bd label="거리" v={l.distancePay} />
-              {l.addonPay > 0 && <Bd label="옵션" v={l.addonPay} />}
-              {l.guarantee > 0 && <Bd label="잔여 보장" v={l.guarantee} accent />}
-              {l.tip > 0 && <Bd label="팁" v={l.tip} accent />}
-              <Bd label="수수료" v={-l.fee} coral />
+          <View key={l.id} style={s.stub}>
+            <Row>
+              <View style={{ flex: 1, paddingRight: 11 }}>
+                <Text style={{ fontSize: 12.5, fontWeight: '800', color: '#5a7a3c' }}>{l.when}</Text>
+                <Text style={{ fontSize: 16.5, fontWeight: '900', color: FOREST, marginTop: 2 }}>
+                  {l.dogName} · {l.km}km
+                </Text>
+                <Row style={{ gap: 9, marginTop: 6, flexWrap: 'wrap' }}>
+                  <Bd label="기본" v={l.base} />
+                  <Bd label="거리" v={l.distancePay} />
+                  {l.addonPay > 0 && <Bd label="옵션" v={l.addonPay} />}
+                  {l.guarantee > 0 && <Bd label="잔여 보장" v={l.guarantee} accent />}
+                  {l.tip > 0 && <Bd label="팁" v={l.tip} accent />}
+                  <Bd label="수수료" v={-l.fee} coral />
+                </Row>
+              </View>
+              <View style={s.stubDivWrap}>
+                <View style={s.stubDash} />
+                <View style={[s.stubNotch, { top: -26 }]} />
+                <View style={[s.stubNotch, { bottom: -26 }]} />
+              </View>
+              <View style={{ width: 92, alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ fontSize: 16.5, fontWeight: '900', color: '#5a7a3c' }}>+{l.net.toLocaleString()}</Text>
+                <Text style={{ fontSize: 10.5, color: colors.dim, marginTop: 2, letterSpacing: 1 }}>실수령</Text>
+              </View>
             </Row>
           </View>
         ))}
@@ -125,7 +141,13 @@ function Bd({ label, v, coral, accent }: { label: string; v: number; coral?: boo
 }
 
 const s = StyleSheet.create({
-  settleCard: { backgroundColor: FOREST, borderRadius: 20, padding: 18, marginTop: 16 },
+  settleCard: { backgroundColor: FOREST, borderRadius: 20, padding: 18, marginTop: 16, overflow: 'hidden' },
+  tickDash: { height: 1, borderWidth: 0.7, borderColor: '#3a4a3e', borderStyle: 'dashed', borderRadius: 1 },
+  notch: { position: 'absolute', top: -14, width: 28, height: 28, borderRadius: 14, backgroundColor: '#F8F6F0' },
+  stub: { backgroundColor: '#fff', borderRadius: 16, padding: 13, borderWidth: 1, borderColor: '#DCD6C4', marginBottom: 8, overflow: 'hidden' },
+  stubDivWrap: { width: 1, alignSelf: 'stretch', marginRight: 11 },
+  stubDash: { flex: 1, width: 1, borderWidth: 0.7, borderColor: '#DCD6C4', borderStyle: 'dashed', borderRadius: 1 },
+  stubNotch: { position: 'absolute', left: -12.5, width: 26, height: 26, borderRadius: 13, backgroundColor: '#F8F6F0' },
   settleBtn: { backgroundColor: colors.volt, borderRadius: 12, alignItems: 'center', paddingVertical: 11, marginTop: 14 },
   card: { backgroundColor: '#fff', borderRadius: 18, padding: 15, borderWidth: 1, borderColor: '#DCD6C4', marginTop: 12 },
   changeChip: { backgroundColor: '#f4f2ea', borderRadius: 99, paddingVertical: 7, paddingHorizontal: 12, alignSelf: 'center' },
