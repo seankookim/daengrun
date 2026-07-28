@@ -199,10 +199,10 @@ export default function OwnerHome() {
           <View style={s.headerRow}>
             <Avatar url={fit?.dogPhotoUrl} char={dogName[0]} bg={colors.volt} size={46} />
             <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={[{ fontSize: 18, fontWeight: '800', color: p.textStrong }, df]}>
+              <Text style={[{ fontSize: 21, fontWeight: '800', color: p.textStrong }, df]}>
                 오늘도 달린다, {dogName}
               </Text>
-              <Text style={{ fontSize: 12, color: p.dim, marginTop: 2 }}>
+              <Text style={{ fontSize: 12.5, fontWeight: '600', color: '#3d453d', marginTop: 3 }}>
                 러너스 하이를, 우리 아이에게
               </Text>
             </View>

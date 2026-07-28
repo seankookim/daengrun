@@ -1,3 +1,4 @@
+import { useDisplayFont } from '../../src/lib/displayFont';
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -23,6 +24,7 @@ const paceStr = (sec: number, km: number) => {
 };
 
 export default function ActiveRun() {
+  const df = useDisplayFont(); // 디스플레이 서체 — 러닝 시작/종료 CTA
   const req = runRequests[0]; // 시각 폴백 전용 — 실값은 info가 우선
   const [info, setInfo] = useState<MeetupInfo | null>(null);
   const dogName = info?.dogName ?? req.dogName;
@@ -392,20 +394,21 @@ export default function ActiveRun() {
           </Text>
         </Row>
 
-        {/* 러닝 이벤트 스트립 — 원탭이 보호자 알림으로 (응가 도장 포함) */}
+        {/* 러닝 이벤트 스트립 — 원탭이 보호자 알림으로 (응가 도장 포함).
+            리프레시: 다크 타일 → 파스텔 스탬프 필 (다크 위에서 팝, 도장 문화의 색) */}
         {running && (
-          <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14 }}>
-            {([['poop', '💩', '응가'], ['snack', '🍖', '간식'], ['water', '💧', '물']] as const).map(([k, g, label]) => (
-              <Pressable key={k} onPress={() => fireEvent(k)} style={s.eventBtn}>
-                <Text style={{ fontSize: 16 }}>{g}</Text>
-                <Text style={{ fontSize: 10, fontWeight: '800', color: colors.cream, marginTop: 2 }}>
+          <View style={{ flexDirection: 'row', gap: 7, marginBottom: 14 }}>
+            {([['poop', '💩', '응가', '#FFCDB6'], ['snack', '🍖', '간식', '#F2DA96'], ['water', '💧', '물', '#C3D9AE']] as const).map(([k, g, label, bg]) => (
+              <Pressable key={k} onPress={() => fireEvent(k)} style={[s.eventBtn, { backgroundColor: bg }]}>
+                <Text style={{ fontSize: 15 }}>{g}</Text>
+                <Text style={{ fontSize: 12, fontWeight: '800', color: colors.forest }}>
                   {label}{evCounts[k] ? ` ${evCounts[k]}` : ''}
                 </Text>
               </Pressable>
             ))}
-            <Pressable onPress={firePhoto} disabled={snapBusy} style={[s.eventBtn, snapBusy && { opacity: 0.5 }]}>
-              <Text style={{ fontSize: 16 }}>📷</Text>
-              <Text style={{ fontSize: 10, fontWeight: '800', color: colors.cream, marginTop: 2 }}>
+            <Pressable onPress={firePhoto} disabled={snapBusy} style={[s.eventBtn, { backgroundColor: '#DDF0A6' }, snapBusy && { opacity: 0.5 }]}>
+              <Text style={{ fontSize: 15 }}>📷</Text>
+              <Text style={{ fontSize: 12, fontWeight: '800', color: colors.forest }}>
                 {snapBusy ? '전송 중' : `스냅${evCounts.photo ? ` ${evCounts.photo}` : ''}`}
               </Text>
             </Pressable>
@@ -427,7 +430,7 @@ export default function ActiveRun() {
               setRunning(true);
             }}
           >
-            <Text style={{ fontSize: 16, fontWeight: '800', color: colors.ink }}>
+            <Text style={[{ fontSize: 17, fontWeight: '800', color: colors.ink }, df]}>
               {running ? '러닝 종료' : '러닝 시작'}
             </Text>
           </Pressable>
@@ -531,7 +534,7 @@ const s = StyleSheet.create({
   },
   btn: { flex: 1, borderRadius: 16, padding: 16, alignItems: 'center' },
   moreBtn: { width: 44, height: 52, borderRadius: 16, backgroundColor: '#1c2b21', alignItems: 'center', justifyContent: 'center' },
-  eventBtn: { flex: 1, backgroundColor: '#1c2b21', borderRadius: 14, alignItems: 'center', paddingVertical: 9, borderWidth: 1, borderColor: '#2c4034' },
+  eventBtn: { flex: 1, flexDirection: 'row', gap: 5, borderRadius: 99, alignItems: 'center', justifyContent: 'center', paddingVertical: 12 },
   sheetBackdrop: { flex: 1, backgroundColor: '#00000066' },
   sheet: { backgroundColor: '#10160f', borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 16, paddingBottom: 40 },
   sheetHandle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: '#2c3a2c', marginBottom: 14 },

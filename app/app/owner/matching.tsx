@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Animated, Dimensions, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Avatar, Monogram, Row } from '../../src/components/ui';
 import { fetchCertifiedRunners, fetchRunnerProfile, LiveRunner, requestRunner } from '../../src/lib/api';
+import { useDisplayFont } from '../../src/lib/displayFont';
 import { draft } from '../../src/store';
 import { colors } from '../../src/theme';
 
@@ -32,6 +33,7 @@ function RunnerFullCard({ r, m, i, topIsPreferred, nominating, onNominate, onLay
   onLayout?: (e: any) => void; focused: boolean;
 }) {
   // 다크 트리트먼트는 1순위 카드 고정 — 포커스 연동 색 전환은 급작스러워 제거 (2026-07-27)
+  const df = useDisplayFont();
   const dark = i === 0;
   const bg = dark ? FOREST : PALETTE[(i - 1 + PALETTE.length) % PALETTE.length];
   const tMain = dark ? '#fff' : FOREST;
@@ -86,7 +88,7 @@ function RunnerFullCard({ r, m, i, topIsPreferred, nominating, onNominate, onLay
       </Pressable>
 
       {/* match bars — 모든 카드에 */}
-      <View style={{ gap: 10, marginTop: 14 }}>
+      <View style={{ gap: 8, marginTop: 12 }}>
         {m.reasons.map((reason) => (
           <View key={reason.label}>
             <Row style={{ justifyContent: 'space-between' }}>
@@ -101,7 +103,7 @@ function RunnerFullCard({ r, m, i, topIsPreferred, nominating, onNominate, onLay
       </View>
 
       {/* stat strip — 모든 카드에 */}
-      <Row style={{ marginTop: 14, borderRadius: 14, backgroundColor: dark ? FOREST_INNER : '#ffffff88', paddingVertical: 11, justifyContent: 'space-around' }}>
+      <Row style={{ marginTop: 12, borderRadius: 14, backgroundColor: dark ? FOREST_INNER : '#ffffff88', paddingVertical: 10, justifyContent: 'space-around' }}>
         <MiniCol v={r.paceLabel} l="평균 페이스" g="◷" main={tMain} dim={tDim} />
         <MiniCol v={`${r.totalRuns}회`} l="완료 러닝" g="⚑" main={tMain} dim={tDim} />
         <MiniCol v={r.respondRate != null ? `${r.respondRate}%` : '신규'} l="응답률" g="✦" main={tMain} dim={tDim} />
@@ -113,7 +115,7 @@ function RunnerFullCard({ r, m, i, topIsPreferred, nominating, onNominate, onLay
         style={[s.fullNominate, { backgroundColor: dark ? colors.volt : FOREST }, nominating === r.profileId && { opacity: 0.5 }]}
       >
         <Row style={{ gap: 8 }}>
-          <Text style={{ fontSize: 14, fontWeight: '900', color: dark ? FOREST : '#fff' }}>
+          <Text style={[{ fontSize: 14, fontWeight: '900', color: dark ? FOREST : '#fff' }, df]}>
             {nominating === r.profileId ? '전송 중...' : `${r.name} 러너 지명 요청`}
           </Text>
           <Text style={{ fontSize: 15, fontWeight: '900', color: dark ? FOREST : '#fff' }}>›</Text>
@@ -141,6 +143,7 @@ function matchFor(r: LiveRunner, targetPaceSec = 420): Match {
 }
 
 export default function Matching() {
+  const df = useDisplayFont(); // 디스플레이 서체 — 헤더 타이틀
   // 목업 러너 참조 은퇴 — 이 화면은 실러너 전용 (2026-07-23)
   const live = !!draft.bookingId;
   const [liveRunners, setLiveRunners] = useState<LiveRunner[]>([]);
@@ -272,10 +275,10 @@ export default function Matching() {
   return (
     <View style={{ flex: 1, backgroundColor: '#E9E7DE' }}>
       {/* 고정 헤더 — 캐러셀과 분리, 포커스 좌표가 흔들리지 않게 */}
-      <View style={{ paddingTop: 58, paddingHorizontal: 12 }}>
+      <View style={{ paddingTop: 58, paddingHorizontal: 12, zIndex: 50, backgroundColor: '#E9E7DE' }}>
         <Row style={{ justifyContent: 'space-between', marginBottom: 4 }}>
           <Pressable onPress={() => router.back()} style={s.backBtn}><Text style={{ fontSize: 18, color: FOREST }}>‹</Text></Pressable>
-          <Text style={{ fontSize: 20, fontWeight: '900', color: FOREST }}>러너 선택</Text>
+          <Text style={[{ fontSize: 20, fontWeight: '900', color: FOREST }, df]}>러너 선택</Text>
           <View style={{ width: 40 }} />
         </Row>
         <Text style={{ fontSize: 13, color: '#5d655d', textAlign: 'center', marginBottom: 10 }}>
@@ -439,7 +442,7 @@ const s = StyleSheet.create({
   },
   // 통합 캐러셀 풀 카드 — 모든 러너가 1순위급 정보 밀도
   fullCard: {
-    borderRadius: 18, padding: 16, paddingTop: 44, paddingBottom: 60,
+    borderRadius: 18, padding: 16, paddingTop: 38, paddingBottom: 30,
     borderWidth: 1, borderColor: 'rgba(15,29,19,0.15)', // 모든 카드에 반투명 다크 보더 — 배경 분리
   },
   // 그림자 계층 (래퍼에 적용 — 카드 뷰의 그림자 슬롯은 포커스 라임 글로우가 사용)
@@ -458,7 +461,7 @@ const s = StyleSheet.create({
     position: 'absolute', bottom: -3, right: -3, width: 20, height: 20, borderRadius: 10,
     backgroundColor: colors.volt, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: FOREST,
   },
-  fullNominate: { borderRadius: 16, alignItems: 'center', paddingVertical: 14, marginTop: 14 },
+  fullNominate: { borderRadius: 16, alignItems: 'center', paddingVertical: 13, marginTop: 12 },
   stackNominate: { backgroundColor: FOREST, borderRadius: 99, paddingVertical: 11, paddingHorizontal: 17 },
   rankTab: {
     position: 'absolute', top: -1, left: -1, backgroundColor: colors.volt,
