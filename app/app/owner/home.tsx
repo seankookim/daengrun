@@ -18,7 +18,7 @@ import { useTheme } from '../../src/theme-context';
 // compact pinned rectangle (ring right, goal data left) that stays at the top.
 
 const { width: SCREEN_W } = Dimensions.get('window');
-const CARD_W = SCREEN_W - 24; // 거터 12*2
+const CARD_W = SCREEN_W - 22; // 거터 11*2 (0.9x 축소)
 const RING_BIG = 216;
 const PAD_TOP = 56;
 const HEADER_H = 104; // 그리팅 1줄 + 동네 랭킹 티커 스트립
@@ -366,7 +366,7 @@ export default function OwnerHome() {
       <Animated.ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{
-          paddingHorizontal: 12,
+          paddingHorizontal: 11,
           paddingTop: PAD_TOP + HEADER_H + HERO_BIG + 14,
           paddingBottom: 30,
         }}
@@ -936,7 +936,7 @@ const s = StyleSheet.create({
   fnPay: { backgroundColor: colors.volt, borderRadius: 16, alignItems: 'center', paddingVertical: 16, marginTop: 12 },
   overlay: {
     position: 'absolute', top: 0, left: 0, right: 0, zIndex: 20,
-    paddingTop: PAD_TOP, paddingHorizontal: 12, paddingBottom: 10,
+    paddingTop: PAD_TOP, paddingHorizontal: 11, paddingBottom: 10,
   },
   headerRow: { flexDirection: 'row', alignItems: 'center', height: 58, marginBottom: 8 }, // 그리팅 줄 (아래 티커가 나머지를 채움)
   themeBtn: {

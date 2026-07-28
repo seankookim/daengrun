@@ -29,7 +29,7 @@ export const DISPLAY_FONT = 'BlackHanSans_400Regular' as const;
 
 export const radius = { card: 16, btn: 13, chip: 99 } as const;
 // 글로벌 거터 — 화면 좌우 여백은 이 값 하나로 (에지-투-에지 프리미엄)
-export const layout = { gutter: 12 } as const;
+export const layout = { gutter: 11 } as const; // 2026-07-28 0.9x 축소 (홈·설정 적용, 나머지 화면은 점진 수렴)
 
 // 타이포 스케일 — 규칙: 900은 오직 숫자(display)와 화면 제목(title)에만.
 // 본문·라벨이 전부 900이면 위계가 무너진다 (ui-audit). 새 코드는 이 프리셋을 쓸 것.
