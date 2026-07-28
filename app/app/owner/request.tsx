@@ -1,6 +1,6 @@
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { router } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { addDog, Addr, AvailRule, confirmPayment, createBookingHold, DogProfile, ensureDog, fetchAddresses, fetchMyDogs, fetchRoutes, fetchRunnerAvailability, requestRunner } from '../../src/lib/api';
 import { HeatTrace } from '../../src/components/runcard';
@@ -18,8 +18,8 @@ const DISTANCES = [3, 5, 7];
 const PACES = ["가볍게 8'+", "보통 7'", "신나게 6'"];
 const ADDON_GLYPHS: Record<string, string> = { river: '♒', homecare: '⌂', snack: '≽', snap: '▣', livecam: '▶' };
 
-// 실제 오늘부터 7일 — 하드코딩 날짜 금지
-const DATES = Array.from({ length: 7 }, (_, i) => {
+// 실제 오늘부터 7일 — 컴포넌트 안에서 생성 (모듈 로드 고정은 자정을 넘기면 '오늘'이 어제가 됐다)
+const buildDates = () => Array.from({ length: 7 }, (_, i) => {
   const date = new Date(Date.now() + i * 86400_000);
   return {
     date,
@@ -28,6 +28,7 @@ const DATES = Array.from({ length: 7 }, (_, i) => {
     label: i === 0 ? '오늘' : i === 1 ? '내일' : undefined,
   };
 });
+let DATES = buildDates(); // toDate 등 모듈 헬퍼 호환용 — 화면 마운트마다 갱신
 const SLOT_GROUPS = [
   { name: '오전', times: ['06:30', '07:30', '09:00'] },
   { name: '오후', times: ['13:00', '15:30', '17:00'] },
@@ -42,6 +43,8 @@ const toDate = (dateIdx: number, t: string): Date => {
 
 export default function Request() {
   const df = useDisplayFont(); // 디스플레이 서체 — 화면 타이틀
+  // 날짜 스트립 갱신 — 마운트 시점 기준 (자정 넘김 스테일 방지)
+  useMemo(() => { DATES = buildDates(); }, []);
   const [km, setKm] = useState(draft.km);
   const [pace, setPace] = useState(draft.pace);
   const [addons, setAddons] = useState<AddonKey[]>(draft.addons);

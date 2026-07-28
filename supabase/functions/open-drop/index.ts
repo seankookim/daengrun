@@ -13,12 +13,21 @@ Deno.serve(handle(async (req) => {
   if (drop.runner_id !== uid) throw new HttpError(403, "not yours");
   if (drop.opened_at) throw new HttpError(409, "already opened");
 
+  // 원자 선점 — 읽기 후 쓰기 사이의 동시 오픈이 마일을 이중 적립하던 레이스.
+  // opened_at이 아직 null인 경우에만 스탬프: 두 번째 요청은 여기서 멈춘다.
+  const { data: claimed, error: clErr } = await db.from("drops")
+    .update({ opened_at: new Date().toISOString(), pick_choice: pick_choice ?? null })
+    .eq("id", drop_id).is("opened_at", null).select("id");
+  if (clErr) throw new HttpError(409, clErr.message);
+  if (!claimed || claimed.length === 0) throw new HttpError(409, "already opened");
+
   const applied: Record<string, unknown> = {};
 
   if (drop.kind === "mini") {
     const c = drop.contents as { miles?: number; card?: string; gear?: string };
     if (c.miles) {
-      await db.from("miles_ledger").insert({ profile_id: uid, delta: c.miles, reason: "drop", ref_id: drop_id });
+      const { error: e1 } = await db.from("miles_ledger").insert({ profile_id: uid, delta: c.miles, reason: "drop", ref_id: drop_id });
+      if (e1) throw new HttpError(500, `마일 적립 실패 — 관리자 확인: ${e1.message}`);
       applied.miles = c.miles;
     }
     if (c.card) {
@@ -42,7 +51,8 @@ Deno.serve(handle(async (req) => {
       await db.from("boosts").insert({ runner_id: uid, ends_at: ends.toISOString() });
       applied.boost_until = ends.toISOString();
     } else if (pick_choice === "miles") {
-      await db.from("miles_ledger").insert({ profile_id: uid, delta: 5000, reason: "pick_drop", ref_id: drop_id });
+      const { error: e2 } = await db.from("miles_ledger").insert({ profile_id: uid, delta: 5000, reason: "pick_drop", ref_id: drop_id });
+      if (e2) throw new HttpError(500, `마일 적립 실패 — 관리자 확인: ${e2.message}`);
       applied.miles = 5000;
     } else {
       await db.from("gear_claims").insert({
@@ -52,10 +62,7 @@ Deno.serve(handle(async (req) => {
     }
   }
 
-  await db.from("drops").update({
-    opened_at: new Date().toISOString(),
-    pick_choice: pick_choice ?? null,
-  }).eq("id", drop_id);
+  // opened_at 스탬프는 상단 원자 선점에서 이미 완료
 
   return { applied };
 }));

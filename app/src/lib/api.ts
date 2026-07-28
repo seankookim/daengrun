@@ -77,7 +77,7 @@ export async function ensureDog(): Promise<string> {
     weight_kg: mockDog.weightKg,
     memo: mockDog.memo,
     weekly_goal_km: mockDog.weeklyGoalKm,
-    fitness_age: mockDog.fitnessAge,
+    // fitness_age 시드 금지 — 생일 없이 목업 1.8살이 실측처럼 표시되던 정직성 버그
   }).select('id').single();
   if (cErr) throw cErr;
   return created.id;
@@ -1021,9 +1021,11 @@ export async function fetchFitness(): Promise<Fitness> {
 
   // 체력 나이 v1 (베타 휴리스틱) — 실제 나이 − 활동 보정(최근 4주 주간 평균/목표 비율 + 스트릭).
   // 수의 검증 산식으로 교체 예정. 생일 없으면 측정 불가.
-  let fitnessAge: number | null = d?.fitness_age != null ? Number(d.fitness_age) : null;
+  // 생일이 있어야만 측정값 — 저장돼 있어도 생일 없으면 숨김 (시드/과거 잔재 방어)
+  let fitnessAge: number | null = null;
   if (d?.birth_date) {
     const ageYears = (now - new Date(d.birth_date).getTime()) / (365.25 * 86400_000);
+    if (ageYears > 0 && ageYears <= 25) { // 미래/비정상 생일은 측정 불가 (null 유지)
     const last28Km = rows.filter((r) => r.at.getTime() >= now - 28 * 86400_000).reduce((s, r) => s + r.km, 0);
     const goal = Number(d.weekly_goal_km ?? 15);
     const ratio = goal > 0 ? Math.min(last28Km / 4 / goal, 1.5) : 0;
@@ -1031,6 +1033,7 @@ export async function fetchFitness(): Promise<Fitness> {
     fitnessAge = calc;
     if (d.fitness_age == null || Math.abs(Number(d.fitness_age) - calc) >= 0.1) {
       supabase.from('dogs').update({ fitness_age: calc }).eq('id', d.id).then(() => {}, () => {});
+    }
     }
   }
 
