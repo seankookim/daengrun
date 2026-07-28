@@ -1,7 +1,7 @@
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Animated, Easing, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BottomNav } from '../../src/components/bottomnav';
 import { CourseStrip } from '../../src/components/CourseStrip';
 import { Card, Row, StatBlock, text } from '../../src/components/ui';
@@ -37,6 +37,34 @@ async function openNaverRoute() {
     const canApp = await Linking.canOpenURL(app);
     await Linking.openURL(canApp ? app : web);
   } catch { Linking.openURL(web).catch(() => {}); }
+}
+
+// 코랄 파동 — 새 요청의 긴급감. 탱 링 두 개가 900ms 간격으로 퍼져나간다 (네이티브 드라이버)
+function PulseRings() {
+  const a1 = useRef(new Animated.Value(0)).current;
+  const a2 = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const mk = (v: Animated.Value, delay: number) => Animated.loop(Animated.sequence([
+      Animated.delay(delay),
+      Animated.timing(v, { toValue: 1, duration: 1800, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+    ]));
+    const l1 = mk(a1, 0);
+    const l2 = mk(a2, 900);
+    l1.start(); l2.start();
+    return () => { l1.stop(); l2.stop(); };
+  }, [a1, a2]);
+  const ring = (v: Animated.Value) => (
+    <Animated.View
+      pointerEvents="none"
+      style={{
+        position: 'absolute', width: 30, height: 30, borderRadius: 15,
+        borderWidth: 1.5, borderColor: colors.tang,
+        opacity: v.interpolate({ inputRange: [0, 0.15, 1], outputRange: [0, 0.85, 0] }),
+        transform: [{ scale: v.interpolate({ inputRange: [0, 1], outputRange: [0.45, 1.6] }) }],
+      }}
+    />
+  );
+  return <>{ring(a1)}{ring(a2)}</>;
 }
 
 export default function RunnerHome() {
@@ -196,6 +224,54 @@ export default function RunnerHome() {
           )}
         </View>
 
+        {/* ---------- 새 요청 — 관제탑 2순위 (가용 시간 바로 아래, Sean 우선순위 결정 2026-07-28)
+            요청 있음 = 코랄 파동 링 + 탱 보더로 긴급감. 큰 카드: 시간·강아지·수익·CTA 전부. ---------- */}
+        {inbox.length > 0 ? (
+          <Pressable onPress={() => router.push('/runner/requests')} style={s.inboxCard}>
+            <Row style={{ justifyContent: 'space-between' }}>
+              <Row style={{ gap: 9, alignItems: 'center' }}>
+                <View style={{ width: 30, height: 30, alignItems: 'center', justifyContent: 'center' }}>
+                  <PulseRings />
+                  <View style={{ width: 11, height: 11, borderRadius: 6, backgroundColor: colors.tang }} />
+                </View>
+                <Text style={{ fontSize: 16.5, fontWeight: '900', color: '#fff' }}>새 요청 {inbox.length}건</Text>
+              </Row>
+              {inbox[0].directed && (
+                <View style={{ backgroundColor: '#fbf0d4', borderRadius: 99, paddingVertical: 4, paddingHorizontal: 10, alignSelf: 'center' }}>
+                  <Text style={{ fontSize: 12, fontWeight: '900', color: '#a97c12' }}>★ 나를 지명</Text>
+                </View>
+              )}
+            </Row>
+            <Row style={{ justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 13 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 21.5, fontWeight: '900', color: '#fff' }} numberOfLines={1}>
+                  {inbox[0].dogName} · {inbox[0].km}km
+                </Text>
+                <Text style={{ fontSize: 15.5, fontWeight: '900', color: colors.volt, marginTop: 4 }} numberOfLines={1}>
+                  {inbox[0].when}
+                </Text>
+              </View>
+              <Text style={{ fontSize: 17.5, fontWeight: '900', color: '#8fd460', marginLeft: 8 }}>
+                +{inbox[0].payout.toLocaleString()}
+              </Text>
+            </Row>
+            <View style={s.inboxCta}>
+              <Text style={{ fontSize: 15.5, fontWeight: '900', color: FOREST }}>지금 응답하기 ›</Text>
+            </View>
+            {inbox.length > 1 && (
+              <Text style={{ fontSize: 12, color: '#b8c4ae', textAlign: 'center', marginTop: 9 }}>
+                +{inbox.length - 1}건이 더 기다리고 있어요
+              </Text>
+            )}
+          </Pressable>
+        ) : (
+          <View style={s.emptyInbox}>
+            <Text style={{ fontSize: 14, color: colors.dim, textAlign: 'center' }}>
+              {rs.online ? '지금은 새 요청이 없어요 — 오는 대로 여기에 떠요' : '오프라인 상태 — 켜야 요청을 받아요'}
+            </Text>
+          </View>
+        )}
+
         {/* ---------- 드랍 트레일 (실카운트) — 지그재그 체크포인트 (모던 목업) ---------- */}
         <Pressable onPress={() => router.push('/runner/rewards')} style={s.trailCard}>
           <View style={s.trailTab}>
@@ -286,31 +362,6 @@ export default function RunnerHome() {
             </View>
           );
         })()}
-
-        {/* ---------- 새 요청 ---------- */}
-        {inbox.length > 0 ? (
-          <Pressable onPress={() => router.push('/runner/requests')} style={s.inboxBanner}>
-            <View style={{ backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 3, paddingHorizontal: 8 }}>
-              <Text style={{ fontSize: 10.5, fontWeight: '900', color: FOREST }}>● LIVE</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 15, fontWeight: '800', color: '#fff' }} numberOfLines={1}>
-                새 요청 {inbox.length}건 — {inbox[0].dogName} {inbox[0].km}km{inbox[0].directed ? ' (지명!)' : ''}
-              </Text>
-              {/* 언제인지가 응답 결정의 핵심 — 배너에서도 시간을 숨기지 않는다 */}
-              <Text style={{ fontSize: 13, fontWeight: '900', color: colors.volt, marginTop: 2 }} numberOfLines={1}>
-                {inbox[0].when}
-              </Text>
-            </View>
-            <Text style={{ fontSize: 15, color: colors.volt, fontWeight: '900' }}>응답 ›</Text>
-          </Pressable>
-        ) : (
-          <View style={s.emptyInbox}>
-            <Text style={{ fontSize: 14, color: colors.dim, textAlign: 'center' }}>
-              {rs.online ? '지금은 새 요청이 없어요 — 오는 대로 여기에 떠요' : '오프라인 상태 — 켜야 요청을 받아요'}
-            </Text>
-          </View>
-        )}
 
         {/* ---------- 다음 예약 스냅샷 ---------- */}
         {upcoming.length > 0 && (
@@ -424,10 +475,12 @@ const s = StyleSheet.create({
   },
   flagTrack: { flex: 1, height: 6, borderRadius: 99, backgroundColor: '#ffffffbb', overflow: 'hidden' },
   flagFill: { height: 6, borderRadius: 99, backgroundColor: '#7FA818' },
-  inboxBanner: {
-    flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12,
-    backgroundColor: FOREST, borderRadius: 16, padding: 14,
+  inboxCard: {
+    marginTop: 12, backgroundColor: FOREST, borderRadius: 20, padding: 16,
+    borderWidth: 2, borderColor: colors.tang,
+    shadowColor: colors.tang, shadowOpacity: 0.3, shadowRadius: 11, shadowOffset: { width: 0, height: 4 },
   },
+  inboxCta: { backgroundColor: colors.volt, borderRadius: 14, alignItems: 'center', paddingVertical: 13, marginTop: 13 },
   emptyInbox: { marginTop: 12, backgroundColor: '#f4f2ea', borderRadius: 14, padding: 14 },
   sectionTitle: { fontSize: 16, fontWeight: '900', color: FOREST },
   jobRow: {
