@@ -178,9 +178,10 @@ export default function OwnerHome() {
   const heroH = t.interpolate({ inputRange: [0, 1], outputRange: [HERO_BIG, HERO_SMALL] });
   const headerH = t.interpolate({ inputRange: [0, 0.6], outputRange: [HEADER_H, 0], extrapolate: 'clamp' });
   const headerOpacity = t.interpolate({ inputRange: [0, 0.45], outputRange: [1, 0], extrapolate: 'clamp' });
-  const ringScale = t.interpolate({ inputRange: [0, 1], outputRange: [1, 0.5] });
-  const ringX = t.interpolate({ inputRange: [0, 1], outputRange: [0, CARD_W / 2 - RING_BIG * 0.25 - 30] });
-  const ringY = t.interpolate({ inputRange: [0, 1], outputRange: [0, -58] });
+  // 컬랩스 링 0.5 → 0.62 — 176 높이 사각형에서 108px 링은 겉돌았다 (134px가 자리를 잡는다)
+  const ringScale = t.interpolate({ inputRange: [0, 1], outputRange: [1, 0.62] });
+  const ringX = t.interpolate({ inputRange: [0, 1], outputRange: [0, CARD_W / 2 - RING_BIG * 0.31 - 26] });
+  const ringY = t.interpolate({ inputRange: [0, 1], outputRange: [0, -44] });
   const infoOpacity = t.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, 0, 1] });
   const infoX = t.interpolate({ inputRange: [0, 1], outputRange: [-20, 0] });
   const bigMsgOpacity = t.interpolate({ inputRange: [0, 0.35], outputRange: [1, 0], extrapolate: 'clamp' });
@@ -295,14 +296,23 @@ export default function OwnerHome() {
         onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: false })}
         scrollEventThrottle={16}
       >
-        {/* ---------- stat chips ---------- */}
+        {/* ---------- stat chips — 파스텔 스탬프: 데이터가 차오르면 카피도 자랑스러워진다.
+            정직 원칙: 자랑 카피는 실데이터 임계(스트릭 3일·주 3회)에서만 점화 — 0에서 응원, 성과에서 축하 ---------- */}
         <View style={{ flexDirection: 'row', gap: 8 }}>
-          <StatChip top={`연속 ${fit?.streakDays ?? 0}일`} bottom="연속 기록" accent={colors.tang} />
-          <StatChip top={`${fit?.weekRuns ?? 0}회 완료`} bottom="이번 주" accent={mode === 'dark' ? colors.volt : colors.voltDeep} />
           <StatChip
-            top={fit?.avgPaceSec ? `평균 ${Math.floor(fit.avgPaceSec / 60)}'${String(fit.avgPaceSec % 60).padStart(2, '0')}"` : '페이스 —'}
-            bottom="평균 페이스"
-            accent="#9fc3e8"
+            bg="#FFCDB6"
+            top={`연속 ${fit?.streakDays ?? 0}일${(fit?.streakDays ?? 0) >= 3 ? ' 🔥' : ''}`}
+            bottom={(fit?.streakDays ?? 0) >= 3 ? '불붙었어요' : (fit?.streakDays ?? 0) > 0 ? '연속 기록' : '오늘 시작해볼까요'}
+          />
+          <StatChip
+            bg="#DDF0A6"
+            top={`${fit?.weekRuns ?? 0}회 완료`}
+            bottom={(fit?.weekRuns ?? 0) >= 3 ? '이번 주 벌써' : '이번 주'}
+          />
+          <StatChip
+            bg="#F2DA96"
+            top={fit?.avgPaceSec ? `${Math.floor(fit.avgPaceSec / 60)}'${String(fit.avgPaceSec % 60).padStart(2, '0')}"` : '—'}
+            bottom={fit?.avgPaceSec ? '평균 페이스' : '첫 러닝 후 측정'}
           />
         </View>
 
@@ -723,12 +733,12 @@ export default function OwnerHome() {
     </View>
   );
 
-  function StatChip({ top, bottom, accent }: { top: string; bottom: string; accent: string }) {
+  // 파스텔 필 스탬프 — 흰 카드+도트 은퇴. 밸류 900 forest, 라벨은 유니버설 다크 (파스텔 3색 공용)
+  function StatChip({ top, bottom, bg }: { top: string; bottom: string; bg: string }) {
     return (
-      <View style={[s.statChip, { backgroundColor: p.card, borderColor: p.line }]}>
-        <View style={[s.statDot, { backgroundColor: accent, shadowColor: accent }]} />
-        <Text style={{ fontSize: 15, fontWeight: '800', color: p.textStrong, marginTop: 6 }}>{top}</Text>
-        <Text style={{ fontSize: 11.5, color: p.dim, marginTop: 2 }}>{bottom}</Text>
+      <View style={[s.statChip, { backgroundColor: bg }]}>
+        <Text style={{ fontSize: 16.5, fontWeight: '900', color: colors.forest }}>{top}</Text>
+        <Text style={{ fontSize: 12.5, fontWeight: '600', color: 'rgba(21,24,15,0.55)', marginTop: 3 }}>{bottom}</Text>
       </View>
     );
   }
@@ -842,8 +852,7 @@ const s = StyleSheet.create({
   miniBarFill: { height: 4, borderRadius: 99, backgroundColor: colors.volt },
   goalChip: { marginTop: 8, borderRadius: 99, paddingVertical: 4, paddingHorizontal: 10 },
   bigMsg: { textAlign: 'center', marginTop: 8, fontSize: 15, fontWeight: '700' },
-  statChip: { flex: 1, borderRadius: 18, borderWidth: 1, paddingVertical: 12, paddingHorizontal: 12 },
-  statDot: { width: 8, height: 8, borderRadius: 4, shadowOpacity: 0.9, shadowRadius: 5, shadowOffset: { width: 0, height: 0 } },
+  statChip: { flex: 1, borderRadius: 20, paddingVertical: 15, paddingHorizontal: 13 },
   rewardCard: {
     flexDirection: 'row', alignItems: 'center', borderRadius: 20, padding: 15, marginTop: 12,
     borderWidth: 1.6, borderColor: colors.tang + '66',
