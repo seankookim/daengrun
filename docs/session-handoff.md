@@ -197,3 +197,91 @@ LOW: ⑦ request 60분 슬롯 체크·DATES 자정 고정·체력나이 시드 1
 ## 12. 검증 명령
 - 읽기 전용: `npx supabase migration list` · 대시보드 SQL: `select column_name from information_schema.columns where table_name='bookings' and column_name like 'reschedule%';` · `node scripts/e2e.mjs --solo --keep` [H-스크립트 존재]
 - 파괴적: `node scripts/wipe-test-data.mjs --yes` (테스트 초기화) · prebuild --clean (풀 리빌드 유발)
+
+---
+
+# 세션 핸드오프 — 2026-07-28 (저녁) 글로업·코스·장비·인증샷·패치
+
+읽을 동반 문서: docs/mock-status.md (실/목업 원장 — 오늘분 4섹션 추가됨) · docs/rebrand.md · project memory `project-status.md` (백로그 정본) · 목업 3장: work/rebrand/shot-lab.html / share-flow-lab.html / shot-final-lab.html (Sean 컨테이너가 아니라 Claude 세션 산출물 — 대화에 전달됨, 재작업 시 재요청)
+
+## 1. 목표 & 현재 상태
+
+이 세션(오후~저녁)은 기능 대량 신설 세션. 전부 [verified-now] (tsc 통과 + 커밋):
+- **요청 UX 2건** (be96676) — 코스가 km을 따른다 + 지리 고지 — 완료
+- **러너 장비 v1** (f6d91e2, 마이그레이션 0019) — 완료, DB push 대기
+- **코스 카드 v1** (3682538) — /course/[id] + CourseStrip 4진입점 — 완료, 마이그레이션 불필요
+- **글로업 배치** (d8756ce/ac0f383/f9d8912) — 러너 시간 위계·요청 대형 카드+코랄 파동·리포트 FINISHER 도장·수익 티켓·CourseStrip 패치 덱 — 완료
+- **홈 히어로 모프** (4447a84 → d4bdb8c) — 링 언랩→진행선(54도트 연속 스트로크), 요일 스탬프, 리포트 진입 매트 칩, 체력 나이 정직 게이트 — 완료
+- **인증샷 스튜디오 + 코스 패치 v1** (fe8fcfc → 42c2aab → 67aff6d) — 완료, 실기기 부분 검증(사진 편집 OK[Sean 확인], 캡처/투명 PNG는 새 빌드 후 검증 필요)
+
+## 2. 표준 독트린 (이 세션 추가분 — 불변 규칙)
+
+- **디자인 모티프 독트린**: 5모티프(레이스 빕=숫자 · 티켓=거래 · 여권 도장=검증/완주 · 패치/스티커=수집 · 히트 트레이스=움직임). 화면당 히어로 모티프 1개, 같은 데이터 타입 = 같은 모티프. 채팅·설정·안심센터·폼은 의도적 플레인. 화면당 애니메이션 펄스 1~2개 상한.
+- **사진이 곧 인증** (장비): verified_at ⇒ photo_url — DB 체크 제약으로 강제.
+- **측정처럼 보이는 비측정 금지** (체력 나이): 활동 데이터 없이 계산값=등록 나이면 측정이 아니다 → 게이트 + 레시피 카피.
+- **인증샷 = 마케팅 자산**: 완성 즉시 공유 시트 자동 — '공유' 버튼 재탭 금지. 브랜드 디바이스 3종(아이콘 칩·브랜드 테이프·워드마크 락업)은 모든 스킨 필수.
+
+## 3. 협업 규범 [from-history]
+
+- Sean은 스크린샷+구체 불만으로 피드백. 오해 정정은 즉시·정확 ("pixel by pixel exactly the same" = 슬롯2 미렌더 진단). 잘못 짚으면 되물어보지 말고 코드로 원인 찾기.
+- "make your own decisions after substantial thinking" 위임 유지 — 단 배치·등급 임계 같은 제품 결정은 옵션+추천으로 물어봄 (예: 패치 골드 5회 → Sean이 상향 지시).
+- 푸시백 환영 ("feel free to push back") — 라디에이터 중복·홈 밀도 등 실제로 반려하고 대안 제시가 잘 통했다.
+
+## 4. 결정 로그 (WHY 포함)
+
+- **장비 = 슬롯제(kind당 1)** — 부스트 파밍 구조적 차단 + RPG 로드아웃 가독성. 부스트 min(2,인증수) 상한: 장비는 신뢰 신호이지 승부축 아님.
+- **코스 v1 = 스키마틱, 지도 SDK 없음** — 네이티브 리빌드 회피 + routes.trace 기존 스킴 활용. 실좌표는 v2 [Sean 승인].
+- **코스 사진 = 내 것만** — 타인 runs.photos 공개는 RLS 위반+동의 문제. 공개 갤러리는 v2 동의 UI와 함께 [Sean 승인].
+- **모프 = 도트 언랩** [Sean 안] — 축소 대신 재배열: 데이터 객체(점)는 하나, 원/미니바/센터 숫자 3중 표기 은퇴. 빈 자리 = 요일 스탬프 (radar/티어/사진 반려 — 각각 중복·부재·중복 사유).
+- **패치 사다리 ×1/×5/×10/×25** — 골드 5회는 너무 쌈[Sean]; 5/10을 드랍 리듬에 동기('드랍 여는 날=승급하는 날'), 학습 비용 0. 포인트 보너스는 v2 서버(완주 인센티브 독트린과 무충돌).
+- **인증샷 스킨 A·B·G·I** [Sean 선택, 9안 중]. **A·B 사진 온/오프 이중 모드** — '투명 대형' 별도 스킨은 A와 쌍둥이(특히 무트레이스 러닝에서 픽셀 동일)로 오독 → B의 사진 없는 상태로 흡수. 교훈: 폴백 상태까지 포함해 스킨 간 차별성을 검증할 것.
+- **체력 나이 게이트(28일 2완주)** — 0완주 계산값 = 등록 나이 그대로 → 측정 사칭. Sean이 정확히 지적.
+
+## 5. 아키텍처 & 계약 (신규분)
+
+- **runner_gear (0019)**: unique(runner_id,kind), check(verified_at ⇒ photo_url), 공개 read/본인 write. DO-NOT-REFACTOR: 체크 제약이 정직성의 집.
+- **코스 패치 = 순수 파생** (fetchCoursePatches): completed bookings × route_id, or(owner,runner). 테이블 없음 — 마이그레이션 0이 의도. 등급 patchGrade(n): 25/10/5 임계.
+- **/shot/[bid] 스튜디오**: photoOn{A,Bp} 상태로 투명/사진 동적 전환 — isTransparent()가 체커보드·라운딩·캡처·액션 전부 구동. PhotoLayer = PanResponder 핀치/팬/더블탭, 새 photoUri → transform 리셋. 캡처 = view-shot(activeKey ref), 시트 확정/갤러리 선택 → 450ms 후 자동 Share. sheetFor ref가 어느 스킨의 사진 요청인지 기억.
+- **모프 스트로크**: MORPH_DOTS 54 × 11px (간격≤지름 = 연속선). 각 도트가 원좌표↔선좌표를 scrollY t로 개별 보간(JS 드라이버 — 스크롤 이벤트가 원래 JS). LINE_Y_HERO=154. dotBoxY는 onLayout 실측. DO-NOT-REFACTOR: 네이티브 드라이버로 옮기려면 스크롤 이벤트부터 옮겨야 함.
+- **fitnessGate**: null | {reason:'birth'} | {reason:'runs', left}. fetchFitness가 산출 — 홈·체력 리포트가 소비.
+- **REQ_SELECT에 route_id, routes(name) 추가** — OpenRequest.routeId/routeName. fetchOpenRequests(별도 인라인 매퍼)도 동일 추가 — 두 곳 다 고쳐야 하는 이중 지점 주의.
+- **PulseRings**(runner/home) — 코랄 긴급 파동, 현재 tang 고정(색 파라미터화는 #1 작업에서).
+
+## 6. 파일 맵 (이 세션 신규/핵심 수정)
+
+신규: app/shot/[bid].tsx(스튜디오) · app/course/[id].tsx(코스) · src/components/CourseStrip.tsx · src/components/patch.tsx(PatchBadge) · supabase/migrations/0019_runner_gear.sql
+대수정: src/lib/api.ts(장비·코스사진·패치·fitnessGate·runDays·REQ_SELECT) · app/owner/home.tsx(모프·스탬프·칩·CourseStrip) · app/runner/home.tsx(요청 대형 카드·PulseRings·패치·CourseStrip) · app/owner/report.tsx(FINISHER 도장·인라인 인증샷 은퇴) · app/runner/earnings.tsx(티켓) · app/owner/schedule.tsx(완료 패치+인증샷) · app/cards.tsx(패치 월) · app/runner/requests.tsx(whenBar·코스 링크) · app/owner/request.tsx(미리보기 칩·routeId 파라미터) · app/owner/matching.tsx(장비 칩·부스트) · app/runner/meetup.tsx(장비 체크리스트) · app/runner-profile/[id].tsx(장비 로드아웃)
+
+## 7. Sean 쪽 미완 (순서대로)
+
+1. `npx expo install react-native-view-shot expo-media-library` → `npx expo prebuild -p ios --clean` → `npx expo run:ios` [uncertain — 실행 여부 미확인]
+2. `npx supabase db push` (0018+0019 — 0018 미배포 시 러닝 이벤트 기록 실패!) + `npx supabase functions deploy open-drop` [uncertain — 동일]
+3. `git push` (~25 커밋 선행)
+4. 실기기 검증: 투명 PNG 알파(인스타 스토리 스티커) · 포토 스킨에서 캐러셀 스와이프 감 · 모프 연속선 착지 위치 · 요일 스탬프 겹침
+
+## 8. 환경 특이점 (기존 + 오늘 추가)
+
+- git lock 의식 유지 (mkdir -p _to_delete/git-locks 후 mv; index.lock 잔존 시 다음 커밋 실패 — 커밋 직후 정리 확인).
+- device_stage_files 스테일 캐시 전례 — 서버 파일 수정은 device_bash python 직접 편집.
+- tsc와 commit 체이닝 금지 (tsc 먼저, 통과 확인 후 커밋).
+- 목업 HTML은 Google Fonts CDN 사용(컨테이너에선 폰트 폴백, Sean 브라우저에선 정상).
+
+## 9. 미구현 아이디어 (유실 주의 — v2 대기)
+
+- 패치: 리포트 획득 팝(→ #1에서 구현 예정) · 러너 프로필 공개 '달린 코스' 스트립(SECURITY DEFINER 뷰 필요) · 골드/마스터 포인트 보너스(settle-run).
+- 코스: 실좌표+지도 · 사진 공개 동의 갤러리 · fit 실화 · trace/desc DB 이전.
+- 장비 v2: 관리자 검수 · 샵 연동(gear_claims).
+- 스튜디오: 스킨별 사진 독립 transform(현재 A/B 공유) · 무GPS 러닝에서 A/B 폴백 차별화 강화.
+- KIPRIS 스윕 · 마스코트 포즈 시트 · 샵 셸 · APNs · 반복 예약 UI.
+
+## 10. 다음 1–3 스텝
+
+1. [local-edit, 진행 중] #1 폴리시: 리포트 패치 팝 1회 + 드랍 보급상자 볼트 펄스 + 리더보드 톱3 포디움 빕.
+2. [needs-deploy, Sean 예고] #2 서버 라운드: 정산 트랜잭션 RPC화 · 리스케줄 만료 알림 크론 · 티커 델타 RPC.
+3. [read-only] KIPRIS 스윕.
+
+## 11. 검증 명령 (읽기 전용)
+
+- `cd app && npx tsc --noEmit` — 타입 무결성
+- `npx supabase migration list` — 0018/0019 배포 여부 확인
+- 앱: 러너 프로필 장비 슬롯 → 매칭 카드 칩 → 미트업 체크리스트 / 일정 완료 카드 → 스튜디오 4스킨 / 마이 카드 패치 월 / 홈 스크롤 모프
