@@ -8,6 +8,7 @@ import {
   addComment, deleteFeedPost, fetchComments, fetchFeed, fetchRecentReviews,
   FeedComment, FeedPost, PublicReview, toggleFeedLike,
 } from '../src/lib/api';
+import { useClubOverview } from '../src/components/clubcard';
 import { useDisplayFont } from '../src/lib/displayFont';
 import { haptic } from '../src/lib/haptics';
 import { colors } from '../src/theme';
@@ -51,6 +52,7 @@ function PawBurst({ trigger }: { trigger: number }) {
 
 export default function Community() {
   const df = useDisplayFont();
+  const [club] = useClubOverview(); // 하이클럽 스트립 (P-A S1)
   const [posts, setPosts] = useState<FeedPost[]>([]);
   // 탭: 피드(실) | 러너 후기(실 공개 리뷰). 챌린지는 실시스템 생기면 추가 — 가짜 탭 금지.
   const [tab, setTab] = useState<'feed' | 'reviews'>('feed');
@@ -152,6 +154,26 @@ export default function Community() {
             <Text style={{ fontSize: 14, fontWeight: '900', color: colors.tang }}>🏆 랭킹</Text>
           </Pressable>
         </Row>
+
+        {/* ---------- 하이클럽 스트립 (P-A S1) — 클럽 페이지 진입점. collecting = 관심 수집 배너 ---------- */}
+        {club && (
+          <Pressable onPress={() => router.push(`/club/${club.id}`)} style={s.clubStrip}>
+            {club.photoUrl && <Image source={{ uri: club.photoUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />}
+            <View style={s.clubScrim} />
+            <Row style={{ justifyContent: 'space-between', alignItems: 'flex-end', flex: 1, padding: 12 }}>
+              <Text style={[{ fontSize: 17, fontWeight: '900', color: '#fff' }, df]}>{club.name}</Text>
+              <View style={s.clubPill}>
+                <Text style={{ fontSize: 11, fontWeight: '900', color: FOREST }}>
+                  {club.status === 'active'
+                    ? club.nextSession
+                      ? `${club.nextSession.when.split(' ').slice(-2).join(' ')} · ${Math.max(0, club.nextSession.capacity - club.nextSession.rsvpCount)}자리`
+                      : `멤버 ${club.memberCount}`
+                    : `관심 ${club.interestCount}명 — 나도 관심 ›`}
+                </Text>
+              </View>
+            </Row>
+          </Pressable>
+        )}
 
         {/* 탭바 — 피드 | 러너 후기 (밑줄 인디케이터) */}
         <Row style={{ marginTop: 14, paddingHorizontal: 16, gap: 20, borderBottomWidth: 1, borderBottomColor: '#DCD6C4' }}>
@@ -362,6 +384,9 @@ const s = StyleSheet.create({
   runCard: { flexDirection: 'row', gap: 12, backgroundColor: colors.volt, marginHorizontal: 0, paddingHorizontal: 18, paddingVertical: 16, overflow: 'hidden' },
   runCardKm: { fontSize: 44, fontWeight: '900', color: FOREST, letterSpacing: -2, lineHeight: 48 },
   runCardBadge: { backgroundColor: FOREST, borderRadius: 99, paddingVertical: 4, paddingHorizontal: 10 },
+  clubStrip: { height: 88, borderRadius: 18, overflow: 'hidden', backgroundColor: '#26382a', marginHorizontal: 15, marginTop: 13 },
+  clubScrim: { position: 'absolute' as const, top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(10,16,10,.34)' },
+  clubPill: { backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 5, paddingHorizontal: 10 },
   commentsWrap: { paddingHorizontal: 16, paddingBottom: 14, borderTopWidth: 1, borderTopColor: '#f0eee3', paddingTop: 11 },
   commentInput: {
     flex: 1, backgroundColor: '#faf9f3', borderRadius: 99, borderWidth: 1, borderColor: '#DCD6C4',

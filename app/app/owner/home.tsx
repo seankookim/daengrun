@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Animated, Dimensions, Easing, Image, Modal, PanResponder, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BottomNav } from '../../src/components/bottomnav';
 import { CourseStrip } from '../../src/components/CourseStrip';
+import { ClubHomeCard } from '../../src/components/clubcard';
 import { RunCard } from '../../src/components/runcard';
 import { Avatar } from '../../src/components/ui';
 import { Addr, BoardRow, confirmPayment, createBookingHold, DogProfile, fetchAddresses, fetchAvailableRunners, fetchCertifiedRunners, fetchDogBoardDelta, fetchFitness, fetchMyBookings, fetchMyDogs, fetchMyProfile, fetchRecentMoments, fetchRoutes, Fitness, LiveRunner, Moment, MyProfile } from '../../src/lib/api';
@@ -507,6 +508,9 @@ export default function OwnerHome() {
         </View>
 
         {/* ---------- 지금 러너 찾기 히어로 — 우버식: 탭 = 검색 시작, 결제·코스 자동 ---------- */}
+        {/* 하이클럽 모듈 (P-A S1) — 실세션 있을 때만 렌더 */}
+        <ClubHomeCard />
+
         {(!liveNext || liveNext.status === 'pending') && (
           <Pressable
             onPress={() => {

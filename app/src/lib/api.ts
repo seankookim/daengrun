@@ -1694,6 +1694,74 @@ export async function addComment(postId: string, body: string): Promise<void> {
   if (error) throw error;
 }
 
+// ---------- 하이클럽 (0030, P-A S1) — 반포동 파일럿 ----------
+export const CLUB_WAIVER_VERSION = '2026-07-29';
+export interface ClubNextSession { id: string; scheduledAt: string; when: string; meetupPoint: string; status: string; capacity: number; rsvpCount: number; joined: boolean }
+export interface ClubOverview {
+  id: string; name: string; district: string; status: 'collecting' | 'active';
+  photoUrl: string | null; description: string | null; hostName: string | null;
+  isHost: boolean; isMember: boolean; memberCount: number; interestCount: number; myInterest: boolean;
+  nextSession: ClubNextSession | null;
+}
+
+const withWhen = (ns: any): ClubNextSession | null => {
+  if (!ns) return null;
+  const { dateLabel, timeLabel } = kstParts(ns.scheduledAt);
+  return { ...ns, when: `${dateLabel} ${timeLabel}` };
+};
+
+export async function fetchClubOverview(district = '반포동'): Promise<ClubOverview | null> {
+  const { data, error } = await supabase.rpc('club_overview', { p_district: district });
+  if (error) throw error;
+  if (!data) return null;
+  return { ...data, nextSession: withWhen(data.nextSession) } as ClubOverview;
+}
+
+export interface SessionPerson { name: string; avatarUrl: string | null; role: string; attendance: string; dogName: string | null }
+export interface ClubSessionDetail {
+  id: string; clubId: string; scheduledAt: string; when: string; meetupPoint: string;
+  status: string; capacity: number; hostName: string | null; isHost: boolean;
+  joined: boolean; myAttendance: string | null; people: SessionPerson[];
+}
+
+export async function fetchClubSession(sessionId: string): Promise<ClubSessionDetail | null> {
+  const { data, error } = await supabase.rpc('club_session_detail', { p_session: sessionId });
+  if (error) throw error;
+  if (!data) return null;
+  const { dateLabel, timeLabel } = kstParts(data.scheduledAt);
+  return { ...data, when: `${dateLabel} ${timeLabel}` } as ClubSessionDetail;
+}
+
+const clubRpc = async (fn: string, args: Record<string, unknown>): Promise<any> => {
+  const { data, error } = await supabase.rpc(fn, args);
+  if (error) throw error;
+  return data;
+};
+export const registerClubInterest = (clubId: string) => clubRpc('club_register_interest', { p_club: clubId, p_wants: 'attend' }) as Promise<void>;
+export const claimClubHost = (clubId: string) => clubRpc('club_claim_host', { p_club: clubId }) as Promise<void>;
+export const createClubSession = (clubId: string, scheduledAtIso: string, meetupPoint: string, capacity = 12) =>
+  clubRpc('club_create_session', { p_club: clubId, p_scheduled_at: scheduledAtIso, p_meetup_point: meetupPoint, p_route: null, p_capacity: capacity }) as Promise<string>;
+export const rsvpClubSession = (sessionId: string, dogId: string | null) =>
+  clubRpc('session_rsvp', { p_session: sessionId, p_dog: dogId, p_waiver: CLUB_WAIVER_VERSION }) as Promise<void>;
+export const cancelClubRsvp = (sessionId: string) => clubRpc('session_cancel_rsvp', { p_session: sessionId }) as Promise<void>;
+export const checkinClubSession = (sessionId: string) => clubRpc('session_checkin', { p_session: sessionId }) as Promise<void>;
+export const finishClubSession = (sessionId: string) => clubRpc('club_finish_session', { p_session: sessionId }) as Promise<void>;
+
+// 클럽 사진 (호스트) — avatars 버킷의 본인 폴더 (스토리지 정책상 uid 폴더만 쓰기 가능)
+export async function uploadClubPhoto(clubId: string, base64: string): Promise<string> {
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) throw new Error('not signed in');
+  const path = `${user.user.id}/club-${clubId}.jpg`;
+  const { error } = await supabase.storage.from('avatars')
+    .upload(path, b64ToBytes(base64), { contentType: 'image/jpeg', upsert: true });
+  if (error) throw error;
+  const { data: pub } = supabase.storage.from('avatars').getPublicUrl(path);
+  const url = `${pub.publicUrl}?v=${Date.now()}`;
+  const { error: e2 } = await supabase.from('clubs').update({ photo_url: url }).eq('id', clubId);
+  if (e2) throw e2;
+  return url;
+}
+
 export async function shareRunToFeed(bookingId: string, body?: string): Promise<void> {
   const { data: user } = await supabase.auth.getUser();
   if (!user.user) throw new Error('not signed in');

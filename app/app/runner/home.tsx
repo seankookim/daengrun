@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BottomNav } from '../../src/components/bottomnav';
 import { CourseStrip } from '../../src/components/CourseStrip';
+import { RunnerClubCard } from '../../src/components/clubcard';
 import { Card, Row, StatBlock, text } from '../../src/components/ui';
 import {
   AvailRule, CoursePatch, fetchCoursePatches, fetchMyAvailability, fetchMyName, fetchMyRunnerStatus, fetchRunnerInbox, fetchRunnerJobs,
@@ -442,6 +443,9 @@ export default function RunnerHome() {
         )}
 
         {/* ---------- 동네 코스 — 내 동네에서 뛰게 될 코스 미리 알기 ---------- */}
+        {/* 하이클럽 (P-A S1) — 호스트 클레임/내 클럽/발견 카드 */}
+        <RunnerClubCard />
+
         <CourseStrip title="동네 코스" />
 
         {/* ---------- quick links ---------- */}

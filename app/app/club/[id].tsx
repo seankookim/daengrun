@@ -1,0 +1,236 @@
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
+import { Alert, Image, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Row } from '../../src/components/ui';
+import {
+  claimClubHost, ClubOverview, createClubSession, fetchClubOverview,
+  registerClubInterest, uploadClubPhoto,
+} from '../../src/lib/api';
+import { useDisplayFont } from '../../src/lib/displayFont';
+import { haptic } from '../../src/lib/haptics';
+import { colors } from '../../src/theme';
+
+// 하이클럽 페이지 — C1 포토 히어로 (Sean 확정, hi-club-lab ③). P-A S1.
+// collecting = 관심 수집 상태 (유령 클럽 금지 — 호스트 클레임 전엔 참여 UI 없음).
+// active = 다음 세션 카드 + RSVP 진입. 호스트: 사진 업로드 · 세션 개설 시트.
+// P-B 자리(주간 합산·패치 월·세션 히스토리)는 구현 전까지 그리지 않는다.
+
+const FOREST = '#0F1D13';
+
+// 세션 개설 프리셋 — 다음 발생 시각 계산 (S1: 프리셋 3종, 커스텀은 P-B)
+const nextSlot = (dow: number, hour: number): Date => {
+  const d = new Date();
+  d.setHours(hour, 0, 0, 0);
+  let add = (dow - d.getDay() + 7) % 7;
+  if (add === 0 && d.getTime() < Date.now() + 2 * 3600_000) add = 7;
+  d.setDate(d.getDate() + add);
+  return d;
+};
+const SLOT_PRESETS = [
+  { label: '토 09:00', get: () => nextSlot(6, 9) },
+  { label: '일 09:00', get: () => nextSlot(0, 9) },
+  { label: '내일 07:00', get: () => { const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(7, 0, 0, 0); return d; } },
+];
+
+export default function ClubPage() {
+  const df = useDisplayFont();
+  const [club, setClub] = useState<ClubOverview | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const load = () => fetchClubOverview().then(setClub).catch(() => {});
+  useFocusEffect(useCallback(() => { load(); }, []));
+  const onRefresh = () => { setRefreshing(true); Promise.resolve(load()).finally(() => setRefreshing(false)); };
+
+  // 호스트: 세션 개설 시트
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [slotIdx, setSlotIdx] = useState(0);
+  const [meetup, setMeetup] = useState('');
+  const [cap, setCap] = useState(9);
+  const [busy, setBusy] = useState(false);
+
+  const createSession = async () => {
+    if (!club || busy) return;
+    if (!meetup.trim()) { Alert.alert('집결지를 입력해주세요', '예: 잠수교 북단 계단 앞'); return; }
+    setBusy(true);
+    try {
+      await createClubSession(club.id, SLOT_PRESETS[slotIdx].get().toISOString(), meetup.trim(), cap);
+      haptic('success');
+      setSheetOpen(false);
+      setMeetup('');
+      load();
+      Alert.alert('세션이 열렸어요 🏁', '멤버들에게 보이기 시작해요');
+    } catch (e) {
+      Alert.alert('세션 개설 실패', (e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const changePhoto = async () => {
+    if (!club) return;
+    let ImagePicker: any;
+    try { ImagePicker = require('expo-image-picker'); } catch { Alert.alert('개발 빌드 업데이트 필요'); return; }
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) return;
+      const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.75, base64: true, allowsEditing: true, aspect: [16, 9] });
+      if (res.canceled || !res.assets?.[0]?.base64) return;
+      await uploadClubPhoto(club.id, res.assets[0].base64);
+      load();
+    } catch (e) {
+      Alert.alert('사진 업로드 실패', (e as Error).message);
+    }
+  };
+
+  const interest = () => {
+    if (!club) return;
+    registerClubInterest(club.id)
+      .then(() => { haptic('light'); load(); })
+      .catch((e) => Alert.alert('관심 등록', (e as Error).message));
+  };
+
+  const ns = club?.nextSession;
+  const left = ns ? ns.capacity - ns.rsvpCount : 0;
+
+  return (
+    <View style={{ flex: 1, backgroundColor: colors.cream }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 40 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
+
+        {/* ---------- C1 포토 히어로 ---------- */}
+        <View style={s.hero}>
+          {club?.photoUrl
+            ? <Image source={{ uri: club.photoUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+            : <View style={[StyleSheet.absoluteFill, { backgroundColor: '#26382a' }]} />}
+          <View style={s.heroScrim} />
+          <Pressable onPress={() => router.back()} style={s.backBtn}><Text style={{ fontSize: 20, color: '#fff' }}>‹</Text></Pressable>
+          {club?.isHost && (
+            <Pressable onPress={changePhoto} style={s.photoBtn}>
+              <Text style={{ fontSize: 12, fontWeight: '800', color: '#fff' }}>📷 {club.photoUrl ? '사진 변경' : '클럽 사진 올리기'}</Text>
+            </Pressable>
+          )}
+          <View style={s.heroText}>
+            <View style={s.officialPill}><Text style={{ fontSize: 10.5, fontWeight: '900', letterSpacing: 1.5, color: FOREST }}>OFFICIAL</Text></View>
+            <Text style={[{ fontSize: 26, fontWeight: '900', color: '#fff', marginTop: 7 }, df]}>{club?.name ?? '하이클럽'}</Text>
+            <Text style={{ fontSize: 13, color: '#c6d4bd', marginTop: 4 }}>
+              {club
+                ? club.status === 'active'
+                  ? `멤버 ${club.memberCount} · 호스트 ${club.hostName ?? '—'} 러너 · ${club.district}`
+                  : `${club.district} · 호스트 모집 중`
+                : ''}
+            </Text>
+          </View>
+        </View>
+
+        <View style={{ padding: 15 }}>
+          {club?.description && (
+            <Text style={{ fontSize: 14.5, color: '#49524a', lineHeight: 21, marginBottom: 4 }}>{club.description}</Text>
+          )}
+
+          {/* ---------- collecting: 관심 수집 (유령 클럽 금지의 UI) ---------- */}
+          {club?.status === 'collecting' && (
+            <View style={s.card}>
+              <Text style={{ fontSize: 17, fontWeight: '900', color: FOREST }}>아직 열리기 전이에요</Text>
+              <Text style={{ fontSize: 14, color: '#49524a', marginTop: 5, lineHeight: 20.5 }}>
+                관심 등록 {club.interestCount}명 · 인증 러너가 호스트를 맡으면 첫 세션이 열려요
+              </Text>
+              {club.myInterest ? (
+                <View style={[s.cta, { backgroundColor: '#e7efd8' }]}><Text style={{ fontSize: 14.5, fontWeight: '900', color: '#3d5a2b' }}>✓ 관심 등록됨 — 열리면 알려드릴게요</Text></View>
+              ) : (
+                <Pressable onPress={interest} style={s.cta}><Text style={{ fontSize: 15, fontWeight: '900', color: FOREST }}>나도 관심 있어요</Text></Pressable>
+              )}
+              <Pressable
+                onPress={() => claimClubHost(club.id).then(() => { Alert.alert('호스트가 됐어요 🏁', '첫 세션을 열어보세요'); load(); })
+                  .catch((e) => Alert.alert('호스트 클레임', (e as Error).message.includes('not_certified') ? '인증 러너만 호스트가 될 수 있어요' : (e as Error).message))}
+                style={[s.cta, s.ctaGhost]}
+              >
+                <Text style={{ fontSize: 14, fontWeight: '800', color: '#49524a' }}>인증 러너예요 — 호스트 맡기</Text>
+              </Pressable>
+            </View>
+          )}
+
+          {/* ---------- active: 다음 세션 ---------- */}
+          {club?.status === 'active' && (
+            ns ? (
+              <Pressable onPress={() => router.push({ pathname: `/club/session/${ns.id}`, params: { clubName: club.name } })} style={s.card}>
+                <Row style={{ justifyContent: 'space-between' }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 16.5, fontWeight: '900', color: FOREST }}>다음 세션 · {ns.when}</Text>
+                    <Text style={{ fontSize: 13.5, color: '#49524a', marginTop: 4 }}>📍 {ns.meetupPoint}</Text>
+                    <Text style={{ fontSize: 13, color: '#75806f', marginTop: 6 }}>
+                      {ns.rsvpCount}팀 참여 중{ns.status === 'open' && left > 0 ? ` · ${left}자리 남음` : ' · 마감'}
+                    </Text>
+                  </View>
+                  <View style={[s.joinPill, ns.joined && { backgroundColor: '#e7efd8' }]}>
+                    <Text style={{ fontSize: 13, fontWeight: '900', color: ns.joined ? '#3d5a2b' : FOREST }}>
+                      {ns.joined ? '참여 중 ›' : '참여하기 ›'}
+                    </Text>
+                  </View>
+                </Row>
+              </Pressable>
+            ) : (
+              <View style={s.card}>
+                <Text style={{ fontSize: 15, color: colors.dim, textAlign: 'center', lineHeight: 22 }}>
+                  예정된 세션이 없어요{club.isHost ? '\n아래에서 새 세션을 열어보세요' : '\n호스트가 세션을 열면 여기에 떠요'}
+                </Text>
+              </View>
+            )
+          )}
+
+          {/* ---------- 호스트 도구 ---------- */}
+          {club?.isHost && (
+            <Pressable onPress={() => setSheetOpen(true)} style={[s.cta, { marginTop: 12 }]}>
+              <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST }}>＋ 세션 열기</Text>
+            </Pressable>
+          )}
+        </View>
+      </ScrollView>
+
+      {/* ---------- 세션 개설 시트 (호스트, S1 프리셋) ---------- */}
+      <Modal visible={sheetOpen} transparent animationType="slide" onRequestClose={() => setSheetOpen(false)}>
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,.5)' }} onPress={() => setSheetOpen(false)} />
+        <View style={s.sheet}>
+          <Text style={[{ fontSize: 19, fontWeight: '900', color: FOREST }, df]}>세션 열기</Text>
+          <Text style={{ fontSize: 13, color: colors.dim, marginTop: 3 }}>시간·집결지·정원 — 열리면 바로 멤버에게 보여요</Text>
+          <Row style={{ gap: 8, marginTop: 14 }}>
+            {SLOT_PRESETS.map((p, i) => (
+              <Pressable key={p.label} onPress={() => setSlotIdx(i)} style={[s.slotChip, slotIdx === i && { backgroundColor: FOREST, borderColor: FOREST }]}>
+                <Text style={{ fontSize: 14, fontWeight: '800', color: slotIdx === i ? '#fff' : '#3d453d' }}>{p.label}</Text>
+              </Pressable>
+            ))}
+          </Row>
+          <TextInput
+            value={meetup} onChangeText={setMeetup}
+            placeholder="집결지 — 예: 잠수교 북단 계단 앞" placeholderTextColor="#b0ada0" style={s.input}
+          />
+          <Row style={{ gap: 10, marginTop: 12, alignItems: 'center' }}>
+            <Text style={{ fontSize: 14.5, fontWeight: '800', color: FOREST }}>정원</Text>
+            {[6, 9, 12].map((c) => (
+              <Pressable key={c} onPress={() => setCap(c)} style={[s.slotChip, cap === c && { backgroundColor: FOREST, borderColor: FOREST }]}>
+                <Text style={{ fontSize: 14, fontWeight: '800', color: cap === c ? '#fff' : '#3d453d' }}>{c}팀</Text>
+              </Pressable>
+            ))}
+          </Row>
+          <Pressable onPress={createSession} disabled={busy} style={[s.cta, busy && { opacity: 0.5 }]}>
+            <Text style={{ fontSize: 15.5, fontWeight: '900', color: FOREST }}>{busy ? '여는 중...' : '세션 열기 🏁'}</Text>
+          </Pressable>
+        </View>
+      </Modal>
+    </View>
+  );
+}
+
+const s = StyleSheet.create({
+  hero: { height: 230, justifyContent: 'flex-end' },
+  heroScrim: { position: 'absolute' as const, top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(10,16,10,.30)' },
+  heroText: { padding: 16, paddingBottom: 15 },
+  backBtn: { position: 'absolute', top: 56, left: 14, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(15,29,19,.45)', alignItems: 'center', justifyContent: 'center', zIndex: 2 },
+  photoBtn: { position: 'absolute', top: 62, right: 14, backgroundColor: 'rgba(15,29,19,.55)', borderRadius: 99, paddingVertical: 7, paddingHorizontal: 12, zIndex: 2 },
+  officialPill: { backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 3, paddingHorizontal: 9, alignSelf: 'flex-start' },
+  card: { backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: '#DCD6C4', padding: 15, marginTop: 10 },
+  cta: { backgroundColor: colors.volt, borderRadius: 14, alignItems: 'center', paddingVertical: 13, marginTop: 12 },
+  ctaGhost: { backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#DCD6C4' },
+  joinPill: { backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 9, paddingHorizontal: 13, alignSelf: 'center' },
+  sheet: { backgroundColor: colors.cream, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 18, paddingBottom: 34 },
+  slotChip: { borderRadius: 99, paddingVertical: 9, paddingHorizontal: 14, backgroundColor: '#fff', borderWidth: 1.3, borderColor: '#DCD6C4' },
+  input: { backgroundColor: '#fff', borderRadius: 13, borderWidth: 1, borderColor: '#DCD6C4', paddingVertical: 12, paddingHorizontal: 14, fontSize: 15, color: FOREST, marginTop: 12 },
+});
