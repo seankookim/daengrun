@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { BottomNav, homePath } from '../src/components/bottomnav';
-import { PatchBadge } from '../src/components/patch';
+import { PatchBadge, worldOf } from '../src/components/patch';
 import { RunCard } from '../src/components/runcard';
 import { Row, text } from '../src/components/ui';
 import { CoursePatch, fetchCoursePatches } from '../src/lib/api';
@@ -46,7 +46,7 @@ export default function Cards() {
               </Text>
             </Row>
             <Text style={{ fontSize: 11.5, color: p.dim, marginBottom: 14 }}>
-              코스 첫 완주 = 패치 · ×5 실버 · ×10 골드 · ×25 마스터
+              거리마다 색 세계 — TRAIL·FOREST·RIVER·NIGHT·HALF · ×5 실버 · ×10 골드 · ×25 마스터
             </Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 14, justifyContent: 'flex-start' }}>
               {patches.earned.map((pt) => (
@@ -60,11 +60,13 @@ export default function Cards() {
               ))}
               {patches.locked.map((pt) => (
                 <Pressable key={pt.routeId} onPress={() => router.push(`/course/${pt.routeId}`)} style={{ alignItems: 'center', width: 92 }}>
+                  {/* 잠긴 패치도 월드색 힌트 — '저 색을 갖고 싶다' (P2) */}
                   <View style={{
                     width: 84, height: 84, borderRadius: 42, borderWidth: 2, borderStyle: 'dashed',
-                    borderColor: p.line, alignItems: 'center', justifyContent: 'center',
+                    borderColor: worldOf(pt.km).dim, alignItems: 'center', justifyContent: 'center',
                   }}>
-                    <Text style={{ fontSize: 19, fontWeight: '900', color: p.dim }}>{pt.km}K</Text>
+                    <Text style={{ fontSize: 19, fontWeight: '900', color: worldOf(pt.km).tone, opacity: 0.75 }}>{pt.km}K</Text>
+                    <Text style={{ fontSize: 7.5, fontWeight: '800', letterSpacing: 1.2, color: worldOf(pt.km).dim, marginTop: 1 }}>{worldOf(pt.km).label}</Text>
                   </View>
                   <Text numberOfLines={1} style={{ fontSize: 11, fontWeight: '800', color: p.dim, marginTop: 7 }}>{pt.name}</Text>
                   <Text style={{ fontSize: 9.5, color: p.dim, marginTop: 1 }}>완주하면 획득 ›</Text>

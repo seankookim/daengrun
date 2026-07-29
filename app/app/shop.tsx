@@ -38,7 +38,7 @@ export default function Shop() {
   const claimable = claims.filter((g) => g.status === 'claimable');
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.cream }}>
+    <View style={{ flex: 1, backgroundColor: colors.terraCraft }}>{/* 크래프트 종이 — 샵 = 부티크 (P5) */}
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ padding: 16, paddingTop: 56 }}
@@ -138,15 +138,16 @@ export default function Shop() {
         )}
 
         {/* ---------- 스토어 미리보기 — 실 SKU 전, 섹션 단위 정직 라벨 ---------- */}
-        <Row style={{ gap: 6, marginTop: 20, marginBottom: 2, alignItems: 'baseline' }}>
-          <Text style={s.section}>스토어 미리보기</Text>
-          <Text style={{ fontSize: 14.5, color: '#9a978a', fontWeight: '700' }}>· 오픈 준비 중 — 아직 구매할 수 없어요</Text>
+        <Row style={{ gap: 7, marginTop: 20, marginBottom: 2, alignItems: 'center' }}>
+          <View style={s.gearTag}><Text style={{ fontSize: 9.5, fontWeight: '900', letterSpacing: 1.5, color: '#fff' }}>DOGS HIGH GEAR</Text></View>
+          <Text style={[s.section, { color: colors.terraInk }]}>부티크 미리보기</Text>
+          <Text style={{ fontSize: 14.5, color: '#A87A62', fontWeight: '700' }}>· 오픈 준비 중</Text>
         </Row>
 
         {/* categories */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginVertical: 12 }} contentContainerStyle={{ gap: 8 }}>
           {CATS.map((c, i) => (
-            <View key={c} style={[s.cat, i === 0 && { backgroundColor: FOREST, borderColor: FOREST }]}>
+            <View key={c} style={[s.cat, i === 0 && { backgroundColor: colors.terraDeep, borderColor: colors.terraDeep }]}>
               <Text style={{ fontSize: 15, fontWeight: '700', color: i === 0 ? '#fff' : '#3d453d' }}>{c}</Text>
             </View>
           ))}
@@ -155,20 +156,20 @@ export default function Shop() {
         {/* product grid — 예정 상품 미리보기 (가격은 예정가) */}
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
           {products.map((p) => (
-            <Pressable key={p.id} style={[s.prod, { backgroundColor: '#fff', borderWidth: 1, borderColor: '#DCD6C4' }]} onPress={() => Alert.alert(p.name, '스토어 오픈 준비 중이에요')}>
+            <Pressable key={p.id} style={[s.prod, { backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#E8CDBE' }]} onPress={() => Alert.alert(p.name, '스토어 오픈 준비 중이에요')}>
               <Text style={{ fontSize: 12.5, fontWeight: '900', color: p.fg }}>{p.tag}</Text>
               <Text style={s.prodName} numberOfLines={2}>{p.name}</Text>
-              <Text style={{ fontSize: 14, color: '#00000066', marginTop: 3 }}>{p.collab}</Text>
+              <Text style={{ fontSize: 14, color: '#A87A62', marginTop: 3 }}>{p.collab}</Text>
               {/* product visual placeholder */}
               <View style={s.prodVisual}>
                 <Text style={{ fontSize: 34.5, fontWeight: '900', color: `${p.fg}33` }}>{p.tag}</Text>
               </View>
               <Row style={{ justifyContent: 'space-between', marginTop: 'auto' }}>
-                <Text style={{ fontSize: 18.5, fontWeight: '900', color: FOREST }}>
-                  {p.price.toLocaleString()}원<Text style={{ fontSize: 13, color: '#9a978a', fontWeight: '700' }}> 예정</Text>
+                <Text style={{ fontSize: 18.5, fontWeight: '900', color: colors.terraInk }}>
+                  {p.price.toLocaleString()}원<Text style={{ fontSize: 13, color: '#A87A62', fontWeight: '700' }}> 예정</Text>
                 </Text>
                 <Pressable style={s.addBtn} onPress={() => Alert.alert('준비 중', '스토어 오픈 시 담을 수 있어요')}>
-                  <Text style={{ fontSize: 16, fontWeight: '900', color: colors.volt }}>+</Text>
+                  <Text style={{ fontSize: 16, fontWeight: '900', color: '#fff' }}>+</Text>
                 </Pressable>
               </Row>
             </Pressable>
@@ -181,7 +182,7 @@ export default function Shop() {
 }
 
 const s = StyleSheet.create({
-  search: { backgroundColor: '#fff', borderRadius: 13, paddingVertical: 12, paddingHorizontal: 14, borderWidth: 1, borderColor: '#DCD6C4', marginBottom: 12 },
+  search: { backgroundColor: '#fff', borderRadius: 13, paddingVertical: 12, paddingHorizontal: 14, borderWidth: 1, borderColor: '#E5D5C6', marginBottom: 12 },
   circleBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DCD6C4' },
   hero: { backgroundColor: FOREST, borderRadius: 20, padding: 18 },
   heroGo: { backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 8, paddingHorizontal: 13 },
@@ -192,9 +193,10 @@ const s = StyleSheet.create({
   card: { backgroundColor: '#fff', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#DCD6C4' },
   div: { height: 1, backgroundColor: '#f0eee3' },
   claimPill: { backgroundColor: '#eaf7c8', borderRadius: 99, paddingVertical: 5, paddingHorizontal: 10, alignSelf: 'center' },
-  cat: { borderRadius: 99, paddingVertical: 10, paddingHorizontal: 18, backgroundColor: '#fff', borderWidth: 1, borderColor: '#DCD6C4' },
+  cat: { borderRadius: 99, paddingVertical: 10, paddingHorizontal: 18, backgroundColor: '#fff', borderWidth: 1, borderColor: '#E5D5C6' },
+  gearTag: { backgroundColor: colors.terra, borderRadius: 99, paddingVertical: 3, paddingHorizontal: 9 },
   prod: { width: '47.5%', borderRadius: 20, padding: 14, minHeight: 210 },
-  prodName: { fontSize: 16.5, fontWeight: '900', color: FOREST, marginTop: 6, lineHeight: 23 },
+  prodName: { fontSize: 16.5, fontWeight: '900', color: '#4A2A18', marginTop: 6, lineHeight: 23 },
   prodVisual: { flex: 1, alignItems: 'center', justifyContent: 'center', marginVertical: 8 },
-  addBtn: { width: 30, height: 30, borderRadius: 15, backgroundColor: FOREST, alignItems: 'center', justifyContent: 'center' },
+  addBtn: { width: 30, height: 30, borderRadius: 15, backgroundColor: colors.terra, alignItems: 'center', justifyContent: 'center' },
 });

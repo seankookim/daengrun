@@ -27,6 +27,12 @@ export const colors = {
   gold: '#D9A93C',
   goldDeep: '#B8860B',   // 읽는 골드 — 텍스트·소인 잉크
   goldTint: '#FBF3DD',
+  // 샵 테라코타 (P5) — 리테일 온도 분리: 샵은 서비스가 아니라 부티크
+  terra: '#C96F4A',
+  terraDeep: '#A85536',
+  terraInk: '#6B3A24',    // 읽는 테라 — 제목·가격
+  terraTint: '#FBEEE7',
+  terraCraft: '#F8F0E7',  // 크래프트 종이 배경 — 샵 화면 전용 bg
   // dark glow theme (owner home / cards)
   bgDark: '#0C130E',
   cardDark: '#0F1D13',
