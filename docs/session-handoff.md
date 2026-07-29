@@ -285,3 +285,12 @@ LOW: ⑦ request 60분 슬롯 체크·DATES 자정 고정·체력나이 시드 1
 - `cd app && npx tsc --noEmit` — 타입 무결성
 - `npx supabase migration list` — 0018/0019 배포 여부 확인
 - 앱: 러너 프로필 장비 슬롯 → 매칭 카드 칩 → 미트업 체크리스트 / 일정 완료 카드 → 스튜디오 4스킨 / 마이 카드 패치 월 / 홈 스크롤 모프
+
+## 12-보강 (심야 추가) — 인프라 셋업 완료 상태 [verified-now]
+
+- 배포 완료: 마이그레이션 0018~0024 전부 원격 적용 · settle-run/open-drop 배포 · git push 완료 (origin = 로컬).
+- 서버 라운드(a6f4fa9): 0020 settle_run_tx(정산 단일 트랜잭션) · 0021 리스케줄 만료 크론 · 0022 티커 델타. 달린 코스+푸시(960bb5d): 0023 runner_course_history · 0024 push_tokens+pg_net 트리거.
+- EAS: 프로젝트 생성 (projectId 0436bc27-2933-4627-a0bf-9527e65c1ad9, @seankookim/daengrun) · app/eas.json 생성(Claude가 작성) · Apple 팀 Sean Kim(497534PT3K)에 APNs 푸시 키 등록 완료. 새 빌드(view-shot·media-library·notifications 포함) 실행됨.
+- Sean [stated]: Apple Developer $99 결제 완료.
+- KIPRIS 웹 스윕: '도그스하이' 사용 브랜드 미발견(청신호). 유사 주의: 하이독(HIGHDOG, highdog.co.kr). KIPRIS 공식 검색은 수동 필요 — docs/todo.md §E.
+- **다음 세션: docs/todo.md가 실행 목록** (A 검증 → B 소형 → C 중형 권장 순).
