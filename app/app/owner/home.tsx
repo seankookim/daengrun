@@ -9,6 +9,7 @@ import { Avatar } from '../../src/components/ui';
 import { Addr, BoardRow, confirmPayment, createBookingHold, DogProfile, fetchAddresses, fetchAvailableRunners, fetchCertifiedRunners, fetchDogBoardDelta, fetchFitness, fetchMyBookings, fetchMyDogs, fetchMyProfile, fetchRecentMoments, fetchRoutes, Fitness, LiveRunner, Moment, MyProfile } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { haptic } from '../../src/lib/haptics';
+import { registerPushToken } from '../../src/lib/push';
 import { Booking, demoImminent, dog, draft, myCards, nextBooking, ownerGearLadder, RouteInfo, runners } from '../../src/store';
 import { colors, pricing, surfaces } from '../../src/theme';
 import { useTheme } from '../../src/theme-context';
@@ -136,6 +137,7 @@ export default function OwnerHome() {
     fetchMyProfile().then(setMe).catch((e) => console.warn('[home] me:', e?.message ?? e));
     fetchRecentMoments().then(setMoments).catch((e) => console.warn('[home] moments:', e?.message ?? e));
     fetchDogBoardDelta().then(setTicker).catch((e) => console.warn('[home] ticker:', e?.message ?? e));
+    registerPushToken(); // APNs (0024) — 홈 진입 = 로그인 상태, 1회 등록
     fetchCertifiedRunners().then(setLocalRunners).catch((e) => console.warn('[home] runners:', e?.message ?? e));
     // 가용 러너 — 러닝 중인 러너는 히어로 카운트/레이더에서 제외 (기대 오염 방지)
     fetchAvailableRunners().then(setFnAvail).catch((e) => console.warn('[home] avail:', e?.message ?? e));

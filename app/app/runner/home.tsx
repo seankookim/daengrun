@@ -10,6 +10,7 @@ import {
   fetchRunnerWeekStats, MyRunnerStatus, OpenRequest, RunnerJob, RunnerWeekStats, saveMyAvailability, setRunnerOnline,
 } from '../../src/lib/api';
 import { PatchBadge } from '../../src/components/patch';
+import { registerPushToken } from '../../src/lib/push';
 import { runnerJob } from '../../src/store';
 import { colors } from '../../src/theme';
 
@@ -88,6 +89,7 @@ export default function RunnerHome() {
     fetchCoursePatches()
       .then(({ earned }) => setPatchMap(Object.fromEntries(earned.map((pt) => [pt.routeId, pt]))))
       .catch(() => {});
+    registerPushToken(); // APNs (0024) — 러너는 푸시가 곧 수입 (요청 도착 알림)
     fetchMyRunnerStatus().then(setRs).catch((e) => console.warn('[rhome] status:', e?.message ?? e));
   }, []));
 

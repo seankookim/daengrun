@@ -2,7 +2,8 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Animated, Dimensions, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Avatar, Row } from '../../src/components/ui';
-import { checkSlot, deleteGear, deleteRunnerPhoto, fetchGear, fetchRunnerProfile, GEAR_KINDS, GEAR_META, GearItem, GearKind, RunnerPublicProfile, updateMyProfile, updateRunnerBio, uploadRunnerPhoto, upsertGear } from '../../src/lib/api';
+import { checkSlot, CoursePatch, deleteGear, deleteRunnerPhoto, fetchGear, fetchRunnerCourseHistory, fetchRunnerProfile, GEAR_KINDS, GEAR_META, GearItem, GearKind, RunnerPublicProfile, updateMyProfile, updateRunnerBio, uploadRunnerPhoto, upsertGear } from '../../src/lib/api';
+import { PatchBadge } from '../../src/components/patch';
 import { haptic } from '../../src/lib/haptics';
 import { supabase } from '../../src/lib/supabase';
 import { draft, session } from '../../src/store';
@@ -41,6 +42,8 @@ export default function RunnerProfileScreen() {
   // 러너 장비 로드아웃 (0019) — kind당 1슬롯, 사진이 곧 인증
   const [gear, setGear] = useState<GearItem[]>([]);
   const [gearBusy, setGearBusy] = useState<GearKind | null>(null);
+  // 달린 코스 (0023) — 공개 경험 증명 패치 스트립
+  const [courseHist, setCourseHist] = useState<CoursePatch[]>([]);
   // 단일 프로필 편집기 — 마이의 별도 시트 대신 여기서 이름·동네·소개 전부 (혼선 제거)
   const [editing, setEditing] = useState(false);
   const [eName, setEName] = useState('');
@@ -84,6 +87,7 @@ export default function RunnerProfileScreen() {
     if (!id) { setErr('러너 정보가 없어요'); return; }
     fetchRunnerProfile(id).then(setP).catch((e) => setErr(e?.message ?? '불러오기 실패'));
     fetchGear(id).then(setGear).catch(() => {}); // 장비는 실패해도 프로필은 뜬다
+    fetchRunnerCourseHistory(id).then(setCourseHist).catch(() => {}); // 0023 미배포 시 조용히 숨김
     supabase.auth.getUser().then(({ data }) => setIsMe(data.user?.id === id)).catch(() => {});
   }, [id]);
 
@@ -358,6 +362,25 @@ export default function RunnerProfileScreen() {
                     슬롯을 눌러 장비 사진을 올리면 매칭 카드에 인증 배지로 보여요
                   </Text>
                 )}
+              </View>
+            )}
+
+            {/* ---------- 달린 코스 (0023) — 경험 증명 패치 스트립 (장비 인증 옆 신뢰 신호) ---------- */}
+            {courseHist.length > 0 && (
+              <View style={s.section}>
+                <Row style={{ justifyContent: 'space-between' }}>
+                  <Text style={s.sectionTitle}>달린 코스</Text>
+                  <Text style={{ fontSize: 11.5, color: colors.dim }}>완주 기록으로 자동 집계돼요</Text>
+                </Row>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingTop: 2 }}>
+                  {courseHist.map((c) => (
+                    <Pressable key={c.routeId} onPress={() => router.push(`/course/${c.routeId}`)} style={{ alignItems: 'center', width: 76 }}>
+                      <PatchBadge km={c.km} name={c.name} grade={c.grade} size={64} />
+                      <Text numberOfLines={1} style={{ fontSize: 10.5, fontWeight: '800', color: FOREST, marginTop: 6 }}>{c.name}</Text>
+                      <Text style={{ fontSize: 9.5, color: colors.dim, marginTop: 1 }}>×{c.count} 완주</Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
               </View>
             )}
 

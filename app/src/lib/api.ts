@@ -677,6 +677,17 @@ export async function fetchCoursePatches(): Promise<{ earned: CoursePatch[]; loc
   return { earned, locked };
 }
 
+// 러너 공개 '달린 코스' (0023) — SECURITY DEFINER 집계 (방문자는 타인 bookings를 못 읽는다).
+// 코스명·횟수만 노출. 프로필 스토어프런트 신뢰 신호: 장비 인증 옆의 경험 증명.
+export async function fetchRunnerCourseHistory(profileId: string): Promise<CoursePatch[]> {
+  const { data, error } = await supabase.rpc('runner_course_history', { p_runner: profileId });
+  if (error) throw error;
+  return (data ?? []).map((x: any) => ({
+    routeId: x.route_id, name: x.route_name, km: Number(x.km),
+    count: Number(x.runs), grade: patchGrade(Number(x.runs)), firstAt: null,
+  }));
+}
+
 // 패치 획득/승급 팝 — 이 예약이 그 코스의 '최신 완주'이고 누적이 임계(1/5/10/25)에 방금 도달했을 때만.
 // 앱 세션당 예약별 1회 (인메모리 — 과거 리포트 재방문 시 반복 팝 방지)
 const _patchPopSeen = new Set<string>();
