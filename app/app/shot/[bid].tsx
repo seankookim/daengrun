@@ -135,11 +135,10 @@ function PhotoLayer({ uri, w, h, resetKey }: { uri: string; w: number; h: number
   );
 }
 
-// ── 스킨 정의 ────────────────────────────────────────────────
-type SkinKey = 'A' | 'Bt' | 'Bp' | 'G' | 'I';
+// ── 스킨 정의 — A·B·G·I 4종 (투명 대형 변형 은퇴: A와 쌍둥이로 읽혀 B 자리를 뺏었다, Sean 2026-07-28) ──
+type SkinKey = 'A' | 'Bp' | 'G' | 'I';
 const SKIN_META: Record<SkinKey, { name: string; transparent: boolean; needsPhoto: boolean; h: number }> = {
   A: { name: '투명', transparent: true, needsPhoto: false, h: STORY_H },
-  Bt: { name: '투명 대형', transparent: true, needsPhoto: false, h: STORY_H },
   Bp: { name: '포토', transparent: false, needsPhoto: true, h: STORY_H },
   G: { name: '폴라로이드', transparent: false, needsPhoto: true, h: FEED_H },
   I: { name: '볼트 블록', transparent: false, needsPhoto: false, h: FEED_H },
@@ -155,7 +154,7 @@ export default function ShotStudio() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [active, setActive] = useState(0);
-  const cardRefs = useRef<Record<SkinKey, View | null>>({ A: null, Bt: null, Bp: null, G: null, I: null });
+  const cardRefs = useRef<Record<SkinKey, View | null>>({ A: null, Bp: null, G: null, I: null });
 
   useEffect(() => {
     if (!bid) { setErr('러닝 정보가 없어요'); return; }
@@ -173,10 +172,7 @@ export default function ShotStudio() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [runPhotos.length]);
 
-  const order: SkinKey[] = useMemo(
-    () => (runPhotos.length > 0 ? ['A', 'Bp', 'Bt', 'G', 'I'] : ['A', 'Bt', 'Bp', 'G', 'I']),
-    [runPhotos.length],
-  );
+  const order: SkinKey[] = ['A', 'Bp', 'G', 'I']; // A 투명 기본 · B 포토 2번 고정
   const activeKey = order[Math.min(active, order.length - 1)];
   const meta = SKIN_META[activeKey];
 
@@ -279,8 +275,7 @@ export default function ShotStudio() {
       </View>
     );
 
-    if (key === 'A' || key === 'Bt') {
-      const big = key === 'Bt';
+    if (key === 'A') {
       return (
         <View style={{ width: CARD_W, height: h }}>
           {/* 브랜드 테이프 — 투명으로 저장돼도 봉인은 남는다 */}
@@ -289,10 +284,10 @@ export default function ShotStudio() {
           </View>
           {pts ? (
             <Svg width={CARD_W} height={h * 0.62} viewBox={`0 0 ${CARD_W} ${h * 0.62}`} style={{ position: 'absolute', top: h * 0.12 }}>
-              <Path d={pathFrom(pts, CARD_W, h * 0.62, big ? 14 : 40)} stroke={big ? '#ffffff' : 'rgba(198,245,66,.35)'} strokeWidth={big ? 7 : 15} strokeLinecap="round" strokeLinejoin="round" fill="none" />
-              {!big && <Path d={pathFrom(pts, CARD_W, h * 0.62, 40)} stroke={colors.volt} strokeWidth={6} strokeLinecap="round" strokeLinejoin="round" fill="none" />}
-              <Circle cx={(big ? 14 : 40) + pts[0].x * (CARD_W - 2 * (big ? 14 : 40))} cy={(big ? 14 : 40) + pts[0].y * (h * 0.62 - 2 * (big ? 14 : 40))} r={7} fill={big ? colors.volt : '#fff'} />
-              <Circle cx={(big ? 14 : 40) + pts[pts.length - 1].x * (CARD_W - 2 * (big ? 14 : 40))} cy={(big ? 14 : 40) + pts[pts.length - 1].y * (h * 0.62 - 2 * (big ? 14 : 40))} r={7} fill={colors.tang} />
+              <Path d={pathFrom(pts, CARD_W, h * 0.62, 40)} stroke="rgba(198,245,66,.35)" strokeWidth={15} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+              <Path d={pathFrom(pts, CARD_W, h * 0.62, 40)} stroke={colors.volt} strokeWidth={6} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+              <Circle cx={40 + pts[0].x * (CARD_W - 80)} cy={40 + pts[0].y * (h * 0.62 - 80)} r={7} fill="#fff" />
+              <Circle cx={40 + pts[pts.length - 1].x * (CARD_W - 80)} cy={40 + pts[pts.length - 1].y * (h * 0.62 - 80)} r={7} fill={colors.tang} />
             </Svg>
           ) : (
             <Text style={[s.noTrace, { top: h * 0.4 }]}>GPS 트레이스가 없는 러닝이에요</Text>
