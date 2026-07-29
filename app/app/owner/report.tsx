@@ -70,34 +70,20 @@ export default function Report() {
   const [report, setReport] = useState<RunReport | null>(null);
   const [standings, setStandings] = useState<RunStandings | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  // 간편 인증샷 — 브랜디드 카드 캡처 (view-shot 새 빌드; 없으면 텍스트 공유 폴백)
-  const [shotOpen, setShotOpen] = useState(false);
-  const shotRef = useRef<View>(null);
-
-  const captureShot = async () => {
-    try {
-      const VS = require('react-native-view-shot');
-      const uri = await VS.captureRef(shotRef, { format: 'jpg', quality: 0.92 });
-      await Share.share({ url: uri });
-    } catch {
-      share(); // 구 빌드/실패 → 텍스트 공유
-    }
-  };
-
   useEffect(() => {
     if (!bid) { setErr('예약 정보가 없어요'); return; }
     fetchRunReport(bid).then(setReport).catch((e) => setErr(e?.message ?? '불러오기 실패'));
     fetchRunStandings(bid).then(setStandings).catch(() => {});
   }, [bid]);
 
-  // 일정 탭 '인증샷 만들기' 딥링크 — 리포트가 러닝을 확보하면 인증샷 모달을 바로 연다
+  // 인증샷은 전용 스튜디오(/shot/[bid])로 — 리포트 상단 인라인 카드 은퇴 (2026-07-28)
   const shotAuto = useRef(false);
   useEffect(() => {
-    if (shot === '1' && report?.run && !shotAuto.current) {
+    if (shot === '1' && bid && !shotAuto.current) {
       shotAuto.current = true;
-      setShotOpen(true);
+      router.push(`/shot/${bid}`);
     }
-  }, [shot, report]);
+  }, [shot, bid]);
 
   const run = report?.run ?? null;
   const reason = run?.endReason ? REASON[run.endReason] : null;
@@ -151,65 +137,6 @@ export default function Report() {
             <Pressable onPress={() => router.replace('/owner/schedule')} style={s.ctaGhost}>
               <Text style={{ fontSize: 14.5, fontWeight: '800', color: FOREST }}>내 일정에서 보기 ›</Text>
             </Pressable>
-          </View>
-        )}
-
-        {/* ---------- 인증샷 카드 모달 — 공유가 곧 마케팅. 이 카드가 인스타에 돌아다닌다 ---------- */}
-        {report && run && shotOpen && (
-          <View style={s.shotBackdrop}>
-            <View ref={shotRef} collapsable={false} style={s.shotCard}>
-              {run.photos[0] && (
-                <Image source={{ uri: run.photos[0] }} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, opacity: 0.3 }} resizeMode="cover" />
-              )}
-              {/* 브랜드 텍스처 — 매칭 카드와 같은 컨투어 아크 */}
-              <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 22, overflow: 'hidden' }}>
-                <View style={s.shotContour1} />
-                <View style={s.shotContour2} />
-              </View>
-
-              <Text style={{ fontSize: 12.5, fontWeight: '900', color: colors.volt, letterSpacing: 3.5 }}>도그스하이 · DOGS HIGH</Text>
-              <Text style={[{ fontSize: 26, fontWeight: '900', color: '#fff', marginTop: 12 }, df]}>{report.dogName}의 러닝</Text>
-              <Text style={{ fontSize: 64, fontWeight: '900', color: colors.tang, marginTop: 2 }}>
-                {run.actualKm}<Text style={{ fontSize: 23, color: '#b8c4ae' }}> km</Text>
-              </Text>
-
-              {/* 실 GPS 트레이스 — 자랑의 증거 (없으면 안 그린다) */}
-              {run.trace.length > 1 && (
-                <View style={{ marginTop: 12, borderRadius: 14, backgroundColor: 'rgba(10,18,13,0.82)', padding: 10 }}>
-                  <HeatTrace points={normalizeTrace(run.trace)} width={W - 128} height={110} />
-                </View>
-              )}
-
-              <Text style={{ fontSize: 15.5, fontWeight: '800', color: '#dfe7d8', marginTop: 12 }}>
-                ⏱ {fmtDur(run.durationSec)} · 페이스 {fmtPace(run.paceSecPerKm)}/km
-              </Text>
-              <Text style={{ fontSize: 12.5, color: '#b8c4ae', marginTop: 4 }}>{report.when} · {report.routeName}</Text>
-              {bList.length > 1 && (
-                <View style={{ backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 5, paddingHorizontal: 13, marginTop: 11 }}>
-                  <Text style={{ fontSize: 13.5, fontWeight: '900', color: FOREST }}>
-                    {bList.filter((b) => b.includes('역대') || b.includes('TOP')).join(' · ') || bList[0]}
-                  </Text>
-                </View>
-              )}
-
-              {/* 완주 도장 — 증서의 마침표 */}
-              {run.endReason === 'completed' && (
-                <View style={[s.finStamp, { top: 46, right: 14 }]}>
-                  <Text style={[{ fontSize: 15, fontWeight: '900', color: colors.volt, letterSpacing: 1 }, df]}>완주</Text>
-                  <Text style={{ fontSize: 8.5, fontWeight: '900', color: colors.volt, letterSpacing: 2.5, marginTop: 1 }}>FINISHER</Text>
-                </View>
-              )}
-
-              <Text style={{ fontSize: 11, color: '#8fa093', marginTop: 14, letterSpacing: 0.5 }}>반려견 피트니스 · 도그스하이 🐾</Text>
-            </View>
-            <Row style={{ gap: 10, marginTop: 16 }}>
-              <Pressable onPress={captureShot} style={[s.cta, { flex: 1, marginTop: 0 }]}>
-                <Text style={{ fontSize: 16, fontWeight: '900', color: FOREST }}>공유하기</Text>
-              </Pressable>
-              <Pressable onPress={() => setShotOpen(false)} style={[s.ghostCta, { flex: 0.6, marginTop: 0 }]}>
-                <Text style={{ fontSize: 15, fontWeight: '800', color: '#3d453d' }}>닫기</Text>
-              </Pressable>
-            </Row>
           </View>
         )}
 
@@ -389,7 +316,7 @@ export default function Report() {
 
             {/* ---------- CTA ---------- */}
             <View style={{ paddingHorizontal: 12 }}>
-              <Pressable onPress={() => setShotOpen(true)} style={s.cta}>
+              <Pressable onPress={() => bid && router.push(`/shot/${bid}`)} style={s.cta}>
                 <Text style={{ fontSize: 17, fontWeight: '900', color: FOREST }}>📸 인증샷 만들기</Text>
                 <Text style={{ fontSize: 12, color: '#5d6b4a', marginTop: 2 }}>인스타그램용 브랜디드 카드로 자랑해요</Text>
               </Pressable>
@@ -507,8 +434,4 @@ const s = StyleSheet.create({
   ctaGhost: { marginTop: 14, backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 10, paddingHorizontal: 18 },
   cta: { backgroundColor: colors.volt, borderRadius: 18, alignItems: 'center', paddingVertical: 15, marginTop: 16 },
   ghostCta: { backgroundColor: '#fff', borderRadius: 16, alignItems: 'center', paddingVertical: 13, marginTop: 8, borderWidth: 1, borderColor: '#DCD6C4' },
-  shotBackdrop: { paddingHorizontal: 12, paddingVertical: 18, backgroundColor: '#0C130E' },
-  shotCard: { backgroundColor: FOREST, borderRadius: 22, padding: 18, overflow: 'hidden', alignItems: 'center', paddingVertical: 30, borderWidth: 1.5, borderColor: colors.volt },
-  shotContour1: { position: 'absolute', right: -90, top: -40, width: 260, height: 260, borderRadius: 130, borderWidth: 1, borderColor: 'rgba(221,240,166,0.12)' },
-  shotContour2: { position: 'absolute', left: -110, bottom: -70, width: 300, height: 300, borderRadius: 150, borderWidth: 1, borderColor: 'rgba(221,240,166,0.08)' },
 });

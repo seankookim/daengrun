@@ -6,9 +6,10 @@ import { BottomNav } from '../../src/components/bottomnav';
 import { CourseStrip } from '../../src/components/CourseStrip';
 import { Card, Row, StatBlock, text } from '../../src/components/ui';
 import {
-  AvailRule, fetchMyAvailability, fetchMyName, fetchMyRunnerStatus, fetchRunnerInbox, fetchRunnerJobs,
+  AvailRule, CoursePatch, fetchCoursePatches, fetchMyAvailability, fetchMyName, fetchMyRunnerStatus, fetchRunnerInbox, fetchRunnerJobs,
   fetchRunnerWeekStats, MyRunnerStatus, OpenRequest, RunnerJob, RunnerWeekStats, saveMyAvailability, setRunnerOnline,
 } from '../../src/lib/api';
+import { PatchBadge } from '../../src/components/patch';
 import { runnerJob } from '../../src/store';
 import { colors } from '../../src/theme';
 
@@ -73,6 +74,7 @@ export default function RunnerHome() {
   const [name, setName] = useState<string | null>(null);
   const [stats, setStats] = useState<RunnerWeekStats>({ net: 0, runs: 0, km: 0 });
   const [jobs, setJobs] = useState<RunnerJob[]>([]);
+  const [patchMap, setPatchMap] = useState<Record<string, CoursePatch>>({}); // 완료 카드 미니 패치
   const [rs, setRs] = useState<MyRunnerStatus>({ totalRuns: 0, totalKm: 0, online: false, tier: 'certified' });
   const [avail, setAvail] = useState<AvailRule[] | null>(null);
 
@@ -82,6 +84,9 @@ export default function RunnerHome() {
     fetchMyName().then(setName).catch(() => {});
     fetchRunnerWeekStats().then(setStats).catch((e) => console.warn('[rhome] stats:', e?.message ?? e));
     fetchRunnerJobs().then(setJobs).catch((e) => console.warn('[rhome] jobs:', e?.message ?? e));
+    fetchCoursePatches()
+      .then(({ earned }) => setPatchMap(Object.fromEntries(earned.map((pt) => [pt.routeId, pt]))))
+      .catch(() => {});
     fetchMyRunnerStatus().then(setRs).catch((e) => console.warn('[rhome] status:', e?.message ?? e));
   }, []));
 
@@ -405,15 +410,26 @@ export default function RunnerHome() {
               </Pressable>
             </Row>
             {past.map((j) => (
-              <View key={j.bookingId} style={[s.jobRow, { opacity: 0.75 }]}>
+              <View key={j.bookingId} style={[s.jobRow, { opacity: 0.85 }]}>
                 <View style={[s.jobRail, { backgroundColor: '#c9ccc0' }]} />
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontSize: 14.5, fontWeight: '800', color: '#49524a' }}>{j.when}</Text>
                   <Text style={{ fontSize: 16, fontWeight: '900', color: FOREST, marginTop: 2 }}>
                     {j.dogName} · {j.km}km · 완료
                   </Text>
+                  <Text style={{ fontSize: 15, fontWeight: '900', color: '#75806f', marginTop: 2 }}>+{j.payout.toLocaleString()}</Text>
                 </View>
-                <Text style={{ fontSize: 15, fontWeight: '900', color: '#75806f' }}>+{j.payout.toLocaleString()}</Text>
+                {/* 완료 = 패치 + 인증샷 — 러너도 자기 버전 카드를 공유한다 (보호자 일정 탭 카운터파트) */}
+                <View style={{ alignItems: 'center', gap: 6, alignSelf: 'center' }}>
+                  {j.routeId && patchMap[j.routeId] && (
+                    <Pressable onPress={() => router.push('/cards')}>
+                      <PatchBadge km={patchMap[j.routeId].km} grade={patchMap[j.routeId].grade} size={36} />
+                    </Pressable>
+                  )}
+                  <Pressable onPress={() => router.push(`/shot/${j.bookingId}`)} style={s.shotChipR}>
+                    <Text style={{ fontSize: 11.5, fontWeight: '900', color: FOREST }}>📸 인증샷</Text>
+                  </Pressable>
+                </View>
               </View>
             ))}
           </>
@@ -488,4 +504,5 @@ const s = StyleSheet.create({
     borderRadius: 14, padding: 12, borderWidth: 1, borderColor: '#DCD6C4', marginBottom: 7,
   },
   jobRail: { width: 4, height: 32, borderRadius: 2, backgroundColor: '#5a7a3c' },
+  shotChipR: { backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 5, paddingHorizontal: 9 },
 });

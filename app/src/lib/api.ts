@@ -606,6 +606,7 @@ export interface RunnerJob {
   payout: number;
   status: 'confirmed' | 'in_progress' | 'completed';
   rawStatus: string;
+  routeId: string | null; // 완료 카드 미니 패치 매핑용
 }
 
 export async function fetchRunnerJobs(): Promise<RunnerJob[]> {
@@ -614,7 +615,7 @@ export async function fetchRunnerJobs(): Promise<RunnerJob[]> {
   if (!user.user) return [];
   const { data, error } = await supabase
     .from('bookings')
-    .select('id, scheduled_at, km, base_fare, distance_fare, addon_fare, status, dogs(name)')
+    .select('id, scheduled_at, km, base_fare, distance_fare, addon_fare, status, route_id, dogs(name)')
     .eq('runner_id', user.user.id)
     .in('status', ['confirmed', 'runner_enroute', 'picked_up', 'active', 'completed'])
     .order('scheduled_at', { ascending: false })
@@ -630,8 +631,50 @@ export async function fetchRunnerJobs(): Promise<RunnerJob[]> {
       payout: Math.round((r.base_fare + r.distance_fare + r.addon_fare) * (1 - rate)), // 티어 실수수료 (일괄 20% 은퇴)
       status: r.status === 'completed' ? 'completed' : r.status === 'confirmed' ? 'confirmed' : 'in_progress',
       rawStatus: r.status,
+      routeId: r.route_id ?? null,
     };
   });
+}
+
+// ---------- 코스 패치 (2026-07-28 확정) — 파생 데이터, 마이그레이션 0 ----------
+// 사다리: ×1 획득 → ×5 실버 → ×10 골드 → ×25 코스 마스터 (드랍 5/10 리듬과 동기).
+// v1은 순수 코스메틱 — 골드/마스터 포인트 보너스는 v2 서버(settle-run) 몫.
+export type PatchGrade = 'basic' | 'silver' | 'gold' | 'master';
+export const patchGrade = (n: number): PatchGrade =>
+  n >= 25 ? 'master' : n >= 10 ? 'gold' : n >= 5 ? 'silver' : 'basic';
+export interface CoursePatch { routeId: string; name: string; km: number; count: number; grade: PatchGrade; firstAt: string | null }
+
+// 내(보호자든 러너든 당사자) 완료 러닝을 코스별로 집계 — locked는 아직 못 달린 활성 코스
+export async function fetchCoursePatches(): Promise<{ earned: CoursePatch[]; locked: { routeId: string; name: string; km: number }[] }> {
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) return { earned: [], locked: [] };
+  const uid = user.user.id;
+  const [bkRes, rtRes] = await Promise.all([
+    supabase.from('bookings').select('route_id, scheduled_at')
+      .eq('status', 'completed').not('route_id', 'is', null)
+      .or(`owner_id.eq.${uid},runner_id.eq.${uid}`)
+      .order('scheduled_at').limit(1000),
+    supabase.from('routes').select('id, name, km').eq('active', true),
+  ]);
+  if (bkRes.error) throw bkRes.error;
+  const counts: Record<string, { n: number; first: string }> = {};
+  (bkRes.data ?? []).forEach((b: any) => {
+    const c = (counts[b.route_id] ??= { n: 0, first: b.scheduled_at });
+    c.n += 1;
+  });
+  const earned: CoursePatch[] = [];
+  const locked: { routeId: string; name: string; km: number }[] = [];
+  (rtRes.data ?? []).forEach((r: any) => {
+    const c = counts[r.id];
+    if (c) {
+      earned.push({
+        routeId: r.id, name: r.name, km: Number(r.km), count: c.n,
+        grade: patchGrade(c.n), firstAt: kstParts(c.first).dateLabel,
+      });
+    } else locked.push({ routeId: r.id, name: r.name, km: Number(r.km) });
+  });
+  earned.sort((a, b) => b.count - a.count);
+  return { earned, locked };
 }
 
 export const runnerEnroute = (id: string) => invokeTransition(id, 'enroute');

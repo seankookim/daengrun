@@ -1,9 +1,10 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { cancelBooking, fetchMyBookings } from '../../src/lib/api';
+import { cancelBooking, CoursePatch, fetchCoursePatches, fetchMyBookings } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { BottomNav } from '../../src/components/bottomnav';
+import { PatchBadge } from '../../src/components/patch';
 import { HeatTrace } from '../../src/components/runcard';
 import { Monogram, Row } from '../../src/components/ui';
 import { Booking, BookingStatus, cancelPolicy, draft, runners, sampleRoutes } from '../../src/store';
@@ -42,10 +43,17 @@ export default function Schedule() {
   const [selected, setSelected] = useState<Booking | null>(null);
   const [sheetMode, setSheetMode] = useState<'detail' | 'cancel'>('detail');
   const [liveBookings, setLiveBookings] = useState<Booking[]>([]);
+  // 완료 카드 미니 패치 — routeId → 내 패치 (파생 데이터, 1회 조회)
+  const [patchMap, setPatchMap] = useState<Record<string, CoursePatch>>({});
   const [refreshing, setRefreshing] = useState(false);
 
   const load = () => fetchMyBookings().then(setLiveBookings).catch((e) => console.warn('[schedule] bookings:', e?.message ?? e));
-  useFocusEffect(useCallback(() => { load(); }, []));
+  useFocusEffect(useCallback(() => {
+    load();
+    fetchCoursePatches()
+      .then(({ earned }) => setPatchMap(Object.fromEntries(earned.map((pt) => [pt.routeId, pt]))))
+      .catch(() => {});
+  }, []));
   const onRefresh = () => { setRefreshing(true); load().finally(() => setRefreshing(false)); };
 
   const all = liveBookings; // 데모 예약 제거 — 실예약만
@@ -166,7 +174,24 @@ export default function Schedule() {
                           {b.price.toLocaleString()}원 · {b.paceLabel}
                         </Text>
                       </View>
-                      <Text style={{ fontSize: 16, color: colors.dim, alignSelf: 'center' }}>›</Text>
+                      {/* 완료 = 패치 + 인증샷 원탭 (2026-07-28 목업 확정) · 그 외 = 셰브런 */}
+                      {b.status === 'completed' ? (
+                        <View style={{ alignItems: 'center', gap: 7, alignSelf: 'center' }}>
+                          {patchMap[b.routeId] && (
+                            <Pressable onPress={(e) => { e.stopPropagation(); router.push('/cards'); }}>
+                              <PatchBadge km={patchMap[b.routeId].km} grade={patchMap[b.routeId].grade} size={38} />
+                            </Pressable>
+                          )}
+                          <Pressable
+                            onPress={(e) => { e.stopPropagation(); router.push(`/shot/${b.id}`); }}
+                            style={s.shotChip}
+                          >
+                            <Text style={{ fontSize: 11.5, fontWeight: '900', color: FOREST }}>📸 인증샷</Text>
+                          </Pressable>
+                        </View>
+                      ) : (
+                        <Text style={{ fontSize: 16, color: colors.dim, alignSelf: 'center' }}>›</Text>
+                      )}
                     </Row>
                     {b.status === 'active' && (
                       <Pressable
@@ -437,6 +462,7 @@ const s = StyleSheet.create({
   },
   thumbMap: { width: 68, height: 52, borderRadius: 10, backgroundColor: '#0e150f', padding: 2, overflow: 'hidden' },
   certDot: { width: 13, height: 13, borderRadius: 7, backgroundColor: '#3d8fd4', alignItems: 'center', justifyContent: 'center', alignSelf: 'center' },
+  shotChip: { backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 5, paddingHorizontal: 10, shadowColor: '#7FA818', shadowOpacity: 0.35, shadowRadius: 4, shadowOffset: { width: 0, height: 2 } },
   emptyCta: {
     marginTop: 20, marginHorizontal: 12, borderRadius: 16, borderWidth: 1.4, borderColor: '#cfd8c2', borderStyle: 'dashed',
     alignItems: 'center', paddingVertical: 14,
