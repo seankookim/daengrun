@@ -135,13 +135,15 @@ function PhotoLayer({ uri, w, h, resetKey }: { uri: string; w: number; h: number
   );
 }
 
-// ── 스킨 정의 — A·B·G·I 4종 (투명 대형 변형 은퇴: A와 쌍둥이로 읽혀 B 자리를 뺏었다, Sean 2026-07-28) ──
+// ── 스킨 정의 — A·B·G·I 4종. A·B는 사진 온/오프 이중 모드:
+// 사진 없으면 투명 스티커(체커보드 프리뷰), 사진 올리면 그 위에 오버레이 (Sean 2026-07-28 정정).
+// B의 사진 없는 모드 = '투명 배경 + 대형 트레이스' (B 변형 아이디어가 B의 상태로 복원).
 type SkinKey = 'A' | 'Bp' | 'G' | 'I';
-const SKIN_META: Record<SkinKey, { name: string; transparent: boolean; needsPhoto: boolean; h: number }> = {
-  A: { name: '투명', transparent: true, needsPhoto: false, h: STORY_H },
-  Bp: { name: '포토', transparent: false, needsPhoto: true, h: STORY_H },
-  G: { name: '폴라로이드', transparent: false, needsPhoto: true, h: FEED_H },
-  I: { name: '볼트 블록', transparent: false, needsPhoto: false, h: FEED_H },
+const SKIN_META: Record<SkinKey, { name: string; h: number }> = {
+  A: { name: '투명 스티커', h: STORY_H },
+  Bp: { name: '포토', h: STORY_H },
+  G: { name: '폴라로이드', h: FEED_H },
+  I: { name: '볼트 블록', h: FEED_H },
 };
 
 export default function ShotStudio() {
@@ -152,6 +154,8 @@ export default function ShotStudio() {
   const [err, setErr] = useState<string | null>(null);
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const sheetFor = useRef<SkinKey>('Bp'); // 어느 스킨이 사진을 요청했나 (확정 시 그 스킨의 사진 모드 on)
+  const [photoOn, setPhotoOn] = useState<{ A: boolean; Bp: boolean }>({ A: false, Bp: true });
   const [busy, setBusy] = useState(false);
   const [active, setActive] = useState(0);
   const cardRefs = useRef<Record<SkinKey, View | null>>({ A: null, Bp: null, G: null, I: null });
@@ -174,7 +178,11 @@ export default function ShotStudio() {
 
   const order: SkinKey[] = ['A', 'Bp', 'G', 'I']; // A 투명 기본 · B 포토 2번 고정
   const activeKey = order[Math.min(active, order.length - 1)];
-  const meta = SKIN_META[activeKey];
+
+  // 스킨별 사진 상태 — G는 사진 필수, A/B는 선택(없으면 투명 스티커)
+  const hasPhoto = (k: SkinKey) =>
+    !!photoUri && (k === 'G' || (k === 'A' && photoOn.A) || (k === 'Bp' && photoOn.Bp));
+  const isTransparent = (k: SkinKey) => (k === 'A' || k === 'Bp') && !hasPhoto(k);
 
   const recordLine = useMemo(() => {
     if (!standings) return null;
@@ -192,10 +200,7 @@ export default function ShotStudio() {
       const VS = require('react-native-view-shot');
       const ref = cardRefs.current[activeKey];
       if (!ref) return null;
-      return await VS.captureRef(ref, {
-        format: 'png', quality: 1,
-        ...(meta.transparent ? {} : {}),
-      });
+      return await VS.captureRef(ref, { format: 'png', quality: 1 });
     } catch {
       Alert.alert('개발 빌드 업데이트 필요', '카드 캡처(view-shot)는 새 빌드에 포함돼요');
       return null;
@@ -222,7 +227,7 @@ export default function ShotStudio() {
         if (!perm.granted) throw new Error('no-perm');
         await ML.saveToLibraryAsync(uri);
         haptic('success');
-        Alert.alert('저장 완료', meta.transparent
+        Alert.alert('저장 완료', isTransparent(activeKey)
           ? '투명 PNG가 사진첩에 저장됐어요 — 인스타 스토리에서 스티커처럼 올려보세요'
           : '이미지가 사진첩에 저장됐어요');
       } catch {
@@ -244,14 +249,19 @@ export default function ShotStudio() {
       const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.9 });
       if (res.canceled || !res.assets?.[0]?.uri) return;
       setPhotoUri(res.assets[0].uri);
+      const k = sheetFor.current;
+      if (k === 'A' || k === 'Bp') setPhotoOn((p) => ({ ...p, [k]: true }));
       setSheetOpen(false);
+      setTimeout(shareNow, 450); // 갤러리 선택도 확정과 동일 — 완성 즉시 공유
     } catch (e) {
       Alert.alert('사진 선택 실패', (e as Error).message);
     }
   };
 
-  // 사진 시트에서 확정 → 렌더 안정 후 자동 공유 (스펙: 완성 즉시 공유 시트)
+  // 사진 시트에서 확정 → 요청한 스킨의 사진 모드 on → 렌더 안정 후 자동 공유 (완성 즉시 공유 시트)
   const confirmPhoto = () => {
+    const k = sheetFor.current;
+    if (k === 'A' || k === 'Bp') setPhotoOn((p) => ({ ...p, [k]: true }));
     setSheetOpen(false);
     setTimeout(shareNow, 450);
   };
@@ -276,14 +286,18 @@ export default function ShotStudio() {
     );
 
     if (key === 'A') {
+      const photo = hasPhoto('A');
       return (
         <View style={{ width: CARD_W, height: h }}>
+          {/* 사진 위에 올리기 모드 — 투명 스티커가 사진을 배경으로 얻는다 */}
+          {photo && <PhotoLayer uri={photoUri!} w={CARD_W} h={h} resetKey={photoUri!} />}
+          {photo && <View pointerEvents="none" style={s.scrimBottom} />}
           {/* 브랜드 테이프 — 투명으로 저장돼도 봉인은 남는다 */}
-          <View style={{ position: 'absolute', top: 18, left: -14, right: -14 }}>
+          <View pointerEvents="none" style={{ position: 'absolute', top: 18, left: -14, right: -14 }}>
             <BrandTape width={CARD_W + 28} rotate="-2deg" df={df} />
           </View>
           {pts ? (
-            <Svg width={CARD_W} height={h * 0.62} viewBox={`0 0 ${CARD_W} ${h * 0.62}`} style={{ position: 'absolute', top: h * 0.12 }}>
+            <Svg pointerEvents="none" width={CARD_W} height={h * 0.62} viewBox={`0 0 ${CARD_W} ${h * 0.62}`} style={{ position: 'absolute', top: h * 0.12 }}>
               <Path d={pathFrom(pts, CARD_W, h * 0.62, 40)} stroke="rgba(198,245,66,.35)" strokeWidth={15} strokeLinecap="round" strokeLinejoin="round" fill="none" />
               <Path d={pathFrom(pts, CARD_W, h * 0.62, 40)} stroke={colors.volt} strokeWidth={6} strokeLinecap="round" strokeLinejoin="round" fill="none" />
               <Circle cx={40 + pts[0].x * (CARD_W - 80)} cy={40 + pts[0].y * (h * 0.62 - 80)} r={7} fill="#fff" />
@@ -292,7 +306,7 @@ export default function ShotStudio() {
           ) : (
             <Text style={[s.noTrace, { top: h * 0.4 }]}>GPS 트레이스가 없는 러닝이에요</Text>
           )}
-          <View style={{ position: 'absolute', bottom: 22, left: 18, right: 18 }}>
+          <View pointerEvents="none" style={{ position: 'absolute', bottom: 22, left: 18, right: 18 }}>
             <View style={{ alignItems: 'center', marginBottom: 14 }}><Lockup df={df} /></View>
             {stats()}
             {recordLine && <Text style={s.recordT}>{recordLine}</Text>}
@@ -302,15 +316,32 @@ export default function ShotStudio() {
     }
 
     if (key === 'Bp') {
+      const photo = hasPhoto('Bp');
+      // 사진 없는 B = 투명 배경 + 대형 화이트 트레이스 (Sean의 B 변형 아이디어 — B의 상태로 복원)
+      if (!photo) {
+        return (
+          <View style={{ width: CARD_W, height: h }}>
+            <View pointerEvents="none" style={{ position: 'absolute', top: 14, right: 14 }}><IconChip size={40} df={df} /></View>
+            {pts ? (
+              <Svg pointerEvents="none" width={CARD_W} height={h * 0.7} viewBox={`0 0 ${CARD_W} ${h * 0.7}`} style={{ position: 'absolute', top: h * 0.08 }}>
+                <Path d={pathFrom(pts, CARD_W, h * 0.7, 16)} stroke="#fff" strokeWidth={7} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                <Circle cx={16 + pts[0].x * (CARD_W - 32)} cy={16 + pts[0].y * (h * 0.7 - 32)} r={7} fill={colors.volt} />
+                <Circle cx={16 + pts[pts.length - 1].x * (CARD_W - 32)} cy={16 + pts[pts.length - 1].y * (h * 0.7 - 32)} r={7} fill={colors.tang} />
+              </Svg>
+            ) : (
+              <Text style={[s.noTrace, { top: h * 0.4 }]}>GPS 트레이스가 없는 러닝이에요</Text>
+            )}
+            <View pointerEvents="none" style={{ position: 'absolute', bottom: 22, left: 18, right: 18 }}>
+              <Text style={[s.dogTitle, df]}>{dog}의 러닝</Text>
+              <View style={{ marginTop: 12, marginBottom: 12 }}>{stats()}</View>
+              <Lockup df={df} small />
+            </View>
+          </View>
+        );
+      }
       return (
         <View style={{ width: CARD_W, height: h, borderRadius: 20, overflow: 'hidden', backgroundColor: FOREST }}>
-          {photoUri && <PhotoLayer uri={photoUri} w={CARD_W} h={h} resetKey={photoUri} />}
-          {!photoUri && (
-            <View style={s.photoEmpty}>
-              <Text style={{ fontSize: 30 }}>🖼</Text>
-              <Text style={{ fontSize: 13.5, color: '#b8c4ae', marginTop: 8, fontWeight: '700' }}>아래에서 사진을 골라주세요</Text>
-            </View>
-          )}
+          <PhotoLayer uri={photoUri!} w={CARD_W} h={h} resetKey={photoUri!} />
           <View pointerEvents="none" style={s.scrimBottom} />
           <View pointerEvents="none" style={{ position: 'absolute', top: 14, right: 14 }}><IconChip size={40} df={df} /></View>
           {pts && (
@@ -364,6 +395,14 @@ export default function ShotStudio() {
         <Text style={s.iTiny}>{report.when} · {report.routeName}</Text>
         <Text style={s.iGiant}>{km}<Text style={{ fontSize: 26, letterSpacing: -1 }}>KM</Text></Text>
         <Text style={[{ fontSize: 24, fontWeight: '900', color: FOREST, marginTop: 2 }, df]}>{dog} 완주</Text>
+        {/* GPS 트레이스 — 중앙 우측 빈 공간, 포레스트 선 + 탱 도착점 (모든 카드에 트레이스) */}
+        {pts && (
+          <Svg pointerEvents="none" width={116} height={124} viewBox="0 0 116 124" style={{ position: 'absolute', right: 38, top: h * 0.2 }} opacity={0.9}>
+            <Path d={pathFrom(pts, 116, 124, 10)} stroke={FOREST} strokeWidth={4} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+            <Circle cx={10 + pts[0].x * 96} cy={10 + pts[0].y * 104} r={5} fill="#fff" />
+            <Circle cx={10 + pts[pts.length - 1].x * 96} cy={10 + pts[pts.length - 1].y * 104} r={5} fill={colors.tang} />
+          </Svg>
+        )}
         <View style={{ position: 'absolute', right: 8, top: 14 }}>
           {['도', '그', '스', '하', '이'].map((c) => (
             <Text key={c} style={[{ fontSize: 22, color: FOREST, fontWeight: '900', lineHeight: 24, textAlign: 'center' }, df]}>{c}</Text>
@@ -386,11 +425,26 @@ export default function ShotStudio() {
   };
 
   // ── 액션 바 — 스킨별 분기 ──
-  const needsPhotoNow = meta.needsPhoto && !photoUri;
-  const mainLabel = busy ? '만드는 중...' : needsPhotoNow ? '사진 고르기 ›' : meta.transparent ? '투명 PNG 저장' : '공유하기 ›';
-  const onMain = needsPhotoNow ? () => setSheetOpen(true) : meta.transparent ? savePng : shareNow;
-  const ghostLabel = meta.needsPhoto && photoUri ? '🖼 사진 변경' : meta.transparent ? '공유하기' : '이미지 저장';
-  const onGhost = meta.needsPhoto && photoUri ? () => setSheetOpen(true) : meta.transparent ? shareNow : savePng;
+  const openSheet = (k: SkinKey) => { sheetFor.current = k; setSheetOpen(true); };
+  // 사진이 붙은 A/B: 고스트 버튼이 [사진 변경 / 투명으로] 메뉴
+  const photoMenu = (k: 'A' | 'Bp') => Alert.alert('사진', undefined, [
+    { text: '사진 변경', onPress: () => openSheet(k) },
+    { text: '투명 배경으로', onPress: () => setPhotoOn((p) => ({ ...p, [k]: false })) },
+    { text: '취소', style: 'cancel' },
+  ]);
+
+  const t = isTransparent(activeKey);
+  const needsPhotoNow = activeKey === 'G' && !photoUri;
+  const mainLabel = busy ? '만드는 중...' : needsPhotoNow ? '사진 고르기 ›' : t ? '투명 PNG 저장' : '공유하기 ›';
+  const onMain = needsPhotoNow ? () => openSheet('G') : t ? savePng : shareNow;
+  const [ghostLabel, onGhost] =
+    activeKey === 'A'
+      ? hasPhoto('A') ? ['🖼 사진', () => photoMenu('A')] as const : ['🖼 사진 위에 올리기', () => openSheet('A')] as const
+      : activeKey === 'Bp'
+        ? hasPhoto('Bp') ? ['🖼 사진', () => photoMenu('Bp')] as const : ['🖼 사진 넣기', () => openSheet('Bp')] as const
+        : activeKey === 'G' && photoUri
+          ? ['🖼 사진 변경', () => openSheet('G')] as const
+          : ['이미지 저장', savePng] as const;
 
   return (
     <View style={{ flex: 1, backgroundColor: '#0C130E' }}>
@@ -424,14 +478,15 @@ export default function ShotStudio() {
           >
             {order.map((key) => {
               const kMeta = SKIN_META[key];
+              const kt = isTransparent(key);
               return (
                 <View key={key} style={{ width: CARD_W, height: STORY_H, justifyContent: 'center' }}>
-                  {/* 투명 스킨: 체커보드는 캡처 밖 (프리뷰 전용) */}
-                  {kMeta.transparent && <View style={[s.checker, { height: kMeta.h }]} pointerEvents="none" />}
+                  {/* 투명 모드: 체커보드는 캡처 밖 (프리뷰 전용) */}
+                  {kt && <View style={[s.checker, { height: kMeta.h }]} pointerEvents="none" />}
                   <View
                     ref={(r) => { cardRefs.current[key] = r; }}
                     collapsable={false}
-                    style={{ width: CARD_W, height: kMeta.h, borderRadius: kMeta.transparent ? 0 : 20, overflow: kMeta.transparent ? 'visible' : 'hidden' }}
+                    style={{ width: CARD_W, height: kMeta.h, borderRadius: kt ? 0 : 20, overflow: kt ? 'visible' : 'hidden' }}
                   >
                     {renderSkin(key)}
                   </View>
@@ -446,7 +501,10 @@ export default function ShotStudio() {
               <View key={k} style={[s.dot, i === active && s.dotOn]} />
             ))}
           </View>
-          <Text style={s.skinName}>{SKIN_META[activeKey].name}{meta.needsPhoto && photoUri ? ' · 핀치로 크기 · 드래그로 위치 · 더블탭 원위치' : meta.transparent ? ' · 저장 후 인스타 스토리 스티커로' : ''}</Text>
+          <Text style={s.skinName}>
+            {SKIN_META[activeKey].name}
+            {hasPhoto(activeKey) ? ' · 핀치로 크기 · 드래그로 위치 · 더블탭 원위치' : t ? ' · 저장 후 인스타 스토리 스티커로' : ''}
+          </Text>
 
           {/* 액션 바 */}
           <View style={s.actRow}>
