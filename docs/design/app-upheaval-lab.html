@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>도그스하이 전면 업히벌 — 3방향 × 4키스크린</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Oswald:wght@500;600;700&family=IBM+Plex+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#0E100D;--volt:#C6F542;--voltDeep:#7FA818;--tang:#FF5C3D;--club:#7B6CDF;--neon:#9F8FFF;
+--blue:#6E9BC5;--amber:#F59A43;--gold:#D9A93C;
+--paper:#FFFFFF;--concrete:#E9EBE6;--night:#0B0E0B;--nightCard:#121712;}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0A0C0A;color:#E8EBE4;font-family:'Pretendard Variable',Pretendard,sans-serif;padding:32px 26px 90px}
+.bhs{font-family:'Black Han Sans',sans-serif;font-weight:400}
+.osw{font-family:'Oswald',sans-serif}
+.mono{font-family:'IBM Plex Mono',monospace}
+h1{font-size:27px;color:var(--volt)}
+h2{font-size:19px;margin:44px 0 3px;letter-spacing:.5px}
+h2 small{font-size:12px;color:#7d8878;font-weight:400;margin-left:8px}
+.lede{color:#7d8878;margin:9px 0 4px;max-width:940px;line-height:1.65;font-size:13.5px}
+.row{display:flex;gap:18px;flex-wrap:wrap;margin-top:16px;align-items:flex-start}
+.shot{width:270px}
+.sl{font-size:10.5px;letter-spacing:2px;color:#7d8878;margin-bottom:7px;font-family:'IBM Plex Mono',monospace}
+.note{color:#7d8878;font-size:12px;line-height:1.6;margin:14px 2px 0;max-width:940px}
+.ph{min-height:430px;padding:14px 12px;overflow:hidden;position:relative}
+
+/* ═════════ V1 — 매니페스토 (화이트 × 잉크 하드 에디토리얼) ═════════ */
+.v1 .ph{background:var(--paper);color:var(--ink)}
+.v1-rule{border-top:2.5px solid var(--ink)}
+.v1-mast{display:flex;justify-content:space-between;align-items:baseline;padding-bottom:9px;border-bottom:2.5px solid var(--ink)}
+.v1-mast h3{font-size:20px}
+.v1-mast .mono{font-size:9px;letter-spacing:2px;color:#888}
+.v1-hero{padding:16px 0 12px;border-bottom:1px solid #D8DAD2}
+.v1-hero .k{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:2.5px;color:var(--voltDeep)}
+.v1-hero h4{font-size:34px;line-height:1.02;margin-top:5px;letter-spacing:-.5px}
+.v1-num{display:flex;border-bottom:2.5px solid var(--ink)}
+.v1-num div{flex:1;padding:12px 4px 13px;border-right:1px solid #D8DAD2}
+.v1-num div:last-child{border-right:0}
+.v1-num b{display:block;font-family:'Oswald',sans-serif;font-size:29px;font-weight:600;line-height:1}
+.v1-num b em{font-style:normal;color:var(--voltDeep)}
+.v1-num span{display:block;font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:1.5px;color:#888;margin-top:4px}
+.v1-cta{display:block;background:var(--ink);color:var(--volt);text-align:center;font-weight:800;font-size:14.5px;padding:15px 0;margin-top:13px;letter-spacing:.5px}
+.v1-band{border-bottom:1px solid #D8DAD2;padding:11px 0;display:flex;gap:11px;align-items:center}
+.v1-band .t{font-family:'Oswald',sans-serif;font-size:17px;font-weight:600;width:52px}
+.v1-band .nm{flex:1}
+.v1-band .nm b{font-size:14px;font-weight:700}
+.v1-band .nm span{display:block;font-size:11.5px;color:#666;margin-top:1px}
+.v1-st{font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:1.5px;padding:3px 7px;border:1.5px solid}
+.v1-set{display:flex;justify-content:space-between;align-items:center;padding:14px 2px;border-bottom:1px solid #D8DAD2}
+.v1-set b{font-size:14.5px;font-weight:700}
+.v1-set .mono{font-size:9px;color:#888;letter-spacing:1px}
+.v1-shopgrid{display:flex;gap:10px;margin-top:12px}
+.v1-prod{flex:1;border:1.5px solid var(--ink);padding:10px}
+.v1-prod .tag{font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:1.5px;color:var(--voltDeep)}
+.v1-prod h5{font-size:13px;font-weight:800;margin-top:4px;line-height:1.3}
+.v1-prod .pr{font-family:'Oswald',sans-serif;font-size:17px;font-weight:600;margin-top:14px}
+
+/* ═════════ V2 — 스타디움 (풀 다크 × 일렉트릭) ═════════ */
+.v2 .ph{background:var(--night);color:#EDF1E8}
+.v2-card{background:var(--nightCard);border:1px solid #222A21;position:relative;margin-top:10px}
+.v2-card.edge::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--volt)}
+.v2-k{font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:2.5px;color:var(--volt)}
+.v2-hero{padding:15px 15px 13px}
+.v2-hero h4{font-size:30px;line-height:1.05;margin-top:5px;color:#fff}
+.v2-hero h4 em{font-style:normal;color:var(--volt)}
+.v2-ring{display:flex;gap:14px;align-items:center;padding:13px 15px}
+.v2-ringviz{width:66px;height:66px;border-radius:50%;background:conic-gradient(var(--volt) 0 245deg,#222A21 245deg 360deg);display:flex;align-items:center;justify-content:center;flex:none}
+.v2-ringviz i{width:50px;height:50px;border-radius:50%;background:var(--nightCard);display:flex;flex-direction:column;align-items:center;justify-content:center;font-style:normal}
+.v2-ringviz b{font-family:'Oswald',sans-serif;font-size:15px;color:#fff}
+.v2-ringviz span{font-size:7px;color:#7d8878}
+.v2-ring .tx b{display:block;font-size:15px;font-weight:800;color:#fff}
+.v2-ring .tx span{font-size:11.5px;color:#8fa093}
+.v2-cta{display:block;background:var(--volt);color:var(--ink);text-align:center;font-weight:900;font-size:14.5px;padding:15px 0;margin-top:10px;letter-spacing:.5px;box-shadow:0 0 24px rgba(198,245,66,.25)}
+.v2-row{display:flex;gap:11px;align-items:center;padding:11px 15px;border-top:1px solid #1B221A}
+.v2-row .t{font-family:'Oswald',sans-serif;font-size:16px;font-weight:600;color:var(--volt);width:50px}
+.v2-row .nm{flex:1}
+.v2-row .nm b{font-size:13.5px;color:#fff}
+.v2-row .nm span{display:block;font-size:11px;color:#7d8878;margin-top:1px}
+.v2-set{display:flex;justify-content:space-between;align-items:center;padding:13px 15px;border-top:1px solid #1B221A}
+.v2-set b{font-size:14px;color:#EDF1E8}
+.v2-shopgrid{display:flex;gap:1px;background:#222A21;border:1px solid #222A21;margin-top:10px}
+.v2-prod{flex:1;background:var(--nightCard);padding:11px}
+.v2-prod .tag{font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:1.5px;color:var(--volt)}
+.v2-prod h5{font-size:12.5px;font-weight:700;color:#fff;margin-top:4px;line-height:1.35}
+.v2-prod .pr{font-family:'Oswald',sans-serif;font-size:16px;color:#fff;margin-top:13px}
+
+/* ═════════ V3 — 콘크리트 포스터 (쿨 그레이 × 블록) ═════════ */
+.v3 .ph{background:var(--concrete);color:var(--ink)}
+.v3-block{background:#fff;border:2px solid var(--ink);box-shadow:4px 4px 0 var(--ink);margin-top:12px}
+.v3-blockhead{background:var(--ink);color:#fff;padding:7px 12px;display:flex;justify-content:space-between}
+.v3-blockhead .mono{font-size:8.5px;letter-spacing:2px;color:var(--volt)}
+.v3-hero{padding:13px 12px}
+.v3-hero h4{font-size:31px;line-height:1.03}
+.v3-hero h4 em{font-style:normal;background:var(--volt);padding:0 6px}
+.v3-num{display:flex;border-top:2px solid var(--ink)}
+.v3-num div{flex:1;text-align:center;padding:10px 0;border-right:2px solid var(--ink)}
+.v3-num div:last-child{border-right:0}
+.v3-num b{font-family:'Oswald',sans-serif;font-size:24px;font-weight:700}
+.v3-num span{display:block;font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:1.5px;color:#666;margin-top:2px}
+.v3-cta{display:block;background:var(--tang);color:#fff;border:2px solid var(--ink);box-shadow:4px 4px 0 var(--ink);text-align:center;font-weight:900;font-size:15px;padding:14px 0;margin-top:14px}
+.v3-row{display:flex;gap:10px;align-items:center;padding:11px 12px;border-top:2px solid var(--ink)}
+.v3-row .t{font-family:'Oswald',sans-serif;font-size:16px;font-weight:700;width:50px}
+.v3-row .nm{flex:1;font-size:13.5px;font-weight:700}
+.v3-row .st{font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:1px;padding:3px 7px;border:2px solid var(--ink);background:var(--volt)}
+.v3-set{display:flex;justify-content:space-between;padding:13px 12px;border-top:2px solid var(--ink);font-weight:700;font-size:14px}
+</style>
+</head>
+<body>
+<h1 class="bhs">전면 업히벌 — 3방향 × 4키스크린</h1>
+<p class="lede">진단 동의: 지금 앱은 <b>라운드 20 카드 + 베이지(크림 #F8F6F0) + 시스템 폰트</b> 3종 세트가 '순한 맛'을 만들고 있습니다. 처방 공통분모 — ① 베이지 박멸 ② 라운드 6 이하 ③ 폰트 3단 체계: <b>Black Han Sans</b>(한글 디스플레이) + <b>Oswald</b>(숫자 — 애슬레틱 컨덴스드) + <b>Pretendard</b>(본문 — 시스템 폰트 은퇴) + Plex Mono(라벨). 이 페이지 전체가 이미 그 폰트로 렌더 중입니다. 각 방향은 보호자 홈 · 내 일정 · 마이/설정 · 샵 4화면.</p>
+
+<!-- ═════════ V1 ═════════ -->
+<h2 class="bhs" style="color:#fff">V1 매니페스토 <small>화이트 × 잉크 — 하드 에디토리얼 (클럽 D1의 전앱 버전)</small></h2>
+<div class="row v1">
+  <div class="shot"><div class="sl">01 — HOME</div><div class="ph">
+    <div class="v1-mast"><h3 class="bhs">도그스하이</h3><span class="mono">SEOUL · BANPO</span></div>
+    <div class="v1-hero"><span class="k">TODAY — 몽이</span><h4 class="bhs">오늘도<br>하이 찍자</h4></div>
+    <div class="v1-num">
+      <div><b class="osw">12.4<em>km</em></b><span>THIS WEEK / 15</span></div>
+      <div><b class="osw">3</b><span>RUNS</span></div>
+      <div><b class="osw">6'42"</b><span>BEST PACE</span></div>
+    </div>
+    <a class="v1-cta">밀어서 러닝 예약 →</a>
+  </div></div>
+  <div class="shot"><div class="sl">02 — SCHEDULE</div><div class="ph">
+    <div class="v1-mast"><h3 class="bhs">내 일정</h3><span class="mono">JUL W5</span></div>
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:2px;color:#888;padding:12px 0 6px">7.26 SAT</div>
+    <div class="v1-band" style="border-top:2.5px solid var(--ink)">
+      <span class="t osw">07:00</span>
+      <div class="nm"><b>서리풀 공원 · 몽이</b><span>지훈 러너 · 3km · 24,000원</span></div>
+      <span class="v1-st" style="color:var(--blue);border-color:var(--blue)">DONE</span>
+    </div>
+    <div class="v1-band">
+      <span class="t osw">18:30</span>
+      <div class="nm"><b>반포 한강 코스 · 몽이</b><span>지훈 러너 · 5km · 29,000원</span></div>
+      <span class="v1-st" style="color:var(--voltDeep);border-color:var(--voltDeep)">CONFIRMED</span>
+    </div>
+    <div class="v1-band">
+      <span class="t osw">09:00</span>
+      <div class="nm"><b>하이클럽 정기 세션</b><span>잠수교 북단 · 3팀</span></div>
+      <span class="v1-st" style="color:var(--club);border-color:var(--club)">CLUB</span>
+    </div>
+  </div></div>
+  <div class="shot"><div class="sl">03 — MY</div><div class="ph">
+    <div class="v1-mast"><h3 class="bhs">마이</h3><span class="mono">SEAN — OWNER</span></div>
+    <div class="v1-hero" style="padding:14px 0 12px"><span class="k">MONGI — 6.5KG · WELSH CORGI</span><h4 class="bhs" style="font-size:26px">몽이 <span style="font-size:14px;color:#888">프로필 →</span></h4></div>
+    <div class="v1-set"><b>알림</b><span class="mono">ON</span></div>
+    <div class="v1-set"><b>주소 관리</b><span class="mono">2</span></div>
+    <div class="v1-set"><b>결제 수단</b><span class="mono">···1234</span></div>
+    <div class="v1-set"><b>안전 센터</b><span class="mono">→</span></div>
+  </div></div>
+  <div class="shot"><div class="sl">04 — SHOP</div><div class="ph">
+    <div class="v1-mast"><h3 class="bhs">샵</h3><span class="mono">DOGS HIGH GEAR</span></div>
+    <div class="v1-hero" style="padding:13px 0 11px"><span class="k">HIGH POINT</span><h4 class="osw" style="font-size:33px;font-weight:600">2,480<span style="font-size:13px;font-family:Pretendard;font-weight:700;color:#888"> 포인트</span></h4></div>
+    <div class="v1-shopgrid">
+      <div class="v1-prod"><span class="tag">HARNESS</span><h5>러닝 하네스 · 몽이 각인</h5><div class="pr osw">39,000</div></div>
+      <div class="v1-prod"><span class="tag">SNACK</span><h5>완주 보상 트릿 박스</h5><div class="pr osw">12,000</div></div>
+    </div>
+  </div></div>
+</div>
+<p class="note">종이 위 잉크 — 흰 배경에 2.5px 잉크 룰이 구조를 그리고, 카드 대신 밴드. 볼트는 CTA 반전(잉크 바탕 위 볼트 텍스트)과 킥커에만. 상태는 컬러 모노 태그. 밝은 앱을 유지하면서 가장 크게 크리스프해지는 길 — 클럽 나이트 스텁과의 대비도 최대.</p>
+
+<!-- ═════════ V2 ═════════ -->
+<h2 class="bhs" style="color:#fff">V2 스타디움 <small>풀 다크 × 일렉트릭 — 밤의 트랙 (클럽 D2의 전앱 버전)</small></h2>
+<div class="row v2">
+  <div class="shot"><div class="sl">01 — HOME</div><div class="ph">
+    <div class="v2-k">DOGS HIGH — TONIGHT</div>
+    <div class="v2-card edge"><div class="v2-hero"><span class="v2-k">TODAY — 몽이</span><h4 class="bhs">오늘도 <em>하이</em> 찍자</h4></div>
+      <div class="v2-ring">
+        <div class="v2-ringviz"><i><b class="osw">12.4</b><span>/15KM</span></i></div>
+        <div class="tx"><b>이번 주 82%</b><span>3런 · 베스트 6'42"/km</span></div>
+      </div>
+    </div>
+    <a class="v2-cta">밀어서 러닝 예약 →</a>
+    <div class="v2-card"><div class="v2-row"><span class="t">18:30</span><div class="nm"><b>반포 한강 코스</b><span>오늘 · 지훈 러너 · 5km</span></div><span class="v2-k" style="color:var(--amber)">SOON</span></div></div>
+  </div></div>
+  <div class="shot"><div class="sl">02 — SCHEDULE</div><div class="ph">
+    <div class="v2-k">MY SCHEDULE — JUL W5</div>
+    <div class="v2-card edge">
+      <div class="v2-row" style="border-top:0"><span class="t">07:00</span><div class="nm"><b>서리풀 공원 · 몽이</b><span>지훈 러너 · 3km</span></div><span class="v2-k" style="color:var(--blue)">DONE</span></div>
+      <div class="v2-row"><span class="t">18:30</span><div class="nm"><b>반포 한강 코스 · 몽이</b><span>지훈 러너 · 5km</span></div><span class="v2-k">CONFIRMED</span></div>
+      <div class="v2-row"><span class="t">09:00</span><div class="nm"><b>하이클럽 정기 세션</b><span>잠수교 북단 · 3팀</span></div><span class="v2-k" style="color:var(--neon)">CLUB</span></div>
+    </div>
+  </div></div>
+  <div class="shot"><div class="sl">03 — MY</div><div class="ph">
+    <div class="v2-k">MY — SEAN · OWNER</div>
+    <div class="v2-card edge"><div class="v2-hero" style="padding-bottom:11px"><span class="v2-k">MONGI — 6.5KG</span><h4 class="bhs" style="font-size:24px">몽이</h4></div></div>
+    <div class="v2-card">
+      <div class="v2-set" style="border-top:0"><b>알림</b><span class="v2-k">ON</span></div>
+      <div class="v2-set"><b>주소 관리</b><span class="v2-k">2</span></div>
+      <div class="v2-set"><b>결제 수단</b><span class="v2-k">···1234</span></div>
+      <div class="v2-set"><b>안전 센터</b><span class="v2-k" style="color:var(--tang)">SOS</span></div>
+    </div>
+  </div></div>
+  <div class="shot"><div class="sl">04 — SHOP</div><div class="ph">
+    <div class="v2-k">SHOP — DOGS HIGH GEAR</div>
+    <div class="v2-card edge"><div class="v2-hero"><span class="v2-k">HIGH POINT</span><h4 class="osw" style="font-weight:600;font-size:32px">2,480<span style="font-size:12px;font-family:Pretendard;color:#7d8878"> 포인트</span></h4></div></div>
+    <div class="v2-shopgrid">
+      <div class="v2-prod"><span class="tag">HARNESS</span><h5>러닝 하네스 · 몽이 각인</h5><div class="pr">39,000</div></div>
+      <div class="v2-prod"><span class="tag">SNACK</span><h5>완주 보상 트릿 박스</h5><div class="pr">12,000</div></div>
+    </div>
+  </div></div>
+</div>
+<p class="note">앱 전체가 밤의 스타디움 — 클럽만 다크였던 걸 뒤집어 전부 다크, 볼트가 플러드라이트. 사진·트레이스·컬러가 가장 강하게 발광하고 '운동 에너지'는 최대. 리스크: 낮 야외(러닝 현장) 가독성과, 클럽 바이올렛 월드와의 대비 축소.</p>
+
+<!-- ═════════ V3 ═════════ -->
+<h2 class="bhs" style="color:#fff">V3 콘크리트 포스터 <small>쿨 그레이 × 하드섀도 블록 — 체육관 벽보</small></h2>
+<div class="row v3">
+  <div class="shot"><div class="sl">01 — HOME</div><div class="ph">
+    <div class="v3-block"><div class="v3-blockhead"><span class="mono">TODAY — 몽이</span><span class="mono" style="color:#fff">JUL 29</span></div>
+      <div class="v3-hero"><h4 class="bhs">오늘도 <em>하이</em> 찍자</h4></div>
+      <div class="v3-num"><div><b class="osw">12.4</b><span>KM / 15</span></div><div><b class="osw">3</b><span>RUNS</span></div><div><b class="osw">6'42"</b><span>PACE</span></div></div>
+    </div>
+    <a class="v3-cta">밀어서 러닝 예약 →</a>
+  </div></div>
+  <div class="shot"><div class="sl">02 — SCHEDULE</div><div class="ph">
+    <div class="v3-block"><div class="v3-blockhead"><span class="mono">MY SCHEDULE</span><span class="mono" style="color:#fff">JUL W5</span></div>
+      <div class="v3-row" style="border-top:0"><span class="t osw">07:00</span><span class="nm">서리풀 공원 · 몽이</span><span class="st" style="background:#DCE8F5">DONE</span></div>
+      <div class="v3-row"><span class="t osw">18:30</span><span class="nm">반포 한강 · 몽이</span><span class="st">OK</span></div>
+      <div class="v3-row"><span class="t osw">09:00</span><span class="nm">하이클럽 정기 세션</span><span class="st" style="background:#E6E0FF">CLUB</span></div>
+    </div>
+  </div></div>
+  <div class="shot"><div class="sl">03 — MY</div><div class="ph">
+    <div class="v3-block"><div class="v3-blockhead"><span class="mono">MY — SEAN</span><span class="mono" style="color:#fff">OWNER</span></div>
+      <div class="v3-set" style="border-top:0"><span>알림</span><span class="mono">ON</span></div>
+      <div class="v3-set"><span>주소 관리</span><span class="mono">2</span></div>
+      <div class="v3-set"><span>결제 수단</span><span class="mono">···1234</span></div>
+    </div>
+  </div></div>
+  <div class="shot"><div class="sl">04 — SHOP</div><div class="ph">
+    <div class="v3-block"><div class="v3-blockhead"><span class="mono">DOGS HIGH GEAR</span><span class="mono" style="color:#fff">2,480P</span></div>
+      <div class="v3-hero" style="padding:11px 12px"><h4 class="bhs" style="font-size:22px">러닝 하네스<br><span style="font-size:14px;font-family:'Oswald';font-weight:700">39,000</span></h4></div>
+    </div>
+    <a class="v3-cta" style="background:var(--volt);color:var(--ink)">담기</a>
+  </div></div>
+</div>
+<p class="note">체육관 벽보 — 잉크 2px 보더 + 4px 하드섀도 블록, 헤더는 잉크 반전 바. 물성은 가장 강한데 하드섀도가 화면마다 반복되면 '스티커북' 위험. 포스터·공유물엔 최강.</p>
+
+<p class="lede" style="margin-top:40px;border-top:1px solid #232a22;padding-top:16px">
+<b style="color:var(--volt)">추천: V1 매니페스토를 본체로, V2를 '밤 화면'(라이브·클럽·인증샷)에.</b> 낮 = 종이 위 잉크(화이트·룰 라인·오스왈드 숫자), 밤 = 스타디움(라이브 러닝·하이클럽·샷 스튜디오는 이미 다크) — 두 세계의 스위치 자체가 브랜드 리듬이 됩니다. 폰트 3단(BHS/Oswald/Pretendard)은 어느 방향이든 공통 선행 작업. 방향(또는 조합) 정해주시면 토큰·폰트부터 화면 단위로 순차 전환합니다.
+</p>
+</body>
+</html>
