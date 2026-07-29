@@ -13,6 +13,7 @@
 - [ ] **Sean: `npx supabase db push` (0025 패치 보너스 + 0026 반복 예약 + 0027 집계 RPC)** — 함수 재배포는 불필요 (RPC/크론만). ⚠ 0027 push 전까지 앱의 포인트 잔액·정산 예정이 RPC 404로 에러 — push 먼저, 앱 확인 나중
 - [ ] **반복 예약 (NEW 6882d93)**: 요청 화면 토글 → 결제 → 일정 탭 ⟳ 필 확인 → 관리 시트 '매주 반복 해지' → 크론 생성은 다음 발생 72h 전 (수동 트리거: 대시보드 SQL `select generate_recurring_bookings();`)
 - [ ] **네이버 지도 (NEW)**: 설치+prebuild 후 — 러너 run 화면 실지도+본인 라인 · 보호자 live 실시간 라인/마커 · 지도 안 뜨면 NCP 콘솔에서 **Mobile Dynamic Map 활성 + iOS 번들 com.seankookim.daengrun 등록** 확인 (401 = 키/번들 문제)
+- [ ] **트레이스 스무딩 (NEW ce8fc00)**: 라인이 곡선+화이트 케이싱으로 보이는지 (3화면) · 도심에서 지그재그/순간이동 사라졌는지 · km 값이 이전 대비 살짝 줄 수 있음(지터 제거 — 정상)
 - [ ] **Sean 설치 커맨드 (지도)**: `cd app && npx expo install expo-build-properties && npm i @mj-studio/react-native-naver-map && npm uninstall react-native-maps && npx expo prebuild -p ios --clean && npx expo run:ios` → package.json 변경 커밋
 
 ## B. 소형 빌드 — 2026-07-29 세션 전부 완료 (9b0a32b)
