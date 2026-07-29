@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>도그스하이 파이널 시스템 — V1×V2×V3 통합</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Oswald:wght@500;600;700&family=IBM+Plex+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#0E100D;--volt:#C6F542;--voltDeep:#7FA818;--tang:#FF5C3D;--club:#7B6CDF;--neon:#9F8FFF;
+--blue:#6E9BC5;--amber:#F59A43;--terra:#C96F4A;--terraInk:#6B3A24;
+--paper:#FFFFFF;--night:#0B0E0B;--nightCard:#121712;--vnight:#14102B;--vedge:#2A2350;--vdim:#8F86C2;--moss:#A9C463;}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0A0C0A;color:#E8EBE4;font-family:'Pretendard Variable',Pretendard,sans-serif;padding:32px 26px 90px}
+.bhs{font-family:'Black Han Sans',sans-serif;font-weight:400}
+.osw{font-family:'Oswald',sans-serif}
+.mono{font-family:'IBM Plex Mono',monospace}
+h1{font-size:27px;color:var(--volt)}
+.lede{color:#7d8878;margin:9px 0 4px;max-width:940px;line-height:1.65;font-size:13.5px}
+.legend{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}
+.lg{background:#151a14;border:1px solid #232a22;padding:8px 12px;font-size:11.5px;color:#c8d0c2;line-height:1.5}
+.lg b{color:#fff}
+.row{display:flex;gap:18px;flex-wrap:wrap;margin-top:26px;align-items:flex-start}
+.shot{width:286px}
+.sl{font-size:10.5px;letter-spacing:2px;color:#7d8878;margin-bottom:7px;font-family:'IBM Plex Mono',monospace}
+.note{color:#8fa093;font-size:11.5px;line-height:1.6;margin:9px 2px 0}
+.ph{min-height:430px;padding:14px 12px;overflow:hidden;position:relative;background:var(--paper);color:var(--ink)}
+.ph.dark{background:var(--night);color:#EDF1E8}
+.ph.vdark{background:#0D0A1E;color:#EDE9FF}
+/* 공통 문법 */
+.mast{display:flex;justify-content:space-between;align-items:baseline;padding-bottom:9px;border-bottom:2.5px solid var(--ink)}
+.mast h3{font-size:20px}
+.mast .mono{font-size:9px;letter-spacing:2px;color:#888}
+.k{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:2.5px;color:var(--voltDeep)}
+.hi{background:var(--volt);padding:0 5px}  /* V3 형광 하이라이트 */
+.num{display:flex;border-bottom:2.5px solid var(--ink);border-top:1px solid #D8DAD2}
+.num div{flex:1;padding:11px 4px 12px;border-right:1px solid #D8DAD2}
+.num div:last-child{border-right:0}
+.num b{display:block;font-family:'Oswald',sans-serif;font-size:27px;font-weight:600;line-height:1}
+.num b em{font-style:normal;color:var(--tang)}  /* 코랄 = 도파민 숫자 */
+.num span{display:block;font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:1.5px;color:#888;margin-top:4px}
+.cta3d{display:block;background:var(--tang);color:#fff;border:2px solid var(--ink);box-shadow:4px 4px 0 var(--ink);text-align:center;font-weight:900;font-size:15px;padding:14px 0;margin-top:14px}  /* V3 하드섀도 = 프라이머리 액션 전용 */
+.band{border-bottom:1px solid #D8DAD2;padding:11px 2px;display:flex;gap:11px;align-items:center}
+.band .t{font-family:'Oswald',sans-serif;font-size:17px;font-weight:600;width:52px}
+.band .nm{flex:1}
+.band .nm b{font-size:14px;font-weight:700}
+.band .nm span{display:block;font-size:11.5px;color:#666;margin-top:1px}
+.tag{font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:1.5px;padding:3px 7px;border:1.5px solid}
+.dogphoto{width:44px;height:44px;border-radius:50%;background:linear-gradient(140deg,#c9b89a,#8a7a5c);border:2.5px solid var(--tang);flex:none}  /* 소프트 예외: 생명체 */
+.seal{width:64px;height:64px;border-radius:50%;border:2.5px solid var(--blue);display:flex;flex-direction:column;align-items:center;justify-content:center;transform:rotate(8deg);color:var(--blue);flex:none;position:relative}
+.seal::before{content:'';position:absolute;inset:4px;border:1px dashed rgba(110,155,197,.5);border-radius:50%}
+.seal b{font-size:8px;letter-spacing:1px}.seal i{font-style:normal;font-size:11px;font-weight:900}.seal span{font-size:5.5px;letter-spacing:.5px;color:rgba(110,155,197,.8)}
+/* 레이더 (러너 홈) */
+.radar{border:2.5px solid var(--ink);margin-top:12px;position:relative;overflow:hidden}
+.radarhead{background:var(--ink);color:#fff;padding:7px 11px;display:flex;justify-content:space-between}
+.radarhead .mono{font-size:8.5px;letter-spacing:2px;color:var(--volt)}
+.radarbody{height:120px;position:relative;background:
+  radial-gradient(circle at 50% 100%, rgba(255,92,61,.10), transparent 60%),
+  repeating-radial-gradient(circle at 50% 100%, transparent 0 34px, #E5E2D8 34px 35px)}
+.blip{position:absolute;width:11px;height:11px;background:var(--tang);border:2px solid var(--ink);transform:rotate(45deg)}
+.radarfoot{border-top:2.5px solid var(--ink);padding:10px 11px;display:flex;align-items:baseline;gap:8px}
+.radarfoot b{font-family:'Oswald',sans-serif;font-size:23px;color:var(--tang)}
+.radarfoot span{font-size:12px;color:#666}
+/* 클럽 (V2 나이트 — 그대로) */
+.vcard{background:var(--vnight);border:1px solid var(--vedge);position:relative;margin-top:11px}
+.vcard::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--neon)}
+.vk{font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:2.5px;color:var(--neon)}
+.stampM{border:3px solid var(--moss);padding:5px 11px;transform:rotate(-7deg);text-align:center;background:rgba(15,29,19,.35);display:inline-block}
+.stampM b{display:block;font-size:11px;letter-spacing:2px;color:var(--moss)}
+.stampM span{display:block;font-size:6.5px;letter-spacing:1.5px;color:rgba(169,196,99,.85);border-top:1px solid rgba(169,196,99,.4);margin-top:2px;padding-top:2px}
+.perf{display:flex;align-items:center;height:12px;margin:2px 0}
+.perf .dash{flex:1;border-top:1px dashed #3A3168;margin:0 9px}
+.perf .nt{width:12px;height:12px;background:#0D0A1E;transform:rotate(45deg);position:absolute}
+.grid2{display:flex;border:1px solid var(--vedge);margin:8px 14px 0}
+.grid2 div{flex:1;padding:8px 10px;border-right:1px solid var(--vedge)}
+.grid2 div:last-child{border-right:0}
+.grid2 span{display:block;font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:1.5px;color:var(--vdim)}
+.grid2 b{display:block;font-size:14px;color:#fff;margin-top:3px}
+.chk{align-self:center;border:2.5px solid var(--volt);padding:7px 16px;transform:rotate(-7deg);text-align:center;margin:10px auto 4px;display:inline-block}
+.chk b{font-size:15px;letter-spacing:3px;color:var(--volt)}
+.bars{display:flex;gap:2px;align-items:flex-end;height:22px;margin:10px 14px 0;opacity:.7}
+.bars i{background:var(--vdim);width:2px}
+.bars i:nth-child(3n){width:3.5px}.bars i:nth-child(4n){height:58%}
+/* 샵 (미들그라운드: V1 룰 + 테라 잉크 + 3D 담기) */
+.shopmast{display:flex;justify-content:space-between;align-items:baseline;padding-bottom:9px;border-bottom:2.5px solid var(--terraInk)}
+.prod{border:1.5px solid var(--terraInk);padding:11px;flex:1}
+.prod .tg{font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:1.5px;color:var(--terra)}
+.prod h5{font-size:13px;font-weight:800;margin-top:4px;color:var(--terraInk)}
+.prod .pr{font-family:'Oswald',sans-serif;font-size:17px;font-weight:600;margin-top:12px;color:var(--terraInk)}
+.addbtn{background:var(--terra);color:#fff;border:2px solid var(--terraInk);box-shadow:3px 3px 0 var(--terraInk);font-weight:900;font-size:12px;text-align:center;padding:8px 0;margin-top:9px;display:block}
+</style>
+</head>
+<body>
+<h1 class="bhs">파이널 시스템 — V1 본체 × V3 펀치 × V2 밤 × 소프트 예외</h1>
+<p class="lede">통합 규칙 6개로 전부 정리됩니다. 스탬프·티켓·클럽 바이올렛은 전부 살아남고 (자기 자리가 더 명확해짐), 빕 넘버는 은퇴 (앱 코드에서도 방금 제거 완료).</p>
+<div class="legend">
+  <div class="lg"><b>① 본체 = V1</b> 화이트 × 잉크 룰 × 밴드 — 카드 수프·베이지 박멸</div>
+  <div class="lg"><b>② 펀치 = V3</b> 하드섀도 3D는 <b>화면당 프라이머리 액션 1개</b>에만 · 코랄 = 도파민 숫자·긴급 · 형광펜 하이라이트 = 히어로 카피 1곳</div>
+  <div class="lg"><b>③ 밤 = V2</b> 라이브 러닝 · 하이클럽(바이올렛 나이트) · 인증샷 스튜디오 · 입장권 — 낮/밤 스위치가 브랜드 리듬</div>
+  <div class="lg"><b>④ 소프트 예외</b> 생명체(강아지 사진·아바타)와 도장만 원형 — 기하는 각지고, 생명은 둥글다</div>
+  <div class="lg"><b>⑤ 폰트 3단</b> BHS 디스플레이 · Oswald 숫자 · Pretendard 본문 · Mono 라벨</div>
+  <div class="lg"><b>⑥ 컬러 맵 유지</b> 볼트=브랜드 · 코랄=펀치 · 블루=완주 · 바이올렛=클럽 · 골드=기록 · 테라=샵</div>
+</div>
+
+<div class="row">
+
+<div class="shot"><div class="sl">01 — 보호자 홈 (V1+펀치+소프트)</div><div class="ph">
+  <div class="mast"><h3 class="bhs">도그스하이</h3><span class="mono">SEOUL · BANPO</span></div>
+  <div style="display:flex;gap:12px;align-items:center;padding:15px 0 12px;border-bottom:1px solid #D8DAD2">
+    <div class="dogphoto"></div>
+    <div><span class="k">TODAY — 몽이</span>
+    <div class="bhs" style="font-size:29px;line-height:1.05;margin-top:3px">오늘도 <span class="hi">하이</span> 찍자</div></div>
+  </div>
+  <div class="num">
+    <div><b class="osw">12.4<em>km</em></b><span>THIS WEEK / 15</span></div>
+    <div><b class="osw">3</b><span>RUNS</span></div>
+    <div><b class="osw">6'42"</b><span>BEST PACE</span></div>
+  </div>
+  <a class="cta3d">밀어서 러닝 예약 →</a>
+  <div style="margin-top:13px" class="vcard"><div style="padding:10px 13px 11px">
+    <span class="vk">HIGH CLUB — 반포동</span>
+    <div class="bhs" style="font-size:17px;color:#fff;margin-top:3px">반포동 하이클럽 <span style="font-size:11px;color:var(--vdim)">토 09:00 · 3팀</span></div>
+  </div></div>
+</div>
+<p class="note">잉크 룰 본체 + 강아지 사진만 원형(코랄 링 = 칼라 컬러) + 형광펜 '하이' + 3D 코랄 CTA 1개. 하단: 클럽 모듈은 나이트 스텁 그대로 박혀서 '밤으로 가는 문'이 됨.</p></div>
+
+<div class="shot"><div class="sl">02 — 내 일정 (밴드 + 도장 생존)</div><div class="ph">
+  <div class="mast"><h3 class="bhs">내 일정</h3><span class="mono">JUL W5</span></div>
+  <div class="mono" style="font-size:9px;letter-spacing:2px;color:#888;padding:12px 0 6px">7.26 SAT</div>
+  <div class="band" style="border-top:2.5px solid var(--ink)">
+    <span class="t osw">07:00</span>
+    <div class="nm"><b>서리풀 공원 · 몽이</b><span>지훈 러너 · 3km · 24,000원</span></div>
+    <div class="seal"><b>FINISHER</b><i>07.26</i><span>DOGS HIGH</span></div>
+  </div>
+  <div class="band">
+    <span class="t osw">18:30</span>
+    <div class="nm"><b>반포 한강 코스 · 몽이</b><span>지훈 러너 · 5km · 29,000원</span></div>
+    <span class="tag" style="color:var(--voltDeep);border-color:var(--voltDeep)">CONFIRMED</span>
+  </div>
+  <div class="band">
+    <span class="t osw">09:00</span>
+    <div class="nm"><b>하이클럽 정기 세션</b><span>잠수교 북단 · 3팀</span></div>
+    <span class="tag" style="color:var(--club);border-color:var(--club);background:#EFECFF">CLUB 🎟</span>
+  </div>
+  <div style="display:flex;gap:8px;margin-top:10px">
+    <span style="flex:1;text-align:center;border:1.5px solid var(--ink);font-weight:800;font-size:12px;padding:9px 0">📸 공유 카드</span>
+    <span style="flex:1;text-align:center;border:1.5px solid var(--ink);font-weight:800;font-size:12px;padding:9px 0">🐕 피드 자랑</span>
+  </div>
+</div>
+<p class="note">풀와이드 밴드 유지(좋아하신 부분) — 라운드 카드만 룰 라인으로. T3 원형 소인은 그대로 생존 (규칙 ④: 도장은 둥글다). 클럽 행 = 바이올렛 티켓 태그.</p></div>
+
+<div class="shot"><div class="sl">03 — 러너 홈 레이더 (질문하신 것)</div><div class="ph">
+  <div class="mast"><h3 class="bhs">러너 홈</h3><span class="mono">JIHUN — CERTIFIED</span></div>
+  <div class="radar">
+    <div class="radarhead"><span class="mono">RADAR — 새 요청</span><span class="mono" style="color:#fff">LIVE</span></div>
+    <div class="radarbody">
+      <span class="blip" style="left:38%;top:44%"></span>
+      <span class="blip" style="left:64%;top:68%;opacity:.55"></span>
+    </div>
+    <div class="radarfoot"><b class="osw">2</b><span>건 · 가장 가까운 요청 420m — <b style="font-family:Pretendard;font-size:12px;color:var(--tang)">18:30 몽이 5km</b></span></div>
+  </div>
+  <a class="cta3d" style="margin-top:12px">요청 확인 →</a>
+  <div class="vcard"><div style="padding:9px 13px 10px;display:flex;align-items:center;gap:9px">
+    <span style="background:#fff;color:var(--club);font-weight:900;font-size:11px;padding:3px 8px">7팀</span>
+    <span style="flex:1;font-size:11.5px;color:#E9E5FF"><b style="color:#fff">반포동</b>이 호스트를 기다려요</span>
+    <span style="color:#fff;font-weight:900">›</span>
+  </div></div>
+</div>
+<p class="note">레이더 = 잉크 프레임 안의 관제 기기: 동심원 그리드 + 코랄 다이아 블립(펄스는 코랄 유지 — 긴급의 색). 숫자는 오스왈드 코랄. 하단 클럽 스트립은 나이트 그대로.</p></div>
+
+<div class="shot"><div class="sl">04 — 샵 (미들그라운드)</div><div class="ph" style="background:#FDFBF8">
+  <div class="shopmast"><h3 class="bhs" style="color:var(--terraInk)">샵</h3><span class="mono" style="color:var(--terra)">DOGS HIGH GEAR</span></div>
+  <div style="padding:13px 0 11px;border-bottom:1px solid #E8CDBE"><span class="k" style="color:var(--terra)">HIGH POINT</span>
+    <div class="osw" style="font-size:31px;font-weight:600;color:var(--terraInk)">2,480<span style="font-size:12px;font-family:Pretendard;font-weight:700;color:#A87A62"> 포인트</span></div>
+  </div>
+  <div style="display:flex;gap:10px;margin-top:12px">
+    <div class="prod"><span class="tg">HARNESS</span><h5>러닝 하네스 · 몽이 각인</h5><div class="pr">39,000</div><a class="addbtn">담기</a></div>
+    <div class="prod"><span class="tg">SNACK</span><h5>완주 보상 트릿 박스</h5><div class="pr">12,000</div><a class="addbtn">담기</a></div>
+  </div>
+</div>
+<p class="note">테라코타 부티크의 온도는 유지하되 문법을 교체 — 베이지 크래프트 배경 → 거의 흰 종이(#FDFBF8), 라운드 카드 → 테라 잉크 룰, 담기 = 미니 3D. '부티크인데 크리스프'.</p></div>
+
+<div class="shot"><div class="sl">05 — 입장권 (V2 — 빕 은퇴 반영)</div><div class="ph vdark">
+  <div class="vcard" style="margin-top:26px">
+    <div style="padding:14px 16px 12px;display:flex;gap:10px">
+      <div style="flex:1"><span class="vk">ADMIT — TEAM OF 2 (YOU + DOG)</span>
+        <div class="bhs" style="font-size:22px;color:#fff;margin-top:4px">반포동 하이클럽</div>
+        <div style="font-size:11px;color:var(--vdim);margin-top:2px">호스트 션 러너 · HIGH-VERIFIED</div>
+      </div>
+      <div style="border:1px solid var(--vedge);background:#1B1536;padding:6px 11px;text-align:center;align-self:flex-start">
+        <span class="vk" style="color:var(--vdim);letter-spacing:2px">TEAMS</span>
+        <div style="font-size:18px;font-weight:900;color:var(--neon)">4<span style="font-size:11px;color:var(--vdim)">/9</span></div>
+      </div>
+    </div>
+    <div class="perf"><span class="nt" style="left:-6px"></span><span class="dash"></span><span class="nt" style="right:-6px"></span></div>
+    <div class="grid2"><div><span>DATE</span><b>토 09:00</b></div><div><span>MEET</span><b>잠수교 북단</b></div></div>
+    <div style="padding:12px 16px 0"><span class="vk" style="color:var(--vdim)">TEAM</span>
+      <div class="bhs" style="font-size:24px;color:#fff;margin-top:2px">지은 + 보리</div></div>
+    <div style="text-align:center"><span class="chk"><b>CHECKED</b></span></div>
+    <div class="bars"><i style="height:100%"></i><i style="height:70%"></i><i style="height:100%"></i><i style="height:52%"></i><i style="height:90%"></i><i style="height:100%"></i><i style="height:62%"></i><i style="height:100%"></i><i style="height:80%"></i><i style="height:100%"></i><i style="height:56%"></i><i style="height:95%"></i><i style="height:100%"></i><i style="height:70%"></i><i style="height:100%"></i><i style="height:84%"></i></div>
+    <div class="vk" style="color:var(--vdim);margin:6px 0 12px 16px;letter-spacing:2px">DOGS HIGH · 8A3F21C4</div>
+  </div>
+  <div style="text-align:center;margin-top:12px;font-size:11px;color:var(--vdim)">집결지에서 호스트에게 이 화면을 보여주세요</div>
+</div>
+<p class="note">빕 박스 → TEAMS 카운트로 교체 완료 (코드 반영됨). 티켓·절취선·바코드·CHECKED 볼트 도장 전부 생존 — V2는 여기(그리고 라이브·샷 스튜디오)가 집.</p></div>
+
+<div class="shot"><div class="sl">06 — 클럽 배너 (바이올렛 생존 확인)</div><div class="ph">
+  <div class="mast"><h3 class="bhs">하이클럽</h3><span class="mono" style="color:var(--club)">HIGH CLUB</span></div>
+  <div style="border:1px solid var(--ink);padding:11px 12px;margin-top:12px;font-size:13px;color:#666">⌕ 동네 하이클럽 검색 — 예: 반포동</div>
+  <div class="vcard" style="height:148px;overflow:hidden">
+    <div style="position:absolute;inset:0;background:linear-gradient(160deg,#3d3568,#14102B 70%)"></div>
+    <div style="position:relative;padding:12px 14px;height:100%;display:flex;flex-direction:column">
+      <span class="vk">HIGH CLUB — 반포동</span>
+      <div class="bhs" style="font-size:26px;color:#fff;margin-top:2px">반포동 하이클럽</div>
+      <div style="font-size:11.5px;color:#d0cbe8;margin-top:3px">다음 세션 토 09:00 · 3팀 참여 중</div>
+      <span style="margin-top:auto;background:var(--club);border:1px solid var(--neon);color:#fff;font-weight:900;font-size:12px;padding:7px 13px;align-self:flex-start;box-shadow:0 0 14px rgba(159,143,255,.4)">참여하기 ›</span>
+      <span style="position:absolute;right:16px;bottom:34px" class="stampM"><b>HIGH-VERIFIED</b><span>FREE TO JOIN · ANYTIME</span></span>
+      <span style="position:absolute;top:11px;right:11px;background:var(--volt);color:var(--ink);font-weight:900;font-size:10.5px;padding:4px 9px">2자리</span>
+    </div>
+  </div>
+</div>
+<p class="note">좋아하신 것 그대로: 바이올렛 나이트 스텁 + 워너웃 모스 직인 + 네온 글로우 CTA. 크림이 사라지고 화이트 위에 앉으니 대비가 오히려 강해짐.</p></div>
+</div>
+
+<p class="lede" style="margin-top:36px;border-top:1px solid #232a22;padding-top:16px">
+질문들에 대한 답 — <b>스탬프</b>: 도장·소인은 규칙 ④(생명·의식은 둥글다)로 전부 생존, 완료 밴드·클럽 배너·입장권에 그대로. <b>티켓</b>: 클럽 월드(V2)가 티켓의 집 + 확정 밴드의 CLUB 태그가 입구. <b>퍼플</b>: 클럽 바이올렛 월드 무손실 — 화이트 본체 위에서 더 세게 보임. <b>레이더</b>: 03번 — 잉크 관제 기기 + 코랄 블립. <b>빕</b>: 은퇴 완료. 승인 주시면 폰트 번들(Pretendard·Oswald)부터 시작해 홈 → 일정 → 마이 → 샵 순으로 실전환 들어갑니다.
+</p>
+</body>
+</html>

@@ -33,9 +33,7 @@ export default function ClubPass() {
     );
   }
 
-  const myIdx = sess.people.findIndex((p) => p.isMe);
-  const me = myIdx >= 0 ? sess.people[myIdx] : null;
-  const bib = myIdx >= 0 ? String(myIdx + 1).padStart(3, '0') : '—';
+  const me = sess.people.find((p) => p.isMe) ?? null;
   const teamOf = me?.dogName ? 'TEAM OF 2 (YOU + DOG)' : 'TEAM OF 1';
   const d = new Date(sess.scheduledAt);
   const checked = sess.myAttendance === 'checked_in';
@@ -73,8 +71,8 @@ export default function ClubPass() {
               </Text>
             </View>
             <View style={s.bibBox}>
-              <Text style={{ fontSize: 8.5, letterSpacing: 2, fontWeight: '700', color: colors.nightDim }}>BIB</Text>
-              <Text style={{ fontSize: 21, fontWeight: '900', color: colors.neon, fontVariant: ['tabular-nums'] }}>{bib}</Text>
+              <Text style={{ fontSize: 8.5, letterSpacing: 2, fontWeight: '700', color: colors.nightDim }}>TEAMS</Text>
+              <Text style={{ fontSize: 21, fontWeight: '900', color: colors.neon, fontVariant: ['tabular-nums'] }}>{sess.people.length}<Text style={{ fontSize: 12, color: colors.nightDim }}>/{sess.capacity}</Text></Text>
             </View>
           </View>
 

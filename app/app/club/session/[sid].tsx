@@ -165,7 +165,6 @@ export default function ClubSession() {
             const rl = ROLE_LABEL[p.role] ?? ROLE_LABEL.owner_attending;
             return (
               <Row key={i} style={{ marginTop: 4, alignItems: 'center', gap: 10, paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: '#221C42', ...(p.isMe ? { backgroundColor: '#1B1536', marginHorizontal: -8, paddingHorizontal: 8 } : {}) }}>
-                <Text style={s.bib}>{String(i + 1).padStart(3, '0')}</Text>
                 <Avatar url={p.avatarUrl} char={p.name[0]} bg="#5a7a3c" size={30} />
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontSize: 14.5, fontWeight: '800', color: '#EDE9FF' }}>
@@ -235,7 +234,6 @@ const s = StyleSheet.create({
   meetupBox: { backgroundColor: '#1B1536', borderRadius: 4, padding: 11, marginTop: 11, borderWidth: 1, borderColor: colors.nightEdge },
   card: { backgroundColor: colors.nightCard, borderRadius: 6, borderWidth: 1, borderColor: colors.nightEdge, padding: 15, marginTop: 11 },
   entryHead: { fontSize: 11, fontWeight: '800', letterSpacing: 2, color: colors.neon, marginBottom: 6 },
-  bib: { fontSize: 12, fontWeight: '700', color: colors.neon, width: 30, fontVariant: ['tabular-nums'] },
   roleTag: { borderRadius: 4, paddingVertical: 3, paddingHorizontal: 8 },
   checkedStamp: { borderWidth: 1.5, borderColor: colors.volt, borderRadius: 4, paddingVertical: 3, paddingHorizontal: 8, transform: [{ rotate: '-6deg' }] },
   cta: { backgroundColor: colors.club, borderRadius: 6, borderWidth: 1.2, borderColor: colors.neon, alignItems: 'center', paddingVertical: 14, marginTop: 12, shadowColor: colors.neon, shadowOpacity: 0.45, shadowRadius: 12, shadowOffset: { width: 0, height: 0 } },
