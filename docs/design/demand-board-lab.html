@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>P-B 수요 보드 — 러너 3안 × 보호자 2안</title>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--forest:#0F1D13;--volt:#C6F542;--voltDeep:#7FA818;--tang:#FF5C3D;--cream:#F8F6F0;--line:#DCD6C4;}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#141811;color:var(--cream);font-family:'IBM Plex Sans KR',sans-serif;padding:34px 26px 80px}
+.bhs{font-family:'Black Han Sans',sans-serif;font-weight:400}
+h1{font-size:28px;color:var(--volt)}
+h2{font-size:19px;color:var(--cream);margin:34px 0 4px}
+.lede{color:#8fa093;margin:10px 0 4px;max-width:880px;line-height:1.6;font-size:14px}
+.rowwrap{display:flex;gap:26px;flex-wrap:wrap;margin-top:20px}
+.opt{width:392px}
+.optlabel{display:flex;gap:8px;align-items:center;margin-bottom:10px}
+.optlabel .tag{background:var(--volt);color:var(--forest);font-weight:800;font-size:12px;border-radius:99px;padding:3px 10px}
+.optlabel b{font-size:16px}
+.optnote{color:#8fa093;font-size:12.5px;line-height:1.55;margin:9px 2px 0}
+.stage{background:var(--cream);border-radius:24px;padding:16px 14px;color:var(--forest)}
+.modhdr{display:flex;gap:6px;align-items:baseline;margin-bottom:9px}
+.modhdr b{font-size:17px;font-weight:900}
+.modhdr span{font-size:12px;color:#75806f}
+/* ── R1-A 대기 티켓 ── */
+.tkt{display:flex;background:#fff;border:1.5px solid var(--line);border-radius:18px;overflow:hidden}
+.tkt .stub{width:86px;background:var(--forest);color:var(--volt);display:flex;flex-direction:column;align-items:center;justify-content:center;border-right:2px dashed #DCD6C4}
+.tkt .stub b{font-size:30px;font-weight:900;line-height:1}
+.tkt .stub span{font-size:9px;letter-spacing:1.5px;margin-top:3px;color:rgba(198,245,66,.75)}
+.tkt .bd{flex:1;padding:13px 14px}
+.tkt .bd h4{font-size:15.5px;font-weight:900}
+.tkt .bd p{font-size:13px;color:#75806f;margin-top:3px;line-height:1.45}
+.tkt .cta{display:inline-block;background:var(--volt);border-radius:99px;font-weight:900;font-size:12.5px;padding:7px 12px;margin-top:8px}
+/* ── R1-B 수요 레이더 리스트 ── */
+.radar{background:#fff;border:1.5px solid var(--line);border-radius:18px;padding:13px 14px}
+.radar h4{font-size:14.5px;font-weight:900;margin-bottom:9px}
+.drow{display:flex;align-items:center;gap:10px;padding:7px 0;border-top:1px solid #EFECE2}
+.drow:first-of-type{border-top:0}
+.drow .nm{width:64px;font-size:14px;font-weight:800}
+.drow .bar{flex:1;height:10px;border-radius:6px;background:#EFECE2;overflow:hidden}
+.drow .bar i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,var(--voltDeep),var(--volt))}
+.drow .ct{width:52px;text-align:right;font-size:12.5px;font-weight:900;color:#5a7a3c}
+.radar .cta{display:block;text-align:center;background:var(--volt);border-radius:12px;font-weight:900;font-size:13px;padding:9px 0;margin-top:11px}
+/* ── R1-C 배지 스트립 ── */
+.strip{display:flex;align-items:center;gap:10px;background:var(--forest);border-radius:16px;padding:12px 14px;color:#fff}
+.strip .n{background:var(--volt);color:var(--forest);border-radius:99px;font-weight:900;font-size:14px;padding:5px 11px;flex:none}
+.strip p{flex:1;font-size:13px;line-height:1.4;color:#d8e2d0}
+.strip .go{color:var(--volt);font-weight:900;font-size:13px;flex:none}
+/* ── D-A 프로그레스 스탬프 ── */
+.prog{display:flex;gap:14px;background:#fff;border:1.5px solid var(--line);border-radius:18px;padding:14px;align-items:center}
+.ring{width:74px;height:74px;border-radius:50%;background:conic-gradient(var(--voltDeep) 0 252deg, #EFECE2 252deg 360deg);display:flex;align-items:center;justify-content:center;flex:none}
+.ring i{width:56px;height:56px;border-radius:50%;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;font-style:normal}
+.ring b{font-size:15px;font-weight:900;color:var(--forest)}
+.ring span{font-size:8.5px;color:#75806f}
+.prog .bd h4{font-size:15px;font-weight:900}
+.prog .bd p{font-size:13px;color:#75806f;margin-top:3px;line-height:1.45}
+.prog .cta{display:inline-block;background:var(--volt);border-radius:99px;font-weight:900;font-size:12.5px;padding:7px 12px;margin-top:8px}
+/* ── D-B 대기 보드 ── */
+.board{background:#fff;border:1.5px solid var(--line);border-radius:18px;padding:13px 14px}
+.board h4{font-size:14.5px;font-weight:900;margin-bottom:4px}
+.board .sub{font-size:12px;color:#75806f;margin-bottom:8px}
+.brow{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:12px}
+.brow.me{background:#F3F7E8;border:1.5px solid #cfe09a}
+.brow .nm{flex:1;font-size:14px;font-weight:800}
+.brow .me-pill{background:var(--volt);border-radius:99px;font-size:9.5px;font-weight:900;padding:3px 8px}
+.brow .ct{font-size:12.5px;font-weight:900;color:#5a7a3c}
+</style>
+</head>
+<body>
+<h1 class="bhs">P-B 수요 보드 — 듀얼 (러너 × 보호자)</h1>
+<p class="lede">원칙 (hi-club-plan v2.1): 유령 클럽 금지 — 수요는 '모집 중' 상태로만 보이고, 세션은 호스트가 실제로 열어야 생긴다. 수요 보드는 그 사이를 잇는 다리: 보호자의 대기를 <b>러너의 호스트 전환 동기</b>로 바꾸는 표면. 양쪽 홈의 하이클럽 모듈 안에 들어갑니다 (배너 아래 1소자).</p>
+
+<h2 class="bhs">러너 홈 — 호스트 수요 모듈 (R1) 3안</h2>
+<div class="rowwrap">
+
+<div class="opt">
+  <div class="optlabel"><span class="tag">R1-A</span><b>대기 티켓</b></div>
+  <div class="stage">
+    <div class="modhdr"><b>하이클럽</b><span>동네에서 함께 달려요</span></div>
+    <div class="tkt">
+      <div class="stub"><b>7</b><span>WAITING</span></div>
+      <div class="bd">
+        <h4>반포동에서 7팀이 기다려요</h4>
+        <p>인증 러너가 호스트를 맡으면 클럽이 열려요. 호스트는 세션마다 호스트 수당 + 클럽 배지.</p>
+        <span class="cta">호스트 되기 ›</span>
+      </div>
+    </div>
+  </div>
+  <p class="optnote">절취 티켓 문법 — 스텁의 큰 숫자가 수요를 한 눈에. 단일 동네 집중 (러너의 활동 동네 우선). 티켓 모티프 시스템과 직결.</p>
+</div>
+
+<div class="opt">
+  <div class="optlabel"><span class="tag">R1-B</span><b>수요 레이더 리스트</b></div>
+  <div class="stage">
+    <div class="modhdr"><b>하이클럽</b><span>동네에서 함께 달려요</span></div>
+    <div class="radar">
+      <h4>🏁 호스트를 기다리는 동네</h4>
+      <div class="drow"><span class="nm">반포동</span><div class="bar"><i style="width:70%"></i></div><span class="ct">7팀</span></div>
+      <div class="drow"><span class="nm">서초동</span><div class="bar"><i style="width:40%"></i></div><span class="ct">4팀</span></div>
+      <div class="drow"><span class="nm">잠원동</span><div class="bar"><i style="width:20%"></i></div><span class="ct">2팀</span></div>
+      <span class="cta">반포동 호스트 되기 ›</span>
+    </div>
+  </div>
+  <p class="optnote">여러 동네의 수요를 랭킹 바로 — '어디가 뜨겁나'가 보임. 이동 가능한 러너에게 유효. 정보량 많은 만큼 키가 큼.</p>
+</div>
+
+<div class="opt">
+  <div class="optlabel"><span class="tag">R1-C</span><b>배지 스트립 (컴팩트)</b></div>
+  <div class="stage">
+    <div class="modhdr"><b>하이클럽</b><span>동네에서 함께 달려요</span></div>
+    <div class="strip">
+      <span class="n">7팀</span>
+      <p><b>반포동</b>이 호스트를 기다려요 — 첫 세션을 여는 러너가 클럽의 얼굴이 됩니다</p>
+      <span class="go">›</span>
+    </div>
+  </div>
+  <p class="optnote">한 줄 스트립 — 러너 홈이 이미 붐벼서(가용시간·새 요청·클럽 배너) 최소 키로. 포레스트 다크가 크림 배경에서 또렷.</p>
+</div>
+</div>
+
+<h2 class="bhs">보호자 홈 — 대기 현황 2안 (클럽 없는 동네에서 배너 대신)</h2>
+<div class="rowwrap">
+
+<div class="opt">
+  <div class="optlabel"><span class="tag">D-A</span><b>프로그레스 스탬프</b></div>
+  <div class="stage">
+    <div class="modhdr"><b>하이클럽</b><span>동네에서 함께 달려요</span></div>
+    <div class="prog">
+      <div class="ring"><i><b>7/10</b><span>모이는 중</span></i></div>
+      <div class="bd">
+        <h4>반포동 하이클럽, 열리는 중</h4>
+        <p>10팀이 모이면 호스트 모집이 시작돼요. 이웃을 초대할수록 빨리 열려요.</p>
+        <span class="cta">🐾 이웃 초대하기</span>
+      </div>
+    </div>
+  </div>
+  <p class="optnote">임계치(10팀)까지의 진행 링 — 대기를 '진행 중인 일'로 바꿈. 초대 CTA가 바이럴 루프 (인증샷 공유 파이프라인 재사용).</p>
+</div>
+
+<div class="opt">
+  <div class="optlabel"><span class="tag">D-B</span><b>동네 대기 보드</b></div>
+  <div class="stage">
+    <div class="modhdr"><b>하이클럽</b><span>동네에서 함께 달려요</span></div>
+    <div class="board">
+      <h4>우리 동네 대기 현황</h4>
+      <div class="sub">주변에서 하이클럽을 기다리는 팀</div>
+      <div class="brow me"><span class="nm">반포동</span><span class="me-pill">내 동네</span><span class="ct">7팀 대기</span></div>
+      <div class="brow"><span class="nm">서초동</span><span class="ct">4팀 대기</span></div>
+      <div class="brow"><span class="nm">잠원동</span><span class="ct">2팀 대기</span></div>
+    </div>
+  </div>
+  <p class="optnote">주변 동네까지 보이는 보드 — '나만 기다리는 게 아니네' 사회적 증거. 내 동네 행은 볼트 하이라이트. 탭하면 관심 등록/초대.</p>
+</div>
+</div>
+
+<p class="lede" style="margin-top:36px;border-top:1px solid #2c3a2c;padding-top:16px">
+<b style="color:var(--volt)">추천: R1-C + D-A.</b> 러너 홈은 이미 밀도가 높아 컴팩트 스트립이 맞고 (수요가 커지면 탭 → 레이더 리스트로 확장 여지), 보호자 쪽은 진행 링이 대기를 능동태로 바꿉니다. 백엔드는 0032에 club_demand_board() RPC 하나 (collecting 클럽 + 관심 수 랭킹, 하네스 케이스 포함) — 어떤 조합이든 같은 RPC로 갑니다. 번호 주시면 구현하고, 이어서 정기 시리즈(매주 반복 세션)·클럽 패치·공유 포맷 순으로 진행합니다.
+</p>
+</body>
+</html>

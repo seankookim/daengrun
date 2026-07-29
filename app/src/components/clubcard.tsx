@@ -170,10 +170,15 @@ function ClubBanner({ club, role, reload }: { club: ClubOverview; role: 'owner' 
         </Row>
       </View>
 
-      {/* V2 여권 직인 — 클라우트 + 개방성 한 도장에 (Sean 확정) */}
+      {/* V2 여권 직인 — 클라우트 + 개방성 한 도장에 (Sean 확정). 워너웃: 보더를 무는
+          다크 닉 4점 (배경이 사진이라 화이트 대신 스크림 톤으로 잉크 벗겨짐 표현) */}
       <View style={s.stamp} pointerEvents="none">
         <Text style={s.stampMain}>HIGH-VERIFIED</Text>
         <Text style={s.stampSub}>FREE TO JOIN · ANYTIME</Text>
+        <View style={[s.stampNick, { top: -2, left: 18, width: 6, height: 3.5 }]} />
+        <View style={[s.stampNick, { top: 12, right: -2, width: 3.5, height: 5 }]} />
+        <View style={[s.stampNick, { bottom: -2, left: 44, width: 5, height: 3.5 }]} />
+        <View style={[s.stampNick, { bottom: 10, left: -2, width: 3.5, height: 4 }]} />
       </View>
     </Pressable>
   );
@@ -208,10 +213,11 @@ const s = StyleSheet.create({
   banner: { height: 152, borderRadius: 21, overflow: 'hidden', marginTop: 10, backgroundColor: '#26382a' },
   bannerScrim: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(10,16,10,.36)' },
   ddayPill: { position: 'absolute', top: 13, right: 13, zIndex: 2, backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 4, paddingHorizontal: 10 },
-  // V2 직인 — 더 크게 · 더 왼쪽 · 더 위로 (Sean 2026-07-29): 코너에 붙은 라벨이 아니라 사진에 찍힌 도장처럼
-  stamp: { position: 'absolute', right: 22, bottom: 38, borderWidth: 3, borderColor: colors.volt, borderRadius: 11, paddingVertical: 6, paddingHorizontal: 13, backgroundColor: 'rgba(15,29,19,.35)', transform: [{ rotate: '-7deg' }], alignItems: 'center' },
-  stampMain: { fontSize: 14.5, fontWeight: '900', letterSpacing: 2.4, color: colors.volt },
-  stampSub: { fontSize: 9, fontWeight: '700', letterSpacing: 1.8, color: 'rgba(198,245,66,.8)', marginTop: 2, borderTopWidth: 1, borderTopColor: 'rgba(198,245,66,.4)', paddingTop: 2 },
+  // V2 직인 — 워너웃 + 소프트 모스 잉크 (Sean 2026-07-29: 네온기 살짝 빼기 — 볼트 → #A9C463)
+  stamp: { position: 'absolute', right: 22, bottom: 38, borderWidth: 3, borderColor: '#A9C463', borderRadius: 11, paddingVertical: 6, paddingHorizontal: 13, backgroundColor: 'rgba(15,29,19,.35)', transform: [{ rotate: '-7deg' }], alignItems: 'center', opacity: 0.92 },
+  stampMain: { fontSize: 14.5, fontWeight: '900', letterSpacing: 2.4, color: '#A9C463' },
+  stampSub: { fontSize: 9, fontWeight: '700', letterSpacing: 1.8, color: 'rgba(169,196,99,.85)', marginTop: 2, borderTopWidth: 1, borderTopColor: 'rgba(169,196,99,.45)', paddingTop: 2 },
+  stampNick: { position: 'absolute', backgroundColor: 'rgba(15,25,16,.75)', borderRadius: 3 },
   bannerCta: { backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 7, paddingHorizontal: 13 },
   hostPill: { backgroundColor: '#5a7a3c', borderRadius: 99, paddingVertical: 5, paddingHorizontal: 9, alignSelf: 'center' },
 });
