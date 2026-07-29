@@ -142,9 +142,9 @@ export default function ClubPage() {
                 관심 등록 {club.interestCount}명 · 인증 러너가 호스트를 맡으면 첫 세션이 열려요
               </Text>
               {club.myInterest ? (
-                <View style={[s.cta, { backgroundColor: '#e7efd8' }]}><Text style={{ fontSize: 14.5, fontWeight: '900', color: '#3d5a2b' }}>✓ 관심 등록됨 — 열리면 알려드릴게요</Text></View>
+                <View style={[s.cta, { backgroundColor: colors.clubTint }]}><Text style={{ fontSize: 14.5, fontWeight: '900', color: colors.clubInk }}>✓ 관심 등록됨 — 열리면 알려드릴게요</Text></View>
               ) : (
-                <Pressable onPress={interest} style={s.cta}><Text style={{ fontSize: 15, fontWeight: '900', color: FOREST }}>나도 관심 있어요</Text></Pressable>
+                <Pressable onPress={interest} style={s.cta}><Text style={{ fontSize: 15, fontWeight: '900', color: '#fff' }}>나도 관심 있어요</Text></Pressable>
               )}
               <Pressable
                 onPress={() => claimClubHost(club.id).then(() => { Alert.alert('호스트가 됐어요 🏁', '첫 세션을 열어보세요'); load(); })
@@ -168,8 +168,8 @@ export default function ClubPage() {
                       {ns.rsvpCount}팀 참여 중{ns.status === 'open' && left > 0 ? ` · ${left}자리 남음` : ' · 마감'}
                     </Text>
                   </View>
-                  <View style={[s.joinPill, ns.joined && { backgroundColor: '#e7efd8' }]}>
-                    <Text style={{ fontSize: 13, fontWeight: '900', color: ns.joined ? '#3d5a2b' : FOREST }}>
+                  <View style={[s.joinPill, ns.joined && { backgroundColor: colors.clubTint }]}>
+                    <Text style={{ fontSize: 13, fontWeight: '900', color: ns.joined ? colors.clubInk : '#fff' }}>
                       {ns.joined ? '참여 중 ›' : '참여하기 ›'}
                     </Text>
                   </View>
@@ -188,12 +188,12 @@ export default function ClubPage() {
           {club?.status === 'active' && myStats && myStats.attended > 0 && (
             <View style={[s.card, { flexDirection: 'row', alignItems: 'center', gap: 12 }]}>
               <View style={s.attendStamp}>
-                <Text style={{ fontSize: 16, fontWeight: '900', color: colors.voltDeep }}>×{myStats.attended}</Text>
+                <Text style={{ fontSize: 16, fontWeight: '900', color: colors.clubDeep }}>×{myStats.attended}</Text>
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST }}>내 출석 {myStats.attended}회</Text>
                 {myStats.streak >= 2 && (
-                  <Text style={{ fontSize: 12.5, color: '#5a7a3c', marginTop: 2 }}>🔥 최근 {myStats.streak}세션 연속 출석</Text>
+                  <Text style={{ fontSize: 12.5, color: colors.clubInk, marginTop: 2 }}>🔥 최근 {myStats.streak}세션 연속 출석</Text>
                 )}
               </View>
             </View>
@@ -217,7 +217,7 @@ export default function ClubPage() {
           {/* ---------- 호스트 도구 ---------- */}
           {club?.isHost && (
             <Pressable onPress={() => setSheetOpen(true)} style={[s.cta, { marginTop: 12 }]}>
-              <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST }}>＋ 세션 열기</Text>
+              <Text style={{ fontSize: 15, fontWeight: '900', color: '#fff' }}>＋ 세션 열기</Text>
             </Pressable>
           )}
         </View>
@@ -249,7 +249,7 @@ export default function ClubPage() {
             ))}
           </Row>
           <Pressable onPress={createSession} disabled={busy} style={[s.cta, busy && { opacity: 0.5 }]}>
-            <Text style={{ fontSize: 15.5, fontWeight: '900', color: FOREST }}>{busy ? '여는 중...' : '세션 열기 🏁'}</Text>
+            <Text style={{ fontSize: 15.5, fontWeight: '900', color: '#fff' }}>{busy ? '여는 중...' : '세션 열기 🏁'}</Text>
           </Pressable>
         </View>
       </Modal>
@@ -263,13 +263,13 @@ const s = StyleSheet.create({
   heroText: { padding: 16, paddingBottom: 15 },
   backBtn: { position: 'absolute', top: 56, left: 14, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(15,29,19,.45)', alignItems: 'center', justifyContent: 'center', zIndex: 2 },
   photoBtn: { position: 'absolute', top: 62, right: 14, backgroundColor: 'rgba(15,29,19,.55)', borderRadius: 99, paddingVertical: 7, paddingHorizontal: 12, zIndex: 2 },
-  officialPill: { backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 3, paddingHorizontal: 9, alignSelf: 'flex-start' },
+  officialPill: { backgroundColor: colors.club, borderRadius: 99, paddingVertical: 3, paddingHorizontal: 9, alignSelf: 'flex-start' },
   card: { backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: '#DCD6C4', padding: 15, marginTop: 10 },
-  cta: { backgroundColor: colors.volt, borderRadius: 14, alignItems: 'center', paddingVertical: 13, marginTop: 12 },
+  cta: { backgroundColor: colors.club, borderRadius: 14, alignItems: 'center', paddingVertical: 13, marginTop: 12 },
   ctaGhost: { backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#DCD6C4' },
-  joinPill: { backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 9, paddingHorizontal: 13, alignSelf: 'center' },
+  joinPill: { backgroundColor: colors.club, borderRadius: 99, paddingVertical: 9, paddingHorizontal: 13, alignSelf: 'center' },
   sheet: { backgroundColor: colors.cream, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 18, paddingBottom: 34 },
   slotChip: { borderRadius: 99, paddingVertical: 9, paddingHorizontal: 14, backgroundColor: '#fff', borderWidth: 1.3, borderColor: '#DCD6C4' },
-  attendStamp: { width: 48, height: 48, borderRadius: 24, borderWidth: 2.5, borderColor: colors.voltDeep, alignItems: 'center', justifyContent: 'center', transform: [{ rotate: '-6deg' }] },
+  attendStamp: { width: 48, height: 48, borderRadius: 24, borderWidth: 2.5, borderColor: colors.clubDeep, alignItems: 'center', justifyContent: 'center', transform: [{ rotate: '-6deg' }] },
   input: { backgroundColor: '#fff', borderRadius: 13, borderWidth: 1, borderColor: '#DCD6C4', paddingVertical: 12, paddingHorizontal: 14, fontSize: 15, color: FOREST, marginTop: 12 },
 });

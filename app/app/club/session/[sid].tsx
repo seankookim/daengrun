@@ -16,9 +16,9 @@ import { colors } from '../../../src/theme';
 const FOREST = '#0F1D13';
 
 const ROLE_LABEL: Record<string, { label: string; bg: string; fg: string }> = {
-  host_runner: { label: 'HOST · 페이스 리드', bg: '#e3f0c4', fg: '#3d5a2b' },
-  handling_runner: { label: '위탁 담당', bg: '#e3f0c4', fg: '#3d5a2b' },
-  runner_attending: { label: '러너 참여', bg: '#e3f0c4', fg: '#3d5a2b' },
+  host_runner: { label: 'HOST · 페이스 리드', bg: '#EFECFF', fg: '#4A3DA8' },
+  handling_runner: { label: '위탁 담당', bg: '#EFECFF', fg: '#4A3DA8' },
+  runner_attending: { label: '러너 참여', bg: '#EFECFF', fg: '#4A3DA8' },
   owner_attending: { label: '보호자 동반', bg: '#EDE8DA', fg: '#5B594A' },
 };
 
@@ -118,7 +118,7 @@ export default function ClubSession() {
               {clubName ?? '하이클럽'} 세션
             </Text>
             <View style={s.voltPill}>
-              <Text style={{ fontSize: 11.5, fontWeight: '900', color: FOREST }}>
+              <Text style={{ fontSize: 11.5, fontWeight: '900', color: '#fff' }}>
                 {isDone ? 'DONE' : sess.status === 'cancelled' ? '취소됨' : dday(sess.scheduledAt)}
               </Text>
             </View>
@@ -166,7 +166,7 @@ export default function ClubSession() {
                   </Text>
                 </View>
                 {p.attendance === 'checked_in' ? (
-                  <View style={s.checkedStamp}><Text style={{ fontSize: 9.5, fontWeight: '900', letterSpacing: 1, color: colors.voltDeep }}>CHECKED</Text></View>
+                  <View style={s.checkedStamp}><Text style={{ fontSize: 9.5, fontWeight: '900', letterSpacing: 1, color: colors.clubDeep }}>CHECKED</Text></View>
                 ) : (
                   <View style={[s.roleTag, { backgroundColor: rl.bg }]}>
                     <Text style={{ fontSize: 10.5, fontWeight: '800', color: rl.fg }}>{rl.label}</Text>
@@ -180,7 +180,7 @@ export default function ClubSession() {
         {/* ---------- CTA 상태 머신 ---------- */}
         {isOpenish && !sess.joined && (
           <Pressable onPress={doRsvp} disabled={busy || sess.status === 'full'} style={[s.cta, (busy || sess.status === 'full') && { opacity: 0.5 }]}>
-            <Text style={{ fontSize: 15.5, fontWeight: '900', color: FOREST }}>
+            <Text style={{ fontSize: 15.5, fontWeight: '900', color: '#fff' }}>
               {sess.status === 'full' ? '정원이 찼어요' : '참여하기 (동의문 확인 →)'}
             </Text>
           </Pressable>
@@ -188,7 +188,7 @@ export default function ClubSession() {
         {isOpenish && sess.joined && sess.myAttendance === 'rsvp' && (
           inCheckinWindow ? (
             <Pressable onPress={doCheckin} disabled={busy} style={[s.cta, busy && { opacity: 0.5 }]}>
-              <Text style={{ fontSize: 15.5, fontWeight: '900', color: FOREST }}>✓ 집결지 도착 체크인</Text>
+              <Text style={{ fontSize: 15.5, fontWeight: '900', color: '#fff' }}>✓ 집결지 도착 체크인</Text>
             </Pressable>
           ) : (
             <Pressable onPress={doCancel} style={[s.cta, s.ctaGhost]}>
@@ -197,8 +197,8 @@ export default function ClubSession() {
           )
         )}
         {isOpenish && sess.myAttendance === 'checked_in' && (
-          <View style={[s.cta, { backgroundColor: '#e7efd8' }]}>
-            <Text style={{ fontSize: 15, fontWeight: '900', color: '#3d5a2b' }}>체크인 완료 — 좋은 러닝 되세요 🐾</Text>
+          <View style={[s.cta, { backgroundColor: colors.clubTint }]}>
+            <Text style={{ fontSize: 15, fontWeight: '900', color: colors.clubInk }}>체크인 완료 — 좋은 러닝 되세요 🐾</Text>
           </View>
         )}
         {isOpenish && iAmHost && (
@@ -214,11 +214,11 @@ export default function ClubSession() {
 const s = StyleSheet.create({
   backBtn: { position: 'absolute', top: 56, left: 14, width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', borderWidth: 1, borderColor: '#DCD6C4', alignItems: 'center', justifyContent: 'center', zIndex: 2 },
   head: { backgroundColor: FOREST, borderRadius: 20, padding: 16, marginTop: 44 },
-  voltPill: { backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 4, paddingHorizontal: 10 },
+  voltPill: { backgroundColor: colors.club, borderRadius: 99, paddingVertical: 4, paddingHorizontal: 10 },
   meetupBox: { backgroundColor: '#1b2d20', borderRadius: 12, padding: 11, marginTop: 11 },
   card: { backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: '#DCD6C4', padding: 15, marginTop: 11 },
   roleTag: { borderRadius: 8, paddingVertical: 3, paddingHorizontal: 8 },
-  checkedStamp: { borderWidth: 2, borderColor: colors.voltDeep, borderRadius: 8, paddingVertical: 3, paddingHorizontal: 8, transform: [{ rotate: '-6deg' }] },
-  cta: { backgroundColor: colors.volt, borderRadius: 14, alignItems: 'center', paddingVertical: 14, marginTop: 12 },
+  checkedStamp: { borderWidth: 2, borderColor: colors.clubDeep, borderRadius: 8, paddingVertical: 3, paddingHorizontal: 8, transform: [{ rotate: '-6deg' }] },
+  cta: { backgroundColor: colors.club, borderRadius: 14, alignItems: 'center', paddingVertical: 14, marginTop: 12 },
   ctaGhost: { backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#DCD6C4' },
 });
