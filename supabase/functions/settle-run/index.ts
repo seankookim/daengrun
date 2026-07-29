@@ -34,9 +34,9 @@ Deno.serve(handle(async (req) => {
   if (p.duration_sec != null && (!Number.isFinite(Number(p.duration_sec)) || Number(p.duration_sec) < 0)) {
     throw new HttpError(400, "duration_sec invalid");
   }
-  if (p.end_reason === "completed" && km < plannedKm * 0.9) {
-    // 완주 인센티브(마일·드랍·total_runs·패치)는 계획 거리의 90% 이상 실측에서만
-    throw new HttpError(400, `완주 정산은 계획 거리의 90% 이상 실측이 필요해요 (${km}/${plannedKm}km) — 조기 종료 사유로 정산해주세요`);
+  if (p.end_reason === "completed" && km < plannedKm * 0.5) {
+    // 완주 인센티브(마일·드랍·total_runs·패치)는 계획 거리의 50% 이상 실측에서만 (Sean 2026-07-29 — 90%→50%)
+    throw new HttpError(400, `완주 정산은 계획 거리의 50% 이상 실측이 필요해요 (${km}/${plannedKm}km) — 조기 종료 사유로 정산해주세요`);
   }
   const distancePay = Math.round(km * PRICING.perKm);
   const base = PRICING.baseFare;
