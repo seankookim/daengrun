@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>도그스하이 — 글로업 랩 (알림·캘린더·커뮤니티 × 3안)</title>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--forest:#0F1D13;--volt:#C6F542;--voltDeep:#7FA818;--tang:#FF5C3D;--cream:#F8F6F0;--clay:#EDE8DA;--line:#DCD6C4;--dim:#5B594A;--sub:#49524a;--amber:#F59A43;--blue:#6E9BC5;}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#141811;color:var(--cream);font-family:'IBM Plex Sans KR',sans-serif;padding:34px 26px 80px}
+.bhs{font-family:'Black Han Sans',sans-serif;font-weight:400}
+h1{font-size:34px;letter-spacing:-.5px}
+.lede{color:#8fa093;margin:10px 0 6px;max-width:860px;line-height:1.6;font-size:14.5px}
+.screen{margin-top:52px}
+.screen>h2{font-size:24px;color:var(--volt);display:flex;gap:10px;align-items:baseline}
+.screen>h2 small{font-size:13px;color:#8fa093;font-family:'IBM Plex Sans KR';font-weight:500}
+.rowwrap{display:flex;gap:26px;flex-wrap:wrap;margin-top:18px;align-items:flex-start}
+.opt{width:392px}
+.optlabel{display:flex;gap:8px;align-items:center;margin-bottom:10px}
+.optlabel .tag{background:var(--volt);color:var(--forest);font-weight:800;font-size:12px;border-radius:99px;padding:3px 10px}
+.optlabel b{font-size:16px}
+.optnote{color:#8fa093;font-size:12.5px;line-height:1.55;margin:8px 2px 0}
+.phone{width:392px;background:var(--cream);border-radius:34px;overflow:hidden;border:6px solid #000;box-shadow:0 18px 44px rgba(0,0,0,.5);color:var(--forest)}
+.inner{padding:18px 15px 22px}
+/* 공통 조각 */
+.h30{font-size:29px}
+.sub{color:var(--sub);font-size:14px;margin-top:4px}
+.haircard{background:#fff;border:1px solid var(--line);border-radius:16px}
+.pillD{background:var(--forest);color:var(--volt);border-radius:99px;font-weight:800;font-size:12px;padding:6px 11px;display:inline-block}
+.mono{font-variant-numeric:tabular-nums;letter-spacing:.5px}
+/* ═══ 알림 A1: 소인 우편함 ═══ */
+.mailG{margin-top:14px}
+.postmark{display:flex;align-items:center;gap:10px;margin:16px 2px 9px}
+.pmStamp{width:52px;height:52px;border:2.5px solid var(--forest);border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;transform:rotate(-8deg);background:#fff}
+.pmStamp b{font-size:15px;line-height:1}.pmStamp span{font-size:8.5px;letter-spacing:1px}
+.pmline{flex:1;border-top:2px dashed var(--line)}
+.mail{background:#fff;border:1px solid var(--line);border-radius:14px;padding:13px 14px;margin-bottom:9px;position:relative;display:flex;gap:11px}
+.mail.unread{background:#fbfdf2;border-color:#cede96}
+.seal{position:absolute;top:-7px;right:14px;background:var(--volt);color:var(--forest);font-weight:900;font-size:10px;border-radius:99px;padding:3px 9px;transform:rotate(3deg);box-shadow:0 2px 5px rgba(15,29,19,.18)}
+.mIcon{width:44px;height:44px;border-radius:12px;background:#e7efd8;display:flex;align-items:center;justify-content:center;font-weight:900;color:#3d5a2b;flex-shrink:0}
+.mail h4{font-size:15.5px}.mail p{font-size:13.5px;color:var(--sub);margin-top:3px;line-height:1.45}
+.mail time{font-size:11.5px;color:#9a978a;position:absolute;right:14px;bottom:11px}
+/* ═══ 알림 A2: 러닝 레일 타임라인 ═══ */
+.tHead{background:var(--forest);border-radius:20px;padding:16px;color:#fff;margin-top:14px}
+.tHead .bhs{color:#fff;font-size:21px}
+.ticker{margin-top:10px;background:#1b2d20;border-radius:12px;padding:9px 12px;font-size:13px;color:var(--volt);display:flex;gap:8px;align-items:center;overflow:hidden;white-space:nowrap}
+.tickDot{width:7px;height:7px;background:var(--tang);border-radius:99px;flex-shrink:0}
+.rail{position:relative;margin:18px 0 0 24px;padding-left:26px}
+.rail::before{content:'';position:absolute;left:0;top:6px;bottom:6px;width:4px;border-radius:4px;background:linear-gradient(var(--volt),#5a7a3c)}
+.rEvt{position:relative;margin-bottom:15px}
+.rEvt::before{content:'';position:absolute;left:-33px;top:4px;width:14px;height:14px;border-radius:99px;background:#fff;border:3.5px solid #5a7a3c}
+.rEvt.hot::before{background:var(--volt);border-color:var(--forest)}
+.rEvt.amber::before{border-color:var(--amber)}
+.rEvt.blue::before{border-color:var(--blue)}
+.rEvt h4{font-size:15.5px}.rEvt p{font-size:13.5px;color:var(--sub);margin-top:2px}
+.rEvt time{font-size:11.5px;color:#9a978a}
+/* ═══ 알림 A3: 빕 데이 그룹 ═══ */
+.bibHead{display:flex;align-items:center;gap:12px;background:#fff;border:1.6px solid var(--forest);border-radius:14px;padding:9px 13px;margin:16px 0 9px;box-shadow:3px 3px 0 var(--forest)}
+.bibHead .bhs{font-size:23px}
+.bibHead small{font-size:11px;color:#9a978a;letter-spacing:1.5px;font-weight:700}
+.bibHead .cnt{margin-left:auto;background:var(--volt);border-radius:99px;font-weight:900;font-size:12px;padding:3px 10px}
+.slim{display:flex;gap:10px;background:#fff;border:1px solid var(--line);border-radius:13px;padding:11px 13px;margin-bottom:8px;align-items:center}
+.slim .k{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.slim h4{font-size:14.5px}.slim p{font-size:12.5px;color:var(--sub)}
+.slim .nd{width:8px;height:8px;background:var(--voltDeep);border-radius:99px;margin-left:auto}
+/* ═══ 캘린더 C1: 출발 보드 ═══ */
+.depBoard{background:var(--forest);border-radius:22px;padding:17px 16px;margin-top:14px;color:#fff}
+.depBoard .bhs{font-size:21px;color:#fff}
+.depSub{color:#8fa093;font-size:13px;margin-top:3px}
+.flap{display:flex;gap:5px;margin-top:12px}
+.flap b{background:#0a140d;border-radius:7px;padding:7px 9px;font-size:19px;color:var(--volt);font-variant-numeric:tabular-nums;box-shadow:inset 0 -12px 0 rgba(255,255,255,.04)}
+.flap span{align-self:flex-end;color:#8fa093;font-size:12px;padding-bottom:7px}
+.depRow{display:flex;align-items:center;gap:13px;background:#fff;border-bottom:1px solid var(--line);padding:13px 15px}
+.depRow:first-of-type{border-radius:16px 16px 0 0;margin-top:14px}
+.depRow:last-of-type{border-radius:0 0 16px 16px;border-bottom:none}
+.depTime{font-size:21px;font-weight:900;font-variant-numeric:tabular-nums;width:64px}
+.depRow h4{font-size:14.5px}.depRow p{font-size:12.5px;color:var(--sub)}
+.depStat{margin-left:auto;font-size:11.5px;font-weight:800;border-radius:99px;padding:5px 10px}
+.stG{background:#e3f0c4;color:#3d5a2b}.stA{background:#FDE8D0;color:#9D580A}.stB{background:#E3EEF8;color:#4A6E93}
+/* ═══ 캘린더 C2: 티켓 스택 ═══ */
+.tik{position:relative;background:#fff;border:1px solid var(--line);border-radius:16px;margin-top:12px;display:flex;overflow:hidden}
+.tik .main{flex:1;padding:13px 15px}
+.tik .stub{width:96px;border-left:2px dashed var(--line);display:flex;flex-direction:column;align-items:center;justify-content:center;background:#fbfaf5;position:relative}
+.tik .stub b{font-size:16.5px}.tik .stub span{font-size:10.5px;color:#9a978a;letter-spacing:1px}
+.notch{position:absolute;width:16px;height:16px;background:var(--cream);border:1px solid var(--line);border-radius:99px;left:-9px}
+.nT{top:-9px}.nB{bottom:-9px}
+.tik h4{font-size:17.5px}.tik h4 small{font-size:12.5px;color:#5a7a3c;font-weight:800}
+.tik p{font-size:13px;color:var(--sub);margin-top:3px}
+.finStamp{position:absolute;right:78px;top:10px;border:2.5px solid var(--blue);color:var(--blue);border-radius:8px;font-weight:900;font-size:11px;letter-spacing:2px;padding:3px 8px;transform:rotate(-9deg);opacity:.85}
+/* ═══ 캘린더 C3: 루트 리본 ═══ */
+.ribWrap{position:relative;margin:16px 0 0 34px;padding-left:30px}
+.ribWrap::before{content:'';position:absolute;left:0;top:0;bottom:0;width:9px;border-radius:9px;background:repeating-linear-gradient(180deg,var(--volt) 0 26px,#a8cf3a 26px 52px)}
+.station{position:relative;background:#fff;border:1px solid var(--line);border-radius:15px;padding:12px 14px;margin-bottom:14px}
+.station::before{content:'';position:absolute;left:-30px;top:16px;width:22px;height:4px;background:var(--forest);border-radius:4px}
+.station h4{font-size:16px}.station h4 b{font-variant-numeric:tabular-nums}
+.station p{font-size:13px;color:var(--sub);margin-top:2px}
+.restGap{margin:0 0 14px 4px;color:#9a978a;font-size:12px;display:flex;gap:7px;align-items:center}
+.restGap i{flex:0 0 34px;border-top:2px dotted var(--line)}
+/* ═══ 커뮤니티 M1: 스크랩북 ═══ */
+.scrap{background:#fff;border:1px solid var(--line);border-radius:6px;padding:12px 12px 14px;margin-top:18px;transform:rotate(-1.2deg);box-shadow:0 7px 18px rgba(15,29,19,.10);position:relative}
+.scrap.r2{transform:rotate(.9deg)}
+.tape{position:absolute;top:-10px;left:50%;margin-left:-52px;width:104px;height:22px;background:var(--volt);opacity:.93;transform:rotate(-2deg);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:10px;letter-spacing:2px;color:var(--forest)}
+.ph{height:150px;border-radius:4px;background:linear-gradient(135deg,#7f9d6b,#42563b 60%,#2c3d2c);position:relative}
+.ph svg{position:absolute;right:10px;bottom:8px}
+.patchStk{position:absolute;left:-13px;bottom:34px;width:58px;height:58px;border-radius:99px;background:var(--forest);color:var(--volt);display:flex;flex-direction:column;align-items:center;justify-content:center;border:3px solid var(--cream);transform:rotate(-10deg);box-shadow:0 4px 10px rgba(0,0,0,.25)}
+.patchStk b{font-size:14px}.patchStk span{font-size:7.5px;letter-spacing:1px}
+.scrapFoot{display:flex;align-items:baseline;gap:8px;margin-top:10px}
+.scrapFoot .bhs{font-size:17px}
+.scrapFoot small{color:var(--sub);font-size:12.5px}
+.likeRow{display:flex;gap:12px;color:var(--sub);font-size:13px;margin-top:7px}
+/* ═══ 커뮤니티 M2: 클럽하우스 ═══ */
+.club{background:var(--forest);border-radius:22px;padding:17px;margin-top:14px;color:#fff;position:relative;overflow:hidden}
+.club .bhs{font-size:20px;color:#fff}
+.club small{color:#8fa093;font-size:12.5px}
+.clubBar{margin-top:12px;height:14px;border-radius:99px;background:#1b2d20;overflow:hidden}
+.clubBar i{display:block;height:100%;width:68%;border-radius:99px;background:linear-gradient(90deg,#7FA818,var(--volt));}
+.clubMeta{display:flex;justify-content:space-between;font-size:12px;color:#b8c4ae;margin-top:7px}
+.pin{background:#fff;border:1px solid var(--line);border-left:6px solid var(--volt);border-radius:14px;padding:12px 14px;margin-top:11px}
+.pin.coral{border-left-color:var(--tang)}
+.pin h4{font-size:15px}.pin p{font-size:13px;color:var(--sub);margin-top:3px}
+.pin .who{display:flex;gap:8px;align-items:center;margin-bottom:6px;font-size:12.5px;color:var(--sub)}
+.avat{width:26px;height:26px;border-radius:99px;background:#c9a86e;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800}
+/* ═══ 커뮤니티 M3: 리절트 갤러리 ═══ */
+.resGrid{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-top:14px}
+.resCard{border-radius:14px;padding:11px 12px;position:relative;overflow:hidden;min-height:150px}
+.resCard.volt{background:var(--volt);color:var(--forest)}
+.resCard.dark{background:var(--forest);color:#fff}
+.resCard.clay{background:var(--clay);color:var(--forest)}
+.resCard .km{font-size:31px;font-weight:900;letter-spacing:-1.5px;line-height:1}
+.resCard .km i{font-size:13px;font-style:normal}
+.resCard .nm{font-size:13.5px;font-weight:800;margin-top:4px}
+.resCard .dt{font-size:10.5px;opacity:.65;margin-top:2px}
+.resCard svg{position:absolute;right:8px;bottom:8px;opacity:.85}
+.resCard .lk{position:absolute;left:11px;bottom:9px;font-size:11.5px;opacity:.75}
+.verdict{margin-top:46px;border-top:1px solid #2c3a2c;padding-top:18px;color:#b8c4ae;font-size:14px;line-height:1.7;max-width:860px}
+.verdict b{color:var(--volt)}
+</style>
+</head>
+<body>
+<h1 class="bhs" style="color:var(--volt)">도그스하이 글로업 랩</h1>
+<p class="lede">알림 센터 · 러너 캘린더 · 커뮤니티 — 현재 가장 플레인한 3화면, 화면당 3안. 전부 기존 모티프 시스템(빕·티켓·도장·패치·트레이스) 안에서, 화면당 히어로 모티프 1개 규칙 준수. 목업 수치는 연출값 — 구현 시 전부 실데이터 연결 (없으면 그리지 않음).</p>
+
+<!-- ═══════════ 알림 센터 ═══════════ -->
+<div class="screen">
+<h2 class="bhs">① 알림 센터 <small>현재: 화이트 카드 플랫 리스트</small></h2>
+<div class="rowwrap">
+
+<div class="opt">
+  <div class="optlabel"><span class="tag">A1</span><b>소인 우편함</b></div>
+  <div class="phone"><div class="inner">
+    <div class="bhs h30">알림</div>
+    <div class="sub">초코의 소식이 우편으로 도착해요</div>
+    <div class="mailG">
+      <div class="postmark"><div class="pmStamp bhs"><b>7.29</b><span>SEOUL</span></div><div class="pmline"></div></div>
+      <div class="mail unread"><span class="seal">NEW</span><div class="mIcon">런</div><div><h4>러닝 완료</h4><p>5.02km 러닝이 끝났어요 — 리포트를 확인하세요</p></div><time>오후 9:12</time></div>
+      <div class="mail unread"><span class="seal">NEW</span><div class="mIcon" style="background:#FDE8D0;color:#9D580A">⟳</div><div><h4>반복 러닝 예약 생성</h4><p>8월 5일 07:00 러닝이 자동 예약됐어요</p></div><time>오전 7:07</time></div>
+      <div class="postmark"><div class="pmStamp bhs" style="transform:rotate(6deg)"><b>7.28</b><span>SEOUL</span></div><div class="pmline"></div></div>
+      <div class="mail"><div class="mIcon" style="background:#E3EEF8;color:#4A6E93">✓</div><div><h4>일정 변경 수락</h4><p>러너가 새 시간을 수락했어요 — 일정이 변경됐어요</p></div><time>오후 3:40</time></div>
+    </div>
+  </div></div>
+  <p class="optnote"><b>도장 모티프.</b> 날짜 그룹 = 회전 소인 스탬프, 미읽음 = 볼트 씰 스티커. 리스트 구조는 그대로라 구현 부담 최소 — 소인·씰만 얹는 라이트 터치.</p>
+</div>
+
+<div class="opt">
+  <div class="optlabel"><span class="tag">A2</span><b>러닝 레일 타임라인</b></div>
+  <div class="phone"><div class="inner">
+    <div class="tHead"><div class="bhs">알림</div>
+      <div class="ticker"><span class="tickDot"></span>방금 · 김민준 러너가 요청을 수락했어요 →</div>
+    </div>
+    <div class="rail">
+      <div class="rEvt hot"><time>오후 9:12</time><h4>러닝 완료 🏁</h4><p>5.02km — 리포트가 준비됐어요</p></div>
+      <div class="rEvt"><time>오후 8:31</time><h4>러닝 시작</h4><p>실시간으로 지켜보세요</p></div>
+      <div class="rEvt"><time>오후 8:24</time><h4>인계 완료</h4><p>지금부터 펫보험이 적용됩니다</p></div>
+      <div class="rEvt amber"><time>오후 7:58</time><h4>러너 이동 중</h4><p>픽업 장소로 출발했어요</p></div>
+      <div class="rEvt blue"><time>어제</time><h4>일정 변경 수락 ✓</h4></div>
+    </div>
+  </div></div>
+  <p class="optnote"><b>트레이스(레일) 모티프.</b> 알림 = 러닝 여정의 사건들 — 일정 탭 상태 레일과 같은 색 스키마의 수직 레일로 흐름이 읽힘. 다크 헤더의 1줄 라이브 티커가 히어로 (실데이터: 최신 미읽음 1건).</p>
+</div>
+
+<div class="opt">
+  <div class="optlabel"><span class="tag">A3</span><b>빕 데이 그룹</b></div>
+  <div class="phone"><div class="inner">
+    <div class="bhs h30">알림</div>
+    <div class="sub">전부 읽음까지 2건 남았어요</div>
+    <div class="bibHead"><span class="bhs">29</span><small>JUL ·  화</small><span class="cnt">2 NEW</span></div>
+    <div class="slim"><div class="k" style="background:#e7efd8">🏃</div><div><h4>러닝 완료</h4><p>5.02km — 리포트 확인</p></div><div class="nd"></div></div>
+    <div class="slim"><div class="k" style="background:#FDE8D0">⟳</div><div><h4>반복 러닝 예약 생성</h4><p>8월 5일 07:00 자동 예약</p></div><div class="nd"></div></div>
+    <div class="bibHead" style="box-shadow:2px 2px 0 var(--line);border-color:var(--line)"><span class="bhs" style="color:#9a978a">28</span><small>JUL · 월</small></div>
+    <div class="slim" style="opacity:.75"><div class="k" style="background:#E3EEF8">✓</div><div><h4>일정 변경 수락</h4><p>새 시간 확정</p></div></div>
+    <div class="slim" style="opacity:.75"><div class="k" style="background:#e7efd8">💰</div><div><h4>정산 완료</h4><p>+21,120원 적립</p></div></div>
+  </div></div>
+  <p class="optnote"><b>빕 모티프.</b> 날짜 헤더 = 하드섀도 레이스 빕 (오늘만 포레스트 섀도, 과거는 흐림). 카드는 오히려 더 슬림하게 — 밀도를 낮추고 빕이 리듬을 만든다.</p>
+</div>
+</div></div>
+
+<!-- ═══════════ 러너 캘린더 ═══════════ -->
+<div class="screen">
+<h2 class="bhs">② 러너 캘린더 <small>현재: 주간 칩 + 플랫 작업 행</small></h2>
+<div class="rowwrap">
+
+<div class="opt">
+  <div class="optlabel"><span class="tag">C1</span><b>출발 보드</b></div>
+  <div class="phone"><div class="inner">
+    <div class="depBoard">
+      <div class="bhs">오늘의 출발</div>
+      <div class="depSub">7월 29일 (화) · 확정 3건</div>
+      <div class="flap"><b>+</b><b>5</b><b>2</b><b>,</b><b>0</b><b>0</b><b>0</b><span>원 예상</span></div>
+    </div>
+    <div class="depRow"><div class="depTime mono">07:00</div><div><h4>초코 · 5km</h4><p>서울숲 순환 · 성수동</p></div><span class="depStat stG">확정</span></div>
+    <div class="depRow"><div class="depTime mono">16:30</div><div><h4>보리 · 3km</h4><p>뚝섬 리버뷰</p></div><span class="depStat stA">응답 대기</span></div>
+    <div class="depRow"><div class="depTime mono">19:00</div><div><h4>몽이 · 7km</h4><p>한강 러닝 · ⟳ 매주</p></div><span class="depStat stG">확정</span></div>
+    <div class="depRow" style="opacity:.7"><div class="depTime mono">--:--</div><div><h4>어제 · 초코 5.02km</h4><p>완료 · +21,120원</p></div><span class="depStat stB">완료</span></div>
+  </div></div>
+  <p class="optnote"><b>빕(숫자) 모티프.</b> 공항 출발판 문법 — 다크 앵커에 스플릿-플랩 수익 카운터(히어로), 아래는 시간이 1급인 보드 행. 수익 숫자는 ledger 실 net.</p>
+</div>
+
+<div class="opt">
+  <div class="optlabel"><span class="tag">C2</span><b>티켓 스터브 스택</b></div>
+  <div class="phone"><div class="inner">
+    <div class="bhs h30">캘린더</div>
+    <div class="sub">이번 주 확정 3건 · 예상 +52,000원</div>
+    <div class="tik"><div class="main"><h4>07:00 <small>화 · 확정</small></h4><p>초코 · 5km · 서울숲 순환</p></div><div class="stub"><span class="notch nT"></span><span class="notch nB"></span><b>+21,120</b><span>PAYOUT</span></div></div>
+    <div class="tik"><div class="main"><h4>16:30 <small style="color:#9D580A">화 · 대기</small></h4><p>보리 · 3km · 뚝섬 리버뷰</p></div><div class="stub"><span class="notch nT"></span><span class="notch nB"></span><b>+14,800</b><span>예상</span></div></div>
+    <div class="tik" style="opacity:.82"><span class="finStamp">FINISHER</span><div class="main"><h4>어제 <small style="color:#4A6E93">완료</small></h4><p>초코 · 5.02km</p></div><div class="stub"><span class="notch nT"></span><span class="notch nB"></span><b>+21,120</b><span>정산됨</span></div></div>
+  </div></div>
+  <p class="optnote"><b>티켓 모티프.</b> 작업 = 절취선 티켓 (보호자 확정 카드 절취선의 러너 카운터파트 — 시스템 일관성). 스터브에 실수령, 완료 티켓엔 FINISHER 도장이 살짝.</p>
+</div>
+
+<div class="opt">
+  <div class="optlabel"><span class="tag">C3</span><b>루트 리본</b></div>
+  <div class="phone"><div class="inner">
+    <div class="bhs h30">캘린더</div>
+    <div class="sub">오늘 3건 · 리본을 따라 달려요</div>
+    <div class="ribWrap">
+      <div class="station"><h4><b>07:00</b> 초코 · 5km</h4><p>서울숲 순환 · 확정</p></div>
+      <div class="restGap"><i></i>9시간 30분 휴식</div>
+      <div class="station"><h4><b>16:30</b> 보리 · 3km</h4><p>뚝섬 리버뷰 · 응답 대기</p></div>
+      <div class="restGap"><i></i>1시간 45분 휴식</div>
+      <div class="station"><h4><b>19:00</b> 몽이 · 7km ⟳</h4><p>한강 러닝 · 확정</p></div>
+    </div>
+  </div></div>
+  <p class="optnote"><b>트레이스 모티프.</b> 하루 = 세로 볼트 리본, 작업 = 리본 위 스테이션. 작업 사이 실휴식 시간이 자동 표기 — 러너의 하루 체력 배분이 한눈에 (rest_after_min 규칙과 자연 연결).</p>
+</div>
+</div></div>
+
+<!-- ═══════════ 커뮤니티 ═══════════ -->
+<div class="screen">
+<h2 class="bhs">③ 커뮤니티 <small>현재: 플랫 피드 + 후기 탭</small></h2>
+<div class="rowwrap">
+
+<div class="opt">
+  <div class="optlabel"><span class="tag">M1</span><b>동네 스크랩북</b></div>
+  <div class="phone"><div class="inner">
+    <div class="bhs h30">커뮤니티</div>
+    <div class="sub">성수동 이웃들의 러닝 스크랩</div>
+    <div class="scrap"><div class="tape">DOGS HIGH</div>
+      <div class="ph"><svg width="80" height="54" viewBox="0 0 80 54"><path d="M6 46 C 22 10, 40 50, 74 8" stroke="#fff" stroke-width="3.5" fill="none" stroke-linecap="round"/></svg></div>
+      <div class="patchStk"><b class="bhs">5K</b><span>서울숲 ×7</span></div>
+      <div class="scrapFoot"><span class="bhs">초코, 5.02km 완주!!</span></div>
+      <div class="likeRow"><span>초코네 · 34분 전</span><span style="margin-left:auto">🐾 12 · 💬 3</span></div>
+    </div>
+    <div class="scrap r2"><div class="tape" style="background:var(--tang);color:#fff">FINISHER</div>
+      <div class="ph" style="background:linear-gradient(135deg,#b98d5f,#6b5138)"><svg width="80" height="54" viewBox="0 0 80 54"><path d="M8 10 C 30 48, 52 6, 74 40" stroke="#fff" stroke-width="3.5" fill="none" stroke-linecap="round"/></svg></div>
+      <div class="scrapFoot"><span class="bhs">몽이, 첫 7km!</span></div>
+      <div class="likeRow"><span>몽이맘 · 2시간 전</span><span style="margin-left:auto">🐾 28 · 💬 9</span></div>
+    </div>
+  </div></div>
+  <p class="optnote"><b>패치(수집) 모티프.</b> 포스트 = 브랜드 테이프로 붙인 스크랩 — 미세 로테이션, 작성자의 실코스 패치가 스티커로. 인증샷 스튜디오 산출물과 같은 세계관이라 피드가 곧 마케팅 자산 갤러리.</p>
+</div>
+
+<div class="opt">
+  <div class="optlabel"><span class="tag">M2</span><b>동네 클럽하우스</b></div>
+  <div class="phone"><div class="inner">
+    <div class="bhs h30">커뮤니티</div>
+    <div class="club">
+      <div class="bhs">성수동 러닝 클럽</div>
+      <small>이번 주 동네 합산 — 목표 200km</small>
+      <div class="clubBar"><i></i></div>
+      <div class="clubMeta"><span>136.4km</span><span>참여 24마리</span></div>
+    </div>
+    <div class="pin"><div class="who"><span class="avat">초</span>초코네 · 34분 전</div><h4>초코 5.02km 완주 🏁</h4><p>서울숲 순환 — 오늘따라 응가 도장 2개</p></div>
+    <div class="pin coral"><div class="who"><span class="avat" style="background:#5b8c2a">민</span>김민준 러너 · 1시간 전</div><h4>오늘 뚝섬 하천길 공사 우회 있어요</h4><p>러너 팁 — 남측 진입로 이용 추천</p></div>
+    <div class="pin"><div class="who"><span class="avat" style="background:#9b8bb4">몽</span>몽이맘 · 2시간 전</div><h4>몽이 첫 7km!</h4></div>
+  </div></div>
+  <p class="optnote"><b>히어로 = 동네 합산 프로그레스.</b> 주간 동네 km(실집계 가능 — runs 합산 RPC 하나)가 클럽 배너로. 피드는 핀 노트 — 러너 팁은 코랄 레일로 구분. 커뮤니티가 '보는 곳'에서 '함께 채우는 곳'이 된다.</p>
+</div>
+
+<div class="opt">
+  <div class="optlabel"><span class="tag">M3</span><b>리절트 갤러리</b></div>
+  <div class="phone"><div class="inner">
+    <div class="bhs h30">커뮤니티</div>
+    <div class="sub">이웃들의 기록 — 탭하면 풀 카드</div>
+    <div class="resGrid">
+      <div class="resCard volt"><div class="km">5.02<i>KM</i></div><div class="nm">초코 완주</div><div class="dt">서울숲 · 34분 전</div><svg width="52" height="56" viewBox="0 0 52 56"><path d="M6 48 C 16 12, 30 44, 46 8" stroke="#0F1D13" stroke-width="3" fill="none" stroke-linecap="round"/></svg><span class="lk">🐾 12</span></div>
+      <div class="resCard dark"><div class="km" style="color:var(--volt)">7.0<i>KM</i></div><div class="nm">몽이 첫 7km</div><div class="dt">한강 · 2시간 전</div><svg width="52" height="56" viewBox="0 0 52 56"><path d="M8 10 C 20 48, 34 14, 46 44" stroke="#C6F542" stroke-width="3" fill="none" stroke-linecap="round"/></svg><span class="lk">🐾 28</span></div>
+      <div class="resCard clay"><div class="km">3.1<i>KM</i></div><div class="nm">보리 아침런</div><div class="dt">뚝섬 · 어제</div><svg width="52" height="56" viewBox="0 0 52 56"><path d="M6 14 C 22 44, 32 10, 46 40" stroke="#0F1D13" stroke-width="3" fill="none" stroke-linecap="round"/></svg><span class="lk">🐾 7</span></div>
+      <div class="resCard dark"><div class="km" style="color:var(--tang)">10<i>KM</i></div><div class="nm">두부 PB!</div><div class="dt">서울숲 · 어제</div><svg width="52" height="56" viewBox="0 0 52 56"><path d="M8 44 C 18 8, 36 50, 46 12" stroke="#FF5C3D" stroke-width="3" fill="none" stroke-linecap="round"/></svg><span class="lk">🐾 41</span></div>
+    </div>
+  </div></div>
+  <p class="optnote"><b>빕+트레이스 모티프.</b> 피드 = 인증샷 볼트 블록의 미니어처 2열 갤러리 (볼트/다크/클레이 로테이션). 숫자가 주인공이라 스크롤이 빠르고 경쟁심이 붙는다 — 리더보드로 가는 자연 동선.</p>
+</div>
+</div></div>
+
+<div class="verdict">
+<b>추천 조합:</b> 알림 <b>A2 러닝 레일</b> (일정 탭 상태 컬러와 시스템이 이어지고, 티커 1줄이 실데이터로 즉시 가능) · 캘린더 <b>C2 티켓 스택</b> (보호자 절취선과 대칭 — 티켓 모티프 완성, 실수령 스터브는 이미 실 net 연결됨) · 커뮤니티 <b>M2 클럽하우스</b> (동네 합산 실집계 RPC 하나로 히어로가 서고, 참여 동기 구조가 생김). A1·C1·M1은 더 과감한 맛 — 화면당 애니메이션 상한 안에서 전부 구현 가능. 원하는 안 번호만 주면 그대로 구현.
+</div>
+</body>
+</html>
