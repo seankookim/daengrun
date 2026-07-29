@@ -7,7 +7,7 @@ import { Monogram, Row, Skeleton } from '../../src/components/ui';
 import { CoursePatch, fetchPatchPop, fetchRunReport, fetchRunStandings, RunReport, RunStandings, shareRunToFeed } from '../../src/lib/api';
 import { haptic } from '../../src/lib/haptics';
 import { useDisplayFont } from '../../src/lib/displayFont';
-import { getNaverMap } from '../../src/lib/geo';
+import { getNaverMap, smoothTrace } from '../../src/lib/geo';
 import { draft, TracePoint } from '../../src/store';
 import { colors } from '../../src/theme';
 
@@ -226,10 +226,12 @@ export default function Report() {
                       isTiltGesturesEnabled={false}
                       isRotateGesturesEnabled={false}
                     >
-                      <maps.NaverMapPolylineOverlay
-                        coords={run.trace.map((p) => ({ latitude: p.lat, longitude: p.lng }))}
+                      <maps.NaverMapPathOverlay
+                        coords={smoothTrace(run.trace.map((p) => ({ latitude: p.lat, longitude: p.lng })))}
                         color={colors.voltDeep}
-                        width={4}
+                        width={5}
+                        outlineWidth={2}
+                        outlineColor="#ffffff"
                       />
                     </maps.NaverMapView>
                   </View>

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Monogram, Row } from '../../src/components/ui';
 import { addRunEvent, ensureThread, fetchCurrentRunnerJobId, fetchMeetupInfo, MeetupInfo, notifyKmMilestone, RunEventKind, saveRunTrace, sendChatMessage, sendChatPhoto, settleRun, startRunServer, uploadRunPhoto } from '../../src/lib/api';
-import { distM, GeoPoint, getNaverMap, publishPos, startTracking, stopPublishing } from '../../src/lib/geo';
+import { acceptFix, distM, GeoPoint, getNaverMap, publishPos, smoothTrace, startTracking, stopPublishing } from '../../src/lib/geo';
 import { haptic } from '../../src/lib/haptics';
 import { endRunActivity, RunLAProps, startRunActivity, updateRunActivity } from '../../src/lib/runActivity';
 import { EndReason, payoutFor, runnerJob, runRequests, runResult } from '../../src/store';
@@ -150,8 +150,10 @@ export default function ActiveRun() {
     let alive = true;
     startTracking((p) => {
       if (!alive) return;
+      const prev = trace.current[trace.current.length - 1] ?? null;
+      // 픽스 게이트 (2026-07-29) — 정확도 나쁨/순간이동 픽스는 그리지도, 거리에 세지도 않는다
+      if (!acceptFix(prev, p)) return;
       setLastPos(p);
-      const prev = trace.current[trace.current.length - 1];
       trace.current.push(p);
       if (prev) {
         const d = distM(prev, p);
@@ -320,10 +322,12 @@ export default function ActiveRun() {
             isShowZoomControls={false}
           >
             {trace.current.length > 1 && (
-              <maps.NaverMapPolylineOverlay
-                coords={trace.current.map((p) => ({ latitude: p.lat, longitude: p.lng }))}
+              <maps.NaverMapPathOverlay
+                coords={smoothTrace(trace.current.map((p) => ({ latitude: p.lat, longitude: p.lng })))}
                 color="#7FA818"
-                width={5}
+                width={6}
+                outlineWidth={2}
+                outlineColor="#ffffff"
               />
             )}
             {/* 내 위치 — showsUserLocation 대체 (러너 자신의 최신 픽스) */}

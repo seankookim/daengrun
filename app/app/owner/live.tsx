@@ -5,7 +5,7 @@ import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { HeatTrace } from '../../src/components/runcard';
 import { Avatar, Row } from '../../src/components/ui';
 import { fetchBookingStatus, fetchMeetupInfo, MeetupInfo, subscribeBooking } from '../../src/lib/api';
-import { getNaverMap, LivePos, subscribePos } from '../../src/lib/geo';
+import { getNaverMap, LivePos, smoothTrace, subscribePos } from '../../src/lib/geo';
 import { dog, draft, lastRunTrace, runners } from '../../src/store';
 import { colors } from '../../src/theme';
 
@@ -114,7 +114,16 @@ export default function Live() {
           isShowScaleBar={false}
           isShowZoomControls={false}
         >
-          {pathLen > 1 && <maps.NaverMapPolylineOverlay coords={path.current} color={colors.voltDeep} width={5} />}
+          {/* 스무딩은 렌더 전용 — 픽스 게이트는 소스(러너 run.tsx)에서 이미 적용됨 */}
+          {pathLen > 1 && (
+            <maps.NaverMapPathOverlay
+              coords={smoothTrace(path.current)}
+              color={colors.voltDeep}
+              width={6}
+              outlineWidth={2}
+              outlineColor="#ffffff"
+            />
+          )}
           <maps.NaverMapMarkerOverlay
             latitude={pos.lat}
             longitude={pos.lng}
