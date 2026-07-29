@@ -233,6 +233,9 @@ export default function RunnerHome() {
           )}
         </View>
 
+        {/* 하이클럽 — 가용시간 바로 아래 상단 배치 (Sean 2026-07-29 — 검색 바 포함) */}
+        <RunnerClubCard />
+
         {/* ---------- 새 요청 — 관제탑 2순위 (가용 시간 바로 아래, Sean 우선순위 결정 2026-07-28)
             요청 있음 = 코랄 파동 링 + 탱 보더로 긴급감. 큰 카드: 시간·강아지·수익·CTA 전부. ---------- */}
         {inbox.length > 0 ? (
@@ -443,9 +446,6 @@ export default function RunnerHome() {
         )}
 
         {/* ---------- 동네 코스 — 내 동네에서 뛰게 될 코스 미리 알기 ---------- */}
-        {/* 하이클럽 (P-A S1) — 호스트 클레임/내 클럽/발견 카드 */}
-        <RunnerClubCard />
-
         <CourseStrip title="동네 코스" />
 
         {/* ---------- quick links ---------- */}
