@@ -91,7 +91,9 @@ export default function FitnessHub() {
           </Row>
           {fit?.fitnessAge == null ? (
             <Text style={{ fontSize: 12, color: colors.dim, marginTop: 8 }}>
-              반려견 프로필에 생일을 등록하면 측정돼요
+              {fit?.fitnessGate?.reason === 'runs'
+                ? `최근 4주에 ${(fit.fitnessGate as any).left}번 더 완주하면 측정돼요 — 활동 데이터가 있어야 나이가 아니라 '체력'을 잴 수 있어요`
+                : '반려견 프로필에 생일을 등록하면 측정이 시작돼요'}
             </Text>
           ) : (
             <Text style={{ fontSize: 12, color: colors.dim, marginTop: 8 }}>

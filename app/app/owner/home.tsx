@@ -20,9 +20,10 @@ import { useTheme } from '../../src/theme-context';
 const { width: SCREEN_W } = Dimensions.get('window');
 const CARD_W = SCREEN_W - 22; // 거터 11*2 (0.9x 축소)
 const RING_BIG = 216;
-// ── 모프 도트 상수 — 원(큰 상태) ↔ 하단 진행선(컬랩스) ──
-const MORPH_DOTS = 36;
-const MORPH_DOT = 9;
+// ── 모프 스트로크 상수 — 원(큰 상태) ↔ 하단 진행선(컬랩스) ──
+// 도트 간격 ≤ 도트 지름이 되도록 촘촘히 — 점 무리가 아니라 '이어진 선'으로 읽힌다 (Sean, 2026-07-28)
+const MORPH_DOTS = 54;
+const MORPH_DOT = 11;
 const LINE_Y_HERO = 154; // 컬랩스 히어로(176) 하단 진행선 y — 정보 블록 '% 달성' 아래
 
 function lerpHex(a: string, b: string, tt: number): string {
@@ -382,7 +383,13 @@ export default function OwnerHome() {
                 <Text style={{ fontSize: 15, color: hp.dim }}> / {goalKm} km</Text>
               </Text>
               <Text style={{ fontSize: 12.5, color: hp.textSoft, marginTop: 3 }}>
-                {fitnessAge != null ? `체력 나이 ${fitnessAge}살 · 실제보다 젊어요` : '체력 나이 측정 준비 중'}
+                {fitnessAge != null
+                  ? `체력 나이 ${fitnessAge}살 · 실제보다 젊어요`
+                  : fit?.fitnessGate?.reason === 'runs'
+                    ? `${(fit.fitnessGate as any).left}번 더 달리면 체력 나이 측정`
+                    : fit?.fitnessGate?.reason === 'birth'
+                      ? '생일 등록하면 체력 나이 측정 시작'
+                      : '체력 나이 측정 준비 중'}
               </Text>
               {/* 미니바 은퇴 — 진행바는 링에서 풀려 내려온 도트 라인이 담당 */}
               <Text style={{ fontSize: 11.5, fontWeight: '800', color: heroAccent, marginTop: 4 }}>
@@ -451,13 +458,13 @@ export default function OwnerHome() {
             </View>
 
             {/* big-state goal message */}
-            <Animated.Text style={[s.bigMsg, { opacity: bigMsgOpacity, color: hp.textSoft }]}>
-              {goalHit
-                ? `이번 주 목표 달성! ${dogName} 최고예요`
-                : weekKm > 0
-                  ? `목표까지 ${Math.max(Math.round((goalKm - weekKm) * 10) / 10, 0)}km — 좋은 페이스예요`
-                  : '이번 주 첫 러닝을 예약해보세요'}
-            </Animated.Text>
+            {/* 체력 리포트 진입 칩 — 히어로가 탭 가능하다는 걸 매트한 칩이 말해준다 (흰 서브텍스트 은퇴) */}
+            <Animated.View style={[s.reportChip, { opacity: bigMsgOpacity, backgroundColor: hp.chip, borderColor: hp.line }]}>
+              <Text style={{ fontSize: 13, fontWeight: '800', color: hp.textSoft }}>
+                {goalHit ? '🎉 목표 달성 — 체력 리포트' : '체력 리포트 · 주간 목표'}
+              </Text>
+              <Text style={{ fontSize: 14, fontWeight: '900', color: heroAccent }}>›</Text>
+            </Animated.View>
           </Animated.View>
         </Pressable>
       </View>
@@ -1107,6 +1114,10 @@ const s = StyleSheet.create({
   stampBox: { position: 'absolute', right: 18, top: 46, zIndex: 3, alignItems: 'flex-end' }, // 링이 떠난 자리 (컬랩스)
   goalChip: { marginTop: 8, borderRadius: 99, paddingVertical: 4, paddingHorizontal: 10 },
   bigMsg: { textAlign: 'center', marginTop: 8, fontSize: 15, fontWeight: '700' },
+  reportChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'center',
+    borderRadius: 99, paddingVertical: 8, paddingHorizontal: 15, marginTop: 8, borderWidth: 1,
+  },
   // 미니 레이스 빕 세트 — 흰 몸통 + 파스텔 상단 밴드 + 펀치홀 (실제 빕의 조형)
   statChip: {
     flex: 1, borderRadius: 16, backgroundColor: '#fff', borderWidth: 1.2, borderColor: '#DCD6C4',

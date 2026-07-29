@@ -1116,6 +1116,8 @@ export interface Fitness {
   avgPaceSec: number | null;
   streakDays: number;   // 러닝 있는 연속 일수 (오늘 또는 어제부터 역산)
   runDays: boolean[];   // KST 월~일 — 이번 주 러닝 있는 요일 (홈 히어로 요일 스탬프)
+  // 체력 나이 미측정 사유 — 정직한 레시피 카피용 ('나이 그대로'를 측정값처럼 보여주지 않는다)
+  fitnessGate: null | { reason: 'birth' } | { reason: 'runs'; left: number };
   weeks: FitnessWeek[]; // 최근 8주 (과거→현재)
   recent: FitnessRecent[];
 }
@@ -1168,20 +1170,29 @@ export async function fetchFitness(): Promise<Fitness> {
   });
 
   // 체력 나이 v1 (베타 휴리스틱) — 실제 나이 − 활동 보정(최근 4주 주간 평균/목표 비율 + 스트릭).
-  // 수의 검증 산식으로 교체 예정. 생일 없으면 측정 불가.
-  // 생일이 있어야만 측정값 — 저장돼 있어도 생일 없으면 숨김 (시드/과거 잔재 방어)
+  // 수의 검증 산식으로 교체 예정. 측정 조건 2가지 (없으면 null + gate 사유):
+  //   ① 생일 등록 (없으면 나이 자체를 모른다)
+  //   ② 최근 28일 완주 ≥2회 — 0회면 계산값 = 등록 나이 그대로라 '측정'이 아니다 (정직 게이트, 2026-07-28)
   let fitnessAge: number | null = null;
-  if (d?.birth_date) {
+  let fitnessGate: Fitness['fitnessGate'] = null;
+  const recent28 = rows.filter((r) => r.at.getTime() >= now - 28 * 86400_000);
+  if (!d?.birth_date) {
+    fitnessGate = { reason: 'birth' };
+  } else if (recent28.length < 2) {
+    fitnessGate = { reason: 'runs', left: 2 - recent28.length };
+  } else {
     const ageYears = (now - new Date(d.birth_date).getTime()) / (365.25 * 86400_000);
-    if (ageYears > 0 && ageYears <= 25) { // 미래/비정상 생일은 측정 불가 (null 유지)
-    const last28Km = rows.filter((r) => r.at.getTime() >= now - 28 * 86400_000).reduce((s, r) => s + r.km, 0);
-    const goal = Number(d.weekly_goal_km ?? 15);
-    const ratio = goal > 0 ? Math.min(last28Km / 4 / goal, 1.5) : 0;
-    const calc = Math.max(0.5, Math.round((ageYears - 1.8 * ratio - 0.05 * Math.min(streakDays, 14)) * 10) / 10);
-    fitnessAge = calc;
-    if (d.fitness_age == null || Math.abs(Number(d.fitness_age) - calc) >= 0.1) {
-      supabase.from('dogs').update({ fitness_age: calc }).eq('id', d.id).then(() => {}, () => {});
-    }
+    if (ageYears > 0 && ageYears <= 25) { // 미래/비정상 생일은 측정 불가
+      const last28Km = recent28.reduce((s, r) => s + r.km, 0);
+      const goal = Number(d.weekly_goal_km ?? 15);
+      const ratio = goal > 0 ? Math.min(last28Km / 4 / goal, 1.5) : 0;
+      const calc = Math.max(0.5, Math.round((ageYears - 1.8 * ratio - 0.05 * Math.min(streakDays, 14)) * 10) / 10);
+      fitnessAge = calc;
+      if (d.fitness_age == null || Math.abs(Number(d.fitness_age) - calc) >= 0.1) {
+        supabase.from('dogs').update({ fitness_age: calc }).eq('id', d.id).then(() => {}, () => {});
+      }
+    } else {
+      fitnessGate = { reason: 'birth' }; // 비정상 생일도 생일 문제로 안내
     }
   }
 
@@ -1198,7 +1209,7 @@ export async function fetchFitness(): Promise<Fitness> {
     dogPhotoUrl: d?.photo_url ?? null,
     goalKm: Number(d?.weekly_goal_km ?? 15),
     fitnessAge,
-    weekKm, weekRuns: thisWeek.length, avgPaceSec, streakDays, weeks, recent, runDays,
+    weekKm, weekRuns: thisWeek.length, avgPaceSec, streakDays, weeks, recent, runDays, fitnessGate,
   };
 }
 
