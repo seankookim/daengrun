@@ -11,7 +11,7 @@ import {
 import { useClubOverview } from '../src/components/clubcard';
 import { useDisplayFont } from '../src/lib/displayFont';
 import { haptic } from '../src/lib/haptics';
-import { colors } from '../src/theme';
+import { CollarKey, collarColors, colors } from '../src/theme';
 
 // 동네 피드 — 인스타 풀와이드 개편 (Sean 확정, hi-club-plan §1-C, 2026-07-29).
 // IG 문법: 작성자 → 엣지-투-엣지 사진(더블탭 🐾 + 스트라바식 스탯 오버레이) → 액션 행 →
@@ -302,7 +302,12 @@ export default function Community() {
                   </View>
                   {(p.meta.trace ?? []).length > 1 ? (
                     <View style={{ justifyContent: 'center' }}>
-                      <HeatTrace points={(p.meta.trace ?? []).map((pt) => ({ ...pt, v: 0.65 }))} width={110} height={116} />
+                      {/* 칼라 컬러 트레이스 (0033) — 강아지의 색으로 달린 길 */}
+                      <HeatTrace
+                        points={(p.meta.trace ?? []).map((pt) => ({ ...pt, v: 0.65 }))}
+                        width={110} height={116}
+                        tint={p.meta.collar ? collarColors[p.meta.collar as CollarKey] : undefined}
+                      />
                     </View>
                   ) : (
                     <Text style={{ fontSize: 40, alignSelf: 'center', opacity: 0.5 }}>🐾</Text>

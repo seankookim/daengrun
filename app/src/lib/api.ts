@@ -1659,6 +1659,7 @@ export interface FeedPost {
   body: string | null;
   photoUrl: string | null;
   meta: { dogName?: string; km?: number; durationSec?: number; badges?: string[]; trace?: { x: number; y: number }[];
+    collar?: string; // 칼라 컬러 키 (0033) — 런 카드 트레이스가 강아지 색으로
     club?: string; sessionId?: string; teams?: number; dogs?: number; sessionAt?: string }; // 클럽 리캡 자동 포스트 (0031)
   when: string;
   likes: number;
@@ -1796,6 +1797,9 @@ export async function shareRunToFeed(bookingId: string, body?: string): Promise<
   const report = await fetchRunReport(bookingId);
   if (!report.run) throw new Error('완료된 러닝만 공유할 수 있어요');
   const standings = await fetchRunStandings(bookingId).catch(() => null);
+  // 칼라 컬러 동봉 (0033) — 피드 런 카드 트레이스가 강아지의 색으로
+  const { data: bkDog } = await supabase.from('bookings').select('dogs(collar)').eq('id', bookingId).maybeSingle();
+  const collar: string | null = (bkDog as any)?.dogs?.collar ?? null;
   const badges: string[] = [];
   if (standings && standings.total > 1) {
     if (standings.kmRank === 1) badges.push('🏆 역대 최장 거리');
@@ -1821,7 +1825,7 @@ export async function shareRunToFeed(bookingId: string, body?: string): Promise<
     booking_id: bookingId,
     body: body ?? null,
     photo_url: report.run.photos[0] ?? null,
-    meta: { dogName: report.dogName, km: report.run.actualKm, durationSec: report.run.durationSec, badges, trace },
+    meta: { dogName: report.dogName, km: report.run.actualKm, durationSec: report.run.durationSec, badges, trace, ...(collar ? { collar } : {}) },
   });
   if (error) {
     if (error.code === '23505') throw new Error('이미 피드에 공유한 러닝이에요');

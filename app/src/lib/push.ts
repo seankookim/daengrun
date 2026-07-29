@@ -14,6 +14,10 @@ const _handledTaps = new Set<string>();
 // 역할별: 러너는 요청/캘린더, 보호자는 리포트(러닝 전이면 리포트가 상태 안내를 겸함).
 export function routeForNotification(kind: string | null | undefined, refId: string | null | undefined, title: string): void {
   if (kind === 'community') { try { router.push('/community'); } catch { /* */ } return; } // 클럽 리캡 등
+  if (kind === 'reward') { // 기록·마일스톤 (0034) — ref_id = booking → 리포트로
+    try { router.push(refId ? { pathname: '/owner/report', params: { bid: refId } } : '/cards'); } catch { /* */ }
+    return;
+  }
   if (kind !== 'booking' || !refId) return;
   try {
     if (session.role === 'runner') {

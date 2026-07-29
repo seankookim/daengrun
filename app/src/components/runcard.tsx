@@ -19,7 +19,8 @@ function lerpColor(a: string, b: string, t: number): string {
 
 const LINE_W = 5;
 
-export function HeatTrace({ points, width, height }: { points: TracePoint[]; width: number; height: number }) {
+// tint (0033): 강아지 칼라 컬러가 있으면 히트 그라디언트 대신 그 색으로 — 퍼스널 트레이스
+export function HeatTrace({ points, width, height, tint }: { points: TracePoint[]; width: number; height: number; tint?: string }) {
   const segments = points.slice(0, -1).map((p, i) => {
     const q = points[i + 1];
     const x1 = p.x * width, y1 = p.y * height;
@@ -31,7 +32,7 @@ export function HeatTrace({ points, width, height }: { points: TracePoint[]; wid
       top: (y1 + y2) / 2 - LINE_W / 2,
       len,
       angle: Math.atan2(y2 - y1, x2 - x1),
-      color: heatColor((p.v + q.v) / 2),
+      color: tint ?? heatColor((p.v + q.v) / 2),
     };
   });
 

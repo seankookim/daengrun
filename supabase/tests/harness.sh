@@ -31,6 +31,7 @@ done
 psql -q -f 10_settle_suite.sql >/dev/null 2>&1
 psql -q -f 20_recurring_suite.sql >/dev/null 2>&1
 psql -q -f 30_club_suite.sql >/dev/null 2>&1
+psql -q -f 40_records_suite.sql >/dev/null 2>&1
 psql -c "select case when ok then '✅' else '❌' end || ' [' || suite || '] ' || name || case when ok then '' else ' — ' || detail end from _t order by at"
 psql -qt -c "select count(*) filter (where ok) || ' pass / ' || count(*) filter (where not ok) || ' fail' from _t"
 psql -qt -c "select case when count(*) filter (where not ok) > 0 then 'FAIL' else 'OK' end from _t" | grep -q OK
