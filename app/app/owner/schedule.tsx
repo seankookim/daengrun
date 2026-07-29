@@ -532,8 +532,8 @@ const s = StyleSheet.create({
   // 완료 카드 공유 행 — 카드 하단에 부착된 풀와이드 밴드 (도장을 가리지 않는 위치, Sean 2026-07-29)
   shareRow: { flexDirection: 'row', gap: 8, backgroundColor: '#FBFCF6', borderBottomWidth: 1, borderColor: '#DCD6C4', marginTop: -1, paddingVertical: 9, paddingHorizontal: 14 },
   shareBtn: { flex: 1, alignItems: 'center', backgroundColor: colors.volt, borderRadius: 12, paddingVertical: 9, shadowColor: '#7FA818', shadowOpacity: 0.3, shadowRadius: 4, shadowOffset: { width: 0, height: 2 } },
-  // FINISHER 잉크 도장 — 러너 캘린더 원본 문법 (앱솔루트 · -9° · 소프트 에너지 블루), 1.3배 확대판
-  finStamp: { position: 'absolute', right: 104, top: 10, zIndex: 2, borderWidth: 3, borderColor: '#6E9BC5', borderRadius: 10, paddingVertical: 4, paddingHorizontal: 11, transform: [{ rotate: '-9deg' }], opacity: 0.9 },
+  // FINISHER 잉크 도장 — 우하단 (Sean 2026-07-29 확정 위치), 스타일은 schedule-stamp-lab 선택 대기
+  finStamp: { position: 'absolute', right: 14, bottom: 9, zIndex: 2, borderWidth: 3, borderColor: '#6E9BC5', borderRadius: 10, paddingVertical: 4, paddingHorizontal: 11, transform: [{ rotate: '-9deg' }], opacity: 0.9 },
   emptyCta: {
     marginTop: 20, marginHorizontal: 12, borderRadius: 16, borderWidth: 1.4, borderColor: '#cfd8c2', borderStyle: 'dashed',
     alignItems: 'center', paddingVertical: 14,

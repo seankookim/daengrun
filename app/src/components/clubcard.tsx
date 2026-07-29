@@ -1,7 +1,6 @@
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Animated, Easing, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
+import { useCallback, useRef, useState } from 'react';
+import { Alert, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import {
   claimClubHost, ClubOverview, ClubSearchHit, fetchClubOverview, requestDistrictClub, searchClubs,
 } from '../lib/api';
@@ -106,53 +105,10 @@ function ClubSearchBar() {
   );
 }
 
-// 레이스 트랙 아웃라인 (Sean 2026-07-29: 정적 그라디언트 → '트랙 도는 레이스카').
-// 희미한 볼트 헤어라인 = 트랙, 그라디언트 코멧(둘레의 ~28%) = 카 — strokeDashoffset을
-// JS 드라이버로 무한 루프 (SVG 프롭이라 네이티브 드라이버 불가, 소자 1개라 부담 없음).
-const AnimatedRect = Animated.createAnimatedComponent(Rect);
-
-function GradientOutline({ w, h }: { w: number; h: number }) {
-  const offset = useRef(new Animated.Value(0)).current;
-  const R = 20;
-  // 라운드렉트 둘레: 직선 구간 + 코너 원호
-  const perim = w > 0 ? 2 * (w - 2 * R) + 2 * (h - 2 * R) + 2 * Math.PI * R : 0;
-  useEffect(() => {
-    if (perim === 0) return;
-    offset.setValue(0);
-    const lap = Animated.loop(
-      Animated.timing(offset, { toValue: -perim, duration: 4200, easing: Easing.linear, useNativeDriver: false }),
-    );
-    lap.start();
-    return () => lap.stop();
-  }, [perim, offset]);
-  if (w === 0) return null;
-  const seg = perim * 0.28;
-  return (
-    <Svg pointerEvents="none" width={w} height={h} style={StyleSheet.absoluteFill}>
-      <Defs>
-        <LinearGradient id="clubEdge" x1="0" y1="0" x2="1" y2="0.35">
-          <Stop offset="0" stopColor={colors.volt} />
-          <Stop offset="0.45" stopColor="#7FA818" />
-          <Stop offset="1" stopColor={colors.tang} />
-        </LinearGradient>
-      </Defs>
-      {/* 트랙 — 코멧이 없는 구간에도 윤곽이 살아있게 */}
-      <Rect x={1.25} y={1.25} width={w - 2.5} height={h - 2.5} rx={R} stroke="rgba(198,245,66,.22)" strokeWidth={1.5} fill="none" />
-      {/* 카 — 그라디언트 코멧이 트랙을 순환 (지나는 위치에 따라 볼트→탱으로 색이 변함) */}
-      <AnimatedRect
-        x={1.25} y={1.25} width={w - 2.5} height={h - 2.5} rx={R}
-        stroke="url(#clubEdge)" strokeWidth={2.5} fill="none" strokeLinecap="round"
-        strokeDasharray={[seg, perim - seg]}
-        strokeDashoffset={offset as unknown as number}
-      />
-    </Svg>
-  );
-}
-
 // ---------- 프로미넌트 포토 배너 (상태 인지형 · V2 여권 직인 — Sean 확정) ----------
+// 아웃라인은 은퇴 (Sean 2026-07-29: 레이스카 코멧까지 시도 후 '없는 게 낫다' 확정)
 function ClubBanner({ club, role, reload }: { club: ClubOverview; role: 'owner' | 'runner'; reload: () => void }) {
   const df = useDisplayFont();
-  const [size, setSize] = useState({ w: 0, h: 0 });
   const ns = club.nextSession;
   const joined = !!ns?.joined;
   const left = ns ? Math.max(0, ns.capacity - ns.rsvpCount) : 0;
@@ -170,7 +126,7 @@ function ClubBanner({ club, role, reload }: { club: ClubOverview; role: 'owner' 
   };
 
   return (
-    <Pressable onPress={onPress} style={s.banner} onLayout={(e) => setSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
+    <Pressable onPress={onPress} style={s.banner}>
       {club.photoUrl
         ? <Image source={{ uri: club.photoUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
         : <View style={[StyleSheet.absoluteFill, { backgroundColor: '#26382a' }]} />}
@@ -219,8 +175,6 @@ function ClubBanner({ club, role, reload }: { club: ClubOverview; role: 'owner' 
         <Text style={s.stampMain}>HIGH-VERIFIED</Text>
         <Text style={s.stampSub}>FREE TO JOIN · ANYTIME</Text>
       </View>
-
-      <GradientOutline w={size.w} h={size.h} />
     </Pressable>
   );
 }

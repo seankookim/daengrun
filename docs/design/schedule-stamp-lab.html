@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>내 일정 완료 카드 — FINISHER 도장 우하단 4안</title>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--forest:#0F1D13;--volt:#C6F542;--cream:#F8F6F0;--line:#DCD6C4;--blue:#6E9BC5;--blueDeep:#4A6E93;--blueTint:#E3EEF8;}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#141811;color:var(--cream);font-family:'IBM Plex Sans KR',sans-serif;padding:34px 26px 80px}
+.bhs{font-family:'Black Han Sans',sans-serif;font-weight:400}
+h1{font-size:28px;color:var(--volt)}
+.lede{color:#8fa093;margin:10px 0 4px;max-width:880px;line-height:1.6;font-size:14px}
+.rowwrap{display:flex;gap:26px;flex-wrap:wrap;margin-top:24px}
+.opt{width:400px}
+.optlabel{display:flex;gap:8px;align-items:center;margin-bottom:10px}
+.optlabel .tag{background:var(--volt);color:var(--forest);font-weight:800;font-size:12px;border-radius:99px;padding:3px 10px}
+.optlabel b{font-size:16px}
+.optnote{color:#8fa093;font-size:12.5px;line-height:1.55;margin:9px 2px 0}
+.stage{background:var(--cream);border-radius:24px;padding:16px 0;color:var(--forest)}
+.datehdr{font-size:14px;font-weight:900;color:#49524a;padding:0 12px;margin-bottom:8px}
+/* ── 완료 카드 (실제 레이아웃 재현) ── */
+.card{position:relative;display:flex;background:#fff;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.rail{width:8px;background:var(--blue)}
+.body{flex:1;padding:14px;position:relative}
+.r1{display:flex;justify-content:space-between;align-items:center}
+.time{font-size:18px;font-weight:900;color:var(--forest)}
+.donepill{background:var(--blueTint);color:var(--blueDeep);font-weight:800;font-size:11px;border-radius:99px;padding:4px 9px}
+.r2{display:flex;gap:12px;margin-top:10px;align-items:flex-start}
+.thumb{width:64px;height:48px;border-radius:10px;background:#EFECE2;position:relative;overflow:hidden;flex:none}
+.info{flex:1;min-width:0}
+.route{font-size:15px;font-weight:800;color:var(--forest)}
+.route .cd{display:inline-flex;width:13px;height:13px;border-radius:50%;background:#5a7a3c;color:#fff;font-size:8px;font-weight:900;align-items:center;justify-content:center;vertical-align:1px;margin-left:3px}
+.sub{font-size:15px;color:#49524a;margin-top:3px}
+.sub2{font-size:14.5px;color:#75806f;margin-top:2px}
+.patch{width:38px;height:38px;border-radius:50%;border:3px solid var(--volt);background:#0F1D13;color:var(--volt);font-weight:900;font-size:11px;display:flex;align-items:center;justify-content:center;flex:none;align-self:center;margin-right:2px}
+/* ── 공유 행 (확정: 카드 아래 부착 밴드) ── */
+.share{display:flex;gap:8px;background:#FBFCF6;border-bottom:1px solid var(--line);padding:9px 14px;margin-top:-1px}
+.share a{flex:1;text-align:center;background:var(--volt);border-radius:12px;padding:9px 0;font-size:13px;font-weight:900;color:var(--forest);text-decoration:none;box-shadow:0 2px 4px rgba(127,168,24,.3)}
+.share a.g{background:#e7efd8;color:#3d5a2b;box-shadow:none}
+/* ── 도장 공통: 우하단 ── */
+.stamp{position:absolute;z-index:2}
+/* T1 클린 박스 직인 (캘린더 원본 문법 그대로, 위치만 우하단) */
+.t1{right:13px;bottom:9px;transform:rotate(-9deg);border:3px solid var(--blue);border-radius:10px;padding:4px 11px;opacity:.9;font-size:13px;font-weight:900;letter-spacing:2.5px;color:var(--blue)}
+/* T2 워너웃 러버 스탬프 — 진짜 도장처럼 닳고 얼룩진 */
+.t2{right:11px;bottom:7px;transform:rotate(-7.5deg)}
+.t2 .ink{position:relative;border:3.5px solid var(--blueDeep);border-radius:9px;padding:5px 12px;font-size:13.5px;font-weight:900;letter-spacing:2.5px;color:var(--blueDeep);opacity:.82;
+  text-shadow:.7px .4px 0 rgba(74,110,147,.35), -.4px -.3px 0 rgba(74,110,147,.25);filter:blur(.2px)}
+/* 잉크가 벗겨진 자리 — 카드 흰색 스펙클이 도장을 갉아먹음 */
+.t2 .ink::after{content:'';position:absolute;inset:-5px;
+  background:
+   radial-gradient(3.5px 2.5px at 12% 24%, #fff 60%, transparent 62%),
+   radial-gradient(2.5px 2px at 30% 78%, #fff 60%, transparent 62%),
+   radial-gradient(4px 2px at 55% 12%, #fff 60%, transparent 62%),
+   radial-gradient(2px 3px at 68% 86%, #fff 60%, transparent 62%),
+   radial-gradient(3px 2px at 84% 34%, #fff 60%, transparent 62%),
+   radial-gradient(2.5px 2px at 94% 68%, #fff 60%, transparent 62%),
+   radial-gradient(2px 1.5px at 42% 48%, #fff 60%, transparent 62%),
+   radial-gradient(5px 1.5px at 20% 96%, #fff 55%, transparent 60%),
+   radial-gradient(4px 1.5px at 76% 4%, #fff 55%, transparent 60%),
+   linear-gradient(104deg, transparent 42%, rgba(255,255,255,.5) 47%, transparent 53%)}
+/* T3 원형 소인 (우체국 소인 — 날짜가 도장 안에) */
+.t3{right:9px;bottom:5px;transform:rotate(8deg);width:64px;height:64px;border:2.5px solid var(--blue);border-radius:50%;opacity:.85;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:inset 0 0 0 1px transparent}
+.t3::before{content:'';position:absolute;inset:4px;border:1px dashed rgba(110,155,197,.55);border-radius:50%}
+.t3 b{font-size:9.5px;letter-spacing:1.5px;color:var(--blue)}
+.t3 i{font-style:normal;font-size:12px;font-weight:900;color:var(--blue);margin-top:1px}
+.t3 span{font-size:7px;letter-spacing:1px;color:rgba(110,155,197,.8);margin-top:1px}
+/* T4 여권 직인 2줄 (클럽 배너 V2와 같은 가족 — 블루 잉크) */
+.t4{right:12px;bottom:8px;transform:rotate(-8deg);border:3px solid var(--blue);border-radius:10px;padding:4px 11px;text-align:center;opacity:.9}
+.t4 b{display:block;font-size:12.5px;letter-spacing:2.5px;color:var(--blue);font-weight:900}
+.t4 span{display:block;font-size:7.5px;letter-spacing:1.8px;color:rgba(110,155,197,.85);margin-top:2px;border-top:1px solid rgba(110,155,197,.4);padding-top:2px;font-weight:700}
+/* T2에도 워너웃을 켠 조합 미리보기용 — T3 워너웃 변형 */
+.worn3::after{content:'';position:absolute;inset:-3px;border-radius:50%;
+  background:
+   radial-gradient(3px 2px at 22% 18%, var(--cream) 60%, transparent 62%),
+   radial-gradient(2.5px 2px at 74% 82%, var(--cream) 60%, transparent 62%),
+   radial-gradient(2px 2px at 86% 28%, var(--cream) 60%, transparent 62%),
+   radial-gradient(3.5px 1.5px at 12% 70%, var(--cream) 58%, transparent 62%)}
+svg.tr{position:absolute;inset:0}
+</style>
+</head>
+<body>
+<h1 class="bhs">내 일정 완료 카드 — 도장 우하단 4안</h1>
+<p class="lede">확정 베이스: 공유 버튼 2개는 카드 아래 부착 행, 패치 도장은 우측 컬럼 38, FINISHER 도장은 <b style="color:var(--volt)">우하단</b>. 아래 4안은 도장의 '재질'만 다릅니다 — T2가 요청하신 닳은 진짜 도장 룩.</p>
+
+<div class="rowwrap">
+
+<div class="opt">
+  <div class="optlabel"><span class="tag">T1</span><b>클린 박스 직인</b></div>
+  <div class="stage"><div class="datehdr">7월 26일 토요일</div>
+    <div class="card"><div class="rail"></div><div class="body">
+      <div class="r1"><span class="time">07:00</span><span class="donepill">완료</span></div>
+      <div class="r2">
+        <div class="thumb"><svg class="tr" viewBox="0 0 64 48"><polyline points="8,38 18,24 30,30 42,14 56,20" fill="none" stroke="#C6F542" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="info"><div class="route">서리풀 공원 코스<span class="cd">✓</span></div><div class="sub">몽이 · 지훈 러너 · 3km</div><div class="sub2">24,000원 · 6'30"/km</div></div>
+        <div class="patch">3K</div>
+      </div>
+      <div class="stamp t1">FINISHER</div>
+    </div></div>
+    <div class="share" style="margin:0 0 -16px"><a>📸 공유 카드</a><a class="g">🐕 피드 자랑</a></div>
+  </div>
+  <p class="optnote">러너 캘린더 FINISHER의 직계 — 같은 문법, 위치만 우하단. 시스템 일관성 최고, 가장 단정.</p>
+</div>
+
+<div class="opt">
+  <div class="optlabel"><span class="tag">T2</span><b>워너웃 러버 스탬프 ★</b></div>
+  <div class="stage"><div class="datehdr">7월 26일 토요일</div>
+    <div class="card"><div class="rail"></div><div class="body">
+      <div class="r1"><span class="time">07:00</span><span class="donepill">완료</span></div>
+      <div class="r2">
+        <div class="thumb"><svg class="tr" viewBox="0 0 64 48"><polyline points="8,38 18,24 30,30 42,14 56,20" fill="none" stroke="#C6F542" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="info"><div class="route">서리풀 공원 코스<span class="cd">✓</span></div><div class="sub">몽이 · 지훈 러너 · 3km</div><div class="sub2">24,000원 · 6'30"/km</div></div>
+        <div class="patch">3K</div>
+      </div>
+      <div class="stamp t2"><div class="ink">FINISHER</div></div>
+    </div></div>
+    <div class="share" style="margin:0 0 -16px"><a>📸 공유 카드</a><a class="g">🐕 피드 자랑</a></div>
+  </div>
+  <p class="optnote">닳은 진짜 도장 — 잉크가 벗겨진 스펙클 + 이중 압인 고스트 + 미세 번짐 + 롤러 스트릭. '기계가 그린 UI'가 아니라 '사람이 쾅 찍은 도장'. RN 구현: 스펙클을 SVG 마스크 서클 몇 개로 (의존성 0).</p>
+</div>
+
+<div class="opt">
+  <div class="optlabel"><span class="tag">T3</span><b>원형 소인 (날짜 내장)</b></div>
+  <div class="stage"><div class="datehdr">7월 26일 토요일</div>
+    <div class="card"><div class="rail"></div><div class="body">
+      <div class="r1"><span class="time">07:00</span><span class="donepill">완료</span></div>
+      <div class="r2">
+        <div class="thumb"><svg class="tr" viewBox="0 0 64 48"><polyline points="8,38 18,24 30,30 42,14 56,20" fill="none" stroke="#C6F542" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="info"><div class="route">서리풀 공원 코스<span class="cd">✓</span></div><div class="sub">몽이 · 지훈 러너 · 3km</div><div class="sub2">24,000원 · 6'30"/km</div></div>
+        <div class="patch">3K</div>
+      </div>
+      <div class="stamp t3 worn3"><b>FINISHER</b><i>07.26</i><span>DOGS HIGH</span></div>
+    </div></div>
+    <div class="share" style="margin:0 0 -16px"><a>📸 공유 카드</a><a class="g">🐕 피드 자랑</a></div>
+  </div>
+  <p class="optnote">우체국 소인 — 완주 날짜가 도장 안에 박힘 (기록으로서의 도장). 점선 이너 링 + 살짝 워너웃. 알림 탭 날짜 소인과 같은 가족.</p>
+</div>
+
+<div class="opt">
+  <div class="optlabel"><span class="tag">T4</span><b>여권 직인 2줄 (V2 가족)</b></div>
+  <div class="stage"><div class="datehdr">7월 26일 토요일</div>
+    <div class="card"><div class="rail"></div><div class="body">
+      <div class="r1"><span class="time">07:00</span><span class="donepill">완료</span></div>
+      <div class="r2">
+        <div class="thumb"><svg class="tr" viewBox="0 0 64 48"><polyline points="8,38 18,24 30,30 42,14 56,20" fill="none" stroke="#C6F542" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="info"><div class="route">서리풀 공원 코스<span class="cd">✓</span></div><div class="sub">몽이 · 지훈 러너 · 3km</div><div class="sub2">24,000원 · 6'30"/km</div></div>
+        <div class="patch">3K</div>
+      </div>
+      <div class="stamp t4"><b>FINISHER</b><span>3.0KM · 26 JUL</span></div>
+    </div></div>
+    <div class="share" style="margin:0 0 -16px"><a>📸 공유 카드</a><a class="g">🐕 피드 자랑</a></div>
+  </div>
+  <p class="optnote">클럽 배너 V2 직인과 같은 가족(2줄 박스) — 블루 잉크 버전. 거리·날짜가 아래 칸에. 클럽 도장과 나란히 보면 '한 세계관의 도장 시스템'.</p>
+</div>
+</div>
+
+<p class="lede" style="margin-top:36px;border-top:1px solid #2c3a2c;padding-top:16px">
+<b style="color:var(--volt)">추천: T2 워너웃</b> — 요청하신 '진짜 도장' 룩이고, 완주 도장은 원래 쾅 찍혀서 닳아야 맛입니다. T2 재질을 T3(원형+날짜)이나 T4(2줄) 형태에 얹는 조합도 가능해요 (예: T4 형태 + T2 워너웃). 번호 또는 조합 주시면 그대로 구현합니다.
+</p>
+</body>
+</html>
