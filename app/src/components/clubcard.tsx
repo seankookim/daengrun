@@ -1,6 +1,6 @@
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useRef, useState } from 'react';
-import { Alert, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Alert, Animated, Easing, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import {
   claimClubHost, ClubOverview, ClubSearchHit, fetchClubOverview, requestDistrictClub, searchClubs,
@@ -106,9 +106,27 @@ function ClubSearchBar() {
   );
 }
 
-// 볼트→탱 그라디언트 아웃라인 (Sean 확정 E3 변형) — SVG 스트로크, 신규 네이티브 의존성 0
+// 레이스 트랙 아웃라인 (Sean 2026-07-29: 정적 그라디언트 → '트랙 도는 레이스카').
+// 희미한 볼트 헤어라인 = 트랙, 그라디언트 코멧(둘레의 ~28%) = 카 — strokeDashoffset을
+// JS 드라이버로 무한 루프 (SVG 프롭이라 네이티브 드라이버 불가, 소자 1개라 부담 없음).
+const AnimatedRect = Animated.createAnimatedComponent(Rect);
+
 function GradientOutline({ w, h }: { w: number; h: number }) {
+  const offset = useRef(new Animated.Value(0)).current;
+  const R = 20;
+  // 라운드렉트 둘레: 직선 구간 + 코너 원호
+  const perim = w > 0 ? 2 * (w - 2 * R) + 2 * (h - 2 * R) + 2 * Math.PI * R : 0;
+  useEffect(() => {
+    if (perim === 0) return;
+    offset.setValue(0);
+    const lap = Animated.loop(
+      Animated.timing(offset, { toValue: -perim, duration: 4200, easing: Easing.linear, useNativeDriver: false }),
+    );
+    lap.start();
+    return () => lap.stop();
+  }, [perim, offset]);
   if (w === 0) return null;
+  const seg = perim * 0.28;
   return (
     <Svg pointerEvents="none" width={w} height={h} style={StyleSheet.absoluteFill}>
       <Defs>
@@ -118,7 +136,15 @@ function GradientOutline({ w, h }: { w: number; h: number }) {
           <Stop offset="1" stopColor={colors.tang} />
         </LinearGradient>
       </Defs>
-      <Rect x={1.25} y={1.25} width={w - 2.5} height={h - 2.5} rx={20} stroke="url(#clubEdge)" strokeWidth={2.5} fill="none" />
+      {/* 트랙 — 코멧이 없는 구간에도 윤곽이 살아있게 */}
+      <Rect x={1.25} y={1.25} width={w - 2.5} height={h - 2.5} rx={R} stroke="rgba(198,245,66,.22)" strokeWidth={1.5} fill="none" />
+      {/* 카 — 그라디언트 코멧이 트랙을 순환 (지나는 위치에 따라 볼트→탱으로 색이 변함) */}
+      <AnimatedRect
+        x={1.25} y={1.25} width={w - 2.5} height={h - 2.5} rx={R}
+        stroke="url(#clubEdge)" strokeWidth={2.5} fill="none" strokeLinecap="round"
+        strokeDasharray={[seg, perim - seg]}
+        strokeDashoffset={offset as unknown as number}
+      />
     </Svg>
   );
 }
@@ -161,7 +187,7 @@ function ClubBanner({ club, role, reload }: { club: ClubOverview; role: 'owner' 
 
       <View style={{ flex: 1, padding: 14, paddingTop: 16 }}>
         {/* 클럽명 — 상단으로, 더 크게 (Sean 2026-07-29) */}
-        <Text style={[{ fontSize: 26, fontWeight: '900', color: '#fff', paddingRight: 92 }, df]} numberOfLines={1}>{club.name}</Text>
+        <Text style={[{ fontSize: 31, fontWeight: '900', color: '#fff', paddingRight: 92 }, df]} numberOfLines={1}>{club.name}</Text>
         <Text style={{ fontSize: 13, color: '#d8e2d0', marginTop: 4, paddingRight: 92 }} numberOfLines={1}>
           {club.status === 'collecting'
             ? `관심 ${club.interestCount}명 · 호스트를 기다려요`
@@ -228,9 +254,10 @@ const s = StyleSheet.create({
   banner: { height: 152, borderRadius: 21, overflow: 'hidden', marginTop: 10, backgroundColor: '#26382a' },
   bannerScrim: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(10,16,10,.36)' },
   ddayPill: { position: 'absolute', top: 13, right: 13, zIndex: 2, backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 4, paddingHorizontal: 10 },
-  stamp: { position: 'absolute', right: 12, bottom: 12, borderWidth: 2.5, borderColor: colors.volt, borderRadius: 9, paddingVertical: 5, paddingHorizontal: 10, backgroundColor: 'rgba(15,29,19,.35)', transform: [{ rotate: '-7deg' }], alignItems: 'center' },
-  stampMain: { fontSize: 12, fontWeight: '900', letterSpacing: 2, color: colors.volt },
-  stampSub: { fontSize: 7.5, fontWeight: '700', letterSpacing: 1.6, color: 'rgba(198,245,66,.8)', marginTop: 2, borderTopWidth: 1, borderTopColor: 'rgba(198,245,66,.4)', paddingTop: 2 },
+  // V2 직인 — 더 크게 · 더 왼쪽 · 더 위로 (Sean 2026-07-29): 코너에 붙은 라벨이 아니라 사진에 찍힌 도장처럼
+  stamp: { position: 'absolute', right: 22, bottom: 38, borderWidth: 3, borderColor: colors.volt, borderRadius: 11, paddingVertical: 6, paddingHorizontal: 13, backgroundColor: 'rgba(15,29,19,.35)', transform: [{ rotate: '-7deg' }], alignItems: 'center' },
+  stampMain: { fontSize: 14.5, fontWeight: '900', letterSpacing: 2.4, color: colors.volt },
+  stampSub: { fontSize: 9, fontWeight: '700', letterSpacing: 1.8, color: 'rgba(198,245,66,.8)', marginTop: 2, borderTopWidth: 1, borderTopColor: 'rgba(198,245,66,.4)', paddingTop: 2 },
   bannerCta: { backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 7, paddingHorizontal: 13 },
   hostPill: { backgroundColor: '#5a7a3c', borderRadius: 99, paddingVertical: 5, paddingHorizontal: 9, alignSelf: 'center' },
 });

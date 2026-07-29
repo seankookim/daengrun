@@ -210,18 +210,15 @@ export default function Schedule() {
                           {b.price.toLocaleString()}원 · {b.paceLabel}
                         </Text>
                       </View>
-                      {/* 완료 = 패치 도장 + FINISHER (C2 완주 도장 — 러너 캘린더와 동일 계열) · 그 외 = 셰브런.
+                      {/* 완료 = 패치 도장 (우측 컬럼) · 그 외 = 셰브런.
                           공유 버튼들은 카드 아래 행으로 이동 (Sean 2026-07-29 — 도장이 버튼에 밀려 안 보이던 문제) */}
                       {b.status === 'completed' ? (
-                        <View style={{ alignItems: 'center', gap: 7, alignSelf: 'center' }}>
+                        <View style={{ alignItems: 'center', alignSelf: 'center' }}>
                           {patchMap[b.routeId] && (
                             <Pressable onPress={(e) => { e.stopPropagation(); router.push('/cards'); }}>
                               <PatchBadge km={patchMap[b.routeId].km} grade={patchMap[b.routeId].grade} size={38} />
                             </Pressable>
                           )}
-                          <View style={s.finStamp}>
-                            <Text style={{ fontSize: 10, fontWeight: '900', letterSpacing: 2, color: '#6E9BC5' }}>FINISHER</Text>
-                          </View>
                         </View>
                       ) : (
                         <Text style={{ fontSize: 16, color: colors.dim, alignSelf: 'center' }}>›</Text>
@@ -236,6 +233,13 @@ export default function Schedule() {
                       </Pressable>
                     )}
                   </View>
+                  {/* FINISHER 잉크 도장 — 러너 캘린더 원본과 동일 문법 (티켓 위에 비스듬히 찍힌 직인),
+                      Sean 2026-07-29: '원래 그 도장' — 더 크게, 더 왼쪽·위로 */}
+                  {b.status === 'completed' && (
+                    <View pointerEvents="none" style={s.finStamp}>
+                      <Text style={{ fontSize: 13, fontWeight: '900', letterSpacing: 2.5, color: '#6E9BC5' }}>FINISHER</Text>
+                    </View>
+                  )}
                 </Pressable>
                 {/* 공유 진입을 일정 카드에 직결 (Sean 2026-07-29) — 카드 아래 부착 행이라 도장을 가리지 않는다 */}
                 {b.status === 'completed' && (
@@ -528,8 +532,8 @@ const s = StyleSheet.create({
   // 완료 카드 공유 행 — 카드 하단에 부착된 풀와이드 밴드 (도장을 가리지 않는 위치, Sean 2026-07-29)
   shareRow: { flexDirection: 'row', gap: 8, backgroundColor: '#FBFCF6', borderBottomWidth: 1, borderColor: '#DCD6C4', marginTop: -1, paddingVertical: 9, paddingHorizontal: 14 },
   shareBtn: { flex: 1, alignItems: 'center', backgroundColor: colors.volt, borderRadius: 12, paddingVertical: 9, shadowColor: '#7FA818', shadowOpacity: 0.3, shadowRadius: 4, shadowOffset: { width: 0, height: 2 } },
-  // FINISHER 완주 도장 — 러너 캘린더 finStamp와 동일 계열 (소프트 에너지 블루, 완주는 성과다)
-  finStamp: { borderWidth: 2.5, borderColor: '#6E9BC5', borderRadius: 8, paddingVertical: 3, paddingHorizontal: 8, transform: [{ rotate: '-9deg' }], opacity: 0.85 },
+  // FINISHER 잉크 도장 — 러너 캘린더 원본 문법 (앱솔루트 · -9° · 소프트 에너지 블루), 1.3배 확대판
+  finStamp: { position: 'absolute', right: 104, top: 10, zIndex: 2, borderWidth: 3, borderColor: '#6E9BC5', borderRadius: 10, paddingVertical: 4, paddingHorizontal: 11, transform: [{ rotate: '-9deg' }], opacity: 0.9 },
   emptyCta: {
     marginTop: 20, marginHorizontal: 12, borderRadius: 16, borderWidth: 1.4, borderColor: '#cfd8c2', borderStyle: 'dashed',
     alignItems: 'center', paddingVertical: 14,
