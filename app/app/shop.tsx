@@ -1,4 +1,5 @@
 import { useDisplayFont } from '../src/lib/displayFont';
+import { useNumFont } from '../src/lib/fonts';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -18,6 +19,7 @@ const CATS = ['전체', '간식', '용품', '의류', '영양제'];
 
 export default function Shop() {
   const df = useDisplayFont(); // 디스플레이 서체 — 화면 타이틀
+  const nf = useNumFont(); // [V4] 포인트 잔액 = Oswald
   const [miles, setMiles] = useState<MilesInfo | null>(null);
   const [claims, setClaims] = useState<GearClaim[]>([]);
   const [drops, setDrops] = useState<DropRow[]>([]);
@@ -62,7 +64,7 @@ export default function Shop() {
           <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 12.5, fontWeight: '800', letterSpacing: 2, color: colors.volt }}>HIGH POINT</Text>
-              <Text style={{ fontSize: 34, fontWeight: '900', color: '#fff', marginTop: 5 }}>
+              <Text style={[{ fontSize: 34, fontWeight: '900', color: '#fff', marginTop: 5 }, nf]}>
                 {miles ? miles.balance.toLocaleString() : '—'}
                 <Text style={{ fontSize: 14, color: '#b8c4ae' }}> 포인트</Text>
               </Text>
@@ -125,7 +127,7 @@ export default function Shop() {
                       <Text style={{ fontSize: 15.5, fontWeight: '800', color: FOREST }}>{g.item}</Text>
                       <Text style={{ fontSize: 14, color: colors.dim, marginTop: 2 }}>{g.milestone}회 달성 보상</Text>
                     </View>
-                    <View style={[s.claimPill, g.status !== 'claimable' && { backgroundColor: '#f0eee3' }]}>
+                    <View style={[s.claimPill, g.status !== 'claimable' && { backgroundColor: '#EEF0EA' }]}>
                       <Text style={{ fontSize: 14, fontWeight: '800', color: g.status === 'claimable' ? '#3d5a2b' : '#75806f' }}>
                         {g.status === 'claimable' ? '수령 가능 · 배송 연동 준비 중' : g.status === 'locked' ? '잠김' : g.status}
                       </Text>
@@ -182,21 +184,21 @@ export default function Shop() {
 }
 
 const s = StyleSheet.create({
-  search: { backgroundColor: '#fff', borderRadius: 13, paddingVertical: 12, paddingHorizontal: 14, borderWidth: 1, borderColor: '#E5D5C6', marginBottom: 12 },
-  circleBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DCD6C4' },
-  hero: { backgroundColor: FOREST, borderRadius: 20, padding: 18 },
-  heroGo: { backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 8, paddingHorizontal: 13 },
-  dropStrip: { backgroundColor: '#eaf7c8', borderRadius: 16, padding: 14, marginTop: 10, borderWidth: 1.5, borderColor: '#c9dd8f', alignItems: 'center' },
-  boostStrip: { backgroundColor: '#fff', borderRadius: 16, padding: 12, marginTop: 10, borderWidth: 1.5, borderColor: '#c9dd8f', alignItems: 'center' },
+  search: { backgroundColor: '#fff', borderRadius: 6, paddingVertical: 12, paddingHorizontal: 14, borderWidth: 1, borderColor: '#E5D5C6', marginBottom: 12 },
+  circleBtn: { width: 40, height: 40, borderRadius: 6, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#D8DAD2' },
+  hero: { backgroundColor: FOREST, borderRadius: 6, padding: 18 },
+  heroGo: { backgroundColor: colors.volt, borderRadius: 4, paddingVertical: 8, paddingHorizontal: 13 },
+  dropStrip: { backgroundColor: '#eaf7c8', borderRadius: 6, padding: 14, marginTop: 10, borderWidth: 1.5, borderColor: '#c9dd8f', alignItems: 'center' },
+  boostStrip: { backgroundColor: '#fff', borderRadius: 6, padding: 12, marginTop: 10, borderWidth: 1.5, borderColor: '#c9dd8f', alignItems: 'center' },
   section: { fontSize: 17, fontWeight: '900', color: FOREST },
-  countPill: { minWidth: 20, height: 20, borderRadius: 10, backgroundColor: '#e3f0c4', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5, alignSelf: 'center' },
-  card: { backgroundColor: '#fff', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#DCD6C4' },
-  div: { height: 1, backgroundColor: '#f0eee3' },
-  claimPill: { backgroundColor: '#eaf7c8', borderRadius: 99, paddingVertical: 5, paddingHorizontal: 10, alignSelf: 'center' },
-  cat: { borderRadius: 99, paddingVertical: 10, paddingHorizontal: 18, backgroundColor: '#fff', borderWidth: 1, borderColor: '#E5D5C6' },
-  gearTag: { backgroundColor: colors.terra, borderRadius: 99, paddingVertical: 3, paddingHorizontal: 9 },
-  prod: { width: '47.5%', borderRadius: 20, padding: 14, minHeight: 210 },
+  countPill: { minWidth: 20, height: 20, borderRadius: 4, backgroundColor: '#e3f0c4', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5, alignSelf: 'center' },
+  card: { backgroundColor: '#fff', borderRadius: 6, padding: 14, borderWidth: 1, borderColor: '#D8DAD2' },
+  div: { height: 1, backgroundColor: '#EEF0EA' },
+  claimPill: { backgroundColor: '#eaf7c8', borderRadius: 4, paddingVertical: 5, paddingHorizontal: 10, alignSelf: 'center' },
+  cat: { borderRadius: 4, paddingVertical: 10, paddingHorizontal: 18, backgroundColor: '#fff', borderWidth: 1, borderColor: '#E5D5C6' },
+  gearTag: { backgroundColor: colors.terra, borderRadius: 4, paddingVertical: 3, paddingHorizontal: 9 },
+  prod: { width: '47.5%', borderRadius: 6, padding: 14, minHeight: 210 },
   prodName: { fontSize: 16.5, fontWeight: '900', color: '#4A2A18', marginTop: 6, lineHeight: 23 },
   prodVisual: { flex: 1, alignItems: 'center', justifyContent: 'center', marginVertical: 8 },
-  addBtn: { width: 30, height: 30, borderRadius: 15, backgroundColor: colors.terra, alignItems: 'center', justifyContent: 'center' },
+  addBtn: { width: 30, height: 30, borderRadius: 6, backgroundColor: colors.terra, alignItems: 'center', justifyContent: 'center' },
 });

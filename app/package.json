@@ -4,6 +4,8 @@
   "main": "expo-router/entry",
   "dependencies": {
     "@expo-google-fonts/black-han-sans": "^0.4.1",
+    "@expo-google-fonts/ibm-plex-sans-kr": "^0.4.1",
+    "@expo-google-fonts/oswald": "^0.4.1",
     "@expo/ui": "^57.0.7",
     "@mj-studio/react-native-naver-map": "^2.9.0",
     "@react-native-async-storage/async-storage": "2.1.2",

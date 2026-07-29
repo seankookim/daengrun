@@ -4,18 +4,18 @@
 export const colors = {
   ink: '#171A17',
   forest: '#0F1D13',     // 딥 포레스트 (구 #132117 — 리프레시로 심화)
-  cream: '#F8F6F0',      // 한 톤 웜 (구 #F8F7F3)
+  cream: '#FFFFFF',      // [V4] 페이퍼 — 베이지 박멸 (구 #F8F6F0). 이름은 호환 유지, 값은 종이
   volt: '#C6F542',       // 크림 위 발색 보정 (구 #B9F23A)
   voltDeep: '#7FA818',
   voltBright: '#d4ff66',
   tang: '#FF5C3D',       // 코랄 펀치 업 (구 #FF6347) — 도파민 숫자·라이브 전용
   coralText: '#d84a2f',  // 읽는 코랄 — 경고·조기종료 텍스트 (tang의 텍스트 버전, 의도적 2단)
   card: '#ffffff',
-  clay: '#EDE8DA',       // NEW 웜 뉴트럴 — 칩·웰·인풋 바탕 (흰 카드가 크림 위에 뜨지 않게)
-  line: '#DCD6C4',       // 헤어라인 3종(#D6D3C4/#DEDACB/#d9d5c6) 단일 수렴
-  border: '#DCD6C4',     // line과 동치 — 점진 제거 예정 (line만 남긴다)
+  clay: '#EFF1EC',       // [V4] 쿨 그레이 웰 (구 베이지 #EDE8DA)
+  line: '#D8DAD2',       // [V4] 쿨 헤어라인 (구 베이지 #DCD6C4) — 굵은 구조는 ink 2.5px 룰
+  border: '#D8DAD2',     // line과 동치
   green: '#5a7a3c',      // 기능 그린 — 라벨·강조 (volt의 텍스트 버전, 대비 우선이라 유지)
-  dim: '#5B594A',
+  dim: '#586055',        // [V4] 쿨 딤 (구 웜 #5B594A)
   // 하이클럽 컬러 월드 (2026-07-29 Sean 확정 C1 바이올렛) — 클럽 vs 개인 분리:
   // 개인(예약·러닝·인증샷)=볼트 그린, 클럽=바이올렛. 다른 신호색(탱·앰버·블루)과 불충돌.
   club: '#7B6CDF',       // 프라이머리 — CTA·스텁·링
@@ -61,8 +61,13 @@ export const collarLabels: Record<CollarKey, string> = {
 // 디스플레이 서체 — Black Han Sans (src/lib/displayFont.ts의 useDisplayFont로 지연 로드).
 // 규칙: 화면당 1회(히어로 카피·브랜드 워드마크)만. 로드 실패 시 시스템 900 폴백.
 export const DISPLAY_FONT = 'BlackHanSans_400Regular' as const;
+// [V4] 숫자 서체 — Oswald (애슬레틱 컨덴스드, 레이스 빕의 서체). src/lib/fonts.ts의 useNumFont로 지연 로드
+export const NUM_FONT = 'Oswald_600SemiBold' as const;
+// [V4] 본문 서체 — IBM Plex Sans KR (시스템 폰트 은퇴). useBodyFont/useBodyBold로 지연 로드
+export const BODY_FONT = 'IBMPlexSansKR_400Regular' as const;
+export const BODY_FONT_BOLD = 'IBMPlexSansKR_700Bold' as const;
 
-export const radius = { card: 16, btn: 13, chip: 99 } as const;
+export const radius = { card: 6, btn: 6, chip: 4 } as const; // [V4] 샤프 — 소프트 코너 은퇴
 // 글로벌 거터 — 화면 좌우 여백은 이 값 하나로 (에지-투-에지 프리미엄)
 export const layout = { gutter: 11 } as const; // 2026-07-28 0.9x 축소 (홈·설정 적용, 나머지 화면은 점진 수렴)
 
@@ -97,8 +102,8 @@ export const surfaces = {
     bg: colors.cream,
     card: '#ffffff',
     line: colors.line,
-    chip: '#EDE8DA',
-    track: '#DDE8D4',
+    chip: '#EFF1EC',
+    track: '#E2E6DE',
     dim: colors.dim,
     textStrong: colors.ink,
     textSoft: '#3d453d',

@@ -417,7 +417,7 @@ export default function OwnerHome() {
                     <View
                       key={dLabel}
                       style={{
-                        width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center',
+                        width: 20, height: 20, borderRadius: 4, alignItems: 'center', justifyContent: 'center',
                         backgroundColor: ran ? colors.volt : 'transparent',
                         borderWidth: isToday && !ran ? 1.7 : 1.2,
                         borderColor: ran ? colors.volt : isToday ? heroAccent : hp.line,
@@ -817,7 +817,7 @@ export default function OwnerHome() {
           <View style={{ marginTop: 14 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 9 }}>
               <Text style={[s.sectionTitle, { color: p.textStrong }]}>우리 동네 러너</Text>
-              <View style={{ backgroundColor: '#5a7a3c', borderRadius: 99, paddingVertical: 2, paddingHorizontal: 7 }}>
+              <View style={{ backgroundColor: '#5a7a3c', borderRadius: 4, paddingVertical: 2, paddingHorizontal: 7 }}>
                 <Text style={{ fontSize: 10, fontWeight: '900', color: '#fff' }}>● {localRunners.length}명 온라인</Text>
               </View>
               <View style={{ flex: 1 }} />
@@ -834,7 +834,7 @@ export default function OwnerHome() {
                     key={r.profileId}
                     onPress={() => router.push(`/runner-profile/${r.profileId}`)}
                     style={{
-                      width: 156, backgroundColor: bgArr[ri % 4], borderRadius: 18, padding: 15,
+                      width: 156, backgroundColor: bgArr[ri % 4], borderRadius: 6, padding: 15,
                       paddingVertical: 18, alignItems: 'center',
                       shadowColor: '#0F1D13', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 4 },
                     }}
@@ -843,7 +843,7 @@ export default function OwnerHome() {
                       <Avatar url={r.avatarUrl} char={r.name[0]} bg={sqArr[ri % 4]} size={56} />
                     ) : (
                       <View style={{
-                        width: 56, height: 56, borderRadius: 18, backgroundColor: sqArr[ri % 4],
+                        width: 56, height: 56, borderRadius: 6, backgroundColor: sqArr[ri % 4],
                         alignItems: 'center', justifyContent: 'center',
                       }}>
                         <Text style={{ fontSize: 26.5, fontWeight: '900', color: colors.volt }}>{r.name[0]}</Text>
@@ -858,7 +858,7 @@ export default function OwnerHome() {
                     <Text style={{ fontSize: 12, color: '#3d453d', marginTop: 1 }}>
                       러닝 {r.totalRuns}회 · {r.paceLabel}
                     </Text>
-                    <View style={{ backgroundColor: colors.ink, borderRadius: 99, paddingVertical: 7, paddingHorizontal: 15, marginTop: 10 }}>
+                    <View style={{ backgroundColor: colors.ink, borderRadius: 4, paddingVertical: 7, paddingHorizontal: 15, marginTop: 10 }}>
                       <Text style={{ fontSize: 12, fontWeight: '900', color: '#fff' }}>프로필 ›</Text>
                     </View>
                   </Pressable>
@@ -969,11 +969,11 @@ export default function OwnerHome() {
           </Text>
           {ownerGearLadder.map((g, i) => (
             <View key={g.at}>
-              {i > 0 && <View style={{ height: 1, backgroundColor: '#f0eee3' }} />}
+              {i > 0 && <View style={{ height: 1, backgroundColor: '#EEF0EA' }} />}
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 }}>
                 <View style={{
-                  width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center',
-                  backgroundColor: g.got ? '#6aa53c' : g.claimable ? colors.volt : '#DCD6C4',
+                  width: 20, height: 20, borderRadius: 4, alignItems: 'center', justifyContent: 'center',
+                  backgroundColor: g.got ? '#6aa53c' : g.claimable ? colors.volt : '#D8DAD2',
                 }}>
                   {g.got && <Text style={{ fontSize: 10.5, fontWeight: '900', color: '#fff' }}>✓</Text>}
                   {g.claimable && <Text style={{ fontSize: 10.5, fontWeight: '900', color: '#0F1D13' }}>!</Text>}
@@ -985,7 +985,7 @@ export default function OwnerHome() {
                 {g.claimable ? (
                   <Pressable
                     onPress={() => Alert.alert('수령 신청', '배송지로 콜라보 굿즈를 보내드려요 (목업)')}
-                    style={{ backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 7, paddingHorizontal: 12 }}
+                    style={{ backgroundColor: colors.volt, borderRadius: 4, paddingVertical: 7, paddingHorizontal: 12 }}
                   >
                     <Text style={{ fontSize: 12.5, fontWeight: '900', color: '#0F1D13' }}>수령하기</Text>
                   </Pressable>
@@ -1054,7 +1054,7 @@ function SlideToBook({ onComplete }: { onComplete: () => void }) {
 const s = StyleSheet.create({
   // 지금 러너 찾기 히어로 + 시트
   findNow: {
-    backgroundColor: '#0F1D13', borderRadius: 18, padding: 18, marginTop: 14,
+    backgroundColor: '#0F1D13', borderRadius: 6, padding: 18, marginTop: 14,
     borderWidth: 1.5, borderColor: colors.volt, overflow: 'hidden', // 레이더 아크 클리핑
     shadowColor: '#0F1D13', shadowOpacity: 0.25, shadowRadius: 8, shadowOffset: { width: 0, height: 4 },
   },
@@ -1062,49 +1062,49 @@ const s = StyleSheet.create({
   radarLayer: { position: 'absolute', right: -14, top: 44 },
   fnAvatarRim: { borderWidth: 2, borderColor: '#0F1D13', borderRadius: 17 },
   fnBlip: {
-    borderWidth: 2, borderColor: colors.volt, borderRadius: 18, backgroundColor: '#0F1D13',
+    borderWidth: 2, borderColor: colors.volt, borderRadius: 6, backgroundColor: '#0F1D13',
     shadowColor: colors.volt, shadowOpacity: 0.6, shadowRadius: 6, shadowOffset: { width: 0, height: 0 },
   },
   fnCta: {
-    flex: 1, backgroundColor: colors.volt, borderRadius: 14, alignItems: 'center',
+    flex: 1, backgroundColor: colors.volt, borderRadius: 6, alignItems: 'center',
     justifyContent: 'center', paddingVertical: 13, overflow: 'visible',
   },
   fnPulseRing: {
     position: 'absolute', left: 0, right: 0, top: 0, bottom: 0,
-    borderRadius: 14, borderWidth: 2, borderColor: colors.volt,
+    borderRadius: 6, borderWidth: 2, borderColor: colors.volt,
   },
   fnCustom: { paddingVertical: 13, paddingHorizontal: 12 },
   fnSheet: {
     backgroundColor: '#fff', borderTopLeftRadius: 28, borderTopRightRadius: 28,
     paddingHorizontal: 12, paddingTop: 12, paddingBottom: 40,
   },
-  fnGrip: { alignSelf: 'center', width: 42, height: 5, borderRadius: 3, backgroundColor: '#DCD6C4', marginBottom: 14 },
+  fnGrip: { alignSelf: 'center', width: 42, height: 5, borderRadius: 3, backgroundColor: '#D8DAD2', marginBottom: 14 },
   fnChip: {
-    backgroundColor: '#f4f2ea', borderRadius: 99, paddingVertical: 9, paddingHorizontal: 14,
-    borderWidth: 1, borderColor: '#DCD6C4',
+    backgroundColor: '#f4f2ea', borderRadius: 4, paddingVertical: 9, paddingHorizontal: 14,
+    borderWidth: 1, borderColor: '#D8DAD2',
   },
   fnChipText: { fontSize: 14.5, fontWeight: '800', color: '#0F1D13' },
   fnKmRow: {
-    flexDirection: 'row', alignItems: 'center', marginTop: 16, backgroundColor: '#F8F6F0',
-    borderRadius: 18, padding: 14, borderWidth: 1, borderColor: '#DCD6C4',
+    flexDirection: 'row', alignItems: 'center', marginTop: 16, backgroundColor: '#FFFFFF',
+    borderRadius: 6, padding: 14, borderWidth: 1, borderColor: '#D8DAD2',
   },
   fnStep: {
     width: 44, height: 44, borderRadius: 22, backgroundColor: '#fff', alignItems: 'center',
-    justifyContent: 'center', borderWidth: 1, borderColor: '#DCD6C4',
+    justifyContent: 'center', borderWidth: 1, borderColor: '#D8DAD2',
   },
   fnStepText: { fontSize: 25.5, fontWeight: '800', color: '#0F1D13' },
   fnPriceRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     marginTop: 14, paddingHorizontal: 4,
   },
-  fnPay: { backgroundColor: colors.volt, borderRadius: 16, alignItems: 'center', paddingVertical: 16, marginTop: 12 },
+  fnPay: { backgroundColor: colors.volt, borderRadius: 6, alignItems: 'center', paddingVertical: 16, marginTop: 12 },
   overlay: {
     position: 'absolute', top: 0, left: 0, right: 0, zIndex: 20,
     paddingTop: PAD_TOP, paddingHorizontal: 11, paddingBottom: 10,
   },
   headerRow: { flexDirection: 'row', alignItems: 'center', height: 58, marginBottom: 8 }, // 그리팅 줄 (아래 티커가 나머지를 채움)
   themeBtn: {
-    width: 40, height: 40, borderRadius: 20, borderWidth: 1,
+    width: 40, height: 40, borderRadius: 6, borderWidth: 1,
     alignItems: 'center', justifyContent: 'center',
   },
   bellDot: {
@@ -1118,19 +1118,19 @@ const s = StyleSheet.create({
   },
   weekChip: {
     position: 'absolute', top: 14, left: 16, zIndex: 4,
-    borderRadius: 99, paddingVertical: 6, paddingHorizontal: 12,
+    borderRadius: 4, paddingVertical: 6, paddingHorizontal: 12,
   },
   info: { position: 'absolute', left: 18, top: 40, width: CARD_W * 0.46, zIndex: 3 }, // 요일 스탬프와 좌우 분담
   stampBox: { position: 'absolute', right: 18, top: 46, zIndex: 3, alignItems: 'flex-end' }, // 링이 떠난 자리 (컬랩스)
-  goalChip: { marginTop: 8, borderRadius: 99, paddingVertical: 4, paddingHorizontal: 10 },
+  goalChip: { marginTop: 8, borderRadius: 4, paddingVertical: 4, paddingHorizontal: 10 },
   bigMsg: { textAlign: 'center', marginTop: 8, fontSize: 15, fontWeight: '700' },
   reportChip: {
     flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'center',
-    borderRadius: 99, paddingVertical: 8, paddingHorizontal: 15, marginTop: 8, borderWidth: 1,
+    borderRadius: 4, paddingVertical: 8, paddingHorizontal: 15, marginTop: 8, borderWidth: 1,
   },
   // 미니 레이스 빕 세트 — 흰 몸통 + 파스텔 상단 밴드 + 펀치홀 (실제 빕의 조형)
   statChip: {
-    flex: 1, borderRadius: 16, backgroundColor: '#fff', borderWidth: 1.2, borderColor: '#DCD6C4',
+    flex: 1, borderRadius: 6, backgroundColor: '#fff', borderWidth: 1.2, borderColor: '#D8DAD2',
     overflow: 'hidden', alignItems: 'center', paddingBottom: 13,
   },
   bibBand: {
@@ -1141,7 +1141,7 @@ const s = StyleSheet.create({
   bibLabel: { fontSize: 10.5, fontWeight: '800', color: 'rgba(21,24,15,0.62)', letterSpacing: 0.2 },
   bibValue: { fontSize: 19, fontWeight: '900', color: '#0F1D13', marginTop: 10, fontVariant: ['tabular-nums'] },
   rewardCard: {
-    flexDirection: 'row', alignItems: 'center', borderRadius: 20, padding: 15, marginTop: 12,
+    flexDirection: 'row', alignItems: 'center', borderRadius: 6, padding: 15, marginTop: 12,
     borderWidth: 1.6, borderColor: colors.tang + '66',
     shadowColor: colors.tang, shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 3 },
     elevation: 4,
@@ -1151,27 +1151,27 @@ const s = StyleSheet.create({
     position: 'absolute', width: 46, height: 46, borderRadius: 23,
     backgroundColor: colors.volt,
   },
-  giftBox: { width: 38, height: 38, borderRadius: 13, backgroundColor: colors.volt, alignItems: 'center', justifyContent: 'center' },
+  giftBox: { width: 38, height: 38, borderRadius: 6, backgroundColor: colors.volt, alignItems: 'center', justifyContent: 'center' },
   giftBadge: {
     position: 'absolute', top: 0, right: 0, width: 15, height: 15, borderRadius: 8,
     backgroundColor: colors.tang, alignItems: 'center', justifyContent: 'center', zIndex: 2,
   },
-  claimBtn: { backgroundColor: colors.volt, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 13 },
-  ladderSheet: { backgroundColor: '#F6F2E9', borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 16, paddingBottom: 40 },
-  sheetHandle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: '#DCD6C4', marginBottom: 14 },
+  claimBtn: { backgroundColor: colors.volt, borderRadius: 4, paddingVertical: 10, paddingHorizontal: 13 },
+  ladderSheet: { backgroundColor: '#F4F6F1', borderTopLeftRadius: 10, borderTopRightRadius: 10, padding: 16, paddingBottom: 40 },
+  sheetHandle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: '#D8DAD2', marginBottom: 14 },
   slideTrack: {
-    marginTop: 14, height: 68, borderRadius: 18, backgroundColor: colors.volt, justifyContent: 'center',
+    marginTop: 14, height: 68, borderRadius: 6, backgroundColor: colors.volt, justifyContent: 'center',
     shadowColor: colors.volt, shadowOpacity: 0.5, shadowRadius: 11, shadowOffset: { width: 0, height: 6 },
     elevation: 8,
   },
   slideLabel: { alignSelf: 'center', fontSize: 19.5, fontWeight: '900', color: colors.ink, letterSpacing: 0.5 },
   slideKnob: {
-    position: 'absolute', left: 6, width: 56, height: 56, borderRadius: 20,
+    position: 'absolute', left: 6, width: 56, height: 56, borderRadius: 6,
     backgroundColor: '#0F1D13', alignItems: 'center', justifyContent: 'center',
     shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 6, shadowOffset: { width: 2, height: 2 },
   },
   scheduleCard: {
-    borderRadius: 22, padding: 17, marginTop: 12,
+    borderRadius: 6, padding: 17, marginTop: 12,
     borderWidth: 1.4, borderColor: '#C6F54255', // lime accent — the widget earns its emphasis
     shadowColor: colors.volt, shadowOpacity: 0.2, shadowRadius: 7, shadowOffset: { width: 0, height: 3 },
     elevation: 3,
@@ -1180,19 +1180,19 @@ const s = StyleSheet.create({
     width: 7, height: 7, borderRadius: 4, backgroundColor: colors.volt,
     shadowColor: colors.volt, shadowOpacity: 1, shadowRadius: 4, shadowOffset: { width: 0, height: 0 },
   },
-  allScheduleChip: { backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 6, paddingHorizontal: 12 },
+  allScheduleChip: { backgroundColor: colors.volt, borderRadius: 4, paddingVertical: 6, paddingHorizontal: 12 },
   meetBtn: {
-    flex: 1, backgroundColor: colors.volt, borderRadius: 12, alignItems: 'center', paddingVertical: 11,
+    flex: 1, backgroundColor: colors.volt, borderRadius: 4, alignItems: 'center', paddingVertical: 11,
     shadowColor: colors.volt, shadowOpacity: 0.4, shadowRadius: 8, shadowOffset: { width: 0, height: 2 },
   },
-  countdownPill: { borderRadius: 99, paddingVertical: 6, paddingHorizontal: 10 },
-  widgetBtn: { flex: 1, borderWidth: 1, borderRadius: 12, alignItems: 'center', paddingVertical: 9 },
+  countdownPill: { borderRadius: 4, paddingVertical: 6, paddingHorizontal: 10 },
+  widgetBtn: { flex: 1, borderWidth: 1, borderRadius: 4, alignItems: 'center', paddingVertical: 9 },
   nudge: {
     flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10,
-    borderRadius: 14, borderWidth: 1.2, paddingVertical: 12, paddingHorizontal: 14,
+    borderRadius: 6, borderWidth: 1.2, paddingVertical: 12, paddingHorizontal: 14,
   },
   safetyStrip: {
-    flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 16,
+    flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 6,
     paddingVertical: 12, paddingHorizontal: 14, marginTop: 12,
     borderWidth: 1.2, borderColor: '#FF5C3D45', // faint coral outline
     shadowColor: colors.tang, shadowOpacity: 0.22, shadowRadius: 10, shadowOffset: { width: 0, height: 2 },
@@ -1201,13 +1201,13 @@ const s = StyleSheet.create({
   safetyIcon: { width: 28, height: 28, borderRadius: 9, backgroundColor: '#eef4e0', alignItems: 'center', justifyContent: 'center' },
   sectionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 26, marginBottom: 12 },
   sectionTitle: { fontSize: 19.5, fontWeight: '800' },
-  momentCard: { width: 126, height: 158, borderRadius: 18, overflow: 'hidden', backgroundColor: '#e8e5d8' },
+  momentCard: { width: 126, height: 158, borderRadius: 6, overflow: 'hidden', backgroundColor: '#e8e5d8' },
   momentPill: {
     position: 'absolute', left: 8, bottom: 8,
-    backgroundColor: 'rgba(15,29,19,0.62)', borderRadius: 99, paddingVertical: 4, paddingHorizontal: 9,
+    backgroundColor: 'rgba(15,29,19,0.62)', borderRadius: 4, paddingVertical: 4, paddingHorizontal: 9,
   },
   tickerItem: { fontSize: 15, fontWeight: '600', color: '#49524a' },
   tickerDot: { fontSize: 13, color: '#b6b19e', marginHorizontal: 8 },
-  runnerCard: { flexDirection: 'row', alignItems: 'center', borderRadius: 18, borderWidth: 1, padding: 14, marginBottom: 8 },
-  runnerBadge: { borderWidth: 1, borderRadius: 99, paddingVertical: 2, paddingHorizontal: 7 },
+  runnerCard: { flexDirection: 'row', alignItems: 'center', borderRadius: 6, borderWidth: 1, padding: 14, marginBottom: 8 },
+  runnerBadge: { borderWidth: 1, borderRadius: 4, paddingVertical: 2, paddingHorizontal: 7 },
 });

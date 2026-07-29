@@ -3,6 +3,7 @@ import { useCallback, useState } from 'react';
 import { Alert, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { cancelBooking, fetchMyBookings, pauseRecurringSeries, shareRunToFeed } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
+import { useNumFont } from '../../src/lib/fonts';
 import { BottomNav } from '../../src/components/bottomnav';
 import { HeatTrace } from '../../src/components/runcard';
 import { Monogram, Row } from '../../src/components/ui';
@@ -36,7 +37,8 @@ const STATUS_STYLE: Record<BookingStatus, { label: string; bg: string; fg: strin
 const paceMin = (label: string) => (label.includes('8') ? 8 : label.includes('6') ? 6 : 7);
 
 export default function Schedule() {
-  const df = useDisplayFont(); // 표준 탭 헤더 — 좌측 BHS 30
+  const df = useDisplayFont();
+  const nf = useNumFont(); // [V4] 시간 = Oswald // 표준 탭 헤더 — 좌측 BHS 30
 
   const [filterIdx, setFilterIdx] = useState(0);
   const [selected, setSelected] = useState<Booking | null>(null);
@@ -129,7 +131,7 @@ export default function Schedule() {
             <Pressable
               key={f.label}
               onPress={() => setFilterIdx(i)}
-              style={[s.filter, { backgroundColor: filterIdx === i ? f.sel : f.tint, borderColor: filterIdx === i ? f.sel : '#DCD6C4' }]}
+              style={[s.filter, { backgroundColor: filterIdx === i ? f.sel : f.tint, borderColor: filterIdx === i ? f.sel : '#D8DAD2' }]}
             >
               <Text style={{ fontSize: 14, fontWeight: filterIdx === i ? '800' : '700', color: filterIdx === i ? f.selFg : f.tintFg }}>{f.label}</Text>
             </Pressable>
@@ -172,7 +174,7 @@ export default function Schedule() {
                   <View style={{ flex: 1, padding: 14 }}>
                     <Row style={{ justifyContent: 'space-between' }}>
                       <Row style={{ gap: 6 }}>
-                        <Text style={{ fontSize: 18, fontWeight: '900', color: FOREST }}>{b.timeLabel}</Text>
+                        <Text style={[{ fontSize: 18, fontWeight: '900', color: FOREST }, nf]}>{b.timeLabel}</Text>
                         {b.recurring && (
                           <View style={s.recurPill}><Text style={{ fontSize: 10, fontWeight: '800', color: '#4a6d1f' }}>⟳ 매주</Text></View>
                         )}
@@ -433,7 +435,7 @@ export default function Schedule() {
                   <View style={[s.sheetCard, { borderColor: '#f2d4ca' }]}>
                     <FeeLine label="결제 금액" value={`${selected.price.toLocaleString()}원`} />
                     <FeeLine label={`취소 수수료 (${cancelPolicy.feeRate * 100}%)`} value={`−${fee.toLocaleString()}원`} coral />
-                    <View style={{ height: 1, backgroundColor: '#f0eee3', marginVertical: 10 }} />
+                    <View style={{ height: 1, backgroundColor: '#EEF0EA', marginVertical: 10 }} />
                     <FeeLine label="환불 금액" value={`${(selected.price - fee).toLocaleString()}원`} bold />
                     <Text style={{ fontSize: 14, color: colors.dim, marginTop: 10, lineHeight: 17 }}>
                       취소 수수료는 시간을 비워둔 러너에게 {Math.round(cancelPolicy.runnerShare * 100)}%, 도그스하이에 {Math.round((1 - cancelPolicy.runnerShare) * 100)}% 배분돼요.{'\n'}시작 24시간 전까지는 수수료가 없어요.
@@ -514,50 +516,50 @@ function FinisherSeal({ dateLabel }: { dateLabel: string }) {
 }
 
 const s = StyleSheet.create({
-  circleBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DCD6C4' },
-  viewToggle: { flexDirection: 'row', backgroundColor: '#fff', borderRadius: 99, padding: 4, marginTop: 16, borderWidth: 1, borderColor: '#DCD6C4' },
-  viewTab: { flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: 99 },
-  comingSoon: { backgroundColor: '#f4f2ea', borderRadius: 12, padding: 10, marginTop: 10 },
-  filter: { backgroundColor: '#fff', borderRadius: 99, paddingVertical: 8, paddingHorizontal: 14, borderWidth: 1, borderColor: '#DCD6C4' },
-  emptyBox: { marginTop: 24, marginHorizontal: 12, padding: 18, backgroundColor: '#f4f2ea', borderRadius: 16 },
-  bookingCard: { flexDirection: 'row', backgroundColor: '#fff', borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#DCD6C4', marginTop: -1, overflow: 'hidden' },
+  circleBtn: { width: 40, height: 40, borderRadius: 6, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#D8DAD2' },
+  viewToggle: { flexDirection: 'row', backgroundColor: '#fff', borderRadius: 4, padding: 4, marginTop: 16, borderWidth: 1, borderColor: '#D8DAD2' },
+  viewTab: { flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: 4 },
+  comingSoon: { backgroundColor: '#f4f2ea', borderRadius: 4, padding: 10, marginTop: 10 },
+  filter: { backgroundColor: '#fff', borderRadius: 4, paddingVertical: 8, paddingHorizontal: 14, borderWidth: 1, borderColor: '#D8DAD2' },
+  emptyBox: { marginTop: 24, marginHorizontal: 12, padding: 18, backgroundColor: '#f4f2ea', borderRadius: 6 },
+  bookingCard: { flexDirection: 'row', backgroundColor: '#fff', borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#D8DAD2', marginTop: -1, overflow: 'hidden' },
   rail: { width: 8 }, // 상태 컬러 레일 1.6배 (5→8)
   // 확정 카드 절취선 — 레일 경계 x=8 중심 (노치 지름 10, 도트 2.5)
   perfWrap: { position: 'absolute', left: 3, top: 0, bottom: 0, width: 10, alignItems: 'center' },
-  perfNotch: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.cream, borderWidth: 1, borderColor: '#DCD6C4' },
+  perfNotch: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.cream, borderWidth: 1, borderColor: '#D8DAD2' },
   perfDot: { width: 2.5, height: 2.5, borderRadius: 1.25, backgroundColor: colors.cream },
-  recurPill: { backgroundColor: '#e3f0c4', borderRadius: 99, paddingVertical: 2, paddingHorizontal: 7, alignSelf: 'center' },
-  livePillSm: { backgroundColor: '#5a7a3c', borderRadius: 99, paddingVertical: 2, paddingHorizontal: 7, alignSelf: 'center' },
-  statusPill: { borderRadius: 99, paddingVertical: 4, paddingHorizontal: 9 },
+  recurPill: { backgroundColor: '#e3f0c4', borderRadius: 4, paddingVertical: 2, paddingHorizontal: 7, alignSelf: 'center' },
+  livePillSm: { backgroundColor: '#5a7a3c', borderRadius: 4, paddingVertical: 2, paddingHorizontal: 7, alignSelf: 'center' },
+  statusPill: { borderRadius: 4, paddingVertical: 4, paddingHorizontal: 9 },
   goLiveBtn: {
-    marginTop: 11, backgroundColor: '#ffe9e2', borderRadius: 12, alignItems: 'center',
+    marginTop: 11, backgroundColor: '#ffe9e2', borderRadius: 4, alignItems: 'center',
     paddingVertical: 12, borderWidth: 1.2, borderColor: '#ffc9b8',
   },
-  thumbMap: { width: 68, height: 52, borderRadius: 10, backgroundColor: '#0e150f', padding: 2, overflow: 'hidden' },
+  thumbMap: { width: 68, height: 52, borderRadius: 4, backgroundColor: '#0e150f', padding: 2, overflow: 'hidden' },
   certDot: { width: 13, height: 13, borderRadius: 7, backgroundColor: '#3d8fd4', alignItems: 'center', justifyContent: 'center', alignSelf: 'center' },
   // 완료 카드 공유 행 — 카드 하단에 부착된 풀와이드 밴드 (도장을 가리지 않는 위치, Sean 2026-07-29)
-  shareRow: { flexDirection: 'row', gap: 8, backgroundColor: '#FBFCF6', borderBottomWidth: 1, borderColor: '#DCD6C4', marginTop: -1, paddingVertical: 9, paddingHorizontal: 14 },
-  shareBtn: { flex: 1, alignItems: 'center', backgroundColor: colors.volt, borderRadius: 12, paddingVertical: 9, shadowColor: '#7FA818', shadowOpacity: 0.3, shadowRadius: 4, shadowOffset: { width: 0, height: 2 } },
+  shareRow: { flexDirection: 'row', gap: 8, backgroundColor: '#FBFCF6', borderBottomWidth: 1, borderColor: '#D8DAD2', marginTop: -1, paddingVertical: 9, paddingHorizontal: 14 },
+  shareBtn: { flex: 1, alignItems: 'center', backgroundColor: colors.volt, borderRadius: 4, paddingVertical: 9, shadowColor: '#7FA818', shadowOpacity: 0.3, shadowRadius: 4, shadowOffset: { width: 0, height: 2 } },
   // T3 원형 소인 — 콘텐츠가 여유 있게 들어가는 84 지름 (랩의 64는 작았음, Sean 피드백)
   seal: { width: 84, height: 84, borderRadius: 42, borderWidth: 2.5, borderColor: '#6E9BC5', alignItems: 'center', justifyContent: 'center', alignSelf: 'center', transform: [{ rotate: '8deg' }], opacity: 0.88 },
   sealRing: { position: 'absolute', top: 5, left: 5, right: 5, bottom: 5, borderRadius: 37, borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(110,155,197,.55)' },
   sealNick: { position: 'absolute', backgroundColor: '#fff', borderRadius: 3 },
   emptyCta: {
-    marginTop: 20, marginHorizontal: 12, borderRadius: 16, borderWidth: 1.4, borderColor: '#cfd8c2', borderStyle: 'dashed',
+    marginTop: 20, marginHorizontal: 12, borderRadius: 6, borderWidth: 1.4, borderColor: '#C9CFC4', borderStyle: 'dashed',
     alignItems: 'center', paddingVertical: 14,
   },
   // sheet
   backdrop: { flex: 1, backgroundColor: '#00000055' },
-  sheet: { backgroundColor: colors.cream, borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 16, paddingBottom: 36 },
-  handle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: '#DCD6C4', marginBottom: 14 },
-  sheetCard: { backgroundColor: '#fff', borderRadius: 18, padding: 15, borderWidth: 1, borderColor: '#DCD6C4', marginTop: 12 },
-  sheetMap: { marginTop: 10, borderRadius: 14, backgroundColor: '#0e150f', paddingVertical: 6, paddingHorizontal: 4, overflow: 'hidden', alignItems: 'center' },
+  sheet: { backgroundColor: colors.cream, borderTopLeftRadius: 10, borderTopRightRadius: 10, padding: 16, paddingBottom: 36 },
+  handle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: '#D8DAD2', marginBottom: 14 },
+  sheetCard: { backgroundColor: '#fff', borderRadius: 6, padding: 15, borderWidth: 1, borderColor: '#D8DAD2', marginTop: 12 },
+  sheetMap: { marginTop: 10, borderRadius: 6, backgroundColor: '#0e150f', paddingVertical: 6, paddingHorizontal: 4, overflow: 'hidden', alignItems: 'center' },
   featChip: { flexDirection: 'row', gap: 4, alignItems: 'center', backgroundColor: '#eef4e0', borderRadius: 9, paddingVertical: 4, paddingHorizontal: 8 },
-  vDiv: { width: 1, backgroundColor: '#f0eee3' },
-  badgePill: { backgroundColor: '#e3f0c4', borderRadius: 99, paddingVertical: 2, paddingHorizontal: 7, alignSelf: 'center' },
-  chatChip: { backgroundColor: '#eef4e0', borderRadius: 99, paddingVertical: 8, paddingHorizontal: 13, alignSelf: 'center' },
-  primaryAction: { backgroundColor: colors.volt, borderRadius: 16, alignItems: 'center', paddingVertical: 14, marginTop: 16 },
-  ghostAction: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#DCD6C4', borderRadius: 16, alignItems: 'center', paddingVertical: 13, marginTop: 8 },
+  vDiv: { width: 1, backgroundColor: '#EEF0EA' },
+  badgePill: { backgroundColor: '#e3f0c4', borderRadius: 4, paddingVertical: 2, paddingHorizontal: 7, alignSelf: 'center' },
+  chatChip: { backgroundColor: '#eef4e0', borderRadius: 4, paddingVertical: 8, paddingHorizontal: 13, alignSelf: 'center' },
+  primaryAction: { backgroundColor: colors.volt, borderRadius: 6, alignItems: 'center', paddingVertical: 14, marginTop: 16 },
+  ghostAction: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#D8DAD2', borderRadius: 6, alignItems: 'center', paddingVertical: 13, marginTop: 8 },
   cancelLink: { alignItems: 'center', paddingVertical: 14, marginTop: 4 },
-  cancelConfirm: { backgroundColor: '#e8492a', borderRadius: 16, alignItems: 'center', paddingVertical: 15, marginTop: 16 },
+  cancelConfirm: { backgroundColor: '#e8492a', borderRadius: 6, alignItems: 'center', paddingVertical: 15, marginTop: 16 },
 });

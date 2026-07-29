@@ -147,7 +147,7 @@ export default function My() {
         {/* 나의 러닝 기록 — 다크 앵커 카드 (실데이터, 모던 목업) */}
         <Pressable
           onPress={() => router.push(isRunner ? '/runner/home' : '/owner/fitness')}
-          style={{ backgroundColor: FOREST, borderRadius: 18, padding: 16, marginTop: 12 }}
+          style={{ backgroundColor: FOREST, borderRadius: 6, padding: 16, marginTop: 12 }}
         >
           <Text style={{ fontSize: 15, fontWeight: '800', color: '#b8c4ae' }}>나의 러닝 기록</Text>
           <View style={{ flexDirection: 'row', marginTop: 12 }}>
@@ -258,26 +258,26 @@ const s = StyleSheet.create({
   h1: { fontSize: 30, fontWeight: '900', color: FOREST }, // 표준 탭 헤더 사이즈
   profile: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff',
-    borderRadius: 20, padding: 16, borderWidth: 1, borderColor: '#DCD6C4', marginTop: 16,
+    borderRadius: 6, padding: 16, borderWidth: 1, borderColor: '#D8DAD2', marginTop: 16,
   },
   camBadge: {
     position: 'absolute', right: -3, bottom: -3, width: 18, height: 18, borderRadius: 9,
     backgroundColor: '#5a7a3c', alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: '#fff',
   },
-  editBtn: { backgroundColor: '#f4f2ea', borderRadius: 99, paddingVertical: 7, paddingHorizontal: 11 },
+  editBtn: { backgroundColor: '#f4f2ea', borderRadius: 4, paddingVertical: 7, paddingHorizontal: 11 },
   menuRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: '#fff', borderRadius: 18, padding: 15, borderWidth: 1, borderColor: '#DCD6C4',
+    backgroundColor: '#fff', borderRadius: 6, padding: 15, borderWidth: 1, borderColor: '#D8DAD2',
   },
-  menuIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#eef4e0', alignItems: 'center', justifyContent: 'center' },
+  menuIcon: { width: 40, height: 40, borderRadius: 4, backgroundColor: '#eef4e0', alignItems: 'center', justifyContent: 'center' },
   roleSwitch: { alignItems: 'center', marginTop: 20, padding: 12 },
   backdrop: { flex: 1, backgroundColor: '#00000055' },
-  sheet: { backgroundColor: colors.cream, borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 16, paddingBottom: 40 },
-  handle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: '#DCD6C4', marginBottom: 14 },
+  sheet: { backgroundColor: colors.cream, borderTopLeftRadius: 10, borderTopRightRadius: 10, padding: 16, paddingBottom: 40 },
+  handle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: '#D8DAD2', marginBottom: 14 },
   fieldLabel: { fontSize: 14, fontWeight: '800', color: '#3d453d', marginTop: 14, marginBottom: 6 },
   input: {
-    backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: '#DCD6C4',
+    backgroundColor: '#fff', borderRadius: 6, borderWidth: 1, borderColor: '#D8DAD2',
     paddingVertical: 12, paddingHorizontal: 14, fontSize: 16.5, color: FOREST,
   },
-  saveBtn: { backgroundColor: colors.volt, borderRadius: 16, alignItems: 'center', paddingVertical: 14, marginTop: 18 },
+  saveBtn: { backgroundColor: colors.volt, borderRadius: 6, alignItems: 'center', paddingVertical: 14, marginTop: 18 },
 });

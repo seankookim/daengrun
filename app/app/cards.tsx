@@ -38,7 +38,7 @@ export default function Cards() {
 
         {/* ---------- 코스 패치 월 — 첫 완주마다 획득, 5/10/25 승급 (드랍 리듬 동기) ---------- */}
         {patches && (patches.earned.length > 0 || patches.locked.length > 0) && (
-          <View style={{ backgroundColor: p.card, borderRadius: 20, padding: 16, borderWidth: 1, borderColor: p.line, marginBottom: 20 }}>
+          <View style={{ backgroundColor: p.card, borderRadius: 6, padding: 16, borderWidth: 1, borderColor: p.line, marginBottom: 20 }}>
             <Row style={{ justifyContent: 'space-between', marginBottom: 2 }}>
               <Text style={{ fontSize: 17, fontWeight: '900', color: p.textStrong }}>코스 패치</Text>
               <Text style={{ fontSize: 12.5, fontWeight: '800', color: '#7FA818' }}>
@@ -86,7 +86,7 @@ export default function Cards() {
           {locked.map((c) => <RunCard key={c.id} card={c} width={340} />)}
         </View>
 
-        <View style={{ marginTop: 22, backgroundColor: p.card, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: p.line }}>
+        <View style={{ marginTop: 22, backgroundColor: p.card, borderRadius: 6, padding: 14, borderWidth: 1, borderColor: p.line }}>
           <Text style={{ fontSize: 14, color: p.dim, textAlign: 'center' }}>
             에픽 카드는 시리즈 코스 완주로만 얻을 수 있어요{'\n'}한강 시리즈: 뚝섬 → 잠원 → 반포 → 여의도
           </Text>
