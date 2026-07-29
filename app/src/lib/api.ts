@@ -208,6 +208,21 @@ export async function createBookingHold(p: {
   return data as HoldResult;
 }
 
+// ---------- 반복 예약 (0026) ----------
+// 결제 완료된 첫 예약의 스냅샷으로 시리즈 생성 (서버 RPC — 멱등).
+// 이후 매시 크론이 72h 창에서 다음 주 예약을 자동 생성 (같은 러너 우선, 가용성 재검증).
+export async function createRecurringSeries(bookingId: string): Promise<string> {
+  const { data, error } = await supabase.rpc('create_recurring_series', { p_booking: bookingId });
+  if (error) throw error;
+  return data as string;
+}
+
+// 해지 = paused (go-backable — 시리즈 이력 보존, 이미 생성된 예약은 그대로)
+export async function pauseRecurringSeries(seriesId: string): Promise<void> {
+  const { error } = await supabase.from('recurring_series').update({ paused: true }).eq('id', seriesId);
+  if (error) throw error;
+}
+
 export async function confirmPayment(bookingId: string): Promise<void> {
   const { data, error } = await supabase.functions.invoke('transition-booking', {
     body: { booking_id: bookingId, action: 'payment_ok' },
@@ -1874,7 +1889,7 @@ export async function fetchMyBookings(): Promise<Booking[]> {
   const { data: user } = await supabase.auth.getUser();
   const { data, error } = await supabase
     .from('bookings')
-    .select('id, scheduled_at, km, pace_label, total_price, status, runner_id, owner_id, routes(name), dogs(name), runners(profiles(name))')
+    .select('id, scheduled_at, km, pace_label, total_price, status, runner_id, owner_id, series_id, routes(name), dogs(name), runners(profiles(name))')
     // 결제 미완 유령(draft/quoted/payment_hold)은 일정이 아니다 — '매칭 중'으로 위장 금지
     .not('status', 'in', '(draft,quoted,payment_hold)')
     // 듀얼 롤 계정에서 러너로 받은 예약이 '내 일정'에 섞이던 문제 — 보호자 소유만
@@ -1900,6 +1915,8 @@ export async function fetchMyBookings(): Promise<Booking[]> {
       paceLabel: r.pace_label ?? "보통 7'",
       price: r.total_price,
       status: STATUS_MAP[r.status] ?? 'pending',
+      recurring: !!r.series_id, // ⟳ 매주 필 실화 (0026)
+      seriesId: r.series_id ?? null,
       live: true,
       matched: !!r.runner_id,
       runnerProfileId: r.runner_id ?? null,

@@ -2,7 +2,7 @@ import { useDisplayFont } from '../../src/lib/displayFont';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { addDog, Addr, AvailRule, confirmPayment, createBookingHold, DogProfile, ensureDog, fetchAddresses, fetchMyDogs, fetchRoutes, fetchRunnerAvailability, requestRunner } from '../../src/lib/api';
+import { addDog, Addr, AvailRule, confirmPayment, createBookingHold, createRecurringSeries, DogProfile, ensureDog, fetchAddresses, fetchMyDogs, fetchRoutes, fetchRunnerAvailability, requestRunner } from '../../src/lib/api';
 import { HeatTrace } from '../../src/components/runcard';
 import { Avatar, Row } from '../../src/components/ui';
 import { haptic } from '../../src/lib/haptics';
@@ -95,6 +95,7 @@ export default function Request() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [slotSheet, setSlotSheet] = useState(false);
+  const [recurringOn, setRecurringOn] = useState(false); // 매주 반복 (0026)
   const [holdVisible, setHoldVisible] = useState(false);
   const nominatedName = useRef<string | null>(null); // 결제 중 지명 성공 시 러너 이름
   const [holdSec, setHoldSec] = useState(300);
@@ -171,6 +172,15 @@ export default function Request() {
       });
       await confirmPayment(res.booking_id); // 결제 성공 시뮬레이션 → matching
       draft.bookingId = res.booking_id;
+      // 매주 반복 (0026) — 시리즈 생성 실패가 이번 예약을 막지 않는다 (예약은 이미 성립)
+      if (recurringOn) {
+        try {
+          await createRecurringSeries(res.booking_id);
+        } catch (e) {
+          console.warn('[pay] series:', (e as Error)?.message);
+          Alert.alert('반복 설정 실패', '이번 예약은 완료됐지만 매주 반복 설정에 실패했어요 — 다음 예약 때 다시 켜주세요');
+        }
+      }
       // 지명 예약: 결제 직후 여기서 바로 지명 전송 — 러너 선택 화면을 아예 거치지 않는다
       // (매칭 화면에 위임하던 방식은 실패 시 조용히 선택 화면에 좌초, 2026-07-23)
       if (draft.preferredRunnerId) {
@@ -420,6 +430,22 @@ export default function Request() {
           })}
         </View>
 
+        {/* 매주 반복 (0026) — 구독형 동의: 가격·주기·해지 자유를 토글 안에 전부 명시 (다크패턴 금지) */}
+        <Pressable
+          onPress={() => setRecurringOn((v) => !v)}
+          style={[s.recurRow, recurringOn && { borderColor: '#a9c47e', backgroundColor: '#fbfdf4' }]}
+        >
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 16, fontWeight: '900', color: FOREST }}>⟳ 매주 반복</Text>
+            <Text style={{ fontSize: 12.5, color: '#75806f', marginTop: 3, lineHeight: 18 }}>
+              매주 같은 요일·시간에 자동 예약 · 회당 {fmtWon(total)} · 같은 러너 우선 · 일정 탭에서 언제든 해지
+            </Text>
+          </View>
+          <View style={[s.checkCircle, recurringOn && { backgroundColor: colors.volt, borderColor: colors.volt }]}>
+            {recurringOn && <Text style={{ fontSize: 11.5, fontWeight: '900', color: FOREST }}>✓</Text>}
+          </View>
+        </Pressable>
+
         {/* 요금 요약 한 줄 — 총액은 아래 티켓이 보여준다 */}
         <Text style={{ fontSize: 12.5, color: '#a09c8e', textAlign: 'center', marginTop: 20 }}>
           기본 {fmtWon(pricing.baseFare)} · 거리 {fmtWon(km * pricing.perKm)}{addonSum > 0 ? ` · 옵션 ${fmtWon(addonSum)}` : ''} · 취소 수수료 없음
@@ -620,6 +646,7 @@ const s = StyleSheet.create({
   routeMap: { marginTop: 10, borderRadius: 12, backgroundColor: '#0e150f', padding: 0, overflow: 'hidden', paddingVertical: 4, paddingHorizontal: 2 },
   routeTag: { backgroundColor: '#eef4e0', borderRadius: 7, paddingVertical: 3, paddingHorizontal: 6 },
   addon: { width: '47.8%', backgroundColor: '#fff', borderRadius: 18, padding: 13, borderWidth: 1.5, borderColor: '#DCD6C4' },
+  recurRow: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#fff', borderRadius: 18, padding: 14, borderWidth: 1.5, borderColor: '#DCD6C4', marginTop: 12 },
   addonIcon: { width: 34, height: 34, borderRadius: 10, backgroundColor: '#eef4e0', alignItems: 'center', justifyContent: 'center' },
   checkCircle: { width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, borderColor: '#dcd9cc', alignItems: 'center', justifyContent: 'center' },
   ticket: {

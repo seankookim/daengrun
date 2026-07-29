@@ -1,7 +1,7 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { cancelBooking, CoursePatch, fetchCoursePatches, fetchMyBookings } from '../../src/lib/api';
+import { cancelBooking, CoursePatch, fetchCoursePatches, fetchMyBookings, pauseRecurringSeries } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { BottomNav } from '../../src/components/bottomnav';
 import { PatchBadge } from '../../src/components/patch';
@@ -73,6 +73,28 @@ export default function Schedule() {
     setSelected(b);
   };
   const close = () => setSelected(null);
+
+  // 반복 해지 (0026) — 시리즈만 멈추고, 이미 생성된 예약은 그대로 (개별 취소는 기존 플로우)
+  const pauseSeries = () => {
+    const sid = selected?.seriesId;
+    if (!sid) return;
+    Alert.alert('매주 반복 해지', '다음 주부터 자동 예약이 멈춰요.\n이미 잡힌 일정은 그대로 유지돼요.', [
+      { text: '유지', style: 'cancel' },
+      {
+        text: '해지', style: 'destructive',
+        onPress: async () => {
+          try {
+            await pauseRecurringSeries(sid);
+            close();
+            load();
+            Alert.alert('해지 완료', '매주 반복이 해지됐어요');
+          } catch (e) {
+            Alert.alert('해지 실패', (e as Error).message ?? '잠시 후 다시 시도해주세요');
+          }
+        },
+      },
+    ]);
+  };
 
   const route = selected ? sampleRoutes.find((r) => r.id === selected.routeId) : undefined;
   // live 예약은 실러너 이름으로 뷰 구성 — 목업 프로필 조회 금지
@@ -385,6 +407,12 @@ export default function Schedule() {
                         <Text style={{ fontSize: 14.5, fontWeight: '700', color: '#d84a2f' }}>일정 취소하기</Text>
                       </Pressable>
                     </>
+                  )}
+                  {/* 반복 해지 (0026) — 구독은 반드시 끌 수 있어야 한다. 상태 무관 노출 */}
+                  {selected.seriesId && (
+                    <Pressable style={s.cancelLink} onPress={pauseSeries}>
+                      <Text style={{ fontSize: 14.5, fontWeight: '700', color: '#8a8a8a' }}>⟳ 매주 반복 해지</Text>
+                    </Pressable>
                   )}
                 </>
               ) : (
