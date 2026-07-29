@@ -266,22 +266,37 @@ export default function ActiveRun() {
       return;
     }
     if (bid) {
-      try {
-        const res = await settleRun({
-          booking_id: bid,
-          end_reason: completed ? 'completed' : REASON_MAP[reason as keyof typeof REASON_MAP],
-          actual_km: Number(km.toFixed(2)),
-          duration_sec: sec,
-          condition_note: reason === 'dog' ? '러너 판단: 컨디션 저하 관찰' : undefined,
-        });
-        runResult.payout = res.net; // 서버가 계산한 실지급액
-        runnerJob.bookingId = null;
-        // 실트레이스 저장 — 리포트 지도·기록의 원천
-        if (trace.current.length > 1) saveRunTrace(bid, trace.current).catch((e) => console.warn('[run] trace:', e?.message ?? e));
-        if (res.drop) Alert.alert('드랍 도착!', res.drop === 'pick' ? '픽 드랍 — 리워드 센터에서 선택하세요' : '보급 상자가 도착했어요');
-      } catch (e) {
-        Alert.alert('정산 지연', `서버 정산 실패 — 로컬 추정치 표시\n${(e as Error).message}`);
-      }
+      // 정산 재시도 루프 (2026-07-29) — 실패 시 예약이 active로 남아 좌초되던 문제.
+      // 서버 트랜잭션은 전체 롤백이라 재시도 안전. 네트워크 블립('Failed to send a request')도 여기서 회복.
+      const trySettle = async (): Promise<boolean> => {
+        try {
+          const res = await settleRun({
+            booking_id: bid,
+            end_reason: completed ? 'completed' : REASON_MAP[reason as keyof typeof REASON_MAP],
+            actual_km: Number(km.toFixed(2)),
+            duration_sec: sec,
+            condition_note: reason === 'dog' ? '러너 판단: 컨디션 저하 관찰' : undefined,
+          });
+          runResult.payout = res.net; // 서버가 계산한 실지급액
+          runnerJob.bookingId = null;
+          // 실트레이스 저장 — 리포트 지도·기록의 원천
+          if (trace.current.length > 1) saveRunTrace(bid, trace.current).catch((e) => console.warn('[run] trace:', e?.message ?? e));
+          if (res.drop) Alert.alert('드랍 도착!', res.drop === 'pick' ? '픽 드랍 — 리워드 센터에서 선택하세요' : '보급 상자가 도착했어요');
+          return true;
+        } catch (e) {
+          return new Promise((resolve) => {
+            Alert.alert(
+              '정산 실패',
+              `${(e as Error).message}\n\n아무것도 반영되지 않았어요 — 예약은 진행 중 상태로 남아 있고, 재시도하면 이어서 정산돼요.`,
+              [
+                { text: '나중에 (추정치 표시)', style: 'cancel', onPress: () => resolve(false) },
+                { text: '다시 시도', onPress: () => resolve(trySettle()) },
+              ],
+            );
+          });
+        }
+      };
+      await trySettle();
     }
     router.replace('/runner/done');
   };
