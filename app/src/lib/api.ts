@@ -1591,6 +1591,17 @@ export async function openDrop(dropId: string, pickChoice?: string): Promise<Rec
   return data;
 }
 
+// 활성 부스트 (픽 드랍 보상, 24h) — 표시용 라벨. 없으면 null (없는 데이터는 그리지 않는다)
+export async function fetchActiveBoostLabel(): Promise<string | null> {
+  const { data, error } = await supabase.from('boosts')
+    .select('ends_at').gt('ends_at', new Date().toISOString())
+    .order('ends_at', { ascending: false }).limit(1);
+  if (error) throw error;
+  if (!data?.[0]) return null;
+  const { dateLabel, timeLabel } = kstParts(data[0].ends_at);
+  return `${dateLabel} ${timeLabel}`;
+}
+
 export interface GearClaim { id: string; item: string; milestone: number; status: string }
 
 export async function fetchGearClaims(): Promise<GearClaim[]> {
@@ -1754,6 +1765,7 @@ export interface MilesInfo { balance: number; recent: { delta: number; reason: s
 const MILE_REASON: Record<string, string> = {
   run_complete: '러닝 완주', poop_bonus: '응가 도장 보너스', drop: '드랍 보상', shop_spend: '샵 사용',
   patch_gold: '골드 패치 승급', patch_master: '코스 마스터 달성', // 0025 패치 승급 보너스
+  pick_drop: '픽 드랍 보상', weekly_top_dog: '주간 TOP3 · 강아지', weekly_top_runner: '주간 TOP3 · 러너',
 };
 
 export async function fetchMiles(): Promise<MilesInfo> {
