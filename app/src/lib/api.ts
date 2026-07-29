@@ -2069,3 +2069,15 @@ export async function fetchClubDemandBoard(): Promise<DemandBoard> {
   if (error) throw error;
   return (data ?? { district: '', mine: null, league: [] }) as DemandBoard;
 }
+
+// ---------- 클럽 정기 시리즈 (0035, P-B) — 매주 반복 자동 개설 ----------
+export interface ClubSeries { id: string; weekday: number; time: string; status: string; meetupPoint: string | null; isHost: boolean }
+export async function fetchClubSeries(clubId: string): Promise<ClubSeries[]> {
+  const { data, error } = await supabase.rpc('club_series_of', { p_club: clubId });
+  if (error) throw error;
+  return (data ?? []) as ClubSeries[];
+}
+export const startClubSeries = (clubId: string, weekday: number, time: string, meetup: string, capacity = 12) =>
+  clubRpc('club_series_start', { p_club: clubId, p_weekday: weekday, p_time: time, p_meetup: meetup, p_capacity: capacity }) as Promise<string>;
+export const pauseClubSeries = (seriesId: string) =>
+  clubRpc('club_series_pause', { p_series: seriesId }) as Promise<void>;

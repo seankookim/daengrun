@@ -3,8 +3,8 @@ import { useCallback, useState } from 'react';
 import { Alert, Image, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Row } from '../../src/components/ui';
 import {
-  claimClubHost, ClubOverview, createClubSession, fetchClubHostStats, fetchClubMyStats,
-  fetchClubOverview, registerClubInterest, uploadClubPhoto,
+  claimClubHost, ClubOverview, ClubSeries, createClubSession, fetchClubHostStats, fetchClubMyStats,
+  fetchClubOverview, fetchClubSeries, pauseClubSeries, registerClubInterest, startClubSeries, uploadClubPhoto,
 } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { haptic } from '../../src/lib/haptics';
@@ -43,6 +43,7 @@ export default function ClubPage() {
     if (c && c.status === 'active') {
       fetchClubMyStats(c.id).then(setMyStats).catch(() => {});
       fetchClubHostStats(c.id).then(setHostStats).catch(() => {});
+      fetchClubSeries(c.id).then(setSeries).catch(() => {}); // ⟳ 정기 시리즈 (0035)
     }
   }).catch(() => {});
   useFocusEffect(useCallback(() => { load(); }, []));
@@ -54,18 +55,27 @@ export default function ClubPage() {
   const [meetup, setMeetup] = useState('');
   const [cap, setCap] = useState(9);
   const [busy, setBusy] = useState(false);
+  const [weekly, setWeekly] = useState(false); // ⟳ 매주 반복 (0035)
+  const [series, setSeries] = useState<ClubSeries[]>([]);
 
   const createSession = async () => {
     if (!club || busy) return;
     if (!meetup.trim()) { Alert.alert('집결지를 입력해주세요', '예: 잠수교 북단 계단 앞'); return; }
     setBusy(true);
     try {
-      await createClubSession(club.id, SLOT_PRESETS[slotIdx].get().toISOString(), meetup.trim(), cap);
+      const slot = SLOT_PRESETS[slotIdx].get();
+      await createClubSession(club.id, slot.toISOString(), meetup.trim(), cap);
+      if (weekly) {
+        // ⟳ 매주 반복 (0035) — 같은 요일·시각으로 시리즈 등록, 다음 주부턴 크론이 연다
+        const hh = String(slot.getHours()).padStart(2, '0');
+        const mm = String(slot.getMinutes()).padStart(2, '0');
+        await startClubSeries(club.id, slot.getDay(), `${hh}:${mm}`, meetup.trim(), cap).catch(() => {});
+      }
       haptic('success');
       setSheetOpen(false);
       setMeetup('');
       load();
-      Alert.alert('세션이 열렸어요 🏁', '멤버들에게 보이기 시작해요');
+      Alert.alert('세션이 열렸어요 🏁', weekly ? '다음 주부터는 매주 자동으로 열려요 ⟳' : '멤버들에게 보이기 시작해요');
     } catch (e) {
       Alert.alert('세션 개설 실패', (e as Error).message);
     } finally {
@@ -153,6 +163,26 @@ export default function ClubPage() {
               >
                 <Text style={{ fontSize: 14, fontWeight: '800', color: '#49524a' }}>인증 러너예요 — 호스트 맡기</Text>
               </Pressable>
+            </View>
+          )}
+
+          {/* ⟳ 정기 시리즈 리듬 (0035) — 멤버에겐 리듬 안내, 호스트에겐 해지 컨트롤 */}
+          {club?.status === 'active' && series.length > 0 && (
+            <View style={s.seriesRow}>
+              <Text style={{ fontSize: 13.5, fontWeight: '800', color: colors.clubInk, flex: 1 }}>
+                ⟳ 매주 {['일', '월', '화', '수', '목', '금', '토'][series[0].weekday]} {series[0].time} 정기 세션
+                {series[0].meetupPoint ? ` · 📍 ${series[0].meetupPoint}` : ''}
+              </Text>
+              {series[0].isHost && (
+                <Pressable onPress={() => {
+                  Alert.alert('정기 세션 해지', '다음 주부터 자동 개설이 멈춰요.\n이미 열린 세션은 그대로예요.', [
+                    { text: '유지', style: 'cancel' },
+                    { text: '해지', style: 'destructive', onPress: () => pauseClubSeries(series[0].id).then(load).catch((e) => Alert.alert('해지 실패', (e as Error).message)) },
+                  ]);
+                }}>
+                  <Text style={{ fontSize: 12.5, fontWeight: '800', color: '#8a8a8a' }}>해지</Text>
+                </Pressable>
+              )}
             </View>
           )}
 
@@ -248,6 +278,16 @@ export default function ClubPage() {
               </Pressable>
             ))}
           </Row>
+          {/* ⟳ 매주 반복 (0035) — 다음 주부턴 크론이 같은 요일·시각으로 자동 개설 */}
+          <Pressable onPress={() => setWeekly((w) => !w)} style={s.weeklyRow}>
+            <View style={[s.weeklyBox, weekly && { backgroundColor: colors.club, borderColor: colors.club }]}>
+              {weekly && <Text style={{ fontSize: 12, fontWeight: '900', color: '#fff' }}>✓</Text>}
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 14.5, fontWeight: '800', color: FOREST }}>⟳ 매주 반복</Text>
+              <Text style={{ fontSize: 12.5, color: '#75806f', marginTop: 1 }}>같은 요일·시각으로 매주 자동 개설 — 언제든 해지할 수 있어요</Text>
+            </View>
+          </Pressable>
           <Pressable onPress={createSession} disabled={busy} style={[s.cta, busy && { opacity: 0.5 }]}>
             <Text style={{ fontSize: 15.5, fontWeight: '900', color: '#fff' }}>{busy ? '여는 중...' : '세션 열기 🏁'}</Text>
           </Pressable>
@@ -267,6 +307,10 @@ const s = StyleSheet.create({
   card: { backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: '#DCD6C4', padding: 15, marginTop: 10 },
   cta: { backgroundColor: colors.club, borderRadius: 14, alignItems: 'center', paddingVertical: 13, marginTop: 12 },
   ctaGhost: { backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#DCD6C4' },
+  // ⟳ 정기 시리즈 (0035)
+  seriesRow: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.clubTint, borderRadius: 13, paddingVertical: 10, paddingHorizontal: 13, marginBottom: 10 },
+  weeklyRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 13 },
+  weeklyBox: { width: 22, height: 22, borderRadius: 7, borderWidth: 2, borderColor: '#c9c4b4', alignItems: 'center', justifyContent: 'center' },
   joinPill: { backgroundColor: colors.club, borderRadius: 99, paddingVertical: 9, paddingHorizontal: 13, alignSelf: 'center' },
   sheet: { backgroundColor: colors.cream, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 18, paddingBottom: 34 },
   slotChip: { borderRadius: 99, paddingVertical: 9, paddingHorizontal: 14, backgroundColor: '#fff', borderWidth: 1.3, borderColor: '#DCD6C4' },

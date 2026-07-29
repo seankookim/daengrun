@@ -401,3 +401,91 @@ begin
   exception when others then call _fail('club','S11 전환', sqlerrm);
   end;
 end $$;
+
+-- ═══ 정기 시리즈(0035) 스위트 — CS1~CS4 ═══
+do $$
+declare
+  o uuid; o2 uuid; r uuid; v_club uuid; v_series uuid; v_cnt int; v_wd int; v_tm text; v_sid uuid;
+begin
+  -- 격리: 전용 클럽 (앞선 케이스들의 세션과 dedup 충돌 방지)
+  o := t_user('series_owner', 'owner');
+  o2 := t_user('series_owner2', 'owner');
+  r := t_user('series_host', 'runner');
+  perform set_config('request.jwt.claim.sub', o::text, false);
+  v_club := club_request_district('시리즈동');
+  perform set_config('request.jwt.claim.sub', o2::text, false);
+  perform club_register_interest(v_club);
+  perform set_config('request.jwt.claim.sub', r::text, false);
+  perform club_claim_host(v_club);
+  -- 멤버십: o2를 멤버로 (RSVP 없이 직접 — 알림 대상 확인용)
+  insert into club_members (club_id, profile_id, role) values (v_club, o2, 'member')
+  on conflict do nothing;
+
+  -- 내일 같은 시각 (KST) — 항상 72h 창 안 + 2h 최소 통보 밖
+  v_wd := extract(dow from (now() at time zone 'Asia/Seoul') + interval '1 day')::int;
+  v_tm := to_char(now() at time zone 'Asia/Seoul', 'HH24:MI');
+
+  -- [CS1] 비호스트 시작 거부 → 호스트 성공 + 검증 (bad weekday/time 거부)
+  begin
+    perform set_config('request.jwt.claim.sub', o::text, false);
+    begin
+      perform club_series_start(v_club, v_wd, v_tm, '시리즈 공원 입구');
+      call _fail('club','CS1 비호스트 시작 거부','통과됨');
+    exception when others then
+      if sqlerrm not like '%not_host%' then call _fail('club','CS1 비호스트', sqlerrm); else
+        perform set_config('request.jwt.claim.sub', r::text, false);
+        begin
+          perform club_series_start(v_club, 9, v_tm, '시리즈 공원 입구');
+          call _fail('club','CS1 bad_weekday 거부','통과됨');
+        exception when others then
+          if sqlerrm not like '%bad_weekday%' then call _fail('club','CS1 weekday', sqlerrm); else
+            v_series := club_series_start(v_club, v_wd, v_tm, '시리즈 공원 입구');
+            if (select status from club_series where id = v_series) = 'active'
+               and (select count(*) from jsonb_array_elements(club_series_of(v_club))) = 1
+              then call _pass('club','CS1 시리즈 시작 (비호스트·bad_weekday 거부, 조회 1)');
+            else call _fail('club','CS1 시작','상태 불일치'); end if;
+          end if;
+        end;
+      end if;
+    end;
+  end;
+
+  -- [CS2] 제너레이터 — 세션 생성 + 호스트 자동 참가 + 멤버 알림 + 재실행 dedup
+  begin
+    v_cnt := club_generate_club_sessions();
+    select id into v_sid from club_sessions where club_id = v_club order by created_at desc limit 1;
+    if v_cnt >= 1 and v_sid is not null
+       and exists (select 1 from session_people where session_id = v_sid and profile_id = r and role = 'host_runner')
+       and exists (select 1 from notifications where ref_id = v_sid and profile_id = o2 and kind = 'community')
+       and not exists (select 1 from notifications where ref_id = v_sid and profile_id = r)
+       and club_generate_club_sessions() = 0
+      then call _pass('club','CS2 자동 개설 (호스트 참가·멤버 알림·재실행 dedup 0)');
+    else call _fail('club','CS2 자동 개설','made=' || v_cnt); end if;
+  exception when others then call _fail('club','CS2', sqlerrm);
+  end;
+
+  -- [CS3] 해지 — paused 후 생성 중단 (기존 세션은 유지)
+  begin
+    delete from club_sessions where club_id = v_club; -- dedup 제거 후 순수 재생성 시도
+    perform club_series_pause(v_series);
+    if (select status from club_series where id = v_series) = 'paused'
+       and club_generate_club_sessions() = 0
+       and (select count(*) from jsonb_array_elements(club_series_of(v_club))) = 0
+      then call _pass('club','CS3 해지 → 생성 중단 + 조회 제외');
+    else call _fail('club','CS3 해지','생성됨'); end if;
+  exception when others then call _fail('club','CS3', sqlerrm);
+  end;
+
+  -- [CS4] 타인 해지 거부
+  begin
+    v_series := club_series_start(v_club, v_wd, v_tm, '시리즈 공원 입구');
+    perform set_config('request.jwt.claim.sub', o::text, false);
+    begin
+      perform club_series_pause(v_series);
+      call _fail('club','CS4 타인 해지 거부','통과됨');
+    exception when others then
+      if sqlerrm like '%not_host%' then call _pass('club','CS4 타인 해지 거부 (not_host)');
+      else call _fail('club','CS4', sqlerrm); end if;
+    end;
+  end;
+end $$;
