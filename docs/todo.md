@@ -1,20 +1,23 @@
-# 도그스하이 — 종합 TODO (2026-07-28 심야 기준)
+# 도그스하이 — 종합 TODO (2026-07-29 B 배치 완료 기준)
 
 새 세션 오프너: **"read docs/session-handoff.md fully, then continue"** — 이 파일은 실행 목록, 맥락·결정 이유는 핸드오프에.
 상태 태그: [ready]=바로 착수 가능 · [needs-user]=Sean 행동 필요 · [needs-verify]=실기기 확인 후 진행 · [design]=논의 먼저
 
-## A. 검증 (최우선 — 오늘 빌드분 실기기 확인) [needs-user]
+## A. 검증 (최우선 — 실기기 확인) [needs-user]
 - [ ] 푸시: 양 홈에서 권한 수락 → 앱 완전 종료 → 요청 발송 → 잠금화면 수신. 실패 시 push_tokens 행 + pg_net 응답 점검 (`select * from net._http_response order by id desc limit 5`)
-- [ ] 인증샷: 4스킨 스와이프 · A/B 사진 온오프 · 캡처→공유 시트 · 투명 PNG를 인스타 스토리 스티커로
+- [ ] **푸시 딥링크 (NEW 9b0a32b)**: 잠금화면 알림 탭 → 보호자는 리포트 / 러너는 요청 탭 착지. 콜드스타트(완전 종료 상태)도 확인
+- [ ] 인증샷: 4스킨 스와이프 · A/B 사진 온오프 · 캡처→공유 시트 · 투명 PNG를 인스타 스토리 스티커로 · **스킨별 사진 독립(NEW)**: B에서 사진 바꿔도 A 크롭 유지
 - [ ] 홈 모프 연속선 착지 위치(LINE_Y_HERO=154) · 요일 스탬프 겹침 · 리포트 매트 칩
 - [ ] 정산 풀루프 (settle_run_tx 경유 첫 실정산) · 패치 팝 · 포디움 빕 · 드랍 볼트 파동
+- [ ] **일정 확정 카드 절취선 (NEW)**: 레일 경계 노치+도트가 카드 경계에서 반원으로 잘리는지
+- [ ] **Sean: `npx supabase db push` (0025 패치 승급 보너스)** — 함수 재배포는 불필요 (RPC 교체만)
 
-## B. 소형 빌드 [ready]
-- [ ] **푸시 딥링크**: 알림 탭 → kind/ref_id로 라우팅 (booking→리포트/인박스, 러너 요청→/runner/requests). expo-notifications addNotificationResponseReceivedListener → router.push. src/lib/push.ts에 추가
-- [ ] **골드/마스터 포인트 보너스**: settle_run_tx 안에서 코스별 완주 카운트 계산 → ×10/×25 도달 시 miles_ledger 보너스 (reason 'patch_gold'/'patch_master'). '인센티브는 완주만' 독트린 정합
-- [ ] 일정 확정 카드 절취선 라이트 터치 (티켓 모티프 마지막 조각)
-- [ ] 스튜디오: 스킨별 사진 transform 독립화 (현재 A/B 공유)
-- [ ] 러너 홈 '최근 완료' 견적 → ledger_items join 실 net
+## B. 소형 빌드 — 2026-07-29 세션 전부 완료 (9b0a32b)
+- [x] 푸시 딥링크: routeForNotification 단일 소스(push.ts), 탭 리스너 + 콜드스타트, 알림 인박스와 규칙 공유
+- [x] 골드/마스터 포인트 보너스: 0025 — settle_run_tx 안 코스 누적 =10/=25 판정, patch_gold +200 / patch_master +500 (완주 게이트 안)
+- [x] 일정 확정 카드 절취선: 상태 레일 = 티켓 스텁, 크림 펀치 노치 + 도트 퍼포레이션
+- [x] 스튜디오 스킨별 사진 transform 독립화: photos{A,Bp,G} — resetKey 스킨별
+- [x] 러너 홈 '최근 완료' → ledger_items 실 net (2-step 쿼리, 과거 무원장 건은 견적 폴백)
 
 ## C. 중형 빌드 [ready, 새 세션 권장]
 - [ ] **반복 예약 UI**: recurring_series 스키마(0001) 기존. 요청 화면 '매주 반복' 토글 → 시리즈 생성 → 주간 자동 예약 생성 크론 + 같은 러너 우선 배정 + 일정 탭 ⟳ 표기 실화
@@ -39,6 +42,6 @@
 - [ ] App Store 준비: 번들 com.seankookim.daengrun · EAS projectId 0436bc27 · 푸시 키 등록 완료 · TestFlight 빌드는 `eas build --profile preview -p ios`
 
 ## F. 기술 부채 / 환경
-- [ ] app.json·eas.json 커밋 확인 (EAS 셋업 산출물)
+- [x] app.json·eas.json 커밋 확인 — git ls-files로 검증 (03ba266에 포함)
 - [ ] git lock 의식 유지 · device_stage_files 스테일 캐시 회피(핸드오프 §8)
-- [ ] 의도적 잔여 2건 유지: 프로필 탐색 그리드 60분 · (러너 홈 net은 B에서 해소 예정)
+- [ ] 의도적 잔여 1건 유지: 프로필 탐색 그리드 60분 (러너 홈 net은 B에서 해소됨)
