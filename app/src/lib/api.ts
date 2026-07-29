@@ -1338,15 +1338,11 @@ export async function fetchRunnerWeekStats(): Promise<RunnerWeekStats> {
   return { net, runs: rows.length, km: Math.round(km * 10) / 10 };
 }
 
-// 정산 예정 누적 — 원장 전체 net 합 (표시 리스트 30행 캡과 분리; 30행 합이 '정산 예정'으로 보이던 버그)
+// 정산 예정 누적 — 서버 집계 RPC (0027). 2000행 클라 합산 상한 은퇴 (초과 시 잔액이 조용히 줄던 거짓)
 export async function fetchLedgerTotal(): Promise<number> {
-  const { data, error } = await supabase
-    .from('ledger_items')
-    .select('base, distance_pay, addon_pay, tip, remaining_guarantee, platform_fee')
-    .limit(2000); // 파일럿 상한 — 실서비스 전 서버 집계로 (백로그)
+  const { data, error } = await supabase.rpc('my_ledger_total');
   if (error) throw error;
-  return (data ?? []).reduce((s2, l: any) =>
-    s2 + l.base + l.distance_pay + l.addon_pay + l.tip + (l.remaining_guarantee ?? 0) - l.platform_fee, 0);
+  return Number(data ?? 0);
 }
 
 export interface LiveLedgerItem {
@@ -1761,17 +1757,17 @@ const MILE_REASON: Record<string, string> = {
 };
 
 export async function fetchMiles(): Promise<MilesInfo> {
-  // 잔액 = 원장 전체 합 (최근 50행 합은 오래된 적립이 창밖으로 밀리면 잔액이 줄어드는 가짜)
-  const { data, error } = await supabase
-    .from('miles_ledger')
-    .select('delta, reason, created_at')
-    .order('created_at', { ascending: false })
-    .limit(2000); // 파일럿 규모 상한 — 실서비스 전 서버 집계 RPC로 교체 (백로그)
-  if (error) throw error;
-  const rows = data ?? [];
+  // 잔액 = 서버 집계 RPC (0027) — 2000행 클라 합산 상한 은퇴. 내역은 최근 10행만 내려받는다.
+  const [bal, rows] = await Promise.all([
+    supabase.rpc('my_miles_balance'),
+    supabase.from('miles_ledger').select('delta, reason, created_at')
+      .order('created_at', { ascending: false }).limit(10),
+  ]);
+  if (bal.error) throw bal.error;
+  if (rows.error) throw rows.error;
   return {
-    balance: rows.reduce((s, r: any) => s + r.delta, 0),
-    recent: rows.slice(0, 10).map((r: any) => {
+    balance: Number(bal.data ?? 0),
+    recent: (rows.data ?? []).map((r: any) => {
       const { dateLabel } = kstParts(r.created_at);
       return { delta: r.delta, reason: MILE_REASON[r.reason] ?? r.reason, when: dateLabel };
     }),
