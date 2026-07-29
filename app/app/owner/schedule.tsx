@@ -1,10 +1,9 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { cancelBooking, CoursePatch, fetchCoursePatches, fetchMyBookings, pauseRecurringSeries, shareRunToFeed } from '../../src/lib/api';
+import { cancelBooking, fetchMyBookings, pauseRecurringSeries, shareRunToFeed } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { BottomNav } from '../../src/components/bottomnav';
-import { PatchBadge } from '../../src/components/patch';
 import { HeatTrace } from '../../src/components/runcard';
 import { Monogram, Row } from '../../src/components/ui';
 import { Booking, BookingStatus, cancelPolicy, draft, runners, sampleRoutes } from '../../src/store';
@@ -43,17 +42,10 @@ export default function Schedule() {
   const [selected, setSelected] = useState<Booking | null>(null);
   const [sheetMode, setSheetMode] = useState<'detail' | 'cancel'>('detail');
   const [liveBookings, setLiveBookings] = useState<Booking[]>([]);
-  // 완료 카드 미니 패치 — routeId → 내 패치 (파생 데이터, 1회 조회)
-  const [patchMap, setPatchMap] = useState<Record<string, CoursePatch>>({});
   const [refreshing, setRefreshing] = useState(false);
 
   const load = () => fetchMyBookings().then(setLiveBookings).catch((e) => console.warn('[schedule] bookings:', e?.message ?? e));
-  useFocusEffect(useCallback(() => {
-    load();
-    fetchCoursePatches()
-      .then(({ earned }) => setPatchMap(Object.fromEntries(earned.map((pt) => [pt.routeId, pt]))))
-      .catch(() => {});
-  }, []));
+  useFocusEffect(useCallback(() => { load(); }, []));
   const onRefresh = () => { setRefreshing(true); load().finally(() => setRefreshing(false)); };
 
   const all = liveBookings; // 데모 예약 제거 — 실예약만
@@ -210,16 +202,10 @@ export default function Schedule() {
                           {b.price.toLocaleString()}원 · {b.paceLabel}
                         </Text>
                       </View>
-                      {/* 완료 = 패치 도장 (우측 컬럼) · 그 외 = 셰브런.
-                          공유 버튼들은 카드 아래 행으로 이동 (Sean 2026-07-29 — 도장이 버튼에 밀려 안 보이던 문제) */}
+                      {/* 완료 = T3 원형 소인 (Sean 확정 — 완주 날짜 내장, 인플로우 우측 컬럼이라 겹침 원천 차단) ·
+                          그 외 = 셰브런. 공유 버튼들은 카드 아래 행 (Sean 2026-07-29) */}
                       {b.status === 'completed' ? (
-                        <View style={{ alignItems: 'center', alignSelf: 'center' }}>
-                          {patchMap[b.routeId] && (
-                            <Pressable onPress={(e) => { e.stopPropagation(); router.push('/cards'); }}>
-                              <PatchBadge km={patchMap[b.routeId].km} grade={patchMap[b.routeId].grade} size={38} />
-                            </Pressable>
-                          )}
-                        </View>
+                        <FinisherSeal dateLabel={b.dateLabel} />
                       ) : (
                         <Text style={{ fontSize: 16, color: colors.dim, alignSelf: 'center' }}>›</Text>
                       )}
@@ -233,13 +219,6 @@ export default function Schedule() {
                       </Pressable>
                     )}
                   </View>
-                  {/* FINISHER 잉크 도장 — 러너 캘린더 원본과 동일 문법 (티켓 위에 비스듬히 찍힌 직인),
-                      Sean 2026-07-29: '원래 그 도장' — 더 크게, 더 왼쪽·위로 */}
-                  {b.status === 'completed' && (
-                    <View pointerEvents="none" style={s.finStamp}>
-                      <Text style={{ fontSize: 13, fontWeight: '900', letterSpacing: 2.5, color: '#6E9BC5' }}>FINISHER</Text>
-                    </View>
-                  )}
                 </Pressable>
                 {/* 공유 진입을 일정 카드에 직결 (Sean 2026-07-29) — 카드 아래 부착 행이라 도장을 가리지 않는다 */}
                 {b.status === 'completed' && (
@@ -507,6 +486,27 @@ function FeeLine({ label, value, coral, bold }: { label: string; value: string; 
   );
 }
 
+// T3 원형 소인 (schedule-stamp-lab 확정) — 우체국 소인 문법: FINISHER + 완주 날짜 + DOGS HIGH.
+// 인플로우 우측 컬럼 소자 (앱솔루트 아님 → 텍스트·필과 절대 안 겹침). 점선 이너 링 + 보더를
+// 무는 화이트 스펙클 4점 = 가벼운 워너웃 (카드 배경이 흰색이라 뷰 4개로 충분, 의존성 0)
+function FinisherSeal({ dateLabel }: { dateLabel: string }) {
+  const m = dateLabel.match(/(\d+)월\s*(\d+)일/);
+  const date = m ? `${m[1].padStart(2, '0')}.${m[2].padStart(2, '0')}` : 'DONE';
+  return (
+    <View style={s.seal}>
+      <View style={s.sealRing} />
+      <Text style={{ fontSize: 9.5, fontWeight: '900', letterSpacing: 1.5, color: '#6E9BC5' }}>FINISHER</Text>
+      <Text style={{ fontSize: 13.5, fontWeight: '900', color: '#6E9BC5', marginTop: 1 }}>{date}</Text>
+      <Text style={{ fontSize: 6.5, fontWeight: '700', letterSpacing: 1, color: 'rgba(110,155,197,.85)', marginTop: 1 }}>DOGS HIGH</Text>
+      {/* 워너웃 스펙클 — 보더 위를 무는 잉크 벗겨짐 */}
+      <View style={[s.sealNick, { top: 6, left: 14, width: 4, height: 2.5 }]} />
+      <View style={[s.sealNick, { top: 30, right: -1, width: 3, height: 4 }]} />
+      <View style={[s.sealNick, { bottom: 8, left: 8, width: 3, height: 3 }]} />
+      <View style={[s.sealNick, { bottom: 2, right: 22, width: 4.5, height: 2.5 }]} />
+    </View>
+  );
+}
+
 const s = StyleSheet.create({
   circleBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DCD6C4' },
   viewToggle: { flexDirection: 'row', backgroundColor: '#fff', borderRadius: 99, padding: 4, marginTop: 16, borderWidth: 1, borderColor: '#DCD6C4' },
@@ -532,8 +532,10 @@ const s = StyleSheet.create({
   // 완료 카드 공유 행 — 카드 하단에 부착된 풀와이드 밴드 (도장을 가리지 않는 위치, Sean 2026-07-29)
   shareRow: { flexDirection: 'row', gap: 8, backgroundColor: '#FBFCF6', borderBottomWidth: 1, borderColor: '#DCD6C4', marginTop: -1, paddingVertical: 9, paddingHorizontal: 14 },
   shareBtn: { flex: 1, alignItems: 'center', backgroundColor: colors.volt, borderRadius: 12, paddingVertical: 9, shadowColor: '#7FA818', shadowOpacity: 0.3, shadowRadius: 4, shadowOffset: { width: 0, height: 2 } },
-  // FINISHER 잉크 도장 — 우하단 (Sean 2026-07-29 확정 위치), 스타일은 schedule-stamp-lab 선택 대기
-  finStamp: { position: 'absolute', right: 14, bottom: 9, zIndex: 2, borderWidth: 3, borderColor: '#6E9BC5', borderRadius: 10, paddingVertical: 4, paddingHorizontal: 11, transform: [{ rotate: '-9deg' }], opacity: 0.9 },
+  // T3 원형 소인 — 콘텐츠가 여유 있게 들어가는 84 지름 (랩의 64는 작았음, Sean 피드백)
+  seal: { width: 84, height: 84, borderRadius: 42, borderWidth: 2.5, borderColor: '#6E9BC5', alignItems: 'center', justifyContent: 'center', alignSelf: 'center', transform: [{ rotate: '8deg' }], opacity: 0.88 },
+  sealRing: { position: 'absolute', top: 5, left: 5, right: 5, bottom: 5, borderRadius: 37, borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(110,155,197,.55)' },
+  sealNick: { position: 'absolute', backgroundColor: '#fff', borderRadius: 3 },
   emptyCta: {
     marginTop: 20, marginHorizontal: 12, borderRadius: 16, borderWidth: 1.4, borderColor: '#cfd8c2', borderStyle: 'dashed',
     alignItems: 'center', paddingVertical: 14,
