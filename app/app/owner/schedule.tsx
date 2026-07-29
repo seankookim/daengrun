@@ -161,7 +161,8 @@ export default function Schedule() {
               const st = STATUS_STYLE[b.status];
               const rt = sampleRoutes.find((r) => r.id === b.routeId);
               return (
-                <Pressable key={b.id} style={s.bookingCard} onPress={() => open(b)}>
+                <View key={b.id}>
+                <Pressable style={s.bookingCard} onPress={() => open(b)}>
                   <View style={[s.rail, { backgroundColor: st.rail }]} />
                   {/* 절취선 (티켓 모티프 마지막 조각) — 확정 = 계약 = 티켓. 상태 레일이 스텁,
                       레일 경계에 펀치 노치 + 퍼포레이션 도트 (overflow hidden이 노치를 반원으로 클립) */}
@@ -202,39 +203,25 @@ export default function Schedule() {
                           <Text style={{ fontSize: 15, fontWeight: '800', color: FOREST }}>{b.routeName}</Text>
                           <View style={s.certDot}><Text style={{ fontSize: 8, fontWeight: '900', color: '#fff' }}>✓</Text></View>
                         </Row>
-                        <Text style={{ fontSize: 13, color: '#49524a', marginTop: 3 }}>
+                        <Text style={{ fontSize: 15, color: '#49524a', marginTop: 3 }}>
                           {b.dogName} · {b.runnerName} 러너 · {b.km}km
                         </Text>
-                        <Text style={{ fontSize: 12.5, color: colors.dim, marginTop: 2 }}>
+                        <Text style={{ fontSize: 14.5, color: colors.dim, marginTop: 2 }}>
                           {b.price.toLocaleString()}원 · {b.paceLabel}
                         </Text>
                       </View>
-                      {/* 완료 = 패치 + 인증샷 원탭 (2026-07-28 목업 확정) · 그 외 = 셰브런 */}
+                      {/* 완료 = 패치 도장 + FINISHER (C2 완주 도장 — 러너 캘린더와 동일 계열) · 그 외 = 셰브런.
+                          공유 버튼들은 카드 아래 행으로 이동 (Sean 2026-07-29 — 도장이 버튼에 밀려 안 보이던 문제) */}
                       {b.status === 'completed' ? (
-                        // 공유 진입을 일정 카드에 직결 (Sean 2026-07-29 — 리포트 안에 묻혀 있던 문제)
-                        <View style={{ alignItems: 'center', gap: 6, alignSelf: 'center' }}>
+                        <View style={{ alignItems: 'center', gap: 7, alignSelf: 'center' }}>
                           {patchMap[b.routeId] && (
                             <Pressable onPress={(e) => { e.stopPropagation(); router.push('/cards'); }}>
-                              <PatchBadge km={patchMap[b.routeId].km} grade={patchMap[b.routeId].grade} size={34} />
+                              <PatchBadge km={patchMap[b.routeId].km} grade={patchMap[b.routeId].grade} size={38} />
                             </Pressable>
                           )}
-                          <Pressable
-                            onPress={(e) => { e.stopPropagation(); router.push(`/shot/${b.id}`); }}
-                            style={s.shotChip}
-                          >
-                            <Text style={{ fontSize: 11.5, fontWeight: '900', color: FOREST }}>📸 공유 카드</Text>
-                          </Pressable>
-                          <Pressable
-                            onPress={(e) => {
-                              e.stopPropagation();
-                              shareRunToFeed(b.id)
-                                .then(() => Alert.alert('피드에 올렸어요 🐾', '동네 피드에서 확인해보세요'))
-                                .catch((err) => Alert.alert('피드 공유', (err as Error).message));
-                            }}
-                            style={[s.shotChip, { backgroundColor: '#e7efd8' }]}
-                          >
-                            <Text style={{ fontSize: 11.5, fontWeight: '900', color: '#3d5a2b' }}>🐕 피드 자랑</Text>
-                          </Pressable>
+                          <View style={s.finStamp}>
+                            <Text style={{ fontSize: 10, fontWeight: '900', letterSpacing: 2, color: '#6E9BC5' }}>FINISHER</Text>
+                          </View>
                         </View>
                       ) : (
                         <Text style={{ fontSize: 16, color: colors.dim, alignSelf: 'center' }}>›</Text>
@@ -250,6 +237,25 @@ export default function Schedule() {
                     )}
                   </View>
                 </Pressable>
+                {/* 공유 진입을 일정 카드에 직결 (Sean 2026-07-29) — 카드 아래 부착 행이라 도장을 가리지 않는다 */}
+                {b.status === 'completed' && (
+                  <View style={s.shareRow}>
+                    <Pressable onPress={() => router.push(`/shot/${b.id}`)} style={s.shareBtn}>
+                      <Text style={{ fontSize: 13, fontWeight: '900', color: FOREST }}>📸 공유 카드</Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => {
+                        shareRunToFeed(b.id)
+                          .then(() => Alert.alert('피드에 올렸어요 🐾', '동네 피드에서 확인해보세요'))
+                          .catch((err) => Alert.alert('피드 공유', (err as Error).message));
+                      }}
+                      style={[s.shareBtn, { backgroundColor: '#e7efd8', shadowOpacity: 0 }]}
+                    >
+                      <Text style={{ fontSize: 13, fontWeight: '900', color: '#3d5a2b' }}>🐕 피드 자랑</Text>
+                    </Pressable>
+                  </View>
+                )}
+                </View>
               );
             })}
           </View>
@@ -290,7 +296,7 @@ export default function Schedule() {
                     <Row style={{ gap: 5 }}>
                       <Text style={{ fontSize: 17, fontWeight: '900', color: FOREST }}>{route.name}</Text>
                       <View style={s.certDot}><Text style={{ fontSize: 8, fontWeight: '900', color: '#fff' }}>✓</Text></View>
-                      <Text style={{ fontSize: 12, color: colors.dim, alignSelf: 'center' }}>안심 코스 · {route.checkedAt}</Text>
+                      <Text style={{ fontSize: 14, color: colors.dim, alignSelf: 'center' }}>안심 코스 · {route.checkedAt}</Text>
                     </Row>
                     <View style={s.sheetMap}>
                       <HeatTrace points={route.trace} width={278} height={110} />
@@ -303,7 +309,7 @@ export default function Schedule() {
                         </View>
                       ))}
                     </Row>
-                    <Text style={{ fontSize: 13, color: '#75806f', marginTop: 9, lineHeight: 19.5 }}>{route.desc}</Text>
+                    <Text style={{ fontSize: 15, color: '#75806f', marginTop: 9, lineHeight: 19.5 }}>{route.desc}</Text>
                   </View>
 
                   {/* predictions */}
@@ -328,7 +334,7 @@ export default function Schedule() {
                             <View key={b} style={s.badgePill}><Text style={{ fontSize: 10, fontWeight: '800', color: '#4a6d1f' }}>{b}</Text></View>
                           ))}
                         </Row>
-                        <Text style={{ fontSize: 13, color: colors.dim, marginTop: 3 }}>
+                        <Text style={{ fontSize: 15, color: colors.dim, marginTop: 3 }}>
                           {runner.rating != null
                             ? `★ ${runner.rating} (${runner.reviews}) · 러닝 ${runner.runs}회 · 평균 ${runner.pace}`
                             : '실러너 · 상세 프로필 준비 중'}
@@ -339,7 +345,7 @@ export default function Schedule() {
                       </Pressable>
                     </Row>
                     {runner.desc && (
-                      <Text style={{ fontSize: 13, color: '#75806f', marginTop: 10, lineHeight: 19.5 }}>{runner.desc}</Text>
+                      <Text style={{ fontSize: 15, color: '#75806f', marginTop: 10, lineHeight: 19.5 }}>{runner.desc}</Text>
                     )}
                   </View>
 
@@ -353,12 +359,12 @@ export default function Schedule() {
                         <Text style={{ fontSize: 16.5, fontWeight: '900', color: '#d84a2f' }}>● 실시간 보기</Text>
                         <Text style={{ fontSize: 12, color: '#b06a56', marginTop: 2 }}>러닝이 진행 중이에요 — GPS·바디캠으로 지켜보세요</Text>
                       </Pressable>
-                      <Text style={{ fontSize: 12.5, color: colors.dim, textAlign: 'center', marginTop: 12, lineHeight: 18.5 }}>
+                      <Text style={{ fontSize: 14.5, color: colors.dim, textAlign: 'center', marginTop: 12, lineHeight: 18.5 }}>
                         이미 시작된 러닝은 일정 변경·취소가 불가능해요{'\n'}긴급 상황은 안심 센터 SOS를 이용해주세요
                       </Text>
                     </>
                   ) : selected.status === 'handoff' ? (
-                    <Text style={{ fontSize: 13, color: colors.dim, textAlign: 'center', marginTop: 16, lineHeight: 19.5 }}>
+                    <Text style={{ fontSize: 15, color: colors.dim, textAlign: 'center', marginTop: 16, lineHeight: 19.5 }}>
                       인계가 완료됐어요 — 러너가 러닝을 시작하면{'\n'}실시간 보기가 열려요 · 변경·취소는 불가능해요
                     </Text>
                   ) : selected.status === 'completed' ? (
@@ -368,7 +374,7 @@ export default function Schedule() {
                         onPress={() => { const bid = selected.id; close(); router.push({ pathname: '/owner/report', params: { bid } }); }}
                       >
                         <Text style={{ fontSize: 16.5, fontWeight: '900', color: FOREST }}>러닝 리포트 보기</Text>
-                        <Text style={{ fontSize: 12, color: '#5d6b4a', marginTop: 2 }}>실거리·시간·페이스·종료 사유를 확인해요</Text>
+                        <Text style={{ fontSize: 14, color: '#5d6b4a', marginTop: 2 }}>실거리·시간·페이스·종료 사유를 확인해요</Text>
                       </Pressable>
                       {/* 인증샷 바로가기 — 완료 러닝의 자랑 동선 한 탭 단축 (공유가 곧 마케팅) */}
                       <Pressable
@@ -391,7 +397,7 @@ export default function Schedule() {
                         }}
                       >
                         <Text style={{ fontSize: 15.5, fontWeight: '800', color: '#3d5a2b' }}>⟳ 이대로 다시 예약</Text>
-                        <Text style={{ fontSize: 12, color: colors.dim, marginTop: 2 }}>같은 거리·페이스{selected.runnerProfileId ? ` · ${selected.runnerName} 러너 지명` : ''} — 시간만 골라요</Text>
+                        <Text style={{ fontSize: 14, color: colors.dim, marginTop: 2 }}>같은 거리·페이스{selected.runnerProfileId ? ` · ${selected.runnerName} 러너 지명` : ''} — 시간만 골라요</Text>
                       </Pressable>
                     </>
                   ) : (
@@ -406,14 +412,14 @@ export default function Schedule() {
                         }}
                       >
                         <Text style={{ fontSize: 16.5, fontWeight: '900', color: FOREST }}>일정 변경 요청</Text>
-                        <Text style={{ fontSize: 12, color: '#5d6b4a', marginTop: 2 }}>{runner.name} 러너의 가능 시간에서 새 시간을 제안해요</Text>
+                        <Text style={{ fontSize: 14, color: '#5d6b4a', marginTop: 2 }}>{runner.name} 러너의 가능 시간에서 새 시간을 제안해요</Text>
                       </Pressable>
                       <Pressable
                         style={s.ghostAction}
                         onPress={() => { close(); router.push('/owner/request'); }}
                       >
                         <Text style={{ fontSize: 15.5, fontWeight: '800', color: '#3d453d' }}>러너 변경</Text>
-                        <Text style={{ fontSize: 12, color: colors.dim, marginTop: 2 }}>처음부터 일반 예약 과정으로 돌아가요</Text>
+                        <Text style={{ fontSize: 14, color: colors.dim, marginTop: 2 }}>처음부터 일반 예약 과정으로 돌아가요</Text>
                       </Pressable>
                       <Pressable style={s.cancelLink} onPress={() => setSheetMode('cancel')}>
                         <Text style={{ fontSize: 14.5, fontWeight: '700', color: '#d84a2f' }}>일정 취소하기</Text>
@@ -440,7 +446,7 @@ export default function Schedule() {
                     <FeeLine label={`취소 수수료 (${cancelPolicy.feeRate * 100}%)`} value={`−${fee.toLocaleString()}원`} coral />
                     <View style={{ height: 1, backgroundColor: '#f0eee3', marginVertical: 10 }} />
                     <FeeLine label="환불 금액" value={`${(selected.price - fee).toLocaleString()}원`} bold />
-                    <Text style={{ fontSize: 12, color: colors.dim, marginTop: 10, lineHeight: 17 }}>
+                    <Text style={{ fontSize: 14, color: colors.dim, marginTop: 10, lineHeight: 17 }}>
                       취소 수수료는 시간을 비워둔 러너에게 {Math.round(cancelPolicy.runnerShare * 100)}%, 도그스하이에 {Math.round((1 - cancelPolicy.runnerShare) * 100)}% 배분돼요.{'\n'}시작 24시간 전까지는 수수료가 없어요.
                     </Text>
                   </View>
@@ -481,9 +487,9 @@ export default function Schedule() {
 function Pred({ label, value, sub }: { label: string; value: string; sub: string }) {
   return (
     <View style={{ alignItems: 'center', flex: 1 }}>
-      <Text style={{ fontSize: 12, color: colors.dim }}>{label}</Text>
+      <Text style={{ fontSize: 14, color: colors.dim }}>{label}</Text>
       <Text style={{ fontSize: 17, fontWeight: '900', color: FOREST, marginTop: 3 }}>{value}</Text>
-      <Text style={{ fontSize: 11, color: colors.dim, marginTop: 2 }}>{sub}</Text>
+      <Text style={{ fontSize: 12.5, color: colors.dim, marginTop: 2 }}>{sub}</Text>
     </View>
   );
 }
@@ -519,7 +525,11 @@ const s = StyleSheet.create({
   },
   thumbMap: { width: 68, height: 52, borderRadius: 10, backgroundColor: '#0e150f', padding: 2, overflow: 'hidden' },
   certDot: { width: 13, height: 13, borderRadius: 7, backgroundColor: '#3d8fd4', alignItems: 'center', justifyContent: 'center', alignSelf: 'center' },
-  shotChip: { backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 5, paddingHorizontal: 10, shadowColor: '#7FA818', shadowOpacity: 0.35, shadowRadius: 4, shadowOffset: { width: 0, height: 2 } },
+  // 완료 카드 공유 행 — 카드 하단에 부착된 풀와이드 밴드 (도장을 가리지 않는 위치, Sean 2026-07-29)
+  shareRow: { flexDirection: 'row', gap: 8, backgroundColor: '#FBFCF6', borderBottomWidth: 1, borderColor: '#DCD6C4', marginTop: -1, paddingVertical: 9, paddingHorizontal: 14 },
+  shareBtn: { flex: 1, alignItems: 'center', backgroundColor: colors.volt, borderRadius: 12, paddingVertical: 9, shadowColor: '#7FA818', shadowOpacity: 0.3, shadowRadius: 4, shadowOffset: { width: 0, height: 2 } },
+  // FINISHER 완주 도장 — 러너 캘린더 finStamp와 동일 계열 (소프트 에너지 블루, 완주는 성과다)
+  finStamp: { borderWidth: 2.5, borderColor: '#6E9BC5', borderRadius: 8, paddingVertical: 3, paddingHorizontal: 8, transform: [{ rotate: '-9deg' }], opacity: 0.85 },
   emptyCta: {
     marginTop: 20, marginHorizontal: 12, borderRadius: 16, borderWidth: 1.4, borderColor: '#cfd8c2', borderStyle: 'dashed',
     alignItems: 'center', paddingVertical: 14,

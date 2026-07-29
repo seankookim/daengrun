@@ -1,9 +1,11 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
 import { Alert, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import {
   claimClubHost, ClubOverview, ClubSearchHit, fetchClubOverview, requestDistrictClub, searchClubs,
 } from '../lib/api';
+import { useDisplayFont } from '../lib/displayFont';
 import { colors } from '../theme';
 import { Row } from './ui';
 
@@ -104,8 +106,27 @@ function ClubSearchBar() {
   );
 }
 
-// ---------- 프로미넌트 포토 배너 (상태 인지형) ----------
+// 볼트→탱 그라디언트 아웃라인 (Sean 확정 E3 변형) — SVG 스트로크, 신규 네이티브 의존성 0
+function GradientOutline({ w, h }: { w: number; h: number }) {
+  if (w === 0) return null;
+  return (
+    <Svg pointerEvents="none" width={w} height={h} style={StyleSheet.absoluteFill}>
+      <Defs>
+        <LinearGradient id="clubEdge" x1="0" y1="0" x2="1" y2="0.35">
+          <Stop offset="0" stopColor={colors.volt} />
+          <Stop offset="0.45" stopColor="#7FA818" />
+          <Stop offset="1" stopColor={colors.tang} />
+        </LinearGradient>
+      </Defs>
+      <Rect x={1.25} y={1.25} width={w - 2.5} height={h - 2.5} rx={20} stroke="url(#clubEdge)" strokeWidth={2.5} fill="none" />
+    </Svg>
+  );
+}
+
+// ---------- 프로미넌트 포토 배너 (상태 인지형 · V2 여권 직인 — Sean 확정) ----------
 function ClubBanner({ club, role, reload }: { club: ClubOverview; role: 'owner' | 'runner'; reload: () => void }) {
+  const df = useDisplayFont();
+  const [size, setSize] = useState({ w: 0, h: 0 });
   const ns = club.nextSession;
   const joined = !!ns?.joined;
   const left = ns ? Math.max(0, ns.capacity - ns.rsvpCount) : 0;
@@ -123,49 +144,57 @@ function ClubBanner({ club, role, reload }: { club: ClubOverview; role: 'owner' 
   };
 
   return (
-    <Pressable onPress={onPress} style={s.banner}>
+    <Pressable onPress={onPress} style={s.banner} onLayout={(e) => setSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
       {club.photoUrl
         ? <Image source={{ uri: club.photoUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
         : <View style={[StyleSheet.absoluteFill, { backgroundColor: '#26382a' }]} />}
       <View style={s.bannerScrim} />
-      <View style={{ flex: 1, padding: 14, justifyContent: 'space-between' }}>
-        <Row style={{ justifyContent: 'space-between' }}>
-          <View style={s.officialPill}><Text style={{ fontSize: 9.5, fontWeight: '900', letterSpacing: 1.5, color: FOREST }}>HIGH CLUB</Text></View>
-          {club.status === 'active' && joined && ns && (
-            <View style={s.ddayPill}><Text style={{ fontSize: 12, fontWeight: '900', color: FOREST }}>{dday(ns.scheduledAt)} · RSVP ✓</Text></View>
-          )}
-          {club.status === 'active' && !joined && ns && ns.status === 'open' && left > 0 && (
-            <View style={s.ddayPill}><Text style={{ fontSize: 12, fontWeight: '900', color: FOREST }}>{left}자리</Text></View>
-          )}
-        </Row>
-        <View>
-          <Text style={{ fontSize: 22, fontWeight: '900', color: '#fff' }}>{club.name}</Text>
-          <Text style={{ fontSize: 13, color: '#d8e2d0', marginTop: 3 }} numberOfLines={1}>
-            {club.status === 'collecting'
-              ? `관심 ${club.interestCount}명 · 호스트를 기다려요`
-              : ns
-                ? joined
-                  ? `${ns.when} · 📍 ${ns.meetupPoint}`
-                  : `다음 세션 ${ns.when} · ${ns.rsvpCount}팀 참여 중`
-                : `멤버 ${club.memberCount} · ${club.isHost ? '탭해서 세션을 열어보세요' : '다음 세션 준비 중'}`}
+
+      {/* 우상단 상태 필 (자리/D-day) */}
+      {club.status === 'active' && ns && (joined || (ns.status === 'open' && left > 0)) && (
+        <View style={s.ddayPill}>
+          <Text style={{ fontSize: 12, fontWeight: '900', color: FOREST }}>
+            {joined ? `${dday(ns.scheduledAt)} · RSVP ✓` : `${left}자리`}
           </Text>
-          {/* 액션 행 */}
-          <Row style={{ gap: 8, marginTop: 9 }}>
-            {club.status === 'collecting' && role === 'runner' ? (
-              <Pressable onPress={claim} style={s.bannerCta}>
-                <Text style={{ fontSize: 13, fontWeight: '900', color: FOREST }}>호스트 되기 ›</Text>
-              </Pressable>
-            ) : club.status === 'active' && ns && !joined ? (
-              <View style={s.bannerCta}><Text style={{ fontSize: 13, fontWeight: '900', color: FOREST }}>참여하기 ›</Text></View>
-            ) : club.status === 'active' && joined ? (
-              <View style={[s.bannerCta, { backgroundColor: 'rgba(255,255,255,.92)' }]}><Text style={{ fontSize: 13, fontWeight: '900', color: FOREST }}>세션 보기 ›</Text></View>
-            ) : (
-              <View style={[s.bannerCta, { backgroundColor: 'rgba(255,255,255,.25)' }]}><Text style={{ fontSize: 13, fontWeight: '900', color: '#fff' }}>클럽 보기 ›</Text></View>
-            )}
-            {club.isHost && <View style={s.hostPill}><Text style={{ fontSize: 10, fontWeight: '900', color: '#fff' }}>HOST</Text></View>}
-          </Row>
         </View>
+      )}
+
+      <View style={{ flex: 1, padding: 14, paddingTop: 16 }}>
+        {/* 클럽명 — 상단으로, 더 크게 (Sean 2026-07-29) */}
+        <Text style={[{ fontSize: 26, fontWeight: '900', color: '#fff', paddingRight: 92 }, df]} numberOfLines={1}>{club.name}</Text>
+        <Text style={{ fontSize: 13, color: '#d8e2d0', marginTop: 4, paddingRight: 92 }} numberOfLines={1}>
+          {club.status === 'collecting'
+            ? `관심 ${club.interestCount}명 · 호스트를 기다려요`
+            : ns
+              ? joined
+                ? `${ns.when} · 📍 ${ns.meetupPoint}`
+                : `다음 세션 ${ns.when} · ${ns.rsvpCount}팀 참여 중`
+              : `멤버 ${club.memberCount} · ${club.isHost ? '탭해서 세션을 열어보세요' : '다음 세션 준비 중'}`}
+        </Text>
+        {/* 액션 행 — 하단 고정 */}
+        <Row style={{ gap: 8, marginTop: 'auto' }}>
+          {club.status === 'collecting' && role === 'runner' ? (
+            <Pressable onPress={claim} style={s.bannerCta}>
+              <Text style={{ fontSize: 13, fontWeight: '900', color: FOREST }}>호스트 되기 ›</Text>
+            </Pressable>
+          ) : club.status === 'active' && ns && !joined ? (
+            <View style={s.bannerCta}><Text style={{ fontSize: 13, fontWeight: '900', color: FOREST }}>참여하기 ›</Text></View>
+          ) : club.status === 'active' && joined ? (
+            <View style={[s.bannerCta, { backgroundColor: 'rgba(255,255,255,.92)' }]}><Text style={{ fontSize: 13, fontWeight: '900', color: FOREST }}>세션 보기 ›</Text></View>
+          ) : (
+            <View style={[s.bannerCta, { backgroundColor: 'rgba(255,255,255,.25)' }]}><Text style={{ fontSize: 13, fontWeight: '900', color: '#fff' }}>클럽 보기 ›</Text></View>
+          )}
+          {club.isHost && <View style={s.hostPill}><Text style={{ fontSize: 10, fontWeight: '900', color: '#fff' }}>HOST</Text></View>}
+        </Row>
       </View>
+
+      {/* V2 여권 직인 — 클라우트 + 개방성 한 도장에 (Sean 확정) */}
+      <View style={s.stamp} pointerEvents="none">
+        <Text style={s.stampMain}>HIGH-VERIFIED</Text>
+        <Text style={s.stampSub}>FREE TO JOIN · ANYTIME</Text>
+      </View>
+
+      <GradientOutline w={size.w} h={size.h} />
     </Pressable>
   );
 }
@@ -196,10 +225,12 @@ const s = StyleSheet.create({
   dropRow: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 10, paddingHorizontal: 13 },
   dropThumb: { width: 38, height: 38, borderRadius: 12, backgroundColor: '#EDE8DA', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   dropPill: { backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 4, paddingHorizontal: 9 },
-  banner: { height: 148, borderRadius: 20, overflow: 'hidden', marginTop: 10, backgroundColor: '#26382a' },
+  banner: { height: 152, borderRadius: 21, overflow: 'hidden', marginTop: 10, backgroundColor: '#26382a' },
   bannerScrim: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(10,16,10,.36)' },
-  officialPill: { backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 3, paddingHorizontal: 9, alignSelf: 'flex-start' },
-  ddayPill: { backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 4, paddingHorizontal: 10 },
+  ddayPill: { position: 'absolute', top: 13, right: 13, zIndex: 2, backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 4, paddingHorizontal: 10 },
+  stamp: { position: 'absolute', right: 12, bottom: 12, borderWidth: 2.5, borderColor: colors.volt, borderRadius: 9, paddingVertical: 5, paddingHorizontal: 10, backgroundColor: 'rgba(15,29,19,.35)', transform: [{ rotate: '-7deg' }], alignItems: 'center' },
+  stampMain: { fontSize: 12, fontWeight: '900', letterSpacing: 2, color: colors.volt },
+  stampSub: { fontSize: 7.5, fontWeight: '700', letterSpacing: 1.6, color: 'rgba(198,245,66,.8)', marginTop: 2, borderTopWidth: 1, borderTopColor: 'rgba(198,245,66,.4)', paddingTop: 2 },
   bannerCta: { backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 7, paddingHorizontal: 13 },
   hostPill: { backgroundColor: '#5a7a3c', borderRadius: 99, paddingVertical: 5, paddingHorizontal: 9, alignSelf: 'center' },
 });
