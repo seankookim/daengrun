@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>하이클럽 컬러 아이덴티티 3안 + 확정 모듈 풀세트</title>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--forest:#0F1D13;--volt:#C6F542;--voltDeep:#7FA818;--tang:#FF5C3D;--cream:#F8F6F0;--line:#DCD6C4;
+/* 클럽 컬러 후보 */
+--vio:#7B6CDF;--vioDeep:#5A4BC7;--vioTint:#EFECFF;--vioInk:#4A3DA8;
+--teal:#2FB8A3;--tealDeep:#1F8F7E;--tealTint:#E4F6F2;
+--berry:#E8558B;--berryDeep:#C13A6E;--berryTint:#FCE9F1;}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#141811;color:var(--cream);font-family:'IBM Plex Sans KR',sans-serif;padding:34px 26px 80px}
+.bhs{font-family:'Black Han Sans',sans-serif;font-weight:400}
+h1{font-size:28px;color:var(--volt)}
+h2{font-size:19px;margin:36px 0 4px}
+.lede{color:#8fa093;margin:10px 0 4px;max-width:900px;line-height:1.6;font-size:14px}
+.rowwrap{display:flex;gap:24px;flex-wrap:wrap;margin-top:20px}
+.opt{width:372px}
+.optlabel{display:flex;gap:8px;align-items:center;margin-bottom:10px}
+.optlabel .tag{background:var(--volt);color:var(--forest);font-weight:800;font-size:12px;border-radius:99px;padding:3px 10px}
+.optlabel b{font-size:16px}
+.optnote{color:#8fa093;font-size:12.5px;line-height:1.55;margin:9px 2px 0}
+.stage{background:var(--cream);border-radius:24px;padding:16px 14px;color:var(--forest)}
+/* ── R1-A 티켓 공통 (CTA 대형화) ── */
+.tkt{display:flex;background:#fff;border:1.5px solid var(--line);border-radius:18px;overflow:hidden}
+.tkt .stub{width:86px;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;border-right:2px dashed rgba(255,255,255,.35)}
+.tkt .stub b{font-size:32px;font-weight:900;line-height:1}
+.tkt .stub span{font-size:9px;letter-spacing:1.5px;margin-top:3px;opacity:.8}
+.tkt .bd{flex:1;padding:13px 14px 14px}
+.tkt .bd h4{font-size:15.5px;font-weight:900}
+.tkt .bd p{font-size:13px;color:#75806f;margin-top:3px;line-height:1.45}
+.bigcta{display:block;text-align:center;border-radius:14px;font-weight:900;font-size:15.5px;padding:13px 0;margin-top:10px;color:#fff;box-shadow:0 3px 8px rgba(0,0,0,.14)}
+/* 팔레트별 */
+.p-vio .stub{background:linear-gradient(165deg,var(--vio),var(--vioDeep))}
+.p-vio .bigcta{background:linear-gradient(100deg,var(--vio),var(--vioDeep))}
+.p-teal .stub{background:linear-gradient(165deg,var(--teal),var(--tealDeep))}
+.p-teal .bigcta{background:linear-gradient(100deg,var(--teal),var(--tealDeep))}
+.p-berry .stub{background:linear-gradient(165deg,var(--berry),var(--berryDeep))}
+.p-berry .bigcta{background:linear-gradient(100deg,var(--berry),var(--berryDeep))}
+/* ── 풀세트 (바이올렛 적용) ── */
+.modhdr{display:flex;gap:6px;align-items:baseline;margin-bottom:9px}
+.modhdr b{font-size:17px;font-weight:900}
+.modhdr .cpill{background:var(--vioTint);color:var(--vioInk);font-size:10px;font-weight:900;letter-spacing:1px;border-radius:99px;padding:3px 9px}
+.strip{display:flex;align-items:center;gap:10px;background:linear-gradient(100deg,#3A2F86,var(--vioDeep));border-radius:16px;padding:12px 14px;color:#fff}
+.strip .n{background:#fff;color:var(--vioDeep);border-radius:99px;font-weight:900;font-size:14px;padding:5px 11px;flex:none}
+.strip p{flex:1;font-size:13px;line-height:1.4;color:#E9E5FF}
+.strip .go{color:#fff;font-weight:900;font-size:15px;flex:none}
+.ctx{font-size:11px;color:#9a978a;margin:2px 2px 7px}
+.prog{display:flex;gap:14px;background:#fff;border:1.5px solid var(--line);border-radius:18px 18px 0 0;padding:14px;align-items:center}
+.ring{width:76px;height:76px;border-radius:50%;background:conic-gradient(var(--vio) 0 252deg,#EFECE2 252deg 360deg);display:flex;align-items:center;justify-content:center;flex:none}
+.ring i{width:57px;height:57px;border-radius:50%;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;font-style:normal}
+.ring b{font-size:15px;font-weight:900;color:var(--vioInk)}
+.ring span{font-size:8.5px;color:#75806f}
+.prog .bd h4{font-size:15px;font-weight:900}
+.prog .bd p{font-size:13px;color:#75806f;margin-top:3px;line-height:1.45}
+.prog .cta{display:inline-block;background:linear-gradient(100deg,var(--vio),var(--vioDeep));color:#fff;border-radius:99px;font-weight:900;font-size:13px;padding:9px 15px;margin-top:8px;box-shadow:0 2px 6px rgba(90,75,199,.35)}
+/* 동네 리그 */
+.league{background:#fff;border:1.5px solid var(--line);border-top:0;border-radius:0 0 18px 18px;padding:11px 14px 13px}
+.league h5{font-size:12.5px;font-weight:900;color:var(--vioInk);letter-spacing:1px;margin-bottom:7px}
+.lrow{display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:11px}
+.lrow.me{background:var(--vioTint);border:1.5px solid #CFC6F5}
+.lrow .rk{width:18px;font-size:12px;font-weight:900;color:#9a92c9}
+.lrow .nm{flex:1;font-size:13.5px;font-weight:800}
+.lrow .st{font-size:12px;font-weight:800;color:#75806f}
+.lrow .st.live{color:var(--vioDeep)}
+.lrow .medal{font-size:13px}
+</style>
+</head>
+<body>
+<h1 class="bhs">하이클럽 컬러 아이덴티티 — 3안</h1>
+<p class="lede">지시: 클럽 vs 개인 러닝의 컬러 분리. 개인(예약·러닝·인증샷)은 볼트 그린 그대로, <b>클럽 = 새 컬러 월드</b>. 후보 3안을 R1-A 티켓(대형 CTA 반영)에 입혀서 비교 — 선택된 컬러가 클럽 배너 CTA·직인·수요 모듈·클럽 화면 전체에 일관 적용됩니다.</p>
+
+<div class="rowwrap">
+<div class="opt">
+  <div class="optlabel"><span class="tag">C1</span><b>클럽 바이올렛 ★</b></div>
+  <div class="stage"><div class="tkt p-vio">
+    <div class="stub"><b>7</b><span>WAITING</span></div>
+    <div class="bd"><h4>반포동에서 7팀이 기다려요</h4><p>호스트가 되면 클럽이 열려요 — 세션 수당 + 클럽 배지.</p>
+    <span class="bigcta">🏁 호스트 되기</span></div>
+  </div></div>
+  <p class="optnote">'하이클럽'이라는 이름 그대로 — 클럽/나이트의 바이올렛. 볼트·탱·블루 어느 것과도 안 겹치고, 크림 위에서 또렷. 프리미엄 + 파티의 이중 온도.</p>
+</div>
+<div class="opt">
+  <div class="optlabel"><span class="tag">C2</span><b>트랙 틸</b></div>
+  <div class="stage"><div class="tkt p-teal">
+    <div class="stub"><b>7</b><span>WAITING</span></div>
+    <div class="bd"><h4>반포동에서 7팀이 기다려요</h4><p>호스트가 되면 클럽이 열려요 — 세션 수당 + 클럽 배지.</p>
+    <span class="bigcta">🏁 호스트 되기</span></div>
+  </div></div>
+  <p class="optnote">육상 트랙의 민트·틸 — 스포티하고 시원함. 다만 그린 계열이라 볼트와 '같은 세계'로 읽힐 위험이 약간.</p>
+</div>
+<div class="opt">
+  <div class="optlabel"><span class="tag">C3</span><b>피니시라인 베리</b></div>
+  <div class="stage"><div class="tkt p-berry">
+    <div class="stub"><b>7</b><span>WAITING</span></div>
+    <div class="bd"><h4>반포동에서 7팀이 기다려요</h4><p>호스트가 되면 클럽이 열려요 — 세션 수당 + 클럽 배지.</p>
+    <span class="bigcta">🏁 호스트 되기</span></div>
+  </div></div>
+  <p class="optnote">피니시라인 리본의 베리 핑크 — 가장 축제적. 다만 탱(코랄 요청)과 난색 계열이 겹쳐 러너 홈에서 긴급 신호와 경쟁할 수 있음.</p>
+</div>
+</div>
+
+<h2 class="bhs">확정 모듈 풀세트 (C1 바이올렛 적용 예)</h2>
+<p class="lede">어느 컬러를 골라도 아래 구성 그대로 — R1-A 대형 CTA 티켓(러너 홈), R1-C 스트립은 <b>러너 요청 탭 상단</b>에 추가 배치(호스트 = 또 하나의 '일감'이라는 문맥), 보호자 쪽은 D-A 진행 링 + 동네 리그 보드 합본(호기심·경쟁심).</p>
+
+<div class="rowwrap">
+<div class="opt">
+  <div class="optlabel"><span class="tag">러너 홈</span><b>R1-A 대기 티켓 (대형 CTA)</b></div>
+  <div class="stage">
+    <div class="modhdr"><b>하이클럽</b><span class="cpill">HIGH CLUB</span></div>
+    <div class="tkt p-vio">
+      <div class="stub"><b>7</b><span>WAITING</span></div>
+      <div class="bd"><h4>반포동에서 7팀이 기다려요</h4><p>인증 러너가 호스트를 맡으면 클럽이 열려요.</p>
+      <span class="bigcta">🏁 호스트 되기</span></div>
+    </div>
+  </div>
+  <p class="optnote">CTA를 풀와이드 블록으로 (기존 알약의 ~2.5배 타깃). 클럽 배너 아래 배치.</p>
+</div>
+
+<div class="opt">
+  <div class="optlabel"><span class="tag">러너 요청 탭</span><b>R1-C 스트립 (추가 노출)</b></div>
+  <div class="stage">
+    <div class="ctx">새 요청 리스트 상단 — '단골 일감' 옆의 '동네 일감'</div>
+    <div class="strip">
+      <span class="n">7팀</span>
+      <p><b>반포동</b>이 호스트를 기다려요 — 첫 세션을 여는 러너가 클럽의 얼굴</p>
+      <span class="go">›</span>
+    </div>
+  </div>
+  <p class="optnote">요청 탭은 러너가 '일감을 찾으러' 오는 곳 — 호스트 전환 문맥이 가장 자연스러움. 다크 바이올렛이라 코랄 요청 카드와 리듬 안 겹침.</p>
+</div>
+
+<div class="opt">
+  <div class="optlabel"><span class="tag">보호자 홈</span><b>D-A 진행 링 + 동네 리그</b></div>
+  <div class="stage">
+    <div class="modhdr"><b>하이클럽</b><span class="cpill">HIGH CLUB</span></div>
+    <div class="prog">
+      <div class="ring"><i><b>7/10</b><span>모이는 중</span></i></div>
+      <div class="bd"><h4>반포동 하이클럽, 열리는 중</h4><p>10팀이 모이면 호스트 모집 시작 — 이웃을 초대할수록 빨리 열려요.</p>
+      <span class="cta">🐾 이웃 초대하기</span></div>
+    </div>
+    <div class="league">
+      <h5>동네 리그 — 이번 달</h5>
+      <div class="lrow"><span class="rk">1</span><span class="medal">🥇</span><span class="nm">서초동 하이클럽</span><span class="st live">세션 12회 · 31팀</span></div>
+      <div class="lrow"><span class="rk">2</span><span class="medal">🥈</span><span class="nm">잠원동 하이클럽</span><span class="st live">세션 8회 · 19팀</span></div>
+      <div class="lrow me"><span class="rk">—</span><span class="medal">⏳</span><span class="nm">반포동 (우리 동네)</span><span class="st">7팀 대기 중</span></div>
+    </div>
+  </div>
+  <p class="optnote">위 = 내 동네의 진행(능동태), 아래 = 옆 동네 클럽들의 실적 리그(호기심 + '우리도 빨리 열자' 경쟁심). 활성 클럽은 세션·팀 수로 랭킹, 내 동네는 하이라이트.</p>
+</div>
+</div>
+
+<p class="lede" style="margin-top:36px;border-top:1px solid #2c3a2c;padding-top:16px">
+<b style="color:var(--volt)">추천: C1 바이올렛</b> — '하이클럽' 이름과 맞물리는 클럽의 색이고, 기존 4색(볼트·탱·앰버·블루) 어디와도 안 부딪힙니다. 컬러 번호만 주시면: ① 수요 모듈 3종 + 동네 리그 구현 (0032 club_demand_board RPC + 하네스), ② 클럽 배너 CTA·직인·클럽 화면을 선택 컬러로 통일, ③ 이어서 정기 시리즈·클럽 패치·공유 포맷.
+</p>
+</body>
+</html>
