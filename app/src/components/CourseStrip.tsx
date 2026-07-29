@@ -4,6 +4,8 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { fetchMyDistrict, fetchRoutes } from '../lib/api';
 import { RouteInfo } from '../store';
 import { colors } from '../theme';
+import { useNumFont } from '../lib/fonts';
+import { worldOf } from './patch';
 import { HeatTrace } from './runcard';
 
 // 동네 코스 스트립 — 트레일 패치(스티커) 덱. 보호자 홈(동네 러너 아래)·러너 홈 공유.
@@ -11,10 +13,11 @@ import { HeatTrace } from './runcard';
 // 로컬 우선: profiles.district = area 일치 코스 앞으로 (지오 거리 정렬은 실좌표 v2).
 
 const FOREST = '#0F1D13';
-const PALETTE = ['#DDF0A6', '#C3D9AE', '#FFCDB6', '#F2DA96']; // matching 카드와 같은 파스텔 계열
+// [V4] 파스텔 은퇴 — 코스는 거리 월드 컬러(P2 배지 월드와 동일 소스)로: 코스 = 경험
 
 export function CourseStrip({ title = '동네 코스' }: { title?: string }) {
   const [routes, setRoutes] = useState<RouteInfo[]>([]);
+  const nf = useNumFont();
 
   useEffect(() => {
     let alive = true;
@@ -32,71 +35,51 @@ export function CourseStrip({ title = '동네 코스' }: { title?: string }) {
   if (routes.length === 0) return null; // 없는 데이터는 그리지 않는다
 
   return (
-    <View style={{ marginTop: 14 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 9 }}>
+    <View style={{ marginTop: 18 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8, marginBottom: 9, borderBottomWidth: 2.5, borderBottomColor: FOREST, paddingBottom: 7 }}>
         <Text style={{ fontSize: 16, fontWeight: '900', color: FOREST }}>{title}</Text>
-        <Text style={{ fontSize: 14, color: '#49524a' }}>· 점검된 안심 코스</Text>
+        <Text style={{ fontSize: 9, fontWeight: '700', letterSpacing: 2, color: colors.voltDeep }}>VERIFIED COURSES</Text>
       </View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingRight: 12, paddingVertical: 6 }}>
-        {routes.map((r, i) => (
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingRight: 12 }}>
+        {routes.map((r) => {
+          const w = worldOf(r.km); // [V4] 거리 = 색 세계 (TRAIL 테라 · FOREST 볼트 · RIVER 스카이 · NIGHT 바이올렛)
+          return (
           <Pressable
             key={r.id}
             onPress={() => router.push(`/course/${r.id}`)}
-            style={{
-              width: 212, backgroundColor: PALETTE[i % 4], borderRadius: 20, padding: 12, paddingBottom: 11,
-              borderWidth: 1, borderColor: 'rgba(15,29,19,0.14)',
-              // 스티커 필: 카드마다 반대로 살짝 기움 (수집 배지 느낌)
-              transform: [{ rotate: i % 2 === 0 ? '-1.1deg' : '1.1deg' }],
-              shadowColor: FOREST, shadowOpacity: 0.1, shadowRadius: 7, shadowOffset: { width: 0, height: 4 },
-            }}
+            style={{ width: 224, backgroundColor: w.bg, padding: 13, overflow: 'hidden' }}
           >
-            {/* 맵 창 + 겹치는 km 빕 */}
-            <View style={{ backgroundColor: FOREST, borderRadius: 14, overflow: 'hidden', paddingVertical: 6, paddingHorizontal: 4 }}>
-              <HeatTrace points={r.trace} width={180} height={74} />
-            </View>
-            <View style={{
-              position: 'absolute', top: 4, right: 4, width: 42, height: 42, borderRadius: 21,
-              backgroundColor: colors.volt, alignItems: 'center', justifyContent: 'center',
-              borderWidth: 2.5, borderColor: '#fff', transform: [{ rotate: '8deg' }],
-              shadowColor: FOREST, shadowOpacity: 0.25, shadowRadius: 4, shadowOffset: { width: 0, height: 2 },
-            }}>
-              <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST }}>{r.km}K</Text>
+            {/* 월드 킥커 + km 대활자 */}
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' }}>
+              <Text style={{ fontSize: 8.5, fontWeight: '700', letterSpacing: 2.5, color: w.dim }}>{w.label} · {r.terrain.toUpperCase?.() ?? r.terrain}</Text>
+              <Text style={[{ fontSize: 24, fontWeight: '900', color: w.tone }, nf]}>{r.km}<Text style={{ fontSize: 11 }}>K</Text></Text>
             </View>
 
-            {/* 특징 글리프 버블 — 맵 창 하단에 반쯤 걸침 */}
-            {r.features.length > 0 && (
-              <View style={{ flexDirection: 'row', gap: 4, marginTop: -13, marginLeft: 6 }}>
-                {r.features.slice(0, 4).map((f) => (
-                  <View key={f.label} style={{
-                    width: 26, height: 26, borderRadius: 13, backgroundColor: '#fff',
-                    alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(15,29,19,0.12)',
-                  }}>
-                    <Text style={{ fontSize: 12.5, color: FOREST }}>{f.g}</Text>
-                  </View>
-                ))}
-              </View>
-            )}
+            {/* 트레이스 — 월드 톤으로 발광 */}
+            <View style={{ marginTop: 6, marginHorizontal: -3 }}>
+              <HeatTrace points={r.trace} width={204} height={72} tint={w.tone} />
+            </View>
 
-            <Text style={{ fontSize: 15.5, fontWeight: '900', color: FOREST, marginTop: 7 }} numberOfLines={1}>{r.name}</Text>
-            <Text style={{ fontSize: 12, color: '#3d453d', marginTop: 2 }} numberOfLines={1}>
-              {r.area} · {r.terrain}
+            <Text style={{ fontSize: 16, fontWeight: '900', color: '#fff', marginTop: 8 }} numberOfLines={1}>{r.name}</Text>
+            <Text style={{ fontSize: 11, color: w.dim, marginTop: 2 }} numberOfLines={1}>
+              {r.area}{r.features.length > 0 ? ` · ${r.features.slice(0, 3).map((f) => f.g).join(' ')}` : ''}
             </Text>
 
-            <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginTop: 8 }}>
-              {/* 점검 도장 — 여권 스탬프처럼 비스듬히 */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10 }}>
+              {/* 점검 도장 — 여권 스탬프 (원형 규칙 ④ 생존) */}
               <View style={{
-                borderWidth: 1.5, borderColor: '#3d6a2b', borderRadius: 7, paddingVertical: 2, paddingHorizontal: 7,
-                transform: [{ rotate: '-5deg' }], backgroundColor: 'rgba(255,255,255,0.55)',
+                borderWidth: 1.5, borderColor: w.tone, borderRadius: 6, paddingVertical: 2, paddingHorizontal: 7,
+                transform: [{ rotate: '-5deg' }], opacity: 0.9,
               }}>
-                <Text style={{ fontSize: 10, fontWeight: '900', color: '#3d6a2b', letterSpacing: 0.4 }}>✓ {r.checkedAt}</Text>
+                <Text style={{ fontSize: 9.5, fontWeight: '900', color: w.tone, letterSpacing: 0.4 }}>✓ {r.checkedAt}</Text>
               </View>
               <View style={{ flex: 1 }} />
-              <View style={{ backgroundColor: FOREST, borderRadius: 99, paddingVertical: 5, paddingHorizontal: 11 }}>
-                <Text style={{ fontSize: 11.5, fontWeight: '900', color: colors.volt }}>미리보기 ›</Text>
+              <View style={{ borderWidth: 1.2, borderColor: w.tone, paddingVertical: 5, paddingHorizontal: 11 }}>
+                <Text style={{ fontSize: 11.5, fontWeight: '900', color: w.tone }}>미리보기 ›</Text>
               </View>
             </View>
           </Pressable>
-        ))}
+        ); })}
       </ScrollView>
     </View>
   );

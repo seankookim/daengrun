@@ -9,6 +9,7 @@ import { RunCard } from '../../src/components/runcard';
 import { Avatar } from '../../src/components/ui';
 import { Addr, BoardRow, confirmPayment, createBookingHold, DogProfile, fetchAddresses, fetchAvailableRunners, fetchCertifiedRunners, fetchDogBoardDelta, fetchFitness, fetchMyBookings, fetchMyDogs, fetchMyProfile, fetchRecentMoments, fetchRoutes, Fitness, LiveRunner, Moment, MyProfile } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
+import { useNumFont } from '../../src/lib/fonts';
 import { haptic } from '../../src/lib/haptics';
 import { registerPushToken } from '../../src/lib/push';
 import { Booking, demoImminent, dog, draft, myCards, nextBooking, ownerGearLadder, RouteInfo, runners } from '../../src/store';
@@ -90,6 +91,7 @@ const SCROLL_RANGE = 150;
 export default function OwnerHome() {
   const { mode, toggle, p } = useTheme();
   const df = useDisplayFont(); // 디스플레이 서체 — 그리팅·find-now 히어로 타이틀
+  const nf = useNumFont(); // [V4] 숫자 = Oswald
 
   // 로테이팅 그리팅 — 5초마다 수직 플립 (접힘 → 문구 교체 → 펼침)
   const [gIdx, setGIdx] = useState(0);
@@ -491,17 +493,17 @@ export default function OwnerHome() {
             정직 원칙: 자랑 카피는 실데이터 임계(스트릭 3일·주 3회)에서만 점화 — 0에서 응원, 성과에서 축하 ---------- */}
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <StatChip
-            bg="#FFCDB6"
+            bg={colors.tang}
             top={`연속 ${fit?.streakDays ?? 0}일${(fit?.streakDays ?? 0) >= 3 ? ' 🔥' : ''}`}
             bottom={(fit?.streakDays ?? 0) >= 3 ? '불붙었어요' : (fit?.streakDays ?? 0) > 0 ? '연속 기록' : '오늘 시작해볼까요'}
           />
           <StatChip
-            bg="#DDF0A6"
+            bg={colors.voltDeep}
             top={`${fit?.weekRuns ?? 0}회 완료`}
             bottom={(fit?.weekRuns ?? 0) >= 3 ? '이번 주 벌써' : '이번 주'}
           />
           <StatChip
-            bg="#F2DA96"
+            bg={colors.club}
             top={fit?.avgPaceSec ? `${Math.floor(fit.avgPaceSec / 60)}'${String(fit.avgPaceSec % 60).padStart(2, '0')}"` : '—'}
             bottom={fit?.avgPaceSec ? '평균 페이스' : '첫 러닝 후 측정'}
           />
@@ -812,59 +814,64 @@ export default function OwnerHome() {
           </View>
         )}
 
-        {/* ---------- 우리 동네 러너 (탐색형 매칭) ---------- */}
+        {/* ---------- [V4] 동네 러너 = 스타디움 로스터 (V2) — 러너는 서비스의 얼굴, PR 표면 ---------- */}
         {localRunners.length > 0 && (
-          <View style={{ marginTop: 14 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 9 }}>
-              <Text style={[s.sectionTitle, { color: p.textStrong }]}>우리 동네 러너</Text>
-              <View style={{ backgroundColor: '#5a7a3c', borderRadius: 4, paddingVertical: 2, paddingHorizontal: 7 }}>
-                <Text style={{ fontSize: 10, fontWeight: '900', color: '#fff' }}>● {localRunners.length}명 온라인</Text>
-              </View>
+          <View style={{ marginTop: 18 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8, marginBottom: 9, borderBottomWidth: 2.5, borderBottomColor: p.textStrong, paddingBottom: 7 }}>
+              <Text style={[s.sectionTitle, { color: p.textStrong }, df]}>동네 러너</Text>
+              <Text style={{ fontSize: 9, fontWeight: '700', letterSpacing: 2, color: colors.voltDeep }}>ROSTER · {localRunners.length} ONLINE</Text>
               <View style={{ flex: 1 }} />
               <Pressable onPress={() => router.push('/leaderboard')}>
                 <Text style={{ fontSize: 14, fontWeight: '800', color: colors.tang }}>🏆 동네 랭킹 ›</Text>
               </Pressable>
             </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 11, paddingRight: 12 }}>
-              {localRunners.map((r, ri) => {
-                const bgArr = ['#cfe0bb', '#f8cbb4', '#f2dc92', '#c7d5e8'];
-                const sqArr = ['#e8734a', '#5a7a3c', '#3c5a74', '#c9a86e'];
-                return (
-                  <Pressable
-                    key={r.profileId}
-                    onPress={() => router.push(`/runner-profile/${r.profileId}`)}
-                    style={{
-                      width: 156, backgroundColor: bgArr[ri % 4], borderRadius: 6, padding: 15,
-                      paddingVertical: 18, alignItems: 'center',
-                      shadowColor: '#0F1D13', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 4 },
-                    }}
-                  >
-                    {r.avatarUrl ? (
-                      <Avatar url={r.avatarUrl} char={r.name[0]} bg={sqArr[ri % 4]} size={56} />
-                    ) : (
-                      <View style={{
-                        width: 56, height: 56, borderRadius: 6, backgroundColor: sqArr[ri % 4],
-                        alignItems: 'center', justifyContent: 'center',
-                      }}>
-                        <Text style={{ fontSize: 26.5, fontWeight: '900', color: colors.volt }}>{r.name[0]}</Text>
+
+            {/* 피처드 러너 — 풀와이드 스타디움 카드 (로스터 1번) */}
+            {localRunners[0] && (() => { const f = localRunners[0]; return (
+              <Pressable onPress={() => router.push(`/runner-profile/${f.profileId}`)} style={s.featRunner}>
+                <View style={s.featEdge} />
+                <Text style={{ fontSize: 9, fontWeight: '700', letterSpacing: 2.5, color: colors.volt }}>FEATURED RUNNER — {f.district || '근처'}</Text>
+                <View style={{ flexDirection: 'row', gap: 13, alignItems: 'center', marginTop: 9 }}>
+                  <Avatar url={f.avatarUrl} char={f.name[0]} bg="#2a3a2c" size={62} />
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
+                      <Text style={[{ fontSize: 22, fontWeight: '900', color: '#fff' }, df]} numberOfLines={1}>{f.name}</Text>
+                      <View style={{ backgroundColor: 'rgba(198,245,66,.14)', borderWidth: 1, borderColor: colors.volt, paddingVertical: 2, paddingHorizontal: 7 }}>
+                        <Text style={{ fontSize: 8.5, fontWeight: '800', letterSpacing: 1.5, color: colors.volt }}>{f.tier.toUpperCase()}</Text>
                       </View>
-                    )}
-                    <Text style={{ fontSize: 17, fontWeight: '900', color: colors.ink, marginTop: 10 }} numberOfLines={1}>
-                      {r.name}
-                    </Text>
-                    <Text style={{ fontSize: 12, color: '#3d453d', marginTop: 4 }} numberOfLines={1}>
-                      {r.district || '근처'} · {r.tier}
-                    </Text>
-                    <Text style={{ fontSize: 12, color: '#3d453d', marginTop: 1 }}>
-                      러닝 {r.totalRuns}회 · {r.paceLabel}
-                    </Text>
-                    <View style={{ backgroundColor: colors.ink, borderRadius: 4, paddingVertical: 7, paddingHorizontal: 15, marginTop: 10 }}>
-                      <Text style={{ fontSize: 12, fontWeight: '900', color: '#fff' }}>프로필 ›</Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', gap: 15, marginTop: 7 }}>
+                      <View><Text style={[s.featNum, nf]}>{f.totalRuns}</Text><Text style={s.featK}>RUNS</Text></View>
+                      <View><Text style={[s.featNum, nf]}>{f.paceLabel}</Text><Text style={s.featK}>PACE</Text></View>
+                      <View><Text style={[s.featNum, nf, { color: colors.volt }]}>●</Text><Text style={s.featK}>ONLINE</Text></View>
+                    </View>
+                  </View>
+                  <View style={s.featCta}><Text style={{ fontSize: 12.5, fontWeight: '900', color: colors.ink }}>프로필 ›</Text></View>
+                </View>
+              </Pressable>
+            ); })()}
+
+            {/* 나머지 로스터 — 다크 미니 카드 */}
+            {localRunners.length > 1 && (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 9 }} contentContainerStyle={{ gap: 9, paddingRight: 12 }}>
+                {localRunners.slice(1).map((r) => (
+                  <Pressable key={r.profileId} onPress={() => router.push(`/runner-profile/${r.profileId}`)} style={s.rosterCard}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <Avatar url={r.avatarUrl} char={r.name[0]} bg="#2a3a2c" size={38} />
+                      <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: colors.volt, position: 'absolute', left: 29, top: 0, borderWidth: 1.5, borderColor: '#121712' }} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 14.5, fontWeight: '900', color: '#fff' }} numberOfLines={1}>{r.name}</Text>
+                        <Text style={{ fontSize: 10.5, color: '#8fa093', marginTop: 1 }} numberOfLines={1}>{r.district || '근처'}</Text>
+                      </View>
+                    </View>
+                    <View style={{ flexDirection: 'row', gap: 10, marginTop: 9, alignItems: 'baseline' }}>
+                      <Text style={[{ fontSize: 15, fontWeight: '900', color: '#fff' }, nf]}>{r.totalRuns}<Text style={{ fontSize: 9, color: '#8fa093' }}> RUNS</Text></Text>
+                      <Text style={[{ fontSize: 15, fontWeight: '900', color: '#fff' }, nf]}>{r.paceLabel}</Text>
                     </View>
                   </Pressable>
-                );
-              })}
-            </ScrollView>
+                ))}
+              </ScrollView>
+            )}
           </View>
         )}
 
@@ -1003,15 +1010,13 @@ export default function OwnerHome() {
   );
 
   // 미니 레이스 빕 — 상단 파스텔 밴드(라벨 + 펀치홀 2개) + 큰 숫자. 히어로 빕 필과 같은 모티프.
+  // [V4] V1 룰드 숫자 셀 — 파스텔 스탬프 은퇴. bg는 이제 액센트 언더라인 컬러
   function StatChip({ top, bottom, bg }: { top: string; bottom: string; bg: string }) {
     return (
       <View style={s.statChip}>
-        <View style={[s.bibBand, { backgroundColor: bg }]}>
-          <View style={s.bibHole} />
-          <Text style={s.bibLabel} numberOfLines={1}>{bottom}</Text>
-          <View style={s.bibHole} />
-        </View>
-        <Text style={s.bibValue} numberOfLines={1}>{top}</Text>
+        <Text style={[s.bibValue, { color: p.textStrong }, nf]} numberOfLines={1}>{top}</Text>
+        <View style={[s.accentBar, { backgroundColor: bg }]} />
+        <Text style={[s.bibLabel, { color: p.dim }]} numberOfLines={1}>{bottom}</Text>
       </View>
     );
   }
@@ -1128,18 +1133,21 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'center',
     borderRadius: 4, paddingVertical: 8, paddingHorizontal: 15, marginTop: 8, borderWidth: 1,
   },
-  // 미니 레이스 빕 세트 — 흰 몸통 + 파스텔 상단 밴드 + 펀치홀 (실제 빕의 조형)
+  // [V4] V1 룰드 숫자 셀 — 카드가 아니라 지면: 위 2.5px 룰, 셀 사이 헤어라인, 액센트 언더라인
   statChip: {
-    flex: 1, borderRadius: 6, backgroundColor: '#fff', borderWidth: 1.2, borderColor: '#D8DAD2',
-    overflow: 'hidden', alignItems: 'center', paddingBottom: 13,
+    flex: 1, alignItems: 'flex-start', paddingVertical: 11, paddingHorizontal: 10,
+    borderTopWidth: 2.5, borderTopColor: '#0E100D', borderRightWidth: 1, borderRightColor: '#D8DAD2',
   },
-  bibBand: {
-    alignSelf: 'stretch', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingVertical: 6, paddingHorizontal: 9,
-  },
-  bibHole: { width: 5, height: 5, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.8)' },
-  bibLabel: { fontSize: 10.5, fontWeight: '800', color: 'rgba(21,24,15,0.62)', letterSpacing: 0.2 },
-  bibValue: { fontSize: 19, fontWeight: '900', color: '#0F1D13', marginTop: 10, fontVariant: ['tabular-nums'] },
+  accentBar: { width: 26, height: 3.5, marginTop: 5 },
+  bibLabel: { fontSize: 10.5, fontWeight: '800', letterSpacing: 0.3, marginTop: 5 },
+  bibValue: { fontSize: 26, fontWeight: '900', fontVariant: ['tabular-nums'], letterSpacing: -0.5 },
+  // [V4] 스타디움 로스터 (V2) — 러너 PR 표면
+  featRunner: { backgroundColor: '#121712', borderWidth: 1, borderColor: '#222A21', padding: 15, paddingLeft: 18, overflow: 'hidden' },
+  featEdge: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, backgroundColor: colors.volt },
+  featNum: { fontSize: 17, fontWeight: '900', color: '#fff', fontVariant: ['tabular-nums'] },
+  featK: { fontSize: 7.5, fontWeight: '700', letterSpacing: 1.5, color: '#8fa093', marginTop: 2 },
+  featCta: { backgroundColor: colors.volt, paddingVertical: 9, paddingHorizontal: 13, alignSelf: 'center' },
+  rosterCard: { width: 168, backgroundColor: '#121712', borderWidth: 1, borderColor: '#222A21', padding: 12 },
   rewardCard: {
     flexDirection: 'row', alignItems: 'center', borderRadius: 6, padding: 15, marginTop: 12,
     borderWidth: 1.6, borderColor: colors.tang + '66',
