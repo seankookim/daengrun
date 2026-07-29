@@ -3,6 +3,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BottomNav } from '../../src/components/bottomnav';
+import { DemandStrip } from '../../src/components/clubcard';
 import { Avatar, Row } from '../../src/components/ui';
 import { acceptBooking, acceptReschedule, declineReschedule, fetchRescheduleRequests, fetchRunnerInbox, OpenRequest, RescheduleRequest } from '../../src/lib/api';
 import { haptic } from '../../src/lib/haptics';
@@ -70,6 +71,12 @@ export default function Requests() {
             <Text style={{ fontSize: 12.5, fontWeight: '700', color: '#3d453d' }}>↻ 새로고침</Text>
           </Pressable>
         </Row>
+
+        {/* ---------- 하이클럽 호스트 수요 스트립 (R1-C, 0032) — 호스트 = 또 하나의 동네 일감.
+            대기 팀이 있을 때만 나타난다 (유령 클럽 금지) ---------- */}
+        <View style={{ marginTop: 12 }}>
+          <DemandStrip />
+        </View>
 
         {/* ---------- 일정 변경 요청 (0016) — 기존→새 시간, 수락/거절 ---------- */}
         {resched.map((rq) => (

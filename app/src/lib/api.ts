@@ -2044,3 +2044,20 @@ export async function fetchMyBookings(): Promise<Booking[]> {
     };
   });
 }
+
+// ---------- 클럽 수요 보드 (0032, P-B) — 듀얼: 러너 티켓·스트립 + 보호자 진행 링·동네 리그 ----------
+export interface DemandMine {
+  clubId: string; name: string; district: string; status: 'collecting' | 'active';
+  interestCount: number; threshold: number; myInterest: boolean; isHost: boolean;
+}
+export interface LeagueRow {
+  clubId: string; name: string; district: string; status: 'collecting' | 'active';
+  sessionsMonth: number; teamsMonth: number; interestCount: number; mine: boolean;
+}
+export interface DemandBoard { district: string; mine: DemandMine | null; league: LeagueRow[] }
+
+export async function fetchClubDemandBoard(): Promise<DemandBoard> {
+  const { data, error } = await supabase.rpc('club_demand_board');
+  if (error) throw error;
+  return (data ?? { district: '', mine: null, league: [] }) as DemandBoard;
+}

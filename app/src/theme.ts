@@ -16,6 +16,13 @@ export const colors = {
   border: '#DCD6C4',     // line과 동치 — 점진 제거 예정 (line만 남긴다)
   green: '#5a7a3c',      // 기능 그린 — 라벨·강조 (volt의 텍스트 버전, 대비 우선이라 유지)
   dim: '#5B594A',
+  // 하이클럽 컬러 월드 (2026-07-29 Sean 확정 C1 바이올렛) — 클럽 vs 개인 분리:
+  // 개인(예약·러닝·인증샷)=볼트 그린, 클럽=바이올렛. 다른 신호색(탱·앰버·블루)과 불충돌.
+  club: '#7B6CDF',       // 프라이머리 — CTA·스텁·링
+  clubDeep: '#5A4BC7',   // 그라디언트 딥 엔드·프레스드
+  clubInk: '#4A3DA8',    // 읽는 바이올렛 — 라벨·텍스트 (coralText와 같은 2단 문법)
+  clubTint: '#EFECFF',   // 틴트 — 칩·하이라이트 행 배경
+  clubNight: '#3A2F86',  // 다크 스트립 그라디언트 스타트
   // dark glow theme (owner home / cards)
   bgDark: '#0C130E',
   cardDark: '#0F1D13',

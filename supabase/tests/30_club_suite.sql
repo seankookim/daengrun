@@ -338,3 +338,66 @@ begin
   exception when others then call _fail('club','S8', sqlerrm);
   end;
 end $$;
+
+-- ═══ 수요 보드(0032) 스위트 — S9~S11 ═══
+do $$
+declare
+  o uuid; v_js jsonb; v_club uuid; v_c2 uuid; v_exp int;
+begin
+  select id into v_club from clubs where district = '반포동' and kind = 'official';
+  o := t_user('demand_owner', 'owner');
+
+  -- [S9] district 미설정 → 반포동 폴백 + mine 실데이터 일치 (관심 수·임계치)
+  begin
+    perform set_config('request.jwt.claim.sub', o::text, false);
+    v_js := club_demand_board();
+    v_exp := (select count(*) from club_interest where club_id = v_club);
+    if v_js->>'district' = '반포동'
+       and (v_js->'mine'->>'clubId')::uuid = v_club
+       and (v_js->'mine'->>'interestCount')::int = v_exp
+       and (v_js->'mine'->>'threshold')::int = 10
+       and (v_js->'mine'->>'myInterest')::boolean = false
+      then call _pass('club','S9 수요 보드 — 반포동 폴백 + mine 실데이터 일치');
+    else call _fail('club','S9 수요 보드', v_js::text); end if;
+  exception when others then call _fail('club','S9 수요 보드', sqlerrm);
+  end;
+
+  -- [S10] 동네 리그 — active 우선 랭킹 + 이달 실적 데이터 일치 + collecting 관심 수 포함
+  begin
+    v_c2 := club_request_district('서초동');  -- collecting 생성 + 내 관심 1 (0031)
+    v_js := club_demand_board();
+    if (v_js->'league'->0->>'status') = 'active'
+       and (v_js->'league'->0->>'sessionsMonth')::int = (
+             select count(*) from club_sessions s
+             where s.club_id = (v_js->'league'->0->>'clubId')::uuid and s.status = 'done'
+               and s.scheduled_at >= date_trunc('month', now()))
+       and (v_js->'league'->0->>'teamsMonth')::int = (
+             select coalesce(sum((select count(*) from session_people sp
+                                  where sp.session_id = s.id and sp.attendance = 'checked_in')), 0)
+             from club_sessions s
+             where s.club_id = (v_js->'league'->0->>'clubId')::uuid and s.status = 'done'
+               and s.scheduled_at >= date_trunc('month', now()))
+       and exists (select 1 from jsonb_array_elements(v_js->'league') e
+                   where e->>'district' = '서초동' and e->>'status' = 'collecting'
+                     and (e->>'interestCount')::int = (select count(*) from club_interest where club_id = v_c2))
+      then call _pass('club','S10 동네 리그 — active 우선 + 이달 실적 일치 + collecting 관심');
+    else call _fail('club','S10 리그', (v_js->'league')::text); end if;
+  exception when others then call _fail('club','S10 리그', sqlerrm);
+  end;
+
+  -- [S11] district 설정 → mine 전환 (서초동 collecting + myInterest, 리그에 mine 플래그)
+  begin
+    update profiles set district = '서초동' where id = o;
+    v_js := club_demand_board();
+    if v_js->>'district' = '서초동'
+       and (v_js->'mine'->>'clubId')::uuid = v_c2
+       and (v_js->'mine'->>'status') = 'collecting'
+       and (v_js->'mine'->>'myInterest')::boolean = true
+       and (v_js->'mine'->>'isHost')::boolean = false
+       and exists (select 1 from jsonb_array_elements(v_js->'league') e
+                   where e->>'district' = '서초동' and (e->>'mine')::boolean = true)
+      then call _pass('club','S11 내 동네 전환 — collecting mine + myInterest + 리그 mine 플래그');
+    else call _fail('club','S11 전환', v_js::text); end if;
+  exception when others then call _fail('club','S11 전환', sqlerrm);
+  end;
+end $$;
