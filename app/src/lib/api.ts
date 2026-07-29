@@ -621,6 +621,23 @@ export async function fetchRunnerJobs(): Promise<RunnerJob[]> {
     .order('scheduled_at', { ascending: false })
     .limit(20);
   if (error) throw error;
+
+  // 완료 건은 견적이 아니라 원장 실 net (감사 ⑤ 수익 표시 잔여 해소).
+  // 2-step 쿼리 — PostgREST 임베드 FK 모호성 회피 관례. 원장 행 없는 과거 건은 견적 폴백.
+  const doneIds = (data ?? []).filter((r: any) => r.status === 'completed').map((r: any) => r.id);
+  const netByBooking: Record<string, number> = {};
+  if (doneIds.length > 0) {
+    const { data: led, error: ledErr } = await supabase
+      .from('ledger_items')
+      .select('booking_id, base, distance_pay, addon_pay, tip, remaining_guarantee, platform_fee')
+      .in('booking_id', doneIds);
+    if (ledErr) console.warn('[jobs] ledger:', ledErr.message);
+    (led ?? []).forEach((l: any) => {
+      netByBooking[l.booking_id] =
+        l.base + l.distance_pay + l.addon_pay + l.tip + (l.remaining_guarantee ?? 0) - l.platform_fee;
+    });
+  }
+
   return (data ?? []).map((r: any) => {
     const { dateLabel, timeLabel } = kstParts(r.scheduled_at);
     return {
@@ -628,7 +645,8 @@ export async function fetchRunnerJobs(): Promise<RunnerJob[]> {
       when: `${dateLabel} ${timeLabel}`,
       dogName: r.dogs?.name ?? '반려견',
       km: Number(r.km),
-      payout: Math.round((r.base_fare + r.distance_fare + r.addon_fare) * (1 - rate)), // 티어 실수수료 (일괄 20% 은퇴)
+      // 완료 = 원장 실수령, 그 외 = 티어 실수수료 견적 (일괄 20% 은퇴)
+      payout: netByBooking[r.id] ?? Math.round((r.base_fare + r.distance_fare + r.addon_fare) * (1 - rate)),
       status: r.status === 'completed' ? 'completed' : r.status === 'confirmed' ? 'confirmed' : 'in_progress',
       rawStatus: r.status,
       routeId: r.route_id ?? null,
@@ -638,7 +656,7 @@ export async function fetchRunnerJobs(): Promise<RunnerJob[]> {
 
 // ---------- 코스 패치 (2026-07-28 확정) — 파생 데이터, 마이그레이션 0 ----------
 // 사다리: ×1 획득 → ×5 실버 → ×10 골드 → ×25 코스 마스터 (드랍 5/10 리듬과 동기).
-// v1은 순수 코스메틱 — 골드/마스터 포인트 보너스는 v2 서버(settle-run) 몫.
+// 골드/마스터 도달 시 포인트 보너스는 서버(settle_run_tx, 0025)가 지급 — 클라는 표시만.
 export type PatchGrade = 'basic' | 'silver' | 'gold' | 'master';
 export const patchGrade = (n: number): PatchGrade =>
   n >= 25 ? 'master' : n >= 10 ? 'gold' : n >= 5 ? 'silver' : 'basic';
@@ -1724,6 +1742,7 @@ export interface MilesInfo { balance: number; recent: { delta: number; reason: s
 
 const MILE_REASON: Record<string, string> = {
   run_complete: '러닝 완주', poop_bonus: '응가 도장 보너스', drop: '드랍 보상', shop_spend: '샵 사용',
+  patch_gold: '골드 패치 승급', patch_master: '코스 마스터 달성', // 0025 패치 승급 보너스
 };
 
 export async function fetchMiles(): Promise<MilesInfo> {

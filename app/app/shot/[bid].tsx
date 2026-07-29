@@ -152,7 +152,9 @@ export default function ShotStudio() {
   const [report, setReport] = useState<RunReport | null>(null);
   const [standings, setStandings] = useState<RunStandings | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  const [photoUri, setPhotoUri] = useState<string | null>(null);
+  // 스킨별 독립 사진 (2026-07-29) — B에서 사진을 바꿔도 A의 사진·크롭이 유지된다.
+  // transform은 PhotoLayer 인스턴스별이고 resetKey가 스킨별 uri이므로, 자기 사진이 바뀔 때만 리셋.
+  const [photos, setPhotos] = useState<Record<'A' | 'Bp' | 'G', string | null>>({ A: null, Bp: null, G: null });
   const [sheetOpen, setSheetOpen] = useState(false);
   const sheetFor = useRef<SkinKey>('Bp'); // 어느 스킨이 사진을 요청했나 (확정 시 그 스킨의 사진 모드 on)
   const [photoOn, setPhotoOn] = useState<{ A: boolean; Bp: boolean }>({ A: false, Bp: true });
@@ -170,9 +172,11 @@ export default function ShotStudio() {
   const pts = useMemo(() => (run && run.trace.length > 1 ? normalizeTrace(run.trace) : null), [run]);
   const runPhotos = run?.photos ?? [];
 
-  // 러너 사진이 있으면 자동 기본 사진 + B 포토 2번 슬롯 승격
+  // 러너 사진이 있으면 자동 기본 사진 (스킨별, 이미 고른 스킨은 유지)
   useEffect(() => {
-    if (runPhotos.length > 0 && !photoUri) setPhotoUri(runPhotos[0]);
+    if (runPhotos.length > 0) {
+      setPhotos((p) => ({ A: p.A ?? runPhotos[0], Bp: p.Bp ?? runPhotos[0], G: p.G ?? runPhotos[0] }));
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [runPhotos.length]);
 
@@ -180,8 +184,9 @@ export default function ShotStudio() {
   const activeKey = order[Math.min(active, order.length - 1)];
 
   // 스킨별 사진 상태 — G는 사진 필수, A/B는 선택(없으면 투명 스티커)
+  const photoKey = (k: SkinKey): 'A' | 'Bp' | 'G' => (k === 'I' ? 'Bp' : k); // I는 사진 없음 — 방어용 매핑
   const hasPhoto = (k: SkinKey) =>
-    !!photoUri && (k === 'G' || (k === 'A' && photoOn.A) || (k === 'Bp' && photoOn.Bp));
+    (k === 'G' && !!photos.G) || (k === 'A' && photoOn.A && !!photos.A) || (k === 'Bp' && photoOn.Bp && !!photos.Bp);
   const isTransparent = (k: SkinKey) => (k === 'A' || k === 'Bp') && !hasPhoto(k);
 
   const recordLine = useMemo(() => {
@@ -248,8 +253,8 @@ export default function ShotStudio() {
       if (!perm.granted) { Alert.alert('사진 접근 권한이 필요해요'); return; }
       const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.9 });
       if (res.canceled || !res.assets?.[0]?.uri) return;
-      setPhotoUri(res.assets[0].uri);
       const k = sheetFor.current;
+      setPhotos((p) => ({ ...p, [photoKey(k)]: res.assets[0].uri })); // 요청한 스킨에만 (독립 사진)
       if (k === 'A' || k === 'Bp') setPhotoOn((p) => ({ ...p, [k]: true }));
       setSheetOpen(false);
       setTimeout(shareNow, 450); // 갤러리 선택도 확정과 동일 — 완성 즉시 공유
@@ -290,7 +295,7 @@ export default function ShotStudio() {
       return (
         <View style={{ width: CARD_W, height: h }}>
           {/* 사진 위에 올리기 모드 — 투명 스티커가 사진을 배경으로 얻는다 */}
-          {photo && <PhotoLayer uri={photoUri!} w={CARD_W} h={h} resetKey={photoUri!} />}
+          {photo && <PhotoLayer uri={photos.A!} w={CARD_W} h={h} resetKey={photos.A!} />}
           {photo && <View pointerEvents="none" style={s.scrimBottom} />}
           {/* 브랜드 테이프 — 투명으로 저장돼도 봉인은 남는다 */}
           <View pointerEvents="none" style={{ position: 'absolute', top: 18, left: -14, right: -14 }}>
@@ -341,7 +346,7 @@ export default function ShotStudio() {
       }
       return (
         <View style={{ width: CARD_W, height: h, borderRadius: 20, overflow: 'hidden', backgroundColor: FOREST }}>
-          <PhotoLayer uri={photoUri!} w={CARD_W} h={h} resetKey={photoUri!} />
+          <PhotoLayer uri={photos.Bp!} w={CARD_W} h={h} resetKey={photos.Bp!} />
           <View pointerEvents="none" style={s.scrimBottom} />
           <View pointerEvents="none" style={{ position: 'absolute', top: 14, right: 14 }}><IconChip size={40} df={df} /></View>
           {pts && (
@@ -366,8 +371,8 @@ export default function ShotStudio() {
         <View style={{ width: CARD_W, height: h, backgroundColor: '#e9e4d6', alignItems: 'center', justifyContent: 'center' }}>
           <View style={{ width: CARD_W - 64, backgroundColor: '#fff', padding: 10, paddingBottom: 0, transform: [{ rotate: '-2.5deg' }], shadowColor: FOREST, shadowOpacity: 0.28, shadowRadius: 12, shadowOffset: { width: 0, height: 8 } }}>
             <View style={{ height: PH - 62, overflow: 'hidden', backgroundColor: '#c9ccc0' }}>
-              {photoUri
-                ? <PhotoLayer uri={photoUri} w={CARD_W - 84} h={PH - 62} resetKey={photoUri} />
+              {photos.G
+                ? <PhotoLayer uri={photos.G} w={CARD_W - 84} h={PH - 62} resetKey={photos.G} />
                 : <View style={[s.photoEmpty, { backgroundColor: '#3b4d35' }]}><Text style={{ fontSize: 24 }}>🖼</Text></View>}
               {pts && (
                 <Svg pointerEvents="none" width={72} height={58} viewBox="0 0 72 58" style={{ position: 'absolute', bottom: 8, right: 8 }}>
@@ -434,7 +439,8 @@ export default function ShotStudio() {
   ]);
 
   const t = isTransparent(activeKey);
-  const needsPhotoNow = activeKey === 'G' && !photoUri;
+  const sheetKey = photoKey(sheetFor.current); // 시트가 어느 스킨의 사진을 고르는 중인가
+  const needsPhotoNow = activeKey === 'G' && !photos.G;
   const mainLabel = busy ? '만드는 중...' : needsPhotoNow ? '사진 고르기 ›' : t ? '투명 PNG 저장' : '공유하기 ›';
   const onMain = needsPhotoNow ? () => openSheet('G') : t ? savePng : shareNow;
   const [ghostLabel, onGhost] =
@@ -442,7 +448,7 @@ export default function ShotStudio() {
       ? hasPhoto('A') ? ['🖼 사진', () => photoMenu('A')] as const : ['🖼 사진 위에 올리기', () => openSheet('A')] as const
       : activeKey === 'Bp'
         ? hasPhoto('Bp') ? ['🖼 사진', () => photoMenu('Bp')] as const : ['🖼 사진 넣기', () => openSheet('Bp')] as const
-        : activeKey === 'G' && photoUri
+        : activeKey === 'G' && photos.G
           ? ['🖼 사진 변경', () => openSheet('G')] as const
           : ['이미지 저장', savePng] as const;
 
@@ -530,9 +536,9 @@ export default function ShotStudio() {
           {runPhotos.length > 0 && (
             <View style={s.wallGrid}>
               {runPhotos.slice(0, 9).map((url) => (
-                <Pressable key={url} onPress={() => setPhotoUri(url)} style={[s.wph, photoUri === url && s.wphSel]}>
+                <Pressable key={url} onPress={() => setPhotos((p) => ({ ...p, [sheetKey]: url }))} style={[s.wph, photos[sheetKey] === url && s.wphSel]}>
                   <Image source={{ uri: url }} style={{ width: '100%', height: '100%' }} />
-                  {photoUri === url && <View style={s.wphTick}><Text style={{ fontSize: 11, fontWeight: '900', color: FOREST }}>✓</Text></View>}
+                  {photos[sheetKey] === url && <View style={s.wphTick}><Text style={{ fontSize: 11, fontWeight: '900', color: FOREST }}>✓</Text></View>}
                 </Pressable>
               ))}
             </View>
@@ -540,7 +546,7 @@ export default function ShotStudio() {
           <Pressable onPress={pickFromGallery} style={s.galBtn}>
             <Text style={{ fontSize: 13.5, fontWeight: '800', color: colors.dim }}>🖼 내 갤러리에서 선택</Text>
           </Pressable>
-          <Pressable onPress={confirmPhoto} disabled={!photoUri} style={[s.sheetCta, !photoUri && { opacity: 0.4 }]}>
+          <Pressable onPress={confirmPhoto} disabled={!photos[sheetKey]} style={[s.sheetCta, !photos[sheetKey] && { opacity: 0.4 }]}>
             <Text style={{ fontSize: 15, fontWeight: '900', color: colors.volt }}>이 사진으로 만들기 ›</Text>
           </Pressable>
         </View>

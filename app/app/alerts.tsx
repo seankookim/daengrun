@@ -4,7 +4,8 @@ import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } 
 import { BottomNav } from '../src/components/bottomnav';
 import { Row } from '../src/components/ui';
 import { fetchNotifications, LiveNoti, markAllNotificationsRead } from '../src/lib/api';
-import { dog, session } from '../src/store';
+import { routeForNotification } from '../src/lib/push';
+import { dog } from '../src/store';
 import { colors } from '../src/theme';
 
 // 알림 — notification center per mock: filter tabs, unread section, history.
@@ -19,15 +20,8 @@ export default function Alerts() {
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = () => { setRefreshing(true); load().finally(() => setRefreshing(false)); };
 
-  // 알림 탭 도착지 — 역할별: 보호자는 리포트(러닝 전이면 상태 안내), 러너는 요청/캘린더
-  const openNoti = (n: LiveNoti) => {
-    if (!n.refId || n.kind !== 'booking') return;
-    if (session.role === 'runner') {
-      router.push(n.title.includes('요청') ? '/runner/requests' : '/runner/calendar');
-    } else {
-      router.push({ pathname: '/owner/report', params: { bid: n.refId } });
-    }
-  };
+  // 알림 탭 도착지 — push.ts routeForNotification과 단일 소스 (푸시 탭 딥링크와 동일 규칙)
+  const openNoti = (n: LiveNoti) => routeForNotification(n.kind, n.refId, n.title);
 
   const markAll = async () => {
     try {

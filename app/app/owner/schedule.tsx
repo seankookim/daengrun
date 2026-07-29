@@ -141,6 +141,19 @@ export default function Schedule() {
               return (
                 <Pressable key={b.id} style={s.bookingCard} onPress={() => open(b)}>
                   <View style={[s.rail, { backgroundColor: st.rail }]} />
+                  {/* 절취선 (티켓 모티프 마지막 조각) — 확정 = 계약 = 티켓. 상태 레일이 스텁,
+                      레일 경계에 펀치 노치 + 퍼포레이션 도트 (overflow hidden이 노치를 반원으로 클립) */}
+                  {b.status === 'confirmed' && (
+                    <View pointerEvents="none" style={s.perfWrap}>
+                      <View style={[s.perfNotch, { marginTop: -5 }]} />
+                      <View style={{ flex: 1, justifyContent: 'space-evenly', alignItems: 'center' }}>
+                        {Array.from({ length: 8 }).map((_, i) => (
+                          <View key={i} style={s.perfDot} />
+                        ))}
+                      </View>
+                      <View style={[s.perfNotch, { marginBottom: -5 }]} />
+                    </View>
+                  )}
                   <View style={{ flex: 1, padding: 14 }}>
                     <Row style={{ justifyContent: 'space-between' }}>
                       <Row style={{ gap: 6 }}>
@@ -453,6 +466,10 @@ const s = StyleSheet.create({
   emptyBox: { marginTop: 24, marginHorizontal: 12, padding: 18, backgroundColor: '#f4f2ea', borderRadius: 16 },
   bookingCard: { flexDirection: 'row', backgroundColor: '#fff', borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#DCD6C4', marginTop: -1, overflow: 'hidden' },
   rail: { width: 8 }, // 상태 컬러 레일 1.6배 (5→8)
+  // 확정 카드 절취선 — 레일 경계 x=8 중심 (노치 지름 10, 도트 2.5)
+  perfWrap: { position: 'absolute', left: 3, top: 0, bottom: 0, width: 10, alignItems: 'center' },
+  perfNotch: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.cream, borderWidth: 1, borderColor: '#DCD6C4' },
+  perfDot: { width: 2.5, height: 2.5, borderRadius: 1.25, backgroundColor: colors.cream },
   recurPill: { backgroundColor: '#e3f0c4', borderRadius: 99, paddingVertical: 2, paddingHorizontal: 7, alignSelf: 'center' },
   livePillSm: { backgroundColor: '#5a7a3c', borderRadius: 99, paddingVertical: 2, paddingHorizontal: 7, alignSelf: 'center' },
   statusPill: { borderRadius: 99, paddingVertical: 4, paddingHorizontal: 9 },
