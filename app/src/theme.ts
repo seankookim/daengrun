@@ -23,12 +23,28 @@ export const colors = {
   clubInk: '#4A3DA8',    // 읽는 바이올렛 — 라벨·텍스트 (coralText와 같은 2단 문법)
   clubTint: '#EFECFF',   // 틴트 — 칩·하이라이트 행 배경
   clubNight: '#3A2F86',  // 다크 스트립 그라디언트 스타트
+  // 기록 골드 (P3) — PB·마일스톤 전용. 희소 운용이 생명: 일상은 볼트, 사건만 골드
+  gold: '#D9A93C',
+  goldDeep: '#B8860B',   // 읽는 골드 — 텍스트·소인 잉크
+  goldTint: '#FBF3DD',
   // dark glow theme (owner home / cards)
   bgDark: '#0C130E',
   cardDark: '#0F1D13',
   lineDark: '#24352a',
   dimDark: '#8fa093',
 } as const;
+
+// 강아지 칼라 컬러 팔레트 (P1, 0033) — 키는 DB(dogs.collar), 값은 여기가 단일 소스.
+// 규칙: 시스템 신호색(볼트·탱·앰버·블루·바이올렛)과 '같은 값'은 피한다 — 칼라는 퍼스널, 신호는 시스템.
+export const collarColors = {
+  tangerine: '#FF8A5C', sky: '#5BB8D4', rose: '#E58BA9', violet: '#9B8CE8',
+  gold: '#E0B457', teal: '#3EC6A8', moss: '#8AA84E', berry: '#C25E7F',
+} as const;
+export type CollarKey = keyof typeof collarColors;
+export const collarLabels: Record<CollarKey, string> = {
+  tangerine: '탠저린', sky: '스카이', rose: '로즈', violet: '바이올렛',
+  gold: '골드', teal: '틸', moss: '모스', berry: '베리',
+};
 
 // 디스플레이 서체 — Black Han Sans (src/lib/displayFont.ts의 useDisplayFont로 지연 로드).
 // 규칙: 화면당 1회(히어로 카피·브랜드 워드마크)만. 로드 실패 시 시스템 900 폴백.

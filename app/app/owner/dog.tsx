@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Avatar, Row } from '../../src/components/ui';
 import { addDog, DogProfile, fetchMyDogs, updateMyDog, uploadDogPhoto } from '../../src/lib/api';
-import { colors } from '../../src/theme';
+import { CollarKey, collarColors, collarLabels, colors } from '../../src/theme';
 
 // 반려견 프로필 — 실초코. 사진·정보·성향 메모·선호 태그가 러너에게 전달된다.
 // 진입: 예약 화면 강아지 카드 · 마이 메뉴. 저장은 섹션 하단 버튼 1개.
@@ -30,6 +30,7 @@ export default function DogProfileScreen() {
   const [memo, setMemo] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [vaccines, setVaccines] = useState<string[]>([]);
+  const [collar, setCollar] = useState<CollarKey | null>(null); // 칼라 컬러 (0033)
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
 
@@ -43,6 +44,7 @@ export default function DogProfileScreen() {
     setMemo(d.memo ?? '');
     setTags(d.prefTags);
     setVaccines(d.vaccines);
+    setCollar((d.collar as CollarKey) ?? null);
   };
 
   const load = (preferId?: string) => fetchMyDogs()
@@ -111,6 +113,7 @@ export default function DogProfileScreen() {
         memo: memo.trim() || undefined,
         prefTags: tags,
         vaccines,
+        collar,
       });
       Alert.alert('저장 완료', '러너에게 전달되는 프로필이 업데이트됐어요');
     } catch (e) {
@@ -129,7 +132,8 @@ export default function DogProfileScreen() {
         </View>
         <View style={{ paddingHorizontal: 12, marginTop: -44 }}>
           <Pressable onPress={pickPhoto} disabled={uploading} style={{ alignSelf: 'flex-start' }}>
-            <View style={{ borderWidth: 4, borderColor: colors.cream, borderRadius: 22 }}>
+            {/* 칼라 컬러가 곧 아바타 링 (P1) — 고르는 즉시 여기서 보인다 */}
+            <View style={{ borderWidth: 4, borderColor: collar ? collarColors[collar] : colors.cream, borderRadius: 22 }}>
               <Avatar url={dog?.photoUrl} char={(name || '멍')[0]} bg={FOREST} size={88} />
             </View>
             <View style={s.camBadge}><Text style={{ fontSize: 11.5, color: '#fff' }}>{uploading ? '…' : '✎'}</Text></View>
@@ -157,6 +161,23 @@ export default function DogProfileScreen() {
                 <Text style={{ fontSize: 14.5, fontWeight: '800', color: '#5a7a3c' }}>＋ 추가</Text>
               </Pressable>
             </Row>
+
+            {/* 칼라 컬러 (P1, 0033) — 내 아이의 색: 아바타 링·일정 카드 도트가 이 색으로 */}
+            <Text style={s.label}>칼라 컬러 — 내 아이의 색</Text>
+            <Row style={{ gap: 9, flexWrap: 'wrap' }}>
+              {(Object.keys(collarColors) as CollarKey[]).map((k) => (
+                <Pressable
+                  key={k}
+                  onPress={() => setCollar((cur) => (cur === k ? null : k))}
+                  style={[s.collarDot, { backgroundColor: collarColors[k] }, collar === k && s.collarDotOn]}
+                >
+                  {collar === k && <Text style={{ fontSize: 14, fontWeight: '900', color: '#fff' }}>✓</Text>}
+                </Pressable>
+              ))}
+            </Row>
+            <Text style={{ fontSize: 12.5, color: colors.dim, marginTop: 6 }}>
+              {collar ? `${collarLabels[collar]} — ${name || '아이'}의 시그니처 컬러예요` : '고르면 앱 곳곳에서 이 색으로 보여요 (선택)'}
+            </Text>
 
             {/* 기본 정보 */}
             <Text style={s.label}>이름</Text>
@@ -260,6 +281,9 @@ const s = StyleSheet.create({
   },
   neuterChip: { flex: 1, backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: '#DCD6C4', alignItems: 'center', paddingVertical: 13 },
   dogChip: { backgroundColor: '#fff', borderRadius: 99, borderWidth: 1.3, borderColor: '#dcd9cc', paddingVertical: 9, paddingHorizontal: 16 },
+  // 칼라 컬러 도트 (P1) — 선택 = 포레스트 링 + 체크
+  collarDot: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', borderWidth: 2.5, borderColor: 'rgba(255,255,255,.7)' },
+  collarDotOn: { borderWidth: 3, borderColor: FOREST, transform: [{ scale: 1.08 }] },
   tagChip: { backgroundColor: '#fff', borderRadius: 99, borderWidth: 1.3, borderColor: '#DCD6C4', paddingVertical: 9, paddingHorizontal: 14 },
   saveBar: {
     position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: colors.cream,

@@ -122,6 +122,7 @@ export interface DogProfile {
   vaccines: string[]; // 접종 완료 백신 타입
   photoUrl: string | null;
   weeklyGoalKm: number;
+  collar: string | null; // 칼라 컬러 키 (0033) — theme.collarColors 매핑
 }
 
 function mapDog(d: any): DogProfile {
@@ -137,10 +138,11 @@ function mapDog(d: any): DogProfile {
     vaccines: ((d.vaccinations as any[]) ?? []).map((v) => v.type),
     photoUrl: d.photo_url,
     weeklyGoalKm: Number(d.weekly_goal_km ?? 15),
+    collar: d.collar ?? null,
   };
 }
 
-const DOG_SELECT = 'id, name, breed, birth_date, weight_kg, neutered, memo, preferences, vaccinations, photo_url, weekly_goal_km';
+const DOG_SELECT = 'id, name, breed, birth_date, weight_kg, neutered, memo, preferences, vaccinations, photo_url, weekly_goal_km, collar';
 
 // 다견 가구 지원 — 전체 목록
 export async function fetchMyDogs(): Promise<DogProfile[]> {
@@ -168,6 +170,7 @@ export async function addDog(name: string): Promise<string> {
 export async function updateMyDog(dogId: string, p: {
   name?: string; breed?: string; birth_date?: string | null; weight_kg?: number | null;
   neutered?: boolean; memo?: string; prefTags?: string[]; vaccines?: string[];
+  collar?: string | null; // 칼라 컬러 (0033)
 }): Promise<void> {
   const { prefTags, vaccines, ...rest } = p;
   const patch: Record<string, unknown> = { ...rest };
@@ -2010,7 +2013,7 @@ export async function fetchMyBookings(): Promise<Booking[]> {
   const { data: user } = await supabase.auth.getUser();
   const { data, error } = await supabase
     .from('bookings')
-    .select('id, scheduled_at, km, pace_label, total_price, status, runner_id, owner_id, series_id, routes(name), dogs(name), runners(profiles(name))')
+    .select('id, scheduled_at, km, pace_label, total_price, status, runner_id, owner_id, series_id, routes(name), dogs(name, collar), runners(profiles(name))')
     // 결제 미완 유령(draft/quoted/payment_hold)은 일정이 아니다 — '매칭 중'으로 위장 금지
     .not('status', 'in', '(draft,quoted,payment_hold)')
     // 듀얼 롤 계정에서 러너로 받은 예약이 '내 일정'에 섞이던 문제 — 보호자 소유만
@@ -2028,6 +2031,7 @@ export async function fetchMyBookings(): Promise<Booking[]> {
       dateLabel,
       timeLabel,
       dogName: r.dogs?.name ?? '반려견',
+      dogCollar: r.dogs?.collar ?? null, // 칼라 컬러 (0033)
       runnerId: 'minjun', // sheet mock-lookup용 (live는 sheet에서 별도 처리)
       runnerName: r.runner_id ? (r.runners?.profiles?.name ?? '러너') : '매칭 중',
       routeId: mockTwin?.id ?? 'seoulforest-loop',

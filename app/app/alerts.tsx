@@ -15,12 +15,15 @@ import { colors } from '../src/theme';
 
 const FOREST = '#0F1D13';
 
-// 이벤트 링 컬러 — 표시 휴리스틱 (일정 탭 상태 컬러와 동일 스키마; 데이터가 아니라 아이코노그래피)
-const ringFor = (title: string): string => {
-  if (/만료|취소|SOS/.test(title)) return '#d84a2f';
-  if (/대기|요청|재탐색|이동/.test(title)) return '#F59A43';
-  if (/수락|변경|확정|매칭/.test(title)) return '#6E9BC5';
-  return '#5a7a3c'; // 완료·시작·적립 등 — 그린
+// 소인 잉크 시스템 (P4, Sean 확정) — kind + 제목 휴리스틱으로 종류별 잉크색.
+// 인박스가 스캔 한 번에 분류되게: 예약=그린 · 클럽=바이올렛 · 변경/대기=앰버 · 기록=골드 · 취소=레드
+const inkFor = (kind: string | null | undefined, title: string): { bg: string; fg: string } => {
+  if (/돌파|기록|달성|경신/.test(title)) return { bg: colors.goldTint, fg: colors.goldDeep }; // 기록 골드 (P3)
+  if (kind === 'community') return { bg: colors.clubTint, fg: colors.clubInk };               // 클럽 바이올렛
+  if (/만료|취소|SOS/.test(title)) return { bg: '#FCE7E1', fg: '#d84a2f' };
+  if (/대기|요청|재탐색|이동|변경|제안/.test(title)) return { bg: '#FCEFD9', fg: '#9D580A' }; // 앰버
+  if (/수락|확정|매칭/.test(title)) return { bg: '#E3EEF8', fg: '#4A6E93' };                  // 확정 블루
+  return { bg: '#e7efd8', fg: '#3d5a2b' }; // 완료·시작·적립 등 — 그린
 };
 const glyphFor = (title: string): string => {
   if (/완료|시작|돌파/.test(title)) return '🏃';
@@ -130,14 +133,16 @@ export default function Alerts() {
                   </View>
                   <View style={s.stampDash} />
                 </Row>
-                {g.items.map((n) => (
+                {g.items.map((n) => {
+                  const ink = inkFor(n.kind, n.title);
+                  return (
                   <Pressable key={n.id} onPress={() => openNoti(n)} style={s.evtRow}>
-                    {/* 레일 도트 — 상태 컬러 링 */}
-                    <View style={[s.railDot, { borderColor: ringFor(n.title) }, n.unread && { backgroundColor: colors.volt, borderColor: FOREST }]} />
+                    {/* 레일 도트 — 소인 잉크와 동색 링 */}
+                    <View style={[s.railDot, { borderColor: ink.fg }, n.unread && { backgroundColor: colors.volt, borderColor: FOREST }]} />
                     <View style={[s.card, n.unread && s.cardHi]}>
                       {n.unread && <View style={s.seal}><Text style={{ fontSize: 9.5, fontWeight: '900', color: FOREST }}>NEW</Text></View>}
                       <Row style={{ gap: 11 }}>
-                        <View style={s.icon}><Text style={{ fontSize: 15, fontWeight: '900', color: '#3d5a2b' }}>{glyphFor(n.title)}</Text></View>
+                        <View style={[s.icon, { backgroundColor: ink.bg }]}><Text style={{ fontSize: 15, fontWeight: '900', color: ink.fg }}>{glyphFor(n.title)}</Text></View>
                         <View style={{ flex: 1 }}>
                           <Row style={{ justifyContent: 'space-between' }}>
                             <Text style={{ fontSize: 16, fontWeight: '900', color: FOREST, flex: 1, paddingRight: 40 }}>{n.title}</Text>
@@ -148,7 +153,8 @@ export default function Alerts() {
                       </Row>
                     </View>
                   </Pressable>
-                ))}
+                  );
+                })}
               </View>
             ))}
           </View>

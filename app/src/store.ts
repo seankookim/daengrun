@@ -206,6 +206,7 @@ export interface Booking {
   dateLabel: string; // 그룹 헤더
   timeLabel: string;
   dogName: string;
+  dogCollar?: string | null; // 칼라 컬러 키 (0033) — theme.collarColors
   runnerId: string;
   runnerName: string;
   routeId: string;

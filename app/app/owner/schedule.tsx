@@ -7,7 +7,7 @@ import { BottomNav } from '../../src/components/bottomnav';
 import { HeatTrace } from '../../src/components/runcard';
 import { Monogram, Row } from '../../src/components/ui';
 import { Booking, BookingStatus, cancelPolicy, draft, runners, sampleRoutes } from '../../src/store';
-import { colors } from '../../src/theme';
+import { CollarKey, collarColors, colors } from '../../src/theme';
 
 // 내 일정 — agenda view. Tapping a booking opens a management sheet
 // (route card + predictions + runner + reschedule/cancel actions).
@@ -195,9 +195,15 @@ export default function Schedule() {
                           <Text style={{ fontSize: 15, fontWeight: '800', color: FOREST }}>{b.routeName}</Text>
                           <View style={s.certDot}><Text style={{ fontSize: 8, fontWeight: '900', color: '#fff' }}>✓</Text></View>
                         </Row>
-                        <Text style={{ fontSize: 15, color: '#49524a', marginTop: 3 }}>
-                          {b.dogName} · {b.runnerName} 러너 · {b.km}km
-                        </Text>
+                        {/* 칼라 컬러 도트 (P1, 0033) — 다견 가구가 한 눈에 '누구 러닝인지' */}
+                        <Row style={{ gap: 6, marginTop: 3, alignItems: 'center' }}>
+                          {b.dogCollar && collarColors[b.dogCollar as CollarKey] && (
+                            <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: collarColors[b.dogCollar as CollarKey], borderWidth: 1.5, borderColor: '#fff' }} />
+                          )}
+                          <Text style={{ fontSize: 15, color: '#49524a', flexShrink: 1 }} numberOfLines={1}>
+                            {b.dogName} · {b.runnerName} 러너 · {b.km}km
+                          </Text>
+                        </Row>
                         <Text style={{ fontSize: 14.5, color: colors.dim, marginTop: 2 }}>
                           {b.price.toLocaleString()}원 · {b.paceLabel}
                         </Text>
