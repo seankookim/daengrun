@@ -489,3 +489,28 @@ begin
     end;
   end;
 end $$;
+
+-- ═══ 세션 상세 v3(0036) — isMe (입장권) ═══
+do $$
+declare
+  o uuid; r uuid; v_club uuid; v_sid uuid; v_js jsonb;
+begin
+  select p.id into r from profiles p where p.name = 'series_host';
+  select p.id into o from profiles p where p.name = 'series_owner';
+  select c.id into v_club from clubs c where c.district = '시리즈동';
+  begin
+    perform set_config('request.jwt.claim.sub', r::text, false);
+    v_sid := club_create_session(v_club, now() + interval '25 hours', '패스 검증 집결지');
+    perform set_config('request.jwt.claim.sub', o::text, false);
+    perform session_rsvp(v_sid, null, 'v-pass');
+    v_js := club_session_detail(v_sid);
+    -- 내 호출: isMe 정확히 1개 = 내 행(호스트 아님), 배열은 join 순 (0=호스트, 1=나)
+    if (select count(*) from jsonb_array_elements(v_js->'people') e where (e->>'isMe')::boolean) = 1
+       and (v_js->'people'->0->>'isMe')::boolean = false
+       and (v_js->'people'->1->>'isMe')::boolean = true
+       and (v_js->'people'->1->>'attendance') = 'rsvp'
+      then call _pass('club','M1 상세 v3 — isMe 단일·join 순 안정 (빕 넘버 기반)');
+    else call _fail('club','M1 isMe', (v_js->'people')::text); end if;
+  exception when others then call _fail('club','M1', sqlerrm);
+  end;
+end $$;

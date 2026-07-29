@@ -1745,7 +1745,7 @@ export async function fetchClubHostStats(clubId: string): Promise<{ sessions: nu
   return data as { sessions: number; totalTeams: number; returning: number };
 }
 
-export interface SessionPerson { name: string; avatarUrl: string | null; role: string; attendance: string; dogName: string | null }
+export interface SessionPerson { name: string; avatarUrl: string | null; role: string; attendance: string; dogName: string | null; isMe?: boolean }
 export interface ClubSessionDetail {
   id: string; clubId: string; scheduledAt: string; when: string; meetupPoint: string;
   status: string; capacity: number; hostName: string | null; isHost: boolean;

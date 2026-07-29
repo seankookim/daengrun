@@ -139,8 +139,9 @@ function ClubBanner({ club, role, reload }: { club: ClubOverview; role: 'owner' 
     <Pressable onPress={onPress} style={s.banner}>
       {club.photoUrl
         ? <Image source={{ uri: club.photoUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
-        : <View style={[StyleSheet.absoluteFill, { backgroundColor: '#26382a' }]} />}
+        : <View style={[StyleSheet.absoluteFill, { backgroundColor: '#191533' }]} />}
       <View style={s.bannerScrim} />
+      <View style={s.bannerNeon} />
 
       {/* 우상단 상태 필 (자리/D-day) */}
       {club.status === 'active' && ns && (joined || (ns.status === 'open' && left > 0)) && (
@@ -151,9 +152,10 @@ function ClubBanner({ club, role, reload }: { club: ClubOverview; role: 'owner' 
         </View>
       )}
 
-      <View style={{ flex: 1, padding: 14, paddingTop: 16 }}>
-        {/* 클럽명 — 상단으로, 더 크게 (Sean 2026-07-29) */}
-        <Text style={[{ fontSize: 31, fontWeight: '900', color: '#fff', paddingRight: 92 }, df]} numberOfLines={1}>{club.name}</Text>
+      <View style={{ flex: 1, padding: 14, paddingTop: 13, paddingLeft: 17 }}>
+        {/* D1×D2: 모노 킥커 + 클럽명 (Sean 확정 — 나이트 스텁 × 프로그램) */}
+        <Text style={s.bannerKicker}>HIGH CLUB — {club.district}</Text>
+        <Text style={[{ fontSize: 29, fontWeight: '900', color: '#fff', paddingRight: 92, marginTop: 2 }, df]} numberOfLines={1}>{club.name}</Text>
         <Text style={{ fontSize: 13, color: '#d8e2d0', marginTop: 4, paddingRight: 92 }} numberOfLines={1}>
           {club.status === 'collecting'
             ? `관심 ${club.interestCount}명 · 호스트를 기다려요`
@@ -338,16 +340,19 @@ const s = StyleSheet.create({
   dropRow: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 10, paddingHorizontal: 13 },
   dropThumb: { width: 38, height: 38, borderRadius: 12, backgroundColor: '#EDE8DA', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   dropPill: { backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 4, paddingHorizontal: 9 },
-  banner: { height: 152, borderRadius: 21, overflow: 'hidden', marginTop: 10, backgroundColor: '#26382a' },
-  bannerScrim: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(10,16,10,.36)' },
-  ddayPill: { position: 'absolute', top: 13, right: 13, zIndex: 2, backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 4, paddingHorizontal: 10 },
+  // D1×D2 나이트 스텁 배너 — 샤프 코너 + 나이트 틴트 + 네온 엣지 (Sean 확정)
+  banner: { height: 152, borderRadius: 6, borderWidth: 1, borderColor: '#2A2350', overflow: 'hidden', marginTop: 10, backgroundColor: '#191533' },
+  bannerScrim: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(13,10,30,.55)' },
+  bannerNeon: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, backgroundColor: colors.neon, zIndex: 2 },
+  bannerKicker: { fontSize: 9, fontWeight: '700', letterSpacing: 2.6, color: colors.neon },
+  ddayPill: { position: 'absolute', top: 13, right: 13, zIndex: 2, backgroundColor: colors.volt, borderRadius: 4, paddingVertical: 4, paddingHorizontal: 10 },
   // V2 직인 — 워너웃 + 소프트 모스 잉크 (Sean 2026-07-29: 네온기 살짝 빼기 — 볼트 → #A9C463)
   stamp: { position: 'absolute', right: 22, bottom: 38, borderWidth: 3, borderColor: '#A9C463', borderRadius: 11, paddingVertical: 6, paddingHorizontal: 13, backgroundColor: 'rgba(15,29,19,.35)', transform: [{ rotate: '-7deg' }], alignItems: 'center', opacity: 0.92 },
   stampMain: { fontSize: 14.5, fontWeight: '900', letterSpacing: 2.4, color: '#A9C463' },
   stampSub: { fontSize: 9, fontWeight: '700', letterSpacing: 1.8, color: 'rgba(169,196,99,.85)', marginTop: 2, borderTopWidth: 1, borderTopColor: 'rgba(169,196,99,.45)', paddingTop: 2 },
   stampNick: { position: 'absolute', backgroundColor: 'rgba(15,25,16,.75)', borderRadius: 3 },
-  bannerCta: { backgroundColor: colors.club, borderRadius: 99, paddingVertical: 7, paddingHorizontal: 13 },
-  hostPill: { backgroundColor: colors.clubDeep, borderRadius: 99, paddingVertical: 5, paddingHorizontal: 9, alignSelf: 'center' },
+  bannerCta: { backgroundColor: colors.club, borderRadius: 6, borderWidth: 1, borderColor: colors.neon, paddingVertical: 7, paddingHorizontal: 13, shadowColor: colors.neon, shadowOpacity: 0.4, shadowRadius: 9, shadowOffset: { width: 0, height: 0 } },
+  hostPill: { backgroundColor: colors.clubDeep, borderRadius: 4, paddingVertical: 5, paddingHorizontal: 9, alignSelf: 'center' },
   // ── 클럽 월드 공통 (C1 바이올렛, Sean 확정) ──
   hcChip: { backgroundColor: colors.clubTint, borderRadius: 99, paddingVertical: 3, paddingHorizontal: 8 },
   // R1-A 대기 티켓 (대형 CTA)

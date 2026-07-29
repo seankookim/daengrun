@@ -23,6 +23,12 @@ export const colors = {
   clubInk: '#4A3DA8',    // 읽는 바이올렛 — 라벨·텍스트 (coralText와 같은 2단 문법)
   clubTint: '#EFECFF',   // 틴트 — 칩·하이라이트 행 배경
   clubNight: '#3A2F86',  // 다크 스트립 그라디언트 스타트
+  // D1×D2 하이브리드 (Sean 확정 — 클럽 = 나이트 스텁 × 레이스 프로그램, 샤프 코너)
+  nightBg: '#0D0A1E',    // 클럽 화면 스테이지
+  nightCard: '#14102B',  // 티켓 카드
+  nightEdge: '#2A2350',  // 카드 보더·룰 라인
+  nightDim: '#8F86C2',   // 보조 텍스트
+  neon: '#9F8FFF',       // 네온 엣지·빕 넘버·글로우
   // 기록 골드 (P3) — PB·마일스톤 전용. 희소 운용이 생명: 일상은 볼트, 사건만 골드
   gold: '#D9A93C',
   goldDeep: '#B8860B',   // 읽는 골드 — 텍스트·소인 잉크

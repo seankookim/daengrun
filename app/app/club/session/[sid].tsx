@@ -16,10 +16,10 @@ import { colors } from '../../../src/theme';
 const FOREST = '#0F1D13';
 
 const ROLE_LABEL: Record<string, { label: string; bg: string; fg: string }> = {
-  host_runner: { label: 'HOST · 페이스 리드', bg: '#EFECFF', fg: '#4A3DA8' },
-  handling_runner: { label: '위탁 담당', bg: '#EFECFF', fg: '#4A3DA8' },
-  runner_attending: { label: '러너 참여', bg: '#EFECFF', fg: '#4A3DA8' },
-  owner_attending: { label: '보호자 동반', bg: '#EDE8DA', fg: '#5B594A' },
+  host_runner: { label: 'HOST · PACE LEAD', bg: '#241C4E', fg: '#9F8FFF' },
+  handling_runner: { label: 'HANDLER', bg: '#241C4E', fg: '#9F8FFF' },
+  runner_attending: { label: 'RUNNER', bg: '#1D1839', fg: '#8F86C2' },
+  owner_attending: { label: 'OWNER', bg: '#1D1839', fg: '#8F86C2' },
 };
 
 const dday = (iso: string): string => {
@@ -45,8 +45,8 @@ export default function ClubSession() {
 
   if (!sess) {
     return (
-      <View style={{ flex: 1, backgroundColor: colors.cream, alignItems: 'center', justifyContent: 'center' }}>
-        <Text style={{ fontSize: 14.5, color: colors.dim }}>불러오는 중...</Text>
+      <View style={{ flex: 1, backgroundColor: colors.nightBg, alignItems: 'center', justifyContent: 'center' }}>
+        <Text style={{ fontSize: 14.5, color: colors.nightDim }}>불러오는 중...</Text>
       </View>
     );
   }
@@ -105,14 +105,16 @@ export default function ClubSession() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.cream }}>
+    <View style={{ flex: 1, backgroundColor: colors.nightBg }}>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 15, paddingTop: 58, paddingBottom: 36 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
 
         <Pressable onPress={() => router.back()} style={s.backBtn}><Text style={{ fontSize: 20, color: FOREST }}>‹</Text></Pressable>
 
-        {/* ---------- 집결 티켓 (S-A) ---------- */}
+        {/* ---------- 집결 티켓 (S-A) — D1×D2: 나이트 스텁 + 프로그램 킥커 ---------- */}
         <View style={s.head}>
+          <View style={s.neonEdge} />
+          <Text style={s.kicker}>HIGH CLUB — SESSION</Text>
           <Row style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
             <Text style={[{ fontSize: 21, fontWeight: '900', color: '#fff', flex: 1 }, df]} numberOfLines={1}>
               {clubName ?? '하이클럽'} 세션
@@ -123,28 +125,34 @@ export default function ClubSession() {
               </Text>
             </View>
           </Row>
-          <Text style={{ fontSize: 13.5, color: '#8fa093', marginTop: 4 }}>{sess.when} · 호스트 {sess.hostName ?? '—'} 러너</Text>
+          <Text style={{ fontSize: 13.5, color: colors.nightDim, marginTop: 4 }}>{sess.when} · 호스트 {sess.hostName ?? '—'} 러너</Text>
           <View style={s.meetupBox}>
-            <Text style={{ fontSize: 11.5, color: '#8fa093' }}>집결지</Text>
+            <Text style={{ fontSize: 10.5, letterSpacing: 2, fontWeight: '700', color: colors.nightDim }}>MEET</Text>
             <Text style={{ fontSize: 15, fontWeight: '800', color: '#fff', marginTop: 2 }}>📍 {sess.meetupPoint}</Text>
           </View>
+          {/* 바코드 스트립 — 티켓의 물성 */}
+          <Row style={{ gap: 2, marginTop: 12, alignItems: 'flex-end', height: 20, opacity: 0.7 }}>
+            {Array.from({ length: 26 }).map((_, i) => (
+              <View key={i} style={{ width: i % 3 === 0 ? 3.5 : 2, height: i % 4 === 0 ? '62%' : '100%', backgroundColor: colors.nightDim }} />
+            ))}
+          </Row>
         </View>
 
         {/* ---------- done: 세션 리캡 (P-B — 실집계 + 리캡 내 다음 RSVP) ---------- */}
         {isDone && (
           <View style={[s.card, { alignItems: 'center', paddingVertical: 20 }]}>
             <Text style={{ fontSize: 30 }}>🏁</Text>
-            <Text style={[{ fontSize: 19, fontWeight: '900', color: FOREST, marginTop: 6 }, df]}>오늘의 하이클럽</Text>
-            <Text style={{ fontSize: 14.5, color: '#49524a', marginTop: 4 }}>
+            <Text style={[{ fontSize: 19, fontWeight: '900', color: '#fff', marginTop: 6 }, df]}>오늘의 하이클럽</Text>
+            <Text style={{ fontSize: 14.5, color: '#B9B1E8', marginTop: 4 }}>
               {checkedCount}팀{sess.dogCount > 0 ? ` · ${sess.dogCount}마리` : ''}가 함께 달렸어요
             </Text>
-            <Text style={{ fontSize: 12.5, color: '#9a978a', marginTop: 3 }}>리캡이 동네 피드에 올라갔어요</Text>
+            <Text style={{ fontSize: 12.5, color: colors.nightDim, marginTop: 3 }}>리캡이 동네 피드에 올라갔어요</Text>
             {sess.nextSessionId && (
               <Pressable
                 onPress={() => router.replace({ pathname: `/club/session/${sess.nextSessionId}`, params: { clubName } })}
                 style={[s.cta, { alignSelf: 'stretch' }]}
               >
-                <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST }}>다음 세션 참여하기 ›</Text>
+                <Text style={{ fontSize: 15, fontWeight: '900', color: '#fff' }}>다음 세션 참여하기 ›</Text>
               </Pressable>
             )}
           </View>
@@ -152,30 +160,36 @@ export default function ClubSession() {
 
         {/* ---------- 참가자 — 책임 라벨 = 불변식의 UI ---------- */}
         <View style={s.card}>
-          <Text style={{ fontSize: 16, fontWeight: '900', color: FOREST }}>
-            참가자 {sess.people.length}팀 <Text style={{ fontSize: 12.5, fontWeight: '700', color: '#9a978a' }}>· 정원 {sess.capacity}</Text>
-          </Text>
+          <Text style={s.entryHead}>ENTRY LIST — {sess.people.length} TEAMS <Text style={{ color: colors.nightDim }}>/ {sess.capacity}</Text></Text>
           {sess.people.map((p, i) => {
             const rl = ROLE_LABEL[p.role] ?? ROLE_LABEL.owner_attending;
             return (
-              <Row key={i} style={{ marginTop: 11, alignItems: 'center', gap: 10 }}>
-                <Avatar url={p.avatarUrl} char={p.name[0]} bg="#5a7a3c" size={32} />
+              <Row key={i} style={{ marginTop: 4, alignItems: 'center', gap: 10, paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: '#221C42', ...(p.isMe ? { backgroundColor: '#1B1536', marginHorizontal: -8, paddingHorizontal: 8 } : {}) }}>
+                <Text style={s.bib}>{String(i + 1).padStart(3, '0')}</Text>
+                <Avatar url={p.avatarUrl} char={p.name[0]} bg="#5a7a3c" size={30} />
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 14.5, fontWeight: '800', color: FOREST }}>
-                    {p.name}{p.dogName ? ` + ${p.dogName}` : ''}
+                  <Text style={{ fontSize: 14.5, fontWeight: '800', color: '#EDE9FF' }}>
+                    {p.name}{p.dogName ? ` + ${p.dogName}` : ''}{p.isMe ? ' (나)' : ''}
                   </Text>
                 </View>
                 {p.attendance === 'checked_in' ? (
-                  <View style={s.checkedStamp}><Text style={{ fontSize: 9.5, fontWeight: '900', letterSpacing: 1, color: colors.clubDeep }}>CHECKED</Text></View>
+                  <View style={s.checkedStamp}><Text style={{ fontSize: 9.5, fontWeight: '900', letterSpacing: 1.5, color: colors.volt }}>CHECKED</Text></View>
                 ) : (
                   <View style={[s.roleTag, { backgroundColor: rl.bg }]}>
-                    <Text style={{ fontSize: 10.5, fontWeight: '800', color: rl.fg }}>{rl.label}</Text>
+                    <Text style={{ fontSize: 9, fontWeight: '800', letterSpacing: 1.2, color: rl.fg }}>{rl.label}</Text>
                   </View>
                 )}
               </Row>
             );
           })}
         </View>
+
+        {/* 🎟 입장권 (D2) — 집결지에서 호스트에게 보여주는 화면 */}
+        {sess.joined && !isDone && (
+          <Pressable onPress={() => router.push({ pathname: `/club/pass/${sess.id}`, params: { clubName: clubName ?? '' } })} style={s.passBtn}>
+            <Text style={{ fontSize: 14.5, fontWeight: '900', color: colors.neon, letterSpacing: 1 }}>🎟 내 입장권 — 집결지에서 보여주세요</Text>
+          </Pressable>
+        )}
 
         {/* ---------- CTA 상태 머신 ---------- */}
         {isOpenish && !sess.joined && (
@@ -192,18 +206,18 @@ export default function ClubSession() {
             </Pressable>
           ) : (
             <Pressable onPress={doCancel} style={[s.cta, s.ctaGhost]}>
-              <Text style={{ fontSize: 14.5, fontWeight: '800', color: '#49524a' }}>참여 중 — 취소하려면 탭</Text>
+              <Text style={{ fontSize: 14.5, fontWeight: '800', color: '#B9B1E8' }}>참여 중 — 취소하려면 탭</Text>
             </Pressable>
           )
         )}
         {isOpenish && sess.myAttendance === 'checked_in' && (
-          <View style={[s.cta, { backgroundColor: colors.clubTint }]}>
-            <Text style={{ fontSize: 15, fontWeight: '900', color: colors.clubInk }}>체크인 완료 — 좋은 러닝 되세요 🐾</Text>
+          <View style={[s.cta, { backgroundColor: '#241C4E', borderColor: '#3A3168' }]}>
+            <Text style={{ fontSize: 15, fontWeight: '900', color: '#C9C0FF' }}>체크인 완료 — 좋은 러닝 되세요 🐾</Text>
           </View>
         )}
         {isOpenish && iAmHost && (
           <Pressable onPress={doFinish} style={[s.cta, s.ctaGhost]}>
-            <Text style={{ fontSize: 14, fontWeight: '800', color: '#49524a' }}>세션 종료하기 (호스트)</Text>
+            <Text style={{ fontSize: 14, fontWeight: '800', color: '#B9B1E8' }}>세션 종료하기 (호스트)</Text>
           </Pressable>
         )}
       </ScrollView>
@@ -212,13 +226,19 @@ export default function ClubSession() {
 }
 
 const s = StyleSheet.create({
-  backBtn: { position: 'absolute', top: 56, left: 14, width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', borderWidth: 1, borderColor: '#DCD6C4', alignItems: 'center', justifyContent: 'center', zIndex: 2 },
-  head: { backgroundColor: FOREST, borderRadius: 20, padding: 16, marginTop: 44 },
-  voltPill: { backgroundColor: colors.club, borderRadius: 99, paddingVertical: 4, paddingHorizontal: 10 },
-  meetupBox: { backgroundColor: '#1b2d20', borderRadius: 12, padding: 11, marginTop: 11 },
-  card: { backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: '#DCD6C4', padding: 15, marginTop: 11 },
-  roleTag: { borderRadius: 8, paddingVertical: 3, paddingHorizontal: 8 },
-  checkedStamp: { borderWidth: 2, borderColor: colors.clubDeep, borderRadius: 8, paddingVertical: 3, paddingHorizontal: 8, transform: [{ rotate: '-6deg' }] },
-  cta: { backgroundColor: colors.club, borderRadius: 14, alignItems: 'center', paddingVertical: 14, marginTop: 12 },
-  ctaGhost: { backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#DCD6C4' },
+  // D1×D2 나이트 스텁 — 샤프 코너 (라운드 6 이하), 룰 라인·모노 킥커·네온 엣지
+  backBtn: { position: 'absolute', top: 56, left: 14, width: 40, height: 40, borderRadius: 6, backgroundColor: colors.nightCard, borderWidth: 1, borderColor: colors.nightEdge, alignItems: 'center', justifyContent: 'center', zIndex: 2 },
+  head: { backgroundColor: colors.nightCard, borderRadius: 6, borderWidth: 1, borderColor: colors.nightEdge, padding: 16, paddingLeft: 19, marginTop: 44, overflow: 'hidden' },
+  neonEdge: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, backgroundColor: colors.neon },
+  kicker: { fontSize: 9.5, fontWeight: '700', letterSpacing: 3, color: colors.neon, marginBottom: 6 },
+  voltPill: { backgroundColor: colors.club, borderRadius: 4, paddingVertical: 4, paddingHorizontal: 10 },
+  meetupBox: { backgroundColor: '#1B1536', borderRadius: 4, padding: 11, marginTop: 11, borderWidth: 1, borderColor: colors.nightEdge },
+  card: { backgroundColor: colors.nightCard, borderRadius: 6, borderWidth: 1, borderColor: colors.nightEdge, padding: 15, marginTop: 11 },
+  entryHead: { fontSize: 11, fontWeight: '800', letterSpacing: 2, color: colors.neon, marginBottom: 6 },
+  bib: { fontSize: 12, fontWeight: '700', color: colors.neon, width: 30, fontVariant: ['tabular-nums'] },
+  roleTag: { borderRadius: 4, paddingVertical: 3, paddingHorizontal: 8 },
+  checkedStamp: { borderWidth: 1.5, borderColor: colors.volt, borderRadius: 4, paddingVertical: 3, paddingHorizontal: 8, transform: [{ rotate: '-6deg' }] },
+  cta: { backgroundColor: colors.club, borderRadius: 6, borderWidth: 1.2, borderColor: colors.neon, alignItems: 'center', paddingVertical: 14, marginTop: 12, shadowColor: colors.neon, shadowOpacity: 0.45, shadowRadius: 12, shadowOffset: { width: 0, height: 0 } },
+  ctaGhost: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: '#3A3168', shadowOpacity: 0 },
+  passBtn: { borderWidth: 1.2, borderColor: colors.neon, borderRadius: 6, alignItems: 'center', paddingVertical: 13, marginTop: 11, backgroundColor: '#161130' },
 });
