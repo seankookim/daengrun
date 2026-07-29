@@ -1,23 +1,55 @@
-import { useDisplayFont } from '../src/lib/displayFont';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
-import { Alert, Dimensions, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Alert, Animated, Dimensions, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { BottomNav } from '../src/components/bottomnav';
 import { Avatar, Row } from '../src/components/ui';
-import { addComment, deleteFeedPost, FeedComment, FeedPost, fetchComments, fetchFeed, fetchRecentReviews, PublicReview, toggleFeedLike } from '../src/lib/api';
+import {
+  addComment, deleteFeedPost, fetchComments, fetchFeed, fetchRecentReviews,
+  FeedComment, FeedPost, PublicReview, toggleFeedLike,
+} from '../src/lib/api';
+import { useDisplayFont } from '../src/lib/displayFont';
 import { haptic } from '../src/lib/haptics';
 import { colors } from '../src/theme';
 
-// 동네 피드 — 완료 러닝 자랑 (옵트인: 리포트에서 공유한 것만). 미니 인스타의 v1.
-// 좋아요 실동작 · 본인 포스트 길게 눌러 삭제 · 랭킹 진입. 목업 스트릭랭킹·필터·글쓰기 은퇴.
+// 동네 피드 — 인스타 풀와이드 개편 (Sean 확정, hi-club-plan §1-C, 2026-07-29).
+// IG 문법: 작성자 → 엣지-투-엣지 사진(더블탭 🐾 + 스트라바식 스탯 오버레이) → 액션 행 →
+// 발자국 수 → 캡션(볼드 작성자+본문) → 댓글. 좋아요 언어 = 발자국(🐾).
+// 피드의 미래 베이스라인 = 세션 리캡 자동 유입 (P-B에서 합류) — 수동 포스트는 보충.
+// 화면당 애니메이션 상한 준수: 원샷 발자국 버스트 1개만.
 
 const FOREST = '#0F1D13';
 const W = Dimensions.get('window').width;
 
 const fmtDur = (sec?: number) => (sec ? `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}` : null);
 
+// 더블탭 발자국 버스트 — 원샷 오버레이 (IG 하트 문법의 도그스하이 번역)
+function PawBurst({ trigger }: { trigger: number }) {
+  const scale = useRef(new Animated.Value(0)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (trigger === 0) return;
+    scale.setValue(0.4);
+    opacity.setValue(0);
+    Animated.parallel([
+      Animated.spring(scale, { toValue: 1, useNativeDriver: true, friction: 4 }),
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 1, duration: 90, useNativeDriver: true }),
+        Animated.delay(420),
+        Animated.timing(opacity, { toValue: 0, duration: 260, useNativeDriver: true }),
+      ]),
+    ]).start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trigger]);
+  if (trigger === 0) return null;
+  return (
+    <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', opacity, transform: [{ scale }] }]}>
+      <Text style={{ fontSize: 84, textShadowColor: 'rgba(0,0,0,.35)', textShadowRadius: 14, textShadowOffset: { width: 0, height: 3 } }}>🐾</Text>
+    </Animated.View>
+  );
+}
+
 export default function Community() {
-  const df = useDisplayFont(); // 디스플레이 서체 — 화면 타이틀
+  const df = useDisplayFont();
   const [posts, setPosts] = useState<FeedPost[]>([]);
   // 탭: 피드(실) | 러너 후기(실 공개 리뷰). 챌린지는 실시스템 생기면 추가 — 가짜 탭 금지.
   const [tab, setTab] = useState<'feed' | 'reviews'>('feed');
@@ -36,13 +68,27 @@ export default function Community() {
   useFocusEffect(useCallback(() => { load(); }, []));
   const onRefresh = () => { setRefreshing(true); load().finally(() => setRefreshing(false)); };
 
-  const like = (p: FeedPost) => {
+  const setLiked = (p: FeedPost, liked: boolean) => {
+    if (p.likedByMe === liked) return;
     haptic('light');
-    // 낙관적 반영 — 실패 시 리로드로 정합
     setPosts((cur) => cur.map((x) => (x.id === p.id
-      ? { ...x, likedByMe: !p.likedByMe, likes: p.likes + (p.likedByMe ? -1 : 1) }
+      ? { ...x, likedByMe: liked, likes: p.likes + (liked ? 1 : -1) }
       : x)));
-    toggleFeedLike(p.id, p.likedByMe).catch(() => load());
+    toggleFeedLike(p.id, p.likedByMe).catch(() => load()); // 낙관적 반영 — 실패 시 리로드로 정합
+  };
+
+  // 더블탭 — IG 문법: 더블탭은 항상 '좋아요' (해제는 액션 버튼으로만)
+  const lastTap = useRef<Record<string, number>>({});
+  const [bursts, setBursts] = useState<Record<string, number>>({});
+  const onPhotoTap = (p: FeedPost) => {
+    const now = Date.now();
+    if (now - (lastTap.current[p.id] ?? 0) < 300) {
+      setBursts((b) => ({ ...b, [p.id]: (b[p.id] ?? 0) + 1 }));
+      setLiked(p, true);
+      lastTap.current[p.id] = 0;
+    } else {
+      lastTap.current[p.id] = now;
+    }
   };
 
   // 댓글 — 포스트당 인라인 펼침
@@ -161,58 +207,84 @@ export default function Community() {
         )}
 
         {tab === 'feed' && posts.map((p) => (
-          <Pressable key={p.id} onLongPress={() => remove(p)} style={s.post}>
-            {/* author */}
-            <Row style={{ gap: 10, paddingHorizontal: 16, paddingVertical: 12 }}>
-              <Avatar url={p.authorAvatar} char={p.authorName[0]} bg="#5a7a3c" size={38} />
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 15.5, fontWeight: '800', color: FOREST }}>{p.authorName}</Text>
-                <Text style={{ fontSize: 14, color: colors.dim, marginTop: 1 }}>{p.when}{p.mine ? ' · 내 포스트 (길게 눌러 삭제)' : ''}</Text>
-              </View>
-            </Row>
+          <View key={p.id} style={s.post}>
+            {/* ── 작성자 (IG 헤더) */}
+            <Pressable onLongPress={() => remove(p)}>
+              <Row style={{ gap: 10, paddingHorizontal: 16, paddingVertical: 11 }}>
+                <Avatar url={p.authorAvatar} char={p.authorName[0]} bg="#5a7a3c" size={38} />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 15.5, fontWeight: '800', color: FOREST }}>{p.authorName}</Text>
+                  {p.meta.dogName && <Text style={{ fontSize: 13, color: colors.dim, marginTop: 1 }}>{p.meta.dogName}와 함께</Text>}
+                </View>
+                {p.mine && <Text style={{ fontSize: 12, color: '#9a978a', alignSelf: 'center' }}>길게 눌러 삭제</Text>}
+              </Row>
+            </Pressable>
 
-            {/* photo — 엣지-투-엣지 (사진이 디자인이다) */}
-            {p.photoUrl && (
-              <Image source={{ uri: p.photoUrl }} style={{ width: W, height: W * 0.75, backgroundColor: '#DCD6C4' }} resizeMode="cover" />
+            {/* ── 사진 — 엣지-투-엣지 4:5 + 더블탭 🐾 + 스트라바식 스탯 오버레이 */}
+            {p.photoUrl ? (
+              <Pressable onPress={() => onPhotoTap(p)}>
+                <Image source={{ uri: p.photoUrl }} style={{ width: W, height: W * 1.1, backgroundColor: '#DCD6C4' }} resizeMode="cover" />
+                {/* 스탯 오버레이 — 사진 위 좌하단 (스크림으로 가독) */}
+                {(p.meta.km != null || fmtDur(p.meta.durationSec)) && (
+                  <View pointerEvents="none" style={s.statScrim}>
+                    {p.meta.km != null && (
+                      <Text style={s.statKm}>{p.meta.km}<Text style={{ fontSize: 15 }}> km</Text></Text>
+                    )}
+                    {fmtDur(p.meta.durationSec) && (
+                      <Text style={s.statSub}>⏱ {fmtDur(p.meta.durationSec)}</Text>
+                    )}
+                  </View>
+                )}
+                {(p.meta.badges ?? []).length > 0 && (
+                  <View pointerEvents="none" style={s.badgeCol}>
+                    {(p.meta.badges ?? []).map((b) => (
+                      <View key={b} style={s.badge}><Text style={{ fontSize: 11.5, fontWeight: '900', color: FOREST }}>{b}</Text></View>
+                    ))}
+                  </View>
+                )}
+                <PawBurst trigger={bursts[p.id] ?? 0} />
+              </Pressable>
+            ) : (
+              // 사진 없는 포스트 — 스탯 스트립 유지
+              <Row style={{ gap: 10, paddingHorizontal: 16, paddingTop: 4, flexWrap: 'wrap' }}>
+                {p.meta.km != null && <Text style={{ fontSize: 18, fontWeight: '900', color: colors.tang }}>{p.meta.km}km</Text>}
+                {fmtDur(p.meta.durationSec) && <Text style={{ fontSize: 14.5, color: colors.dim, alignSelf: 'center' }}>⏱ {fmtDur(p.meta.durationSec)}</Text>}
+                {(p.meta.badges ?? []).map((b) => (
+                  <View key={b} style={[s.badge, { position: 'relative' }]}><Text style={{ fontSize: 11.5, fontWeight: '900', color: FOREST }}>{b}</Text></View>
+                ))}
+              </Row>
             )}
 
-            {/* run stats strip */}
-            <Row style={{ gap: 10, paddingHorizontal: 16, paddingTop: 11, flexWrap: 'wrap' }}>
-              {p.meta.dogName && (
-                <Text style={{ fontSize: 15.5, fontWeight: '900', color: FOREST }}>🐕 {p.meta.dogName}</Text>
-              )}
-              {p.meta.km != null && (
-                <Text style={{ fontSize: 15.5, fontWeight: '900', color: colors.tang }}>{p.meta.km}km</Text>
-              )}
-              {fmtDur(p.meta.durationSec) && (
-                <Text style={{ fontSize: 14.5, color: colors.dim, alignSelf: 'center' }}>⏱ {fmtDur(p.meta.durationSec)}</Text>
-              )}
-              {(p.meta.badges ?? []).map((b) => (
-                <View key={b} style={s.badge}><Text style={{ fontSize: 11.5, fontWeight: '900', color: '#3d5a2b' }}>{b}</Text></View>
-              ))}
-            </Row>
-
-            {p.body && (
-              <Text style={{ fontSize: 15, color: '#3d453d', lineHeight: 22, paddingHorizontal: 16, paddingTop: 7 }}>{p.body}</Text>
-            )}
-
-            {/* like + comment row */}
-            <Row style={{ paddingHorizontal: 16, paddingVertical: 11, gap: 8 }}>
-              <Pressable onPress={() => like(p)} style={s.likeBtn}>
-                <Text style={{ fontSize: 17 }}>{p.likedByMe ? '❤️' : '🤍'}</Text>
-                <Text style={{ fontSize: 14.5, fontWeight: '800', color: p.likedByMe ? colors.tang : '#49524a' }}>
-                  {p.likes > 0 ? p.likes : '응원하기'}
-                </Text>
+            {/* ── 액션 행 (IG) */}
+            <Row style={{ paddingHorizontal: 14, paddingTop: 9, gap: 4 }}>
+              <Pressable onPress={() => setLiked(p, !p.likedByMe)} style={s.actBtn} hitSlop={6}>
+                <Text style={{ fontSize: 22, opacity: p.likedByMe ? 1 : 0.45 }}>🐾</Text>
               </Pressable>
-              <Pressable onPress={() => toggleComments(p)} style={s.likeBtn}>
-                <Text style={{ fontSize: 16 }}>💬</Text>
-                <Text style={{ fontSize: 14.5, fontWeight: '800', color: '#49524a' }}>
-                  {p.commentCount > 0 ? p.commentCount : '댓글'}
-                </Text>
+              <Pressable onPress={() => toggleComments(p)} style={s.actBtn} hitSlop={6}>
+                <Text style={{ fontSize: 20, opacity: 0.7 }}>💬</Text>
               </Pressable>
             </Row>
 
-            {/* comments (inline expand) */}
+            {/* ── 발자국 수 + 캡션 (IG 문법: 볼드 작성자 + 본문 이어쓰기) */}
+            <View style={{ paddingHorizontal: 16, paddingTop: 5 }}>
+              {p.likes > 0 && (
+                <Text style={{ fontSize: 14.5, fontWeight: '900', color: FOREST }}>발자국 {p.likes}개</Text>
+              )}
+              {p.body && (
+                <Text style={{ fontSize: 15, color: '#3d453d', lineHeight: 22, marginTop: 3 }}>
+                  <Text style={{ fontWeight: '800', color: FOREST }}>{p.authorName}</Text>
+                  <Text>  {p.body}</Text>
+                </Text>
+              )}
+              {p.commentCount > 0 && openComments !== p.id && (
+                <Pressable onPress={() => toggleComments(p)}>
+                  <Text style={{ fontSize: 14, color: '#9a978a', marginTop: 4 }}>댓글 {p.commentCount}개 모두 보기</Text>
+                </Pressable>
+              )}
+              <Text style={{ fontSize: 12, color: '#9a978a', marginTop: 4, marginBottom: 11 }}>{p.when}</Text>
+            </View>
+
+            {/* ── 댓글 (인라인 펼침) */}
             {openComments === p.id && (
               <View style={s.commentsWrap}>
                 {comments.map((c) => (
@@ -245,7 +317,7 @@ export default function Community() {
                 </Row>
               </View>
             )}
-          </Pressable>
+          </View>
         ))}
       </ScrollView>
       <BottomNav />
@@ -258,8 +330,12 @@ const s = StyleSheet.create({
   rankBtn: { backgroundColor: '#fff', borderRadius: 99, paddingVertical: 9, paddingHorizontal: 13, borderWidth: 1, borderColor: '#DCD6C4', alignSelf: 'flex-start' },
   emptyBox: { margin: 22, marginTop: 26, backgroundColor: '#f4f2ea', borderRadius: 18, padding: 26 },
   post: { backgroundColor: '#fff', marginTop: 14, borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#DCD6C4' },
-  badge: { backgroundColor: '#eaf7c8', borderRadius: 99, paddingVertical: 3, paddingHorizontal: 8, alignSelf: 'center' },
-  likeBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#faf9f3', borderRadius: 99, paddingVertical: 8, paddingHorizontal: 14 },
+  statScrim: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 16, paddingBottom: 12, paddingTop: 34, backgroundColor: 'rgba(10,16,10,.30)' },
+  statKm: { fontSize: 30, fontWeight: '900', color: '#fff', textShadowColor: 'rgba(0,0,0,.5)', textShadowRadius: 8, textShadowOffset: { width: 0, height: 1 } },
+  statSub: { fontSize: 13.5, fontWeight: '700', color: '#e6efe0', marginTop: 1, textShadowColor: 'rgba(0,0,0,.5)', textShadowRadius: 6, textShadowOffset: { width: 0, height: 1 } },
+  badgeCol: { position: 'absolute', top: 12, right: 12, gap: 6, alignItems: 'flex-end' },
+  badge: { backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 4, paddingHorizontal: 10, alignSelf: 'center' },
+  actBtn: { paddingVertical: 4, paddingHorizontal: 6 },
   commentsWrap: { paddingHorizontal: 16, paddingBottom: 14, borderTopWidth: 1, borderTopColor: '#f0eee3', paddingTop: 11 },
   commentInput: {
     flex: 1, backgroundColor: '#faf9f3', borderRadius: 99, borderWidth: 1, borderColor: '#DCD6C4',
