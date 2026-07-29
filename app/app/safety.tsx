@@ -153,11 +153,11 @@ export default function Safety() {
         <Row style={{ gap: 10, marginTop: 14 }}>
           <View style={[s.card, { flex: 1, opacity: 0.55, marginTop: 0 }]}>
             <Text style={{ fontSize: 15, fontWeight: '800', color: FOREST }}>사고 신고</Text>
-            <Text style={{ fontSize: 12, color: colors.dim, marginTop: 3 }}>인시던트 플로우 준비 중</Text>
+            <Text style={{ fontSize: 14, color: colors.dim, marginTop: 3 }}>인시던트 플로우 준비 중</Text>
           </View>
           <Pressable style={[s.card, { flex: 1, marginTop: 0 }]} onPress={() => router.push('/owner/dog')}>
             <Text style={{ fontSize: 15, fontWeight: '800', color: FOREST }}>의료·성향 메모</Text>
-            <Text style={{ fontSize: 12, color: colors.dim, marginTop: 3 }}>반려견 프로필에서 관리 ›</Text>
+            <Text style={{ fontSize: 14, color: colors.dim, marginTop: 3 }}>반려견 프로필에서 관리 ›</Text>
           </Pressable>
         </Row>
       </ScrollView>
@@ -172,7 +172,7 @@ function InfoRow({ glyph, title, desc }: { glyph: string; title: string; desc: s
       <Text style={{ fontSize: 18.5 }}>{glyph}</Text>
       <View style={{ flex: 1 }}>
         <Text style={{ fontSize: 15.5, fontWeight: '800', color: FOREST }}>{title}</Text>
-        <Text style={{ fontSize: 13, color: colors.dim, marginTop: 2, lineHeight: 18.5 }}>{desc}</Text>
+        <Text style={{ fontSize: 15, color: colors.dim, marginTop: 2, lineHeight: 18.5 }}>{desc}</Text>
       </View>
     </Row>
   );

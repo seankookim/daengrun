@@ -134,7 +134,7 @@ export default function Live() {
       ) : live ? (
         <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}>
           <Text style={{ fontSize: 16, fontWeight: '900', color: FOREST }}>러너 위치 수신 대기 중...</Text>
-          <Text style={{ fontSize: 13, color: '#75806f', marginTop: 6, textAlign: 'center', lineHeight: 19.5 }}>
+          <Text style={{ fontSize: 15, color: '#75806f', marginTop: 6, textAlign: 'center', lineHeight: 19.5 }}>
             러너가 달리기 시작하면 실시간 경로가 그려져요{'\n'}{!maps ? '(실지도는 새 개발 빌드에서)' : ''}
           </Text>
         </View>
@@ -171,12 +171,12 @@ export default function Live() {
           <Avatar url={null} char={runnerName[0]} bg="#5a7a3c" size={44} />
           <View style={{ flex: 1 }}>
             <Text style={{ fontSize: 17, fontWeight: '900', color: FOREST }}>{runnerName} 러너</Text>
-            <Text style={{ fontSize: 13, color: '#75806f', marginTop: 2 }}>
+            <Text style={{ fontSize: 15, color: '#75806f', marginTop: 2 }}>
               {live ? (info?.routeName ?? '코스') : '서울숲 코스'} · {targetKm}km
             </Text>
           </View>
           <View style={[s.signalPill, { backgroundColor: (live ? !!pos : true) ? '#eaf7c8' : '#f0efe8' }]}>
-            <Text style={{ fontSize: 12, fontWeight: '800', color: (live ? !!pos : true) ? '#3d5a2b' : '#8a8877' }}>
+            <Text style={{ fontSize: 14, fontWeight: '800', color: (live ? !!pos : true) ? '#3d5a2b' : '#8a8877' }}>
               {live ? (pos ? 'ılı 위치 수신' : '수신 대기') : 'ılı 좋음'}
             </Text>
           </View>
@@ -191,11 +191,11 @@ export default function Live() {
           </View>
           <View style={{ alignItems: 'center' }}>
             <Text style={{ fontSize: 23, fontWeight: '900', color: FOREST }}>{fmt(sec)}</Text>
-            <Text style={{ fontSize: 11.5, color: '#8a8877', marginTop: 1 }}>시간</Text>
+            <Text style={{ fontSize: 13, color: '#8a8877', marginTop: 1 }}>시간</Text>
           </View>
           <View style={{ alignItems: 'flex-end' }}>
             <Text style={{ fontSize: 23, fontWeight: '900', color: FOREST }}>{paceStr(sec, km)}</Text>
-            <Text style={{ fontSize: 11.5, color: '#8a8877', marginTop: 1 }}>페이스</Text>
+            <Text style={{ fontSize: 13, color: '#8a8877', marginTop: 1 }}>페이스</Text>
           </View>
         </Row>
         {/* thin progress */}
@@ -238,7 +238,7 @@ export default function Live() {
           ))}
 
           <View style={s.feeNote}>
-            <Text style={{ fontSize: 13, color: '#75806f', lineHeight: 19.5 }}>
+            <Text style={{ fontSize: 15, color: '#75806f', lineHeight: 19.5 }}>
               지금까지 달린 {km.toFixed(1)}km 기준으로 정산돼요.{'\n'}
               최소 기본요금 9,900원은 결제되며, 러너에게는 잔여 거리 보장이 적용돼요.
             </Text>

@@ -393,7 +393,7 @@ export default function ActiveRun() {
         {layout === 'island' && (
           <View style={{ marginBottom: 12 }}>
             <Row style={{ justifyContent: 'space-between', marginBottom: 7 }}>
-              <Text style={{ fontSize: 13, color: '#8fa093' }} numberOfLines={1}>
+              <Text style={{ fontSize: 15, color: '#8fa093' }} numberOfLines={1}>
                 {info?.routeName ?? req.place} 코스 · {targetKm}km
               </Text>
               <Text style={{ fontSize: 13, fontWeight: '800', color: colors.cream }}>
@@ -413,7 +413,7 @@ export default function ActiveRun() {
           <Monogram char={req.dogChar} bg={req.dogColor} size={36} />
           <View style={{ flex: 1 }}>
             <Text style={{ fontSize: 15, fontWeight: '700', color: colors.cream }}>{dogName} 보호자님</Text>
-            <Text style={{ fontSize: 12.5, color: '#8fa093' }} numberOfLines={1}>
+            <Text style={{ fontSize: 14.5, color: '#8fa093' }} numberOfLines={1}>
               {info?.dogMemo ?? '채팅으로 이동'}
             </Text>
           </View>
@@ -481,7 +481,7 @@ export default function ActiveRun() {
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
           <Text style={{ fontSize: 19.5, fontWeight: '900', color: colors.cream }}>어떤 이유로 종료하나요?</Text>
-          <Text style={{ fontSize: 13, color: '#8fa093', marginTop: 4 }}>
+          <Text style={{ fontSize: 15, color: '#8fa093', marginTop: 4 }}>
             지금까지 {km.toFixed(2)}km · 이유에 따라 정산이 달라져요
           </Text>
 
@@ -522,7 +522,7 @@ function EndOption({ title, desc, pay, accent, onPress }: { title: string; desc:
       <View style={[s.endRail, { backgroundColor: accent }]} />
       <View style={{ flex: 1 }}>
         <Text style={{ fontSize: 16.5, fontWeight: '900', color: colors.cream }}>{title}</Text>
-        <Text style={{ fontSize: 12.5, color: '#8fa093', marginTop: 2 }}>{desc}</Text>
+        <Text style={{ fontSize: 14.5, color: '#8fa093', marginTop: 2 }}>{desc}</Text>
         <Text style={{ fontSize: 13, fontWeight: '800', color: accent, marginTop: 5 }}>{pay}</Text>
       </View>
       <Text style={{ fontSize: 17, color: '#8fa093' }}>›</Text>
@@ -536,7 +536,7 @@ function MiniStat({ value, label, big }: { value: string; label: string; big?: b
       <Text style={{ fontSize: big ? 44 : 28, fontWeight: '900', color: big ? colors.volt : colors.cream }}>
         {value}
       </Text>
-      <Text style={{ fontSize: 12.5, color: '#8fa093', marginTop: 2 }}>{label}</Text>
+      <Text style={{ fontSize: 14.5, color: '#8fa093', marginTop: 2 }}>{label}</Text>
     </View>
   );
 }

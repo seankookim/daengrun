@@ -51,7 +51,7 @@ export default function Earnings() {
 
         {/* settlement ticket — 결제 티켓(보호자)과 같은 오브젝트: 한 거래의 양면 (티켓 모티프) */}
         <View style={s.settleCard}>
-          <Text style={{ fontSize: 12.5, color: '#b8c4ae', letterSpacing: 1.5 }}>정산 예정 (원장 합계)</Text>
+          <Text style={{ fontSize: 14.5, color: '#b8c4ae', letterSpacing: 1.5 }}>정산 예정 (원장 합계)</Text>
           <Text style={{ fontSize: 43.5, fontWeight: '900', color: colors.volt, marginTop: 6 }}>
             {pendingSum.toLocaleString()}원
           </Text>
@@ -62,8 +62,8 @@ export default function Earnings() {
             <View style={[s.notch, { right: -32 }]} />
           </View>
           <Row style={{ justifyContent: 'space-between' }}>
-            <Text style={{ fontSize: 13, color: '#b8c4ae' }}>다음 정산일 {nextWednesday()}</Text>
-            <Text style={{ fontSize: 13, color: '#b8c4ae' }}>원천징수 3.3% 약 −{tax.toLocaleString()}원</Text>
+            <Text style={{ fontSize: 15, color: '#b8c4ae' }}>다음 정산일 {nextWednesday()}</Text>
+            <Text style={{ fontSize: 15, color: '#b8c4ae' }}>원천징수 3.3% 약 −{tax.toLocaleString()}원</Text>
           </Row>
           <Pressable style={s.settleBtn} onPress={() => Alert.alert('빠른 정산', '정산 자동화(오픈뱅킹) 연동 후 제공돼요')}>
             <Text style={{ fontSize: 14.5, fontWeight: '900', color: FOREST }}>⚡ 빠른 정산 신청</Text>
@@ -117,13 +117,13 @@ export default function Earnings() {
               </View>
               <View style={{ width: 92, alignItems: 'center', justifyContent: 'center' }}>
                 <Text style={{ fontSize: 16.5, fontWeight: '900', color: '#5a7a3c' }}>+{l.net.toLocaleString()}</Text>
-                <Text style={{ fontSize: 10.5, color: colors.dim, marginTop: 2, letterSpacing: 1 }}>실수령</Text>
+                <Text style={{ fontSize: 12, color: colors.dim, marginTop: 2, letterSpacing: 1 }}>실수령</Text>
               </View>
             </Row>
           </View>
         ))}
 
-        <Text style={{ fontSize: 12, color: colors.dim, textAlign: 'center', marginTop: 12, lineHeight: 17 }}>
+        <Text style={{ fontSize: 14, color: colors.dim, textAlign: 'center', marginTop: 12, lineHeight: 17 }}>
           정산은 매주 수요일 · 사업소득 3.3% 원천징수 후 지급
         </Text>
       </ScrollView>
@@ -134,7 +134,7 @@ export default function Earnings() {
 
 function Bd({ label, v, coral, accent }: { label: string; v: number; coral?: boolean; accent?: boolean }) {
   return (
-    <Text style={{ fontSize: 12.5, color: coral ? '#d84a2f' : accent ? '#5a7a3c' : colors.dim }}>
+    <Text style={{ fontSize: 14.5, color: coral ? '#d84a2f' : accent ? '#5a7a3c' : colors.dim }}>
       {label} {v >= 0 ? '' : '−'}{Math.abs(v).toLocaleString()}
     </Text>
   );

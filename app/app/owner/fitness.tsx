@@ -63,7 +63,7 @@ export default function FitnessHub() {
                   <Text style={{ fontSize: 17, color: '#b8c4ae' }}> km</Text>
                 </Text>
                 <Text style={{ fontSize: 14.5, color: colors.volt, marginTop: 2 }}>/ {fit?.goalKm ?? '—'}km 목표</Text>
-                <Text style={{ fontSize: 12.5, color: '#b8c4ae', marginTop: 4 }}>{Math.round(pct * 100)}% 달성</Text>
+                <Text style={{ fontSize: 14.5, color: '#b8c4ae', marginTop: 4 }}>{Math.round(pct * 100)}% 달성</Text>
               </View>
             </Ring>
           </View>
@@ -81,7 +81,7 @@ export default function FitnessHub() {
           <Row style={{ justifyContent: 'space-between' }}>
             <View>
               <Text style={s.cardTitle}>체력 나이</Text>
-              <Text style={{ fontSize: 13, color: colors.dim, marginTop: 2 }}>
+              <Text style={{ fontSize: 15, color: colors.dim, marginTop: 2 }}>
                 꾸준한 러닝이 체력 나이를 젊게 유지해요
               </Text>
             </View>
@@ -90,13 +90,13 @@ export default function FitnessHub() {
             </Text>
           </Row>
           {fit?.fitnessAge == null ? (
-            <Text style={{ fontSize: 12, color: colors.dim, marginTop: 8 }}>
+            <Text style={{ fontSize: 14, color: colors.dim, marginTop: 8 }}>
               {fit?.fitnessGate?.reason === 'runs'
                 ? `최근 4주에 ${(fit.fitnessGate as any).left}번 더 완주하면 측정돼요 — 활동 데이터가 있어야 나이가 아니라 '체력'을 잴 수 있어요`
                 : '반려견 프로필에 생일을 등록하면 측정이 시작돼요'}
             </Text>
           ) : (
-            <Text style={{ fontSize: 12, color: colors.dim, marginTop: 8 }}>
+            <Text style={{ fontSize: 14, color: colors.dim, marginTop: 8 }}>
               베타 산식: 실제 나이 − 최근 4주 활동량·연속 기록 보정 (수의 검증 산식으로 교체 예정)
             </Text>
           )}
@@ -109,7 +109,7 @@ export default function FitnessHub() {
             <Pressable onPress={() => bumpGoal(-1)} style={s.goalBtn}><Text style={s.goalBtnText}>−</Text></Pressable>
             <View style={{ alignItems: 'center' }}>
               <Text style={{ fontSize: 30, fontWeight: '900', color: FOREST }}>{fit?.goalKm ?? '—'}km</Text>
-              <Text style={{ fontSize: 12, color: colors.dim, marginTop: 2 }}>홈 화면 링에 바로 반영돼요</Text>
+              <Text style={{ fontSize: 14, color: colors.dim, marginTop: 2 }}>홈 화면 링에 바로 반영돼요</Text>
             </View>
             <Pressable onPress={() => bumpGoal(1)} style={s.goalBtn}><Text style={s.goalBtnText}>＋</Text></Pressable>
           </Row>
@@ -124,9 +124,9 @@ export default function FitnessHub() {
               const isNow = i === 7;
               return (
                 <View key={w.label} style={{ flex: 1, alignItems: 'center' }}>
-                  <Text style={{ fontSize: 10, color: colors.dim, marginBottom: 3 }}>{w.km > 0 ? w.km : ''}</Text>
+                  <Text style={{ fontSize: 11.5, color: colors.dim, marginBottom: 3 }}>{w.km > 0 ? w.km : ''}</Text>
                   <View style={{ width: '68%', height: h, borderRadius: 6, backgroundColor: isNow ? colors.volt : '#dde8d4' }} />
-                  <Text style={{ fontSize: 9, color: isNow ? '#4a6d1f' : colors.dim, marginTop: 4, fontWeight: isNow ? '800' : '400' }}>
+                  <Text style={{ fontSize: 10.5, color: isNow ? '#4a6d1f' : colors.dim, marginTop: 4, fontWeight: isNow ? '800' : '400' }}>
                     {isNow ? '이번주' : `${7 - i}주`}
                   </Text>
                 </View>
@@ -153,7 +153,7 @@ export default function FitnessHub() {
             <View style={s.runRail} />
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 15.5, fontWeight: '800', color: FOREST }}>{r.when}</Text>
-              <Text style={{ fontSize: 13, color: colors.dim, marginTop: 2 }}>
+              <Text style={{ fontSize: 15, color: colors.dim, marginTop: 2 }}>
                 {r.km}km · {Math.floor(r.durationSec / 60)}분 · 리포트 보기 ›
               </Text>
             </View>
@@ -169,7 +169,7 @@ function HeroStat({ value, label }: { value: string; label: string }) {
   return (
     <View style={{ alignItems: 'center' }}>
       <Text style={{ fontSize: 18.5, fontWeight: '900', color: '#fff' }}>{value}</Text>
-      <Text style={{ fontSize: 11.5, color: '#b8c4ae', marginTop: 3 }}>{label}</Text>
+      <Text style={{ fontSize: 13, color: '#b8c4ae', marginTop: 3 }}>{label}</Text>
     </View>
   );
 }

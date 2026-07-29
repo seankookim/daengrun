@@ -41,7 +41,7 @@ export default function Leaderboard() {
           <Text style={[{ fontSize: 23, fontWeight: '900', color: FOREST }, df]}>동네 랭킹</Text>
           <View style={{ width: 40 }} />
         </Row>
-        <Text style={{ fontSize: 13, color: colors.dim, textAlign: 'center', marginTop: 6 }}>
+        <Text style={{ fontSize: 15, color: colors.dim, textAlign: 'center', marginTop: 6 }}>
           이번 주 · 월요일마다 새로 시작해요
         </Text>
 
@@ -49,13 +49,13 @@ export default function Leaderboard() {
         <View style={s.milesCard}>
           <Row style={{ justifyContent: 'space-between' }}>
             <View>
-              <Text style={{ fontSize: 12.5, color: '#b8c4ae', letterSpacing: 1.5 }}>내 하이 포인트</Text>
+              <Text style={{ fontSize: 14.5, color: '#b8c4ae', letterSpacing: 1.5 }}>내 하이 포인트</Text>
               <Text style={{ fontSize: 37, fontWeight: '900', color: colors.volt, marginTop: 4 }}>
                 {miles?.balance?.toLocaleString() ?? '—'}<Text style={{ fontSize: 15, color: '#b8c4ae' }}> 마일</Text>
               </Text>
             </View>
             <View style={{ alignItems: 'flex-end', justifyContent: 'center' }}>
-              <Text style={{ fontSize: 12, color: '#b8c4ae', lineHeight: 18.5, textAlign: 'right' }}>
+              <Text style={{ fontSize: 14, color: '#b8c4ae', lineHeight: 18.5, textAlign: 'right' }}>
                 러닝 완주 +50{'\n'}응가 도장 +30
               </Text>
             </View>
@@ -63,7 +63,7 @@ export default function Leaderboard() {
           {miles && miles.recent.length > 0 && (
             <Row style={{ gap: 10, marginTop: 10, flexWrap: 'wrap' }}>
               {miles.recent.slice(0, 3).map((m, i) => (
-                <Text key={i} style={{ fontSize: 12, color: '#8fa093' }}>
+                <Text key={i} style={{ fontSize: 14, color: '#8fa093' }}>
                   {m.reason} +{m.delta}
                 </Text>
               ))}
@@ -134,7 +134,7 @@ export default function Leaderboard() {
           </View>
         ))}
 
-        <Text style={{ fontSize: 12, color: colors.dim, textAlign: 'center', marginTop: 16, lineHeight: 17 }}>
+        <Text style={{ fontSize: 14, color: colors.dim, textAlign: 'center', marginTop: 16, lineHeight: 17 }}>
           주간 TOP 3 시즌 보상은 곧 공개돼요{'\n'}랭킹은 완주한 러닝만 집계해요
         </Text>
       </ScrollView>

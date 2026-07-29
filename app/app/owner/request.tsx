@@ -268,11 +268,11 @@ export default function Request() {
               <Text style={{ fontSize: 16, fontWeight: '900', color: FOREST }} numberOfLines={1}>
                 {pickupAddr ? pickupAddr.label : '픽업 주소를 등록해주세요'}
               </Text>
-              <Text style={{ fontSize: 12.5, color: colors.dim, marginTop: 2 }} numberOfLines={1}>
+              <Text style={{ fontSize: 14.5, color: colors.dim, marginTop: 2 }} numberOfLines={1}>
                 {pickupAddr ? pickupAddr.addr : '첫 주소가 기본 픽업이 돼요'}
               </Text>
             </View>
-            <Text style={{ fontSize: 13, fontWeight: '800', color: colors.dim }}>변경 ›</Text>
+            <Text style={{ fontSize: 15, fontWeight: '800', color: colors.dim }}>변경 ›</Text>
           </Pressable>
         </View>
         {/* 다견 선택 + 추가 */}
@@ -375,7 +375,7 @@ export default function Request() {
                   <Text style={{ fontSize: 17, fontWeight: '900', color: FOREST }} numberOfLines={1}>{r.name}</Text>
                   <View style={s.certBadge}><Text style={{ fontSize: 9, fontWeight: '900', color: '#fff' }}>✓</Text></View>
                 </Row>
-                <Text style={{ fontSize: 12, color: '#49524a', marginTop: 2 }}>
+                <Text style={{ fontSize: 14, color: '#49524a', marginTop: 2 }}>
                   {/* checkedAt이 이미 '7.15 점검' 형태 — '점검' 재접미 금지 (점검 점검 버그) */}
                   {r.area} · {r.km}km · {r.terrain} · {r.checkedAt}
                 </Text>
@@ -402,7 +402,7 @@ export default function Request() {
                     </View>
                   ))}
                 </Row>
-                <Text style={{ fontSize: 12, color: '#49524a', marginTop: 8, lineHeight: 17 }} numberOfLines={2}>{r.desc}</Text>
+                <Text style={{ fontSize: 14, color: '#49524a', marginTop: 8, lineHeight: 17 }} numberOfLines={2}>{r.desc}</Text>
               </Pressable>
             );
           })}
@@ -423,7 +423,7 @@ export default function Request() {
                   </View>
                 </Row>
                 <Text style={{ fontSize: 16, fontWeight: '900', color: FOREST, marginTop: 10 }}>{a.label}</Text>
-                <Text style={{ fontSize: 12.5, color: '#75806f', marginTop: 2 }}>{a.desc}</Text>
+                <Text style={{ fontSize: 14.5, color: '#75806f', marginTop: 2 }}>{a.desc}</Text>
                 <Text style={{ fontSize: 15, fontWeight: '900', color: '#5a7a3c', marginTop: 8 }}>+{a.price.toLocaleString()}원</Text>
               </Pressable>
             );
@@ -437,7 +437,7 @@ export default function Request() {
         >
           <View style={{ flex: 1 }}>
             <Text style={{ fontSize: 16, fontWeight: '900', color: FOREST }}>⟳ 매주 반복</Text>
-            <Text style={{ fontSize: 12.5, color: '#75806f', marginTop: 3, lineHeight: 18 }}>
+            <Text style={{ fontSize: 14.5, color: '#75806f', marginTop: 3, lineHeight: 18 }}>
               매주 같은 요일·시간에 자동 예약 · 회당 {fmtWon(total)} · 같은 러너 우선 · 일정 탭에서 언제든 해지
             </Text>
           </View>
@@ -447,7 +447,7 @@ export default function Request() {
         </Pressable>
 
         {/* 요금 요약 한 줄 — 총액은 아래 티켓이 보여준다 */}
-        <Text style={{ fontSize: 12.5, color: '#a09c8e', textAlign: 'center', marginTop: 20 }}>
+        <Text style={{ fontSize: 14.5, color: '#a09c8e', textAlign: 'center', marginTop: 20 }}>
           기본 {fmtWon(pricing.baseFare)} · 거리 {fmtWon(km * pricing.perKm)}{addonSum > 0 ? ` · 옵션 ${fmtWon(addonSum)}` : ''} · 취소 수수료 없음
         </Text>
       </ScrollView>
@@ -460,7 +460,7 @@ export default function Request() {
             <Text style={{ fontSize: 16, fontWeight: '900', color: '#fff' }} numberOfLines={1}>
               {myDog?.name ?? dog.name} · <Text style={{ color: colors.tang }}>{km}km</Text> · {pace}
             </Text>
-            <Text style={{ fontSize: 12.5, color: '#b8c4ae', marginTop: 2 }} numberOfLines={1}>
+            <Text style={{ fontSize: 14.5, color: '#b8c4ae', marginTop: 2 }} numberOfLines={1}>
               {routes.find((r) => r.id === routeId)?.name ?? '코스 선택'}
             </Text>
           </View>
@@ -480,7 +480,7 @@ export default function Request() {
 
         <Row style={{ alignItems: 'center' }}>
           <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 12, color: '#8fa093' }}>총 결제 금액</Text>
+            <Text style={{ fontSize: 14, color: '#8fa093' }}>총 결제 금액</Text>
             <Text style={{ fontSize: 28.5, fontWeight: '900', color: '#fff', marginTop: 1 }}>
               {fmtWon(total)}<Text style={{ fontSize: 15, color: '#b8c4ae' }}> 원</Text>
             </Text>
@@ -521,7 +521,7 @@ export default function Request() {
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 16 }} contentContainerStyle={{ gap: 8 }}>
             {DATES.map((d, i) => (
               <Pressable key={d.date.toISOString()} onPress={() => setDateIdx(i)} style={[s.dateChip, dateIdx === i && { backgroundColor: FOREST }]}>
-                <Text style={{ fontSize: 11.5, color: dateIdx === i ? '#b8c4ae' : colors.dim }}>{d.w}</Text>
+                <Text style={{ fontSize: 13, color: dateIdx === i ? '#b8c4ae' : colors.dim }}>{d.w}</Text>
                 <Text style={{ fontSize: 18.5, fontWeight: '900', color: dateIdx === i ? '#fff' : FOREST }}>{d.d}</Text>
                 {d.label && <Text style={{ fontSize: 10, fontWeight: '700', color: dateIdx === i ? colors.volt : '#5a7a3c' }}>{d.label}</Text>}
               </Pressable>
@@ -544,7 +544,7 @@ export default function Request() {
                         style={[s.slot, !ok && { opacity: 0.35 }]}
                       >
                         <Text style={{ fontSize: 16, fontWeight: '800', color: FOREST }}>{t}</Text>
-                        <Text style={{ fontSize: 11, color: ok ? '#5a7a3c' : colors.dim, marginTop: 2 }}>
+                        <Text style={{ fontSize: 12.5, color: ok ? '#5a7a3c' : colors.dim, marginTop: 2 }}>
                           {ok ? '가능' : prefRules ? '러너 불가' : '마감'}
                         </Text>
                       </Pressable>
@@ -565,10 +565,10 @@ export default function Request() {
             <Text style={{ fontSize: 34.5, fontWeight: '900', color: '#5a7a3c', marginTop: 10 }}>
               {Math.floor(holdSec / 60)}:{String(holdSec % 60).padStart(2, '0')}
             </Text>
-            <Text style={{ fontSize: 13, color: colors.dim, marginTop: 8, textAlign: 'center' }}>
+            <Text style={{ fontSize: 15, color: colors.dim, marginTop: 8, textAlign: 'center' }}>
               {timeLabel} 슬롯이 결제 완료까지{'\n'}다른 보호자에게 보이지 않아요
             </Text>
-            <Text style={{ fontSize: 11.5, fontWeight: '800', marginTop: 10, color: holdLive === true ? '#4a6d1f' : colors.dim }}>
+            <Text style={{ fontSize: 13, fontWeight: '800', marginTop: 10, color: holdLive === true ? '#4a6d1f' : colors.dim }}>
               {holdLive === true ? '● 서버 홀드 확보 — 예약이 생성됐어요' : '서버 연결 중...'}
             </Text>
           </View>
@@ -584,7 +584,7 @@ function SectionHead({ glyph, title, side, sub }: { glyph: string; title: string
       <Row style={{ gap: 7, flex: 1 }}>
         <Text style={{ fontSize: 15, color: '#5a7a3c' }}>{glyph}</Text>
         <Text style={{ fontSize: 17, fontWeight: '900', color: FOREST }}>{title}</Text>
-        {sub && <Text style={{ fontSize: 12, color: colors.dim, alignSelf: 'flex-end', flex: 1 }} numberOfLines={1}>{sub}</Text>}
+        {sub && <Text style={{ fontSize: 14, color: colors.dim, alignSelf: 'flex-end', flex: 1 }} numberOfLines={1}>{sub}</Text>}
       </Row>
       {side && (
         <View style={s.sideBtn}><Text style={{ fontSize: 12.5, fontWeight: '700', color: '#3d453d' }}>{side}</Text></View>

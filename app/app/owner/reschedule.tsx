@@ -149,11 +149,11 @@ export default function Reschedule() {
           <>
             {/* 현재 계약 — 무엇을 바꾸려는지부터 명확히 */}
             <View style={s.current}>
-              <Text style={{ fontSize: 12.5, fontWeight: '800', color: '#b8c4ae', letterSpacing: 1 }}>현재 확정 일정</Text>
+              <Text style={{ fontSize: 14.5, fontWeight: '800', color: '#b8c4ae', letterSpacing: 1 }}>현재 확정 일정</Text>
               <Text style={{ fontSize: 21, fontWeight: '900', color: '#fff', marginTop: 5 }}>
                 {info.dateLabel} {info.timeLabel}
               </Text>
-              <Text style={{ fontSize: 13.5, color: '#b8c4ae', marginTop: 4 }}>
+              <Text style={{ fontSize: 15.5, color: '#b8c4ae', marginTop: 4 }}>
                 {info.dogName} · {info.km}km · {info.runnerName ?? '러너'} 러너
               </Text>
             </View>
@@ -179,7 +179,7 @@ export default function Reschedule() {
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 18 }} contentContainerStyle={{ gap: 8 }}>
               {days.map((d, i) => (
                 <Pressable key={i} onPress={() => { setDayIdx(i); setPicked(null); }} style={[s.dayChip, dayIdx === i && s.dayChipOn]}>
-                  <Text style={{ fontSize: 11.5, fontWeight: '700', color: dayIdx === i ? '#b8c4ae' : colors.dim }}>{d.label ?? d.w}</Text>
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: dayIdx === i ? '#b8c4ae' : colors.dim }}>{d.label ?? d.w}</Text>
                   <Text style={{ fontSize: 17, fontWeight: '900', color: dayIdx === i ? '#fff' : FOREST, marginTop: 2 }}>{d.d}</Text>
                 </Pressable>
               ))}
@@ -209,7 +209,7 @@ export default function Reschedule() {
                       }}>
                         {sl.label}
                       </Text>
-                      <Text style={{ fontSize: 9.5, fontWeight: '700', marginTop: 2, color: isPicked ? '#b8c4ae' : isCur ? colors.voltDeep : ok === false ? '#b7b4a5' : '#82887a' }}>
+                      <Text style={{ fontSize: 11, fontWeight: '700', marginTop: 2, color: isPicked ? '#b8c4ae' : isCur ? colors.voltDeep : ok === false ? '#b7b4a5' : '#82887a' }}>
                         {isCur ? '현재' : ok === null ? '확인 중' : ok === false ? '마감' : '가능'}
                       </Text>
                     </Pressable>
@@ -232,7 +232,7 @@ export default function Reschedule() {
               {busy ? '보내는 중...' : '러너에게 변경 요청 ➤'}
             </Text>
           </Pressable>
-          <Text style={{ fontSize: 10.5, color: '#b8c4ae', textAlign: 'center', marginTop: 8 }}>
+          <Text style={{ fontSize: 12, color: '#b8c4ae', textAlign: 'center', marginTop: 8 }}>
             러너가 수락해야 일정이 바뀌어요 · 원래 시간 2시간 전까지 응답 없으면 자동 만료
           </Text>
         </View>

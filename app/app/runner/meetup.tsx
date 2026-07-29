@@ -142,7 +142,7 @@ export default function Meetup() {
               <Text style={{ fontSize: 16.5, fontWeight: '900', color: FOREST }}>
                 {dogName}{info?.dogBreed ? ` · ${info.dogBreed}` : ''}{info?.dogWeightKg != null ? ` ${info.dogWeightKg}kg` : ''}
               </Text>
-              <Text style={{ fontSize: 13, color: colors.dim, marginTop: 2 }}>
+              <Text style={{ fontSize: 15, color: colors.dim, marginTop: 2 }}>
                 {info ? `${info.when} · ${info.km}km · ${info.paceLabel}` : '예약 정보 불러오는 중...'}
               </Text>
             </View>
@@ -174,7 +174,7 @@ export default function Meetup() {
         {stage === 'arrived' && (
           <View style={s.card}>
             <Text style={{ fontSize: 15.5, fontWeight: '900', color: FOREST, marginBottom: 4 }}>인계 전 장비 체크</Text>
-            <Text style={{ fontSize: 12.5, color: colors.dim, marginBottom: 6 }}>세 가지를 확인해야 {dogName} 인계를 받을 수 있어요</Text>
+            <Text style={{ fontSize: 14.5, color: colors.dim, marginBottom: 6 }}>세 가지를 확인해야 {dogName} 인계를 받을 수 있어요</Text>
             <CheckRow glyph="🦮" label="러닝 리드줄로 교체했어요" on={check.leash} onPress={() => { haptic('light'); setCheck((c) => ({ ...c, leash: !c.leash })); }} />
             <CheckRow glyph="💧" label={`${dogName} 급수 준비 완료`} on={check.water} onPress={() => { haptic('light'); setCheck((c) => ({ ...c, water: !c.water })); }} />
             <CheckRow glyph="🦴" label="간식 파우치 챙겼어요" on={check.treats} onPress={() => { haptic('light'); setCheck((c) => ({ ...c, treats: !c.treats })); }} />
@@ -217,7 +217,7 @@ export default function Meetup() {
           </Pressable>
         )}
 
-        <Text style={{ fontSize: 12, color: colors.dim, textAlign: 'center', marginTop: 14, lineHeight: 17 }}>
+        <Text style={{ fontSize: 14, color: colors.dim, textAlign: 'center', marginTop: 14, lineHeight: 17 }}>
           양측 확인 없이는 러닝이 시작되지 않아요{'\n'}인계 시점부터 펫보험이 적용됩니다
         </Text>
       </ScrollView>
@@ -268,5 +268,5 @@ const s = StyleSheet.create({
   checkBox: { width: 21, height: 21, borderRadius: 7, borderWidth: 1.5, borderColor: '#c9c3ae', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
   primary: { backgroundColor: FOREST, borderRadius: 18, alignItems: 'center', paddingVertical: 16, marginTop: 6 },
   primaryText: { fontSize: 18, fontWeight: '900', color: '#fff' },
-  primarySub: { fontSize: 12, color: '#b8c4ae', marginTop: 3 },
+  primarySub: { fontSize: 14, color: '#b8c4ae', marginTop: 3 },
 });

@@ -130,7 +130,7 @@ export default function Community() {
               <View key={i} style={s.revCard}>
                 <Row style={{ justifyContent: 'space-between' }}>
                   <Text style={{ fontSize: 15.5, fontWeight: '900', color: FOREST }}>{rv.runnerName} 러너</Text>
-                  <Text style={{ fontSize: 12.5, color: colors.dim }}>{rv.when}</Text>
+                  <Text style={{ fontSize: 14.5, color: colors.dim }}>{rv.when}</Text>
                 </Row>
                 {rv.rating != null && (
                   <Text style={{ fontSize: 14, color: '#e8a13c', marginTop: 4 }}>{'★'.repeat(rv.rating)}{'☆'.repeat(Math.max(0, 5 - rv.rating))}</Text>
@@ -167,7 +167,7 @@ export default function Community() {
               <Avatar url={p.authorAvatar} char={p.authorName[0]} bg="#5a7a3c" size={38} />
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: 15.5, fontWeight: '800', color: FOREST }}>{p.authorName}</Text>
-                <Text style={{ fontSize: 12, color: colors.dim, marginTop: 1 }}>{p.when}{p.mine ? ' · 내 포스트 (길게 눌러 삭제)' : ''}</Text>
+                <Text style={{ fontSize: 14, color: colors.dim, marginTop: 1 }}>{p.when}{p.mine ? ' · 내 포스트 (길게 눌러 삭제)' : ''}</Text>
               </View>
             </Row>
 
@@ -227,7 +227,7 @@ export default function Community() {
                   </Row>
                 ))}
                 {comments.length === 0 && (
-                  <Text style={{ fontSize: 13, color: colors.dim, marginBottom: 8 }}>첫 댓글을 남겨보세요</Text>
+                  <Text style={{ fontSize: 15, color: colors.dim, marginBottom: 8 }}>첫 댓글을 남겨보세요</Text>
                 )}
                 <Row style={{ gap: 8 }}>
                   <TextInput

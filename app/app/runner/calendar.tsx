@@ -71,7 +71,7 @@ export default function RunnerCalendar() {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 16 }} contentContainerStyle={{ gap: 8 }}>
           {DATES.map((d, i) => (
             <Pressable key={d.d} onPress={() => setDateIdx(i)} style={[s.dateChip, dateIdx === i && { backgroundColor: FOREST }]}>
-              <Text style={{ fontSize: 11.5, color: dateIdx === i ? '#b8c4ae' : colors.dim }}>{d.w}</Text>
+              <Text style={{ fontSize: 13, color: dateIdx === i ? '#b8c4ae' : colors.dim }}>{d.w}</Text>
               <Text style={{ fontSize: 18.5, fontWeight: '900', color: dateIdx === i ? '#fff' : FOREST }}>{d.d}</Text>
               {d.today && <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: dateIdx === i ? colors.volt : '#5a7a3c' }} />}
             </Pressable>
@@ -112,7 +112,7 @@ export default function RunnerCalendar() {
                       {j.dogName} · {j.km}km 러닝
                     </Text>
                     <Row style={{ justifyContent: 'space-between', marginTop: 2 }}>
-                      <Text style={{ fontSize: 13, color: colors.dim }}>
+                      <Text style={{ fontSize: 15, color: colors.dim }}>
                         {j.status === 'confirmed' ? '탭하여 픽업 진행 ›' : j.status === 'in_progress' ? '탭하여 러닝 화면 ›' : '정산 완료'}
                       </Text>
                       <Text style={{ fontSize: 15, fontWeight: '900', color: '#5a7a3c' }}>+{j.payout.toLocaleString()}원</Text>

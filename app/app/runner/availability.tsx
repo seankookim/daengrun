@@ -107,7 +107,7 @@ export default function Availability() {
                           onPress={() => mutate(wd, { enabled: !d.enabled })}
                           style={[s.togglePill, d.enabled && { backgroundColor: '#e3f0c4' }]}
                         >
-                          <Text style={{ fontSize: 12.5, fontWeight: '800', color: d.enabled ? '#3d5a2b' : '#8a8877' }}>
+                          <Text style={{ fontSize: 14.5, fontWeight: '800', color: d.enabled ? '#3d5a2b' : '#8a8877' }}>
                             {d.enabled ? '가능' : '쉬는 날'}
                           </Text>
                         </Pressable>
@@ -132,7 +132,7 @@ export default function Availability() {
           </View>
         )}
 
-        <Text style={{ fontSize: 12, color: colors.dim, textAlign: 'center', marginTop: 14, lineHeight: 17 }}>
+        <Text style={{ fontSize: 14, color: colors.dim, textAlign: 'center', marginTop: 14, lineHeight: 17 }}>
           30분 단위 · 요일당 1구간 (다구간·휴가 등 예외 일정은 준비 중){'\n'}
           변경 사항은 내 공개 프로필과 보호자 예약 화면에 즉시 반영돼요
         </Text>

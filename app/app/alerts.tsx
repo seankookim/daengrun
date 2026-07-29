@@ -78,7 +78,7 @@ export default function Alerts() {
                   <View style={{ flex: 1 }}>
                     <Row style={{ justifyContent: 'space-between' }}>
                       <Text style={{ fontSize: 16.5, fontWeight: '900', color: FOREST }}>{n.title}</Text>
-                      <Text style={{ fontSize: 12, color: colors.dim }}>{n.when}</Text>
+                      <Text style={{ fontSize: 14, color: colors.dim }}>{n.when}</Text>
                     </Row>
                     {n.body && <Text style={{ fontSize: 14.5, color: '#49524a', marginTop: 3 }}>{n.body}</Text>}
                     {n.refId && n.kind === 'booking' && (
@@ -109,7 +109,7 @@ function HeaderBtn({ glyph, label }: { glyph: string; label: string }) {
   return (
     <View style={{ alignItems: 'center', gap: 3 }}>
       <View style={s.hBtn}><Text style={{ fontSize: 16, color: '#49524a' }}>{glyph}</Text></View>
-      <Text style={{ fontSize: 11.5, color: '#49524a' }}>{label}</Text>
+      <Text style={{ fontSize: 13, color: '#49524a' }}>{label}</Text>
     </View>
   );
 }

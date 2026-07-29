@@ -71,7 +71,7 @@ export default function Settings() {
         <InfoRow label="계정 삭제" value="문의로 처리" />
       </View>
 
-      <Text style={{ fontSize: 12, color: colors.dim, textAlign: 'center', marginTop: 18 }}>
+      <Text style={{ fontSize: 14, color: colors.dim, textAlign: 'center', marginTop: 18 }}>
         도그스하이 {APP_VERSION} · 반려견 피트니스
       </Text>
     </ScrollView>

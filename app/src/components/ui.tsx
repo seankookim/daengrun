@@ -91,7 +91,7 @@ export function StatBlock({ value, label, valueColor = colors.volt }: { value: s
   return (
     <View style={{ alignItems: 'center' }}>
       <Text style={{ fontSize: 32, fontWeight: '900', color: valueColor }}>{value}</Text>
-      <Text style={{ fontSize: 12.5, color: '#8fa093', marginTop: 3 }}>{label}</Text>
+      <Text style={{ fontSize: 14.5, color: '#8fa093', marginTop: 3 }}>{label}</Text>
     </View>
   );
 }

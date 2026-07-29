@@ -35,7 +35,7 @@ export function CourseStrip({ title = '동네 코스' }: { title?: string }) {
     <View style={{ marginTop: 14 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 9 }}>
         <Text style={{ fontSize: 16, fontWeight: '900', color: FOREST }}>{title}</Text>
-        <Text style={{ fontSize: 12, color: '#49524a' }}>· 점검된 안심 코스</Text>
+        <Text style={{ fontSize: 14, color: '#49524a' }}>· 점검된 안심 코스</Text>
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingRight: 12, paddingVertical: 6 }}>
         {routes.map((r, i) => (

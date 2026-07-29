@@ -446,7 +446,7 @@ export default function Matching() {
 function StripStat({ label, value }: { label: string; value: string }) {
   return (
     <View style={{ flex: 1, alignItems: 'center' }}>
-      <Text style={{ fontSize: 12, color: '#b8c4ae' }}>{label}</Text>
+      <Text style={{ fontSize: 14, color: '#b8c4ae' }}>{label}</Text>
       <Text style={{ fontSize: 17, fontWeight: '900', color: '#fff', marginTop: 3 }}>{value}</Text>
     </View>
   );
@@ -455,7 +455,7 @@ function StripStat({ label, value }: { label: string; value: string }) {
 function AltStat({ label, value }: { label: string; value: string }) {
   return (
     <View style={{ flex: 1, alignItems: 'center' }}>
-      <Text style={{ fontSize: 12, color: colors.dim }}>{label}</Text>
+      <Text style={{ fontSize: 14, color: colors.dim }}>{label}</Text>
       <Text style={{ fontSize: 15.5, fontWeight: '900', color: FOREST, marginTop: 2 }}>{value}</Text>
     </View>
   );

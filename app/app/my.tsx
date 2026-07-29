@@ -140,7 +140,7 @@ export default function My() {
             <Text style={{ fontSize: 12.5, fontWeight: '700', color: '#3d453d' }}>{isRunner ? '프로필 편집 ›' : '프로필 설정'}</Text>
           </Pressable>
         </View>
-        <Text style={{ fontSize: 12, color: colors.dim, marginTop: 6, marginLeft: 4 }}>
+        <Text style={{ fontSize: 14, color: colors.dim, marginTop: 6, marginLeft: 4 }}>
           사진을 탭하면 프로필 사진을 바꿀 수 있어요
         </Text>
 
@@ -149,7 +149,7 @@ export default function My() {
           onPress={() => router.push(isRunner ? '/runner/home' : '/owner/fitness')}
           style={{ backgroundColor: FOREST, borderRadius: 18, padding: 16, marginTop: 12 }}
         >
-          <Text style={{ fontSize: 13, fontWeight: '800', color: '#b8c4ae' }}>나의 러닝 기록</Text>
+          <Text style={{ fontSize: 15, fontWeight: '800', color: '#b8c4ae' }}>나의 러닝 기록</Text>
           <View style={{ flexDirection: 'row', marginTop: 12 }}>
             {[
               { v: (rec?.km ?? 0).toFixed(1), u: ' km', l: '총 거리' },
@@ -158,9 +158,9 @@ export default function My() {
             ].map((c) => (
               <View key={c.l} style={{ flex: 1 }}>
                 <Text style={{ fontSize: 22, fontWeight: '900', color: '#fff' }}>
-                  {c.v}<Text style={{ fontSize: 12.5, color: '#8fa093' }}>{c.u}</Text>
+                  {c.v}<Text style={{ fontSize: 14.5, color: '#8fa093' }}>{c.u}</Text>
                 </Text>
-                <Text style={{ fontSize: 11.5, color: '#8fa093', marginTop: 3 }}>{c.l}</Text>
+                <Text style={{ fontSize: 13, color: '#8fa093', marginTop: 3 }}>{c.l}</Text>
               </View>
             ))}
           </View>
@@ -181,7 +181,7 @@ export default function My() {
               <View style={s.menuIcon}><Text style={{ fontSize: 17, color: '#5a7a3c' }}>{m.glyph}</Text></View>
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: 16.5, fontWeight: '800', color: FOREST }}>{m.label}</Text>
-                <Text style={{ fontSize: 13, color: colors.dim, marginTop: 2 }}>{m.desc}</Text>
+                <Text style={{ fontSize: 15, color: colors.dim, marginTop: 2 }}>{m.desc}</Text>
               </View>
               <Text style={{ fontSize: 18.5, color: colors.dim }}>›</Text>
             </Pressable>
@@ -241,7 +241,7 @@ export default function My() {
               />
             </>
           )}
-          <Text style={{ fontSize: 12, color: colors.dim, marginTop: 8, lineHeight: 17 }}>
+          <Text style={{ fontSize: 14, color: colors.dim, marginTop: 8, lineHeight: 17 }}>
             이름과 동네는 매칭 화면에서 상대방에게 보여요{'\n'}프로필 사진은 마이 화면에서 사진을 탭해 변경해요
           </Text>
 

@@ -31,11 +31,11 @@ export default function Apply() {
       <View style={s.tierCard}>
         <Row style={{ justifyContent: 'space-between' }}>
           <View>
-            <Text style={{ fontSize: 12.5, color: '#b8c4ae', letterSpacing: 1.5 }}>현재 등급</Text>
+            <Text style={{ fontSize: 14.5, color: '#b8c4ae', letterSpacing: 1.5 }}>현재 등급</Text>
             <Text style={{ fontSize: 27.5, fontWeight: '900', color: colors.volt, marginTop: 3 }}>{applyStatus.tier}</Text>
           </View>
           <View style={{ alignItems: 'flex-end' }}>
-            <Text style={{ fontSize: 12.5, color: '#b8c4ae' }}>다음 등급: {applyStatus.nextTier}</Text>
+            <Text style={{ fontSize: 14.5, color: '#b8c4ae' }}>다음 등급: {applyStatus.nextTier}</Text>
             <Text style={{ fontSize: 15, fontWeight: '800', color: '#fff', marginTop: 3 }}>러닝 {applyStatus.runsToNext}회 남음</Text>
           </View>
         </Row>
@@ -63,7 +63,7 @@ export default function Apply() {
                   <Text style={{ fontSize: 16.5, fontWeight: '800', color: st.done || st.active ? FOREST : '#9a9a90' }}>{st.label}</Text>
                   {st.active && <View style={s.nowPill}><Text style={{ fontSize: 10, fontWeight: '900', color: '#a97c12' }}>진행 중</Text></View>}
                 </Row>
-                <Text style={{ fontSize: 13, color: colors.dim, marginTop: 2 }}>{st.desc}</Text>
+                <Text style={{ fontSize: 15, color: colors.dim, marginTop: 2 }}>{st.desc}</Text>
               </View>
               {st.active && <Text style={{ fontSize: 15, color: '#5a7a3c', alignSelf: 'center' }}>›</Text>}
             </Pressable>
@@ -85,12 +85,12 @@ export default function Apply() {
               <View style={s.nowPill}><Text style={{ fontSize: 10, fontWeight: '900', color: '#4a6d1f' }}>현재</Text></View>
             )}
           </Row>
-          <Text style={{ fontSize: 13, color: colors.dim, marginTop: 4 }}>조건: {t.req}</Text>
+          <Text style={{ fontSize: 15, color: colors.dim, marginTop: 4 }}>조건: {t.req}</Text>
           <Text style={{ fontSize: 13, fontWeight: '700', color: '#5a7a3c', marginTop: 2 }}>혜택: {t.perk}</Text>
         </View>
       ))}
 
-      <Text style={{ fontSize: 12, color: colors.dim, textAlign: 'center', marginTop: 10, lineHeight: 17 }}>
+      <Text style={{ fontSize: 14, color: colors.dim, textAlign: 'center', marginTop: 10, lineHeight: 17 }}>
         신원 서류는 암호화 보관되며 인증 완료 후 원본은 파기돼요{'\n'}허위 제출 시 영구 활동 정지
       </Text>
     </ScrollView>

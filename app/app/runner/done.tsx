@@ -76,7 +76,7 @@ export default function RunDone() {
         }}>
           <Row style={{ justifyContent: 'space-between' }}>
             <Text style={{ fontSize: 15.5, fontWeight: '900', color: '#0F1D13' }}>오늘의 순간</Text>
-            <Text style={{ fontSize: 12, color: colors.dim }}>보호자 리포트에 실려요</Text>
+            <Text style={{ fontSize: 14, color: colors.dim }}>보호자 리포트에 실려요</Text>
           </Row>
           <Row style={{ gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
             {photos.map((url) => (
@@ -95,7 +95,7 @@ export default function RunDone() {
               </Pressable>
             )}
           </Row>
-          <Text style={{ fontSize: 11.5, color: colors.dim, marginTop: 8 }}>
+          <Text style={{ fontSize: 13, color: colors.dim, marginTop: 8 }}>
             {req.dogName}의 신나는 순간을 남겨주세요 — 보호자 만족도와 재지명율이 올라가요
           </Text>
         </View>
@@ -115,7 +115,7 @@ export default function RunDone() {
           <Text style={{ fontSize: 16, fontWeight: '900', color: colors.volt, marginTop: 5 }}>
             {pendingDrop.runCountAt}회 달성 — {pendingDrop.kind === 'pick' ? '픽 드랍' : '보급 상자'} 도착!
           </Text>
-          <Text style={{ fontSize: 12, color: '#8fa093', marginTop: 3 }}>리워드 센터에서 열기 ›</Text>
+          <Text style={{ fontSize: 14, color: '#8fa093', marginTop: 3 }}>리워드 센터에서 열기 ›</Text>
         </Pressable>
       )}
 

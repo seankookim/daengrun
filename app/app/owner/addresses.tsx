@@ -43,7 +43,7 @@ export default function Addresses() {
         <Text style={{ fontSize: 23, fontWeight: '900', color: FOREST }}>주소 관리</Text>
         <View style={{ width: 40 }} />
       </Row>
-      <Text style={{ fontSize: 13, color: colors.dim, textAlign: 'center', marginTop: 6 }}>
+      <Text style={{ fontSize: 15, color: colors.dim, textAlign: 'center', marginTop: 6 }}>
         기본 주소가 예약의 픽업 장소로 쓰여요 · 탭해서 기본 지정
       </Text>
 
@@ -69,10 +69,10 @@ export default function Addresses() {
                   <View style={s.defaultPill}><Text style={{ fontSize: 11, fontWeight: '900', color: '#3d5a2b' }}>기본 픽업</Text></View>
                 )}
               </Row>
-              <Text style={{ fontSize: 12, color: colors.dim }}>길게 눌러 삭제</Text>
+              <Text style={{ fontSize: 14, color: colors.dim }}>길게 눌러 삭제</Text>
             </Row>
             <Text style={{ fontSize: 14.5, color: '#49524a', marginTop: 5 }}>{a.addr}</Text>
-            {a.detail && <Text style={{ fontSize: 13, color: colors.dim, marginTop: 2 }}>{a.detail}</Text>}
+            {a.detail && <Text style={{ fontSize: 15, color: colors.dim, marginTop: 2 }}>{a.detail}</Text>}
           </Pressable>
         ))}
 
@@ -97,7 +97,7 @@ export default function Addresses() {
         )}
       </View>
 
-      <Text style={{ fontSize: 12, color: colors.dim, textAlign: 'center', marginTop: 16, lineHeight: 17 }}>
+      <Text style={{ fontSize: 14, color: colors.dim, textAlign: 'center', marginTop: 16, lineHeight: 17 }}>
         지도 핀 선택·공동현관 코드(암호화)는 지도 세션에서 추가돼요{'\n'}코드는 러닝 시간에만 러너에게 보여요
       </Text>
     </ScrollView>

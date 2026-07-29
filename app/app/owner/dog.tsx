@@ -134,7 +134,7 @@ export default function DogProfileScreen() {
             </View>
             <View style={s.camBadge}><Text style={{ fontSize: 11.5, color: '#fff' }}>{uploading ? '…' : '✎'}</Text></View>
           </Pressable>
-          <Text style={{ fontSize: 12.5, color: colors.dim, marginTop: 6 }}>사진을 탭해서 변경 — 러너가 픽업 때 알아봐요</Text>
+          <Text style={{ fontSize: 14.5, color: colors.dim, marginTop: 6 }}>사진을 탭해서 변경 — 러너가 픽업 때 알아봐요</Text>
         </View>
 
         {!loaded && <Text style={{ padding: 16, fontSize: 14.5, color: colors.dim }}>불러오는 중...</Text>}
@@ -229,7 +229,7 @@ export default function DogProfileScreen() {
                 );
               })}
             </Row>
-            <Text style={{ fontSize: 12, color: colors.dim, marginTop: 8, lineHeight: 17 }}>
+            <Text style={{ fontSize: 14, color: colors.dim, marginTop: 8, lineHeight: 17 }}>
               태그와 메모는 러너의 요청 카드에 그대로 표시돼요{'\n'}주간 목표 거리는 체력 리포트에서 조정해요
             </Text>
           </View>

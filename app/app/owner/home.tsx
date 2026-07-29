@@ -560,7 +560,7 @@ export default function OwnerHome() {
                 <Text style={[{ fontSize: 20.5, fontWeight: '900', color: '#fff' }, df]}>
                   {fnDirected ? '지명 러너 응답 대기 중' : fnSearching ? '러너 찾는 중…' : '지금 러너 찾기'}
                 </Text>
-                <Text style={{ fontSize: 13, color: '#b8c4ae', marginTop: 5, lineHeight: 18.5 }}>
+                <Text style={{ fontSize: 15, color: '#b8c4ae', marginTop: 5, lineHeight: 18.5 }}>
                   {fnDirected
                     ? `${liveNext?.runnerName ?? '지명한 러너'}의 응답을 기다리고 있어요 — 탭하면 일정으로`
                     : fnSearching
@@ -931,7 +931,7 @@ export default function OwnerHome() {
             <Pressable onPress={() => setFnKm((k) => { const n = Math.max(1, k - 1); setFnRouteIdx(pickRouteFor(n, fnRoutes)); return n; })} style={s.fnStep}><Text style={s.fnStepText}>−</Text></Pressable>
             <View style={{ alignItems: 'center', flex: 1 }}>
               <Text style={{ fontSize: 34.5, fontWeight: '900', color: '#0F1D13' }}>{fnKm}km</Text>
-              <Text style={{ fontSize: 12, color: '#49524a', marginTop: 2 }}>러닝 거리</Text>
+              <Text style={{ fontSize: 14, color: '#49524a', marginTop: 2 }}>러닝 거리</Text>
             </View>
             <Pressable onPress={() => setFnKm((k) => { const n = Math.min(10, k + 1); setFnRouteIdx(pickRouteFor(n, fnRoutes)); return n; })} style={s.fnStep}><Text style={s.fnStepText}>＋</Text></Pressable>
           </View>
@@ -976,7 +976,7 @@ export default function OwnerHome() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontSize: 15.5, fontWeight: '800', color: g.got || g.claimable ? '#0F1D13' : '#9a9a90' }}>{g.item}</Text>
-                  <Text style={{ fontSize: 12, color: colors.dim, marginTop: 1 }}>누적 {g.at}km</Text>
+                  <Text style={{ fontSize: 14, color: colors.dim, marginTop: 1 }}>누적 {g.at}km</Text>
                 </View>
                 {g.claimable ? (
                   <Pressable
@@ -988,7 +988,7 @@ export default function OwnerHome() {
                 ) : g.got ? (
                   <Text style={{ fontSize: 12, fontWeight: '700', color: '#5a7a3c' }}>수령 완료</Text>
                 ) : (
-                  <Text style={{ fontSize: 12, color: colors.dim }}>{(g.at - 86.2).toFixed(0)}km 남음</Text>
+                  <Text style={{ fontSize: 14, color: colors.dim }}>{(g.at - 86.2).toFixed(0)}km 남음</Text>
                 )}
               </View>
             </View>
@@ -1202,7 +1202,7 @@ const s = StyleSheet.create({
     position: 'absolute', left: 8, bottom: 8,
     backgroundColor: 'rgba(15,29,19,0.62)', borderRadius: 99, paddingVertical: 4, paddingHorizontal: 9,
   },
-  tickerItem: { fontSize: 13, fontWeight: '600', color: '#49524a' },
+  tickerItem: { fontSize: 15, fontWeight: '600', color: '#49524a' },
   tickerDot: { fontSize: 13, color: '#b6b19e', marginHorizontal: 8 },
   runnerCard: { flexDirection: 'row', alignItems: 'center', borderRadius: 18, borderWidth: 1, padding: 14, marginBottom: 8 },
   runnerBadge: { borderWidth: 1, borderRadius: 99, paddingVertical: 2, paddingHorizontal: 7 },

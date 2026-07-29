@@ -151,7 +151,7 @@ export function RunCard({ card, width = 340 }: { card: CollectCard; width?: numb
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#1b2f21', borderRadius: 10, paddingVertical: 6, paddingHorizontal: 10 }}>
               <Text style={{ fontSize: 12.5, fontWeight: '800', color: colors.volt }}>컨디션 좋음</Text>
-              <Text style={{ fontSize: 11.5, color: colors.dimDark }}>평소보다 +12% 활동량</Text>
+              <Text style={{ fontSize: 13, color: colors.dimDark }}>평소보다 +12% 활동량</Text>
             </View>
             <View style={{ backgroundColor: '#1b2330', borderRadius: 10, paddingVertical: 6, paddingHorizontal: 10 }}>
               <Text style={{ fontSize: 12.5, fontWeight: '700', color: '#9fc3e8' }}>24°</Text>
@@ -174,7 +174,7 @@ export function RunCard({ card, width = 340 }: { card: CollectCard; width?: numb
           >
             {card.emblem}
           </Text>
-          <Text style={{ fontSize: 11.5, color: colors.dimDark, marginTop: 6, letterSpacing: 2 }}>
+          <Text style={{ fontSize: 13, color: colors.dimDark, marginTop: 6, letterSpacing: 2 }}>
             {card.locked ? 'LOCKED' : card.tier.toUpperCase?.() ?? card.tier}
           </Text>
         </View>

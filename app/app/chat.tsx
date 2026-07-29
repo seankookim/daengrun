@@ -105,7 +105,7 @@ export default function Chat() {
         <Monogram char={(ctx?.peerName ?? '·')[0]} bg={isRunner ? '#c9a86e' : '#5a7a3c'} size={40} />
         <View style={{ flex: 1, marginLeft: 10 }}>
           <Text style={{ fontSize: 17, fontWeight: '900', color: FOREST }}>{ctx?.peerName ?? '채팅'}</Text>
-          <Text style={{ fontSize: 12, color: colors.dim, marginTop: 1 }}>
+          <Text style={{ fontSize: 14, color: colors.dim, marginTop: 1 }}>
             {state === 'ready' ? '● 실시간 연결됨' : state === 'loading' ? '연결 중...' : ''}
           </Text>
         </View>
@@ -162,7 +162,7 @@ export default function Chat() {
             </View>
           ))}
           {msgs.length > 0 && (
-            <Text style={{ fontSize: 11.5, color: colors.dim, textAlign: 'center', marginTop: 8 }}>
+            <Text style={{ fontSize: 13, color: colors.dim, textAlign: 'center', marginTop: 8 }}>
               안전을 위해 모든 대화는 러닝 종료 후 30일간 보관돼요
             </Text>
           )}
@@ -212,7 +212,7 @@ const s = StyleSheet.create({
   bubble: { maxWidth: '76%', borderRadius: 18, paddingVertical: 10, paddingHorizontal: 14 },
   bubblePeer: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#DCD6C4', borderBottomLeftRadius: 6 },
   bubbleMine: { backgroundColor: colors.volt, borderBottomRightRadius: 6 },
-  time: { fontSize: 10.5, color: colors.dim, marginBottom: 3 },
+  time: { fontSize: 12, color: colors.dim, marginBottom: 3 },
   quick: { backgroundColor: '#fff', borderRadius: 99, paddingVertical: 9, paddingHorizontal: 14, borderWidth: 1, borderColor: '#DCD6C4', alignSelf: 'center' },
   inputBar: { padding: 14, paddingBottom: 30, gap: 8, backgroundColor: colors.cream },
   attach: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DCD6C4' },

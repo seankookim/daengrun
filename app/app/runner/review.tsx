@@ -69,7 +69,7 @@ export default function RunnerReview() {
         <Monogram char={req.dogChar} bg={req.dogColor} size={52} />
         <View style={{ marginLeft: 12 }}>
           <Text style={{ fontSize: 18.5, fontWeight: '900', color: FOREST }}>{req.dogName}</Text>
-          <Text style={{ fontSize: 13, color: colors.dim, marginTop: 2 }}>{req.breed} · 5.02km 완주</Text>
+          <Text style={{ fontSize: 15, color: colors.dim, marginTop: 2 }}>{req.breed} · 5.02km 완주</Text>
         </View>
       </View>
 
@@ -99,7 +99,7 @@ export default function RunnerReview() {
         </View>
         <View style={{ flex: 1 }}>
           <Text style={{ fontSize: 15.5, fontWeight: '800', color: FOREST }}>고지되지 않은 문제가 있었어요</Text>
-          <Text style={{ fontSize: 12.5, color: colors.dim, marginTop: 2 }}>
+          <Text style={{ fontSize: 14.5, color: colors.dim, marginTop: 2 }}>
             보호자에게 보이지 않아요 · 운영팀 확인 후 다음 러너 매칭에 반영
           </Text>
         </View>

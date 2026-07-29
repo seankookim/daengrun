@@ -240,7 +240,7 @@ export default function Report() {
               return (
                 <View style={{ backgroundColor: '#0e150f', alignItems: 'center', paddingVertical: 12 }}>
                   <HeatTrace points={normalizeTrace(run.trace)} width={W - 60} height={140} />
-                  <Text style={{ fontSize: 11, color: '#8fa093', marginTop: 6 }}>실제 GPS 경로 · 지도 배경은 새 빌드에서</Text>
+                  <Text style={{ fontSize: 12.5, color: '#8fa093', marginTop: 6 }}>실제 GPS 경로 · 지도 배경은 새 빌드에서</Text>
                 </View>
               );
             })()}
@@ -259,7 +259,7 @@ export default function Report() {
                     </View>
                   );
                 })}
-                <Text style={{ fontSize: 11.5, color: colors.dim, width: '100%', marginTop: 4 }}>
+                <Text style={{ fontSize: 13, color: colors.dim, width: '100%', marginTop: 4 }}>
                   러너가 러닝 중 실시간으로 기록한 순간들이에요
                 </Text>
               </View>
@@ -280,7 +280,7 @@ export default function Report() {
               </View>
             )}
             {run.photos.length === 0 && (
-              <Text style={{ fontSize: 11.5, color: colors.dim, textAlign: 'center', backgroundColor: '#fff', paddingBottom: 10 }}>
+              <Text style={{ fontSize: 13, color: colors.dim, textAlign: 'center', backgroundColor: '#fff', paddingBottom: 10 }}>
                 러너가 남긴 사진과 바디캠 하이라이트가 여기에 담겨요
               </Text>
             )}
@@ -302,7 +302,7 @@ export default function Report() {
                   <Text style={{ fontSize: 16.5, fontWeight: '900', color: FOREST }}>
                     {report.runnerName ?? '러너'} 러너
                   </Text>
-                  <Text style={{ fontSize: 13, color: colors.dim, marginTop: 2 }}>
+                  <Text style={{ fontSize: 15, color: colors.dim, marginTop: 2 }}>
                     {report.routeName}{report.routeArea ? ` · ${report.routeArea}` : ''}
                   </Text>
                 </View>
@@ -331,7 +331,7 @@ export default function Report() {
                 <Text style={{ fontSize: 15, fontWeight: '800', color: FOREST }}>결제 금액</Text>
                 <Text style={{ fontSize: 18.5, fontWeight: '900', color: FOREST }}>{report.price.toLocaleString()}원</Text>
               </Row>
-              <Text style={{ fontSize: 12, color: colors.dim, marginTop: 5 }}>
+              <Text style={{ fontSize: 14, color: colors.dim, marginTop: 5 }}>
                 조기 종료 시 정산 조정은 고객센터를 통해 처리돼요
               </Text>
             </View>
@@ -340,7 +340,7 @@ export default function Report() {
             <View style={{ paddingHorizontal: 12 }}>
               <Pressable onPress={() => bid && router.push(`/shot/${bid}`)} style={s.cta}>
                 <Text style={{ fontSize: 17, fontWeight: '900', color: FOREST }}>📸 인증샷 만들기</Text>
-                <Text style={{ fontSize: 12, color: '#5d6b4a', marginTop: 2 }}>인스타그램용 브랜디드 카드로 자랑해요</Text>
+                <Text style={{ fontSize: 14, color: '#5d6b4a', marginTop: 2 }}>인스타그램용 브랜디드 카드로 자랑해요</Text>
               </Pressable>
               <Pressable
                 onPress={() => {
@@ -382,7 +382,7 @@ export default function Report() {
                 style={[s.cta, { backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#a9c47e' }]}
               >
                 <Text style={{ fontSize: 16, fontWeight: '900', color: '#3d5a2b' }}>⟳ 이대로 다시 예약</Text>
-                <Text style={{ fontSize: 12, color: colors.dim, marginTop: 2 }}>
+                <Text style={{ fontSize: 14, color: colors.dim, marginTop: 2 }}>
                   같은 코스·거리{report.runnerName ? ` · ${report.runnerName} 러너 지명` : ''} — 시간만 고르면 돼요
                 </Text>
               </Pressable>
@@ -437,7 +437,7 @@ function PatchPopOverlay({ patch, df, onClose, onWall }: {
         <Pressable onPress={onWall} style={{ backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 10, paddingHorizontal: 20, marginTop: 16 }}>
           <Text style={{ fontSize: 14, fontWeight: '900', color: FOREST }}>패치 월 보기 ›</Text>
         </Pressable>
-        <Text style={{ fontSize: 11.5, color: '#8fa093', marginTop: 12 }}>탭하면 닫혀요</Text>
+        <Text style={{ fontSize: 13, color: '#8fa093', marginTop: 12 }}>탭하면 닫혀요</Text>
       </Animated.View>
     </Pressable>
   );
@@ -447,7 +447,7 @@ function HeroStat({ value, label }: { value: string; label: string }) {
   return (
     <View style={{ alignItems: 'center' }}>
       <Text style={{ fontSize: 18.5, fontWeight: '900', color: '#fff' }}>{value}</Text>
-      <Text style={{ fontSize: 11.5, color: '#b8c4ae', marginTop: 3 }}>{label}</Text>
+      <Text style={{ fontSize: 13, color: '#b8c4ae', marginTop: 3 }}>{label}</Text>
     </View>
   );
 }
@@ -474,7 +474,7 @@ function GoalBar({ label, pct, detail }: { label: string; pct: number; detail: s
           ]}
         />
       </View>
-      <Text style={{ fontSize: 12, color: colors.dim, marginTop: 4 }}>{detail}</Text>
+      <Text style={{ fontSize: 14, color: colors.dim, marginTop: 4 }}>{detail}</Text>
     </View>
   );
 }

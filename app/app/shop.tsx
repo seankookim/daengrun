@@ -77,7 +77,7 @@ export default function Shop() {
             <View style={{ marginTop: 10, borderTopWidth: 1, borderTopColor: '#24382a', paddingTop: 9, gap: 4 }}>
               {miles.recent.slice(0, 2).map((r, i) => (
                 <Row key={i} style={{ justifyContent: 'space-between' }}>
-                  <Text style={{ fontSize: 12.5, color: '#8fa093' }}>{r.reason} · {r.when}</Text>
+                  <Text style={{ fontSize: 14.5, color: '#8fa093' }}>{r.reason} · {r.when}</Text>
                   <Text style={{ fontSize: 12.5, fontWeight: '900', color: r.delta >= 0 ? colors.volt : colors.tang }}>
                     {r.delta >= 0 ? '+' : ''}{r.delta.toLocaleString()}
                   </Text>
@@ -85,7 +85,7 @@ export default function Shop() {
               ))}
             </View>
           ) : (
-            <Text style={{ fontSize: 12.5, color: '#8fa093', marginTop: 8 }}>
+            <Text style={{ fontSize: 14.5, color: '#8fa093', marginTop: 8 }}>
               완주 +50 · 응가 도장 +30 · 패치 승급 보너스 · 주간 TOP3
             </Text>
           )}
@@ -123,10 +123,10 @@ export default function Shop() {
                   <Row style={{ paddingVertical: 10, justifyContent: 'space-between' }}>
                     <View style={{ flex: 1, paddingRight: 8 }}>
                       <Text style={{ fontSize: 15.5, fontWeight: '800', color: FOREST }}>{g.item}</Text>
-                      <Text style={{ fontSize: 12, color: colors.dim, marginTop: 2 }}>{g.milestone}회 달성 보상</Text>
+                      <Text style={{ fontSize: 14, color: colors.dim, marginTop: 2 }}>{g.milestone}회 달성 보상</Text>
                     </View>
                     <View style={[s.claimPill, g.status !== 'claimable' && { backgroundColor: '#f0eee3' }]}>
-                      <Text style={{ fontSize: 12, fontWeight: '800', color: g.status === 'claimable' ? '#3d5a2b' : '#75806f' }}>
+                      <Text style={{ fontSize: 14, fontWeight: '800', color: g.status === 'claimable' ? '#3d5a2b' : '#75806f' }}>
                         {g.status === 'claimable' ? '수령 가능 · 배송 연동 준비 중' : g.status === 'locked' ? '잠김' : g.status}
                       </Text>
                     </View>
@@ -140,7 +140,7 @@ export default function Shop() {
         {/* ---------- 스토어 미리보기 — 실 SKU 전, 섹션 단위 정직 라벨 ---------- */}
         <Row style={{ gap: 6, marginTop: 20, marginBottom: 2, alignItems: 'baseline' }}>
           <Text style={s.section}>스토어 미리보기</Text>
-          <Text style={{ fontSize: 12.5, color: '#9a978a', fontWeight: '700' }}>· 오픈 준비 중 — 아직 구매할 수 없어요</Text>
+          <Text style={{ fontSize: 14.5, color: '#9a978a', fontWeight: '700' }}>· 오픈 준비 중 — 아직 구매할 수 없어요</Text>
         </Row>
 
         {/* categories */}
@@ -158,14 +158,14 @@ export default function Shop() {
             <Pressable key={p.id} style={[s.prod, { backgroundColor: '#fff', borderWidth: 1, borderColor: '#DCD6C4' }]} onPress={() => Alert.alert(p.name, '스토어 오픈 준비 중이에요')}>
               <Text style={{ fontSize: 12.5, fontWeight: '900', color: p.fg }}>{p.tag}</Text>
               <Text style={s.prodName} numberOfLines={2}>{p.name}</Text>
-              <Text style={{ fontSize: 12, color: '#00000066', marginTop: 3 }}>{p.collab}</Text>
+              <Text style={{ fontSize: 14, color: '#00000066', marginTop: 3 }}>{p.collab}</Text>
               {/* product visual placeholder */}
               <View style={s.prodVisual}>
                 <Text style={{ fontSize: 34.5, fontWeight: '900', color: `${p.fg}33` }}>{p.tag}</Text>
               </View>
               <Row style={{ justifyContent: 'space-between', marginTop: 'auto' }}>
                 <Text style={{ fontSize: 18.5, fontWeight: '900', color: FOREST }}>
-                  {p.price.toLocaleString()}원<Text style={{ fontSize: 11.5, color: '#9a978a', fontWeight: '700' }}> 예정</Text>
+                  {p.price.toLocaleString()}원<Text style={{ fontSize: 13, color: '#9a978a', fontWeight: '700' }}> 예정</Text>
                 </Text>
                 <Pressable style={s.addBtn} onPress={() => Alert.alert('준비 중', '스토어 오픈 시 담을 수 있어요')}>
                   <Text style={{ fontSize: 16, fontWeight: '900', color: colors.volt }}>+</Text>

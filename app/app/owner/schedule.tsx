@@ -202,10 +202,10 @@ export default function Schedule() {
                           <Text style={{ fontSize: 15, fontWeight: '800', color: FOREST }}>{b.routeName}</Text>
                           <View style={s.certDot}><Text style={{ fontSize: 8, fontWeight: '900', color: '#fff' }}>✓</Text></View>
                         </Row>
-                        <Text style={{ fontSize: 13, color: '#49524a', marginTop: 3 }}>
+                        <Text style={{ fontSize: 15, color: '#49524a', marginTop: 3 }}>
                           {b.dogName} · {b.runnerName} 러너 · {b.km}km
                         </Text>
-                        <Text style={{ fontSize: 12.5, color: colors.dim, marginTop: 2 }}>
+                        <Text style={{ fontSize: 14.5, color: colors.dim, marginTop: 2 }}>
                           {b.price.toLocaleString()}원 · {b.paceLabel}
                         </Text>
                       </View>
@@ -278,7 +278,7 @@ export default function Schedule() {
                     <Row style={{ gap: 5 }}>
                       <Text style={{ fontSize: 17, fontWeight: '900', color: FOREST }}>{route.name}</Text>
                       <View style={s.certDot}><Text style={{ fontSize: 8, fontWeight: '900', color: '#fff' }}>✓</Text></View>
-                      <Text style={{ fontSize: 12, color: colors.dim, alignSelf: 'center' }}>안심 코스 · {route.checkedAt}</Text>
+                      <Text style={{ fontSize: 14, color: colors.dim, alignSelf: 'center' }}>안심 코스 · {route.checkedAt}</Text>
                     </Row>
                     <View style={s.sheetMap}>
                       <HeatTrace points={route.trace} width={278} height={110} />
@@ -291,7 +291,7 @@ export default function Schedule() {
                         </View>
                       ))}
                     </Row>
-                    <Text style={{ fontSize: 13, color: '#75806f', marginTop: 9, lineHeight: 19.5 }}>{route.desc}</Text>
+                    <Text style={{ fontSize: 15, color: '#75806f', marginTop: 9, lineHeight: 19.5 }}>{route.desc}</Text>
                   </View>
 
                   {/* predictions */}
@@ -316,7 +316,7 @@ export default function Schedule() {
                             <View key={b} style={s.badgePill}><Text style={{ fontSize: 10, fontWeight: '800', color: '#4a6d1f' }}>{b}</Text></View>
                           ))}
                         </Row>
-                        <Text style={{ fontSize: 13, color: colors.dim, marginTop: 3 }}>
+                        <Text style={{ fontSize: 15, color: colors.dim, marginTop: 3 }}>
                           {runner.rating != null
                             ? `★ ${runner.rating} (${runner.reviews}) · 러닝 ${runner.runs}회 · 평균 ${runner.pace}`
                             : '실러너 · 상세 프로필 준비 중'}
@@ -327,7 +327,7 @@ export default function Schedule() {
                       </Pressable>
                     </Row>
                     {runner.desc && (
-                      <Text style={{ fontSize: 13, color: '#75806f', marginTop: 10, lineHeight: 19.5 }}>{runner.desc}</Text>
+                      <Text style={{ fontSize: 15, color: '#75806f', marginTop: 10, lineHeight: 19.5 }}>{runner.desc}</Text>
                     )}
                   </View>
 
@@ -341,12 +341,12 @@ export default function Schedule() {
                         <Text style={{ fontSize: 16.5, fontWeight: '900', color: '#d84a2f' }}>● 실시간 보기</Text>
                         <Text style={{ fontSize: 12, color: '#b06a56', marginTop: 2 }}>러닝이 진행 중이에요 — GPS·바디캠으로 지켜보세요</Text>
                       </Pressable>
-                      <Text style={{ fontSize: 12.5, color: colors.dim, textAlign: 'center', marginTop: 12, lineHeight: 18.5 }}>
+                      <Text style={{ fontSize: 14.5, color: colors.dim, textAlign: 'center', marginTop: 12, lineHeight: 18.5 }}>
                         이미 시작된 러닝은 일정 변경·취소가 불가능해요{'\n'}긴급 상황은 안심 센터 SOS를 이용해주세요
                       </Text>
                     </>
                   ) : selected.status === 'handoff' ? (
-                    <Text style={{ fontSize: 13, color: colors.dim, textAlign: 'center', marginTop: 16, lineHeight: 19.5 }}>
+                    <Text style={{ fontSize: 15, color: colors.dim, textAlign: 'center', marginTop: 16, lineHeight: 19.5 }}>
                       인계가 완료됐어요 — 러너가 러닝을 시작하면{'\n'}실시간 보기가 열려요 · 변경·취소는 불가능해요
                     </Text>
                   ) : selected.status === 'completed' ? (
@@ -356,7 +356,7 @@ export default function Schedule() {
                         onPress={() => { const bid = selected.id; close(); router.push({ pathname: '/owner/report', params: { bid } }); }}
                       >
                         <Text style={{ fontSize: 16.5, fontWeight: '900', color: FOREST }}>러닝 리포트 보기</Text>
-                        <Text style={{ fontSize: 12, color: '#5d6b4a', marginTop: 2 }}>실거리·시간·페이스·종료 사유를 확인해요</Text>
+                        <Text style={{ fontSize: 14, color: '#5d6b4a', marginTop: 2 }}>실거리·시간·페이스·종료 사유를 확인해요</Text>
                       </Pressable>
                       {/* 인증샷 바로가기 — 완료 러닝의 자랑 동선 한 탭 단축 (공유가 곧 마케팅) */}
                       <Pressable
@@ -379,7 +379,7 @@ export default function Schedule() {
                         }}
                       >
                         <Text style={{ fontSize: 15.5, fontWeight: '800', color: '#3d5a2b' }}>⟳ 이대로 다시 예약</Text>
-                        <Text style={{ fontSize: 12, color: colors.dim, marginTop: 2 }}>같은 거리·페이스{selected.runnerProfileId ? ` · ${selected.runnerName} 러너 지명` : ''} — 시간만 골라요</Text>
+                        <Text style={{ fontSize: 14, color: colors.dim, marginTop: 2 }}>같은 거리·페이스{selected.runnerProfileId ? ` · ${selected.runnerName} 러너 지명` : ''} — 시간만 골라요</Text>
                       </Pressable>
                     </>
                   ) : (
@@ -394,14 +394,14 @@ export default function Schedule() {
                         }}
                       >
                         <Text style={{ fontSize: 16.5, fontWeight: '900', color: FOREST }}>일정 변경 요청</Text>
-                        <Text style={{ fontSize: 12, color: '#5d6b4a', marginTop: 2 }}>{runner.name} 러너의 가능 시간에서 새 시간을 제안해요</Text>
+                        <Text style={{ fontSize: 14, color: '#5d6b4a', marginTop: 2 }}>{runner.name} 러너의 가능 시간에서 새 시간을 제안해요</Text>
                       </Pressable>
                       <Pressable
                         style={s.ghostAction}
                         onPress={() => { close(); router.push('/owner/request'); }}
                       >
                         <Text style={{ fontSize: 15.5, fontWeight: '800', color: '#3d453d' }}>러너 변경</Text>
-                        <Text style={{ fontSize: 12, color: colors.dim, marginTop: 2 }}>처음부터 일반 예약 과정으로 돌아가요</Text>
+                        <Text style={{ fontSize: 14, color: colors.dim, marginTop: 2 }}>처음부터 일반 예약 과정으로 돌아가요</Text>
                       </Pressable>
                       <Pressable style={s.cancelLink} onPress={() => setSheetMode('cancel')}>
                         <Text style={{ fontSize: 14.5, fontWeight: '700', color: '#d84a2f' }}>일정 취소하기</Text>
@@ -428,7 +428,7 @@ export default function Schedule() {
                     <FeeLine label={`취소 수수료 (${cancelPolicy.feeRate * 100}%)`} value={`−${fee.toLocaleString()}원`} coral />
                     <View style={{ height: 1, backgroundColor: '#f0eee3', marginVertical: 10 }} />
                     <FeeLine label="환불 금액" value={`${(selected.price - fee).toLocaleString()}원`} bold />
-                    <Text style={{ fontSize: 12, color: colors.dim, marginTop: 10, lineHeight: 17 }}>
+                    <Text style={{ fontSize: 14, color: colors.dim, marginTop: 10, lineHeight: 17 }}>
                       취소 수수료는 시간을 비워둔 러너에게 {Math.round(cancelPolicy.runnerShare * 100)}%, 도그스하이에 {Math.round((1 - cancelPolicy.runnerShare) * 100)}% 배분돼요.{'\n'}시작 24시간 전까지는 수수료가 없어요.
                     </Text>
                   </View>
@@ -469,9 +469,9 @@ export default function Schedule() {
 function Pred({ label, value, sub }: { label: string; value: string; sub: string }) {
   return (
     <View style={{ alignItems: 'center', flex: 1 }}>
-      <Text style={{ fontSize: 12, color: colors.dim }}>{label}</Text>
+      <Text style={{ fontSize: 14, color: colors.dim }}>{label}</Text>
       <Text style={{ fontSize: 17, fontWeight: '900', color: FOREST, marginTop: 3 }}>{value}</Text>
-      <Text style={{ fontSize: 11, color: colors.dim, marginTop: 2 }}>{sub}</Text>
+      <Text style={{ fontSize: 12.5, color: colors.dim, marginTop: 2 }}>{sub}</Text>
     </View>
   );
 }

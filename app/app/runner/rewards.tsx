@@ -67,11 +67,11 @@ export default function Rewards() {
 
       {/* 하이 포인트 */}
       <View style={s.milesCard}>
-        <Text style={{ fontSize: 12.5, color: '#b8c4ae', letterSpacing: 1.5 }}>내 하이 포인트</Text>
+        <Text style={{ fontSize: 14.5, color: '#b8c4ae', letterSpacing: 1.5 }}>내 하이 포인트</Text>
         <Text style={{ fontSize: 39, fontWeight: '900', color: colors.volt, marginTop: 4 }}>
           {miles?.balance?.toLocaleString() ?? '—'}<Text style={{ fontSize: 15, color: '#b8c4ae' }}> 마일</Text>
         </Text>
-        <Text style={{ fontSize: 12, color: '#8fa093', marginTop: 6 }}>
+        <Text style={{ fontSize: 14, color: '#8fa093', marginTop: 6 }}>
           완주 +50 · 응가 도장 +30 · 드랍 보상 · 주간 TOP3 보너스
         </Text>
       </View>
@@ -91,11 +91,11 @@ export default function Rewards() {
             <Text style={{ fontSize: 17, fontWeight: '900', color: colors.volt }}>
               {d.kind === 'pick' ? '🎁 픽 드랍' : '▣ 보급 드랍'} · {d.runCountAt}회 달성
             </Text>
-            <Text style={{ fontSize: 12, color: '#8fa093' }}>{d.when}</Text>
+            <Text style={{ fontSize: 14, color: '#8fa093' }}>{d.when}</Text>
           </Row>
           {d.kind === 'pick' ? (
             <>
-              <Text style={{ fontSize: 13, color: '#b8c4ae', marginTop: 8 }}>셋 중 하나를 선택하세요 — 되돌릴 수 없어요</Text>
+              <Text style={{ fontSize: 15, color: '#b8c4ae', marginTop: 8 }}>셋 중 하나를 선택하세요 — 되돌릴 수 없어요</Text>
               <Row style={{ gap: 8, marginTop: 10 }}>
                 {([['boost', '⚡ 부스트'], ['miles', '◈ 5,000마일'], ['gear', '👕 기어']] as const).map(([k, label]) => (
                   <Pressable key={k} disabled={busy !== null} onPress={() => open(d, k)} style={[s.pickBtn, busy === d.id && { opacity: 0.5 }]}>
@@ -123,10 +123,10 @@ export default function Rewards() {
                 <Row style={{ paddingVertical: 10, justifyContent: 'space-between' }}>
                   <View>
                     <Text style={{ fontSize: 15.5, fontWeight: '800', color: FOREST }}>{g.item}</Text>
-                    <Text style={{ fontSize: 12, color: colors.dim, marginTop: 2 }}>{g.milestone}회 달성 보상</Text>
+                    <Text style={{ fontSize: 14, color: colors.dim, marginTop: 2 }}>{g.milestone}회 달성 보상</Text>
                   </View>
                   <View style={s.claimPill}>
-                    <Text style={{ fontSize: 12, fontWeight: '800', color: g.status === 'claimable' ? '#3d5a2b' : '#75806f' }}>
+                    <Text style={{ fontSize: 14, fontWeight: '800', color: g.status === 'claimable' ? '#3d5a2b' : '#75806f' }}>
                       {g.status === 'claimable' ? '수령 가능 · 배송 연동 준비 중' : g.status}
                     </Text>
                   </View>
@@ -149,7 +149,7 @@ export default function Rewards() {
                     ? `픽 드랍 — ${d.pickChoice === 'miles' ? '5,000마일' : d.pickChoice === 'boost' ? '부스트' : '기어'} 선택`
                     : `보급 드랍 (+${d.contents.miles ?? 0}마일)`}
                 </Text>
-                <Text style={{ fontSize: 12, color: colors.dim }}>{d.when}</Text>
+                <Text style={{ fontSize: 14, color: colors.dim }}>{d.when}</Text>
               </Row>
             </View>
           ))}

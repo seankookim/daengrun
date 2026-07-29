@@ -124,7 +124,7 @@ export default function OwnerMeetup() {
                 <Text style={{ fontSize: 17, fontWeight: '900', color: FOREST }}>{runnerName} 러너</Text>
                 <View style={s.badgePill}><Text style={{ fontSize: 10, fontWeight: '800', color: '#4a6d1f' }}>신원인증</Text></View>
               </Row>
-              <Text style={{ fontSize: 13, color: colors.dim, marginTop: 3 }}>
+              <Text style={{ fontSize: 15, color: colors.dim, marginTop: 3 }}>
                 {info ? `${info.when} · ${info.routeName} ${info.km}km` : '예약 정보 불러오는 중...'}
               </Text>
             </View>
@@ -180,7 +180,7 @@ export default function OwnerMeetup() {
           </View>
         )}
 
-        <Text style={{ fontSize: 12, color: colors.dim, textAlign: 'center', marginTop: 14, lineHeight: 17 }}>
+        <Text style={{ fontSize: 14, color: colors.dim, textAlign: 'center', marginTop: 14, lineHeight: 17 }}>
           인계 시점부터 펫보험이 적용됩니다{'\n'}러너가 10분 내 도착하지 않으면 자동으로 고객센터가 연결돼요
         </Text>
       </ScrollView>
@@ -216,5 +216,5 @@ const s = StyleSheet.create({
   stepDot: { width: 18, height: 18, borderRadius: 10, backgroundColor: '#DCD6C4', alignItems: 'center', justifyContent: 'center' },
   primary: { backgroundColor: FOREST, borderRadius: 18, alignItems: 'center', paddingVertical: 16, marginTop: 6 },
   primaryText: { fontSize: 18, fontWeight: '900', color: '#fff' },
-  primarySub: { fontSize: 12, color: '#b8c4ae', marginTop: 3 },
+  primarySub: { fontSize: 14, color: '#b8c4ae', marginTop: 3 },
 });

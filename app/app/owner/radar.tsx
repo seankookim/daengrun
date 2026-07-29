@@ -183,7 +183,7 @@ export default function Radar() {
             <View style={{ marginTop: 26 }}>
               <Row style={{ justifyContent: 'space-between', marginBottom: 10 }}>
                 <Text style={{ fontSize: 15.5, fontWeight: '900', color: FOREST }}>요청을 받은 러너</Text>
-                <Text style={{ fontSize: 13, color: '#49524a' }}>
+                <Text style={{ fontSize: 15, color: '#49524a' }}>
                   {avail == null ? '확인 중…' : `${avail.length}명 가능`}
                 </Text>
               </Row>
@@ -199,7 +199,7 @@ export default function Radar() {
                   <Avatar url={r.avatarUrl} char={r.name[0]} bg="#5a7a3c" size={42} />
                   <View style={{ flex: 1, marginLeft: 11 }}>
                     <Text style={{ fontSize: 16.5, fontWeight: '900', color: FOREST }}>{r.name}</Text>
-                    <Text style={{ fontSize: 12.5, color: '#49524a', marginTop: 2 }}>
+                    <Text style={{ fontSize: 14.5, color: '#49524a', marginTop: 2 }}>
                       {r.tier} · {r.district || '근처'} · 러닝 {r.totalRuns}회
                     </Text>
                   </View>

@@ -106,7 +106,7 @@ export default function CourseScreen() {
                   <LiveDot points={route.trace} />
                 </View>
                 <Row style={{ justifyContent: 'space-between', marginTop: 10 }}>
-                  <Text style={{ fontSize: 11.5, color: '#8fa093' }}>● 출발 <Text style={{ color: '#FF5C3D' }}>● 도착</Text> — 스키마틱 코스도예요</Text>
+                  <Text style={{ fontSize: 13, color: '#8fa093' }}>● 출발 <Text style={{ color: '#FF5C3D' }}>● 도착</Text> — 스키마틱 코스도예요</Text>
                   <View style={{ backgroundColor: '#2c4034', borderRadius: 99, paddingVertical: 3, paddingHorizontal: 9 }}>
                     <Text style={{ fontSize: 12, fontWeight: '900', color: colors.volt }}>{route.km}km</Text>
                   </View>
@@ -142,7 +142,7 @@ export default function CourseScreen() {
                 {route.tags.length > 0 && (
                   <Row style={{ gap: 5, marginTop: 9, flexWrap: 'wrap' }}>
                     {route.tags.map((t) => (
-                      <View key={t} style={s.tagChip}><Text style={{ fontSize: 11.5, fontWeight: '700', color: '#49524a' }}>#{t}</Text></View>
+                      <View key={t} style={s.tagChip}><Text style={{ fontSize: 13, fontWeight: '700', color: '#49524a' }}>#{t}</Text></View>
                     ))}
                   </Row>
                 )}
@@ -185,7 +185,7 @@ const s = StyleSheet.create({
   hero: { backgroundColor: FOREST, borderRadius: 22, padding: 15, marginTop: 14, overflow: 'hidden' },
   pin: { position: 'absolute', width: 10, height: 10, borderRadius: 5, borderWidth: 1.5, borderColor: '#fff' },
   infoChip: { backgroundColor: '#fff', borderRadius: 99, paddingVertical: 5, paddingHorizontal: 11, borderWidth: 1, borderColor: '#DCD6C4' },
-  infoChipText: { fontSize: 12.5, fontWeight: '800', color: '#49524a' },
+  infoChipText: { fontSize: 14.5, fontWeight: '800', color: '#49524a' },
   section: { marginTop: 22 },
   sectionTitle: { fontSize: 16.5, fontWeight: '900', color: FOREST, marginBottom: 10 },
   featCard: { backgroundColor: '#fff', borderRadius: 14, paddingVertical: 10, paddingHorizontal: 13, alignItems: 'center', borderWidth: 1, borderColor: '#DCD6C4', minWidth: 76 },

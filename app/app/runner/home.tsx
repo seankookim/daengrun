@@ -162,7 +162,7 @@ export default function RunnerHome() {
                   ● {STAGE[current.rawStatus]?.label ?? current.rawStatus}
                 </Text>
               </View>
-              <Text style={{ fontSize: 13, color: '#b8c4ae' }}>{current.when}</Text>
+              <Text style={{ fontSize: 15, color: '#b8c4ae' }}>{current.when}</Text>
             </Row>
             <Text style={{ fontSize: 20.5, fontWeight: '900', color: '#fff', marginTop: 10 }}>
               {current.dogName} · {current.km}km 러닝
@@ -206,7 +206,7 @@ export default function RunnerHome() {
             </Pressable>
           </Row>
           {!avail ? (
-            <Text style={{ fontSize: 13, color: colors.dim, marginTop: 10 }}>불러오는 중...</Text>
+            <Text style={{ fontSize: 15, color: colors.dim, marginTop: 10 }}>불러오는 중...</Text>
           ) : (
             <>
               <Row style={{ gap: 6, marginTop: 12 }}>
@@ -225,7 +225,7 @@ export default function RunnerHome() {
                   );
                 })}
               </Row>
-              <Text style={{ fontSize: 12, color: colors.dim, marginTop: 9 }}>
+              <Text style={{ fontSize: 14, color: colors.dim, marginTop: 9 }}>
                 요일을 탭하면 바로 열리고 닫혀요 (기본 06–22시) · 보호자 예약 화면에 즉시 반영
               </Text>
             </>
@@ -267,7 +267,7 @@ export default function RunnerHome() {
               <Text style={{ fontSize: 15.5, fontWeight: '900', color: FOREST }}>지금 응답하기 ›</Text>
             </View>
             {inbox.length > 1 && (
-              <Text style={{ fontSize: 12, color: '#b8c4ae', textAlign: 'center', marginTop: 9 }}>
+              <Text style={{ fontSize: 14, color: '#b8c4ae', textAlign: 'center', marginTop: 9 }}>
                 +{inbox.length - 1}건이 더 기다리고 있어요
               </Text>
             )}
@@ -367,7 +367,7 @@ export default function RunnerHome() {
               <View style={s.tierTrack}>
                 <View style={[s.tierFill, { width: `${pct * 100}%` }]} />
               </View>
-              <Text style={{ fontSize: 11.5, color: colors.dim, marginTop: 5 }}>
+              <Text style={{ fontSize: 13, color: colors.dim, marginTop: 5 }}>
                 같은 수익 기준 정산액이 늘어나요 · 승급 기준은 파일럿 중 조정될 수 있어요
               </Text>
             </View>
@@ -380,7 +380,7 @@ export default function RunnerHome() {
             <Row style={{ justifyContent: 'space-between', marginTop: 18, marginBottom: 8 }}>
               <Text style={s.sectionTitle}>다음 예약</Text>
               <Pressable onPress={() => router.push('/runner/calendar')}>
-                <Text style={{ fontSize: 13, color: colors.dim, fontWeight: '700' }}>캘린더 ›</Text>
+                <Text style={{ fontSize: 15, color: colors.dim, fontWeight: '700' }}>캘린더 ›</Text>
               </Pressable>
             </Row>
             {upcoming.map((j) => {
@@ -412,7 +412,7 @@ export default function RunnerHome() {
             <Row style={{ justifyContent: 'space-between', marginTop: 18, marginBottom: 8 }}>
               <Text style={s.sectionTitle}>최근 완료</Text>
               <Pressable onPress={() => router.push('/runner/earnings')}>
-                <Text style={{ fontSize: 13, color: colors.dim, fontWeight: '700' }}>수익 상세 ›</Text>
+                <Text style={{ fontSize: 15, color: colors.dim, fontWeight: '700' }}>수익 상세 ›</Text>
               </Pressable>
             </Row>
             {past.map((j) => (

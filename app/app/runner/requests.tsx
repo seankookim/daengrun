@@ -82,7 +82,7 @@ export default function Requests() {
             </Text>
             <Row style={{ gap: 8, marginTop: 8, alignItems: 'center' }}>
               <View style={s.timeBox}>
-                <Text style={{ fontSize: 11, fontWeight: '700', color: colors.dim }}>기존</Text>
+                <Text style={{ fontSize: 12.5, fontWeight: '700', color: colors.dim }}>기존</Text>
                 <Text style={{ fontSize: 12.5, fontWeight: '700', color: '#82887a', textDecorationLine: 'line-through', marginTop: 1 }}>
                   {rq.curDate}
                 </Text>
@@ -171,7 +171,7 @@ export default function Requests() {
                 <Text style={{ fontSize: 18.5, fontWeight: '900', color: '#5a7a3c' }}>
                   +{req.payout.toLocaleString()}
                 </Text>
-                <Text style={{ fontSize: 10.5, color: colors.dim, marginTop: 1 }}>수수료 20% 제외</Text>
+                <Text style={{ fontSize: 12, color: colors.dim, marginTop: 1 }}>수수료 20% 제외</Text>
               </View>
             </Row>
             {(req.prefTags.length > 0 || req.vaccines.length > 0) && (
@@ -190,7 +190,7 @@ export default function Requests() {
             )}
             {req.memo && (
               <View style={s.memo}>
-                <Text style={{ fontSize: 13, color: '#49524a', lineHeight: 19.5 }} numberOfLines={2}>메모: {req.memo}</Text>
+                <Text style={{ fontSize: 15, color: '#49524a', lineHeight: 19.5 }} numberOfLines={2}>메모: {req.memo}</Text>
               </View>
             )}
             {/* 코스 미리보기 — 수락 전에 코스를 알고 결정한다 (트레이스·지형·점검일) */}
@@ -221,7 +221,7 @@ export default function Requests() {
         )}
 
         <View style={s.note}>
-          <Text style={{ fontSize: 13, color: colors.dim, textAlign: 'center' }}>
+          <Text style={{ fontSize: 15, color: colors.dim, textAlign: 'center' }}>
             수락하면 캘린더에 확정 일정으로 추가돼요{'\n'}응답 기한이 지나면 요청은 자동 만료됩니다
           </Text>
         </View>
