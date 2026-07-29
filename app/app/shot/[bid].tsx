@@ -374,11 +374,28 @@ export default function ShotStudio() {
               {photos.G
                 ? <PhotoLayer uri={photos.G} w={CARD_W - 84} h={PH - 62} resetKey={photos.G} />
                 : <View style={[s.photoEmpty, { backgroundColor: '#3b4d35' }]}><Text style={{ fontSize: 24 }}>🖼</Text></View>}
-              {pts && (
-                <Svg pointerEvents="none" width={72} height={58} viewBox="0 0 72 58" style={{ position: 'absolute', bottom: 8, right: 8 }}>
-                  <Path d={pathFrom(pts, 72, 58, 6)} stroke="#fff" strokeWidth={2.8} strokeLinecap="round" strokeLinejoin="round" fill="none" opacity={0.95} />
-                </Svg>
-              )}
+              {/* 트레이스 = 폴라로이드의 주인공 (Sean 2026-07-29: 크게·중앙·선명한 네온).
+                  다크 헤일로 언더스트로크가 어떤 사진 위에서도 볼트를 세운다 */}
+              {pts && (() => {
+                const PW = CARD_W - 84;
+                const PHH = PH - 62;
+                const TW = Math.round(PW * 0.74);
+                const TH = Math.round(PHH * 0.6);
+                return (
+                  <Svg
+                    pointerEvents="none"
+                    width={TW}
+                    height={TH}
+                    viewBox={`0 0 ${TW} ${TH}`}
+                    style={{ position: 'absolute', left: (PW - TW) / 2, top: (PHH - TH) / 2 }}
+                  >
+                    <Path d={pathFrom(pts, TW, TH, 14)} stroke="rgba(15,29,19,.45)" strokeWidth={9} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                    <Path d={pathFrom(pts, TW, TH, 14)} stroke={colors.volt} strokeWidth={4.5} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                    <Circle cx={14 + pts[0].x * (TW - 28)} cy={14 + pts[0].y * (TH - 28)} r={5.5} fill="#fff" />
+                    <Circle cx={14 + pts[pts.length - 1].x * (TW - 28)} cy={14 + pts[pts.length - 1].y * (TH - 28)} r={5.5} fill={colors.tang} />
+                  </Svg>
+                );
+              })()}
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 9 }}>
               <IconChip size={28} df={df} />
@@ -400,12 +417,15 @@ export default function ShotStudio() {
         <Text style={s.iTiny}>{report.when} · {report.routeName}</Text>
         <Text style={s.iGiant}>{km}<Text style={{ fontSize: 26, letterSpacing: -1 }}>KM</Text></Text>
         <Text style={[{ fontSize: 24, fontWeight: '900', color: FOREST, marginTop: 2 }, df]}>{dog} 완주</Text>
-        {/* GPS 트레이스 — 중앙 우측 빈 공간, 포레스트 선 + 탱 도착점 (모든 카드에 트레이스) */}
+        {/* GPS 트레이스 — 숫자 위를 '의도적으로' 가로지른다 (Sean 2026-07-29: 겹침을 전경화).
+            포레스트 선은 숫자와 한 색이라 사고처럼 보였다 → 화이트 케이싱 + 탱 라인 =
+            스티커처럼 확실히 앞层. 도착점은 탱 선 위에서 읽히게 포레스트로 반전 */}
         {pts && (
-          <Svg pointerEvents="none" width={116} height={124} viewBox="0 0 116 124" style={{ position: 'absolute', right: 38, top: h * 0.2 }} opacity={0.9}>
-            <Path d={pathFrom(pts, 116, 124, 10)} stroke={FOREST} strokeWidth={4} strokeLinecap="round" strokeLinejoin="round" fill="none" />
-            <Circle cx={10 + pts[0].x * 96} cy={10 + pts[0].y * 104} r={5} fill="#fff" />
-            <Circle cx={10 + pts[pts.length - 1].x * 96} cy={10 + pts[pts.length - 1].y * 104} r={5} fill={colors.tang} />
+          <Svg pointerEvents="none" width={150} height={150} viewBox="0 0 150 150" style={{ position: 'absolute', right: 30, top: h * 0.16 }}>
+            <Path d={pathFrom(pts, 150, 150, 12)} stroke="#fff" strokeWidth={8} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+            <Path d={pathFrom(pts, 150, 150, 12)} stroke={colors.tang} strokeWidth={4} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+            <Circle cx={12 + pts[0].x * 126} cy={12 + pts[0].y * 126} r={5.5} fill="#fff" />
+            <Circle cx={12 + pts[pts.length - 1].x * 126} cy={12 + pts[pts.length - 1].y * 126} r={5.5} fill={FOREST} />
           </Svg>
         )}
         <View style={{ position: 'absolute', right: 8, top: 14 }}>
