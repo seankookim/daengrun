@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>하이클럽 배너 강조 랩 — 5안 (라이브 모션)</title>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--forest:#0F1D13;--volt:#C6F542;--voltDeep:#7FA818;--tang:#FF5C3D;--cream:#F8F6F0;--line:#DCD6C4;}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#141811;color:var(--cream);font-family:'IBM Plex Sans KR',sans-serif;padding:34px 26px 80px}
+.bhs{font-family:'Black Han Sans',sans-serif;font-weight:400}
+h1{font-size:30px;color:var(--volt)}
+.lede{color:#8fa093;margin:10px 0 4px;max-width:860px;line-height:1.6;font-size:14px}
+.rowwrap{display:flex;gap:26px;flex-wrap:wrap;margin-top:26px;align-items:flex-start}
+.opt{width:392px}
+.optlabel{display:flex;gap:8px;align-items:center;margin-bottom:10px}
+.optlabel .tag{background:var(--volt);color:var(--forest);font-weight:800;font-size:12px;border-radius:99px;padding:3px 10px}
+.optlabel b{font-size:16px}
+.optnote{color:#8fa093;font-size:12.5px;line-height:1.55;margin:9px 2px 0}
+.stage{background:var(--cream);border-radius:24px;padding:18px 15px;color:var(--forest)}
+.search{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px 13px;color:#9a978a;font-size:14px;margin-bottom:10px}
+/* 공통 배너 */
+.bn{position:relative;height:148px;border-radius:20px;overflow:hidden;background:linear-gradient(160deg,#5b7a4a,#26382a 65%,#16241a)}
+.bn .scrim{position:absolute;inset:0;background:rgba(10,16,10,.36)}
+.bn .inner{position:absolute;inset:0;padding:14px;display:flex;flex-direction:column;justify-content:space-between}
+.hcpill{background:var(--volt);color:var(--forest);border-radius:99px;font-weight:900;font-size:9.5px;letter-spacing:1.5px;padding:4px 9px;align-self:flex-start}
+.seat{position:absolute;top:14px;right:14px;background:var(--volt);color:var(--forest);border-radius:99px;font-weight:900;font-size:12px;padding:5px 10px}
+.bn h3{font-size:22px;font-weight:900;color:#fff}
+.bn p{font-size:13px;color:#d8e2d0;margin-top:3px}
+.cta{display:inline-block;background:var(--volt);color:var(--forest);border-radius:99px;font-weight:900;font-size:13px;padding:8px 13px;margin-top:9px}
+/* E1 볼트 글로우 (정적) */
+.e1{box-shadow:0 0 0 1.5px rgba(198,245,66,.55), 0 6px 26px rgba(198,245,66,.28)}
+/* E2 브리딩 펄스 (호흡 보더) */
+.e2wrap{position:relative;border-radius:22px}
+.e2wrap::before{content:'';position:absolute;inset:-3px;border-radius:23px;border:2.5px solid var(--volt);animation:breathe 2.6s ease-in-out infinite}
+@keyframes breathe{0%,100%{opacity:.25;transform:scale(1)}50%{opacity:1;transform:scale(1.006)}}
+/* E3 그라디언트 아웃라인 + 코너 테이프 */
+.e3wrap{position:relative;padding:2.5px;border-radius:22px;background:linear-gradient(120deg,var(--volt),#7FA818 45%,var(--tang))}
+.e3tape{position:absolute;top:-9px;left:22px;background:var(--volt);color:var(--forest);font-weight:900;font-size:9.5px;letter-spacing:2px;padding:4px 12px;transform:rotate(-3deg);box-shadow:0 3px 7px rgba(0,0,0,.28);z-index:2}
+/* E4 스윕 샤인 (사선 광택이 주기적으로 지나감) */
+.e4 .shine{position:absolute;top:-40%;bottom:-40%;width:56px;background:linear-gradient(100deg,transparent,rgba(198,245,66,.34),transparent);transform:rotate(14deg);animation:sweep 3.4s ease-in-out infinite}
+@keyframes sweep{0%,55%{left:-90px}85%,100%{left:calc(100% + 40px)}}
+/* E5 빕 하드섀도 (정적, 대담) */
+.e5{border:2.5px solid var(--forest);box-shadow:5px 5px 0 var(--forest), 5px 5px 0 2px var(--volt);border-radius:18px}
+</style>
+</head>
+<body>
+<h1 class="bhs">하이클럽 배너 강조 — 5안</h1>
+<p class="lede">양쪽 홈의 하이클럽 모듈(검색 바 + 배너) 강조 처리. 모션은 라이브 — 브라우저에서 그대로 재생됩니다. 규칙: 화면당 펄스 1~2 상한 안 (러너 홈의 새 요청 코랄 파동과 공존해야 하므로, 모션 안은 '요청 파동과 겹치지 않는 리듬'이 조건).</p>
+
+<div class="rowwrap">
+
+<div class="opt">
+  <div class="optlabel"><span class="tag">E1</span><b>볼트 글로우 (정적)</b></div>
+  <div class="stage">
+    <div class="search">⌕ 동네 하이클럽 검색 — 예: 반포동</div>
+    <div class="bn e1"><div class="scrim"></div><div class="inner">
+      <span class="hcpill">HIGH CLUB</span><span class="seat">2자리</span>
+      <div><h3>반포동 하이클럽</h3><p>다음 세션 토 09:00 · 7팀 참여 중</p><span class="cta">참여하기 ›</span></div>
+    </div></div>
+  </div>
+  <p class="optnote">볼트 헤어라인 + 부드러운 외곽 발광. 모션 0 — 새 요청 파동과 절대 경쟁하지 않음. 가장 조용한 프리미엄.</p>
+</div>
+
+<div class="opt">
+  <div class="optlabel"><span class="tag">E2</span><b>브리딩 펄스</b></div>
+  <div class="stage">
+    <div class="search">⌕ 동네 하이클럽 검색 — 예: 반포동</div>
+    <div class="e2wrap"><div class="bn"><div class="scrim"></div><div class="inner">
+      <span class="hcpill">HIGH CLUB</span><span class="seat">2자리</span>
+      <div><h3>반포동 하이클럽</h3><p>다음 세션 토 09:00 · 7팀 참여 중</p><span class="cta">참여하기 ›</span></div>
+    </div></div></div>
+  </div>
+  <p class="optnote">볼트 보더가 2.6초 주기로 호흡. 조건부 정직 모션 제안: <b>자리가 남은 열린 세션이 있을 때만</b> 숨쉬고, 그 외엔 E1 정적 글로우로 — 레이더 브리딩 아크와 같은 문법.</p>
+</div>
+
+<div class="opt">
+  <div class="optlabel"><span class="tag">E3</span><b>그라디언트 아웃라인 + 테이프</b></div>
+  <div class="stage">
+    <div class="search">⌕ 동네 하이클럽 검색 — 예: 반포동</div>
+    <div class="e3wrap"><span class="e3tape">DOGS HIGH</span><div class="bn" style="border-radius:19px"><div class="scrim"></div><div class="inner">
+      <span class="hcpill">HIGH CLUB</span><span class="seat">2자리</span>
+      <div><h3>반포동 하이클럽</h3><p>다음 세션 토 09:00 · 7팀 참여 중</p><span class="cta">참여하기 ›</span></div>
+    </div></div></div>
+  </div>
+  <p class="optnote">볼트→탱 그라디언트 테두리 + 브랜드 테이프 스티커 (인증샷 브랜드 디바이스 재사용). 모션 0인데 색만으로 가장 '새 기능' 티가 남. 탱 사용이 코랄 요청 카드와 살짝 경쟁하는 게 유일한 감점.</p>
+</div>
+
+<div class="opt">
+  <div class="optlabel"><span class="tag">E4</span><b>스윕 샤인</b></div>
+  <div class="stage">
+    <div class="search">⌕ 동네 하이클럽 검색 — 예: 반포동</div>
+    <div class="bn e4 e1" style="box-shadow:0 0 0 1.5px rgba(198,245,66,.45)"><div class="scrim"></div><div class="shine"></div><div class="inner">
+      <span class="hcpill">HIGH CLUB</span><span class="seat">2자리</span>
+      <div><h3>반포동 하이클럽</h3><p>다음 세션 토 09:00 · 7팀 참여 중</p><span class="cta">참여하기 ›</span></div>
+    </div></div>
+  </div>
+  <p class="optnote">볼트 광택이 3.4초에 한 번 사선으로 스치고 대부분의 시간은 정지. '반짝'이 시선을 끌되 상주 모션이 아님. 사진 위에서도 잘 읽힘.</p>
+</div>
+
+<div class="opt">
+  <div class="optlabel"><span class="tag">E5</span><b>빕 하드섀도 (정적·대담)</b></div>
+  <div class="stage">
+    <div class="search">⌕ 동네 하이클럽 검색 — 예: 반포동</div>
+    <div class="bn e5"><div class="scrim"></div><div class="inner">
+      <span class="hcpill">HIGH CLUB</span><span class="seat">2자리</span>
+      <div><h3>반포동 하이클럽</h3><p>다음 세션 토 09:00 · 7팀 참여 중</p><span class="cta">참여하기 ›</span></div>
+    </div></div>
+  </div>
+  <p class="optnote">레이스 빕 문법 — 포레스트 하드섀도 + 볼트 이중 오프셋. 모션 0으로 가장 물성 강한 존재감. 알림 날짜 빕 헤더와 같은 계열이라 시스템 일관성 좋음.</p>
+</div>
+</div>
+
+<p class="lede" style="margin-top:40px;border-top:1px solid #2c3a2c;padding-top:16px">
+<b style="color:var(--volt)">추천:</b> E2 브리딩 펄스를 '자리 남은 열린 세션이 있을 때만' 조건부로, 평시엔 E1 글로우 — 모션이 곧 정보가 되는 조합 (숨쉬면 = 지금 들어갈 자리가 있다). 대담한 정적을 원하면 E5. 번호 주면 그대로 구현하고 P-B 잔여(수요 보드·클럽 패치·공유 포맷·정기 시리즈)로 넘어갑니다.
+</p>
+</body>
+</html>
