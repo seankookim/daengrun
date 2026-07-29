@@ -5,7 +5,7 @@ import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { HeatTrace } from '../../src/components/runcard';
 import { Avatar, Row } from '../../src/components/ui';
 import { fetchBookingStatus, fetchMeetupInfo, MeetupInfo, subscribeBooking } from '../../src/lib/api';
-import { getMaps, LivePos, subscribePos } from '../../src/lib/geo';
+import { getNaverMap, LivePos, subscribePos } from '../../src/lib/geo';
 import { dog, draft, lastRunTrace, runners } from '../../src/store';
 import { colors } from '../../src/theme';
 
@@ -41,7 +41,7 @@ export default function Live() {
   const [pathLen, setPathLen] = useState(0);
   const startAt = useRef<number | null>(null);
   const [liveSec, setLiveSec] = useState(0);
-  const maps = live ? getMaps() : null;
+  const maps = live ? getNaverMap() : null; // 네이버 지도 (2026-07-29) — 미탑재 빌드는 대기 화면 폴백
 
   useEffect(() => {
     if (!live) return;
@@ -106,13 +106,22 @@ export default function Live() {
 
       {/* ---------- 풀스크린 지도 레이어 ---------- */}
       {live && maps && pos ? (
-        <maps.MapView
+        <maps.NaverMapView
           style={StyleSheet.absoluteFill}
-          region={{ latitude: pos.lat, longitude: pos.lng, latitudeDelta: 0.008, longitudeDelta: 0.008 }}
+          camera={{ latitude: pos.lat, longitude: pos.lng, zoom: 15 }}
+          isShowLocationButton={false}
+          isShowCompass={false}
+          isShowScaleBar={false}
+          isShowZoomControls={false}
         >
-          {pathLen > 1 && <maps.Polyline coordinates={path.current} strokeColor={colors.voltDeep} strokeWidth={5} />}
-          <maps.Marker coordinate={{ latitude: pos.lat, longitude: pos.lng }} title={`${dogName} · ${runnerName} 러너`} />
-        </maps.MapView>
+          {pathLen > 1 && <maps.NaverMapPolylineOverlay coords={path.current} color={colors.voltDeep} width={5} />}
+          <maps.NaverMapMarkerOverlay
+            latitude={pos.lat}
+            longitude={pos.lng}
+            anchor={{ x: 0.5, y: 1 }}
+            caption={{ text: `${dogName} · ${runnerName} 러너` }}
+          />
+        </maps.NaverMapView>
       ) : live ? (
         <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}>
           <Text style={{ fontSize: 16, fontWeight: '900', color: FOREST }}>러너 위치 수신 대기 중...</Text>

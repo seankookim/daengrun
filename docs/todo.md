@@ -12,6 +12,8 @@
 - [ ] **일정 확정 카드 절취선 (NEW)**: 레일 경계 노치+도트가 카드 경계에서 반원으로 잘리는지
 - [ ] **Sean: `npx supabase db push` (0025 패치 보너스 + 0026 반복 예약 + 0027 집계 RPC)** — 함수 재배포는 불필요 (RPC/크론만). ⚠ 0027 push 전까지 앱의 포인트 잔액·정산 예정이 RPC 404로 에러 — push 먼저, 앱 확인 나중
 - [ ] **반복 예약 (NEW 6882d93)**: 요청 화면 토글 → 결제 → 일정 탭 ⟳ 필 확인 → 관리 시트 '매주 반복 해지' → 크론 생성은 다음 발생 72h 전 (수동 트리거: 대시보드 SQL `select generate_recurring_bookings();`)
+- [ ] **네이버 지도 (NEW)**: 설치+prebuild 후 — 러너 run 화면 실지도+본인 라인 · 보호자 live 실시간 라인/마커 · 지도 안 뜨면 NCP 콘솔에서 **Mobile Dynamic Map 활성 + iOS 번들 com.seankookim.daengrun 등록** 확인 (401 = 키/번들 문제)
+- [ ] **Sean 설치 커맨드 (지도)**: `cd app && npx expo install expo-build-properties && npm i @mj-studio/react-native-naver-map && npm uninstall react-native-maps && npx expo prebuild -p ios --clean && npx expo run:ios` → package.json 변경 커밋
 
 ## B. 소형 빌드 — 2026-07-29 세션 전부 완료 (9b0a32b)
 - [x] 푸시 딥링크: routeForNotification 단일 소스(push.ts), 탭 리스너 + 콜드스타트, 알림 인박스와 규칙 공유
@@ -24,7 +26,7 @@
 - [x] **반복 예약 UI** (2026-07-29, 6882d93 + 0026): 토글(가격·해지 명시) → 시리즈 스냅샷 → 매시 크론(72h 창, 같은 러너 우선 + 가용성 재검증, 겹침 가드) → ⟳ 필 실화 + 시트 해지. v2: 실 PG 청구 단계 · 가격 개정 반영 · 다요일
 - [x] **샵 셸 v1** (2026-07-29): 실잔액 히어로(0027) + 최근 적립 + 기어 교환권(gear_claims 실데이터) + 도착한 드랍 스트립 + 활성 부스트 표시. '멤버 10% 할인' 가짜 약속 은퇴, 상품 그리드는 '오픈 준비 중 · 예정가' 명시. v2: 포인트 실사용처(shop_spend) · 실 SKU · 교환권 배송
 - [x] fetchMiles/fetchLedgerTotal 2000행 상한 → 서버 집계 RPC (2026-07-29, 0027 — invoker + RLS self read)
-- [ ] 코스 v2: 실좌표 + 지도 SDK(react-native-maps 이미 조건부 로드 구조 있음 — getMaps()) · 지오 거리 정렬 · routes.trace/desc DB 이전
+- [ ] 코스 v2: 실좌표 + **네이버 지도** (2026-07-29 SDK 채택·라이브 2화면 적용 완료 — getNaverMap()) · 코스별 실좌표 데이터 작성이 선행 (routes.trace는 0..1 스키마틱) · 지오 거리 정렬 · trace/desc DB 이전
 - [ ] 사진 공개 동의 UI → 코스 공개 갤러리 (러닝 후 '이 사진을 코스 갤러리에 공개할까요?')
 - [ ] 장비 v2: 관리자 검수 인증 · 샵 연동
 - [ ] fit(코스 적합도) 실화 — 매칭 엔진 v2 (견종·체중·에너지 레벨 × 코스 특성)

@@ -7,7 +7,7 @@ import { Monogram, Row, Skeleton } from '../../src/components/ui';
 import { CoursePatch, fetchPatchPop, fetchRunReport, fetchRunStandings, RunReport, RunStandings, shareRunToFeed } from '../../src/lib/api';
 import { haptic } from '../../src/lib/haptics';
 import { useDisplayFont } from '../../src/lib/displayFont';
-import { getMaps } from '../../src/lib/geo';
+import { getNaverMap } from '../../src/lib/geo';
 import { draft, TracePoint } from '../../src/store';
 import { colors } from '../../src/theme';
 
@@ -201,25 +201,37 @@ export default function Report() {
 
             {/* ---------- 러닝 경로 (실트레이스) ---------- */}
             {run.trace.length > 1 && (() => {
-              const maps = getMaps();
+              const maps = getNaverMap(); // 네이버 지도 (2026-07-29)
               if (maps) {
                 const lats = run.trace.map((p) => p.lat);
                 const lngs = run.trace.map((p) => p.lng);
-                const region = {
+                const latDelta = Math.max((Math.max(...lats) - Math.min(...lats)) * 1.4, 0.004);
+                const camera = {
                   latitude: (Math.min(...lats) + Math.max(...lats)) / 2,
                   longitude: (Math.min(...lngs) + Math.max(...lngs)) / 2,
-                  latitudeDelta: Math.max((Math.max(...lats) - Math.min(...lats)) * 1.4, 0.004),
-                  longitudeDelta: Math.max((Math.max(...lngs) - Math.min(...lngs)) * 1.4, 0.004),
+                  // 바운즈 → 네이버 줌 근사: zoom = log2(360/latΔ), 10~17 클램프
+                  zoom: Math.min(17, Math.max(10, Math.log2(360 / latDelta))),
                 };
                 return (
                   <View style={{ height: 190, backgroundColor: '#fff' }}>
-                    <maps.MapView style={{ flex: 1 }} region={region} scrollEnabled={false} zoomEnabled={false} pitchEnabled={false} rotateEnabled={false}>
-                      <maps.Polyline
-                        coordinates={run.trace.map((p) => ({ latitude: p.lat, longitude: p.lng }))}
-                        strokeColor={colors.voltDeep}
-                        strokeWidth={4}
+                    <maps.NaverMapView
+                      style={{ flex: 1 }}
+                      camera={camera}
+                      isShowLocationButton={false}
+                      isShowCompass={false}
+                      isShowScaleBar={false}
+                      isShowZoomControls={false}
+                      isScrollGesturesEnabled={false}
+                      isZoomGesturesEnabled={false}
+                      isTiltGesturesEnabled={false}
+                      isRotateGesturesEnabled={false}
+                    >
+                      <maps.NaverMapPolylineOverlay
+                        coords={run.trace.map((p) => ({ latitude: p.lat, longitude: p.lng }))}
+                        color={colors.voltDeep}
+                        width={4}
                       />
-                    </maps.MapView>
+                    </maps.NaverMapView>
                   </View>
                 );
               }

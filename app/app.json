@@ -40,6 +40,22 @@
       "expo-router",
       "expo-web-browser",
       [
+        "@mj-studio/react-native-naver-map",
+        {
+          "client_id": "3vpkxtglpe"
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "extraMavenRepos": [
+              "https://repository.map.naver.com/archive/maven"
+            ]
+          }
+        }
+      ],
+      [
         "expo-image-picker",
         {
           "photosPermission": "프로필과 러닝 사진을 위해 사진 보관함에 접근해요.",

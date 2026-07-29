@@ -30,12 +30,19 @@ export async function startTracking(onFix: (p: GeoPoint) => void): Promise<null 
   } catch { return null; }
 }
 
-// 지연 로드 MapView — 없으면 null (호출측이 데모 지도 폴백)
-export function getMaps(): null | { MapView: any; Marker: any; Polyline: any } {
+// 지연 로드 네이버 지도 (2026-07-29 — react-native-maps 은퇴) — 없으면 null (호출측이 대기 화면 폴백).
+// 한국 지도 충실도(공원 내부·하천변 산책로)가 애플/구글보다 월등 — 코스가 사는 곳이 정확히 거기다.
+// 클라이언트 ID는 app.json 플러그인 설정 (시크릿은 앱에 넣지 않는다 — 서버 REST 전용).
+export function getNaverMap(): null | { NaverMapView: any; NaverMapPolylineOverlay: any; NaverMapMarkerOverlay: any } {
   try {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const M = require('react-native-maps');
-    return { MapView: M.default, Marker: M.Marker, Polyline: M.Polyline };
+    const M = require('@mj-studio/react-native-naver-map');
+    if (!M?.NaverMapView) return null;
+    return {
+      NaverMapView: M.NaverMapView,
+      NaverMapPolylineOverlay: M.NaverMapPolylineOverlay,
+      NaverMapMarkerOverlay: M.NaverMapMarkerOverlay,
+    };
   } catch { return null; }
 }
 
