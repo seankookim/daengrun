@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>컬러 리바이탈라이즈 — 볼트 단색 탈출 5제안</title>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--forest:#0F1D13;--volt:#C6F542;--voltDeep:#7FA818;--tang:#FF5C3D;--amber:#F59A43;--blue:#6E9BC5;
+--vio:#7B6CDF;--vioDeep:#5A4BC7;--vioTint:#EFECFF;
+--cream:#F8F6F0;--line:#DCD6C4;
+--gold:#D9A93C;--goldDeep:#B8860B;--goldTint:#FBF3DD;
+--terra:#C96F4A;--terraDeep:#A85536;--terraTint:#FBEEE7;
+--sky:#5BB8D4;--rose:#E58BA9;--moss:#8AA84E;}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#141811;color:var(--cream);font-family:'IBM Plex Sans KR',sans-serif;padding:34px 26px 80px}
+.bhs{font-family:'Black Han Sans',sans-serif;font-weight:400}
+h1{font-size:28px;color:var(--volt)}
+.lede{color:#8fa093;margin:10px 0 4px;max-width:900px;line-height:1.6;font-size:14px}
+.rowwrap{display:flex;gap:24px;flex-wrap:wrap;margin-top:22px}
+.opt{width:392px}
+.optlabel{display:flex;gap:8px;align-items:center;margin-bottom:10px}
+.optlabel .tag{background:var(--volt);color:var(--forest);font-weight:800;font-size:12px;border-radius:99px;padding:3px 10px}
+.optlabel b{font-size:16px}
+.optnote{color:#8fa093;font-size:12.5px;line-height:1.55;margin:9px 2px 0}
+.stage{background:var(--cream);border-radius:24px;padding:15px 14px;color:var(--forest)}
+.card{background:#fff;border:1.5px solid var(--line);border-radius:16px;padding:12px 13px}
+/* P1 강아지 칼라 */
+.dogrow{display:flex;gap:12px}
+.dog{flex:1;text-align:center}
+.dring{width:56px;height:56px;border-radius:50%;margin:0 auto;display:flex;align-items:center;justify-content:center;font-size:24px;background:#EDE8DA}
+.dog b{display:block;font-size:12.5px;margin-top:5px}
+.dog span{font-size:10px;color:#75806f}
+.tracebox{margin-top:10px;background:#0F1D13;border-radius:12px;padding:8px;display:flex;gap:8px}
+.tracebox svg{flex:1}
+/* P2 패치 */
+.patchrow{display:flex;gap:9px;justify-content:space-between}
+.patch{width:62px;height:62px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;border:3px solid rgba(255,255,255,.5);box-shadow:0 2px 6px rgba(0,0,0,.18)}
+.patch b{font-size:14px;font-weight:900}
+.patch span{font-size:7px;letter-spacing:.5px;opacity:.85}
+/* P3 골드 */
+.pbcard{background:linear-gradient(135deg,#1a1408,#0F1D13);border-radius:16px;padding:13px 14px;color:#fff;position:relative;overflow:hidden}
+.pbcard::after{content:'';position:absolute;top:-40%;bottom:-40%;width:46px;left:64%;background:linear-gradient(100deg,transparent,rgba(217,169,60,.28),transparent);transform:rotate(14deg)}
+.pbtag{display:inline-block;background:var(--gold);color:#1a1408;font-weight:900;font-size:10px;letter-spacing:1.5px;border-radius:99px;padding:3px 9px}
+.pbcard h4{font-size:16px;font-weight:900;margin-top:7px;color:var(--goldTint)}
+.pbcard p{font-size:12.5px;color:#C9BC97;margin-top:3px}
+.goldstamp{position:absolute;right:12px;bottom:10px;border:2.5px solid var(--gold);color:var(--gold);border-radius:8px;font-size:10px;font-weight:900;letter-spacing:2px;padding:3px 9px;transform:rotate(-8deg);opacity:.9}
+/* P4 소인 */
+.alrow{display:flex;gap:10px;align-items:center;padding:8px 4px;border-bottom:1px solid #EFECE2}
+.postmark{width:44px;height:44px;border-radius:50%;border:2px solid;display:flex;flex-direction:column;align-items:center;justify-content:center;transform:rotate(-6deg);flex:none}
+.postmark b{font-size:11px;font-weight:900}
+.postmark span{font-size:6px;letter-spacing:.5px}
+.alrow .tx{flex:1}
+.alrow .tx b{font-size:13.5px}
+.alrow .tx p{font-size:11.5px;color:#75806f;margin-top:1px}
+/* P5 샵 */
+.shopcard{background:linear-gradient(150deg,#FBEEE7,#fff);border:1.5px solid #E8CDBE;border-radius:16px;padding:13px 14px}
+.shoptag{display:inline-block;background:var(--terra);color:#fff;font-weight:900;font-size:10px;letter-spacing:1.5px;border-radius:99px;padding:3px 9px}
+.shopcard h4{font-size:15.5px;font-weight:900;margin-top:6px;color:#6B3A24}
+.shopcard p{font-size:12.5px;color:#A87A62;margin-top:2px}
+.shopcta{display:inline-block;background:var(--terra);color:#fff;border-radius:99px;font-weight:900;font-size:12.5px;padding:7px 13px;margin-top:9px}
+/* 컬러맵 */
+.map{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.sw{display:flex;align-items:center;gap:7px;background:#1d251c;border-radius:12px;padding:7px 12px}
+.sw i{width:16px;height:16px;border-radius:5px}
+.sw span{font-size:12px;color:#c8d0c2}
+</style>
+</head>
+<body>
+<h1 class="bhs">컬러 리바이탈라이즈 — 5제안</h1>
+<p class="lede">원칙: 무지개 금지 — 새 컬러는 <b>의미(semantic job)</b>를 가질 때만 들어온다. 지금 맵: 볼트=개인 러닝/브랜드, 코랄=라이브·긴급, 앰버=응답 대기, 블루=완주, 바이올렛=클럽. 아래 5곳이 볼트 단색에 눌려 있는데, 각각 '자기 색을 가질 자격'이 있는 표면입니다.</p>
+
+<div class="rowwrap">
+
+<div class="opt">
+  <div class="optlabel"><span class="tag">P1</span><b>강아지 칼라 컬러 (퍼스널라이즈) ★</b></div>
+  <div class="stage"><div class="card">
+    <div class="dogrow">
+      <div class="dog"><div class="dring" style="border:3.5px solid var(--tang)">🐕</div><b>몽이</b><span>탠저린 칼라</span></div>
+      <div class="dog"><div class="dring" style="border:3.5px solid var(--sky)">🐩</div><b>초코</b><span>스카이 칼라</span></div>
+      <div class="dog"><div class="dring" style="border:3.5px solid var(--rose)">🦮</div><b>보리</b><span>로즈 칼라</span></div>
+    </div>
+    <div class="tracebox">
+      <svg viewBox="0 0 80 34"><polyline points="6,28 22,12 38,20 56,6 74,14" fill="none" stroke="#FF5C3D" stroke-width="3" stroke-linecap="round"/></svg>
+      <svg viewBox="0 0 80 34"><polyline points="6,24 20,8 40,26 58,10 74,18" fill="none" stroke="#5BB8D4" stroke-width="3" stroke-linecap="round"/></svg>
+    </div>
+  </div></div>
+  <p class="optnote">보호자가 강아지마다 '칼라(목줄) 컬러'를 고름 (8색 팔레트) — 아바타 링·트레이스 선·일정 카드 도트·피드 런 카드가 그 강아지의 색으로. 다견 가정에서 한 눈 구분 + 내 새끼 커스텀의 애착. 앱 전체가 유저 데이터로 다색이 됨 = 가장 근본적인 탈단색.</p>
+</div>
+
+<div class="opt">
+  <div class="optlabel"><span class="tag">P2</span><b>패치 = 스카우트 배지 월드</b></div>
+  <div class="stage"><div class="card">
+    <div class="patchrow">
+      <div class="patch" style="background:linear-gradient(160deg,#C96F4A,#A85536)"><b>3K</b><span>TRAIL</span></div>
+      <div class="patch" style="background:linear-gradient(160deg,#7FA818,#5a7a3c)"><b>5K</b><span>FOREST</span></div>
+      <div class="patch" style="background:linear-gradient(160deg,#5BB8D4,#3D8FA8)"><b>7K</b><span>RIVER</span></div>
+      <div class="patch" style="background:linear-gradient(160deg,#7B6CDF,#5A4BC7)"><b>10K</b><span>NIGHT</span></div>
+      <div class="patch" style="background:linear-gradient(160deg,#D9A93C,#B8860B)"><b>21K</b><span>HALF</span></div>
+    </div>
+  </div></div>
+  <p class="optnote">거리 등급마다 색 세계 — 3K 테라(흙길)→5K 포레스트→7K 리버 스카이→10K 나이트 바이올렛→하프 골드. 수집 화면이 진짜 '배지 보드'가 되고, 완료 카드·피드의 패치도 등급색으로. 수집욕 = 색을 모으는 욕구.</p>
+</div>
+
+<div class="opt">
+  <div class="optlabel"><span class="tag">P3</span><b>기록 골드 (PB·마일스톤 전용)</b></div>
+  <div class="stage"><div class="pbcard">
+    <span class="pbtag">PERSONAL BEST</span>
+    <h4>몽이 5km 최고 기록 경신! 🏆</h4>
+    <p>27'12" — 지난 기록보다 1'08" 단축</p>
+    <div class="goldstamp">NEW RECORD</div>
+  </div></div>
+  <p class="optnote">골드는 오직 기록의 순간에만: PB 경신, 10회 완주, 100km 누적, 스트릭. 리포트 히어로·피드 마일스톤 카드·NEW RECORD 도장이 골드로 — 희소해서 귀한 색. 볼트가 일상이면 골드는 사건.</p>
+</div>
+
+<div class="opt">
+  <div class="optlabel"><span class="tag">P4</span><b>알림 소인 컬러 시스템</b></div>
+  <div class="stage"><div class="card">
+    <div class="alrow"><div class="postmark" style="border-color:var(--voltDeep);color:var(--voltDeep)"><b>7.29</b><span>BOOKING</span></div><div class="tx"><b>러닝이 확정됐어요</b><p>몽이 · 토 07:00 · 지훈 러너</p></div></div>
+    <div class="alrow"><div class="postmark" style="border-color:var(--vio);color:var(--vio)"><b>7.29</b><span>CLUB</span></div><div class="tx"><b>반포동 하이클럽 리캡 도착</b><p>이번 세션 5팀 완주 🐾</p></div></div>
+    <div class="alrow"><div class="postmark" style="border-color:var(--amber);color:var(--amber)"><b>7.28</b><span>CHANGE</span></div><div class="tx"><b>일정 변경 제안</b><p>토 07:00 → 08:00 · 수락 대기</p></div></div>
+    <div class="alrow" style="border-bottom:0"><div class="postmark" style="border-color:var(--gold);color:var(--goldDeep)"><b>7.26</b><span>RECORD</span></div><div class="tx"><b>🏆 100km 누적 달성</b><p>몽이의 세 번째 마일스톤</p></div></div>
+  </div></div>
+  <p class="optnote">이미 있는 날짜 소인에 종류별 잉크색만 입힘 — 예약=그린, 클럽=바이올렛, 변경=앰버, 기록=골드. 인박스가 스캔 한 번에 분류됨. 구현 비용 최소 (기존 kind 필드 그대로).</p>
+</div>
+
+<div class="opt">
+  <div class="optlabel"><span class="tag">P5</span><b>샵 = 테라코타 부티크</b></div>
+  <div class="stage"><div class="shopcard">
+    <span class="shoptag">DOGS HIGH GEAR</span>
+    <h4>러닝 하네스 · 몽이 전용 각인</h4>
+    <p>완주 10회 기념 — 골드 태그 무료 각인</p>
+    <span class="shopcta">부티크 구경하기 ›</span>
+  </div></div>
+  <p class="optnote">샵은 서비스가 아니라 리테일 — 웜 테라코타·크래프트 종이 톤으로 '부티크' 온도 분리. 굿즈 사진이 잘 사는 배경색이기도 함. 러닝 플로우와 완전 분리된 표면이라 충돌 리스크 0.</p>
+</div>
+</div>
+
+<p class="lede" style="margin-top:36px;border-top:1px solid #2c3a2c;padding-top:16px"><b style="color:var(--volt)">추천 순서: P1 → P4 → P3.</b> P1(강아지 칼라)이 가장 근본적 — 유저가 고른 색이 앱 전체에 흐르니 화면마다 다른 생기가 돌고, 애착 기능이라 리텐션에도 직결. P4는 반나절 작업으로 인박스가 살아나는 가성비. P3 골드는 희소 운용이 생명. P2·P5는 그 다음 웨이브. 결과 컬러맵:</p>
+<div class="map">
+  <div class="sw"><i style="background:#C6F542"></i><span>볼트 — 개인 러닝·브랜드</span></div>
+  <div class="sw"><i style="background:#FF5C3D"></i><span>코랄 — 라이브·긴급</span></div>
+  <div class="sw"><i style="background:#F59A43"></i><span>앰버 — 대기·변경</span></div>
+  <div class="sw"><i style="background:#6E9BC5"></i><span>블루 — 완주</span></div>
+  <div class="sw"><i style="background:#7B6CDF"></i><span>바이올렛 — 클럽</span></div>
+  <div class="sw"><i style="background:#D9A93C"></i><span>골드 — 기록·마일스톤</span></div>
+  <div class="sw"><i style="background:#C96F4A"></i><span>테라 — 샵·굿즈</span></div>
+  <div class="sw"><i style="background:linear-gradient(90deg,#FF5C3D,#5BB8D4,#E58BA9)"></i><span>칼라 8색 — 강아지 퍼스널</span></div>
+</div>
+</body>
+</html>
