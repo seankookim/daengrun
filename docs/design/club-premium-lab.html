@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>하이클럽 프리미엄 리디자인 — 3방향 (샤프 코너)</title>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{--forest:#0F1D13;--volt:#C6F542;--cream:#F8F6F0;--line:#DCD6C4;--dim:#5B594A;
+--club:#7B6CDF;--clubDeep:#5A4BC7;--clubInk:#4A3DA8;--clubTint:#EFECFF;--night:#14102B;--neon:#9F8FFF;}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#111511;color:var(--cream);font-family:'IBM Plex Sans KR',sans-serif;padding:32px 26px 90px}
+.bhs{font-family:'Black Han Sans',sans-serif;font-weight:400}
+.mono{font-family:'IBM Plex Mono',monospace}
+h1{font-size:27px;color:var(--volt)}
+h2{font-size:18px;margin:40px 0 2px;letter-spacing:.5px}
+.lede{color:#8fa093;margin:9px 0 4px;max-width:920px;line-height:1.6;font-size:13.5px}
+.pair{display:flex;gap:22px;flex-wrap:wrap;margin-top:16px}
+.shot{width:352px}
+.shotlabel{font-size:12px;color:#8fa093;margin-bottom:8px;letter-spacing:1px}
+.note{color:#8fa093;font-size:12.5px;line-height:1.6;margin:10px 2px 0;max-width:352px}
+.stage{background:var(--cream);padding:16px 14px;color:var(--forest)}
+/* ═══════════ D1 — 레이스 프로그램 (에디토리얼 프린트) ═══════════ */
+.d1 .stage{background:#F6F3EA}
+.d1-mast{display:flex;justify-content:space-between;align-items:baseline;border-bottom:3px solid var(--forest);padding-bottom:8px}
+.d1-mast h3{font-size:23px;letter-spacing:-.5px}
+.d1-mast .no{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:700;color:var(--clubInk)}
+.d1-row{display:flex;border-bottom:1px solid #C9C3B2;padding:12px 0;gap:14px;align-items:baseline}
+.d1-idx{font-family:'IBM Plex Mono',monospace;font-size:11px;color:#9a978a;width:26px;flex:none}
+.d1-big{font-size:44px;line-height:.95;letter-spacing:-1px}
+.d1-big em{font-style:normal;color:var(--clubDeep)}
+.d1-meta{font-size:12.5px;color:#5B594A;line-height:1.5}
+.d1-meta b{color:var(--forest)}
+.d1-cta{display:flex;margin-top:14px}
+.d1-cta a{flex:1;text-align:center;background:var(--forest);color:#fff;font-weight:900;font-size:14.5px;padding:15px 0;letter-spacing:1px}
+.d1-cta a.v{background:var(--clubDeep)}
+.d1-tag{display:inline-block;border:1.5px solid var(--forest);font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:700;letter-spacing:2px;padding:3px 8px;margin-bottom:10px}
+.d1-photo{height:118px;background:linear-gradient(160deg,#5b7a4a,#26382a 70%);position:relative;margin:12px 0 0}
+.d1-photo::after{content:'BANPO · SEOUL';position:absolute;right:10px;bottom:8px;font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:3px;color:rgba(255,255,255,.75)}
+.d1-over{position:absolute;left:12px;top:12px;color:#fff}
+.d1-over .k{font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:2.5px;color:var(--volt)}
+.d1-over h4{font-size:30px;line-height:1;margin-top:4px}
+/* 참가자 리스트 — 명부 스타일 */
+.d1-p{display:flex;align-items:baseline;gap:10px;padding:9px 0;border-bottom:1px solid #C9C3B2}
+.d1-p .bib{font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:700;width:34px;color:var(--clubDeep)}
+.d1-p .nm{flex:1;font-size:14.5px;font-weight:700}
+.d1-p .rl{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:1.5px;color:#75806f}
+.d1-p .rl.host{color:var(--clubDeep)}
+/* ═══════════ D2 — 나이트 스텁 (콘서트 티켓) ═══════════ */
+.d2 .stage{background:#0D0A1E;color:#EDE9FF}
+.d2-card{background:var(--night);border:1px solid #2A2350;position:relative}
+.d2-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(180deg,var(--neon),var(--clubDeep))}
+.d2-head{padding:15px 16px 12px;border-bottom:1px dashed #3A3168;position:relative}
+.d2-head::after,.d2-head::before{content:'';position:absolute;bottom:-6px;width:12px;height:12px;background:#0D0A1E;transform:rotate(45deg)}
+.d2-head::before{left:-7px}.d2-head::after{right:-7px}
+.d2-k{font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:3px;color:var(--neon)}
+.d2-head h3{font-size:26px;color:#fff;margin-top:5px}
+.d2-head .sub{font-size:12px;color:#8F86C2;margin-top:3px}
+.d2-body{padding:13px 16px}
+.d2-grid{display:flex;gap:0;border:1px solid #2A2350}
+.d2-grid div{flex:1;padding:9px 10px;border-right:1px solid #2A2350}
+.d2-grid div:last-child{border-right:0}
+.d2-grid span{display:block;font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:1.5px;color:#8F86C2}
+.d2-grid b{display:block;font-size:15px;color:#fff;margin-top:3px;font-weight:800}
+.d2-cta{display:block;text-align:center;background:linear-gradient(95deg,var(--neon),var(--clubDeep));color:#fff;font-weight:900;font-size:14.5px;padding:14px 0;margin-top:12px;letter-spacing:1px;box-shadow:0 0 22px rgba(159,143,255,.35)}
+.d2-bar{display:flex;gap:2px;align-items:flex-end;height:26px;margin-top:12px;opacity:.8}
+.d2-bar i{background:#8F86C2;width:2px}
+.d2-bar i:nth-child(3n){width:4px}
+.d2-bar i:nth-child(4n){height:60%}
+.d2-p{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #221C42}
+.d2-p .nm{flex:1;font-size:13.5px;font-weight:700;color:#EDE9FF}
+.d2-p .rl{font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:1.5px;color:#8F86C2}
+.d2-p .rl.on{color:var(--neon)}
+.d2-checked{font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:1.5px;color:var(--volt);border:1px solid var(--volt);padding:2px 6px}
+/* ═══════════ D3 — 스위스 그리드 (화이트 브루탈) ═══════════ */
+.d3 .stage{background:#FFFFFF}
+.d3-frame{border:2.5px solid var(--forest)}
+.d3-cell{border-bottom:2.5px solid var(--forest);padding:12px 13px}
+.d3-cell:last-child{border-bottom:0}
+.d3-split{display:flex}
+.d3-split .d3-cell{flex:1;border-bottom:0;border-right:2.5px solid var(--forest)}
+.d3-split .d3-cell:last-child{border-right:0}
+.d3-k{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:2.5px;color:#8a8578}
+.d3-huge{font-size:52px;line-height:.95;letter-spacing:-1.5px;margin-top:4px}
+.d3-huge em{font-style:normal;color:var(--club)}
+.d3-mid{font-size:21px;margin-top:4px;line-height:1.05}
+.d3-body{font-size:12.5px;color:#5B594A;margin-top:4px;line-height:1.5}
+.d3-cta{display:block;text-align:center;background:var(--club);color:#fff;font-weight:900;font-size:15px;padding:15px 0;letter-spacing:1px}
+.d3-cta.ghost{background:#fff;color:var(--forest);border-top:2.5px solid var(--forest)}
+.d3-p{display:flex;align-items:baseline;gap:10px;padding:7px 0}
+.d3-p+.d3-p{border-top:1px solid #E3E0D6}
+.d3-p .bib{font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:700;color:var(--club);width:30px}
+.d3-p .nm{flex:1;font-size:14px;font-weight:700}
+.d3-p .rl{font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:1.5px;color:#8a8578}
+</style>
+</head>
+<body>
+<h1 class="bhs">하이클럽 프리미엄 리디자인 — 3방향</h1>
+<p class="lede">지시 반영: <b>소프트 코너 컷</b> (라운드 카드 은퇴), 'AI스러운' 균질한 카드 수프 탈피. 세 방향 모두 홈 배너 모듈 + 세션 티켓 두 화면에 적용 — 방향이 정해지면 클럽 전 화면(페이지·수요 모듈·리그)에 확장합니다.</p>
+
+<!-- ═══════════ D1 ═══════════ -->
+<h2 class="bhs" style="color:#F6F3EA">D1 — 레이스 프로그램 <span style="font-size:12px;color:#8fa093">에디토리얼 프린트 · 대회 팸플릿</span></h2>
+<div class="pair d1">
+  <div class="shot">
+    <div class="shotlabel">홈 모듈</div>
+    <div class="stage">
+      <div class="d1-mast"><h3 class="bhs">하이클럽</h3><span class="no">HIGH CLUB · BANPO VOL.04</span></div>
+      <div class="d1-photo"><div class="d1-over"><div class="k">NEXT SESSION</div><h4 class="bhs">토 09:00</h4></div></div>
+      <div class="d1-row">
+        <span class="d1-idx">01</span>
+        <div style="flex:1">
+          <div class="d1-big bhs">반포동 <em>3</em>팀</div>
+          <div class="d1-meta" style="margin-top:4px"><b>잠수교 북단 계단 앞</b> · 2자리 남음 · ⟳ 매주 토</div>
+        </div>
+      </div>
+      <div class="d1-cta"><a class="v">참여하기</a></div>
+    </div>
+    <p class="note">대회 프로그램 북 문법 — 마스트헤드 + 인덱스 넘버 + 거대 활자. 사진은 하드 크롭(코너 0), 정보는 룰 라인으로만 구획. 볼트는 사진 위 킥커 한 줄만.</p>
+  </div>
+  <div class="shot">
+    <div class="shotlabel">세션 티켓</div>
+    <div class="stage">
+      <span class="d1-tag">RACE DAY · D-1</span>
+      <div class="d1-big bhs" style="font-size:38px">토 09:00 <em>·</em> 잠수교 북단</div>
+      <div class="d1-meta" style="margin-top:6px">호스트 <b>션 러너</b> · 정원 9 · 하이-베리파이드</div>
+      <div style="margin-top:14px">
+        <div class="d1-p"><span class="bib">001</span><span class="nm">션</span><span class="rl host">HOST·PACE LEAD</span></div>
+        <div class="d1-p"><span class="bib">002</span><span class="nm">지은 + 보리</span><span class="rl">OWNER</span></div>
+        <div class="d1-p"><span class="bib">003</span><span class="nm">민수 + 콩이</span><span class="rl">OWNER</span></div>
+      </div>
+      <div class="d1-cta"><a class="v">참여하기 — 동의문 확인</a><a>﹢</a></div>
+    </div>
+    <p class="note">참가자 = 출전 명부: 빕 넘버(001~)가 자동 부여되는 기분. 체크인하면 빕 넘버가 바이올렛 반전. 프리미엄인데 인쇄물처럼 정직함.</p>
+  </div>
+</div>
+
+<!-- ═══════════ D2 ═══════════ -->
+<h2 class="bhs" style="color:#EDE9FF">D2 — 나이트 스텁 <span style="font-size:12px;color:#8fa093">'하이클럽'이라는 이름 그대로 · 콘서트 티켓</span></h2>
+<div class="pair d2">
+  <div class="shot">
+    <div class="shotlabel">홈 모듈</div>
+    <div class="stage">
+      <div class="d2-card">
+        <div class="d2-head">
+          <div class="d2-k">HIGH CLUB — BANPO</div>
+          <h3 class="bhs">반포동 하이클럽</h3>
+          <div class="sub">다음 세션 토 09:00 · 3팀 참여 중 · 2자리</div>
+        </div>
+        <div class="d2-body">
+          <div class="d2-grid">
+            <div><span>DATE</span><b>SAT 09:00</b></div>
+            <div><span>MEET</span><b>잠수교 북단</b></div>
+            <div><span>SEAT</span><b>2 LEFT</b></div>
+          </div>
+          <a class="d2-cta">참여하기</a>
+          <div class="d2-bar"><i style="height:100%"></i><i style="height:70%"></i><i style="height:100%"></i><i style="height:50%"></i><i style="height:90%"></i><i style="height:100%"></i><i style="height:60%"></i><i style="height:100%"></i><i style="height:80%"></i><i style="height:100%"></i><i style="height:55%"></i><i style="height:95%"></i><i style="height:100%"></i><i style="height:70%"></i><i style="height:100%"></i><i style="height:85%"></i><i style="height:60%"></i><i style="height:100%"></i></div>
+        </div>
+      </div>
+    </div>
+    <p class="note">클럽 = 밤의 티켓. 다크 바이올렛 스텁, 좌측 네온 엣지, 절취 다이아 노치(샤프), 바코드. 크림 앱에서 이 모듈만 다른 세계 — 시선 강탈이 목적.</p>
+  </div>
+  <div class="shot">
+    <div class="shotlabel">세션 티켓</div>
+    <div class="stage">
+      <div class="d2-card">
+        <div class="d2-head">
+          <div class="d2-k">ADMIT — TEAM OF 2 (YOU + DOG)</div>
+          <h3 class="bhs">토 09:00 · 잠수교 북단</h3>
+          <div class="sub">호스트 션 러너 · 정원 9 · D-1</div>
+        </div>
+        <div class="d2-body">
+          <div class="d2-p"><span class="nm">션</span><span class="rl on">HOST · PACE LEAD</span></div>
+          <div class="d2-p"><span class="nm">지은 + 보리</span><span class="d2-checked">CHECKED</span></div>
+          <div class="d2-p"><span class="nm">민수 + 콩이</span><span class="rl">OWNER</span></div>
+          <a class="d2-cta">✓ 집결지 도착 체크인</a>
+        </div>
+      </div>
+    </div>
+    <p class="note">'ADMIT — TEAM OF 2 (YOU + DOG)' — 입장권 언어가 곧 책임 불변식. 체크인 = 볼트 스탬프 (다크 위에서 볼트가 유일한 그린 — 브랜드 앵커).</p>
+  </div>
+</div>
+
+<!-- ═══════════ D3 ═══════════ -->
+<h2 class="bhs" style="color:#fff">D3 — 스위스 그리드 <span style="font-size:12px;color:#8fa093">화이트 브루탈 · 룰 라인이 곧 디자인</span></h2>
+<div class="pair d3">
+  <div class="shot">
+    <div class="shotlabel">홈 모듈</div>
+    <div class="stage">
+      <div class="d3-frame">
+        <div class="d3-cell">
+          <div class="d3-k">HIGH CLUB — 반포동 · OFFICIAL</div>
+          <div class="d3-huge bhs">토 <em>09:00</em></div>
+        </div>
+        <div class="d3-split">
+          <div class="d3-cell"><div class="d3-k">MEET</div><div class="d3-mid bhs">잠수교 북단</div></div>
+          <div class="d3-cell"><div class="d3-k">TEAMS</div><div class="d3-mid bhs">3 <span style="font-size:13px;color:#8a8578">/ 9</span></div></div>
+        </div>
+        <a class="d3-cta">참여하기</a>
+      </div>
+    </div>
+    <p class="note">2.5px 블랙 프레임 + 셀 분할 — 카드가 아니라 지면. 초대형 시간 활자에 바이올렛은 숫자 하나. 가장 '심플한데 프리미엄', AI-룩과 가장 멀다.</p>
+  </div>
+  <div class="shot">
+    <div class="shotlabel">세션 티켓</div>
+    <div class="stage">
+      <div class="d3-frame">
+        <div class="d3-cell">
+          <div class="d3-k">SESSION — D-1 · HOST 션 RUNNER</div>
+          <div class="d3-huge bhs" style="font-size:40px">잠수교 북단</div>
+          <div class="d3-body">토 09:00 · 정원 9 · ⟳ 매주 정기</div>
+        </div>
+        <div class="d3-cell">
+          <div class="d3-k" style="margin-bottom:5px">ENTRY LIST — 3 TEAMS</div>
+          <div class="d3-p"><span class="bib">01</span><span class="nm">션</span><span class="rl" style="color:var(--club)">HOST</span></div>
+          <div class="d3-p"><span class="bib">02</span><span class="nm">지은 + 보리</span><span class="rl">OWNER</span></div>
+          <div class="d3-p"><span class="bib">03</span><span class="nm">민수 + 콩이</span><span class="rl">OWNER</span></div>
+        </div>
+        <a class="d3-cta">참여하기 — 동의문 확인</a>
+        <a class="d3-cta ghost">참여 중 — 취소하려면 탭</a>
+      </div>
+    </div>
+    <p class="note">모든 상태(참여/취소/체크인 완료)가 프레임 하단 풀와이드 바 하나로 — 상태 머신이 한 자리에서 갈아끼워짐. 구현도 가장 단순.</p>
+  </div>
+</div>
+
+<p class="lede" style="margin-top:38px;border-top:1px solid #2c3a2c;padding-top:16px">
+<b style="color:var(--volt)">추천: D3 스위스 그리드를 베이스로, D2의 네온 CTA 그라디언트만 이식.</b> D3가 '심플한데 팬태스틱'에 가장 부합하고 (룰 라인 = 구조가 곧 장식, 라운드 0), 다크 앱이 아닌 크림 앱과도 자연스럽게 공존합니다. D1은 두 번째 추천 — 인증샷·공유 포맷에는 D1 문법이 더 강해서, 화면은 D3 + 공유물은 D1 하이브리드도 가능. 번호(또는 조합) 주시면 클럽 전 화면에 적용합니다.
+</p>
+</body>
+</html>
