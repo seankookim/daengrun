@@ -514,7 +514,7 @@ export default function RunnerProfileScreen() {
           <Text style={s.editLabel}>이름</Text>
           <TextInput value={eName} onChangeText={setEName} style={s.editInput} maxLength={20} placeholder="이름 또는 닉네임" placeholderTextColor="#b0ada0" />
           <Text style={s.editLabel}>활동 동네</Text>
-          <TextInput value={eDistrict} onChangeText={setEDistrict} style={s.editInput} maxLength={20} placeholder="예: 성수동" placeholderTextColor="#b0ada0" />
+          <TextInput value={eDistrict} onChangeText={setEDistrict} style={s.editInput} maxLength={20} placeholder="예: 반포동" placeholderTextColor="#b0ada0" />
           <Text style={s.editLabel}>자기소개</Text>
           <TextInput
             value={eBio}

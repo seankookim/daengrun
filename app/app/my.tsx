@@ -222,7 +222,7 @@ export default function My() {
           <TextInput
             value={district}
             onChangeText={setDistrict}
-            placeholder="예: 성수동"
+            placeholder="예: 반포동"
             placeholderTextColor="#b0ada0"
             style={s.input}
             maxLength={20}

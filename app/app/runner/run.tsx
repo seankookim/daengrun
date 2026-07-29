@@ -304,7 +304,7 @@ export default function ActiveRun() {
   const endWith = (reason: EndReason) => {
     setEndSheet(false);
     if (reason === 'dog') {
-      Alert.alert('컨디션 종료', '보호자에게 알림 전송됨 · 상태 사진과 메모를 남겨주세요\n근처 동물병원: 성수동물병원 650m');
+      Alert.alert('컨디션 종료', '보호자에게 알림 전송됨 · 상태 사진과 메모를 남겨주세요\n근처 동물병원: 반포동물병원 650m');
     }
     settle(reason, false);
   };

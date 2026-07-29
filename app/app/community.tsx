@@ -2,6 +2,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Animated, Dimensions, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { BottomNav } from '../src/components/bottomnav';
+import { HeatTrace } from '../src/components/runcard';
 import { Avatar, Row } from '../src/components/ui';
 import {
   addComment, deleteFeedPost, fetchComments, fetchFeed, fetchRecentReviews,
@@ -245,14 +246,36 @@ export default function Community() {
                 <PawBurst trigger={bursts[p.id] ?? 0} />
               </Pressable>
             ) : (
-              // 사진 없는 포스트 — 스탯 스트립 유지
-              <Row style={{ gap: 10, paddingHorizontal: 16, paddingTop: 4, flexWrap: 'wrap' }}>
-                {p.meta.km != null && <Text style={{ fontSize: 18, fontWeight: '900', color: colors.tang }}>{p.meta.km}km</Text>}
-                {fmtDur(p.meta.durationSec) && <Text style={{ fontSize: 14.5, color: colors.dim, alignSelf: 'center' }}>⏱ {fmtDur(p.meta.durationSec)}</Text>}
-                {(p.meta.badges ?? []).map((b) => (
-                  <View key={b} style={[s.badge, { position: 'relative' }]}><Text style={{ fontSize: 11.5, fontWeight: '900', color: FOREST }}>{b}</Text></View>
-                ))}
-              </Row>
+              // 사진 없는 포스트 = 볼트 런 카드 (밋밋한 텍스트 스트립 은퇴 — Sean 2026-07-29).
+              // 인증샷 볼트 블록의 피드 미니어처: 큰 km + 트레이스 + 배지. 더블탭 🐾 동일 지원.
+              <Pressable onPress={() => onPhotoTap(p)}>
+                <View style={s.runCard}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.runCardKm}>
+                      {p.meta.km != null ? p.meta.km : '—'}<Text style={{ fontSize: 16, letterSpacing: 0 }}> km</Text>
+                    </Text>
+                    {p.meta.dogName && (
+                      <Text style={{ fontSize: 17, fontWeight: '900', color: FOREST, marginTop: 2 }}>{p.meta.dogName} 완주</Text>
+                    )}
+                    {fmtDur(p.meta.durationSec) && (
+                      <Text style={{ fontSize: 13.5, fontWeight: '700', color: '#3d5a2b', marginTop: 4 }}>⏱ {fmtDur(p.meta.durationSec)}</Text>
+                    )}
+                    <Row style={{ gap: 5, marginTop: 8, flexWrap: 'wrap' }}>
+                      {(p.meta.badges ?? []).map((b) => (
+                        <View key={b} style={s.runCardBadge}><Text style={{ fontSize: 11, fontWeight: '900', color: colors.volt }}>{b}</Text></View>
+                      ))}
+                    </Row>
+                  </View>
+                  {(p.meta.trace ?? []).length > 1 ? (
+                    <View style={{ justifyContent: 'center' }}>
+                      <HeatTrace points={(p.meta.trace ?? []).map((pt) => ({ ...pt, v: 0.65 }))} width={110} height={116} />
+                    </View>
+                  ) : (
+                    <Text style={{ fontSize: 40, alignSelf: 'center', opacity: 0.5 }}>🐾</Text>
+                  )}
+                  <PawBurst trigger={bursts[p.id] ?? 0} />
+                </View>
+              </Pressable>
             )}
 
             {/* ── 액션 행 (IG) */}
@@ -336,6 +359,9 @@ const s = StyleSheet.create({
   badgeCol: { position: 'absolute', top: 12, right: 12, gap: 6, alignItems: 'flex-end' },
   badge: { backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 4, paddingHorizontal: 10, alignSelf: 'center' },
   actBtn: { paddingVertical: 4, paddingHorizontal: 6 },
+  runCard: { flexDirection: 'row', gap: 12, backgroundColor: colors.volt, marginHorizontal: 0, paddingHorizontal: 18, paddingVertical: 16, overflow: 'hidden' },
+  runCardKm: { fontSize: 44, fontWeight: '900', color: FOREST, letterSpacing: -2, lineHeight: 48 },
+  runCardBadge: { backgroundColor: FOREST, borderRadius: 99, paddingVertical: 4, paddingHorizontal: 10 },
   commentsWrap: { paddingHorizontal: 16, paddingBottom: 14, borderTopWidth: 1, borderTopColor: '#f0eee3', paddingTop: 11 },
   commentInput: {
     flex: 1, backgroundColor: '#faf9f3', borderRadius: 99, borderWidth: 1, borderColor: '#DCD6C4',

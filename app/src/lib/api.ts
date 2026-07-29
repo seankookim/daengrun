@@ -1655,7 +1655,7 @@ export interface FeedPost {
   authorAvatar: string | null;
   body: string | null;
   photoUrl: string | null;
-  meta: { dogName?: string; km?: number; durationSec?: number; badges?: string[] };
+  meta: { dogName?: string; km?: number; durationSec?: number; badges?: string[]; trace?: { x: number; y: number }[] };
   when: string;
   likes: number;
   likedByMe: boolean;
@@ -1705,12 +1705,27 @@ export async function shareRunToFeed(bookingId: string, body?: string): Promise<
     if (standings.kmRank === 1) badges.push('🏆 역대 최장 거리');
     if (standings.paceRank === 1) badges.push('⚡ 역대 최고 페이스');
   }
+  // 트레이스 동봉 (2026-07-29) — 사진 없는 포스트가 '밋밋한 텍스트'가 아니라 런 카드가 되게.
+  // 정규화 0..1 + ≤40포인트 서브샘플 (meta jsonb 소형 유지)
+  let trace: { x: number; y: number }[] | undefined;
+  const raw = report.run.trace;
+  if (raw.length > 1) {
+    const lats = raw.map((p) => p.lat);
+    const lngs = raw.map((p) => p.lng);
+    const dLat = Math.max(Math.max(...lats) - Math.min(...lats), 1e-6);
+    const dLng = Math.max(Math.max(...lngs) - Math.min(...lngs), 1e-6);
+    const step = Math.max(1, Math.ceil(raw.length / 40));
+    trace = raw.filter((_, i) => i % step === 0 || i === raw.length - 1).map((p) => ({
+      x: Math.round(((p.lng - Math.min(...lngs)) / dLng) * 1000) / 1000,
+      y: Math.round((1 - (p.lat - Math.min(...lats)) / dLat) * 1000) / 1000,
+    }));
+  }
   const { error } = await supabase.from('feed_posts').insert({
     author_id: user.user.id,
     booking_id: bookingId,
     body: body ?? null,
     photo_url: report.run.photos[0] ?? null,
-    meta: { dogName: report.dogName, km: report.run.actualKm, durationSec: report.run.durationSec, badges },
+    meta: { dogName: report.dogName, km: report.run.actualKm, durationSec: report.run.durationSec, badges, trace },
   });
   if (error) {
     if (error.code === '23505') throw new Error('이미 피드에 공유한 러닝이에요');

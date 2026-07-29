@@ -85,7 +85,7 @@ export interface CollectCard {
 export const myCards: CollectCard[] = [
   {
     id: 'c1', title: '서울숲 이브닝 런', date: '7.21', tier: '일반',
-    run: { km: '5.02', pace: "6'49\"", time: '34:12', location: '서울숲, 성수동', trace: lastRunTrace },
+    run: { km: '5.02', pace: "6'49\"", time: '34:12', location: '서울숲, 반포동', trace: lastRunTrace },
   },
   { id: 'c2', title: '누적 50km 달성', date: '7.02', tier: '레어', emblem: '50' },
   { id: 'c3', title: '스트릭 12일', date: '7.21', tier: '레어', emblem: '12' },
@@ -164,7 +164,7 @@ const longTrace: TracePoint[] = [
 
 export const sampleRoutes: RouteInfo[] = [
   {
-    id: 'seoulforest-loop', name: '서울숲 순환 코스', area: '성수동', km: 5, terrain: '흙길 70%',
+    id: 'seoulforest-loop', name: '서울숲 순환 코스', area: '반포동', km: 5, terrain: '흙길 70%',
     tags: ['중형견 최적', '그늘 많음', '식수대 2곳'],
     features: [{ g: '❋', label: '공원' }, { g: '⏚', label: '흙길' }, { g: '♒', label: '식수대 2곳' }, { g: '☂', label: '그늘' }],
     fit: 96, checkedAt: '7.18 점검',
@@ -180,7 +180,7 @@ export const sampleRoutes: RouteInfo[] = [
     trace: riverTrace,
   },
   {
-    id: 'forest-short', name: '서울숲 숲길 3km', area: '성수동', km: 3, terrain: '흙길 90%',
+    id: 'forest-short', name: '서울숲 숲길 3km', area: '반포동', km: 3, terrain: '흙길 90%',
     tags: ['소형견·시니어', '완만', '조용함'],
     features: [{ g: '❋', label: '숲길' }, { g: '⏚', label: '흙길 90%' }, { g: '◡', label: '완만' }, { g: '♪', label: '조용함' }],
     fit: 82, checkedAt: '7.15 점검',
@@ -369,7 +369,7 @@ export const posts: Post[] = [
     likes: 24, comments: 6, streak: 47, run: { km: '5.02km', pace: "6'49\"", time: '34:12' },
   },
   {
-    id: 'p2', author: '초코네', char: '초', color: '#e8b04b', roleBadge: '보호자', when: '2시간 전 · 성수동',
+    id: 'p2', author: '초코네', char: '초', color: '#e8b04b', roleBadge: '보호자', when: '2시간 전 · 반포동',
     body: '퇴근하고 바디캠 다시보기 하는 중. 이 각도 실화냐',
     likes: 87, comments: 19, photo: ['#9ab87a', '#3d5229'],
   },

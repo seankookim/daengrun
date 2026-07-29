@@ -24,12 +24,12 @@ if (!URL_ || !SERVICE) { console.error('루트 .env에 SUPABASE_SERVICE_ROLE_KEY
 const H = { apikey: SERVICE, Authorization: `Bearer ${SERVICE}`, 'Content-Type': 'application/json' };
 
 const RUNNERS = [
-  { email: 'runner-jisoo@daengrun.seed', name: '지수', district: '성수동', tier: 'veteran', runs: 87, km: 402.5, pace: 395, respond: 98, bio: '3년차 러너, 대형견 전문이에요. 리트리버 두 마리와 삽니다 🐕' },
-  { email: 'runner-mina@daengrun.seed', name: '민아', district: '성수동', tier: 'certified', runs: 34, km: 148.2, pace: 430, respond: 95, bio: '아침 러닝 전문! 새벽 공기 좋아하는 아이들 환영해요' },
+  { email: 'runner-jisoo@daengrun.seed', name: '지수', district: '반포동', tier: 'veteran', runs: 87, km: 402.5, pace: 395, respond: 98, bio: '3년차 러너, 대형견 전문이에요. 리트리버 두 마리와 삽니다 🐕' },
+  { email: 'runner-mina@daengrun.seed', name: '민아', district: '반포동', tier: 'certified', runs: 34, km: 148.2, pace: 430, respond: 95, bio: '아침 러닝 전문! 새벽 공기 좋아하는 아이들 환영해요' },
   { email: 'runner-taeyun@daengrun.seed', name: '태윤', district: '뚝섬', tier: 'certified', runs: 21, km: 88.0, pace: 410, respond: 91, bio: '수의테크니션 출신. 컨디션 체크는 제가 제일 잘해요' },
-  { email: 'runner-haneul@daengrun.seed', name: '하늘', district: '성수동', tier: 'master', runs: 156, km: 731.8, pace: 385, respond: 99, bio: '댕런 1호 러너 목표! 마라톤 풀코스 3회 완주' },
+  { email: 'runner-haneul@daengrun.seed', name: '하늘', district: '반포동', tier: 'master', runs: 156, km: 731.8, pace: 385, respond: 99, bio: '댕런 1호 러너 목표! 마라톤 풀코스 3회 완주' },
   { email: 'runner-doyun@daengrun.seed', name: '도윤', district: '서울숲', tier: 'certified', runs: 12, km: 51.3, pace: 445, respond: 88, bio: '소형견·소심한 아이들 천천히 워밍업 시켜드려요' },
-  { email: 'runner-seojun@daengrun.seed', name: '서준', district: '성수동', tier: 'veteran', runs: 63, km: 289.9, pace: 405, respond: 96, bio: '간식 타임 장인. 사진 많이 찍어드립니다 📷' },
+  { email: 'runner-seojun@daengrun.seed', name: '서준', district: '반포동', tier: 'veteran', runs: 63, km: 289.9, pace: 405, respond: 96, bio: '간식 타임 장인. 사진 많이 찍어드립니다 📷' },
 ];
 
 for (const r of RUNNERS) {
