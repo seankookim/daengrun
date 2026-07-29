@@ -130,12 +130,23 @@ export default function ClubSession() {
           </View>
         </View>
 
-        {/* ---------- done: 리캡 플레이스홀더 (실집계만 — 풀 리캡은 P-B) ---------- */}
+        {/* ---------- done: 세션 리캡 (P-B — 실집계 + 리캡 내 다음 RSVP) ---------- */}
         {isDone && (
-          <View style={[s.card, { alignItems: 'center', paddingVertical: 22 }]}>
+          <View style={[s.card, { alignItems: 'center', paddingVertical: 20 }]}>
             <Text style={{ fontSize: 30 }}>🏁</Text>
-            <Text style={{ fontSize: 18, fontWeight: '900', color: FOREST, marginTop: 6 }}>오늘의 하이클럽</Text>
-            <Text style={{ fontSize: 14.5, color: '#49524a', marginTop: 4 }}>{checkedCount}팀이 함께 달렸어요</Text>
+            <Text style={[{ fontSize: 19, fontWeight: '900', color: FOREST, marginTop: 6 }, df]}>오늘의 하이클럽</Text>
+            <Text style={{ fontSize: 14.5, color: '#49524a', marginTop: 4 }}>
+              {checkedCount}팀{sess.dogCount > 0 ? ` · ${sess.dogCount}마리` : ''}가 함께 달렸어요
+            </Text>
+            <Text style={{ fontSize: 12.5, color: '#9a978a', marginTop: 3 }}>리캡이 동네 피드에 올라갔어요</Text>
+            {sess.nextSessionId && (
+              <Pressable
+                onPress={() => router.replace({ pathname: `/club/session/${sess.nextSessionId}`, params: { clubName } })}
+                style={[s.cta, { alignSelf: 'stretch' }]}
+              >
+                <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST }}>다음 세션 참여하기 ›</Text>
+              </Pressable>
+            )}
           </View>
         )}
 

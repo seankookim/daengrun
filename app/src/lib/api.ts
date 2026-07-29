@@ -1655,7 +1655,8 @@ export interface FeedPost {
   authorAvatar: string | null;
   body: string | null;
   photoUrl: string | null;
-  meta: { dogName?: string; km?: number; durationSec?: number; badges?: string[]; trace?: { x: number; y: number }[] };
+  meta: { dogName?: string; km?: number; durationSec?: number; badges?: string[]; trace?: { x: number; y: number }[];
+    club?: string; sessionId?: string; teams?: number; dogs?: number; sessionAt?: string }; // 클럽 리캡 자동 포스트 (0031)
   when: string;
   likes: number;
   likedByMe: boolean;
@@ -1717,11 +1718,35 @@ export async function fetchClubOverview(district = '반포동'): Promise<ClubOve
   return { ...data, nextSession: withWhen(data.nextSession) } as ClubOverview;
 }
 
+// 클럽 검색 (0031) — 드롭다운
+export interface ClubSearchHit { id: string; name: string; district: string; status: string; photoUrl: string | null; memberCount: number; interestCount: number; nextAt: string | null }
+export async function searchClubs(q: string): Promise<ClubSearchHit[]> {
+  const { data, error } = await supabase.rpc('club_search', { p_q: q });
+  if (error) throw error;
+  return (data ?? []) as ClubSearchHit[];
+}
+export async function requestDistrictClub(district: string): Promise<string> {
+  const { data, error } = await supabase.rpc('club_request_district', { p_district: district });
+  if (error) throw error;
+  return data as string;
+}
+export async function fetchClubMyStats(clubId: string): Promise<{ attended: number; streak: number }> {
+  const { data, error } = await supabase.rpc('club_my_stats', { p_club: clubId });
+  if (error) throw error;
+  return data as { attended: number; streak: number };
+}
+export async function fetchClubHostStats(clubId: string): Promise<{ sessions: number; totalTeams: number; returning: number }> {
+  const { data, error } = await supabase.rpc('club_host_stats', { p_club: clubId });
+  if (error) throw error;
+  return data as { sessions: number; totalTeams: number; returning: number };
+}
+
 export interface SessionPerson { name: string; avatarUrl: string | null; role: string; attendance: string; dogName: string | null }
 export interface ClubSessionDetail {
   id: string; clubId: string; scheduledAt: string; when: string; meetupPoint: string;
   status: string; capacity: number; hostName: string | null; isHost: boolean;
-  joined: boolean; myAttendance: string | null; people: SessionPerson[];
+  joined: boolean; myAttendance: string | null; dogCount: number; nextSessionId: string | null;
+  people: SessionPerson[];
 }
 
 export async function fetchClubSession(sessionId: string): Promise<ClubSessionDetail | null> {

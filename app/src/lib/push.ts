@@ -13,6 +13,7 @@ const _handledTaps = new Set<string>();
 // 알림 탭 도착지 — alerts.tsx 인박스와 단일 소스 (kind/ref_id는 0024 data 페이로드).
 // 역할별: 러너는 요청/캘린더, 보호자는 리포트(러닝 전이면 리포트가 상태 안내를 겸함).
 export function routeForNotification(kind: string | null | undefined, refId: string | null | undefined, title: string): void {
+  if (kind === 'community') { try { router.push('/community'); } catch { /* */ } return; } // 클럽 리캡 등
   if (kind !== 'booking' || !refId) return;
   try {
     if (session.role === 'runner') {

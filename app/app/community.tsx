@@ -243,8 +243,20 @@ export default function Community() {
               </Row>
             </Pressable>
 
-            {/* ── 사진 — 엣지-투-엣지 4:5 + 더블탭 🐾 + 스트라바식 스탯 오버레이 */}
-            {p.photoUrl ? (
+            {/* ── 클럽 리캡 자동 포스트 (0031 — 완료 활동이 피드를 채운다) */}
+            {p.meta.club ? (
+              <Pressable onPress={() => p.meta.sessionId && router.push(`/club/session/${p.meta.sessionId}`)}>
+                <View style={s.recapCard}>
+                  <View style={s.recapBadge}><Text style={{ fontSize: 10, fontWeight: '900', letterSpacing: 1.5, color: FOREST }}>HIGH CLUB RECAP</Text></View>
+                  <Text style={[{ fontSize: 23, fontWeight: '900', color: '#fff', marginTop: 10 }, df]}>{p.meta.club}</Text>
+                  <Text style={{ fontSize: 15, fontWeight: '800', color: colors.volt, marginTop: 5 }}>
+                    🏁 {p.meta.teams}팀{(p.meta.dogs ?? 0) > 0 ? ` · ${p.meta.dogs}마리` : ''} 함께 달림
+                  </Text>
+                  <Text style={{ fontSize: 12.5, color: '#8fa093', marginTop: 6 }}>탭해서 세션 리캡 보기 ›</Text>
+                  <PawBurst trigger={bursts[p.id] ?? 0} />
+                </View>
+              </Pressable>
+            ) : p.photoUrl ? (
               <Pressable onPress={() => onPhotoTap(p)}>
                 <Image source={{ uri: p.photoUrl }} style={{ width: W, height: W * 1.1, backgroundColor: '#DCD6C4' }} resizeMode="cover" />
                 {/* 스탯 오버레이 — 사진 위 좌하단 (스크림으로 가독) */}
@@ -387,6 +399,8 @@ const s = StyleSheet.create({
   clubStrip: { height: 88, borderRadius: 18, overflow: 'hidden', backgroundColor: '#26382a', marginHorizontal: 15, marginTop: 13 },
   clubScrim: { position: 'absolute' as const, top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(10,16,10,.34)' },
   clubPill: { backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 5, paddingHorizontal: 10 },
+  recapCard: { backgroundColor: FOREST, paddingHorizontal: 18, paddingVertical: 18 },
+  recapBadge: { backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 3, paddingHorizontal: 9, alignSelf: 'flex-start' },
   commentsWrap: { paddingHorizontal: 16, paddingBottom: 14, borderTopWidth: 1, borderTopColor: '#f0eee3', paddingTop: 11 },
   commentInput: {
     flex: 1, backgroundColor: '#faf9f3', borderRadius: 99, borderWidth: 1, borderColor: '#DCD6C4',

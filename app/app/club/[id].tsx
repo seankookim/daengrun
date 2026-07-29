@@ -3,8 +3,8 @@ import { useCallback, useState } from 'react';
 import { Alert, Image, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Row } from '../../src/components/ui';
 import {
-  claimClubHost, ClubOverview, createClubSession, fetchClubOverview,
-  registerClubInterest, uploadClubPhoto,
+  claimClubHost, ClubOverview, createClubSession, fetchClubHostStats, fetchClubMyStats,
+  fetchClubOverview, registerClubInterest, uploadClubPhoto,
 } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { haptic } from '../../src/lib/haptics';
@@ -35,8 +35,16 @@ const SLOT_PRESETS = [
 export default function ClubPage() {
   const df = useDisplayFont();
   const [club, setClub] = useState<ClubOverview | null>(null);
+  const [myStats, setMyStats] = useState<{ attended: number; streak: number } | null>(null);
+  const [hostStats, setHostStats] = useState<{ sessions: number; totalTeams: number; returning: number } | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const load = () => fetchClubOverview().then(setClub).catch(() => {});
+  const load = () => fetchClubOverview().then((c) => {
+    setClub(c);
+    if (c && c.status === 'active') {
+      fetchClubMyStats(c.id).then(setMyStats).catch(() => {});
+      fetchClubHostStats(c.id).then(setHostStats).catch(() => {});
+    }
+  }).catch(() => {});
   useFocusEffect(useCallback(() => { load(); }, []));
   const onRefresh = () => { setRefreshing(true); Promise.resolve(load()).finally(() => setRefreshing(false)); };
 
@@ -176,6 +184,36 @@ export default function ClubPage() {
             )
           )}
 
+          {/* ---------- P-B: 내 출석 (실데이터 있을 때만) ---------- */}
+          {club?.status === 'active' && myStats && myStats.attended > 0 && (
+            <View style={[s.card, { flexDirection: 'row', alignItems: 'center', gap: 12 }]}>
+              <View style={s.attendStamp}>
+                <Text style={{ fontSize: 16, fontWeight: '900', color: colors.voltDeep }}>×{myStats.attended}</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST }}>내 출석 {myStats.attended}회</Text>
+                {myStats.streak >= 2 && (
+                  <Text style={{ fontSize: 12.5, color: '#5a7a3c', marginTop: 2 }}>🔥 최근 {myStats.streak}세션 연속 출석</Text>
+                )}
+              </View>
+            </View>
+          )}
+
+          {/* ---------- P-B: 호스트 신뢰 카드 (완료 세션 있을 때만) ---------- */}
+          {club?.status === 'active' && hostStats && hostStats.sessions > 0 && (
+            <View style={s.card}>
+              <Text style={{ fontSize: 12.5, fontWeight: '800', letterSpacing: 1, color: '#75806f' }}>HOST RECORD · {club.hostName} 러너</Text>
+              <Row style={{ marginTop: 9, justifyContent: 'space-between' }}>
+                {[['세션', hostStats.sessions], ['총 참여', hostStats.totalTeams + '팀'], ['재방문', hostStats.returning + '명']].map(([l, v]) => (
+                  <View key={l as string} style={{ alignItems: 'center', flex: 1 }}>
+                    <Text style={{ fontSize: 19, fontWeight: '900', color: FOREST }}>{v}</Text>
+                    <Text style={{ fontSize: 12, color: '#75806f', marginTop: 2 }}>{l}</Text>
+                  </View>
+                ))}
+              </Row>
+            </View>
+          )}
+
           {/* ---------- 호스트 도구 ---------- */}
           {club?.isHost && (
             <Pressable onPress={() => setSheetOpen(true)} style={[s.cta, { marginTop: 12 }]}>
@@ -232,5 +270,6 @@ const s = StyleSheet.create({
   joinPill: { backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 9, paddingHorizontal: 13, alignSelf: 'center' },
   sheet: { backgroundColor: colors.cream, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 18, paddingBottom: 34 },
   slotChip: { borderRadius: 99, paddingVertical: 9, paddingHorizontal: 14, backgroundColor: '#fff', borderWidth: 1.3, borderColor: '#DCD6C4' },
+  attendStamp: { width: 48, height: 48, borderRadius: 24, borderWidth: 2.5, borderColor: colors.voltDeep, alignItems: 'center', justifyContent: 'center', transform: [{ rotate: '-6deg' }] },
   input: { backgroundColor: '#fff', borderRadius: 13, borderWidth: 1, borderColor: '#DCD6C4', paddingVertical: 12, paddingHorizontal: 14, fontSize: 15, color: FOREST, marginTop: 12 },
 });

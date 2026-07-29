@@ -255,3 +255,86 @@ begin
     end;
   end;
 end $$;
+
+-- ═══ 0031 검색 + P-B 검증 ═══
+do $$
+declare
+  o uuid; r uuid; v_club uuid; v_sid uuid; v_js jsonb; v_id uuid; v_id2 uuid; v_cnt int;
+begin
+  select id into v_club from clubs where district = '반포동' and kind = 'official';
+  select profile_id into r from club_members where club_id = v_club and role = 'host';
+  select id into o from profiles where name = 'club_owner';
+
+  -- [S1] 검색: 이름/동네 매치 + 카운트
+  begin
+    perform set_config('request.jwt.claim.sub', o::text, false);
+    v_js := club_search('반포');
+    if jsonb_array_length(v_js) = 1 and v_js->0->>'district' = '반포동'
+       and (v_js->0->>'memberCount')::int >= 1
+      then call _pass('club','S1 검색 매치 (동네·카운트)');
+    else call _fail('club','S1 검색','=' || coalesce(v_js::text,'null')); end if;
+    if jsonb_array_length(club_search('없는동네')) = 0 and jsonb_array_length(club_search('')) = 0
+      then call _pass('club','S2 검색 무결과·빈 쿼리 = 빈 배열');
+    else call _fail('club','S2 검색 빈값','비어있지 않음'); end if;
+  exception when others then call _fail('club','S1/S2 검색', sqlerrm);
+  end;
+
+  -- [S3] 동네 요청: 신규 collecting 생성 + 관심, 재요청 멱등 (같은 클럽)
+  begin
+    v_id := club_request_district('서초동');
+    v_id2 := club_request_district('서초동');
+    if v_id = v_id2 and (select status from clubs where id = v_id) = 'collecting'
+       and club_interest_count(v_id) = 1
+      then call _pass('club','S3 동네 요청 (collecting 생성·관심·멱등)');
+    else call _fail('club','S3 동네 요청','불일치'); end if;
+    begin
+      v_id := club_request_district('x');
+      call _fail('club','S4 동네명 검증','통과됨');
+    exception when others then
+      if sqlerrm like '%bad_district%' then call _pass('club','S4 동네명 길이 검증');
+      else call _fail('club','S4', sqlerrm); end if;
+    end;
+  exception when others then call _fail('club','S3 동네 요청', sqlerrm);
+  end;
+
+  -- [S5] 종료 → 리캡 피드 자동 유입 + 참가자 알림 + 내출석/호스트 스탯
+  begin
+    perform set_config('request.jwt.claim.sub', r::text, false);
+    v_sid := club_create_session(v_club, now() + interval '90 minutes', '리캡 검증 집결지', null, 6);
+    perform session_checkin(v_sid); -- 호스트 체크인 (창 안: 90분 전)
+    perform set_config('request.jwt.claim.sub', o::text, false);
+    perform session_rsvp(v_sid, null);
+    perform session_checkin(v_sid);
+    perform set_config('request.jwt.claim.sub', r::text, false);
+    perform club_finish_session(v_sid);
+    select count(*) into v_cnt from feed_posts where meta->>'sessionId' = v_sid::text;
+    if v_cnt = 1 and (select meta->>'teams' from feed_posts where meta->>'sessionId' = v_sid::text) = '2'
+       and exists (select 1 from notifications where ref_id = v_sid and kind = 'community' and profile_id = o)
+      then call _pass('club','S5 종료 → 리캡 피드 자동 유입(2팀) + 참가자 알림');
+    else call _fail('club','S5 리캡','post=' || v_cnt); end if;
+    perform set_config('request.jwt.claim.sub', o::text, false);
+    v_js := club_my_stats(v_club);
+    if (v_js->>'attended')::int = (
+         select count(*) from club_sessions s join session_people sp on sp.session_id = s.id
+         where s.club_id = v_club and s.status = 'done' and sp.profile_id = o and sp.attendance = 'checked_in')
+       and (v_js->>'streak')::int >= 1
+      then call _pass('club','S6 내 출석 스탯 (attended 데이터 일치·streak)');
+    else call _fail('club','S6 출석','=' || v_js::text); end if;
+    v_js := club_host_stats(v_club);
+    if (v_js->>'sessions')::int >= 1 and (v_js->>'totalTeams')::int >= 2
+      then call _pass('club','S7 호스트 신뢰 스탯');
+    else call _fail('club','S7 호스트','=' || v_js::text); end if;
+  exception when others then call _fail('club','S5~S7', sqlerrm);
+  end;
+
+  -- [S8] 0팀 체크인 세션 종료 → 리캡 포스트 없음 (가짜 활동 연출 금지)
+  begin
+    perform set_config('request.jwt.claim.sub', r::text, false);
+    v_sid := club_create_session(v_club, now() + interval '3 hours', '빈 세션', null, 6);
+    perform club_finish_session(v_sid);
+    if not exists (select 1 from feed_posts where meta->>'sessionId' = v_sid::text)
+      then call _pass('club','S8 0팀 종료 = 리캡 미발행 (정직)');
+    else call _fail('club','S8','포스트 생성됨'); end if;
+  exception when others then call _fail('club','S8', sqlerrm);
+  end;
+end $$;

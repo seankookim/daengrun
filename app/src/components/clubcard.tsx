@@ -1,14 +1,21 @@
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
-import { claimClubHost, ClubOverview, fetchClubOverview } from '../lib/api';
+import { useCallback, useRef, useState } from 'react';
+import { Alert, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  claimClubHost, ClubOverview, ClubSearchHit, fetchClubOverview, requestDistrictClub, searchClubs,
+} from '../lib/api';
 import { colors } from '../theme';
 import { Row } from './ui';
 
-// 하이클럽 홈 모듈 (P-A S1, hi-club-lab H1/H2/R1) — 상태 인지형.
-// 정직 규칙: 실세션이 있어야만 그린다 (홈은 실물만 — collecting 수요 수집은 커뮤니티 스트립 담당).
+// 하이클럽 홈 모듈 v2 (Sean 2026-07-29: 양쪽 홈에서 훨씬 prominent + 동네 클럽 검색).
+// 구성: 검색 바(드롭다운) + 풀블리드 포토 배너 (상태 인지형). 배너는 실존 클럽만 그린다.
 
 const FOREST = '#0F1D13';
+
+const dday = (iso: string): string => {
+  const d = Math.ceil((new Date(iso).getTime() - Date.now()) / 86400000);
+  return d <= 0 ? 'D-DAY' : `D-${d}`;
+};
 
 export function useClubOverview(): [ClubOverview | null, () => void] {
   const [club, setClub] = useState<ClubOverview | null>(null);
@@ -17,100 +24,182 @@ export function useClubOverview(): [ClubOverview | null, () => void] {
   return [club, load];
 }
 
-const dday = (iso: string): string => {
-  const d = Math.ceil((new Date(iso).getTime() - Date.now()) / 86400000);
-  return d <= 0 ? 'D-DAY' : `D-${d}`;
-};
+// ---------- 동네 클럽 검색 바 + 드롭다운 ----------
+function ClubSearchBar() {
+  const [q, setQ] = useState('');
+  const [hits, setHits] = useState<ClubSearchHit[] | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-// 보호자·러너 공용 발견/커밋 카드 — H1(탐색) ↔ H2(RSVP 후 다크 커밋)
-export function ClubHomeCard() {
-  const [club] = useClubOverview();
-  const ns = club?.nextSession;
-  if (!club || club.status !== 'active' || !ns) return null; // 실세션 없으면 안 그림
+  const onChange = (t: string) => {
+    setQ(t);
+    if (timer.current) clearTimeout(timer.current);
+    const query = t.trim();
+    if (query.length < 1) { setHits(null); return; }
+    timer.current = setTimeout(() => {
+      searchClubs(query).then(setHits).catch(() => setHits([]));
+    }, 280);
+  };
+  const closeAnd = (fn: () => void) => { setQ(''); setHits(null); fn(); };
 
-  if (ns.joined) {
-    return (
-      <Pressable onPress={() => router.push({ pathname: `/club/session/${ns.id}`, params: { clubName: club.name } })} style={s.commit}>
-        <Row style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
-          <Text style={{ fontSize: 19, fontWeight: '900', color: '#fff' }}>하이클럽 {dday(ns.scheduledAt)}</Text>
-          <View style={s.voltPill}><Text style={{ fontSize: 11.5, fontWeight: '900', color: FOREST }}>RSVP 완료</Text></View>
-        </Row>
-        <Text style={{ fontSize: 13.5, color: '#b8c4ae', marginTop: 5 }} numberOfLines={1}>
-          {ns.when} · 📍 {ns.meetupPoint} · {ns.rsvpCount}팀
-        </Text>
-      </Pressable>
-    );
-  }
-  const left = ns.capacity - ns.rsvpCount;
+  const requestDistrict = () => {
+    const d = q.trim();
+    requestDistrictClub(d)
+      .then((id) => closeAnd(() => { Alert.alert(`${d} 하이클럽 관심 등록 🐾`, '이웃과 호스트가 모이면 열려요'); router.push(`/club/${id}`); }))
+      .catch((e) => Alert.alert('클럽 요청', (e as Error).message.includes('bad_district') ? '동네 이름을 2~12자로 입력해주세요' : (e as Error).message));
+  };
+
   return (
-    <Pressable onPress={() => router.push({ pathname: `/club/session/${ns.id}`, params: { clubName: club.name } })} style={s.discover}>
-      <Row style={{ justifyContent: 'space-between' }}>
-        <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 16, fontWeight: '900', color: FOREST }}>🏃 {club.name}</Text>
-          <Text style={{ fontSize: 13.5, color: '#49524a', marginTop: 3 }} numberOfLines={1}>{ns.when} · {ns.meetupPoint}</Text>
-        </View>
-        {left > 0 && ns.status === 'open' && (
-          <View style={[s.voltPill, { alignSelf: 'center' }]}><Text style={{ fontSize: 11.5, fontWeight: '900', color: FOREST }}>{left}자리</Text></View>
+    <View style={{ zIndex: 20 }}>
+      <View style={s.searchWrap}>
+        <Text style={{ fontSize: 15, color: '#9a978a' }}>⌕</Text>
+        <TextInput
+          value={q} onChangeText={onChange}
+          placeholder="동네 하이클럽 검색 — 예: 반포동"
+          placeholderTextColor="#9a978a" style={s.searchInput}
+        />
+        {q.length > 0 && (
+          <Pressable onPress={() => { setQ(''); setHits(null); }} hitSlop={8}>
+            <Text style={{ fontSize: 13, color: '#9a978a' }}>✕</Text>
+          </Pressable>
         )}
-      </Row>
-      <Row style={{ gap: 8, marginTop: 8, alignItems: 'center' }}>
-        <Text style={{ fontSize: 12.5, color: '#75806f' }}>{ns.rsvpCount}팀 참여 중</Text>
-        <Text style={{ marginLeft: 'auto', fontSize: 13.5, fontWeight: '900', color: colors.voltDeep }}>참여하기 ›</Text>
-      </Row>
+      </View>
+      {/* 드롭다운 */}
+      {hits != null && (
+        <View style={s.drop}>
+          {hits.map((h) => (
+            <Pressable key={h.id} onPress={() => closeAnd(() => router.push(`/club/${h.id}`))} style={s.dropRow}>
+              <View style={s.dropThumb}>
+                {h.photoUrl
+                  ? <Image source={{ uri: h.photoUrl }} style={{ width: '100%', height: '100%' }} />
+                  : <Text style={{ fontSize: 15 }}>🏃</Text>}
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST }}>{h.name}</Text>
+                <Text style={{ fontSize: 12.5, color: '#75806f', marginTop: 1 }}>
+                  {h.status === 'active' ? `멤버 ${h.memberCount} · 활동 중` : `관심 ${h.interestCount}명 · 모집 중`}
+                </Text>
+              </View>
+              <View style={[s.dropPill, h.status !== 'active' && { backgroundColor: '#EDE8DA' }]}>
+                <Text style={{ fontSize: 10.5, fontWeight: '900', color: h.status === 'active' ? FOREST : '#5B594A' }}>
+                  {h.status === 'active' ? 'OPEN' : '모집 중'}
+                </Text>
+              </View>
+            </Pressable>
+          ))}
+          {hits.length === 0 && q.trim().length >= 2 && (
+            <Pressable onPress={requestDistrict} style={s.dropRow}>
+              <View style={[s.dropThumb, { backgroundColor: '#e7efd8' }]}><Text style={{ fontSize: 15 }}>＋</Text></View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST }}>'{q.trim()}' 하이클럽 요청하기</Text>
+                <Text style={{ fontSize: 12.5, color: '#75806f', marginTop: 1 }}>아직 없어요 — 관심을 모아 열어요</Text>
+              </View>
+            </Pressable>
+          )}
+          {hits.length === 0 && q.trim().length < 2 && (
+            <View style={s.dropRow}><Text style={{ fontSize: 13.5, color: '#9a978a' }}>동네 이름을 2자 이상 입력해주세요</Text></View>
+          )}
+        </View>
+      )}
+    </View>
+  );
+}
+
+// ---------- 프로미넌트 포토 배너 (상태 인지형) ----------
+function ClubBanner({ club, role, reload }: { club: ClubOverview; role: 'owner' | 'runner'; reload: () => void }) {
+  const ns = club.nextSession;
+  const joined = !!ns?.joined;
+  const left = ns ? Math.max(0, ns.capacity - ns.rsvpCount) : 0;
+
+  const claim = () => claimClubHost(club.id)
+    .then(() => { Alert.alert('호스트가 됐어요 🏁', '클럽 페이지에서 첫 세션을 열어보세요'); reload(); })
+    .catch((e) => Alert.alert('호스트 클레임', (e as Error).message.includes('not_certified') ? '인증 러너만 호스트가 될 수 있어요' : (e as Error).message));
+
+  const onPress = () => {
+    if (club.status === 'active' && ns) {
+      router.push({ pathname: `/club/session/${ns.id}`, params: { clubName: club.name } });
+    } else {
+      router.push(`/club/${club.id}`);
+    }
+  };
+
+  return (
+    <Pressable onPress={onPress} style={s.banner}>
+      {club.photoUrl
+        ? <Image source={{ uri: club.photoUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+        : <View style={[StyleSheet.absoluteFill, { backgroundColor: '#26382a' }]} />}
+      <View style={s.bannerScrim} />
+      <View style={{ flex: 1, padding: 14, justifyContent: 'space-between' }}>
+        <Row style={{ justifyContent: 'space-between' }}>
+          <View style={s.officialPill}><Text style={{ fontSize: 9.5, fontWeight: '900', letterSpacing: 1.5, color: FOREST }}>HIGH CLUB</Text></View>
+          {club.status === 'active' && joined && ns && (
+            <View style={s.ddayPill}><Text style={{ fontSize: 12, fontWeight: '900', color: FOREST }}>{dday(ns.scheduledAt)} · RSVP ✓</Text></View>
+          )}
+          {club.status === 'active' && !joined && ns && ns.status === 'open' && left > 0 && (
+            <View style={s.ddayPill}><Text style={{ fontSize: 12, fontWeight: '900', color: FOREST }}>{left}자리</Text></View>
+          )}
+        </Row>
+        <View>
+          <Text style={{ fontSize: 22, fontWeight: '900', color: '#fff' }}>{club.name}</Text>
+          <Text style={{ fontSize: 13, color: '#d8e2d0', marginTop: 3 }} numberOfLines={1}>
+            {club.status === 'collecting'
+              ? `관심 ${club.interestCount}명 · 호스트를 기다려요`
+              : ns
+                ? joined
+                  ? `${ns.when} · 📍 ${ns.meetupPoint}`
+                  : `다음 세션 ${ns.when} · ${ns.rsvpCount}팀 참여 중`
+                : `멤버 ${club.memberCount} · ${club.isHost ? '탭해서 세션을 열어보세요' : '다음 세션 준비 중'}`}
+          </Text>
+          {/* 액션 행 */}
+          <Row style={{ gap: 8, marginTop: 9 }}>
+            {club.status === 'collecting' && role === 'runner' ? (
+              <Pressable onPress={claim} style={s.bannerCta}>
+                <Text style={{ fontSize: 13, fontWeight: '900', color: FOREST }}>호스트 되기 ›</Text>
+              </Pressable>
+            ) : club.status === 'active' && ns && !joined ? (
+              <View style={s.bannerCta}><Text style={{ fontSize: 13, fontWeight: '900', color: FOREST }}>참여하기 ›</Text></View>
+            ) : club.status === 'active' && joined ? (
+              <View style={[s.bannerCta, { backgroundColor: 'rgba(255,255,255,.92)' }]}><Text style={{ fontSize: 13, fontWeight: '900', color: FOREST }}>세션 보기 ›</Text></View>
+            ) : (
+              <View style={[s.bannerCta, { backgroundColor: 'rgba(255,255,255,.25)' }]}><Text style={{ fontSize: 13, fontWeight: '900', color: '#fff' }}>클럽 보기 ›</Text></View>
+            )}
+            {club.isHost && <View style={s.hostPill}><Text style={{ fontSize: 10, fontWeight: '900', color: '#fff' }}>HOST</Text></View>}
+          </Row>
+        </View>
+      </View>
     </Pressable>
   );
 }
 
-// 러너 홈 전용 — collecting이면 호스트 클레임 CTA, 호스트면 내 클럽 현황
-export function RunnerClubCard() {
+// ---------- 홈 모듈 (양쪽 공용) ----------
+export function ClubModule({ role }: { role: 'owner' | 'runner' }) {
   const [club, reload] = useClubOverview();
-  const [busy, setBusy] = useState(false);
-  if (!club) return null;
-
-  if (club.status === 'collecting') {
-    return (
-      <View style={s.discover}>
-        <Text style={{ fontSize: 16, fontWeight: '900', color: FOREST }}>🏃 {club.name} — 호스트 모집</Text>
-        <Text style={{ fontSize: 13.5, color: '#49524a', marginTop: 3, lineHeight: 19 }}>
-          관심 등록 {club.interestCount}명이 기다려요. 인증 러너가 호스트를 맡으면 클럽이 열려요.
-        </Text>
-        <Pressable
-          disabled={busy}
-          onPress={() => {
-            setBusy(true);
-            claimClubHost(club.id)
-              .then(() => { Alert.alert('호스트가 됐어요 🏁', '클럽 페이지에서 첫 세션을 열어보세요'); reload(); })
-              .catch((e) => Alert.alert('호스트 클레임', (e as Error).message.includes('not_certified') ? '인증 러너만 호스트가 될 수 있어요' : (e as Error).message))
-              .finally(() => setBusy(false));
-          }}
-          style={[s.claimBtn, busy && { opacity: 0.5 }]}
-        >
-          <Text style={{ fontSize: 14, fontWeight: '900', color: FOREST }}>호스트 되기 ›</Text>
-        </Pressable>
-      </View>
-    );
-  }
-  if (club.isHost) {
-    const ns = club.nextSession;
-    return (
-      <Pressable onPress={() => router.push(`/club/${club.id}`)} style={s.discover}>
-        <Row style={{ justifyContent: 'space-between' }}>
-          <Text style={{ fontSize: 16, fontWeight: '900', color: FOREST }}>🏁 내 하이클럽</Text>
-          <View style={s.hostPill}><Text style={{ fontSize: 10.5, fontWeight: '900', color: '#fff' }}>HOST</Text></View>
-        </Row>
-        <Text style={{ fontSize: 13.5, color: '#49524a', marginTop: 4 }} numberOfLines={1}>
-          {ns ? `다음 세션 ${ns.when} · 신청 ${ns.rsvpCount}/${ns.capacity}` : '예정 세션 없음 — 탭해서 세션을 열어보세요'}
-        </Text>
-      </Pressable>
-    );
-  }
-  return <ClubHomeCard />;
+  return (
+    <View style={{ marginTop: 14 }}>
+      <Row style={{ gap: 6, marginBottom: 9, alignItems: 'baseline' }}>
+        <Text style={{ fontSize: 18, fontWeight: '900', color: FOREST }}>하이클럽</Text>
+        <Text style={{ fontSize: 12.5, color: '#75806f' }}>동네에서 함께 달려요</Text>
+      </Row>
+      <ClubSearchBar />
+      {club && <ClubBanner club={club} role={role} reload={reload} />}
+    </View>
+  );
 }
 
+// 하위 호환 (기존 삽입 지점)
+export function ClubHomeCard() { return <ClubModule role="owner" />; }
+export function RunnerClubCard() { return <ClubModule role="runner" />; }
+
 const s = StyleSheet.create({
-  discover: { backgroundColor: '#fbfdf2', borderRadius: 18, borderWidth: 1.5, borderColor: '#cede96', padding: 14, marginTop: 12 },
-  commit: { backgroundColor: FOREST, borderRadius: 18, padding: 15, marginTop: 12 },
-  voltPill: { backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 4, paddingHorizontal: 10 },
-  hostPill: { backgroundColor: '#5a7a3c', borderRadius: 99, paddingVertical: 3, paddingHorizontal: 9, alignSelf: 'center' },
-  claimBtn: { backgroundColor: colors.volt, borderRadius: 12, alignItems: 'center', paddingVertical: 11, marginTop: 10 },
+  searchWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: '#DCD6C4', paddingHorizontal: 13, paddingVertical: 2 },
+  searchInput: { flex: 1, fontSize: 14.5, color: FOREST, paddingVertical: 11 },
+  drop: { position: 'absolute', top: 50, left: 0, right: 0, backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: '#DCD6C4', paddingVertical: 4, shadowColor: '#000', shadowOpacity: 0.14, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 8, zIndex: 30 },
+  dropRow: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 10, paddingHorizontal: 13 },
+  dropThumb: { width: 38, height: 38, borderRadius: 12, backgroundColor: '#EDE8DA', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  dropPill: { backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 4, paddingHorizontal: 9 },
+  banner: { height: 148, borderRadius: 20, overflow: 'hidden', marginTop: 10, backgroundColor: '#26382a' },
+  bannerScrim: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(10,16,10,.36)' },
+  officialPill: { backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 3, paddingHorizontal: 9, alignSelf: 'flex-start' },
+  ddayPill: { backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 4, paddingHorizontal: 10 },
+  bannerCta: { backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 7, paddingHorizontal: 13 },
+  hostPill: { backgroundColor: '#5a7a3c', borderRadius: 99, paddingVertical: 5, paddingHorizontal: 9, alignSelf: 'center' },
 });
