@@ -1733,7 +1733,23 @@ export async function fetchMiles(): Promise<MilesInfo> {
   };
 }
 
-export interface BoardRow { name: string; photoUrl: string | null; km: number; runs: number }
+export interface BoardRow { name: string; photoUrl: string | null; km: number; runs: number; delta?: number | null }
+
+// 홈 티커용 — 지난주 대비 랭크 델타 포함 (0022). 미배포 시 델타 없는 기존 보드로 정직 폴백
+// (▲▼은 실델타가 있을 때만 그린다 — '없는 데이터는 그리지 않는다')
+export async function fetchDogBoardDelta(): Promise<BoardRow[]> {
+  const { data, error } = await supabase.rpc('leaderboard_dogs_weekly_delta');
+  if (error) {
+    const { data: fb, error: e2 } = await supabase.rpc('leaderboard_dogs_weekly');
+    if (e2) throw e2;
+    // delta: undefined = '델타를 모름'(구 RPC) — null('신규 진입')과 구분해 NEW 오표기 방지
+    return (fb ?? []).map((x: any) => ({ name: x.dog_name, photoUrl: x.photo_url, km: Number(x.km), runs: Number(x.runs) }));
+  }
+  return (data ?? []).map((x: any) => ({
+    name: x.dog_name, photoUrl: x.photo_url, km: Number(x.km), runs: Number(x.runs),
+    delta: x.delta == null ? null : Number(x.delta),
+  }));
+}
 
 export async function fetchLeaderboards(): Promise<{ dogs: BoardRow[]; runners: BoardRow[] }> {
   const [d, r] = await Promise.all([

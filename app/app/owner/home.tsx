@@ -6,7 +6,7 @@ import { BottomNav } from '../../src/components/bottomnav';
 import { CourseStrip } from '../../src/components/CourseStrip';
 import { RunCard } from '../../src/components/runcard';
 import { Avatar } from '../../src/components/ui';
-import { Addr, BoardRow, confirmPayment, createBookingHold, DogProfile, fetchAddresses, fetchAvailableRunners, fetchCertifiedRunners, fetchFitness, fetchLeaderboards, fetchMyBookings, fetchMyDogs, fetchMyProfile, fetchRecentMoments, fetchRoutes, Fitness, LiveRunner, Moment, MyProfile } from '../../src/lib/api';
+import { Addr, BoardRow, confirmPayment, createBookingHold, DogProfile, fetchAddresses, fetchAvailableRunners, fetchCertifiedRunners, fetchDogBoardDelta, fetchFitness, fetchMyBookings, fetchMyDogs, fetchMyProfile, fetchRecentMoments, fetchRoutes, Fitness, LiveRunner, Moment, MyProfile } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { haptic } from '../../src/lib/haptics';
 import { Booking, demoImminent, dog, draft, myCards, nextBooking, ownerGearLadder, RouteInfo, runners } from '../../src/store';
@@ -135,7 +135,7 @@ export default function OwnerHome() {
     fetchFitness().then(setFit).catch((e) => console.warn('[home] fitness:', e?.message ?? e));
     fetchMyProfile().then(setMe).catch((e) => console.warn('[home] me:', e?.message ?? e));
     fetchRecentMoments().then(setMoments).catch((e) => console.warn('[home] moments:', e?.message ?? e));
-    fetchLeaderboards().then((b) => setTicker(b.dogs)).catch((e) => console.warn('[home] ticker:', e?.message ?? e));
+    fetchDogBoardDelta().then(setTicker).catch((e) => console.warn('[home] ticker:', e?.message ?? e));
     fetchCertifiedRunners().then(setLocalRunners).catch((e) => console.warn('[home] runners:', e?.message ?? e));
     // 가용 러너 — 러닝 중인 러너는 히어로 카운트/레이더에서 제외 (기대 오염 방지)
     fetchAvailableRunners().then(setFnAvail).catch((e) => console.warn('[home] avail:', e?.message ?? e));
@@ -356,6 +356,10 @@ export default function OwnerHome() {
                         <Text style={s.tickerItem}>
                           <Text style={{ color: colors.voltDeep, fontWeight: '900' }}>{i + 1}위 </Text>
                           {d.name} <Text style={{ color: colors.tang, fontWeight: '900' }}>{d.km}km</Text>
+                          {/* ▲▼ 해금 (0022) — 지난주 대비 실델타가 있을 때만. NEW = 지난주 미랭크 */}
+                          {d.delta != null && d.delta > 0 && <Text style={{ color: '#5a7a3c', fontWeight: '900' }}> ▲{d.delta}</Text>}
+                          {d.delta != null && d.delta < 0 && <Text style={{ color: '#d84a2f', fontWeight: '900' }}> ▼{-d.delta}</Text>}
+                          {d.delta === null && <Text style={{ color: colors.voltDeep, fontWeight: '800', fontSize: 10 }}> NEW</Text>}
                         </Text>
                         <Text style={s.tickerDot}>·</Text>
                       </View>
