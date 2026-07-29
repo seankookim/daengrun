@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>하이클럽 배너 — 그라디언트 아웃라인 + 우하단 스탬프 4안</title>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--forest:#0F1D13;--volt:#C6F542;--voltDeep:#7FA818;--tang:#FF5C3D;--cream:#F8F6F0;--line:#DCD6C4;}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#141811;color:var(--cream);font-family:'IBM Plex Sans KR',sans-serif;padding:34px 26px 80px}
+.bhs{font-family:'Black Han Sans',sans-serif;font-weight:400}
+h1{font-size:28px;color:var(--volt)}
+.lede{color:#8fa093;margin:10px 0 4px;max-width:860px;line-height:1.6;font-size:14px}
+.rowwrap{display:flex;gap:26px;flex-wrap:wrap;margin-top:24px}
+.opt{width:392px}
+.optlabel{display:flex;gap:8px;align-items:center;margin-bottom:10px}
+.optlabel .tag{background:var(--volt);color:var(--forest);font-weight:800;font-size:12px;border-radius:99px;padding:3px 10px}
+.optlabel b{font-size:16px}
+.optnote{color:#8fa093;font-size:12.5px;line-height:1.55;margin:9px 2px 0}
+.stage{background:var(--cream);border-radius:24px;padding:18px 15px;color:var(--forest)}
+.search{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px 13px;color:#9a978a;font-size:14px;margin-bottom:10px}
+/* 확정 베이스: 그라디언트 아웃라인 (테이프 X · HIGH CLUB 오벌 X) */
+.wrap{padding:2.5px;border-radius:22px;background:linear-gradient(120deg,var(--volt),#7FA818 45%,var(--tang))}
+.bn{position:relative;height:148px;border-radius:19px;overflow:hidden;background:linear-gradient(160deg,#5b7a4a,#26382a 65%,#16241a)}
+.bn .scrim{position:absolute;inset:0;background:rgba(10,16,10,.36)}
+.bn .inner{position:absolute;inset:0;padding:14px;display:flex;flex-direction:column;justify-content:flex-end}
+.seat{position:absolute;top:13px;right:13px;background:var(--volt);color:var(--forest);border-radius:99px;font-weight:900;font-size:12px;padding:5px 10px}
+.bn h3{font-size:22.5px;font-weight:900;color:#fff}
+.bn p{font-size:13px;color:#d8e2d0;margin-top:3px}
+.cta{display:inline-block;background:var(--volt);color:var(--forest);border-radius:99px;font-weight:900;font-size:13px;padding:8px 13px;margin-top:9px;align-self:flex-start}
+/* ── 스탬프 공통: 우하단, 살짝 회전, 잉크 느낌 ── */
+.stamp{position:absolute;right:12px;bottom:12px;transform:rotate(-7deg);opacity:.96}
+/* V1 원형 러버 스탬프 */
+.v1{width:74px;height:74px;border-radius:50%;border:2.5px solid var(--volt);display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(15,29,19,.35);box-shadow:inset 0 0 0 1.5px rgba(198,245,66,.25)}
+.v1 b{font-size:12px;letter-spacing:1px;color:var(--volt);font-weight:900}
+.v1 span{font-size:6.5px;letter-spacing:1.5px;color:rgba(198,245,66,.75);margin-top:2px;font-weight:700}
+.v1 i{font-style:normal;font-size:9px;color:var(--volt);margin-top:1px}
+/* V2 여권 직인 (2줄 박스) */
+.v2{border:2.5px solid var(--volt);border-radius:9px;padding:5px 10px;background:rgba(15,29,19,.35);text-align:center}
+.v2 b{display:block;font-size:12.5px;letter-spacing:2.5px;color:var(--volt);font-weight:900}
+.v2 span{display:block;font-size:7px;letter-spacing:2px;color:rgba(198,245,66,.75);margin-top:2px;font-weight:700;border-top:1px solid rgba(198,245,66,.4);padding-top:2px}
+/* V3 이중 라인 도장 */
+.v3{border:2px solid var(--volt);outline:1.5px solid rgba(198,245,66,.45);outline-offset:2.5px;border-radius:7px;padding:5px 11px;background:rgba(15,29,19,.35);text-align:center}
+.v3 b{display:block;font-size:12px;letter-spacing:2px;color:var(--volt);font-weight:900}
+.v3 span{display:block;font-size:7px;letter-spacing:1.5px;color:rgba(255,255,255,.8);margin-top:2px;font-weight:700}
+/* V4 티켓 반쪽 (절취 스텁 미니어처) */
+.v4{display:flex;align-items:center;background:rgba(15,29,19,.45);border:1.5px solid var(--volt);border-radius:9px;overflow:hidden}
+.v4 .l{padding:6px 9px;border-right:1.5px dashed rgba(198,245,66,.6)}
+.v4 .l b{font-size:11.5px;letter-spacing:1.5px;color:var(--volt);font-weight:900}
+.v4 .l span{display:block;font-size:6.5px;letter-spacing:1.5px;color:rgba(255,255,255,.75);margin-top:1px}
+.v4 .r{padding:6px 8px;font-size:11px;color:var(--volt)}
+</style>
+</head>
+<body>
+<h1 class="bhs">그라디언트 아웃라인 + 우하단 스탬프 — 4안</h1>
+<p class="lede">확정 베이스: 볼트→탱 그라디언트 테두리, 테이프 없음, 타이틀 위 HIGH CLUB 오벌 은퇴. 스탬프는 여권 도장 모티프 (FINISHER·CHECKED와 같은 계열) — 클라우트/공식성 + '누구나 참여 가능'의 이중 메시지.</p>
+
+<div class="rowwrap">
+
+<div class="opt">
+  <div class="optlabel"><span class="tag">V1</span><b>원형 러버 스탬프</b></div>
+  <div class="stage">
+    <div class="search">⌕ 동네 하이클럽 검색 — 예: 반포동</div>
+    <div class="wrap"><div class="bn"><div class="scrim"></div><span class="seat">2자리</span>
+      <div class="inner"><div><h3>반포동 하이클럽</h3><p>다음 세션 토 09:00 · 7팀 참여 중</p><span class="cta">참여하기 ›</span></div></div>
+      <div class="stamp v1"><b>HIGH</b><i>VERIFIED</i><span>OPEN TO ALL</span></div>
+    </div></div>
+  </div>
+  <p class="optnote">우표/소인 계열의 원형 직인 — 알림 날짜 소인과 같은 가족. HIGH VERIFIED가 메인, 하단 미세 링 카피로 OPEN TO ALL.</p>
+</div>
+
+<div class="opt">
+  <div class="optlabel"><span class="tag">V2</span><b>여권 직인 (2줄 박스)</b></div>
+  <div class="stage">
+    <div class="search">⌕ 동네 하이클럽 검색 — 예: 반포동</div>
+    <div class="wrap"><div class="bn"><div class="scrim"></div><span class="seat">2자리</span>
+      <div class="inner"><div><h3>반포동 하이클럽</h3><p>다음 세션 토 09:00 · 7팀 참여 중</p><span class="cta">참여하기 ›</span></div></div>
+      <div class="stamp v2"><b>HIGH-VERIFIED</b><span>FREE TO JOIN · ANYTIME</span></div>
+    </div></div>
+  </div>
+  <p class="optnote">FINISHER 도장의 직계 — 위칸 클라우트(HIGH-VERIFIED), 아래칸 개방성(FREE TO JOIN)이 한 도장 안에서 명시적으로 공존. 메시지가 가장 정확함.</p>
+</div>
+
+<div class="opt">
+  <div class="optlabel"><span class="tag">V3</span><b>이중 라인 도장</b></div>
+  <div class="stage">
+    <div class="search">⌕ 동네 하이클럽 검색 — 예: 반포동</div>
+    <div class="wrap"><div class="bn"><div class="scrim"></div><span class="seat">2자리</span>
+      <div class="inner"><div><h3>반포동 하이클럽</h3><p>다음 세션 토 09:00 · 7팀 참여 중</p><span class="cta">참여하기 ›</span></div></div>
+      <div class="stamp v3"><b>HIGH CLUB</b><span>누구나 · 언제든</span></div>
+    </div></div>
+  </div>
+  <p class="optnote">이중 아웃라인(공증 도장 느낌) + 한글 서브 '누구나 · 언제든'. 영문 클라우트 + 한글 개방성 조합 — 카피 온도가 가장 부드러움.</p>
+</div>
+
+<div class="opt">
+  <div class="optlabel"><span class="tag">V4</span><b>미니 티켓 스텁</b></div>
+  <div class="stage">
+    <div class="search">⌕ 동네 하이클럽 검색 — 예: 반포동</div>
+    <div class="wrap"><div class="bn"><div class="scrim"></div><span class="seat">2자리</span>
+      <div class="inner"><div><h3>반포동 하이클럽</h3><p>다음 세션 토 09:00 · 7팀 참여 중</p><span class="cta">참여하기 ›</span></div></div>
+      <div class="stamp v4"><div class="l"><b>HIGH CLUB</b><span>ADMIT ALL</span></div><div class="r">🐾</div></div>
+    </div></div>
+  </div>
+  <p class="optnote">절취선 티켓 미니어처 — 캘린더/확정 카드의 티켓 모티프와 연결. 'ADMIT ALL'이 티켓 문법으로 개방성을 말함. 도장류보다 덜 '공식'이고 더 '입장권'.</p>
+</div>
+</div>
+
+<p class="lede" style="margin-top:36px;border-top:1px solid #2c3a2c;padding-top:16px">
+<b style="color:var(--volt)">추천: V2 여권 직인</b> — 클라우트(HIGH-VERIFIED)와 개방성(FREE TO JOIN · ANYTIME)이 한 도장에서 둘 다 명시되고, FINISHER·CHECKED 도장 시스템의 직계라 일관성이 가장 좋습니다. 번호 주면 구현하고 P-B 잔여로 넘어갑니다.
+</p>
+</body>
+</html>
