@@ -1,9 +1,11 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Animated, Dimensions, Image, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { PatchBadge } from '../../src/components/patch';
 import { HeatTrace } from '../../src/components/runcard';
 import { Monogram, Row, Skeleton } from '../../src/components/ui';
-import { fetchRunReport, fetchRunStandings, RunReport, RunStandings, shareRunToFeed } from '../../src/lib/api';
+import { CoursePatch, fetchPatchPop, fetchRunReport, fetchRunStandings, RunReport, RunStandings, shareRunToFeed } from '../../src/lib/api';
+import { haptic } from '../../src/lib/haptics';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { getMaps } from '../../src/lib/geo';
 import { draft, TracePoint } from '../../src/store';
@@ -70,11 +72,17 @@ export default function Report() {
   const [report, setReport] = useState<RunReport | null>(null);
   const [standings, setStandings] = useState<RunStandings | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  // 패치 획득/승급 팝 — 이 러닝이 임계를 넘긴 순간에만 1회 (수집의 획득 모먼트)
+  const [patchPop, setPatchPop] = useState<CoursePatch | null>(null);
   useEffect(() => {
     if (!bid) { setErr('예약 정보가 없어요'); return; }
     fetchRunReport(bid).then(setReport).catch((e) => setErr(e?.message ?? '불러오기 실패'));
     fetchRunStandings(bid).then(setStandings).catch(() => {});
   }, [bid]);
+  useEffect(() => {
+    if (!bid || !report?.routeId || report.run?.endReason !== 'completed') return;
+    fetchPatchPop(bid, report.routeId).then((p) => { if (p) { setPatchPop(p); haptic('success'); } }).catch(() => {});
+  }, [bid, report]);
 
   // 인증샷은 전용 스튜디오(/shot/[bid])로 — 리포트 상단 인라인 카드 은퇴 (2026-07-28)
   const shotAuto = useRef(false);
@@ -371,7 +379,53 @@ export default function Report() {
           </>
         )}
       </ScrollView>
+
+      {/* ---------- 패치 팝 오버레이 — 획득/승급의 순간 (탭 = 닫기) ---------- */}
+      {patchPop && (
+        <PatchPopOverlay
+          patch={patchPop}
+          df={df}
+          onClose={() => setPatchPop(null)}
+          onWall={() => { setPatchPop(null); router.push('/cards'); }}
+        />
+      )}
     </View>
+  );
+}
+
+const POP_TITLE: Record<string, string> = { basic: '패치 획득!', silver: '실버 승급!', gold: '골드 승급!', master: '코스 마스터!' };
+
+function PatchPopOverlay({ patch, df, onClose, onWall }: {
+  patch: CoursePatch; df: any; onClose: () => void; onWall: () => void;
+}) {
+  // 스프링 팝 — 수집물이 '떨어져 박히는' 모션 (1회, 화면당 펄스 예산 내)
+  const a = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.spring(a, { toValue: 1, friction: 5, tension: 90, useNativeDriver: true }).start();
+  }, [a]);
+  return (
+    <Pressable onPress={onClose} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(10,16,10,.72)', alignItems: 'center', justifyContent: 'center', padding: 30 }}>
+      <Animated.View style={{
+        alignItems: 'center',
+        opacity: a,
+        transform: [
+          { scale: a.interpolate({ inputRange: [0, 1], outputRange: [0.4, 1] }) },
+          { rotate: a.interpolate({ inputRange: [0, 1], outputRange: ['-18deg', '-4deg'] }) },
+        ],
+      }}>
+        <PatchBadge km={patch.km} name={patch.name} grade={patch.grade} size={132} />
+      </Animated.View>
+      <Animated.View style={{ alignItems: 'center', opacity: a, marginTop: 20 }}>
+        <Text style={[{ fontSize: 26, fontWeight: '900', color: colors.volt }, df]}>{POP_TITLE[patch.grade]}</Text>
+        <Text style={{ fontSize: 14.5, fontWeight: '800', color: '#dfe7d8', marginTop: 6 }}>
+          {patch.name} · {patch.count === 1 ? '첫 완주' : `×${patch.count} 완주`}
+        </Text>
+        <Pressable onPress={onWall} style={{ backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 10, paddingHorizontal: 20, marginTop: 16 }}>
+          <Text style={{ fontSize: 14, fontWeight: '900', color: FOREST }}>패치 월 보기 ›</Text>
+        </Pressable>
+        <Text style={{ fontSize: 11.5, color: '#8fa093', marginTop: 12 }}>탭하면 닫혀요</Text>
+      </Animated.View>
+    </Pressable>
   );
 }
 

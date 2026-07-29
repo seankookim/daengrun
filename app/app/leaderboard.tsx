@@ -11,6 +11,7 @@ import { colors } from '../src/theme';
 
 const FOREST = '#0F1D13';
 const MEDAL = ['🥇', '🥈', '🥉'];
+const BIB_BAND = ['#F2DA96', '#dfe3e8', '#f3cba8']; // 골드 · 실버 · 브론즈 파스텔 밴드
 
 export default function Leaderboard() {
   const df = useDisplayFont(); // 디스플레이 서체 — 화면 타이틀
@@ -87,10 +88,41 @@ export default function Leaderboard() {
             </Text>
           </View>
         )}
-        {rows.map((r, i) => (
-          <View key={`${r.name}-${i}`} style={[s.row, i < 3 && { borderColor: '#e2c56b', borderWidth: 1.5 }]}>
-            <Text style={{ width: 34, fontSize: i < 3 ? 20 : 14, fontWeight: '900', color: '#49524a', textAlign: 'center' }}>
-              {MEDAL[i] ?? i + 1}
+        {/* ---------- 톱3 포디움 빕 — 시상대 배치 (2·1·3), 1위가 가장 크다 ---------- */}
+        {rows.length > 0 && (
+          <Row style={{ gap: 8, marginTop: 14, alignItems: 'flex-end' }}>
+            {[1, 0, 2].map((rank) => {
+              const r = rows[rank];
+              if (!r) return <View key={`empty-${rank}`} style={{ flex: 1 }} />;
+              const first = rank === 0;
+              return (
+                <View key={`${r.name}-${rank}`} style={[s.bib, first && s.bibFirst]}>
+                  {/* 상단 밴드 + 펀치홀 — 레이스 빕 조형 (미니 빕 스탯과 같은 모티프) */}
+                  <View style={[s.bibBand, { backgroundColor: BIB_BAND[rank] }]}>
+                    <Text style={{ fontSize: first ? 15 : 13 }}>{MEDAL[rank]}</Text>
+                    <Text style={{ fontSize: 10, fontWeight: '900', color: FOREST, letterSpacing: 1.5 }}>NO.{rank + 1}</Text>
+                  </View>
+                  <Row style={{ justifyContent: 'space-between', paddingHorizontal: 14, marginTop: -5 }}>
+                    <View style={s.bibHole} /><View style={s.bibHole} />
+                  </Row>
+                  <View style={{ alignItems: 'center', paddingTop: 4, paddingBottom: first ? 14 : 11 }}>
+                    <Avatar url={r.photoUrl} char={r.name[0]} bg={tab === 'dogs' ? '#c9a86e' : '#5a7a3c'} size={first ? 46 : 38} />
+                    <Text style={{ fontSize: first ? 15 : 13.5, fontWeight: '900', color: FOREST, marginTop: 6 }} numberOfLines={1}>
+                      {r.name}
+                    </Text>
+                    <Text style={{ fontSize: first ? 19 : 16, fontWeight: '900', color: '#5a7a3c', marginTop: 2 }}>
+                      {tab === 'dogs' ? `${r.km}km` : `${r.runs}회`}
+                    </Text>
+                  </View>
+                </View>
+              );
+            })}
+          </Row>
+        )}
+        {rows.slice(3).map((r, i) => (
+          <View key={`${r.name}-${i + 3}`} style={s.row}>
+            <Text style={{ width: 34, fontSize: 14, fontWeight: '900', color: '#49524a', textAlign: 'center' }}>
+              {i + 4}
             </Text>
             <Avatar url={r.photoUrl} char={r.name[0]} bg={tab === 'dogs' ? '#c9a86e' : '#5a7a3c'} size={40} />
             <Text style={{ flex: 1, fontSize: 16.5, fontWeight: '800', color: FOREST, marginLeft: 10 }} numberOfLines={1}>
@@ -120,4 +152,13 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff',
     borderRadius: 16, padding: 12, borderWidth: 1, borderColor: '#DCD6C4', marginTop: 8,
   },
+  // 포디움 빕 — 흰 몸통 + 메달 파스텔 밴드 + 펀치홀
+  bib: {
+    flex: 1, backgroundColor: '#fff', borderRadius: 14, overflow: 'hidden',
+    borderWidth: 1, borderColor: '#DCD6C4',
+    shadowColor: FOREST, shadowOpacity: 0.08, shadowRadius: 7, shadowOffset: { width: 0, height: 4 },
+  },
+  bibFirst: { borderColor: '#e2c56b', borderWidth: 1.5, shadowOpacity: 0.14 },
+  bibBand: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 10, paddingVertical: 6 },
+  bibHole: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#EDE8DA', borderWidth: 1, borderColor: '#d8d2c0' },
 });

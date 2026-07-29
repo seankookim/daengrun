@@ -677,6 +677,27 @@ export async function fetchCoursePatches(): Promise<{ earned: CoursePatch[]; loc
   return { earned, locked };
 }
 
+// 패치 획득/승급 팝 — 이 예약이 그 코스의 '최신 완주'이고 누적이 임계(1/5/10/25)에 방금 도달했을 때만.
+// 앱 세션당 예약별 1회 (인메모리 — 과거 리포트 재방문 시 반복 팝 방지)
+const _patchPopSeen = new Set<string>();
+export async function fetchPatchPop(bookingId: string, routeId: string): Promise<CoursePatch | null> {
+  if (_patchPopSeen.has(bookingId)) return null;
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) return null;
+  const uid = user.user.id;
+  const { data, error } = await supabase.from('bookings').select('id')
+    .eq('route_id', routeId).eq('status', 'completed')
+    .or(`owner_id.eq.${uid},runner_id.eq.${uid}`)
+    .order('scheduled_at', { ascending: false }).limit(30);
+  if (error || !data || data.length === 0) return null;
+  if (data[0].id !== bookingId) return null; // 최신 완주가 아니면 과거 리포트 — 팝 없음
+  const n = data.length;
+  if (![1, 5, 10, 25].includes(n)) return null;
+  const { data: rt } = await supabase.from('routes').select('name, km').eq('id', routeId).maybeSingle();
+  _patchPopSeen.add(bookingId);
+  return { routeId, name: rt?.name ?? '코스', km: Number(rt?.km ?? 0), count: n, grade: patchGrade(n), firstAt: null };
+}
+
 export const runnerEnroute = (id: string) => invokeTransition(id, 'enroute');
 
 // ---------- profile (identity layer) ----------

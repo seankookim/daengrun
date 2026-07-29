@@ -40,8 +40,9 @@ async function openNaverRoute() {
   } catch { Linking.openURL(web).catch(() => {}); }
 }
 
-// 코랄 파동 — 새 요청의 긴급감. 탱 링 두 개가 900ms 간격으로 퍼져나간다 (네이티브 드라이버)
-function PulseRings() {
+// 파동 링 — 긴급/도착 신호. 링 두 개가 900ms 간격으로 퍼져나간다 (네이티브 드라이버)
+// 코랄(새 요청) · 볼트(보급 드랍 도착) 공용 — 색·크기 파라미터
+function PulseRings({ color = colors.tang, size = 30 }: { color?: string; size?: number }) {
   const a1 = useRef(new Animated.Value(0)).current;
   const a2 = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -58,8 +59,8 @@ function PulseRings() {
     <Animated.View
       pointerEvents="none"
       style={{
-        position: 'absolute', width: 30, height: 30, borderRadius: 15,
-        borderWidth: 1.5, borderColor: colors.tang,
+        position: 'absolute', width: size, height: size, borderRadius: size / 2,
+        borderWidth: 1.5, borderColor: color,
         opacity: v.interpolate({ inputRange: [0, 0.15, 1], outputRange: [0, 0.85, 0] }),
         transform: [{ scale: v.interpolate({ inputRange: [0, 1], outputRange: [0.45, 1.6] }) }],
       }}
@@ -304,14 +305,17 @@ export default function RunnerHome() {
                 }} />
               </Row>
             ))}
-            <View style={{
-              transform: [{ translateY: 12 }],
-              width: 34, height: 34, borderRadius: 11, backgroundColor: '#fff',
-              alignItems: 'center', justifyContent: 'center',
-              borderWidth: 2, borderColor: cycle5 === 0 && rs.totalRuns > 0 ? '#7FA818' : '#e4ecc9',
-              shadowColor: '#0F1D13', shadowOpacity: 0.12, shadowRadius: 6, shadowOffset: { width: 0, height: 3 },
-            }}>
-              <Text style={{ fontSize: 17 }}>▣</Text>
+            <View style={{ transform: [{ translateY: 12 }], width: 34, height: 34, alignItems: 'center', justifyContent: 'center' }}>
+              {/* 드랍 도착 = 볼트 파동 — '열 게 있다'는 신호 (요청 코랄 파동과 같은 언어, 다른 색) */}
+              {cycle5 === 0 && rs.totalRuns > 0 && <PulseRings color={colors.volt} size={34} />}
+              <View style={{
+                width: 34, height: 34, borderRadius: 11, backgroundColor: '#fff',
+                alignItems: 'center', justifyContent: 'center',
+                borderWidth: 2, borderColor: cycle5 === 0 && rs.totalRuns > 0 ? '#7FA818' : '#e4ecc9',
+                shadowColor: '#0F1D13', shadowOpacity: 0.12, shadowRadius: 6, shadowOffset: { width: 0, height: 3 },
+              }}>
+                <Text style={{ fontSize: 17 }}>▣</Text>
+              </View>
             </View>
           </Row>
 
