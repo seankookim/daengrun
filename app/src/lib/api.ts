@@ -682,9 +682,12 @@ export async function fetchCoursePatches(): Promise<{ earned: CoursePatch[]; loc
   const { data: user } = await supabase.auth.getUser();
   if (!user.user) return { earned: [], locked: [] };
   const uid = user.user.id;
+  // runs!inner + end_reason='completed' (0028 ②): status='completed'는 조기 종료 정산도
+  // 포함 — 패치는 '완주'만 센다. bookings↔runs는 unique FK 단일 경로라 임베드 모호성 없음.
   const [bkRes, rtRes] = await Promise.all([
-    supabase.from('bookings').select('route_id, scheduled_at')
-      .eq('status', 'completed').not('route_id', 'is', null)
+    supabase.from('bookings').select('route_id, scheduled_at, runs!inner(end_reason)')
+      .eq('status', 'completed').eq('runs.end_reason', 'completed')
+      .not('route_id', 'is', null)
       .or(`owner_id.eq.${uid},runner_id.eq.${uid}`)
       .order('scheduled_at').limit(1000),
     supabase.from('routes').select('id, name, km').eq('active', true),
@@ -729,8 +732,9 @@ export async function fetchPatchPop(bookingId: string, routeId: string): Promise
   const { data: user } = await supabase.auth.getUser();
   if (!user.user) return null;
   const uid = user.user.id;
-  const { data, error } = await supabase.from('bookings').select('id')
+  const { data, error } = await supabase.from('bookings').select('id, runs!inner(end_reason)')
     .eq('route_id', routeId).eq('status', 'completed')
+    .eq('runs.end_reason', 'completed') // 패치 팝도 '완주'만 (0028 ②)
     .or(`owner_id.eq.${uid},runner_id.eq.${uid}`)
     .order('scheduled_at', { ascending: false }).limit(30);
   if (error || !data || data.length === 0) return null;

@@ -3,3 +3,4 @@ node_modules/
 .env
 app/.env
 _to_delete/
+supabase/tests/.pgtest/

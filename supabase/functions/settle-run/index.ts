@@ -22,8 +22,22 @@ Deno.serve(handle(async (req) => {
   const { data: runner } = await db.from("runners").select("commission_rate").eq("profile_id", uid).single();
   const commission = Number(runner?.commission_rate ?? 0.2);
 
-  // 금액 계산 — 실제 km 기준, 최소요금 보장
+  // ---------- 입력 신뢰 경계 (2026-07-29 하네스 발견) ----------
+  // 이전엔 러너 자기 신고 actual_km를 무제한 신뢰 — 직접 API 호출로 999km 청구(급여 조작)
+  // 또는 0.1km 'completed'(마일·드랍·total_runs 파밍)가 가능했다. GPS 게이트는 클라 전용이라
+  // 서버 경계가 최종 방어선. (트레이스 대조 검증은 v2 — 지금은 계획 km 기반 타당성 밴드.)
   const km = Number(p.actual_km);
+  const plannedKm = Number(bk.km);
+  if (!Number.isFinite(km) || km < 0 || km > plannedKm * 2 + 2) {
+    throw new HttpError(400, `실측 거리가 타당 범위를 벗어났어요 (계획 ${plannedKm}km, 신고 ${km}km)`);
+  }
+  if (p.duration_sec != null && (!Number.isFinite(Number(p.duration_sec)) || Number(p.duration_sec) < 0)) {
+    throw new HttpError(400, "duration_sec invalid");
+  }
+  if (p.end_reason === "completed" && km < plannedKm * 0.9) {
+    // 완주 인센티브(마일·드랍·total_runs·패치)는 계획 거리의 90% 이상 실측에서만
+    throw new HttpError(400, `완주 정산은 계획 거리의 90% 이상 실측이 필요해요 (${km}/${plannedKm}km) — 조기 종료 사유로 정산해주세요`);
+  }
   const distancePay = Math.round(km * PRICING.perKm);
   const base = PRICING.baseFare;
   const addonPay = (bk.addons as { price: number }[]).reduce((s, a) => s + a.price, 0);
