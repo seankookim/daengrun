@@ -1,0 +1,454 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>도그스하이 — P-C 위탁 UI 랩 (3버전 × 3화면)</title>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Oswald:wght@500;600;700&family=IBM+Plex+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0E100D;--paper:#FFFFFF;--volt:#C6F542;--voltDeep:#7FA818;--tang:#FF5C3D;
+  --amber:#F59A43;--blue:#6E9BC5;--gold:#D9A93C;--moss:#A9C463;
+  --club:#7B6CDF;--clubDeep:#5A4BC7;--clubInk:#4A3DA8;--neon:#9F8FFF;
+  --vbg:#0D0A1E;--vnight:#14102B;--vedge:#2A2350;--vdim:#8F86C2;
+  --rnight:#121712;--redge:#24352a;--rdim:#8fa093;
+  /* collar palette (P1) */
+  --c-tang:#FF8A5C;--c-teal:#3EC6A8;--c-rose:#E58BA9;--c-sky:#5BB8D4;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0A0C0A;color:#E8EBE4;font-family:'IBM Plex Sans KR',sans-serif;padding:32px 26px 100px}
+.bhs{font-family:'Black Han Sans',sans-serif;font-weight:400}
+.osw{font-family:'Oswald',sans-serif}
+.mono{font-family:'IBM Plex Mono',monospace}
+h1{font-size:27px;color:var(--volt)}
+.lede{color:#7d8878;margin:9px 0 4px;max-width:960px;line-height:1.65;font-size:13.5px}
+.legend{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}
+.lg{background:#151a14;border:1px solid #232a22;padding:8px 12px;font-size:11.5px;color:#c8d0c2;line-height:1.5}
+.lg b{color:#fff}
+.ver{margin-top:44px;border-top:2.5px solid #232a22;padding-top:18px}
+.verhead{display:flex;align-items:baseline;gap:14px}
+.verhead .vn{font-family:'Oswald',sans-serif;font-size:38px;font-weight:700;color:var(--neon);line-height:1}
+.verhead h2{font-size:21px;color:#fff}
+.verhead .mono{font-size:10px;letter-spacing:2.5px;color:#7d8878}
+.verlede{color:#8fa093;font-size:12.5px;line-height:1.6;margin:8px 0 0;max-width:920px}
+.row{display:flex;gap:18px;flex-wrap:wrap;margin-top:20px;align-items:flex-start}
+.shot{width:302px}
+.sl{font-size:10.5px;letter-spacing:2px;color:#7d8878;margin-bottom:7px;font-family:'IBM Plex Mono',monospace}
+.note{color:#8fa093;font-size:11.5px;line-height:1.6;margin:9px 2px 0}
+.note b{color:#c8d0c2}
+.ph{min-height:500px;padding:14px 12px 18px;overflow:hidden;position:relative}
+.ph.vdark{background:var(--vbg);color:#EDE9FF}
+.ph.rdark{background:var(--rnight);color:#EDF1E8}
+
+/* ═══ shared grammar ═══ */
+.vk{font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:2.5px;color:var(--neon)}
+.vkdim{font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:2px;color:var(--vdim)}
+.dog{width:38px;height:38px;border-radius:50%;flex:none;background:linear-gradient(140deg,#c9b89a,#8a7a5c);border:2.5px solid var(--c-tang)}
+.dog.teal{border-color:var(--c-teal);background:linear-gradient(140deg,#b8c2a8,#6d7a5a)}
+.dog.rose{border-color:var(--c-rose);background:linear-gradient(140deg,#d9c2b2,#96806a)}
+.dog.sky{border-color:var(--c-sky);background:linear-gradient(140deg,#aebfc4,#5e7076)}
+.cta3d{display:block;background:var(--tang);color:#fff;border:2px solid var(--ink);box-shadow:4px 4px 0 var(--ink);text-align:center;font-weight:900;font-size:14.5px;padding:13px 0;margin-top:13px}
+.ph.vdark .cta3d,.ph.rdark .cta3d{border-color:#000;box-shadow:4px 4px 0 #000}
+.tagP{font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:1.5px;padding:3px 7px;border:1.5px solid var(--amber);color:var(--amber)}
+.tagA{font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:1.5px;padding:3px 7px;border:1.5px solid var(--neon);color:var(--neon)}
+.tagV{font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:1.5px;padding:3px 7px;border:1.5px solid var(--volt);color:var(--volt)}
+
+/* ═══ VERSION A — 레이스 오피스 (paper on night) ═══ */
+.sheet{background:var(--paper);color:var(--ink);padding:13px 12px 15px;position:relative;
+  box-shadow:0 14px 34px rgba(0,0,0,.55), 0 0 0 1px rgba(159,143,255,.12);}
+.sheet.tilt{transform:rotate(-.7deg)}
+.sheet .shead{display:flex;justify-content:space-between;align-items:baseline;border-bottom:2.5px solid var(--ink);padding-bottom:7px}
+.sheet .shead h4{font-size:16px}
+.sheet .shead .mono{font-size:8px;letter-spacing:2px;color:#888}
+.frow{display:flex;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid #D8DAD2}
+.frow .fl{font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:1.5px;color:#888;width:56px;flex:none}
+.frow b{font-size:13.5px}
+.frow span{font-size:11px;color:#666}
+.feet{display:flex;border-bottom:2.5px solid var(--ink)}
+.feet div{flex:1;padding:9px 4px 10px;border-right:1px solid #D8DAD2}
+.feet div:last-child{border-right:0}
+.feet b{display:block;font-family:'Oswald',sans-serif;font-size:19px;font-weight:600;line-height:1}
+.feet b.total{color:var(--clubInk)}
+.feet span{display:block;font-family:'IBM Plex Mono',monospace;font-size:7px;letter-spacing:1.2px;color:#888;margin-top:3px}
+.rubber{position:absolute;right:14px;top:44%;transform:rotate(-11deg);border:3px solid var(--amber);color:var(--amber);
+  padding:6px 12px;text-align:center;background:rgba(245,154,67,.05);animation:thunk .5s cubic-bezier(.2,2.4,.4,1) both .5s}
+.rubber b{display:block;font-size:12px;letter-spacing:2.5px;font-weight:900}
+.rubber span{display:block;font-size:7px;letter-spacing:1.5px;border-top:1px solid rgba(245,154,67,.5);margin-top:2px;padding-top:2px}
+@keyframes thunk{0%{transform:rotate(-11deg) scale(2.1);opacity:0}100%{transform:rotate(-11deg) scale(1);opacity:1}}
+.startlist td,.startlist th{border-bottom:1px solid #D8DAD2;padding:8px 4px;font-size:11.5px;text-align:left}
+.startlist{width:100%;border-collapse:collapse;margin-top:2px}
+.startlist th{font-family:'IBM Plex Mono',monospace;font-size:7.5px;letter-spacing:1.5px;color:#888;border-bottom:2.5px solid var(--ink);font-weight:500}
+.startlist .osw{font-size:14px;font-weight:600}
+.inkbtn{display:inline-block;border:1.5px solid var(--ink);font-weight:900;font-size:10px;padding:4px 8px}
+.inkbtn.no{color:#999;border-color:#bbb}
+.stampOk{display:inline-block;border:2px solid var(--clubDeep);color:var(--clubDeep);font-weight:900;font-size:8.5px;letter-spacing:1.5px;padding:3px 6px;transform:rotate(-6deg)}
+.ledger{display:flex;align-items:baseline;gap:8px;padding:9px 2px;border-bottom:1px solid #D8DAD2}
+.ledger .osw{font-size:21px;font-weight:600}
+.ledger small{font-size:10.5px;color:#666}
+.gate{font-family:'IBM Plex Mono',monospace;font-size:10px;border-bottom:1.5px dashed #999;padding:0 4px 2px;color:var(--clubInk);font-weight:700}
+.tagcard{background:var(--paper);color:var(--ink);position:relative;padding:11px 12px 12px 24px;margin-top:12px;
+  box-shadow:0 10px 26px rgba(0,0,0,.5)}
+.tagcard::before{content:'';position:absolute;left:8px;top:14px;width:9px;height:9px;border-radius:50%;
+  background:var(--rnight);box-shadow:0 0 0 2.5px var(--ink)}
+.tagcard .trow{display:flex;gap:9px;align-items:center}
+.tagcard h5{font-size:14px;font-weight:800}
+.tagcard .sub{font-size:10.5px;color:#666;margin-top:1px}
+.hbox{display:flex;gap:6px;margin-top:9px}
+.hb{flex:1;border:1.5px solid var(--ink);padding:6px 7px}
+.hb .mono{font-size:7px;letter-spacing:1.2px;color:#888}
+.hb b{display:block;font-size:11px;margin-top:2px}
+.hb.ok{background:var(--volt);border-color:var(--voltDeep)}
+.hb.wait b{color:#999}
+
+/* ═══ VERSION B — 커스터디 스위치보드 ═══ */
+.chain{position:absolute;left:13px;top:60px;bottom:20px;width:2px;background:var(--vedge)}
+.cnode{position:absolute;left:-6px;width:14px;height:14px;background:var(--vnight);border:2px solid var(--vedge);transform:rotate(45deg)}
+.cnode.done{border-color:var(--neon);background:var(--neon);box-shadow:0 0 10px rgba(159,143,255,.7)}
+.cnode.now{border-color:var(--amber);background:var(--vbg);animation:pulse 1.6s infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(245,154,67,.5)}50%{box-shadow:0 0 0 7px rgba(245,154,67,0)}}
+.clabel{position:absolute;left:16px;font-family:'IBM Plex Mono',monospace;font-size:7.5px;letter-spacing:1.8px;color:var(--vdim);transform:translateY(-1px)}
+.clabel.now{color:var(--amber)}
+.clabel.done{color:var(--neon)}
+.holder{background:var(--vnight);border:1px solid var(--vedge);position:relative;padding:13px 14px;margin-top:12px}
+.holder::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--amber)}
+.holder.mine::before{background:var(--neon)}
+.holder .who{display:flex;gap:11px;align-items:center;margin-top:7px}
+.holder .who .av{width:42px;height:42px;border-radius:50%;background:#3f3670;border:2.5px solid var(--neon);flex:none;display:flex;align-items:center;justify-content:center;font-weight:900;color:#fff;font-size:15px}
+.holder .who b{font-size:17px;color:#fff}
+.holder .who span{display:block;font-size:10.5px;color:var(--vdim);margin-top:1px}
+.jack{display:flex;gap:9px;align-items:center;background:var(--vnight);border:1px solid var(--vedge);padding:9px 10px;margin-top:8px;position:relative}
+.jack .nm{flex:1}
+.jack .nm b{font-size:13px;color:#fff}
+.jack .nm span{display:block;font-size:9.5px;color:var(--vdim);margin-top:1px}
+.port{width:15px;height:15px;border:2px solid var(--vdim);background:#0B081A;flex:none;position:relative}
+.port.live{border-color:var(--neon);background:var(--neon);box-shadow:0 0 9px rgba(159,143,255,.8)}
+.port.amber{border-color:var(--amber)}
+.wirebay{position:relative;height:74px;margin:2px 8px}
+.wirebay svg{position:absolute;inset:0;width:100%;height:100%}
+.rport{background:var(--vnight);border:1px solid var(--vedge);padding:9px 10px;margin-top:8px;display:flex;align-items:center;gap:9px}
+.rport .rp{flex:1}
+.rport b{font-size:13px;color:#fff}
+.rport span{display:block;font-size:9px;color:var(--vdim);letter-spacing:1px;font-family:'IBM Plex Mono',monospace;margin-top:2px}
+.sock{display:flex;gap:5px}
+.sock i{width:13px;height:13px;border:2px solid var(--vdim);background:#0B081A}
+.sock i.on{border-color:var(--volt);background:var(--volt);box-shadow:0 0 8px rgba(198,245,66,.6)}
+.gripwire{stroke:var(--neon);stroke-width:2.5;fill:none;filter:drop-shadow(0 0 4px rgba(159,143,255,.8));stroke-dasharray:240;animation:flow 2.6s linear infinite}
+.gripwire.dim{stroke:var(--vedge);filter:none;animation:none;stroke-dasharray:5 5}
+@keyframes flow{from{stroke-dashoffset:0}to{stroke-dashoffset:-24}}
+.bignum{display:flex;border-top:1px solid var(--vedge);border-bottom:1px solid var(--vedge);margin-top:12px}
+.bignum div{flex:1;padding:9px 6px;border-right:1px solid var(--vedge)}
+.bignum div:last-child{border-right:0}
+.bignum b{display:block;font-family:'Oswald',sans-serif;font-size:23px;font-weight:600;color:#fff;line-height:1}
+.bignum b em{font-style:normal;color:var(--tang)}
+.bignum span{display:block;font-family:'IBM Plex Mono',monospace;font-size:7px;letter-spacing:1.5px;color:var(--vdim);margin-top:3px}
+
+/* ═══ VERSION C — 관제탑 (departures / flight strips) ═══ */
+.flap{display:inline-flex;gap:1.5px}
+.flap i{font-family:'Oswald',sans-serif;font-style:normal;font-weight:600;font-size:11px;background:#1B1536;color:#fff;
+  padding:3px 4px;border-top:1px solid rgba(255,255,255,.14);border-bottom:2px solid #000;position:relative;letter-spacing:.5px}
+.flap i::after{content:'';position:absolute;left:0;right:0;top:50%;height:1px;background:rgba(0,0,0,.55)}
+.flap.amberF i{color:var(--amber)}
+.flap.voltF i{color:var(--volt)}
+.flap.neonF i{color:var(--neon)}
+.board{border:1px solid var(--vedge);margin-top:12px}
+.board .bhead{background:#080617;padding:8px 11px;display:flex;justify-content:space-between;border-bottom:1px solid var(--vedge)}
+.brow{display:flex;align-items:center;gap:8px;padding:9px 10px;border-bottom:1px solid var(--vedge);background:var(--vnight)}
+.brow:last-child{border-bottom:0}
+.brow .osw{font-size:15px;font-weight:600;color:#fff;width:34px}
+.brow .bnm{flex:1}
+.brow .bnm b{font-size:12.5px;color:#fff}
+.brow .bnm span{display:block;font-size:9px;color:var(--vdim);margin-top:1px}
+.pass{background:var(--vnight);border:1px solid var(--vedge);position:relative;margin-top:14px}
+.pass::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--neon)}
+.perf{display:flex;align-items:center;height:12px;position:relative}
+.perf .dash{flex:1;border-top:1px dashed #3A3168;margin:0 9px}
+.perf .nt{width:12px;height:12px;background:var(--vbg);transform:rotate(45deg);position:absolute}
+.grid2{display:flex;border:1px solid var(--vedge);margin:8px 14px 0}
+.grid2 div{flex:1;padding:8px 10px;border-right:1px solid var(--vedge)}
+.grid2 div:last-child{border-right:0}
+.grid2 span{display:block;font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:1.5px;color:var(--vdim)}
+.grid2 b{display:block;font-size:13.5px;color:#fff;margin-top:3px}
+.bars{display:flex;gap:2px;align-items:flex-end;height:20px;margin:10px 14px 0;opacity:.7}
+.bars i{background:var(--vdim);width:2px;height:60%}
+.bars i:nth-child(3n){width:3.5px;height:100%}.bars i:nth-child(4n){height:45%}.bars i:nth-child(5n){height:85%}
+.strip{background:#F4F1E6;color:var(--ink);display:flex;align-items:stretch;margin-top:9px;border-left:6px solid var(--c-tang);
+  box-shadow:0 8px 20px rgba(0,0,0,.5)}
+.strip.teal{border-left-color:var(--c-teal)}
+.strip.ghost{opacity:.45;border-left-color:#555}
+.strip .cell{padding:8px 8px;border-right:1px solid #C9C4B0}
+.strip .cell:last-child{border-right:0}
+.strip .cell .mono{font-size:6.5px;letter-spacing:1.2px;color:#888;display:block}
+.strip .cell b{font-size:12.5px;display:block;margin-top:2px}
+.strip .cell .osw{font-size:15px;font-weight:600}
+.raildock{border:1px dashed var(--vedge);padding:8px 10px;margin-top:12px}
+.raildock .vkdim{display:block;margin-bottom:2px}
+.twr{display:flex;justify-content:space-between;align-items:center;background:#080617;border:1px solid var(--vedge);padding:8px 11px;margin-top:12px}
+.twr b{font-family:'Oswald',sans-serif;font-size:19px;color:var(--volt);font-weight:600}
+.twr span{font-size:10px;color:var(--vdim)}
+.clearbtn{display:inline-block;border:1.5px solid var(--volt);color:var(--volt);font-weight:900;font-size:9.5px;letter-spacing:1px;padding:5px 9px}
+.holdbtn{display:inline-block;border:1.5px solid var(--vdim);color:var(--vdim);font-weight:900;font-size:9.5px;letter-spacing:1px;padding:5px 9px}
+.mast{display:flex;justify-content:space-between;align-items:baseline;padding-bottom:8px;border-bottom:1px solid var(--vedge)}
+.mast h3{font-size:18px;color:#fff}
+.rdark .mast{border-color:var(--redge)}
+</style>
+</head>
+<body>
+<h1 class="bhs">P-C 위탁 UI 랩 — 3버전 × 3화면</h1>
+<p class="lede">백엔드(0037+0038)가 확정한 상태 기계를 그대로 그립니다: <b>등록(pending·앰버) → 승인(부킹 생성) → 배정(체크인 창) → 인계(양측 확인 = 커스터디 플립) → 러닝(공유 트레이스) → 반환</b>. 세 버전 모두 V4 6규칙 안에서 — 다른 것은 '위탁'이라는 사건을 읽는 은유입니다. 화면은 버전당 3개: <b>보호자 위탁 신청 · 호스트 콘솔(승인+배정) · 러너 핸들링 런</b>.</p>
+<div class="legend">
+  <div class="lg"><b>V4 준수</b> 샤프 코너 · 화면당 3D 코랄 1개 · 클럽=바이올렛 나이트 · 생명체·도장만 원형 · Oswald 숫자 · Mono 라벨</div>
+  <div class="lg"><b>정직 렌더</b> 앰버=대기 · 정원은 항상 committed 러너 캡 합 · 가짜 활동 없음 — 모든 상태가 실제 스키마 필드</div>
+  <div class="lg"><b>A</b> 레이스 오피스 — 밤 위의 서류</div>
+  <div class="lg"><b>B</b> 커스터디 스위치보드 — 책임의 배선 (추천)</div>
+  <div class="lg"><b>C</b> 관제탑 — 출발 전광판 & 플라이트 스트립</div>
+</div>
+
+<!-- ════════════════ VERSION A ════════════════ -->
+<div class="ver">
+<div class="verhead"><span class="vn">A</span><h2 class="bhs">레이스 오피스</h2><span class="mono">PAPER ON NIGHT — 서류가 곧 의식</span></div>
+<p class="verlede">위탁은 대회 접수다: 엔트리 폼, 스타트 리스트, 수하물 태그. 바이올렛 밤 무대 위에 <b>흰 종이 서류</b>가 떨어져 있는 구도 — V1의 잉크 룰 문법이 밤 세계 안으로 들어온다. 낮/밤 스위치(규칙 ③)를 한 화면 안에서 충돌시키는 버전.</p>
+<div class="row">
+
+<div class="shot"><div class="sl">A1 — 보호자: 위탁 엔트리 (세션 상세 내)</div><div class="ph vdark">
+  <div class="mast"><h3 class="bhs">토 09:00 세션</h3><span class="vkdim">MIXED · 잠수교 북단</span></div>
+  <div style="margin-top:16px" class="sheet tilt">
+    <div class="shead"><h4 class="bhs">위탁 엔트리</h4><span class="mono">ENTRY FORM № 04</span></div>
+    <div class="frow"><span class="fl">ENTRANT</span><span class="dog"></span><div><b>몽이</b><span> · 푸들 · 6.2kg · 탠저린 칼라</span></div></div>
+    <div class="frow"><span class="fl">COURSE</span><div><b>반포 한강 5.0km</b><span> · 페이스는 러너가 관리</span></div></div>
+    <div class="feet">
+      <div><b class="osw">9,900</b><span>BASE</span></div>
+      <div><b class="osw">15,000</b><span>5.0KM × 3,000</span></div>
+      <div><b class="osw total">24,900</b><span>TOTAL — 일반가</span></div>
+    </div>
+    <div style="font-size:9.5px;color:#888;padding:8px 2px 2px;line-height:1.5">승인 시 결제 · 인계 확인부터 펫보험 적용 · 미진행 시 전액 환불</div>
+    <div class="rubber"><b>RECEIVED</b><span>심사 대기 · 호스트 션</span></div>
+  </div>
+  <a class="cta3d">엔트리 접수 →</a>
+  <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
+    <span class="tagP">PENDING</span>
+    <span style="font-size:10.5px;color:var(--vdim)">호스트가 승인하면 알림 · 그때 결제돼요</span>
+  </div>
+</div>
+<p class="note"><b>밤 무대 위의 종이 한 장.</b> 폼은 V1 잉크 룰 그대로(요금 3분할 = Oswald), 제출하면 앰버 고무도장 RECEIVED가 쿵 찍힌다(규칙 ④: 도장은 둥글지 않아도 의식이면 산다 — 여기선 각진 관인). 승인 전 결제 없음이 카피에 명시.</p></div>
+
+<div class="shot"><div class="sl">A2 — 호스트: 스타트 리스트 (승인+배정)</div><div class="ph vdark">
+  <div class="mast"><h3 class="bhs">호스트 콘솔</h3><span class="vkdim">SAT 09:00 · CHECK-IN OPEN</span></div>
+  <div style="margin-top:14px" class="sheet">
+    <div class="shead"><h4 class="bhs">스타트 리스트</h4><span class="mono">DELEGATED START LIST</span></div>
+    <div class="ledger"><span class="osw">2<small style="font-size:13px;color:#999">/3</small></span><small>위탁 정원 — 션 <b>1</b> + 지훈 <b>2</b> (커밋 러너 캡 합)</small></div>
+    <table class="startlist">
+      <tr><th>DOG</th><th>OWNER</th><th>GATE — 담당 러너</th><th>STATUS</th></tr>
+      <tr><td class="osw">01</td><td><b style="font-size:12px">보리</b></td><td><span class="gate">지훈</span></td><td><span class="stampOk">APPROVED</span></td></tr>
+      <tr><td class="osw">02</td><td><b style="font-size:12px">두부</b></td><td><span class="gate" style="color:#bbb;border-color:#ddd">미배정</span></td><td><span class="stampOk">APPROVED</span></td></tr>
+      <tr><td class="osw">03</td><td><b style="font-size:12px">몽이</b></td><td>—</td><td><span class="inkbtn">승인</span> <span class="inkbtn no">거절</span></td></tr>
+    </table>
+    <div style="font-size:9px;color:#888;padding-top:8px;font-family:'IBM Plex Mono',monospace;letter-spacing:1px">GATE는 체크인 창에서 연필로 — 재배정은 인계 전까지</div>
+  </div>
+  <a class="cta3d">두부 배정하기 →</a>
+</div>
+<p class="note"><b>경기 사무국의 클립보드.</b> 정원 원장(2/3)이 수기 장부처럼 맨 위 — 값은 항상 '커밋 러너 캡 합'에서 파생(동적 정원 독트린을 카피가 그대로 말함). 승인 = 바이올렛 관인, 배정 = GATE 칸에 연필 기입. 3D 코랄은 다음 할 일 하나에만.</p></div>
+
+<div class="shot"><div class="sl">A3 — 러너: 리시 태그 (인계→러닝)</div><div class="ph rdark">
+  <div class="mast"><h3 class="bhs">핸들링 런</h3><span class="vkdim" style="color:var(--rdim)">MY LEASHES — 2</span></div>
+  <div class="tagcard">
+    <div class="trow"><span class="dog teal"></span><div style="flex:1"><h5>보리 <span style="font-size:10px;color:#888">· 리트리버 · 18kg</span></h5><div class="sub">보호자 지은 · 5.0km · 부킹 #B7A2</div></div></div>
+    <div class="hbox">
+      <div class="hb ok"><span class="mono">OWNER</span><b>인계 확인 ✓</b></div>
+      <div class="hb ok"><span class="mono">RUNNER</span><b>인계 확인 ✓</b></div>
+    </div>
+  </div>
+  <div class="tagcard">
+    <div class="trow"><span class="dog rose"></span><div style="flex:1"><h5>두부 <span style="font-size:10px;color:#888">· 비숑 · 5kg</span></h5><div class="sub">보호자 민서 · 5.0km · 부킹 #B7A3</div></div></div>
+    <div class="hbox">
+      <div class="hb ok"><span class="mono">OWNER</span><b>인계 확인 ✓</b></div>
+      <div class="hb wait"><span class="mono">RUNNER</span><b>내가 확인 →</b></div>
+    </div>
+  </div>
+  <a class="cta3d" style="margin-top:16px">러닝 시작 — 인계 완료 1마리 →</a>
+  <div style="margin-top:9px;font-size:10px;color:var(--rdim);text-align:center">두부 인계를 확인하면 함께 출발할 수 있어요</div>
+</div>
+<p class="note"><b>수하물 태그 2장.</b> 강아지 = 펀치홀 뚫린 종이 태그(왼쪽 구멍이 진짜 뚫려 있음 — 밤 배경이 비침). 양측 인계 확인 박스가 보험 기점을 그대로 노출: 볼트 = 완료, 회색 = 내 차례. 시작 CTA는 인계 완료 수를 정직하게 센다.</p></div>
+</div></div>
+
+<!-- ════════════════ VERSION B ════════════════ -->
+<div class="ver">
+<div class="verhead"><span class="vn">B</span><h2 class="bhs">커스터디 스위치보드</h2><span class="mono">WHO HOLDS THE LEASH — 책임의 배선 · 추천</span></div>
+<p class="verlede">제품의 핵심 불변식 — <b>모든 강아지는 항상 정확히 한 명의 책임자를 가진다</b> — 를 그대로 디자인 언어로. 리드줄이 곧 회로: 보호자 화면엔 커스터디 체인 레일, 호스트 콘솔은 강아지 잭을 러너 포트에 꽂는 패치베이, 러너 화면은 내 손에 모이는 네온 와이어. UI가 스키마(responsible_profile_id)를 발광시킨다.</p>
+<div class="row">
+
+<div class="shot"><div class="sl">B1 — 보호자: 커스터디 체인</div><div class="ph vdark" style="padding-left:66px">
+  <div class="chain">
+    <span class="cnode done" style="top:0"></span><span class="clabel done" style="top:2px">신청</span>
+    <span class="cnode done" style="top:21%"></span><span class="clabel done" style="top:21.5%">승인 · 결제</span>
+    <span class="cnode now" style="top:42%"></span><span class="clabel now" style="top:42.5%">인계</span>
+    <span class="cnode" style="top:63%"></span><span class="clabel" style="top:63.5%">러닝</span>
+    <span class="cnode" style="top:84%"></span><span class="clabel" style="top:84.5%">반환</span>
+  </div>
+  <div class="mast"><h3 class="bhs">몽이의 위탁</h3><span class="vkdim">SAT 09:00</span></div>
+  <div class="holder">
+    <span class="vk" style="color:var(--amber)">지금 책임자 — CUSTODY</span>
+    <div class="who"><span class="av">나</span><div><b>아직 나에게</b><span>집결지에서 지훈 러너와 인계를 확인하면 넘어가요</span></div></div>
+  </div>
+  <div class="bignum">
+    <div><b class="osw">24,900</b><span>PAID — 일반가</span></div>
+    <div><b class="osw">5.0<em>km</em></b><span>COURSE</span></div>
+    <div><b class="osw">09:00</b><span>잠수교 북단</span></div>
+  </div>
+  <a class="cta3d">인계 확인 — 보호자 측 →</a>
+  <div style="margin-top:9px;font-size:10px;color:var(--vdim)">양측이 확인하는 순간부터 펫보험 적용 · 책임자가 지훈 러너로 바뀌어요</div>
+</div>
+<p class="note"><b>왼쪽 레일이 이 버전의 척추.</b> 다이아 노드 5개(신청→반환) — 지난 것은 네온, 지금은 앰버 펄스. '지금 책임자' 블록이 화면의 심장: responsible_profile_id를 사람 얼굴로 보여준다. 인계가 완료되면 같은 블록이 네온으로 바뀌며 러너 얼굴이 들어온다.</p></div>
+
+<div class="shot"><div class="sl">B2 — 호스트: 패치베이 (승인+배정)</div><div class="ph vdark">
+  <div class="mast"><h3 class="bhs">호스트 콘솔</h3><span class="vkdim">PATCH BAY · CHECK-IN OPEN</span></div>
+  <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:10px">
+    <span class="vk">DOGS — 잭</span><span class="vk" style="color:var(--volt)">RUNNERS — 포트 (캡 합 3)</span>
+  </div>
+  <div class="jack"><span class="dog teal" style="width:32px;height:32px"></span>
+    <div class="nm"><b>보리</b><span>지은 · 승인·인계 완료</span></div><span class="port live"></span></div>
+  <div class="jack"><span class="dog rose" style="width:32px;height:32px"></span>
+    <div class="nm"><b>두부</b><span>민서 · 승인 — 배정 대기</span></div><span class="port amber"></span></div>
+  <div class="wirebay">
+    <svg viewBox="0 0 278 74" preserveAspectRatio="none">
+      <path class="gripwire" d="M262 2 C 262 30, 210 20, 190 44 S 150 70, 138 72"/>
+      <path class="gripwire dim" d="M262 -18 C 250 20, 120 6, 96 40"/>
+    </svg>
+  </div>
+  <div class="rport"><div class="rp"><b>지훈</b><span>VETERAN — CAP 2</span></div><div class="sock"><i class="on"></i><i></i></div></div>
+  <div class="rport"><div class="rp"><b>션 (호스트)</b><span>CERTIFIED — CAP 1</span></div><div class="sock"><i></i></div></div>
+  <div class="jack" style="border-style:dashed"><span class="dog" style="width:32px;height:32px"></span>
+    <div class="nm"><b>몽이</b><span>신청 — 승인 대기</span></div>
+    <span class="tagV" style="border-color:var(--volt);color:var(--volt)">승인</span>
+    <span class="tagP" style="border-color:var(--vdim);color:var(--vdim)">거절</span>
+  </div>
+  <a class="cta3d">두부 → 빈 소켓에 배정 →</a>
+</div>
+<p class="note"><b>사운드 엔지니어의 패치베이.</b> 위 = 강아지 잭(칼라 컬러 링), 아래 = 러너 포트(소켓 수 = 개인 캡, 켜진 소켓 = 배정 실개수). 배정 = 와이어가 소켓에 꽂히며 발광. 앰버 잭 = 승인됐지만 미배정, 점선 잭 = 승인 대기. 러너 이탈 시 와이어가 끊기는 모션까지 상상 가능한 구조.</p></div>
+
+<div class="shot"><div class="sl">B3 — 러너: 마이 그립 (러닝 중)</div><div class="ph rdark">
+  <div class="mast"><h3 class="bhs">핸들링 런</h3><span class="tagV">LIVE — GPS</span></div>
+  <div style="display:flex;gap:8px;margin-top:12px">
+    <div style="flex:1;display:flex;gap:8px;align-items:center;border:1px solid var(--redge);padding:8px 9px">
+      <span class="dog teal" style="width:30px;height:30px"></span><div><b style="font-size:12.5px;color:#fff">보리</b><div style="font-size:8.5px;color:var(--rdim);font-family:'IBM Plex Mono',monospace;letter-spacing:1px">IN GRIP ●</div></div>
+    </div>
+    <div style="flex:1;display:flex;gap:8px;align-items:center;border:1px solid var(--redge);padding:8px 9px">
+      <span class="dog rose" style="width:30px;height:30px"></span><div><b style="font-size:12.5px;color:#fff">두부</b><div style="font-size:8.5px;color:var(--rdim);font-family:'IBM Plex Mono',monospace;letter-spacing:1px">IN GRIP ●</div></div>
+    </div>
+  </div>
+  <div class="wirebay" style="height:56px;margin:0 30px">
+    <svg viewBox="0 0 218 56" preserveAspectRatio="none">
+      <path class="gripwire" style="stroke:var(--c-teal)" d="M40 0 C 50 34, 95 30, 109 52"/>
+      <path class="gripwire" style="stroke:var(--c-rose);animation-delay:-1.3s" d="M178 0 C 168 34, 123 30, 109 52"/>
+    </svg>
+  </div>
+  <div style="text-align:center;border:2.5px solid var(--volt);display:inline-block;padding:6px 18px;margin:0 auto;display:block;width:150px">
+    <span class="mono" style="font-size:8px;letter-spacing:2px;color:var(--volt)">MY GRIP — 책임 2</span>
+  </div>
+  <div class="bignum" style="border-color:var(--redge)">
+    <div><b class="osw">2.4<em>km</em></b><span style="color:var(--rdim)">SHARED TRACE</span></div>
+    <div><b class="osw">6'58"</b><span style="color:var(--rdim)">PACE</span></div>
+    <div><b class="osw">17:22</b><span style="color:var(--rdim)">ELAPSED</span></div>
+  </div>
+  <div style="display:flex;gap:8px;margin-top:12px">
+    <span style="flex:1;text-align:center;border:1.5px solid var(--redge);color:var(--rdim);font-weight:800;font-size:11px;padding:9px 0">보리만 조기 반환</span>
+    <span style="flex:1;text-align:center;border:1.5px solid var(--redge);color:var(--rdim);font-weight:800;font-size:11px;padding:9px 0">두부만 조기 반환</span>
+  </div>
+  <a class="cta3d">러닝 종료 — 2마리 정산 →</a>
+</div>
+<p class="note"><b>두 리드줄이 내 손(MY GRIP)으로 모인다</b> — 와이어 색 = 각 강아지 칼라 컬러, 흐르는 대시가 살아있음을 표시. 숫자 밴드는 공유 트레이스 1개(팬아웃의 정직한 표현). 강아지별 조기 반환 = 부킹별 정산이 그대로 버튼이 됨.</p></div>
+</div></div>
+
+<!-- ════════════════ VERSION C ════════════════ -->
+<div class="ver">
+<div class="verhead"><span class="vn">C</span><h2 class="bhs">관제탑</h2><span class="mono">DEPARTURES — 출발 전광판 & 플라이트 스트립</span></div>
+<p class="verlede">러너 홈 레이더(승인된 V4 요소)의 관제 에너지를 클럽의 밤으로 확장. 세션 = 활주로, 강아지 = 출발편. 호스트 콘솔은 스플릿-플랩 출발 전광판, 보호자는 탑승권, 러너는 ATC 플라이트 스트립 홀더. 지연·대기·이륙의 어휘가 상태 기계와 1:1로 맞아떨어진다.</p>
+<div class="row">
+
+<div class="shot"><div class="sl">C1 — 보호자: 도그 보딩 패스</div><div class="ph vdark">
+  <div class="mast"><h3 class="bhs">몽이의 위탁</h3><span class="vkdim">SAT 09:00 · 잠수교 북단</span></div>
+  <div class="pass">
+    <div style="padding:13px 15px 11px;display:flex;gap:10px">
+      <div style="flex:1"><span class="vk">DOG BOARDING PASS — 일반가 24,900</span>
+        <div class="bhs" style="font-size:22px;color:#fff;margin-top:4px">몽이 <span style="font-size:12px;color:var(--vdim)">푸들 · 6.2kg</span></div>
+        <div style="font-size:10.5px;color:var(--vdim);margin-top:2px">보호자 션 · 반포동 하이클럽</div>
+      </div>
+      <span class="dog" style="width:44px;height:44px"></span>
+    </div>
+    <div class="perf"><span class="nt" style="left:-6px"></span><span class="dash"></span><span class="nt" style="right:-6px"></span></div>
+    <div class="grid2">
+      <div><span>GATE — 담당 러너</span><b>배정 대기</b></div>
+      <div><span>COURSE</span><b>한강 5.0km</b></div>
+    </div>
+    <div style="padding:11px 15px 0;display:flex;align-items:center;gap:9px">
+      <span class="vkdim">STATUS</span>
+      <span class="flap amberF"><i>P</i><i>E</i><i>N</i><i>D</i><i>I</i><i>N</i><i>G</i></span>
+    </div>
+    <div class="bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <div class="vkdim" style="margin:6px 0 12px 15px">DOGS HIGH · BK-7A21 · 승인 시 결제</div>
+  </div>
+  <a class="cta3d">집결지 도착 — 인계 준비 →</a>
+</div>
+<p class="note"><b>강아지의 탑승권.</b> 기존 입장권(승인된 V2 티켓)의 사촌 — 절취선·바코드 문법 공유, GATE 칸이 배정 상태를 말한다. STATUS는 스플릿-플랩 글자(가운데 분할선) — PENDING(앰버)→CLEARED(네온)→BOARDED(볼트)로 판이 넘어간다.</p></div>
+
+<div class="shot"><div class="sl">C2 — 호스트: 출발 전광판</div><div class="ph vdark">
+  <div class="mast"><h3 class="bhs">호스트 콘솔</h3><span class="vkdim">TOWER — SAT 09:00</span></div>
+  <div class="twr"><span>위탁 정원 — 커밋 러너 캡 합</span><b>2/3</b></div>
+  <div class="board">
+    <div class="bhead"><span class="vk">DEPARTURES — DELEGATED</span><span class="vkdim">RWY 잠수교</span></div>
+    <div class="brow">
+      <span class="osw">01</span><span class="dog teal" style="width:28px;height:28px"></span>
+      <div class="bnm"><b>보리</b><span>GATE 지훈</span></div>
+      <span class="flap voltF"><i>B</i><i>O</i><i>A</i><i>R</i><i>D</i><i>E</i><i>D</i></span>
+    </div>
+    <div class="brow">
+      <span class="osw">02</span><span class="dog rose" style="width:28px;height:28px"></span>
+      <div class="bnm"><b>두부</b><span>GATE —</span></div>
+      <span class="flap neonF"><i>C</i><i>L</i><i>E</i><i>A</i><i>R</i><i>E</i><i>D</i></span>
+    </div>
+    <div class="brow">
+      <span class="osw">03</span><span class="dog" style="width:28px;height:28px"></span>
+      <div class="bnm"><b>몽이</b><span>승인 대기 · 션</span></div>
+      <span class="clearbtn">CLEAR</span>&nbsp;<span class="holdbtn">HOLD</span>
+    </div>
+  </div>
+  <a class="cta3d">두부 게이트 배정 →</a>
+  <div style="margin-top:9px;font-size:10px;color:var(--vdim);text-align:center">CLEAR = 승인·결제 · GATE = 담당 러너 · BOARDED = 인계 완료</div>
+</div>
+<p class="note"><b>공항 전광판의 위계가 상태 기계와 정확히 포갬</b>: CLEAR(승인)→GATE(배정)→BOARDED(인계). 플랩 글자가 넘어가는 모션 하나로 모든 상태 변화를 말할 수 있다. 정원 2/3는 관제탑 상단 고정 — 여기도 캡 합 파생값.</p></div>
+
+<div class="shot"><div class="sl">C3 — 러너: 플라이트 스트립 홀더</div><div class="ph rdark">
+  <div class="mast"><h3 class="bhs">핸들링 런</h3><span class="vkdim" style="color:var(--rdim)">STRIP BAY — 지훈</span></div>
+  <div class="raildock"><span class="vkdim" style="color:var(--rdim)">ACTIVE — 러닝 중</span>
+    <div class="strip">
+      <div class="cell" style="flex:1"><span class="mono">DOG / OWNER</span><b>보리 · 지은</b></div>
+      <div class="cell"><span class="mono">KM</span><b class="osw">5.0</b></div>
+      <div class="cell"><span class="mono">HANDOFF</span><b style="color:var(--voltDeep)">✓✓</b></div>
+    </div>
+  </div>
+  <div class="raildock" style="margin-top:10px"><span class="vkdim" style="color:var(--rdim)">HOLDING — 인계 대기</span>
+    <div class="strip teal">
+      <div class="cell" style="flex:1"><span class="mono">DOG / OWNER</span><b>두부 · 민서</b></div>
+      <div class="cell"><span class="mono">KM</span><b class="osw">5.0</b></div>
+      <div class="cell"><span class="mono">HANDOFF</span><b style="color:var(--amber)">✓·</b></div>
+    </div>
+    <div class="strip ghost">
+      <div class="cell" style="flex:1"><span class="mono">SLOT</span><b>빈 슬롯 — CAP 2</b></div>
+      <div class="cell"><span class="mono">KM</span><b class="osw">—</b></div>
+      <div class="cell"><span class="mono">HANDOFF</span><b>··</b></div>
+    </div>
+  </div>
+  <div class="bignum" style="border-color:var(--redge)">
+    <div><b class="osw">2.4<em>km</em></b><span style="color:var(--rdim)">SHARED TRACE</span></div>
+    <div><b class="osw">6'58"</b><span style="color:var(--rdim)">PACE</span></div>
+    <div><b class="osw">1<em>/2</em></b><span style="color:var(--rdim)">RUNNING</span></div>
+  </div>
+  <a class="cta3d">두부 인계 확인 → 합류</a>
+</div>
+<p class="note"><b>진짜 관제사의 스트립 홀더</b> — 종이 스트립(칼라 컬러 좌측 바)이 HOLDING 베이에서 ACTIVE 베이로 물리적으로 이동. 빈 슬롯이 내 캡(2)을 정직하게 보여줌. HANDOFF 칸의 ✓✓/✓· 이 양측 확인의 최소 표기.</p></div>
+</div></div>
+
+<p class="lede" style="margin-top:44px;border-top:1px solid #232a22;padding-top:18px">
+<b style="color:#fff">추천 — B 커스터디 스위치보드.</b> 이유: ① 이 제품이 법적·정서적으로 파는 것이 정확히 '지금 누가 책임지는가'이고, B는 그 불변식(responsible_profile_id)을 장식이 아니라 화면의 뼈대로 만든다 ② 패치베이 콘솔은 캡·소켓·와이어가 전부 실데이터의 시각화라 정직 원칙과 궁합이 가장 좋다 ③ 세 화면이 하나의 은유(배선)로 묶여 V4 나이트 월드 안에서 자기 자리가 분명하다. 접붙일 것: <b>A1의 종이 엔트리 폼</b>(보호자 신청 순간의 의식감이 가장 강함 — B1 앞단에 그대로 이식 가능), <b>C2의 스플릿-플랩 상태 글자</b>(B의 잭 상태 표기로 차용 가능). A는 밤 위의 종이라는 충돌이 아름답지만 세 화면 전체를 끌기엔 무대장치가 무겁고, C는 호스트 콘솔이 최고지만 보호자 화면이 기존 입장권과 다소 겹친다. 번호로 골라주세요 — 화면 단위 믹스(예: "B, 신청만 A1") 환영.
+</p>
+</body>
+</html>
