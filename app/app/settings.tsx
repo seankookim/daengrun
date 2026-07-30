@@ -61,6 +61,16 @@ export default function Settings() {
         </Pressable>
       </View>
 
+      {/* DEV 전용 — 프로덕션 빌드에선 렌더되지 않음 (__DEV__ 게이트, 화면 자체도 이중 게이트) */}
+      {__DEV__ && (
+        <View style={[s.card, { marginTop: 10, borderColor: '#7B6CDF' }]}>
+          <Pressable onPress={() => router.push('/dev/club-lab')} style={s.actionRow}>
+            <Text style={[s.actionText, { color: '#4A3DA8' }]}>R2 커스터디 랩 (DEV)</Text>
+            <Text style={{ fontSize: 16, color: colors.dim }}>›</Text>
+          </Pressable>
+        </View>
+      )}
+
       {/* 준비 중 — 정직 라벨 */}
       <Text style={s.section}>준비 중</Text>
       <View style={[s.card, { opacity: 0.55 }]}>
