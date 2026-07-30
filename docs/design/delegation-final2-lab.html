@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>도그스하이 — P-C 파이널 v2 (F3 재설계 · 대비 · 챗/로스터/링고)</title>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Oswald:wght@500;600;700&family=IBM+Plex+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0E100D;--paper:#FFFFFF;--volt:#C6F542;--voltDeep:#7FA818;--tang:#FF5C3D;
+  --amber:#F59A43;--blue:#6E9BC5;
+  --club:#7B6CDF;--clubInk:#4A3DA8;--neon:#9F8FFF;
+  /* v2 대비 스텝: bg < inset < card, 보더는 확실히 밝게 */
+  --vbg:#0D0A1E;--vcard:#181336;--vinset:#0B0820;--vedge:#3A3372;--vrule:#4A4190;
+  --vdim:#9A91CC;--vtext:#D6D1F2;
+  --rnight:#121712;--rcard:#18211A;--redge:#3A4F3E;--rdim:#9BAf9E;--rtext:#CFDACB;
+  --c-tang:#FF8A5C;--c-teal:#3EC6A8;--c-rose:#E58BA9;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0A0C0A;color:#E8EBE4;font-family:'IBM Plex Sans KR',sans-serif;padding:32px 26px 100px}
+.bhs{font-family:'Black Han Sans',sans-serif;font-weight:400}
+.osw{font-family:'Oswald',sans-serif}
+.mono{font-family:'IBM Plex Mono',monospace}
+h1{font-size:27px;color:var(--volt)}
+.lede{color:#7d8878;margin:9px 0 4px;max-width:960px;line-height:1.65;font-size:13.5px}
+.legend{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}
+.lg{background:#151a14;border:1px solid #232a22;padding:8px 12px;font-size:11.5px;color:#c8d0c2;line-height:1.5}
+.lg b{color:#fff}
+.row{display:flex;gap:18px;flex-wrap:wrap;margin-top:24px;align-items:flex-start}
+.shot{width:302px}
+.sl{font-size:10.5px;letter-spacing:2px;color:#7d8878;margin-bottom:7px;font-family:'IBM Plex Mono',monospace}
+.note{color:#8fa093;font-size:11.5px;line-height:1.6;margin:9px 2px 0}
+.note b{color:#c8d0c2}
+.ph{min-height:500px;padding:14px 12px 18px;overflow:hidden;position:relative}
+.ph.vdark{background:var(--vbg);color:#EDE9FF}
+.ph.rdark{background:var(--rnight);color:#EDF1E8}
+.mast{display:flex;justify-content:space-between;align-items:baseline;padding-bottom:8px;border-bottom:1.5px solid var(--vrule)}
+.mast h3{font-size:18px;color:#fff}
+.rdark .mast{border-color:var(--redge)}
+.vk{font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:2.5px;color:var(--neon)}
+.vkdim{font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:2px;color:var(--vdim)}
+.dog{width:34px;height:34px;border-radius:50%;flex:none;background:linear-gradient(140deg,#c9b89a,#8a7a5c);border:2.5px solid var(--c-tang)}
+.dog.teal{border-color:var(--c-teal);background:linear-gradient(140deg,#b8c2a8,#6d7a5a)}
+.dog.rose{border-color:var(--c-rose);background:linear-gradient(140deg,#d9c2b2,#96806a)}
+.cta3d{display:block;background:var(--tang);color:#fff;border:2px solid #000;box-shadow:4px 4px 0 #000;text-align:center;font-weight:900;font-size:14.5px;padding:13px 0;margin-top:13px}
+.flap{display:inline-flex;gap:1.5px;vertical-align:middle}
+.flap i{font-family:'Oswald',sans-serif;font-style:normal;font-weight:600;font-size:10.5px;background:#221B48;
+  padding:3px 3.5px;border-top:1px solid rgba(255,255,255,.16);border-bottom:2px solid #000;position:relative;letter-spacing:.5px;min-width:14px;text-align:center}
+.flap i::after{content:'';position:absolute;left:0;right:0;top:50%;height:1px;background:rgba(0,0,0,.55)}
+.flap.amberF i{color:var(--amber)}.flap.neonF i{color:var(--neon)}.flap.voltF i{color:var(--volt)}
+.flap.tangF i{color:var(--tang)}.flap.blueF i{color:var(--blue)}
+.rdark .flap i{background:#20301F}
+.hint{display:flex;gap:7px;margin-top:8px;font-size:10.5px;line-height:1.55;color:var(--vtext)}
+.hint::before{content:'▸';color:var(--vdim);flex:none}
+.hint b{color:#fff}
+.hint em{font-style:normal;color:var(--amber);font-weight:700}
+.hint.key{border-left:2px solid var(--amber);padding-left:8px}
+.hint.key::before{content:none}
+.rdark .hint{color:var(--rtext)}
+/* 체인 (F2) */
+.chain{position:absolute;left:13px;top:58px;bottom:22px;width:1.5px;background:var(--vedge)}
+.cnode{position:absolute;left:-5px;width:11px;height:11px;background:var(--vcard);border:1.5px solid var(--vedge);transform:rotate(45deg)}
+.cnode.done{border-color:var(--neon);background:var(--neon)}
+.cnode.now{border-color:var(--amber);background:var(--vbg);animation:pulse 1.8s infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(245,154,67,.45)}50%{box-shadow:0 0 0 6px rgba(245,154,67,0)}}
+.clabel{position:absolute;left:15px;font-family:'IBM Plex Mono',monospace;font-size:7px;letter-spacing:1.6px;color:var(--vdim)}
+.clabel.now{color:var(--amber)}.clabel.done{color:var(--neon)}
+.holder{background:var(--vcard);border:1px solid var(--vedge);border-left:2.5px solid var(--amber);padding:12px 13px;margin-top:12px}
+.holder .who{display:flex;gap:11px;align-items:center;margin-top:6px}
+.holder .who .av{width:40px;height:40px;border-radius:50%;background:#453B85;border:2px solid var(--neon);flex:none;display:flex;align-items:center;justify-content:center;font-weight:900;color:#fff;font-size:14px}
+.holder .who b{font-size:16px;color:#fff}
+.holder .who span{display:block;font-size:10.5px;color:var(--vtext);margin-top:2px;line-height:1.45}
+.bignum{display:flex;border-top:1px solid var(--vedge);border-bottom:1px solid var(--vedge);margin-top:12px;background:var(--vinset)}
+.bignum div{flex:1;padding:9px 6px;border-right:1px solid var(--vedge)}
+.bignum div:last-child{border-right:0}
+.bignum b{display:block;font-family:'Oswald',sans-serif;font-size:22px;font-weight:600;color:#fff;line-height:1}
+.bignum b em{font-style:normal;color:var(--tang)}
+.bignum span{display:block;font-family:'IBM Plex Mono',monospace;font-size:7px;letter-spacing:1.5px;color:var(--vdim);margin-top:3px}
+/* F3 v2 — 명시적 2단계 콘솔 */
+.capstrip{background:var(--vinset);border:1px solid var(--vedge);padding:9px 11px;margin-top:12px}
+.capstrip .cl{display:flex;justify-content:space-between;align-items:baseline}
+.capstrip .cl b{font-family:'Oswald',sans-serif;font-size:20px;color:#fff;font-weight:600}
+.capblocks{display:flex;gap:10px;margin-top:7px}
+.capg{display:flex;gap:4px;align-items:center}
+.capg .mono{font-size:8px;letter-spacing:1px;color:var(--vdim)}
+.capg i{width:14px;height:14px;border:2px solid var(--vdim);background:var(--vbg)}
+.capg i.on{border-color:var(--volt);background:var(--volt)}
+.sechead{display:flex;gap:8px;align-items:center;margin-top:14px;padding-bottom:5px;border-bottom:1.5px solid var(--vrule)}
+.sechead .n{font-family:'Oswald',sans-serif;font-weight:700;font-size:13px;color:var(--vbg);background:var(--neon);padding:1px 7px}
+.sechead b{font-size:13px;color:#fff}
+.sechead span{font-size:9.5px;color:var(--vdim);margin-left:auto}
+.drow{background:var(--vcard);border:1px solid var(--vedge);padding:10px;margin-top:8px}
+.drow .top{display:flex;gap:9px;align-items:center}
+.drow .nm{flex:1;min-width:0}
+.drow .nm b{font-size:13.5px;color:#fff}
+.drow .nm span{display:block;font-size:9.5px;color:var(--vtext);margin-top:1px}
+.actrow{display:flex;gap:7px;margin-top:9px}
+.abtn{flex:1;text-align:center;font-weight:900;font-size:11px;padding:8px 0;border:1.5px solid var(--volt);color:var(--vbg);background:var(--volt)}
+.abtn.ghost{background:transparent;color:var(--vdim);border-color:var(--vedge)}
+.gaterow{display:flex;gap:6px;margin-top:9px;align-items:center}
+.gaterow .gl{font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:1.5px;color:var(--vdim);flex:none}
+.gchip{border:1.5px solid var(--vedge);color:var(--vtext);font-weight:800;font-size:10.5px;padding:6px 9px;background:var(--vinset)}
+.gchip.pick{border-color:var(--neon);color:#fff;background:#251D52}
+.gchip small{font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--vdim);margin-left:4px}
+/* 챗 (F5) */
+.chatline{display:flex;gap:8px;margin-top:9px;align-items:flex-end}
+.chatline .av{width:26px;height:26px;border-radius:50%;background:#453B85;flex:none;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900;color:#fff}
+.bub{background:var(--vcard);border:1px solid var(--vedge);padding:7px 10px;font-size:12px;color:#fff;max-width:200px;line-height:1.5}
+.bub .who{display:block;font-size:8.5px;color:var(--vdim);font-family:'IBM Plex Mono',monospace;letter-spacing:1px;margin-bottom:2px}
+.chatline.me{flex-direction:row-reverse}
+.chatline.me .bub{background:#2A2159;border-color:var(--vrule)}
+.sysline{text-align:center;font-size:9.5px;color:var(--vdim);margin-top:12px;font-family:'IBM Plex Mono',monospace;letter-spacing:1px}
+.inputbar{display:flex;gap:7px;margin-top:14px;border:1.5px solid var(--vrule);background:var(--vinset);padding:9px 11px;align-items:center}
+.inputbar span{flex:1;font-size:12px;color:var(--vdim)}
+.inputbar b{color:var(--neon);font-weight:900}
+/* 로스터 (F6) */
+.prow{display:flex;gap:9px;align-items:center;background:var(--vcard);border:1px solid var(--vedge);padding:9px 10px;margin-top:7px}
+.prow .av{width:30px;height:30px;border-radius:50%;background:#453B85;flex:none;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;color:#fff}
+.prow .pn{flex:1;min-width:0}
+.prow .pn b{font-size:13px;color:#fff}
+.prow .pn span{display:block;font-size:9.5px;color:var(--vtext);margin-top:1px}
+.phone{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--volt);border:1.5px solid var(--redge);border-color:var(--vedge);padding:4px 7px;background:var(--vinset)}
+.phone.hid{color:var(--vdim);border-style:dashed}
+.rolechip{font-family:'IBM Plex Mono',monospace;font-size:7.5px;letter-spacing:1px;padding:2px 6px;border:1px solid var(--vedge);color:var(--vdim);margin-left:5px}
+/* 링고 (F7) */
+.lingosheet{background:var(--vcard);border:1.5px solid var(--vrule);border-bottom:0;margin:26px -12px -18px;padding:14px 16px 22px;box-shadow:0 -14px 40px rgba(0,0,0,.6)}
+.grab{width:36px;height:3px;background:var(--vedge);margin:0 auto 12px}
+.lterm{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--vedge);align-items:baseline}
+.lterm .tm{width:86px;flex:none}
+.lterm p{font-size:11px;color:var(--vtext);line-height:1.55;flex:1}
+.lterm p b{color:#fff}
+.qchip{display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;border:1.5px solid var(--vdim);color:var(--vdim);font-size:10px;font-weight:900;vertical-align:middle}
+</style>
+</head>
+<body>
+<h1 class="bhs">P-C 파이널 v2 — F3 재설계 · 대비 업 · 챗/로스터/링고</h1>
+<p class="lede">피드백 반영 4건: ① <b>F3 전면 재설계</b> — 배선 은유 폐기, "①승인 → ②게이트 배정" 번호 붙은 작업 흐름 + 이름 붙은 정원 블록 + 명시적 버튼 ② <b>밤 표면 대비 업</b> — 배경(#0D0A1E) &lt; 인셋(#0B0820) &lt; 카드(#181336) 3단, 보더 #3A3372·섹션 룰 #4A4190으로 확실히 분리 ③ <b>신규 표면 3종</b> — 세션 그룹챗 · 멤버 로스터(전화번호) · 클럽 링고 시트 ④ 전체 로직 기술서는 <b>docs/club-run-logic.md</b> (비평용 — 미결 정책 8건 포함). F1(엔트리 폼)·F4(러너)는 보더 토큰 상속 외 변경 없음.</p>
+<div class="legend">
+  <div class="lg"><b>F3 새 문법</b> 정원 스트립(러너 이름별 소켓) → ① 승인 대기 큐(결제액 명시 버튼) → ② 게이트 배정(러너 칩 탭)</div>
+  <div class="lg"><b>대비 3단</b> 카드가 배경에서 뜨고, 인셋(숫자 밴드·입력바)은 가라앉음 — 같은 휴 문제 해소</div>
+  <div class="lg"><b>챗·전화 규칙</b> 로직 문서 §7·§8 — 챗은 세션 단위·종료 후 읽기 전용 / 전화는 B안(호스트 전체 + 커스터디 상대) 추천</div>
+</div>
+
+<div class="row">
+
+<!-- F2 v2 -->
+<div class="shot"><div class="sl">F2v2 — 보호자: 커스터디 체인 (대비 업)</div><div class="ph vdark" style="padding-left:64px">
+  <div class="chain">
+    <span class="cnode done" style="top:0"></span><span class="clabel done" style="top:1px">신청</span>
+    <span class="cnode done" style="top:21%"></span><span class="clabel done" style="top:21.3%">승인 · 결제</span>
+    <span class="cnode now" style="top:42%"></span><span class="clabel now" style="top:42.3%">인계</span>
+    <span class="cnode" style="top:63%"></span><span class="clabel" style="top:63.3%">러닝</span>
+    <span class="cnode" style="top:84%"></span><span class="clabel" style="top:84.3%">반환 · 정산</span>
+  </div>
+  <div class="mast"><h3 class="bhs">몽이의 위탁</h3><span class="flap neonF"><i>C</i><i>L</i><i>E</i><i>A</i><i>R</i><i>E</i><i>D</i></span></div>
+  <div class="holder">
+    <span class="vk" style="color:var(--amber)">지금 책임자 — CUSTODY <span class="qchip">?</span></span>
+    <div class="who"><span class="av">나</span><div><b>아직 나에게</b><span>집결지에서 <b style="font-size:10.5px">지훈 러너</b>와 서로 인계를 확인하면 넘어가요</span></div></div>
+  </div>
+  <div class="bignum">
+    <div><b class="osw">24,900</b><span>PAID</span></div>
+    <div><b class="osw">5.0<em>km</em></b><span>COURSE</span></div>
+    <div><b class="osw">09:00</b><span>잠수교 북단</span></div>
+  </div>
+  <div class="hint key"><span>인계 확인은 <em>시작 2시간 전</em>부터 · 확인 순간부터 <b>펫보험 적용</b></span></div>
+  <div style="display:flex;gap:7px;margin-top:11px">
+    <span style="flex:1;text-align:center;border:1.5px solid var(--vrule);color:var(--vtext);font-weight:800;font-size:11px;padding:8px 0">💬 세션 챗 <b style="color:var(--volt)">3</b></span>
+    <span style="flex:1;text-align:center;border:1.5px solid var(--vrule);color:var(--vtext);font-weight:800;font-size:11px;padding:8px 0">👥 멤버 7</span>
+  </div>
+  <a class="cta3d">인계 확인 — 보호자 측 →</a>
+</div>
+<p class="note"><b>대비:</b> 홀더·숫자 밴드가 배경에서 분리(카드 #181336 vs 인셋 #0B0820), 룰 라인 #4A4190. 커스터디 라벨 옆 <b>? 칩 = 링고 시트</b> 진입. 챗·멤버 진입 버튼이 상설 (F5·F6으로).</p></div>
+
+<!-- F3 v2 -->
+<div class="shot"><div class="sl">F3v2 — 호스트 콘솔 (재설계 — 번호 붙은 작업 흐름)</div><div class="ph vdark">
+  <div class="mast"><h3 class="bhs">호스트 콘솔</h3><span class="vkdim">SAT 09:00 · 체크인 열림</span></div>
+  <div class="capstrip">
+    <div class="cl"><span class="vk">위탁 정원 — 러너별 소켓 <span class="qchip">?</span></span><b>2<span style="font-size:12px;color:var(--vdim)">/3</span></b></div>
+    <div class="capblocks">
+      <div class="capg"><span class="mono">지훈</span><i class="on"></i><i></i></div>
+      <div class="capg"><span class="mono">션(나)</span><i class="on"></i></div>
+      <div class="capg" style="margin-left:auto"><span class="mono" style="color:var(--vtext)">= 커밋 러너 캡 합</span></div>
+    </div>
+  </div>
+  <div class="sechead"><span class="n">1</span><b>승인 대기</b><span>승인하는 순간 보호자에게 결제돼요</span></div>
+  <div class="drow" style="border-style:dashed">
+    <div class="top"><span class="dog"></span>
+      <div class="nm"><b>몽이</b><span>션 보호자 · 푸들 6.2kg · 첫 위탁</span></div>
+      <span class="flap amberF"><i>P</i><i>E</i><i>N</i><i>D</i><i>I</i><i>N</i><i>G</i></span></div>
+    <div class="actrow"><span class="abtn">승인 — 24,900 결제</span><span class="abtn ghost">거절</span></div>
+  </div>
+  <div class="sechead"><span class="n">2</span><b>게이트 배정</b><span>체크인한 러너에게만 · 인계 전 재배정 가능</span></div>
+  <div class="drow">
+    <div class="top"><span class="dog teal"></span>
+      <div class="nm"><b>보리</b><span>지은 보호자 · GATE 지훈</span></div>
+      <span class="flap voltF"><i>B</i><i>O</i><i>A</i><i>R</i><i>D</i><i>E</i><i>D</i></span></div>
+  </div>
+  <div class="drow">
+    <div class="top"><span class="dog rose"></span>
+      <div class="nm"><b>두부</b><span>민서 보호자 · GATE 미정</span></div>
+      <span class="flap neonF"><i>C</i><i>L</i><i>E</i><i>A</i><i>R</i><i>E</i><i>D</i></span></div>
+    <div class="gaterow"><span class="gl">GATE →</span>
+      <span class="gchip pick">지훈 <small>1/2</small></span>
+      <span class="gchip">션(나) <small>1/1 풀</small></span>
+    </div>
+  </div>
+  <a class="cta3d">두부 → 지훈 배정 확정</a>
+</div>
+<p class="note"><b>은유 대신 순서.</b> 맨 위 정원 스트립 = 러너 <b>이름이 붙은</b> 소켓(켜짐 = 실배정). ① 승인 대기 = 결제액이 쓰인 명시 버튼. ② 게이트 배정 = 강아지 행 안에서 러너 칩을 직접 탭 (꽉 찬 러너는 회색 '풀'). 와이어는 이 화면에서 은퇴 — 상태는 플랩이 다 말한다.</p></div>
+
+<!-- F5 챗 -->
+<div class="shot"><div class="sl">F5 — 세션 그룹챗 (신규)</div><div class="ph vdark">
+  <div class="mast"><h3 class="bhs">세션 챗</h3><span class="vkdim">참여자 7 · 종료 후 읽기 전용</span></div>
+  <div class="sysline">— 토 09:00 · 잠수교 북단 계단 앞 —</div>
+  <div class="chatline"><span class="av">션</span><div class="bub"><span class="who">션 — HOST</span>오늘 물그릇 2개 챙겨갑니다. 위탁 보호자분들은 8:40까지 와주세요!</div></div>
+  <div class="chatline"><span class="av">지</span><div class="bub"><span class="who">지은 · 보리</span>보리가 하네스 새로 했어요, 인계 때 버클 한번 봐주세요 🙏</div></div>
+  <div class="chatline me"><div class="bub"><span class="who">나 · 몽이</span>10분 늦을 것 같아요! 몽이 간식 가방에 있어요</div></div>
+  <div class="chatline"><span class="av">훈</span><div class="bub"><span class="who">지훈 — RUNNER</span>네 천천히 오세요. 도착하면 저한테 인계 확인 눌러주세요</div></div>
+  <div class="hint" style="margin-top:14px"><span>채팅은 <b>세션 참여자만</b> 보여요 · 세션이 끝나면 <b>읽기 전용</b>으로 남아요</span></div>
+  <div class="inputbar"><span>메시지…</span><b>보내기</b></div>
+</div>
+<p class="note"><b>집결 조정이 전부인 방.</b> 시스템 라인은 실데이터(시간·집결지)만. 발화자 라벨 = 이름+역할/강아지 (모노). 푸시는 v1 없음(세션 화면 배지만) — 로직 문서 §7, 정책 [OPEN-7a].</p></div>
+
+<!-- F6 로스터 -->
+<div class="shot"><div class="sl">F6 — 멤버 로스터 + 전화 (신규 · B안)</div><div class="ph vdark">
+  <div class="mast"><h3 class="bhs">세션 멤버</h3><span class="vkdim">7명 · 강아지 5</span></div>
+  <div class="hint key" style="margin-top:12px"><span><b>비상 연락</b> — 번호는 호스트와 내 커스터디 상대에게만 보여요 <span class="qchip">?</span></span></div>
+  <div class="prow"><span class="av">션</span>
+    <div class="pn"><b>션</b><span class="rolechip">HOST</span><span>몽이 아님 · 체크인 ✓</span></div>
+    <span class="phone">010-4821-77XX</span></div>
+  <div class="prow"><span class="av">훈</span>
+    <div class="pn"><b>지훈</b><span class="rolechip">RUNNER</span><span>보리 · 두부 담당 · 체크인 ✓</span></div>
+    <span class="phone">010-2214-03XX</span></div>
+  <div class="prow"><span class="av">지</span>
+    <div class="pn"><b>지은</b><span class="rolechip">OWNER</span><span>보리 위탁 · 귀가</span></div>
+    <span class="phone hid">호스트 경유</span></div>
+  <div class="prow"><span class="av">민</span>
+    <div class="pn"><b>민서</b><span class="rolechip">OWNER</span><span>두부 위탁 · 귀가</span></div>
+    <span class="phone hid">호스트 경유</span></div>
+  <div class="prow"><span class="av">현</span>
+    <div class="pn"><b>현우</b><span class="rolechip">ATTEND</span><span>초코 동반 · 체크인 ✓</span></div>
+    <span class="phone hid">호스트 경유</span></div>
+  <div class="hint"><span>번호 노출 창 = <em>시작 2시간 전 ~ 종료 6시간 후</em> (실물 조정이 필요한 시간만)</span></div>
+</div>
+<p class="note"><b>이 화면은 '보호자(나)' 시점</b>: 호스트와 내 강아지 담당 러너(지훈)의 번호는 보이고, 나머지는 '호스트 경유' 릴레이. 호스트 시점에선 전원 번호 노출. A안(참여자 전원 상호 공개)과의 트레이드오프는 로직 문서 §8 [OPEN-8a].</p></div>
+
+<!-- F7 링고 -->
+<div class="shot"><div class="sl">F7 — 클럽 링고 시트 (신규 · ? 칩으로 어디서든)</div><div class="ph vdark">
+  <div class="mast" style="opacity:.35"><h3 class="bhs">몽이의 위탁</h3><span class="flap neonF"><i>C</i><i>L</i><i>E</i><i>A</i><i>R</i><i>E</i><i>D</i></span></div>
+  <div style="opacity:.35" class="holder"><span class="vk" style="color:var(--amber)">지금 책임자 — CUSTODY</span>
+    <div class="who"><span class="av">나</span><div><b>아직 나에게</b></div></div></div>
+  <div class="lingosheet">
+    <div class="grab"></div>
+    <span class="vk">CLUB LINGO — 30초 사전</span>
+    <div class="lterm"><span class="tm flap amberF"><i>P</i><i>E</i><i>N</i><i>D</i><i>I</i><i>N</i><i>G</i></span><p>위탁 신청이 호스트 심사 대기 중 — <b>아직 결제 전</b></p></div>
+    <div class="lterm"><span class="tm flap neonF"><i>C</i><i>L</i><i>E</i><i>A</i><i>R</i><i>E</i><i>D</i></span><p>호스트 승인 = <b>결제 완료</b> · 담당 러너는 집결지에서 배정</p></div>
+    <div class="lterm"><span class="tm flap voltF"><i>B</i><i>O</i><i>A</i><i>R</i><i>D</i><i>E</i><i>D</i></span><p>양측 인계 확인 완료 — <b>이 순간부터 펫보험</b> · 책임자가 러너로</p></div>
+    <div class="lterm"><span class="tm flap tangF"><i>R</i><i>U</i><i>N</i><i>N</i><i>I</i><i>N</i><i>G</i></span><p>러닝 중 — GPS 트레이스가 실시간 기록돼요</p></div>
+    <div class="lterm"><span class="tm flap blueF"><i>S</i><i>E</i><i>T</i><i>T</i><i>L</i><i>E</i><i>D</i></span><p>정산 완료 — 리포트·기록·마일 반영</p></div>
+    <div class="lterm"><span class="tm mono" style="font-size:9px;color:var(--vtext)">커스터디</span><p><b>지금 이 순간 강아지를 책임지는 한 사람</b> — 앱이 항상 표시</p></div>
+    <div class="lterm"><span class="tm mono" style="font-size:9px;color:var(--vtext)">게이트</span><p>내 강아지의 담당 러너 — 호스트가 현장에서 배정</p></div>
+    <div class="lterm" style="border-bottom:0"><span class="tm mono" style="font-size:9px;color:var(--vtext)">정원</span><p>세션이 받을 수 있는 위탁 수 = <b>참여 확정 러너들의 캡 합</b></p></div>
+  </div>
+</div>
+<p class="note"><b>하나의 시트, 모든 진입점.</b> 플랩·커스터디 라벨 옆의 ? 칩 어디서 열어도 같은 시트 — 어휘를 한 번만 배우면 된다. 내용은 정적, 위탁 관련 8항목 (전체 후보는 로직 문서 §9).</p></div>
+</div>
+
+<p class="lede" style="margin-top:40px;border-top:1px solid #232a22;padding-top:16px">
+읽는 순서 제안 — <b style="color:#fff">docs/club-run-logic.md 먼저</b> (그룹런 전체 로직 + [PROPOSED] 챗·로스터·링고 설계 + [OPEN] 미결 정책 8건: 노쇼 환불, 보호자 취소 규칙, 러너 스탯 2배 문제, 위탁 동의서, 최소 인원 계산, 전화 공개 범위 A/B, 챗 푸시, 리캡 구성). 비평 주시면 그 결과를 반영해 화면 실장 + 챗/로스터 백엔드 순으로 들어갑니다.
+</p>
+</body>
+</html>
