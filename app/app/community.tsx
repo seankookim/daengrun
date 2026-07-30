@@ -10,6 +10,7 @@ import {
 } from '../src/lib/api';
 import { useClubOverview } from '../src/components/clubcard';
 import { useDisplayFont } from '../src/lib/displayFont';
+import { useNumFont } from '../src/lib/fonts';
 import { haptic } from '../src/lib/haptics';
 import { CollarKey, collarColors, colors } from '../src/theme';
 
@@ -23,6 +24,12 @@ const FOREST = '#0F1D13';
 const W = Dimensions.get('window').width;
 
 const fmtDur = (sec?: number) => (sec ? `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}` : null);
+// [V4] 스트라바식 페이스 — km+시간에서 파생 (실데이터만)
+const fmtPace = (km?: number, sec?: number) => {
+  if (!km || !sec || km <= 0) return null;
+  const s = Math.round(sec / km);
+  return `${Math.floor(s / 60)}'${String(s % 60).padStart(2, '0')}"`;
+};
 
 // 더블탭 발자국 버스트 — 원샷 오버레이 (IG 하트 문법의 도그스하이 번역)
 function PawBurst({ trigger }: { trigger: number }) {
@@ -52,6 +59,7 @@ function PawBurst({ trigger }: { trigger: number }) {
 
 export default function Community() {
   const df = useDisplayFont();
+  const nf = useNumFont(); // [V4] 스탯 = Oswald
   const [club] = useClubOverview(); // 하이클럽 스트립 (P-A S1)
   const [posts, setPosts] = useState<FeedPost[]>([]);
   // 탭: 피드(실) | 러너 후기(실 공개 리뷰). 챌린지는 실시스템 생기면 추가 — 가짜 탭 금지.
@@ -176,7 +184,7 @@ export default function Community() {
         )}
 
         {/* 탭바 — 피드 | 러너 후기 (밑줄 인디케이터) */}
-        <Row style={{ marginTop: 14, paddingHorizontal: 16, gap: 20, borderBottomWidth: 1, borderBottomColor: '#DCD6C4' }}>
+        <Row style={{ marginTop: 14, paddingHorizontal: 16, gap: 20, borderBottomWidth: 1, borderBottomColor: '#D8DAD2' }}>
           {([['feed', '피드'], ['reviews', '러너 후기']] as const).map(([k, label]) => (
             <Pressable key={k} onPress={() => setTab(k)} style={{ paddingBottom: 9, borderBottomWidth: 2.5, borderBottomColor: tab === k ? FOREST : 'transparent', marginBottom: -1 }}>
               <Text style={{ fontSize: 16, fontWeight: '900', color: tab === k ? FOREST : '#9a978a' }}>{label}</Text>
@@ -236,10 +244,17 @@ export default function Community() {
               <Row style={{ gap: 10, paddingHorizontal: 16, paddingVertical: 11 }}>
                 <Avatar url={p.authorAvatar} char={p.authorName[0]} bg="#5a7a3c" size={38} />
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 15.5, fontWeight: '800', color: FOREST }}>{p.authorName}</Text>
-                  {p.meta.dogName && <Text style={{ fontSize: 13, color: colors.dim, marginTop: 1 }}>{p.meta.dogName}와 함께</Text>}
+                  <Text style={{ fontSize: 16, fontWeight: '900', color: FOREST }}>{p.authorName}</Text>
+                  {p.meta.dogName && (
+                    <Row style={{ gap: 5, marginTop: 2, alignItems: 'center' }}>
+                      {p.meta.collar && collarColors[p.meta.collar as CollarKey] && (
+                        <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: collarColors[p.meta.collar as CollarKey] }} />
+                      )}
+                      <Text style={{ fontSize: 13, color: colors.dim }}>{p.meta.dogName}와 함께</Text>
+                    </Row>
+                  )}
                 </View>
-                {p.mine && <Text style={{ fontSize: 12, color: '#9a978a', alignSelf: 'center' }}>길게 눌러 삭제</Text>}
+                <Text style={{ fontSize: 11.5, color: '#9a978a', alignSelf: 'flex-start', marginTop: 3 }}>{p.mine ? '길게 눌러 삭제 · ' : ''}{p.when}</Text>
               </Row>
             </Pressable>
 
@@ -247,26 +262,36 @@ export default function Community() {
             {p.meta.club ? (
               <Pressable onPress={() => p.meta.sessionId && router.push(`/club/session/${p.meta.sessionId}`)}>
                 <View style={s.recapCard}>
-                  <View style={s.recapBadge}><Text style={{ fontSize: 10, fontWeight: '900', letterSpacing: 1.5, color: FOREST }}>HIGH CLUB RECAP</Text></View>
-                  <Text style={[{ fontSize: 23, fontWeight: '900', color: '#fff', marginTop: 10 }, df]}>{p.meta.club}</Text>
-                  <Text style={{ fontSize: 15, fontWeight: '800', color: colors.volt, marginTop: 5 }}>
-                    🏁 {p.meta.teams}팀{(p.meta.dogs ?? 0) > 0 ? ` · ${p.meta.dogs}마리` : ''} 함께 달림
-                  </Text>
-                  <Text style={{ fontSize: 12.5, color: '#8fa093', marginTop: 6 }}>탭해서 세션 리캡 보기 ›</Text>
+                  <View style={s.recapEdge} />
+                  <Text style={{ fontSize: 9, fontWeight: '700', letterSpacing: 2.5, color: colors.neon }}>HIGH CLUB — RECAP</Text>
+                  <Text style={[{ fontSize: 23, fontWeight: '900', color: '#fff', marginTop: 8 }, df]}>{p.meta.club}</Text>
+                  <Row style={{ gap: 16, marginTop: 9 }}>
+                    <View><Text style={[s.recapNum, nf]}>{p.meta.teams}</Text><Text style={s.recapK}>TEAMS</Text></View>
+                    {(p.meta.dogs ?? 0) > 0 && <View><Text style={[s.recapNum, nf]}>{p.meta.dogs}</Text><Text style={s.recapK}>DOGS</Text></View>}
+                    <View><Text style={[s.recapNum, nf, { color: colors.volt }]}>🏁</Text><Text style={s.recapK}>FINISHED</Text></View>
+                  </Row>
+                  <Text style={{ fontSize: 12, color: colors.nightDim, marginTop: 9 }}>탭해서 세션 리캡 보기 ›</Text>
                   <PawBurst trigger={bursts[p.id] ?? 0} />
                 </View>
               </Pressable>
             ) : p.photoUrl ? (
               <Pressable onPress={() => onPhotoTap(p)}>
-                <Image source={{ uri: p.photoUrl }} style={{ width: W, height: W * 1.1, backgroundColor: '#DCD6C4' }} resizeMode="cover" />
+                <Image source={{ uri: p.photoUrl }} style={{ width: W, height: W * 1.1, backgroundColor: '#D8DAD2' }} resizeMode="cover" />
                 {/* 스탯 오버레이 — 사진 위 좌하단 (스크림으로 가독) */}
                 {(p.meta.km != null || fmtDur(p.meta.durationSec)) && (
-                  <View pointerEvents="none" style={s.statScrim}>
-                    {p.meta.km != null && (
-                      <Text style={s.statKm}>{p.meta.km}<Text style={{ fontSize: 15 }}> km</Text></Text>
+                  <View pointerEvents="none" style={s.statBar}>
+                    <View style={s.statCell}>
+                      <Text style={[s.statV, nf]}>{p.meta.km ?? '—'}</Text><Text style={s.statK}>KM</Text>
+                    </View>
+                    {fmtPace(p.meta.km, p.meta.durationSec) && (
+                      <View style={s.statCell}>
+                        <Text style={[s.statV, nf]}>{fmtPace(p.meta.km, p.meta.durationSec)}</Text><Text style={s.statK}>PACE</Text>
+                      </View>
                     )}
                     {fmtDur(p.meta.durationSec) && (
-                      <Text style={s.statSub}>⏱ {fmtDur(p.meta.durationSec)}</Text>
+                      <View style={[s.statCell, { borderRightWidth: 0 }]}>
+                        <Text style={[s.statV, nf]}>{fmtDur(p.meta.durationSec)}</Text><Text style={s.statK}>TIME</Text>
+                      </View>
                     )}
                   </View>
                 )}
@@ -285,9 +310,12 @@ export default function Community() {
               <Pressable onPress={() => onPhotoTap(p)}>
                 <View style={s.runCard}>
                   <View style={{ flex: 1 }}>
-                    <Text style={s.runCardKm}>
+                    <Text style={[s.runCardKm, nf]}>
                       {p.meta.km != null ? p.meta.km : '—'}<Text style={{ fontSize: 16, letterSpacing: 0 }}> km</Text>
                     </Text>
+                    {fmtPace(p.meta.km, p.meta.durationSec) && (
+                      <Text style={{ fontSize: 13.5, fontWeight: '800', color: '#3d5a2b', marginTop: 1 }}>{fmtPace(p.meta.km, p.meta.durationSec)}/km</Text>
+                    )}
                     {p.meta.dogName && (
                       <Text style={{ fontSize: 17, fontWeight: '900', color: FOREST, marginTop: 2 }}>{p.meta.dogName} 완주</Text>
                     )}
@@ -388,27 +416,32 @@ export default function Community() {
 }
 
 const s = StyleSheet.create({
-  revCard: { backgroundColor: '#fff', borderRadius: 14, padding: 14, borderWidth: 1, borderColor: '#DCD6C4' },
-  rankBtn: { backgroundColor: '#fff', borderRadius: 99, paddingVertical: 9, paddingHorizontal: 13, borderWidth: 1, borderColor: '#DCD6C4', alignSelf: 'flex-start' },
-  emptyBox: { margin: 22, marginTop: 26, backgroundColor: '#f4f2ea', borderRadius: 18, padding: 26 },
-  post: { backgroundColor: '#fff', marginTop: 14, borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#DCD6C4' },
-  statScrim: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 16, paddingBottom: 12, paddingTop: 34, backgroundColor: 'rgba(10,16,10,.30)' },
-  statKm: { fontSize: 30, fontWeight: '900', color: '#fff', textShadowColor: 'rgba(0,0,0,.5)', textShadowRadius: 8, textShadowOffset: { width: 0, height: 1 } },
-  statSub: { fontSize: 13.5, fontWeight: '700', color: '#e6efe0', marginTop: 1, textShadowColor: 'rgba(0,0,0,.5)', textShadowRadius: 6, textShadowOffset: { width: 0, height: 1 } },
+  revCard: { backgroundColor: '#fff', borderRadius: 14, padding: 14, borderWidth: 1, borderColor: '#D8DAD2' },
+  rankBtn: { backgroundColor: '#fff', borderRadius: 99, paddingVertical: 9, paddingHorizontal: 13, borderWidth: 1, borderColor: '#D8DAD2', alignSelf: 'flex-start' },
+  emptyBox: { margin: 22, marginTop: 26, backgroundColor: '#EFF1EC', borderRadius: 18, padding: 26 },
+  post: { backgroundColor: '#fff', marginTop: 14, borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#D8DAD2' },
+  // [V4] 스트라바식 스탯 바 — 사진 하단 풀와이드, Oswald 3열
+  statBar: { position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', backgroundColor: 'rgba(10,14,10,.55)', paddingVertical: 9 },
+  statCell: { flex: 1, alignItems: 'center', borderRightWidth: 1, borderRightColor: 'rgba(255,255,255,.18)' },
+  statV: { fontSize: 21, fontWeight: '900', color: '#fff', fontVariant: ['tabular-nums'] },
+  statK: { fontSize: 7.5, fontWeight: '700', letterSpacing: 2, color: 'rgba(255,255,255,.65)', marginTop: 2 },
   badgeCol: { position: 'absolute', top: 12, right: 12, gap: 6, alignItems: 'flex-end' },
-  badge: { backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 4, paddingHorizontal: 10, alignSelf: 'center' },
+  badge: { backgroundColor: colors.volt, borderRadius: 4, paddingVertical: 4, paddingHorizontal: 10, alignSelf: 'center' },
   actBtn: { paddingVertical: 4, paddingHorizontal: 6 },
   runCard: { flexDirection: 'row', gap: 12, backgroundColor: colors.volt, marginHorizontal: 0, paddingHorizontal: 18, paddingVertical: 16, overflow: 'hidden' },
   runCardKm: { fontSize: 44, fontWeight: '900', color: FOREST, letterSpacing: -2, lineHeight: 48 },
-  runCardBadge: { backgroundColor: FOREST, borderRadius: 99, paddingVertical: 4, paddingHorizontal: 10 },
-  clubStrip: { height: 88, borderRadius: 18, overflow: 'hidden', backgroundColor: '#26382a', marginHorizontal: 15, marginTop: 13 },
+  runCardBadge: { backgroundColor: FOREST, borderRadius: 4, paddingVertical: 4, paddingHorizontal: 10 },
+  clubStrip: { height: 88, borderRadius: 6, overflow: 'hidden', backgroundColor: '#191533', marginHorizontal: 15, marginTop: 13, borderWidth: 1, borderColor: '#2A2350' },
   clubScrim: { position: 'absolute' as const, top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(10,16,10,.34)' },
-  clubPill: { backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 5, paddingHorizontal: 10 },
-  recapCard: { backgroundColor: FOREST, paddingHorizontal: 18, paddingVertical: 18 },
-  recapBadge: { backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 3, paddingHorizontal: 9, alignSelf: 'flex-start' },
-  commentsWrap: { paddingHorizontal: 16, paddingBottom: 14, borderTopWidth: 1, borderTopColor: '#f0eee3', paddingTop: 11 },
+  clubPill: { backgroundColor: colors.volt, borderRadius: 4, paddingVertical: 5, paddingHorizontal: 10 },
+  // [V4] 클럽 리캡 = 바이올렛 나이트 스텁 (피드 속 밤의 창)
+  recapCard: { backgroundColor: colors.nightCard, paddingHorizontal: 18, paddingLeft: 21, paddingVertical: 16, overflow: 'hidden' },
+  recapEdge: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, backgroundColor: colors.neon },
+  recapNum: { fontSize: 22, fontWeight: '900', color: '#fff', fontVariant: ['tabular-nums'] },
+  recapK: { fontSize: 7.5, fontWeight: '700', letterSpacing: 2, color: colors.nightDim, marginTop: 2 },
+  commentsWrap: { paddingHorizontal: 16, paddingBottom: 14, borderTopWidth: 1, borderTopColor: '#EEF0EA', paddingTop: 11 },
   commentInput: {
-    flex: 1, backgroundColor: '#faf9f3', borderRadius: 99, borderWidth: 1, borderColor: '#DCD6C4',
+    flex: 1, backgroundColor: '#F7F8F5', borderRadius: 99, borderWidth: 1, borderColor: '#D8DAD2',
     paddingVertical: 9, paddingHorizontal: 14, fontSize: 15, color: FOREST,
   },
   commentSend: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.volt, alignItems: 'center', justifyContent: 'center' },

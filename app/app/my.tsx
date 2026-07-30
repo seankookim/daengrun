@@ -96,15 +96,15 @@ export default function My() {
   };
 
   const MENU = [
-    { glyph: '✚', label: '안심 센터', desc: 'SOS · 긴급 연락처 · 보험', path: '/safety' as const },
+    { glyph: '✚', label: '안심 센터', desc: 'SOS · 긴급 연락처 · 보험', path: '/safety' as const, ink: colors.tang, tint: '#FCE7E1' },
     isRunner
-      ? { glyph: '✓', label: '러너 인증 센터', desc: '지원 절차 · 등급 사다리 · 교육', path: '/runner/apply' as const }
-      : { glyph: '⌂', label: '주소 관리', desc: '픽업 장소 · 공동현관 정보', path: '/owner/addresses' as const },
-    ...(!isRunner ? [{ glyph: '◉', label: '반려견 프로필', desc: '사진 · 성향 · 러너에게 전달되는 정보', path: '/owner/dog' as const }] : []),
-    { glyph: '▦', label: '예약 관리', desc: '다가오는 일정과 지난 예약', path: isRunner ? null : ('/owner/schedule' as const) },
-    { glyph: '⌗', label: isRunner ? '내 러닝 기록' : `${dog.name}의 기록`, desc: '마이 카드 · 러닝 히스토리', path: '/cards' as const },
-    { glyph: '◔', label: '알림', desc: '알림 확인 및 설정', path: '/alerts' as const },
-    { glyph: '⚙', label: '설정', desc: '계정 · 로그아웃 · 문의', path: '/settings' as const },
+      ? { glyph: '✓', label: '러너 인증 센터', desc: '지원 절차 · 등급 사다리 · 교육', path: '/runner/apply' as const, ink: colors.voltDeep, tint: '#EDF5D8' }
+      : { glyph: '⌂', label: '주소 관리', desc: '픽업 장소 · 공동현관 정보', path: '/owner/addresses' as const, ink: colors.voltDeep, tint: '#EDF5D8' },
+    ...(!isRunner ? [{ glyph: '◉', label: '반려견 프로필', desc: '사진 · 성향 · 러너에게 전달되는 정보', path: '/owner/dog' as const, ink: colors.terra, tint: colors.terraTint }] : []),
+    { glyph: '▦', label: '예약 관리', desc: '다가오는 일정과 지난 예약', path: isRunner ? null : ('/owner/schedule' as const), ink: '#4A6E93', tint: '#E3EEF8' },
+    { glyph: '⌗', label: isRunner ? '내 러닝 기록' : `${dog.name}의 기록`, desc: '마이 카드 · 러닝 히스토리', path: '/cards' as const, ink: colors.goldDeep, tint: colors.goldTint },
+    { glyph: '◔', label: '알림', desc: '알림 확인 및 설정', path: '/alerts' as const, ink: colors.clubInk, tint: colors.clubTint },
+    { glyph: '⚙', label: '설정', desc: '계정 · 로그아웃 · 문의', path: '/settings' as const, ink: '#586055', tint: '#EFF1EC' },
   ];
 
   return (
@@ -178,12 +178,14 @@ export default function My() {
                 else Alert.alert(m.label, '준비 중이에요');
               }}
             >
-              <View style={s.menuIcon}><Text style={{ fontSize: 17, color: '#5a7a3c' }}>{m.glyph}</Text></View>
+              {/* [V4] 도메인 잉크 — 좌측 액센트 엣지 + 틴트 아이콘 칩 (제네릭 설정 템플릿 탈피) */}
+              <View style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3.5, backgroundColor: (m as any).ink }} />
+              <View style={[s.menuIcon, { backgroundColor: (m as any).tint }]}><Text style={{ fontSize: 17, color: (m as any).ink }}>{m.glyph}</Text></View>
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: 16.5, fontWeight: '800', color: FOREST }}>{m.label}</Text>
                 <Text style={{ fontSize: 15, color: colors.dim, marginTop: 2 }}>{m.desc}</Text>
               </View>
-              <Text style={{ fontSize: 18.5, color: colors.dim }}>›</Text>
+              <Text style={{ fontSize: 18.5, color: (m as any).ink }}>›</Text>
             </Pressable>
           ))}
         </View>
@@ -264,9 +266,9 @@ const s = StyleSheet.create({
     position: 'absolute', right: -3, bottom: -3, width: 18, height: 18, borderRadius: 9,
     backgroundColor: '#5a7a3c', alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: '#fff',
   },
-  editBtn: { backgroundColor: '#f4f2ea', borderRadius: 4, paddingVertical: 7, paddingHorizontal: 11 },
+  editBtn: { backgroundColor: '#EFF1EC', borderRadius: 4, paddingVertical: 7, paddingHorizontal: 11 },
   menuRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
+    flexDirection: 'row', alignItems: 'center', gap: 12, overflow: 'hidden',
     backgroundColor: '#fff', borderRadius: 6, padding: 15, borderWidth: 1, borderColor: '#D8DAD2',
   },
   menuIcon: { width: 40, height: 40, borderRadius: 4, backgroundColor: '#eef4e0', alignItems: 'center', justifyContent: 'center' },
