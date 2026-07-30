@@ -48,7 +48,10 @@ begin
         perform set_config('request.jwt.claim.sub', r2::text, false);
         perform session_checkin(v_sid);
         perform set_config('request.jwt.claim.sub', host::text, false);
-        perform session_assign_dog(v_sd1, r2);
+        perform session_assign_dog(v_sd1, r2);          -- [R3] 타 러너 = 제안
+        perform set_config('request.jwt.claim.sub', r2::text, false);
+        perform session_proposal_respond(v_sd1, true);   -- 러너 수락 → confirmed
+        perform set_config('request.jwt.claim.sub', host::text, false);
         if (select status from bookings where id = v_b1) = 'confirmed'
            and (select runner_id from bookings where id = v_b1) = r2
            and (select owner_confirmed_handoff_at from bookings where id = v_b1) is null
@@ -103,6 +106,7 @@ begin
     perform set_config('request.jwt.claim.sub', host::text, false);
     perform session_assign_dog(v_sd2, r2);                      -- d2는 배정만 (인계 없음, 캡 2 안)
     perform set_config('request.jwt.claim.sub', r2::text, false);
+    perform session_proposal_respond(v_sd2, true);              -- [R3] 수락
     v_js := club_start_delegated_runs(v_sid);
     if jsonb_array_length(v_js) = 1
        and (select status from bookings where id = v_b1) = 'active'
@@ -305,7 +309,13 @@ begin
   v_sd := session_delegate_dog(v_sid, d1);
   perform set_config('request.jwt.claim.sub', host::text, false);
   v_bid := session_approve_dog(v_sd, true);
+  perform set_config('request.jwt.claim.sub', own1::text, false);
+  v_bid := session_pay_delegation(v_sd, 'idem-brd');
+  perform set_config('request.jwt.claim.sub', host::text, false);
   perform session_assign_dog(v_sd, r2);
+  perform set_config('request.jwt.claim.sub', r2::text, false);
+  perform session_proposal_respond(v_sd, true);
+  perform set_config('request.jwt.claim.sub', host::text, false);
 
   -- [G1] 호스트 뷰 — 정원·카운트·러너 소켓·요금이 전부 실데이터에서 파생
   begin
@@ -390,8 +400,12 @@ begin
   bc := session_pay_delegation(sdc, 'idem-r2c');
   perform set_config('request.jwt.claim.sub', h2::text, false);
   perform session_assign_dog(sda, ra);
-  perform session_assign_dog(sdc, ra);                  -- ra 2마리 (베테랑 캡 2)
-  perform session_assign_dog(sdb, h2);                  -- 호스트 본인 = dB 담당 러너
+  perform session_assign_dog(sdc, ra);                  -- ra 2마리 (베테랑 캡 2) — 제안 2건
+  perform session_assign_dog(sdb, h2);                  -- 자기 제안 = 즉시 수락
+  perform set_config('request.jwt.claim.sub', ra::text, false);
+  perform session_proposal_respond(sda, true);
+  perform session_proposal_respond(sdc, true);
+  perform set_config('request.jwt.claim.sub', h2::text, false);
   update bookings set owner_confirmed_handoff_at = now(), runner_confirmed_handoff_at = now()
   where id in (ba, bb, bc);
   update bookings set status = 'picked_up' where id in (ba, bb, bc);
@@ -666,6 +680,9 @@ begin
   be := session_pay_delegation(sde, 'idem-r2e');
   perform set_config('request.jwt.claim.sub', h2::text, false);
   perform session_assign_dog(sdd, ra); perform session_assign_dog(sde, ra);
+  perform set_config('request.jwt.claim.sub', ra::text, false);
+  perform session_proposal_respond(sdd, true); perform session_proposal_respond(sde, true);
+  perform set_config('request.jwt.claim.sub', h2::text, false);
   update bookings set owner_confirmed_handoff_at = now(), runner_confirmed_handoff_at = now()
   where id in (bd, be);
   update bookings set status = 'picked_up' where id in (bd, be);

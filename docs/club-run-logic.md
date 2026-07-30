@@ -346,8 +346,14 @@ idempotently, expiry, host labels, capacity predicates) → **R2 backend built (
 self-override ban) + runner→runner atomic transfer + transfer_cancel + **mid-run clinic/authority = atomic
 incident path** (return-phase = plain external transfer) + ended-gating (terminal allowlist) + payout
 earned→payable→released w/ hold + incident release-block + custody-first UI projection — *slice closes after
-the R2 debug screen is device-verified* → R3 assignment loop +
-timeline + proposal reservation + recovery + no-show + backup/assume_host → R4 consents + eligibility/edits
+the R2 debug screen is device-verified* → **R3 backend built (0047)**: Model A proposals (self-proposal =
+implicit accept; propose-over-confirmed = implicit revoke) + owner candidate privacy until acceptance +
+5m proposal expiry (real-time predicates; cron sweeps cache + events) + per-runner load incl. active
+proposals + revoke→replacement_needed + owner objection (preference T-20/once/reason; safety until handoff;
+optional full refund) + T-10 hard stop auto-refund (paid dog structurally cannot be stuck) + T-30
+runner-late/host-absence alerts + backup host & assume_host — assignment axis now event-derived
+(assignment_events seq); booking-only mutations resync the cache in-tx (deferred-poke staleness lesson) —
+*debug screen wiring + device verification pending* → R4 consents + eligibility/edits
 + viability + capacity family + fee ledger + metrics split + membership separation (RSVP ≠ join; guest RSVP;
 obligations survive membership changes) → R5 shell backend (group chat + private channel + capability roster
 + phones B + ack banners) → R6 incident wiring/SOS/severity/evidence + GPS baseline + segments + series

@@ -180,11 +180,12 @@ begin
     where custody = 'runner_delegated' and approval = 'pending'
       and not (service_state = 'requested' and charge_state = 'none' and assignment_state = 'unassigned');
     if v_cnt > 0 then call _fail('axes','X11 리터럴','pending 불일치 ' || v_cnt); else
-      -- 부킹 matching(승인·v1 결제·미배정) → confirmed/paid+consumed/unassigned
+      -- 부킹 matching(승인·결제·수락 전) → confirmed/paid+consumed/비수락 배정 상태
+      -- [R3] matching은 unassigned 외에도 proposed/declined/replacement_needed 가능 — accepted만 모순
       select count(*) into v_cnt from session_dogs sd join bookings b on b.id = sd.booking_id
       where sd.custody = 'runner_delegated' and b.status = 'matching'
         and not (sd.service_state = 'confirmed' and sd.charge_state = 'paid'
-                 and sd.hold_status = 'consumed' and sd.assignment_state = 'unassigned'
+                 and sd.hold_status = 'consumed' and sd.assignment_state <> 'accepted'
                  and sd.custodian_type = 'owner');
       if v_cnt > 0 then call _fail('axes','X11 리터럴','matching 불일치 ' || v_cnt); else
         -- 환불 계열 → refund=pending·service=ended (전건)

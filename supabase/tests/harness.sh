@@ -34,6 +34,7 @@ psql -q -f 30_club_suite.sql >/dev/null 2>&1
 psql -q -f 40_records_suite.sql >/dev/null 2>&1
 psql -q -f 50_delegation_suite.sql >/dev/null 2>&1
 psql -q -f 60_custody_suite.sql >/dev/null 2>&1
+psql -q -f 65_assignment_suite.sql >/dev/null 2>&1
 psql -q -f 70_axes_suite.sql >/dev/null 2>&1
 psql -q -f 80_choke_suite.sql >/dev/null 2>&1
 psql -c "select case when ok then '✅' else '❌' end || ' [' || suite || '] ' || name || case when ok then '' else ' — ' || detail end from _t order by at"
