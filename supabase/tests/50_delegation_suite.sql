@@ -392,3 +392,133 @@ begin
   end;
 
 end $$;
+-- ═══ R1 돈 적대 스위트 (0044) — 소유권·재시도·실시간 만료·좌초-결제·원자성·허용목록 ═══
+do $$
+declare
+  hostx uuid; ownA uuid; ownB uuid; dA uuid; dB uuid; rt uuid;
+  v_club uuid; v_sid uuid; sdA uuid; sdB uuid; v_bid uuid; v_cnt int; v_km numeric;
+begin
+  hostx := t_user('adv_host', 'runner');                      -- certified 캡 1 (마지막 슬롯 시나리오)
+  ownA := t_user('adv_ownA', 'owner'); dA := t_dog(ownA, '적대A');
+  ownB := t_user('adv_ownB', 'owner'); dB := t_dog(ownB, '적대B');
+  rt := t_route('적대 코스');
+  select km into v_km from routes where id = rt;
+  perform set_config('request.jwt.claim.sub', hostx::text, false);
+  v_club := club_request_district('적대동');
+  perform club_claim_host(v_club);
+  v_sid := club_create_session(v_club, now() + interval '20 hours', '적대 집결지', rt, 8, 'mixed');
+  perform session_runner_commit(v_sid);                       -- 정원 1
+  perform set_config('request.jwt.claim.sub', ownA::text, false);
+  sdA := session_delegate_dog(v_sid, dA);
+  perform set_config('request.jwt.claim.sub', ownB::text, false);
+  sdB := session_delegate_dog(v_sid, dB);
+  perform set_config('request.jwt.claim.sub', hostx::text, false);
+  perform session_approve_dog(sdA, true);                     -- A 홀드 (정원 1 소진)
+
+  -- [M1] 소유권: 호스트·타인 결제 거부 (not_owner)
+  begin
+    begin
+      perform session_pay_delegation(sdA, 'adv-m1-host');
+      call _fail('adv','M1 호스트 결제 거부','통과됨');
+    exception when others then
+      if sqlerrm not like '%not_owner%' then call _fail('adv','M1 호스트', sqlerrm); else
+        perform set_config('request.jwt.claim.sub', ownB::text, false);
+        begin
+          perform session_pay_delegation(sdA, 'adv-m1-other');
+          call _fail('adv','M1 타인 결제 거부','통과됨');
+        exception when others then
+          if sqlerrm like '%not_owner%' then call _pass('adv','M1 결제 소유권 — 호스트·타인 거부');
+          else call _fail('adv','M1 타인', sqlerrm); end if;
+        end;
+      end if;
+    end;
+  end;
+
+  -- [M2] 실시간 만료 — 크론 없이 expires_at 경과 즉시 정원 해방 (술어 직접 시간 평가)
+  begin
+    if _club_delegated_reserved(v_sid) <> 1 then call _fail('adv','M2 사전','reserved<>1'); else
+      update session_dogs set hold_expires_at = now() - interval '1 second' where id = sdA;
+      if _club_delegated_reserved(v_sid) = 0
+        then call _pass('adv','M2 실시간 만료 — 크론 무관, now() 직접 평가로 즉시 해방');
+      else call _fail('adv','M2 만료','reserved=' || _club_delegated_reserved(v_sid)); end if;
+    end if;
+  end;
+
+  -- [M3] 마지막 슬롯: B 승인(홀드) → 만료된 A의 결제 = no_capacity (재홀드 경로 정원 검사)
+  begin
+    perform set_config('request.jwt.claim.sub', hostx::text, false);
+    perform session_approve_dog(sdB, true);                   -- 해방된 슬롯을 B가 홀드
+    perform set_config('request.jwt.claim.sub', ownA::text, false);
+    begin
+      perform session_pay_delegation(sdA, 'adv-m3');
+      call _fail('adv','M3 마지막 슬롯','통과됨');
+    exception when others then
+      if sqlerrm like '%no_capacity%'
+         and not exists (select 1 from bookings b join session_dogs x on x.booking_id = b.id where x.id = sdA)
+        then call _pass('adv','M3 마지막 슬롯 — 만료 A 결제 차단·부분 상태 0');
+      else call _fail('adv','M3', sqlerrm); end if;
+    end;
+  end;
+
+  -- [M4] 실패 후 같은 키 재시도 — 정원 회복 후 같은 키로 성공 (실패는 롤백되어 행 없음)
+  begin
+    perform set_config('request.jwt.claim.sub', hostx::text, false);
+    update session_dogs set hold_expires_at = now() - interval '1 second' where id = sdB;  -- B 만료 → 슬롯 회복
+    perform set_config('request.jwt.claim.sub', ownA::text, false);
+    v_bid := session_pay_delegation(sdA, 'adv-m3');           -- M3에서 실패했던 그 키
+    select count(*) into v_cnt from payment_attempts
+    where session_dog_id = sdA and idempotency_key = 'adv-m3' and result = 'ok';
+    if v_bid is not null and v_cnt = 1
+       and session_pay_delegation(sdA, 'adv-m3') = v_bid      -- 성공 후 재전송 = 같은 부킹
+      then call _pass('adv','M4 같은 키 — 실패 후 재시도 성공·성공 후 재전송 멱등');
+    else call _fail('adv','M4 재시도','cnt=' || v_cnt); end if;
+  exception when others then call _fail('adv','M4 재시도', sqlerrm);
+  end;
+
+  -- [M5] 결제 후 정원 — paid가 슬롯을 소비, 새 신청 승인은 no_capacity (술어 기반 직렬 안전)
+  begin
+    declare ownC uuid; dC uuid; sdC uuid;
+    begin
+      ownC := t_user('adv_ownC', 'owner'); dC := t_dog(ownC, '적대C');
+      perform set_config('request.jwt.claim.sub', ownC::text, false);
+      sdC := session_delegate_dog(v_sid, dC);
+      perform set_config('request.jwt.claim.sub', hostx::text, false);
+      begin
+        perform session_approve_dog(sdC, true);               -- 불가 — 정원 1은 A(paid)가 소비
+        call _fail('adv','M5 정원','승인 통과됨');
+      exception when others then
+        if sqlerrm like '%no_capacity%'
+          then call _pass('adv','M5 결제 후 정원 — paid 소비·신규 승인 차단');
+        else call _fail('adv','M5', sqlerrm); end if;
+      end;
+    end;
+  exception when others then call _fail('adv','M5 정원', sqlerrm);
+  end;
+
+  -- [M6] 허용목록 게이트 — 전역 플래그 OFF에서 등재 계정만 진입
+  begin
+    update club_flags set enabled = false where name = 'club_delegation_v2';
+    perform set_config('request.jwt.claim.sub', ownB::text, false);
+    begin
+      perform session_delegate_dog(v_sid, dB);
+      call _fail('adv','M6 OFF 차단','통과됨');
+    exception when others then
+      if sqlerrm not like '%feature_disabled%' then call _fail('adv','M6 차단', sqlerrm); else
+        insert into club_test_accounts (profile_id, note) values (ownB, '하네스');
+        begin
+          perform session_delegate_dog(v_sid, dB);            -- already_registered 예상 (활성 행 존재)
+          call _fail('adv','M6 허용목록','중복인데 통과');
+        exception when others then
+          if sqlerrm like '%already_registered%'
+            then call _pass('adv','M6 허용목록 — 플래그 OFF에서 등재 계정만 게이트 통과');
+          else call _fail('adv','M6 허용', sqlerrm); end if;
+        end;
+        delete from club_test_accounts where profile_id = ownB;
+      end if;
+    end;
+    update club_flags set enabled = true where name = 'club_delegation_v2';
+  exception when others then
+    update club_flags set enabled = true where name = 'club_delegation_v2';
+    call _fail('adv','M6 허용목록', sqlerrm);
+  end;
+end $$;

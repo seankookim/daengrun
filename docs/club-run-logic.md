@@ -64,8 +64,12 @@ service_reason       code (host_rejected / owner_cancel / runner_capacity / no_s
                      safety / weather / disclosure_false / assignment_failed / session_cancelled / other)
 cancelled_by         owner | host | runner | system | ops        (when termination=cancelled)
 
-charge_state         none → hold → paid                          (the only charge truth)
+charge_state         none → hold → paid
+                     **CACHED PROJECTION (0043/0044): authoritative charge truth = hold columns +
+                     bookings + payment_attempts; charge_state is derived (paid ⇔ booking exists,
+                     hold ⇔ unexpired active hold) and drift-checked like every cache.**
 hold_status          none | active(expires_at) | consumed | released | expired
+                     (hold columns are RPC-owned PRIMARY storage from R1)
 refund_state         none → pending → refunded | failed          (refund never erases that charge was paid)
 payout_state         none → earned → payable → released | void
 payout_hold          none | held(reason, incident_id)            (overlay — earned+held, payable+held valid)
@@ -87,6 +91,12 @@ custody: custodian_type  owner | runner | host | clinic | authority | authorized
   whoever holds the dog holds the responsibility; escape doesn't vacate it (last custodian remains until an
   accepted transfer). UI "책임자" renders the custodian.
 - **`service_contract_state` removed** — contract status is derived (paid ∧ not refunded ∧ not ended-void).
+- **Hold expiry is real-time, never cron-dependent**: every capacity predicate evaluates
+  `hold_status='active' AND hold_expires_at > now()` directly — a hold frees capacity the second it
+  expires; the */5 cron only stamps `expired` + notifies. Pay-after-expiry re-checks capacity and
+  proceeds inside ONE session-locked transaction — no intermediate hold row is ever left behind
+  (failure = full rollback, zero partial commercial state; in-DB failure-attempt persistence is
+  impossible under rollback — external recording is the real-PG wrapper's job).
 - **Hold expiry is deterministic**: `hold_status=expired`, `charge_state→none`, capacity freed by predicate;
   `service_state` stays `approved` (approval = eligibility; only holds/payment reserve). Owner may retry
   payment via the pay RPC, which re-checks capacity and opens a fresh hold under the session lock. Board
@@ -290,8 +300,9 @@ Runner metrics: one physical run = +1 run/distance/drop-cadence; dogs served = +
   reads denied via parties-only RLS, full inventory of existing marketplace queries migrated, service-role
   preserved, leak tests (each role × every exposed path; club bookings invisible everywhere; non-party
   direct reads fail). R0B acknowledges it touches the live marketplace read path — it is not "pure schema".
-- Feature flag `club_delegation` server-checked in every RPC; OFF for non-test accounts until backend+shell
-  complete; rollback = flag off. Old `approval` drops in cleanup slice after dual-write parity is asserted.
+- Feature flag `club_delegation_v2` server-checked in delegation entry RPCs; OFF globally until
+  backend+shell complete; rollback = flag off. **Testing never flips the global flag**: a
+  `club_test_accounts` allowlist (service-role managed) grants per-account entry while global stays OFF. Old `approval` drops in cleanup slice after dual-write parity is asserted.
 
 ## 15. Rollout gates & register
 
