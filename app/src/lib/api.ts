@@ -1792,13 +1792,16 @@ export const checkinClubSession = (sessionId: string) => clubRpc('session_checki
 export const finishClubSession = (sessionId: string) => clubRpc('club_finish_session', { p_session: sessionId }) as Promise<void>;
 
 // ---------- 위탁 (P-C, 0037~0039) — 플랩 어휘: PENDING/CLEARED/REFUSED/BOARDED/RUNNING/SETTLED ----------
-export type FlapState = 'PENDING' | 'CLEARED' | 'REFUSED' | 'BOARDED' | 'RUNNING' | 'SETTLED' | 'REFUND';
+export type FlapState = 'PENDING' | 'HOLDING' | 'CLEARED' | 'REFUSED' | 'BOARDED' | 'RUNNING' | 'SETTLED' | 'REFUND';
 export interface DelegationRunner { profileId: string; name: string; tier: string; cap: number; assigned: number; checkedIn: boolean; isMe: boolean }
 export interface DelegationDog {
   sdId: string; dogId: string; dogName: string; collar: string | null; ownerName: string;
   isMine: boolean; approval: 'pending' | 'approved' | 'rejected';
   bookingId: string | null; bookingStatus: string | null; runnerId: string | null; runnerName: string | null;
   ownerConfirmed: boolean | null; runnerConfirmed: boolean | null; custodyWithRunner: boolean; checkedOut: boolean;
+  serviceState?: string | null; chargeState?: string; holdStatus?: string; holdExpiresAt?: string | null;
+  refundState?: string; ui?: { primaryStage: string; secondaryBadges: string[]; blockingIssues: string[];
+    primaryIssue: string | null; requiredActors: string[]; severity: string };
   flap: FlapState;
 }
 export interface DelegationBoard {
@@ -1815,6 +1818,7 @@ export interface DelegationBoard {
 export function flapOf(d: { approval: string; bookingStatus: string | null }): FlapState {
   if (d.approval === 'rejected') return 'REFUSED';
   if (d.approval === 'pending') return 'PENDING';
+  if (!d.bookingStatus) return 'HOLDING'; // R1: 승인 = 홀드 — 결제 전엔 부킹이 없다
   switch (d.bookingStatus) {
     case 'picked_up': return 'BOARDED';   // 인계 완료 = 보험 시작
     case 'active': return 'RUNNING';
@@ -1837,6 +1841,11 @@ export const delegateDog = (sessionId: string, dogId: string) =>
   clubRpc('session_delegate_dog', { p_session: sessionId, p_dog: dogId }) as Promise<string>;
 export const approveDelegation = (sdId: string, approve: boolean) =>
   clubRpc('session_approve_dog', { p_session_dog: sdId, p_approve: approve }) as Promise<string | null>;
+// R1(0043): 결제는 보호자만 — 멱등 키는 클라이언트 생성 (재시도 시 같은 키 재사용)
+export const payDelegation = (sdId: string, idemKey: string) =>
+  clubRpc('session_pay_delegation', { p_session_dog: sdId, p_idem_key: idemKey }) as Promise<string>;
+export const reconsiderDelegation = (sdId: string) =>
+  clubRpc('session_reconsider_dog', { p_session_dog: sdId }) as Promise<string>;
 export const assignDelegation = (sdId: string, runnerId: string) =>
   clubRpc('session_assign_dog', { p_session_dog: sdId, p_runner: runnerId }) as Promise<void>;
 export const commitAsHandler = (sessionId: string) =>

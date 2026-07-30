@@ -30,8 +30,13 @@ begin
   perform set_config('request.jwt.claim.sub', own2::text, false);
   v_sd2 := session_delegate_dog(v_sid, d2);
   perform set_config('request.jwt.claim.sub', host::text, false);
-  v_b1 := session_approve_dog(v_sd1, true);
-  v_b2 := session_approve_dog(v_sd2, true);
+  perform session_approve_dog(v_sd1, true);
+  perform session_approve_dog(v_sd2, true);
+  perform set_config('request.jwt.claim.sub', own1::text, false);
+  v_b1 := session_pay_delegation(v_sd1, 'idem-cus1');
+  perform set_config('request.jwt.claim.sub', own2::text, false);
+  v_b2 := session_pay_delegation(v_sd2, 'idem-cus2');
+  perform set_config('request.jwt.claim.sub', host::text, false);
 
   -- [E1] 배정 전제: 체크인 안 한 러너 배정 거부 → 체크인 후 성공 (confirmed·runner_id·스탬프 null)
   begin
@@ -192,7 +197,10 @@ begin
     perform set_config('request.jwt.claim.sub', own1::text, false);
     v_sd1 := session_delegate_dog(v_sid2, d1);
     perform set_config('request.jwt.claim.sub', host::text, false);
-    v_b1 := session_approve_dog(v_sd1, true);
+    perform session_approve_dog(v_sd1, true);
+    perform set_config('request.jwt.claim.sub', own1::text, false);
+    v_b1 := session_pay_delegation(v_sd1, 'idem-cus3');
+    perform set_config('request.jwt.claim.sub', host::text, false);
     perform session_assign_dog(v_sd1, host);                    -- confirmed (인계 없음)
     perform club_finish_session(v_sid2);
     if (select status from bookings where id = v_b1) = 'refund_pending'

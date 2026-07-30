@@ -88,8 +88,8 @@ begin
        and jsonb_typeof(v_js->'secondaryBadges') = 'array'
        and jsonb_typeof(v_js->'requiredActors') = 'array'
        and v_js ? 'severity'
-       and club_flag('club_delegation_v2') = false
-      then call _pass('axes','X6 구조화 프로젝션 (stage/badges/actors/severity) + 플래그 OFF');
+       and exists (select 1 from club_flags where name = 'club_delegation_v2')
+      then call _pass('axes','X6 구조화 프로젝션 (stage/badges/actors/severity) + 플래그 존재');
     else call _fail('axes','X6 프로젝션', coalesce(v_js::text,'null')); end if;
   exception when others then call _fail('axes','X6 프로젝션', sqlerrm);
   end;

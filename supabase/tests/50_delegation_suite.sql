@@ -30,6 +30,23 @@ begin
   perform club_claim_host(v_club);
   v_sid := club_create_session(v_club, now() + interval '25 hours', '위탁 집결지', rt, 8, 'mixed');
 
+  -- [D0] 플래그 게이트 — 기본 OFF에서 위탁 진입 차단 → 활성화 후 계속 (R1)
+  begin
+    if club_flag('club_delegation_v2') then call _fail('del','D0 플래그','기본값 ON'); else
+      begin
+        perform set_config('request.jwt.claim.sub', owners[1]::text, false);
+        perform session_delegate_dog(v_sid, dgs[1]);
+        call _fail('del','D0 플래그 차단','통과됨');
+      exception when others then
+        if sqlerrm like '%feature_disabled%' then
+          update club_flags set enabled = true where name = 'club_delegation_v2';
+          call _pass('del','D0 플래그 — 기본 OFF·진입 차단·활성화');
+        else call _fail('del','D0', sqlerrm); end if;
+      end;
+    end if;
+  exception when others then call _fail('del','D0 플래그', sqlerrm);
+  end;
+
   -- [D1] 포맷 게이트: owner_only 세션 위탁 거부 + 코스 없는 위탁 세션 개설 거부
   begin
     v_sid2 := club_create_session(v_club, now() + interval '26 hours', '동반 집결지', null, 8, 'owner_only');
@@ -96,7 +113,7 @@ begin
   exception when others then call _fail('del','D4 등록', sqlerrm);
   end;
 
-  -- [D5] 승인 — 비호스트 거부 → 호스트 승인 = 부킹 생성 (일반가 = 9900 + km×3000, matching·클럽 링크)
+  -- [D5] R1: 승인 = 홀드(부킹 없음) → 보호자 결제 = 부킹 (일반가·consumed·멱등)
   begin
     perform set_config('request.jwt.claim.sub', owners[1]::text, false);
     begin
@@ -105,16 +122,23 @@ begin
     exception when others then
       if sqlerrm not like '%not_host%' then call _fail('del','D5 비호스트', sqlerrm); else
         perform set_config('request.jwt.claim.sub', host::text, false);
-        v_bid := session_approve_dog(v_sd, true);
-        if (select status from bookings where id = v_bid) = 'matching'
-           and (select runner_id from bookings where id = v_bid) is null
-           and (select club_session_id from bookings where id = v_bid) = v_sid
-           and (select total_price from bookings where id = v_bid) = 9900 + round(v_km * 3000)::int
-           and (select booking_id from session_dogs where id = v_sd) = v_bid
-           and (select approval from session_dogs where id = v_sd) = 'approved'
-           and exists (select 1 from notifications where profile_id = owners[1] and ref_id = v_bid and kind = 'booking')
-          then call _pass('del','D5 승인 = 부킹 생성 (일반가 ' || (9900 + round(v_km * 3000)::int) || '·matching·클럽 링크·알림)');
-        else call _fail('del','D5 승인','부킹 필드 불일치'); end if;
+        perform session_approve_dog(v_sd, true);
+        if (select booking_id from session_dogs where id = v_sd) is not null
+           or (select hold_status from session_dogs where id = v_sd) <> 'active'
+          then call _fail('del','D5 승인=홀드','부킹 조기 생성 or 홀드 없음');
+        else
+          perform set_config('request.jwt.claim.sub', owners[1]::text, false);
+          v_bid := session_pay_delegation(v_sd, 'idem-d5');
+          if (select status from bookings where id = v_bid) = 'matching'
+             and (select runner_id from bookings where id = v_bid) is null
+             and (select club_session_id from bookings where id = v_bid) = v_sid
+             and (select total_price from bookings where id = v_bid) = club_fare(v_km)
+             and (select hold_status from session_dogs where id = v_sd) = 'consumed'
+             and (select booking_id from session_dogs where id = v_sd) = v_bid
+             and session_pay_delegation(v_sd, 'idem-d5') = v_bid
+            then call _pass('del','D5 승인=홀드 → 결제=부킹 (club_fare ' || club_fare(v_km) || '·멱등 재전송)');
+          else call _fail('del','D5 결제','부킹 필드 불일치'); end if;
+        end if;
       end if;
     end;
   exception when others then call _fail('del','D5 승인', sqlerrm);
@@ -149,8 +173,7 @@ begin
   -- [D7] 정원 소진 — 승인 수 = 정원이면 no_capacity (데이터 파생: 현재 정원까지 채운다)
   begin
     select delegated_dog_capacity into v_cap from club_sessions where id = v_sid;
-    select count(*) into v_cnt from session_dogs
-    where session_id = v_sid and custody = 'runner_delegated' and approval = 'approved';
+    v_cnt := _club_delegated_reserved(v_sid);
     i := 3;  -- owners[3..] 사용 (1 승인됨·2 거절됨)
     while v_cnt < v_cap loop
       perform set_config('request.jwt.claim.sub', owners[i]::text, false);
@@ -158,6 +181,9 @@ begin
       v_sd_arr := v_sd_arr || v_sd2;
       perform set_config('request.jwt.claim.sub', host::text, false);
       perform session_approve_dog(v_sd2, true);
+      perform set_config('request.jwt.claim.sub', owners[i]::text, false);
+      perform session_pay_delegation(v_sd2, 'idem-d7-' || i);
+      perform set_config('request.jwt.claim.sub', host::text, false);
       v_cnt := v_cnt + 1; i := i + 1;
     end loop;
     perform set_config('request.jwt.claim.sub', owners[i]::text, false);
@@ -182,11 +208,13 @@ begin
     perform set_config('request.jwt.claim.sub', owners[1]::text, false);
     v_sd2 := session_delegate_dog(v_sid3, dgs[1]);   -- d1은 v_sid에 live 부킹 보유
     perform set_config('request.jwt.claim.sub', host::text, false);
+    perform session_approve_dog(v_sd2, true);              -- 승인=홀드는 통과 (돈 없음)
+    perform set_config('request.jwt.claim.sub', owners[1]::text, false);
     begin
-      perform session_approve_dog(v_sd2, true);
+      perform session_pay_delegation(v_sd2, 'idem-d8');
       call _fail('del','D8 겹침 가드','통과됨');
     exception when others then
-      if sqlerrm like '%dog_slot_clash%' then call _pass('del','D8 같은 강아지 라이브 겹침 승인 거부');
+      if sqlerrm like '%dog_slot_clash%' then call _pass('del','D8 같은 강아지 겹침 — 결제(돈의 순간) 차단');
       else call _fail('del','D8', sqlerrm); end if;
     end;
   exception when others then call _fail('del','D8 겹침', sqlerrm);
@@ -227,7 +255,9 @@ begin
     where session_id = v_sid and custody = 'runner_delegated' and approval = 'pending'
     order by seq limit 1;
     perform set_config('request.jwt.claim.sub', host::text, false);
-    v_bid := session_approve_dog(v_sd2, true);
+    perform session_approve_dog(v_sd2, true);
+    perform set_config('request.jwt.claim.sub', (select owner_profile_id from session_dogs where id = v_sd2)::text, false);
+    v_bid := session_pay_delegation(v_sd2, 'idem-d10');
     if v_bid is not null and v_bid <> v_bid_old
        and (select status from bookings where id = v_bid) = 'matching'
        and (select status from bookings where id = v_bid_old) = 'refund_pending'
@@ -259,7 +289,10 @@ begin
     perform set_config('request.jwt.claim.sub', owners[2]::text, false);
     v_sd2 := session_delegate_dog(v_sidm, dgs[2]);
     perform set_config('request.jwt.claim.sub', host::text, false);
-    v_bid := session_approve_dog(v_sd2, true);
+    perform session_approve_dog(v_sd2, true);
+    perform set_config('request.jwt.claim.sub', owners[2]::text, false);
+    v_bid := session_pay_delegation(v_sd2, 'idem-d12');
+    perform set_config('request.jwt.claim.sub', host::text, false);
     perform club_finish_session(v_sidm);
     if (select status from club_sessions where id = v_sidm) = 'done'
        and (select status from bookings where id = v_bid) = 'refund_pending'
@@ -277,7 +310,10 @@ begin
     perform set_config('request.jwt.claim.sub', owners[3]::text, false);
     v_sd2 := session_delegate_dog(v_sid3, dgs[3]);
     perform set_config('request.jwt.claim.sub', host::text, false);
-    v_bid := session_approve_dog(v_sd2, true);
+    perform session_approve_dog(v_sd2, true);
+    perform set_config('request.jwt.claim.sub', owners[3]::text, false);
+    v_bid := session_pay_delegation(v_sd2, 'idem-d13');
+    perform set_config('request.jwt.claim.sub', host::text, false);
     update bookings set scheduled_at = now() - interval '1 hour' where id = v_bid;  -- 시각만 (status 트리거 무발화)
     insert into bookings (owner_id, dog_id, status, scheduled_at, km, base_fare, distance_fare, addon_fare, total_price, min_fare)
     values (owners[4], dgs[4], 'matching', now() - interval '1 hour', 3.0, 9900, 9000, 0, 18900, 9900)
@@ -304,6 +340,55 @@ begin
       then call _pass('del','D14 최소 인원 미달 — 호스트 알림 1회·자동 취소 없음');
     else call _fail('del','D14 미달','n1=' || v_cnt || ' n2=' || v_exp); end if;
   exception when others then call _fail('del','D14 미달', sqlerrm);
+  end;
+
+  -- [D15] R1: 홀드 만료 크론 — 정원 자동 해방 + 재결제(재홀드 경로)
+  begin
+    perform set_config('request.jwt.claim.sub', host::text, false);
+    v_sid3 := club_create_session(v_club, now() + interval '28 hours', '만료동 집결지', rt, 8, 'mixed');
+    perform session_runner_commit(v_sid3);                 -- 캡 1
+    perform set_config('request.jwt.claim.sub', owners[5]::text, false);
+    v_sd2 := session_delegate_dog(v_sid3, dgs[5]);
+    perform set_config('request.jwt.claim.sub', host::text, false);
+    perform session_approve_dog(v_sd2, true);
+    update session_dogs set hold_expires_at = now() - interval '1 minute' where id = v_sd2;
+    v_cnt := club_expire_delegation_holds();
+    if v_cnt >= 1 and (select hold_status from session_dogs where id = v_sd2) = 'expired'
+       and _club_delegated_reserved(v_sid3) = 0
+      then
+      perform set_config('request.jwt.claim.sub', owners[5]::text, false);
+      v_bid := session_pay_delegation(v_sd2, 'idem-d15');
+      if (select status from bookings where id = v_bid) = 'matching'
+         and _club_delegated_reserved(v_sid3) = 1
+        then call _pass('del','D15 홀드 만료 — 정원 해방·알림·재결제(재홀드) 성공');
+      else call _fail('del','D15 재결제','부킹 실패'); end if;
+    else call _fail('del','D15 만료','expired=' || (select hold_status from session_dogs where id = v_sd2)); end if;
+  exception when others then call _fail('del','D15 만료', sqlerrm);
+  end;
+
+  -- [D16] R1: 거절 번복 = 새 시도 행 (ended 불변·previous_attempt 링크·부분 유니크)
+  begin
+    perform set_config('request.jwt.claim.sub', owners[1]::text, false);
+    v_sd2 := session_delegate_dog(v_sid3, dgs[1]);
+    perform set_config('request.jwt.claim.sub', host::text, false);
+    perform session_approve_dog(v_sd2, false);             -- 거절 → ended
+    perform set_config('request.jwt.claim.sub', owners[1]::text, false);
+    begin
+      perform session_delegate_dog(v_sid3, dgs[1]);
+      call _fail('del','D16 거절 후 재신청 차단','통과됨');
+    exception when others then
+      if sqlerrm not like '%rejected%' then call _fail('del','D16 재신청', sqlerrm); else
+        perform set_config('request.jwt.claim.sub', host::text, false);
+        v_bid := session_reconsider_dog(v_sd2);            -- 번복 = 새 행
+        if (select approval from session_dogs where id = v_sd2) = 'rejected'
+           and (select service_state from session_dogs where id = v_sd2) = 'ended'
+           and (select approval from session_dogs where id = v_bid) = 'pending'
+           and (select previous_attempt_id from session_dogs where id = v_bid) = v_sd2
+          then call _pass('del','D16 번복 — ended 불변·새 시도 행·이력 링크');
+        else call _fail('del','D16 번복','행 상태 불일치'); end if;
+      end if;
+    end;
+  exception when others then call _fail('del','D16 번복', sqlerrm);
   end;
 
 end $$;
