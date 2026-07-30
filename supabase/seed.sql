@@ -37,3 +37,16 @@ insert into routes (name, area, km, terrain, tags, features, checked_at) values
    '[{"g":"❋","label":"숲길"},{"g":"⏚","label":"흙길 90%"}]', '2026-07-15'),
   ('뚝섬–잠원 7km', '한강', 7, '포장 80%', '{고에너지견,장거리,한강 시리즈}',
    '[{"g":"♒","label":"리버뷰"},{"g":"✦","label":"에픽 코스"}]', '2026-07-19');
+
+-- ═══ [로컬 전용] 호스티드 패리티 권한 — 신형 CLI 로컬 스택은 API 롤에 CRUD를 기본 부여하지
+-- 않는다 (호스티드/원격은 구 기본값 유지). 보안 모델은 RLS가 담당 (X10 독트린) — grant 부재에
+-- 기대는 봉인은 없으므로 안전. seed.sql은 supabase db reset(로컬)에서만 실행된다.
+grant usage on schema public to anon, authenticated, service_role;
+grant select, insert, update, delete on all tables in schema public to anon, authenticated, service_role;
+grant usage, select on all sequences in schema public to anon, authenticated, service_role;
+alter default privileges in schema public grant select, insert, update, delete on tables to anon, authenticated, service_role;
+alter default privileges in schema public grant usage, select on sequences to anon, authenticated, service_role;
+-- 함수 실행권: 호스티드는 기본 권한이 service_role에 직접 execute를 부여해 마이그레이션의
+-- revoke(public/anon/authenticated) 후에도 service_role 경로가 산다 — 로컬 패리티.
+grant execute on all functions in schema public to service_role;
+alter default privileges in schema public grant execute on functions to service_role;

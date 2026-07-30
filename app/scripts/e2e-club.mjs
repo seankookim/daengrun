@@ -13,20 +13,92 @@
 // service role 키는 이 스크립트(로컬/서버측)에서만 산다 — 앱·레포 코드에 절대 넣지 않는다.
 
 import { createClient } from '@supabase/supabase-js';
+import { execSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import path from 'node:path';
 
-// supabase 로컬 데모 키 (공개 표준값 — 모든 로컬 인스턴스 동일, 비밀 아님)
 const LOCAL_URL = 'http://127.0.0.1:54321';
-const LOCAL_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0';
-const LOCAL_SERVICE = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU';
-
 const URL = process.env.SUPABASE_URL ?? LOCAL_URL;
 const isLocal = /^https?:\/\/(127\.0\.0\.1|localhost)[:/]/.test(URL + '/');
 if (!isLocal && process.env.E2E_ALLOW_REMOTE !== '1') {
   console.error('원격 URL 감지 — 원격 실행은 E2E_ALLOW_REMOTE=1 + 키 env 명시가 필수입니다.');
   process.exit(2);
 }
-const ANON = process.env.SUPABASE_ANON_KEY ?? (isLocal ? LOCAL_ANON : null);
-const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY ?? (isLocal ? LOCAL_SERVICE : null);
+
+// 로컬 키 자동 감지 — 이름을 추측하지 않는다: status 출력(양 포맷)에서 '후보'를 전부 수집한 뒤
+// 실행 중 스택에 실제로 통하는 키를 검증으로 고른다 (신형 sb_* 우선, 레거시 JWT는 role 클레임으로 분류).
+function repoRoot() {
+  let dir = process.cwd();
+  for (let i = 0; i < 5; i++) {
+    if (existsSync(path.join(dir, 'supabase', 'config.toml'))) return dir;
+    dir = path.dirname(dir);
+  }
+  return process.cwd();
+}
+function collectCandidates() {
+  const dir = repoRoot();
+  let text = '';
+  for (const cmd of ['npx supabase status -o env', 'npx supabase status']) {
+    try {
+      text += '\n' + execSync(cmd, { cwd: dir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+    } catch (e) { text += '\n' + (e.stdout ?? ''); }
+  }
+  const uniq = (a) => [...new Set(a)];
+  const pubs = uniq(text.match(/sb_publishable_[A-Za-z0-9_-]+/g) ?? []);
+  const secs = uniq(text.match(/sb_secret_[A-Za-z0-9_-]+/g) ?? []);
+  const jwts = uniq(text.match(/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g) ?? []);
+  const role = (t) => {
+    try { return JSON.parse(Buffer.from(t.split('.')[1], 'base64').toString()).role; } catch { return null; }
+  };
+  return {
+    anonCands: [...pubs, ...jwts.filter((t) => role(t) === 'anon')],
+    svcCands: [...secs, ...jwts.filter((t) => role(t) === 'service_role')],
+  };
+}
+const keyRejected = (msg) => /JWT|signature|suitable key|api.?key|token/i.test(msg ?? '');
+async function firstValidService(cands) {
+  for (const k of cands) {
+    const c = createClient(URL, k, { auth: { persistSession: false } });
+    const { error } = await c.from('club_flags').select('name').limit(1);
+    if (!error) return { key: k, client: c };
+    if (!keyRejected(error.message)) return { key: k, client: c };  // 키는 통과, 다른 오류(스키마 등)는 뒤에서 정직하게 드러남
+  }
+  return null;
+}
+async function firstValidAnon(cands) {
+  for (const k of cands) {
+    try {
+      const res = await fetch(`${URL}/rest/v1/`, { headers: { apikey: k, Authorization: `Bearer ${k}` } });
+      if (res.status !== 401 && res.status !== 403) return k;
+      const body = await res.text();
+      if (!keyRejected(body)) return k;
+    } catch { /* 다음 후보 */ }
+  }
+  return null;
+}
+
+let ANON = null;
+let SERVICE = null;
+if (isLocal) {
+  // 로컬: env 값도 '후보'일 뿐이다 — 셸에 남은 스테일 export가 검증 없이 이기면 안 된다.
+  const { anonCands, svcCands } = collectCandidates();
+  if (process.env.SUPABASE_ANON_KEY) anonCands.unshift(process.env.SUPABASE_ANON_KEY);
+  if (process.env.SUPABASE_SERVICE_ROLE_KEY) svcCands.unshift(process.env.SUPABASE_SERVICE_ROLE_KEY);
+  const svcPick = await firstValidService([...new Set(svcCands)]);
+  if (svcPick) SERVICE = svcPick.key;
+  ANON = await firstValidAnon([...new Set(anonCands)]);
+  if (process.env.SUPABASE_SERVICE_ROLE_KEY && SERVICE !== process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    console.log('⚠ 셸의 SUPABASE_SERVICE_ROLE_KEY는 이 스택에 무효 — 검증된 키로 대체함 (unset 권장)');
+  }
+  if (!SERVICE || !ANON) {
+    console.error(`키 검증 실패 — 후보: anon ${anonCands.length}개 / service ${svcCands.length}개 중 유효 키 없음.`);
+    console.error('npx supabase status 출력 전체를 붙여주세요 (로컬 키 — 비밀 아님).');
+    process.exit(2);
+  }
+} else {
+  ANON = process.env.SUPABASE_ANON_KEY ?? null;
+  SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY ?? null;
+}
 if (!ANON || !SERVICE) { console.error('SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY 필요'); process.exit(2); }
 
 const svc = createClient(URL, SERVICE, { auth: { persistSession: false } });
@@ -46,6 +118,10 @@ async function expectError(promise, code, msg) {
   assert(String(error.message).includes(code), `${msg}: '${code}' 기대, 실제 '${error.message}'`);
 }
 async function rpc(client, fn, args) {
+  // undefined 인자는 supabase-js가 조용히 떨궈 '함수 없음'으로 위장된다 — 연쇄 실패를 정직하게 표기
+  for (const [k, v] of Object.entries(args ?? {})) {
+    if (v === undefined) throw new Error(`${fn}: ${k}=undefined (선행 단계 실패의 연쇄)`);
+  }
   const { data, error } = await client.rpc(fn, args);
   if (error) throw new Error(`${fn}: ${error.message}`);
   return data;
@@ -80,7 +156,21 @@ async function mkUser(name, role, tier) {
 }
 
 const main = async () => {
-  console.log(`\n대상: ${URL} ${isLocal ? '(로컬)' : '(원격 — 옵트인)'}\n`);
+  console.log(`\n대상: ${URL} ${isLocal ? '(로컬)' : '(원격 — 옵트인)'} · anon ${ANON.slice(0, 12)}… · service ${SERVICE.slice(0, 12)}…\n`);
+
+  // 프리플라이트: 키가 '실행 중' 스택과 맞는지 (config 변경 후 재시작 안 하면 시크릿 불일치)
+  {
+    const { error } = await svc.from('club_flags').select('name').limit(1);
+    if (error && /JWT|signature|token/i.test(error.message)) {
+      console.error('키·스택 불일치 — 스택이 이전 시크릿으로 떠 있습니다. 순서대로:');
+      console.error('  cd /Users/sean/dev/daengrun');
+      console.error('  npx supabase stop --no-backup');
+      console.error('  npx supabase start');
+      console.error('  cd app && node scripts/e2e-club.mjs');
+      process.exit(2);
+    }
+    if (error) throw new Error(`프리플라이트: ${error.message} (마이그레이션 적용 확인 — club_flags 부재?)`);
+  }
 
   // ---------- 시드 ----------
   const host = await mkUser('host', 'runner');                       // certified 캡 1
@@ -113,7 +203,7 @@ const main = async () => {
 
   // ---------- 세션 구성 (전부 실 RPC) ----------
   await t('호스트 — 클럽 개설·세션 생성·커밋 / r2 커밋+체크인', async () => {
-    clubId = await rpc(host.client, 'club_request_district', { p_name: `e2e동-${TS}` });
+    clubId = await rpc(host.client, 'club_request_district', { p_district: `e2e동${TS % 100000}` });  // 2~12자 제한
     created.clubId = clubId;
     await rpc(host.client, 'club_claim_host', { p_club: clubId });
     sessionId = await rpc(host.client, 'club_create_session', {
@@ -216,7 +306,7 @@ const main = async () => {
     let r = await row('session_dogs', sd1);
     assert(r.custody_phase === 'resolved' && r.payout_state === 'payable',
       `반환 결과: ${r.custody_phase}/${r.payout_state}`);
-    const { data: n } = await svc.rpc('club_release_payouts');
+    const n = await rpc(svc, 'club_release_payouts', {});
     assert(n >= 1, `릴리스 0건 (${n})`);
     r = await row('session_dogs', sd1);
     assert(r.payout_state === 'released', `릴리스 후: ${r.payout_state}`);
