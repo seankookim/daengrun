@@ -29,6 +29,24 @@
 Humans live in session_people; dogs in session_dogs; money on bookings; responsibility in custody events.
 No polymorphic mixing.
 
+## 1b. Logical ↔ physical name map (implementation contract)
+
+The spec uses logical names; SQL references **physical names only** until the cleanup rename slice.
+Verification queries must be written against the physical column.
+
+| Logical (spec) | Physical (schema) | Note |
+|---|---|---|
+| participation_mode | `session_dogs.custody` | 0042 adds `participation_mode` as a GENERATED read-only alias (query-only, never written); true rename happens in the cleanup slice after v1 RPCs retire |
+| incidents / incident_subjects / incident_evidence | `club_incidents` / `club_incident_subjects` / `club_incident_evidence` | 0001 owns a booking-level `incidents` table |
+| hold(deadline) | `hold_status` + `hold_expires_at` | |
+| payout_hold(reason, incident) | `payout_hold` + `payout_hold_reason` + `payout_hold_incident` | |
+| assignment proposed(runner, expires) | `assignment_state` + `current_runner_profile_id` + `proposal_expires_at` | events in `assignment_events` |
+| custodian projection | `custodian_type` / `custodian_profile_id` / `custodian_external` + `custody_phase` | v1-era: `responsible_profile_id` remains the v1 truth until R2 retires it |
+| new attempt link | `previous_attempt_id` | partial-unique lands in R1 |
+
+**Rule for R0B and later slices: no SQL or app code references `participation_mode` as a base column
+until the cleanup rename migration; reads use `custody` (or the 0042 alias once applied).**
+
 ## 2. Per-dog stored model
 
 **ALL participating dogs** (both modes) carry: custody projection + custody events + incident linkage.

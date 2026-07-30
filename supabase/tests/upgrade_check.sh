@@ -30,9 +30,10 @@ echo "✅ v1 world built (suites: $PRE)"
 # 업그레이드
 psql -v ON_ERROR_STOP=1 -q -f ../migrations/0040_club_axes_r0a.sql || { echo "❌ 0040 upgrade"; exit 1; }
 psql -v ON_ERROR_STOP=1 -q -f ../migrations/0041_r0a_hardening.sql || { echo "❌ 0041 upgrade"; exit 1; }
-psql -v ON_ERROR_STOP=1 -q -f ../migrations/0042_participation_mode_alias.sql || { echo "❌ 0042 upgrade"; exit 1; }
+psql -v ON_ERROR_STOP=1 -q -f ../migrations/0042_marketplace_choke_point.sql || { echo "❌ 0042 upgrade"; exit 1; }
 echo "✅ 0040+0041+0042 applied on live v1 data"
 psql -q -f 70_axes_suite.sql >/dev/null 2>&1
-psql -c "select case when ok then '✅' else '❌' end || ' [' || suite || '] ' || name || case when ok then '' else ' — ' || detail end from _t where suite = 'axes' order by at"
-psql -qt -c "select 'UPGRADE ' || case when count(*) filter (where not ok and suite='axes') > 0 then 'FAIL' else 'OK — 드리프트·백필 검증 통과' end from _t"
-psql -qt -c "select count(*) filter (where not ok and suite='axes') from _t" | grep -q '^ *0$'
+psql -q -f 80_choke_suite.sql >/dev/null 2>&1
+psql -c "select case when ok then '✅' else '❌' end || ' [' || suite || '] ' || name || case when ok then '' else ' — ' || detail end from _t where suite in ('axes','chk') order by at"
+psql -qt -c "select 'UPGRADE ' || case when count(*) filter (where not ok and suite in ('axes','chk')) > 0 then 'FAIL' else 'OK — 드리프트·백필 검증 통과' end from _t"
+psql -qt -c "select count(*) filter (where not ok and suite in ('axes','chk')) from _t" | grep -q '^ *0$'

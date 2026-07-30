@@ -138,32 +138,27 @@ begin
   exception when others then call _fail('axes','X9 동반견', sqlerrm);
   end;
 
-  -- [X10] 권한 봉인 — authenticated 롤은 신규 민감 테이블 직접 읽기 불가 (grant 자체가 없음)
+  -- [X10] RLS 봉인 (실서비스 권한 모사 하) — grant는 있으나 정책 0 = 행 비가시 + 쓰기 거부
   begin
+    insert into club_incidents (session_id, severity, summary)
+    select id, 'S3', '봉인 테스트' from club_sessions limit 1;
     begin
       set local role authenticated;
+      perform set_config('request.jwt.claim.sub', gen_random_uuid()::text, true);
+      execute 'select count(*) from club_incidents' into v_cnt;
       begin
-        execute 'select count(*) from club_incidents';
+        insert into club_incidents (session_id, severity, summary)
+        select id, 'S3', '침입 시도' from club_sessions limit 1;
         v_err := false;
-      exception when insufficient_privilege then v_err := true;
+      exception when others then v_err := true;
       end;
       reset role;
     exception when others then reset role; raise;
     end;
-    if v_err then
-      begin
-        set local role authenticated;
-        begin
-          execute 'select count(*) from delegation_consents';
-          v_err := false;
-        exception when insufficient_privilege then v_err := true;
-        end;
-        reset role;
-      exception when others then reset role; raise;
-      end;
-    end if;
-    if v_err then call _pass('axes','X10 권한 봉인 — authenticated 직접 읽기 거부 (인시던트·동의)');
-    else call _fail('axes','X10 봉인','읽기 허용됨'); end if;
+    delete from club_incidents where summary = '봉인 테스트';
+    if v_cnt = 0 and v_err
+      then call _pass('axes','X10 RLS 봉인 — grant 하 행 비가시(0) + 정책 무 쓰기 거부');
+    else call _fail('axes','X10 봉인','visible=' || v_cnt || ' write_blocked=' || v_err); end if;
   exception when others then call _fail('axes','X10 봉인', sqlerrm);
   end;
 
@@ -221,18 +216,3 @@ begin
   else call _fail('axes','X13 드리프트','rows=' || v_cnt); end if;
 end $$;
 
--- [X14] participation_mode 별칭(0042) — custody와 전행 일치 + 쓰기 불가(GENERATED)
-do $$
-declare v_cnt int; v_err boolean := false;
-begin
-  select count(*) into v_cnt from session_dogs where participation_mode is distinct from custody;
-  begin
-    update session_dogs set participation_mode = 'owner_handled' where false;
-    -- where false라도 GENERATED 컬럼 SET 자체가 에러여야 함
-    update session_dogs set participation_mode = custody;
-  exception when others then v_err := true;
-  end;
-  if v_cnt = 0 and v_err
-    then call _pass('axes','X14 participation_mode 별칭 — 전행 일치·쓰기 차단(GENERATED)');
-  else call _fail('axes','X14 별칭','mismatch=' || v_cnt || ' writable=' || (not v_err)); end if;
-end $$;

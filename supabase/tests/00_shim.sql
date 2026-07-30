@@ -50,3 +50,11 @@ begin
   insert into net._stub_calls (url, body) values (url, body) returning id into v_id;
   return v_id;
 end $$;
+
+-- supabase 기본 권한 모사: 실서비스는 default privileges로 신규 테이블에 authenticated 전권을
+-- 부여한다 — 따라서 '봉인'은 grant 부재가 아니라 RLS(정책 0 = 행 비가시·쓰기 거부)가 담당해야
+-- 하고, leak 테스트도 그 조건에서 돌아야 실환경과 같다.
+grant usage on schema public to anon, authenticated, service_role;
+alter default privileges in schema public grant select, insert, update, delete on tables to anon, authenticated;
+alter default privileges in schema public grant all on tables to service_role;
+alter default privileges in schema public grant usage, select on sequences to authenticated, service_role;

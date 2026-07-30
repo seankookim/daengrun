@@ -338,6 +338,18 @@ function mapOpenRequest(r: any, directed: boolean, rate: number): OpenRequest {
 
 const REQ_SELECT = 'id, scheduled_at, km, pace_label, base_fare, distance_fare, addon_fare, route_id, routes(name), dogs(id, name, breed, weight_kg, memo, photo_url, preferences, vaccinations)';
 
+// R0B(0042): 오픈 풀 읽기는 marketplace_open_requests 뷰가 유일 경로 — 클럽 부킹 구조적 배제 +
+// 컬럼 화이트리스트는 서버(뷰 정의)가 보장. 뷰의 평면 컬럼을 기존 임베드 형태로 복원해 매퍼 재사용.
+const viewRowToReq = (r: any) => ({
+  id: r.id, scheduled_at: r.scheduled_at, km: r.km, pace_label: r.pace_label,
+  base_fare: r.base_fare, distance_fare: r.distance_fare, addon_fare: r.addon_fare,
+  route_id: r.route_id, routes: { name: r.route_name },
+  dogs: {
+    id: r.dog_id, name: r.dog_name, breed: r.breed, weight_kg: r.weight_kg, memo: r.memo,
+    photo_url: r.photo_url, preferences: r.preferences, vaccinations: r.vaccinations,
+  },
+});
+
 // 러너 인박스: 지명 요청(runner_pending, 나에게) + 오픈 요청(matching, 미배정)
 // + 단골 감지: 함께 완주한 이력이 있는 강아지엔 repeatPrior (수락 결정이 쉬워진다)
 // 내 수수료율 — 견적용 (티어: 인증 20% / 베테랑 18% / 마스터 15%). 세션 캐시.
@@ -356,14 +368,14 @@ export async function fetchRunnerInbox(): Promise<OpenRequest[]> {
   const { data: user } = await supabase.auth.getUser();
   const [openRes, directedRes] = await Promise.all([
     // 클럽 위탁 부킹(0037 club_session_id)은 세션이 소유 — 일반 오픈 풀에서 제외
-    supabase.from('bookings').select(REQ_SELECT).eq('status', 'matching').is('runner_id', null).is('club_session_id', null).order('scheduled_at').limit(10),
+    supabase.from('marketplace_open_requests').select('*').order('scheduled_at').limit(10), // R0B(0042) 초크포인트 뷰
     user.user
       ? supabase.from('bookings').select(REQ_SELECT).eq('status', 'runner_pending').eq('runner_id', user.user.id).order('scheduled_at').limit(10)
       : Promise.resolve({ data: [], error: null } as any),
   ]);
   if (openRes.error) throw openRes.error;
   const directed = (directedRes.data ?? []).map((r: any) => mapOpenRequest(r, true, rate));
-  const open = (openRes.data ?? []).map((r: any) => mapOpenRequest(r, false, rate));
+  const open = (openRes.data ?? []).map((r: any) => mapOpenRequest(viewRowToReq(r), false, rate));
   const all = [...directed, ...open];
 
   const dogIds = [...new Set(all.map((r) => r.dogId).filter(Boolean))] as string[];
@@ -381,15 +393,13 @@ export async function fetchRunnerInbox(): Promise<OpenRequest[]> {
 export async function fetchOpenRequests(): Promise<OpenRequest[]> {
   const rate = await myCommissionRate();
   const { data, error } = await supabase
-    .from('bookings')
-    .select('id, scheduled_at, km, pace_label, base_fare, distance_fare, addon_fare, route_id, routes(name), dogs(name, breed, weight_kg, memo)')
-    .eq('status', 'matching')
-    .is('runner_id', null)
-    .is('club_session_id', null) // 클럽 위탁 부킹 제외 (0037)
+    .from('marketplace_open_requests')  // R0B(0042) 초크포인트 뷰
+    .select('*')
     .order('scheduled_at')
     .limit(10);
   if (error) throw error;
-  return (data ?? []).map((r: any) => {
+  return (data ?? []).map((raw: any) => {
+    const r: any = viewRowToReq(raw);
     const { dateLabel, timeLabel } = kstParts(r.scheduled_at);
     return {
       bookingId: r.id,
