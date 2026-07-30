@@ -1,5 +1,6 @@
 import { ReactNode } from 'react';
 import { Image, Pressable, StyleProp, StyleSheet, Text, TextStyle, View, ViewStyle } from 'react-native';
+import { useNumFont } from '../lib/fonts';
 import { colors, radius } from '../theme';
 
 // 도그스하이 shared UI kit — mirrors the prototype's design system.
@@ -88,10 +89,11 @@ export function Avatar({ url, char, bg, size = 52 }: { url?: string | null; char
 }
 
 export function StatBlock({ value, label, valueColor = colors.volt }: { value: string; label: string; valueColor?: string }) {
+  const nf = useNumFont(); // [V4] 숫자 = Oswald (공용 스탯 블록 전역 승급)
   return (
     <View style={{ alignItems: 'center' }}>
-      <Text style={{ fontSize: 32, fontWeight: '900', color: valueColor }}>{value}</Text>
-      <Text style={{ fontSize: 14.5, color: '#8fa093', marginTop: 3 }}>{label}</Text>
+      <Text style={[{ fontSize: 32, fontWeight: '900', color: valueColor, fontVariant: ['tabular-nums'] }, nf]}>{value}</Text>
+      <Text style={{ fontSize: 12.5, fontWeight: '700', letterSpacing: 0.5, color: '#8fa093', marginTop: 3 }}>{label}</Text>
     </View>
   );
 }

@@ -192,9 +192,10 @@ export default function RunnerHome() {
         {/* ---------- 주간 스탯 ---------- */}
         <Card dark style={{ marginTop: 12 }}>
           <Row style={{ justifyContent: 'space-around' }}>
+            {/* [V4] 3색 에너지 — 수익 볼트 · 러닝 코랄 · km 스카이 */}
             <StatBlock value={stats.net.toLocaleString()} label="이번 주 수익(원)" />
-            <StatBlock value={String(stats.runs)} label="완료 러닝" />
-            <StatBlock value={String(stats.km)} label="km" />
+            <StatBlock value={String(stats.runs)} label="완료 러닝" valueColor={colors.tang} />
+            <StatBlock value={String(stats.km)} label="km" valueColor="#5BB8D4" />
           </Row>
         </Card>
 
@@ -481,7 +482,7 @@ const s = StyleSheet.create({
     position: 'absolute', top: 0, left: 0, backgroundColor: '#0F1D13',
     borderTopLeftRadius: 22, borderBottomRightRadius: 15, paddingVertical: 7, paddingHorizontal: 13,
   },
-  availCard: { backgroundColor: '#fff', borderRadius: 18, padding: 15, marginTop: 12, borderWidth: 1, borderColor: '#DCD6C4' },
+  availCard: { backgroundColor: '#fff', borderRadius: 18, padding: 15, marginTop: 12, borderWidth: 1, borderColor: '#DCD6C4' , borderLeftWidth: 3.5, borderLeftColor: colors.volt },
   availDay: {
     flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: 13,
     backgroundColor: '#f4f2ea', borderWidth: 1.5, borderColor: '#DCD6C4',

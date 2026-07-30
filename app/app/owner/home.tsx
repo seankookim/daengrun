@@ -531,21 +531,22 @@ export default function OwnerHome() {
                   <View key={d} style={{
                     position: 'absolute', width: d, height: d, borderRadius: d / 2,
                     left: -d / 2, top: -d / 2, borderWidth: di === 0 ? 1.5 : 1,
-                    borderColor: `rgba(221,240,166,${0.42 - di * 0.07})`,
+                    // [V4] 코랄 아크 — 레이더 = 긴급·에너지의 색 (볼트 그리드 은퇴)
+                    borderColor: `rgba(255,122,92,${0.5 - di * 0.085})`,
                   }} />
                 ))}
-                {/* 레이더 원점 — volt 코어 도트 */}
+                {/* 레이더 원점 — 코랄 코어 도트 */}
                 <View style={{
                   position: 'absolute', left: -5, top: -5, width: 10, height: 10, borderRadius: 5,
-                  backgroundColor: colors.volt, shadowColor: colors.volt, shadowOpacity: 0.9,
+                  backgroundColor: colors.tang, shadowColor: colors.tang, shadowOpacity: 0.9,
                   shadowRadius: 8, shadowOffset: { width: 0, height: 0 },
                 }} />
               </Animated.View>
               {fnSearching && (
                 <Animated.View style={{ position: 'absolute', transform: [{ rotate: sweep.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) }] }}>
-                  <View style={{ position: 'absolute', left: 0, top: -1, width: 116, height: 2, backgroundColor: 'rgba(221,240,166,0.55)' }} />
+                  <View style={{ position: 'absolute', left: 0, top: -1, width: 116, height: 2, backgroundColor: 'rgba(255,122,92,0.6)' }} />
                   <View style={{ position: 'absolute', transform: [{ rotate: '-12deg' }] }}>
-                    <View style={{ position: 'absolute', left: 0, top: -1, width: 116, height: 2, backgroundColor: 'rgba(221,240,166,0.18)' }} />
+                    <View style={{ position: 'absolute', left: 0, top: -1, width: 116, height: 2, backgroundColor: 'rgba(255,122,92,0.2)' }} />
                   </View>
                 </Animated.View>
               )}
@@ -1060,7 +1061,7 @@ const s = StyleSheet.create({
   // 지금 러너 찾기 히어로 + 시트
   findNow: {
     backgroundColor: '#0F1D13', borderRadius: 6, padding: 18, marginTop: 14,
-    borderWidth: 1.5, borderColor: colors.volt, overflow: 'hidden', // 레이더 아크 클리핑
+    borderWidth: 1.5, borderColor: colors.tang, overflow: 'hidden', // [V4] 코랄 프레임 — 레이더 관제기
     shadowColor: '#0F1D13', shadowOpacity: 0.25, shadowRadius: 8, shadowOffset: { width: 0, height: 4 },
   },
   // 레이더 중심점 — 카드 우측 가장자리 살짝 밖, 아크/스윕/블립의 원점
