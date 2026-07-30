@@ -1,291 +1,285 @@
-# HIGH CLUB Group Run — Logic Spec v3.1 (canonical, self-contained)
+# HIGH CLUB Group Run — Logic Spec v3.2 (canonical, self-contained, R0A-ready)
 
-> 2026-07-30 v3.1. Supersedes v2/v3 entirely — no prior version is required reading; shell and matrix rules
-> are restated here in full. R0 (migration 0040) starts against THIS document after Sean's go.
-> Reality note: delegation has never shipped to users (0037–0039 exist, UI never released, data = Sean's test
-> rows). §14 defines rollout gates; deferral claims are made per-gate, never absolutely.
+> 2026-07-30 v3.2. Supersedes all prior versions; nothing else is required reading.
+> **Acceptance standard** (the completeness bar this spec is held to, in place of "every scenario"):
+> ① independent truths modeled independently ② safety invariants hold under every transition ③ external
+> side effects idempotent & auditable ④ unknown scenarios can always enter a safe incident/ops state
+> ⑤ money never releases before physical responsibility is resolved ⑥ no actor gains capabilities through
+> UI state ⑦ the known-unmodeled register is tied to rollout gates (§15).
+> Pre-launch reality: delegation never shipped; data = Sean's test rows. Build starts at R0A on Sean's go.
 
 ---
 
-## 1. Per-dog stored model (the axes — payment stored once)
+## 1. Object model (authoritative table per concern)
+
+| Concern | Authoritative source |
+|---|---|
+| Club membership | club_members |
+| Session hosting | club_sessions.host_profile_id (+ assume_host events) |
+| Attendance (humans) | session_people |
+| Dog participation (ALL dogs) | session_dogs (`participation_mode` owner_handled \| runner_delegated) |
+| Handling commitment & caps | session_runner_assignments |
+| Assignment attempts | assignment_events (history; current = latest) |
+| Money (charge/refund/payout) | bookings + payment_attempts + ledger_items |
+| Physical responsibility | dog_custody_events (history; session_dogs custodian columns = cached projection) |
+| Incidents | incidents / incident_subjects / incident_evidence |
+| Run records | runs + dog_run_segments |
+| Consent | delegation_consents (immutable) |
+
+Humans live in session_people; dogs in session_dogs; money on bookings; responsibility in custody events.
+No polymorphic mixing.
+
+## 2. Per-dog stored model
+
+**ALL participating dogs** (both modes) carry: custody projection + custody events + incident linkage.
+**Delegated dogs only** add: charge/refund/payout, assignment, consent, booking. (Safety infrastructure
+never depends on payment category — an owner-attended dog can be emergency-transferred, hospitalized,
+investigated.)
 
 ```
-service_state      requested → approved → confirmed → in_service → ended
-service_outcome    (set at ended) completed | partial | early_return | no_service | vet_transfer | cancelled
-service_reason     code (owner_cancel / runner_capacity / no_show_owner / no_show_runner / safety / weather /
-                   disclosure_false / assignment_failed / session_cancelled / other)
-cancelled_by       owner | host | runner | system | ops   (when outcome=cancelled)
+participation_mode   owner_handled | runner_delegated
 
-owner_charge_state    none → hold(deadline) → paid → refund_pending → refunded
-                      | payment_failed | refund_failed        ← the ONLY stored charge truth
-runner_payout_state   none → earned → payable → released | held | void
+service_state        requested → approved → confirmed → in_service → ended       (delegated only)
+completion_outcome   (at ended) completed | partial | no_service
+termination_type     (at ended) normal | early_return | cancelled | vet_transfer | session_aborted
+service_reason       code (host_rejected / owner_cancel / runner_capacity / no_show_owner / no_show_runner /
+                     safety / weather / disclosure_false / assignment_failed / session_cancelled / other)
+cancelled_by         owner | host | runner | system | ops        (when termination=cancelled)
 
-assignment_state   unassigned → proposed(runner, expires) → accepted | declined(reason) → unassigned…
-                   accepted → revoked → replacement_needed → unassigned…
-                   (attempts live in assignment_events — history, not overwritten)
+charge_state         none → hold → paid                          (the only charge truth)
+hold_status          none | active(expires_at) | consumed | released | expired
+refund_state         none → pending → refunded | failed          (refund never erases that charge was paid)
+payout_state         none → earned → payable → released | void
+payout_hold          none | held(reason, incident_id)            (overlay — earned+held, payable+held valid)
+payment_attempts     history table: attempt id, idempotency key, kind(charge|refund), result, at
 
-custody_phase          with_owner → outbound_pending → with_custodian → transfer_pending
-                       → return_pending → resolved
-current_custodian_type owner | runner | host | clinic | authority | authorized_person
-current_custodian_profile_id  (nullable — app users)
-current_custodian_external    (nullable — name/contact for clinic·authority·pickup person)
-                       ← ALL of this is a projection of dog_custody_events (source of truth)
+assignment_state     unassigned → proposed(runner, expires) → accepted | declined → unassigned…
+                     accepted → revoked → replacement_needed → unassigned…   (history in assignment_events;
+                     an active proposal RESERVES the proposed runner's load)
 
-service_contract_state  none → active(from payment) → void(refund completed / cancelled)
-incident linkage        via incidents tables (§4) — per-dog "incident_state" is a PROJECTION (has-open-case)
+custody: custodian_type  owner | runner | host | clinic | authority | authorized_person
+         custodian_profile_id? / custodian_external?             (projection of custody events)
+         custody_phase  with_custodian → outbound_pending | transfer_pending | return_pending → (loops)
 ```
 
-- There is **no generic `payment_state` column** — any combined payment label is display projection over
-  the two stored payment axes. (v3's duplication removed.)
-- `responsible_*` projection matches custodian shape: `responsible_custodian_type` +
-  `responsible_profile_id?` + `responsible_external_ref?`. **The invariant is: exactly one responsible
-  custodian at all times, of any type** — a hospitalized dog's responsible custodian is the clinic, recorded,
-  with the case owned by ops. (v3's nullable-profile hole closed.)
+- **Custodian = responsible party. One projection, one concept** (v3.1's duplicate `responsible_*` removed):
+  whoever holds the dog holds the responsibility; escape doesn't vacate it (last custodian remains until an
+  accepted transfer). UI "책임자" renders the custodian.
+- **`service_contract_state` removed** — contract status is derived (paid ∧ not refunded ∧ not ended-void).
+- **Hold expiry is deterministic**: `hold_status=expired`, `charge_state→none`, capacity freed by predicate;
+  `service_state` stays `approved` (approval = eligibility; only holds/payment reserve). Owner may retry
+  payment via the pay RPC, which re-checks capacity and opens a fresh hold under the session lock. Board
+  shows 기한 만료 from hold_status. No host re-approval needed.
+- **Host rejection stored**: ended + no_service + cancelled + reason=host_rejected + cancelled_by=host +
+  note. Host may reverse (event-logged) → back to requested; otherwise terminal **for this occurrence** only.
 
-**Cross-axis invariants (RPC-enforced, harness-asserted):**
-- `confirmed` ⇐ `owner_charge=paid`. `in_service` ⇐ `assignment=accepted` ∧ `custody=with_custodian(runner)`.
-- **Custody transitions are never gated on charge state** (safety over commerce — an emergency transfer of
-  any dog, even owner-attended or refund-pending, is always legal). Instead:
-  **refund cannot COMPLETE (refund_pending→refunded) while that dog's custody is unresolved.**
-- `service_state=ended` requires custody ∉ {outbound_pending, transfer_pending, return_pending} AND
-  custodian is no longer a session runner (owner, authorized person, clinic, authority all qualify —
-  hospitalization does not hold a session hostage; the case stays open under ops).
-- Open incident on a dog ⇒ `runner_payout_state=held` for that booking + consent-free cancellation blocked.
-- Insurance coverage is **policy-derived, not asserted**: `coverage` is a projection to be defined with the
-  actual insurer agreement [gate-4 blocker, §14]; the spec makes no coverage claims of its own.
+**Cross-axis invariants** (RPC-enforced, harness-asserted):
+- confirmed ⇐ charge=paid ∧ hold=consumed. in_service ⇐ assignment=accepted ∧ custodian=(that runner).
+- Custody transitions never gated on charge (safety over commerce). **refund pending→refunded requires that
+  dog's custody resolved.** payout released requires custody resolved ∧ payout_hold=none.
+- ended requires custody_phase ∉ {outbound_pending, transfer_pending, return_pending} ∧ custodian is not a
+  session runner (owner, authorized person, clinic, authority all qualify — hospitalization doesn't hold the
+  session; the incident case stays open under ops).
+- Open incident on a dog ⇒ payout_hold=held ∧ consent-free cancellation blocked.
+- Insurance coverage = insurer-agreement projection, undefined until confirmed [G4 blocker].
 
-## 2. Assignment timeline & loop
+## 3. Money events & fees
 
-- Proposals begin at runner check-in; **assignment target T-30** · owner review/objection cutoff **T-20** ·
-  recovery window until **T-10 = hard stop**: any paid dog not `accepted` by T-10 → automatic full refund +
-  banner/push + options. A paid dog structurally cannot be stuck.
-- Proposal expiry 5m; declines recorded with reason in `assignment_events`; **an active proposal reserves the
-  proposed runner's capacity** (§6) so two dogs can't chase one final slot.
-- Owner may object to the accepted runner before handoff (first objection with stated cause = free; converts
-  to refund or attend-mode). Runner may revoke before handoff → `replacement_needed` (+strike if habitual).
-- **Convert-to-attend is an offer, never automatic**: requires owner physically attending + people & dog
-  capacity + owner acceptance + owner-attended waiver. Otherwise refund. Move-to-next-session sets a
-  priority flag on the next occurrence.
+- Charge finalization, payout calculation (earned @ run end), payout eligibility (payable @ custody
+  resolved), payout release (D+1 batch) are four moments; "settled" is not in the vocabulary.
+- Fee destinations (amounts = Sean): late-cancel/no-show → 50% fee_platform · 50% fee_supply_compensation
+  (accepted runner if one existed; else present committed runners pro-rata by present cap; else platform).
+  host_fee: session reached in_progress ∧ outcome completed/completed_partial (aborted_after_start 50%);
+  split pro-rata if hosting was assumed mid-session. Owner cancel ladder defaults: free till paid · ≥24h
+  free · <24h 10% · post-acceptance 20% · post-handoff = early-return settle. No-show (outbound never
+  completed by cutoff) = ladder top + reliability strike. Mock era charges nothing, records everything.
+- Real-PG (authorize/capture/void, webhooks, receipts, reconciliation) is its own project; these axes are
+  its landing shape — no stronger claim.
 
-## 3. Session model
+## 4. Session model
 
 ```
 lifecycle  scheduled → checkin_open → in_progress → returning → ended
-outcome    completed | completed_partial | completed_incident | cancelled_before_start | aborted_after_start
+outcome    completed | completed_partial | cancelled_before_start | aborted_after_start
 reason     weather / host_unavailable / runner_capacity / route_closed / safety / low_viability / other
 ```
-- `ended` gate (contradiction from v3 resolved): every dog satisfies the §1 ended-custody rule, no run
-  active, and every open incident has **safety actions complete + an ops case owner**. Then the meetup ends;
-  investigations continue on their own clock. **Open incidents always block payout release; they block
-  session end only until custody/runs/safety are resolved and ops owns the case.**
-- Viability (per format): owner_only = min attending teams · delegated_only = min paid dogs AND ≥1 present
-  runner · **mixed = attendance test AND coverage test (present+accepted capacity ≥ paid dogs)** — social
-  component may proceed while the delegated component fails → outcome `completed_partial`, failed dogs
-  resolved by the §2 hard stop.
+- ~~completed_incident~~ removed — incident presence is derived from linked cases (no duplicate truth).
+- ended gate: every dog passes the §2 ended-custody rule ∧ no active run ∧ every open incident has safety
+  actions complete + an ops case owner. Incidents always block payout release; they block session end only
+  until custody/runs/safety resolve. Meetups and investigations run on different clocks.
+- Viability per format: owner_only = min attending teams · delegated_only = min paid dogs ∧ ≥1 present
+  runner · mixed = attendance test ∧ coverage test (present+accepted load headroom ≥ paid dogs). Social
+  part may proceed while delegation fails → completed_partial + §5 hard stop resolves failed dogs.
 
-## 4. Incidents — records, not a state
+## 5. Assignment (Model A — fixed)
 
-```
-incidents           id, session_id, severity(S1 안전위협/S2 부상·분쟁/S3 경미), state open→investigating→resolved,
-                    opened_by, case_owner(ops), opened_at, resolved_at, summary
-incident_subjects   incident_id, subject_type(dog|person|session|booking), subject_id
-incident_evidence   incident_id, kind(photo|text|location|document), payload, created_by, created_at
-```
-Multiple concurrent incidents per dog/session are first-class; a fight involving two dogs and three humans is
-one incident with five subjects. Chat of the session is preserved as evidence while any case is open
-(overrides the 24h archive rule). Disputes (handoff/return/payment) are incidents, never overrides.
+**Host proposes → runner accepts → owner sees the confirmed runner card and holds an objection right until
+handoff.** While merely proposed, the owner sees 배정 진행 중 — no candidate card (runner privacy; declines
+stay invisible churn). Matrix and schema agree on this everywhere.
+- Timeline: proposals from runner check-in · target T-30 · owner objection cutoff T-20 (objection = free
+  once with stated cause → refund or attend-offer) · recovery to **T-10 hard stop**: paid ∧ not accepted →
+  automatic full refund + options (attend-conversion OFFER: requires owner attending + people & dog capacity
+  + acceptance + waiver; or next-session priority). A paid dog structurally cannot be stuck.
+- Proposal expiry 5m; declines with reason; revoke-before-handoff → replacement_needed (+strike if habitual).
 
-## 5. Custody events, overrides, transfers
-
-- `dog_custody_events`: from/to custodian (type + profile?/external?), event_type (outbound / return /
-  emergency_transfer / vet_transfer / authority_transfer / host_witness / ops_attestation), initiated_by,
-  **confirmation_kind ∈ {app_user, authorized_person_pin, host_witnessed_receipt, clinic_receipt,
-  ops_attestation}**, occurred_at, location?, reason, evidence link. Non-app custodians confirm via PIN /
-  photographed receipt / ops attestation — two-sidedness means *two artifacts*, not two RPC calls.
-  Timestamps are the **operational** custody record; legal liability follows terms/insurance, and the spec
-  does not claim otherwise.
-- **Override taxonomy**: `witness_confirm` (host physically witnessed; requires host not a party to that
-  edge + **at least one strong artifact**: one-time PIN from the absent party's registered phone, QR,
-  signature capture, or timestamped photo) · `assisted_confirm` (the party themselves confirms on the host's
-  device — their PIN/tap, not the host's) · **disputes are never overridable** → incident. Self-override
-  banned (host-as-runner falls to backup host or ops).
-- Emergency transfer: initiator → receiver acceptance (verification + remaining-cap + combination check);
-  incapacitated-runner exception = host/ops attestation which auto-opens an S1/S2 incident.
-
-## 6. Capacity — exact predicates, one lock
+## 6. Capacity — the full family (restored) + load-based safety
 
 ```
-consumes_capacity(dog) := owner_charge ∈ {hold(unexpired), paid, refund_pending} ∧ service_state ≠ ended
-reserved_session_capacity  := Σ consumes_capacity
-available_for_approval     := promised_capacity(Σ committed caps) − reserved_session_capacity
-runner_remaining_capacity  := verified_personal_cap − active accepted_assignments − active proposals
-available_day_of           := Σ present committed caps − Σ accepted_assignments
+people_capacity                 session column (2–60); consumed by session_people
+total_dog_capacity              session column (default = people_capacity); ALL participating dogs
+owner_handled_dog_limit         per attending owner (default 2)
+handler_tier_cap                certified 1 · veteran/master 2 · applicant 0   (verified personal cap)
+handler_load(person)            ALL dogs physically controlled: own attending dog(s) + accepted delegated +
+                                emergency-transferred. **handler_load ≤ handler_tier_cap + 0** — own dogs
+                                count; a veteran with their own dog has 1 delegated slot. [Sean may tune]
+promised_capacity               Σ committed handlers' (tier_cap − own attending dogs)
+consumes_delegated(dog)         hold=active ∨ (charge=paid ∧ refund≠refunded ∧ service≠ended)
+available_for_approval          promised − Σ consumes_delegated
+present_capacity                same sum over checked-in committed handlers
+available_day_of                present − accepted assignments − **active proposals**
 ```
-- Refunded / cancelled / ended dogs release capacity by predicate, not by special-case code.
-- **Law: every transition touching capacity or money takes the session row lock first** (approve, pay,
-  hold-expiry, commit, withdraw, propose, accept, revoke, transfer). Cron and RPC serialize on the same
-  lock; pay-vs-expiry is decided by lock order; all money/custody RPCs carry a client idempotency key and
-  replays return the original result.
-- Adaptive recovery after capacity loss: ≥24h→24h · 2–24h→60m · at check-in→15m · dog in custody→emergency
-  path now. During recovery affected dogs display 자리 재확인 중. Personal caps are never exceeded to save a
-  session. Runner no-show: late at T-30 → capacity-at-risk alerts + replacement invitations (beta: manual by
-  host/backup); unresolved → §2 hard stop with compensation credit [amount: Sean].
+- Law: every capacity/money transition takes the session row lock first (approve, pay, expiry, commit,
+  withdraw, propose, accept, revoke, transfer); cron and RPC serialize on it; idempotency keys on all
+  money/custody RPCs (replay returns original result).
+- Adaptive recovery on capacity loss: ≥24h→24h · 2–24h→60m · at check-in→15m · in-custody→emergency now;
+  affected dogs show 자리 재확인 중; caps never exceeded to save a session. Runner late at T-30 →
+  capacity-at-risk alerts + manual replacement invites; unresolved → §5 hard stop (+credit [Sean]).
 
-## 7. Money
+## 7. Custody events, overrides, transfers
 
-- Stored per booking: amount snapshot + pricing version (single source `club_fare()`; ctx.ts retired for club).
-- Payout timeline: `earned` at run end (calculation) → `payable` at custody resolution → `released` at D+1
-  batch → `held` by incident → `void` on ownerless outcomes. Charge finalization, payout calculation, payout
-  release, record closure = four distinct moments; "settled" is not a word this system uses.
-- **Fee destinations & triggers (recipients now defined; amounts = Sean):**
-  - Late-cancel/no-show fee: 50% `fee_platform`, 50% `fee_supply_compensation` → the dog's **accepted runner**
-    if one existed at the time; otherwise pro-rata across **present committed runners** by present cap; if
-    none present, 100% platform. [ratios = Sean-tunable]
-  - `host_fee`: earned when the session reached `in_progress` and outcome ∈ {completed, completed_partial,
-    completed_incident} — independent of whether the host handled dogs; single line per session; splits
-    equally if hosting was assumed mid-session (original + backup, pro-rata by phase). Not earned for
-    cancelled_before_start; aborted_after_start earns 50%. [amounts = Sean; 0 during mock era — no fake money]
-  - Owner cancel ladder (defaults, Sean tunes): free until paid · paid ≥24h free · <24h 10% · after
-    acceptance 20% · after handoff = early-return settle, not a cancel. No-show = ladder top + strike.
-- Real-PG integration is its own project (authorize/capture/void, webhooks, dedup, receipts, reconciliation);
-  the axes above are its landing shape, and no stronger claim is made.
+- dog_custody_events: from/to (custodian type + profile?/external?), event_type (outbound / return /
+  emergency_transfer / vet_transfer / authority_transfer), initiated_by, confirmation_kind {app_user,
+  authorized_person_pin, host_witnessed_receipt, clinic_receipt, ops_attestation}, occurred_at, location?,
+  reason, evidence link. Two-sidedness = two artifacts, not two RPC calls. Operational record only — legal
+  liability follows terms/insurance.
+- Overrides: witness_confirm (host not a party + ≥1 strong artifact: absent party's one-time PIN / QR /
+  signature / timestamped photo) · assisted_confirm (the party confirms on host's device) · disputes never
+  overridable → incident · self-override banned (host-as-runner → backup/ops).
+- Transfers: initiator → receiver acceptance (verification + load headroom + combination check);
+  incapacitated-runner exception = host/ops attestation, auto-opens incident.
 
-## 8. Session shell (restated in full — self-contained)
+## 8. Incidents (schema lands in **R0A** — earlier slices depend on it)
 
-- **개요 · 참가자 · 채팅** are fixed tabs of every session screen, every stage, for every authorized
-  participant: host/backup, committed runners, attending owners, owners with any delegation record
-  (including pending). Rejected/expired requesters keep read access to their own record only. Public: 개요 only.
-- **Chat**: writable from first participation until all dogs' custody resolved + 24h (open incidents extend);
-  then read-only archive, permanently attached to the session. Empty room shows one system line (time +
-  meetup) — real data only. Participants who leave/are removed lose write, their past messages remain.
-  Pilot moderation: report → host flag + ops; block hides locally; delete-own within 5 min; photos allowed;
-  simple rate limit. Push: host announcements ON, mentions ON, system-critical ALWAYS, ordinary configurable
-  (default OFF).
-- **Roster**: capability-aware. Host sees all humans+dogs with per-dog stage/badges, charge labels
-  (read-only), custody, assignment, safety flags, capacity meter. Runner sees own dogs in full detail
-  (medical/behavior limited to host + that dog's runner), group overview, other runners+assignments. Owner
-  sees host, runner pool, own dog full record, others per consent. **Phones — rule B**: host ↔ everyone;
-  owner ↔ their accepted runner mutual; else 호스트 경유 relay. Visibility = confirmed participation until
-  own handoffs resolved + grace (lifecycle-based, not clock-based); reveals are consent-gated at
-  join/payment and access-logged. Emergency contact + authorized-pickup contact are separate fields captured
-  at consent.
-- **Critical notifications** (assignment result, location/time change, cancellation, capacity collapse,
-  emergency, return overdue, payment deadline) additionally render as **persistent in-app banners in the
-  shell requiring acknowledgement**; unacknowledged past threshold → escalate to host/ops. Delivery/open
-  analytics = later; ack is now.
+incidents (severity S1/S2/S3, state open→investigating→resolved, opened_by, case_owner, summary) ·
+incident_subjects (dog|person|session|booking) · incident_evidence (photo|text|location|document).
+Multiple concurrent cases first-class; disputes are incidents; chat preserved as evidence while open
+(overrides archive clock). SOS/severity UI/contact hierarchy wiring completes in R6, tables exist from R0A.
 
-## 9. Board projection — structured payload, not a label
+## 9. Session shell & communication
 
-The board RPC returns per dog (and per session) a **UI-state object**; precedence lives in ONE server function:
+- 개요·참가자·채팅 tabs on every session screen, every stage. **Access requires actual participation**:
+  requested/expired/rejected → own record + 개요 + a limited host-message channel only (no group chat —
+  requesting is not a door into a private room); approved/paid/confirmed owners, attending owners, committed
+  runners, host/backup → full roster + group chat; public → 개요.
+- **Private channel preserved**: the existing per-booking owner↔runner chat continues alongside group chat
+  (health details, arrival, pickup person, disputes). Shell shows 그룹 채팅 · 담당 러너와 대화 (once accepted).
+- Chat lifecycle: writable from participation until all own-relevant custody resolved + 24h (incidents
+  extend); read-only archive permanently attached. Moderation (pilot): report→host+ops flag, local block,
+  delete-own 5m, photos, rate limit. Push: host announcements ON · mentions ON · system-critical ALWAYS ·
+  ordinary configurable (default OFF).
+- Roster: capability-aware (host: everything incl. read-only charge labels, custody, flags, capacity meter;
+  runner: own dogs full detail — medical/behavior limited to host + that dog's runner — plus group overview;
+  owner: host, runner pool, own dog full, others per consent). Phones rule B (host↔all; owner↔accepted
+  runner; else 호스트 경유), lifecycle-scoped visibility, consent-gated, access-logged; emergency contact +
+  authorized-pickup captured at consent.
+- Critical notifications (assignment result, location/time change, cancellation, capacity collapse,
+  emergency, return overdue, payment deadline) = push AND persistent ack-required shell banner; unacked →
+  escalate host/ops.
+
+## 10. Board projection — structured, plural
+
 ```
-primary_stage      Korean label (신청 대기 · 승인—결제 대기 · 결제 완료—배정 대기 · 러너 수락 대기 · 인계 대기 ·
-                   러너 보호 중 · 러닝 중 · 반환 대기 · 완료 …)
-secondary_badges   [환불 처리 중, 인시던트 확인 중, 자리 재확인 중, 결제 실패, …]
-blocking_issue     what stops forward motion (nullable)
-required_actor     owner | host | runner | ops | none
-allowed_actions    from the action matrix (server-computed for the viewer's capabilities)
-severity           info | warn | critical   (drives banner styling)
+primary_stage      Korean label (one per §2 combination; flaps = flavor beside it, never alone)
+secondary_badges   [환불 처리 중, 인시던트 확인 중, 자리 재확인 중, 결제 실패, 기한 만료, 재검토 중 …]
+blocking_issues[]  + primary_issue (visual precedence)
+required_actors[]  (handoff/return = [owner, runner]; transfer = [sender, receiver]; …)
+allowed_actions    server-computed for the viewer's capabilities
+severity           info | warn | critical
 ```
-Flap letters remain flavor beside `primary_stage`, never alone on money/safety states.
+One projection function; capabilities per user (is_host incl. assumed, is_handling, is_attending,
+owns_participating_dog, is_authorized_pickup, is_ops) derived from authoritative tables; UI renders the
+union of matching matrix rows (canonical + exception rows as v3.1 §10, updated: `proposed` row shows the
+owner 배정 진행 중, not a candidate card).
 
-## 10. Capabilities & action matrix (restated in full)
+## 11. Timing & scheduling (canonical table — self-contained)
 
-Capabilities per user per session (derived, no schema rewrite): `is_host` (incl. assumed backup) ·
-`is_handling` (committed) · `is_attending` · `owns_participating_dog` · `is_authorized_pickup` · `is_ops`.
-A user matches every applicable row; UI renders the union. Roster+chat available in **every** row.
+| Rule | Value (config; ordering fixed) |
+|---|---|
+| Creation min notice | owner_only 2h · delegation-enabled 24h |
+| Series generation | ≤72h ahead, hourly; occurrence key = series_id + original_scheduled_start (stable through reschedule); snapshot route/price/rules at generation; exception dates; edits touch future-unpaid only; pause keeps existing sessions |
+| Delegation prerequisites | route required (fare must be computable); requests allowed at zero capacity (demand queue — approval consumes) |
+| Runner check-in | T-45m .. T-10m (late at T-30 → capacity-at-risk) |
+| Participant check-in | T-45m .. T+15m |
+| Assignment | proposals from runner check-in · target T-30 · owner objection T-20 · hard stop T-10 |
+| Outbound handoff | T-30m .. T+15m (physical checklist embedded) |
+| Payment hold | 20m from approval |
+| Return grace | 60m after run end → escalation (host alert → incident) |
+| Recovery windows | adaptive table §6 |
+| Host absence | not checked in T-30 → alert backup/ops; absent at T → assume_host or ops-cancel |
+| Stale session | host reminder T+12h · ops alert T+24h · admin close-out; never automatic custody transfer |
 
-**Canonical rows** (per dog unless noted):
+**Conflict guards (restored)**: overlap checks for dog bookings (exists), runner private bookings, runner/
+host/owner club sessions — using planned duration (route-based) + prep/travel buffers (beta constant 25m),
+same formula everywhere. One human or dog cannot be committed in two places.
 
-| Stage | is_host | owns_dog | is_handling |
-|---|---|---|---|
-| requested | 승인/거절(+사유) | 요청 수정/취소 | 수요 보기 |
-| approved(hold) | 결제 대기 라벨 | **결제하기**(기한) | — |
-| paid/unassigned | 배정 제안 | 상태 보기 | 수락 대기 |
-| proposed | 제안 변경 | 러너 후보 카드 | **수락/거절(사유)** |
-| accepted→handoff | 관찰/중재(witness·assisted) | 인계 확인+체크리스트 | 인계 확인+체크리스트 |
-| in_service | 세션 콘솔·SOS | 라이브·채팅 | 러닝·이벤트·SOS |
-| run_done→return | 관찰/중재 | **반환 확인** | **반환 확인** |
-| ended | 리캡 발행(세션) | 리뷰/공유 | 리뷰/공유 |
+## 12. Consent, eligibility, edits
 
-**Exception rows**: payment_failed/expired → owner 재시도/재신청, host label only · declined/replacement →
-host 재제안, runner pool 수락 · capacity-at-risk/자리 재확인 중 → host 대체 초대·창 관리, owner 옵션(대기/
-전환/환불), runner 캡 내 수락 · owner no-show → host 노쇼 처리, runner 배정 해제 통지 · runner no-show →
-§6 대체 플로우 · handoff/return dispute → **incident only** (진술 제출 양측) · incident open → host 콘솔·
-owner 열람·runner 보고/증빙 · refund_pending/failed → labels + ops alert on failure · aborted_after_start →
-host 사유 기록·개별 정리 · host absent → backup assume_host · emergency transfer → 개시/양측 수락.
+- delegation_consents immutable (doc id+version, dog, session, booking, vet-payment limit ₩[Sean], photo
+  consent revocable-forward, custody acknowledgement, authorized-pickup person, emergency contact).
+  Material change (time >±30m, meetup, price, route class, waiver version) → re-accept by deadline else
+  free-cancel+refund. Runner change → notify + free-cancel right.
+- **Field-materiality for dog edits** (paid dogs never return to `requested`): safety-critical fields
+  (weight class, reactivity, bite, medical, equipment requirement) → assignment revoked + 재검토 badge +
+  host re-review by min(48h, T-10): approve → continue (payment stays captured, capacity stays reserved) ·
+  reject → automatic full refund. Cosmetic fields (name/photo/notes) → no reset.
+- Physical gate at handoff: checklist (equipment, condition, combined load); refusal → disclosure false =
+  owner-fault cancel (+strike) else full refund + credit. Runner acceptance always shows the combination
+  with already-accepted dogs.
 
-## 11. GPS & records
+## 13. GPS & records
 
-- `dog_run_segments` (runner, run/trace ref, joined_at, left_at, transfer_event): a dog's record = its
-  segments; transfers, pace-splits, late joins are segment boundaries; no inherited history.
-- **Baseline integrity ships before any real delegated run** (moved out of the PG milestone):
-  impossible-speed rejection, jump filter (exists — smoothing), stale-fix detection + honest "n분 전 위치",
-  server-authoritative timestamps, sequence validation, segment-overlap validation. Advanced anti-cheat later.
-- Session-level events (start/pause/returning/end) separate from per-dog events. Runner metrics: one physical
-  run = +1 run/distance/drop-cadence; dogs served = +N (separate counter); payouts per booking.
+dog_run_segments (runner, run ref, joined_at, left_at, transfer_event) — a dog's record is its segments;
+no inherited history. Baseline integrity **before any real delegated run** (R6, not PG-gated):
+impossible-speed rejection, jump filter, stale-fix display ("n분 전 위치"), server-authoritative timestamps,
+sequence validation, overlap validation. Session events (start/pause/returning/end) ≠ per-dog events.
+Runner metrics: one physical run = +1 run/distance/drop-cadence; dogs served = +N; payouts per booking.
 
-## 12. Consent & eligibility
+## 14. Choke point & rollout mechanics
 
-- `delegation_consents` immutable rows: doc id+version, dog, session, booking, vet-payment authorization
-  limit ₩[Sean], photo consent (revocable forward-only), custody acknowledgement, authorized-pickup person,
-  emergency contact. **Material change** (time >±30m, meetup, price, route distance class, waiver version) →
-  re-accept by deadline else free-cancel+refund. Runner identity change → notify + free-cancel right.
-- Request carries disclosures (weight/energy/reactivity/bite/medical/equipment). Edits after approval reset
-  to `requested`. Runner acceptance shows the **combination** with already-accepted dogs. **Physical gate at
-  handoff**: checklist (equipment, condition, combined load); refusal-at-handoff → disclosure false = owner-
-  fault cancel (+strike) else full refund + credit.
+- **R0A** (schema only): axis columns per §2 + participation_mode + custody/incident/assignment-event/
+  payment-attempt/segment tables + backfill from `approval` + dual-write sync + structured projection +
+  flag plumbing + drift reconciliation (harness case + cron, logs only).
+- **R0B** (access change, separate slice): `marketplace_open_requests` view — column allowlist (no owner
+  address/health/payment fields), security-invoker semantics audited (or an RPC instead), base-table pool
+  reads denied via parties-only RLS, full inventory of existing marketplace queries migrated, service-role
+  preserved, leak tests (each role × every exposed path; club bookings invisible everywhere; non-party
+  direct reads fail). R0B acknowledges it touches the live marketplace read path — it is not "pure schema".
+- Feature flag `club_delegation` server-checked in every RPC; OFF for non-test accounts until backend+shell
+  complete; rollback = flag off. Old `approval` drops in cleanup slice after dual-write parity is asserted.
 
-## 13. Choke point & drift control (enforced, not conventional)
+## 15. Rollout gates & register
 
-- `marketplace_open_requests` view becomes the only pool read path: bookings RLS tightened to
-  **parties-only** (owner/runner of the row) + pool reads via the granted view; app queries migrated in the
-  same slice; harness leak tests assert club bookings are invisible through every exposed path and that
-  non-party direct reads fail.
-- Documented mapping `axes ↔ bookings.status` + reconciliation query as harness case AND cron drift check
-  (logs, never mutates). Old `approval` column: backfill → one-slice dual-write → drop; harness asserts sync.
-- Feature flag `club_delegation` server-checked in every RPC; OFF for non-test accounts until backend AND
-  shell UI complete. Rollback = flag off. (Pre-launch: no old clients exist; the discipline ships anyway.)
+G1 harness-only (current) · G2 Sean two-role device tests, no real custody (needs R0A–R3 + debug UIs) ·
+G3 real owner-attended social pilot (needs shell UI; no delegation) · G4 closed delegated beta (needs ALL
+R-slices, emergency minimum + offline info card, mandatory backup host for delegated sessions, honest
+support-hours display, insurer-confirmed coverage, return-dispute procedure, GPS baseline, reviewed consent
+docs, conflict guards) · G5 public (real PG + reconciliation, ops tooling, analytics, register below).
+Register (gate-tagged): chat moderation depth/ack receipts (G5) · phone access-log UI (G4) · push analytics
+(G5) · multi-incident triage UI (G5) · insurance workflow (G4) · tax/receipts (G5) · masked calling (G5) ·
+auto-compatibility (G5) · series 7–14d visibility (G4) · weather (G5) · governance long tail (G5; the
+invariant that service obligations survive membership changes is canonical now).
 
-## 14. Rollout gates (replaces vague "pilot-ok")
+## 16. Build order (each slice: migration + harness + drift + debug UI)
 
-1. **G1 DB simulation** (harness only) — current.
-2. **G2 Sean two-role device testing, no real custody** — requires R0–R3 + debug UI.
-3. **G3 real-world owner-attended social pilot** — requires shell UI, roster/chat, viability, no delegation.
-4. **G4 closed delegated beta (known participants, real dogs)** — requires ALL of: R0–R6, emergency minimum
-   incl. offline info card + contact hierarchy, mandatory backup-host rule for delegated sessions, honest
-   support-hours display (no fictional 24/7 운영팀), insurer-confirmed coverage rules, return-dispute
-   procedure, GPS baseline integrity, consent docs reviewed.
-5. **G5 public delegated launch** — real PG + reconciliation, ops tooling, notification analytics, the §15 register.
-Backup host: optional at G2–G3, **mandatory for delegated sessions from G4**.
+R0A schema (§14) → R0B choke point → R1 charge/hold/refund live (approve=hold 20m, pay RPC creates booking
+idempotently, expiry, host labels, capacity predicates) → R2 custody events + returns + overrides +
+transfers + ended-gating + payout lifecycle/holds (incident tables already exist) → R3 assignment loop +
+timeline + proposal reservation + recovery + no-show + backup/assume_host → R4 consents + eligibility/edits
++ viability + capacity family + fee ledger + metrics split + membership separation (RSVP ≠ join; guest RSVP;
+obligations survive membership changes) → R5 shell backend (group chat + private channel + capability roster
++ phones B + ack banners) → R6 incident wiring/SOS/severity/evidence + GPS baseline + segments + series
+occurrence identity + adversarial harness (permission-leak, idempotency replay, out-of-order, stale-client,
+2-connection races: last-slot pay, pay-vs-expiry, withdraw-vs-pay) → production UI (lab v3 direction), G2+.
 
-## 15. Known-unmodeled register (tracked; gate at which each blocks)
-
-Chat moderation depth/ack receipts (G5) · phone access-log UI (G4) · push delivery analytics (G5) ·
-multi-incident triage UI (G5) · insurance notification workflow (G4) · tax/receipts (G5, PG) · masked calling
-(G5) · auto-compatibility scoring (G5) · series 7–14d visible generation (G4) · weather automation (G5) ·
-membership-governance long tail (G5; the invariant that **service obligations survive membership changes** is
-already canonical).
-
-## 16. Build order (thin UI per slice — no big-bang)
-
-Each slice = migration + harness green + drift green + **a dev-flagged debug screen exercising the flow**
-(critique 19 adopted: human-flow validation never waits for R6).
-- **R0 (0040)**: axis columns (§1 exactly) + backfill + dual-write sync + structured projection function +
-  `marketplace_open_requests` view + RLS tightening + app query migration + flag plumbing + drift harness case.
-- **R1 (0041)**: charge axis live (hold 20m → owner pay RPC creates booking, idempotent; expiry cron; host
-  read-only labels) + capacity predicates under the lock. Debug UI: approve vs pay.
-- **R2 (0042)**: custody events (custodian types, confirmation kinds) + two-sided return + overrides +
-  transfers + ended-gating + payout earned/payable/released/held. Debug UI: custody board.
-- **R3 (0043)**: assignment loop + timeline (T-30/-20/-10) + proposal reservation + adaptive recovery +
-  no-show flows + backup/assume_host. Debug UI: assignment timeline.
-- **R4 (0044)**: consents + disclosures/physical gate + viability v3 + dog caps + cancel/fee ledger recipients
-  + metrics split + membership separation w/ obligation invariant. Debug UI: consent+eligibility.
-- **R5 (0045)**: shell backend (chat, capability roster, phone rule B, ack-required banners). Debug UI: shell.
-- **R6 (0046)**: incidents tables + SOS + severity + contact hierarchy + evidence + GPS baseline integrity +
-  segments + series occurrence identity (`series_id + original_scheduled_start`, stable through reschedule)
-  + adversarial harness class (permission-leak, idempotency replay, out-of-order, stale-client, 2-connection
-  races for last-slot/pay-vs-expiry/withdraw-vs-pay). Debug UI: emergency flow.
-- Then production UI on lab v3 direction, gate G2 onward.
-
-*Sean's open numbers (architecture independent): fee split ratios & ladder amounts · host_fee amount ·
-compensation credit · vet authorization default limit · window tuning · chat push defaults.*
+*Sean's open numbers: fee ratios/ladder · host_fee · credit amounts · vet limit · window tuning · chat push
+defaults · handler-load own-dog rule tuning (§6).*
