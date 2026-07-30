@@ -342,7 +342,7 @@ declare
   h2 uuid; ra uuid; rb uuid; oa uuid; ob uuid; oc uuid;
   da uuid; db uuid; dc uuid; rt uuid; v_club uuid; v_s uuid;
   sda uuid; sdb uuid; sdc uuid; ba uuid; bb uuid; bc uuid;
-  v_km numeric; v_js jsonb; v_ev uuid; v_n int;
+  v_km numeric; v_js jsonb; v_ev uuid; v_n int; v_ts timestamptz;
 begin
   -- 시드: 호스트(캡1)·베테랑 ra(캡2)·서티파이드 rb(캡1) 전원 커밋+체크인, 위탁견 3 인계·주행
   h2 := t_user('r2_host', 'runner');
@@ -393,7 +393,7 @@ begin
   perform set_config('request.jwt.claim.sub', h2::text, false);
   perform club_start_delegated_runs(v_s);               -- bb active
 
-  -- [E12] 이양 개시 방어: 비커스터디언·주행 중 외부 이양(인시던트 경로)·비정상 대상 타입
+  -- [E12] 이양 개시 방어: 비커스터디언·대상 누락·비정상 타입 (주행 중 클리닉은 이제 유효 — E18)
   begin
     perform set_config('request.jwt.claim.sub', oa::text, false);
     begin
@@ -403,16 +403,16 @@ begin
       if sqlerrm not like '%not_custodian%' then call _fail('cus','E12 비커스터디언', sqlerrm); else
         perform set_config('request.jwt.claim.sub', ra::text, false);
         begin
-          perform session_transfer_initiate(sda, 'clinic', null, '행복동물병원', '경련 의심');
-          call _fail('cus','E12 주행 중 클리닉 차단','통과됨');
+          perform session_transfer_initiate(sda, 'runner');        -- 대상 러너 누락
+          call _fail('cus','E12 대상 누락 차단','통과됨');
         exception when others then
-          if sqlerrm not like '%use_incident_flow%' then call _fail('cus','E12 클리닉', sqlerrm); else
+          if sqlerrm not like '%target_required%' then call _fail('cus','E12 대상 누락', sqlerrm); else
             begin
               perform session_transfer_initiate(sda, 'friend');
               call _fail('cus','E12 대상 타입 차단','통과됨');
             exception when others then
               if sqlerrm like '%bad_target_type%'
-                then call _pass('cus','E12 이양 개시 방어 — 비커스터디언·주행 중 외부·비정상 대상');
+                then call _pass('cus','E12 이양 개시 방어 — 비커스터디언·대상 누락·비정상 타입');
               else call _fail('cus','E12 타입', sqlerrm); end if;
             end;
           end if;
@@ -454,10 +454,35 @@ begin
   exception when others then call _fail('cus','E13', sqlerrm);
   end;
 
-  -- [E14] 핸들러 부하 초과 + 개시 취소 복원: rb(캡1)가 dA 보유 중 → dC 수락 거부 → 취소
+  -- [E14] 핸들러 부하 초과 + transfer_pending 상태 방어 4종 + 개시 취소 복원
   begin
     perform set_config('request.jwt.claim.sub', ra::text, false);
     perform session_transfer_initiate(sdc, 'runner', rb, null, '부하 테스트');
+    -- 이양 대기 중: 반환 확인 충돌 차단
+    perform set_config('request.jwt.claim.sub', oc::text, false);
+    begin
+      perform session_confirm_return(sdc);
+      call _fail('cus','E14 이양 중 반환 확인 차단','통과됨');
+    exception when others then
+      if sqlerrm not like '%not_return_pending%' then call _fail('cus','E14 반환 충돌', sqlerrm); end if;
+    end;
+    -- 이양 대기 중: 이중 개시 차단
+    perform set_config('request.jwt.claim.sub', ra::text, false);
+    begin
+      perform session_transfer_initiate(sdc, 'runner', h2, null, '이중 개시');
+      call _fail('cus','E14 이중 개시 차단','통과됨');
+    exception when others then
+      if sqlerrm not like '%bad_phase%' then call _fail('cus','E14 이중 개시', sqlerrm); end if;
+    end;
+    -- 이양 대기 중: 세션 종료 게이팅
+    perform set_config('request.jwt.claim.sub', h2::text, false);
+    begin
+      perform club_finish_session(v_s);
+      call _fail('cus','E14 이양 중 종료 차단','통과됨');
+    exception when others then
+      if sqlerrm not like '%dogs_not_returned%' then call _fail('cus','E14 종료 게이팅', sqlerrm); end if;
+    end;
+    -- 부하 초과 수락 거부 → 개시 취소 복원
     perform set_config('request.jwt.claim.sub', rb::text, false);
     begin
       perform session_transfer_accept(sdc);
@@ -468,16 +493,24 @@ begin
         perform session_transfer_cancel(sdc);
         if (select custody_phase from session_dogs where id = sdc) = 'with_custodian'
            and (select pending_transfer from session_dogs where id = sdc) is null
-          then call _pass('cus','E14 부하 초과 차단 + 개시 취소 복원 (좌초 방지)');
+          then call _pass('cus','E14 이양 대기 방어 — 반환 충돌·이중 개시·종료 게이팅·부하 초과·취소 복원');
         else call _fail('cus','E14 취소','복원 실패'); end if;
       end if;
     end;
   exception when others then call _fail('cus','E14', sqlerrm);
   end;
 
-  -- [E15] 클리닉 이양 = 반환 국면 한정·증빙 필수·지급 보류 (릴리스 크론 제외 확인)
+  -- [E15] 반환 국면 클리닉 이양: 이양된 개의 옛 러너는 비당사자·증빙 필수·지급 보류
   begin
     perform t_settle(ba, 'completed', v_km, 1800);      -- dA 정산 → return_pending (rb 보유)
+    -- 이양 후 옛 러너(ra)의 반환 확인 = 비당사자 (부킹 러너가 반환 진실)
+    perform set_config('request.jwt.claim.sub', ra::text, false);
+    begin
+      perform session_confirm_return(sda);
+      call _fail('cus','E15 옛 러너 반환 확인 차단','통과됨');
+    exception when others then
+      if sqlerrm not like '%not_party%' then call _fail('cus','E15 옛 러너', sqlerrm); end if;
+    end;
     perform set_config('request.jwt.claim.sub', rb::text, false);
     perform session_transfer_initiate(sda, 'clinic', null, '행복동물병원', '경련 의심');
     begin
@@ -538,6 +571,28 @@ begin
   exception when others then call _fail('cus','E16', sqlerrm);
   end;
 
+  -- [E16b] 반환 확인 방어: 무관자 차단 + 같은 측 중복 확인 멱등 (스탬프 불변)
+  begin
+    perform set_config('request.jwt.claim.sub', oa::text, false);   -- dB의 당사자 아님
+    begin
+      perform session_confirm_return(sdb);
+      call _fail('cus','E16b 무관자 차단','통과됨');
+    exception when others then
+      if sqlerrm not like '%not_party%' then call _fail('cus','E16b 무관자', sqlerrm); else
+        perform set_config('request.jwt.claim.sub', ob::text, false);
+        v_js := session_confirm_return(sdb);
+        select owner_confirmed_return_at into v_ts from session_dogs where id = sdb;
+        perform session_confirm_return(sdb);                        -- 같은 측 재확인
+        if not (v_js->>'both')::boolean
+           and (select owner_confirmed_return_at from session_dogs where id = sdb) = v_ts
+           and (select custody_phase from session_dogs where id = sdb) = 'return_pending'
+          then call _pass('cus','E16b 반환 확인 방어 — 무관자 차단·중복 확인 멱등');
+        else call _fail('cus','E16b 중복','스탬프 변동'); end if;
+      end if;
+    end;
+  exception when others then call _fail('cus','E16b', sqlerrm);
+  end;
+
   -- [E17] 오버라이드 meta 반환 완성·종료 게이팅·클리닉 종단 허용·릴리스 (보류 제외)
   begin
     perform set_config('request.jwt.claim.sub', h2::text, false);
@@ -567,5 +622,127 @@ begin
       end if;
     end;
   exception when others then call _fail('cus','E17', sqlerrm);
+  end;
+end $$;
+
+-- ═══ R2(0045) — 주행 중 비상 인시던트 경로·assisted 반환·인시던트 릴리스 차단 ═══
+do $$
+declare
+  h2 uuid; ra uuid; oa uuid; ob uuid; dd uuid; de uuid; rt uuid;
+  v_club uuid; v_s2 uuid; sdd uuid; sde uuid; bd uuid; be uuid;
+  v_km numeric; v_js jsonb; v_inc uuid; v_n int;
+begin
+  -- 시드: 같은 사용자 세계의 두 번째 세션 — ra(베테랑 캡2)가 dD·dE 담당, 인계·주행 시작
+  select id into h2 from profiles where name = 'r2_host';
+  select id into ra from profiles where name = 'r2_ra';
+  select id into oa from profiles where name = 'r2_oa';
+  select id into ob from profiles where name = 'r2_ob';
+  select id into v_club from clubs where host_profile_id = h2 limit 1;
+  dd := t_dog(oa, '이양D'); de := t_dog(ob, '이양E');
+  select r.id into rt from routes r join club_sessions cs on cs.route_id = r.id
+  where cs.host_profile_id = h2 limit 1;
+  select km into v_km from routes where id = rt;
+
+  perform set_config('request.jwt.claim.sub', h2::text, false);
+  v_s2 := club_create_session(v_club, now() + interval '95 minutes', '비상 집결지', rt, 8, 'mixed');
+  perform set_config('request.jwt.claim.sub', ra::text, false);
+  perform session_runner_commit(v_s2); perform session_checkin(v_s2);
+  perform set_config('request.jwt.claim.sub', oa::text, false);
+  sdd := session_delegate_dog(v_s2, dd);
+  perform set_config('request.jwt.claim.sub', ob::text, false);
+  sde := session_delegate_dog(v_s2, de);
+  perform set_config('request.jwt.claim.sub', h2::text, false);
+  perform session_approve_dog(sdd, true); perform session_approve_dog(sde, true);
+  perform set_config('request.jwt.claim.sub', oa::text, false);
+  bd := session_pay_delegation(sdd, 'idem-r2d');
+  perform set_config('request.jwt.claim.sub', ob::text, false);
+  be := session_pay_delegation(sde, 'idem-r2e');
+  perform set_config('request.jwt.claim.sub', h2::text, false);
+  perform session_assign_dog(sdd, ra); perform session_assign_dog(sde, ra);
+  update bookings set owner_confirmed_handoff_at = now(), runner_confirmed_handoff_at = now()
+  where id in (bd, be);
+  update bookings set status = 'picked_up' where id in (bd, be);
+  perform set_config('request.jwt.claim.sub', ra::text, false);
+  perform club_start_delegated_runs(v_s2);              -- bd·be active
+
+  -- [E18] 주행 중 클리닉 이양 = 원자 인시던트 경로 (거부가 아니라 실행)
+  begin
+    perform session_transfer_initiate(sdd, 'clinic', null, '한강동물의료센터', '주행 중 파행');
+    begin
+      perform session_transfer_accept(sdd);             -- 증빙 없음
+      call _fail('cus','E18 증빙 없는 확정 차단','통과됨');
+    exception when others then
+      if sqlerrm not like '%artifact_required%' then call _fail('cus','E18 증빙', sqlerrm); else
+        perform session_transfer_accept(sdd, jsonb_build_object('photo', 'intake.jpg'));
+        select i.id into v_inc from club_incidents i
+        join club_incident_subjects s on s.incident_id = i.id
+        where s.subject_type = 'dog' and s.subject_id = dd and i.state = 'open';
+        if (select status from bookings where id = bd) = 'incident_review'
+           and (select end_reason::text from runs where booking_id = bd) = 'incident'
+           and (select ended_at from runs where booking_id = bd) is not null
+           and v_inc is not null
+           and (select count(*) from club_incident_subjects where incident_id = v_inc) = 3
+           and exists (select 1 from club_incident_evidence where incident_id = v_inc)
+           and exists (select 1 from assignment_events where session_dog_id = sdd
+                       and event = 'revoked' and reason = 'external_custody')
+           and exists (select 1 from dog_custody_events where session_dog_id = sdd
+                       and event_type = 'vet_transfer' and incident_id = v_inc)
+           and (select custodian_type from session_dogs where id = sdd) = 'clinic'
+           and (select payout_hold from session_dogs where id = sdd) = 'held'
+           and (select service_state from session_dogs where id = sdd) = 'ended'
+           and (select completion_outcome from session_dogs where id = sdd) = 'partial'
+           and (select termination_type from session_dogs where id = sdd) = 'vet_transfer'
+          then call _pass('cus','E18 주행 중 클리닉 — 런 종료·incident_review·배정 폐쇄·인시던트·증빙·보류 원자 완료');
+        else call _fail('cus','E18 원자성','상태 불일치 inc=' || coalesce(v_inc::text,'∅')); end if;
+      end if;
+    end;
+  exception when others then call _fail('cus','E18', sqlerrm);
+  end;
+
+  -- [E19] assisted 오버라이드(보호자 측) → 러너 확인으로 반환 완성 (authorized_person_pin)
+  begin
+    perform t_settle(be, 'completed', v_km, 1800);      -- dE → return_pending (ra 보유)
+    perform set_config('request.jwt.claim.sub', h2::text, false);
+    perform session_custody_override(sde, 'owner', 'assisted', null);   -- assisted는 증빙 선택
+    perform set_config('request.jwt.claim.sub', ra::text, false);
+    v_js := session_confirm_return(sde);
+    if (v_js->>'both')::boolean
+       and (select custody_phase from session_dogs where id = sde) = 'resolved'
+       and (select payout_state from session_dogs where id = sde) = 'payable'
+       and exists (select 1 from dog_custody_events where session_dog_id = sde
+                   and event_type = 'return' and confirmation_kind = 'authorized_person_pin'
+                   and meta->'override' is not null)
+      then call _pass('cus','E19 assisted 대리 반환 — 보호자 측 기록 후 러너 확인 완성');
+    else call _fail('cus','E19 assisted','상태 불일치'); end if;
+  exception when others then call _fail('cus','E19', sqlerrm);
+  end;
+
+  -- [E20] 세션 종료: 클리닉(종단)·resolved만 남음 → 통과
+  begin
+    perform set_config('request.jwt.claim.sub', h2::text, false);
+    perform club_finish_session(v_s2);
+    if (select status from club_sessions where id = v_s2) = 'done'
+      then call _pass('cus','E20 종료 — 클리닉 종단 + resolved 조합 통과');
+    else call _fail('cus','E20 종료','미완료'); end if;
+  exception when others then call _fail('cus','E20', sqlerrm);
+  end;
+
+  -- [E21] 인시던트 릴리스 차단 (2차 방어선) + 크론 멱등 (재실행 0행)
+  begin
+    insert into club_incidents (session_id, severity, state, summary)
+    values (v_s2, 'S3', 'open', '반환 후 분쟁 모사') returning id into v_inc;
+    insert into club_incident_subjects (incident_id, subject_type, subject_id)
+    values (v_inc, 'dog', de);
+    v_n := club_release_payouts();
+    if (select payout_state from session_dogs where id = sde) <> 'payable'
+      then call _fail('cus','E21 인시던트 차단','오픈 인시던트에도 릴리스됨'); else
+      update club_incidents set state = 'resolved', resolved_at = now() where id = v_inc;
+      v_n := club_release_payouts();
+      if v_n >= 1 and (select payout_state from session_dogs where id = sde) = 'released'
+         and club_release_payouts() = 0
+        then call _pass('cus','E21 인시던트 릴리스 차단 → 해소 후 릴리스 → 재실행 멱등(0)');
+      else call _fail('cus','E21 릴리스','n=' || v_n); end if;
+    end if;
+  exception when others then call _fail('cus','E21', sqlerrm);
   end;
 end $$;

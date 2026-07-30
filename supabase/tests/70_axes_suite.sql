@@ -92,7 +92,8 @@ begin
   -- [X6] 구조화 프로젝션 + 플래그 기본 OFF
   begin
     select sd.* into v_sd from session_dogs sd where sd.custody = 'runner_delegated'
-      and sd.service_state = 'ended' and sd.completion_outcome = 'completed' limit 1;
+      and sd.service_state = 'ended' and sd.completion_outcome = 'completed'
+      and sd.custody_phase = 'resolved' limit 1;   -- [R2] '완료' 표기는 resolved 한정
     v_js := club_dog_ui_state(v_sd.id);
     if v_js->>'primaryStage' = '완료'
        and jsonb_typeof(v_js->'secondaryBadges') = 'array'

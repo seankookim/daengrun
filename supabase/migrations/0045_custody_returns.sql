@@ -36,7 +36,9 @@ language plpgsql security definer set search_path = public as $$
 declare v_sd record;
 begin
   if new.club_session_id is null then return new; end if;
-  select * into v_sd from session_dogs where booking_id = new.id;
+  -- [직렬화 법] 모든 커스터디 변이는 강아지 행 락 + 락 후 검증 아래에서만 — RPC 경로(세션 락)와
+  -- 트리거 경로(부킹 → 여기)가 같은 행 락에서 직렬화된다. seq는 '유효한' 이벤트의 순서만 정한다.
+  select * into v_sd from session_dogs where booking_id = new.id for update;
   if v_sd.id is null then return new; end if;
 
   if new.status = 'picked_up' and new.runner_id is not null then
@@ -177,8 +179,9 @@ begin
     if p_to_profile is null then raise exception 'target_required'; end if;
     if sd.custody_phase not in ('with_custodian','return_pending') then raise exception 'bad_phase'; end if;
   elsif p_to_type in ('clinic','authority','authorized_person') then
-    -- 주행 전·중의 외부 이양 = 인시던트 경로 (R6 배선까지 명시 거부 — 조용한 우회 금지)
-    if sd.custody_phase <> 'return_pending' then raise exception 'use_incident_flow'; end if;
+    -- 외부 이양은 러너 보유 어느 국면에서도 개시 가능 — **부상은 주행 중에 일어난다.**
+    -- 주행 전·중 확정은 accept가 원자 인시던트 경로(런 종료·incident_review·배정 폐쇄·인시던트 개설)로 처리.
+    if sd.custody_phase not in ('with_custodian','return_pending') then raise exception 'bad_phase'; end if;
     if coalesce(trim(p_to_external), '') = '' and p_to_profile is null then raise exception 'target_required'; end if;
   else
     raise exception 'bad_target_type';
@@ -197,6 +200,7 @@ create or replace function session_transfer_accept(p_session_dog uuid, p_artifac
 language plpgsql security definer set search_path = public as $$
 declare
   sd record; s record; v_old_runner uuid; v_t jsonb; v_load int; v_cap int; v_ev uuid;
+  v_bst text; v_inc uuid;
 begin
   perform _club_require_v2();
   select * into sd from session_dogs where id = p_session_dog;
@@ -245,13 +249,39 @@ begin
     -- clinic/authority/authorized_person: 개시 러너가 증빙과 함께 확정 (수신자는 앱 사용자가 아님)
     if auth.uid() <> (v_t->>'by')::uuid then raise exception 'not_transfer_target'; end if;
     if p_artifact is null or p_artifact = '{}'::jsonb then raise exception 'artifact_required'; end if;
+    select status::text into v_bst from bookings where id = sd.booking_id;
+
+    -- [주행 전·중 비상 = 원자 인시던트 경로] 단순 거부 금지 — 부상견은 지금 병원에 가야 한다.
+    -- ① 런 종료(end_reason=incident — 0001 이넘에 이미 존재) ② 부킹 incident_review
+    -- (전이 맵 허용: picked_up|active → incident_review; 완료 통계·패치·리뷰 흐름 오염 없음)
+    -- ③ 배정 폐쇄(revoked) ④ 인시던트 개설 + 대상(dog·session·booking) + 증빙 연결
+    if v_bst in ('picked_up','active') then
+      update runs set ended_at = now(), end_reason = 'incident',
+        condition_note = coalesce(v_t->>'reason', '외부 커스터디 이양')
+      where booking_id = sd.booking_id and ended_at is null;
+      update bookings set status = 'incident_review' where id = sd.booking_id;
+      insert into assignment_events (session_dog_id, runner_profile_id, event, reason, created_by)
+      values (sd.id, v_old_runner, 'revoked', 'external_custody', auth.uid());
+      insert into club_incidents (session_id, severity, state, opened_by, summary)
+      values (sd.session_id, 'S2', 'open', auth.uid(),
+              coalesce(v_t->>'reason', '주행 중 외부 이양') || ' → ' || coalesce(v_t->>'toExternal', '외부 기관'))
+      returning id into v_inc;
+      insert into club_incident_subjects (incident_id, subject_type, subject_id) values
+        (v_inc, 'dog', sd.dog_id), (v_inc, 'session', sd.session_id), (v_inc, 'booking', sd.booking_id);
+      insert into club_incident_evidence (incident_id, kind, payload, created_by)
+      values (v_inc, 'document', p_artifact, auth.uid());
+    end if;
+
     insert into dog_custody_events
       (session_dog_id, from_type, from_profile_id, to_type, to_profile_id, to_external,
-       event_type, confirmation_kind, reason, meta)
+       event_type, confirmation_kind, reason, incident_id, meta)
     values (sd.id, 'runner', v_old_runner, v_t->>'toType', (v_t->>'toProfile')::uuid, v_t->>'toExternal',
       case when v_t->>'toType' = 'clinic' then 'vet_transfer' else 'authority_transfer' end,
       case when v_t->>'toType' = 'clinic' then 'clinic_receipt' else 'ops_attestation' end,
-      v_t->>'reason', jsonb_build_object('artifact', p_artifact));
+      v_t->>'reason', v_inc, jsonb_build_object('artifact', p_artifact))
+    returning id into v_ev;
+    update dog_run_segments set left_at = now(), transfer_event_id = v_ev
+    where session_dog_id = sd.id and left_at is null;
     update session_dogs set
       custodian_type = v_t->>'toType', custodian_profile_id = (v_t->>'toProfile')::uuid,
       custodian_external = v_t->>'toExternal',
@@ -340,8 +370,17 @@ create or replace function club_release_payouts() returns int
 language plpgsql security definer set search_path = public as $$
 declare n int;
 begin
-  update session_dogs set payout_state = 'released'
-  where payout_state = 'payable' and payout_hold = 'none' and custody_phase = 'resolved';
+  -- [직렬화 법] payout_hold가 릴리스 차단의 직렬화 지점이다: 지급을 막아야 하는 모든 인시던트
+  -- 개설 RPC는 그 강아지의 세션 락 아래에서 payout_hold='held'를 함께 써야 한다 (clinic 이양이
+  -- 그 예). 아래 인시던트 존재 검사는 2차 방어선(defense-in-depth)이지 락 대체가 아니다.
+  -- 멱등: payable → released 단방향, 재실행 시 0행.
+  update session_dogs sd set payout_state = 'released'
+  where sd.payout_state = 'payable' and sd.payout_hold = 'none' and sd.custody_phase = 'resolved'
+    and not exists (
+      select 1 from club_incident_subjects s join club_incidents i on i.id = s.incident_id
+      where i.state <> 'resolved'
+        and ((s.subject_type = 'dog' and s.subject_id = sd.dog_id)
+          or (s.subject_type = 'booking' and s.subject_id = sd.booking_id)));
   get diagnostics n = row_count;
   return n;
 end $$;
@@ -395,6 +434,12 @@ begin
         'completion_outcome', case when v_run_reason = 'completed' then 'completed' else 'partial' end,
         'termination_type', coalesce(sd.termination_type,
           case when v_run_reason = 'completed' then 'normal' else 'early_return' end));
+    elsif v_bst = 'incident_review' then
+      -- [R2] 주행 전·중 외부 이양/인시던트: 서비스 종료, 결과는 인계 여부로 (부분 제공 vs 미제공)
+      j := j || jsonb_build_object('service_state','ended',
+        'completion_outcome', case when sd.checked_in_at is not null then 'partial' else 'no_service' end,
+        'termination_type', coalesce(sd.termination_type, 'cancelled'),
+        'service_reason', 'incident', 'cancelled_by', null);
     else
       j := j || jsonb_build_object('service_state','ended','completion_outcome','no_service',
         'termination_type','cancelled',
@@ -456,6 +501,78 @@ begin
   end if;
   return j;
 end $$;
+
+-- ---------- UI 프로젝션 v2 — 커스터디 1급 ('completed' 소비자 감사가 잡은 누수 수정) ----------
+-- 0040 프로젝션은 서비스 종료 = '완료'로 표기했다 — R2에선 정산이 끝나도 반환 전이면 '완료'가
+-- 거짓말이다. 커스터디 국면이 서비스 축보다 먼저 말한다.
+create or replace function club_dog_ui_state(p_session_dog uuid) returns jsonb
+language plpgsql stable security definer set search_path = public as $$
+declare sd session_dogs; v_stage text; v_badges jsonb := '[]'; v_actors jsonb := '[]';
+        v_sev text := 'info'; v_block jsonb := '[]';
+begin
+  select * into sd from session_dogs where id = p_session_dog;
+  if sd.id is null then return null; end if;
+  if sd.custody = 'owner_handled' then
+    v_stage := '보호자 동반';
+  else
+    -- 커스터디 우선 단계 (반환·이양·외부 보호는 서비스 축이 뭐라 하든 화면의 1번 사실)
+    if sd.custodian_type in ('clinic','authority') then
+      v_stage := '외부 보호 중';
+      v_badges := v_badges || to_jsonb(coalesce(sd.custodian_external, '외부 기관'));
+      v_sev := 'critical'; v_actors := '["host","ops"]'; v_block := '["케이스 확인"]';
+    elsif sd.custody_phase = 'transfer_pending' then
+      v_stage := '이양 수락 대기'; v_sev := 'warn';
+      v_actors := '["runner"]'; v_block := '["이양 수락"]';
+    elsif sd.custody_phase = 'return_pending' then
+      v_stage := '반환 대기'; v_sev := 'warn';
+      v_actors := case
+        when sd.owner_confirmed_return_at is null and sd.runner_confirmed_return_at is null
+          then '["owner","runner"]'
+        when sd.owner_confirmed_return_at is null then '["owner"]'
+        else '["runner"]' end;
+      v_block := '["반환 확인"]';
+    else
+      v_stage := case
+        when sd.service_state = 'requested' then '신청 대기'
+        when sd.service_state = 'approved' and sd.hold_status = 'active' then '승인 — 결제 대기'
+        when sd.service_state = 'approved' then '승인 — 결제 필요'
+        when sd.service_state = 'confirmed' and sd.assignment_state = 'unassigned' then '결제 완료 — 배정 대기'
+        when sd.service_state = 'confirmed' and sd.assignment_state = 'proposed' then '러너 수락 대기'
+        when sd.service_state = 'confirmed' then '담당 확정 — 인계 대기'
+        when sd.service_state = 'in_service' and (select status from bookings where id = sd.booking_id)::text = 'picked_up'
+          then '러너가 보호 중'
+        when sd.service_state = 'in_service' then '러닝 중'
+        when sd.service_state = 'ended' and sd.completion_outcome in ('completed','partial')
+          and sd.custody_phase = 'resolved' then '완료'
+        when sd.service_state = 'ended' then '종료'
+        else '확인 중' end;
+      if sd.service_state = 'approved' and sd.charge_state <> 'paid' then
+        v_actors := '["owner"]'; v_block := '["결제"]';
+      elsif sd.assignment_state = 'proposed' then v_actors := '["runner"]'; v_block := '["러너 수락"]';
+      elsif sd.service_state = 'confirmed' and sd.assignment_state = 'accepted' then
+        v_actors := '["owner","runner"]'; v_block := '["인계 확인"]';
+      end if;
+    end if;
+    if sd.refund_state = 'pending' then v_badges := v_badges || '"환불 처리 중"'::jsonb; end if;
+    if sd.refund_state = 'failed' then v_badges := v_badges || '"환불 실패"'::jsonb; v_sev := 'critical'; end if;
+    if sd.hold_status = 'expired' then v_badges := v_badges || '"결제 기한 만료"'::jsonb; end if;
+    if sd.payout_hold = 'held' then v_badges := v_badges || '"정산 보류"'::jsonb; end if;
+    if sd.assignment_state = 'replacement_needed' then v_badges := v_badges || '"자리 재확인 중"'::jsonb; v_sev := 'warn'; end if;
+    if exists (select 1 from club_incident_subjects s join club_incidents i on i.id = s.incident_id
+               where s.subject_type = 'dog' and s.subject_id = sd.dog_id and i.state <> 'resolved') then
+      v_badges := v_badges || '"인시던트 확인 중"'::jsonb; v_sev := 'critical';
+    end if;
+  end if;
+  return jsonb_build_object(
+    'primaryStage', v_stage, 'secondaryBadges', v_badges,
+    'blockingIssues', v_block, 'primaryIssue', v_block->0,
+    'requiredActors', v_actors, 'severity', v_sev,
+    'allowedActions', '[]'::jsonb
+  );
+end $$;
+
+comment on function club_dog_ui_state is
+  'R2(0045): 커스터디 1급 프로젝션 — 반환/이양/외부 보호가 서비스 축보다 먼저 말한다. 완료 표기는 resolved 한정';
 
 -- ---------- 백필: 레거시 완료·체크아웃 행 = resolved/released ----------
 update session_dogs sd set payout_state = 'released'

@@ -36,7 +36,7 @@ Verification queries must be written against the physical column.
 
 | Logical (spec) | Physical (schema) | Note |
 |---|---|---|
-| participation_mode | `session_dogs.custody` | 0042 adds `participation_mode` as a GENERATED read-only alias (query-only, never written); true rename happens in the cleanup slice after v1 RPCs retire |
+| participation_mode | `session_dogs.custody` | **No alias exists** — the generated-alias idea was retired unshipped (0042 became the R0B choke point); the true rename happens in the cleanup slice after v1 RPCs retire |
 | incidents / incident_subjects / incident_evidence | `club_incidents` / `club_incident_subjects` / `club_incident_evidence` | 0001 owns a booking-level `incidents` table |
 | hold(deadline) | `hold_status` + `hold_expires_at` | |
 | payout_hold(reason, incident) | `payout_hold` + `payout_hold_reason` + `payout_hold_incident` | |
@@ -44,8 +44,8 @@ Verification queries must be written against the physical column.
 | custodian projection | `custodian_type` / `custodian_profile_id` / `custodian_external` + `custody_phase` | v1-era: `responsible_profile_id` remains the v1 truth until R2 retires it |
 | new attempt link | `previous_attempt_id` | partial-unique lands in R1 |
 
-**Rule for R0B and later slices: no SQL or app code references `participation_mode` as a base column
-until the cleanup rename migration; reads use `custody` (or the 0042 alias once applied).**
+**Rule for R0B and later slices: no SQL or app code references `participation_mode` at all
+until the cleanup rename migration; reads use `custody`.**
 
 ## 2. Per-dog stored model
 
@@ -206,9 +206,21 @@ available_day_of                present − accepted assignments − **active pr
   `runner_current_load + active_proposals + requested_transfer_load ≤ verified_handler_cap` ③ create+accept
   replacement assignment event for B ④ record the custody transfer event ⑤ open a new dog_run_segment under
   B ⑥ notify owner + host. **Clinic/authority transfers instead end or suspend the service** (termination_type
-  vet_transfer / appropriate) — a clinic never becomes an "assigned runner". A pending transfer is
-  cancellable by initiator or host (`transfer_cancel`) — a refused/overloaded acceptance must never strand
-  the dog in transfer_pending (which would block session finish forever).
+  vet_transfer / appropriate) — a clinic never becomes an "assigned runner". **External transfer is valid in
+  any runner-custody phase — injuries happen mid-run.** Confirming one during picked_up/active runs the
+  atomic incident path in ONE transaction: end the run (end_reason=incident) → booking→incident_review
+  (never `completed` — stats/patches/reviews stay clean) → revoke the assignment → open the incident
+  (+dog/session/booking subjects, artifact as evidence) → custody event linked to the incident → close GPS
+  segment → external custody + payout hold → notify owner/host. A pending transfer is cancellable by
+  initiator or host (`transfer_cancel`) — a refused/overloaded acceptance must never strand the dog in
+  transfer_pending (which would block session finish forever).
+  **Custody serialization law**: every custody mutation runs under the dog's row lock with post-lock
+  verification of current custodian/phase — the RPC path (session lock) and the booking-trigger path
+  serialize on the same session_dogs row. `seq` orders valid events; locks decide validity.
+  **Payout release law**: release requires payable ∧ no hold ∧ custody resolved ∧ no open linked incident,
+  is idempotent (payable→released one-way), and `payout_hold` is the serialization point — any
+  incident-opening RPC that must block payout writes `held` under the dog's session lock; the
+  incident-existence check in the release job is defense-in-depth, not a lock substitute.
 
 ## 8. Incidents (schema lands in **R0A** — earlier slices depend on it)
 
@@ -325,10 +337,12 @@ invariant that service obligations survive membership changes is canonical now).
 ## 16. Build order (each slice: migration + harness + drift + debug UI)
 
 R0A schema (§14) → R0B choke point → R1 charge/hold/refund live (approve=hold 20m, pay RPC creates booking
-idempotently, expiry, host labels, capacity predicates) → **R2 built (0045)**: custody events primary (seq
-ordering) + run-end ≠ return (return_pending until two-sided confirm) + overrides (witness artifact /
-self-override ban) + runner→runner atomic transfer + transfer_cancel + clinic/authority return-phase-only +
-ended-gating (terminal allowlist) + payout earned→payable→released with external-custody hold → R3 assignment loop +
+idempotently, expiry, host labels, capacity predicates) → **R2 backend built (0045)**: custody events primary
+(seq ordering) + run-end ≠ return (return_pending until two-sided confirm) + overrides (witness artifact /
+self-override ban) + runner→runner atomic transfer + transfer_cancel + **mid-run clinic/authority = atomic
+incident path** (return-phase = plain external transfer) + ended-gating (terminal allowlist) + payout
+earned→payable→released w/ hold + incident release-block + custody-first UI projection — *slice closes after
+the R2 debug screen is device-verified* → R3 assignment loop +
 timeline + proposal reservation + recovery + no-show + backup/assume_host → R4 consents + eligibility/edits
 + viability + capacity family + fee ledger + metrics split + membership separation (RSVP ≠ join; guest RSVP;
 obligations survive membership changes) → R5 shell backend (group chat + private channel + capability roster
