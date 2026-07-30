@@ -355,7 +355,8 @@ export async function fetchRunnerInbox(): Promise<OpenRequest[]> {
   const rate = await myCommissionRate();
   const { data: user } = await supabase.auth.getUser();
   const [openRes, directedRes] = await Promise.all([
-    supabase.from('bookings').select(REQ_SELECT).eq('status', 'matching').is('runner_id', null).order('scheduled_at').limit(10),
+    // 클럽 위탁 부킹(0037 club_session_id)은 세션이 소유 — 일반 오픈 풀에서 제외
+    supabase.from('bookings').select(REQ_SELECT).eq('status', 'matching').is('runner_id', null).is('club_session_id', null).order('scheduled_at').limit(10),
     user.user
       ? supabase.from('bookings').select(REQ_SELECT).eq('status', 'runner_pending').eq('runner_id', user.user.id).order('scheduled_at').limit(10)
       : Promise.resolve({ data: [], error: null } as any),
@@ -384,6 +385,7 @@ export async function fetchOpenRequests(): Promise<OpenRequest[]> {
     .select('id, scheduled_at, km, pace_label, base_fare, distance_fare, addon_fare, route_id, routes(name), dogs(name, breed, weight_kg, memo)')
     .eq('status', 'matching')
     .is('runner_id', null)
+    .is('club_session_id', null) // 클럽 위탁 부킹 제외 (0037)
     .order('scheduled_at')
     .limit(10);
   if (error) throw error;
