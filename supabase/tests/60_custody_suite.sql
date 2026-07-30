@@ -204,3 +204,66 @@ begin
   end;
 
 end $$;
+
+-- ═══ 보드(0039) — 파생값 일치 검증 ═══
+do $$
+declare
+  host uuid; r2 uuid; own1 uuid; d1 uuid; rt uuid; v_club uuid; v_sid uuid; v_sd uuid; v_bid uuid;
+  v_js jsonb; v_km numeric;
+begin
+  host := t_user('brd_host', 'runner');
+  r2 := t_user('brd_r2', 'runner');
+  update runners set tier = 'veteran' where profile_id = r2;
+  own1 := t_user('brd_owner', 'owner'); d1 := t_dog(own1, '보드견');
+  rt := t_route('보드 코스');
+  select km into v_km from routes where id = rt;
+
+  perform set_config('request.jwt.claim.sub', host::text, false);
+  v_club := club_request_district('보드동');
+  perform club_claim_host(v_club);
+  v_sid := club_create_session(v_club, now() + interval '90 minutes', '보드 집결지', rt, 8, 'mixed');
+  perform session_runner_commit(v_sid);
+  perform set_config('request.jwt.claim.sub', r2::text, false);
+  perform session_runner_commit(v_sid);
+  perform session_checkin(v_sid);
+  perform set_config('request.jwt.claim.sub', own1::text, false);
+  v_sd := session_delegate_dog(v_sid, d1);
+  perform set_config('request.jwt.claim.sub', host::text, false);
+  v_bid := session_approve_dog(v_sd, true);
+  perform session_assign_dog(v_sd, r2);
+
+  -- [G1] 호스트 뷰 — 정원·카운트·러너 소켓·요금이 전부 실데이터에서 파생
+  begin
+    v_js := club_delegation_board(v_sid);
+    if (v_js->'session'->>'delegatedCapacity')::int = (select delegated_dog_capacity from club_sessions where id = v_sid)
+       and (v_js->'session'->>'approvedCount')::int = 1
+       and (v_js->'session'->>'fare')::int = 9900 + round(v_km * 3000)::int
+       and (v_js->'session'->>'isHost')::boolean
+       and (v_js->'session'->>'checkinOpen')::boolean
+       and jsonb_array_length(v_js->'runners') = 2
+       and (select (r->>'assigned')::int from jsonb_array_elements(v_js->'runners') r
+            where (r->>'profileId')::uuid = r2) = 1
+       and (select (r->>'checkedIn')::boolean from jsonb_array_elements(v_js->'runners') r
+            where (r->>'profileId')::uuid = r2)
+      then call _pass('cus','G1 보드 호스트 뷰 — 정원·소켓·요금 파생값 일치');
+    else call _fail('cus','G1 보드','js=' || (v_js->'session')::text); end if;
+  exception when others then call _fail('cus','G1 보드', sqlerrm);
+  end;
+
+  -- [G2] 보호자 뷰 — isMine·커스터디 원천·인계 스탬프 노출
+  begin
+    perform set_config('request.jwt.claim.sub', own1::text, false);
+    v_js := club_delegation_board(v_sid);
+    if (v_js->'dogs'->0->>'isMine')::boolean
+       and (v_js->'dogs'->0->>'approval') = 'approved'
+       and (v_js->'dogs'->0->>'bookingStatus') = 'confirmed'
+       and (v_js->'dogs'->0->>'runnerId')::uuid = r2
+       and not (v_js->'dogs'->0->>'custodyWithRunner')::boolean
+       and not (v_js->'dogs'->0->>'ownerConfirmed')::boolean
+       and not (v_js->'session'->>'isHost')::boolean
+       and (v_js->'me'->>'runnerCap')::int = 0
+      then call _pass('cus','G2 보드 보호자 뷰 — isMine·커스터디 원천·스탬프');
+    else call _fail('cus','G2 보드','dog=' || (v_js->'dogs'->0)::text); end if;
+  exception when others then call _fail('cus','G2 보드', sqlerrm);
+  end;
+end $$;

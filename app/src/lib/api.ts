@@ -1770,13 +1770,75 @@ const clubRpc = async (fn: string, args: Record<string, unknown>): Promise<any> 
 };
 export const registerClubInterest = (clubId: string) => clubRpc('club_register_interest', { p_club: clubId, p_wants: 'attend' }) as Promise<void>;
 export const claimClubHost = (clubId: string) => clubRpc('club_claim_host', { p_club: clubId }) as Promise<void>;
-export const createClubSession = (clubId: string, scheduledAtIso: string, meetupPoint: string, capacity = 12) =>
-  clubRpc('club_create_session', { p_club: clubId, p_scheduled_at: scheduledAtIso, p_meetup_point: meetupPoint, p_route: null, p_capacity: capacity }) as Promise<string>;
+export const createClubSession = (
+  clubId: string, scheduledAtIso: string, meetupPoint: string, capacity = 12,
+  routeId: string | null = null, format: 'owner_only' | 'delegated_only' | 'mixed' = 'owner_only',
+) =>
+  clubRpc('club_create_session', { p_club: clubId, p_scheduled_at: scheduledAtIso, p_meetup_point: meetupPoint, p_route: routeId, p_capacity: capacity, p_format: format }) as Promise<string>;
 export const rsvpClubSession = (sessionId: string, dogId: string | null) =>
   clubRpc('session_rsvp', { p_session: sessionId, p_dog: dogId, p_waiver: CLUB_WAIVER_VERSION }) as Promise<void>;
 export const cancelClubRsvp = (sessionId: string) => clubRpc('session_cancel_rsvp', { p_session: sessionId }) as Promise<void>;
 export const checkinClubSession = (sessionId: string) => clubRpc('session_checkin', { p_session: sessionId }) as Promise<void>;
 export const finishClubSession = (sessionId: string) => clubRpc('club_finish_session', { p_session: sessionId }) as Promise<void>;
+
+// ---------- 위탁 (P-C, 0037~0039) — 플랩 어휘: PENDING/CLEARED/REFUSED/BOARDED/RUNNING/SETTLED ----------
+export type FlapState = 'PENDING' | 'CLEARED' | 'REFUSED' | 'BOARDED' | 'RUNNING' | 'SETTLED' | 'REFUND';
+export interface DelegationRunner { profileId: string; name: string; tier: string; cap: number; assigned: number; checkedIn: boolean; isMe: boolean }
+export interface DelegationDog {
+  sdId: string; dogId: string; dogName: string; collar: string | null; ownerName: string;
+  isMine: boolean; approval: 'pending' | 'approved' | 'rejected';
+  bookingId: string | null; bookingStatus: string | null; runnerId: string | null; runnerName: string | null;
+  ownerConfirmed: boolean | null; runnerConfirmed: boolean | null; custodyWithRunner: boolean; checkedOut: boolean;
+  flap: FlapState;
+}
+export interface DelegationBoard {
+  session: {
+    id: string; clubId: string; scheduledAt: string; when: string; meetupPoint: string; format: string; status: string;
+    routeName: string | null; routeKm: number | null; fare: number | null; delegatedCapacity: number;
+    approvedCount: number; pendingCount: number; isHost: boolean; checkinOpen: boolean;
+  };
+  runners: DelegationRunner[];
+  me: { committed: boolean; runnerCap: number; checkedIn: boolean };
+  dogs: DelegationDog[];
+}
+// 플랩 판정 — 원천 필드(approval·bookingStatus)에서만. 서버(0039)는 원천만 보내고 판정은 여기 한 곳.
+export function flapOf(d: { approval: string; bookingStatus: string | null }): FlapState {
+  if (d.approval === 'rejected') return 'REFUSED';
+  if (d.approval === 'pending') return 'PENDING';
+  switch (d.bookingStatus) {
+    case 'picked_up': return 'BOARDED';   // 인계 완료 = 보험 시작
+    case 'active': return 'RUNNING';
+    case 'completed': return 'SETTLED';
+    case 'refund_pending': case 'cancelled_runner': case 'expired': return 'REFUND';
+    default: return 'CLEARED';            // matching(배정 전)·confirmed(배정 후) = 승인·결제 완료
+  }
+}
+export async function fetchDelegationBoard(sessionId: string): Promise<DelegationBoard | null> {
+  const data = await clubRpc('club_delegation_board', { p_session: sessionId });
+  if (!data) return null;
+  const { dateLabel, timeLabel } = kstParts(data.session.scheduledAt);
+  return {
+    ...data,
+    session: { ...data.session, when: `${dateLabel} ${timeLabel}` },
+    dogs: (data.dogs ?? []).map((d: any) => ({ ...d, flap: flapOf(d) })),
+  } as DelegationBoard;
+}
+export const delegateDog = (sessionId: string, dogId: string) =>
+  clubRpc('session_delegate_dog', { p_session: sessionId, p_dog: dogId }) as Promise<string>;
+export const approveDelegation = (sdId: string, approve: boolean) =>
+  clubRpc('session_approve_dog', { p_session_dog: sdId, p_approve: approve }) as Promise<string | null>;
+export const assignDelegation = (sdId: string, runnerId: string) =>
+  clubRpc('session_assign_dog', { p_session_dog: sdId, p_runner: runnerId }) as Promise<void>;
+export const commitAsHandler = (sessionId: string) =>
+  clubRpc('session_runner_commit', { p_session: sessionId }) as Promise<number>;
+export const withdrawAsHandler = (sessionId: string) =>
+  clubRpc('session_runner_withdraw', { p_session: sessionId }) as Promise<number>;
+export const cancelClubSession = (sessionId: string) =>
+  clubRpc('club_cancel_session', { p_session: sessionId }) as Promise<number>;
+export const startDelegatedRuns = (sessionId: string) =>
+  clubRpc('club_start_delegated_runs', { p_session: sessionId }) as Promise<string[]>;
+export const saveClubRunTrace = (sessionId: string, trace: { lat: number; lng: number; t: number }[]) =>
+  clubRpc('club_save_run_trace', { p_session: sessionId, p_trace: trace }) as Promise<number>;
 
 // 클럽 사진 (호스트) — avatars 버킷의 본인 폴더 (스토리지 정책상 uid 폴더만 쓰기 가능)
 export async function uploadClubPhoto(clubId: string, base64: string): Promise<string> {
