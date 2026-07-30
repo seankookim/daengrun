@@ -341,6 +341,12 @@ language plpgsql security definer set search_path = public as $$
 declare v_club uuid; v_name text; v_teams int; v_dogs int; v_when timestamptz; v_ids uuid[];
 begin
   if _club_dogs_unresolved(p_session) > 0 then raise exception 'dogs_not_returned'; end if;
+  -- [비평 반영] 클리닉 커스터디는 종단 허용목록을 통과하지만, 열린 인시던트는 케이스 오너가
+  -- 배정된 뒤에만 세션을 닫을 수 있다 — 케이스는 세션 종료 후에도 독립적으로 계속된다.
+  if exists (select 1 from club_incidents
+             where session_id = p_session and state <> 'resolved' and case_owner is null) then
+    raise exception 'incident_unassigned';
+  end if;
   update club_sessions set status = 'done'
   where id = p_session and host_profile_id = auth.uid() and status in ('open', 'full')
   returning club_id, scheduled_at into v_club, v_when;
@@ -364,6 +370,53 @@ begin
     '위탁 미진행 — 전액 환불', '세션이 끝났지만 위탁 러닝이 진행되지 않았어요 — 전액 환불 처리돼요');
   perform _club_refund_confirmed(p_session, 'club_not_picked_up');
 end $$;
+
+-- ---------- 인시던트 최소 운영 RPC (R6 전 디버그·종료 게이팅용 — 전체 UX는 R6) ----------
+create or replace function club_incident_assign(p_incident uuid, p_owner uuid default null) returns void
+language plpgsql security definer set search_path = public as $$
+declare v_session uuid;
+begin
+  perform _club_require_v2();
+  select session_id into v_session from club_incidents where id = p_incident;
+  if v_session is null then raise exception 'not_found'; end if;
+  if not exists (select 1 from club_sessions where id = v_session and host_profile_id = auth.uid()) then
+    raise exception 'not_host';
+  end if;
+  update club_incidents set case_owner = coalesce(p_owner, auth.uid()),
+    state = case when state = 'open' then 'investigating' else state end
+  where id = p_incident;
+end $$;
+
+create or replace function club_incident_resolve(p_incident uuid, p_note text default null) returns void
+language plpgsql security definer set search_path = public as $$
+declare v_session uuid; v_owner uuid;
+begin
+  perform _club_require_v2();
+  select session_id, case_owner into v_session, v_owner from club_incidents where id = p_incident;
+  if v_session is null then raise exception 'not_found'; end if;
+  if auth.uid() <> v_owner and not exists
+    (select 1 from club_sessions where id = v_session and host_profile_id = auth.uid()) then
+    raise exception 'not_case_owner';
+  end if;
+  if p_note is not null then
+    insert into club_incident_evidence (incident_id, kind, payload, created_by)
+    values (p_incident, 'text', jsonb_build_object('note', p_note, 'at', now()), auth.uid());
+  end if;
+  update club_incidents set state = 'resolved', resolved_at = now() where id = p_incident;
+end $$;
+
+grant execute on function club_incident_assign(uuid, uuid) to authenticated;
+grant execute on function club_incident_resolve(uuid, text) to authenticated;
+
+-- 디버그 릴리스 래퍼 — service role 없이 실기기에서 릴리스 크론을 시험하기 위한 게이트 통로.
+-- 허용목록(_club_require_v2) 한정. R6 운영 콘솔이 생기면 폐기 [디버그 시대 한정].
+create or replace function club_debug_release_payouts() returns int
+language plpgsql security definer set search_path = public as $$
+begin
+  perform _club_require_v2();
+  return club_release_payouts();
+end $$;
+grant execute on function club_debug_release_payouts() to authenticated;
 
 -- ---------- 지급 릴리스 (일일 배치 — 모의 시대엔 상태 전이만) ----------
 create or replace function club_release_payouts() returns int
@@ -435,9 +488,13 @@ begin
         'termination_type', coalesce(sd.termination_type,
           case when v_run_reason = 'completed' then 'normal' else 'early_return' end));
     elsif v_bst = 'incident_review' then
-      -- [R2] 주행 전·중 외부 이양/인시던트: 서비스 종료, 결과는 인계 여부로 (부분 제공 vs 미제공)
+      -- [R2] 주행 전·중 외부 이양/인시던트: incident_review = 부킹의 상업/관리 검토 상태일 뿐,
+      -- 서비스 축은 명시적으로 ended (모델에 없는 'suspended' 암묵 상태 금지).
+      -- partial/no_service 분기점 = **런 시작 여부** (인계만으로는 러닝 서비스 시작이 아니다)
       j := j || jsonb_build_object('service_state','ended',
-        'completion_outcome', case when sd.checked_in_at is not null then 'partial' else 'no_service' end,
+        'completion_outcome', case when exists (select 1 from runs r
+            where r.booking_id = sd.booking_id and r.started_at is not null)
+          then 'partial' else 'no_service' end,
         'termination_type', coalesce(sd.termination_type, 'cancelled'),
         'service_reason', 'incident', 'cancelled_by', null);
     else
@@ -573,6 +630,140 @@ end $$;
 
 comment on function club_dog_ui_state is
   'R2(0045): 커스터디 1급 프로젝션 — 반환/이양/외부 보호가 서비스 축보다 먼저 말한다. 완료 표기는 resolved 한정';
+
+-- ---------- 보드 v3 — R2 커스터디·payout 필드 노출 (최신 정의 = 0043, grep 확인) ----------
+create or replace function club_delegation_board(p_session uuid) returns jsonb
+language sql stable security definer set search_path = public as $$
+  select jsonb_build_object(
+    'session', jsonb_build_object(
+      'id', s.id, 'clubId', s.club_id, 'scheduledAt', s.scheduled_at, 'meetupPoint', s.meetup_point,
+      'format', s.format, 'status', s.status,
+      'routeName', (select name from routes where id = s.route_id),
+      'routeKm', (select km from routes where id = s.route_id),
+      'fare', (select club_fare(km) from routes where id = s.route_id),
+      'delegatedCapacity', s.delegated_dog_capacity,
+      'reservedCount', _club_delegated_reserved(s.id),
+      'approvedCount', (select count(*) from session_dogs d
+                        where d.session_id = s.id and d.custody = 'runner_delegated' and d.approval = 'approved'),
+      'pendingCount', (select count(*) from session_dogs d
+                       where d.session_id = s.id and d.custody = 'runner_delegated' and d.approval = 'pending'
+                         and d.service_state is distinct from 'ended'),
+      'isHost', s.host_profile_id = auth.uid(),
+      'checkinOpen', now() between s.scheduled_at - interval '2 hours' and s.scheduled_at + interval '6 hours',
+      'openIncidents', (select count(*) from club_incidents i
+                        where i.session_id = s.id and i.state <> 'resolved'),
+      'unassignedIncidents', (select count(*) from club_incidents i
+                              where i.session_id = s.id and i.state <> 'resolved' and i.case_owner is null)
+    ),
+    'runners', coalesce((
+      select jsonb_agg(jsonb_build_object(
+        'profileId', a.runner_profile_id,
+        'name', (select name from profiles where id = a.runner_profile_id),
+        'tier', (select tier::text from runners where profile_id = a.runner_profile_id),
+        'cap', a.delegated_capacity,
+        'assigned', (select count(*) from session_dogs x join bookings b on b.id = x.booking_id
+                     where x.session_id = s.id and x.custody = 'runner_delegated'
+                       and b.runner_id = a.runner_profile_id
+                       and b.status in ('confirmed', 'picked_up', 'active', 'completed')),
+        'checkedIn', exists (select 1 from session_people sp
+                             where sp.session_id = s.id and sp.profile_id = a.runner_profile_id
+                               and sp.attendance = 'checked_in'),
+        'isMe', a.runner_profile_id = auth.uid()
+      ) order by a.delegated_capacity desc, a.runner_profile_id)
+      from session_runner_assignments a
+      where a.session_id = s.id and a.status = 'committed'), '[]'::jsonb),
+    'me', jsonb_build_object(
+      'committed', exists (select 1 from session_runner_assignments a
+                           where a.session_id = s.id and a.runner_profile_id = auth.uid() and a.status = 'committed'),
+      'runnerCap', coalesce(_club_runner_cap(auth.uid()), 0),
+      'checkedIn', exists (select 1 from session_people sp
+                           where sp.session_id = s.id and sp.profile_id = auth.uid() and sp.attendance = 'checked_in')
+    ),
+    'dogs', coalesce((
+      select jsonb_agg(jsonb_build_object(
+        'sdId', d.id, 'dogId', d.dog_id,
+        'dogName', (select name from dogs where id = d.dog_id),
+        'collar', (select collar from dogs where id = d.dog_id),
+        'ownerName', (select name from profiles where id = d.owner_profile_id),
+        'isMine', d.owner_profile_id = auth.uid(),
+        'approval', d.approval,
+        'serviceState', d.service_state,
+        'completionOutcome', d.completion_outcome,
+        'terminationType', d.termination_type,
+        'chargeState', d.charge_state,
+        'holdStatus', d.hold_status,
+        'holdExpiresAt', d.hold_expires_at,
+        'refundState', d.refund_state,
+        'bookingId', d.booking_id,
+        'bookingStatus', (select status::text from bookings b where b.id = d.booking_id),
+        'runnerId', (select runner_id from bookings b where b.id = d.booking_id),
+        'runnerName', (select p.name from bookings b join profiles p on p.id = b.runner_id where b.id = d.booking_id),
+        'ownerConfirmed', (select owner_confirmed_handoff_at is not null from bookings b where b.id = d.booking_id),
+        'runnerConfirmed', (select runner_confirmed_handoff_at is not null from bookings b where b.id = d.booking_id),
+        'custodyWithRunner', d.responsible_profile_id <> d.owner_profile_id,
+        'checkedOut', d.checked_out_at is not null,
+        -- [R2] 커스터디·payout 축 (디버그 스크린의 축 분리 표시 원천)
+        'custodyPhase', d.custody_phase,
+        'custodianType', d.custodian_type,
+        'custodianProfileId', d.custodian_profile_id,
+        'custodianExternal', d.custodian_external,
+        'ownerReturnConfirmed', d.owner_confirmed_return_at is not null,
+        'runnerReturnConfirmed', d.runner_confirmed_return_at is not null,
+        'payoutState', d.payout_state,
+        'payoutHold', d.payout_hold,
+        'payoutHoldReason', d.payout_hold_reason,
+        'pendingTransfer', d.pending_transfer,
+        'returnOverrideKind', d.return_override->>'kind',
+        'ui', club_dog_ui_state(d.id)
+      ) order by d.seq)
+      from session_dogs d
+      where d.session_id = s.id and d.custody = 'runner_delegated'
+        and (d.service_state is distinct from 'ended' or d.booking_id is not null)), '[]'::jsonb)
+  )
+  from club_sessions s where s.id = p_session;
+$$;
+
+-- 커스터디 이벤트 열람 — 당사자(보호자·현 러너)·호스트 한정 definer 초크포인트 (테이블은 봉인 유지)
+create or replace function club_dog_custody_events(p_session_dog uuid) returns jsonb
+language plpgsql stable security definer set search_path = public as $$
+declare sd record; v_runner uuid;
+begin
+  select * into sd from session_dogs where id = p_session_dog;
+  if sd.id is null then raise exception 'not_found'; end if;
+  select runner_id into v_runner from bookings where id = sd.booking_id;
+  if auth.uid() <> sd.owner_profile_id and auth.uid() is distinct from v_runner
+     and not exists (select 1 from club_sessions
+                     where id = sd.session_id and host_profile_id = auth.uid()) then
+    raise exception 'not_party';
+  end if;
+  return coalesce((select jsonb_agg(jsonb_build_object(
+    'seq', e.seq, 'eventType', e.event_type,
+    'fromType', e.from_type, 'fromProfileId', e.from_profile_id,
+    'toType', e.to_type, 'toProfileId', e.to_profile_id, 'toExternal', e.to_external,
+    'confirmationKind', e.confirmation_kind, 'occurredAt', e.occurred_at,
+    'reason', e.reason, 'incidentId', e.incident_id) order by e.seq)
+    from dog_custody_events e where e.session_dog_id = p_session_dog), '[]'::jsonb);
+end $$;
+
+-- 세션 인시던트 열람 — 호스트·케이스 오너·대상 강아지 보호자/러너 한정
+create or replace function club_session_incidents(p_session uuid) returns jsonb
+language plpgsql stable security definer set search_path = public as $$
+begin
+  if not exists (select 1 from club_sessions where id = p_session and host_profile_id = auth.uid())
+     and not exists (select 1 from club_incidents i where i.session_id = p_session and i.case_owner = auth.uid())
+     and not exists (select 1 from session_dogs d left join bookings b on b.id = d.booking_id
+                     where d.session_id = p_session
+                       and (d.owner_profile_id = auth.uid() or b.runner_id = auth.uid())) then
+    raise exception 'not_party';
+  end if;
+  return coalesce((select jsonb_agg(jsonb_build_object(
+    'id', i.id, 'severity', i.severity, 'state', i.state, 'summary', i.summary,
+    'caseOwner', i.case_owner, 'openedAt', i.opened_at, 'resolvedAt', i.resolved_at) order by i.opened_at)
+    from club_incidents i where i.session_id = p_session), '[]'::jsonb);
+end $$;
+
+grant execute on function club_dog_custody_events(uuid) to authenticated;
+grant execute on function club_session_incidents(uuid) to authenticated;
 
 -- ---------- 백필: 레거시 완료·체크아웃 행 = resolved/released ----------
 update session_dogs sd set payout_state = 'released'

@@ -217,6 +217,10 @@ available_day_of                present − accepted assignments − **active pr
   **Custody serialization law**: every custody mutation runs under the dog's row lock with post-lock
   verification of current custodian/phase — the RPC path (session lock) and the booking-trigger path
   serialize on the same session_dogs row. `seq` orders valid events; locks decide validity.
+  **Session-close incident gate**: clinic/authority custody passes the terminal-custodian allowlist, but a
+  session cannot close while an open incident has no case owner (`incident_unassigned`) — assigning the case
+  (host takes it or hands to ops) is the minimum "immediate safety actions done" marker before the session
+  ends; the case then continues independently of the closed session.
   **Payout release law**: release requires payable ∧ no hold ∧ custody resolved ∧ no open linked incident,
   is idempotent (payable→released one-way), and `payout_hold` is the serialization point — any
   incident-opening RPC that must block payout writes `held` under the dog's session lock; the

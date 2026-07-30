@@ -689,10 +689,15 @@ begin
                        and event_type = 'vet_transfer' and incident_id = v_inc)
            and (select custodian_type from session_dogs where id = sdd) = 'clinic'
            and (select payout_hold from session_dogs where id = sdd) = 'held'
+           -- 서비스 축 명시 단언: incident_review = 부킹 관리 상태, 서비스는 ended/partial
+           -- (런이 시작됐으므로 partial — 인계만 있었다면 no_service). payout은 정산액이
+           -- 존재하지 않으므로 none — 부분 보상은 인시던트 해소의 산출물 [Sean 확정 필요시 조정]
            and (select service_state from session_dogs where id = sdd) = 'ended'
            and (select completion_outcome from session_dogs where id = sdd) = 'partial'
            and (select termination_type from session_dogs where id = sdd) = 'vet_transfer'
-          then call _pass('cus','E18 주행 중 클리닉 — 런 종료·incident_review·배정 폐쇄·인시던트·증빙·보류 원자 완료');
+           and (select service_reason from session_dogs where id = sdd) = 'incident'
+           and (select payout_state from session_dogs where id = sdd) = 'none'
+          then call _pass('cus','E18 주행 중 클리닉 — 런 종료·incident_review·서비스 축(ended/partial/vet_transfer)·배정 폐쇄·인시던트·증빙·보류 원자 완료');
         else call _fail('cus','E18 원자성','상태 불일치 inc=' || coalesce(v_inc::text,'∅')); end if;
       end if;
     end;
@@ -717,13 +722,25 @@ begin
   exception when others then call _fail('cus','E19', sqlerrm);
   end;
 
-  -- [E20] 세션 종료: 클리닉(종단)·resolved만 남음 → 통과
+  -- [E20] 세션 종료: 클리닉 커스터디는 종단 통과지만 **케이스 오너 미배정 인시던트는 차단**
   begin
     perform set_config('request.jwt.claim.sub', h2::text, false);
-    perform club_finish_session(v_s2);
-    if (select status from club_sessions where id = v_s2) = 'done'
-      then call _pass('cus','E20 종료 — 클리닉 종단 + resolved 조합 통과');
-    else call _fail('cus','E20 종료','미완료'); end if;
+    begin
+      perform club_finish_session(v_s2);
+      call _fail('cus','E20 오너 미배정 종료 차단','통과됨');
+    exception when others then
+      if sqlerrm not like '%incident_unassigned%' then call _fail('cus','E20 차단', sqlerrm); else
+        select i.id into v_inc from club_incidents i
+        where i.session_id = v_s2 and i.state <> 'resolved' and i.case_owner is null;
+        perform club_incident_assign(v_inc);            -- 호스트가 케이스 인수 → investigating
+        perform club_finish_session(v_s2);
+        if (select status from club_sessions where id = v_s2) = 'done'
+           and (select state from club_incidents where id = v_inc) = 'investigating'
+           and (select case_owner from club_incidents where id = v_inc) = h2
+          then call _pass('cus','E20 종료 — 오너 미배정 차단 → 케이스 인수 후 종료 (케이스는 계속)');
+        else call _fail('cus','E20 종료','미완료'); end if;
+      end if;
+    end;
   exception when others then call _fail('cus','E20', sqlerrm);
   end;
 
