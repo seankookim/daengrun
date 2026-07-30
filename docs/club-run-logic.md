@@ -1,6 +1,6 @@
-# HIGH CLUB Group Run — Logic Spec v3.2 (canonical, self-contained, R0A-ready)
+# HIGH CLUB Group Run — Logic Spec v3.3 (canonical, self-contained — R0A approved)
 
-> 2026-07-30 v3.2. Supersedes all prior versions; nothing else is required reading.
+> 2026-07-30 v3.3 (= v3.2 + five final inline corrections from round 5). Supersedes all prior versions.
 > **Acceptance standard** (the completeness bar this spec is held to, in place of "every scenario"):
 > ① independent truths modeled independently ② safety invariants hold under every transition ③ external
 > side effects idempotent & auditable ④ unknown scenarios can always enter a safe incident/ops state
@@ -22,7 +22,7 @@
 | Assignment attempts | assignment_events (history; current = latest) |
 | Money (charge/refund/payout) | bookings + payment_attempts + ledger_items |
 | Physical responsibility | dog_custody_events (history; session_dogs custodian columns = cached projection) |
-| Incidents | incidents / incident_subjects / incident_evidence |
+| Incidents | club_incidents / club_incident_subjects / club_incident_evidence (`club_` prefix — 0001 owns a booking-level `incidents` table) |
 | Run records | runs + dog_run_segments |
 | Consent | delegation_consents (immutable) |
 
@@ -54,8 +54,11 @@ payout_hold          none | held(reason, incident_id)            (overlay — ea
 payment_attempts     history table: attempt id, idempotency key, kind(charge|refund), result, at
 
 assignment_state     unassigned → proposed(runner, expires) → accepted | declined → unassigned…
-                     accepted → revoked → replacement_needed → unassigned…   (history in assignment_events;
-                     an active proposal RESERVES the proposed runner's load)
+                     accepted → revoked → replacement_needed → unassigned…
+                     **assignment_events is authoritative; assignment_state + current runner columns are
+                     cached projections (same rule as custody). Assignment drift is a harness+cron
+                     reconciliation check alongside booking-status drift.** An active proposal RESERVES
+                     the proposed runner's load.
 
 custody: custodian_type  owner | runner | host | clinic | authority | authorized_person
          custodian_profile_id? / custodian_external?             (projection of custody events)
@@ -71,15 +74,19 @@ custody: custodian_type  owner | runner | host | clinic | authority | authorized
   payment via the pay RPC, which re-checks capacity and opens a fresh hold under the session lock. Board
   shows 기한 만료 from hold_status. No host re-approval needed.
 - **Host rejection stored**: ended + no_service + cancelled + reason=host_rejected + cancelled_by=host +
-  note. Host may reverse (event-logged) → back to requested; otherwise terminal **for this occurrence** only.
+  note. **`ended` is immutable** — reversal never mutates it back: a host reversal (or permitted owner
+  re-request after reversal) creates a **new request attempt row** linked to the rejected one
+  (`previous_attempt_id`); the unique-active constraint becomes partial (one ACTIVE row per session+dog).
+  Rejection history is preserved verbatim; still per-occurrence only.
 
 **Cross-axis invariants** (RPC-enforced, harness-asserted):
 - confirmed ⇐ charge=paid ∧ hold=consumed. in_service ⇐ assignment=accepted ∧ custodian=(that runner).
 - Custody transitions never gated on charge (safety over commerce). **refund pending→refunded requires that
   dog's custody resolved.** payout released requires custody resolved ∧ payout_hold=none.
-- ended requires custody_phase ∉ {outbound_pending, transfer_pending, return_pending} ∧ custodian is not a
-  session runner (owner, authorized person, clinic, authority all qualify — hospitalization doesn't hold the
-  session; the incident case stays open under ops).
+- ended requires custody_phase ∉ {outbound_pending, transfer_pending, return_pending} ∧ custodian_type ∈
+  **terminal allowlist {owner, authorized_person, clinic, authority}**. `host` and `runner` custodians are
+  NEVER a resolved terminal state — unless that person is separately recorded as the dog's owner or
+  authorized pickup. (Hospitalization doesn't hold the session; the case stays open under ops.)
 - Open incident on a dog ⇒ payout_hold=held ∧ consent-free cancellation blocked.
 - Insurance coverage = insurer-agreement projection, undefined until confirmed [G4 blocker].
 
@@ -116,8 +123,10 @@ reason     weather / host_unavailable / runner_capacity / route_closed / safety 
 **Host proposes → runner accepts → owner sees the confirmed runner card and holds an objection right until
 handoff.** While merely proposed, the owner sees 배정 진행 중 — no candidate card (runner privacy; declines
 stay invisible churn). Matrix and schema agree on this everywhere.
-- Timeline: proposals from runner check-in · target T-30 · owner objection cutoff T-20 (objection = free
-  once with stated cause → refund or attend-offer) · recovery to **T-10 hard stop**: paid ∧ not accepted →
+- Timeline: proposals from runner check-in · target T-30 · **objection rules split**: ordinary
+  preference-based objection until T-20 (free once with stated cause → refund or attend-offer); material
+  safety/identity/disclosure objection allowed until outbound handoff; after handoff never a cancel — early-
+  return or incident flow only · recovery to **T-10 hard stop**: paid ∧ not accepted →
   automatic full refund + options (attend-conversion OFFER: requires owner attending + people & dog capacity
   + acceptance + waiver; or next-session priority). A paid dog structurally cannot be stuck.
 - Proposal expiry 5m; declines with reason; revoke-before-handoff → replacement_needed (+strike if habitual).
@@ -138,6 +147,9 @@ available_for_approval          promised − Σ consumes_delegated
 present_capacity                same sum over checked-in committed handlers
 available_day_of                present − accepted assignments − **active proposals**
 ```
+- **Per-runner enforcement is primary** (aggregates are overview only): every assignment, proposal, and
+  transfer checks `runner_current_load + active_proposals + requested_transfer_load ≤ verified_handler_cap`
+  for that runner — an aggregate can look safe while one runner is overloaded.
 - Law: every capacity/money transition takes the session row lock first (approve, pay, expiry, commit,
   withdraw, propose, accept, revoke, transfer); cron and RPC serialize on it; idempotency keys on all
   money/custody RPCs (replay returns original result).
@@ -157,6 +169,12 @@ available_day_of                present − accepted assignments − **active pr
   overridable → incident · self-override banned (host-as-runner → backup/ops).
 - Transfers: initiator → receiver acceptance (verification + load headroom + combination check);
   incapacitated-runner exception = host/ops attestation, auto-opens incident.
+  **Runner→runner transfer is ONE atomic transaction** (assignment truth can never diverge from custody):
+  ① close runner A's assignment interval (assignment_event: replaced) ② verify runner B eligibility +
+  `runner_current_load + active_proposals + requested_transfer_load ≤ verified_handler_cap` ③ create+accept
+  replacement assignment event for B ④ record the custody transfer event ⑤ open a new dog_run_segment under
+  B ⑥ notify owner + host. **Clinic/authority transfers instead end or suspend the service** (termination_type
+  vet_transfer / appropriate) — a clinic never becomes an "assigned runner".
 
 ## 8. Incidents (schema lands in **R0A** — earlier slices depend on it)
 
@@ -210,7 +228,7 @@ owner 배정 진행 중, not a candidate card).
 | Delegation prerequisites | route required (fare must be computable); requests allowed at zero capacity (demand queue — approval consumes) |
 | Runner check-in | T-45m .. T-10m (late at T-30 → capacity-at-risk) |
 | Participant check-in | T-45m .. T+15m |
-| Assignment | proposals from runner check-in · target T-30 · owner objection T-20 · hard stop T-10 |
+| Assignment | proposals from runner check-in · target T-30 · preference objection T-20 (safety: until handoff) · hard stop T-10 |
 | Outbound handoff | T-30m .. T+15m (physical checklist embedded) |
 | Payment hold | 20m from approval |
 | Return grace | 60m after run end → escalation (host alert → incident) |
