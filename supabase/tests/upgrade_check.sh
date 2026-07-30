@@ -13,7 +13,7 @@ psql -d postgres -qc "create database daengrun_upgrade"
 psql -v ON_ERROR_STOP=1 -q -f 00_shim.sql || { echo "SHIM FAILED"; exit 1; }
 for f in ../migrations/*.sql; do
   base=$(basename "$f"); src="$f"
-  case "$base" in 0040_*|0041_*) continue;; esac        # 0039까지만
+  case "$base" in 0040_*|0041_*|0042_*) continue;; esac        # 0039까지만 (R0 계열 제외)
   if [ "$base" = "0024_push.sql" ]; then
     sed 's/^create extension if not exists pg_net;/-- [harness] pg_net stubbed/' "$f" > ./.pgtest/_up.sql
     src=./.pgtest/_up.sql
@@ -30,7 +30,8 @@ echo "✅ v1 world built (suites: $PRE)"
 # 업그레이드
 psql -v ON_ERROR_STOP=1 -q -f ../migrations/0040_club_axes_r0a.sql || { echo "❌ 0040 upgrade"; exit 1; }
 psql -v ON_ERROR_STOP=1 -q -f ../migrations/0041_r0a_hardening.sql || { echo "❌ 0041 upgrade"; exit 1; }
-echo "✅ 0040+0041 applied on live v1 data"
+psql -v ON_ERROR_STOP=1 -q -f ../migrations/0042_participation_mode_alias.sql || { echo "❌ 0042 upgrade"; exit 1; }
+echo "✅ 0040+0041+0042 applied on live v1 data"
 psql -q -f 70_axes_suite.sql >/dev/null 2>&1
 psql -c "select case when ok then '✅' else '❌' end || ' [' || suite || '] ' || name || case when ok then '' else ' — ' || detail end from _t where suite = 'axes' order by at"
 psql -qt -c "select 'UPGRADE ' || case when count(*) filter (where not ok and suite='axes') > 0 then 'FAIL' else 'OK — 드리프트·백필 검증 통과' end from _t"

@@ -220,3 +220,19 @@ begin
   if v_cnt = 0 then call _pass('axes','X13 커밋 후 전역 드리프트 제로 (deferred 동기화 검증)');
   else call _fail('axes','X13 드리프트','rows=' || v_cnt); end if;
 end $$;
+
+-- [X14] participation_mode 별칭(0042) — custody와 전행 일치 + 쓰기 불가(GENERATED)
+do $$
+declare v_cnt int; v_err boolean := false;
+begin
+  select count(*) into v_cnt from session_dogs where participation_mode is distinct from custody;
+  begin
+    update session_dogs set participation_mode = 'owner_handled' where false;
+    -- where false라도 GENERATED 컬럼 SET 자체가 에러여야 함
+    update session_dogs set participation_mode = custody;
+  exception when others then v_err := true;
+  end;
+  if v_cnt = 0 and v_err
+    then call _pass('axes','X14 participation_mode 별칭 — 전행 일치·쓰기 차단(GENERATED)');
+  else call _fail('axes','X14 별칭','mismatch=' || v_cnt || ' writable=' || (not v_err)); end if;
+end $$;
