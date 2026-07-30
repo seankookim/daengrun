@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>도그스하이 — P-C v3 (역할 분리 · 퍼플 희석 · 상설 셸)</title>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Oswald:wght@500;600;700&family=IBM+Plex+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0E100D;--paper:#FFFFFF;--volt:#C6F542;--voltDeep:#7FA818;--tang:#FF5C3D;
+  --amber:#F59A43;--blue:#6E9BC5;
+  --club:#7B6CDF;--neon:#9F8FFF;
+  /* v3 퍼플 희석: 배경·카드·보더는 무채 다크, 바이올렛은 액센트 예산제 */
+  --vbg:#0E0D15;--vcard:#17161F;--vinset:#0B0A11;--vedge:#3B3947;--vrule:#4B4858;
+  --vdim:#9A97A8;--vtext:#D9D7E2;
+  --c-tang:#FF8A5C;--c-teal:#3EC6A8;--c-rose:#E58BA9;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0A0C0A;color:#E8EBE4;font-family:'IBM Plex Sans KR',sans-serif;padding:32px 26px 100px}
+.bhs{font-family:'Black Han Sans',sans-serif;font-weight:400}
+.osw{font-family:'Oswald',sans-serif}
+.mono{font-family:'IBM Plex Mono',monospace}
+h1{font-size:27px;color:var(--volt)}
+.lede{color:#7d8878;margin:9px 0 4px;max-width:960px;line-height:1.65;font-size:13.5px}
+.legend{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}
+.lg{background:#151a14;border:1px solid #232a22;padding:8px 12px;font-size:11.5px;color:#c8d0c2;line-height:1.5}
+.lg b{color:#fff}
+.sw{display:inline-block;width:13px;height:13px;vertical-align:-2px;margin:0 3px;border:1px solid #333}
+.row{display:flex;gap:18px;flex-wrap:wrap;margin-top:24px;align-items:flex-start}
+.shot{width:302px}
+.sl{font-size:10.5px;letter-spacing:2px;color:#7d8878;margin-bottom:7px;font-family:'IBM Plex Mono',monospace}
+.note{color:#8fa093;font-size:11.5px;line-height:1.6;margin:9px 2px 0}
+.note b{color:#c8d0c2}
+.ph{min-height:520px;padding:14px 12px 18px;overflow:hidden;position:relative;background:var(--vbg);color:#EDECF2}
+.mast{display:flex;justify-content:space-between;align-items:baseline;padding-bottom:8px;border-bottom:1.5px solid var(--club)}
+.mast h3{font-size:18px;color:#fff}
+.vk{font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:2.5px;color:var(--neon)}
+.vkdim{font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:2px;color:var(--vdim)}
+/* 상설 셸 탭 */
+.shell{display:flex;border-bottom:1px solid var(--vedge);margin-top:2px}
+.shell div{flex:1;text-align:center;font-size:11.5px;font-weight:800;color:var(--vdim);padding:9px 0;position:relative}
+.shell div.on{color:#fff}
+.shell div.on::after{content:'';position:absolute;left:26%;right:26%;bottom:-1px;height:2.5px;background:var(--club)}
+.shell div small{font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--volt);margin-left:3px}
+.dog{width:34px;height:34px;border-radius:50%;flex:none;background:linear-gradient(140deg,#c9b89a,#8a7a5c);border:2.5px solid var(--c-tang)}
+.dog.teal{border-color:var(--c-teal);background:linear-gradient(140deg,#b8c2a8,#6d7a5a)}
+.dog.rose{border-color:var(--c-rose);background:linear-gradient(140deg,#d9c2b2,#96806a)}
+.cta3d{display:block;background:var(--tang);color:#fff;border:2px solid #000;box-shadow:4px 4px 0 #000;text-align:center;font-weight:900;font-size:14.5px;padding:13px 0;margin-top:13px}
+.flap{display:inline-flex;gap:1.5px;vertical-align:middle}
+.flap i{font-family:'Oswald',sans-serif;font-style:normal;font-weight:600;font-size:9px;background:#211E33;
+  padding:2px 3px;border-top:1px solid rgba(255,255,255,.14);border-bottom:2px solid #000;position:relative;letter-spacing:.5px;min-width:12px;text-align:center}
+.flap i::after{content:'';position:absolute;left:0;right:0;top:50%;height:1px;background:rgba(0,0,0,.5)}
+.flap.amberF i{color:var(--amber)}.flap.neonF i{color:var(--neon)}.flap.voltF i{color:var(--volt)}.flap.tangF i{color:var(--tang)}
+/* 상태 라벨 = 한국어 우선 */
+.stateK{display:inline-flex;align-items:center;gap:7px}
+.stateK b{font-size:12px;color:#fff}
+.stateK.amber b{color:var(--amber)}
+.stateK.volt b{color:var(--volt)}
+.hint{display:flex;gap:7px;margin-top:8px;font-size:10.5px;line-height:1.55;color:var(--vtext)}
+.hint::before{content:'▸';color:var(--vdim);flex:none}
+.hint b{color:#fff}
+.hint em{font-style:normal;color:var(--amber);font-weight:700}
+.hint.key{border-left:2px solid var(--amber);padding-left:8px}
+.hint.key::before{content:none}
+.card{background:var(--vcard);border:1px solid var(--vedge);padding:11px 12px;margin-top:9px}
+.card.hero{border-left:2.5px solid var(--club)}
+.bignum{display:flex;border-top:1px solid var(--vedge);border-bottom:1px solid var(--vedge);margin-top:12px;background:var(--vinset)}
+.bignum div{flex:1;padding:9px 6px;border-right:1px solid var(--vedge)}
+.bignum div:last-child{border-right:0}
+.bignum b{display:block;font-family:'Oswald',sans-serif;font-size:22px;font-weight:600;color:#fff;line-height:1}
+.bignum b em{font-style:normal;color:var(--tang)}
+.bignum span{display:block;font-family:'IBM Plex Mono',monospace;font-size:7px;letter-spacing:1.5px;color:var(--vdim);margin-top:3px}
+.deadline{display:flex;align-items:center;gap:9px;background:var(--vinset);border:1.5px solid var(--amber);padding:9px 11px;margin-top:10px}
+.deadline b{font-family:'Oswald',sans-serif;font-size:21px;color:var(--amber);font-weight:600}
+.deadline span{font-size:10.5px;color:var(--vtext);line-height:1.45}
+.sechead{display:flex;gap:8px;align-items:center;margin-top:14px;padding-bottom:5px;border-bottom:1.5px solid var(--vrule)}
+.sechead .n{font-family:'Oswald',sans-serif;font-weight:700;font-size:13px;color:#0E0D15;background:var(--neon);padding:1px 7px}
+.sechead b{font-size:13px;color:#fff}
+.sechead span{font-size:9.5px;color:var(--vdim);margin-left:auto}
+.drow{background:var(--vcard);border:1px solid var(--vedge);padding:10px;margin-top:8px}
+.drow .top{display:flex;gap:9px;align-items:center}
+.drow .nm{flex:1;min-width:0}
+.drow .nm b{font-size:13.5px;color:#fff}
+.drow .nm span{display:block;font-size:9.5px;color:var(--vtext);margin-top:1px}
+.paylabel{font-size:10px;font-weight:800;padding:4px 8px;border:1.5px solid var(--vedge);color:var(--vdim);font-variant-numeric:tabular-nums}
+.paylabel.due{border-color:var(--amber);color:var(--amber)}
+.paylabel.ok{border-color:var(--voltDeep);color:var(--volt)}
+.actrow{display:flex;gap:7px;margin-top:9px}
+.abtn{flex:1;text-align:center;font-weight:900;font-size:11px;padding:8px 0;border:1.5px solid var(--volt);color:#0E0D15;background:var(--volt)}
+.abtn.ghost{background:transparent;color:var(--vdim);border-color:var(--vedge)}
+.gchip{border:1.5px solid var(--vedge);color:var(--vtext);font-weight:800;font-size:10.5px;padding:6px 9px;background:var(--vinset)}
+.gchip.pick{border-color:var(--neon);color:#fff;background:#232038}
+.gchip small{font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--vdim);margin-left:4px}
+.spec{display:flex;flex-wrap:wrap;border:1px solid var(--vedge);margin-top:9px}
+.spec div{width:50%;padding:7px 10px;border-bottom:1px solid var(--vedge)}
+.spec div:nth-child(odd){border-right:1px solid var(--vedge)}
+.spec div:nth-last-child(-n+2){border-bottom:0}
+.spec span{display:block;font-family:'IBM Plex Mono',monospace;font-size:7px;letter-spacing:1.2px;color:var(--vdim)}
+.spec b{display:block;font-size:11.5px;color:#fff;margin-top:2px}
+.spec b.warn{color:var(--amber)}
+.retcol{display:flex;gap:8px;margin-top:10px}
+.retside{flex:1;border:1.5px solid var(--vedge);padding:10px;text-align:center}
+.retside.done{border-color:var(--voltDeep);background:rgba(198,245,66,.05)}
+.retside .mono{font-size:7.5px;letter-spacing:1.5px;color:var(--vdim);display:block}
+.retside b{display:block;font-size:12.5px;color:#fff;margin-top:4px}
+.retside.done b{color:var(--volt)}
+</style>
+</head>
+<body>
+<h1 class="bhs">P-C v3 — 역할 분리 · 퍼플 희석 · 상설 셸</h1>
+<p class="lede">비평 반영판 (전체 대응은 <b>docs/club-run-logic.md v2</b> — 27개 항목 채택/보류/반박 표기). 시각 3건: <b>퍼플 희석</b> — 배경·카드·보더가 무채 다크(<span class="sw" style="background:#0E0D15"></span>bg <span class="sw" style="background:#17161F"></span>card <span class="sw" style="background:#3B3947"></span>edge)로 내려가고 바이올렛은 액센트 예산제(마스트 룰·셸 탭 인디케이터·체인·칩 — 화면당 4곳 이내) · <b>상설 셸</b> — 개요·참가자·채팅 탭이 모든 역할·모든 단계에 고정 · <b>한국어 상태가 1급</b> — 플랩은 항상 한국어 라벨 옆의 플레이버로 강등.</p>
+<div class="legend">
+  <div class="lg"><b>역할 분리</b> 호스트 = 승인/거절 + 읽기 전용 결제 라벨 · 결제 버튼은 보호자 화면에만 · 배정은 러너 수락으로 확정</div>
+  <div class="lg"><b>커스터디 대칭</b> 러닝 종료 ≠ 반환 — 양측 반환 확인까지 책임은 러너에게 (v1 결함 수정)</div>
+  <div class="lg"><b>새 상태어(한국어)</b> 신청 대기 → 승인·결제 대기(20분) → 결제 완료·배정 대기 → 러너 수락 대기 → 인계 대기 → 러너 보호 중 → 러닝 중 → 반환 대기 → 완료</div>
+</div>
+
+<div class="row">
+
+<!-- V3-1 보호자: 결제 단계 (셸 앵커) -->
+<div class="shot"><div class="sl">V3-1 — 보호자: 승인 후 결제 (셸 = 개요·참가자·채팅)</div><div class="ph">
+  <div class="mast"><h3 class="bhs">토 09:00 세션</h3><span class="vkdim">반포동 하이클럽</span></div>
+  <div class="shell"><div class="on">개요</div><div>참가자 <small>7</small></div><div>채팅 <small>3</small></div></div>
+  <div class="card hero">
+    <span class="vk">몽이의 위탁</span>
+    <div style="display:flex;align-items:center;gap:9px;margin-top:7px">
+      <span class="dog"></span>
+      <div class="stateK amber" style="flex:1"><b>승인 완료 — 결제 대기</b><span class="flap neonF"><i>C</i><i>L</i><i>E</i><i>A</i><i>R</i><i>E</i><i>D</i></span></div>
+    </div>
+  </div>
+  <div class="deadline"><b class="osw">14:32</b><span>안에 결제하면 자리가 확정돼요.<br>지나면 자리가 다른 신청자에게 돌아가요.</span></div>
+  <div class="bignum">
+    <div><b class="osw">24,900</b><span>일반가 — 승인가 고정</span></div>
+    <div><b class="osw">5.0<em>km</em></b><span>반포 한강</span></div>
+    <div><b class="osw">2<em>명</em></b><span>확약 러너 풀</span></div>
+  </div>
+  <div class="hint key"><span>담당 러너는 <b>집결지에서 호스트가 제안 → 러너가 수락</b>하면 확정돼요 — 결제 전 이 방식에 동의하는 거예요</span></div>
+  <div class="hint"><span>결제 후에도 <em>시작 24시간 전</em>까지 무료 취소</span></div>
+  <a class="cta3d">24,900원 결제하기 →</a>
+</div>
+<p class="note"><b>결제 버튼은 이 화면에만 존재.</b> 셸 탭(개요·참가자·채팅)이 마스트 바로 아래 고정 — 어느 단계든 같은 자리. '누가 달릴지 모르고 결제'하는 게 아니라 <b>배정 방식 자체를 팔고</b> 있음을 결제 전에 명시. 20분 홀드 카운트다운 = 앰버.</p></div>
+
+<!-- V3-2 호스트 콘솔 v3 -->
+<div class="shot"><div class="sl">V3-2 — 호스트 콘솔 (결제는 읽기 전용 라벨)</div><div class="ph">
+  <div class="mast"><h3 class="bhs">호스트 콘솔</h3><span class="vkdim">확약 2명 · 현장 1명</span></div>
+  <div class="shell"><div class="on">개요</div><div>참가자 <small>7</small></div><div>채팅 <small>3</small></div></div>
+  <div class="sechead"><span class="n">1</span><b>신청 심사</b><span>승인 = 결제 요청이 보호자에게 감</span></div>
+  <div class="drow" style="border-style:dashed">
+    <div class="top"><span class="dog"></span>
+      <div class="nm"><b>몽이</b><span>션 보호자 · 푸들 6.2kg · 사람무는이력 없음 · 첫 위탁</span></div>
+      <span class="stateK"><b style="font-size:11px">신청 대기</b></span></div>
+    <div class="actrow"><span class="abtn">승인</span><span class="abtn ghost">거절 (사유)</span></div>
+  </div>
+  <div class="sechead"><span class="n">2</span><b>결제 현황</b><span>보호자 몫 — 여기선 상태만 보여요</span></div>
+  <div class="drow"><div class="top"><span class="dog rose"></span>
+    <div class="nm"><b>두부</b><span>민서 보호자</span></div>
+    <span class="paylabel due">결제 대기 12:07</span></div></div>
+  <div class="drow"><div class="top"><span class="dog teal"></span>
+    <div class="nm"><b>보리</b><span>지은 보호자</span></div>
+    <span class="paylabel ok">결제 완료</span></div></div>
+  <div class="sechead"><span class="n">3</span><b>배정 제안</b><span>러너가 수락해야 확정</span></div>
+  <div class="drow"><div class="top"><span class="dog teal"></span>
+    <div class="nm"><b>보리</b><span>제안 → 지훈</span></div>
+    <span class="stateK amber"><b style="font-size:11px">러너 수락 대기</b></span></div>
+    <div class="actrow" style="margin-top:8px"><span class="gchip pick">지훈 <small>1/2</small></span><span class="gchip">션(나) <small>0/1</small></span></div>
+  </div>
+</div>
+<p class="note"><b>구매 형태의 컨트롤이 완전히 사라짐.</b> ① 심사(승인/거절+사유) ② 결제 현황 = <b>읽기 전용 라벨</b>(결제 대기 + 남은 시간 / 결제 완료) ③ 배정은 '제안' — 러너 수락까지 앰버. 신청 행에 궁합 정보(체중·반응성·이력) 노출 시작.</p></div>
+
+<!-- V3-3 러너: 배정 수락 -->
+<div class="shot"><div class="sl">V3-3 — 러너: 배정 제안 수락 (신규 단계)</div><div class="ph">
+  <div class="mast"><h3 class="bhs">배정 제안</h3><span class="vkdim">호스트 션 → 나</span></div>
+  <div class="shell"><div>개요</div><div class="on">참가자 <small>7</small></div><div>채팅 <small>3</small></div></div>
+  <div class="card hero">
+    <div style="display:flex;gap:10px;align-items:center">
+      <span class="dog teal" style="width:44px;height:44px"></span>
+      <div><b style="font-size:16px;color:#fff">보리</b>
+      <div style="font-size:10.5px;color:var(--vtext);margin-top:2px">리트리버 · 3살 · 지은 보호자</div></div>
+    </div>
+  </div>
+  <div class="spec">
+    <div><span>체중</span><b>18.2kg</b></div>
+    <div><span>에너지</span><b>높음 — 6'30" 가능</b></div>
+    <div><span>반응성</span><b class="warn">자전거에 흥분</b></div>
+    <div><span>무는 이력</span><b>없음</b></div>
+    <div><span>장비</span><b>Y하네스 · 2m 리시</b></div>
+    <div><span>보수 (내 몫)</span><b>19,920원</b></div>
+  </div>
+  <div class="hint key"><span>수락하면 <b>인계 확인부터 반환 확인까지</b> 보리의 책임자는 나예요</span></div>
+  <div class="hint"><span>우려가 있으면 거절해도 돼요 — 호스트에게 사유가 전달돼요</span></div>
+  <a class="cta3d">이 아이, 내가 맡을게요 →</a>
+  <div style="text-align:center;margin-top:9px;font-size:11px;color:var(--vdim);font-weight:800">우려 제기 · 거절</div>
+</div>
+<p class="note"><b>커밋 ≠ 아무 강아지나 수락.</b> 러너는 강아지 카드(반응성·이력·장비·보수)를 보고 결정 — 수락해야 보호자에게 러너 카드가 뜬다. 경고성 정보(자전거 흥분)는 앰버로. CTA 카피가 책임의 시작·끝을 문장으로.</p></div>
+
+<!-- V3-4 반환 확인 -->
+<div class="shot"><div class="sl">V3-4 — 반환 확인 (러닝 종료 ≠ 반환)</div><div class="ph">
+  <div class="mast"><h3 class="bhs">몽이 반환</h3><span class="vkdim">러닝 종료 09:41</span></div>
+  <div class="shell"><div class="on">개요</div><div>참가자 <small>7</small></div><div>채팅 <small>5</small></div></div>
+  <div class="card hero">
+    <span class="vk" style="color:var(--amber)">지금 책임자 — 아직 러너</span>
+    <div style="display:flex;align-items:center;gap:10px;margin-top:7px">
+      <span class="dog"></span>
+      <div class="stateK amber" style="flex:1"><b>반환 대기</b></div>
+      <span class="paylabel ok">러닝 5.0km 완료</span>
+    </div>
+  </div>
+  <div class="retcol">
+    <div class="retside done"><span class="mono">RUNNER — 지훈</span><b>반환했어요 ✓ 09:44</b></div>
+    <div class="retside"><span class="mono">OWNER — 나</span><b>인계받았어요 →</b></div>
+  </div>
+  <div class="hint key"><span>양쪽이 확인해야 책임이 돌아와요 — <b>그 전엔 보험·책임 모두 러너</b>에게 있어요</span></div>
+  <div class="hint"><span>확인이 <em>60분</em> 안에 안 되면 호스트에게 알림이 가고, 호스트가 사유와 함께 중재할 수 있어요</span></div>
+  <div class="bignum">
+    <div><b class="osw">5.0<em>km</em></b><span>기록</span></div>
+    <div><b class="osw">6'58"</b><span>페이스</span></div>
+    <div><b class="osw">34:52</b><span>시간</span></div>
+  </div>
+  <a class="cta3d">인계받았어요 — 반환 확인 →</a>
+</div>
+<p class="note"><b>v1의 최대 결함 수정이 화면이 됨.</b> 러닝이 끝나도 상태는 '반환 대기', 책임자 블록은 앰버로 러너 유지. 나가는 인계와 대칭인 양측 확인 — 두 칸이 다 볼트가 되는 순간 완료·정산 확정. 60분 미해결 = 호스트 중재 경로 명시.</p></div>
+</div>
+
+<p class="lede" style="margin-top:40px;border-top:1px solid #232a22;padding-top:16px">
+<b style="color:#fff">스펙 정본은 club-run-logic.md v2</b> — 새 상태 기계(결제·수락·반환 포함 9단계+예외 4), 커스터디 이벤트 이력 테이블, 창 분리 표, 역할×단계 액션 매트릭스(로스터·채팅 전 행 상주), 비평 27개 항목 채택/보류/반박, 백엔드 재작업 순서 R1~R6. 결정 필요한 숫자들(수수료 사다리·호스트 보상·창 기본값·챗 푸시 기본값)만 Sean 몫으로 남김. 승인 주시면 R1(결제 분리)부터 마이그레이션 들어갑니다.
+</p>
+</body>
+</html>
