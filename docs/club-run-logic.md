@@ -328,7 +328,7 @@ Runner metrics: one physical run = +1 run/distance/drop-cadence; dogs served = +
 
 ## 15. Rollout gates & register
 
-G1 harness-only (current) · G2 Sean two-role device tests, no real custody (needs R0A–R3 + debug UIs) ·
+G1 harness + integration script (current) · G2 Sean two-role device tests, no real custody (needs R0A–R3 + production UI) ·
 G3 real owner-attended social pilot (needs shell UI; no delegation) · G4 closed delegated beta (needs ALL
 R-slices, emergency minimum + offline info card, mandatory backup host for delegated sessions, honest
 support-hours display, insurer-confirmed coverage, return-dispute procedure, GPS baseline, reviewed consent
@@ -338,7 +338,19 @@ Register (gate-tagged): chat moderation depth/ack receipts (G5) · phone access-
 auto-compatibility (G5) · series 7–14d visibility (G4) · weather (G5) · governance long tail (G5; the
 invariant that service obligations survive membership changes is canonical now).
 
-## 16. Build order (each slice: migration + harness + drift + debug UI)
+## 16. Build order — testing doctrine revised 2026-07-30 (per-slice debug UI gate RETIRED)
+
+**Three test layers replace the "debug UI per slice" rule** (it was self-imposed, not technically necessary,
+and was generating avoidable side-work): ① SQL harness (clean install + upgrade path + RLS leaks +
+transitions + idempotency + drift + invariants) — the strongest layer, unchanged and still mandatory per
+slice. ② `app/scripts/e2e-club.mjs` — automated integration tests against local Supabase (`supabase start`)
+with real authenticated owner/host/runner accounts calling real RPCs over PostgREST, asserting returned data,
+DB state, and authorization failures; edge-function steps (handoff, settle) are service-role simulated and
+labeled as such. ③ Real-app E2E (Maestro/Detox) once the production UI exists, plus mandatory device testing
+for what only devices can validate: Kakao login/deep links, push, camera, GPS/background location, maps,
+lifecycle, payment SDKs, and the actual usability of handoff/emergency flows. `/dev/club-lab` is FROZEN as a
+minimal optional state inspector — no new controls unless directly reusable in production. Production UI is
+built directly once backend contracts stabilize (post-R4 target).
 
 R0A schema (§14) → R0B choke point → R1 charge/hold/refund live (approve=hold 20m, pay RPC creates booking
 idempotently, expiry, host labels, capacity predicates) → **R2 backend built (0045)**: custody events primary
@@ -346,14 +358,14 @@ idempotently, expiry, host labels, capacity predicates) → **R2 backend built (
 self-override ban) + runner→runner atomic transfer + transfer_cancel + **mid-run clinic/authority = atomic
 incident path** (return-phase = plain external transfer) + ended-gating (terminal allowlist) + payout
 earned→payable→released w/ hold + incident release-block + custody-first UI projection — *slice closes after
-the R2 debug screen is device-verified* → **R3 backend built (0047)**: Model A proposals (self-proposal =
+the integration script passes (doctrine revision — device gate retired)* → **R3 backend built (0047)**: Model A proposals (self-proposal =
 implicit accept; propose-over-confirmed = implicit revoke) + owner candidate privacy until acceptance +
 5m proposal expiry (real-time predicates; cron sweeps cache + events) + per-runner load incl. active
 proposals + revoke→replacement_needed + owner objection (preference T-20/once/reason; safety until handoff;
 optional full refund) + T-10 hard stop auto-refund (paid dog structurally cannot be stuck) + T-30
 runner-late/host-absence alerts + backup host & assume_host — assignment axis now event-derived
 (assignment_events seq); booking-only mutations resync the cache in-tx (deferred-poke staleness lesson) —
-*debug screen wiring + device verification pending* → R4 consents + eligibility/edits
+*covered by harness + integration script* → R4 consents + eligibility/edits
 + viability + capacity family + fee ledger + metrics split + membership separation (RSVP ≠ join; guest RSVP;
 obligations survive membership changes) → R5 shell backend (group chat + private channel + capability roster
 + phones B + ack banners) → R6 incident wiring/SOS/severity/evidence + GPS baseline + segments + series
