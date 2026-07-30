@@ -13,7 +13,7 @@ psql -d postgres -qc "create database daengrun_upgrade"
 psql -v ON_ERROR_STOP=1 -q -f 00_shim.sql || { echo "SHIM FAILED"; exit 1; }
 for f in ../migrations/*.sql; do
   base=$(basename "$f"); src="$f"
-  case "$base" in 0040_*|0041_*|0042_*|0043_*) continue;; esac        # 0039까지만 (R 계열 제외)
+  case "$base" in 004[0-9]_*|005[0-9]_*) continue;; esac        # 0039까지만 (R 계열 전부 제외)
   if [ "$base" = "0024_push.sql" ]; then
     sed 's/^create extension if not exists pg_net;/-- [harness] pg_net stubbed/' "$f" > ./.pgtest/_up.sql
     src=./.pgtest/_up.sql
@@ -29,11 +29,11 @@ psql -v ON_ERROR_STOP=1 -q -f upgrade_seed_v1.sql || { echo "❌ v1 seed"; exit 
 PRE=$(psql -qt -c "select count(*) filter (where ok) || '/' || count(*) from _t")
 echo "✅ v1 world built (suites: $PRE)"
 # 업그레이드
-psql -v ON_ERROR_STOP=1 -q -f ../migrations/0040_club_axes_r0a.sql || { echo "❌ 0040 upgrade"; exit 1; }
-psql -v ON_ERROR_STOP=1 -q -f ../migrations/0041_r0a_hardening.sql || { echo "❌ 0041 upgrade"; exit 1; }
-psql -v ON_ERROR_STOP=1 -q -f ../migrations/0042_marketplace_choke_point.sql || { echo "❌ 0042 upgrade"; exit 1; }
-psql -v ON_ERROR_STOP=1 -q -f ../migrations/0043_payment_separation.sql || { echo "❌ 0043 upgrade"; exit 1; }
-echo "✅ 0040~0043 applied on live v1 data"
+for m in ../migrations/004[0-9]_*.sql ../migrations/005[0-9]_*.sql; do
+  [ -e "$m" ] || continue
+  psql -v ON_ERROR_STOP=1 -q -f "$m" || { echo "❌ upgrade $(basename "$m")"; exit 1; }
+done
+echo "✅ R 계열(0040~) applied on live v1 data"
 psql -q -f 70_axes_suite.sql >/dev/null 2>&1
 psql -q -f 80_choke_suite.sql >/dev/null 2>&1
 psql -c "select case when ok then '✅' else '❌' end || ' [' || suite || '] ' || name || case when ok then '' else ' — ' || detail end from _t where suite in ('axes','chk') order by at"

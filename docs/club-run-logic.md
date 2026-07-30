@@ -193,7 +193,9 @@ available_day_of                present − accepted assignments − **active pr
   emergency_transfer / vet_transfer / authority_transfer), initiated_by, confirmation_kind {app_user,
   authorized_person_pin, host_witnessed_receipt, clinic_receipt, ops_attestation}, occurred_at, location?,
   reason, evidence link. Two-sidedness = two artifacts, not two RPC calls. Operational record only — legal
-  liability follows terms/insurance.
+  liability follows terms/insurance. **Event ordering truth = monotonic `seq`** (identity column), never
+  `occurred_at`: events written in one transaction share the frozen `now()`, so timestamp ordering with a
+  uuid tiebreak is nondeterministic (0045; caught by harness).
 - Overrides: witness_confirm (host not a party + ≥1 strong artifact: absent party's one-time PIN / QR /
   signature / timestamped photo) · assisted_confirm (the party confirms on host's device) · disputes never
   overridable → incident · self-override banned (host-as-runner → backup/ops).
@@ -204,7 +206,9 @@ available_day_of                present − accepted assignments − **active pr
   `runner_current_load + active_proposals + requested_transfer_load ≤ verified_handler_cap` ③ create+accept
   replacement assignment event for B ④ record the custody transfer event ⑤ open a new dog_run_segment under
   B ⑥ notify owner + host. **Clinic/authority transfers instead end or suspend the service** (termination_type
-  vet_transfer / appropriate) — a clinic never becomes an "assigned runner".
+  vet_transfer / appropriate) — a clinic never becomes an "assigned runner". A pending transfer is
+  cancellable by initiator or host (`transfer_cancel`) — a refused/overloaded acceptance must never strand
+  the dog in transfer_pending (which would block session finish forever).
 
 ## 8. Incidents (schema lands in **R0A** — earlier slices depend on it)
 
@@ -321,8 +325,10 @@ invariant that service obligations survive membership changes is canonical now).
 ## 16. Build order (each slice: migration + harness + drift + debug UI)
 
 R0A schema (§14) → R0B choke point → R1 charge/hold/refund live (approve=hold 20m, pay RPC creates booking
-idempotently, expiry, host labels, capacity predicates) → R2 custody events + returns + overrides +
-transfers + ended-gating + payout lifecycle/holds (incident tables already exist) → R3 assignment loop +
+idempotently, expiry, host labels, capacity predicates) → **R2 built (0045)**: custody events primary (seq
+ordering) + run-end ≠ return (return_pending until two-sided confirm) + overrides (witness artifact /
+self-override ban) + runner→runner atomic transfer + transfer_cancel + clinic/authority return-phase-only +
+ended-gating (terminal allowlist) + payout earned→payable→released with external-custody hold → R3 assignment loop +
 timeline + proposal reservation + recovery + no-show + backup/assume_host → R4 consents + eligibility/edits
 + viability + capacity family + fee ledger + metrics split + membership separation (RSVP ≠ join; guest RSVP;
 obligations survive membership changes) → R5 shell backend (group chat + private channel + capability roster

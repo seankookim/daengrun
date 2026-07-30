@@ -21,15 +21,17 @@ begin
   exception when others then call _fail('axes','X1 드리프트', sqlerrm);
   end;
 
-  -- [X2] 백필 스팟체크: 완료 위탁견 → paid/released/accepted/owner 복귀
+  -- [X2] 스팟체크: 완료+반환 해소(resolved) 위탁견 → paid/released/accepted/owner
+  -- [R2] 정산≠반환이므로 resolved 행만 이 프로파일 — 미반환 완료 행은 X11에서 별도 단언
   begin
     select sd.* into v_sd from session_dogs sd join bookings b on b.id = sd.booking_id
-    where sd.custody = 'runner_delegated' and b.status = 'completed' limit 1;
+    where sd.custody = 'runner_delegated' and b.status = 'completed'
+      and sd.custody_phase = 'resolved' limit 1;
     if v_sd.id is not null
        and v_sd.service_state = 'ended' and v_sd.completion_outcome = 'completed'
        and v_sd.charge_state = 'paid' and v_sd.payout_state = 'released'
        and v_sd.assignment_state = 'accepted' and v_sd.custodian_type = 'owner'
-      then call _pass('axes','X2 완료 위탁 백필 (ended/completed·paid·released·accepted·owner)');
+      then call _pass('axes','X2 완료·해소 위탁 (ended/completed·paid·released·accepted·owner)');
     else call _fail('axes','X2 완료 백필', coalesce(v_sd.service_state,'row?') || '/' ||
       coalesce(v_sd.payout_state,'?')); end if;
   exception when others then call _fail('axes','X2 완료 백필', sqlerrm);
@@ -60,22 +62,30 @@ begin
   exception when others then call _fail('axes','X4 환불 백필', sqlerrm);
   end;
 
-  -- [X5] 커스터디 이벤트 동기화: 이후의 responsible 변경이 이벤트를 남긴다
+  -- [X5] [R2] 커스터디 이벤트 1차화: v1 동기화 트리거 제거·v2 전이 트리거 존재·
+  --      responsible 변경은 더 이상 이벤트를 만들지 않는다 (이벤트는 전이 RPC/트리거만 생성)
   begin
-    select sd.* into v_sd from session_dogs sd
-    where sd.custody = 'runner_delegated' and sd.responsible_profile_id = sd.owner_profile_id
-      and sd.booking_id is not null limit 1;
-    select count(*) into v_cnt from dog_custody_events where session_dog_id = v_sd.id;
-    update session_dogs set responsible_profile_id =
-      (select runner_id from bookings where id = v_sd.booking_id) where id = v_sd.id
-      and exists (select 1 from bookings where id = v_sd.booking_id and runner_id is not null);
-    if (select count(*) from dog_custody_events where session_dog_id = v_sd.id) > v_cnt
-       or not exists (select 1 from bookings where id = v_sd.booking_id and runner_id is not null)
-      then
-      -- 원복 (드리프트 유지)
+    if exists (select 1 from pg_trigger t join pg_class c on c.oid = t.tgrelid
+               where c.relname = 'session_dogs' and t.tgname = 'club_v1_custody_event')
+       or exists (select 1 from pg_trigger t join pg_class c on c.oid = t.tgrelid
+                  where c.relname = 'bookings' and t.tgname = 'club_custody_transition')
+      then call _fail('axes','X5 v1 잔존','v1 커스터디 트리거가 남아 있음');
+    elsif not exists (select 1 from pg_trigger t join pg_class c on c.oid = t.tgrelid
+                      where c.relname = 'bookings' and t.tgname = 'club_custody_transition_v2')
+      then call _fail('axes','X5 v2 부재','club_custody_transition_v2 없음');
+    else
+      select sd.* into v_sd from session_dogs sd
+      where sd.custody = 'runner_delegated' and sd.responsible_profile_id = sd.owner_profile_id
+        and sd.booking_id is not null limit 1;
+      select count(*) into v_cnt from dog_custody_events where session_dog_id = v_sd.id;
+      update session_dogs set responsible_profile_id =
+        (select runner_id from bookings where id = v_sd.booking_id) where id = v_sd.id
+        and exists (select 1 from bookings where id = v_sd.booking_id and runner_id is not null);
       update session_dogs set responsible_profile_id = v_sd.owner_profile_id where id = v_sd.id;
-      call _pass('axes','X5 responsible 변경 → 커스터디 이벤트 기록 (sync_v1)');
-    else call _fail('axes','X5 이벤트','no event'); end if;
+      if (select count(*) from dog_custody_events where session_dog_id = v_sd.id) = v_cnt
+        then call _pass('axes','X5 이벤트 1차화 — v1 트리거 제거·v2 전이 존재·responsible 무이벤트');
+      else call _fail('axes','X5 이벤트','responsible 변경이 이벤트 생성'); end if;
+    end if;
   exception when others then call _fail('axes','X5 이벤트', sqlerrm);
   end;
 
@@ -181,13 +191,21 @@ begin
         where sd.custody = 'runner_delegated' and b.status in ('refund_pending','cancelled_runner','expired')
           and not (sd.refund_state = 'pending' and sd.service_state = 'ended' and sd.charge_state = 'paid');
         if v_cnt > 0 then call _fail('axes','X11 리터럴','환불 불일치 ' || v_cnt); else
-          -- completed → ended·released (전건)
+          -- [R2] completed 이분법: 해소행(체크아웃 또는 양측 반환 확인) = owner/resolved/payable+
+          --      미반환행 = runner/return_pending/earned — 외부 커스터디언(클리닉 등)은 별도 프로파일
           select count(*) into v_cnt from session_dogs sd join bookings b on b.id = sd.booking_id
           where sd.custody = 'runner_delegated' and b.status = 'completed'
-            and not (sd.service_state = 'ended' and sd.payout_state = 'released'
-                     and sd.custodian_type = 'owner');
+            and sd.custodian_type not in ('clinic','authority','authorized_person')
+            and case when sd.checked_out_at is not null
+                       or (sd.owner_confirmed_return_at is not null
+                           and sd.runner_confirmed_return_at is not null)
+                then not (sd.service_state = 'ended' and sd.custodian_type = 'owner'
+                          and sd.custody_phase = 'resolved'
+                          and sd.payout_state in ('payable','released'))
+                else not (sd.custodian_type = 'runner' and sd.custody_phase = 'return_pending'
+                          and sd.payout_state = 'earned') end;
           if v_cnt > 0 then call _fail('axes','X11 리터럴','completed 불일치 ' || v_cnt);
-          else call _pass('axes','X11 리터럴 매핑 오라클 — pending·matching·환불·완료 전건 일치'); end if;
+          else call _pass('axes','X11 리터럴 매핑 오라클 — pending·matching·환불·완료(R2 이분) 일치'); end if;
         end if;
       end if;
     end if;

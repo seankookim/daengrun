@@ -7,7 +7,7 @@ declare
   host uuid; r2 uuid; own1 uuid; own2 uuid; d1 uuid; d2 uuid;
   rt uuid; v_club uuid; v_sid uuid; v_sid2 uuid;
   v_sd1 uuid; v_sd2 uuid; v_b1 uuid; v_b2 uuid;
-  v_cnt int; v_txt text; v_js jsonb; v_km numeric; v_run uuid;
+  v_cnt int; v_txt text; v_js jsonb; v_km numeric; v_run uuid; v_rel int;
 begin
   -- ---------- 시드: 클럽 + 임박 세션(+90m) + 커밋 러너 2 + 승인 위탁견 2 ----------
   host := t_user('cus_host', 'runner');                        -- certified 캡 1
@@ -88,7 +88,11 @@ begin
     update bookings set status = 'picked_up' where id = v_b1;   -- confirmed → picked_up (허용 전이)
     if (select responsible_profile_id from session_dogs where id = v_sd1) = r2
        and (select checked_in_at from session_dogs where id = v_sd1) is not null
-      then call _pass('cus','E3 인계 → 커스터디 플립 (책임자=러너·강아지 체크인)');
+       and (select custodian_type from session_dogs where id = v_sd1) = 'runner'
+       and (select custodian_profile_id from session_dogs where id = v_sd1) = r2
+       and exists (select 1 from dog_custody_events where session_dog_id = v_sd1
+                   and event_type = 'outbound' and to_type = 'runner' and to_profile_id = r2)
+      then call _pass('cus','E3 인계 → 커스터디 플립 (러너 커스터디·아웃바운드 이벤트·체크인)');
     else call _fail('cus','E3 플립','responsible=' ||
       (select responsible_profile_id from session_dogs where id = v_sd1)::text); end if;
   exception when others then call _fail('cus','E3 플립', sqlerrm);
@@ -123,18 +127,51 @@ begin
   exception when others then call _fail('cus','E5 트레이스', sqlerrm);
   end;
 
-  -- [E6] 강아지별 정산: settle → 활동 기록(gps_verified) + 커스터디 복귀(책임자=보호자·체크아웃)
+  -- [E6] 강아지별 정산 [R2]: settle → 활동 기록 + **정산 ≠ 반환** (return_pending·러너 유지·earned)
   begin
     perform t_settle(v_b1, 'completed', v_km, 1800);
     select run_id into v_run from participant_activities
     where session_id = v_sid and dog_id = d1 and source = 'gps_verified';
     if v_run is not null
        and (select km from participant_activities where session_id = v_sid and dog_id = d1) = v_km
-       and (select responsible_profile_id from session_dogs where id = v_sd1) = own1
-       and (select checked_out_at from session_dogs where id = v_sd1) is not null
-      then call _pass('cus','E6 정산 — gps_verified 활동 기록·커스터디 보호자 복귀·체크아웃');
+       and (select custody_phase from session_dogs where id = v_sd1) = 'return_pending'
+       and (select custodian_type from session_dogs where id = v_sd1) = 'runner'
+       and (select custodian_profile_id from session_dogs where id = v_sd1) = r2
+       and (select payout_state from session_dogs where id = v_sd1) = 'earned'
+       and (select checked_out_at from session_dogs where id = v_sd1) is null
+      then call _pass('cus','E6 정산 — 활동 기록 + [R2] 정산≠반환 (return_pending·러너 유지·earned)');
     else call _fail('cus','E6 정산','활동/커스터디 불일치'); end if;
   exception when others then call _fail('cus','E6 정산', sqlerrm);
+  end;
+
+  -- [E6b] 양측 반환 확인: 단측 = 대기 유지 → 양측 = return 이벤트·owner/resolved·payable → 릴리스
+  begin
+    perform set_config('request.jwt.claim.sub', own1::text, false);
+    v_js := session_confirm_return(v_sd1);
+    if (v_js->>'both')::boolean
+       or (select custody_phase from session_dogs where id = v_sd1) <> 'return_pending'
+      then call _fail('cus','E6b 단측','both=' || v_js::text); else
+      perform set_config('request.jwt.claim.sub', r2::text, false);
+      v_js := session_confirm_return(v_sd1);
+      if (v_js->>'both')::boolean
+         and (select custodian_type from session_dogs where id = v_sd1) = 'owner'
+         and (select custody_phase from session_dogs where id = v_sd1) = 'resolved'
+         and (select payout_state from session_dogs where id = v_sd1) = 'payable'
+         and (select checked_out_at from session_dogs where id = v_sd1) is not null
+         and exists (select 1 from dog_custody_events where session_dog_id = v_sd1
+                     and event_type = 'return' and confirmation_kind = 'app_user' and to_type = 'owner')
+        then
+        v_rel := club_release_payouts();
+        if v_rel >= 1
+           and (select payout_state from session_dogs where id = v_sd1) = 'released'
+          then call _pass('cus','E6b 반환 확인 — 단측 대기·양측 resolved/payable·릴리스 released');
+        else call _fail('cus','E6b 릴리스','n=' || v_rel || ' payout=' ||
+          (select payout_state from session_dogs where id = v_sd1) || ' hold=' ||
+          coalesce((select payout_hold from session_dogs where id = v_sd1),'∅') || ' phase=' ||
+          (select custody_phase from session_dogs where id = v_sd1)); end if;
+      else call _fail('cus','E6b 양측','상태 불일치'); end if;
+    end if;
+  exception when others then call _fail('cus','E6b 반환', sqlerrm);
   end;
 
   -- [E7] 배정 걸린 이탈 차단 (reassign_dogs_first) — d2가 r2에 confirmed로 걸려 있음
@@ -211,6 +248,29 @@ begin
   exception when others then call _fail('cus','E10 정리', sqlerrm);
   end;
 
+  -- [E11] 종료 게이팅 [R2]: v_sid에 return_pending(d2) 잔존 → dogs_not_returned → 양측 확인 후 종료
+  begin
+    perform set_config('request.jwt.claim.sub', host::text, false);
+    begin
+      perform club_finish_session(v_sid);
+      call _fail('cus','E11 미반환 종료 차단','통과됨');
+    exception when others then
+      if sqlerrm not like '%dogs_not_returned%' then call _fail('cus','E11 차단', sqlerrm); else
+        perform set_config('request.jwt.claim.sub', own2::text, false);
+        perform session_confirm_return(v_sd2);
+        perform set_config('request.jwt.claim.sub', host::text, false);
+        perform session_confirm_return(v_sd2);          -- E8에서 d2 담당 러너 = host
+        perform club_finish_session(v_sid);
+        if (select status from club_sessions where id = v_sid) = 'done'
+           and (select custody_phase from session_dogs where id = v_sd2) = 'resolved'
+           and (select payout_state from session_dogs where id = v_sd2) = 'payable'
+          then call _pass('cus','E11 종료 게이팅 — 미반환 차단 → 양측 반환 후 종료');
+        else call _fail('cus','E11 종료','미완료'); end if;
+      end if;
+    end;
+  exception when others then call _fail('cus','E11', sqlerrm);
+  end;
+
 end $$;
 
 -- ═══ 보드(0039) — 파생값 일치 검증 ═══
@@ -273,5 +333,239 @@ begin
       then call _pass('cus','G2 보드 보호자 뷰 — isMine·커스터디 원천·스탬프');
     else call _fail('cus','G2 보드','dog=' || (v_js->'dogs'->0)::text); end if;
   exception when others then call _fail('cus','G2 보드', sqlerrm);
+  end;
+end $$;
+
+-- ═══ R2(0045) — 오버라이드·이양·클리닉·지급 보류 스위트 ═══
+do $$
+declare
+  h2 uuid; ra uuid; rb uuid; oa uuid; ob uuid; oc uuid;
+  da uuid; db uuid; dc uuid; rt uuid; v_club uuid; v_s uuid;
+  sda uuid; sdb uuid; sdc uuid; ba uuid; bb uuid; bc uuid;
+  v_km numeric; v_js jsonb; v_ev uuid; v_n int;
+begin
+  -- 시드: 호스트(캡1)·베테랑 ra(캡2)·서티파이드 rb(캡1) 전원 커밋+체크인, 위탁견 3 인계·주행
+  h2 := t_user('r2_host', 'runner');
+  ra := t_user('r2_ra', 'runner'); update runners set tier = 'veteran' where profile_id = ra;
+  rb := t_user('r2_rb', 'runner');
+  oa := t_user('r2_oa', 'owner'); da := t_dog(oa, '이양A');
+  ob := t_user('r2_ob', 'owner'); db := t_dog(ob, '이양B');
+  oc := t_user('r2_oc', 'owner'); dc := t_dog(oc, '이양C');
+  rt := t_route('이양 코스'); select km into v_km from routes where id = rt;
+
+  perform set_config('request.jwt.claim.sub', h2::text, false);
+  v_club := club_request_district('이양동');
+  perform club_claim_host(v_club);
+  v_s := club_create_session(v_club, now() + interval '90 minutes', '이양 집결지', rt, 8, 'mixed');
+  perform session_runner_commit(v_s);
+  perform set_config('request.jwt.claim.sub', ra::text, false);
+  perform session_runner_commit(v_s); perform session_checkin(v_s);
+  perform set_config('request.jwt.claim.sub', rb::text, false);
+  perform session_runner_commit(v_s); perform session_checkin(v_s);
+  perform set_config('request.jwt.claim.sub', h2::text, false);
+  perform session_checkin(v_s);
+
+  perform set_config('request.jwt.claim.sub', oa::text, false);
+  sda := session_delegate_dog(v_s, da);
+  perform set_config('request.jwt.claim.sub', ob::text, false);
+  sdb := session_delegate_dog(v_s, db);
+  perform set_config('request.jwt.claim.sub', oc::text, false);
+  sdc := session_delegate_dog(v_s, dc);
+  perform set_config('request.jwt.claim.sub', h2::text, false);
+  perform session_approve_dog(sda, true);
+  perform session_approve_dog(sdb, true);
+  perform session_approve_dog(sdc, true);
+  perform set_config('request.jwt.claim.sub', oa::text, false);
+  ba := session_pay_delegation(sda, 'idem-r2a');
+  perform set_config('request.jwt.claim.sub', ob::text, false);
+  bb := session_pay_delegation(sdb, 'idem-r2b');
+  perform set_config('request.jwt.claim.sub', oc::text, false);
+  bc := session_pay_delegation(sdc, 'idem-r2c');
+  perform set_config('request.jwt.claim.sub', h2::text, false);
+  perform session_assign_dog(sda, ra);
+  perform session_assign_dog(sdc, ra);                  -- ra 2마리 (베테랑 캡 2)
+  perform session_assign_dog(sdb, h2);                  -- 호스트 본인 = dB 담당 러너
+  update bookings set owner_confirmed_handoff_at = now(), runner_confirmed_handoff_at = now()
+  where id in (ba, bb, bc);
+  update bookings set status = 'picked_up' where id in (ba, bb, bc);
+  perform set_config('request.jwt.claim.sub', ra::text, false);
+  perform club_start_delegated_runs(v_s);               -- ba·bc active
+  perform set_config('request.jwt.claim.sub', h2::text, false);
+  perform club_start_delegated_runs(v_s);               -- bb active
+
+  -- [E12] 이양 개시 방어: 비커스터디언·주행 중 외부 이양(인시던트 경로)·비정상 대상 타입
+  begin
+    perform set_config('request.jwt.claim.sub', oa::text, false);
+    begin
+      perform session_transfer_initiate(sda, 'runner', rb);
+      call _fail('cus','E12 비커스터디언 개시 차단','통과됨');
+    exception when others then
+      if sqlerrm not like '%not_custodian%' then call _fail('cus','E12 비커스터디언', sqlerrm); else
+        perform set_config('request.jwt.claim.sub', ra::text, false);
+        begin
+          perform session_transfer_initiate(sda, 'clinic', null, '행복동물병원', '경련 의심');
+          call _fail('cus','E12 주행 중 클리닉 차단','통과됨');
+        exception when others then
+          if sqlerrm not like '%use_incident_flow%' then call _fail('cus','E12 클리닉', sqlerrm); else
+            begin
+              perform session_transfer_initiate(sda, 'friend');
+              call _fail('cus','E12 대상 타입 차단','통과됨');
+            exception when others then
+              if sqlerrm like '%bad_target_type%'
+                then call _pass('cus','E12 이양 개시 방어 — 비커스터디언·주행 중 외부·비정상 대상');
+              else call _fail('cus','E12 타입', sqlerrm); end if;
+            end;
+          end if;
+        end;
+      end if;
+    end;
+  end;
+
+  -- [E13] 러너간 이양 원자성: 개시 → 오수락 차단 → 수락 = 배정 이벤트 2·부킹 교체·세그먼트·커스터디
+  begin
+    perform set_config('request.jwt.claim.sub', ra::text, false);
+    perform session_transfer_initiate(sda, 'runner', rb, null, '무릎 통증');
+    if (select custody_phase from session_dogs where id = sda) <> 'transfer_pending'
+      then call _fail('cus','E13 개시','phase 불일치'); else
+      perform set_config('request.jwt.claim.sub', oa::text, false);
+      begin
+        perform session_transfer_accept(sda);
+        call _fail('cus','E13 오수락 차단','통과됨');
+      exception when others then
+        if sqlerrm not like '%not_transfer_target%' then call _fail('cus','E13 오수락', sqlerrm); else
+          perform set_config('request.jwt.claim.sub', rb::text, false);
+          perform session_transfer_accept(sda);
+          select id into v_ev from dog_custody_events where session_dog_id = sda
+            and event_type = 'emergency_transfer' and from_profile_id = ra and to_profile_id = rb;
+          if (select runner_id from bookings where id = ba) = rb
+             and v_ev is not null
+             and (select count(*) from assignment_events where session_dog_id = sda
+                  and event in ('replaced','accepted') and reason = 'emergency_transfer') = 2
+             and exists (select 1 from dog_run_segments where session_dog_id = sda
+                         and runner_profile_id = rb and transfer_event_id = v_ev and left_at is null)
+             and (select custodian_profile_id from session_dogs where id = sda) = rb
+             and (select custody_phase from session_dogs where id = sda) = 'with_custodian'
+             and (select pending_transfer from session_dogs where id = sda) is null
+            then call _pass('cus','E13 러너간 이양 — 배정 이벤트·부킹 교체·세그먼트·커스터디 원자 완료');
+          else call _fail('cus','E13 수락','상태 불일치'); end if;
+        end if;
+      end;
+    end if;
+  exception when others then call _fail('cus','E13', sqlerrm);
+  end;
+
+  -- [E14] 핸들러 부하 초과 + 개시 취소 복원: rb(캡1)가 dA 보유 중 → dC 수락 거부 → 취소
+  begin
+    perform set_config('request.jwt.claim.sub', ra::text, false);
+    perform session_transfer_initiate(sdc, 'runner', rb, null, '부하 테스트');
+    perform set_config('request.jwt.claim.sub', rb::text, false);
+    begin
+      perform session_transfer_accept(sdc);
+      call _fail('cus','E14 부하 초과 차단','통과됨');
+    exception when others then
+      if sqlerrm not like '%handler_overloaded%' then call _fail('cus','E14 부하', sqlerrm); else
+        perform set_config('request.jwt.claim.sub', ra::text, false);
+        perform session_transfer_cancel(sdc);
+        if (select custody_phase from session_dogs where id = sdc) = 'with_custodian'
+           and (select pending_transfer from session_dogs where id = sdc) is null
+          then call _pass('cus','E14 부하 초과 차단 + 개시 취소 복원 (좌초 방지)');
+        else call _fail('cus','E14 취소','복원 실패'); end if;
+      end if;
+    end;
+  exception when others then call _fail('cus','E14', sqlerrm);
+  end;
+
+  -- [E15] 클리닉 이양 = 반환 국면 한정·증빙 필수·지급 보류 (릴리스 크론 제외 확인)
+  begin
+    perform t_settle(ba, 'completed', v_km, 1800);      -- dA 정산 → return_pending (rb 보유)
+    perform set_config('request.jwt.claim.sub', rb::text, false);
+    perform session_transfer_initiate(sda, 'clinic', null, '행복동물병원', '경련 의심');
+    begin
+      perform session_transfer_accept(sda);             -- 증빙 없음
+      call _fail('cus','E15 증빙 없는 클리닉 확정 차단','통과됨');
+    exception when others then
+      if sqlerrm not like '%artifact_required%' then call _fail('cus','E15 증빙', sqlerrm); else
+        perform session_transfer_accept(sda, jsonb_build_object('photo', 'receipt.jpg'));
+        v_n := club_release_payouts();
+        if (select custodian_type from session_dogs where id = sda) = 'clinic'
+           and (select custodian_external from session_dogs where id = sda) = '행복동물병원'
+           and (select payout_hold from session_dogs where id = sda) = 'held'
+           and (select payout_state from session_dogs where id = sda) = 'earned'
+           and (select termination_type from session_dogs where id = sda) = 'vet_transfer'
+           and exists (select 1 from dog_custody_events where session_dog_id = sda
+                       and event_type = 'vet_transfer' and confirmation_kind = 'clinic_receipt')
+          then call _pass('cus','E15 클리닉 이양 — 반환 국면·증빙·지급 보류 (릴리스 제외)');
+        else call _fail('cus','E15 클리닉','상태 불일치'); end if;
+      end if;
+    end;
+  exception when others then call _fail('cus','E15', sqlerrm);
+  end;
+
+  -- [E16] 오버라이드 규칙: 자기 오버라이드 금지·비호스트 금지·witness 무증빙 금지 → 대리 기록
+  begin
+    perform t_settle(bb, 'completed', v_km, 1800);      -- dB(러너=호스트) → return_pending
+    perform t_settle(bc, 'completed', v_km, 1800);      -- dC(러너 ra) → return_pending
+    perform set_config('request.jwt.claim.sub', h2::text, false);
+    begin
+      perform session_custody_override(sdb, 'runner', 'assisted', null);
+      call _fail('cus','E16 자기 오버라이드 차단','통과됨');
+    exception when others then
+      if sqlerrm not like '%self_override%' then call _fail('cus','E16 자기', sqlerrm); else
+        perform set_config('request.jwt.claim.sub', oc::text, false);
+        begin
+          perform session_custody_override(sdc, 'runner', 'witness', jsonb_build_object('pin','1234'));
+          call _fail('cus','E16 비호스트 차단','통과됨');
+        exception when others then
+          if sqlerrm not like '%not_host%' then call _fail('cus','E16 비호스트', sqlerrm); else
+            perform set_config('request.jwt.claim.sub', h2::text, false);
+            begin
+              perform session_custody_override(sdc, 'runner', 'witness', '{}'::jsonb);
+              call _fail('cus','E16 증빙 없는 witness 차단','통과됨');
+            exception when others then
+              if sqlerrm not like '%artifact_required%' then call _fail('cus','E16 증빙', sqlerrm); else
+                perform session_custody_override(sdc, 'runner', 'witness',
+                  jsonb_build_object('photo', 'handover.jpg'));
+                if (select runner_confirmed_return_at from session_dogs where id = sdc) is not null
+                   and (select return_override->>'kind' from session_dogs where id = sdc) = 'host_witnessed_receipt'
+                  then call _pass('cus','E16 오버라이드 — 자기·비호스트·무증빙 차단 후 witness 대리 기록');
+                else call _fail('cus','E16 기록','스탬프/증빙 불일치'); end if;
+              end if;
+            end;
+          end if;
+        end;
+      end if;
+    end;
+  exception when others then call _fail('cus','E16', sqlerrm);
+  end;
+
+  -- [E17] 오버라이드 meta 반환 완성·종료 게이팅·클리닉 종단 허용·릴리스 (보류 제외)
+  begin
+    perform set_config('request.jwt.claim.sub', h2::text, false);
+    begin
+      perform club_finish_session(v_s);
+      call _fail('cus','E17 미반환 종료 차단','통과됨');
+    exception when others then
+      if sqlerrm not like '%dogs_not_returned%' then call _fail('cus','E17 차단', sqlerrm); else
+        perform set_config('request.jwt.claim.sub', oc::text, false);
+        v_js := session_confirm_return(sdc);            -- witness 러너 스탬프 + 보호자 확인 = 완성
+        perform set_config('request.jwt.claim.sub', ob::text, false);
+        perform session_confirm_return(sdb);
+        perform set_config('request.jwt.claim.sub', h2::text, false);
+        perform session_confirm_return(sdb);            -- 러너(=호스트) 측
+        perform club_finish_session(v_s);               -- dA 클리닉 종단 → 통과해야 함
+        v_n := club_release_payouts();
+        if (v_js->>'both')::boolean
+           and exists (select 1 from dog_custody_events where session_dog_id = sdc
+                       and event_type = 'return' and confirmation_kind = 'host_witnessed_receipt'
+                       and meta->'override' is not null)
+           and (select status from club_sessions where id = v_s) = 'done'
+           and (select payout_state from session_dogs where id = sdb) = 'released'
+           and (select payout_state from session_dogs where id = sdc) = 'released'
+           and (select payout_state from session_dogs where id = sda) = 'earned'
+          then call _pass('cus','E17 오버라이드 meta 반환·클리닉 종단 통과 종료·릴리스 (보류 제외)');
+        else call _fail('cus','E17 종료','상태 불일치'); end if;
+      end if;
+    end;
+  exception when others then call _fail('cus','E17', sqlerrm);
   end;
 end $$;

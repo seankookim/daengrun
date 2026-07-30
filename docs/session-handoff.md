@@ -1,4 +1,4 @@
-# Session Handoff — 2026-07-30 (v4: P-C delegation backend complete, UI lab next)
+# Session Handoff — 2026-07-30 (v5: delegation v2 R0A→R2 shipped; R3 next)
 
 > **Companion docs to read first**: `docs/hi-club-plan.md` (하이클럽 v2.1 final spec), `docs/todo.md` (master work list),
 > `docs/design/final-system-lab.html` (V4 design system — the agreed 6 rules), `docs/design/delegation-lab.html` (P-C UI mockups, if present),
@@ -13,8 +13,14 @@ DOGS HIGH (도그스하이, repo `daengrun`) — a dog-fitness marketplace where
 React Native/Expo + Supabase. Sean is solo-testing with a single account (he's the club host).
 
 **Workstream status**:
-- **P-C delegation BACKEND** [verified-now]: **complete** — slice 1 (0037, commit 5794130) + slice 2 (0038, commit c5a07ab).
-  Harness 107/107 (was 83). Remaining P-C work is **UI only** (§10).
+- **P-C delegation v1 BACKEND** [verified-now]: 0037/0038/0039 — superseded slice-by-slice by the v2 R-track below.
+- **Delegation v2 (canonical spec `docs/club-run-logic.md` v3.3, 7 external critique rounds)** [verified-now]:
+  **R0A** (0040 axes + 0041 hardening, deployed remotely) → **R0B** (0042 marketplace choke point — fixed a real 0004 RLS
+  leak) → **R1** (0043 payment separation: approve=20m hold, pay RPC births booking idempotently + 0044 hardening:
+  post-lock re-read, allowlist gate `club_test_accounts`) → **R2** (0045 custody returns: events primary truth w/ seq
+  ordering, run-end ≠ return, two-sided confirm, overrides, atomic runner→runner transfer + cancel, clinic/authority
+  return-phase-only w/ payout hold, finish gating, payout earned→payable→released cron). Harness 144/144 clean install +
+  upgrade path OK. **0043–0045 not yet pushed remotely** (staged push runbook — §7).
 - **V4 full redesign** [verified-now]: branch `redesign-v4` (90b909d→c5a07ab). Sean: "I like this look much more than the original."
   On-device review still pending; merge to main after review.
 - **Deploys** [stated 2026-07-30]: Sean ran `npx supabase db push` (0032–0038) and `git push` — remote DB and origin are current.
@@ -89,7 +95,9 @@ Other standing decisions (token revolution, runner discovery, radar=coral, club 
   `session_assign_dog(session_dog, runner)`, `club_cancel_session(session)` · runner `session_runner_commit/withdraw(session)`,
   `club_start_delegated_runs(session)`, `club_save_run_trace(session, trace)`. Handoff & settle reuse existing
   transition-booking `confirm_handoff` and settle-run edge functions per booking.
-- **Harness**: `supabase/tests/harness.sh` — local PG16, all migrations from zero + suites 10/20/30/40/50/60 = 107 cases.
+- **Harness**: `supabase/tests/harness.sh` — local PG16, all migrations from zero + suites 10/20/30/40/50/60/70/80 = 144 cases.
+  **Second gate**: `tests/upgrade_check.sh` (0001→0039 + `upgrade_seed_v1.sql` v1 world → R-migrations → axes/choke suites) —
+  mandatory for any migration touching bookings/session_dogs/settle/refund/assignment/custody.
   Container runs as root → `runuser -u postgres -- bash harness.sh`. Container mirror at `/tmp/daengrun/supabase` (verify md5!).
 - **Club writes = RPC-only**; participant names flow through SECURITY DEFINER. Errors are text codes (`no_capacity`,
   `reassign_dogs_first`, `session_in_flight`, `already_handed_off`, `dog_slot_clash`, `format_closed`, `route_required`…).
@@ -106,7 +114,11 @@ Other standing decisions (token revolution, runner discovery, radar=coral, club 
 
 - `supabase/migrations/0037_club_delegation.sql` — S1: commit/withdraw/delegate/approve/cancel/min-attendance/format/`club_session_id`
 - `supabase/migrations/0038_club_custody.sql` — S2: assign/custody trigger/run fan-out/activity trigger/gap fixes
-- `supabase/tests/50_delegation_suite.sql` (D1–D14) · `supabase/tests/60_custody_suite.sql` (E1–E10) · `harness.sh` (+2 suites)
+- `supabase/tests/50_delegation_suite.sql` (D0–D16+M1–M7) · `60_custody_suite.sql` (E1–E17+G1/G2 — R2 block: overrides/
+  transfers/clinic/payout holds) · `70_axes_suite.sql` (X1–X13) · `80_choke_suite.sql` (K1–K6) · `harness.sh` ·
+  `upgrade_check.sh` + `upgrade_seed_v1.sql` (v1-world upgrade gate)
+- **v2 R-track migrations**: `0040_club_axes_r0a.sql` · `0041_r0a_hardening.sql` · `0042_marketplace_choke_point.sql` ·
+  `0043_payment_separation.sql` · `0044_r1_hardening.sql` · `0045_custody_returns.sql` (R2) — spec `docs/club-run-logic.md`
 - `app/src/lib/api.ts` — two open-pool queries now filter `.is('club_session_id', null)` (⚠ edited on-device via python)
 - V4 session files (2026-07-29) unchanged — see v3 §6 if needed; key ones: `app/src/theme.ts` (all tokens),
   `app/src/components/clubcard.tsx`, `app/app/club/[id].tsx`, `club/session/[sid].tsx`, `club/pass/[sid].tsx`.
@@ -147,12 +159,14 @@ Other standing decisions (token revolution, runner discovery, radar=coral, club 
 
 ## 10. Next 1–3 steps
 
-1. **[in progress] P-C UI lab** — `docs/design/delegation-lab.html`: 3 versions × 3 screens (owner delegate flow in session
-   detail · host console: approve/capacity/assign · runner multi-dog handling run). V4 rules apply; club = violet night world;
-   Sean picks by number, then implement in app.
-2. **[local-edit] Implement picked version**: api.ts wrappers for the P-C RPC surface (§5) + screens. Run-screen integration
-   (start/trace fan-out + settle-run×N) is the trickiest part — the existing run screen is single-booking.
-3. **[needs-user] After V4 review passes: merge to main**, then two-account full-loop verification (§7).
+1. **[needs-user] Staged remote push runbook** (R1 critique requirement, order matters): db push 0042 alone → verify
+   marketplace open pool still works on device → push 0043+0044+0045 → verify `feature_disabled` for non-allowlisted →
+   allowlist Sean (`insert into club_test_accounts (profile_id, note) select id, 'sean beta' from auth.users where
+   email = 'seankookim@uchicago.edu';`) → owner approve→pay flow test. **Never flip the global `club_delegation_v2` flag.**
+2. **[in progress] Dev-only debug screen** for the v2 loop (api.ts wrappers for R1/R2 RPC surface: pay/confirm-return/
+   override/transfer initiate·accept·cancel) — thin UI per slice doctrine, production UI on lab v3 direction comes at G2+.
+3. **R3 next slice**: assignment loop (proposals T-30/T-20/T-10, reservation counting, recovery windows, no-show,
+   backup/assume_host). Then R4 consents/viability/fees, R5 shell backend (chat/roster/phones), R6 incidents/SOS/GPS.
 
 ## 11. Verification commands
 
