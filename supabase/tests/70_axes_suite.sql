@@ -101,3 +101,122 @@ begin
     else call _fail('axes','X7 드리프트','rows=' || v_cnt); end if;
   end;
 end $$;
+
+-- ═══ R0A 하드닝(0041) 검증 — 독립 오라클·부패 감지·권한 봉인·리터럴 매핑 ═══
+do $$
+declare
+  v_cnt int; v_sd record; v_txt text; v_err boolean := false;
+begin
+  -- [X8] 부패 감지 — 동기화 트리거를 끄고 축을 오염시키면 드리프트가 잡는다 (자기검증 우회 증명)
+  begin
+    select sd.* into v_sd from session_dogs sd where sd.custody = 'runner_delegated' limit 1;
+    alter table session_dogs disable trigger club_v1_axes_sync;
+    update session_dogs set charge_state = 'hold', assignment_state = 'replacement_needed' where id = v_sd.id;
+    alter table session_dogs enable trigger club_v1_axes_sync;
+    select count(*) into v_cnt from club_drift_check() where session_dog_id = v_sd.id;
+    -- 복구 (트리거 재계산)
+    update session_dogs set id = id where id = v_sd.id;
+    if v_cnt >= 2 and (select count(*) from club_drift_check()) = 0
+      then call _pass('axes','X8 부패 감지 — 오염 ' || v_cnt || '필드 검출 + 재동기화 복구');
+    else call _fail('axes','X8 부패','detected=' || v_cnt); end if;
+  exception when others then
+    alter table session_dogs enable trigger club_v1_axes_sync;
+    call _fail('axes','X8 부패', sqlerrm);
+  end;
+
+  -- [X9] 동반견 리터럴 — 커스터디만 받고 돈·배정 축은 중립값
+  begin
+    select sd.* into v_sd from session_dogs sd where sd.custody = 'owner_handled' limit 1;
+    if v_sd.id is not null
+       and v_sd.service_state is null and v_sd.charge_state = 'none'
+       and v_sd.refund_state = 'none' and v_sd.payout_state = 'none'
+       and v_sd.assignment_state = 'unassigned'
+       and v_sd.custodian_type = 'owner' and v_sd.custodian_profile_id = v_sd.owner_profile_id
+       and v_sd.custody_phase = 'with_custodian'
+      then call _pass('axes','X9 동반견 리터럴 (커스터디 ○ · 돈/배정 중립)');
+    else call _fail('axes','X9 동반견', coalesce(v_sd.custodian_type,'row?')); end if;
+  exception when others then call _fail('axes','X9 동반견', sqlerrm);
+  end;
+
+  -- [X10] 권한 봉인 — authenticated 롤은 신규 민감 테이블 직접 읽기 불가 (grant 자체가 없음)
+  begin
+    begin
+      set local role authenticated;
+      begin
+        execute 'select count(*) from club_incidents';
+        v_err := false;
+      exception when insufficient_privilege then v_err := true;
+      end;
+      reset role;
+    exception when others then reset role; raise;
+    end;
+    if v_err then
+      begin
+        set local role authenticated;
+        begin
+          execute 'select count(*) from delegation_consents';
+          v_err := false;
+        exception when insufficient_privilege then v_err := true;
+        end;
+        reset role;
+      exception when others then reset role; raise;
+      end;
+    end if;
+    if v_err then call _pass('axes','X10 권한 봉인 — authenticated 직접 읽기 거부 (인시던트·동의)');
+    else call _fail('axes','X10 봉인','읽기 허용됨'); end if;
+  exception when others then call _fail('axes','X10 봉인', sqlerrm);
+  end;
+
+  -- [X11] 리터럴 매핑 오라클 — compute 함수를 거치지 않는 상태별 기대값 직접 단언
+  begin
+    -- pending → requested/none/unassigned
+    select count(*) into v_cnt from session_dogs
+    where custody = 'runner_delegated' and approval = 'pending'
+      and not (service_state = 'requested' and charge_state = 'none' and assignment_state = 'unassigned');
+    if v_cnt > 0 then call _fail('axes','X11 리터럴','pending 불일치 ' || v_cnt); else
+      -- 부킹 matching(승인·v1 결제·미배정) → confirmed/paid+consumed/unassigned
+      select count(*) into v_cnt from session_dogs sd join bookings b on b.id = sd.booking_id
+      where sd.custody = 'runner_delegated' and b.status = 'matching'
+        and not (sd.service_state = 'confirmed' and sd.charge_state = 'paid'
+                 and sd.hold_status = 'consumed' and sd.assignment_state = 'unassigned'
+                 and sd.custodian_type = 'owner');
+      if v_cnt > 0 then call _fail('axes','X11 리터럴','matching 불일치 ' || v_cnt); else
+        -- 환불 계열 → refund=pending·service=ended (전건)
+        select count(*) into v_cnt from session_dogs sd join bookings b on b.id = sd.booking_id
+        where sd.custody = 'runner_delegated' and b.status in ('refund_pending','cancelled_runner','expired')
+          and not (sd.refund_state = 'pending' and sd.service_state = 'ended' and sd.charge_state = 'paid');
+        if v_cnt > 0 then call _fail('axes','X11 리터럴','환불 불일치 ' || v_cnt); else
+          -- completed → ended·released (전건)
+          select count(*) into v_cnt from session_dogs sd join bookings b on b.id = sd.booking_id
+          where sd.custody = 'runner_delegated' and b.status = 'completed'
+            and not (sd.service_state = 'ended' and sd.payout_state = 'released'
+                     and sd.custodian_type = 'owner');
+          if v_cnt > 0 then call _fail('axes','X11 리터럴','completed 불일치 ' || v_cnt);
+          else call _pass('axes','X11 리터럴 매핑 오라클 — pending·matching·환불·완료 전건 일치'); end if;
+        end if;
+      end if;
+    end if;
+  exception when others then call _fail('axes','X11 리터럴', sqlerrm);
+  end;
+
+  -- [X12] 커밋 시점 동기화 — 이 DO 블록(단일 tx) 안에서 상태를 굴려도 커밋 후 드리프트 0는
+  -- X13(다음 블록)이 확인. 여기서는 deferred 트리거가 등록돼 있음을 단언.
+  begin
+    if exists (select 1 from pg_trigger t join pg_class c on c.oid = t.tgrelid
+               where c.relname = 'bookings' and t.tgname = 'club_v2_axes_poke'
+                 and t.tgdeferrable and t.tginitdeferred)
+       and not exists (select 1 from pg_trigger t join pg_class c on c.oid = t.tgrelid
+                       where c.relname = 'ledger_items' and t.tgname = 'club_v2_ledger_poke')
+      then call _pass('axes','X12 커밋 시점 동기화 — deferred 트리거 등록·원장 훅 제거');
+    else call _fail('axes','X12 deferred','트리거 상태 불일치'); end if;
+  end;
+end $$;
+
+-- [X13] 별도 트랜잭션에서 최종 드리프트 — deferred 동기화가 커밋을 통과한 뒤의 전역 정합
+do $$
+declare v_cnt int;
+begin
+  select count(*) into v_cnt from club_drift_check();
+  if v_cnt = 0 then call _pass('axes','X13 커밋 후 전역 드리프트 제로 (deferred 동기화 검증)');
+  else call _fail('axes','X13 드리프트','rows=' || v_cnt); end if;
+end $$;
