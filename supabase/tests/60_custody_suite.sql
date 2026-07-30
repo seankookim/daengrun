@@ -259,7 +259,14 @@ begin
         perform set_config('request.jwt.claim.sub', own2::text, false);
         perform session_confirm_return(v_sd2);
         perform set_config('request.jwt.claim.sub', host::text, false);
-        perform session_confirm_return(v_sd2);          -- E8에서 d2 담당 러너 = host
+        -- [0046] 명시 side 검증: host는 d2의 owner가 아니다 → not_your_side
+        begin
+          perform session_confirm_return(v_sd2, 'owner');
+          call _fail('cus','E11 타측 명시 차단','통과됨');
+        exception when others then
+          if sqlerrm not like '%not_your_side%' then call _fail('cus','E11 타측', sqlerrm); end if;
+        end;
+        perform session_confirm_return(v_sd2, 'runner');  -- E8에서 d2 담당 러너 = host (명시 side 경로)
         perform club_finish_session(v_sid);
         if (select status from club_sessions where id = v_sid) = 'done'
            and (select custody_phase from session_dogs where id = v_sd2) = 'resolved'

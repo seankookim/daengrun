@@ -1881,8 +1881,9 @@ export interface ClubIncident {
   id: string; severity: string; state: string; summary: string;
   caseOwner: string | null; openedAt: string; resolvedAt: string | null;
 }
-export const confirmReturn = (sdId: string) =>
-  clubRpc('session_confirm_return', { p_session_dog: sdId }) as Promise<{ both: boolean }>;
+// [0046] side 명시 = confirm_handoff 문법 정합 — 솔로 테스트(한 계정 양측)에서 필수
+export const confirmReturn = (sdId: string, side: 'owner' | 'runner' | null = null) =>
+  clubRpc('session_confirm_return', { p_session_dog: sdId, p_side: side }) as Promise<{ both: boolean }>;
 export const custodyOverride = (sdId: string, side: 'owner' | 'runner', kind: 'witness' | 'assisted', artifact: Record<string, unknown> | null) =>
   clubRpc('session_custody_override', { p_session_dog: sdId, p_side: side, p_kind: kind, p_artifact: artifact }) as Promise<void>;
 export const transferInitiate = (sdId: string, toType: 'runner' | 'clinic' | 'authority' | 'authorized_person', opts: { toProfile?: string; toExternal?: string; reason?: string } = {}) =>
