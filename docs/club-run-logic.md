@@ -73,7 +73,9 @@ hold_status          none | active(expires_at) | consumed | released | expired
 refund_state         none → pending → refunded | failed          (refund never erases that charge was paid)
 payout_state         none → earned → payable → released | void
 payout_hold          none | held(reason, incident_id)            (overlay — earned+held, payable+held valid)
-payment_attempts     history table: attempt id, idempotency key, kind(charge|refund), result, at
+payment_attempts     history of SUCCESSFUL/idempotent DB operations (attempt id, idempotency key,
+                     kind(charge|refund), result, at) — ordinary DB failures cannot persist here
+                     (rollback); external PG failure history = the later payment-wrapper's table
 
 assignment_state     unassigned → proposed(runner, expires) → accepted | declined → unassigned…
                      accepted → revoked → replacement_needed → unassigned…

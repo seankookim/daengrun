@@ -521,4 +521,26 @@ begin
     update club_flags set enabled = true where name = 'club_delegation_v2';
     call _fail('adv','M6 허용목록', sqlerrm);
   end;
+
+  -- [M7] 허용목록 봉인 — 클라이언트 직접 등재 불가 (RLS 정책 0 = 쓰기 거부, PK = 유일성)
+  begin
+    declare v_err boolean := false;
+    begin
+      begin
+        set local role authenticated;
+        perform set_config('request.jwt.claim.sub', ownA::text, true);
+        begin
+          insert into club_test_accounts (profile_id, note) values (ownA, '자가 등재 시도');
+          v_err := false;
+        exception when others then v_err := true;
+        end;
+        reset role;
+      exception when others then reset role; raise;
+      end;
+      if v_err and not exists (select 1 from club_test_accounts where profile_id = ownA)
+        then call _pass('adv','M7 허용목록 봉인 — 클라 자가 등재 거부 (service role 전용)');
+      else call _fail('adv','M7 봉인','write_blocked=' || v_err); end if;
+    end;
+  exception when others then call _fail('adv','M7 봉인', sqlerrm);
+  end;
 end $$;
