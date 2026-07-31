@@ -1,0 +1,479 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DOGS HIGH — Master Lab: the whole system in lilac premium (build reference)</title>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Oswald:wght@500;600;700&family=IBM+Plex+Sans+KR:wght@400;500;700;800&family=IBM+Plex+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#221E3D;--pagebg:#E9E7F0;
+  --lbg:#F4F2FB;--lcard:#FFFFFF;--linset:#EFECF9;--ledge:#E4E0F3;--lhair:#ECE9F8;
+  --lhead:#221E3D;--ltext:#4B4668;--ldim:#928DAD;--laccent:#6C5CE7;
+  --coral:#F0765A;--coralSoft:#FFDCD1;--gold:#B99A4F;--goldSoft:#F4EBD3;
+  --voltDeep:#5E7F0E;--voltFill:#EAF6C8;--amber:#C77414;--amberSoft:#FBEED9;--tang:#E8552F;
+  --shadow:0 1px 2px rgba(28,24,55,.05),0 8px 24px rgba(28,24,55,.08);
+  --rL:16px;--rM:12px;--rS:8px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--pagebg);color:var(--ink);font-family:'IBM Plex Sans KR',sans-serif;padding:32px 26px 100px}
+.bhs{font-family:'Black Han Sans',sans-serif;font-weight:400}
+.osw{font-family:'Oswald',sans-serif}
+.mono{font-family:'IBM Plex Mono',monospace}
+h1{font-size:27px}
+h1 em{font-style:normal;color:var(--laccent)}
+h2{font-size:16px;margin-top:48px;padding-top:18px;border-top:1.5px solid #D6D3E2}
+h2 .tag{font-family:'IBM Plex Mono',monospace;color:#fff;background:var(--laccent);padding:3px 10px;font-size:10px;letter-spacing:2px;margin-right:9px;vertical-align:2px;border-radius:6px}
+h2 .tag.o{background:var(--coral)}
+h2 .tag.h{background:var(--ink)}
+h2 .tag.r{background:var(--voltDeep)}
+.lede{color:#5b5670;margin:9px 0 4px;max-width:980px;line-height:1.65;font-size:13.5px}
+.lede b{color:var(--ink)}
+.row{display:flex;gap:18px;flex-wrap:wrap;margin-top:18px;align-items:flex-start}
+.shot{width:302px}
+.shot.wide{width:940px;max-width:100%}
+.sl{font-size:10.5px;letter-spacing:2px;color:#8d89a0;margin-bottom:7px;font-family:'IBM Plex Mono',monospace}
+.note{color:#6b6680;font-size:11.5px;line-height:1.6;margin:9px 2px 0}
+.note b{color:var(--ink)}
+.ph{min-height:500px;padding:16px 14px 20px;overflow:hidden;position:relative;background:var(--lbg);color:var(--ltext);
+  border-radius:22px;box-shadow:var(--shadow), inset 0 0 0 1px rgba(255,255,255,.7)}
+.ph.short{min-height:0}
+.mast{display:flex;justify-content:space-between;align-items:baseline;padding-bottom:9px;border-bottom:1.5px solid var(--laccent)}
+.mast h3{font-size:18px;color:var(--lhead)}
+.vk{font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:2.5px;color:var(--laccent)}
+.vkdim{font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:2px;color:var(--ldim)}
+.shell{display:flex;border-bottom:1px solid var(--lhair);margin-top:2px}
+.shell div{flex:1;text-align:center;font-size:11.5px;font-weight:800;color:var(--ldim);padding:9px 0;position:relative}
+.shell div.on{color:var(--lhead)}
+.shell div.on::after{content:'';position:absolute;left:28%;right:28%;bottom:-1px;height:2.5px;background:var(--laccent);border-radius:2px}
+.shell div small{font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--voltDeep);margin-left:3px}
+.dog{width:36px;height:36px;border-radius:50%;flex:none;background:linear-gradient(140deg,#c9b89a,#8a7a5c);
+  border:2px solid var(--coral);box-shadow:0 0 0 2px #fff, 0 2px 6px rgba(28,24,55,.12)}
+.dog.teal{border-color:#2FA98D}
+.pava{width:32px;height:32px;border-radius:50%;flex:none;background:linear-gradient(140deg,#8f88b8,#5c5486);box-shadow:0 0 0 2px #fff, 0 2px 6px rgba(28,24,55,.12);position:relative}
+.pava.in::after{content:'';position:absolute;right:-2px;bottom:-2px;width:10px;height:10px;border-radius:50%;background:var(--voltDeep);border:2px solid #fff}
+.card{background:var(--lcard);border-radius:var(--rL);box-shadow:var(--shadow);padding:13px 14px;margin-top:10px}
+.card.hero{border-left:3px solid var(--laccent)}
+.card.crit{border-left:3px solid var(--tang)}
+.stateK b{font-size:13.5px;color:var(--lhead)}
+.stateK.amber b{color:var(--amber)}
+.stateK.volt b{color:var(--voltDeep)}
+.stateK.tang b{color:var(--tang)}
+.flap{display:inline-flex;gap:1.5px;vertical-align:middle}
+.flap i{font-family:'Oswald',sans-serif;font-style:normal;font-weight:600;font-size:9px;background:#EDEAF8;color:var(--laccent);
+  padding:2px 3px;border-radius:2.5px;border-bottom:2px solid #CFC8EC;position:relative;letter-spacing:.5px;min-width:12px;text-align:center}
+.flap i::after{content:'';position:absolute;left:0;right:0;top:50%;height:1px;background:rgba(34,30,61,.12)}
+.flap.amberF i{color:var(--amber)}.flap.voltF i{color:var(--voltDeep)}.flap.tangF i{color:var(--tang)}.flap.dimF i{color:var(--ldim)}
+.cta{display:block;background:var(--coral);color:#fff;border:0;border-radius:var(--rM);
+  box-shadow:0 6px 16px rgba(240,118,90,.35), inset 0 1px 0 rgba(255,255,255,.3);
+  text-align:center;font-weight:800;font-size:14.5px;padding:14px 0;margin-top:13px}
+.cta.violet{background:var(--laccent);box-shadow:0 6px 16px rgba(108,92,231,.32), inset 0 1px 0 rgba(255,255,255,.3)}
+.cta.quiet{background:var(--lcard);color:var(--ldim);box-shadow:var(--shadow);font-size:12px;padding:11px 0}
+.cta.dis{background:var(--linset);color:var(--ldim);box-shadow:none;font-size:12.5px}
+.detail-link{display:block;text-align:center;margin-top:11px;font-size:11px;font-weight:800;color:var(--laccent)}
+.deadline{display:flex;align-items:center;gap:10px;background:var(--amberSoft);border-radius:var(--rM);padding:10px 13px;margin-top:10px}
+.deadline b{font-family:'Oswald',sans-serif;font-size:22px;color:var(--amber);font-weight:600}
+.deadline span{font-size:11px;color:#7a5a2a;line-height:1.45}
+.bignum{display:flex;background:var(--linset);border-radius:var(--rM);margin-top:12px;overflow:hidden}
+.bignum div{flex:1;padding:10px 6px;border-right:1px solid var(--ledge)}
+.bignum div:last-child{border-right:0}
+.bignum b{display:block;font-family:'Oswald',sans-serif;font-size:22px;font-weight:600;color:var(--lhead);line-height:1}
+.bignum b em{font-style:normal;color:var(--coral)}
+.bignum span{display:block;font-family:'IBM Plex Mono',monospace;font-size:7px;letter-spacing:1.5px;color:var(--ldim);margin-top:3px}
+.sechead{display:flex;gap:8px;align-items:center;margin-top:15px;padding-bottom:6px;border-bottom:1px solid var(--lhair)}
+.sechead .n{font-family:'Oswald',sans-serif;font-weight:700;font-size:12px;color:#fff;background:var(--laccent);padding:1px 8px;border-radius:6px}
+.sechead b{font-size:13px;color:var(--lhead)}
+.sechead span{font-size:9.5px;color:var(--ldim);margin-left:auto}
+.drow{background:var(--lcard);border-radius:var(--rM);box-shadow:var(--shadow);padding:11px;margin-top:8px}
+.drow .top{display:flex;gap:10px;align-items:center}
+.drow .nm{flex:1;min-width:0}
+.drow .nm b{font-size:13.5px;color:var(--lhead)}
+.drow .nm span{display:block;font-size:9.5px;color:var(--ltext);margin-top:1px}
+.pill{font-size:9.5px;font-weight:800;padding:4px 10px;border-radius:20px}
+.pill.amber{background:var(--amberSoft);color:var(--amber)}
+.pill.volt{background:var(--voltFill);color:var(--voltDeep)}
+.pill.coral{background:var(--coralSoft);color:#C24A2E}
+.pill.lilac{background:#EDEAF8;color:var(--laccent)}
+.pill.gold{background:var(--goldSoft);color:#8a6f2a}
+.actrow{display:flex;gap:8px;margin-top:10px}
+.abtn{flex:1;text-align:center;font-weight:800;font-size:11px;padding:9px 0;border-radius:10px;background:var(--voltFill);color:var(--voltDeep)}
+.abtn.ghost{background:var(--linset);color:var(--ldim)}
+.abtn.warn{background:var(--amberSoft);color:var(--amber)}
+.retcol{display:flex;gap:9px;margin-top:11px}
+.retside{flex:1;border-radius:var(--rM);padding:11px 10px;text-align:center;background:var(--linset)}
+.retside.done{background:var(--voltFill)}
+.retside .mono{font-size:7.5px;letter-spacing:1.5px;color:var(--ldim);display:block}
+.retside b{display:block;font-size:12px;color:var(--lhead);margin-top:4px}
+.retside.done b{color:var(--voltDeep)}
+.meter{display:flex;background:var(--linset);border-radius:var(--rM);margin-top:10px;overflow:hidden}
+.meter>div{flex:1;padding:8px 8px;border-right:1px solid var(--ledge)}
+.meter>div:last-child{border-right:0}
+.meter span{display:block;font-family:'IBM Plex Mono',monospace;font-size:6.5px;letter-spacing:1.2px;color:var(--ldim)}
+.meter b{display:block;font-size:12px;color:var(--lhead);margin-top:2px}
+.meter b.ok{color:var(--voltDeep)}
+.cdown{margin-top:10px;background:var(--amberSoft);border-radius:var(--rM);padding:11px 13px}
+.cdown .tt{display:flex;justify-content:space-between;align-items:baseline}
+.cdown .tt b{font-family:'Oswald',sans-serif;font-size:24px;color:var(--amber);font-weight:600}
+.cdown .tt span{font-size:10px;color:#7a5a2a;line-height:1.4}
+.cdown .bar{height:5px;background:rgba(199,116,20,.18);margin-top:8px;border-radius:3px;position:relative;overflow:hidden}
+.cdown .bar i{position:absolute;left:0;top:0;bottom:0;width:82%;background:var(--amber);border-radius:3px}
+.phchip{font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:700;padding:5px 9px;border-radius:9px;background:var(--linset);color:var(--ldim)}
+.phchip.direct{background:var(--voltFill);color:var(--voltDeep)}
+.tl{margin-top:10px;border-left:2px solid var(--ledge);padding-left:12px}
+.tl .ev{position:relative;padding:5px 0;font-size:10.5px;color:var(--ltext)}
+.tl .ev::before{content:'';position:absolute;left:-16.5px;top:10px;width:7px;height:7px;border-radius:50%;background:#CFC8EC}
+.tl .ev.hot::before{background:var(--tang)}
+.tl .ev b{color:var(--lhead)}
+.tl .ev .mono{font-size:8px;color:var(--ldim);margin-right:5px}
+.vocab{display:flex;flex-wrap:wrap;border-radius:var(--rL);overflow:hidden;box-shadow:var(--shadow);margin-top:10px;background:#fff}
+.vocab>div{width:20%;padding:11px 10px;border-right:1px solid var(--lhair);border-bottom:1px solid var(--lhair)}
+.vocab>div:nth-child(5n){border-right:0}
+.vocab>div:nth-last-child(-n+5){border-bottom:0}
+.vocab .kk{display:block;font-size:11.5px;font-weight:800;color:var(--lhead);margin-top:6px}
+.vocab .ww{display:block;font-size:8.5px;color:var(--ldim);margin-top:3px;line-height:1.5}
+.paperdoc{background:#fff;color:#26231b;padding:13px 13px 15px;position:relative;margin-top:10px;border-radius:6px;
+  box-shadow:0 0 0 1px #E2DDD0, 0 10px 26px rgba(28,24,55,.14)}
+.paperdoc::before{content:'';position:absolute;inset:4px;border:1px solid #d9d3c2;border-radius:3px;pointer-events:none}
+.pd-head{display:flex;justify-content:space-between;align-items:baseline;border-bottom:2.5px solid #26231b;padding-bottom:6px}
+.pd-head b{font-family:'Black Han Sans',sans-serif;font-weight:400;font-size:16px}
+.pd-head span{font-family:'IBM Plex Mono',monospace;font-size:7.5px;letter-spacing:1.5px;color:#8a8272}
+.pd-row{display:flex;border-bottom:1px solid #E4DFD1;padding:7px 2px;gap:8px;align-items:baseline}
+.pd-row span{font-family:'IBM Plex Mono',monospace;font-size:7.5px;letter-spacing:1.2px;color:#8a8272;width:76px;flex:none}
+.pd-row b{font-size:12px;font-weight:700}
+.pd-row b u{text-decoration:none;border-bottom:1.5px dashed #C9C2AE;padding:0 3px}
+.pd-clause{font-size:9.5px;line-height:1.6;color:#4a463c;background:#F6F3EA;padding:8px 9px;margin-top:9px;border-radius:4px;border-left:2.5px solid #26231b}
+.pd-clause b{color:#26231b}
+.sealstrip{margin-top:10px;border-radius:8px;background:#FBF9F3;box-shadow:inset 0 0 0 1.5px #26231b;height:52px;display:flex;align-items:center;position:relative;overflow:hidden}
+.sealstrip .done-track{position:absolute;left:0;top:0;bottom:0;width:72%;background:var(--coralSoft)}
+.sealstrip .lbl{position:absolute;left:0;right:0;text-align:center;font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:2px;color:#a4917f;z-index:1}
+.pawseal{width:40px;height:40px;border-radius:50%;border:2.5px solid var(--coral);color:var(--coral);display:flex;align-items:center;justify-content:center;
+  font-family:'Black Han Sans',sans-serif;font-size:9px;line-height:1.1;text-align:center;background:#fff;position:absolute;left:calc(72% - 46px);z-index:2}
+.sealstrip .arrow{position:absolute;right:10px;color:#d9c9bc;font-size:16px}
+.pickfoot{margin-top:46px;background:#fff;border-radius:var(--rL);box-shadow:var(--shadow);border-left:4px solid var(--coral);padding:16px 18px;max-width:980px}
+.pickfoot b{color:var(--coral)}
+.pickfoot p{font-size:13px;line-height:1.75;color:#4B4668}
+</style>
+</head>
+<body>
+<h1 class="bhs">Master Lab — <em>every screen, one language</em></h1>
+<p class="lede">The lilac premium look is now the system. This page is the <b>build reference</b>: every screen of the delegation loop rendered in it — including O3·O6·O7·O8 as full screens this time (the "rail" was just shorthand for "same home card, different state"; the confusion means the shorthand dies here), the R3 wording fix (<b>부하 → 오늘 담당</b>), and the premium repaint of everything that was still wearing the old night look: host console, roster, runner accept, incident case, live run + SOS, the consent paper, and the flap vocabulary. Still open: <b>③|④ chat · ⑤|⑥ ack</b> — both rendered in the flow lab, pick anytime.</p>
+
+<!-- ═══ OWNER O3–O8 as full screens ═══ -->
+<h2><span class="tag o">OWNER</span>O3 → O8 — the middle of the journey, full screens</h2>
+<div class="row">
+
+<div class="shot"><div class="sl">O3 — 신청 대기</div><div class="ph">
+  <div class="mast"><h3 class="bhs">토 09:00 세션</h3><span class="vkdim">반포동 하이클럽</span></div>
+  <div class="shell"><div class="on">개요</div><div>참가자 <small>7</small></div><div>채팅 <small>3</small></div></div>
+  <div class="card hero">
+    <span class="vk">몽이의 위탁</span>
+    <div style="display:flex;align-items:center;gap:10px;margin-top:8px">
+      <span class="dog"></span>
+      <div class="stateK" style="flex:1"><b>신청 대기</b></div>
+      <span class="flap dimF"><i>P</i><i>E</i><i>N</i><i>D</i><i>I</i><i>N</i><i>G</i></span>
+    </div>
+    <div style="font-size:10.5px;color:var(--ldim);margin-top:8px">호스트가 확인 중이에요 — 보통 몇 시간 안에 답이 와요</div>
+  </div>
+  <div class="bignum">
+    <div><b class="osw">24,900</b><span>승인 시 가격</span></div>
+    <div><b class="osw">5.0<em>km</em></b><span>반포 한강</span></div>
+    <div><b class="osw">09:00</b><span>토 집결</span></div>
+  </div>
+  <a class="cta quiet">신청 취소 (무료)</a>
+</div>
+<p class="note">Nothing to do, and the screen says so in one line. Cancel is free and quiet — pre-approval withdrawal has no ladder. The submitted consent doc is viewable via the card (not re-shown here).</p></div>
+
+<div class="shot"><div class="sl">O6 — 결제 완료 · 배정 대기</div><div class="ph">
+  <div class="mast"><h3 class="bhs">토 09:00 세션</h3><span class="vkdim">반포동 하이클럽</span></div>
+  <div class="shell"><div class="on">개요</div><div>참가자 <small>7</small></div><div>채팅 <small>4</small></div></div>
+  <div class="card hero">
+    <span class="vk">몽이의 위탁</span>
+    <div style="display:flex;align-items:center;gap:10px;margin-top:8px">
+      <span class="dog"></span>
+      <div class="stateK" style="flex:1"><b>결제 완료 — 배정 대기</b></div>
+      <span class="flap"><i>C</i><i>L</i><i>E</i><i>A</i><i>R</i><i>E</i><i>D</i></span>
+    </div>
+    <div style="font-size:10.5px;color:var(--ldim);margin-top:8px">담당 러너는 집결지에서 정해져요 — 정해지면 바로 알려드려요</div>
+  </div>
+  <div class="drow"><div class="top">
+    <div class="nm"><b style="font-size:12px">결제 24,900원</b><span>토 09:00 · 반포 한강 5.0km</span></div>
+    <span class="pill volt">완료</span></div>
+  </div>
+  <div class="detail-link">취소 규정 →</div>
+</div>
+<p class="note">The privacy rule made visible-by-absence: no candidate names, ever, until acceptance (<span class="mono" style="font-size:9.5px;color:var(--laccent)">proposedRunner*</span> is host/proposee-only in board v5). The owner's screen simply doesn't have the concept.</p></div>
+
+<div class="shot"><div class="sl">O7 — 담당 확정 · 러너 공개</div><div class="ph">
+  <div class="mast"><h3 class="bhs">토 09:00 세션</h3><span class="vkdim">반포동 하이클럽</span></div>
+  <div class="shell"><div class="on">개요</div><div>참가자 <small>7</small></div><div>채팅 <small>5</small></div></div>
+  <div class="card hero">
+    <span class="vk">몽이의 위탁</span>
+    <div style="display:flex;align-items:center;gap:10px;margin-top:8px">
+      <span class="dog"></span>
+      <div class="stateK volt" style="flex:1"><b>담당 확정 — 인계 대기</b></div>
+      <span class="flap"><i>C</i><i>L</i><i>E</i><i>A</i><i>R</i><i>E</i><i>D</i></span>
+    </div>
+  </div>
+  <div class="card">
+    <div style="display:flex;gap:11px;align-items:center">
+      <span class="pava in" style="width:44px;height:44px"></span>
+      <div style="flex:1">
+        <b style="font-size:15px;color:var(--lhead)">지훈</b>
+        <span style="display:block;font-size:10px;color:var(--ldim);margin-top:2px">베테랑 러너 · 시즌 84회 · 무사고</span>
+      </div>
+      <span class="pill lilac">채팅</span>
+    </div>
+    <div style="font-size:10.5px;color:var(--ltext);margin-top:10px;background:var(--linset);border-radius:8px;padding:8px 10px">인계 확인부터 반환 확인까지 몽이의 책임자예요</div>
+  </div>
+  <a class="cta dis">집결지에서 인계가 시작돼요</a>
+  <div class="detail-link" style="color:var(--ldim)">이 배정에 우려가 있어요 (1회)</div>
+</div>
+<p class="note">The runner card appears only now — acceptance is the reveal. The one-time objection (<span class="mono" style="font-size:9.5px;color:var(--laccent)">objection_used</span>) is deliberately quiet: present, findable, not inviting. Primary CTA is disabled-with-reason because the next move belongs to the meetup, not to a button.</p></div>
+
+<div class="shot"><div class="sl">O8 — 인계 확인 (반환의 거울)</div><div class="ph">
+  <div class="mast"><h3 class="bhs">몽이 인계</h3><span class="vkdim">집결지 · 08:52</span></div>
+  <div class="shell"><div class="on">개요</div><div>참가자 <small>7</small></div><div>채팅 <small>5</small></div></div>
+  <div class="card hero">
+    <span class="vk" style="color:var(--amber)">확인하면 책임자가 지훈으로 바뀌어요</span>
+    <div style="display:flex;align-items:center;gap:10px;margin-top:8px">
+      <span class="dog"></span>
+      <div class="stateK amber" style="flex:1"><b>인계 대기</b></div>
+      <span class="flap amberF"><i>B</i><i>O</i><i>A</i><i>R</i><i>D</i><i>E</i><i>D</i></span>
+    </div>
+  </div>
+  <div class="retcol">
+    <div class="retside done"><span class="mono">RUNNER 지훈</span><b>받았어요 ✓</b></div>
+    <div class="retside"><span class="mono">OWNER 나</span><b>맡겼어요 →</b></div>
+  </div>
+  <div class="drow"><div class="top">
+    <div class="nm"><b style="font-size:12px">전달 체크</b><span>하네스 · 리시 2m · 간식 파우치</span></div>
+  </div></div>
+  <a class="cta">지훈에게 맡겼어요 — 인계 확인 →</a>
+</div>
+<p class="note">Same two-sided component as return, roles mirrored, one word different (맡겼어요/받았어요 ↔ 반환했어요/인계받았어요). The handover checklist row comes from the consent doc's equipment note. Both green → custody flips, BOARDED goes solid.</p></div>
+
+</div>
+
+<!-- ═══ HOST repaint ═══ -->
+<h2><span class="tag h">HOST</span>Console · roster — repainted</h2>
+<div class="row">
+
+<div class="shot"><div class="sl">H1a — 콘솔: 심사·결제</div><div class="ph">
+  <div class="mast"><h3 class="bhs">호스트 콘솔</h3><span class="vkdim">토 09:00</span></div>
+  <div class="shell"><div class="on">개요</div><div>참가자 <small>7</small></div><div>채팅 <small>3</small></div></div>
+  <div class="meter">
+    <div><span>위탁</span><b>5/8</b></div>
+    <div><span>결제</span><b>3</b></div>
+    <div><span>러너</span><b>2</b></div>
+    <div><span>성립</span><b class="ok">OK</b></div>
+  </div>
+  <div class="sechead"><span class="n">1</span><b>심사</b><span>승인 = 결제 요청 발송</span></div>
+  <div class="drow" style="box-shadow:var(--shadow),inset 0 0 0 1.5px var(--ledge)">
+    <div class="top"><span class="dog"></span>
+      <div class="nm"><b>몽이</b><span>푸들 6.2kg · 첫 위탁</span></div></div>
+    <div class="actrow"><span class="abtn">승인</span><span class="abtn ghost">거절</span></div>
+  </div>
+  <div class="drow">
+    <div class="top"><span class="dog" style="border-color:#E58BA9"></span>
+      <div class="nm"><b>두부</b><span>체중 6.8 → 9.4kg 변경</span></div>
+      <span class="pill amber">재검토</span></div>
+    <div class="actrow"><span class="abtn">변경 확인 — 재승인</span><span class="abtn warn">거절 (전액 환불)</span></div>
+  </div>
+  <div class="sechead"><span class="n">2</span><b>결제 현황</b><span>읽기 전용</span></div>
+  <div class="drow"><div class="top"><span class="dog teal"></span>
+    <div class="nm"><b>보리</b><span>지은</span></div>
+    <span class="pill volt">결제 완료</span></div></div>
+</div>
+<p class="note">Approve stays the only saturated action (volt fill). Payment column is labels only — the host never touches money. Re-review rows carry the before→after diff inline.</p></div>
+
+<div class="shot"><div class="sl">H1b — 콘솔: 배정·종료 게이트</div><div class="ph">
+  <div class="mast"><h3 class="bhs">호스트 콘솔</h3><span class="vkdim">진행 중 · 09:41</span></div>
+  <div class="shell"><div class="on">개요</div><div>참가자 <small>7</small></div><div>채팅 <small>5</small></div></div>
+  <div class="sechead"><span class="n">3</span><b>배정 제안</b><span>러너 수락으로 확정</span></div>
+  <div class="drow"><div class="top"><span class="dog teal"></span>
+    <div class="nm"><b>보리</b><span>제안 → 지훈 · 03:12 남음</span></div>
+    <span class="pill amber">수락 대기</span></div>
+    <div class="actrow"><span class="abtn" style="background:#EDEAF8;color:var(--laccent)">지훈 1/2</span><span class="abtn ghost">션(나) 0/1</span><span class="abtn ghost" style="opacity:.5">민아 만석</span></div>
+  </div>
+  <div class="drow"><div class="top"><span class="dog" style="border-color:#E58BA9"></span>
+    <div class="nm"><b>두부</b><span>지훈 거절 — "자전거 반응 우려"</span></div>
+    <span class="pill coral">재확인</span></div>
+    <div class="actrow"><span class="abtn">다른 러너 제안</span><span class="abtn ghost">불발 처리 (환불)</span></div>
+  </div>
+  <div class="sechead"><span class="n">4</span><b>세션 종료</b></div>
+  <div class="card crit">
+    <b style="font-size:12px;color:var(--tang)">종료 차단 2건</b>
+    <div style="font-size:10.5px;color:var(--ltext);margin-top:6px;line-height:1.6">몽이 반환 미완 · 케이스 #24 오너 미지정</div>
+  </div>
+  <a class="cta dis">세션 종료 — 차단 해소 후</a>
+</div>
+<p class="note">Full-capacity runners can't even be tapped. The close gate stays honest: the two server reasons, verbatim, no dead button mystery.</p></div>
+
+<div class="shot"><div class="sl">H2 — 참가자 탭</div><div class="ph">
+  <div class="mast"><h3 class="bhs">토 09:00 세션</h3><span class="vkdim">반포동 하이클럽</span></div>
+  <div class="shell"><div>개요</div><div class="on">참가자 <small>7</small></div><div>채팅 <small>5</small></div></div>
+  <div class="sechead" style="margin-top:11px"><span class="n">사람</span><b>7명</b></div>
+  <div class="drow"><div class="top"><span class="pava in"></span>
+    <div class="nm"><b>션 (나)</b><span>호스트 · 러너 0/1</span></div><span class="pill lilac">HOST</span></div></div>
+  <div class="drow"><div class="top"><span class="pava in"></span>
+    <div class="nm"><b>지훈</b><span>담당 러너 1/2 · 체크인</span></div><span class="phchip direct">010-8812-4437</span></div></div>
+  <div class="drow"><div class="top"><span class="pava"></span>
+    <div class="nm"><b>지은</b><span>위탁 보호자 — 보리</span></div><span class="phchip direct">010-2201-9954</span></div></div>
+  <div class="drow"><div class="top"><span class="pava in"></span>
+    <div class="nm"><b>현우</b><span>동반 참가 · 초코</span></div><span class="phchip">호스트 경유</span></div></div>
+  <div class="sechead"><span class="n">견</span><b>5마리</b></div>
+  <div class="drow"><div class="top"><span class="dog teal"></span>
+    <div class="nm"><b>보리</b><span>비상 010-2201-9954 · 픽업 지은 · 한도 20만</span></div>
+    <span class="pill volt">결제 완료</span></div></div>
+  <div style="font-size:9.5px;color:var(--ldim);margin-top:9px;text-align:center">번호가 보이면 열람이 기록돼요</div>
+</div>
+<p class="note">Phone rule B as chip grammar: volt fill = direct (host↔all, owner↔accepted runner), neutral = via host. The access-log fact stays on screen in nine words — transparency is part of the trust product.</p></div>
+
+</div>
+
+<!-- ═══ RUNNER repaint + fix ═══ -->
+<h2><span class="tag r">RUNNER</span>Accept · pickup (wording fix) · run + SOS</h2>
+<div class="row">
+
+<div class="shot"><div class="sl">R2 — 배정 제안 (5분 시효)</div><div class="ph">
+  <div class="mast"><h3 class="bhs">배정 제안</h3><span class="vkdim">호스트 션 → 나</span></div>
+  <div class="cdown">
+    <div class="tt"><b class="osw">04:12</b><span>안에 결정하지 않으면<br>제안이 소멸해요</span></div>
+    <div class="bar"><i></i></div>
+  </div>
+  <div class="card hero">
+    <div style="display:flex;gap:11px;align-items:center">
+      <span class="dog teal" style="width:46px;height:46px"></span>
+      <div><b style="font-size:16px;color:var(--lhead)">보리</b>
+      <div style="font-size:10.5px;color:var(--ldim);margin-top:2px">리트리버 · 3살 · 지은 보호자</div></div>
+    </div>
+  </div>
+  <div class="bignum">
+    <div><b class="osw">18.2<em>kg</em></b><span>체중</span></div>
+    <div><b class="osw">6'30"</b><span>가능 페이스</span></div>
+    <div><b class="osw">19,920</b><span>보수</span></div>
+  </div>
+  <div style="background:var(--amberSoft);border-radius:var(--rM);padding:9px 12px;margin-top:10px;font-size:10.5px;color:#7a5a2a"><b style="color:var(--amber)">자전거에 흥분</b> — 한강 자전거길 인접 2구간</div>
+  <div style="font-size:10.5px;color:var(--ltext);margin-top:9px;text-align:center">수락하면 인계부터 반환까지 보리의 책임자는 나</div>
+  <a class="cta">이 아이, 내가 맡을게요 →</a>
+  <div class="detail-link" style="color:var(--ldim)">우려 제기 · 거절</div>
+</div>
+<p class="note">Countdown lives in the soft amber block — urgent without alarm-red. Accept revalidates server-side; failures come back as one honest sentence.</p></div>
+
+<div class="shot"><div class="sl">R3 — 내 담당 (부하 → 오늘 담당)</div><div class="ph">
+  <div class="mast"><h3 class="bhs">오늘 내 담당</h3><span class="vkdim">토 09:00 · 집결지</span></div>
+  <div class="drow"><div class="top"><span class="dog teal"></span>
+    <div class="nm"><b>보리</b><span>비상 010-2201-9954 · 한도 20만</span></div>
+    <span class="pill volt">인계 완료</span></div>
+  </div>
+  <div class="drow"><div class="top"><span class="dog"></span>
+    <div class="nm"><b>몽이</b><span>비상 010-4425-7789 · 첫 위탁</span></div>
+    <span class="pill amber">인계 대기</span></div>
+    <div style="margin-top:9px"><a class="cta" style="margin-top:0;padding:11px 0;font-size:12.5px">몽이 인계 확인 →</a></div>
+  </div>
+  <div class="card" style="display:flex;gap:10px;align-items:center">
+    <div style="flex:1"><b style="font-size:12px;color:var(--lhead)">오늘 담당 2/2</b>
+    <span style="display:block;font-size:9.5px;color:var(--ldim)">가득 찼어요 — 새 제안이 오지 않아요</span></div>
+    <span class="flap"><i>2</i><i>/</i><i>2</i></span>
+  </div>
+</div>
+<p class="note"><b>부하 is dead.</b> "오늘 담당 2/2" says the same thing in the runner's own words — dogs I'm responsible for today — with none of the burden/subordinate double reading. Same rename lands on the host's runner chips (지훈 1/2 already reads naturally there).</p></div>
+
+<div class="shot"><div class="sl">R4 — 러닝 + SOS (라일락 라이브)</div><div class="ph">
+  <div class="mast"><h3 class="bhs">러닝 중</h3><span class="vkdim">보리 · 2.4/5.0km</span></div>
+  <div class="card" style="padding:0;overflow:hidden">
+    <div style="height:190px;background:linear-gradient(150deg,#E9E5F8,#DDD8F0);position:relative">
+      <div style="position:absolute;left:18%;top:28%;right:20%;bottom:24%;border:2px dashed #B9B0E4;border-radius:12px"></div>
+      <div style="position:absolute;left:54%;top:40%;width:12px;height:12px;border-radius:50%;background:var(--coral);box-shadow:0 0 0 5px rgba(240,118,90,.25)"></div>
+      <span class="vkdim" style="position:absolute;left:11px;top:9px">LIVE</span>
+    </div>
+  </div>
+  <div class="bignum">
+    <div><b class="osw">2.4<em>km</em></b><span>거리</span></div>
+    <div><b class="osw">6'41"</b><span>페이스</span></div>
+    <div><b class="osw">16:02</b><span>경과</span></div>
+  </div>
+  <div class="drow"><div class="top"><span class="dog teal" style="width:28px;height:28px"></span>
+    <div class="nm"><b style="font-size:11.5px">보리 · 지은 보호자</b><span>비상 010-2201-9954 — 탭하면 전화</span></div></div></div>
+  <div style="position:absolute;left:16px;bottom:18px;width:58px;height:58px;border-radius:50%;background:var(--tang);box-shadow:0 8px 20px rgba(232,85,47,.45);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:13px" class="bhs">SOS</div>
+  <a class="cta" style="position:absolute;right:16px;bottom:18px;left:90px;margin-top:0">러닝 종료</a>
+</div>
+<p class="note">⑧ means the run screen stays light too — high-glare outdoor legibility comes from contrast discipline (ink on lilac, coral dot) rather than a dark theme. SOS keeps the left-thumb spot, press-and-slide to confirm, opens an S1 case with location evidence.</p></div>
+
+</div>
+
+<!-- ═══ CASE + CONSENT + VOCAB ═══ -->
+<h2><span class="tag">SYSTEM</span>Case · consent paper · flap vocabulary — repainted</h2>
+<div class="row">
+
+<div class="shot"><div class="sl">케이스 #24 — 외부 보호 (보호자)</div><div class="ph">
+  <div class="mast"><h3 class="bhs">케이스 #24</h3><span class="vkdim">S2 · 진행 중</span></div>
+  <div class="shell"><div class="on">개요</div><div>참가자 <small>7</small></div><div>채팅 <small>6</small></div></div>
+  <div class="card crit">
+    <span class="vk" style="color:var(--tang)">지금 책임 — 한강동물병원</span>
+    <div style="display:flex;align-items:center;gap:10px;margin-top:8px">
+      <span class="dog"></span>
+      <div class="stateK tang" style="flex:1"><b>외부 보호 중</b></div>
+      <span class="flap tangF"><i>O</i><i>U</i><i>T</i><i>S</i><i>I</i><i>D</i><i>E</i></span>
+    </div>
+    <div style="font-size:10.5px;color:var(--ltext);margin-top:8px">케이스 오너 <b style="color:var(--lhead)">호스트 션</b> · 진료 한도 20만 적용</div>
+  </div>
+  <div class="sechead"><span class="n">기록</span><b>타임라인</b></div>
+  <div class="tl">
+    <div class="ev"><span class="mono">09:02</span><b>인계</b> — 션 → 지훈</div>
+    <div class="ev"><span class="mono">09:15</span><b>러닝 시작</b></div>
+    <div class="ev hot"><span class="mono">10:44</span><b>이양</b> — 지훈 → 병원 · 발열 · 증거 3</div>
+    <div class="ev"><span class="mono">10:45</span><b>정산 보류</b> — 해소까지</div>
+  </div>
+  <div style="display:flex;gap:8px;margin-top:10px">
+    <div style="width:62px;height:62px;border-radius:10px;background:linear-gradient(140deg,#CFC8E8,#B4ABD8)"></div>
+    <div style="width:62px;height:62px;border-radius:10px;background:linear-gradient(140deg,#C8C0E4,#ACA2D2)"></div>
+    <div style="width:62px;height:62px;border-radius:10px;background:var(--linset);display:flex;align-items:center;justify-content:center;color:var(--ldim);font-size:8.5px;text-align:center">위치<br>10:44</div>
+  </div>
+  <div style="font-size:10px;color:var(--ldim);margin-top:9px;text-align:center">케이스는 세션이 끝나도 계속돼요 — 해소되면 알려드려요</div>
+</div>
+<p class="note">Critical without darkness: the coral left-rule + OUTSIDE flap carry the weight. Timeline stays seq-ordered; evidence tiles are case-party-only.</p></div>
+
+<div class="shot"><div class="sl">O2 — 승낙서 (라일락 프레임)</div><div class="ph">
+  <div class="mast"><h3 class="bhs">몽이 위탁 신청</h3><span class="vkdim">토 09:00 · 반포동</span></div>
+  <div class="paperdoc">
+    <div class="pd-head"><b>위탁 승낙서</b><span>CONSENT · v1</span></div>
+    <div class="pd-row"><span>위탁견</span><b>몽이 <u>푸들 · 6.2kg</u></b></div>
+    <div class="pd-row"><span>비상 연락처 *</span><b><u>010-4425-7789</u></b></div>
+    <div class="pd-row"><span>픽업 지정인</span><b><u>션 (본인)</u></b></div>
+    <div class="pd-row"><span>진료 한도</span><b><u>₩200,000</u> 사전 승인</b></div>
+    <div class="pd-clause">인계부터 <b>양측 반환 확인까지</b> 담당 러너가 몽이의 보호 책임자예요. 긴급 시 위 한도 안에서 바로 진료할 수 있어요.</div>
+    <div class="sealstrip">
+      <div class="done-track"></div>
+      <div class="lbl">끌어서 봉인</div>
+      <div class="pawseal">위탁<br>승낙</div>
+      <div class="arrow">›››</div>
+    </div>
+  </div>
+  <div style="font-size:10px;color:var(--ldim);margin-top:10px;text-align:center">수정하려면 재동의 — 새 판이 쌓여요</div>
+</div>
+<p class="note">Paper stays paper — warm white, ink rules, coral seal — but the sheet now floats on lilac with a soft drop, corners eased to 6px. The one deliberately un-rounded thing in the app: documents keep their edges.</p></div>
+
+<div class="shot"><div class="sl">플랩 어휘 — 라일락 타일</div><div class="ph short" style="padding-bottom:16px">
+  <div class="vocab" style="box-shadow:none">
+    <div><span class="flap dimF"><i>P</i><i>E</i><i>N</i><i>D</i><i>I</i><i>N</i><i>G</i></span><b class="kk">신청 대기</b></div>
+    <div><span class="flap amberF"><i>H</i><i>O</i><i>L</i><i>D</i><i>I</i><i>N</i><i>G</i></span><b class="kk">결제 대기</b></div>
+    <div><span class="flap"><i>C</i><i>L</i><i>E</i><i>A</i><i>R</i><i>E</i><i>D</i></span><b class="kk">배정 대기</b></div>
+    <div><span class="flap"><i>B</i><i>O</i><i>A</i><i>R</i><i>D</i><i>E</i><i>D</i></span><b class="kk">보호 중</b></div>
+    <div><span class="flap voltF"><i>R</i><i>U</i><i>N</i><i>N</i><i>I</i><i>N</i><i>G</i></span><b class="kk">러닝 중</b></div>
+    <div><span class="flap amberF"><i>R</i><i>E</i><i>T</i><i>U</i><i>R</i><i>N</i><i>S</i></span><b class="kk">반환 대기</b></div>
+    <div><span class="flap voltF"><i>S</i><i>E</i><i>T</i><i>T</i><i>L</i><i>E</i><i>D</i></span><b class="kk">완료</b></div>
+    <div><span class="flap tangF"><i>O</i><i>U</i><i>T</i><i>S</i><i>I</i><i>D</i><i>E</i></span><b class="kk">외부 보호</b></div>
+    <div><span class="flap tangF"><i>R</i><i>E</i><i>F</i><i>U</i><i>N</i><i>D</i><i> </i></span><b class="kk">환불</b></div>
+    <div><span class="flap tangF"><i>R</i><i>E</i><i>F</i><i>U</i><i>S</i><i>E</i><i>D</i></span><b class="kk">거절·철회</b></div>
+  </div>
+</div>
+<p class="note">Ten words, unchanged — only the tiles relearned the light: lilac base, violet default letters, state colors on top. Still driven verbatim by <span class="mono" style="font-size:9.5px;color:var(--laccent)">ui.primaryStage</span>.</p></div>
+
+</div>
+
+<div class="pickfoot">
+  <p><b>Design system: closed, minus two numbers.</b> Everything above plus the flow-lab screens (O1·O4·O5·O9·O10·O11·R6) is now one language and becomes the RN build reference. Still waiting on <b>③|④</b> (chat: toggle vs drawer) and <b>⑤|⑥</b> (ack: banner stack vs takeover) — both sit fully rendered in the flow lab. Send the two numbers whenever; meanwhile I can start building O1→O5, which none of those decisions touch.</p>
+</div>
+</body>
+</html>
