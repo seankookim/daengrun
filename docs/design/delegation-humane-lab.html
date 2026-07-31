@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DOGS HIGH — Humane Lab: photography as content (the club gets a face)</title>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Oswald:wght@400;500;600;700&family=IBM+Plex+Sans+KR:wght@400;500;700;800&family=IBM+Plex+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#221E3D;--pagebg:#E9E7F0;
+  --lbg:#F4F2FB;--lcard:#FFFFFF;--linset:#EFECF9;--lhair:#E6E2F4;--lhair2:#EDEAF8;
+  --lhead:#221E3D;--ltext:#4B4668;--ldim:#928DAD;--laccent:#6C5CE7;
+  --coral:#F0765A;--coralDeep:#E45F41;--coralSoft:#FFDCD1;
+  --gold:#B99A4F;--goldSoft:#F4EBD3;--goldSheen:#D8C185;
+  --voltDeep:#5E7F0E;--voltFill:#EAF6C8;--amber:#C77414;--amberSoft:#FBEED9;--tang:#E8552F;
+  --shadow:0 1px 2px rgba(28,24,55,.05),0 10px 28px rgba(28,24,55,.09);
+  --rPhone:14px;--rCard:8px;--rIn:6px;--rBtn:8px;--rTag:5px;
+  --holo:conic-gradient(from 40deg,#CFC4FF,#FFD9CB,#CDEBDD,#CFE0FF,#E8D5FF,#CFC4FF);
+  --platinum:linear-gradient(135deg,#EFEBFA 0%,#CFC8EC 35%,#F5F2FD 60%,#D8D2F0 100%);
+  /* photo placeholders — layered gradients standing in for real shots */
+  --photo-river:linear-gradient(180deg,#FBD9C4 0%,#EFB9A6 22%,#C9A5B8 45%,#8E86B8 70%,#5F5990 100%);
+  --photo-park:linear-gradient(180deg,#F6E4C8 0%,#D9CFA6 30%,#9DB289 60%,#5F7A58 100%);
+  --photo-group:linear-gradient(180deg,#F9E0CB 0%,#E6BFA8 35%,#B99C93 65%,#7A6A70 100%);
+  --grain:repeating-linear-gradient(0deg,rgba(0,0,0,.015) 0 1px,transparent 1px 2px);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--pagebg);color:var(--ink);font-family:'IBM Plex Sans KR',sans-serif;padding:32px 26px 100px}
+.bhs{font-family:'Black Han Sans',sans-serif;font-weight:400}
+.osw{font-family:'Oswald',sans-serif}
+.mono{font-family:'IBM Plex Mono',monospace}
+h1{font-size:27px}
+h1 em{font-style:normal;color:var(--laccent)}
+h2{font-size:16px;margin-top:48px;padding-top:18px;border-top:1.5px solid #D6D3E2}
+h2 .tag{font-family:'IBM Plex Mono',monospace;color:#fff;background:var(--laccent);padding:3px 10px;font-size:10px;letter-spacing:2px;margin-right:9px;vertical-align:2px;border-radius:4px}
+.lede{color:#5b5670;margin:9px 0 4px;max-width:980px;line-height:1.65;font-size:13.5px}
+.lede b{color:var(--ink)}
+.row{display:flex;gap:18px;flex-wrap:wrap;margin-top:18px;align-items:flex-start}
+.shot{width:302px}
+.sl{font-size:10.5px;letter-spacing:2px;color:#8d89a0;margin-bottom:7px;font-family:'IBM Plex Mono',monospace}
+.note{color:#6b6680;font-size:11.5px;line-height:1.6;margin:9px 2px 0}
+.note b{color:var(--ink)}
+.legend{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}
+.lg{background:#fff;border:1px solid var(--lhair);border-radius:var(--rIn);padding:8px 13px;font-size:11.5px;color:#5b5670;line-height:1.5}
+.lg b{color:var(--ink)}
+.ph{min-height:520px;padding:14px 12px 18px;overflow:hidden;position:relative;color:var(--ltext);
+  background:
+    radial-gradient(85% 55% at 88% -8%, rgba(240,118,90,.11), transparent 62%),
+    radial-gradient(70% 45% at -5% 4%, rgba(108,92,231,.09), transparent 60%),
+    linear-gradient(180deg,#F8F6FE 0%,var(--lbg) 40%);
+  border-radius:var(--rPhone);box-shadow:var(--shadow), inset 0 0 0 1px rgba(255,255,255,.8)}
+.ph.short{min-height:0}
+.gmast{display:flex;align-items:center;gap:9px;padding:10px 12px;
+  background:rgba(255,255,255,.62);backdrop-filter:blur(12px);
+  border:1px solid rgba(255,255,255,.85);border-radius:10px;
+  box-shadow:0 1px 2px rgba(28,24,55,.05),0 6px 18px rgba(28,24,55,.07)}
+.gmast h3{font-size:16.5px;color:var(--lhead);flex:1}
+.gmast .sub{display:block;font-family:'IBM Plex Mono',monospace;font-size:7.5px;letter-spacing:2px;color:var(--ldim);margin-top:1px}
+.mg{width:26px;height:26px;border-radius:7px;flex:none;background:var(--holo);
+  display:flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;font-weight:700;font-size:10px;color:var(--ink);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.7), 0 2px 6px rgba(28,24,55,.15)}
+.vkdim{font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:2px;color:var(--ldim)}
+.vk{font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:2.5px;color:var(--laccent)}
+.dog{width:36px;height:36px;border-radius:50%;flex:none;background:linear-gradient(140deg,#c9b89a,#8a7a5c);
+  border:2px solid var(--coral);box-shadow:0 0 0 2px #fff, 0 2px 6px rgba(28,24,55,.12)}
+.dog.teal{border-color:#2FA98D}
+.pava{width:32px;height:32px;border-radius:50%;flex:none;background:linear-gradient(140deg,#8f88b8,#5c5486);box-shadow:0 0 0 2px #fff,0 2px 6px rgba(28,24,55,.12)}
+.card{background:var(--lcard);border:1px solid var(--lhair);border-radius:var(--rCard);box-shadow:var(--shadow);padding:13px 14px;margin-top:10px}
+.tag2{font-family:'IBM Plex Mono',monospace;font-size:8px;font-weight:700;letter-spacing:1.2px;padding:4px 8px;border-radius:var(--rTag)}
+.tag2.volt{background:var(--voltFill);color:var(--voltDeep)}
+.tag2.gold{background:var(--goldSoft);color:#8a6f2a}
+.tag2.white{background:rgba(255,255,255,.85);color:var(--lhead)}
+.cta{display:block;background:linear-gradient(180deg,var(--coral) 0%,var(--coralDeep) 100%);color:#fff;border-radius:var(--rBtn);
+  box-shadow:0 6px 18px rgba(240,118,90,.38), inset 0 1px 0 rgba(255,255,255,.35);
+  text-align:center;font-weight:800;font-size:13.5px;letter-spacing:.5px;padding:14px 0;margin-top:13px}
+.cta.quiet{background:#fff;color:var(--ldim);border:1px solid var(--lhair);box-shadow:none;font-size:12px;padding:11px 0}
+/* ── club photo hero ── */
+.hero-photo{position:relative;margin:-14px -12px 0;height:180px;overflow:hidden;border-radius:var(--rPhone) var(--rPhone) 0 0}
+.hero-photo .img{position:absolute;inset:0;background:var(--photo-river)}
+.hero-photo .img::after{content:'';position:absolute;inset:0;background:var(--grain)}
+.hero-photo .fig{position:absolute;border-radius:50% 50% 45% 45%}
+.hero-photo .scrim{position:absolute;inset:0;background:linear-gradient(180deg,rgba(34,30,61,.18) 0%,transparent 30%,transparent 55%,rgba(244,242,251,.55) 82%,#F4F2FB 100%)}
+.hero-photo .cap{position:absolute;left:13px;bottom:26px}
+.hero-photo .cap b{display:block;font-size:21px;color:#fff;text-shadow:0 1px 10px rgba(34,30,61,.5)}
+.hero-photo .cap span{font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:2px;color:rgba(255,255,255,.9);text-shadow:0 1px 6px rgba(34,30,61,.5)}
+.hero-photo .credit{position:absolute;right:11px;bottom:26px;font-family:'IBM Plex Mono',monospace;font-size:7px;letter-spacing:1px;color:rgba(255,255,255,.75);text-shadow:0 1px 4px rgba(34,30,61,.5)}
+/* ── polaroid ── */
+.polaroid{background:#fff;border:1px solid var(--lhair);border-radius:4px;box-shadow:var(--shadow);padding:8px 8px 10px;margin-top:10px;transform:rotate(-1.2deg)}
+.polaroid .img{height:150px;border-radius:2px;background:var(--photo-park);position:relative;overflow:hidden}
+.polaroid .img::after{content:'';position:absolute;inset:0;background:var(--grain)}
+.polaroid .cap{display:flex;justify-content:space-between;align-items:baseline;margin-top:8px;padding:0 3px}
+.polaroid .cap b{font-size:11.5px;color:var(--lhead)}
+.polaroid .cap span{font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--ldim);letter-spacing:1px}
+/* ── receipt photo print ── */
+.receipt{position:relative;background:var(--lcard);border:1px solid var(--lhair);box-shadow:var(--shadow);margin-top:10px;padding:10px 10px 14px;border-radius:2px}
+.receipt::before,.receipt::after{content:'';position:absolute;left:0;right:0;height:7px;
+  background:radial-gradient(circle at 7px 0px, var(--lbg) 5px, transparent 5.5px) repeat-x;background-size:14px 7px}
+.receipt::before{top:-1px}
+.receipt::after{bottom:-1px;transform:rotate(180deg)}
+.receipt .photo{height:150px;border-radius:3px;background:var(--photo-river);position:relative;overflow:hidden}
+.receipt .photo::after{content:'';position:absolute;inset:0;background:var(--grain), linear-gradient(180deg,transparent 60%,rgba(34,30,61,.22) 100%)}
+.receipt .photo .runline{position:absolute;left:12%;top:30%;right:18%;bottom:32%;border:2px dashed rgba(255,255,255,.65);border-radius:10px}
+.goldseal{width:54px;height:54px;border-radius:50%;position:absolute;right:6px;top:128px;z-index:2;display:flex;align-items:center;justify-content:center;
+  font-family:'Oswald',sans-serif;font-size:8.5px;letter-spacing:1.5px;color:#7d6526;transform:rotate(-8deg);
+  background:conic-gradient(from 210deg, var(--goldSoft), var(--goldSheen), var(--goldSoft), #EFE3C2, var(--goldSoft));
+  box-shadow:inset 0 0 0 2px var(--gold), inset 0 0 0 3.5px rgba(255,255,255,.55), 0 2px 8px rgba(185,154,79,.4)}
+.rline{display:flex;justify-content:space-between;font-size:11px;color:var(--ltext);padding:6px 4px;border-bottom:1px dashed var(--lhair)}
+.rline b{color:var(--lhead);font-variant-numeric:tabular-nums}
+.rline:last-of-type{border-bottom:0}
+/* ── album grid ── */
+.album{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
+.album .pg{width:calc(50% - 3.5px);border-radius:6px;overflow:hidden;position:relative;height:110px;box-shadow:var(--shadow)}
+.album .pg .img{position:absolute;inset:0}
+.album .pg .img::after{content:'';position:absolute;inset:0;background:var(--grain), linear-gradient(180deg,transparent 55%,rgba(34,30,61,.4) 100%)}
+.album .pg .cap{position:absolute;left:8px;bottom:6px;z-index:2}
+.album .pg .cap b{display:block;font-size:10.5px;color:#fff}
+.album .pg .cap span{font-family:'IBM Plex Mono',monospace;font-size:7px;letter-spacing:1px;color:rgba(255,255,255,.85)}
+/* ── group shot ── */
+.groupcard{position:relative;border:1px solid transparent;background:linear-gradient(#fff,#fff) padding-box, var(--platinum) border-box;border-radius:var(--rCard);box-shadow:var(--shadow);margin-top:10px;overflow:hidden}
+.groupcard .img{height:150px;background:var(--photo-group);position:relative}
+.groupcard .img::after{content:'';position:absolute;inset:0;background:var(--grain), linear-gradient(180deg,transparent 55%,rgba(34,30,61,.28) 100%)}
+.groupcard .body{padding:11px 13px 13px}
+.msg{max-width:82%;margin-top:9px}
+.msg .who{font-family:'IBM Plex Mono',monospace;font-size:7.5px;letter-spacing:1px;color:var(--ldim);margin-bottom:2px}
+.msg .bb{background:var(--lcard);border:1px solid var(--lhair);border-radius:4px 12px 12px 12px;box-shadow:0 1px 2px rgba(28,24,55,.04);padding:9px 11px;font-size:11px;line-height:1.5;color:var(--ltext)}
+.tokens{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;max-width:980px}
+.tk{background:#fff;border:1px solid var(--lhair);border-radius:var(--rIn);padding:10px 13px;font-size:11px;color:#5b5670;line-height:1.55;width:calc(33.3% - 7px)}
+.tk b{color:var(--ink);display:block;margin-bottom:2px}
+.pickfoot{margin-top:46px;background:#fff;border:1px solid var(--lhair);border-left:4px solid var(--coral);border-radius:var(--rCard);box-shadow:var(--shadow);padding:16px 18px;max-width:980px}
+.pickfoot b{color:var(--coral)}
+.pickfoot p{font-size:13px;line-height:1.75;color:#4B4668}
+</style>
+</head>
+<body>
+<h1 class="bhs">Humane Lab — <em>the club gets a face</em></h1>
+<p class="lede">Taking your note, with one amendment argued below: photography joins the system as <b>content, never wallpaper</b>. Real places, real dogs, real mornings — in five dedicated moments where a photo IS the information. Behind data — payments, console, cases — photos would cost legibility and calm (that's the pushback), so those screens stay paper. Every gradient block below is a <b>slot for a real photo</b> the club itself produces: the meetup spot, the runner's mid-run shot, the finish-line group photo. The app doesn't need stock photography — <b>the product photographs itself.</b></p>
+<div class="legend">
+  <div class="lg"><b>Photo = content</b> — 5 slots: club face · live moment · settled memory · dog's book · group ritual</div>
+  <div class="lg"><b>Never wallpaper</b> — no photos behind money, forms, console, cases. Scrim law: text only ever sits on a scrim, never raw photo</div>
+  <div class="lg"><b>Self-sourcing</b> — photos come from the loop itself: runner share (chat, exists) · group shot ritual (new) · club cover (host)</div>
+</div>
+
+<h2><span class="tag">1</span>The club's face — photo hero on club home</h2>
+<div class="row">
+
+<div class="shot"><div class="sl">클럽 홈 — 포토 히어로</div><div class="ph">
+  <div class="hero-photo">
+    <div class="img">
+      <div class="fig" style="left:18%;bottom:28%;width:26px;height:44px;background:#4a4160;opacity:.85"></div>
+      <div class="fig" style="left:26%;bottom:26%;width:16px;height:14px;background:#6b5c48;opacity:.9"></div>
+      <div class="fig" style="left:58%;bottom:30%;width:24px;height:40px;background:#57496a;opacity:.8"></div>
+      <div class="fig" style="left:66%;bottom:27%;width:14px;height:12px;background:#7a6a52;opacity:.85"></div>
+    </div>
+    <div class="scrim"></div>
+    <div class="cap"><span>BANPO MORNING CLUB</span><b class="bhs">반포동 하이클럽</b></div>
+    <div class="credit">ⓒ 지난 토요일 · 션</div>
+  </div>
+  <div class="gmast" style="margin-top:-14px;position:relative;z-index:2">
+    <span class="mg">DH</span><h3 class="bhs">멤버 41 · 시즌 21회<span class="sub">RIVERSIDE 5K · EVERY SAT</span></h3><span class="tag2 volt">성립</span>
+  </div>
+  <div class="card" style="margin-top:12px">
+    <div style="display:flex;justify-content:space-between;align-items:baseline">
+      <b style="font-size:14px;color:var(--lhead)">토 09:00 · 반포 한강 5.0km</b>
+      <b class="osw" style="font-size:16px;font-weight:500;color:var(--lhead)">₩24,900</b>
+    </div>
+    <a class="cta" style="margin-top:11px;padding:11px 0;font-size:12.5px">몽이 위탁하기 →</a>
+    <a class="cta quiet" style="margin-top:7px">직접 함께 뛰기</a>
+  </div>
+</div>
+<p class="note"><b>The one big photo in the app.</b> The club's cover is a real shot of its own morning — host picks it, refreshes it whenever. Scrim law visible here: the title sits in the scrim zones (dark up top, lilac fade below), never on raw image. The glass masthead overlaps the photo edge, stitching the two worlds. Credit line, always — it's someone's photo of someone's Saturday.</p></div>
+
+<div class="shot"><div class="sl">O9 — 라이브 + 러너의 사진</div><div class="ph">
+  <div class="gmast"><span class="mg">DH</span><h3 class="bhs">몽이 러닝 중<span class="sub">WITH 지훈 · 09:15~</span></h3><span class="vkdim">LIVE</span></div>
+  <div class="card" style="padding:0;overflow:hidden;margin-top:12px">
+    <div style="height:120px;background:linear-gradient(150deg,#E9E5F8,#DDD8F0);position:relative">
+      <div style="position:absolute;left:18%;top:26%;right:20%;bottom:22%;border:2px dashed #B9B0E4;border-radius:12px"></div>
+      <div style="position:absolute;left:54%;top:38%;width:12px;height:12px;border-radius:50%;background:var(--coral);box-shadow:0 0 0 5px rgba(240,118,90,.25)"></div>
+      <span class="vkdim" style="position:absolute;left:11px;top:9px">2.4 / 5.0 KM · 6'41"</span>
+    </div>
+  </div>
+  <div class="polaroid">
+    <div class="img">
+      <div style="position:absolute;left:30%;bottom:18%;width:40px;height:34px;background:#5d5240;border-radius:45% 45% 40% 40%;opacity:.9"></div>
+      <div style="position:absolute;left:44%;bottom:30%;width:12px;height:16px;background:#5d5240;border-radius:50% 50% 20% 20%;opacity:.9"></div>
+    </div>
+    <div class="cap"><b>지훈이 방금 보낸 사진</b><span>09:31</span></div>
+  </div>
+  <div class="msg"><div class="who">지훈 · 러너</div><div class="bb">몽이 첫 강변런인데 아주 신났어요 🐾</div></div>
+</div>
+<p class="note"><b>The humane peak of the whole loop.</b> The runner's mid-run photo (already flowing through chat's photo kind) gets promoted onto the owner's live screen as a tilted polaroid — your dog, right now, happy, with a stranger you trusted. Nothing sells delegation harder, and it's zero new backend.</p></div>
+
+<div class="shot"><div class="sl">O11 — 영수증 = 사진 인화</div><div class="ph">
+  <div class="gmast"><span class="mg">DH</span><h3 class="bhs">완료<span class="sub">SAT 09:00 · BANPO</span></h3><span class="vkdim">몽이</span></div>
+  <div class="receipt" style="margin-top:12px">
+    <div class="photo">
+      <div class="runline"></div>
+    </div>
+    <div class="goldseal">SETTLED</div>
+    <b style="display:block;text-align:center;font-size:15px;color:var(--lhead);margin-top:12px">몽이, 오늘 5.0km</b>
+    <span style="display:block;text-align:center;font-size:10px;color:var(--ldim);margin-top:2px">지훈과 · 6'58" · 34:52</span>
+    <div style="margin-top:9px">
+      <div class="rline"><span>위탁 결제</span><b>24,900원</b></div>
+      <div class="rline"><span>기록</span><b>시즌 12회 · 58.4km</b></div>
+    </div>
+  </div>
+  <a class="cta quiet" style="margin-top:11px">사진으로 저장 · 공유</a>
+</div>
+<p class="note"><b>The receipt becomes a photo print</b> — best shot of the run (runner's photo, or the trace over the club cover as fallback) with the gold seal stamped half on the photo, half off, like a real album stamp. "사진으로 저장" exports exactly this card — <b>the share loop is the growth loop.</b></p></div>
+
+</div>
+
+<h2><span class="tag">2</span>The memory system — dog's book · group ritual</h2>
+<div class="row">
+
+<div class="shot"><div class="sl">몽이의 책 — 앨범이 된 기록</div><div class="ph">
+  <div class="gmast"><span class="mg">DH</span><h3 class="bhs">몽이의 책<span class="sub">SEASON 12 RUNS · 58.4 KM</span></h3><span class="vkdim">2026</span></div>
+  <div class="album" style="margin-top:12px">
+    <div class="pg"><div class="img" style="background:var(--photo-river)"></div><div class="cap"><b>토 09:00 · 5.0km</b><span>지훈과 · SETTLED</span></div></div>
+    <div class="pg"><div class="img" style="background:var(--photo-park)"></div><div class="cap"><b>일 08:00 · 3.2km</b><span>혼자 산책</span></div></div>
+    <div class="pg"><div class="img" style="background:var(--photo-group)"></div><div class="cap"><b>토 09:00 · 단체샷</b><span>반포동 하이클럽</span></div></div>
+    <div class="pg"><div class="img" style="background:linear-gradient(180deg,#F0E2D2 0%,#CBB9A2 45%,#8E8172 100%)"></div><div class="cap"><b>토 09:00 · 5.0km</b><span>민아와 · SETTLED</span></div></div>
+  </div>
+  <div class="card" style="display:flex;gap:10px;align-items:center">
+    <span class="dog" style="width:30px;height:30px"></span>
+    <div style="flex:1"><b style="font-size:12px;color:var(--lhead)">시즌 12회 · 58.4km</b>
+    <span style="display:block;font-size:9.5px;color:var(--ldim)">가장 자주 달린 사람: 지훈 (5회)</span></div>
+  </div>
+</div>
+<p class="note"><b>Records were a table; now they're an album.</b> Every settled run files its photo print into the dog's book — delegated runs and owner walks alike. "가장 자주 달린 사람" quietly builds the relationship story: the same runner coming back is the trust metric owners actually feel.</p></div>
+
+<div class="shot"><div class="sl">단체샷 — 세션의 마침 의식</div><div class="ph">
+  <div class="gmast"><span class="mg">DH</span><h3 class="bhs">토 09:00 세션<span class="sub">SESSION DONE · 09:58</span></h3><span class="vkdim">7명</span></div>
+  <div class="groupcard" style="margin-top:12px">
+    <div class="img">
+      <div style="position:absolute;left:12%;bottom:20%;width:22px;height:38px;background:#4a4160;border-radius:45% 45% 30% 30%;opacity:.85"></div>
+      <div style="position:absolute;left:24%;bottom:18%;width:22px;height:42px;background:#57496a;border-radius:45% 45% 30% 30%;opacity:.85"></div>
+      <div style="position:absolute;left:38%;bottom:17%;width:14px;height:12px;background:#6b5c48;border-radius:50%;opacity:.9"></div>
+      <div style="position:absolute;left:48%;bottom:19%;width:22px;height:40px;background:#4f4468;border-radius:45% 45% 30% 30%;opacity:.85"></div>
+      <div style="position:absolute;left:62%;bottom:17%;width:15px;height:13px;background:#7a6a52;border-radius:50%;opacity:.9"></div>
+      <div style="position:absolute;left:72%;bottom:20%;width:22px;height:36px;background:#5a4d66;border-radius:45% 45% 30% 30%;opacity:.85"></div>
+    </div>
+    <div class="body">
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <b style="font-size:13.5px;color:var(--lhead)">오늘의 단체샷</b>
+        <span class="tag2 gold">SEASON 21</span>
+      </div>
+      <span style="display:block;font-size:10px;color:var(--ldim);margin-top:3px">호스트가 찍으면 참가자 모두의 책에 실려요</span>
+    </div>
+  </div>
+  <div class="msg"><div class="who">SYSTEM</div><div class="bb">세션이 끝났어요 — 단체샷을 남길까요? 📷</div></div>
+  <a class="cta" style="padding:11px 0;font-size:12.5px">단체샷 찍기</a>
+</div>
+<p class="note"><b>A new tiny ritual, not a new system:</b> at session close, the host gets one prompt; the shot fans out to every participant's book and becomes a club-cover candidate. This is where next month's photo hero comes from — the loop feeds its own face. Skippable, never nagging (one prompt, then gone).</p></div>
+
+</div>
+
+<h2><span class="tag">RULES</span>Photography law — where warmth lives, where paper rules</h2>
+<div class="tokens">
+  <div class="tk"><b>5 slots, no more</b>Club cover (the one big photo) · live polaroid · receipt print · dog's book · group shot card. A sixth photo surface needs a reason this list doesn't cover.</div>
+  <div class="tk"><b>Paper zones</b>Payment, consent, console, roster, case/incident, cancel: photo-free forever. Money and safety read on paper, warmth lives next door.</div>
+  <div class="tk"><b>Scrim law</b>Text on photos only within scrim zones (ink fade top, lilac fade bottom). No raw-photo text, no exceptions — legibility is non-negotiable.</div>
+  <div class="tk"><b>Self-sourced only</b>Runner shares, group shots, host covers. No stock photography anywhere, ever — a fake morning would poison the real ones.</div>
+  <div class="tk"><b>Consent gate</b>Group shots and any photo showing people/dogs other than your own ride the existing photoConsent flag from the delegation consent — unconsented faces stay out of others' books.</div>
+  <div class="tk"><b>Credit line</b>Every displayed photo carries ⓒ + when + who, in mono microtype. Humane means someone made it.</div>
+</div>
+
+<div class="pickfoot">
+  <p><b>The argument in one line:</b> paper where money and safety live, photographs where the morning lives — warmth as content, not decoration. If you want more photo presence than this (e.g., a photo band on the session ticket too), say where and I'll extend the law; if this is right, it's canon. Still parked: <b>③|④</b> chat · <b>⑤|⑥</b> ack · v2 materials nod. Backend note: everything here runs on existing rails (chat photo kind, media_path, photoConsent) except two small adds when we build it — a club cover field and the group-shot fanout.</p>
+</div>
+</body>
+</html>
