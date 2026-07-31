@@ -373,8 +373,15 @@ accepted runner; no-show = ladder top; host_fee on completed sessions) + owner c
 materiality (weight edit → assignment revoked + 재검토 badge + host re-review; reject → auto full refund;
 `withdrawn` approval value so owner cancel ≠ host rejection) + per-format viability (board-exposed, no
 auto-cancel) + total_dog_capacity + membership separation (RSVP/delegation ≠ join; explicit
-club_join/club_leave; obligations survive leave) → R5 shell backend (group chat + private channel + capability roster
-+ phones B + ack banners) → R6 incident wiring/SOS/severity/evidence + GPS baseline + segments + series
+club_join/club_leave; obligations survive leave) → **R5 backend built (0049)**: session group chat + limited
+host channel (RLS direct access for realtime; access = single `_club_shell_access` judge — requesting is not
+a door; self-scoped wrapper fns because RLS predicates run as caller) + write lifecycle (participation →
+custody resolved + 24h; open incidents extend — evidence preservation) + pilot moderation (delete-own 5m
+with body erasure, report→host flag, 20/min rate limit via trigger) + capability roster (host: all + charge
+labels + capacity meter/viability; delegated owners are roster people too) + phone rule B lifecycle-scoped
+with access log (dedup) + critical-ack infra (title registry → auto ack rows via notification trigger; 30m
+unacked → host escalation; return-overdue alert joins recovery cron). Private owner↔runner channel =
+existing per-booking chat (party RLS already covers club bookings) → R6 incident wiring/SOS/severity/evidence + GPS baseline + segments + series
 occurrence identity + adversarial harness (permission-leak, idempotency replay, out-of-order, stale-client,
 2-connection races: last-slot pay, pay-vs-expiry, withdraw-vs-pay) → production UI (lab v3 direction), G2+.
 

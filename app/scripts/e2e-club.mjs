@@ -268,6 +268,24 @@ const main = async () => {
     assert(b.status === 'confirmed' && b.runner_id === r2.id, `수락 결과: ${b.status}/${b.runner_id}`);
   });
 
+  // ---------- R5: 셸 — 그룹 채팅 RLS·로스터 (실경로) ----------
+  await t('R5 — 그룹 채팅 RLS: full 발신·가시 / 무관자 0행·발신 거부 / 로스터 접근', async () => {
+    const { error: sendErr } = await own1.client.from('club_chat_messages')
+      .insert({ session_id: sessionId, sender_id: own1.id, body: 'e2e 그룹 메시지' });
+    assert(!sendErr, `full 발신 실패: ${sendErr?.message}`);
+    const { data: mine } = await own1.client.from('club_chat_messages').select('id').eq('session_id', sessionId);
+    assert((mine ?? []).length >= 1, '가시 실패');
+    const { data: ghostView } = await ghost.client.from('club_chat_messages').select('id').eq('session_id', sessionId);
+    assert((ghostView ?? []).length === 0, '무관자에게 채팅 노출');
+    const { error: ghostSend } = await ghost.client.from('club_chat_messages')
+      .insert({ session_id: sessionId, sender_id: ghost.id, body: '침입' });
+    assert(ghostSend, '무관자 발신이 성공함 (RLS 구멍)');
+    const roster = await rpc(own1.client, 'club_session_roster', { p_session: sessionId });
+    assert(roster.access === 'full' && Array.isArray(roster.people), `로스터: ${roster.access}`);
+    await expectError(ghost.client.rpc('club_session_roster', { p_session: sessionId }),
+      'not_party', '무관자 로스터');
+  });
+
   // ---------- 인계 [service-role 모사 — transition-booking 엣지 경로는 3층 몫] ----------
   await t('인계(모사) → 커스터디 플립·아웃바운드 이벤트 (이벤트 열람은 실 RPC·당사자 한정)', async () => {
     await svc.from('bookings').update({
