@@ -1,0 +1,556 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>도그스하이 — P-D 프로덕션 랩 (실 계약 기반 · R0A~R6 백엔드 완결판)</title>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Oswald:wght@500;600;700&family=IBM+Plex+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0E100D;--paper:#FFFFFF;--volt:#C6F542;--voltDeep:#7FA818;--tang:#FF5C3D;
+  --amber:#F59A43;--blue:#6E9BC5;
+  --club:#7B6CDF;--neon:#9F8FFF;
+  --vbg:#0E0D15;--vcard:#17161F;--vinset:#0B0A11;--vedge:#3B3947;--vrule:#4B4858;
+  --vdim:#9A97A8;--vtext:#D9D7E2;
+  --c-tang:#FF8A5C;--c-teal:#3EC6A8;--c-rose:#E58BA9;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0A0C0A;color:#E8EBE4;font-family:'IBM Plex Sans KR',sans-serif;padding:32px 26px 100px}
+.bhs{font-family:'Black Han Sans',sans-serif;font-weight:400}
+.osw{font-family:'Oswald',sans-serif}
+.mono{font-family:'IBM Plex Mono',monospace}
+h1{font-size:27px;color:var(--volt)}
+h2{font-size:16px;color:#fff;margin-top:44px;padding-top:18px;border-top:1px solid #232a22}
+h2 .dec{font-family:'Oswald',sans-serif;color:#0E100D;background:var(--volt);padding:1px 9px;font-size:13px;margin-right:9px;vertical-align:2px}
+h2 .spec{font-family:'IBM Plex Mono',monospace;color:var(--vdim);background:#151a14;border:1px solid #232a22;padding:2px 9px;font-size:10px;letter-spacing:2px;margin-right:9px;vertical-align:2px}
+.lede{color:#7d8878;margin:9px 0 4px;max-width:980px;line-height:1.65;font-size:13.5px}
+.lede b{color:#c8d0c2}
+.legend{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}
+.lg{background:#151a14;border:1px solid #232a22;padding:8px 12px;font-size:11.5px;color:#c8d0c2;line-height:1.5}
+.lg b{color:#fff}
+.row{display:flex;gap:18px;flex-wrap:wrap;margin-top:18px;align-items:flex-start}
+.shot{width:302px}
+.shot.wide{width:622px}
+.sl{font-size:10.5px;letter-spacing:2px;color:#7d8878;margin-bottom:7px;font-family:'IBM Plex Mono',monospace}
+.sl b{color:var(--volt);font-size:12px;letter-spacing:1px}
+.note{color:#8fa093;font-size:11.5px;line-height:1.6;margin:9px 2px 0}
+.note b{color:#c8d0c2}
+.note .fld{font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:var(--neon);background:#14131c;padding:1px 4px}
+.ph{min-height:520px;padding:14px 12px 18px;overflow:hidden;position:relative;background:var(--vbg);color:#EDECF2}
+.ph.short{min-height:0}
+.mast{display:flex;justify-content:space-between;align-items:baseline;padding-bottom:8px;border-bottom:1.5px solid var(--club)}
+.mast h3{font-size:18px;color:#fff}
+.vk{font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:2.5px;color:var(--neon)}
+.vkdim{font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:2px;color:var(--vdim)}
+.shell{display:flex;border-bottom:1px solid var(--vedge);margin-top:2px}
+.shell div{flex:1;text-align:center;font-size:11.5px;font-weight:800;color:var(--vdim);padding:9px 0;position:relative}
+.shell div.on{color:#fff}
+.shell div.on::after{content:'';position:absolute;left:26%;right:26%;bottom:-1px;height:2.5px;background:var(--club)}
+.shell div small{font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--volt);margin-left:3px}
+.dog{width:34px;height:34px;border-radius:50%;flex:none;background:linear-gradient(140deg,#c9b89a,#8a7a5c);border:2.5px solid var(--c-tang)}
+.dog.teal{border-color:var(--c-teal);background:linear-gradient(140deg,#b8c2a8,#6d7a5a)}
+.dog.rose{border-color:var(--c-rose);background:linear-gradient(140deg,#d9c2b2,#96806a)}
+.cta3d{display:block;background:var(--tang);color:#fff;border:2px solid #000;box-shadow:4px 4px 0 #000;text-align:center;font-weight:900;font-size:14.5px;padding:13px 0;margin-top:13px}
+.cta3d.dis{background:#2a2833;color:#6b6878;box-shadow:none;border-color:#3B3947;font-size:12.5px}
+.flap{display:inline-flex;gap:1.5px;vertical-align:middle}
+.flap i{font-family:'Oswald',sans-serif;font-style:normal;font-weight:600;font-size:9px;background:#211E33;
+  padding:2px 3px;border-top:1px solid rgba(255,255,255,.14);border-bottom:2px solid #000;position:relative;letter-spacing:.5px;min-width:12px;text-align:center}
+.flap i::after{content:'';position:absolute;left:0;right:0;top:50%;height:1px;background:rgba(0,0,0,.5)}
+.flap.amberF i{color:var(--amber)}.flap.neonF i{color:var(--neon)}.flap.voltF i{color:var(--volt)}.flap.tangF i{color:var(--tang)}.flap.dimF i{color:var(--vdim)}
+.stateK{display:inline-flex;align-items:center;gap:7px}
+.stateK b{font-size:12px;color:#fff}
+.stateK.amber b{color:var(--amber)}
+.stateK.volt b{color:var(--volt)}
+.stateK.tang b{color:var(--tang)}
+.hint{display:flex;gap:7px;margin-top:8px;font-size:10.5px;line-height:1.55;color:var(--vtext)}
+.hint::before{content:'▸';color:var(--vdim);flex:none}
+.hint b{color:#fff}
+.hint em{font-style:normal;color:var(--amber);font-weight:700}
+.hint.key{border-left:2px solid var(--amber);padding-left:8px}
+.hint.key::before{content:none}
+.card{background:var(--vcard);border:1px solid var(--vedge);padding:11px 12px;margin-top:9px}
+.card.hero{border-left:2.5px solid var(--club)}
+.card.crit{border-left:2.5px solid var(--tang)}
+.bignum{display:flex;border-top:1px solid var(--vedge);border-bottom:1px solid var(--vedge);margin-top:12px;background:var(--vinset)}
+.bignum div{flex:1;padding:9px 6px;border-right:1px solid var(--vedge)}
+.bignum div:last-child{border-right:0}
+.bignum b{display:block;font-family:'Oswald',sans-serif;font-size:22px;font-weight:600;color:#fff;line-height:1}
+.bignum b em{font-style:normal;color:var(--tang)}
+.bignum span{display:block;font-family:'IBM Plex Mono',monospace;font-size:7px;letter-spacing:1.5px;color:var(--vdim);margin-top:3px}
+.sechead{display:flex;gap:8px;align-items:center;margin-top:14px;padding-bottom:5px;border-bottom:1.5px solid var(--vrule)}
+.sechead .n{font-family:'Oswald',sans-serif;font-weight:700;font-size:13px;color:#0E0D15;background:var(--neon);padding:1px 7px}
+.sechead b{font-size:13px;color:#fff}
+.sechead span{font-size:9.5px;color:var(--vdim);margin-left:auto}
+.drow{background:var(--vcard);border:1px solid var(--vedge);padding:10px;margin-top:8px}
+.drow .top{display:flex;gap:9px;align-items:center}
+.drow .nm{flex:1;min-width:0}
+.drow .nm b{font-size:13.5px;color:#fff}
+.drow .nm span{display:block;font-size:9.5px;color:var(--vtext);margin-top:1px}
+.paylabel{font-size:10px;font-weight:800;padding:4px 8px;border:1.5px solid var(--vedge);color:var(--vdim);font-variant-numeric:tabular-nums}
+.paylabel.due{border-color:var(--amber);color:var(--amber)}
+.paylabel.ok{border-color:var(--voltDeep);color:var(--volt)}
+.paylabel.bad{border-color:var(--tang);color:var(--tang)}
+.actrow{display:flex;gap:7px;margin-top:9px}
+.abtn{flex:1;text-align:center;font-weight:900;font-size:11px;padding:8px 0;border:1.5px solid var(--volt);color:#0E0D15;background:var(--volt)}
+.abtn.ghost{background:transparent;color:var(--vdim);border-color:var(--vedge)}
+.abtn.warn{background:transparent;color:var(--amber);border-color:var(--amber)}
+.gchip{border:1.5px solid var(--vedge);color:var(--vtext);font-weight:800;font-size:10.5px;padding:6px 9px;background:var(--vinset)}
+.gchip.pick{border-color:var(--neon);color:#fff;background:#232038}
+.gchip small{font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--vdim);margin-left:4px}
+.badge{display:inline-block;font-size:9px;font-weight:800;padding:2.5px 7px;border:1.5px solid var(--vedge);color:var(--vdim);margin-right:4px}
+.badge.warn{border-color:var(--amber);color:var(--amber)}
+.badge.crit{border-color:var(--tang);color:var(--tang)}
+.badge.ok{border-color:var(--voltDeep);color:var(--volt)}
+/* ── 종이 서식 (동의 서류) ── */
+.paperdoc{background:var(--paper);color:var(--ink);padding:13px 13px 15px;margin-top:10px;position:relative;
+  box-shadow:0 0 0 1px #d8d4c8, 5px 5px 0 rgba(0,0,0,.55)}
+.paperdoc::before{content:'';position:absolute;inset:4px;border:1px solid #cbc4b0;pointer-events:none}
+.pd-head{display:flex;justify-content:space-between;align-items:baseline;border-bottom:2.5px solid var(--ink);padding-bottom:6px}
+.pd-head b{font-family:'Black Han Sans',sans-serif;font-weight:400;font-size:16px}
+.pd-head span{font-family:'IBM Plex Mono',monospace;font-size:7.5px;letter-spacing:1.5px;color:#8a8272}
+.pd-row{display:flex;border-bottom:1px solid #d8d4c8;padding:7px 2px;gap:8px;align-items:baseline}
+.pd-row span{font-family:'IBM Plex Mono',monospace;font-size:7.5px;letter-spacing:1.2px;color:#8a8272;width:76px;flex:none}
+.pd-row b{font-size:12px;font-weight:700}
+.pd-row b u{text-decoration:none;border-bottom:1.5px dashed #b8b0a0;padding:0 3px}
+.pd-clause{font-size:9.5px;line-height:1.6;color:#4a463c;background:#f4f1e8;padding:8px 9px;margin-top:9px;border-left:2.5px solid var(--ink)}
+.pd-clause b{color:var(--ink)}
+/* ① 결재란 분리 */
+.sealrow{display:flex;margin-top:10px;border:1.5px solid var(--ink)}
+.sealrow .who{flex:1;padding:8px 10px;border-right:1.5px solid var(--ink)}
+.sealrow .who span{display:block;font-family:'IBM Plex Mono',monospace;font-size:7px;letter-spacing:1.5px;color:#8a8272}
+.sealrow .who b{font-size:12px}
+.sealcell{width:72px;flex:none;display:flex;align-items:center;justify-content:center;position:relative;background:#faf8f2}
+.sealcell span{position:absolute;top:3px;left:5px;font-family:'IBM Plex Mono',monospace;font-size:6.5px;letter-spacing:1.5px;color:#b8b0a0}
+.pawseal{width:44px;height:44px;border-radius:50%;border:2.5px solid #D8442E;color:#D8442E;display:flex;align-items:center;justify-content:center;
+  font-family:'Black Han Sans',sans-serif;font-size:11px;transform:rotate(-8deg);opacity:.9;line-height:1.1;text-align:center}
+.pawseal.empty{border-style:dashed;color:#c9c2b2;border-color:#c9c2b2;transform:none;opacity:1;font-size:9px}
+/* ② 밀봉 스트립 */
+.sealstrip{margin-top:10px;border:1.5px solid var(--ink);background:#faf8f2;height:52px;display:flex;align-items:center;position:relative;overflow:hidden}
+.sealstrip .done-track{position:absolute;left:0;top:0;bottom:0;width:72%;background:#efe9d8}
+.sealstrip .lbl{position:absolute;left:0;right:0;text-align:center;font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:2px;color:#8a8272}
+.sealstrip .pawseal{position:absolute;left:calc(72% - 48px);background:#faf8f2}
+.sealstrip .arrow{position:absolute;right:10px;color:#c9c2b2;font-size:16px}
+/* 플랩 어휘 레지스트리 */
+.vocab{display:flex;flex-wrap:wrap;border:1px solid var(--vedge);margin-top:10px}
+.vocab>div{width:20%;padding:10px 9px;border-right:1px solid var(--vedge);border-bottom:1px solid var(--vedge)}
+.vocab>div:nth-child(5n){border-right:0}
+.vocab>div:nth-last-child(-n+5){border-bottom:0}
+.vocab .kk{display:block;font-size:11.5px;font-weight:800;color:#fff;margin-top:6px}
+.vocab .ww{display:block;font-size:8.5px;color:var(--vdim);margin-top:3px;line-height:1.5}
+/* 성립 미터 */
+.meter{display:flex;gap:0;border:1px solid var(--vedge);margin-top:9px;background:var(--vinset)}
+.meter>div{flex:1;padding:7px 8px;border-right:1px solid var(--vedge)}
+.meter>div:last-child{border-right:0}
+.meter span{display:block;font-family:'IBM Plex Mono',monospace;font-size:6.5px;letter-spacing:1.2px;color:var(--vdim)}
+.meter b{display:block;font-size:12px;color:#fff;margin-top:2px}
+.meter b.ok{color:var(--volt)}
+.meter b.warn{color:var(--amber)}
+/* 카운트다운 */
+.cdown{margin-top:10px;border:1.5px solid var(--amber);background:var(--vinset);padding:9px 11px}
+.cdown .tt{display:flex;justify-content:space-between;align-items:baseline}
+.cdown .tt b{font-family:'Oswald',sans-serif;font-size:24px;color:var(--amber);font-weight:600}
+.cdown .tt span{font-size:10px;color:var(--vtext)}
+.cdown .bar{height:5px;background:#211E33;margin-top:7px;position:relative}
+.cdown .bar i{position:absolute;left:0;top:0;bottom:0;width:82%;background:var(--amber)}
+/* 로스터 */
+.prow{display:flex;align-items:center;gap:9px;background:var(--vcard);border:1px solid var(--vedge);padding:9px 10px;margin-top:7px}
+.pava{width:30px;height:30px;border-radius:50%;flex:none;background:linear-gradient(140deg,#5a5470,#38334a);position:relative}
+.pava.in::after{content:'';position:absolute;right:-1px;bottom:-1px;width:9px;height:9px;border-radius:50%;background:var(--volt);border:2px solid var(--vcard)}
+.prow .nm{flex:1;min-width:0}
+.prow .nm b{font-size:12.5px;color:#fff}
+.prow .nm span{display:block;font-size:9px;color:var(--vdim);margin-top:1px}
+.phchip{font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:700;padding:4px 7px;border:1.5px solid var(--vedge);color:var(--vdim)}
+.phchip.direct{border-color:var(--voltDeep);color:var(--volt)}
+/* 채팅 */
+.chtoggle{display:flex;border:1px solid var(--vedge);margin-top:9px}
+.chtoggle div{flex:1;text-align:center;font-size:10.5px;font-weight:800;color:var(--vdim);padding:7px 0}
+.chtoggle div.on{background:#232038;color:#fff;border-bottom:2px solid var(--neon)}
+.chtoggle div small{font-family:'IBM Plex Mono',monospace;font-size:7.5px;margin-left:3px;color:var(--volt)}
+.msg{max-width:82%;margin-top:8px}
+.msg .who{font-family:'IBM Plex Mono',monospace;font-size:7.5px;letter-spacing:1px;color:var(--vdim);margin-bottom:2px}
+.msg .bb{background:var(--vcard);border:1px solid var(--vedge);padding:8px 10px;font-size:11px;line-height:1.5;color:var(--vtext)}
+.msg.me{margin-left:auto}
+.msg.me .bb{background:#232038;border-color:#3a3560;color:#fff}
+.msg.sys{max-width:100%;text-align:center}
+.msg.sys .bb{background:transparent;border:0;border-top:1px dashed var(--vedge);border-bottom:1px dashed var(--vedge);font-size:9.5px;color:var(--vdim)}
+.hostdrawer{border:1.5px solid var(--neon);background:#1a1728;padding:9px 11px;margin-top:9px}
+.hostdrawer .hd{display:flex;justify-content:space-between;align-items:center}
+.hostdrawer .hd b{font-size:11.5px;color:#fff}
+.hostdrawer .hd i{font-style:normal;width:8px;height:8px;border-radius:50%;background:var(--tang)}
+.hostdrawer p{font-size:10px;color:var(--vtext);margin-top:5px;line-height:1.5}
+/* ack 배너 */
+.ackb{border:1.5px solid var(--amber);background:rgba(245,154,67,.07);padding:9px 11px;margin-top:8px;display:flex;gap:9px;align-items:center}
+.ackb.crit{border-color:var(--tang);background:rgba(255,92,61,.08)}
+.ackb .tx{flex:1;min-width:0}
+.ackb .tx b{display:block;font-size:11.5px;color:#fff}
+.ackb .tx span{display:block;font-size:9.5px;color:var(--vtext);margin-top:2px;line-height:1.45}
+.ackbtn{flex:none;font-size:10px;font-weight:900;padding:7px 10px;border:1.5px solid var(--amber);color:var(--amber)}
+.ackb.crit .ackbtn{border-color:var(--tang);color:var(--tang)}
+.takeover{position:absolute;inset:0;background:rgba(8,7,14,.94);display:flex;flex-direction:column;justify-content:center;padding:22px 18px}
+.takeover .tk{border:2px solid var(--tang);background:var(--vcard);padding:16px 15px;box-shadow:6px 6px 0 #000}
+.takeover .tk .vk{color:var(--tang)}
+.takeover h4{font-size:18px;color:#fff;margin-top:8px;line-height:1.35}
+.takeover p{font-size:11px;color:var(--vtext);margin-top:8px;line-height:1.6}
+/* 타임라인 */
+.tl{margin-top:9px;border-left:1.5px solid var(--vedge);padding-left:11px}
+.tl .ev{position:relative;padding:5px 0;font-size:10.5px;color:var(--vtext)}
+.tl .ev::before{content:'';position:absolute;left:-14.5px;top:11px;width:6px;height:6px;background:var(--vedge)}
+.tl .ev.hot::before{background:var(--tang)}
+.tl .ev b{color:#fff}
+.tl .ev .mono{font-size:8px;color:var(--vdim);margin-right:5px}
+/* 링고 */
+.lingo{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.lingo>div{border:1px solid var(--vedge);background:var(--vcard);padding:9px 11px;width:calc(33.33% - 6px)}
+.lingo b{font-size:13px;color:var(--neon)}
+.lingo span{display:block;font-size:9.5px;color:var(--vtext);margin-top:3px;line-height:1.55}
+.pickfoot{margin-top:46px;border:1.5px solid var(--volt);background:#10140c;padding:16px 18px;max-width:980px}
+.pickfoot b{color:var(--volt)}
+.pickfoot p{font-size:13px;line-height:1.75;color:#c8d0c2}
+</style>
+</head>
+<body>
+<h1 class="bhs">P-D — 프로덕션 위탁 UI 랩</h1>
+<p class="lede">백엔드 R0A~R6 완결 후 첫 프로덕션 랩. 여기 모든 화면은 상상이 아니라 <b>실제 반환값</b> 위에 그렸다 — 보드 v5(<span class="mono" style="font-size:10px;color:var(--neon)">club_delegation_board</span>) · 프로젝션 v4(<span class="mono" style="font-size:10px;color:var(--neon)">ui.primaryStage/secondaryBadges/requiredActors</span>) · 로스터(<span class="mono" style="font-size:10px;color:var(--neon)">club_session_roster</span>) · ack(<span class="mono" style="font-size:10px;color:var(--neon)">club_my_acks</span>) · 챗 RLS. 수렴된 v3 방향(퍼플 희석 · 상설 셸 · 한국어 상태 1급)은 그대로 계승 — <b>번호 변형은 진짜 새 결정 3곳에만</b> 있다: 동의 서식의 도장 처리(①②), 호스트 채널 배치(③④), 크리티컬 ack 방식(⑤⑥). 나머지는 확정 스펙 제안.</p>
+<div class="legend">
+  <div class="lg"><b>결정 3건</b> ①|② 동의 서식 · ③|④ 채팅 · ⑤|⑥ ack — 각 쌍에서 하나씩, 번호로 답하면 됨</div>
+  <div class="lg"><b>SPEC 표기</b> 변형 없는 화면 = 수렴 방향의 프로덕션 확장 — 이의 있으면 그것도 말로</div>
+  <div class="lg"><b>숫자 출처</b> 진료 한도 20만·무료 취소 24h·수수료 10/20% 등은 전부 club_config — [Sean 미확정] 값</div>
+</div>
+
+<!-- ═══════════ A. 동의 서식 — 결정 ①② ═══════════ -->
+<h2><span class="dec">결정 ①|②</span>위탁 승낙서 — 도장이 정보를 가리지 않는 두 가지 방법</h2>
+<p class="lede">신청 = <span class="mono" style="font-size:10px;color:var(--neon)">session_delegate_dog(session, dog, consent)</span>. consent에 custodyAck·emergencyContact(필수)·pickupName·vetLimitKrw가 실리고, 서버는 <b>불변 문서 v1</b>로 박제한다(본인도 수정 불가 — 재동의만 새 행). 종이 서식 모티프는 유지하되, 이전 랩의 결함 — 도장이 조항을 덮던 것 — 을 구조로 해결한다.</p>
+<div class="row">
+
+<div class="shot"><div class="sl"><b>①</b> — 결재란 분리 (도장은 도장 칸에만)</div><div class="ph">
+  <div class="mast"><h3 class="bhs">몽이 위탁 신청</h3><span class="vkdim">토 09:00 · 반포동</span></div>
+  <div class="paperdoc">
+    <div class="pd-head"><b>위탁 승낙서</b><span>DELEGATION CONSENT · v1 — 不變</span></div>
+    <div class="pd-row"><span>위탁견</span><b>몽이 <u>푸들 · 6.2kg</u></b></div>
+    <div class="pd-row"><span>비상 연락처 *</span><b><u>010-4425-7789</u></b></div>
+    <div class="pd-row"><span>픽업 지정인</span><b><u>션 (본인)</u></b></div>
+    <div class="pd-row"><span>진료 한도</span><b><u>₩200,000</u> 까지 사전 승인</b></div>
+    <div class="pd-clause">본인은 인계 확인부터 <b>양측 반환 확인까지</b> 담당 러너가 몽이의 보호 책임자임에 동의하며, 긴급 시 위 한도 내 수의 진료와 외부 기관 이양이 즉시 집행될 수 있음을 이해합니다.</div>
+    <div class="sealrow">
+      <div class="who"><span>OWNER</span><b>션 · 2026-08-01 08:12</b></div>
+      <div class="sealcell"><span>印</span><div class="pawseal">위탁<br>승낙</div></div>
+    </div>
+  </div>
+  <div class="hint"><span>수정하려면 <b>재동의</b> — 문서는 고쳐지지 않고 새 판이 쌓여요</span></div>
+  <a class="cta3d">이 내용으로 신청 →</a>
+</div>
+<p class="note"><b>관공서 결재란 문법.</b> 조항·필드 영역과 인장 영역을 괘선으로 분리 — 도장은 자기 칸(印)에만 찍힌다. 도장 누르는 인터랙션 = 빈 점선 원을 탭 → 스탬프 애니메이션 + 햅틱. 날짜·서명자가 도장 옆 같은 행이라 스크린샷 한 장이 증빙이 됨. <span class="fld">delegation_consents.custody_ack</span></p></div>
+
+<div class="shot"><div class="sl"><b>②</b> — 밀봉 스트립 (끌어서 봉인)</div><div class="ph">
+  <div class="mast"><h3 class="bhs">몽이 위탁 신청</h3><span class="vkdim">토 09:00 · 반포동</span></div>
+  <div class="paperdoc">
+    <div class="pd-head"><b>위탁 승낙서</b><span>DELEGATION CONSENT · v1 — 不變</span></div>
+    <div class="pd-row"><span>위탁견</span><b>몽이 <u>푸들 · 6.2kg</u></b></div>
+    <div class="pd-row"><span>비상 연락처 *</span><b><u>010-4425-7789</u></b></div>
+    <div class="pd-row"><span>픽업 지정인</span><b><u>션 (본인)</u></b></div>
+    <div class="pd-row"><span>진료 한도</span><b><u>₩200,000</u> 까지 사전 승인</b></div>
+    <div class="pd-clause">본인은 인계 확인부터 <b>양측 반환 확인까지</b> 담당 러너가 몽이의 보호 책임자임에 동의하며, 긴급 시 위 한도 내 수의 진료와 외부 기관 이양이 즉시 집행될 수 있음을 이해합니다.</div>
+    <div class="sealstrip">
+      <div class="done-track"></div>
+      <div class="lbl">끌어서 봉인 — SEAL TO CONSENT</div>
+      <div class="pawseal" style="width:40px;height:40px;font-size:9px">위탁<br>승낙</div>
+      <div class="arrow">›››</div>
+    </div>
+  </div>
+  <div class="hint"><span>봉인이 끝까지 닿는 순간 신청 전송 — 버튼이 따로 없어요</span></div>
+</div>
+<p class="note"><b>동의 = 동작.</b> 도장을 스트립 끝까지 끌어야 전송 — 실수 탭이 구조적으로 불가능하고, 조항 위로는 아무것도 지나가지 않는다. 슬라이드 완료가 곧 CTA라 화면이 한 뼘 짧아짐. 단점: 접근성 대체 경로(길게 누르기) 필요.</p></div>
+
+</div>
+
+<!-- ═══════════ B. 플랩 어휘 정본 ═══════════ -->
+<h2><span class="spec">SPEC</span>플랩 어휘 정본 — 한국어 상태 10 × 7자 플랩</h2>
+<p class="lede">프로젝션 <span class="mono" style="font-size:10px;color:var(--neon)">ui.primaryStage</span>가 화면의 1급 한국어 라벨, 플랩은 그 옆의 플레이버. 커스터디가 서비스 축을 이긴다 — 반환·이양·외부 보호가 뜨면 러닝이 뭐라 하든 그게 1번 사실. 아래 10개가 <b>전체 어휘</b>다. 새 상태를 만들려면 여기부터 고친다.</p>
+<div class="row"><div class="shot wide"><div class="ph short" style="padding-bottom:14px">
+  <div class="vocab">
+    <div><span class="flap dimF"><i>P</i><i>E</i><i>N</i><i>D</i><i>I</i><i>N</i><i>G</i></span><b class="kk">신청 대기</b><span class="ww">requested — 호스트 심사 전</span></div>
+    <div><span class="flap amberF"><i>H</i><i>O</i><i>L</i><i>D</i><i>I</i><i>N</i><i>G</i></span><b class="kk">승인 — 결제 대기</b><span class="ww">approved · hold 20분 카운트다운</span></div>
+    <div><span class="flap neonF"><i>C</i><i>L</i><i>E</i><i>A</i><i>R</i><i>E</i><i>D</i></span><b class="kk">결제 완료 — 배정 대기</b><span class="ww">confirmed · unassigned/proposed</span></div>
+    <div><span class="flap neonF"><i>B</i><i>O</i><i>A</i><i>R</i><i>D</i><i>E</i><i>D</i></span><b class="kk">러너가 보호 중</b><span class="ww">인계 양측 확인 후 · picked_up</span></div>
+    <div><span class="flap voltF"><i>R</i><i>U</i><i>N</i><i>N</i><i>I</i><i>N</i><i>G</i></span><b class="kk">러닝 중</b><span class="ww">in_service · active</span></div>
+    <div><span class="flap amberF"><i>R</i><i>E</i><i>T</i><i>U</i><i>R</i><i>N</i><i>S</i></span><b class="kk">반환 대기</b><span class="ww">custody_phase=return_pending — 러닝 종료 ≠ 반환</span></div>
+    <div><span class="flap voltF"><i>S</i><i>E</i><i>T</i><i>T</i><i>L</i><i>E</i><i>D</i></span><b class="kk">완료</b><span class="ww">ended·completed <b style="color:#fff">그리고</b> custody resolved — 둘 다여야</span></div>
+    <div><span class="flap tangF"><i>O</i><i>U</i><i>T</i><i>S</i><i>I</i><i>D</i><i>E</i></span><b class="kk">외부 보호 중</b><span class="ww">clinic/authority 이양 · incident_review — 크리티컬</span></div>
+    <div><span class="flap tangF"><i>R</i><i>E</i><i>F</i><i>U</i><i>N</i><i>D</i><i> </i></span><b class="kk">환불</b><span class="ww">refund_state pending/failed — 실패는 크리티컬</span></div>
+    <div><span class="flap tangF"><i>R</i><i>E</i><i>F</i><i>U</i><i>S</i><i>E</i><i>D</i></span><b class="kk">거절 · 철회</b><span class="ww">rejected / withdrawn — 철회는 재신청 가능</span></div>
+  </div>
+  <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:11px">
+    <span class="badge warn">재검토 필요</span><span class="badge warn">자리 재확인 중</span><span class="badge">결제 기한 만료</span>
+    <span class="badge crit">인시던트 확인 중</span><span class="badge crit">환불 실패</span><span class="badge">정산 보류</span><span class="badge warn">환불 처리 중</span>
+  </div>
+</div>
+<p class="note"><b>아랫줄 = 보조 배지 어휘</b> (<span class="fld">ui.secondaryBadges</span> 원문 그대로 렌더 — 클라이언트가 문자열을 지어내지 않는다). severity info/warn/critical이 색을 정하고, <span class="fld">ui.requiredActors</span>가 "지금 누가 움직여야 하나"를 정한다 — 내 역할이 배열에 있으면 카드가 앰버 테두리로 승격.</p></div></div>
+
+<!-- ═══════════ C. 호스트 콘솔 프로덕션 ═══════════ -->
+<h2><span class="spec">SPEC</span>호스트 콘솔 — 성립 미터·재검토·정직한 종료 게이트</h2>
+<div class="row">
+
+<div class="shot"><div class="sl">C-1 — 콘솔 상단: 심사 + 재검토</div><div class="ph">
+  <div class="mast"><h3 class="bhs">호스트 콘솔</h3><span class="vkdim">토 09:00 · 반포동</span></div>
+  <div class="shell"><div class="on">개요</div><div>참가자 <small>7</small></div><div>채팅 <small>3</small></div></div>
+  <div class="meter">
+    <div><span>위탁 예약</span><b>5 / 8</b></div>
+    <div><span>결제견</span><b>3</b></div>
+    <div><span>현장 러너</span><b>2</b></div>
+    <div><span>성립</span><b class="ok">OK</b></div>
+  </div>
+  <div class="sechead"><span class="n">1</span><b>신청 심사</b><span>승인 = 결제 요청 발송</span></div>
+  <div class="drow" style="border-style:dashed">
+    <div class="top"><span class="dog"></span>
+      <div class="nm"><b>몽이</b><span>션 보호자 · 푸들 6.2kg · 무는이력 없음 · 첫 위탁</span></div>
+      <span class="stateK"><b style="font-size:11px">신청 대기</b></span></div>
+    <div class="actrow"><span class="abtn">승인</span><span class="abtn ghost">거절 (사유)</span></div>
+  </div>
+  <div class="drow" style="border-color:var(--amber)">
+    <div class="top"><span class="dog rose"></span>
+      <div class="nm"><b>두부</b><span>민서 보호자 · <em style="font-style:normal;color:var(--amber)">체중 6.8 → 9.4kg 변경</em></span></div>
+      <span class="badge warn">재검토 필요</span></div>
+    <div class="actrow"><span class="abtn">변경 확인 — 재승인</span><span class="abtn warn">재검토 거절 (전액 환불)</span></div>
+  </div>
+  <div class="sechead"><span class="n">2</span><b>결제 현황</b><span>읽기 전용</span></div>
+  <div class="drow"><div class="top"><span class="dog teal"></span>
+    <div class="nm"><b>보리</b><span>지은 보호자</span></div>
+    <span class="paylabel ok">결제 완료</span></div></div>
+</div>
+<p class="note"><b>재검토가 심사 큐로 돌아온다.</b> 결제 후 보호자가 체중을 고치면(중대 필드) 서버가 승인을 회수하고 <span class="fld">review_needed</span>를 세움 — 콘솔엔 변경 전후가 그대로 뜨고, 거절하면 자동 전액 환불 + 크리티컬 알림. 성립 미터 = <span class="fld">viability</span> 원문 (min_attendance·결제견·현장 러너 여유·커버리지).</p></div>
+
+<div class="shot"><div class="sl">C-2 — 콘솔 하단: 배정 + 종료 게이트</div><div class="ph">
+  <div class="mast"><h3 class="bhs">호스트 콘솔</h3><span class="vkdim">진행 중 · 09:41</span></div>
+  <div class="shell"><div class="on">개요</div><div>참가자 <small>7</small></div><div>채팅 <small>5</small></div></div>
+  <div class="sechead"><span class="n">3</span><b>배정 제안</b><span>러너 수락으로 확정 · 5분 시효</span></div>
+  <div class="drow"><div class="top"><span class="dog teal"></span>
+    <div class="nm"><b>보리</b><span>제안 → 지훈 · 03:12 남음</span></div>
+    <span class="stateK amber"><b style="font-size:11px">러너 수락 대기</b></span></div>
+    <div class="actrow" style="margin-top:8px"><span class="gchip pick">지훈 <small>1/2</small></span><span class="gchip">션(나) <small>0/1</small></span><span class="gchip" style="opacity:.45">민아 <small>2/2 만석</small></span></div>
+  </div>
+  <div class="drow"><div class="top"><span class="dog rose"></span>
+    <div class="nm"><b>두부</b><span>지훈이 거절 — "자전거 반응 우려"</span></div>
+    <span class="badge warn">자리 재확인 중</span></div>
+    <div class="actrow"><span class="abtn">다른 러너 제안</span><span class="abtn ghost">배정 불발 처리 (환불)</span></div>
+  </div>
+  <div class="sechead"><span class="n">4</span><b>세션 종료</b><span>미해결이 있으면 잠김</span></div>
+  <div class="card crit" style="margin-top:8px">
+    <span class="vk" style="color:var(--tang)">종료 차단 2건</span>
+    <div class="hint" style="margin-top:6px"><span><b>몽이 반환 미완</b> — 양측 확인이 끝나야 해요</span></div>
+    <div class="hint"><span><b>인시던트 #24 케이스 오너 미지정</b> — 맡을 사람을 정해야 닫혀요</span></div>
+  </div>
+  <a class="cta3d dis">세션 종료 — 차단 2건 해소 후</a>
+</div>
+<p class="note"><b>종료 버튼이 거짓말하지 않는다.</b> <span class="fld">dogs_not_returned</span>·<span class="fld">incident_unassigned</span> 서버 게이트를 그대로 문장으로 — 비활성 이유가 항상 붙는다. 배정 거절 사유는 호스트에게만. 만석 러너 칩은 흐림 처리로 제안 자체가 불가(<span class="fld">runner_cap_full</span> 예방).</p></div>
+
+</div>
+
+<!-- ═══════════ D. 러너 수락 + 로스터 ═══════════ -->
+<h2><span class="spec">SPEC</span>러너 제안 수락 (5분 시효) · 참가자 탭 (전화 규칙 B)</h2>
+<div class="row">
+
+<div class="shot"><div class="sl">D-1 — 러너: 배정 제안 (실시간 시효)</div><div class="ph">
+  <div class="mast"><h3 class="bhs">배정 제안</h3><span class="vkdim">호스트 션 → 나</span></div>
+  <div class="shell"><div>개요</div><div class="on">참가자 <small>7</small></div><div>채팅 <small>3</small></div></div>
+  <div class="cdown">
+    <div class="tt"><b class="osw">04:12</b><span>안에 결정하지 않으면<br>제안이 소멸해요</span></div>
+    <div class="bar"><i></i></div>
+  </div>
+  <div class="card hero">
+    <div style="display:flex;gap:10px;align-items:center">
+      <span class="dog teal" style="width:44px;height:44px"></span>
+      <div><b style="font-size:16px;color:#fff">보리</b>
+      <div style="font-size:10.5px;color:var(--vtext);margin-top:2px">리트리버 · 3살 · 지은 보호자</div></div>
+    </div>
+  </div>
+  <div class="bignum">
+    <div><b class="osw">18.2<em>kg</em></b><span>체중</span></div>
+    <div><b class="osw">6'30"</b><span>가능 페이스</span></div>
+    <div><b class="osw">19,920</b><span>보수 (내 몫)</span></div>
+  </div>
+  <div class="hint key"><span><em>자전거에 흥분</em> — 한강 코스 자전거길 인접 구간 2곳</span></div>
+  <div class="hint"><span>수락하면 <b>인계 확인부터 반환 확인까지</b> 보리의 책임자는 나예요</span></div>
+  <div class="hint"><span>수락 순간 서버가 자리를 재검증해요 — 그새 사정이 바뀌었으면 <b>그대로 알려줘요</b></span></div>
+  <a class="cta3d">이 아이, 내가 맡을게요 →</a>
+  <div style="text-align:center;margin-top:9px;font-size:11px;color:var(--vdim);font-weight:800">우려 제기 · 거절</div>
+</div>
+<p class="note"><b>시효가 화면의 첫 사실.</b> <span class="fld">proposalExpiresAt</span> 실시간 카운트다운 — 만료는 이벤트가 아니라 시간이므로 0이 되면 카드가 그 자리에서 '소멸' 상태로. 수락은 서버 재검증을 통과해야 하고 실패 사유(자리 소멸·부하 초과)는 그대로 문장으로 — 스테일 UI로 이중 확정되는 일이 구조적으로 없다.</p></div>
+
+<div class="shot"><div class="sl">D-2 — 참가자 탭 (호스트 시점)</div><div class="ph">
+  <div class="mast"><h3 class="bhs">토 09:00 세션</h3><span class="vkdim">반포동 하이클럽</span></div>
+  <div class="shell"><div>개요</div><div class="on">참가자 <small>7</small></div><div>채팅 <small>5</small></div></div>
+  <div class="sechead" style="margin-top:11px"><span class="n">사람</span><b>7명</b><span>체크인 ● 표시</span></div>
+  <div class="prow"><span class="pava in"></span><div class="nm"><b>션 (나)</b><span>호스트 · 러너 0/1</span></div><span class="badge ok">HOST</span></div>
+  <div class="prow"><span class="pava in"></span><div class="nm"><b>지훈</b><span>담당 러너 1/2 · 체크인</span></div><span class="phchip direct">010-8812-4437</span></div>
+  <div class="prow"><span class="pava"></span><div class="nm"><b>민아</b><span>백업 호스트 · 러너 2/2</span></div><span class="badge">BACKUP</span></div>
+  <div class="prow"><span class="pava"></span><div class="nm"><b>지은</b><span>위탁 보호자 — 보리 · 현장 미참석</span></div><span class="phchip direct">010-2201-9954</span></div>
+  <div class="prow"><span class="pava in"></span><div class="nm"><b>현우</b><span>동반 참가 · 초코와 체크인</span></div><span class="phchip">호스트 경유</span></div>
+  <div class="sechead"><span class="n">견</span><b>5마리</b><span>권한별 상세</span></div>
+  <div class="drow"><div class="top"><span class="dog teal"></span>
+    <div class="nm"><b>보리</b><span>비상 010-2201-9954 · 픽업 지은 본인 · 진료한도 20만</span></div>
+    <span class="paylabel ok">결제 완료</span></div></div>
+  <div class="hint"><span>전화가 보이면 <b>열람이 기록돼요</b> — 세션 밖에서는 다시 닫혀요</span></div>
+</div>
+<p class="note"><b>전화 규칙 B가 UI 문법.</b> 호스트↔전원 · 보호자↔수락 러너 쌍만 직번호(볼트 칩), 그 외 '호스트 경유' — 칩 스타일 자체가 권한을 말한다. 노출 즉시 <span class="fld">club_phone_access_log</span> 기록·중복 없음, 그리고 그 사실을 유저에게도 숨기지 않는다. 위탁 보호자는 현장에 없어도 로스터의 사람이다. 견 상세(동의 3필드)는 호스트·본인·담당 러너에게만.</p></div>
+
+</div>
+
+<!-- ═══════════ E. 채팅 — 결정 ③④ ═══════════ -->
+<h2><span class="dec">결정 ③|④</span>채팅 — 호스트 채널을 어디에 둘 것인가</h2>
+<p class="lede">챗은 RLS 직접 접근(리얼타임 구독)이라 위탁 유일의 실시간 화면. 참여 등급이 문을 정한다 — full/host = 그룹, <b>limited(결제 전 신청자) = 호스트 채널 1:1만</b>. 인시던트가 열리면 쓰기 창이 연장된다(증거 보전). 문제는 배치: 호스트 채널이 그룹과 <b>동급 탭</b>이냐, 그룹 안의 <b>고정 드로어</b>냐.</p>
+<div class="row">
+
+<div class="shot"><div class="sl"><b>③</b> — 세그먼트 토글 (동급 채널)</div><div class="ph">
+  <div class="mast"><h3 class="bhs">토 09:00 세션</h3><span class="vkdim">반포동 하이클럽</span></div>
+  <div class="shell"><div>개요</div><div>참가자 <small>7</small></div><div class="on">채팅 <small>5</small></div></div>
+  <div class="chtoggle"><div class="on">그룹</div><div>호스트 채널 <small>1</small></div></div>
+  <div class="msg sys"><div class="bb">보리 담당이 지훈으로 확정됐어요 — 09:12</div></div>
+  <div class="msg"><div class="who">지은 (보리 보호자)</div><div class="bb">보리 간식은 인계 때 드린 파우치에 있어요. 러닝 후 반 개만요!</div></div>
+  <div class="msg me"><div class="who">나 · 호스트</div><div class="bb">확인했어요. 집결지 그늘에서 대기하겠습니다.</div></div>
+  <div class="msg"><div class="who">지훈 (러너)</div><div class="bb">보리 컨디션 좋아요. 자전거길 구간은 안쪽으로 돌게요 📷</div></div>
+  <div class="msg sys"><div class="bb">쓰기 제한 — 잠깐 숨을 고르세요 (분당 20건)</div></div>
+  <div class="card" style="margin-top:auto;padding:8px 10px;display:flex;gap:8px;align-items:center">
+    <span style="flex:1;color:var(--vdim);font-size:11px">메시지…</span><span style="color:var(--volt);font-weight:900;font-size:11px">전송</span>
+  </div>
+</div>
+<p class="note"><b>채널이 나란한 두 개의 방.</b> limited 유저에겐 '그룹' 세그가 잠금 표시(결제하면 열려요) — 문이 있다는 사실 자체가 온보딩. 미확인 배지가 세그에 붙는다. 신고·삭제는 말풍선 길게 누르기. 레이트리밋 초과는 시스템 행으로 정직하게.</p></div>
+
+<div class="shot"><div class="sl"><b>④</b> — 고정 드로어 (그룹 안의 창구)</div><div class="ph">
+  <div class="mast"><h3 class="bhs">토 09:00 세션</h3><span class="vkdim">반포동 하이클럽</span></div>
+  <div class="shell"><div>개요</div><div>참가자 <small>7</small></div><div class="on">채팅 <small>5</small></div></div>
+  <div class="hostdrawer">
+    <div class="hd"><b>호스트 창구 — 결제 전 문의 1건</b><i></i></div>
+    <p>민서: "두부가 9kg인데 괜찮을까요?" — 탭해서 1:1로 답하기</p>
+  </div>
+  <div class="msg sys"><div class="bb">보리 담당이 지훈으로 확정됐어요 — 09:12</div></div>
+  <div class="msg"><div class="who">지은 (보리 보호자)</div><div class="bb">보리 간식은 인계 때 드린 파우치에 있어요. 러닝 후 반 개만요!</div></div>
+  <div class="msg"><div class="who">지훈 (러너)</div><div class="bb">보리 컨디션 좋아요. 자전거길 구간은 안쪽으로 돌게요 📷</div></div>
+  <div class="msg me"><div class="who">나 · 호스트</div><div class="bb">좋습니다. 반환은 집결지 벤치에서 할게요.</div></div>
+  <div class="card" style="margin-top:auto;padding:8px 10px;display:flex;gap:8px;align-items:center">
+    <span style="flex:1;color:var(--vdim);font-size:11px">메시지…</span><span style="color:var(--volt);font-weight:900;font-size:11px">전송</span>
+  </div>
+</div>
+<p class="note"><b>그룹이 본류, 창구는 서랍.</b> 호스트에겐 미결 문의가 그룹 위에 상시 떠 있고(놓칠 수 없음), limited 유저는 앱 전체에서 이 드로어만 본다. 단점: 호스트 채널 대화가 길어지면 드로어가 좁다 — 탭하면 전면 시트로 전개.</p></div>
+
+</div>
+
+<!-- ═══════════ F. ack — 결정 ⑤⑥ ═══════════ -->
+<h2><span class="dec">결정 ⑤|⑥</span>크리티컬 확인(ack) — 배너 스택이냐 테이크오버냐</h2>
+<p class="lede">크리티컬 제목 레지스트리(담당 배정·외부 이양·배정 불발 환불·세션 취소·반환 지연·이의 접수·재검토 거절)의 알림은 <span class="mono" style="font-size:10px;color:var(--neon)">club_acks</span> 행이 되고, <b>30분 미확인이면 호스트로 에스컬레이션</b>된다. 확인을 어떻게 받을 것인가.</p>
+<div class="row">
+
+<div class="shot"><div class="sl"><b>⑤</b> — 배너 스택 (셸 상단 상주)</div><div class="ph">
+  <div class="mast"><h3 class="bhs">토 09:00 세션</h3><span class="vkdim">반포동 하이클럽</span></div>
+  <div class="shell"><div class="on">개요</div><div>참가자 <small>7</small></div><div>채팅 <small>5</small></div></div>
+  <div class="ackb crit">
+    <div class="tx"><b>외부 커스터디 이양</b><span>몽이가 한강동물병원으로 이양됐어요 — 케이스 #24에서 진행 상황을 확인하세요</span></div>
+    <span class="ackbtn">확인</span>
+  </div>
+  <div class="ackb">
+    <div class="tx"><b>담당 러너 배정</b><span>보리 담당이 지훈으로 확정 — 인계는 집결지에서</span></div>
+    <span class="ackbtn">확인</span>
+  </div>
+  <div class="card hero" style="margin-top:12px">
+    <span class="vk">몽이의 위탁</span>
+    <div style="display:flex;align-items:center;gap:9px;margin-top:7px">
+      <span class="dog"></span>
+      <div class="stateK tang" style="flex:1"><b>외부 보호 중</b><span class="flap tangF"><i>O</i><i>U</i><i>T</i><i>S</i><i>I</i><i>D</i><i>E</i></span></div>
+    </div>
+  </div>
+  <div class="hint"><span>확인하지 않으면 배너는 <b>어느 화면에서든</b> 따라와요 — 30분 뒤 호스트에게도 알려져요</span></div>
+</div>
+<p class="note"><b>확인 전까지 화면 소유권을 나눠 갖는다.</b> 스택은 severity 순 정렬(크리티컬 = 탱 테두리), '확인' = <span class="fld">club_ack(id)</span> 한 번. 앱을 계속 쓸 수 있어 러너가 현장 대응 중일 때도 방해가 없다 — 대신 습관성 확인(안 읽고 누르기) 위험.</p></div>
+
+<div class="shot"><div class="sl"><b>⑥</b> — 크리티컬만 테이크오버</div><div class="ph">
+  <div class="mast"><h3 class="bhs">토 09:00 세션</h3><span class="vkdim">반포동 하이클럽</span></div>
+  <div class="shell"><div class="on">개요</div><div>참가자 <small>7</small></div><div>채팅 <small>5</small></div></div>
+  <div class="card hero" style="opacity:.25">
+    <span class="vk">몽이의 위탁</span>
+    <div style="display:flex;align-items:center;gap:9px;margin-top:7px"><span class="dog"></span>
+    <div class="stateK amber" style="flex:1"><b>반환 대기</b></div></div>
+  </div>
+  <div class="takeover">
+    <div class="tk">
+      <span class="vk">CRITICAL — 확인 필수</span>
+      <h4 class="bhs">몽이가 한강동물병원으로<br>이양됐어요</h4>
+      <p>담당 러너 지훈이 발열 증상으로 즉시 이양을 집행했어요. 진료 한도 ₩200,000 내 사전 승인이 적용 중이고, 케이스 #24의 오너는 호스트 션이에요.</p>
+      <p style="color:var(--vdim);font-size:9.5px">10:44 · 이 확인은 기록에 남아요</p>
+      <a class="cta3d" style="margin-top:12px">상황 확인했어요 — 케이스로 이동 →</a>
+    </div>
+  </div>
+</div>
+<p class="note"><b>이양·취소·환불급만 전면.</b> 크리티컬 4종(외부 이양·세션 취소·배정 불발·재검토 거절)은 못 지나가는 문 — ack가 곧 케이스 진입. 나머지(담당 배정 등)는 ⑤의 배너로 강등. 읽지 않고 넘기기가 불가능하지만, 러닝 중 러너에게 뜨면 위험할 수 있어 <b>이동 감지 시 배너로 강등</b>하는 예외가 필요.</p></div>
+
+</div>
+
+<!-- ═══════════ G. 외부 보호 + 케이스 ═══════════ -->
+<h2><span class="spec">SPEC</span>외부 보호 중 — 보호자가 보는 케이스 화면 · SOS 위치</h2>
+<div class="row">
+
+<div class="shot"><div class="sl">G-1 — 보호자: 케이스 #24 (OUTSIDE)</div><div class="ph">
+  <div class="mast"><h3 class="bhs">케이스 #24</h3><span class="vkdim">S2 · 진행 중</span></div>
+  <div class="shell"><div class="on">개요</div><div>참가자 <small>7</small></div><div>채팅 <small>6</small></div></div>
+  <div class="card crit">
+    <span class="vk" style="color:var(--tang)">지금 책임 — 한강동물병원</span>
+    <div style="display:flex;align-items:center;gap:10px;margin-top:7px">
+      <span class="dog"></span>
+      <div class="stateK tang" style="flex:1"><b>외부 보호 중</b><span class="flap tangF"><i>O</i><i>U</i><i>T</i><i>S</i><i>I</i><i>D</i><i>E</i></span></div>
+    </div>
+    <div class="hint" style="margin-top:8px"><span>케이스 오너 <b>호스트 션</b> · 진료 한도 <b>₩200,000</b> 사전 승인 적용</span></div>
+  </div>
+  <div class="sechead"><span class="n">기록</span><b>커스터디 타임라인</b><span>이벤트 순</span></div>
+  <div class="tl">
+    <div class="ev"><span class="mono">09:02</span><b>인계</b> — 션 → 지훈 (양측 확인)</div>
+    <div class="ev"><span class="mono">09:15</span><b>러닝 시작</b> — 반포 한강 5.0km</div>
+    <div class="ev hot"><span class="mono">10:44</span><b>이양 집행</b> — 지훈 → 한강동물병원 · 발열 · 사진 2 · 위치 1</div>
+    <div class="ev"><span class="mono">10:45</span><b>정산 보류</b> — 케이스 해소까지</div>
+  </div>
+  <div class="sechead"><span class="n">증거</span><b>3건</b><span>케이스 당사자만</span></div>
+  <div style="display:flex;gap:7px;margin-top:8px">
+    <div style="width:64px;height:64px;background:linear-gradient(140deg,#3a3547,#232030);border:1px solid var(--vedge)"></div>
+    <div style="width:64px;height:64px;background:linear-gradient(140deg,#343047,#1f1c30);border:1px solid var(--vedge)"></div>
+    <div style="width:64px;height:64px;border:1px dashed var(--vedge);display:flex;align-items:center;justify-content:center;color:var(--vdim);font-size:8.5px;text-align:center">위치<br>10:44</div>
+  </div>
+  <div class="hint key"><span>몽이의 러닝은 여기서 끝났지만 <b>케이스는 세션이 끝나도 계속돼요</b> — 해소되면 알림으로 알려드려요</span></div>
+</div>
+<p class="note"><b>이양의 원자성이 한 화면에 다 보인다.</b> 러닝 종료(incident) → 커스터디 이벤트 → 케이스+증거 → 정산 보류가 <span class="fld">club_incident_detail</span> 한 호출의 사실들. 타임라인은 <span class="fld">seq</span> 순 — 같은 순간의 이벤트도 순서가 흔들리지 않는다. 부분 정산(러닝을 실제로 뛴 만큼)은 케이스 해소 후.</p></div>
+
+<div class="shot"><div class="sl">G-2 — 러너: 러닝 중 SOS 상주</div><div class="ph">
+  <div class="mast"><h3 class="bhs">러닝 중</h3><span class="vkdim">보리 · 2.4/5.0km</span></div>
+  <div style="height:210px;background:linear-gradient(150deg,#141220,#0d0c15);border:1px solid var(--vedge);margin-top:10px;position:relative">
+    <div style="position:absolute;left:18%;top:30%;right:22%;bottom:26%;border:2px dashed #35315c"></div>
+    <div style="position:absolute;left:52%;top:38%;width:11px;height:11px;border-radius:50%;background:var(--volt);box-shadow:0 0 12px var(--volt)"></div>
+    <span class="vkdim" style="position:absolute;left:9px;top:7px">LIVE — 반포 한강</span>
+  </div>
+  <div class="bignum">
+    <div><b class="osw">2.4<em>km</em></b><span>거리</span></div>
+    <div><b class="osw">6'41"</b><span>페이스</span></div>
+    <div><b class="osw">16:02</b><span>경과</span></div>
+  </div>
+  <div class="hint"><span>보리 · 지은 보호자 · 비상 010-2201-9954 — <b>한 번 탭이면 전화</b></span></div>
+  <div style="position:absolute;left:14px;bottom:16px;width:58px;height:58px;border-radius:50%;background:var(--tang);border:2px solid #000;box-shadow:4px 4px 0 #000;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:13px" class="bhs">SOS</div>
+  <a class="cta3d" style="position:absolute;right:14px;bottom:16px;left:88px;margin-top:0">러닝 종료</a>
+</div>
+<p class="note"><b>SOS는 러닝 화면 왼손 엄지 자리 상주.</b> 탭 → 반쯤 밀어 확정(오발 방지) → <span class="fld">club_sos</span>가 위치 evidence와 함께 S1 케이스를 즉시 연다 — 호스트·백업·운영 동시 크리티컬. 담당견의 비상 연락처는 러닝 화면에 항상 노출(규칙 B의 수락 러너 권한). 트레이스는 60초 배치 업로드, 순서 역전·불가능 속도는 서버가 거부.</p></div>
+
+</div>
+
+<!-- ═══════════ H. 링고 ═══════════ -->
+<h2><span class="spec">SPEC</span>링고 — 앱·채팅·알림이 같은 낱말만 쓴다</h2>
+<div class="row"><div class="shot wide"><div class="ph short" style="padding-bottom:16px">
+  <div class="lingo">
+    <div><b>위탁</b><span>보호자가 세션 동안 보호 책임을 러너에게 맡기는 계약 — 동의 서식이 시작점</span></div>
+    <div><b>인계</b><span>현장에서 개가 러너에게 건너가는 양측 확인 — 이때부터 책임자는 러너</span></div>
+    <div><b>반환</b><span>인계의 대칭. 러닝 종료 ≠ 반환 — 양측 확인까지 책임은 러너에게</span></div>
+    <div><b>이양</b><span>러너 → 다른 러너·병원·기관으로 보호가 옮겨가는 것 — 외부 이양은 케이스를 연다</span></div>
+    <div><b>케이스</b><span>사건 기록 단위. 오너가 지정되고, 해소까지 정산이 보류되며, 세션과 독립적으로 산다</span></div>
+    <div><b>성립</b><span>세션이 열릴 조건 — 최소 참석·결제견·현장 러너 커버리지. 호스트 미터의 그 단어</span></div>
+  </div>
+</div>
+<p class="note"><b>용어 6개가 전 표면 공용어.</b> 화면 라벨·챗 시스템 메시지·알림 제목·크리티컬 배너가 전부 이 낱말로만 말한다 — '핸드오프'와 '인계'가 섞이는 순간 신뢰가 샌다. 링고 시트는 온보딩·설정에서 항상 열람 가능.</p></div></div>
+
+<div class="pickfoot">
+  <p><b>고르는 법</b> — 세 쌍에서 하나씩, 번호로: <b>①|②</b> 동의 서식 도장 · <b>③|④</b> 호스트 채널 배치 · <b>⑤|⑥</b> 크리티컬 ack. (예: "1 4 6") SPEC 화면들은 수렴 방향의 프로덕션 확장이라 기본 확정이지만, 걸리는 게 있으면 그것도 말로 주면 반영합니다. 선택이 오면 그 조합으로 RN 프로덕션 구현에 들어갑니다 — 순서는 보호자 위탁 플로우(서식→결제→상태 카드) → 호스트 콘솔 → 러너(수락→러닝→반환) → 셸(참가자·채팅·ack).</p>
+</div>
+</body>
+</html>
