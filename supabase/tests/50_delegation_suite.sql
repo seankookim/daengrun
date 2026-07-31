@@ -35,7 +35,7 @@ begin
     if club_flag('club_delegation_v2') then call _fail('del','D0 플래그','기본값 ON'); else
       begin
         perform set_config('request.jwt.claim.sub', owners[1]::text, false);
-        perform session_delegate_dog(v_sid, dgs[1]);
+        perform session_delegate_dog(v_sid, dgs[1], t_consent());
         call _fail('del','D0 플래그 차단','통과됨');
       exception when others then
         if sqlerrm like '%feature_disabled%' then
@@ -52,7 +52,7 @@ begin
     v_sid2 := club_create_session(v_club, now() + interval '26 hours', '동반 집결지', null, 8, 'owner_only');
     perform set_config('request.jwt.claim.sub', owners[1]::text, false);
     begin
-      perform session_delegate_dog(v_sid2, dgs[1]);
+      perform session_delegate_dog(v_sid2, dgs[1], t_consent());
       call _fail('del','D1 포맷 게이트','owner_only 통과됨');
     exception when others then
       if sqlerrm not like '%format_closed%' then call _fail('del','D1 포맷', sqlerrm); else
@@ -102,13 +102,13 @@ begin
   -- [D4] 위탁 등록 — pending·책임자=보호자·멤버십·호스트 알림, 부킹은 아직 없음
   begin
     perform set_config('request.jwt.claim.sub', owners[1]::text, false);
-    v_sd := session_delegate_dog(v_sid, dgs[1]);
+    v_sd := session_delegate_dog(v_sid, dgs[1], t_consent());
     if (select approval from session_dogs where id = v_sd) = 'pending'
        and (select responsible_profile_id from session_dogs where id = v_sd) = owners[1]
        and (select booking_id from session_dogs where id = v_sd) is null
-       and exists (select 1 from club_members where club_id = v_club and profile_id = owners[1])
+       and not exists (select 1 from club_members where club_id = v_club and profile_id = owners[1])  -- [R4] RSVP/위탁 ≠ 가입
        and exists (select 1 from notifications where profile_id = host and ref_id = v_sid and title = '위탁 신청 도착')
-      then call _pass('del','D4 위탁 등록 (pending·책임자=보호자·멤버십·호스트 알림·무부킹)');
+      then call _pass('del','D4 위탁 등록 (pending·책임자=보호자·멤버십 비자동[R4]·호스트 알림·무부킹)');
     else call _fail('del','D4 등록','상태 불일치'); end if;
   exception when others then call _fail('del','D4 등록', sqlerrm);
   end;
@@ -148,17 +148,17 @@ begin
   begin
     perform set_config('request.jwt.claim.sub', owners[1]::text, false);
     begin
-      perform session_delegate_dog(v_sid, dgs[1]);
+      perform session_delegate_dog(v_sid, dgs[1], t_consent());
       call _fail('del','D6 중복 등록 거부','통과됨');
     exception when others then
       if sqlerrm not like '%already_registered%' then call _fail('del','D6 중복', sqlerrm); else
         perform set_config('request.jwt.claim.sub', owners[2]::text, false);
-        v_sd2 := session_delegate_dog(v_sid, dgs[2]);
+        v_sd2 := session_delegate_dog(v_sid, dgs[2], t_consent());
         perform set_config('request.jwt.claim.sub', host::text, false);
         perform session_approve_dog(v_sd2, false);   -- 거절
         perform set_config('request.jwt.claim.sub', owners[2]::text, false);
         begin
-          perform session_delegate_dog(v_sid, dgs[2]);
+          perform session_delegate_dog(v_sid, dgs[2], t_consent());
           call _fail('del','D6 거절 후 재등록 차단','통과됨');
         exception when others then
           if sqlerrm like '%rejected%'
@@ -177,7 +177,7 @@ begin
     i := 3;  -- owners[3..] 사용 (1 승인됨·2 거절됨)
     while v_cnt < v_cap loop
       perform set_config('request.jwt.claim.sub', owners[i]::text, false);
-      v_sd2 := session_delegate_dog(v_sid, dgs[i]);
+      v_sd2 := session_delegate_dog(v_sid, dgs[i], t_consent());
       v_sd_arr := v_sd_arr || v_sd2;
       perform set_config('request.jwt.claim.sub', host::text, false);
       perform session_approve_dog(v_sd2, true);
@@ -187,7 +187,7 @@ begin
       v_cnt := v_cnt + 1; i := i + 1;
     end loop;
     perform set_config('request.jwt.claim.sub', owners[i]::text, false);
-    v_sd2 := session_delegate_dog(v_sid, dgs[i]);
+    v_sd2 := session_delegate_dog(v_sid, dgs[i], t_consent());
     perform set_config('request.jwt.claim.sub', host::text, false);
     begin
       perform session_approve_dog(v_sd2, true);
@@ -206,7 +206,7 @@ begin
     v_sid3 := club_create_session(v_club, now() + interval '25 hours', '겹침 집결지', rt, 8, 'mixed');
     perform session_runner_commit(v_sid3);
     perform set_config('request.jwt.claim.sub', owners[1]::text, false);
-    v_sd2 := session_delegate_dog(v_sid3, dgs[1]);   -- d1은 v_sid에 live 부킹 보유
+    v_sd2 := session_delegate_dog(v_sid3, dgs[1], t_consent());   -- d1은 v_sid에 live 부킹 보유
     perform set_config('request.jwt.claim.sub', host::text, false);
     perform session_approve_dog(v_sd2, true);              -- 승인=홀드는 통과 (돈 없음)
     perform set_config('request.jwt.claim.sub', owners[1]::text, false);
@@ -287,7 +287,7 @@ begin
     v_sidm := club_create_session(v_club, now() + interval '30 hours', '종료 집결지', rt, 8, 'mixed');
     perform session_runner_commit(v_sidm);
     perform set_config('request.jwt.claim.sub', owners[2]::text, false);
-    v_sd2 := session_delegate_dog(v_sidm, dgs[2]);
+    v_sd2 := session_delegate_dog(v_sidm, dgs[2], t_consent());
     perform set_config('request.jwt.claim.sub', host::text, false);
     perform session_approve_dog(v_sd2, true);
     perform set_config('request.jwt.claim.sub', owners[2]::text, false);
@@ -308,7 +308,7 @@ begin
     v_sid3 := club_create_session(v_club, now() + interval '40 hours', '만료 집결지', rt, 8, 'mixed');
     perform session_runner_commit(v_sid3);
     perform set_config('request.jwt.claim.sub', owners[3]::text, false);
-    v_sd2 := session_delegate_dog(v_sid3, dgs[3]);
+    v_sd2 := session_delegate_dog(v_sid3, dgs[3], t_consent());
     perform set_config('request.jwt.claim.sub', host::text, false);
     perform session_approve_dog(v_sd2, true);
     perform set_config('request.jwt.claim.sub', owners[3]::text, false);
@@ -348,7 +348,7 @@ begin
     v_sid3 := club_create_session(v_club, now() + interval '28 hours', '만료동 집결지', rt, 8, 'mixed');
     perform session_runner_commit(v_sid3);                 -- 캡 1
     perform set_config('request.jwt.claim.sub', owners[5]::text, false);
-    v_sd2 := session_delegate_dog(v_sid3, dgs[5]);
+    v_sd2 := session_delegate_dog(v_sid3, dgs[5], t_consent());
     perform set_config('request.jwt.claim.sub', host::text, false);
     perform session_approve_dog(v_sd2, true);
     update session_dogs set hold_expires_at = now() - interval '1 minute' where id = v_sd2;
@@ -369,12 +369,12 @@ begin
   -- [D16] R1: 거절 번복 = 새 시도 행 (ended 불변·previous_attempt 링크·부분 유니크)
   begin
     perform set_config('request.jwt.claim.sub', owners[1]::text, false);
-    v_sd2 := session_delegate_dog(v_sid3, dgs[1]);
+    v_sd2 := session_delegate_dog(v_sid3, dgs[1], t_consent());
     perform set_config('request.jwt.claim.sub', host::text, false);
     perform session_approve_dog(v_sd2, false);             -- 거절 → ended
     perform set_config('request.jwt.claim.sub', owners[1]::text, false);
     begin
-      perform session_delegate_dog(v_sid3, dgs[1]);
+      perform session_delegate_dog(v_sid3, dgs[1], t_consent());
       call _fail('del','D16 거절 후 재신청 차단','통과됨');
     exception when others then
       if sqlerrm not like '%rejected%' then call _fail('del','D16 재신청', sqlerrm); else
@@ -409,9 +409,9 @@ begin
   v_sid := club_create_session(v_club, now() + interval '20 hours', '적대 집결지', rt, 8, 'mixed');
   perform session_runner_commit(v_sid);                       -- 정원 1
   perform set_config('request.jwt.claim.sub', ownA::text, false);
-  sdA := session_delegate_dog(v_sid, dA);
+  sdA := session_delegate_dog(v_sid, dA, t_consent());
   perform set_config('request.jwt.claim.sub', ownB::text, false);
-  sdB := session_delegate_dog(v_sid, dB);
+  sdB := session_delegate_dog(v_sid, dB, t_consent());
   perform set_config('request.jwt.claim.sub', hostx::text, false);
   perform session_approve_dog(sdA, true);                     -- A 홀드 (정원 1 소진)
 
@@ -481,7 +481,7 @@ begin
     begin
       ownC := t_user('adv_ownC', 'owner'); dC := t_dog(ownC, '적대C');
       perform set_config('request.jwt.claim.sub', ownC::text, false);
-      sdC := session_delegate_dog(v_sid, dC);
+      sdC := session_delegate_dog(v_sid, dC, t_consent());
       perform set_config('request.jwt.claim.sub', hostx::text, false);
       begin
         perform session_approve_dog(sdC, true);               -- 불가 — 정원 1은 A(paid)가 소비
@@ -500,13 +500,13 @@ begin
     update club_flags set enabled = false where name = 'club_delegation_v2';
     perform set_config('request.jwt.claim.sub', ownB::text, false);
     begin
-      perform session_delegate_dog(v_sid, dB);
+      perform session_delegate_dog(v_sid, dB, t_consent());
       call _fail('adv','M6 OFF 차단','통과됨');
     exception when others then
       if sqlerrm not like '%feature_disabled%' then call _fail('adv','M6 차단', sqlerrm); else
         insert into club_test_accounts (profile_id, note) values (ownB, '하네스');
         begin
-          perform session_delegate_dog(v_sid, dB);            -- already_registered 예상 (활성 행 존재)
+          perform session_delegate_dog(v_sid, dB, t_consent());            -- already_registered 예상 (활성 행 존재)
           call _fail('adv','M6 허용목록','중복인데 통과');
         exception when others then
           if sqlerrm like '%already_registered%'

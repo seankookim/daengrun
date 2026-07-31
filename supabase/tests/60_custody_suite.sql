@@ -26,9 +26,9 @@ begin
   perform set_config('request.jwt.claim.sub', r2::text, false);
   perform session_runner_commit(v_sid);
   perform set_config('request.jwt.claim.sub', own1::text, false);
-  v_sd1 := session_delegate_dog(v_sid, d1);
+  v_sd1 := session_delegate_dog(v_sid, d1, t_consent());
   perform set_config('request.jwt.claim.sub', own2::text, false);
-  v_sd2 := session_delegate_dog(v_sid, d2);
+  v_sd2 := session_delegate_dog(v_sid, d2, t_consent());
   perform set_config('request.jwt.claim.sub', host::text, false);
   perform session_approve_dog(v_sd1, true);
   perform session_approve_dog(v_sd2, true);
@@ -236,7 +236,7 @@ begin
     perform session_runner_commit(v_sid2);
     perform session_checkin(v_sid2);
     perform set_config('request.jwt.claim.sub', own1::text, false);
-    v_sd1 := session_delegate_dog(v_sid2, d1);
+    v_sd1 := session_delegate_dog(v_sid2, d1, t_consent());
     perform set_config('request.jwt.claim.sub', host::text, false);
     perform session_approve_dog(v_sd1, true);
     perform set_config('request.jwt.claim.sub', own1::text, false);
@@ -306,7 +306,7 @@ begin
   perform session_runner_commit(v_sid);
   perform session_checkin(v_sid);
   perform set_config('request.jwt.claim.sub', own1::text, false);
-  v_sd := session_delegate_dog(v_sid, d1);
+  v_sd := session_delegate_dog(v_sid, d1, t_consent());
   perform set_config('request.jwt.claim.sub', host::text, false);
   v_bid := session_approve_dog(v_sd, true);
   perform set_config('request.jwt.claim.sub', own1::text, false);
@@ -383,11 +383,11 @@ begin
   perform session_checkin(v_s);
 
   perform set_config('request.jwt.claim.sub', oa::text, false);
-  sda := session_delegate_dog(v_s, da);
+  sda := session_delegate_dog(v_s, da, t_consent());
   perform set_config('request.jwt.claim.sub', ob::text, false);
-  sdb := session_delegate_dog(v_s, db);
+  sdb := session_delegate_dog(v_s, db, t_consent());
   perform set_config('request.jwt.claim.sub', oc::text, false);
-  sdc := session_delegate_dog(v_s, dc);
+  sdc := session_delegate_dog(v_s, dc, t_consent());
   perform set_config('request.jwt.claim.sub', h2::text, false);
   perform session_approve_dog(sda, true);
   perform session_approve_dog(sdb, true);
@@ -669,9 +669,9 @@ begin
   perform set_config('request.jwt.claim.sub', ra::text, false);
   perform session_runner_commit(v_s2); perform session_checkin(v_s2);
   perform set_config('request.jwt.claim.sub', oa::text, false);
-  sdd := session_delegate_dog(v_s2, dd);
+  sdd := session_delegate_dog(v_s2, dd, t_consent());
   perform set_config('request.jwt.claim.sub', ob::text, false);
-  sde := session_delegate_dog(v_s2, de);
+  sde := session_delegate_dog(v_s2, de, t_consent());
   perform set_config('request.jwt.claim.sub', h2::text, false);
   perform session_approve_dog(sdd, true); perform session_approve_dog(sde, true);
   perform set_config('request.jwt.claim.sub', oa::text, false);

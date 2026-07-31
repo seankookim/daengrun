@@ -167,7 +167,8 @@ function ClubLab() {
               <View style={s.btnRow}>
                 {myDogs.map((d: any) => (
                   <LabBtn key={d.id} label={`위탁 신청: ${d.name}`}
-                    onPress={() => act(`${d.name} 위탁 신청`, () => delegateDog(board.session.id, d.id))} />
+                    onPress={() => act(`${d.name} 위탁 신청`, () => delegateDog(board.session.id, d.id,
+                      { custodyAck: true, emergencyContact: '010-0000-0000', pickupName: 'DEV', vetLimitKrw: 150000 }))} />
                 ))}
               </View>
             )}

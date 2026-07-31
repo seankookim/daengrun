@@ -365,9 +365,15 @@ proposals + revoke→replacement_needed + owner objection (preference T-20/once/
 optional full refund) + T-10 hard stop auto-refund (paid dog structurally cannot be stuck) + T-30
 runner-late/host-absence alerts + backup host & assume_host — assignment axis now event-derived
 (assignment_events seq); booking-only mutations resync the cache in-tx (deferred-poke staleness lesson) —
-*covered by harness + integration script* → R4 consents + eligibility/edits
-+ viability + capacity family + fee ledger + metrics split + membership separation (RSVP ≠ join; guest RSVP;
-obligations survive membership changes) → R5 shell backend (group chat + private channel + capability roster
+*covered by harness + integration script* → **R4 backend built (0048)**: consent gate at delegation
+(custody ack + emergency contact mandatory; immutable consent record, doc v1; vet limit defaults from
+config) + `club_config` single source for every [Sean] number + fee ledger (`club_fee_items` — mock era
+records everything, charges nothing; cancel ladder free/24h/10%/20% with platform-supply split to the
+accepted runner; no-show = ladder top; host_fee on completed sessions) + owner cancel RPC + field
+materiality (weight edit → assignment revoked + 재검토 badge + host re-review; reject → auto full refund;
+`withdrawn` approval value so owner cancel ≠ host rejection) + per-format viability (board-exposed, no
+auto-cancel) + total_dog_capacity + membership separation (RSVP/delegation ≠ join; explicit
+club_join/club_leave; obligations survive leave) → R5 shell backend (group chat + private channel + capability roster
 + phones B + ack banners) → R6 incident wiring/SOS/severity/evidence + GPS baseline + segments + series
 occurrence identity + adversarial harness (permission-leak, idempotency replay, out-of-order, stale-client,
 2-connection races: last-slot pay, pay-vs-expiry, withdraw-vs-pay) → production UI (lab v3 direction), G2+.

@@ -191,6 +191,7 @@ const main = async () => {
     if (error) throw new Error(`dog ${name}: ${error.message}`);
     return data.id;
   };
+  const CONSENT = { custodyAck: true, emergencyContact: '010-0000-0000', pickupName: 'e2e 픽업', vetLimitKrw: 150000 };
   const d1 = await mkDog(own1, 'e2e견1');
   const d2 = await mkDog(own2, 'e2e견2');
 
@@ -219,8 +220,11 @@ const main = async () => {
 
   // ---------- R1: 신청 → 승인(홀드) → 결제(부킹) ----------
   await t('R1 — 신청·승인=홀드(부킹 없음)·결제=부킹·멱등 재전송', async () => {
-    sd1 = await rpc(own1.client, 'session_delegate_dog', { p_session: sessionId, p_dog: d1 });
-    sd2 = await rpc(own2.client, 'session_delegate_dog', { p_session: sessionId, p_dog: d2 });
+    // [R4] 동의 없는 위탁은 거부된다 — 서명 없는 위탁 없음
+    await expectError(own1.client.rpc('session_delegate_dog', { p_session: sessionId, p_dog: d1 }),
+      'consent_required', '무동의 위탁');
+    sd1 = await rpc(own1.client, 'session_delegate_dog', { p_session: sessionId, p_dog: d1, p_consent: CONSENT });
+    sd2 = await rpc(own2.client, 'session_delegate_dog', { p_session: sessionId, p_dog: d2, p_consent: CONSENT });
     await rpc(host.client, 'session_approve_dog', { p_session_dog: sd1, p_approve: true });
     let r = await row('session_dogs', sd1);
     assert(r.booking_id === null && r.hold_status === 'active', '승인이 부킹을 만들면 안 된다 (홀드만)');

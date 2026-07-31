@@ -1849,8 +1849,13 @@ export async function fetchDelegationBoard(sessionId: string): Promise<Delegatio
     dogs: (data.dogs ?? []).map((d: any) => ({ ...d, flap: flapOf(d) })),
   } as DelegationBoard;
 }
-export const delegateDog = (sessionId: string, dogId: string) =>
-  clubRpc('session_delegate_dog', { p_session: sessionId, p_dog: dogId }) as Promise<string>;
+// [R4 0048] 동의는 신청의 전제 — 프로덕션 UI의 종이 신청서 폼이 이 객체를 채운다
+export interface DelegationConsent {
+  custodyAck: boolean; emergencyContact: string;
+  pickupName?: string; pickupContact?: string; vetLimitKrw?: number; photoConsent?: boolean;
+}
+export const delegateDog = (sessionId: string, dogId: string, consent: DelegationConsent) =>
+  clubRpc('session_delegate_dog', { p_session: sessionId, p_dog: dogId, p_consent: consent }) as Promise<string>;
 export const approveDelegation = (sdId: string, approve: boolean) =>
   clubRpc('session_approve_dog', { p_session_dog: sdId, p_approve: approve }) as Promise<string | null>;
 // R1(0043): 결제는 보호자만 — 멱등 키는 클라이언트 생성 (재시도 시 같은 키 재사용)

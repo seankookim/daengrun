@@ -27,11 +27,11 @@ begin
   perform set_config('request.jwt.claim.sub', rc::text, false);
   perform session_runner_commit(v_s); perform session_checkin(v_s);
   perform set_config('request.jwt.claim.sub', ox::text, false);
-  sdx := session_delegate_dog(v_s, dx);
+  sdx := session_delegate_dog(v_s, dx, t_consent());
   perform set_config('request.jwt.claim.sub', oy::text, false);
-  sdy := session_delegate_dog(v_s, dy);
+  sdy := session_delegate_dog(v_s, dy, t_consent());
   perform set_config('request.jwt.claim.sub', oz::text, false);
-  sdz := session_delegate_dog(v_s, dz);
+  sdz := session_delegate_dog(v_s, dz, t_consent());
   perform set_config('request.jwt.claim.sub', ha::text, false);
   perform session_approve_dog(sdx, true); perform session_approve_dog(sdy, true);
   perform session_approve_dog(sdz, true);

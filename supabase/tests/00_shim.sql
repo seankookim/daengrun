@@ -58,3 +58,9 @@ grant usage on schema public to anon, authenticated, service_role;
 alter default privileges in schema public grant select, insert, update, delete on tables to anon, authenticated;
 alter default privileges in schema public grant all on tables to service_role;
 alter default privileges in schema public grant usage, select on sequences to authenticated, service_role;
+
+-- R4(0048) 동의 헬퍼 — 위탁 신청 필수 동의의 표준 테스트 값
+create or replace function t_consent() returns jsonb
+language sql immutable as $$
+  select '{"custodyAck": true, "emergencyContact": "010-0000-0000", "pickupName": "테스트 픽업", "vetLimitKrw": 150000}'::jsonb
+$$;

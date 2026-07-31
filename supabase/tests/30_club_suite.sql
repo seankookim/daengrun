@@ -95,8 +95,8 @@ begin
     if (select role from session_people where session_id = v_sid and profile_id = o) = 'owner_attending'
        and (select responsible_profile_id from session_dogs where session_id = v_sid and dog_id = d) = o
        and (select custody from session_dogs where session_id = v_sid and dog_id = d) = 'owner_handled'
-       and exists (select 1 from club_members where club_id = v_club and profile_id = o)
-      then call _pass('club','C6 RSVP (역할·책임자=본인·멤버십 자동·동의문)');
+       and not exists (select 1 from club_members where club_id = v_club and profile_id = o)  -- [R4] RSVP ≠ 가입
+      then call _pass('club','C6 RSVP (역할·책임자=본인·멤버십 비자동[R4]·동의문)');
     else call _fail('club','C6 RSVP','필드 불일치'); end if;
   exception when others then call _fail('club','C6 RSVP', sqlerrm);
   end;
@@ -219,6 +219,7 @@ begin
   -- [C14] 오버뷰/상세 RPC — 이름 해석·조인 상태
   begin
     perform set_config('request.jwt.claim.sub', o::text, false);
+    perform club_join(v_club);                       -- [R4] RSVP는 가입이 아니다 — 명시 가입
     v_js := club_overview('반포동');
     if v_js->>'status' = 'active' and (v_js->>'isMember')::boolean
        and v_js->>'hostName' = 'club_runner'
