@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DOGS HIGH — Premium Refresh: tailored lilac (crisp corners, soft light)</title>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Oswald:wght@500;600;700&family=IBM+Plex+Sans+KR:wght@400;500;700;800&family=IBM+Plex+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#221E3D;--pagebg:#E9E7F0;
+  --lbg:#F4F2FB;--lcard:#FFFFFF;--linset:#EFECF9;--lhair:#E6E2F4;--lhair2:#EDEAF8;
+  --lhead:#221E3D;--ltext:#4B4668;--ldim:#928DAD;--laccent:#6C5CE7;
+  --coral:#F0765A;--coralDeep:#E45F41;--coralSoft:#FFDCD1;
+  --gold:#B99A4F;--goldSoft:#F4EBD3;--goldSheen:#D8C185;
+  --voltDeep:#5E7F0E;--voltFill:#EAF6C8;--amber:#C77414;--amberSoft:#FBEED9;--tang:#E8552F;
+  --shadow:0 1px 2px rgba(28,24,55,.05),0 10px 28px rgba(28,24,55,.09);
+  /* ── tailored radius scale: crisp ── */
+  --rPhone:14px;--rCard:8px;--rIn:6px;--rBtn:8px;--rTag:5px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--pagebg);color:var(--ink);font-family:'IBM Plex Sans KR',sans-serif;padding:32px 26px 100px}
+.bhs{font-family:'Black Han Sans',sans-serif;font-weight:400}
+.osw{font-family:'Oswald',sans-serif}
+.mono{font-family:'IBM Plex Mono',monospace}
+h1{font-size:27px}
+h1 em{font-style:normal;color:var(--laccent)}
+h2{font-size:16px;margin-top:48px;padding-top:18px;border-top:1.5px solid #D6D3E2}
+h2 .tag{font-family:'IBM Plex Mono',monospace;color:#fff;background:var(--laccent);padding:3px 10px;font-size:10px;letter-spacing:2px;margin-right:9px;vertical-align:2px;border-radius:4px}
+.lede{color:#5b5670;margin:9px 0 4px;max-width:980px;line-height:1.65;font-size:13.5px}
+.lede b{color:var(--ink)}
+.row{display:flex;gap:18px;flex-wrap:wrap;margin-top:18px;align-items:flex-start}
+.shot{width:302px}
+.shot.wide{width:622px}
+.sl{font-size:10.5px;letter-spacing:2px;color:#8d89a0;margin-bottom:7px;font-family:'IBM Plex Mono',monospace}
+.note{color:#6b6680;font-size:11.5px;line-height:1.6;margin:9px 2px 0}
+.note b{color:var(--ink)}
+.legend{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}
+.lg{background:#fff;border:1px solid var(--lhair);border-radius:var(--rIn);padding:8px 13px;font-size:11.5px;color:#5b5670;line-height:1.5}
+.lg b{color:var(--ink)}
+
+/* ═══ tailored phone ═══ */
+.ph{min-height:500px;padding:16px 14px 20px;overflow:hidden;position:relative;color:var(--ltext);
+  background:
+    radial-gradient(120% 90% at 20% 0%, #F7F5FD 0%, var(--lbg) 55%),
+    var(--lbg);
+  border-radius:var(--rPhone);box-shadow:var(--shadow), inset 0 0 0 1px rgba(255,255,255,.8)}
+.ph.short{min-height:0}
+/* monogram masthead */
+.mast{display:flex;justify-content:space-between;align-items:center;padding-bottom:9px;border-bottom:1px solid var(--laccent);position:relative}
+.mast::after{content:'';position:absolute;left:0;right:0;bottom:-3px;height:1px;background:var(--lhair)}
+.mast h3{font-size:18px;color:var(--lhead)}
+.mg{width:24px;height:24px;border-radius:6px;background:var(--ink);color:#fff;display:inline-flex;align-items:center;justify-content:center;
+  font-family:'Oswald',sans-serif;font-weight:700;font-size:10px;letter-spacing:.5px;margin-right:8px;vertical-align:-5px}
+.mastr{text-align:right}
+.vk{font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:2.5px;color:var(--laccent)}
+.vkdim{font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:2px;color:var(--ldim)}
+.shell{display:flex;border-bottom:1px solid var(--lhair);margin-top:2px}
+.shell div{flex:1;text-align:center;font-size:11.5px;font-weight:800;color:var(--ldim);padding:9px 0;position:relative}
+.shell div.on{color:var(--lhead)}
+.shell div.on::after{content:'';position:absolute;left:30%;right:30%;bottom:-1px;height:2px;background:var(--laccent)}
+.shell div small{font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--voltDeep);margin-left:3px}
+.dog{width:36px;height:36px;border-radius:50%;flex:none;background:linear-gradient(140deg,#c9b89a,#8a7a5c);
+  border:2px solid var(--coral);box-shadow:0 0 0 2px #fff, 0 2px 6px rgba(28,24,55,.12)}
+.dog.teal{border-color:#2FA98D}
+.pava{width:32px;height:32px;border-radius:50%;flex:none;background:linear-gradient(140deg,#8f88b8,#5c5486);box-shadow:0 0 0 2px #fff, 0 2px 6px rgba(28,24,55,.12);position:relative}
+.pava.in::after{content:'';position:absolute;right:-2px;bottom:-2px;width:10px;height:10px;border-radius:50%;background:var(--voltDeep);border:2px solid #fff}
+/* engraved card: hairline border + inner frame */
+.card{background:var(--lcard);border:1px solid var(--lhair);border-radius:var(--rCard);box-shadow:var(--shadow);padding:13px 14px;margin-top:10px}
+.card.frame{position:relative}
+.card.frame::before{content:'';position:absolute;inset:4px;border:1px solid var(--lhair2);border-radius:4px;pointer-events:none}
+.card.hero{border-left:3px solid var(--laccent)}
+.card.crit{border-left:3px solid var(--tang)}
+.stateK b{font-size:13.5px;color:var(--lhead)}
+.stateK.amber b{color:var(--amber)}
+.stateK.volt b{color:var(--voltDeep)}
+/* embossed flap */
+.flap{display:inline-flex;gap:1.5px;vertical-align:middle}
+.flap i{font-family:'Oswald',sans-serif;font-style:normal;font-weight:600;font-size:9px;color:var(--laccent);
+  background:linear-gradient(180deg,#F2EFFB 0%,#E7E2F6 100%);
+  padding:2px 3px;border-radius:2px;position:relative;letter-spacing:.5px;min-width:12px;text-align:center;
+  box-shadow:inset 0 1px 0 #fff, inset 0 -1px 0 #CFC8EC, 0 1px 1px rgba(28,24,55,.08)}
+.flap i::after{content:'';position:absolute;left:0;right:0;top:50%;height:1px;background:rgba(34,30,61,.13)}
+.flap.amberF i{color:var(--amber)}.flap.voltF i{color:var(--voltDeep)}.flap.tangF i{color:var(--tang)}.flap.dimF i{color:var(--ldim)}
+/* tailored CTA */
+.cta{display:block;background:linear-gradient(180deg,var(--coral) 0%,var(--coralDeep) 100%);color:#fff;border-radius:var(--rBtn);
+  box-shadow:0 6px 18px rgba(240,118,90,.38), inset 0 1px 0 rgba(255,255,255,.35);
+  text-align:center;font-weight:800;font-size:13.5px;letter-spacing:.5px;padding:14px 0;margin-top:13px}
+.cta.violet{background:linear-gradient(180deg,#7867EC 0%,var(--laccent) 100%);box-shadow:0 6px 18px rgba(108,92,231,.34), inset 0 1px 0 rgba(255,255,255,.35)}
+.cta.quiet{background:var(--lcard);color:var(--ldim);border:1px solid var(--lhair);box-shadow:none;font-size:12px;padding:11px 0}
+.cta.dis{background:var(--linset);color:var(--ldim);box-shadow:none;font-size:12.5px}
+.detail-link{display:block;text-align:center;margin-top:11px;font-size:11px;font-weight:800;letter-spacing:.3px;color:var(--laccent)}
+.deadline{display:flex;align-items:center;gap:10px;background:var(--amberSoft);border:1px solid #F2DFC2;border-radius:var(--rIn);padding:10px 13px;margin-top:10px}
+.deadline b{font-family:'Oswald',sans-serif;font-size:22px;color:var(--amber);font-weight:600;font-variant-numeric:tabular-nums}
+.deadline span{font-size:11px;color:#7a5a2a;line-height:1.45}
+/* ledger numerals: hairline rules */
+.bignum{display:flex;background:var(--linset);border:1px solid var(--lhair);border-radius:var(--rIn);margin-top:12px;overflow:hidden}
+.bignum div{flex:1;padding:10px 6px;border-right:1px solid var(--lhair)}
+.bignum div:last-child{border-right:0}
+.bignum b{display:block;font-family:'Oswald',sans-serif;font-size:22px;font-weight:600;color:var(--lhead);line-height:1;font-variant-numeric:tabular-nums}
+.bignum b em{font-style:normal;color:var(--coral)}
+.bignum span{display:block;font-family:'IBM Plex Mono',monospace;font-size:7px;letter-spacing:1.5px;color:var(--ldim);margin-top:4px;padding-top:3px;border-top:1px solid var(--lhair)}
+.sechead{display:flex;gap:8px;align-items:center;margin-top:15px;padding-bottom:6px;border-bottom:1px solid var(--lhair)}
+.sechead .n{font-family:'Oswald',sans-serif;font-weight:700;font-size:12px;color:#fff;background:var(--laccent);padding:1px 8px;border-radius:4px}
+.sechead b{font-size:13px;color:var(--lhead)}
+.sechead span{font-size:9.5px;color:var(--ldim);margin-left:auto}
+.drow{background:var(--lcard);border:1px solid var(--lhair);border-radius:var(--rIn);box-shadow:0 1px 2px rgba(28,24,55,.04),0 4px 12px rgba(28,24,55,.05);padding:11px;margin-top:8px}
+.drow .top{display:flex;gap:10px;align-items:center}
+.drow .nm{flex:1;min-width:0}
+.drow .nm b{font-size:13.5px;color:var(--lhead)}
+.drow .nm span{display:block;font-size:9.5px;color:var(--ltext);margin-top:1px}
+/* label tags: rectangular, letterspaced — couture labels, not pills */
+.tag2{font-family:'IBM Plex Mono',monospace;font-size:8px;font-weight:700;letter-spacing:1.2px;padding:4px 8px;border-radius:var(--rTag)}
+.tag2.amber{background:var(--amberSoft);color:var(--amber)}
+.tag2.volt{background:var(--voltFill);color:var(--voltDeep)}
+.tag2.coral{background:var(--coralSoft);color:#C24A2E}
+.tag2.lilac{background:var(--lhair2);color:var(--laccent)}
+.tag2.gold{background:var(--goldSoft);color:#8a6f2a}
+.actrow{display:flex;gap:8px;margin-top:10px}
+.abtn{flex:1;text-align:center;font-weight:800;font-size:11px;padding:9px 0;border-radius:var(--rBtn);background:var(--voltFill);color:var(--voltDeep);box-shadow:inset 0 0 0 1px rgba(94,127,14,.18)}
+.abtn.ghost{background:var(--linset);color:var(--ldim);box-shadow:inset 0 0 0 1px var(--lhair)}
+.meter{display:flex;background:var(--linset);border:1px solid var(--lhair);border-radius:var(--rIn);margin-top:10px;overflow:hidden}
+.meter>div{flex:1;padding:8px;border-right:1px solid var(--lhair)}
+.meter>div:last-child{border-right:0}
+.meter span{display:block;font-family:'IBM Plex Mono',monospace;font-size:6.5px;letter-spacing:1.2px;color:var(--ldim)}
+.meter b{display:block;font-size:12px;color:var(--lhead);margin-top:2px;font-variant-numeric:tabular-nums}
+.meter b.ok{color:var(--voltDeep)}
+/* ── ticket (O1 session card) ── */
+.ticket{position:relative;background:var(--lcard);border:1px solid var(--lhair);border-radius:var(--rCard);box-shadow:var(--shadow);margin-top:10px;overflow:hidden}
+.ticket .tophalf{padding:13px 14px 11px}
+.ticket .perf{position:relative;border-top:1.5px dashed #D8D2EE;margin:0 10px}
+.ticket .perf::before,.ticket .perf::after{content:'';position:absolute;top:-7px;width:14px;height:14px;border-radius:50%;background:var(--lbg);box-shadow:inset 0 0 0 1px var(--lhair)}
+.ticket .perf::before{left:-17px}
+.ticket .perf::after{right:-17px}
+.ticket .stub{padding:11px 14px 13px;background:linear-gradient(180deg,#FDFCFF, #F8F6FE)}
+/* ── receipt perforation ── */
+.receipt{position:relative;background:var(--lcard);border:1px solid var(--lhair);box-shadow:var(--shadow);margin-top:10px;padding:18px 14px 16px;border-radius:2px}
+.receipt::before,.receipt::after{content:'';position:absolute;left:0;right:0;height:7px;
+  background:radial-gradient(circle at 7px 0px, var(--lbg) 5px, transparent 5.5px) repeat-x;background-size:14px 7px}
+.receipt::before{top:-1px}
+.receipt::after{bottom:-1px;transform:rotate(180deg)}
+.goldseal{width:58px;height:58px;border-radius:50%;position:relative;display:flex;align-items:center;justify-content:center;
+  font-family:'Oswald',sans-serif;font-size:9px;letter-spacing:1.5px;color:#7d6526;transform:rotate(-7deg);
+  background:conic-gradient(from 210deg, var(--goldSoft), var(--goldSheen), var(--goldSoft), #EFE3C2, var(--goldSoft));
+  box-shadow:inset 0 0 0 2px var(--gold), inset 0 0 0 4px rgba(255,255,255,.55), 0 2px 8px rgba(185,154,79,.35)}
+.rline{display:flex;justify-content:space-between;font-size:11px;color:var(--ltext);padding:6px 2px;border-bottom:1px dashed var(--lhair)}
+.rline b{color:var(--lhead);font-variant-numeric:tabular-nums}
+.rline:last-of-type{border-bottom:0}
+/* countdown */
+.cdown{margin-top:10px;background:var(--amberSoft);border:1px solid #F2DFC2;border-radius:var(--rIn);padding:11px 13px}
+.cdown .tt{display:flex;justify-content:space-between;align-items:baseline}
+.cdown .tt b{font-family:'Oswald',sans-serif;font-size:24px;color:var(--amber);font-weight:600;font-variant-numeric:tabular-nums}
+.cdown .tt span{font-size:10px;color:#7a5a2a;line-height:1.4}
+.cdown .bar{height:4px;background:rgba(199,116,20,.18);margin-top:8px;border-radius:2px;position:relative;overflow:hidden}
+.cdown .bar i{position:absolute;left:0;top:0;bottom:0;width:82%;background:var(--amber)}
+.tokens{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;max-width:980px}
+.tk{background:#fff;border:1px solid var(--lhair);border-radius:var(--rIn);padding:10px 13px;font-size:11px;color:#5b5670;line-height:1.55;width:calc(33.3% - 7px)}
+.tk b{color:var(--ink);display:block;margin-bottom:2px}
+.pickfoot{margin-top:46px;background:#fff;border:1px solid var(--lhair);border-left:4px solid var(--coral);border-radius:var(--rCard);box-shadow:var(--shadow);padding:16px 18px;max-width:980px}
+.pickfoot b{color:var(--coral)}
+.pickfoot p{font-size:13px;line-height:1.75;color:#4B4668}
+</style>
+</head>
+<body>
+<h1 class="bhs">Premium Refresh — <em>tailored lilac</em></h1>
+<p class="lede">Your read was exact: the consent paper's crisp corners were quietly the most premium thing on the page. So the whole system moves to its geometry — <b>crisp corners, soft light</b>. Radii tighten from 12–22px down to a tailored scale (phone 14 · card 8 · inner 6 · tag 5), and premium gets pushed through <b>craft, not decoration</b>: every card wears a hairline border, hero cards get an engraved double frame, flaps are embossed with a real highlight, numerals go tabular on hairline rules, tags flatten from pills into letterspaced labels, and two paper artifacts join the family — a <b>boarding-pass ticket</b> for sessions and a <b>perforated receipt</b> with a foil-sheen gold seal. A tiny DH monogram anchors every masthead.</p>
+<div class="legend">
+  <div class="lg"><b>Kept</b> — lilac palette · coral CTAs · soft layered shadows · Rule 7 · all locked decisions</div>
+  <div class="lg"><b>Changed</b> — radius scale crisped · hairline everywhere · pills → labels · flaps embossed · monogram · ticket/receipt artifacts</div>
+</div>
+
+<h2><span class="tag">REFRESH</span>The anchor screens, re-tailored</h2>
+<div class="row">
+
+<div class="shot"><div class="sl">O4 — 결제 (the anchor)</div><div class="ph">
+  <div class="mast"><h3 class="bhs"><span class="mg">DH</span>토 09:00 세션</h3><span class="vkdim">반포동</span></div>
+  <div class="shell"><div class="on">개요</div><div>참가자 <small>7</small></div><div>채팅 <small>3</small></div></div>
+  <div class="card frame hero">
+    <span class="vk">몽이의 위탁</span>
+    <div style="display:flex;align-items:center;gap:10px;margin-top:8px">
+      <span class="dog"></span>
+      <div class="stateK amber" style="flex:1"><b>승인 완료 — 결제 대기</b></div>
+      <span class="flap amberF"><i>H</i><i>O</i><i>L</i><i>D</i><i>I</i><i>N</i><i>G</i></span>
+    </div>
+  </div>
+  <div class="deadline"><b class="osw">14:32</b><span>안에 결제하면 자리 확정</span></div>
+  <div class="bignum">
+    <div><b class="osw">24,900</b><span>원</span></div>
+    <div><b class="osw">5.0<em>km</em></b><span>반포 한강</span></div>
+    <div><b class="osw">2<em>명</em></b><span>확약 러너</span></div>
+  </div>
+  <a class="cta">24,900원 결제하기 →</a>
+  <span class="detail-link">취소 규정 · 배정 방식 →</span>
+</div>
+<p class="note"><b>The engraved double frame</b> — 1px hairline border plus an inner hairline inset 4px — is the new hero-card signature; it's what letterpress stationery does instead of shouting. Numerals sit on hairline rules like a ledger. The CTA gains a barely-there vertical gradient: depth without gloss.</p></div>
+
+<div class="shot"><div class="sl">O1 — 세션 = 보딩패스</div><div class="ph">
+  <div class="mast"><h3 class="bhs"><span class="mg">DH</span>반포동 하이클럽</h3><span class="vkdim">멤버 41</span></div>
+  <div class="ticket">
+    <div class="tophalf">
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <b style="font-size:15px;color:var(--lhead)">토 09:00 · 반포 한강</b>
+        <span class="tag2 volt">성립</span>
+      </div>
+      <div class="bignum" style="margin-top:10px;background:transparent;border:0">
+        <div style="border-right:1px solid var(--lhair)"><b class="osw">5.0<em>km</em></b><span>코스</span></div>
+        <div style="border-right:1px solid var(--lhair)"><b class="osw">6'30"+</b><span>페이스</span></div>
+        <div><b class="osw">09:00</b><span>집결</span></div>
+      </div>
+    </div>
+    <div class="perf"></div>
+    <div class="stub">
+      <div style="display:flex;align-items:center;gap:6px">
+        <span class="dog" style="width:24px;height:24px"></span>
+        <span class="dog teal" style="width:24px;height:24px;margin-left:-8px"></span>
+        <span style="font-size:10px;color:var(--ldim);margin-left:4px">위탁 5/8 · 러너 2</span>
+        <b class="osw" style="margin-left:auto;font-size:16px;color:var(--lhead)">24,900</b>
+      </div>
+      <a class="cta" style="margin-top:10px;padding:11px 0;font-size:12.5px">몽이 위탁하기 →</a>
+      <a class="cta quiet" style="margin-top:7px">직접 함께 뛰기</a>
+    </div>
+  </div>
+</div>
+<p class="note"><b>Sessions become tickets.</b> Notched perforation splits facts (top) from your decision (stub) — the metaphor is literal: delegating tears off a stub. Same component carries to "my sessions" lists, and the stub half is what gets ripped in the cancel animation.</p></div>
+
+<div class="shot"><div class="sl">O11 — 영수증 (천공 + 골드 포일)</div><div class="ph">
+  <div class="mast"><h3 class="bhs"><span class="mg">DH</span>완료</h3><span class="vkdim">토 09:00 · 반포동</span></div>
+  <div class="receipt">
+    <div style="display:flex;justify-content:center"><span class="goldseal">SETTLED</span></div>
+    <b style="display:block;text-align:center;font-size:16px;color:var(--lhead);margin-top:10px">몽이, 오늘 5.0km</b>
+    <span style="display:block;text-align:center;font-size:10.5px;color:var(--ldim);margin-top:3px">지훈과 · 6'58" · 34:52</span>
+    <div style="margin-top:13px">
+      <div class="rline"><span>위탁 결제</span><b>24,900원</b></div>
+      <div class="rline"><span>취소·수수료</span><b>0원</b></div>
+      <div class="rline"><span>기록</span><b>시즌 12회 · 58.4km</b></div>
+    </div>
+  </div>
+  <a class="cta violet">다음 세션 보기 →</a>
+</div>
+<p class="note">Real perforated edges top and bottom; the gold seal now has a <b>conic foil sheen</b> (and a slow light-sweep on device). Line items sit on dashed rules — receipt grammar. Still the only gold in the app.</p></div>
+
+</div>
+
+<h2><span class="tag">REFRESH</span>Console · proposal — the working screens</h2>
+<div class="row">
+
+<div class="shot"><div class="sl">H1a — 콘솔 (라벨은 쿠튀르 태그로)</div><div class="ph">
+  <div class="mast"><h3 class="bhs"><span class="mg">DH</span>호스트 콘솔</h3><span class="vkdim">토 09:00</span></div>
+  <div class="shell"><div class="on">개요</div><div>참가자 <small>7</small></div><div>채팅 <small>3</small></div></div>
+  <div class="meter">
+    <div><span>위탁</span><b>5/8</b></div>
+    <div><span>결제</span><b>3</b></div>
+    <div><span>러너</span><b>2</b></div>
+    <div><span>성립</span><b class="ok">OK</b></div>
+  </div>
+  <div class="sechead"><span class="n">1</span><b>심사</b><span>승인 = 결제 요청 발송</span></div>
+  <div class="drow" style="box-shadow:inset 0 0 0 1px var(--lhair)">
+    <div class="top"><span class="dog"></span>
+      <div class="nm"><b>몽이</b><span>푸들 6.2kg · 첫 위탁</span></div></div>
+    <div class="actrow"><span class="abtn">승인</span><span class="abtn ghost">거절</span></div>
+  </div>
+  <div class="drow">
+    <div class="top"><span class="dog" style="border-color:#E58BA9"></span>
+      <div class="nm"><b>두부</b><span>체중 6.8 → 9.4kg 변경</span></div>
+      <span class="tag2 amber">재검토</span></div>
+  </div>
+  <div class="sechead"><span class="n">2</span><b>결제 현황</b><span>읽기 전용</span></div>
+  <div class="drow"><div class="top"><span class="dog teal"></span>
+    <div class="nm"><b>보리</b><span>지은</span></div>
+    <span class="tag2 volt">결제 완료</span></div></div>
+  <div class="drow"><div class="top"><span class="dog" style="border-color:#E58BA9"></span>
+    <div class="nm"><b>두부</b><span>민서</span></div>
+    <span class="tag2 amber">대기 12:07</span></div></div>
+</div>
+<p class="note"><b>Pills → labels.</b> Status chips become rectangular, letterspaced mono tags — garment-label grammar, and they align cleanly in columns the way pills never did. Approve keeps its volt fill but gains a 1px tonal inset instead of floating flat.</p></div>
+
+<div class="shot"><div class="sl">R2 — 배정 제안 (crisp cut)</div><div class="ph">
+  <div class="mast"><h3 class="bhs"><span class="mg">DH</span>배정 제안</h3><span class="vkdim">호스트 션 → 나</span></div>
+  <div class="cdown">
+    <div class="tt"><b class="osw">04:12</b><span>안에 결정하지 않으면<br>제안이 소멸해요</span></div>
+    <div class="bar"><i></i></div>
+  </div>
+  <div class="card frame hero">
+    <div style="display:flex;gap:11px;align-items:center">
+      <span class="dog teal" style="width:46px;height:46px"></span>
+      <div><b style="font-size:16px;color:var(--lhead)">보리</b>
+      <div style="font-size:10.5px;color:var(--ldim);margin-top:2px">리트리버 · 3살 · 지은 보호자</div></div>
+    </div>
+  </div>
+  <div class="bignum">
+    <div><b class="osw">18.2<em>kg</em></b><span>체중</span></div>
+    <div><b class="osw">6'30"</b><span>가능 페이스</span></div>
+    <div><b class="osw">19,920</b><span>보수</span></div>
+  </div>
+  <div style="background:var(--amberSoft);border:1px solid #F2DFC2;border-radius:var(--rIn);padding:9px 12px;margin-top:10px;font-size:10.5px;color:#7a5a2a"><b style="color:var(--amber)">자전거에 흥분</b> — 한강 자전거길 인접 2구간</div>
+  <div style="font-size:10.5px;color:var(--ltext);margin-top:9px;text-align:center">수락하면 인계부터 반환까지 보리의 책임자는 나</div>
+  <a class="cta">이 아이, 내가 맡을게요 →</a>
+  <div class="detail-link" style="color:var(--ldim)">우려 제기 · 거절</div>
+</div>
+<p class="note">Same screen, tighter cut — the double frame marks the dog card as the document being decided on. Soft fills all gain their own hairline (amber block, deadline, meter) so nothing floats untrimmed.</p></div>
+
+<div class="shot"><div class="sl">플랩 — 엠보스 디테일</div><div class="ph short" style="padding-bottom:16px">
+  <div class="card" style="display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center;justify-content:center;padding:16px 12px">
+    <span class="flap dimF"><i>P</i><i>E</i><i>N</i><i>D</i><i>I</i><i>N</i><i>G</i></span>
+    <span class="flap amberF"><i>H</i><i>O</i><i>L</i><i>D</i><i>I</i><i>N</i><i>G</i></span>
+    <span class="flap"><i>C</i><i>L</i><i>E</i><i>A</i><i>R</i><i>E</i><i>D</i></span>
+    <span class="flap"><i>B</i><i>O</i><i>A</i><i>R</i><i>D</i><i>E</i><i>D</i></span>
+    <span class="flap voltF"><i>R</i><i>U</i><i>N</i><i>N</i><i>I</i><i>N</i><i>G</i></span>
+    <span class="flap amberF"><i>R</i><i>E</i><i>T</i><i>U</i><i>R</i><i>N</i><i>S</i></span>
+    <span class="flap voltF"><i>S</i><i>E</i><i>T</i><i>T</i><i>L</i><i>E</i><i>D</i></span>
+    <span class="flap tangF"><i>O</i><i>U</i><i>T</i><i>S</i><i>I</i><i>D</i><i>E</i></span>
+    <span class="flap tangF"><i>R</i><i>E</i><i>F</i><i>U</i><i>N</i><i>D</i></span>
+    <span class="flap tangF"><i>R</i><i>E</i><i>F</i><i>U</i><i>S</i><i>E</i><i>D</i></span>
+  </div>
+</div>
+<p class="note">Tiles get a top highlight, bottom shade and a 1px drop — <b>physically embossed keys</b>, not printed rectangles. On device, a state change flips the tile with the split-flap animation (top half falls); that flip is the app's one signature motion.</p></div>
+
+</div>
+
+<h2><span class="tag">TOKENS</span>What the refresh means in build terms</h2>
+<div class="tokens">
+  <div class="tk"><b>Radius scale</b>phone 14 · card 8 · inner/fill 6 · button 8 · tag 5 · paper doc 2 · avatars/seal round. Nothing above 14 except circles.</div>
+  <div class="tk"><b>Hairline law</b>Every surface is trimmed: cards 1px #E6E2F4, fills get tonal hairlines, bignum labels sit on rules. Hero cards add the 4px-inset double frame.</div>
+  <div class="tk"><b>Shadow</b>Unchanged — soft, layered, tinted ink. Crisp corners + soft light is the whole premium formula; hard shadows stay retired.</div>
+  <div class="tk"><b>Labels not pills</b>Status = rectangular mono tags, letterspaced, radius 5. Pills survive nowhere.</div>
+  <div class="tk"><b>Artifacts</b>Ticket (perforation + notches) for sessions · receipt (punched edges + foil seal) for SETTLED · paper doc for consent. Paper things keep paper corners.</div>
+  <div class="tk"><b>Monogram & motion</b>DH block anchors mastheads. One signature motion: the split-flap flip. Foil sheen sweeps the gold seal once on reveal. Everything else is fades.</div>
+</div>
+
+<div class="pickfoot">
+  <p><b>This closes the look.</b> Master-lab layouts + this geometry = the build spec (the remaining master-lab screens inherit these tokens mechanically — no re-review needed unless you want one). Still parked from before: <b>③|④</b> chat and <b>⑤|⑥</b> ack, rendered in the flow lab. Send those two numbers whenever — O1→O5 build can start without them.</p>
+</div>
+</body>
+</html>
