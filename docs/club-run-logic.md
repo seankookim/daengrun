@@ -381,9 +381,17 @@ with body erasure, report→host flag, 20/min rate limit via trigger) + capabili
 labels + capacity meter/viability; delegated owners are roster people too) + phone rule B lifecycle-scoped
 with access log (dedup) + critical-ack infra (title registry → auto ack rows via notification trigger; 30m
 unacked → host escalation; return-overdue alert joins recovery cron). Private owner↔runner channel =
-existing per-booking chat (party RLS already covers club bookings) → R6 incident wiring/SOS/severity/evidence + GPS baseline + segments + series
-occurrence identity + adversarial harness (permission-leak, idempotency replay, out-of-order, stale-client,
-2-connection races: last-slot pay, pay-vs-expiry, withdraw-vs-pay) → production UI (lab v3 direction), G2+.
+existing per-booking chat (party RLS already covers club bookings) → **R6 backend built (0050)**: participant
+incident RPCs (open with severity + subjects + location evidence; SOS = S1 sugar fanning to host/backup/
+committed runners; evidence add + detail choke point, case-party gated) + open-incident-on-dog ⇒
+payout_hold under session lock (incl. `ended` rows — post-service disputes are the point; caught by the
+race check) + consent-free cancellation blocked + resolve releases only its own hold + GPS baseline
+(segments born at run start, closed at settle; trace integrity: monotonic t, impossible-speed >8m/s
+rejection) + series occurrence identity (generation records series_id + occurrence_date; unique index makes
+double-generation structurally impossible — generation previously never linked sessions to their series) +
+adversarial harness: seal sweep over all 13 sensitive tables, replay/out-of-order/stale-client cases, and
+**real two-connection races in the standing harness** (last-slot pay: exactly one winner; cancel-vs-pay
+coherence; release-vs-incident: incident tx first ⇒ never released) → production UI (lab v3 direction), G2+.
 
 *Sean's open numbers: fee ratios/ladder · host_fee · credit amounts · vet limit · window tuning · chat push
 defaults · handler-load own-dog rule tuning (§6).*

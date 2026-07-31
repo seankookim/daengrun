@@ -37,8 +37,10 @@ psql -q -f 60_custody_suite.sql >/dev/null 2>&1
 psql -q -f 65_assignment_suite.sql >/dev/null 2>&1
 psql -q -f 66_r4_suite.sql >/dev/null 2>&1
 psql -q -f 67_shell_suite.sql >/dev/null 2>&1
+psql -q -f 68_adversarial_suite.sql >/dev/null 2>&1
 psql -q -f 70_axes_suite.sql >/dev/null 2>&1
 psql -q -f 80_choke_suite.sql >/dev/null 2>&1
+bash 90_race_check.sh >/dev/null 2>&1                              # 2커넥션 레이스 (R6)
 psql -c "select case when ok then '✅' else '❌' end || ' [' || suite || '] ' || name || case when ok then '' else ' — ' || detail end from _t order by at"
 psql -qt -c "select count(*) filter (where ok) || ' pass / ' || count(*) filter (where not ok) || ' fail' from _t"
 psql -qt -c "select case when count(*) filter (where not ok) > 0 then 'FAIL' else 'OK' end from _t" | grep -q OK

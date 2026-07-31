@@ -120,10 +120,10 @@ begin
   -- [E5] 공유 트레이스 팬아웃: 담당 러너의 active runs에만 기록, 타인은 0행
   begin
     perform set_config('request.jwt.claim.sub', host::text, false);
-    v_cnt := club_save_run_trace(v_sid, '[{"lat":37.5,"lng":127.0,"t":0},{"lat":37.51,"lng":127.01,"t":60}]');
+    v_cnt := club_save_run_trace(v_sid, '[{"lat":37.5,"lng":127.0,"t":0},{"lat":37.502,"lng":127.001,"t":60}]');
     if v_cnt <> 0 then call _fail('cus','E5 타인 트레이스 차단','n=' || v_cnt); else
       perform set_config('request.jwt.claim.sub', r2::text, false);
-      v_cnt := club_save_run_trace(v_sid, '[{"lat":37.5,"lng":127.0,"t":0},{"lat":37.51,"lng":127.01,"t":60}]');
+      v_cnt := club_save_run_trace(v_sid, '[{"lat":37.5,"lng":127.0,"t":0},{"lat":37.502,"lng":127.001,"t":60}]');
       if v_cnt = 1 and jsonb_array_length((select trace from runs where booking_id = v_b1)) = 2
         then call _pass('cus','E5 공유 트레이스 팬아웃 (본인 active 1건·타인 0건)');
       else call _fail('cus','E5 트레이스','n=' || v_cnt); end if;
