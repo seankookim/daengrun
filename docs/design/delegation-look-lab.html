@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DOGS HIGH — Look Lab: three brighter club worlds (⑦⑧⑨)</title>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Oswald:wght@500;600;700&family=IBM+Plex+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#191B15;--dim:#79766A;--pagebg:#ECEAE2;
+  --volt:#C6F542;--voltDeep:#5E7F0E;--tang:#E8552F;--amber:#C77414;
+  --violet:#6A58D8;--lilac:#ECE8FB;
+  --coral:#F0765A;--coralSoft:#FFDCD1;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--pagebg);color:var(--ink);font-family:'IBM Plex Sans KR',sans-serif;padding:32px 26px 100px}
+.bhs{font-family:'Black Han Sans',sans-serif;font-weight:400}
+.osw{font-family:'Oswald',sans-serif}
+.mono{font-family:'IBM Plex Mono',monospace}
+h1{font-size:27px;color:var(--ink)}
+h1 em{font-style:normal;color:var(--tang)}
+h2{font-size:16px;color:var(--ink);margin-top:46px;padding-top:18px;border-top:1.5px solid #D5D2C6}
+h2 .dec{font-family:'Oswald',sans-serif;color:#fff;background:var(--ink);padding:1px 9px;font-size:13px;margin-right:9px;vertical-align:2px}
+h2 .fixed{font-family:'IBM Plex Mono',monospace;color:#fff;background:var(--voltDeep);padding:2px 9px;font-size:10px;letter-spacing:2px;margin-right:9px;vertical-align:2px}
+h2 .rule{font-family:'IBM Plex Mono',monospace;color:#fff;background:var(--tang);padding:2px 9px;font-size:10px;letter-spacing:2px;margin-right:9px;vertical-align:2px}
+.lede{color:#5c594e;margin:9px 0 4px;max-width:980px;line-height:1.65;font-size:13.5px}
+.lede b{color:var(--ink)}
+.legend{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}
+.lg{background:#fff;border:1px solid #DAD6C8;padding:8px 12px;font-size:11.5px;color:#5c594e;line-height:1.5}
+.lg b{color:var(--ink)}
+.row{display:flex;gap:18px;flex-wrap:wrap;margin-top:18px;align-items:flex-start}
+.shot{width:302px}
+.sl{font-size:10.5px;letter-spacing:2px;color:#8b877a;margin-bottom:7px;font-family:'IBM Plex Mono',monospace}
+.sl b{color:var(--tang);font-size:12px;letter-spacing:1px}
+.note{color:#6b6759;font-size:11.5px;line-height:1.6;margin:9px 2px 0}
+.note b{color:var(--ink)}
+.cta3d{display:block;background:var(--tang);color:#fff;border:2px solid #000;box-shadow:4px 4px 0 #000;text-align:center;font-weight:900;font-size:14.5px;padding:13px 0;margin-top:13px}
+.flap{display:inline-flex;gap:1.5px;vertical-align:middle}
+.flap i{font-family:'Oswald',sans-serif;font-style:normal;font-weight:600;font-size:9px;padding:2px 3px;position:relative;letter-spacing:.5px;min-width:12px;text-align:center}
+.flap i::after{content:'';position:absolute;left:0;right:0;top:50%;height:1px;background:rgba(0,0,0,.16)}
+
+/* ═══ phone frame base (per-look vars) ═══ */
+.ph{min-height:500px;padding:14px 12px 18px;overflow:hidden;position:relative;background:var(--lbg);color:var(--ltext);border:1px solid #D5D1C3;box-shadow:5px 5px 0 rgba(25,27,21,.14)}
+.ph.short{min-height:0}
+.mast{display:flex;justify-content:space-between;align-items:baseline;padding-bottom:8px;border-bottom:1.5px solid var(--laccent)}
+.mast h3{font-size:18px;color:var(--lhead)}
+.vk{font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:2.5px;color:var(--laccent)}
+.vkdim{font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:2px;color:var(--ldim)}
+.shell{display:flex;border-bottom:1px solid var(--ledge);margin-top:2px}
+.shell div{flex:1;text-align:center;font-size:11.5px;font-weight:800;color:var(--ldim);padding:9px 0;position:relative}
+.shell div.on{color:var(--lhead)}
+.shell div.on::after{content:'';position:absolute;left:26%;right:26%;bottom:-1px;height:2.5px;background:var(--laccent)}
+.shell div small{font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--voltDeep);margin-left:3px}
+.dog{width:34px;height:34px;border-radius:50%;flex:none;background:linear-gradient(140deg,#c9b89a,#8a7a5c);border:2.5px solid var(--coral)}
+.dog.teal{border-color:#2FA98D}
+.card{background:var(--lcard);border:1px solid var(--ledge);padding:11px 12px;margin-top:9px}
+.card.hero{border-left:2.5px solid var(--laccent)}
+.stateK b{font-size:13px;color:var(--lhead)}
+.stateK.amber b{color:var(--amber)}
+.deadline{display:flex;align-items:center;gap:9px;background:var(--lcard);border:1.5px solid var(--amber);padding:9px 11px;margin-top:10px}
+.deadline b{font-family:'Oswald',sans-serif;font-size:21px;color:var(--amber);font-weight:600}
+.deadline span{font-size:11px;color:var(--ltext);line-height:1.45}
+.bignum{display:flex;border-top:1px solid var(--ledge);border-bottom:1px solid var(--ledge);margin-top:12px;background:var(--linset)}
+.bignum div{flex:1;padding:9px 6px;border-right:1px solid var(--ledge)}
+.bignum div:last-child{border-right:0}
+.bignum b{display:block;font-family:'Oswald',sans-serif;font-size:22px;font-weight:600;color:var(--lhead);line-height:1}
+.bignum b em{font-style:normal;color:var(--tang)}
+.bignum span{display:block;font-family:'IBM Plex Mono',monospace;font-size:7px;letter-spacing:1.5px;color:var(--ldim);margin-top:3px}
+.detail-link{display:block;text-align:center;margin-top:10px;font-size:11px;font-weight:800;color:var(--laccent)}
+.meter{display:flex;border:1px solid var(--ledge);margin-top:9px;background:var(--linset)}
+.meter>div{flex:1;padding:7px 8px;border-right:1px solid var(--ledge)}
+.meter>div:last-child{border-right:0}
+.meter span{display:block;font-family:'IBM Plex Mono',monospace;font-size:6.5px;letter-spacing:1.2px;color:var(--ldim)}
+.meter b{display:block;font-size:12px;color:var(--lhead);margin-top:2px}
+.meter b.ok{color:var(--voltDeep)}
+.sechead{display:flex;gap:8px;align-items:center;margin-top:14px;padding-bottom:5px;border-bottom:1.5px solid var(--ledge)}
+.sechead .n{font-family:'Oswald',sans-serif;font-weight:700;font-size:13px;color:#fff;background:var(--laccent);padding:1px 7px}
+.sechead b{font-size:13px;color:var(--lhead)}
+.drow{background:var(--lcard);border:1px solid var(--ledge);padding:10px;margin-top:8px}
+.drow .top{display:flex;gap:9px;align-items:center}
+.drow .nm{flex:1;min-width:0}
+.drow .nm b{font-size:13.5px;color:var(--lhead)}
+.drow .nm span{display:block;font-size:9.5px;color:var(--ltext);margin-top:1px}
+.actrow{display:flex;gap:7px;margin-top:9px}
+.abtn{flex:1;text-align:center;font-weight:900;font-size:11px;padding:8px 0;border:1.5px solid var(--ink);color:var(--ink);background:var(--volt)}
+.abtn.ghost{background:transparent;color:var(--ldim);border-color:var(--ledge)}
+.paylabel{font-size:10px;font-weight:800;padding:4px 8px;border:1.5px solid var(--ledge);color:var(--ldim)}
+.paylabel.ok{border-color:var(--voltDeep);color:var(--voltDeep)}
+.badge{display:inline-block;font-size:9px;font-weight:800;padding:2.5px 7px;border:1.5px solid var(--amber);color:var(--amber)}
+
+/* ── LOOK ⑦ 종이 대낮 paper daylight ── */
+.look7{--lbg:#F7F4EA;--lcard:#FFFFFF;--linset:#F1EDDF;--ledge:#E0DAC6;--lhead:#191B15;
+  --ltext:#45443A;--ldim:#8B8574;--laccent:#191B15}
+.look7 .flap i{background:#EDE8D6;border-top:1px solid #fff;border-bottom:2px solid #C6BFA6}
+.look7 .mast{border-bottom-width:2.5px}
+.look7 .vk{color:var(--violet)}
+
+/* ── LOOK ⑧ 라일락 아침 lilac morning ── */
+.look8{--lbg:#F3F1FB;--lcard:#FFFFFF;--linset:#ECE9F8;--ledge:#DDD7F0;--lhead:#1A1730;
+  --ltext:#474360;--ldim:#8781A3;--laccent:#6A58D8}
+.look8 .flap i{background:#E7E2F8;border-top:1px solid #fff;border-bottom:2px solid #C3BAE8}
+
+/* flap letter colors (shared) */
+.flap.voltF i{color:var(--voltDeep)}.flap.amberF i{color:var(--amber)}
+.flap.tangF i{color:var(--tang)}.flap.neonF i{color:var(--violet)}.flap.dimF i{color:#8B8574}
+
+/* ── LOOK ⑨ night only while running ── */
+.night{--lbg:#0E0D15;--lcard:#17161F;--linset:#0B0A11;--ledge:#3B3947;--lhead:#FFFFFF;
+  --ltext:#D9D7E2;--ldim:#9A97A8;--laccent:#7B6CDF}
+.night .flap i{background:#211E33;border-top:1px solid rgba(255,255,255,.14);border-bottom:2px solid #000}
+.night .flap.voltF i{color:var(--volt)}
+.night .abtn{border-color:var(--volt)}
+
+/* ── paper consent doc + coral seal (fixed ②) ── */
+.paperdoc{background:#fff;color:var(--ink);padding:13px 13px 15px;position:relative;margin-top:10px;
+  box-shadow:0 0 0 1px #d8d4c8, 5px 5px 0 rgba(25,27,21,.2)}
+.paperdoc::before{content:'';position:absolute;inset:4px;border:1px solid #cbc4b0;pointer-events:none}
+.pd-head{display:flex;justify-content:space-between;align-items:baseline;border-bottom:2.5px solid var(--ink);padding-bottom:6px}
+.pd-head b{font-family:'Black Han Sans',sans-serif;font-weight:400;font-size:16px}
+.pd-head span{font-family:'IBM Plex Mono',monospace;font-size:7.5px;letter-spacing:1.5px;color:#8a8272}
+.pd-row{display:flex;border-bottom:1px solid #d8d4c8;padding:7px 2px;gap:8px;align-items:baseline}
+.pd-row span{font-family:'IBM Plex Mono',monospace;font-size:7.5px;letter-spacing:1.2px;color:#8a8272;width:76px;flex:none}
+.pd-row b{font-size:12px;font-weight:700}
+.pd-row b u{text-decoration:none;border-bottom:1.5px dashed #b8b0a0;padding:0 3px}
+.pd-clause{font-size:9.5px;line-height:1.6;color:#4a463c;background:#f4f1e8;padding:8px 9px;margin-top:9px;border-left:2.5px solid var(--ink)}
+.pd-clause b{color:var(--ink)}
+.sealstrip{margin-top:10px;border:1.5px solid var(--ink);background:#FBF9F3;height:52px;display:flex;align-items:center;position:relative;overflow:hidden}
+.sealstrip .done-track{position:absolute;left:0;top:0;bottom:0;width:72%;background:var(--coralSoft)}
+.sealstrip .lbl{position:absolute;left:0;right:0;text-align:center;font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:2px;color:#a4917f;z-index:1}
+.pawseal{width:40px;height:40px;border-radius:50%;border:2.5px solid var(--coral);color:var(--coral);display:flex;align-items:center;justify-content:center;
+  font-family:'Black Han Sans',sans-serif;font-size:9px;line-height:1.1;text-align:center;background:#fff;position:absolute;left:calc(72% - 46px);z-index:2}
+.sealstrip .arrow{position:absolute;right:10px;color:#d9c9bc;font-size:16px}
+
+/* word diet table */
+.diet{display:flex;gap:14px;flex-wrap:wrap;margin-top:12px;max-width:980px}
+.diet>div{flex:1;min-width:280px;background:#fff;border:1px solid #DAD6C8;padding:13px 15px}
+.diet .hd{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:2px;color:#8b877a;padding-bottom:7px;border-bottom:1px solid #E5E1D4;margin-bottom:9px}
+.diet .hd b{color:var(--tang);font-size:13px;letter-spacing:0}
+.diet p{font-size:11.5px;line-height:1.7;color:#45443A}
+.diet p.strike{color:#b0ac9e;text-decoration:line-through}
+.diet p b{color:var(--ink)}
+.pickfoot{margin-top:46px;border:2px solid var(--ink);background:#fff;box-shadow:5px 5px 0 rgba(25,27,21,.18);padding:16px 18px;max-width:980px}
+.pickfoot b{color:var(--tang)}
+.pickfoot p{font-size:13px;line-height:1.75;color:#45443A}
+</style>
+</head>
+<body>
+<h1 class="bhs">Look Lab — <em>the club steps into daylight</em></h1>
+<p class="lede">Response to three notes: the club world is <b>too dark and doesn't match the rest of the white app</b> · information first but <b>softer, fewer words</b> · seal strip ② confirmed, now with a <b>soft coral fill</b>. This lab settles the general look before any more screen comparisons. Same two screens rendered in each direction — owner payment card and host console — so the only variable is the look itself. Violet stays in the family but steps back from "world" to "signature."</p>
+<div class="legend">
+  <div class="lg"><b>Pick one:</b> ⑦ Paper daylight · ⑧ Lilac morning · ⑨ Daylight + night falls only while dogs run</div>
+  <div class="lg"><b>Locked:</b> ② seal strip (coral fill) · sharp corners · hard shadows · Korean state labels · flap flavor · volt/tang action colors</div>
+  <div class="lg"><b>Deferred:</b> chat ③|④ and ack ⑤|⑥ — will be re-shown in whichever look wins</div>
+</div>
+
+<!-- ═══ fixed: ② + coral ═══ -->
+<h2><span class="fixed">LOCKED ②</span>Consent seal strip — soft coral fill</h2>
+<div class="row">
+<div class="shot look7"><div class="sl">② final — coral track</div><div class="ph short" style="padding-bottom:16px">
+  <div class="paperdoc">
+    <div class="pd-head"><b>위탁 승낙서</b><span>DELEGATION CONSENT · v1</span></div>
+    <div class="pd-row"><span>위탁견</span><b>몽이 <u>푸들 · 6.2kg</u></b></div>
+    <div class="pd-row"><span>비상 연락처 *</span><b><u>010-4425-7789</u></b></div>
+    <div class="pd-row"><span>진료 한도</span><b><u>₩200,000</u> 사전 승인</b></div>
+    <div class="pd-clause">인계부터 <b>양측 반환 확인까지</b> 담당 러너가 몽이의 보호 책임자예요. 긴급 시 위 한도 안에서 바로 진료할 수 있어요.</div>
+    <div class="sealstrip">
+      <div class="done-track"></div>
+      <div class="lbl">끌어서 봉인</div>
+      <div class="pawseal">위탁<br>승낙</div>
+      <div class="arrow">›››</div>
+    </div>
+  </div>
+</div>
+<p class="note"><b>The filled track is soft coral</b> (#FFDCD1), the seal ring full coral — warm progress against the paper, no red-alarm energy. Clause rewritten from 41 to 26 words in plain speech ("~예요" register), no legal subordinate clauses. This document renders identically in all three looks — paper is paper.</p></div>
+</div>
+
+<!-- ═══ LOOK ⑦ ═══ -->
+<h2><span class="dec">⑦</span>Paper daylight — the whole club is the document</h2>
+<p class="lede">Warm paper background, white cards, ink lines. Violet almost fully retired — it survives only in the <span class="mono" style="font-size:10px">VK</span> microlabels. The club feels like a well-run neighborhood office: forms, stamps, ledgers. Strongest match with the white rest-of-app; club identity carried by typography, flaps and the coral/volt accents instead of a background color.</p>
+<div class="row">
+
+<div class="shot look7"><div class="sl"><b>⑦</b>-A owner: pay</div><div class="ph">
+  <div class="mast"><h3 class="bhs">토 09:00 세션</h3><span class="vkdim">반포동 하이클럽</span></div>
+  <div class="shell"><div class="on">개요</div><div>참가자 <small>7</small></div><div>채팅 <small>3</small></div></div>
+  <div class="card hero">
+    <span class="vk">몽이의 위탁</span>
+    <div style="display:flex;align-items:center;gap:9px;margin-top:7px">
+      <span class="dog"></span>
+      <div class="stateK amber" style="flex:1"><b>승인 완료 — 결제 대기</b></div>
+      <span class="flap amberF"><i>H</i><i>O</i><i>L</i><i>D</i><i>I</i><i>N</i><i>G</i></span>
+    </div>
+  </div>
+  <div class="deadline"><b class="osw">14:32</b><span>안에 결제하면 자리 확정</span></div>
+  <div class="bignum">
+    <div><b class="osw">24,900</b><span>원</span></div>
+    <div><b class="osw">5.0<em>km</em></b><span>반포 한강</span></div>
+    <div><b class="osw">2<em>명</em></b><span>확약 러너</span></div>
+  </div>
+  <a class="cta3d">24,900원 결제하기 →</a>
+  <span class="detail-link">취소 규정 · 배정 방식 →</span>
+</div>
+<p class="note"><b>12 words of running text on the whole screen</b> (v3 had 47). One fact — the deadline. One action — pay. Everything a lawyer would want lives behind one link.</p></div>
+
+<div class="shot look7"><div class="sl"><b>⑦</b>-B host console</div><div class="ph">
+  <div class="mast"><h3 class="bhs">호스트 콘솔</h3><span class="vkdim">토 09:00</span></div>
+  <div class="shell"><div class="on">개요</div><div>참가자 <small>7</small></div><div>채팅 <small>3</small></div></div>
+  <div class="meter">
+    <div><span>위탁</span><b>5/8</b></div>
+    <div><span>결제</span><b>3</b></div>
+    <div><span>러너</span><b>2</b></div>
+    <div><span>성립</span><b class="ok">OK</b></div>
+  </div>
+  <div class="sechead"><span class="n">1</span><b>심사</b></div>
+  <div class="drow" style="border-style:dashed">
+    <div class="top"><span class="dog"></span>
+      <div class="nm"><b>몽이</b><span>푸들 6.2kg · 첫 위탁</span></div></div>
+    <div class="actrow"><span class="abtn">승인</span><span class="abtn ghost">거절</span></div>
+  </div>
+  <div class="drow">
+    <div class="top"><span class="dog" style="border-color:#E58BA9"></span>
+      <div class="nm"><b>두부</b><span>체중 6.8 → 9.4kg</span></div>
+      <span class="badge">재검토</span></div>
+  </div>
+  <div class="sechead"><span class="n">2</span><b>결제</b></div>
+  <div class="drow"><div class="top"><span class="dog teal"></span>
+    <div class="nm"><b>보리</b><span>지은</span></div>
+    <span class="paylabel ok">완료</span></div></div>
+</div>
+<p class="note">Section numbers go <b>ink-on-ink</b>, the volt approve button is the only saturated element — the eye lands on the one thing to do. Ledger aesthetic does the "office" work the violet used to do.</p></div>
+
+</div>
+
+<!-- ═══ LOOK ⑧ ═══ -->
+<h2><span class="dec">⑧</span>Lilac morning — the night world at 8am</h2>
+<p class="lede">The exact same violet identity, inverted: near-white lavender background, white cards, violet as line-work and indicators. The club still reads instantly different from the main app's plain white — you know you crossed into club territory — but it's bright, soft, and the text is ink. This is the "day version" of what we had.</p>
+<div class="row">
+
+<div class="shot look8"><div class="sl"><b>⑧</b>-A owner: pay</div><div class="ph">
+  <div class="mast"><h3 class="bhs">토 09:00 세션</h3><span class="vkdim">반포동 하이클럽</span></div>
+  <div class="shell"><div class="on">개요</div><div>참가자 <small>7</small></div><div>채팅 <small>3</small></div></div>
+  <div class="card hero">
+    <span class="vk">몽이의 위탁</span>
+    <div style="display:flex;align-items:center;gap:9px;margin-top:7px">
+      <span class="dog"></span>
+      <div class="stateK amber" style="flex:1"><b>승인 완료 — 결제 대기</b></div>
+      <span class="flap amberF"><i>H</i><i>O</i><i>L</i><i>D</i><i>I</i><i>N</i><i>G</i></span>
+    </div>
+  </div>
+  <div class="deadline"><b class="osw">14:32</b><span>안에 결제하면 자리 확정</span></div>
+  <div class="bignum">
+    <div><b class="osw">24,900</b><span>원</span></div>
+    <div><b class="osw">5.0<em>km</em></b><span>반포 한강</span></div>
+    <div><b class="osw">2<em>명</em></b><span>확약 러너</span></div>
+  </div>
+  <a class="cta3d">24,900원 결제하기 →</a>
+  <span class="detail-link">취소 규정 · 배정 방식 →</span>
+</div>
+<p class="note">Violet budget on light: mast rule, shell indicator, VK label, detail link — <b>4 spots, same budget rule as before</b>, just on white. Amber and coral read warmer here than on paper.</p></div>
+
+<div class="shot look8"><div class="sl"><b>⑧</b>-B host console</div><div class="ph">
+  <div class="mast"><h3 class="bhs">호스트 콘솔</h3><span class="vkdim">토 09:00</span></div>
+  <div class="shell"><div class="on">개요</div><div>참가자 <small>7</small></div><div>채팅 <small>3</small></div></div>
+  <div class="meter">
+    <div><span>위탁</span><b>5/8</b></div>
+    <div><span>결제</span><b>3</b></div>
+    <div><span>러너</span><b>2</b></div>
+    <div><span>성립</span><b class="ok">OK</b></div>
+  </div>
+  <div class="sechead"><span class="n">1</span><b>심사</b></div>
+  <div class="drow" style="border-style:dashed">
+    <div class="top"><span class="dog"></span>
+      <div class="nm"><b>몽이</b><span>푸들 6.2kg · 첫 위탁</span></div></div>
+    <div class="actrow"><span class="abtn">승인</span><span class="abtn ghost">거절</span></div>
+  </div>
+  <div class="drow">
+    <div class="top"><span class="dog" style="border-color:#E58BA9"></span>
+      <div class="nm"><b>두부</b><span>체중 6.8 → 9.4kg</span></div>
+      <span class="badge">재검토</span></div>
+  </div>
+  <div class="sechead"><span class="n">2</span><b>결제</b></div>
+  <div class="drow"><div class="top"><span class="dog teal"></span>
+    <div class="nm"><b>보리</b><span>지은</span></div>
+    <span class="paylabel ok">완료</span></div></div>
+</div>
+<p class="note">Violet section chips keep the console's "numbered form" grammar with brand color. Risk to watch: lavender tints can drift generic-SaaS — the hard shadows, sharp corners and flaps are what keep it ours.</p></div>
+
+</div>
+
+<!-- ═══ LOOK ⑨ ═══ -->
+<h2><span class="dec">⑨</span>Split shift — daylight everywhere, night only while dogs run</h2>
+<p class="lede">Either light look (⑦ or ⑧) for everything… except the <b>live custody window</b>. From run start to settle, the screen drops into the violet night world — map, live stats, SOS. The brightness change itself becomes state: <b>dark means dogs are out right now.</b> When the last dog settles, daylight returns. If you pick ⑨, also say which light base (⑦ or ⑧) it should ride on.</p>
+<div class="row">
+
+<div class="shot look8"><div class="sl"><b>⑨</b>-A before the run — light base</div><div class="ph short" style="padding-bottom:16px">
+  <div class="mast"><h3 class="bhs">토 09:00 세션</h3><span class="vkdim">반포동 하이클럽</span></div>
+  <div class="shell"><div class="on">개요</div><div>참가자 <small>7</small></div><div>채팅 <small>5</small></div></div>
+  <div class="card hero">
+    <span class="vk">몽이의 위탁</span>
+    <div style="display:flex;align-items:center;gap:9px;margin-top:7px">
+      <span class="dog"></span>
+      <div class="stateK" style="flex:1"><b>담당 확정 — 인계 대기</b></div>
+      <span class="flap neonF"><i>C</i><i>L</i><i>E</i><i>A</i><i>R</i><i>E</i><i>D</i></span>
+    </div>
+  </div>
+  <a class="cta3d" style="background:var(--coral)">집결지에서 인계 확인 →</a>
+</div>
+<p class="note">Admin life in daylight — review, pay, assign, roster, chat.</p></div>
+
+<div class="shot night"><div class="sl"><b>⑨</b>-B while running — night falls</div><div class="ph">
+  <div class="mast"><h3 class="bhs">러닝 중</h3><span class="vkdim">보리 · 2.4/5.0km</span></div>
+  <div style="height:200px;background:linear-gradient(150deg,#141220,#0d0c15);border:1px solid var(--ledge);margin-top:10px;position:relative">
+    <div style="position:absolute;left:18%;top:30%;right:22%;bottom:26%;border:2px dashed #35315c"></div>
+    <div style="position:absolute;left:52%;top:38%;width:11px;height:11px;border-radius:50%;background:var(--volt);box-shadow:0 0 12px var(--volt)"></div>
+    <span class="vkdim" style="position:absolute;left:9px;top:7px">LIVE</span>
+  </div>
+  <div class="bignum">
+    <div><b class="osw">2.4<em>km</em></b><span>거리</span></div>
+    <div><b class="osw">6'41"</b><span>페이스</span></div>
+    <div><b class="osw">16:02</b><span>경과</span></div>
+  </div>
+  <div style="position:absolute;left:14px;bottom:16px;width:58px;height:58px;border-radius:50%;background:var(--tang);border:2px solid #000;box-shadow:4px 4px 0 #000;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:13px" class="bhs">SOS</div>
+  <a class="cta3d" style="position:absolute;right:14px;bottom:16px;left:88px;margin-top:0">러닝 종료</a>
+</div>
+<p class="note">The night world survives exactly where it earns its keep: outdoor glare legibility, map contrast, and the drama of live custody. Owners watching from home see the dark screen and <b>know without reading</b> their dog is out. Cost: theme transition to engineer, and both palettes to maintain.</p></div>
+
+</div>
+
+<!-- ═══ word diet rule ═══ -->
+<h2><span class="rule">NEW RULE</span>Rule 7 — assume the reader is sprinting past</h2>
+<p class="lede">Adopted from your note, phrased as a testable rule: <b>one screen = one fact + one action.</b> Running text ≤ 2 lines per screen; hints max 1, and only when skipping it costs money or safety; everything else behind a single "자세히" link. Server error codes still surface honestly — but as one plain sentence, not a paragraph. Applied retroactively to every screen above; here's the receipts on the payment card:</p>
+<div class="diet">
+  <div>
+    <div class="hd">BEFORE — v3 payment card · <b>47 words</b></div>
+    <p class="strike">14:32 안에 결제하면 자리가 확정돼요. 지나면 자리가 다른 신청자에게 돌아가요.</p>
+    <p class="strike">담당 러너는 집결지에서 호스트가 제안 → 러너가 수락하면 확정돼요 — 결제 전 이 방식에 동의하는 거예요.</p>
+    <p class="strike">결제 후에도 시작 24시간 전까지 무료 취소.</p>
+  </div>
+  <div>
+    <div class="hd">AFTER · <b>12 words</b></div>
+    <p><b>14:32</b> 안에 결제하면 자리 확정</p>
+    <p style="color:#8b877a">취소 규정 · 배정 방식 → <span style="font-size:10px">(one link holds both former hints — the assignment-method consent moves into the pay-sheet confirm step, where it's legally load-bearing)</span></p>
+  </div>
+</div>
+<p class="note" style="max-width:980px">Where a removed sentence was doing <b>legal</b> work (consenting to the assignment method before paying), it doesn't vanish — it moves to the one moment it binds: the payment confirmation sheet. Where it was doing <b>comfort</b> work, the state label already says it.</p>
+
+<div class="pickfoot">
+  <p><b>How to answer</b> — one number: <b>⑦</b> paper daylight · <b>⑧</b> lilac morning · <b>⑨</b> split shift (if ⑨, add its base: "9 on 7" or "9 on 8"). Rule 7 I'm treating as adopted unless you push back. Once the look lands, I'll re-render the chat (③|④) and ack (⑤|⑥) pairs in it, you pick those, and then we build.</p>
+</div>
+</body>
+</html>
