@@ -1,186 +1,159 @@
-# Session Handoff — 2026-07-30 (v5: delegation v2 R0A→R2 shipped; R3 next)
+# Session Handoff — 2026-08-01 (v4: delegation backend R0A–R6 complete → design phase closed → RN build started)
 
-> **Companion docs to read first**: `docs/hi-club-plan.md` (하이클럽 v2.1 final spec), `docs/todo.md` (master work list),
-> `docs/design/final-system-lab.html` (V4 design system — the agreed 6 rules), `docs/design/delegation-lab.html` (P-C UI mockups, if present),
-> `docs/design/app-upheaval-lab.html` (V1/V2/V3 originals). This file supersedes the v3 handoff.
-> **Language convention**: handoff & docs in English (Sean's preference); code comments & commit messages in Korean.
+> **Companion docs to read first**: `docs/club-run-logic.md` **v3.3+§1b — THE spec for delegation; §16 = testing doctrine + R0A–R6 build record**,
+> `docs/todo.md` (master work list), and the design canon in `docs/design/`:
+> `delegation-master-lab.html` (**layout canon** — every screen), `delegation-premium-refresh2.html` (**style canon** — tokens/materials),
+> `delegation-humane-lab.html` (photography law), `delegation-decisions-lab.html` (chat/ack decision basis).
+> This file supersedes the 2026-07-29 handoff (V4 redesign / P-B era — that content is preserved in git history).
+> **Language convention** [verified-now]: conversation & docs in English (Sean asked explicitly 2026-07-31: "speak in english"); app UI copy in Korean; commit messages in Korean.
 
 ---
 
 ## 1. Goal & current state
 
-DOGS HIGH (도그스하이, repo `daengrun`) — a dog-fitness marketplace where certified runners run customers' dogs.
-React Native/Expo + Supabase. Sean is solo-testing with a single account (he's the club host).
+DOGS HIGH (도그스하이, repo `daengrun`) — dog-fitness marketplace where certified runners run customers' dogs.
+React Native/Expo + Supabase. Sean solo-builds; tester account for real-device work is **s4kim2025@chadwickschool.org only** [from-history — allowlist SQL targets this account].
 
 **Workstream status**:
-- **P-C delegation v1 BACKEND** [verified-now]: 0037/0038/0039 — superseded slice-by-slice by the v2 R-track below.
-- **Delegation v2 (canonical spec `docs/club-run-logic.md` v3.3, 7 external critique rounds)** [verified-now]:
-  **R0A** (0040 axes + 0041 hardening, deployed remotely) → **R0B** (0042 marketplace choke point — fixed a real 0004 RLS
-  leak) → **R1** (0043 payment separation: approve=20m hold, pay RPC births booking idempotently + 0044 hardening:
-  post-lock re-read, allowlist gate `club_test_accounts`) → **R2** (0045 custody returns: events primary truth w/ seq
-  ordering, run-end ≠ return, two-sided confirm, overrides, atomic runner→runner transfer + cancel, clinic/authority
-  return-phase-only w/ payout hold, finish gating, payout earned→payable→released cron). Harness 144/144 clean install +
-  upgrade path OK. **0043–0045 not yet pushed remotely** (staged push runbook — §7).
-- **V4 full redesign** [verified-now]: branch `redesign-v4` (90b909d→c5a07ab). Sean: "I like this look much more than the original."
-  On-device review still pending; merge to main after review.
-- **Deploys** [stated 2026-07-30]: Sean ran `npx supabase db push` (0032–0038) and `git push` — remote DB and origin are current.
-- **HIGH CLUB P-A + P-B** [verified-now]: complete (0030–0036).
-- **Real-device club full-loop test** [uncertain]: RSVP→check-in→recap from a second account never verified; delegation loop
-  (delegate→approve→assign→handoff→run→settle) also never device-verified — needs two accounts.
+- **Delegation backend R0A–R6** [verified-now for code; harness result from-history]: COMPLETE. Migrations 0040–0050. Harness 181/181 + upgrade_check green (run in the prior compacted session); e2e-club.mjs 12/12 on Sean's machine ("all passed"). **0048·0049·0050 are NOT yet `db push`ed to remote** — everything ≤0047 is remote-applied and therefore frozen (edits go in 0051+).
+- **Delegation UI design phase** [verified-now]: CLOSED 2026-08-01. Eight HTML labs in `docs/design/`, all decisions made (see §4). Sean's verdicts: master lab — "everything about this I love it"; premium/photo/glass layers approved by continuation.
+- **RN build** [verified-now]: STARTED. Build increment 1 committed (`ad89de1`): lilac tokens, club-ui kit, api.ts delegation block rebuilt (see the critical incident in §8), O1 boarding-pass ticket on club home, O2 consent-paper screen. **Not yet run on any device — parse-checked only.**
+- **V4 general app redesign rollout** [from-history]: still pending Sean's on-device review/merge; unrelated to club surfaces.
+- **Real PG integration** [from-history]: separate future project; current payments are mock (`payment_attempts` ledger records everything, charges nothing).
+- **Two-account real-device full loop** [uncertain]: never done; mandatory before any real delegated pilot (spec §16).
 
 ## 2. Standing doctrines (Sean's invariant rules — outlive any task)
 
-- **Honesty principle**: never fabricate data or fake activity. Render only when real data exists. No ghost clubs. No first-finish
-  fanfare. Never promise benefits that don't exist. **No money before approval** (P-C extension of this rule).
-- **Harness gate**: no migration ships without passing `supabase/tests/harness.sh` (currently 107 pass). Test expectations must be
-  data-driven, never hardcoded counts.
-- **Commits**: detailed Korean commit messages; `tsc --noEmit` clean before every commit; git-lock mv ritual after every commit (§8).
-  Sean does all pushes/deploys.
-- **Language**: conversation and docs in English; code comments and commits in Korean.
-- **Commands**: always give Sean the exact commands he needs to run.
-- **Naver Cloud secret**: the client secret (3yobs…) must NEVER enter the app or repo — root `.env`, server-side only.
-- **New design surfaces**: big UI decisions get an HTML lab first → Sean picks by number → then implement.
+- **Honesty principle**: never fabricate data/fake activity; render only real data; no ghost clubs; server error codes surface as one honest sentence, never swallowed.
+- **Testing 3 layers** (spec §16, replaces the old per-slice debug-UI gate): ① `supabase/tests/harness.sh` (181 SQL cases incl. `90_race_check.sh` two-connection races) + `upgrade_check.sh` for money/custody/assignment migrations ② `app/scripts/e2e-club.mjs` (12 cases, real GoTrue accounts vs local stack — the gate for backend slices) ③ real-app E2E + device-only native testing (Kakao/push/GPS/maps/payments). `/dev/club-lab` is FROZEN — no new controls.
+- **Migration edit rule**: remote-applied migrations (≤0047 now; 0048–0050 after Sean pushes) are immutable — changes go in new numbered files.
+- **Design process**: big UI decisions get an HTML lab first → Sean picks by number → then implement. Numbered variants ONLY where genuinely new decisions exist.
+- **Rule 7 (word diet, adopted this session)**: one screen = one fact + one action; running text ≤2 lines; max 1 hint; rest behind a single "자세히" link; legally load-bearing sentences move to the moment they bind (e.g., assignment-method consent → payment sheet), never deleted.
+- **Photography law (adopted this session)**: photos are content, never wallpaper. 5 slots only (club cover / live polaroid / receipt print / dog's book / group shot). Paper zones (payment, consent, console, roster, case, cancel) are photo-free forever. Scrim law: text never sits on raw photo. Self-sourced only, no stock. photoConsent gates faces. Credit line always.
+- **Commits**: detailed Korean messages; Sean does all pushes/deploys; give Sean exact commands (bare commands, one per line — his zsh chokes on `#` comments pasted interactively).
+- **Naver Cloud secret** (3yobs…): never in app/repo — root `.env` server-side only.
+- **Doctrine one-liners** (enforced in code, don't re-litigate): 정산≠반환 (settlement ≠ return); custody phase speaks before the service axis; open incident on a dog ⇒ payout hold (ended rows INCLUDED); approval=eligibility, only hold/payment consumes capacity; no booking before payment; numbers live in `club_config`; requesting is not a door (shell access); open incidents extend chat write; Model A assignment; no delegation without a signed consent; RSVP≠membership, obligations survive leave; 'settled' as a word is banned in UI copy (SETTLED the flap word is fine); text+check > enum; Korean state labels are first-class.
 
 ## 3. Working-relationship norms (brief a new teammate)
 
-- Sean sometimes gives feedback by voice transcription (rambly-looking but every clause carries intent — decompose carefully).
-- Aesthetic decisions must be visual: "let's see it html first." Prefers 3–5 options + one recommendation; picks by number.
-- Rhythm: implement → he checks on device → precise micro-adjustments ("1.2x", "more left and up"). Apply immediately.
-- Hates: pastels, beige, rounded-card soup, system/default fonts, "AI-looking" uniformity, blandness, bib numbers (retired).
-- Loves: sharp corners, dark contrast (V2), stamp & ticket motifs, club violet, worn-out textures, highlighter marks,
-  3D hard shadows (sparingly), Oswald numerals.
-- Autonomy: frequently delegates order ("go ahead"), but direction changes are his call.
+- Sean often speaks via voice transcription — rambly surface, but EVERY clause carries intent; decompose carefully. He says "take it or leave it" / "you can push back" — he genuinely accepts pushback when argued (accepted "photos as content, not wallpaper" amendment).
+- Aesthetics are decided visually: HTML lab → 3–5 options max → he picks by number ("my decisions are 4, 5"). One confident direction is fine when he says "be creative, go ahead".
+- He notices real design flaws precisely: caught stale-style decision renders ("I would assume the chat and ack screens now look different… no?"), radius inconsistency ("the corners are sharper than the other screens"), jargon leakage ("It says rail, I'm not sure what that means" — kill shorthand that needs decoding).
+- Taste trajectory this session: dark violet night world OUT for club ("too dark… the rest of the app is very white"); lilac morning IN; then "more premium", then "sharper corners feel premium" (crisp corners + soft shadows = the formula; hard black offsets stay retired); "assume the customer is dumb" → Rule 7.
+- Autonomy: "go ahead" = proceed through the whole increment including commits. Direction changes are his call. He answers questions tersely; don't stack questions.
 
-## 4. Decision log (with WHY)
+## 4. Decision log (with WHY) — design phase, all final
 
-**P-C (2026-07-30, this session)**:
-- **Booking created at APPROVAL, not registration** — registration is a demand queue; money is only promised once the host
-  says yes (honesty principle). Booking = status `matching`, `runner_id` null until day-of assignment.
-- **`bookings.club_session_id`** — isolates club bookings from the general open pool (api.ts inbox/open-request queries filter
-  `.is('club_session_id', null)`; 0017 expiry cron skips them — session lifecycle owns club-booking fate).
-- **Tier caps min(2,tier)**: certified 1 · veteran/master 2 · applicant rejected. Session delegated capacity = sum of
-  COMMITTED runner caps, re-derived on every commit/withdraw (never stale — dynamic capacity doctrine).
-- **Withdraw stranding**: excess approved dogs revert to pending latest-registered-first (via `session_dogs.seq` — monotonic
-  sequence because harness DO blocks freeze `now()`), bookings fully refunded, both sides notified. No silent stranding.
-- **Min attendance = host notification only** (cron :40, once per session) — no destructive auto-cancel; "a human opens sessions,
-  a human closes them". Also avoids ambushing Sean's solo testing.
-- **Custody transition = trigger on bookings**, not a new mechanism — reuses the per-booking two-sided handoff confirmation
-  (insurance anchor). `picked_up` → responsible=runner + dog checked in; `completed` → checked out + responsible back to owner.
-  Server owns the invariant regardless of which path drives the transition (0034 trigger precedent).
-- **Assignment day-of by host** (`session_assign_dog`), check-in window (-2h..+6h), runner must be committed AND checked in,
-  per-runner cap re-verified at assignment. Reassignment only until handoff (`already_handed_off`).
-- **Shared trace fan-out**: `club_start_delegated_runs` + `club_save_run_trace` fan out to all the runner's dogs; run EVENTS
-  stay per-booking (a poop stamp is a fact about one dog).
-- **Per-dog settlement unchanged** — existing settle-run per booking; early per-dog dropout falls out naturally. Completion logs
-  `participant_activities` as `gps_verified` (runs trigger) — measurement-source doctrine schematized.
-- **Confirmed-booking refunds are two-step** `cancelled_runner → refund_pending` — transition map untouched (safer than enum/map surgery).
-- **Caught regression worth remembering**: first draft of 0037 extended `club_finish_session` from the 0030 body and silently
-  erased the 0031 recap logic — harness S5 caught it. **Rule: before redefining a function, grep which migration holds the
-  LATEST definition and extend that.**
+- **② Consent = drag-to-seal strip with soft coral fill** (#FFDCD1 track, coral ring). Why: consent = action, mis-tap structurally impossible, nothing ever covers the clauses (fixes the old "stamp covers info" flaw). Rejected ①: separate stamp cell (fine but less alive).
+- **⑧ Lilac morning, premium "tailored" cut**. Why: matches the white rest-of-app while keeping club territory distinct; violet survives as line-work on a budget. Rejected ⑦ paper daylight (violet fully retired — lost club identity) and ⑨ day/night split (two palettes to maintain; run screens are now light too).
+- **Crisp corner scale** (phone 14 / card 8 / inner 6 / btn 8 / tag 5 / paper doc 2 / circles exempt) **+ soft layered shadows**. Why: Sean saw the consent paper's sharp corners as the most premium element. NOTE the apparent contradiction: earlier he called the ORIGINAL sharp look "cheap" — the difference is hard-black-offset posters (cheap) vs crisp corners with soft light (tailored). Both statements stand.
+- **Premium materials v1+v2**: hairline law (1px #E6E2F4 trim everywhere; hero = 4px-inset double frame "engraved"); pills → rectangular letterspaced mono tags; embossed flaps (flip = the app's ONE signature motion); dawn wash (canvas only); glass chrome (masthead/shell/dock — content never blurs); foil budget (holo = monogram + ticket edge ONLY; platinum gradient = artifacts/credential frames; gold = SETTLED only); editorial numerals (Oswald 500 large, small ₩, tabular); ring countdown (amber→coral <5min); choreography exactly 4 (flap flip, seal stamp+sweep, stub tear, ring drain) — everything else 150ms fades.
+- **④ Chat = pinned host drawer** (over ③ toggle). Host inquiries sit on a platinum-framed drawer above the group stream — a host can't miss one; limited (pre-payment) users see only the drawer full-screen; expands to a sheet when long. Cost accepted: vertical space.
+- **⑤ Acks = banner stack** (over ⑥ takeover). Tinted banners under glass chrome, severity-sorted, follow across screens, one-tap 확인, 30-min silence escalates to host. Why: app stays usable mid-field with a dog. ⑥'s motion-demote logic is dead code we never write.
+- **Home card = the state machine**: O3/O6/O7 are the same "몽이의 위탁" card changing state (driven verbatim by `ui.primaryStage`), not separate screens — but they ARE each rendered as full screens in master-lab because the "RAIL" shorthand confused Sean. Never use unexplained jargon in labs again.
+- **부하 is banned in UI** → "오늘 담당 N/N" (runner load). Why: 부하 double-reads as burden/subordinate.
+- **O5 payment sheet carries the legal sentences**: assignment-method consent (host proposes → runner accepts → one owner objection) + cancel ladder — moved there by Rule 7 because that's the moment they bind.
+- **Runner reveal = credential card** (VERIFIED tag, runs/incidents/rating ledger row). Rating field awaits a review backend (placeholder until built).
+- **Receipt = photo print** (best run shot, gold seal half-on-photo, share/export card = growth loop). Group-shot ritual: one host prompt at session close → fans out to every participant's dog book + becomes club-cover candidate.
+- **Model A explained for owners**: nobody browses runners; owner buys the *method* at payment. This wording is product doctrine now.
 
-**V4 design (2026-07-29, unchanged)**: 6 rules — ① body=V1 white×ink rules×bands ② punch=V3 (ONE 3D coral action/screen,
-highlighter on one hero word) ③ night=V2 (live running, club, shot studio, pass — day/night switch is the brand rhythm)
-④ softness exception: only living things and stamps are round ⑤ 3-tier type (Black Han Sans / Oswald / IBM Plex Sans KR /
-Plex Mono labels) ⑥ color map: volt=individual, coral=urgency, amber=pending, blue=completed, violet=club, gold=records, terra=shop.
-Other standing decisions (token revolution, runner discovery, radar=coral, club C1 violet, T3 seal in-flow, bibs retired,
-`club_session_detail` host-first tie-break) — see v3 log if needed; all still true.
+## 5. Architecture & contracts (what the UI consumes)
 
-## 5. Architecture & contracts
+**Backend RPC surface for the delegation UI** (all in migrations 0040–0050, wrapped in `app/src/lib/api.ts`):
+- `club_delegation_board(p_session)` → board v5 [verified-now, 0048 §M]: session{…, reservedCount, viability{format,attendanceOk,paidDogs,presentRunners,coverageOk,viable}, openIncidents, unassignedIncidents}, runners[], me{}, dogs[] with FULL axes: service (serviceState/completionOutcome/terminationType), charge (chargeState/holdStatus/holdExpiresAt/refundState), custody (custodyPhase/custodianType/custodianExternal/ownerReturnConfirmed/runnerReturnConfirmed), payout (payoutState/payoutHold/payoutHoldReason), assignment (assignmentState/objectionUsed/reviewNeeded + proposedRunner* visible ONLY to host/proposee — runner privacy), and `ui` = server projection.
+- `club_dog_ui_state` (projection v4, 0048 §L): {primaryStage (Korean, first-class), secondaryBadges[], blockingIssues[], primaryIssue, requiredActors[], severity, allowedActions[]}. **Client renders these strings verbatim — never invents state text.** Custody beats service axis ('외부 보호 중', '반환 대기' override everything).
+- `session_delegate_dog(p_session, p_dog, p_consent jsonb)` — consent REQUIRED (custodyAck, emergencyContact mandatory; vetLimitKrw defaults from `club_config.vet_limit_krw`=200000). Stored immutable in `delegation_consents` v1; re-consent = new row. NO auto-membership.
+- `session_pay_delegation(p_session_dog, p_idem_key)` — idempotent mock pay; 20-min hold; last-slot race is serialized (RA).
+- `session_cancel_delegation` — server-judged ladder free→10%→20% (config), blocked while incident open; pre-pay cancel = approval 'withdrawn' (re-application allowed).
+- `session_confirm_return(p_session_dog, p_side)` — two-sided return (0046); both green → custody resolved → payout clock. **Settlement ≠ return.**
+- Assignment (0047): `session_propose_dog` (5-min expiry, real-time), `session_proposal_respond` (server revalidates — stale accept returns honest error), `session_owner_objection` (once), `session_assignment_revoke`, backup host, `club_assignment_recovery` cron (T-10 hard stop full refund).
+- Shell (0049): `club_my_shell_access` → 'host'|'full'|'limited'|'none' ("requesting is not a door"); `club_session_roster` (people incl. absent delegating owners; phone rule B — host↔all, owner↔accepted-runner pair, else '호스트 경유'; every revealed number logged to `club_phone_access_log`, deduped — and the UI TELLS the user it's logged); chat = direct RLS on `club_chat_messages` (realtime path; group vs host_channel audiences; rate limit 20/min fires on the 21st; open incidents extend write window); `club_my_acks`/`club_ack` (critical-title registry fanout, 30-min escalation).
+- Incidents/GPS (0050): `club_incident_open` (S1–S3; dog subject ⇒ payout_hold under session lock INCLUDING ended rows), `club_sos` (S1 + location evidence + fanout), `club_incident_detail` (case-party gated; timeline by seq), segments born at `club_start_delegated_runs`/closed at settle, `club_save_run_trace` (monotonic t; >8 m/s rejected).
+- `club_finish_session` gates: `dogs_not_returned` + `incident_unassigned` — the disabled close button must show these reasons verbatim.
 
-- **Migrations 0030–0038** [verified-now, all pushed]: 0030 club core / 0031 search·recap·stats / 0032 demand board /
-  0033 collar / 0034 record trigger / 0035 series (cron :20) / 0036 isMe / **0037 delegation S1** (commit/withdraw/delegate/
-  approve/cancel-fanout/min-attendance cron :40/format plumbing/`club_session_id`) / **0038 custody S2** (assign/custody
-  trigger/start+trace fan-out/activity trigger/gap fixes).
-- **P-C RPC surface (for UI work)**: owner `session_delegate_dog(session, dog)` · host `session_approve_dog(session_dog, bool)`,
-  `session_assign_dog(session_dog, runner)`, `club_cancel_session(session)` · runner `session_runner_commit/withdraw(session)`,
-  `club_start_delegated_runs(session)`, `club_save_run_trace(session, trace)`. Handoff & settle reuse existing
-  transition-booking `confirm_handoff` and settle-run edge functions per booking.
-- **Harness**: `supabase/tests/harness.sh` — local PG16, all migrations from zero + suites 10/20/30/40/50/60/70/80 = 144 cases.
-  **Second gate**: `tests/upgrade_check.sh` (0001→0039 + `upgrade_seed_v1.sql` v1 world → R-migrations → axes/choke suites) —
-  mandatory for any migration touching bookings/session_dogs/settle/refund/assignment/custody.
-  Container runs as root → `runuser -u postgres -- bash harness.sh`. Container mirror at `/tmp/daengrun/supabase` (verify md5!).
-- **Club writes = RPC-only**; participant names flow through SECURITY DEFINER. Errors are text codes (`no_capacity`,
-  `reassign_dogs_first`, `session_in_flight`, `already_handed_off`, `dog_slot_clash`, `format_closed`, `route_required`…).
-- **Pricing constants duplicated** in `functions/_shared/ctx.ts` PRICING and 0037 `session_approve_dog` (9900 + km×3000) —
-  change together.
-- **settle-run trust boundary**: km clamped 0..planned×2+2; completion requires ≥50% of planned km.
-- **Font loading grammar** (DO-NOT-REFACTOR): `displayFont.ts` / `fonts.ts` — lazy load with silent system fallback.
-- **V4 night tokens**: nightBg #0D0A1E · nightCard #14102B (club) / #121712 (runner) · nightEdge #2A2350 · nightDim #8F86C2 ·
-  neon #9F8FFF. Day tokens in `app/src/theme.ts` (cream=#FFFFFF paper, volt #C6F542, tang #FF5C3D, club #7B6CDF, radius 6/6/4).
-- **`noti_kind` enum**: booking/community/shop/safety/reward/system — P-C uses `booking` for money events (approval, assignment,
-  refunds, run start) and `community` for club-social events (requests, rejections, min-attendance, cancellations).
+**App-side contracts** [verified-now, build 1]:
+- `app/src/theme.ts`: `lilac` / `lilacRadius` / `lilacShadow` exports = the style tokens. Old night tokens still exist (other club screens not yet repainted — DO NOT delete until repaint done).
+- `app/src/components/club-ui.tsx`: DawnCanvas (SVG blooms), MonogramDH (SVG holo), ClubMast (translucent approximation — **real blur needs `expo-blur`, NOT installed**; adding it = native rebuild, Sean's call), LilacCard(hero/crit/frame), ClubTag (6 tones), Flap (10 states, embossed; no flip animation yet), ClubCta, BigNumRow, Ticket (perforation + notches + holo edge; `notchColor` must match surrounding bg), SealSlide (PanResponder; ≥92% travel = submit; a11y long-press alternative NOT yet implemented), LiveDot.
+- `flapOf()` in api.ts is custody-first and backward-compatible with old 2-field callers (extra fields optional). DO-NOT-REFACTOR into server-side: flap judgment deliberately lives in this one client function while `ui.primaryStage` is the Korean source of truth (flap = flavor).
+- `no gradients libs`: `expo-linear-gradient` NOT installed; all gradients go through `react-native-svg` (installed, v15). CTA uses solid coral + shadow, not gradient.
 
 ## 6. File map (this session)
 
-- `supabase/migrations/0037_club_delegation.sql` — S1: commit/withdraw/delegate/approve/cancel/min-attendance/format/`club_session_id`
-- `supabase/migrations/0038_club_custody.sql` — S2: assign/custody trigger/run fan-out/activity trigger/gap fixes
-- `supabase/tests/50_delegation_suite.sql` (D0–D16+M1–M7) · `60_custody_suite.sql` (E1–E17+G1/G2 — R2 block: overrides/
-  transfers/clinic/payout holds) · `70_axes_suite.sql` (X1–X13) · `80_choke_suite.sql` (K1–K6) · `harness.sh` ·
-  `upgrade_check.sh` + `upgrade_seed_v1.sql` (v1-world upgrade gate)
-- **v2 R-track migrations**: `0040_club_axes_r0a.sql` · `0041_r0a_hardening.sql` · `0042_marketplace_choke_point.sql` ·
-  `0043_payment_separation.sql` · `0044_r1_hardening.sql` · `0045_custody_returns.sql` (R2) — spec `docs/club-run-logic.md`
-- `app/src/lib/api.ts` — two open-pool queries now filter `.is('club_session_id', null)` (⚠ edited on-device via python)
-- V4 session files (2026-07-29) unchanged — see v3 §6 if needed; key ones: `app/src/theme.ts` (all tokens),
-  `app/src/components/clubcard.tsx`, `app/app/club/[id].tsx`, `club/session/[sid].tsx`, `club/pass/[sid].tsx`.
+**Design labs (all committed, `docs/design/`)**:
+- `delegation-production-lab.html` (7a35d6c) — first production lab vs real contracts; decisions ①②/③④/⑤⑥ posed.
+- `delegation-look-lab.html` (46a5a88) — bright 3-way ⑦⑧⑨; coral seal locked; Rule 7 receipts (47→12 words).
+- `delegation-flow-lab.html` (4a85c48) — lilac premium cut; full screen map O1–O11/H1–H5/R1–R7+3 exceptions; state rail; O1/O5/O9/O10/O11/R3/R6 first renders; ③④⑤⑥ re-posed in lilac.
+- `delegation-master-lab.html` (7655ba3) — **layout canon**; O3/O6/O7/O8 full screens; 부하→오늘 담당; everything repainted.
+- `delegation-premium-refresh.html` (1aafc42) — tailored cut (crisp corners, hairlines, tags, artifacts, monogram).
+- `delegation-premium-refresh2.html` (00f60c1) — **style canon**; dawn/glass/foil/numerals/ring/choreography tokens.
+- `delegation-humane-lab.html` (063a7f1) — photography law + 5 photo slots.
+- `delegation-decisions-lab.html` (6f71c79) — ③④/⑤⑥ in final canon; basis for Sean's "4, 5".
 
-## 7. Pending on Sean's side
+**App build 1 (ad89de1)**:
+- `app/src/theme.ts` — + lilac tokens block (appended; nothing removed).
+- `app/src/components/club-ui.tsx` — NEW, the kit (see §5).
+- `app/src/lib/api.ts` — delegation block REWRITTEN (lines ~1785+): FlapState 10, flapOf v2, board v5 types, DelegationConsent, delegateDog 3-arg, payDelegation, cancelDelegation, confirmReturn, custodyOverride, transferInitiate/Accept/Cancel, fetchCustodyEvents, fetchSessionIncidents, incidentAssign/Resolve, debugReleasePayouts, proposeDog, respondProposal, ownerObjection.
+- `app/app/club/delegate/[sid].tsx` — NEW O2 consent screen.
+- `app/app/club/[id].tsx` — O1: next-session card → Ticket with two doors (위탁하기 coral / 함께 뛰기 quiet). Route pushed: `/club/delegate/${ns.id}` with params clubName, when.
 
-- **[needs-user] V4 on-device review** → micro-adjustments → `git checkout main && git merge redesign-v4`.
-- **[needs-user] Two-account verification**: club social loop (RSVP→check-in→recap) AND delegation loop
-  (delegate→approve→assign→handoff→start→settle→refund paths).
-- ~~db push 0032–0038~~ done 2026-07-30 [stated]. ~~git push~~ done [stated].
-- KIPRIS trademark manual check (todo §E) [from-history].
+**Untouched but relevant**: `app/app/club/session/[sid].tsx` (still old night-world RSVP screen — build 2 replaces it), `app/app/club/pass/[sid].tsx` (night pass — repaint later), `app/app/dev/club-lab.tsx` (frozen; compiles again now that api.ts is restored).
 
-## 8. Environment traps (must know)
+## 7. Pending on Sean's side (exact commands)
 
-- **Device git locks**: every commit leaves `.git/index.lock` / `HEAD.lock` / `tmp_obj_*` that cannot be unlinked → mv into
-  `_to_delete/git-locks/` after EVERY commit; also check BEFORE committing (`git status` itself can create index.lock).
-- **Staging cache corruption** ⚠⚠: `device_stage_files` intermittently returns stale versions — **always md5-compare against
-  the device before editing anything staged**. On mismatch, edit on-device via python heredoc.
-- **Container mirror** `/tmp/daengrun` — re-verify md5 at session start (this session: full re-stage, all 44 files matched).
-- **Harness in container**: `runuser -u postgres -- bash harness.sh`; wedged postmaster → `rm -rf .pgtest`.
-- **tsc on the device**: `cd app && npx tsc --noEmit` (never chained).
-- **Function redefinition trap**: grep for the LATEST definition across migrations before `create or replace` (S5 lesson, §4).
-- **RN constraints**: `Row` style prop takes no arrays · avoid `StyleSheet.absoluteFillObject` · no gradient lib · rn-svg
-  strokeDashoffset needs JS driver.
-- **Harness DO blocks = single transaction**: `now()` frozen → use sequences (`session_dogs.seq`) for order, not timestamps.
+In `/Users/sean/dev/daengrun`:
+```
+find .git -name "*.lock" -delete
+rm -rf .git/_stale_locks
+find .git/objects -name "tmp_obj_*" -delete
+supabase db push
+git push
+```
+(db push applies 0048·0049·0050 — **O2's submit will fail with consent errors until this runs**.)
+Then smoke test build 1 on device: club home → ticket → 위탁하기 → consent form → seal drag → expect "신청이 전송됐어요". Also run `cd app && npx tsc --noEmit` — build 1 was only parse-checked in the sandbox (no node_modules there).
+Later/known: local stack restart + `node scripts/e2e-club.mjs` re-run (12 cases) after pulling; finalize `club_config` numbers ([Sean 미확정]: vet_limit 200000, cancel_free_hours 24, late 10%, post-accept 20%, split 50/50, host_fee 0, owner_handled_dog_limit 2, min_paid_dogs 1) via one SQL update each; V4 branch on-device review; allowlist insert for the tester account before real-app remote testing.
 
-## 9. Ideas discussed but not built
+## 8. Known bugs / gotchas / failure modes
 
-- **P-C UI** — the active work item, see §10.
-- **V4 remainder**: home masthead + ink-rule hero, highlighter hero word, 3D coral CTA rollout, body-font rollout,
-  V4 passes on request/report/live/shot-studio screens. Lab first when Sean asks.
-- **runner-profile → athlete page** (step 2 of runner-PR flow).
-- **P-B polish leftovers**: club patch visualization, story/Kakao share formats.
-- **P3 gold UI surfaces**: report PB hero, feed milestone cards (detection live in 0034; no surfaces).
-- **Demand threshold (10 teams)**: product constant with no behavior yet.
-- **Compatibility (궁합) flow**: host sees dog info at approval; a real matching-hint system is future UI work.
-- **Owner no-show policy**: currently full refund via finish-cleanup — a stricter policy is undecided [design].
+- **CRITICAL INCIDENT (diagnosed this session)**: the compacted session's R2 edits to `api.ts` NEVER LANDED on Sean's machine — `dev/club-lab.tsx` (same mtime batch) imported functions that didn't exist and called 3-arg delegateDog against a 2-arg api. The app could not have compiled since then. Root cause: bridge-disconnect file delivery where only part of a batch got committed. **Lesson (now in workflow-rules.md): after bridge file delivery, verify EVERY file of the batch actually landed (grep for the new symbols), not just the ones you remember.** Fixed in ad89de1.
+- **Bridge git lock ritual**: every `git commit` via device_bash leaves `.git/HEAD.lock`/`index.lock`/`tmp_obj_*` that the bridge cannot delete (`rm` = Operation not permitted). Workaround that works: `mkdir -p .git/_stale_locks && mv` the locks before each commit. Sean periodically deletes for real (§7). Without the mv, commits fail with "cannot lock ref 'HEAD'".
+- **device_list_dir on app/** overflows (node_modules) — always list subdirs or parse the truncated dump.
+- **expo-blur / expo-linear-gradient not installed** — glass is a translucent approximation; gradients via react-native-svg only. Installing either = native rebuild decision for Sean.
+- **SealSlide a11y**: drag-only today; long-press alternative promised in the lab but not implemented — build 2 or 3.
+- **club home visual seam** [uncertain]: O1 lilac ticket sits on the old cream/forest club home — acceptable interim, resolved when the club surfaces repaint (build 2+).
+- Local-stack env traps (from-history, still true): new CLI issues sb_publishable_/sb_secret_ keys (legacy JWT rejected); API roles get NO default grants locally → seed.sql parity grants; `supabase/config.toml` with project_id required; supabase-js silently drops undefined args; stack restart realigns secrets.
+- Harness runs in container as root: `runuser -u postgres -- bash harness.sh`; container repo mirror at `/tmp/daengrun` (STALE for app/ — restage from device before editing app files).
 
-## 10. Next 1–3 steps
+## 9. Ideas discussed, not yet built
 
-1. **[needs-user] Staged remote push runbook** (R1 critique requirement, order matters): db push 0042 alone → verify
-   marketplace open pool still works on device → push 0043+0044+0045 → verify `feature_disabled` for non-allowlisted →
-   allowlist Sean (`insert into club_test_accounts (profile_id, note) select id, 'sean beta' from auth.users where
-   email = 'seankookim@uchicago.edu';`) → owner approve→pay flow test. **Never flip the global `club_delegation_v2` flag.**
-2. **[in progress] Dev-only debug screen** for the v2 loop (api.ts wrappers for R1/R2 RPC surface: pay/confirm-return/
-   override/transfer initiate·accept·cancel) — thin UI per slice doctrine, production UI on lab v3 direction comes at G2+.
-3. **R3 next slice**: assignment loop (proposals T-30/T-20/T-10, reservation counting, recovery windows, no-show,
-   backup/assume_host). Then R4 consents/viability/fees, R5 shell backend (chat/roster/phones), R6 incidents/SOS/GPS.
+- **Photo system backend**: club cover ALREADY exists (`clubs.photo_url` + `uploadClubPhoto`) [verified-now in api.ts] — the humane lab's "new field" claim was wrong. Still genuinely new: group-shot fanout (host prompt at finish → all participants' dog books + cover candidate), receipt best-shot selection, polaroid promotion of runner chat photos onto owner live screen (chat photo kind exists; the promotion query doesn't).
+- **Review backend** for runner credential card ratings (4.9 in labs = placeholder) — later slice.
+- **"가장 자주 달린 사람"** (most-frequent runner) stat in dog's book — simple aggregate over settled delegated runs; not built.
+- **Receipt export/share as image** — react-native-view-shot is installed; wire later.
+- **Flap flip animation + seal stamp choreography + ring countdown component** — specced (4 signature motions, reduce-motion honored), none implemented yet; ring needed for O4 (pay hold) and R2 (proposal 5-min).
+- **Ack banner escalation copy** and motion-demote were CUT (⑤ chosen) — do not resurrect ⑥.
+
+## 10. Next 1–3 steps (build 2)
+
+1. **[needs-user first]** Sean: §7 commands (locks → db push → git push), then device smoke of O1→O2 and `tsc --noEmit`. Fix whatever the typecheck surfaces before new code.
+2. **[local-edit]** Build 2a — session shell rebuild: replace `app/app/club/session/[sid].tsx` with lilac shell (ClubMast + 개요/참가자/채팅 tabs; access via `club_my_shell_access`), 개요 tab hosting the O3/O4 state card driven by board v5 `dogs[].ui` (isMine rows; Flap from `flapOf`; badges verbatim; HOLDING deadline from holdExpiresAt).
+3. **[local-edit]** Build 2b — O5 payment sheet: bottom sheet with amount, the two legal lines (assignment-method consent check + cancel ladder), `payDelegation(sdId, 'pay-'+sdId)` idempotent, honest error mapping (no_capacity/hold_expired). Then commit; builds 3–5 = O6–O8+host console, runner+live+receipt, chat drawer+acks+case+album.
 
 ## 11. Verification commands
 
-Read-only (safe):
-```bash
-# Device (device_bash, cd /sessions/<sess>/mnt/daengrun)
-git branch --show-current && git log --oneline -8
-cd app && npx tsc --noEmit
-md5sum app/src/lib/api.ts app/src/theme.ts   # staging-freshness check before any edit
-# Container (Bash)
-cd /tmp/daengrun/supabase/tests && chown -R postgres:postgres .. && runuser -u postgres -- bash harness.sh 2>&1 | tail -3
+Read-only / safe:
 ```
-Destructive / costly (Sean's approval first):
-```bash
-git checkout main && git merge redesign-v4   # only after device review
-rm -rf .pgtest                                # harness reset (container)
+cd /Users/sean/dev/daengrun && git log --oneline -12
+cd /Users/sean/dev/daengrun/app && npx tsc --noEmit
+supabase migration list
+node scripts/e2e-club.mjs        (needs local stack up)
+```
+Container (backend harness, safe — local throwaway PG):
+```
+cd /tmp/daengrun/supabase/tests && runuser -u postgres -- bash harness.sh
+```
+Expensive / destructive (Sean only, deliberate):
+```
+supabase db push                  (applies 0048–0050 to remote)
+supabase stop --no-backup && supabase start   (local stack reset)
+git push
 ```
