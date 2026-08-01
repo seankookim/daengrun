@@ -1944,6 +1944,37 @@ export const startDelegatedRuns = (sessionId: string) =>
 export const saveClubRunTrace = (sessionId: string, trace: { lat: number; lng: number; t: number }[]) =>
   clubRpc('club_save_run_trace', { p_session: sessionId, p_trace: trace }) as Promise<number>;
 
+// [R5] 세션 셸 (0049) — 접근 단일 판정 · 로스터 (전화 규칙 B — 반환된 번호는 전부 열람 로그, UI가 이를 고지한다)
+export type ShellAccess = 'host' | 'full' | 'limited' | 'none'; // "신청은 사적 공간의 문이 아니다"
+export const fetchShellAccess = (sessionId: string) =>
+  clubRpc('club_my_shell_access', { p_session: sessionId }) as Promise<ShellAccess>;
+export interface RosterPerson {
+  profileId: string; name: string; avatarUrl: string | null;
+  role: string | null;              // host/handling_runner/runner_attending/owner_attending — null = 위탁 보호자(부재 참가)
+  attendance: string | null; runnerCap: number | null;
+  isHost: boolean; isBackup: boolean; isMe: boolean;
+  phone: string | null;             // 규칙 B로 보일 때만 — 서버가 로그 후 반환
+  phoneVia: 'direct' | 'host';
+}
+export interface RosterDogDetail {
+  memo: string | null; weightKg: number | null; breed: string | null;
+  emergencyContact: string | null; pickupName: string | null; vetLimitKrw: number | null;
+}
+export interface RosterDog {
+  sdId: string; dogName: string; collar: string | null; custody: string | null;
+  ownerName: string | null; isMine: boolean;
+  detail: RosterDogDetail | null;   // 호스트·본인·담당 러너에게만
+  chargeLabel: string | null;       // 호스트 읽기 전용
+}
+export interface SessionRoster {
+  access: ShellAccess;
+  people: RosterPerson[];
+  dogs: RosterDog[];                // limited = 자기 기록만 (서버가 거른다)
+  capacityMeter: { reserved: number; capacity: number; viability: SessionViability } | null; // 호스트만
+}
+export const fetchSessionRoster = (sessionId: string) =>
+  clubRpc('club_session_roster', { p_session: sessionId }) as Promise<SessionRoster>;
+
 // 클럽 사진 (호스트) — avatars 버킷의 본인 폴더 (스토리지 정책상 uid 폴더만 쓰기 가능)
 export async function uploadClubPhoto(clubId: string, base64: string): Promise<string> {
   const { data: user } = await supabase.auth.getUser();

@@ -1,53 +1,113 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useState } from 'react';
-import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { Alert, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Avatar, Row } from '../../../src/components/ui';
 import {
-  cancelClubRsvp, checkinClubSession, ClubSessionDetail, fetchClubSession,
-  fetchMyDogs, finishClubSession, rsvpClubSession,
+  BigNumRow, ClubCta, ClubMast, ClubTag, DawnCanvas, Flap, LilacCard, clubText,
+} from '../../../src/components/club-ui';
+import {
+  cancelClubRsvp, cancelDelegation, checkinClubSession, ClubSessionDetail, DelegationBoard, DelegationDog,
+  fetchClubSession, fetchDelegationBoard, fetchMyDogs, fetchSessionRoster, fetchShellAccess, finishClubSession,
+  ownerObjection, payDelegation, rsvpClubSession, SessionRoster, ShellAccess,
 } from '../../../src/lib/api';
-import { useDisplayFont } from '../../../src/lib/displayFont';
+import { useNumFont } from '../../../src/lib/fonts';
 import { haptic } from '../../../src/lib/haptics';
-import { colors } from '../../../src/theme';
+import { collarColors, CollarKey, lilac, lilacRadius } from '../../../src/theme';
 
-// 세션 상세 — S-A(집결 티켓) → S-B(당일 체크인) → done(리캡 플레이스홀더). P-A S1.
-// 참가자 행마다 책임 라벨 = 혼합 이벤트 불변식의 UI (P-C는 '위탁 · 담당 ○○' 라벨만 추가).
+// 세션 셸 v2 — 테일러드 라일락 (빌드 2a, 정본: master-lab O3~O8 + flow-lab O4·O5)
+// 셸 = 마스트 + 개요/참가자/채팅 탭. 접근은 club_my_shell_access 단일 판정 (신청은 문이 아니다).
+// 개요 탭 = "몽이의 위탁" 상태 카드 하나가 상태 머신 (O3/O4/O6/O7 = 같은 카드의 다른 상태) —
+// 상태 문구는 ui.primaryStage를 낱말 그대로 렌더 (클라이언트는 상태 텍스트를 지어내지 않는다).
+// 이 빌드의 행동: 신청 취소(O3) · 결제 시트(O4→O5) · 이의 1회(O7) · 함께 뛰기 RSVP/체크인.
+// 인계/반환 확인(O8/O10)·호스트 콘솔은 빌드 3 — 카드는 상태를 정직하게 보여주되 버튼을 만들지 않는다.
 
-const FOREST = '#0F1D13';
+const L = lilac;
 
-const ROLE_LABEL: Record<string, { label: string; bg: string; fg: string }> = {
-  host_runner: { label: 'HOST · PACE LEAD', bg: '#241C4E', fg: '#9F8FFF' },
-  handling_runner: { label: 'HANDLER', bg: '#241C4E', fg: '#9F8FFF' },
-  runner_attending: { label: 'RUNNER', bg: '#1D1839', fg: '#8F86C2' },
-  owner_attending: { label: 'OWNER', bg: '#1D1839', fg: '#8F86C2' },
+// 플랩별 한 줄 힌트 (규칙 7: 최대 1힌트) — 상태명이 아니라 "다음에 무슨 일이 일어나는지"만
+const STAGE_HINT: Record<string, string> = {
+  PENDING: '호스트가 확인 중이에요 — 보통 몇 시간 안에 답이 와요',
+  CLEARED: '담당 러너는 집결지에서 정해져요 — 정해지면 바로 알려드려요',
 };
 
-const dday = (iso: string): string => {
-  const d = Math.ceil((new Date(iso).getTime() - Date.now()) / 86400000);
-  return d <= 0 ? 'D-DAY' : `D-${d}`;
+const ROLE_LINE: Record<string, string> = {
+  host: '호스트', handling_runner: '담당 러너', runner_attending: '러너', owner_attending: '동반 참가',
+};
+
+const CHARGE_LABEL: Record<string, string> = {
+  paid: '결제 완료', pending_payment: '결제 대기', refunded: '환불', refund_pending: '환불 진행',
 };
 
 const WAIVER =
   '동반 참가 안내\n\n· 내 강아지의 안전과 행동은 세션 내내 보호자 본인이 책임져요\n· 리드줄 착용은 필수예요\n· 다른 참가자·강아지에게 공격성이 보이면 호스트 안내에 따라 거리를 둬요\n· 사진 촬영이 있을 수 있어요 (공개는 동의한 사진만)';
 
-export default function ClubSession() {
-  const df = useDisplayFont();
+const mmss = (ms: number): string => {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+};
+
+const collarOf = (c: string | null): string =>
+  (c && collarColors[c as CollarKey]) || L.coral;
+
+// ---------- 강아지 아바타 — 칼라색 링 (사진 백엔드 전까지 이니셜) ----------
+function DogDot({ name, collar, size = 36 }: { name: string; collar: string | null; size?: number }) {
+  return (
+    <View style={{
+      width: size, height: size, borderRadius: size / 2, backgroundColor: '#C9B89A',
+      borderWidth: 2, borderColor: collarOf(collar), alignItems: 'center', justifyContent: 'center',
+    }}>
+      <Text style={{ fontSize: size * 0.4, fontWeight: '800', color: '#5d5138' }}>{name[0]}</Text>
+    </View>
+  );
+}
+
+export default function ClubSessionShell() {
+  const nf = useNumFont();
   const { sid, clubName } = useLocalSearchParams<{ sid: string; clubName?: string }>();
   const [sess, setSess] = useState<ClubSessionDetail | null>(null);
+  const [board, setBoard] = useState<DelegationBoard | null>(null);
+  const [access, setAccess] = useState<ShellAccess>('none');
+  const [roster, setRoster] = useState<SessionRoster | null>(null);
+  const [tab, setTab] = useState<'개요' | '참가자' | '채팅'>('개요');
   const [busy, setBusy] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  // O5 결제 시트
+  const [payTarget, setPayTarget] = useState<DelegationDog | null>(null);
+  const [methodOk, setMethodOk] = useState(false);
+  // HOLDING 카운트다운 틱
+  const [now, setNow] = useState(Date.now());
 
   const load = useCallback(() => {
-    if (sid) fetchClubSession(sid).then(setSess).catch(() => {});
+    if (!sid) return;
+    fetchClubSession(sid).then(setSess).catch(() => {});
+    fetchDelegationBoard(sid).then(setBoard).catch(() => setBoard(null));
+    fetchShellAccess(sid).then(setAccess).catch(() => setAccess('none'));
   }, [sid]);
   useFocusEffect(useCallback(() => { load(); }, [load]));
-  const onRefresh = () => { setRefreshing(true); Promise.resolve(load()).finally(() => setRefreshing(false)); };
+
+  // 참가자 탭 — 셸 접근이 있을 때만 로스터 (none = 공개 명단 폴백)
+  useEffect(() => {
+    if (tab === '참가자' && access !== 'none' && sid) {
+      fetchSessionRoster(sid).then(setRoster).catch(() => setRoster(null));
+    }
+  }, [tab, access, sid]);
+
+  const myDogs = board?.dogs.filter((d) => d.isMine) ?? [];
+  const holding = myDogs.some((d) => d.flap === 'HOLDING');
+  useEffect(() => {
+    if (!holding) return;
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [holding]);
+
+  const onRefresh = () => { setRefreshing(true); Promise.resolve(load()).finally(() => setTimeout(() => setRefreshing(false), 400)); };
 
   if (!sess) {
     return (
-      <View style={{ flex: 1, backgroundColor: colors.nightBg, alignItems: 'center', justifyContent: 'center' }}>
-        <Text style={{ fontSize: 14.5, color: colors.nightDim }}>불러오는 중...</Text>
-      </View>
+      <DawnCanvas>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ fontSize: 13, color: L.dim }}>불러오는 중...</Text>
+        </View>
+      </DawnCanvas>
     );
   }
 
@@ -56,9 +116,10 @@ export default function ClubSession() {
   const isDone = sess.status === 'done';
   const isOpenish = sess.status === 'open' || sess.status === 'full';
   const checkedCount = sess.people.filter((p) => p.attendance === 'checked_in').length;
-  const iAmHost = sess.isHost;
+  const fare = board?.session.fare ?? null;
 
-  const doRsvp = async () => {
+  // ---------- 함께 뛰기 (동반 참가) 액션 ----------
+  const doRsvp = () => {
     Alert.alert('참여 전 확인', WAIVER, [
       { text: '취소', style: 'cancel' },
       {
@@ -78,165 +139,466 @@ export default function ClubSession() {
       },
     ]);
   };
-
-  const doCancel = () => {
+  const doCancelRsvp = () => {
     Alert.alert('참여 취소', '이번 세션 참여를 취소할까요?', [
       { text: '유지', style: 'cancel' },
       { text: '취소하기', style: 'destructive', onPress: () => cancelClubRsvp(sess.id).then(load).catch((e) => Alert.alert('취소 실패', (e as Error).message)) },
     ]);
   };
-
   const doCheckin = async () => {
     setBusy(true);
-    try {
-      await checkinClubSession(sess.id);
-      haptic('success');
-      load();
-    } catch (e) {
+    try { await checkinClubSession(sess.id); haptic('success'); load(); }
+    catch (e) {
       Alert.alert('체크인 실패', (e as Error).message.includes('checkin_window') ? '체크인은 시작 2시간 전부터 가능해요' : (e as Error).message);
     } finally { setBusy(false); }
   };
-
   const doFinish = () => {
     Alert.alert('세션 종료', `${checkedCount}팀 체크인 상태로 세션을 마무리할까요?`, [
       { text: '아직', style: 'cancel' },
-      { text: '종료', onPress: () => finishClubSession(sess.id).then(load).catch((e) => Alert.alert('종료 실패', (e as Error).message)) },
+      {
+        text: '종료',
+        onPress: () => finishClubSession(sess.id).then(load).catch((e) => {
+          const m = (e as Error).message;
+          // 종료 게이트 — 서버 사유를 낱말 그대로 (죽은 버튼 미스터리 금지)
+          Alert.alert('종료 차단',
+            m.includes('dogs_not_returned') ? '반환이 끝나지 않은 아이가 있어요 (dogs_not_returned)'
+            : m.includes('incident_unassigned') ? '오너 미지정 케이스가 있어요 (incident_unassigned)'
+            : m);
+        }),
+      },
     ]);
   };
 
-  return (
-    <View style={{ flex: 1, backgroundColor: colors.nightBg }}>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 15, paddingTop: 58, paddingBottom: 36 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
+  // ---------- 위탁 액션 ----------
+  const doWithdraw = (d: DelegationDog) => {
+    Alert.alert('신청 취소', `${d.dogName}의 위탁 신청을 거둘까요? 승인 전 취소는 무료예요.`, [
+      { text: '유지', style: 'cancel' },
+      { text: '신청 취소', style: 'destructive', onPress: () => cancelDelegation(d.sdId).then(() => { haptic('light'); load(); }).catch((e) => Alert.alert('취소 실패', (e as Error).message)) },
+    ]);
+  };
+  const doCancelPaid = (d: DelegationDog) => {
+    Alert.alert('취소 규정', '시작 24시간 전까지 무료 · 이후 10% · 배정 수락 후 20%\n수수료는 서버가 시점 기준으로 판정해요.', [
+      { text: '닫기', style: 'cancel' },
+      {
+        text: '취소하기', style: 'destructive',
+        onPress: () => cancelDelegation(d.sdId).then(() => { haptic('light'); load(); }).catch((e) => {
+          const m = (e as Error).message;
+          Alert.alert('취소 실패', m.includes('incident') ? '진행 중인 케이스가 있어 지금은 취소할 수 없어요' : m);
+        }),
+      },
+    ]);
+  };
+  const doObjection = (d: DelegationDog) => {
+    Alert.prompt?.(
+      '배정 이의 (1회)',
+      '우려 사유를 적어주세요 — 접수되면 전액 환불로 처리돼요.',
+      [
+        { text: '닫기', style: 'cancel' },
+        {
+          text: '이의 접수', style: 'destructive',
+          onPress: (reason?: string) => {
+            if (!reason?.trim()) { Alert.alert('사유가 필요해요'); return; }
+            ownerObjection(d.sdId, reason.trim()).then(() => { haptic('light'); load(); })
+              .catch((e) => Alert.alert('접수 실패', (e as Error).message.includes('objection') ? '이의는 한 번만 낼 수 있어요' : (e as Error).message));
+          },
+        },
+      ],
+    );
+  };
+  const doPay = async () => {
+    const d = payTarget;
+    if (!d || busy) return;
+    setBusy(true);
+    try {
+      await payDelegation(d.sdId, `pay-${d.sdId}`); // 멱등키 = sdId 고정 — 재탭·재시도 안전
+      haptic('success');
+      setPayTarget(null);
+      setMethodOk(false);
+      load();
+      Alert.alert('결제 완료', `${d.dogName}의 자리가 확정됐어요 — 담당 러너가 정해지면 알려드려요`);
+    } catch (e) {
+      const m = (e as Error).message;
+      Alert.alert('결제 실패',
+        m.includes('no_capacity') ? '마지막 자리가 먼저 찼어요 — 결제되지 않았어요'
+        : m.includes('hold_expired') ? '결제 시간이 지났어요 — 호스트 승인부터 다시 필요해요'
+        : m);
+    } finally { setBusy(false); }
+  };
 
-        <Pressable onPress={() => router.back()} style={s.backBtn}><Text style={{ fontSize: 20, color: FOREST }}>‹</Text></Pressable>
-
-        {/* ---------- 집결 티켓 (S-A) — D1×D2: 나이트 스텁 + 프로그램 킥커 ---------- */}
-        <View style={s.head}>
-          <View style={s.neonEdge} />
-          <Text style={s.kicker}>HIGH CLUB — SESSION</Text>
-          <Row style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
-            <Text style={[{ fontSize: 21, fontWeight: '900', color: '#fff', flex: 1 }, df]} numberOfLines={1}>
-              {clubName ?? '하이클럽'} 세션
-            </Text>
-            <View style={s.voltPill}>
-              <Text style={{ fontSize: 11.5, fontWeight: '900', color: '#fff' }}>
-                {isDone ? 'DONE' : sess.status === 'cancelled' ? '취소됨' : dday(sess.scheduledAt)}
-              </Text>
-            </View>
+  // ---------- 위탁 상태 카드 (O3/O4/O6/O7 = 한 카드의 상태들) ----------
+  const renderDogCard = (d: DelegationDog) => {
+    const stage = d.ui?.primaryStage ?? d.flap; // 서버 프로젝션이 제1언어, 플랩은 풍미
+    const crit = d.ui?.severity === 'critical';
+    const holdLeft = d.holdExpiresAt ? new Date(d.holdExpiresAt).getTime() - now : null;
+    const assigned = d.assignmentState === 'accepted' && !!d.runnerName;
+    const hint = STAGE_HINT[d.flap];
+    return (
+      <View key={d.sdId}>
+        <LilacCard hero={!crit} crit={crit}>
+          <Text style={clubText.vk}>{d.dogName}의 위탁</Text>
+          <Row style={{ alignItems: 'center', gap: 10, marginTop: 8 }}>
+            <DogDot name={d.dogName} collar={d.collar} />
+            <Text style={[clubText.stateStrong, { flex: 1 }, crit && { color: L.tang }]}>{stage}</Text>
+            <Flap state={d.flap} />
           </Row>
-          <Text style={{ fontSize: 13.5, color: colors.nightDim, marginTop: 4 }}>{sess.when} · 호스트 {sess.hostName ?? '—'} 러너</Text>
-          <View style={s.meetupBox}>
-            <Text style={{ fontSize: 10.5, letterSpacing: 2, fontWeight: '700', color: colors.nightDim }}>MEET</Text>
-            <Text style={{ fontSize: 15, fontWeight: '800', color: '#fff', marginTop: 2 }}>📍 {sess.meetupPoint}</Text>
-          </View>
-          {/* 바코드 스트립 — 티켓의 물성 */}
-          <Row style={{ gap: 2, marginTop: 12, alignItems: 'flex-end', height: 20, opacity: 0.7 }}>
-            {Array.from({ length: 26 }).map((_, i) => (
-              <View key={i} style={{ width: i % 3 === 0 ? 3.5 : 2, height: i % 4 === 0 ? '62%' : '100%', backgroundColor: colors.nightDim }} />
-            ))}
-          </Row>
-        </View>
+          {d.ui?.secondaryBadges && d.ui.secondaryBadges.length > 0 && (
+            <Row style={{ gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+              {d.ui.secondaryBadges.map((b) => <ClubTag key={b} label={b} tone="dim" />)}
+            </Row>
+          )}
+          {d.ui?.primaryIssue ? (
+            <Text style={{ fontSize: 10.5, color: L.tang, marginTop: 8 }}>{d.ui.primaryIssue}</Text>
+          ) : hint && !assigned ? (
+            <Text style={{ fontSize: 10.5, color: L.dim, marginTop: 8 }}>{hint}</Text>
+          ) : null}
+        </LilacCard>
 
-        {/* ---------- done: 세션 리캡 (P-B — 실집계 + 리캡 내 다음 RSVP) ---------- */}
-        {isDone && (
-          <View style={[s.card, { alignItems: 'center', paddingVertical: 20 }]}>
-            <Text style={{ fontSize: 30 }}>🏁</Text>
-            <Text style={[{ fontSize: 19, fontWeight: '900', color: '#fff', marginTop: 6 }, df]}>오늘의 하이클럽</Text>
-            <Text style={{ fontSize: 14.5, color: '#B9B1E8', marginTop: 4 }}>
-              {checkedCount}팀{sess.dogCount > 0 ? ` · ${sess.dogCount}마리` : ''}가 함께 달렸어요
-            </Text>
-            <Text style={{ fontSize: 12.5, color: colors.nightDim, marginTop: 3 }}>리캡이 동네 피드에 올라갔어요</Text>
-            {sess.nextSessionId && (
-              <Pressable
-                onPress={() => router.replace({ pathname: `/club/session/${sess.nextSessionId}`, params: { clubName } })}
-                style={[s.cta, { alignSelf: 'stretch' }]}
-              >
-                <Text style={{ fontSize: 15, fontWeight: '900', color: '#fff' }}>다음 세션 참여하기 ›</Text>
+        {/* O4 — 승인 → 결제 (앰버 데드라인 + 결제 CTA) */}
+        {d.flap === 'HOLDING' && (
+          <>
+            {holdLeft != null && (
+              <View style={s.deadline}>
+                <Text style={[{ fontSize: 22, fontWeight: '600', color: L.amber, fontVariant: ['tabular-nums'] }, nf]}>
+                  {mmss(holdLeft)}
+                </Text>
+                <Text style={{ fontSize: 11, color: '#7a5a2a', lineHeight: 16, flex: 1 }}>
+                  {holdLeft > 0 ? '안에 결제하면 자리 확정' : '홀드가 끝났어요 — 승인부터 다시 필요할 수 있어요'}
+                </Text>
+              </View>
+            )}
+            {fare != null && (
+              <BigNumRow items={[
+                { v: fare.toLocaleString(), label: '원' },
+                ...(board?.session.routeKm ? [{ v: String(board.session.routeKm), unit: 'km', label: board.session.routeName ?? '코스' }] : []),
+                { v: String(board?.session.viability?.presentRunners ?? board?.runners.length ?? 0), unit: '명', label: '확약 러너' },
+              ]} />
+            )}
+            <ClubCta label={`${fare != null ? fare.toLocaleString() + '원 ' : ''}결제하기 →`} onPress={() => { setMethodOk(false); setPayTarget(d); }} />
+            <Pressable onPress={() => { setMethodOk(false); setPayTarget(d); }}>
+              <Text style={s.detailLink}>취소 규정 · 배정 방식 →</Text>
+            </Pressable>
+          </>
+        )}
+
+        {/* O3 — 신청 대기: 무료 취소 (콰이엇) */}
+        {d.flap === 'PENDING' && (
+          <>
+            {fare != null && (
+              <BigNumRow items={[
+                { v: fare.toLocaleString(), label: '승인 시 가격' },
+                ...(board?.session.routeKm ? [{ v: String(board.session.routeKm), unit: 'km', label: board.session.routeName ?? '코스' }] : []),
+              ]} />
+            )}
+            <ClubCta label="신청 취소 (무료)" tone="quiet" onPress={() => doWithdraw(d)} />
+          </>
+        )}
+
+        {/* O6/O7 — 결제 완료: 배정 대기 or 러너 공개 */}
+        {d.flap === 'CLEARED' && (
+          <>
+            {assigned && (
+              <LilacCard>
+                <Row style={{ gap: 11, alignItems: 'center' }}>
+                  <Avatar url={null} char={d.runnerName![0]} bg="#8f88b8" size={44} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 15, fontWeight: '800', color: L.head }}>{d.runnerName}</Text>
+                    <Text style={{ fontSize: 10, color: L.dim, marginTop: 2 }}>담당 러너 — 수락으로 확정</Text>
+                  </View>
+                  <ClubTag label="확정" tone="volt" />
+                </Row>
+                <View style={s.custodyNote}>
+                  <Text style={{ fontSize: 10.5, color: L.text }}>인계 확인부터 반환 확인까지 {d.dogName}의 책임자예요</Text>
+                </View>
+              </LilacCard>
+            )}
+            {!assigned && fare != null && (
+              <View style={s.paidRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 12, fontWeight: '800', color: L.head }}>결제 {fare.toLocaleString()}원</Text>
+                  <Text style={{ fontSize: 9.5, color: L.dim, marginTop: 1 }}>{sess.when}{board?.session.routeName ? ` · ${board.session.routeName}` : ''}</Text>
+                </View>
+                <ClubTag label="완료" tone="volt" />
+              </View>
+            )}
+            {assigned && <ClubCta label="집결지에서 인계가 시작돼요" tone="disabled" />}
+            <Pressable onPress={() => doCancelPaid(d)}>
+              <Text style={s.detailLink}>취소 규정 →</Text>
+            </Pressable>
+            {assigned && d.objectionUsed === false && (
+              <Pressable onPress={() => doObjection(d)}>
+                <Text style={[s.detailLink, { color: L.dim, marginTop: 6 }]}>이 배정에 우려가 있어요 (1회)</Text>
               </Pressable>
             )}
-          </View>
+          </>
         )}
+        {/* BOARDED/RUNNING/RETURNS/OUTSIDE/SETTLED/REFUND/REFUSED — 상태는 카드가 정직하게 말하고,
+            행동(인계·반환 확인, 케이스 열람)은 빌드 3에서 붙는다. 죽은 버튼은 그리지 않는다. */}
+      </View>
+    );
+  };
 
-        {/* ---------- 참가자 — 책임 라벨 = 불변식의 UI ---------- */}
-        <View style={s.card}>
-          <Text style={s.entryHead}>ENTRY LIST — {sess.people.length} TEAMS <Text style={{ color: colors.nightDim }}>/ {sess.capacity}</Text></Text>
-          {sess.people.map((p, i) => {
-            const rl = ROLE_LABEL[p.role] ?? ROLE_LABEL.owner_attending;
-            return (
-              <Row key={i} style={{ marginTop: 4, alignItems: 'center', gap: 10, paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: '#221C42', ...(p.isMe ? { backgroundColor: '#1B1536', marginHorizontal: -8, paddingHorizontal: 8 } : {}) }}>
-                <Avatar url={p.avatarUrl} char={p.name[0]} bg="#5a7a3c" size={30} />
+  // ---------- 참가자 탭 ----------
+  const renderRoster = () => {
+    if (access === 'none' || !roster) {
+      // 폴백 = 공개 명단 (전화·상세 없음 — 셸 접근이 없으면 사적 정보도 없다)
+      return (
+        <>
+          <View style={s.sechead}><Text style={s.secheadTitle}>사람 {sess.people.length}</Text></View>
+          {sess.people.map((p, i) => (
+            <View key={i} style={s.drow}>
+              <Row style={{ gap: 10, alignItems: 'center' }}>
+                <Avatar url={p.avatarUrl} char={p.name[0]} bg="#8f88b8" size={32} />
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 14.5, fontWeight: '800', color: '#EDE9FF' }}>
-                    {p.name}{p.dogName ? ` + ${p.dogName}` : ''}{p.isMe ? ' (나)' : ''}
-                  </Text>
+                  <Text style={s.personName}>{p.name}{p.dogName ? ` + ${p.dogName}` : ''}{p.isMe ? ' (나)' : ''}</Text>
+                  <Text style={s.personSub}>{ROLE_LINE[p.role] ?? '참가'}{p.attendance === 'checked_in' ? ' · 체크인' : ''}</Text>
                 </View>
-                {p.attendance === 'checked_in' ? (
-                  <View style={s.checkedStamp}><Text style={{ fontSize: 9.5, fontWeight: '900', letterSpacing: 1.5, color: colors.volt }}>CHECKED</Text></View>
-                ) : (
-                  <View style={[s.roleTag, { backgroundColor: rl.bg }]}>
-                    <Text style={{ fontSize: 9, fontWeight: '800', letterSpacing: 1.2, color: rl.fg }}>{rl.label}</Text>
-                  </View>
-                )}
               </Row>
-            );
-          })}
+            </View>
+          ))}
+        </>
+      );
+    }
+    return (
+      <>
+        <View style={s.sechead}><Text style={s.secheadTitle}>사람 {roster.people.length}</Text></View>
+        {roster.people.map((p) => (
+          <View key={p.profileId} style={s.drow}>
+            <Row style={{ gap: 10, alignItems: 'center' }}>
+              <Avatar url={p.avatarUrl} char={p.name[0]} bg="#8f88b8" size={32} />
+              <View style={{ flex: 1 }}>
+                <Text style={s.personName}>{p.name}{p.isMe ? ' (나)' : ''}</Text>
+                <Text style={s.personSub}>
+                  {p.isHost ? '호스트' : ROLE_LINE[p.role ?? ''] ?? '위탁 보호자'}
+                  {p.isBackup ? ' · 백업 호스트' : ''}
+                  {p.attendance === 'checked_in' ? ' · 체크인' : ''}
+                </Text>
+              </View>
+              {p.isHost ? <ClubTag label="HOST" tone="lilac" />
+                : p.phone ? (
+                  <View style={s.phoneChip}><Text style={s.phoneChipTxt}>{p.phone}</Text></View>
+                ) : !p.isMe ? (
+                  <View style={[s.phoneChip, { backgroundColor: L.inset }]}><Text style={[s.phoneChipTxt, { color: L.dim }]}>호스트 경유</Text></View>
+                ) : null}
+            </Row>
+          </View>
+        ))}
+        {roster.dogs.length > 0 && (
+          <>
+            <View style={s.sechead}><Text style={s.secheadTitle}>견 {roster.dogs.length}</Text></View>
+            {roster.dogs.map((d) => (
+              <View key={d.sdId} style={s.drow}>
+                <Row style={{ gap: 10, alignItems: 'center' }}>
+                  <DogDot name={d.dogName} collar={d.collar} size={30} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.personName}>{d.dogName}{d.isMine ? ' (내 아이)' : ''}</Text>
+                    <Text style={s.personSub}>
+                      {d.detail
+                        ? [
+                            d.detail.emergencyContact ? `비상 ${d.detail.emergencyContact}` : null,
+                            d.detail.pickupName ? `픽업 ${d.detail.pickupName}` : null,
+                            d.detail.vetLimitKrw ? `한도 ${Math.round(d.detail.vetLimitKrw / 10000)}만` : null,
+                          ].filter(Boolean).join(' · ') || (d.ownerName ?? '')
+                        : `${d.ownerName ?? ''} 보호자`}
+                    </Text>
+                  </View>
+                  {d.chargeLabel && <ClubTag label={CHARGE_LABEL[d.chargeLabel] ?? d.chargeLabel} tone={d.chargeLabel === 'paid' ? 'volt' : 'dim'} />}
+                </Row>
+              </View>
+            ))}
+          </>
+        )}
+        <Text style={s.phoneNotice}>번호가 보이면 열람이 기록돼요</Text>
+      </>
+    );
+  };
+
+  const tabCounts: Record<string, number | null> = { 개요: null, 참가자: sess.people.length, 채팅: null };
+
+  return (
+    <DawnCanvas>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: 12, paddingTop: 56, paddingBottom: 40 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
+        <ClubMast
+          title={`${sess.when} 세션`}
+          sub={clubName || 'HIGH CLUB'}
+          onBack={() => router.back()}
+          right={isDone ? <ClubTag label="DONE" tone="dim" /> : sess.status === 'cancelled' ? <ClubTag label="취소됨" tone="coral" /> : undefined}
+        />
+
+        {/* ---------- 셸 탭 ---------- */}
+        <View style={s.shell}>
+          {(['개요', '참가자', '채팅'] as const).map((t) => (
+            <Pressable key={t} onPress={() => setTab(t)} style={s.shellTab}>
+              <Text style={[s.shellTxt, tab === t && { color: L.head }]}>
+                {t}{tabCounts[t] != null ? <Text style={{ fontSize: 8, color: L.voltDeep }}>  {tabCounts[t]}</Text> : null}
+              </Text>
+              {tab === t && <View style={s.shellOn} />}
+            </Pressable>
+          ))}
         </View>
 
-        {/* 🎟 입장권 (D2) — 집결지에서 호스트에게 보여주는 화면 */}
-        {sess.joined && !isDone && (
-          <Pressable onPress={() => router.push({ pathname: `/club/pass/${sess.id}`, params: { clubName: clubName ?? '' } })} style={s.passBtn}>
-            <Text style={{ fontSize: 14.5, fontWeight: '900', color: colors.neon, letterSpacing: 1 }}>🎟 내 입장권 — 집결지에서 보여주세요</Text>
-          </Pressable>
+        {tab === '개요' && (
+          <>
+            {/* 집결 팩트 */}
+            <LilacCard>
+              <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={clubText.vkDim}>MEET</Text>
+                  <Text style={{ fontSize: 14.5, fontWeight: '800', color: L.head, marginTop: 3 }}>📍 {sess.meetupPoint}</Text>
+                  <Text style={{ fontSize: 10.5, color: L.dim, marginTop: 3 }}>
+                    호스트 {sess.hostName ?? '—'} · {sess.people.length}팀 / {sess.capacity}
+                  </Text>
+                </View>
+              </Row>
+            </LilacCard>
+
+            {/* done 리캡 */}
+            {isDone && (
+              <LilacCard style={{ alignItems: 'center', paddingVertical: 20 }}>
+                <Text style={{ fontSize: 28 }}>🏁</Text>
+                <Text style={{ fontSize: 17, fontWeight: '800', color: L.head, marginTop: 6 }}>오늘의 하이클럽</Text>
+                <Text style={{ fontSize: 12.5, color: L.text, marginTop: 4 }}>
+                  {checkedCount}팀{sess.dogCount > 0 ? ` · ${sess.dogCount}마리` : ''}가 함께 달렸어요
+                </Text>
+                {sess.nextSessionId && (
+                  <ClubCta label="다음 세션 참여하기 →" tone="violet" style={{ alignSelf: 'stretch' }}
+                    onPress={() => router.replace({ pathname: `/club/session/${sess.nextSessionId}`, params: { clubName } })} />
+                )}
+              </LilacCard>
+            )}
+
+            {/* ---------- 내 위탁 카드(들) — 상태 머신 ---------- */}
+            {myDogs.map(renderDogCard)}
+
+            {/* ---------- 함께 뛰기 (동반 참가) ---------- */}
+            {isOpenish && !sess.joined && (
+              <ClubCta
+                label={sess.status === 'full' ? '정원이 찼어요' : '함께 뛰기 — 동의하고 참여'}
+                onPress={doRsvp}
+                disabled={busy || sess.status === 'full'}
+                tone={myDogs.length > 0 ? 'quiet' : 'coral'}
+              />
+            )}
+            {isOpenish && sess.joined && sess.myAttendance === 'rsvp' && (
+              inCheckinWindow
+                ? <ClubCta label="✓ 집결지 도착 체크인" onPress={doCheckin} busy={busy} />
+                : <ClubCta label="참여 중 — 취소하려면 탭" tone="quiet" onPress={doCancelRsvp} />
+            )}
+            {isOpenish && sess.myAttendance === 'checked_in' && (
+              <View style={s.checkedCard}>
+                <Text style={{ fontSize: 13.5, fontWeight: '800', color: L.accent }}>체크인 완료 — 좋은 러닝 되세요 🐾</Text>
+              </View>
+            )}
+
+            {/* 입장권 (기존 pass 화면 — 재도색은 후속) */}
+            {sess.joined && !isDone && (
+              <Pressable onPress={() => router.push({ pathname: `/club/pass/${sess.id}`, params: { clubName: clubName ?? '' } })}>
+                <Text style={s.detailLink}>🎟 내 입장권 — 집결지에서 보여주세요</Text>
+              </Pressable>
+            )}
+
+            {/* 호스트 종료 (콘솔은 빌드 3 — 종료 게이트 사유는 Alert로 정직하게) */}
+            {isOpenish && sess.isHost && (
+              <ClubCta label="세션 종료하기 (호스트)" tone="quiet" onPress={doFinish} style={{ marginTop: 16 }} />
+            )}
+          </>
         )}
 
-        {/* ---------- CTA 상태 머신 ---------- */}
-        {isOpenish && !sess.joined && (
-          <Pressable onPress={doRsvp} disabled={busy || sess.status === 'full'} style={[s.cta, (busy || sess.status === 'full') && { opacity: 0.5 }]}>
-            <Text style={{ fontSize: 15.5, fontWeight: '900', color: '#fff' }}>
-              {sess.status === 'full' ? '정원이 찼어요' : '참여하기 (동의문 확인 →)'}
-            </Text>
-          </Pressable>
-        )}
-        {isOpenish && sess.joined && sess.myAttendance === 'rsvp' && (
-          inCheckinWindow ? (
-            <Pressable onPress={doCheckin} disabled={busy} style={[s.cta, busy && { opacity: 0.5 }]}>
-              <Text style={{ fontSize: 15.5, fontWeight: '900', color: '#fff' }}>✓ 집결지 도착 체크인</Text>
-            </Pressable>
-          ) : (
-            <Pressable onPress={doCancel} style={[s.cta, s.ctaGhost]}>
-              <Text style={{ fontSize: 14.5, fontWeight: '800', color: '#B9B1E8' }}>참여 중 — 취소하려면 탭</Text>
-            </Pressable>
-          )
-        )}
-        {isOpenish && sess.myAttendance === 'checked_in' && (
-          <View style={[s.cta, { backgroundColor: '#241C4E', borderColor: '#3A3168' }]}>
-            <Text style={{ fontSize: 15, fontWeight: '900', color: '#C9C0FF' }}>체크인 완료 — 좋은 러닝 되세요 🐾</Text>
+        {tab === '참가자' && renderRoster()}
+
+        {tab === '채팅' && (
+          <View style={{ alignItems: 'center', paddingVertical: 48 }}>
+            <Text style={{ fontSize: 12.5, color: L.dim }}>채팅은 아직 준비 중이에요</Text>
           </View>
         )}
-        {isOpenish && iAmHost && (
-          <Pressable onPress={doFinish} style={[s.cta, s.ctaGhost]}>
-            <Text style={{ fontSize: 14, fontWeight: '800', color: '#B9B1E8' }}>세션 종료하기 (호스트)</Text>
-          </Pressable>
-        )}
       </ScrollView>
-    </View>
+
+      {/* ---------- O5 — 결제 시트 (법적 문장의 자리) ---------- */}
+      <Modal visible={!!payTarget} transparent animationType="slide" onRequestClose={() => setPayTarget(null)}>
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(28,24,55,.45)' }} onPress={() => setPayTarget(null)} />
+        <View style={s.sheet}>
+          <View style={s.grab} />
+          <Row style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
+            <Text style={{ fontSize: 15, fontWeight: '800', color: L.head }}>{payTarget?.dogName} 위탁 결제</Text>
+            {fare != null && (
+              <Text style={[{ fontSize: 22, fontWeight: '600', color: L.head, fontVariant: ['tabular-nums'] }, nf]}>
+                {fare.toLocaleString()}
+              </Text>
+            )}
+          </Row>
+          {/* 규칙 7이 카드에서 옮겨온 두 문장 — 법적으로 묶이는 순간에만 등장 */}
+          <Pressable onPress={() => setMethodOk((v) => !v)} style={s.legal}>
+            <View style={[s.chk, methodOk && { backgroundColor: L.coral }]}>
+              {methodOk && <Text style={{ fontSize: 10, fontWeight: '900', color: '#fff' }}>✓</Text>}
+            </View>
+            <Text style={s.legalTxt}>
+              담당 러너는 <Text style={{ fontWeight: '800', color: L.head }}>집결지에서 호스트가 제안하고 러너가 수락</Text>하면 정해져요 — 이 방식에 동의해요
+            </Text>
+          </Pressable>
+          <View style={[s.legal, { marginTop: 7 }]}>
+            <View style={[s.chk, { backgroundColor: L.dim }]}>
+              <Text style={{ fontSize: 10, fontWeight: '900', color: '#fff' }}>✓</Text>
+            </View>
+            <Text style={s.legalTxt}>
+              시작 <Text style={{ fontWeight: '800', color: L.head }}>24시간 전까지 무료 취소</Text> · 이후 10% · 배정 수락 후 20%
+            </Text>
+          </View>
+          <ClubCta label="동의하고 결제 →" onPress={doPay} disabled={!methodOk} busy={busy} />
+        </View>
+      </Modal>
+    </DawnCanvas>
   );
 }
 
 const s = StyleSheet.create({
-  // D1×D2 나이트 스텁 — 샤프 코너 (라운드 6 이하), 룰 라인·모노 킥커·네온 엣지
-  backBtn: { position: 'absolute', top: 56, left: 14, width: 40, height: 40, borderRadius: 6, backgroundColor: colors.nightCard, borderWidth: 1, borderColor: colors.nightEdge, alignItems: 'center', justifyContent: 'center', zIndex: 2 },
-  head: { backgroundColor: colors.nightCard, borderRadius: 6, borderWidth: 1, borderColor: colors.nightEdge, padding: 16, paddingLeft: 19, marginTop: 44, overflow: 'hidden' },
-  neonEdge: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, backgroundColor: colors.neon },
-  kicker: { fontSize: 9.5, fontWeight: '700', letterSpacing: 3, color: colors.neon, marginBottom: 6 },
-  voltPill: { backgroundColor: colors.club, borderRadius: 4, paddingVertical: 4, paddingHorizontal: 10 },
-  meetupBox: { backgroundColor: '#1B1536', borderRadius: 4, padding: 11, marginTop: 11, borderWidth: 1, borderColor: colors.nightEdge },
-  card: { backgroundColor: colors.nightCard, borderRadius: 6, borderWidth: 1, borderColor: colors.nightEdge, padding: 15, marginTop: 11 },
-  entryHead: { fontSize: 11, fontWeight: '800', letterSpacing: 2, color: colors.neon, marginBottom: 6 },
-  roleTag: { borderRadius: 4, paddingVertical: 3, paddingHorizontal: 8 },
-  checkedStamp: { borderWidth: 1.5, borderColor: colors.volt, borderRadius: 4, paddingVertical: 3, paddingHorizontal: 8, transform: [{ rotate: '-6deg' }] },
-  cta: { backgroundColor: colors.club, borderRadius: 6, borderWidth: 1.2, borderColor: colors.neon, alignItems: 'center', paddingVertical: 14, marginTop: 12, shadowColor: colors.neon, shadowOpacity: 0.45, shadowRadius: 12, shadowOffset: { width: 0, height: 0 } },
-  ctaGhost: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: '#3A3168', shadowOpacity: 0 },
-  passBtn: { borderWidth: 1.2, borderColor: colors.neon, borderRadius: 6, alignItems: 'center', paddingVertical: 13, marginTop: 11, backgroundColor: '#161130' },
+  shell: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: L.hair2, marginTop: 8 },
+  shellTab: { flex: 1, alignItems: 'center', paddingVertical: 9 },
+  shellTxt: { fontSize: 11.5, fontWeight: '800', color: L.dim },
+  shellOn: { position: 'absolute', left: '28%', right: '28%', bottom: -1, height: 2.5, backgroundColor: L.accent, borderRadius: 2 },
+  deadline: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: L.amberSoft, borderRadius: lilacRadius.inner, padding: 11, paddingHorizontal: 13, marginTop: 10,
+  },
+  detailLink: { textAlign: 'center', marginTop: 11, fontSize: 11, fontWeight: '800', color: L.accent },
+  custodyNote: { backgroundColor: L.inset, borderRadius: lilacRadius.inner, padding: 9, paddingHorizontal: 10, marginTop: 10 },
+  paidRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: L.card, borderRadius: lilacRadius.card, borderWidth: 1, borderColor: L.hair,
+    padding: 11, marginTop: 8,
+  },
+  checkedCard: {
+    backgroundColor: L.hair2, borderRadius: lilacRadius.btn, alignItems: 'center', paddingVertical: 13, marginTop: 12,
+  },
+  sechead: {
+    flexDirection: 'row', alignItems: 'center', marginTop: 14, paddingBottom: 6,
+    borderBottomWidth: 1, borderBottomColor: L.hair2,
+  },
+  secheadTitle: { fontSize: 12.5, fontWeight: '800', color: L.head },
+  drow: {
+    backgroundColor: L.card, borderRadius: lilacRadius.card, borderWidth: 1, borderColor: L.hair,
+    padding: 11, marginTop: 8,
+  },
+  personName: { fontSize: 13.5, fontWeight: '800', color: L.head },
+  personSub: { fontSize: 9.5, color: L.text, marginTop: 1 },
+  phoneChip: { backgroundColor: L.voltFill, borderRadius: lilacRadius.tag, paddingVertical: 5, paddingHorizontal: 9 },
+  phoneChipTxt: { fontSize: 9.5, fontWeight: '700', color: L.voltDeep, fontVariant: ['tabular-nums'] },
+  phoneNotice: { fontSize: 9.5, color: L.dim, marginTop: 10, textAlign: 'center' },
+  sheet: {
+    backgroundColor: L.bg, borderTopLeftRadius: lilacRadius.screen, borderTopRightRadius: lilacRadius.screen,
+    padding: 16, paddingBottom: 34,
+  },
+  grab: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: L.hair, marginBottom: 12 },
+  legal: {
+    flexDirection: 'row', gap: 9, alignItems: 'flex-start',
+    backgroundColor: L.card, borderRadius: lilacRadius.inner, borderWidth: 1, borderColor: L.hair,
+    padding: 11, marginTop: 12,
+  },
+  chk: {
+    width: 18, height: 18, borderRadius: 5, borderWidth: 1.5, borderColor: L.hair,
+    backgroundColor: L.inset, alignItems: 'center', justifyContent: 'center', marginTop: 1,
+  },
+  legalTxt: { flex: 1, fontSize: 11, color: L.text, lineHeight: 16.5 },
 });
