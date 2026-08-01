@@ -6,10 +6,10 @@ import {
   BigNumRow, ClubCta, ClubMast, ClubTag, DawnCanvas, Flap, LilacCard, clubText,
 } from '../../../src/components/club-ui';
 import {
-  cancelClubRsvp, cancelDelegation, checkinClubSession, ClubSessionDetail, DelegationBoard, DelegationDog,
-  fetchClubSession, fetchDelegationBoard, fetchMyDogs, fetchSessionRoster, fetchShellAccess, finishClubSession,
-  ownerObjection, payDelegation, rsvpClubSession, SessionRoster, ShellAccess,
-} from '../../../src/lib/api';
+  cancelClubRsvp, cancelDelegation, checkinClubSession, ClubSessionDetail, confirmHandoff, confirmReturn,
+  DelegationBoard, DelegationDog, fetchClubSession, fetchDelegationBoard, fetchMyDogs, fetchSessionRoster,
+  fetchShellAccess, ownerObjection, payDelegation, rsvpClubSession, SessionRoster, ShellAccess,
+} from '../../../src/lib/api'; // finishClubSession은 호스트 콘솔로 이사
 import { useNumFont } from '../../../src/lib/fonts';
 import { haptic } from '../../../src/lib/haptics';
 import { collarColors, CollarKey, lilac, lilacRadius } from '../../../src/theme';
@@ -152,23 +152,6 @@ export default function ClubSessionShell() {
       Alert.alert('체크인 실패', (e as Error).message.includes('checkin_window') ? '체크인은 시작 2시간 전부터 가능해요' : (e as Error).message);
     } finally { setBusy(false); }
   };
-  const doFinish = () => {
-    Alert.alert('세션 종료', `${checkedCount}팀 체크인 상태로 세션을 마무리할까요?`, [
-      { text: '아직', style: 'cancel' },
-      {
-        text: '종료',
-        onPress: () => finishClubSession(sess.id).then(load).catch((e) => {
-          const m = (e as Error).message;
-          // 종료 게이트 — 서버 사유를 낱말 그대로 (죽은 버튼 미스터리 금지)
-          Alert.alert('종료 차단',
-            m.includes('dogs_not_returned') ? '반환이 끝나지 않은 아이가 있어요 (dogs_not_returned)'
-            : m.includes('incident_unassigned') ? '오너 미지정 케이스가 있어요 (incident_unassigned)'
-            : m);
-        }),
-      },
-    ]);
-  };
-
   // ---------- 위탁 액션 ----------
   const doWithdraw = (d: DelegationDog) => {
     Alert.alert('신청 취소', `${d.dogName}의 위탁 신청을 거둘까요? 승인 전 취소는 무료예요.`, [
@@ -188,22 +171,48 @@ export default function ClubSessionShell() {
       },
     ]);
   };
+  // 이의 = preference (T-20까지 · 1회 · 사유 필수). 재배정(자리 유지) 또는 전액 환불 이탈.
+  const submitObjection = (d: DelegationDog, reason: string, wantRefund: boolean) =>
+    ownerObjection(d.sdId, 'preference', reason, wantRefund).then(() => { haptic('light'); load(); })
+      .catch((e) => {
+        const m = (e as Error).message;
+        Alert.alert('접수 실패',
+          m.includes('objection_window_closed') ? '시작 20분 전까지만 낼 수 있어요'
+          : m.includes('objection_already_used') ? '이의는 한 번만 낼 수 있어요'
+          : m.includes('already_handed_off') ? '인계 후에는 이의 대신 호스트에게 알려주세요'
+          : m);
+      });
   const doObjection = (d: DelegationDog) => {
     Alert.prompt?.(
       '배정 이의 (1회)',
-      '우려 사유를 적어주세요 — 접수되면 전액 환불로 처리돼요.',
+      '우려 사유를 적어주세요 — 시작 20분 전까지 낼 수 있어요.',
       [
         { text: '닫기', style: 'cancel' },
         {
-          text: '이의 접수', style: 'destructive',
-          onPress: (reason?: string) => {
-            if (!reason?.trim()) { Alert.alert('사유가 필요해요'); return; }
-            ownerObjection(d.sdId, reason.trim()).then(() => { haptic('light'); load(); })
-              .catch((e) => Alert.alert('접수 실패', (e as Error).message.includes('objection') ? '이의는 한 번만 낼 수 있어요' : (e as Error).message));
-          },
+          text: '재배정 요청',
+          onPress: (reason?: string) => reason?.trim() ? submitObjection(d, reason.trim(), false) : Alert.alert('사유가 필요해요'),
+        },
+        {
+          text: '전액 환불로 취소', style: 'destructive',
+          onPress: (reason?: string) => reason?.trim() ? submitObjection(d, reason.trim(), true) : Alert.alert('사유가 필요해요'),
         },
       ],
     );
+  };
+  const doHandoff = (d: DelegationDog) => {
+    if (!d.bookingId) return;
+    Alert.alert('인계 확인', `확인하면 ${d.dogName}의 책임자가 ${d.runnerName ?? '담당 러너'}(으)로 바뀌어요.`, [
+      { text: '아직', style: 'cancel' },
+      {
+        text: '맡겼어요',
+        onPress: () => confirmHandoff(d.bookingId!, 'owner').then(() => { haptic('success'); load(); })
+          .catch((e) => Alert.alert('인계 확인 실패', (e as Error).message)),
+      },
+    ]);
+  };
+  const doReturnConfirm = (d: DelegationDog) => {
+    confirmReturn(d.sdId, 'owner').then(() => { haptic('success'); load(); })
+      .catch((e) => Alert.alert('반환 확인 실패', (e as Error).message));
   };
   const doPay = async () => {
     const d = payTarget;
@@ -320,7 +329,30 @@ export default function ClubSessionShell() {
                 <ClubTag label="완료" tone="volt" />
               </View>
             )}
-            {assigned && <ClubCta label="집결지에서 인계가 시작돼요" tone="disabled" />}
+            {/* O8 — 인계 확인 (반환의 거울): 체크인 창이 열려야 인계가 시작된다 */}
+            {assigned && board?.session.checkinOpen ? (
+              <>
+                <View style={s.retcol}>
+                  <View style={[s.retside, !!d.runnerConfirmed && s.retsideDone]}>
+                    <Text style={s.retMono}>RUNNER {d.runnerName}</Text>
+                    <Text style={[s.retWord, !!d.runnerConfirmed && { color: L.voltDeep }]}>{d.runnerConfirmed ? '받았어요 ✓' : '확인 대기'}</Text>
+                  </View>
+                  <View style={[s.retside, !!d.ownerConfirmed && s.retsideDone]}>
+                    <Text style={s.retMono}>OWNER 나</Text>
+                    <Text style={[s.retWord, !!d.ownerConfirmed && { color: L.voltDeep }]}>{d.ownerConfirmed ? '맡겼어요 ✓' : '맡겼어요 →'}</Text>
+                  </View>
+                </View>
+                {!d.ownerConfirmed
+                  ? <ClubCta label={`${d.runnerName}에게 맡겼어요 — 인계 확인 →`} onPress={() => doHandoff(d)} busy={busy} />
+                  : !d.runnerConfirmed && (
+                    <Text style={{ fontSize: 10.5, color: L.dim, textAlign: 'center', marginTop: 10 }}>
+                      {d.runnerName}의 확인을 기다려요 — 양쪽이 확인하면 책임자가 바뀌어요
+                    </Text>
+                  )}
+              </>
+            ) : assigned ? (
+              <ClubCta label="집결지에서 인계가 시작돼요" tone="disabled" />
+            ) : null}
             <Pressable onPress={() => doCancelPaid(d)}>
               <Text style={s.detailLink}>취소 규정 →</Text>
             </Pressable>
@@ -331,8 +363,31 @@ export default function ClubSessionShell() {
             )}
           </>
         )}
-        {/* BOARDED/RUNNING/RETURNS/OUTSIDE/SETTLED/REFUND/REFUSED — 상태는 카드가 정직하게 말하고,
-            행동(인계·반환 확인, 케이스 열람)은 빌드 3에서 붙는다. 죽은 버튼은 그리지 않는다. */}
+
+        {/* O10 — 반환 확인 (인계의 거울): 역할이 뒤집히고 낱말 하나가 바뀐다 */}
+        {d.custodyPhase === 'return_pending' && (
+          <>
+            <View style={s.retcol}>
+              <View style={[s.retside, d.runnerReturnConfirmed && s.retsideDone]}>
+                <Text style={s.retMono}>RUNNER {d.runnerName ?? ''}</Text>
+                <Text style={[s.retWord, d.runnerReturnConfirmed && { color: L.voltDeep }]}>{d.runnerReturnConfirmed ? '반환했어요 ✓' : '반환 대기'}</Text>
+              </View>
+              <View style={[s.retside, d.ownerReturnConfirmed && s.retsideDone]}>
+                <Text style={s.retMono}>OWNER 나</Text>
+                <Text style={[s.retWord, d.ownerReturnConfirmed && { color: L.voltDeep }]}>{d.ownerReturnConfirmed ? '인계받았어요 ✓' : '인계받았어요 →'}</Text>
+              </View>
+            </View>
+            {!d.ownerReturnConfirmed
+              ? <ClubCta label="인계받았어요 — 반환 확인 →" onPress={() => doReturnConfirm(d)} busy={busy} />
+              : !d.runnerReturnConfirmed && (
+                <Text style={{ fontSize: 10.5, color: L.dim, textAlign: 'center', marginTop: 10 }}>
+                  양쪽이 확인하면 반환이 끝나고 정산 시계가 돌기 시작해요
+                </Text>
+              )}
+          </>
+        )}
+        {/* BOARDED/RUNNING/OUTSIDE/SETTLED/REFUND/REFUSED — 상태는 카드가 정직하게 말한다.
+            케이스 열람·영수증은 후속 빌드. 죽은 버튼은 그리지 않는다. */}
       </View>
     );
   };
@@ -500,9 +555,11 @@ export default function ClubSessionShell() {
               </Pressable>
             )}
 
-            {/* 호스트 종료 (콘솔은 빌드 3 — 종료 게이트 사유는 Alert로 정직하게) */}
-            {isOpenish && sess.isHost && (
-              <ClubCta label="세션 종료하기 (호스트)" tone="quiet" onPress={doFinish} style={{ marginTop: 16 }} />
+            {/* 호스트 콘솔 문 — 심사·배정·종료는 콘솔에서 */}
+            {sess.isHost && !isDone && (
+              <ClubCta label="호스트 콘솔 →" tone="violet"
+                onPress={() => router.push({ pathname: `/club/console/${sess.id}`, params: { clubName: clubName ?? '' } })}
+                style={{ marginTop: 16 }} />
             )}
           </>
         )}
@@ -572,6 +629,12 @@ const s = StyleSheet.create({
   checkedCard: {
     backgroundColor: L.hair2, borderRadius: lilacRadius.btn, alignItems: 'center', paddingVertical: 13, marginTop: 12,
   },
+  // 양측 확인 (O8 인계 ↔ O10 반환 — 같은 부품, 역할만 거울)
+  retcol: { flexDirection: 'row', gap: 9, marginTop: 11 },
+  retside: { flex: 1, borderRadius: lilacRadius.inner, paddingVertical: 11, paddingHorizontal: 8, alignItems: 'center', backgroundColor: L.inset },
+  retsideDone: { backgroundColor: L.voltFill },
+  retMono: { fontSize: 7.5, fontWeight: '700', letterSpacing: 1.5, color: L.dim },
+  retWord: { fontSize: 12, fontWeight: '800', color: L.head, marginTop: 4 },
   sechead: {
     flexDirection: 'row', alignItems: 'center', marginTop: 14, paddingBottom: 6,
     borderBottomWidth: 1, borderBottomColor: L.hair2,

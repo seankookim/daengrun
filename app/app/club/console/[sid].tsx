@@ -1,0 +1,396 @@
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
+import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Row } from '../../../src/components/ui';
+import { BigNumRow, ClubCta, ClubMast, ClubTag, DawnCanvas, LilacCard, clubText } from '../../../src/components/club-ui';
+import {
+  approveDelegation, assignmentRevoke, ClubIncident, DelegationBoard, DelegationDog, DelegationRunner,
+  fetchDelegationBoard, fetchSessionIncidents, finishClubSession, incidentAssign, incidentResolve,
+  proposalRevoke, proposeDog, startDelegatedRuns,
+} from '../../../src/lib/api';
+import { haptic } from '../../../src/lib/haptics';
+import { collarColors, CollarKey, lilac, lilacRadius } from '../../../src/theme';
+
+// 호스트 콘솔 — H1a(심사·결제) + H1b(배정·종료 게이트) (정본: master-lab H1a/H1b)
+// 승인만 채도 있는 행동 (볼트 필). 결제 열은 라벨뿐 — 호스트는 돈을 만지지 않는다.
+// 만석 러너 칩은 탭조차 안 된다. 종료 게이트는 서버 사유를 낱말 그대로 — 죽은 버튼 미스터리 금지.
+
+const L = lilac;
+
+const CHARGE_LABEL: Record<string, string> = {
+  paid: '결제 완료', pending_payment: '결제 대기', refunded: '환불', refund_pending: '환불 진행',
+};
+
+const mmss = (ms: number): string => {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+};
+
+const collarOf = (c: string | null): string => (c && collarColors[c as CollarKey]) || L.coral;
+
+function DogDot({ name, collar, size = 34 }: { name: string; collar: string | null; size?: number }) {
+  return (
+    <View style={{
+      width: size, height: size, borderRadius: size / 2, backgroundColor: '#C9B89A',
+      borderWidth: 2, borderColor: collarOf(collar), alignItems: 'center', justifyContent: 'center',
+    }}>
+      <Text style={{ fontSize: size * 0.4, fontWeight: '800', color: '#5d5138' }}>{name[0]}</Text>
+    </View>
+  );
+}
+
+function SecHead({ n, title, sub }: { n: string; title: string; sub?: string }) {
+  return (
+    <View style={s.sechead}>
+      <View style={s.secN}><Text style={{ fontSize: 11, fontWeight: '700', color: '#fff' }}>{n}</Text></View>
+      <Text style={{ fontSize: 13, fontWeight: '800', color: L.head }}>{title}</Text>
+      {!!sub && <Text style={{ fontSize: 9.5, color: L.dim, marginLeft: 'auto' }}>{sub}</Text>}
+    </View>
+  );
+}
+
+export default function HostConsole() {
+  const { sid, clubName } = useLocalSearchParams<{ sid: string; clubName?: string }>();
+  const [board, setBoard] = useState<DelegationBoard | null>(null);
+  const [incidents, setIncidents] = useState<ClubIncident[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [now, setNow] = useState(Date.now());
+
+  const load = useCallback(() => {
+    if (!sid) return;
+    fetchDelegationBoard(sid).then(setBoard).catch(() => {});
+    fetchSessionIncidents(sid).then(setIncidents).catch(() => setIncidents([]));
+  }, [sid]);
+  useFocusEffect(useCallback(() => { load(); }, [load]));
+  const onRefresh = () => { setRefreshing(true); Promise.resolve(load()).finally(() => setTimeout(() => setRefreshing(false), 400)); };
+
+  const dogs = board?.dogs ?? [];
+  const hasProposal = dogs.some((d) => d.assignmentState === 'proposed');
+  useEffect(() => {
+    if (!hasProposal) return;
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [hasProposal]);
+
+  if (!board) {
+    return (
+      <DawnCanvas>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ fontSize: 13, color: L.dim }}>불러오는 중...</Text>
+        </View>
+      </DawnCanvas>
+    );
+  }
+  if (!board.session.isHost) {
+    return (
+      <DawnCanvas>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <Text style={{ fontSize: 13, color: L.dim }}>호스트만 볼 수 있는 화면이에요</Text>
+          <ClubCta label="돌아가기" tone="quiet" onPress={() => router.back()} style={{ alignSelf: 'stretch' }} />
+        </View>
+      </DawnCanvas>
+    );
+  }
+
+  const sess = board.session;
+  const via = sess.viability;
+  const run = (fn: () => Promise<unknown>, fail: string, map?: (m: string) => string | null) => {
+    if (busy) return;
+    setBusy(true);
+    fn().then(() => { haptic('success'); load(); })
+      .catch((e) => {
+        const m = (e as Error).message;
+        Alert.alert(fail, (map && map(m)) || m);
+      })
+      .finally(() => setBusy(false));
+  };
+
+  // ---------- 심사 ----------
+  const pending = dogs.filter((d) => d.approval === 'pending');
+  const review = dogs.filter((d) => d.approval === 'approved' && d.reviewNeeded === true);
+  const doApprove = (d: DelegationDog, ok: boolean, refundNote = false) => {
+    Alert.alert(ok ? '승인' : '거절',
+      ok ? `${d.dogName}을(를) 승인할까요? 보호자에게 결제 요청이 발송돼요 (20분 홀드).`
+        : `${d.dogName}을(를) 거절할까요?${refundNote ? ' 결제분은 전액 환불돼요.' : ''}`,
+      [
+        { text: '아직', style: 'cancel' },
+        { text: ok ? '승인' : '거절', style: ok ? 'default' : 'destructive', onPress: () => run(() => approveDelegation(d.sdId, ok), ok ? '승인 실패' : '거절 실패') },
+      ]);
+  };
+
+  // ---------- 배정 ----------
+  const paid = dogs.filter((d) => d.chargeState === 'paid' && d.serviceState === 'confirmed');
+  const unassigned = paid.filter((d) => !d.assignmentState || ['unassigned', 'declined', 'replacement_needed'].includes(d.assignmentState));
+  const proposed = paid.filter((d) => d.assignmentState === 'proposed');
+  const accepted = paid.filter((d) => d.assignmentState === 'accepted');
+  const doPropose = (d: DelegationDog, r: DelegationRunner) => {
+    Alert.alert('배정 제안', `${d.dogName} → ${r.name} (오늘 담당 ${r.assigned}/${r.cap})\n제안은 5분 안에 수락돼야 해요.`, [
+      { text: '아직', style: 'cancel' },
+      {
+        text: '제안 보내기',
+        onPress: () => run(() => proposeDog(d.sdId, r.profileId), '제안 실패', (m) =>
+          m.includes('runner_full') || m.includes('cap') ? `${r.name}의 오늘 담당이 가득 찼어요` : null),
+      },
+    ]);
+  };
+  const doRevoke = (d: DelegationDog) => {
+    Alert.alert('배정 철회', `${d.dogName}의 배정을 철회할까요? 자리는 유지되고 재배정이 필요해져요.`, [
+      { text: '유지', style: 'cancel' },
+      {
+        text: '철회', style: 'destructive',
+        onPress: () => run(() => assignmentRevoke(d.sdId), '철회 실패', (m) =>
+          m.includes('already_handed_off') ? '이미 인계가 시작돼 철회할 수 없어요' : null),
+      },
+    ]);
+  };
+
+  // ---------- 종료 게이트 — 서버 판정 전, 보이는 사실로 미리 말한다 ----------
+  const unreturned = dogs.filter((d) =>
+    (d.custodyPhase && d.custodyPhase !== 'resolved') || ['clinic', 'authority'].includes(d.custodianType ?? ''));
+  const openCases = incidents.filter((i) => i.state !== 'resolved');
+  const unownedCases = openCases.filter((i) => !i.caseOwner);
+  const blockers: string[] = [
+    ...(unreturned.length > 0 ? [`${unreturned.map((d) => d.dogName).join('·')} 반환 미완`] : []),
+    ...(unownedCases.length > 0 ? [`케이스 오너 미지정 ${unownedCases.length}건`] : []),
+  ];
+  const doStartRuns = () => {
+    Alert.alert('위탁 러닝 시작', '인계가 끝난 아이들의 러닝 트랙이 시작돼요.', [
+      { text: '아직', style: 'cancel' },
+      { text: '시작', onPress: () => run(() => startDelegatedRuns(sess.id), '시작 실패') },
+    ]);
+  };
+  const doFinish = () => {
+    Alert.alert('세션 종료', '세션을 마무리할까요?', [
+      { text: '아직', style: 'cancel' },
+      {
+        text: '종료',
+        onPress: () => run(() => finishClubSession(sess.id), '종료 차단', (m) =>
+          m.includes('dogs_not_returned') ? '반환이 끝나지 않은 아이가 있어요 (dogs_not_returned)'
+          : m.includes('incident_unassigned') ? '오너 미지정 케이스가 있어요 (incident_unassigned)'
+          : null),
+      },
+    ]);
+  };
+
+  return (
+    <DawnCanvas>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: 12, paddingTop: 56, paddingBottom: 40 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
+        <ClubMast title="호스트 콘솔" sub={`${sess.when}${clubName ? ` · ${clubName}` : ''}`} onBack={() => router.back()} />
+
+        {/* 성립 미터 */}
+        <BigNumRow items={[
+          { v: `${sess.reservedCount}/${sess.delegatedCapacity}`, label: '위탁' },
+          { v: String(via?.paidDogs ?? 0), label: '결제' },
+          { v: String(via?.presentRunners ?? board.runners.length), label: '러너' },
+          { v: via?.viable ? 'OK' : '미달', label: '성립' },
+        ]} />
+
+        {/* ---------- 1 심사 ---------- */}
+        <SecHead n="1" title="심사" sub="승인 = 결제 요청 발송" />
+        {pending.length === 0 && review.length === 0 && (
+          <Text style={s.emptyLine}>대기 중인 신청이 없어요</Text>
+        )}
+        {pending.map((d) => (
+          <View key={d.sdId} style={[s.drow, { borderWidth: 1.5, borderColor: L.hair }]}>
+            <Row style={{ gap: 10, alignItems: 'center' }}>
+              <DogDot name={d.dogName} collar={d.collar} />
+              <View style={{ flex: 1 }}>
+                <Text style={s.dogName}>{d.dogName}</Text>
+                <Text style={s.dogSub}>{d.ownerName} 보호자</Text>
+              </View>
+            </Row>
+            <Row style={{ gap: 8, marginTop: 10 }}>
+              <Pressable onPress={() => doApprove(d, true)} style={s.abtn}><Text style={s.abtnTxt}>승인</Text></Pressable>
+              <Pressable onPress={() => doApprove(d, false)} style={[s.abtn, s.abtnGhost]}><Text style={[s.abtnTxt, { color: L.dim }]}>거절</Text></Pressable>
+            </Row>
+          </View>
+        ))}
+        {review.map((d) => (
+          <View key={d.sdId} style={s.drow}>
+            <Row style={{ gap: 10, alignItems: 'center' }}>
+              <DogDot name={d.dogName} collar={d.collar} />
+              <View style={{ flex: 1 }}>
+                <Text style={s.dogName}>{d.dogName}</Text>
+                <Text style={s.dogSub}>프로필 변경 — 재검토 필요</Text>
+              </View>
+              <ClubTag label="재검토" tone="amber" />
+            </Row>
+            <Row style={{ gap: 8, marginTop: 10 }}>
+              <Pressable onPress={() => doApprove(d, true)} style={s.abtn}><Text style={s.abtnTxt}>변경 확인 — 재승인</Text></Pressable>
+              <Pressable onPress={() => doApprove(d, false, true)} style={[s.abtn, s.abtnWarn]}><Text style={[s.abtnTxt, { color: L.amber }]}>거절 (전액 환불)</Text></Pressable>
+            </Row>
+          </View>
+        ))}
+
+        {/* ---------- 2 결제 현황 (읽기 전용) ---------- */}
+        <SecHead n="2" title="결제 현황" sub="읽기 전용" />
+        {dogs.filter((d) => d.approval === 'approved' && d.chargeState).length === 0 && (
+          <Text style={s.emptyLine}>승인된 위탁이 아직 없어요</Text>
+        )}
+        {dogs.filter((d) => d.approval === 'approved' && d.chargeState).map((d) => (
+          <View key={d.sdId} style={s.drow}>
+            <Row style={{ gap: 10, alignItems: 'center' }}>
+              <DogDot name={d.dogName} collar={d.collar} size={30} />
+              <View style={{ flex: 1 }}>
+                <Text style={s.dogName}>{d.dogName}</Text>
+                <Text style={s.dogSub}>{d.ownerName}</Text>
+              </View>
+              <ClubTag label={CHARGE_LABEL[d.chargeState!] ?? d.chargeState!} tone={d.chargeState === 'paid' ? 'volt' : 'amber'} />
+            </Row>
+          </View>
+        ))}
+
+        {/* ---------- 3 배정 제안 ---------- */}
+        <SecHead n="3" title="배정 제안" sub="러너 수락으로 확정" />
+        {paid.length === 0 && <Text style={s.emptyLine}>결제 완료된 위탁이 아직 없어요</Text>}
+        {unassigned.map((d) => (
+          <View key={d.sdId} style={s.drow}>
+            <Row style={{ gap: 10, alignItems: 'center' }}>
+              <DogDot name={d.dogName} collar={d.collar} />
+              <View style={{ flex: 1 }}>
+                <Text style={s.dogName}>{d.dogName}</Text>
+                <Text style={s.dogSub}>
+                  {d.assignmentState === 'declined' ? '거절됨 — 다른 러너에게 제안하세요'
+                    : d.assignmentState === 'replacement_needed' ? '재배정 필요 — 자리는 유지돼요'
+                    : '배정 대기'}
+                </Text>
+              </View>
+              {d.assignmentState === 'declined' && <ClubTag label="재확인" tone="coral" />}
+            </Row>
+            <Row style={{ gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+              {board.runners.map((r) => {
+                const full = r.assigned >= r.cap;
+                return (
+                  <Pressable key={r.profileId} onPress={full ? undefined : () => doPropose(d, r)}
+                    style={[s.abtn, s.runnerChip, full && { opacity: 0.45 }]}>
+                    <Text style={[s.abtnTxt, { color: L.accent }]}>{r.name}{r.isMe ? '(나)' : ''} {r.assigned}/{r.cap}{full ? ' 만석' : ''}</Text>
+                  </Pressable>
+                );
+              })}
+              {board.runners.length === 0 && <Text style={s.dogSub}>확약 러너가 아직 없어요</Text>}
+            </Row>
+          </View>
+        ))}
+        {proposed.map((d) => {
+          const left = d.proposalExpiresAt ? new Date(d.proposalExpiresAt).getTime() - now : null;
+          return (
+            <View key={d.sdId} style={s.drow}>
+              <Row style={{ gap: 10, alignItems: 'center' }}>
+                <DogDot name={d.dogName} collar={d.collar} />
+                <View style={{ flex: 1 }}>
+                  <Text style={s.dogName}>{d.dogName}</Text>
+                  <Text style={s.dogSub}>
+                    제안 → {d.proposedRunnerName ?? '러너'}{left != null ? ` · ${mmss(left)} 남음` : ''}
+                  </Text>
+                </View>
+                <ClubTag label="수락 대기" tone="amber" />
+              </Row>
+              <Row style={{ gap: 8, marginTop: 10 }}>
+                <Pressable onPress={() => run(() => proposalRevoke(d.sdId), '제안 취소 실패')} style={[s.abtn, s.abtnGhost]}>
+                  <Text style={[s.abtnTxt, { color: L.dim }]}>제안 취소</Text>
+                </Pressable>
+              </Row>
+            </View>
+          );
+        })}
+        {accepted.map((d) => (
+          <View key={d.sdId} style={s.drow}>
+            <Row style={{ gap: 10, alignItems: 'center' }}>
+              <DogDot name={d.dogName} collar={d.collar} />
+              <View style={{ flex: 1 }}>
+                <Text style={s.dogName}>{d.dogName}</Text>
+                <Text style={s.dogSub}>담당 {d.runnerName} · 확정</Text>
+              </View>
+              <ClubTag label="확정" tone="volt" />
+            </Row>
+            {!d.ownerConfirmed && !d.runnerConfirmed && (
+              <Row style={{ gap: 8, marginTop: 10 }}>
+                <Pressable onPress={() => doRevoke(d)} style={[s.abtn, s.abtnGhost]}>
+                  <Text style={[s.abtnTxt, { color: L.dim }]}>배정 철회</Text>
+                </Pressable>
+              </Row>
+            )}
+          </View>
+        ))}
+
+        {/* ---------- 4 케이스 ---------- */}
+        {openCases.length > 0 && (
+          <>
+            <SecHead n="4" title="케이스" sub={`진행 중 ${openCases.length}건`} />
+            {openCases.map((i) => (
+              <View key={i.id} style={s.drow}>
+                <Row style={{ gap: 8, alignItems: 'center' }}>
+                  <ClubTag label={i.severity.toUpperCase()} tone={i.severity.toLowerCase() === 's1' ? 'coral' : i.severity.toLowerCase() === 's2' ? 'amber' : 'dim'} />
+                  <Text style={[s.dogName, { flex: 1 }]} numberOfLines={1}>{i.summary}</Text>
+                </Row>
+                <Row style={{ gap: 8, marginTop: 10 }}>
+                  {!i.caseOwner ? (
+                    <Pressable onPress={() => run(() => incidentAssign(i.id), '오너 지정 실패')} style={s.abtn}>
+                      <Text style={s.abtnTxt}>내가 맡기</Text>
+                    </Pressable>
+                  ) : (
+                    <Pressable
+                      onPress={() => Alert.alert('케이스 해소', '해소하면 이 케이스의 정산 보류가 풀려요.', [
+                        { text: '아직', style: 'cancel' },
+                        { text: '해소', onPress: () => run(() => incidentResolve(i.id), '해소 실패') },
+                      ])}
+                      style={[s.abtn, s.abtnGhost]}>
+                      <Text style={[s.abtnTxt, { color: L.dim }]}>해소 처리</Text>
+                    </Pressable>
+                  )}
+                </Row>
+              </View>
+            ))}
+          </>
+        )}
+
+        {/* ---------- 5 진행 · 종료 ---------- */}
+        <SecHead n="5" title="세션 진행" />
+        {sess.checkinOpen && accepted.length > 0 && (
+          <ClubCta label="위탁 러닝 시작 →" tone="violet" onPress={doStartRuns} busy={busy} />
+        )}
+        {blockers.length > 0 && (
+          <LilacCard crit>
+            <Text style={{ fontSize: 12, fontWeight: '800', color: L.tang }}>종료 차단 {blockers.length}건</Text>
+            <Text style={{ fontSize: 10.5, color: L.text, marginTop: 6, lineHeight: 17 }}>{blockers.join(' · ')}</Text>
+          </LilacCard>
+        )}
+        <ClubCta
+          label={blockers.length > 0 ? '세션 종료 — 차단 해소 후' : '세션 종료'}
+          tone={blockers.length > 0 ? 'disabled' : 'coral'}
+          onPress={blockers.length > 0 ? undefined : doFinish}
+          busy={busy}
+        />
+        <Text style={[clubText.dim, { textAlign: 'center', marginTop: 10 }]}>결제는 서버가 관리해요 — 호스트는 돈을 만지지 않아요</Text>
+      </ScrollView>
+    </DawnCanvas>
+  );
+}
+
+const s = StyleSheet.create({
+  sechead: {
+    flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 16, paddingBottom: 6,
+    borderBottomWidth: 1, borderBottomColor: L.hair2,
+  },
+  secN: { backgroundColor: L.accent, borderRadius: 6, paddingVertical: 1, paddingHorizontal: 8 },
+  drow: {
+    backgroundColor: L.card, borderRadius: lilacRadius.card, borderWidth: 1, borderColor: L.hair,
+    padding: 11, marginTop: 8,
+  },
+  dogName: { fontSize: 13.5, fontWeight: '800', color: L.head },
+  dogSub: { fontSize: 9.5, color: L.text, marginTop: 1 },
+  emptyLine: { fontSize: 11, color: L.dim, marginTop: 10, textAlign: 'center' },
+  abtn: {
+    flexGrow: 1, alignItems: 'center', paddingVertical: 9, paddingHorizontal: 10,
+    borderRadius: lilacRadius.btn, backgroundColor: L.voltFill,
+  },
+  abtnGhost: { backgroundColor: L.inset },
+  abtnWarn: { backgroundColor: L.amberSoft },
+  abtnTxt: { fontSize: 11, fontWeight: '800', color: L.voltDeep },
+  runnerChip: { backgroundColor: L.hair2, flexGrow: 0 },
+});

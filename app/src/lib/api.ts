@@ -1927,8 +1927,16 @@ export const proposeDog = (sdId: string, runnerId: string) =>
   clubRpc('session_propose_dog', { p_session_dog: sdId, p_runner: runnerId }) as Promise<void>;
 export const respondProposal = (sdId: string, accept: boolean, reason?: string) =>
   clubRpc('session_proposal_respond', { p_session_dog: sdId, p_accept: accept, p_reason: reason ?? null }) as Promise<void>;
-export const ownerObjection = (sdId: string, reason: string) =>
-  clubRpc('session_owner_objection', { p_session_dog: sdId, p_reason: reason }) as Promise<void>;
+// [R3] 보호자 이의 — kind 필수 (0047 최종 시그니처): preference = T-20까지·1회·사유 필수 / safety = 인계 전까지 무제한.
+// wantRefund true = 전액 환불로 이탈, false = 배정 해제 후 재배정 (자리는 유지)
+export const ownerObjection = (sdId: string, kind: 'preference' | 'safety', reason: string, wantRefund = false) =>
+  clubRpc('session_owner_objection', { p_session_dog: sdId, p_kind: kind, p_reason: reason, p_want_refund: wantRefund }) as Promise<void>;
+// [R3] 제안 취소 (호스트) — 수락 전만
+export const proposalRevoke = (sdId: string) =>
+  clubRpc('session_proposal_revoke', { p_session_dog: sdId }) as Promise<void>;
+// [R3] 배정 철회 (호스트) — 인계 전만 → replacement_needed, 상습 철회는 이벤트로 추적
+export const assignmentRevoke = (sdId: string, reason: string | null = null) =>
+  clubRpc('session_assignment_revoke', { p_session_dog: sdId, p_reason: reason }) as Promise<void>;
 export const approveDelegation = (sdId: string, approve: boolean) =>
   clubRpc('session_approve_dog', { p_session_dog: sdId, p_approve: approve }) as Promise<string | null>;
 export const assignDelegation = (sdId: string, runnerId: string) =>
