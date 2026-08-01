@@ -7,7 +7,7 @@ import { BigNumRow, ClubCta, ClubMast, ClubTag, DawnCanvas, LilacCard, clubText 
 import {
   approveDelegation, assignmentRevoke, ClubIncident, DelegationBoard, DelegationDog, DelegationRunner,
   fetchDelegationBoard, fetchSessionIncidents, finishClubSession, incidentAssign, incidentResolve,
-  proposalRevoke, proposeDog, startDelegatedRuns,
+  proposalRevoke, proposeDog,
 } from '../../../src/lib/api';
 import { haptic } from '../../../src/lib/haptics';
 import { collarColors, CollarKey, lilac, lilacRadius } from '../../../src/theme';
@@ -155,12 +155,6 @@ export default function HostConsole() {
     ...(unreturned.length > 0 ? [`${unreturned.map((d) => d.dogName).join('·')} 반환 미완`] : []),
     ...(unownedCases.length > 0 ? [`케이스 오너 미지정 ${unownedCases.length}건`] : []),
   ];
-  const doStartRuns = () => {
-    Alert.alert('위탁 러닝 시작', '인계가 끝난 아이들의 러닝 트랙이 시작돼요.', [
-      { text: '아직', style: 'cancel' },
-      { text: '시작', onPress: () => run(() => startDelegatedRuns(sess.id), '시작 실패') },
-    ]);
-  };
   const doFinish = () => {
     Alert.alert('세션 종료', '세션을 마무리할까요?', [
       { text: '아직', style: 'cancel' },
@@ -355,10 +349,8 @@ export default function HostConsole() {
         )}
 
         {/* ---------- 5 진행 · 종료 ---------- */}
+        {/* 러닝 시작은 러너 액션이다 (club_start_delegated_runs = 내 픽업 부킹만) — 세션 셸 R3에 있다 */}
         <SecHead n="5" title="세션 진행" />
-        {sess.checkinOpen && accepted.length > 0 && (
-          <ClubCta label="위탁 러닝 시작 →" tone="violet" onPress={doStartRuns} busy={busy} />
-        )}
         {blockers.length > 0 && (
           <LilacCard crit>
             <Text style={{ fontSize: 12, fontWeight: '800', color: L.tang }}>종료 차단 {blockers.length}건</Text>

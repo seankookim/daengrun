@@ -11,8 +11,9 @@ import {
   ClubSessionDetail, commitAsHandler, confirmHandoff, confirmReturn, DelegationBoard, DelegationDog,
   fetchChatWritable, fetchClubChat, fetchClubSession, fetchDelegationBoard, fetchMyDogs, fetchSessionRoster,
   clubSos, fetchShellAccess, incidentOpen, ownerObjection, payDelegation, respondProposal, rsvpClubSession,
-  sendClubChat, SessionRoster, ShellAccess, subscribeClubChat, withdrawAsHandler,
+  sendClubChat, SessionRoster, ShellAccess, startDelegatedRuns, subscribeClubChat, withdrawAsHandler,
 } from '../../../src/lib/api'; // finishClubSession은 호스트 콘솔로 이사
+import { draft as liveDraft } from '../../../src/store'; // 라이브 화면 진입 키 (챗 draft 상태와 이름 충돌 주의)
 import { useNumFont } from '../../../src/lib/fonts';
 import { haptic } from '../../../src/lib/haptics';
 import { collarColors, CollarKey, lilac, lilacRadius } from '../../../src/theme';
@@ -278,6 +279,17 @@ export default function ClubSessionShell() {
   const doRunnerReturn = (d: DelegationDog) => {
     confirmReturn(d.sdId, 'runner').then(() => { haptic('success'); load(); })
       .catch((e) => Alert.alert('반환 확인 실패', (e as Error).message));
+  };
+  // 러닝 시작 = 러너 액션 (서버: 내 픽업 부킹만) — 트랙이 열리고 보호자 화면이 '러닝 중'으로
+  const doStartRuns = () => {
+    Alert.alert('러닝 시작', '인계받은 아이들의 러닝 트랙이 시작돼요.', [
+      { text: '아직', style: 'cancel' },
+      {
+        text: '시작',
+        onPress: () => startDelegatedRuns(sess.id).then(() => { haptic('success'); load(); })
+          .catch((e) => Alert.alert('시작 실패', (e as Error).message.includes('nothing_to_start') ? '인계 확인이 끝난 아이가 아직 없어요' : (e as Error).message)),
+      },
+    ]);
   };
   const doCommit = () => {
     commitAsHandler(sess.id).then(() => { haptic('success'); load(); })
@@ -563,8 +575,13 @@ export default function ClubSessionShell() {
               )}
           </>
         )}
-        {/* BOARDED/RUNNING/OUTSIDE/SETTLED/REFUND/REFUSED — 상태는 카드가 정직하게 말한다.
-            케이스 열람·영수증은 후속 빌드. 죽은 버튼은 그리지 않는다. */}
+        {/* O9 — 러닝 중: 실시간 지켜보기 (기존 라이브 화면 재사용 — 보기 전용 문) */}
+        {d.bookingStatus === 'active' && d.bookingId && (
+          <ClubCta label={`${d.dogName} 실시간 지켜보기 →`}
+            onPress={() => { liveDraft.bookingId = d.bookingId!; router.push('/owner/live'); }} />
+        )}
+        {/* BOARDED/OUTSIDE/SETTLED/REFUND/REFUSED — 상태는 카드가 정직하게 말한다.
+            영수증 인화·클럽 전용 러너 런 화면은 후속 빌드. 죽은 버튼은 그리지 않는다. */}
       </View>
     );
   };
@@ -780,6 +797,10 @@ export default function ClubSessionShell() {
                     </View>
                     <Flap word={`${myCharges.length}/${board.me.runnerCap}`} />
                   </View>
+                )}
+                {/* 러닝 시작 — 인계(픽업) 확정된 아이가 있을 때만 (러너 액션) */}
+                {myCharges.some((d) => d.bookingStatus === 'picked_up') && (
+                  <ClubCta label="러닝 시작 →" tone="violet" onPress={doStartRuns} busy={busy} />
                 )}
               </>
             )}
