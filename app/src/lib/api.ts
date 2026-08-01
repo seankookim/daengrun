@@ -1804,7 +1804,11 @@ export interface DelegationDog {
   custodyPhase: string | null; custodianType: string | null; custodianProfileId: string | null; custodianExternal: string | null;
   ownerReturnConfirmed: boolean; runnerReturnConfirmed: boolean;
   payoutState: string | null; payoutHold: string | null; payoutHoldReason: string | null;
-  pendingTransfer: unknown; returnOverrideKind: string | null;
+  pendingTransfer: {
+    toType: 'runner' | 'clinic' | 'authority'; toProfile: string | null; toExternal: string | null;
+    reason: string | null; by: string; at: string;
+  } | null;
+  returnOverrideKind: string | null;
   // [R3] 배정 축 (proposedRunner*는 호스트·피제안 러너에게만 옴 — 러너 프라이버시)
   assignmentState: 'unassigned' | 'proposed' | 'accepted' | 'declined' | 'replacement_needed' | null;
   objectionUsed: boolean | null; reviewNeeded: boolean | null;
