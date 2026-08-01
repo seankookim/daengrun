@@ -207,33 +207,49 @@ export function Ticket({ top, stub, notchColor = L.bg, holoEdge = true, style }:
 }
 
 // ---------- 끌어서 봉인 (② 확정 — 코랄 소프트 필) — 완주해야 전송, 실수 탭 구조적 불가 ----------
+// 함정 주의: PanResponder는 ref로 1회 생성 → props를 클로저로 굳히면 스테일 (disabled가 첫 렌더 값으로 박제).
+// 최신 props는 stateRef 경유로 읽는다. ScrollView 제스처 강탈 방지 = capture 클레임 + termination 거부.
+// 접근성 대체 경로: 봉인 길게 누르기(700ms)도 전송.
 export function SealSlide({ label = '끌어서 봉인', onSeal, disabled, width: trackW = 292 }: {
   label?: string; onSeal: () => void; disabled?: boolean; width?: number;
 }) {
   const SEAL = 44;
-  const max = trackW - SEAL - 8;
+  const max = Math.max(40, trackW - SEAL - 8);
   const x = useRef(new Animated.Value(0)).current;
+  const fillW = useRef(Animated.add(x, new Animated.Value(SEAL + 6))).current;
   const sealed = useRef(false);
+  const stateRef = useRef({ disabled: !!disabled, onSeal, max });
+  stateRef.current = { disabled: !!disabled, onSeal, max };
+
+  const complete = () => {
+    if (sealed.current || stateRef.current.disabled) return;
+    sealed.current = true;
+    Animated.timing(x, { toValue: stateRef.current.max, duration: 120, useNativeDriver: false })
+      .start(() => stateRef.current.onSeal());
+  };
+  const reset = () => Animated.spring(x, { toValue: 0, useNativeDriver: false, friction: 6 }).start();
+
+  const armed = (g: { dx: number; dy: number }) =>
+    !stateRef.current.disabled && !sealed.current && Math.abs(g.dx) > 5 && Math.abs(g.dx) > Math.abs(g.dy);
   const pan = useRef(PanResponder.create({
-    onStartShouldSetPanResponder: () => !disabled && !sealed.current,
-    onMoveShouldSetPanResponder: (_e, g) => Math.abs(g.dx) > 4 && !disabled && !sealed.current,
-    onPanResponderMove: (_e, g) => x.setValue(Math.max(0, Math.min(max, g.dx))),
-    onPanResponderRelease: (_e, g) => {
-      if (g.dx >= max * 0.92) {
-        sealed.current = true;
-        Animated.timing(x, { toValue: max, duration: 120, useNativeDriver: false }).start(() => onSeal());
-      } else {
-        Animated.spring(x, { toValue: 0, useNativeDriver: false, friction: 6 }).start();
-      }
-    },
+    // 시작 클레임 없음 — 탭·길게 누르기는 내부 Pressable 몫. 수평 이동이 감지되면 캡처로 강탈.
+    onMoveShouldSetPanResponder: (_e, g) => armed(g),
+    onMoveShouldSetPanResponderCapture: (_e, g) => armed(g),
+    onPanResponderTerminationRequest: () => false,
+    onPanResponderMove: (_e, g) => x.setValue(Math.max(0, Math.min(stateRef.current.max, g.dx))),
+    onPanResponderRelease: (_e, g) => { if (g.dx >= stateRef.current.max * 0.9) complete(); else reset(); },
+    onPanResponderTerminate: () => reset(),
   })).current;
+
   return (
     <View style={[s.sealTrack, { width: trackW, opacity: disabled ? 0.45 : 1 }]}>
-      <Animated.View style={[s.sealFill, { width: Animated.add(x, new Animated.Value(SEAL + 6)) }]} />
+      <Animated.View style={[s.sealFill, { width: fillW }]} />
       <Text style={s.sealLabel}>{label}</Text>
       <Text style={s.sealArrows}>›››</Text>
       <Animated.View {...pan.panHandlers} style={[s.sealPaw, { transform: [{ translateX: x }] }]}>
-        <Text style={{ fontSize: 8.5, fontWeight: '800', color: L.coral, textAlign: 'center', lineHeight: 10.5 }}>위탁{'\n'}승낙</Text>
+        <Pressable onLongPress={complete} delayLongPress={700} style={{ flex: 1, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ fontSize: 8.5, fontWeight: '800', color: L.coral, textAlign: 'center', lineHeight: 10.5 }}>위탁{'\n'}승낙</Text>
+        </Pressable>
       </Animated.View>
     </View>
   );
