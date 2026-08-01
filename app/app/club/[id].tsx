@@ -8,7 +8,8 @@ import {
 } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { haptic } from '../../src/lib/haptics';
-import { colors } from '../../src/theme';
+import { ClubCta, ClubTag, Ticket } from '../../src/components/club-ui';
+import { colors, lilac } from '../../src/theme';
 
 // 하이클럽 페이지 — C1 포토 히어로 (Sean 확정, hi-club-lab ③). P-A S1.
 // collecting = 관심 수집 상태 (유령 클럽 금지 — 호스트 클레임 전엔 참여 UI 없음).
@@ -186,25 +187,42 @@ export default function ClubPage() {
             </View>
           )}
 
-          {/* ---------- active: 다음 세션 ---------- */}
+          {/* ---------- active: 다음 세션 = 보딩패스 티켓 (O1, 테일러드 라일락) ----------
+              두 개의 문, 명확히 비대등: 위탁(코랄·프라이머리) vs 직접 함께 뛰기(콰이엇).
+              천공 위 = 사실(팩트), 스텁 = 내 결정 — 위탁 신청은 스텁을 찢는 일. */}
           {club?.status === 'active' && (
             ns ? (
-              <Pressable onPress={() => router.push({ pathname: `/club/session/${ns.id}`, params: { clubName: club.name } })} style={s.card}>
-                <Row style={{ justifyContent: 'space-between' }}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 16.5, fontWeight: '900', color: FOREST }}>다음 세션 · {ns.when}</Text>
-                    <Text style={{ fontSize: 13.5, color: '#49524a', marginTop: 4 }}>📍 {ns.meetupPoint}</Text>
-                    <Text style={{ fontSize: 13, color: '#75806f', marginTop: 6 }}>
-                      {ns.rsvpCount}팀 참여 중{ns.status === 'open' && left > 0 ? ` · ${left}자리 남음` : ' · 마감'}
+              <Ticket
+                notchColor={colors.cream}
+                top={
+                  <>
+                    <Row style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
+                      <Text style={{ fontSize: 15.5, fontWeight: '800', color: lilac.head, flex: 1 }} numberOfLines={1}>
+                        {ns.when} · {ns.meetupPoint}
+                      </Text>
+                      <ClubTag label={ns.status === 'open' ? (left > 0 ? `${left}자리` : '마감 임박') : '마감'} tone={ns.status === 'open' && left > 0 ? 'volt' : 'amber'} />
+                    </Row>
+                    <Text style={{ fontSize: 11.5, color: lilac.dim, marginTop: 4 }}>
+                      {ns.rsvpCount}팀 참여 중 · 정원 {ns.capacity}
                     </Text>
-                  </View>
-                  <View style={[s.joinPill, ns.joined && { backgroundColor: colors.clubTint }]}>
-                    <Text style={{ fontSize: 13, fontWeight: '900', color: ns.joined ? colors.clubInk : '#fff' }}>
-                      {ns.joined ? '참여 중 ›' : '참여하기 ›'}
-                    </Text>
-                  </View>
-                </Row>
-              </Pressable>
+                  </>
+                }
+                stub={
+                  <>
+                    <ClubCta
+                      label="우리 아이 위탁하기 →"
+                      onPress={() => router.push({ pathname: `/club/delegate/${ns.id}`, params: { clubName: club.name, when: ns.when } })}
+                      style={{ marginTop: 0, paddingVertical: 12 }}
+                    />
+                    <ClubCta
+                      label={ns.joined ? '참여 중 — 세션 보기' : '직접 함께 뛰기'}
+                      tone="quiet"
+                      onPress={() => router.push({ pathname: `/club/session/${ns.id}`, params: { clubName: club.name } })}
+                      style={{ marginTop: 7 }}
+                    />
+                  </>
+                }
+              />
             ) : (
               <View style={s.card}>
                 <Text style={{ fontSize: 15, color: colors.dim, textAlign: 'center', lineHeight: 22 }}>

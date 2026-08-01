@@ -46,6 +46,40 @@ export const colors = {
   dimDark: '#8fa093',
 } as const;
 
+// ═══ 클럽 위탁 = 테일러드 라일락 (2026-08-01 디자인 페이즈 완결 — delegation-premium-refresh2 정본) ═══
+// 공식: 크리스프 코너 + 소프트 라이트. 나이트 월드(nightBg 등)는 위탁 표면에서 은퇴 — 점진 교체.
+// 포일 예산: 홀로=모노그램+티켓 엣지만 · 골드=SETTLED 전용 · 사진법: 콘텐츠 5슬롯, 월페이퍼 금지.
+export const lilac = {
+  bg: '#F4F2FB',        // 캔버스 — 새벽빛 워시는 화면별 오버레이(coral 11%·violet 9% 블룸)
+  card: '#FFFFFF',
+  inset: '#EFECF9',     // 필드·웰
+  hair: '#E6E2F4',      // 헤어라인 법 — 모든 면 1px 트림
+  hair2: '#EDEAF8',     // 이중 프레임 안쪽 선
+  head: '#221E3D',      // 제목 잉크
+  text: '#4B4668',
+  dim: '#928DAD',
+  accent: '#6C5CE7',    // 바이올렛 — 마스트 룰·셸 인디케이터·섹션 넘버·링크 (예산제)
+  accentDeep: '#7867EC',
+  coral: '#F0765A',     // CTA·봉인·라이브 도트
+  coralDeep: '#E45F41',
+  coralSoft: '#FFDCD1',
+  amber: '#C77414', amberSoft: '#FBEED9', amberEdge: '#F2DFC2',
+  voltDeep: '#5E7F0E', voltFill: '#EAF6C8',
+  tang: '#E8552F',      // 크리티컬 잉크
+  gold: '#B99A4F', goldSoft: '#F4EBD3', goldSheen: '#D8C185',
+  glass: 'rgba(255,255,255,0.62)',      // 글래스 크롬 (마스트헤드·셸·도크)
+  glassEdge: 'rgba(255,255,255,0.85)',
+  dawnCoral: 'rgba(240,118,90,0.11)',   // 새벽빛 블룸
+  dawnViolet: 'rgba(108,92,231,0.09)',
+} as const;
+// 크리스프 라디우스 스케일 — phone 14 · card 8 · inner 6 · btn 8 · tag 5 · 문서 2 · 원형만 예외
+export const lilacRadius = { screen: 14, card: 8, inner: 6, btn: 8, tag: 5, doc: 2 } as const;
+// 소프트 레이어드 섀도 (하드 블랙 오프셋 은퇴)
+export const lilacShadow = {
+  shadowColor: '#1C1837', shadowOpacity: 0.09, shadowRadius: 14,
+  shadowOffset: { width: 0, height: 6 }, elevation: 3,
+} as const;
+
 // 강아지 칼라 컬러 팔레트 (P1, 0033) — 키는 DB(dogs.collar), 값은 여기가 단일 소스.
 // 규칙: 시스템 신호색(볼트·탱·앰버·블루·바이올렛)과 '같은 값'은 피한다 — 칼라는 퍼스널, 신호는 시스템.
 export const collarColors = {

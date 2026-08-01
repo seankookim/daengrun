@@ -338,18 +338,6 @@ function mapOpenRequest(r: any, directed: boolean, rate: number): OpenRequest {
 
 const REQ_SELECT = 'id, scheduled_at, km, pace_label, base_fare, distance_fare, addon_fare, route_id, routes(name), dogs(id, name, breed, weight_kg, memo, photo_url, preferences, vaccinations)';
 
-// R0B(0042): 오픈 풀 읽기는 marketplace_open_requests 뷰가 유일 경로 — 클럽 부킹 구조적 배제 +
-// 컬럼 화이트리스트는 서버(뷰 정의)가 보장. 뷰의 평면 컬럼을 기존 임베드 형태로 복원해 매퍼 재사용.
-const viewRowToReq = (r: any) => ({
-  id: r.id, scheduled_at: r.scheduled_at, km: r.km, pace_label: r.pace_label,
-  base_fare: r.base_fare, distance_fare: r.distance_fare, addon_fare: r.addon_fare,
-  route_id: r.route_id, routes: { name: r.route_name },
-  dogs: {
-    id: r.dog_id, name: r.dog_name, breed: r.breed, weight_kg: r.weight_kg, memo: r.memo,
-    photo_url: r.photo_url, preferences: r.preferences, vaccinations: r.vaccinations,
-  },
-});
-
 // 러너 인박스: 지명 요청(runner_pending, 나에게) + 오픈 요청(matching, 미배정)
 // + 단골 감지: 함께 완주한 이력이 있는 강아지엔 repeatPrior (수락 결정이 쉬워진다)
 // 내 수수료율 — 견적용 (티어: 인증 20% / 베테랑 18% / 마스터 15%). 세션 캐시.
@@ -368,14 +356,14 @@ export async function fetchRunnerInbox(): Promise<OpenRequest[]> {
   const { data: user } = await supabase.auth.getUser();
   const [openRes, directedRes] = await Promise.all([
     // 클럽 위탁 부킹(0037 club_session_id)은 세션이 소유 — 일반 오픈 풀에서 제외
-    supabase.from('marketplace_open_requests').select('*').order('scheduled_at').limit(10), // R0B(0042) 초크포인트 뷰
+    supabase.from('bookings').select(REQ_SELECT).eq('status', 'matching').is('runner_id', null).is('club_session_id', null).order('scheduled_at').limit(10),
     user.user
       ? supabase.from('bookings').select(REQ_SELECT).eq('status', 'runner_pending').eq('runner_id', user.user.id).order('scheduled_at').limit(10)
       : Promise.resolve({ data: [], error: null } as any),
   ]);
   if (openRes.error) throw openRes.error;
   const directed = (directedRes.data ?? []).map((r: any) => mapOpenRequest(r, true, rate));
-  const open = (openRes.data ?? []).map((r: any) => mapOpenRequest(viewRowToReq(r), false, rate));
+  const open = (openRes.data ?? []).map((r: any) => mapOpenRequest(r, false, rate));
   const all = [...directed, ...open];
 
   const dogIds = [...new Set(all.map((r) => r.dogId).filter(Boolean))] as string[];
@@ -393,13 +381,15 @@ export async function fetchRunnerInbox(): Promise<OpenRequest[]> {
 export async function fetchOpenRequests(): Promise<OpenRequest[]> {
   const rate = await myCommissionRate();
   const { data, error } = await supabase
-    .from('marketplace_open_requests')  // R0B(0042) 초크포인트 뷰
-    .select('*')
+    .from('bookings')
+    .select('id, scheduled_at, km, pace_label, base_fare, distance_fare, addon_fare, route_id, routes(name), dogs(name, breed, weight_kg, memo)')
+    .eq('status', 'matching')
+    .is('runner_id', null)
+    .is('club_session_id', null) // 클럽 위탁 부킹 제외 (0037)
     .order('scheduled_at')
     .limit(10);
   if (error) throw error;
-  return (data ?? []).map((raw: any) => {
-    const r: any = viewRowToReq(raw);
+  return (data ?? []).map((r: any) => {
     const { dateLabel, timeLabel } = kstParts(r.scheduled_at);
     return {
       bookingId: r.id,
@@ -1791,52 +1781,74 @@ export const cancelClubRsvp = (sessionId: string) => clubRpc('session_cancel_rsv
 export const checkinClubSession = (sessionId: string) => clubRpc('session_checkin', { p_session: sessionId }) as Promise<void>;
 export const finishClubSession = (sessionId: string) => clubRpc('club_finish_session', { p_session: sessionId }) as Promise<void>;
 
-// ---------- 위탁 (P-C, 0037~0039) — 플랩 어휘: PENDING/CLEARED/REFUSED/BOARDED/RUNNING/SETTLED ----------
-export type FlapState = 'PENDING' | 'HOLDING' | 'CLEARED' | 'REFUSED' | 'BOARDED' | 'RUNNING' | 'SETTLED' | 'REFUND' | 'RETURNS' | 'OUTSIDE';
+// ---------- 위탁 (P-C → R1~R6 백엔드 완결판, 0037~0050) ----------
+// 플랩 어휘 10종 (정본 = delegation-master-lab): PENDING/HOLDING/CLEARED/BOARDED/RUNNING/RETURNS/SETTLED/OUTSIDE/REFUND/REFUSED
+export type FlapState =
+  | 'PENDING' | 'HOLDING' | 'CLEARED' | 'BOARDED' | 'RUNNING'
+  | 'RETURNS' | 'SETTLED' | 'OUTSIDE' | 'REFUND' | 'REFUSED';
 export interface DelegationRunner { profileId: string; name: string; tier: string; cap: number; assigned: number; checkedIn: boolean; isMe: boolean }
+// 서버 프로젝션 v4 (0048 club_dog_ui_state) — 클라이언트는 문자열을 지어내지 않는다
+export interface DogUiState {
+  primaryStage: string; secondaryBadges: string[]; blockingIssues: string[];
+  primaryIssue: string | null; requiredActors: string[]; severity: 'info' | 'warn' | 'critical';
+  allowedActions: string[];
+}
 export interface DelegationDog {
   sdId: string; dogId: string; dogName: string; collar: string | null; ownerName: string;
-  isMine: boolean; approval: 'pending' | 'approved' | 'rejected';
+  isMine: boolean; approval: 'pending' | 'approved' | 'rejected' | 'auto' | 'withdrawn';
+  serviceState: string | null; completionOutcome: string | null; terminationType: string | null;
+  chargeState: string | null; holdStatus: string | null; holdExpiresAt: string | null; refundState: string | null;
   bookingId: string | null; bookingStatus: string | null; runnerId: string | null; runnerName: string | null;
   ownerConfirmed: boolean | null; runnerConfirmed: boolean | null; custodyWithRunner: boolean; checkedOut: boolean;
-  serviceState?: string | null; chargeState?: string; holdStatus?: string; holdExpiresAt?: string | null;
-  refundState?: string;
-  completionOutcome?: string | null; terminationType?: string | null;
-  custodyPhase?: string | null; custodianType?: string | null; custodianProfileId?: string | null; custodianExternal?: string | null;
-  ownerReturnConfirmed?: boolean; runnerReturnConfirmed?: boolean;
-  payoutState?: string; payoutHold?: string; payoutHoldReason?: string | null;
-  pendingTransfer?: { toType: string; toProfile: string | null; toExternal: string | null; reason: string | null; by: string; at: string } | null;
-  returnOverrideKind?: string | null;
-  ui?: { primaryStage: string; secondaryBadges: string[]; blockingIssues: string[];
-    primaryIssue: string | null; requiredActors: string[]; severity: string };
+  // [R2] 커스터디·정산 축
+  custodyPhase: string | null; custodianType: string | null; custodianProfileId: string | null; custodianExternal: string | null;
+  ownerReturnConfirmed: boolean; runnerReturnConfirmed: boolean;
+  payoutState: string | null; payoutHold: string | null; payoutHoldReason: string | null;
+  pendingTransfer: unknown; returnOverrideKind: string | null;
+  // [R3] 배정 축 (proposedRunner*는 호스트·피제안 러너에게만 옴 — 러너 프라이버시)
+  assignmentState: 'unassigned' | 'proposed' | 'accepted' | 'declined' | 'replacement_needed' | null;
+  objectionUsed: boolean | null; reviewNeeded: boolean | null;
+  proposedRunnerId: string | null; proposedRunnerName: string | null; proposalExpiresAt: string | null;
+  ui: DogUiState | null;
   flap: FlapState;
+}
+export interface SessionViability {
+  format: string; attendanceOk: boolean; paidDogs: number; presentRunners: number; coverageOk: boolean; viable: boolean;
 }
 export interface DelegationBoard {
   session: {
     id: string; clubId: string; scheduledAt: string; when: string; meetupPoint: string; format: string; status: string;
     routeName: string | null; routeKm: number | null; fare: number | null; delegatedCapacity: number;
-    approvedCount: number; pendingCount: number; isHost: boolean; checkinOpen: boolean;
-    reservedCount?: number; openIncidents?: number; unassignedIncidents?: number;
+    reservedCount: number; approvedCount: number; pendingCount: number; isHost: boolean; checkinOpen: boolean;
+    viability: SessionViability | null; openIncidents: number; unassignedIncidents: number;
   };
   runners: DelegationRunner[];
   me: { committed: boolean; runnerCap: number; checkedIn: boolean };
   dogs: DelegationDog[];
 }
-// 플랩 판정 — 원천 필드에서만, 판정은 여기 한 곳. [R2] 커스터디가 서비스 축보다 먼저 말한다:
-// 정산 ≠ 반환 — completed는 반환 해소(resolved) 전엔 SETTLED가 아니다 ('completed' 소비자 감사).
-export function flapOf(d: { approval: string; bookingStatus: string | null; custodyPhase?: string | null; custodianType?: string | null }): FlapState {
-  if (d.approval === 'rejected') return 'REFUSED';
+// 플랩 판정 — 커스터디 우선 (커스터디 국면이 서비스 축보다 먼저 말한다). 원천 필드에서만.
+// 구(0039) 호출부 호환: 커스터디 필드가 없으면 서비스/결제 축만으로 판정.
+export function flapOf(d: {
+  approval: string; bookingStatus: string | null;
+  chargeState?: string | null; holdStatus?: string | null; refundState?: string | null;
+  custodyPhase?: string | null; custodianType?: string | null;
+}): FlapState {
+  // ① 커스터디 우선
+  if (d.custodianType === 'clinic' || d.custodianType === 'authority') return 'OUTSIDE';
+  if (d.custodyPhase === 'return_pending' || d.custodyPhase === 'transfer_pending') return 'RETURNS';
+  // ② 예외 축
+  if (d.refundState === 'pending' || d.refundState === 'failed') return 'REFUND';
+  if (d.approval === 'rejected' || d.approval === 'withdrawn') return 'REFUSED';
   if (d.approval === 'pending') return 'PENDING';
-  if (d.custodianType === 'clinic' || d.custodianType === 'authority') return 'OUTSIDE'; // 외부 보호
-  if (d.custodyPhase === 'return_pending') return 'RETURNS';   // 러닝 끝 ≠ 반환 끝
-  if (!d.bookingStatus) return 'HOLDING'; // R1: 승인 = 홀드 — 결제 전엔 부킹이 없다
+  // ③ 승인 후 결제 전 = HOLDING (20분 홀드)
+  if (d.chargeState != null && d.chargeState !== 'paid') return 'HOLDING';
+  // ④ 서비스 축
   switch (d.bookingStatus) {
     case 'picked_up': return 'BOARDED';   // 인계 완료 = 보험 시작
     case 'active': return 'RUNNING';
-    case 'completed': return 'SETTLED';   // 여기 도달 = resolved (위 커스터디 가드가 걸러냄)
-    case 'incident_review': return 'OUTSIDE';
+    case 'completed': return d.custodyPhase != null && d.custodyPhase !== 'resolved' ? 'RETURNS' : 'SETTLED'; // 정산≠반환
     case 'refund_pending': case 'cancelled_runner': case 'expired': return 'REFUND';
-    default: return 'CLEARED';            // matching(배정 전)·confirmed(배정 후) = 승인·결제 완료
+    default: return 'CLEARED';            // 결제 완료 — 배정 대기/확정
   }
 }
 export async function fetchDelegationBoard(sessionId: string): Promise<DelegationBoard | null> {
@@ -1849,20 +1861,72 @@ export async function fetchDelegationBoard(sessionId: string): Promise<Delegatio
     dogs: (data.dogs ?? []).map((d: any) => ({ ...d, flap: flapOf(d) })),
   } as DelegationBoard;
 }
-// [R4 0048] 동의는 신청의 전제 — 프로덕션 UI의 종이 신청서 폼이 이 객체를 채운다
+// [R4] 위탁 동의 — 서버가 불변 문서 v1로 박제 (본인도 수정 불가, 재동의 = 새 행)
 export interface DelegationConsent {
-  custodyAck: boolean; emergencyContact: string;
-  pickupName?: string; pickupContact?: string; vetLimitKrw?: number; photoConsent?: boolean;
+  custodyAck: true;                 // 인계→양측 반환 확인까지 러너가 보호 책임자
+  emergencyContact: string;         // 필수
+  pickupName?: string | null;
+  vetLimitKrw?: number | null;      // 미지정 시 서버 기본값 (club_config vet_limit_krw)
+  photoConsent?: boolean;
 }
 export const delegateDog = (sessionId: string, dogId: string, consent: DelegationConsent) =>
   clubRpc('session_delegate_dog', { p_session: sessionId, p_dog: dogId, p_consent: consent }) as Promise<string>;
-export const approveDelegation = (sdId: string, approve: boolean) =>
-  clubRpc('session_approve_dog', { p_session_dog: sdId, p_approve: approve }) as Promise<string | null>;
-// R1(0043): 결제는 보호자만 — 멱등 키는 클라이언트 생성 (재시도 시 같은 키 재사용)
+// [R1] 결제 (모의 PG) — 멱등키 필수
 export const payDelegation = (sdId: string, idemKey: string) =>
   clubRpc('session_pay_delegation', { p_session_dog: sdId, p_idem_key: idemKey }) as Promise<string>;
-export const reconsiderDelegation = (sdId: string) =>
-  clubRpc('session_reconsider_dog', { p_session_dog: sdId }) as Promise<string>;
+// [R4] 취소 — 서버 사다리(무료→10%→20%) 판정, 인시던트 열림 시 차단
+export const cancelDelegation = (sdId: string) =>
+  clubRpc('session_cancel_delegation', { p_session_dog: sdId }) as Promise<void>;
+// [R2] 반환 양측 확인 — 명시적 side (혼자 테스트 시 문법 대칭, 0046)
+export const confirmReturn = (sdId: string, side: 'owner' | 'runner') =>
+  clubRpc('session_confirm_return', { p_session_dog: sdId, p_side: side }) as Promise<unknown>;
+// [R2] 커스터디 대리 기록 — 증인 증빙 필수, 자기 대리 금지 (0045)
+export const custodyOverride = (sdId: string, side: 'owner' | 'runner', kind: 'assisted' | 'witness', artifact: unknown) =>
+  clubRpc('session_custody_override', { p_session_dog: sdId, p_side: side, p_kind: kind, p_artifact: artifact }) as Promise<void>;
+// [R2] 이양 — 러너→러너(수락 필요) · clinic/authority(즉시·미드런은 원자 인시던트 경로)
+export const transferInitiate = (
+  sdId: string, toType: 'runner' | 'clinic' | 'authority',
+  opts: { toProfile?: string; toExternal?: string; reason?: string } = {},
+) =>
+  clubRpc('session_transfer_initiate', {
+    p_session_dog: sdId, p_to_type: toType,
+    p_to_profile: opts.toProfile ?? null, p_to_external: opts.toExternal ?? null, p_reason: opts.reason ?? null,
+  }) as Promise<void>;
+export const transferAccept = (sdId: string, artifact: unknown = null) =>
+  clubRpc('session_transfer_accept', { p_session_dog: sdId, p_artifact: artifact }) as Promise<void>;
+export const transferCancel = (sdId: string) =>
+  clubRpc('session_transfer_cancel', { p_session_dog: sdId }) as Promise<void>;
+// [R2] 커스터디 이벤트 이력 — seq 순만 신뢰 (당사자 게이트)
+export interface CustodyEvent {
+  seq: number; eventType: string; fromType: string | null; fromProfileId: string | null;
+  toType: string | null; toProfileId: string | null; toExternal: string | null;
+  confirmationKind: string | null; occurredAt: string; reason: string | null; incidentId: string | null;
+}
+export const fetchCustodyEvents = (sdId: string) =>
+  clubRpc('club_dog_custody_events', { p_session_dog: sdId }) as Promise<CustodyEvent[]>;
+// [R2/R6] 인시던트 — 케이스 오너 지정·해소 (해소 = 자기 케이스 보류만 해제)
+export interface ClubIncident {
+  id: string; severity: string; state: string; summary: string;
+  caseOwner: string | null; openedAt: string; resolvedAt: string | null;
+}
+export const fetchSessionIncidents = (sessionId: string) =>
+  clubRpc('club_session_incidents', { p_session: sessionId }) as Promise<ClubIncident[]>;
+export const incidentAssign = (incidentId: string, owner: string | null = null) =>
+  clubRpc('club_incident_assign', { p_incident: incidentId, p_owner: owner }) as Promise<void>;
+export const incidentResolve = (incidentId: string, note: string | null = null) =>
+  clubRpc('club_incident_resolve', { p_incident: incidentId, p_note: note }) as Promise<void>;
+// [R2] 릴리스 수동 트리거 — 허용목록 계정 전용 (운영은 pg_cron)
+export const debugReleasePayouts = () =>
+  clubRpc('club_debug_release_payouts', {}) as Promise<number>;
+// [R3] Model A 배정 — 제안(5분 시효)/응답/이의
+export const proposeDog = (sdId: string, runnerId: string) =>
+  clubRpc('session_propose_dog', { p_session_dog: sdId, p_runner: runnerId }) as Promise<void>;
+export const respondProposal = (sdId: string, accept: boolean, reason?: string) =>
+  clubRpc('session_proposal_respond', { p_session_dog: sdId, p_accept: accept, p_reason: reason ?? null }) as Promise<void>;
+export const ownerObjection = (sdId: string, reason: string) =>
+  clubRpc('session_owner_objection', { p_session_dog: sdId, p_reason: reason }) as Promise<void>;
+export const approveDelegation = (sdId: string, approve: boolean) =>
+  clubRpc('session_approve_dog', { p_session_dog: sdId, p_approve: approve }) as Promise<string | null>;
 export const assignDelegation = (sdId: string, runnerId: string) =>
   clubRpc('session_assign_dog', { p_session_dog: sdId, p_runner: runnerId }) as Promise<void>;
 export const commitAsHandler = (sessionId: string) =>
@@ -1875,39 +1939,6 @@ export const startDelegatedRuns = (sessionId: string) =>
   clubRpc('club_start_delegated_runs', { p_session: sessionId }) as Promise<string[]>;
 export const saveClubRunTrace = (sessionId: string, trace: { lat: number; lng: number; t: number }[]) =>
   clubRpc('club_save_run_trace', { p_session: sessionId, p_trace: trace }) as Promise<number>;
-
-// ---------- R2 (0045): 반환·오버라이드·이양·인시던트 — 실 RPC만, 서비스롤 금지 ----------
-export interface CustodyEvent {
-  seq: number; eventType: string; fromType: string | null; fromProfileId: string | null;
-  toType: string; toProfileId: string | null; toExternal: string | null;
-  confirmationKind: string; occurredAt: string; reason: string | null; incidentId: string | null;
-}
-export interface ClubIncident {
-  id: string; severity: string; state: string; summary: string;
-  caseOwner: string | null; openedAt: string; resolvedAt: string | null;
-}
-// [0046] side 명시 = confirm_handoff 문법 정합 — 솔로 테스트(한 계정 양측)에서 필수
-export const confirmReturn = (sdId: string, side: 'owner' | 'runner' | null = null) =>
-  clubRpc('session_confirm_return', { p_session_dog: sdId, p_side: side }) as Promise<{ both: boolean }>;
-export const custodyOverride = (sdId: string, side: 'owner' | 'runner', kind: 'witness' | 'assisted', artifact: Record<string, unknown> | null) =>
-  clubRpc('session_custody_override', { p_session_dog: sdId, p_side: side, p_kind: kind, p_artifact: artifact }) as Promise<void>;
-export const transferInitiate = (sdId: string, toType: 'runner' | 'clinic' | 'authority' | 'authorized_person', opts: { toProfile?: string; toExternal?: string; reason?: string } = {}) =>
-  clubRpc('session_transfer_initiate', { p_session_dog: sdId, p_to_type: toType, p_to_profile: opts.toProfile ?? null, p_to_external: opts.toExternal ?? null, p_reason: opts.reason ?? null }) as Promise<void>;
-export const transferAccept = (sdId: string, artifact: Record<string, unknown> | null = null) =>
-  clubRpc('session_transfer_accept', { p_session_dog: sdId, p_artifact: artifact }) as Promise<void>;
-export const transferCancel = (sdId: string) =>
-  clubRpc('session_transfer_cancel', { p_session_dog: sdId }) as Promise<void>;
-export const fetchCustodyEvents = (sdId: string) =>
-  clubRpc('club_dog_custody_events', { p_session_dog: sdId }) as Promise<CustodyEvent[]>;
-export const fetchSessionIncidents = (sessionId: string) =>
-  clubRpc('club_session_incidents', { p_session: sessionId }) as Promise<ClubIncident[]>;
-export const incidentAssign = (incidentId: string, ownerId: string | null = null) =>
-  clubRpc('club_incident_assign', { p_incident: incidentId, p_owner: ownerId }) as Promise<void>;
-export const incidentResolve = (incidentId: string, note: string | null = null) =>
-  clubRpc('club_incident_resolve', { p_incident: incidentId, p_note: note }) as Promise<void>;
-// 디버그 시대 한정 — 허용목록(_club_require_v2) 뒤의 릴리스 크론 수동 트리거 (R6 운영 콘솔에서 폐기)
-export const debugReleasePayouts = () =>
-  clubRpc('club_debug_release_payouts', {}) as Promise<number>;
 
 // 클럽 사진 (호스트) — avatars 버킷의 본인 폴더 (스토리지 정책상 uid 폴더만 쓰기 가능)
 export async function uploadClubPhoto(clubId: string, base64: string): Promise<string> {
