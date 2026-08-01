@@ -65,7 +65,8 @@ export default function ClubPage() {
     setBusy(true);
     try {
       const slot = SLOT_PRESETS[slotIdx].get();
-      await createClubSession(club.id, slot.toISOString(), meetup.trim(), cap);
+      // 클럽 불변식 = 혼합 이벤트 (모든 개에 명시적 책임자 1인) — 위탁 문이 열리려면 mixed여야 한다
+      await createClubSession(club.id, slot.toISOString(), meetup.trim(), cap, null, 'mixed');
       if (weekly) {
         // ⟳ 매주 반복 (0035) — 같은 요일·시각으로 시리즈 등록, 다음 주부턴 크론이 연다
         const hh = String(slot.getHours()).padStart(2, '0');
