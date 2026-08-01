@@ -1,5 +1,14 @@
 # Session Handoff — 2026-08-01 (v4: delegation backend R0A–R6 complete → design phase closed → RN build started)
 
+> **v4.1 addendum (same day, live device smoke of build 1)** — read this first, then the rest:
+> - `npx tsc --noEmit` surfaced 4 errors → fixed (641af61): `pendingTransfer` typed to real shape {toType,toProfile,toExternal,reason,by,at}|null.
+> - **Seal slider was dead on device** → fixed (d38e3cd). Root cause: PanResponder created once in a ref had CAPTURED first-render `disabled=true` forever (stale closure). Also hardened vs ScrollView gesture theft (move-capture claim on horizontal, termination refused) + long-press(700ms) a11y fallback. **[lesson] PanResponder + useRef: always read live props via a stateRef, never from closure.**
+> - Submit then hit `format_closed` → host "세션 열기" sheet was creating owner_only sessions; now defaults **mixed** + honest error copy (280660f). **This also proves Sean ran `supabase db push` — 0048–0050 ARE live on remote now** [verified-now via server behavior].
+> - Then `route_required` → mixed sessions REQUIRE a route (0037: fare = club_fare(km)); host sheet had no route picker. Fixed: sheet now loads `fetchRoutes()`, route chips required, passes route.id (this commit). O2 maps route_required honestly.
+> - **Sean's existing test session is owner_only AND routeless** — easiest path: open a NEW session from the fixed sheet. SQL alternative (remote SQL editor): `update club_sessions set format='mixed', route_id=(select id from routes where active limit 1) where status in ('open','full');`
+> - Smoke status: O1 ticket ✓ · seal drag ✓ · submit = blocked only by session config (fix committed, needs a fresh session). Next session: finish this smoke (expect "신청이 전송됐어요" + host queue shows 신청 대기), then build 2 (§10).
+> - Known debt logged: O1 can't hide the 위탁 door on owner_only sessions — `club_overview.nextSession` lacks `format`; add in migration 0051.
+
 > **Companion docs to read first**: `docs/club-run-logic.md` **v3.3+§1b — THE spec for delegation; §16 = testing doctrine + R0A–R6 build record**,
 > `docs/todo.md` (master work list), and the design canon in `docs/design/`:
 > `delegation-master-lab.html` (**layout canon** — every screen), `delegation-premium-refresh2.html` (**style canon** — tokens/materials),

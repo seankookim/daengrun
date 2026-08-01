@@ -4,7 +4,7 @@ import { Alert, Image, Modal, Pressable, RefreshControl, ScrollView, StyleSheet,
 import { Row } from '../../src/components/ui';
 import {
   claimClubHost, ClubOverview, ClubSeries, createClubSession, fetchClubHostStats, fetchClubMyStats,
-  fetchClubOverview, fetchClubSeries, pauseClubSeries, registerClubInterest, startClubSeries, uploadClubPhoto,
+  fetchClubOverview, fetchClubSeries, fetchRoutes, pauseClubSeries, registerClubInterest, startClubSeries, uploadClubPhoto,
 } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { haptic } from '../../src/lib/haptics';
@@ -58,15 +58,26 @@ export default function ClubPage() {
   const [busy, setBusy] = useState(false);
   const [weekly, setWeekly] = useState(false); // ⟳ 매주 반복 (0035)
   const [series, setSeries] = useState<ClubSeries[]>([]);
+  // 코스 — mixed 세션은 코스 필수 (위탁 요금 = club_fare(km), 서버 route_required 게이트)
+  const [routes, setRoutes] = useState<{ id: string; name: string; km: number }[]>([]);
+  const [routeIdx, setRouteIdx] = useState(0);
+  const openSheet = () => {
+    setSheetOpen(true);
+    if (routes.length === 0) {
+      fetchRoutes().then((rs) => setRoutes(rs.map((r) => ({ id: r.id, name: r.name, km: r.km })))).catch(() => {});
+    }
+  };
 
   const createSession = async () => {
     if (!club || busy) return;
     if (!meetup.trim()) { Alert.alert('집결지를 입력해주세요', '예: 잠수교 북단 계단 앞'); return; }
+    const route = routes[routeIdx];
+    if (!route) { Alert.alert('코스를 선택해주세요', '위탁을 받으려면 코스(요금 기준)가 필요해요'); return; }
     setBusy(true);
     try {
       const slot = SLOT_PRESETS[slotIdx].get();
-      // 클럽 불변식 = 혼합 이벤트 (모든 개에 명시적 책임자 1인) — 위탁 문이 열리려면 mixed여야 한다
-      await createClubSession(club.id, slot.toISOString(), meetup.trim(), cap, null, 'mixed');
+      // 클럽 불변식 = 혼합 이벤트 (모든 개에 명시적 책임자 1인) — 위탁 문이 열리려면 mixed + 코스 필수
+      await createClubSession(club.id, slot.toISOString(), meetup.trim(), cap, route.id, 'mixed');
       if (weekly) {
         // ⟳ 매주 반복 (0035) — 같은 요일·시각으로 시리즈 등록, 다음 주부턴 크론이 연다
         const hh = String(slot.getHours()).padStart(2, '0');
@@ -265,7 +276,7 @@ export default function ClubPage() {
 
           {/* ---------- 호스트 도구 ---------- */}
           {club?.isHost && (
-            <Pressable onPress={() => setSheetOpen(true)} style={[s.cta, { marginTop: 12 }]}>
+            <Pressable onPress={openSheet} style={[s.cta, { marginTop: 12 }]}>
               <Text style={{ fontSize: 15, fontWeight: '900', color: '#fff' }}>＋ 세션 열기</Text>
             </Pressable>
           )}
@@ -289,6 +300,16 @@ export default function ClubPage() {
             value={meetup} onChangeText={setMeetup}
             placeholder="집결지 — 예: 잠수교 북단 계단 앞" placeholderTextColor="#b0ada0" style={s.input}
           />
+          {/* 코스 — mixed 필수 (요금 기준) */}
+          <Row style={{ gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+            <Text style={{ fontSize: 14.5, fontWeight: '800', color: FOREST }}>코스</Text>
+            {routes.length === 0 && <Text style={{ fontSize: 12.5, color: colors.dim }}>불러오는 중...</Text>}
+            {routes.map((r, i) => (
+              <Pressable key={r.id} onPress={() => setRouteIdx(i)} style={[s.slotChip, routeIdx === i && { backgroundColor: FOREST, borderColor: FOREST }]}>
+                <Text style={{ fontSize: 13.5, fontWeight: '800', color: routeIdx === i ? '#fff' : '#3d453d' }}>{r.name} {r.km}km</Text>
+              </Pressable>
+            ))}
+          </Row>
           <Row style={{ gap: 10, marginTop: 12, alignItems: 'center' }}>
             <Text style={{ fontSize: 14.5, fontWeight: '800', color: FOREST }}>정원</Text>
             {[6, 9, 12].map((c) => (

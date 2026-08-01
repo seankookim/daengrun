@@ -53,6 +53,7 @@ export default function DelegateConsentScreen() {
       const m = (e as Error).message;
       Alert.alert('신청 실패',
         m.includes('format_closed') ? '이 세션은 위탁을 받지 않아요 — 보호자 동반 전용이에요'
+        : m.includes('route_required') ? '이 세션엔 아직 코스가 없어요 — 호스트가 코스를 정하면 위탁 요금이 정해져요'
         : m.includes('no_capacity') ? '위탁 자리가 다 찼어요'
         : m.includes('already') ? '이미 신청한 세션이에요'
         : m.includes('consent_required') ? '동의 항목이 비어 있어요 — 비상 연락처를 확인해주세요'
