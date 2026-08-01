@@ -1,4 +1,13 @@
-# Session Handoff — 2026-08-01 (v4: delegation backend R0A–R6 complete → design phase closed → RN build started)
+# Session Handoff — 2026-08-01 (v5: RN builds 2–4 shipped overnight — session shell + payment + host console + runner axis)
+
+> **v5 addendum (overnight autonomous session, Sean asleep — read this first):**
+> Sean said "keep working while I sleep, self-prompt, prioritize retention, premium" — so builds 2/3/4 shipped in sequence, each gated by on-device `tsc --noEmit` (0 errors) + committed. Branch `redesign-v4`, now ahead 6 of origin.
+> - **Build 2 (5a54b2b)** — `session/[sid].tsx` fully replaced: lilac shell (DawnCanvas+ClubMast+개요/참가자/채팅 tabs, access via new `fetchShellAccess`), owner delegation card = state machine rendering `ui.primaryStage` VERBATIM + flap, O4 hold countdown (amber deadline), **O5 payment sheet** (assignment-method consent = active required check, cancel ladder = rider sentence, `payDelegation` idem key `pay-{sdId}`, honest no_capacity/hold_expired copy), O3 free withdraw, O7 runner reveal, roster tab (phone rule B chips + "번호가 보이면 열람이 기록돼요"), RSVP/checkin kept and repainted. New api: `fetchShellAccess`/`fetchSessionRoster` (+Roster* types).
+> - **Build 3 (40d3deb)** — **[bug found & fixed] `ownerObjection` wrapper didn't match 0047's real signature (`p_kind` required — the 2-arg call could never match; objection was dead on arrival).** Now kind='preference' + wantRefund choice (재배정/전액 환불), honest window/used/handed-off copy. O8 handover + O10 return two-sided confirm components (mirror grammar 맡겼어요/받았어요 ↔ 반환했어요/인계받았어요) via `confirmHandoff(bookingId, side)` / `confirmReturn(sdId, side)`. **Host console NEW `club/console/[sid].tsx`**: viability meter, ①심사(승인=결제요청, 재검토 행) ②결제 read-only ③배정(runner chips w/ 만석 disabled, 5-min proposal countdown, 제안 취소=new `proposalRevoke`, 확정 후 인계 전 철회=new `assignmentRevoke`) ④케이스(오너 지정/해소) ⑤진행(러닝 시작 + 종료 게이트 — client-computed blocker card + server reasons verbatim on click). Shell's host finish button moved to console; shell has violet '호스트 콘솔 →' door.
+> - **Build 4 (541bdd9)** — runner axis in shell: R2 proposal card (proposedRunner* only reaches host/proposee, so `isMe`-runner comparison = my proposals; 5-min countdown; accept = server revalidates w/ honest stale copy; decline w/ optional reason), R3 오늘 담당 (emergency/vet-limit from roster detail, runner-side handover/return CTAs only at the moment they're needed, else `ui.primaryStage` tag verbatim; n/n flap + 만석 line), 러너 확약/철회 (door drawn only for cap>0 certified runners).
+> - **Not yet built** (= build 5+): chat drawer(④) + ack banners(⑤) (api wrappers for club_chat_messages RLS/realtime + club_my_acks/club_ack don't exist yet), O9 owner live, O11 receipt print, case detail screen (console has assign/resolve only), club home repaint seam, migration 0051 (`club_overview.nextSession.format` so O1 can hide the 위탁 door on owner_only), flap flip/seal/ring choreography, SealSlide long-press exists but ring component not.
+> - **Smoke state unchanged from v4.1**: Sean must open a NEW session from the fixed host sheet (old test session is owner_only+routeless; SQL alternative in v4.1 below), then O1→O2 seal→"신청이 전송됐어요", now also →approve in console→pay in O5→propose→accept(2nd account needed for real accept)→handover→return. `git push` pending (ahead 6). Everything through 0050 is live on remote.
+> - Device tsc runs used throughout (node_modules on device) — container never had them. All three commits passed 0-error.
 
 > **v4.1 addendum (same day, live device smoke of build 1)** — read this first, then the rest:
 > - `npx tsc --noEmit` surfaced 4 errors → fixed (641af61): `pendingTransfer` typed to real shape {toType,toProfile,toExternal,reason,by,at}|null.
@@ -141,11 +150,11 @@ Later/known: local stack restart + `node scripts/e2e-club.mjs` re-run (12 cases)
 - **Flap flip animation + seal stamp choreography + ring countdown component** — specced (4 signature motions, reduce-motion honored), none implemented yet; ring needed for O4 (pay hold) and R2 (proposal 5-min).
 - **Ack banner escalation copy** and motion-demote were CUT (⑤ chosen) — do not resurrect ⑥.
 
-## 10. Next 1–3 steps (build 2)
+## 10. Next 1–3 steps (v5 revision — builds 2/3/4 DONE, see v5 addendum)
 
-1. **[needs-user first]** Sean: §7 commands (locks → db push → git push), then device smoke of O1→O2 and `tsc --noEmit`. Fix whatever the typecheck surfaces before new code.
-2. **[local-edit]** Build 2a — session shell rebuild: replace `app/app/club/session/[sid].tsx` with lilac shell (ClubMast + 개요/참가자/채팅 tabs; access via `club_my_shell_access`), 개요 tab hosting the O3/O4 state card driven by board v5 `dogs[].ui` (isMine rows; Flap from `flapOf`; badges verbatim; HOLDING deadline from holdExpiresAt).
-3. **[local-edit]** Build 2b — O5 payment sheet: bottom sheet with amount, the two legal lines (assignment-method consent check + cancel ladder), `payDelegation(sdId, 'pay-'+sdId)` idempotent, honest error mapping (no_capacity/hold_expired). Then commit; builds 3–5 = O6–O8+host console, runner+live+receipt, chat drawer+acks+case+album.
+1. **[needs-user first]** Sean: git lock cleanup + `git push` (§7 — db push already verified live). Then full-loop device smoke: fresh mixed session → O1 ticket → O2 seal → console 승인 → O5 결제 → 배정 제안 → (2nd account) 수락 → 인계 → 반환. Report anything that reads wrong — three whole builds have never touched a device.
+2. **[local-edit]** Build 5a — chat drawer ④: api wrappers for `club_chat_messages` (direct RLS insert/select + realtime channel, audiences group/host_channel, rate limit honest copy on 21st), pinned host drawer over group stream per decisions-lab; limited users see drawer only.
+3. **[local-edit]** Build 5b — ack banners ⑤: `club_my_acks`/`club_ack` wrappers, severity-sorted tinted banner stack under the mast (follows across club screens), one-tap 확인. Then: O9 live (reuse run-trace infra) · O11 receipt · case detail · 0051 migration (nextSession.format).
 
 ## 11. Verification commands
 

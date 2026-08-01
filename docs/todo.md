@@ -1,7 +1,19 @@
-# 도그스하이 — 종합 TODO (2026-07-29 B 배치 + 반복 예약 완료 기준)
+# 도그스하이 — 종합 TODO (2026-08-01 위탁 RN 빌드 2~4 완료 기준)
 
 새 세션 오프너: **"read docs/session-handoff.md fully, then continue"** — 이 파일은 실행 목록, 맥락·결정 이유는 핸드오프에.
 상태 태그: [ready]=바로 착수 가능 · [needs-user]=Sean 행동 필요 · [needs-verify]=실기기 확인 후 진행 · [design]=논의 먼저
+
+## ⓪ 위탁(클럽) RN 트랙 — 현재 주 무대 (정본: 핸드오프 v5 + club-run-logic v3.3)
+- [x] 빌드 1 (ad89de1): 라일락 토큰 · club-ui 킷 · api 위탁 블록 복원 · O1 티켓 · O2 승낙서
+- [x] 빌드 2 (5a54b2b): 세션 셸(개요·참가자·채팅) · O3/O4 상태 카드 · O5 결제 시트
+- [x] 빌드 3 (40d3deb): O8/O10 양측 확인 · 호스트 콘솔 · ownerObjection 시그니처 수리
+- [x] 빌드 4 (541bdd9): R2 제안 수락 · R3 오늘 담당 · 러너 확약
+- [ ] [needs-user] **풀루프 실기기 스모크**: 새 mixed 세션 → O2 봉인 → 콘솔 승인 → O5 결제 → 제안 → (2계정) 수락 → 인계 → 반환 · `git push` (ahead 6)
+- [ ] [ready] 빌드 5a: 챗 드로어 ④ (club_chat_messages RLS+realtime 래퍼부터)
+- [ ] [ready] 빌드 5b: ack 배너 스택 ⑤ (club_my_acks/club_ack)
+- [ ] [ready] O9 보호자 라이브 · O11 영수증 인화 · 케이스 상세 화면
+- [ ] [ready] 마이그레이션 0051: club_overview.nextSession에 format (owner_only에서 O1 위탁 문 숨김) — 하네스 통과 필수
+- [ ] [ready] 클럽 홈 이음새 재도색 · 플랩 플립/봉인/링 안무 4종 · expo-blur 도입 여부 [needs-user]
 
 ## A. 검증 (최우선 — 실기기 확인) [needs-user]
 - [ ] 푸시: 양 홈에서 권한 수락 → 앱 완전 종료 → 요청 발송 → 잠금화면 수신. 실패 시 push_tokens 행 + pg_net 응답 점검 (`select * from net._http_response order by id desc limit 5`)
