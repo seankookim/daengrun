@@ -10,8 +10,8 @@ import {
   cancelClubRsvp, cancelDelegation, checkinClubSession, ClubChatMsg, clubChatDelete, clubChatReport,
   ClubSessionDetail, commitAsHandler, confirmHandoff, confirmReturn, DelegationBoard, DelegationDog,
   fetchChatWritable, fetchClubChat, fetchClubSession, fetchDelegationBoard, fetchMyDogs, fetchSessionRoster,
-  fetchShellAccess, ownerObjection, payDelegation, respondProposal, rsvpClubSession, sendClubChat,
-  SessionRoster, ShellAccess, subscribeClubChat, withdrawAsHandler,
+  clubSos, fetchShellAccess, incidentOpen, ownerObjection, payDelegation, respondProposal, rsvpClubSession,
+  sendClubChat, SessionRoster, ShellAccess, subscribeClubChat, withdrawAsHandler,
 } from '../../../src/lib/api'; // finishClubSession은 호스트 콘솔로 이사
 import { useNumFont } from '../../../src/lib/fonts';
 import { haptic } from '../../../src/lib/haptics';
@@ -293,6 +293,40 @@ export default function ClubSessionShell() {
         text: '철회', style: 'destructive',
         onPress: () => withdrawAsHandler(sess.id).then(() => { haptic('light'); load(); })
           .catch((e) => Alert.alert('철회 실패', (e as Error).message)),
+      },
+    ]);
+  };
+
+  // ---------- R6 — 문제 신고 · SOS (케이스 문은 참가자 전원) ----------
+  const doIncident = () => {
+    Alert.alert('문제 신고', '무슨 일인가요?', [
+      { text: '닫기', style: 'cancel' },
+      {
+        text: '케이스 접수',
+        onPress: () => Alert.prompt?.('케이스 접수', '상황을 한 줄로 적어주세요 — 내 위탁견이 있으면 그 아이의 정산이 보류돼요', [
+          { text: '닫기', style: 'cancel' },
+          {
+            text: '접수',
+            onPress: (summary?: string) => {
+              if (!summary?.trim()) { Alert.alert('내용이 필요해요'); return; }
+              incidentOpen(sess.id, 'S2', summary.trim(), { dog: myDogs[0]?.dogId ?? null })
+                .then((id) => { haptic('success'); load(); router.push(`/club/case/${id}`); })
+                .catch((e) => Alert.alert('접수 실패', (e as Error).message));
+            },
+          },
+        ]),
+      },
+      {
+        text: '긴급 SOS', style: 'destructive',
+        onPress: () => Alert.alert('긴급 SOS', 'S1 케이스가 열리고 호스트와 러너 전원에게 즉시 알림이 가요.', [
+          { text: '아직', style: 'cancel' },
+          {
+            text: 'SOS', style: 'destructive',
+            onPress: () => clubSos(sess.id)
+              .then((id) => { haptic('success'); router.push(`/club/case/${id}`); })
+              .catch((e) => Alert.alert('SOS 실패', (e as Error).message)),
+          },
+        ]),
       },
     ]);
   };
@@ -796,6 +830,13 @@ export default function ClubSessionShell() {
               <ClubCta label="호스트 콘솔 →" tone="violet"
                 onPress={() => router.push({ pathname: `/club/console/${sess.id}`, params: { clubName: clubName ?? '' } })}
                 style={{ marginTop: 16 }} />
+            )}
+
+            {/* R6 케이스 문 — 조용하지만 항상 있다 (열린 인시던트는 정산을 세운다) */}
+            {access !== 'none' && !isDone && (
+              <Pressable onPress={doIncident}>
+                <Text style={[s.detailLink, { color: L.dim, marginTop: 16 }]}>문제가 생겼나요 — 신고 · SOS</Text>
+              </Pressable>
             )}
           </>
         )}

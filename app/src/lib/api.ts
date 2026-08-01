@@ -2054,6 +2054,48 @@ export const clubChatDelete = (messageId: number) =>
 export const clubChatReport = (messageId: number, reason: string | null = null) =>
   clubRpc('club_chat_report', { p_message: messageId, p_reason: reason }) as Promise<void>;
 
+// [R6] 인시던트 개설/SOS/증거/열람 (0050) — 케이스 당사자 게이트, 강아지 대상 ⇒ 지급 보류(ended 포함)
+export interface IncidentEvidence { kind: 'photo' | 'text' | 'location' | 'document'; payload: any; by: string; byName: string; at: string; when: string }
+export interface IncidentDetail {
+  id: string; severity: string; state: string; summary: string;
+  openedBy: string; openedByName: string; caseOwner: string | null; caseOwnerName: string | null;
+  openedAt: string; resolvedAt: string | null; myId: string | null;
+  subjects: { type: string; id: string }[];
+  evidence: IncidentEvidence[];
+}
+export async function fetchIncidentDetail(incidentId: string): Promise<IncidentDetail> {
+  const { data: user } = await supabase.auth.getUser();
+  const raw = await clubRpc('club_incident_detail', { p_incident: incidentId });
+  // 이름 2-step (RPC는 uuid만 준다)
+  const ids = [...new Set([raw.openedBy, raw.caseOwner, ...(raw.evidence ?? []).map((e: any) => e.by)].filter(Boolean))];
+  const names: Record<string, string> = {};
+  if (ids.length) {
+    const { data: ps } = await supabase.from('profiles').select('id, name').in('id', ids);
+    for (const p of ps ?? []) names[p.id] = p.name;
+  }
+  return {
+    ...raw,
+    myId: user.user?.id ?? null,
+    openedByName: names[raw.openedBy] ?? '참가자',
+    caseOwnerName: raw.caseOwner ? names[raw.caseOwner] ?? '참가자' : null,
+    evidence: (raw.evidence ?? []).map((e: any) => ({
+      ...e, byName: names[e.by] ?? '참가자', when: kstParts(e.at).timeLabel,
+    })),
+  } as IncidentDetail;
+}
+export const incidentOpen = (
+  sessionId: string, severity: 'S1' | 'S2' | 'S3', summary: string,
+  opts: { dog?: string | null; booking?: string | null; location?: unknown } = {},
+) =>
+  clubRpc('club_incident_open', {
+    p_session: sessionId, p_severity: severity, p_summary: summary,
+    p_dog: opts.dog ?? null, p_booking: opts.booking ?? null, p_location: opts.location ?? null,
+  }) as Promise<string>;
+export const clubSos = (sessionId: string, location: unknown = null) =>
+  clubRpc('club_sos', { p_session: sessionId, p_location: location }) as Promise<string>; // S1 슈가 — 최소 입력 최대 팬아웃
+export const incidentEvidenceAdd = (incidentId: string, kind: 'photo' | 'text' | 'location' | 'document', payload: unknown) =>
+  clubRpc('club_incident_evidence_add', { p_incident: incidentId, p_kind: kind, p_payload: payload }) as Promise<void>;
+
 // [R5] 크리티컬 ack (0049) — 제목 레지스트리 팬아웃, 확인 전까지 배너로 따라온다 (30분 뒤 호스트 에스컬레이션)
 export interface ClubAck { id: string; title: string; body: string | null; refId: string | null; createdAt: string }
 export const fetchMyAcks = () => clubRpc('club_my_acks', {}) as Promise<ClubAck[]>;

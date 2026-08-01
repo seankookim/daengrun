@@ -326,10 +326,13 @@ export default function HostConsole() {
             <SecHead n="4" title="케이스" sub={`진행 중 ${openCases.length}건`} />
             {openCases.map((i) => (
               <View key={i.id} style={s.drow}>
-                <Row style={{ gap: 8, alignItems: 'center' }}>
-                  <ClubTag label={i.severity.toUpperCase()} tone={i.severity.toLowerCase() === 's1' ? 'coral' : i.severity.toLowerCase() === 's2' ? 'amber' : 'dim'} />
-                  <Text style={[s.dogName, { flex: 1 }]} numberOfLines={1}>{i.summary}</Text>
-                </Row>
+                <Pressable onPress={() => router.push(`/club/case/${i.id}`)}>
+                  <Row style={{ gap: 8, alignItems: 'center' }}>
+                    <ClubTag label={i.severity.toUpperCase()} tone={i.severity.toLowerCase() === 's1' ? 'coral' : i.severity.toLowerCase() === 's2' ? 'amber' : 'dim'} />
+                    <Text style={[s.dogName, { flex: 1 }]} numberOfLines={1}>{i.summary}</Text>
+                    <Text style={{ fontSize: 11, fontWeight: '800', color: L.accent }}>열기 →</Text>
+                  </Row>
+                </Pressable>
                 <Row style={{ gap: 8, marginTop: 10 }}>
                   {!i.caseOwner ? (
                     <Pressable onPress={() => run(() => incidentAssign(i.id), '오너 지정 실패')} style={s.abtn}>
