@@ -8,11 +8,13 @@
 - [x] 빌드 2 (5a54b2b): 세션 셸(개요·참가자·채팅) · O3/O4 상태 카드 · O5 결제 시트
 - [x] 빌드 3 (40d3deb): O8/O10 양측 확인 · 호스트 콘솔 · ownerObjection 시그니처 수리
 - [x] 빌드 4 (541bdd9): R2 제안 수락 · R3 오늘 담당 · 러너 확약
-- [ ] [needs-user] **풀루프 실기기 스모크**: 새 mixed 세션 → O2 봉인 → 콘솔 승인 → O5 결제 → 제안 → (2계정) 수락 → 인계 → 반환 · `git push` (ahead 6)
-- [ ] [ready] 빌드 5a: 챗 드로어 ④ (club_chat_messages RLS+realtime 래퍼부터)
-- [ ] [ready] 빌드 5b: ack 배너 스택 ⑤ (club_my_acks/club_ack)
-- [ ] [ready] O9 보호자 라이브 · O11 영수증 인화 · 케이스 상세 화면
-- [ ] [ready] 마이그레이션 0051: club_overview.nextSession에 format (owner_only에서 O1 위탁 문 숨김) — 하네스 통과 필수
+- [x] 빌드 5 (801b451): 챗 고정 드로어 ④ + ack 배너 스택 ⑤ (club-acks.tsx — 셸·콘솔·클럽 홈 장착)
+- [x] 빌드 6 (5aadd49): 케이스 상세 club/case/[cid] + 신고·SOS 문 (R6 래퍼 일체)
+- [x] 빌드 7 (dbee04e·da41f91): 러닝 시작 = 러너 액션으로 수리 · O9 라이브 문(owner/live 재사용) · SETTLED→리포트 문
+- [ ] [needs-user] **① 데스크톱 앱 재로그인** (브리지 스테이징 stale — 배너 떠 있음) **② git push (ahead ~12) ③ 풀루프 실기기 스모크**: 새 mixed 세션 → O2 봉인 → 콘솔 승인 → O5 결제 → 제안 → (2계정) 수락 → 인계 → 러닝 시작(러너) → 반환 → 종료. 빌드 2~7은 기기에서 한 번도 안 돌았다 — tsc만 통과
+- [ ] [ready] 마이그레이션 0051: club_overview.nextSession에 format (owner_only에서 O1 위탁 문 숨김) — 하네스 통과 필수 (컨테이너 미러 재구축부터)
+- [ ] [ready] 클럽 전용 러너 런 화면 (§13 — club_save_run_trace 배치 + 클럽 정산 경로, 1:1 run.tsx 재사용 금지)
+- [ ] [ready] O11 영수증 인화(골드 실·베스트 샷) · 챗 사진 전송 · 케이스 타임라인에 커스터디 이벤트 병합
 - [ ] [ready] 클럽 홈 이음새 재도색 · 플랩 플립/봉인/링 안무 4종 · expo-blur 도입 여부 [needs-user]
 
 ## A. 검증 (최우선 — 실기기 확인) [needs-user]
