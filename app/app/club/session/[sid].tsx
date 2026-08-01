@@ -6,9 +6,10 @@ import {
   BigNumRow, ClubCta, ClubMast, ClubTag, DawnCanvas, Flap, LilacCard, clubText,
 } from '../../../src/components/club-ui';
 import {
-  cancelClubRsvp, cancelDelegation, checkinClubSession, ClubSessionDetail, confirmHandoff, confirmReturn,
-  DelegationBoard, DelegationDog, fetchClubSession, fetchDelegationBoard, fetchMyDogs, fetchSessionRoster,
-  fetchShellAccess, ownerObjection, payDelegation, rsvpClubSession, SessionRoster, ShellAccess,
+  cancelClubRsvp, cancelDelegation, checkinClubSession, ClubSessionDetail, commitAsHandler, confirmHandoff,
+  confirmReturn, DelegationBoard, DelegationDog, fetchClubSession, fetchDelegationBoard, fetchMyDogs,
+  fetchSessionRoster, fetchShellAccess, ownerObjection, payDelegation, respondProposal, rsvpClubSession,
+  SessionRoster, ShellAccess, withdrawAsHandler,
 } from '../../../src/lib/api'; // finishClubSession은 호스트 콘솔로 이사
 import { useNumFont } from '../../../src/lib/fonts';
 import { haptic } from '../../../src/lib/haptics';
@@ -84,20 +85,28 @@ export default function ClubSessionShell() {
   }, [sid]);
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  // 참가자 탭 — 셸 접근이 있을 때만 로스터 (none = 공개 명단 폴백)
+  // 로스터 — host/full은 바로 (러너의 비상 연락처가 여기 있다), limited는 참가자 탭에서만
   useEffect(() => {
-    if (tab === '참가자' && access !== 'none' && sid) {
+    if (!sid || access === 'none') return;
+    if (access === 'host' || access === 'full' || tab === '참가자') {
       fetchSessionRoster(sid).then(setRoster).catch(() => setRoster(null));
     }
   }, [tab, access, sid]);
 
   const myDogs = board?.dogs.filter((d) => d.isMine) ?? [];
-  const holding = myDogs.some((d) => d.flap === 'HOLDING');
+  // 러너 축 — proposedRunner*는 호스트·피제안자에게만 오므로 isMe 러너와 대조하면 곧 '나에게 온 제안'
+  const myRunnerId = board?.runners.find((r) => r.isMe)?.profileId ?? null;
+  const myProposals = board && myRunnerId
+    ? board.dogs.filter((d) => d.assignmentState === 'proposed' && d.proposedRunnerId === myRunnerId) : [];
+  const RUNNER_ACTIVE = ['confirmed', 'picked_up', 'active', 'completed'];
+  const myCharges = board && myRunnerId
+    ? board.dogs.filter((d) => d.runnerId === myRunnerId && RUNNER_ACTIVE.includes(d.bookingStatus ?? '')) : [];
+  const ticking = myDogs.some((d) => d.flap === 'HOLDING') || myProposals.length > 0;
   useEffect(() => {
-    if (!holding) return;
+    if (!ticking) return;
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
-  }, [holding]);
+  }, [ticking]);
 
   const onRefresh = () => { setRefreshing(true); Promise.resolve(load()).finally(() => setTimeout(() => setRefreshing(false), 400)); };
 
@@ -213,6 +222,62 @@ export default function ClubSessionShell() {
   const doReturnConfirm = (d: DelegationDog) => {
     confirmReturn(d.sdId, 'owner').then(() => { haptic('success'); load(); })
       .catch((e) => Alert.alert('반환 확인 실패', (e as Error).message));
+  };
+
+  // ---------- 러너 액션 (R2/R3) ----------
+  const doAcceptProposal = (d: DelegationDog) => {
+    Alert.alert('배정 수락', `수락하면 인계부터 반환까지 ${d.dogName}의 책임자는 나예요.`, [
+      { text: '아직', style: 'cancel' },
+      {
+        text: '이 아이, 내가 맡을게요',
+        onPress: () => respondProposal(d.sdId, true).then(() => { haptic('success'); load(); })
+          .catch((e) => {
+            const m = (e as Error).message;
+            // 서버가 재검증한다 — 낡은 수락은 정직한 한 문장으로
+            Alert.alert('수락 실패',
+              m.includes('expired') ? '제안이 소멸했어요 — 호스트가 다시 제안할 수 있어요'
+              : m.includes('full') || m.includes('cap') ? '오늘 담당이 가득 찼어요'
+              : m);
+          }),
+      },
+    ]);
+  };
+  const doDeclineProposal = (d: DelegationDog) => {
+    Alert.prompt?.('우려 제기 · 거절', '사유를 남기면 호스트가 재배정에 참고해요 (선택)', [
+      { text: '닫기', style: 'cancel' },
+      {
+        text: '거절', style: 'destructive',
+        onPress: (reason?: string) => respondProposal(d.sdId, false, reason?.trim() || undefined)
+          .then(() => { haptic('light'); load(); })
+          .catch((e) => Alert.alert('거절 실패', (e as Error).message)),
+      },
+    ]);
+  };
+  const doRunnerHandoff = (d: DelegationDog) => {
+    if (!d.bookingId) return;
+    confirmHandoff(d.bookingId, 'runner').then(() => { haptic('success'); load(); })
+      .catch((e) => Alert.alert('인계 확인 실패', (e as Error).message));
+  };
+  const doRunnerReturn = (d: DelegationDog) => {
+    confirmReturn(d.sdId, 'runner').then(() => { haptic('success'); load(); })
+      .catch((e) => Alert.alert('반환 확인 실패', (e as Error).message));
+  };
+  const doCommit = () => {
+    commitAsHandler(sess.id).then(() => { haptic('success'); load(); })
+      .catch((e) => {
+        const m = (e as Error).message;
+        Alert.alert('확약 실패', m.includes('not_certified') ? '인증 러너만 확약할 수 있어요' : m);
+      });
+  };
+  const doWithdrawHandler = () => {
+    Alert.alert('확약 철회', '이번 세션 러너 확약을 거둘까요?', [
+      { text: '유지', style: 'cancel' },
+      {
+        text: '철회', style: 'destructive',
+        onPress: () => withdrawAsHandler(sess.id).then(() => { haptic('light'); load(); })
+          .catch((e) => Alert.alert('철회 실패', (e as Error).message)),
+      },
+    ]);
   };
   const doPay = async () => {
     const d = payTarget;
@@ -523,6 +588,96 @@ export default function ClubSessionShell() {
                     onPress={() => router.replace({ pathname: `/club/session/${sess.nextSessionId}`, params: { clubName } })} />
                 )}
               </LilacCard>
+            )}
+
+            {/* ---------- R2 — 나에게 온 배정 제안 (5분 시효, 가장 위) ---------- */}
+            {myProposals.map((d) => {
+              const left = d.proposalExpiresAt ? new Date(d.proposalExpiresAt).getTime() - now : null;
+              return (
+                <View key={d.sdId}>
+                  {left != null && (
+                    <View style={s.deadline}>
+                      <Text style={[{ fontSize: 22, fontWeight: '600', color: L.amber, fontVariant: ['tabular-nums'] }, nf]}>{mmss(left)}</Text>
+                      <Text style={{ fontSize: 11, color: '#7a5a2a', lineHeight: 16, flex: 1 }}>안에 결정하지 않으면{'\n'}제안이 소멸해요</Text>
+                    </View>
+                  )}
+                  <LilacCard hero>
+                    <Text style={clubText.vk}>배정 제안 — 호스트</Text>
+                    <Row style={{ gap: 11, alignItems: 'center', marginTop: 8 }}>
+                      <DogDot name={d.dogName} collar={d.collar} size={46} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 16, fontWeight: '800', color: L.head }}>{d.dogName}</Text>
+                        <Text style={{ fontSize: 10.5, color: L.dim, marginTop: 2 }}>{d.ownerName} 보호자</Text>
+                      </View>
+                    </Row>
+                    <View style={s.custodyNote}>
+                      <Text style={{ fontSize: 10.5, color: L.text }}>수락하면 인계부터 반환까지 {d.dogName}의 책임자는 나</Text>
+                    </View>
+                  </LilacCard>
+                  <ClubCta label="이 아이, 내가 맡을게요 →" onPress={() => doAcceptProposal(d)} busy={busy} />
+                  <Pressable onPress={() => doDeclineProposal(d)}>
+                    <Text style={[s.detailLink, { color: L.dim }]}>우려 제기 · 거절</Text>
+                  </Pressable>
+                </View>
+              );
+            })}
+
+            {/* ---------- R3 — 오늘 내 담당 ---------- */}
+            {myCharges.length > 0 && (
+              <>
+                {myCharges.map((d) => {
+                  const det = roster?.dogs.find((x) => x.sdId === d.sdId)?.detail ?? null;
+                  const needHandoff = !d.runnerConfirmed && board?.session.checkinOpen && d.bookingStatus === 'confirmed';
+                  const needReturn = d.custodyPhase === 'return_pending' && !d.runnerReturnConfirmed;
+                  return (
+                    <View key={d.sdId} style={s.paidRow}>
+                      <DogDot name={d.dogName} collar={d.collar} size={30} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 13.5, fontWeight: '800', color: L.head }}>{d.dogName}</Text>
+                        <Text style={{ fontSize: 9.5, color: L.text, marginTop: 1 }}>
+                          {[
+                            det?.emergencyContact ? `비상 ${det.emergencyContact}` : null,
+                            det?.vetLimitKrw ? `한도 ${Math.round(det.vetLimitKrw / 10000)}만` : null,
+                          ].filter(Boolean).join(' · ') || `${d.ownerName} 보호자`}
+                        </Text>
+                        {needHandoff && (
+                          <ClubCta label={`${d.dogName} 인계 확인 →`} onPress={() => doRunnerHandoff(d)} busy={busy}
+                            style={{ marginTop: 9, paddingVertical: 11 }} />
+                        )}
+                        {needReturn && (
+                          <ClubCta label={`${d.dogName} 반환했어요 →`} onPress={() => doRunnerReturn(d)} busy={busy}
+                            style={{ marginTop: 9, paddingVertical: 11 }} />
+                        )}
+                      </View>
+                      {!needHandoff && !needReturn && d.ui?.primaryStage && (
+                        <ClubTag label={d.ui.primaryStage} tone={d.ui.severity === 'critical' ? 'coral' : d.ui.severity === 'warn' ? 'amber' : 'volt'} />
+                      )}
+                    </View>
+                  );
+                })}
+                {board && (
+                  <View style={s.paidRow}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 12, fontWeight: '800', color: L.head }}>오늘 담당 {myCharges.length}/{board.me.runnerCap}</Text>
+                      {myCharges.length >= board.me.runnerCap && (
+                        <Text style={{ fontSize: 9.5, color: L.dim, marginTop: 1 }}>가득 찼어요 — 새 제안이 오지 않아요</Text>
+                      )}
+                    </View>
+                    <Flap word={`${myCharges.length}/${board.me.runnerCap}`} />
+                  </View>
+                )}
+              </>
+            )}
+
+            {/* ---------- 러너 확약 — 인증 러너(cap>0)에게만 문을 그린다 ---------- */}
+            {isOpenish && board && !board.me.committed && board.me.runnerCap > 0 && (
+              <ClubCta label={`이번 세션 러너로 확약하기 (담당 ${board.me.runnerCap}마리까지)`} tone="violet"
+                onPress={doCommit} busy={busy} />
+            )}
+            {isOpenish && board?.me.committed && myCharges.length === 0 && myProposals.length === 0 && (
+              <Pressable onPress={doWithdrawHandler}>
+                <Text style={[s.detailLink, { color: L.dim }]}>러너 확약 철회</Text>
+              </Pressable>
             )}
 
             {/* ---------- 내 위탁 카드(들) — 상태 머신 ---------- */}
