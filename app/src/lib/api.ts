@@ -1983,6 +1983,82 @@ export interface SessionRoster {
 export const fetchSessionRoster = (sessionId: string) =>
   clubRpc('club_session_roster', { p_session: sessionId }) as Promise<SessionRoster>;
 
+// [R5] 세션 채팅 (0049) — RLS 직접 접근 = 리얼타임 구독 경로. 그룹(full/host) + 호스트 창구(1:1).
+// 호스트 창구 스레드 키 = recipient_profile_id(신청자). 수정 불가, 삭제는 본인 5분 RPC만.
+export interface ClubChatMsg {
+  id: number; senderId: string; senderName: string;
+  audience: 'group' | 'host_channel'; recipientProfileId: string | null;
+  kind: 'text' | 'photo' | 'system'; body: string | null; mediaPath: string | null;
+  flagged: boolean; deleted: boolean; mine: boolean; createdAt: string; when: string;
+  counterpartId: string | null; // 호스트 창구 상대 (mine이면 수신자, 아니면 발신자) — 그룹은 null
+}
+export const fetchChatWritable = (sessionId: string) =>
+  clubRpc('club_my_chat_writable', { p_session: sessionId }) as Promise<boolean>;
+export async function fetchClubChat(sessionId: string): Promise<{ uid: string | null; msgs: ClubChatMsg[] }> {
+  const { data: user } = await supabase.auth.getUser();
+  const uid = user.user?.id ?? null;
+  const { data, error } = await supabase.from('club_chat_messages')
+    .select('id, sender_id, audience, recipient_profile_id, kind, body, media_path, flagged, deleted_at, created_at')
+    .eq('session_id', sessionId).order('id', { ascending: true }).limit(300);
+  if (error) throw error;
+  const rows = data ?? [];
+  // 이름은 2-step (임베드 FK명 의존 없음 — fetchRecentReviews 선례)
+  const ids = [...new Set(rows.map((r: any) => r.sender_id))];
+  const names: Record<string, string> = {};
+  if (ids.length) {
+    const { data: ps } = await supabase.from('profiles').select('id, name').in('id', ids);
+    for (const p of ps ?? []) names[p.id] = p.name;
+  }
+  return {
+    uid,
+    msgs: rows.map((r: any): ClubChatMsg => {
+      const mine = r.sender_id === uid;
+      const { timeLabel } = kstParts(r.created_at);
+      return {
+        id: r.id, senderId: r.sender_id, senderName: names[r.sender_id] ?? '참가자',
+        audience: r.audience, recipientProfileId: r.recipient_profile_id,
+        kind: r.kind, body: r.body, mediaPath: r.media_path,
+        flagged: r.flagged, deleted: r.deleted_at != null, mine,
+        createdAt: r.created_at, when: timeLabel,
+        counterpartId: r.audience === 'host_channel' ? (mine ? r.recipient_profile_id : r.sender_id) : null,
+      };
+    }),
+  };
+}
+// 전송 — 그룹: recipient 없음 · 호스트 창구: 신청자는 recipient=본인, 호스트는 recipient=신청자 (RLS가 판정)
+export async function sendClubChat(
+  sessionId: string, body: string,
+  opts: { audience?: 'group' | 'host_channel'; recipient?: string | null } = {},
+): Promise<void> {
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) throw new Error('not signed in');
+  const audience = opts.audience ?? 'group';
+  const { error } = await supabase.from('club_chat_messages').insert({
+    session_id: sessionId, sender_id: user.user.id, audience,
+    recipient_profile_id: audience === 'host_channel' ? (opts.recipient ?? user.user.id) : null,
+    kind: 'text', body,
+  });
+  if (error) throw error;
+}
+export function subscribeClubChat(sessionId: string, onInsert: () => void): () => void {
+  const ch = supabase
+    .channel(`club-chat-${sessionId}`)
+    .on('postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'club_chat_messages', filter: `session_id=eq.${sessionId}` },
+      () => onInsert())
+    .subscribe();
+  return () => { supabase.removeChannel(ch); };
+}
+export const clubChatDelete = (messageId: number) =>
+  clubRpc('club_chat_delete', { p_message: messageId }) as Promise<void>; // 본인 5분 내만
+export const clubChatReport = (messageId: number, reason: string | null = null) =>
+  clubRpc('club_chat_report', { p_message: messageId, p_reason: reason }) as Promise<void>;
+
+// [R5] 크리티컬 ack (0049) — 제목 레지스트리 팬아웃, 확인 전까지 배너로 따라온다 (30분 뒤 호스트 에스컬레이션)
+export interface ClubAck { id: string; title: string; body: string | null; refId: string | null; createdAt: string }
+export const fetchMyAcks = () => clubRpc('club_my_acks', {}) as Promise<ClubAck[]>;
+export const ackClub = (ackId: string) => clubRpc('club_ack', { p_ack: ackId }) as Promise<void>;
+
 // 클럽 사진 (호스트) — avatars 버킷의 본인 폴더 (스토리지 정책상 uid 폴더만 쓰기 가능)
 export async function uploadClubPhoto(clubId: string, base64: string): Promise<string> {
   const { data: user } = await supabase.auth.getUser();

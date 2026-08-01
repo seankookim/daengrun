@@ -2,6 +2,7 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Row } from '../../../src/components/ui';
+import { AckStack } from '../../../src/components/club-acks';
 import { BigNumRow, ClubCta, ClubMast, ClubTag, DawnCanvas, LilacCard, clubText } from '../../../src/components/club-ui';
 import {
   approveDelegation, assignmentRevoke, ClubIncident, DelegationBoard, DelegationDog, DelegationRunner,
@@ -181,6 +182,7 @@ export default function HostConsole() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         <ClubMast title="호스트 콘솔" sub={`${sess.when}${clubName ? ` · ${clubName}` : ''}`} onBack={() => router.back()} />
+        <AckStack />
 
         {/* 성립 미터 */}
         <BigNumRow items={[

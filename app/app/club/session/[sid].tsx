@@ -1,15 +1,17 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Avatar, Row } from '../../../src/components/ui';
+import { AckStack } from '../../../src/components/club-acks';
 import {
   BigNumRow, ClubCta, ClubMast, ClubTag, DawnCanvas, Flap, LilacCard, clubText,
 } from '../../../src/components/club-ui';
 import {
-  cancelClubRsvp, cancelDelegation, checkinClubSession, ClubSessionDetail, commitAsHandler, confirmHandoff,
-  confirmReturn, DelegationBoard, DelegationDog, fetchClubSession, fetchDelegationBoard, fetchMyDogs,
-  fetchSessionRoster, fetchShellAccess, ownerObjection, payDelegation, respondProposal, rsvpClubSession,
-  SessionRoster, ShellAccess, withdrawAsHandler,
+  cancelClubRsvp, cancelDelegation, checkinClubSession, ClubChatMsg, clubChatDelete, clubChatReport,
+  ClubSessionDetail, commitAsHandler, confirmHandoff, confirmReturn, DelegationBoard, DelegationDog,
+  fetchChatWritable, fetchClubChat, fetchClubSession, fetchDelegationBoard, fetchMyDogs, fetchSessionRoster,
+  fetchShellAccess, ownerObjection, payDelegation, respondProposal, rsvpClubSession, sendClubChat,
+  SessionRoster, ShellAccess, subscribeClubChat, withdrawAsHandler,
 } from '../../../src/lib/api'; // finishClubSession은 호스트 콘솔로 이사
 import { useNumFont } from '../../../src/lib/fonts';
 import { haptic } from '../../../src/lib/haptics';
@@ -76,6 +78,12 @@ export default function ClubSessionShell() {
   const [methodOk, setMethodOk] = useState(false);
   // HOLDING 카운트다운 틱
   const [now, setNow] = useState(Date.now());
+  // ④ 채팅 — 그룹 스트림 + 호스트 창구 드로어
+  const [chat, setChat] = useState<{ uid: string | null; msgs: ClubChatMsg[] } | null>(null);
+  const [writable, setWritable] = useState(true);
+  const [draft, setDraft] = useState('');
+  const [hostThread, setHostThread] = useState<string | null>(null); // 열린 1:1 상대 (호스트: 신청자 id · 참가자: 'me')
+  const [threadDraft, setThreadDraft] = useState('');
 
   const load = useCallback(() => {
     if (!sid) return;
@@ -91,6 +99,15 @@ export default function ClubSessionShell() {
     if (access === 'host' || access === 'full' || tab === '참가자') {
       fetchSessionRoster(sid).then(setRoster).catch(() => setRoster(null));
     }
+  }, [tab, access, sid]);
+
+  // ④ 채팅 로드 + 리얼타임 — 탭이 열려 있는 동안만 구독
+  useEffect(() => {
+    if (tab !== '채팅' || access === 'none' || !sid) return;
+    const reload = () => fetchClubChat(sid).then(setChat).catch(() => {});
+    reload();
+    fetchChatWritable(sid).then(setWritable).catch(() => {});
+    return subscribeClubChat(sid, reload);
   }, [tab, access, sid]);
 
   const myDogs = board?.dogs.filter((d) => d.isMine) ?? [];
@@ -279,6 +296,67 @@ export default function ClubSessionShell() {
       },
     ]);
   };
+
+  // ---------- ④ 채팅 액션 ----------
+  const chatReload = () => fetchClubChat(sess.id).then(setChat).catch(() => {});
+  const doSend = (body: string, opts: { audience?: 'group' | 'host_channel'; recipient?: string | null } = {}) => {
+    const t = body.trim();
+    if (!t || busy) return;
+    setBusy(true);
+    sendClubChat(sess.id, t, opts)
+      .then(() => { setDraft(''); setThreadDraft(''); chatReload(); })
+      .catch((e) => {
+        const m = (e as Error).message;
+        Alert.alert('전송 실패', m.includes('rate_limited') ? '잠깐 숨을 고르세요 — 분당 20건이에요' : m);
+      })
+      .finally(() => setBusy(false));
+  };
+  const msgActions = (m: ClubChatMsg) => {
+    if (m.deleted || m.kind === 'system') return;
+    if (m.mine) {
+      Alert.alert('내 메시지', undefined, [
+        { text: '닫기', style: 'cancel' },
+        {
+          text: '삭제 (5분 내)', style: 'destructive',
+          onPress: () => clubChatDelete(m.id).then(chatReload)
+            .catch((e) => Alert.alert('삭제 실패', (e as Error).message.includes('too_late') ? '5분이 지나 삭제할 수 없어요' : (e as Error).message)),
+        },
+      ]);
+    } else {
+      Alert.prompt?.('메시지 신고', '사유를 남겨주세요 (선택) — 호스트에게 전달돼요', [
+        { text: '닫기', style: 'cancel' },
+        {
+          text: '신고', style: 'destructive',
+          onPress: (reason?: string) => clubChatReport(m.id, reason?.trim() || null)
+            .then(() => { haptic('light'); chatReload(); })
+            .catch((e) => Alert.alert('신고 실패', (e as Error).message)),
+        },
+      ]);
+    }
+  };
+
+  // ④ 파생 — 그룹 스트림 · 호스트 창구 스레드 (스레드 키 = counterpartId)
+  const isHostView = access === 'host';
+  const groupMsgs = chat?.msgs.filter((m) => m.audience === 'group') ?? [];
+  const hostMsgs = chat?.msgs.filter((m) => m.audience === 'host_channel') ?? [];
+  const inquiryIds = isHostView ? [...new Set(hostMsgs.map((m) => m.counterpartId).filter(Boolean))] as string[] : [];
+  const threadMsgs = hostThread == null ? [] : isHostView ? hostMsgs.filter((m) => m.counterpartId === hostThread) : hostMsgs;
+  const nameOf = (pid: string) => hostMsgs.find((m) => m.senderId === pid)?.senderName
+    ?? roster?.people.find((p) => p.profileId === pid)?.name ?? '참가자';
+
+  // ④ 말풍선 — 시스템은 가운데 흐리게, 남은 왼쪽, 나는 오른쪽 바이올렛
+  const renderMsg = (m: ClubChatMsg) => m.kind === 'system' ? (
+    <Text key={m.id} style={s.sysMsg}>{m.body} · {m.when}</Text>
+  ) : (
+    <Pressable key={m.id} onLongPress={() => msgActions(m)} style={[s.msgRow, m.mine && { alignItems: 'flex-end' }]}>
+      {!m.mine && <Text style={s.msgWho}>{m.senderName}</Text>}
+      <View style={[s.bb, m.mine && s.bbMine]}>
+        <Text style={[s.bbTxt, m.mine && { color: '#fff' }, m.deleted && { fontStyle: 'italic', color: L.dim }]}>
+          {m.deleted ? '삭제된 메시지' : m.body}
+        </Text>
+      </View>
+    </Pressable>
+  );
   const doPay = async () => {
     const d = payTarget;
     if (!d || busy) return;
@@ -540,6 +618,7 @@ export default function ClubSessionShell() {
         style={{ flex: 1 }}
         contentContainerStyle={{ padding: 12, paddingTop: 56, paddingBottom: 40 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        keyboardShouldPersistTaps="handled"
       >
         <ClubMast
           title={`${sess.when} 세션`}
@@ -547,6 +626,8 @@ export default function ClubSessionShell() {
           onBack={() => router.back()}
           right={isDone ? <ClubTag label="DONE" tone="dim" /> : sess.status === 'cancelled' ? <ClubTag label="취소됨" tone="coral" /> : undefined}
         />
+        {/* ⑤ 크리티컬 ack — 글래스 크롬 아래, 확인 전까지 따라온다 */}
+        <AckStack />
 
         {/* ---------- 셸 탭 ---------- */}
         <View style={s.shell}>
@@ -721,10 +802,96 @@ export default function ClubSessionShell() {
 
         {tab === '참가자' && renderRoster()}
 
-        {tab === '채팅' && (
+        {/* ---------- ④ 채팅 — 그룹이 홈, 호스트 창구는 고정 드로어 ---------- */}
+        {tab === '채팅' && access === 'none' && (
           <View style={{ alignItems: 'center', paddingVertical: 48 }}>
-            <Text style={{ fontSize: 12.5, color: L.dim }}>채팅은 아직 준비 중이에요</Text>
+            <Text style={{ fontSize: 12.5, color: L.dim }}>세션 참가자만 볼 수 있어요</Text>
           </View>
+        )}
+        {tab === '채팅' && access === 'limited' && (
+          // limited(결제 전 신청자) = 호스트 창구만, 전체 화면
+          <>
+            <LilacCard frame>
+              <Row style={{ alignItems: 'center', gap: 7 }}>
+                <Text style={{ fontSize: 12.5, fontWeight: '800', color: L.head, flex: 1 }}>호스트 창구</Text>
+                <View style={s.liveDotSm} />
+              </Row>
+              <View style={{ marginTop: 6 }}>
+                {hostMsgs.length === 0 && <Text style={s.sysMsg}>궁금한 게 있으면 호스트에게 바로 물어보세요</Text>}
+                {hostMsgs.map(renderMsg)}
+              </View>
+            </LilacCard>
+            {writable ? (
+              <Row style={s.inputbar}>
+                <TextInput value={draft} onChangeText={setDraft} placeholder="호스트에게 문의..." placeholderTextColor={L.dim}
+                  style={s.inputField} multiline />
+                <Pressable onPress={() => doSend(draft, { audience: 'host_channel' })} style={s.sendBtn}>
+                  <Text style={{ fontSize: 11, fontWeight: '900', color: '#fff' }}>전송</Text>
+                </Pressable>
+              </Row>
+            ) : (
+              <Text style={s.closedLine}>채팅이 닫혔어요</Text>
+            )}
+            <Text style={[clubText.dim, { textAlign: 'center', marginTop: 9 }]}>결제하면 그룹 채팅이 열려요</Text>
+          </>
+        )}
+        {tab === '채팅' && (access === 'full' || access === 'host') && (
+          <>
+            {/* 고정 드로어 — 호스트: 열린 문의 · 참가자: 내 1:1 문 */}
+            {isHostView ? (
+              inquiryIds.length > 0 && (
+                <LilacCard frame>
+                  <Row style={{ alignItems: 'center', gap: 7 }}>
+                    <Text style={{ fontSize: 12.5, fontWeight: '800', color: L.head, flex: 1 }}>호스트 창구 — 문의 {inquiryIds.length}건</Text>
+                    <View style={s.liveDotSm} />
+                  </Row>
+                  {inquiryIds.map((pid) => {
+                    const last = [...hostMsgs].reverse().find((m) => m.counterpartId === pid);
+                    return (
+                      <Pressable key={pid} onPress={() => setHostThread(pid)} style={{ marginTop: 6 }}>
+                        <Text style={{ fontSize: 10.5, color: L.text }} numberOfLines={1}>
+                          {nameOf(pid)}: “{last?.deleted ? '삭제된 메시지' : last?.body ?? ''}” <Text style={{ color: L.accent, fontWeight: '800' }}>→ 탭해서 1:1</Text>
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </LilacCard>
+              )
+            ) : (
+              <Pressable onPress={() => setHostThread('me')}>
+                <LilacCard frame>
+                  <Row style={{ alignItems: 'center', gap: 7 }}>
+                    <Text style={{ fontSize: 12.5, fontWeight: '800', color: L.head, flex: 1 }}>호스트 창구</Text>
+                    {hostMsgs.length > 0 && <View style={s.liveDotSm} />}
+                  </Row>
+                  <Text style={{ fontSize: 10.5, color: L.text, marginTop: 5 }} numberOfLines={1}>
+                    {hostMsgs.length > 0
+                      ? `${hostMsgs[hostMsgs.length - 1].mine ? '나' : hostMsgs[hostMsgs.length - 1].senderName}: “${hostMsgs[hostMsgs.length - 1].deleted ? '삭제된 메시지' : hostMsgs[hostMsgs.length - 1].body}”`
+                      : '호스트에게 1:1로 문의하기'} <Text style={{ color: L.accent, fontWeight: '800' }}>→</Text>
+                  </Text>
+                </LilacCard>
+              </Pressable>
+            )}
+
+            {/* 그룹 스트림 */}
+            <View style={{ marginTop: 8 }}>
+              {groupMsgs.length === 0 && chat != null && (
+                <Text style={s.sysMsg}>아직 메시지가 없어요 — 첫 인사를 남겨보세요</Text>
+              )}
+              {groupMsgs.map(renderMsg)}
+            </View>
+            {writable ? (
+              <Row style={s.inputbar}>
+                <TextInput value={draft} onChangeText={setDraft} placeholder="메시지..." placeholderTextColor={L.dim}
+                  style={s.inputField} multiline />
+                <Pressable onPress={() => doSend(draft)} style={s.sendBtn}>
+                  <Text style={{ fontSize: 11, fontWeight: '900', color: '#fff' }}>전송</Text>
+                </Pressable>
+              </Row>
+            ) : (
+              <Text style={s.closedLine}>채팅이 닫혔어요 — 세션 뒤 24시간까지, 열린 케이스가 있으면 그동안은 계속 열려요</Text>
+            )}
+          </>
         )}
       </ScrollView>
 
@@ -759,6 +926,34 @@ export default function ClubSessionShell() {
             </Text>
           </View>
           <ClubCta label="동의하고 결제 →" onPress={doPay} disabled={!methodOk} busy={busy} />
+        </View>
+      </Modal>
+
+      {/* ---------- ④ 호스트 창구 1:1 시트 (드로어가 길어지면 시트로 확장) ---------- */}
+      <Modal visible={hostThread != null} transparent animationType="slide" onRequestClose={() => setHostThread(null)}>
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(28,24,55,.45)' }} onPress={() => setHostThread(null)} />
+        <View style={[s.sheet, { maxHeight: '75%' }]}>
+          <View style={s.grab} />
+          <Text style={{ fontSize: 14.5, fontWeight: '800', color: L.head }}>
+            호스트 창구{isHostView && hostThread ? ` — ${nameOf(hostThread)}` : ''}
+          </Text>
+          <ScrollView style={{ marginTop: 8 }} keyboardShouldPersistTaps="handled">
+            {threadMsgs.length === 0 && <Text style={s.sysMsg}>아직 대화가 없어요</Text>}
+            {threadMsgs.map(renderMsg)}
+          </ScrollView>
+          {writable ? (
+            <Row style={s.inputbar}>
+              <TextInput value={threadDraft} onChangeText={setThreadDraft} placeholder="메시지..." placeholderTextColor={L.dim}
+                style={s.inputField} multiline />
+              <Pressable
+                onPress={() => doSend(threadDraft, { audience: 'host_channel', recipient: isHostView && hostThread !== 'me' ? hostThread : undefined })}
+                style={s.sendBtn}>
+                <Text style={{ fontSize: 11, fontWeight: '900', color: '#fff' }}>전송</Text>
+              </Pressable>
+            </Row>
+          ) : (
+            <Text style={s.closedLine}>채팅이 닫혔어요</Text>
+          )}
         </View>
       </Modal>
     </DawnCanvas>
@@ -819,4 +1014,34 @@ const s = StyleSheet.create({
     backgroundColor: L.inset, alignItems: 'center', justifyContent: 'center', marginTop: 1,
   },
   legalTxt: { flex: 1, fontSize: 11, color: L.text, lineHeight: 16.5 },
+  // ④ 채팅 — 말풍선 문법 (시스템 가운데 · 남 왼쪽 · 나 오른쪽 바이올렛)
+  sysMsg: { fontSize: 9.5, color: L.dim, textAlign: 'center', marginTop: 10 },
+  msgRow: { marginTop: 9, alignItems: 'flex-start' },
+  msgWho: { fontSize: 8.5, fontWeight: '700', letterSpacing: 0.5, color: L.dim, marginBottom: 3, marginLeft: 2 },
+  bb: {
+    maxWidth: '82%', backgroundColor: L.card, borderWidth: 1, borderColor: L.hair,
+    borderRadius: 10, borderTopLeftRadius: 3, paddingVertical: 8, paddingHorizontal: 11,
+  },
+  bbMine: {
+    backgroundColor: L.accent, borderColor: L.accent,
+    borderTopLeftRadius: 10, borderTopRightRadius: 3,
+  },
+  bbTxt: { fontSize: 11.5, lineHeight: 16.5, color: L.text },
+  inputbar: {
+    gap: 8, marginTop: 12, alignItems: 'flex-end',
+    backgroundColor: L.glass, borderWidth: 1, borderColor: L.glassEdge,
+    borderRadius: 10, padding: 7,
+  },
+  inputField: {
+    flex: 1, backgroundColor: '#fff', borderWidth: 1, borderColor: L.hair, borderRadius: lilacRadius.btn,
+    paddingVertical: 8, paddingHorizontal: 12, fontSize: 12, color: L.head, maxHeight: 90,
+  },
+  sendBtn: {
+    backgroundColor: L.accent, borderRadius: lilacRadius.btn, paddingVertical: 10, paddingHorizontal: 13,
+  },
+  closedLine: { fontSize: 10, color: L.dim, textAlign: 'center', marginTop: 12, lineHeight: 15 },
+  liveDotSm: {
+    width: 8, height: 8, borderRadius: 4, backgroundColor: L.coral,
+    shadowColor: L.coral, shadowOpacity: 0.4, shadowRadius: 4, elevation: 2,
+  },
 });

@@ -8,6 +8,7 @@ import {
 } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { haptic } from '../../src/lib/haptics';
+import { AckStack } from '../../src/components/club-acks';
 import { ClubCta, ClubTag, Ticket } from '../../src/components/club-ui';
 import { colors, lilac } from '../../src/theme';
 
@@ -153,6 +154,8 @@ export default function ClubPage() {
         </View>
 
         <View style={{ padding: 15 }}>
+          {/* ⑤ 크리티컬 ack — 클럽 표면 어디서든 확인 전까지 따라온다 */}
+          <AckStack />
           {club?.description && (
             <Text style={{ fontSize: 14.5, color: '#49524a', lineHeight: 21, marginBottom: 4 }}>{club.description}</Text>
           )}
