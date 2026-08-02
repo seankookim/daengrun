@@ -585,10 +585,10 @@ export default function ClubSessionShell() {
           <ClubCta label={`${d.dogName} 실시간 지켜보기 →`}
             onPress={() => { liveDraft.bookingId = d.bookingId!; router.push('/owner/live'); }} />
         )}
-        {/* O11(임시 문) — 완료: 기존 리포트 재사용. 골드 실 영수증 인화는 후속 빌드 */}
+        {/* O11 — 완료: 골드 실 영수증 (상세 리포트는 영수증 안의 문) */}
         {d.flap === 'SETTLED' && d.bookingId && (
-          <ClubCta label="오늘의 기록 보기 →" tone="quiet"
-            onPress={() => router.push({ pathname: '/owner/report', params: { bid: d.bookingId! } })} />
+          <ClubCta label="오늘의 영수증 →" tone="quiet"
+            onPress={() => router.push({ pathname: `/club/receipt/${d.bookingId}`, params: { clubName: clubName ?? '' } })} />
         )}
         {/* BOARDED/OUTSIDE/REFUND/REFUSED — 상태는 카드가 정직하게 말한다.
             영수증 인화·클럽 전용 러너 런 화면은 후속 빌드. 죽은 버튼은 그리지 않는다. */}
@@ -727,8 +727,8 @@ export default function ClubSessionShell() {
                   </Row>
                 </LilacCard>
                 {d.flap === 'SETTLED' && d.bookingId && (
-                  <ClubCta label="오늘의 기록 보기 →" tone="quiet"
-                    onPress={() => router.push({ pathname: '/owner/report', params: { bid: d.bookingId! } })} />
+                  <ClubCta label="오늘의 영수증 →" tone="quiet"
+                    onPress={() => router.push({ pathname: `/club/receipt/${d.bookingId}`, params: { clubName: clubName ?? '' } })} />
                 )}
               </View>
             ))}
