@@ -10,8 +10,9 @@ import {
   cancelClubRsvp, cancelDelegation, checkinClubSession, ClubChatMsg, clubChatDelete, clubChatReport,
   ClubSessionDetail, commitAsHandler, confirmHandoff, confirmReturn, DelegationBoard, DelegationDog,
   fetchChatWritable, fetchClubChat, fetchClubSession, fetchDelegationBoard, fetchMyDogs, fetchSessionRoster,
-  clubSos, fetchShellAccess, incidentOpen, ownerObjection, payDelegation, respondProposal, rsvpClubSession,
-  sendClubChat, SessionRoster, ShellAccess, startDelegatedRuns, subscribeClubChat, withdrawAsHandler,
+  clubSos, fetchRunStartedAt, fetchShellAccess, incidentOpen, ownerObjection, payDelegation, respondProposal,
+  rsvpClubSession, sendClubChat, SessionRoster, settleRun, ShellAccess, startDelegatedRuns, subscribeClubChat,
+  withdrawAsHandler,
 } from '../../../src/lib/api'; // finishClubSession은 호스트 콘솔로 이사
 import { draft as liveDraft } from '../../../src/store'; // 라이브 화면 진입 키 (챗 draft 상태와 이름 충돌 주의)
 import { useNumFont } from '../../../src/lib/fonts';
@@ -279,6 +280,32 @@ export default function ClubSessionShell() {
   const doRunnerReturn = (d: DelegationDog) => {
     confirmReturn(d.sdId, 'runner').then(() => { haptic('success'); load(); })
       .catch((e) => Alert.alert('반환 확인 실패', (e as Error).message));
+  };
+  // 러닝 종료 (완주) = settle-run 엣지 함수 — 세그먼트는 completed 전이에 자동 마감, 커스터디는 반환 대기로.
+  // km = 코스 계약 거리(라벨 명시), 경과 = runs.started_at 실측. GPS 실거리는 클럽 런 화면(R4)에서.
+  const doEndRun = async (d: DelegationDog) => {
+    if (!d.bookingId || busy) return;
+    const startedAt = await fetchRunStartedAt(d.bookingId).catch(() => null);
+    const durationSec = startedAt ? Math.max(60, Math.round((Date.now() - new Date(startedAt).getTime()) / 1000)) : null;
+    const km = board?.session.routeKm ?? null;
+    if (km == null || durationSec == null) {
+      Alert.alert('종료 불가', km == null ? '코스 정보가 없어요' : '러닝 시작 기록을 찾지 못했어요');
+      return;
+    }
+    Alert.alert('러닝 종료 — 완주',
+      `${d.dogName} · 코스 ${km}km · 경과 ${mmss(durationSec * 1000)}\n정산이 기록되고 반환 확인으로 넘어가요.`, [
+      { text: '아직', style: 'cancel' },
+      {
+        text: '완주로 종료',
+        onPress: () => {
+          setBusy(true);
+          settleRun({ booking_id: d.bookingId!, end_reason: 'completed', actual_km: km, duration_sec: durationSec })
+            .then(() => { haptic('success'); load(); })
+            .catch((e) => Alert.alert('종료 실패', (e as Error).message))
+            .finally(() => setBusy(false));
+        },
+      },
+    ]);
   };
   // 러닝 시작 = 러너 액션 (서버: 내 픽업 부킹만) — 트랙이 열리고 보호자 화면이 '러닝 중'으로
   const doStartRuns = () => {
@@ -765,6 +792,7 @@ export default function ClubSessionShell() {
                 {myCharges.map((d) => {
                   const det = roster?.dogs.find((x) => x.sdId === d.sdId)?.detail ?? null;
                   const needHandoff = !d.runnerConfirmed && board?.session.checkinOpen && d.bookingStatus === 'confirmed';
+                  const running = d.bookingStatus === 'active';
                   const needReturn = d.custodyPhase === 'return_pending' && !d.runnerReturnConfirmed;
                   return (
                     <View key={d.sdId} style={s.paidRow}>
@@ -781,12 +809,16 @@ export default function ClubSessionShell() {
                           <ClubCta label={`${d.dogName} 인계 확인 →`} onPress={() => doRunnerHandoff(d)} busy={busy}
                             style={{ marginTop: 9, paddingVertical: 11 }} />
                         )}
+                        {running && (
+                          <ClubCta label={`${d.dogName} 러닝 종료 — 완주 →`} onPress={() => doEndRun(d)} busy={busy}
+                            style={{ marginTop: 9, paddingVertical: 11 }} />
+                        )}
                         {needReturn && (
                           <ClubCta label={`${d.dogName} 반환했어요 →`} onPress={() => doRunnerReturn(d)} busy={busy}
                             style={{ marginTop: 9, paddingVertical: 11 }} />
                         )}
                       </View>
-                      {!needHandoff && !needReturn && d.ui?.primaryStage && (
+                      {!needHandoff && !running && !needReturn && d.ui?.primaryStage && (
                         <ClubTag label={d.ui.primaryStage} tone={d.ui.severity === 'critical' ? 'coral' : d.ui.severity === 'warn' ? 'amber' : 'volt'} />
                       )}
                     </View>

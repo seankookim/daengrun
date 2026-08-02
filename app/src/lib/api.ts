@@ -2096,6 +2096,12 @@ export const clubSos = (sessionId: string, location: unknown = null) =>
 export const incidentEvidenceAdd = (incidentId: string, kind: 'photo' | 'text' | 'location' | 'document', payload: unknown) =>
   clubRpc('club_incident_evidence_add', { p_incident: incidentId, p_kind: kind, p_payload: payload }) as Promise<void>;
 
+// 클럽 러닝 종료용 — runs는 당사자 읽기 가능 (0002). 경과 시간은 실측으로 계산한다 (가짜 숫자 금지)
+export async function fetchRunStartedAt(bookingId: string): Promise<string | null> {
+  const { data } = await supabase.from('runs').select('started_at').eq('booking_id', bookingId).maybeSingle();
+  return (data as any)?.started_at ?? null;
+}
+
 // [R5] 크리티컬 ack (0049) — 제목 레지스트리 팬아웃, 확인 전까지 배너로 따라온다 (30분 뒤 호스트 에스컬레이션)
 export interface ClubAck { id: string; title: string; body: string | null; refId: string | null; createdAt: string }
 export const fetchMyAcks = () => clubRpc('club_my_acks', {}) as Promise<ClubAck[]>;
