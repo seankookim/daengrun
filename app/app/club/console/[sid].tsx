@@ -116,7 +116,14 @@ export default function HostConsole() {
         : `${d.dogName}을(를) 거절할까요?${refundNote ? ' 결제분은 전액 환불돼요.' : ''}`,
       [
         { text: '아직', style: 'cancel' },
-        { text: ok ? '승인' : '거절', style: ok ? 'default' : 'destructive', onPress: () => run(() => approveDelegation(d.sdId, ok), ok ? '승인 실패' : '거절 실패') },
+        {
+          text: ok ? '승인' : '거절', style: ok ? 'default' : 'destructive',
+          onPress: () => run(() => approveDelegation(d.sdId, ok), ok ? '승인 실패' : '거절 실패', (m) =>
+            // 정원 = 확약 러너 캡 합에서 동적 파생 (0037) — 러너가 없으면 0
+            m.includes('no_capacity')
+              ? `위탁 정원이 다 찼어요 (${sess.reservedCount}/${sess.delegatedCapacity})${sess.delegatedCapacity === 0 ? ' — 정원은 러너 확약이 만들어요. 세션 화면에서 러너로 확약부터 해주세요' : ''}`
+              : null),
+        },
       ]);
   };
 
@@ -188,6 +195,14 @@ export default function HostConsole() {
 
         {/* ---------- 1 심사 ---------- */}
         <SecHead n="1" title="심사" sub="승인 = 결제 요청 발송" />
+        {/* 동적 정원: 확약 러너 캡 합 = 위탁 정원 — 0이면 승인이 설 자리가 없다, 미리 말한다 */}
+        {sess.delegatedCapacity === 0 && (
+          <View style={s.capWarn}>
+            <Text style={{ fontSize: 10.5, color: '#7a5a2a', lineHeight: 16 }}>
+              <Text style={{ fontWeight: '800', color: L.amber }}>위탁 정원 0</Text> — 정원은 러너 확약이 만들어요. 세션 화면에서 러너 확약부터 하면 승인이 열려요.
+            </Text>
+          </View>
+        )}
         {pending.length === 0 && review.length === 0 && (
           <Text style={s.emptyLine}>대기 중인 신청이 없어요</Text>
         )}
@@ -382,6 +397,10 @@ const s = StyleSheet.create({
   dogName: { fontSize: 13.5, fontWeight: '800', color: L.head },
   dogSub: { fontSize: 9.5, color: L.text, marginTop: 1 },
   emptyLine: { fontSize: 11, color: L.dim, marginTop: 10, textAlign: 'center' },
+  capWarn: {
+    backgroundColor: L.amberSoft, borderWidth: 1, borderColor: L.amberEdge,
+    borderRadius: lilacRadius.inner, padding: 10, paddingHorizontal: 12, marginTop: 8,
+  },
   abtn: {
     flexGrow: 1, alignItems: 'center', paddingVertical: 9, paddingHorizontal: 10,
     borderRadius: lilacRadius.btn, backgroundColor: L.voltFill,
