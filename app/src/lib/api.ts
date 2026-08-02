@@ -1703,7 +1703,13 @@ export async function addComment(postId: string, body: string): Promise<void> {
 
 // ---------- 하이클럽 (0030, P-A S1) — 반포동 파일럿 ----------
 export const CLUB_WAIVER_VERSION = '2026-07-29';
-export interface ClubNextSession { id: string; scheduledAt: string; when: string; meetupPoint: string; status: string; capacity: number; rsvpCount: number; joined: boolean }
+export interface ClubNextSession {
+  id: string; scheduledAt: string; when: string; meetupPoint: string; status: string;
+  capacity: number; rsvpCount: number; joined: boolean;
+  // [0051] 위탁 문의 사실들 — db push 전 원격에선 undefined (그땐 문을 기존대로 그린다)
+  format?: 'owner_only' | 'delegated_only' | 'mixed';
+  routeName?: string | null; routeKm?: number | null; fare?: number | null;
+}
 export interface ClubOverview {
   id: string; name: string; district: string; status: 'collecting' | 'active';
   photoUrl: string | null; description: string | null; hostName: string | null;

@@ -207,6 +207,8 @@ export default function ClubPage() {
               천공 위 = 사실(팩트), 스텁 = 내 결정 — 위탁 신청은 스텁을 찢는 일. */}
           {club?.status === 'active' && (
             ns ? (
+              /* [0051] 문은 열리는 조건을 알고 그려진다 — owner_only엔 위탁 문이 없다 (문 뒤 거절 금지).
+                 format 미도착(구 서버)이면 기존대로 두 문. */
               <Ticket
                 notchColor={colors.cream}
                 top={
@@ -219,21 +221,25 @@ export default function ClubPage() {
                     </Row>
                     <Text style={{ fontSize: 11.5, color: lilac.dim, marginTop: 4 }}>
                       {ns.rsvpCount}팀 참여 중 · 정원 {ns.capacity}
+                      {ns.format === 'owner_only' ? ' · 보호자 동반 전용' : ''}
+                      {ns.fare != null ? ` · 위탁 ${ns.fare.toLocaleString()}원${ns.routeKm ? ` (${ns.routeKm}km)` : ''}` : ''}
                     </Text>
                   </>
                 }
                 stub={
                   <>
-                    <ClubCta
-                      label="우리 아이 위탁하기 →"
-                      onPress={() => router.push({ pathname: `/club/delegate/${ns.id}`, params: { clubName: club.name, when: ns.when } })}
-                      style={{ marginTop: 0, paddingVertical: 12 }}
-                    />
+                    {ns.format !== 'owner_only' && (
+                      <ClubCta
+                        label="우리 아이 위탁하기 →"
+                        onPress={() => router.push({ pathname: `/club/delegate/${ns.id}`, params: { clubName: club.name, when: ns.when } })}
+                        style={{ marginTop: 0, paddingVertical: 12 }}
+                      />
+                    )}
                     <ClubCta
                       label={ns.joined ? '참여 중 — 세션 보기' : '직접 함께 뛰기'}
-                      tone="quiet"
+                      tone={ns.format === 'owner_only' ? 'coral' : 'quiet'}
                       onPress={() => router.push({ pathname: `/club/session/${ns.id}`, params: { clubName: club.name } })}
-                      style={{ marginTop: 7 }}
+                      style={{ marginTop: ns.format === 'owner_only' ? 0 : 7 }}
                     />
                   </>
                 }
