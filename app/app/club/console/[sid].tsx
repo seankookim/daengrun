@@ -96,6 +96,7 @@ export default function HostConsole() {
 
   const sess = board.session;
   const via = sess.viability;
+  const isDone = sess.status === 'done';
   const run = (fn: () => Promise<unknown>, fail: string, map?: (m: string) => string | null) => {
     if (busy) return;
     setBusy(true);
@@ -181,6 +182,47 @@ export default function HostConsole() {
       },
     ]);
   };
+
+  // ---------- 결과 화면 (done) — 콘솔의 기계는 세션과 함께 끝난다. 읽기 전용 요약 + 남은 케이스만 ----------
+  if (isDone) {
+    const settled = dogs.filter((d) => d.flap === 'SETTLED').length;
+    const held = dogs.filter((d) => d.payoutHold === 'held').length;
+    return (
+      <DawnCanvas>
+        <ScrollView
+          contentContainerStyle={{ padding: 12, paddingTop: 56, paddingBottom: 40 }}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        >
+          <ClubMast title="세션 결과" sub={`${sess.when}${clubName ? ` · ${clubName}` : ''}`} onBack={() => router.back()}
+            right={<ClubTag label="DONE" tone="dim" />} />
+          <AckStack />
+          <BigNumRow items={[
+            { v: String(dogs.filter((d) => d.approval === 'approved').length), label: '위탁' },
+            { v: String(settled), label: '완료' },
+            { v: String(held), label: '정산 보류' },
+            { v: String(openCases.length), label: '케이스' },
+          ]} />
+          {openCases.length > 0 && (
+            <>
+              <SecHead n="!" title="남은 케이스" sub="해소돼야 보류가 풀려요" />
+              {openCases.map((i) => (
+                <Pressable key={i.id} onPress={() => router.push(`/club/case/${i.id}`)} style={s.drow}>
+                  <Row style={{ gap: 8, alignItems: 'center' }}>
+                    <ClubTag label={i.severity.toUpperCase()} tone={i.severity.toLowerCase() === 's1' ? 'coral' : 'amber'} />
+                    <Text style={[s.dogName, { flex: 1 }]} numberOfLines={1}>{i.summary}</Text>
+                    <Text style={{ fontSize: 11, fontWeight: '800', color: L.accent }}>열기 →</Text>
+                  </Row>
+                </Pressable>
+              ))}
+            </>
+          )}
+          <Text style={[clubText.dim, { textAlign: 'center', marginTop: 14 }]}>
+            세션이 끝났어요 — 반환·케이스 해소가 끝난 정산은 자동으로 풀려요
+          </Text>
+        </ScrollView>
+      </DawnCanvas>
+    );
+  }
 
   return (
     <DawnCanvas>

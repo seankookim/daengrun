@@ -712,19 +712,86 @@ export default function ClubSessionShell() {
         {/* ⑤ 크리티컬 ack — 글래스 크롬 아래, 확인 전까지 따라온다 */}
         <AckStack />
 
-        {/* ---------- 셸 탭 ---------- */}
-        <View style={s.shell}>
-          {(['개요', '참가자', '채팅'] as const).map((t) => (
-            <Pressable key={t} onPress={() => setTab(t)} style={s.shellTab}>
-              <Text style={[s.shellTxt, tab === t && { color: L.head }]}>
-                {t}{tabCounts[t] != null ? <Text style={{ fontSize: 8, color: L.voltDeep }}>  {tabCounts[t]}</Text> : null}
-              </Text>
-              {tab === t && <View style={s.shellOn} />}
-            </Pressable>
-          ))}
-        </View>
+        {/* ---------- 셸 탭 — 세션이 끝나면 기계는 사라진다 (결과만 남는 화면) ---------- */}
+        {!isDone && (
+          <View style={s.shell}>
+            {(['개요', '참가자', '채팅'] as const).map((t) => (
+              <Pressable key={t} onPress={() => setTab(t)} style={s.shellTab}>
+                <Text style={[s.shellTxt, tab === t && { color: L.head }]}>
+                  {t}{tabCounts[t] != null ? <Text style={{ fontSize: 8, color: L.voltDeep }}>  {tabCounts[t]}</Text> : null}
+                </Text>
+                {tab === t && <View style={s.shellOn} />}
+              </Pressable>
+            ))}
+          </View>
+        )}
 
-        {tab === '개요' && (
+        {/* ---------- 결과 화면 (done) — 세 당사자 모두 여기만 본다 ---------- */}
+        {isDone && tab === '개요' && (
+          <>
+            <LilacCard style={{ alignItems: 'center', paddingVertical: 22 }}>
+              <Text style={{ fontSize: 28 }}>🏁</Text>
+              <Text style={{ fontSize: 17, fontWeight: '800', color: L.head, marginTop: 6 }}>오늘의 하이클럽</Text>
+              <Text style={{ fontSize: 12.5, color: L.text, marginTop: 4 }}>
+                {checkedCount}팀{sess.dogCount > 0 ? ` · ${sess.dogCount}마리` : ''}가 함께 달렸어요
+              </Text>
+            </LilacCard>
+
+            {/* 내 위탁 결과 — 상태 낱말 그대로 + 기록 문 */}
+            {myDogs.map((d) => (
+              <View key={d.sdId}>
+                <LilacCard hero>
+                  <Text style={clubText.vk}>{d.dogName}의 위탁</Text>
+                  <Row style={{ alignItems: 'center', gap: 10, marginTop: 8 }}>
+                    <DogDot name={d.dogName} collar={d.collar} />
+                    <Text style={[clubText.stateStrong, { flex: 1 }]}>{d.ui?.primaryStage ?? d.flap}</Text>
+                    <Flap state={d.flap} />
+                  </Row>
+                </LilacCard>
+                {d.flap === 'SETTLED' && d.bookingId && (
+                  <ClubCta label="오늘의 기록 보기 →" tone="quiet"
+                    onPress={() => router.push({ pathname: '/owner/report', params: { bid: d.bookingId! } })} />
+                )}
+              </View>
+            ))}
+
+            {/* 러너 결과 */}
+            {myCharges.length > 0 && (
+              <View style={s.paidRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 12.5, fontWeight: '800', color: L.head }}>오늘 {myCharges.length}마리와 달렸어요</Text>
+                  <Text style={{ fontSize: 9.5, color: L.dim, marginTop: 2 }}>정산은 반환·케이스 해소 후 자동으로 풀려요</Text>
+                </View>
+                <Flap word="DONE" />
+              </View>
+            )}
+
+            {sess.nextSessionId && (
+              <ClubCta label="다음 세션 참여하기 →" tone="violet"
+                onPress={() => router.replace({ pathname: `/club/session/${sess.nextSessionId}`, params: { clubName } })} />
+            )}
+
+            {/* 조용한 뒷문 — 채팅은 세션 뒤 24시간(스펙), 신고는 정산 시비의 통로라 남긴다. 호스트는 요약도 */}
+            {access !== 'none' && (
+              <Row style={{ justifyContent: 'center', gap: 22, marginTop: 18 }}>
+                <Pressable onPress={() => setTab('채팅')}><Text style={[s.detailLink, { color: L.dim, marginTop: 0 }]}>채팅</Text></Pressable>
+                <Pressable onPress={doIncident}><Text style={[s.detailLink, { color: L.dim, marginTop: 0 }]}>문제 신고</Text></Pressable>
+                {sess.isHost && (
+                  <Pressable onPress={() => router.push({ pathname: `/club/console/${sess.id}`, params: { clubName: clubName ?? '' } })}>
+                    <Text style={[s.detailLink, { color: L.dim, marginTop: 0 }]}>호스트 요약</Text>
+                  </Pressable>
+                )}
+              </Row>
+            )}
+          </>
+        )}
+        {isDone && tab === '채팅' && (
+          <Pressable onPress={() => setTab('개요')}>
+            <Text style={[s.detailLink, { marginTop: 12 }]}>‹ 결과로 돌아가기</Text>
+          </Pressable>
+        )}
+
+        {tab === '개요' && !isDone && (
           <>
             {/* 집결 팩트 */}
             <LilacCard>
@@ -738,21 +805,6 @@ export default function ClubSessionShell() {
                 </View>
               </Row>
             </LilacCard>
-
-            {/* done 리캡 */}
-            {isDone && (
-              <LilacCard style={{ alignItems: 'center', paddingVertical: 20 }}>
-                <Text style={{ fontSize: 28 }}>🏁</Text>
-                <Text style={{ fontSize: 17, fontWeight: '800', color: L.head, marginTop: 6 }}>오늘의 하이클럽</Text>
-                <Text style={{ fontSize: 12.5, color: L.text, marginTop: 4 }}>
-                  {checkedCount}팀{sess.dogCount > 0 ? ` · ${sess.dogCount}마리` : ''}가 함께 달렸어요
-                </Text>
-                {sess.nextSessionId && (
-                  <ClubCta label="다음 세션 참여하기 →" tone="violet" style={{ alignSelf: 'stretch' }}
-                    onPress={() => router.replace({ pathname: `/club/session/${sess.nextSessionId}`, params: { clubName } })} />
-                )}
-              </LilacCard>
-            )}
 
             {/* ---------- R2 — 나에게 온 배정 제안 (5분 시효, 가장 위) ---------- */}
             {myProposals.map((d) => {
