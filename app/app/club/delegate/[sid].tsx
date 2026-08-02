@@ -54,8 +54,11 @@ export default function DelegateConsentScreen() {
       Alert.alert('신청 실패',
         m.includes('format_closed') ? '이 세션은 위탁을 받지 않아요 — 보호자 동반 전용이에요'
         : m.includes('route_required') ? '이 세션엔 아직 코스가 없어요 — 호스트가 코스를 정하면 위탁 요금이 정해져요'
+        : m.includes('session_closed') ? '이미 시작됐거나 닫힌 세션이에요'
+        : m.includes('dog_capacity_full') ? '이 세션의 강아지 정원이 다 찼어요'
         : m.includes('no_capacity') ? '위탁 자리가 다 찼어요'
         : m.includes('already') ? '이미 신청한 세션이에요'
+        : m.includes('rejected') ? '이 세션에서 거절된 신청이 있어요 — 호스트에게 문의해주세요'
         : m.includes('consent_required') ? '동의 항목이 비어 있어요 — 비상 연락처를 확인해주세요'
         : m);
     } finally { setBusy(false); }
