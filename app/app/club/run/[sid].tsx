@@ -4,13 +4,13 @@ import { Alert, Linking, Modal, Pressable, StyleSheet, Text, View } from 'react-
 import { Row } from '../../../src/components/ui';
 import { BigNumRow, ClubCta, ClubMast, ClubTag, DawnCanvas, LiveDot } from '../../../src/components/club-ui';
 import {
-  clubSos, DelegationBoard, DelegationDog, fetchDelegationBoard, fetchRunStartedAt, fetchSessionRoster,
-  saveClubRunTrace, SessionRoster, settleRun,
+  addRunEvent, clubSos, DelegationBoard, DelegationDog, fetchDelegationBoard, fetchRunStartedAt,
+  fetchSessionRoster, saveClubRunTrace, SessionRoster, settleRun, uploadRunPhoto,
 } from '../../../src/lib/api';
 import { acceptFix, createPosPublisher, distM, GeoPoint, getNaverMap, LL, smoothTrace, startTracking } from '../../../src/lib/geo';
 import { useNumFont } from '../../../src/lib/fonts';
 import { haptic } from '../../../src/lib/haptics';
-import { collarColors, CollarKey, lilac, lilacRadius } from '../../../src/theme';
+import { collarColors, CollarKey, lilac, lilacRadius, lilacShadow } from '../../../src/theme';
 
 // 클럽 러닝 (러너) — 정본: master-lab R4 (라일락 라이브 — 야외 역광 가독성은 다크가 아니라 대비 규율로)
 // §13 준수: 트레이스 = 60초 배치 club_save_run_trace (t 단조·초 단위 — 서버가 불가능 속도 거부),
@@ -180,6 +180,36 @@ export default function ClubRun() {
   const emergencyOf = (d: DelegationDog): string | null =>
     roster?.dogs.find((x) => x.sdId === d.sdId)?.detail?.emergencyContact ?? null;
 
+  // 러닝 사진 — 함께 뛴 사진이니 활성 마리 전원의 런에 실린다 (보호자 라이브 폴라로이드·영수증 인화의 원천).
+  // 보호자에겐 '새 사진 도착' 알림 (addRunEvent photo — 1:1 문법 그대로)
+  const doPhoto = async () => {
+    if (busy) return;
+    let ImagePicker: any;
+    try { ImagePicker = require('expo-image-picker'); } catch { Alert.alert('개발 빌드 업데이트 필요', '카메라는 새 빌드에 포함돼요'); return; }
+    try {
+      const camPerm = await ImagePicker.requestCameraPermissionsAsync().catch(() => ({ granted: false }));
+      let res: any = null;
+      if (camPerm.granted) {
+        res = await ImagePicker.launchCameraAsync({ quality: 0.5, base64: true });
+      } else {
+        const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!perm.granted) return;
+        res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.5, base64: true, selectionLimit: 1 });
+      }
+      if (!res || res.canceled || !res.assets?.[0]?.base64) return;
+      const b64 = res.assets[0].base64 as string;
+      setBusy(true);
+      for (const d of active) {
+        if (!d.bookingId) continue;
+        await uploadRunPhoto(d.bookingId, b64);
+        addRunEvent(d.bookingId, 'photo').catch(() => {});
+      }
+      haptic('success');
+    } catch (e) {
+      Alert.alert('사진 업로드 실패', (e as Error).message);
+    } finally { setBusy(false); }
+  };
+
   if (!board) {
     return (
       <DawnCanvas>
@@ -280,10 +310,13 @@ export default function ClubRun() {
 
         <View style={{ flex: 1 }} />
 
-        {/* ---------- SOS — 좌하단 엄지 자리 ---------- */}
+        {/* ---------- SOS(좌하단 엄지) · 📷 · 종료 ---------- */}
         <Row style={{ gap: 12, alignItems: 'center', marginBottom: 10 }}>
           <Pressable onPress={doSosPress} style={s.sos}>
             <Text style={{ fontSize: 13, fontWeight: '900', color: '#fff' }}>SOS</Text>
+          </Pressable>
+          <Pressable onPress={doPhoto} style={s.camBtn}>
+            <Text style={{ fontSize: 20 }}>📷</Text>
           </Pressable>
           <View style={{ flex: 1 }}>
             <ClubCta
@@ -344,6 +377,11 @@ const s = StyleSheet.create({
     width: 58, height: 58, borderRadius: 29, backgroundColor: L.tang,
     alignItems: 'center', justifyContent: 'center',
     shadowColor: L.tang, shadowOpacity: 0.45, shadowRadius: 14, shadowOffset: { width: 0, height: 8 }, elevation: 5,
+  },
+  camBtn: {
+    width: 46, height: 46, borderRadius: 23, backgroundColor: L.card,
+    borderWidth: 1, borderColor: L.hair, alignItems: 'center', justifyContent: 'center',
+    ...lilacShadow, shadowOpacity: 0.1,
   },
   sheet: {
     backgroundColor: L.bg, borderTopLeftRadius: lilacRadius.screen, borderTopRightRadius: lilacRadius.screen,

@@ -1,6 +1,6 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Image, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Avatar, Row } from '../../../src/components/ui';
 import { AckStack } from '../../../src/components/club-acks';
 import {
@@ -11,8 +11,8 @@ import {
   ClubSessionDetail, commitAsHandler, confirmHandoff, confirmReturn, DelegationBoard, DelegationDog,
   fetchChatWritable, fetchClubChat, fetchClubSession, fetchDelegationBoard, fetchMyDogs, fetchSessionRoster,
   clubSos, fetchShellAccess, incidentOpen, ownerObjection, payDelegation, respondProposal,
-  rsvpClubSession, sendClubChat, SessionRoster, ShellAccess, startDelegatedRuns, subscribeClubChat,
-  withdrawAsHandler,
+  rsvpClubSession, sendClubChat, sendClubChatPhoto, SessionRoster, ShellAccess, startDelegatedRuns,
+  subscribeClubChat, withdrawAsHandler,
 } from '../../../src/lib/api'; // finishClubSession=콘솔 · settleRun/fetchRunStartedAt=클럽 런 화면
 import { draft as liveDraft } from '../../../src/store'; // 라이브 화면 진입 키 (챗 draft 상태와 이름 충돌 주의)
 import { useNumFont } from '../../../src/lib/fonts';
@@ -362,6 +362,32 @@ export default function ClubSessionShell() {
       })
       .finally(() => setBusy(false));
   };
+  // 사진 메시지 — 카메라 우선, 미허용 시 갤러리 (러닝 사진 문법 그대로)
+  const doSendPhoto = async (opts: { audience?: 'group' | 'host_channel'; recipient?: string | null } = {}) => {
+    if (busy) return;
+    let ImagePicker: any;
+    try { ImagePicker = require('expo-image-picker'); } catch { Alert.alert('개발 빌드 업데이트 필요', '카메라는 새 빌드에 포함돼요'); return; }
+    try {
+      const camPerm = await ImagePicker.requestCameraPermissionsAsync().catch(() => ({ granted: false }));
+      let res: any = null;
+      if (camPerm.granted) {
+        res = await ImagePicker.launchCameraAsync({ quality: 0.5, base64: true });
+      } else {
+        const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!perm.granted) return;
+        res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.5, base64: true, selectionLimit: 1 });
+      }
+      if (!res || res.canceled || !res.assets?.[0]?.base64) return;
+      setBusy(true);
+      await sendClubChatPhoto(sess.id, res.assets[0].base64 as string, opts);
+      haptic('light');
+      chatReload();
+    } catch (e) {
+      const m = (e as Error).message;
+      Alert.alert('사진 전송 실패', m.includes('rate_limited') ? '잠깐 숨을 고르세요 — 분당 20건이에요' : m);
+    } finally { setBusy(false); }
+  };
+
   const msgActions = (m: ClubChatMsg) => {
     if (m.deleted || m.kind === 'system') return;
     if (m.mine) {
@@ -395,17 +421,21 @@ export default function ClubSessionShell() {
   const nameOf = (pid: string) => hostMsgs.find((m) => m.senderId === pid)?.senderName
     ?? roster?.people.find((p) => p.profileId === pid)?.name ?? '참가자';
 
-  // ④ 말풍선 — 시스템은 가운데 흐리게, 남은 왼쪽, 나는 오른쪽 바이올렛
+  // ④ 말풍선 — 시스템은 가운데 흐리게, 남은 왼쪽, 나는 오른쪽 바이올렛. 사진은 사진답게 (콘텐츠)
   const renderMsg = (m: ClubChatMsg) => m.kind === 'system' ? (
     <Text key={m.id} style={s.sysMsg}>{m.body} · {m.when}</Text>
   ) : (
     <Pressable key={m.id} onLongPress={() => msgActions(m)} style={[s.msgRow, m.mine && { alignItems: 'flex-end' }]}>
       {!m.mine && <Text style={s.msgWho}>{m.senderName}</Text>}
-      <View style={[s.bb, m.mine && s.bbMine]}>
-        <Text style={[s.bbTxt, m.mine && { color: '#fff' }, m.deleted && { fontStyle: 'italic', color: L.dim }]}>
-          {m.deleted ? '삭제된 메시지' : m.body}
-        </Text>
-      </View>
+      {m.kind === 'photo' && !m.deleted && m.mediaPath ? (
+        <Image source={{ uri: m.mediaPath }} style={s.bbPhoto} resizeMode="cover" />
+      ) : (
+        <View style={[s.bb, m.mine && s.bbMine]}>
+          <Text style={[s.bbTxt, m.mine && { color: '#fff' }, m.deleted && { fontStyle: 'italic', color: L.dim }]}>
+            {m.deleted ? '삭제된 메시지' : m.body}
+          </Text>
+        </View>
+      )}
     </Pressable>
   );
   const doPay = async () => {
@@ -953,6 +983,7 @@ export default function ClubSessionShell() {
             </LilacCard>
             {writable ? (
               <Row style={s.inputbar}>
+                <Pressable onPress={() => doSendPhoto({ audience: 'host_channel' })} style={s.camChip}><Text style={{ fontSize: 16 }}>📷</Text></Pressable>
                 <TextInput value={draft} onChangeText={setDraft} placeholder="호스트에게 문의..." placeholderTextColor={L.dim}
                   style={s.inputField} multiline />
                 <Pressable onPress={() => doSend(draft, { audience: 'host_channel' })} style={s.sendBtn}>
@@ -1012,6 +1043,7 @@ export default function ClubSessionShell() {
             </View>
             {writable ? (
               <Row style={s.inputbar}>
+                <Pressable onPress={() => doSendPhoto()} style={s.camChip}><Text style={{ fontSize: 16 }}>📷</Text></Pressable>
                 <TextInput value={draft} onChangeText={setDraft} placeholder="메시지..." placeholderTextColor={L.dim}
                   style={s.inputField} multiline />
                 <Pressable onPress={() => doSend(draft)} style={s.sendBtn}>
@@ -1073,6 +1105,9 @@ export default function ClubSessionShell() {
           </ScrollView>
           {writable ? (
             <Row style={s.inputbar}>
+              <Pressable
+                onPress={() => doSendPhoto({ audience: 'host_channel', recipient: isHostView && hostThread !== 'me' ? hostThread : undefined })}
+                style={s.camChip}><Text style={{ fontSize: 16 }}>📷</Text></Pressable>
               <TextInput value={threadDraft} onChangeText={setThreadDraft} placeholder="메시지..." placeholderTextColor={L.dim}
                 style={s.inputField} multiline />
               <Pressable
@@ -1169,6 +1204,11 @@ const s = StyleSheet.create({
   sendBtn: {
     backgroundColor: L.accent, borderRadius: lilacRadius.btn, paddingVertical: 10, paddingHorizontal: 13,
   },
+  camChip: {
+    width: 38, height: 38, borderRadius: lilacRadius.btn, backgroundColor: '#fff',
+    borderWidth: 1, borderColor: L.hair, alignItems: 'center', justifyContent: 'center',
+  },
+  bbPhoto: { width: 190, height: 142, borderRadius: 10, backgroundColor: L.inset },
   closedLine: { fontSize: 10, color: L.dim, textAlign: 'center', marginTop: 12, lineHeight: 15 },
   liveDotSm: {
     width: 8, height: 8, borderRadius: 4, backgroundColor: L.coral,

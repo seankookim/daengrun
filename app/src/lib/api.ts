@@ -2046,6 +2046,26 @@ export async function sendClubChat(
   });
   if (error) throw error;
 }
+// 사진 메시지 — avatars 버킷 {uid}/clubchat/{session}/* + kind 'photo' (RLS insert 정책이 kind를 허용)
+export async function sendClubChatPhoto(
+  sessionId: string, base64: string,
+  opts: { audience?: 'group' | 'host_channel'; recipient?: string | null } = {},
+): Promise<void> {
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) throw new Error('not signed in');
+  const path = `${user.user.id}/clubchat/${sessionId}/${Date.now()}.jpg`;
+  const { error } = await supabase.storage.from('avatars')
+    .upload(path, b64ToBytes(base64), { contentType: 'image/jpeg' });
+  if (error) throw error;
+  const { data: pub } = supabase.storage.from('avatars').getPublicUrl(path);
+  const audience = opts.audience ?? 'group';
+  const { error: e2 } = await supabase.from('club_chat_messages').insert({
+    session_id: sessionId, sender_id: user.user.id, audience,
+    recipient_profile_id: audience === 'host_channel' ? (opts.recipient ?? user.user.id) : null,
+    kind: 'photo', body: null, media_path: pub.publicUrl,
+  });
+  if (e2) throw e2;
+}
 export function subscribeClubChat(sessionId: string, onInsert: () => void): () => void {
   const ch = supabase
     .channel(`club-chat-${sessionId}`)
