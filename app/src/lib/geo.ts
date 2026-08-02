@@ -125,3 +125,22 @@ export function subscribePos(bookingId: string, onPos: (p: LivePos) => void): ()
     .subscribe();
   return () => { supabase.removeChannel(ch); };
 }
+
+// ---------- 클럽 러닝 멀티 브로드캐스트 (2026-08-02) ----------
+// 클럽 위탁 러닝은 개 여러 마리 = 부킹 여러 개 = 보호자 라이브 채널 여러 개.
+// 싱글톤 publishPos(1:1 전용)를 건드리지 않고, 수명은 호출측(클럽 런 화면)이 관리한다.
+export function createPosPublisher(bookingIds: string[]): { publish: (pos: LivePos) => void; stop: () => void } {
+  const chs = bookingIds.map((id) => {
+    const c = { joined: false, ch: supabase.channel(`run-${id}`) };
+    c.ch.subscribe((status: string) => { c.joined = status === 'SUBSCRIBED'; });
+    return c;
+  });
+  return {
+    publish: (pos) => {
+      for (const c of chs) {
+        if (c.joined) c.ch.send({ type: 'broadcast', event: 'pos', payload: pos }).catch(() => {});
+      }
+    },
+    stop: () => { for (const c of chs) supabase.removeChannel(c.ch); },
+  };
+}
