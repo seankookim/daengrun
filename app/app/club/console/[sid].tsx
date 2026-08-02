@@ -133,12 +133,19 @@ export default function HostConsole() {
   const proposed = paid.filter((d) => d.assignmentState === 'proposed');
   const accepted = paid.filter((d) => d.assignmentState === 'accepted');
   const doPropose = (d: DelegationDog, r: DelegationRunner) => {
-    Alert.alert('배정 제안', `${d.dogName} → ${r.name} (오늘 담당 ${r.assigned}/${r.cap})\n제안은 5분 안에 수락돼야 해요.`, [
+    Alert.alert('배정 제안', r.isMe
+      ? `${d.dogName}을(를) 내가 맡을까요? 자기 제안은 바로 확정돼요.`
+      : `${d.dogName} → ${r.name} (오늘 담당 ${r.assigned}/${r.cap})\n제안은 5분 안에 수락돼야 해요.`, [
       { text: '아직', style: 'cancel' },
       {
-        text: '제안 보내기',
+        text: r.isMe ? '내가 맡기' : '제안 보내기',
         onPress: () => run(() => proposeDog(d.sdId, r.profileId), '제안 실패', (m) =>
-          m.includes('runner_full') || m.includes('cap') ? `${r.name}의 오늘 담당이 가득 찼어요` : null),
+          m.includes('assign_window') ? '배정 창이 아직이에요 — 집결 2시간 전부터 열려요 (담당은 집결지에서 정해져요)'
+          : m.includes('runner_not_checked_in') ? `${r.name}${r.isMe ? '(나)' : ''}가 아직 체크인 전이에요 — 집결지 체크인 후 제안할 수 있어요`
+          : m.includes('runner_not_committed') ? `${r.name}의 러너 확약이 풀려 있어요`
+          : m.includes('proposal_active') ? '이미 진행 중인 제안이 있어요 — 취소 후 다시 제안하세요'
+          : m.includes('runner_cap_full') || m.includes('cap') ? `${r.name}의 오늘 담당이 가득 찼어요`
+          : null),
       },
     ]);
   };
@@ -258,6 +265,14 @@ export default function HostConsole() {
 
         {/* ---------- 3 배정 제안 ---------- */}
         <SecHead n="3" title="배정 제안" sub="러너 수락으로 확정" />
+        {/* 배정 창 = 집결 2시간 전 ~ 6시간 후 (checkinOpen과 동일 창) — 닫혀 있으면 미리 말한다 */}
+        {!sess.checkinOpen && paid.length > 0 && (
+          <View style={s.capWarn}>
+            <Text style={{ fontSize: 10.5, color: '#7a5a2a', lineHeight: 16 }}>
+              <Text style={{ fontWeight: '800', color: L.amber }}>배정 창 닫힘</Text> — 집결 2시간 전에 열려요. 담당은 집결지에서 정해져요.
+            </Text>
+          </View>
+        )}
         {paid.length === 0 && <Text style={s.emptyLine}>결제 완료된 위탁이 아직 없어요</Text>}
         {unassigned.map((d) => (
           <View key={d.sdId} style={s.drow}>
