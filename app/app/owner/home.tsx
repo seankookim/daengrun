@@ -35,40 +35,62 @@ function lerpHex(a: string, b: string, tt: number): string {
   return `#${pa.map((x, i) => Math.round(x + (pb[i] - x) * tt).toString(16).padStart(2, '0')).join('')}`;
 }
 
-// 점 하나하나가 원 좌표 ↔ 선 좌표를 스크롤 t로 보간 — 12시에서 시계방향으로 감긴 링을
-// 왼쪽→오른쪽 선으로 '풀어낸' 매핑 (인접성 보존, 진행 점등도 그대로 이어진다)
-function MorphDots({ pct, t, containerX, containerY, track }: {
-  pct: number; t: Animated.AnimatedInterpolation<number>;
-  containerX: number; containerY: number; track: string;
-}) {
+// [퍼포먼스 단순화, Sean 2026-08-02] 점별 좌표 보간(54점 × 2 인터폴레이션 = 프레임당 ~108개
+// JS 트랜스폼)이 스크롤을 무겁게 했다 → 링·선을 각각 '정적' 레이어로 그리고, 스크롤 t는
+// 크로스페이드 + 선 살짝 내려앉기(총 3개 애니메이션 값)만 움직인다. 점이 곧 데이터라는
+// 문법(진행 점등·헤드 글로우)은 두 레이어가 동일하게 유지한다.
+function dotColor(i: number, lit: number, track: string): string {
+  return i < lit ? lerpHex(colors.voltDeep, colors.voltBright, i / MORPH_DOTS) : track;
+}
+function RingDots({ pct, track }: { pct: number; track: string }) {
   const n = MORPH_DOTS;
   const lit = Math.round(Math.min(Math.max(pct, 0), 1) * n);
   const r = RING_BIG / 2 - MORPH_DOT;
   const c = RING_BIG / 2;
-  const lineY = LINE_Y_HERO - containerY - MORPH_DOT / 2;
   return (
     <>
       {Array.from({ length: n }).map((_, i) => {
         const angle = -Math.PI / 2 + (i / n) * Math.PI * 2;
-        const cx = c + r * Math.cos(angle) - MORPH_DOT / 2;
-        const cy = c + r * Math.sin(angle) - MORPH_DOT / 2;
-        const lx = 18 + (i / (n - 1)) * (CARD_W - 36) - containerX - MORPH_DOT / 2;
-        const active = i < lit;
-        const head = active && i === lit - 1;
+        const head = i < lit && i === lit - 1;
         return (
-          <Animated.View
+          <View
             key={i}
             pointerEvents="none"
             style={{
-              position: 'absolute', left: 0, top: 0,
+              position: 'absolute',
+              left: c + r * Math.cos(angle) - MORPH_DOT / 2,
+              top: c + r * Math.sin(angle) - MORPH_DOT / 2,
               width: MORPH_DOT, height: MORPH_DOT, borderRadius: MORPH_DOT / 2,
-              backgroundColor: active ? lerpHex(colors.voltDeep, colors.voltBright, i / n) : track,
-              ...(head ? { shadowColor: colors.volt, shadowOpacity: 0.9, shadowRadius: 5, shadowOffset: { width: 0, height: 0 } } : {}),
-              transform: [
-                { translateX: t.interpolate({ inputRange: [0, 1], outputRange: [cx, lx] }) },
-                { translateY: t.interpolate({ inputRange: [0, 1], outputRange: [cy, lineY] }) },
-                ...(head ? [{ scale: 1.55 }] : []),
-              ],
+              backgroundColor: dotColor(i, lit, track),
+              ...(head ? { shadowColor: colors.volt, shadowOpacity: 0.9, shadowRadius: 5, shadowOffset: { width: 0, height: 0 }, transform: [{ scale: 1.55 }] } : {}),
+            }}
+          />
+        );
+      })}
+    </>
+  );
+}
+function LineDots({ pct, containerX, containerY, track }: {
+  pct: number; containerX: number; containerY: number; track: string;
+}) {
+  const n = MORPH_DOTS;
+  const lit = Math.round(Math.min(Math.max(pct, 0), 1) * n);
+  const lineY = LINE_Y_HERO - containerY - MORPH_DOT / 2;
+  return (
+    <>
+      {Array.from({ length: n }).map((_, i) => {
+        const head = i < lit && i === lit - 1;
+        return (
+          <View
+            key={i}
+            pointerEvents="none"
+            style={{
+              position: 'absolute',
+              left: 18 + (i / (n - 1)) * (CARD_W - 36) - containerX - MORPH_DOT / 2,
+              top: lineY,
+              width: MORPH_DOT, height: MORPH_DOT, borderRadius: MORPH_DOT / 2,
+              backgroundColor: dotColor(i, lit, track),
+              ...(head ? { shadowColor: colors.volt, shadowOpacity: 0.9, shadowRadius: 5, shadowOffset: { width: 0, height: 0 }, transform: [{ scale: 1.55 }] } : {}),
             }}
           />
         );
@@ -301,6 +323,10 @@ export default function OwnerHome() {
   // 모프 도트 — 링이 축소되는 대신 점들이 하단 진행선으로 '풀린다' (Sean 안, 2026-07-28).
   // 데이터 객체(점)는 하나, 배열만 원↔선으로 바뀐다 — 원/미니바 이중 표기 은퇴.
   const centerOpacity = t.interpolate({ inputRange: [0, 0.45], outputRange: [1, 0], extrapolate: 'clamp' });
+  // 링↔선 크로스페이드 (모프 단순화) — 프레임당 애니메이션 값 3개가 전부
+  const ringOpacity = t.interpolate({ inputRange: [0, 0.55], outputRange: [1, 0], extrapolate: 'clamp' });
+  const lineOpacity = t.interpolate({ inputRange: [0.45, 1], outputRange: [0, 1], extrapolate: 'clamp' });
+  const lineSlide = t.interpolate({ inputRange: [0, 1], outputRange: [14, 0], extrapolate: 'clamp' });
   const infoOpacity = t.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, 0, 1] });
   const infoX = t.interpolate({ inputRange: [0, 1], outputRange: [-20, 0] });
   const bigMsgOpacity = t.interpolate({ inputRange: [0, 0.35], outputRange: [1, 0], extrapolate: 'clamp' });
@@ -440,7 +466,12 @@ export default function OwnerHome() {
               }}
               style={{ alignSelf: 'center', marginTop: 6, width: RING_BIG, height: RING_BIG }}
             >
-              <MorphDots pct={pct} t={t} containerX={(CARD_W - RING_BIG) / 2} containerY={dotBoxY} track={hp.track} />
+              <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { opacity: ringOpacity }]}>
+                <RingDots pct={pct} track={hp.track} />
+              </Animated.View>
+              <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { opacity: lineOpacity, transform: [{ translateY: lineSlide }] }]}>
+                <LineDots pct={pct} containerX={(CARD_W - RING_BIG) / 2} containerY={dotBoxY} track={hp.track} />
+              </Animated.View>
               {/* 큰 상태 센터 콘텐츠 — 컬랩스 전에 사라진다 (컴팩트 정보는 좌측 블록 전담, 이중 표기 금지) */}
               <Animated.View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', opacity: centerOpacity }}>
                 <View style={{ alignItems: 'center' }}>
