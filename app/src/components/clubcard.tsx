@@ -10,9 +10,12 @@ import { useDisplayFont } from '../lib/displayFont';
 import { lilac, lilacRadius, lilacShadow } from '../theme';
 import { Row } from './ui';
 
-// 하이클럽 홈 모듈 v3 — 테일러드 라일락 리페인트 (2026-08-03 Sean 디바이스 피드백).
-// 로직 동결: 훅·페치·핸들러·라우트·게이트·가드 전부 보존. JSX/StyleSheet/토큰만 라일락으로.
-// 월드: 클럽 = 바이올렛 액센트(#6C5CE7) · 카드 흰색 · 캔버스 #F4F2FB · 헤어라인 #E6E2F4 · 코랄은 fill/edge/dot만.
+// 하이클럽 홈 모듈 v4 — 격상 라일락 에디토리얼 카드 (2026-08-03 Sean 2차 디바이스 피드백, PROBLEM 2).
+// 다크 풀블리드 포토 배너 + 러버 여권 직인 폐기 → owner-FINAL `.club` 모듈로 구조 교체:
+//   흰색 격상 카드(border #DCD6F8·soft violet shadow) · 바이올렛 틴트 헤더(홀로 모노그램·Oswald 킥커·모노 태그)
+//   · 다음 세션 요일/시각 + 밋업 서브 · 헤어라인 2셀 메타 · CTA 2개(바이올렛 메인 + 콰이엇 인셋).
+// 로직 동결: 훅·페치·핸들러·라우트 타깃(/club/${id}·세션·claim)·게이트·가드 전부 보존. JSX/StyleSheet만 변경.
+// 타입 스케일: FIX2 ~1.25× (1.75× 오버슛 철회) — 값·라벨 1줄, 트렁케이션·오버랩 없음.
 
 const READ_VIOLET = '#4A3DA8'; // 읽는 바이올렛 (흰 배경 위 라벨·텍스트, 2단 문법)
 const VIOLET_TINT = '#F4F1FE'; // 칩·하이라이트 행 배경
@@ -43,21 +46,36 @@ function HoloEdge({ id, style }: { id: string; style?: ViewStyle }) {
   );
 }
 
-// 사진 없을 때 라일락 새벽 폴백 (포레스트 필 은퇴 — 바이올렛→코랄 그라디언트)
-function BannerFallback() {
+// 홀로 모노그램 필 (클럽 정체성 스퀘어 — 포일 예산). 대각 홀로 그라디언트로 스퀘어를 채운다.
+function HoloSquare({ id }: { id: string }) {
   return (
-    <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" viewBox="0 0 340 190" preserveAspectRatio="xMidYMid slice">
+    <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" viewBox="0 0 30 30" preserveAspectRatio="none">
       <Defs>
-        <LinearGradient id="bfsky" x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0" stopColor="#6C5CE7" />
-          <Stop offset="0.5" stopColor="#A98FD8" />
-          <Stop offset="0.82" stopColor="#F0987C" />
-          <Stop offset="1" stopColor="#F8C4A6" />
+        <LinearGradient id={id} x1="0" y1="0" x2="1" y2="1">
+          <Stop offset="0" stopColor="#CFC5F6" />
+          <Stop offset="0.22" stopColor="#FFDCD1" />
+          <Stop offset="0.45" stopColor="#F3E9C6" />
+          <Stop offset="0.62" stopColor="#EAF6C8" />
+          <Stop offset="0.8" stopColor="#CDEAF3" />
+          <Stop offset="1" stopColor="#CFC5F6" />
         </LinearGradient>
       </Defs>
-      <Rect x="0" y="0" width="340" height="190" fill="url(#bfsky)" />
-      <Circle cx={262} cy={72} r={30} fill="#FFE3C8" opacity={0.26} />
-      <Circle cx={262} cy={72} r={18} fill="#FFE3C8" opacity={0.9} />
+      <Rect x="0" y="0" width="30" height="30" fill={`url(#${id})`} />
+    </Svg>
+  );
+}
+
+// 바이올렛 틴트 헤더 그라디언트 (#F4F1FE → #EAE4FC) — CSS linear-gradient 대체.
+function TintGrad({ id }: { id: string }) {
+  return (
+    <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" viewBox="0 0 100 40" preserveAspectRatio="none">
+      <Defs>
+        <LinearGradient id={id} x1="0" y1="0" x2="1" y2="1">
+          <Stop offset="0" stopColor="#F4F1FE" />
+          <Stop offset="1" stopColor="#EAE4FC" />
+        </LinearGradient>
+      </Defs>
+      <Rect x="0" y="0" width="100" height="40" fill={`url(#${id})`} />
     </Svg>
   );
 }
@@ -104,7 +122,7 @@ function ClubSearchBar() {
   return (
     <View style={{ zIndex: 20 }}>
       <View style={s.searchWrap}>
-        <Text style={{ fontSize: 21, color: lilac.dim }}>⌕</Text>
+        <Text style={{ fontSize: 19, color: lilac.dim }}>⌕</Text>
         <TextInput
           value={q} onChangeText={onChange}
           placeholder="동네 하이클럽 검색 — 예: 반포동"
@@ -112,7 +130,7 @@ function ClubSearchBar() {
         />
         {q.length > 0 && (
           <Pressable onPress={() => { setQ(''); setHits(null); }} hitSlop={8}>
-            <Text style={{ fontSize: 18, color: lilac.dim }}>✕</Text>
+            <Text style={{ fontSize: 16, color: lilac.dim }}>✕</Text>
           </Pressable>
         )}
       </View>
@@ -124,16 +142,16 @@ function ClubSearchBar() {
               <View style={s.dropThumb}>
                 {h.photoUrl
                   ? <Image source={{ uri: h.photoUrl }} style={{ width: '100%', height: '100%' }} />
-                  : <Text style={{ fontSize: 22 }}>🏃</Text>}
+                  : <Text style={{ fontSize: 20 }}>🏃</Text>}
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 17, fontWeight: '900', color: lilac.head }}>{h.name}</Text>
-                <Text style={{ fontSize: 13.5, color: lilac.dim, marginTop: 2 }}>
+                <Text style={{ fontSize: 15, fontWeight: '800', color: lilac.head }}>{h.name}</Text>
+                <Text style={{ fontSize: 12, color: lilac.dim, marginTop: 2 }}>
                   {h.status === 'active' ? `멤버 ${h.memberCount} · 활동 중` : `관심 ${h.interestCount}명 · 모집 중`}
                 </Text>
               </View>
               <View style={[s.dropTag, h.status !== 'active' && { backgroundColor: lilac.inset }]}>
-                <Text style={{ fontSize: 12, fontWeight: '900', letterSpacing: 0.6, color: h.status === 'active' ? READ_VIOLET : lilac.dim }}>
+                <Text style={{ fontSize: 11, fontWeight: '800', letterSpacing: 0.6, color: h.status === 'active' ? READ_VIOLET : lilac.dim }}>
                   {h.status === 'active' ? 'OPEN' : '모집 중'}
                 </Text>
               </View>
@@ -141,15 +159,15 @@ function ClubSearchBar() {
           ))}
           {hits.length === 0 && q.trim().length >= 2 && (
             <Pressable onPress={requestDistrict} style={s.dropRow}>
-              <View style={[s.dropThumb, { backgroundColor: VIOLET_TINT }]}><Text style={{ fontSize: 22, color: lilac.accent }}>＋</Text></View>
+              <View style={[s.dropThumb, { backgroundColor: VIOLET_TINT }]}><Text style={{ fontSize: 20, color: lilac.accent }}>＋</Text></View>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 17, fontWeight: '900', color: lilac.head }}>'{q.trim()}' 하이클럽 요청하기</Text>
-                <Text style={{ fontSize: 13.5, color: lilac.dim, marginTop: 2 }}>아직 없어요 — 관심을 모아 열어요</Text>
+                <Text style={{ fontSize: 15, fontWeight: '800', color: lilac.head }}>'{q.trim()}' 하이클럽 요청하기</Text>
+                <Text style={{ fontSize: 12, color: lilac.dim, marginTop: 2 }}>아직 없어요 — 관심을 모아 열어요</Text>
               </View>
             </Pressable>
           )}
           {hits.length === 0 && q.trim().length < 2 && (
-            <View style={s.dropRow}><Text style={{ fontSize: 15, color: lilac.dim }}>동네 이름을 2자 이상 입력해주세요</Text></View>
+            <View style={s.dropRow}><Text style={{ fontSize: 13, color: lilac.dim }}>동네 이름을 2자 이상 입력해주세요</Text></View>
           )}
         </View>
       )}
@@ -157,12 +175,15 @@ function ClubSearchBar() {
   );
 }
 
-// ---------- 프로미넌트 포토 배너 (상태 인지형 · 라일락 에디토리얼 — 홀로 엣지 + 바이올렛 직인) ----------
+// ---------- 하이클럽 카드 (상태 인지형 · 격상 라일락 에디토리얼 셸) ----------
+// owner-FINAL `.club` 모듈 구조: 흰 격상 카드 + 바이올렛 틴트 헤더(홀로 모노그램·킥커·모노 태그) +
+// 다음 세션 요일/시각 + 밋업 서브 + 헤어라인 2셀 메타 + CTA 2개. 다크 포토·러버 직인 없음.
 function ClubBanner({ club, role, reload }: { club: ClubOverview; role: 'owner' | 'runner'; reload: () => void }) {
   const df = useDisplayFont();
   const ns = club.nextSession;
   const joined = !!ns?.joined;
   const left = ns ? Math.max(0, ns.capacity - ns.rsvpCount) : 0;
+  const active = club.status === 'active';
 
   const claim = () => claimClubHost(club.id)
     .then(() => { Alert.alert('호스트가 됐어요 🏁', '클럽 페이지에서 첫 세션을 열어보세요'); reload(); })
@@ -176,65 +197,125 @@ function ClubBanner({ club, role, reload }: { club: ClubOverview; role: 'owner' 
     }
   };
 
+  // 루트-허브 랜딩 — onPress else 브랜치와 동일 타깃(/club/${club.id}). 콰이엇 CTA 전용으로 노출.
+  const openHub = () => router.push(`/club/${club.id}`);
+
+  // 모노그램 = 클럽명 첫 글자 (기본 정체성). 다음 세션 요일/시각은 기존 ns.when(kstParts) 파싱.
+  const initial = (club.name ?? '').trim().charAt(0) || '·';
+  const wmatch = ns ? ns.when.match(/\(([^)]+)\)\s*(.*)$/) : null;
+  const dayLabel = wmatch ? wmatch[1] : '';
+  const timeLabel = wmatch ? wmatch[2] : (ns ? ns.when : '');
+
+  // 헤더 모노 태그 — 기존 자리/D-day 상태 로직 유지
+  const tagText = active && ns
+    ? (joined
+      ? `${dday(ns.scheduledAt)} · RSVP ✓`
+      : ns.status === 'open' && left > 0
+        ? `${left}자리`
+        : dday(ns.scheduledAt))
+    : club.status === 'collecting'
+      ? '모집 중'
+      : `멤버 ${club.memberCount}`;
+
+  // 메인 CTA — 기존 핸들러/카피 매핑 유지: collecting+runner=claim, 그 외=onPress(세션/랜딩)
+  const mainIsClaim = club.status === 'collecting' && role === 'runner';
+  const mainLabel = mainIsClaim
+    ? '호스트 되기 ›'
+    : active && ns && joined
+      ? '세션 보기 ›'
+      : active && ns
+        ? '참여하기 ›'
+        : '클럽 보기 ›';
+  const mainOnPress = mainIsClaim ? claim : onPress;
+
   return (
-    <Pressable onPress={onPress} style={s.banner}>
-      {club.photoUrl
-        ? <Image source={{ uri: club.photoUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
-        : <BannerFallback />}
-      <View style={s.bannerScrim} />
-      {/* 홀로 포일 상단 엣지 (포일 예산) + 바이올렛 좌측 트림 */}
-      <HoloEdge id="banner-holo" style={s.bannerHolo} />
-      <View style={s.bannerEdge} />
-
-      {/* 우상단 상태 태그 (자리/D-day) — 글래스 화이트 + 읽는 바이올렛, 코랄 라이브 도트 */}
-      {club.status === 'active' && ns && (joined || (ns.status === 'open' && left > 0)) && (
-        <View style={s.ddayPill}>
-          <View style={s.liveDot} />
-          <Text style={{ fontSize: 14, fontWeight: '900', color: READ_VIOLET }}>
-            {joined ? `${dday(ns.scheduledAt)} · RSVP ✓` : `${left}자리`}
-          </Text>
+    <Pressable onPress={onPress} style={s.clubCard}>
+      {/* 헤더 행 — 바이올렛 틴트 그라디언트 + 홀로 모노그램 + 킥커/클럽명 + 모노 태그 */}
+      <View style={s.clubTop}>
+        <TintGrad id="club-tint" />
+        <View style={s.clubMono}>
+          <HoloSquare id="club-holo" />
+          <Text style={[s.clubMonoText, df]}>{initial}</Text>
         </View>
-      )}
+        <View style={{ flex: 1 }}>
+          <Text style={s.clubKk} numberOfLines={1}>HIGH CLUB — {club.district}</Text>
+          <Text style={s.clubName} numberOfLines={1}>{club.name}</Text>
+        </View>
+        {club.isHost && (
+          <View style={s.hostTag}><Text style={s.hostTagText}>HOST</Text></View>
+        )}
+        <View style={s.monoTag}><Text style={s.monoTagText} numberOfLines={1}>{tagText}</Text></View>
+      </View>
 
-      <View style={{ flex: 1, padding: 16, paddingTop: 15, paddingLeft: 18 }}>
-        {/* 모노 킥커 + 클럽명 (라일락 마스트헤드 문법) */}
-        <Text style={s.bannerKicker}>HIGH CLUB — {club.district}</Text>
-        <Text style={[{ fontSize: 33, fontWeight: '900', color: '#fff', paddingRight: 98, marginTop: 3 }, df]} numberOfLines={1}>{club.name}</Text>
-        <Text style={{ fontSize: 15.5, color: 'rgba(255,255,255,.86)', marginTop: 6, paddingRight: 98 }} numberOfLines={1}>
-          {club.status === 'collecting'
-            ? `관심 ${club.interestCount}명 · 호스트를 기다려요`
-            : ns
-              ? joined
-                ? `${ns.when} · 📍 ${ns.meetupPoint}`
-                : `다음 세션 ${ns.when} · ${ns.rsvpCount}팀 참여 중`
+      {/* 바디 — 다음 세션 요일/시각 + 밋업 서브 · 헤어라인 2셀 메타 · CTA 2개 */}
+      <View style={s.clubBody}>
+        {active && ns ? (
+          <View style={s.clubWhen}>
+            {dayLabel !== '' && <Text style={[s.clubWhenD, df]}>{dayLabel}</Text>}
+            <Text style={s.clubWhenT}>{timeLabel}</Text>
+            <Text style={s.clubWhenSub} numberOfLines={1}>
+              {ns.meetupPoint}{club.hostName ? ` · 호스트 ${club.hostName}` : ''}
+            </Text>
+          </View>
+        ) : (
+          <Text style={s.clubBodyLine} numberOfLines={2}>
+            {club.status === 'collecting'
+              ? `관심 ${club.interestCount}명 · 호스트를 기다려요`
               : `멤버 ${club.memberCount} · ${club.isHost ? '탭해서 세션을 열어보세요' : '다음 세션 준비 중'}`}
-        </Text>
-        {/* 액션 행 — 하단 고정 (클럽 월드 = 바이올렛) */}
-        <Row style={{ gap: 8, marginTop: 'auto' }}>
-          {club.status === 'collecting' && role === 'runner' ? (
-            <Pressable onPress={claim} style={s.bannerCta}>
-              <Text style={{ fontSize: 15.5, fontWeight: '900', color: '#fff' }}>호스트 되기 ›</Text>
-            </Pressable>
-          ) : club.status === 'active' && ns && !joined ? (
-            <View style={s.bannerCta}><Text style={{ fontSize: 15.5, fontWeight: '900', color: '#fff' }}>참여하기 ›</Text></View>
-          ) : club.status === 'active' && joined ? (
-            <View style={[s.bannerCta, { backgroundColor: 'rgba(255,255,255,.94)' }]}><Text style={{ fontSize: 15.5, fontWeight: '900', color: READ_VIOLET }}>세션 보기 ›</Text></View>
+          </Text>
+        )}
+
+        {/* 헤어라인 2셀 메타 (기존 필드·dday 헬퍼 바인딩) */}
+        <View style={s.clubMeta}>
+          {active && ns ? (
+            <>
+              <View style={s.clubCell}>
+                <Text style={s.clubK}>MEMBERS</Text>
+                <Text style={s.clubV}>멤버 <Text style={s.clubNum}>{club.memberCount}</Text>명</Text>
+              </View>
+              <View style={[s.clubCell, s.clubCellDiv]}>
+                <Text style={s.clubK}>NEXT</Text>
+                <Text style={s.clubV}><Text style={s.clubNum}>{dday(ns.scheduledAt)}</Text></Text>
+              </View>
+            </>
+          ) : club.status === 'collecting' ? (
+            <>
+              <View style={s.clubCell}>
+                <Text style={s.clubK}>INTEREST</Text>
+                <Text style={s.clubV}>관심 <Text style={s.clubNum}>{club.interestCount}</Text>명</Text>
+              </View>
+              <View style={[s.clubCell, s.clubCellDiv]}>
+                <Text style={s.clubK}>MEMBERS</Text>
+                <Text style={s.clubV}>멤버 <Text style={s.clubNum}>{club.memberCount}</Text>명</Text>
+              </View>
+            </>
           ) : (
-            <View style={[s.bannerCta, { backgroundColor: 'rgba(255,255,255,.24)' }]}><Text style={{ fontSize: 15.5, fontWeight: '900', color: '#fff' }}>클럽 보기 ›</Text></View>
+            <>
+              <View style={s.clubCell}>
+                <Text style={s.clubK}>MEMBERS</Text>
+                <Text style={s.clubV}>멤버 <Text style={s.clubNum}>{club.memberCount}</Text>명</Text>
+              </View>
+              <View style={[s.clubCell, s.clubCellDiv]}>
+                <Text style={s.clubK}>HOST</Text>
+                <Text style={s.clubV} numberOfLines={1}>{club.hostName ?? '준비 중'}</Text>
+              </View>
+            </>
           )}
-          {club.isHost && <View style={s.hostPill}><Text style={{ fontSize: 12, fontWeight: '900', color: '#fff' }}>HOST</Text></View>}
-        </Row>
+        </View>
+
+        {/* CTA 2개 — 바이올렛 메인 + 콰이엇 인셋 (기존 핸들러/타깃 재사용) */}
+        <View style={s.clubCta}>
+          <Pressable onPress={mainOnPress} style={s.ctaMain}>
+            <Text style={s.ctaMainText}>{mainLabel}</Text>
+          </Pressable>
+          <Pressable onPress={openHub} style={s.ctaQuiet}>
+            <Text style={s.ctaQuietText}>클럽 홈 ›</Text>
+          </Pressable>
+        </View>
       </View>
 
-      {/* 바이올렛 검증 직인 — 클라우트 + 개방성 (여권 직인 → 라일락 실). 워너웃: 보더를 무는 다크 닉 4점 */}
-      <View style={s.stamp} pointerEvents="none">
-        <Text style={s.stampMain}>HIGH-VERIFIED</Text>
-        <Text style={s.stampSub}>FREE TO JOIN · ANYTIME</Text>
-        <View style={[s.stampNick, { top: -2, left: 22, width: 7, height: 4 }]} />
-        <View style={[s.stampNick, { top: 14, right: -2, width: 4, height: 6 }]} />
-        <View style={[s.stampNick, { bottom: -2, left: 52, width: 6, height: 4 }]} />
-        <View style={[s.stampNick, { bottom: 12, left: -2, width: 4, height: 5 }]} />
-      </View>
+      {/* 이너 이중-프레임 헤어라인 (히어로 카드 법) */}
+      <View style={s.clubDbl} pointerEvents="none" />
     </Pressable>
   );
 }
@@ -256,14 +337,14 @@ function DemandTicket({ board, reload }: { board: DemandBoard; reload: () => voi
     <View style={s.tkt}>
       <HoloEdge id="tkt-holo" style={s.tktHolo} />
       <View style={s.tktStub}>
-        <Text style={{ fontSize: 38, fontWeight: '900', color: '#fff', lineHeight: 42 }}>{mine.interestCount}</Text>
-        <Text style={{ fontSize: 11, fontWeight: '800', letterSpacing: 1.8, color: 'rgba(255,255,255,.86)', marginTop: 3 }}>WAITING</Text>
+        <Text style={{ fontSize: 28, fontWeight: '900', color: '#fff', lineHeight: 32 }}>{mine.interestCount}</Text>
+        <Text style={{ fontSize: 10, fontWeight: '800', letterSpacing: 1.6, color: 'rgba(255,255,255,.86)', marginTop: 3 }}>WAITING</Text>
       </View>
       <View style={{ flex: 1, padding: 15 }}>
-        <Text style={{ fontSize: 18, fontWeight: '900', color: lilac.head }}>{mine.district}에서 {mine.interestCount}팀이 기다려요</Text>
-        <Text style={{ fontSize: 15, color: lilac.text, marginTop: 5, lineHeight: 22 }}>인증 러너가 호스트를 맡으면 클럽이 열려요.</Text>
+        <Text style={{ fontSize: 15, fontWeight: '800', color: lilac.head }}>{mine.district}에서 {mine.interestCount}팀이 기다려요</Text>
+        <Text style={{ fontSize: 12.5, color: lilac.text, marginTop: 5, lineHeight: 19 }}>인증 러너가 호스트를 맡으면 클럽이 열려요.</Text>
         <Pressable onPress={claim} style={s.tktCta}>
-          <Text style={{ fontSize: 18, fontWeight: '900', color: '#fff' }}>🏁 호스트 되기</Text>
+          <Text style={{ fontSize: 15, fontWeight: '800', color: '#fff' }}>🏁 호스트 되기</Text>
         </Pressable>
       </View>
     </View>
@@ -277,11 +358,11 @@ export function DemandStrip() {
   if (!mine || mine.status !== 'collecting' || mine.isHost || mine.interestCount === 0) return null;
   return (
     <Pressable onPress={() => router.push(`/club/${mine.clubId}`)} style={s.strip}>
-      <View style={s.stripN}><Text style={{ fontSize: 17, fontWeight: '900', color: READ_VIOLET }}>{mine.interestCount}팀</Text></View>
-      <Text style={{ flex: 1, fontSize: 15, color: '#D8CFF7', lineHeight: 21 }}>
-        <Text style={{ fontWeight: '900', color: '#fff' }}>{mine.district}</Text>이 호스트를 기다려요 — 첫 세션을 여는 러너가 클럽의 얼굴
+      <View style={s.stripN}><Text style={{ fontSize: 14, fontWeight: '800', color: READ_VIOLET }}>{mine.interestCount}팀</Text></View>
+      <Text style={{ flex: 1, fontSize: 13, color: '#D8CFF7', lineHeight: 19 }}>
+        <Text style={{ fontWeight: '800', color: '#fff' }}>{mine.district}</Text>이 호스트를 기다려요 — 첫 세션을 여는 러너가 클럽의 얼굴
       </Text>
-      <Text style={{ fontSize: 20, fontWeight: '900', color: '#fff' }}>›</Text>
+      <Text style={{ fontSize: 18, fontWeight: '800', color: '#fff' }}>›</Text>
     </Pressable>
   );
 }
@@ -297,8 +378,8 @@ function ProgressRing({ n, cap }: { n: number; cap: number }) {
         <Circle cx={48} cy={48} r={R} stroke={lilac.accent} strokeWidth={9} fill="none" strokeLinecap="round"
           strokeDasharray={[C * frac, C]} />
       </Svg>
-      <Text style={{ fontSize: 18, fontWeight: '900', color: lilac.head }}>{n}/{cap}</Text>
-      <Text style={{ fontSize: 11, color: lilac.dim, marginTop: 1 }}>모이는 중</Text>
+      <Text style={{ fontSize: 15, fontWeight: '800', color: lilac.head }}>{n}/{cap}</Text>
+      <Text style={{ fontSize: 10, color: lilac.dim, marginTop: 1 }}>모이는 중</Text>
     </View>
   );
 }
@@ -323,26 +404,26 @@ function OwnerDemand({ board, reload }: { board: DemandBoard; reload: () => void
         <View style={s.prog}>
           <ProgressRing n={mine.interestCount} cap={mine.threshold} />
           <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 18, fontWeight: '900', color: lilac.head }}>{mine.district} 하이클럽, 열리는 중</Text>
-            <Text style={{ fontSize: 15, color: lilac.text, marginTop: 5, lineHeight: 22 }}>
+            <Text style={{ fontSize: 15, fontWeight: '800', color: lilac.head }}>{mine.district} 하이클럽, 열리는 중</Text>
+            <Text style={{ fontSize: 12.5, color: lilac.text, marginTop: 5, lineHeight: 19 }}>
               {mine.threshold}팀이 모이면 호스트 모집 시작 — 이웃을 초대할수록 빨리 열려요.
             </Text>
             <Pressable onPress={invite} style={s.inviteCta}>
-              <Text style={{ fontSize: 15, fontWeight: '900', color: '#fff' }}>🐾 이웃 초대하기</Text>
+              <Text style={{ fontSize: 13, fontWeight: '800', color: '#fff' }}>🐾 이웃 초대하기</Text>
             </Pressable>
           </View>
         </View>
       )}
       {league.length > 0 && (
         <View style={[s.league, !collecting && { borderTopWidth: 1, borderTopLeftRadius: lilacRadius.card, borderTopRightRadius: lilacRadius.card }]}>
-          <Text style={{ fontSize: 14.5, fontWeight: '900', letterSpacing: 1, color: READ_VIOLET, marginBottom: 8 }}>동네 리그 — 이번 달</Text>
+          <Text style={{ fontSize: 12.5, fontWeight: '800', letterSpacing: 1, color: READ_VIOLET, marginBottom: 8 }}>동네 리그 — 이번 달</Text>
           {league.map((l, i) => (
             <Pressable key={l.clubId} onPress={() => router.push(`/club/${l.clubId}`)} style={[s.lrow, l.mine && s.lrowMe]}>
-              <Text style={{ fontSize: 16 }}>{l.status === 'active' ? (i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '🏃') : '⏳'}</Text>
-              <Text style={{ flex: 1, fontSize: 16, fontWeight: '800', color: lilac.head }} numberOfLines={1}>
+              <Text style={{ fontSize: 14 }}>{l.status === 'active' ? (i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '🏃') : '⏳'}</Text>
+              <Text style={{ flex: 1, fontSize: 14, fontWeight: '700', color: lilac.head }} numberOfLines={1}>
                 {l.name}{l.mine ? ' (우리 동네)' : ''}
               </Text>
-              <Text style={{ fontSize: 14, fontWeight: '800', color: l.status === 'active' ? READ_VIOLET : lilac.dim }}>
+              <Text style={{ fontSize: 12.5, fontWeight: '700', color: l.status === 'active' ? READ_VIOLET : lilac.dim }}>
                 {l.status === 'active' ? `세션 ${l.sessionsMonth}회 · ${l.teamsMonth}팀` : `${l.interestCount}팀 대기 중`}
               </Text>
             </Pressable>
@@ -361,9 +442,9 @@ export function ClubModule({ role }: { role: 'owner' | 'runner' }) {
   return (
     <View style={{ marginTop: 14 }}>
       <Row style={{ gap: 8, marginBottom: 11, alignItems: 'center' }}>
-        <Text style={{ fontSize: 22, fontWeight: '900', color: lilac.head }}>하이클럽</Text>
-        <View style={s.hcChip}><Text style={{ fontSize: 12, fontWeight: '900', letterSpacing: 1.2, color: READ_VIOLET }}>HIGH CLUB</Text></View>
-        <Text style={{ fontSize: 14.5, color: lilac.dim }}>동네에서 함께 달려요</Text>
+        <Text style={{ fontSize: 16.5, fontWeight: '800', color: lilac.head }}>하이클럽</Text>
+        <View style={s.hcChip}><Text style={{ fontSize: 11, fontWeight: '800', letterSpacing: 1, color: READ_VIOLET }}>HIGH CLUB</Text></View>
+        <Text style={{ fontSize: 12, color: lilac.dim }}>동네에서 함께 달려요</Text>
       </Row>
       <ClubSearchBar />
       {club && <ClubBanner club={club} role={role} reload={reloadAll} />}
@@ -379,33 +460,55 @@ export function RunnerClubCard() { return <ClubModule role="runner" />; }
 
 const s = StyleSheet.create({
   searchWrap: { flexDirection: 'row', alignItems: 'center', gap: 9, backgroundColor: lilac.card, borderRadius: 12, borderWidth: 1, borderColor: lilac.hair, paddingHorizontal: 15, paddingVertical: 2, ...lilacShadow, shadowOpacity: 0.06 },
-  searchInput: { flex: 1, fontSize: 17, color: lilac.head, paddingVertical: 15 },
-  drop: { position: 'absolute', top: 64, left: 0, right: 0, backgroundColor: lilac.card, borderRadius: 14, borderWidth: 1, borderColor: lilac.hair, paddingVertical: 5, ...lilacShadow, shadowOpacity: 0.14, shadowRadius: 18, zIndex: 30 },
-  dropRow: { flexDirection: 'row', alignItems: 'center', gap: 13, paddingVertical: 13, paddingHorizontal: 15 },
-  dropThumb: { width: 48, height: 48, borderRadius: 12, backgroundColor: lilac.inset, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  dropTag: { backgroundColor: VIOLET_TINT, borderWidth: 1, borderColor: VIOLET_TINT_EDGE, borderRadius: lilacRadius.tag, paddingVertical: 5, paddingHorizontal: 10 },
-  // ── 라일락 포토 배너 (홀로 엣지 · 나이트-라일락 스크림 · 바이올렛 CTA/직인) ──
-  banner: { height: 190, borderRadius: lilacRadius.card, borderWidth: 1, borderColor: lilac.hair, overflow: 'hidden', marginTop: 12, backgroundColor: lilac.card, ...lilacShadow },
-  bannerScrim: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(28,24,55,.5)' },
-  bannerHolo: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 3 },
-  bannerEdge: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, backgroundColor: lilac.accent, zIndex: 2 },
-  bannerKicker: { fontSize: 12, fontWeight: '700', letterSpacing: 2.4, color: '#D8CFF7', textTransform: 'uppercase' },
-  ddayPill: { position: 'absolute', top: 14, right: 14, zIndex: 4, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,.92)', borderRadius: lilacRadius.tag, paddingVertical: 6, paddingHorizontal: 11 },
-  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: lilac.coral },
-  // 바이올렛 검증 직인 — 워너웃 + 다크 인셋 잉크
-  stamp: { position: 'absolute', right: 24, bottom: 46, borderWidth: 3, borderColor: lilac.accent, borderRadius: 12, paddingVertical: 7, paddingHorizontal: 15, backgroundColor: 'rgba(28,24,55,.42)', transform: [{ rotate: '-7deg' }], alignItems: 'center', opacity: 0.94 },
-  stampMain: { fontSize: 17, fontWeight: '900', letterSpacing: 2.4, color: '#D8CFF7' },
-  stampSub: { fontSize: 11, fontWeight: '700', letterSpacing: 1.6, color: 'rgba(216,207,247,.86)', marginTop: 3, borderTopWidth: 1, borderTopColor: 'rgba(216,207,247,.42)', paddingTop: 3 },
-  stampNick: { position: 'absolute', backgroundColor: 'rgba(28,24,55,.78)', borderRadius: 3 },
-  bannerCta: { backgroundColor: lilac.accent, borderRadius: lilacRadius.btn, paddingVertical: 11, paddingHorizontal: 16, shadowColor: lilac.accent, shadowOpacity: 0.36, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 3 },
-  hostPill: { backgroundColor: lilac.accentDeep, borderRadius: lilacRadius.tag, paddingVertical: 6, paddingHorizontal: 10, alignSelf: 'center' },
+  searchInput: { flex: 1, fontSize: 16, color: lilac.head, paddingVertical: 13 },
+  drop: { position: 'absolute', top: 60, left: 0, right: 0, backgroundColor: lilac.card, borderRadius: 14, borderWidth: 1, borderColor: lilac.hair, paddingVertical: 5, ...lilacShadow, shadowOpacity: 0.14, shadowRadius: 18, zIndex: 30 },
+  dropRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 14 },
+  dropThumb: { width: 44, height: 44, borderRadius: 11, backgroundColor: lilac.inset, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  dropTag: { backgroundColor: VIOLET_TINT, borderWidth: 1, borderColor: VIOLET_TINT_EDGE, borderRadius: lilacRadius.tag, paddingVertical: 4, paddingHorizontal: 9 },
+
+  // ── 하이클럽 격상 카드 (흰 카드 · 바이올렛 틴트 헤더 · 홀로 모노그램 · CTA 2개) ──
+  clubCard: {
+    position: 'relative', backgroundColor: lilac.card, borderWidth: 1, borderColor: '#DCD6F8',
+    borderRadius: lilacRadius.card, overflow: 'hidden', marginTop: 12,
+    shadowColor: '#6C5CE7', shadowOpacity: 0.14, shadowRadius: 15, shadowOffset: { width: 0, height: 8 }, elevation: 4,
+  },
+  clubDbl: { position: 'absolute', top: 4, left: 4, right: 4, bottom: 4, borderWidth: 1, borderColor: lilac.hair2, borderRadius: lilacRadius.inner },
+  // 헤더 행 — 틴트 그라디언트 + 하단 헤어라인
+  clubTop: { position: 'relative', flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 12, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: '#E0D9FA' },
+  clubMono: { width: 32, height: 32, borderRadius: 6, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.7)' },
+  clubMonoText: { fontSize: 17, color: lilac.head, includeFontPadding: false },
+  clubKk: { fontSize: 10, fontWeight: '700', letterSpacing: 1.6, color: lilac.accent, textTransform: 'uppercase', marginBottom: 2 },
+  clubName: { fontSize: 16, fontWeight: '800', color: lilac.head, letterSpacing: -0.2 },
+  hostTag: { borderWidth: 1, borderColor: VIOLET_TINT_EDGE, backgroundColor: lilac.accent, borderRadius: lilacRadius.tag, paddingHorizontal: 6, paddingVertical: 3 },
+  hostTagText: { fontSize: 10, fontWeight: '800', letterSpacing: 1, color: '#fff' },
+  monoTag: { borderWidth: 1, borderColor: '#DCD6F8', backgroundColor: lilac.card, borderRadius: lilacRadius.tag, paddingHorizontal: 7, paddingVertical: 3 },
+  monoTagText: { fontSize: 11, fontWeight: '700', letterSpacing: 0.8, color: READ_VIOLET, textTransform: 'uppercase' },
+  // 바디
+  clubBody: { position: 'relative', paddingHorizontal: 12, paddingTop: 11, paddingBottom: 12 },
+  clubWhen: { flexDirection: 'row', alignItems: 'baseline', gap: 7 },
+  clubWhenD: { fontSize: 18, color: lilac.accent, includeFontPadding: false },
+  clubWhenT: { fontSize: 18, fontWeight: '700', color: lilac.head, fontVariant: ['tabular-nums'] },
+  clubWhenSub: { flex: 1, fontSize: 12, color: lilac.dim },
+  clubBodyLine: { fontSize: 13.5, color: lilac.text, lineHeight: 20 },
+  clubMeta: { flexDirection: 'row', marginTop: 10, borderTopWidth: 1, borderTopColor: lilac.hair2, paddingTop: 9 },
+  clubCell: { flex: 1 },
+  clubCellDiv: { borderLeftWidth: 1, borderLeftColor: lilac.hair2, paddingLeft: 10 },
+  clubK: { fontSize: 9.5, fontWeight: '600', letterSpacing: 1.1, color: lilac.dim, textTransform: 'uppercase', marginBottom: 3 },
+  clubV: { fontSize: 14, fontWeight: '700', color: lilac.head },
+  clubNum: { fontSize: 15.5, fontWeight: '800', color: lilac.head, fontVariant: ['tabular-nums'] },
+  clubCta: { flexDirection: 'row', gap: 8, marginTop: 11 },
+  ctaMain: { flex: 1, backgroundColor: lilac.accent, borderRadius: lilacRadius.btn, paddingVertical: 12, alignItems: 'center', justifyContent: 'center', shadowColor: lilac.accent, shadowOpacity: 0.3, shadowRadius: 13, shadowOffset: { width: 0, height: 5 }, elevation: 3 },
+  ctaMainText: { fontSize: 14.5, fontWeight: '800', color: '#fff' },
+  ctaQuiet: { flex: 1, borderWidth: 1, borderColor: lilac.hair, backgroundColor: lilac.inset, borderRadius: lilacRadius.btn, paddingVertical: 12, alignItems: 'center', justifyContent: 'center' },
+  ctaQuietText: { fontSize: 14.5, fontWeight: '700', color: lilac.head },
+
   // ── 클럽 월드 공통 (바이올렛 라일락) ──
   hcChip: { backgroundColor: VIOLET_TINT, borderWidth: 1, borderColor: VIOLET_TINT_EDGE, borderRadius: lilacRadius.tag, paddingVertical: 4, paddingHorizontal: 9 },
   // R1-A 대기 티켓 (대형 CTA · 라일락)
   tkt: { flexDirection: 'row', backgroundColor: lilac.card, borderWidth: 1, borderColor: lilac.hair2, borderRadius: lilacRadius.card, overflow: 'hidden', marginTop: 12, ...lilacShadow },
   tktHolo: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 3 },
   tktStub: { width: 104, backgroundColor: lilac.accent, alignItems: 'center', justifyContent: 'center', borderRightWidth: 2, borderRightColor: 'rgba(255,255,255,.42)', borderStyle: 'dashed' },
-  tktCta: { backgroundColor: lilac.accent, borderRadius: lilacRadius.btn, alignItems: 'center', paddingVertical: 16, marginTop: 12, shadowColor: lilac.accent, shadowOpacity: 0.32, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 3 },
+  tktCta: { backgroundColor: lilac.accent, borderRadius: lilacRadius.btn, alignItems: 'center', paddingVertical: 15, marginTop: 12, shadowColor: lilac.accent, shadowOpacity: 0.32, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 3 },
   // R1-C 스트립 (요청 탭 · 나이트-라일락 아일랜드)
   strip: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: NIGHT, borderRadius: lilacRadius.card, paddingVertical: 15, paddingHorizontal: 16 },
   stripN: { backgroundColor: '#fff', borderRadius: lilacRadius.tag, paddingVertical: 6, paddingHorizontal: 12 },

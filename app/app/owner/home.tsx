@@ -182,15 +182,15 @@ function SectionHead({ n, title, link, onLink }: { n?: string; title: string; li
 }
 
 const PAD_TOP = 56;
-const HEADER_H = 128; // 그리팅 1줄(1.7× 스케일) + 동네 랭킹 티커 스트립
+const HEADER_H = 88; // 그리팅 1줄(목업 34px BHS) + 동네 랭킹 티커 스트립
 
 // 로테이팅 그리팅 — 5초마다 수직 플립으로 순환. 이름 라인('우리 {이름}')은 고정 앵커.
 const GREETINGS = [
   '오늘도 달린다', '오늘도 젊어진다', '오늘도 건강이다', '오늘도 뜨겁게', '오늘도 화이팅',
   '남들과는 다른', '가볍게 화이팅', '산책은 기본인', '이 정도면 선수다', '준비는 끝났다',
 ] as const;
-const HERO_BIG = 320; // 1.7× 스케일 후 216 링 + 확장 크롬(주간칩·리포트칩)을 담는 높이
-const HERO_SMALL = 280; // 좌측 정보 블록('N% 달성')+실측 진행선+헤드 도트까지 잘리지 않는 컬랩스 높이
+const HERO_BIG = 300; // 목업 widget 300px — 216 링 + 확장 크롬(주간칩·리포트칩)
+const HERO_SMALL = 170; // 좌측 정보 블록('N% 달성')+실측 진행선+헤드 도트까지 잘리지 않는 컬랩스 높이
 const SCROLL_RANGE = 150;
 
 export default function OwnerHome() {
@@ -444,12 +444,12 @@ export default function OwnerHome() {
         <Animated.View style={{ height: headerH, opacity: headerOpacity, overflow: 'hidden' }}>
           <View style={s.headerRow}>
             {/* pfp — 보호자 프로필 사진 (profiles.avatar_url), 없으면 모노그램. 홈 상단의 '나' 자리 */}
-            <Avatar url={me?.avatarUrl} char={(me?.name ?? dogName)[0]} bg={lilac.accent} size={46} />
-            <View style={{ flex: 1, marginLeft: 12 }}>
+            <Avatar url={me?.avatarUrl} char={(me?.name ?? dogName)[0]} bg={lilac.accent} size={34} />
+            <View style={{ flex: 1, marginLeft: 9 }}>
               {/* 원라인 모토 — pfp↔알림 버튼 사이 전폭. 문구별 폭 차이는 adjustsFontSizeToFit이 흡수 */}
               <Animated.Text
                 style={[{
-                  fontSize: 38, fontWeight: '900', color: lilac.head,
+                  fontSize: 34, fontWeight: '900', color: lilac.head,
                   opacity: gFlip.interpolate({ inputRange: [0, 1], outputRange: [1, 0.1] }),
                   transform: [
                     { perspective: 600 },
@@ -465,11 +465,11 @@ export default function OwnerHome() {
             </View>
             {/* 나이트 라일락 테마 토글 — 라일락 전 화면 정합 후 복귀 (toggle 역학 유지) */}
             <Pressable onPress={toggle} style={[s.themeBtn, { borderColor: p.line, backgroundColor: p.card }]}>
-              <Text style={{ fontSize: 25.5, color: lilac.accent }}>◐</Text>
+              <Text style={{ fontSize: 13, color: lilac.accent }}>◐</Text>
             </Pressable>
             <Pressable onPress={() => router.push('/alerts')} style={[s.themeBtn, { borderColor: p.line, backgroundColor: p.card, marginLeft: 8 }]}>
               <View style={s.bellDot} />
-              <Text style={{ fontSize: 28.9, color: p.dim }}>◔</Text>
+              <Text style={{ fontSize: 14, color: p.dim }}>◔</Text>
             </Pressable>
           </View>
           {/* 동네 랭킹 티커 — 주식 시세줄처럼 흐르는 실집계 (탭 → 리더보드).
@@ -488,12 +488,12 @@ export default function OwnerHome() {
                     {ticker.map((d, i) => (
                       <View key={`${dup}-${i}`} style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <Text style={s.tickerItem}>
-                          <Text style={[{ color: lilac.accent, fontWeight: '900' }, nf]}>{i + 1}위 </Text>
-                          {d.name} <Text style={[{ color: lilac.coralDeep, fontWeight: '900' }, nf]}>{d.km}km</Text>
+                          <Text style={[{ color: lilac.accent, fontWeight: '900', fontSize: 9 }, nf]}>{i + 1}위 </Text>
+                          {d.name} <Text style={[{ color: lilac.coralDeep, fontWeight: '900', fontSize: 10.5 }, nf]}>{d.km}km</Text>
                           {/* ▲▼ 해금 (0022) — 지난주 대비 실델타가 있을 때만. NEW = 지난주 미랭크 */}
-                          {d.delta != null && d.delta > 0 && <Text style={{ color: lilac.voltDeep, fontWeight: '900' }}> ▲{d.delta}</Text>}
-                          {d.delta != null && d.delta < 0 && <Text style={{ color: lilac.tang, fontWeight: '900' }}> ▼{-d.delta}</Text>}
-                          {d.delta === null && <Text style={{ color: lilac.dim, fontWeight: '800', fontSize: 17 }}> NEW</Text>}
+                          {d.delta != null && d.delta > 0 && <Text style={{ color: lilac.voltDeep, fontWeight: '900', fontSize: 8.5 }}> ▲{d.delta}</Text>}
+                          {d.delta != null && d.delta < 0 && <Text style={{ color: lilac.tang, fontWeight: '900', fontSize: 8.5 }}> ▼{-d.delta}</Text>}
+                          {d.delta === null && <Text style={{ color: lilac.dim, fontWeight: '800', fontSize: 8 }}> NEW</Text>}
                         </Text>
                         <View style={s.tickerSep} />
                       </View>
@@ -510,7 +510,7 @@ export default function OwnerHome() {
             <HoloBar />
             <View pointerEvents="none" style={s.heroDbl} />
             <View style={[s.weekChip, { backgroundColor: hp.chip, borderColor: lilac.hair }]}>
-              <Text style={{ fontSize: 21.2, fontWeight: '700', color: lilac.head }}>이번 주 ▾</Text>
+              <Text style={{ fontSize: 9.5, fontWeight: '700', color: lilac.head }}>이번 주 ▾</Text>
             </View>
 
             {/* compact info block (left side, fades in) — bottom을 실측해 진행선 Y를 그 아래로 파생 */}
@@ -521,14 +521,14 @@ export default function OwnerHome() {
               }}
               style={[s.info, { opacity: infoOpacity, transform: [{ translateX: infoX }] }]}
             >
-              <Text style={{ fontSize: 23.8, fontWeight: '700', color: hp.textSoft }}>{dogName}의 주간 목표</Text>
-              <Text style={{ marginTop: 2 }}>
-                <Text style={[{ fontSize: 42.5, fontWeight: '900', color: lilac.head }, nf]}>
+              <Text style={{ fontSize: 11, fontWeight: '700', color: hp.textSoft }}>{dogName}의 주간 목표</Text>
+              <Text style={{ marginTop: 1 }}>
+                <Text style={[{ fontSize: 31, fontWeight: '900', color: lilac.head }, nf]}>
                   {weekKm}
                 </Text>
-                <Text style={{ fontSize: 25.5, color: hp.dim }}> / {goalKm} km</Text>
+                <Text style={{ fontSize: 12, color: hp.dim }}> / {goalKm} km</Text>
               </Text>
-              <Text style={{ fontSize: 21.2, color: hp.textSoft, marginTop: 3 }}>
+              <Text style={{ fontSize: 10, color: hp.textSoft, marginTop: 2 }}>
                 {fitnessAge != null
                   ? `체력 나이 ${fitnessAge}살 · 실제보다 젊어요`
                   : fit?.fitnessGate?.reason === 'runs'
@@ -538,7 +538,7 @@ export default function OwnerHome() {
                       : '체력 나이 측정 준비 중'}
               </Text>
               {/* 미니바 은퇴 — 진행바는 링에서 풀려 내려온 도트 라인이 담당 */}
-              <Text style={[{ fontSize: 19.6, fontWeight: '800', color: lilac.coralDeep, marginTop: 4 }, nf]}>
+              <Text style={[{ fontSize: 10, fontWeight: '800', color: lilac.coralDeep, marginTop: 2 }, nf]}>
                 {Math.round(pct * 100)}% 달성
               </Text>
             </Animated.View>
@@ -551,10 +551,10 @@ export default function OwnerHome() {
               }}
               style={[s.stampBox, { opacity: infoOpacity }]}
             >
-              <Text style={{ fontSize: 20.4, fontWeight: '700', color: hp.textSoft }}>
+              <Text style={{ fontSize: 9.5, fontWeight: '700', color: hp.textSoft }}>
                 이번 주 러닝{runDayCount > 0 ? ` ${runDayCount}일` : ''}
               </Text>
-              <View style={{ flexDirection: 'row', gap: 3, marginTop: 7 }}>
+              <View style={{ flexDirection: 'row', gap: 3, marginTop: 5 }}>
                 {['월', '화', '수', '목', '금', '토', '일'].map((dLabel, i) => {
                   const ran = runDays[i] === true;
                   const isToday = i === todayIdx;
@@ -562,13 +562,13 @@ export default function OwnerHome() {
                     <View
                       key={dLabel}
                       style={{
-                        width: 20, height: 20, borderRadius: 4, alignItems: 'center', justifyContent: 'center',
+                        width: 16, height: 16, borderRadius: 3, alignItems: 'center', justifyContent: 'center',
                         backgroundColor: ran ? lilac.accent : 'transparent',
-                        borderWidth: isToday ? 1.7 : 1.2,
+                        borderWidth: isToday ? 1.5 : 1.2,
                         borderColor: ran ? lilac.accent : isToday ? lilac.coral : lilac.hair,
                       }}
                     >
-                      <Text style={{ fontSize: 13, fontWeight: '900', color: ran ? '#fff' : isToday ? lilac.coralDeep : hp.dim }}>{dLabel}</Text>
+                      <Text style={{ fontSize: 7.5, fontWeight: '900', color: ran ? '#fff' : isToday ? lilac.coralDeep : hp.dim }}>{dLabel}</Text>
                     </View>
                   );
                 })}
@@ -592,22 +592,22 @@ export default function OwnerHome() {
               {/* 큰 상태 센터 콘텐츠 — 컬랩스 전에 사라진다 (컴팩트 정보는 좌측 블록 전담, 이중 표기 금지) */}
               <Animated.View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', opacity: centerOpacity }}>
                 <View style={{ alignItems: 'center' }}>
-                  <Text style={{ fontSize: 18.7, letterSpacing: 2, color: hp.dim }}>오늘까지</Text>
-                  <Text style={[{ color: lilac.head, lineHeight: 66.1 }, nf]}>
-                    <Text style={{ fontSize: 60.9, fontWeight: '900' }}>{weekKm}</Text>
-                    <Text style={{ fontSize: 31.4, color: lilac.coral }}> km</Text>
+                  <Text style={{ fontSize: 8, letterSpacing: 2, color: hp.dim }}>오늘까지</Text>
+                  <Text style={[{ color: lilac.head, lineHeight: 48.6 }, nf]}>
+                    <Text style={{ fontSize: 54, fontWeight: '900' }}>{weekKm}</Text>
+                    <Text style={{ fontSize: 18, color: lilac.coral }}> km</Text>
                   </Text>
-                  <Text style={{ fontSize: 21.2, color: hp.textSoft, marginTop: 2 }}>
+                  <Text style={{ fontSize: 10.5, color: hp.textSoft, marginTop: 3 }}>
                     / {goalKm}km <Text style={{ color: lilac.accent, fontWeight: '700' }}>주간 목표</Text>
                   </Text>
                   {/* 체력 나이 — our concept, front and center */}
-                  <View style={[s.goalChip, { backgroundColor: hp.chip, borderColor: lilac.hair, flexDirection: 'row', gap: 4, alignItems: 'center' }]}>
-                    <Text style={{ fontSize: 19.6, fontWeight: '800', color: hp.textSoft }}>체력 나이</Text>
-                    <Text style={[{ fontSize: 23.8, fontWeight: '900', color: lilac.accent }, nf]}>
+                  <View style={[s.goalChip, { backgroundColor: hp.chip, borderColor: lilac.hair, flexDirection: 'row', gap: 5, alignItems: 'center' }]}>
+                    <Text style={{ fontSize: 9.5, fontWeight: '800', color: hp.textSoft }}>체력 나이</Text>
+                    <Text style={[{ fontSize: 12, fontWeight: '900', color: lilac.accent }, nf]}>
                       {fitnessAge != null ? `${fitnessAge}살` : '측정 전'}
                     </Text>
                     {fitnessAge != null && (
-                      <Text style={[{ fontSize: 17.8, fontWeight: '800', color: lilac.coralDeep }, nf]}>▼{Math.max(dog.age - fitnessAge, 0).toFixed(1)}</Text>
+                      <Text style={[{ fontSize: 9.5, fontWeight: '800', color: lilac.coralDeep }, nf]}>▼{Math.max(dog.age - fitnessAge, 0).toFixed(1)}</Text>
                     )}
                   </View>
                 </View>
@@ -617,10 +617,10 @@ export default function OwnerHome() {
             {/* big-state goal message */}
             {/* 체력 리포트 진입 칩 — 히어로가 탭 가능하다는 걸 매트한 칩이 말해준다 */}
             <Animated.View style={[s.reportChip, { opacity: bigMsgOpacity, backgroundColor: hp.chip, borderColor: lilac.hair }]}>
-              <Text style={{ fontSize: 22.1, fontWeight: '800', color: hp.textSoft }}>
+              <Text style={{ fontSize: 11, fontWeight: '800', color: hp.textSoft }}>
                 {goalHit ? '🎉 목표 달성 — 체력 리포트' : '체력 리포트 · 주간 목표'}
               </Text>
-              <Text style={{ fontSize: 23.8, fontWeight: '900', color: lilac.accent }}>›</Text>
+              <Text style={{ fontSize: 13, fontWeight: '900', color: lilac.accent }}>›</Text>
             </Animated.View>
           </Animated.View>
         </Pressable>
@@ -666,14 +666,14 @@ export default function OwnerHome() {
           <View pointerEvents="none" style={s.ticketDbl} />
           <View style={s.ticketHead}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <View style={s.ticketGlyph}><Text style={{ fontSize: 15.3, color: '#fff' }}>✦</Text></View>
+              <View style={s.ticketGlyph}><Text style={{ fontSize: 9, color: '#fff' }}>✦</Text></View>
               <Text style={s.ticketBrand}>NEXT RUN · BOARDING PASS</Text>
             </View>
             {liveNext ? (
               <View style={[s.countdownPill, liveNext.status === 'pending'
                 ? { backgroundColor: lilac.amberSoft }
                 : { backgroundColor: '#F2E7FC' }]}>
-                <Text style={[{ fontSize: 20.4, fontWeight: '900' }, nf, { color: liveNext.status === 'pending' ? lilac.amber : lilac.accent }]}>
+                <Text style={[{ fontSize: 8.5, fontWeight: '900', letterSpacing: 0.6 }, nf, { color: liveNext.status === 'pending' ? lilac.amber : lilac.accent }]}>
                   {liveNext.status === 'pending' ? (liveNext.matched ? '지명 대기' : '매칭 중') : liveNext.status === 'active' ? '● LIVE' : liveNext.status === 'handoff' ? '시작 대기' : '확정됨'}
                 </Text>
               </View>
@@ -682,13 +682,13 @@ export default function OwnerHome() {
           {liveNext ? (
             <View style={{ paddingHorizontal: 13, paddingBottom: 12 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 10 }}>
-                <Avatar url={fit?.dogPhotoUrl} char={liveNext.dogName[0]} bg={lilac.coral} size={46} />
+                <Avatar url={fit?.dogPhotoUrl} char={liveNext.dogName[0]} bg={lilac.coral} size={34} />
                 <View style={{ flex: 1 }}>
-                  <Text style={[{ fontSize: 33.1, fontWeight: '900', color: lilac.head }, nf]} numberOfLines={1}>
+                  <Text style={[{ fontSize: 20, fontWeight: '900', color: lilac.head }, nf]} numberOfLines={1}>
                     {/* split(' ')[0] 이 '7월'만 남기던 버그 — 요일 괄호만 떼고 날짜 전체 표기 */}
                     {liveNext.dateLabel.replace(/ \(.+\)$/, '')} {liveNext.timeLabel}
                   </Text>
-                  <Text style={{ fontSize: 22.1, color: lilac.dim, marginTop: 3 }} numberOfLines={1}>
+                  <Text style={{ fontSize: 11, color: lilac.dim, marginTop: 2 }} numberOfLines={1}>
                     {liveNext.dogName} · {liveNext.routeName}
                   </Text>
                 </View>
@@ -705,7 +705,7 @@ export default function OwnerHome() {
                     style={s.meetBtn}
                     onPress={(e) => { e.stopPropagation(); if (liveNext) draft.bookingId = liveNext.id; router.push('/owner/live'); }}
                   >
-                    <Text style={{ fontSize: 24.6, fontWeight: '900', color: '#fff' }}>실시간 보기 ›</Text>
+                    <Text style={{ fontSize: 13.5, fontWeight: '900', color: '#fff' }}>실시간 보기 ›</Text>
                   </Pressable>
                 </View>
               ) : liveNext?.status === 'handoff' ? (
@@ -718,7 +718,7 @@ export default function OwnerHome() {
                       router.push('/owner/meetup'); // 시작되면 미트업이 라이브로 자동 전환
                     }}
                   >
-                    <Text style={{ fontSize: 22.1, fontWeight: '700', color: p.textSoft }}>인계 완료 · 러닝 시작 대기 중 ›</Text>
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: p.textSoft }}>인계 완료 · 러닝 시작 대기 중 ›</Text>
                   </Pressable>
                 </View>
               ) : liveNext?.status === 'confirmed' ? (
@@ -732,7 +732,7 @@ export default function OwnerHome() {
                       router.push('/owner/meetup');
                     }}
                   >
-                    <Text style={{ fontSize: 24.6, fontWeight: '900', color: '#fff' }}>러너 만나기 · 인계 확인 ›</Text>
+                    <Text style={{ fontSize: 13.5, fontWeight: '900', color: '#fff' }}>러너 만나기 · 인계 확인 ›</Text>
                   </Pressable>
                   <View style={{ flexDirection: 'row', gap: 8 }}>
                     <Pressable
@@ -742,13 +742,13 @@ export default function OwnerHome() {
                         if (liveNext) router.push({ pathname: '/owner/reschedule', params: { bid: liveNext.id } });
                       }}
                     >
-                      <Text style={{ fontSize: 22.1, fontWeight: '700', color: p.textSoft }}>일정 변경</Text>
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: p.textSoft }}>일정 변경</Text>
                     </Pressable>
                     <Pressable
                       style={s.widgetBtn}
                       onPress={(e) => { e.stopPropagation(); router.push({ pathname: '/chat', params: liveNext ? { bid: liveNext.id } : {} }); }}
                     >
-                      <Text style={{ fontSize: 22.1, fontWeight: '700', color: p.textSoft }}>러너와 채팅</Text>
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: p.textSoft }}>러너와 채팅</Text>
                     </Pressable>
                   </View>
                 </View>
@@ -763,21 +763,21 @@ export default function OwnerHome() {
                       else router.push('/owner/schedule');
                     }}
                   >
-                    <Text style={{ fontSize: 22.1, fontWeight: '700', color: p.textSoft }}>일정 변경</Text>
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: p.textSoft }}>일정 변경</Text>
                   </Pressable>
                   <Pressable
                     style={s.widgetBtn}
                     onPress={(e) => { e.stopPropagation(); router.push({ pathname: '/chat', params: liveNext ? { bid: liveNext.id } : {} }); }}
                   >
-                    <Text style={{ fontSize: 22.1, fontWeight: '700', color: p.textSoft }}>러너와 채팅</Text>
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: p.textSoft }}>러너와 채팅</Text>
                   </Pressable>
                 </View>
               )}
             </View>
           ) : (
             <View style={{ marginTop: 4, alignItems: 'center', paddingVertical: 14, paddingHorizontal: 13 }}>
-              <Text style={{ fontSize: 28.1, fontWeight: '800', color: p.textStrong }}>예정된 러닝이 없어요</Text>
-              <Text style={{ fontSize: 22.1, color: p.dim, marginTop: 4 }}>아래에서 첫 러닝을 예약해보세요</Text>
+              <Text style={{ fontSize: 14, fontWeight: '800', color: p.textStrong }}>예정된 러닝이 없어요</Text>
+              <Text style={{ fontSize: 11, color: p.dim, marginTop: 4 }}>아래에서 첫 러닝을 예약해보세요</Text>
             </View>
           )}
         </Pressable>
@@ -840,10 +840,10 @@ export default function OwnerHome() {
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <View style={{ flex: 1 }}>
                 <Text style={s.fnKick}>LIVE RUNNERS · SEOCHO</Text>
-                <Text style={[{ fontSize: 34.9, fontWeight: '900', color: '#fff', marginTop: 6 }, df]}>
+                <Text style={[{ fontSize: 22, fontWeight: '900', color: '#fff', marginTop: 6 }, df]}>
                   {fnDirected ? '지명 러너 응답 대기 중' : fnSearching ? '러너 찾는 중…' : '지금 러너 찾기'}
                 </Text>
-                <Text style={{ fontSize: 25.5, color: NIGHT_DIM, marginTop: 5, lineHeight: 31.4 }}>
+                <Text style={{ fontSize: 10.5, color: NIGHT_DIM, marginTop: 6, lineHeight: 15.8 }}>
                   {fnDirected
                     ? `${liveNext?.runnerName ?? '지명한 러너'}의 응답을 기다리고 있어요 — 탭하면 일정으로`
                     : fnSearching
@@ -863,7 +863,7 @@ export default function OwnerHome() {
                   transform: [{ scaleX: fnPulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.06] }) },
                               { scaleY: fnPulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.5] }) }],
                 }]} />
-                <Text style={{ fontSize: 28.1, fontWeight: '900', color: lilac.head }}>
+                <Text style={{ fontSize: 13, fontWeight: '900', color: lilac.head }}>
                   {fnDirected ? '일정에서 확인 ›' : fnSearching ? '레이더 보기 ➤' : '주변 러너 검색 시작 ➤'}
                 </Text>
               </View>
@@ -877,7 +877,7 @@ export default function OwnerHome() {
                   }}
                   style={s.fnCustom}
                 >
-                  <Text style={{ fontSize: 23.8, fontWeight: '800', color: '#EDE9FB' }}>직접 설정 ›</Text>
+                  <Text style={{ fontSize: 11.5, fontWeight: '800', color: '#EDE9FB' }}>직접 설정 ›</Text>
                 </Pressable>
               )}
             </View>
@@ -888,30 +888,30 @@ export default function OwnerHome() {
         <View style={s.book}>
           <View style={s.bookFacts}>
             <View style={{ flex: 1, paddingRight: 10 }}>
-              <Text style={{ fontSize: 21.2, fontWeight: '700', color: lilac.head }} numberOfLines={1}>
+              <Text style={{ fontSize: 11.5, fontWeight: '700', color: lilac.head }} numberOfLines={1}>
                 {dogName} · {bookKm}km{lastDone?.routeName ? ` · ${lastDone.routeName}` : ''}
               </Text>
-              <Text style={{ fontSize: 19.6, color: lilac.dim, marginTop: 2 }}>지난 러닝 그대로 채워뒀어요</Text>
+              <Text style={{ fontSize: 10, color: lilac.dim, marginTop: 2 }}>지난 러닝 그대로 채워뒀어요</Text>
             </View>
             <View style={{ alignItems: 'flex-end' }}>
               <Text style={s.bookKicker}>예상 결제</Text>
-              <Text style={[{ fontSize: 32.3, color: lilac.head }, nf]}>
-                {bookPrice.toLocaleString()}<Text style={{ fontSize: 18.7, color: lilac.text, fontWeight: '600' }}>원</Text>
+              <Text style={[{ fontSize: 19, color: lilac.head }, nf]}>
+                {bookPrice.toLocaleString()}<Text style={{ fontSize: 11, color: lilac.text, fontWeight: '600' }}>원</Text>
               </Text>
             </View>
           </View>
           <Pressable onPress={goBook} style={s.cta}>
             <View pointerEvents="none" style={s.ctaSheen} />
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Text style={[{ fontSize: 45.9, color: '#fff' }, df]}>예약하기</Text>
-              <Text style={[{ fontSize: 32.3, letterSpacing: 3, color: '#fff' }, nf]}>›››</Text>
+              <Text style={[{ fontSize: 27, color: '#fff' }, df]}>예약하기</Text>
+              <Text style={[{ fontSize: 19, letterSpacing: 2, color: '#fff' }, nf]}>›››</Text>
             </View>
             {/* a11y: 작은 글씨는 코랄 위 직접 얹지 않고 잉크 플레이트(≥4.5:1) 위에 */}
             <View style={s.ctaPlate}>
-              <Text style={[{ fontSize: 23.8, color: '#fff' }, nf]}>{pricing.baseFare.toLocaleString()}</Text>
-              <Text style={{ fontSize: 17, color: '#fff' }}>원부터 · km당 {pricing.perKm.toLocaleString()}원</Text>
+              <Text style={[{ fontSize: 14, color: '#fff' }, nf]}>{pricing.baseFare.toLocaleString()}</Text>
+              <Text style={{ fontSize: 10, color: '#fff' }}>원부터 · km당 {pricing.perKm.toLocaleString()}원</Text>
               <View style={s.ctaPlateDiv} />
-              <Text style={{ fontSize: 17, color: '#fff' }}>코스·결제 자동</Text>
+              <Text style={{ fontSize: 10, color: '#fff' }}>코스·결제 자동</Text>
             </View>
           </Pressable>
         </View>
@@ -925,15 +925,15 @@ export default function OwnerHome() {
             {/* pulsing halo */}
             <View style={s.giftWrap}>
               <Animated.View style={[s.giftHalo, { opacity: pulseOpacity, transform: [{ scale: pulseScale }] }]} />
-              <View style={s.giftBox}><Text style={{ fontSize: 31.4, color: '#fff' }}>▣</Text></View>
-              <View style={s.giftBadge}><Text style={{ fontSize: 15.3, fontWeight: '900', color: '#fff' }}>1</Text></View>
+              <View style={s.giftBox}><Text style={{ fontSize: 16, color: '#fff' }}>▣</Text></View>
+              <View style={s.giftBadge}><Text style={{ fontSize: 9, fontWeight: '900', color: '#fff' }}>1</Text></View>
             </View>
             <View style={{ flex: 1, marginLeft: 13 }}>
-              <Text style={{ fontSize: 21.2, fontWeight: '900', color: lilac.coralDeep, letterSpacing: 0.5 }}>수령 대기 리워드</Text>
-              <Text style={{ fontSize: 28.1, fontWeight: '900', color: p.textStrong, marginTop: 2 }} numberOfLines={1}>
+              <Text style={{ fontSize: 11, fontWeight: '900', color: lilac.coralDeep, letterSpacing: 0.5 }}>수령 대기 리워드</Text>
+              <Text style={{ fontSize: 14, fontWeight: '900', color: p.textStrong, marginTop: 2 }} numberOfLines={1}>
                 {claimable.item}
               </Text>
-              <Text style={{ fontSize: 20.4, color: p.dim, marginTop: 2 }}>
+              <Text style={{ fontSize: 10, color: p.dim, marginTop: 2 }}>
                 {claimable.at}km 달성! · 다음: {nextLocked ? `${nextLocked.item.split(' ').pop()}까지 ${(nextLocked.at - 86.2).toFixed(0)}km` : '완료'}
               </Text>
             </View>
@@ -941,7 +941,7 @@ export default function OwnerHome() {
               onPress={(e) => { e.stopPropagation(); Alert.alert('수령 신청', '배송지로 콜라보 굿즈를 보내드려요 (목업)'); }}
               style={s.claimBtn}
             >
-              <Text style={{ fontSize: 23.8, fontWeight: '900', color: '#fff' }}>수령하기</Text>
+              <Text style={{ fontSize: 12, fontWeight: '900', color: '#fff' }}>수령하기</Text>
             </Pressable>
           </Pressable>
         )}
@@ -949,10 +949,10 @@ export default function OwnerHome() {
         {/* ---------- retention nudges (실데이터 기반, ui-audit P2) ---------- */}
         {weekKm > 0 && weekKm < goalKm && new Date().getDay() >= 4 && (
           <Pressable onPress={() => router.push('/owner/request')} style={[s.nudge, { backgroundColor: p.card }]}>
-            <Text style={{ flex: 1, fontSize: 24.6, fontWeight: '800', color: p.textStrong }}>
-              주간 목표까지 <Text style={{ color: lilac.coralDeep, fontWeight: '900' }}>{Math.round((goalKm - weekKm) * 10) / 10}km</Text> — 주말 러닝으로 채워볼까요?
+            <Text style={{ flex: 1, fontSize: 10.5, fontWeight: '800', color: p.textStrong }}>
+              주간 목표까지 <Text style={{ color: lilac.coralDeep, fontWeight: '900', fontSize: 12 }}>{Math.round((goalKm - weekKm) * 10) / 10}km</Text> — 주말 러닝으로 채워볼까요?
             </Text>
-            <Text style={{ fontSize: 23.8, color: lilac.accent, fontWeight: '900' }}>예약 ›</Text>
+            <Text style={{ fontSize: 9, color: lilac.accent, fontWeight: '900' }}>예약 ›</Text>
           </Pressable>
         )}
         {!liveNext && lastDone && (
@@ -968,10 +968,10 @@ export default function OwnerHome() {
             }}
             style={[s.nudge, { backgroundColor: p.card }]}
           >
-            <Text style={{ flex: 1, fontSize: 24.6, fontWeight: '800', color: p.textStrong }}>
+            <Text style={{ flex: 1, fontSize: 10.5, fontWeight: '800', color: p.textStrong }}>
               ⟳ 지난번처럼 다시 예약할까요? <Text style={{ color: p.dim, fontWeight: '600' }}>{lastDone.km}km{lastDone.runnerProfileId ? ` · ${lastDone.runnerName} 러너` : ''}</Text>
             </Text>
-            <Text style={{ fontSize: 23.8, color: lilac.accent, fontWeight: '900' }}>시간만 고르기 ›</Text>
+            <Text style={{ fontSize: 9, color: lilac.accent, fontWeight: '900' }}>시간만 고르기 ›</Text>
           </Pressable>
         )}
 
@@ -989,20 +989,20 @@ export default function OwnerHome() {
           <View style={{ marginTop: 16 }}>
             <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 7, marginBottom: 9 }}>
               <Text style={[s.sectionTitle, { color: p.textStrong }]}>최근 순간</Text>
-              <Text style={{ fontSize: 21.2, color: p.dim }}>러너가 담아온 {dogName}의 러닝</Text>
+              <Text style={{ fontSize: 10, color: p.dim }}>러너가 담아온 {dogName}의 러닝</Text>
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 9, paddingRight: 12 }}>
               {moments.map((m, mi) => (
                 <Pressable
                   key={`${m.bookingId}-${mi}`}
                   onPress={() => router.push({ pathname: '/owner/report', params: { bid: m.bookingId } })}
-                  style={[s.momentCard, mi === 0 && { width: 162 }]}
+                  style={[s.momentCard, mi === 0 && { width: 150 }]}
                 >
                   <Image source={{ uri: m.url }} style={{ width: '100%', height: '100%' }} />
                   <View style={s.momentPill}>
-                    <Text style={[{ fontSize: 21.2, fontWeight: '900', color: '#fff' }, nf]}>
+                    <Text style={[{ fontSize: 10.5, fontWeight: '900', color: '#fff' }, nf]}>
                       {m.km}km
-                      <Text style={{ fontSize: 17.8, fontWeight: '600', color: 'rgba(255,255,255,0.82)' }}>  {m.when}</Text>
+                      <Text style={{ fontSize: 8.5, fontWeight: '600', color: 'rgba(255,255,255,0.82)' }}>  {m.when}</Text>
                     </Text>
                   </View>
                 </Pressable>
@@ -1016,10 +1016,10 @@ export default function OwnerHome() {
           <View style={{ marginTop: 18 }}>
             <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8, marginBottom: 9, borderBottomWidth: 2.5, borderBottomColor: p.textStrong, paddingBottom: 7 }}>
               <Text style={[s.sectionTitle, { color: p.textStrong }, df]}>동네 러너</Text>
-              <Text style={{ fontSize: 15.3, fontWeight: '700', letterSpacing: 2, color: lilac.accent }}>ROSTER · {localRunners.length} ONLINE</Text>
+              <Text style={{ fontSize: 8, fontWeight: '700', letterSpacing: 1.5, color: lilac.accent }}>ROSTER · {localRunners.length} ONLINE</Text>
               <View style={{ flex: 1 }} />
               <Pressable onPress={() => router.push('/leaderboard')}>
-                <Text style={{ fontSize: 23.8, fontWeight: '800', color: lilac.coralDeep }}>🏆 동네 랭킹 ›</Text>
+                <Text style={{ fontSize: 11, fontWeight: '800', color: lilac.coralDeep }}>🏆 동네 랭킹 ›</Text>
               </Pressable>
             </View>
 
@@ -1027,14 +1027,14 @@ export default function OwnerHome() {
             {localRunners[0] && (() => { const f = localRunners[0]; return (
               <Pressable onPress={() => router.push(`/runner-profile/${f.profileId}`)} style={s.featRunner}>
                 <View style={s.featEdge} />
-                <Text style={{ fontSize: 15.3, fontWeight: '700', letterSpacing: 2.5, color: NIGHT_DIM }}>FEATURED RUNNER — {f.district || '근처'}</Text>
-                <View style={{ flexDirection: 'row', gap: 13, alignItems: 'center', marginTop: 9 }}>
-                  <Avatar url={f.avatarUrl} char={f.name[0]} bg={lilac.accent} size={62} />
+                <Text style={{ fontSize: 7.5, fontWeight: '700', letterSpacing: 2, color: NIGHT_DIM }}>FEATURED RUNNER — {f.district || '근처'}</Text>
+                <View style={{ flexDirection: 'row', gap: 11, alignItems: 'center', marginTop: 9 }}>
+                  <Avatar url={f.avatarUrl} char={f.name[0]} bg={lilac.accent} size={48} />
                   <View style={{ flex: 1 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
-                      <Text style={[{ fontSize: 37.4, fontWeight: '900', color: '#fff' }, df]} numberOfLines={1}>{f.name}</Text>
-                      <View style={{ borderWidth: 1, borderColor: 'rgba(240,118,90,0.7)', paddingVertical: 2, paddingHorizontal: 7, borderRadius: lilacRadius.tag }}>
-                        <Text style={{ fontSize: 14.4, fontWeight: '800', letterSpacing: 1.5, color: '#FFCBBB' }}>{f.tier.toUpperCase()}</Text>
+                      <Text style={[{ fontSize: 17, fontWeight: '900', color: '#fff' }, df]} numberOfLines={1}>{f.name}</Text>
+                      <View style={{ borderWidth: 1, borderColor: 'rgba(240,118,90,0.7)', paddingVertical: 2, paddingHorizontal: 5, borderRadius: lilacRadius.tag }}>
+                        <Text style={{ fontSize: 7.5, fontWeight: '800', letterSpacing: 1.5, color: '#FFCBBB' }}>{f.tier.toUpperCase()}</Text>
                       </View>
                     </View>
                     <View style={{ flexDirection: 'row', gap: 15, marginTop: 7 }}>
@@ -1043,7 +1043,7 @@ export default function OwnerHome() {
                       <View><Text style={[s.featNum, nf, { color: lilac.coral }]}>●</Text><Text style={s.featK}>ONLINE</Text></View>
                     </View>
                   </View>
-                  <View style={s.featCta}><Text style={{ fontSize: 21.2, fontWeight: '900', color: lilac.head }}>프로필 ›</Text></View>
+                  <View style={s.featCta}><Text style={{ fontSize: 10.5, fontWeight: '900', color: lilac.head }}>프로필 ›</Text></View>
                 </View>
               </Pressable>
             ); })()}
@@ -1054,16 +1054,16 @@ export default function OwnerHome() {
                 {localRunners.slice(1).map((r) => (
                   <Pressable key={r.profileId} onPress={() => router.push(`/runner-profile/${r.profileId}`)} style={s.rosterCard}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      <Avatar url={r.avatarUrl} char={r.name[0]} bg={lilac.accent} size={38} />
-                      <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: lilac.coral, position: 'absolute', left: 29, top: 0, borderWidth: 1.5, borderColor: lilac.card }} />
+                      <Avatar url={r.avatarUrl} char={r.name[0]} bg={lilac.accent} size={30} />
+                      <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: lilac.coral, position: 'absolute', left: 22, top: 0, borderWidth: 1.5, borderColor: lilac.card }} />
                       <View style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 24.6, fontWeight: '900', color: lilac.head }} numberOfLines={1}>{r.name}</Text>
-                        <Text style={{ fontSize: 17.8, color: lilac.dim, marginTop: 1 }} numberOfLines={1}>{r.district || '근처'}</Text>
+                        <Text style={{ fontSize: 11.5, fontWeight: '900', color: lilac.head }} numberOfLines={1}>{r.name}</Text>
+                        <Text style={{ fontSize: 9, color: lilac.dim, marginTop: 1 }} numberOfLines={1}>{r.district || '근처'}</Text>
                       </View>
                     </View>
                     <View style={{ flexDirection: 'row', gap: 10, marginTop: 9, alignItems: 'baseline', borderTopWidth: 1, borderTopColor: lilac.hair2, paddingTop: 8 }}>
-                      <Text style={[{ fontSize: 25.5, fontWeight: '900', color: lilac.head }, nf]}>{r.totalRuns}<Text style={{ fontSize: 15.3, color: lilac.dim }}> RUNS</Text></Text>
-                      <Text style={[{ fontSize: 25.5, fontWeight: '900', color: lilac.head }, nf]}>{r.paceLabel}</Text>
+                      <Text style={[{ fontSize: 13, fontWeight: '900', color: lilac.head }, nf]}>{r.totalRuns}<Text style={{ fontSize: 8, color: lilac.dim }}> RUNS</Text></Text>
+                      <Text style={[{ fontSize: 13, fontWeight: '900', color: lilac.head }, nf]}>{r.paceLabel}</Text>
                     </View>
                   </Pressable>
                 ))}
@@ -1077,11 +1077,11 @@ export default function OwnerHome() {
 
         {/* ---------- safety quick card ---------- */}
         <Pressable onPress={() => router.push('/safety')} style={[s.safetyStrip, { backgroundColor: p.card }]}>
-          <View style={s.safetyIcon}><Text style={{ fontSize: 25.5, color: lilac.coralDeep }}>✚</Text></View>
-          <Text style={{ flex: 1, fontSize: 24.6, fontWeight: '700', color: p.textStrong }}>
-            안심 센터 <Text style={{ fontWeight: '400', color: p.dim }}>· SOS · 실시간 위치 · 보험</Text>
+          <View style={s.safetyIcon}><Text style={{ fontSize: 12, color: lilac.coralDeep }}>✚</Text></View>
+          <Text style={{ flex: 1, fontSize: 11.5, fontWeight: '700', color: p.textStrong }}>
+            안심 센터 <Text style={{ fontWeight: '400', color: p.dim, fontSize: 9.5 }}>· SOS · 실시간 위치 · 보험</Text>
           </Text>
-          <Text style={{ fontSize: 27.2, color: p.dim }}>›</Text>
+          <Text style={{ fontSize: 13, color: p.dim }}>›</Text>
         </Pressable>
 
         {/* 최근 활동 목업 카드·'내 주변 인기 러너' 목업 섹션 은퇴 (ui-audit P0)
@@ -1092,8 +1092,8 @@ export default function OwnerHome() {
         <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)' }} onPress={() => setFnOpen(false)} />
         <View style={s.fnSheet}>
           <View style={s.fnGrip} />
-          <Text style={[{ fontSize: 37.4, fontWeight: '900', color: lilac.head }, df]}>지금 바로 러닝 찾기</Text>
-          <Text style={{ fontSize: 23.8, color: lilac.text, marginTop: 4 }}>
+          <Text style={[{ fontSize: 21, fontWeight: '900', color: lilac.head }, df]}>지금 바로 러닝 찾기</Text>
+          <Text style={{ fontSize: 13, color: lilac.text, marginTop: 4 }}>
             모두 채워뒀어요 — 바꾸고 싶은 것만 눌러서 바꾸세요
           </Text>
 
@@ -1138,23 +1138,23 @@ export default function OwnerHome() {
           <View style={s.fnKmRow}>
             <Pressable onPress={() => setFnKm((k) => { const n = Math.max(1, k - 1); setFnRouteIdx(pickRouteFor(n, fnRoutes)); return n; })} style={s.fnStep}><Text style={s.fnStepText}>−</Text></Pressable>
             <View style={{ alignItems: 'center', flex: 1 }}>
-              <Text style={[{ fontSize: 39.7, fontWeight: '900', color: lilac.head }, nf]}>{fnKm}km</Text>
-              <Text style={{ fontSize: 23.8, color: lilac.text, marginTop: 2 }}>러닝 거리</Text>
+              <Text style={[{ fontSize: 22, fontWeight: '900', color: lilac.head }, nf]}>{fnKm}km</Text>
+              <Text style={{ fontSize: 13, color: lilac.text, marginTop: 2 }}>러닝 거리</Text>
             </View>
             <Pressable onPress={() => setFnKm((k) => { const n = Math.min(10, k + 1); setFnRouteIdx(pickRouteFor(n, fnRoutes)); return n; })} style={s.fnStep}><Text style={s.fnStepText}>＋</Text></Pressable>
           </View>
 
           <View style={s.fnPriceRow}>
-            <Text style={{ fontSize: 24.6, color: lilac.text }}>결제 금액</Text>
-            <Text style={[{ fontSize: 39.1, fontWeight: '900', color: lilac.head }, nf]}>{fnPrice.toLocaleString()}원</Text>
+            <Text style={{ fontSize: 13, color: lilac.text }}>결제 금액</Text>
+            <Text style={[{ fontSize: 22, fontWeight: '900', color: lilac.head }, nf]}>{fnPrice.toLocaleString()}원</Text>
           </View>
 
           <Pressable onPress={findNowPay} disabled={fnBusy} style={[s.fnPay, fnBusy && { opacity: 0.5 }]}>
-            <Text style={{ fontSize: 28.9, fontWeight: '900', color: '#fff' }}>
+            <Text style={{ fontSize: 15, fontWeight: '900', color: '#fff' }}>
               {fnBusy ? '요청 보내는 중...' : '결제하고 바로 찾기 ➤'}
             </Text>
           </Pressable>
-          <Text style={{ fontSize: 20.4, color: lilac.dim, textAlign: 'center', marginTop: 10 }}>
+          <Text style={{ fontSize: 11, color: lilac.dim, textAlign: 'center', marginTop: 10 }}>
             온라인 러너 전원에게 요청이 전송돼요 · 매칭 전 취소는 전액 환불
           </Text>
         </View>
@@ -1167,8 +1167,8 @@ export default function OwnerHome() {
         <Pressable style={{ flex: 1, backgroundColor: '#00000055' }} onPress={() => setLadderOpen(false)} />
         <View style={s.ladderSheet}>
           <View style={s.sheetHandle} />
-          <Text style={{ fontSize: 34.9, fontWeight: '900', color: lilac.head }}>마일스톤 리워드</Text>
-          <Text style={{ fontSize: 23.8, color: lilac.dim, marginTop: 4, marginBottom: 12 }}>
+          <Text style={{ fontSize: 20, fontWeight: '900', color: lilac.head }}>마일스톤 리워드</Text>
+          <Text style={{ fontSize: 13, color: lilac.dim, marginTop: 4, marginBottom: 12 }}>
             {dog.name}의 누적 86.2km — 달릴수록 콜라보 굿즈가 열려요
           </Text>
           {ownerGearLadder.map((g, i) => (
@@ -1179,24 +1179,24 @@ export default function OwnerHome() {
                   width: 20, height: 20, borderRadius: 4, alignItems: 'center', justifyContent: 'center',
                   backgroundColor: g.got ? lilac.voltDeep : g.claimable ? lilac.coral : lilac.hair,
                 }}>
-                  {g.got && <Text style={{ fontSize: 17.8, fontWeight: '900', color: '#fff' }}>✓</Text>}
-                  {g.claimable && <Text style={{ fontSize: 17.8, fontWeight: '900', color: '#fff' }}>!</Text>}
+                  {g.got && <Text style={{ fontSize: 10, fontWeight: '900', color: '#fff' }}>✓</Text>}
+                  {g.claimable && <Text style={{ fontSize: 10, fontWeight: '900', color: '#fff' }}>!</Text>}
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 26.3, fontWeight: '800', color: g.got || g.claimable ? lilac.head : lilac.dim }}>{g.item}</Text>
-                  <Text style={{ fontSize: 23.8, color: lilac.dim, marginTop: 1 }}>누적 {g.at}km</Text>
+                  <Text style={{ fontSize: 14, fontWeight: '800', color: g.got || g.claimable ? lilac.head : lilac.dim }}>{g.item}</Text>
+                  <Text style={{ fontSize: 12, color: lilac.dim, marginTop: 1 }}>누적 {g.at}km</Text>
                 </View>
                 {g.claimable ? (
                   <Pressable
                     onPress={() => Alert.alert('수령 신청', '배송지로 콜라보 굿즈를 보내드려요 (목업)')}
                     style={{ backgroundColor: lilac.coral, borderRadius: lilacRadius.tag, paddingVertical: 7, paddingHorizontal: 12 }}
                   >
-                    <Text style={{ fontSize: 21.2, fontWeight: '900', color: '#fff' }}>수령하기</Text>
+                    <Text style={{ fontSize: 11, fontWeight: '900', color: '#fff' }}>수령하기</Text>
                   </Pressable>
                 ) : g.got ? (
-                  <Text style={{ fontSize: 20.4, fontWeight: '700', color: lilac.voltDeep }}>수령 완료</Text>
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: lilac.voltDeep }}>수령 완료</Text>
                 ) : (
-                  <Text style={{ fontSize: 23.8, color: lilac.dim }}>{(g.at - 86.2).toFixed(0)}km 남음</Text>
+                  <Text style={{ fontSize: 12, color: lilac.dim }}>{(g.at - 86.2).toFixed(0)}km 남음</Text>
                 )}
               </View>
             </View>
@@ -1210,9 +1210,9 @@ export default function OwnerHome() {
   function StatCell({ top, bottom, bar }: { top: string; bottom: string; bar: string }) {
     return (
       <View style={s.statChip}>
-        <Text style={[s.bibValue, { color: p.textStrong }, nf]} numberOfLines={1}>{top}</Text>
+        <Text style={[s.bibValue, { color: p.textStrong }, nf]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{top}</Text>
         <View style={[s.accentBar, { backgroundColor: bar }]} />
-        <Text style={[s.bibLabel, { color: p.dim }]} numberOfLines={1}>{bottom}</Text>
+        <Text style={[s.bibLabel, { color: p.dim }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{bottom}</Text>
       </View>
     );
   }
@@ -1223,18 +1223,18 @@ const s = StyleSheet.create({
   holo: { position: 'absolute', top: 0, left: 0, right: 0, height: 3, flexDirection: 'row', zIndex: 5 },
   // 섹션 헤더 — 키커 넘버 + 룰 + 링크
   sec: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 16, marginBottom: 4 },
-  secN: { borderWidth: 1, borderColor: '#DCD6F8', backgroundColor: '#F4F1FE', borderRadius: lilacRadius.tag, paddingVertical: 2, paddingHorizontal: 5 },
-  secNText: { fontSize: 15.3, fontWeight: '800', letterSpacing: 1, color: lilac.accent },
-  secH: { fontSize: 25.5, fontWeight: '800', color: lilac.head, letterSpacing: -0.2 },
+  secN: { borderWidth: 1, borderColor: '#DCD6F8', backgroundColor: '#F4F1FE', borderRadius: lilacRadius.tag, paddingVertical: 2, paddingHorizontal: 4 },
+  secNText: { fontSize: 8, fontWeight: '800', letterSpacing: 1, color: lilac.accent },
+  secH: { fontSize: 13, fontWeight: '800', color: lilac.head, letterSpacing: -0.2 },
   secRule: { flex: 1, height: 1, backgroundColor: lilac.hair },
-  secLink: { fontSize: 20.4, fontWeight: '800', color: lilac.accent },
+  secLink: { fontSize: 8, fontWeight: '800', letterSpacing: 1.2, color: lilac.accent },
   // 지금 러너 찾기 — 나이트 라일락 다크 인셋 섬
   findNow: {
-    backgroundColor: NIGHT, borderRadius: lilacRadius.card, padding: 16, marginTop: 14,
+    backgroundColor: NIGHT, borderRadius: lilacRadius.card, padding: 15, marginTop: 14,
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', overflow: 'hidden',
     shadowColor: '#1C1837', shadowOpacity: 0.3, shadowRadius: 26, shadowOffset: { width: 0, height: 10 }, elevation: 6,
   },
-  fnKick: { fontSize: 13.6, fontWeight: '700', letterSpacing: 2.4, color: NIGHT_KICK },
+  fnKick: { fontSize: 7.5, fontWeight: '700', letterSpacing: 2, color: NIGHT_KICK },
   // 레이더 중심점 — 카드 우측 가장자리 살짝 밖, 아크/스윕/블립의 원점
   radarLayer: { position: 'absolute', right: -14, top: 44 },
   fnBlip: {
@@ -1243,7 +1243,7 @@ const s = StyleSheet.create({
   },
   fnCta: {
     flex: 1, backgroundColor: lilac.bg, borderRadius: lilacRadius.btn, alignItems: 'center',
-    justifyContent: 'center', paddingVertical: 14, overflow: 'visible',
+    justifyContent: 'center', paddingVertical: 14, paddingHorizontal: 10, overflow: 'visible',
     shadowColor: '#000', shadowOpacity: 0.28, shadowRadius: 16, shadowOffset: { width: 0, height: 6 },
   },
   fnPulseRing: {
@@ -1257,40 +1257,40 @@ const s = StyleSheet.create({
   },
   fnGrip: { alignSelf: 'center', width: 42, height: 5, borderRadius: 3, backgroundColor: lilac.hair, marginBottom: 14 },
   fnChip: {
-    backgroundColor: lilac.inset, borderRadius: lilacRadius.tag, paddingVertical: 9, paddingHorizontal: 14,
+    backgroundColor: lilac.inset, borderRadius: lilacRadius.tag, paddingVertical: 8, paddingHorizontal: 12,
     borderWidth: 1, borderColor: lilac.hair,
   },
-  fnChipText: { fontSize: 24.6, fontWeight: '800', color: lilac.head },
+  fnChipText: { fontSize: 13, fontWeight: '800', color: lilac.head },
   fnKmRow: {
     flexDirection: 'row', alignItems: 'center', marginTop: 16, backgroundColor: lilac.card,
     borderRadius: lilacRadius.card, padding: 14, borderWidth: 1, borderColor: lilac.hair,
   },
   fnStep: {
-    width: 56, height: 56, borderRadius: 28, backgroundColor: lilac.inset, alignItems: 'center',
+    width: 44, height: 44, borderRadius: 22, backgroundColor: lilac.inset, alignItems: 'center',
     justifyContent: 'center', borderWidth: 1, borderColor: lilac.hair,
   },
-  fnStepText: { fontSize: 43.4, fontWeight: '800', color: lilac.head },
+  fnStepText: { fontSize: 24, fontWeight: '800', color: lilac.head },
   fnPriceRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     marginTop: 14, paddingHorizontal: 4,
   },
-  fnPay: { backgroundColor: MONEY_DEEP, borderRadius: lilacRadius.btn, alignItems: 'center', paddingVertical: 16, marginTop: 12 },
+  fnPay: { backgroundColor: MONEY_DEEP, borderRadius: lilacRadius.btn, alignItems: 'center', paddingVertical: 14, marginTop: 12 },
   overlay: {
     position: 'absolute', top: 0, left: 0, right: 0, zIndex: 20,
     paddingTop: PAD_TOP, paddingHorizontal: 11, paddingBottom: 10,
   },
-  headerRow: { flexDirection: 'row', alignItems: 'center', height: 64, marginBottom: 8 }, // 그리팅 줄(1.7× 스케일) — 아래 티커가 나머지를 채움
+  headerRow: { flexDirection: 'row', alignItems: 'center', height: 44, marginBottom: 8 }, // 그리팅 줄(목업 34px BHS) — 아래 티커가 나머지를 채움
   rankticker: {
     overflow: 'hidden', marginTop: 8, paddingVertical: 5,
     borderTopWidth: 1, borderBottomWidth: 1, borderColor: lilac.hair,
   },
-  tickerLead: { fontSize: 15.3, fontWeight: '700', letterSpacing: 2, color: lilac.dim, marginRight: 2 },
+  tickerLead: { fontSize: 8, fontWeight: '700', letterSpacing: 1.8, color: lilac.dim, marginRight: 2 },
   themeBtn: {
-    width: 40, height: 40, borderRadius: lilacRadius.btn, borderWidth: 1,
+    width: 30, height: 30, borderRadius: lilacRadius.btn, borderWidth: 1,
     alignItems: 'center', justifyContent: 'center',
   },
   bellDot: {
-    position: 'absolute', top: 8, right: 9, width: 7, height: 7, borderRadius: 4,
+    position: 'absolute', top: 6, right: 6, width: 6, height: 6, borderRadius: 3,
     backgroundColor: lilac.coral, zIndex: 2,
     shadowColor: lilac.coral, shadowOpacity: 1, shadowRadius: 4, shadowOffset: { width: 0, height: 0 },
   },
@@ -1300,25 +1300,25 @@ const s = StyleSheet.create({
   },
   heroDbl: { position: 'absolute', top: 4, left: 4, right: 4, bottom: 4, borderWidth: 1, borderColor: lilac.hair2, borderRadius: lilacRadius.inner },
   weekChip: {
-    position: 'absolute', top: 14, left: 16, zIndex: 4, borderWidth: 1,
-    borderRadius: lilacRadius.tag, paddingVertical: 6, paddingHorizontal: 12,
+    position: 'absolute', top: 12, left: 14, zIndex: 4, borderWidth: 1,
+    borderRadius: lilacRadius.tag, paddingVertical: 3, paddingHorizontal: 7,
   },
   info: { position: 'absolute', left: 18, top: 40, width: CARD_W * 0.46, zIndex: 3 }, // 요일 스탬프와 좌우 분담
   stampBox: { position: 'absolute', right: 18, top: 46, zIndex: 3, alignItems: 'flex-end' }, // 링이 떠난 자리 (컬랩스)
-  goalChip: { marginTop: 8, borderRadius: lilacRadius.tag, borderWidth: 1, paddingVertical: 4, paddingHorizontal: 10 },
+  goalChip: { marginTop: 8, borderRadius: lilacRadius.tag, borderWidth: 1, paddingVertical: 3, paddingHorizontal: 8 },
   reportChip: {
     position: 'absolute', left: 12, right: 12, bottom: 11, zIndex: 3,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    borderRadius: lilacRadius.inner, paddingVertical: 8, paddingHorizontal: 12, borderWidth: 1,
+    borderRadius: lilacRadius.inner, paddingVertical: 8, paddingHorizontal: 10, borderWidth: 1,
   },
   // [V4] V1 룰드 숫자 셀 — 카드가 아니라 지면: 위 2.5px 룰, 셀 사이 헤어라인, 액센트 언더라인
   statChip: {
-    flex: 1, alignItems: 'flex-start', paddingVertical: 11, paddingHorizontal: 10,
+    flex: 1, alignItems: 'flex-start', paddingVertical: 9, paddingHorizontal: 9,
     borderTopWidth: 2.5, borderTopColor: lilac.head, borderRightWidth: 1, borderRightColor: lilac.hair,
   },
-  accentBar: { width: 26, height: 3.5, marginTop: 5 },
-  bibLabel: { fontSize: 17.8, fontWeight: '800', letterSpacing: 0.3, marginTop: 5 },
-  bibValue: { fontSize: 44.2, fontWeight: '900', fontVariant: ['tabular-nums'], letterSpacing: -0.5 },
+  accentBar: { width: 22, height: 3, marginTop: 6 },
+  bibLabel: { fontSize: 9, fontWeight: '800', letterSpacing: 0.1, marginTop: 5 },
+  bibValue: { fontSize: 16, fontWeight: '900', fontVariant: ['tabular-nums'], letterSpacing: -0.3 },
   // 오늘의 티켓 — 보딩패스
   ticket: {
     backgroundColor: lilac.card, borderRadius: lilacRadius.card, marginTop: 4, overflow: 'hidden',
@@ -1326,8 +1326,8 @@ const s = StyleSheet.create({
   },
   ticketDbl: { position: 'absolute', top: 4, left: 4, right: 4, bottom: 4, borderWidth: 1, borderColor: lilac.hair2, borderRadius: lilacRadius.inner },
   ticketHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 13, paddingTop: 12 },
-  ticketGlyph: { width: 24, height: 24, borderRadius: lilacRadius.tag, backgroundColor: lilac.accent, alignItems: 'center', justifyContent: 'center' },
-  ticketBrand: { fontSize: 15.3, fontWeight: '800', letterSpacing: 2, color: lilac.head },
+  ticketGlyph: { width: 16, height: 16, borderRadius: lilacRadius.tag, backgroundColor: lilac.accent, alignItems: 'center', justifyContent: 'center' },
+  ticketBrand: { fontSize: 9, fontWeight: '800', letterSpacing: 1.8, color: lilac.head },
   perf: { marginTop: 11, height: 0, borderTopWidth: 1.5, borderStyle: 'dashed', borderColor: '#DCD7F0', marginHorizontal: -13 },
   notch: { position: 'absolute', top: -9, width: 18, height: 18, borderRadius: 9, backgroundColor: lilac.bg, borderWidth: 1, borderColor: lilac.hair2 },
   rewardCard: {
@@ -1349,7 +1349,7 @@ const s = StyleSheet.create({
   // 예약하기 = 돈 버튼 — 딥 코랄 (종단 ≥#C6472C, 흰 라벨 4.5:1)
   book: { backgroundColor: lilac.card, borderWidth: 1, borderColor: lilac.hair2, borderRadius: lilacRadius.card, padding: 12, marginTop: 14, ...lilacShadow },
   bookFacts: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', paddingHorizontal: 2, paddingBottom: 11 },
-  bookKicker: { fontSize: 13.6, fontWeight: '600', letterSpacing: 1.6, color: lilac.dim, marginBottom: 2 },
+  bookKicker: { fontSize: 7.5, fontWeight: '600', letterSpacing: 1.4, color: lilac.dim, marginBottom: 2 },
   cta: {
     borderRadius: lilacRadius.card, paddingVertical: 20, paddingHorizontal: 16, overflow: 'hidden',
     backgroundColor: MONEY_DEEP,
@@ -1368,37 +1368,37 @@ const s = StyleSheet.create({
     shadowColor: lilac.coral, shadowOpacity: 1, shadowRadius: 4, shadowOffset: { width: 0, height: 0 },
   },
   meetBtn: {
-    flex: 1, backgroundColor: lilac.accent, borderRadius: lilacRadius.btn, alignItems: 'center', paddingVertical: 12,
+    flex: 1, backgroundColor: lilac.accent, borderRadius: lilacRadius.btn, alignItems: 'center', paddingVertical: 13,
     shadowColor: lilac.accent, shadowOpacity: 0.3, shadowRadius: 13, shadowOffset: { width: 0, height: 5 },
   },
-  countdownPill: { borderRadius: lilacRadius.tag, paddingVertical: 4, paddingHorizontal: 8 },
+  countdownPill: { borderRadius: lilacRadius.tag, paddingVertical: 3, paddingHorizontal: 6 },
   widgetBtn: { flex: 1, borderWidth: 1, borderColor: lilac.hair, backgroundColor: lilac.inset, borderRadius: lilacRadius.btn, alignItems: 'center', paddingVertical: 10 },
   nudge: {
-    flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10,
+    flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 10,
     borderRadius: lilacRadius.card, borderWidth: 1, borderColor: lilac.hair2,
-    borderLeftWidth: 2.5, borderLeftColor: lilac.coral, paddingVertical: 12, paddingHorizontal: 14,
+    borderLeftWidth: 2.5, borderLeftColor: lilac.coral, paddingVertical: 11, paddingHorizontal: 12,
     ...lilacShadow,
   },
   safetyStrip: {
-    flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: lilacRadius.card,
-    paddingVertical: 12, paddingHorizontal: 14, marginTop: 12,
+    flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: lilacRadius.card,
+    paddingVertical: 11, paddingHorizontal: 12, marginTop: 12,
     borderWidth: 1, borderColor: lilac.hair,
     ...lilacShadow,
   },
-  safetyIcon: { width: 36, height: 36, borderRadius: lilacRadius.inner, backgroundColor: '#FFF1EC', alignItems: 'center', justifyContent: 'center' },
-  sectionTitle: { fontSize: 33.1, fontWeight: '800' },
+  safetyIcon: { width: 24, height: 24, borderRadius: lilacRadius.inner, backgroundColor: '#FFF1EC', alignItems: 'center', justifyContent: 'center' },
+  sectionTitle: { fontSize: 13, fontWeight: '800' },
   // 스타디움 로스터 — 피처드 = 나이트 라일락, 미니 = 라이트 라일락
-  featRunner: { backgroundColor: NIGHT, borderWidth: 1, borderColor: '#2E2A50', borderRadius: lilacRadius.card, padding: 15, paddingLeft: 18, overflow: 'hidden' },
+  featRunner: { backgroundColor: NIGHT, borderWidth: 1, borderColor: '#2E2A50', borderRadius: lilacRadius.card, padding: 13, paddingLeft: 16, overflow: 'hidden' },
   featEdge: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, backgroundColor: lilac.coral },
-  featNum: { fontSize: 28.9, fontWeight: '900', color: '#fff', fontVariant: ['tabular-nums'] },
-  featK: { fontSize: 12.8, fontWeight: '700', letterSpacing: 1.5, color: '#9E94D2', marginTop: 2 },
-  featCta: { backgroundColor: lilac.card, borderRadius: lilacRadius.btn, paddingVertical: 9, paddingHorizontal: 13, alignSelf: 'center' },
-  rosterCard: { width: 168, backgroundColor: lilac.card, borderWidth: 1, borderColor: lilac.hair, borderRadius: lilacRadius.card, padding: 12, ...lilacShadow },
-  momentCard: { width: 126, height: 158, borderRadius: lilacRadius.inner, overflow: 'hidden', backgroundColor: lilac.inset, borderWidth: 1, borderColor: lilac.hair },
+  featNum: { fontSize: 14, fontWeight: '900', color: '#fff', fontVariant: ['tabular-nums'] },
+  featK: { fontSize: 7, fontWeight: '700', letterSpacing: 1.2, color: '#9E94D2', marginTop: 3 },
+  featCta: { backgroundColor: lilac.card, borderRadius: lilacRadius.btn, paddingVertical: 9, paddingHorizontal: 10, alignSelf: 'center' },
+  rosterCard: { width: 146, backgroundColor: lilac.card, borderWidth: 1, borderColor: lilac.hair, borderRadius: lilacRadius.card, padding: 10, ...lilacShadow },
+  momentCard: { width: 118, height: 146, borderRadius: lilacRadius.inner, overflow: 'hidden', backgroundColor: lilac.inset, borderWidth: 1, borderColor: lilac.hair },
   momentPill: {
-    position: 'absolute', left: 8, bottom: 8,
-    backgroundColor: 'rgba(28,24,55,0.62)', borderRadius: lilacRadius.tag, paddingVertical: 4, paddingHorizontal: 9,
+    position: 'absolute', left: 7, bottom: 7,
+    backgroundColor: 'rgba(28,24,55,0.62)', borderRadius: lilacRadius.tag, paddingVertical: 3, paddingHorizontal: 7,
   },
-  tickerItem: { fontSize: 25.5, fontWeight: '600', color: lilac.text },
+  tickerItem: { fontSize: 9.5, fontWeight: '600', color: lilac.text },
   tickerSep: { width: 3, height: 3, borderRadius: 2, backgroundColor: lilac.hair, marginHorizontal: 8 },
 });
