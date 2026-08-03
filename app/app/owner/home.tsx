@@ -13,12 +13,12 @@ import { useNumFont } from '../../src/lib/fonts';
 import { haptic } from '../../src/lib/haptics';
 import { registerPushToken } from '../../src/lib/push';
 import { Booking, demoImminent, dog, draft, myCards, nextBooking, ownerGearLadder, RouteInfo, runners } from '../../src/store';
-import { colors, pricing, surfaces } from '../../src/theme';
+import { colors, lilac, lilacRadius, lilacShadow, pricing } from '../../src/theme';
 import { useTheme } from '../../src/theme-context';
 
-// Owner home — themed (dark/light toggle in header) with a sticky collapsing hero:
-// on load the ring is big and centered; scrolling shrinks the hero card into a
-// compact pinned rectangle (ring right, goal data left) that stays at the top.
+// Owner home — 라일락 리페인트 (2026-08 "EDITORIAL SPORT × DAWN-DOT MORPH").
+// 스크롤 컬랩스 히어로 역학은 그대로. 표면만 포레스트/볼트 → 라일락(라이트 라일락 · 나이트 라일락 #1C1837)으로 전환.
+// 모프 위젯: 54-dot 새벽 링(바이올렛→코랄 아크, 코랄 글로우 헤드) ↔ 하단 새벽 진행선 크로스페이드 (좌표 보간 0 — 퍼포 법 유지).
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const CARD_W = SCREEN_W - 22; // 거터 11*2 (0.9x 축소)
@@ -29,18 +29,42 @@ const MORPH_DOTS = 54;
 const MORPH_DOT = 11;
 const LINE_Y_HERO = 154; // 컬랩스 히어로(176) 하단 진행선 y — 정보 블록 '% 달성' 아래
 
+// 라일락 서피스 토큰 — 나이트 라일락 다크 인셋 / 딥 코랄 머니 스톱(종단 ≥#C6472C, 흰 라벨 4.5:1)
+const NIGHT = '#1C1837';
+const NIGHT_DIM = '#C6BEEB';
+const NIGHT_KICK = '#B7ADE4';
+const MONEY_DEEP = '#C6472C'; // 예약 CTA 종단 스톱 — 흰 라벨 대비 확보
+const HOLO = ['#CFC5F6', '#FFDCD1', '#F3E9C6', '#EAF6C8', '#CDEAF3']; // 홀로 3px 엣지 근사
+
+// 테마 팔레트를 포레스트/크림 → 라일락으로 전면 전환 (theme.surfaces 은퇴, 토글 역학은 유지).
+// light = 라이트 라일락 · dark = 나이트 라일락. mode가 여전히 어느 팔레트인지 결정한다.
+const LILAC_SURF = {
+  light: {
+    bg: lilac.bg, card: lilac.card, line: lilac.hair, line2: lilac.hair2,
+    chip: lilac.inset, track: lilac.hair, dim: lilac.dim,
+    textStrong: lilac.head, textSoft: lilac.text,
+  },
+  dark: {
+    bg: NIGHT, card: '#241F42', line: '#332E5C', line2: '#2A2550',
+    chip: '#2A2550', track: '#3A3463', dim: NIGHT_DIM,
+    textStrong: '#FFFFFF', textSoft: '#EDE9FB',
+  },
+} as const;
+
 function lerpHex(a: string, b: string, tt: number): string {
   const pa = [1, 3, 5].map((i) => parseInt(a.slice(i, i + 2), 16));
   const pb = [1, 3, 5].map((i) => parseInt(b.slice(i, i + 2), 16));
   return `#${pa.map((x, i) => Math.round(x + (pb[i] - x) * tt).toString(16).padStart(2, '0')).join('')}`;
 }
 
-// [퍼포먼스 단순화, Sean 2026-08-02] 점별 좌표 보간(54점 × 2 인터폴레이션 = 프레임당 ~108개
-// JS 트랜스폼)이 스크롤을 무겁게 했다 → 링·선을 각각 '정적' 레이어로 그리고, 스크롤 t는
-// 크로스페이드 + 선 살짝 내려앉기(총 3개 애니메이션 값)만 움직인다. 점이 곧 데이터라는
-// 문법(진행 점등·헤드 글로우)은 두 레이어가 동일하게 유지한다.
+// [퍼포먼스 단순화, Sean 2026-08-02] 점별 좌표 보간(54점 × 2 = 프레임당 ~108개 트랜스폼)이 스크롤을
+// 무겁게 했다 → 링·선을 각각 '정적' 레이어로 그리고, 스크롤 t는 크로스페이드 + 선 살짝 내려앉기(총 3개
+// 애니메이션 값)만 움직인다. 점이 곧 데이터라는 문법(진행 점등·헤드 글로우)은 두 레이어가 동일하게 유지.
+// [라일락 리페인트] 스웜프 그린 → 새벽 아크: 시작(주 초반) 바이올렛 #6C5CE7 → 헤드(진행 끝) 코랄 #F0765A.
 function dotColor(i: number, lit: number, track: string): string {
-  return i < lit ? lerpHex(colors.voltDeep, colors.voltBright, i / MORPH_DOTS) : track;
+  if (i >= lit) return track;
+  const tt = lit > 1 ? i / (lit - 1) : 1;
+  return lerpHex(lilac.accent, lilac.coral, tt);
 }
 function RingDots({ pct, track }: { pct: number; track: string }) {
   const n = MORPH_DOTS;
@@ -61,8 +85,8 @@ function RingDots({ pct, track }: { pct: number; track: string }) {
               left: c + r * Math.cos(angle) - MORPH_DOT / 2,
               top: c + r * Math.sin(angle) - MORPH_DOT / 2,
               width: MORPH_DOT, height: MORPH_DOT, borderRadius: MORPH_DOT / 2,
-              backgroundColor: dotColor(i, lit, track),
-              ...(head ? { shadowColor: colors.volt, shadowOpacity: 0.9, shadowRadius: 5, shadowOffset: { width: 0, height: 0 }, transform: [{ scale: 1.55 }] } : {}),
+              backgroundColor: head ? lilac.coral : dotColor(i, lit, track),
+              ...(head ? { shadowColor: lilac.coral, shadowOpacity: 0.75, shadowRadius: 9, shadowOffset: { width: 0, height: 0 }, transform: [{ scale: 1.55 }] } : {}),
             }}
           />
         );
@@ -89,8 +113,8 @@ function LineDots({ pct, containerX, containerY, track }: {
               left: 18 + (i / (n - 1)) * (CARD_W - 36) - containerX - MORPH_DOT / 2,
               top: lineY,
               width: MORPH_DOT, height: MORPH_DOT, borderRadius: MORPH_DOT / 2,
-              backgroundColor: dotColor(i, lit, track),
-              ...(head ? { shadowColor: colors.volt, shadowOpacity: 0.9, shadowRadius: 5, shadowOffset: { width: 0, height: 0 }, transform: [{ scale: 1.55 }] } : {}),
+              backgroundColor: head ? lilac.coral : dotColor(i, lit, track),
+              ...(head ? { shadowColor: lilac.coral, shadowOpacity: 0.75, shadowRadius: 9, shadowOffset: { width: 0, height: 0 }, transform: [{ scale: 1.55 }] } : {}),
             }}
           />
         );
@@ -98,6 +122,34 @@ function LineDots({ pct, containerX, containerY, track }: {
     </>
   );
 }
+
+// 홀로 3px 엣지 — 히어로 카드·티켓 상단 (그라디언트 라이브러리 미사용 컨벤션: 세그먼트 근사)
+function HoloBar() {
+  return (
+    <View pointerEvents="none" style={s.holo}>
+      {HOLO.map((cl, i) => (
+        <View key={i} style={{ flex: 1, backgroundColor: cl }} />
+      ))}
+    </View>
+  );
+}
+
+// 섹션 헤더 — 키커 넘버 + 룰 + 링크 (에디토리얼 마스트 문법)
+function SectionHead({ n, title, link, onLink }: { n?: string; title: string; link?: string; onLink?: () => void }) {
+  return (
+    <View style={s.sec}>
+      {n ? (
+        <View style={s.secN}><Text style={s.secNText}>{n}</Text></View>
+      ) : null}
+      <Text style={s.secH}>{title}</Text>
+      <View style={s.secRule} />
+      {link ? (
+        <Pressable onPress={onLink}><Text style={s.secLink}>{link}</Text></Pressable>
+      ) : null}
+    </View>
+  );
+}
+
 const PAD_TOP = 56;
 const HEADER_H = 104; // 그리팅 1줄 + 동네 랭킹 티커 스트립
 
@@ -111,7 +163,8 @@ const HERO_SMALL = 176; // 1.15배 타입 스케일 후 좌측 정보 블록('N%
 const SCROLL_RANGE = 150;
 
 export default function OwnerHome() {
-  const { mode, toggle, p } = useTheme();
+  const { mode, toggle } = useTheme();
+  const p = LILAC_SURF[mode]; // 라일락 팔레트 (포레스트/크림 서피스 은퇴)
   const df = useDisplayFont(); // 디스플레이 서체 — 그리팅·find-now 히어로 타이틀
   const nf = useNumFont(); // [V4] 숫자 = Oswald
 
@@ -296,6 +349,18 @@ export default function OwnerHome() {
   };
   const fnPrice = pricing.baseFare + fnKm * pricing.perKm;
 
+  // 예약하기 머니 CTA — 슬라이드 예약과 동일 목적지(제네릭 오픈 예약). 지난 러닝 값으로 프리필 표기.
+  const bookKm = lastDone?.km ?? draft.km;
+  const bookPrice = pricing.baseFare + bookKm * pricing.perKm;
+  const goBook = () => {
+    // 제네릭 예약 = 오픈 브로드캐스트 — 이전 플로우의 지명/시각 잔재를 소거 (스테일 지명이 슬롯을 한 러너로 묶던 버그)
+    draft.preferredRunnerId = null;
+    draft.preferredRunnerName = null;
+    draft.scheduledAtIso = null;
+    draft.timeLabel = '시간을 선택해주세요';
+    router.push('/owner/request');
+  };
+
   // reward beacon — 실보상 경제 전까지 숨김 (상시 가짜 도파민 = 학습된 무시, ui-audit P0)
   const [ladderOpen, setLadderOpen] = useState(false);
   const claimable = null as (typeof ownerGearLadder)[number] | null;
@@ -331,9 +396,8 @@ export default function OwnerHome() {
   const infoX = t.interpolate({ inputRange: [0, 1], outputRange: [-20, 0] });
   const bigMsgOpacity = t.interpolate({ inputRange: [0, 0.35], outputRange: [1, 0], extrapolate: 'clamp' });
 
-  // hero uses the OPPOSITE theme's surfaces — contrast is the point
-  const hp = surfaces[mode === 'dark' ? 'light' : 'dark'];
-  const heroAccent = mode === 'dark' ? colors.voltDeep : colors.volt;
+  // 히어로(모프 위젯) = 라이트 라일락 흰 카드 (mockup 시각 타깃). 새벽 도트 트랙은 라일락 헤어라인.
+  const hp = LILAC_SURF.light;
 
   return (
     <View style={{ flex: 1, backgroundColor: p.bg }}>
@@ -344,12 +408,12 @@ export default function OwnerHome() {
         <Animated.View style={{ height: headerH, opacity: headerOpacity, overflow: 'hidden' }}>
           <View style={s.headerRow}>
             {/* pfp — 보호자 프로필 사진 (profiles.avatar_url), 없으면 모노그램. 홈 상단의 '나' 자리 */}
-            <Avatar url={me?.avatarUrl} char={(me?.name ?? dogName)[0]} bg={colors.forest} size={46} />
+            <Avatar url={me?.avatarUrl} char={(me?.name ?? dogName)[0]} bg={lilac.accent} size={46} />
             <View style={{ flex: 1, marginLeft: 12 }}>
               {/* 원라인 모토 — pfp↔알림 버튼 사이 전폭. 문구별 폭 차이는 adjustsFontSizeToFit이 흡수 */}
               <Animated.Text
                 style={[{
-                  fontSize: 30, fontWeight: '900', color: colors.forest,
+                  fontSize: 30, fontWeight: '900', color: lilac.head,
                   opacity: gFlip.interpolate({ inputRange: [0, 1], outputRange: [1, 0.1] }),
                   transform: [
                     { perspective: 600 },
@@ -360,11 +424,14 @@ export default function OwnerHome() {
                 adjustsFontSizeToFit
                 minimumFontScale={0.55}
               >
-                {GREETINGS[gIdx]}, <Text style={{ color: colors.voltDeep }}>우리 {dogName}</Text>
+                {GREETINGS[gIdx]}, <Text style={{ color: lilac.accent }}>우리 {dogName}</Text>
               </Animated.Text>
             </View>
-            {/* 다크 토글 은퇴 — '나이트 러너' 테마로 전 화면 완성 후 복귀 (반쪽 다크는 깨져 보임, ui-audit) */}
-            <Pressable onPress={() => router.push('/alerts')} style={[s.themeBtn, { borderColor: p.line, marginLeft: 8 }]}>
+            {/* 나이트 라일락 테마 토글 — 라일락 전 화면 정합 후 복귀 (toggle 역학 유지) */}
+            <Pressable onPress={toggle} style={[s.themeBtn, { borderColor: p.line, backgroundColor: p.card }]}>
+              <Text style={{ fontSize: 15, color: lilac.accent }}>◐</Text>
+            </Pressable>
+            <Pressable onPress={() => router.push('/alerts')} style={[s.themeBtn, { borderColor: p.line, backgroundColor: p.card, marginLeft: 8 }]}>
               <View style={s.bellDot} />
               <Text style={{ fontSize: 17, color: p.dim }}>◔</Text>
             </Pressable>
@@ -372,7 +439,7 @@ export default function OwnerHome() {
           {/* 동네 랭킹 티커 — 주식 시세줄처럼 흐르는 실집계 (탭 → 리더보드).
               ▲▼ 등락 화살표는 지난주 대비 델타 RPC가 생기기 전까지 금지 — 없는 데이터는 그리지 않는다 */}
           {ticker.length > 0 && (
-            <Pressable onPress={() => router.push('/leaderboard')} style={{ overflow: 'hidden', marginTop: 2 }}>
+            <Pressable onPress={() => router.push('/leaderboard')} style={s.rankticker}>
               <Animated.View style={{ flexDirection: 'row', transform: [{ translateX: tickerX }] }}>
                 {[0, 1].map((dup) => (
                   <View
@@ -380,19 +447,19 @@ export default function OwnerHome() {
                     style={{ flexDirection: 'row', alignItems: 'center' }}
                     onLayout={dup === 0 ? (e) => { const w = Math.round(e.nativeEvent.layout.width); if (Math.abs(w - tickerW) > 2) setTickerW(w); } : undefined}
                   >
-                    <Text style={s.tickerItem}>🏆 이번 주 동네 랭킹</Text>
-                    <Text style={s.tickerDot}>·</Text>
+                    <Text style={s.tickerLead}>THIS WEEK · 동네 리그</Text>
+                    <View style={s.tickerSep} />
                     {ticker.map((d, i) => (
                       <View key={`${dup}-${i}`} style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <Text style={s.tickerItem}>
-                          <Text style={{ color: colors.voltDeep, fontWeight: '900' }}>{i + 1}위 </Text>
-                          {d.name} <Text style={{ color: colors.tang, fontWeight: '900' }}>{d.km}km</Text>
+                          <Text style={[{ color: lilac.accent, fontWeight: '900' }, nf]}>{i + 1}위 </Text>
+                          {d.name} <Text style={[{ color: lilac.coralDeep, fontWeight: '900' }, nf]}>{d.km}km</Text>
                           {/* ▲▼ 해금 (0022) — 지난주 대비 실델타가 있을 때만. NEW = 지난주 미랭크 */}
-                          {d.delta != null && d.delta > 0 && <Text style={{ color: '#5a7a3c', fontWeight: '900' }}> ▲{d.delta}</Text>}
-                          {d.delta != null && d.delta < 0 && <Text style={{ color: '#d84a2f', fontWeight: '900' }}> ▼{-d.delta}</Text>}
-                          {d.delta === null && <Text style={{ color: colors.voltDeep, fontWeight: '800', fontSize: 10 }}> NEW</Text>}
+                          {d.delta != null && d.delta > 0 && <Text style={{ color: lilac.voltDeep, fontWeight: '900' }}> ▲{d.delta}</Text>}
+                          {d.delta != null && d.delta < 0 && <Text style={{ color: lilac.tang, fontWeight: '900' }}> ▼{-d.delta}</Text>}
+                          {d.delta === null && <Text style={{ color: lilac.dim, fontWeight: '800', fontSize: 10 }}> NEW</Text>}
                         </Text>
-                        <Text style={s.tickerDot}>·</Text>
+                        <View style={s.tickerSep} />
                       </View>
                     ))}
                   </View>
@@ -403,16 +470,18 @@ export default function OwnerHome() {
         </Animated.View>
 
         <Pressable onPress={() => router.push('/owner/fitness')}>
-          <Animated.View style={[s.hero, { height: heroH, backgroundColor: hp.card, borderColor: hp.line }]}>
-            <View style={[s.weekChip, { backgroundColor: hp.chip }]}>
-              <Text style={{ fontSize: 12.5, fontWeight: '700', color: hp.textSoft }}>이번 주 ▾</Text>
+          <Animated.View style={[s.hero, { height: heroH, backgroundColor: hp.card, borderColor: lilac.hair }]}>
+            <HoloBar />
+            <View pointerEvents="none" style={s.heroDbl} />
+            <View style={[s.weekChip, { backgroundColor: hp.chip, borderColor: lilac.hair }]}>
+              <Text style={{ fontSize: 12.5, fontWeight: '700', color: lilac.head }}>이번 주 ▾</Text>
             </View>
 
             {/* compact info block (left side, fades in) */}
             <Animated.View style={[s.info, { opacity: infoOpacity, transform: [{ translateX: infoX }] }]}>
               <Text style={{ fontSize: 14, fontWeight: '700', color: hp.textSoft }}>{dogName}의 주간 목표</Text>
               <Text style={{ marginTop: 2 }}>
-                <Text style={{ fontSize: 37, fontWeight: '900', color: colors.tang }}>
+                <Text style={[{ fontSize: 37, fontWeight: '900', color: lilac.head }, nf]}>
                   {weekKm}
                 </Text>
                 <Text style={{ fontSize: 15, color: hp.dim }}> / {goalKm} km</Text>
@@ -427,7 +496,7 @@ export default function OwnerHome() {
                       : '체력 나이 측정 준비 중'}
               </Text>
               {/* 미니바 은퇴 — 진행바는 링에서 풀려 내려온 도트 라인이 담당 */}
-              <Text style={{ fontSize: 11.5, fontWeight: '800', color: heroAccent, marginTop: 4 }}>
+              <Text style={[{ fontSize: 11.5, fontWeight: '800', color: lilac.coralDeep, marginTop: 4 }, nf]}>
                 {Math.round(pct * 100)}% 달성
               </Text>
             </Animated.View>
@@ -446,12 +515,12 @@ export default function OwnerHome() {
                       key={dLabel}
                       style={{
                         width: 20, height: 20, borderRadius: 4, alignItems: 'center', justifyContent: 'center',
-                        backgroundColor: ran ? colors.volt : 'transparent',
-                        borderWidth: isToday && !ran ? 1.7 : 1.2,
-                        borderColor: ran ? colors.volt : isToday ? heroAccent : hp.line,
+                        backgroundColor: ran ? lilac.accent : 'transparent',
+                        borderWidth: isToday ? 1.7 : 1.2,
+                        borderColor: ran ? lilac.accent : isToday ? lilac.coral : lilac.hair,
                       }}
                     >
-                      <Text style={{ fontSize: 9.5, fontWeight: '900', color: ran ? '#0F1D13' : hp.dim }}>{dLabel}</Text>
+                      <Text style={{ fontSize: 9.5, fontWeight: '900', color: ran ? '#fff' : isToday ? lilac.coralDeep : hp.dim }}>{dLabel}</Text>
                     </View>
                   );
                 })}
@@ -475,22 +544,22 @@ export default function OwnerHome() {
               {/* 큰 상태 센터 콘텐츠 — 컬랩스 전에 사라진다 (컴팩트 정보는 좌측 블록 전담, 이중 표기 금지) */}
               <Animated.View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', opacity: centerOpacity }}>
                 <View style={{ alignItems: 'center' }}>
-                  <Text style={{ fontSize: 15, color: hp.dim }}>이번 주</Text>
-                  <Text style={{ fontSize: 53, fontWeight: '900', color: colors.tang, lineHeight: 57.5 }}>
-                    {weekKm}
-                    <Text style={{ fontSize: 18.5, color: hp.dim }}> km</Text>
+                  <Text style={{ fontSize: 11, letterSpacing: 2, color: hp.dim }}>오늘까지</Text>
+                  <Text style={[{ color: lilac.head, lineHeight: 57.5 }, nf]}>
+                    <Text style={{ fontSize: 53, fontWeight: '900' }}>{weekKm}</Text>
+                    <Text style={{ fontSize: 18.5, color: lilac.coral }}> km</Text>
                   </Text>
-                  <Text style={{ fontSize: 15, color: heroAccent, marginTop: 2 }}>
-                    / {goalKm}km
+                  <Text style={{ fontSize: 12.5, color: hp.textSoft, marginTop: 2 }}>
+                    / {goalKm}km <Text style={{ color: lilac.accent, fontWeight: '700' }}>주간 목표</Text>
                   </Text>
                   {/* 체력 나이 — our concept, front and center */}
-                  <View style={[s.goalChip, { backgroundColor: hp.chip, flexDirection: 'row', gap: 4, alignItems: 'center' }]}>
+                  <View style={[s.goalChip, { backgroundColor: hp.chip, borderColor: lilac.hair, flexDirection: 'row', gap: 4, alignItems: 'center' }]}>
                     <Text style={{ fontSize: 11.5, fontWeight: '800', color: hp.textSoft }}>체력 나이</Text>
-                    <Text style={{ fontSize: 14, fontWeight: '900', color: heroAccent }}>
+                    <Text style={[{ fontSize: 14, fontWeight: '900', color: lilac.accent }, nf]}>
                       {fitnessAge != null ? `${fitnessAge}살` : '측정 전'}
                     </Text>
                     {fitnessAge != null && (
-                      <Text style={{ fontSize: 10.5, fontWeight: '800', color: colors.tang }}>▼{Math.max(dog.age - fitnessAge, 0).toFixed(1)}</Text>
+                      <Text style={[{ fontSize: 10.5, fontWeight: '800', color: lilac.coralDeep }, nf]}>▼{Math.max(dog.age - fitnessAge, 0).toFixed(1)}</Text>
                     )}
                   </View>
                 </View>
@@ -498,12 +567,12 @@ export default function OwnerHome() {
             </View>
 
             {/* big-state goal message */}
-            {/* 체력 리포트 진입 칩 — 히어로가 탭 가능하다는 걸 매트한 칩이 말해준다 (흰 서브텍스트 은퇴) */}
-            <Animated.View style={[s.reportChip, { opacity: bigMsgOpacity, backgroundColor: hp.chip, borderColor: hp.line }]}>
+            {/* 체력 리포트 진입 칩 — 히어로가 탭 가능하다는 걸 매트한 칩이 말해준다 */}
+            <Animated.View style={[s.reportChip, { opacity: bigMsgOpacity, backgroundColor: hp.chip, borderColor: lilac.hair }]}>
               <Text style={{ fontSize: 13, fontWeight: '800', color: hp.textSoft }}>
                 {goalHit ? '🎉 목표 달성 — 체력 리포트' : '체력 리포트 · 주간 목표'}
               </Text>
-              <Text style={{ fontSize: 14, fontWeight: '900', color: heroAccent }}>›</Text>
+              <Text style={{ fontSize: 14, fontWeight: '900', color: lilac.accent }}>›</Text>
             </Animated.View>
           </Animated.View>
         </Pressable>
@@ -520,30 +589,157 @@ export default function OwnerHome() {
         onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: false })}
         scrollEventThrottle={16}
       >
-        {/* ---------- stat chips — 파스텔 스탬프: 데이터가 차오르면 카피도 자랑스러워진다.
+        {/* ---------- stat cells — 룰드 숫자 셀: 데이터가 차오르면 카피도 자랑스러워진다.
             정직 원칙: 자랑 카피는 실데이터 임계(스트릭 3일·주 3회)에서만 점화 — 0에서 응원, 성과에서 축하 ---------- */}
-        <View style={{ flexDirection: 'row', gap: 8 }}>
-          <StatChip
-            bg={colors.tang}
+        <View style={{ flexDirection: 'row' }}>
+          <StatCell
+            bar={lilac.coral}
             top={`연속 ${fit?.streakDays ?? 0}일${(fit?.streakDays ?? 0) >= 3 ? ' 🔥' : ''}`}
             bottom={(fit?.streakDays ?? 0) >= 3 ? '불붙었어요' : (fit?.streakDays ?? 0) > 0 ? '연속 기록' : '오늘 시작해볼까요'}
           />
-          <StatChip
-            bg={colors.voltDeep}
+          <StatCell
+            bar={lilac.accent}
             top={`${fit?.weekRuns ?? 0}회 완료`}
             bottom={(fit?.weekRuns ?? 0) >= 3 ? '이번 주 벌써' : '이번 주'}
           />
-          <StatChip
-            bg={colors.club}
+          <StatCell
+            bar={lilac.head}
             top={fit?.avgPaceSec ? `${Math.floor(fit.avgPaceSec / 60)}'${String(fit.avgPaceSec % 60).padStart(2, '0')}"` : '—'}
             bottom={fit?.avgPaceSec ? '평균 페이스' : '첫 러닝 후 측정'}
           />
         </View>
 
-        {/* ---------- 지금 러너 찾기 히어로 — 우버식: 탭 = 검색 시작, 결제·코스 자동 ---------- */}
-        {/* 하이클럽 모듈 (P-A S1) — 실세션 있을 때만 렌더 */}
-        <ClubHomeCard />
+        {/* ═══ 오늘의 티켓 (owner-4 보딩패스) — 임박 예약(가장 액션 가능한 실예약)을 보딩패스로.
+             상단=사실, 스텁=액션. 상태 태그는 실상태 텍스트. 예약 없으면 부재 안내. ═══ */}
+        <SectionHead n="01" title="오늘의 티켓" link="전체 일정 ›" onLink={() => router.push('/owner/schedule')} />
+        {/* whole card taps through to 내 일정 — buttons stop propagation */}
+        <Pressable onPress={() => router.push('/owner/schedule')} style={s.ticket}>
+          <HoloBar />
+          <View pointerEvents="none" style={s.ticketDbl} />
+          <View style={s.ticketHead}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <View style={s.ticketGlyph}><Text style={{ fontSize: 9, color: '#fff' }}>✦</Text></View>
+              <Text style={s.ticketBrand}>NEXT RUN · BOARDING PASS</Text>
+            </View>
+            {liveNext ? (
+              <View style={[s.countdownPill, liveNext.status === 'pending'
+                ? { backgroundColor: lilac.amberSoft }
+                : { backgroundColor: '#F2E7FC' }]}>
+                <Text style={[{ fontSize: 12, fontWeight: '900' }, nf, { color: liveNext.status === 'pending' ? lilac.amber : lilac.accent }]}>
+                  {liveNext.status === 'pending' ? (liveNext.matched ? '지명 대기' : '매칭 중') : liveNext.status === 'active' ? '● LIVE' : liveNext.status === 'handoff' ? '시작 대기' : '확정됨'}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+          {liveNext ? (
+            <View style={{ paddingHorizontal: 13, paddingBottom: 12 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 10 }}>
+                <Avatar url={fit?.dogPhotoUrl} char={liveNext.dogName[0]} bg={lilac.coral} size={46} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[{ fontSize: 19.5, fontWeight: '900', color: lilac.head }, nf]} numberOfLines={1}>
+                    {/* split(' ')[0] 이 '7월'만 남기던 버그 — 요일 괄호만 떼고 날짜 전체 표기 */}
+                    {liveNext.dateLabel.replace(/ \(.+\)$/, '')} {liveNext.timeLabel}
+                  </Text>
+                  <Text style={{ fontSize: 13, color: lilac.dim, marginTop: 3 }} numberOfLines={1}>
+                    {liveNext.dogName} · {liveNext.routeName}
+                  </Text>
+                </View>
+              </View>
+              {/* 퍼포레이션 — 상단 사실 / 하단 결정 분리 */}
+              <View style={s.perf}>
+                <View style={[s.notch, { left: -19 }]} />
+                <View style={[s.notch, { right: -19 }]} />
+              </View>
+              {/* 30분 전부터/러너 확정 시: 확인·시작 액션이 위젯에 올라온다 */}
+              {liveNext?.status === 'active' ? (
+                <View style={{ flexDirection: 'row', gap: 8, marginTop: 13 }}>
+                  <Pressable
+                    style={s.meetBtn}
+                    onPress={(e) => { e.stopPropagation(); if (liveNext) draft.bookingId = liveNext.id; router.push('/owner/live'); }}
+                  >
+                    <Text style={{ fontSize: 14.5, fontWeight: '900', color: '#fff' }}>실시간 보기 ›</Text>
+                  </Pressable>
+                </View>
+              ) : liveNext?.status === 'handoff' ? (
+                <View style={{ flexDirection: 'row', gap: 8, marginTop: 13 }}>
+                  <Pressable
+                    style={[s.widgetBtn, { flex: 1 }]}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      if (liveNext) draft.bookingId = liveNext.id;
+                      router.push('/owner/meetup'); // 시작되면 미트업이 라이브로 자동 전환
+                    }}
+                  >
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: p.textSoft }}>인계 완료 · 러닝 시작 대기 중 ›</Text>
+                  </Pressable>
+                </View>
+              ) : liveNext?.status === 'confirmed' ? (
+                <View style={{ marginTop: 13, gap: 8 }}>
+                  {/* 3버튼 한 줄은 과밀 — 주 액션 전폭 + 보조 2개 반반 (2단) */}
+                  <Pressable
+                    style={s.meetBtn}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      if (liveNext) draft.bookingId = liveNext.id; // 재시작 후에도 실예약으로 인계 재개
+                      router.push('/owner/meetup');
+                    }}
+                  >
+                    <Text style={{ fontSize: 14.5, fontWeight: '900', color: '#fff' }}>러너 만나기 · 인계 확인 ›</Text>
+                  </Pressable>
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    <Pressable
+                      style={s.widgetBtn}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        if (liveNext) router.push({ pathname: '/owner/reschedule', params: { bid: liveNext.id } });
+                      }}
+                    >
+                      <Text style={{ fontSize: 13, fontWeight: '700', color: p.textSoft }}>일정 변경</Text>
+                    </Pressable>
+                    <Pressable
+                      style={s.widgetBtn}
+                      onPress={(e) => { e.stopPropagation(); router.push({ pathname: '/chat', params: liveNext ? { bid: liveNext.id } : {} }); }}
+                    >
+                      <Text style={{ fontSize: 13, fontWeight: '700', color: p.textSoft }}>러너와 채팅</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              ) : (
+                <View style={{ flexDirection: 'row', gap: 8, marginTop: 13 }}>
+                  <Pressable
+                    style={s.widgetBtn}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      // 리스케줄 화면 직행 — 일정 탭 우회는 데드엔드였다 (러너 확정 전이면 화면이 정직하게 안내)
+                      if (liveNext) router.push({ pathname: '/owner/reschedule', params: { bid: liveNext.id } });
+                      else router.push('/owner/schedule');
+                    }}
+                  >
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: p.textSoft }}>일정 변경</Text>
+                  </Pressable>
+                  <Pressable
+                    style={s.widgetBtn}
+                    onPress={(e) => { e.stopPropagation(); router.push({ pathname: '/chat', params: liveNext ? { bid: liveNext.id } : {} }); }}
+                  >
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: p.textSoft }}>러너와 채팅</Text>
+                  </Pressable>
+                </View>
+              )}
+            </View>
+          ) : (
+            <View style={{ marginTop: 4, alignItems: 'center', paddingVertical: 14, paddingHorizontal: 13 }}>
+              <Text style={{ fontSize: 16.5, fontWeight: '800', color: p.textStrong }}>예정된 러닝이 없어요</Text>
+              <Text style={{ fontSize: 13, color: p.dim, marginTop: 4 }}>아래에서 첫 러닝을 예약해보세요</Text>
+            </View>
+          )}
+        </Pressable>
 
+        {/* ---------- 하이클럽 모듈 (P-A S1) — 히어로 인접·격상 배치. 실세션 있을 때만 렌더 ---------- */}
+        <View style={s.clubShell}>
+          <ClubHomeCard />
+        </View>
+
+        {/* ---------- 지금 러너 찾기 — 나이트 라일락 다크 인셋 섬 (레이더 관제기) ---------- */}
         {(!liveNext || liveNext.status === 'pending') && (
           <Pressable
             onPress={() => {
@@ -562,22 +758,22 @@ export default function OwnerHome() {
                   <View key={d} style={{
                     position: 'absolute', width: d, height: d, borderRadius: d / 2,
                     left: -d / 2, top: -d / 2, borderWidth: di === 0 ? 1.5 : 1,
-                    // [V4] 코랄 아크 — 레이더 = 긴급·에너지의 색 (볼트 그리드 은퇴)
-                    borderColor: `rgba(255,122,92,${0.5 - di * 0.085})`,
+                    // 새벽 코랄 아크 — 레이더 = 긴급·에너지의 색 (볼트 그리드 은퇴)
+                    borderColor: `rgba(240,118,90,${0.5 - di * 0.085})`,
                   }} />
                 ))}
                 {/* 레이더 원점 — 코랄 코어 도트 */}
                 <View style={{
                   position: 'absolute', left: -5, top: -5, width: 10, height: 10, borderRadius: 5,
-                  backgroundColor: colors.tang, shadowColor: colors.tang, shadowOpacity: 0.9,
+                  backgroundColor: lilac.coral, shadowColor: lilac.coral, shadowOpacity: 0.9,
                   shadowRadius: 8, shadowOffset: { width: 0, height: 0 },
                 }} />
               </Animated.View>
               {fnSearching && (
                 <Animated.View style={{ position: 'absolute', transform: [{ rotate: sweep.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) }] }}>
-                  <View style={{ position: 'absolute', left: 0, top: -1, width: 116, height: 2, backgroundColor: 'rgba(255,122,92,0.6)' }} />
+                  <View style={{ position: 'absolute', left: 0, top: -1, width: 116, height: 2, backgroundColor: 'rgba(240,118,90,0.6)' }} />
                   <View style={{ position: 'absolute', transform: [{ rotate: '-12deg' }] }}>
-                    <View style={{ position: 'absolute', left: 0, top: -1, width: 116, height: 2, backgroundColor: 'rgba(255,122,92,0.2)' }} />
+                    <View style={{ position: 'absolute', left: 0, top: -1, width: 116, height: 2, backgroundColor: 'rgba(240,118,90,0.2)' }} />
                   </View>
                 </Animated.View>
               )}
@@ -587,7 +783,7 @@ export default function OwnerHome() {
                 const y = Math.sin((P.a * Math.PI) / 180) * P.rr;
                 return (
                   <View key={r.profileId} style={[s.fnBlip, { position: 'absolute', left: x - 17, top: y - 17 }]}>
-                    <Avatar url={r.avatarUrl} char={r.name[0]} bg="#5a7a3c" size={28} />
+                    <Avatar url={r.avatarUrl} char={r.name[0]} bg={lilac.accent} size={28} />
                   </View>
                 );
               })}
@@ -595,10 +791,11 @@ export default function OwnerHome() {
 
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <View style={{ flex: 1 }}>
-                <Text style={[{ fontSize: 20.5, fontWeight: '900', color: '#fff' }, df]}>
+                <Text style={s.fnKick}>LIVE RUNNERS · SEOCHO</Text>
+                <Text style={[{ fontSize: 20.5, fontWeight: '900', color: '#fff', marginTop: 6 }, df]}>
                   {fnDirected ? '지명 러너 응답 대기 중' : fnSearching ? '러너 찾는 중…' : '지금 러너 찾기'}
                 </Text>
-                <Text style={{ fontSize: 15, color: '#b8c4ae', marginTop: 5, lineHeight: 18.5 }}>
+                <Text style={{ fontSize: 15, color: NIGHT_DIM, marginTop: 5, lineHeight: 18.5 }}>
                   {fnDirected
                     ? `${liveNext?.runnerName ?? '지명한 러너'}의 응답을 기다리고 있어요 — 탭하면 일정으로`
                     : fnSearching
@@ -610,7 +807,7 @@ export default function OwnerHome() {
               </View>
             </View>
 
-            {/* 버튼처럼 보이는 버튼 — 탭하면 무슨 일이 생기는지 그대로 쓴다 */}
+            {/* 레이더 CTA는 코랄 아님 — 코랄은 아크·코어·블립(면·도트) 전용. 주 액션은 페이퍼 버튼 (코랄 텍스트 법) */}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 14 }}>
               <View style={s.fnCta}>
                 <Animated.View style={[s.fnPulseRing, {
@@ -618,7 +815,7 @@ export default function OwnerHome() {
                   transform: [{ scaleX: fnPulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.06] }) },
                               { scaleY: fnPulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.5] }) }],
                 }]} />
-                <Text style={{ fontSize: 16.5, fontWeight: '900', color: '#0F1D13' }}>
+                <Text style={{ fontSize: 16.5, fontWeight: '900', color: lilac.head }}>
                   {fnDirected ? '일정에서 확인 ›' : fnSearching ? '레이더 보기 ➤' : '주변 러너 검색 시작 ➤'}
                 </Text>
               </View>
@@ -632,20 +829,82 @@ export default function OwnerHome() {
                   }}
                   style={s.fnCustom}
                 >
-                  <Text style={{ fontSize: 14, fontWeight: '800', color: '#b8c4ae' }}>직접 설정 ›</Text>
+                  <Text style={{ fontSize: 14, fontWeight: '800', color: '#EDE9FB' }}>직접 설정 ›</Text>
                 </Pressable>
               )}
             </View>
           </Pressable>
         )}
 
+        {/* ═══ 예약하기 = 돈 버튼 (아주 크게·전진형 · 딥 코랄 종단 ≥#C6472C) — 화면의 무게 중심 ═══ */}
+        <View style={s.book}>
+          <View style={s.bookFacts}>
+            <View style={{ flex: 1, paddingRight: 10 }}>
+              <Text style={{ fontSize: 12.5, fontWeight: '700', color: lilac.head }} numberOfLines={1}>
+                {dogName} · {bookKm}km{lastDone?.routeName ? ` · ${lastDone.routeName}` : ''}
+              </Text>
+              <Text style={{ fontSize: 11.5, color: lilac.dim, marginTop: 2 }}>지난 러닝 그대로 채워뒀어요</Text>
+            </View>
+            <View style={{ alignItems: 'flex-end' }}>
+              <Text style={s.bookKicker}>예상 결제</Text>
+              <Text style={[{ fontSize: 19, color: lilac.head }, nf]}>
+                {bookPrice.toLocaleString()}<Text style={{ fontSize: 11, color: lilac.text, fontWeight: '600' }}>원</Text>
+              </Text>
+            </View>
+          </View>
+          <Pressable onPress={goBook} style={s.cta}>
+            <View pointerEvents="none" style={s.ctaSheen} />
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Text style={[{ fontSize: 27, color: '#fff' }, df]}>예약하기</Text>
+              <Text style={[{ fontSize: 19, letterSpacing: 3, color: '#fff' }, nf]}>›››</Text>
+            </View>
+            {/* a11y: 작은 글씨는 코랄 위 직접 얹지 않고 잉크 플레이트(≥4.5:1) 위에 */}
+            <View style={s.ctaPlate}>
+              <Text style={[{ fontSize: 14, color: '#fff' }, nf]}>{pricing.baseFare.toLocaleString()}</Text>
+              <Text style={{ fontSize: 10, color: '#fff' }}>원부터 · km당 {pricing.perKm.toLocaleString()}원</Text>
+              <View style={s.ctaPlateDiv} />
+              <Text style={{ fontSize: 10, color: '#fff' }}>코스·결제 자동</Text>
+            </View>
+          </Pressable>
+        </View>
+
+        {/* ---------- slide-to-book — 보조 퀵액션 (코랄 면 + 잉크 노브) ---------- */}
+        <SlideToBook onComplete={goBook} />
+
+        {/* ---------- reward beacon (dopamine: unclaimed collab gear) ---------- */}
+        {claimable && (
+          <Pressable onPress={() => setLadderOpen(true)} style={s.rewardCard}>
+            {/* pulsing halo */}
+            <View style={s.giftWrap}>
+              <Animated.View style={[s.giftHalo, { opacity: pulseOpacity, transform: [{ scale: pulseScale }] }]} />
+              <View style={s.giftBox}><Text style={{ fontSize: 18.5, color: '#fff' }}>▣</Text></View>
+              <View style={s.giftBadge}><Text style={{ fontSize: 9, fontWeight: '900', color: '#fff' }}>1</Text></View>
+            </View>
+            <View style={{ flex: 1, marginLeft: 13 }}>
+              <Text style={{ fontSize: 12.5, fontWeight: '900', color: lilac.coralDeep, letterSpacing: 0.5 }}>수령 대기 리워드</Text>
+              <Text style={{ fontSize: 16.5, fontWeight: '900', color: p.textStrong, marginTop: 2 }} numberOfLines={1}>
+                {claimable.item}
+              </Text>
+              <Text style={{ fontSize: 12, color: p.dim, marginTop: 2 }}>
+                {claimable.at}km 달성! · 다음: {nextLocked ? `${nextLocked.item.split(' ').pop()}까지 ${(nextLocked.at - 86.2).toFixed(0)}km` : '완료'}
+              </Text>
+            </View>
+            <Pressable
+              onPress={(e) => { e.stopPropagation(); Alert.alert('수령 신청', '배송지로 콜라보 굿즈를 보내드려요 (목업)'); }}
+              style={s.claimBtn}
+            >
+              <Text style={{ fontSize: 14, fontWeight: '900', color: '#fff' }}>수령하기</Text>
+            </Pressable>
+          </Pressable>
+        )}
+
         {/* ---------- retention nudges (실데이터 기반, ui-audit P2) ---------- */}
         {weekKm > 0 && weekKm < goalKm && new Date().getDay() >= 4 && (
-          <Pressable onPress={() => router.push('/owner/request')} style={[s.nudge, { backgroundColor: p.card, borderColor: p.line }]}>
+          <Pressable onPress={() => router.push('/owner/request')} style={[s.nudge, { backgroundColor: p.card }]}>
             <Text style={{ flex: 1, fontSize: 14.5, fontWeight: '800', color: p.textStrong }}>
-              주간 목표까지 <Text style={{ color: colors.tang, fontWeight: '900' }}>{Math.round((goalKm - weekKm) * 10) / 10}km</Text> — 주말 러닝으로 채워볼까요?
+              주간 목표까지 <Text style={{ color: lilac.coralDeep, fontWeight: '900' }}>{Math.round((goalKm - weekKm) * 10) / 10}km</Text> — 주말 러닝으로 채워볼까요?
             </Text>
-            <Text style={{ fontSize: 14, color: colors.tang, fontWeight: '900' }}>예약 ›</Text>
+            <Text style={{ fontSize: 14, color: lilac.accent, fontWeight: '900' }}>예약 ›</Text>
           </Pressable>
         )}
         {!liveNext && lastDone && (
@@ -659,164 +918,22 @@ export default function OwnerHome() {
               draft.timeLabel = '시간을 선택해주세요';
               router.push('/owner/request');
             }}
-            style={[s.nudge, { backgroundColor: p.card, borderColor: p.line }]}
+            style={[s.nudge, { backgroundColor: p.card }]}
           >
             <Text style={{ flex: 1, fontSize: 14.5, fontWeight: '800', color: p.textStrong }}>
               ⟳ 지난번처럼 다시 예약할까요? <Text style={{ color: p.dim, fontWeight: '600' }}>{lastDone.km}km{lastDone.runnerProfileId ? ` · ${lastDone.runnerName} 러너` : ''}</Text>
             </Text>
-            <Text style={{ fontSize: 14, color: '#5a7a3c', fontWeight: '900' }}>시간만 고르기 ›</Text>
+            <Text style={{ fontSize: 14, color: lilac.accent, fontWeight: '900' }}>시간만 고르기 ›</Text>
           </Pressable>
         )}
 
-        {/* ---------- slide-to-book ---------- */}
-        <SlideToBook onComplete={() => {
-          // 제네릭 예약 = 오픈 브로드캐스트 — 이전 플로우의 지명/시각 잔재를 소거 (스테일 지명이 슬롯을 한 러너로 묶던 버그)
-          draft.preferredRunnerId = null;
-          draft.preferredRunnerName = null;
-          draft.scheduledAtIso = null;
-          draft.timeLabel = '시간을 선택해주세요';
-          router.push('/owner/request');
-        }} />
-
-        {/* ---------- reward beacon (dopamine: unclaimed collab gear) ---------- */}
-        {claimable && (
-          <Pressable onPress={() => setLadderOpen(true)} style={[s.rewardCard, { backgroundColor: mode === 'dark' ? '#1e2c22' : '#fff' }]}>
-            {/* pulsing halo */}
-            <View style={s.giftWrap}>
-              <Animated.View style={[s.giftHalo, { opacity: pulseOpacity, transform: [{ scale: pulseScale }] }]} />
-              <View style={s.giftBox}><Text style={{ fontSize: 18.5, color: colors.ink }}>▣</Text></View>
-              <View style={s.giftBadge}><Text style={{ fontSize: 9, fontWeight: '900', color: '#fff' }}>1</Text></View>
-            </View>
-            <View style={{ flex: 1, marginLeft: 13 }}>
-              <Text style={{ fontSize: 12.5, fontWeight: '900', color: colors.tang, letterSpacing: 0.5 }}>수령 대기 리워드</Text>
-              <Text style={{ fontSize: 16.5, fontWeight: '900', color: p.textStrong, marginTop: 2 }} numberOfLines={1}>
-                {claimable.item}
-              </Text>
-              <Text style={{ fontSize: 12, color: p.dim, marginTop: 2 }}>
-                {claimable.at}km 달성! · 다음: {nextLocked ? `${nextLocked.item.split(' ').pop()}까지 ${(nextLocked.at - 86.2).toFixed(0)}km` : '완료'}
-              </Text>
-            </View>
-            <Pressable
-              onPress={(e) => { e.stopPropagation(); Alert.alert('수령 신청', '배송지로 콜라보 굿즈를 보내드려요 (목업)'); }}
-              style={s.claimBtn}
-            >
-              <Text style={{ fontSize: 14, fontWeight: '900', color: colors.ink }}>수령하기</Text>
-            </Pressable>
-          </Pressable>
+        {/* ---------- 최근 기록 카드 (RunCard) — 히트 트레이스. 별도 최근-기록 카드로 유지 ---------- */}
+        {latestCard && (
+          <>
+            <SectionHead title="최근 기록" />
+            <RunCard card={latestCard} width={CARD_W} />
+          </>
         )}
-
-        {/* ---------- upcoming schedule widget (docs/calendar.md: 4-state component; mock shows 예정 state) ---------- */}
-        {/* whole card taps through to 내 일정 — buttons stop propagation */}
-        <Pressable onPress={() => router.push('/owner/schedule')} style={[s.scheduleCard, { backgroundColor: p.card }]}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <View style={s.liveDotSm} />
-              <Text style={{ fontSize: 14.5, fontWeight: '900', color: p.textStrong }}>다가오는 일정</Text>
-            </View>
-            <View style={s.allScheduleChip}>
-              <Text style={{ fontSize: 13, fontWeight: '900', color: colors.ink }}>전체 일정 ›</Text>
-            </View>
-          </View>
-          {liveNext ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 12 }}>
-              <Avatar url={fit?.dogPhotoUrl} char={liveNext.dogName[0]} bg="#FF5C3D" size={46} />
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 19.5, fontWeight: '900', color: p.textStrong }} numberOfLines={1}>
-                  {/* split(' ')[0] 이 '7월'만 남기던 버그 — 요일 괄호만 떼고 날짜 전체 표기 */}
-                  {liveNext.dateLabel.replace(/ \(.+\)$/, '')} {liveNext.timeLabel}
-                </Text>
-                <Text style={{ fontSize: 13, color: p.dim, marginTop: 3 }} numberOfLines={1}>
-                  {liveNext.dogName} · {liveNext.routeName}
-                </Text>
-              </View>
-              <View style={[s.countdownPill, { backgroundColor: liveNext.status === 'pending' ? '#fbf0d4' : '#fde8e3' }]}>
-                <Text style={{ fontSize: 12, fontWeight: '900', color: liveNext.status === 'pending' ? '#a97c12' : '#d84a2f' }}>
-                  {liveNext.status === 'pending' ? (liveNext.matched ? '지명 대기' : '매칭 중') : liveNext.status === 'active' ? '● LIVE' : liveNext.status === 'handoff' ? '시작 대기' : '확정됨'}
-                </Text>
-              </View>
-            </View>
-          ) : (
-            <View style={{ marginTop: 12, alignItems: 'center', paddingVertical: 6 }}>
-              <Text style={{ fontSize: 16.5, fontWeight: '800', color: p.textStrong }}>예정된 러닝이 없어요</Text>
-              <Text style={{ fontSize: 13, color: p.dim, marginTop: 4 }}>아래 슬라이더로 첫 러닝을 예약해보세요</Text>
-            </View>
-          )}
-          {/* 30분 전부터/러너 확정 시: 확인·시작 액션이 위젯에 올라온다 */}
-          {liveNext?.status === 'active' ? (
-            <View style={{ flexDirection: 'row', gap: 8, marginTop: 13 }}>
-              <Pressable
-                style={s.meetBtn}
-                onPress={(e) => { e.stopPropagation(); if (liveNext) draft.bookingId = liveNext.id; router.push('/owner/live'); }}
-              >
-                <Text style={{ fontSize: 14.5, fontWeight: '900', color: colors.ink }}>실시간 보기 ›</Text>
-              </Pressable>
-            </View>
-          ) : liveNext?.status === 'handoff' ? (
-            <View style={{ flexDirection: 'row', gap: 8, marginTop: 13 }}>
-              <Pressable
-                style={[s.widgetBtn, { borderColor: p.line, flex: 1 }]}
-                onPress={(e) => {
-                  e.stopPropagation();
-                  if (liveNext) draft.bookingId = liveNext.id;
-                  router.push('/owner/meetup'); // 시작되면 미트업이 라이브로 자동 전환
-                }}
-              >
-                <Text style={{ fontSize: 13, fontWeight: '700', color: p.textSoft }}>인계 완료 · 러닝 시작 대기 중 ›</Text>
-              </Pressable>
-            </View>
-          ) : liveNext?.status === 'confirmed' ? (
-            <View style={{ marginTop: 13, gap: 8 }}>
-              {/* 3버튼 한 줄은 과밀 — 주 액션 전폭 + 보조 2개 반반 (2단) */}
-              <Pressable
-                style={s.meetBtn}
-                onPress={(e) => {
-                  e.stopPropagation();
-                  if (liveNext) draft.bookingId = liveNext.id; // 재시작 후에도 실예약으로 인계 재개
-                  router.push('/owner/meetup');
-                }}
-              >
-                <Text style={{ fontSize: 14.5, fontWeight: '900', color: colors.ink }}>러너 만나기 · 인계 확인 ›</Text>
-              </Pressable>
-              <View style={{ flexDirection: 'row', gap: 8 }}>
-                <Pressable
-                  style={[s.widgetBtn, { borderColor: p.line }]}
-                  onPress={(e) => {
-                    e.stopPropagation();
-                    if (liveNext) router.push({ pathname: '/owner/reschedule', params: { bid: liveNext.id } });
-                  }}
-                >
-                  <Text style={{ fontSize: 13, fontWeight: '700', color: p.textSoft }}>일정 변경</Text>
-                </Pressable>
-                <Pressable
-                  style={[s.widgetBtn, { borderColor: p.line }]}
-                  onPress={(e) => { e.stopPropagation(); router.push({ pathname: '/chat', params: liveNext ? { bid: liveNext.id } : {} }); }}
-                >
-                  <Text style={{ fontSize: 13, fontWeight: '700', color: p.textSoft }}>러너와 채팅</Text>
-                </Pressable>
-              </View>
-            </View>
-          ) : (
-            <View style={{ flexDirection: 'row', gap: 8, marginTop: 13 }}>
-              <Pressable
-                style={[s.widgetBtn, { borderColor: p.line }]}
-                onPress={(e) => {
-                  e.stopPropagation();
-                  // 리스케줄 화면 직행 — 일정 탭 우회는 데드엔드였다 (러너 확정 전이면 화면이 정직하게 안내)
-                  if (liveNext) router.push({ pathname: '/owner/reschedule', params: { bid: liveNext.id } });
-                  else router.push('/owner/schedule');
-                }}
-              >
-                <Text style={{ fontSize: 13, fontWeight: '700', color: p.textSoft }}>일정 변경</Text>
-              </Pressable>
-              <Pressable
-                style={[s.widgetBtn, { borderColor: p.line }]}
-                onPress={(e) => { e.stopPropagation(); router.push({ pathname: '/chat', params: liveNext ? { bid: liveNext.id } : {} }); }}
-              >
-                <Text style={{ fontSize: 13, fontWeight: '700', color: p.textSoft }}>러너와 채팅</Text>
-              </Pressable>
-            </View>
-          )}
-        </Pressable>
 
         {/* ---------- 최근 순간 — 러너가 담아온 실러닝 사진 (runs.photos 재사용).
             사진 0장이면 섹션 자체 숨김 — 플레이스홀더/스톡 금지 (정직 원칙) ---------- */}
@@ -835,9 +952,9 @@ export default function OwnerHome() {
                 >
                   <Image source={{ uri: m.url }} style={{ width: '100%', height: '100%' }} />
                   <View style={s.momentPill}>
-                    <Text style={{ fontSize: 12.5, fontWeight: '900', color: colors.volt, fontVariant: ['tabular-nums'] }}>
+                    <Text style={[{ fontSize: 12.5, fontWeight: '900', color: '#fff' }, nf]}>
                       {m.km}km
-                      <Text style={{ fontSize: 10.5, fontWeight: '600', color: 'rgba(255,255,255,0.8)' }}>  {m.when}</Text>
+                      <Text style={{ fontSize: 10.5, fontWeight: '600', color: 'rgba(255,255,255,0.82)' }}>  {m.when}</Text>
                     </Text>
                   </View>
                 </Pressable>
@@ -846,59 +963,59 @@ export default function OwnerHome() {
           </View>
         )}
 
-        {/* ---------- [V4] 동네 러너 = 스타디움 로스터 (V2) — 러너는 서비스의 얼굴, PR 표면 ---------- */}
+        {/* ---------- 동네 러너 = 스타디움 로스터 (V2) — 러너는 서비스의 얼굴, PR 표면 ---------- */}
         {localRunners.length > 0 && (
           <View style={{ marginTop: 18 }}>
             <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8, marginBottom: 9, borderBottomWidth: 2.5, borderBottomColor: p.textStrong, paddingBottom: 7 }}>
               <Text style={[s.sectionTitle, { color: p.textStrong }, df]}>동네 러너</Text>
-              <Text style={{ fontSize: 9, fontWeight: '700', letterSpacing: 2, color: colors.voltDeep }}>ROSTER · {localRunners.length} ONLINE</Text>
+              <Text style={{ fontSize: 9, fontWeight: '700', letterSpacing: 2, color: lilac.accent }}>ROSTER · {localRunners.length} ONLINE</Text>
               <View style={{ flex: 1 }} />
               <Pressable onPress={() => router.push('/leaderboard')}>
-                <Text style={{ fontSize: 14, fontWeight: '800', color: colors.tang }}>🏆 동네 랭킹 ›</Text>
+                <Text style={{ fontSize: 14, fontWeight: '800', color: lilac.coralDeep }}>🏆 동네 랭킹 ›</Text>
               </Pressable>
             </View>
 
-            {/* 피처드 러너 — 풀와이드 스타디움 카드 (로스터 1번) */}
+            {/* 피처드 러너 — 풀와이드 나이트-라일락 스타디움 카드 (로스터 1번) */}
             {localRunners[0] && (() => { const f = localRunners[0]; return (
               <Pressable onPress={() => router.push(`/runner-profile/${f.profileId}`)} style={s.featRunner}>
                 <View style={s.featEdge} />
-                <Text style={{ fontSize: 9, fontWeight: '700', letterSpacing: 2.5, color: colors.volt }}>FEATURED RUNNER — {f.district || '근처'}</Text>
+                <Text style={{ fontSize: 9, fontWeight: '700', letterSpacing: 2.5, color: NIGHT_DIM }}>FEATURED RUNNER — {f.district || '근처'}</Text>
                 <View style={{ flexDirection: 'row', gap: 13, alignItems: 'center', marginTop: 9 }}>
-                  <Avatar url={f.avatarUrl} char={f.name[0]} bg="#2a3a2c" size={62} />
+                  <Avatar url={f.avatarUrl} char={f.name[0]} bg={lilac.accent} size={62} />
                   <View style={{ flex: 1 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
                       <Text style={[{ fontSize: 22, fontWeight: '900', color: '#fff' }, df]} numberOfLines={1}>{f.name}</Text>
-                      <View style={{ backgroundColor: 'rgba(198,245,66,.14)', borderWidth: 1, borderColor: colors.volt, paddingVertical: 2, paddingHorizontal: 7 }}>
-                        <Text style={{ fontSize: 8.5, fontWeight: '800', letterSpacing: 1.5, color: colors.volt }}>{f.tier.toUpperCase()}</Text>
+                      <View style={{ borderWidth: 1, borderColor: 'rgba(240,118,90,0.7)', paddingVertical: 2, paddingHorizontal: 7, borderRadius: lilacRadius.tag }}>
+                        <Text style={{ fontSize: 8.5, fontWeight: '800', letterSpacing: 1.5, color: '#FFCBBB' }}>{f.tier.toUpperCase()}</Text>
                       </View>
                     </View>
                     <View style={{ flexDirection: 'row', gap: 15, marginTop: 7 }}>
                       <View><Text style={[s.featNum, nf]}>{f.totalRuns}</Text><Text style={s.featK}>RUNS</Text></View>
                       <View><Text style={[s.featNum, nf]}>{f.paceLabel}</Text><Text style={s.featK}>PACE</Text></View>
-                      <View><Text style={[s.featNum, nf, { color: colors.volt }]}>●</Text><Text style={s.featK}>ONLINE</Text></View>
+                      <View><Text style={[s.featNum, nf, { color: lilac.coral }]}>●</Text><Text style={s.featK}>ONLINE</Text></View>
                     </View>
                   </View>
-                  <View style={s.featCta}><Text style={{ fontSize: 12.5, fontWeight: '900', color: colors.ink }}>프로필 ›</Text></View>
+                  <View style={s.featCta}><Text style={{ fontSize: 12.5, fontWeight: '900', color: lilac.head }}>프로필 ›</Text></View>
                 </View>
               </Pressable>
             ); })()}
 
-            {/* 나머지 로스터 — 다크 미니 카드 */}
+            {/* 나머지 로스터 — 라이트 라일락 미니 카드 */}
             {localRunners.length > 1 && (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 9 }} contentContainerStyle={{ gap: 9, paddingRight: 12 }}>
                 {localRunners.slice(1).map((r) => (
                   <Pressable key={r.profileId} onPress={() => router.push(`/runner-profile/${r.profileId}`)} style={s.rosterCard}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      <Avatar url={r.avatarUrl} char={r.name[0]} bg="#2a3a2c" size={38} />
-                      <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: colors.volt, position: 'absolute', left: 29, top: 0, borderWidth: 1.5, borderColor: '#121712' }} />
+                      <Avatar url={r.avatarUrl} char={r.name[0]} bg={lilac.accent} size={38} />
+                      <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: lilac.coral, position: 'absolute', left: 29, top: 0, borderWidth: 1.5, borderColor: lilac.card }} />
                       <View style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 14.5, fontWeight: '900', color: '#fff' }} numberOfLines={1}>{r.name}</Text>
-                        <Text style={{ fontSize: 10.5, color: '#8fa093', marginTop: 1 }} numberOfLines={1}>{r.district || '근처'}</Text>
+                        <Text style={{ fontSize: 14.5, fontWeight: '900', color: lilac.head }} numberOfLines={1}>{r.name}</Text>
+                        <Text style={{ fontSize: 10.5, color: lilac.dim, marginTop: 1 }} numberOfLines={1}>{r.district || '근처'}</Text>
                       </View>
                     </View>
-                    <View style={{ flexDirection: 'row', gap: 10, marginTop: 9, alignItems: 'baseline' }}>
-                      <Text style={[{ fontSize: 15, fontWeight: '900', color: '#fff' }, nf]}>{r.totalRuns}<Text style={{ fontSize: 9, color: '#8fa093' }}> RUNS</Text></Text>
-                      <Text style={[{ fontSize: 15, fontWeight: '900', color: '#fff' }, nf]}>{r.paceLabel}</Text>
+                    <View style={{ flexDirection: 'row', gap: 10, marginTop: 9, alignItems: 'baseline', borderTopWidth: 1, borderTopColor: lilac.hair2, paddingTop: 8 }}>
+                      <Text style={[{ fontSize: 15, fontWeight: '900', color: lilac.head }, nf]}>{r.totalRuns}<Text style={{ fontSize: 9, color: lilac.dim }}> RUNS</Text></Text>
+                      <Text style={[{ fontSize: 15, fontWeight: '900', color: lilac.head }, nf]}>{r.paceLabel}</Text>
                     </View>
                   </Pressable>
                 ))}
@@ -912,7 +1029,7 @@ export default function OwnerHome() {
 
         {/* ---------- safety quick card ---------- */}
         <Pressable onPress={() => router.push('/safety')} style={[s.safetyStrip, { backgroundColor: p.card }]}>
-          <View style={s.safetyIcon}><Text style={{ fontSize: 15, color: '#5a7a3c' }}>✚</Text></View>
+          <View style={s.safetyIcon}><Text style={{ fontSize: 15, color: lilac.coralDeep }}>✚</Text></View>
           <Text style={{ flex: 1, fontSize: 14.5, fontWeight: '700', color: p.textStrong }}>
             안심 센터 <Text style={{ fontWeight: '400', color: p.dim }}>· SOS · 실시간 위치 · 보험</Text>
           </Text>
@@ -927,8 +1044,8 @@ export default function OwnerHome() {
         <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)' }} onPress={() => setFnOpen(false)} />
         <View style={s.fnSheet}>
           <View style={s.fnGrip} />
-          <Text style={[{ fontSize: 22, fontWeight: '900', color: '#0F1D13' }, df]}>지금 바로 러닝 찾기</Text>
-          <Text style={{ fontSize: 14, color: '#49524a', marginTop: 4 }}>
+          <Text style={[{ fontSize: 22, fontWeight: '900', color: lilac.head }, df]}>지금 바로 러닝 찾기</Text>
+          <Text style={{ fontSize: 14, color: lilac.text, marginTop: 4 }}>
             모두 채워뒀어요 — 바꾸고 싶은 것만 눌러서 바꾸세요
           </Text>
 
@@ -963,9 +1080,9 @@ export default function OwnerHome() {
                 </Text>
               </Pressable>
             )}
-            {/* 시간 — ASAP 고정 (예약은 기존 플로우) */}
-            <View style={[s.fnChip, { backgroundColor: '#eaf7c8', borderColor: '#c9dd9a' }]}>
-              <Text style={[s.fnChipText, { color: '#3f5a26' }]}>⚡ 지금 바로 · 약 40분 내</Text>
+            {/* 시간 — ASAP 고정 (예약은 기존 플로우). 볼트는 여기 '지금 바로' 확인 신호 한 곳에서만 기능색 */}
+            <View style={[s.fnChip, { backgroundColor: lilac.voltFill, borderColor: '#D9EBAA' }]}>
+              <Text style={[s.fnChipText, { color: lilac.voltDeep }]}>⚡ 지금 바로 · 약 40분 내</Text>
             </View>
           </View>
 
@@ -973,23 +1090,23 @@ export default function OwnerHome() {
           <View style={s.fnKmRow}>
             <Pressable onPress={() => setFnKm((k) => { const n = Math.max(1, k - 1); setFnRouteIdx(pickRouteFor(n, fnRoutes)); return n; })} style={s.fnStep}><Text style={s.fnStepText}>−</Text></Pressable>
             <View style={{ alignItems: 'center', flex: 1 }}>
-              <Text style={{ fontSize: 34.5, fontWeight: '900', color: '#0F1D13' }}>{fnKm}km</Text>
-              <Text style={{ fontSize: 14, color: '#49524a', marginTop: 2 }}>러닝 거리</Text>
+              <Text style={[{ fontSize: 34.5, fontWeight: '900', color: lilac.head }, nf]}>{fnKm}km</Text>
+              <Text style={{ fontSize: 14, color: lilac.text, marginTop: 2 }}>러닝 거리</Text>
             </View>
             <Pressable onPress={() => setFnKm((k) => { const n = Math.min(10, k + 1); setFnRouteIdx(pickRouteFor(n, fnRoutes)); return n; })} style={s.fnStep}><Text style={s.fnStepText}>＋</Text></Pressable>
           </View>
 
           <View style={s.fnPriceRow}>
-            <Text style={{ fontSize: 14.5, color: '#49524a' }}>결제 금액</Text>
-            <Text style={{ fontSize: 23, fontWeight: '900', color: '#0F1D13' }}>{fnPrice.toLocaleString()}원</Text>
+            <Text style={{ fontSize: 14.5, color: lilac.text }}>결제 금액</Text>
+            <Text style={[{ fontSize: 23, fontWeight: '900', color: lilac.head }, nf]}>{fnPrice.toLocaleString()}원</Text>
           </View>
 
           <Pressable onPress={findNowPay} disabled={fnBusy} style={[s.fnPay, fnBusy && { opacity: 0.5 }]}>
-            <Text style={{ fontSize: 17, fontWeight: '900', color: '#0F1D13' }}>
+            <Text style={{ fontSize: 17, fontWeight: '900', color: '#fff' }}>
               {fnBusy ? '요청 보내는 중...' : '결제하고 바로 찾기 ➤'}
             </Text>
           </Pressable>
-          <Text style={{ fontSize: 12, color: '#82887a', textAlign: 'center', marginTop: 10 }}>
+          <Text style={{ fontSize: 12, color: lilac.dim, textAlign: 'center', marginTop: 10 }}>
             온라인 러너 전원에게 요청이 전송돼요 · 매칭 전 취소는 전액 환불
           </Text>
         </View>
@@ -1002,36 +1119,36 @@ export default function OwnerHome() {
         <Pressable style={{ flex: 1, backgroundColor: '#00000055' }} onPress={() => setLadderOpen(false)} />
         <View style={s.ladderSheet}>
           <View style={s.sheetHandle} />
-          <Text style={{ fontSize: 20.5, fontWeight: '900', color: '#0F1D13' }}>마일스톤 리워드</Text>
-          <Text style={{ fontSize: 14, color: colors.dim, marginTop: 4, marginBottom: 12 }}>
+          <Text style={{ fontSize: 20.5, fontWeight: '900', color: lilac.head }}>마일스톤 리워드</Text>
+          <Text style={{ fontSize: 14, color: lilac.dim, marginTop: 4, marginBottom: 12 }}>
             {dog.name}의 누적 86.2km — 달릴수록 콜라보 굿즈가 열려요
           </Text>
           {ownerGearLadder.map((g, i) => (
             <View key={g.at}>
-              {i > 0 && <View style={{ height: 1, backgroundColor: '#EEF0EA' }} />}
+              {i > 0 && <View style={{ height: 1, backgroundColor: lilac.hair }} />}
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 }}>
                 <View style={{
                   width: 20, height: 20, borderRadius: 4, alignItems: 'center', justifyContent: 'center',
-                  backgroundColor: g.got ? '#6aa53c' : g.claimable ? colors.volt : '#D8DAD2',
+                  backgroundColor: g.got ? lilac.voltDeep : g.claimable ? lilac.coral : lilac.hair,
                 }}>
                   {g.got && <Text style={{ fontSize: 10.5, fontWeight: '900', color: '#fff' }}>✓</Text>}
-                  {g.claimable && <Text style={{ fontSize: 10.5, fontWeight: '900', color: '#0F1D13' }}>!</Text>}
+                  {g.claimable && <Text style={{ fontSize: 10.5, fontWeight: '900', color: '#fff' }}>!</Text>}
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 15.5, fontWeight: '800', color: g.got || g.claimable ? '#0F1D13' : '#9a9a90' }}>{g.item}</Text>
-                  <Text style={{ fontSize: 14, color: colors.dim, marginTop: 1 }}>누적 {g.at}km</Text>
+                  <Text style={{ fontSize: 15.5, fontWeight: '800', color: g.got || g.claimable ? lilac.head : lilac.dim }}>{g.item}</Text>
+                  <Text style={{ fontSize: 14, color: lilac.dim, marginTop: 1 }}>누적 {g.at}km</Text>
                 </View>
                 {g.claimable ? (
                   <Pressable
                     onPress={() => Alert.alert('수령 신청', '배송지로 콜라보 굿즈를 보내드려요 (목업)')}
-                    style={{ backgroundColor: colors.volt, borderRadius: 4, paddingVertical: 7, paddingHorizontal: 12 }}
+                    style={{ backgroundColor: lilac.coral, borderRadius: lilacRadius.tag, paddingVertical: 7, paddingHorizontal: 12 }}
                   >
-                    <Text style={{ fontSize: 12.5, fontWeight: '900', color: '#0F1D13' }}>수령하기</Text>
+                    <Text style={{ fontSize: 12.5, fontWeight: '900', color: '#fff' }}>수령하기</Text>
                   </Pressable>
                 ) : g.got ? (
-                  <Text style={{ fontSize: 12, fontWeight: '700', color: '#5a7a3c' }}>수령 완료</Text>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: lilac.voltDeep }}>수령 완료</Text>
                 ) : (
-                  <Text style={{ fontSize: 14, color: colors.dim }}>{(g.at - 86.2).toFixed(0)}km 남음</Text>
+                  <Text style={{ fontSize: 14, color: lilac.dim }}>{(g.at - 86.2).toFixed(0)}km 남음</Text>
                 )}
               </View>
             </View>
@@ -1041,13 +1158,12 @@ export default function OwnerHome() {
     </View>
   );
 
-  // 미니 레이스 빕 — 상단 파스텔 밴드(라벨 + 펀치홀 2개) + 큰 숫자. 히어로 빕 필과 같은 모티프.
-  // [V4] V1 룰드 숫자 셀 — 파스텔 스탬프 은퇴. bg는 이제 액센트 언더라인 컬러
-  function StatChip({ top, bottom, bg }: { top: string; bottom: string; bg: string }) {
+  // [V4] V1 룰드 숫자 셀 — 파스텔 스탬프 은퇴. bar는 액센트 언더라인 컬러
+  function StatCell({ top, bottom, bar }: { top: string; bottom: string; bar: string }) {
     return (
       <View style={s.statChip}>
         <Text style={[s.bibValue, { color: p.textStrong }, nf]} numberOfLines={1}>{top}</Text>
-        <View style={[s.accentBar, { backgroundColor: bg }]} />
+        <View style={[s.accentBar, { backgroundColor: bar }]} />
         <Text style={[s.bibLabel, { color: p.dim }]} numberOfLines={1}>{bottom}</Text>
       </View>
     );
@@ -1082,172 +1198,204 @@ function SlideToBook({ onComplete }: { onComplete: () => void }) {
     <View style={s.slideTrack}>
       <Animated.Text style={[s.slideLabel, { opacity: labelOpacity }]}>밀어서 러닝 요청 ›››</Animated.Text>
       <Animated.View {...pan.panHandlers} style={[s.slideKnob, { transform: [{ translateX: x }] }]}>
-        <Text style={{ fontSize: 23, fontWeight: '900', color: colors.volt }}>❯</Text>
+        <Text style={{ fontSize: 23, fontWeight: '900', color: '#fff' }}>❯</Text>
       </Animated.View>
     </View>
   );
 }
 
 const s = StyleSheet.create({
-  // 지금 러너 찾기 히어로 + 시트
+  // 홀로 3px 엣지
+  holo: { position: 'absolute', top: 0, left: 0, right: 0, height: 3, flexDirection: 'row', zIndex: 5 },
+  // 섹션 헤더 — 키커 넘버 + 룰 + 링크
+  sec: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 16, marginBottom: 4 },
+  secN: { borderWidth: 1, borderColor: '#DCD6F8', backgroundColor: '#F4F1FE', borderRadius: lilacRadius.tag, paddingVertical: 2, paddingHorizontal: 5 },
+  secNText: { fontSize: 9, fontWeight: '800', letterSpacing: 1, color: lilac.accent },
+  secH: { fontSize: 15, fontWeight: '800', color: lilac.head, letterSpacing: -0.2 },
+  secRule: { flex: 1, height: 1, backgroundColor: lilac.hair },
+  secLink: { fontSize: 12, fontWeight: '800', color: lilac.accent },
+  // 지금 러너 찾기 — 나이트 라일락 다크 인셋 섬
   findNow: {
-    backgroundColor: '#0F1D13', borderRadius: 6, padding: 18, marginTop: 14,
-    borderWidth: 1.5, borderColor: colors.tang, overflow: 'hidden', // [V4] 코랄 프레임 — 레이더 관제기
-    shadowColor: '#0F1D13', shadowOpacity: 0.25, shadowRadius: 8, shadowOffset: { width: 0, height: 4 },
+    backgroundColor: NIGHT, borderRadius: lilacRadius.card, padding: 16, marginTop: 14,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', overflow: 'hidden',
+    shadowColor: '#1C1837', shadowOpacity: 0.3, shadowRadius: 26, shadowOffset: { width: 0, height: 10 }, elevation: 6,
   },
+  fnKick: { fontSize: 8, fontWeight: '700', letterSpacing: 2.4, color: NIGHT_KICK },
   // 레이더 중심점 — 카드 우측 가장자리 살짝 밖, 아크/스윕/블립의 원점
   radarLayer: { position: 'absolute', right: -14, top: 44 },
-  fnAvatarRim: { borderWidth: 2, borderColor: '#0F1D13', borderRadius: 17 },
   fnBlip: {
-    borderWidth: 2, borderColor: colors.volt, borderRadius: 6, backgroundColor: '#0F1D13',
-    shadowColor: colors.volt, shadowOpacity: 0.6, shadowRadius: 6, shadowOffset: { width: 0, height: 0 },
+    borderWidth: 2, borderColor: lilac.coral, borderRadius: 6, backgroundColor: NIGHT,
+    shadowColor: lilac.coral, shadowOpacity: 0.55, shadowRadius: 6, shadowOffset: { width: 0, height: 0 },
   },
   fnCta: {
-    flex: 1, backgroundColor: colors.volt, borderRadius: 6, alignItems: 'center',
-    justifyContent: 'center', paddingVertical: 13, overflow: 'visible',
+    flex: 1, backgroundColor: lilac.bg, borderRadius: lilacRadius.btn, alignItems: 'center',
+    justifyContent: 'center', paddingVertical: 14, overflow: 'visible',
+    shadowColor: '#000', shadowOpacity: 0.28, shadowRadius: 16, shadowOffset: { width: 0, height: 6 },
   },
   fnPulseRing: {
     position: 'absolute', left: 0, right: 0, top: 0, bottom: 0,
-    borderRadius: 6, borderWidth: 2, borderColor: colors.volt,
+    borderRadius: lilacRadius.btn, borderWidth: 2, borderColor: 'rgba(240,118,90,0.5)',
   },
-  fnCustom: { paddingVertical: 13, paddingHorizontal: 12 },
+  fnCustom: { borderWidth: 1, borderColor: 'rgba(255,255,255,0.24)', borderRadius: lilacRadius.btn, paddingVertical: 14, paddingHorizontal: 12 },
   fnSheet: {
     backgroundColor: '#fff', borderTopLeftRadius: 28, borderTopRightRadius: 28,
     paddingHorizontal: 12, paddingTop: 12, paddingBottom: 40,
   },
-  fnGrip: { alignSelf: 'center', width: 42, height: 5, borderRadius: 3, backgroundColor: '#D8DAD2', marginBottom: 14 },
+  fnGrip: { alignSelf: 'center', width: 42, height: 5, borderRadius: 3, backgroundColor: lilac.hair, marginBottom: 14 },
   fnChip: {
-    backgroundColor: '#f4f2ea', borderRadius: 4, paddingVertical: 9, paddingHorizontal: 14,
-    borderWidth: 1, borderColor: '#D8DAD2',
+    backgroundColor: lilac.inset, borderRadius: lilacRadius.tag, paddingVertical: 9, paddingHorizontal: 14,
+    borderWidth: 1, borderColor: lilac.hair,
   },
-  fnChipText: { fontSize: 14.5, fontWeight: '800', color: '#0F1D13' },
+  fnChipText: { fontSize: 14.5, fontWeight: '800', color: lilac.head },
   fnKmRow: {
-    flexDirection: 'row', alignItems: 'center', marginTop: 16, backgroundColor: '#FFFFFF',
-    borderRadius: 6, padding: 14, borderWidth: 1, borderColor: '#D8DAD2',
+    flexDirection: 'row', alignItems: 'center', marginTop: 16, backgroundColor: lilac.card,
+    borderRadius: lilacRadius.card, padding: 14, borderWidth: 1, borderColor: lilac.hair,
   },
   fnStep: {
-    width: 44, height: 44, borderRadius: 22, backgroundColor: '#fff', alignItems: 'center',
-    justifyContent: 'center', borderWidth: 1, borderColor: '#D8DAD2',
+    width: 44, height: 44, borderRadius: 22, backgroundColor: lilac.inset, alignItems: 'center',
+    justifyContent: 'center', borderWidth: 1, borderColor: lilac.hair,
   },
-  fnStepText: { fontSize: 25.5, fontWeight: '800', color: '#0F1D13' },
+  fnStepText: { fontSize: 25.5, fontWeight: '800', color: lilac.head },
   fnPriceRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     marginTop: 14, paddingHorizontal: 4,
   },
-  fnPay: { backgroundColor: colors.volt, borderRadius: 6, alignItems: 'center', paddingVertical: 16, marginTop: 12 },
+  fnPay: { backgroundColor: MONEY_DEEP, borderRadius: lilacRadius.btn, alignItems: 'center', paddingVertical: 16, marginTop: 12 },
   overlay: {
     position: 'absolute', top: 0, left: 0, right: 0, zIndex: 20,
     paddingTop: PAD_TOP, paddingHorizontal: 11, paddingBottom: 10,
   },
   headerRow: { flexDirection: 'row', alignItems: 'center', height: 58, marginBottom: 8 }, // 그리팅 줄 (아래 티커가 나머지를 채움)
+  rankticker: {
+    overflow: 'hidden', marginTop: 8, paddingVertical: 5,
+    borderTopWidth: 1, borderBottomWidth: 1, borderColor: lilac.hair,
+  },
+  tickerLead: { fontSize: 9, fontWeight: '700', letterSpacing: 2, color: lilac.dim, marginRight: 2 },
   themeBtn: {
-    width: 40, height: 40, borderRadius: 6, borderWidth: 1,
+    width: 40, height: 40, borderRadius: lilacRadius.btn, borderWidth: 1,
     alignItems: 'center', justifyContent: 'center',
   },
   bellDot: {
     position: 'absolute', top: 8, right: 9, width: 7, height: 7, borderRadius: 4,
-    backgroundColor: colors.volt, zIndex: 2,
-    shadowColor: colors.volt, shadowOpacity: 1, shadowRadius: 4, shadowOffset: { width: 0, height: 0 },
+    backgroundColor: lilac.coral, zIndex: 2,
+    shadowColor: lilac.coral, shadowOpacity: 1, shadowRadius: 4, shadowOffset: { width: 0, height: 0 },
   },
   hero: {
-    borderRadius: 22, padding: 18, overflow: 'hidden', borderWidth: 1,
-    shadowColor: colors.volt, shadowOpacity: 0.1, shadowRadius: 7, shadowOffset: { width: 0, height: 6 },
+    borderRadius: lilacRadius.card, padding: 18, overflow: 'hidden', borderWidth: 1,
+    ...lilacShadow,
   },
+  heroDbl: { position: 'absolute', top: 4, left: 4, right: 4, bottom: 4, borderWidth: 1, borderColor: lilac.hair2, borderRadius: lilacRadius.inner },
   weekChip: {
-    position: 'absolute', top: 14, left: 16, zIndex: 4,
-    borderRadius: 4, paddingVertical: 6, paddingHorizontal: 12,
+    position: 'absolute', top: 14, left: 16, zIndex: 4, borderWidth: 1,
+    borderRadius: lilacRadius.tag, paddingVertical: 6, paddingHorizontal: 12,
   },
   info: { position: 'absolute', left: 18, top: 40, width: CARD_W * 0.46, zIndex: 3 }, // 요일 스탬프와 좌우 분담
   stampBox: { position: 'absolute', right: 18, top: 46, zIndex: 3, alignItems: 'flex-end' }, // 링이 떠난 자리 (컬랩스)
-  goalChip: { marginTop: 8, borderRadius: 4, paddingVertical: 4, paddingHorizontal: 10 },
-  bigMsg: { textAlign: 'center', marginTop: 8, fontSize: 15, fontWeight: '700' },
+  goalChip: { marginTop: 8, borderRadius: lilacRadius.tag, borderWidth: 1, paddingVertical: 4, paddingHorizontal: 10 },
   reportChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'center',
-    borderRadius: 4, paddingVertical: 8, paddingHorizontal: 15, marginTop: 8, borderWidth: 1,
+    position: 'absolute', left: 12, right: 12, bottom: 11, zIndex: 3,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    borderRadius: lilacRadius.inner, paddingVertical: 8, paddingHorizontal: 12, borderWidth: 1,
   },
   // [V4] V1 룰드 숫자 셀 — 카드가 아니라 지면: 위 2.5px 룰, 셀 사이 헤어라인, 액센트 언더라인
   statChip: {
     flex: 1, alignItems: 'flex-start', paddingVertical: 11, paddingHorizontal: 10,
-    borderTopWidth: 2.5, borderTopColor: '#0E100D', borderRightWidth: 1, borderRightColor: '#D8DAD2',
+    borderTopWidth: 2.5, borderTopColor: lilac.head, borderRightWidth: 1, borderRightColor: lilac.hair,
   },
   accentBar: { width: 26, height: 3.5, marginTop: 5 },
   bibLabel: { fontSize: 10.5, fontWeight: '800', letterSpacing: 0.3, marginTop: 5 },
   bibValue: { fontSize: 26, fontWeight: '900', fontVariant: ['tabular-nums'], letterSpacing: -0.5 },
-  // [V4] 스타디움 로스터 (V2) — 러너 PR 표면
-  featRunner: { backgroundColor: '#121712', borderWidth: 1, borderColor: '#222A21', padding: 15, paddingLeft: 18, overflow: 'hidden' },
-  featEdge: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, backgroundColor: colors.volt },
-  featNum: { fontSize: 17, fontWeight: '900', color: '#fff', fontVariant: ['tabular-nums'] },
-  featK: { fontSize: 7.5, fontWeight: '700', letterSpacing: 1.5, color: '#8fa093', marginTop: 2 },
-  featCta: { backgroundColor: colors.volt, paddingVertical: 9, paddingHorizontal: 13, alignSelf: 'center' },
-  rosterCard: { width: 168, backgroundColor: '#121712', borderWidth: 1, borderColor: '#222A21', padding: 12 },
+  // 오늘의 티켓 — 보딩패스
+  ticket: {
+    backgroundColor: lilac.card, borderRadius: lilacRadius.card, marginTop: 4, overflow: 'hidden',
+    borderWidth: 1, borderColor: lilac.hair2, ...lilacShadow,
+  },
+  ticketDbl: { position: 'absolute', top: 4, left: 4, right: 4, bottom: 4, borderWidth: 1, borderColor: lilac.hair2, borderRadius: lilacRadius.inner },
+  ticketHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 13, paddingTop: 12 },
+  ticketGlyph: { width: 16, height: 16, borderRadius: lilacRadius.tag, backgroundColor: lilac.accent, alignItems: 'center', justifyContent: 'center' },
+  ticketBrand: { fontSize: 9, fontWeight: '800', letterSpacing: 2, color: lilac.head },
+  perf: { marginTop: 11, height: 0, borderTopWidth: 1.5, borderStyle: 'dashed', borderColor: '#DCD7F0', marginHorizontal: -13 },
+  notch: { position: 'absolute', top: -9, width: 18, height: 18, borderRadius: 9, backgroundColor: lilac.bg, borderWidth: 1, borderColor: lilac.hair2 },
   rewardCard: {
-    flexDirection: 'row', alignItems: 'center', borderRadius: 6, padding: 15, marginTop: 12,
-    borderWidth: 1.6, borderColor: colors.tang + '66',
-    shadowColor: colors.tang, shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 3 },
+    flexDirection: 'row', alignItems: 'center', borderRadius: lilacRadius.card, padding: 15, marginTop: 12,
+    backgroundColor: lilac.card, borderWidth: 1, borderColor: lilac.coralSoft,
+    shadowColor: lilac.coral, shadowOpacity: 0.22, shadowRadius: 12, shadowOffset: { width: 0, height: 3 },
     elevation: 4,
   },
   giftWrap: { width: 46, height: 46, alignItems: 'center', justifyContent: 'center' },
-  giftHalo: {
-    position: 'absolute', width: 46, height: 46, borderRadius: 23,
-    backgroundColor: colors.volt,
-  },
-  giftBox: { width: 38, height: 38, borderRadius: 6, backgroundColor: colors.volt, alignItems: 'center', justifyContent: 'center' },
+  giftHalo: { position: 'absolute', width: 46, height: 46, borderRadius: 23, backgroundColor: lilac.coralSoft },
+  giftBox: { width: 38, height: 38, borderRadius: lilacRadius.inner, backgroundColor: lilac.coral, alignItems: 'center', justifyContent: 'center' },
   giftBadge: {
     position: 'absolute', top: 0, right: 0, width: 15, height: 15, borderRadius: 8,
-    backgroundColor: colors.tang, alignItems: 'center', justifyContent: 'center', zIndex: 2,
+    backgroundColor: lilac.coralDeep, alignItems: 'center', justifyContent: 'center', zIndex: 2,
   },
-  claimBtn: { backgroundColor: colors.volt, borderRadius: 4, paddingVertical: 10, paddingHorizontal: 13 },
-  ladderSheet: { backgroundColor: '#F4F6F1', borderTopLeftRadius: 10, borderTopRightRadius: 10, padding: 16, paddingBottom: 40 },
-  sheetHandle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: '#D8DAD2', marginBottom: 14 },
+  claimBtn: { backgroundColor: lilac.coral, borderRadius: lilacRadius.tag, paddingVertical: 10, paddingHorizontal: 13 },
+  ladderSheet: { backgroundColor: lilac.bg, borderTopLeftRadius: 14, borderTopRightRadius: 14, padding: 16, paddingBottom: 40 },
+  sheetHandle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: lilac.hair, marginBottom: 14 },
+  // 예약하기 = 돈 버튼 — 딥 코랄 (종단 ≥#C6472C, 흰 라벨 4.5:1)
+  book: { backgroundColor: lilac.card, borderWidth: 1, borderColor: lilac.hair2, borderRadius: lilacRadius.card, padding: 12, marginTop: 14, ...lilacShadow },
+  bookFacts: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', paddingHorizontal: 2, paddingBottom: 11 },
+  bookKicker: { fontSize: 8, fontWeight: '600', letterSpacing: 1.6, color: lilac.dim, marginBottom: 2 },
+  cta: {
+    borderRadius: lilacRadius.card, paddingVertical: 20, paddingHorizontal: 16, overflow: 'hidden',
+    backgroundColor: MONEY_DEEP,
+    shadowColor: MONEY_DEEP, shadowOpacity: 0.42, shadowRadius: 20, shadowOffset: { width: 0, height: 14 }, elevation: 8,
+  },
+  ctaSheen: { position: 'absolute', right: -30, top: -40, width: 130, height: 130, borderRadius: 65, backgroundColor: 'rgba(255,255,255,0.12)' },
+  ctaPlate: { marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(28,24,55,0.55)', borderRadius: lilacRadius.inner, paddingVertical: 8, paddingHorizontal: 10 },
+  ctaPlateDiv: { width: 1, height: 11, backgroundColor: 'rgba(255,255,255,0.4)' },
   slideTrack: {
-    marginTop: 14, height: 68, borderRadius: 6, backgroundColor: colors.volt, justifyContent: 'center',
-    shadowColor: colors.volt, shadowOpacity: 0.5, shadowRadius: 11, shadowOffset: { width: 0, height: 6 },
-    elevation: 8,
+    marginTop: 12, height: 62, borderRadius: lilacRadius.card, backgroundColor: lilac.coral, justifyContent: 'center', overflow: 'hidden',
+    shadowColor: lilac.coral, shadowOpacity: 0.28, shadowRadius: 12, shadowOffset: { width: 0, height: 10 },
+    elevation: 6,
   },
-  slideLabel: { alignSelf: 'center', fontSize: 19.5, fontWeight: '900', color: colors.ink, letterSpacing: 0.5 },
+  slideLabel: { alignSelf: 'center', fontSize: 15, fontWeight: '800', color: '#fff', letterSpacing: 0.3, paddingLeft: 26 },
   slideKnob: {
-    position: 'absolute', left: 6, width: 56, height: 56, borderRadius: 6,
-    backgroundColor: '#0F1D13', alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 6, shadowOffset: { width: 2, height: 2 },
+    position: 'absolute', left: 5, top: 5, width: 52, height: 52, borderRadius: lilacRadius.inner,
+    backgroundColor: lilac.head, alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#1C1837', shadowOpacity: 0.35, shadowRadius: 6, shadowOffset: { width: 2, height: 2 },
   },
-  scheduleCard: {
-    borderRadius: 6, padding: 17, marginTop: 12,
-    borderWidth: 1.4, borderColor: '#C6F54255', // lime accent — the widget earns its emphasis
-    shadowColor: colors.volt, shadowOpacity: 0.2, shadowRadius: 7, shadowOffset: { width: 0, height: 3 },
-    elevation: 3,
+  // 하이클럽 셸 — 히어로 인접 격상 (바이올렛 라일락 엘리베이션)
+  clubShell: {
+    marginTop: 14, borderRadius: lilacRadius.card,
+    shadowColor: lilac.accent, shadowOpacity: 0.14, shadowRadius: 30, shadowOffset: { width: 0, height: 12 }, elevation: 3,
   },
   liveDotSm: {
-    width: 7, height: 7, borderRadius: 4, backgroundColor: colors.volt,
-    shadowColor: colors.volt, shadowOpacity: 1, shadowRadius: 4, shadowOffset: { width: 0, height: 0 },
+    width: 7, height: 7, borderRadius: 4, backgroundColor: lilac.coral,
+    shadowColor: lilac.coral, shadowOpacity: 1, shadowRadius: 4, shadowOffset: { width: 0, height: 0 },
   },
-  allScheduleChip: { backgroundColor: colors.volt, borderRadius: 4, paddingVertical: 6, paddingHorizontal: 12 },
   meetBtn: {
-    flex: 1, backgroundColor: colors.volt, borderRadius: 4, alignItems: 'center', paddingVertical: 11,
-    shadowColor: colors.volt, shadowOpacity: 0.4, shadowRadius: 8, shadowOffset: { width: 0, height: 2 },
+    flex: 1, backgroundColor: lilac.accent, borderRadius: lilacRadius.btn, alignItems: 'center', paddingVertical: 12,
+    shadowColor: lilac.accent, shadowOpacity: 0.3, shadowRadius: 13, shadowOffset: { width: 0, height: 5 },
   },
-  countdownPill: { borderRadius: 4, paddingVertical: 6, paddingHorizontal: 10 },
-  widgetBtn: { flex: 1, borderWidth: 1, borderRadius: 4, alignItems: 'center', paddingVertical: 9 },
+  countdownPill: { borderRadius: lilacRadius.tag, paddingVertical: 4, paddingHorizontal: 8 },
+  widgetBtn: { flex: 1, borderWidth: 1, borderColor: lilac.hair, backgroundColor: lilac.inset, borderRadius: lilacRadius.btn, alignItems: 'center', paddingVertical: 10 },
   nudge: {
     flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10,
-    borderRadius: 6, borderWidth: 1.2, paddingVertical: 12, paddingHorizontal: 14,
+    borderRadius: lilacRadius.card, borderWidth: 1, borderColor: lilac.hair2,
+    borderLeftWidth: 2.5, borderLeftColor: lilac.coral, paddingVertical: 12, paddingHorizontal: 14,
+    ...lilacShadow,
   },
   safetyStrip: {
-    flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 6,
+    flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: lilacRadius.card,
     paddingVertical: 12, paddingHorizontal: 14, marginTop: 12,
-    borderWidth: 1.2, borderColor: '#FF5C3D45', // faint coral outline
-    shadowColor: colors.tang, shadowOpacity: 0.22, shadowRadius: 10, shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
+    borderWidth: 1, borderColor: lilac.hair,
+    ...lilacShadow,
   },
-  safetyIcon: { width: 28, height: 28, borderRadius: 9, backgroundColor: '#eef4e0', alignItems: 'center', justifyContent: 'center' },
-  sectionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 26, marginBottom: 12 },
+  safetyIcon: { width: 28, height: 28, borderRadius: lilacRadius.inner, backgroundColor: '#FFF1EC', alignItems: 'center', justifyContent: 'center' },
   sectionTitle: { fontSize: 19.5, fontWeight: '800' },
-  momentCard: { width: 126, height: 158, borderRadius: 6, overflow: 'hidden', backgroundColor: '#e8e5d8' },
+  // 스타디움 로스터 — 피처드 = 나이트 라일락, 미니 = 라이트 라일락
+  featRunner: { backgroundColor: NIGHT, borderWidth: 1, borderColor: '#2E2A50', borderRadius: lilacRadius.card, padding: 15, paddingLeft: 18, overflow: 'hidden' },
+  featEdge: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, backgroundColor: lilac.coral },
+  featNum: { fontSize: 17, fontWeight: '900', color: '#fff', fontVariant: ['tabular-nums'] },
+  featK: { fontSize: 7.5, fontWeight: '700', letterSpacing: 1.5, color: '#9E94D2', marginTop: 2 },
+  featCta: { backgroundColor: lilac.card, borderRadius: lilacRadius.btn, paddingVertical: 9, paddingHorizontal: 13, alignSelf: 'center' },
+  rosterCard: { width: 168, backgroundColor: lilac.card, borderWidth: 1, borderColor: lilac.hair, borderRadius: lilacRadius.card, padding: 12, ...lilacShadow },
+  momentCard: { width: 126, height: 158, borderRadius: lilacRadius.inner, overflow: 'hidden', backgroundColor: lilac.inset, borderWidth: 1, borderColor: lilac.hair },
   momentPill: {
     position: 'absolute', left: 8, bottom: 8,
-    backgroundColor: 'rgba(15,29,19,0.62)', borderRadius: 4, paddingVertical: 4, paddingHorizontal: 9,
+    backgroundColor: 'rgba(28,24,55,0.62)', borderRadius: lilacRadius.tag, paddingVertical: 4, paddingHorizontal: 9,
   },
-  tickerItem: { fontSize: 15, fontWeight: '600', color: '#49524a' },
-  tickerDot: { fontSize: 13, color: '#b6b19e', marginHorizontal: 8 },
-  runnerCard: { flexDirection: 'row', alignItems: 'center', borderRadius: 6, borderWidth: 1, padding: 14, marginBottom: 8 },
-  runnerBadge: { borderWidth: 1, borderRadius: 4, paddingVertical: 2, paddingHorizontal: 7 },
+  tickerItem: { fontSize: 15, fontWeight: '600', color: lilac.text },
+  tickerSep: { width: 3, height: 3, borderRadius: 2, backgroundColor: lilac.hair, marginHorizontal: 8 },
 });

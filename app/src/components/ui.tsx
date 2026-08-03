@@ -98,7 +98,7 @@ export function StatBlock({ value, label, valueColor = colors.volt }: { value: s
   );
 }
 
-export function Row({ children, style }: { children: ReactNode; style?: ViewStyle }) {
+export function Row({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
   return <View style={[{ flexDirection: 'row', alignItems: 'center' }, style]}>{children}</View>;
 }
 

@@ -1,10 +1,12 @@
 import { router, usePathname } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { session } from '../store';
-import { colors } from '../theme';
+import { lilac } from '../theme';
 import { Icon } from './ui';
 
 // Prototype-style bottom nav, role-aware via session. Swap for expo-router Tabs later.
+// [V4 라일락 리페인트, 2026-08-03] 크림/포레스트 은퇴 → 라일락 글래스 도크.
+//   active = 바이올렛 accent + 상단 인디케이터 룰 · idle = dim. dark prop은 나이트 라일락(#1C1837).
 
 // Calendar decision (docs/calendar.md): owners get no calendar tab (home widget
 // + booking CTA); runners get dedicated 캘린더 + 요청 tabs. 안심 lives in 마이,
@@ -34,8 +36,8 @@ export function homePath(): '/owner/home' | '/runner/home' {
 export function BottomNav({ dark }: { dark?: boolean }) {
   const pathname = usePathname();
   const tabs = session.role === 'runner' ? RUNNER_TABS : OWNER_TABS;
-  const activeColor = dark ? colors.volt : colors.ink;
-  const idleColor = dark ? colors.dimDark : colors.dim;
+  const activeColor = lilac.accent;
+  const idleColor = dark ? '#8F86C2' : lilac.dim;
 
   return (
     <View style={[s.bar, dark && s.barDark]}>
@@ -47,6 +49,8 @@ export function BottomNav({ dark }: { dark?: boolean }) {
             style={s.tab}
             onPress={() => { if (t.path && !active) router.replace(t.path); }}
           >
+            {/* 액티브 인디케이터 룰 — 바이올렛 (D 셸 문법) */}
+            <View style={[s.ind, active && { backgroundColor: lilac.accent }]} />
             <View style={{ marginBottom: 3 }}>
               <Icon name={t.lucide} glyph={t.icon} size={19} color={active ? activeColor : idleColor} />
             </View>
@@ -61,9 +65,13 @@ export function BottomNav({ dark }: { dark?: boolean }) {
 }
 
 const s = StyleSheet.create({
-  bar: { flexDirection: 'row', borderTopWidth: 1, borderTopColor: colors.line, backgroundColor: '#fff', paddingBottom: 22 },
-  barDark: { backgroundColor: '#111c14', borderTopColor: colors.lineDark },
+  bar: {
+    flexDirection: 'row', borderTopWidth: 1, borderTopColor: lilac.hair,
+    backgroundColor: lilac.glass, paddingBottom: 22,
+  },
+  barDark: { backgroundColor: '#1C1837', borderTopColor: '#2A2350' },
   tab: { flex: 1, alignItems: 'center', paddingVertical: 12 },
+  ind: { position: 'absolute', top: 0, width: 26, height: 2.5, borderRadius: 2, backgroundColor: 'transparent' },
   icon: { fontSize: 20.5, marginBottom: 3 },
   label: { fontSize: 12.5, fontWeight: '500' },
 });

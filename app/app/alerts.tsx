@@ -5,25 +5,23 @@ import { BottomNav } from '../src/components/bottomnav';
 import { Row } from '../src/components/ui';
 import { fetchNotifications, LiveNoti, markAllNotificationsRead } from '../src/lib/api';
 import { useDisplayFont } from '../src/lib/displayFont';
+import { useNumFont } from '../src/lib/fonts';
 import { routeForNotification } from '../src/lib/push';
-import { colors } from '../src/theme';
+import { colors, lilac, lilacRadius, lilacShadow } from '../src/theme';
 
-// 알림 — A1(소인 우편함) × A2(러닝 레일) 머지 (Sean 확정, 2026-07-29, docs/hi-club-plan.md §1-A).
-// A2에서: 다크 헤더 + 라이브 티커(최신 미읽음 실데이터) + 상태 컬러 수직 레일 (일정 탭과 같은 스키마).
-// A1에서: 날짜 그룹 = 회전 원형 소인 스탬프, 아이템 = 아이콘 칩 + NEW 볼트 씰 포맷.
-// 히어로 모티프 = 레일(트레이스) 1개 — 소인·씰은 보조 (화면당 1히어로 규칙).
+// 알림 — "여권 × 안내판(Arrivals board)" 정본 (Sean 확정, 2026-08-01 delegation-premium-refresh2).
+// 문법: 시각 컬럼(Oswald) · 정사각 모노 타입 태그 · 헤어라인 행 · 안 읽음 = 좌측 코랄 틱(도트/엣지, 텍스트 금지).
+// 히어로 = 나이트-라일락 보드 헤더 1개 + 라이브 티커(최신 미읽음 실데이터). 날짜/요일은 전부 실 timestamp에서 온다.
 
-const FOREST = '#0F1D13';
-
-// 소인 잉크 시스템 (P4, Sean 확정) — kind + 제목 휴리스틱으로 종류별 잉크색.
-// 인박스가 스캔 한 번에 분류되게: 예약=그린 · 클럽=바이올렛 · 변경/대기=앰버 · 기록=골드 · 취소=레드
+// 소인 잉크 시스템 — kind + 제목 휴리스틱으로 종류별 잉크색 (라일락 리페인트: 스왐프 그린 은퇴, 확정 블루 유지).
+// 인박스가 스캔 한 번에 분류되게: 완료/시작=볼트(기능 성공) · 클럽=바이올렛 · 변경/대기=앰버 · 확정=블루 · 기록=골드 · 취소=탱
 const inkFor = (kind: string | null | undefined, title: string): { bg: string; fg: string } => {
-  if (/돌파|기록|달성|경신/.test(title)) return { bg: colors.goldTint, fg: colors.goldDeep }; // 기록 골드 (P3)
-  if (kind === 'community') return { bg: colors.clubTint, fg: colors.clubInk };               // 클럽 바이올렛
-  if (/만료|취소|SOS/.test(title)) return { bg: '#FCE7E1', fg: '#d84a2f' };
-  if (/대기|요청|재탐색|이동|변경|제안/.test(title)) return { bg: '#FCEFD9', fg: '#9D580A' }; // 앰버
-  if (/수락|확정|매칭/.test(title)) return { bg: '#E3EEF8', fg: '#4A6E93' };                  // 확정 블루
-  return { bg: '#e7efd8', fg: '#3d5a2b' }; // 완료·시작·적립 등 — 그린
+  if (/돌파|기록|달성|경신/.test(title)) return { bg: lilac.goldSoft, fg: lilac.gold };      // 기록 골드 (P3, 희소)
+  if (kind === 'community') return { bg: colors.clubTint, fg: lilac.accent };                // 클럽 바이올렛
+  if (/만료|취소|SOS/.test(title)) return { bg: '#FDEDE8', fg: lilac.tang };                  // 크리티컬 탱
+  if (/대기|요청|재탐색|이동|변경|제안/.test(title)) return { bg: lilac.amberSoft, fg: lilac.amber }; // 앰버
+  if (/수락|확정|매칭/.test(title)) return { bg: '#E3EEF8', fg: '#4A6E93' };                  // 확정 블루 (정본 유지)
+  return { bg: lilac.voltFill, fg: lilac.voltDeep }; // 완료·시작·적립 등 — 기능 볼트(성공 확인 전용)
 };
 const glyphFor = (title: string): string => {
   if (/완료|시작|돌파/.test(title)) return '🏃';
@@ -33,7 +31,17 @@ const glyphFor = (title: string): string => {
   if (/SOS/.test(title)) return '🚨';
   return '런';
 };
-// 소인 스탬프용 컴팩트 날짜 ("7월 29일 (화)" → "7.29")
+// 정사각 모노 타입 태그 라벨 — inkFor와 동일 버킷에서 파생 (제목 실데이터 기반, 조작 아님)
+const tagFor = (kind: string | null | undefined, title: string): string => {
+  if (/돌파|기록|달성|경신/.test(title)) return '기록';
+  if (kind === 'community') return '클럽';
+  if (/만료|취소|SOS/.test(title)) return '취소';
+  if (/반복/.test(title)) return '반복';
+  if (/대기|요청|재탐색|이동|변경|제안/.test(title)) return '변경';
+  if (/수락|확정|매칭/.test(title)) return '확정';
+  return '완료';
+};
+// 소인 스탬프용 컴팩트 날짜 ("8월 3일 (일)" → "8.3") — 실 dateLabel에서만 파생, 하드코딩 없음
 const stampOf = (dateLabel: string): string => {
   const m = dateLabel.match(/(\d+)월\s*(\d+)일/);
   return m ? `${m[1]}.${m[2]}` : dateLabel;
@@ -41,6 +49,7 @@ const stampOf = (dateLabel: string): string => {
 
 export default function Alerts() {
   const df = useDisplayFont();
+  const nf = useNumFont(); // Oswald — 시각·소인·카운트 (안내판 문법)
   const [liveNotis, setLiveNotis] = useState<LiveNoti[]>([]);
 
   const load = () => fetchNotifications().then(setLiveNotis).catch(() => {});
@@ -74,91 +83,129 @@ export default function Alerts() {
   }, [liveNotis]);
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.cream }}>
+    <View style={{ flex: 1, backgroundColor: lilac.bg }}>
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ padding: 16, paddingTop: 60, paddingBottom: 28 }}
+        contentContainerStyle={{ paddingTop: 56, paddingBottom: 28 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
-        <Row style={{ justifyContent: 'space-between', marginBottom: 12 }}>
-          <Pressable onPress={() => router.back()} style={s.hBtn}>
-            <Text style={{ fontSize: 20.5, color: FOREST }}>‹</Text>
+        {/* ---------- 글래스 마스트 ---------- */}
+        <Row style={s.mast}>
+          <Pressable onPress={() => router.back()} style={s.iconBtn}>
+            <Text style={{ fontSize: 15, color: lilac.head, marginTop: -1 }}>‹</Text>
           </Pressable>
-          {unreadCount > 0 && (
+          <Text style={[s.crumb, nf]}>MY / ALERTS</Text>
+          {unreadCount > 0 ? (
             <Pressable onPress={markAll} style={s.markAll}>
-              <Text style={{ fontSize: 13, fontWeight: '800', color: '#49524a' }}>✓ 모두 읽음</Text>
+              <Text style={[s.markAllTxt, nf]}>✓ 모두 읽음</Text>
             </Pressable>
+          ) : (
+            <View style={{ width: 26 }} />
           )}
         </Row>
 
-        {/* ---------- 다크 헤더 + 라이브 티커 (A2) ---------- */}
-        <View style={s.head}>
-          <Row style={{ justifyContent: 'space-between', alignItems: 'flex-end' }}>
-            <Text style={[{ fontSize: 27, fontWeight: '900', color: '#fff' }, df]}>알림</Text>
-            {unreadCount > 0 && (
-              <Text style={{ fontSize: 14.5, fontWeight: '800', color: colors.volt }}>안 읽음 {unreadCount}</Text>
+        {/* ---------- 나이트-라일락 보드 헤더 + 라이브 티커 ---------- */}
+        <View style={s.board}>
+          <View style={s.boardEdge} />
+          <View style={{ padding: 14 }}>
+            <Text style={[s.boardKick, nf]}>ARRIVALS · 도착한 소식</Text>
+            <Row style={{ justifyContent: 'space-between', alignItems: 'flex-end' }}>
+              <Text style={[{ fontSize: 30, color: '#fff', lineHeight: 32 }, df]}>알림</Text>
+              {unreadCount > 0 && (
+                <Row style={{ alignItems: 'baseline', gap: 5 }}>
+                  <Text style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.72)', fontWeight: '600' }}>안 읽음</Text>
+                  <Text style={[{ fontSize: 17, color: '#fff' }, nf]}>{unreadCount}</Text>
+                </Row>
+              )}
+            </Row>
+            {/* 티커 — 최신 미읽음 1건 실데이터. 없으면 그리지 않는다 */}
+            {latestUnread && (
+              <Pressable onPress={() => openNoti(latestUnread)} style={s.ticker}>
+                <View style={s.liveDot} />
+                <Text style={[s.tickTime, nf]}>{latestUnread.timeLabel}</Text>
+                <Text numberOfLines={1} style={s.tickTxt}>{latestUnread.title}</Text>
+                <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)' }}>›</Text>
+              </Pressable>
             )}
-          </Row>
-          {/* 티커 — 최신 미읽음 1건 실데이터. 없으면 그리지 않는다 */}
-          {latestUnread && (
-            <Pressable onPress={() => openNoti(latestUnread)} style={s.ticker}>
-              <View style={s.tickDot} />
-              <Text numberOfLines={1} style={{ flex: 1, fontSize: 14, fontWeight: '700', color: colors.volt }}>
-                {latestUnread.timeLabel} · {latestUnread.title}
-              </Text>
-              <Text style={{ fontSize: 14, color: '#8fa093' }}>›</Text>
-            </Pressable>
-          )}
+          </View>
         </View>
 
-        {/* ---------- 레일 타임라인 + 소인 그룹 ---------- */}
-        {groups.length === 0 && (
-          <View style={s.emptyBox}>
-            <Text style={{ fontSize: 15, color: colors.dim, textAlign: 'center', lineHeight: 23 }}>
-              아직 알림이 없어요{'\n'}예약·러닝 소식이 여기에 도착해요
-            </Text>
-          </View>
-        )}
+        <View style={{ paddingHorizontal: 12, paddingTop: 12 }}>
+          {/* 보드 컬럼 헤더 (안내판 문법) */}
+          {groups.length > 0 && (
+            <Row style={s.colhead}>
+              <Text style={[s.colTxt, nf, { width: 62 }]}>TIME</Text>
+              <Text style={[s.colTxt, nf, { width: 48 }]}>TYPE</Text>
+              <Text style={[s.colTxt, nf, { flex: 1 }]}>내용</Text>
+            </Row>
+          )}
 
-        {groups.length > 0 && (
-          <View style={s.railWrap}>
-            <View style={s.railLine} />
-            {groups.map((g, gi) => (
-              <View key={g.date}>
-                {/* 소인 스탬프 (A1) — 살짝 교차 회전 */}
-                <Row style={{ alignItems: 'center', gap: 10, marginTop: gi === 0 ? 18 : 24, marginBottom: 10 }}>
-                  <View style={[s.stamp, { transform: [{ rotate: gi % 2 === 0 ? '-7deg' : '6deg' }] }]}>
-                    <Text style={[{ fontSize: 15, fontWeight: '900', color: FOREST }, df]}>{stampOf(g.date)}</Text>
-                    <Text style={{ fontSize: 8, letterSpacing: 1.5, color: '#75806f', fontWeight: '700' }}>DOGS HIGH</Text>
-                  </View>
-                  <View style={s.stampDash} />
-                </Row>
+          {/* 빈 상태 */}
+          {groups.length === 0 && (
+            <View style={s.empty}>
+              <View style={s.emptyTag}><Text style={[s.emptyTagTxt, nf]}>EMPTY STATE</Text></View>
+              <Text style={{ fontSize: 13.5, color: lilac.dim, textAlign: 'center', lineHeight: 22 }}>
+                아직 알림이 없어요{'\n'}예약 · 러닝 소식이 여기에 도착해요
+              </Text>
+            </View>
+          )}
+
+          {/* ---------- 레일 타임라인 + 소인 그룹 ---------- */}
+          {groups.map((g, gi) => (
+            <View key={g.date}>
+              {/* 소인 스탬프 — 살짝 교차 회전, 날짜는 실 dateLabel 파생 */}
+              <Row style={{ alignItems: 'center', gap: 9, marginTop: gi === 0 ? 14 : 18, marginBottom: 8 }}>
+                <View style={[s.postmark, { transform: [{ rotate: gi % 2 === 0 ? '-7deg' : '6deg' }] }]}>
+                  <Text style={[s.postmarkD, nf]}>{stampOf(g.date)}</Text>
+                  <Text style={[s.postmarkK, nf]}>DOGS HIGH</Text>
+                </View>
+                <View style={s.groupDash} />
+                <Text style={[s.groupLabel, nf]}>{g.date} · {g.items.length}</Text>
+              </Row>
+
+              <View style={s.rail}>
+                <View style={s.railLine} />
                 {g.items.map((n) => {
                   const ink = inkFor(n.kind, n.title);
                   return (
-                  <Pressable key={n.id} onPress={() => openNoti(n)} style={s.evtRow}>
-                    {/* 레일 도트 — 소인 잉크와 동색 링 */}
-                    <View style={[s.railDot, { borderColor: ink.fg }, n.unread && { backgroundColor: colors.volt, borderColor: FOREST }]} />
-                    <View style={[s.card, n.unread && s.cardHi]}>
-                      {n.unread && <View style={s.seal}><Text style={{ fontSize: 9.5, fontWeight: '900', color: FOREST }}>NEW</Text></View>}
-                      <Row style={{ gap: 11 }}>
-                        <View style={[s.icon, { backgroundColor: ink.bg }]}><Text style={{ fontSize: 15, fontWeight: '900', color: ink.fg }}>{glyphFor(n.title)}</Text></View>
-                        <View style={{ flex: 1 }}>
-                          <Row style={{ justifyContent: 'space-between' }}>
-                            <Text style={{ fontSize: 16, fontWeight: '900', color: FOREST, flex: 1, paddingRight: 40 }}>{n.title}</Text>
-                          </Row>
-                          {n.body && <Text style={{ fontSize: 14.5, color: '#49524a', marginTop: 3, lineHeight: 20 }}>{n.body}</Text>}
-                          <Text style={{ fontSize: 12.5, color: '#9a978a', marginTop: 5 }}>{n.timeLabel}</Text>
-                        </View>
-                      </Row>
-                    </View>
-                  </Pressable>
+                    <Pressable key={n.id} onPress={() => openNoti(n)} style={[s.evt, n.unread && s.evtNew]}>
+                      {/* 레일 도트 — 미읽음=코랄 채움/엣지, 읽음=잉크 링 */}
+                      <View
+                        style={[
+                          s.dot,
+                          { borderColor: ink.fg },
+                          n.unread && { backgroundColor: lilac.coral, borderColor: lilac.coralDeep },
+                        ]}
+                      />
+                      {/* 좌측 코랄 틱 — 미읽음 엣지 (텍스트 아님) */}
+                      <View style={[s.evtTick, n.unread && { backgroundColor: lilac.coral }]} />
+                      <View style={s.evtCell}>
+                        <Row style={{ alignItems: 'center', gap: 7, marginBottom: 6 }}>
+                          <Text style={[s.evtTime, nf, !n.unread && { color: lilac.text }]}>{n.timeLabel}</Text>
+                          <View style={[s.typeTag, { backgroundColor: ink.bg }]}>
+                            <Text style={[s.typeTagTxt, nf]}>{tagFor(n.kind, n.title)}</Text>
+                          </View>
+                          {n.unread && (
+                            <View style={s.seal}><Text style={[s.sealTxt, nf]}>NEW</Text></View>
+                          )}
+                        </Row>
+                        <Row style={{ gap: 9, alignItems: 'flex-start' }}>
+                          <View style={[s.glyph, { backgroundColor: ink.bg }]}>
+                            <Text style={{ fontSize: 13, fontWeight: '900', color: ink.fg }}>{glyphFor(n.title)}</Text>
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={s.evtTitle}>{n.title}</Text>
+                            {n.body && <Text style={s.evtBody}>{n.body}</Text>}
+                          </View>
+                        </Row>
+                      </View>
+                    </Pressable>
                   );
                 })}
               </View>
-            ))}
-          </View>
-        )}
+            </View>
+          ))}
+        </View>
       </ScrollView>
       <BottomNav />
     </View>
@@ -166,20 +213,88 @@ export default function Alerts() {
 }
 
 const s = StyleSheet.create({
-  hBtn: { width: 42, height: 42, borderRadius: 6, backgroundColor: '#fff', borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
-  markAll: { backgroundColor: '#fff', borderWidth: 1, borderColor: colors.line, borderRadius: 4, paddingVertical: 10, paddingHorizontal: 14, alignSelf: 'center' },
-  head: { backgroundColor: FOREST, borderRadius: 6, padding: 16 },
-  ticker: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#1b2d20', borderRadius: 4, paddingVertical: 9, paddingHorizontal: 12, marginTop: 11 },
-  tickDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.tang },
-  emptyBox: { marginTop: 20, backgroundColor: '#fff', borderRadius: 6, padding: 18, borderWidth: 1, borderColor: '#D8DAD2' },
-  railWrap: { position: 'relative', paddingLeft: 22 },
-  railLine: { position: 'absolute', left: 5, top: 26, bottom: 8, width: 3.5, borderRadius: 3, backgroundColor: '#cede96' },
-  stamp: { width: 58, height: 58, borderRadius: 29, borderWidth: 2.5, borderColor: FOREST, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', marginLeft: -4 },
-  stampDash: { flex: 1, borderTopWidth: 2, borderColor: '#D8DAD2', borderStyle: 'dashed' },
-  evtRow: { position: 'relative', marginBottom: 9 },
-  railDot: { position: 'absolute', left: -22.5, top: 18, width: 14, height: 14, borderRadius: 8, backgroundColor: '#fff', borderWidth: 3.5 },
-  card: { backgroundColor: '#fff', borderRadius: 6, padding: 13, borderWidth: 1, borderColor: '#D8DAD2' },
-  cardHi: { backgroundColor: '#fbfdf2', borderColor: '#cede96' },
-  seal: { position: 'absolute', top: -8, right: 13, backgroundColor: colors.volt, borderRadius: 4, paddingVertical: 3, paddingHorizontal: 9, transform: [{ rotate: '3deg' }], zIndex: 2, shadowColor: FOREST, shadowOpacity: 0.18, shadowRadius: 4, shadowOffset: { width: 0, height: 2 } },
-  icon: { width: 42, height: 42, borderRadius: 4, backgroundColor: '#e7efd8', alignItems: 'center', justifyContent: 'center' },
+  mast: {
+    justifyContent: 'space-between', alignItems: 'center', gap: 8,
+    paddingHorizontal: 12, paddingBottom: 10, marginBottom: 2,
+    backgroundColor: lilac.glass, borderBottomWidth: 1, borderBottomColor: lilac.hair2,
+  },
+  iconBtn: {
+    width: 26, height: 26, borderRadius: lilacRadius.inner, backgroundColor: lilac.card,
+    borderWidth: 1, borderColor: lilac.hair, alignItems: 'center', justifyContent: 'center',
+  },
+  crumb: { fontSize: 8.5, letterSpacing: 2.2, color: lilac.dim },
+  markAll: {
+    backgroundColor: lilac.card, borderWidth: 1, borderColor: lilac.hair, borderRadius: lilacRadius.tag,
+    paddingVertical: 5, paddingHorizontal: 8,
+  },
+  markAllTxt: { fontSize: 8.5, letterSpacing: 1.4, color: lilac.head },
+
+  board: {
+    marginHorizontal: 12, borderRadius: lilacRadius.card, overflow: 'hidden',
+    backgroundColor: '#1C1837', ...lilacShadow, shadowOpacity: 0.34,
+  },
+  boardEdge: { position: 'absolute', top: 0, left: 0, right: 0, height: 2, backgroundColor: lilac.coral, opacity: 0.85, zIndex: 2 },
+  boardKick: { fontSize: 7.5, letterSpacing: 2.2, color: 'rgba(255,255,255,0.5)', marginBottom: 7 },
+  ticker: {
+    flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 11, paddingVertical: 9, paddingHorizontal: 10,
+    borderRadius: lilacRadius.inner, backgroundColor: 'rgba(255,255,255,0.07)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)',
+  },
+  liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: lilac.coral },
+  tickTime: { fontSize: 11, color: '#fff', letterSpacing: 0.6 },
+  tickTxt: { flex: 1, fontSize: 11.5, fontWeight: '600', color: '#fff' },
+
+  colhead: {
+    alignItems: 'center', gap: 8, paddingVertical: 7,
+    borderTopWidth: 1, borderTopColor: lilac.hair, borderBottomWidth: 1, borderBottomColor: lilac.hair,
+  },
+  colTxt: { fontSize: 7.5, letterSpacing: 2, color: lilac.dim },
+
+  empty: {
+    marginTop: 14, borderWidth: 1, borderColor: lilac.hair, borderStyle: 'dashed',
+    borderRadius: lilacRadius.card, backgroundColor: lilac.glass, paddingVertical: 18, paddingHorizontal: 14, alignItems: 'center',
+  },
+  emptyTag: { borderWidth: 1, borderColor: lilac.hair, borderRadius: lilacRadius.tag, paddingHorizontal: 6, paddingVertical: 3, marginBottom: 9 },
+  emptyTagTxt: { fontSize: 8.5, letterSpacing: 1.6, color: lilac.dim },
+
+  postmark: {
+    width: 50, height: 50, borderRadius: 25, borderWidth: 1.5, borderColor: lilac.head, backgroundColor: lilac.card,
+    alignItems: 'center', justifyContent: 'center', ...lilacShadow, shadowOpacity: 0.1, shadowRadius: 12,
+  },
+  postmarkD: { fontSize: 14, color: lilac.head, lineHeight: 15 },
+  postmarkK: { fontSize: 5, letterSpacing: 0.3, color: lilac.dim, marginTop: 2 },
+  groupDash: { flex: 1, borderTopWidth: 1.5, borderTopColor: lilac.hair, borderStyle: 'dashed' },
+  groupLabel: { fontSize: 8, letterSpacing: 1.6, color: lilac.dim },
+
+  rail: { position: 'relative', paddingLeft: 16 },
+  railLine: { position: 'absolute', left: 4, top: 20, bottom: 14, width: 1, backgroundColor: lilac.hair },
+
+  evt: {
+    position: 'relative', flexDirection: 'row', backgroundColor: lilac.card,
+    borderWidth: 1, borderColor: lilac.hair2, borderRadius: lilacRadius.inner, marginBottom: 7, overflow: 'hidden',
+    ...lilacShadow, shadowOpacity: 0.05, shadowRadius: 12,
+  },
+  evtNew: { borderColor: lilac.hair, shadowOpacity: 0.09 },
+  dot: {
+    position: 'absolute', left: -15.5, top: 16, width: 9, height: 9, borderRadius: 5,
+    backgroundColor: lilac.card, borderWidth: 2, zIndex: 3,
+  },
+  evtTick: { width: 3, alignSelf: 'stretch', backgroundColor: 'transparent' },
+  evtCell: { flex: 1, paddingVertical: 10, paddingLeft: 9, paddingRight: 11 },
+  evtTime: { fontSize: 12, color: lilac.head, letterSpacing: 0.5 },
+  typeTag: {
+    borderWidth: 1, borderColor: 'rgba(34,30,61,0.1)', borderRadius: lilacRadius.tag,
+    paddingHorizontal: 5, paddingTop: 3, paddingBottom: 2,
+  },
+  typeTagTxt: { fontSize: 8, letterSpacing: 1.3, color: lilac.head },
+  seal: {
+    marginLeft: 'auto', backgroundColor: lilac.coralSoft, borderWidth: 1, borderColor: lilac.coral,
+    borderRadius: lilacRadius.tag, paddingHorizontal: 5, paddingTop: 3, paddingBottom: 2,
+  },
+  sealTxt: { fontSize: 8, letterSpacing: 1.3, color: lilac.head },
+  glyph: {
+    width: 24, height: 24, borderRadius: lilacRadius.tag, alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: 'rgba(34,30,61,0.05)',
+  },
+  evtTitle: { fontSize: 12.5, fontWeight: '700', color: lilac.head, lineHeight: 17 },
+  evtBody: { fontSize: 11, color: lilac.text, marginTop: 3, lineHeight: 16 },
 });
