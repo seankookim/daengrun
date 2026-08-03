@@ -246,12 +246,31 @@ function kstWeekStartMs(t = Date.now()): number {
   return Date.UTC(k.getUTCFullYear(), k.getUTCMonth(), k.getUTCDate()) - day * 86400_000 - KST_MS;
 }
 
+// [감사 P2] 기기 로컬 타임존이 아니라 Asia/Seoul 고정 — 서버(club_generate_club_sessions)가 KST 고정이라
+// 기기가 UTC(에뮬레이터)·해외면 세션/홀드/채팅/영수증 시각이 어긋났다. 오프셋 파트를 KST로 계산.
 function kstParts(iso: string) {
   const d = new Date(iso);
-  const dateLabel = `${d.getMonth() + 1}월 ${d.getDate()}일 (${DAYS[d.getDay()]})`;
-  const h = d.getHours();
-  const timeLabel = `${h < 12 ? '오전' : '오후'} ${h % 12 === 0 ? 12 : h % 12}:${String(d.getMinutes()).padStart(2, '0')}`;
-  return { dateLabel, timeLabel };
+  // en-CA(YYYY-MM-DD) + 24h 파트를 Asia/Seoul로 뽑아 라벨 재조립 (Intl 실패 시 로컬 폴백)
+  try {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', hour12: false, weekday: 'short',
+    }).formatToParts(d);
+    const g = (t: string) => parts.find((p) => p.type === t)?.value ?? '';
+    const mon = Number(g('month')); const day = Number(g('day'));
+    let h = Number(g('hour')) % 24; const min = g('minute');
+    // KST 요일 인덱스 (weekday short → DAYS 매핑)
+    const wk = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(g('weekday'));
+    const dateLabel = `${mon}월 ${day}일 (${DAYS[wk >= 0 ? wk : d.getDay()]})`;
+    const timeLabel = `${h < 12 ? '오전' : '오후'} ${h % 12 === 0 ? 12 : h % 12}:${min}`;
+    return { dateLabel, timeLabel };
+  } catch {
+    const h = d.getHours();
+    return {
+      dateLabel: `${d.getMonth() + 1}월 ${d.getDate()}일 (${DAYS[d.getDay()]})`,
+      timeLabel: `${h < 12 ? '오전' : '오후'} ${h % 12 === 0 ? 12 : h % 12}:${String(d.getMinutes()).padStart(2, '0')}`,
+    };
+  }
 }
 
 const STATUS_MAP: Record<string, BookingStatus> = {

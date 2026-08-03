@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { ackClub, ClubAck, fetchMyAcks } from '../lib/api';
 import { haptic } from '../lib/haptics';
@@ -7,40 +7,51 @@ import { lilac, lilacRadius, lilacShadow } from '../theme';
 // ⑤ 크리티컬 ack 배너 스택 (정본: decisions-lab ⑤ — Sean 확정)
 // 글래스 크롬 아래, 심각도 정렬, 탭 한 번 = 확인. 확인 전까지 어느 클럽 화면에서든 따라온다.
 // 30분 미확인 → 호스트 에스컬레이션은 서버 크론 몫 — 클라이언트는 그리기만 한다.
-// ⑥ 테이크오버는 기각됨 — 부활 금지 (모션 강등 로직은 우리가 쓰지 않는 죽은 코드).
+// [감사 P2] 다중 인스턴스(홈·셸·콘솔)가 각자 45초 폴 + 상태 로컬이라, 한 화면에서 확인해도 뒤 화면 배너가
+// 45초 남던 것 — 모듈 레벨 단일 스토어 + 폴러 하나로 통합. 확인이 전 화면에 즉시 전파된다.
 
 const L = lilac;
 
-// 코랄(크리티컬) 제목 — club_critical_titles 레지스트리 중 사고·이탈 계열. 나머지는 앰버.
-const CRIT_TITLES = new Set(['외부 커스터디 이양', '세션 취소', '배정 불발 — 전액 환불', '이의 접수 — 전액 환불', '재검토 거절 — 전액 환불']);
+const CRIT_TITLES = new Set(['외부 커스터디 이양', '세션 취소', '세션 취소 — 전액 환불', '배정 불발 — 전액 환불', '이의 접수 — 전액 환불', '재검토 거절 — 전액 환불', '위탁 취소 — 전액 환불', '위탁 미진행 — 전액 환불']);
+
+// ---------- 모듈 레벨 단일 스토어 ----------
+let acksStore: ClubAck[] = [];
+const busyIds = new Set<string>();
+const listeners = new Set<(a: ClubAck[]) => void>();
+let poller: ReturnType<typeof setInterval> | null = null;
+let refCount = 0;
+
+const emit = () => { for (const fn of listeners) fn(acksStore); };
+const loadAcks = () => {
+  fetchMyAcks()
+    .then((list) => { acksStore = list.filter((a) => !busyIds.has(a.id)); emit(); })
+    .catch(() => {});
+};
+const ackOne = (id: string) => {
+  if (busyIds.has(id)) return;
+  busyIds.add(id);
+  acksStore = acksStore.filter((x) => x.id !== id); // 낙관 제거 — 전 인스턴스 즉시 반영
+  emit();
+  ackClub(id)
+    .then(() => { haptic('light'); busyIds.delete(id); loadAcks(); })
+    .catch(() => { busyIds.delete(id); loadAcks(); });
+};
+const subscribe = (fn: (a: ClubAck[]) => void) => {
+  listeners.add(fn);
+  refCount += 1;
+  if (poller == null) { loadAcks(); poller = setInterval(loadAcks, 45_000); }
+  return () => {
+    listeners.delete(fn);
+    refCount -= 1;
+    if (refCount <= 0 && poller != null) { clearInterval(poller); poller = null; refCount = 0; }
+  };
+};
 
 export function AckStack() {
-  const [acks, setAcks] = useState<ClubAck[]>([]);
-  const busyIds = useRef(new Set<string>());
-
-  // [감사 P1] in-flight 폴 응답이 낙관 제거를 되돌리고, 성공한 id가 busyIds에 남아 부활 배너의
-  // 확인 버튼이 영구히 죽던 것 — 폴 결과에서 busyIds를 걸러내고, 성공 후 서버와 재동기화한다.
-  const load = useCallback(() => {
-    fetchMyAcks()
-      .then((list) => setAcks(list.filter((a) => !busyIds.current.has(a.id))))
-      .catch(() => {});
-  }, []);
-  useEffect(() => {
-    load();
-    const t = setInterval(load, 45_000);
-    return () => clearInterval(t);
-  }, [load]);
+  const [acks, setAcks] = useState<ClubAck[]>(acksStore);
+  useEffect(() => subscribe(setAcks), []);
 
   if (acks.length === 0) return null;
-
-  const doAck = (a: ClubAck) => {
-    if (busyIds.current.has(a.id)) return;
-    busyIds.current.add(a.id);
-    setAcks((prev) => prev.filter((x) => x.id !== a.id)); // 낙관 제거 — 실패 시 복원
-    ackClub(a.id)
-      .then(() => { haptic('light'); busyIds.current.delete(a.id); load(); })
-      .catch(() => { busyIds.current.delete(a.id); load(); });
-  };
 
   const sorted = [...acks].sort((a, b) =>
     Number(CRIT_TITLES.has(b.title)) - Number(CRIT_TITLES.has(a.title))
@@ -56,7 +67,7 @@ export function AckStack() {
               <Text style={s.title}>{a.title}</Text>
               {!!a.body && <Text style={[s.body, crit && { color: '#a04a30' }]} numberOfLines={2}>{a.body}</Text>}
             </View>
-            <Pressable onPress={() => doAck(a)} style={s.btn} hitSlop={6}>
+            <Pressable onPress={() => ackOne(a.id)} style={s.btn} hitSlop={6}>
               <Text style={[s.btnTxt, crit && { color: L.tang }]}>확인</Text>
             </Pressable>
           </View>

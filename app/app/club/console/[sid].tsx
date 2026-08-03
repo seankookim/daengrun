@@ -5,7 +5,7 @@ import { Row } from '../../../src/components/ui';
 import { AckStack } from '../../../src/components/club-acks';
 import { BigNumRow, ClubCta, ClubMast, ClubTag, DawnCanvas, LilacCard, clubText } from '../../../src/components/club-ui';
 import {
-  approveDelegation, assignmentRevoke, ClubIncident, DelegationBoard, DelegationDog, DelegationRunner,
+  approveDelegation, assignmentRevoke, ClubIncident, custodyOverride, DelegationBoard, DelegationDog, DelegationRunner,
   fetchDelegationBoard, fetchSessionIncidents, finishClubSession, incidentAssign, incidentResolve,
   proposalRevoke, proposeDog, reviewDelegation,
 } from '../../../src/lib/api';
@@ -189,6 +189,18 @@ export default function HostConsole() {
     || (['runner', 'host'].includes(d.custodianType ?? '')
         && d.custodyPhase !== 'resolved'
         && ['picked_up', 'active', 'completed'].includes(d.bookingStatus ?? '')));
+  // 반환 대기(한쪽 이상 미확인)로 종료가 막힌 개 — 호스트 대리 확인 대상
+  const returnStuck = dogs.filter((d) => d.custodyPhase === 'return_pending' && (!d.ownerReturnConfirmed || !d.runnerReturnConfirmed));
+  const doOverride = (d: DelegationDog, side: 'owner' | 'runner') => {
+    Alert.alert('대리 반환 확인', `증인 자격으로 ${d.dogName}의 ${side === 'owner' ? '보호자' : '러너'} 측 반환을 대신 확인할까요? 기록에 남아요.`, [
+      { text: '아직', style: 'cancel' },
+      {
+        text: '대리 확인',
+        onPress: () => run(() => custodyOverride(d.sdId, side, 'witness', { at: new Date().toISOString(), by: 'host' }), '대리 확인 실패', (m) =>
+          m.includes('self_override') ? '당사자는 자기 대리를 할 수 없어요' : m.includes('not_host') ? '호스트만 대리 확인할 수 있어요' : null),
+      },
+    ]);
+  };
   const openCases = incidents.filter((i) => i.state !== 'resolved');
   const unownedCases = openCases.filter((i) => !i.caseOwner);
   const blockers: string[] = [
@@ -456,6 +468,34 @@ export default function HostConsole() {
             <Text style={{ fontSize: 10.5, color: L.text, marginTop: 6, lineHeight: 17 }}>{blockers.join(' · ')}</Text>
           </LilacCard>
         )}
+        {/* [감사 P1] 반환 한쪽 미확인 = 서버 종료 게이트인데 UI에 탈출구가 없어 세션이 영구 미종료였다.
+            서버가 준 수단(session_custody_override) 노출 — 호스트가 증인 자격으로 대리 반환 확인. 당사자 호스트는 자기대리 금지(서버 판정). */}
+        {returnStuck.map((d) => (
+          <View key={d.sdId} style={s.drow}>
+            <Row style={{ gap: 8, alignItems: 'center' }}>
+              <DogDot name={d.dogName} collar={d.collar} size={28} />
+              <View style={{ flex: 1 }}>
+                <Text style={s.dogName}>{d.dogName} 반환 미완</Text>
+                <Text style={s.dogSub}>
+                  {!d.ownerReturnConfirmed && !d.runnerReturnConfirmed ? '양측 미확인'
+                    : !d.ownerReturnConfirmed ? '보호자 확인 대기' : '러너 확인 대기'}
+                </Text>
+              </View>
+            </Row>
+            <Row style={{ gap: 8, marginTop: 9 }}>
+              {!d.ownerReturnConfirmed && (
+                <Pressable onPress={() => doOverride(d, 'owner')} style={[s.abtn, s.abtnWarn]}>
+                  <Text style={[s.abtnTxt, { color: L.amber }]}>보호자 대리 확인 (증인)</Text>
+                </Pressable>
+              )}
+              {!d.runnerReturnConfirmed && (
+                <Pressable onPress={() => doOverride(d, 'runner')} style={[s.abtn, s.abtnWarn]}>
+                  <Text style={[s.abtnTxt, { color: L.amber }]}>러너 대리 확인 (증인)</Text>
+                </Pressable>
+              )}
+            </Row>
+          </View>
+        ))}
         <ClubCta
           label={blockers.length > 0 ? '세션 종료 — 차단 해소 후' : '세션 종료'}
           tone={blockers.length > 0 ? 'disabled' : 'coral'}

@@ -1,5 +1,5 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Image, Linking, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Avatar, Row } from '../../../src/components/ui';
 import { AckStack } from '../../../src/components/club-acks';
@@ -119,14 +119,20 @@ export default function ClubSessionShell() {
     }
   }, [tab, access, sid, board?.me.committed]);
 
-  // ④ 채팅 로드 + 리얼타임 — 탭이 열려 있는 동안만 구독
+  // ④ 채팅 로드 + 리얼타임 — 탭이 열려 있는 동안만 구독.
+  // [감사 P2] INSERT마다 전체 재조회라 응답 역순 도착 시 옛 스냅샷이 최신을 덮던 것 — seq 가드로 최신만 반영.
+  const chatSeq = useRef(0);
+  const applyChat = useCallback((run: () => Promise<{ uid: string | null; msgs: ClubChatMsg[] }>) => {
+    const my = ++chatSeq.current;
+    run().then((c) => { if (my === chatSeq.current) setChat(c); }).catch(() => {});
+  }, []);
   useEffect(() => {
     if (tab !== '채팅' || access === 'none' || !sid) return;
-    const reload = () => fetchClubChat(sid).then(setChat).catch(() => {});
+    const reload = () => applyChat(() => fetchClubChat(sid));
     reload();
     fetchChatWritable(sid).then(setWritable).catch(() => {});
     return subscribeClubChat(sid, reload);
-  }, [tab, access, sid]);
+  }, [tab, access, sid, applyChat]);
 
   const myDogs = board?.dogs.filter((d) => d.isMine) ?? [];
   // 러너 축 — proposedRunner*는 호스트·피제안자에게만 오므로 isMe 러너와 대조하면 곧 '나에게 온 제안'
@@ -429,7 +435,7 @@ export default function ClubSessionShell() {
   };
 
   // ---------- ④ 채팅 액션 ----------
-  const chatReload = () => fetchClubChat(sess.id).then(setChat).catch(() => {});
+  const chatReload = () => applyChat(() => fetchClubChat(sess.id)); // [감사 P2] seq 가드 공유
   const doSend = (body: string, opts: { audience?: 'group' | 'host_channel'; recipient?: string | null } = {}) => {
     const t = body.trim();
     if (!t || busy) return;
