@@ -54,7 +54,7 @@ begin
     perform session_approve_dog(v_sd, true);
     perform set_config('request.jwt.claim.sub', ow::text, false);
     perform club_join(v_club);
-    v_b := session_pay_delegation(v_sd, 'idem-r4a');
+    v_b := session_pay_delegation(v_sd, 'idem-r4a', true);
     perform club_leave(v_club);
     if not exists (select 1 from club_members where club_id = v_club and profile_id = ow)
        and (select status from bookings where id = v_b) = 'matching'
@@ -114,7 +114,7 @@ begin
     perform set_config('request.jwt.claim.sub', ho::text, false);
     perform session_approve_dog(v_sd2, true);
     perform set_config('request.jwt.claim.sub', ow2::text, false);
-    v_b2 := session_pay_delegation(v_sd2, 'idem-r4b');
+    v_b2 := session_pay_delegation(v_sd2, 'idem-r4b', true);
     perform session_cancel_delegation(v_sd2);                     -- 세션 +90m = <24h → 10%
     select coalesce(sum(amount_krw), 0) into v_fee from club_fee_items
     where session_dog_id = v_sd2 and kind = 'cancel_fee';
@@ -126,7 +126,7 @@ begin
       perform set_config('request.jwt.claim.sub', ho::text, false);
       perform session_approve_dog(v_sd2, true);
       perform set_config('request.jwt.claim.sub', ow2::text, false);
-      v_b2 := session_pay_delegation(v_sd2, 'idem-r4c');
+      v_b2 := session_pay_delegation(v_sd2, 'idem-r4c', true);
       perform set_config('request.jwt.claim.sub', ho::text, false);
       perform session_assign_dog(v_sd2, ru);
       perform set_config('request.jwt.claim.sub', ru::text, false);
@@ -190,7 +190,7 @@ begin
     perform set_config('request.jwt.claim.sub', ho::text, false);
     perform session_approve_dog(v_sd, true);
     perform set_config('request.jwt.claim.sub', ow::text, false);
-    v_b := session_pay_delegation(v_sd, 'idem-r4d');
+    v_b := session_pay_delegation(v_sd, 'idem-r4d', true);
     perform set_config('request.jwt.claim.sub', ho::text, false);
     perform session_checkin(v_s);
     perform session_assign_dog(v_sd, ho);                          -- 자기 제안 = 즉시 수락

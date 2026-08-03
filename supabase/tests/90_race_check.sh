@@ -12,8 +12,8 @@ psql -v ON_ERROR_STOP=1 -q -f 90_race_setup.sql || { psql -qc "call _fail('race'
 # ---------- RA: 마지막 슬롯 — 동시 결제는 정확히 1승 ----------
 IDS=$(psql -qt -c "select race_setup_a()" | xargs)
 SD1=${IDS%%|*}; R=${IDS#*|}; SD2=${R%%|*}; R=${R#*|}; O1=${R%%|*}; O2=${R#*|}
-psql -qt -c "select set_config('request.jwt.claim.sub','$O1',false); select session_pay_delegation('$SD1','race-a1');" > .pgtest/race_a1.out 2>&1 &
-psql -qt -c "select set_config('request.jwt.claim.sub','$O2',false); select session_pay_delegation('$SD2','race-a2');" > .pgtest/race_a2.out 2>&1 &
+psql -qt -c "select set_config('request.jwt.claim.sub','$O1',false); select session_pay_delegation('$SD1','race-a1', true);" > .pgtest/race_a1.out 2>&1 &
+psql -qt -c "select set_config('request.jwt.claim.sub','$O2',false); select session_pay_delegation('$SD2','race-a2', true);" > .pgtest/race_a2.out 2>&1 &
 wait
 WON=$(psql -qt -c "select count(*) from session_dogs where id in ('$SD1','$SD2') and booking_id is not null" | xargs)
 NC=$(cat .pgtest/race_a1.out .pgtest/race_a2.out | grep -c no_capacity || true)
@@ -26,7 +26,7 @@ fi
 # ---------- RB: 취소 vs 결제 — 승자와 무관하게 정합 상태 ----------
 IDS=$(psql -qt -c "select race_setup_b()" | xargs)
 SDB=${IDS%%|*}; OB=${IDS#*|}
-psql -qt -c "select set_config('request.jwt.claim.sub','$OB',false); select session_pay_delegation('$SDB','race-b');" > .pgtest/race_b1.out 2>&1 &
+psql -qt -c "select set_config('request.jwt.claim.sub','$OB',false); select session_pay_delegation('$SDB','race-b', true);" > .pgtest/race_b1.out 2>&1 &
 psql -qt -c "select set_config('request.jwt.claim.sub','$OB',false); select session_cancel_delegation('$SDB');" > .pgtest/race_b2.out 2>&1 &
 wait
 COHERENT=$(psql -qt -c "

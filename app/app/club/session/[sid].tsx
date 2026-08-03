@@ -522,7 +522,8 @@ export default function ClubSessionShell() {
     if (!d || busy) return;
     setBusy(true);
     try {
-      await payDelegation(d.sdId, `pay-${d.sdId}`); // 멱등키 = sdId 고정 — 재탭·재시도 안전
+      // [0053 §1/감사 9] 배정 방식 동의(methodOk)를 서버에 박제 — CTA는 이미 !methodOk면 비활성이나 서버가 최종 게이트.
+      await payDelegation(d.sdId, `pay-${d.sdId}`, methodOk); // 멱등키 = sdId 고정 — 재탭·재시도 안전
       haptic('success');
       setPayTarget(null);
       setMethodOk(false);
@@ -534,6 +535,7 @@ export default function ClubSessionShell() {
       Alert.alert('결제 실패',
         m.includes('no_capacity') ? '마지막 자리가 먼저 찼어요 — 결제되지 않았어요'
         : m.includes('dog_slot_clash') ? '같은 시간대에 이 아이의 다른 러닝 예약이 있어요'
+        : m.includes('method_consent_required') ? '배정 방식에 동의해야 결제할 수 있어요' // [0053 §1] 서버 백스톱 (CTA는 이미 게이트)
         : m.includes('not_payable') ? '승인 상태가 바뀌었어요 — 새로고침해 주세요'
         : m.includes('session_closed') ? '이미 시작됐거나 닫힌 세션이에요'
         : m.includes('route_required') ? '세션 코스가 아직 없어요 — 호스트에게 문의해주세요'
@@ -723,8 +725,17 @@ export default function ClubSessionShell() {
           <ClubCta label="오늘의 영수증 →" tone="quiet"
             onPress={() => router.push({ pathname: `/club/receipt/${d.bookingId}`, params: { clubName: clubName ?? '' } })} />
         )}
-        {/* BOARDED/OUTSIDE/REFUND/REFUSED — 상태는 카드가 정직하게 말한다.
+        {/* BOARDED/OUTSIDE/REFUND/REFUSED — 상태는 카드가 정직하게 말한다 (위 카드의 서버 primaryStage가 마지막 말).
             영수증 인화·클럽 전용 러너 런 화면은 후속 빌드. 죽은 버튼은 그리지 않는다. */}
+        {/* [0053 §4] REFUSED 정직한 마지막 말 + 재신청 문. 서버(0048 session_delegate_dog)는 host_rejected
+            신청의 같은 세션 재신청만 막고(rejected 예외) 철회(withdrawn)는 허용한다 — 그래서 문은 '철회'에만,
+            그것도 세션이 아직 열려 있고 시작 전이며 위탁 포맷일 때만 연다(그 외엔 서버가 던져 죽은 버튼이 됨).
+            거절(rejected)엔 문을 그리지 않는다 — 위 카드 문구가 정직한 마지막 말이다. */}
+        {d.flap === 'REFUSED' && d.approval === 'withdrawn' && isOpenish && startMs > Date.now()
+          && (board?.session.format === 'mixed' || board?.session.format === 'delegated_only') && (
+          <ClubCta label="다시 신청하기 →" tone="quiet"
+            onPress={() => router.push({ pathname: `/club/delegate/${sess.id}`, params: { clubName: clubName ?? '', when: sess.when } })} />
+        )}
       </View>
     );
   };

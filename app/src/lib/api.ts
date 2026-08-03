@@ -1894,8 +1894,13 @@ export interface DelegationConsent {
 export const delegateDog = (sessionId: string, dogId: string, consent: DelegationConsent) =>
   clubRpc('session_delegate_dog', { p_session: sessionId, p_dog: dogId, p_consent: consent }) as Promise<string>;
 // [R1] 결제 (모의 PG) — 멱등키 필수
-export const payDelegation = (sdId: string, idemKey: string) =>
-  clubRpc('session_pay_delegation', { p_session_dog: sdId, p_idem_key: idemKey }) as Promise<string>;
+// [0053 §1/감사 9] 배정 방식 동의를 서버에 박제 — p_method_consent(distinct from true → method_consent_required).
+// 기본 true는 기존 호출부 호환용(구 2인자 서명 유지) — 실동의는 O5 결제 시트의 methodOk 체크에서 수집해 넘긴다.
+export const payDelegation = (sdId: string, idemKey: string, methodConsent = true) =>
+  clubRpc('session_pay_delegation', { p_session_dog: sdId, p_idem_key: idemKey, p_method_consent: methodConsent }) as Promise<string>;
+// [0053 §3a/감사 11a] 이 부킹의 러닝 사진 공개가 허용되는지 — 위탁 부킹의 최신 photo_consent 게이트(위탁 아니면 true).
+export const runPhotoAllowed = (bookingId: string) =>
+  clubRpc('club_run_photo_allowed', { p_booking: bookingId }) as Promise<boolean>;
 // [R4] 취소 — 서버 사다리(무료→10%→20%) 판정, 인시던트 열림 시 차단
 export const cancelDelegation = (sdId: string) =>
   clubRpc('session_cancel_delegation', { p_session_dog: sdId }) as Promise<void>;

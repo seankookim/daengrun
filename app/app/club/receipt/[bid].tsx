@@ -3,7 +3,7 @@ import { useCallback, useRef, useState } from 'react';
 import { Alert, Image, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { Row } from '../../../src/components/ui';
 import { ClubCta, ClubMast, DawnCanvas, Flap } from '../../../src/components/club-ui';
-import { fetchRunReport, RunReport, shareRunToFeed } from '../../../src/lib/api';
+import { fetchRunReport, runPhotoAllowed, RunReport, shareRunToFeed } from '../../../src/lib/api';
 import { useDisplayFont } from '../../../src/lib/displayFont';
 import { useNumFont } from '../../../src/lib/fonts';
 import { haptic } from '../../../src/lib/haptics';
@@ -69,13 +69,26 @@ export default function ClubReceipt() {
       Alert.alert('개발 빌드 업데이트 필요', '카드 캡처(view-shot)는 새 빌드에 포함돼요');
     }
   };
-  const shareFeed = () => {
+  const shareFeed = async () => {
     if (busy) return;
     setBusy(true);
-    shareRunToFeed(bid!)
-      .then(() => { haptic('success'); Alert.alert('피드에 올라갔어요', '동네 피드에서 오늘의 기록을 볼 수 있어요'); })
-      .catch((e) => Alert.alert('공유 실패', (e as Error).message))
-      .finally(() => setBusy(false));
+    try {
+      // [0053 §3a/감사 11a] 미동의 견 사진 공개 차단 — 위탁 부킹이면 최신 photo_consent 게이트를 먼저 확인.
+      // graceful: RPC가 없는(푸시 전) 서버면 에러가 나므로 오늘처럼 그대로 진행 (없는 함수로 막지 않는다).
+      let allowed = true;
+      try { allowed = await runPhotoAllowed(bid!); } catch { allowed = true; }
+      if (!allowed) {
+        Alert.alert('공유 불가', '이 러닝엔 사진 공개에 동의하지 않은 아이가 있어 피드 공유를 할 수 없어요');
+        return;
+      }
+      await shareRunToFeed(bid!);
+      haptic('success');
+      Alert.alert('피드에 올라갔어요', '동네 피드에서 오늘의 기록을 볼 수 있어요');
+    } catch (e) {
+      Alert.alert('공유 실패', (e as Error).message);
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (

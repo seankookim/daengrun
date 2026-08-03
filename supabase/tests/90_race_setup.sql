@@ -71,7 +71,7 @@ begin
   perform set_config('request.jwt.claim.sub', hc::text, false);
   perform session_approve_dog(sdc, true);
   perform set_config('request.jwt.claim.sub', oc::text, false);
-  bc := session_pay_delegation(sdc, 'idem-race-c');
+  bc := session_pay_delegation(sdc, 'idem-race-c', true);
   perform set_config('request.jwt.claim.sub', hc::text, false);
   perform session_checkin(v_s);
   perform session_assign_dog(sdc, hc);                           -- 자기 제안 = 즉시 수락

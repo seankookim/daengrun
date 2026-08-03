@@ -53,7 +53,7 @@ begin
   perform set_config('request.jwt.claim.sub', ha::text, false);
   perform session_approve_dog(sdx, true);
   perform set_config('request.jwt.claim.sub', ox::text, false);
-  bx := session_pay_delegation(sdx, 'idem-adv');
+  bx := session_pay_delegation(sdx, 'idem-adv', true);
 
   -- [V2a] 순서 역전: 정산 전 반환 확인 → not_return_pending
   begin

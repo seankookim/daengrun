@@ -47,7 +47,7 @@ begin
   perform session_approve_dog(sdo, true);                -- oo = full
   perform session_approve_dog(sdp, false);               -- pp = 거절(ended) → limited
   perform set_config('request.jwt.claim.sub', oo::text, false);
-  v_bo := session_pay_delegation(sdo, 'idem-ag1');
+  v_bo := session_pay_delegation(sdo, 'idem-ag1', true);
   update session_people set attendance = 'no_show' where session_id = v_s and profile_id = ns;
 
   -- ---------- [G1] 보드 등급별 페이로드 필터 (0052 §1 rev2 P1 / 발견 1) ----------

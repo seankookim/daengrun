@@ -33,9 +33,9 @@ begin
   perform session_approve_dog(v_sd1, true);
   perform session_approve_dog(v_sd2, true);
   perform set_config('request.jwt.claim.sub', own1::text, false);
-  v_b1 := session_pay_delegation(v_sd1, 'idem-cus1');
+  v_b1 := session_pay_delegation(v_sd1, 'idem-cus1', true);
   perform set_config('request.jwt.claim.sub', own2::text, false);
-  v_b2 := session_pay_delegation(v_sd2, 'idem-cus2');
+  v_b2 := session_pay_delegation(v_sd2, 'idem-cus2', true);
   perform set_config('request.jwt.claim.sub', host::text, false);
 
   -- [E1] 배정 전제: 체크인 안 한 러너 배정 거부 → 체크인 후 성공 (confirmed·runner_id·스탬프 null)
@@ -240,7 +240,7 @@ begin
     perform set_config('request.jwt.claim.sub', host::text, false);
     perform session_approve_dog(v_sd1, true);
     perform set_config('request.jwt.claim.sub', own1::text, false);
-    v_b1 := session_pay_delegation(v_sd1, 'idem-cus3');
+    v_b1 := session_pay_delegation(v_sd1, 'idem-cus3', true);
     perform set_config('request.jwt.claim.sub', host::text, false);
     perform session_assign_dog(v_sd1, host);                    -- confirmed (인계 없음)
     perform club_finish_session(v_sid2);
@@ -310,7 +310,7 @@ begin
   perform set_config('request.jwt.claim.sub', host::text, false);
   v_bid := session_approve_dog(v_sd, true);
   perform set_config('request.jwt.claim.sub', own1::text, false);
-  v_bid := session_pay_delegation(v_sd, 'idem-brd');
+  v_bid := session_pay_delegation(v_sd, 'idem-brd', true);
   perform set_config('request.jwt.claim.sub', host::text, false);
   perform session_assign_dog(v_sd, r2);
   perform set_config('request.jwt.claim.sub', r2::text, false);
@@ -393,11 +393,11 @@ begin
   perform session_approve_dog(sdb, true);
   perform session_approve_dog(sdc, true);
   perform set_config('request.jwt.claim.sub', oa::text, false);
-  ba := session_pay_delegation(sda, 'idem-r2a');
+  ba := session_pay_delegation(sda, 'idem-r2a', true);
   perform set_config('request.jwt.claim.sub', ob::text, false);
-  bb := session_pay_delegation(sdb, 'idem-r2b');
+  bb := session_pay_delegation(sdb, 'idem-r2b', true);
   perform set_config('request.jwt.claim.sub', oc::text, false);
-  bc := session_pay_delegation(sdc, 'idem-r2c');
+  bc := session_pay_delegation(sdc, 'idem-r2c', true);
   perform set_config('request.jwt.claim.sub', h2::text, false);
   perform session_assign_dog(sda, ra);
   perform session_assign_dog(sdc, ra);                  -- ra 2마리 (베테랑 캡 2) — 제안 2건
@@ -675,9 +675,9 @@ begin
   perform set_config('request.jwt.claim.sub', h2::text, false);
   perform session_approve_dog(sdd, true); perform session_approve_dog(sde, true);
   perform set_config('request.jwt.claim.sub', oa::text, false);
-  bd := session_pay_delegation(sdd, 'idem-r2d');
+  bd := session_pay_delegation(sdd, 'idem-r2d', true);
   perform set_config('request.jwt.claim.sub', ob::text, false);
-  be := session_pay_delegation(sde, 'idem-r2e');
+  be := session_pay_delegation(sde, 'idem-r2e', true);
   perform set_config('request.jwt.claim.sub', h2::text, false);
   perform session_assign_dog(sdd, ra); perform session_assign_dog(sde, ra);
   perform set_config('request.jwt.claim.sub', ra::text, false);

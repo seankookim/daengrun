@@ -36,11 +36,11 @@ begin
   perform session_approve_dog(sdx, true); perform session_approve_dog(sdy, true);
   perform session_approve_dog(sdz, true);
   perform set_config('request.jwt.claim.sub', ox::text, false);
-  bx := session_pay_delegation(sdx, 'idem-asgx');
+  bx := session_pay_delegation(sdx, 'idem-asgx', true);
   perform set_config('request.jwt.claim.sub', oy::text, false);
-  v_by := session_pay_delegation(sdy, 'idem-asgy');
+  v_by := session_pay_delegation(sdy, 'idem-asgy', true);
   perform set_config('request.jwt.claim.sub', oz::text, false);
-  bz := session_pay_delegation(sdz, 'idem-asgz');
+  bz := session_pay_delegation(sdz, 'idem-asgz', true);
   perform set_config('request.jwt.claim.sub', ha::text, false);
 
   -- [A1] 제안 = proposed 상태 + 러너 프라이버시 (보호자 보드에 후보 없음, 호스트 보드엔 있음)

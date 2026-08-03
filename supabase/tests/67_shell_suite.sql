@@ -31,7 +31,7 @@ begin
   perform set_config('request.jwt.claim.sub', hh::text, false);
   perform session_approve_dog(sdo, true);
   perform set_config('request.jwt.claim.sub', oo::text, false);
-  v_bo := session_pay_delegation(sdo, 'idem-sh1');
+  v_bo := session_pay_delegation(sdo, 'idem-sh1', true);
   perform set_config('request.jwt.claim.sub', hh::text, false);
 
   -- [H1] 접근 등급: 그룹 = full/host만 · 호스트 채널 = 호스트+그 신청자만 (신청은 문이 아니다)
