@@ -1,23 +1,26 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Image, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import Svg, { Defs, LinearGradient as SvgLinear, Rect, Stop } from 'react-native-svg';
 import { Row } from '../../src/components/ui';
 import {
   claimClubHost, ClubOverview, ClubSeries, createClubSession, fetchClubHostStats, fetchClubMyStats,
   fetchClubOverview, fetchClubSeries, fetchRoutes, pauseClubSeries, registerClubInterest, startClubSeries, uploadClubPhoto,
 } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
+import { useNumFont } from '../../src/lib/fonts';
 import { haptic } from '../../src/lib/haptics';
 import { AckStack } from '../../src/components/club-acks';
 import { ClubCta, ClubTag, Ticket } from '../../src/components/club-ui';
-import { colors, lilac } from '../../src/theme';
+import { lilac, lilacRadius, lilacShadow } from '../../src/theme';
 
-// 하이클럽 페이지 — C1 포토 히어로 (Sean 확정, hi-club-lab ③). P-A S1.
-// collecting = 관심 수집 상태 (유령 클럽 금지 — 호스트 클레임 전엔 참여 UI 없음).
-// active = 다음 세션 카드 + RSVP 진입. 호스트: 사진 업로드 · 세션 개설 시트.
-// P-B 자리(주간 합산·패치 월·세션 히스토리)는 구현 전까지 그리지 않는다.
+// 하이클럽 홈 — 변형 D (Sean 확정: 3 티켓-퍼스트 골격 × 2 에디토리얼 마스트헤드, home-repaint lab).
+// 구조: 초박 내비 → 홀로 엣지 사진 스트립(3) → 거대 활자 마스트헤드(2) → ack → 보딩패스 티켓 + 두 문(3)
+//       → 시리즈 리듬(+호스트 해지) → 출석·호스트 신뢰 타일 → 호스트 세션 열기 → 콜로폰.
+// opus 심사 반영: 코랄 문 서브라인 = 흰 88%(대비) · cream-tint 태그 금지 · 새 폰트 미도입(Oswald 재사용).
+// collecting = 관심 수집 (유령 클럽 금지 — 호스트 클레임 전엔 참여 UI 없음).
 
-const FOREST = '#0F1D13';
+const L = lilac;
 
 // 세션 개설 프리셋 — 다음 발생 시각 계산 (S1: 프리셋 3종, 커스텀은 P-B)
 const nextSlot = (dow: number, hour: number): Date => {
@@ -34,8 +37,56 @@ const SLOT_PRESETS = [
   { label: '내일 07:00', get: () => { const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(7, 0, 0, 0); return d; } },
 ];
 
+// [감사 P2 선례] 티켓 시각 파트 — 기기 로컬이 아니라 Asia/Seoul 고정 (Intl 실패 시 로컬 폴백)
+const DAYS_KO = ['일', '월', '화', '수', '목', '금', '토'];
+const DAYS_EN = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+const ticketParts = (iso: string) => {
+  const d = new Date(iso);
+  try {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric',
+      hour: '2-digit', minute: '2-digit', hour12: false, weekday: 'short',
+    }).formatToParts(d);
+    const g = (t: string) => parts.find((p) => p.type === t)?.value ?? '';
+    const wk = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(g('weekday'));
+    const i = wk >= 0 ? wk : d.getDay();
+    const hh = g('hour') === '24' ? '00' : g('hour');
+    return { day: DAYS_KO[i], hhmm: `${hh}:${g('minute')}`, code: `${Number(g('month'))}.${Number(g('day'))} ${DAYS_EN[i]}` };
+  } catch {
+    return {
+      day: DAYS_KO[d.getDay()],
+      hhmm: `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`,
+      code: `${d.getMonth() + 1}.${d.getDate()} ${DAYS_EN[d.getDay()]}`,
+    };
+  }
+};
+const kstYmd = (d: Date): string => {
+  try { return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(d); }
+  catch { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
+};
+const ddayLabel = (iso: string): string => {
+  const n = Math.round((Date.parse(kstYmd(new Date(iso))) - Date.parse(kstYmd(new Date()))) / 86400_000);
+  return n <= 0 ? '오늘' : `D-${n}`;
+};
+
+// 홀로 엣지 스트립 (포일 예산: 모노그램 + 티켓/스트립 엣지만)
+const HOLO_STOPS = [['0', '#CFC4FF'], ['0.22', '#FFD9CB'], ['0.45', '#F3E9C6'], ['0.65', '#CDEBDD'], ['1', '#CFE0FF']] as const;
+function HoloEdge({ id, top }: { id: string; top?: boolean }) {
+  return (
+    <Svg width="100%" height={3} style={[{ position: 'absolute', left: 0, right: 0, zIndex: 3 }, top ? { top: 0 } : { bottom: 0 }]}>
+      <Defs>
+        <SvgLinear id={id} x1="0" y1="0" x2="1" y2="0">
+          {HOLO_STOPS.map(([o, c]) => <Stop key={o} offset={o} stopColor={c} />)}
+        </SvgLinear>
+      </Defs>
+      <Rect x="0" y="0" width="100%" height="3" fill={`url(#${id})`} />
+    </Svg>
+  );
+}
+
 export default function ClubPage() {
   const df = useDisplayFont();
+  const nf = useNumFont();
   const [club, setClub] = useState<ClubOverview | null>(null);
   const [myStats, setMyStats] = useState<{ attended: number; streak: number } | null>(null);
   const [hostStats, setHostStats] = useState<{ sessions: number; totalTeams: number; returning: number } | null>(null);
@@ -127,224 +178,358 @@ export default function ClubPage() {
 
   const ns = club?.nextSession;
   const left = ns ? ns.capacity - ns.rsvpCount : 0;
+  const tp = ns ? ticketParts(ns.scheduledAt) : null;
+  // 티켓 팩트 행 — 있는 사실만 그린다 (0051 미도착 구 서버면 코스 팩트 생략)
+  const facts: { k: string; v: string; unit?: string; num?: boolean }[] = [];
+  if (ns?.routeKm != null) facts.push({ k: 'COURSE', v: String(ns.routeKm), unit: 'km', num: true });
+  if (club?.hostName) facts.push({ k: 'HOST', v: club.hostName });
+  if (club && club.status === 'active') facts.push({ k: 'CREW', v: String(club.memberCount), unit: '멤버', num: true });
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.cream }}>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 40 }}
+    <View style={{ flex: 1, backgroundColor: L.bg }}>
+      {/* 새벽빛 블룸 (캔버스만, 카드 위 금지) */}
+      <Svg width="100%" height={240} style={StyleSheet.absoluteFill} pointerEvents="none">
+        <Defs>
+          <SvgLinear id="homeDawn" x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor="#6C5CE7" stopOpacity="0.07" />
+            <Stop offset="1" stopColor="#6C5CE7" stopOpacity="0" />
+          </SvgLinear>
+        </Defs>
+        <Rect x="0" y="0" width="100%" height="240" fill="url(#homeDawn)" />
+      </Svg>
+
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 44 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
 
-        {/* ---------- C1 포토 히어로 ---------- */}
-        <View style={s.hero}>
+        {/* ---------- ① 초박형 내비 — 클럽명은 아래 마스트헤드가 가진다 ---------- */}
+        <Row style={s.nav}>
+          <Pressable onPress={() => router.back()} hitSlop={8} style={s.navBtn}>
+            <Text style={{ fontSize: 17, color: L.head, marginTop: -2 }}>‹</Text>
+          </Pressable>
+          <Text style={s.crumb}>CLUB{club ? ` · ${club.district}` : ''}</Text>
+          <View style={{ width: 30 }} />
+        </Row>
+
+        {/* ---------- ② 사진 = 홀로 엣지 배너 스트립 (변형 3) ---------- */}
+        <View style={s.strip}>
           {club?.photoUrl
             ? <Image source={{ uri: club.photoUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
-            : <View style={[StyleSheet.absoluteFill, { backgroundColor: '#26382a' }]} />}
-          <View style={s.heroScrim} />
-          <Pressable onPress={() => router.back()} style={s.backBtn}><Text style={{ fontSize: 20, color: '#fff' }}>‹</Text></Pressable>
+            : (
+              <Svg width="100%" height="100%" style={StyleSheet.absoluteFill}>
+                <Defs>
+                  <SvgLinear id="stripFall" x1="0" y1="0" x2="1" y2="1">
+                    <Stop offset="0" stopColor="#8A7BF0" /><Stop offset="0.6" stopColor="#6C5CE7" /><Stop offset="1" stopColor="#5A4BC7" />
+                  </SvgLinear>
+                </Defs>
+                <Rect x="0" y="0" width="100%" height="100%" fill="url(#stripFall)" />
+              </Svg>
+            )}
+          <HoloEdge id="holoTop" top />
+          <HoloEdge id="holoBot" />
           {club?.isHost && (
             <Pressable onPress={changePhoto} style={s.photoBtn}>
-              <Text style={{ fontSize: 12, fontWeight: '800', color: '#fff' }}>📷 {club.photoUrl ? '사진 변경' : '클럽 사진 올리기'}</Text>
+              <Text style={{ fontSize: 10.5, fontWeight: '800', color: '#fff' }}>{club.photoUrl ? '사진 변경' : '클럽 사진 올리기'}</Text>
             </Pressable>
           )}
-          <View style={s.heroText}>
-            <View style={s.officialPill}><Text style={{ fontSize: 10.5, fontWeight: '900', letterSpacing: 1.5, color: FOREST }}>OFFICIAL</Text></View>
-            <Text style={[{ fontSize: 26, fontWeight: '900', color: '#fff', marginTop: 7 }, df]}>{club?.name ?? '하이클럽'}</Text>
-            <Text style={{ fontSize: 13, color: '#c6d4bd', marginTop: 4 }}>
-              {club
-                ? club.status === 'active'
-                  ? `멤버 ${club.memberCount} · 호스트 ${club.hostName ?? '—'} 러너 · ${club.district}`
-                  : `${club.district} · 호스트 모집 중`
-                : ''}
-            </Text>
-          </View>
         </View>
 
-        <View style={{ padding: 15 }}>
+        {/* ---------- ②-b 에디토리얼 마스트헤드 (변형 2) ---------- */}
+        <View style={s.mast}>
+          <Row style={{ alignItems: 'center', gap: 8 }}>
+            <Text style={s.kicker}>RUNNING CLUB</Text>
+            <View style={s.kickerRule} />
+            <Text style={s.kicker}>DOGS HIGH</Text>
+          </Row>
+          <Row style={{ alignItems: 'flex-start', gap: 10, marginTop: 9 }}>
+            <Text style={[s.mastTitle, df]}>{club?.name ?? '하이클럽'}</Text>
+            <View style={s.officialTab}>
+              <Text style={s.officialTxt}>OFFICIAL</Text>
+            </View>
+          </Row>
+          {!!club?.description && <Text style={s.mastDesc}>{club.description}</Text>}
+          <Row style={s.metaRow}>
+            <View style={s.metaCell}>
+              <Text style={s.metaK}>DISTRICT</Text>
+              <Text style={s.metaV}>{club?.district ?? '—'}</Text>
+            </View>
+            <View style={[s.metaCell, s.metaCellDiv]}>
+              <Text style={s.metaK}>{club?.status === 'collecting' ? 'INTEREST' : 'MEMBERS'}</Text>
+              <Text style={s.metaV}>
+                <Text style={[{ fontSize: 13.5 }, nf]}>{club ? (club.status === 'collecting' ? club.interestCount : club.memberCount) : 0}</Text>명
+              </Text>
+            </View>
+            <View style={[s.metaCell, s.metaCellDiv]}>
+              <Text style={s.metaK}>HOST</Text>
+              <Text style={s.metaV}>{club?.hostName ?? '모집 중'}</Text>
+            </View>
+          </Row>
+        </View>
+
+        <View style={{ paddingHorizontal: 12 }}>
           {/* ⑤ 크리티컬 ack — 클럽 표면 어디서든 확인 전까지 따라온다 */}
           <AckStack />
-          {club?.description && (
-            <Text style={{ fontSize: 14.5, color: '#49524a', lineHeight: 21, marginBottom: 4 }}>{club.description}</Text>
-          )}
 
           {/* ---------- collecting: 관심 수집 (유령 클럽 금지의 UI) ---------- */}
           {club?.status === 'collecting' && (
             <View style={s.card}>
-              <Text style={{ fontSize: 17, fontWeight: '900', color: FOREST }}>아직 열리기 전이에요</Text>
-              <Text style={{ fontSize: 14, color: '#49524a', marginTop: 5, lineHeight: 20.5 }}>
+              <Text style={{ fontSize: 16, fontWeight: '800', color: L.head }}>아직 열리기 전이에요</Text>
+              <Text style={{ fontSize: 12.5, color: L.text, marginTop: 5, lineHeight: 19 }}>
                 관심 등록 {club.interestCount}명 · 인증 러너가 호스트를 맡으면 첫 세션이 열려요
               </Text>
               {club.myInterest ? (
-                <View style={[s.cta, { backgroundColor: colors.clubTint }]}><Text style={{ fontSize: 14.5, fontWeight: '900', color: colors.clubInk }}>✓ 관심 등록됨 — 열리면 알려드릴게요</Text></View>
+                <View style={[s.quietState]}><Text style={{ fontSize: 13, fontWeight: '800', color: L.accent }}>✓ 관심 등록됨 — 열리면 알려드릴게요</Text></View>
               ) : (
-                <Pressable onPress={interest} style={s.cta}><Text style={{ fontSize: 15, fontWeight: '900', color: '#fff' }}>나도 관심 있어요</Text></Pressable>
+                <ClubCta label="나도 관심 있어요" onPress={interest} style={{ paddingVertical: 15 }} />
               )}
               <Pressable
                 onPress={() => claimClubHost(club.id).then(() => { Alert.alert('호스트가 됐어요 🏁', '첫 세션을 열어보세요'); load(); })
                   .catch((e) => Alert.alert('호스트 클레임', (e as Error).message.includes('not_certified') ? '인증 러너만 호스트가 될 수 있어요' : (e as Error).message))}
-                style={[s.cta, s.ctaGhost]}
+                style={s.ghostBtn}
               >
-                <Text style={{ fontSize: 14, fontWeight: '800', color: '#49524a' }}>인증 러너예요 — 호스트 맡기</Text>
+                <Text style={{ fontSize: 12.5, fontWeight: '800', color: L.text }}>인증 러너예요 — 호스트 맡기</Text>
               </Pressable>
             </View>
           )}
 
-          {/* ⟳ 정기 시리즈 리듬 (0035) — 멤버에겐 리듬 안내, 호스트에겐 해지 컨트롤 */}
-          {club?.status === 'active' && series.length > 0 && (
-            <View style={s.seriesRow}>
-              <Text style={{ fontSize: 13.5, fontWeight: '800', color: colors.clubInk, flex: 1 }}>
-                ⟳ 매주 {['일', '월', '화', '수', '목', '금', '토'][series[0].weekday]} {series[0].time} 정기 세션
-                {series[0].meetupPoint ? ` · 📍 ${series[0].meetupPoint}` : ''}
-              </Text>
-              {series[0].isHost && (
-                <Pressable onPress={() => {
-                  Alert.alert('정기 세션 해지', '다음 주부터 자동 개설이 멈춰요.\n이미 열린 세션은 그대로예요.', [
-                    { text: '유지', style: 'cancel' },
-                    { text: '해지', style: 'destructive', onPress: () => pauseClubSeries(series[0].id).then(load).catch((e) => Alert.alert('해지 실패', (e as Error).message)) },
-                  ]);
-                }}>
-                  <Text style={{ fontSize: 12.5, fontWeight: '800', color: '#8a8a8a' }}>해지</Text>
-                </Pressable>
-              )}
-            </View>
-          )}
-
-          {/* ---------- active: 다음 세션 = 보딩패스 티켓 (O1, 테일러드 라일락) ----------
-              두 개의 문, 명확히 비대등: 위탁(코랄·프라이머리) vs 직접 함께 뛰기(콰이엇).
-              천공 위 = 사실(팩트), 스텁 = 내 결정 — 위탁 신청은 스텁을 찢는 일. */}
+          {/* ---------- ③ 히어로: 다음 세션 보딩패스 (변형 3 그대로) ----------
+              천공 위 = 사실(팩트), 스텁 = 내 결정. 두 개의 문, 명확히 비대등:
+              위탁(코랄·프라이머리) vs 직접 함께 뛰기(콰이엇). 문은 열리는 조건을 알고 그려진다 (0051). */}
           {club?.status === 'active' && (
-            ns ? (
-              /* [0051] 문은 열리는 조건을 알고 그려진다 — owner_only엔 위탁 문이 없다 (문 뒤 거절 금지).
-                 format 미도착(구 서버)이면 기존대로 두 문. */
+            ns && tp ? (
               <Ticket
-                notchColor={colors.cream}
+                notchColor={L.bg}
                 top={
                   <>
-                    <Row style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
-                      <Text style={{ fontSize: 15.5, fontWeight: '800', color: lilac.head, flex: 1 }} numberOfLines={1}>
-                        {ns.when} · {ns.meetupPoint}
-                      </Text>
-                      <ClubTag label={ns.status === 'open' ? (left > 0 ? `${left}자리` : '마감 임박') : '마감'} tone={ns.status === 'open' && left > 0 ? 'volt' : 'amber'} />
+                    <Row style={{ alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Row style={{ alignItems: 'center', gap: 6 }}>
+                        <View style={s.brandGlyph}><Text style={{ fontSize: 8, color: '#fff' }}>✈</Text></View>
+                        <Text style={s.brandTxt}>NEXT SESSION · BOARDING</Text>
+                      </Row>
+                      <Row style={{ gap: 5 }}>
+                        <ClubTag label={ddayLabel(ns.scheduledAt)} tone="lilac" />
+                        <ClubTag label={ns.status === 'open' ? (left > 0 ? `${left}자리` : '마감 임박') : '마감'} tone={ns.status === 'open' && left > 0 ? 'volt' : 'amber'} />
+                      </Row>
                     </Row>
-                    <Text style={{ fontSize: 11.5, color: lilac.dim, marginTop: 4 }}>
-                      {ns.rsvpCount}팀 참여 중 · 정원 {ns.capacity}
-                      {ns.format === 'owner_only' ? ' · 보호자 동반 전용' : ''}
-                      {ns.fare != null ? ` · 위탁 ${ns.fare.toLocaleString()}원${ns.routeKm ? ` (${ns.routeKm}km)` : ''}` : ''}
-                    </Text>
+                    <Row style={{ alignItems: 'baseline', gap: 8, marginTop: 11 }}>
+                      <Text style={[{ fontSize: 19, color: L.accent }, df]}>{tp.day}</Text>
+                      <Text style={[{ fontSize: 33, fontWeight: '600', color: L.head, fontVariant: ['tabular-nums'] }, nf]}>{tp.hhmm}</Text>
+                      <Text style={s.dateCode}>{tp.code}</Text>
+                    </Row>
+                    <Row style={{ alignItems: 'center', gap: 6, marginTop: 8 }}>
+                      <Text style={{ fontSize: 11, color: L.coral }}>📍</Text>
+                      <Text style={{ fontSize: 13.5, fontWeight: '700', color: L.head }} numberOfLines={1}>{ns.meetupPoint}</Text>
+                      <Text style={{ fontSize: 10.5, color: L.dim }}>· {ns.rsvpCount}팀 참여 중 / 정원 {ns.capacity}</Text>
+                    </Row>
+                    {facts.length >= 2 && (
+                      <Row style={s.factsRow}>
+                        {facts.map((f, i) => (
+                          <View key={f.k} style={[s.factCell, i > 0 && s.factCellDiv]}>
+                            <Text style={s.factK}>{f.k}</Text>
+                            <Text style={[{ fontSize: 13, fontWeight: '700', color: L.head }, f.num ? nf : undefined]}>
+                              {f.v}{f.unit ? <Text style={{ fontSize: 9.5, fontWeight: '500', color: L.text }}> {f.unit}</Text> : null}
+                            </Text>
+                          </View>
+                        ))}
+                      </Row>
+                    )}
                   </>
                 }
                 stub={
                   <>
-                    {ns.format !== 'owner_only' && (
-                      <ClubCta
-                        label="우리 아이 위탁하기 →"
-                        onPress={() => router.push({ pathname: `/club/delegate/${ns.id}`, params: { clubName: club.name, when: ns.when } })}
-                        style={{ marginTop: 0, paddingVertical: 12 }}
-                      />
-                    )}
-                    <ClubCta
-                      label={ns.joined ? '참여 중 — 세션 보기' : '직접 함께 뛰기'}
-                      tone={ns.format === 'owner_only' ? 'coral' : 'quiet'}
-                      onPress={() => router.push({ pathname: `/club/session/${ns.id}`, params: { clubName: club.name } })}
-                      style={{ marginTop: ns.format === 'owner_only' ? 0 : 7 }}
-                    />
+                    <Row style={{ gap: 8 }}>
+                      {ns.format !== 'owner_only' && (
+                        <Pressable
+                          onPress={() => router.push({ pathname: `/club/delegate/${ns.id}`, params: { clubName: club.name, when: ns.when } })}
+                          style={({ pressed }) => [s.door, s.doorCoral, pressed && { transform: [{ scale: 0.98 }] }]}
+                        >
+                          <Svg style={StyleSheet.absoluteFill}>
+                            <Defs>
+                              <SvgLinear id="doorG" x1="0" y1="0" x2="1" y2="1">
+                                <Stop offset="0" stopColor="#F5825F" /><Stop offset="0.55" stopColor="#F0765A" /><Stop offset="1" stopColor="#E5654A" />
+                              </SvgLinear>
+                            </Defs>
+                            <Rect x="0" y="0" width="100%" height="100%" fill="url(#doorG)" />
+                          </Svg>
+                          <Text style={[{ fontSize: 15, color: '#fff' }, df]}>위탁하기</Text>
+                          {/* [opus a11y] 서브라인 = 흰 88% (coralSoft 2.3:1 금지) */}
+                          <Text style={s.doorSubCoral}>
+                            {ns.fare != null
+                              ? <><Text style={[{ fontSize: 12, color: '#fff' }, nf]}>{ns.fare.toLocaleString()}</Text>원{ns.routeKm ? ` · ${ns.routeKm}km 완주 위탁` : ' · 완주 위탁'}</>
+                              : '오늘의 러닝을 맡겨요'}
+                          </Text>
+                        </Pressable>
+                      )}
+                      <Pressable
+                        onPress={() => router.push({ pathname: `/club/session/${ns.id}`, params: { clubName: club.name } })}
+                        style={({ pressed }) => [
+                          s.door, ns.format === 'owner_only' ? s.doorCoralSolid : s.doorQuiet,
+                          pressed && { transform: [{ scale: 0.98 }] },
+                        ]}
+                      >
+                        <Text style={[{ fontSize: 15, color: ns.format === 'owner_only' ? '#fff' : L.head }, df]}>
+                          {ns.joined ? '참여 중' : '함께 뛰기'}
+                        </Text>
+                        <Text style={ns.format === 'owner_only' ? s.doorSubCoral : s.doorSubQuiet}>
+                          {ns.joined ? '세션 보기 →' : <><Text style={{ fontWeight: '700', color: ns.format === 'owner_only' ? '#fff' : L.accent }}>무료</Text> · 같이 새벽을 달려요</>}
+                        </Text>
+                      </Pressable>
+                    </Row>
+                    <Row style={{ alignItems: 'center', justifyContent: 'space-between', marginTop: 11 }}>
+                      <Row style={{ gap: 2, height: 13, alignItems: 'stretch' }}>
+                        {Array.from({ length: 26 }).map((_, i) => (
+                          <View key={i} style={{ width: (ns.id.charCodeAt(i % ns.id.length) % 3) + 1, backgroundColor: L.head, opacity: 0.8 }} />
+                        ))}
+                      </Row>
+                      <Text style={s.codeTxt}>HIGH CLUB · {tp.code.replace(/[^0-9]/g, '')}</Text>
+                    </Row>
                   </>
                 }
               />
             ) : (
               <View style={s.card}>
-                <Text style={{ fontSize: 15, color: colors.dim, textAlign: 'center', lineHeight: 22 }}>
+                <Text style={{ fontSize: 13.5, color: L.dim, textAlign: 'center', lineHeight: 21 }}>
                   예정된 세션이 없어요{club.isHost ? '\n아래에서 새 세션을 열어보세요' : '\n호스트가 세션을 열면 여기에 떠요'}
                 </Text>
               </View>
             )
           )}
 
-          {/* ---------- P-B: 내 출석 (실데이터 있을 때만) ---------- */}
-          {club?.status === 'active' && myStats && myStats.attended > 0 && (
-            <View style={[s.card, { flexDirection: 'row', alignItems: 'center', gap: 12 }]}>
-              <View style={s.attendStamp}>
-                <Text style={{ fontSize: 16, fontWeight: '900', color: colors.clubDeep }}>×{myStats.attended}</Text>
+          {/* ---------- ④ ⟳ 정기 시리즈 리듬 — 멤버에겐 리듬 안내, 호스트에겐 해지 ---------- */}
+          {club?.status === 'active' && series.length > 0 && (
+            <View style={s.rhythm}>
+              <View style={s.rhythmGlyph}><Text style={{ fontSize: 14, color: L.accent }}>⟳</Text></View>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: L.head }}>
+                  매주 {DAYS_KO[series[0].weekday]}요일 <Text style={[{ fontSize: 12.5, color: L.accent }, nf]}>{series[0].time}</Text>
+                </Text>
+                <Text style={{ fontSize: 10, color: L.dim, marginTop: 1.5 }} numberOfLines={1}>
+                  {series[0].meetupPoint ? `${series[0].meetupPoint} 집결 · ` : ''}같은 리듬으로 계속돼요
+                </Text>
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST }}>내 출석 {myStats.attended}회</Text>
-                {myStats.streak >= 2 && (
-                  <Text style={{ fontSize: 12.5, color: colors.clubInk, marginTop: 2 }}>🔥 최근 {myStats.streak}세션 연속 출석</Text>
-                )}
-              </View>
+              {series[0].isHost && (
+                <Pressable hitSlop={6} onPress={() => {
+                  Alert.alert('정기 세션 해지', '다음 주부터 자동 개설이 멈춰요.\n이미 열린 세션은 그대로예요.', [
+                    { text: '유지', style: 'cancel' },
+                    { text: '해지', style: 'destructive', onPress: () => pauseClubSeries(series[0].id).then(load).catch((e) => Alert.alert('해지 실패', (e as Error).message)) },
+                  ]);
+                }}>
+                  <Text style={s.stopLink}>호스트 해지</Text>
+                </Pressable>
+              )}
             </View>
           )}
 
-          {/* ---------- P-B: 호스트 신뢰 카드 (완료 세션 있을 때만) ---------- */}
-          {club?.status === 'active' && hostStats && hostStats.sessions > 0 && (
-            <View style={s.card}>
-              <Text style={{ fontSize: 12.5, fontWeight: '800', letterSpacing: 1, color: '#75806f' }}>HOST RECORD · {club.hostName} 러너</Text>
-              <Row style={{ marginTop: 9, justifyContent: 'space-between' }}>
-                {[['세션', hostStats.sessions], ['총 참여', hostStats.totalTeams + '팀'], ['재방문', hostStats.returning + '명']].map(([l, v]) => (
-                  <View key={l as string} style={{ alignItems: 'center', flex: 1 }}>
-                    <Text style={{ fontSize: 19, fontWeight: '900', color: FOREST }}>{v}</Text>
-                    <Text style={{ fontSize: 12, color: '#75806f', marginTop: 2 }}>{l}</Text>
-                  </View>
-                ))}
-              </Row>
-            </View>
+          {/* ---------- ⑥ 출석 스탬프 + 호스트 신뢰 타일 (실데이터 있을 때만) ---------- */}
+          {club?.status === 'active' && ((myStats && myStats.attended > 0) || (hostStats && hostStats.sessions > 0)) && (
+            <Row style={{ gap: 10, marginTop: 10, alignItems: 'stretch' }}>
+              {myStats && myStats.attended > 0 && (
+                <View style={s.tile}>
+                  <Row style={{ alignItems: 'center', justifyContent: 'space-between', marginBottom: 7 }}>
+                    <Text style={s.tileK}>내 출석</Text>
+                    {myStats.streak >= 2 && (
+                      <View style={s.streakTag}><Text style={{ fontSize: 8.5, fontWeight: '800', letterSpacing: 1, color: L.amber }}>연속 {myStats.streak}</Text></View>
+                    )}
+                  </Row>
+                  <Text style={[{ fontSize: 23, fontWeight: '600', color: L.head }, nf]}>
+                    <Text style={{ fontSize: 14, color: L.dim }}>×</Text>{myStats.attended}
+                  </Text>
+                  <Row style={{ gap: 3, marginTop: 8 }}>
+                    {Array.from({ length: Math.min(myStats.attended, 7) }).map((_, i) => (
+                      <View key={i} style={s.stampOn}><Text style={{ fontSize: 6.5, color: '#fff', fontWeight: '800' }}>✓</Text></View>
+                    ))}
+                    <View style={s.stampNext} />
+                  </Row>
+                </View>
+              )}
+              {hostStats && hostStats.sessions > 0 && (
+                <View style={s.tile}>
+                  <Text style={[s.tileK, { marginBottom: 7 }]}>호스트 신뢰</Text>
+                  <Row>
+                    {[[hostStats.sessions, '세션'], [hostStats.totalTeams, '총 참여 팀'], [hostStats.returning, '재방문']].map(([v, l], i) => (
+                      <View key={l as string} style={[{ flex: 1, minWidth: 0 }, i > 0 && { borderLeftWidth: 1, borderLeftColor: L.hair2, paddingLeft: 8 }]}>
+                        <Text style={[{ fontSize: 16, fontWeight: '600', color: L.head }, nf]}>{v}</Text>
+                        <Text style={{ fontSize: 8.5, color: L.dim, marginTop: 3 }}>{l}</Text>
+                      </View>
+                    ))}
+                  </Row>
+                  {!!club.hostName && (
+                    <Row style={s.hostLine}>
+                      <View style={s.hostDot}><Text style={{ fontSize: 7, fontWeight: '700', color: '#fff' }}>{club.hostName.slice(0, 1)}</Text></View>
+                      <Text style={{ fontSize: 9, fontWeight: '600', color: L.text }} numberOfLines={1}>
+                        {club.hostName} <Text style={{ color: L.dim }}>· {hostStats.sessions}세션째 같은 자리</Text>
+                      </Text>
+                    </Row>
+                  )}
+                </View>
+              )}
+            </Row>
           )}
 
-          {/* ---------- 호스트 도구 ---------- */}
+          {/* ---------- 호스트 도구: 세션 열기 ---------- */}
           {club?.isHost && (
-            <Pressable onPress={openSheet} style={[s.cta, { marginTop: 12 }]}>
-              <Text style={{ fontSize: 15, fontWeight: '900', color: '#fff' }}>＋ 세션 열기</Text>
-            </Pressable>
+            <Row style={s.hostTool}>
+              <Text style={{ flex: 1, fontSize: 10.5, color: L.dim, lineHeight: 15 }}>호스트 전용 · 다음 회차를 미리 열 수 있어요</Text>
+              <Pressable onPress={openSheet} style={({ pressed }) => [s.hostBtn, pressed && { transform: [{ scale: 0.97 }] }]}>
+                <Text style={{ fontSize: 13, fontWeight: '800', color: '#fff' }}>＋ 세션 열기</Text>
+              </Pressable>
+            </Row>
           )}
+
+          {/* ---------- 콜로폰 ---------- */}
+          <Row style={s.colophon}>
+            <Text style={s.colophonTxt}>{club?.district ?? ''}</Text>
+            <Text style={s.colophonTxt}>DOGS HIGH · HIGH CLUB</Text>
+          </Row>
         </View>
       </ScrollView>
 
-      {/* ---------- 세션 개설 시트 (호스트, S1 프리셋) ---------- */}
+      {/* ---------- 세션 개설 시트 (호스트, S1 프리셋 — 라일락 재도장) ---------- */}
       <Modal visible={sheetOpen} transparent animationType="slide" onRequestClose={() => setSheetOpen(false)}>
-        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,.5)' }} onPress={() => setSheetOpen(false)} />
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(28,24,55,.5)' }} onPress={() => setSheetOpen(false)} />
         <View style={s.sheet}>
-          <Text style={[{ fontSize: 19, fontWeight: '900', color: FOREST }, df]}>세션 열기</Text>
-          <Text style={{ fontSize: 13, color: colors.dim, marginTop: 3 }}>시간·집결지·정원 — 열리면 바로 멤버에게 보여요</Text>
+          <Text style={[{ fontSize: 19, color: L.head }, df]}>세션 열기</Text>
+          <Text style={{ fontSize: 12.5, color: L.dim, marginTop: 3 }}>시간·집결지·정원 — 열리면 바로 멤버에게 보여요</Text>
           <Row style={{ gap: 8, marginTop: 14 }}>
             {SLOT_PRESETS.map((p, i) => (
-              <Pressable key={p.label} onPress={() => setSlotIdx(i)} style={[s.slotChip, slotIdx === i && { backgroundColor: FOREST, borderColor: FOREST }]}>
-                <Text style={{ fontSize: 14, fontWeight: '800', color: slotIdx === i ? '#fff' : '#3d453d' }}>{p.label}</Text>
+              <Pressable key={p.label} onPress={() => setSlotIdx(i)} style={[s.chip, slotIdx === i && s.chipOn]}>
+                <Text style={{ fontSize: 13.5, fontWeight: '800', color: slotIdx === i ? '#fff' : L.text }}>{p.label}</Text>
               </Pressable>
             ))}
           </Row>
           <TextInput
             value={meetup} onChangeText={setMeetup}
-            placeholder="집결지 — 예: 잠수교 북단 계단 앞" placeholderTextColor="#b0ada0" style={s.input}
+            placeholder="집결지 — 예: 잠수교 북단 계단 앞" placeholderTextColor={L.dim} style={s.input}
           />
           {/* 코스 — mixed 필수 (요금 기준) */}
-          <Row style={{ gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
-            <Text style={{ fontSize: 14.5, fontWeight: '800', color: FOREST }}>코스</Text>
-            {routes.length === 0 && <Text style={{ fontSize: 12.5, color: colors.dim }}>불러오는 중...</Text>}
+          <Row style={{ gap: 8, marginTop: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+            <Text style={{ fontSize: 13.5, fontWeight: '800', color: L.head }}>코스</Text>
+            {routes.length === 0 && <Text style={{ fontSize: 12, color: L.dim }}>불러오는 중...</Text>}
             {routes.map((r, i) => (
-              <Pressable key={r.id} onPress={() => setRouteIdx(i)} style={[s.slotChip, routeIdx === i && { backgroundColor: FOREST, borderColor: FOREST }]}>
-                <Text style={{ fontSize: 13.5, fontWeight: '800', color: routeIdx === i ? '#fff' : '#3d453d' }}>{r.name} {r.km}km</Text>
+              <Pressable key={r.id} onPress={() => setRouteIdx(i)} style={[s.chip, routeIdx === i && s.chipOn]}>
+                <Text style={{ fontSize: 12.5, fontWeight: '800', color: routeIdx === i ? '#fff' : L.text }}>{r.name} {r.km}km</Text>
               </Pressable>
             ))}
           </Row>
           <Row style={{ gap: 10, marginTop: 12, alignItems: 'center' }}>
-            <Text style={{ fontSize: 14.5, fontWeight: '800', color: FOREST }}>정원</Text>
+            <Text style={{ fontSize: 13.5, fontWeight: '800', color: L.head }}>정원</Text>
             {[6, 9, 12].map((c) => (
-              <Pressable key={c} onPress={() => setCap(c)} style={[s.slotChip, cap === c && { backgroundColor: FOREST, borderColor: FOREST }]}>
-                <Text style={{ fontSize: 14, fontWeight: '800', color: cap === c ? '#fff' : '#3d453d' }}>{c}팀</Text>
+              <Pressable key={c} onPress={() => setCap(c)} style={[s.chip, cap === c && s.chipOn]}>
+                <Text style={{ fontSize: 13.5, fontWeight: '800', color: cap === c ? '#fff' : L.text }}>{c}팀</Text>
               </Pressable>
             ))}
           </Row>
           {/* ⟳ 매주 반복 (0035) — 다음 주부턴 크론이 같은 요일·시각으로 자동 개설 */}
           <Pressable onPress={() => setWeekly((w) => !w)} style={s.weeklyRow}>
-            <View style={[s.weeklyBox, weekly && { backgroundColor: colors.club, borderColor: colors.club }]}>
+            <View style={[s.weeklyBox, weekly && { backgroundColor: L.accent, borderColor: L.accent }]}>
               {weekly && <Text style={{ fontSize: 12, fontWeight: '900', color: '#fff' }}>✓</Text>}
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 14.5, fontWeight: '800', color: FOREST }}>⟳ 매주 반복</Text>
-              <Text style={{ fontSize: 12.5, color: '#75806f', marginTop: 1 }}>같은 요일·시각으로 매주 자동 개설 — 언제든 해지할 수 있어요</Text>
+              <Text style={{ fontSize: 13.5, fontWeight: '800', color: L.head }}>⟳ 매주 반복</Text>
+              <Text style={{ fontSize: 11.5, color: L.dim, marginTop: 1 }}>같은 요일·시각으로 매주 자동 개설 — 언제든 해지할 수 있어요</Text>
             </View>
           </Pressable>
-          <Pressable onPress={createSession} disabled={busy} style={[s.cta, busy && { opacity: 0.5 }]}>
-            <Text style={{ fontSize: 15.5, fontWeight: '900', color: '#fff' }}>{busy ? '여는 중...' : '세션 열기 🏁'}</Text>
-          </Pressable>
+          {/* [Sean 규칙] 여백 화면 = 큰 버튼 */}
+          <ClubCta label={busy ? '여는 중...' : '세션 열기 🏁'} onPress={createSession} busy={busy} style={{ paddingVertical: 17 }} />
         </View>
       </Modal>
     </View>
@@ -352,22 +537,119 @@ export default function ClubPage() {
 }
 
 const s = StyleSheet.create({
-  hero: { height: 230, justifyContent: 'flex-end' },
-  heroScrim: { position: 'absolute' as const, top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(10,16,10,.30)' },
-  heroText: { padding: 16, paddingBottom: 15 },
-  backBtn: { position: 'absolute', top: 56, left: 14, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(15,29,19,.45)', alignItems: 'center', justifyContent: 'center', zIndex: 2 },
-  photoBtn: { position: 'absolute', top: 62, right: 14, backgroundColor: 'rgba(15,29,19,.55)', borderRadius: 99, paddingVertical: 7, paddingHorizontal: 12, zIndex: 2 },
-  officialPill: { backgroundColor: colors.club, borderRadius: 99, paddingVertical: 3, paddingHorizontal: 9, alignSelf: 'flex-start' },
-  card: { backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: '#DCD6C4', padding: 15, marginTop: 10 },
-  cta: { backgroundColor: colors.club, borderRadius: 14, alignItems: 'center', paddingVertical: 13, marginTop: 12 },
-  ctaGhost: { backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#DCD6C4' },
-  // ⟳ 정기 시리즈 (0035)
-  seriesRow: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.clubTint, borderRadius: 13, paddingVertical: 10, paddingHorizontal: 13, marginBottom: 10 },
+  // ① 내비
+  nav: { alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, paddingTop: 54, paddingBottom: 9 },
+  navBtn: {
+    width: 30, height: 30, borderRadius: 7, borderWidth: 1, borderColor: L.hair, backgroundColor: L.card,
+    alignItems: 'center', justifyContent: 'center', ...lilacShadow, shadowOpacity: 0.06,
+  },
+  crumb: { fontSize: 9, fontWeight: '700', letterSpacing: 3, color: L.dim },
+  // ② 사진 스트립
+  strip: { height: 86, overflow: 'hidden', backgroundColor: L.inset },
+  photoBtn: {
+    position: 'absolute', right: 10, bottom: 9, zIndex: 4,
+    backgroundColor: 'rgba(24,18,44,.42)', borderWidth: 1, borderColor: 'rgba(255,255,255,.5)',
+    borderRadius: 6, paddingVertical: 5, paddingHorizontal: 9,
+  },
+  // ②-b 마스트헤드
+  mast: { paddingHorizontal: 14, paddingTop: 15 },
+  kicker: { fontSize: 8, fontWeight: '700', letterSpacing: 3, color: L.dim },
+  kickerRule: { flex: 1, height: 1, backgroundColor: L.hair },
+  mastTitle: { flex: 1, fontSize: 40, lineHeight: 44, color: L.head, letterSpacing: -0.5 },
+  officialTab: {
+    width: 21, height: 74, borderWidth: 1, borderColor: L.head, borderRadius: 2,
+    backgroundColor: L.card, alignItems: 'center', justifyContent: 'center', marginTop: 4,
+  },
+  officialTxt: { fontSize: 7.5, fontWeight: '700', letterSpacing: 2.2, color: L.head, width: 74, textAlign: 'center', transform: [{ rotate: '90deg' }] },
+  mastDesc: { fontSize: 11.5, lineHeight: 18, color: L.text, marginTop: 9, maxWidth: 300 },
+  metaRow: { marginTop: 13, borderTopWidth: 1, borderTopColor: L.hair, borderBottomWidth: 1, borderBottomColor: L.hair },
+  metaCell: { flex: 1, paddingVertical: 9 },
+  metaCellDiv: { borderLeftWidth: 1, borderLeftColor: L.hair2, paddingLeft: 12 },
+  metaK: { fontSize: 7.5, fontWeight: '700', letterSpacing: 2, color: L.dim, marginBottom: 3 },
+  metaV: { fontSize: 12, fontWeight: '700', color: L.head },
+  // 카드 공통
+  card: {
+    backgroundColor: L.card, borderRadius: lilacRadius.card, borderWidth: 1, borderColor: L.hair,
+    padding: 14, marginTop: 10, ...lilacShadow,
+  },
+  quietState: {
+    backgroundColor: L.inset, borderRadius: lilacRadius.btn, alignItems: 'center', paddingVertical: 13, marginTop: 12,
+  },
+  ghostBtn: {
+    backgroundColor: L.card, borderWidth: 1, borderColor: L.hair, borderRadius: lilacRadius.btn,
+    alignItems: 'center', paddingVertical: 11, marginTop: 8,
+  },
+  // ③ 티켓 상단
+  brandGlyph: { width: 15, height: 15, borderRadius: 4, backgroundColor: L.accent, alignItems: 'center', justifyContent: 'center' },
+  brandTxt: { fontSize: 8.5, fontWeight: '700', letterSpacing: 2, color: L.head },
+  dateCode: { fontSize: 9.5, fontWeight: '700', letterSpacing: 1.5, color: L.dim },
+  factsRow: { marginTop: 11, borderTopWidth: 1, borderTopColor: L.hair2, paddingTop: 10 },
+  factCell: { flex: 1, minWidth: 0 },
+  factCellDiv: { borderLeftWidth: 1, borderLeftColor: L.hair2, paddingLeft: 11 },
+  factK: { fontSize: 7.5, fontWeight: '700', letterSpacing: 1.8, color: L.dim, marginBottom: 3 },
+  // 두 문 — [Sean 규칙] 여백 화면 = 큰 버튼
+  door: { flex: 1, borderRadius: lilacRadius.btn, paddingVertical: 13, paddingHorizontal: 12, overflow: 'hidden' },
+  doorCoral: {
+    backgroundColor: L.coral, // 그라디언트 아래 베이스 — iOS 섀도 렌더 조건 (불투명 bg 필요)
+    shadowColor: L.coral, shadowOpacity: 0.34, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 4,
+  },
+  doorCoralSolid: {
+    backgroundColor: L.coral,
+    shadowColor: L.coral, shadowOpacity: 0.34, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 4,
+  },
+  doorQuiet: { backgroundColor: L.inset, borderWidth: 1, borderColor: L.hair },
+  doorSubCoral: { fontSize: 9.5, color: 'rgba(255,255,255,.88)', marginTop: 4 },
+  doorSubQuiet: { fontSize: 9.5, color: L.dim, marginTop: 4 },
+  codeTxt: { fontSize: 8.5, fontWeight: '700', letterSpacing: 2, color: L.dim },
+  // ④ 리듬
+  rhythm: {
+    flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: L.card,
+    borderWidth: 1, borderColor: L.hair2, borderRadius: lilacRadius.card,
+    paddingVertical: 10, paddingHorizontal: 12, marginTop: 10, ...lilacShadow, shadowOpacity: 0.06,
+  },
+  rhythmGlyph: {
+    width: 28, height: 28, borderRadius: 6, backgroundColor: L.inset,
+    alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: L.hair,
+  },
+  stopLink: { fontSize: 10.5, fontWeight: '700', color: L.dim, textDecorationLine: 'underline' },
+  // ⑥ 타일
+  tile: {
+    flex: 1, minWidth: 0, backgroundColor: L.card, borderWidth: 1, borderColor: L.hair2,
+    borderRadius: lilacRadius.card, padding: 11, ...lilacShadow, shadowOpacity: 0.06,
+  },
+  tileK: { fontSize: 8, fontWeight: '700', letterSpacing: 1.8, color: L.dim },
+  streakTag: { borderWidth: 1, borderColor: L.hair, borderRadius: 5, backgroundColor: L.card, paddingVertical: 2, paddingHorizontal: 5 },
+  stampOn: { width: 11, height: 11, borderRadius: 2, backgroundColor: L.accent, alignItems: 'center', justifyContent: 'center', opacity: 0.92 },
+  stampNext: { width: 11, height: 11, borderRadius: 2, borderWidth: 1.2, borderColor: L.hair },
+  hostLine: { alignItems: 'center', gap: 5, marginTop: 8, paddingTop: 7, borderTopWidth: 1, borderTopColor: L.hair2 },
+  hostDot: {
+    width: 14, height: 14, borderRadius: 7, backgroundColor: L.accent,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  // 호스트 도구
+  hostTool: {
+    alignItems: 'center', gap: 10, marginTop: 10,
+    borderWidth: 1, borderColor: L.hair, borderStyle: 'dashed', borderRadius: lilacRadius.card,
+    paddingVertical: 10, paddingHorizontal: 12, backgroundColor: L.glass,
+  },
+  hostBtn: {
+    backgroundColor: L.head, borderRadius: lilacRadius.btn, paddingVertical: 12, paddingHorizontal: 18,
+    shadowColor: L.head, shadowOpacity: 0.28, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 3,
+  },
+  // 콜로폰
+  colophon: { justifyContent: 'space-between', marginTop: 18, paddingTop: 11, borderTopWidth: 1, borderTopColor: L.hair },
+  colophonTxt: { fontSize: 7.5, fontWeight: '700', letterSpacing: 2.2, color: L.dim },
+  // 시트
+  sheet: { backgroundColor: L.bg, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 18, paddingBottom: 34 },
+  chip: {
+    borderRadius: 99, paddingVertical: 9, paddingHorizontal: 14,
+    backgroundColor: L.card, borderWidth: 1.3, borderColor: L.hair,
+  },
+  chipOn: { backgroundColor: L.accent, borderColor: L.accent },
+  input: {
+    backgroundColor: L.card, borderRadius: lilacRadius.btn, borderWidth: 1, borderColor: L.hair,
+    paddingVertical: 12, paddingHorizontal: 14, fontSize: 14.5, color: L.head, marginTop: 12,
+  },
   weeklyRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 13 },
-  weeklyBox: { width: 22, height: 22, borderRadius: 7, borderWidth: 2, borderColor: '#c9c4b4', alignItems: 'center', justifyContent: 'center' },
-  joinPill: { backgroundColor: colors.club, borderRadius: 99, paddingVertical: 9, paddingHorizontal: 13, alignSelf: 'center' },
-  sheet: { backgroundColor: colors.cream, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 18, paddingBottom: 34 },
-  slotChip: { borderRadius: 99, paddingVertical: 9, paddingHorizontal: 14, backgroundColor: '#fff', borderWidth: 1.3, borderColor: '#DCD6C4' },
-  attendStamp: { width: 48, height: 48, borderRadius: 24, borderWidth: 2.5, borderColor: colors.clubDeep, alignItems: 'center', justifyContent: 'center', transform: [{ rotate: '-6deg' }] },
-  input: { backgroundColor: '#fff', borderRadius: 13, borderWidth: 1, borderColor: '#DCD6C4', paddingVertical: 12, paddingHorizontal: 14, fontSize: 15, color: FOREST, marginTop: 12 },
+  weeklyBox: { width: 22, height: 22, borderRadius: 7, borderWidth: 2, borderColor: L.hair, alignItems: 'center', justifyContent: 'center', backgroundColor: L.card },
 });
