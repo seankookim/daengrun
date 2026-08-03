@@ -167,6 +167,9 @@ export default function ClubSessionShell() {
   const isDone = sess.status === 'done';
   const isOpenish = sess.status === 'open' || sess.status === 'full';
   const checkedCount = sess.people.filter((p) => p.attendance === 'checked_in').length;
+  // [0052 §2] people는 당사자에게만 채워진다 — 인원수는 서버 peopleCount가 정본.
+  // (db push 전 원격에선 undefined → 예전대로 명단 길이)
+  const peopleCount = sess.peopleCount ?? sess.people.length;
   const fare = board?.session.fare ?? null;
 
   // ---------- 함께 뛰기 (동반 참가) 액션 ----------
@@ -208,7 +211,9 @@ export default function ClubSessionShell() {
   const doCancelRsvp = () => {
     // [감사 P1] session_cancel_rsvp는 이 세션의 내 session_dogs를 custody 구분 없이 지운다 —
     // 진행 중 위탁이 있으면 참여 취소로 위탁(동의서·결제 기록 포함)이 함께 사라진다. 문에서 막는다.
-    const activeDeleg = myDogs.filter((d) => !['REFUSED'].includes(d.flap));
+    // [리뷰 P2] flap='REFUSED'는 refundState가 approval보다 먼저라 환불 중 종료건을 놓친다 —
+    // 서버 가드(0052 §3)와 동일하게 serviceState='ended' 기준 (종료건은 서버가 취소를 허용한다)
+    const activeDeleg = myDogs.filter((d) => d.serviceState !== 'ended');
     if (activeDeleg.length > 0) {
       Alert.alert('위탁이 진행 중이에요',
         `${activeDeleg.map((d) => d.dogName).join('·')}의 위탁이 이 세션에 걸려 있어요.\n참여 취소는 위탁 기록까지 지워요 — 위탁 취소를 먼저 해주세요.`);
@@ -220,7 +225,12 @@ export default function ClubSessionShell() {
         text: '취소하기', style: 'destructive',
         onPress: () => cancelClubRsvp(sess.id).then(load).catch((e) => {
           const m = (e as Error).message;
-          Alert.alert('취소 실패', m.includes('host_cannot_leave') ? '호스트는 참여를 취소할 수 없어요' : m.includes('not_joined') ? '참여 중이 아니에요' : m);
+          // [0052 §3] 서버도 활성 위탁이면 거부한다 (delegation_active) — 문 앞 가드가 새도 정직하게 말한다
+          Alert.alert('취소 실패',
+            m.includes('delegation_active') ? '위탁이 걸려 있어요 — 위탁 취소를 먼저 해주세요'
+            : m.includes('host_cannot_leave') ? '호스트는 참여를 취소할 수 없어요'
+            : m.includes('not_joined') ? '참여 중이 아니에요'
+            : m);
         }),
       },
     ]);
@@ -538,6 +548,14 @@ export default function ClubSessionShell() {
     const holdLeft = d.holdExpiresAt ? new Date(d.holdExpiresAt).getTime() - now : null;
     const assigned = d.assignmentState === 'accepted' && !!d.runnerName;
     const hint = STAGE_HINT[d.flap];
+    // [0052 §1] '케이스 확인'이 갈 곳 없는 문구였다 — 서버가 준 openIncidentId가 있으면 케이스로 가는 문을 연다.
+    // id가 없으면(구 서버·해소된 케이스) 링크를 만들지 않는다 — 죽은 버튼 금지.
+    const caseId = d.openIncidentId ?? null;
+    const caseLink = caseId && (d.ui?.primaryIssue === '케이스 확인' || !d.ui?.primaryIssue) ? (
+      <Pressable onPress={() => router.push(`/club/case/${caseId}`)}>
+        <Text style={{ fontSize: 10.5, fontWeight: '800', color: L.accent, marginTop: 8 }}>케이스 확인 →</Text>
+      </Pressable>
+    ) : null;
     return (
       <View key={d.sdId}>
         <LilacCard hero={!crit} crit={crit}>
@@ -552,11 +570,11 @@ export default function ClubSessionShell() {
               {d.ui.secondaryBadges.map((b) => <ClubTag key={b} label={b} tone="dim" />)}
             </Row>
           )}
-          {d.ui?.primaryIssue ? (
+          {caseLink ?? (d.ui?.primaryIssue ? (
             <Text style={{ fontSize: 10.5, color: L.tang, marginTop: 8 }}>{d.ui.primaryIssue}</Text>
           ) : hint && !assigned ? (
             <Text style={{ fontSize: 10.5, color: L.dim, marginTop: 8 }}>{hint}</Text>
-          ) : null}
+          ) : null)}
         </LilacCard>
 
         {/* O4 — 승인 → 결제 (앰버 데드라인 + 결제 CTA) */}
@@ -718,7 +736,7 @@ export default function ClubSessionShell() {
     if (access === 'none' || access === 'limited' || !roster) {
       return (
         <View style={{ alignItems: 'center', paddingVertical: 40 }}>
-          <Text style={{ fontSize: 13, color: L.text }}>참가 {sess.people.length}팀 · 정원 {sess.capacity}</Text>
+          <Text style={{ fontSize: 13, color: L.text }}>참가 {peopleCount}팀 · 정원 {sess.capacity}</Text>
           <Text style={{ fontSize: 10.5, color: L.dim, marginTop: 6 }}>
             {access === 'limited' ? '결제하면 참가자 명단이 열려요' : access === 'none' ? '세션 참가자만 볼 수 있어요' : '명단을 불러오는 중...'}
           </Text>
@@ -782,7 +800,7 @@ export default function ClubSessionShell() {
     );
   };
 
-  const tabCounts: Record<string, number | null> = { 개요: null, 참가자: sess.people.length, 채팅: null };
+  const tabCounts: Record<string, number | null> = { 개요: null, 참가자: peopleCount, 채팅: null };
 
   return (
     <DawnCanvas>
@@ -901,7 +919,7 @@ export default function ClubSessionShell() {
                   <Text style={clubText.vkDim}>MEET</Text>
                   <Text style={{ fontSize: 14.5, fontWeight: '800', color: L.head, marginTop: 3 }}>📍 {sess.meetupPoint}</Text>
                   <Text style={{ fontSize: 10.5, color: L.dim, marginTop: 3 }}>
-                    호스트 {sess.hostName ?? '—'} · {sess.people.length}팀 / {sess.capacity}
+                    호스트 {sess.hostName ?? '—'} · {peopleCount}팀 / {sess.capacity}
                   </Text>
                 </View>
               </Row>

@@ -133,7 +133,9 @@ export default function CaseDetail() {
           </Row>
         )}
 
-        {open && iOwn && <ClubCta label="케이스 해소" onPress={doResolve} busy={busy} style={{ marginTop: 14 }} />}
+        {/* [0052 §7] 해소는 케이스 오너 또는 호스트/백업 호스트 — isHost는 서버 판정이라 클라가 추측하지 않는다.
+            (db push 전 원격에선 undefined → 예전대로 케이스 오너에게만 보인다) */}
+        {open && (iOwn || inc.isHost === true) && <ClubCta label="케이스 해소" onPress={doResolve} busy={busy} style={{ marginTop: 14 }} />}
         <Text style={{ fontSize: 10, color: L.dim, marginTop: 12, textAlign: 'center' }}>
           케이스는 세션이 끝나도 계속돼요 — 해소되면 알려드려요
         </Text>

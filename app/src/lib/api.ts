@@ -1759,6 +1759,9 @@ export interface ClubSessionDetail {
   status: string; capacity: number; hostName: string | null; isHost: boolean;
   joined: boolean; myAttendance: string | null; dogCount: number; nextSessionId: string | null;
   people: SessionPerson[];
+  // [0052 §2] people는 당사자에게만 채워진다 (무관자는 []) — 인원수만 항상 온다.
+  // db push 전 원격에선 undefined (그땐 people.length로 폴백)
+  peopleCount?: number;
 }
 
 export async function fetchClubSession(sessionId: string): Promise<ClubSessionDetail | null> {
@@ -1825,6 +1828,9 @@ export interface DelegationDog {
   assignmentState: 'unassigned' | 'proposed' | 'accepted' | 'declined' | 'replacement_needed' | null;
   objectionUsed: boolean | null; reviewNeeded: boolean | null;
   proposedRunnerId: string | null; proposedRunnerName: string | null; proposalExpiresAt: string | null;
+  // [0052 §1] 이 아이의 미해소 인시던트 id — 케이스 딥링크의 서버 원천 (클라가 dog→케이스를 추측하지 않는다).
+  // db push 전 원격에선 undefined (그땐 링크 없이 문구만)
+  openIncidentId?: string | null;
   ui: DogUiState | null;
   flap: FlapState;
 }
@@ -2085,8 +2091,22 @@ export function subscribeClubChat(sessionId: string, onInsert: () => void): () =
     .subscribe();
   return () => { supabase.removeChannel(ch); };
 }
-export const clubChatDelete = (messageId: number) =>
-  clubRpc('club_chat_delete', { p_message: messageId }) as Promise<void>; // 본인 5분 내만
+// [감사 11] 삭제가 사진 원본을 스토리지에 남기던 것 — 말풍선만 지워지고 공개 URL은 살아 있었다.
+// RPC(본인 5분 내만)가 성공한 뒤에만 원본을 지운다. 원본 정리는 베스트에포트 —
+// 스토리지가 실패해도 삭제 자체는 이미 끝난 사실이라 되돌리지 않는다.
+export async function clubChatDelete(messageId: number): Promise<void> {
+  const { data: row } = await supabase.from('club_chat_messages')
+    .select('media_path').eq('id', messageId).maybeSingle();
+  await clubRpc('club_chat_delete', { p_message: messageId });
+  const media = (row as any)?.media_path as string | null | undefined;
+  const at = media ? media.indexOf('/avatars/') : -1;
+  if (media && at >= 0) {
+    const path = media.slice(at + '/avatars/'.length).split('?')[0];
+    if (path) {
+      try { await supabase.storage.from('avatars').remove([path]); } catch { /* 원본 잔존은 로그 없이 넘긴다 */ }
+    }
+  }
+}
 export const clubChatReport = (messageId: number, reason: string | null = null) =>
   clubRpc('club_chat_report', { p_message: messageId, p_reason: reason }) as Promise<void>;
 
@@ -2096,6 +2116,8 @@ export interface IncidentDetail {
   id: string; severity: string; state: string; summary: string;
   openedBy: string; openedByName: string; caseOwner: string | null; caseOwnerName: string | null;
   openedAt: string; resolvedAt: string | null; myId: string | null;
+  // [0052 §7] 호스트·백업 호스트 판정은 서버가 한다 — db push 전 원격에선 undefined
+  isHost?: boolean;
   subjects: { type: string; id: string }[];
   evidence: IncidentEvidence[];
 }
