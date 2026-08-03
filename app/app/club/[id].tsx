@@ -4,8 +4,8 @@ import { Alert, Image, Modal, Pressable, RefreshControl, ScrollView, StyleSheet,
 import Svg, { Defs, LinearGradient as SvgLinear, Rect, Stop } from 'react-native-svg';
 import { Row } from '../../src/components/ui';
 import {
-  claimClubHost, ClubOverview, ClubSeries, createClubSession, fetchClubHostStats, fetchClubMyStats,
-  fetchClubOverview, fetchClubSeries, fetchRoutes, pauseClubSeries, registerClubInterest, startClubSeries, uploadClubPhoto,
+  claimClubHost, ClubOverview, ClubSeries, createClubSession, DelegationBoard, fetchClubHostStats, fetchClubMyStats,
+  fetchClubOverview, fetchClubSeries, fetchDelegationBoard, fetchRoutes, pauseClubSeries, registerClubInterest, startClubSeries, uploadClubPhoto,
 } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
@@ -91,12 +91,16 @@ export default function ClubPage() {
   const [myStats, setMyStats] = useState<{ attended: number; streak: number } | null>(null);
   const [hostStats, setHostStats] = useState<{ sessions: number; totalTeams: number; returning: number } | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  // [홈 = 루트] 내 진행 스레드 감지 — 보드 한 번으로 세 역할 전부 (dogs.isMine=보호자 위탁 · me.committed=러너 · isHost)
+  const [board, setBoard] = useState<DelegationBoard | null>(null);
   const load = () => fetchClubOverview().then((c) => {
     setClub(c);
     if (c && c.status === 'active') {
       fetchClubMyStats(c.id).then(setMyStats).catch(() => {});
       fetchClubHostStats(c.id).then(setHostStats).catch(() => {});
       fetchClubSeries(c.id).then(setSeries).catch(() => {}); // ⟳ 정기 시리즈 (0035)
+      if (c.nextSession) fetchDelegationBoard(c.nextSession.id).then(setBoard).catch(() => setBoard(null));
+      else setBoard(null);
     }
   }).catch(() => {});
   useFocusEffect(useCallback(() => { load(); }, []));
@@ -179,6 +183,9 @@ export default function ClubPage() {
   const ns = club?.nextSession;
   const left = ns ? ns.capacity - ns.rsvpCount : 0;
   const tp = ns ? ticketParts(ns.scheduledAt) : null;
+  // 내 스레드 — 문은 내 상태를 알고 그려진다 (보호자: 위탁 진행 · 러너: 커밋 · 호스트: 콘솔)
+  const myDogs = board?.dogs.filter((d) => d.isMine && d.approval !== 'rejected' && d.approval !== 'withdrawn') ?? [];
+  const iRun = !!board?.me.committed;
   // 티켓 팩트 행 — 있는 사실만 그린다 (0051 미도착 구 서버면 코스 팩트 생략)
   const facts: { k: string; v: string; unit?: string; num?: boolean }[] = [];
   if (ns?.routeKm != null) facts.push({ k: 'COURSE', v: String(ns.routeKm), unit: 'km', num: true });
@@ -296,6 +303,7 @@ export default function ClubPage() {
               위탁(코랄·프라이머리) vs 직접 함께 뛰기(콰이엇). 문은 열리는 조건을 알고 그려진다 (0051). */}
           {club?.status === 'active' && (
             ns && tp ? (
+              <>
               <Ticket
                 notchColor={L.bg}
                 top={
@@ -337,9 +345,10 @@ export default function ClubPage() {
                 stub={
                   <>
                     <Row style={{ gap: 8 }}>
-                      {ns.format !== 'owner_only' && (
+                      {/* 코랄 문 — 위탁 진행 중이면 파는 문이 아니라 내 스레드의 문이 된다 */}
+                      {myDogs.length > 0 ? (
                         <Pressable
-                          onPress={() => router.push({ pathname: `/club/delegate/${ns.id}`, params: { clubName: club.name, when: ns.when } })}
+                          onPress={() => router.push({ pathname: `/club/session/${ns.id}`, params: { clubName: club.name } })}
                           style={({ pressed }) => [s.door, s.doorCoral, pressed && { transform: [{ scale: 0.98 }] }]}
                         >
                           <Svg style={StyleSheet.absoluteFill}>
@@ -349,6 +358,25 @@ export default function ClubPage() {
                               </SvgLinear>
                             </Defs>
                             <Rect x="0" y="0" width="100%" height="100%" fill="url(#doorG)" />
+                          </Svg>
+                          <Text style={[{ fontSize: 15, color: '#fff' }, df]}>내 위탁</Text>
+                          <Text style={s.doorSubCoral} numberOfLines={1}>
+                            {myDogs[0].dogName}{myDogs.length > 1 ? ` 외 ${myDogs.length - 1}` : ''}
+                            {myDogs[0].ui?.primaryStage ? ` · ${myDogs[0].ui.primaryStage}` : ''} →
+                          </Text>
+                        </Pressable>
+                      ) : ns.format !== 'owner_only' && (
+                        <Pressable
+                          onPress={() => router.push({ pathname: `/club/delegate/${ns.id}`, params: { clubName: club.name, when: ns.when } })}
+                          style={({ pressed }) => [s.door, s.doorCoral, pressed && { transform: [{ scale: 0.98 }] }]}
+                        >
+                          <Svg style={StyleSheet.absoluteFill}>
+                            <Defs>
+                              <SvgLinear id="doorG2" x1="0" y1="0" x2="1" y2="1">
+                                <Stop offset="0" stopColor="#F5825F" /><Stop offset="0.55" stopColor="#F0765A" /><Stop offset="1" stopColor="#E5654A" />
+                              </SvgLinear>
+                            </Defs>
+                            <Rect x="0" y="0" width="100%" height="100%" fill="url(#doorG2)" />
                           </Svg>
                           <Text style={[{ fontSize: 15, color: '#fff' }, df]}>위탁하기</Text>
                           {/* [opus a11y] 서브라인 = 흰 88% (coralSoft 2.3:1 금지) */}
@@ -362,15 +390,17 @@ export default function ClubPage() {
                       <Pressable
                         onPress={() => router.push({ pathname: `/club/session/${ns.id}`, params: { clubName: club.name } })}
                         style={({ pressed }) => [
-                          s.door, ns.format === 'owner_only' ? s.doorCoralSolid : s.doorQuiet,
+                          s.door, ns.format === 'owner_only' && myDogs.length === 0 ? s.doorCoralSolid : s.doorQuiet,
                           pressed && { transform: [{ scale: 0.98 }] },
                         ]}
                       >
-                        <Text style={[{ fontSize: 15, color: ns.format === 'owner_only' ? '#fff' : L.head }, df]}>
-                          {ns.joined ? '참여 중' : '함께 뛰기'}
+                        <Text style={[{ fontSize: 15, color: ns.format === 'owner_only' && myDogs.length === 0 ? '#fff' : L.head }, df]}>
+                          {ns.joined || iRun ? '참여 중' : '함께 뛰기'}
                         </Text>
-                        <Text style={ns.format === 'owner_only' ? s.doorSubCoral : s.doorSubQuiet}>
-                          {ns.joined ? '세션 보기 →' : <><Text style={{ fontWeight: '700', color: ns.format === 'owner_only' ? '#fff' : L.accent }}>무료</Text> · 같이 새벽을 달려요</>}
+                        <Text style={ns.format === 'owner_only' && myDogs.length === 0 ? s.doorSubCoral : s.doorSubQuiet}>
+                          {iRun && !ns.joined ? '러너로 뛰어요 · 세션 보기 →'
+                            : ns.joined ? '세션 보기 →'
+                            : <><Text style={{ fontWeight: '700', color: ns.format === 'owner_only' ? '#fff' : L.accent }}>무료</Text> · 같이 새벽을 달려요</>}
                         </Text>
                       </Pressable>
                     </Row>
@@ -385,6 +415,18 @@ export default function ClubPage() {
                   </>
                 }
               />
+              {/* 호스트 콘솔 진입 — 홈 = 루트: 운영은 콘솔에서, 문은 여기서 하나로 */}
+              {club.isHost && (
+                <Pressable
+                  onPress={() => router.push({ pathname: `/club/console/${ns.id}`, params: { clubName: club.name } })}
+                  style={({ pressed }) => [s.consoleRow, pressed && { opacity: 0.85 }]}
+                >
+                  <Text style={{ fontSize: 12, fontWeight: '800', color: L.accent }}>호스트 콘솔</Text>
+                  <Text style={{ flex: 1, fontSize: 10.5, color: L.dim }} numberOfLines={1}>승인 · 배정 · 세션 운영</Text>
+                  <Text style={{ fontSize: 13, fontWeight: '800', color: L.accent }}>→</Text>
+                </Pressable>
+              )}
+              </>
             ) : (
               <View style={s.card}>
                 <Text style={{ fontSize: 13.5, color: L.dim, textAlign: 'center', lineHeight: 21 }}>
@@ -612,6 +654,12 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: L.hair,
   },
   stopLink: { fontSize: 10.5, fontWeight: '700', color: L.dim, textDecorationLine: 'underline' },
+  consoleRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8,
+    backgroundColor: L.card, borderWidth: 1, borderColor: L.hair2, borderLeftWidth: 3, borderLeftColor: L.accent,
+    borderRadius: lilacRadius.card, paddingVertical: 11, paddingHorizontal: 12,
+    ...lilacShadow, shadowOpacity: 0.06,
+  },
   // ⑥ 타일
   tile: {
     flex: 1, minWidth: 0, backgroundColor: L.card, borderWidth: 1, borderColor: L.hair2,

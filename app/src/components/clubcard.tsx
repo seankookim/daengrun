@@ -127,13 +127,9 @@ function ClubBanner({ club, role, reload }: { club: ClubOverview; role: 'owner' 
     .then(() => { Alert.alert('호스트가 됐어요 🏁', '클럽 페이지에서 첫 세션을 열어보세요'); reload(); })
     .catch((e) => Alert.alert('호스트 클레임', (e as Error).message.includes('not_certified') ? '인증 러너만 호스트가 될 수 있어요' : (e as Error).message));
 
-  const onPress = () => {
-    if (club.status === 'active' && ns) {
-      router.push({ pathname: `/club/session/${ns.id}`, params: { clubName: club.name } });
-    } else {
-      router.push(`/club/${club.id}`);
-    }
-  };
+  // [홈 = 루트] 배너는 항상 클럽 홈으로 — 세션 셸·콘솔·위탁 스레드는 홈의 문(티켓·콘솔 행)이 안다.
+  // (구: 세션 있으면 셸로 직행 → 새 홈이 닿을 수 없는 화면이 되던 것, Sean 2026-08-03)
+  const onPress = () => router.push(`/club/${club.id}`);
 
   return (
     <Pressable onPress={onPress} style={s.banner}>
@@ -174,7 +170,7 @@ function ClubBanner({ club, role, reload }: { club: ClubOverview; role: 'owner' 
           ) : club.status === 'active' && ns && !joined ? (
             <View style={s.bannerCta}><Text style={{ fontSize: 13, fontWeight: '900', color: '#fff' }}>참여하기 ›</Text></View>
           ) : club.status === 'active' && joined ? (
-            <View style={[s.bannerCta, { backgroundColor: 'rgba(255,255,255,.92)' }]}><Text style={{ fontSize: 13, fontWeight: '900', color: colors.clubInk }}>세션 보기 ›</Text></View>
+            <View style={[s.bannerCta, { backgroundColor: 'rgba(255,255,255,.92)' }]}><Text style={{ fontSize: 13, fontWeight: '900', color: colors.clubInk }}>클럽 홈 ›</Text></View>
           ) : (
             <View style={[s.bannerCta, { backgroundColor: 'rgba(255,255,255,.25)' }]}><Text style={{ fontSize: 13, fontWeight: '900', color: '#fff' }}>클럽 보기 ›</Text></View>
           )}
