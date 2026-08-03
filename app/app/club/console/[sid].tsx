@@ -7,7 +7,7 @@ import { BigNumRow, ClubCta, ClubMast, ClubTag, DawnCanvas, LilacCard, clubText 
 import {
   approveDelegation, assignmentRevoke, ClubIncident, DelegationBoard, DelegationDog, DelegationRunner,
   fetchDelegationBoard, fetchSessionIncidents, finishClubSession, incidentAssign, incidentResolve,
-  proposalRevoke, proposeDog,
+  proposalRevoke, proposeDog, reviewDelegation,
 } from '../../../src/lib/api';
 import { haptic } from '../../../src/lib/haptics';
 import { collarColors, CollarKey, lilac, lilacRadius } from '../../../src/theme';
@@ -61,7 +61,8 @@ export default function HostConsole() {
   const load = useCallback(() => {
     if (!sid) return;
     fetchDelegationBoard(sid).then(setBoard).catch(() => {});
-    fetchSessionIncidents(sid).then(setIncidents).catch(() => setIncidents([]));
+    // [감사 P2] 실패 시 []로 덮으면 종료 차단 배너가 사라져 죽은 버튼 미스터리 — 이전 값 유지
+    fetchSessionIncidents(sid).then(setIncidents).catch(() => {});
   }, [sid]);
   useFocusEffect(useCallback(() => { load(); }, [load]));
   const onRefresh = () => { setRefreshing(true); Promise.resolve(load()).finally(() => setTimeout(() => setRefreshing(false), 400)); };
@@ -111,10 +112,10 @@ export default function HostConsole() {
   // ---------- 심사 ----------
   const pending = dogs.filter((d) => d.approval === 'pending');
   const review = dogs.filter((d) => d.approval === 'approved' && d.reviewNeeded === true);
-  const doApprove = (d: DelegationDog, ok: boolean, refundNote = false) => {
+  const doApprove = (d: DelegationDog, ok: boolean) => {
     Alert.alert(ok ? '승인' : '거절',
       ok ? `${d.dogName}을(를) 승인할까요? 보호자에게 결제 요청이 발송돼요 (20분 홀드).`
-        : `${d.dogName}을(를) 거절할까요?${refundNote ? ' 결제분은 전액 환불돼요.' : ''}`,
+        : `${d.dogName}을(를) 거절할까요?`,
       [
         { text: '아직', style: 'cancel' },
         {
@@ -123,14 +124,29 @@ export default function HostConsole() {
             // 정원 = 확약 러너 캡 합에서 동적 파생 (0037) — 러너가 없으면 0
             m.includes('no_capacity')
               ? `위탁 정원이 다 찼어요 (${sess.reservedCount}/${sess.delegatedCapacity})${sess.delegatedCapacity === 0 ? ' — 정원은 러너 확약이 만들어요. 세션 화면에서 러너로 확약부터 해주세요' : ''}`
-              : null),
+              : m.includes('not_pending') ? '심사 상태가 바뀌었어요 — 새로고침해 주세요' : null),
+        },
+      ]);
+  };
+  // [감사 P0] 재검토 행은 approved라 session_approve_dog가 항상 not_pending으로 거절한다 — 정본은 session_review_dog
+  const doReview = (d: DelegationDog, ok: boolean) => {
+    Alert.alert(ok ? '변경 확인 — 재승인' : '재검토 거절',
+      ok ? `${d.dogName}의 변경 사항을 확인하고 재승인할까요?` : `${d.dogName}을(를) 거절할까요? 결제분은 전액 환불돼요.`,
+      [
+        { text: '아직', style: 'cancel' },
+        {
+          text: ok ? '재승인' : '거절 (전액 환불)', style: ok ? 'default' : 'destructive',
+          onPress: () => run(() => reviewDelegation(d.sdId, ok), ok ? '재승인 실패' : '거절 실패', (m) =>
+            m.includes('no_review') ? '재검토 대상이 아니에요 — 새로고침해 주세요' : null),
         },
       ]);
   };
 
   // ---------- 배정 ----------
   const paid = dogs.filter((d) => d.chargeState === 'paid' && d.serviceState === 'confirmed');
-  const unassigned = paid.filter((d) => !d.assignmentState || ['unassigned', 'declined', 'replacement_needed'].includes(d.assignmentState));
+  // [감사 P2] 재검토 중인 개는 배정 불가 (서버 review_pending) — 심사 섹션이 담당, 여기선 제외
+  const unassigned = paid.filter((d) => d.reviewNeeded !== true
+    && (!d.assignmentState || ['unassigned', 'declined', 'replacement_needed'].includes(d.assignmentState)));
   const proposed = paid.filter((d) => d.assignmentState === 'proposed');
   const accepted = paid.filter((d) => d.assignmentState === 'accepted');
   const doPropose = (d: DelegationDog, r: DelegationRunner) => {
@@ -145,7 +161,10 @@ export default function HostConsole() {
           : m.includes('runner_not_checked_in') ? `${r.name}${r.isMe ? '(나)' : ''}가 아직 체크인 전이에요 — 집결지 체크인 후 제안할 수 있어요`
           : m.includes('runner_not_committed') ? `${r.name}의 러너 확약이 풀려 있어요`
           : m.includes('proposal_active') ? '이미 진행 중인 제안이 있어요 — 취소 후 다시 제안하세요'
-          : m.includes('runner_cap_full') || m.includes('cap') ? `${r.name}의 오늘 담당이 가득 찼어요`
+          : m.includes('review_pending') ? '재검토가 끝나야 배정할 수 있어요 — 심사 섹션을 확인하세요'
+          : m.includes('not_approved') ? '승인·결제 상태가 바뀌었어요 — 새로고침해 주세요'
+          : m.includes('session_closed') ? '이미 닫힌 세션이에요'
+          : m.includes('runner_cap_full') || m.includes('cap') ? `${r.name}의 오늘 담당이 가득 찼어요 (수락분+제안+동반견 합산)`
           : null),
       },
     ]);
@@ -156,14 +175,20 @@ export default function HostConsole() {
       {
         text: '철회', style: 'destructive',
         onPress: () => run(() => assignmentRevoke(d.sdId), '철회 실패', (m) =>
-          m.includes('already_handed_off') ? '이미 인계가 시작돼 철회할 수 없어요' : null),
+          m.includes('already_handed_off') ? '이미 인계가 시작돼 철회할 수 없어요'
+          : m.includes('not_assigned') ? '배정 상태가 바뀌었어요 — 새로고침해 주세요' : null),
       },
     ]);
   };
 
-  // ---------- 종료 게이트 — 서버 판정 전, 보이는 사실로 미리 말한다 ----------
+  // ---------- 종료 게이트 — 서버 술어(_club_dogs_unresolved, 0045)와 동일하게만 센다 ----------
+  // [감사 P0] custody_phase 기본값은 'with_custodian'(미인계 개 전부) — 이걸 세면 신청 1건만 있어도
+  // 세션 종료가 영구 비활성화됐다. 서버 기준: 명시적 진행 국면 3종 + 러너/호스트 보관 중 & 부킹 진행.
   const unreturned = dogs.filter((d) =>
-    (d.custodyPhase && d.custodyPhase !== 'resolved') || ['clinic', 'authority'].includes(d.custodianType ?? ''));
+    ['outbound_pending', 'transfer_pending', 'return_pending'].includes(d.custodyPhase ?? '')
+    || (['runner', 'host'].includes(d.custodianType ?? '')
+        && d.custodyPhase !== 'resolved'
+        && ['picked_up', 'active', 'completed'].includes(d.bookingStatus ?? '')));
   const openCases = incidents.filter((i) => i.state !== 'resolved');
   const unownedCases = openCases.filter((i) => !i.caseOwner);
   const blockers: string[] = [
@@ -281,8 +306,8 @@ export default function HostConsole() {
               <ClubTag label="재검토" tone="amber" />
             </Row>
             <Row style={{ gap: 8, marginTop: 10 }}>
-              <Pressable onPress={() => doApprove(d, true)} style={s.abtn}><Text style={s.abtnTxt}>변경 확인 — 재승인</Text></Pressable>
-              <Pressable onPress={() => doApprove(d, false, true)} style={[s.abtn, s.abtnWarn]}><Text style={[s.abtnTxt, { color: L.amber }]}>거절 (전액 환불)</Text></Pressable>
+              <Pressable onPress={() => doReview(d, true)} style={s.abtn}><Text style={s.abtnTxt}>변경 확인 — 재승인</Text></Pressable>
+              <Pressable onPress={() => doReview(d, false)} style={[s.abtn, s.abtnWarn]}><Text style={[s.abtnTxt, { color: L.amber }]}>거절 (전액 환불)</Text></Pressable>
             </Row>
           </View>
         ))}
@@ -346,6 +371,7 @@ export default function HostConsole() {
         ))}
         {proposed.map((d) => {
           const left = d.proposalExpiresAt ? new Date(d.proposalExpiresAt).getTime() - now : null;
+          const expired = left != null && left <= 0; // [감사 P2] 만료를 '00:00 남음'으로 오독시키지 않는다
           return (
             <View key={d.sdId} style={s.drow}>
               <Row style={{ gap: 10, alignItems: 'center' }}>
@@ -353,14 +379,15 @@ export default function HostConsole() {
                 <View style={{ flex: 1 }}>
                   <Text style={s.dogName}>{d.dogName}</Text>
                   <Text style={s.dogSub}>
-                    제안 → {d.proposedRunnerName ?? '러너'}{left != null ? ` · ${mmss(left)} 남음` : ''}
+                    {expired ? `${d.proposedRunnerName ?? '러너'} 제안 소멸 — 다시 제안하세요`
+                      : `제안 → ${d.proposedRunnerName ?? '러너'}${left != null ? ` · ${mmss(left)} 남음` : ''}`}
                   </Text>
                 </View>
-                <ClubTag label="수락 대기" tone="amber" />
+                <ClubTag label={expired ? '소멸' : '수락 대기'} tone={expired ? 'dim' : 'amber'} />
               </Row>
               <Row style={{ gap: 8, marginTop: 10 }}>
                 <Pressable onPress={() => run(() => proposalRevoke(d.sdId), '제안 취소 실패')} style={[s.abtn, s.abtnGhost]}>
-                  <Text style={[s.abtnTxt, { color: L.dim }]}>제안 취소</Text>
+                  <Text style={[s.abtnTxt, { color: L.dim }]}>{expired ? '정리하고 재제안' : '제안 취소'}</Text>
                 </Pressable>
               </Row>
             </View>

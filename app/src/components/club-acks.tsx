@@ -18,7 +18,13 @@ export function AckStack() {
   const [acks, setAcks] = useState<ClubAck[]>([]);
   const busyIds = useRef(new Set<string>());
 
-  const load = useCallback(() => { fetchMyAcks().then(setAcks).catch(() => {}); }, []);
+  // [감사 P1] in-flight 폴 응답이 낙관 제거를 되돌리고, 성공한 id가 busyIds에 남아 부활 배너의
+  // 확인 버튼이 영구히 죽던 것 — 폴 결과에서 busyIds를 걸러내고, 성공 후 서버와 재동기화한다.
+  const load = useCallback(() => {
+    fetchMyAcks()
+      .then((list) => setAcks(list.filter((a) => !busyIds.current.has(a.id))))
+      .catch(() => {});
+  }, []);
   useEffect(() => {
     load();
     const t = setInterval(load, 45_000);
@@ -31,7 +37,9 @@ export function AckStack() {
     if (busyIds.current.has(a.id)) return;
     busyIds.current.add(a.id);
     setAcks((prev) => prev.filter((x) => x.id !== a.id)); // 낙관 제거 — 실패 시 복원
-    ackClub(a.id).then(() => haptic('light')).catch(() => { busyIds.current.delete(a.id); load(); });
+    ackClub(a.id)
+      .then(() => { haptic('light'); busyIds.current.delete(a.id); load(); })
+      .catch(() => { busyIds.current.delete(a.id); load(); });
   };
 
   const sorted = [...acks].sort((a, b) =>

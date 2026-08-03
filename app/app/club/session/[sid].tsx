@@ -1,6 +1,6 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Image, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Image, Linking, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Avatar, Row } from '../../../src/components/ui';
 import { AckStack } from '../../../src/components/club-acks';
 import {
@@ -80,6 +80,18 @@ export default function ClubSessionShell() {
   const [methodOk, setMethodOk] = useState(false);
   // HOLDING 카운트다운 틱
   const [now, setNow] = useState(Date.now());
+  // [감사 P0] Alert.prompt는 iOS 전용 — 안드로이드에서 무반응 죽은 버튼. 공용 텍스트 시트로 대체.
+  const [askText, setAskText] = useState<null | {
+    title: string; message: string;
+    actions: { label: string; destructive?: boolean; onSubmit: (text: string) => void }[];
+    requireText: boolean;
+  }>(null);
+  const [askDraft, setAskDraft] = useState('');
+  const openPrompt = (
+    title: string, message: string,
+    actions: { label: string; destructive?: boolean; onSubmit: (text: string) => void }[],
+    requireText = true,
+  ) => { setAskDraft(''); setAskText({ title, message, actions, requireText }); };
   // ④ 채팅 — 그룹 스트림 + 호스트 창구 드로어
   const [chat, setChat] = useState<{ uid: string | null; msgs: ClubChatMsg[] } | null>(null);
   const [writable, setWritable] = useState(true);
@@ -90,18 +102,22 @@ export default function ClubSessionShell() {
   const load = useCallback(() => {
     if (!sid) return;
     fetchClubSession(sid).then(setSess).catch(() => {});
-    fetchDelegationBoard(sid).then(setBoard).catch(() => setBoard(null));
-    fetchShellAccess(sid).then(setAccess).catch(() => setAccess('none'));
+    // [감사 P1] 일시적 네트워크 오류가 board=null·access='none'으로 리셋해 카드·버튼이 전멸하던 것 —
+    // 실패 시 이전 상태 유지 (access='none'은 서버가 실제로 준 값일 때만)
+    fetchDelegationBoard(sid).then(setBoard).catch(() => {});
+    fetchShellAccess(sid).then(setAccess).catch(() => {});
   }, [sid]);
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  // 로스터 — host/full은 바로 (러너의 비상 연락처가 여기 있다), limited는 참가자 탭에서만
+  // 로스터 — [감사 P2] 서버가 규칙 B 대상 전원의 '열람 로그'를 남기므로, 실제로 번호가 쓰이는
+  // 시점에만 부른다: 참가자 탭 진입, 또는 러너(비상 연락처 필요). limited는 사람 명단을 그리지 않는다.
   useEffect(() => {
-    if (!sid || access === 'none') return;
-    if (access === 'host' || access === 'full' || tab === '참가자') {
-      fetchSessionRoster(sid).then(setRoster).catch(() => setRoster(null));
+    if (!sid || access === 'none' || access === 'limited') return;
+    const needForRunner = board?.me.committed === true;
+    if (tab === '참가자' || needForRunner) {
+      fetchSessionRoster(sid).then(setRoster).catch(() => {});
     }
-  }, [tab, access, sid]);
+  }, [tab, access, sid, board?.me.committed]);
 
   // ④ 채팅 로드 + 리얼타임 — 탭이 열려 있는 동안만 구독
   useEffect(() => {
@@ -126,6 +142,13 @@ export default function ClubSessionShell() {
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
   }, [ticking]);
+  // [감사 P2] 체크인 창 판정이 렌더 시점에 얼어 버튼이 제때 안 나타나던 것 — 참여 중이면 30초 저빈도 틱
+  const joinedWaiting = sess?.joined === true && sess?.myAttendance === 'rsvp';
+  useEffect(() => {
+    if (!joinedWaiting || ticking) return;
+    const t = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(t);
+  }, [joinedWaiting, ticking]);
 
   const onRefresh = () => { setRefreshing(true); Promise.resolve(load()).finally(() => setTimeout(() => setRefreshing(false), 400)); };
 
@@ -147,30 +170,59 @@ export default function ClubSessionShell() {
   const fare = board?.session.fare ?? null;
 
   // ---------- 함께 뛰기 (동반 참가) 액션 ----------
+  const rsvpWith = async (dogId: string | null) => {
+    setBusy(true);
+    try {
+      await rsvpClubSession(sess.id, dogId);
+      haptic('success');
+      load();
+    } catch (e) {
+      const m = (e as Error).message;
+      Alert.alert('참여 실패',
+        m.includes('session_full') ? '정원이 찼어요'
+        : m.includes('already_joined') ? '이미 참여 중이에요'
+        : m.includes('dog_capacity_full') ? '이 세션의 강아지 정원이 다 찼어요'
+        : m.includes('already_registered') ? '이 아이는 이미 위탁으로 등록돼 있어요' : m);
+    } finally { setBusy(false); }
+  };
   const doRsvp = () => {
     Alert.alert('참여 전 확인', WAIVER, [
       { text: '취소', style: 'cancel' },
       {
         text: '동의하고 참여',
         onPress: async () => {
-          setBusy(true);
-          try {
-            const dogs = await fetchMyDogs().catch(() => []);
-            await rsvpClubSession(sess.id, dogs[0]?.id ?? null);
-            haptic('success');
-            load();
-          } catch (e) {
-            const m = (e as Error).message;
-            Alert.alert('참여 실패', m.includes('session_full') ? '정원이 찼어요' : m.includes('already_joined') ? '이미 참여 중이에요' : m);
-          } finally { setBusy(false); }
+          const dogs = await fetchMyDogs().catch(() => []);
+          // [감사 P2] 다견인데 무조건 dogs[0]으로 RSVP되던 것 — 2마리 이상이면 고른다
+          if (dogs.length > 1) {
+            Alert.alert('어느 아이와 뛰나요?', undefined, [
+              { text: '닫기', style: 'cancel' },
+              ...dogs.slice(0, 3).map((d) => ({ text: d.name, onPress: () => rsvpWith(d.id) })),
+            ]);
+          } else {
+            rsvpWith(dogs[0]?.id ?? null);
+          }
         },
       },
     ]);
   };
   const doCancelRsvp = () => {
+    // [감사 P1] session_cancel_rsvp는 이 세션의 내 session_dogs를 custody 구분 없이 지운다 —
+    // 진행 중 위탁이 있으면 참여 취소로 위탁(동의서·결제 기록 포함)이 함께 사라진다. 문에서 막는다.
+    const activeDeleg = myDogs.filter((d) => !['REFUSED'].includes(d.flap));
+    if (activeDeleg.length > 0) {
+      Alert.alert('위탁이 진행 중이에요',
+        `${activeDeleg.map((d) => d.dogName).join('·')}의 위탁이 이 세션에 걸려 있어요.\n참여 취소는 위탁 기록까지 지워요 — 위탁 취소를 먼저 해주세요.`);
+      return;
+    }
     Alert.alert('참여 취소', '이번 세션 참여를 취소할까요?', [
       { text: '유지', style: 'cancel' },
-      { text: '취소하기', style: 'destructive', onPress: () => cancelClubRsvp(sess.id).then(load).catch((e) => Alert.alert('취소 실패', (e as Error).message)) },
+      {
+        text: '취소하기', style: 'destructive',
+        onPress: () => cancelClubRsvp(sess.id).then(load).catch((e) => {
+          const m = (e as Error).message;
+          Alert.alert('취소 실패', m.includes('host_cannot_leave') ? '호스트는 참여를 취소할 수 없어요' : m.includes('not_joined') ? '참여 중이 아니에요' : m);
+        }),
+      },
     ]);
   };
   const doCheckin = async () => {
@@ -184,7 +236,13 @@ export default function ClubSessionShell() {
   const doWithdraw = (d: DelegationDog) => {
     Alert.alert('신청 취소', `${d.dogName}의 위탁 신청을 거둘까요? 승인 전 취소는 무료예요.`, [
       { text: '유지', style: 'cancel' },
-      { text: '신청 취소', style: 'destructive', onPress: () => cancelDelegation(d.sdId).then(() => { haptic('light'); load(); }).catch((e) => Alert.alert('취소 실패', (e as Error).message)) },
+      {
+        text: '신청 취소', style: 'destructive',
+        onPress: () => cancelDelegation(d.sdId).then(() => { haptic('light'); load(); }).catch((e) => {
+          const m = (e as Error).message;
+          Alert.alert('취소 실패', m.includes('incident') ? '진행 중인 케이스가 있어 지금은 취소할 수 없어요' : m.includes('already_ended') ? '이미 종료된 신청이에요' : m);
+        }),
+      },
     ]);
   };
   const doCancelPaid = (d: DelegationDog) => {
@@ -199,31 +257,26 @@ export default function ClubSessionShell() {
       },
     ]);
   };
-  // 이의 = preference (T-20까지 · 1회 · 사유 필수). 재배정(자리 유지) 또는 전액 환불 이탈.
-  const submitObjection = (d: DelegationDog, reason: string, wantRefund: boolean) =>
-    ownerObjection(d.sdId, 'preference', reason, wantRefund).then(() => { haptic('light'); load(); })
+  // 이의 — [감사 P1] preference(T-20까지·1회)와 safety(인계 전까지 무제한)를 분리. 안전 문은 닫히지 않는다.
+  const submitObjection = (d: DelegationDog, kind: 'preference' | 'safety', reason: string, wantRefund: boolean) =>
+    ownerObjection(d.sdId, kind, reason, wantRefund).then(() => { haptic('light'); load(); })
       .catch((e) => {
         const m = (e as Error).message;
         Alert.alert('접수 실패',
           m.includes('objection_window_closed') ? '시작 20분 전까지만 낼 수 있어요'
           : m.includes('objection_already_used') ? '이의는 한 번만 낼 수 있어요'
-          : m.includes('already_handed_off') ? '인계 후에는 이의 대신 호스트에게 알려주세요'
+          : m.includes('already_handed_off') ? '인계 후에는 이의 대신 문제 신고를 이용해주세요'
           : m);
       });
-  const doObjection = (d: DelegationDog) => {
-    Alert.prompt?.(
-      '배정 이의 (1회)',
-      '우려 사유를 적어주세요 — 시작 20분 전까지 낼 수 있어요.',
+  const doObjection = (d: DelegationDog, kind: 'preference' | 'safety') => {
+    openPrompt(
+      kind === 'safety' ? '안전 우려 제기' : '배정 이의 (1회)',
+      kind === 'safety'
+        ? '안전 우려는 인계 전까지 언제든 낼 수 있어요 — 사유를 적어주세요.'
+        : '우려 사유를 적어주세요 — 시작 20분 전까지, 한 번만 낼 수 있어요.',
       [
-        { text: '닫기', style: 'cancel' },
-        {
-          text: '재배정 요청',
-          onPress: (reason?: string) => reason?.trim() ? submitObjection(d, reason.trim(), false) : Alert.alert('사유가 필요해요'),
-        },
-        {
-          text: '전액 환불로 취소', style: 'destructive',
-          onPress: (reason?: string) => reason?.trim() ? submitObjection(d, reason.trim(), true) : Alert.alert('사유가 필요해요'),
-        },
+        { label: '재배정 요청', onSubmit: (t) => submitObjection(d, kind, t, false) },
+        { label: '전액 환불로 취소', destructive: true, onSubmit: (t) => submitObjection(d, kind, t, true) },
       ],
     );
   };
@@ -262,15 +315,17 @@ export default function ClubSessionShell() {
     ]);
   };
   const doDeclineProposal = (d: DelegationDog) => {
-    Alert.prompt?.('우려 제기 · 거절', '사유를 남기면 호스트가 재배정에 참고해요 (선택)', [
-      { text: '닫기', style: 'cancel' },
+    openPrompt('우려 제기 · 거절', '사유를 남기면 호스트가 재배정에 참고해요 (선택)', [
       {
-        text: '거절', style: 'destructive',
-        onPress: (reason?: string) => respondProposal(d.sdId, false, reason?.trim() || undefined)
+        label: '거절', destructive: true,
+        onSubmit: (reason) => respondProposal(d.sdId, false, reason || undefined)
           .then(() => { haptic('light'); load(); })
-          .catch((e) => Alert.alert('거절 실패', (e as Error).message)),
+          .catch((e) => {
+            const m = (e as Error).message;
+            Alert.alert('거절 실패', m.includes('expired') || m.includes('not_pending') ? '제안이 이미 소멸했어요' : m);
+          }),
       },
-    ]);
+    ], false);
   };
   const doRunnerHandoff = (d: DelegationDog) => {
     if (!d.bookingId) return;
@@ -300,7 +355,10 @@ export default function ClubSessionShell() {
     commitAsHandler(sess.id).then(() => { haptic('success'); load(); })
       .catch((e) => {
         const m = (e as Error).message;
-        Alert.alert('확약 실패', m.includes('not_certified') ? '인증 러너만 확약할 수 있어요' : m);
+        Alert.alert('확약 실패',
+          m.includes('not_certified') ? '인증 러너만 확약할 수 있어요'
+          : m.includes('format_closed') ? '이 세션은 위탁을 받지 않아요 — 보호자 동반 전용이에요'
+          : m.includes('session_full') ? '세션 정원이 찼어요' : m);
       });
   };
   const doWithdrawHandler = () => {
@@ -315,23 +373,35 @@ export default function ClubSessionShell() {
   };
 
   // ---------- R6 — 문제 신고 · SOS (케이스 문은 참가자 전원) ----------
+  // [감사 P1] 대상견 자동 myDogs[0]은 다견 보호자의 엉뚱한 아이에게 보류를 걸었다 — 2마리 이상이면 고른다
+  const openCase = (dogId: string | null, dogName: string | null) => {
+    openPrompt('케이스 접수',
+      dogName ? `${dogName} 대상 케이스 — 이 아이의 정산이 해소까지 보류돼요. 상황을 한 줄로 적어주세요.`
+        : '상황을 한 줄로 적어주세요.',
+      [{
+        label: '접수',
+        onSubmit: (summary) => incidentOpen(sess.id, 'S2', summary, { dog: dogId })
+          .then((id) => { haptic('success'); load(); router.push(`/club/case/${id}`); })
+          .catch((e) => Alert.alert('접수 실패', (e as Error).message)),
+      }]);
+  };
   const doIncident = () => {
     Alert.alert('문제 신고', '무슨 일인가요?', [
       { text: '닫기', style: 'cancel' },
       {
         text: '케이스 접수',
-        onPress: () => Alert.prompt?.('케이스 접수', '상황을 한 줄로 적어주세요 — 내 위탁견이 있으면 그 아이의 정산이 보류돼요', [
-          { text: '닫기', style: 'cancel' },
-          {
-            text: '접수',
-            onPress: (summary?: string) => {
-              if (!summary?.trim()) { Alert.alert('내용이 필요해요'); return; }
-              incidentOpen(sess.id, 'S2', summary.trim(), { dog: myDogs[0]?.dogId ?? null })
-                .then((id) => { haptic('success'); load(); router.push(`/club/case/${id}`); })
-                .catch((e) => Alert.alert('접수 실패', (e as Error).message));
-            },
-          },
-        ]),
+        onPress: () => {
+          const candidates = myDogs.filter((d) => d.flap !== 'REFUSED');
+          if (candidates.length > 1) {
+            Alert.alert('어느 아이 일인가요?', undefined, [
+              { text: '닫기', style: 'cancel' },
+              ...candidates.slice(0, 3).map((d) => ({ text: d.dogName, onPress: () => openCase(d.dogId, d.dogName) })),
+              { text: '세션 전체', onPress: () => openCase(null, null) },
+            ]);
+          } else {
+            openCase(candidates[0]?.dogId ?? null, candidates[0]?.dogName ?? null);
+          }
+        },
       },
       {
         text: '긴급 SOS', style: 'destructive',
@@ -400,15 +470,14 @@ export default function ClubSessionShell() {
         },
       ]);
     } else {
-      Alert.prompt?.('메시지 신고', '사유를 남겨주세요 (선택) — 호스트에게 전달돼요', [
-        { text: '닫기', style: 'cancel' },
+      openPrompt('메시지 신고', '사유를 남겨주세요 (선택) — 호스트에게 전달돼요', [
         {
-          text: '신고', style: 'destructive',
-          onPress: (reason?: string) => clubChatReport(m.id, reason?.trim() || null)
-            .then(() => { haptic('light'); chatReload(); })
+          label: '신고', destructive: true,
+          onSubmit: (reason) => clubChatReport(m.id, reason || null)
+            .then(() => { haptic('light'); Alert.alert('신고 접수', '호스트가 확인할 거예요'); chatReload(); })
             .catch((e) => Alert.alert('신고 실패', (e as Error).message)),
         },
-      ]);
+      ], false);
     }
   };
 
@@ -451,9 +520,13 @@ export default function ClubSessionShell() {
       Alert.alert('결제 완료', `${d.dogName}의 자리가 확정됐어요 — 담당 러너가 정해지면 알려드려요`);
     } catch (e) {
       const m = (e as Error).message;
+      // [감사 P1] hold_expired는 서버가 던지지 않는 죽은 매핑이었고, 실제 코드들이 원문 노출됐다
       Alert.alert('결제 실패',
         m.includes('no_capacity') ? '마지막 자리가 먼저 찼어요 — 결제되지 않았어요'
-        : m.includes('hold_expired') ? '결제 시간이 지났어요 — 호스트 승인부터 다시 필요해요'
+        : m.includes('dog_slot_clash') ? '같은 시간대에 이 아이의 다른 러닝 예약이 있어요'
+        : m.includes('not_payable') ? '승인 상태가 바뀌었어요 — 새로고침해 주세요'
+        : m.includes('session_closed') ? '이미 시작됐거나 닫힌 세션이에요'
+        : m.includes('route_required') ? '세션 코스가 아직 없어요 — 호스트에게 문의해주세요'
         : m);
     } finally { setBusy(false); }
   };
@@ -509,6 +582,10 @@ export default function ClubSessionShell() {
             <ClubCta label={`${fare != null ? fare.toLocaleString() + '원 ' : ''}결제하기 →`} onPress={() => { setMethodOk(false); setPayTarget(d); }} />
             <Pressable onPress={() => { setMethodOk(false); setPayTarget(d); }}>
               <Text style={s.detailLink}>취소 규정 · 배정 방식 →</Text>
+            </Pressable>
+            {/* [감사 P2] 홀드 중에도 무료 취소는 서버가 허용한다 — 문을 그린다 (자리가 즉시 풀린다) */}
+            <Pressable onPress={() => doWithdraw(d)}>
+              <Text style={[s.detailLink, { color: L.dim, marginTop: 6 }]}>신청 취소 (무료)</Text>
             </Pressable>
           </>
         )}
@@ -580,10 +657,18 @@ export default function ClubSessionShell() {
             <Pressable onPress={() => doCancelPaid(d)}>
               <Text style={s.detailLink}>취소 규정 →</Text>
             </Pressable>
-            {assigned && d.objectionUsed === false && (
-              <Pressable onPress={() => doObjection(d)}>
-                <Text style={[s.detailLink, { color: L.dim, marginTop: 6 }]}>이 배정에 우려가 있어요 (1회)</Text>
-              </Pressable>
+            {/* [감사 P1·P2] 이의 문 재정비: preference는 T-20·1회·인계 전, safety는 인계 전까지 항상 */}
+            {assigned && !d.ownerConfirmed && !d.runnerConfirmed && (
+              <Row style={{ justifyContent: 'center', gap: 18, marginTop: 6 }}>
+                {d.objectionUsed === false && startMs - Date.now() > 20 * 60_000 && (
+                  <Pressable onPress={() => doObjection(d, 'preference')}>
+                    <Text style={[s.detailLink, { color: L.dim, marginTop: 0 }]}>배정 이의 (1회)</Text>
+                  </Pressable>
+                )}
+                <Pressable onPress={() => doObjection(d, 'safety')}>
+                  <Text style={[s.detailLink, { color: L.dim, marginTop: 0 }]}>안전 우려</Text>
+                </Pressable>
+              </Row>
             )}
           </>
         )}
@@ -628,23 +713,16 @@ export default function ClubSessionShell() {
 
   // ---------- 참가자 탭 ----------
   const renderRoster = () => {
-    if (access === 'none' || !roster) {
-      // 폴백 = 공개 명단 (전화·상세 없음 — 셸 접근이 없으면 사적 정보도 없다)
+    // [감사 P1] 거절·철회된 신청자도 limited로 남는다 — 사람 명단은 host/full에게만.
+    // none/limited 폴백은 인원수까지만 (실명·강아지 이름을 클라이언트가 그리지 않는다).
+    if (access === 'none' || access === 'limited' || !roster) {
       return (
-        <>
-          <View style={s.sechead}><Text style={s.secheadTitle}>사람 {sess.people.length}</Text></View>
-          {sess.people.map((p, i) => (
-            <View key={i} style={s.drow}>
-              <Row style={{ gap: 10, alignItems: 'center' }}>
-                <Avatar url={p.avatarUrl} char={p.name[0]} bg="#8f88b8" size={32} />
-                <View style={{ flex: 1 }}>
-                  <Text style={s.personName}>{p.name}{p.dogName ? ` + ${p.dogName}` : ''}{p.isMe ? ' (나)' : ''}</Text>
-                  <Text style={s.personSub}>{ROLE_LINE[p.role] ?? '참가'}{p.attendance === 'checked_in' ? ' · 체크인' : ''}</Text>
-                </View>
-              </Row>
-            </View>
-          ))}
-        </>
+        <View style={{ alignItems: 'center', paddingVertical: 40 }}>
+          <Text style={{ fontSize: 13, color: L.text }}>참가 {sess.people.length}팀 · 정원 {sess.capacity}</Text>
+          <Text style={{ fontSize: 10.5, color: L.dim, marginTop: 6 }}>
+            {access === 'limited' ? '결제하면 참가자 명단이 열려요' : access === 'none' ? '세션 참가자만 볼 수 있어요' : '명단을 불러오는 중...'}
+          </Text>
+        </View>
       );
     }
     return (
@@ -662,12 +740,15 @@ export default function ClubSessionShell() {
                   {p.attendance === 'checked_in' ? ' · 체크인' : ''}
                 </Text>
               </View>
-              {p.isHost ? <ClubTag label="HOST" tone="lilac" />
-                : p.phone ? (
+              {/* [감사 P1] HOST 태그가 전화 칩 자리를 먹어 규칙 B가 열어준 호스트 번호가 안 보이던 것 — 함께 그린다 */}
+              {p.isHost && <ClubTag label="HOST" tone="lilac" />}
+              {p.phone ? (
+                <Pressable onPress={() => Linking.openURL(`tel:${p.phone!.replace(/[^0-9+]/g, '')}`).catch(() => {})}>
                   <View style={s.phoneChip}><Text style={s.phoneChipTxt}>{p.phone}</Text></View>
-                ) : !p.isMe ? (
-                  <View style={[s.phoneChip, { backgroundColor: L.inset }]}><Text style={[s.phoneChipTxt, { color: L.dim }]}>호스트 경유</Text></View>
-                ) : null}
+                </Pressable>
+              ) : !p.isMe && !p.isHost ? (
+                <View style={[s.phoneChip, { backgroundColor: L.inset }]}><Text style={[s.phoneChipTxt, { color: L.dim }]}>호스트 경유</Text></View>
+              ) : null}
             </Row>
           </View>
         ))}
@@ -745,19 +826,30 @@ export default function ClubSessionShell() {
               </Text>
             </LilacCard>
 
-            {/* 내 위탁 결과 — 상태 낱말 그대로 + 기록 문 */}
+            {/* 내 위탁 결과 — 상태 낱말 그대로 + 기록 문. [감사 P1] 배지·심각도·이슈를 버리지 않는다
+                (환불 처리 중·정산 보류·외부 보호 같은 의무가 결과 화면에서 증발하면 안 된다) */}
             {myDogs.map((d) => (
               <View key={d.sdId}>
-                <LilacCard hero>
+                <LilacCard hero={d.ui?.severity !== 'critical'} crit={d.ui?.severity === 'critical'}>
                   <Text style={clubText.vk}>{d.dogName}의 위탁</Text>
                   <Row style={{ alignItems: 'center', gap: 10, marginTop: 8 }}>
                     <DogDot name={d.dogName} collar={d.collar} />
-                    <Text style={[clubText.stateStrong, { flex: 1 }]}>{d.ui?.primaryStage ?? d.flap}</Text>
+                    <Text style={[clubText.stateStrong, { flex: 1 }, d.ui?.severity === 'critical' && { color: L.tang }]}>
+                      {d.ui?.primaryStage ?? d.flap}
+                    </Text>
                     <Flap state={d.flap} />
                   </Row>
+                  {d.ui?.secondaryBadges && d.ui.secondaryBadges.length > 0 && (
+                    <Row style={{ gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+                      {d.ui.secondaryBadges.map((b) => <ClubTag key={b} label={b} tone={b.includes('환불') || b.includes('인시던트') ? 'coral' : 'dim'} />)}
+                    </Row>
+                  )}
+                  {d.ui?.primaryIssue && (
+                    <Text style={{ fontSize: 10.5, color: L.tang, marginTop: 8 }}>{d.ui.primaryIssue}</Text>
+                  )}
                 </LilacCard>
                 {d.flap === 'SETTLED' && d.bookingId && (
-                  <ClubCta label="오늘의 영수증 →" tone="quiet"
+                  <ClubCta label="오늘의 영수증 →" style={{ paddingVertical: 17 }}
                     onPress={() => router.push({ pathname: `/club/receipt/${d.bookingId}`, params: { clubName: clubName ?? '' } })} />
                 )}
               </View>
@@ -774,8 +866,9 @@ export default function ClubSessionShell() {
               </View>
             )}
 
+            {/* [Sean 규칙] 여백 많은 화면의 버튼은 크게 — 결과 화면은 한 손 엄지 존 */}
             {sess.nextSessionId && (
-              <ClubCta label="다음 세션 참여하기 →" tone="violet"
+              <ClubCta label="다음 세션 참여하기 →" tone="violet" style={{ paddingVertical: 18 }}
                 onPress={() => router.replace({ pathname: `/club/session/${sess.nextSessionId}`, params: { clubName } })} />
             )}
 
@@ -903,8 +996,8 @@ export default function ClubSessionShell() {
               </>
             )}
 
-            {/* ---------- 러너 확약 — 인증 러너(cap>0)에게만 문을 그린다 ---------- */}
-            {isOpenish && board && !board.me.committed && board.me.runnerCap > 0 && (
+            {/* ---------- 러너 확약 — 인증 러너(cap>0) + 위탁 세션에만 문을 그린다 ([감사 P1] owner_only 죽은 버튼) ---------- */}
+            {isOpenish && board && board.session.format !== 'owner_only' && !board.me.committed && board.me.runnerCap > 0 && (
               <ClubCta label={`이번 세션 러너로 확약하기 (담당 ${board.me.runnerCap}마리까지)`} tone="violet"
                 onPress={doCommit} busy={busy} />
             )}
@@ -1011,7 +1104,7 @@ export default function ClubSessionShell() {
                     return (
                       <Pressable key={pid} onPress={() => setHostThread(pid)} style={{ marginTop: 6 }}>
                         <Text style={{ fontSize: 10.5, color: L.text }} numberOfLines={1}>
-                          {nameOf(pid)}: “{last?.deleted ? '삭제된 메시지' : last?.body ?? ''}” <Text style={{ color: L.accent, fontWeight: '800' }}>→ 탭해서 1:1</Text>
+                          {nameOf(pid)}: “{last?.deleted ? '삭제된 메시지' : last?.kind === 'photo' ? '사진' : last?.body ?? ''}” <Text style={{ color: L.accent, fontWeight: '800' }}>→ 탭해서 1:1</Text>
                         </Text>
                       </Pressable>
                     );
@@ -1027,7 +1120,7 @@ export default function ClubSessionShell() {
                   </Row>
                   <Text style={{ fontSize: 10.5, color: L.text, marginTop: 5 }} numberOfLines={1}>
                     {hostMsgs.length > 0
-                      ? `${hostMsgs[hostMsgs.length - 1].mine ? '나' : hostMsgs[hostMsgs.length - 1].senderName}: “${hostMsgs[hostMsgs.length - 1].deleted ? '삭제된 메시지' : hostMsgs[hostMsgs.length - 1].body}”`
+                      ? `${hostMsgs[hostMsgs.length - 1].mine ? '나' : hostMsgs[hostMsgs.length - 1].senderName}: “${hostMsgs[hostMsgs.length - 1].deleted ? '삭제된 메시지' : hostMsgs[hostMsgs.length - 1].kind === 'photo' ? '사진' : hostMsgs[hostMsgs.length - 1].body}”`
                       : '호스트에게 1:1로 문의하기'} <Text style={{ color: L.accent, fontWeight: '800' }}>→</Text>
                   </Text>
                 </LilacCard>
@@ -1119,6 +1212,34 @@ export default function ClubSessionShell() {
           ) : (
             <Text style={s.closedLine}>채팅이 닫혔어요</Text>
           )}
+        </View>
+      </Modal>
+
+      {/* ---------- 공용 사유 입력 시트 (Alert.prompt 대체 — iOS 전용 API의 안드로이드 죽은 버튼 해소) ---------- */}
+      <Modal visible={!!askText} transparent animationType="slide" onRequestClose={() => setAskText(null)}>
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(28,24,55,.45)' }} onPress={() => setAskText(null)} />
+        <View style={s.sheet}>
+          <View style={s.grab} />
+          <Text style={{ fontSize: 15, fontWeight: '800', color: L.head }}>{askText?.title}</Text>
+          <Text style={{ fontSize: 11, color: L.text, marginTop: 5, lineHeight: 16.5 }}>{askText?.message}</Text>
+          <TextInput
+            value={askDraft} onChangeText={setAskDraft} multiline autoFocus
+            placeholder="내용..." placeholderTextColor={L.dim}
+            style={[s.inputField, { marginTop: 12, minHeight: 64, flex: 0 }]}
+          />
+          {askText?.actions.map((a) => (
+            <ClubCta
+              key={a.label}
+              label={a.label}
+              tone={a.destructive ? 'coral' : 'violet'}
+              onPress={() => {
+                const t = askDraft.trim();
+                if (askText.requireText && !t) { Alert.alert('내용이 필요해요'); return; }
+                setAskText(null);
+                a.onSubmit(t);
+              }}
+            />
+          ))}
         </View>
       </Modal>
     </DawnCanvas>

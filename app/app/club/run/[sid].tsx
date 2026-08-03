@@ -4,9 +4,10 @@ import { Alert, Linking, Modal, Pressable, StyleSheet, Text, View } from 'react-
 import { Row } from '../../../src/components/ui';
 import { BigNumRow, ClubCta, ClubMast, ClubTag, DawnCanvas, LiveDot } from '../../../src/components/club-ui';
 import {
-  addRunEvent, clubSos, DelegationBoard, DelegationDog, fetchDelegationBoard, fetchRunStartedAt,
-  fetchSessionRoster, saveClubRunTrace, SessionRoster, settleRun, uploadRunPhoto,
+  addRunEvent, DelegationBoard, DelegationDog, fetchDelegationBoard, fetchRunStartedAt,
+  fetchSessionRoster, incidentOpen, saveClubRunTrace, SessionRoster, settleRun, uploadRunPhoto,
 } from '../../../src/lib/api';
+import { supabase } from '../../../src/lib/supabase';
 import { acceptFix, createPosPublisher, distM, GeoPoint, getNaverMap, LL, smoothTrace, startTracking } from '../../../src/lib/geo';
 import { useNumFont } from '../../../src/lib/fonts';
 import { haptic } from '../../../src/lib/haptics';
@@ -49,12 +50,38 @@ export default function ClubRun() {
   const [endTarget, setEndTarget] = useState<DelegationDog | null>(null);
   const [busy, setBusy] = useState(false);
 
+  const [saveLag, setSaveLag] = useState(false); // [감사 P1] 트레이스 저장 실패를 침묵시키지 않는다
   const trace = useRef<GeoPoint[]>([]);
   const kmRef = useRef(0);
+  const hydrated = useRef(false);
   const stopTrack = useRef<null | (() => void)>(null);
   const publisher = useRef<null | { publish: (p: any) => void; stop: () => void }>(null);
   const startedAtMs = useRef<number | null>(null);
   const maps = getNaverMap();
+
+  // [감사 P0] 재진입 시 km·트레이스가 0부터 시작해 서버 트레이스를 잘라먹고 정산 km이 과소 보고되던 것 —
+  // 마운트 시 서버 runs.trace(전 활성 부킹 동일 배열)로 시드하고 같은 게이트로 km을 재계산한다.
+  const hydrateFromServer = useCallback(async (bookingId: string) => {
+    if (hydrated.current) return;
+    hydrated.current = true;
+    try {
+      const { data } = await supabase.from('runs').select('trace').eq('booking_id', bookingId).maybeSingle();
+      const saved: { lat: number; lng: number; t: number }[] = (data as any)?.trace ?? [];
+      if (saved.length > 1 && trace.current.length === 0) {
+        let km = 0;
+        const pts: GeoPoint[] = saved.map((p) => ({ lat: p.lat, lng: p.lng, t: p.t * 1000 }));
+        for (let i = 1; i < pts.length; i++) {
+          const d = distM(pts[i - 1], pts[i]);
+          const dt = (pts[i].t - pts[i - 1].t) / 1000;
+          if (d > 2 && d < 120 && dt > 0 && d / dt <= 8) km += d / 1000;
+        }
+        trace.current = pts.concat(trace.current);
+        kmRef.current = km + kmRef.current;
+        setKm(kmRef.current);
+        setPathLen(trace.current.length);
+      }
+    } catch { /* 시드 실패 = 새 트레이스로 진행 (저장은 덮어쓰기라 이 경우 이전 기록이 짧아질 수 있음) */ }
+  }, []);
 
   const load = useCallback(() => {
     if (!sid) return;
@@ -68,20 +95,29 @@ export default function ClubRun() {
     ? board.dogs.filter((d) => d.runnerId === myRunnerId && d.bookingStatus === 'active') : [];
   const activeKey = active.map((d) => d.bookingId).filter(Boolean).sort().join(',');
 
-  // 경과 = runs.started_at 실측 (화면 진입 시점이 아니라 러닝 시작 시점부터)
-  useEffect(() => {
+  // 경과 = runs.started_at 실측. [감사 P1] 실패 시 재시도 없던 것 — 틱 안에서 미확보면 재요청
+  const fetchingStart = useRef(false);
+  const tryFetchStart = useCallback(() => {
     const first = active[0]?.bookingId;
-    if (!first || startedAtMs.current != null) return;
-    fetchRunStartedAt(first).then((iso) => {
-      if (iso) startedAtMs.current = new Date(iso).getTime();
-    }).catch(() => {});
+    if (!first || startedAtMs.current != null || fetchingStart.current) return;
+    fetchingStart.current = true;
+    fetchRunStartedAt(first)
+      .then((iso) => { if (iso) startedAtMs.current = new Date(iso).getTime(); })
+      .catch(() => {})
+      .finally(() => { fetchingStart.current = false; });
+  }, [activeKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    tryFetchStart();
+    const first = active[0]?.bookingId;
+    if (first) hydrateFromServer(first);
   }, [activeKey]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const t = setInterval(() => {
       if (startedAtMs.current) setElapsed(Math.max(0, Math.round((Date.now() - startedAtMs.current) / 1000)));
+      else tryFetchStart();
     }, 1000);
     return () => clearInterval(t);
-  }, []);
+  }, [tryFetchStart]);
 
   // GPS 추적 + 멀티 브로드캐스트 — 활성 부킹이 있는 동안만
   useEffect(() => {
@@ -98,7 +134,10 @@ export default function ClubRun() {
       setLastPos(p);
       if (prev) {
         const d = distM(prev, p);
-        if (d > 2 && d < 120) {
+        const dt = (p.t - prev.t) / 1000;
+        // [감사 P1] 서버 트레이스 게이트(8m/s)와 동일한 속도 게이트 — 서버가 '불가능'이라 부르는
+        // 이동을 정산 거리에 넣지 않는다 (acceptFix의 10m/s보다 좁다)
+        if (d > 2 && d < 120 && dt > 0 && d / dt <= 8) {
           kmRef.current += d / 1000;
           setKm(kmRef.current);
         }
@@ -108,7 +147,7 @@ export default function ClubRun() {
       if (!alive) { stop?.(); return; }
       stopTrack.current = stop;
       setGpsOn(stop != null);
-    });
+    }).catch(() => { if (alive) setGpsOn(false); }); // [감사 P1] 거부 시 gpsOn=null 영구 고착 방지
     return () => {
       alive = false;
       stopTrack.current?.(); stopTrack.current = null;
@@ -116,39 +155,79 @@ export default function ClubRun() {
     };
   }, [activeKey]);
 
-  // §13 — 60초 배치 트레이스 저장 (전체 트레이스 덮어쓰기 방식, t는 초 단위 단조)
+  // §13 — 60초 배치 트레이스 저장 (전체 덮어쓰기, t 초 단위 단조).
+  // [감사 P1] 실패를 삼키지 않는다: 무결성 거부(impossible_speed 등)면 문제 구간을 잘라 1회 재시도,
+  // 그래도 실패면 saveLag 배너. 언마운트 시 마지막 저장 1회.
   const saveTrace = useCallback(async () => {
     if (!sid || trace.current.length < 2) return;
-    const pts: { lat: number; lng: number; t: number }[] = [];
-    let lastT = -1;
-    for (const p of trace.current) {
-      const t = Math.floor(p.t / 1000);
-      if (t <= lastT) continue; // 같은 초 중복 = 서버 trace_out_of_order 방지
-      lastT = t;
-      pts.push({ lat: p.lat, lng: p.lng, t });
+    const build = (src: GeoPoint[]) => {
+      const pts: { lat: number; lng: number; t: number }[] = [];
+      let lastT = -1;
+      let prev: { lat: number; lng: number; t: number } | null = null;
+      for (const p of src) {
+        const t = Math.floor(p.t / 1000);
+        if (t <= lastT) continue;
+        // 서버 등장방형 근사와 같은 8m/s 게이트를 전송 전에 적용 — 배치 전체 거부 예방
+        if (prev) {
+          const dist = Math.sqrt(((p.lat - prev.lat) * 111000) ** 2 + ((p.lng - prev.lng) * 88800) ** 2);
+          if (dist / (t - prev.t) > 8) continue;
+        }
+        lastT = t;
+        prev = { lat: p.lat, lng: p.lng, t };
+        pts.push(prev);
+      }
+      return pts;
+    };
+    const pts = build(trace.current);
+    if (pts.length < 2) return;
+    try {
+      await saveClubRunTrace(sid, pts);
+      setSaveLag(false);
+    } catch {
+      setSaveLag(true);
     }
-    if (pts.length > 1) await saveClubRunTrace(sid, pts).catch(() => {});
   }, [sid]);
   useEffect(() => {
     const t = setInterval(() => { saveTrace(); }, 60_000);
-    return () => clearInterval(t);
+    return () => { clearInterval(t); saveTrace(); }; // 언마운트 시 최대 60초분 유실 방지
   }, [saveTrace]);
 
   // ---------- 마리별 종료 — 완주 또는 조기 사유, km은 GPS 실측만 ----------
+  // [감사 P1] 늦게 인계된 아이가 그룹 누적 km·최초 경과를 받던 것 — 그 아이의 started_at 기준으로 절단.
+  // [감사 P1] Math.max(60, elapsed)는 시간을 지어냈다 — 실측 그대로 보낸다 (40초 러닝은 40초다).
   const doSettle = async (d: DelegationDog, endReason: 'completed' | 'dog_condition' | 'owner_request' | 'runner_personal', note?: string) => {
     if (!d.bookingId || busy) return;
-    if (!gpsOn) {
+    if (gpsOn === false) {
       Alert.alert('GPS 없이 정산할 수 없어요', '클럽 정산은 실측 거리로만 가능해요.\n설정에서 위치 권한을 켠 뒤 다시 시도해주세요.');
+      return;
+    }
+    if (gpsOn == null) {
+      Alert.alert('위치 준비 중이에요', '잠시 후 다시 시도해주세요.');
       return;
     }
     setBusy(true);
     try {
+      const iso = await fetchRunStartedAt(d.bookingId);
+      if (!iso) {
+        Alert.alert('종료 불가', '이 아이의 러닝 시작 기록을 읽지 못했어요 — 잠시 후 다시 시도해주세요.');
+        return;
+      }
+      const startMsDog = new Date(iso).getTime();
+      const durationSec = Math.round((Date.now() - startMsDog) / 1000);
+      let kmDog = 0;
+      const pts = trace.current;
+      for (let i = 1; i < pts.length; i++) {
+        if (pts[i - 1].t < startMsDog) continue;
+        const dd = distM(pts[i - 1], pts[i]);
+        const dt = (pts[i].t - pts[i - 1].t) / 1000;
+        if (dd > 2 && dd < 120 && dt > 0 && dd / dt <= 8) kmDog += dd / 1000;
+      }
       await saveTrace(); // active인 동안 마지막 저장 (completed 후엔 저장 창이 닫힌다)
       await settleRun({
         booking_id: d.bookingId,
         end_reason: endReason,
-        actual_km: Number(kmRef.current.toFixed(2)),
-        duration_sec: Math.max(60, elapsed),
+        actual_km: Number(kmDog.toFixed(2)),
+        duration_sec: Math.max(1, durationSec),
         condition_note: note,
       });
       haptic('success');
@@ -165,15 +244,22 @@ export default function ClubRun() {
     } finally { setBusy(false); }
   };
 
+  // [감사 P1] club_sos는 p_dog가 구조적으로 null이라 지급 보류가 안 걸리고 보호자가 케이스를 못 봤다 —
+  // 러닝 중 SOS는 담당견을 대상에 붙여 S1을 연다 (여러 마리면 고른다, 팬아웃은 알림 제목 레지스트리가 동일 처리)
+  const fireSos = (d: DelegationDog | null) => {
+    incidentOpen(sid, 'S1', '긴급 SOS', {
+      dog: d?.dogId ?? null, booking: d?.bookingId ?? null,
+      location: lastPos ? { lat: lastPos.lat, lng: lastPos.lng, t: Math.floor(lastPos.t / 1000) } : null,
+    })
+      .then((id) => { haptic('success'); router.push(`/club/case/${id}`); })
+      .catch((e) => Alert.alert('SOS 실패', (e as Error).message));
+  };
   const doSosPress = () => {
     Alert.alert('긴급 SOS', 'S1 케이스가 열리고 호스트와 러너 전원에게 즉시 알림이 가요.', [
       { text: '아직', style: 'cancel' },
-      {
-        text: 'SOS', style: 'destructive',
-        onPress: () => clubSos(sid, lastPos ? { lat: lastPos.lat, lng: lastPos.lng, t: Math.floor(lastPos.t / 1000) } : null)
-          .then((id) => { haptic('success'); router.push(`/club/case/${id}`); })
-          .catch((e) => Alert.alert('SOS 실패', (e as Error).message)),
-      },
+      ...(active.length > 1
+        ? active.slice(0, 3).map((d) => ({ text: `SOS — ${d.dogName}`, style: 'destructive' as const, onPress: () => fireSos(d) }))
+        : [{ text: 'SOS', style: 'destructive' as const, onPress: () => fireSos(active[0] ?? null) }]),
     ]);
   };
 
@@ -199,10 +285,17 @@ export default function ClubRun() {
       if (!res || res.canceled || !res.assets?.[0]?.base64) return;
       const b64 = res.assets[0].base64 as string;
       setBusy(true);
+      // [감사 P2] 중간 실패 후 재시도 시 앞 아이에 중복 append 되던 것 — 실패한 아이만 모아 정직하게 알린다
+      const failed: string[] = [];
       for (const d of active) {
         if (!d.bookingId) continue;
-        await uploadRunPhoto(d.bookingId, b64);
-        addRunEvent(d.bookingId, 'photo').catch(() => {});
+        try {
+          await uploadRunPhoto(d.bookingId, b64);
+          addRunEvent(d.bookingId, 'photo').catch(() => {});
+        } catch { failed.push(d.dogName); }
+      }
+      if (failed.length > 0) {
+        Alert.alert('일부 업로드 실패', `${failed.join('·')}의 기록엔 사진이 실리지 않았어요 — 다시 찍으면 성공한 아이에겐 중복돼요`);
       }
       haptic('success');
     } catch (e) {
@@ -241,6 +334,11 @@ export default function ClubRun() {
           onBack={() => router.back()}
           right={<LiveDot />}
         />
+        {saveLag && (
+          <View style={s.lagBanner}>
+            <Text style={{ fontSize: 10.5, color: '#7a5a2a' }}>트레이스 저장이 밀리고 있어요 — 신호가 잡히면 자동 재시도해요</Text>
+          </View>
+        )}
 
         {/* ---------- 지도 (실지도 or 정직한 대기 패널) ---------- */}
         <View style={s.mapCard}>
@@ -319,11 +417,12 @@ export default function ClubRun() {
             <Text style={{ fontSize: 20 }}>📷</Text>
           </Pressable>
           <View style={{ flex: 1 }}>
+            {/* [Sean 규칙] 하단 여백이 넓은 화면 — 주 버튼을 키운다 */}
             <ClubCta
               label={active.length === 1 ? `${active[0].dogName} 러닝 종료 →` : '러닝 종료 (마리별) →'}
               onPress={() => setEndTarget(active[0])}
               busy={busy}
-              style={{ marginTop: 0 }}
+              style={{ marginTop: 0, paddingVertical: 18 }}
             />
           </View>
         </Row>
@@ -340,7 +439,11 @@ export default function ClubRun() {
               {km.toFixed(1)}<Text style={{ fontSize: 13, color: L.coral }}>km</Text>
             </Text>
           </Row>
-          <Text style={{ fontSize: 10.5, color: L.dim, marginTop: 4 }}>실측 {km.toFixed(2)}km · {mmssStr(elapsed)} — 이 기록으로 정산돼요</Text>
+          <Text style={{ fontSize: 10.5, color: L.dim, marginTop: 4 }}>
+            {active.length > 1
+              ? `함께 달린 누적 ${km.toFixed(2)}km · ${mmssStr(elapsed)} — 정산은 이 아이의 시작 시점부터 실측으로 계산돼요`
+              : `실측 ${km.toFixed(2)}km · ${mmssStr(elapsed)} — 이 기록으로 정산돼요`}
+          </Text>
           <ClubCta label="완주로 종료 →" onPress={() => endTarget && doSettle(endTarget, 'completed')} busy={busy} />
           <Text style={{ fontSize: 9.5, color: L.dim, marginTop: 14, marginBottom: 4, fontWeight: '700', letterSpacing: 1 }}>조기 종료</Text>
           {END_REASONS.map((r) => (
@@ -377,6 +480,10 @@ const s = StyleSheet.create({
     width: 58, height: 58, borderRadius: 29, backgroundColor: L.tang,
     alignItems: 'center', justifyContent: 'center',
     shadowColor: L.tang, shadowOpacity: 0.45, shadowRadius: 14, shadowOffset: { width: 0, height: 8 }, elevation: 5,
+  },
+  lagBanner: {
+    backgroundColor: L.amberSoft, borderWidth: 1, borderColor: L.amberEdge,
+    borderRadius: lilacRadius.inner, padding: 8, paddingHorizontal: 12, marginTop: 8,
   },
   camBtn: {
     width: 46, height: 46, borderRadius: 23, backgroundColor: L.card,

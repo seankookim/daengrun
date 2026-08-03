@@ -1771,7 +1771,13 @@ export async function fetchClubSession(sessionId: string): Promise<ClubSessionDe
 
 const clubRpc = async (fn: string, args: Record<string, unknown>): Promise<any> => {
   const { data, error } = await supabase.rpc(fn, args);
-  if (error) throw error;
+  if (error) {
+    // [감사 1] feature_disabled는 전 클럽 액션 공통 게이트 (_club_require_v2) — 한 곳에서 번역
+    if (error.message?.includes('feature_disabled')) {
+      throw new Error('위탁 기능이 아직 열리지 않았어요 — 허용목록 계정인지 확인해주세요');
+    }
+    throw error;
+  }
   return data;
 };
 export const registerClubInterest = (clubId: string) => clubRpc('club_register_interest', { p_club: clubId, p_wants: 'attend' }) as Promise<void>;
@@ -1945,6 +1951,9 @@ export const assignmentRevoke = (sdId: string, reason: string | null = null) =>
   clubRpc('session_assignment_revoke', { p_session_dog: sdId, p_reason: reason }) as Promise<void>;
 export const approveDelegation = (sdId: string, approve: boolean) =>
   clubRpc('session_approve_dog', { p_session_dog: sdId, p_approve: approve }) as Promise<string | null>;
+// [R4·감사 P0] 재검토 판정 — approved+review_needed 행은 session_approve_dog가 아니라 이 함수다 (0048)
+export const reviewDelegation = (sdId: string, approve: boolean) =>
+  clubRpc('session_review_dog', { p_session_dog: sdId, p_approve: approve }) as Promise<void>;
 export const assignDelegation = (sdId: string, runnerId: string) =>
   clubRpc('session_assign_dog', { p_session_dog: sdId, p_runner: runnerId }) as Promise<void>;
 export const commitAsHandler = (sessionId: string) =>
@@ -2003,11 +2012,12 @@ export const fetchChatWritable = (sessionId: string) =>
 export async function fetchClubChat(sessionId: string): Promise<{ uid: string | null; msgs: ClubChatMsg[] }> {
   const { data: user } = await supabase.auth.getUser();
   const uid = user.user?.id ?? null;
+  // [감사 P2] 최신 300건 (asc+limit은 '가장 오래된 300건'이라 넘치면 새 메시지가 영영 안 보였다)
   const { data, error } = await supabase.from('club_chat_messages')
     .select('id, sender_id, audience, recipient_profile_id, kind, body, media_path, flagged, deleted_at, created_at')
-    .eq('session_id', sessionId).order('id', { ascending: true }).limit(300);
+    .eq('session_id', sessionId).order('id', { ascending: false }).limit(300);
   if (error) throw error;
-  const rows = data ?? [];
+  const rows = (data ?? []).reverse();
   // 이름은 2-step (임베드 FK명 의존 없음 — fetchRecentReviews 선례)
   const ids = [...new Set(rows.map((r: any) => r.sender_id))];
   const names: Record<string, string> = {};
@@ -2434,7 +2444,14 @@ export async function fetchClubSeries(clubId: string): Promise<ClubSeries[]> {
   if (error) throw error;
   return (data ?? []) as ClubSeries[];
 }
-export const startClubSeries = (clubId: string, weekday: number, time: string, meetup: string, capacity = 12) =>
-  clubRpc('club_series_start', { p_club: clubId, p_weekday: weekday, p_time: time, p_meetup: meetup, p_capacity: capacity }) as Promise<string>;
+// [감사 P1] p_route·p_format 미전달로 자동 생성 세션이 전부 owner_only·무코스가 되던 결함 — 첫 세션과 동일하게 전파
+export const startClubSeries = (
+  clubId: string, weekday: number, time: string, meetup: string, capacity = 12,
+  routeId: string | null = null, format: 'owner_only' | 'delegated_only' | 'mixed' = 'owner_only',
+) =>
+  clubRpc('club_series_start', {
+    p_club: clubId, p_weekday: weekday, p_time: time, p_meetup: meetup, p_capacity: capacity,
+    p_route: routeId, p_format: format,
+  }) as Promise<string>;
 export const pauseClubSeries = (seriesId: string) =>
   clubRpc('club_series_pause', { p_series: seriesId }) as Promise<void>;

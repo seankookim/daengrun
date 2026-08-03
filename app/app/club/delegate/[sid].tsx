@@ -32,13 +32,17 @@ export default function DelegateConsentScreen() {
   const dog = dogs[dogIdx] ?? null;
   const ready = !!dog && emergency.trim().length >= 9;
 
-  const consent = useMemo((): DelegationConsent => ({
-    custodyAck: true,
-    emergencyContact: emergency.trim(),
-    pickupName: pickup.trim() || null,
-    vetLimitKrw: Number(vetLimit.replace(/[^0-9]/g, '')) || VET_DEFAULT,
-    photoConsent: photoOk,
-  }), [emergency, pickup, vetLimit, photoOk]);
+  const consent = useMemo((): DelegationConsent => {
+    // [감사 P1] '0'이 falsy라 조용히 20만으로 박제되던 것 — 명시적 입력은 그대로, 빈 값만 서버 기본값
+    const v = vetLimit.replace(/[^0-9]/g, '');
+    return {
+      custodyAck: true,
+      emergencyContact: emergency.trim(),
+      pickupName: pickup.trim() || null,
+      vetLimitKrw: v === '' ? null : Number(v),
+      photoConsent: photoOk,
+    };
+  }, [emergency, pickup, vetLimit, photoOk]);
 
   const submit = async () => {
     if (!dog || busy) return;

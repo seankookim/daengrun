@@ -21,14 +21,19 @@ export default function CaseDetail() {
   const { cid } = useLocalSearchParams<{ cid: string }>();
   const [inc, setInc] = useState<IncidentDetail | null>(null);
   const [denied, setDenied] = useState(false);
+  const [loadErr, setLoadErr] = useState(false);
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(() => {
     if (!cid) return;
-    fetchIncidentDetail(cid).then((d) => { setInc(d); setDenied(false); })
-      .catch((e) => { if ((e as Error).message.includes('not_case_party')) setDenied(true); });
+    fetchIncidentDetail(cid).then((d) => { setInc(d); setDenied(false); setLoadErr(false); })
+      .catch((e) => {
+        // [감사 P2] not_case_party 외 오류가 영구 '불러오는 중'으로 굳던 것 — SOS 직후 진입 화면이다
+        if ((e as Error).message.includes('not_case_party')) setDenied(true);
+        else setLoadErr(true);
+      });
   }, [cid]);
   useFocusEffect(useCallback(() => { load(); }, [load]));
   const onRefresh = () => { setRefreshing(true); Promise.resolve(load()).finally(() => setTimeout(() => setRefreshing(false), 400)); };
@@ -46,8 +51,10 @@ export default function CaseDetail() {
   if (!inc) {
     return (
       <DawnCanvas>
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontSize: 13, color: L.dim }}>불러오는 중...</Text>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <Text style={{ fontSize: 13, color: L.dim }}>{loadErr ? '케이스를 불러오지 못했어요' : '불러오는 중...'}</Text>
+          {loadErr && <ClubCta label="다시 시도" onPress={() => { setLoadErr(false); load(); }} style={{ alignSelf: 'stretch', paddingVertical: 17 }} />}
+          <ClubCta label="돌아가기" tone="quiet" onPress={() => router.back()} style={{ alignSelf: 'stretch' }} />
         </View>
       </DawnCanvas>
     );

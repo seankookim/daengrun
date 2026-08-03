@@ -79,17 +79,22 @@ export default function ClubPage() {
       const slot = SLOT_PRESETS[slotIdx].get();
       // 클럽 불변식 = 혼합 이벤트 (모든 개에 명시적 책임자 1인) — 위탁 문이 열리려면 mixed + 코스 필수
       await createClubSession(club.id, slot.toISOString(), meetup.trim(), cap, route.id, 'mixed');
+      // [감사 P1] 시리즈에 코스·포맷 미전파 → 자동 생성 세션이 전부 owner_only·무코스가 되던 것 + 실패 삼킴
+      let seriesOk = true;
       if (weekly) {
-        // ⟳ 매주 반복 (0035) — 같은 요일·시각으로 시리즈 등록, 다음 주부턴 크론이 연다
         const hh = String(slot.getHours()).padStart(2, '0');
         const mm = String(slot.getMinutes()).padStart(2, '0');
-        await startClubSeries(club.id, slot.getDay(), `${hh}:${mm}`, meetup.trim(), cap).catch(() => {});
+        await startClubSeries(club.id, slot.getDay(), `${hh}:${mm}`, meetup.trim(), cap, route.id, 'mixed')
+          .catch(() => { seriesOk = false; });
       }
       haptic('success');
       setSheetOpen(false);
       setMeetup('');
       load();
-      Alert.alert('세션이 열렸어요 🏁', weekly ? '다음 주부터는 매주 자동으로 열려요 ⟳' : '멤버들에게 보이기 시작해요');
+      Alert.alert('세션이 열렸어요 🏁',
+        weekly
+          ? seriesOk ? '다음 주부터는 매주 자동으로 열려요 ⟳' : '세션은 열렸지만 매주 반복 등록엔 실패했어요 — 다시 시도해주세요'
+          : '멤버들에게 보이기 시작해요');
     } catch (e) {
       Alert.alert('세션 개설 실패', (e as Error).message);
     } finally {
