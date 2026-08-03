@@ -21,6 +21,9 @@ import { colors, lilac, lilacRadius } from '../../src/theme';
 // 로직은 동결: 모든 훅·데이터 페치·핸들러·라우터 타깃·조건 가드 보존, JSX/StyleSheet만 재도색.
 // 2026-08-03 스케일 교정 라운드 (Sean 디바이스): 타입/스페이싱을 runner-FINAL.html 목업 px에 1:1 정합
 // (그랜마폰 ~1.75x 과대 제거). 빕 대형숫자 고정폭 열·₩+금액 baseline+gap 오버랩 픽스는 유지, 사이즈만 목업으로.
+// 2026-08-03 정밀 픽스 라운드 (FIX3): BUG A — 모든 대형 Oswald 숫자에 lineHeight ≥1.2×fontSize,
+// includeFontPadding:false 제거 (0의 상단 잘림 "UU"/"₩U" 픽스). 디테일 텍스트 12–15pt 밴드(플로어 11.5)로
+// 승급 — 키커·모노태그·키/값·장부 캡션·행 라벨·섹션 룰·요일칩 시간·완료 메타. 히어로/빅넘버 크기는 동결.
 
 const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0]; // 월…일
 const DAY_NAME = '일월화수목금토';
@@ -131,7 +134,7 @@ function LedgerRow({ label, sub, value, unit, nf, total }: {
 }) {
   return (
     <Row style={[styles.lr, total && { borderBottomWidth: 0 }]}>
-      <View style={{ width: 78 }}>
+      <View style={{ width: 86 }}>
         <Text style={styles.lrLabel}>{label}</Text>
         <Text style={styles.lrSub}>{sub}</Text>
       </View>
@@ -350,7 +353,7 @@ export default function RunnerHome() {
                     <PulseRings color={lilac.coral} size={14} />
                     <View style={{ width: 7, height: 7, borderRadius: 3.5, backgroundColor: lilac.coral }} />
                   </View>
-                  <Text style={{ fontSize: 11, fontWeight: '700', color: STAGE[current.rawStatus]?.color ?? CORAL_INK }}>
+                  <Text style={{ fontSize: 12.5, lineHeight: 17, fontWeight: '700', color: STAGE[current.rawStatus]?.color ?? CORAL_INK }}>
                     {STAGE[current.rawStatus]?.label ?? current.rawStatus}
                   </Text>
                 </Row>
@@ -478,7 +481,7 @@ export default function RunnerHome() {
           </>
         ) : (
           <View style={styles.emptyInbox}>
-            <Text style={{ fontSize: 11, color: lilac.dim, textAlign: 'center', lineHeight: 16 }}>
+            <Text style={{ fontSize: 12.5, color: lilac.dim, textAlign: 'center', lineHeight: 18 }}>
               {rs.online ? '지금은 새 요청이 없어요 — 오는 대로 여기에 떠요' : '오프라인 상태 — 켜야 요청을 받아요'}
             </Text>
           </View>
@@ -502,7 +505,7 @@ export default function RunnerHome() {
                       <View style={[styles.stopPt, on && styles.stopPtOn]}>
                         {on && <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: lilac.coral }} />}
                       </View>
-                      <View style={{ width: 46 }}>
+                      <View style={{ width: 52 }}>
                         <Text style={[styles.stopTm, nf]}>{wt}</Text>
                         <Text style={styles.stopTmSub}>{on ? '지금' : wd || '예정'}</Text>
                       </View>
@@ -530,14 +533,14 @@ export default function RunnerHome() {
                 ? null
                 : { next: '베테랑', at: 30, fee: '18%' };
             if (!t) {
-              return <Text style={{ fontSize: 12, fontWeight: '700', color: lilac.head }}>🏅 마스터 러너 — 최저 수수료 15%</Text>;
+              return <Text style={{ fontSize: 13, lineHeight: 18, fontWeight: '700', color: lilac.head }}>🏅 마스터 러너 — 최저 수수료 15%</Text>;
             }
             const left = Math.max(t.at - rs.totalRuns, 0);
             const pct = Math.min(rs.totalRuns / t.at, 1);
             return (
               <>
                 <Row style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
-                  <Text style={{ fontSize: 12, fontWeight: '700', color: lilac.head }}>
+                  <Text style={{ fontSize: 13, lineHeight: 18, fontWeight: '700', color: lilac.head }}>
                     {t.next}까지 러닝 <Text style={[{ fontSize: 14, color: CORAL_INK }, nf]}>{left}</Text>회
                   </Text>
                   <Text style={[styles.fee, nf]}>수수료 <Text style={{ color: lilac.dim, textDecorationLine: 'line-through' }}>20%</Text> → <Text style={{ color: lilac.voltDeep }}>{t.fee}</Text></Text>
@@ -552,7 +555,7 @@ export default function RunnerHome() {
                     );
                   })}
                 </Row>
-                <Text style={{ fontSize: 9.5, lineHeight: 14, color: lilac.dim, marginTop: 8 }}>
+                <Text style={{ fontSize: 12, lineHeight: 17, color: lilac.dim, marginTop: 8 }}>
                   같은 수익 기준 정산액이 늘어나요 · 승급 기준은 파일럿 중 조정될 수 있어요
                 </Text>
               </>
@@ -563,7 +566,7 @@ export default function RunnerHome() {
 
           {/* 보급 드랍 트레일 — 지그재그 체크포인트 (i<cycle5 지남=accent, i===cycle5 다음=accent 링, 끝=보급 상자) */}
           <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-            <Text style={{ fontSize: 12, fontWeight: '700', color: lilac.head }}>
+            <Text style={{ fontSize: 13, lineHeight: 18, fontWeight: '700', color: lilac.head }}>
               <Text style={{ color: lilac.gold }}>▣ </Text>보급 드랍 트레일
             </Text>
             <Text style={styles.trailCnt}>누적 {rs.totalRuns}회 ›</Text>
@@ -598,7 +601,7 @@ export default function RunnerHome() {
               </View>
             </View>
           </Row>
-          <Text style={{ fontSize: 11.5, fontWeight: '700', color: lilac.head, marginTop: 4 }}>
+          <Text style={{ fontSize: 12.5, lineHeight: 17, fontWeight: '700', color: lilac.head, marginTop: 4 }}>
             {rs.totalRuns === 0
               ? '첫 러닝을 완료하면 트레일이 시작돼요'
               : cycle5 === 0
@@ -618,7 +621,7 @@ export default function RunnerHome() {
         <SectionRule no="04" title="러닝 가능 시간" link="시간 조정 ›" onPress={() => router.push('/runner/availability')} />
         <View style={styles.card}>
           {!avail ? (
-            <Text style={{ fontSize: 11, color: lilac.dim }}>불러오는 중...</Text>
+            <Text style={{ fontSize: 12.5, color: lilac.dim }}>불러오는 중...</Text>
           ) : (
             <>
               <Row style={{ gap: 4 }}>
@@ -635,7 +638,7 @@ export default function RunnerHome() {
                   );
                 })}
               </Row>
-              <Text style={{ fontSize: 9.5, lineHeight: 14, color: lilac.dim, marginTop: 9 }}>
+              <Text style={{ fontSize: 12, lineHeight: 17, color: lilac.dim, marginTop: 9 }}>
                 요일을 탭하면 바로 열리고 닫혀요 (기본 06–22시) · 보호자 예약 화면에 즉시 반영
               </Text>
             </>
@@ -722,7 +725,7 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: 'rgba(34,30,61,0.16)',
   },
   brandmarkGlyph: { fontSize: 10, color: lilac.head, lineHeight: 12 },
-  crumb: { fontSize: 8.5, letterSpacing: 2.2, color: lilac.dim, fontWeight: '600' },
+  crumb: { fontSize: 12, lineHeight: 15, letterSpacing: 2, color: lilac.dim, fontWeight: '600' },
   bell: {
     width: 26, height: 26, borderRadius: 6, borderWidth: 1, borderColor: lilac.hair,
     backgroundColor: lilac.card, alignItems: 'center', justifyContent: 'center',
@@ -737,13 +740,13 @@ const styles = StyleSheet.create({
   rule: { flex: 1, height: 1, backgroundColor: lilac.hair },
   holo: { flexDirection: 'row', height: 3, position: 'absolute', top: 0, left: 0, right: 0, zIndex: 3 },
 
-  // 마스트헤드 — 목업 .kicker span 8px/.3em, margin-bottom 10
+  // 마스트헤드 — 키커: FIX3 디테일 밴드 12–15 (구 8px 목업값 → 12, 자간은 ≤2로 타이트닝)
   kicker: { alignItems: 'center', gap: 8, marginBottom: 10, marginTop: 2 },
-  kickerTxt: { fontSize: 8, letterSpacing: 2.4, color: lilac.dim, fontWeight: '600' },
+  kickerTxt: { fontSize: 12, lineHeight: 15, letterSpacing: 2, color: lilac.dim, fontWeight: '600' },
 
-  srNo: { fontSize: 8.5, letterSpacing: 1.36, color: lilac.accent, fontWeight: '700' },
-  srTitle: { fontSize: 12.5, fontWeight: '700', color: lilac.head },
-  srLink: { fontSize: 9.5, color: lilac.dim, fontWeight: '500' },
+  srNo: { fontSize: 12, lineHeight: 15, letterSpacing: 1.2, color: lilac.accent, fontWeight: '700' },
+  srTitle: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: lilac.head },
+  srLink: { fontSize: 12, lineHeight: 15, color: lilac.dim, fontWeight: '500' },
 
   // ① 빕
   bib: {
@@ -756,8 +759,8 @@ const styles = StyleSheet.create({
     position: 'absolute', width: 7, height: 7, borderRadius: 3.5, backgroundColor: lilac.inset,
     borderWidth: 1, borderColor: lilac.hair, zIndex: 2,
   },
-  bibOrg: { fontSize: 8, letterSpacing: 1.9, color: lilac.dim, fontWeight: '600', marginBottom: 5 },
-  bibName: { fontSize: 31, color: lilac.head, lineHeight: 30 },
+  bibOrg: { fontSize: 12, lineHeight: 15, letterSpacing: 1.6, color: lilac.dim, fontWeight: '600', marginBottom: 6 },
+  bibName: { fontSize: 31, color: lilac.head, lineHeight: 37 }, // 사이즈 동결 · lineHeight 1.2×로 상단 잘림 방지
   bibNameEm: { fontSize: 12, color: lilac.dim, fontWeight: '600' },
   swTrack: { width: 44, height: 25, borderRadius: 99, padding: 3, flexDirection: 'row' },
   swTrackOn: {
@@ -766,44 +769,47 @@ const styles = StyleSheet.create({
   },
   swTrackOff: { backgroundColor: lilac.inset, justifyContent: 'flex-start', borderWidth: 1, borderColor: lilac.hair },
   swKnob: { width: 19, height: 19, borderRadius: 9.5, backgroundColor: '#fff', shadowColor: '#1C1837', shadowOpacity: 0.3, shadowRadius: 2, shadowOffset: { width: 0, height: 1 } },
-  swLabel: { fontSize: 8, letterSpacing: 1.44, fontWeight: '700' },
-  // 대형숫자 열 — 고정폭 88로 경계 (2자리 "07" ~76px가 안에 완전히 들어감 · gap 12 + 좌측보더로 사이드 스탯과 절대 충돌 안함)
-  bibNoCol: { width: 88, flexShrink: 0 },
-  bibNo: { fontSize: 74, color: lilac.head, lineHeight: 62, letterSpacing: -1.5, includeFontPadding: false },
-  bibNoCap: { marginTop: 6, fontSize: 10, fontWeight: '600', color: lilac.text, lineHeight: 13 },
+  swLabel: { fontSize: 11.5, lineHeight: 14, letterSpacing: 1.2, fontWeight: '700' },
+  // 대형숫자 열 — 고정폭 100으로 경계 (2자리 "07" ~76px + 캡션 12pt 한 줄이 안에 완전히 들어감
+  // · gap 12 + 좌측보더로 사이드 스탯과 절대 충돌 안함)
+  bibNoCol: { width: 100, flexShrink: 0 },
+  // BUG A: lineHeight 92 = 1.24×74 — Oswald 어센더 확보, includeFontPadding 제거 → "0" 상단 온전한 타원
+  bibNo: { fontSize: 74, color: lilac.head, lineHeight: 92, letterSpacing: -1.5 },
+  bibNoCap: { marginTop: 4, fontSize: 12, fontWeight: '600', color: lilac.text, lineHeight: 16 },
   bibSide: { flex: 1, minWidth: 0, borderLeftWidth: 1, borderLeftColor: lilac.hair2, paddingLeft: 11, paddingBottom: 3 },
   bsRow: { justifyContent: 'space-between', alignItems: 'baseline', gap: 6, paddingVertical: 5 },
   bsRowTop: { borderTopWidth: 1, borderTopColor: lilac.hair2 },
-  bsK: { fontSize: 7.5, letterSpacing: 1.35, color: lilac.dim, fontWeight: '600' },
-  bsV: { fontSize: 11, fontWeight: '600', color: lilac.head },
-  bsVNum: { fontSize: 12.5, color: lilac.head },
+  bsK: { fontSize: 12, lineHeight: 15, letterSpacing: 1.3, color: lilac.dim, fontWeight: '600' },
+  bsV: { fontSize: 13, lineHeight: 18, fontWeight: '600', color: lilac.head },
+  bsVNum: { fontSize: 14, color: lilac.head },
   bibFoot: {
     marginTop: 13, borderTopWidth: 1.5, borderTopColor: '#DCD7F0', borderStyle: 'dashed',
     justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 9, backgroundColor: lilac.card,
   },
-  bibFootTxt: { fontSize: 8.5, letterSpacing: 1.7, color: lilac.dim, fontWeight: '500' },
+  bibFootTxt: { fontSize: 12, lineHeight: 15, letterSpacing: 1.5, color: lilac.dim, fontWeight: '500' },
 
   // ② 장부 — 목업 .l-in padding 11 12 10
   ledgerIn: { borderWidth: 1, borderColor: lilac.hair2, borderRadius: lilacRadius.inner, paddingHorizontal: 12, paddingTop: 11, paddingBottom: 10, overflow: 'hidden' },
   lGlyph: { width: 16, height: 16, borderRadius: 5, backgroundColor: lilac.accent, alignItems: 'center', justifyContent: 'center' },
-  lBrand: { fontSize: 8.5, letterSpacing: 1.7, color: lilac.head, fontWeight: '700' },
+  lBrand: { fontSize: 12, lineHeight: 15, letterSpacing: 1.5, color: lilac.head, fontWeight: '700' },
   monoTagV: { borderWidth: 1, borderColor: '#DCD6F8', backgroundColor: '#F4F1FE', borderRadius: lilacRadius.tag, paddingHorizontal: 6, paddingVertical: 2 },
-  monoTagVTxt: { fontSize: 8.5, letterSpacing: 1.2, color: lilac.accent, fontWeight: '600' },
+  monoTagVTxt: { fontSize: 12, lineHeight: 15, letterSpacing: 1, color: lilac.accent, fontWeight: '600' },
   monoTagStar: { borderWidth: 1, borderColor: lilac.amberEdge, backgroundColor: lilac.amberSoft, borderRadius: lilacRadius.tag, paddingHorizontal: 6, paddingVertical: 2 },
-  monoTagStarTxt: { fontSize: 8.5, letterSpacing: 1.2, color: lilac.amber, fontWeight: '700' },
+  monoTagStarTxt: { fontSize: 12, lineHeight: 15, letterSpacing: 1, color: lilac.amber, fontWeight: '700' },
   // ₩와 금액은 baseline 정렬 · won은 flexShrink 0로 자기 폭 확보, 금액은 numberOfLines 1 (오버랩 FIX #2)
-  won: { fontSize: 20, color: CORAL_INK, lineHeight: 20, flexShrink: 0 },
-  lBig: { fontSize: 46, color: lilac.head, lineHeight: 44, letterSpacing: 0.2, includeFontPadding: false, flexShrink: 1 },
-  lCap: { marginTop: 6, fontSize: 10, color: lilac.dim, lineHeight: 14.5 },
+  // BUG A: 둘 다 lineHeight ≥1.2×fontSize, includeFontPadding 제거 → "₩0"의 0이 온전한 타원으로
+  won: { fontSize: 20, color: CORAL_INK, lineHeight: 25, flexShrink: 0 },
+  lBig: { fontSize: 46, color: lilac.head, lineHeight: 58, letterSpacing: 0.2, flexShrink: 1 },
+  lCap: { marginTop: 6, fontSize: 12.5, color: lilac.dim, lineHeight: 18 },
   lr: { alignItems: 'baseline', gap: 7, paddingTop: 7, paddingBottom: 6, borderBottomWidth: 1, borderBottomColor: lilac.hair2 },
-  lrLabel: { fontSize: 10.5, fontWeight: '600', color: lilac.head },
-  lrSub: { fontSize: 7, letterSpacing: 1.26, color: lilac.dim, fontWeight: '500', marginTop: 1 },
+  lrLabel: { fontSize: 13, lineHeight: 17, fontWeight: '600', color: lilac.head },
+  lrSub: { fontSize: 11.5, lineHeight: 14, letterSpacing: 1.1, color: lilac.dim, fontWeight: '500', marginTop: 2 },
   lead: { flex: 1, borderBottomWidth: 1, borderStyle: 'dotted', borderBottomColor: '#D5CFEC', transform: [{ translateY: -3 }] },
-  lrVal: { fontSize: 9.5, fontWeight: '500', color: lilac.text },
+  lrVal: { fontSize: 12, lineHeight: 18, fontWeight: '500', color: lilac.text },
   lrValNum: { fontSize: 14, color: lilac.head },
   lFoot: { justifyContent: 'space-between', alignItems: 'center', gap: 8, marginTop: 9, paddingTop: 8, borderTopWidth: 1, borderTopColor: lilac.hair2 },
-  lFootTxt: { fontSize: 9.5, color: lilac.dim, flex: 1 },
-  lFootLink: { fontSize: 10, fontWeight: '700', color: lilac.accent },
+  lFootTxt: { fontSize: 12, lineHeight: 17, color: lilac.dim, flex: 1 },
+  lFootLink: { fontSize: 12.5, lineHeight: 16, fontWeight: '700', color: lilac.accent },
 
   // 진행 중 — 목업 .now padding 11 12 12 14
   now: {
@@ -812,9 +818,9 @@ const styles = StyleSheet.create({
     shadowColor: '#1C1837', shadowOpacity: 0.08, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 2,
   },
   nowEdge: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, backgroundColor: lilac.coral },
-  nowWhen: { fontSize: 10, letterSpacing: 1.4, color: lilac.dim, fontWeight: '500' },
-  nowTitle: { marginTop: 8, fontSize: 16, fontWeight: '700', color: lilac.head },
-  nowSub: { marginTop: 3, fontSize: 10, color: lilac.dim },
+  nowWhen: { fontSize: 12, lineHeight: 15, letterSpacing: 1.2, color: lilac.dim, fontWeight: '500' },
+  nowTitle: { marginTop: 8, fontSize: 16, lineHeight: 21, fontWeight: '700', color: lilac.head },
+  nowSub: { marginTop: 3, fontSize: 12.5, lineHeight: 17, color: lilac.dim },
   btnCoral: {
     borderRadius: lilacRadius.btn, alignItems: 'center', justifyContent: 'center', paddingVertical: 13, backgroundColor: CORAL_INK,
     borderWidth: 1, borderColor: CORAL_INK_DEEP,
@@ -828,14 +834,15 @@ const styles = StyleSheet.create({
   ticket: { marginTop: 9, shadowColor: '#1C1837', shadowOpacity: 0.1, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 3 },
   tMain: { backgroundColor: lilac.card, borderTopLeftRadius: lilacRadius.card, borderTopRightRadius: lilacRadius.card, borderWidth: 1, borderBottomWidth: 0, borderColor: lilac.hair2, overflow: 'hidden' },
   tGlyph: { width: 16, height: 16, borderRadius: 5, backgroundColor: lilac.accent, alignItems: 'center', justifyContent: 'center' },
-  tBrand: { fontSize: 9, letterSpacing: 1.8, color: lilac.head, fontWeight: '700' },
-  tBig: { fontSize: 31, color: lilac.head, lineHeight: 33, includeFontPadding: false },
-  tWhere: { fontSize: 13.5, fontWeight: '600', color: lilac.head },
-  tWhereSub: { fontSize: 10, color: lilac.dim },
-  factK: { fontSize: 8, letterSpacing: 1.44, color: lilac.dim, fontWeight: '600', marginBottom: 3 },
-  factV: { fontSize: 12, fontWeight: '600', color: lilac.head },
+  tBrand: { fontSize: 12, lineHeight: 15, letterSpacing: 1.5, color: lilac.head, fontWeight: '700' },
+  // BUG A: 티켓 시각 31pt → lineHeight 39 (1.26×), includeFontPadding 제거 — "0" 상단 온전
+  tBig: { fontSize: 31, color: lilac.head, lineHeight: 39 },
+  tWhere: { fontSize: 13.5, lineHeight: 18, fontWeight: '600', color: lilac.head },
+  tWhereSub: { fontSize: 12, lineHeight: 16, color: lilac.dim },
+  factK: { fontSize: 12, lineHeight: 15, letterSpacing: 1.2, color: lilac.dim, fontWeight: '600', marginBottom: 3 },
+  factV: { fontSize: 12.5, lineHeight: 18, fontWeight: '600', color: lilac.head },
   factVNum: { fontSize: 14, color: lilac.head },
-  factVUnit: { fontSize: 9.5, fontWeight: '500', color: lilac.text },
+  factVUnit: { fontSize: 11.5, fontWeight: '500', color: lilac.text },
   factDiv: { flex: 1, borderLeftWidth: 1, borderLeftColor: lilac.hair2, paddingLeft: 10 },
   perfWrap: { backgroundColor: lilac.card, borderLeftWidth: 1, borderRightWidth: 1, borderColor: lilac.hair2, position: 'relative' },
   perf: { borderTopWidth: 1.5, borderTopColor: '#DCD7F0', borderStyle: 'dashed' },
@@ -844,70 +851,71 @@ const styles = StyleSheet.create({
   door: { flex: 1, borderRadius: lilacRadius.btn, paddingVertical: 12, paddingHorizontal: 11, overflow: 'hidden' },
   doorCoral: { backgroundColor: CORAL_INK, borderWidth: 1, borderColor: CORAL_INK_DEEP, shadowColor: lilac.coral, shadowOpacity: 0.34, shadowRadius: 16, shadowOffset: { width: 0, height: 6 } },
   doorQuiet: { backgroundColor: lilac.inset, borderWidth: 1, borderColor: lilac.hair },
-  doorName: { fontSize: 14.5, fontWeight: '800' },
-  doorSub: { marginTop: 4, fontSize: 9 },
+  doorName: { fontSize: 14.5, lineHeight: 19, fontWeight: '800' },
+  doorSub: { marginTop: 4, fontSize: 11.5, lineHeight: 15 },
   doorSubNum: { fontSize: 12 },
 
-  // 스텁 행 — 목업 .s-act width 92
+  // 스텁 행 — 목업 .s-act width 92 → 96 (FIX3: 11.5pt 캡션 한 줄 여유 확보, 구조는 동일)
   stub: { flexDirection: 'row', backgroundColor: lilac.card, borderWidth: 1, borderColor: lilac.hair2, borderRadius: lilacRadius.card, overflow: 'hidden', shadowColor: '#1C1837', shadowOpacity: 0.08, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 2 },
-  stubNm: { fontSize: 13.5, fontWeight: '700', color: lilac.head },
-  stubKm: { fontSize: 13, fontWeight: '600', color: lilac.head },
-  stubKmUnit: { fontSize: 9, color: CORAL_INK, fontWeight: '600' },
-  stubWhen: { fontSize: 10, color: lilac.dim, fontWeight: '500' },
-  stubAct: { width: 92, borderLeftWidth: 1.4, borderStyle: 'dashed', borderLeftColor: '#DCD7F0', paddingVertical: 11, paddingHorizontal: 8, alignItems: 'center', justifyContent: 'center', gap: 7 },
+  stubNm: { fontSize: 13.5, lineHeight: 18, fontWeight: '700', color: lilac.head },
+  stubKm: { fontSize: 13, lineHeight: 17, fontWeight: '600', color: lilac.head },
+  stubKmUnit: { fontSize: 11.5, color: CORAL_INK, fontWeight: '600' },
+  stubWhen: { fontSize: 12, lineHeight: 16, color: lilac.dim, fontWeight: '500' },
+  stubAct: { width: 96, borderLeftWidth: 1.4, borderStyle: 'dashed', borderLeftColor: '#DCD7F0', paddingVertical: 11, paddingHorizontal: 8, alignItems: 'center', justifyContent: 'center', gap: 7 },
   stubNotch: { position: 'absolute', left: -6, width: 12, height: 12, borderRadius: 6, backgroundColor: lilac.bg, borderWidth: 1, borderColor: lilac.hair2, zIndex: 3 },
-  stubFare: { fontSize: 17, color: lilac.head, includeFontPadding: false },
-  stubFareCap: { fontSize: 7.5, letterSpacing: 1.35, color: lilac.dim, fontWeight: '500', marginTop: 3 },
+  // BUG A: 스텁 요금 17pt → lineHeight 22 (1.29×), includeFontPadding 제거
+  stubFare: { fontSize: 17, lineHeight: 22, color: lilac.head },
+  stubFareCap: { fontSize: 11.5, lineHeight: 14, letterSpacing: 1, color: lilac.dim, fontWeight: '500', marginTop: 2 },
   accept: { width: '100%', borderRadius: lilacRadius.btn, paddingVertical: 9, alignItems: 'center', backgroundColor: CORAL_INK, borderWidth: 1, borderColor: CORAL_INK_DEEP },
-  acceptTxt: { fontSize: 12, fontWeight: '700', color: '#fff' },
+  acceptTxt: { fontSize: 12.5, fontWeight: '700', color: '#fff' },
   stubMore: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8, borderWidth: 1, borderStyle: 'dashed', borderColor: lilac.hair, borderRadius: lilacRadius.card, paddingVertical: 9, paddingHorizontal: 11, backgroundColor: lilac.glass },
-  stubMoreTxt: { fontSize: 10, color: lilac.text, flex: 1 },
-  stubMoreLink: { fontSize: 9.5, fontWeight: '700', color: lilac.accent },
+  stubMoreTxt: { fontSize: 12.5, lineHeight: 17, color: lilac.text, flex: 1 },
+  stubMoreLink: { fontSize: 12, fontWeight: '700', color: lilac.accent },
   emptyInbox: { marginTop: 9, backgroundColor: lilac.inset, borderRadius: lilacRadius.card, padding: 16, borderWidth: 1, borderColor: lilac.hair },
 
   // ② 루트 — 목업 .stop padding 7 0 8, gap 11
   stop: { flexDirection: 'row', alignItems: 'flex-start', gap: 11, paddingTop: 7, paddingBottom: 8 },
   stopPt: { width: 14, height: 14, borderRadius: 7, marginTop: 2, backgroundColor: lilac.card, borderWidth: 1.5, borderColor: '#DCD6F8', alignItems: 'center', justifyContent: 'center' },
   stopPtOn: { borderColor: lilac.coral },
-  stopTm: { fontSize: 14, fontWeight: '600', color: lilac.head },
-  stopTmSub: { fontSize: 8.5, color: lilac.dim, fontWeight: '500', marginTop: 2 },
-  stopInfoB: { fontSize: 12, fontWeight: '600', color: lilac.head },
-  stopInfoS: { fontSize: 9.5, color: lilac.dim, marginTop: 2 },
-  stopPay: { fontSize: 12.5, fontWeight: '600', color: lilac.head, marginTop: 1 },
+  stopTm: { fontSize: 14, lineHeight: 18, fontWeight: '600', color: lilac.head },
+  stopTmSub: { fontSize: 12, lineHeight: 15, color: lilac.dim, fontWeight: '500', marginTop: 2 },
+  stopInfoB: { fontSize: 13, lineHeight: 17, fontWeight: '600', color: lilac.head },
+  stopInfoS: { fontSize: 12, lineHeight: 16, color: lilac.dim, marginTop: 2 },
+  stopPay: { fontSize: 12.5, lineHeight: 16, fontWeight: '600', color: lilac.head, marginTop: 1 },
 
   // ③ 리워드
-  fee: { fontSize: 10, letterSpacing: 0.6, color: lilac.head, fontWeight: '600' },
+  fee: { fontSize: 12, lineHeight: 15, letterSpacing: 0.5, color: lilac.head, fontWeight: '600' },
   rung: { flex: 1, height: 6, backgroundColor: lilac.inset, borderWidth: 1, borderColor: lilac.hair, overflow: 'hidden' },
   rungL: { borderTopLeftRadius: 99, borderBottomLeftRadius: 99 },
   rungR: { borderTopRightRadius: 99, borderBottomRightRadius: 99 },
   rungFill: { height: '100%', backgroundColor: lilac.accent },
-  trailCnt: { fontSize: 9, letterSpacing: 1.1, color: lilac.accent, fontWeight: '500' },
-  flagLb: { fontSize: 8, letterSpacing: 1.44, color: lilac.dim, fontWeight: '600' },
+  trailCnt: { fontSize: 12, lineHeight: 15, letterSpacing: 1, color: lilac.accent, fontWeight: '500' },
+  flagLb: { fontSize: 11.5, lineHeight: 14, letterSpacing: 1.2, color: lilac.dim, fontWeight: '600' },
   flagTrack: { flex: 1, height: 5, borderRadius: 99, backgroundColor: lilac.inset, overflow: 'hidden', borderWidth: 1, borderColor: lilac.hair },
   flagFill: { height: '100%', borderRadius: 99, backgroundColor: lilac.accent },
-  flagCnt: { fontSize: 10, fontWeight: '600', color: lilac.head },
+  flagCnt: { fontSize: 12, lineHeight: 15, fontWeight: '600', color: lilac.head },
 
   // ④ 가능 시간 — 목업 .day padding 8 0 7
   day: { flex: 1, borderRadius: lilacRadius.inner, paddingVertical: 8, alignItems: 'center', backgroundColor: lilac.card, borderWidth: 1, borderColor: lilac.hair },
   dayOn: { backgroundColor: '#F4F1FE', borderColor: '#DCD6F8' },
-  dayD: { fontSize: 13, fontWeight: '700', lineHeight: 15 },
-  dayH: { fontSize: 8, letterSpacing: 0.48, fontWeight: '500', marginTop: 4 },
+  dayD: { fontSize: 13, fontWeight: '700', lineHeight: 16 },
+  dayH: { fontSize: 11.5, lineHeight: 14, letterSpacing: 0.4, fontWeight: '500', marginTop: 4 },
 
   // ⑤ 최근 완료 — 목업 .drow padding 10 11, patch 34
   drow: { alignItems: 'center', gap: 10, paddingHorizontal: 11, paddingVertical: 10 },
   patchFallback: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#1C1837', alignItems: 'center', justifyContent: 'center' },
-  patchFallbackTxt: { fontSize: 11, color: '#CFC4FF', fontWeight: '600' },
-  drowB: { fontSize: 11.5, fontWeight: '600', color: lilac.head },
-  drowS: { fontSize: 9, color: lilac.dim, marginTop: 2 },
-  drowPay: { fontSize: 12, fontWeight: '600', color: lilac.text },
+  patchFallbackTxt: { fontSize: 11.5, lineHeight: 15, color: '#CFC4FF', fontWeight: '600' },
+  drowB: { fontSize: 12.5, lineHeight: 16, fontWeight: '600', color: lilac.head },
+  drowS: { fontSize: 12, lineHeight: 15, color: lilac.dim, marginTop: 3 },
+  drowPay: { fontSize: 12, lineHeight: 15, fontWeight: '600', color: lilac.text },
   shot: { borderWidth: 1, borderColor: lilac.hair, backgroundColor: lilac.card, borderRadius: lilacRadius.tag, paddingVertical: 4, paddingHorizontal: 6 },
-  shotTxt: { fontSize: 8.5, fontWeight: '600', color: lilac.head },
+  shotTxt: { fontSize: 11.5, fontWeight: '600', color: lilac.head },
 
   // 퀵 링크 + 푸터 — 목업 .qlink padding 10 11
   qlink: { flexBasis: '48%', flexGrow: 1, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 6, backgroundColor: lilac.glass, borderWidth: 1, borderStyle: 'dashed', borderColor: lilac.hair, borderRadius: lilacRadius.card, paddingVertical: 10, paddingHorizontal: 11 },
-  qlinkB: { fontSize: 10.5, fontWeight: '600', color: lilac.head },
-  qlinkChev: { fontSize: 10, color: lilac.dim },
+  qlinkB: { fontSize: 12.5, fontWeight: '600', color: lilac.head },
+  qlinkChev: { fontSize: 12, color: lilac.dim },
   foot: { alignItems: 'center', gap: 6, paddingTop: 10, marginTop: 12, borderTopWidth: 1, borderTopColor: lilac.hair },
-  footTxt: { fontSize: 9, letterSpacing: 0.2, color: lilac.dim },
+  footTxt: { fontSize: 12, lineHeight: 15, letterSpacing: 0.2, color: lilac.dim },
   footDot: { width: 2, height: 2, borderRadius: 1, backgroundColor: lilac.hair },
 });

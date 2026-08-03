@@ -65,20 +65,7 @@ function HoloSquare({ id }: { id: string }) {
   );
 }
 
-// 바이올렛 틴트 헤더 그라디언트 (#F4F1FE → #EAE4FC) — CSS linear-gradient 대체.
-function TintGrad({ id }: { id: string }) {
-  return (
-    <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" viewBox="0 0 100 40" preserveAspectRatio="none">
-      <Defs>
-        <LinearGradient id={id} x1="0" y1="0" x2="1" y2="1">
-          <Stop offset="0" stopColor="#F4F1FE" />
-          <Stop offset="1" stopColor="#EAE4FC" />
-        </LinearGradient>
-      </Defs>
-      <Rect x="0" y="0" width="100" height="40" fill={`url(#${id})`} />
-    </Svg>
-  );
-}
+// [3차 피드백] 헤더 Svg 그라디언트가 기기에서 잘린 어두운 밴드로 렌더 → 플랫 틴트로 교체 (clubTop bg).
 
 export function useClubOverview(): [ClubOverview | null, () => void] {
   const [club, setClub] = useState<ClubOverview | null>(null);
@@ -185,20 +172,11 @@ function ClubBanner({ club, role, reload }: { club: ClubOverview; role: 'owner' 
   const left = ns ? Math.max(0, ns.capacity - ns.rsvpCount) : 0;
   const active = club.status === 'active';
 
-  const claim = () => claimClubHost(club.id)
-    .then(() => { Alert.alert('호스트가 됐어요 🏁', '클럽 페이지에서 첫 세션을 열어보세요'); reload(); })
-    .catch((e) => Alert.alert('호스트 클레임', (e as Error).message.includes('not_certified') ? '인증 러너만 호스트가 될 수 있어요' : (e as Error).message));
-
-  const onPress = () => {
-    if (club.status === 'active' && ns) {
-      router.push({ pathname: `/club/session/${ns.id}`, params: { clubName: club.name } });
-    } else {
-      router.push(`/club/${club.id}`);
-    }
-  };
-
-  // 루트-허브 랜딩 — onPress else 브랜치와 동일 타깃(/club/${club.id}). 콰이엇 CTA 전용으로 노출.
-  const openHub = () => router.push(`/club/${club.id}`);
+  // [홈 = 루트, Sean 3차 확정] 카드 탭 = 항상 클럽 홈 — 문 하나. 세션·참여·호스트 클레임은 전부
+  // 클럽 홈(티켓·콘솔 행·collecting 카드)이 가진다. 카드 자체는 공개 세션 정보를 즉시 보여준다.
+  // (2차 리라이트에서 세션 직행 분기가 되살아났던 회귀를 다시 제거. 러너 클레임 경로는 DemandTicket 유지.)
+  const onPress = () => router.push(`/club/${club.id}`);
+  void role; void reload; // 시그니처 유지 (클레임·역할 분기는 홈으로 이관)
 
   // 모노그램 = 클럽명 첫 글자 (기본 정체성). 다음 세션 요일/시각은 기존 ns.when(kstParts) 파싱.
   const initial = (club.name ?? '').trim().charAt(0) || '·';
@@ -217,22 +195,10 @@ function ClubBanner({ club, role, reload }: { club: ClubOverview; role: 'owner' 
       ? '모집 중'
       : `멤버 ${club.memberCount}`;
 
-  // 메인 CTA — 기존 핸들러/카피 매핑 유지: collecting+runner=claim, 그 외=onPress(세션/랜딩)
-  const mainIsClaim = club.status === 'collecting' && role === 'runner';
-  const mainLabel = mainIsClaim
-    ? '호스트 되기 ›'
-    : active && ns && joined
-      ? '세션 보기 ›'
-      : active && ns
-        ? '참여하기 ›'
-        : '클럽 보기 ›';
-  const mainOnPress = mainIsClaim ? claim : onPress;
-
   return (
     <Pressable onPress={onPress} style={s.clubCard}>
-      {/* 헤더 행 — 바이올렛 틴트 그라디언트 + 홀로 모노그램 + 킥커/클럽명 + 모노 태그 */}
+      {/* 헤더 행 — 플랫 바이올렛 틴트 + 홀로 모노그램 + 킥커/클럽명 + 모노 태그 */}
       <View style={s.clubTop}>
-        <TintGrad id="club-tint" />
         <View style={s.clubMono}>
           <HoloSquare id="club-holo" />
           <Text style={[s.clubMonoText, df]}>{initial}</Text>
@@ -303,13 +269,10 @@ function ClubBanner({ club, role, reload }: { club: ClubOverview; role: 'owner' 
           )}
         </View>
 
-        {/* CTA 2개 — 바이올렛 메인 + 콰이엇 인셋 (기존 핸들러/타깃 재사용) */}
+        {/* CTA 하나 — 문은 클럽 홈뿐 (Sean 3차: 두 버튼의 차이가 불명확 → 홈이 모든 갈래를 가진다) */}
         <View style={s.clubCta}>
-          <Pressable onPress={mainOnPress} style={s.ctaMain}>
-            <Text style={s.ctaMainText}>{mainLabel}</Text>
-          </Pressable>
-          <Pressable onPress={openHub} style={s.ctaQuiet}>
-            <Text style={s.ctaQuietText}>클럽 홈 ›</Text>
+          <Pressable onPress={onPress} style={s.ctaMain}>
+            <Text style={s.ctaMainText}>클럽 홈 ›</Text>
           </Pressable>
         </View>
       </View>
@@ -474,11 +437,11 @@ const s = StyleSheet.create({
   },
   clubDbl: { position: 'absolute', top: 4, left: 4, right: 4, bottom: 4, borderWidth: 1, borderColor: lilac.hair2, borderRadius: lilacRadius.inner },
   // 헤더 행 — 틴트 그라디언트 + 하단 헤어라인
-  clubTop: { position: 'relative', flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 12, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: '#E0D9FA' },
+  clubTop: { position: 'relative', flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 12, paddingVertical: 11, backgroundColor: VIOLET_TINT, borderBottomWidth: 1, borderBottomColor: '#E0D9FA' },
   clubMono: { width: 32, height: 32, borderRadius: 6, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.7)' },
   clubMonoText: { fontSize: 17, color: lilac.head, includeFontPadding: false },
-  clubKk: { fontSize: 10, fontWeight: '700', letterSpacing: 1.6, color: lilac.accent, textTransform: 'uppercase', marginBottom: 2 },
-  clubName: { fontSize: 16, fontWeight: '800', color: lilac.head, letterSpacing: -0.2 },
+  clubKk: { fontSize: 12, fontWeight: '700', letterSpacing: 1.3, color: lilac.accent, textTransform: 'uppercase', marginBottom: 2 },
+  clubName: { fontSize: 17, fontWeight: '800', color: lilac.head, letterSpacing: -0.2 },
   hostTag: { borderWidth: 1, borderColor: VIOLET_TINT_EDGE, backgroundColor: lilac.accent, borderRadius: lilacRadius.tag, paddingHorizontal: 6, paddingVertical: 3 },
   hostTagText: { fontSize: 10, fontWeight: '800', letterSpacing: 1, color: '#fff' },
   monoTag: { borderWidth: 1, borderColor: '#DCD6F8', backgroundColor: lilac.card, borderRadius: lilacRadius.tag, paddingHorizontal: 7, paddingVertical: 3 },
@@ -488,12 +451,12 @@ const s = StyleSheet.create({
   clubWhen: { flexDirection: 'row', alignItems: 'baseline', gap: 7 },
   clubWhenD: { fontSize: 18, color: lilac.accent, includeFontPadding: false },
   clubWhenT: { fontSize: 18, fontWeight: '700', color: lilac.head, fontVariant: ['tabular-nums'] },
-  clubWhenSub: { flex: 1, fontSize: 12, color: lilac.dim },
+  clubWhenSub: { flex: 1, fontSize: 13, color: lilac.dim },
   clubBodyLine: { fontSize: 13.5, color: lilac.text, lineHeight: 20 },
   clubMeta: { flexDirection: 'row', marginTop: 10, borderTopWidth: 1, borderTopColor: lilac.hair2, paddingTop: 9 },
   clubCell: { flex: 1 },
   clubCellDiv: { borderLeftWidth: 1, borderLeftColor: lilac.hair2, paddingLeft: 10 },
-  clubK: { fontSize: 9.5, fontWeight: '600', letterSpacing: 1.1, color: lilac.dim, textTransform: 'uppercase', marginBottom: 3 },
+  clubK: { fontSize: 11.5, fontWeight: '600', letterSpacing: 1, color: lilac.dim, textTransform: 'uppercase', marginBottom: 3 },
   clubV: { fontSize: 14, fontWeight: '700', color: lilac.head },
   clubNum: { fontSize: 15.5, fontWeight: '800', color: lilac.head, fontVariant: ['tabular-nums'] },
   clubCta: { flexDirection: 'row', gap: 8, marginTop: 11 },
