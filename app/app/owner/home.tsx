@@ -6,7 +6,7 @@ import { BottomNav } from '../../src/components/bottomnav';
 import { CourseStrip } from '../../src/components/CourseStrip';
 import { ClubHomeCard } from '../../src/components/clubcard';
 import { RunCard } from '../../src/components/runcard';
-import { Avatar } from '../../src/components/ui';
+import { Avatar, Icon } from '../../src/components/ui';
 import { Addr, BoardRow, confirmPayment, createBookingHold, DogProfile, fetchAddresses, fetchAvailableRunners, fetchCertifiedRunners, fetchDogBoardDelta, fetchFitness, fetchMyBookings, fetchMyDogs, fetchMyProfile, fetchRecentMoments, fetchRoutes, Fitness, LiveRunner, Moment, MyProfile } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
@@ -182,7 +182,7 @@ function SectionHead({ n, title, link, onLink }: { n?: string; title: string; li
 }
 
 const PAD_TOP = 56;
-const HEADER_H = 96; // 그리팅 1줄(목업 34px BHS) + 동네 랭킹 티커 스트립 (FIX3: 티커 13pt 승급분 수용)
+const HEADER_H = 122; // [4차] 브랜드 행(28) + 그리팅(44+8) + 랭킹 티커(~34) — 실측 합에 맞춰 히어로 위 갭 봉합
 
 // 로테이팅 그리팅 — 5초마다 수직 플립으로 순환. 이름 라인('우리 {이름}')은 고정 앵커.
 const GREETINGS = [
@@ -442,11 +442,27 @@ export default function OwnerHome() {
       {/* ---------- pinned overlay: greeting + collapsing hero ---------- */}
       <View style={[s.overlay, { backgroundColor: p.bg }]}>
         <Animated.View style={{ height: headerH, opacity: headerOpacity, overflow: 'hidden' }}>
+          {/* [4차] 브랜드 행 — 맨 위 도그스하이 로고 + 유틸(테마·알림). 벨 = lucide Bell (이모지 은퇴) */}
+          <View style={s.brandRow}>
+            <Text style={[s.brandmark, df]}>도그스하이</Text>
+            <View style={s.brandDot} />
+            <Text style={s.brandKick}>DOGS HIGH</Text>
+            <View style={{ flex: 1 }} />
+            {/* 나이트 라일락 테마 토글 — 라일락 전 화면 정합 후 복귀 (toggle 역학 유지) */}
+            <Pressable onPress={toggle} style={[s.themeBtn, { borderColor: p.line, backgroundColor: p.card }]}>
+              <Text style={{ fontSize: 13, color: lilac.accent }}>◐</Text>
+            </Pressable>
+            <Pressable onPress={() => router.push('/alerts')} style={[s.themeBtn, { borderColor: p.line, backgroundColor: p.card, marginLeft: 8 }]}>
+              <View style={s.bellDot} />
+              <Icon name="Bell" glyph="◔" size={15} color={lilac.head} />
+            </Pressable>
+          </View>
+          {/* 그리팅 — 브랜드 행 아래로 내려앉아 히어로와의 갭을 봉합. 유틸 버튼이 위로 가며 전폭 확보 */}
           <View style={s.headerRow}>
             {/* pfp — 보호자 프로필 사진 (profiles.avatar_url), 없으면 모노그램. 홈 상단의 '나' 자리 */}
             <Avatar url={me?.avatarUrl} char={(me?.name ?? dogName)[0]} bg={lilac.accent} size={34} />
             <View style={{ flex: 1, marginLeft: 9 }}>
-              {/* 원라인 모토 — pfp↔알림 버튼 사이 전폭. 문구별 폭 차이는 adjustsFontSizeToFit이 흡수 */}
+              {/* 원라인 모토 — 전폭. 문구별 폭 차이는 adjustsFontSizeToFit이 흡수 */}
               <Animated.Text
                 style={[{
                   fontSize: 34, fontWeight: '900', color: lilac.head,
@@ -463,14 +479,6 @@ export default function OwnerHome() {
                 {GREETINGS[gIdx]}, <Text style={{ color: lilac.accent }}>우리 {dogName}</Text>
               </Animated.Text>
             </View>
-            {/* 나이트 라일락 테마 토글 — 라일락 전 화면 정합 후 복귀 (toggle 역학 유지) */}
-            <Pressable onPress={toggle} style={[s.themeBtn, { borderColor: p.line, backgroundColor: p.card }]}>
-              <Text style={{ fontSize: 13, color: lilac.accent }}>◐</Text>
-            </Pressable>
-            <Pressable onPress={() => router.push('/alerts')} style={[s.themeBtn, { borderColor: p.line, backgroundColor: p.card, marginLeft: 8 }]}>
-              <View style={s.bellDot} />
-              <Text style={{ fontSize: 14, color: p.dim }}>◔</Text>
-            </Pressable>
           </View>
           {/* 동네 랭킹 티커 — 주식 시세줄처럼 흐르는 실집계 (탭 → 리더보드).
               ▲▼ 등락 화살표는 지난주 대비 델타 RPC가 생기기 전까지 금지 — 없는 데이터는 그리지 않는다 */}
@@ -1281,6 +1289,11 @@ const s = StyleSheet.create({
     paddingTop: PAD_TOP, paddingHorizontal: 11, paddingBottom: 10,
   },
   headerRow: { flexDirection: 'row', alignItems: 'center', height: 44, marginBottom: 8 }, // 그리팅 줄(목업 34px BHS) — 아래 티커가 나머지를 채움
+  // [4차] 브랜드 행 — 도그스하이 워드마크(로고 자격으로 df 허용) + 우측 유틸
+  brandRow: { flexDirection: 'row', alignItems: 'center', height: 28, marginBottom: 4 },
+  brandmark: { fontSize: 16, color: lilac.head, letterSpacing: 0.4 },
+  brandDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: lilac.coral, marginHorizontal: 7 },
+  brandKick: { fontSize: 11.5, fontWeight: '700', letterSpacing: 2, color: lilac.dim },
   rankticker: {
     overflow: 'hidden', marginTop: 8, paddingVertical: 5,
     borderTopWidth: 1, borderBottomWidth: 1, borderColor: lilac.hair,

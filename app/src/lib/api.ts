@@ -405,7 +405,9 @@ export async function fetchRunnerInbox(): Promise<OpenRequest[]> {
       ? supabase.from('bookings').select(REQ_SELECT).eq('status', 'runner_pending').eq('runner_id', user.user.id).order('scheduled_at').limit(10)
       : Promise.resolve({ data: [], error: null } as any),
   ]);
-  if (openRes.error) throw openRes.error;
+  // [내성] 한쪽 다리가 죽어도 다른 쪽은 산다 — 오픈 풀 에러가 지명 요청까지 지우던 것 방지
+  if (openRes.error) console.warn('[inbox] open pool:', openRes.error.message ?? openRes.error);
+  if (directedRes?.error) console.warn('[inbox] directed:', directedRes.error.message ?? directedRes.error);
   const directed = (directedRes.data ?? []).map((r: any) => mapOpenRequest(r, true, rate));
   const open = (openRes.data ?? []).map((r: any) => mapOpenRequestView(r, rate));
   const all = [...directed, ...open];

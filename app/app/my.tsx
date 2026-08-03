@@ -161,7 +161,7 @@ export default function My() {
               {/* 사진 창 — 탭하면 프로필 사진 변경 (uploadAvatar) */}
               <Pressable onPress={pickPhoto} disabled={uploading} style={s.photoWin}>
                 <Avatar url={profile?.avatarUrl} char={(profile?.name ?? '나')[0]} bg={lilac.accent} size={56} />
-                <View style={s.cam}><Text style={{ fontSize: 10, color: '#fff' }}>{uploading ? '…' : '✎'}</Text></View>
+                <View style={s.cam}><Text style={{ fontSize: 11.5, color: '#fff' }}>{uploading ? '…' : '✎'}</Text></View>
               </Pressable>
 
               <View style={{ flex: 1, minWidth: 0 }}>
@@ -219,8 +219,8 @@ export default function My() {
           </View>
         </View>
         <Row style={s.photoHint}>
-          <View style={s.photoHintDot}><Text style={{ fontSize: 7, color: lilac.head }}>✎</Text></View>
-          <Text style={{ fontSize: 12.5, color: lilac.dim, flex: 1 }}>사진을 탭하면 프로필 사진을 바꿀 수 있어요</Text>
+          <View style={s.photoHintDot}><Text style={{ fontSize: 9, color: lilac.head }}>✎</Text></View>
+          <Text style={{ fontSize: 13.5, color: lilac.dim, flex: 1 }}>사진을 탭하면 프로필 사진을 바꿀 수 있어요</Text>
         </Row>
 
         {/* ————— ② 기록면 — 나이트 라일락 앵커 (실데이터) ————— */}
@@ -371,15 +371,15 @@ export default function My() {
 const s = StyleSheet.create({
   // 마스트헤드
   kicker: { alignItems: 'center', gap: 8, marginTop: 6, marginBottom: 8 },
-  kickerTxt: { fontSize: 8.5, letterSpacing: 2.6, color: lilac.dim, textTransform: 'uppercase' },
+  kickerTxt: { fontSize: 12, letterSpacing: 2, color: lilac.dim, textTransform: 'uppercase' },
   rule: { flex: 1, height: 1, backgroundColor: lilac.hair },
-  h1: { fontSize: 40, fontWeight: '900', color: lilac.head, lineHeight: 42 },
+  h1: { fontSize: 40, fontWeight: '900', color: lilac.head, lineHeight: 48 },
   official: {
     marginTop: 6, borderWidth: 1, borderColor: lilac.head, borderRadius: 2,
-    paddingVertical: 4, paddingHorizontal: 6, backgroundColor: lilac.card,
+    paddingVertical: 5, paddingHorizontal: 8, backgroundColor: lilac.card,
   },
-  officialTxt: { fontSize: 8, letterSpacing: 2.2, color: lilac.head, fontWeight: '600' },
-  subNote: { fontSize: 12.5, lineHeight: 19, color: lilac.text, marginTop: 9, marginBottom: 14 },
+  officialTxt: { fontSize: 11.5, letterSpacing: 1.8, color: lilac.head, fontWeight: '600' },
+  subNote: { fontSize: 14, lineHeight: 21, color: lilac.text, marginTop: 9, marginBottom: 14 },
 
   // ① 신분면
   idcard: {
@@ -388,39 +388,39 @@ const s = StyleSheet.create({
   },
   idInner: { margin: 9, borderWidth: 1, borderColor: lilac.hair2, borderRadius: lilacRadius.inner, padding: 12, paddingBottom: 0 },
   idStrap: { justifyContent: 'space-between', alignItems: 'center', marginBottom: 11 },
-  microK: { fontSize: 7.5, letterSpacing: 1.8, color: lilac.dim, textTransform: 'uppercase' },
-  roleTag: { borderWidth: 1, borderColor: '#DCD6F8', backgroundColor: '#F4F1FE', borderRadius: lilacRadius.tag, paddingVertical: 3, paddingHorizontal: 7 },
-  roleTagTxt: { fontSize: 9, letterSpacing: 1, color: lilac.accent, fontWeight: '600' },
+  microK: { fontSize: 12, letterSpacing: 1.6, color: lilac.dim, textTransform: 'uppercase' },
+  roleTag: { borderWidth: 1, borderColor: '#DCD6F8', backgroundColor: '#F4F1FE', borderRadius: lilacRadius.tag, paddingVertical: 4, paddingHorizontal: 9 },
+  roleTagTxt: { fontSize: 12, letterSpacing: 1, color: lilac.accent, fontWeight: '600' },
   photoWin: {
     width: 62, height: 74, borderRadius: lilacRadius.inner, borderWidth: 1, borderColor: lilac.hair,
     backgroundColor: lilac.inset, alignItems: 'center', justifyContent: 'center',
   },
   cam: {
-    position: 'absolute', right: -6, bottom: 2, width: 19, height: 19, borderRadius: 10,
+    position: 'absolute', right: -6, bottom: 2, width: 22, height: 22, borderRadius: 11,
     backgroundColor: '#C6472C', borderWidth: 1.5, borderColor: '#fff',
     alignItems: 'center', justifyContent: 'center',
   },
   fld: { marginBottom: 8 },
-  fldK: { fontSize: 7.5, letterSpacing: 1.5, color: lilac.dim, textTransform: 'uppercase', marginBottom: 3 },
+  fldK: { fontSize: 11.5, letterSpacing: 1.2, color: lilac.dim, textTransform: 'uppercase', marginBottom: 4 },
   fldV: { fontSize: 15, fontWeight: '800', color: lilac.head },
-  fldVSmall: { fontSize: 11, fontWeight: '600', color: lilac.text },
-  fldV2: { fontSize: 12, fontWeight: '600', color: lilac.text, lineHeight: 16 },
+  fldVSmall: { fontSize: 13, fontWeight: '600', color: lilac.text },
+  fldV2: { fontSize: 13.5, fontWeight: '600', color: lilac.text, lineHeight: 18 },
   idEdit: {
     marginTop: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     borderWidth: 1, borderColor: lilac.hair, backgroundColor: lilac.inset,
-    borderRadius: lilacRadius.btn, paddingVertical: 9, paddingHorizontal: 11,
+    borderRadius: lilacRadius.btn, paddingVertical: 10, paddingHorizontal: 11,
   },
-  idEditTxt: { fontSize: 12, fontWeight: '700', color: lilac.head },
-  idEditEm: { fontSize: 8.5, letterSpacing: 1.6, color: lilac.accent, textTransform: 'uppercase' },
+  idEditTxt: { fontSize: 13.5, fontWeight: '700', color: lilac.head },
+  idEditEm: { fontSize: 11.5, letterSpacing: 1.4, color: lilac.accent, textTransform: 'uppercase' },
   idGrid: { marginTop: 10, marginHorizontal: -12, borderTopWidth: 1, borderTopColor: lilac.hair2 },
-  idCell: { flex: 1, paddingTop: 8, paddingBottom: 9, paddingLeft: 12 },
+  idCell: { flex: 1, paddingTop: 9, paddingBottom: 10, paddingLeft: 12 },
   idCellDiv: { borderLeftWidth: 1, borderLeftColor: lilac.hair2 },
-  gridK: { fontSize: 7, letterSpacing: 1.4, color: lilac.dim, textTransform: 'uppercase', marginBottom: 2 },
-  gridV: { fontSize: 11.5, letterSpacing: 0.6, color: lilac.head, fontWeight: '600' },
+  gridK: { fontSize: 11.5, letterSpacing: 1.2, color: lilac.dim, textTransform: 'uppercase', marginBottom: 3 },
+  gridV: { fontSize: 13, letterSpacing: 0.6, color: lilac.head, fontWeight: '600' },
   mrz: { backgroundColor: lilac.inset, borderTopWidth: 1, borderTopColor: lilac.hair2, paddingVertical: 7, paddingHorizontal: 10, gap: 2 },
   mrzTxt: { fontSize: 9, letterSpacing: 0.8, color: '#6E67A0' },
   photoHint: { alignItems: 'center', gap: 6, paddingHorizontal: 3, marginTop: 8 },
-  photoHintDot: { width: 13, height: 13, borderRadius: 3, backgroundColor: lilac.coralSoft, alignItems: 'center', justifyContent: 'center' },
+  photoHintDot: { width: 16, height: 16, borderRadius: 4, backgroundColor: lilac.coralSoft, alignItems: 'center', justifyContent: 'center' },
 
   // ② 기록면
   record: {
@@ -429,28 +429,28 @@ const s = StyleSheet.create({
   },
   recordInner: { margin: 9, borderWidth: 1, borderColor: 'rgba(255,255,255,0.13)', borderRadius: lilacRadius.inner, padding: 13 },
   coralDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: lilac.coral },
-  recordKick: { fontSize: 7.5, letterSpacing: 2, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase' },
+  recordKick: { fontSize: 12, letterSpacing: 1.8, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase' },
   recDiv: { borderLeftWidth: 1, borderLeftColor: 'rgba(255,255,255,0.13)', paddingLeft: 11 },
-  recN: { fontSize: 23, fontWeight: '800', color: '#fff' },
-  recU: { fontSize: 12, fontWeight: '500', color: 'rgba(255,255,255,0.55)' },
-  recL: { fontSize: 11, color: 'rgba(255,255,255,0.62)', marginTop: 4 },
-  recGoWrap: { marginTop: 12, paddingTop: 9, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.13)', alignItems: 'flex-end' },
-  recGo: { fontSize: 11.5, fontWeight: '700', color: '#fff' },
+  recN: { fontSize: 23, lineHeight: 28, fontWeight: '800', color: '#fff' },
+  recU: { fontSize: 13, fontWeight: '500', color: 'rgba(255,255,255,0.55)' },
+  recL: { fontSize: 13, color: 'rgba(255,255,255,0.62)', marginTop: 4 },
+  recGoWrap: { marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.13)', alignItems: 'flex-end' },
+  recGo: { fontSize: 13, fontWeight: '700', color: '#fff' },
 
   // 섹션 라벨
   sec: { alignItems: 'center', gap: 8, marginTop: 18, marginBottom: 9, marginHorizontal: 2 },
-  secNo: { fontSize: 10, color: lilac.accent, fontWeight: '600' },
-  secT: { fontSize: 8, letterSpacing: 2.6, color: lilac.dim, textTransform: 'uppercase' },
-  secKo: { fontSize: 10.5, fontWeight: '700', color: lilac.text },
+  secNo: { fontSize: 12, color: lilac.accent, fontWeight: '600' },
+  secT: { fontSize: 12, letterSpacing: 2, color: lilac.dim, textTransform: 'uppercase' },
+  secKo: { fontSize: 12.5, fontWeight: '700', color: lilac.text },
 
   // ④ 서류행
   doc: { backgroundColor: lilac.card, borderWidth: 1, borderColor: lilac.hair, borderRadius: lilacRadius.card, overflow: 'hidden', ...lilacShadow },
-  drow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingRight: 12, backgroundColor: lilac.card },
+  drow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 13, paddingRight: 12, backgroundColor: lilac.card },
   drowDiv: { borderTopWidth: 1, borderTopColor: lilac.hair2 },
   drowTick: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 3 },
   drowIcon: { width: 27, height: 27, borderRadius: lilacRadius.inner, alignItems: 'center', justifyContent: 'center', marginLeft: 11, marginRight: 10 },
-  drowTitle: { fontSize: 13.5, fontWeight: '700', color: lilac.head },
-  drowDesc: { fontSize: 11, color: lilac.dim, marginTop: 2, lineHeight: 15 },
+  drowTitle: { fontSize: 14, fontWeight: '700', color: lilac.head },
+  drowDesc: { fontSize: 13, color: lilac.dim, marginTop: 2, lineHeight: 17 },
 
   // ⑤ 큰 버튼
   btnRole: {
@@ -458,22 +458,22 @@ const s = StyleSheet.create({
     backgroundColor: lilac.head, borderRadius: lilacRadius.btn, paddingVertical: 16, paddingHorizontal: 15, marginTop: 20,
     shadowColor: '#221E3D', shadowOpacity: 0.28, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 5,
   },
-  btnRoleTitle: { fontSize: 14, fontWeight: '800', color: '#fff' },
-  btnRoleSub: { fontSize: 8.5, letterSpacing: 2, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', marginTop: 3 },
-  btnRoleSw: { borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)', borderRadius: lilacRadius.tag, paddingVertical: 5, paddingHorizontal: 8 },
-  btnRoleSwTxt: { fontSize: 9.5, letterSpacing: 1.4, color: '#fff', fontWeight: '600' },
+  btnRoleTitle: { fontSize: 15, fontWeight: '800', color: '#fff' },
+  btnRoleSub: { fontSize: 12, letterSpacing: 1.8, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', marginTop: 3 },
+  btnRoleSw: { borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)', borderRadius: lilacRadius.tag, paddingVertical: 6, paddingHorizontal: 10 },
+  btnRoleSwTxt: { fontSize: 12, letterSpacing: 1, color: '#fff', fontWeight: '600' },
 
   signout: {
     flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: lilac.card,
     borderWidth: 1, borderColor: lilac.hair, borderRadius: lilacRadius.btn, paddingVertical: 13, paddingHorizontal: 12, marginTop: 12,
   },
-  signoutTick: { width: 3, height: 26, borderRadius: 2, backgroundColor: lilac.coralDeep },
-  signoutTitle: { fontSize: 13, fontWeight: '700', color: lilac.head },
-  signoutSub: { fontSize: 11, color: lilac.dim, marginTop: 2 },
+  signoutTick: { width: 3, height: 30, borderRadius: 2, backgroundColor: lilac.coralDeep },
+  signoutTitle: { fontSize: 14, fontWeight: '700', color: lilac.head },
+  signoutSub: { fontSize: 13, color: lilac.dim, marginTop: 2 },
 
   // ⑥ 콜로폰
   colophon: { marginTop: 18, paddingTop: 12, borderTopWidth: 1, borderTopColor: lilac.hair, alignItems: 'center' },
-  colophonTxt: { fontSize: 9.5, letterSpacing: 2, color: lilac.dim, textTransform: 'uppercase' },
+  colophonTxt: { fontSize: 12, letterSpacing: 1.8, color: lilac.dim, textTransform: 'uppercase' },
 
   // 편집 시트
   backdrop: { flex: 1, backgroundColor: 'rgba(28,24,55,0.34)' },

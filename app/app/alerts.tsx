@@ -12,6 +12,7 @@ import { colors, lilac, lilacRadius, lilacShadow } from '../src/theme';
 // 알림 — "여권 × 안내판(Arrivals board)" 정본 (Sean 확정, 2026-08-01 delegation-premium-refresh2).
 // 문법: 시각 컬럼(Oswald) · 정사각 모노 타입 태그 · 헤어라인 행 · 안 읽음 = 좌측 코랄 틱(도트/엣지, 텍스트 금지).
 // 히어로 = 나이트-라일락 보드 헤더 1개 + 라이브 티커(최신 미읽음 실데이터). 날짜/요일은 전부 실 timestamp에서 온다.
+// FIX3 (2026-08-03): 디테일 텍스트 1.4–1.75x 상향(12–15pt 밴드, 플로어 11.5) · Oswald 숫자 lineHeight ≥1.2x 클리핑 방지.
 
 // 소인 잉크 시스템 — kind + 제목 휴리스틱으로 종류별 잉크색 (라일락 리페인트: 스왐프 그린 은퇴, 확정 블루 유지).
 // 인박스가 스캔 한 번에 분류되게: 완료/시작=볼트(기능 성공) · 클럽=바이올렛 · 변경/대기=앰버 · 확정=블루 · 기록=골드 · 취소=탱
@@ -110,11 +111,11 @@ export default function Alerts() {
           <View style={{ padding: 14 }}>
             <Text style={[s.boardKick, nf]}>ARRIVALS · 도착한 소식</Text>
             <Row style={{ justifyContent: 'space-between', alignItems: 'flex-end' }}>
-              <Text style={[{ fontSize: 30, color: '#fff', lineHeight: 32 }, df]}>알림</Text>
+              <Text style={[{ fontSize: 30, color: '#fff', lineHeight: 36 }, df]}>알림</Text>
               {unreadCount > 0 && (
-                <Row style={{ alignItems: 'baseline', gap: 5 }}>
-                  <Text style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.72)', fontWeight: '600' }}>안 읽음</Text>
-                  <Text style={[{ fontSize: 17, color: '#fff' }, nf]}>{unreadCount}</Text>
+                <Row style={{ alignItems: 'baseline', gap: 6 }}>
+                  <Text style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.72)', fontWeight: '600' }}>안 읽음</Text>
+                  <Text style={[{ fontSize: 17, lineHeight: 21, color: '#fff' }, nf]}>{unreadCount}</Text>
                 </Row>
               )}
             </Row>
@@ -124,7 +125,7 @@ export default function Alerts() {
                 <View style={s.liveDot} />
                 <Text style={[s.tickTime, nf]}>{latestUnread.timeLabel}</Text>
                 <Text numberOfLines={1} style={s.tickTxt}>{latestUnread.title}</Text>
-                <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)' }}>›</Text>
+                <Text style={{ fontSize: 14, color: 'rgba(255,255,255,0.55)' }}>›</Text>
               </Pressable>
             )}
           </View>
@@ -134,8 +135,8 @@ export default function Alerts() {
           {/* 보드 컬럼 헤더 (안내판 문법) */}
           {groups.length > 0 && (
             <Row style={s.colhead}>
-              <Text style={[s.colTxt, nf, { width: 62 }]}>TIME</Text>
-              <Text style={[s.colTxt, nf, { width: 48 }]}>TYPE</Text>
+              <Text style={[s.colTxt, nf, { width: 66 }]}>TIME</Text>
+              <Text style={[s.colTxt, nf, { width: 54 }]}>TYPE</Text>
               <Text style={[s.colTxt, nf, { flex: 1 }]}>내용</Text>
             </Row>
           )}
@@ -144,7 +145,7 @@ export default function Alerts() {
           {groups.length === 0 && (
             <View style={s.empty}>
               <View style={s.emptyTag}><Text style={[s.emptyTagTxt, nf]}>EMPTY STATE</Text></View>
-              <Text style={{ fontSize: 13.5, color: lilac.dim, textAlign: 'center', lineHeight: 22 }}>
+              <Text style={{ fontSize: 14.5, color: lilac.dim, textAlign: 'center', lineHeight: 23 }}>
                 아직 알림이 없어요{'\n'}예약 · 러닝 소식이 여기에 도착해요
               </Text>
             </View>
@@ -180,7 +181,7 @@ export default function Alerts() {
                       {/* 좌측 코랄 틱 — 미읽음 엣지 (텍스트 아님) */}
                       <View style={[s.evtTick, n.unread && { backgroundColor: lilac.coral }]} />
                       <View style={s.evtCell}>
-                        <Row style={{ alignItems: 'center', gap: 7, marginBottom: 6 }}>
+                        <Row style={{ alignItems: 'center', gap: 7, marginBottom: 7 }}>
                           <Text style={[s.evtTime, nf, !n.unread && { color: lilac.text }]}>{n.timeLabel}</Text>
                           <View style={[s.typeTag, { backgroundColor: ink.bg }]}>
                             <Text style={[s.typeTagTxt, nf]}>{tagFor(n.kind, n.title)}</Text>
@@ -191,7 +192,7 @@ export default function Alerts() {
                         </Row>
                         <Row style={{ gap: 9, alignItems: 'flex-start' }}>
                           <View style={[s.glyph, { backgroundColor: ink.bg }]}>
-                            <Text style={{ fontSize: 13, fontWeight: '900', color: ink.fg }}>{glyphFor(n.title)}</Text>
+                            <Text style={{ fontSize: 14, fontWeight: '900', color: ink.fg }}>{glyphFor(n.title)}</Text>
                           </View>
                           <View style={{ flex: 1 }}>
                             <Text style={s.evtTitle}>{n.title}</Text>
@@ -222,48 +223,48 @@ const s = StyleSheet.create({
     width: 26, height: 26, borderRadius: lilacRadius.inner, backgroundColor: lilac.card,
     borderWidth: 1, borderColor: lilac.hair, alignItems: 'center', justifyContent: 'center',
   },
-  crumb: { fontSize: 8.5, letterSpacing: 2.2, color: lilac.dim },
+  crumb: { fontSize: 12, letterSpacing: 2, color: lilac.dim },
   markAll: {
     backgroundColor: lilac.card, borderWidth: 1, borderColor: lilac.hair, borderRadius: lilacRadius.tag,
-    paddingVertical: 5, paddingHorizontal: 8,
+    paddingVertical: 7, paddingHorizontal: 10,
   },
-  markAllTxt: { fontSize: 8.5, letterSpacing: 1.4, color: lilac.head },
+  markAllTxt: { fontSize: 12, letterSpacing: 1, color: lilac.head },
 
   board: {
     marginHorizontal: 12, borderRadius: lilacRadius.card, overflow: 'hidden',
     backgroundColor: '#1C1837', ...lilacShadow, shadowOpacity: 0.34,
   },
   boardEdge: { position: 'absolute', top: 0, left: 0, right: 0, height: 2, backgroundColor: lilac.coral, opacity: 0.85, zIndex: 2 },
-  boardKick: { fontSize: 7.5, letterSpacing: 2.2, color: 'rgba(255,255,255,0.5)', marginBottom: 7 },
+  boardKick: { fontSize: 12, letterSpacing: 2, color: 'rgba(255,255,255,0.5)', marginBottom: 8 },
   ticker: {
-    flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 11, paddingVertical: 9, paddingHorizontal: 10,
+    flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 11, paddingVertical: 10, paddingHorizontal: 10,
     borderRadius: lilacRadius.inner, backgroundColor: 'rgba(255,255,255,0.07)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)',
   },
   liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: lilac.coral },
-  tickTime: { fontSize: 11, color: '#fff', letterSpacing: 0.6 },
-  tickTxt: { flex: 1, fontSize: 11.5, fontWeight: '600', color: '#fff' },
+  tickTime: { fontSize: 13, lineHeight: 16, color: '#fff', letterSpacing: 0.5 },
+  tickTxt: { flex: 1, fontSize: 13.5, fontWeight: '600', color: '#fff' },
 
   colhead: {
-    alignItems: 'center', gap: 8, paddingVertical: 7,
+    alignItems: 'center', gap: 8, paddingVertical: 8,
     borderTopWidth: 1, borderTopColor: lilac.hair, borderBottomWidth: 1, borderBottomColor: lilac.hair,
   },
-  colTxt: { fontSize: 7.5, letterSpacing: 2, color: lilac.dim },
+  colTxt: { fontSize: 12, letterSpacing: 1.8, color: lilac.dim },
 
   empty: {
     marginTop: 14, borderWidth: 1, borderColor: lilac.hair, borderStyle: 'dashed',
-    borderRadius: lilacRadius.card, backgroundColor: lilac.glass, paddingVertical: 18, paddingHorizontal: 14, alignItems: 'center',
+    borderRadius: lilacRadius.card, backgroundColor: lilac.glass, paddingVertical: 20, paddingHorizontal: 14, alignItems: 'center',
   },
-  emptyTag: { borderWidth: 1, borderColor: lilac.hair, borderRadius: lilacRadius.tag, paddingHorizontal: 6, paddingVertical: 3, marginBottom: 9 },
-  emptyTagTxt: { fontSize: 8.5, letterSpacing: 1.6, color: lilac.dim },
+  emptyTag: { borderWidth: 1, borderColor: lilac.hair, borderRadius: lilacRadius.tag, paddingHorizontal: 8, paddingVertical: 4, marginBottom: 10 },
+  emptyTagTxt: { fontSize: 12, letterSpacing: 1.2, color: lilac.dim },
 
   postmark: {
-    width: 50, height: 50, borderRadius: 25, borderWidth: 1.5, borderColor: lilac.head, backgroundColor: lilac.card,
+    width: 62, height: 62, borderRadius: 31, borderWidth: 1.5, borderColor: lilac.head, backgroundColor: lilac.card,
     alignItems: 'center', justifyContent: 'center', ...lilacShadow, shadowOpacity: 0.1, shadowRadius: 12,
   },
-  postmarkD: { fontSize: 14, color: lilac.head, lineHeight: 15 },
-  postmarkK: { fontSize: 5, letterSpacing: 0.3, color: lilac.dim, marginTop: 2 },
+  postmarkD: { fontSize: 14, lineHeight: 17, color: lilac.head },
+  postmarkK: { fontSize: 11.5, letterSpacing: 0.2, color: lilac.dim, marginTop: 1 },
   groupDash: { flex: 1, borderTopWidth: 1.5, borderTopColor: lilac.hair, borderStyle: 'dashed' },
-  groupLabel: { fontSize: 8, letterSpacing: 1.6, color: lilac.dim },
+  groupLabel: { fontSize: 12, letterSpacing: 1.2, color: lilac.dim },
 
   rail: { position: 'relative', paddingLeft: 16 },
   railLine: { position: 'absolute', left: 4, top: 20, bottom: 14, width: 1, backgroundColor: lilac.hair },
@@ -275,26 +276,26 @@ const s = StyleSheet.create({
   },
   evtNew: { borderColor: lilac.hair, shadowOpacity: 0.09 },
   dot: {
-    position: 'absolute', left: -15.5, top: 16, width: 9, height: 9, borderRadius: 5,
+    position: 'absolute', left: -15.5, top: 17, width: 9, height: 9, borderRadius: 5,
     backgroundColor: lilac.card, borderWidth: 2, zIndex: 3,
   },
   evtTick: { width: 3, alignSelf: 'stretch', backgroundColor: 'transparent' },
-  evtCell: { flex: 1, paddingVertical: 10, paddingLeft: 9, paddingRight: 11 },
-  evtTime: { fontSize: 12, color: lilac.head, letterSpacing: 0.5 },
+  evtCell: { flex: 1, paddingVertical: 12, paddingLeft: 9, paddingRight: 11 },
+  evtTime: { fontSize: 13.5, lineHeight: 17, color: lilac.head, letterSpacing: 0.5 },
   typeTag: {
     borderWidth: 1, borderColor: 'rgba(34,30,61,0.1)', borderRadius: lilacRadius.tag,
-    paddingHorizontal: 5, paddingTop: 3, paddingBottom: 2,
+    paddingHorizontal: 7, paddingTop: 4, paddingBottom: 3,
   },
-  typeTagTxt: { fontSize: 8, letterSpacing: 1.3, color: lilac.head },
+  typeTagTxt: { fontSize: 12, letterSpacing: 1, color: lilac.head },
   seal: {
     marginLeft: 'auto', backgroundColor: lilac.coralSoft, borderWidth: 1, borderColor: lilac.coral,
-    borderRadius: lilacRadius.tag, paddingHorizontal: 5, paddingTop: 3, paddingBottom: 2,
+    borderRadius: lilacRadius.tag, paddingHorizontal: 7, paddingTop: 4, paddingBottom: 3,
   },
-  sealTxt: { fontSize: 8, letterSpacing: 1.3, color: lilac.head },
+  sealTxt: { fontSize: 12, letterSpacing: 1, color: lilac.head },
   glyph: {
-    width: 24, height: 24, borderRadius: lilacRadius.tag, alignItems: 'center', justifyContent: 'center',
+    width: 28, height: 28, borderRadius: lilacRadius.tag, alignItems: 'center', justifyContent: 'center',
     borderWidth: 1, borderColor: 'rgba(34,30,61,0.05)',
   },
-  evtTitle: { fontSize: 12.5, fontWeight: '700', color: lilac.head, lineHeight: 17 },
-  evtBody: { fontSize: 11, color: lilac.text, marginTop: 3, lineHeight: 16 },
+  evtTitle: { fontSize: 14, fontWeight: '700', color: lilac.head, lineHeight: 19 },
+  evtBody: { fontSize: 13, color: lilac.text, marginTop: 4, lineHeight: 18 },
 });

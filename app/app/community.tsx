@@ -20,6 +20,8 @@ import { CollarKey, collarColors, lilac, lilacRadius, lilacShadow } from '../src
 // 액센트 예산: 바이올렛 = 구조/룰/링크 · 코랄 = 단일 신호(LIVE 도트 · 누른 발자국 · 보내기).
 // 포일 예산: 홀로 = 클럽 배너 상하 엣지 + 마스트헤드 모노그램만 · 골드 = 기록 소인 화면당 1개.
 // 로직 동결: 모든 핸들러/라우팅/데이터 흐름은 원본 그대로, 프레젠테이션만 재도색.
+// FIX3: 디테일 텍스트 플로어 — ≤10.5pt 전부 12–15 밴드로 승급(최저 11.5), 본문 11–13 → 13–15.
+//       히어로/헤딩 크기 불변 · 큰 Oswald 숫자는 lineHeight ≥ 1.2×로 상단 클리핑 방지 (BUG A).
 
 const W = Dimensions.get('window').width;
 const GUTTER = 13;
@@ -258,7 +260,7 @@ export default function Community() {
                   <Text style={[s.stamp, nf]}>{rv.when}</Text>
                 </Row>
                 {rv.rating != null && (
-                  <Text style={{ fontSize: 13, color: lilac.amber, marginTop: 5, letterSpacing: 2 }}>{'★'.repeat(rv.rating)}{'☆'.repeat(Math.max(0, 5 - rv.rating))}</Text>
+                  <Text style={{ fontSize: 14, color: lilac.amber, marginTop: 5, letterSpacing: 2 }}>{'★'.repeat(rv.rating)}{'☆'.repeat(Math.max(0, 5 - rv.rating))}</Text>
                 )}
                 {!!rv.note && <Text style={{ fontSize: 14, color: lilac.text, marginTop: 6, lineHeight: 21 }}>{rv.note}</Text>}
                 {rv.tags.length > 0 && (
@@ -290,19 +292,19 @@ export default function Community() {
               <Row style={{ gap: 9, paddingHorizontal: 11, paddingTop: 10, paddingBottom: 9, alignItems: 'flex-start' }}>
                 <Avatar url={p.authorAvatar} char={p.authorName[0]} bg={lilac.accent} size={32} />
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 12.5, fontWeight: '700', color: lilac.head }}>{p.authorName}</Text>
+                  <Text style={{ fontSize: 14, fontWeight: '700', color: lilac.head }}>{p.authorName}</Text>
                   {p.meta.dogName && (
                     <Row style={{ gap: 5, marginTop: 2, alignItems: 'center' }}>
                       {p.meta.collar && collarColors[p.meta.collar as CollarKey] && (
                         <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: collarColors[p.meta.collar as CollarKey] }} />
                       )}
-                      <Text style={{ fontSize: 10, color: lilac.text }}>{p.meta.dogName}와 함께</Text>
+                      <Text style={{ fontSize: 12.5, color: lilac.text }}>{p.meta.dogName}와 함께</Text>
                     </Row>
                   )}
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
                   <Text style={[s.stamp, nf]}>{p.when}</Text>
-                  {p.mine && <Text style={{ fontSize: 8.5, color: lilac.dim, marginTop: 3 }}>길게 눌러 삭제</Text>}
+                  {p.mine && <Text style={{ fontSize: 12, color: lilac.dim, marginTop: 3 }}>길게 눌러 삭제</Text>}
                 </View>
                 <Text style={[s.idx, nf]}>{String(i + 1).padStart(2, '0')}</Text>
               </Row>
@@ -320,7 +322,7 @@ export default function Community() {
                     {(p.meta.dogs ?? 0) > 0 && <View style={[s.recapNumCell, s.recapDiv]}><Text style={[s.recapNum, nf]}>{p.meta.dogs}</Text><Text style={s.recapK}>DOGS</Text></View>}
                     <View style={[s.recapNumCell, s.recapDiv]}><Text style={[s.recapNum, nf]}>🏁</Text><Text style={s.recapK}>FINISHED</Text></View>
                   </Row>
-                  <Text style={{ fontSize: 11, color: lilac.dim, marginTop: 10 }}>탭해서 세션 리캡 보기 <Text style={{ color: '#CFC4FF', fontWeight: '700' }}>›</Text></Text>
+                  <Text style={{ fontSize: 13, color: lilac.dim, marginTop: 10 }}>탭해서 세션 리캡 보기 <Text style={{ color: '#CFC4FF', fontWeight: '700' }}>›</Text></Text>
                   <PawBurst trigger={bursts[p.id] ?? 0} />
                 </View>
               </Pressable>
@@ -378,10 +380,10 @@ export default function Community() {
                       <Text style={[s.recordPace, nf]}>{fmtPace(p.meta.km, p.meta.durationSec)} / KM</Text>
                     )}
                     {p.meta.dogName && (
-                      <Text style={{ fontSize: 13, fontWeight: '700', color: lilac.head, marginTop: 5 }}>{p.meta.dogName} 완주</Text>
+                      <Text style={{ fontSize: 14, fontWeight: '700', color: lilac.head, marginTop: 5 }}>{p.meta.dogName} 완주</Text>
                     )}
                     {fmtDur(p.meta.durationSec) && (
-                      <Text style={{ fontSize: 11, color: lilac.text, marginTop: 4 }}>⏱ <Text style={[{ fontSize: 12, color: lilac.head }, nf]}>{fmtDur(p.meta.durationSec)}</Text></Text>
+                      <Text style={{ fontSize: 13, color: lilac.text, marginTop: 4 }}>⏱ <Text style={[{ fontSize: 14, color: lilac.head }, nf]}>{fmtDur(p.meta.durationSec)}</Text></Text>
                     )}
                     <Row style={{ gap: 4, marginTop: 8, flexWrap: 'wrap' }}>
                       {(p.meta.badges ?? []).map((b) => (
@@ -411,12 +413,12 @@ export default function Community() {
             {/* ── 조용한 액션 행 (누른 발자국 = 코랄 단일 신호) */}
             <Row style={{ paddingHorizontal: 11, paddingTop: 9, gap: 6 }}>
               <Pressable onPress={() => setLiked(p, !p.likedByMe)} style={[s.act, p.likedByMe && s.actOn]} hitSlop={6}>
-                <Text style={{ fontSize: 12, opacity: p.likedByMe ? 1 : 0.5 }}>🐾</Text>
+                <Text style={{ fontSize: 14, opacity: p.likedByMe ? 1 : 0.5 }}>🐾</Text>
                 <Text style={[s.actLabel, p.likedByMe && s.actLabelOn]}>발자국</Text>
                 <Text style={[s.actNum, p.likedByMe && s.actLabelOn, nf]}>{p.likes}</Text>
               </Pressable>
               <Pressable onPress={() => toggleComments(p)} style={s.act} hitSlop={6}>
-                <Text style={{ fontSize: 12, opacity: 0.5 }}>💬</Text>
+                <Text style={{ fontSize: 14, opacity: 0.5 }}>💬</Text>
                 <Text style={s.actLabel}>댓글</Text>
                 <Text style={[s.actNum, nf]}>{p.commentCount}</Text>
               </Pressable>
@@ -425,14 +427,14 @@ export default function Community() {
             {/* ── 캡션 본문 (볼드 작성자 + 본문) */}
             <View style={{ paddingHorizontal: 11, paddingTop: 8 }}>
               {p.body && (
-                <Text style={{ fontSize: 12.5, color: lilac.text, lineHeight: 20, marginTop: 1 }}>
+                <Text style={{ fontSize: 14, color: lilac.text, lineHeight: 21, marginTop: 1 }}>
                   <Text style={{ fontWeight: '700', color: lilac.head }}>{p.authorName}</Text>
                   <Text>  {p.body}</Text>
                 </Text>
               )}
               {p.commentCount > 0 && openComments !== p.id && (
                 <Pressable onPress={() => toggleComments(p)}>
-                  <Text style={{ fontSize: 11, color: lilac.accent, marginTop: 6, textDecorationLine: 'underline' }}>댓글 {p.commentCount}개 모두 보기</Text>
+                  <Text style={{ fontSize: 13, color: lilac.accent, marginTop: 6, textDecorationLine: 'underline' }}>댓글 {p.commentCount}개 모두 보기</Text>
                 </Pressable>
               )}
               <Text style={[s.when, nf]}>{p.when}</Text>
@@ -449,7 +451,7 @@ export default function Community() {
                   <Row key={c.id} style={{ gap: 8, marginBottom: 9, alignItems: 'flex-start' }}>
                     <Avatar url={c.authorAvatar} char={c.authorName[0]} bg={lilac.accentDeep} size={22} />
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 11.5, lineHeight: 17 }}>
+                      <Text style={{ fontSize: 13.5, lineHeight: 20 }}>
                         <Text style={{ fontWeight: '700', color: lilac.head }}>{c.authorName}</Text>
                         <Text style={{ color: lilac.text }}>  {c.body}</Text>
                       </Text>
@@ -457,7 +459,7 @@ export default function Community() {
                   </Row>
                 ))}
                 {comments.length === 0 && (
-                  <Text style={{ fontSize: 11, color: lilac.dim, marginBottom: 9 }}>첫 댓글을 남겨보세요</Text>
+                  <Text style={{ fontSize: 13, color: lilac.dim, marginBottom: 9 }}>첫 댓글을 남겨보세요</Text>
                 )}
                 <Row style={{ gap: 8, alignItems: 'center' }}>
                   <TextInput
@@ -470,7 +472,7 @@ export default function Community() {
                     returnKeyType="send"
                   />
                   <Pressable onPress={() => submitComment(p.id)} style={[s.commentSend, sending && { opacity: 0.5 }]}>
-                    <Text style={{ fontSize: 15, fontWeight: '700', color: '#fff' }}>↑</Text>
+                    <Text style={{ fontSize: 16, fontWeight: '700', color: '#fff' }}>↑</Text>
                   </Pressable>
                 </Row>
               </View>
@@ -496,98 +498,98 @@ export default function Community() {
 }
 
 const s = StyleSheet.create({
-  // 마스트헤드
-  mono: { width: 16, height: 16, borderRadius: 5, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
-  monoTxt: { fontSize: 8, fontWeight: '600', color: lilac.head, letterSpacing: 1 },
-  kickerLabel: { fontSize: 8.5, fontWeight: '600', letterSpacing: 3, color: lilac.dim, textTransform: 'uppercase' },
+  // 마스트헤드 — [FIX3] 키커·모노그램 12pt 밴드 승급, 박스 22로 성장
+  mono: { width: 22, height: 22, borderRadius: 6, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
+  monoTxt: { fontSize: 12, fontWeight: '600', color: lilac.head, letterSpacing: 0.5 },
+  kickerLabel: { fontSize: 12, fontWeight: '600', letterSpacing: 2, color: lilac.dim, textTransform: 'uppercase' },
   kickerRule: { flex: 1, height: 1, backgroundColor: lilac.hair },
-  h1: { fontSize: 38, fontWeight: '900', color: lilac.head, letterSpacing: -0.4, lineHeight: 40 },
-  lede: { fontSize: 11.5, color: lilac.text, marginTop: 8, lineHeight: 18, maxWidth: 250 },
-  liveBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderColor: '#F6C3B4', borderRadius: lilacRadius.tag, backgroundColor: lilac.card, paddingVertical: 3, paddingHorizontal: 6, alignSelf: 'center' },
-  liveDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: lilac.coral },
-  liveTxt: { fontSize: 8, fontWeight: '600', letterSpacing: 1.6, color: lilac.coralDeep },
-  rankBtn: { flexDirection: 'column', alignItems: 'center', gap: 2, backgroundColor: lilac.card, borderRadius: lilacRadius.card, paddingVertical: 8, paddingHorizontal: 10, borderWidth: 1, borderColor: lilac.hair, alignSelf: 'flex-start', marginTop: 4, ...lilacShadow },
-  rankTxt: { fontSize: 8, fontWeight: '600', letterSpacing: 1.4, color: lilac.head, textTransform: 'uppercase' },
+  h1: { fontSize: 38, fontWeight: '900', color: lilac.head, letterSpacing: -0.4, lineHeight: 46 }, // [BUG A] lineHeight ≥1.2× — 상단 클리핑 방지 (크기 불변)
+  lede: { fontSize: 13.5, color: lilac.text, marginTop: 8, lineHeight: 20, maxWidth: 265 },
+  liveBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderColor: '#F6C3B4', borderRadius: lilacRadius.tag, backgroundColor: lilac.card, paddingVertical: 4, paddingHorizontal: 8, alignSelf: 'center' },
+  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: lilac.coral },
+  liveTxt: { fontSize: 12, fontWeight: '600', letterSpacing: 1.2, color: lilac.coralDeep },
+  rankBtn: { flexDirection: 'column', alignItems: 'center', gap: 2, backgroundColor: lilac.card, borderRadius: lilacRadius.card, paddingVertical: 8, paddingHorizontal: 12, borderWidth: 1, borderColor: lilac.hair, alignSelf: 'flex-start', marginTop: 4, ...lilacShadow },
+  rankTxt: { fontSize: 12, fontWeight: '600', letterSpacing: 1, color: lilac.head, textTransform: 'uppercase' },
 
-  // 클럽 스트립 (홀로 엣지)
-  clubStrip: { height: 72, borderRadius: 6, overflow: 'hidden', backgroundColor: lilac.head, marginHorizontal: GUTTER, marginTop: 13 },
+  // 클럽 스트립 (홀로 엣지) — [FIX3] 텍스트 승급분만큼 높이 72 → 80
+  clubStrip: { height: 80, borderRadius: 6, overflow: 'hidden', backgroundColor: lilac.head, marginHorizontal: GUTTER, marginTop: 13 },
   clubScrim: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(28,24,55,.40)' },
-  clubKick: { fontSize: 7.5, fontWeight: '600', letterSpacing: 2.4, color: 'rgba(255,255,255,.82)', textTransform: 'uppercase', marginBottom: 3 },
+  clubKick: { fontSize: 12, fontWeight: '600', letterSpacing: 1.5, color: 'rgba(255,255,255,.82)', textTransform: 'uppercase', marginBottom: 4 },
   clubName: { fontSize: 14.5, fontWeight: '700', color: '#fff', letterSpacing: -0.2 },
-  clubPill: { backgroundColor: lilac.glassEdge, borderRadius: lilacRadius.tag, paddingVertical: 5, paddingHorizontal: 8, alignItems: 'flex-end' },
-  clubPillN: { fontSize: 11, fontWeight: '700', color: lilac.head, lineHeight: 13 },
-  clubGo: { fontSize: 7, fontWeight: '600', letterSpacing: 1.4, color: lilac.accent, marginTop: 2, textTransform: 'uppercase' },
+  clubPill: { backgroundColor: lilac.glassEdge, borderRadius: lilacRadius.tag, paddingVertical: 6, paddingHorizontal: 10, alignItems: 'flex-end' },
+  clubPillN: { fontSize: 13, fontWeight: '700', color: lilac.head, lineHeight: 16 },
+  clubGo: { fontSize: 12, fontWeight: '600', letterSpacing: 1, color: lilac.accent, marginTop: 3, textTransform: 'uppercase' },
   holoTop: { position: 'absolute', top: 0, left: 0, right: 0, height: 3, zIndex: 3 },
   holoBottom: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 3, zIndex: 3 },
 
-  tabCount: { fontSize: 9, fontWeight: '600', letterSpacing: 1 },
+  tabCount: { fontSize: 12, fontWeight: '600', letterSpacing: 1 },
 
   // 후기 카드
   revCard: { backgroundColor: lilac.card, borderRadius: lilacRadius.card, padding: 12, borderWidth: 1, borderColor: lilac.hair, ...lilacShadow },
-  monoTag: { borderWidth: 1, borderColor: lilac.hair, borderRadius: lilacRadius.tag, backgroundColor: lilac.card, paddingVertical: 3, paddingHorizontal: 6 },
-  monoTagTxt: { fontSize: 9, fontWeight: '600', letterSpacing: 1, color: lilac.text, textTransform: 'uppercase' },
-  voltTag: { borderWidth: 1, borderColor: '#D9EBAA', borderRadius: lilacRadius.tag, backgroundColor: lilac.voltFill, paddingVertical: 3, paddingHorizontal: 6 },
-  voltTagTxt: { fontSize: 9, fontWeight: '600', letterSpacing: 1, color: lilac.voltDeep, textTransform: 'uppercase' },
+  monoTag: { borderWidth: 1, borderColor: lilac.hair, borderRadius: lilacRadius.tag, backgroundColor: lilac.card, paddingVertical: 4, paddingHorizontal: 8 },
+  monoTagTxt: { fontSize: 12, fontWeight: '600', letterSpacing: 1, color: lilac.text, textTransform: 'uppercase' },
+  voltTag: { borderWidth: 1, borderColor: '#D9EBAA', borderRadius: lilacRadius.tag, backgroundColor: lilac.voltFill, paddingVertical: 4, paddingHorizontal: 8 },
+  voltTagTxt: { fontSize: 12, fontWeight: '600', letterSpacing: 1, color: lilac.voltDeep, textTransform: 'uppercase' },
 
   emptyBox: { marginHorizontal: GUTTER, marginTop: 20, backgroundColor: lilac.inset, borderRadius: lilacRadius.card, borderWidth: 1, borderColor: lilac.hair, padding: 26 },
 
-  // 기사 카드
+  // 기사 카드 — [FIX3] 스탬프·인덱스 12pt 승급
   post: { backgroundColor: lilac.card, marginHorizontal: GUTTER, marginTop: 11, borderWidth: 1, borderColor: lilac.hair, borderRadius: lilacRadius.card, overflow: 'hidden', ...lilacShadow },
-  stamp: { fontSize: 8, fontWeight: '600', letterSpacing: 1.3, color: lilac.head, textTransform: 'uppercase' },
-  idx: { fontSize: 7.5, fontWeight: '600', letterSpacing: 1.4, color: lilac.head, borderWidth: 1, borderColor: lilac.hair, borderRadius: lilacRadius.doc, paddingVertical: 3, paddingHorizontal: 3, marginLeft: 2, alignSelf: 'flex-start' },
+  stamp: { fontSize: 12, fontWeight: '600', letterSpacing: 1, color: lilac.head, textTransform: 'uppercase' },
+  idx: { fontSize: 12, fontWeight: '600', letterSpacing: 1, color: lilac.head, borderWidth: 1, borderColor: lilac.hair, borderRadius: lilacRadius.doc, paddingVertical: 3, paddingHorizontal: 5, marginLeft: 2, alignSelf: 'flex-start' },
 
   // 사진
   photoWrap: { position: 'relative', borderTopWidth: 1, borderBottomWidth: 1, borderColor: lilac.hair2, backgroundColor: lilac.inset },
   badgeCol: { position: 'absolute', top: 8, right: 8, gap: 4, alignItems: 'flex-end' },
-  badge: { backgroundColor: lilac.glassEdge, borderRadius: lilacRadius.tag, paddingVertical: 3, paddingHorizontal: 6 },
-  badgeTxt: { fontSize: 8, fontWeight: '600', letterSpacing: 1.2, color: lilac.head, textTransform: 'uppercase' },
-  // 기록 소인 (골드) — 화면당 1개
-  seal: { position: 'absolute', right: 10, bottom: 10, width: 56, height: 56, borderRadius: 28, backgroundColor: lilac.goldSoft, borderWidth: 1.4, borderColor: lilac.gold, alignItems: 'center', justifyContent: 'center', transform: [{ rotate: '-8deg' }] },
-  sealB: { fontSize: 12, fontWeight: '700', color: lilac.head, lineHeight: 14 },
-  sealS: { fontSize: 6.5, fontWeight: '600', letterSpacing: 1.4, color: lilac.head, textTransform: 'uppercase', marginTop: 2 },
+  badge: { backgroundColor: lilac.glassEdge, borderRadius: lilacRadius.tag, paddingVertical: 4, paddingHorizontal: 8 },
+  badgeTxt: { fontSize: 12, fontWeight: '600', letterSpacing: 1, color: lilac.head, textTransform: 'uppercase' },
+  // 기록 소인 (골드) — 화면당 1개 · [FIX3] 텍스트 승급분만큼 56 → 68 원형 성장
+  seal: { position: 'absolute', right: 10, bottom: 10, width: 68, height: 68, borderRadius: 34, backgroundColor: lilac.goldSoft, borderWidth: 1.4, borderColor: lilac.gold, alignItems: 'center', justifyContent: 'center', transform: [{ rotate: '-8deg' }] },
+  sealB: { fontSize: 13, fontWeight: '700', color: lilac.head, lineHeight: 16 },
+  sealS: { fontSize: 11.5, fontWeight: '600', letterSpacing: 1, color: lilac.head, textTransform: 'uppercase', marginTop: 2 },
 
-  // 하이라인 스탯 표
+  // 하이라인 스탯 표 — [FIX3] 키 12pt · [BUG A] 값 lineHeight 명시
   statTable: { marginHorizontal: 11, marginTop: 9, borderTopWidth: 1, borderBottomWidth: 1, borderColor: lilac.hair },
-  statCell: { flex: 1, paddingVertical: 8 },
+  statCell: { flex: 1, paddingVertical: 9 },
   statDiv: { borderLeftWidth: 1, borderLeftColor: lilac.hair2, paddingLeft: 11 },
-  statK: { fontSize: 7.5, fontWeight: '600', letterSpacing: 1.4, color: lilac.dim, textTransform: 'uppercase', marginBottom: 3 },
-  statV: { fontSize: 17, fontWeight: '600', color: lilac.head, fontVariant: ['tabular-nums'] },
+  statK: { fontSize: 12, fontWeight: '600', letterSpacing: 1, color: lilac.dim, textTransform: 'uppercase', marginBottom: 4 },
+  statV: { fontSize: 17, fontWeight: '600', color: lilac.head, fontVariant: ['tabular-nums'], lineHeight: 21 },
 
-  // 기록 조판 블록 (사진 없음)
+  // 기록 조판 블록 (사진 없음) — [BUG A] 큰 Oswald 숫자 lineHeight 46 (≥1.2×38)
   record: { flexDirection: 'row', gap: 10, alignItems: 'stretch', backgroundColor: lilac.inset, borderTopWidth: 1, borderBottomWidth: 1, borderColor: lilac.hair2, paddingHorizontal: 11, paddingVertical: 12 },
-  recordKm: { fontSize: 38, fontWeight: '600', color: lilac.head, letterSpacing: -0.5, lineHeight: 40, fontVariant: ['tabular-nums'] },
-  recordPace: { fontSize: 11, fontWeight: '600', letterSpacing: 0.6, color: lilac.accent, marginTop: 3 },
+  recordKm: { fontSize: 38, fontWeight: '600', color: lilac.head, letterSpacing: -0.5, lineHeight: 46, fontVariant: ['tabular-nums'] },
+  recordPace: { fontSize: 13, fontWeight: '600', letterSpacing: 0.6, color: lilac.accent, marginTop: 3 },
   traceBox: { alignItems: 'center', justifyContent: 'center', backgroundColor: lilac.card, borderWidth: 1, borderColor: lilac.hair, borderRadius: lilacRadius.inner },
 
-  // 클럽 리캡 = 밤의 창 (나이트 라일락)
+  // 클럽 리캡 = 밤의 창 (나이트 라일락) — [FIX3] 키커·키 12pt · [BUG A] 숫자 lineHeight 명시
   recapCard: { backgroundColor: '#1C1837', paddingLeft: 16, paddingRight: 14, paddingVertical: 13, borderTopWidth: 1, borderBottomWidth: 1, borderColor: lilac.hair2, overflow: 'hidden' },
   recapEdge: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 3 },
-  recapKick: { fontSize: 8, fontWeight: '600', letterSpacing: 2.6, color: '#CFC4FF', textTransform: 'uppercase' },
+  recapKick: { fontSize: 12, fontWeight: '600', letterSpacing: 1.8, color: '#CFC4FF', textTransform: 'uppercase' },
   recapNumCell: { flex: 1 },
   recapDiv: { borderLeftWidth: 1, borderLeftColor: 'rgba(207,196,255,.18)', paddingLeft: 12 },
-  recapNum: { fontSize: 19, fontWeight: '600', color: '#fff', fontVariant: ['tabular-nums'] },
-  recapK: { fontSize: 7.5, fontWeight: '600', letterSpacing: 1.6, color: lilac.dim, textTransform: 'uppercase', marginTop: 4 },
+  recapNum: { fontSize: 19, fontWeight: '600', color: '#fff', fontVariant: ['tabular-nums'], lineHeight: 23 },
+  recapK: { fontSize: 12, fontWeight: '600', letterSpacing: 1.2, color: lilac.dim, textTransform: 'uppercase', marginTop: 4 },
 
-  // 조용한 액션 행
-  act: { flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderColor: lilac.hair, backgroundColor: lilac.card, borderRadius: lilacRadius.tag, paddingVertical: 4, paddingHorizontal: 8 },
+  // 조용한 액션 행 — [FIX3] 라벨·숫자 승급, 칩 패딩 성장
+  act: { flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderColor: lilac.hair, backgroundColor: lilac.card, borderRadius: lilacRadius.tag, paddingVertical: 6, paddingHorizontal: 10 },
   actOn: { borderColor: '#F6C3B4', backgroundColor: '#FFF7F4', borderLeftWidth: 2.5, borderLeftColor: lilac.coral },
-  actLabel: { fontSize: 8.5, fontWeight: '600', letterSpacing: 1.2, color: lilac.dim, textTransform: 'uppercase' },
+  actLabel: { fontSize: 12, fontWeight: '600', letterSpacing: 1, color: lilac.dim, textTransform: 'uppercase' },
   actLabelOn: { color: lilac.head },
-  actNum: { fontSize: 10.5, fontWeight: '600', color: lilac.head, letterSpacing: 0.4 },
-  when: { fontSize: 7.5, fontWeight: '600', letterSpacing: 1.4, color: lilac.dim, textTransform: 'uppercase', marginTop: 7, marginBottom: 11 },
+  actNum: { fontSize: 13, fontWeight: '600', color: lilac.head, letterSpacing: 0.4 },
+  when: { fontSize: 12, fontWeight: '600', letterSpacing: 1, color: lilac.dim, textTransform: 'uppercase', marginTop: 7, marginBottom: 11 },
 
-  // 독자 편지 (댓글)
+  // 독자 편지 (댓글) — [FIX3] 키커 12pt · 입력 14pt · 보내기 버튼 36
   letters: { borderTopWidth: 1, borderTopColor: lilac.hair, backgroundColor: lilac.card, paddingHorizontal: 11, paddingTop: 10, paddingBottom: 11 },
-  lettersKick: { fontSize: 7.5, fontWeight: '600', letterSpacing: 2, color: lilac.dim, textTransform: 'uppercase' },
+  lettersKick: { fontSize: 12, fontWeight: '600', letterSpacing: 1.5, color: lilac.dim, textTransform: 'uppercase' },
   commentInput: {
     flex: 1, backgroundColor: lilac.inset, borderRadius: lilacRadius.inner, borderWidth: 1, borderColor: lilac.hair,
-    paddingVertical: 8, paddingHorizontal: 12, fontSize: 12.5, color: lilac.head,
+    paddingVertical: 9, paddingHorizontal: 12, fontSize: 14, color: lilac.head,
   },
-  commentSend: { width: 32, height: 32, borderRadius: lilacRadius.btn, backgroundColor: CORAL_INK, alignItems: 'center', justifyContent: 'center' },
+  commentSend: { width: 36, height: 36, borderRadius: lilacRadius.btn, backgroundColor: CORAL_INK, alignItems: 'center', justifyContent: 'center' },
 
-  // 콜로폰
+  // 콜로폰 — [FIX3] 본문 13 · 풋라인 12
   colophon: { marginHorizontal: GUTTER + 2, marginTop: 14, paddingTop: 11, borderTopWidth: 1, borderTopColor: lilac.hair },
-  coloBody: { fontSize: 9.5, color: lilac.dim, lineHeight: 15 },
-  coloFoot: { fontSize: 8.5, color: lilac.dim, letterSpacing: 0.2 },
-  coloDot: { width: 2, height: 2, borderRadius: 1, backgroundColor: lilac.hair },
+  coloBody: { fontSize: 13, color: lilac.dim, lineHeight: 19 },
+  coloFoot: { fontSize: 12, color: lilac.dim, letterSpacing: 0.2 },
+  coloDot: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: lilac.hair },
 });

@@ -6,7 +6,7 @@ import { Animated, Easing, Linking, Pressable, ScrollView, StyleSheet, Text, Tex
 import { BottomNav } from '../../src/components/bottomnav';
 import { CourseStrip } from '../../src/components/CourseStrip';
 import { RunnerClubCard } from '../../src/components/clubcard';
-import { Row } from '../../src/components/ui';
+import { Icon, Row } from '../../src/components/ui';
 import {
   AvailRule, CoursePatch, fetchCoursePatches, fetchMyAvailability, fetchMyName, fetchMyRunnerStatus, fetchRunnerInbox, fetchRunnerJobs,
   fetchRunnerWeekStats, MyRunnerStatus, OpenRequest, RunnerJob, RunnerWeekStats, saveMyAvailability, setRunnerOnline,
@@ -234,7 +234,7 @@ export default function RunnerHome() {
           <Text style={styles.crumb}>RUNNER</Text>
         </Row>
         <Pressable onPress={() => router.push('/alerts')} style={styles.bell} accessibilityLabel="알림">
-          <Text style={{ fontSize: 13, color: lilac.head }}>🔔</Text>
+          <Icon name="Bell" glyph="◔" size={16} color={lilac.head} />
         </Pressable>
       </View>
 
