@@ -205,6 +205,7 @@ export interface Booking {
   id: string;
   dateLabel: string; // 그룹 헤더
   timeLabel: string;
+  scheduledAt?: string; // 원본 ISO — D-day·정렬용 (표시용 라벨은 dateLabel/timeLabel)
   dogName: string;
   dogCollar?: string | null; // 칼라 컬러 키 (0033) — theme.collarColors
   runnerId: string;

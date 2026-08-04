@@ -8,8 +8,8 @@ import { CourseStrip } from '../../src/components/CourseStrip';
 import { RunnerClubCard } from '../../src/components/clubcard';
 import { Icon, Row } from '../../src/components/ui';
 import {
-  acceptBooking, AvailRule, CoursePatch, declineBooking, fetchCoursePatches, fetchMyAvailability, fetchMyName, fetchMyRunnerStatus, fetchRunnerInbox, fetchRunnerJobs,
-  fetchRunnerWeekStats, MyRunnerStatus, OpenRequest, RunnerJob, RunnerWeekStats, saveMyAvailability, setRunnerOnline,
+  acceptBooking, AvailRule, CoursePatch, declineBooking, fetchCoursePatches, fetchLedgerMonth, fetchLedgerTotal, fetchMyAvailability, fetchMyName, fetchMyRunnerStatus, fetchRunnerInbox, fetchRunnerJobs,
+  fetchRunnerWeekStats, fetchUnreadCount, MyRunnerStatus, OpenRequest, RunnerJob, RunnerWeekStats, saveMyAvailability, setRunnerOnline,
 } from '../../src/lib/api';
 import { PatchBadge } from '../../src/components/patch';
 import { registerPushToken } from '../../src/lib/push';
@@ -156,6 +156,10 @@ export default function RunnerHome() {
   const [inbox, setInbox] = useState<OpenRequest[]>([]);
   const [name, setName] = useState<string | null>(null);
   const [stats, setStats] = useState<RunnerWeekStats>({ net: 0, runs: 0, km: 0 });
+  // 장부 넓은 창 — 이번 달(KST 월 1일~) · 누적(정산 예정 총액). 로드 전엔 null → '—' (0원 위장 금지)
+  const [monthNet, setMonthNet] = useState<number | null>(null);
+  const [totalNet, setTotalNet] = useState<number | null>(null);
+  const [unread, setUnread] = useState(0); // 미읽음 알림 실카운트 — 벨 도트의 유일한 근거
   const [jobs, setJobs] = useState<RunnerJob[]>([]);
   const [patchMap, setPatchMap] = useState<Record<string, CoursePatch>>({}); // 완료 카드 미니 패치
   const [rs, setRs] = useState<MyRunnerStatus>({ totalRuns: 0, totalKm: 0, online: false, tier: 'certified' });
@@ -223,6 +227,9 @@ export default function RunnerHome() {
     fetchRunnerInbox().then((l) => setInbox(filterDeclined(l))).catch((e) => console.warn('[rhome] inbox:', e?.message ?? e));
     fetchMyName().then(setName).catch(() => {});
     fetchRunnerWeekStats().then(setStats).catch((e) => console.warn('[rhome] stats:', e?.message ?? e));
+    fetchLedgerMonth().then(setMonthNet).catch((e) => console.warn('[rhome] month:', e?.message ?? e));
+    fetchLedgerTotal().then(setTotalNet).catch((e) => console.warn('[rhome] total:', e?.message ?? e));
+    fetchUnreadCount().then(setUnread).catch((e) => console.warn('[rhome] unread:', e?.message ?? e));
     fetchRunnerJobs().then(setJobs).catch((e) => console.warn('[rhome] jobs:', e?.message ?? e));
     fetchCoursePatches()
       .then(({ earned }) => setPatchMap(Object.fromEntries(earned.map((pt) => [pt.routeId, pt]))))
@@ -273,9 +280,10 @@ export default function RunnerHome() {
 
   const tierLabel = TIER_LABEL[rs.tier] ?? '러너';
   const avg = stats.runs > 0 ? Math.round(stats.net / stats.runs) : 0;
-  // 오늘 라벨(기기=KST) — 오늘 잡(확정~완료)의 실수령 합 = '오늘 눈에 보이는 수익'
-  const _t = new Date();
-  const todayLabel = `${_t.getMonth() + 1}월 ${_t.getDate()}일`;
+  // 오늘 라벨 — 기기 시계가 아니라 KST 고정(UTC+9, DST 없음). j.when은 서버 api의 kstParts 산출물이라
+  // 기기가 UTC(에뮬레이터)·해외면 라벨이 하루 어긋나 오늘 잡이 통째로 안 잡혔다.
+  const _t = new Date(Date.now() + 9 * 3_600_000);
+  const todayLabel = `${_t.getUTCMonth() + 1}월 ${_t.getUTCDate()}일`;
   const todayJobs = jobs.filter((j) => j.when.startsWith(todayLabel) && ['confirmed', 'runner_enroute', 'picked_up', 'active', 'completed'].includes(j.rawStatus));
   const todaySum = todayJobs.reduce((a, j) => a + (j.payout ?? 0), 0);
   const todayN = todayJobs.length;
@@ -301,6 +309,8 @@ export default function RunnerHome() {
           <Text style={styles.crumb}>RUNNER</Text>
         </Row>
         <Pressable onPress={() => router.push('/alerts')} style={styles.bell} accessibilityLabel="알림">
+          {/* 도트는 실 미읽음 수가 있을 때만 — 무조건 점은 가짜 알림 신호다 */}
+          {unread > 0 && <View style={styles.bellDot} />}
           <Icon name="Bell" glyph="◔" size={16} color={lilac.head} />
         </Pressable>
       </View>
@@ -386,10 +396,20 @@ export default function RunnerHome() {
               <Text style={[styles.lBig, nf]} numberOfLines={1}>{stats.net.toLocaleString()}</Text>
             </Row>
             <Text style={styles.lCap}>이번 주 실수령 예정 금액 · 수수료 차감 후 기준</Text>
+            {/* 넓은 창 — 이번 달(KST 월 1일~ 원장 합) · 누적(my_ledger_total RPC). 실값만, 로드 전엔 '—' */}
+            <Row style={styles.lWin}>
+              <Text style={styles.lWinK}>이번 달</Text>
+              <Text style={styles.lWinV}>₩<Text style={[styles.lWinNum, nf]}>{monthNet === null ? '—' : monthNet.toLocaleString()}</Text></Text>
+              <Text style={styles.lWinSep}>·</Text>
+              <Text style={styles.lWinK}>누적</Text>
+              <Text style={styles.lWinV}>₩<Text style={[styles.lWinNum, nf]}>{totalNet === null ? '—' : totalNet.toLocaleString()}</Text></Text>
+            </Row>
             {/* [Sean] 오늘의 가시 수익 = 러너의 인센티브 — 오늘 확정·진행·완료 잡의 실수령 합 (실필드만) */}
+            {/* 라벨 '·예정': 완료 건만 원장 실수령이고 확정~진행 건은 티어 수수료 견적(api fetchRunnerJobs)이다 —
+                섞인 합을 '확보'라 부르면 아직 안 들어온 돈을 확정으로 위장한다. 계산·필터는 그대로. */}
             {todayN > 0 && (
               <Text style={styles.lToday}>
-                오늘 확보 <Text style={[styles.lTodayNum, nf]}>+{todaySum.toLocaleString()}</Text>원 · 확정 {todayN}건
+                오늘 확보·예정 <Text style={[styles.lTodayNum, nf]}>+{todaySum.toLocaleString()}</Text>원 · 확정 {todayN}건
               </Text>
             )}
 
@@ -806,6 +826,12 @@ const styles = StyleSheet.create({
     width: 26, height: 26, borderRadius: 6, borderWidth: 1, borderColor: lilac.hair,
     backgroundColor: lilac.card, alignItems: 'center', justifyContent: 'center',
   },
+  // 미읽음 도트 — 보호자 홈과 동일 어휘(코랄 6px 글로우), 26px 벨에 맞춘 인셋
+  bellDot: {
+    position: 'absolute', top: 4, right: 4, width: 6, height: 6, borderRadius: 3,
+    backgroundColor: lilac.coral, zIndex: 2,
+    shadowColor: lilac.coral, shadowOpacity: 1, shadowRadius: 4, shadowOffset: { width: 0, height: 0 },
+  },
 
   // 공통 카드 + 룰 — 목업 카드 padding 대략 12/13 (섹션별 오버라이드)
   card: {
@@ -878,6 +904,12 @@ const styles = StyleSheet.create({
   lBig: { fontSize: 46, color: lilac.head, lineHeight: 58, letterSpacing: 0.2, flexShrink: 1 },
   lToday: { fontSize: 14, fontWeight: '700', color: '#3D6B1F', marginTop: 7 },
   lTodayNum: { fontSize: 16, fontWeight: '700' },
+  // 월·누적 행 — 히어로 아래 조용한 보조 창. Oswald 숫자는 lineHeight ≥1.2× (BUG A 법)
+  lWin: { alignItems: 'baseline', gap: 5, marginTop: 8, flexWrap: 'wrap' },
+  lWinK: { fontSize: 12, lineHeight: 16, color: lilac.dim, fontWeight: '600' },
+  lWinV: { fontSize: 13, lineHeight: 17, fontWeight: '700', color: lilac.head },
+  lWinNum: { fontSize: 14, lineHeight: 18, color: lilac.head },
+  lWinSep: { fontSize: 12, lineHeight: 16, color: lilac.dim },
   lCap: { marginTop: 6, fontSize: 12.5, color: lilac.dim, lineHeight: 18 },
   lr: { alignItems: 'baseline', gap: 7, paddingTop: 7, paddingBottom: 6, borderBottomWidth: 1, borderBottomColor: lilac.hair2 },
   lrLabel: { fontSize: 13, lineHeight: 17, fontWeight: '600', color: lilac.head },

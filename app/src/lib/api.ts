@@ -246,6 +246,12 @@ function kstWeekStartMs(t = Date.now()): number {
   return Date.UTC(k.getUTCFullYear(), k.getUTCMonth(), k.getUTCDate()) - day * 86400_000 - KST_MS;
 }
 
+// KST 캘린더 월(1일 00:00 시작) — '이번 달' 창. 주 시작과 동일한 고정 UTC+9 산술 (한국은 DST 없음).
+function kstMonthStartMs(t = Date.now()): number {
+  const k = new Date(t + KST_MS);
+  return Date.UTC(k.getUTCFullYear(), k.getUTCMonth(), 1) - KST_MS;
+}
+
 // [감사 P2] 기기 로컬 타임존이 아니라 Asia/Seoul 고정 — 서버(club_generate_club_sessions)가 KST 고정이라
 // 기기가 UTC(에뮬레이터)·해외면 세션/홀드/채팅/영수증 시각이 어긋났다. 오프셋 파트를 KST로 계산.
 function kstParts(iso: string) {
@@ -1410,6 +1416,20 @@ export async function fetchRunnerWeekStats(): Promise<RunnerWeekStats> {
   return { net, runs: rows.length, km: Math.round(km * 10) / 10 };
 }
 
+// 이번 달 실수령 — 주간(fetchRunnerWeekStats)과 동일한 net 식, 창만 KST 월 1일 00:00.
+// 월 단위라 행수 유계(파일럿 ≤수십) — 2000행 캡 리스크는 누적(=my_ledger_total RPC)에만 해당;
+// 월이 캡에 접근하면 invoker RPC로 승격 (핸드오프 §9 스케치).
+export async function fetchLedgerMonth(): Promise<number> {
+  const since = new Date(kstMonthStartMs()).toISOString();
+  const { data, error } = await supabase
+    .from('ledger_items')
+    .select('base, distance_pay, addon_pay, tip, remaining_guarantee, platform_fee')
+    .gte('created_at', since);
+  if (error) throw error;
+  const rows = data ?? [];
+  return rows.reduce((s, l: any) => s + l.base + l.distance_pay + l.addon_pay + l.tip + (l.remaining_guarantee ?? 0) - l.platform_fee, 0);
+}
+
 // 정산 예정 누적 — 서버 집계 RPC (0027). 2000행 클라 합산 상한 은퇴 (초과 시 잔액이 조용히 줄던 거짓)
 export async function fetchLedgerTotal(): Promise<number> {
   const { data, error } = await supabase.rpc('my_ledger_total');
@@ -2462,6 +2482,17 @@ export async function fetchRunReport(bookingId: string): Promise<RunReport> {
   };
 }
 
+// 미읽음 알림 수 — 벨 도트의 실근거. head:true라 행은 안 실어오고 count만 받는다.
+// RLS가 내 알림으로 자기 범위화 + read_at IS NULL 부분 인덱스가 서빙.
+export async function fetchUnreadCount(): Promise<number> {
+  const { count, error } = await supabase
+    .from('notifications')
+    .select('*', { count: 'exact', head: true })
+    .is('read_at', null);
+  if (error) throw error;
+  return count ?? 0;
+}
+
 export async function markAllNotificationsRead(): Promise<void> {
   const { error } = await supabase
     .from('notifications')
@@ -2491,6 +2522,7 @@ export async function fetchMyBookings(): Promise<Booking[]> {
       id: r.id,
       dateLabel,
       timeLabel,
+      scheduledAt: r.scheduled_at, // 원본 ISO — D-day·정렬용 (라벨은 위 kstParts 산출물)
       dogName: r.dogs?.name ?? '반려견',
       dogCollar: r.dogs?.collar ?? null, // 칼라 컬러 (0033)
       runnerId: r.runner_id ?? '', // 실 러너 uuid (매칭 전 ''). 목업 상수 'minjun' 박제 제거 — 가짜 데이터 금지

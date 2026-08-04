@@ -1,9 +1,38 @@
-# SESSION HANDOFF — 2026-08-04c (0055 definer 봉인 · 0056 거절 원장 · W4 히어로 랩)
+# SESSION HANDOFF — 2026-08-04d (0055/0056 + 수익·D-day·벨 실데이터 + W4 구현 WIP)
+
+## ⓪ CONTINUATION NOTE — 다음 프롬프트에서 바로 이어서 할 것
+Sean 지시(구두): "①에 ③의 이미지 디스플레이 머지, 체력 나이 강조" — 구현 1차는 완료됐으나 적대 리뷰가
+**P0**를 잡아 docs/wip/fitness-hero-WIP.tsx 로 파킹했다 (앱 트리는 원본 유지 — tsc 미통과 코드 반입 금지 원칙).
+1. **P0 수리 (핵심)**: WIP의 모프는 확장 히어로를 '인라인 스크롤 콘텐츠'로 두고 opacity만 죽여서,
+   접힌 뒤 ~420px 공백이 남는다. owner-home 정본 구조로 재조립할 것: 히어로 = **absolute 고정 오버레이**
+   (owner/home.tsx:509 부근) + ScrollView는 paddingTop으로 자리 예약(owner/home.tsx:728 패턴) +
+   접힘은 scaleY/translate 조합(높이 애니 금지). 인터폴레이션 값들은 WIP 것 재사용 가능(클린 판정).
+2. **P1 셋**: (a) 컴팩트 리본 opacity>0.5쯤부터 pointerEvents 차단 토글(숨은 ± 버튼 오탭 방지 —
+   Animated 값 리스너로 state 토글), (b) moments 로딩 상태 분리(null=로딩 vs []=빈 — 지금은 로딩 중에
+   "사진이 없어요"가 뜬다), (c) fetchFitness/fetchRecentMoments Promise.all 결합 해제(한쪽 실패가
+   전체 '—' 화면 — 각각 catch, 이전 상태 유지).
+3. 수리 후: 컨테이너에서 리뷰어 재검(agent a001f435dcf726c51 컨텍스트 보유·SendMessage 가능하나
+   컨테이너 소멸 시 새 리뷰어) → 기기 tsc → 커밋. Sean 기기 스모크(스크린샷 루프 예상).
+4. **안무 4종 랩 미착수** (flap flip·seal stamp·stub tear·ring drain — HTML 모션 랩, W4 랩 방식,
+   docs/labs/choreography-lab.html) — 이것도 이어서.
+5. 컨테이너 상태: /tmp/daengrun에 하네스(224 green)·전체 서버 트리·WIP 존재하나 **컨테이너는 소멸 가능** —
+   소멸 시 tar 재구축 의식(§5) 후 docs/wip에서 이어가면 된다. 랩 정본은 repo(docs/labs).
 
 Companion docs: `docs/audit-2026-08-02.md` · precision-director skill (installed, READ AND FOLLOW) · **`docs/labs/fitness-hero-lab.html`** (W4 랩 — repo에 저장, /tmp 소멸 문제 해결).
 Opener for next session: **"read docs/session-handoff.md fully, then continue"**.
 
-## 1. Goal & current state
+## 1. Goal & current state (2026-08-04d 추가분)
+- **수익·D-day·벨 배지 실데이터: DONE (이번 커밋)** — 스카웃 판정 전 항목 client-only (0057 불필요:
+  누적=기존 my_ledger_total RPC · notifications는 read_at+부분 인덱스+RLS 기성). api.ts: kstMonthStartMs·
+  fetchLedgerMonth(월 유계라 2000행 캡 무관, 주간 카드와 동일 net 식)·fetchUnreadCount·fetchMyBookings에
+  scheduledAt. runner home: 이번 달·누적 행 + 오늘 확보→**오늘 확보·예정**(추정 혼입 정직화) + todayLabel
+  KST 고정(기기 TZ 버그) + 벨 닷 신설(실카운트). owner home: **무조건 켜지던 벨 닷 = 조작 지표 제거**(unread>0만) +
+  liveNext 정렬 버그 수리(안정정렬이 '가장 먼 미래'를 NEXT RUN으로 — 미래 우선·임박 순, 과거 6h 유예 뒤로) +
+  D-day 칩(KST 캘린더 diff, 과거/결측이면 칩 없음 — 가짜 카운트다운 금지) + demoImminent 죽은 임포트 제거 +
+  티켓 헤더 오버플로 가드. store.ts: Booking.scheduledAt?.
+- **W4 히어로 구현: WIP 파킹** (⓪ 참조 — P0 수리 후 반입). **안무 랩: 미착수** (⓪-4).
+
+## 1b. (이전 배치 기록)
 daengrun (도그스하이) — RN/Expo + Supabase dog-running marketplace, 반포 pilot. 이 세션 (0054 배치에 이어 같은 날 2·3차):
 - **0054 배치: 원격 반영 완료** [Sean 확인] — db push 0051~0054 + transition-booking deploy + git push (0ed2709). 스모크는 §7.
 - **0055 definer 봉인 + 8+2 신인 슬롯: DONE** [verified-now: 하네스 224/224] — 전 public security-definer 함수(116개) `search_path = public, pg_temp` 일괄 ALTER (동적 sweep, 멱등, 소유자 가드) + runners_available_for 상위8 경험 + 잔여 최소경험 2 슬롯 (신인 콜드스타트 완화 — 한계는 파일 주석·§9 참조). 적대 리뷰어가 0054 P2 섀도잉 공격을 3개 게이트에서 재실행 → 전부 차단 확인.
@@ -49,7 +78,9 @@ daengrun (도그스하이) — RN/Expo + Supabase dog-running marketplace, 반�
    → 0행이어야 함. 행이 나오면 소유자 다른 함수 — 목록 들고 다음 세션.
 4. `git push` (redesign-v4).
 5. Device smoke (0054 배치 포함 누적): 매칭 로스터(가용만·빈/오류/재시도·신인 하단 노출), 러너 변경, 일정 시트 상태 매트릭스(+불발/확인중 배지), 수락 409 시각 지목, 지명 거절 → 오픈 풀 미재등장(재시작 후에도) → 직접 재지명 수신.
-6. W4 랩 열어서 번호 선택 (docs/labs/fitness-hero-lab.html — 스크롤로 모프 재생, 믹스 지정 가능).
+6. ~~W4 랩 번호 선택~~ → 선택됨: "① + ③ 이미지 디스플레이, 체력 나이 강조" — 구현 WIP는 ⓪.
+7. 기기 스모크 추가분: 러너 홈 이번 달·누적 실값 + 오늘 확보·예정 라벨 · 오너 홈 벨 닷(안 읽은 알림 없으면 꺼짐!) ·
+   NEXT RUN 티켓이 '가장 임박한' 건인지 + D-day 칩 · 알림 읽음 후 닷 소등.
 
 ## 8. Known bugs / gotchas
 - 이전 문서 유효 (5pm 미스터리는 deploy 후 409가 자백 예정 · roster 폰트 클리핑 [기기] · .fuse_hidden 무시).

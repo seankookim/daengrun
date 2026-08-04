@@ -7,12 +7,12 @@ import { CourseStrip } from '../../src/components/CourseStrip';
 import { ClubHomeCard } from '../../src/components/clubcard';
 import { RunCard } from '../../src/components/runcard';
 import { Avatar, Icon } from '../../src/components/ui';
-import { Addr, BoardRow, confirmPayment, createBookingHold, DogProfile, fetchAddresses, fetchAvailableRunners, fetchCertifiedRunners, fetchDogBoardDelta, fetchFitness, fetchMyBookings, fetchMyDogs, fetchMyProfile, fetchRecentMoments, fetchRoutes, Fitness, LiveRunner, Moment, MyProfile } from '../../src/lib/api';
+import { Addr, BoardRow, confirmPayment, createBookingHold, DogProfile, fetchAddresses, fetchAvailableRunners, fetchCertifiedRunners, fetchDogBoardDelta, fetchFitness, fetchMyBookings, fetchMyDogs, fetchMyProfile, fetchRecentMoments, fetchRoutes, fetchUnreadCount, Fitness, LiveRunner, Moment, MyProfile } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { haptic } from '../../src/lib/haptics';
 import { registerPushToken } from '../../src/lib/push';
-import { Booking, demoImminent, dog, draft, myCards, nextBooking, ownerGearLadder, RouteInfo, runners } from '../../src/store';
+import { Booking, dog, draft, myCards, nextBooking, ownerGearLadder, RouteInfo, runners } from '../../src/store';
 import { colors, lilac, lilacRadius, lilacShadow, pricing } from '../../src/theme';
 import { useTheme } from '../../src/theme-context';
 
@@ -181,6 +181,19 @@ function SectionHead({ n, title, link, onLink }: { n?: string; title: string; li
   );
 }
 
+// D-day — KST 캘린더 '날짜 칸' 차이(시각 차 아님). 두 시각을 UTC+9로 민 뒤 날짜만 남겨 뺀다.
+// 한국은 DST가 없어 고정 오프셋 산술로 충분 (서버 kstParts와 같은 전제).
+const KST_MS = 9 * 3_600_000;
+function kstDayDiff(iso: string, now = Date.now()): number | null {
+  const t = Date.parse(iso);
+  if (Number.isNaN(t)) return null;
+  const dayMs = (ms: number) => {
+    const k = new Date(ms + KST_MS);
+    return Date.UTC(k.getUTCFullYear(), k.getUTCMonth(), k.getUTCDate());
+  };
+  return Math.floor((dayMs(t) - dayMs(now)) / 86400_000);
+}
+
 const PAD_TOP = 56;
 const HEADER_H = 122; // [4차] 브랜드 행(28) + 그리팅(44+8) + 랭킹 티커(~34) — 실측 합에 맞춰 히어로 위 갭 봉합
 
@@ -255,19 +268,29 @@ export default function OwnerHome() {
   // 실예약 next booking — 위젯이 진짜 다음 일정을 보여준다 (없으면 목업)
   const [liveNext, setLiveNext] = useState<Booking | null>(null);
   const [lastDone, setLastDone] = useState<Booking | null>(null);
+  const [unread, setUnread] = useState(0); // 미읽음 알림 실카운트 — 벨 도트의 유일한 근거
   useFocusEffect(useCallback(() => {
     fetchMyBookings()
       .then((bs) => {
         // 가장 액션 가능한 예약 우선: active > handoff > confirmed > pending —
         // 스테일 '매칭 중'이 확정 러닝(인계 확인 위젯)을 가리는 사고 방지
         const RANK: Record<string, number> = { active: 0, handoff: 1, confirmed: 2, pending: 3 };
+        // [FIX] 동순위 타이브레이크 — bs는 scheduled_at DESC로 오고 Array.sort는 안정 정렬이라
+        // 같은 RANK 안에선 [0]이 '가장 먼 미래' 건이었다(모레 확정이 오늘 확정을 가림).
+        // 2차 키 = 미래 우선, 3차 = scheduledAt 오름차순 → 같은 순위면 '다가오는' 가장 임박한 건이
+        // 이긴다. 지난 건(6h 유예 — 지연 시작 케이스)은 뒤로 — 안 그러면 오름차순이 '가장 오래된
+        // 과거 잔재'를 NEXT RUN으로 박제한다 (confirmed엔 만료 크론이 없다 — 리뷰 P1). 없으면 맨 뒤.
+        const at = (b: Booking) => (b.scheduledAt ? Date.parse(b.scheduledAt) : Number.MAX_SAFE_INTEGER);
+        const past = (b: Booking) => (b.scheduledAt ? Date.parse(b.scheduledAt) < Date.now() - 6 * 3_600_000 : false);
         setLiveNext(
-          bs.filter((b) => b.status in RANK).sort((a, b) => RANK[a.status] - RANK[b.status])[0] ?? null,
+          bs.filter((b) => b.status in RANK)
+            .sort((a, b) => RANK[a.status] - RANK[b.status] || Number(past(a)) - Number(past(b)) || at(a) - at(b))[0] ?? null,
         );
         setLastDone(bs.find((b) => b.status === 'completed') ?? null);
       })
       .catch((e) => console.warn('[home] bookings:', e?.message ?? e));
     fetchFitness().then(setFit).catch((e) => console.warn('[home] fitness:', e?.message ?? e));
+    fetchUnreadCount().then(setUnread).catch((e) => console.warn('[home] unread:', e?.message ?? e));
     fetchMyProfile().then(setMe).catch((e) => console.warn('[home] me:', e?.message ?? e));
     fetchRecentMoments().then(setMoments).catch((e) => console.warn('[home] moments:', e?.message ?? e));
     fetchDogBoardDelta().then(setTicker).catch((e) => console.warn('[home] ticker:', e?.message ?? e));
@@ -276,6 +299,11 @@ export default function OwnerHome() {
     // 가용 러너 — 러닝 중인 러너는 히어로 카운트/레이더에서 제외 (기대 오염 방지)
     fetchAvailableRunners().then(setFnAvail).catch((e) => console.warn('[home] avail:', e?.message ?? e));
   }, []));
+
+  // 티켓 D-day — 실 scheduled_at 기준. 값이 없거나 이미 지난 건이면 null → 칩 자체를 안 그린다
+  // (가짜 카운트다운 금지). 0 = 오늘.
+  const ddayN = liveNext?.scheduledAt ? kstDayDiff(liveNext.scheduledAt) : null;
+  const ddayLabel = ddayN === null || ddayN < 0 ? null : ddayN === 0 ? 'D-DAY' : `D-${ddayN}`;
 
   // 우리 동네 러너 — 온라인 러너 셸프 (탐색형 매칭의 시작점)
   const [localRunners, setLocalRunners] = useState<LiveRunner[]>([]);
@@ -498,7 +526,8 @@ export default function OwnerHome() {
               <Text style={{ fontSize: 13, color: lilac.accent }}>◐</Text>
             </Pressable>
             <Pressable onPress={() => router.push('/alerts')} style={[s.themeBtn, { borderColor: p.line, backgroundColor: p.card, marginLeft: 8 }]}>
-              <View style={s.bellDot} />
+              {/* 도트는 실 미읽음 수가 있을 때만 — 무조건 점은 가짜 알림 신호였다 */}
+              {unread > 0 && <View style={s.bellDot} />}
               <Icon name="Bell" glyph="◔" size={15} color={lilac.head} />
             </Pressable>
           </View>
@@ -733,17 +762,25 @@ export default function OwnerHome() {
           <HoloBar />
           <View pointerEvents="none" style={s.ticketDbl} />
           <View style={s.ticketHead}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            {/* 칩이 둘(D-day + 상태)이 되며 헤더 폭이 빡빡해졌다 — 브랜드 라인이 줄바꿈/클리핑되는 대신
+                줄어들고(ticket은 overflow:hidden) 칩들은 온전히 남게 flex 배분 */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>
               <View style={s.ticketGlyph}><Text style={{ fontSize: 11, color: '#fff' }}>✦</Text></View>
-              <Text style={s.ticketBrand}>NEXT RUN · BOARDING PASS</Text>
+              <Text style={s.ticketBrand} numberOfLines={1}>NEXT RUN · BOARDING PASS</Text>
             </View>
             {liveNext ? (
-              <View style={[s.countdownPill, liveNext.status === 'pending'
-                ? { backgroundColor: lilac.amberSoft }
-                : { backgroundColor: '#F2E7FC' }]}>
-                <Text style={[{ fontSize: 12, lineHeight: 15, fontWeight: '900', letterSpacing: 0.5 }, nf, { color: liveNext.status === 'pending' ? lilac.amber : lilac.accent }]}>
-                  {liveNext.status === 'pending' ? (liveNext.matched ? '지명 대기' : '매칭 중') : liveNext.status === 'active' ? '● LIVE' : liveNext.status === 'handoff' ? '시작 대기' : '확정됨'}
-                </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 0, marginLeft: 6 }}>
+                {/* D-day 칩 — 상태 태그 왼쪽. scheduled_at 없거나 지난 건이면 렌더 없음 */}
+                {ddayLabel ? (
+                  <View style={s.ddayChip}><Text style={[s.ddayTxt, nf]}>{ddayLabel}</Text></View>
+                ) : null}
+                <View style={[s.countdownPill, liveNext.status === 'pending'
+                  ? { backgroundColor: lilac.amberSoft }
+                  : { backgroundColor: '#F2E7FC' }]}>
+                  <Text style={[{ fontSize: 12, lineHeight: 15, fontWeight: '900', letterSpacing: 0.5 }, nf, { color: liveNext.status === 'pending' ? lilac.amber : lilac.accent }]}>
+                    {liveNext.status === 'pending' ? (liveNext.matched ? '지명 대기' : '매칭 중') : liveNext.status === 'active' ? '● LIVE' : liveNext.status === 'handoff' ? '시작 대기' : '확정됨'}
+                  </Text>
+                </View>
               </View>
             ) : null}
           </View>
@@ -1405,7 +1442,7 @@ const s = StyleSheet.create({
   ticketDbl: { position: 'absolute', top: 4, left: 4, right: 4, bottom: 4, borderWidth: 1, borderColor: lilac.hair2, borderRadius: lilacRadius.inner },
   ticketHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 13, paddingTop: 12 },
   ticketGlyph: { width: 18, height: 18, borderRadius: lilacRadius.tag, backgroundColor: lilac.accent, alignItems: 'center', justifyContent: 'center' },
-  ticketBrand: { fontSize: 12, fontWeight: '800', letterSpacing: 1.2, color: lilac.head },
+  ticketBrand: { fontSize: 12, fontWeight: '800', letterSpacing: 1.2, color: lilac.head, flexShrink: 1 },
   perf: { marginTop: 11, height: 0, borderTopWidth: 1.5, borderStyle: 'dashed', borderColor: '#DCD7F0', marginHorizontal: -13 },
   notch: { position: 'absolute', top: -9, width: 18, height: 18, borderRadius: 9, backgroundColor: lilac.bg, borderWidth: 1, borderColor: lilac.hair2 },
   rewardCard: {
@@ -1450,6 +1487,12 @@ const s = StyleSheet.create({
     shadowColor: lilac.accent, shadowOpacity: 0.3, shadowRadius: 13, shadowOffset: { width: 0, height: 5 },
   },
   countdownPill: { borderRadius: lilacRadius.tag, paddingVertical: 4, paddingHorizontal: 8 },
+  // D-day 칩 — countdownPill과 동일 메트릭, 중립 인셋 표면 (상태 태그가 색을 갖는다)
+  ddayChip: {
+    borderRadius: lilacRadius.tag, paddingVertical: 4, paddingHorizontal: 8,
+    borderWidth: 1, borderColor: lilac.hair2, backgroundColor: lilac.inset,
+  },
+  ddayTxt: { fontSize: 12, lineHeight: 15, fontWeight: '900', letterSpacing: 0.5, color: lilac.head },
   widgetBtn: { flex: 1, borderWidth: 1, borderColor: lilac.hair, backgroundColor: lilac.inset, borderRadius: lilacRadius.btn, alignItems: 'center', paddingVertical: 10 },
   nudge: {
     flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 10,
