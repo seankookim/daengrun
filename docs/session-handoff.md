@@ -1,22 +1,9 @@
 # SESSION HANDOFF — 2026-08-04d (0055/0056 + 수익·D-day·벨 실데이터 + W4 구현 WIP)
 
-## ⓪ CONTINUATION NOTE — 다음 프롬프트에서 바로 이어서 할 것
-Sean 지시(구두): "①에 ③의 이미지 디스플레이 머지, 체력 나이 강조" — 구현 1차는 완료됐으나 적대 리뷰가
-**P0**를 잡아 docs/wip/fitness-hero-WIP.tsx 로 파킹했다 (앱 트리는 원본 유지 — tsc 미통과 코드 반입 금지 원칙).
-1. **P0 수리 (핵심)**: WIP의 모프는 확장 히어로를 '인라인 스크롤 콘텐츠'로 두고 opacity만 죽여서,
-   접힌 뒤 ~420px 공백이 남는다. owner-home 정본 구조로 재조립할 것: 히어로 = **absolute 고정 오버레이**
-   (owner/home.tsx:509 부근) + ScrollView는 paddingTop으로 자리 예약(owner/home.tsx:728 패턴) +
-   접힘은 scaleY/translate 조합(높이 애니 금지). 인터폴레이션 값들은 WIP 것 재사용 가능(클린 판정).
-2. **P1 셋**: (a) 컴팩트 리본 opacity>0.5쯤부터 pointerEvents 차단 토글(숨은 ± 버튼 오탭 방지 —
-   Animated 값 리스너로 state 토글), (b) moments 로딩 상태 분리(null=로딩 vs []=빈 — 지금은 로딩 중에
-   "사진이 없어요"가 뜬다), (c) fetchFitness/fetchRecentMoments Promise.all 결합 해제(한쪽 실패가
-   전체 '—' 화면 — 각각 catch, 이전 상태 유지).
-3. 수리 후: 컨테이너에서 리뷰어 재검(agent a001f435dcf726c51 컨텍스트 보유·SendMessage 가능하나
-   컨테이너 소멸 시 새 리뷰어) → 기기 tsc → 커밋. Sean 기기 스모크(스크린샷 루프 예상).
-4. **안무 4종 랩 미착수** (flap flip·seal stamp·stub tear·ring drain — HTML 모션 랩, W4 랩 방식,
-   docs/labs/choreography-lab.html) — 이것도 이어서.
-5. 컨테이너 상태: /tmp/daengrun에 하네스(224 green)·전체 서버 트리·WIP 존재하나 **컨테이너는 소멸 가능** —
-   소멸 시 tar 재구축 의식(§5) 후 docs/wip에서 이어가면 된다. 랩 정본은 repo(docs/labs).
+## ⓪ STATUS — 2026-08-04 세션 최종 (전 트랙 완결)
+- W4 히어로 P0/P1 전부 수리 완료 → **fitness.tsx 반입·커밋 b0daea2** (재검 전항목 PASS + 기기 tsc). WIP 파일은 흡수·제거. 남은 것 = Sean 기기 스모크(모프·레일·로딩/빈/오류 3상태·fontScale).
+- **안무 랩 완성** — docs/labs/choreography-lab.html (4모션 + 트리거 제안, 클릭 재생). Sean 채택 번호 + 트리거 승인 대기 → 채택분 RN 구현이 다음 프론트 슬라이스.
+- 수익·D-day·벨 배치 = 567cdb7. 이 세션 커밋 스택: 0ed2709(0054, push됨) → 725bf78(0055/0056) → 567cdb7 → b0daea2 → [랩 커밋]. push 대기분 §7.
 
 Companion docs: `docs/audit-2026-08-02.md` · precision-director skill (installed, READ AND FOLLOW) · **`docs/labs/fitness-hero-lab.html`** (W4 랩 — repo에 저장, /tmp 소멸 문제 해결).
 Opener for next session: **"read docs/session-handoff.md fully, then continue"**.

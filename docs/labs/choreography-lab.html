@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>안무 랩 — 티켓 모션 4종</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;700&family=Oswald:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#F4F2FB; --card:#FFFFFF; --inset:#EFECF9; --hair:#E6E2F4; --head:#221E3D; --text:#4B4668;
+    --dim:#7C76A0; --accent:#6C5CE7; --coral:#F0765A; --coralDeep:#E45F41; --coralSoft:#FFDCD1;
+    --gold:#B99A4F; --goldDeep:#8A7139; --goldSheen:#D8C185; --goldSoft:#F4EBD3; --night:#1C1837;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:var(--night); font-family:'IBM Plex Sans KR',sans-serif; color:#EDEAF8; padding:34px 26px 60px;
+    background-image: radial-gradient(1000px 480px at 16% -6%, rgba(240,118,90,0.10), transparent 60%),
+                      radial-gradient(880px 440px at 86% 2%, rgba(108,92,231,0.14), transparent 62%);
+  }
+  .lab-title { font-family:'Black Han Sans'; font-size:26px; color:#F2EFFA; max-width:1400px; margin:0 auto; }
+  .lab-title em { font-style:normal; color:#F0765A; }
+  .lab-sub { font-size:14px; color:#A9A3C8; margin:8px auto 0; max-width:1400px; line-height:1.65; }
+  .grid { display:flex; flex-wrap:wrap; gap:30px; justify-content:center; margin:30px auto 0; max-width:1400px; }
+  .unit { width:320px; }
+  .stage {
+    height:300px; border-radius:18px; background:var(--bg); position:relative; overflow:hidden; cursor:pointer;
+    box-shadow:0 20px 50px rgba(8,5,24,0.5), 0 2px 10px rgba(8,5,24,0.4); border:1px solid rgba(255,255,255,0.09);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .stage::after {
+    content:'클릭 = 다시 재생'; position:absolute; right:12px; bottom:9px; font-size:11.5px; color:var(--dim); opacity:0.8;
+  }
+  .cap { margin-top:13px; }
+  .cap h3 { font-size:16.5px; color:#F2EFFA; font-weight:700; }
+  .cap h3 b { color:#F0765A; margin-right:6px; }
+  .cap p { font-size:13px; color:#A9A3C8; line-height:1.6; margin-top:5px; }
+  .cap .trigger { font-size:12px; color:#7C76A0; margin-top:5px; line-height:1.55; }
+  .cap .trigger b { color:#C9C2E8; font-weight:700; }
+
+  /* 공용 티켓 */
+  .ticket {
+    width:250px; background:var(--card); border:1px solid var(--hair); border-radius:12px; overflow:visible;
+    box-shadow:0 10px 26px rgba(28,24,55,0.12), 0 2px 6px rgba(28,24,55,0.07); position:relative;
+  }
+  .thead { display:flex; align-items:center; padding:12px 14px 9px; }
+  .thead .t { font-family:'Black Han Sans'; font-size:16px; color:var(--head); }
+  .trow { padding:0 14px 12px; }
+  .tlabel { font-size:11.5px; color:var(--dim); }
+  .tval { font-family:'Oswald'; font-weight:600; font-size:19px; line-height:1.28; color:var(--head); }
+
+  /* ══ ① 플랩 플립 (split-flap 상태 전광판) ══ */
+  .flapbox { margin-top:3px; width:120px; height:34px; position:relative; perspective:280px; border-radius:6px; }
+  .flap-half {
+    position:absolute; left:0; right:0; height:17px; overflow:hidden; background:var(--head);
+    display:flex; justify-content:center;
+  }
+  .flap-half span {
+    font-family:'Oswald'; font-weight:600; font-size:15px; letter-spacing:1px; color:#F2EFFA;
+    line-height:34px; height:34px; display:block;
+  }
+  .f-top { top:0; border-radius:6px 6px 0 0; transform-origin:bottom; }
+  .f-bot { bottom:0; border-radius:0 0 6px 6px; transform-origin:top; }
+  .f-bot span { margin-top:-17px; }
+  .flap-split { position:absolute; top:16.5px; left:0; right:0; height:1px; background:rgba(244,242,251,0.28); z-index:5; }
+  /* 상태: OLD가 보이다가 → top OLD가 아래로 접히며 (그 아래 깔려 있던) NEW 상단이 드러나고 → NEW 하단이 펼쳐짐 */
+  .play .f-top.old { animation:flapTop 0.38s cubic-bezier(0.55,0,0.85,0.4) 0.9s forwards; }
+  .f-bot.new { transform:rotateX(90deg); }
+  .play .f-bot.new { animation:flapBot 0.42s cubic-bezier(0.15,0.6,0.3,1.2) 1.28s forwards; }
+  @keyframes flapTop { to { transform:rotateX(-90deg); } }
+  @keyframes flapBot { to { transform:rotateX(0deg); } }
+  .f-top.under { z-index:0; } .f-top.old, .f-bot.old { z-index:2; } .f-bot.new { z-index:3; }
+  .play .flapbox { animation:flapShake 0.12s linear 1.62s 2; }
+  @keyframes flapShake { 50% { transform:translateY(1px); } }
+
+  /* ══ ② 실 스탬프 ══ */
+  .seal {
+    position:absolute; right:14px; top:10px; width:44px; height:44px; border-radius:50%;
+    background:radial-gradient(circle at 34% 30%, var(--goldSheen), var(--gold) 55%, var(--goldDeep));
+    box-shadow:0 0 0 4px var(--goldSoft), 0 2px 8px rgba(138,113,57,0.45);
+    display:flex; align-items:center; justify-content:center; opacity:0; transform:scale(2.6) rotate(-14deg);
+  }
+  .seal svg { width:22px; }
+  .play .seal { animation:stamp 0.34s cubic-bezier(0.5,0,0.7,0.35) 0.85s forwards; }
+  @keyframes stamp {
+    0% { opacity:0; transform:scale(2.6) rotate(-14deg); }
+    55% { opacity:1; }
+    100% { opacity:1; transform:scale(1) rotate(-4deg); }
+  }
+  .seal-ring {
+    position:absolute; right:14px; top:10px; width:44px; height:44px; border-radius:50%;
+    border:2px solid var(--gold); opacity:0; transform:scale(1);
+  }
+  .play .seal-ring { animation:ring 0.55s ease-out 1.16s forwards; }
+  @keyframes ring { 0% { opacity:0.7; transform:scale(1); } 100% { opacity:0; transform:scale(1.9); } }
+  .play .ticket.stampable { animation:paperHit 0.22s ease-out 1.17s; }
+  @keyframes paperHit { 35% { transform:translateY(2px) rotate(0.4deg); } }
+  .stamped-note { font-size:12px; color:var(--goldDeep); font-weight:700; opacity:0; margin-top:6px; }
+  .play .stamped-note { animation:fadeUp 0.4s ease-out 1.5s forwards; }
+  @keyframes fadeUp { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:translateY(0); } }
+
+  /* ══ ③ 스텁 테어 ══ */
+  .tearable { overflow:visible; }
+  .tearline { position:relative; border-top:2px dashed var(--hair); margin-top:4px; }
+  .tearline::before, .tearline::after {
+    content:''; position:absolute; top:-8px; width:16px; height:16px; border-radius:50%; background:var(--bg); border:1px solid var(--hair);
+  }
+  .tearline::before { left:-9px; } .tearline::after { right:-9px; }
+  .stub { display:flex; gap:8px; padding:11px 14px 13px; transform-origin:8% 0%; }
+  .stub .scol { flex:1; }
+  .stub .v { font-family:'Oswald'; font-weight:600; font-size:17px; line-height:1.28; color:var(--head); }
+  .stub .l { font-size:11.5px; color:var(--dim); margin-top:1px; }
+  .barcode { width:26px; align-self:stretch; background-image:repeating-linear-gradient(90deg, var(--head) 0 2px, transparent 2px 5px); border-radius:2px; opacity:0.85; }
+  .play .stub { animation:tear 0.9s cubic-bezier(0.4,0.05,0.6,1) 0.9s forwards; }
+  @keyframes tear {
+    0% { transform:rotate(0) translate(0,0); opacity:1; }
+    28% { transform:rotate(4.5deg) translate(3px,2px); opacity:1; }
+    55% { transform:rotate(9deg) translate(14px,26px); opacity:0.95; }
+    100% { transform:rotate(14deg) translate(44px,110px); opacity:0; }
+  }
+  .play .ticket.tearable { animation:relief 0.5s ease-out 1.55s forwards; }
+  @keyframes relief { 40% { transform:translateY(-3px); } 100% { transform:translateY(-1px); } }
+  .checked { position:absolute; left:14px; bottom:-26px; font-size:12.5px; font-weight:700; color:var(--accent); opacity:0; }
+  .play .checked { animation:fadeUp 0.4s ease-out 1.7s forwards; }
+
+  /* ══ ④ 링 드레인 ══ */
+  .drainwrap { display:flex; align-items:center; gap:14px; padding:4px 14px 14px; }
+  .drain { position:relative; width:74px; height:74px; }
+  .drain svg { transform:rotate(-90deg); }
+  .drain .track { fill:none; stroke:var(--inset); stroke-width:7; }
+  .drain .fill { fill:none; stroke:var(--accent); stroke-width:7; stroke-linecap:round; stroke-dasharray:207.3; stroke-dashoffset:0; }
+  .play .drain .fill { animation:drain 6s linear 0.8s forwards, drainColor 6s linear 0.8s forwards; }
+  @keyframes drain { to { stroke-dashoffset:207.3; } }
+  @keyframes drainColor { 0%,55% { stroke:var(--accent); } 78% { stroke:var(--coral); } 100% { stroke:var(--coralDeep); } }
+  .drain .num {
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    font-family:'Oswald'; font-weight:600; font-size:23px; line-height:1.28; color:var(--head);
+  }
+  .drain-copy { flex:1; }
+  .drain-copy .t { font-size:13.5px; font-weight:700; color:var(--head); line-height:1.5; }
+  .drain-copy .d { font-size:12px; color:var(--dim); margin-top:3px; line-height:1.55; }
+  .play .drainwrap.urgent .drain-copy .t { animation:urgentInk 6s linear 0.8s forwards; }
+  @keyframes urgentInk { 0%,70% { color:var(--head); } 100% { color:var(--coralDeep); } }
+</style>
+</head>
+<body>
+
+<div class="lab-title">안무 랩 — <em>티켓 모션 4종</em>, 기기 눈으로 골라주세요</div>
+<div class="lab-sub">
+  각 무대 클릭 = 다시 재생. 전부 transform/opacity(+SVG dashoffset)라 RN에서 native driver(Reanimated 불요)로 1:1 이식 가능.
+  트리거 제안은 캡션에 — 채택 번호와 트리거 승인/수정만 주면 구현으로 넘어가요. 여러 개 선택 가능.
+</div>
+
+<div class="grid">
+
+  <!-- ① 플랩 플립 -->
+  <div class="unit">
+    <div class="stage" data-motion>
+      <div class="ticket">
+        <div class="thead"><div class="t">위탁 티켓</div></div>
+        <div class="trow">
+          <div class="tlabel">상태</div>
+          <div class="flapbox">
+            <div class="flap-half f-top old"><span>대기 중</span></div>
+            <div class="flap-half f-top new under"><span>확정</span></div>
+            <div class="flap-half f-bot old"><span>대기 중</span></div>
+            <div class="flap-half f-bot new"><span>확정</span></div>
+            <div class="flap-split"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="cap">
+      <h3><b>①</b> 플랩 플립 — 공항 전광판</h3>
+      <p>상태 필드가 스플릿-플랩으로 착 접히며 다음 상태로. 기계식 '찰칵'이 확정의 무게를 준다.</p>
+      <div class="trigger"><b>트리거 제안:</b> 클럽 보드·일정 시트에서 위탁/예약 상태 전이 수신 순간 (대기 중→확정, 확정→인계 완료 등)</div>
+    </div>
+  </div>
+
+  <!-- ② 실 스탬프 -->
+  <div class="unit">
+    <div class="stage" data-motion>
+      <div class="ticket stampable">
+        <div class="thead"><div class="t">결제 영수증</div></div>
+        <div class="trow">
+          <div class="tlabel">위탁 1마리 · 5.0km</div>
+          <div class="tval">24,900원</div>
+          <div class="stamped-note">결제 완료 — 실이 찍혔어요</div>
+        </div>
+        <div class="seal">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.2 4.5L19 7" stroke="#5C4A1E" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="seal-ring"></div>
+      </div>
+    </div>
+    <div class="cap">
+      <h3><b>②</b> 실 스탬프 — 골드 실 낙인</h3>
+      <p>골드 실이 위에서 쾅 내려앉고 종이가 살짝 눌린다. O11 골드 실 영수증의 '찍히는 순간'.</p>
+      <div class="trigger"><b>트리거 제안:</b> 위탁 결제 완료 · 동의 서명 완료 화면 진입 1회 (결과 화면 재진입 시엔 정지 상태만)</div>
+    </div>
+  </div>
+
+  <!-- ③ 스텁 테어 -->
+  <div class="unit">
+    <div class="stage" data-motion>
+      <div class="ticket tearable">
+        <div class="thead"><div class="t">체크인</div></div>
+        <div class="trow" style="padding-bottom:8px;">
+          <div class="tlabel">초코 · 서울숲 세션</div>
+          <div class="tval">18:30</div>
+        </div>
+        <div class="tearline"></div>
+        <div class="stub">
+          <div class="scol"><div class="v">D-07</div><div class="l">스텁</div></div>
+          <div class="scol"><div class="v">1마리</div><div class="l">위탁</div></div>
+          <div class="barcode"></div>
+        </div>
+        <div class="checked">체크인 완료 — 좋은 러닝 되세요</div>
+      </div>
+    </div>
+    <div class="cap">
+      <h3><b>③</b> 스텁 테어 — 절취선 찢기</h3>
+      <p>체크인 순간 스텁이 절취선을 따라 비틀리며 떨어져 나간다. 입장의 물리적 은유.</p>
+      <div class="trigger"><b>트리거 제안:</b> 세션 체크인 성공 · 미트업 인계 양측 확인 완료 순간</div>
+    </div>
+  </div>
+
+  <!-- ④ 링 드레인 -->
+  <div class="unit">
+    <div class="stage" data-motion>
+      <div class="ticket">
+        <div class="thead"><div class="t">지명 제안</div></div>
+        <div class="drainwrap urgent">
+          <div class="drain">
+            <svg width="74" height="74"><circle class="track" cx="37" cy="37" r="33"/><circle class="fill" cx="37" cy="37" r="33"/></svg>
+            <div class="num" data-count>10:00</div>
+          </div>
+          <div class="drain-copy">
+            <div class="t">도윤 러너 제안 응답 대기</div>
+            <div class="d">시간이 다 되면 다음 러너에게 자동으로 넘어가요</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="cap">
+      <h3><b>④</b> 링 드레인 — 마감의 색</h3>
+      <p>제안 만료 링이 시간과 함께 빠져나가며 바이올렛→코랄로 짙어진다. 숫자는 실제 남은 시간 바인딩.</p>
+      <div class="trigger"><b>트리거 제안:</b> 클럽 지명 제안 만료(proposal_expires_at) · 체크인 창 카운트다운 — 상시 애니가 아니라 실마감 바인딩</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // 재생 컨트롤 — 클릭 시 클래스 리셋 후 리플로우 강제로 재시작. ④ 숫자는 실카운트 시뮬(10:00→).
+  function play(stage) {
+    stage.classList.remove('play');
+    void stage.offsetWidth; // reflow → 애니 리셋
+    stage.classList.add('play');
+    const num = stage.querySelector('[data-count]');
+    if (num) {
+      clearInterval(num._t);
+      const t0 = Date.now() + 800; // 드레인 시작 지연과 동기
+      num.textContent = '10:00';
+      num._t = setInterval(() => {
+        const gone = Math.max(0, Date.now() - t0);
+        const left = Math.max(0, 600 - Math.floor(gone / 10)); // 6s 애니를 10:00 스케일로
+        const mm = String(Math.floor(left / 60)).padStart(2, '0');
+        const ss = String(left % 60).padStart(2, '0');
+        num.textContent = `${mm}:${ss}`;
+        if (left === 0) clearInterval(num._t);
+      }, 120);
+    }
+  }
+  document.querySelectorAll('[data-motion]').forEach((st) => {
+    st.addEventListener('click', () => play(st));
+    setTimeout(() => play(st), 500 + Math.random() * 400);
+  });
+</script>
+</body>
+</html>
