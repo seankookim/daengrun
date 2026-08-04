@@ -651,7 +651,7 @@ export default function OwnerHome() {
         <View style={{ flexDirection: 'row' }}>
           <StatCell
             bar={lilac.coral}
-            top={`연속 ${fit?.streakDays ?? 0}일${(fit?.streakDays ?? 0) >= 3 ? ' 🔥' : ''}`}
+            top={`연속 ${fit?.streakDays ?? 0}일`}
             bottom={(fit?.streakDays ?? 0) >= 3 ? '불붙었어요' : (fit?.streakDays ?? 0) > 0 ? '연속 기록' : '오늘 시작해볼까요'}
           />
           <StatCell
@@ -1219,7 +1219,8 @@ export default function OwnerHome() {
   function StatCell({ top, bottom, bar }: { top: string; bottom: string; bar: string }) {
     return (
       <View style={s.statChip}>
-        <Text style={[s.bibValue, { color: p.textStrong }, nf]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{top}</Text>
+        {/* [5차] adjustsFontSizeToFit가 커스텀 폰트 측정 버그로 값을 최소 스케일까지 뭉개 위계가 뒤집혔다 — 제거 + 19pt 승급 */}
+        <Text style={[s.bibValue, { color: p.textStrong }, nf]} numberOfLines={1}>{top}</Text>
         <View style={[s.accentBar, { backgroundColor: bar }]} />
         <Text style={[s.bibLabel, { color: p.dim }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{bottom}</Text>
       </View>
@@ -1333,7 +1334,7 @@ const s = StyleSheet.create({
   accentBar: { width: 22, height: 3, marginTop: 6 },
   bibLabel: { fontSize: 12.5, fontWeight: '800', letterSpacing: 0.1, marginTop: 5 },
   // [FIX3 BUG A] 값은 그대로 16 — lineHeight ≥1.2×만 명시해 Oswald 어센더 클리핑 방지
-  bibValue: { fontSize: 16, lineHeight: 20, fontWeight: '900', fontVariant: ['tabular-nums'], letterSpacing: -0.3 },
+  bibValue: { fontSize: 19, lineHeight: 24, fontWeight: '900', fontVariant: ['tabular-nums'], letterSpacing: -0.3 },
   // 오늘의 티켓 — 보딩패스
   ticket: {
     backgroundColor: lilac.card, borderRadius: lilacRadius.card, marginTop: 4, overflow: 'hidden',
