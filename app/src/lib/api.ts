@@ -285,6 +285,10 @@ const STATUS_MAP: Record<string, BookingStatus> = {
   cancelled_owner: 'cancelled',
   cancelled_runner: 'cancelled',
   expired: 'cancelled',
+  // 환불 진행 = 취소의 후속 단계 (0047: cancelled_owner → refund_pending). 폴백 'pending'으로 두면
+  // '러너 응답 대기' 배지 + 죽은 러너 변경 버튼이 생긴다 — 취소로 정직하게. (no_show·incident_review는
+  // 별도 표시 어휘가 필요해 보류 — 핸드오프 참조)
+  refund_pending: 'cancelled',
 };
 
 // ---------- runner side ----------
@@ -478,6 +482,36 @@ export async function fetchCertifiedRunners(): Promise<LiveRunner[]> {
       paceSec: pace,
       respondRate: r.respond_rate_pct,
       avatarUrl: r.profiles?.avatar_url ?? null,
+      bio: r.bio ?? null,
+    };
+  });
+}
+
+// 이 예약에 실제로 갈 수 있는 러너만 (0054 RPC — 수락 게이트의 표시측 거울).
+// fetchCertifiedRunners와 같은 카드 데이터. 서버가 겹치는 라이브 일정(확정~진행)이 있는 러너를
+// 제외해서 준다 — 지명했는데 수락이 불가능한 러너가 목록에 뜨는 일을 원천 차단.
+export async function fetchAvailableRunnersFor(bookingId: string): Promise<LiveRunner[]> {
+  const { data, error } = await supabase.rpc('runners_available_for', { p_booking: bookingId });
+  // 날토큰 대신 행동 지시로 — not_owner의 현실적 발화점은 권한 버그가 아니라 세션 만료(auth.uid()=null),
+  // not_open은 러너 선택 단계가 아닌 부킹(서버 상태 게이트)
+  if (error) {
+    const raw = String(error.message ?? error);
+    throw new Error(raw.includes('not_owner') ? '세션이 만료된 것 같아요 — 다시 로그인해주세요'
+      : raw.includes('not_open') ? '이 예약은 지금 러너 선택 단계가 아니에요'
+      : raw);
+  }
+  return (data ?? []).map((r: any) => {
+    const pace = r.avg_pace_sec_per_km ?? 420;
+    return {
+      profileId: r.profile_id,
+      name: r.name ?? '러너',
+      district: r.district ?? '',
+      tier: r.tier === 'certified' ? '인증 러너' : r.tier === 'veteran' ? '베테랑' : '마스터',
+      totalRuns: r.total_runs ?? 0,
+      paceLabel: `${Math.floor(pace / 60)}'${String(pace % 60).padStart(2, '0')}"`,
+      paceSec: pace,
+      respondRate: r.respond_rate_pct,
+      avatarUrl: r.avatar_url ?? null,
       bio: r.bio ?? null,
     };
   });
@@ -1050,6 +1084,7 @@ export interface RunnerPublicProfile {
   totalRuns: number;
   totalKm: number;
   paceLabel: string;
+  paceSec: number; // 실측 s/km (없으면 420 폴백) — 라벨 역파싱은 최대 59초 손실이라 원값을 준다
   respondRate: number | null;
   trainerCertified: boolean;
   online: boolean;
@@ -1089,6 +1124,7 @@ export async function fetchRunnerProfile(profileId: string): Promise<RunnerPubli
     totalRuns: rr.total_runs ?? 0,
     totalKm: Number(rr.total_km ?? 0),
     paceLabel: `${Math.floor(pace / 60)}'${String(pace % 60).padStart(2, '0')}"`,
+    paceSec: pace,
     respondRate: rr.respond_rate_pct,
     trainerCertified: !!rr.trainer_certified,
     online: !!rr.online,
@@ -2457,7 +2493,7 @@ export async function fetchMyBookings(): Promise<Booking[]> {
       timeLabel,
       dogName: r.dogs?.name ?? '반려견',
       dogCollar: r.dogs?.collar ?? null, // 칼라 컬러 (0033)
-      runnerId: 'minjun', // sheet mock-lookup용 (live는 sheet에서 별도 처리)
+      runnerId: r.runner_id ?? '', // 실 러너 uuid (매칭 전 ''). 목업 상수 'minjun' 박제 제거 — 가짜 데이터 금지
       runnerName: r.runner_id ? (r.runners?.profiles?.name ?? '러너') : '매칭 중',
       routeId: mockTwin?.id ?? 'seoulforest-loop',
       routeName,
@@ -2465,6 +2501,7 @@ export async function fetchMyBookings(): Promise<Booking[]> {
       paceLabel: r.pace_label ?? "보통 7'",
       price: r.total_price,
       status: STATUS_MAP[r.status] ?? 'pending',
+      rawStatus: r.status, // 서버 원상태 — 표시 어휘(6종)가 뭉갠 구분(runner_enroute 등)을 게이트가 쓴다
       recurring: !!r.series_id, // ⟳ 매주 필 실화 (0026)
       seriesId: r.series_id ?? null,
       live: true,

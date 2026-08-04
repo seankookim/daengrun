@@ -43,6 +43,7 @@ psql -q -f 80_choke_suite.sql >/dev/null 2>&1
 bash 90_race_check.sh >/dev/null 2>&1                              # 2커넥션 레이스 (R6)
 psql -q -f 95_audit_gates_suite.sql >/dev/null 2>&1                # 0052 감사 게이트 핀
 psql -q -f 96_audit_followups_suite.sql >/dev/null 2>&1            # 0053 감사 잔여 후속 핀
+psql -q -f 97_availability_suite.sql >/dev/null 2>&1            # 0054 가용성 게이트 핀
 psql -c "select case when ok then '✅' else '❌' end || ' [' || suite || '] ' || name || case when ok then '' else ' — ' || detail end from _t order by at"
 psql -qt -c "select count(*) filter (where ok) || ' pass / ' || count(*) filter (where not ok) || ' fail' from _t"
 psql -qt -c "select case when count(*) filter (where not ok) > 0 then 'FAIL' else 'OK' end from _t" | grep -q OK

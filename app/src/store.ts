@@ -220,6 +220,7 @@ export interface Booking {
   live?: boolean; // 서버에서 온 실예약
   matched?: boolean; // 러너 확정 여부 (live 전용)
   runnerProfileId?: string | null; // 실러너 uuid — 다시 예약 시 지명 프리필
+  rawStatus?: string; // 서버 원상태(enum 원문) — 표시 어휘가 뭉갠 구분(runner_enroute 등)을 액션 게이트가 쓴다
 }
 
 export const bookings: Booking[] = [

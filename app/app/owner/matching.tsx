@@ -2,7 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Avatar, Row } from '../../src/components/ui';
-import { fetchCertifiedRunners, fetchGearFor, fetchRunnerProfile, GEAR_META, GearItem, LiveRunner, requestRunner } from '../../src/lib/api';
+import { fetchAvailableRunnersFor, fetchGearFor, fetchRunnerProfile, GEAR_META, GearItem, LiveRunner, requestRunner } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { draft } from '../../src/store';
@@ -142,9 +142,24 @@ export default function Matching() {
     fetchGearFor(ids).then(setGearMap).catch((e) => console.warn('[matching] gear:', e?.message ?? e));
   }, [liveRunners]);
 
-  useEffect(() => {
-    if (live) fetchCertifiedRunners().then(setLiveRunners).catch((e) => console.warn('[matching] runners:', e?.message ?? e));
-  }, [live]);
+  // 0054: 이 예약 시간에 실제로 갈 수 있는 러너만 (수락 게이트의 표시측 거울 RPC).
+  // 바쁜 러너를 보여주고 지명하게 한 뒤 수락 409로 튕기던 흐름의 뿌리를 표시에서 끊는다.
+  // 로딩·오류를 상태로 분리 — 실패나 로딩 중을 '가용 러너 없음'으로 위장하지 않는다 (정직 원칙)
+  const [rosterLoading, setRosterLoading] = useState(!!draft.bookingId); // 첫 페인트에 '없어요' 오표시 방지
+  const [rosterError, setRosterError] = useState<string | null>(null);
+  const loadRoster = () => {
+    if (!live || !draft.bookingId) return;
+    setRosterLoading(true);
+    setRosterError(null); // 재시도 중엔 '찾는 중'이 보여야 한다 — 오류 박스가 낡은 채 남지 않게
+    fetchAvailableRunnersFor(draft.bookingId)
+      .then((rs) => { setLiveRunners(rs); setRosterError(null); })
+      .catch((e) => {
+        console.warn('[matching] runners:', e?.message ?? e);
+        setRosterError(e?.message ?? '러너 목록을 불러오지 못했어요');
+      })
+      .finally(() => setRosterLoading(false));
+  };
+  useEffect(loadRoster, [live]);
 
   // 현재 지명된 러너 — 이 화면이 이미 가진 데이터엔 없어서 예약 1행만 얇게 조회한다.
   // (보호자는 예약 당사자라 RLS 통과. 실패해도 목록은 그대로 뜨고 태그만 안 붙는다)
@@ -159,7 +174,7 @@ export default function Matching() {
       .then((p) => {
         setLiveRunners((cur) => (cur.some((r) => r.profileId === pref) ? cur : [{
           profileId: p.profileId, name: p.name, district: p.district, tier: p.tier,
-          totalRuns: p.totalRuns, paceLabel: p.paceLabel, paceSec: 420,
+          totalRuns: p.totalRuns, paceLabel: p.paceLabel, paceSec: p.paceSec, // 실측 원값 — 420 박제는 matchFor 점수를 지어냈다
           respondRate: p.respondRate, avatarUrl: p.avatarUrl, bio: p.bio,
         }, ...cur]));
       })
@@ -185,6 +200,8 @@ export default function Matching() {
       .catch((e) => {
         autoRef.current = false; // 실패 → 수동 지명 리스트로 폴백
         console.warn('[matching] auto-nominate:', e?.message ?? e);
+        // 침묵 금지 — '이 러너와 예약하기' 약속이 왜 안 지켜졌는지 말한다 (서버 409는 이제 행동 가능한 문장)
+        Alert.alert('지명하지 못했어요', e?.message ?? '아래 목록에서 다른 러너를 골라주세요');
       });
   }, [live, rebook]);
 
@@ -333,10 +350,29 @@ export default function Matching() {
           </View>
         )}
 
-        {live && liveRunners.length === 0 && (
+        {live && rosterError && (
           <View style={s.emptyBox}>
             <Text style={{ fontSize: 13.5, color: lilac.text, textAlign: 'center', lineHeight: 21 }}>
-              지금 온라인인 러너가 없어요{'\n'}오픈 매칭으로 등록되어 러너들이 응답할 수 있어요
+              러너 목록을 불러오지 못했어요{'\n'}{rosterError}
+            </Text>
+            <Pressable onPress={loadRoster} disabled={rosterLoading} style={{ marginTop: 12, paddingVertical: 12, paddingHorizontal: 26, borderRadius: 10, backgroundColor: lilac.inset, borderWidth: 1, borderColor: lilac.hair, alignSelf: 'center', opacity: rosterLoading ? 0.5 : 1 }}>
+              <Text style={{ fontSize: 14, fontWeight: '800', color: lilac.head }}>다시 시도</Text>
+            </Pressable>
+          </View>
+        )}
+
+        {live && !rosterError && rosterLoading && liveRunners.length === 0 && (
+          <View style={s.emptyBox}>
+            <Text style={{ fontSize: 13.5, color: lilac.text, textAlign: 'center', lineHeight: 21 }}>
+              이 시간에 갈 수 있는 러너를 찾는 중…
+            </Text>
+          </View>
+        )}
+
+        {live && !rosterError && !rosterLoading && liveRunners.length === 0 && (
+          <View style={s.emptyBox}>
+            <Text style={{ fontSize: 13.5, color: lilac.text, textAlign: 'center', lineHeight: 21 }}>
+              이 시간에 갈 수 있는 러너가 지금 없어요{'\n'}오픈 매칭으로 등록돼 있어요 — 일정이 빈 러너가 응답할 수 있어요
             </Text>
           </View>
         )}

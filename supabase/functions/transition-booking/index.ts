@@ -34,6 +34,9 @@ Deno.serve(handle(async (req) => {
       const { data: r } = await db.from("runners").select("profile_id").eq("profile_id", uid).single();
       if (!r) throw new HttpError(403, "runner only");
       if (bk.runner_id && bk.runner_id !== uid) throw new HttpError(409, "assigned to another runner");
+      // 이미 내가 수락한 예약 재탭(낡은 푸시·인박스 카드) = 무동작 — 자기충돌 제외(.neq) 도입 후
+      // 이 경로가 CAS 0행으로 흘러 "보호자가 지명을 변경했어요"라는 거짓 409가 되는 것 방지.
+      if (bk.runner_id === uid && ["confirmed", "runner_enroute", "picked_up", "active"].includes(bk.status)) return { unchanged: true };
       // 수락 시점 시간 충돌 가드 — 러너의 다른 라이브 예약과 겹치면 이중 계약 차단 (감사 ①).
       // is_slot_available을 안 쓰는 이유: 그 함수는 가용시간 '규칙'까지 검사하는데, find-now 오픈
       // 브로드캐스트는 규칙 밖 시간에도 '지금 온라인'이면 받을 수 있어야 한다 — 충돌만 검사.
@@ -44,15 +47,31 @@ Deno.serve(handle(async (req) => {
         const { data: mine, error: mErr } = await db.from("bookings")
           .select("id, scheduled_at, km")
           .eq("runner_id", uid).in("status", LIVE)
+          .neq("id", booking_id) // 자기 자신과의 충돌 금지 — 이미 수락한 예약 재탭 시 자기모순 409 방지 (0054 RPC의 c.id <> p_booking와 동일 문장)
+          .order("scheduled_at", { ascending: true }) // 충돌 지목이 결정적이도록 — 무순서면 재시도마다 다른 예약을 지목한다
           .gte("scheduled_at", new Date(aStart - 6 * 3600_000).toISOString())
           .lte("scheduled_at", new Date(aEnd + 6 * 3600_000).toISOString());
         if (mErr) throw new HttpError(500, mErr.message);
-        const busy = (mine ?? []).some((c) => {
+        const conflict = (mine ?? []).find((c) => {
           const cs = new Date(c.scheduled_at).getTime();
           const ce = cs + (Number(c.km) * 8 + 25) * 60_000;
           return cs < aEnd && ce > aStart;
         });
-        if (busy) throw new HttpError(409, "그 시간에 이미 확정된 일정이 있어요 — 수락할 수 없어요");
+        if (conflict) {
+          // 충돌 상대를 이름 붙여 알린다 — "이미 일정이 있어요"만으로는 러너가 뭘 정리해야 할지 모른다.
+          // (수락 409 원인 추적 불가 사건의 교훈. 시각은 이미 로드된 행에서 계산 — 추가 조회 0)
+          const cs = new Date(conflict.scheduled_at);
+          const ceRaw = cs.getTime() + (Number(conflict.km) * 8 + 25) * 60_000;
+          // 종료는 분 단위로 올림 표시 — 초를 절삭하면 '표시 구간이 안 겹치는데 거절당하는' 자기모순 메시지가 된다 (67.4분 등 분수 km)
+          const ce = new Date(Math.ceil(ceRaw / 60_000) * 60_000);
+          // KST = UTC+9 고정(DST 없음) — 런타임 ICU/타임존 데이터에 기대지 않는 산술 변환
+          const kst = (d: Date) => new Date(d.getTime() + 9 * 3600_000);
+          const kstDay = (d: Date) => `${kst(d).getUTCMonth() + 1}월 ${kst(d).getUTCDate()}일`;
+          const kstTime = (d: Date) => `${String(kst(d).getUTCHours()).padStart(2, "0")}:${String(kst(d).getUTCMinutes()).padStart(2, "0")}`;
+          // 자정을 넘으면 종료에도 날짜를 붙인다 — "23:30~00:37"이 거꾸로 읽히는 것 방지
+          const endLabel = kstDay(ce) === kstDay(cs) ? kstTime(ce) : `${kstDay(ce)} ${kstTime(ce)}`;
+          throw new HttpError(409, `그 시간에 이미 확정된 일정이 있어요 — ${kstDay(cs)} ${kstTime(cs)}~${endLabel} 러닝과 겹쳐서 수락할 수 없어요`);
+        }
       }
       // 인계 타임스탬프 초기화 — 이전 시도/재매칭의 잔재가 남으면 한쪽 확인만으로 즉시 picked_up 되는 사고
       const resetPatch = { runner_id: uid, status: "confirmed", owner_confirmed_handoff_at: null, runner_confirmed_handoff_at: null };
@@ -87,6 +106,33 @@ Deno.serve(handle(async (req) => {
       if (!rn) throw new HttpError(400, "지명할 수 없는 러너예요");
       // 같은 러너 재지명 = 무동작 — 중복 알림 금지 (연타·뒤로가기 재진입)
       if (bk.runner_id === target) return { unchanged: true };
+      // 상태 판정을 충돌 판정보다 먼저 — 닫힌 부킹에 "그 시간에 다른 일정이 있는 러너예요"라고
+      // 답하면 보호자가 러너를 갈아끼우며 헛돌게 된다 (아래 CAS와 같은 문장·같은 메시지).
+      if (!["matching", "runner_pending"].includes(bk.status)) throw new HttpError(409, "러너 변경은 확정 전에만 가능해요");
+      // 지명 시점 시간 충돌 가드 (0054 후속) — 수락 게이트와 같은 문장. 매칭 화면은 0054 RPC로
+      // 바쁜 러너를 이미 숨기지만, 자동 지명(프로필→슬롯→결제 동선)·오프라인 선호 러너 주입·낡은
+      // 목록은 이 화면을 거치지 않는다. 수락 불가능한 지명을 받고 하염없이 기다리게 하느니 지금 409.
+      // 의도적 비대칭: 0054 RPC의 스토어프런트 필터(online·tier)는 여기 없다 — 오프라인 선호 러너
+      // 지명은 정당한 동선이다. 여기서 거르는 것은 '시간이 물리적으로 안 되는' 지명뿐.
+      {
+        const aStart = new Date(bk.scheduled_at).getTime();
+        const aEnd = aStart + (Number(bk.km) * 8 + 25) * 60_000;
+        const LIVE = ["confirmed", "runner_enroute", "picked_up", "active"];
+        const { data: theirs, error: tErr } = await db.from("bookings")
+          .select("id, scheduled_at, km")
+          .eq("runner_id", target).in("status", LIVE)
+          .neq("id", booking_id)
+          .gte("scheduled_at", new Date(aStart - 6 * 3600_000).toISOString())
+          .lte("scheduled_at", new Date(aEnd + 6 * 3600_000).toISOString());
+        if (tErr) throw new HttpError(500, tErr.message);
+        const clash = (theirs ?? []).some((c) => {
+          const cs = new Date(c.scheduled_at).getTime();
+          const ce = cs + (Number(c.km) * 8 + 25) * 60_000;
+          return cs < aEnd && ce > aStart;
+        });
+        // 보호자에게는 시각을 노출하지 않는다 — 타 러너의 스케줄 상세는 보호자 몫이 아니다 (0054 반환 원칙과 동일)
+        if (clash) throw new HttpError(409, "그 시간에 다른 일정이 있는 러너예요 — 다른 러너를 지명해주세요");
+      }
       // [리뷰 F1] 수락-교체 레이스: 스냅샷 검사 + 무조건 쓰기는 TOCTOU. 한 문장 CAS로 —
       // 확정 전(matching|runner_pending)일 때만 원자적으로 교체, 0행이면 창이 닫힌 것 (확정은 계약).
       const displaced = bk.status === "runner_pending" ? bk.runner_id : null;

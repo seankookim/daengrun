@@ -58,8 +58,9 @@ export default function Schedule() {
   }, {});
 
   const open = (b: Booking) => {
-    // 실예약이 러너 확정 전이면 관리 시트 대신 상태 안내
-    if (b.live && !b.matched) {
+    // 실예약이 러너 확정 전이면 관리 시트 대신 상태 안내 — 단, '매칭 중' 상태일 때만.
+    // matched(runner_id) 없는 취소·만료 예약까지 "러너를 찾고 있어요"라고 하면 죽은 예약에 대한 거짓말이 된다.
+    if (b.live && !b.matched && b.status === 'pending') {
       Alert.alert('매칭 중', '러너를 찾고 있어요.\n러너가 확정되면 여기서 일정 변경·취소를 관리할 수 있어요.');
       return;
     }
@@ -391,24 +392,42 @@ export default function Schedule() {
                         <Text style={{ fontSize: 14, color: colors.dim, marginTop: 2 }}>같은 거리·페이스{selected.runnerProfileId ? ` · ${selected.runnerName} 러너 지명` : ''} — 시간만 골라요</Text>
                       </Pressable>
                     </>
+                  ) : selected.status === 'cancelled' ? (
+                    // 취소된 일정 — 관리 액션 없음. 변경 요청은 서버가 확정 전용(409)이라 죽은 버튼이 되고,
+                    // 취소하기는 재취소가 된다. 상태를 그대로 말하고 끝낸다.
+                    <Text style={{ fontSize: 14.5, color: colors.dim, textAlign: 'center', paddingVertical: 10 }}>
+                      취소된 일정이에요 — 더 진행할 작업이 없어요
+                    </Text>
                   ) : (
                     <>
-                      <Pressable
-                        style={s.primaryAction}
-                        onPress={() => {
-                          // 제안 화면 직행 (0016) — 취소·재예약이 아니라 러너 동의 기반 시간 변경
-                          const bid = selected.id;
-                          close();
-                          router.push({ pathname: '/owner/reschedule', params: { bid } });
-                        }}
-                      >
-                        <Text style={{ fontSize: 16.5, fontWeight: '900', color: FOREST }}>일정 변경 요청</Text>
-                        <Text style={{ fontSize: 14, color: '#5d6b4a', marginTop: 2 }}>{runner.name} 러너의 가능 시간에서 새 시간을 제안해요</Text>
-                      </Pressable>
+                      {/* 러너가 픽업 이동 중(runner_enroute) — 표시 어휘는 '확정'으로 뭉개지지만 서버는
+                          변경(confirmed 전용)도 취소(전이 없음)도 거부한다. 정직한 상태 한 줄만. */}
+                      {selected.rawStatus === 'runner_enroute' && (
+                        <Text style={{ fontSize: 14.5, color: colors.dim, textAlign: 'center', paddingVertical: 10 }}>
+                          러너가 픽업으로 이동 중이에요 — 지금은 변경·취소가 마감됐어요
+                        </Text>
+                      )}
+                      {/* 일정 변경 요청은 확정 예약에서만 — 서버 규칙(request_reschedule: confirmed 전용 409)과
+                          같은 문장. 표시 상태가 아니라 서버 원상태(rawStatus)로 게이트한다 — 표시 어휘는
+                          runner_enroute를 '확정'으로 뭉개므로 그걸 믿으면 이동 중 죽은 버튼이 생긴다. */}
+                      {selected.rawStatus === 'confirmed' && (
+                        <Pressable
+                          style={s.primaryAction}
+                          onPress={() => {
+                            // 제안 화면 직행 (0016) — 취소·재예약이 아니라 러너 동의 기반 시간 변경
+                            const bid = selected.id;
+                            close();
+                            router.push({ pathname: '/owner/reschedule', params: { bid } });
+                          }}
+                        >
+                          <Text style={{ fontSize: 16.5, fontWeight: '900', color: FOREST }}>일정 변경 요청</Text>
+                          <Text style={{ fontSize: 14, color: '#5d6b4a', marginTop: 2 }}>{runner.name} 러너의 가능 시간에서 새 시간을 제안해요</Text>
+                        </Pressable>
+                      )}
                       {/* 러너 변경 = 재지명 (이 예약 그대로). 확정 전에만 — 확정은 계약이고,
                           서버도 matching/runner_pending에서만 request_runner를 받는다.
                           예전엔 /owner/request로 되돌려 두 번째 예약을 만들었고 dog_slot_clash에 걸렸다. */}
-                      {selected.status === 'pending' && (
+                      {(selected.rawStatus === 'matching' || selected.rawStatus === 'runner_pending') && (
                         <Pressable
                           style={s.ghostAction}
                           onPress={() => {
@@ -421,9 +440,12 @@ export default function Schedule() {
                           <Text style={{ fontSize: 14, color: colors.dim, marginTop: 2 }}>이 예약 그대로 다른 러너에게 다시 요청해요</Text>
                         </Pressable>
                       )}
-                      <Pressable style={s.cancelLink} onPress={() => setSheetMode('cancel')}>
-                        <Text style={{ fontSize: 14.5, fontWeight: '700', color: '#d84a2f' }}>일정 취소하기</Text>
-                      </Pressable>
+                      {/* 취소도 이동 중엔 서버 전이가 없다(runner_enroute → cancelled_owner 부재) — 숨김 */}
+                      {selected.rawStatus !== 'runner_enroute' && (
+                        <Pressable style={s.cancelLink} onPress={() => setSheetMode('cancel')}>
+                          <Text style={{ fontSize: 14.5, fontWeight: '700', color: '#d84a2f' }}>일정 취소하기</Text>
+                        </Pressable>
+                      )}
                     </>
                   )}
                   {/* 반복 해지 (0026) — 구독은 반드시 끌 수 있어야 한다. 상태 무관 노출 */}
