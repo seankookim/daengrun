@@ -37,6 +37,9 @@ const CORAL_INK_DEEP = '#B23E25';
 
 const TIER_LABEL: Record<string, string> = { certified: '인증 러너', veteran: '베테랑', master: '마스터' };
 
+// 세션 동안 거절한 요청 id — 오픈 풀로 되돌아와도 내 큐에 재등장하지 않게 (모듈 레벨: 리마운트 생존)
+const declinedIds = new Set<string>();
+
 // 진행 단계 메타 — 서버 상태 → 러너가 지금 뭘 해야 하는지 (라벨·액션 동결, 색만 라일락으로 재매핑)
 const STAGE: Record<string, { label: string; action: string; color: string }> = {
   confirmed: { label: '픽업 대기', action: '픽업 이동 시작 ›', color: lilac.amber },
@@ -159,9 +162,13 @@ export default function RunnerHome() {
   const [avail, setAvail] = useState<AvailRule[] | null>(null);
   const [busyReq, setBusyReq] = useState(false); // 티켓 문 실동작 중 (수락/거절)
 
+  // [Sean] 거절한 요청은 다시 안 본다 — runner_decline은 오픈 풀로 되돌리는데(정상), 내가 온라인 인증
+  // 러너라 '내가 거절한 건'이 내 오픈 큐에 재등장하던 것. 세션 로컬 필터 (서버 거절로그는 후속).
+  const filterDeclined = (list: OpenRequest[]) => list.filter((r) => !declinedIds.has(r.bookingId));
+
   // [실동작] 홈 티켓의 수락/거절 — 라벨만 있고 요청함으로 도망가던 문을 진짜 문으로.
   const reloadQueue = () => {
-    fetchRunnerInbox().then(setInbox).catch((e) => console.warn('[rhome] inbox:', e?.message ?? e));
+    fetchRunnerInbox().then((l) => setInbox(filterDeclined(l))).catch((e) => console.warn('[rhome] inbox:', e?.message ?? e));
     fetchRunnerJobs().then(setJobs).catch((e) => console.warn('[rhome] jobs:', e?.message ?? e));
   };
   const acceptFront = () => {
@@ -198,6 +205,7 @@ export default function RunnerHome() {
           setBusyReq(true);
           try {
             await declineBooking(rq.bookingId);
+            declinedIds.add(rq.bookingId);
             haptic('light');
             reloadQueue();
           } catch (e) {
@@ -210,7 +218,7 @@ export default function RunnerHome() {
 
   useFocusEffect(useCallback(() => {
     fetchMyAvailability().then(setAvail).catch((e) => console.warn('[rhome] avail:', e?.message ?? e));
-    fetchRunnerInbox().then(setInbox).catch((e) => console.warn('[rhome] inbox:', e?.message ?? e));
+    fetchRunnerInbox().then((l) => setInbox(filterDeclined(l))).catch((e) => console.warn('[rhome] inbox:', e?.message ?? e));
     fetchMyName().then(setName).catch(() => {});
     fetchRunnerWeekStats().then(setStats).catch((e) => console.warn('[rhome] stats:', e?.message ?? e));
     fetchRunnerJobs().then(setJobs).catch((e) => console.warn('[rhome] jobs:', e?.message ?? e));
@@ -263,6 +271,12 @@ export default function RunnerHome() {
 
   const tierLabel = TIER_LABEL[rs.tier] ?? '러너';
   const avg = stats.runs > 0 ? Math.round(stats.net / stats.runs) : 0;
+  // 오늘 라벨(기기=KST) — 오늘 잡(확정~완료)의 실수령 합 = '오늘 눈에 보이는 수익'
+  const _t = new Date();
+  const todayLabel = `${_t.getMonth() + 1}월 ${_t.getDate()}일`;
+  const todayJobs = jobs.filter((j) => j.when.startsWith(todayLabel) && ['confirmed', 'runner_enroute', 'picked_up', 'active', 'completed'].includes(j.rawStatus));
+  const todaySum = todayJobs.reduce((a, j) => a + (j.payout ?? 0), 0);
+  const todayN = todayJobs.length;
 
   // when 문자열 파싱 — 마지막 토큰 = 시간, 앞 = 요일/날짜 (소스 다음예약 파싱과 동일)
   const parseWhen = (w: string) => {
@@ -289,7 +303,7 @@ export default function RunnerHome() {
         </Pressable>
       </View>
 
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 12, paddingTop: 12, paddingBottom: 24 }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 14, paddingTop: 12, paddingBottom: 28 }}>
 
         {/* ————— 마스트헤드 · ① HERO 레이스 빕 (온라인 토글이 빕 위에) ————— */}
         <Row style={styles.kicker}>
@@ -370,6 +384,12 @@ export default function RunnerHome() {
               <Text style={[styles.lBig, nf]} numberOfLines={1}>{stats.net.toLocaleString()}</Text>
             </Row>
             <Text style={styles.lCap}>이번 주 실수령 예정 금액 · 수수료 차감 후 기준</Text>
+            {/* [Sean] 오늘의 가시 수익 = 러너의 인센티브 — 오늘 확정·진행·완료 잡의 실수령 합 (실필드만) */}
+            {todayN > 0 && (
+              <Text style={styles.lToday}>
+                오늘 확보 <Text style={[styles.lTodayNum, nf]}>+{todaySum.toLocaleString()}</Text>원 · 확정 {todayN}건
+              </Text>
+            )}
 
             <View style={{ marginTop: 11, borderTopWidth: 1, borderTopColor: lilac.hair }}>
               <LedgerRow label="완료 러닝" sub="THIS WEEK" value={String(stats.runs)} unit="회" nf={nf} />
@@ -854,6 +874,8 @@ const styles = StyleSheet.create({
   // BUG A: 둘 다 lineHeight ≥1.2×fontSize, includeFontPadding 제거 → "₩0"의 0이 온전한 타원으로
   won: { fontSize: 20, color: CORAL_INK, lineHeight: 25, flexShrink: 0 },
   lBig: { fontSize: 46, color: lilac.head, lineHeight: 58, letterSpacing: 0.2, flexShrink: 1 },
+  lToday: { fontSize: 14, fontWeight: '700', color: '#3D6B1F', marginTop: 7 },
+  lTodayNum: { fontSize: 16, fontWeight: '700' },
   lCap: { marginTop: 6, fontSize: 12.5, color: lilac.dim, lineHeight: 18 },
   lr: { alignItems: 'baseline', gap: 7, paddingTop: 7, paddingBottom: 6, borderBottomWidth: 1, borderBottomColor: lilac.hair2 },
   lrLabel: { fontSize: 13, lineHeight: 17, fontWeight: '600', color: lilac.head },

@@ -57,7 +57,7 @@ export const lilac = {
   hair2: '#EDEAF8',     // 이중 프레임 안쪽 선
   head: '#221E3D',      // 제목 잉크
   text: '#4B4668',
-  dim: '#928DAD',
+  dim: '#7C76A0',      // [Sean] 디테일 회색 한 단계 진하게 — 가독 (구 #928DAD)
   accent: '#6C5CE7',    // 바이올렛 — 마스트 룰·셸 인디케이터·섹션 넘버·링크 (예산제)
   accentDeep: '#7867EC',
   coral: '#F0765A',     // CTA·봉인·라이브 도트

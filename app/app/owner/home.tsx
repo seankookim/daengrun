@@ -698,7 +698,7 @@ export default function OwnerHome() {
       <Animated.ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{
-          paddingHorizontal: 11,
+          paddingHorizontal: 14,
           paddingTop: PAD_TOP + HEADER_H + HERO_BIG + 14,
           paddingBottom: 30,
         }}
