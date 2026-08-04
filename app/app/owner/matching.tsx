@@ -1,148 +1,32 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Animated, Dimensions, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Avatar, Monogram, Row } from '../../src/components/ui';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Avatar, Row } from '../../src/components/ui';
 import { fetchCertifiedRunners, fetchGearFor, fetchRunnerProfile, GEAR_META, GearItem, LiveRunner, requestRunner } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
+import { useNumFont } from '../../src/lib/fonts';
 import { draft } from '../../src/store';
-import { colors } from '../../src/theme';
+import { lilac } from '../../src/theme';
 
-// 러너 선택 — AI 추천 banner + 1순위 dark card + alternatives, per mock.
+// 러너 선택 — "비교 시트" (2026-08-04 리스타일).
+// 위는 한 줄 = 한 명인 출전자 명단(로스터), 아래는 화면을 떠나지 않는 결정 시트 하나.
+// 행을 누르면 바이올렛 링이 옮겨붙고 시트 내용만 갈아끼워진다 — 결정 표면은 끝까지 한 개다.
+// [은퇴] 스택 덱 캐러셀·스냅 물리·오버레이 이중 렌더·포레스트/볼트 서피스 전면 제거.
+// 스크롤은 평범하고 정직한 세로 ScrollView, 시트는 Modal이 아니라 형제 View.
 
-const FOREST = '#0F1D13';
-const FOREST_INNER = '#1d3023';
+// 코랄 종단 스톱 — 흰 라벨은 여기(≥#C6472C)에서만 (코랄 텍스트 법: 코랄은 면·엣지·도트)
+const CORAL_DEEP = '#C6472C';
+const HOLO = ['#CFC5F6', '#FFDCD1', '#F3E9C6', '#EAF6C8', '#CDEAF3']; // 홀로 3px 엣지 근사 (시트 상단 트림)
+// 로스터 격자 — 레일 헤더와 행이 정확히 같은 트랙을 쓴다
+const COL = { rk: 16, av: 40, m: 46, pace: 46, resp: 40, gap: 8 } as const;
 
-// 캐러셀 카드 내부 스탯 컬럼 (배경색에 따라 텍스트 색 가변)
-function MiniCol({ v, l, g, main, dim }: { v: string; l: string; g?: string; main: string; dim: string }) {
-  return (
-    <View style={{ alignItems: 'center' }}>
-      {g ? <Text style={{ fontSize: 12.5, color: dim, marginBottom: 3 }}>{g}</Text> : null}
-      <Text style={{ fontSize: 16.5, fontWeight: '900', color: main }}>{v}</Text>
-      <Text style={{ fontSize: 11, color: dim, marginTop: 2 }}>{l}</Text>
-    </View>
-  );
-}
+// 티어 잉크 — 골드는 마스터에만 (희소 예산)
+const tierColor = (tier: string) => (tier === '마스터' ? lilac.gold : tier === '베테랑' ? lilac.accent : lilac.dim);
+const signed = (n: number) => (n > 0 ? `+${n}` : `${n}`);
 
-// 스택 카드 팔레트 — 풀와이드 파스텔, 채도 살짝 ↑ (페일 그레이 배경과 분리)
-const PALETTE = ['#DDF0A6', '#C3D9AE', '#FFCDB6', '#F2DA96'];
-
-// 러너 풀 카드 — 배경 캐러셀 레이어와 액티브 오버레이가 정확히 같은 컴포넌트를 공유
-function RunnerFullCard({ r, m, i, topIsPreferred, nominating, onNominate, onLayout, focused, gear, isCurrent }: {
-  r: LiveRunner; m: Match; i: number; topIsPreferred: boolean;
-  nominating: string | null; onNominate: (r: LiveRunner) => void;
-  onLayout?: (e: any) => void; focused: boolean; gear?: GearItem[]; isCurrent?: boolean;
-}) {
-  // 다크 트리트먼트는 1순위 카드 고정 — 포커스 연동 색 전환은 급작스러워 제거 (2026-07-27)
-  const df = useDisplayFont();
-  const dark = i === 0;
-  const bg = dark ? FOREST : PALETTE[(i - 1 + PALETTE.length) % PALETTE.length];
-  const tMain = dark ? '#fff' : FOREST;
-  const tDim = dark ? '#b8c4ae' : '#49524a';
-  const barTrack = dark ? '#2c4034' : '#ffffff99';
-  const barFill = dark ? colors.volt : colors.voltDeep;
-  return (
-    <View
-      onLayout={onLayout}
-      style={[
-        s.fullCard,
-        { backgroundColor: bg },
-        // 라임 아우터 글로우 (드롭 섀도우는 래퍼가 담당 — 뷰당 그림자 1개 제한)
-        dark && { borderWidth: 1.5, borderColor: colors.volt, shadowColor: colors.volt, shadowOpacity: 0.3, shadowRadius: 9, shadowOffset: { width: 0, height: 0 } },
-      ]}
-    >
-      {/* 포커스 카드 장식 — 상단 미광(수직 그라데이션 근사) + 우측 컨투어 라인 */}
-      {dark && (
-        <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 22, overflow: 'hidden' }}>
-          <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '45%', backgroundColor: 'rgba(255,255,255,0.03)' }} />
-          <View style={s.contour1} />
-          <View style={s.contour2} />
-          <View style={s.contour3} />
-        </View>
-      )}
-
-      <View style={[s.rankTab, !dark && { backgroundColor: FOREST }]}>
-        <Text style={{ fontSize: 12.5, fontWeight: '900', color: dark ? FOREST : '#fff' }}>
-          {i === 0 ? (topIsPreferred ? '★ 내가 고른 러너' : '★ 추천 1순위') : `${i + 1}순위 · 적합 ${m.total}%`}
-        </Text>
-      </View>
-      {dark && (
-        <View style={s.fitPill}><Text style={{ fontSize: 12.5, fontWeight: '900', color: FOREST }}>적합도 {m.total}%</Text></View>
-      )}
-
-      <Pressable onPress={() => router.push(`/runner-profile/${r.profileId}`)}>
-        <Row style={{ gap: 12, marginTop: 4 }}>
-          <View style={{ width: 56, height: 56 }}>
-            <Avatar url={r.avatarUrl} char={r.name[0]} bg="#5a7a3c" size={56} />
-            {dark && <View style={s.checkBadge}><Text style={{ fontSize: 11.5, fontWeight: '900', color: FOREST }}>✓</Text></View>}
-          </View>
-          <View style={{ flex: 1 }}>
-            <Row style={{ gap: 7 }}>
-              <Text style={{ fontSize: 23, fontWeight: '900', color: tMain }}>{r.name}</Text>
-              {/* 러너 변경 모드에서 '지금 지명된 러너'를 표시 — 누구를 바꾸는 중인지 모르면 선택이 도박이 된다 */}
-              {isCurrent && (
-                <View style={[s.currentTag, dark && { backgroundColor: colors.volt }]}>
-                  <Text style={{ fontSize: 11, fontWeight: '900', color: dark ? FOREST : '#3d5a2b' }}>현재 지명</Text>
-                </View>
-              )}
-              <Text style={{ fontSize: 12.5, fontWeight: '800', color: dark ? colors.volt : '#5a7a3c', alignSelf: 'center' }}>프로필 ›</Text>
-            </Row>
-            <Text style={{ fontSize: 13, color: tDim, marginTop: 4 }}>
-              {r.tier} · {r.district || '근처'} · 러닝 {r.totalRuns}회
-            </Text>
-          </View>
-        </Row>
-      </Pressable>
-
-      {/* match bars — 모든 카드에 */}
-      <View style={{ gap: 8, marginTop: 12 }}>
-        {m.reasons.map((reason) => (
-          <View key={reason.label}>
-            <Row style={{ justifyContent: 'space-between' }}>
-              <Text style={{ fontSize: 13, color: tDim }}>{reason.glyph} {reason.label}</Text>
-              <Text style={{ fontSize: 14, fontWeight: '900', color: tMain }}>{reason.pct}%</Text>
-            </Row>
-            <View style={{ height: 6, borderRadius: 99, backgroundColor: barTrack, marginTop: 5, overflow: 'hidden' }}>
-              <View style={{ height: 6, borderRadius: 99, backgroundColor: barFill, width: `${reason.pct}%` }} />
-            </View>
-          </View>
-        ))}
-      </View>
-
-      {/* stat strip — 모든 카드에 */}
-      <Row style={{ marginTop: 12, borderRadius: 14, backgroundColor: dark ? FOREST_INNER : '#ffffff88', paddingVertical: 10, justifyContent: 'space-around' }}>
-        <MiniCol v={r.paceLabel} l="평균 페이스" g="◷" main={tMain} dim={tDim} />
-        <MiniCol v={`${r.totalRuns}회`} l="완료 러닝" g="⚑" main={tMain} dim={tDim} />
-        <MiniCol v={r.respondRate != null ? `${r.respondRate}%` : '신규'} l="응답률" g="✦" main={tMain} dim={tDim} />
-      </Row>
-
-      {/* 인증 장비 칩 (0019) — 사진으로 인증된 슬롯만. 없으면 그리지 않는다 */}
-      {gear && gear.some((g) => g.verified) && (
-        <Row style={{ gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
-          {gear.filter((g) => g.verified).map((g) => (
-            <View key={g.id} style={[s.gearChip, dark && { backgroundColor: FOREST_INNER }]}>
-              <Text style={{ fontSize: 11.5, fontWeight: '800', color: dark ? colors.volt : '#3d5a2b' }}>
-                {GEAR_META[g.kind].glyph} {GEAR_META[g.kind].name} ✓
-              </Text>
-            </View>
-          ))}
-        </Row>
-      )}
-
-      <Pressable
-        onPress={() => onNominate(r)}
-        disabled={nominating !== null} /* 전 카드 비활성 = 이중 지명 방지 (디렉터 판정: 안전 우선) */
-        style={[s.fullNominate, { backgroundColor: dark ? colors.volt : FOREST }, nominating === r.profileId && { opacity: 0.5 }]}
-      >
-        <Row style={{ gap: 8 }}>
-          <Text style={[{ fontSize: 16, fontWeight: '900', color: dark ? FOREST : '#fff' }, df]}>
-            {nominating === r.profileId ? '전송 중...' : `${r.name} 러너 지명 요청`}
-          </Text>
-          <Text style={{ fontSize: 17, fontWeight: '900', color: dark ? FOREST : '#fff' }}>›</Text>
-        </Row>
-      </Pressable>
-    </View>
-  );
-}
+// 매칭 목표 페이스 — 예약의 실제 페이스에 묶는다 (구: 420 하드코딩된 가상 목표).
+// 라벨("6'10\"")의 첫 숫자 = 분. 미지정·파싱 실패면 420(7'00") 폴백.
+const paceSecOf = (label?: string | null) => { const m = /(\d+)/.exec(label ?? ''); return m ? Number(m[1]) * 60 : 420; };
 
 // 실러너 추천 점수 — 응답률·경험·페이스 적합의 가중합.
 // 데이터가 쌓이면 매칭 엔진(견종 경험·후기·거리)으로 교체. 병원 레지던트식 하이브리드 매칭의 v1.
@@ -162,20 +46,95 @@ function matchFor(r: LiveRunner, gearVerified = 0, targetPaceSec = 420): Match {
   };
 }
 
+// ── 로스터 행 — 한 명 = 한 줄. 탭 = 선택(바이올렛 링), 이동 없음 ──
+// Sean 정제 1: 행은 60-64pt로 숨을 쉰다(48 압축 금지). 정제 2: 아바타 40pt · 라운드 11.
+function RosterRow({ r, m, rank, selected, isTop, isCurrent, onPress, nf }: {
+  r: LiveRunner; m: Match; rank: number; selected: boolean; isTop: boolean;
+  isCurrent: boolean; onPress: () => void; nf: any;
+}) {
+  const weak = m.total < 80;
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="radio"
+      accessibilityState={{ selected }}
+      accessibilityLabel={`${r.name} 러너 · ${r.tier} · 적합도 ${m.total}%`}
+      style={[s.row, selected && s.rowSel]}
+    >
+      {/* 순위 → 선택되면 바이올렛 체크로 바뀐다 */}
+      <View style={{ width: COL.rk, alignItems: 'center' }}>
+        {selected ? (
+          <View style={s.rkCheck}><Text style={{ fontSize: 12, fontWeight: '900', color: '#fff', lineHeight: 14 }}>✓</Text></View>
+        ) : (
+          <Text style={[{ fontSize: 12.5, fontWeight: '700', color: isTop ? lilac.accent : lilac.dim }, nf]}>
+            {rank < 10 ? `0${rank}` : `${rank}`}
+          </Text>
+        )}
+      </View>
+
+      {/* 따뜻한 아바타 — 사진이 없으면 소프트 바이올렛 위 이니셜 */}
+      <Avatar url={r.avatarUrl} char={r.name[0]} bg={lilac.accent} size={COL.av} />
+
+      <View style={{ flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+        <Text numberOfLines={1} style={{ fontSize: 15, fontWeight: '800', color: lilac.head, letterSpacing: -0.2 }}>{r.name}</Text>
+        <Text numberOfLines={1} style={{ flexShrink: 1, fontSize: 12, fontWeight: '700', color: tierColor(r.tier) }}>{r.tier}</Text>
+        {/* 러너 변경 모드에서 '지금 지명된 러너'를 표시 — 누구를 바꾸는 중인지 모르면 선택이 도박이 된다 */}
+        {isCurrent && (
+          <View style={s.curTag}><Text style={{ fontSize: 12, fontWeight: '700', color: lilac.accent }}>현재 지명</Text></View>
+        )}
+      </View>
+
+      {/* 매치 — 표의 셀이 아니라 따뜻한 숫자 하나 */}
+      <Text style={[{ width: COL.m, textAlign: 'right', fontSize: 18.5, fontWeight: '700', color: selected ? lilac.accent : weak ? lilac.dim : lilac.head }, nf]}>
+        {m.total}<Text style={{ fontSize: 12 }}>%</Text>
+      </Text>
+      <Text style={[{ width: COL.pace, textAlign: 'right', fontSize: 13, fontWeight: '600', color: lilac.text }, nf]}>{r.paceLabel}</Text>
+      {r.respondRate != null ? (
+        <Text style={[{ width: COL.resp, textAlign: 'right', fontSize: 13, fontWeight: '600', color: lilac.text }, nf]}>{r.respondRate}%</Text>
+      ) : (
+        <Text style={{ width: COL.resp, textAlign: 'right', fontSize: 12, fontWeight: '600', color: lilac.dim }}>신규</Text>
+      )}
+    </Pressable>
+  );
+}
+
+// ── 시트 매치 축 바 — 80 미만은 앰버(약점 축 신호) ──
+function Bar({ label, pct, nf }: { label: string; pct: number; nf: any }) {
+  const weak = pct < 80;
+  const w = Math.max(0, Math.min(100, pct));
+  return (
+    <Row style={{ gap: 10 }}>
+      <Text style={{ width: 76, fontSize: 12.5, color: lilac.text }}>{label}</Text>
+      <View style={s.track}>
+        <View style={{ height: '100%', borderRadius: 5, backgroundColor: weak ? lilac.amber : lilac.accent, width: `${w}%` }} />
+      </View>
+      <Text style={[{ width: 34, textAlign: 'right', fontSize: 13, fontWeight: '700', color: weak ? lilac.amber : lilac.head }, nf]}>{pct}</Text>
+    </Row>
+  );
+}
+
 export default function Matching() {
-  const df = useDisplayFont(); // 디스플레이 서체 — 헤더 타이틀
+  const df = useDisplayFont(); // Black Han Sans — 화면에서 딱 한 번(시트의 러너 이름)
+  const nf = useNumFont();     // Oswald — 매치·페이스·응답률 등 모든 숫자
   // 목업 러너 참조 은퇴 — 이 화면은 실러너 전용 (2026-07-23)
   const live = !!draft.bookingId;
   // 러너 변경 모드 — 일정 화면의 '러너 변경'이 이 예약 id를 들고 넘어온다.
   // 새 예약을 만들지 않는다: 같은 예약에 request_runner를 다시 쏘면 서버가 지명을 갈아끼운다.
   // [리뷰 F4] 현재 지명자는 호출부(일정 탭)가 이미 들고 있다 — 라운드트립·직접 supabase 임포트 대신 파라미터로
-  const { mode, current } = useLocalSearchParams<{ mode?: string; current?: string }>();
+  // pace: 이 예약의 목표 페이스 라벨 (선택 — 없으면 draft.pace, 그것도 없으면 420 폴백)
+  const { mode, current, pace } = useLocalSearchParams<{ mode?: string; current?: string; pace?: string }>();
   const rebook = mode === 'rebook';
   const currentRunnerId = (typeof current === 'string' && current.length > 0) ? current : null;
+  // 리북은 이 예약의 페이스를 파라미터로 받는다 (draft는 지난 플로우 잔여물일 수 있다)
+  const paceParam = (typeof pace === 'string' && pace.length > 0) ? pace : null;
+  const targetPaceLabel = rebook ? paceParam : (draft.pace ?? null);
+  const targetPaceSec = paceSecOf(targetPaceLabel);
   const [liveRunners, setLiveRunners] = useState<LiveRunner[]>([]);
   const [nominating, setNominating] = useState<string | null>(null);
   // 러너별 장비 로드아웃 (0019) — 배치 조회, 실패해도 카드는 뜬다
   const [gearMap, setGearMap] = useState<Record<string, GearItem[]>>({});
+  // 선택된 러너 — null이면 AI 1순위로 폴백한다 (시트는 절대 비지 않는다)
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   useEffect(() => {
     const ids = liveRunners.map((r) => r.profileId);
@@ -229,21 +188,27 @@ export default function Matching() {
       });
   }, [live, rebook]);
 
-  // 점수순 정렬 — 1위는 추천 카드, 나머지는 대안 리스트.
+  // 점수순 정렬 — 1위가 AI 추천 1순위(=시트 기본 선택), 나머지는 같은 격자의 로스터 행.
   // 프로필에서 '이 러너와 예약하기'로 왔으면 그 러너가 최상단.
   const scored = useMemo(() => {
     const arr = liveRunners
-      .map((r) => ({ r, m: matchFor(r, (gearMap[r.profileId] ?? []).filter((g) => g.verified).length) }))
+      .map((r) => ({ r, m: matchFor(r, (gearMap[r.profileId] ?? []).filter((g) => g.verified).length, targetPaceSec) }))
       .sort((a, b) => b.m.total - a.m.total);
     if (!rebook && draft.preferredRunnerId) { // [리뷰 F3] 리북에선 지난 플로우의 픽이 1순위를 훔치지 못하게
       const i = arr.findIndex((x) => x.r.profileId === draft.preferredRunnerId);
       if (i > 0) arr.unshift(arr.splice(i, 1)[0]);
     }
     return arr;
-  }, [liveRunners, gearMap]);
+  }, [liveRunners, gearMap, targetPaceSec]);
   const top = scored[0];
-  const rest = scored.slice(1);
   const topIsPreferred = !rebook && !!top && top.r.profileId === draft.preferredRunnerId;
+  // 시트는 절대 비지 않는다 — 선택이 없거나 사라졌으면 AI 1순위로 폴백
+  const sel = scored.find((x) => x.r.profileId === selectedId) ?? top;
+  // 러너 변경 모드의 기준점 — 현재 지명 러너 (목록에 있으면 델타 계산 가능)
+  const curEntry = currentRunnerId ? scored.find((x) => x.r.profileId === currentRunnerId) : undefined;
+  const selIsCurrent = !!sel && !!currentRunnerId && sel.r.profileId === currentRunnerId;
+  const lockCta = rebook && selIsCurrent; // 현재 지명자를 다시 지명하는 건 액션이 성립하지 않는다
+  const selGear = sel ? (gearMap[sel.r.profileId] ?? []).filter((g) => g.verified) : [];
 
   const nominate = async (r: LiveRunner) => {
     if (!draft.bookingId) return;
@@ -260,333 +225,335 @@ export default function Matching() {
     }
   };
 
-  // ── 캐러셀 지오메트리 ─────────────────────────────────────────
-  // 애플 월렛식 덱: STEP은 카드당 스크롤 트래블(고정), 이웃 카드는 translateY 클램프로
-  // 액티브 곁에 붙는다 — 이전 카드는 상단 ~140px 피크, 다음 카드는 액티브 하단 아래 피크.
-  const [cardH, setCardH] = useState(470);      // onLayout 실측(전 카드 중 최댓값)으로 갱신
-  const STEP = 260;                              // 카드 1장당 스크롤 거리
-  const FOCUS_TOP = 16;                          // 스크롤러 상단(=헤더 하단)에서 포커스 카드 top까지
-  const SCREEN_H = Dimensions.get('window').height;
-  // 스크롤러 실측 높이 — 헤더 높이가 기기/폰트 배율마다 달라 SCREEN_H 추정만으로는
-  // maxScroll이 몇 px 모자라 마지막 카드가 포커스에 닿지 못했다 (최하위 러너 선택 불가).
-  const [viewportH, setViewportH] = useState(0);
-  const scrollerH = viewportH > 0 ? viewportH : Math.max(240, SCREEN_H - 200);
-  const SNAP_MARGIN = 24;                        // maxScroll 여유분
-  // TAIL 하한: maxScroll(= contentH - scrollerH) >= (N-1)*STEP + SNAP_MARGIN 을 보장
-  const TAIL = Math.max(140, scrollerH - cardH - FOCUS_TOP + SNAP_MARGIN); // 마지막 카드 스냅용 꼬리
-  const N = scored.length;
-  // 카드가 절대좌표(top = FOCUS_TOP + i*STEP)라 콘텐츠 높이를 명시
-  const contentH = N > 0 ? FOCUS_TOP + cardH + (N - 1) * STEP + TAIL : undefined;
-
-  const scrollY = useRef(new Animated.Value(0)).current;
-  const [focusIdx, setFocusIdx] = useState(0);
-  const focusRef = useRef(0);
-  const safeFocus = Math.min(Math.max(0, focusIdx), Math.max(0, N - 1));
-  const onFocusChange = (idx: number) => {
-    focusRef.current = idx;
-    setFocusIdx(idx);
-    try { require('expo-haptics').impactAsync(require('expo-haptics').ImpactFeedbackStyle.Light); } catch {}
-  };
-
-  // 물리 커브 — 두 레이어(배경/오버레이)가 완전히 동일한 scrollY 함수를 공유해 픽셀 단위로 일치.
-  // 입력축 = 카드의 부호 있는 포커스 거리. 비선형(포커스 근처 라운드) 벌지 + 엣지 기준 회전 + 덱 클램프.
-  const physicsFor = (i: number) => {
-    const f = i * STEP;
-    const in5 = [f - 2 * STEP, f - STEP, f, f + STEP, f + 2 * STEP];
-    // 포커스 ±S/2에 중간점 — 스케일이 선형이 아니라 스프링처럼 둥글게 부풀도록
-    const in7 = [f - 2 * STEP, f - STEP, f - STEP / 2, f, f + STEP / 2, f + STEP, f + 2 * STEP];
-    const H2 = cardH / 2;
-    // 덱 클램프 translateY:
-    // 위(이전) 카드는 기존대로 상단 ~140px 피크.
-    // 아래(다음) 카드들은 액티브 '밑으로 턱' — 상반신은 액티브(오버레이가 항상 위) 뒤에 숨고,
-    // 바닥 엣지만 56px 계단으로 노출: 액티브 아래로 +1 바닥, 그 아래 +2 바닥 (Sean 안).
-    // 반투명 이중노출 없이 전부 불투명 — 겹침은 z가 아니라 '아래 카드 바닥이 더 낮다'로 표현.
-    // effective bottom = top + T + cardH·(1+s)/2  (센터 스케일 보정)
-    const T_m1 = Math.round(0.05 * cardH + 56 - STEP);      // 다음 — 바닥이 액티브 바닥 +56px
-    const T_m2 = Math.round(0.10 * cardH + 112 - 2 * STEP); // 두 칸 아래 — 바닥 +112px
-    const T_p1 = Math.round(STEP - 140 - 0.05 * cardH);     // 이전 — 상단 140px 피크
-    // 두 칸 위: 이전 카드 뒤로 완전히 숨김 (레퍼런스도 위는 1장만 피크)
-    const T_p2 = Math.round(2 * STEP - 150 - 0.9 * cardH);
-    return {
-      // 아래 덱은 불투명(엣지 스택), 위 피크만 기존 반투명 유지
-      opacity: scrollY.interpolate({ inputRange: in5, outputRange: [1, 1, 1, 0.72, 0.5], extrapolate: 'clamp' as const }),
-      translateY: scrollY.interpolate({ inputRange: in5, outputRange: [T_m2, T_m1, 0, T_p1, T_p2], extrapolate: 'clamp' as const }),
-      // 포커스 스케일 1.04 → 1.0: 풀와이드 카드라 1 초과분이 화면 밖으로 잘려 나가던 문제
-      // (우상단 모서리 클리핑). 벌지감은 이웃을 0.96으로 낮춰 상대값으로 보존.
-      scale: scrollY.interpolate({ inputRange: in7, outputRange: [0.8, 0.9, 0.96, 1.0, 0.96, 0.9, 0.8], extrapolate: 'clamp' as const }),
-      scaleX: scrollY.interpolate({ inputRange: in5, outputRange: [0.94, 0.965, 1, 0.965, 0.94], extrapolate: 'clamp' as const }),
-      // 아래 덱은 평평하게(바닥 엣지에 회전은 어지럽다), 위 피크만 힌지 폴드 유지
-      rotateX: scrollY.interpolate({ inputRange: in5, outputRange: ['0deg', '0deg', '0deg', '10deg', '15deg'], extrapolate: 'clamp' as const }),
-      // transform-origin 에뮬레이션: 액티브에 가까운 엣지가 힌지 —
-      // 위 카드는 하단 엣지(+H2), 아래 카드는 상단 엣지(-H2). translate → rotate → 역translate.
-      oShift: scrollY.interpolate({ inputRange: in5, outputRange: [-H2, -H2, 0, H2, H2], extrapolate: 'clamp' as const }),
-      oShiftBack: scrollY.interpolate({ inputRange: in5, outputRange: [H2, H2, 0, -H2, -H2], extrapolate: 'clamp' as const }),
-    };
-  };
-
-  // 카드마다 높이가 다르다(인증 장비 칩 줄 등) — 0번 카드만 재면 더 큰 카드가 다음 카드를 덮어버린다.
-  // 전 카드를 재고 '최댓값'을 덱 지오메트리 기준으로 삼는다 (기준이 커질수록 이웃 노출 폭은 넓어지는 방향).
-  const cardHeightsRef = useRef<Record<string, number>>({});
-  const measureCard = (id: string) => (e: any) => {
-    const h = Math.round(e.nativeEvent.layout.height);
-    if (h <= 100 || cardHeightsRef.current[id] === h) return;
-    cardHeightsRef.current[id] = h;
-    const hs = cardHeightsRef.current;
-    const max = Object.keys(hs).reduce((mx, k) => Math.max(mx, hs[k] || 0), 0);
-    setCardH((cur) => (Math.abs(max - cur) > 2 ? max : cur));
-  };
-
-  // 비포커스 카드 탭 = 그 카드를 포커스로 스크롤 (지명 아님). 지명은 포커스 카드에서만.
-  const scrollRef = useRef<any>(null);
-  const focusCard = (i: number) => {
-    const node: any = scrollRef.current?.scrollTo ? scrollRef.current : scrollRef.current?.getNode?.();
-    node?.scrollTo({ y: i * STEP, animated: true });
+  const select = (id: string) => {
+    if (id === (sel?.r.profileId ?? null)) return;
+    setSelectedId(id);
+    try { require('expo-haptics').selectionAsync(); } catch {}
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#E9E7DE' }}>
-      {/* 고정 헤더 — 캐러셀과 분리, 포커스 좌표가 흔들리지 않게 */}
-      <View style={{ paddingTop: 58, paddingHorizontal: 12, zIndex: 50, backgroundColor: '#E9E7DE' }}>
-        <Row style={{ justifyContent: 'space-between', marginBottom: 4 }}>
-          <Pressable onPress={() => router.back()} style={s.backBtn}><Text style={{ fontSize: 20.5, color: FOREST }}>‹</Text></Pressable>
-          <Text style={[{ fontSize: 23, fontWeight: '900', color: FOREST }, df]}>{rebook ? '러너 변경' : '러너 선택'}</Text>
-          <View style={{ width: 40 }} />
+    <View style={{ flex: 1, backgroundColor: lilac.bg }}>
+      {/* ── ① 헤더 — 로스터/시트와 분리된 고정 크롬 ── */}
+      <View style={s.head}>
+        <Row style={{ gap: 9 }}>
+          <Pressable onPress={() => router.back()} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로">
+            <Text style={{ fontSize: 19, fontWeight: '700', color: lilac.head, marginTop: -2 }}>‹</Text>
+          </Pressable>
+          <Text style={{ fontSize: 17.5, fontWeight: '900', color: lilac.head, letterSpacing: -0.3 }}>
+            {rebook ? '러너 변경' : '러너 선택'}
+          </Text>
+          {rebook && (
+            <View style={s.headTag}><Text style={{ fontSize: 12, fontWeight: '700', color: lilac.accent }}>재요청</Text></View>
+          )}
         </Row>
-        <Text style={{ fontSize: 15, color: '#49524a', textAlign: 'center', marginBottom: 10 }}>
+        <Text style={{ fontSize: 13.5, lineHeight: 20, color: lilac.text, marginTop: 9 }}>
           {rebook
             ? '이 예약 그대로 다른 러너에게 다시 요청해요\n새 러너를 지명하면 기존 지명은 자동으로 취소돼요'
             : live ? '러너를 지명하거나, 오픈 매칭으로 기다릴 수 있어요\n보통 몇 분 안에 응답이 와요' : '보호자님과 러너의 선호도를 종합 분석했어요'}
         </Text>
+        {/* '지금 누구를 바꾸는 중인지'는 별도 밴드 대신 로스터 행의 [현재 지명] 태그와
+            시트의 델타 밴드가 답한다 — 같은 사실을 세 번 말하면 명단 볼 자리가 없다. */}
       </View>
 
-      {/* ── 2층 컴포지터: [배경 캐러셀 레이어(ScrollView)] + [액티브 카드 오버레이(형제, 항상 위)] ──
-          ScrollView 내부의 어떤 카드도 오버레이 위에 그릴 수 없다 — 네이티브 계층 자체가 분리됨 */}
-      <View
-        style={{ flex: 1, overflow: 'visible' }}
-        onLayout={(e) => {
-          const h = Math.round(e.nativeEvent.layout.height);
-          if (h > 0 && Math.abs(h - viewportH) > 1) setViewportH(h);
-        }}
+      {/* ── ② 로스터 — 평범하고 정직한 세로 스크롤 (덱·스냅 없음) ── */}
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingHorizontal: 10, paddingTop: 6, paddingBottom: 20 }}
+        showsVerticalScrollIndicator={false}
       >
-        <Animated.ScrollView
-          ref={scrollRef}
-          style={{ flex: 1, overflow: 'visible' }}
-          removeClippedSubviews={false}
-          contentContainerStyle={{ height: live && top ? contentH : undefined, overflow: 'visible' }}
-          snapToInterval={STEP}
-          disableIntervalMomentum
-          decelerationRate="fast"
-          onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
-            useNativeDriver: true,
-            // activeIndex = 고정 포커스 좌표에 top이 가장 가까운 카드 (렌더 순서/랭크와 무관)
-            listener: (e: any) => {
-              const n = scored.length || 1;
-              const idx = Math.min(n - 1, Math.max(0, Math.round(e.nativeEvent.contentOffset.y / STEP)));
-              if (idx !== focusRef.current) onFocusChange(idx);
-            },
-          })}
-          scrollEventThrottle={16}
-        >
-          {live && top && (
-            <>
-              {scored.map(({ r, m }, i) => {
-                const dist = Math.abs(i - safeFocus);
-                const active = dist === 0;
-                const ph = physicsFor(i);
-                const card = (
-                  <RunnerFullCard
-                    r={r} m={m} i={i} topIsPreferred={topIsPreferred}
-                    nominating={nominating} onNominate={nominate}
-                    focused={active} gear={gearMap[r.profileId]}
-                    onLayout={measureCard(r.profileId)}
-                    isCurrent={r.profileId === currentRunnerId}
-                  />
-                );
-                return (
-                  <Animated.View
-                    key={r.profileId}
-                    // 터치 게이팅: 포커스 카드만 내부 버튼(프로필/지명)이 살아 있다.
-                    // 비포커스는 box-none(래퍼 자체는 타깃 아님) + 아래 Pressable box-only →
-                    // 카드 어디를 눌러도 '포커스로 이동'만 하고, 투명 액티브 레이어에 눌림을
-                    // 빼앗기거나 안 보이는 지명 버튼이 눌리는 일이 없다.
-                    pointerEvents={active ? 'auto' : 'box-none'}
-                    style={[active ? null : s.cardShadowAmbient, {
-                      position: 'absolute', top: FOCUS_TOP + i * STEP, left: 0, right: 0,
-                      // 가까울수록 위 — 아래 덱은 '밑으로 턱'이라 가까운 카드가 먼 카드의 상반신을 가린다
-                      zIndex: dist === 0 ? 1000 : dist === 1 ? 100 : dist === 2 ? 10 : 1,
-                      elevation: dist === 0 ? 30 : dist === 1 ? 8 : 1,
-                      // 액티브 카드: 비주얼은 오버레이가 담당 → 여기선 투명 플레이스홀더.
-                      // 터치는 이 투명 카드가 받는다 (단일 터치 레이어 — 이중 처리/스크롤 제스처 충돌 방지,
-                      // zIndex 1000이라 스크롤 레이어 최상단 = 터치 좌표는 오버레이 비주얼과 픽셀 일치).
-                      // 비포커스 카드는 위 pointerEvents 게이팅으로 이 레이어에 가려도 탭이 죽지 않는다.
-                      opacity: active ? 0 : ph.opacity,
-                      transform: [
-                        { perspective: 1100 },
-                        { translateY: ph.translateY },
-                        { translateY: ph.oShift },
-                        { rotateX: ph.rotateX },
-                        { translateY: ph.oShiftBack },
-                        { scale: ph.scale },
-                        { scaleX: ph.scaleX },
-                      ],
-                    }]}
-                  >
-                    {/* [리뷰 F2] active 분기로 엘리먼트 타입이 바뀌면 카드 전체가 리마운트 — 스냅마다 깜빡였다.
-                        트리는 고정, 동작만 게이트. box-none이면 내부 지명/프로필 버튼이 그대로 산다.
-                        [리뷰 F8] 비포커스 카드는 스크린리더 트리에서도 숨긴다 (터치만 막으면 a11y로 죽은 버튼 잔존) */}
-                    <Pressable
-                      pointerEvents={active ? 'box-none' : 'box-only'}
-                      onPress={active ? undefined : () => focusCard(i)}
-                      accessibilityRole={active ? undefined : 'button'}
-                      accessibilityLabel={active ? undefined : `${r.name} 러너 카드 보기`}
-                      importantForAccessibility={active ? 'auto' : 'no-hide-descendants'}
-                      accessibilityElementsHidden={!active}
-                    >
-                      {card}
-                    </Pressable>
-                  </Animated.View>
-                );
-              })}
+        {live && top && (
+          <>
+            {/* 컬럼 레일 = 범례 + 명단 규모. 행과 같은 트랙을 쓴다 */}
+            <Row style={s.rail}>
+              <Text style={[s.kick, { flex: 1 }]}>러너 {scored.length}명 · AI 추천 순</Text>
+              <Text style={[s.kick, { width: COL.m, textAlign: 'right' }]}>매치</Text>
+              <Text style={[s.kick, { width: COL.pace, textAlign: 'right' }]}>페이스</Text>
+              <Text style={[s.kick, { width: COL.resp, textAlign: 'right' }]}>응답</Text>
+            </Row>
 
-              <View style={[s.trustNote, { position: 'absolute', top: FOCUS_TOP + cardH + (N - 1) * STEP + 14, left: 0, right: 0, zIndex: 0 }]}>
-                <Text style={{ fontSize: 14, color: '#49524a' }}>지명 없이 두면 오픈 매칭으로 모든 러너에게 보여요</Text>
-              </View>
-            </>
-          )}
-
-          {/* 데모 매칭 섹션 은퇴 (2026-07-23) — 목업 김민준 화면이 결제 실패를 숨기는 함정이었음.
-              이 화면은 이제 실예약 전용. */}
-          {!live && (
-            <View style={{ marginTop: 16, marginHorizontal: 12, backgroundColor: '#fff', borderRadius: 16, padding: 18, alignItems: 'center', borderWidth: 1, borderColor: '#dddace' }}>
-              <Text style={{ fontSize: 15, color: colors.dim, textAlign: 'center', lineHeight: 23 }}>
-                진행 중인 예약이 없어요{'\n'}예약 화면에서 결제하면 러너 선택이 열려요
-              </Text>
-            </View>
-          )}
-
-          {live && liveRunners.length === 0 && (
-            <View style={{ marginTop: 16, marginHorizontal: 12, backgroundColor: '#fff', borderRadius: 16, padding: 18, alignItems: 'center', borderWidth: 1, borderColor: '#dddace' }}>
-              <Text style={{ fontSize: 15, color: colors.dim, textAlign: 'center', lineHeight: 23 }}>
-                지금 온라인인 러너가 없어요{'\n'}오픈 매칭으로 등록되어 러너들이 응답할 수 있어요
-              </Text>
-            </View>
-          )}
-        </Animated.ScrollView>
-
-        {/* ── 액티브 카드 오버레이 — ScrollView 밖 최종 형제. 스크롤과 픽셀 단위 동기(base - scrollY),
-            동일 물리 커브라 레이어 전환 순간에도 이어 붙은 듯 연속. pointerEvents none = 비주얼 전용. */}
-        {live && top && scored[safeFocus] && (() => {
-          const { r, m } = scored[safeFocus];
-          const ph = physicsFor(safeFocus);
-          const base = FOCUS_TOP + safeFocus * STEP;
-          return (
-            <View pointerEvents="none" style={[StyleSheet.absoluteFill, { zIndex: 99999, elevation: 50, overflow: 'visible' }]}>
-              <Animated.View
-                style={[s.cardShadowFocus, {
-                  position: 'absolute', left: 0, right: 0, top: 0, zIndex: 99999, elevation: 50,
-                  opacity: ph.opacity,
-                  transform: [
-                    // 콘텐츠 좌표 → 뷰포트 좌표 변환: base - scrollY
-                    { translateY: scrollY.interpolate({ inputRange: [0, 1], outputRange: [base, base - 1] }) },
-                    { perspective: 1100 },
-                    { translateY: ph.translateY },
-                    { translateY: ph.oShift },
-                    { rotateX: ph.rotateX },
-                    { translateY: ph.oShiftBack },
-                    { scale: ph.scale },
-                    { scaleX: ph.scaleX },
-                  ],
-                }]}
-              >
-                <RunnerFullCard
-                  r={r} m={m} i={safeFocus} topIsPreferred={topIsPreferred}
-                  nominating={nominating} onNominate={nominate} focused
-                  gear={gearMap[r.profileId]}
+            {scored.map(({ r, m }, i) => (
+              <View key={r.profileId}>
+                {i > 0 && <View style={s.sep} />}
+                <RosterRow
+                  r={r} m={m} rank={i + 1} nf={nf}
+                  selected={!!sel && sel.r.profileId === r.profileId}
+                  isTop={i === 0}
                   isCurrent={r.profileId === currentRunnerId}
+                  onPress={() => select(r.profileId)}
                 />
-              </Animated.View>
+              </View>
+            ))}
+
+            {/* 이 순서의 근거 — 새 데이터 없이 시트와 같은 세 축으로만 설명 */}
+            <View style={s.why}>
+              <Row style={{ gap: 8, marginBottom: 9 }}>
+                <Text style={{ fontSize: 13, fontWeight: '800', color: lilac.head }}>이 순서는 어떻게 나왔나요</Text>
+                <View style={{ flex: 1, height: 1, backgroundColor: lilac.hair }} />
+              </Row>
+              <View style={{ gap: 7 }}>
+                <Row style={{ gap: 8, alignItems: 'flex-start' }}>
+                  <View style={s.whyDot} />
+                  <Text style={{ flex: 1, fontSize: 12.5, lineHeight: 18, color: lilac.text }}>
+                    <Text style={{ fontWeight: '700', color: lilac.head }}>응답률</Text> — 지명 요청을 받고 실제로 수락한 비율이에요.
+                  </Text>
+                </Row>
+                <Row style={{ gap: 8, alignItems: 'flex-start' }}>
+                  <View style={s.whyDot} />
+                  <Text style={{ flex: 1, fontSize: 12.5, lineHeight: 18, color: lilac.text }}>
+                    <Text style={{ fontWeight: '700', color: lilac.head }}>경험</Text> — 지금까지 완료한 러닝 횟수를 봐요.
+                  </Text>
+                </Row>
+                <Row style={{ gap: 8, alignItems: 'flex-start' }}>
+                  <View style={s.whyDot} />
+                  <Text style={{ flex: 1, fontSize: 12.5, lineHeight: 18, color: lilac.text }}>
+                    <Text style={{ fontWeight: '700', color: lilac.head }}>페이스 적합</Text> — 이 예약의 페이스
+                    {targetPaceLabel ? <Text style={[{ fontWeight: '700', color: lilac.head }, nf]}>{` ${targetPaceLabel} `}</Text> : ' '}
+                    기준으로 러너 페이스가 얼마나 맞는지예요.
+                  </Text>
+                </Row>
+              </View>
+              <Text style={{ marginTop: 11, paddingTop: 10, borderTopWidth: 1, borderTopColor: lilac.hair2, fontSize: 12.5, lineHeight: 18, color: lilac.dim }}>
+                세 축을 합쳐 매치 점수가 되고, 그 순서가 AI 추천 1순위예요. 인증 장비는 슬롯당 +1(최대 +2)만 더해요.
+              </Text>
             </View>
-          );
-        })()}
 
-      </View>
-    </View>
-  );
-}
+            <Text style={{ marginTop: 16, textAlign: 'center', fontSize: 12.5, lineHeight: 18, color: lilac.dim }}>
+              지명 없이 두면 오픈 매칭으로 모든 러너에게 보여요
+            </Text>
+          </>
+        )}
 
-function StripStat({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={{ flex: 1, alignItems: 'center' }}>
-      <Text style={{ fontSize: 14, color: '#b8c4ae' }}>{label}</Text>
-      <Text style={{ fontSize: 17, fontWeight: '900', color: '#fff', marginTop: 3 }}>{value}</Text>
-    </View>
-  );
-}
+        {/* 데모 매칭 섹션 은퇴 (2026-07-23) — 목업 김민준 화면이 결제 실패를 숨기는 함정이었음.
+            이 화면은 이제 실예약 전용. */}
+        {!live && (
+          <View style={s.emptyBox}>
+            <Text style={{ fontSize: 13.5, color: lilac.text, textAlign: 'center', lineHeight: 21 }}>
+              진행 중인 예약이 없어요{'\n'}예약 화면에서 결제하면 러너 선택이 열려요
+            </Text>
+          </View>
+        )}
 
-function AltStat({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={{ flex: 1, alignItems: 'center' }}>
-      <Text style={{ fontSize: 14, color: colors.dim }}>{label}</Text>
-      <Text style={{ fontSize: 15.5, fontWeight: '900', color: FOREST, marginTop: 2 }}>{value}</Text>
+        {live && liveRunners.length === 0 && (
+          <View style={s.emptyBox}>
+            <Text style={{ fontSize: 13.5, color: lilac.text, textAlign: 'center', lineHeight: 21 }}>
+              지금 온라인인 러너가 없어요{'\n'}오픈 매칭으로 등록되어 러너들이 응답할 수 있어요
+            </Text>
+          </View>
+        )}
+      </ScrollView>
+
+      {/* ── ③ 결정 시트 — 화면에 단 하나. Modal이 아니라 형제 View, 절대 비지 않는다 ── */}
+      {live && sel && (
+        <View style={s.sheet}>
+          <View pointerEvents="none" style={s.holo}>
+            {HOLO.map((c, i) => <View key={i} style={{ flex: 1, backgroundColor: c }} />)}
+          </View>
+
+          <Row style={{ gap: 9, marginBottom: 12 }}>
+            <Text style={s.kick}>선택한 러너</Text>
+            <View style={{ flex: 1, height: 1, backgroundColor: lilac.hair }} />
+            <Pressable
+              onPress={() => router.push(`/runner-profile/${sel.r.profileId}`)}
+              style={s.profBtn}
+              accessibilityRole="button"
+              accessibilityLabel={`${sel.r.name} 러너 프로필 보기`}
+            >
+              <Text style={{ fontSize: 12.5, fontWeight: '700', color: lilac.head }}>프로필 ›</Text>
+            </Pressable>
+          </Row>
+
+          {/* 신원 — 큰 따뜻한 아바타 · Black Han Sans 이름(화면에서 한 번) · 사람 문장 · 매치 숫자 */}
+          <Row style={{ gap: 12, alignItems: 'flex-start' }}>
+            <Avatar url={sel.r.avatarUrl} char={sel.r.name[0]} bg={lilac.accent} size={52} />
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Row style={{ gap: 7 }}>
+                <Text numberOfLines={1} style={[{ fontSize: 20, color: lilac.head, letterSpacing: 0.2 }, df]}>{sel.r.name}</Text>
+                <Text style={{ fontSize: 12.5, fontWeight: '700', color: tierColor(sel.r.tier) }}>{sel.r.tier}</Text>
+                {top && sel.r.profileId === top.r.profileId && (
+                  <View style={s.aiTag}>
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: lilac.accent }}>
+                      {topIsPreferred ? '내가 고른 러너' : 'AI 1순위'}
+                    </Text>
+                  </View>
+                )}
+              </Row>
+              {/* 사람 문장 — 실필드(동네·누적 러닝)만으로 */}
+              <Text style={{ fontSize: 13, lineHeight: 19, color: lilac.text, marginTop: 5 }}>
+                {sel.r.totalRuns > 0 ? (
+                  <>
+                    {sel.r.district || '이 동네'}에서 <Text style={[{ fontSize: 14, fontWeight: '700', color: lilac.head }, nf]}>{sel.r.totalRuns}</Text>번 달렸어요
+                  </>
+                ) : (
+                  `${sel.r.district || '이 동네'}에서 첫 러닝을 기다리고 있어요`
+                )}
+              </Text>
+              {/* 평균 페이스·응답률은 아래 CTA 플레이트가 원값으로 들고 있다 — 시트에서 두 번 말하지 않는다 */}
+            </View>
+            <View style={{ alignItems: 'flex-end' }}>
+              <Text style={[{ fontSize: 27, fontWeight: '700', color: lilac.head, lineHeight: 29 }, nf]}>
+                {sel.m.total}<Text style={{ fontSize: 14, color: lilac.text }}>%</Text>
+              </Text>
+              <Text style={[s.kick, { marginTop: 1 }]}>매치</Text>
+            </View>
+          </Row>
+
+          {/* 매치 3축 */}
+          <View style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: lilac.hair2, gap: 7 }}>
+            {sel.m.reasons.map((reason) => (
+              <Bar key={reason.label} label={reason.label} pct={reason.pct} nf={nf} />
+            ))}
+          </View>
+
+          {/* 러너 변경 델타 — 현재 지명 러너 대비 (실필드로 계산 가능한 축만) */}
+          {rebook && curEntry && (
+            <View style={s.delta}>
+              {selIsCurrent ? (
+                <Text style={{ fontSize: 12.5, lineHeight: 18, color: lilac.text }}>지금 이 예약에 지명돼 있는 러너예요.</Text>
+              ) : (() => {
+                const dm = sel.m.total - curEntry.m.total;
+                const dr = (sel.r.respondRate == null || curEntry.r.respondRate == null) ? null : sel.r.respondRate - curEntry.r.respondRate;
+                return (
+                  <Row style={{ gap: 9, flexWrap: 'wrap' }}>
+                    <Text style={{ fontSize: 12.5, color: lilac.text }}>
+                      현재 <Text style={{ fontWeight: '700', color: lilac.head }}>{curEntry.r.name}</Text> 대비
+                    </Text>
+                    <Text style={[{ fontSize: 12.5, fontWeight: '700', color: dm >= 0 ? lilac.accent : lilac.amber }, nf]}>매치 {signed(dm)}</Text>
+                    {dr == null
+                      ? <Text style={{ fontSize: 12.5, color: lilac.dim }}>응답률 비교 불가 · 신규</Text>
+                      : <Text style={[{ fontSize: 12.5, fontWeight: '700', color: dr >= 0 ? lilac.accent : lilac.amber }, nf]}>응답 {signed(dr)}</Text>}
+                  </Row>
+                );
+              })()}
+            </View>
+          )}
+
+          {/* 인증 장비 칩 (0019) — 사진으로 인증된 슬롯만. 없으면 그리지 않는다 */}
+          {selGear.length > 0 && (
+            <Row style={{ gap: 7, marginTop: 11, flexWrap: 'wrap' }}>
+              {selGear.map((g) => (
+                <View key={g.id} style={s.gearChip}>
+                  <Text style={{ fontSize: 12, fontWeight: '600', color: lilac.text }}>
+                    {GEAR_META[g.kind].glyph} {GEAR_META[g.kind].name} <Text style={{ color: lilac.accent, fontWeight: '700' }}>✓</Text>
+                  </Text>
+                </View>
+              ))}
+            </Row>
+          )}
+
+          {/* 유일한 큰 버튼 — 시트 안에 산다 */}
+          {lockCta ? (
+            <View style={[s.cta, s.ctaLock]}>
+              <Text style={{ fontSize: 14, fontWeight: '800', color: lilac.head }}>이미 지명된 러너예요</Text>
+              <Text style={{ fontSize: 12.5, color: lilac.dim, marginTop: 3 }}>다른 러너를 선택하면 재요청할 수 있어요</Text>
+            </View>
+          ) : (
+            <Pressable
+              onPress={() => nominate(sel.r)}
+              disabled={nominating !== null} /* 전송 중 잠금 = 이중 지명 방지 (디렉터 판정: 안전 우선) */
+              accessibilityRole="button"
+              accessibilityLabel={`${sel.r.name} 러너 지명 요청`}
+              style={[s.cta, { backgroundColor: CORAL_DEEP }, nominating !== null && { opacity: 0.55 }]}
+            >
+              <Row style={{ gap: 10 }}>
+                <Text style={{ fontSize: 17.5, fontWeight: '800', color: '#fff', letterSpacing: -0.2 }}>
+                  {nominating === sel.r.profileId ? '전송 중...' : '지명 요청'}
+                </Text>
+                <View style={{ flex: 1 }} />
+                {/* 플레이트 = 원값 두 개(점수 아님) — 매치는 바로 위 큰 숫자가 이미 말한다 */}
+                <View style={s.ctaPlate}>
+                  <Text style={[{ fontSize: 12.5, fontWeight: '600', color: '#fff' }, nf]}>{sel.r.paceLabel}</Text>
+                  <View style={{ width: 1, height: 11, backgroundColor: 'rgba(255,255,255,0.42)' }} />
+                  <Text style={[{ fontSize: 12.5, fontWeight: '600', color: '#fff' }, nf]}>
+                    {sel.r.respondRate != null ? `응답 ${sel.r.respondRate}%` : '신규'}
+                  </Text>
+                </View>
+                <Text style={{ fontSize: 18, fontWeight: '800', color: '#fff' }}>›</Text>
+              </Row>
+            </Pressable>
+          )}
+        </View>
+      )}
     </View>
   );
 }
 
 const s = StyleSheet.create({
-  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#dddace' },
-  aiBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: FOREST, borderRadius: 18, padding: 16, gap: 10 },
-  aiChip: { borderWidth: 1, borderColor: '#3d5245', borderRadius: 99, paddingVertical: 7, paddingHorizontal: 12 },
-  // 스택 카드 시스템 — 풀와이드, 큰 라운드, 겹침 (모던 패스)
-  topCard: {
-    marginTop: 10, backgroundColor: FOREST, borderRadius: 18, padding: 16, paddingTop: 46, paddingBottom: 52,
-    borderWidth: 2, borderColor: colors.volt,
+  // ── 헤더 크롬 ──
+  head: {
+    paddingTop: 58, paddingHorizontal: 14, paddingBottom: 12,
+    backgroundColor: lilac.card, borderBottomWidth: 1, borderBottomColor: lilac.hair, zIndex: 10,
   },
-  stackCard: {
-    borderRadius: 18, padding: 16, paddingBottom: 54,
-    shadowColor: '#000', shadowOpacity: 0.07, shadowRadius: 10, shadowOffset: { width: 0, height: -4 },
+  backBtn: {
+    width: 34, height: 34, borderRadius: 10, backgroundColor: lilac.card,
+    alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: lilac.hair,
   },
-  // 통합 캐러셀 풀 카드 — 모든 러너가 1순위급 정보 밀도
-  fullCard: {
-    borderRadius: 18, padding: 16, paddingTop: 38, paddingBottom: 30,
-    borderWidth: 1, borderColor: 'rgba(15,29,19,0.15)', // 모든 카드에 반투명 다크 보더 — 배경 분리
+  headTag: {
+    borderWidth: 1, borderColor: lilac.hair, backgroundColor: lilac.inset,
+    borderRadius: 7, paddingVertical: 3, paddingHorizontal: 8,
   },
-  // 그림자 계층 (래퍼에 적용 — 카드 뷰의 그림자 슬롯은 포커스 라임 글로우가 사용)
-  cardShadowFocus: {
-    shadowColor: '#0F1D13', shadowOpacity: 0.28, shadowRadius: 8, shadowOffset: { width: 0, height: 4 },
+  // ── 로스터 ──
+  kick: { fontSize: 12, fontWeight: '600', letterSpacing: 1.4, color: lilac.dim },
+  rail: { gap: COL.gap, paddingHorizontal: 9.5, paddingTop: 4, paddingBottom: 7 },
+  // Sean 정제 1: 60-64pt 행 — 압축 금지. 정제 2: 라운드 11, 넉넉한 좌우 여백
+  row: {
+    flexDirection: 'row', alignItems: 'center', gap: COL.gap, minHeight: 62,
+    paddingVertical: 11, paddingHorizontal: 8, borderRadius: 11,
+    borderWidth: 1.5, borderColor: 'transparent',
   },
-  cardShadowAmbient: {
-    shadowColor: '#0F1D13', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 4 },
+  rowSel: {
+    backgroundColor: lilac.card, borderColor: lilac.accent,
+    shadowColor: lilac.accent, shadowOpacity: 0.18, shadowRadius: 12,
+    shadowOffset: { width: 0, height: 5 }, elevation: 4,
   },
-  // 포커스 카드 장식 — 우측 컨투어 아크 (레퍼런스의 웨이브 라인)
-  contour1: { position: 'absolute', right: -100, top: -30, width: 280, height: 280, borderRadius: 140, borderWidth: 1, borderColor: 'rgba(221,240,166,0.10)' },
-  contour2: { position: 'absolute', right: -70, top: 10, width: 210, height: 210, borderRadius: 105, borderWidth: 1, borderColor: 'rgba(221,240,166,0.08)' },
-  contour3: { position: 'absolute', right: -130, top: -80, width: 360, height: 360, borderRadius: 180, borderWidth: 1, borderColor: 'rgba(221,240,166,0.06)' },
-  fitPill: { position: 'absolute', top: 14, right: 14, backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 6, paddingHorizontal: 12, zIndex: 2 },
-  gearChip: { backgroundColor: '#ffffff99', borderRadius: 99, paddingVertical: 4, paddingHorizontal: 9 },
-  // 현재 지명 태그 — sagePill과 같은 세이지 칩 (러너 변경 모드 전용)
-  currentTag: { backgroundColor: '#e3f0c4', borderRadius: 99, paddingVertical: 3, paddingHorizontal: 8, alignSelf: 'center' },
-  checkBadge: {
-    position: 'absolute', bottom: -3, right: -3, width: 20, height: 20, borderRadius: 10,
-    backgroundColor: colors.volt, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: FOREST,
+  sep: { height: 1, backgroundColor: lilac.hair2, marginHorizontal: 10 },
+  rkCheck: { width: 17, height: 17, borderRadius: 6, backgroundColor: lilac.accent, alignItems: 'center', justifyContent: 'center' },
+  curTag: {
+    borderWidth: 1, borderColor: lilac.hair, backgroundColor: lilac.card,
+    borderRadius: 6, paddingVertical: 2, paddingHorizontal: 6,
   },
-  fullNominate: { borderRadius: 16, alignItems: 'center', paddingVertical: 13, marginTop: 12 },
-  stackNominate: { backgroundColor: FOREST, borderRadius: 99, paddingVertical: 11, paddingHorizontal: 17 },
-  rankTab: {
-    // top/left 0 + 카드와 같은 반경 18 — 태그 모서리가 카드 라운드 밖으로 삐져나오던 정렬 수정 (Sean, 2026-07-28)
-    position: 'absolute', top: 0, left: 0, backgroundColor: colors.volt,
-    borderTopLeftRadius: 18, borderBottomRightRadius: 18, paddingVertical: 7, paddingHorizontal: 16,
+  // ── 순서 근거 카드 ──
+  why: {
+    marginTop: 16, backgroundColor: lilac.card, borderWidth: 1, borderColor: lilac.hair2,
+    borderRadius: 12, padding: 14,
+    shadowColor: '#1C1837', shadowOpacity: 0.06, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 2,
   },
-  limePill: { backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 3, paddingHorizontal: 8 },
-  descBox: { backgroundColor: FOREST_INNER, borderRadius: 14, padding: 13, marginTop: 14 },
-  barTrack: { height: 7, borderRadius: 99, backgroundColor: '#2c4034', marginTop: 6, overflow: 'hidden' },
-  barFill: { height: 7, borderRadius: 99, backgroundColor: colors.volt },
-  statStrip: { flexDirection: 'row', backgroundColor: FOREST_INNER, borderRadius: 14, paddingVertical: 12, marginTop: 16 },
-  topNominate: { backgroundColor: colors.volt, borderRadius: 14, alignItems: 'center', paddingVertical: 14, marginTop: 16 },
-  stripDiv: { width: 1, backgroundColor: '#2c4034', marginVertical: 2 },
-  altCard: { backgroundColor: '#fff', borderRadius: 20, padding: 16, borderWidth: 1, borderColor: '#DCD6C4', marginBottom: 10 },
-  sagePill: { backgroundColor: '#e3f0c4', borderRadius: 99, paddingVertical: 3, paddingHorizontal: 8, alignSelf: 'center' },
-  tagChip: { backgroundColor: '#f4f2ea', borderRadius: 99, paddingVertical: 5, paddingHorizontal: 10 },
-  altDivider: { height: 1, backgroundColor: '#DCD6C4', marginVertical: 12 },
-  altStatDiv: { width: 1, backgroundColor: '#DCD6C4' },
-  trustNote: { alignItems: 'center', paddingTop: 22, paddingBottom: 10, paddingHorizontal: 12 },
+  whyDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: lilac.accent, marginTop: 7 },
+  emptyBox: {
+    marginTop: 16, backgroundColor: lilac.card, borderRadius: 12, padding: 18,
+    alignItems: 'center', borderWidth: 1, borderColor: lilac.hair,
+  },
+  // ── 결정 시트 ── (Sean 정제 1: 패딩 ≥18)
+  sheet: {
+    backgroundColor: lilac.card, borderTopWidth: 1, borderTopColor: lilac.hair,
+    paddingTop: 18, paddingHorizontal: 18, paddingBottom: 22,
+    shadowColor: '#1C1837', shadowOpacity: 0.16, shadowRadius: 20, shadowOffset: { width: 0, height: -8 }, elevation: 24,
+  },
+  holo: { position: 'absolute', top: 0, left: 0, right: 0, height: 3, flexDirection: 'row', zIndex: 2 },
+  profBtn: {
+    borderWidth: 1, borderColor: lilac.hair, backgroundColor: lilac.card,
+    borderRadius: 8, paddingVertical: 6, paddingHorizontal: 10,
+  },
+  aiTag: {
+    borderWidth: 1, borderColor: lilac.hair, backgroundColor: lilac.inset,
+    borderRadius: 6, paddingVertical: 2, paddingHorizontal: 7,
+  },
+  track: {
+    flex: 1, height: 9, borderRadius: 5, backgroundColor: lilac.inset,
+    borderWidth: 1, borderColor: lilac.hair, overflow: 'hidden',
+  },
+  delta: {
+    marginTop: 11, backgroundColor: lilac.inset, borderWidth: 1, borderColor: lilac.hair,
+    borderRadius: 9, paddingVertical: 8, paddingHorizontal: 11,
+  },
+  gearChip: {
+    borderWidth: 1, borderColor: lilac.hair, backgroundColor: lilac.card,
+    borderRadius: 8, paddingVertical: 5, paddingHorizontal: 9,
+  },
+  // 코랄 종단 스톱(#C6472C) 위 흰 라벨 — 이 화면에서 흰 글씨가 코랄에 올라가는 유일한 자리
+  cta: { marginTop: 14, borderRadius: 12, paddingVertical: 15, paddingHorizontal: 15 },
+  ctaLock: { backgroundColor: lilac.inset, borderWidth: 1, borderColor: lilac.hair, alignItems: 'flex-start' },
+  ctaPlate: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: 'rgba(28,24,55,0.55)', borderRadius: 7, paddingVertical: 5, paddingHorizontal: 9,
+  },
 });

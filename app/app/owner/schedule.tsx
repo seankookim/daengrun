@@ -414,7 +414,7 @@ export default function Schedule() {
                           onPress={() => {
                             draft.bookingId = selected.id;
                             close();
-                            router.push({ pathname: '/owner/matching', params: { mode: 'rebook', current: selected.runnerProfileId ?? '' } });
+                            router.push({ pathname: '/owner/matching', params: { mode: 'rebook', current: selected.runnerProfileId ?? '', pace: selected.paceLabel ?? '' } });
                           }}
                         >
                           <Text style={{ fontSize: 15.5, fontWeight: '800', color: '#3d453d' }}>러너 변경</Text>
