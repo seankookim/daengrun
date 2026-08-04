@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>체력 리포트 히어로 랩 — W4 필름스트립 모프</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;700&family=Oswald:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  /* ── 테일러드 라일락 토큰 (src/theme.ts lilac 그대로) ── */
+  :root {
+    --bg:#F4F2FB; --card:#FFFFFF; --inset:#EFECF9; --hair:#E6E2F4; --hair2:#EDEAF8;
+    --head:#221E3D; --text:#4B4668; --dim:#7C76A0;
+    --accent:#6C5CE7; --accentDeep:#7867EC;
+    --coral:#F0765A; --coralDeep:#E45F41; --coralSoft:#FFDCD1;
+    --gold:#B99A4F; --goldSoft:#F4EBD3;
+    --night:#1C1837; --film:#221E3D;
+    --barPast:#9787DC; --barNow:#E45F41; /* validate_palette.js ALL PASS (light, #FFF) */
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:#1C1837; font-family:'IBM Plex Sans KR',sans-serif; color:#EDEAF8;
+    padding:34px 26px 60px;
+    background-image: radial-gradient(1100px 500px at 18% -8%, rgba(240,118,90,0.10), transparent 60%),
+                      radial-gradient(900px 460px at 88% 4%, rgba(108,92,231,0.14), transparent 62%);
+  }
+
+  /* ── 랩 크롬 ── */
+  .lab-head { max-width:1560px; margin:0 auto 6px; }
+  .lab-title { font-family:'Black Han Sans'; font-size:26px; letter-spacing:0.2px; color:#F2EFFA; }
+  .lab-title em { font-style:normal; color:#F0765A; }
+  .lab-sub { font-size:14px; color:#A9A3C8; margin-top:8px; line-height:1.65; }
+  .bind { display:flex; flex-wrap:wrap; gap:8px; margin-top:14px; }
+  .bind span {
+    font-size:12px; color:#C9C2E8; border:1px solid rgba(201,194,232,0.28);
+    padding:5px 11px; border-radius:7px; background:rgba(255,255,255,0.045);
+  }
+  .bind b { color:#F0765A; font-weight:700; }
+
+  .frames { display:flex; flex-wrap:wrap; gap:34px; justify-content:center; margin-top:30px; max-width:1560px; margin-left:auto; margin-right:auto; }
+  .unit { width:340px; }
+  .phone {
+    width:340px; height:664px; border-radius:26px; overflow:hidden; background:var(--bg);
+    box-shadow:0 24px 60px rgba(8,5,24,0.55), 0 3px 12px rgba(8,5,24,0.4);
+    border:1px solid rgba(255,255,255,0.09); position:relative;
+  }
+  .screen { height:100%; overflow-y:auto; scrollbar-width:none; }
+  .screen::-webkit-scrollbar { display:none; }
+  .cap { margin-top:14px; }
+  .cap h3 { font-size:16.5px; color:#F2EFFA; font-weight:700; }
+  .cap h3 b { color:#F0765A; font-weight:700; margin-right:6px; }
+  .cap p { font-size:13px; color:#A9A3C8; line-height:1.6; margin-top:5px; }
+  .cap .fields { font-size:11.5px; color:#7C76A0; margin-top:6px; line-height:1.55; }
+
+  /* ── 공용 앱 요소 ── */
+  .apphead { display:flex; align-items:center; justify-content:space-between; padding:18px 16px 0; }
+  .backchip {
+    width:38px; height:38px; border-radius:19px; background:var(--card); border:1px solid var(--hair);
+    display:flex; align-items:center; justify-content:center; color:var(--head); font-size:19px;
+  }
+  .mast { text-align:center; }
+  .mast .t { font-family:'Black Han Sans'; font-size:23px; color:var(--head); letter-spacing:0.2px; }
+  .mast .d { font-size:12.5px; color:var(--dim); margin-top:1px; }
+  .content { padding:0 16px 44px; }
+
+  .card { background:var(--card); border:1px solid var(--hair); border-radius:8px; padding:16px; margin-top:12px; }
+  .cardtitle { font-size:15.5px; font-weight:700; color:var(--head); }
+  .num { font-family:'Oswald'; font-weight:600; line-height:1.24; }
+
+  /* 체력나이 */
+  .age-row { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
+  .age-val { font-family:'Oswald'; font-weight:600; font-size:30px; line-height:1.24; color:var(--coralDeep); white-space:nowrap; }
+  .age-gate { font-size:13.5px; color:var(--dim); margin-top:9px; line-height:1.6; }
+
+  /* 주간 목표 */
+  .goal-row { display:flex; align-items:center; justify-content:space-between; margin-top:12px; }
+  .goal-btn {
+    width:64px; padding:17px 0; border-radius:8px; background:var(--inset); border:1px solid var(--hair);
+    text-align:center; font-size:22px; font-weight:700; color:var(--accent);
+  }
+  .goal-mid { text-align:center; }
+  .goal-mid .v { font-family:'Oswald'; font-weight:600; font-size:29px; line-height:1.24; color:var(--head); }
+  .goal-mid .h { font-size:12px; color:var(--dim); margin-top:2px; white-space:nowrap; }
+
+  /* 8주 바 — dataviz: thin marks·4px 라운드 데이터 끝·2px 갭·선택적 라벨만 */
+  .bars { display:flex; align-items:flex-end; gap:2px; height:88px; margin-top:16px; padding-bottom:2px; border-bottom:1px solid var(--hair); }
+  .bcol { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; }
+  .blab { font-family:'Oswald'; font-weight:500; font-size:12px; color:var(--head); margin-bottom:3px; }
+  .bar { width:62%; border-radius:4px 4px 0 0; background:var(--barPast); }
+  .bar.now { background:var(--barNow); }
+  .bx { display:flex; gap:2px; margin-top:6px; }
+  .bx span { flex:1; text-align:center; font-size:12px; color:var(--dim); white-space:nowrap; }
+  .bx .nowx { color:var(--coralDeep); font-weight:700; }
+
+  /* 최근 러닝 */
+  .run { display:flex; align-items:center; gap:12px; background:var(--card); border:1px solid var(--hair); border-radius:8px; padding:14px; margin-top:8px; }
+  .run .w { font-size:15px; font-weight:700; color:var(--head); }
+  .run .m { font-size:13.5px; color:var(--dim); margin-top:2px; }
+  .run .k { margin-left:auto; font-family:'Oswald'; font-weight:600; font-size:18px; line-height:1.24; color:var(--coralDeep); }
+  .sect { font-size:16px; font-weight:700; color:var(--head); margin-top:22px; }
+
+  /* ── 필름 공용 ── */
+  .sprocket {
+    height:11px; background-image:radial-gradient(4.2px 3.6px at 10px 50%, var(--bg) 97%, transparent);
+    background-size:20px 100%; background-position:2px 0;
+  }
+  .moment { position:relative; overflow:hidden; }
+  .moment svg.dog { position:absolute; right:7px; bottom:6px; width:26px; opacity:0.75; }
+  .m1 { background:linear-gradient(148deg,#6C5CE7 4%,#4A3E9E 46%,#2A2158 100%); }
+  .m2 { background:linear-gradient(152deg,#F0765A 0%,#C6472C 52%,#5C2740 100%); }
+  .m3 { background:linear-gradient(148deg,#D8C185 0%,#B99A4F 40%,#5E4A78 100%); }
+  .m4 { background:linear-gradient(150deg,#7867EC 0%,#5546BC 44%,#221E3D 100%); }
+  .m5 { background:linear-gradient(146deg,#E45F41 0%,#8C3B63 55%,#2A2158 100%); }
+  .mlabel {
+    position:absolute; left:7px; top:6px; font-size:10px; letter-spacing:0.4px;
+    color:rgba(255,255,255,0.85); font-family:'Oswald'; font-weight:500;
+  }
+
+  /* ── 모프 공통: 확장 히어로는 자연 스크롤로 밀려나고, 컴팩트 바는 폰 상단 오버레이로 페이드인.
+     (RN 구현: 컴팩트 바 = absolute 헤더 + opacity/translate interpolate, useNativeDriver — owner-home 패턴) ── */
+  .hero-expanded { opacity:calc(1 - var(--p,0)); }
+  .hero-compact {
+    position:absolute; left:0; right:0; top:0; z-index:30; opacity:var(--p,0); pointer-events:none;
+    transform:translateY(calc((1 - var(--p,0)) * -10px));
+    filter:drop-shadow(0 4px 10px rgba(28,24,55,0.14));
+  }
+  .scrollhint { text-align:center; font-size:12px; color:var(--dim); padding:7px 0 0; }
+
+  /* ════ ① 시네 스트립 ════ */
+  .v1 .filmband { background:var(--film); margin:14px -16px 0; padding:0; }
+  .v1 .filmrow { display:flex; gap:5px; overflow-x:auto; padding:5px 14px; scrollbar-width:none; }
+  .v1 .filmrow::-webkit-scrollbar { display:none; }
+  .v1 .fr { flex:0 0 118px; }
+  .v1 .moment { width:118px; height:86px; border-radius:2px; }
+  .v1 .edgecode { font-family:'Oswald'; font-weight:500; font-size:12px; color:#C9C2E8; letter-spacing:0.8px; padding:4px 2px 6px; }
+  .v1 .databand { display:flex; align-items:flex-end; justify-content:space-between; margin-top:14px; }
+  .v1 .big { font-family:'Oswald'; font-weight:600; font-size:46px; line-height:1.22; color:var(--head); }
+  .v1 .big small { font-size:17px; color:var(--dim); font-weight:500; }
+  .v1 .goalline { font-size:13px; color:var(--dim); margin-top:1px; }
+  .v1 .rail { height:5px; border-radius:3px; background:var(--inset); margin-top:11px; overflow:hidden; }
+  .v1 .rail i { display:block; height:100%; width:83%; background:var(--coralDeep); border-radius:3px; }
+  .v1 .punches { display:flex; gap:9px; margin-top:13px; }
+  .v1 .p { text-align:center; }
+  .v1 .p i {
+    display:block; width:19px; height:19px; border-radius:50%; border:1.6px solid var(--hair);
+    background:var(--card); margin:0 auto;
+  }
+  .v1 .p.on i { background:var(--film); border-color:var(--coralDeep); box-shadow:inset 0 0 0 2.5px var(--coralSoft); }
+  .v1 .p span { display:block; font-size:12px; color:var(--dim); margin-top:4px; }
+  .v1 .p.on span { color:var(--head); font-weight:700; }
+  .v1 .hero-compact .bar1 {
+    margin:0 -0px; background:var(--film); border-radius:0 0 10px 10px; padding:9px 16px;
+    display:flex; align-items:center; gap:10px;
+  }
+  .v1 .hero-compact .ct { font-family:'Black Han Sans'; font-size:15px; color:#F2EFFA; }
+  .v1 .hero-compact .ck { font-family:'Oswald'; font-weight:600; font-size:15px; color:#FFD9CD; margin-left:auto; letter-spacing:0.4px; }
+  .v1 .minispro { flex:1; height:8px; background-image:radial-gradient(3px 2.7px at 8px 50%, rgba(244,242,251,0.8) 97%, transparent); background-size:16px 100%; }
+
+  /* ════ ② 콘택트 시트 ════ */
+  .v2 .sheet { background:var(--card); border:1px solid var(--hair); border-radius:8px; padding:12px 12px 10px; margin-top:14px; position:relative; }
+  .v2 .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:7px; }
+  .v2 .cell { position:relative; }
+  .v2 .moment { width:100%; aspect-ratio:4/3.1; border-radius:2px; }
+  .v2 .fno { position:absolute; right:4px; bottom:3px; font-family:'Oswald'; font-weight:500; font-size:10.5px; color:rgba(255,255,255,0.8); }
+  .v2 .best { position:absolute; pointer-events:none; }
+  .v2 .bestnote {
+    position:absolute; font-size:12.5px; color:var(--coralDeep); font-weight:700; transform:rotate(-3deg);
+    text-shadow:0 1px 0 rgba(255,255,255,0.8);
+  }
+  .v2 .margin { display:flex; align-items:baseline; gap:8px; border-top:1px dashed var(--hair); margin-top:11px; padding-top:9px; }
+  .v2 .margin .k { font-family:'Oswald'; font-weight:600; font-size:25px; line-height:1.24; color:var(--head); }
+  .v2 .margin .k small { font-size:13px; color:var(--dim); font-weight:500; }
+  .v2 .margin .note { font-size:12.5px; color:var(--dim); margin-left:auto; }
+  .v2 .hero-compact .bar2 {
+    background:var(--card); border-bottom:1px solid var(--hair); padding:9px 16px; display:flex; align-items:center; gap:10px;
+  }
+  .v2 .thumb { width:30px; height:24px; border-radius:2px; }
+  .v2 .c2t { font-size:14.5px; font-weight:700; color:var(--head); }
+  .v2 .c2k { font-family:'Oswald'; font-weight:600; font-size:15px; color:var(--coralDeep); margin-left:auto; }
+
+  /* ════ ③ 파노라마 릴 ════ */
+  .v3 .reelwrap { margin:12px -16px 0; background:var(--film); }
+  .v3 .pano { position:relative; height:198px; }
+  .v3 .pano .moment { position:absolute; inset:0; border-radius:0; }
+  .v3 .scrim { position:absolute; left:0; right:0; bottom:0; height:96px; background:linear-gradient(transparent, rgba(16,12,36,0.82)); }
+  .v3 .overlay { position:absolute; left:16px; bottom:10px; color:#fff; }
+  .v3 .overlay .k { font-family:'Oswald'; font-weight:600; font-size:33px; line-height:1.22; }
+  .v3 .overlay .k small { font-size:14px; opacity:0.85; font-weight:500; }
+  .v3 .overlay .w { font-size:12.5px; opacity:0.88; margin-top:0; }
+  .v3 .counter {
+    position:absolute; right:12px; top:10px; background:rgba(16,12,36,0.68); color:#F2EFFA;
+    font-family:'Oswald'; font-weight:500; font-size:13px; letter-spacing:1.2px; padding:4px 9px; border-radius:5px;
+  }
+  .v3 .thumbrail { display:flex; gap:5px; padding:7px 14px 9px; overflow-x:auto; scrollbar-width:none; }
+  .v3 .thumbrail::-webkit-scrollbar { display:none; }
+  .v3 .thumbrail .moment { width:42px; height:31px; border-radius:2px; flex:0 0 auto; opacity:0.55; }
+  .v3 .thumbrail .moment.sel { opacity:1; outline:2px solid var(--coral); outline-offset:1px; }
+  .v3 .weekline { display:flex; align-items:baseline; gap:8px; margin-top:14px; }
+  .v3 .weekline .k { font-family:'Oswald'; font-weight:600; font-size:40px; line-height:1.22; color:var(--head); }
+  .v3 .weekline .k small { font-size:16px; color:var(--dim); font-weight:500; }
+  .v3 .weekline .g { font-size:13px; color:var(--dim); margin-left:auto; text-align:right; line-height:1.5; }
+  .v3 .hero-compact .bar3 { background:var(--film); padding:0 0; }
+  .v3 .bar3 .inner { display:flex; align-items:center; gap:10px; padding:8px 16px; }
+  .v3 .bar3 .ct { font-family:'Oswald'; font-weight:500; font-size:13px; letter-spacing:1.2px; color:#C9C2E8; }
+  .v3 .bar3 .ck { font-family:'Oswald'; font-weight:600; font-size:15px; color:#FFD9CD; margin-left:auto; }
+
+  /* ════ ④ 티켓 하이브리드 ════ */
+  .v4 .ticket {
+    background:var(--card); border:1px solid var(--hair); border-radius:12px; margin-top:14px;
+    box-shadow:0 10px 26px rgba(28,24,55,0.10), 0 2px 6px rgba(28,24,55,0.06); overflow:hidden; position:relative;
+  }
+  .v4 .thead { display:flex; align-items:center; padding:13px 15px 10px; }
+  .v4 .thead .t { font-family:'Black Han Sans'; font-size:19px; color:var(--head); }
+  .v4 .thead .seal { margin-left:auto; width:13px; height:13px; border-radius:50%; background:linear-gradient(135deg,#D8C185,#B99A4F 60%,#8A7139); box-shadow:0 0 0 3px var(--goldSoft); }
+  .v4 .window { background:var(--film); margin:0 15px; border-radius:6px; overflow:hidden; }
+  .v4 .filmrow { display:flex; gap:4px; padding:4px 8px; overflow-x:auto; scrollbar-width:none; }
+  .v4 .filmrow::-webkit-scrollbar { display:none; }
+  .v4 .moment { flex:0 0 92px; height:64px; border-radius:2px; }
+  .v4 .sprocket { height:9px; background-size:16px 100%; background-image:radial-gradient(3.4px 3px at 8px 50%, #171332 97%, transparent); background-color:transparent; }
+  .v4 .tear { position:relative; border-top:2px dashed var(--hair); margin:14px 0 0; }
+  .v4 .tear::before, .v4 .tear::after {
+    content:''; position:absolute; top:-9px; width:18px; height:18px; border-radius:50%; background:var(--bg);
+    border:1px solid var(--hair);
+  }
+  .v4 .tear::before { left:-10px; } .v4 .tear::after { right:-10px; }
+  .v4 .stub { display:flex; align-items:stretch; padding:12px 15px 14px; gap:8px; }
+  .v4 .scol { flex:1; }
+  .v4 .scol .v { font-family:'Oswald'; font-weight:600; font-size:21px; line-height:1.24; color:var(--head); }
+  .v4 .scol .l { font-size:12px; color:var(--dim); margin-top:2px; }
+  .v4 .barcode { width:34px; align-self:stretch; background-image:repeating-linear-gradient(90deg, var(--head) 0 2px, transparent 2px 5px, var(--head) 5px 6px, transparent 6px 9px); border-radius:2px; opacity:0.85; }
+  .v4 .hero-compact .bar4 {
+    background:var(--card); border-bottom:1px solid var(--hair); padding:8px 16px; display:flex; align-items:center; gap:12px;
+  }
+  .v4 .bar4 .t { font-family:'Black Han Sans'; font-size:15px; color:var(--head); }
+  .v4 .bar4 .stat { font-family:'Oswald'; font-weight:600; font-size:14px; color:var(--head); }
+  .v4 .bar4 .stat small { font-size:11.5px; color:var(--dim); font-family:'IBM Plex Sans KR'; font-weight:500; }
+  .v4 .bar4 .k { margin-left:auto; font-family:'Oswald'; font-weight:600; font-size:15px; color:var(--coralDeep); }
+
+  /* 빈 상태 카드 */
+  .emptyfilm {
+    border:1.6px dashed var(--hair); border-radius:8px; background:var(--card);
+    padding:20px 16px; text-align:center; margin-top:12px;
+  }
+  .emptyfilm svg { width:34px; opacity:0.5; }
+  .emptyfilm p { font-size:14px; color:var(--dim); line-height:1.65; margin-top:8px; }
+</style>
+</head>
+<body>
+
+<div class="lab-head">
+  <div class="lab-title">체력 리포트 히어로 랩 — <em>W4 필름스트립 모프</em> 4해석</div>
+  <div class="lab-sub">
+    프레임 안을 스크롤하면 모프(확장 히어로 → 컴팩트 바)가 재생돼요 — 구현은 owner-home 검증 패턴(두 정적 레이어 크로스페이드 + transform, useNativeDriver).
+    번호로 골라주세요. 스와치·구도는 섞어서 지정 가능 (예: "①에 ④의 스텁").
+  </div>
+  <div class="bind">
+    <span>사진 = <b>fetchRecentMoments(12)</b> — url·when·km 실바인딩 (랩은 플레이스홀더 그라디언트)</span>
+    <span>숫자 = <b>fetchFitness</b> — weekKm·goalKm·weekRuns·avgPaceSec·streakDays·runDays[7]·weeks[8]·fitnessAge+gate</span>
+    <span>체력나이 게이트 카피 = 기존 정직 카피 그대로</span>
+    <span>8주 바 = past #9787DC · 이번주 #E45F41 (validator ALL PASS)</span>
+  </div>
+</div>
+
+<div class="frames">
+
+  <!-- ════════════ ① 시네 스트립 ════════════ -->
+  <div class="unit">
+    <div class="phone v1">
+      <div class="hero-compact">
+          <div class="bar1">
+            <span class="ct">체력 리포트</span>
+            <div class="minispro"></div>
+            <span class="ck">12.4 KM · 83%</span>
+          </div>
+      </div>
+      <div class="screen">
+      <div class="hero-hold" style="background:var(--bg);">
+        <div class="hero-expanded">
+          <div class="apphead">
+            <div class="backchip">‹</div>
+            <div class="mast"><div class="t">체력 리포트</div><div class="d">초코 · 8월 첫째 주</div></div>
+            <div style="width:38px;"></div>
+          </div>
+          <div style="padding:0 16px;">
+            <div class="filmband">
+              <div class="sprocket"></div>
+              <div class="filmrow">
+                <div class="fr"><div class="moment m1"><span class="mlabel">7/29</span><svg class="dog" viewBox="0 0 32 20" fill="#fff"><path d="M2 16c3-6 7-9 12-9l5-4 4 1-2 4c3 1 6 3 9 8l-3 1c-2-3-4-5-7-5l-1 6h-3l-1-5-6 1-2 4H4z"/></svg></div><div class="edgecode">5.2 KM · 저녁 러닝</div></div>
+                <div class="fr"><div class="moment m2"><span class="mlabel">7/31</span><svg class="dog" viewBox="0 0 32 20" fill="#fff"><path d="M2 16c3-6 7-9 12-9l5-4 4 1-2 4c3 1 6 3 9 8l-3 1c-2-3-4-5-7-5l-1 6h-3l-1-5-6 1-2 4H4z"/></svg></div><div class="edgecode">3.0 KM · 아침 러닝</div></div>
+                <div class="fr"><div class="moment m3"><span class="mlabel">8/2</span><svg class="dog" viewBox="0 0 32 20" fill="#fff"><path d="M2 16c3-6 7-9 12-9l5-4 4 1-2 4c3 1 6 3 9 8l-3 1c-2-3-4-5-7-5l-1 6h-3l-1-5-6 1-2 4H4z"/></svg></div><div class="edgecode">4.2 KM · 서울숲</div></div>
+                <div class="fr"><div class="moment m4"><span class="mlabel">8/3</span></div><div class="edgecode">— 최근 12컷</div></div>
+              </div>
+              <div class="sprocket"></div>
+            </div>
+            <div class="databand">
+              <div>
+                <div class="big">12.4<small> km</small></div>
+                <div class="goalline">/ 15km 목표 · 83% 달성</div>
+              </div>
+              <div style="text-align:right; font-size:13px; color:var(--dim); line-height:1.6;">4회 러닝<br>평균 6'45"</div>
+            </div>
+            <div class="rail"><i></i></div>
+            <div class="punches">
+              <div class="p on"><i></i><span>월</span></div>
+              <div class="p"><i></i><span>화</span></div>
+              <div class="p on"><i></i><span>수</span></div>
+              <div class="p"><i></i><span>목</span></div>
+              <div class="p on"><i></i><span>금</span></div>
+              <div class="p on"><i></i><span>토</span></div>
+              <div class="p"><i></i><span>일</span></div>
+            </div>
+            <div class="scrollhint">↓ 스크롤 — 스트립이 리본으로 접혀요</div>
+          </div>
+        </div>
+      </div>
+      <div class="content">
+        <div class="card">
+          <div class="age-row">
+            <div>
+              <div class="cardtitle">체력 나이</div>
+              <div style="font-size:13.5px;color:var(--dim);margin-top:3px;">꾸준한 러닝이 체력 나이를 젊게 유지해요</div>
+            </div>
+            <div class="age-val">5.2살</div>
+          </div>
+          <div class="age-gate">베타 산식: 실제 나이 − 최근 4주 활동량·연속 기록 보정</div>
+        </div>
+        <div class="card">
+          <div class="cardtitle">주간 목표</div>
+          <div class="goal-row">
+            <div class="goal-btn">−</div>
+            <div class="goal-mid"><div class="v">15km</div><div class="h">홈 화면 링에 바로 반영돼요</div></div>
+            <div class="goal-btn">＋</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="cardtitle">최근 8주</div>
+          <div class="bars">
+            <div class="bcol"><div class="bar" style="height:34%"></div></div>
+            <div class="bcol"><div class="bar" style="height:48%"></div></div>
+            <div class="bcol"><div class="bar" style="height:22%"></div></div>
+            <div class="bcol"><div class="blab">16.8</div><div class="bar" style="height:92%"></div></div>
+            <div class="bcol"><div class="bar" style="height:56%"></div></div>
+            <div class="bcol"><div class="bar" style="height:40%"></div></div>
+            <div class="bcol"><div class="bar" style="height:62%"></div></div>
+            <div class="bcol"><div class="blab">12.4</div><div class="bar now" style="height:68%"></div></div>
+          </div>
+          <div class="bx"><span>7주</span><span></span><span>5주</span><span></span><span>3주</span><span></span><span></span><span class="nowx">이번주</span></div>
+        </div>
+        <div class="sect">최근 러닝</div>
+        <div class="run"><div><div class="w">8월 2일 (일) 저녁</div><div class="m">28분 · 서울숲 순환 · 리포트 ›</div></div><div class="k">4.2km</div></div>
+        <div class="run"><div><div class="w">7월 31일 (금) 아침</div><div class="m">21분 · 뚝섬 리버뷰 · 리포트 ›</div></div><div class="k">3.0km</div></div>
+        <div class="emptyfilm">
+          <svg viewBox="0 0 32 20" fill="#7C76A0"><path d="M2 16c3-6 7-9 12-9l5-4 4 1-2 4c3 1 6 3 9 8l-3 1c-2-3-4-5-7-5l-1 6h-3l-1-5-6 1-2 4H4z"/></svg>
+          <p>아직 러닝 사진이 없어요<br>완주하면 러너가 남긴 순간이 여기 걸려요</p>
+        </div>
+      </div>
+    </div></div>
+    <div class="cap">
+      <h3><b>①</b> 시네 스트립 — 35mm 원본</h3>
+      <p>스프로킷 스트립이 마스트헤드 아래를 가로지르고, 요일은 필름 펀치로. 접히면 다크 리본(스프로킷+숫자)만 남아요. 가장 '필름다움'.</p>
+      <div class="fields">엣지코드 = moments[].km·when · 펀치 = runDays[7] · 레일 = weekKm/goalKm · 빈 상태 카드 포함</div>
+    </div>
+  </div>
+
+  <!-- ════════════ ② 콘택트 시트 ════════════ -->
+  <div class="unit">
+    <div class="phone v2">
+      <div class="hero-compact">
+          <div class="bar2">
+            <div class="thumb moment m2"></div>
+            <span class="c2t">체력 리포트</span>
+            <span class="c2k">12.4km · 4회</span>
+          </div>
+      </div>
+      <div class="screen">
+      <div class="hero-hold" style="background:var(--bg);">
+        <div class="hero-expanded">
+          <div class="apphead">
+            <div class="backchip">‹</div>
+            <div class="mast"><div class="t">체력 리포트</div><div class="d">초코 · 인화 12컷</div></div>
+            <div style="width:38px;"></div>
+          </div>
+          <div style="padding:0 16px;">
+            <div class="sheet">
+              <div class="grid">
+                <div class="cell"><div class="moment m1"></div><span class="fno">01</span></div>
+                <div class="cell"><div class="moment m2"></div><span class="fno">02</span>
+                  <svg class="best" style="left:-7px; top:-9px; width:112%; height:118%;" viewBox="0 0 100 74" fill="none">
+                    <ellipse cx="50" cy="37" rx="46" ry="32" stroke="#E45F41" stroke-width="2.2" stroke-linecap="round" transform="rotate(-4 50 37)"/>
+                  </svg>
+                </div>
+                <div class="cell"><div class="moment m3"></div><span class="fno">03</span></div>
+                <div class="cell"><div class="moment m4"></div><span class="fno">04</span></div>
+                <div class="cell"><div class="moment m5"></div><span class="fno">05</span></div>
+                <div class="cell"><div class="moment m1" style="filter:hue-rotate(24deg);"></div><span class="fno">06</span></div>
+              </div>
+              <span class="bestnote" style="right:8px; top:24px;">베스트 컷 5.2km</span>
+              <div class="margin">
+                <div class="k">12.4<small> / 15km</small></div>
+                <div class="note">4회 · 평균 6'45" · 연속 5일</div>
+              </div>
+            </div>
+            <div class="scrollhint">↓ 스크롤 — 시트가 한 컷으로 접혀요</div>
+          </div>
+        </div>
+      </div>
+      <div class="content">
+        <div class="card">
+          <div class="age-row">
+            <div>
+              <div class="cardtitle">체력 나이</div>
+              <div style="font-size:13.5px;color:var(--dim);margin-top:3px;">활동 데이터가 있어야 '체력'을 잴 수 있어요</div>
+            </div>
+            <div class="age-val" style="color:var(--dim); font-size:22px;">측정 전</div>
+          </div>
+          <div class="age-gate">최근 4주에 <b style="color:var(--head);">2번 더 완주</b>하면 측정돼요 — 나이가 아니라 체력을 재기 위한 조건이에요</div>
+        </div>
+        <div class="card">
+          <div class="cardtitle">주간 목표</div>
+          <div class="goal-row">
+            <div class="goal-btn">−</div>
+            <div class="goal-mid"><div class="v">15km</div><div class="h">홈 화면 링에 바로 반영돼요</div></div>
+            <div class="goal-btn">＋</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="cardtitle">최근 8주</div>
+          <div class="bars">
+            <div class="bcol"><div class="bar" style="height:34%"></div></div>
+            <div class="bcol"><div class="bar" style="height:48%"></div></div>
+            <div class="bcol"><div class="bar" style="height:22%"></div></div>
+            <div class="bcol"><div class="blab">16.8</div><div class="bar" style="height:92%"></div></div>
+            <div class="bcol"><div class="bar" style="height:56%"></div></div>
+            <div class="bcol"><div class="bar" style="height:40%"></div></div>
+            <div class="bcol"><div class="bar" style="height:62%"></div></div>
+            <div class="bcol"><div class="blab">12.4</div><div class="bar now" style="height:68%"></div></div>
+          </div>
+          <div class="bx"><span>7주</span><span></span><span>5주</span><span></span><span>3주</span><span></span><span></span><span class="nowx">이번주</span></div>
+        </div>
+        <div class="sect">최근 러닝</div>
+        <div class="run"><div><div class="w">8월 2일 (일) 저녁</div><div class="m">28분 · 서울숲 순환 · 리포트 ›</div></div><div class="k">4.2km</div></div>
+        <div class="run"><div><div class="w">7월 31일 (금) 아침</div><div class="m">21분 · 뚝섬 리버뷰 · 리포트 ›</div></div><div class="k">3.0km</div></div>
+      </div>
+    </div></div>
+    <div class="cap">
+      <h3><b>②</b> 콘택트 시트 — 암실 인화지</h3>
+      <p>이번 주 순간들을 인화지 그리드로 펼치고, 베스트 컷(최대 km 자동)에 그리스펜슬 동그라미. 접히면 베스트 컷 한 장 + 숫자 한 줄.</p>
+      <div class="fields">베스트 컷 = max(moments[].km) 규칙 바인딩 · 체력나이 = gate 'runs' 상태 예시</div>
+    </div>
+  </div>
+
+  <!-- ════════════ ③ 파노라마 릴 ════════════ -->
+  <div class="unit">
+    <div class="phone v3">
+      <div class="hero-compact">
+          <div class="bar3">
+            <div class="sprocket" style="background-image:radial-gradient(3px 2.7px at 8px 50%, #171332 97%, transparent); background-color:transparent; height:7px;"></div>
+            <div class="inner"><span class="ct">릴 04 / 12</span><span class="ck">12.4 KM</span></div>
+            <div class="sprocket" style="background-image:radial-gradient(3px 2.7px at 8px 50%, #171332 97%, transparent); background-color:transparent; height:7px;"></div>
+          </div>
+      </div>
+      <div class="screen">
+      <div class="hero-hold" style="background:var(--bg);">
+        <div class="hero-expanded">
+          <div class="apphead">
+            <div class="backchip">‹</div>
+            <div class="mast"><div class="t">체력 리포트</div><div class="d">초코의 이번 주</div></div>
+            <div style="width:38px;"></div>
+          </div>
+          <div class="reelwrap">
+            <div class="sprocket" style="background-image:radial-gradient(4.2px 3.6px at 10px 50%, #171332 97%, transparent); background-color:transparent;"></div>
+            <div class="pano">
+              <div class="moment m2"></div>
+              <div class="scrim"></div>
+              <div class="counter">04 / 12</div>
+              <div class="overlay">
+                <div class="k">5.2<small> km</small></div>
+                <div class="w">7월 29일 저녁 러닝</div>
+              </div>
+            </div>
+            <div class="sprocket" style="background-image:radial-gradient(4.2px 3.6px at 10px 50%, #171332 97%, transparent); background-color:transparent;"></div>
+            <div class="thumbrail">
+              <div class="moment m1"></div>
+              <div class="moment m3"></div>
+              <div class="moment m2 sel"></div>
+              <div class="moment m4"></div>
+              <div class="moment m5"></div>
+              <div class="moment m1" style="filter:hue-rotate(40deg);"></div>
+            </div>
+          </div>
+          <div style="padding:0 16px;">
+            <div class="weekline">
+              <div class="k">12.4<small> km</small></div>
+              <div class="g">/ 15km 목표 · 83%<br>4회 · 평균 6'45" · 연속 5일</div>
+            </div>
+            <div class="scrollhint">↓ 스크롤 — 릴이 레터박스로 접혀요</div>
+          </div>
+        </div>
+      </div>
+      <div class="content">
+        <div class="card">
+          <div class="age-row">
+            <div>
+              <div class="cardtitle">체력 나이</div>
+              <div style="font-size:13.5px;color:var(--dim);margin-top:3px;">측정하려면 나이를 알아야 해요</div>
+            </div>
+            <div class="age-val" style="color:var(--dim); font-size:22px;">측정 전</div>
+          </div>
+          <div class="age-gate">반려견 프로필에 <b style="color:var(--head);">생일을 등록</b>하면 측정이 시작돼요</div>
+        </div>
+        <div class="card">
+          <div class="cardtitle">주간 목표</div>
+          <div class="goal-row">
+            <div class="goal-btn">−</div>
+            <div class="goal-mid"><div class="v">15km</div><div class="h">홈 화면 링에 바로 반영돼요</div></div>
+            <div class="goal-btn">＋</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="cardtitle">최근 8주</div>
+          <div class="bars">
+            <div class="bcol"><div class="bar" style="height:34%"></div></div>
+            <div class="bcol"><div class="bar" style="height:48%"></div></div>
+            <div class="bcol"><div class="bar" style="height:22%"></div></div>
+            <div class="bcol"><div class="blab">16.8</div><div class="bar" style="height:92%"></div></div>
+            <div class="bcol"><div class="bar" style="height:56%"></div></div>
+            <div class="bcol"><div class="bar" style="height:40%"></div></div>
+            <div class="bcol"><div class="bar" style="height:62%"></div></div>
+            <div class="bcol"><div class="blab">12.4</div><div class="bar now" style="height:68%"></div></div>
+          </div>
+          <div class="bx"><span>7주</span><span></span><span>5주</span><span></span><span>3주</span><span></span><span></span><span class="nowx">이번주</span></div>
+        </div>
+        <div class="sect">최근 러닝</div>
+        <div class="run"><div><div class="w">8월 2일 (일) 저녁</div><div class="m">28분 · 서울숲 순환 · 리포트 ›</div></div><div class="k">4.2km</div></div>
+        <div class="run"><div><div class="w">7월 31일 (금) 아침</div><div class="m">21분 · 뚝섬 리버뷰 · 리포트 ›</div></div><div class="k">3.0km</div></div>
+      </div>
+    </div></div>
+    <div class="cap">
+      <h3><b>③</b> 파노라마 릴 — 한 컷의 무게</h3>
+      <p>가장 대담한 해석: 한 순간을 풀블리드로 걸고 릴처럼 넘겨요. 숫자는 사진 위 스크림(잉크 다크)에. 접히면 카운터가 남는 얇은 릴 배너.</p>
+      <div class="fields">카운터 = index/moments.length · 선택 컷 스와이프 = thumbrail · 체력나이 = gate 'birth' 상태 예시</div>
+    </div>
+  </div>
+
+  <!-- ════════════ ④ 티켓 하이브리드 ════════════ -->
+  <div class="unit">
+    <div class="phone v4">
+      <div class="hero-compact">
+          <div class="bar4">
+            <span class="t">체력 리포트</span>
+            <span class="stat">12.4 <small>km</small></span>
+            <span class="stat">6'45" <small>페이스</small></span>
+            <span class="k">5일 연속</span>
+          </div>
+      </div>
+      <div class="screen">
+      <div class="hero-hold" style="background:var(--bg);">
+        <div class="hero-expanded">
+          <div class="apphead">
+            <div class="backchip">‹</div>
+            <div class="mast"><div class="d" style="font-size:13px;">초코 · 8월 첫째 주</div></div>
+            <div style="width:38px;"></div>
+          </div>
+          <div style="padding:0 16px;">
+            <div class="ticket">
+              <div class="thead"><div class="t">체력 리포트</div><div class="seal"></div></div>
+              <div class="window">
+                <div class="sprocket"></div>
+                <div class="filmrow">
+                  <div class="moment m1"><span class="mlabel">7/29</span></div>
+                  <div class="moment m2"><span class="mlabel">7/31</span></div>
+                  <div class="moment m3"><span class="mlabel">8/2</span></div>
+                  <div class="moment m4"><span class="mlabel">8/3</span></div>
+                </div>
+                <div class="sprocket"></div>
+              </div>
+              <div class="tear"></div>
+              <div class="stub">
+                <div class="scol"><div class="v">12.4<span style="font-size:12px;color:var(--dim);"> /15km</span></div><div class="l">이번 주</div></div>
+                <div class="scol"><div class="v">6'45"</div><div class="l">평균 페이스</div></div>
+                <div class="scol"><div class="v">5일</div><div class="l">연속 기록</div></div>
+                <div class="barcode"></div>
+              </div>
+            </div>
+            <div class="scrollhint">↓ 스크롤 — 티켓이 스텁만 남기고 접혀요</div>
+          </div>
+        </div>
+      </div>
+      <div class="content">
+        <div class="card">
+          <div class="age-row">
+            <div>
+              <div class="cardtitle">체력 나이</div>
+              <div style="font-size:13.5px;color:var(--dim);margin-top:3px;">꾸준한 러닝이 체력 나이를 젊게 유지해요</div>
+            </div>
+            <div class="age-val">5.2살</div>
+          </div>
+          <div class="age-gate">베타 산식: 실제 나이 − 최근 4주 활동량·연속 기록 보정</div>
+        </div>
+        <div class="card">
+          <div class="cardtitle">주간 목표</div>
+          <div class="goal-row">
+            <div class="goal-btn">−</div>
+            <div class="goal-mid"><div class="v">15km</div><div class="h">홈 화면 링에 바로 반영돼요</div></div>
+            <div class="goal-btn">＋</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="cardtitle">최근 8주</div>
+          <div class="bars">
+            <div class="bcol"><div class="bar" style="height:34%"></div></div>
+            <div class="bcol"><div class="bar" style="height:48%"></div></div>
+            <div class="bcol"><div class="bar" style="height:22%"></div></div>
+            <div class="bcol"><div class="blab">16.8</div><div class="bar" style="height:92%"></div></div>
+            <div class="bcol"><div class="bar" style="height:56%"></div></div>
+            <div class="bcol"><div class="bar" style="height:40%"></div></div>
+            <div class="bcol"><div class="bar" style="height:62%"></div></div>
+            <div class="bcol"><div class="blab">12.4</div><div class="bar now" style="height:68%"></div></div>
+          </div>
+          <div class="bx"><span>7주</span><span></span><span>5주</span><span></span><span>3주</span><span></span><span></span><span class="nowx">이번주</span></div>
+        </div>
+        <div class="sect">최근 러닝</div>
+        <div class="run"><div><div class="w">8월 2일 (일) 저녁</div><div class="m">28분 · 서울숲 순환 · 리포트 ›</div></div><div class="k">4.2km</div></div>
+        <div class="run"><div><div class="w">7월 31일 (금) 아침</div><div class="m">21분 · 뚝섬 리버뷰 · 리포트 ›</div></div><div class="k">3.0km</div></div>
+      </div>
+    </div></div>
+    <div class="cap">
+      <h3><b>④</b> 티켓 하이브리드 — 클럽 홈과 한 식구</h3>
+      <p>클럽 홈 Variant D의 보딩패스 언어에 필름 창을 이식. 절취선 아래 스텁이 스탯 3열 + 바코드. 접히면 스텁만 남아요. 앱 전체 일관성이 강점.</p>
+      <div class="fields">스텁 = weekKm/goalKm · avgPaceSec · streakDays · 골드 실은 예산제(1점)</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // 모프 드라이버 — 스크롤 0→120px 를 --p 0→1 로. RN 구현은 Animated.event + interpolate 동일 곡선.
+  document.querySelectorAll('.screen').forEach((sc) => {
+    let ticking = false;
+    sc.addEventListener('scroll', () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        const p = Math.min(1, Math.max(0, sc.scrollTop / 120));
+        sc.closest('.phone').style.setProperty('--p', p.toFixed(3));
+        ticking = false;
+      });
+    }, { passive: true });
+  });
+</script>
+</body>
+</html>

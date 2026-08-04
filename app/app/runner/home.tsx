@@ -162,9 +162,11 @@ export default function RunnerHome() {
   const [avail, setAvail] = useState<AvailRule[] | null>(null);
   const [busyReq, setBusyReq] = useState(false); // 티켓 문 실동작 중 (수락/거절)
 
-  // [Sean] 거절한 요청은 다시 안 본다 — runner_decline은 오픈 풀로 되돌리는데(정상), 내가 온라인 인증
-  // 러너라 '내가 거절한 건'이 내 오픈 큐에 재등장하던 것. 세션 로컬 필터 (서버 거절로그는 후속).
-  const filterDeclined = (list: OpenRequest[]) => list.filter((r) => !declinedIds.has(r.bookingId));
+  // [Sean] 거절한 요청은 다시 안 본다 — 서버 정본은 0056 booking_declines(뷰 제외). 이 Set은 거절 POST와
+  // 다음 fetch 사이 깜빡임을 막는 낙관 레이어 + 로그 기록 실패(엣지 fn fail-open)의 폴백.
+  // ⚠ 오픈 레그만 거른다 — 지명 레그(directed)까지 거르면 '거절 후 보호자가 다시 콕 집은' 정당한
+  // 재지명이 영영 안 보여 만료까지 썩는다 (0056이 일부러 살려둔 경로 — 적대 리뷰 P1).
+  const filterDeclined = (list: OpenRequest[]) => list.filter((r) => r.directed || !declinedIds.has(r.bookingId));
 
   // [실동작] 홈 티켓의 수락/거절 — 라벨만 있고 요청함으로 도망가던 문을 진짜 문으로.
   const reloadQueue = () => {

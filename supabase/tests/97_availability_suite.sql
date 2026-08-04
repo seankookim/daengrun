@@ -300,8 +300,18 @@ begin
   exception when others then call _fail('avail','V11 미러 동률', sqlerrm);
   end;
 
-  -- ---------- [V12] 결정적 정렬 + limit 10 — total_runs desc, profile_id asc ----------
+  -- ---------- [V12] 8+2 신인 슬롯 — 베테랑 8 + 잔여 후보 중 경험 최하위 2 (0055 §1) ----------
+  -- 0054의 순수 상위 10은 공급이 10을 넘는 순간 신규 인증 러너를 영구히 굶겼다: 노출이 없으니
+  -- total_runs가 0에 고정되고, 0이니 영원히 노출되지 않는 콜드스타트 교착. 8+2가 그 사각지대를 메운다.
+  -- 무대 둘로 나눠 핀다:
+  --  (a) 동점 무대(9×6 · 3×6) — 슬롯을 나눈 뒤에도 정렬 결정성이 사나(동점 타이브레이크 포함).
+  --  (b) 등급 무대(total_runs 1..12 전부 다름) — 최하위 2명이 **반드시** 오르나. 상위 10 회귀에서는
+  --      이 둘이 사라지므로 (b)가 8+2의 실질 핀이다. (a)만으로는 구 계약과 답이 같아 회귀를 못 잡는다
+  --      — 동점 무대에서는 '잔여 중 최하위 2' = '상위 10의 9·10번'이기 때문. 그래서 무대가 둘이다.
+  declare
+    v_vets uuid[]; v_rook uuid[]; v_top10 uuid[]; v_zero uuid[]; v_i int; v_stage text;
   begin
+    v_bad := '';
     v_ids := array[]::uuid[];
     for v_n in 1..12 loop
       cx := t_user('av_ord' || v_n, 'runner');
@@ -309,18 +319,145 @@ begin
       v_ids := v_ids || cx;
     end loop;
     perform t_av_only_online(variadic v_ids);
-    select array_agg(pid order by ord) into v_exp from (
-      select profile_id as pid, row_number() over (order by total_runs desc, profile_id) as ord
-      from runners where profile_id = any(v_ids)) s
-    where ord <= 10;
-    select array_agg(x.profile_id order by x.ord) into v_got
-    from runners_available_for(b1) with ordinality
-      as x(profile_id, name, district, avatar_url, tier, bio, pace, total_runs, respond, ord);
-    if coalesce(array_length(v_got, 1), 0) = 10 and v_got = v_exp
-      then call _pass('avail','V12 결정적 정렬·limit 10 — total_runs desc·profile_id asc 동점 포함 정확히 일치');
-    else call _fail('avail','V12 정렬','n=' || coalesce(array_length(v_got, 1)::text,'∅')
-                    || ' got=' || coalesce(v_got::text,'∅') || ' exp=' || coalesce(v_exp::text,'∅')); end if;
-  exception when others then call _fail('avail','V12 정렬', sqlerrm);
+
+    for v_i in 1..2 loop
+      if v_i = 2 then                                    -- (b) 등급 무대로 재편성 (동점 제거)
+        for v_n in 1..12 loop
+          -- 최하위 둘은 문자 그대로 total_runs = 0 — 콜드스타트 교착의 **당사자 본인**이다.
+          -- 0055 §1이 지목한 사람은 '덜 뛴 베테랑'이 아니라 '갓 인증돼 한 번도 안 뛴 러너'다.
+          -- 1..12 등급만으로는 그 사람이 무대에 아예 없어서, 교착이 실제로 풀리는지가 아니라
+          -- '순서가 뒤집히는지'만 검증됐다. 0을 넣어야 핀이 계약의 문장과 같아진다.
+          -- 둘 다 0(동점)으로 두면 신인석 타이브레이크(total_runs asc, profile_id)까지 같은 무대에서 걸린다.
+          update runners set total_runs = case when v_n <= 2 then 0 else v_n end
+          where profile_id = v_ids[v_n];
+        end loop;
+        select array_agg(r.profile_id) into v_zero
+        from runners r where r.profile_id = any(v_ids) and r.total_runs = 0;
+      end if;
+      v_stage := case v_i when 1 then 'a동점' else 'b등급' end;
+
+      -- 기대값은 RPC와 독립적으로 계산한다: 벤치 8석(desc) · 신인 2석(**벤치를 뺀 잔여**에서 asc)
+      -- · 최종은 desc 정렬. 신인석을 잔여에서 고르는 게 계약의 핵심 — 전역 asc 상위 2를 그냥 뽑으면
+      -- 동점 타이브레이크가 양쪽 다 profile_id asc라 이미 벤치에 든 사람이 다시 뽑힌다.
+      select array_agg(s.pid order by s.rk) into v_vets from (
+        select r.profile_id as pid, row_number() over (order by r.total_runs desc, r.profile_id) as rk
+        from runners r where r.profile_id = any(v_ids)) s
+      where s.rk <= 8;
+      select array_agg(t.pid order by t.rk2) into v_rook from (
+        select s.pid, row_number() over (order by s.tr asc, s.pid) as rk2 from (
+          select r.profile_id as pid, r.total_runs as tr,
+                 row_number() over (order by r.total_runs desc, r.profile_id) as rk
+          from runners r where r.profile_id = any(v_ids)) s
+        where s.rk > 8) t
+      where t.rk2 <= 2;
+      select array_agg(u.pid order by u.tr desc, u.pid) into v_exp from (
+        select r.profile_id as pid, r.total_runs as tr
+        from runners r where r.profile_id = any(v_vets || v_rook)) u;
+      select array_agg(s.pid order by s.rk) into v_top10 from (        -- 구(0054) 계약의 답
+        select r.profile_id as pid, row_number() over (order by r.total_runs desc, r.profile_id) as rk
+        from runners r where r.profile_id = any(v_ids)) s
+      where s.rk <= 10;
+
+      select array_agg(x.profile_id order by x.ord) into v_got
+      from runners_available_for(b1) with ordinality
+        as x(profile_id, name, district, avatar_url, tier, bio, pace, total_runs, respond, ord);
+
+      if coalesce(array_length(v_got, 1), 0) <> 10 then
+        v_bad := v_bad || v_stage || ':n=' || coalesce(array_length(v_got, 1)::text,'∅') || ' ';
+      elsif v_got <> v_exp then
+        v_bad := v_bad || v_stage || ':전체 got=' || v_got::text || ' exp=' || v_exp::text || ' ';
+      elsif v_got[1:8] <> v_vets then
+        v_bad := v_bad || v_stage || ':앞8≠벤치 got=' || v_got[1:8]::text || ' exp=' || v_vets::text || ' ';
+      elsif not (v_got[9:10] @> v_rook and v_rook @> v_got[9:10]) then
+        v_bad := v_bad || v_stage || ':뒤2≠신인 got=' || v_got[9:10]::text || ' exp=' || v_rook::text || ' ';
+      -- 계약을 그 문장 그대로: total_runs = 0인 러너(콜드스타트 당사자)가 신인석에 실제로 앉는가.
+      -- 위의 '뒤2=잔여 최하위'는 오라클끼리의 일치라 fixture가 0을 안 만들면 조용히 통과한다 —
+      -- 그래서 0의 존재(2명)와 그 2명이 곧 신인석이라는 것을 따로 못박는다.
+      elsif v_i = 2 and (coalesce(array_length(v_zero, 1), 0) <> 2 or not (v_got[9:10] @> v_zero)) then
+        v_bad := v_bad || 'b등급:total_runs=0 러너가 신인석에 없음 뒤2=' || v_got[9:10]::text
+                 || ' zero=' || coalesce(v_zero::text, '∅') || ' ';
+      elsif v_i = 2 and v_got = v_top10 then
+        v_bad := v_bad || 'b등급:구 상위10과 동일 — 신인석이 실제로 아무도 끌어올리지 못함 ';
+      end if;
+    end loop;
+
+    if v_bad = ''
+      then call _pass('avail','V12 8+2 신인 슬롯 — 동점·등급 두 무대에서 앞8=경험 상위·뒤2=잔여 최하위·전체 정렬 total_runs desc·profile_id asc (등급 무대는 구 상위10과 불일치)');
+    else call _fail('avail','V12 8+2 슬롯', v_bad); end if;
+  exception when others then call _fail('avail','V12 8+2 슬롯', sqlerrm);
+  end;
+
+  -- ---------- [V12b] 풀 ≤ 10 — 슬롯 분할이 아무도 떨어뜨리지 않는다 ----------
+  -- 8+2는 '10자리 중 2자리를 신인에게 준다'가 아니라 '11번째부터 생기는 사각지대를 메운다'는 장치다.
+  -- 후보가 10 이하면 결과는 풀 전체여야 한다. 특히 9(벤치8+신인1)·10(8+2) 경계에서 한 명이라도 새면
+  -- 0054가 고친 바로 그 실패 모드(공급이 조용히 증발)가 슬롯 분할을 타고 되살아난다.
+  -- 11은 슬롯이 **처음으로 무는** 크기다 — 10까지는 8+2가 합집합=풀이라 아무 일도 안 일어나고,
+  -- 11에서 비로소 정확히 한 명이 떨어진다. 누가 떨어지느냐가 계약의 전부이므로(신인이 떨어지면
+  -- 0055가 통째로 무의미, 최상위가 떨어지면 보호자 독법이 깨짐) 여기만 별도 단언을 건다.
+  declare
+    v_sz int; v_sub uuid[]; v_pool uuid[]; v_v8 uuid[]; v_r2 uuid[]; v_miss uuid[]; v_drop uuid;
+  begin
+    v_bad := '';
+    foreach v_sz in array array[5, 8, 9, 10, 11] loop
+      v_sub := v_ids[1:v_sz];
+      perform t_av_only_online(variadic v_sub);
+      select array_agg(x.profile_id order by x.ord) into v_got
+      from runners_available_for(b1) with ordinality
+        as x(profile_id, name, district, avatar_url, tier, bio, pace, total_runs, respond, ord);
+
+      if v_sz <= 10 then
+        -- ≤10: 슬롯 분할이 아무도 떨어뜨리지 않는다 — 결과 = 풀 전체
+        select array_agg(s.pid order by s.tr desc, s.pid) into v_pool from (
+          select r.profile_id as pid, r.total_runs as tr
+          from runners r where r.profile_id = any(v_sub)) s;
+        if v_got is distinct from v_pool then
+          v_bad := v_bad || v_sz || '명:got=' || coalesce(array_length(v_got, 1)::text,'∅')
+                   || coalesce(v_got::text,'∅') || ' exp=' || coalesce(v_pool::text,'∅') || ' ';
+        end if;
+      else
+        -- =11: 정확히 10행 · 떨어지는 한 명은 (total_runs desc, profile_id) 9위여야 한다.
+        -- 즉 벤치 8석 밖이면서 잔여 3명 중 (total_runs asc, profile_id) 하위 2에도 안 드는 사람 —
+        -- '가장 덜 뛴 사람'도 '가장 많이 뛴 사람'도 아닌, 잘려도 가장 덜 아픈 중간이다.
+        -- (V12는 12명 한 무대에서 순서만 봤고, 경계 11 — 잘림이 시작되는 그 한 칸 — 은 비어 있었다.)
+        select array_agg(s.pid order by s.rk) into v_v8 from (
+          select r.profile_id as pid, row_number() over (order by r.total_runs desc, r.profile_id) as rk
+          from runners r where r.profile_id = any(v_sub)) s
+        where s.rk <= 8;
+        select array_agg(t.pid order by t.rk2) into v_r2 from (
+          select s.pid, row_number() over (order by s.tr asc, s.pid) as rk2 from (
+            select r.profile_id as pid, r.total_runs as tr,
+                   row_number() over (order by r.total_runs desc, r.profile_id) as rk
+            from runners r where r.profile_id = any(v_sub)) s
+          where s.rk > 8) t
+        where t.rk2 <= 2;
+        select array_agg(u.pid order by u.tr desc, u.pid) into v_pool from (
+          select r.profile_id as pid, r.total_runs as tr
+          from runners r where r.profile_id = any(v_v8 || v_r2)) u;
+        select s.pid into v_drop from (
+          select r.profile_id as pid, row_number() over (order by r.total_runs desc, r.profile_id) as rk
+          from runners r where r.profile_id = any(v_sub)) s
+        where s.rk = 9;
+        select array_agg(m.pid) into v_miss
+        from (select unnest(v_sub) as pid) m where not (m.pid = any(coalesce(v_got, '{}'::uuid[])));
+
+        if coalesce(array_length(v_got, 1), 0) <> 10 then
+          v_bad := v_bad || '11명:n=' || coalesce(array_length(v_got, 1)::text,'∅') || ' ';
+        elsif v_got is distinct from v_pool then
+          v_bad := v_bad || '11명:슬롯 got=' || v_got::text || ' exp=' || coalesce(v_pool::text,'∅') || ' ';
+        elsif coalesce(array_length(v_miss, 1), 0) <> 1 or v_miss[1] is distinct from v_drop then
+          v_bad := v_bad || '11명:탈락자≠9위 miss=' || coalesce(v_miss::text,'∅')
+                   || ' exp9위=' || coalesce(v_drop::text,'∅') || ' ';
+        elsif v_drop = any(v_v8) or v_drop = any(v_r2) then
+          v_bad := v_bad || '11명:탈락자가 벤치/신인석에 있음 ' || v_drop::text || ' ';
+        end if;
+      end if;
+    end loop;
+    perform t_av_only_online(variadic v_ids);            -- 무대 원복 (이후 케이스가 V12 직후 상태를 보도록)
+    if v_bad = ''
+      then call _pass('avail','V12b 슬롯 경계 — 후보 5·8·9·10명은 결과=풀 전체(누락 0), 11명은 정확히 10행·탈락자는 (desc,pid) 9위 1명(벤치도 신인석도 아님)');
+    else call _fail('avail','V12b 슬롯 경계', v_bad); end if;
+  exception when others then
+    perform t_av_only_online(variadic v_ids); call _fail('avail','V12b 슬롯 경계', sqlerrm);
   end;
 
   -- ---------- [V14] 상태 게이트 — 무료 draft 프로브·계약 후 부킹은 not_open ----------

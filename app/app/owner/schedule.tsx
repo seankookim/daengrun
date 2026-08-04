@@ -20,7 +20,7 @@ const FOREST = '#0F1D13';
 const FILTERS: { label: string; match: (b: Booking) => boolean; tint: string; tintFg: string; sel: string; selFg: string }[] = [
   { label: '전체', match: () => true, tint: '#fff', tintFg: '#3d453d', sel: '#0F1D13', selFg: '#fff' },
   { label: '예약 확정', match: (b) => b.status === 'confirmed', tint: '#e3f0c4', tintFg: '#3d5a2b', sel: '#5a7a3c', selFg: '#fff' },
-  { label: '응답 대기', match: (b) => b.status === 'pending', tint: '#FDE8D0', tintFg: '#9D580A', sel: '#F59A43', selFg: '#fff' },
+  { label: '응답 대기', match: (b) => b.status === 'pending' && b.rawStatus !== 'no_show' && b.rawStatus !== 'incident_review', tint: '#FDE8D0', tintFg: '#9D580A', sel: '#F59A43', selFg: '#fff' }, // 불발·확인중은 stFor 배지와 모순되지 않게 제외 (전체 칩에는 남는다)
   { label: '완료', match: (b) => b.status === 'completed', tint: '#E3EEF8', tintFg: '#4A6E93', sel: '#6E9BC5', selFg: '#fff' },
   { label: '반복', match: (b) => !!b.recurring, tint: '#fff', tintFg: '#3d453d', sel: '#0F1D13', selFg: '#fff' },
 ];
@@ -33,6 +33,13 @@ const STATUS_STYLE: Record<BookingStatus, { label: string; bg: string; fg: strin
   completed: { label: '완료', bg: '#E3EEF8', fg: '#4A6E93', rail: '#6E9BC5' }, // 소프트 에너지 블루 — 그레이는 '끝'처럼 죽어 보였다; 완주는 성과다
   cancelled: { label: '취소됨', bg: '#ececec', fg: '#8a8a8a', rail: '#c9c9c9' },
 };
+
+// 표시 어휘(6종)가 뭉갠 희귀 서버 상태의 정직한 배지 — no_show·incident_review는 STATUS_MAP 폴백으로
+// '러너 응답 대기'가 되어 거짓 배지 + 죽은 버튼을 만들었다 (0056 동반 클라 수리)
+const stFor = (b: Booking) =>
+  b.rawStatus === 'no_show' ? { label: '불발', bg: '#ececec', fg: '#8a8a8a', rail: '#c9c9c9' }
+  : b.rawStatus === 'incident_review' ? { label: '확인 중', bg: '#FDE8D0', fg: '#9D580A', rail: '#F59A43' }
+  : STATUS_STYLE[b.status];
 
 const paceMin = (label: string) => (label.includes('8') ? 8 : label.includes('6') ? 6 : 7);
 
@@ -153,7 +160,7 @@ export default function Schedule() {
           <View key={dateLabel} style={{ marginTop: 18 }}>
             <Text style={{ fontSize: 15, fontWeight: '900', color: '#49524a', paddingHorizontal: 12, marginBottom: 8 }}>{dateLabel}</Text>
             {items.map((b) => {
-              const st = STATUS_STYLE[b.status];
+              const st = stFor(b);
               const rt = sampleRoutes.find((r) => r.id === b.routeId);
               return (
                 <View key={b.id}>
@@ -276,9 +283,9 @@ export default function Schedule() {
                         {selected.timeLabel} · {selected.dogName}
                       </Text>
                     </View>
-                    <View style={[s.statusPill, { backgroundColor: STATUS_STYLE[selected.status].bg, alignSelf: 'flex-start' }]}>
-                      <Text style={{ fontSize: 11.5, fontWeight: '800', color: STATUS_STYLE[selected.status].fg }}>
-                        {STATUS_STYLE[selected.status].label}
+                    <View style={[s.statusPill, { backgroundColor: stFor(selected).bg, alignSelf: 'flex-start' }]}>
+                      <Text style={{ fontSize: 11.5, fontWeight: '800', color: stFor(selected).fg }}>
+                        {stFor(selected).label}
                       </Text>
                     </View>
                   </Row>
@@ -397,6 +404,14 @@ export default function Schedule() {
                     // 취소하기는 재취소가 된다. 상태를 그대로 말하고 끝낸다.
                     <Text style={{ fontSize: 14.5, color: colors.dim, textAlign: 'center', paddingVertical: 10 }}>
                       취소된 일정이에요 — 더 진행할 작업이 없어요
+                    </Text>
+                  ) : (selected.rawStatus === 'no_show' || selected.rawStatus === 'incident_review') ? (
+                    // 불발·확인 중 — 서버 전이상 취소도 변경도 불가(refund_pending만 합법) → 액션 없음이 정직.
+                    // 이전엔 STATUS_MAP 폴백 'pending'으로 이 시트가 죽은 취소 버튼을 그렸다.
+                    <Text style={{ fontSize: 14.5, color: colors.dim, textAlign: 'center', paddingVertical: 10 }}>
+                      {selected.rawStatus === 'no_show'
+                        ? '불발로 처리된 일정이에요 — 더 진행할 작업이 없어요'
+                        : '확인이 진행 중인 일정이에요 — 처리되면 알림으로 알려드릴게요'}
                     </Text>
                   ) : (
                     <>

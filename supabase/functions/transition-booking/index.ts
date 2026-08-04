@@ -150,6 +150,20 @@ Deno.serve(handle(async (req) => {
     case "runner_decline":
       if (!isRunner) throw new HttpError(403, "runner only");
       await set({ runner_id: null, status: "matching", owner_confirmed_handoff_at: null, runner_confirmed_handoff_at: null });
+      // 거절 박제 (0056) — 위 set()이 부킹을 matching·runner_id=null로 되돌리는 순간 이 부킹은
+      // 0042 뷰의 술어를 다시 만족한다 = 방금 거절한 러너의 오픈 풀에 그대로 되돌아온다.
+      // 서버에 거절 한 줄을 남겨 뷰가 이 러너에게만 이 부킹을 빼도록 한다 (클라 세션 Set의 서버 대체).
+      // ⚠️ 배포 순서: 이 참조 테이블은 0056에서 생성된다 — 0056을 다음 functions deploy 이전 또는
+      //    동시에 push할 것 (Sean은 마이그레이션·함수를 한 배치로 올린다).
+      {
+        const { error: dErr } = await db.from("booking_declines").upsert(
+          { booking_id, runner_profile_id: uid },
+          { onConflict: "booking_id,runner_profile_id", ignoreDuplicates: true });
+        // 로그 실패는 삼킨다 — 이 원장은 UX 가드지 계약이 아니다. 여기서 throw하면 이미 성공한
+        // 상태 전이를 되돌리지 못한 채 러너에게 실패를 돌려주고, 러너는 "거절했는데 안 됐다"며
+        // 그 일에 묶인다. 최악이 '거절한 카드가 다시 보인다'(0056 이전의 현상)이면 삼키는 게 옳다.
+        if (dErr) console.warn("[transition] decline log:", dErr.message);
+      }
       await notify(bk.owner_id, "러너 재탐색 중", "다른 러너를 찾고 있어요");
       break;
 

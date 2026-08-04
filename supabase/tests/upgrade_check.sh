@@ -37,6 +37,7 @@ echo "✅ R 계열(0040~) applied on live v1 data"
 psql -q -f 70_axes_suite.sql >/dev/null 2>&1
 psql -q -f 80_choke_suite.sql >/dev/null 2>&1
 psql -q -f 97_availability_suite.sql >/dev/null 2>&1                # 0054 가용성 게이트 (업그레이드 경로도 핀)
-psql -c "select case when ok then '✅' else '❌' end || ' [' || suite || '] ' || name || case when ok then '' else ' — ' || detail end from _t where suite in ('axes','chk','avail') order by at"
-psql -qt -c "select 'UPGRADE ' || case when count(*) filter (where not ok and suite in ('axes','chk','avail')) > 0 then 'FAIL' else 'OK — 드리프트·백필 검증 통과' end from _t"
-psql -qt -c "select count(*) filter (where not ok and suite in ('axes','chk','avail')) from _t" | grep -q '^ *0$'
+psql -q -f 98_hardening_suite.sql >/dev/null 2>&1                   # 0055/0056 definer 봉인·거절 원장 (업그레이드 경로도 핀)
+psql -c "select case when ok then '✅' else '❌' end || ' [' || suite || '] ' || name || case when ok then '' else ' — ' || detail end from _t where suite in ('axes','chk','avail','hard') order by at"
+psql -qt -c "select 'UPGRADE ' || case when count(*) filter (where not ok and suite in ('axes','chk','avail','hard')) > 0 then 'FAIL' else 'OK — 드리프트·백필 검증 통과' end from _t"
+psql -qt -c "select count(*) filter (where not ok and suite in ('axes','chk','avail','hard')) from _t" | grep -q '^ *0$'
