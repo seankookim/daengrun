@@ -2,17 +2,18 @@ import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Linking, Pressable, ScrollView, StyleSheet, Text, TextStyle, View } from 'react-native';
+import { Alert, Animated, Easing, Linking, Pressable, ScrollView, StyleSheet, Text, TextStyle, View } from 'react-native';
 import { BottomNav } from '../../src/components/bottomnav';
 import { CourseStrip } from '../../src/components/CourseStrip';
 import { RunnerClubCard } from '../../src/components/clubcard';
 import { Icon, Row } from '../../src/components/ui';
 import {
-  AvailRule, CoursePatch, fetchCoursePatches, fetchMyAvailability, fetchMyName, fetchMyRunnerStatus, fetchRunnerInbox, fetchRunnerJobs,
+  acceptBooking, AvailRule, CoursePatch, declineBooking, fetchCoursePatches, fetchMyAvailability, fetchMyName, fetchMyRunnerStatus, fetchRunnerInbox, fetchRunnerJobs,
   fetchRunnerWeekStats, MyRunnerStatus, OpenRequest, RunnerJob, RunnerWeekStats, saveMyAvailability, setRunnerOnline,
 } from '../../src/lib/api';
 import { PatchBadge } from '../../src/components/patch';
 import { registerPushToken } from '../../src/lib/push';
+import { haptic } from '../../src/lib/haptics';
 import { runnerJob } from '../../src/store';
 import { colors, lilac, lilacRadius } from '../../src/theme';
 
@@ -156,6 +157,56 @@ export default function RunnerHome() {
   const [patchMap, setPatchMap] = useState<Record<string, CoursePatch>>({}); // 완료 카드 미니 패치
   const [rs, setRs] = useState<MyRunnerStatus>({ totalRuns: 0, totalKm: 0, online: false, tier: 'certified' });
   const [avail, setAvail] = useState<AvailRule[] | null>(null);
+  const [busyReq, setBusyReq] = useState(false); // 티켓 문 실동작 중 (수락/거절)
+
+  // [실동작] 홈 티켓의 수락/거절 — 라벨만 있고 요청함으로 도망가던 문을 진짜 문으로.
+  const reloadQueue = () => {
+    fetchRunnerInbox().then(setInbox).catch((e) => console.warn('[rhome] inbox:', e?.message ?? e));
+    fetchRunnerJobs().then(setJobs).catch((e) => console.warn('[rhome] jobs:', e?.message ?? e));
+  };
+  const acceptFront = () => {
+    const rq = inbox[0];
+    if (!rq || busyReq) return;
+    Alert.alert('요청 수락', `${rq.dogName} · ${rq.when}\n${rq.payout.toLocaleString()}원 실수령 — 수락할까요?`, [
+      { text: '아직', style: 'cancel' },
+      {
+        text: '수락', style: 'default',
+        onPress: async () => {
+          setBusyReq(true);
+          try {
+            await acceptBooking(rq.bookingId);
+            haptic('success');
+            Alert.alert('수락 완료 🏁', '보호자에게 알림이 갔어요 — 오늘의 루트에 올라갑니다');
+            reloadQueue();
+          } catch (e) {
+            Alert.alert('수락 실패', (e as Error).message);
+          } finally { setBusyReq(false); }
+        },
+      },
+    ]);
+  };
+  const declineFront = () => {
+    const rq = inbox[0];
+    if (!rq || busyReq) return;
+    // 오픈 브로드캐스트엔 '거절' 개념이 없다 (안 받으면 그만) — 상세만 안내. 지명만 실거절.
+    if (!rq.directed) { router.push('/runner/requests'); return; }
+    Alert.alert('지명 거절', '이 요청을 다른 러너에게 넘길까요?\n보호자에게는 재탐색 알림이 가요.', [
+      { text: '유지', style: 'cancel' },
+      {
+        text: '거절', style: 'destructive',
+        onPress: async () => {
+          setBusyReq(true);
+          try {
+            await declineBooking(rq.bookingId);
+            haptic('light');
+            reloadQueue();
+          } catch (e) {
+            Alert.alert('거절 실패', (e as Error).message);
+          } finally { setBusyReq(false); }
+        },
+      },
+    ]);
+  };
 
   useFocusEffect(useCallback(() => {
     fetchMyAvailability().then(setAvail).catch((e) => console.warn('[rhome] avail:', e?.message ?? e));
@@ -426,15 +477,18 @@ export default function RunnerHome() {
 
               <View style={styles.tStub}>
                 <Row style={{ gap: 8 }}>
-                  <Pressable onPress={() => router.push('/runner/requests')} style={[styles.door, styles.doorCoral]}>
-                    <Text style={[styles.doorName, { color: '#fff' }]}>수락</Text>
+                  {/* [실동작] 문이 곧 행동 — 수락은 여기서 끝난다. 상세(사진·메모)가 필요하면 콰이엇 문(오픈 요청) */}
+                  <Pressable onPress={acceptFront} disabled={busyReq} style={[styles.door, styles.doorCoral, busyReq && { opacity: 0.55 }]}>
+                    <Text style={[styles.doorName, { color: '#fff' }]}>{busyReq ? '전송 중...' : '수락'}</Text>
                     <Text style={[styles.doorSub, { color: '#fff' }]}>
-                      <Text style={[styles.doorSubNum, nf]}>{inbox[0].payout.toLocaleString()}</Text>원 · 요청함에서 응답
+                      <Text style={[styles.doorSubNum, nf]}>{inbox[0].payout.toLocaleString()}</Text>원 · 바로 확정돼요
                     </Text>
                   </Pressable>
-                  <Pressable onPress={() => router.push('/runner/requests')} style={[styles.door, styles.doorQuiet]}>
-                    <Text style={[styles.doorName, { color: lilac.head }]}>거절</Text>
-                    <Text style={[styles.doorSub, { color: lilac.dim }]}>다른 러너에게 넘겨요</Text>
+                  <Pressable onPress={declineFront} disabled={busyReq} style={[styles.door, styles.doorQuiet, busyReq && { opacity: 0.55 }]}>
+                    <Text style={[styles.doorName, { color: lilac.head }]}>{inbox[0].directed ? '거절' : '자세히'}</Text>
+                    <Text style={[styles.doorSub, { color: lilac.dim }]}>
+                      {inbox[0].directed ? '다른 러너에게 넘겨요' : '메모 · 사진 · 성향 보기 →'}
+                    </Text>
                   </Pressable>
                 </Row>
                 <Row style={{ justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }}>

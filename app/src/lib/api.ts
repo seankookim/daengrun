@@ -560,6 +560,8 @@ export async function fetchCurrentRunnerJobId(): Promise<string | null> {
 }
 
 export const acceptBooking = (id: string) => invokeTransition(id, 'runner_accept');
+// 지명 거절 — runner_decline: runner_pending → matching (러너 홈 티켓의 실거절 문)
+export const declineBooking = (id: string) => invokeTransition(id, 'runner_decline');
 // 취소 — 서버가 수수료(24h 전 무료/이후 10%) 계산·상태 전이. { cancel_fee, refund } 반환
 export const cancelBooking = (id: string): Promise<{ cancel_fee: number; refund: number }> =>
   invokeTransition(id, 'cancel_owner');
