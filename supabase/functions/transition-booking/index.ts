@@ -63,7 +63,12 @@ Deno.serve(handle(async (req) => {
         if (ce) throw new HttpError(409, ce.message);
         if (!claimed || claimed.length === 0) throw new HttpError(409, "이미 다른 러너가 수락했어요");
       } else {
-        await set(resetPatch);
+        // [리뷰 F1] 지명 수락도 CAS — 보호자가 방금 다른 러너로 교체했으면(runner_id가 나를 떠남) 0행 → 정직한 409.
+        // 스냅샷 기반 set()은 수락-교체 레이스에서 교체를 되감아 옛 러너가 이기는 사고를 냈다.
+        const { data: acc, error: ae } = await db.from("bookings")
+          .update(resetPatch).eq("id", booking_id).eq("runner_id", uid).eq("status", "runner_pending").select("id");
+        if (ae) throw new HttpError(409, ae.message);
+        if (!acc || acc.length === 0) throw new HttpError(409, "이 요청은 마감됐어요 — 보호자가 지명을 변경했어요");
       }
       await notify(bk.owner_id, "러너 매칭 완료", "러닝 파트너가 매칭되었어요!");
       break;
@@ -71,10 +76,27 @@ Deno.serve(handle(async (req) => {
 
     case "request_runner": {
       // 보호자가 특정 러너 지명: matching → runner_pending (+ 러너 알림)
+      // 러너 '변경'도 이 액션 하나로 처리한다 — 새 예약을 만들지 않고 이 예약의 runner_id만 갈아끼운다.
+      // (예전 러너 변경 동선은 예약 플로우를 처음부터 다시 태워 두 번째 예약을 만들었고,
+      //  같은 강아지·같은 시간대라 서버의 dog_slot_clash 가드에 걸렸다.)
       if (!isOwner) throw new HttpError(403, "owner only");
       const target = meta?.runner_id;
       if (!target) throw new HttpError(400, "meta.runner_id required");
-      await set({ runner_id: target, status: "runner_pending" });
+      // [리뷰 F6] 지명 대상은 실러너만 — 임의 profile_id로의 알림 스팸 차단
+      const { data: rn } = await db.from("runners").select("profile_id").eq("profile_id", target).maybeSingle();
+      if (!rn) throw new HttpError(400, "지명할 수 없는 러너예요");
+      // 같은 러너 재지명 = 무동작 — 중복 알림 금지 (연타·뒤로가기 재진입)
+      if (bk.runner_id === target) return { unchanged: true };
+      // [리뷰 F1] 수락-교체 레이스: 스냅샷 검사 + 무조건 쓰기는 TOCTOU. 한 문장 CAS로 —
+      // 확정 전(matching|runner_pending)일 때만 원자적으로 교체, 0행이면 창이 닫힌 것 (확정은 계약).
+      const displaced = bk.status === "runner_pending" ? bk.runner_id : null;
+      const { data: swapped, error: se } = await db.from("bookings")
+        .update({ runner_id: target, status: "runner_pending" })
+        .eq("id", booking_id).in("status", ["matching", "runner_pending"])
+        .select("id");
+      if (se) throw new HttpError(409, se.message);
+      if (!swapped?.length) throw new HttpError(409, "러너 변경은 확정 전에만 가능해요");
+      if (displaced && displaced !== target) await notify(displaced, "지명이 변경됐어요", "보호자가 다른 러너에게 요청했어요 — 이 요청은 응답하지 않으셔도 돼요");
       await notify(target, "지명 러닝 요청", "보호자가 회원님을 지명했어요 — 요청 탭에서 응답해주세요");
       break;
     }

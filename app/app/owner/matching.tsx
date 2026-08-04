@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Animated, Dimensions, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Avatar, Monogram, Row } from '../../src/components/ui';
@@ -27,10 +27,10 @@ function MiniCol({ v, l, g, main, dim }: { v: string; l: string; g?: string; mai
 const PALETTE = ['#DDF0A6', '#C3D9AE', '#FFCDB6', '#F2DA96'];
 
 // 러너 풀 카드 — 배경 캐러셀 레이어와 액티브 오버레이가 정확히 같은 컴포넌트를 공유
-function RunnerFullCard({ r, m, i, topIsPreferred, nominating, onNominate, onLayout, focused, gear }: {
+function RunnerFullCard({ r, m, i, topIsPreferred, nominating, onNominate, onLayout, focused, gear, isCurrent }: {
   r: LiveRunner; m: Match; i: number; topIsPreferred: boolean;
   nominating: string | null; onNominate: (r: LiveRunner) => void;
-  onLayout?: (e: any) => void; focused: boolean; gear?: GearItem[];
+  onLayout?: (e: any) => void; focused: boolean; gear?: GearItem[]; isCurrent?: boolean;
 }) {
   // 다크 트리트먼트는 1순위 카드 고정 — 포커스 연동 색 전환은 급작스러워 제거 (2026-07-27)
   const df = useDisplayFont();
@@ -78,6 +78,12 @@ function RunnerFullCard({ r, m, i, topIsPreferred, nominating, onNominate, onLay
           <View style={{ flex: 1 }}>
             <Row style={{ gap: 7 }}>
               <Text style={{ fontSize: 23, fontWeight: '900', color: tMain }}>{r.name}</Text>
+              {/* 러너 변경 모드에서 '지금 지명된 러너'를 표시 — 누구를 바꾸는 중인지 모르면 선택이 도박이 된다 */}
+              {isCurrent && (
+                <View style={[s.currentTag, dark && { backgroundColor: colors.volt }]}>
+                  <Text style={{ fontSize: 11, fontWeight: '900', color: dark ? FOREST : '#3d5a2b' }}>현재 지명</Text>
+                </View>
+              )}
               <Text style={{ fontSize: 12.5, fontWeight: '800', color: dark ? colors.volt : '#5a7a3c', alignSelf: 'center' }}>프로필 ›</Text>
             </Row>
             <Text style={{ fontSize: 13, color: tDim, marginTop: 4 }}>
@@ -124,7 +130,7 @@ function RunnerFullCard({ r, m, i, topIsPreferred, nominating, onNominate, onLay
 
       <Pressable
         onPress={() => onNominate(r)}
-        disabled={nominating !== null}
+        disabled={nominating !== null} /* 전 카드 비활성 = 이중 지명 방지 (디렉터 판정: 안전 우선) */
         style={[s.fullNominate, { backgroundColor: dark ? colors.volt : FOREST }, nominating === r.profileId && { opacity: 0.5 }]}
       >
         <Row style={{ gap: 8 }}>
@@ -160,6 +166,12 @@ export default function Matching() {
   const df = useDisplayFont(); // 디스플레이 서체 — 헤더 타이틀
   // 목업 러너 참조 은퇴 — 이 화면은 실러너 전용 (2026-07-23)
   const live = !!draft.bookingId;
+  // 러너 변경 모드 — 일정 화면의 '러너 변경'이 이 예약 id를 들고 넘어온다.
+  // 새 예약을 만들지 않는다: 같은 예약에 request_runner를 다시 쏘면 서버가 지명을 갈아끼운다.
+  // [리뷰 F4] 현재 지명자는 호출부(일정 탭)가 이미 들고 있다 — 라운드트립·직접 supabase 임포트 대신 파라미터로
+  const { mode, current } = useLocalSearchParams<{ mode?: string; current?: string }>();
+  const rebook = mode === 'rebook';
+  const currentRunnerId = (typeof current === 'string' && current.length > 0) ? current : null;
   const [liveRunners, setLiveRunners] = useState<LiveRunner[]>([]);
   const [nominating, setNominating] = useState<string | null>(null);
   // 러너별 장비 로드아웃 (0019) — 배치 조회, 실패해도 카드는 뜬다
@@ -175,9 +187,14 @@ export default function Matching() {
     if (live) fetchCertifiedRunners().then(setLiveRunners).catch((e) => console.warn('[matching] runners:', e?.message ?? e));
   }, [live]);
 
+  // 현재 지명된 러너 — 이 화면이 이미 가진 데이터엔 없어서 예약 1행만 얇게 조회한다.
+  // (보호자는 예약 당사자라 RLS 통과. 실패해도 목록은 그대로 뜨고 태그만 안 붙는다)
   // 선호 러너가 오프라인이라 목록에 없어도 반드시 보이게 주입 (지명은 오프라인이어도 가능)
+  // 러너 변경 모드에선 '현재 지명된 러너'가 같은 이유로 빠질 수 있다 — 목록은 online=true·10명 컷.
+  // 지금 누구인지 안 보이면 '변경'이 아니라 그냥 재선택이 된다. 같은 주입 경로를 재사용.
   useEffect(() => {
-    const pref = draft.preferredRunnerId;
+    // [리뷰 F3] 리북 모드는 신선한 선택 컨텍스트 — 묵은 preferredRunnerId로 폴스루하면 엉뚱한 러너가 주입된다
+    const pref = rebook ? currentRunnerId : draft.preferredRunnerId;
     if (!live || !pref || liveRunners.some((r) => r.profileId === pref)) return;
     fetchRunnerProfile(pref)
       .then((p) => {
@@ -188,13 +205,15 @@ export default function Matching() {
         }, ...cur]));
       })
       .catch((e) => console.warn('[matching] pref inject:', e?.message ?? e));
-  }, [live, liveRunners]);
+  }, [live, liveRunners, rebook, currentRunnerId]);
 
   // 프로필→슬롯→결제로 온 경우: 이미 러너를 골랐으므로 지명을 자동 전송 (CTA 약속 이행)
+  // 단, 러너 변경 모드에선 자동 전송 금지 — 남아 있던 preferredRunnerId가
+  // '다른 러너를 고르러 온' 보호자 대신 멋대로 지명을 보내버린다.
   const autoRef = useRef(false);
   useEffect(() => {
     const pref = draft.preferredRunnerId;
-    if (!live || !pref || !draft.bookingId || autoRef.current) return;
+    if (!live || rebook || !pref || !draft.bookingId || autoRef.current) return;
     autoRef.current = true;
     requestRunner(draft.bookingId, pref)
       .then(() => {
@@ -208,7 +227,7 @@ export default function Matching() {
         autoRef.current = false; // 실패 → 수동 지명 리스트로 폴백
         console.warn('[matching] auto-nominate:', e?.message ?? e);
       });
-  }, [live]);
+  }, [live, rebook]);
 
   // 점수순 정렬 — 1위는 추천 카드, 나머지는 대안 리스트.
   // 프로필에서 '이 러너와 예약하기'로 왔으면 그 러너가 최상단.
@@ -216,7 +235,7 @@ export default function Matching() {
     const arr = liveRunners
       .map((r) => ({ r, m: matchFor(r, (gearMap[r.profileId] ?? []).filter((g) => g.verified).length) }))
       .sort((a, b) => b.m.total - a.m.total);
-    if (draft.preferredRunnerId) {
+    if (!rebook && draft.preferredRunnerId) { // [리뷰 F3] 리북에선 지난 플로우의 픽이 1순위를 훔치지 못하게
       const i = arr.findIndex((x) => x.r.profileId === draft.preferredRunnerId);
       if (i > 0) arr.unshift(arr.splice(i, 1)[0]);
     }
@@ -224,7 +243,7 @@ export default function Matching() {
   }, [liveRunners, gearMap]);
   const top = scored[0];
   const rest = scored.slice(1);
-  const topIsPreferred = !!top && top.r.profileId === draft.preferredRunnerId;
+  const topIsPreferred = !rebook && !!top && top.r.profileId === draft.preferredRunnerId;
 
   const nominate = async (r: LiveRunner) => {
     if (!draft.bookingId) return;
@@ -232,7 +251,7 @@ export default function Matching() {
     try {
       await requestRunner(draft.bookingId, r.profileId);
       draft.preferredRunnerId = null; // 지명 완료 — 선호 러너 상태 소거
-      Alert.alert('지명 요청 전송', `${r.name} 러너에게 요청을 보냈어요.\n수락하면 알림으로 알려드릴게요.`);
+      Alert.alert(rebook ? '러너 변경 요청 전송' : '지명 요청 전송', `${r.name} 러너에게 요청을 보냈어요.\n수락하면 알림으로 알려드릴게요.`);
       router.replace('/owner/schedule');
     } catch (e) {
       Alert.alert('요청 실패', (e as Error).message);
@@ -244,11 +263,17 @@ export default function Matching() {
   // ── 캐러셀 지오메트리 ─────────────────────────────────────────
   // 애플 월렛식 덱: STEP은 카드당 스크롤 트래블(고정), 이웃 카드는 translateY 클램프로
   // 액티브 곁에 붙는다 — 이전 카드는 상단 ~140px 피크, 다음 카드는 액티브 하단 아래 피크.
-  const [cardH, setCardH] = useState(470);      // onLayout 실측으로 갱신
+  const [cardH, setCardH] = useState(470);      // onLayout 실측(전 카드 중 최댓값)으로 갱신
   const STEP = 260;                              // 카드 1장당 스크롤 거리
   const FOCUS_TOP = 16;                          // 스크롤러 상단(=헤더 하단)에서 포커스 카드 top까지
   const SCREEN_H = Dimensions.get('window').height;
-  const TAIL = Math.max(140, SCREEN_H - cardH - 160); // 마지막 카드 스냅용 꼬리
+  // 스크롤러 실측 높이 — 헤더 높이가 기기/폰트 배율마다 달라 SCREEN_H 추정만으로는
+  // maxScroll이 몇 px 모자라 마지막 카드가 포커스에 닿지 못했다 (최하위 러너 선택 불가).
+  const [viewportH, setViewportH] = useState(0);
+  const scrollerH = viewportH > 0 ? viewportH : Math.max(240, SCREEN_H - 200);
+  const SNAP_MARGIN = 24;                        // maxScroll 여유분
+  // TAIL 하한: maxScroll(= contentH - scrollerH) >= (N-1)*STEP + SNAP_MARGIN 을 보장
+  const TAIL = Math.max(140, scrollerH - cardH - FOCUS_TOP + SNAP_MARGIN); // 마지막 카드 스냅용 꼬리
   const N = scored.length;
   // 카드가 절대좌표(top = FOCUS_TOP + i*STEP)라 콘텐츠 높이를 명시
   const contentH = N > 0 ? FOCUS_TOP + cardH + (N - 1) * STEP + TAIL : undefined;
@@ -299,9 +324,23 @@ export default function Matching() {
     };
   };
 
-  const measureCard = (e: any) => {
+  // 카드마다 높이가 다르다(인증 장비 칩 줄 등) — 0번 카드만 재면 더 큰 카드가 다음 카드를 덮어버린다.
+  // 전 카드를 재고 '최댓값'을 덱 지오메트리 기준으로 삼는다 (기준이 커질수록 이웃 노출 폭은 넓어지는 방향).
+  const cardHeightsRef = useRef<Record<string, number>>({});
+  const measureCard = (id: string) => (e: any) => {
     const h = Math.round(e.nativeEvent.layout.height);
-    if (h > 100 && Math.abs(h - cardH) > 2) setCardH(h);
+    if (h <= 100 || cardHeightsRef.current[id] === h) return;
+    cardHeightsRef.current[id] = h;
+    const hs = cardHeightsRef.current;
+    const max = Object.keys(hs).reduce((mx, k) => Math.max(mx, hs[k] || 0), 0);
+    setCardH((cur) => (Math.abs(max - cur) > 2 ? max : cur));
+  };
+
+  // 비포커스 카드 탭 = 그 카드를 포커스로 스크롤 (지명 아님). 지명은 포커스 카드에서만.
+  const scrollRef = useRef<any>(null);
+  const focusCard = (i: number) => {
+    const node: any = scrollRef.current?.scrollTo ? scrollRef.current : scrollRef.current?.getNode?.();
+    node?.scrollTo({ y: i * STEP, animated: true });
   };
 
   return (
@@ -310,18 +349,27 @@ export default function Matching() {
       <View style={{ paddingTop: 58, paddingHorizontal: 12, zIndex: 50, backgroundColor: '#E9E7DE' }}>
         <Row style={{ justifyContent: 'space-between', marginBottom: 4 }}>
           <Pressable onPress={() => router.back()} style={s.backBtn}><Text style={{ fontSize: 20.5, color: FOREST }}>‹</Text></Pressable>
-          <Text style={[{ fontSize: 23, fontWeight: '900', color: FOREST }, df]}>러너 선택</Text>
+          <Text style={[{ fontSize: 23, fontWeight: '900', color: FOREST }, df]}>{rebook ? '러너 변경' : '러너 선택'}</Text>
           <View style={{ width: 40 }} />
         </Row>
         <Text style={{ fontSize: 15, color: '#49524a', textAlign: 'center', marginBottom: 10 }}>
-          {live ? '러너를 지명하거나, 오픈 매칭으로 기다릴 수 있어요\n보통 몇 분 안에 응답이 와요' : '보호자님과 러너의 선호도를 종합 분석했어요'}
+          {rebook
+            ? '이 예약 그대로 다른 러너에게 다시 요청해요\n새 러너를 지명하면 기존 지명은 자동으로 취소돼요'
+            : live ? '러너를 지명하거나, 오픈 매칭으로 기다릴 수 있어요\n보통 몇 분 안에 응답이 와요' : '보호자님과 러너의 선호도를 종합 분석했어요'}
         </Text>
       </View>
 
       {/* ── 2층 컴포지터: [배경 캐러셀 레이어(ScrollView)] + [액티브 카드 오버레이(형제, 항상 위)] ──
           ScrollView 내부의 어떤 카드도 오버레이 위에 그릴 수 없다 — 네이티브 계층 자체가 분리됨 */}
-      <View style={{ flex: 1, overflow: 'visible' }}>
+      <View
+        style={{ flex: 1, overflow: 'visible' }}
+        onLayout={(e) => {
+          const h = Math.round(e.nativeEvent.layout.height);
+          if (h > 0 && Math.abs(h - viewportH) > 1) setViewportH(h);
+        }}
+      >
         <Animated.ScrollView
+          ref={scrollRef}
           style={{ flex: 1, overflow: 'visible' }}
           removeClippedSubviews={false}
           contentContainerStyle={{ height: live && top ? contentH : undefined, overflow: 'visible' }}
@@ -345,9 +393,23 @@ export default function Matching() {
                 const dist = Math.abs(i - safeFocus);
                 const active = dist === 0;
                 const ph = physicsFor(i);
+                const card = (
+                  <RunnerFullCard
+                    r={r} m={m} i={i} topIsPreferred={topIsPreferred}
+                    nominating={nominating} onNominate={nominate}
+                    focused={active} gear={gearMap[r.profileId]}
+                    onLayout={measureCard(r.profileId)}
+                    isCurrent={r.profileId === currentRunnerId}
+                  />
+                );
                 return (
                   <Animated.View
                     key={r.profileId}
+                    // 터치 게이팅: 포커스 카드만 내부 버튼(프로필/지명)이 살아 있다.
+                    // 비포커스는 box-none(래퍼 자체는 타깃 아님) + 아래 Pressable box-only →
+                    // 카드 어디를 눌러도 '포커스로 이동'만 하고, 투명 액티브 레이어에 눌림을
+                    // 빼앗기거나 안 보이는 지명 버튼이 눌리는 일이 없다.
+                    pointerEvents={active ? 'auto' : 'box-none'}
                     style={[active ? null : s.cardShadowAmbient, {
                       position: 'absolute', top: FOCUS_TOP + i * STEP, left: 0, right: 0,
                       // 가까울수록 위 — 아래 덱은 '밑으로 턱'이라 가까운 카드가 먼 카드의 상반신을 가린다
@@ -355,7 +417,8 @@ export default function Matching() {
                       elevation: dist === 0 ? 30 : dist === 1 ? 8 : 1,
                       // 액티브 카드: 비주얼은 오버레이가 담당 → 여기선 투명 플레이스홀더.
                       // 터치는 이 투명 카드가 받는다 (단일 터치 레이어 — 이중 처리/스크롤 제스처 충돌 방지,
-                      // zIndex 1000이라 스크롤 레이어 최상단 = 터치 좌표는 오버레이 비주얼과 픽셀 일치)
+                      // zIndex 1000이라 스크롤 레이어 최상단 = 터치 좌표는 오버레이 비주얼과 픽셀 일치).
+                      // 비포커스 카드는 위 pointerEvents 게이팅으로 이 레이어에 가려도 탭이 죽지 않는다.
                       opacity: active ? 0 : ph.opacity,
                       transform: [
                         { perspective: 1100 },
@@ -368,12 +431,19 @@ export default function Matching() {
                       ],
                     }]}
                   >
-                    <RunnerFullCard
-                      r={r} m={m} i={i} topIsPreferred={topIsPreferred}
-                      nominating={nominating} onNominate={nominate}
-                      focused={active} gear={gearMap[r.profileId]}
-                      onLayout={i === 0 ? measureCard : undefined}
-                    />
+                    {/* [리뷰 F2] active 분기로 엘리먼트 타입이 바뀌면 카드 전체가 리마운트 — 스냅마다 깜빡였다.
+                        트리는 고정, 동작만 게이트. box-none이면 내부 지명/프로필 버튼이 그대로 산다.
+                        [리뷰 F8] 비포커스 카드는 스크린리더 트리에서도 숨긴다 (터치만 막으면 a11y로 죽은 버튼 잔존) */}
+                    <Pressable
+                      pointerEvents={active ? 'box-none' : 'box-only'}
+                      onPress={active ? undefined : () => focusCard(i)}
+                      accessibilityRole={active ? undefined : 'button'}
+                      accessibilityLabel={active ? undefined : `${r.name} 러너 카드 보기`}
+                      importantForAccessibility={active ? 'auto' : 'no-hide-descendants'}
+                      accessibilityElementsHidden={!active}
+                    >
+                      {card}
+                    </Pressable>
                   </Animated.View>
                 );
               })}
@@ -432,6 +502,7 @@ export default function Matching() {
                   r={r} m={m} i={safeFocus} topIsPreferred={topIsPreferred}
                   nominating={nominating} onNominate={nominate} focused
                   gear={gearMap[r.profileId]}
+                  isCurrent={r.profileId === currentRunnerId}
                 />
               </Animated.View>
             </View>
@@ -492,6 +563,8 @@ const s = StyleSheet.create({
   contour3: { position: 'absolute', right: -130, top: -80, width: 360, height: 360, borderRadius: 180, borderWidth: 1, borderColor: 'rgba(221,240,166,0.06)' },
   fitPill: { position: 'absolute', top: 14, right: 14, backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 6, paddingHorizontal: 12, zIndex: 2 },
   gearChip: { backgroundColor: '#ffffff99', borderRadius: 99, paddingVertical: 4, paddingHorizontal: 9 },
+  // 현재 지명 태그 — sagePill과 같은 세이지 칩 (러너 변경 모드 전용)
+  currentTag: { backgroundColor: '#e3f0c4', borderRadius: 99, paddingVertical: 3, paddingHorizontal: 8, alignSelf: 'center' },
   checkBadge: {
     position: 'absolute', bottom: -3, right: -3, width: 20, height: 20, borderRadius: 10,
     backgroundColor: colors.volt, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: FOREST,

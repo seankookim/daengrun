@@ -405,13 +405,22 @@ export default function Schedule() {
                         <Text style={{ fontSize: 16.5, fontWeight: '900', color: FOREST }}>일정 변경 요청</Text>
                         <Text style={{ fontSize: 14, color: '#5d6b4a', marginTop: 2 }}>{runner.name} 러너의 가능 시간에서 새 시간을 제안해요</Text>
                       </Pressable>
-                      <Pressable
-                        style={s.ghostAction}
-                        onPress={() => { close(); router.push('/owner/request'); }}
-                      >
-                        <Text style={{ fontSize: 15.5, fontWeight: '800', color: '#3d453d' }}>러너 변경</Text>
-                        <Text style={{ fontSize: 14, color: colors.dim, marginTop: 2 }}>처음부터 일반 예약 과정으로 돌아가요</Text>
-                      </Pressable>
+                      {/* 러너 변경 = 재지명 (이 예약 그대로). 확정 전에만 — 확정은 계약이고,
+                          서버도 matching/runner_pending에서만 request_runner를 받는다.
+                          예전엔 /owner/request로 되돌려 두 번째 예약을 만들었고 dog_slot_clash에 걸렸다. */}
+                      {selected.status === 'pending' && (
+                        <Pressable
+                          style={s.ghostAction}
+                          onPress={() => {
+                            draft.bookingId = selected.id;
+                            close();
+                            router.push({ pathname: '/owner/matching', params: { mode: 'rebook', current: selected.runnerProfileId ?? '' } });
+                          }}
+                        >
+                          <Text style={{ fontSize: 15.5, fontWeight: '800', color: '#3d453d' }}>러너 변경</Text>
+                          <Text style={{ fontSize: 14, color: colors.dim, marginTop: 2 }}>이 예약 그대로 다른 러너에게 다시 요청해요</Text>
+                        </Pressable>
+                      )}
                       <Pressable style={s.cancelLink} onPress={() => setSheetMode('cancel')}>
                         <Text style={{ fontSize: 14.5, fontWeight: '700', color: '#d84a2f' }}>일정 취소하기</Text>
                       </Pressable>

@@ -193,6 +193,26 @@ const HERO_BIG = 300; // 목업 widget 300px — 216 링 + 확장 크롬(주간�
 const HERO_SMALL = 190; // 좌측 정보 블록('N% 달성')+실측 진행선+헤드 도트까지 잘리지 않는 컬랩스 높이 (FIX3: 디테일 12–13pt 승급분 수용)
 const SCROLL_RANGE = 150;
 
+// ── [PERF 2026-08-04] 컬랩스 기하 — height 애니메이션 은퇴, transform/opacity 전용 ──
+// 구: heroH(300→190) · headerH(122→0)가 레이아웃 프로퍼티라 onScroll이 useNativeDriver:false로 묶였고,
+// 프레임마다 오버레이(~130뷰)가 재레이아웃 + 히어로 카드(overflow:hidden + 소프트 섀도)가 재합성됐다.
+// 신: 두 박스 모두 정적 높이. 헤더는 내용만 밀어 올려 클리핑하고, 히어로는 scaleY로 접는다 → 스크롤이 네이티브.
+const HEADER_T_END = 0.6; // 헤더가 완전히 접히는 t (구 headerH 입력 범위와 동일)
+const HERO_SCALE_MIN = HERO_SMALL / HERO_BIG; // 컬랩스 종단 scaleY
+const HERO_LIFT = (HERO_BIG - HERO_SMALL) / 2; // 중심 기준 scaleY를 '상단 고정'으로 바꾸는 보정 이동
+// 카드 자식 역보정 — 카드의 scaleY(s)를 1/s로 되돌려 텍스트·도트가 눌리지 않게 한다.
+// 네이티브 드라이버에는 나눗셈 노드가 없으므로 1/s와 보정 이동을 다단 보간으로 근사 (구간 오차 < 0.2%).
+// 이동량 d = cw·(1/s − 1) = (HERO_LIFT·t)/s — cw(역보정 레이어 중심) = 카드 중심이므로 두 식이 일치.
+const COLLAPSE_STOPS = [0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1];
+const heroScaleAt = (u: number) => 1 - (1 - HERO_SCALE_MIN) * u;
+const HERO_UNSCALE = COLLAPSE_STOPS.map((u) => 1 / heroScaleAt(u));
+const HERO_UNSHIFT = COLLAPSE_STOPS.map((u) => (HERO_LIFT * u) / heroScaleAt(u));
+// 오버레이 배경판 — 오버레이 박스 높이가 이제 고정이므로(구: 자동 축소) 배경만 함께 접어
+// 컬랩스 후 아래 스크롤 콘텐츠를 덮지도, 터치를 삼키지도 않게 한다. 축소량은 헤더+히어로 축소분의 합.
+const OVERLAY_H = PAD_TOP + HEADER_H + HERO_BIG + 10; // 10 = s.overlay paddingBottom
+const OVERLAY_SHRINK_MID = HEADER_H + (HERO_BIG - HERO_SMALL) * HEADER_T_END; // t = HEADER_T_END 시점
+const OVERLAY_SHRINK_END = HEADER_H + (HERO_BIG - HERO_SMALL); // t = 1 시점
+
 export default function OwnerHome() {
   const { mode, toggle } = useTheme();
   const p = LILAC_SURF[mode]; // 라일락 팔레트 (포레스트/크림 서피스 은퇴)
@@ -416,11 +436,30 @@ export default function OwnerHome() {
   const pulseScale = pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.12] });
   const pulseOpacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0.9] });
 
-  // height animation → JS driver everywhere
+  // transform/opacity only → 스크롤 이벤트 전체가 네이티브 드라이버 (구: height 보간 = JS 드라이버)
   const t = scrollY.interpolate({ inputRange: [0, SCROLL_RANGE], outputRange: [0, 1], extrapolate: 'clamp' });
-  const heroH = t.interpolate({ inputRange: [0, 1], outputRange: [HERO_BIG, HERO_SMALL] });
-  const headerH = t.interpolate({ inputRange: [0, 0.6], outputRange: [HEADER_H, 0], extrapolate: 'clamp' });
+  // 헤더: 박스는 HEADER_H 고정(overflow:hidden), 내용만 위로 밀려 잘려 나간다 — 구 headerH와 동일 타이밍
+  const headerSlide = t.interpolate({ inputRange: [0, HEADER_T_END], outputRange: [0, -HEADER_H], extrapolate: 'clamp' });
   const headerOpacity = t.interpolate({ inputRange: [0, 0.45], outputRange: [1, 0], extrapolate: 'clamp' });
+  // 히어로 이동 = 헤더가 비운 자리(HEADER_H, t≤0.6에서 소진) + 상단 고정 축소 보정(HERO_LIFT·t).
+  // 두 구간 모두 선형이라 3-스톱 보간이 정확히 일치한다 (근사 아님).
+  const heroSlide = t.interpolate({
+    inputRange: [0, HEADER_T_END, 1],
+    outputRange: [0, -(HEADER_H + HERO_LIFT * HEADER_T_END), -(HEADER_H + HERO_LIFT)],
+  });
+  const heroScale = t.interpolate({ inputRange: [0, 1], outputRange: [1, HERO_SCALE_MIN] });
+  // 카드 내용 역보정 (스쿼시 방지)
+  const heroUnscale = t.interpolate({ inputRange: COLLAPSE_STOPS, outputRange: HERO_UNSCALE });
+  const heroUnshift = t.interpolate({ inputRange: COLLAPSE_STOPS, outputRange: HERO_UNSHIFT });
+  // 오버레이 배경판 — 구 오버레이 자동 높이(56+headerH+heroH+10)와 픽셀 동일하게 접힌다
+  const bgScale = t.interpolate({
+    inputRange: [0, HEADER_T_END, 1],
+    outputRange: [1, (OVERLAY_H - OVERLAY_SHRINK_MID) / OVERLAY_H, (OVERLAY_H - OVERLAY_SHRINK_END) / OVERLAY_H],
+  });
+  const bgSlide = t.interpolate({
+    inputRange: [0, HEADER_T_END, 1],
+    outputRange: [0, -OVERLAY_SHRINK_MID / 2, -OVERLAY_SHRINK_END / 2],
+  });
   // 모프 도트 — 링이 축소되는 대신 점들이 하단 진행선으로 '풀린다' (Sean 안, 2026-07-28).
   // 데이터 객체(점)는 하나, 배열만 원↔선으로 바뀐다 — 원/미니바 이중 표기 은퇴.
   const centerOpacity = t.interpolate({ inputRange: [0, 0.45], outputRange: [1, 0], extrapolate: 'clamp' });
@@ -440,8 +479,14 @@ export default function OwnerHome() {
       <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
 
       {/* ---------- pinned overlay: greeting + collapsing hero ---------- */}
-      <View style={[s.overlay, { backgroundColor: p.bg }]}>
-        <Animated.View style={{ height: headerH, opacity: headerOpacity, overflow: 'hidden' }}>
+      {/* 컨테이너는 이제 높이 고정 = 순수 레이아웃 박스(box-none). 칠·터치 차단은 아래 배경판이 전담하고,
+          배경판이 네이티브 transform으로 접히면서 구 '오버레이 자동 축소'와 동일한 영역만 덮는다. */}
+      <View pointerEvents="box-none" style={s.overlay}>
+        <Animated.View
+          style={[StyleSheet.absoluteFill, { backgroundColor: p.bg, transform: [{ translateY: bgSlide }, { scaleY: bgScale }] }]}
+        />
+        <View style={{ height: HEADER_H, overflow: 'hidden' }}>
+          <Animated.View style={{ opacity: headerOpacity, transform: [{ translateY: headerSlide }] }}>
           {/* [4차] 브랜드 행 — 맨 위 도그스하이 로고 + 유틸(테마·알림). 벨 = lucide Bell (이모지 은퇴) */}
           <View style={s.brandRow}>
             <Text style={[s.brandmark, df]}>도그스하이</Text>
@@ -511,12 +556,20 @@ export default function OwnerHome() {
               </Animated.View>
             </Pressable>
           )}
-        </Animated.View>
+          </Animated.View>
+        </View>
 
-        <Pressable onPress={() => router.push('/owner/fitness')}>
-          <Animated.View style={[s.hero, { height: heroH, backgroundColor: hp.card, borderColor: lilac.hair }]}>
-            <HoloBar />
+        {/* 컬랩스 transform은 Pressable '바깥'에 건다 — 터치 영역이 축소된 시각 높이와 정확히 일치해야 하기 때문
+            (구: heroH가 레이아웃 높이라 터치 영역도 같이 줄었다). scaleY 원점 = 래퍼 중심 = 카드 중심. */}
+        <Animated.View style={{ transform: [{ translateY: heroSlide }, { scaleY: heroScale }] }}>
+          <Pressable onPress={() => router.push('/owner/fitness')}>
+            <Animated.View style={[s.hero, { height: HERO_BIG, backgroundColor: hp.card, borderColor: lilac.hair }]}>
+            {/* 인셋 더블 헤어라인은 역보정 밖 — 카드와 함께 축소돼 4면 인셋을 유지한다 (구 heroH 추종과 동일) */}
             <View pointerEvents="none" style={s.heroDbl} />
+            {/* 역보정 레이어 — 카드 scaleY를 1/s로 되돌린다. 박스가 카드 안쪽 테두리에 정확히 겹치고
+                padding도 카드와 동일해서 절대·흐름 자식 좌표가 모두 그대로다 (onLayout 실측 상대차 불변). */}
+            <Animated.View style={[s.heroInner, { transform: [{ translateY: heroUnshift }, { scaleY: heroUnscale }] }]}>
+            <HoloBar />
             <View style={[s.weekChip, { backgroundColor: hp.chip, borderColor: lilac.hair }]}>
               <Text style={{ fontSize: 12, fontWeight: '700', color: lilac.head }}>이번 주 ▾</Text>
             </View>
@@ -591,10 +644,12 @@ export default function OwnerHome() {
               }}
               style={{ alignSelf: 'center', marginTop: 6, width: RING_BIG, height: RING_BIG }}
             >
-              <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { opacity: ringOpacity }]}>
+              {/* 54-dot 레이어는 하드웨어 텍스처로 승격 — 크로스페이드 프레임마다 그림자 달린 도트를 재합성하지 않는다.
+                  (shouldRasterizeIOS는 의도적으로 제외: 살아있는 상위 scaleY 아래에서 캐시 비트맵이 리샘플되며 헤드 글로우가 뭉갠다) */}
+              <Animated.View pointerEvents="none" renderToHardwareTextureAndroid style={[StyleSheet.absoluteFill, { opacity: ringOpacity }]}>
                 <RingDots pct={pct} track={hp.track} />
               </Animated.View>
-              <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { opacity: lineOpacity, transform: [{ translateY: lineSlide }] }]}>
+              <Animated.View pointerEvents="none" renderToHardwareTextureAndroid style={[StyleSheet.absoluteFill, { opacity: lineOpacity, transform: [{ translateY: lineSlide }] }]}>
                 <LineDots pct={pct} lineYAbs={morphLineY} containerX={(CARD_W - RING_BIG) / 2} containerY={dotBoxY} track={hp.track} />
               </Animated.View>
               {/* 큰 상태 센터 콘텐츠 — 컬랩스 전에 사라진다 (컴팩트 정보는 좌측 블록 전담, 이중 표기 금지) */}
@@ -622,17 +677,21 @@ export default function OwnerHome() {
                 </View>
               </Animated.View>
             </View>
+            </Animated.View>
 
             {/* big-state goal message */}
-            {/* 체력 리포트 진입 칩 — 히어로가 탭 가능하다는 걸 매트한 칩이 말해준다 */}
+            {/* 체력 리포트 진입 칩 — 히어로가 탭 가능하다는 걸 매트한 칩이 말해준다.
+                역보정 밖에 둬서 구현과 동일하게 카드의 줄어드는 하단 엣지를 타고 올라온다 (t≈0.35에 소멸).
+                카드 높이가 상수가 된 지금 bottom:11은 애니메이션 의존이 아니라 1회 확정 레이아웃이다. */}
             <Animated.View style={[s.reportChip, { opacity: bigMsgOpacity, backgroundColor: hp.chip, borderColor: lilac.hair }]}>
               <Text style={{ fontSize: 13, fontWeight: '800', color: hp.textSoft }}>
                 {goalHit ? '🎉 목표 달성 — 체력 리포트' : '체력 리포트 · 주간 목표'}
               </Text>
               <Text style={{ fontSize: 14, fontWeight: '900', color: lilac.accent }}>›</Text>
             </Animated.View>
-          </Animated.View>
-        </Pressable>
+            </Animated.View>
+          </Pressable>
+        </Animated.View>
       </View>
 
       {/* ---------- scroll content (starts below expanded hero) ---------- */}
@@ -643,7 +702,7 @@ export default function OwnerHome() {
           paddingTop: PAD_TOP + HEADER_H + HERO_BIG + 14,
           paddingBottom: 30,
         }}
-        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: false })}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
         scrollEventThrottle={16}
       >
         {/* ---------- stat cells — 룰드 숫자 셀: 데이터가 차오르면 카피도 자랑스러워진다.
@@ -1314,6 +1373,9 @@ const s = StyleSheet.create({
     ...lilacShadow,
   },
   heroDbl: { position: 'absolute', top: 4, left: 4, right: 4, bottom: 4, borderWidth: 1, borderColor: lilac.hair2, borderRadius: lilacRadius.inner },
+  // 역보정 레이어 — 카드 안쪽 테두리 박스에 정확히 겹친다(절대 자식 인셋 불변) + 카드와 동일 padding(흐름 자식 불변).
+  // 테두리 0 · 상하 대칭이라 scaleY 원점이 카드 중심과 일치 → 역보정 이동량이 (HERO_LIFT·t)/s로 닫힌 형태.
+  heroInner: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, padding: 18 },
   weekChip: {
     position: 'absolute', top: 12, left: 14, zIndex: 4, borderWidth: 1,
     borderRadius: lilacRadius.tag, paddingVertical: 3, paddingHorizontal: 7,
