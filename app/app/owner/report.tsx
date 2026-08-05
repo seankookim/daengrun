@@ -1,10 +1,10 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Animated, Dimensions, Image, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { Alert, Animated, Dimensions, Easing, Image, Pressable, ScrollView, Share, StyleSheet, Text, TextStyle, View } from 'react-native';
 import { PatchBadge } from '../../src/components/patch';
 import { HeatTrace } from '../../src/components/runcard';
 import { Monogram, Row, Skeleton } from '../../src/components/ui';
-import { CoursePatch, fetchPatchPop, fetchRunEarning, fetchRunReport, fetchRunStandings, RunEarning, RunReport, RunStandings, shareRunToFeed } from '../../src/lib/api';
+import { CoursePatch, fetchPatchPop, fetchRunEarning, fetchRunReport, fetchRunStandings, fetchStampPop, RunEarning, RunReport, RunStandings, shareRunToFeed, StampInfo } from '../../src/lib/api';
 import { haptic } from '../../src/lib/haptics';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
@@ -77,8 +77,9 @@ export default function Report() {
   const [report, setReport] = useState<RunReport | null>(null);
   const [standings, setStandings] = useState<RunStandings | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  // 패치 획득/승급 팝 — 이 러닝이 임계를 넘긴 순간에만 1회 (수집의 획득 모먼트)
-  const [patchPop, setPatchPop] = useState<CoursePatch | null>(null);
+  // Ⓒ② 오늘의 수확 — 패치 승급 + 이 러닝이 방금 넘긴 도장을 오버레이 '하나'로 (닫기도 하나).
+  // null = 그릴 게 없다 (fetch 진행 중 포함) — 둘 다 결과가 온 뒤 내용이 있을 때만 세워진다.
+  const [haul, setHaul] = useState<{ patch: CoursePatch | null; stamps: StampInfo[] } | null>(null);
   // 리워드 ① — 이 러닝의 하이 포인트 적립. loaded 플래그가 따로 있는 이유: null 은 '적립 없음'
   // (조기 종료·정산 전)이라는 사실이고, 미도착은 '아직 모름'이다. 둘 다 0을 그리지 않는다.
   const [earning, setEarning] = useState<RunEarning | null>(null);
@@ -92,9 +93,21 @@ export default function Report() {
     setEarningLoaded(false);
     fetchRunEarning(bid).then((e) => { setEarning(e); setEarningLoaded(true); }).catch(() => {});
   }, [bid]);
+  // 두 팝을 '같은' effect에서 함께 부른다. 게이트는 각자의 모듈 Set이고 각자 내놓을 게 있을 때만
+  // 소비하므로, 재방문 때 둘 다 조용해진다 — 한쪽만 소비된 어정쩡한 상태가 생기지 않는다.
+  // 코스가 없는 러닝(routeId null)도 완주 도장은 찍힌다 → 패치 팝만 건너뛴다.
+  // 실패는 조용한 부재로: 축하가 못 뜨는 편이 화면이 거짓을 말하는 것보다 낫다 (벽에는 남는다).
   useEffect(() => {
-    if (!bid || !report?.routeId || report.run?.endReason !== 'completed') return;
-    fetchPatchPop(bid, report.routeId).then((p) => { if (p) { setPatchPop(p); haptic('success'); } }).catch(() => {});
+    if (!bid || !report || report.run?.endReason !== 'completed') return;
+    const routeId = report.routeId;
+    Promise.all([
+      routeId ? fetchPatchPop(bid, routeId).catch(() => null) : Promise.resolve(null),
+      fetchStampPop(bid).catch(() => [] as StampInfo[]),
+    ]).then(([patch, stamps]) => {
+      if (!patch && stamps.length === 0) return; // 둘 다 비면 오버레이 자체가 마운트되지 않는다
+      setHaul({ patch, stamps });
+      haptic('success');
+    }).catch(() => {});
   }, [bid, report]);
 
   // 인증샷은 전용 스튜디오(/shot/[bid])로 — 리포트 상단 인라인 카드 은퇴 (2026-07-28)
@@ -430,50 +443,154 @@ export default function Report() {
         )}
       </ScrollView>
 
-      {/* ---------- 패치 팝 오버레이 — 획득/승급의 순간 (탭 = 닫기) ---------- */}
-      {patchPop && (
-        <PatchPopOverlay
-          patch={patchPop}
-          df={df}
-          onClose={() => setPatchPop(null)}
-          onWall={() => { setPatchPop(null); router.push('/cards'); }}
+      {/* ---------- 오늘의 수확 — 패치 승급 + 새 도장 병합 세리머니 (탭 = 닫기) ---------- */}
+      {haul && (
+        <HaulOverlay
+          patch={haul.patch}
+          stamps={haul.stamps}
+          nf={nf}
+          onClose={() => setHaul(null)}
+          onCollection={() => { setHaul(null); router.push('/cards'); }}
         />
       )}
     </View>
   );
 }
 
-const POP_TITLE: Record<string, string> = { basic: '패치 획득!', silver: '실버 승급!', gold: '골드 승급!', master: '코스 마스터!' };
+// 승급 어휘 — 문장 안에 들어가므로 느낌표 없이 ('실버 승급 · 서울숲 순환 코스 ×5')
+const POP_TITLE: Record<string, string> = { basic: '패치 획득', silver: '실버 승급', gold: '골드 승급', master: '코스 마스터' };
 
-function PatchPopOverlay({ patch, df, onClose, onWall }: {
-  patch: CoursePatch; df: any; onClose: () => void; onWall: () => void;
-}) {
-  // 스프링 팝 — 수집물이 '떨어져 박히는' 모션 (1회, 화면당 펄스 예산 내)
-  const a = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    Animated.spring(a, { toValue: 1, friction: 5, tension: 90, useNativeDriver: true }).start();
-  }, [a]);
+// ═══════ Ⓒ② 오늘의 수확 — 오버레이 하나 · 세계 하나 · 닫기 하나 ═══════
+// 배경은 나이트 라일락을 0.94로 덮는다. 예전 rgba(10,16,10,.72)는 새 적립 스트립과 응가 칩이
+// 그대로 읽혀 '축하 위에 영수증'이 겹쳐 보였다 (랩이 실측해 잡은 결함) — 포레스트 잔재도 함께 라일락으로.
+// 세 가지 정직한 모양으로 degrade한다: 패치만 · 도장만 · 둘 다. 아무것도 없으면 마운트조차 안 된다.
+const STAMP_INK = '#B9AEF5';    // 나이트 위 도장 잉크 — 벽의 #4A3DA8은 어두운 배경에서 사라진다
+const STAMP_FIRST = '#FF9C82';  // 첫-family 외곽링·도트 (코랄은 링이지 절대 글자가 아니다)
+const HAUL_DIM = '#A9A3C8';     // 보조 텍스트 (#1C1837 위 7.09:1 — 실측)
+// 한 줄에 놓을 도장 수. 셀 100 + gap 12 → 3칸 324px가 들어가려면 가용폭(W−52) ≥ 324, 즉 W ≥ 376.
+// 375dp(가용 323)에서 1px 넘쳐 2+1로 감기던 것을 폭으로 가른다 — 도장 크기는 절대 줄이지 않는다.
+const HAUL_CAP = W >= 377 ? 3 : 2;
+
+// 도장 한 개 — 벽과 같은 문법(숫자+한글, 링 수가 사다리, 첫-family만 코랄 링+도트)의 나이트 버전
+function StampDisc({ info, nf }: { info: StampInfo; nf: TextStyle | null }) {
+  const D = 92;
+  const edge = info.coral ? STAMP_FIRST : STAMP_INK;
   return (
-    <Pressable onPress={onClose} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(10,16,10,.72)', alignItems: 'center', justifyContent: 'center', padding: 30 }}>
+    <View style={[s.disc, { width: D, height: D, borderRadius: D / 2, borderColor: edge }]}>
+      {info.rings >= 2 && (
+        <View style={[s.discRing, { left: 5, right: 5, top: 5, bottom: 5, borderRadius: (D - 10) / 2, borderColor: edge, opacity: 0.85 }]} />
+      )}
+      {info.rings >= 3 && (
+        <View style={[s.discRing, { left: -6, right: -6, top: -6, bottom: -6, borderRadius: (D + 12) / 2, borderColor: STAMP_INK, opacity: 0.55 }]} />
+      )}
+      {info.coral && <View style={[s.discDot, { left: (D - 5) / 2 - 4 }]} />}
+      {/* [BUG A] Oswald 숫자는 lineHeight 명시 없이 어센더가 잘린다 — 27 × 1.2 = 33 */}
+      <Text style={[{ fontSize: 27, lineHeight: 33, fontWeight: '600', color: STAMP_INK }, nf]}>{info.num}</Text>
+      <Text style={{ fontSize: 15, lineHeight: 19, fontWeight: '800', color: STAMP_INK, marginTop: 1 }}>{info.word}</Text>
+    </View>
+  );
+}
+
+function HaulOverlay({ patch, stamps, nf, onClose, onCollection }: {
+  patch: CoursePatch | null; stamps: StampInfo[]; nf: TextStyle | null; onClose: () => void; onCollection: () => void;
+}) {
+  // 한 줄 상한(폭에 따라 3 또는 2). 넘치면 '외 N개'로 적고 도장을 줄이지 않는다.
+  const shown = stamps.slice(0, HAUL_CAP);
+  const more = stamps.length - shown.length;
+  const kick = useRef(new Animated.Value(0)).current;
+  const pa = useRef(new Animated.Value(0)).current;
+  // 훅 수는 고정 — 상한이 3칸이라 값 3개를 항상 만든다 (조건부 훅 금지)
+  const s0 = useRef(new Animated.Value(0)).current;
+  const s1 = useRef(new Animated.Value(0)).current;
+  const s2 = useRef(new Animated.Value(0)).current;
+  const copy = useRef(new Animated.Value(0)).current;
+  const slams = [s0, s1, s2];
+  useEffect(() => {
+    const steps: Animated.CompositeAnimation[] = [];
+    // ① 패치가 먼저 스프링으로 박힌다 (오늘 쓰던 값 그대로 — friction 5 · tension 90)
+    if (patch) steps.push(Animated.spring(pa, { toValue: 1, friction: 5, tension: 90, useNativeDriver: true }));
+    // ② 도장이 차례로 내려찍힌다 — 영수증 실 스탬프의 커브 그대로, 80ms 간격
+    if (shown.length > 0) {
+      steps.push(Animated.stagger(80, shown.map((_, i) => Animated.timing(slams[i], {
+        toValue: 1, duration: 340, easing: Easing.bezier(0.5, 0, 0.7, 0.35), useNativeDriver: true,
+      }))));
+    }
+    // ③ 카피와 CTA가 마지막에 올라온다
+    steps.push(Animated.timing(copy, { toValue: 1, duration: 320, useNativeDriver: true }));
+    Animated.parallel([
+      Animated.timing(kick, { toValue: 1, duration: 300, useNativeDriver: true }),
+      Animated.sequence(steps),
+    ]).start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <Pressable onPress={onClose} style={s.haulBack}>
+      <Animated.Text style={[s.haulKicker, { opacity: kick }]}>DOGS HIGH · 오늘의 수확</Animated.Text>
+
+      {patch && (
+        <>
+          {/* 패치는 자기 색(자수 오브젝트)을 그대로 지킨 채 여권의 나이트 배경 위에 앉는다 */}
+          <Animated.View style={{
+            alignItems: 'center',
+            opacity: pa,
+            transform: [
+              { scale: pa.interpolate({ inputRange: [0, 1], outputRange: [0.4, 1] }) },
+              { rotate: pa.interpolate({ inputRange: [0, 1], outputRange: ['-18deg', '-4deg'] }) },
+            ],
+          }}>
+            <PatchBadge km={patch.km} name={patch.name} grade={patch.grade} size={132} />
+          </Animated.View>
+          <Animated.Text style={[s.haulPatchLine, { opacity: pa }]}>
+            {POP_TITLE[patch.grade]} · {patch.name} {patch.count === 1 ? '첫 완주' : `×${patch.count}`}
+          </Animated.Text>
+        </>
+      )}
+
+      {patch && shown.length > 0 && <View style={s.haulPerf} />}
+
+      {shown.length > 0 && (
+        <View style={s.haulRow}>
+          {shown.map((st, i) => (
+            <Animated.View
+              key={st.key}
+              style={{
+                // 셀 100 + gap 12 → 3칸 324 / 2칸 212. 오버레이 가용폭 = W − 좌우 패딩 52
+                alignItems: 'center', width: 100,
+                opacity: slams[i],
+                transform: [
+                  { scale: slams[i].interpolate({ inputRange: [0, 1], outputRange: [2.2, 1] }) },
+                  // 착지 각도는 그 도장의 고정 기울기(api.ts angle) — 벽과 세리머니가 같은 손도장이어야 한다
+                  { rotate: slams[i].interpolate({ inputRange: [0, 1], outputRange: ['-12deg', `${st.angle}deg`] }) },
+                ],
+              }}
+            >
+              <StampDisc info={st} nf={nf} />
+              <Text style={s.haulCap}>{st.label}</Text>
+            </Animated.View>
+          ))}
+        </View>
+      )}
+
       <Animated.View style={{
         alignItems: 'center',
-        opacity: a,
-        transform: [
-          { scale: a.interpolate({ inputRange: [0, 1], outputRange: [0.4, 1] }) },
-          { rotate: a.interpolate({ inputRange: [0, 1], outputRange: ['-18deg', '-4deg'] }) },
-        ],
+        opacity: copy,
+        transform: [{ translateY: copy.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }) }],
       }}>
-        <PatchBadge km={patch.km} name={patch.name} grade={patch.grade} size={132} />
-      </Animated.View>
-      <Animated.View style={{ alignItems: 'center', opacity: a, marginTop: 20 }}>
-        <Text style={[{ fontSize: 26, fontWeight: '900', color: colors.volt }, df]}>{POP_TITLE[patch.grade]}</Text>
-        <Text style={{ fontSize: 14.5, fontWeight: '800', color: '#dfe7d8', marginTop: 6 }}>
-          {patch.name} · {patch.count === 1 ? '첫 완주' : `×${patch.count} 완주`}
-        </Text>
-        <Pressable onPress={onWall} style={{ backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 10, paddingHorizontal: 20, marginTop: 16 }}>
-          <Text style={{ fontSize: 14, fontWeight: '900', color: FOREST }}>패치 월 보기 ›</Text>
+        {more > 0 && <Text style={s.haulMore}>외 {more}개</Text>}
+        {shown.length > 0 ? (
+          <>
+            <Text style={s.haulSub}>여권에 새 도장 {stamps.length}개가 찍혔어요</Text>
+            {/* '지워지지 않아요'는 거짓이 될 수 있다 — 자랑 글 삭제·코스 비활성은 실제 감소 벡터다 (api.ts 계약 주석) */}
+            <Text style={s.haulNote}>기록이 남아 있는 한 도장은 그대로예요</Text>
+          </>
+        ) : (
+          <Text style={s.haulSub}>패치가 컬렉션에 들어갔어요</Text>
+        )}
+        <Pressable onPress={onCollection} style={s.haulCta}>
+          <Text style={s.haulCtaText}>컬렉션 보기 ›</Text>
         </Pressable>
-        <Text style={{ fontSize: 14, color: '#8fa093', marginTop: 12 }}>탭하면 닫혀요</Text>
+        <Text style={s.haulHint}>탭하면 닫혀요</Text>
       </Animated.View>
     </Pressable>
   );
@@ -546,6 +663,32 @@ const s = StyleSheet.create({
   earnUnit: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: lilac.text },
   earnLabel: { fontSize: 14, lineHeight: 19, color: lilac.text },
   earnDelta: { fontSize: 14, lineHeight: 19, fontWeight: '800', color: lilac.head },
+  // ---------- Ⓒ② 오늘의 수확 오버레이 — 나이트 라일락 한 겹 (transform/opacity만 애니) ----------
+  haulBack: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    // 나이트 라일락 #1C1837 · 0.94 — 랩이 잡은 결함(0.72는 적립 스트립·응가 칩이 그대로 읽힌다)의 수정치
+    backgroundColor: 'rgba(28,24,55,0.94)',
+    alignItems: 'center', justifyContent: 'center', paddingHorizontal: 26, paddingVertical: 30,
+  },
+  // 라틴+한글 혼합 키커 — 라틴 대문자 예외가 아니므로 14pt 플로어를 그대로 지킨다
+  haulKicker: { fontSize: 14, lineHeight: 18, fontWeight: '700', letterSpacing: 2.4, color: STAMP_INK, marginBottom: 14 },
+  haulPatchLine: { fontSize: 14, lineHeight: 19, fontWeight: '800', color: '#fff', marginTop: 12, textAlign: 'center' },
+  haulPerf: { alignSelf: 'stretch', marginHorizontal: 8, marginTop: 15, marginBottom: 14, borderTopWidth: 1, borderStyle: 'dashed', borderTopColor: 'rgba(255,255,255,0.3)' },
+  // 줄바꿈은 HAUL_CAP이 이미 막았다 (376dp 미만은 2칸) — wrap은 폰트 확대 등 예외 상황의 안전망
+  haulRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 12 },
+  disc: {
+    borderWidth: 2.5, backgroundColor: 'rgba(185,174,245,0.10)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  discRing: { position: 'absolute', borderWidth: 1.5 },
+  discDot: { position: 'absolute', top: -4, width: 8, height: 8, borderRadius: 4, backgroundColor: STAMP_FIRST },
+  haulCap: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: '#fff', marginTop: 8, textAlign: 'center' },
+  haulMore: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: HAUL_DIM, marginTop: 10 },
+  haulSub: { fontSize: 14, lineHeight: 19, fontWeight: '800', color: HAUL_DIM, marginTop: 14, textAlign: 'center' },
+  haulNote: { fontSize: 14, lineHeight: 19, color: HAUL_DIM, marginTop: 3, textAlign: 'center' },
+  haulCta: { backgroundColor: '#fff', borderRadius: 99, paddingVertical: 11, paddingHorizontal: 22, marginTop: 16 },
+  haulCtaText: { fontSize: 15, lineHeight: 20, fontWeight: '900', color: lilac.head },
+  haulHint: { fontSize: 14, lineHeight: 18, color: HAUL_DIM, marginTop: 12 },
   photoSlot: { width: TILE, height: TILE * 0.6, backgroundColor: '#f4f2ea', alignItems: 'center', justifyContent: 'center' },
   emptyBox: { margin: 20, backgroundColor: '#f4f2ea', borderRadius: 18, padding: 26, alignItems: 'center' },
   emptyText: { fontSize: 15, color: colors.dim, textAlign: 'center', lineHeight: 22 },

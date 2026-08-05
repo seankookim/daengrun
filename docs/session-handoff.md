@@ -68,7 +68,21 @@ Scout confirmed the office-hours claim and found it stronger: **miles_ledger.ref
 
 **Sean's ② decisions (all Recommended picked)**: ceremony on report.tsx (with patch pop — queue or merge, lab decides) · collections MERGE into passport world (/cards reborn lilac as the annex, back → 마이) · stamps are FOREVER (monotonic only) · 첫 클럽 = ATTENDED (session_people checked-in).
 
-**Lab (docs/labs/passport-stamp-lab.html)**: Ⓐ stamp wall ① §③ 도장면 visa page ② 기록면 strip ③ 여권 펼침 spread · Ⓑ merged collection ① 부속서 two-section ② 통합 그리드 · Ⓒ ceremony ① queue-behind-patch-pop ② merged single overlay. Ink law chosen: violet #4A3DA8 stamps, coral only as 첫-family ring+dot, gold stays in the receipt, zero new foil (my.tsx budget spent). Lab recommends **Ⓐ①×Ⓑ①×Ⓒ②**. Reply "A1 B1 C2" style. Lab-found defects to fix with implementation: PatchPopOverlay backdrop too transparent for report.tsx's new content · cards.tsx renders course name twice (once at ~8.6px inside PatchBadge).
+**Lab**: docs/labs/passport-stamp-lab.html — Sean picked **A1 B1 C2**.
+
+## 2e. Rewards ② — IMPLEMENTED (A1×B1×C2, zero migrations)
+
+2 Opus builders + adversarial review (P0 0 · P1 5 · P2 7, all approved fixes applied):
+
+- **api.ts stamp engine** (~:833-1041): `fetchStampStats()` — 7 parallel RLS'd reads (완주 count via runs!inner end_reason gate · courses via fetchCoursePatches · club attended with MANDATORY profile_id self-filter (session_people RLS is open to all authed) · max-historical KST week streak (monotonic 'ever') · poop_bonus run count · feed shares · reviews). `deriveStamps()` — 12 slots matching the lab 1:1 (run 1/5/10/25 · course 2/3 · club 1 · streak 2 · poop 1/10 · share 1 · review 1), carries label/cond/prog(real progress strings)/rings/coral/**angle (canonical per-key tilt — screens must NOT compute their own; the seam where two builders diverged on 11/12 keys was the review's headline catch)**. `fetchStampPop(bid)` — fetchPatchPop idiom: newest-completed-booking guard + module Set; only run-ladder/course/poop crossings can announce (club/자랑/후기/streak silent by design — announcing them at run end would lie).
+- **report.tsx Ⓒ② merged ceremony**: HaulOverlay replaces PatchPopOverlay — night-lilac 0.94 backdrop (fixes the 0.72 transparency defect), patch springs → stamps stagger-slam at canonical angles, HAUL_CAP 3/≥377dp else 2 (+ 외 N개), one CTA 컬렉션 보기 → /cards. Forest-era overlay colors retired. Earning strip untouched.
+- **my.tsx §③ 도장면 (Ⓐ①)**: the vacant §③ slot filled — visa-page card, 12 discs (violet #4A3DA8 ink, ring-count ladder, coral edge+dot for 첫-family), earned shows NAME / unearned shows real progress (`7 / 10 완주`) else condition, N/12 Oswald chip, calm (zero animation, ceremony lives on report), renders nothing pre-load/error (never 0/12), refetch on focus, zero new foil/BHS. Record face now shows '—' while loading (was 0.0km — loading≠0).
+- **cards.tsx Ⓑ① annex**: full lilac repaint (useTheme/volt retired), 컬렉션/ANNEX masthead, back = canGoBack→back else home (all 6 entries are push), §도장 grid + §코스 패치 in night-lilac well (locked-patch chrome lifted for dark-ground contrast, measured), PatchBadge inner name suppressed here (was 7.75px double-render; patch.tsx untouched — name was already optional), split stampErr/patchErr with honest inline fail notes (half-failure no longer silent).
+- **Honesty copy law extended**: "도장은 한번 찍히면 지워지지 않아요" was FALSE (two accepted decay vectors: 자랑 post deletion un-earns share1; route deactivation shrinks course counts) → all surfaces say '기록이 남아 있는 한 도장은 그대로예요'; api.ts contract comment names both vectors.
+
+**Reflect (retro)**: parallel builders on a shared contract MUST also share derived constants — the angle table existed in the contract but both walls hashed their own; pin presentational derivations in the contract next time. Copy is honesty surface #1 again (3rd consecutive cycle a reviewer caught overpromising copy). Deferred: StampCell/StampDisc triple-duplication → extract src/components/stamp.tsx before a 4th surface; 자랑/코스 decay vectors need a server persistence table if Sean ever wants literal-forever.
+
+**NEW smoke (rewards ②)**: passport §③ (12 slots, earned names vs progress lines, silence pre-load, 320dp 3-col grid) · 컬렉션 annex (back returns to pusher, night well patches, half-failure notes) · merged ceremony on a fresh completed run (patch+stamps together, ≤375dp shows 2+외N, no replay on re-entry, old reports silent) · record face '—' while loading.
 
 ## 3. Pending on Sean's side (ordered)
 

@@ -830,6 +830,228 @@ export function sealStampFresh(bookingId: string): boolean {
   return true;
 }
 
+// ═══════════ 리워드 ② 여권 도장 (2026-08-05) — 전부 파생, 마이그레이션 0 ═══════════
+// 계약: 도장은 FOREVER를 지향한다 — 한번 참이 되면 영원히 참인 값만 도장이 된다.
+//   · 잔액 마일스톤은 제외 (shop_spend가 깎으면 도장이 사라진다 = 도장이 아니다)
+//   · '이번 주 연속'도 제외. 대신 역대 최장 연속 주를 쓴다 (최대값은 쉬어도 줄지 않는다)
+// [감소 벡터 2종 — 알고 받아들인 것. 다음 편집자는 재감사하지 말 것]
+//   ① 첫 자랑: feed_posts에 "feed delete own" 정책이 있다. 유일한 자랑 글을 지우면 count 1→0,
+//      도장이 풀린다. 막으려면 획득 시점을 저장할 테이블 = 마이그레이션 (v1 범위 밖).
+//   ② 코스 2/3: fetchCoursePatches는 active 코스만 센다. 운영이 코스를 비활성화하면
+//      earned.length가 줄어 도장이 풀릴 수 있다 (랩이 '전 코스 개척'을 뺀 것과 같은 이유).
+//   이 둘 때문에 화면 카피는 '지워지지 않아요'라고 단정하지 않는다 —
+//   report.tsx 세리머니는 '기록이 남아 있는 한 도장은 그대로예요'로 말한다.
+// 12칸의 인쇄 순서는 고정이다 — 여권의 한 면은 도장을 받았다고 재배치되지 않는다.
+// 잉크 법(랩 확정): 바이올렛이 유일한 도장 잉크 · 코랄은 첫-family의 외곽링+도트로만 생존
+//   (코랄은 절대 글자가 되지 않는다) · 골드는 영수증 몫 · 새 포일 0.
+// 사다리는 색이 아니라 링 수로 오른다: 1링(첫 단) → 2링(마일스톤) → 3링(사다리 top).
+
+export interface StampStats {
+  runsDone: number;      // 완주 러닝 수 (bookings.status='completed' ∧ runs.end_reason='completed')
+  courses: number;       // 개척한 코스 수 = fetchCoursePatches().earned.length
+  clubAttended: number;  // 체크인한 '종료된' 클럽 세션 수
+  maxWeekStreak: number; // 역대 최장 연속 주 (현재 연속이 아니다 — 기록은 decay하지 않는다)
+  poopRuns: number;      // 응가 보너스가 붙은 '러닝' 수 (응가 횟수가 아니다 — 정산이 예약당 1행)
+  shares: number;        // 내가 올린 피드 자랑 수
+  reviews: number;       // 내가 쓴 후기 수
+}
+
+// KST 주 인덱스 — kstWeekStartMs(월요일 00:00)를 정수 주 번호로. 연속 주 = 인덱스가 1씩 이어지는 구간.
+// (+KST_MS 로 되돌려 UTC 자정 정렬을 만든 뒤 주 길이로 나눈다 — 월요일끼리는 정확히 604800000ms 간격)
+const kstWeekIndex = (t: number) => Math.round((kstWeekStartMs(t) + KST_MS) / 604_800_000);
+
+// 역대 최장 연속 주. '현재 연속'이 아니라 최대값이라 유예 주(grace) 해킹이 필요 없다 —
+// 쉬면 현재 연속은 끊기지만 기록은 남는다. 이것이 도장을 단조(monotonic)로 만드는 유일한 해석.
+function maxWeekStreakOf(isoList: string[]): number {
+  const weeks = [...new Set(isoList.map((iso) => kstWeekIndex(Date.parse(iso))).filter(Number.isFinite))]
+    .sort((a, b) => a - b);
+  let best = 0;
+  let run = 0;
+  for (let i = 0; i < weeks.length; i++) {
+    run = i > 0 && weeks[i] === weeks[i - 1] + 1 ? run + 1 : 1;
+    if (run > best) best = run;
+  }
+  return best;
+}
+
+// 도장 벽의 원천 수치. 전부 병렬, 하나라도 실패하면 throw —
+// 로딩≠0 법: 호출부는 throw를 '아직 못 읽음'으로 다루고 벽에 0을 그리지 않는다.
+export async function fetchStampStats(): Promise<StampStats> {
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) throw new Error('로그인이 필요해요');
+  const uid = user.user.id;
+  const mine = `owner_id.eq.${uid},runner_id.eq.${uid}`; // 보호자·러너 양역할 병합 (fetchCoursePatches와 동일 관례)
+
+  const [runsRes, patches, clubRes, weekRes, poopRes, shareRes, reviewRes] = await Promise.all([
+    // runs!inner + end_reason='completed' (0028 ②)가 정직 게이트다:
+    // status='completed'만 세면 조기 종료 정산까지 '완주'로 계산돼 도장이 부풀어 오른다.
+    // head:true 카운트 — 행 상한 없이 진짜 총수를 받는다.
+    // [주의] 벽의 runsDone(여기, 정확한 카운트)과 팝의 runsDone(fetchStampPop, 1000행 창)은
+    // 완주 1000회를 넘기면 갈라진다 — 임계가 25까지라 파일럿에선 무의미하다. 알고 두는 차이.
+    supabase.from('bookings').select('id, runs!inner(end_reason)', { count: 'exact', head: true })
+      .eq('status', 'completed').eq('runs.end_reason', 'completed').or(mine),
+    fetchCoursePatches(), // 실패 시 스스로 throw — 여기서도 실패는 실패로 전파된다
+    // ⚠ session_people의 RLS는 "people authed read" — 로그인한 누구에게나 열려 있다.
+    // profile_id 필터는 성능 최적화가 아니라 정확성 요건이다: 빼면 남의 출석까지 세어 도장이 거짓이 된다.
+    // 술어는 club_my_stats(0031)와 동일하고 p_club 스코프만 없다.
+    supabase.from('session_people').select('id, club_sessions!inner(status)', { count: 'exact', head: true })
+      .eq('profile_id', uid).eq('attendance', 'checked_in').eq('club_sessions.status', 'done'),
+    // 연속 주 계산 원본 — 최근 1000건 창. 파일럿 규모에선 사실상 전량이고,
+    // 넘어가면 '가장 오래된 주'가 잘린다 (최장 연속이 그 창 밖이면 과소 계상 — 부풀리지는 않는다).
+    supabase.from('bookings').select('scheduled_at, runs!inner(end_reason)')
+      .eq('status', 'completed').eq('runs.end_reason', 'completed').or(mine)
+      .order('scheduled_at', { ascending: false }).limit(1000),
+    // settle_run_tx는 응가 보너스를 예약당 정확히 1행(+30) 쓴다 → 이 수는 '러닝 수'다.
+    // 카피는 반드시 '러닝 N회'라고 말해야 한다 ('응가 N번'은 거짓).
+    supabase.from('miles_ledger').select('id', { count: 'exact', head: true })
+      .eq('profile_id', uid).eq('reason', 'poop_bonus'),
+    supabase.from('feed_posts').select('id', { count: 'exact', head: true }).eq('author_id', uid),
+    // target_kind 필터 없음 — 의도적이다. '후기를 쓴다'가 마일스톤이고, 러너/보호자/반려견 중
+    // 누구에 대한 후기든 그 행위는 같다. 그래서 라벨도 역할 중립('후기 1개')으로 쓴다.
+    supabase.from('reviews').select('id', { count: 'exact', head: true }).eq('author_id', uid),
+  ]);
+  if (runsRes.error) throw runsRes.error;
+  if (clubRes.error) throw clubRes.error;
+  if (weekRes.error) throw weekRes.error;
+  if (poopRes.error) throw poopRes.error;
+  if (shareRes.error) throw shareRes.error;
+  if (reviewRes.error) throw reviewRes.error;
+
+  return {
+    runsDone: runsRes.count ?? 0,
+    courses: patches.earned.length,
+    clubAttended: clubRes.count ?? 0,
+    maxWeekStreak: maxWeekStreakOf((weekRes.data ?? []).map((b: any) => String(b.scheduled_at))),
+    poopRuns: poopRes.count ?? 0,
+    shares: shareRes.count ?? 0,
+    reviews: reviewRes.count ?? 0,
+  };
+}
+
+// 한 칸의 인쇄 사양. 화면(마이 도장면·컬렉션 부속서·런엔드 세리머니)은 전부 이 한 배열만 읽는다.
+export interface StampInfo {
+  key: string;
+  earned: boolean;
+  num: string;             // 도장 안 숫자 — Oswald (lineHeight 1.2배 명시 필수, BUG A)
+  word: string;            // 도장 안 한글 ('완주'·'코스'·'클럽'·'연속'·'응가'·'자랑'·'후기')
+  label: string;           // 도장 아래 이름 14pt ('첫 러닝')
+  cond: string;            // 빈 칸의 획득 조건 14pt ('완주 5회')
+  prog: string | null;     // 실진행 ('7 / 10 완주'). 임계 1이거나 이미 받았으면 null → 화면은 cond를 쓴다
+  family: 'first' | 'ladder' | 'top';
+  rings: 1 | 2 | 3;        // 사다리 깊이 = 링 수 (색이 아니라)
+  coral: boolean;          // 첫-family만 코랄 외곽링 + 코랄 도트 (글자는 언제나 바이올렛)
+  angle: number;           // 고정 기울기 — Math.random 금지. 기울기는 그 도장의 정체성이라 리렌더에도 같아야 한다
+}
+
+// 12칸 고정 인쇄 순서 (랩 Ⓐ① 정본). 임계: 완주 1/5/10/25 · 코스 2/3 · 클럽 1 · 연속 2주 · 응가 1/10 · 자랑 1 · 후기 1.
+export function deriveStamps(s: StampStats): StampInfo[] {
+  const cell = (
+    key: string, num: string, word: string, label: string, cond: string,
+    family: StampInfo['family'], rings: 1 | 2 | 3, angle: number,
+    have: number, need: number, unit: string | null,
+  ): StampInfo => ({
+    key, num, word, label, cond, family, rings, angle,
+    earned: have >= need,
+    coral: family === 'first',
+    // 진행 문구는 임계가 2 이상인 칸에서만 뜻이 있다 (1회짜리는 0/1을 그려봐야 조건문의 반복일 뿐)
+    prog: have >= need || need < 2 || unit === null ? null : `${have} / ${need} ${unit}`,
+  });
+  return [
+    cell('run1', '1', '완주', '첫 러닝', '완주 1회', 'first', 1, -11, s.runsDone, 1, null),
+    cell('run5', '5', '완주', '5회 완주', '완주 5회', 'ladder', 2, 7, s.runsDone, 5, '완주'),
+    cell('run10', '10', '완주', '10회 완주', '완주 10회', 'ladder', 2, -6, s.runsDone, 10, '완주'),
+    cell('run25', '25', '완주', '25회 완주', '완주 25회', 'top', 3, 9, s.runsDone, 25, '완주'),
+    cell('course2', '2', '코스', '코스 2개 개척', '코스 2개', 'ladder', 1, 6, s.courses, 2, '코스'),
+    // 코스 3개가 천장이다: 시드 활성 코스가 4개라 '전 코스 개척'은 코스가 늘면 풀리는 도장 = 금지
+    cell('course3', '3', '코스', '코스 3개 개척', '코스 3개', 'ladder', 2, -9, s.courses, 3, '코스'),
+    cell('club1', '1', '클럽', '첫 클럽 출석', '클럽 출석 1회', 'first', 1, 10, s.clubAttended, 1, null),
+    cell('streak2', '2', '연속', '연속 2주', '연속 2주', 'ladder', 1, -7, s.maxWeekStreak, 2, '주 연속'),
+    cell('poop1', '1', '응가', '응가 도장', '응가 러닝 1회', 'ladder', 1, 5, s.poopRuns, 1, null),
+    cell('poop10', '10', '응가', '응가 도장 ×10', '응가 러닝 10회', 'ladder', 2, -5, s.poopRuns, 10, '러닝'),
+    cell('share1', '1', '자랑', '첫 자랑', '피드 자랑 1회', 'first', 1, 8, s.shares, 1, null),
+    // 조건은 역할 중립 — reviews 카운트에 target_kind 필터가 없으므로 '러너 후기'는 거짓이 된다
+    cell('review1', '1', '후기', '첫 후기', '후기 1개', 'first', 1, -8, s.reviews, 1, null),
+  ];
+}
+
+// 이 러닝이 '방금 넘긴' 도장만 알린다 — 벽은 전부 보여주지만 세리머니는 새로 생긴 것만 말한다.
+// 앱 세션당 예약별 1회 (_patchPopSeen과 같은 인메모리 문법 — 과거 리포트 재방문 시 반복 축하 금지).
+// 두 게이트는 서로 독립이다: 각자 '실제로 내놓을 게 있을 때만' 소비하므로,
+// 같은 effect에서 Promise.all로 함께 불러도 재방문 동작이 결정적이다 (둘 다 조용해진다).
+const _stampPopSeen = new Set<string>();
+
+// 절대 알리지 않는 것: 첫 클럽 출석 · 첫 자랑 · 첫 후기 · 연속 2주.
+//   앞의 셋은 이 러닝이 아니라 다른 화면에서 벌어진 사건이고(런엔드가 주장하면 거짓말),
+//   연속 주는 '이 러닝이 넘겼다'를 이 자리에서 싸고 정직하게 귀속시킬 수 없다.
+//   그 침묵은 결함이 아니라 설계다 — 벽에는 어차피 다 찍혀 있다.
+export async function fetchStampPop(bookingId: string): Promise<StampInfo[]> {
+  if (_stampPopSeen.has(bookingId)) return [];
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) return [];
+  const uid = user.user.id;
+
+  // 내 완주 러닝 전체(최근 1000건) — fetchPatchPop의 '최신 완주' 가드와 같은 정신.
+  const { data, error } = await supabase
+    .from('bookings').select('id, route_id, runs!inner(end_reason)')
+    .eq('status', 'completed').eq('runs.end_reason', 'completed')
+    .or(`owner_id.eq.${uid},runner_id.eq.${uid}`)
+    .order('scheduled_at', { ascending: false }).limit(1000);
+  if (error || !data || data.length === 0) return [];
+  // 이 예약이 최신 완주가 아니면 과거 리포트를 다시 연 것 — 세리머니 없음.
+  // (조기 종료·미완주 예약은 애초에 이 목록에 없으므로 여기서 함께 걸러진다.)
+  if (data[0].id !== bookingId) return [];
+
+  const runsDone = data.length;
+  const routeId: string | null = (data[0] as any).route_id ?? null;
+
+  const [poopThis, poopAll, patches] = await Promise.all([
+    // 이 러닝이 응가 보너스를 벌었나 (ref_id = 예약 id, 리워드 ①에서 검증된 관계)
+    supabase.from('miles_ledger').select('id', { count: 'exact', head: true })
+      .eq('ref_id', bookingId).eq('profile_id', uid).eq('reason', 'poop_bonus'),
+    supabase.from('miles_ledger').select('id', { count: 'exact', head: true })
+      .eq('profile_id', uid).eq('reason', 'poop_bonus'),
+    // 코스 수는 벽과 같은 출처를 써야 한다 (활성 코스만 센다) — 실패하면 코스는 조용히 넘어간다
+    routeId ? fetchCoursePatches().catch(() => null) : Promise.resolve(null),
+  ]);
+
+  const stats: StampStats = {
+    runsDone,
+    courses: patches ? patches.earned.length : 0,
+    poopRuns: poopAll.count ?? 0,
+    // 아래 셋은 이 함수가 절대 알리지 않는 항목이라 여기서 조회하지 않는다.
+    // 이 값들은 함수 밖으로 나가지 않는다 (반환 배열엔 아래 keys에 든 칸만 실린다).
+    clubAttended: 0, maxWeekStreak: 0, shares: 0, reviews: 0,
+  };
+
+  const keys: string[] = [];
+  // 완주 사다리: 총수가 임계와 '정확히' 같을 때만 = 이 러닝이 그 칸을 넘긴 것
+  if (runsDone === 1) keys.push('run1');
+  else if (runsDone === 5) keys.push('run5');
+  else if (runsDone === 10) keys.push('run10');
+  else if (runsDone === 25) keys.push('run25');
+  // 코스: 이 예약의 코스 누적이 1이면 이번이 그 코스의 첫 완주 → 코스 수가 방금 늘었다
+  if (patches && routeId) {
+    const mineRoute = patches.earned.find((c) => c.routeId === routeId);
+    if (mineRoute && mineRoute.count === 1) {
+      const n = patches.earned.length;
+      if (n === 2) keys.push('course2');
+      if (n === 3) keys.push('course3');
+    }
+  }
+  // 응가: 이 러닝이 실제로 보너스를 벌었을 때만. 총수가 임계여도 이 러닝의 공이 아니면 침묵.
+  // (조회 실패 시 count는 null → 0 → 침묵. 벽에는 그대로 찍혀 있으니 잃는 건 축하뿐이다.)
+  if ((poopThis.count ?? 0) > 0) {
+    const p = poopAll.count ?? 0;
+    if (p === 1) keys.push('poop1');
+    if (p === 10) keys.push('poop10');
+  }
+  if (keys.length === 0) return [];
+
+  const out = deriveStamps(stats).filter((x) => keys.includes(x.key)); // 인쇄 순서 유지
+  _stampPopSeen.add(bookingId); // 내놓을 게 있을 때만 소비 (fetchPatchPop과 같은 규칙)
+  return out;
+}
+
 export const runnerEnroute = (id: string) => invokeTransition(id, 'enroute');
 
 // ---------- profile (identity layer) ----------

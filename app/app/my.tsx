@@ -1,13 +1,13 @@
 import { useDisplayFont } from '../src/lib/displayFont';
 import { useNumFont } from '../src/lib/fonts';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
-import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Alert, Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, TextStyle, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { useAuth } from '../src/auth-context';
 import { BottomNav } from '../src/components/bottomnav';
 import { Avatar, Row } from '../src/components/ui';
-import { fetchFitness, fetchMyRunnerStatus } from '../src/lib/api';
+import { deriveStamps, fetchFitness, fetchMyRunnerStatus, fetchStampStats, StampInfo, StampStats } from '../src/lib/api';
 import { fetchMyProfile, fetchMyRunnerBio, MyProfile, updateMyProfile, updateRunnerBio, uploadAvatar } from '../src/lib/api';
 import { dog, session } from '../src/store';
 import { colors, lilac, lilacRadius, lilacShadow } from '../src/theme';
@@ -33,6 +33,53 @@ function HoloEdge({ height = 3, opacity = 1 }: { height?: number; opacity?: numb
   );
 }
 
+// ══════════ ③ 도장면 프리미티브 (리워드 ② · 랩 Ⓐ①) ══════════
+// 잉크 법(랩에서 확정): 바이올렛 #4A3DA8이 유일한 도장 잉크 · 코랄은 첫-가족의 '엣지+도트'로만 등장
+// (마이의 원래 법 — 코랄은 텍스트로 쓰지 않는다) · 골드는 영수증 소인 전용 · 새 포일 0(홀로 엣지 2개가 예산 전부).
+// 사다리는 색조가 아니라 링 개수로 오른다: 1 = 첫 등급 · 2 = 마일스톤 · 3 = 사다리 꼭대기.
+const INK = '#4A3DA8';                       // 읽는 바이올렛 (흰 카드 위 8.32:1) — report.tsx READ_VIOLET과 같은 값
+const INK_FILL = 'rgba(108,92,231,0.05)';    // accent 5% — 종이에 잉크가 스민 자국
+
+// 도장 그리드 폭 예산 (owner/home STAMP_CELL 선례 문법 — 칸은 기기 폭에서 파생된다)
+//   스크롤 패딩 16*2 → W-32 · 카드 보더 1*2 → W-34 · 내부 마진 9*2 → W-52 · 내부 보더 1*2 → W-54
+//   내부 패딩 11*2 → W-76 = 그리드 폭. 3열, 열 간격 10, 딱 맞음 방지로 1dp 여유를 뺀다.
+//   320dp: 그리드 244 → 칸 74 · 디스크 min(76,68)=68 → 3*74+2*10 = 242 ≤ 244 ✓
+//   360dp: 그리드 284 → 칸 87 · 디스크 76(상한) → 281 ≤ 284 ✓
+//   390dp: 그리드 314 → 칸 97 · 디스크 76 → 랩 실측(97px 칸)과 동일 ✓
+// 디스크가 줄어도 안의 활자는 14pt 플로어 아래로 내려가지 않는다 (68 안에 27+1+17 = 45 ≤ 64 여유).
+const STAMP_GRID_W = Dimensions.get('window').width - 76;
+const STAMP_GAP = 10;
+const STAMP_CELL_W = Math.floor((STAMP_GRID_W - STAMP_GAP * 2 - 1) / 3);
+const DISC = Math.min(76, STAMP_CELL_W - 6);
+
+// 도장 한 칸. 도장은 v1에서 눌리지 않는다 — 상세 화면이 없고, 목적지 없는 탭은 죽은 버튼이다.
+// 기울기는 deriveStamps가 주는 고정 각도(info.angle)를 그대로 쓴다 — 화면이 따로 계산하면
+// 마이 · 부속서 · 세리머니에서 같은 도장이 다르게 기운다 (랩 정직 노트 ④).
+function StampCell({ info, nf }: { info: StampInfo; nf: TextStyle | null }) {
+  const on = info.earned;
+  return (
+    <View style={s.scell}>
+      <View
+        style={[
+          s.disc,
+          on ? (info.coral ? s.discCoral : s.discOn) : s.discOff,
+          on && { transform: [{ rotate: `${info.angle}deg` }] },
+        ]}
+      >
+        {on && info.rings >= 2 && <View style={[s.ring2, info.rings >= 3 && s.ring2Top, info.coral && s.ring2Coral]} />}
+        {on && info.rings >= 3 && <View style={s.ring3} />}
+        {on && info.coral && <View style={s.dot1} />}
+        <Text style={[s.discN, nf, !on && s.discInkOff]}>{info.num}</Text>
+        <Text style={[s.discW, !on && s.discInkOff]}>{info.word}</Text>
+      </View>
+      {/* 받은 칸은 이름을, 빈 칸은 실진행(있으면)을, 진행이 뜻없는 1회짜리는 조건을 말한다 */}
+      <Text style={[s.scellCond, on && s.scellCondOn]} numberOfLines={2}>
+        {on ? info.label : (info.prog ?? info.cond)}
+      </Text>
+    </View>
+  );
+}
+
 export default function My() {
   const df = useDisplayFont(); // 디스플레이 서체 — 화면 타이틀 (화면당 1회)
   const nf = useNumFont();     // [V4] Oswald — 숫자·마이크로캡 라벨
@@ -52,6 +99,10 @@ export default function My() {
       })).catch(() => {});
     }
   }, [isRunner]);
+  // ③ 도장면 — 파생 실데이터. null = 아직 안 왔거나 실패 = 섹션 통째로 침묵 (로딩은 0이 아니다).
+  const [stampStats, setStampStats] = useState<StampStats | null>(null);
+  const stamps = useMemo(() => (stampStats ? deriveStamps(stampStats) : null), [stampStats]);
+  const stampsEarned = stamps ? stamps.filter((x) => x.earned).length : 0;
   const { session: auth, signOut } = useAuth();
   const [profile, setProfile] = useState<MyProfile | null>(null);
   const [editing, setEditing] = useState(false);
@@ -65,6 +116,9 @@ export default function My() {
   useFocusEffect(useCallback(() => {
     fetchMyProfile().then(setProfile).catch((e) => console.warn('[my] profile:', e?.message ?? e));
     if (isRunner) fetchMyRunnerBio().then(setSavedBio).catch(() => {});
+    // 도장은 다른 화면(리포트·클럽·피드)에서 찍히고 돌아온다 → 포커스마다 다시 센다.
+    // 실패는 실패로: 이전 실값이 있으면 그대로 두고, 없으면 섹션이 나타나지 않는다 (0/12를 그리지 않는다).
+    fetchStampStats().then(setStampStats).catch((e) => console.warn('[my] stamps:', e?.message ?? e));
   }, [isRunner]));
 
   const openEdit = () => {
@@ -149,7 +203,8 @@ export default function My() {
           <Text style={[s.h1, df]}>마이</Text>
           <View style={s.official}><Text style={[s.officialTxt, nf]}>PASSPORT</Text></View>
         </Row>
-        <Text style={s.subNote}>이 화면은 내 여권이에요 — 신분면 · 기록면 · 서류가 한 권에 있어요</Text>
+        {/* 목차 문장은 실제로 그려지는 면만 부른다 — 도장면이 침묵 중이면 목차에서도 빠진다 */}
+        <Text style={s.subNote}>이 화면은 내 여권이에요 — 신분면 · 기록면 · {stamps ? '도장면 · ' : ''}서류가 한 권에 있어요</Text>
 
         {/* ————— ① 신분면 — 이중 프레임 + MRZ ————— */}
         <View style={s.idcard}>
@@ -242,8 +297,9 @@ export default function My() {
             </Row>
             <Row>
               {[
-                { v: (rec?.km ?? 0).toFixed(1), u: ' km', l: isRunner ? '총 거리' : '이번 주 거리', div: false },
-                { v: `${rec?.runs ?? 0}`, u: ' 회', l: isRunner ? '총 횟수' : '이번 주 횟수', div: true },
+                // 로딩은 0이 아니다 — rec가 오기 전엔 세 칸 모두 '—' (단위도 함께 접어 대시에 매달리지 않게)
+                { v: rec ? rec.km.toFixed(1) : '—', u: rec ? ' km' : '', l: isRunner ? '총 거리' : '이번 주 거리', div: false },
+                { v: rec ? `${rec.runs}` : '—', u: rec ? ' 회' : '', l: isRunner ? '총 횟수' : '이번 주 횟수', div: true },
                 { v: rec?.pace ?? '—', u: '', l: isRunner ? '평균 페이스' : '주간 페이스', div: true },
               ].map((c) => (
                 <View key={c.l} style={[{ flex: 1 }, c.div && s.recDiv]}>
@@ -259,6 +315,47 @@ export default function My() {
             </View>
           </View>
         </Pressable>
+
+        {/* ————— ③ 도장면 — 비자 페이지 (리워드 ② · 랩 Ⓐ①) —————
+            정적면이다: 애니메이션 0. 세리머니는 리포트(런엔드)가 진다 — 벽은 조용한 문서다.
+            파생이 도착하기 전에는 섹션 자체가 없다 (로딩은 0이 아니다 → '0 / 12'를 그리지 않는다). */}
+        {stamps && (
+          <>
+            <Row style={s.sec}>
+              <Text style={[s.secNo, nf]}>§</Text>
+              <Text style={[s.secT, nf]}>STAMPS</Text>
+              <Text style={s.secKo}>도장</Text>
+              <View style={s.rule} />
+            </Row>
+            <View style={s.visa}>
+              <View style={s.visaInner}>
+                <Row style={s.visaStrap}>
+                  <Text style={[s.microK, nf]}>STAMPS / 도장면</Text>
+                  <View style={s.visaCnt}>
+                    <Text style={[s.visaCntTxt, nf]}>{stampsEarned} / {stamps.length}</Text>
+                  </View>
+                </Row>
+                {/* 0개 상태 — 정직하되 나무라지 않는다: 재촉 카피도, 경고색 카운트도 없다 */}
+                {stampsEarned === 0 && (
+                  <View style={s.empt}>
+                    <Text style={s.emptT}>도장면은 비어 있는 채로 시작해요</Text>
+                    {/* 영속성 카피 주의 — '영구' 류 약속은 거짓이 될 수 있다: 자랑 글 삭제·코스 비활성이 실제 감소 벡터 (api.ts 계약 주석) */}
+                    <Text style={s.emptD}>첫 러닝을 완주하면 왼쪽 위 칸부터 찍혀요. 기록이 남아 있는 한 도장은 그대로예요.</Text>
+                  </View>
+                )}
+                {/* 인쇄 순서는 고정 — 하나 받았다고 칸이 재배열되는 종이는 없다 (deriveStamps가 순서를 진다) */}
+                <View style={s.sgrid}>
+                  {stamps.map((st) => <StampCell key={st.key} info={st} nf={nf} />)}
+                </View>
+              </View>
+              <View style={s.perf} />
+              <Pressable style={s.visaFoot} onPress={() => router.push('/cards')}>
+                <Text style={s.visaFootL} numberOfLines={2}>코스 패치도 같은 수집함에 있어요</Text>
+                <Text style={s.visaFootG}>전체 보기 ›</Text>
+              </Pressable>
+            </View>
+          </>
+        )}
 
         {/* ————— ④ 서류행 — 헤어라인 문서 목록 (MENU 동결) ————— */}
         <Row style={s.sec}>
@@ -445,6 +542,44 @@ const s = StyleSheet.create({
   secNo: { fontSize: 12, color: lilac.accent, fontWeight: '600' }, // 글리프 전용(§) — 12pt 플로어 면제
   secT: { fontSize: 12, letterSpacing: 2, color: lilac.dim, textTransform: 'uppercase' },
   secKo: { fontSize: 14, fontWeight: '700', color: lilac.text },
+
+  // ③ 도장면 — 비자 페이지 카드 (포일 0 · 잉크와 틴트만)
+  visa: {
+    backgroundColor: lilac.card, borderWidth: 1, borderColor: lilac.hair,
+    borderRadius: lilacRadius.card, overflow: 'hidden', ...lilacShadow,
+  },
+  visaInner: { margin: 9, borderWidth: 1, borderColor: lilac.hair2, borderRadius: lilacRadius.inner, padding: 11 },
+  visaStrap: { justifyContent: 'space-between', alignItems: 'center', marginBottom: 11 },
+  visaCnt: {
+    borderWidth: 1, borderColor: '#DCD6F8', backgroundColor: '#F4F1FE',
+    borderRadius: lilacRadius.tag, paddingVertical: 3, paddingHorizontal: 9,
+  },
+  visaCntTxt: { fontSize: 14, lineHeight: 18, letterSpacing: 0.8, color: INK, fontWeight: '600' }, // Oswald — lineHeight 1.29× (BUG A)
+  perf: { marginHorizontal: 9, borderTopWidth: 1, borderStyle: 'dashed', borderTopColor: lilac.hair }, // 절취선
+  visaFoot: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingVertical: 10, paddingHorizontal: 11 },
+  visaFootL: { flex: 1, fontSize: 14, lineHeight: 18, color: lilac.dim },
+  visaFootG: { fontSize: 14, fontWeight: '800', color: INK },
+  empt: { backgroundColor: lilac.inset, borderWidth: 1, borderColor: lilac.hair, borderRadius: lilacRadius.inner, padding: 11, marginBottom: 11 },
+  emptT: { fontSize: 14, lineHeight: 20, fontWeight: '700', color: lilac.head },
+  emptD: { fontSize: 14, lineHeight: 20, color: lilac.text, marginTop: 3 },
+
+  // 도장 — 디스크·링·칸 (기하는 DISC 상수에서 파생, 상수 정의부의 폭 예산 주석 참조)
+  sgrid: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', columnGap: STAMP_GAP, rowGap: 12 },
+  scell: { width: STAMP_CELL_W, minHeight: DISC + 46, alignItems: 'center' },
+  disc: { width: DISC, height: DISC, borderRadius: DISC / 2, alignItems: 'center', justifyContent: 'center' },
+  discOn: { borderWidth: 2, borderColor: INK, backgroundColor: INK_FILL },
+  discCoral: { borderWidth: 2, borderColor: lilac.coralDeep, backgroundColor: INK_FILL }, // 첫-가족 — 코랄은 엣지로만
+  discOff: { borderWidth: 1.5, borderStyle: 'dashed', borderColor: lilac.hair },
+  ring2: { position: 'absolute', top: 4, left: 4, right: 4, bottom: 4, borderRadius: (DISC - 8) / 2, borderWidth: 1.5, borderColor: INK, opacity: 0.85 },
+  ring2Top: { opacity: 0.9 },
+  ring2Coral: { borderColor: lilac.coralDeep, opacity: 0.34 },
+  ring3: { position: 'absolute', top: -5, left: -5, right: -5, bottom: -5, borderRadius: (DISC + 10) / 2, borderWidth: 1.5, borderColor: INK, opacity: 0.55 },
+  dot1: { position: 'absolute', top: -3.5, left: (DISC - 7) / 2, width: 7, height: 7, borderRadius: 3.5, backgroundColor: lilac.coralDeep },
+  discN: { fontSize: 22, lineHeight: 27, fontWeight: '800', color: INK }, // Oswald — lineHeight 1.23× (BUG A)
+  discW: { fontSize: 14, lineHeight: 17, fontWeight: '800', color: INK, marginTop: 1 },
+  discInkOff: { color: lilac.dim }, // 미획득 잉크 — 랩의 #A9A3C8(2.40:1)은 Sean의 dim 상향 결정과 충돌해 lilac.dim(4.24:1)으로 올림
+  scellCond: { fontSize: 14, lineHeight: 18, fontWeight: '600', color: lilac.dim, marginTop: 6, textAlign: 'center' },
+  scellCondOn: { fontWeight: '700', color: lilac.head },
 
   // ④ 서류행
   doc: { backgroundColor: lilac.card, borderWidth: 1, borderColor: lilac.hair, borderRadius: lilacRadius.card, overflow: 'hidden', ...lilacShadow },
