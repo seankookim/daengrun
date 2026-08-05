@@ -291,13 +291,9 @@ export const runnerGearLadder: GearStep[] = [
   { at: 1000, item: '마스터 재킷 (자수 네임)', claimable: false },
 ];
 
-// 보호자: 펫 브랜드 콜라보 사다리 (반려견 누적 km — 초코 86.2km)
-export const ownerGearLadder: GearStep[] = [
-  { at: 25, item: '도그스하이 × 바잇미 반다나', got: true },
-  { at: 75, item: '도그스하이 × 페스룸 간식 세트', claimable: true },
-  { at: 150, item: '도그스하이 × 페티즌 LED 목걸이' },
-  { at: 300, item: '콜라보 쿨링 조끼 (한정)' },
-];
+// 보호자 콜라보 사다리(ownerGearLadder) 은퇴 (2026-08-05) — 유일한 소비처였던 오너 홈의
+// 마일스톤 시트가 도달 불가(죽은 비컨 안에 오프너)였고, 누적 86.2km 하드코딩 위에 선 목업이었다.
+// 보호자 진도는 이제 실데이터(하이 포인트 잔액 + 코스 패치)가 홈 비컨에서 담당한다.
 
 // ---------- Runner certification funnel status ----------
 export const applyStatus = {
@@ -427,7 +423,8 @@ export interface Noti {
   meta?: string;
   when: string;
   unread?: boolean;
-  badge?: string; // e.g. '+120P'
+  // badge 필드 은퇴 (2026-08-05) — 유일한 세터가 제거된 n7('+120P')이었고, 'P' 표기는
+  // 앱 어휘('하이 포인트')와 어긋나는 세 번째 명명이었다.
   thumb?: 'runner' | 'map' | 'photo' | 'product';
 }
 
@@ -456,10 +453,8 @@ export const notifications: Noti[] = [
     id: 'n6', glyph: '배', glyphBg: '#e7efd8', glyphFg: '#3d5a2b', thumb: 'product',
     title: '샵 주문 배송 시작', body: '주문하신 상품이 배송을 시작했어요.', when: '어제 14:08',
   },
-  {
-    id: 'n7', glyph: 'P', glyphBg: '#fbf0d4', glyphFg: '#a97c12', badge: '+120P',
-    title: '멤버십 포인트 적립', body: '러닝 완료 보너스로 120P가 적립되었어요.', when: '어제 11:24',
-  },
+  // n7 '멤버십 포인트 적립 · +120P' 제거 (2026-08-05) — 하이 포인트/포인트에 이은 세 번째 명명
+  // 어휘였고, 이 배열은 소비처가 0이다 (알림 화면은 fetchNotifications 실데이터만 읽는다).
   {
     id: 'n8', glyph: '!', glyphBg: '#fdeee3', glyphFg: '#d8752f',
     title: '안전 알림', body: '미세먼지 농도가 높아요. 짧은 러닝을 추천해요.', when: '어제 07:30',

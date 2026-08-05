@@ -4,18 +4,22 @@ import { Alert, Animated, Dimensions, Image, Pressable, ScrollView, Share, Style
 import { PatchBadge } from '../../src/components/patch';
 import { HeatTrace } from '../../src/components/runcard';
 import { Monogram, Row, Skeleton } from '../../src/components/ui';
-import { CoursePatch, fetchPatchPop, fetchRunReport, fetchRunStandings, RunReport, RunStandings, shareRunToFeed } from '../../src/lib/api';
+import { CoursePatch, fetchPatchPop, fetchRunEarning, fetchRunReport, fetchRunStandings, RunEarning, RunReport, RunStandings, shareRunToFeed } from '../../src/lib/api';
 import { haptic } from '../../src/lib/haptics';
 import { useDisplayFont } from '../../src/lib/displayFont';
+import { useNumFont } from '../../src/lib/fonts';
 import { getNaverMap, smoothTrace } from '../../src/lib/geo';
 import { draft, TracePoint } from '../../src/store';
-import { colors } from '../../src/theme';
+import { colors, lilac } from '../../src/theme';
 
 // 러닝 리포트 — 러닝 하나의 '프로필 페이지'. 풀블리드 · 공유 가능 · 사진 · 개인 기록 배지.
 // 진입: 알림 · 내 일정 완료 카드 · 체력 리포트 최근 러닝. 공유가 곧 마케팅 (자랑 = 전파).
 
 const FOREST = '#0F1D13';
 const FOREST_INNER = '#1d3023';
+// 읽는 바이올렛 (colors.clubInk와 같은 값 — '텍스트용 2단' 문법). 적립 스트립 키커 전용.
+// lilac.bg(#F4F2FB) 위 실측 대비: accent #6C5CE7 = 4.38:1 (AA 미달) · #4A3DA8 = 7.50:1 (통과).
+const READ_VIOLET = '#4A3DA8';
 const W = Dimensions.get('window').width;
 const TILE = (W - 4) / 3;
 
@@ -68,16 +72,25 @@ function badges(st: RunStandings | null): string[] {
 
 export default function Report() {
   const df = useDisplayFont(); // 피니셔 증서 서체 — 타이틀·완주 도장 (숫자 금지)
+  const nf = useNumFont();     // Oswald 숫자 — 적립 합계 (lineHeight 명시 필수, BUG A)
   const { bid, shot } = useLocalSearchParams<{ bid: string; shot?: string }>();
   const [report, setReport] = useState<RunReport | null>(null);
   const [standings, setStandings] = useState<RunStandings | null>(null);
   const [err, setErr] = useState<string | null>(null);
   // 패치 획득/승급 팝 — 이 러닝이 임계를 넘긴 순간에만 1회 (수집의 획득 모먼트)
   const [patchPop, setPatchPop] = useState<CoursePatch | null>(null);
+  // 리워드 ① — 이 러닝의 하이 포인트 적립. loaded 플래그가 따로 있는 이유: null 은 '적립 없음'
+  // (조기 종료·정산 전)이라는 사실이고, 미도착은 '아직 모름'이다. 둘 다 0을 그리지 않는다.
+  const [earning, setEarning] = useState<RunEarning | null>(null);
+  const [earningLoaded, setEarningLoaded] = useState(false);
   useEffect(() => {
     if (!bid) { setErr('예약 정보가 없어요'); return; }
     fetchRunReport(bid).then(setReport).catch((e) => setErr(e?.message ?? '불러오기 실패'));
     fetchRunStandings(bid).then(setStandings).catch(() => {});
+    // 실패 시 loaded 를 세우지 않는다 — 섹션은 조용히 없는 채로 남는다 (거짓 0 금지)
+    setEarning(null);
+    setEarningLoaded(false);
+    fetchRunEarning(bid).then((e) => { setEarning(e); setEarningLoaded(true); }).catch(() => {});
   }, [bid]);
   useEffect(() => {
     if (!bid || !report?.routeId || report.run?.endReason !== 'completed') return;
@@ -244,6 +257,29 @@ export default function Report() {
                 </View>
               );
             })()}
+
+            {/* ---------- 하이 포인트 적립 (리워드 ①) — 이 러닝이 벌어들인 것 ----------
+                영수증이지 팡파레가 아니다: 애니메이션 없음 (축하는 패치 팝 하나뿐).
+                원장 행이 0이면 fetchRunEarning 이 null 을 주고 섹션 자체가 사라진다 —
+                조기 종료 러닝은 서버가 한 줄도 안 쓰므로 '적립 0원'이 아니라 '없는 이야기'다.
+                endReason 게이트는 서버 게이트(v_is_full)의 클라 거울. */}
+            {earningLoaded && earning && run.endReason === 'completed' && (
+              <View style={s.earnSection}>
+                <Text style={s.earnKicker}>하이 포인트 적립</Text>
+                <Row style={{ alignItems: 'baseline', marginTop: 4 }}>
+                  <Text style={[s.earnTotal, nf]}>{earning.total > 0 ? '+' : ''}{earning.total.toLocaleString()}</Text>
+                  <Text style={s.earnUnit}> 포인트</Text>
+                </Row>
+                <View style={{ marginTop: 10 }}>
+                  {earning.lines.map((l, i) => (
+                    <Row key={`${l.reason}-${i}`} style={{ justifyContent: 'space-between', marginTop: i === 0 ? 0 : 5 }}>
+                      <Text style={s.earnLabel}>{l.label}</Text>
+                      <Text style={s.earnDelta}>{l.delta > 0 ? '+' : ''}{l.delta.toLocaleString()}</Text>
+                    </Row>
+                  ))}
+                </View>
+              </View>
+            )}
 
             {/* ---------- 러닝 순간 스탬프 (응가 도장 등) ---------- */}
             {run.events.length > 0 && (
@@ -496,6 +532,20 @@ const s = StyleSheet.create({
   barFill: { height: 8, borderRadius: 99, backgroundColor: colors.volt },
   certPill: { backgroundColor: '#e3f0c4', borderRadius: 99, paddingVertical: 4, paddingHorizontal: 9, alignSelf: 'center' },
   stampChip: { backgroundColor: '#eef4e0', borderRadius: 99, paddingVertical: 7, paddingHorizontal: 13 },
+  // ---------- 리워드 ① 적립 스트립 — 조용한 라일락 영수증 (섹션 리듬은 s.section과 동일) ----------
+  earnSection: {
+    backgroundColor: lilac.bg, paddingHorizontal: 12, paddingVertical: 16,
+    borderBottomWidth: 1, borderBottomColor: lilac.hair,
+  },
+  // 한글 키커 — 라틴 대문자 예외가 아니므로 플로어 14를 그대로 지킨다.
+  // 색은 accent(#6C5CE7)가 아니라 READ_VIOLET: lilac.bg 위에서 accent는 4.38:1로 AA를 못 넘는다
+  earnKicker: { fontSize: 14, lineHeight: 18, fontWeight: '800', letterSpacing: 1.2, color: READ_VIOLET },
+  // [BUG A] Oswald 숫자는 lineHeight 명시 없이는 어센더가 잘린다 — 34 × 1.2 = 41
+  earnTotal: { fontSize: 34, lineHeight: 41, fontWeight: '900', color: lilac.head },
+  // 단위는 lilac.dim(#7C76A0)이 아니라 text — dim은 lilac.bg 위에서 3.82:1로 AA 미달
+  earnUnit: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: lilac.text },
+  earnLabel: { fontSize: 14, lineHeight: 19, color: lilac.text },
+  earnDelta: { fontSize: 14, lineHeight: 19, fontWeight: '800', color: lilac.head },
   photoSlot: { width: TILE, height: TILE * 0.6, backgroundColor: '#f4f2ea', alignItems: 'center', justifyContent: 'center' },
   emptyBox: { margin: 20, backgroundColor: '#f4f2ea', borderRadius: 18, padding: 26, alignItems: 'center' },
   emptyText: { fontSize: 15, color: colors.dim, textAlign: 'center', lineHeight: 22 },

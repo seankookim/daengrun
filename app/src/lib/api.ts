@@ -765,6 +765,9 @@ export async function fetchCoursePatches(): Promise<{ earned: CoursePatch[]; loc
     supabase.from('routes').select('id, name, km').eq('active', true),
   ]);
   if (bkRes.error) throw bkRes.error;
+  // routes 실패도 실패로 — 조용히 넘기면 earned/locked가 통째로 빈 배열이 되고,
+  // 이 함수를 읽는 홈 비컨(fetchRewardBeacon)이 '다음 목표 없음'을 거짓으로 그린다.
+  if (rtRes.error) throw rtRes.error;
   const counts: Record<string, { n: number; first: string }> = {};
   (bkRes.data ?? []).forEach((b: any) => {
     const c = (counts[b.route_id] ??= { n: 0, first: b.scheduled_at });
@@ -2388,6 +2391,69 @@ export async function fetchMiles(): Promise<MilesInfo> {
       const { dateLabel } = kstParts(r.created_at);
       return { delta: r.delta, reason: MILE_REASON[r.reason] ?? r.reason, when: dateLabel };
     }),
+  };
+}
+
+// ---------- 러닝 1건의 적립 (리워드 ① — 버는 순간을 보이게) ----------
+// 정산(settle_run_tx/0028)이 이 예약에 쓰는 인센티브 행:
+//   run_complete +50 (양측) · poop_bonus +30 (양측) · patch_gold +200 · patch_master +500.
+// [주의] ref_id는 다형(polymorphic) 컬럼이다 — open-drop 엣지 함수는 reason 'drop'/'pick_drop'을
+// ref_id = drop_id 로 쓴다. booking id 와 drop id 가 부딪힐 확률은 uuid-v4라 무시할 수준이지만,
+// '이 러닝이 번 것'이라는 뜻을 쿼리에 명시하려고 정산 reason 화이트리스트로 좁힌다.
+// RLS "miles self read"(0002)가 profile_id = auth.uid()로 이미 행을 좁히지만, 0027 독트린대로
+// where 절에도 uid를 건다 (이중 안전장치 — RLS가 진짜 방어선이고 이건 그 위의 한 겹).
+// 0행 = 아직 정산 전이거나 조기 종료(v_is_full 게이트가 한 줄도 안 쓴다) → null 을 돌려
+// 화면이 섹션 자체를 그리지 않게 한다 (없는 적립을 0으로 그리는 건 거짓말).
+export interface RunEarning { total: number; lines: { reason: string; label: string; delta: number }[] }
+
+const SETTLE_REASONS = ['run_complete', 'poop_bonus', 'patch_gold', 'patch_master'];
+
+export async function fetchRunEarning(bookingId: string): Promise<RunEarning | null> {
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) return null; // 로그인 없음 = 그릴 적립도 없음 (fetchCoursePatches와 같은 문법)
+  const { data, error } = await supabase
+    .from('miles_ledger')
+    .select('delta, reason')
+    .eq('ref_id', bookingId)
+    .eq('profile_id', user.user.id)
+    .in('reason', SETTLE_REASONS)
+    .order('id');
+  if (error) throw error; // 실패는 실패로 — 호출부는 catch해서 '못 불러옴'(미표시)으로 둔다, 0이 아니다
+  const rows = data ?? [];
+  if (rows.length === 0) return null;
+  const lines = rows.map((r: any) => ({
+    reason: String(r.reason),
+    label: MILE_REASON[r.reason] ?? String(r.reason),
+    delta: Number(r.delta),
+  }));
+  return { total: lines.reduce((sum, l) => sum + l.delta, 0), lines };
+}
+
+// ---------- 홈 비컨 (리워드 ① — 실잔액 + 다음 패치까지) ----------
+// 실데이터만: 잔액은 서버 집계(0027), 다음 목표는 내 최다 완주 코스의 사다리(5/10/25) 잔여.
+// claimable 같은 '받을 게 있다' 류의 거짓 신호는 금지 — 여기선 아예 만들지 않는다.
+export interface BeaconInfo { balance: number; next: { name: string; count: number; toNext: number } | null }
+
+export async function fetchRewardBeacon(): Promise<BeaconInfo> {
+  const [bal, patches] = await Promise.all([
+    supabase.rpc('my_miles_balance'),
+    fetchCoursePatches(),
+  ]);
+  if (bal.error) throw bal.error;
+  // [director] '다음 패치까지'의 정직한 해석 = 가장 가까운 승급 (최다 완주 코스가 아니라).
+  // count 4(실버까지 1회)가 count 11(마스터까지 14회)을 이긴다 — 카피와 선택 기준이 일치해야 한다.
+  // 동률이면 count 높은 쪽 (더 진행된 코스). 마스터(25) 도달 코스는 다음 목표가 없으므로 제외.
+  const candidates = patches.earned
+    .map((c) => {
+      const tier = [5, 10, 25].find((t) => t > c.count);
+      return tier === undefined ? null : { name: c.name, count: c.count, toNext: tier - c.count };
+    })
+    .filter((c): c is { name: string; count: number; toNext: number } => c !== null)
+    .sort((a, b) => a.toNext - b.toNext || b.count - a.count);
+  return {
+    balance: Number(bal.data ?? 0),
+    // 전 코스 마스터 또는 완주 코스 없음 → 다음 목표 없음 (지어내지 않는다)
+    next: candidates[0] ?? null,
   };
 }
 

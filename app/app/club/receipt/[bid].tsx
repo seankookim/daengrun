@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Animated, Easing, Image, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { Row } from '../../../src/components/ui';
 import { ClubCta, ClubMast, DawnCanvas, Flap } from '../../../src/components/club-ui';
-import { fetchRunReport, runPhotoAllowed, RunReport, sealStampFresh, shareRunToFeed } from '../../../src/lib/api';
+import { fetchRunEarning, fetchRunReport, RunEarning, runPhotoAllowed, RunReport, sealStampFresh, shareRunToFeed } from '../../../src/lib/api';
 import { useDisplayFont } from '../../../src/lib/displayFont';
 import { useNumFont } from '../../../src/lib/fonts';
 import { haptic } from '../../../src/lib/haptics';
@@ -15,6 +15,12 @@ import { lilac, lilacRadius, lilacShadow } from '../../../src/theme';
 // 스톡/플레이스홀더 이미지는 없다 (사진은 콘텐츠, 월페이퍼 금지). 공유 카드 = 성장 루프.
 
 const L = lilac;
+
+// 티켓 폭(320dp)에 드는 적립 사유 축약 — 표시 전용이고, 그리는 행은 전부 실원장 행이다.
+// 모르는 reason 은 api.ts MILE_REASON 정식 라벨로 폴백한다 (없는 사유를 지어내지 않는다).
+const EARN_SHORT: Record<string, string> = {
+  run_complete: '완주', poop_bonus: '응가', patch_gold: '골드 패치', patch_master: '코스 마스터',
+};
 
 const durStr = (sec: number): string =>
   `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, '0')}`;
@@ -28,11 +34,23 @@ export default function ClubReceipt() {
   const [report, setReport] = useState<RunReport | null>(null);
   const [busy, setBusy] = useState(false);
   const cardRef = useRef<View>(null);
+  // 리워드 ① — 이 러닝의 하이 포인트 적립. loaded 는 '도착했다'는 사실이고 null 은 '적립 행이 없다'는
+  // 사실이다 (조기 종료 러닝엔 서버가 한 줄도 안 쓴다). 둘 다 0을 그리지 않는다.
+  const [earning, setEarning] = useState<RunEarning | null>(null);
+  const [earningLoaded, setEarningLoaded] = useState(false);
 
   const load = useCallback(() => {
     if (bid) fetchRunReport(bid).then(setReport).catch(() => {});
   }, [bid]);
   useFocusEffect(useCallback(() => { load(); }, [load]));
+  useEffect(() => {
+    if (!bid) return;
+    // 정산 원장은 불변이라 포커스마다 다시 읽지 않는다. 실패하면 loaded 를 세우지 않는다 —
+    // 카드 안엔 스켈레톤·스피너를 두지 않는 게 법이라(공유 캡처), 이 줄은 그냥 없는 채로 남는다.
+    setEarning(null);
+    setEarningLoaded(false);
+    fetchRunEarning(bid).then((e) => { setEarning(e); setEarningLoaded(true); }).catch(() => {});
+  }, [bid]);
 
   // ---------- ② 실 스탬프 (정본: docs/labs/choreography-lab.html ②) ----------
   // 이 예약의 첫 진입에서만 도장이 내려온다. 재진입(포커스 재로드 포함)은 전부 정지값 — opacity 1 · scale 1 · -8deg.
@@ -197,6 +215,22 @@ export default function ClubReceipt() {
                   <Text style={s.numL}>시간</Text>
                 </View>
               </Row>
+              {/* 하이 포인트 적립 (리워드 ①) — 원장 행이 있을 때만 그린다. 조기 종료·정산 전이면
+                  fetchRunEarning 이 null 이라 이 줄 자체가 없다. 카드 안이라 스켈레톤·스피너 금지:
+                  적립이 도착하기 전에 공유하면 PNG 에도 이 줄이 없는 게 정직하다 (공유 게이트는 그대로). */}
+              {earningLoaded && earning && (
+                <View style={s.earnLine}>
+                  <Row style={{ justifyContent: 'space-between' }}>
+                    <Text style={s.earnLead}>하이 포인트</Text>
+                    <Text style={[s.earnV, nf]}>{earning.total > 0 ? '+' : ''}{earning.total.toLocaleString()}</Text>
+                  </Row>
+                  <Text style={s.earnSub} numberOfLines={2}>
+                    {earning.lines
+                      .map((l) => `${EARN_SHORT[l.reason] ?? l.label} ${l.delta > 0 ? '+' : ''}${l.delta.toLocaleString()}`)
+                      .join(' · ')}
+                  </Text>
+                </View>
+              )}
               {/* 크레딧 라인 — 항상 (사진법 6조). [FLOOR14] 클럽·코스 이름(한글)은 트래킹 라틴 마이크로에서
                   분리해 읽는 크기로 세우고, 'DOGS HIGH'만 각인 세리얼로 남는다 */}
               <Text style={s.creditName}>{clubName || report.routeName || 'HIGH CLUB'}</Text>
@@ -247,6 +281,12 @@ const s = StyleSheet.create({
   numV: { fontSize: 18, fontWeight: '600', color: L.head, fontVariant: ['tabular-nums'] },
   // [FLOOR14] 수치 라벨은 한글 정보다 — 320dp 셀 가용폭 ~89px 에서 '실측 거리'(≈62px)까지 한 줄로 든다
   numL: { fontSize: 14, lineHeight: 18, fontWeight: '700', letterSpacing: 0.5, color: L.dim, marginTop: 3 },
+  // 하이 포인트 줄 — 수치 룰 행 바로 아래의 얇은 회계 줄. 골드는 SETTLED 전용이라 여기 안 쓴다.
+  earnLine: { alignSelf: 'stretch', marginTop: 11, paddingTop: 9, borderTopWidth: 1, borderTopColor: L.hair },
+  earnLead: { fontSize: 14, lineHeight: 18, fontWeight: '700', letterSpacing: 0.5, color: L.dim },
+  // [BUG A] Oswald 는 lineHeight 명시가 없으면 어센더가 잘린다 — 18 × 1.22
+  earnV: { fontSize: 18, lineHeight: 22, fontWeight: '600', color: L.head, fontVariant: ['tabular-nums'] },
+  earnSub: { fontSize: 14, lineHeight: 18, color: L.dim, marginTop: 3 },
   creditName: { fontSize: 14, lineHeight: 18, fontWeight: '700', letterSpacing: 0.5, color: L.dim, marginTop: 14 },
   credit: { fontSize: 7.5, fontWeight: '700', letterSpacing: 2, color: L.dim, marginTop: 2 },
   detailLink: { textAlign: 'center', marginTop: 12, fontSize: 14, fontWeight: '800', color: L.accent },

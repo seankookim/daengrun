@@ -7,12 +7,12 @@ import { CourseStrip } from '../../src/components/CourseStrip';
 import { ClubHomeCard } from '../../src/components/clubcard';
 import { RunCard } from '../../src/components/runcard';
 import { Avatar, Icon } from '../../src/components/ui';
-import { Addr, BoardRow, confirmPayment, createBookingHold, DogProfile, fetchAddresses, fetchAvailableRunners, fetchCertifiedRunners, fetchDogBoardDelta, fetchFitness, fetchMyBookings, fetchMyDogs, fetchMyProfile, fetchRecentMoments, fetchRoutes, fetchUnreadCount, Fitness, LiveRunner, Moment, MyProfile } from '../../src/lib/api';
+import { Addr, BeaconInfo, BoardRow, confirmPayment, createBookingHold, DogProfile, fetchAddresses, fetchAvailableRunners, fetchCertifiedRunners, fetchDogBoardDelta, fetchFitness, fetchMyBookings, fetchMyDogs, fetchMyProfile, fetchRecentMoments, fetchRewardBeacon, fetchRoutes, fetchUnreadCount, Fitness, LiveRunner, Moment, MyProfile } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { haptic } from '../../src/lib/haptics';
 import { registerPushToken } from '../../src/lib/push';
-import { Booking, dog, draft, myCards, ownerGearLadder, RouteInfo, runners } from '../../src/store';
+import { Booking, dog, draft, myCards, RouteInfo, runners } from '../../src/store';
 import { lilac, lilacRadius, lilacShadow, pricing } from '../../src/theme';
 import { useTheme } from '../../src/theme-context';
 
@@ -374,6 +374,12 @@ export default function OwnerHome() {
     fetchCertifiedRunners().then(setLocalRunners).catch((e) => console.warn('[home] runners:', e?.message ?? e));
     // 가용 러너 — 러닝 중인 러너는 히어로 카운트/레이더에서 제외 (기대 오염 방지)
     fetchAvailableRunners().then(setFnAvail).catch((e) => console.warn('[home] avail:', e?.message ?? e));
+    // 리워드 비컨 — 독립 체인. 잔액+패치 집계는 ≤1000행 스캔이라 다른 홈 데이터와 Promise.all로
+    // 묶으면 히어로가 이 스캔을 기다린다. 실패해도 홈은 멀쩡해야 하므로 자체 .catch로 끝낸다:
+    // 에러 = loaded 유지 안 함 → 모듈 자체가 안 그려진다 (거짓 0 대신 침묵).
+    fetchRewardBeacon()
+      .then((b) => { setBeacon(b); setBeaconLoaded(true); })
+      .catch((e) => console.warn('[home] beacon:', e?.message ?? e));
   }, []));
 
   // 티켓 D-day — 실 scheduled_at 기준. 값이 없거나 이미 지난 건이면 null → 칩 자체를 안 그린다
@@ -564,24 +570,22 @@ export default function OwnerHome() {
     router.push('/owner/request');
   };
 
-  // reward beacon — 실보상 경제 전까지 숨김 (상시 가짜 도파민 = 학습된 무시, ui-audit P0)
-  const [ladderOpen, setLadderOpen] = useState(false);
-  const claimable = null as (typeof ownerGearLadder)[number] | null;
-  const nextLocked = ownerGearLadder.find((g) => !g.got && !g.claimable);
-  const pulse = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    if (!claimable) return;
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulse, { toValue: 1, duration: 900, useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 0, duration: 900, useNativeDriver: true }),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [claimable, pulse]);
-  const pulseScale = pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.12] });
-  const pulseOpacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0.9] });
+  // ── 리워드 비컨 (rewards ①, Sean 승인 2026-08-05) — 실데이터만 ──────────────────────────
+  // 구 비컨은 `claimable = null` 상수 + 절대 안 도는 펄스 루프 + 목업 '수령하기' Alert 였다 (ui-audit P0:
+  // 지어낸 긴급함 = 학습된 무시). 되살리되 지어낼 수 있는 건 아무것도 없다: 잔액과 다음 승급까지의
+  // 실진도만. 잔액은 profile 스코프라 듀얼롤 계정에선 러너 적립분이 합쳐진다 → '보호자 포인트'로
+  // 이름 붙이지 않는다 (거짓 스코프). 앱 전역 어휘와 동일하게 '하이 포인트'.
+  const [beacon, setBeacon] = useState<BeaconInfo | null>(null);
+  const [beaconLoaded, setBeaconLoaded] = useState(false); // 로딩은 0이 아니다 — 로드 전엔 아무것도 안 그린다
+  // [리뷰 P1-1] next는 patches.earned(count ≥ 1)에서 온다 — 그 코스 패치는 이미 갖고 있다.
+  // toNext는 패치 '획득'이 아니라 다음 '등급' 승급까지의 잔여 완주다 (실버 5 · 골드 10 · 마스터 25).
+  // 등급명을 count에서 파생해 정직하게 말한다. 계약상 count ≥ 25면 next 자체가 null이지만
+  // find()가 undefined를 낼 수 있는 자리라 방어한다 — 등급을 모르면 이 칸을 아예 안 그린다.
+  const nextGradeName = beacon?.next
+    ? ({ 5: '실버', 10: '골드', 25: '마스터' } as Record<number, string>)[
+        [5, 10, 25].find((tier) => tier > beacon.next!.count) ?? -1
+      ] ?? null
+    : null;
 
   // transform/opacity only → 스크롤 이벤트 전체가 네이티브 드라이버 (구: height 보간 = JS 드라이버)
   const t = scrollY.interpolate({ inputRange: [0, SCROLL_RANGE], outputRange: [0, 1], extrapolate: 'clamp' });
@@ -1198,31 +1202,39 @@ export default function OwnerHome() {
         {/* 슬라이드 예약(밀어서 러닝 요청)은 은퇴 — 위 딥 코랄 '예약하기' 버튼과 중복(Sean 2026-08-03).
             머니 CTA는 예약하기 버튼 하나로 통일. 예약 핸들러(goBook · /owner/request)는 그 버튼에 그대로 연결. */}
 
-        {/* ---------- reward beacon (dopamine: unclaimed collab gear) ---------- */}
-        {claimable && (
-          <Pressable onPress={() => setLadderOpen(true)} style={s.rewardCard}>
-            {/* pulsing halo */}
-            <View style={s.giftWrap}>
-              <Animated.View style={[s.giftHalo, { opacity: pulseOpacity, transform: [{ scale: pulseScale }] }]} />
-              <View style={s.giftBox}><Text style={{ fontSize: 16, color: '#fff' }}>▣</Text></View>
-              <View style={s.giftBadge}><Text style={{ fontSize: 14, fontWeight: '900', color: '#fff' }}>1</Text></View>
-            </View>
-            <View style={{ flex: 1, marginLeft: 13 }}>
-              <Text style={{ fontSize: 14, fontWeight: '900', color: lilac.coralDeep, letterSpacing: 0.5 }}>수령 대기 리워드</Text>
-              <Text style={{ fontSize: 14, fontWeight: '900', color: p.textStrong, marginTop: 2 }} numberOfLines={1}>
-                {claimable.item}
+        {/* ---------- 리워드 비컨 — 실 잔액 + 다음 패치 진도 (rewards ①) ----------
+            조용한 라일락 모듈이다: 펄스 없음 · 코랄 없음 · 배지 없음. 지어낸 긴급함이 구 비컨을
+            죽인 ui-audit P0 그 자체였다 — 되살린 자리엔 사실만 앉힌다.
+            게이트: 로드 완료 AND (잔액>0 OR 다음 승급 있음). 둘 다 없는 계정엔 아무것도 안 그린다
+            ('보여줄 이야기가 없으면 침묵' — 0 포인트를 들이미는 건 죄책감 유발이지 정보가 아니다).
+            두 칸 모두 실경로: 잔액 → /shop (포인트 허브) · 승급 → /cards (코스 패치 월).
+            [P1-2] 좌측 라벨은 '샵 보기' — /shop은 전 섹션 '오픈 준비 중'이라 '쓰기'는 없는 기능의 약속이다. */}
+        {beaconLoaded && beacon && (beacon.balance > 0 || nextGradeName !== null) && (
+          <View style={[s.beacon, { backgroundColor: p.card, borderColor: p.line2 }]}>
+            <Pressable onPress={() => router.push('/shop')} style={s.beaconCell}>
+              {/* 잔액은 profile 스코프 — 듀얼롤 계정에선 러너 적립분이 합쳐진다. '보호자 포인트'라
+                  부르면 스코프를 속이는 것이라 앱 전역 어휘 그대로 '하이 포인트' */}
+              <Text style={[s.beaconKick, { color: p.dim }]}>하이 포인트</Text>
+              <Text style={[s.beaconLine, { color: p.textStrong }]} numberOfLines={1}>
+                <Text style={[s.beaconNum, nf]}>{beacon.balance.toLocaleString()}</Text> 포인트
               </Text>
-              <Text style={{ fontSize: 14, color: p.dim, marginTop: 2 }}>
-                {claimable.at}km 달성! · 다음: {nextLocked ? `${nextLocked.item.split(' ').pop()}까지 ${(nextLocked.at - 86.2).toFixed(0)}km` : '완료'}
-              </Text>
-            </View>
-            <Pressable
-              onPress={(e) => { e.stopPropagation(); Alert.alert('수령 신청', '배송지로 콜라보 굿즈를 보내드려요 (목업)'); }}
-              style={s.claimBtn}
-            >
-              <Text style={{ fontSize: 14, fontWeight: '900', color: '#fff' }}>수령하기</Text>
+              <Text style={[s.beaconGo, { color: mode === 'dark' ? '#B7A9FF' : lilac.accent }]}>샵 보기 ›</Text>
             </Pressable>
-          </Pressable>
+            {beacon.next !== null && nextGradeName !== null && (
+              <>
+                <View style={[s.beaconDiv, { backgroundColor: p.line }]} />
+                <Pressable onPress={() => router.push('/cards')} style={s.beaconCell}>
+                  <Text style={[s.beaconKick, { color: p.dim }]}>다음 승급</Text>
+                  <Text style={[s.beaconLine, { color: p.textStrong }]} numberOfLines={1}>
+                    {nextGradeName}까지 <Text style={[s.beaconNum, nf]}>{beacon.next.toNext}</Text>회
+                  </Text>
+                  {/* 어느 코스의 승급인지 — 반칸(320dp ≈ 122px)이라 한 줄로 자른다 */}
+                  <Text style={[s.beaconSub, { color: p.dim }]} numberOfLines={1}>{beacon.next.name}</Text>
+                  <Text style={[s.beaconGo, { color: mode === 'dark' ? '#B7A9FF' : lilac.accent }]}>카드 보기 ›</Text>
+                </Pressable>
+              </>
+            )}
+          </View>
         )}
 
         {/* ---------- retention nudges (실데이터 기반, ui-audit P2) ---------- */}
@@ -1440,48 +1452,9 @@ export default function OwnerHome() {
       </Modal>
 
       <BottomNav dark={mode === 'dark'} />
-
-      {/* ---------- milestone ladder sheet ---------- */}
-      <Modal visible={ladderOpen} transparent animationType="slide" onRequestClose={() => setLadderOpen(false)}>
-        <Pressable style={{ flex: 1, backgroundColor: '#00000055' }} onPress={() => setLadderOpen(false)} />
-        <View style={s.ladderSheet}>
-          <View style={s.sheetHandle} />
-          <Text style={{ fontSize: 20, fontWeight: '900', color: lilac.head }}>마일스톤 리워드</Text>
-          <Text style={{ fontSize: 14, color: lilac.dim, marginTop: 4, marginBottom: 12 }}>
-            {dog.name}의 누적 86.2km — 달릴수록 콜라보 굿즈가 열려요
-          </Text>
-          {ownerGearLadder.map((g, i) => (
-            <View key={g.at}>
-              {i > 0 && <View style={{ height: 1, backgroundColor: lilac.hair }} />}
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 }}>
-                <View style={{
-                  width: 20, height: 20, borderRadius: 4, alignItems: 'center', justifyContent: 'center',
-                  backgroundColor: g.got ? lilac.voltDeep : g.claimable ? lilac.coral : lilac.hair,
-                }}>
-                  {g.got && <Text style={{ fontSize: 10, fontWeight: '900', color: '#fff' }}>✓</Text>}
-                  {g.claimable && <Text style={{ fontSize: 10, fontWeight: '900', color: '#fff' }}>!</Text>}
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 14, fontWeight: '800', color: g.got || g.claimable ? lilac.head : lilac.dim }}>{g.item}</Text>
-                  <Text style={{ fontSize: 14, color: lilac.dim, marginTop: 1 }}>누적 {g.at}km</Text>
-                </View>
-                {g.claimable ? (
-                  <Pressable
-                    onPress={() => Alert.alert('수령 신청', '배송지로 콜라보 굿즈를 보내드려요 (목업)')}
-                    style={{ backgroundColor: lilac.coral, borderRadius: lilacRadius.tag, paddingVertical: 7, paddingHorizontal: 12 }}
-                  >
-                    <Text style={{ fontSize: 14, fontWeight: '900', color: '#fff' }}>수령하기</Text>
-                  </Pressable>
-                ) : g.got ? (
-                  <Text style={{ fontSize: 14, fontWeight: '700', color: lilac.voltDeep }}>수령 완료</Text>
-                ) : (
-                  <Text style={{ fontSize: 14, color: lilac.dim }}>{(g.at - 86.2).toFixed(0)}km 남음</Text>
-                )}
-              </View>
-            </View>
-          ))}
-        </View>
-      </Modal>
+      {/* 마일스톤 사다리 시트 은퇴 (2026-08-05) — 유일한 오프너가 죽은 비컨 안에 있어 도달 불가였고,
+          내용물(ownerGearLadder)은 누적 86.2km 하드코딩 위에 선 목업이었다. 실 진도는 위 비컨의
+          '다음 패치'가, 실 수집물은 /cards 의 코스 패치 월이 담당한다. */}
     </View>
   );
 
@@ -1651,23 +1624,24 @@ const s = StyleSheet.create({
   ticketBrand: { fontSize: 12, fontWeight: '800', letterSpacing: 1.2, color: lilac.head, flexShrink: 1 },
   perf: { marginTop: 11, height: 0, borderTopWidth: 1.5, borderStyle: 'dashed', borderColor: '#DCD7F0', marginHorizontal: -13 },
   notch: { position: 'absolute', top: -9, width: 18, height: 18, borderRadius: 9, backgroundColor: lilac.bg, borderWidth: 1, borderColor: lilac.hair2 },
-  rewardCard: {
-    flexDirection: 'row', alignItems: 'center', borderRadius: lilacRadius.card, padding: 15, marginTop: 12,
-    backgroundColor: lilac.card, borderWidth: 1, borderColor: lilac.coralSoft,
-    shadowColor: lilac.coral, shadowOpacity: 0.22, shadowRadius: 12, shadowOffset: { width: 0, height: 3 },
-    elevation: 4,
+  // ── 리워드 비컨 — 조용한 라일락 2칸 모듈 (구 rewardCard/gift*/claimBtn/ladderSheet 은퇴) ──
+  // 코랄 섀도·헤일로·배지는 전부 지어낸 긴급함이었다. 여기선 헤어라인 카드 + 바이올렛 링크뿐:
+  // 무게는 위 딥 코랄 예약 CTA가 독점한다 (화면의 무게 중심은 하나).
+  beacon: {
+    flexDirection: 'row', alignItems: 'stretch', marginTop: 12, overflow: 'hidden',
+    borderRadius: lilacRadius.card, borderWidth: 1, ...lilacShadow,
   },
-  giftWrap: { width: 46, height: 46, alignItems: 'center', justifyContent: 'center' },
-  giftHalo: { position: 'absolute', width: 46, height: 46, borderRadius: 23, backgroundColor: lilac.coralSoft },
-  giftBox: { width: 38, height: 38, borderRadius: lilacRadius.inner, backgroundColor: lilac.coral, alignItems: 'center', justifyContent: 'center' },
-  giftBadge: {
-    // [FLOOR14] 18 → 20 (r 9 → 10): 카운트 숫자가 11.5 → 14pt 라 18px 원에선 줄박스(18)와 테두리가 맞물렸다
-    position: 'absolute', top: 0, right: 0, width: 20, height: 20, borderRadius: 10,
-    backgroundColor: lilac.coralDeep, alignItems: 'center', justifyContent: 'center', zIndex: 2,
-  },
-  claimBtn: { backgroundColor: lilac.coral, borderRadius: lilacRadius.tag, paddingVertical: 10, paddingHorizontal: 13 },
-  ladderSheet: { backgroundColor: lilac.bg, borderTopLeftRadius: 14, borderTopRightRadius: 14, padding: 16, paddingBottom: 40 },
-  sheetHandle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: lilac.hair, marginBottom: 14 },
+  beaconCell: { flex: 1, paddingVertical: 13, paddingHorizontal: 13 },
+  beaconDiv: { width: 1, marginVertical: 11 },
+  // 한글 정보 라벨 — 라틴 키커가 아니므로 14pt 플로어를 그대로 받는다 (트래킹만 0.5로 절제)
+  beaconKick: { fontSize: 14, lineHeight: 18, fontWeight: '600', letterSpacing: 0.5 },
+  // [BUG A] lineHeight 24 = 내부 Oswald 19pt의 1.26× — 작은 줄박스에 큰 숫자를 중첩하면 어센더가 잘린다
+  beaconLine: { fontSize: 14, lineHeight: 24, fontWeight: '700', marginTop: 3 },
+  beaconNum: { fontSize: 19, lineHeight: 24, fontWeight: '900' },
+  beaconSub: { fontSize: 14, lineHeight: 18, fontWeight: '600', marginTop: 1 },
+  // [리뷰 P2-5c] 색은 인라인 테마 — 모듈의 유일한 어포던스라 나이트 카드(#241F42)에서
+  // lilac.accent가 3.20:1로 떨어지면 안 된다. 다크는 라이트 바이올렛으로 올린다.
+  beaconGo: { fontSize: 14, lineHeight: 18, fontWeight: '800', marginTop: 4 },
   // 예약하기 = 돈 버튼 — 딥 코랄 (종단 ≥#C6472C, 흰 라벨 4.5:1)
   book: { backgroundColor: lilac.card, borderWidth: 1, borderColor: lilac.hair2, borderRadius: lilacRadius.card, padding: 12, marginTop: 14, ...lilacShadow },
   bookFacts: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', paddingHorizontal: 2, paddingBottom: 11 },

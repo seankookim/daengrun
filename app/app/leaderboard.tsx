@@ -51,7 +51,7 @@ export default function Leaderboard() {
             <View>
               <Text style={{ fontSize: 14.5, color: '#b8c4ae', letterSpacing: 1.5 }}>내 하이 포인트</Text>
               <Text style={{ fontSize: 37, fontWeight: '900', color: colors.volt, marginTop: 4 }}>
-                {miles?.balance?.toLocaleString() ?? '—'}<Text style={{ fontSize: 15, color: '#b8c4ae' }}> 마일</Text>
+                {miles?.balance?.toLocaleString() ?? '—'}<Text style={{ fontSize: 15, color: '#b8c4ae' }}> 포인트</Text>
               </Text>
             </View>
             <View style={{ alignItems: 'flex-end', justifyContent: 'center' }}>
@@ -60,11 +60,12 @@ export default function Leaderboard() {
               </Text>
             </View>
           </Row>
+          {/* 부호는 실델타에서 나온다 — shop_spend(음수)가 붙는 날 '+-500'이 되지 않게 */}
           {miles && miles.recent.length > 0 && (
             <Row style={{ gap: 10, marginTop: 10, flexWrap: 'wrap' }}>
               {miles.recent.slice(0, 3).map((m, i) => (
                 <Text key={i} style={{ fontSize: 14, color: '#8fa093' }}>
-                  {m.reason} +{m.delta}
+                  {m.reason} {m.delta > 0 ? '+' : ''}{m.delta}
                 </Text>
               ))}
             </Row>

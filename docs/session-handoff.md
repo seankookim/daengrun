@@ -44,7 +44,21 @@ Lab was delivered, Sean picked: **Ⓐ② Night Stub shell carrying Ⓐ④'s seat
 
 **Deferred design calls (unchanged)**: ClubTag 9.5 mixed token · FEATURED RUNNER/tickerLead kickers · vk zero-callers. NEW: club/[id] hhmm/attendance display pass could go bigger (Sean may ask); GO compact-state echo deliberately omitted (ticket + island carry state when collapsed).
 
-**Follow-up (Sean, same day)**: hero card background now carries a ~95% white wash of the GO state color (`GO_TINT` map — coral/blue/sage washes; halos tint in lockstep; discrete swap, bg animation would need non-native driver). **CLAUDE.md created at repo root** (Sean: "yes to claude.md") — permanent laws now infrastructure; handoff stays the session-state bridge. gstack visibility promise: sprint phases labeled explicitly in responses from now on.
+**Follow-up (Sean, same day)**: hero card background now carries a ~95% white wash of the GO state color (`GO_TINT` map — coral/blue/sage washes; halos tint in lockstep; discrete swap, bg animation would need non-native driver). **CLAUDE.md created at repo root** (Sean: "yes to claude.md") — permanent laws now infrastructure; handoff stays the session-state bridge. gstack visibility promise: sprint phases labeled explicitly in responses from now on. Also `docs/gstack/gstack-map.md` — invocation guide + 55-skill applicability map.
+
+## 2c. Rewards ① — IMPLEMENTED (zero migrations, scout-verified)
+
+Scout confirmed the office-hours claim and found it stronger: **miles_ledger.ref_id = booking id** for all settlement rows (harness 10_settle_suite queries it that way), RLS "miles self read" scopes to caller, `my_miles_balance()` RPC pre-existing. Built by 2 Opus builders + adversarial review (P0 0 · P1 2 · P2 10, all approved fixes applied):
+
+- **api.ts**: `fetchRunEarning(bid)` — miles_ledger by ref_id, `.in(reason, SETTLE_REASONS)` whitelist (ref_id is polymorphic — drops write drop_ids), profile_id double-guard per 0027 doctrine, 0 rows → null. `fetchRewardBeacon()` — balance + **nearest-promotion** course (director fix: min toNext, not max count — a course 1-from-실버 beats one 14-from-마스터). `fetchCoursePatches` now throws on routes-query error (was swallowed; beacon made it load-bearing).
+- **report.tsx** (the ONLY 1:1 earning surface — live/meetup both terminate here): 하이 포인트 적립 strip between map and 순간 스탬프, gated `earningLoaded && earning && endReason==='completed'` (mirrors server v_is_full; early termination → section absent, never +0). No animation — patch pop stays sole celebration. Contrast fixes: READ_VIOLET kicker (7.50:1), lilac.text unit.
+- **receipt.tsx**: earning line INSIDE cardRef (share PNG carries it) between numRow and credits; condensed real-rows-only (`완주 +50 · 응가 +30 · 골드 패치 +200`); no skeleton in captured card; share gate unchanged (pre-load share → PNG honestly lacks the line).
+- **home.tsx beacon revived** in the dead beacon's slot (under 예약하기): quiet hairline two-cell — 하이 포인트 balance → `샵 보기 ›` (/shop; NOT "쓰기" — no redemption exists yet, P1-2) + **다음 승급** `{실버|골드|마스터}까지 N회` + course name → 카드 보기 › (/cards). P1-1 fix: copy says 승급 not 패치 (earned courses already own their patch). NO pulse/urgency (the ui-audit P0 stays honored). Renders only when loaded AND (balance>0 OR next) — 0-balance silence. Fetch isolated from home's other loads. **Retired**: claimable/gift/pulse machinery, orphaned milestone-ladder sheet + ownerGearLadder mock + n7 '120P' noti + Noti.badge field.
+- **Naming unified**: 마일 → 포인트 (leaderboard, runner rewards); leaderboard sign-aware delta (pre-③ bug); kickers keep 하이 포인트/HIGH POINT identity.
+
+**Reflect (retro)**: scout-first paid again — ref_id=booking discovery turned a "maybe time-window match" into a direct read; reviewer caught two false-copy P1s in fresh code (승급≠패치, 쓰기≠보기) — honesty review must cover COPY, not just data binding. Deferred: runnerGearLadder dead mock (zero consumers, runner-side vocab — retire in a runner-side pass); no ref_id index (pilot-scale fine); receipt total unreachable-negative case now guarded anyway.
+
+**NEW smoke items**: report earning strip (completed run vs early-terminated → absent vs pre-settlement → absent) · receipt earning line at 320dp + share PNG includes it + seal still lands on taller card · home beacon (real balance, 승급 copy, silence at 0-balance-no-progress, dark mode affordance color) · leaderboard/rewards 포인트 naming.
 
 ## 3. Pending on Sean's side (ordered)
 

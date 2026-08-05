@@ -69,7 +69,7 @@ export default function Rewards() {
       <View style={s.milesCard}>
         <Text style={{ fontSize: 14.5, color: '#b8c4ae', letterSpacing: 1.5 }}>내 하이 포인트</Text>
         <Text style={{ fontSize: 39, fontWeight: '900', color: colors.volt, marginTop: 4 }}>
-          {miles?.balance?.toLocaleString() ?? '—'}<Text style={{ fontSize: 15, color: '#b8c4ae' }}> 마일</Text>
+          {miles?.balance?.toLocaleString() ?? '—'}<Text style={{ fontSize: 15, color: '#b8c4ae' }}> 포인트</Text>
         </Text>
         <Text style={{ fontSize: 14, color: '#8fa093', marginTop: 6 }}>
           완주 +50 · 응가 도장 +30 · 드랍 보상 · 주간 TOP3 보너스
@@ -97,7 +97,7 @@ export default function Rewards() {
             <>
               <Text style={{ fontSize: 15, color: '#b8c4ae', marginTop: 8 }}>셋 중 하나를 선택하세요 — 되돌릴 수 없어요</Text>
               <Row style={{ gap: 8, marginTop: 10 }}>
-                {([['boost', '⚡ 부스트'], ['miles', '◈ 5,000마일'], ['gear', '👕 기어']] as const).map(([k, label]) => (
+                {([['boost', '⚡ 부스트'], ['miles', '◈ 5,000포인트'], ['gear', '👕 기어']] as const).map(([k, label]) => (
                   <Pressable key={k} disabled={busy !== null} onPress={() => open(d, k)} style={[s.pickBtn, busy === d.id && { opacity: 0.5 }]}>
                     <Text style={{ fontSize: 14, fontWeight: '900', color: FOREST }}>{label}</Text>
                   </Pressable>
@@ -145,9 +145,12 @@ export default function Rewards() {
             <View key={d.id} style={[s.card, { marginBottom: 8, opacity: 0.75 }]}>
               <Row style={{ justifyContent: 'space-between' }}>
                 <Text style={{ fontSize: 14.5, fontWeight: '800', color: FOREST }}>
+                  {/* 포인트가 실제로 들어 있을 때만 괄호를 연다 — '+0포인트'는 없는 적립을 그리는 것 */}
                   {d.kind === 'pick'
-                    ? `픽 드랍 — ${d.pickChoice === 'miles' ? '5,000마일' : d.pickChoice === 'boost' ? '부스트' : '기어'} 선택`
-                    : `보급 드랍 (+${d.contents.miles ?? 0}마일)`}
+                    ? `픽 드랍 — ${d.pickChoice === 'miles' ? '5,000포인트' : d.pickChoice === 'boost' ? '부스트' : '기어'} 선택`
+                    : typeof d.contents.miles === 'number' && d.contents.miles > 0
+                      ? `보급 드랍 (+${d.contents.miles.toLocaleString()}포인트)`
+                      : '보급 드랍'}
                 </Text>
                 <Text style={{ fontSize: 14, color: colors.dim }}>{d.when}</Text>
               </Row>
