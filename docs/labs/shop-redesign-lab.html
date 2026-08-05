@@ -1,0 +1,1248 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shop Redesign Lab — 부티크 = 큐레이티드 제휴 셸프 (Ⓢ 3종 × Ⓔ 2종)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;500;700;800;900&family=Oswald:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* ── Tailored Lilac tokens (src/theme.ts `lilac`) ── */
+  :root{
+    --bg:#F4F2FB; --card:#FFFFFF; --inset:#EFECF9; --hair:#E6E2F4; --hair2:#EDEAF8;
+    --head:#221E3D; --text:#4B4668; --dim:#7C76A0;
+    --accent:#6C5CE7; --accentDeep:#7867EC; --readv:#4A3DA8;
+    --tint:#F4F1FE; --tintEdge:#DCD6F8;
+    --coral:#F0765A; --coralDeep:#E45F41; --coralSoft:#FFDCD1; --coralText:#D84A2F;
+    --night:#1C1837; --nightDim:#A9A3C8; --nightEdge:#332C58;
+    --gold:#B99A4F; --goldSoft:#F4EBD3;      /* gold = receipt only — NOT used in any phone below */
+    --holo:linear-gradient(90deg,#CFC5F6 0%,#FFDCD1 22%,#F3E9C6 45%,#EAF6C8 62%,#CDEAF3 80%,#CFC5F6 100%);
+    --track:#E6E2F4;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    background:#161230; font-family:'Noto Sans KR',sans-serif; color:#EDEAF8; padding:0 0 90px;
+    background-image:radial-gradient(1100px 520px at 14% -8%, rgba(240,118,90,.10), transparent 60%),
+                     radial-gradient(920px 460px at 88% 2%, rgba(108,92,231,.16), transparent 62%);
+    background-attachment:fixed;
+  }
+
+  /* ══════════ LAB CHROME (English) ══════════ */
+  .sticky{
+    position:sticky; top:0; z-index:200; backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+    background:rgba(20,16,44,.93); border-bottom:1px solid rgba(255,255,255,.09); padding:15px 26px 13px;
+  }
+  .wrap{max-width:1560px;margin:0 auto}
+  .lab-title{font-family:'Black Han Sans';font-size:24px;letter-spacing:.2px;color:#F2EFFA}
+  .lab-title em{font-style:normal;color:#F0765A}
+  .lab-title i{font-style:normal;color:#9F8FFF}
+  .lab-sub{font-size:13px;color:#A9A3C8;margin-top:7px;line-height:1.62;max-width:1180px}
+  .lab-sub b{color:#F2EFFA;font-weight:700}
+  .chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:11px;align-items:center}
+  .chips span{font-size:11.5px;color:#C9C2E8;border:1px solid rgba(201,194,232,.26);padding:4px 9px;border-radius:6px;background:rgba(255,255,255,.045)}
+  .chips b{color:#F0765A;font-weight:700}
+  .chips i{font-style:normal;color:#9F8FFF;font-weight:700}
+  .gatebtn{
+    font-family:'Noto Sans KR',sans-serif;font-size:11.5px;font-weight:700;color:#161230;background:#C9C2E8;
+    border:1px solid #C9C2E8;border-radius:6px;padding:5px 11px;cursor:pointer;
+  }
+  .gatebtn.on{background:#F0765A;border-color:#F0765A;color:#fff}
+
+  .sect{max-width:1560px;margin:40px auto 0;padding:0 26px}
+  .sect-head{display:flex;align-items:baseline;gap:12px;border-bottom:1px solid rgba(255,255,255,.1);padding-bottom:11px}
+  .sect-head .n{font-family:'Oswald';font-weight:600;font-size:27px;line-height:1.24;color:#F0765A;letter-spacing:1px}
+  .sect-head h2{font-size:19px;color:#F2EFFA;font-weight:700}
+  .sect-head p{font-size:12.5px;color:#8F88B4;margin-left:auto;text-align:right;line-height:1.55;max-width:620px}
+  .frames{display:flex;flex-wrap:wrap;gap:30px;justify-content:center;margin-top:26px;align-items:flex-start}
+  .unit{width:390px}
+  .unit.wide{width:390px}
+  .phone{
+    width:390px;border-radius:26px;overflow:hidden;background:var(--bg);position:relative;
+    box-shadow:0 24px 60px rgba(8,5,24,.55),0 3px 12px rgba(8,5,24,.4);border:1px solid rgba(255,255,255,.09);
+    word-break:keep-all;overflow-wrap:break-word;   /* 한글 어절 단위 줄바꿈 — RN 기본 동작과 동일 */
+  }
+  .cap{margin-top:13px}
+  .cap h3{font-size:16px;color:#F2EFFA;font-weight:700;line-height:1.42}
+  .cap h3 b{color:#F0765A;font-weight:700;margin-right:5px;font-family:'Oswald';font-size:17px;letter-spacing:.5px}
+  .cap .why{font-size:13px;color:#BDB6DC;line-height:1.62;margin-top:6px}
+  .cap .why b{color:#F2EFFA;font-weight:700}
+  .cap .why em{font-style:normal;color:#9F8FFF}
+  .cap .meta{font-size:12px;color:#8F88B4;line-height:1.64;margin-top:8px;border-top:1px dashed rgba(255,255,255,.13);padding-top:8px}
+  .cap .meta b{color:#9F8FFF;font-weight:700;letter-spacing:.4px}
+  .cap .meta em{font-style:normal;color:#C9C2E8}
+  .cap .meta code{font-family:'Oswald';font-weight:400;font-size:12px;color:#9F8FFF;letter-spacing:.2px}
+  .cap .meta .rt{color:#FFB9A6}
+  .cap .meta .ok{color:#B7E27A}
+  .labdiv{
+    display:flex;align-items:center;gap:8px;margin:16px 12px 6px;font-size:11px;letter-spacing:1.2px;
+    color:#8B84AE;text-transform:uppercase;font-family:'Oswald';font-weight:500;
+  }
+  .labdiv::before,.labdiv::after{content:'';flex:1;height:1px;background:repeating-linear-gradient(90deg,#B9B2D8 0 4px,transparent 4px 8px)}
+  .playbar{display:flex;gap:6px;margin-top:11px;flex-wrap:wrap}
+  .playbar button{
+    font-family:'Noto Sans KR',sans-serif;font-size:11.5px;font-weight:700;color:#fff;
+    background:#F0765A;border:1px solid #F0765A;border-radius:6px;padding:7px 12px;cursor:pointer;
+  }
+  .playbar button.q{background:rgba(255,255,255,.05);border-color:rgba(201,194,232,.26);color:#BDB6DC}
+  .replay{font-size:11px;color:#7C76A0;margin-top:6px;letter-spacing:.3px}
+
+  /* deal-gate reveal — lab chrome only. Marks every node that must NOT render before a signed deal. */
+  .g8{position:relative}
+  body.showgate .g8{outline:1.5px dashed #F0765A;outline-offset:2px;border-radius:4px}
+  body.showgate .g8::after{
+    content:attr(data-g);position:absolute;top:-8px;right:-2px;z-index:9;
+    font-family:'Oswald';font-size:9px;letter-spacing:.6px;color:#fff;background:#E45F41;
+    padding:1px 4px;border-radius:3px;white-space:nowrap;pointer-events:none;
+  }
+
+  /* ══════════ SHARED IN-APP PRIMITIVES (Korean copy lives here) ══════════ */
+  .scr{padding:14px 16px 16px}
+  /* BUG A — every Oswald run carries an explicit lineHeight ≥1.2×, kickers included */
+  .phone [class]{}
+  .kk,.official,.sec .no,.sec .t,.pass .k,.colo .k,.tag .br,.shelf .br,.heroP .br,
+  .rack .bar .ph,.rack .item .br,.gate .box,.mast .wk,.tag .sv{line-height:1.5}
+  .num{font-family:'Oswald';font-weight:600;line-height:1.24;font-feature-settings:'tnum'}
+  .kk{font-family:'Oswald';font-weight:500;font-size:12px;letter-spacing:2px;color:var(--dim);text-transform:uppercase}
+  .rule{flex:1;height:1px;background:var(--hair)}
+  .h1{font-family:'Black Han Sans';font-size:38px;line-height:1.2;color:var(--head)}
+  .official{border:1px solid var(--head);border-radius:2px;padding:5px 8px;background:var(--card);
+    font-family:'Oswald';font-weight:600;font-size:11.5px;letter-spacing:1.8px;color:var(--head);align-self:flex-start;margin-top:5px}
+  .subnote{font-size:14px;line-height:1.5;color:var(--text);margin-top:9px}
+  .krow{display:flex;align-items:center;gap:8px}
+  .sec{display:flex;align-items:center;gap:8px;margin:18px 2px 9px}
+  .sec .no{font-family:'Oswald';font-weight:600;font-size:12px;color:var(--accent)}
+  .sec .t{font-family:'Oswald';font-weight:500;font-size:12px;letter-spacing:2px;color:var(--dim);text-transform:uppercase}
+  .sec .ko{font-size:14px;font-weight:700;color:var(--text)}
+
+  /* ── 하이 포인트 통장 스트립 (night) — the balance area, three shapes ── */
+  .pass{background:var(--night);border-radius:8px;overflow:hidden;box-shadow:0 10px 26px rgba(18,14,44,.32)}
+  .pass .holo{height:2px;background:var(--holo);opacity:.85}   /* the ONE foil on this surface */
+  .pass .in{margin:9px;border:1px solid rgba(255,255,255,.13);border-radius:6px;padding:12px 13px}
+  .pass .top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+  .pass .k{font-family:'Oswald';font-weight:500;font-size:12px;letter-spacing:1.9px;color:rgba(255,255,255,.52);text-transform:uppercase}
+  .pass .bal{font-family:'Oswald';font-weight:600;font-size:30px;line-height:1.24;color:#fff;margin-top:3px}
+  .pass .bal u{text-decoration:none;font-family:'Noto Sans KR',sans-serif;font-size:14px;font-weight:700;color:var(--nightDim)}
+  .pass .go{border:1px solid rgba(255,255,255,.28);border-radius:6px;padding:7px 11px;font-size:14px;font-weight:700;color:#fff;white-space:nowrap}
+  .pass .ln{margin-top:10px;padding-top:9px;border-top:1px solid rgba(255,255,255,.13);display:flex;justify-content:space-between;gap:10px}
+  .pass .ln span{font-size:14px;color:var(--nightDim)}
+  .pass .ln b{font-size:14px;font-weight:700;color:#CFE6A8}
+  .pass .say{font-size:14px;line-height:19px;color:var(--nightDim);margin-top:9px}
+  .pass .say i{font-style:normal;color:#fff;font-weight:700}
+  .pass.thin .in{padding:10px 12px}
+  .pass.thin .bal{font-size:24px}
+  /* ⑤ 포인트 결제 row — BLOCKED. Rendered here only as a dashed ghost to show where it would land. */
+  .pass .five{margin-top:10px;padding-top:9px;border-top:1px dashed rgba(255,255,255,.22);
+    display:flex;justify-content:space-between;align-items:center;gap:10px;opacity:.5}
+  .pass .five span{font-size:14px;color:var(--nightDim)}
+  .pass .five b{font-size:14px;color:var(--nightDim);font-weight:700}
+
+  /* colophon shape of the balance (Ⓢ③) */
+  .colo{display:flex;justify-content:space-between;align-items:center;gap:10px;
+    background:var(--card);border:1px solid var(--hair);border-radius:8px;padding:11px 13px}
+  .colo .l{min-width:0}
+  .colo .k{font-family:'Oswald';font-weight:500;font-size:12px;letter-spacing:1.7px;color:var(--dim);text-transform:uppercase}
+  .colo .v{font-family:'Oswald';font-weight:600;font-size:22px;line-height:1.24;color:var(--head);margin-top:2px}
+  .colo .v u{text-decoration:none;font-family:'Noto Sans KR',sans-serif;font-size:14px;font-weight:700;color:var(--text)}
+  .colo .d{font-size:14px;color:var(--dim);margin-top:2px;line-height:1.4}
+  .colo .g{font-size:14px;font-weight:700;color:var(--readv);white-space:nowrap}
+
+  /* ── 표시광고법 disclosure band ── */
+  .disc{background:var(--inset);border:1px solid var(--hair);border-radius:6px;padding:10px 12px;margin-top:12px}
+  .disc .t{font-size:14px;line-height:19px;font-weight:700;color:var(--head)}
+  .disc .d{font-size:14px;line-height:19px;color:var(--text);margin-top:3px}
+  .disc .d b{color:var(--readv);font-weight:700}
+
+  /* ── editorial line (the app's unfair advantage) ── */
+  .ed{background:var(--tint);border:1px solid var(--tintEdge);border-radius:6px;padding:9px 11px}
+  .ed .k{font-size:14px;line-height:19px;font-weight:700;color:var(--readv)}
+  .ed .t{font-size:14px;line-height:20px;color:var(--head);font-weight:700;margin-top:3px}
+  .ed .t em{font-style:normal;font-family:'Oswald';font-weight:600;font-size:15px;line-height:1.24;color:var(--readv);letter-spacing:.3px}
+  .ed .s{font-size:14px;line-height:19px;color:var(--text);margin-top:3px}
+  .ed.on-rack{background:transparent;border:0;border-left:2px solid var(--tintEdge);border-radius:0;padding:2px 0 2px 11px}
+
+  /* ══════════ Ⓔ① 태그 카드 (luggage/price tag — stub column + punched hole) ══════════ */
+  .tag{display:flex;background:var(--card);border:1px solid var(--hair);border-radius:8px;
+    box-shadow:0 6px 14px rgba(28,24,55,.09);position:relative;margin-top:9px}
+  .tag .stub{width:32px;flex:0 0 32px;background:var(--inset);border-right:1px dashed var(--hair);
+    border-radius:7px 0 0 7px;
+    display:flex;flex-direction:column;align-items:center;padding-top:11px;gap:8px;position:relative}
+  .tag .hole{width:13px;height:13px;border-radius:50%;background:var(--bg);border:1px solid var(--hair);display:block}
+  .tag .str{position:absolute;top:-9px;left:7px;width:19px;height:17px;border:1.5px solid var(--tintEdge);
+    border-radius:50% 50% 40% 40%;border-bottom-color:transparent;transform:rotate(-16deg)}
+  .tag .sv{writing-mode:vertical-rl;font-size:14px;line-height:18px;font-weight:700;letter-spacing:1px;
+    color:var(--dim);margin-top:2px}
+  .tag .body{flex:1;min-width:0;padding:11px 12px 11px 11px;display:flex;flex-direction:column}
+  .tag .br{font-family:'Oswald';font-weight:500;font-size:12px;letter-spacing:1.7px;color:var(--dim);text-transform:uppercase}
+  .tag .nm{font-size:15px;line-height:20px;font-weight:800;color:var(--head);margin-top:3px}
+  .tag .chiprow{display:flex;gap:5px;margin-top:7px;flex-wrap:wrap;align-items:center}
+  .tag .prow{display:flex;align-items:flex-end;justify-content:space-between;gap:8px;margin-top:9px}
+  .tag .pz{font-family:'Oswald';font-weight:600;font-size:21px;line-height:1.24;color:var(--head)}
+  .tag .pz u{text-decoration:none;font-family:'Noto Sans KR',sans-serif;font-size:14px;font-weight:700;color:var(--text)}
+  .tag .out{border:1px solid var(--head);border-radius:6px;padding:6px 10px;font-size:14px;font-weight:700;color:var(--head);white-space:nowrap}
+  .tag.dark .out{background:var(--head);color:#fff;border-color:var(--head)}
+  .tag .asof{font-size:14px;line-height:18px;color:var(--dim);margin-top:6px}
+  .tag.pre{border-style:dashed;box-shadow:none;background:var(--inset)}
+  .tag.pre .stub{background:transparent}
+  .tag.pre .nm{color:var(--text)}
+  .tag .wait{margin-top:9px;font-size:14px;line-height:19px;color:var(--dim)}
+  .tag .wait b{color:var(--readv);font-weight:700}
+
+  /* ══════════ Ⓔ② 선반 카드 (shelf tile) ══════════ */
+  .shelf{background:var(--card);border:1px solid var(--hair);border-radius:8px;overflow:hidden;box-shadow:0 6px 14px rgba(28,24,55,.09)}
+  .shelf .well{height:84px;background:var(--tint);border-bottom:1px solid var(--hair2);
+    display:flex;align-items:center;justify-content:center;position:relative}
+  .shelf .well .gl{font-size:36px;line-height:1;color:rgba(108,92,231,.34)}
+  .shelf .well .src{position:absolute;left:9px;bottom:8px;background:rgba(255,255,255,.94);border:1px solid var(--hair);
+    border-radius:5px;padding:2px 8px;font-size:14px;font-weight:700;color:var(--text)}
+  .shelf .well .chipabs{position:absolute;right:9px;top:8px}
+  .shelf .in{padding:11px 12px 12px}
+  .shelf .br{font-family:'Oswald';font-weight:500;font-size:12px;letter-spacing:1.7px;color:var(--dim);text-transform:uppercase}
+  .shelf .nm{font-size:15px;line-height:20px;font-weight:800;color:var(--head);margin-top:3px}
+  .shelf .edslot{margin-top:9px}
+  .shelf .prow{display:flex;align-items:flex-end;justify-content:space-between;gap:8px;margin-top:10px}
+  .shelf .pz{font-family:'Oswald';font-weight:600;font-size:21px;line-height:1.24;color:var(--head)}
+  .shelf .pz u{text-decoration:none;font-family:'Noto Sans KR',sans-serif;font-size:14px;font-weight:700;color:var(--text)}
+  .shelf .out{border:1px solid var(--head);background:var(--head);border-radius:6px;padding:7px 11px;font-size:14px;font-weight:700;color:#fff;white-space:nowrap}
+  .shelf .asof{font-size:14px;line-height:18px;color:var(--dim);margin-top:6px}
+  .shelf.pre{border-style:dashed;box-shadow:none;background:var(--inset)}
+  .shelf.pre .well{background:rgba(108,92,231,.05)}
+  .shelf .wait{margin-top:9px;font-size:14px;line-height:19px;color:var(--dim)}
+  .shelf .wait b{color:var(--readv);font-weight:700}
+
+  /* ── chips: 제휴 / 광고 / 준비 중 / source ── */
+  .cp{display:inline-flex;align-items:center;gap:4px;border-radius:5px;padding:2px 8px;font-size:14px;line-height:20px;font-weight:700}
+  .cp.aff{border:1px solid var(--head);color:var(--head);background:var(--card)}
+  .cp.ad{background:var(--head);color:#fff;border:1px solid var(--head)}
+  .cp.pre{border:1px dashed var(--dim);color:var(--dim);background:transparent}
+  .cp.src{border:1px solid var(--hair);color:var(--text);background:var(--card);font-weight:500}
+  .cp i{font-style:normal;width:5px;height:5px;border-radius:50%;background:currentColor;display:block}
+
+  /* ── Ⓢ① duty-free gate rows ── */
+  .gate{display:flex;align-items:center;gap:9px;margin:18px 2px 10px}
+  .gate .box{border:1px solid var(--head);border-radius:3px;padding:3px 8px;font-family:'Oswald';font-weight:600;
+    font-size:14px;line-height:18px;letter-spacing:1.4px;color:var(--head);background:var(--card)}
+  .gate .t{font-size:15px;font-weight:800;color:var(--head)}
+  .gate .n{font-size:14px;color:var(--dim);margin-left:auto;white-space:nowrap}
+  .g2col{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .g2col .tag{flex-direction:column;margin-top:0}
+  .g2col .tag .stub{width:auto;flex:0 0 28px;height:28px;flex-direction:row;border-right:0;border-bottom:1px dashed var(--hair);
+    border-radius:7px 7px 0 0;padding:0 10px;align-items:center;justify-content:flex-start;gap:8px}
+  .g2col .tag .sv{writing-mode:horizontal-tb;margin-top:0;line-height:20px}
+  .g2col .tag .str{top:-11px;left:11px}
+  .g2col .tag .body{padding:10px 11px 11px}
+  /* 2-col is too narrow for price + 바로가기 on one line — they stack, arrow stays a labelled link */
+  .g2col .tag .prow{display:block}
+  .g2col .tag .pz{font-size:19px}
+  .g2col .tag .out{border:0;padding:0;margin-top:5px;display:block;text-align:right;color:var(--readv)}
+
+  /* ── Ⓢ② pro-shop rack ── */
+  .rack{background:var(--card);border:1px solid var(--hair);border-radius:8px;overflow:hidden;box-shadow:0 6px 14px rgba(28,24,55,.09)}
+  .rack .bar{display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--inset);border-bottom:1px solid var(--hair)}
+  .rack .bar .ph{font-family:'Oswald';font-weight:600;font-size:12px;letter-spacing:1.8px;color:var(--readv);text-transform:uppercase}
+  .rack .bar .t{font-size:15px;font-weight:800;color:var(--head)}
+  .rack .bar .n{margin-left:auto;font-size:14px;color:var(--dim)}
+  .rack .pad{padding:11px 12px 12px}
+  .rack .hang{display:flex;flex-direction:column;gap:10px;margin-top:10px}
+  .rack .item{display:flex;gap:11px;align-items:flex-start}
+  .rack .item .gl{width:56px;height:56px;flex:0 0 56px;border-radius:6px;background:var(--tint);border:1px solid var(--tintEdge);
+    display:flex;align-items:center;justify-content:center;font-size:25px;color:rgba(108,92,231,.4)}
+  .rack .item .r{flex:1;min-width:0}
+  .rack .item .br{font-family:'Oswald';font-weight:500;font-size:12px;letter-spacing:1.7px;color:var(--dim);text-transform:uppercase}
+  .rack .item .nm{font-size:15px;line-height:20px;font-weight:800;color:var(--head);margin-top:2px}
+  .rack .item .mr{display:flex;align-items:center;gap:6px;margin-top:6px;flex-wrap:wrap}
+  .rack .item .pr{display:flex;align-items:baseline;gap:8px;margin-top:6px}
+  .rack .item .pz{font-family:'Oswald';font-weight:600;font-size:18px;line-height:1.24;color:var(--head)}
+  .rack .item .pz u{text-decoration:none;font-family:'Noto Sans KR',sans-serif;font-size:14px;font-weight:700;color:var(--text)}
+  .rack .item .go{margin-left:auto;font-size:14px;font-weight:700;color:var(--readv);white-space:nowrap}
+  .rack .item .wt{font-size:14px;line-height:19px;color:var(--dim);margin-top:6px}
+  .rack .item .wt b{color:var(--readv);font-weight:700}
+  .rack .item.pre .gl{background:rgba(108,92,231,.05);border-style:dashed}
+  .rack .item.pre .nm{color:var(--text)}
+
+  /* ── Ⓢ③ magazine ── */
+  .mast{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;border-bottom:2px solid var(--head);padding-bottom:8px}
+  .mast .wk{font-family:'Oswald';font-weight:600;font-size:14px;line-height:18px;letter-spacing:1.4px;color:var(--readv)}
+  .heroP{background:var(--card);border:1px solid var(--hair);border-radius:8px;overflow:hidden;box-shadow:0 10px 22px rgba(28,24,55,.12)}
+  .heroP .well{height:150px;background:linear-gradient(160deg,#F4F1FE,#EFECF9);border-bottom:1px solid var(--hair2);
+    display:flex;align-items:center;justify-content:center;position:relative}
+  .heroP .well .gl{font-size:62px;line-height:1;color:rgba(108,92,231,.3)}
+  .heroP .well .chipabs{position:absolute;right:11px;top:10px;display:flex;gap:5px}
+  .heroP .well .src{position:absolute;left:11px;bottom:10px;background:rgba(255,255,255,.94);border:1px solid var(--hair);
+    border-radius:5px;padding:2px 9px;font-size:14px;font-weight:700;color:var(--text)}
+  .heroP .in{padding:13px 14px 14px}
+  .heroP .br{font-family:'Oswald';font-weight:500;font-size:12px;letter-spacing:1.9px;color:var(--dim);text-transform:uppercase}
+  .heroP .nm{font-size:20px;line-height:27px;font-weight:900;color:var(--head);margin-top:4px}
+  .heroP .story{font-size:14px;line-height:22px;color:var(--text);margin-top:9px}
+  .heroP .story b{color:var(--head);font-weight:800}
+  .heroP .story em{font-style:normal;font-family:'Oswald';font-weight:600;font-size:15px;line-height:1.24;color:var(--readv)}
+  .heroP .prow{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;margin-top:12px;
+    border-top:1px solid var(--hair);padding-top:11px}
+  .heroP .pz{font-family:'Oswald';font-weight:600;font-size:26px;line-height:1.24;color:var(--head)}
+  .heroP .pz u{text-decoration:none;font-family:'Noto Sans KR',sans-serif;font-size:14px;font-weight:700;color:var(--text)}
+  .heroP .out{background:var(--coral);border-radius:8px;padding:11px 16px;font-size:15px;font-weight:800;color:#fff;white-space:nowrap}
+  .heroP .asof{font-size:14px;line-height:18px;color:var(--dim);margin-top:7px}
+  .side{display:flex;gap:10px;margin-top:12px}
+  .side>div{flex:1;min-width:0}
+  /* half-width tiles: the price row stacks and the 기록 slot is dropped by design (see Ⓔ② caption) */
+  .side .shelf .prow{display:block}
+  .side .shelf .pz{white-space:nowrap}
+  .side .shelf .out{display:block;text-align:center;margin-top:8px}
+  .side .shelf .well{height:66px}
+  .side .shelf .well .gl{font-size:28px}
+
+  /* ── outbound handoff sheet (Ⓔ① play) ── */
+  .sheetwrap{position:absolute;inset:0;z-index:50;pointer-events:none;opacity:0;visibility:hidden}
+  .play .sheetwrap{opacity:1;visibility:visible;animation:fadein .22s ease-out}
+  .sheetwrap .scrim{position:absolute;inset:0;background:rgba(28,24,55,.5)}
+  .sheet{position:absolute;left:0;right:0;bottom:0;background:var(--card);border-top-left-radius:14px;border-top-right-radius:14px;
+    padding:15px 16px 20px;box-shadow:0 -12px 30px rgba(18,14,44,.28)}
+  .play .sheet{animation:rise .34s cubic-bezier(.2,.8,.3,1) backwards}
+  @keyframes rise{from{transform:translateY(110%)}to{transform:translateY(0)}}
+  @keyframes fadein{from{opacity:0}to{opacity:1}}
+  .sheet .grab{width:38px;height:4px;border-radius:99px;background:var(--hair);margin:0 auto 12px}
+  .sheet .t{font-size:16px;font-weight:800;color:var(--head)}
+  .sheet .d{font-size:14px;line-height:21px;color:var(--text);margin-top:7px}
+  .sheet .legal{font-size:14px;line-height:20px;color:var(--text);background:var(--inset);border:1px solid var(--hair);
+    border-radius:6px;padding:9px 11px;margin-top:10px}
+  .sheet .btns{display:flex;gap:9px;margin-top:13px}
+  .sheet .btns .b{flex:1;text-align:center;border-radius:8px;padding:13px 0;font-size:15px;font-weight:800}
+  .sheet .btns .b.go{background:var(--coral);color:#fff}
+  .sheet .btns .b.no{background:var(--card);border:1px solid var(--hair);color:var(--text)}
+
+  /* ── deal-signing play (pre-deal → live) ── */
+  .swapwrap{position:relative}
+  .swapwrap .s-pre{display:block}
+  .swapwrap .s-live{display:none}
+  .play .swapwrap .s-pre{display:none}
+  .play .swapwrap .s-live{display:block;animation:dealin .46s cubic-bezier(.2,.8,.3,1) backwards}
+  @keyframes dealin{0%{opacity:0;transform:translateY(7px) scale(.985)}100%{opacity:1;transform:none}}
+  .play .swapwrap .cp.aff{animation:stamp .34s cubic-bezier(.5,0,.7,.35) .22s backwards}
+  @keyframes stamp{0%{opacity:0;transform:scale(2.2)}60%{opacity:1}100%{opacity:1;transform:scale(1)}}
+
+  /* ── editorial binding play ── */
+  .edplay .ed{opacity:1}
+  .play .edplay .ed{animation:edin .5s cubic-bezier(.2,.8,.3,1) backwards}
+  @keyframes edin{0%{opacity:0;transform:translateY(6px)}100%{opacity:1;transform:none}}
+  .play .edplay .ed em{animation:tick .55s steps(1) backwards}
+  @keyframes tick{0%,20%{color:var(--dim)}100%{color:var(--readv)}}
+
+  /* bottom nav */
+  .navbar{display:flex;border-top:1px solid var(--hair);background:var(--card)}
+  .navbar div{flex:1;text-align:center;padding:9px 0 12px}
+  .navbar .g{font-size:17px;color:var(--dim);line-height:1.2}
+  .navbar .t{font-size:14px;color:var(--dim);margin-top:2px}
+  .navbar .on .g,.navbar .on .t{color:var(--accent);font-weight:700}
+
+  /* ══════════ LEGEND / TABLES ══════════ */
+  .legend{margin-top:20px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);border-radius:10px;padding:15px 17px}
+  .lgt{font-size:13px;color:#DCD6F8;line-height:1.62;margin-bottom:13px}
+  .lgt b{color:#FFC3B1;font-weight:700}
+  .lgrow{display:flex;flex-wrap:wrap;gap:16px}
+  .lgi{display:flex;gap:11px;align-items:flex-start;width:290px;background:var(--card);border:1px solid var(--hair);border-radius:8px;padding:11px}
+  .lgl{min-width:0}
+  .lgl b{display:block;font-size:12.5px;color:var(--head);font-weight:800;letter-spacing:.2px}
+  .lgl span{display:block;font-size:12px;color:var(--text);line-height:1.55;margin-top:3px}
+
+  .tblwrap{max-width:1560px;margin:44px auto 0;padding:0 26px}
+  table{width:100%;border-collapse:collapse;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.1);border-radius:10px;overflow:hidden}
+  caption{text-align:left;font-size:15px;font-weight:700;color:#F2EFFA;padding:0 0 9px}
+  caption small{display:block;font-size:12px;font-weight:400;color:#8F88B4;margin-top:4px;line-height:1.55}
+  th,td{font-size:12.5px;text-align:left;padding:9px 11px;border-bottom:1px solid rgba(255,255,255,.08);line-height:1.5;vertical-align:top}
+  th{background:rgba(255,255,255,.06);color:#C9C2E8;font-weight:700;font-size:11.5px;letter-spacing:.5px;text-transform:uppercase}
+  td{color:#BDB6DC}
+  td.v{color:#F2EFFA;font-weight:700;white-space:nowrap}
+  td.vw{color:#F2EFFA;font-weight:700}
+  td code{font-family:'Oswald';font-weight:400;font-size:12px;letter-spacing:.2px;color:#9F8FFF}
+  td b{color:#F0765A;font-weight:700}
+  td .in{color:#B7E27A;font-weight:700}
+  td .out{color:#FF9C82;font-weight:700}
+  tr:last-child td{border-bottom:0}
+  .rec{margin-top:20px;border:1px solid rgba(240,118,90,.35);background:rgba(240,118,90,.09);border-radius:10px;padding:15px 17px}
+  .rec h4{font-size:15px;color:#FFC3B1;font-weight:700;margin-bottom:7px}
+  .rec p{font-size:13px;color:#DCD6F8;line-height:1.7}
+  .rec p+p{margin-top:7px}
+  .rec b{color:#fff;font-weight:700}
+  .rec em{font-style:normal;color:#9F8FFF}
+  .note{max-width:1560px;margin:22px auto 0;padding:0 26px;font-size:12.5px;color:#8F88B4;line-height:1.72}
+  .note b{color:#C9C2E8}
+  .note code{font-family:'Oswald';font-weight:400;font-size:12px;color:#9F8FFF}
+  .danger{max-width:1560px;margin:34px auto 0;padding:0 26px}
+  .danger .box{border:1px solid rgba(255,156,130,.4);background:rgba(228,95,65,.12);border-radius:10px;padding:16px 18px}
+  .danger h3{font-size:16px;color:#FFC3B1;font-weight:700;margin-bottom:9px}
+  .danger ol{margin:0;padding-left:19px}
+  .danger li{font-size:13px;color:#EDE8FA;line-height:1.72;margin-bottom:5px}
+  .danger li b{color:#FF9C82;font-weight:700}
+  .danger li em{font-style:normal;color:#C9C2E8}
+</style>
+</head>
+<body>
+
+<div class="sticky">
+  <div class="wrap">
+    <div class="lab-title">Shop Redesign Lab — <em>Ⓢ 셸 3종</em> · <i>Ⓔ 카드 해부 2종</i></div>
+    <div class="lab-sub">
+      부티크 becomes a <b>curated affiliate shelf</b> (brand-deals ②): real premium products, real outbound links, every card carrying a <b>제휴</b> or <b>광고</b> chip
+      (표시광고법). <b>Ⓢ</b> is the whole screen — three framings of the same shelf. <b>Ⓔ</b> is the product card itself — two anatomies.
+      The sample inventory is the <b>10-item first shelf from docs/biz/affiliate-product-research.md §3</b>, at its researched prices. Nothing here is a fake SKU.
+      Reply with numbers, e.g. <b>"S2 E1"</b>.
+    </div>
+    <div class="chips">
+      <span>Sample dog <b>초코</b> — <i>weekKm 12.4</i> · <i>weekRuns 3</i> · 포장 코스 <i>8.2km</i> · 간식 타임 <i>2/3</i> · 체력 나이 <i>3.4</i> · 누적 <i>128.6km</i> · 잔액 <i>1,280P</i></span>
+      <span>Every card is <b>제휴 or 광고</b> labelled — no exceptions</span>
+      <span>Point-payment (<b>⑤</b>) is <b>blocked</b> — balance displays, never spends</span>
+      <span>Gold = receipt only · <b>zero gold below</b></span>
+      <span>Foil budget = <b>1</b> holo hairline per screen (통장 strip only)</span>
+      <button class="gatebtn" id="gt">◈ Show deal-gated parts</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════ HONESTY RULES ═══════════════════════════ -->
+<div class="danger">
+  <div class="box">
+    <h3>Honesty rules for this screen — what may NEVER render</h3>
+    <ol>
+      <li><b>No discount, no strike-through, no 정가/할인가.</b> We hold no price history for another retailer's SKU. <em>A ₩41,000 harness renders as ₩41,000, full stop.</em></li>
+      <li><b>No ratings, no ★, no review counts, no 판매량.</b> daengrun has zero reviews for external products, and copying a marketplace's rating is republishing someone else's number as our own.</li>
+      <li><b>No urgency.</b> No 오늘만, no 마감 임박, no countdown, no 품절 임박 — there is no deal-window source and inventing one is the oldest dark pattern on this list.</li>
+      <li><b>No stock counts.</b> We do not hold inventory and cannot read theirs.</li>
+      <li><b>No point-payment affordance</b> — no 포인트로 결제, no 포인트 차감 preview, no 포인트 사용 toggle on any product. Brand-deals ⑤ is blocked behind take-rate. The balance may <em>display</em>; it may never look spendable here.</li>
+      <li><b>No 최저가 / 무료배송 / 정품 보장 claims.</b> Front Range sits at ₩41,000 on Coupang and ₩68,000 at PIGDOG — the research flags that spread as a parallel-import signal. We show <em>the linked seller's price only</em>, never a range and never a "lowest" claim.</li>
+      <li><b>No fit claims.</b> The app knows distance, pace, terrain and addons. It does not know paw condition, joint health, or size. Copy may say <em>"이번 주 12.4km를 뛰었어요"</em>; it may not say <em>"초코 발에 무리가 왔어요"</em> or <em>"초코에게 맞는 사이즈예요"</em>.</li>
+      <li><b>No weather line.</b> <em>There is no weather anywhere in this codebase</em> — not in <code>runs</code>, not in <code>bookings</code>, not in any client fetch. The cooling-vest editorial line therefore binds <em>month + hour from scheduled_at</em>, never 기온/습도. See the bindings legend.</li>
+      <li><b>No card without a live link.</b> Before a deal is signed a card renders in its 준비 중 shape: no 제휴 chip, no price row, no 바로가기, not pressable. <em>Signed deal or it doesn't render.</em></li>
+      <li><b>No silent commerce.</b> Leaving the app is announced — the outbound sheet names the seller and states that daengrun earns a commission, before the browser opens.</li>
+      <li><b>No stale price without a date.</b> Every price carries an <em>조회 기준일</em>, and the whole screen carries one in the disclosure band.</li>
+      <li><b>No dead affordance.</b> Today's shop is six Alert() taps. If a control has no destination in a given state, it does not render in that state.</li>
+    </ol>
+  </div>
+</div>
+
+<!-- ═══════════════════════════ BINDINGS LEGEND ═══════════════════════════ -->
+<div class="tblwrap" style="margin-top:34px">
+  <table>
+    <caption>Bindings legend — every editorial line in this lab, and the field it stands on
+      <small>Green rows exist today and are readable by the client with current RLS. Red rows do not exist — the copy that would need them is banned from the mockups above, not deferred.</small>
+    </caption>
+    <tr><th style="width:150px">Editorial line (in-app)</th><th style="width:74px">Sample</th><th>Binding</th><th style="width:210px">Honesty constraint</th><th style="width:56px">v1</th></tr>
+
+    <tr><td class="vw">초코가 이번 주 <b>12.4km</b> 뛰었어요</td><td><code>12.4</code></td>
+      <td><code>fetchFitness().weekKm</code> — sum of <code>runs.actual_km</code> over completed bookings since <code>kstWeekStartMs()</code>. Already shipped and rendering on 마이 / 홈.</td>
+      <td>Renders only when <code>weekRuns &gt; 0</code>. Zero-run week → the whole line is absent, never "0km".</td><td><span class="in">IN</span></td></tr>
+
+    <tr><td class="vw">그중 <b>포장 코스 8.2km</b></td><td><code>8.2</code></td>
+      <td><code>routes.terrain</code> on the week's completed bookings, summing <code>runs.actual_km</code> where terrain starts <code>'포장'</code>. Seed values are literally <code>포장 60%</code> / <code>포장 80%</code> / <code>흙길 70%</code> / <code>흙길 90%</code>.</td>
+      <td><b>Exposure, not stress.</b> The percentage in <code>terrain</code> is a route attribute, not a measurement of this run — so the honest phrasing is "포장 코스", never "아스팔트에서 8.2km를 뛰어 발이".</td><td><span class="in">IN</span></td></tr>
+
+    <tr><td class="vw">최근 러닝 <b>3회 중 2회</b>에 간식 타임을 넣었어요</td><td><code>2 / 3</code></td>
+      <td><code>bookings.addons</code> jsonb — count entries with <code>key='snack'</code> (<code>pricing.addons.snack</code> = '간식 타임', theme.ts:156) over the last N completed bookings.</td>
+      <td>Counts a purchased add-on, not an observed treat. Copy says 넣었어요 (chose it), never 초코가 간식을 N번 받았어요.</td><td><span class="in">IN</span></td></tr>
+
+    <tr><td class="vw">체력 나이 <b>3.4세</b></td><td><code>3.4</code></td>
+      <td><code>fetchFitness().fitnessAge</code> — v1 heuristic, already written back to <code>dogs.fitness_age</code>.</td>
+      <td><code>fitnessGate</code> is load-bearing: no birth date, or &lt;2 runs in 28 days → <code>fitnessAge</code> is <b>null</b> and the line must not render. The gate reason may render instead.</td><td><span class="in">IN</span></td></tr>
+
+    <tr><td class="vw">주간 페이스 <b>6'12"</b></td><td><code>6'12"</code></td>
+      <td><code>fetchFitness().avgPaceSec</code> — week duration ÷ week km.</td>
+      <td>Null when the week has &lt;0.05km. Any "산책이 아니라 러닝이에요" phrasing needs a stated threshold in code, or it is an opinion dressed as data.</td><td><span class="in">IN</span></td></tr>
+
+    <tr><td class="vw">누적 <b>128.6km</b> · 코스 <b>3곳</b></td><td><code>— / 3</code></td>
+      <td><b>SPLIT.</b> Course count = <code>fetchCoursePatches().earned.length</code> — real, IN. Cumulative km = <code>dogs.cumulative_km</code> — <b>NO WRITER</b> (seed-only, the fake-number trap the stamp scout flagged; director boss-review correction). A real total needs the run-sum query planned with the record-face totals work.</td>
+      <td>Until that query ships, shelf lines may use the course count and weekly km only. Course count shrinks if a route is deactivated — fine as a live stat, never as a "forever" claim.</td><td><span class="in">IN</span>/<b style="color:#FF9C82">OUT</b></td></tr>
+
+    <tr><td class="vw"><b>8월</b> 러닝 3회 모두 <b>14시 이후</b>였어요</td><td><code>8 / 14</code></td>
+      <td><code>bookings.scheduled_at</code> → KST month + hour buckets. This is the honest stand-in for the seasonal/heat story.</td>
+      <td><b>The substitute for weather.</b> It says when they ran, not how hot it was. It must never be dressed up as a temperature claim.</td><td><span class="in">IN</span></td></tr>
+
+    <tr><td class="vw"><b>3일</b> 연속 러닝 중</td><td><code>3</code></td>
+      <td><code>fetchFitness().streakDays</code>.</td><td>Decays — so it belongs on a shelf line (a live fact), never on a stamp.</td><td><span class="in">IN</span></td></tr>
+
+    <tr><td class="vw">하이 포인트 <b>1,280P</b></td><td><code>1,280</code></td>
+      <td><code>fetchMiles()</code> → <code>my_miles_balance()</code> RPC (0027) + last 10 <code>miles_ledger</code> rows.</td>
+      <td>Fetch failure → the strip does not render. <b>Never 0 as a loading value.</b> Never adjacent to a product CTA (⑤ blocked).</td><td><span class="in">IN</span></td></tr>
+
+    <tr><td class="vw" style="color:#FF9C82">기온 24° · 습도 · 미세먼지</td><td>—</td>
+      <td><b>NO SOURCE.</b> Zero weather columns in <code>runs</code>, <code>bookings</code>, <code>routes</code>; zero weather fetches in the client. The only string in the repo is a scripted onboarding line in <code>store.ts:430</code>.</td>
+      <td class="vw" style="white-space:normal">Cannot render at any price. The Swamp Cooler card uses the month/hour line instead.</td><td><span class="out">OUT</span></td></tr>
+
+    <tr><td class="vw" style="color:#FF9C82">발 상태 / 발볼 스트레스 지수</td><td>—</td>
+      <td><b>NO SOURCE.</b> There is no paw, gait, or surface-impact measurement. <code>routes.terrain</code> is the closest real field and it describes the route, not the dog.</td>
+      <td class="vw" style="white-space:normal">"발볼 케어" may be an <em>editorial recommendation</em>; it may never be presented as a reading.</td><td><span class="out">OUT</span></td></tr>
+
+    <tr><td class="vw" style="color:#FF9C82">상품 평점 · 리뷰 · 재고 · 할인율</td><td>—</td>
+      <td><b>NO SOURCE.</b> No product table exists yet; no review path for external SKUs; no inventory feed.</td>
+      <td class="vw" style="white-space:normal">Banned outright (honesty rules 1–4).</td><td><span class="out">OUT</span></td></tr>
+
+    <tr><td class="vw" style="color:#FF9C82">affiliate URL · 수수료율 · 클릭 집계</td><td>—</td>
+      <td><b>NOT YET.</b> No <code>affiliate_products</code> table, no link store, no click event. Coupang's API is gated behind ₩150,000 cumulative attributed sales; 무신사 큐레이터 is unapproved.</td>
+      <td class="vw" style="white-space:normal">This is why <em>every</em> variant below ships day-0 in its 준비 중 shape. The live states are the target, not the launch.</td><td><span class="out">OUT</span></td></tr>
+  </table>
+</div>
+
+<!-- ═══════════════════════════ SECTION Ⓢ ═══════════════════════════ -->
+<div class="sect">
+  <div class="sect-head">
+    <div class="n">Ⓢ</div>
+    <h2>Shop shell — three framings of the same shelf</h2>
+    <p>Each phone: the shelf in its <b>affiliate-live</b> state, then under the lab divider the <b>day-0 pre-deal</b> state that actually ships first, then the <b>하이 포인트 area</b> in both its today shape and its ⑤-unlocked shape. Click <b>▶ 제휴 성사</b> to watch a card cross from pre-deal to live.</p>
+  </div>
+
+  <div class="legend">
+    <div class="lgt">
+      <b>Chip grammar, decided once.</b> 제휴 = we earn a commission if you buy through this link. 광고 = the brand paid for the slot itself.
+      Both are <b>outlined/filled ink marks, never coral</b> — coral is the app's CTA and 라이브 colour, and a disclosure label that looks like a button is a disclosure that gets tapped by accident.
+      The chip is <b>14pt</b> (Korean text floor; no letterspaced-kicker exemption applies to 한글).
+      Source pills (쿠팡 · 무신사 · 브랜드몰 · 삼성) are neutral — <b>no brand colours are imitated</b>, because a coloured 쿠팡 pill implies an endorsement relationship we do not have.
+    </div>
+    <div class="lgrow">
+      <div class="lgi"><span class="cp aff">제휴</span>
+        <div class="lgl"><b>제휴 — affiliate link</b><span>Commission on purchase. Required on every card that carries an outbound link. Outlined ink on white.</span></div></div>
+      <div class="lgi"><span class="cp ad">광고</span>
+        <div class="lgl"><b>광고 — paid placement</b><span>The brand paid to occupy the slot. Filled ink plate, white text (≥4.5:1). Used when a direct 제휴 deal includes placement fees.</span></div></div>
+      <div class="lgi"><span class="cp pre">준비 중</span>
+        <div class="lgl"><b>준비 중 — pre-deal</b><span>Dashed, dim, inert. No price, no arrow, no chip. This is the honest day-0 shape of all ten items.</span></div></div>
+      <div class="lgi"><span class="cp src">쿠팡</span>
+        <div class="lgl"><b>Source pill</b><span>Where the link lands. Neutral chrome for every seller — 쿠팡 · 무신사 · 브랜드몰 · 삼성.</span></div></div>
+    </div>
+  </div>
+
+  <div class="frames">
+
+    <!-- ══════════════ Ⓢ① 면세점 / DUTY FREE ══════════════ -->
+    <div class="unit">
+      <div class="phone" id="s1">
+        <div class="scr">
+          <div class="krow" style="gap:8px;margin:6px 0 8px"><span class="kk">DOGS HIGH · DUTY FREE</span><span class="rule"></span><span class="kk">GATE 24</span></div>
+          <div class="krow" style="align-items:flex-start;gap:10px"><span class="h1">부티크</span><span class="official">DUTY FREE</span></div>
+          <div class="subnote">출국장 상점이에요 — 고르는 건 여기, 결제와 배송은 각 브랜드 몰에서 진행돼요</div>
+
+          <!-- 통장 스트립 -->
+          <div class="pass" style="margin-top:13px">
+            <div class="holo"></div>
+            <div class="in">
+              <div class="top">
+                <div>
+                  <div class="k">HIGH POINT · 하이 포인트</div>
+                  <div class="bal">1,280<u> 포인트</u></div>
+                </div>
+                <div class="go">적립 내역 ›</div>
+              </div>
+              <div class="ln"><span>완주 · 응가 도장 — 8월 3일</span><b>+80</b></div>
+              <div class="say">지금은 <i>적립만</i> 돼요. 상품 결제에는 아직 쓸 수 없어요.</div>
+            </div>
+          </div>
+
+          <!-- 표시광고법 -->
+          <div class="disc">
+            <div class="t">제휴 안내</div>
+            <div class="d">이 화면의 <b>제휴</b> 링크로 구매하면 도그스하이가 수수료를 받아요. 가격은 <b>2026.08.05</b> 판매처 조회 기준이에요.</div>
+          </div>
+
+          <!-- GATE A -->
+          <div class="gate"><span class="box">GATE A</span><span class="t">달리기 전</span><span class="n">하네스 · 리드</span></div>
+          <div class="g2col">
+            <div data-card="frontrange" data-kind="tag2" data-state="live"></div>
+            <div data-card="howlpot" data-kind="tag2" data-state="live"></div>
+          </div>
+
+          <!-- GATE B -->
+          <div class="gate"><span class="box">GATE B</span><span class="t">달리기 중</span><span class="n">간식 · 휴대</span></div>
+          <div class="g2col">
+            <div data-card="flatout" data-kind="tag2" data-state="live"></div>
+            <div data-card="treattrader" data-kind="tag2" data-state="pre"></div>
+          </div>
+
+          <!-- GATE C -->
+          <div class="gate"><span class="box">GATE C</span><span class="t">달리기 후</span><span class="n">발 · 세정</span></div>
+          <div class="g2col">
+            <div data-card="lila" data-kind="tag2" data-state="live"></div>
+            <div data-card="aesop" data-kind="tag2" data-state="pre"></div>
+          </div>
+
+          <div class="labdiv">Day 0 — no signed deals yet</div>
+          <div class="gate"><span class="box">GATE A</span><span class="t">달리기 전</span><span class="n">2개</span></div>
+          <div class="g2col">
+            <div data-card="frontrange" data-kind="tag2" data-state="pre" data-fixed></div>
+            <div data-card="howlpot" data-kind="tag2" data-state="pre" data-fixed></div>
+          </div>
+          <div class="disc" style="margin-top:11px">
+            <div class="t">아직 문을 열지 않았어요</div>
+            <div class="d">브랜드와 제휴가 맺어지면 그 칸부터 가격과 <b>바로가기</b>가 열려요. 링크 없는 칸은 눌리지 않아요.</div>
+          </div>
+        </div>
+        <div class="navbar">
+          <div><div class="g">⌂</div><div class="t">홈</div></div>
+          <div><div class="g">◎</div><div class="t">클럽</div></div>
+          <div class="on"><div class="g">◈</div><div class="t">샵</div></div>
+          <div><div class="g">☰</div><div class="t">마이</div></div>
+        </div>
+      </div>
+      <div class="playbar">
+        <button data-play="#s1">▶ 제휴 성사 — 준비 중 → 라이브</button>
+        <button class="q" data-stop="#s1">reset</button>
+      </div>
+      <div class="replay">Plays the two 준비 중 cards (Treat Trader · Aesop) crossing into their live state.</div>
+      <div class="cap">
+        <h3><b>Ⓢ①</b> 면세점 — the departure-lounge shelf, sections as gates</h3>
+        <div class="why"><b>Why:</b> a duty-free arcade is the one retail form where <em>you browse here and collect elsewhere</em> — which is exactly what an affiliate shelf is, and it makes the outbound link feel like the design rather than a leak. The gates (A/B/C) reuse the airport vocabulary already in the app (boarding pass, MRZ, 여권, 부속서) without inventing a new world. Density is highest of the three: a 2-column tag grid puts six items above the fold, so it is the framing that best survives a shelf growing to 20 items.</div>
+        <div class="meta">
+          <b>BINDS</b> balance <code>fetchMiles().balance</code> · last ledger row <code>miles_ledger[0]</code> (reason label + KST date) · nothing else on this screen is dog-specific — <span class="rt">Ⓢ① deliberately has no editorial line</span>, which is its weakness and Ⓢ②'s whole point.<br>
+          <b>GATE-ONLY</b> 제휴 chip · price row · 바로가기 ↗ · source pill (toggle <em>◈ Show deal-gated parts</em> in the header to outline them).<br>
+          <b>BALANCE</b> the strip states 적립만 in the strip itself. When ⑤ unblocks, the dashed ⑤ row (shown in Ⓢ②) attaches under the ledger line — <b>not</b> as a per-card toggle.<br>
+          <b>FOIL</b> one holo hairline on the 통장 strip. BHS once (부티크).<br>
+          <b>COST</b> measured at 390dp: <em>1,333px</em> — the shortest of the three, and the only one whose whole first gate is above the fold.
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════ Ⓢ② 러닝 전문점 / PRO SHOP ══════════════ -->
+    <div class="unit">
+      <div class="phone" id="s2">
+        <div class="scr">
+          <div class="krow" style="gap:8px;margin:6px 0 8px"><span class="kk">DOGS HIGH · PRO SHOP</span><span class="rule"></span><span class="kk">BANPO</span></div>
+          <div class="krow" style="align-items:flex-start;gap:10px"><span class="h1">러닝 전문점</span></div>
+          <div class="subnote">초코의 이번 주 기록을 보고 골라 걸어뒀어요</div>
+
+          <div class="pass thin" style="margin-top:13px">
+            <div class="holo"></div>
+            <div class="in">
+              <div class="top">
+                <div>
+                  <div class="k">HIGH POINT · 하이 포인트</div>
+                  <div class="bal">1,280<u> 포인트</u></div>
+                </div>
+                <div class="go">적립 내역 ›</div>
+              </div>
+              <div class="say">적립만 돼요 — 상품 결제에는 아직 쓸 수 없어요.</div>
+            </div>
+          </div>
+
+          <div class="disc">
+            <div class="t">제휴 안내</div>
+            <div class="d">아래 <b>제휴</b> 링크로 구매하면 도그스하이가 수수료를 받아요. 가격은 <b>2026.08.05</b> 판매처 조회 기준이에요.</div>
+          </div>
+
+          <!-- BEFORE -->
+          <div class="sec"><span class="no">§</span><span class="t">BEFORE</span><span class="ko">달리기 전</span><span class="rule"></span></div>
+          <div class="rack">
+            <div class="bar"><span class="ph">RACK 01</span><span class="t">몸에 닿는 것</span><span class="n">2</span></div>
+            <div class="pad edplay">
+              <div class="ed on-rack">
+                <div class="k">초코의 기록</div>
+                <div class="t">체력 나이 <em>3.4세</em> · 이번 주 <em>3회</em> 완주 · 주간 페이스 <em>6'12"</em></div>
+                <div class="s">이 페이스면 산책 장비가 아니라 러닝 장비 구간이에요.</div>
+              </div>
+              <div class="hang">
+                <div data-card="frontrange" data-kind="rack" data-state="live"></div>
+                <div data-card="howlpot" data-kind="rack" data-state="live"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- DURING -->
+          <div class="sec"><span class="no">§</span><span class="t">DURING</span><span class="ko">달리기 중</span><span class="rule"></span></div>
+          <div class="rack">
+            <div class="bar"><span class="ph">RACK 02</span><span class="t">손에 드는 것</span><span class="n">2</span></div>
+            <div class="pad edplay">
+              <div class="ed on-rack">
+                <div class="k">초코의 기록</div>
+                <div class="t">최근 러닝 <em>3회 중 2회</em>에 '간식 타임'을 넣었어요</div>
+                <div class="s">달리면서 한 손으로 꺼내는 게 문제라면 이 칸이에요.</div>
+              </div>
+              <div class="hang">
+                <div data-card="flatout" data-kind="rack" data-state="live"></div>
+                <div data-card="treattrader" data-kind="rack" data-state="pre"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- AFTER -->
+          <div class="sec"><span class="no">§</span><span class="t">AFTER</span><span class="ko">달리기 후</span><span class="rule"></span></div>
+          <div class="rack">
+            <div class="bar"><span class="ph">RACK 03</span><span class="t">돌아와서</span><span class="n">2</span></div>
+            <div class="pad edplay">
+              <div class="ed on-rack">
+                <div class="k">초코의 기록</div>
+                <div class="t">이번 주 <em>12.4km</em> — 그중 <em>포장 코스 8.2km</em></div>
+                <div class="s">포장 구간이 길었던 주에 발볼 케어를 걸어두는 이유예요.</div>
+              </div>
+              <div class="hang">
+                <div data-card="lila" data-kind="rack" data-state="live"></div>
+                <div data-card="ridgeline" data-kind="rack" data-state="pre"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="labdiv">Day 0 — no signed deals yet</div>
+          <div class="rack">
+            <div class="bar"><span class="ph">RACK 03</span><span class="t">돌아와서</span><span class="n">2</span></div>
+            <div class="pad">
+              <div class="ed on-rack">
+                <div class="k">초코의 기록</div>
+                <div class="t">이번 주 <em>12.4km</em> — 그중 <em>포장 코스 8.2km</em></div>
+                <div class="s">읽을거리는 제휴와 상관없이 그대로 나와요.</div>
+              </div>
+              <div class="hang">
+                <div data-card="lila" data-kind="rack" data-state="pre" data-fixed></div>
+                <div data-card="ridgeline" data-kind="rack" data-state="pre" data-fixed></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="labdiv">HIGH POINT area — today vs ⑤ unlocked</div>
+          <div class="pass thin">
+            <div class="holo"></div>
+            <div class="in">
+              <div class="top">
+                <div><div class="k">HIGH POINT · 하이 포인트</div><div class="bal">1,280<u> 포인트</u></div></div>
+                <div class="go">적립 내역 ›</div>
+              </div>
+              <div class="say">적립만 돼요 — 상품 결제에는 아직 쓸 수 없어요.</div>
+              <div class="five g8" data-g="⑤ BLOCKED"><span>다음 예약 요금에서 쓰기</span><b>준비 중</b></div>
+            </div>
+          </div>
+        </div>
+        <div class="navbar">
+          <div><div class="g">⌂</div><div class="t">홈</div></div>
+          <div><div class="g">◎</div><div class="t">클럽</div></div>
+          <div class="on"><div class="g">◈</div><div class="t">샵</div></div>
+          <div><div class="g">☰</div><div class="t">마이</div></div>
+        </div>
+      </div>
+      <div class="playbar">
+        <button data-play="#s2">▶ 제휴 성사 + 에디토리얼 바인딩</button>
+        <button class="q" data-stop="#s2">reset</button>
+      </div>
+      <div class="replay">The three run-data lines fade in as their fetches resolve, then the two 준비 중 items cross to live.</div>
+      <div class="cap">
+        <h3><b>Ⓢ②</b> 러닝 전문점 — racks by run-context, editorial lines on the rails</h3>
+        <div class="why"><b>Why:</b> this is the only framing where the app's unfair advantage is structural rather than decorative. <em>달리기 전 / 중 / 후</em> is not a merchandising category — it is the shape of the thing the app already records, so each rack gets to open with a sentence no Coupang page can write. It also makes the shelf legible at three items: a specialty shop with three racks reads as curated, whereas a duty-free arcade with three items reads as empty.</div>
+        <div class="meta">
+          <b>BINDS · RACK 01</b> <code>fetchFitness().fitnessAge</code> (gated by <code>fitnessGate</code>) · <code>.weekRuns</code> · <code>.avgPaceSec</code>.<br>
+          <b>BINDS · RACK 02</b> <code>bookings.addons[].key==='snack'</code> over the last N completed bookings — the '간식 타임' add-on (theme.ts:156).<br>
+          <b>BINDS · RACK 03</b> <code>fetchFitness().weekKm</code> + Σ<code>runs.actual_km</code> where <code>routes.terrain LIKE '포장%'</code>.<br>
+          <b>DEGRADES</b> each <code>.ed</code> block is independently optional. New user with 0 runs → all three lines absent, racks still render with their products; that is the honest floor, and it is why the lines sit <em>above</em> the items rather than inside them.<br>
+          <span class="rt"><b>WEATHER</b> the Swamp Cooler could not live in RACK 03 with a temperature line — there is no weather field. It moves to Ⓢ③'s month/hour framing or waits for a weather source.</span><br>
+          <b>COST</b> measured at 390dp: <em>1,774px</em> — the tallest by ~440px. RACK 02 and 03 are entirely below the fold on first paint, which is the price of putting a sentence on every rail.<br>
+          <b>FOIL</b> one holo hairline. <em>The second 통장 strip in this frame is the lab's ⑤ comparison block, not a second strip on the screen.</em>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════ Ⓢ③ 매거진 / 이번 주 셸프 ══════════════ -->
+    <div class="unit">
+      <div class="phone" id="s3">
+        <div class="scr">
+          <div class="krow" style="gap:8px;margin:6px 0 8px"><span class="kk">DOGS HIGH · SHELF</span><span class="rule"></span><span class="kk">NO. 07</span></div>
+          <div class="mast" style="margin-top:2px">
+            <span class="h1">이번 주 셸프</span>
+            <span class="wk">8월 1주</span>
+          </div>
+          <div class="subnote">한 주에 한 칸만 바꿔요. 이번 주 이야기는 <b style="color:var(--head)">포장 코스</b>예요.</div>
+
+          <div class="disc">
+            <div class="t">제휴 안내</div>
+            <div class="d">아래 <b>제휴</b> 링크로 구매하면 도그스하이가 수수료를 받아요. 가격은 <b>2026.08.05</b> 판매처 조회 기준이에요.</div>
+          </div>
+
+          <!-- HERO -->
+          <div class="heroP" style="margin-top:13px">
+            <div class="well">
+              <span class="gl">◍</span>
+              <span class="chipabs g8" data-g="DEAL"><span class="cp aff">제휴</span></span>
+              <span class="src g8" data-g="DEAL">브랜드몰</span>
+            </div>
+            <div class="in">
+              <div class="br">LILA LOVES IT</div>
+              <div class="nm">포케어 60ml — 발볼 밤</div>
+              <div class="story">
+                초코는 이번 주 <em>12.4km</em>를 뛰었고, 그중 <em>8.2km</em>가 <b>포장 코스</b>였어요.
+                포장 구간이 길었던 주에 이 칸을 골랐어요 — 발 상태를 잰 건 아니고, 뛴 바닥을 본 거예요.
+              </div>
+              <div class="prow g8" data-g="DEAL">
+                <div>
+                  <div class="pz">32,000<u>원</u></div>
+                  <div class="asof">브랜드몰 · 08.05 조회</div>
+                </div>
+                <div class="out">바로가기 ↗</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- SIDE -->
+          <div class="side">
+            <div data-card="ridgeline" data-kind="shelf" data-state="live" data-ed="none"></div>
+            <div data-card="swamp" data-kind="shelf" data-state="pre" data-ed="none"></div>
+          </div>
+
+          <div class="sec"><span class="no">§</span><span class="t">LAST WEEK</span><span class="ko">지난 주 셸프</span><span class="rule"></span></div>
+          <div class="rack">
+            <div class="bar"><span class="ph">NO. 06</span><span class="t">7월 4주 — 간식 이야기</span></div>
+            <div class="pad"><div class="hang">
+              <div data-card="treattrader" data-kind="rack" data-state="pre" data-fixed></div>
+            </div></div>
+          </div>
+
+          <div class="colo" style="margin-top:14px">
+            <div class="l">
+              <div class="k">HIGH POINT · 하이 포인트</div>
+              <div class="v">1,280<u> 포인트</u></div>
+              <div class="d">적립만 돼요 — 상품 결제에는 아직 못 써요</div>
+            </div>
+            <div class="g">적립 내역 ›</div>
+          </div>
+
+          <div class="labdiv">Day 0 — no signed deals yet</div>
+          <div class="heroP">
+            <div class="well"><span class="gl">◍</span></div>
+            <div class="in">
+              <div class="br">LILA LOVES IT</div>
+              <div class="nm">포케어 60ml — 발볼 밤</div>
+              <div class="story">
+                초코는 이번 주 <em>12.4km</em>를 뛰었고, 그중 <em>8.2km</em>가 <b>포장 코스</b>였어요.
+                포장 구간이 길었던 주에 이 칸을 골랐어요.
+              </div>
+              <div class="wait" style="margin-top:11px;border-top:1px solid var(--hair);padding-top:11px;font-size:14px;line-height:20px;color:var(--dim)">
+                <span class="cp pre">준비 중</span><br style="line-height:8px">
+                <span style="display:inline-block;margin-top:7px">아직 이 브랜드와 제휴가 없어요. 링크가 열리면 가격과 바로가기가 여기 붙어요.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="navbar">
+          <div><div class="g">⌂</div><div class="t">홈</div></div>
+          <div><div class="g">◎</div><div class="t">클럽</div></div>
+          <div class="on"><div class="g">◈</div><div class="t">샵</div></div>
+          <div><div class="g">☰</div><div class="t">마이</div></div>
+        </div>
+      </div>
+      <div class="playbar">
+        <button data-play="#s3">▶ 제휴 성사 — 사이드 카드</button>
+        <button class="q" data-stop="#s3">reset</button>
+      </div>
+      <div class="replay">The Swamp Cooler side card crosses from 준비 중 to live.</div>
+      <div class="cap">
+        <h3><b>Ⓢ③</b> 매거진 — one weekly drop, one hero, one story</h3>
+        <div class="why"><b>Why:</b> the framing that scales <em>down</em> instead of up. With two signed deals a grid looks broken and a magazine looks intentional — and with ten deals it still only shows one hero, which is the strongest argument against ever becoming a catalogue. The weekly cadence (No. 07 · 8월 1주) also gives the shop a reason to be re-opened, which a static shelf never has. Cost: it is the framing that most needs an editor — a bad week's story is visible and unavoidable.</div>
+        <div class="meta">
+          <b>BINDS · HERO STORY</b> <code>fetchFitness().weekKm</code> + Σ 포장 <code>routes.terrain</code> km. The sentence "발 상태를 잰 건 아니고, 뛴 바닥을 본 거예요" is <span class="ok">deliberate</span> — it is the honesty rule 7 boundary written into the product copy rather than hidden in a doc.<br>
+          <b>WEEK NO.</b> <code>kstWeekStartMs()</code> — the same week window the leaderboard and 주간 거리 already use. No new time vocabulary.<br>
+          <b>GATE-ONLY</b> the whole price row + chip + source; the story renders regardless (it binds run data, not a deal).<br>
+          <span class="rt"><b>WHO CURATES</b> the honest catch: "이번 주 셸프" implies a human editor picking weekly. Until that is a real operational commitment it must not say 매주 — the header would then read 셸프 No. 07 with no cadence promise.</span><br>
+          <b>COST</b> measured at 390dp: <em>1,377px</em> — effectively tied with Ⓢ① despite showing four products instead of six, because the hero spends its height on the story rather than on stock. <b>No foil at all</b> here: the balance is a colophon, not a 통장.
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════ SECTION Ⓔ ═══════════════════════════ -->
+<div class="sect">
+  <div class="sect-head">
+    <div class="n">Ⓔ</div>
+    <h2>Card anatomy — the product card itself</h2>
+    <p>Same product, same price, same source, two objects. Each phone shows the card in <b>live · 광고 · 준비 중 · 로딩</b>, plus the states that decide whether this shape survives contact with reality. Click <b>▶ 바로가기</b> on Ⓔ① for the outbound handoff sheet.</p>
+  </div>
+
+  <div class="frames">
+
+    <!-- ══════════════ Ⓔ① 태그 카드 ══════════════ -->
+    <div class="unit">
+      <div class="phone" id="e1">
+        <div class="scr">
+          <div class="krow" style="gap:8px;margin:6px 0 8px"><span class="kk">CARD ANATOMY</span><span class="rule"></span><span class="kk">TAG</span></div>
+          <div class="krow" style="align-items:flex-start;gap:10px"><span class="h1">태그 카드</span></div>
+          <div class="subnote">가격표에 구멍을 뚫고 끈을 매단 모양 — 여권·탑승권과 같은 종이 문법이에요</div>
+
+          <div class="sec"><span class="no">§</span><span class="t">LIVE</span><span class="ko">제휴 링크 있음</span><span class="rule"></span></div>
+          <div data-card="flatout" data-kind="tag" data-state="live"></div>
+
+          <div class="sec"><span class="no">§</span><span class="t">PAID SLOT</span><span class="ko">광고 칸</span><span class="rule"></span></div>
+          <div data-card="howlpot" data-kind="tag" data-state="ad"></div>
+
+          <div class="sec"><span class="no">§</span><span class="t">PRE-DEAL</span><span class="ko">제휴 전</span><span class="rule"></span></div>
+          <div data-card="swamp" data-kind="tag" data-state="pre" data-fixed></div>
+
+          <div class="sec"><span class="no">§</span><span class="t">LOADING</span><span class="ko">불러오는 중</span><span class="rule"></span></div>
+          <div data-card="smarttag" data-kind="tag" data-state="load"></div>
+
+          <div class="labdiv">Unverified accessory — tag priced, strap named without a number</div>
+          <div data-card="smarttag" data-kind="tag" data-state="live"></div>
+
+          <div class="labdiv">Tap → outbound handoff sheet (▶ play)</div>
+          <div data-card="frontrange" data-kind="tag" data-state="live"></div>
+        </div>
+
+        <!-- outbound handoff sheet -->
+        <div class="sheetwrap">
+          <div class="scrim"></div>
+          <div class="sheet">
+            <div class="grab"></div>
+            <div class="t">쿠팡으로 이동해요</div>
+            <div class="d">
+              러프웨어 프론트레인지 하네스 — <b style="color:var(--head)">41,000원</b> (08.05 조회)<br>
+              결제 · 배송 · 교환은 모두 쿠팡에서 진행돼요. 도그스하이는 재고와 가격을 보증하지 않아요.
+            </div>
+            <div class="legal">이 화면은 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다.</div>
+            <div class="btns">
+              <div class="b no">그만두기</div>
+              <div class="b go">쿠팡에서 열기 ↗</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="playbar">
+        <button data-play="#e1">▶ 바로가기 — 외부 이동 시트</button>
+        <button class="q" data-stop="#e1">reset</button>
+      </div>
+      <div class="replay">The handoff sheet names the seller, restates the price with its as-of date, and carries the mandated Coupang disclosure sentence before the browser opens.</div>
+      <div class="cap">
+        <h3><b>Ⓔ①</b> 태그 카드 — a price tag with a hole and a string</h3>
+        <div class="why"><b>Why:</b> the app's whole material world is <em>printed paper</em> — 여권, 탑승권, 부속서, 영수증, 도장. A price tag is the one retail object made of the same stuff, so the shelf joins the world instead of importing a marketplace grid into it. The perforated stub column is the <b>same idiom already shipped in ClubBanner</b> (84dp dashed stub), so this is a reuse, not a new grammar. Practically: the stub gives the source pill a permanent home, which is what stops the 쿠팡/무신사 label from floating around the card as the shelf grows.</div>
+        <div class="meta">
+          <b>ANATOMY</b> stub (punched hole + string arc + vertical source) │ brand kicker <em>12px letterspaced latin — the one floor exemption, same class as IDENTITY / 신분면</em> │ product name 15/20 │ chip row │ price (Oswald 21, lineHeight 1.24) │ 바로가기 ↗ │ as-of line.<br>
+          <b>GATE-ONLY</b> chip · price · 바로가기 · as-of. In 준비 중 the card keeps brand + name + a 준비 중 chip and becomes non-pressable — <span class="ok">no dead button</span>.<br>
+          <b>LOADING</b> renders the tag outline with no price and no arrow. <span class="rt">Never ₩0, never a skeleton that looks like a price.</span><br>
+          <b>OUTBOUND</b> the sheet is not a nicety — Coupang's program mandates a disclosure sentence on any surface carrying its links, and an in-app shelf has no blog footer to put it in. The sheet is where that sentence lives, verbatim.<br>
+          <b>SMARTTAG</b> the strap price is <em>unverified</em> in the research, so the card prices the tag only and says 펫 스트랩 별매 — <span class="ok">an unverified number never becomes a rendered number.</span><br>
+          <b>WEAK SPOT</b> at 2-col (Ⓢ①) the stub rotates to a top bar and the tag reads more like a ticket than a tag; the string arc is the only thing holding the metaphor. Below 360dp the price row and 바로가기 compete — the arrow drops to an icon.
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════ Ⓔ② 선반 카드 ══════════════ -->
+    <div class="unit">
+      <div class="phone" id="e2">
+        <div class="scr">
+          <div class="krow" style="gap:8px;margin:6px 0 8px"><span class="kk">CARD ANATOMY</span><span class="rule"></span><span class="kk">SHELF</span></div>
+          <div class="krow" style="align-items:flex-start;gap:10px"><span class="h1">선반 카드</span></div>
+          <div class="subnote">위쪽은 물건, 아래쪽은 이유 — 기록에서 나온 한 줄이 카드 안에 들어가요</div>
+
+          <div class="sec"><span class="no">§</span><span class="t">LIVE + LINE</span><span class="ko">기록 한 줄 있음</span><span class="rule"></span></div>
+          <div class="edplay"><div data-card="lila" data-kind="shelf" data-state="live" data-ed="paw"></div></div>
+
+          <div class="sec"><span class="no">§</span><span class="t">LIVE, NO LINE</span><span class="ko">기록 한 줄 없음</span><span class="rule"></span></div>
+          <div data-card="howlpot" data-kind="shelf" data-state="live" data-ed="none"></div>
+
+          <div class="sec"><span class="no">§</span><span class="t">PAID SLOT</span><span class="ko">광고 칸</span><span class="rule"></span></div>
+          <div data-card="aesop" data-kind="shelf" data-state="ad" data-ed="runs"></div>
+
+          <div class="sec"><span class="no">§</span><span class="t">PRE-DEAL</span><span class="ko">제휴 전</span><span class="rule"></span></div>
+          <div data-card="swamp" data-kind="shelf" data-state="pre" data-ed="hour" data-fixed></div>
+
+          <div class="labdiv">New user — 0 runs, the line slot is absent (not empty)</div>
+          <div data-card="lila" data-kind="shelf" data-state="live" data-ed="none"></div>
+
+          <div class="labdiv">Loading — no price, no arrow, no zero</div>
+          <div data-card="treattrader" data-kind="shelf" data-state="load" data-ed="none"></div>
+        </div>
+      </div>
+      <div class="playbar">
+        <button data-play="#e2">▶ 에디토리얼 바인딩</button>
+        <button class="q" data-stop="#e2">reset</button>
+      </div>
+      <div class="replay">The 기록 line resolves after the product renders — the card must be complete without it.</div>
+      <div class="cap">
+        <h3><b>Ⓔ②</b> 선반 카드 — a shelf tile with a run-data line slot</h3>
+        <div class="why"><b>Why:</b> the only card shape that carries the editorial sentence <em>inside</em> the product, which is the difference between a shelf that knows the dog and a shelf that has a knowledgeable header. It also survives images: when a brand deal grants product photography, the 84px well takes it without redesign, whereas the tag card has nowhere to put a photo. The cost is height — a tile with a line is ~236px against the tag's ~140px, so this is the anatomy for Ⓢ②/Ⓢ③ and the wrong one for a 2-column duty-free grid.</div>
+        <div class="meta">
+          <b>ANATOMY</b> well (glyph today, brand photo when a deal grants rights) with source pill bottom-left and chip top-right │ brand kicker │ name │ <b>기록 slot</b> │ price + 바로가기 │ as-of.<br>
+          <b>THE SLOT IS OPTIONAL</b> the card is designed complete without it. 0-run user, failed fitness fetch, or a product with no honest line (HOWLPOT 라일락 is a colour affinity, not a data story) → the slot is <span class="ok">absent, not empty</span>. No placeholder sentence, no "기록을 더 쌓아보세요" nag inside a commerce card.<br>
+          <b>BINDS</b> 발볼 line → <code>weekKm</code> + 포장 <code>routes.terrain</code> km · 세정 line → <code>weekRuns</code> · 시간대 line → <code>bookings.scheduled_at</code> KST month/hour.<br>
+          <b>IMAGES</b> the glyph well is the honest placeholder: <span class="rt">product photography is a rights question, not a design question</span> — no brand image renders before a deal grants it, and a scraped marketplace thumbnail is not an option.<br>
+          <b>GATE-ONLY</b> chip · source pill · price · 바로가기 · as-of. The well, name and line all survive pre-deal.<br>
+          <b>WEAK SPOT</b> two tiles side by side (Ⓢ③'s side row) lose the line slot to width — at 185px the 기록 line wraps to four lines. Side tiles therefore render <em>without</em> the slot by design, which means the line is a full-width-card feature only.
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════ COMPARISON ═══════════════════════════ -->
+<div class="tblwrap">
+  <table>
+    <caption>Ⓢ Shop shell — craft dimensions
+      <small>Screen heights are measured in a headless render at 390dp with the sample inventory (6 items for Ⓢ①/Ⓢ②, 1 hero + 2 side + 1 rail for Ⓢ③), counting the live screen only — the day-0 and ⑤ comparison blocks inside each phone are lab chrome and are excluded.</small>
+    </caption>
+    <tr>
+      <th style="width:118px">Variant</th><th>Organising idea</th><th>Run-data editorial</th><th>Reads well at 2 deals?</th>
+      <th>Scales to 20 items?</th><th>Screen height</th><th>Ops burden</th><th>Build cost</th>
+    </tr>
+    <tr>
+      <td class="v">Ⓢ① 면세점</td><td>Gates A/B/C, 2-col tag grid</td>
+      <td class="v" style="color:#FF9C82">None — density wins, the dog disappears</td>
+      <td>Poor — a gate with one card reads as broken</td><td class="v">Best</td><td class="v">1,333px</td>
+      <td>Lowest — no editor, no weekly cadence</td><td>Medium</td>
+    </tr>
+    <tr>
+      <td class="v">Ⓢ② 전문점</td><td>Racks by 달리기 전/중/후</td>
+      <td class="v" style="color:#B7E27A">Strongest — one line per rack, three independent bindings</td>
+      <td class="v">Good — three racks of two look curated</td><td>Good, with per-rack caps</td><td class="v">1,774px</td>
+      <td>Low — lines are derived, not written</td><td>Medium-high</td>
+    </tr>
+    <tr>
+      <td class="v">Ⓢ③ 매거진</td><td>Weekly drop, one hero + story</td>
+      <td class="v" style="color:#B7E27A">Deepest — a paragraph, not a line</td>
+      <td class="v">Best — designed for scarcity</td>
+      <td class="v" style="color:#FF9C82">Poor — a catalogue can't fit</td><td class="v">1,377px</td>
+      <td class="v" style="color:#FF9C82">Highest — implies a human editor every week</td><td>Low-medium</td>
+    </tr>
+  </table>
+</div>
+
+<div class="tblwrap" style="margin-top:26px">
+  <table>
+    <caption>Ⓔ Card anatomy — craft dimensions</caption>
+    <tr>
+      <th style="width:118px">Variant</th><th>Height (full-width, live)</th><th>Editorial line inside card?</th><th>Takes brand photography?</th>
+      <th>2-column safe?</th><th>제휴/광고 chip placement</th><th>Pre-deal shape</th>
+    </tr>
+    <tr>
+      <td class="v">Ⓔ① 태그</td><td class="v">≈140px</td>
+      <td class="v" style="color:#FF9C82">No — it belongs on the rack rail above</td>
+      <td class="v" style="color:#FF9C82">No well — a photo has nowhere to go</td>
+      <td class="v">Yes (stub rotates to a top bar)</td><td>In the chip row under the name</td>
+      <td>Dashed tag, 준비 중 chip, no price row, inert</td>
+    </tr>
+    <tr>
+      <td class="v">Ⓔ② 선반</td><td class="v">≈236px with line · ≈196px without</td>
+      <td class="v" style="color:#B7E27A">Yes — a dedicated optional slot</td>
+      <td class="v" style="color:#B7E27A">Yes — 84px well, drop-in</td>
+      <td>Degrades — the slot must be dropped</td><td>Floating on the well, top-right</td>
+      <td>Dashed tile, well keeps the glyph, 준비 중 chip</td>
+    </tr>
+  </table>
+
+  <div class="rec">
+    <h4>Recommended combo — Ⓢ② 러닝 전문점 × Ⓔ② 선반 카드, with Ⓔ① kept for the 2-col case</h4>
+    <p><b>Why Ⓢ②:</b> the commission's own premise is that the shop's advantage is knowing the dog's runs, and Ⓢ② is the only shell whose <em>structure</em> is that knowledge — 달리기 전/중/후 is a shape the data already has, so the editorial lines are load-bearing rather than decorative. It is also the only one that reads correctly at both two deals and twenty, because a rack of two is a curated rack while a gate of two is an empty gate. And it costs nothing operationally: all three lines are derived, so nobody has to write copy on a schedule.</p>
+    <p><b>Why Ⓔ②:</b> the line slot has to live somewhere, and putting it inside the card is what makes a single card portable — the same tile can later appear in a run report ("이 주에 뛴 바닥") or on 홈 without dragging a rack header with it. The 84px well is also the only place brand photography can land when a deal grants image rights, which every direct 제휴 conversation will raise.</p>
+    <p><b>Keep Ⓔ① anyway:</b> it is the better object, and it is the right card for any 2-column surface — including Ⓢ① if Sean prefers that framing. The two are not exclusive: <em>선반 카드 = full-width with a line · 태그 카드 = 2-col without one</em>, one shelf, two densities. If only one ships, ship 선반.</p>
+    <p><b>If Ⓢ③ is the pick:</b> then <b>delete the weekly promise</b> from the copy until an editor exists. "이번 주 셸프 · 8월 1주" is a cadence commitment; "셸프 No. 07" is not. Everything else in Ⓢ③ is honest as drawn.</p>
+    <p><b>Balance area, decided across all three:</b> the 하이 포인트 block <em>drops out of the hero slot</em>. Today it is the biggest object on the screen, which reads as a wallet — and a wallet at the top of a shop implies you can spend it, which is exactly the thing ⑤ blocks. It becomes a 통장 strip (Ⓢ①/Ⓢ②) or a colophon (Ⓢ③), carries the sentence 적립만 돼요 in its own body, and reserves a dashed row for the ⑤ affordance that must not be drawn yet.</p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════ INVENTORY ═══════════════════════════ -->
+<div class="tblwrap" style="margin-top:26px">
+  <table>
+    <caption>Sample inventory — the research first shelf, exactly as researched
+      <small>Prices are the approximate figures from docs/biz/affiliate-product-research.md §3, as listed by the cited retailer on 2026-08-05. Every one of these renders in the lab above with its real number. No price was rounded, invented, or discounted.</small>
+    </caption>
+    <tr><th style="width:210px">Product</th><th style="width:96px">Price</th><th style="width:86px">Source shown</th><th style="width:66px">Path</th><th>Editorial line used in the lab</th></tr>
+    <tr><td class="vw">Ruffwear 프론트레인지 하네스</td><td class="v">41,000원</td><td>쿠팡</td><td class="v">🟢</td>
+      <td>체력 나이 + 주간 완주 + 페이스 (RACK 01). <b>₩68,000 at PIGDOG is not shown</b> — one linked seller, one price, no range.</td></tr>
+    <tr><td class="vw">Ruffwear Flat Out 리드 1.8m</td><td class="v">73,600원</td><td>쿠팡</td><td class="v">🟢</td><td>Same rack line. The verified hands-free option on Coupang today.</td></tr>
+    <tr><td class="vw">HOWLPOT 어드벤처 하네스 라일락</td><td class="v">24,000원</td><td>무신사</td><td class="v">🔵</td>
+      <td><span class="in">None by design</span> — the lilac colourway is a brand-world affinity, not a data story. It is the lab's proof that the line slot is optional.</td></tr>
+    <tr><td class="vw">Ruffwear Treat Trader</td><td class="v">54,000원</td><td>무신사</td><td class="v">🟡🔵</td><td>간식 타임 add-on count (RACK 02) — <code>bookings.addons key='snack'</code>.</td></tr>
+    <tr><td class="vw">Ruffwear Home Trail 힙 팩</td><td class="v">68,000원</td><td>무신사</td><td class="v">🟡🔵</td><td>Owner-side; shares RACK 02's line. Not drawn in every frame for height reasons.</td></tr>
+    <tr><td class="vw">Ruffwear Swamp Cooler 쿨링 베스트</td><td class="v">106,000원</td><td>브랜드몰</td><td class="v">🟡</td>
+      <td class="vw" style="color:#FFC3B1">The weather casualty. Drawn with the <b>8월 · 14시 이후</b> line instead of a temperature. Renders 준비 중 in most frames because the direct 제휴 does not exist.</td></tr>
+    <tr><td class="vw">LILA LOVES IT 포케어 60ml</td><td class="v">32,000원</td><td>브랜드몰</td><td class="v">🟡</td><td>포장 코스 km (RACK 03 · Ⓢ③ hero). The cleanest report-to-product story on the shelf.</td></tr>
+    <tr><td class="vw">Aesop 애니멀 500ml</td><td class="v">56,000원</td><td>무신사</td><td class="v">🔵🟡</td><td>주간 완주 횟수 — post-run wash-down. Drawn as the 광고 example in Ⓔ②.</td></tr>
+    <tr><td class="vw">Ruffwear Ridgeline 신발</td><td class="v">89,000원</td><td>브랜드몰</td><td class="v">🟡</td><td>Shares the 포장 코스 line. High ticket; proves the report drives the shelf.</td></tr>
+    <tr><td class="vw">삼성 스마트태그2 + 펫 스트랩</td><td class="v">22,800원</td><td>쿠팡</td><td class="v">🟢</td>
+      <td>누적 거리 + 코스 수. <b>Strap price is unverified in the research → the card prices the tag only and says 펫 스트랩 별매.</b></td></tr>
+  </table>
+</div>
+
+<div class="note">
+  <b>Notes carried into implementation.</b>
+  (1) <b>Nothing ships live.</b> There is no <code>affiliate_products</code> table, no link store, no click event, and no approved program — Coupang's API is behind a ₩150,000 cumulative-sales gate and 무신사 큐레이터 is unapplied. Whatever Sean picks, <b>v1 is the 준비 중 shape</b> of that variant, and the live state lands one product at a time as deals sign. That is the "signed deal or it doesn't render" rule expressed as a build order, not a caveat.
+  (2) <b>The 제휴/광고 chip is a data field, not a style.</b> It must come from the deal record (<code>kind: 'affiliate' | 'ad'</code>), so a card literally cannot render without one. A default of "no chip" is the failure mode 표시광고법 punishes.
+  (3) <b>Coupang's disclosure sentence is verbatim and mandated</b> — "이 화면은 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다". In an app there is no blog footer, so it lives on the outbound sheet (Ⓔ①'s play). <span style="color:#FFC3B1">Open question from the research §5.4: whether Coupang permits links inside a native app shelf at all is unverified — confirm before building the Coupang path.</span>
+  (4) <b>Prices are snapshots.</b> Every price needs an as-of date beside it and a refresh story behind it. A price stored once and rendered forever becomes a lie on its own schedule.
+  (5) <b>The editorial line is a fetch, and fetches fail.</b> Every <code>.ed</code> block is independently optional and independently absent on error — a shop that half-renders its data lines must not render an empty violet box where a sentence should be.
+  (6) <b>체력 나이 has a gate.</b> <code>fitnessGate</code> returns <code>{reason:'birth'}</code> or <code>{reason:'runs', left}</code>; in both cases <code>fitnessAge</code> is null and RACK 01's line must not render. The gate reason is honest copy on 체력 리포트 — it is not a shop line.
+  (7) <b>The 하이 포인트 balance never touches a product.</b> No per-card point affordance, no "이 상품 = 3,200P" equivalence, no basket. Balance lives in its own strip with 적립만 돼요 in its body. Brand-deals ⑤ unblocks with take-rate; the dashed row in Ⓢ② marks where it will attach.
+  (8) <b>Six dead Alert() taps are retired</b> by this redesign: the 장바구니 circle, the 검색 field, the six-card grid's 준비 중 alerts and the + buttons. Anything without a destination does not render — the 부티크 미리보기 grid of six invented 도그스하이 에디션 SKUs goes with them, since none of those products exist.
+  (9) <b>14pt floor, precedented exceptions only.</b> Brand kickers (<code>RUFFWEAR</code>, <code>LILA LOVES IT</code>), gate/rack labels (<code>GATE A</code>, <code>RACK 01</code>) and the 통장 strip's <code>HIGH POINT · 하이 포인트</code> strap sit at 12px letterspaced — the last one is a LATIN·한글 strap of exactly the shipped <code>IDENTITY / 신분면</code> and <code>RECORD / 기록면</code> class, inheriting that exception rather than inventing one. Everything else Korean in the phones above is ≥14px: the 제휴/광고/준비 중 chips, the source pills including the tag stub's vertical label, and — deliberately — the <b>기록 line kicker</b>, which was pulled out of the strap class entirely because an editorial claim about the dog is not chrome.
+  (10) <b>Oswald numerals carry explicit lineHeight 1.24</b> everywhere they appear (prices, balance, week number) — BUG A.
+  (11) <b>Foil and BHS budgets hold:</b> one holo hairline per screen (the 통장 strip), Black Han Sans exactly once per phone (the screen title). <b>No gold anywhere</b> — gold stays the receipt's SETTLED seal.
+</div>
+
+<script>
+  // ── the sample inventory — the research first shelf (docs/biz/affiliate-product-research.md §3) ──
+  // price = the approximate figure from the cited retailer on 2026-08-05. Never rounded, never discounted.
+  var PROD = {
+    frontrange : {br:'RUFFWEAR',       nm:'프론트레인지 하네스',        price:'41,000',  src:'쿠팡',    gl:'⌒', asof:'쿠팡 · 08.05 조회'},
+    flatout    : {br:'RUFFWEAR',       nm:'Flat Out 리드 1.8m',        price:'73,600',  src:'쿠팡',    gl:'∽', asof:'쿠팡 · 08.05 조회'},
+    howlpot    : {br:'HOWLPOT',        nm:'어드벤처 하네스 · 라일락',    price:'24,000',  src:'무신사',  gl:'❋', asof:'무신사 · 08.05 조회'},
+    treattrader: {br:'RUFFWEAR',       nm:'트릿 트레이더 간식 파우치',   price:'54,000',  src:'무신사',  gl:'▤', asof:'무신사 · 08.05 조회'},
+    hippack    : {br:'RUFFWEAR',       nm:'홈 트레일 힙 팩',            price:'68,000',  src:'무신사',  gl:'▥', asof:'무신사 · 08.05 조회'},
+    swamp      : {br:'RUFFWEAR',       nm:'스왐프 쿨러 쿨링 베스트',     price:'106,000', src:'브랜드몰', gl:'⬗', asof:'브랜드몰 · 08.05 조회'},
+    lila       : {br:'LILA LOVES IT',  nm:'포케어 60ml — 발볼 밤',      price:'32,000',  src:'브랜드몰', gl:'◍', asof:'브랜드몰 · 08.05 조회'},
+    aesop      : {br:'AESOP',          nm:'애니멀 500ml',               price:'56,000',  src:'무신사',  gl:'⌾', asof:'무신사 · 08.05 조회'},
+    ridgeline  : {br:'RUFFWEAR',       nm:'리지라인 러닝 신발',          price:'89,000',  src:'브랜드몰', gl:'◭', asof:'브랜드몰 · 08.05 조회'},
+    smarttag   : {br:'SAMSUNG',        nm:'갤럭시 스마트태그2 · 펫 스트랩 별매', price:'22,800', src:'쿠팡', gl:'◉', asof:'쿠팡 · 08.05 조회 · 스트랩 가격 미확인'}
+  };
+
+  // ── editorial lines — every one binds a real field (see the bindings legend) ──
+  var ED = {
+    paw : {k:'초코의 기록', t:'이번 주 <em>12.4km</em> — 그중 <em>포장 코스 8.2km</em>', s:'포장 구간이 길었던 주라 발볼 케어를 골랐어요. 발 상태를 잰 건 아니에요.'},
+    treat:{k:'초코의 기록', t:'최근 러닝 <em>3회 중 2회</em>에 간식 타임', s:'달리면서 한 손으로 꺼내는 게 문제라면 여기예요.'},
+    runs :{k:'초코의 기록', t:'이번 주 <em>3회</em> 완주 · <em>12.4km</em>', s:'돌아와서 씻기는 횟수도 그만큼이에요.'},
+    hour :{k:'초코의 기록', t:'<em>8월</em> 러닝 3회 모두 <em>14시 이후</em>', s:'기온은 아직 못 읽어요 — 뛴 시간대만 보고 골랐어요.'},
+    dist :{k:'초코의 기록', t:'누적 <em>128.6km</em> · 코스 <em>3곳</em>', s:'다니는 반경이 넓어질수록 위치가 궁금해져요.'}
+  };
+
+  function chip(state){
+    if (state === 'ad')  return '<span class="cp ad">광고</span>';
+    if (state === 'pre') return '<span class="cp pre">준비 중</span>';
+    if (state === 'load')return '';
+    return '<span class="cp aff">제휴</span>';
+  }
+  var LIVE = function(s){ return s === 'live' || s === 'ad'; };
+
+  // ── Ⓔ① 태그 카드 (full width) ──
+  function tagCard(p, state){
+    var h = '<div class="tag ' + (LIVE(state) ? '' : 'pre') + '">';
+    h += '<div class="stub"><i class="str"></i><span class="hole"></span>' +
+         (LIVE(state) ? '<span class="sv">' + p.src + '</span>' : '') + '</div>';
+    h += '<div class="body">';
+    h += '<div class="br">' + p.br + '</div>';
+    h += '<div class="nm">' + p.nm + '</div>';
+    if (state === 'load') {
+      h += '<div class="chiprow"><span class="cp pre">불러오는 중</span></div>';
+      h += '<div class="wait">가격과 링크를 확인하고 있어요.</div>';
+    } else if (LIVE(state)) {
+      h += '<div class="chiprow g8" data-g="DEAL">' + chip(state) + '<span class="cp src">' + p.src + '</span></div>';
+      h += '<div class="prow g8" data-g="DEAL"><div class="pz">' + p.price + '<u>원</u></div>' +
+           '<div class="out">바로가기 ↗</div></div>';
+      h += '<div class="asof g8" data-g="DEAL">' + p.asof + '</div>';
+    } else {
+      h += '<div class="chiprow">' + chip(state) + '</div>';
+      h += '<div class="wait">아직 이 브랜드와 <b>제휴가 없어요</b>. 링크가 열리면 가격과 바로가기가 붙어요.</div>';
+    }
+    h += '</div></div>';
+    return h;
+  }
+
+  // ── Ⓔ① in 2-column form (Ⓢ① duty-free grid) — stub rotates to a top bar ──
+  function tagCard2(p, state){
+    var h = '<div class="tag ' + (LIVE(state) ? '' : 'pre') + '">';
+    h += '<div class="stub"><i class="str"></i><span class="hole"></span>' +
+         (LIVE(state) ? '<span class="sv">' + p.src + '</span>' : '') + '</div>';
+    h += '<div class="body">';
+    h += '<div class="br">' + p.br + '</div>';
+    h += '<div class="nm">' + p.nm + '</div>';
+    if (LIVE(state)) {
+      h += '<div class="chiprow g8" data-g="DEAL">' + chip(state) + '</div>';
+      h += '<div class="prow g8" data-g="DEAL"><div class="pz">' + p.price + '<u>원</u></div>' +
+           '<div class="out">바로가기 ↗</div></div>';
+    } else {
+      h += '<div class="chiprow">' + chip(state) + '</div>';
+      h += '<div class="wait">제휴가 열리면 가격이 붙어요.</div>';
+    }
+    h += '</div></div>';
+    return h;
+  }
+
+  // ── Ⓢ② rack item ──
+  function rackItem(p, state){
+    var h = '<div class="item ' + (LIVE(state) ? '' : 'pre') + '">';
+    h += '<div class="gl">' + p.gl + '</div><div class="r">';
+    h += '<div class="br">' + p.br + '</div>';
+    h += '<div class="nm">' + p.nm + '</div>';
+    if (LIVE(state)) {
+      h += '<div class="mr g8" data-g="DEAL">' + chip(state) + '<span class="cp src">' + p.src + '</span></div>';
+      h += '<div class="pr g8" data-g="DEAL"><span class="pz">' + p.price + '<u>원</u></span>' +
+           '<span class="go">바로가기 ↗</span></div>';
+    } else {
+      h += '<div class="mr">' + chip(state) + '</div>';
+      h += '<div class="wt">아직 <b>제휴가 없어요</b> — 링크가 열리면 가격이 붙어요.</div>';
+    }
+    h += '</div></div>';
+    return h;
+  }
+
+  // ── Ⓔ② 선반 카드 ──
+  function shelfCard(p, state, edKey){
+    var h = '<div class="shelf ' + (LIVE(state) ? '' : 'pre') + '">';
+    h += '<div class="well"><span class="gl">' + p.gl + '</span>';
+    if (LIVE(state)) {
+      h += '<span class="chipabs g8" data-g="DEAL">' + chip(state) + '</span>';
+      h += '<span class="src g8" data-g="DEAL">' + p.src + '</span>';
+    } else if (state === 'load') {
+      h += '<span class="chipabs"><span class="cp pre">불러오는 중</span></span>';
+    } else {
+      h += '<span class="chipabs">' + chip(state) + '</span>';
+    }
+    h += '</div><div class="in">';
+    h += '<div class="br">' + p.br + '</div>';
+    h += '<div class="nm">' + p.nm + '</div>';
+    var e = ED[edKey];
+    if (e) {
+      h += '<div class="edslot"><div class="ed"><div class="k">' + e.k + '</div>' +
+           '<div class="t">' + e.t + '</div><div class="s">' + e.s + '</div></div></div>';
+    }
+    if (state === 'load') {
+      h += '<div class="wait">가격과 링크를 확인하고 있어요.</div>';
+    } else if (LIVE(state)) {
+      h += '<div class="prow g8" data-g="DEAL"><div class="pz">' + p.price + '<u>원</u></div>' +
+           '<div class="out">바로가기 ↗</div></div>';
+      h += '<div class="asof g8" data-g="DEAL">' + p.asof + '</div>';
+    } else {
+      h += '<div class="wait">아직 이 브랜드와 <b>제휴가 없어요</b>. 링크가 열리면 가격과 바로가기가 붙어요.</div>';
+    }
+    h += '</div></div>';
+    return h;
+  }
+
+  // ── mount — a pre-deal slot also carries its live twin so ▶ 제휴 성사 can cross-fade ──
+  document.querySelectorAll('[data-card]').forEach(function (slot) {
+    var p = PROD[slot.getAttribute('data-card')];
+    if (!p) return;
+    var kind  = slot.getAttribute('data-kind');
+    var state = slot.getAttribute('data-state') || 'live';
+    var ed    = slot.getAttribute('data-ed') || 'none';
+    var make = kind === 'tag'  ? function (s) { return tagCard(p, s); }
+             : kind === 'tag2' ? function (s) { return tagCard2(p, s); }
+             : kind === 'rack' ? function (s) { return rackItem(p, s); }
+             :                   function (s) { return shelfCard(p, s, ed); };
+    // data-fixed = a slot that must stay pre-deal even while ▶ plays (the day-0 blocks and the Ⓔ state rows)
+    if (state === 'pre' && !slot.hasAttribute('data-fixed')) {
+      slot.className = 'swapwrap';
+      slot.innerHTML = '<div class="s-pre">' + make('pre') + '</div>' +
+                       '<div class="s-live">' + make('live') + '</div>';
+    } else {
+      slot.innerHTML = make(state);
+    }
+  });
+
+  // ── deal-gate reveal toggle (lab chrome) ──
+  var gt = document.getElementById('gt');
+  gt.addEventListener('click', function () {
+    document.body.classList.toggle('showgate');
+    gt.classList.toggle('on');
+    gt.textContent = document.body.classList.contains('showgate')
+      ? '◈ Hide deal-gated parts' : '◈ Show deal-gated parts';
+  });
+
+  // ── click-to-play (reflow reset, same pattern as choreography-lab / passport-stamp-lab) ──
+  function play(host, ms) {
+    host.classList.remove('play');
+    void host.offsetWidth;
+    host.classList.add('play');
+    clearTimeout(host._t);
+    host._t = setTimeout(function () { host.classList.remove('play'); }, ms);
+  }
+  document.querySelectorAll('[data-play]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var host = document.querySelector(btn.getAttribute('data-play'));
+      play(host, 6000);
+    });
+  });
+  document.querySelectorAll('[data-stop]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var host = document.querySelector(btn.getAttribute('data-stop'));
+      clearTimeout(host._t); host.classList.remove('play');
+    });
+  });
+</script>
+</body>
+</html>
