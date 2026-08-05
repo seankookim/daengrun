@@ -44,6 +44,8 @@ Lab was delivered, Sean picked: **Ⓐ② Night Stub shell carrying Ⓐ④'s seat
 
 **Deferred design calls (unchanged)**: ClubTag 9.5 mixed token · FEATURED RUNNER/tickerLead kickers · vk zero-callers. NEW: club/[id] hhmm/attendance display pass could go bigger (Sean may ask); GO compact-state echo deliberately omitted (ticket + island carry state when collapsed).
 
+**Follow-up (Sean, same day)**: hero card background now carries a ~95% white wash of the GO state color (`GO_TINT` map — coral/blue/sage washes; halos tint in lockstep; discrete swap, bg animation would need non-native driver). **CLAUDE.md created at repo root** (Sean: "yes to claude.md") — permanent laws now infrastructure; handoff stays the session-state bridge. gstack visibility promise: sprint phases labeled explicitly in responses from now on.
+
 ## 3. Pending on Sean's side (ordered)
 
 1. `supabase db push` — 0055·0056 if not yet pushed (0051–0054 confirmed pushed+deployed).

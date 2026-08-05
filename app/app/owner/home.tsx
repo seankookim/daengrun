@@ -68,6 +68,18 @@ const GO_SKIN: Record<GoState, { base: string; deep: string }> = {
   handoff: { base: GO_SAGE, deep: GO_SAGE_DEEP },
   active: { base: lilac.coral, deep: lilac.coralDeep },
 };
+// [Sean 2026-08-05] 히어로 카드 배경이 디스크 색을 아주 옅게 따라간다 — "ever so slightest light hue".
+// ~95% 흰색 혼합 워시, 상태 가족당 하나(서칭·지명은 같은 블루 가족 = 같은 워시).
+// backgroundColor는 네이티브 드라이버로 애니메이션 불가(모프 법) → 상태 전환 시 이산 스왑이 의도.
+// 헤일로(goHalo)는 카드색 가리개이므로 반드시 같은 틴트로 동기 — 아니면 흰 패치로 보인다.
+const GO_TINT: Record<GoState, string> = {
+  none: '#FEF6F3', // 코랄 워시
+  searching: '#F5F7FE', // 블루 워시
+  directed: '#F5F7FE',
+  confirmed: '#F4FAF7', // 세이지 워시
+  handoff: '#F4FAF7',
+  active: '#FEF6F3',
+};
 
 // 라일락 서피스 토큰 — 나이트 라일락 다크 인셋 / 딥 코랄 머니 스톱(종단 ≥#C6472C, 흰 라벨 4.5:1)
 const NIGHT = '#1C1837';
@@ -699,7 +711,8 @@ export default function OwnerHome() {
             (구: heroH가 레이아웃 높이라 터치 영역도 같이 줄었다). scaleY 원점 = 래퍼 중심 = 카드 중심. */}
         <Animated.View style={{ transform: [{ translateY: heroSlide }, { scaleY: heroScale }] }}>
           <Pressable onPress={() => router.push('/owner/fitness')}>
-            <Animated.View style={[s.hero, { height: HERO_BIG, backgroundColor: hp.card, borderColor: lilac.hair }]}>
+            {/* [GO_TINT] 카드 배경 = 디스크 상태색의 옅은 워시 (컴팩트 티켓도 같은 속삭임을 물려받는다) */}
+            <Animated.View style={[s.hero, { height: HERO_BIG, backgroundColor: GO_TINT[goState], borderColor: lilac.hair }]}>
             {/* 인셋 더블 헤어라인은 역보정 밖 — 카드와 함께 축소돼 4면 인셋을 유지한다 (구 heroH 추종과 동일) */}
             <View pointerEvents="none" style={s.heroDbl} />
             {/* 역보정 레이어 — 카드 scaleY를 1/s로 되돌린다. 박스가 카드 안쪽 테두리에 정확히 겹치고
@@ -802,7 +815,7 @@ export default function OwnerHome() {
               >
                 {/* km 한 줄 — 링 도트를 가로지르므로 4px 카드색 헤일로로 도트에서 떼어낸다 (랩 box-shadow 0 0 0 4px --card).
                     숫자는 weekKm/goalKm 둘 뿐 — 목표는 여기서 계속 보인다 (정직: 로딩 전 0은 기존 가드 그대로). */}
-                <View style={[s.goHalo, { marginBottom: 8 }]}>
+                <View style={[s.goHalo, { marginBottom: 8, backgroundColor: GO_TINT[goState] }]}>
                   <View style={s.goPill}>
                     {/* 줄박스는 바깥 lineHeight 27(=22×1.23)이 지배 — Oswald 스팬에도 같은 값을 명시(숫자법) */}
                     <Text style={{ lineHeight: 27 }} numberOfLines={1}>
@@ -843,7 +856,7 @@ export default function OwnerHome() {
                 </Animated.View>
 
                 {/* 체력 나이 — 우리 개념. 디스크 아래로 내려앉되 같은 헤일로 처리 (측정 전이면 '측정 전' 그대로) */}
-                <View style={[s.goHalo, { marginTop: 8 }]}>
+                <View style={[s.goHalo, { marginTop: 8, backgroundColor: GO_TINT[goState] }]}>
                   <View style={s.goPill}>
                     {/* 세 자식 모두 lineHeight 18 명시 — 라벨만 빠지면 안드로이드 기본 줄높이(≈20)가
                         행을 지배해 센터 스택이 216을 넘는다 (세로 예산은 s.goDisc 주석 참조) */}
