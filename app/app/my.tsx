@@ -2,12 +2,13 @@ import { useDisplayFont } from '../src/lib/displayFont';
 import { useNumFont } from '../src/lib/fonts';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, TextStyle, View } from 'react-native';
+import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { useAuth } from '../src/auth-context';
 import { BottomNav } from '../src/components/bottomnav';
+import { STAMP_GAP, STAMP_INK, StampCell } from '../src/components/stamp';
 import { Avatar, Row } from '../src/components/ui';
-import { deriveStamps, fetchFitness, fetchMyRunnerStatus, fetchStampStats, StampInfo, StampStats } from '../src/lib/api';
+import { deriveStamps, fetchFitness, fetchMyRunnerStatus, fetchStampStats, StampStats } from '../src/lib/api';
 import { fetchMyProfile, fetchMyRunnerBio, MyProfile, updateMyProfile, updateRunnerBio, uploadAvatar } from '../src/lib/api';
 import { dog, session } from '../src/store';
 import { colors, lilac, lilacRadius, lilacShadow } from '../src/theme';
@@ -33,52 +34,8 @@ function HoloEdge({ height = 3, opacity = 1 }: { height?: number; opacity?: numb
   );
 }
 
-// ══════════ ③ 도장면 프리미티브 (리워드 ② · 랩 Ⓐ①) ══════════
-// 잉크 법(랩에서 확정): 바이올렛 #4A3DA8이 유일한 도장 잉크 · 코랄은 첫-가족의 '엣지+도트'로만 등장
-// (마이의 원래 법 — 코랄은 텍스트로 쓰지 않는다) · 골드는 영수증 소인 전용 · 새 포일 0(홀로 엣지 2개가 예산 전부).
-// 사다리는 색조가 아니라 링 개수로 오른다: 1 = 첫 등급 · 2 = 마일스톤 · 3 = 사다리 꼭대기.
-const INK = '#4A3DA8';                       // 읽는 바이올렛 (흰 카드 위 8.32:1) — report.tsx READ_VIOLET과 같은 값
-const INK_FILL = 'rgba(108,92,231,0.05)';    // accent 5% — 종이에 잉크가 스민 자국
-
-// 도장 그리드 폭 예산 (owner/home STAMP_CELL 선례 문법 — 칸은 기기 폭에서 파생된다)
-//   스크롤 패딩 16*2 → W-32 · 카드 보더 1*2 → W-34 · 내부 마진 9*2 → W-52 · 내부 보더 1*2 → W-54
-//   내부 패딩 11*2 → W-76 = 그리드 폭. 3열, 열 간격 10, 딱 맞음 방지로 1dp 여유를 뺀다.
-//   320dp: 그리드 244 → 칸 74 · 디스크 min(76,68)=68 → 3*74+2*10 = 242 ≤ 244 ✓
-//   360dp: 그리드 284 → 칸 87 · 디스크 76(상한) → 281 ≤ 284 ✓
-//   390dp: 그리드 314 → 칸 97 · 디스크 76 → 랩 실측(97px 칸)과 동일 ✓
-// 디스크가 줄어도 안의 활자는 14pt 플로어 아래로 내려가지 않는다 (68 안에 27+1+17 = 45 ≤ 64 여유).
-const STAMP_GRID_W = Dimensions.get('window').width - 76;
-const STAMP_GAP = 10;
-const STAMP_CELL_W = Math.floor((STAMP_GRID_W - STAMP_GAP * 2 - 1) / 3);
-const DISC = Math.min(76, STAMP_CELL_W - 6);
-
-// 도장 한 칸. 도장은 v1에서 눌리지 않는다 — 상세 화면이 없고, 목적지 없는 탭은 죽은 버튼이다.
-// 기울기는 deriveStamps가 주는 고정 각도(info.angle)를 그대로 쓴다 — 화면이 따로 계산하면
-// 마이 · 부속서 · 세리머니에서 같은 도장이 다르게 기운다 (랩 정직 노트 ④).
-function StampCell({ info, nf }: { info: StampInfo; nf: TextStyle | null }) {
-  const on = info.earned;
-  return (
-    <View style={s.scell}>
-      <View
-        style={[
-          s.disc,
-          on ? (info.coral ? s.discCoral : s.discOn) : s.discOff,
-          on && { transform: [{ rotate: `${info.angle}deg` }] },
-        ]}
-      >
-        {on && info.rings >= 2 && <View style={[s.ring2, info.rings >= 3 && s.ring2Top, info.coral && s.ring2Coral]} />}
-        {on && info.rings >= 3 && <View style={s.ring3} />}
-        {on && info.coral && <View style={s.dot1} />}
-        <Text style={[s.discN, nf, !on && s.discInkOff]}>{info.num}</Text>
-        <Text style={[s.discW, !on && s.discInkOff]}>{info.word}</Text>
-      </View>
-      {/* 받은 칸은 이름을, 빈 칸은 실진행(있으면)을, 진행이 뜻없는 1회짜리는 조건을 말한다 */}
-      <Text style={[s.scellCond, on && s.scellCondOn]} numberOfLines={2}>
-        {on ? info.label : (info.prog ?? info.cond)}
-      </Text>
-    </View>
-  );
-}
+// ③ 도장면 프리미티브 — src/components/stamp.tsx로 추출 (2026-08-05, 3중복 사고 재발 방지).
+// 잉크 법·폭 예산·기울기 정본은 전부 그 파일에 산다. 여기는 소비만.
 
 export default function My() {
   const df = useDisplayFont(); // 디스플레이 서체 — 화면 타이틀 (화면당 1회)
@@ -554,32 +511,17 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: '#DCD6F8', backgroundColor: '#F4F1FE',
     borderRadius: lilacRadius.tag, paddingVertical: 3, paddingHorizontal: 9,
   },
-  visaCntTxt: { fontSize: 14, lineHeight: 18, letterSpacing: 0.8, color: INK, fontWeight: '600' }, // Oswald — lineHeight 1.29× (BUG A)
+  visaCntTxt: { fontSize: 14, lineHeight: 18, letterSpacing: 0.8, color: STAMP_INK, fontWeight: '600' }, // Oswald — lineHeight 1.29× (BUG A)
   perf: { marginHorizontal: 9, borderTopWidth: 1, borderStyle: 'dashed', borderTopColor: lilac.hair }, // 절취선
   visaFoot: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingVertical: 10, paddingHorizontal: 11 },
   visaFootL: { flex: 1, fontSize: 14, lineHeight: 18, color: lilac.dim },
-  visaFootG: { fontSize: 14, fontWeight: '800', color: INK },
+  visaFootG: { fontSize: 14, fontWeight: '800', color: STAMP_INK },
   empt: { backgroundColor: lilac.inset, borderWidth: 1, borderColor: lilac.hair, borderRadius: lilacRadius.inner, padding: 11, marginBottom: 11 },
   emptT: { fontSize: 14, lineHeight: 20, fontWeight: '700', color: lilac.head },
   emptD: { fontSize: 14, lineHeight: 20, color: lilac.text, marginTop: 3 },
 
-  // 도장 — 디스크·링·칸 (기하는 DISC 상수에서 파생, 상수 정의부의 폭 예산 주석 참조)
+  // 도장 그리드 — 칸/디스크/링은 stamp.tsx가 전담, 여기는 배열만
   sgrid: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', columnGap: STAMP_GAP, rowGap: 12 },
-  scell: { width: STAMP_CELL_W, minHeight: DISC + 46, alignItems: 'center' },
-  disc: { width: DISC, height: DISC, borderRadius: DISC / 2, alignItems: 'center', justifyContent: 'center' },
-  discOn: { borderWidth: 2, borderColor: INK, backgroundColor: INK_FILL },
-  discCoral: { borderWidth: 2, borderColor: lilac.coralDeep, backgroundColor: INK_FILL }, // 첫-가족 — 코랄은 엣지로만
-  discOff: { borderWidth: 1.5, borderStyle: 'dashed', borderColor: lilac.hair },
-  ring2: { position: 'absolute', top: 4, left: 4, right: 4, bottom: 4, borderRadius: (DISC - 8) / 2, borderWidth: 1.5, borderColor: INK, opacity: 0.85 },
-  ring2Top: { opacity: 0.9 },
-  ring2Coral: { borderColor: lilac.coralDeep, opacity: 0.34 },
-  ring3: { position: 'absolute', top: -5, left: -5, right: -5, bottom: -5, borderRadius: (DISC + 10) / 2, borderWidth: 1.5, borderColor: INK, opacity: 0.55 },
-  dot1: { position: 'absolute', top: -3.5, left: (DISC - 7) / 2, width: 7, height: 7, borderRadius: 3.5, backgroundColor: lilac.coralDeep },
-  discN: { fontSize: 22, lineHeight: 27, fontWeight: '800', color: INK }, // Oswald — lineHeight 1.23× (BUG A)
-  discW: { fontSize: 14, lineHeight: 17, fontWeight: '800', color: INK, marginTop: 1 },
-  discInkOff: { color: lilac.dim }, // 미획득 잉크 — 랩의 #A9A3C8(2.40:1)은 Sean의 dim 상향 결정과 충돌해 lilac.dim(4.24:1)으로 올림
-  scellCond: { fontSize: 14, lineHeight: 18, fontWeight: '600', color: lilac.dim, marginTop: 6, textAlign: 'center' },
-  scellCondOn: { fontWeight: '700', color: lilac.head },
 
   // ④ 서류행
   doc: { backgroundColor: lilac.card, borderWidth: 1, borderColor: lilac.hair, borderRadius: lilacRadius.card, overflow: 'hidden', ...lilacShadow },

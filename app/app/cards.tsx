@@ -1,12 +1,13 @@
 import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Dimensions, Pressable, ScrollView, StyleSheet, Text, TextStyle, View } from 'react-native';
+import { Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BottomNav, homePath } from '../src/components/bottomnav';
 import { PatchBadge, worldOf } from '../src/components/patch';
+import { STAMP_GAP, STAMP_INK, StampCell } from '../src/components/stamp';
 import { Row } from '../src/components/ui';
 import { useDisplayFont } from '../src/lib/displayFont';
 import { useNumFont } from '../src/lib/fonts';
-import { CoursePatch, deriveStamps, fetchCoursePatches, fetchStampStats, StampInfo, StampStats } from '../src/lib/api';
+import { CoursePatch, deriveStamps, fetchCoursePatches, fetchStampStats, StampStats } from '../src/lib/api';
 import { lilac, lilacRadius, lilacShadow } from '../src/theme';
 
 // 컬렉션 — 여권의 부속서(ANNEX). 리워드 ② 랩 Ⓑ① 채택.
@@ -18,21 +19,12 @@ import { lilac, lilacRadius, lilacShadow } from '../src/theme';
 const GRADE_LABEL: Record<string, string> = { basic: '획득', silver: '실버', gold: '골드', master: '마스터' };
 const nextGrade = (n: number) => (n < 5 ? `실버까지 ${5 - n}회` : n < 10 ? `골드까지 ${10 - n}회` : n < 25 ? `마스터까지 ${25 - n}회` : '코스 마스터 👑');
 
-// ══════════ 잉크 법 (my.tsx §③과 동일 — 표현만 공유, 택소노미는 deriveStamps 단일 소스) ══════════
-const INK = '#4A3DA8';                    // 읽는 바이올렛 — 흰 카드 위 8.32:1
-const INK_FILL = 'rgba(108,92,231,0.05)';
+// 도장 프리미티브·잉크 법·폭 예산 → src/components/stamp.tsx (2026-08-05 추출 — 정본 한 곳).
 const NIGHT = '#1C1837';                  // 패치 웰 바닥 (기록면과 같은 나이트 라일락)
 const NIGHT_INK = '#B9AEF5';              // 나이트 위 바이올렛 — 8.45:1
 const NIGHT_DIM = '#A9A3C8';              // 나이트 위 보조 — 7.09:1
 
 const W = Dimensions.get('window').width;
-// 도장 그리드 폭 예산 (my.tsx §③과 동일 산술 — 두 그리드가 같은 칸에서 읽히도록)
-//   패딩 16*2 · 카드 보더 1*2 · 내부 마진 9*2 · 내부 보더 1*2 · 내부 패딩 11*2 = W-76
-//   320dp: 244 → 칸 74 · 디스크 68 (3*74+2*10 = 242 ≤ 244 ✓) · 390dp: 314 → 칸 97 · 디스크 76
-const STAMP_GRID_W = W - 76;
-const STAMP_GAP = 10;
-const STAMP_CELL_W = Math.floor((STAMP_GRID_W - STAMP_GAP * 2 - 1) / 3);
-const DISC = Math.min(76, STAMP_CELL_W - 6);
 
 // 패치 웰 폭 예산 — 웰은 보더 없이 패딩 11*2만 먹는다 (W-32-22 = W-54)
 //   320dp: 266 → 2열, 칸 127 (코스 이름이 잘리지 않는 폭) · 360dp: 306 → 3열, 칸 95
@@ -48,34 +40,6 @@ const BADGE = Math.min(76, PATCH_CELL_W - 6);
 function withA(hex: string, a: number): string {
   const h = hex.replace('#', '');
   return `rgba(${parseInt(h.slice(0, 2), 16)},${parseInt(h.slice(2, 4), 16)},${parseInt(h.slice(4, 6), 16)},${a})`;
-}
-
-// 도장 한 칸 — 획득: 바이올렛 잉크 + rings만큼의 링 · 첫-가족: 코랄 엣지+도트 · 미획득: 대시 헤어라인.
-// v1에서 도장은 눌리지 않는다 (상세 화면 없음 = 죽은 버튼 금지).
-// 기울기는 deriveStamps의 고정 각도(info.angle) 그대로 — 마이와 부속서에서 같은 도장은 같게 기운다.
-function StampCell({ info, nf }: { info: StampInfo; nf: TextStyle | null }) {
-  const on = info.earned;
-  return (
-    <View style={s.scell}>
-      <View
-        style={[
-          s.disc,
-          on ? (info.coral ? s.discCoral : s.discOn) : s.discOff,
-          on && { transform: [{ rotate: `${info.angle}deg` }] },
-        ]}
-      >
-        {on && info.rings >= 2 && <View style={[s.ring2, info.rings >= 3 && s.ring2Top, info.coral && s.ring2Coral]} />}
-        {on && info.rings >= 3 && <View style={s.ring3} />}
-        {on && info.coral && <View style={s.dot1} />}
-        <Text style={[s.discN, nf, !on && s.discInkOff]}>{info.num}</Text>
-        <Text style={[s.discW, !on && s.discInkOff]}>{info.word}</Text>
-      </View>
-      {/* 받은 칸은 이름을, 빈 칸은 실진행(있으면)을, 진행이 뜻없는 1회짜리는 조건을 말한다 */}
-      <Text style={[s.scellCond, on && s.scellCondOn]} numberOfLines={2}>
-        {on ? info.label : (info.prog ?? info.cond)}
-      </Text>
-    </View>
-  );
 }
 
 export default function Cards() {
@@ -314,28 +278,13 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: '#DCD6F8', backgroundColor: '#F4F1FE',
     borderRadius: lilacRadius.tag, paddingVertical: 3, paddingHorizontal: 9,
   },
-  visaCntTxt: { fontSize: 14, lineHeight: 18, letterSpacing: 0.8, color: INK, fontWeight: '600' },
+  visaCntTxt: { fontSize: 14, lineHeight: 18, letterSpacing: 0.8, color: STAMP_INK, fontWeight: '600' },
   empt: { backgroundColor: lilac.inset, borderWidth: 1, borderColor: lilac.hair, borderRadius: lilacRadius.inner, padding: 11, marginBottom: 11 },
   emptT: { fontSize: 14, lineHeight: 20, fontWeight: '700', color: lilac.head },
   emptD: { fontSize: 14, lineHeight: 20, color: lilac.text, marginTop: 3 },
 
   // 도장 디스크 — my.tsx §③과 동일 기하, 행간만 한 단계 넉넉하게 (부속서는 수집함이다)
   sgrid: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', columnGap: STAMP_GAP, rowGap: 14 },
-  scell: { width: STAMP_CELL_W, minHeight: DISC + 48, alignItems: 'center' },
-  disc: { width: DISC, height: DISC, borderRadius: DISC / 2, alignItems: 'center', justifyContent: 'center' },
-  discOn: { borderWidth: 2, borderColor: INK, backgroundColor: INK_FILL },
-  discCoral: { borderWidth: 2, borderColor: lilac.coralDeep, backgroundColor: INK_FILL },
-  discOff: { borderWidth: 1.5, borderStyle: 'dashed', borderColor: lilac.hair },
-  ring2: { position: 'absolute', top: 4, left: 4, right: 4, bottom: 4, borderRadius: (DISC - 8) / 2, borderWidth: 1.5, borderColor: INK, opacity: 0.85 },
-  ring2Top: { opacity: 0.9 },
-  ring2Coral: { borderColor: lilac.coralDeep, opacity: 0.34 },
-  ring3: { position: 'absolute', top: -5, left: -5, right: -5, bottom: -5, borderRadius: (DISC + 10) / 2, borderWidth: 1.5, borderColor: INK, opacity: 0.55 },
-  dot1: { position: 'absolute', top: -3.5, left: (DISC - 7) / 2, width: 7, height: 7, borderRadius: 3.5, backgroundColor: lilac.coralDeep },
-  discN: { fontSize: 22, lineHeight: 27, fontWeight: '800', color: INK }, // Oswald — 1.23× (BUG A)
-  discW: { fontSize: 14, lineHeight: 17, fontWeight: '800', color: INK, marginTop: 1 },
-  discInkOff: { color: lilac.dim },
-  scellCond: { fontSize: 14, lineHeight: 18, fontWeight: '600', color: lilac.dim, marginTop: 6, textAlign: 'center' },
-  scellCondOn: { fontWeight: '700', color: lilac.head },
 
   // § 코스 패치 — 나이트 라일락 웰
   well: {
