@@ -31,9 +31,18 @@ Opener for next session: **"read docs/session-handoff.md fully, then continue"**
 - Respond to Sean in English; code comments/commits Korean; commands as explicit lists without inline comments; SQL=editor, shell=terminal. Docs/discussion artifacts in English (new).
 - Owner-home + fitness morph pattern DO-NOT-REFACTOR: pinned absolute overlay + paddingTop reservation + transform/opacity native-driver only.
 
-## 2b. Glow-up × GO lab — DELIVERED, awaiting Sean's numbers
+## 2b. Glow-up batch — IMPLEMENTED (Sean picked A2×A4 + B1-with-color-progression)
 
-`docs/labs/glowup-go-lab.html` — Section Ⓐ club widget 4 variants (① Departure Board ② Night Stub ③ Passport Spread ④ Seat Map), Section Ⓑ red GO in ring center 4 variants (① Red Core ② Orbit ③ Gauge ④ Stub), each Ⓑ frame walks all 5 live-run states (no booking → searching → directed → confirmed/handoff → LIVE) with real route targets annotated. Lab's recommended pairing: Ⓐ②×Ⓑ④ (shared stub grammar); safe alt Ⓐ①×Ⓑ④. Reply format: "A2 B4" (mixing parts fine). Implementation must respect: center layer transform/opacity-only, no dead states, 하이 포인트/patch-progress details are real reads.
+Lab was delivered, Sean picked: **Ⓐ② Night Stub shell carrying Ⓐ④'s seat map** + **Ⓑ① Red Core with a color progression** ("red for starters, blue when searching, soft green when confirmed"). Implemented via 3 Opus builders + 1 adversarial reviewer (0 P0, 4 P1 + 11 P2 all fixed):
+
+- **clubcard.tsx ClubBanner**: night-lilac #1C1837 stub card — 84dp dashed stub column (HOST chip / D-day BHS numeral / RSVP ✓ dot when joined; collecting → interestCount/WAITING; no-session → memberCount/MEMBERS), holo monogram + edge (foil = exactly 2), seat-pip grid rendering N=capacity (clamp 24) filled=rsvpCount with 자리/마감 임박/마감 label, ghost CTA. Logic frozen, single door → /club/[id]. Reviewer verdict: ACCEPT clean.
+- **owner/home.tsx GO disc**: 122px disc at ring bullseye inside the frozen center layer. State→color law (comment block at GO constants): coral=your turn (none "GO 러너 찾기", active "● LIVE" breathing) · blue=waiting (searching #5B82E8 pulse → radar, directed #4468CC → schedule) · sage #3F9A75=ready (confirmed D-day → meetup, handoff 시작 대기 → meetup). km one-liner above (halo pill, weekChip moved right:14), 체력 나이 chip below. stopPropagation vs hero; heroCollapsed touch guard (threshold 0.15·onContentSizeChange resync); goSub ink plate; NEW honesty fix: liveNext now excludes rawStatus no_show/incident_review (they rendered as 지명 대기 — lie; schedule.tsx owns their display).
+- **meetup ×2 (owner+runner)**: full lilac repaint (85 swamp refs → 0) + 이중 봉인 dual-seal ceremony — two seal slots on a perforated stub band, fill ONLY on server truth (expressions character-identical to old Step done), gold seal vocabulary from receipt, SEALED ribbon at 2/2, timeline rail steps, big coral CTA, honest waiting states. Hydration guard = stamp animates only on post-first-sync transitions (once-law). P1-4 honesty fix: confirmHandoff failure now Alerts + stays 'arrived' (retry) instead of landing a fake seal. P2-11: fabricated '도보 8분 · 0.8km' ETA replaced with stage-bound truth.
+- **club/[id].tsx**: detail bump 14→15/16 (34+ CLUB15 markers) + P1-2 floor rescue (doorSub 9.5→14/19, tile labels 8.5→14, host line 9→14, unit suffix →12) + 5 display lineHeights (BUG A) + door row stretch + numberOfLines={2} sublines (director call: show fare terms fully over truncation).
+
+**gstack Reflect (retro)**: premise challenge caught that meetup screens were never lilac-repainted (Sean's "intermediary screen" instinct was right); adversarial review caught 2 honesty bugs (fake seal on failed write, fabricated ETA) that builders had flagged but not fixed — the review-executes-attacks law keeps paying. Known cost accepted: 위탁하기 door subline can wrap to 2 lines; tile stat labels grow tiles ~28dp at 320dp when both render.
+
+**Deferred design calls (unchanged)**: ClubTag 9.5 mixed token · FEATURED RUNNER/tickerLead kickers · vk zero-callers. NEW: club/[id] hhmm/attendance display pass could go bigger (Sean may ask); GO compact-state echo deliberately omitted (ticket + island carry state when collapsed).
 
 ## 3. Pending on Sean's side (ordered)
 
@@ -42,7 +51,7 @@ Opener for next session: **"read docs/session-handoff.md fully, then continue"**
 3. Post-push definer audit in SQL editor (expect 0 rows):
    `select p.oid::regprocedure from pg_proc p where p.pronamespace='public'::regnamespace and p.prosecdef and coalesce(array_to_string(p.proconfig,','),'') not like '%pg_temp%';`
 4. `git push` (redesign-v4 — device now ahead ≥4).
-5. Device smoke, cumulative: matching roster (available-only, rookies bottom) · schedule sheet status matrix · decline→open-pool absence→direct re-request · runner home 이번 달/누적 + bell dot · owner home NEXT RUN sort + D-day chip + bell off when read · fitness morph/rail/3-states/fontScale · **NEW: receipt seal stamp (plays once per booking; check clipping on photo-less receipts) · drain rings at proposal/hold/check-in + expired-proposal branch · font floor legibility pass (esp. 320dp owner-home stamps)**.
+5. Device smoke, cumulative: matching roster (available-only, rookies bottom) · schedule sheet status matrix · decline→open-pool absence→direct re-request · runner home 이번 달/누적 + bell dot · owner home NEXT RUN sort + D-day chip + bell off when read · fitness morph/rail/3-states/fontScale · receipt seal stamp (once per booking; clipping on photo-less receipts) · drain rings ×3 + expired-proposal branch · font floor legibility (320dp stamps) · **NEW: GO disc all 6 states + colors (coral/blue/sage), disc tap ≠ hero tap, collapse leaves no dead touch zone, night club card + seat pips at 320dp, meetup dual-seal both sides (stamp animates on live confirm, NOT on re-entry; failed confirm → Alert + retry), club home text pass**.
 6. "claude.md yes/no" (gstack section in CLAUDE.md).
 
 ## 4. Next 1–3 steps

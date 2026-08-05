@@ -12,8 +12,8 @@ import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { haptic } from '../../src/lib/haptics';
 import { registerPushToken } from '../../src/lib/push';
-import { Booking, dog, draft, myCards, nextBooking, ownerGearLadder, RouteInfo, runners } from '../../src/store';
-import { colors, lilac, lilacRadius, lilacShadow, pricing } from '../../src/theme';
+import { Booking, dog, draft, myCards, ownerGearLadder, RouteInfo, runners } from '../../src/store';
+import { lilac, lilacRadius, lilacShadow, pricing } from '../../src/theme';
 import { useTheme } from '../../src/theme-context';
 
 // Owner home — 라일락 리페인트 (2026-08 "EDITORIAL SPORT × DAWN-DOT MORPH").
@@ -41,6 +41,33 @@ const MORPH_DOT = 11;
 // 좌/우 컴팩트 정보 블록의 실측 bottom(onLayout)에서 파생 → 타입 1.7× 스케일업 후에도
 // 'N% 달성' 텍스트와 절대 겹치지 않고 진행선이 항상 그 아래로 내려앉는다.
 const MORPH_LINE_GAP = 22; // 정보 블록 bottom ↔ 진행선 사이 숨 쉬는 간격
+
+// ── GO 코어 (랩 Ⓑ① "Red Core", Sean 승인 2026-08-05) — 216 링의 불스아이에 앉는 액션 디스크 ──
+// 지름 122: 도트 안쪽 반경이 RING_BIG/2 − MORPH_DOT − MORPH_DOT/2 = 91.5 라 디스크 가장자리와 도트
+// 사이에 30px가 남는다 → 아크와 코랄 헤드 글로우를 절대 덮지 않는다 (덮으면 진행도가 거짓말이 된다).
+const GO_DISC = 122;
+// ── 색 진행법 (Sean 2026-08-05: "빨강으로 시작, 찾을 땐 파랑, 확정되면 부드러운 초록") ──
+// 색이 곧 '지금 누구 차례인가'다:
+//   코랄  = 네 차례 — 예약이 없다(행동하라) · 러닝이 돌아간다(라이브). 둘 다 '움직임'의 색이라 원점 회귀.
+//   블루  = 시스템 차례 — 매칭 중·지명 응답 대기. 기다림은 차가운 색이어야 재촉으로 읽히지 않는다.
+//   세이지 = 준비 완료 — 확정·인계 대기. 만나기만 하면 되는 상태의 안심색.
+// 블루는 액센트 바이올렛(#6C5CE7)과 절대 헷갈리면 안 되므로 초록 성분이 많은 페리윙클로 밀었다.
+// 세이지는 네온 금지 — 라일락 캔버스에 얹혀도 튀지 않는 채도. 흰 라벨 대비가 승인색 코랄(2.8:1)보다
+// 낮아지지 않도록 세이지는 계열의 '딥'(#3F9A75, 3.4:1)을 기본면으로 쓴다 (원 #58B58D는 2.5:1로 하회).
+const GO_BLUE = '#5B82E8'; // 매칭 중 — 페리윙클 (흰 라벨 3.6:1)
+const GO_BLUE_DEEP = '#4468CC'; // 매칭 중 press · 지명 대기 기본면 (5.1:1)
+const GO_BLUE_WAIT_DEEP = '#3A5BB4'; // 지명 대기 press — 같은 계열 한 단계 더 깊게 (6.3:1)
+const GO_SAGE = '#3F9A75'; // 확정 · 시작 대기 — 소프트 세이지
+const GO_SAGE_DEEP = '#358363'; // 세이지 press (4.6:1)
+type GoState = 'none' | 'searching' | 'directed' | 'confirmed' | 'handoff' | 'active';
+const GO_SKIN: Record<GoState, { base: string; deep: string }> = {
+  none: { base: lilac.coral, deep: lilac.coralDeep },
+  searching: { base: GO_BLUE, deep: GO_BLUE_DEEP },
+  directed: { base: GO_BLUE_DEEP, deep: GO_BLUE_WAIT_DEEP },
+  confirmed: { base: GO_SAGE, deep: GO_SAGE_DEEP },
+  handoff: { base: GO_SAGE, deep: GO_SAGE_DEEP },
+  active: { base: lilac.coral, deep: lilac.coralDeep },
+};
 
 // 라일락 서피스 토큰 — 나이트 라일락 다크 인셋 / 딥 코랄 머니 스톱(종단 ≥#C6472C, 흰 라벨 4.5:1)
 const NIGHT = '#1C1837';
@@ -281,6 +308,22 @@ export default function OwnerHome() {
   const morphLineY = Math.max(infoBottomY, stampBottomY) + MORPH_LINE_GAP;
   const latestCard = myCards.find((c) => c.run);
   const scrollY = useRef(new Animated.Value(0)).current;
+  // [GO 터치 정합] 센터 콘텐츠는 컬랩스에서 opacity 0으로 사라지지만, RN에서 투명 뷰는 여전히 터치를 먹는다.
+  // 보이지 않는 GO 디스크가 히어로(체력 리포트) 탭을 가로채면 안 되므로 pointerEvents를 끊어야 하는데,
+  // 프레임마다 스크롤 값을 JS로 읽는 건 금지(네이티브 드라이버 법) → '스크롤이 멈춘 지점'만 본다.
+  // 제스처당 1~2회 호출이라 비용 0에 가깝고, onScroll(Animated.event)은 손대지 않는다.
+  const [heroCollapsed, setHeroCollapsed] = useState(false);
+  // 마지막으로 '멈춘' 오프셋과 뷰포트 높이의 JS 사본 — 콘텐츠가 줄어 스크롤이 클램프될 때
+  // (드래그·모멘텀 종료 이벤트가 안 도는 경로) 새 오프셋을 계산하기 위한 최소 상태. 프레임 단위 갱신 아님.
+  const lastScrollY = useRef(0);
+  const viewportH = useRef(0);
+  const syncHeroCollapsed = (y: number) => {
+    lastScrollY.current = y;
+    // 0.45(=센터가 완전히 투명해지는 지점) 대신 0.15 — 11~55% 남은 반투명 구간에서도 디스크가 온전히
+    // 히트 테스트되던 문제. 페이드 중간의 히어로 탭은 어차피 모호하고, 폴백(체력 리포트)은 살아있다.
+    const c = y >= SCROLL_RANGE * 0.15;
+    setHeroCollapsed((prev) => (prev === c ? prev : c));
+  };
 
   // 실예약 next booking — 위젯이 진짜 다음 일정을 보여준다 (없으면 목업)
   const [liveNext, setLiveNext] = useState<Booking | null>(null);
@@ -299,8 +342,12 @@ export default function OwnerHome() {
         // 과거 잔재'를 NEXT RUN으로 박제한다 (confirmed엔 만료 크론이 없다 — 리뷰 P1). 없으면 맨 뒤.
         const at = (b: Booking) => (b.scheduledAt ? Date.parse(b.scheduledAt) : Number.MAX_SAFE_INTEGER);
         const past = (b: Booking) => (b.scheduledAt ? Date.parse(b.scheduledAt) < Date.now() - 6 * 3_600_000 : false);
+        // [정직] no_show·incident_review는 STATUS_MAP에 없어 'pending'으로 떨어진다 — 그대로 두면
+        // 티켓 배지와 GO 코어가 둘 다 '지명 대기'라고 거짓말한다(불발·확인 중은 다가오는 러닝이 아니다).
+        // 이 두 원상태의 정직한 표시(불발 / 확인 중)는 일정 화면이 rawStatus로 전담한다 → NEXT에서 제외.
+        const stale = (b: Booking) => b.rawStatus === 'no_show' || b.rawStatus === 'incident_review';
         setLiveNext(
-          bs.filter((b) => b.status in RANK)
+          bs.filter((b) => b.status in RANK && !stale(b))
             .sort((a, b) => RANK[a.status] - RANK[b.status] || Number(past(a)) - Number(past(b)) || at(a) - at(b))[0] ?? null,
         );
         setLastDone(bs.find((b) => b.status === 'completed') ?? null);
@@ -365,6 +412,49 @@ export default function OwnerHome() {
   // 오픈 브로드캐스트만 '검색 중' — 지명 대기(runner_pending, matched)는 레이더가 거짓말이 된다
   const fnSearching = liveNext?.status === 'pending' && !liveNext.matched;
   const fnDirected = liveNext?.status === 'pending' && !!liveNext.matched; // ★ 지명 응답 대기
+
+  // ── GO 코어 상태 (Ⓑ①) — 링 센터의 액션 디스크가 무엇을 말하고 어디로 가는지 ──
+  // liveNext는 이미 active > handoff > confirmed > pending 로 랭크된 '가장 액션 가능한 실예약'이고,
+  // pending은 matched 여부로 fnSearching / fnDirected 로 갈린다 (오픈 브로드캐스트 vs 지명 대기).
+  // → 여섯 상태가 상호 배타 + 빈틈 없음. 예약이 없으면 'none'. 데드 상태 없음 — 전부 실경로를 가진다.
+  const goState: GoState =
+    liveNext?.status === 'active' ? 'active'
+      : liveNext?.status === 'handoff' ? 'handoff'
+        : liveNext?.status === 'confirmed' ? 'confirmed'
+          : fnDirected ? 'directed'
+            : fnSearching ? 'searching'
+              : 'none';
+  const goSkin = GO_SKIN[goState];
+  // 라벨 — D-day는 실 scheduled_at 파생(ddayLabel)만 쓴다. 값이 없으면 카운트다운을 지어내지 않고 '확정'.
+  const goNum = goState === 'none' || goState === 'active' || (goState === 'confirmed' && ddayLabel !== null);
+  const goMain = goState === 'none' ? 'GO'
+    : goState === 'searching' ? '매칭 중'
+      : goState === 'directed' ? '지명 대기'
+        : goState === 'confirmed' ? (ddayLabel ?? '확정')
+          : goState === 'handoff' ? '시작 대기'
+            : '● LIVE';
+  const goSub = goState === 'none' ? '러너 찾기'
+    : goState === 'searching' ? '레이더 보기'
+      : goState === 'directed' ? '일정 확인'
+        : goState === 'confirmed' ? (ddayLabel !== null ? '확정' : '인계 확인')
+          : goState === 'handoff' ? '미트업 보기'
+            : '실시간 보기';
+  const goFont = goState === 'none' ? 30 : goState === 'active' ? 22 : goNum ? 26 : 17;
+  // GO 호흡 — '매칭 중'(잔잔한 맥박)과 '● LIVE'(느린 숨)에서만 돈다. idle에 돌리면 거짓 모션
+  // (스윕 회전과 같은 법). opacity 단일 값 · 네이티브 드라이버 — 레이아웃/스케일은 건드리지 않는다.
+  const goBreath = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const dur = goState === 'searching' ? 950 : goState === 'active' ? 1700 : 0;
+    if (dur === 0) { goBreath.setValue(0); return; }
+    const loop = Animated.loop(Animated.sequence([
+      Animated.timing(goBreath, { toValue: 1, duration: dur, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+      Animated.timing(goBreath, { toValue: 0, duration: dur, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+    ]));
+    loop.start();
+    return () => loop.stop();
+  }, [goState, goBreath]);
+  const goBreathOpacity = goBreath.interpolate({ inputRange: [0, 1], outputRange: [1, goState === 'searching' ? 0.72 : 0.85] });
+
   // 레이더 아크 브리딩 — 평상시 잔잔하게
   const radarBreath = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -699,21 +789,65 @@ export default function OwnerHome() {
               <Animated.View pointerEvents="none" renderToHardwareTextureAndroid style={[StyleSheet.absoluteFill, { opacity: lineOpacity, transform: [{ translateY: lineSlide }] }]}>
                 <LineDots pct={pct} lineYAbs={morphLineY} containerX={(CARD_W - RING_BIG) / 2} containerY={dotBoxY} track={hp.track} />
               </Animated.View>
-              {/* 큰 상태 센터 콘텐츠 — 컬랩스 전에 사라진다 (컴팩트 정보는 좌측 블록 전담, 이중 표기 금지) */}
-              <Animated.View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', opacity: centerOpacity }}>
-                <View style={{ alignItems: 'center' }}>
-                  {/* [FIX3 BUG A] 키커는 marginBottom으로 띄우고(음수 마진 금지), 큰 숫자는 lineHeight ≥1.2× — 어센더 클리핑·겹침 제거 */}
-                  <Text style={{ fontSize: 14, lineHeight: 18, fontWeight: '700', letterSpacing: 0.5, color: hp.dim, marginBottom: 4 }}>오늘까지</Text>
-                  <Text style={[{ color: lilac.head, lineHeight: 65 }, nf]}>
-                    <Text style={{ fontSize: 54, fontWeight: '900' }}>{weekKm}</Text>
-                    <Text style={{ fontSize: 18, color: lilac.coral }}> km</Text>
-                  </Text>
-                  <Text style={{ fontSize: 14, color: hp.textSoft, marginTop: 5 }}>
-                    / {goalKm}km <Text style={{ color: lilac.accent, fontWeight: '700' }}>주간 목표</Text>
-                  </Text>
-                  {/* 체력 나이 — our concept, front and center */}
-                  <View style={[s.goalChip, { backgroundColor: hp.chip, borderColor: lilac.hair, flexDirection: 'row', gap: 5, alignItems: 'center' }]}>
-                    <Text style={{ fontSize: 14, fontWeight: '800', color: hp.textSoft }}>체력 나이</Text>
+              {/* 큰 상태 센터 콘텐츠 — 랩 Ⓑ① "Red Core": km 한 줄(위) · GO 코어 디스크(불스아이) · 체력 나이 칩(아래).
+                  구 스택(오늘까지 키커 + 54pt weekKm + '/ goal 주간 목표' 줄 + 칩)은 은퇴 — 링의 광학 중심을
+                  액션에 내주고 숫자는 위아래로 갈라진다(랩 문법 = split). 주간 목표 숫자는 km 한 줄에 그대로 남는다.
+                  [의도적] GO는 컴팩트 에코를 갖지 않는다 — 접힌 뒤의 상태·액션은 아래 '오늘의 티켓'과
+                  '지금 러너 찾기' 섬이 이미 전담하므로 에코를 두면 삼중 표기가 된다.
+                  [터치] 컬랩스에서 투명해진 뒤에도 RN 뷰는 터치를 먹는다 → heroCollapsed로 pointerEvents를 끊어
+                  보이지 않는 GO가 히어로(체력 리포트) 탭을 가로채지 않게 한다. box-none = 컨테이너는 통과, 디스크만 잡는다. */}
+              <Animated.View
+                pointerEvents={heroCollapsed ? 'none' : 'box-none'}
+                style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', opacity: centerOpacity }}
+              >
+                {/* km 한 줄 — 링 도트를 가로지르므로 4px 카드색 헤일로로 도트에서 떼어낸다 (랩 box-shadow 0 0 0 4px --card).
+                    숫자는 weekKm/goalKm 둘 뿐 — 목표는 여기서 계속 보인다 (정직: 로딩 전 0은 기존 가드 그대로). */}
+                <View style={[s.goHalo, { marginBottom: 8 }]}>
+                  <View style={s.goPill}>
+                    {/* 줄박스는 바깥 lineHeight 27(=22×1.23)이 지배 — Oswald 스팬에도 같은 값을 명시(숫자법) */}
+                    <Text style={{ lineHeight: 27 }} numberOfLines={1}>
+                      <Text style={{ fontSize: 14, fontWeight: '700', letterSpacing: 0.4, color: hp.dim }}>오늘까지 </Text>
+                      <Text style={[{ fontSize: 22, lineHeight: 27, fontWeight: '900', color: lilac.head }, nf]}>{weekKm}</Text>
+                      <Text style={{ fontSize: 14, fontWeight: '600', color: hp.dim }}> / {goalKm} km</Text>
+                    </Text>
+                  </View>
+                </View>
+
+                {/* GO 코어 — 히어로 Pressable 위에 얹힌 중첩 Pressable.
+                    e.stopPropagation()은 티켓 버튼과 동일 관용구 — 부모 히어로(/owner/fitness)로 버블링 금지.
+                    (히어로 Pressable은 style 콜백·android_ripple이 없어 press-in이 카드 opacity를 건드리지 않는다 —
+                     프레스 피드백은 디스크 자기 면색 교체 base→deep 하나뿐이다.)
+                    각 분기는 기존 핸들러를 그대로 미러한다: 티켓의 인계/라이브 버튼 + '지금 러너 찾기' 섬. */}
+                <Animated.View style={{ opacity: goBreathOpacity }}>
+                  <Pressable
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      if (goState === 'active') { if (liveNext) draft.bookingId = liveNext.id; router.push('/owner/live'); return; }
+                      // 확정·인계 대기 → 미트업 (티켓의 '러너 만나기 · 인계 확인' / '인계 완료…'와 동일 목적지)
+                      if (goState === 'confirmed' || goState === 'handoff') { if (liveNext) draft.bookingId = liveNext.id; router.push('/owner/meetup'); return; }
+                      if (fnDirected) { router.push('/owner/schedule'); return; } // 지명 대기 — 레이더는 허위
+                      if (fnSearching && liveNext) { draft.bookingId = liveNext.id; router.push('/owner/radar'); return; }
+                      if (fnAvail.length === 0) { router.push('/owner/request'); return; }
+                      openFindNow();
+                    }}
+                    style={({ pressed }) => [s.goDisc, { backgroundColor: pressed ? goSkin.deep : goSkin.base, shadowColor: goSkin.deep }]}
+                  >
+                    <Text
+                      style={[s.goWord, goNum ? nf : null, { fontSize: goFont, lineHeight: Math.round(goFont * 1.24), letterSpacing: goNum ? 1.4 : 0 }]}
+                      numberOfLines={1}
+                    >
+                      {goMain}
+                    </Text>
+                    <Text style={s.goSub} numberOfLines={1}>{goSub}</Text>
+                  </Pressable>
+                </Animated.View>
+
+                {/* 체력 나이 — 우리 개념. 디스크 아래로 내려앉되 같은 헤일로 처리 (측정 전이면 '측정 전' 그대로) */}
+                <View style={[s.goHalo, { marginTop: 8 }]}>
+                  <View style={s.goPill}>
+                    {/* 세 자식 모두 lineHeight 18 명시 — 라벨만 빠지면 안드로이드 기본 줄높이(≈20)가
+                        행을 지배해 센터 스택이 216을 넘는다 (세로 예산은 s.goDisc 주석 참조) */}
+                    <Text style={{ fontSize: 14, lineHeight: 18, fontWeight: '800', color: hp.textSoft }}>체력 나이</Text>
                     <Text style={[{ fontSize: 14, lineHeight: 18, fontWeight: '900', color: lilac.accent }, nf]}>
                       {fitnessAge != null ? `${fitnessAge}살` : '측정 전'}
                     </Text>
@@ -751,6 +885,15 @@ export default function OwnerHome() {
         }}
         onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
         scrollEventThrottle={16}
+        // 스크롤이 '멈춘' 지점만 JS로 본다 — 컬랩스에서 투명해진 GO 디스크의 터치를 끊기 위한 유일한 신호.
+        // onScroll(네이티브 드라이버)은 그대로 두고, 제스처당 1~2회만 도는 종료 이벤트를 쓴다.
+        onScrollEndDrag={(e) => syncHeroCollapsed(e.nativeEvent.contentOffset.y)}
+        onMomentumScrollEnd={(e) => syncHeroCollapsed(e.nativeEvent.contentOffset.y)}
+        onLayout={(e) => { viewportH.current = e.nativeEvent.layout.height; }}
+        // 재동기화 — 콘텐츠가 줄면(티켓 소멸·섹션 숨김) 스크롤이 스스로 클램프돼 히어로가 다시 펼쳐지는데,
+        // 이때 종료 이벤트가 안 돈다 → 보이는데 죽은 GO가 된다. 새 최대 오프셋으로 다시 판정한다.
+        // 콘텐츠 높이가 바뀔 때만 도는 이벤트라 프레임 비용 0 (포커스 재진입의 리페치도 이 경로로 수렴).
+        onContentSizeChange={(_w, h) => syncHeroCollapsed(Math.min(lastScrollY.current, Math.max(0, h - viewportH.current)))}
       >
         {/* ---------- stat cells — 룰드 숫자 셀: 데이터가 차오르면 카피도 자랑스러워진다.
             정직 원칙: 자랑 카피는 실데이터 임계(스트릭 3일·주 3회)에서만 점화 — 0에서 응원, 성과에서 축하 ---------- */}
@@ -1431,13 +1574,45 @@ const s = StyleSheet.create({
   // 역보정 레이어 — 카드 안쪽 테두리 박스에 정확히 겹친다(절대 자식 인셋 불변) + 카드와 동일 padding(흐름 자식 불변).
   // 테두리 0 · 상하 대칭이라 scaleY 원점이 카드 중심과 일치 → 역보정 이동량이 (HERO_LIFT·t)/s로 닫힌 형태.
   heroInner: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, padding: 18 },
+  // [Ⓑ① P1-1] left 14 → right 14. Ⓑ①의 km 한 줄은 링 상단을 가로지르며 ~129dp를 요구하는데
+  // 320dp(CARD_W 298)에선 좌측 주간칩이 남기는 폭이 88dp뿐이라 둘이 겹쳤다. 우측은 큰 상태에서 비어 있다
+  // (요일 스탬프는 컬랩스 전용 opacity 0, top 46이라 칩 박스 12~38과 세로로도 안 만난다).
   weekChip: {
-    position: 'absolute', top: 12, left: 14, zIndex: 4, borderWidth: 1,
+    position: 'absolute', top: 12, right: 14, zIndex: 4, borderWidth: 1,
     borderRadius: lilacRadius.tag, paddingVertical: 3, paddingHorizontal: 7,
   },
   info: { position: 'absolute', left: 18, top: 40, width: CARD_W * 0.46, zIndex: 3 }, // 요일 스탬프와 좌우 분담
   stampBox: { position: 'absolute', right: 18, top: 46, zIndex: 3, alignItems: 'flex-end' }, // 링이 떠난 자리 (컬랩스)
-  goalChip: { marginTop: 8, borderRadius: lilacRadius.tag, borderWidth: 1, paddingVertical: 3, paddingHorizontal: 8 },
+  // ── GO 코어 (Ⓑ①) — 구 goalChip은 은퇴(센터 스택 재편으로 유일 사용처가 사라졌다) ──
+  // 헤일로 = 랩의 box-shadow 0 0 0 4px var(--card) 대응. 링 도트를 가로지르는 두 줄을 카드색 4px로 떼어낸다.
+  goHalo: { backgroundColor: lilac.card, borderRadius: lilacRadius.tag + 4, padding: 4 },
+  goPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: lilac.inset, borderWidth: 1, borderColor: lilac.hair,
+    borderRadius: lilacRadius.tag, paddingVertical: 3, paddingHorizontal: 10,
+  },
+  // 122 디스크 — 흰 인셋 링 2px(랩 inset 0 0 0 2px rgba(255,255,255,.28))은 테두리로, 드롭 섀도는 상태색으로.
+  // 세로 예산 (링 216 안에 갇혀야 한다 · 모든 줄이 lineHeight를 명시해야 성립한다):
+  //   km 헤일로 4+(1+3+27+3+1)+4 = 43 · 갭 8 · 디스크 122(고정) · 갭 8 · 나이 헤일로 4+(1+3+18+3+1)+4 = 34
+  //   합 215 ≤ RING_BIG 216. goSub 잉크 플레이트는 디스크 '안'이라 이 합에 들어오지 않는다
+  //   (디스크 내부: 워드 최대 37 + 서브 1+2+18+2 = 60 ≤ 안쪽 118). 주간칩은 right 14로 비켰고(P1-1),
+  //   리포트칩은 역보정 밖 bottom 11이라 둘 다 이 스택과 만나지 않는다.
+  goDisc: {
+    width: GO_DISC, height: GO_DISC, borderRadius: GO_DISC / 2,
+    alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8,
+    borderWidth: 2, borderColor: 'rgba(255,255,255,0.28)',
+    shadowOpacity: 0.42, shadowRadius: 11, shadowOffset: { width: 0, height: 6 }, elevation: 8,
+  },
+  // fontSize·lineHeight(≥1.24×)·letterSpacing은 상태별로 주입 — Oswald 숫자법(명시 lineHeight) 유지
+  goWord: { fontWeight: '900', color: '#fff', textAlign: 'center' },
+  // [P1-3] 서브 라벨은 상태색 면 위에 직접 얹지 않는다 — 흰 14px가 코랄 2.68:1 · 세이지 3.24:1로
+  // 이 파일의 잉크 플레이트 법(s.ctaPlate, ≥4.5:1)을 어겼다. 같은 관용구로 플레이트를 깔아
+  // 코랄 6.0 · 세이지 6.8 · 블루 6.9:1 로 올린다 (면색이 바뀌어도 플레이트가 하한을 보증).
+  goSub: {
+    fontSize: 14, lineHeight: 18, fontWeight: '800', color: '#fff', marginTop: 1,
+    backgroundColor: 'rgba(28,24,55,0.42)', borderRadius: lilacRadius.tag,
+    paddingVertical: 2, paddingHorizontal: 7, overflow: 'hidden',
+  },
   reportChip: {
     position: 'absolute', left: 12, right: 12, bottom: 11, zIndex: 3,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -1497,10 +1672,6 @@ const s = StyleSheet.create({
   clubShell: {
     marginTop: 14, borderRadius: lilacRadius.card,
     shadowColor: lilac.accent, shadowOpacity: 0.14, shadowRadius: 30, shadowOffset: { width: 0, height: 12 }, elevation: 3,
-  },
-  liveDotSm: {
-    width: 7, height: 7, borderRadius: 4, backgroundColor: lilac.coral,
-    shadowColor: lilac.coral, shadowOpacity: 1, shadowRadius: 4, shadowOffset: { width: 0, height: 0 },
   },
   meetBtn: {
     flex: 1, backgroundColor: lilac.accent, borderRadius: lilacRadius.btn, alignItems: 'center', paddingVertical: 13,

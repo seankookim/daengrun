@@ -10,17 +10,23 @@ import { useDisplayFont } from '../lib/displayFont';
 import { lilac, lilacRadius, lilacShadow } from '../theme';
 import { Row } from './ui';
 
-// 하이클럽 홈 모듈 v4 — 격상 라일락 에디토리얼 카드 (2026-08-03 Sean 2차 디바이스 피드백, PROBLEM 2).
-// 다크 풀블리드 포토 배너 + 러버 여권 직인 폐기 → owner-FINAL `.club` 모듈로 구조 교체:
-//   흰색 격상 카드(border #DCD6F8·soft violet shadow) · 바이올렛 틴트 헤더(홀로 모노그램·Oswald 킥커·모노 태그)
-//   · 다음 세션 요일/시각 + 밋업 서브 · 헤어라인 2셀 메타 · CTA 2개(바이올렛 메인 + 콰이엇 인셋).
-// 로직 동결: 훅·페치·핸들러·라우트 타깃(/club/${id}·세션·claim)·게이트·가드 전부 보존. JSX/StyleSheet만 변경.
-// 타입 스케일: FIX2 ~1.25× (1.75× 오버슛 철회) — 값·라벨 1줄, 트렁케이션·오버랩 없음.
+// 하이클럽 홈 모듈 v5 — 나이트 스텁 × 시트맵 (2026-08-05 Sean 확정: glowup-go-lab Ⓐ② 전반 + Ⓐ④ 시트맵).
+// 흰 틴트-헤더 카드 폐기 → 종이 피드 위의 다크 아일랜드로 교체 (가치 반전 = 가장 강한 강조):
+//   나이트-라일락(#1C1837) 카드 · 찢어진 점선 스텁 열(D-day 큰 숫자 · RSVP 도트 · HOST) ·
+//   홀로 모노그램 + 3px 홀로 상단 엣지(포일 예산 정확히 2) · 좌석 = capacity 핍 그리드(rsvpCount 채움).
+// 로직 동결: 훅·페치·핸들러·라우트 타깃(/club/${id} — 문 하나)·상태 분기·HOST 진실 전부 보존. JSX/StyleSheet만 변경.
+// 타입 플로어: 나이트 위 디테일 14.5~15 · 1차 값 16+ · 레터스페이스 대문자 킥커만 예외. 디스플레이 숫자는 lineHeight ≥1.2×.
 
 const READ_VIOLET = '#4A3DA8'; // 읽는 바이올렛 (흰 배경 위 라벨·텍스트, 2단 문법)
 const VIOLET_TINT = '#F4F1FE'; // 칩·하이라이트 행 배경
 const VIOLET_TINT_EDGE = '#DCD6F8'; // 바이올렛 틴트 헤어라인
 const NIGHT = '#1C1837'; // 나이트-라일락 다크 인셋 (포레스트 은퇴)
+const NIGHT_EDGE = '#3A3266'; // 나이트 카드 보더 (lab .a2)
+const NIGHT_TXT = '#D8CFF7'; // 나이트 위 본문 딤 — 대비 11.5:1
+const NIGHT_KK = '#CFC5F6'; // 나이트 위 킥커 — 대비 10.5:1
+const NIGHT_HAIR = 'rgba(255,255,255,0.24)'; // 스텁 찢김선 (점선 divider — tktStub 선례)
+const SEAT_ON = '#F0765A'; // 채워진 좌석 = 코랄 (lilac.coral)
+const CORAL_READ = '#FFC3B1'; // 나이트 위 읽는 코랄 — 대비 11.1:1
 
 const dday = (iso: string): string => {
   const d = Math.ceil((new Date(iso).getTime() - Date.now()) / 86400000);
@@ -162,9 +168,10 @@ function ClubSearchBar() {
   );
 }
 
-// ---------- 하이클럽 카드 (상태 인지형 · 격상 라일락 에디토리얼 셸) ----------
-// owner-FINAL `.club` 모듈 구조: 흰 격상 카드 + 바이올렛 틴트 헤더(홀로 모노그램·킥커·모노 태그) +
-// 다음 세션 요일/시각 + 밋업 서브 + 헤어라인 2셀 메타 + CTA 2개. 다크 포토·러버 직인 없음.
+// ---------- 하이클럽 카드 (상태 인지형 · Ⓐ② 나이트 스텁 × Ⓐ④ 시트맵) ----------
+// 종이 피드 위 단 하나의 다크 아일랜드. 왼쪽 = 찢어진 점선 스텁(큰 D-day · RSVP 도트 · HOST),
+// 오른쪽 = 홀로 모노그램/킥커/클럽명 → 요일·시각 → 집결지·호스트 → 시트맵 → 클럽 홈 고스트 CTA.
+// 좌석은 문장이 아니라 그림이다: capacity만큼 핍을 그리고 rsvpCount만큼 채운다 (고정 8 금지).
 function ClubBanner({ club, role, reload }: { club: ClubOverview; role: 'owner' | 'runner'; reload: () => void }) {
   const df = useDisplayFont();
   const ns = club.nextSession;
@@ -184,100 +191,88 @@ function ClubBanner({ club, role, reload }: { club: ClubOverview; role: 'owner' 
   const dayLabel = wmatch ? wmatch[1] : '';
   const timeLabel = wmatch ? wmatch[2] : (ns ? ns.when : '');
 
-  // 헤더 모노 태그 — 기존 자리/D-day 상태 로직 유지
-  const tagText = active && ns
-    ? (joined
-      ? `${dday(ns.scheduledAt)} · RSVP ✓`
-      : ns.status === 'open' && left > 0
-        ? `${left}자리`
-        : dday(ns.scheduledAt))
-    : club.status === 'collecting'
-      ? '모집 중'
-      : `멤버 ${club.memberCount}`;
+  // 스텁 숫자 — 기존 3분기(active+세션 / collecting / active-무세션) 그대로, 자리만 헤더 태그 → 스텁.
+  const stubValue = active && ns
+    ? dday(ns.scheduledAt)
+    : String(club.status === 'collecting' ? club.interestCount : club.memberCount);
+  const stubKicker = active && ns ? 'NEXT' : club.status === 'collecting' ? 'WAITING' : 'MEMBERS';
+  const stubWide = stubValue.length >= 5; // 'D-DAY'·5자리 수 — 한 단계 축소해서 84dp 스텁 폭 안에 눕힌다
+
+  // 시트맵 — 정직: 정원이 12면 12개를 그린다. 상한 24는 렌더 가드(프리셋 6·9·12, 명세 범위 4~16).
+  const seatN = ns ? Math.max(0, Math.min(ns.capacity, 24)) : 0;
+  const seatFilled = ns ? Math.max(0, Math.min(ns.rsvpCount, seatN)) : 0;
+  const seatSmall = seatN > 10; // 320dp에서도 두 줄 안에 들어오게 (랩 + 축소)
 
   return (
     <Pressable onPress={onPress} style={s.clubCard}>
-      {/* 헤더 행 — 플랫 바이올렛 틴트 + 홀로 모노그램 + 킥커/클럽명 + 모노 태그 */}
-      <View style={s.clubTop}>
-        <View style={s.clubMono}>
-          <HoloSquare id="club-holo" />
-          <Text style={[s.clubMonoText, df]}>{initial}</Text>
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={s.clubKk} numberOfLines={1}>HIGH CLUB — {club.district}</Text>
-          <Text style={s.clubName} numberOfLines={1}>{club.name}</Text>
-        </View>
-        {club.isHost && (
-          <View style={s.hostTag}><Text style={s.hostTagText}>HOST</Text></View>
-        )}
-        <View style={s.monoTag}><Text style={s.monoTagText} numberOfLines={1}>{tagText}</Text></View>
-      </View>
+      {/* 포일 예산 ①/② — 3px 홀로 상단 엣지 */}
+      <HoloEdge id="club-holo-edge" style={s.clubEdge} />
 
-      {/* 바디 — 다음 세션 요일/시각 + 밋업 서브 · 헤어라인 2셀 메타 · CTA 2개 */}
-      <View style={s.clubBody}>
-        {active && ns ? (
-          <View style={s.clubWhen}>
-            {dayLabel !== '' && <Text style={[s.clubWhenD, df]}>{dayLabel}</Text>}
-            <Text style={s.clubWhenT}>{timeLabel}</Text>
-            <Text style={s.clubWhenSub} numberOfLines={1}>
-              {ns.meetupPoint}{club.hostName ? ` · 호스트 ${club.hostName}` : ''}
-            </Text>
-          </View>
-        ) : (
-          <Text style={s.clubBodyLine} numberOfLines={2}>
-            {club.status === 'collecting'
-              ? `관심 ${club.interestCount}명 · 호스트를 기다려요`
-              : `멤버 ${club.memberCount} · ${club.isHost ? '탭해서 세션을 열어보세요' : '다음 세션 준비 중'}`}
-          </Text>
-        )}
-
-        {/* 헤어라인 2셀 메타 (기존 필드·dday 헬퍼 바인딩) */}
-        <View style={s.clubMeta}>
-          {active && ns ? (
-            <>
-              <View style={s.clubCell}>
-                <Text style={s.clubK}>MEMBERS</Text>
-                <Text style={s.clubV}>멤버 <Text style={s.clubNum}>{club.memberCount}</Text>명</Text>
-              </View>
-              <View style={[s.clubCell, s.clubCellDiv]}>
-                <Text style={s.clubK}>NEXT</Text>
-                <Text style={s.clubV}><Text style={s.clubNum}>{dday(ns.scheduledAt)}</Text></Text>
-              </View>
-            </>
-          ) : club.status === 'collecting' ? (
-            <>
-              <View style={s.clubCell}>
-                <Text style={s.clubK}>INTEREST</Text>
-                <Text style={s.clubV}>관심 <Text style={s.clubNum}>{club.interestCount}</Text>명</Text>
-              </View>
-              <View style={[s.clubCell, s.clubCellDiv]}>
-                <Text style={s.clubK}>MEMBERS</Text>
-                <Text style={s.clubV}>멤버 <Text style={s.clubNum}>{club.memberCount}</Text>명</Text>
-              </View>
-            </>
-          ) : (
-            <>
-              <View style={s.clubCell}>
-                <Text style={s.clubK}>MEMBERS</Text>
-                <Text style={s.clubV}>멤버 <Text style={s.clubNum}>{club.memberCount}</Text>명</Text>
-              </View>
-              <View style={[s.clubCell, s.clubCellDiv]}>
-                <Text style={s.clubK}>HOST</Text>
-                <Text style={s.clubV} numberOfLines={1}>{club.hostName ?? '준비 중'}</Text>
-              </View>
-            </>
+      <View style={s.clubRow}>
+        {/* 찢어진 스텁 열 — 점선 divider · 큰 D-day/관심/멤버 · RSVP 도트(joined) · HOST 진실 */}
+        <View style={s.clubStub}>
+          {club.isHost && <View style={s.stubHost}><Text style={s.stubHostText}>HOST</Text></View>}
+          <Text style={[stubWide ? s.stubNumSm : s.stubNum, df]} numberOfLines={1}>{stubValue}</Text>
+          <Text style={s.stubK}>{stubKicker}</Text>
+          {active && ns && joined && (
+            <View style={s.stubRsvp}>
+              <View style={s.stubRsvpDot} />
+              <Text style={s.stubRsvpText}>RSVP ✓</Text>
+            </View>
           )}
         </View>
 
-        {/* CTA 하나 — 문은 클럽 홈뿐 (Sean 3차: 두 버튼의 차이가 불명확 → 홈이 모든 갈래를 가진다) */}
-        <View style={s.clubCta}>
-          <Pressable onPress={onPress} style={s.ctaMain}>
-            <Text style={s.ctaMainText}>클럽 홈 ›</Text>
+        {/* 본문 열 */}
+        <View style={s.clubMain}>
+          <View style={s.clubIdRow}>
+            {/* 포일 예산 ②/② — 홀로 모노그램 (디스플레이 서체는 스텁 숫자가 가져갔다 → 900 폴백) */}
+            <View style={s.clubMono}>
+              <HoloSquare id="club-holo" />
+              <Text style={s.clubMonoText}>{initial}</Text>
+            </View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={s.clubKk} numberOfLines={1}>HIGH CLUB — {club.district}</Text>
+              <Text style={s.clubName} numberOfLines={1}>{club.name}</Text>
+            </View>
+          </View>
+
+          {active && ns ? (
+            <>
+              <View style={s.clubWhen}>
+                {dayLabel !== '' && <Text style={s.clubWhenD}>{dayLabel}</Text>}
+                <Text style={s.clubWhenT}>{timeLabel}</Text>
+              </View>
+              <Text style={s.clubSub} numberOfLines={1}>
+                {ns.meetupPoint}{club.hostName ? ` · 호스트 ${club.hostName}` : ''}
+              </Text>
+              {/* 시트맵 — capacity 핍 / rsvpCount 채움 (Ⓐ④). 남은 자리는 세는 게 아니라 보인다. */}
+              <View style={s.clubSeats}>
+                <View style={s.seatGrid}>
+                  {Array.from({ length: seatN }).map((_, i) => (
+                    <View key={i} style={[seatSmall ? s.seatPipSm : s.seatPip, i < seatFilled && s.seatPipOn]} />
+                  ))}
+                </View>
+                <Text style={s.seatLb} numberOfLines={1}>
+                  {ns.status === 'open' ? (left > 0 ? `${left}자리` : '마감 임박') : '마감'}
+                </Text>
+              </View>
+            </>
+          ) : (
+            <Text style={s.clubLine} numberOfLines={2}>
+              {club.status === 'collecting'
+                ? `호스트를 기다려요 · 멤버 ${club.memberCount}명`
+                : club.isHost ? '탭해서 세션을 열어보세요' : '다음 세션 준비 중'}
+            </Text>
+          )}
+
+          {/* CTA 하나 — 문은 클럽 홈뿐 (Sean 3차: 두 버튼의 차이가 불명확 → 홈이 모든 갈래를 가진다) */}
+          <Pressable onPress={onPress} style={s.clubGhost}>
+            <Text style={s.clubGhostText}>클럽 홈 ›</Text>
           </Pressable>
         </View>
       </View>
 
-      {/* 이너 이중-프레임 헤어라인 (히어로 카드 법) */}
+      {/* 이너 이중-프레임 헤어라인 (히어로 카드 법 — 나이트 위에선 흰 9%) */}
       <View style={s.clubDbl} pointerEvents="none" />
     </Pressable>
   );
@@ -429,41 +424,54 @@ const s = StyleSheet.create({
   dropThumb: { width: 44, height: 44, borderRadius: 11, backgroundColor: lilac.inset, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   dropTag: { backgroundColor: VIOLET_TINT, borderWidth: 1, borderColor: VIOLET_TINT_EDGE, borderRadius: lilacRadius.tag, paddingVertical: 4, paddingHorizontal: 9 },
 
-  // ── 하이클럽 격상 카드 (흰 카드 · 바이올렛 틴트 헤더 · 홀로 모노그램 · CTA 2개) ──
+  // ── 하이클럽 나이트 스텁 카드 (Ⓐ② 다크 아일랜드 × Ⓐ④ 시트맵) ──
   clubCard: {
-    position: 'relative', backgroundColor: lilac.card, borderWidth: 1, borderColor: '#DCD6F8',
+    position: 'relative', backgroundColor: NIGHT, borderWidth: 1, borderColor: NIGHT_EDGE,
     borderRadius: lilacRadius.card, overflow: 'hidden', marginTop: 12,
-    shadowColor: '#6C5CE7', shadowOpacity: 0.14, shadowRadius: 15, shadowOffset: { width: 0, height: 8 }, elevation: 4,
+    shadowColor: '#0B0720', shadowOpacity: 0.42, shadowRadius: 20, shadowOffset: { width: 0, height: 11 }, elevation: 6,
   },
-  clubDbl: { position: 'absolute', top: 4, left: 4, right: 4, bottom: 4, borderWidth: 1, borderColor: lilac.hair2, borderRadius: lilacRadius.inner },
-  // 헤더 행 — 틴트 그라디언트 + 하단 헤어라인
-  clubTop: { position: 'relative', flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 12, paddingVertical: 11, backgroundColor: VIOLET_TINT, borderBottomWidth: 1, borderBottomColor: '#E0D9FA' },
-  clubMono: { width: 32, height: 32, borderRadius: 6, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.7)' },
-  clubMonoText: { fontSize: 17, color: lilac.head, includeFontPadding: false },
-  clubKk: { fontSize: 12, fontWeight: '700', letterSpacing: 1.3, color: lilac.accent, textTransform: 'uppercase', marginBottom: 2 },
-  clubName: { fontSize: 17, fontWeight: '800', color: lilac.head, letterSpacing: -0.2 },
-  hostTag: { borderWidth: 1, borderColor: VIOLET_TINT_EDGE, backgroundColor: lilac.accent, borderRadius: lilacRadius.tag, paddingHorizontal: 6, paddingVertical: 3 },
-  hostTagText: { fontSize: 10, fontWeight: '800', letterSpacing: 1, color: '#fff' },
-  monoTag: { borderWidth: 1, borderColor: '#DCD6F8', backgroundColor: lilac.card, borderRadius: lilacRadius.tag, paddingHorizontal: 7, paddingVertical: 3 },
-  monoTagText: { fontSize: 11, fontWeight: '700', letterSpacing: 0.8, color: READ_VIOLET, textTransform: 'uppercase' },
-  // 바디
-  clubBody: { position: 'relative', paddingHorizontal: 12, paddingTop: 11, paddingBottom: 12 },
-  clubWhen: { flexDirection: 'row', alignItems: 'baseline', gap: 7 },
-  clubWhenD: { fontSize: 18, color: lilac.accent, includeFontPadding: false },
-  clubWhenT: { fontSize: 18, fontWeight: '700', color: lilac.head, fontVariant: ['tabular-nums'] },
-  clubWhenSub: { flex: 1, fontSize: 14, color: lilac.dim },
-  clubBodyLine: { fontSize: 14, color: lilac.text, lineHeight: 20 },
-  clubMeta: { flexDirection: 'row', marginTop: 10, borderTopWidth: 1, borderTopColor: lilac.hair2, paddingTop: 9 },
-  clubCell: { flex: 1 },
-  clubCellDiv: { borderLeftWidth: 1, borderLeftColor: lilac.hair2, paddingLeft: 10 },
-  clubK: { fontSize: 11.5, fontWeight: '600', letterSpacing: 1, color: lilac.dim, textTransform: 'uppercase', marginBottom: 3 },
-  clubV: { fontSize: 14, fontWeight: '700', color: lilac.head },
-  clubNum: { fontSize: 15.5, fontWeight: '800', color: lilac.head, fontVariant: ['tabular-nums'] },
-  clubCta: { flexDirection: 'row', gap: 8, marginTop: 11 },
-  ctaMain: { flex: 1, backgroundColor: lilac.accent, borderRadius: lilacRadius.btn, paddingVertical: 12, alignItems: 'center', justifyContent: 'center', shadowColor: lilac.accent, shadowOpacity: 0.3, shadowRadius: 13, shadowOffset: { width: 0, height: 5 }, elevation: 3 },
-  ctaMainText: { fontSize: 14.5, fontWeight: '800', color: '#fff' },
-  ctaQuiet: { flex: 1, borderWidth: 1, borderColor: lilac.hair, backgroundColor: lilac.inset, borderRadius: lilacRadius.btn, paddingVertical: 12, alignItems: 'center', justifyContent: 'center' },
-  ctaQuietText: { fontSize: 14.5, fontWeight: '700', color: lilac.head },
+  clubEdge: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 3 },
+  clubDbl: { position: 'absolute', top: 4, left: 4, right: 4, bottom: 4, borderWidth: 1, borderColor: 'rgba(255,255,255,0.09)', borderRadius: lilacRadius.inner },
+  clubRow: { flexDirection: 'row', alignItems: 'stretch' },
+  // 스텁 열 — 찢김선(점선)은 tktStub 선례와 동일 문법(단면 borderWidth + borderStyle dashed)
+  clubStub: {
+    width: 84, paddingVertical: 14, paddingHorizontal: 6, alignItems: 'center', justifyContent: 'center',
+    borderRightWidth: 2, borderRightColor: NIGHT_HAIR, borderStyle: 'dashed',
+  },
+  stubHost: { backgroundColor: '#fff', borderRadius: lilacRadius.tag, paddingHorizontal: 7, paddingVertical: 3, marginBottom: 9 },
+  stubHostText: { fontSize: 10.5, fontWeight: '800', letterSpacing: 1, color: NIGHT },
+  // 디스플레이 서체(Black Han Sans) 1회 — 카드에서 가장 값진 자리인 D-day 숫자에만. lineHeight ≥1.2×
+  stubNum: { fontSize: 26, lineHeight: 33, fontWeight: '900', color: '#fff', includeFontPadding: false, letterSpacing: -0.3 },
+  stubNumSm: { fontSize: 21, lineHeight: 27, fontWeight: '900', color: '#fff', includeFontPadding: false, letterSpacing: -0.3 },
+  stubK: { fontSize: 11, lineHeight: 14, fontWeight: '700', letterSpacing: 1.6, color: 'rgba(255,255,255,0.62)', marginTop: 3 },
+  stubRsvp: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 8 },
+  stubRsvpDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: SEAT_ON },
+  stubRsvpText: { fontSize: 11, lineHeight: 14, fontWeight: '700', letterSpacing: 0.9, color: CORAL_READ },
+  // 본문 열
+  clubMain: { flex: 1, minWidth: 0, paddingHorizontal: 12, paddingTop: 11, paddingBottom: 11 },
+  clubIdRow: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+  clubMono: { width: 32, height: 32, borderRadius: 6, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.65)' },
+  clubMonoText: { fontSize: 17, lineHeight: 22, fontWeight: '900', color: lilac.head, includeFontPadding: false },
+  clubKk: { fontSize: 11.5, fontWeight: '700', letterSpacing: 1.3, color: NIGHT_KK, textTransform: 'uppercase', marginBottom: 2 },
+  clubName: { fontSize: 18, lineHeight: 23, fontWeight: '900', color: '#fff', letterSpacing: -0.2 },
+  clubWhen: { flexDirection: 'row', alignItems: 'baseline', gap: 7, marginTop: 9 },
+  clubWhenD: { fontSize: 15.5, lineHeight: 20, fontWeight: '800', color: NIGHT_KK },
+  clubWhenT: { fontSize: 21, lineHeight: 26, fontWeight: '800', color: '#fff', letterSpacing: -0.2, fontVariant: ['tabular-nums'] },
+  clubSub: { fontSize: 14.5, lineHeight: 20, color: NIGHT_TXT, marginTop: 3 },
+  clubLine: { fontSize: 15, lineHeight: 21, color: NIGHT_TXT, marginTop: 9 },
+  // 시트맵 — 핍은 랩되고(capacity 4~16+), 큰 정원은 한 단계 축소된다
+  clubSeats: { flexDirection: 'row', alignItems: 'center', marginTop: 10 },
+  seatGrid: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 4 },
+  seatPip: { width: 11, height: 11, borderRadius: 3, borderWidth: 1, borderColor: 'rgba(255,255,255,0.38)' },
+  seatPipSm: { width: 9, height: 9, borderRadius: 2.5, borderWidth: 1, borderColor: 'rgba(255,255,255,0.38)' },
+  seatPipOn: { backgroundColor: SEAT_ON, borderColor: SEAT_ON },
+  seatLb: { fontSize: 14.5, lineHeight: 19, fontWeight: '800', color: CORAL_READ, marginLeft: 7 },
+  // 고스트 CTA — 나이트 위에선 바이올렛 솔리드가 카드와 싸운다 (lab .a2 .ghost)
+  clubGhost: {
+    marginTop: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', borderRadius: lilacRadius.btn,
+    backgroundColor: 'rgba(255,255,255,0.06)', paddingVertical: 9, alignItems: 'center', justifyContent: 'center',
+  },
+  clubGhostText: { fontSize: 15, lineHeight: 19, fontWeight: '800', color: '#fff' },
 
   // ── 클럽 월드 공통 (바이올렛 라일락) ──
   hcChip: { backgroundColor: VIOLET_TINT, borderWidth: 1, borderColor: VIOLET_TINT_EDGE, borderRadius: lilacRadius.tag, paddingVertical: 4, paddingHorizontal: 9 },
