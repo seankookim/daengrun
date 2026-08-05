@@ -99,7 +99,7 @@ export default function Rewards() {
               <Row style={{ gap: 8, marginTop: 10 }}>
                 {([['boost', '⚡ 부스트'], ['miles', '◈ 5,000마일'], ['gear', '👕 기어']] as const).map(([k, label]) => (
                   <Pressable key={k} disabled={busy !== null} onPress={() => open(d, k)} style={[s.pickBtn, busy === d.id && { opacity: 0.5 }]}>
-                    <Text style={{ fontSize: 13, fontWeight: '900', color: FOREST }}>{label}</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '900', color: FOREST }}>{label}</Text>
                   </Pressable>
                 ))}
               </Row>

@@ -20,7 +20,10 @@ const FILM_NUM = '#FFD9CD';     // 리본 숫자 — 코랄 틴트
 const BAR_PAST = '#9787DC';     // 8주 바 과거 (validate_palette ALL PASS)
 const BAR_NOW = lilac.coralDeep; // 8주 바 이번 주
 const GUTTER = 16;              // 화면 좌우 여백 — 필름 밴드는 이 값만큼 음수 마진으로 풀블리드
-const BAR_MAX = 66;             // 88px 바 영역에서 값 라벨(≈22px)을 뺀 최대 바 높이
+// 바 영역 91 − paddingBottom 2 = 89 가용 · 값 라벨(lineHeight 18 + marginBottom 3) = 21 → 89 − 21 = 68.
+// 66은 거기서 2px 더 보수적으로 잡은 값 (반올림·테두리 여유). 라벨이 잘리지 않는 쪽으로 남긴다.
+// [FLOOR14] barVal 12/15 → 14/18 로 라벨이 3px 커져 s.bars height 를 88 → 91 로 키웠다 (바 자체 크기는 동결)
+const BAR_MAX = 66;
 const DAYS = ['월', '화', '수', '목', '금', '토', '일'] as const;
 // 스프로킷 = 작은 배경색 점 줄 (그라디언트/이미지 없이 View만 — 프레임당 비용 0)
 const SPROCKETS = Array.from({ length: 18 }, (_, i) => i);
@@ -31,24 +34,28 @@ const MINI_SPROCKETS = Array.from({ length: 12 }, (_, i) => i);
 // 히어로는 콘텐츠가 올라오는 속도와 '정확히 같은 속도'로 위로 미끄러진다 → 빈 공간 0, 겹침 0.
 // 그래서 HERO_BIG 은 반드시 상태와 무관한 상수여야 한다 (사진 유/무/로딩이 높이를 바꾸면 collapse 거리가 흔들려 스크롤이 튄다).
 // 아래 하위 높이는 전부 고정값이거나 명시 lineHeight — 기기 폰트 메트릭에 흔들리지 않는다.
+// [FLOOR14 2026-08-05] 디테일 최소 활자 12–13.5 → 14pt 플로어. 히어로 안에서 높이를 바꾸는 건
+// mastSub(17→18) · bandLabel(17→18) · punchLabel(16→18) 셋뿐이고, 아래 상수에 정확히 그만큼 더했다.
+// edgeCode(필름 보이스) · counterText(시리얼)는 면제라 EDGE_H/FILM_H 불변. statLine은 lineHeight 18을 이미 갖고 있어 STAT_H 불변.
 const PAD_TOP = 56;             // 상태바
-const HEAD_H = 48;              // 백 칩(38) vs 마스트헤드(30 + 1 + 17 = 48) 중 큰 쪽
+const HEAD_H = 49;              // 백 칩(38) vs 마스트헤드(30 + 1 + 18 = 49) 중 큰 쪽 — mastSub lineHeight 17→18
 const SPROCKET_H = 11;
 const PANO_H = 200;
 const THUMB_RAIL_H = 42;        // paddingTop 7 + 썸네일 31 + paddingBottom 4
-const EDGE_H = 25;              // lineHeight 15 + paddingBottom 10
-const FILM_H = SPROCKET_H + PANO_H + SPROCKET_H + THUMB_RAIL_H + EDGE_H; // 289
+const EDGE_H = 25;              // lineHeight 15 + paddingBottom 10 (edgeCode = 필름 엣지 보이스, 12pt 면제 → 불변)
+const FILM_H = SPROCKET_H + PANO_H + SPROCKET_H + THUMB_RAIL_H + EDGE_H; // 11+200+11+42+25 = 289
 const FILM_GAP = 14;
-const BAND_H = 85;              // 라벨 17 + 숫자 50 + 캡션 18
+const BAND_H = 86;              // 라벨 18 + 숫자 50 + 캡션 18 — bandLabel lineHeight 17→18 (bandCap은 이미 18)
 const BAND_GAP = 15;
 const PROG_H = 16;              // marginTop 11 + 레일 5
-const PUNCH_H = 52;             // marginTop 13 + 펀치 19 + 라벨(marginTop 4 + lineHeight 16)
-const STAT_H = 30;              // marginTop 12 + lineHeight 18
+const PUNCH_H = 54;             // marginTop 13 + 펀치 19 + 라벨(marginTop 4 + lineHeight 18) — punchLabel 16→18
+const STAT_H = 30;              // marginTop 12 + lineHeight 18 (statLine 12.5→14, lineHeight 18 유지 = 1.29×)
 const HERO_PAD_BOTTOM = 10;     // 산술 오차 흡수용 여유
+// 합 검증: 56 + 49 + 14 + 289 + 15 + 86 + 16 + 54 + 30 + 10 = 619 (구 615, 승급분 +4 = HEAD +1, BAND +1, PUNCH +2)
 const HERO_BIG =
-  PAD_TOP + HEAD_H + FILM_GAP + FILM_H + BAND_GAP + BAND_H + PROG_H + PUNCH_H + STAT_H + HERO_PAD_BOTTOM; // 615
-const RIBBON_H = 46 + 21 + 10;  // paddingTop + 콘텐츠(lineHeight 21) + paddingBottom = 77
-const COLLAPSE = HERO_BIG - RIBBON_H; // 538 — 히어로가 리본만 남기고 접히는 거리
+  PAD_TOP + HEAD_H + FILM_GAP + FILM_H + BAND_GAP + BAND_H + PROG_H + PUNCH_H + STAT_H + HERO_PAD_BOTTOM; // 619
+const RIBBON_H = 46 + 21 + 10;  // paddingTop + 콘텐츠(lineHeight 21) + paddingBottom = 77 — 리본 활자는 전부 ≥14라 불변
+const COLLAPSE = HERO_BIG - RIBBON_H; // 619 - 77 = 542 — 히어로가 리본만 남기고 접히는 거리
 const HERO_GAP = 12;            // 히어로 바닥 ↔ 첫 카드
 // 페이드는 기하가 아니라 폴리시다. 접힘 '끝 구간'에서만 태워야 중간에 빈 캔버스가 생기지 않는다
 // (COLLAPSE 가 페이드 길이보다 짧으면 자동으로 0부터 시작 = 원안과 동일 곡선).
@@ -215,8 +222,10 @@ export default function FitnessHub() {
           </Row>
           <Row style={{ gap: 2, marginTop: 6 }}>
             {weeks.map((w, i) => (
-              <Text key={w.label} style={[s.barX, i === 7 && s.barXNow]}>
-                {i === 7 ? '이번주' : i === 0 ? '7주' : i === 2 ? '5주' : i === 4 ? '3주' : ''}
+              // [FLOOR14] 라벨 칸은 8분할이라 30~39px뿐 — 14pt '이번주'(3음절 ≈42px)는 두 줄로 접힌다.
+              // '이번'(≈28px)이면 최소폭 기기(320dp, 칸 30.3px)에서도 한 줄. numberOfLines로 못을 박는다.
+              <Text key={w.label} style={[s.barX, i === 7 && s.barXNow]} numberOfLines={1}>
+                {i === 7 ? '이번' : i === 0 ? '7주' : i === 2 ? '5주' : i === 4 ? '3주' : ''}
               </Text>
             ))}
           </Row>
@@ -444,13 +453,13 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: lilac.hair,
   },
   mastTitle: { fontSize: 23, lineHeight: 30, fontWeight: '900', color: lilac.head, letterSpacing: 0.2 },
-  mastSub: { fontSize: 12.5, lineHeight: 17, color: lilac.dim, marginTop: 1 },
+  mastSub: { fontSize: 14, lineHeight: 18, color: lilac.dim, marginTop: 1 },
 
   // ── 필름 밴드 (풀블리드) — 파노라마/로딩/빈 상태 모두 정확히 같은 높이 ──
   filmBand: { backgroundColor: FILM, marginHorizontal: -GUTTER, marginTop: FILM_GAP, height: FILM_H },
-  filmNote: { fontSize: 13.5, lineHeight: 20, color: FILM_INK },
+  filmNote: { fontSize: 14, lineHeight: 20, color: FILM_INK },
   filmRetry: { paddingVertical: 10, paddingHorizontal: 24, borderRadius: 8, backgroundColor: 'rgba(244,242,251,0.12)', borderWidth: 1, borderColor: 'rgba(201,194,232,0.4)' },
-  filmRetryTxt: { fontSize: 13.5, lineHeight: 18, fontWeight: '700', color: '#F2EFFA' },
+  filmRetryTxt: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: '#F2EFFA' },
   emptySlot: { marginTop: FILM_GAP, height: FILM_H, justifyContent: 'center' },
   sprocketRow: { height: SPROCKET_H, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 6 },
   sprocketDot: { width: 8, height: 5, borderRadius: 2.5, backgroundColor: lilac.bg },
@@ -463,7 +472,7 @@ const s = StyleSheet.create({
   panoOverlay: { position: 'absolute', left: GUTTER, bottom: 10 },
   panoKm: { fontSize: 32, lineHeight: 40, color: '#fff' },
   panoKmUnit: { fontSize: 14, lineHeight: 19, color: 'rgba(255,255,255,0.85)' },
-  panoWhen: { fontSize: 12.5, lineHeight: 18, color: 'rgba(255,255,255,0.88)' },
+  panoWhen: { fontSize: 14, lineHeight: 18, color: 'rgba(255,255,255,0.88)' },
   railRow: { flexDirection: 'row', gap: 5, paddingHorizontal: 14, paddingTop: 7, paddingBottom: 4 },
   thumb: { width: 42, height: 31, borderRadius: 3, borderWidth: 2, overflow: 'hidden', backgroundColor: '#171332' },
   edgeCode: { fontSize: 12, lineHeight: 15, color: FILM_INK, letterSpacing: 0.8, paddingHorizontal: GUTTER, paddingBottom: 10 },
@@ -473,16 +482,16 @@ const s = StyleSheet.create({
     paddingVertical: 20, paddingHorizontal: 16, alignItems: 'center',
   },
   emptyDog: { width: 40, height: 40, borderRadius: 20, marginBottom: 9, backgroundColor: lilac.inset },
-  emptyCopy: { fontSize: 13.5, lineHeight: 22, color: lilac.dim, textAlign: 'center' },
+  emptyCopy: { fontSize: 14, lineHeight: 22, color: lilac.dim, textAlign: 'center' },
 
   // ── 데이터 밴드 ──
-  bandLabel: { fontSize: 12.5, lineHeight: 17, fontWeight: '600', color: lilac.dim },
+  bandLabel: { fontSize: 14, lineHeight: 18, fontWeight: '600', color: lilac.dim },
   bandBigWeek: { fontSize: 40, lineHeight: 50, color: lilac.head },
   bandBigAge: { fontSize: 40, lineHeight: 50, color: lilac.coralDeep },
   bandUnit: { fontSize: 16, lineHeight: 21, color: lilac.dim },
   // 미측정은 가짜 숫자를 쓰지 않는다 — 서체도 Oswald가 아니다. lineHeight 50 = 좌측 숫자와 밑선 정렬
   bandAgeGate: { fontSize: 18, lineHeight: 50, fontWeight: '700', color: lilac.dim },
-  bandCap: { fontSize: 12.5, lineHeight: 18, color: lilac.dim },
+  bandCap: { fontSize: 14, lineHeight: 18, color: lilac.dim },
   rail: { height: 5, borderRadius: 3, backgroundColor: lilac.inset, marginTop: 11, overflow: 'hidden' },
   railFill: { height: '100%', borderRadius: 3, backgroundColor: lilac.coralDeep },
 
@@ -492,9 +501,9 @@ const s = StyleSheet.create({
     borderColor: lilac.hair, backgroundColor: lilac.card,
   },
   punchInner: { position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, borderRadius: 8, borderWidth: 2.5, borderColor: lilac.coralSoft },
-  punchLabel: { fontSize: 12, lineHeight: 16, color: lilac.dim, marginTop: 4 },
+  punchLabel: { fontSize: 14, lineHeight: 18, color: lilac.dim, marginTop: 4 },
   punchLabelOn: { color: lilac.head, fontWeight: '700' },
-  statLine: { fontSize: 12.5, lineHeight: 18, color: lilac.dim, marginTop: 12 },
+  statLine: { fontSize: 14, lineHeight: 18, color: lilac.dim, marginTop: 12 },
 
   // ── 카드 ──
   card: {
@@ -502,10 +511,10 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: lilac.hair, marginTop: 12,
   },
   cardTitle: { fontSize: 15.5, lineHeight: 21, fontWeight: '700', color: lilac.head },
-  cardSub: { fontSize: 13.5, lineHeight: 20, color: lilac.dim, marginTop: 3 },
+  cardSub: { fontSize: 14, lineHeight: 20, color: lilac.dim, marginTop: 3 },
   ageVal: { fontSize: 34, lineHeight: 43, color: lilac.coralDeep },
   ageValGate: { fontSize: 20, lineHeight: 27, fontWeight: '700', color: lilac.dim },
-  ageGate: { fontSize: 13.5, lineHeight: 21, color: lilac.dim, marginTop: 9 },
+  ageGate: { fontSize: 14, lineHeight: 21, color: lilac.dim, marginTop: 9 },
 
   // ── 주간 목표 ──
   goalBtn: {
@@ -514,17 +523,17 @@ const s = StyleSheet.create({
   },
   goalGlyph: { fontSize: 22, lineHeight: 27, fontWeight: '700', color: lilac.accent },
   goalVal: { fontSize: 29, lineHeight: 36, color: lilac.head },
-  goalHint: { fontSize: 12, lineHeight: 16, color: lilac.dim, marginTop: 3 },
+  goalHint: { fontSize: 14, lineHeight: 18, color: lilac.dim, marginTop: 3 },
 
   // ── 8주 추이 ──
   bars: {
-    alignItems: 'flex-end', gap: 2, height: 88, marginTop: 16,
+    alignItems: 'flex-end', gap: 2, height: 91, marginTop: 16, // [FLOOR14] 88 → 91: barVal 라벨 18+3 (구 15+3)
     paddingBottom: 2, borderBottomWidth: 1, borderBottomColor: lilac.hair,
   },
   barCol: { flex: 1, height: '100%', alignItems: 'center', justifyContent: 'flex-end' },
-  barVal: { fontSize: 12, lineHeight: 15, color: lilac.head, marginBottom: 3 },
+  barVal: { fontSize: 14, lineHeight: 18, color: lilac.head, marginBottom: 3 },
   bar: { width: '62%', borderTopLeftRadius: 4, borderTopRightRadius: 4 },
-  barX: { flex: 1, textAlign: 'center', fontSize: 12, lineHeight: 16, color: lilac.dim },
+  barX: { flex: 1, textAlign: 'center', fontSize: 14, lineHeight: 18, color: lilac.dim },
   barXNow: { color: lilac.coralDeep, fontWeight: '700' },
 
   // ── 최근 러닝 ──
@@ -539,7 +548,7 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: lilac.hair, marginBottom: 8,
   },
   runWhen: { fontSize: 15, lineHeight: 21, fontWeight: '700', color: lilac.head },
-  runMeta: { fontSize: 13.5, lineHeight: 19, color: lilac.dim, marginTop: 2 },
+  runMeta: { fontSize: 14, lineHeight: 19, color: lilac.dim, marginTop: 2 },
   runKm: { fontSize: 18, lineHeight: 23, color: lilac.coralDeep },
 
   // ── 컴팩트 리본 ──

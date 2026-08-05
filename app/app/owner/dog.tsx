@@ -136,7 +136,7 @@ export default function DogProfileScreen() {
             <View style={{ borderWidth: 4, borderColor: collar ? collarColors[collar] : colors.cream, borderRadius: 22 }}>
               <Avatar url={dog?.photoUrl} char={(name || '멍')[0]} bg={FOREST} size={88} />
             </View>
-            <View style={s.camBadge}><Text style={{ fontSize: 11.5, color: '#fff' }}>{uploading ? '…' : '✎'}</Text></View>
+            <View style={s.camBadge}><Text style={{ fontSize: 14, color: '#fff' }}>{uploading ? '…' : '✎'}</Text></View>
           </Pressable>
           <Text style={{ fontSize: 14.5, color: colors.dim, marginTop: 6 }}>사진을 탭해서 변경 — 러너가 픽업 때 알아봐요</Text>
         </View>
@@ -175,7 +175,7 @@ export default function DogProfileScreen() {
                 </Pressable>
               ))}
             </Row>
-            <Text style={{ fontSize: 12.5, color: colors.dim, marginTop: 6 }}>
+            <Text style={{ fontSize: 14, color: colors.dim, marginTop: 6 }}>
               {collar ? `${collarLabels[collar]} — ${name || '아이'}의 시그니처 컬러예요` : '고르면 앱 곳곳에서 이 색으로 보여요 (선택)'}
             </Text>
 

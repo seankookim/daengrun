@@ -107,7 +107,7 @@ export default function Leaderboard() {
                   </Row>
                   <View style={{ alignItems: 'center', paddingTop: 4, paddingBottom: first ? 14 : 11 }}>
                     <Avatar url={r.photoUrl} char={r.name[0]} bg={tab === 'dogs' ? '#c9a86e' : '#5a7a3c'} size={first ? 46 : 38} />
-                    <Text style={{ fontSize: first ? 15 : 13.5, fontWeight: '900', color: FOREST, marginTop: 6 }} numberOfLines={1}>
+                    <Text style={{ fontSize: first ? 15 : 14, fontWeight: '900', color: FOREST, marginTop: 6 }} numberOfLines={1}>
                       {r.name}
                     </Text>
                     <Text style={{ fontSize: first ? 19 : 16, fontWeight: '900', color: '#5a7a3c', marginTop: 2 }}>

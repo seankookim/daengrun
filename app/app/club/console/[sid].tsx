@@ -4,6 +4,7 @@ import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } 
 import { Row } from '../../../src/components/ui';
 import { AckStack } from '../../../src/components/club-acks';
 import { BigNumRow, ClubCta, ClubMast, ClubTag, DawnCanvas, LilacCard, clubText } from '../../../src/components/club-ui';
+import { DrainRing } from '../../../src/components/drainring';
 import {
   approveDelegation, assignmentRevoke, ClubIncident, custodyOverride, DelegationBoard, DelegationDog, DelegationRunner,
   fetchDelegationBoard, fetchSessionIncidents, finishClubSession, incidentAssign, incidentResolve,
@@ -27,6 +28,8 @@ const mmss = (ms: number): string => {
   return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 };
 
+const PROPOSAL_MS = 5 * 60_000; // ④ 링 드레인 — 0047/0048 propose: proposal_expires_at = now() + 5 minutes
+
 const collarOf = (c: string | null): string => (c && collarColors[c as CollarKey]) || L.coral;
 
 function DogDot({ name, collar, size = 34 }: { name: string; collar: string | null; size?: number }) {
@@ -43,9 +46,9 @@ function DogDot({ name, collar, size = 34 }: { name: string; collar: string | nu
 function SecHead({ n, title, sub }: { n: string; title: string; sub?: string }) {
   return (
     <View style={s.sechead}>
-      <View style={s.secN}><Text style={{ fontSize: 11, fontWeight: '700', color: '#fff' }}>{n}</Text></View>
-      <Text style={{ fontSize: 13, fontWeight: '800', color: L.head }}>{title}</Text>
-      {!!sub && <Text style={{ fontSize: 9.5, color: L.dim, marginLeft: 'auto' }}>{sub}</Text>}
+      <View style={s.secN}><Text style={{ fontSize: 14, fontWeight: '700', color: '#fff' }}>{n}</Text></View>
+      <Text style={{ fontSize: 14, fontWeight: '800', color: L.head }}>{title}</Text>
+      {!!sub && <Text style={{ fontSize: 14, lineHeight: 18, color: L.dim, marginLeft: 'auto' }}>{sub}</Text>}
     </View>
   );
 }
@@ -79,7 +82,7 @@ export default function HostConsole() {
     return (
       <DawnCanvas>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontSize: 13, color: L.dim }}>불러오는 중...</Text>
+          <Text style={{ fontSize: 14, color: L.dim }}>불러오는 중...</Text>
         </View>
       </DawnCanvas>
     );
@@ -88,7 +91,7 @@ export default function HostConsole() {
     return (
       <DawnCanvas>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-          <Text style={{ fontSize: 13, color: L.dim }}>호스트만 볼 수 있는 화면이에요</Text>
+          <Text style={{ fontSize: 14, color: L.dim }}>호스트만 볼 수 있는 화면이에요</Text>
           <ClubCta label="돌아가기" tone="quiet" onPress={() => router.back()} style={{ alignSelf: 'stretch' }} />
         </View>
       </DawnCanvas>
@@ -247,7 +250,7 @@ export default function HostConsole() {
                   <Row style={{ gap: 8, alignItems: 'center' }}>
                     <ClubTag label={i.severity.toUpperCase()} tone={i.severity.toLowerCase() === 's1' ? 'coral' : 'amber'} />
                     <Text style={[s.dogName, { flex: 1 }]} numberOfLines={1}>{i.summary}</Text>
-                    <Text style={{ fontSize: 11, fontWeight: '800', color: L.accent }}>열기 →</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '800', color: L.accent }}>열기 →</Text>
                   </Row>
                 </Pressable>
               ))}
@@ -284,7 +287,7 @@ export default function HostConsole() {
         {/* 동적 정원: 확약 러너 캡 합 = 위탁 정원 — 0이면 승인이 설 자리가 없다, 미리 말한다 */}
         {sess.delegatedCapacity === 0 && (
           <View style={s.capWarn}>
-            <Text style={{ fontSize: 10.5, color: '#7a5a2a', lineHeight: 16 }}>
+            <Text style={{ fontSize: 14, color: '#7a5a2a', lineHeight: 18 }}>
               <Text style={{ fontWeight: '800', color: L.amber }}>위탁 정원 0</Text> — 정원은 러너 확약이 만들어요. 세션 화면에서 러너 확약부터 하면 승인이 열려요.
             </Text>
           </View>
@@ -347,7 +350,7 @@ export default function HostConsole() {
         {/* 배정 창 = 집결 2시간 전 ~ 6시간 후 (checkinOpen과 동일 창) — 닫혀 있으면 미리 말한다 */}
         {!sess.checkinOpen && paid.length > 0 && (
           <View style={s.capWarn}>
-            <Text style={{ fontSize: 10.5, color: '#7a5a2a', lineHeight: 16 }}>
+            <Text style={{ fontSize: 14, color: '#7a5a2a', lineHeight: 18 }}>
               <Text style={{ fontWeight: '800', color: L.amber }}>배정 창 닫힘</Text> — 집결 2시간 전에 열려요. 담당은 집결지에서 정해져요.
             </Text>
           </View>
@@ -395,6 +398,8 @@ export default function HostConsole() {
                       : `제안 → ${d.proposedRunnerName ?? '러너'}${left != null ? ` · ${mmss(left)} 남음` : ''}`}
                   </Text>
                 </View>
+                {/* ④ 링 드레인 (인라인 소형) — 만료 전에만. 숫자는 위 줄이 이미 말한다 */}
+                {!expired && left != null && <DrainRing leftMs={left} totalMs={PROPOSAL_MS} size={28} dots={12} />}
                 <ClubTag label={expired ? '소멸' : '수락 대기'} tone={expired ? 'dim' : 'amber'} />
               </Row>
               <Row style={{ gap: 8, marginTop: 10 }}>
@@ -435,7 +440,7 @@ export default function HostConsole() {
                   <Row style={{ gap: 8, alignItems: 'center' }}>
                     <ClubTag label={i.severity.toUpperCase()} tone={i.severity.toLowerCase() === 's1' ? 'coral' : i.severity.toLowerCase() === 's2' ? 'amber' : 'dim'} />
                     <Text style={[s.dogName, { flex: 1 }]} numberOfLines={1}>{i.summary}</Text>
-                    <Text style={{ fontSize: 11, fontWeight: '800', color: L.accent }}>열기 →</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '800', color: L.accent }}>열기 →</Text>
                   </Row>
                 </Pressable>
                 <Row style={{ gap: 8, marginTop: 10 }}>
@@ -464,8 +469,8 @@ export default function HostConsole() {
         <SecHead n="5" title="세션 진행" />
         {blockers.length > 0 && (
           <LilacCard crit>
-            <Text style={{ fontSize: 12, fontWeight: '800', color: L.tang }}>종료 차단 {blockers.length}건</Text>
-            <Text style={{ fontSize: 10.5, color: L.text, marginTop: 6, lineHeight: 17 }}>{blockers.join(' · ')}</Text>
+            <Text style={{ fontSize: 14, fontWeight: '800', color: L.tang }}>종료 차단 {blockers.length}건</Text>
+            <Text style={{ fontSize: 14, color: L.text, marginTop: 6, lineHeight: 18 }}>{blockers.join(' · ')}</Text>
           </LilacCard>
         )}
         {/* [감사 P1] 반환 한쪽 미확인 = 서버 종료 게이트인데 UI에 탈출구가 없어 세션이 영구 미종료였다.
@@ -518,9 +523,10 @@ const s = StyleSheet.create({
     backgroundColor: L.card, borderRadius: lilacRadius.card, borderWidth: 1, borderColor: L.hair,
     padding: 11, marginTop: 8,
   },
-  dogName: { fontSize: 13.5, fontWeight: '800', color: L.head },
-  dogSub: { fontSize: 9.5, color: L.text, marginTop: 1 },
-  emptyLine: { fontSize: 11, color: L.dim, marginTop: 10, textAlign: 'center' },
+  dogName: { fontSize: 14, fontWeight: '800', color: L.head },
+  // 제안 카운트다운(mmss)·확약 러너 부재 안내가 사는 줄 — 정보 텍스트 바닥선 14
+  dogSub: { fontSize: 14, lineHeight: 18, color: L.text, marginTop: 1 },
+  emptyLine: { fontSize: 14, color: L.dim, marginTop: 10, textAlign: 'center' },
   capWarn: {
     backgroundColor: L.amberSoft, borderWidth: 1, borderColor: L.amberEdge,
     borderRadius: lilacRadius.inner, padding: 10, paddingHorizontal: 12, marginTop: 8,
@@ -531,6 +537,6 @@ const s = StyleSheet.create({
   },
   abtnGhost: { backgroundColor: L.inset },
   abtnWarn: { backgroundColor: L.amberSoft },
-  abtnTxt: { fontSize: 11, fontWeight: '800', color: L.voltDeep },
+  abtnTxt: { fontSize: 14, fontWeight: '800', color: L.voltDeep },
   runnerChip: { backgroundColor: L.hair2, flexGrow: 0 },
 });

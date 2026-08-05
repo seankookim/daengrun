@@ -114,7 +114,7 @@ export default function Alerts() {
               <Text style={[{ fontSize: 30, color: '#fff', lineHeight: 36 }, df]}>알림</Text>
               {unreadCount > 0 && (
                 <Row style={{ alignItems: 'baseline', gap: 6 }}>
-                  <Text style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.72)', fontWeight: '600' }}>안 읽음</Text>
+                  <Text style={{ fontSize: 14, color: 'rgba(255,255,255,0.72)', fontWeight: '600' }}>안 읽음</Text>
                   <Text style={[{ fontSize: 17, lineHeight: 21, color: '#fff' }, nf]}>{unreadCount}</Text>
                 </Row>
               )}
@@ -228,7 +228,7 @@ const s = StyleSheet.create({
     backgroundColor: lilac.card, borderWidth: 1, borderColor: lilac.hair, borderRadius: lilacRadius.tag,
     paddingVertical: 7, paddingHorizontal: 10,
   },
-  markAllTxt: { fontSize: 12, letterSpacing: 1, color: lilac.head },
+  markAllTxt: { fontSize: 14, lineHeight: 18, letterSpacing: 1, color: lilac.head },
 
   board: {
     marginHorizontal: 12, borderRadius: lilacRadius.card, overflow: 'hidden',
@@ -241,8 +241,8 @@ const s = StyleSheet.create({
     borderRadius: lilacRadius.inner, backgroundColor: 'rgba(255,255,255,0.07)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)',
   },
   liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: lilac.coral },
-  tickTime: { fontSize: 13, lineHeight: 16, color: '#fff', letterSpacing: 0.5 },
-  tickTxt: { flex: 1, fontSize: 13.5, fontWeight: '600', color: '#fff' },
+  tickTime: { fontSize: 14, lineHeight: 18, color: '#fff', letterSpacing: 0.5 },
+  tickTxt: { flex: 1, fontSize: 14, fontWeight: '600', color: '#fff' },
 
   colhead: {
     alignItems: 'center', gap: 8, paddingVertical: 8,
@@ -262,9 +262,10 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', ...lilacShadow, shadowOpacity: 0.1, shadowRadius: 12,
   },
   postmarkD: { fontSize: 14, lineHeight: 17, color: lilac.head },
-  postmarkK: { fontSize: 11.5, letterSpacing: 0.2, color: lilac.dim, marginTop: 1 },
+  // 소인 도장 안의 브랜드 각인 — 62px 원 안에 한 줄로 앉아야 하는 시리얼 보이스(장식)라 플로어 면제
+  postmarkK: { fontSize: 12, letterSpacing: 0.2, color: lilac.dim, marginTop: 1 },
   groupDash: { flex: 1, borderTopWidth: 1.5, borderTopColor: lilac.hair, borderStyle: 'dashed' },
-  groupLabel: { fontSize: 12, letterSpacing: 1.2, color: lilac.dim },
+  groupLabel: { fontSize: 14, lineHeight: 18, letterSpacing: 1.2, color: lilac.dim },
 
   rail: { position: 'relative', paddingLeft: 16 },
   railLine: { position: 'absolute', left: 4, top: 20, bottom: 14, width: 1, backgroundColor: lilac.hair },
@@ -281,7 +282,7 @@ const s = StyleSheet.create({
   },
   evtTick: { width: 3, alignSelf: 'stretch', backgroundColor: 'transparent' },
   evtCell: { flex: 1, paddingVertical: 12, paddingLeft: 9, paddingRight: 11 },
-  evtTime: { fontSize: 13.5, lineHeight: 17, color: lilac.head, letterSpacing: 0.5 },
+  evtTime: { fontSize: 14, lineHeight: 18, color: lilac.head, letterSpacing: 0.5 },
   typeTag: {
     borderWidth: 1, borderColor: 'rgba(34,30,61,0.1)', borderRadius: lilacRadius.tag,
     paddingHorizontal: 7, paddingTop: 4, paddingBottom: 3,
@@ -297,5 +298,5 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: 'rgba(34,30,61,0.05)',
   },
   evtTitle: { fontSize: 14, fontWeight: '700', color: lilac.head, lineHeight: 19 },
-  evtBody: { fontSize: 13, color: lilac.text, marginTop: 4, lineHeight: 18 },
+  evtBody: { fontSize: 14, color: lilac.text, marginTop: 4, lineHeight: 18 },
 });

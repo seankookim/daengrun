@@ -41,18 +41,18 @@ export default function Cards() {
           <View style={{ backgroundColor: p.card, borderRadius: 6, padding: 16, borderWidth: 1, borderColor: p.line, marginBottom: 20 }}>
             <Row style={{ justifyContent: 'space-between', marginBottom: 2 }}>
               <Text style={{ fontSize: 17, fontWeight: '900', color: p.textStrong }}>코스 패치</Text>
-              <Text style={{ fontSize: 12.5, fontWeight: '800', color: '#7FA818' }}>
+              <Text style={{ fontSize: 14, fontWeight: '800', color: '#7FA818' }}>
                 {patches.earned.length}/{patches.earned.length + patches.locked.length}
               </Text>
             </Row>
-            <Text style={{ fontSize: 11.5, color: p.dim, marginBottom: 14 }}>
+            <Text style={{ fontSize: 14, color: p.dim, marginBottom: 14 }}>
               거리마다 색 세계 — TRAIL·FOREST·RIVER·NIGHT·HALF · ×5 실버 · ×10 골드 · ×25 마스터
             </Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 14, justifyContent: 'flex-start' }}>
               {patches.earned.map((pt) => (
                 <Pressable key={pt.routeId} onPress={() => router.push(`/course/${pt.routeId}`)} style={{ alignItems: 'center', width: 92 }}>
                   <PatchBadge km={pt.km} name={pt.name} grade={pt.grade} size={84} />
-                  <Text numberOfLines={1} style={{ fontSize: 11, fontWeight: '800', color: p.textStrong, marginTop: 7 }}>{pt.name}</Text>
+                  <Text numberOfLines={1} style={{ fontSize: 14, fontWeight: '800', color: p.textStrong, marginTop: 7 }}>{pt.name}</Text>
                   <Text style={{ fontSize: 9.5, color: p.dim, marginTop: 1 }}>
                     {GRADE_LABEL[pt.grade]} · ×{pt.count} · {nextGrade(pt.count)}
                   </Text>
@@ -68,7 +68,7 @@ export default function Cards() {
                     <Text style={{ fontSize: 19, fontWeight: '900', color: worldOf(pt.km).tone, opacity: 0.75 }}>{pt.km}K</Text>
                     <Text style={{ fontSize: 7.5, fontWeight: '800', letterSpacing: 1.2, color: worldOf(pt.km).dim, marginTop: 1 }}>{worldOf(pt.km).label}</Text>
                   </View>
-                  <Text numberOfLines={1} style={{ fontSize: 11, fontWeight: '800', color: p.dim, marginTop: 7 }}>{pt.name}</Text>
+                  <Text numberOfLines={1} style={{ fontSize: 14, fontWeight: '800', color: p.dim, marginTop: 7 }}>{pt.name}</Text>
                   <Text style={{ fontSize: 9.5, color: p.dim, marginTop: 1 }}>완주하면 획득 ›</Text>
                 </Pressable>
               ))}

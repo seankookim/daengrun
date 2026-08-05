@@ -163,7 +163,7 @@ export default function Report() {
                 <Text style={{ fontSize: 14, color: '#b8c4ae' }}>{report.when} · {report.routeName}</Text>
                 {reason && run.endReason !== 'completed' && (
                   <View style={[s.heroReason, { backgroundColor: reason.bg }]}>
-                    <Text style={{ fontSize: 11, fontWeight: '900', color: reason.color }}>{reason.label}</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '900', color: reason.color }}>{reason.label}</Text>
                   </View>
                 )}
               </Row>
@@ -185,7 +185,7 @@ export default function Report() {
                 <Row style={{ gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
                   {bList.map((b) => (
                     <View key={b} style={s.badgePill}>
-                      <Text style={{ fontSize: 11.5, fontWeight: '900', color: FOREST }}>{b}</Text>
+                      <Text style={{ fontSize: 14, fontWeight: '900', color: FOREST }}>{b}</Text>
                     </View>
                   ))}
                 </Row>
@@ -240,7 +240,7 @@ export default function Report() {
               return (
                 <View style={{ backgroundColor: '#0e150f', alignItems: 'center', paddingVertical: 12 }}>
                   <HeatTrace points={normalizeTrace(run.trace)} width={W - 60} height={140} />
-                  <Text style={{ fontSize: 12.5, color: '#8fa093', marginTop: 6 }}>실제 GPS 경로 · 지도 배경은 새 빌드에서</Text>
+                  <Text style={{ fontSize: 14, color: '#8fa093', marginTop: 6 }}>실제 GPS 경로 · 지도 배경은 새 빌드에서</Text>
                 </View>
               );
             })()}
@@ -259,7 +259,7 @@ export default function Report() {
                     </View>
                   );
                 })}
-                <Text style={{ fontSize: 13, color: colors.dim, width: '100%', marginTop: 4 }}>
+                <Text style={{ fontSize: 14, color: colors.dim, width: '100%', marginTop: 4 }}>
                   러너가 러닝 중 실시간으로 기록한 순간들이에요
                 </Text>
               </View>
@@ -280,7 +280,7 @@ export default function Report() {
               </View>
             )}
             {run.photos.length === 0 && (
-              <Text style={{ fontSize: 13, color: colors.dim, textAlign: 'center', backgroundColor: '#fff', paddingBottom: 10 }}>
+              <Text style={{ fontSize: 14, color: colors.dim, textAlign: 'center', backgroundColor: '#fff', paddingBottom: 10 }}>
                 러너가 남긴 사진과 바디캠 하이라이트가 여기에 담겨요
               </Text>
             )}
@@ -306,7 +306,7 @@ export default function Report() {
                     {report.routeName}{report.routeArea ? ` · ${report.routeArea}` : ''}
                   </Text>
                 </View>
-                <View style={s.certPill}><Text style={{ fontSize: 11, fontWeight: '800', color: '#4a6d1f' }}>신원인증</Text></View>
+                <View style={s.certPill}><Text style={{ fontSize: 14, fontWeight: '800', color: '#4a6d1f' }}>신원인증</Text></View>
               </Row>
             </View>
 
@@ -318,7 +318,7 @@ export default function Report() {
                   <Text style={{ fontSize: 14.5, color: '#49524a', lineHeight: 20.5 }}>{run.conditionNote}</Text>
                 )}
                 {reason?.note && (
-                  <Text style={{ fontSize: 13, color: reason.color, marginTop: run.conditionNote ? 8 : 0, lineHeight: 19.5 }}>
+                  <Text style={{ fontSize: 14, color: reason.color, marginTop: run.conditionNote ? 8 : 0, lineHeight: 19.5 }}>
                     {reason.note}
                   </Text>
                 )}
@@ -437,7 +437,7 @@ function PatchPopOverlay({ patch, df, onClose, onWall }: {
         <Pressable onPress={onWall} style={{ backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 10, paddingHorizontal: 20, marginTop: 16 }}>
           <Text style={{ fontSize: 14, fontWeight: '900', color: FOREST }}>패치 월 보기 ›</Text>
         </Pressable>
-        <Text style={{ fontSize: 13, color: '#8fa093', marginTop: 12 }}>탭하면 닫혀요</Text>
+        <Text style={{ fontSize: 14, color: '#8fa093', marginTop: 12 }}>탭하면 닫혀요</Text>
       </Animated.View>
     </Pressable>
   );
@@ -447,7 +447,7 @@ function HeroStat({ value, label }: { value: string; label: string }) {
   return (
     <View style={{ alignItems: 'center' }}>
       <Text style={{ fontSize: 18.5, fontWeight: '900', color: '#fff' }}>{value}</Text>
-      <Text style={{ fontSize: 13, color: '#b8c4ae', marginTop: 3 }}>{label}</Text>
+      <Text style={{ fontSize: 14, color: '#b8c4ae', marginTop: 3 }}>{label}</Text>
     </View>
   );
 }

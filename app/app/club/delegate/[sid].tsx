@@ -85,11 +85,11 @@ export default function DelegateConsentScreen() {
           <View style={s.pdRow}>
             <Text style={s.pdKey}>위탁견</Text>
             <View style={{ flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-              {dogs.length === 0 && <Text style={{ fontSize: 11.5, color: '#8a8272' }}>등록된 강아지가 없어요 — 프로필에서 먼저 등록해주세요</Text>}
+              {dogs.length === 0 && <Text style={{ fontSize: 14, color: '#8a8272' }}>등록된 강아지가 없어요 — 프로필에서 먼저 등록해주세요</Text>}
               {dogs.map((d, i) => (
                 <Pressable key={d.id} onPress={() => setDogIdx(i)}
                   style={[s.dogChip, i === dogIdx && { backgroundColor: INK, borderColor: INK }]}>
-                  <Text style={{ fontSize: 12, fontWeight: '700', color: i === dogIdx ? '#fff' : INK }}>
+                  <Text style={{ fontSize: 14, fontWeight: '700', color: i === dogIdx ? '#fff' : INK }}>
                     {d.name}{d.weightKg ? ` · ${d.weightKg}kg` : ''}
                   </Text>
                 </Pressable>
@@ -119,7 +119,7 @@ export default function DelegateConsentScreen() {
                 value={vetLimit} onChangeText={setVetLimit} keyboardType="number-pad"
                 style={[s.pdInput, { flex: 0, minWidth: 84 }]}
               />
-              <Text style={{ fontSize: 10.5, color: '#8a8272' }}>까지 사전 승인</Text>
+              <Text style={{ fontSize: 14, color: '#8a8272' }}>까지 사전 승인</Text>
             </View>
           </View>
           <Pressable onPress={() => setPhotoOk((v) => !v)} style={s.pdRow}>
@@ -127,12 +127,12 @@ export default function DelegateConsentScreen() {
             <View style={[s.checkBox, photoOk && { backgroundColor: INK, borderColor: INK }]}>
               {photoOk && <Text style={{ fontSize: 11, fontWeight: '900', color: '#fff' }}>✓</Text>}
             </View>
-            <Text style={{ fontSize: 10.5, color: '#8a8272', flex: 1 }}>러닝 사진이 내 책과 클럽에 실릴 수 있어요</Text>
+            <Text style={{ fontSize: 14, color: '#8a8272', flex: 1 }}>러닝 사진이 내 책과 클럽에 실릴 수 있어요</Text>
           </Pressable>
 
           {/* 조항 — 규칙 7: 한 문단 */}
           <View style={s.clause}>
-            <Text style={{ fontSize: 10.5, lineHeight: 17, color: '#4a463c' }}>
+            <Text style={{ fontSize: 14, lineHeight: 18, color: '#4a463c' }}>
               인계부터 <Text style={{ fontWeight: '800', color: INK }}>양측 반환 확인까지</Text> 담당 러너가 {dog?.name ?? '아이'}의 보호 책임자예요.
               긴급 시 위 한도 안에서 바로 진료할 수 있어요.
             </Text>
@@ -141,7 +141,7 @@ export default function DelegateConsentScreen() {
           {/* ② 봉인 스트립 — 코랄 소프트 필 */}
           <SealSlide width={width - 24 - 26 - 8} onSeal={submit} disabled={!ready || busy} />
           {!ready && (
-            <Text style={{ fontSize: 10, color: '#a4917f', textAlign: 'center', marginTop: 7 }}>
+            <Text style={{ fontSize: 14, color: '#a4917f', textAlign: 'center', marginTop: 7 }}>
               {dogs.length === 0 ? '위탁견이 있어야 봉인할 수 있어요' : '비상 연락처를 채우면 봉인이 열려요'}
             </Text>
           )}
@@ -175,7 +175,7 @@ const s = StyleSheet.create({
   },
   pdKey: { width: 76, fontSize: 8.5, letterSpacing: 1, color: '#8a8272', fontWeight: '700' },
   pdInput: {
-    flex: 1, fontSize: 12.5, fontWeight: '700', color: INK, padding: 0,
+    flex: 1, fontSize: 14, fontWeight: '700', color: INK, padding: 0,
     borderBottomWidth: 1.5, borderStyle: 'dashed', borderBottomColor: '#C9C2AE', paddingBottom: 2,
   },
   dogChip: {

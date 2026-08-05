@@ -52,7 +52,7 @@ export function CourseStrip({ title = '동네 코스' }: { title?: string }) {
             {/* 월드 킥커 + km 대활자 */}
             <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' }}>
               <Text style={{ fontSize: 8.5, fontWeight: '700', letterSpacing: 2.5, color: w.dim }}>{w.label} · {r.terrain.toUpperCase?.() ?? r.terrain}</Text>
-              <Text style={[{ fontSize: 24, fontWeight: '900', color: w.tone }, nf]}>{r.km}<Text style={{ fontSize: 11 }}>K</Text></Text>
+              <Text style={[{ fontSize: 24, fontWeight: '900', color: w.tone }, nf]}>{r.km}<Text style={{ fontSize: 14 }}>K</Text></Text>
             </View>
 
             {/* 트레이스 — 월드 톤으로 발광 */}
@@ -61,7 +61,7 @@ export function CourseStrip({ title = '동네 코스' }: { title?: string }) {
             </View>
 
             <Text style={{ fontSize: 16, fontWeight: '900', color: '#fff', marginTop: 8 }} numberOfLines={1}>{r.name}</Text>
-            <Text style={{ fontSize: 11, color: w.dim, marginTop: 2 }} numberOfLines={1}>
+            <Text style={{ fontSize: 14, color: w.dim, marginTop: 2 }} numberOfLines={1}>
               {r.area}{r.features.length > 0 ? ` · ${r.features.slice(0, 3).map((f) => f.g).join(' ')}` : ''}
             </Text>
 
@@ -75,7 +75,7 @@ export function CourseStrip({ title = '동네 코스' }: { title?: string }) {
               </View>
               <View style={{ flex: 1 }} />
               <View style={{ borderWidth: 1.2, borderColor: w.tone, paddingVertical: 5, paddingHorizontal: 11 }}>
-                <Text style={{ fontSize: 11.5, fontWeight: '900', color: w.tone }}>미리보기 ›</Text>
+                <Text style={{ fontSize: 14, fontWeight: '900', color: w.tone }}>미리보기 ›</Text>
               </View>
             </View>
           </Pressable>

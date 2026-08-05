@@ -160,7 +160,7 @@ export default function Live() {
           </Text>
         </View>
         <Pressable onPress={() => router.push('/safety')} style={[s.circleBtn, { backgroundColor: '#e8492a' }]}>
-          <Text style={{ fontSize: 11.5, fontWeight: '900', color: '#fff' }}>SOS</Text>
+          <Text style={{ fontSize: 14, fontWeight: '900', color: '#fff' }}>SOS</Text>
         </Pressable>
       </Row>
 
@@ -191,11 +191,11 @@ export default function Live() {
           </View>
           <View style={{ alignItems: 'center' }}>
             <Text style={{ fontSize: 23, fontWeight: '900', color: FOREST }}>{fmt(sec)}</Text>
-            <Text style={{ fontSize: 13, color: '#8a8877', marginTop: 1 }}>시간</Text>
+            <Text style={{ fontSize: 14, color: '#8a8877', marginTop: 1 }}>시간</Text>
           </View>
           <View style={{ alignItems: 'flex-end' }}>
             <Text style={{ fontSize: 23, fontWeight: '900', color: FOREST }}>{paceStr(sec, km)}</Text>
-            <Text style={{ fontSize: 13, color: '#8a8877', marginTop: 1 }}>페이스</Text>
+            <Text style={{ fontSize: 14, color: '#8a8877', marginTop: 1 }}>페이스</Text>
           </View>
         </Row>
         {/* thin progress */}

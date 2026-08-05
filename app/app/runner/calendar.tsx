@@ -60,7 +60,7 @@ export default function RunnerCalendar() {
         <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <Text style={[{ fontSize: 30, fontWeight: '900', color: FOREST }, df]}>캘린더</Text>
           <Pressable onPress={() => router.push('/runner/availability')} style={s.availBtn}>
-            <Text style={{ fontSize: 13, fontWeight: '800', color: '#fff' }}>가용시간 설정</Text>
+            <Text style={{ fontSize: 14, fontWeight: '800', color: '#fff' }}>가용시간 설정</Text>
           </Pressable>
         </Row>
 
@@ -77,7 +77,7 @@ export default function RunnerCalendar() {
                   <Text style={{ fontSize: 20, fontWeight: '900', color: colors.volt, fontVariant: ['tabular-nums'] }}>{c}</Text>
                 </View>
               ))}
-              <Text style={{ fontSize: 13, color: '#8fa093', paddingBottom: 5, marginLeft: 3 }}>원 예상</Text>
+              <Text style={{ fontSize: 14, color: '#8fa093', paddingBottom: 5, marginLeft: 3 }}>원 예상</Text>
             </Row>
           )}
         </View>
@@ -105,15 +105,15 @@ export default function RunnerCalendar() {
                 <View style={{ flex: 1, padding: 13, paddingRight: 10 }}>
                   <Row style={{ gap: 7, alignItems: 'baseline' }}>
                     <Text style={{ fontSize: 21, fontWeight: '900', color: FOREST, fontVariant: ['tabular-nums'] }}>{time}</Text>
-                    <Text style={{ fontSize: 12.5, fontWeight: '800', color: '#75806f', flex: 1 }} numberOfLines={1}>{day}</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '800', color: '#75806f', flex: 1 }} numberOfLines={1}>{day}</Text>
                     <View style={[s.oval, { backgroundColor: st.bg }]}>
-                      <Text style={{ fontSize: 11, fontWeight: '800', color: st.fg }}>{st.label}</Text>
+                      <Text style={{ fontSize: 14, fontWeight: '800', color: st.fg }}>{st.label}</Text>
                     </View>
                   </Row>
                   <Text style={{ fontSize: 16.5, fontWeight: '900', color: FOREST, marginTop: 4 }}>
                     {j.dogName} · {j.km}km 러닝
                   </Text>
-                  <Text style={{ fontSize: 13.5, color: colors.dim, marginTop: 2 }}>
+                  <Text style={{ fontSize: 14, color: colors.dim, marginTop: 2 }}>
                     {j.status === 'confirmed' ? '탭하여 픽업 진행 ›' : j.status === 'in_progress' ? '탭하여 러닝 화면 ›' : '정산 완료'}
                   </Text>
                 </View>

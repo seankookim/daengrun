@@ -152,7 +152,7 @@ export function ClubCta({ label, onPress, tone = 'coral', disabled, busy, style 
     >
       <Text style={[
         { fontSize: 14, fontWeight: '800', letterSpacing: 0.4, color: '#fff' },
-        tone === 'quiet' && { color: L.dim, fontSize: 12.5 },
+        tone === 'quiet' && { color: L.dim, fontSize: 14 },
         off && { color: L.dim },
       ]}>
         {busy ? '처리 중...' : label}
@@ -248,7 +248,7 @@ export function SealSlide({ label = '끌어서 봉인', onSeal, disabled, width:
       <Text style={s.sealArrows}>›››</Text>
       <Animated.View {...pan.panHandlers} style={[s.sealPaw, { transform: [{ translateX: x }] }]}>
         <Pressable onLongPress={complete} delayLongPress={700} style={{ flex: 1, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontSize: 8.5, fontWeight: '800', color: L.coral, textAlign: 'center', lineHeight: 10.5 }}>위탁{'\n'}승낙</Text>
+          <Text style={{ fontSize: 14, lineHeight: 18, fontWeight: '800', color: L.coral, textAlign: 'center' }}>위탁{'\n'}승낙</Text>
         </Pressable>
       </Animated.View>
     </View>
@@ -267,11 +267,15 @@ export function LiveDot({ size = 12 }: { size?: number }) {
 }
 
 export const clubText: Record<string, TextStyle> = {
+  // vk/vkDim = 트래킹 라틴 키커 전용 (MEET, SETTLED …). 한글 제목은 이 옷을 입지 않는다 —
+  // 8.5pt·트래킹 2.5는 라틴 대문자의 문법이고, 한글은 그 크기에서 읽히지 않는다.
   vk: { fontSize: 8.5, fontWeight: '700', letterSpacing: 2.5, color: L.accent },
   vkDim: { fontSize: 8.5, fontWeight: '700', letterSpacing: 2, color: L.dim },
-  stateStrong: { fontSize: 13.5, fontWeight: '800', color: L.head },
-  body: { fontSize: 11.5, color: L.text, lineHeight: 17 },
-  dim: { fontSize: 10.5, color: L.dim },
+  vkTitle: { fontSize: 14, fontWeight: '700', letterSpacing: 0.5, color: L.accent }, // 한글 카드 제목
+
+  stateStrong: { fontSize: 14, fontWeight: '800', color: L.head },
+  body: { fontSize: 14, color: L.text, lineHeight: 18 },
+  dim: { fontSize: 14, color: L.dim },
 };
 
 const s = StyleSheet.create({
@@ -282,7 +286,9 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: L.glassEdge,
     ...lilacShadow, shadowOpacity: 0.07,
   },
-  mastSub: { fontSize: 7.5, fontWeight: '700', letterSpacing: 2, color: L.dim, marginTop: 1 },
+  // [FLOOR14] 마스트 서브는 날짜·클럽명(한글 정보)이다 — 트래킹 라틴 마이크로 옷을 벗긴다.
+  // numberOfLines={1} 이라 폭이 모자라면 줄바꿈이 아니라 말줄임 — 어느 기기에서도 레이아웃은 안 깨진다.
+  mastSub: { fontSize: 14, lineHeight: 18, fontWeight: '700', letterSpacing: 0.5, color: L.dim, marginTop: 1 },
   card: {
     backgroundColor: L.card, borderRadius: R.card, borderWidth: 1, borderColor: L.hair,
     padding: 13, marginTop: 10, ...lilacShadow,
@@ -309,8 +315,10 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: L.hair, marginTop: 11, overflow: 'hidden',
   },
   bignumCell: { flex: 1, paddingVertical: 9, paddingHorizontal: 6, borderRightWidth: 1, borderRightColor: L.hair },
+  // [FLOOR14] 셀 라벨은 '원 · 확약 러너 · 코스명' — 한글 정보다. 320dp 셀 가용폭 ~86px 에서
+  // '확약 러너'(≈62px)까지 한 줄, 긴 코스명은 두 줄로 접힌다 (셀이 늘어날 뿐 잘리지 않는다).
   bignumLabel: {
-    fontSize: 7, fontWeight: '700', letterSpacing: 1.5, color: L.dim,
+    fontSize: 14, lineHeight: 18, fontWeight: '700', letterSpacing: 0.5, color: L.dim,
     marginTop: 4, paddingTop: 3, borderTopWidth: 1, borderTopColor: L.hair,
   },
   ticket: {
@@ -325,7 +333,9 @@ const s = StyleSheet.create({
     borderWidth: 1.5, borderColor: '#26231b', justifyContent: 'center', overflow: 'hidden', marginTop: 10,
   },
   sealFill: { position: 'absolute', left: 0, top: 0, bottom: 0, backgroundColor: L.coralSoft },
-  sealLabel: { textAlign: 'center', fontSize: 8, fontWeight: '700', letterSpacing: 2, color: '#a4917f' },
+  // [FLOOR14] 봉인 슬라이더는 동의 서명 컨트롤이다 — 라벨('끌어서 봉인')·썸('위탁 승낙') 모두 한글 정보.
+  // 트랙 폭 262px(320dp)에 14pt 5음절 ≈76px, 썸 44px에 2줄×18 =36px — 둘 다 여유 있게 든다.
+  sealLabel: { textAlign: 'center', fontSize: 14, lineHeight: 18, fontWeight: '700', letterSpacing: 0.5, color: '#a4917f' },
   sealArrows: { position: 'absolute', right: 10, fontSize: 15, color: '#d9c9bc' },
   sealPaw: {
     position: 'absolute', left: 4, width: 44, height: 44, borderRadius: 22,

@@ -73,5 +73,5 @@ const s = StyleSheet.create({
   tab: { flex: 1, alignItems: 'center', paddingVertical: 12 },
   ind: { position: 'absolute', top: 0, width: 26, height: 2.5, borderRadius: 2, backgroundColor: 'transparent' },
   icon: { fontSize: 20.5, marginBottom: 3 },
-  label: { fontSize: 12.5, fontWeight: '500' },
+  label: { fontSize: 14, fontWeight: '500' },
 });

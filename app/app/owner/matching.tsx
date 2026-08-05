@@ -66,7 +66,7 @@ function RosterRow({ r, m, rank, selected, isTop, isCurrent, onPress, nf }: {
         {selected ? (
           <View style={s.rkCheck}><Text style={{ fontSize: 12, fontWeight: '900', color: '#fff', lineHeight: 14 }}>✓</Text></View>
         ) : (
-          <Text style={[{ fontSize: 12.5, fontWeight: '700', color: isTop ? lilac.accent : lilac.dim }, nf]}>
+          <Text style={[{ fontSize: 14, lineHeight: 18, fontWeight: '700', color: isTop ? lilac.accent : lilac.dim }, nf]}>
             {rank < 10 ? `0${rank}` : `${rank}`}
           </Text>
         )}
@@ -77,10 +77,10 @@ function RosterRow({ r, m, rank, selected, isTop, isCurrent, onPress, nf }: {
 
       <View style={{ flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
         <Text numberOfLines={1} style={{ fontSize: 15, fontWeight: '800', color: lilac.head, letterSpacing: -0.2 }}>{r.name}</Text>
-        <Text numberOfLines={1} style={{ flexShrink: 1, fontSize: 12, fontWeight: '700', color: tierColor(r.tier) }}>{r.tier}</Text>
+        <Text numberOfLines={1} style={{ flexShrink: 1, fontSize: 14, fontWeight: '700', color: tierColor(r.tier) }}>{r.tier}</Text>
         {/* 러너 변경 모드에서 '지금 지명된 러너'를 표시 — 누구를 바꾸는 중인지 모르면 선택이 도박이 된다 */}
         {isCurrent && (
-          <View style={s.curTag}><Text style={{ fontSize: 12, fontWeight: '700', color: lilac.accent }}>현재 지명</Text></View>
+          <View style={s.curTag}><Text style={{ fontSize: 14, fontWeight: '700', color: lilac.accent }}>현재 지명</Text></View>
         )}
       </View>
 
@@ -88,11 +88,11 @@ function RosterRow({ r, m, rank, selected, isTop, isCurrent, onPress, nf }: {
       <Text style={[{ width: COL.m, textAlign: 'right', fontSize: 18.5, fontWeight: '700', color: selected ? lilac.accent : weak ? lilac.dim : lilac.head }, nf]}>
         {m.total}<Text style={{ fontSize: 12 }}>%</Text>
       </Text>
-      <Text style={[{ width: COL.pace, textAlign: 'right', fontSize: 13, fontWeight: '600', color: lilac.text }, nf]}>{r.paceLabel}</Text>
+      <Text style={[{ width: COL.pace, textAlign: 'right', fontSize: 14, lineHeight: 18, fontWeight: '600', color: lilac.text }, nf]}>{r.paceLabel}</Text>
       {r.respondRate != null ? (
-        <Text style={[{ width: COL.resp, textAlign: 'right', fontSize: 13, fontWeight: '600', color: lilac.text }, nf]}>{r.respondRate}%</Text>
+        <Text style={[{ width: COL.resp, textAlign: 'right', fontSize: 14, lineHeight: 18, fontWeight: '600', color: lilac.text }, nf]}>{r.respondRate}%</Text>
       ) : (
-        <Text style={{ width: COL.resp, textAlign: 'right', fontSize: 12, fontWeight: '600', color: lilac.dim }}>신규</Text>
+        <Text style={{ width: COL.resp, textAlign: 'right', fontSize: 14, fontWeight: '600', color: lilac.dim }}>신규</Text>
       )}
     </Pressable>
   );
@@ -104,11 +104,12 @@ function Bar({ label, pct, nf }: { label: string; pct: number; nf: any }) {
   const w = Math.max(0, Math.min(100, pct));
   return (
     <Row style={{ gap: 10 }}>
-      <Text style={{ width: 76, fontSize: 12.5, color: lilac.text }}>{label}</Text>
+      {/* [FLOOR14] 76 → 84: 최장 라벨 '응답 신뢰도'(한글 5 + 공백)가 14pt 에서 ≈74px — 76은 여유 2px 뿐이라 랩됐다 */}
+      <Text style={{ width: 84, fontSize: 14, color: lilac.text }}>{label}</Text>
       <View style={s.track}>
         <View style={{ height: '100%', borderRadius: 5, backgroundColor: weak ? lilac.amber : lilac.accent, width: `${w}%` }} />
       </View>
-      <Text style={[{ width: 34, textAlign: 'right', fontSize: 13, fontWeight: '700', color: weak ? lilac.amber : lilac.head }, nf]}>{pct}</Text>
+      <Text style={[{ width: 34, textAlign: 'right', fontSize: 14, lineHeight: 18, fontWeight: '700', color: weak ? lilac.amber : lilac.head }, nf]}>{pct}</Text>
     </Row>
   );
 }
@@ -260,10 +261,10 @@ export default function Matching() {
             {rebook ? '러너 변경' : '러너 선택'}
           </Text>
           {rebook && (
-            <View style={s.headTag}><Text style={{ fontSize: 12, fontWeight: '700', color: lilac.accent }}>재요청</Text></View>
+            <View style={s.headTag}><Text style={{ fontSize: 14, fontWeight: '700', color: lilac.accent }}>재요청</Text></View>
           )}
         </Row>
-        <Text style={{ fontSize: 13.5, lineHeight: 20, color: lilac.text, marginTop: 9 }}>
+        <Text style={{ fontSize: 14, lineHeight: 20, color: lilac.text, marginTop: 9 }}>
           {rebook
             ? '이 예약 그대로 다른 러너에게 다시 요청해요\n새 러너를 지명하면 기존 지명은 자동으로 취소돼요'
             : live ? '러너를 지명하거나, 오픈 매칭으로 기다릴 수 있어요\n보통 몇 분 안에 응답이 와요' : '보호자님과 러너의 선호도를 종합 분석했어요'}
@@ -304,37 +305,37 @@ export default function Matching() {
             {/* 이 순서의 근거 — 새 데이터 없이 시트와 같은 세 축으로만 설명 */}
             <View style={s.why}>
               <Row style={{ gap: 8, marginBottom: 9 }}>
-                <Text style={{ fontSize: 13, fontWeight: '800', color: lilac.head }}>이 순서는 어떻게 나왔나요</Text>
+                <Text style={{ fontSize: 14, fontWeight: '800', color: lilac.head }}>이 순서는 어떻게 나왔나요</Text>
                 <View style={{ flex: 1, height: 1, backgroundColor: lilac.hair }} />
               </Row>
               <View style={{ gap: 7 }}>
                 <Row style={{ gap: 8, alignItems: 'flex-start' }}>
                   <View style={s.whyDot} />
-                  <Text style={{ flex: 1, fontSize: 12.5, lineHeight: 18, color: lilac.text }}>
+                  <Text style={{ flex: 1, fontSize: 14, lineHeight: 18, color: lilac.text }}>
                     <Text style={{ fontWeight: '700', color: lilac.head }}>응답률</Text> — 지명 요청을 받고 실제로 수락한 비율이에요.
                   </Text>
                 </Row>
                 <Row style={{ gap: 8, alignItems: 'flex-start' }}>
                   <View style={s.whyDot} />
-                  <Text style={{ flex: 1, fontSize: 12.5, lineHeight: 18, color: lilac.text }}>
+                  <Text style={{ flex: 1, fontSize: 14, lineHeight: 18, color: lilac.text }}>
                     <Text style={{ fontWeight: '700', color: lilac.head }}>경험</Text> — 지금까지 완료한 러닝 횟수를 봐요.
                   </Text>
                 </Row>
                 <Row style={{ gap: 8, alignItems: 'flex-start' }}>
                   <View style={s.whyDot} />
-                  <Text style={{ flex: 1, fontSize: 12.5, lineHeight: 18, color: lilac.text }}>
+                  <Text style={{ flex: 1, fontSize: 14, lineHeight: 18, color: lilac.text }}>
                     <Text style={{ fontWeight: '700', color: lilac.head }}>페이스 적합</Text> — 이 예약의 페이스
                     {targetPaceLabel ? <Text style={[{ fontWeight: '700', color: lilac.head }, nf]}>{` ${targetPaceLabel} `}</Text> : ' '}
                     기준으로 러너 페이스가 얼마나 맞는지예요.
                   </Text>
                 </Row>
               </View>
-              <Text style={{ marginTop: 11, paddingTop: 10, borderTopWidth: 1, borderTopColor: lilac.hair2, fontSize: 12.5, lineHeight: 18, color: lilac.dim }}>
+              <Text style={{ marginTop: 11, paddingTop: 10, borderTopWidth: 1, borderTopColor: lilac.hair2, fontSize: 14, lineHeight: 18, color: lilac.dim }}>
                 세 축을 합쳐 매치 점수가 되고, 그 순서가 AI 추천 1순위예요. 인증 장비는 슬롯당 +1(최대 +2)만 더해요.
               </Text>
             </View>
 
-            <Text style={{ marginTop: 16, textAlign: 'center', fontSize: 12.5, lineHeight: 18, color: lilac.dim }}>
+            <Text style={{ marginTop: 16, textAlign: 'center', fontSize: 14, lineHeight: 18, color: lilac.dim }}>
               지명 없이 두면 오픈 매칭으로 모든 러너에게 보여요
             </Text>
           </>
@@ -344,7 +345,7 @@ export default function Matching() {
             이 화면은 이제 실예약 전용. */}
         {!live && (
           <View style={s.emptyBox}>
-            <Text style={{ fontSize: 13.5, color: lilac.text, textAlign: 'center', lineHeight: 21 }}>
+            <Text style={{ fontSize: 14, color: lilac.text, textAlign: 'center', lineHeight: 21 }}>
               진행 중인 예약이 없어요{'\n'}예약 화면에서 결제하면 러너 선택이 열려요
             </Text>
           </View>
@@ -352,7 +353,7 @@ export default function Matching() {
 
         {live && rosterError && (
           <View style={s.emptyBox}>
-            <Text style={{ fontSize: 13.5, color: lilac.text, textAlign: 'center', lineHeight: 21 }}>
+            <Text style={{ fontSize: 14, color: lilac.text, textAlign: 'center', lineHeight: 21 }}>
               러너 목록을 불러오지 못했어요{'\n'}{rosterError}
             </Text>
             <Pressable onPress={loadRoster} disabled={rosterLoading} style={{ marginTop: 12, paddingVertical: 12, paddingHorizontal: 26, borderRadius: 10, backgroundColor: lilac.inset, borderWidth: 1, borderColor: lilac.hair, alignSelf: 'center', opacity: rosterLoading ? 0.5 : 1 }}>
@@ -363,7 +364,7 @@ export default function Matching() {
 
         {live && !rosterError && rosterLoading && liveRunners.length === 0 && (
           <View style={s.emptyBox}>
-            <Text style={{ fontSize: 13.5, color: lilac.text, textAlign: 'center', lineHeight: 21 }}>
+            <Text style={{ fontSize: 14, color: lilac.text, textAlign: 'center', lineHeight: 21 }}>
               이 시간에 갈 수 있는 러너를 찾는 중…
             </Text>
           </View>
@@ -371,7 +372,7 @@ export default function Matching() {
 
         {live && !rosterError && !rosterLoading && liveRunners.length === 0 && (
           <View style={s.emptyBox}>
-            <Text style={{ fontSize: 13.5, color: lilac.text, textAlign: 'center', lineHeight: 21 }}>
+            <Text style={{ fontSize: 14, color: lilac.text, textAlign: 'center', lineHeight: 21 }}>
               이 시간에 갈 수 있는 러너가 지금 없어요{'\n'}오픈 매칭으로 등록돼 있어요 — 일정이 빈 러너가 응답할 수 있어요
             </Text>
           </View>
@@ -394,7 +395,7 @@ export default function Matching() {
               accessibilityRole="button"
               accessibilityLabel={`${sel.r.name} 러너 프로필 보기`}
             >
-              <Text style={{ fontSize: 12.5, fontWeight: '700', color: lilac.head }}>프로필 ›</Text>
+              <Text style={{ fontSize: 14, fontWeight: '700', color: lilac.head }}>프로필 ›</Text>
             </Pressable>
           </Row>
 
@@ -404,17 +405,17 @@ export default function Matching() {
             <View style={{ flex: 1, minWidth: 0 }}>
               <Row style={{ gap: 7 }}>
                 <Text numberOfLines={1} style={[{ fontSize: 20, color: lilac.head, letterSpacing: 0.2 }, df]}>{sel.r.name}</Text>
-                <Text style={{ fontSize: 12.5, fontWeight: '700', color: tierColor(sel.r.tier) }}>{sel.r.tier}</Text>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: tierColor(sel.r.tier) }}>{sel.r.tier}</Text>
                 {top && sel.r.profileId === top.r.profileId && (
                   <View style={s.aiTag}>
-                    <Text style={{ fontSize: 12, fontWeight: '700', color: lilac.accent }}>
+                    <Text style={{ fontSize: 14, fontWeight: '700', color: lilac.accent }}>
                       {topIsPreferred ? '내가 고른 러너' : 'AI 1순위'}
                     </Text>
                   </View>
                 )}
               </Row>
               {/* 사람 문장 — 실필드(동네·누적 러닝)만으로 */}
-              <Text style={{ fontSize: 13, lineHeight: 19, color: lilac.text, marginTop: 5 }}>
+              <Text style={{ fontSize: 14, lineHeight: 19, color: lilac.text, marginTop: 5 }}>
                 {sel.r.totalRuns > 0 ? (
                   <>
                     {sel.r.district || '이 동네'}에서 <Text style={[{ fontSize: 14, fontWeight: '700', color: lilac.head }, nf]}>{sel.r.totalRuns}</Text>번 달렸어요
@@ -444,19 +445,19 @@ export default function Matching() {
           {rebook && curEntry && (
             <View style={s.delta}>
               {selIsCurrent ? (
-                <Text style={{ fontSize: 12.5, lineHeight: 18, color: lilac.text }}>지금 이 예약에 지명돼 있는 러너예요.</Text>
+                <Text style={{ fontSize: 14, lineHeight: 18, color: lilac.text }}>지금 이 예약에 지명돼 있는 러너예요.</Text>
               ) : (() => {
                 const dm = sel.m.total - curEntry.m.total;
                 const dr = (sel.r.respondRate == null || curEntry.r.respondRate == null) ? null : sel.r.respondRate - curEntry.r.respondRate;
                 return (
                   <Row style={{ gap: 9, flexWrap: 'wrap' }}>
-                    <Text style={{ fontSize: 12.5, color: lilac.text }}>
+                    <Text style={{ fontSize: 14, color: lilac.text }}>
                       현재 <Text style={{ fontWeight: '700', color: lilac.head }}>{curEntry.r.name}</Text> 대비
                     </Text>
-                    <Text style={[{ fontSize: 12.5, fontWeight: '700', color: dm >= 0 ? lilac.accent : lilac.amber }, nf]}>매치 {signed(dm)}</Text>
+                    <Text style={[{ fontSize: 14, lineHeight: 18, fontWeight: '700', color: dm >= 0 ? lilac.accent : lilac.amber }, nf]}>매치 {signed(dm)}</Text>
                     {dr == null
-                      ? <Text style={{ fontSize: 12.5, color: lilac.dim }}>응답률 비교 불가 · 신규</Text>
-                      : <Text style={[{ fontSize: 12.5, fontWeight: '700', color: dr >= 0 ? lilac.accent : lilac.amber }, nf]}>응답 {signed(dr)}</Text>}
+                      ? <Text style={{ fontSize: 14, color: lilac.dim }}>응답률 비교 불가 · 신규</Text>
+                      : <Text style={[{ fontSize: 14, lineHeight: 18, fontWeight: '700', color: dr >= 0 ? lilac.accent : lilac.amber }, nf]}>응답 {signed(dr)}</Text>}
                   </Row>
                 );
               })()}
@@ -468,7 +469,7 @@ export default function Matching() {
             <Row style={{ gap: 7, marginTop: 11, flexWrap: 'wrap' }}>
               {selGear.map((g) => (
                 <View key={g.id} style={s.gearChip}>
-                  <Text style={{ fontSize: 12, fontWeight: '600', color: lilac.text }}>
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: lilac.text }}>
                     {GEAR_META[g.kind].glyph} {GEAR_META[g.kind].name} <Text style={{ color: lilac.accent, fontWeight: '700' }}>✓</Text>
                   </Text>
                 </View>
@@ -480,7 +481,7 @@ export default function Matching() {
           {lockCta ? (
             <View style={[s.cta, s.ctaLock]}>
               <Text style={{ fontSize: 14, fontWeight: '800', color: lilac.head }}>이미 지명된 러너예요</Text>
-              <Text style={{ fontSize: 12.5, color: lilac.dim, marginTop: 3 }}>다른 러너를 선택하면 재요청할 수 있어요</Text>
+              <Text style={{ fontSize: 14, color: lilac.dim, marginTop: 3 }}>다른 러너를 선택하면 재요청할 수 있어요</Text>
             </View>
           ) : (
             <Pressable
@@ -497,9 +498,9 @@ export default function Matching() {
                 <View style={{ flex: 1 }} />
                 {/* 플레이트 = 원값 두 개(점수 아님) — 매치는 바로 위 큰 숫자가 이미 말한다 */}
                 <View style={s.ctaPlate}>
-                  <Text style={[{ fontSize: 12.5, fontWeight: '600', color: '#fff' }, nf]}>{sel.r.paceLabel}</Text>
+                  <Text style={[{ fontSize: 14, lineHeight: 18, fontWeight: '600', color: '#fff' }, nf]}>{sel.r.paceLabel}</Text>
                   <View style={{ width: 1, height: 11, backgroundColor: 'rgba(255,255,255,0.42)' }} />
-                  <Text style={[{ fontSize: 12.5, fontWeight: '600', color: '#fff' }, nf]}>
+                  <Text style={[{ fontSize: 14, lineHeight: 18, fontWeight: '600', color: '#fff' }, nf]}>
                     {sel.r.respondRate != null ? `응답 ${sel.r.respondRate}%` : '신규'}
                   </Text>
                 </View>

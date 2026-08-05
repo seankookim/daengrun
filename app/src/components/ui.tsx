@@ -49,7 +49,7 @@ export function Badge({ label, tone = 'green' }: { label: string; tone?: 'green'
   const fg = tone === 'green' ? '#2f4a35' : tone === 'red' ? '#c2340f' : colors.volt;
   return (
     <View style={[s.badge, { backgroundColor: bg }]}>
-      <Text style={{ fontSize: 12.5, fontWeight: '700', color: fg }}>{label}</Text>
+      <Text style={{ fontSize: 14, fontWeight: '700', color: fg }}>{label}</Text>
     </View>
   );
 }
@@ -93,7 +93,7 @@ export function StatBlock({ value, label, valueColor = colors.volt }: { value: s
   return (
     <View style={{ alignItems: 'center' }}>
       <Text style={[{ fontSize: 32, fontWeight: '900', color: valueColor, fontVariant: ['tabular-nums'] }, nf]}>{value}</Text>
-      <Text style={{ fontSize: 12.5, fontWeight: '700', letterSpacing: 0.5, color: '#8fa093', marginTop: 3 }}>{label}</Text>
+      <Text style={{ fontSize: 14, fontWeight: '700', letterSpacing: 0.5, color: '#8fa093', marginTop: 3 }}>{label}</Text>
     </View>
   );
 }

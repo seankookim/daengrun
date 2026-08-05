@@ -85,7 +85,7 @@ const s = StyleSheet.create({
     ...lilacShadow, shadowOpacity: 0.06,
   },
   bannerCrit: { backgroundColor: L.coralSoft, borderColor: '#F5C4B4' },
-  title: { fontSize: 11.5, fontWeight: '800', color: L.head },
+  title: { fontSize: 14, fontWeight: '800', color: L.head },
   body: { fontSize: 9.5, color: '#7a5a2a', marginTop: 2, lineHeight: 14 },
   btn: {
     backgroundColor: '#fff', borderRadius: 7, paddingVertical: 7, paddingHorizontal: 11,

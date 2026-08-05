@@ -133,12 +133,12 @@ function ClubSearchBar() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: 15, fontWeight: '800', color: lilac.head }}>{h.name}</Text>
-                <Text style={{ fontSize: 12, color: lilac.dim, marginTop: 2 }}>
+                <Text style={{ fontSize: 14, color: lilac.dim, marginTop: 2 }}>
                   {h.status === 'active' ? `멤버 ${h.memberCount} · 활동 중` : `관심 ${h.interestCount}명 · 모집 중`}
                 </Text>
               </View>
               <View style={[s.dropTag, h.status !== 'active' && { backgroundColor: lilac.inset }]}>
-                <Text style={{ fontSize: 11, fontWeight: '800', letterSpacing: 0.6, color: h.status === 'active' ? READ_VIOLET : lilac.dim }}>
+                <Text style={{ fontSize: 14, fontWeight: '800', letterSpacing: 0.6, color: h.status === 'active' ? READ_VIOLET : lilac.dim }}>
                   {h.status === 'active' ? 'OPEN' : '모집 중'}
                 </Text>
               </View>
@@ -149,12 +149,12 @@ function ClubSearchBar() {
               <View style={[s.dropThumb, { backgroundColor: VIOLET_TINT }]}><Text style={{ fontSize: 20, color: lilac.accent }}>＋</Text></View>
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: 15, fontWeight: '800', color: lilac.head }}>'{q.trim()}' 하이클럽 요청하기</Text>
-                <Text style={{ fontSize: 12, color: lilac.dim, marginTop: 2 }}>아직 없어요 — 관심을 모아 열어요</Text>
+                <Text style={{ fontSize: 14, color: lilac.dim, marginTop: 2 }}>아직 없어요 — 관심을 모아 열어요</Text>
               </View>
             </Pressable>
           )}
           {hits.length === 0 && q.trim().length < 2 && (
-            <View style={s.dropRow}><Text style={{ fontSize: 13, color: lilac.dim }}>동네 이름을 2자 이상 입력해주세요</Text></View>
+            <View style={s.dropRow}><Text style={{ fontSize: 14, color: lilac.dim }}>동네 이름을 2자 이상 입력해주세요</Text></View>
           )}
         </View>
       )}
@@ -305,7 +305,7 @@ function DemandTicket({ board, reload }: { board: DemandBoard; reload: () => voi
       </View>
       <View style={{ flex: 1, padding: 15 }}>
         <Text style={{ fontSize: 15, fontWeight: '800', color: lilac.head }}>{mine.district}에서 {mine.interestCount}팀이 기다려요</Text>
-        <Text style={{ fontSize: 12.5, color: lilac.text, marginTop: 5, lineHeight: 19 }}>인증 러너가 호스트를 맡으면 클럽이 열려요.</Text>
+        <Text style={{ fontSize: 14, color: lilac.text, marginTop: 5, lineHeight: 19 }}>인증 러너가 호스트를 맡으면 클럽이 열려요.</Text>
         <Pressable onPress={claim} style={s.tktCta}>
           <Text style={{ fontSize: 15, fontWeight: '800', color: '#fff' }}>🏁 호스트 되기</Text>
         </Pressable>
@@ -322,7 +322,7 @@ export function DemandStrip() {
   return (
     <Pressable onPress={() => router.push(`/club/${mine.clubId}`)} style={s.strip}>
       <View style={s.stripN}><Text style={{ fontSize: 14, fontWeight: '800', color: READ_VIOLET }}>{mine.interestCount}팀</Text></View>
-      <Text style={{ flex: 1, fontSize: 13, color: '#D8CFF7', lineHeight: 19 }}>
+      <Text style={{ flex: 1, fontSize: 14, color: '#D8CFF7', lineHeight: 19 }}>
         <Text style={{ fontWeight: '800', color: '#fff' }}>{mine.district}</Text>이 호스트를 기다려요 — 첫 세션을 여는 러너가 클럽의 얼굴
       </Text>
       <Text style={{ fontSize: 18, fontWeight: '800', color: '#fff' }}>›</Text>
@@ -342,7 +342,7 @@ function ProgressRing({ n, cap }: { n: number; cap: number }) {
           strokeDasharray={[C * frac, C]} />
       </Svg>
       <Text style={{ fontSize: 15, fontWeight: '800', color: lilac.head }}>{n}/{cap}</Text>
-      <Text style={{ fontSize: 10, color: lilac.dim, marginTop: 1 }}>모이는 중</Text>
+      <Text style={{ fontSize: 14, color: lilac.dim, marginTop: 1 }}>모이는 중</Text>
     </View>
   );
 }
@@ -368,25 +368,25 @@ function OwnerDemand({ board, reload }: { board: DemandBoard; reload: () => void
           <ProgressRing n={mine.interestCount} cap={mine.threshold} />
           <View style={{ flex: 1 }}>
             <Text style={{ fontSize: 15, fontWeight: '800', color: lilac.head }}>{mine.district} 하이클럽, 열리는 중</Text>
-            <Text style={{ fontSize: 12.5, color: lilac.text, marginTop: 5, lineHeight: 19 }}>
+            <Text style={{ fontSize: 14, color: lilac.text, marginTop: 5, lineHeight: 19 }}>
               {mine.threshold}팀이 모이면 호스트 모집 시작 — 이웃을 초대할수록 빨리 열려요.
             </Text>
             <Pressable onPress={invite} style={s.inviteCta}>
-              <Text style={{ fontSize: 13, fontWeight: '800', color: '#fff' }}>🐾 이웃 초대하기</Text>
+              <Text style={{ fontSize: 14, fontWeight: '800', color: '#fff' }}>🐾 이웃 초대하기</Text>
             </Pressable>
           </View>
         </View>
       )}
       {league.length > 0 && (
         <View style={[s.league, !collecting && { borderTopWidth: 1, borderTopLeftRadius: lilacRadius.card, borderTopRightRadius: lilacRadius.card }]}>
-          <Text style={{ fontSize: 12.5, fontWeight: '800', letterSpacing: 1, color: READ_VIOLET, marginBottom: 8 }}>동네 리그 — 이번 달</Text>
+          <Text style={{ fontSize: 14, fontWeight: '800', letterSpacing: 1, color: READ_VIOLET, marginBottom: 8 }}>동네 리그 — 이번 달</Text>
           {league.map((l, i) => (
             <Pressable key={l.clubId} onPress={() => router.push(`/club/${l.clubId}`)} style={[s.lrow, l.mine && s.lrowMe]}>
               <Text style={{ fontSize: 14 }}>{l.status === 'active' ? (i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '🏃') : '⏳'}</Text>
               <Text style={{ flex: 1, fontSize: 14, fontWeight: '700', color: lilac.head }} numberOfLines={1}>
                 {l.name}{l.mine ? ' (우리 동네)' : ''}
               </Text>
-              <Text style={{ fontSize: 12.5, fontWeight: '700', color: l.status === 'active' ? READ_VIOLET : lilac.dim }}>
+              <Text style={{ fontSize: 14, fontWeight: '700', color: l.status === 'active' ? READ_VIOLET : lilac.dim }}>
                 {l.status === 'active' ? `세션 ${l.sessionsMonth}회 · ${l.teamsMonth}팀` : `${l.interestCount}팀 대기 중`}
               </Text>
             </Pressable>
@@ -407,7 +407,7 @@ export function ClubModule({ role }: { role: 'owner' | 'runner' }) {
       <Row style={{ gap: 8, marginBottom: 11, alignItems: 'center' }}>
         <Text style={{ fontSize: 16.5, fontWeight: '800', color: lilac.head }}>하이클럽</Text>
         <View style={s.hcChip}><Text style={{ fontSize: 11, fontWeight: '800', letterSpacing: 1, color: READ_VIOLET }}>HIGH CLUB</Text></View>
-        <Text style={{ fontSize: 12, color: lilac.dim }}>동네에서 함께 달려요</Text>
+        <Text style={{ fontSize: 14, color: lilac.dim }}>동네에서 함께 달려요</Text>
       </Row>
       <ClubSearchBar />
       {club && <ClubBanner club={club} role={role} reload={reloadAll} />}
@@ -451,8 +451,8 @@ const s = StyleSheet.create({
   clubWhen: { flexDirection: 'row', alignItems: 'baseline', gap: 7 },
   clubWhenD: { fontSize: 18, color: lilac.accent, includeFontPadding: false },
   clubWhenT: { fontSize: 18, fontWeight: '700', color: lilac.head, fontVariant: ['tabular-nums'] },
-  clubWhenSub: { flex: 1, fontSize: 13, color: lilac.dim },
-  clubBodyLine: { fontSize: 13.5, color: lilac.text, lineHeight: 20 },
+  clubWhenSub: { flex: 1, fontSize: 14, color: lilac.dim },
+  clubBodyLine: { fontSize: 14, color: lilac.text, lineHeight: 20 },
   clubMeta: { flexDirection: 'row', marginTop: 10, borderTopWidth: 1, borderTopColor: lilac.hair2, paddingTop: 9 },
   clubCell: { flex: 1 },
   clubCellDiv: { borderLeftWidth: 1, borderLeftColor: lilac.hair2, paddingLeft: 10 },

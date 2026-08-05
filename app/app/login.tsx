@@ -128,7 +128,7 @@ export default function Login() {
 
         <View style={s.divider}>
           <View style={s.divLine} />
-          <Text style={{ fontSize: 12.5, color: '#6d7a68' }}>또는</Text>
+          <Text style={{ fontSize: 14, color: '#6d7a68' }}>또는</Text>
           <View style={s.divLine} />
         </View>
 
@@ -159,5 +159,5 @@ const s = StyleSheet.create({
   divider: { flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 26 },
   divLine: { flex: 1, height: 1, backgroundColor: '#2c3a2c' },
   kakao: { backgroundColor: '#FEE500', borderRadius: 16, alignItems: 'center', paddingVertical: 17 },
-  legal: { fontSize: 12, color: '#5d6b5d', textAlign: 'center', marginTop: 24, lineHeight: 17 },
+  legal: { fontSize: 14, color: '#5d6b5d', textAlign: 'center', marginTop: 24, lineHeight: 18 },
 });

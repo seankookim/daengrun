@@ -138,7 +138,7 @@ export default function Radar() {
           </Pressable>
           <View style={s.livePill}>
             <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: CORAL }} />
-            <Text style={{ fontSize: 12.5, fontWeight: '900', color: CORAL }}>주변 러너에게 요청 중</Text>
+            <Text style={{ fontSize: 14, fontWeight: '900', color: CORAL }}>주변 러너에게 요청 중</Text>
           </View>
           <View style={{ width: 40 }} />
         </Row>
@@ -204,7 +204,7 @@ export default function Radar() {
                     </Text>
                   </View>
                   <View style={s.pacePill}>
-                    <Text style={{ fontSize: 12.5, fontWeight: '900', color: '#3f5a26' }}>{r.paceLabel}</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '900', color: '#3f5a26' }}>{r.paceLabel}</Text>
                   </View>
                 </Pressable>
               ))}

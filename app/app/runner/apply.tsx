@@ -56,12 +56,12 @@ export default function Apply() {
             >
               <View style={[s.stepDot, st.done && { backgroundColor: '#6aa53c' }, st.active && s.stepActive]}>
                 {st.done ? <Text style={{ fontSize: 11.5, fontWeight: '900', color: '#fff' }}>✓</Text>
-                  : <Text style={{ fontSize: 12.5, fontWeight: '900', color: st.active ? '#a97c12' : '#b3b3ab' }}>{i + 1}</Text>}
+                  : <Text style={{ fontSize: 14, fontWeight: '900', color: st.active ? '#a97c12' : '#b3b3ab' }}>{i + 1}</Text>}
               </View>
               <View style={{ flex: 1 }}>
                 <Row style={{ gap: 6 }}>
                   <Text style={{ fontSize: 16.5, fontWeight: '800', color: st.done || st.active ? FOREST : '#9a9a90' }}>{st.label}</Text>
-                  {st.active && <View style={s.nowPill}><Text style={{ fontSize: 10, fontWeight: '900', color: '#a97c12' }}>진행 중</Text></View>}
+                  {st.active && <View style={s.nowPill}><Text style={{ fontSize: 14, fontWeight: '900', color: '#a97c12' }}>진행 중</Text></View>}
                 </Row>
                 <Text style={{ fontSize: 15, color: colors.dim, marginTop: 2 }}>{st.desc}</Text>
               </View>
@@ -82,11 +82,11 @@ export default function Apply() {
           <Row style={{ justifyContent: 'space-between' }}>
             <Text style={{ fontSize: 16.5, fontWeight: '900', color: FOREST }}>{t.name}</Text>
             {t.name === applyStatus.tier && (
-              <View style={s.nowPill}><Text style={{ fontSize: 10, fontWeight: '900', color: '#4a6d1f' }}>현재</Text></View>
+              <View style={s.nowPill}><Text style={{ fontSize: 14, fontWeight: '900', color: '#4a6d1f' }}>현재</Text></View>
             )}
           </Row>
           <Text style={{ fontSize: 15, color: colors.dim, marginTop: 4 }}>조건: {t.req}</Text>
-          <Text style={{ fontSize: 13, fontWeight: '700', color: '#5a7a3c', marginTop: 2 }}>혜택: {t.perk}</Text>
+          <Text style={{ fontSize: 14, fontWeight: '700', color: '#5a7a3c', marginTop: 2 }}>혜택: {t.perk}</Text>
         </View>
       ))}
 

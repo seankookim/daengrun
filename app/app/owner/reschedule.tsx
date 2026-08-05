@@ -162,15 +162,15 @@ export default function Reschedule() {
             {info.proposedIso && (
               <View style={s.pendingBanner}>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 13.5, fontWeight: '900', color: '#9D580A' }}>
+                  <Text style={{ fontSize: 14, fontWeight: '900', color: '#9D580A' }}>
                     변경 요청 대기 중 → {fmtIso(info.proposedIso)}
                   </Text>
-                  <Text style={{ fontSize: 11.5, color: '#9D580A', marginTop: 2 }}>
+                  <Text style={{ fontSize: 14, color: '#9D580A', marginTop: 2 }}>
                     러너 수락 전까지 기존 시간 유지 · 새로 고르면 요청이 교체돼요
                   </Text>
                 </View>
                 <Pressable onPress={withdraw} style={s.withdrawBtn}>
-                  <Text style={{ fontSize: 12.5, fontWeight: '800', color: '#9D580A' }}>철회</Text>
+                  <Text style={{ fontSize: 14, fontWeight: '800', color: '#9D580A' }}>철회</Text>
                 </Pressable>
               </View>
             )}
@@ -179,7 +179,7 @@ export default function Reschedule() {
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 18 }} contentContainerStyle={{ gap: 8 }}>
               {days.map((d, i) => (
                 <Pressable key={i} onPress={() => { setDayIdx(i); setPicked(null); }} style={[s.dayChip, dayIdx === i && s.dayChipOn]}>
-                  <Text style={{ fontSize: 13, fontWeight: '700', color: dayIdx === i ? '#b8c4ae' : colors.dim }}>{d.label ?? d.w}</Text>
+                  <Text style={{ fontSize: 14, fontWeight: '700', color: dayIdx === i ? '#b8c4ae' : colors.dim }}>{d.label ?? d.w}</Text>
                   <Text style={{ fontSize: 17, fontWeight: '900', color: dayIdx === i ? '#fff' : FOREST, marginTop: 2 }}>{d.d}</Text>
                 </Pressable>
               ))}
@@ -204,12 +204,12 @@ export default function Reschedule() {
                       style={[s.slot, isPicked && s.slotPicked, ok === false && s.slotOff, isCur && s.slotCur]}
                     >
                       <Text style={{
-                        fontSize: 13, fontWeight: '800',
+                        fontSize: 14, fontWeight: '800',
                         color: isPicked ? '#fff' : ok === false ? '#b7b4a5' : FOREST,
                       }}>
                         {sl.label}
                       </Text>
-                      <Text style={{ fontSize: 11, fontWeight: '700', marginTop: 2, color: isPicked ? '#b8c4ae' : isCur ? colors.voltDeep : ok === false ? '#b7b4a5' : '#82887a' }}>
+                      <Text style={{ fontSize: 14, fontWeight: '700', marginTop: 2, color: isPicked ? '#b8c4ae' : isCur ? colors.voltDeep : ok === false ? '#b7b4a5' : '#82887a' }}>
                         {isCur ? '현재' : ok === null ? '확인 중' : ok === false ? '마감' : '가능'}
                       </Text>
                     </Pressable>
@@ -224,7 +224,7 @@ export default function Reschedule() {
       {/* 확정 바 — 계약 원칙을 카피로 명시 */}
       {info?.status === 'confirmed' && picked && (
         <View style={s.confirmBar}>
-          <Text style={{ fontSize: 13.5, fontWeight: '800', color: '#fff' }} numberOfLines={1}>
+          <Text style={{ fontSize: 14, fontWeight: '800', color: '#fff' }} numberOfLines={1}>
             {fmtIso(picked.start.toISOString())}로 변경 요청
           </Text>
           <Pressable onPress={send} disabled={busy} style={[s.confirmBtn, busy && { opacity: 0.5 }]}>
@@ -232,7 +232,7 @@ export default function Reschedule() {
               {busy ? '보내는 중...' : '러너에게 변경 요청 ➤'}
             </Text>
           </Pressable>
-          <Text style={{ fontSize: 12, color: '#b8c4ae', textAlign: 'center', marginTop: 8 }}>
+          <Text style={{ fontSize: 14, color: '#b8c4ae', textAlign: 'center', marginTop: 8 }}>
             러너가 수락해야 일정이 바뀌어요 · 원래 시간 2시간 전까지 응답 없으면 자동 만료
           </Text>
         </View>

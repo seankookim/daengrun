@@ -71,7 +71,7 @@ export default function Shop() {
             </View>
             {isRunner && (
               <Pressable onPress={() => router.push('/runner/rewards')} style={s.heroGo}>
-                <Text style={{ fontSize: 12.5, fontWeight: '900', color: FOREST }}>리워드 센터 ›</Text>
+                <Text style={{ fontSize: 14, fontWeight: '900', color: FOREST }}>리워드 센터 ›</Text>
               </Pressable>
             )}
           </Row>
@@ -80,7 +80,7 @@ export default function Shop() {
               {miles.recent.slice(0, 2).map((r, i) => (
                 <Row key={i} style={{ justifyContent: 'space-between' }}>
                   <Text style={{ fontSize: 14.5, color: '#8fa093' }}>{r.reason} · {r.when}</Text>
-                  <Text style={{ fontSize: 12.5, fontWeight: '900', color: r.delta >= 0 ? colors.volt : colors.tang }}>
+                  <Text style={{ fontSize: 14, fontWeight: '900', color: r.delta >= 0 ? colors.volt : colors.tang }}>
                     {r.delta >= 0 ? '+' : ''}{r.delta.toLocaleString()}
                   </Text>
                 </Row>
@@ -115,7 +115,7 @@ export default function Shop() {
             <Row style={{ gap: 7, marginTop: 18, marginBottom: 8 }}>
               <Text style={s.section}>내 기어 교환권</Text>
               {claimable.length > 0 && (
-                <View style={s.countPill}><Text style={{ fontSize: 11, fontWeight: '900', color: '#3d5a2b' }}>{claimable.length}</Text></View>
+                <View style={s.countPill}><Text style={{ fontSize: 14, fontWeight: '900', color: '#3d5a2b' }}>{claimable.length}</Text></View>
               )}
             </Row>
             <View style={s.card}>
@@ -159,7 +159,7 @@ export default function Shop() {
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
           {products.map((p) => (
             <Pressable key={p.id} style={[s.prod, { backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#E8CDBE' }]} onPress={() => Alert.alert(p.name, '스토어 오픈 준비 중이에요')}>
-              <Text style={{ fontSize: 12.5, fontWeight: '900', color: p.fg }}>{p.tag}</Text>
+              <Text style={{ fontSize: 14, fontWeight: '900', color: p.fg }}>{p.tag}</Text>
               <Text style={s.prodName} numberOfLines={2}>{p.name}</Text>
               <Text style={{ fontSize: 14, color: '#A87A62', marginTop: 3 }}>{p.collab}</Text>
               {/* product visual placeholder */}
@@ -168,7 +168,7 @@ export default function Shop() {
               </View>
               <Row style={{ justifyContent: 'space-between', marginTop: 'auto' }}>
                 <Text style={{ fontSize: 18.5, fontWeight: '900', color: colors.terraInk }}>
-                  {p.price.toLocaleString()}원<Text style={{ fontSize: 13, color: '#A87A62', fontWeight: '700' }}> 예정</Text>
+                  {p.price.toLocaleString()}원<Text style={{ fontSize: 14, color: '#A87A62', fontWeight: '700' }}> 예정</Text>
                 </Text>
                 <Pressable style={s.addBtn} onPress={() => Alert.alert('준비 중', '스토어 오픈 시 담을 수 있어요')}>
                   <Text style={{ fontSize: 16, fontWeight: '900', color: '#fff' }}>+</Text>

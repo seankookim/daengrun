@@ -47,7 +47,7 @@ export default function Pay() {
             {fmtWon(pricing.baseFare + Math.round(actualKm * pricing.perKm) + addonSum)}
           </Text>
         </Row>
-        <Text style={[text.dim, { marginTop: 8, fontSize: 12.5 }]}>카카오페이 ···· 3841</Text>
+        <Text style={[text.dim, { marginTop: 8, fontSize: 14 }]}>카카오페이 ···· 3841</Text>
       </Card>
 
       <Btn label="결제하고 리뷰 남기기" variant="volt" style={{ marginTop: 16 }} onPress={() => router.push('/owner/review')} />

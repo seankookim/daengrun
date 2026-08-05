@@ -88,6 +88,7 @@ function Marker({ x, y, label }: { x: number; y: number; label: string }) {
         borderWidth: 2, borderColor: '#ffffffcc',
       }}
     >
+      {/* 'S'/'F' 한 글자 = 트레이스 위 아이콘 티어 마커. 20px 핀(테두리 2 → 내부 16px)에 갇힌 조형이라 14pt 플로어 면제 */}
       <Text style={{ fontSize: 10.5, fontWeight: '900', color: '#fff' }}>{label}</Text>
     </View>
   );
@@ -127,7 +128,7 @@ export function RunCard({ card, width = 340 }: { card: CollectCard; width?: numb
           <Text style={{ fontSize: 18.5, fontWeight: '800', color: card.locked ? p.dim : p.textStrong }}>
             {card.title}
           </Text>
-          <Text style={{ fontSize: 12.5, color: p.dim, marginTop: 1 }}>
+          <Text style={{ fontSize: 14, color: p.dim, marginTop: 1 }}>
             {card.series ? `${card.series} · ` : ''}
             {card.run?.location ? `${card.run.location} · ` : ''}
             {card.date ?? '달성 조건: 시리즈 코스 완주'}
@@ -139,7 +140,7 @@ export function RunCard({ card, width = 340 }: { card: CollectCard; width?: numb
             borderRadius: 99, paddingVertical: 4, paddingHorizontal: 10,
           }}
         >
-          <Text style={{ fontSize: 11.5, fontWeight: '800', color: card.locked ? p.dim : tierColor(card.tier) }}>
+          <Text style={{ fontSize: 14, fontWeight: '800', color: card.locked ? p.dim : tierColor(card.tier) }}>
             {card.locked ? '잠금' : card.run ? '도그스하이' : card.tier}
           </Text>
         </View>
@@ -151,11 +152,11 @@ export function RunCard({ card, width = 340 }: { card: CollectCard; width?: numb
           <HeatTrace points={card.run.trace} width={inner - 24} height={traceH} />
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#1b2f21', borderRadius: 10, paddingVertical: 6, paddingHorizontal: 10 }}>
-              <Text style={{ fontSize: 12.5, fontWeight: '800', color: colors.volt }}>컨디션 좋음</Text>
-              <Text style={{ fontSize: 13, color: colors.dimDark }}>평소보다 +12% 활동량</Text>
+              <Text style={{ fontSize: 14, fontWeight: '800', color: colors.volt }}>컨디션 좋음</Text>
+              <Text style={{ fontSize: 14, color: colors.dimDark }}>평소보다 +12% 활동량</Text>
             </View>
             <View style={{ backgroundColor: '#1b2330', borderRadius: 10, paddingVertical: 6, paddingHorizontal: 10 }}>
-              <Text style={{ fontSize: 12.5, fontWeight: '700', color: '#9fc3e8' }}>24°</Text>
+              <Text style={{ fontSize: 14, fontWeight: '700', color: '#9fc3e8' }}>24°</Text>
             </View>
           </View>
         </View>
@@ -203,7 +204,7 @@ function CardStat({ value, unit, color, dim }: { value: string; unit: string; co
   return (
     <View style={{ flex: 1, alignItems: 'center' }}>
       <Text style={{ fontSize: 23, fontWeight: '900', color }}>{value}</Text>
-      <Text style={{ fontSize: 11.5, color: dim, marginTop: 2 }}>{unit}</Text>
+      <Text style={{ fontSize: 14, color: dim, marginTop: 2 }}>{unit}</Text>
     </View>
   );
 }

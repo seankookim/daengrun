@@ -400,7 +400,7 @@ export default function ShotStudio() {
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 9 }}>
               <IconChip size={28} df={df} />
               <Text numberOfLines={2} style={{ flex: 1, fontSize: 14.5, fontWeight: '800', color: FOREST, fontStyle: 'italic' }}>
-                {dog}, {km}km 완주!! <Text style={{ fontSize: 11, color: '#5B594A' }}>{report.when.split(' ')[0]} {report.when.split(' ')[1]} · 도그스하이</Text>
+                {dog}, {km}km 완주!! <Text style={{ fontSize: 14, color: '#5B594A' }}>{report.when.split(' ')[0]} {report.when.split(' ')[1]} · 도그스하이</Text>
               </Text>
             </View>
             <View style={{ position: 'absolute', top: -12, left: '50%', marginLeft: -62 }}>
@@ -436,8 +436,8 @@ export default function ShotStudio() {
         <View style={{ position: 'absolute', bottom: 56, left: 18, right: 18, borderTopWidth: 2.5, borderTopColor: FOREST }}>
           {[['TIME', statLine.time], ['PACE', `${statLine.pace} /KM`], ...(recordLine ? [['RECORD', recordLine]] : [])].map(([l, v]) => (
             <View key={l} style={s.iRow}>
-              <Text style={{ fontSize: 11.5, fontWeight: '800', color: FOREST }}>{l}</Text>
-              <Text style={{ fontSize: 13.5, fontWeight: '900', color: FOREST }}>{v}</Text>
+              <Text style={{ fontSize: 14, fontWeight: '800', color: FOREST }}>{l}</Text>
+              <Text style={{ fontSize: 14, fontWeight: '900', color: FOREST }}>{v}</Text>
             </View>
           ))}
         </View>
@@ -535,7 +535,7 @@ export default function ShotStudio() {
           {/* 액션 바 */}
           <View style={s.actRow}>
             <Pressable onPress={onGhost} disabled={busy} style={[s.actGhost, busy && { opacity: 0.5 }]}>
-              <Text style={{ fontSize: 13.5, fontWeight: '800', color: '#b8c4ae' }}>{ghostLabel}</Text>
+              <Text style={{ fontSize: 14, fontWeight: '800', color: '#b8c4ae' }}>{ghostLabel}</Text>
             </Pressable>
             <Pressable onPress={onMain} disabled={busy} style={[s.actMain, busy && { opacity: 0.6 }]}>
               <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST }}>{mainLabel}</Text>
@@ -550,7 +550,7 @@ export default function ShotStudio() {
         <View style={s.sheet}>
           <View style={s.grab} />
           <Text style={[{ fontSize: 19, fontWeight: '900', color: FOREST }, df]}>사진 고르기</Text>
-          <Text style={{ fontSize: 12.5, color: colors.dim, marginTop: 3 }}>
+          <Text style={{ fontSize: 14, color: colors.dim, marginTop: 3 }}>
             {runPhotos.length > 0 ? '이 러닝에서 러너가 담아온 순간들이에요' : '이 러닝엔 러너 사진이 없어요 — 갤러리에서 골라주세요'}
           </Text>
           {runPhotos.length > 0 && (
@@ -564,7 +564,7 @@ export default function ShotStudio() {
             </View>
           )}
           <Pressable onPress={pickFromGallery} style={s.galBtn}>
-            <Text style={{ fontSize: 13.5, fontWeight: '800', color: colors.dim }}>🖼 내 갤러리에서 선택</Text>
+            <Text style={{ fontSize: 14, fontWeight: '800', color: colors.dim }}>🖼 내 갤러리에서 선택</Text>
           </Pressable>
           <Pressable onPress={confirmPhoto} disabled={!photos[sheetKey]} style={[s.sheetCta, !photos[sheetKey] && { opacity: 0.4 }]}>
             <Text style={{ fontSize: 15, fontWeight: '900', color: colors.volt }}>이 사진으로 만들기 ›</Text>
@@ -582,8 +582,8 @@ const s = StyleSheet.create({
   checker: { position: 'absolute', top: 0, left: 0, right: 0, borderRadius: 20, backgroundColor: '#3f443f', opacity: 0.6 },
   hudL: { fontSize: 9.5, letterSpacing: 2, color: '#e6efe0', fontWeight: '700', textShadowColor: 'rgba(0,0,0,.55)', textShadowRadius: 6, textShadowOffset: { width: 0, height: 1 } },
   hudV: { fontSize: 20, fontWeight: '900', color: '#fff', marginTop: 3, textShadowColor: 'rgba(0,0,0,.55)', textShadowRadius: 8, textShadowOffset: { width: 0, height: 1 } },
-  recordT: { fontSize: 13, fontWeight: '900', color: colors.volt, textAlign: 'center', marginTop: 12, textShadowColor: 'rgba(0,0,0,.5)', textShadowRadius: 6, textShadowOffset: { width: 0, height: 1 } },
-  noTrace: { position: 'absolute', left: 0, right: 0, textAlign: 'center', fontSize: 12.5, color: '#8fa093' },
+  recordT: { fontSize: 14, fontWeight: '900', color: colors.volt, textAlign: 'center', marginTop: 12, textShadowColor: 'rgba(0,0,0,.5)', textShadowRadius: 6, textShadowOffset: { width: 0, height: 1 } },
+  noTrace: { position: 'absolute', left: 0, right: 0, textAlign: 'center', fontSize: 14, color: '#8fa093' },
   dogTitle: { fontSize: 24, fontWeight: '900', color: '#fff', textShadowColor: 'rgba(0,0,0,.45)', textShadowRadius: 10, textShadowOffset: { width: 0, height: 2 } },
   scrimBottom: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 190, backgroundColor: 'rgba(10,16,10,.38)' },
   photoEmpty: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: '#1d3023' },
@@ -593,7 +593,7 @@ const s = StyleSheet.create({
   dots: { flexDirection: 'row', gap: 5, justifyContent: 'center', marginTop: 12 },
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#2c4034' },
   dotOn: { backgroundColor: colors.volt, width: 16 },
-  skinName: { fontSize: 11, color: '#5f6f5f', textAlign: 'center', marginTop: 7, fontWeight: '700' },
+  skinName: { fontSize: 14, color: '#5f6f5f', textAlign: 'center', marginTop: 7, fontWeight: '700' },
   actRow: { flexDirection: 'row', gap: 9, paddingHorizontal: 18, marginTop: 'auto', marginBottom: 34 },
   actGhost: { flex: 1, borderWidth: 1.5, borderColor: '#2c4034', borderRadius: 14, alignItems: 'center', paddingVertical: 13 },
   actMain: { flex: 1.4, backgroundColor: colors.volt, borderRadius: 14, alignItems: 'center', paddingVertical: 13 },

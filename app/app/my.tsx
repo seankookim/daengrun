@@ -161,7 +161,7 @@ export default function My() {
               {/* 사진 창 — 탭하면 프로필 사진 변경 (uploadAvatar) */}
               <Pressable onPress={pickPhoto} disabled={uploading} style={s.photoWin}>
                 <Avatar url={profile?.avatarUrl} char={(profile?.name ?? '나')[0]} bg={lilac.accent} size={56} />
-                <View style={s.cam}><Text style={{ fontSize: 11.5, color: '#fff' }}>{uploading ? '…' : '✎'}</Text></View>
+                <View style={s.cam}><Text style={{ fontSize: 14, color: '#fff' }}>{uploading ? '…' : '✎'}</Text></View>
               </Pressable>
 
               <View style={{ flex: 1, minWidth: 0 }}>
@@ -220,7 +220,7 @@ export default function My() {
         </View>
         <Row style={s.photoHint}>
           <View style={s.photoHintDot}><Text style={{ fontSize: 9, color: lilac.head }}>✎</Text></View>
-          <Text style={{ fontSize: 13.5, color: lilac.dim, flex: 1 }}>사진을 탭하면 프로필 사진을 바꿀 수 있어요</Text>
+          <Text style={{ fontSize: 14, color: lilac.dim, flex: 1 }}>사진을 탭하면 프로필 사진을 바꿀 수 있어요</Text>
         </Row>
 
         {/* ————— ② 기록면 — 나이트 라일락 앵커 (실데이터) ————— */}
@@ -403,14 +403,14 @@ const s = StyleSheet.create({
   fld: { marginBottom: 8 },
   fldK: { fontSize: 11.5, letterSpacing: 1.2, color: lilac.dim, textTransform: 'uppercase', marginBottom: 4 },
   fldV: { fontSize: 15, fontWeight: '800', color: lilac.head },
-  fldVSmall: { fontSize: 13, fontWeight: '600', color: lilac.text },
-  fldV2: { fontSize: 13.5, fontWeight: '600', color: lilac.text, lineHeight: 18 },
+  fldVSmall: { fontSize: 14, fontWeight: '600', color: lilac.text },
+  fldV2: { fontSize: 14, fontWeight: '600', color: lilac.text, lineHeight: 18 },
   idEdit: {
     marginTop: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     borderWidth: 1, borderColor: lilac.hair, backgroundColor: lilac.inset,
     borderRadius: lilacRadius.btn, paddingVertical: 10, paddingHorizontal: 11,
   },
-  idEditTxt: { fontSize: 13.5, fontWeight: '700', color: lilac.head },
+  idEditTxt: { fontSize: 14, fontWeight: '700', color: lilac.head },
   idEditEm: { fontSize: 11.5, letterSpacing: 1.4, color: lilac.accent, textTransform: 'uppercase' },
   idGrid: { marginTop: 10, marginHorizontal: -12, borderTopWidth: 1, borderTopColor: lilac.hair2 },
   idCell: { flex: 1, paddingTop: 9, paddingBottom: 10, paddingLeft: 12 },
@@ -432,16 +432,16 @@ const s = StyleSheet.create({
   recordKick: { fontSize: 12, letterSpacing: 1.8, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase' },
   recDiv: { borderLeftWidth: 1, borderLeftColor: 'rgba(255,255,255,0.13)', paddingLeft: 11 },
   recN: { fontSize: 23, lineHeight: 28, fontWeight: '800', color: '#fff' },
-  recU: { fontSize: 13, fontWeight: '500', color: 'rgba(255,255,255,0.55)' },
-  recL: { fontSize: 13, color: 'rgba(255,255,255,0.62)', marginTop: 4 },
+  recU: { fontSize: 14, fontWeight: '500', color: 'rgba(255,255,255,0.55)' },
+  recL: { fontSize: 14, color: 'rgba(255,255,255,0.62)', marginTop: 4 },
   recGoWrap: { marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.13)', alignItems: 'flex-end' },
-  recGo: { fontSize: 13, fontWeight: '700', color: '#fff' },
+  recGo: { fontSize: 14, fontWeight: '700', color: '#fff' },
 
   // 섹션 라벨
   sec: { alignItems: 'center', gap: 8, marginTop: 18, marginBottom: 9, marginHorizontal: 2 },
-  secNo: { fontSize: 12, color: lilac.accent, fontWeight: '600' },
+  secNo: { fontSize: 12, color: lilac.accent, fontWeight: '600' }, // 글리프 전용(§) — 12pt 플로어 면제
   secT: { fontSize: 12, letterSpacing: 2, color: lilac.dim, textTransform: 'uppercase' },
-  secKo: { fontSize: 12.5, fontWeight: '700', color: lilac.text },
+  secKo: { fontSize: 14, fontWeight: '700', color: lilac.text },
 
   // ④ 서류행
   doc: { backgroundColor: lilac.card, borderWidth: 1, borderColor: lilac.hair, borderRadius: lilacRadius.card, overflow: 'hidden', ...lilacShadow },
@@ -450,7 +450,7 @@ const s = StyleSheet.create({
   drowTick: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 3 },
   drowIcon: { width: 27, height: 27, borderRadius: lilacRadius.inner, alignItems: 'center', justifyContent: 'center', marginLeft: 11, marginRight: 10 },
   drowTitle: { fontSize: 14, fontWeight: '700', color: lilac.head },
-  drowDesc: { fontSize: 13, color: lilac.dim, marginTop: 2, lineHeight: 17 },
+  drowDesc: { fontSize: 14, color: lilac.dim, marginTop: 2, lineHeight: 18 },
 
   // ⑤ 큰 버튼
   btnRole: {
@@ -469,7 +469,7 @@ const s = StyleSheet.create({
   },
   signoutTick: { width: 3, height: 30, borderRadius: 2, backgroundColor: lilac.coralDeep },
   signoutTitle: { fontSize: 14, fontWeight: '700', color: lilac.head },
-  signoutSub: { fontSize: 13, color: lilac.dim, marginTop: 2 },
+  signoutSub: { fontSize: 14, color: lilac.dim, marginTop: 2 },
 
   // ⑥ 콜로폰
   colophon: { marginTop: 18, paddingTop: 12, borderTopWidth: 1, borderTopColor: lilac.hair, alignItems: 'center' },

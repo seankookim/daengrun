@@ -42,7 +42,7 @@ export default function CaseDetail() {
     return (
       <DawnCanvas>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-          <Text style={{ fontSize: 13, color: L.dim }}>케이스 당사자만 볼 수 있어요</Text>
+          <Text style={{ fontSize: 14, color: L.dim }}>케이스 당사자만 볼 수 있어요</Text>
           <ClubCta label="돌아가기" tone="quiet" onPress={() => router.back()} style={{ alignSelf: 'stretch' }} />
         </View>
       </DawnCanvas>
@@ -52,7 +52,7 @@ export default function CaseDetail() {
     return (
       <DawnCanvas>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-          <Text style={{ fontSize: 13, color: L.dim }}>{loadErr ? '케이스를 불러오지 못했어요' : '불러오는 중...'}</Text>
+          <Text style={{ fontSize: 14, color: L.dim }}>{loadErr ? '케이스를 불러오지 못했어요' : '불러오는 중...'}</Text>
           {loadErr && <ClubCta label="다시 시도" onPress={() => { setLoadErr(false); load(); }} style={{ alignSelf: 'stretch', paddingVertical: 17 }} />}
           <ClubCta label="돌아가기" tone="quiet" onPress={() => router.back()} style={{ alignSelf: 'stretch' }} />
         </View>
@@ -98,7 +98,7 @@ export default function CaseDetail() {
             <ClubTag label={open ? '진행 중' : '해소'} tone={open ? 'amber' : 'volt'} />
           </Row>
           <Text style={{ fontSize: 14.5, fontWeight: '800', color: open ? L.tang : L.head, marginTop: 9 }}>{inc.summary}</Text>
-          <Text style={{ fontSize: 10.5, color: L.text, marginTop: 7 }}>
+          <Text style={{ fontSize: 14, color: L.text, marginTop: 7 }}>
             개설 {inc.openedByName} · 케이스 오너 <Text style={{ fontWeight: '800', color: L.head }}>{inc.caseOwnerName ?? '미지정'}</Text>
           </Text>
           {!open && <View style={{ marginTop: 8, alignSelf: 'flex-start' }}><Flap word="RESOLVED" /></View>}
@@ -107,11 +107,11 @@ export default function CaseDetail() {
         {/* ---------- 타임라인 (증거 seq — 서버 순서만 신뢰) ---------- */}
         <View style={s.sechead}><Text style={s.secheadTitle}>기록</Text></View>
         <View style={s.tl}>
-          {inc.evidence.length === 0 && <Text style={{ fontSize: 10.5, color: L.dim, paddingVertical: 6 }}>아직 기록이 없어요</Text>}
+          {inc.evidence.length === 0 && <Text style={{ fontSize: 14, color: L.dim, paddingVertical: 6 }}>아직 기록이 없어요</Text>}
           {inc.evidence.map((e, i) => (
             <View key={i} style={s.ev}>
               <View style={[s.evDot, e.kind === 'location' && { backgroundColor: L.tang }]} />
-              <Text style={{ fontSize: 10.5, color: L.text, flex: 1, lineHeight: 16 }}>
+              <Text style={{ fontSize: 14, color: L.text, flex: 1, lineHeight: 18 }}>
                 <Text style={{ fontSize: 8.5, color: L.dim }}>{e.when} </Text>
                 <Text style={{ fontWeight: '800', color: L.head }}>{KIND_LABEL[e.kind] ?? e.kind}</Text>
                 {e.kind === 'text' && e.payload?.note ? ` — ${e.payload.note}` : ''}
@@ -128,7 +128,7 @@ export default function CaseDetail() {
             <TextInput value={note} onChangeText={setNote} placeholder="상황 기록 추가..." placeholderTextColor={L.dim}
               style={s.inputField} multiline />
             <Pressable onPress={addNote} style={s.sendBtn}>
-              <Text style={{ fontSize: 11, fontWeight: '900', color: '#fff' }}>{busy ? '...' : '기록'}</Text>
+              <Text style={{ fontSize: 14, fontWeight: '900', color: '#fff' }}>{busy ? '...' : '기록'}</Text>
             </Pressable>
           </Row>
         )}
@@ -136,7 +136,7 @@ export default function CaseDetail() {
         {/* [0052 §7] 해소는 케이스 오너 또는 호스트/백업 호스트 — isHost는 서버 판정이라 클라가 추측하지 않는다.
             (db push 전 원격에선 undefined → 예전대로 케이스 오너에게만 보인다) */}
         {open && (iOwn || inc.isHost === true) && <ClubCta label="케이스 해소" onPress={doResolve} busy={busy} style={{ marginTop: 14 }} />}
-        <Text style={{ fontSize: 10, color: L.dim, marginTop: 12, textAlign: 'center' }}>
+        <Text style={{ fontSize: 14, color: L.dim, marginTop: 12, textAlign: 'center' }}>
           케이스는 세션이 끝나도 계속돼요 — 해소되면 알려드려요
         </Text>
       </ScrollView>
@@ -146,7 +146,7 @@ export default function CaseDetail() {
 
 const s = StyleSheet.create({
   sechead: { marginTop: 14, paddingBottom: 6, borderBottomWidth: 1, borderBottomColor: L.hair2 },
-  secheadTitle: { fontSize: 12.5, fontWeight: '800', color: L.head },
+  secheadTitle: { fontSize: 14, fontWeight: '800', color: L.head },
   tl: { borderLeftWidth: 2, borderLeftColor: L.hair, paddingLeft: 12, marginTop: 10, marginLeft: 3 },
   ev: { flexDirection: 'row', gap: 0, paddingVertical: 5 },
   evDot: { position: 'absolute', left: -16.5, top: 10, width: 7, height: 7, borderRadius: 4, backgroundColor: '#CFC8EC' },
@@ -156,7 +156,7 @@ const s = StyleSheet.create({
   },
   inputField: {
     flex: 1, backgroundColor: '#fff', borderWidth: 1, borderColor: L.hair, borderRadius: lilacRadius.btn,
-    paddingVertical: 8, paddingHorizontal: 12, fontSize: 12, color: L.head, maxHeight: 90,
+    paddingVertical: 8, paddingHorizontal: 12, fontSize: 14, color: L.head, maxHeight: 90,
   },
   sendBtn: { backgroundColor: L.accent, borderRadius: lilacRadius.btn, paddingVertical: 10, paddingHorizontal: 13 },
 });

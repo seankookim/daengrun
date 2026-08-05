@@ -105,8 +105,8 @@ export default function Meetup() {
             <View key={i} style={[s.pathDot, { left: 40 + i * 44, top: 190 - i * 22 }]} />
           ))}
         </View>
-        <View style={s.mePin}><Text style={{ fontSize: 10.5, fontWeight: '900', color: '#fff' }}>나</Text></View>
-        <View style={s.pickupPin}><Text style={{ fontSize: 10.5, fontWeight: '900', color: '#fff' }}>픽업</Text></View>
+        <View style={s.mePin}><Text style={{ fontSize: 14, fontWeight: '900', color: '#fff' }}>나</Text></View>
+        <View style={s.pickupPin}><Text style={{ fontSize: 14, fontWeight: '900', color: '#fff' }}>픽업</Text></View>
 
         <Row style={s.topBar}>
           <Pressable onPress={() => router.back()} style={s.circleBtn}><Text style={{ fontSize: 20.5 }}>‹</Text></Pressable>
@@ -125,7 +125,7 @@ export default function Meetup() {
           <Row style={{ justifyContent: 'space-between' }}>
             <Text style={{ fontSize: 17, fontWeight: '900', color: FOREST }}>{PICKUP.name}</Text>
             <Pressable onPress={openNaverRoute} style={{ backgroundColor: '#eef4e0', borderRadius: 99, paddingVertical: 7, paddingHorizontal: 12 }}>
-              <Text style={{ fontSize: 13, fontWeight: '800', color: '#4a6d1f' }}>네이버 길찾기 ›</Text>
+              <Text style={{ fontSize: 14, fontWeight: '800', color: '#4a6d1f' }}>네이버 길찾기 ›</Text>
             </Pressable>
           </Row>
           <Text style={{ fontSize: 14, color: '#49524a', marginTop: 5, lineHeight: 19.5 }}>
@@ -147,7 +147,7 @@ export default function Meetup() {
               </Text>
             </View>
             <Pressable style={s.chatChip} onPress={() => router.push({ pathname: '/chat', params: jobId ? { bid: jobId } : {} })}>
-              <Text style={{ fontSize: 12.5, fontWeight: '800', color: '#4a6d1f' }}>보호자 채팅</Text>
+              <Text style={{ fontSize: 14, fontWeight: '800', color: '#4a6d1f' }}>보호자 채팅</Text>
             </Pressable>
           </Row>
         </View>

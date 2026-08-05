@@ -235,7 +235,7 @@ export default function Request() {
             <Text style={[{ fontSize: 27.5, fontWeight: '900', color: FOREST }, df]}>러닝 요청</Text>
           </View>
           <View style={s.livePill}>
-            <Text style={{ fontSize: 12.5, fontWeight: '800', color: '#4a6d1f' }}>
+            <Text style={{ fontSize: 14, fontWeight: '800', color: '#4a6d1f' }}>
               {preferred ? `★ ${draft.preferredRunnerName ?? '지명'} 러너` : '● 안심 결제'}
             </Text>
           </View>
@@ -256,7 +256,7 @@ export default function Request() {
               <Text style={{ fontWeight: '900' }}>{myDog?.name ?? dog.name}</Text>
               {'  ·  '}{myDog?.breed ?? dog.breed}{'  ·  '}{myDog?.weightKg ?? dog.weightKg}kg
             </Text>
-            <Text style={{ fontSize: 13, fontWeight: '800', color: '#5a7a3c' }}>프로필 ›</Text>
+            <Text style={{ fontSize: 14, fontWeight: '800', color: '#5a7a3c' }}>프로필 ›</Text>
           </Pressable>
           <View style={{ height: 1, backgroundColor: '#DCD6C4', marginVertical: 13 }} />
           <Pressable
@@ -349,7 +349,7 @@ export default function Request() {
           sub={routesLive ? '· 실시간 코스 정보' : '· 모든 코스는 도그스하이가 직접 점검해요'}
         />
         {/* 지리 고지 — 코스와 픽업지는 별개라는 걸 예약 전에 정직하게 (좌표 모델링 전 v1) */}
-        <Text style={{ fontSize: 12, color: '#82887a', marginBottom: 10 }}>
+        <Text style={{ fontSize: 14, color: '#82887a', marginBottom: 10 }}>
           픽업 후 코스까지는 러너가 아이와 함께 이동해요
         </Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingRight: 12 }}>
@@ -363,12 +363,12 @@ export default function Request() {
                 style={[s.routeCard, isBest && { backgroundColor: '#DDF0A6', borderColor: '#c3dd76' }, sel && { borderColor: colors.volt, borderWidth: 2 }]}
               >
                 <View style={[s.routeTab, !isBest && { backgroundColor: FOREST }]}>
-                  <Text style={{ fontSize: 11.5, fontWeight: '900', color: isBest ? colors.volt : '#fff' }}>
+                  <Text style={{ fontSize: 14, fontWeight: '900', color: isBest ? colors.volt : '#fff' }}>
                     {isBest ? '★ 추천 코스' : '안심 코스'}
                   </Text>
                 </View>
                 <View style={s.fitPillR}>
-                  <Text style={{ fontSize: 11.5, fontWeight: '900', color: FOREST }}>적합도 {r.fit}%</Text>
+                  <Text style={{ fontSize: 14, fontWeight: '900', color: FOREST }}>적합도 {r.fit}%</Text>
                 </View>
 
                 <Row style={{ gap: 5, marginTop: 22 }}>
@@ -381,7 +381,7 @@ export default function Request() {
                 </Text>
                 {r.km !== km && (
                   <View style={s.kmMismatch}>
-                    <Text style={{ fontSize: 10.5, fontWeight: '800', color: '#9D580A' }}>
+                    <Text style={{ fontSize: 14, fontWeight: '800', color: '#9D580A' }}>
                       선택 거리와 달라요 — 요금·기록은 {km}km 기준
                     </Text>
                   </View>
@@ -391,14 +391,14 @@ export default function Request() {
                   <HeatTrace points={r.trace} width={208} height={92} />
                   {/* 코스 미리보기 — 트레이스·설명·점검일·우리 기록 (탭=선택은 카드가, 미리보기는 이 칩만) */}
                   <Pressable onPress={() => router.push(`/course/${r.id}`)} style={s.previewChip} hitSlop={6}>
-                    <Text style={{ fontSize: 11, fontWeight: '900', color: FOREST }}>미리보기 ›</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '900', color: FOREST }}>미리보기 ›</Text>
                   </Pressable>
                 </View>
 
                 <Row style={{ gap: 4, marginTop: 9, flexWrap: 'wrap' }}>
                   {r.tags.map((tag) => (
                     <View key={tag} style={[s.routeTag, isBest && { backgroundColor: '#ffffffcc' }]}>
-                      <Text style={{ fontSize: 11, fontWeight: '800', color: '#4a6d1f' }}>{tag}</Text>
+                      <Text style={{ fontSize: 14, fontWeight: '800', color: '#4a6d1f' }}>{tag}</Text>
                     </View>
                   ))}
                 </Row>
@@ -465,7 +465,7 @@ export default function Request() {
             </Text>
           </View>
           <Pressable onPress={() => setSlotSheet(true)} style={s.timeChip}>
-            <Text style={{ fontSize: 13, fontWeight: '900', color: '#0F1D13' }} numberOfLines={1}>
+            <Text style={{ fontSize: 14, fontWeight: '900', color: '#0F1D13' }} numberOfLines={1}>
               {draft.scheduledAtIso ? timeLabel : '시간 선택 ›'}
             </Text>
           </Pressable>
@@ -500,20 +500,20 @@ export default function Request() {
           <View style={s.sheetHandle} />
           <Text style={{ fontSize: 19.5, fontWeight: '900', color: FOREST }}>언제 달릴까요?</Text>
           {preferred && (
-            <Text style={{ fontSize: 12.5, color: '#5a7a3c', marginTop: 4, fontWeight: '700' }}>
+            <Text style={{ fontSize: 14, color: '#5a7a3c', marginTop: 4, fontWeight: '700' }}>
               ★ {draft.preferredRunnerName ?? '지명'} 러너의 가능 시간만 선택할 수 있어요
             </Text>
           )}
 
           <Row style={{ gap: 8, marginTop: 12 }}>
             <View style={[s.methodChip, { backgroundColor: FOREST }]}>
-              <Text style={{ fontSize: 13, fontWeight: '800', color: '#fff' }}>날짜·시간 선택</Text>
+              <Text style={{ fontSize: 14, fontWeight: '800', color: '#fff' }}>날짜·시간 선택</Text>
             </View>
             <Pressable style={s.methodChip} onPress={pickEarliest}>
-              <Text style={{ fontSize: 13, fontWeight: '700', color: '#3d453d' }}>가장 빠른 시간</Text>
+              <Text style={{ fontSize: 14, fontWeight: '700', color: '#3d453d' }}>가장 빠른 시간</Text>
             </Pressable>
             <View style={[s.methodChip, { opacity: 0.45 }]}>
-              <Text style={{ fontSize: 13, fontWeight: '700', color: '#3d453d' }}>반복 예약 (준비 중)</Text>
+              <Text style={{ fontSize: 14, fontWeight: '700', color: '#3d453d' }}>반복 예약 (준비 중)</Text>
             </View>
           </Row>
 
@@ -521,9 +521,9 @@ export default function Request() {
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 16 }} contentContainerStyle={{ gap: 8 }}>
             {DATES.map((d, i) => (
               <Pressable key={d.date.toISOString()} onPress={() => setDateIdx(i)} style={[s.dateChip, dateIdx === i && { backgroundColor: FOREST }]}>
-                <Text style={{ fontSize: 13, color: dateIdx === i ? '#b8c4ae' : colors.dim }}>{d.w}</Text>
+                <Text style={{ fontSize: 14, color: dateIdx === i ? '#b8c4ae' : colors.dim }}>{d.w}</Text>
                 <Text style={{ fontSize: 18.5, fontWeight: '900', color: dateIdx === i ? '#fff' : FOREST }}>{d.d}</Text>
-                {d.label && <Text style={{ fontSize: 10, fontWeight: '700', color: dateIdx === i ? colors.volt : '#5a7a3c' }}>{d.label}</Text>}
+                {d.label && <Text style={{ fontSize: 14, fontWeight: '700', color: dateIdx === i ? colors.volt : '#5a7a3c' }}>{d.label}</Text>}
               </Pressable>
             ))}
           </ScrollView>
@@ -544,7 +544,7 @@ export default function Request() {
                         style={[s.slot, !ok && { opacity: 0.35 }]}
                       >
                         <Text style={{ fontSize: 16, fontWeight: '800', color: FOREST }}>{t}</Text>
-                        <Text style={{ fontSize: 12.5, color: ok ? '#5a7a3c' : colors.dim, marginTop: 2 }}>
+                        <Text style={{ fontSize: 14, color: ok ? '#5a7a3c' : colors.dim, marginTop: 2 }}>
                           {ok ? '가능' : prefRules ? '러너 불가' : '마감'}
                         </Text>
                       </Pressable>
@@ -568,7 +568,7 @@ export default function Request() {
             <Text style={{ fontSize: 15, color: colors.dim, marginTop: 8, textAlign: 'center' }}>
               {timeLabel} 슬롯이 결제 완료까지{'\n'}다른 보호자에게 보이지 않아요
             </Text>
-            <Text style={{ fontSize: 13, fontWeight: '800', marginTop: 10, color: holdLive === true ? '#4a6d1f' : colors.dim }}>
+            <Text style={{ fontSize: 14, fontWeight: '800', marginTop: 10, color: holdLive === true ? '#4a6d1f' : colors.dim }}>
               {holdLive === true ? '● 서버 홀드 확보 — 예약이 생성됐어요' : '서버 연결 중...'}
             </Text>
           </View>
@@ -587,7 +587,7 @@ function SectionHead({ glyph, title, side, sub }: { glyph: string; title: string
         {sub && <Text style={{ fontSize: 14, color: colors.dim, alignSelf: 'flex-end', flex: 1 }} numberOfLines={1}>{sub}</Text>}
       </Row>
       {side && (
-        <View style={s.sideBtn}><Text style={{ fontSize: 12.5, fontWeight: '700', color: '#3d453d' }}>{side}</Text></View>
+        <View style={s.sideBtn}><Text style={{ fontSize: 14, fontWeight: '700', color: '#3d453d' }}>{side}</Text></View>
       )}
     </Row>
   );

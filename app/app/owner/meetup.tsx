@@ -99,9 +99,9 @@ export default function OwnerMeetup() {
           <View key={i} style={[s.pathDot, { right: 60 + i * 42, top: 80 + i * 26, opacity: stage === 'enroute' ? 1 : 0.3 }]} />
         ))}
         <View style={[s.runnerPin, stage !== 'enroute' && { right: 260, top: 196 }]}>
-          <Text style={{ fontSize: 10.5, fontWeight: '900', color: '#fff' }}>{runnerName[0]}</Text>
+          <Text style={{ fontSize: 14, fontWeight: '900', color: '#fff' }}>{runnerName[0]}</Text>
         </View>
-        <View style={s.pickupPin}><Text style={{ fontSize: 10.5, fontWeight: '900', color: '#fff' }}>픽업</Text></View>
+        <View style={s.pickupPin}><Text style={{ fontSize: 14, fontWeight: '900', color: '#fff' }}>픽업</Text></View>
 
         <Row style={s.topBar}>
           <Pressable onPress={() => router.back()} style={s.circleBtn}><Text style={{ fontSize: 20.5 }}>‹</Text></Pressable>
@@ -122,14 +122,14 @@ export default function OwnerMeetup() {
             <View style={{ flex: 1 }}>
               <Row style={{ gap: 6 }}>
                 <Text style={{ fontSize: 17, fontWeight: '900', color: FOREST }}>{runnerName} 러너</Text>
-                <View style={s.badgePill}><Text style={{ fontSize: 10, fontWeight: '800', color: '#4a6d1f' }}>신원인증</Text></View>
+                <View style={s.badgePill}><Text style={{ fontSize: 14, fontWeight: '800', color: '#4a6d1f' }}>신원인증</Text></View>
               </Row>
               <Text style={{ fontSize: 15, color: colors.dim, marginTop: 3 }}>
                 {info ? `${info.when} · ${info.routeName} ${info.km}km` : '예약 정보 불러오는 중...'}
               </Text>
             </View>
             <Pressable style={s.chatChip} onPress={() => router.push({ pathname: '/chat', params: bookingId ? { bid: bookingId } : {} })}>
-              <Text style={{ fontSize: 12.5, fontWeight: '800', color: '#4a6d1f' }}>채팅</Text>
+              <Text style={{ fontSize: 14, fontWeight: '800', color: '#4a6d1f' }}>채팅</Text>
             </Pressable>
           </Row>
         </View>

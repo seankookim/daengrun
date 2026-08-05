@@ -1,9 +1,9 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useRef, useState } from 'react';
-import { Alert, Image, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Alert, Animated, Easing, Image, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { Row } from '../../../src/components/ui';
 import { ClubCta, ClubMast, DawnCanvas, Flap } from '../../../src/components/club-ui';
-import { fetchRunReport, runPhotoAllowed, RunReport, shareRunToFeed } from '../../../src/lib/api';
+import { fetchRunReport, runPhotoAllowed, RunReport, sealStampFresh, shareRunToFeed } from '../../../src/lib/api';
 import { useDisplayFont } from '../../../src/lib/displayFont';
 import { useNumFont } from '../../../src/lib/fonts';
 import { haptic } from '../../../src/lib/haptics';
@@ -34,11 +34,55 @@ export default function ClubReceipt() {
   }, [bid]);
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
+  // ---------- ② 실 스탬프 (정본: docs/labs/choreography-lab.html ②) ----------
+  // 이 예약의 첫 진입에서만 도장이 내려온다. 재진입(포커스 재로드 포함)은 전부 정지값 — opacity 1 · scale 1 · -8deg.
+  // [리뷰 P1] 1회 토큰을 첫 렌더(= 항상 로딩 분기)에서 태우면, 로딩 중 뒤로 나간 사용자는 그 예약의
+  // 도장을 앱 세션 내내 영영 못 본다. 토큰은 '카드가 실제로 그려지는 순간'에만 태운다.
+  const stamp = useRef(new Animated.Value(1)).current;  // 0 = 공중, 1 = 종이에 찍힘 (정지값)
+  const ripple = useRef(new Animated.Value(0)).current; // 착지 파문 (0 = 없음, 1 = 다 퍼짐)
+  const dip = useRef(new Animated.Value(0)).current;    // 종이 눌림 (캡처 대상 밖 래퍼에만)
+  const [stamping, setStamping] = useState(false);      // 캡처 게이트 — 도장이 나는 동안 공유 잠금
+  const [fresh, setFresh] = useState(false);
+  const consumedRef = useRef(false);
+  useEffect(() => {
+    if (report?.run && !consumedRef.current && bid) {
+      consumedRef.current = true; // 이 마운트에서 판정은 1회 (포커스 재로드가 토큰을 또 묻지 않게)
+      // 판정과 같은 틱에 실을 공중으로 올린다 — 정지 상태가 한 프레임 스쳤다 사라지는 걸 최소화
+      if (sealStampFresh(bid)) { stamp.setValue(0); setFresh(true); }
+    }
+  }, [report?.run, bid, stamp]);
+  const stampable = fresh && !!report?.run; // 카드가 실제로 그려진 뒤에 찍는다
+  useEffect(() => {
+    if (!stampable) return;
+    let alive = true; // 도장 중 이탈해도 언마운트 뒤 상태를 건드리지 않는다 (fonts.ts와 같은 문법)
+    stamp.setValue(0);
+    ripple.setValue(0);
+    setStamping(true);
+    const seq = Animated.sequence([
+      Animated.delay(350), // 카드가 먼저 보이고 → 도장이 내려온다
+      Animated.parallel([
+        Animated.timing(stamp, { toValue: 1, duration: 340, easing: Easing.bezier(0.5, 0, 0.7, 0.35), useNativeDriver: true }),
+        // 착지(≈310ms) 순간: 종이가 눌리고(200ms) 파문이 퍼진다(550ms)
+        Animated.sequence([
+          Animated.delay(310),
+          Animated.timing(dip, { toValue: 1, duration: 70, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+          Animated.timing(dip, { toValue: 0, duration: 130, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+        ]),
+        Animated.sequence([
+          Animated.delay(310),
+          Animated.timing(ripple, { toValue: 1, duration: 550, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+        ]),
+      ]),
+    ]);
+    seq.start(() => { if (alive) setStamping(false); });
+    return () => { alive = false; seq.stop(); };
+  }, [stampable, stamp, ripple, dip]);
+
   if (!report) {
     return (
       <DawnCanvas>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontSize: 13, color: L.dim }}>불러오는 중...</Text>
+          <Text style={{ fontSize: 14, color: L.dim }}>불러오는 중...</Text>
         </View>
       </DawnCanvas>
     );
@@ -47,7 +91,7 @@ export default function ClubReceipt() {
     return (
       <DawnCanvas>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-          <Text style={{ fontSize: 13, color: L.dim }}>완료된 러닝만 영수증이 나와요</Text>
+          <Text style={{ fontSize: 14, color: L.dim }}>완료된 러닝만 영수증이 나와요</Text>
           <ClubCta label="돌아가기" tone="quiet" onPress={() => router.back()} style={{ alignSelf: 'stretch' }} />
         </View>
       </DawnCanvas>
@@ -61,6 +105,7 @@ export default function ClubReceipt() {
 
   // 카드 캡처 → 시스템 공유 시트 (인증샷 화면 선례 — view-shot 지연 로드, 미탑재 빌드는 정직 안내)
   const shareImage = async () => {
+    if (stamping) return; // ② 도장이 나는 동안엔 캡처 금지 — 비행 중 트랜스폼이 PNG에 박힌다 (버튼도 비활성)
     try {
       const VS = require('react-native-view-shot');
       const uri = await VS.captureRef(cardRef, { format: 'png', quality: 1 });
@@ -97,51 +142,72 @@ export default function ClubReceipt() {
         <ClubMast title="완료" sub={`${report.when}${clubName ? ` · ${clubName}` : ''}`} onBack={() => router.back()} />
 
         {/* ---------- 영수증 카드 (캡처 대상) ---------- */}
-        <View ref={cardRef} collapsable={false} style={s.card}>
-          <View pointerEvents="none" style={s.innerFrame} />
-          {/* 베스트 샷 인화 — 있으면 사진이 카드의 상단을 산다, 골드 실이 반쯤 걸친다 */}
-          {bestShot && (
-            <View style={s.photoWrap}>
-              <Image source={{ uri: bestShot }} style={s.photo} resizeMode="cover" />
+        {/* ② 종이 눌림은 캡처 대상 '밖' 래퍼에만 — 찍힌 PNG에 비행 중 트랜스폼이 섞이면 안 된다 */}
+        <Animated.View style={{ transform: [{ translateY: dip.interpolate({ inputRange: [0, 1], outputRange: [0, 2] }) }] }}>
+          <View ref={cardRef} collapsable={false} style={s.card}>
+            <View pointerEvents="none" style={s.innerFrame} />
+            {/* 베스트 샷 인화 — 있으면 사진이 카드의 상단을 산다, 골드 실이 반쯤 걸친다 */}
+            {bestShot && (
+              <View style={s.photoWrap}>
+                <Image source={{ uri: bestShot }} style={s.photo} resizeMode="cover" />
+              </View>
+            )}
+            <View style={{ alignItems: 'center', marginTop: bestShot ? -26 : 16 }}>
+              <View style={s.sealStage}>
+                {/* 착지 파문 — 실과 같은 62 원, 골드 테두리만 남기고 퍼지며 사라진다 */}
+                <Animated.View pointerEvents="none" style={[s.sealRipple, {
+                  // 0 = 아직 안 찍힘 → 투명 (내려오는 동안·재진입 시 파문은 없다. 랩의 fill-mode:none과 같은 뜻).
+                  // 착지 순간 0.7에서 출발해 1.9배로 퍼지며 사라진다.
+                  opacity: ripple.interpolate({ inputRange: [0, 0.0001, 1], outputRange: [0, 0.7, 0] }),
+                  transform: [{ scale: ripple.interpolate({ inputRange: [0, 1], outputRange: [1, 1.9] }) }],
+                }]} />
+                <Animated.View style={[s.goldSeal, {
+                  opacity: stamp.interpolate({ inputRange: [0, 0.55, 1], outputRange: [0, 1, 1], extrapolate: 'clamp' }),
+                  transform: [
+                    { scale: stamp.interpolate({ inputRange: [0, 1], outputRange: [2.6, 1] }) },
+                    { rotate: stamp.interpolate({ inputRange: [0, 1], outputRange: ['-14deg', '-8deg'] }) },
+                  ],
+                }]}>
+                  <Text style={s.goldSealTxt}>SETTLED</Text>
+                </Animated.View>
+              </View>
             </View>
-          )}
-          <View style={{ alignItems: 'center', marginTop: bestShot ? -26 : 16 }}>
-            <View style={s.goldSeal}>
-              <Text style={s.goldSealTxt}>SETTLED</Text>
+            <View style={{ alignItems: 'center', paddingBottom: 18, paddingHorizontal: 14 }}>
+              <Text style={[{ fontSize: 19, color: L.head, marginTop: 10 }, df]}>
+                {report.dogName}, 오늘 <Text style={{ color: L.coral }}>{run.actualKm.toFixed(1)}km</Text>
+              </Text>
+              <Text style={{ fontSize: 14, color: L.dim, marginTop: 4 }}>
+                {report.runnerName ? `${report.runnerName}와 · ` : ''}{pace} · {durStr(run.durationSec)}
+              </Text>
+              <View style={{ marginTop: 10 }}>
+                <Flap state="SETTLED" />
+              </View>
+              {/* 수치 룰 행 */}
+              <Row style={s.numRow}>
+                <View style={s.numCell}>
+                  <Text style={[s.numV, nf]}>{run.actualKm.toFixed(1)}<Text style={{ fontSize: 14, color: L.coral }}>km</Text></Text>
+                  <Text style={s.numL}>실측 거리</Text>
+                </View>
+                <View style={s.numCell}>
+                  <Text style={[s.numV, nf]}>{pace}</Text>
+                  <Text style={s.numL}>페이스</Text>
+                </View>
+                <View style={[s.numCell, { borderRightWidth: 0 }]}>
+                  <Text style={[s.numV, nf]}>{durStr(run.durationSec)}</Text>
+                  <Text style={s.numL}>시간</Text>
+                </View>
+              </Row>
+              {/* 크레딧 라인 — 항상 (사진법 6조). [FLOOR14] 클럽·코스 이름(한글)은 트래킹 라틴 마이크로에서
+                  분리해 읽는 크기로 세우고, 'DOGS HIGH'만 각인 세리얼로 남는다 */}
+              <Text style={s.creditName}>{clubName || report.routeName || 'HIGH CLUB'}</Text>
+              <Text style={s.credit}>DOGS HIGH</Text>
             </View>
           </View>
-          <View style={{ alignItems: 'center', paddingBottom: 18, paddingHorizontal: 14 }}>
-            <Text style={[{ fontSize: 19, color: L.head, marginTop: 10 }, df]}>
-              {report.dogName}, 오늘 <Text style={{ color: L.coral }}>{run.actualKm.toFixed(1)}km</Text>
-            </Text>
-            <Text style={{ fontSize: 11, color: L.dim, marginTop: 4 }}>
-              {report.runnerName ? `${report.runnerName}와 · ` : ''}{pace} · {durStr(run.durationSec)}
-            </Text>
-            <View style={{ marginTop: 10 }}>
-              <Flap state="SETTLED" />
-            </View>
-            {/* 수치 룰 행 */}
-            <Row style={s.numRow}>
-              <View style={s.numCell}>
-                <Text style={[s.numV, nf]}>{run.actualKm.toFixed(1)}<Text style={{ fontSize: 11, color: L.coral }}>km</Text></Text>
-                <Text style={s.numL}>실측 거리</Text>
-              </View>
-              <View style={s.numCell}>
-                <Text style={[s.numV, nf]}>{pace}</Text>
-                <Text style={s.numL}>페이스</Text>
-              </View>
-              <View style={[s.numCell, { borderRightWidth: 0 }]}>
-                <Text style={[s.numV, nf]}>{durStr(run.durationSec)}</Text>
-                <Text style={s.numL}>시간</Text>
-              </View>
-            </Row>
-            {/* 크레딧 라인 — 항상 (사진법 6조) */}
-            <Text style={s.credit}>{clubName || report.routeName || 'HIGH CLUB'} · DOGS HIGH</Text>
-          </View>
-        </View>
+        </Animated.View>
 
         {/* ---------- 공유 = 성장 루프 (카드 밖 — 캡처에 안 들어간다). [Sean 규칙] 여백 화면 = 큰 버튼 ---------- */}
-        <ClubCta label="이미지로 공유 →" onPress={shareImage} style={{ marginTop: 14, paddingVertical: 18 }} />
+        <ClubCta label={stamping ? '도장 찍는 중…' : '이미지로 공유 →'} disabled={stamping} onPress={shareImage}
+          style={{ marginTop: 14, paddingVertical: 18 }} />
         <ClubCta label="동네 피드에 자랑하기" tone="quiet" onPress={shareFeed} busy={busy} style={{ paddingVertical: 15 }} />
         <Pressable onPress={() => router.push({ pathname: '/owner/report', params: { bid: bid! } })}>
           <Text style={s.detailLink}>상세 리포트 (지도·이벤트) →</Text>
@@ -162,10 +228,14 @@ const s = StyleSheet.create({
   },
   photoWrap: { height: 190, backgroundColor: L.inset },
   photo: { width: '100%', height: '100%' },
+  // 실 무대 — 실과 파문이 같은 62 원을 공유한다 (레이아웃은 그대로: 62 사각 한 칸)
+  sealStage: { width: 62, height: 62, alignItems: 'center', justifyContent: 'center', zIndex: 3 },
+  sealRipple: { position: 'absolute', width: 62, height: 62, borderRadius: 31, borderWidth: 2, borderColor: L.gold },
   goldSeal: {
     width: 62, height: 62, borderRadius: 31, backgroundColor: L.goldSoft,
     borderWidth: 2, borderColor: L.gold, alignItems: 'center', justifyContent: 'center',
-    transform: [{ rotate: '-8deg' }], zIndex: 3,
+    zIndex: 3,
+    // 회전·스케일은 ② 스탬프 보간이 소유한다 (정지값 = opacity 1 · scale 1 · rotate -8deg)
     shadowColor: L.gold, shadowOpacity: 0.35, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 3,
   },
   goldSealTxt: { fontSize: 9, fontWeight: '800', letterSpacing: 1.5, color: '#8a6f2a' },
@@ -175,7 +245,9 @@ const s = StyleSheet.create({
   },
   numCell: { flex: 1, paddingVertical: 9, alignItems: 'center', borderRightWidth: 1, borderRightColor: L.hair },
   numV: { fontSize: 18, fontWeight: '600', color: L.head, fontVariant: ['tabular-nums'] },
-  numL: { fontSize: 7, fontWeight: '700', letterSpacing: 1.5, color: L.dim, marginTop: 3 },
-  credit: { fontSize: 7.5, fontWeight: '700', letterSpacing: 2, color: L.dim, marginTop: 14 },
-  detailLink: { textAlign: 'center', marginTop: 12, fontSize: 11, fontWeight: '800', color: L.accent },
+  // [FLOOR14] 수치 라벨은 한글 정보다 — 320dp 셀 가용폭 ~89px 에서 '실측 거리'(≈62px)까지 한 줄로 든다
+  numL: { fontSize: 14, lineHeight: 18, fontWeight: '700', letterSpacing: 0.5, color: L.dim, marginTop: 3 },
+  creditName: { fontSize: 14, lineHeight: 18, fontWeight: '700', letterSpacing: 0.5, color: L.dim, marginTop: 14 },
+  credit: { fontSize: 7.5, fontWeight: '700', letterSpacing: 2, color: L.dim, marginTop: 2 },
+  detailLink: { textAlign: 'center', marginTop: 12, fontSize: 14, fontWeight: '800', color: L.accent },
 });

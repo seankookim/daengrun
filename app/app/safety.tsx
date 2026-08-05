@@ -80,7 +80,7 @@ export default function Safety() {
           <Text style={{ fontSize: 30 }}>🚨</Text>
           <View style={{ flex: 1, marginLeft: 14 }}>
             <Text style={{ fontSize: 18.5, fontWeight: '900', color: '#fff' }}>SOS 긴급 알림</Text>
-            <Text style={{ fontSize: 13, color: '#ffd9cf', marginTop: 3, lineHeight: 18.5 }}>
+            <Text style={{ fontSize: 14, color: '#ffd9cf', marginTop: 3, lineHeight: 18.5 }}>
               진행 중인 러닝의 상대방에게 즉시 알림{'\n'}위급 시엔 112·119가 항상 우선이에요
             </Text>
           </View>
@@ -111,10 +111,10 @@ export default function Safety() {
                   <Text style={{ fontSize: 14, color: colors.dim, marginTop: 2 }}>{c.phone}</Text>
                 </View>
                 <Pressable onPress={() => Linking.openURL(`tel:${c.phone}`)} style={s.miniBtn}>
-                  <Text style={{ fontSize: 13, fontWeight: '800', color: '#3d5a2b' }}>전화</Text>
+                  <Text style={{ fontSize: 14, fontWeight: '800', color: '#3d5a2b' }}>전화</Text>
                 </Pressable>
                 <Pressable onPress={() => removeContact(c)} style={[s.miniBtn, { marginLeft: 6 }]}>
-                  <Text style={{ fontSize: 13, fontWeight: '800', color: '#d84a2f' }}>삭제</Text>
+                  <Text style={{ fontSize: 14, fontWeight: '800', color: '#d84a2f' }}>삭제</Text>
                 </Pressable>
               </Row>
             </View>

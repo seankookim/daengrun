@@ -114,7 +114,7 @@ export default function Availability() {
                       </Row>
                       {d.enabled && (
                         <Pressable onPress={() => applyToAll(wd)}>
-                          <Text style={{ fontSize: 12, fontWeight: '700', color: '#5a7a3c' }}>⧉ 전체 적용</Text>
+                          <Text style={{ fontSize: 14, fontWeight: '700', color: '#5a7a3c' }}>⧉ 전체 적용</Text>
                         </Pressable>
                       )}
                     </Row>

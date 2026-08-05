@@ -307,7 +307,7 @@ export default function ClubRun() {
     return (
       <DawnCanvas>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontSize: 13, color: L.dim }}>불러오는 중...</Text>
+          <Text style={{ fontSize: 14, color: L.dim }}>불러오는 중...</Text>
         </View>
       </DawnCanvas>
     );
@@ -316,7 +316,7 @@ export default function ClubRun() {
     return (
       <DawnCanvas>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-          <Text style={{ fontSize: 13, color: L.dim, textAlign: 'center' }}>진행 중인 러닝이 없어요{'\n'}세션 화면에서 러닝을 시작해주세요</Text>
+          <Text style={{ fontSize: 14, color: L.dim, textAlign: 'center' }}>진행 중인 러닝이 없어요{'\n'}세션 화면에서 러닝을 시작해주세요</Text>
           <ClubCta label="돌아가기" tone="quiet" onPress={() => router.back()} style={{ alignSelf: 'stretch' }} />
         </View>
       </DawnCanvas>
@@ -336,7 +336,7 @@ export default function ClubRun() {
         />
         {saveLag && (
           <View style={s.lagBanner}>
-            <Text style={{ fontSize: 10.5, color: '#7a5a2a' }}>트레이스 저장이 밀리고 있어요 — 신호가 잡히면 자동 재시도해요</Text>
+            <Text style={{ fontSize: 14, color: '#7a5a2a' }}>트레이스 저장이 밀리고 있어요 — 신호가 잡히면 자동 재시도해요</Text>
           </View>
         )}
 
@@ -365,7 +365,7 @@ export default function ClubRun() {
           ) : (
             <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 }}>
               <LiveDot />
-              <Text style={{ fontSize: 11, color: L.dim, textAlign: 'center', lineHeight: 16 }}>
+              <Text style={{ fontSize: 14, color: L.dim, textAlign: 'center', lineHeight: 18 }}>
                 {gpsOn === false ? '위치 권한이 꺼져 있어요 — 트레이스·정산이 불가능해요'
                   : !maps ? '지도 미탑재 빌드 — 위치는 기록되고 있어요'
                   : 'GPS 신호를 기다리는 중...'}
@@ -387,20 +387,20 @@ export default function ClubRun() {
           return (
             <View key={d.sdId} style={s.dogRow}>
               <View style={[s.dogDot, { borderColor: collarOf(d.collar) }]}>
-                <Text style={{ fontSize: 12, fontWeight: '800', color: '#5d5138' }}>{d.dogName[0]}</Text>
+                <Text style={{ fontSize: 14, fontWeight: '800', color: '#5d5138' }}>{d.dogName[0]}</Text>
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 13, fontWeight: '800', color: L.head }}>{d.dogName} · {d.ownerName} 보호자</Text>
+                <Text style={{ fontSize: 14, fontWeight: '800', color: L.head }}>{d.dogName} · {d.ownerName} 보호자</Text>
                 {em ? (
                   <Pressable onPress={() => Linking.openURL(`tel:${em.replace(/[^0-9+]/g, '')}`).catch(() => {})}>
-                    <Text style={{ fontSize: 10, color: L.accent, marginTop: 1, fontWeight: '700' }}>비상 {em} — 탭하면 전화</Text>
+                    <Text style={{ fontSize: 14, color: L.accent, marginTop: 1, fontWeight: '700' }}>비상 {em} — 탭하면 전화</Text>
                   </Pressable>
                 ) : (
-                  <Text style={{ fontSize: 10, color: L.dim, marginTop: 1 }}>비상 연락처 로딩 중</Text>
+                  <Text style={{ fontSize: 14, color: L.dim, marginTop: 1 }}>비상 연락처 로딩 중</Text>
                 )}
               </View>
               <Pressable onPress={() => setEndTarget(d)} style={s.endBtn}>
-                <Text style={{ fontSize: 10.5, fontWeight: '800', color: L.text }}>종료</Text>
+                <Text style={{ fontSize: 14, fontWeight: '800', color: L.text }}>종료</Text>
               </Pressable>
             </View>
           );
@@ -411,7 +411,7 @@ export default function ClubRun() {
         {/* ---------- SOS(좌하단 엄지) · 📷 · 종료 ---------- */}
         <Row style={{ gap: 12, alignItems: 'center', marginBottom: 10 }}>
           <Pressable onPress={doSosPress} style={s.sos}>
-            <Text style={{ fontSize: 13, fontWeight: '900', color: '#fff' }}>SOS</Text>
+            <Text style={{ fontSize: 14, fontWeight: '900', color: '#fff' }}>SOS</Text>
           </Pressable>
           <Pressable onPress={doPhoto} style={s.camBtn}>
             <Text style={{ fontSize: 20 }}>📷</Text>
@@ -436,10 +436,10 @@ export default function ClubRun() {
           <Row style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
             <Text style={{ fontSize: 15, fontWeight: '800', color: L.head }}>{endTarget?.dogName} 러닝 종료</Text>
             <Text style={[{ fontSize: 20, fontWeight: '600', color: L.head, fontVariant: ['tabular-nums'] }, nf]}>
-              {km.toFixed(1)}<Text style={{ fontSize: 13, color: L.coral }}>km</Text>
+              {km.toFixed(1)}<Text style={{ fontSize: 14, color: L.coral }}>km</Text>
             </Text>
           </Row>
-          <Text style={{ fontSize: 10.5, color: L.dim, marginTop: 4 }}>
+          <Text style={{ fontSize: 14, color: L.dim, marginTop: 4 }}>
             {active.length > 1
               ? `함께 달린 누적 ${km.toFixed(2)}km · ${mmssStr(elapsed)} — 정산은 이 아이의 시작 시점부터 실측으로 계산돼요`
               : `실측 ${km.toFixed(2)}km · ${mmssStr(elapsed)} — 이 기록으로 정산돼요`}
@@ -450,7 +450,7 @@ export default function ClubRun() {
             <Pressable key={r.key} disabled={busy}
               onPress={() => endTarget && doSettle(endTarget, r.key, r.note)}
               style={s.reasonRow}>
-              <Text style={{ fontSize: 12.5, fontWeight: '700', color: L.text }}>{r.label}</Text>
+              <Text style={{ fontSize: 14, fontWeight: '700', color: L.text }}>{r.label}</Text>
             </Pressable>
           ))}
         </View>

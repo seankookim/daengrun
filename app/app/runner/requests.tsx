@@ -68,7 +68,7 @@ export default function Requests() {
             </Text>
           </View>
           <Pressable style={s.autoPill} onPress={load}>
-            <Text style={{ fontSize: 12.5, fontWeight: '700', color: '#3d453d' }}>↻ 새로고침</Text>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: '#3d453d' }}>↻ 새로고침</Text>
           </Pressable>
         </Row>
 
@@ -82,15 +82,15 @@ export default function Requests() {
         {resched.map((rq) => (
           <View key={`rs-${rq.bookingId}`} style={[s.reqCard, { borderColor: '#F59A43', borderWidth: 2 }]}>
             <View style={[s.deadline, { backgroundColor: '#FDE8D0', alignSelf: 'flex-start' }]}>
-              <Text style={{ fontSize: 11.5, fontWeight: '900', color: '#9D580A' }}>⏱ 일정 변경 요청</Text>
+              <Text style={{ fontSize: 14, fontWeight: '900', color: '#9D580A' }}>⏱ 일정 변경 요청</Text>
             </View>
             <Text style={{ fontSize: 17, fontWeight: '900', color: FOREST, marginTop: 10 }}>
               {rq.dogName} · {rq.km}km
             </Text>
             <Row style={{ gap: 8, marginTop: 8, alignItems: 'center' }}>
               <View style={s.timeBox}>
-                <Text style={{ fontSize: 12.5, fontWeight: '700', color: colors.dim }}>기존</Text>
-                <Text style={{ fontSize: 12.5, fontWeight: '700', color: '#82887a', textDecorationLine: 'line-through', marginTop: 1 }}>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: colors.dim }}>기존</Text>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: '#82887a', textDecorationLine: 'line-through', marginTop: 1 }}>
                   {rq.curDate}
                 </Text>
                 <Text style={{ fontSize: 17, fontWeight: '800', color: '#82887a', textDecorationLine: 'line-through' }}>
@@ -99,8 +99,8 @@ export default function Requests() {
               </View>
               <Text style={{ fontSize: 17, fontWeight: '900', color: '#F59A43' }}>→</Text>
               <View style={[s.timeBox, { backgroundColor: '#FDE8D0' }]}>
-                <Text style={{ fontSize: 11, fontWeight: '700', color: '#9D580A' }}>제안</Text>
-                <Text style={{ fontSize: 12.5, fontWeight: '800', color: '#9D580A', marginTop: 1 }}>{rq.newDate}</Text>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: '#9D580A' }}>제안</Text>
+                <Text style={{ fontSize: 14, fontWeight: '800', color: '#9D580A', marginTop: 1 }}>{rq.newDate}</Text>
                 <Text style={{ fontSize: 17, fontWeight: '900', color: '#9D580A' }}>{rq.newTime}</Text>
               </View>
             </Row>
@@ -142,18 +142,18 @@ export default function Requests() {
           <View key={req.bookingId} style={[s.reqCard, req.directed ? { borderColor: '#e2c56b', borderWidth: 2 } : { borderColor: '#5a7a3c', borderWidth: 1.8 }]}>
             <Row style={{ justifyContent: 'space-between' }}>
               <View style={[s.deadline, { backgroundColor: req.directed ? '#fbf0d4' : '#e3f0c4' }]}>
-                <Text style={{ fontSize: 11.5, fontWeight: '900', color: req.directed ? '#a97c12' : '#3d5a2b' }}>
+                <Text style={{ fontSize: 14, fontWeight: '900', color: req.directed ? '#a97c12' : '#3d5a2b' }}>
                   {req.directed ? '★ 지명 요청' : '● LIVE 요청'}
                 </Text>
               </View>
               <Row style={{ gap: 5 }}>
                 {req.repeatPrior != null && req.repeatPrior > 0 && (
                   <View style={[s.matchPill, { backgroundColor: '#fbf0d4' }]}>
-                    <Text style={{ fontSize: 11.5, fontWeight: '900', color: '#a97c12' }}>⟳ {req.repeatPrior + 1}번째 함께</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '900', color: '#a97c12' }}>⟳ {req.repeatPrior + 1}번째 함께</Text>
                   </View>
                 )}
                 <View style={s.matchPill}>
-                  <Text style={{ fontSize: 11.5, fontWeight: '900', color: '#4a6d1f' }}>{req.directed ? '나를 지명함' : '매칭 대기'}</Text>
+                  <Text style={{ fontSize: 14, fontWeight: '900', color: '#4a6d1f' }}>{req.directed ? '나를 지명함' : '매칭 대기'}</Text>
                 </View>
               </Row>
             </Row>
@@ -178,19 +178,19 @@ export default function Requests() {
                 <Text style={{ fontSize: 18.5, fontWeight: '900', color: '#5a7a3c' }}>
                   +{req.payout.toLocaleString()}
                 </Text>
-                <Text style={{ fontSize: 12, color: colors.dim, marginTop: 1 }}>수수료 20% 제외</Text>
+                <Text style={{ fontSize: 14, color: colors.dim, marginTop: 1 }}>수수료 20% 제외</Text>
               </View>
             </Row>
             {(req.prefTags.length > 0 || req.vaccines.length > 0) && (
               <Row style={{ gap: 5, marginTop: 9, flexWrap: 'wrap' }}>
                 {req.vaccines.length > 0 && (
                   <View style={{ backgroundColor: '#e3eff9', borderRadius: 99, paddingVertical: 3, paddingHorizontal: 8 }}>
-                    <Text style={{ fontSize: 11.5, fontWeight: '700', color: '#2d6da8' }}>💉 백신 {req.vaccines.length}종</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '700', color: '#2d6da8' }}>💉 백신 {req.vaccines.length}종</Text>
                   </View>
                 )}
                 {req.prefTags.map((t) => (
                   <View key={t} style={{ backgroundColor: '#eef4e0', borderRadius: 99, paddingVertical: 3, paddingHorizontal: 8 }}>
-                    <Text style={{ fontSize: 11.5, fontWeight: '700', color: '#3d5a2b' }}>{t}</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '700', color: '#3d5a2b' }}>{t}</Text>
                   </View>
                 ))}
               </Row>
@@ -203,8 +203,8 @@ export default function Requests() {
             {/* 코스 미리보기 — 수락 전에 코스를 알고 결정한다 (트레이스·지형·점검일) */}
             {req.routeId && req.routeName && (
               <Pressable onPress={() => router.push(`/course/${req.routeId}`)} style={s.courseLink}>
-                <Text style={{ fontSize: 13, fontWeight: '800', color: '#3d5a2b' }}>⛳ {req.routeName}</Text>
-                <Text style={{ fontSize: 12.5, fontWeight: '900', color: '#5a7a3c' }}>코스 미리보기 ›</Text>
+                <Text style={{ fontSize: 14, fontWeight: '800', color: '#3d5a2b' }}>⛳ {req.routeName}</Text>
+                <Text style={{ fontSize: 14, fontWeight: '900', color: '#5a7a3c' }}>코스 미리보기 ›</Text>
               </Pressable>
             )}
             <Pressable

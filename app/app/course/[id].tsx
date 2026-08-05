@@ -106,9 +106,9 @@ export default function CourseScreen() {
                   <LiveDot points={route.trace} />
                 </View>
                 <Row style={{ justifyContent: 'space-between', marginTop: 10 }}>
-                  <Text style={{ fontSize: 13, color: '#8fa093' }}>● 출발 <Text style={{ color: '#FF5C3D' }}>● 도착</Text> — 스키마틱 코스도예요</Text>
+                  <Text style={{ fontSize: 14, color: '#8fa093' }}>● 출발 <Text style={{ color: '#FF5C3D' }}>● 도착</Text> — 스키마틱 코스도예요</Text>
                   <View style={{ backgroundColor: '#2c4034', borderRadius: 99, paddingVertical: 3, paddingHorizontal: 9 }}>
-                    <Text style={{ fontSize: 12, fontWeight: '900', color: colors.volt }}>{route.km}km</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '900', color: colors.volt }}>{route.km}km</Text>
                   </View>
                 </Row>
               </View>
@@ -135,14 +135,14 @@ export default function CourseScreen() {
                   {route.features.map((f) => (
                     <View key={f.label} style={s.featCard}>
                       <Text style={{ fontSize: 17 }}>{f.g}</Text>
-                      <Text style={{ fontSize: 12.5, fontWeight: '800', color: FOREST, marginTop: 3 }}>{f.label}</Text>
+                      <Text style={{ fontSize: 14, fontWeight: '800', color: FOREST, marginTop: 3 }}>{f.label}</Text>
                     </View>
                   ))}
                 </Row>
                 {route.tags.length > 0 && (
                   <Row style={{ gap: 5, marginTop: 9, flexWrap: 'wrap' }}>
                     {route.tags.map((t) => (
-                      <View key={t} style={s.tagChip}><Text style={{ fontSize: 13, fontWeight: '700', color: '#49524a' }}>#{t}</Text></View>
+                      <View key={t} style={s.tagChip}><Text style={{ fontSize: 14, fontWeight: '700', color: '#49524a' }}>#{t}</Text></View>
                     ))}
                   </Row>
                 )}

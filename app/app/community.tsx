@@ -298,13 +298,13 @@ export default function Community() {
                       {p.meta.collar && collarColors[p.meta.collar as CollarKey] && (
                         <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: collarColors[p.meta.collar as CollarKey] }} />
                       )}
-                      <Text style={{ fontSize: 12.5, color: lilac.text }}>{p.meta.dogName}와 함께</Text>
+                      <Text style={{ fontSize: 14, color: lilac.text }}>{p.meta.dogName}와 함께</Text>
                     </Row>
                   )}
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
                   <Text style={[s.stamp, nf]}>{p.when}</Text>
-                  {p.mine && <Text style={{ fontSize: 12, color: lilac.dim, marginTop: 3 }}>길게 눌러 삭제</Text>}
+                  {p.mine && <Text style={{ fontSize: 14, color: lilac.dim, marginTop: 3 }}>길게 눌러 삭제</Text>}
                 </View>
                 <Text style={[s.idx, nf]}>{String(i + 1).padStart(2, '0')}</Text>
               </Row>
@@ -322,7 +322,7 @@ export default function Community() {
                     {(p.meta.dogs ?? 0) > 0 && <View style={[s.recapNumCell, s.recapDiv]}><Text style={[s.recapNum, nf]}>{p.meta.dogs}</Text><Text style={s.recapK}>DOGS</Text></View>}
                     <View style={[s.recapNumCell, s.recapDiv]}><Text style={[s.recapNum, nf]}>🏁</Text><Text style={s.recapK}>FINISHED</Text></View>
                   </Row>
-                  <Text style={{ fontSize: 13, color: lilac.dim, marginTop: 10 }}>탭해서 세션 리캡 보기 <Text style={{ color: '#CFC4FF', fontWeight: '700' }}>›</Text></Text>
+                  <Text style={{ fontSize: 14, color: lilac.dim, marginTop: 10 }}>탭해서 세션 리캡 보기 <Text style={{ color: '#CFC4FF', fontWeight: '700' }}>›</Text></Text>
                   <PawBurst trigger={bursts[p.id] ?? 0} />
                 </View>
               </Pressable>
@@ -383,7 +383,7 @@ export default function Community() {
                       <Text style={{ fontSize: 14, fontWeight: '700', color: lilac.head, marginTop: 5 }}>{p.meta.dogName} 완주</Text>
                     )}
                     {fmtDur(p.meta.durationSec) && (
-                      <Text style={{ fontSize: 13, color: lilac.text, marginTop: 4 }}>⏱ <Text style={[{ fontSize: 14, color: lilac.head }, nf]}>{fmtDur(p.meta.durationSec)}</Text></Text>
+                      <Text style={{ fontSize: 14, lineHeight: 18, color: lilac.text, marginTop: 4 }}>⏱ <Text style={[{ fontSize: 14, color: lilac.head }, nf]}>{fmtDur(p.meta.durationSec)}</Text></Text>
                     )}
                     <Row style={{ gap: 4, marginTop: 8, flexWrap: 'wrap' }}>
                       {(p.meta.badges ?? []).map((b) => (
@@ -434,7 +434,7 @@ export default function Community() {
               )}
               {p.commentCount > 0 && openComments !== p.id && (
                 <Pressable onPress={() => toggleComments(p)}>
-                  <Text style={{ fontSize: 13, color: lilac.accent, marginTop: 6, textDecorationLine: 'underline' }}>댓글 {p.commentCount}개 모두 보기</Text>
+                  <Text style={{ fontSize: 14, color: lilac.accent, marginTop: 6, textDecorationLine: 'underline' }}>댓글 {p.commentCount}개 모두 보기</Text>
                 </Pressable>
               )}
               <Text style={[s.when, nf]}>{p.when}</Text>
@@ -451,7 +451,7 @@ export default function Community() {
                   <Row key={c.id} style={{ gap: 8, marginBottom: 9, alignItems: 'flex-start' }}>
                     <Avatar url={c.authorAvatar} char={c.authorName[0]} bg={lilac.accentDeep} size={22} />
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 13.5, lineHeight: 20 }}>
+                      <Text style={{ fontSize: 14, lineHeight: 20 }}>
                         <Text style={{ fontWeight: '700', color: lilac.head }}>{c.authorName}</Text>
                         <Text style={{ color: lilac.text }}>  {c.body}</Text>
                       </Text>
@@ -459,7 +459,7 @@ export default function Community() {
                   </Row>
                 ))}
                 {comments.length === 0 && (
-                  <Text style={{ fontSize: 13, color: lilac.dim, marginBottom: 9 }}>첫 댓글을 남겨보세요</Text>
+                  <Text style={{ fontSize: 14, color: lilac.dim, marginBottom: 9 }}>첫 댓글을 남겨보세요</Text>
                 )}
                 <Row style={{ gap: 8, alignItems: 'center' }}>
                   <TextInput
@@ -504,7 +504,7 @@ const s = StyleSheet.create({
   kickerLabel: { fontSize: 12, fontWeight: '600', letterSpacing: 2, color: lilac.dim, textTransform: 'uppercase' },
   kickerRule: { flex: 1, height: 1, backgroundColor: lilac.hair },
   h1: { fontSize: 38, fontWeight: '900', color: lilac.head, letterSpacing: -0.4, lineHeight: 46 }, // [BUG A] lineHeight ≥1.2× — 상단 클리핑 방지 (크기 불변)
-  lede: { fontSize: 13.5, color: lilac.text, marginTop: 8, lineHeight: 20, maxWidth: 265 },
+  lede: { fontSize: 14, color: lilac.text, marginTop: 8, lineHeight: 20, maxWidth: 265 },
   liveBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderColor: '#F6C3B4', borderRadius: lilacRadius.tag, backgroundColor: lilac.card, paddingVertical: 4, paddingHorizontal: 8, alignSelf: 'center' },
   liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: lilac.coral },
   liveTxt: { fontSize: 12, fontWeight: '600', letterSpacing: 1.2, color: lilac.coralDeep },
@@ -517,7 +517,7 @@ const s = StyleSheet.create({
   clubKick: { fontSize: 12, fontWeight: '600', letterSpacing: 1.5, color: 'rgba(255,255,255,.82)', textTransform: 'uppercase', marginBottom: 4 },
   clubName: { fontSize: 14.5, fontWeight: '700', color: '#fff', letterSpacing: -0.2 },
   clubPill: { backgroundColor: lilac.glassEdge, borderRadius: lilacRadius.tag, paddingVertical: 6, paddingHorizontal: 10, alignItems: 'flex-end' },
-  clubPillN: { fontSize: 13, fontWeight: '700', color: lilac.head, lineHeight: 16 },
+  clubPillN: { fontSize: 14, fontWeight: '700', color: lilac.head, lineHeight: 18 },
   clubGo: { fontSize: 12, fontWeight: '600', letterSpacing: 1, color: lilac.accent, marginTop: 3, textTransform: 'uppercase' },
   holoTop: { position: 'absolute', top: 0, left: 0, right: 0, height: 3, zIndex: 3 },
   holoBottom: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 3, zIndex: 3 },
@@ -545,7 +545,7 @@ const s = StyleSheet.create({
   badgeTxt: { fontSize: 12, fontWeight: '600', letterSpacing: 1, color: lilac.head, textTransform: 'uppercase' },
   // 기록 소인 (골드) — 화면당 1개 · [FIX3] 텍스트 승급분만큼 56 → 68 원형 성장
   seal: { position: 'absolute', right: 10, bottom: 10, width: 68, height: 68, borderRadius: 34, backgroundColor: lilac.goldSoft, borderWidth: 1.4, borderColor: lilac.gold, alignItems: 'center', justifyContent: 'center', transform: [{ rotate: '-8deg' }] },
-  sealB: { fontSize: 13, fontWeight: '700', color: lilac.head, lineHeight: 16 },
+  sealB: { fontSize: 14, fontWeight: '700', color: lilac.head, lineHeight: 18 },
   sealS: { fontSize: 11.5, fontWeight: '600', letterSpacing: 1, color: lilac.head, textTransform: 'uppercase', marginTop: 2 },
 
   // 하이라인 스탯 표 — [FIX3] 키 12pt · [BUG A] 값 lineHeight 명시
@@ -558,7 +558,7 @@ const s = StyleSheet.create({
   // 기록 조판 블록 (사진 없음) — [BUG A] 큰 Oswald 숫자 lineHeight 46 (≥1.2×38)
   record: { flexDirection: 'row', gap: 10, alignItems: 'stretch', backgroundColor: lilac.inset, borderTopWidth: 1, borderBottomWidth: 1, borderColor: lilac.hair2, paddingHorizontal: 11, paddingVertical: 12 },
   recordKm: { fontSize: 38, fontWeight: '600', color: lilac.head, letterSpacing: -0.5, lineHeight: 46, fontVariant: ['tabular-nums'] },
-  recordPace: { fontSize: 13, fontWeight: '600', letterSpacing: 0.6, color: lilac.accent, marginTop: 3 },
+  recordPace: { fontSize: 14, lineHeight: 18, fontWeight: '600', letterSpacing: 0.6, color: lilac.accent, marginTop: 3 },
   traceBox: { alignItems: 'center', justifyContent: 'center', backgroundColor: lilac.card, borderWidth: 1, borderColor: lilac.hair, borderRadius: lilacRadius.inner },
 
   // 클럽 리캡 = 밤의 창 (나이트 라일락) — [FIX3] 키커·키 12pt · [BUG A] 숫자 lineHeight 명시
@@ -575,7 +575,7 @@ const s = StyleSheet.create({
   actOn: { borderColor: '#F6C3B4', backgroundColor: '#FFF7F4', borderLeftWidth: 2.5, borderLeftColor: lilac.coral },
   actLabel: { fontSize: 12, fontWeight: '600', letterSpacing: 1, color: lilac.dim, textTransform: 'uppercase' },
   actLabelOn: { color: lilac.head },
-  actNum: { fontSize: 13, fontWeight: '600', color: lilac.head, letterSpacing: 0.4 },
+  actNum: { fontSize: 14, lineHeight: 18, fontWeight: '600', color: lilac.head, letterSpacing: 0.4 },
   when: { fontSize: 12, fontWeight: '600', letterSpacing: 1, color: lilac.dim, textTransform: 'uppercase', marginTop: 7, marginBottom: 11 },
 
   // 독자 편지 (댓글) — [FIX3] 키커 12pt · 입력 14pt · 보내기 버튼 36
@@ -589,7 +589,7 @@ const s = StyleSheet.create({
 
   // 콜로폰 — [FIX3] 본문 13 · 풋라인 12
   colophon: { marginHorizontal: GUTTER + 2, marginTop: 14, paddingTop: 11, borderTopWidth: 1, borderTopColor: lilac.hair },
-  coloBody: { fontSize: 13, color: lilac.dim, lineHeight: 19 },
-  coloFoot: { fontSize: 12, color: lilac.dim, letterSpacing: 0.2 },
+  coloBody: { fontSize: 14, color: lilac.dim, lineHeight: 19 },
+  coloFoot: { fontSize: 14, lineHeight: 18, color: lilac.dim, letterSpacing: 0.2 },
   coloDot: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: lilac.hair },
 });

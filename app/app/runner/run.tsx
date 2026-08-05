@@ -396,7 +396,7 @@ export default function ActiveRun() {
               <Text style={{ fontSize: 15, color: '#8fa093' }} numberOfLines={1}>
                 {info?.routeName ?? req.place} 코스 · {targetKm}km
               </Text>
-              <Text style={{ fontSize: 13, fontWeight: '800', color: colors.cream }}>
+              <Text style={{ fontSize: 14, fontWeight: '800', color: colors.cream }}>
                 남은 거리 {remaining.toFixed(1)}km
               </Text>
             </Row>
@@ -523,7 +523,7 @@ function EndOption({ title, desc, pay, accent, onPress }: { title: string; desc:
       <View style={{ flex: 1 }}>
         <Text style={{ fontSize: 16.5, fontWeight: '900', color: colors.cream }}>{title}</Text>
         <Text style={{ fontSize: 14.5, color: '#8fa093', marginTop: 2 }}>{desc}</Text>
-        <Text style={{ fontSize: 13, fontWeight: '800', color: accent, marginTop: 5 }}>{pay}</Text>
+        <Text style={{ fontSize: 14, fontWeight: '800', color: accent, marginTop: 5 }}>{pay}</Text>
       </View>
       <Text style={{ fontSize: 17, color: '#8fa093' }}>›</Text>
     </Pressable>
@@ -547,7 +547,7 @@ const s = StyleSheet.create({
   statusBadge: { backgroundColor: colors.ink, borderRadius: 99, paddingVertical: 8, paddingHorizontal: 14 },
   camStatus: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#fff', borderRadius: 99, paddingVertical: 8, paddingHorizontal: 12 },
   recDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#ff3b30' },
-  camText: { fontSize: 11.5, fontWeight: '700', color: colors.ink },
+  camText: { fontSize: 14, fontWeight: '700', color: colors.ink },
   trackWrap: { position: 'absolute', left: 20, right: 20, bottom: 24 },
   track: { height: 10, borderRadius: 99, backgroundColor: '#d5d8c6' },
   trackFill: { height: 10, borderRadius: 99, backgroundColor: colors.tang },

@@ -59,7 +59,7 @@ export default function RunDone() {
           {runResult.km.toFixed(2)}km · {fmt(runResult.sec)} · {req.dogName}
         </Text>
         {!runResult.completed && (
-          <Text style={{ fontSize: 12.5, color: '#c9a15e', marginTop: 10, textAlign: 'center' }}>
+          <Text style={{ fontSize: 14, color: '#c9a15e', marginTop: 10, textAlign: 'center' }}>
             {runResult.reason === 'dog' && '컨디션 종료 — 실제 거리 정산 · 완주율 무영향\n상태 사진과 메모가 보호자에게 전달돼요'}
             {runResult.reason === 'owner' && '보호자 요청 종료 — 실제 거리 + 잔여 거리 50% 보장 포함'}
             {runResult.reason === 'runner' && '개인 사유 종료 — 실제 거리 정산 · 완주율에 반영돼요'}
@@ -95,7 +95,7 @@ export default function RunDone() {
               </Pressable>
             )}
           </Row>
-          <Text style={{ fontSize: 13, color: colors.dim, marginTop: 8 }}>
+          <Text style={{ fontSize: 14, color: colors.dim, marginTop: 8 }}>
             {req.dogName}의 신나는 순간을 남겨주세요 — 보호자 만족도와 재지명율이 올라가요
           </Text>
         </View>

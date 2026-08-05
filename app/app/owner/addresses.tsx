@@ -66,7 +66,7 @@ export default function Addresses() {
               <Row style={{ gap: 7 }}>
                 <Text style={{ fontSize: 16.5, fontWeight: '900', color: FOREST }}>{a.label}</Text>
                 {a.isDefault && (
-                  <View style={s.defaultPill}><Text style={{ fontSize: 11, fontWeight: '900', color: '#3d5a2b' }}>기본 픽업</Text></View>
+                  <View style={s.defaultPill}><Text style={{ fontSize: 14, fontWeight: '900', color: '#3d5a2b' }}>기본 픽업</Text></View>
                 )}
               </Row>
               <Text style={{ fontSize: 14, color: colors.dim }}>길게 눌러 삭제</Text>

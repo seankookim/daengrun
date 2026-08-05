@@ -45,7 +45,7 @@ export default function Earnings() {
         <Row style={{ gap: 6 }}>
           <Text style={[{ fontSize: 30, fontWeight: '900', color: FOREST }, df]}>수익</Text>
           <View style={{ backgroundColor: '#5a7a3c', borderRadius: 99, paddingVertical: 2, paddingHorizontal: 7, alignSelf: 'center' }}>
-            <Text style={{ fontSize: 10, fontWeight: '900', color: '#fff' }}>● LIVE</Text>
+            <Text style={{ fontSize: 14, fontWeight: '900', color: '#fff' }}>● LIVE</Text>
           </View>
         </Row>
 
@@ -78,7 +78,7 @@ export default function Earnings() {
               <Text style={{ fontSize: 14, color: colors.dim, marginTop: 3 }}>아직 등록된 계좌가 없어요</Text>
             </View>
             <Pressable style={s.changeChip} onPress={() => Alert.alert('계좌 등록', '본인 명의 계좌 인증과 함께 제공 예정')}>
-              <Text style={{ fontSize: 12.5, fontWeight: '700', color: '#3d453d' }}>등록</Text>
+              <Text style={{ fontSize: 14, fontWeight: '700', color: '#3d453d' }}>등록</Text>
             </Pressable>
           </Row>
         </View>
@@ -97,7 +97,7 @@ export default function Earnings() {
           <View key={l.id} style={s.stub}>
             <Row>
               <View style={{ flex: 1, paddingRight: 11 }}>
-                <Text style={{ fontSize: 12.5, fontWeight: '800', color: '#5a7a3c' }}>{l.when}</Text>
+                <Text style={{ fontSize: 14, fontWeight: '800', color: '#5a7a3c' }}>{l.when}</Text>
                 <Text style={{ fontSize: 16.5, fontWeight: '900', color: FOREST, marginTop: 2 }}>
                   {l.dogName} · {l.km}km
                 </Text>
@@ -117,7 +117,7 @@ export default function Earnings() {
               </View>
               <View style={{ width: 92, alignItems: 'center', justifyContent: 'center' }}>
                 <Text style={{ fontSize: 16.5, fontWeight: '900', color: '#5a7a3c' }}>+{l.net.toLocaleString()}</Text>
-                <Text style={{ fontSize: 12, color: colors.dim, marginTop: 2, letterSpacing: 1 }}>실수령</Text>
+                <Text style={{ fontSize: 14, color: colors.dim, marginTop: 2, letterSpacing: 1 }}>실수령</Text>
               </View>
             </Row>
           </View>

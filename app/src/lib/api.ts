@@ -818,6 +818,15 @@ export async function fetchPatchPop(bookingId: string, routeId: string): Promise
   return { routeId, name: rt?.name ?? '코스', km: Number(rt?.km ?? 0), count: n, grade: patchGrade(n), firstAt: null };
 }
 
+// ② 실 스탬프 — 골드 실은 '찍히는 순간'이 있어야 도장이다: 영수증 첫 진입 1회만 애니, 재진입은 정지 상태.
+// 앱 세션당 예약별 1회 (인메모리 — _patchPopSeen과 같은 문법. 서버 왕복 없음: 순수 표현 판정)
+const _sealStampSeen = new Set<string>();
+export function sealStampFresh(bookingId: string): boolean {
+  if (_sealStampSeen.has(bookingId)) return false;
+  _sealStampSeen.add(bookingId);
+  return true;
+}
+
 export const runnerEnroute = (id: string) => invokeTransition(id, 'enroute');
 
 // ---------- profile (identity layer) ----------

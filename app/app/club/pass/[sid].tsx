@@ -66,13 +66,13 @@ export default function ClubPass() {
               <Text style={[{ fontSize: 25, fontWeight: '900', color: '#fff', marginTop: 5 }, df]} numberOfLines={1}>
                 {clubName || '하이클럽'}
               </Text>
-              <Text style={{ fontSize: 12.5, color: colors.nightDim, marginTop: 3 }}>
+              <Text style={{ fontSize: 14, color: colors.nightDim, marginTop: 3 }}>
                 호스트 {sess.hostName ?? '—'} 러너 · HIGH-VERIFIED
               </Text>
             </View>
             <View style={s.bibBox}>
               <Text style={{ fontSize: 8.5, letterSpacing: 2, fontWeight: '700', color: colors.nightDim }}>TEAMS</Text>
-              <Text style={{ fontSize: 21, fontWeight: '900', color: colors.neon, fontVariant: ['tabular-nums'] }}>{sess.people.length}<Text style={{ fontSize: 12, color: colors.nightDim }}>/{sess.capacity}</Text></Text>
+              <Text style={{ fontSize: 21, fontWeight: '900', color: colors.neon, fontVariant: ['tabular-nums'] }}>{sess.people.length}<Text style={{ fontSize: 14, color: colors.nightDim }}>/{sess.capacity}</Text></Text>
             </View>
           </View>
 
@@ -116,12 +116,12 @@ export default function ClubPass() {
                   <Text style={{ fontSize: 15.5, fontWeight: '900', color: '#fff', letterSpacing: 1 }}>✓ 집결지 도착 체크인</Text>
                 </Pressable>
               ) : (
-                <Text style={{ fontSize: 12.5, color: colors.nightDim, textAlign: 'center' }}>
+                <Text style={{ fontSize: 14, color: colors.nightDim, textAlign: 'center' }}>
                   RSVP ✓ — 체크인은 시작 2시간 전부터 열려요
                 </Text>
               )
             ) : (
-              <Text style={{ fontSize: 12.5, color: colors.nightDim, textAlign: 'center' }}>이 세션의 참가자가 아니에요</Text>
+              <Text style={{ fontSize: 14, color: colors.nightDim, textAlign: 'center' }}>이 세션의 참가자가 아니에요</Text>
             )}
           </View>
 
@@ -134,7 +134,7 @@ export default function ClubPass() {
           <Text style={s.serial}>DOGS HIGH · {sess.id.slice(0, 8).toUpperCase()}</Text>
         </View>
 
-        <Text style={{ fontSize: 12, color: colors.nightDim, textAlign: 'center', marginTop: 14 }}>
+        <Text style={{ fontSize: 14, color: colors.nightDim, textAlign: 'center', marginTop: 14 }}>
           집결지에서 호스트에게 이 화면을 보여주세요
         </Text>
       </ScrollView>

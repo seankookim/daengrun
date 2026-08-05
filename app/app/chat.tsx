@@ -117,7 +117,7 @@ export default function Chat() {
       {/* booking context strip */}
       {ctx && (
         <View style={s.contextStrip}>
-          <Text style={{ fontSize: 12.5, fontWeight: '700', color: '#3d5a2b' }}>{ctx.label}</Text>
+          <Text style={{ fontSize: 14, fontWeight: '700', color: '#3d5a2b' }}>{ctx.label}</Text>
         </View>
       )}
 
@@ -162,7 +162,7 @@ export default function Chat() {
             </View>
           ))}
           {msgs.length > 0 && (
-            <Text style={{ fontSize: 13, color: colors.dim, textAlign: 'center', marginTop: 8 }}>
+            <Text style={{ fontSize: 14, color: colors.dim, textAlign: 'center', marginTop: 8 }}>
               안전을 위해 모든 대화는 러닝 종료 후 30일간 보관돼요
             </Text>
           )}
@@ -212,7 +212,7 @@ const s = StyleSheet.create({
   bubble: { maxWidth: '76%', borderRadius: 18, paddingVertical: 10, paddingHorizontal: 14 },
   bubblePeer: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#DCD6C4', borderBottomLeftRadius: 6 },
   bubbleMine: { backgroundColor: colors.volt, borderBottomRightRadius: 6 },
-  time: { fontSize: 12, color: colors.dim, marginBottom: 3 },
+  time: { fontSize: 14, color: colors.dim, marginBottom: 3 },
   quick: { backgroundColor: '#fff', borderRadius: 99, paddingVertical: 9, paddingHorizontal: 14, borderWidth: 1, borderColor: '#DCD6C4', alignSelf: 'center' },
   inputBar: { padding: 14, paddingBottom: 30, gap: 8, backgroundColor: colors.cream },
   attach: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DCD6C4' },
