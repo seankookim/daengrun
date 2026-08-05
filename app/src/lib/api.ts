@@ -1136,6 +1136,30 @@ export async function fetchMyRunnerStatus(): Promise<MyRunnerStatus> {
   };
 }
 
+// 러너 인증 현황 — 인증 센터(/runner/apply)의 단일 진실. null = runners 행 없음(러너 미등록).
+// fetchMyRunnerStatus와 나눈 이유: 저쪽은 행이 없으면 0/'certified'로 폴백한다(홈 진행바가 죽지 않게).
+// 인증 센터에서 그 폴백을 쓰면 '등록 안 됨'이 '0회 인증 러너'로 둔갑한다 — 다른 사실이므로 null로 구분한다.
+// 반환 필드는 전부 서버가 쓰는 실컬럼: tier(스토어프런트·오픈풀 게이트), total_runs/total_km(정산이 증가),
+// commission_rate(settle-run이 그대로 읽는 정산 수수료율).
+// funnel_step·identity_verified·education_modules_done은 의도적으로 뺐다 — 지금 값의 출처가
+// ensureRunner()의 루프 테스트 부트스트랩(certified/true)이라, 그리면 없는 심사를 통과한 것처럼 보인다.
+export interface MyRunnerCert { tier: string; totalRuns: number; totalKm: number; commissionRate: number }
+
+export async function fetchMyRunnerCert(): Promise<MyRunnerCert | null> {
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) return null;
+  const { data, error } = await supabase.from('runners')
+    .select('tier, total_runs, total_km, commission_rate').eq('profile_id', user.user.id).maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  return {
+    tier: String(data.tier),
+    totalRuns: data.total_runs ?? 0,
+    totalKm: Number(data.total_km ?? 0),
+    commissionRate: Number(data.commission_rate ?? 0.2),
+  };
+}
+
 // 미트업 실컨텍스트 — 목업 김민준/초코 잔재 제거용 (양쪽 인계 화면의 진실)
 export interface MeetupInfo {
   runnerName: string | null;

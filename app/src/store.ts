@@ -262,18 +262,12 @@ export const rewardStatus = {
 // 마일스톤 시트가 도달 불가(죽은 비컨 안에 오프너)였고, 누적 86.2km 하드코딩 위에 선 목업이었다.
 // 보호자 진도는 이제 실데이터(하이 포인트 잔액 + 코스 패치)가 홈 비컨에서 담당한다.
 
-// ---------- Runner certification funnel status ----------
-export const applyStatus = {
-  tier: '인증 러너', nextTier: '베테랑',
-  runsToNext: 36, // 250회 달성 시
-  steps: [
-    { key: 'info', label: '기본 정보', desc: '활동 지역 · 페이스 · 가능 견종 크기', done: true },
-    { key: 'kyc', label: '신원 확인', desc: 'PASS 본인인증 · 신분증 · 범죄경력회보서', done: true },
-    { key: 'edu', label: '안전 교육 & 퀴즈', desc: '6개 모듈 중 4개 완료 · 합격선 90점', done: false, active: true },
-    { key: 'trial', label: '시범 러닝', desc: '베테랑 러너 동행 1회 평가', done: false },
-    { key: 'cert', label: '인증 완료', desc: '프로필에 배지 표시 · 요청 수신 시작', done: false },
-  ],
-};
+// [정직 수리 2026-08-05] applyStatus(러너 인증 퍼널 목업) 퇴역 — 유일한 소비처였던 /runner/apply가
+// 하드코딩 '인증 러너'·'베테랑까지 36회 남음'·done/active 체크마크 5단계를 **내 인증 진행 상황**으로
+// 그리고 있었다. 서버엔 개인 단계 진행을 담는 것이 없다(runners.funnel_step은 ensureRunner의 루프
+// 테스트 부트스트랩이 'certified'로 채운 값이라 심사 통과를 뜻하지 않는다) — 전부 지어낸 개인 이력.
+// 인증 센터는 이제 서버 러너 레코드(등급·누적 완주·누적 거리·수수료율)와 절차 설명만 말하고,
+// 개인 단계 추적은 '준비 중'이라고 말한다. 실 퍼널 설계는 docs/specs/runner-cert-funnel-spec.md.
 
 export const nextBooking = bookings[0];
 

@@ -132,7 +132,9 @@ export default function My() {
   const MENU = [
     { glyph: '✚', label: '안심 센터', desc: 'SOS · 긴급 연락처 · 보험', path: '/safety' as const, ink: colors.tang, tint: '#FCE7E1' },
     isRunner
-      ? { glyph: '✓', label: '러너 인증 센터', desc: '지원 절차 · 등급 사다리 · 교육', path: '/runner/apply' as const, ink: colors.voltDeep, tint: '#EDF5D8' }
+      // [정직 수리 2026-08-05] 부제 교정 — 인증 센터에는 '등급 사다리'가 없다(목업 퍼널과 함께 퇴역).
+      // 지금 그 화면이 가진 건 서버 러너 레코드와 절차 설명뿐이다.
+      ? { glyph: '✓', label: '러너 인증 센터', desc: '내 러너 레코드 · 인증 절차 안내', path: '/runner/apply' as const, ink: colors.voltDeep, tint: '#EDF5D8' }
       : { glyph: '⌂', label: '주소 관리', desc: '픽업 장소 · 공동현관 정보', path: '/owner/addresses' as const, ink: colors.voltDeep, tint: '#EDF5D8' },
     ...(!isRunner ? [{ glyph: '◉', label: '반려견 프로필', desc: '사진 · 성향 · 러너에게 전달되는 정보', path: '/owner/dog' as const, ink: colors.terra, tint: colors.terraTint }] : []),
     { glyph: '▦', label: '예약 관리', desc: '다가오는 일정과 지난 예약', path: isRunner ? null : ('/owner/schedule' as const), ink: '#4A6E93', tint: '#E3EEF8' },
