@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shop Lab v2 — 부티크 · 4 directions, product faces forward</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;500;700;800;900&family=Oswald:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F4F2FB; --card:#FFFFFF; --inset:#EFECF9; --hair:#E6E2F4; --hair2:#EDEAF8;
+  --head:#221E3D; --text:#4B4668; --dim:#7C76A0;
+  --accent:#6C5CE7; --readv:#4A3DA8;
+  --tint:#F4F1FE; --tintEdge:#DCD6F8; --coral:#F0765A; --night:#1C1837;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#151130;font-family:'Noto Sans KR',sans-serif;color:#EDEAF8;padding:0 0 70px;
+  background-image:radial-gradient(1100px 520px at 12% -8%,rgba(240,118,90,.09),transparent 60%),
+                   radial-gradient(920px 460px at 88% 2%,rgba(108,92,231,.16),transparent 62%);
+  background-attachment:fixed;}
+
+/* ═══ LAB CHROME (English) ═══ */
+.sticky{position:sticky;top:0;z-index:200;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  background:rgba(19,15,42,.93);border-bottom:1px solid rgba(255,255,255,.09);padding:14px 26px 12px}
+.wrap{max-width:1420px;margin:0 auto}
+.lab-title{font-family:'Black Han Sans';font-size:23px;letter-spacing:.2px;color:#F2EFFA}
+.lab-title em{font-style:normal;color:#F0765A}
+.lab-title i{font-style:normal;color:#9F8FFF}
+.lab-sub{font-size:13px;color:#A9A3C8;margin-top:6px;line-height:1.6;max-width:1080px}
+.lab-sub b{color:#F2EFFA;font-weight:700}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.chips span{font-size:11.5px;color:#C9C2E8;border:1px solid rgba(201,194,232,.24);padding:4px 9px;
+  border-radius:6px;background:rgba(255,255,255,.04)}
+.chips b{color:#F0765A;font-weight:700}
+.sect{max-width:1420px;margin:44px auto 0;padding:0 26px}
+.sect-head{display:flex;align-items:baseline;gap:12px;border-bottom:1px solid rgba(255,255,255,.1);padding-bottom:10px}
+.sect-head .n{font-family:'Oswald';font-weight:600;font-size:26px;line-height:1.24;color:#F0765A;letter-spacing:1px}
+.sect-head h2{font-size:18px;color:#F2EFFA;font-weight:700}
+.sect-head p{font-size:12.5px;color:#8F88B4;margin-left:auto;text-align:right;line-height:1.5;max-width:520px}
+.frames{display:flex;gap:38px;margin-top:24px;align-items:flex-start}
+.unit{width:390px;flex:0 0 390px}
+.phone{width:390px;border-radius:26px;overflow:hidden;background:var(--bg);position:relative;
+  box-shadow:0 24px 60px rgba(8,5,24,.55),0 3px 12px rgba(8,5,24,.4);
+  outline:1px solid rgba(255,255,255,.10);outline-offset:0}
+.side{position:sticky;top:150px;max-width:420px;padding-top:4px}
+.side h3{font-size:16px;color:#F2EFFA;font-weight:700;line-height:1.45}
+.side h3 b{color:#F0765A;font-family:'Oswald';font-size:17px;letter-spacing:.5px;margin-right:6px}
+.side .why{font-size:13.5px;color:#BDB6DC;line-height:1.68;margin-top:9px}
+.side .why b{color:#F2EFFA;font-weight:700}
+.side .why em{font-style:normal;color:#9F8FFF;font-weight:700}
+.playbar{display:flex;gap:6px;margin-top:14px;flex-wrap:wrap}
+.playbar button{font-family:'Noto Sans KR',sans-serif;font-size:11.5px;font-weight:700;color:#fff;
+  background:#F0765A;border:1px solid #F0765A;border-radius:6px;padding:7px 12px;cursor:pointer}
+.playbar button.q{background:rgba(255,255,255,.05);border-color:rgba(201,194,232,.24);color:#BDB6DC}
+.mtr{margin-top:13px;border-top:1px dashed rgba(255,255,255,.14);padding-top:10px;
+  font-size:12px;color:#8F88B4;line-height:1.7}
+.mtr b{color:#B7E27A;font-weight:700;font-family:'Oswald';letter-spacing:.4px}
+.mtr u{text-decoration:none;color:#C9C2E8}
+
+/* ═══ IN-APP (Korean) ═══ */
+.scr{padding:0 0 0}
+.num{font-family:'Oswald';font-weight:600;line-height:1.26;font-feature-settings:'tnum'}
+.shead{padding:22px 16px 0}
+.shead .kk{font-family:'Oswald';font-weight:500;font-size:12px;line-height:1.35;letter-spacing:2.4px;color:var(--dim);text-transform:uppercase}
+.shead .h1{font-family:'Black Han Sans';font-size:38px;line-height:1.2;color:var(--head);margin-top:5px}
+.shead .lead{font-size:15px;line-height:1.5;color:var(--text);margin-top:6px;word-break:keep-all}
+.disc{word-break:keep-all;margin:14px 16px 0;background:var(--tint);border:1px solid var(--tintEdge);border-radius:10px;
+  padding:11px 13px;font-size:14.5px;line-height:1.52;color:var(--readv);font-weight:500}
+.nv{display:flex;gap:7px;padding:14px 16px 0;flex-wrap:wrap}
+.nv span{font-size:14px;color:var(--text);background:var(--tint);border:1px solid var(--tintEdge);
+  border-radius:999px;padding:6px 12px;line-height:1.35}
+.nv span.on{background:rgba(108,92,231,.12);border-color:rgba(108,92,231,.28);color:var(--head);font-weight:700}
+.mod{padding:24px 16px 11px}
+.mod .ek{font-family:'Oswald';font-weight:500;font-size:12px;line-height:1.35;letter-spacing:2.2px;color:var(--dim);text-transform:uppercase}
+.mod h3{font-size:19px;line-height:1.4;color:var(--head);font-weight:700;margin-top:3px;word-break:keep-all}
+.grid{display:grid;grid-template-columns:repeat(2,173px);gap:16px 12px;padding:0 16px}
+.wall{display:grid;grid-template-columns:repeat(2,195px);gap:0;margin-top:11px}
+.strip{margin:22px 16px;background:var(--inset);border-radius:12px;padding:15px 15px 16px}
+.strip h5{font-size:17px;line-height:1.4;color:var(--head);font-weight:700}
+.strip p{font-size:14.5px;line-height:1.62;color:var(--text);margin-top:6px;word-break:keep-all}
+.strip.lil{margin:0;border-radius:0;background:var(--tint);padding:18px 16px 19px;
+  border-top:1px solid var(--tintEdge);border-bottom:1px solid var(--tintEdge)}
+.foot{margin-top:26px;padding:18px 16px 26px;border-top:1px solid var(--hair)}
+.foot .fire{font-size:14.5px;line-height:1.6;color:var(--head);font-weight:700;word-break:keep-all}
+.foot .by{font-size:14px;color:var(--text);margin-top:7px}
+.cred{display:flex;flex-wrap:wrap;gap:6px;margin-top:11px}
+.cred span{font-size:14px;color:var(--dim);border:1px solid var(--hair);border-radius:6px;padding:3px 8px;line-height:1.35}
+
+/* card system */
+.card{position:relative}
+.card.c1{background:var(--card);border-radius:14px;overflow:hidden;box-shadow:0 0 0 1px var(--hair)}
+.face{position:relative;overflow:hidden}
+.w1{width:100%;height:268px;box-shadow:inset 0 0 0 1px var(--tintEdge)}
+.w2{width:100%;height:272px}
+.w3{width:100%;height:448px;border-radius:14px 14px 0 0;box-shadow:inset 0 0 0 1px var(--tintEdge)}
+.w4{width:100%;height:470px}
+.card.c3{background:var(--card);box-shadow:0 0 0 1px var(--hair);border-radius:14px;overflow:hidden;margin:0 16px 16px}
+.card.c4{overflow:hidden}
+.wall .card{box-shadow:inset -1px 0 0 var(--ln),inset 0 -1px 0 var(--ln)}
+.wall .card:nth-child(2n){box-shadow:inset 0 -1px 0 var(--ln)}
+.card.c4+.card.c4{box-shadow:inset 0 1px 0 var(--ln)}
+.tx{padding:9px 11px 12px}
+.card.c2 .tx{padding:11px 14px 14px}
+.kick{font-family:'Oswald';font-weight:500;font-size:11.5px;letter-spacing:1.5px;color:var(--dim);text-transform:uppercase;line-height:1.4}
+.card.c2 .kick,.card.c4 .kick{color:var(--dim2)}
+.nm{font-size:15px;line-height:1.32;font-weight:700;color:var(--head);margin-top:2px;word-break:keep-all;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:40px}
+.card.c2 .nm{color:var(--ink)}
+.prow{display:flex;align-items:baseline;gap:8px;margin-top:4px}
+.pr{font-size:15px;color:var(--head)}
+.card.c2 .pr,.card.c4 .pr{color:var(--ink)}
+.aff{margin-left:auto;font-size:14px;letter-spacing:.5px;color:var(--dim);border:1px solid var(--tintEdge);
+  border-radius:5px;padding:0 6px;line-height:1.4;flex:0 0 auto}
+.card.c2 .aff,.card.c4 .aff{color:var(--dim2);border-color:var(--ln)}
+.dsc{font-size:14px;line-height:1.4;color:var(--text);margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card.c2 .dsc{color:var(--dim2)}
+
+/* ③ / ④ five lines */
+.card.c3 .tx,.card.c4 .tx{padding:12px 15px 15px}
+.l1{display:flex;align-items:baseline;gap:8px}
+.purp{margin-left:auto;font-size:14px;color:var(--accent);font-weight:700;line-height:1.4}
+.card.c4 .purp{color:var(--ink2)}
+.br{margin-top:5px}
+.card.c3 .nm,.card.c4 .nm{font-size:19px;line-height:1.32;min-height:0;margin-top:2px}
+.card.c4 .nm{color:var(--ink)}
+.card.c3 .pr,.card.c4 .pr{font-size:19px}
+.why{font-size:15px;line-height:1.55;color:var(--text);margin-top:7px;word-break:keep-all}
+.card.c4 .why{color:var(--ink2)}
+.byl{display:flex;align-items:baseline;gap:10px;margin-top:9px;padding-top:8px;border-top:1px solid var(--hair);
+  font-size:14px;color:var(--dim);line-height:1.45}
+.card.c4 .byl{border-top-color:var(--ln);color:var(--dim2)}
+.byl em{font-style:normal;margin-left:auto;font-weight:700;color:var(--text);
+  transform-origin:50% 50%;display:inline-block}
+.card.c4 .byl em{color:var(--ink)}
+.byl em.rolling{animation:roll .62s cubic-bezier(.4,0,.2,1) both}
+@keyframes roll{0%{transform:rotateX(0);opacity:1}45%{transform:rotateX(-90deg);opacity:0}
+  55%{transform:rotateX(90deg);opacity:0}100%{transform:rotateX(0);opacity:1}}
+
+/* state pill (SNKRS-honest) */
+.state{position:absolute;left:9px;top:9px;z-index:4;display:inline-flex;align-items:center;gap:5px;
+  font-size:14px;line-height:1.35;color:var(--head);background:rgba(255,255,255,.86);
+  border:1px solid var(--tintEdge);border-radius:6px;padding:2px 8px;font-weight:500}
+.state i{width:6px;height:6px;border-radius:50%;background:var(--head);display:block}
+.state.off i{background:transparent;box-shadow:inset 0 0 0 1.5px var(--head)}
+.state.onfield{color:var(--ink);background:rgba(255,255,255,.20);border-color:var(--ln);
+  backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
+.state.onfield i{background:var(--ink)}
+.state.onfield.off i{background:transparent;box-shadow:inset 0 0 0 1.5px var(--ink)}
+
+/* outbound sheet */
+.dout{position:relative;height:844px;overflow:hidden}
+.scrim{position:absolute;inset:0;background:rgba(28,24,55,.44);z-index:8}
+.sheet{position:absolute;left:0;right:0;bottom:0;z-index:9;background:var(--card);
+  border-radius:18px 18px 0 0;padding:12px 18px 24px;box-shadow:0 -10px 30px rgba(20,16,44,.22)}
+.grab{width:40px;height:4px;border-radius:2px;background:var(--hair);margin:0 auto 14px}
+.sheet h5{font-size:19px;color:var(--head);font-weight:700;line-height:1.35}
+.sheet .dest{font-size:15px;color:var(--text);margin-top:6px;line-height:1.5}
+.sheet .verb{font-size:14.5px;line-height:1.6;color:var(--readv);background:var(--tint);
+  border:1px solid var(--tintEdge);border-radius:10px;padding:11px 12px;margin-top:13px}
+.sheet button{display:block;width:100%;font-family:'Noto Sans KR',sans-serif;cursor:pointer}
+.sheet .pri{margin-top:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;
+  padding:15px;font-size:16px;font-weight:700}
+.sheet .sec2{margin-top:8px;background:transparent;color:var(--dim);border:none;padding:11px;font-size:15px}
+
+/* ═══ STILL-LIFE OBJECT SYSTEM (CSS only — photography slots) ═══ */
+.still{position:absolute;left:50%;top:50%;width:168px;height:168px;
+  transform:translate(-50%,-50%) scale(calc(var(--sc,1) * var(--pm,1)));transform-origin:50% 50%;
+  transition:transform .26s cubic-bezier(.4,0,.2,1)}
+.w1 .still{--sc:1} .w2 .still{--sc:1.10} .w3 .still{--sc:2.05} .w4 .still{--sc:2.20}
+.still b,.still s{position:absolute;display:block;text-decoration:none}
+.sh{left:20px;top:136px;width:128px;height:20px;border-radius:50%;
+  background:radial-gradient(closest-side,rgba(24,18,54,.30),rgba(24,18,54,0));
+  transition:transform .26s cubic-bezier(.4,0,.2,1),opacity .26s}
+.card.press .still{--pm:.955}
+.card.press .sh{transform:scaleX(.9) translateY(2px);opacity:.7}
+
+/* ── ① harness — two neck straps, padded chest plate, girth webbing, D-ring, buckle */
+.o-harness .p1{left:50px;top:9px;width:16px;height:56px;border-radius:9px;transform:rotate(13deg);
+  background:linear-gradient(180deg,var(--m4),var(--m2));box-shadow:0 3px 6px rgba(0,0,0,.20)}
+.o-harness .p2{left:101px;top:9px;width:16px;height:56px;border-radius:9px;transform:rotate(-13deg);
+  background:linear-gradient(180deg,var(--m4),var(--m2));box-shadow:0 3px 6px rgba(0,0,0,.20)}
+.o-harness .p3{left:27px;top:44px;width:114px;height:80px;
+  border-radius:28px 28px 44px 44px/22px 22px 48px 48px;
+  background:linear-gradient(150deg,var(--m1) 0%,var(--m1) 32%,var(--m2) 100%);
+  box-shadow:0 13px 24px rgba(20,16,44,.20),inset 0 2px 0 rgba(255,255,255,.32),inset 0 -12px 18px rgba(0,0,0,.14)}
+.o-harness .p4{left:3px;top:92px;width:162px;height:19px;border-radius:10px;
+  background:linear-gradient(180deg,var(--m4) 0%,var(--m2) 100%);
+  box-shadow:0 3px 8px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.20)}
+.o-harness .p5{left:72px;top:34px;width:25px;height:25px;border-radius:50%;border:5px solid var(--m3);
+  box-shadow:0 2px 4px rgba(0,0,0,.30),inset 0 1px 0 rgba(255,255,255,.65)}
+.o-harness .p6{left:29px;top:88px;width:29px;height:28px;border-radius:7px;border:4px solid var(--m3);
+  box-shadow:0 2px 5px rgba(0,0,0,.24)}
+.o-harness .p7{left:51px;top:0px;width:66px;height:16px;border-radius:8px;
+  background:linear-gradient(180deg,var(--m4),var(--m2));box-shadow:0 3px 7px rgba(0,0,0,.22)}
+.o-harness .p8{left:44px;top:68px;width:80px;height:2px;border-radius:2px;background:rgba(255,255,255,.30)}
+
+/* ── ② lead — coil of webbing, second wrap, tail, snap hook, keeper */
+.o-lead .p1{left:14px;top:22px;width:126px;height:126px;border-radius:50%;
+  background:conic-gradient(from 210deg,var(--m2) 0%,var(--m1) 17%,var(--m1) 33%,var(--m2) 55%,var(--m2) 71%,var(--m1) 89%,var(--m2) 100%);
+  box-shadow:0 13px 26px rgba(20,16,44,.20)}
+.o-lead .p2{left:41px;top:49px;width:72px;height:72px;border-radius:50%;background:var(--gnd);
+  box-shadow:inset 0 2px 8px rgba(0,0,0,.22)}
+.o-lead .p3{left:47px;top:44px;width:70px;height:70px;border-radius:50%;border:11px solid transparent;
+  border-top-color:var(--m1);border-right-color:var(--m1);transform:rotate(34deg);
+  filter:drop-shadow(0 3px 4px rgba(0,0,0,.18))}
+.o-lead .p4{left:117px;top:24px;width:17px;height:50px;border-radius:9px;transform:rotate(24deg);
+  background:linear-gradient(180deg,var(--m1),var(--m2));box-shadow:0 3px 7px rgba(0,0,0,.20)}
+.o-lead .p5{left:124px;top:0px;width:23px;height:34px;border-radius:12px;border:5px solid var(--m3);
+  transform:rotate(20deg);box-shadow:0 2px 5px rgba(0,0,0,.26)}
+.o-lead .p6{left:114px;top:46px;width:25px;height:11px;border-radius:5px;transform:rotate(24deg);
+  background:var(--m2);box-shadow:0 1px 3px rgba(0,0,0,.22)}
+.o-lead .p7{left:30px;top:32px;width:46px;height:22px;border-radius:50%;transform:rotate(-32deg);
+  background:linear-gradient(180deg,rgba(255,255,255,.28),rgba(255,255,255,0))}
+
+/* ── ③ vest harness (HOWLPOT) */
+.o-vest .p1{left:56px;top:6px;width:56px;height:27px;border-radius:28px/14px;
+  background:linear-gradient(180deg,var(--m4),var(--m2));box-shadow:0 3px 6px rgba(0,0,0,.20)}
+.o-vest .p2{left:19px;top:26px;width:130px;height:98px;
+  border-radius:54px 54px 32px 32px/44px 44px 36px 36px;
+  background:linear-gradient(148deg,var(--m1),var(--m2));
+  box-shadow:0 13px 24px rgba(20,16,44,.18),inset 0 2px 0 rgba(255,255,255,.38),inset 0 -12px 20px rgba(0,0,0,.11)}
+.o-vest .p3{left:12px;top:102px;width:144px;height:18px;border-radius:9px;
+  background:linear-gradient(180deg,var(--m4),var(--m2));box-shadow:0 3px 7px rgba(0,0,0,.18)}
+.o-vest .p4{left:62px;top:54px;width:44px;height:31px;border-radius:7px;background:var(--m3);
+  box-shadow:inset 0 0 0 2px rgba(255,255,255,.55),0 2px 5px rgba(0,0,0,.16)}
+.o-vest .p5{left:74px;top:28px;width:21px;height:21px;border-radius:50%;border:4px solid var(--m3);
+  box-shadow:0 2px 4px rgba(0,0,0,.26)}
+.o-vest .p6{left:106px;top:98px;width:26px;height:26px;border-radius:6px;border:4px solid var(--m3);
+  box-shadow:0 2px 4px rgba(0,0,0,.22)}
+.o-vest .p7{left:28px;top:120px;width:112px;height:5px;border-radius:3px;background:var(--m3);opacity:.5}
+.o-vest .p8{left:44px;top:42px;width:80px;height:2px;border-radius:2px;background:rgba(255,255,255,.32)}
+
+/* ── ④ treat pouch */
+.o-pouch .p1{left:38px;top:52px;width:96px;height:84px;border-radius:12px 12px 22px 22px;
+  background:linear-gradient(150deg,var(--m1),var(--m2));
+  box-shadow:0 13px 22px rgba(20,16,44,.20),inset 0 -12px 18px rgba(0,0,0,.14),inset 0 2px 0 rgba(255,255,255,.24)}
+.o-pouch .p2{left:31px;top:31px;width:110px;height:40px;border-radius:14px 14px 9px 9px;
+  background:linear-gradient(160deg,var(--m4),var(--m2));box-shadow:0 6px 11px rgba(0,0,0,.20)}
+.o-pouch .p3{left:75px;top:66px;width:22px;height:14px;border-radius:0 0 7px 7px;background:var(--m3);
+  box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.o-pouch .p4{left:20px;top:40px;width:16px;height:62px;border-radius:8px;
+  background:linear-gradient(180deg,var(--m3),var(--m4));box-shadow:0 3px 6px rgba(0,0,0,.22)}
+.o-pouch .p5{left:48px;top:104px;width:76px;height:2px;border-radius:2px;background:rgba(255,255,255,.30)}
+.o-pouch .p6{left:26px;top:56px;width:8px;height:16px;border-radius:4px;background:rgba(0,0,0,.22)}
+.o-pouch .p7{left:31px;top:66px;width:110px;height:3px;border-radius:2px;background:rgba(0,0,0,.16)}
+.o-pouch .p8{left:52px;top:88px;width:68px;height:26px;border-radius:10px;
+  box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.16)}
+
+/* ── ⑤ hip pack */
+.o-hip .p1{left:24px;top:52px;width:120px;height:70px;
+  border-radius:36px 36px 42px 42px/28px 28px 40px 40px;
+  background:linear-gradient(150deg,var(--m1),var(--m2));
+  box-shadow:0 13px 22px rgba(20,16,44,.20),inset 0 2px 0 rgba(255,255,255,.30),inset 0 -12px 18px rgba(0,0,0,.13)}
+.o-hip .p2{left:0px;top:64px;width:36px;height:16px;border-radius:8px;
+  background:linear-gradient(180deg,var(--m3),var(--m4));box-shadow:0 2px 5px rgba(0,0,0,.2)}
+.o-hip .p3{left:134px;top:64px;width:34px;height:16px;border-radius:8px;
+  background:linear-gradient(180deg,var(--m3),var(--m4));box-shadow:0 2px 5px rgba(0,0,0,.2)}
+.o-hip .p4{left:124px;top:60px;width:25px;height:24px;border-radius:6px;border:4px solid var(--m3);
+  box-shadow:0 2px 4px rgba(0,0,0,.24)}
+.o-hip .p5{left:38px;top:78px;width:92px;height:3px;border-radius:2px;background:var(--m3);opacity:.85}
+.o-hip .p6{left:34px;top:73px;width:13px;height:14px;border-radius:4px;background:var(--m3);
+  box-shadow:0 1px 3px rgba(0,0,0,.32)}
+.o-hip .p7{left:40px;top:62px;width:88px;height:2px;border-radius:2px;background:rgba(255,255,255,.26)}
+.o-hip .p8{left:52px;top:90px;width:64px;height:24px;border-radius:12px;
+  box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.18)}
+
+/* ── ⑥ cooling vest — coat panel, collar, mesh, cross straps, reflective hem */
+.o-cool .p1{left:22px;top:38px;width:124px;height:90px;
+  border-radius:30px 30px 34px 34px/22px 22px 38px 38px;
+  background:linear-gradient(150deg,var(--m1),var(--m2));
+  box-shadow:0 13px 24px rgba(20,16,44,.18),inset 0 2px 0 rgba(255,255,255,.40),inset 0 -12px 20px rgba(0,0,0,.10)}
+.o-cool .p2{left:22px;top:38px;width:124px;height:90px;
+  border-radius:30px 30px 34px 34px/22px 22px 38px 38px;
+  background:repeating-linear-gradient(52deg,rgba(255,255,255,.24) 0 2px,rgba(0,0,0,.05) 2px 3px,transparent 3px 9px)}
+.o-cool .p3{left:55px;top:25px;width:58px;height:26px;border-radius:29px/13px;
+  background:linear-gradient(180deg,var(--m4),var(--m2));
+  box-shadow:0 3px 7px rgba(0,0,0,.18),inset 0 3px 6px rgba(0,0,0,.22)}
+.o-cool .p4{left:38px;top:44px;width:15px;height:78px;border-radius:8px;transform:rotate(11deg);
+  background:linear-gradient(180deg,var(--m4),var(--m2));opacity:.92}
+.o-cool .p5{left:115px;top:44px;width:15px;height:78px;border-radius:8px;transform:rotate(-11deg);
+  background:linear-gradient(180deg,var(--m4),var(--m2));opacity:.92}
+.o-cool .p6{left:70px;top:58px;width:28px;height:32px;border-radius:6px;background:var(--m4);
+  box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.40),0 2px 5px rgba(0,0,0,.14)}
+.o-cool .p7{left:34px;top:106px;width:100px;height:5px;border-radius:3px;
+  background:linear-gradient(90deg,rgba(255,255,255,.14),rgba(255,255,255,.92),rgba(255,255,255,.14))}
+.o-cool .p8{left:36px;top:124px;width:96px;height:3px;border-radius:2px;background:rgba(0,0,0,.14)}
+
+/* ── ⑦ balm jar */
+.o-balm .p1{left:43px;top:72px;width:82px;height:58px;border-radius:9px 9px 13px 13px;
+  background:linear-gradient(100deg,var(--m2) 0%,var(--m1) 16%,#fff 26%,var(--m1) 44%,var(--m2) 100%);
+  box-shadow:0 11px 20px rgba(20,16,44,.20)}
+.o-balm .p2{left:39px;top:42px;width:90px;height:34px;border-radius:8px;
+  background:linear-gradient(100deg,var(--m4) 0%,var(--m3) 22%,var(--m4) 58%,var(--m4) 100%)}
+.o-balm .p3{left:39px;top:33px;width:90px;height:19px;border-radius:50%;
+  background:linear-gradient(180deg,var(--m3),var(--m4));box-shadow:inset 0 -2px 4px rgba(0,0,0,.20)}
+.o-balm .p4{left:52px;top:86px;width:64px;height:30px;border-radius:4px;background:rgba(255,255,255,.80);
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.07)}
+.o-balm .p5{left:60px;top:94px;width:48px;height:3px;border-radius:2px;background:var(--m4);opacity:.55}
+.o-balm .p6{left:60px;top:103px;width:32px;height:2px;border-radius:2px;background:var(--m4);opacity:.35}
+.o-balm .p7{left:41px;top:48px;width:86px;height:3px;border-radius:2px;background:rgba(0,0,0,.14)}
+.o-balm .p8{left:43px;top:124px;width:82px;height:6px;border-radius:0 0 13px 13px;background:rgba(0,0,0,.14)}
+
+/* ── ⑧ aesop bottle */
+.o-bottle .p1{left:51px;top:52px;width:68px;height:98px;border-radius:9px 9px 13px 13px;
+  background:linear-gradient(100deg,var(--m2) 0%,var(--m1) 15%,var(--m1) 28%,var(--m2) 62%,var(--m2) 100%);
+  box-shadow:0 13px 22px rgba(20,16,44,.24)}
+.o-bottle .p2{left:73px;top:35px;width:23px;height:22px;border-radius:3px;
+  background:linear-gradient(100deg,var(--m2),var(--m1) 30%,var(--m2))}
+.o-bottle .p3{left:65px;top:21px;width:39px;height:17px;border-radius:4px;
+  background:linear-gradient(180deg,var(--m3),var(--m4));box-shadow:0 2px 5px rgba(0,0,0,.22)}
+.o-bottle .p4{left:100px;top:25px;width:23px;height:9px;border-radius:0 5px 5px 0;background:var(--m4)}
+.o-bottle .p5{left:57px;top:74px;width:56px;height:52px;border-radius:3px;background:rgba(246,242,234,.93);
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.06)}
+.o-bottle .p6{left:64px;top:84px;width:42px;height:3px;border-radius:2px;background:var(--m2);opacity:.42}
+.o-bottle .p7{left:64px;top:93px;width:28px;height:2px;border-radius:2px;background:var(--m2);opacity:.28}
+.o-bottle .p8{left:56px;top:58px;width:8px;height:84px;border-radius:5px;
+  background:linear-gradient(180deg,rgba(255,255,255,.34),rgba(255,255,255,.06))}
+
+/* ── ⑨ dog boot — sole, tread, toe, ankle cuff, cinch, reflective */
+.o-shoe .p1{left:24px;top:100px;width:118px;height:24px;border-radius:16px 20px 9px 11px;
+  background:linear-gradient(180deg,var(--m4),var(--m2));box-shadow:0 7px 13px rgba(20,16,44,.22)}
+.o-shoe .p2{left:24px;top:117px;width:118px;height:10px;border-radius:0 0 11px 13px;
+  background:linear-gradient(180deg,transparent 0 40%,rgba(0,0,0,.22) 40%),
+             repeating-linear-gradient(96deg,rgba(0,0,0,.26) 0 3px,transparent 3px 13px),var(--m2)}
+.o-shoe .p3{left:26px;top:58px;width:100px;height:50px;
+  border-radius:46px 20px 8px 10px/42px 20px 8px 10px;
+  background:linear-gradient(150deg,var(--m1),var(--m2));
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.30),0 6px 14px rgba(20,16,44,.14)}
+.o-shoe .p4{left:92px;top:24px;width:48px;height:62px;border-radius:14px 16px 6px 22px;
+  background:linear-gradient(160deg,var(--m4),var(--m2));box-shadow:0 5px 11px rgba(0,0,0,.18)}
+.o-shoe .p5{left:90px;top:42px;width:52px;height:4px;border-radius:2px;background:var(--m3);
+  box-shadow:0 1px 2px rgba(0,0,0,.24)}
+.o-shoe .p6{left:128px;top:35px;width:15px;height:17px;border-radius:4px;background:var(--m3);
+  box-shadow:0 1px 3px rgba(0,0,0,.32)}
+.o-shoe .p7{left:38px;top:82px;width:60px;height:5px;border-radius:3px;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.88),transparent)}
+.o-shoe .p8{left:36px;top:66px;width:32px;height:2px;border-radius:2px;transform:rotate(-42deg);
+  background:rgba(255,255,255,.30)}
+
+/* ── ⑩ smarttag2 + pet strap */
+.o-tag .p1{left:26px;top:26px;width:58px;height:114px;border-radius:29px;border:11px solid var(--m4);
+  transform:rotate(-12deg);box-shadow:0 7px 15px rgba(20,16,44,.18)}
+.o-tag .p2{left:58px;top:48px;width:86px;height:86px;border-radius:26px;
+  background:linear-gradient(145deg,var(--m1),var(--m2));
+  box-shadow:0 15px 25px rgba(20,16,44,.28),inset 0 2px 0 rgba(255,255,255,.26)}
+.o-tag .p3{left:70px;top:60px;width:16px;height:16px;border-radius:50%;background:var(--gnd);
+  box-shadow:inset 0 1px 3px rgba(0,0,0,.45)}
+.o-tag .p4{left:83px;top:73px;width:36px;height:36px;border-radius:50%;
+  border:2px solid rgba(255,255,255,.26)}
+.o-tag .p5{left:58px;top:48px;width:86px;height:44px;border-radius:26px 26px 46px 46px;
+  background:linear-gradient(180deg,rgba(255,255,255,.20),rgba(255,255,255,0))}
+.o-tag .p6{left:95px;top:85px;width:12px;height:12px;border-radius:50%;background:rgba(255,255,255,.22)}
+.o-tag .p7{left:38px;top:36px;width:34px;height:12px;border-radius:6px;transform:rotate(-12deg);
+  background:rgba(255,255,255,.16)}
+
+/* ═══ APPENDIX ═══ */
+.apx{max-width:1420px;margin:64px auto 0;padding:0 26px}
+.apx h2{font-size:19px;color:#F2EFFA;font-weight:700;border-bottom:1px solid rgba(255,255,255,.1);padding-bottom:10px}
+.apx h4{font-size:14px;color:#9F8FFF;font-weight:700;margin-top:26px;letter-spacing:.3px}
+.apx p{font-size:13px;color:#A9A3C8;line-height:1.72;margin-top:8px;max-width:1080px}
+.apx p b{color:#F2EFFA}
+.apx table{border-collapse:collapse;margin-top:11px;width:100%;max-width:1180px}
+.apx th{font-size:11.5px;text-transform:uppercase;letter-spacing:1.1px;color:#8F88B4;text-align:left;
+  padding:7px 12px 7px 0;border-bottom:1px solid rgba(255,255,255,.14);font-family:'Oswald';font-weight:500}
+.apx td{font-size:13px;color:#BDB6DC;line-height:1.6;padding:8px 12px 8px 0;
+  border-bottom:1px solid rgba(255,255,255,.07);vertical-align:top}
+.apx td b{color:#F2EFFA;font-weight:700}
+.apx td code{font-family:'Oswald';font-size:12.5px;letter-spacing:.4px;color:#B7E27A}
+.apx td .no{color:#FFB9A6}
+.apx ul{margin:10px 0 0 17px}
+.apx li{font-size:13px;color:#BDB6DC;line-height:1.72;margin-top:5px;max-width:1080px}
+.apx li b{color:#F2EFFA}
+</style>
+</head>
+<body>
+<div class="sticky"><div class="wrap">
+<div class="lab-title">SHOP LAB <em>V2</em> — 부티크 <i>· product faces forward</i></div>
+<p class="lab-sub">v1 was rejected: <b>“too messy and steer away from the product. shop should be forward facing with product faces at front, creative ui.”</b>
+Four directions, built to <b>docs/biz/shop-design-study.md</b> PART 3. Retail-metaphor chrome, per-card annotation and editorial data lines are gone — every note now lives in the appendix under the phones.
+<b>Product faces are CSS still-life renders standing in for photography SLOTS</b>; no real product photography is used anywhere (rights unverified — study §c). Real products, researched prices only.</p>
+<div class="chips">
+<span>LAW 1 <b>face ≥65% of card</b> · measured</span><span>LAW 2 one type jump</span><span>LAW 3 chrome = hairlines</span>
+<span>LAW 4 fixed fields</span><span>LAW 5 editorial interstitial</span><span>LAW 6 purpose nav</span><span>LAW 7 owned proof only</span>
+<span>no ratings · reviews · discounts · stock · countdowns</span><span>point payment <b>0</b></span><span>제휴 chip on every card</span>
+<span>one micro-motion per direction · <b>click to play</b></span>
+</div></div></div><section class="sect"><div class="sect-head"><span class="n">Ⓥ①</span><h2>라일락 웰 &nbsp;·&nbsp; LILAC WELL</h2><p>Uniform tint wells · per-section deepening lilac · 10 items, 2-up · well 216 of a 300 card</p></div><div class="frames"><div class="unit"><div class="phone" id="p1"><div class="scr d1"><header class="shead"><div class="kk">DAENGRUN · BOUTIQUE</div><div class="h1">부티크</div><p class="lead">러닝 기록으로 고른 열 가지.</p></header><div class="disc">이 셸프의 상품은 모두 제휴 링크입니다. 구매하시면 댕런이 수수료를 받습니다.</div><nav class="nv"><span class="on">첫 러닝</span><span class="">여름</span><span class="">발바닥</span><span class="">야간 안전</span></nav><div class="sec" data-tintsec="0"><div class="mod"><span class="ek">FIRST RUN</span><h3>첫 러닝에 필요한 네 가지</h3></div><div class="grid"><article class="card c1" data-face><div class="face w1" style="--gnd:#F8F6FE;background:#F8F6FE"><span class="state on "><i></i>판매 중</span><div class="still o-harness" style="--m1:#646A78;--m2:#33373F;--m3:#C9CDD5;--m4:#4B505A;--gnd:#F8F6FE"><b class="p1"></b><b class="p2"></b><b class="p3"></b><b class="p4"></b><b class="p5"></b><b class="p6"></b><b class="p7"></b><b class="p8"></b><s class="sh"></s></div></div><div class="tx"><div class="kick">RUFFWEAR</div><h4 class="nm">프론트레인지 하네스</h4><div class="prow"><span class="num pr">₩41,000</span><span class="aff">제휴</span></div><p class="dsc">4점 조절 + 앞가슴 클립</p></div></article><article class="card c1" data-face><div class="face w1" style="--gnd:#F8F6FE;background:#F8F6FE"><span class="state on "><i></i>판매 중</span><div class="still o-lead" style="--m1:#7D8593;--m2:#3B404A;--m3:#C9CDD5;--m4:#5A606C;--gnd:#F8F6FE"><b class="p1"></b><b class="p2"></b><b class="p3"></b><b class="p4"></b><b class="p5"></b><b class="p6"></b><b class="p7"></b><b class="p8"></b><s class="sh"></s></div></div><div class="tx"><div class="kick">RUFFWEAR</div><h4 class="nm">플랫아웃 리드 1.8m</h4><div class="prow"><span class="num pr">₩73,600</span><span class="aff">제휴</span></div><p class="dsc">허리 착용 + 핸즈프리</p></div></article><article class="card c1" data-face><div class="face w1" style="--gnd:#F8F6FE;background:#F8F6FE"><span class="state off "><i></i>입고 준비 중</span><div class="still o-pouch" style="--m1:#6B7280;--m2:#363B45;--m3:#C9CDD5;--m4:#4E5460;--gnd:#F8F6FE"><b class="p1"></b><b class="p2"></b><b class="p3"></b><b class="p4"></b><b class="p5"></b><b class="p6"></b><b class="p7"></b><b class="p8"></b><s class="sh"></s></div></div><div class="tx"><div class="kick">RUFFWEAR</div><h4 class="nm">트릿 트레이더 파우치</h4><div class="prow"><span class="num pr">₩54,000</span><span class="aff">제휴</span></div><p class="dsc">자석 개폐 + 벨트 클립</p></div></article><article class="card c1" data-face><div class="face w1" style="--gnd:#F8F6FE;background:#F8F6FE"><span class="state off "><i></i>입고 준비 중</span><div class="still o-hip" style="--m1:#6E7583;--m2:#383D47;--m3:#C9CDD5;--m4:#515763;--gnd:#F8F6FE"><b class="p1"></b><b class="p2"></b><b class="p3"></b><b class="p4"></b><b class="p5"></b><b class="p6"></b><b class="p7"></b><b class="p8"></b><s class="sh"></s></div></div><div class="tx"><div class="kick">RUFFWEAR</div><h4 class="nm">홈 트레일 힙팩</h4><div class="prow"><span class="num pr">₩68,000</span><span class="aff">제휴</span></div><p class="dsc">허리 착용 + 러닝 수납</p></div></article></div></div><section class="strip "><h5>왜 하네스가 먼저인가</h5><p>목줄은 달릴 때 하중을 목에 싣습니다. 프론트레인지는 4점 조절에 앞가슴 클립이 있어 첫 러닝의 기본값입니다.</p></section><div class="sec" data-tintsec="1"><div class="mod"><span class="ek">SUMMER · PAWS</span><h3>한여름 반포에서 쓰는 것들</h3></div><div class="grid"><article class="card c1" data-face><div class="face w1" style="--gnd:#F1EDFC;background:#F1EDFC"><span class="state off "><i></i>입고 준비 중</span><div class="still o-cool" style="--m1:#8E97A6;--m2:#4B5462;--m3:#DDE4EC;--m4:#69727F;--gnd:#F1EDFC"><b class="p1"></b><b class="p2"></b><b class="p3"></b><b class="p4"></b><b class="p5"></b><b class="p6"></b><b class="p7"></b><b class="p8"></b><s class="sh"></s></div></div><div class="tx"><div class="kick">RUFFWEAR</div><h4 class="nm">스왐프 쿨러 쿨링 베스트</h4><div class="prow"><span class="num pr">₩106,000</span><span class="aff">제휴</span></div><p class="dsc">증발 냉각 + 여름 전용</p></div></article><article class="card c1" data-face><div class="face w1" style="--gnd:#F1EDFC;background:#F1EDFC"><span class="state off "><i></i>입고 준비 중</span><div class="still o-shoe" style="--m1:#69707E;--m2:#343943;--m3:#C9CDD5;--m4:#4C525E;--gnd:#F1EDFC"><b class="p1"></b><b class="p2"></b><b class="p3"></b><b class="p4"></b><b class="p5"></b><b class="p6"></b><b class="p7"></b><b class="p8"></b><s class="sh"></s></div></div><div class="tx"><div class="kick">RUFFWEAR</div><h4 class="nm">릿지라인 도그 슈즈</h4><div class="prow"><span class="num pr">₩89,000</span><span class="aff">제휴</span></div><p class="dsc">발바닥 보호 + 러닝용</p></div></article><article class="card c1" data-face><div class="face w1" style="--gnd:#F1EDFC;background:#F1EDFC"><span class="state off "><i></i>입고 준비 중</span><div class="still o-vest" style="--m1:#A79AD4;--m2:#6E5FA8;--m3:#F1EDFB;--m4:#8A7BC0;--gnd:#F1EDFC"><b class="p1"></b><b class="p2"></b><b class="p3"></b><b class="p4"></b><b class="p5"></b><b class="p6"></b><b class="p7"></b><b class="p8"></b><s class="sh"></s></div></div><div class="tx"><div class="kick">HOWLPOT</div><h4 class="nm">어드벤처 하네스 · 라일락</h4><div class="prow"><span class="num pr">₩24,000</span><span class="aff">제휴</span></div><p class="dsc">자수 디테일 + 라일락</p></div></article><article class="card c1" data-face><div class="face w1" style="--gnd:#F1EDFC;background:#F1EDFC"><span class="state off "><i></i>입고 준비 중</span><div class="still o-balm" style="--m1:#EDE9E0;--m2:#BFB8A9;--m3:#7E8C63;--m4:#5F6B49;--gnd:#F1EDFC"><b class="p1"></b><b class="p2"></b><b class="p3"></b><b class="p4"></b><b class="p5"></b><b class="p6"></b><b class="p7"></b><b class="p8"></b><s class="sh"></s></div></div><div class="tx"><div class="kick">LILA LOVES IT</div><h4 class="nm">포케어 발바닥 밤 60ml</h4><div class="prow"><span class="num pr">₩32,000</span><span class="aff">제휴</span></div><p class="dsc">유기농 인증 + 60ml</p></div></article></div></div><div class="sec" data-tintsec="2"><div class="mod"><span class="ek">AFTER THE RUN</span><h3>달리고 나서 쓰는 두 가지</h3></div><div class="grid"><article class="card c1" data-face><div class="face w1" style="--gnd:#E9E3FA;background:#E9E3FA"><span class="state off "><i></i>입고 준비 중</span><div class="still o-bottle" style="--m1:#9A6A34;--m2:#4E3418;--m3:#D9CFC0;--m4:#8A7F6E;--gnd:#E9E3FA"><b class="p1"></b><b class="p2"></b><b class="p3"></b><b class="p4"></b><b class="p5"></b><b class="p6"></b><b class="p7"></b><b class="p8"></b><s class="sh"></s></div></div><div class="tx"><div class="kick">AESOP</div><h4 class="nm">애니멀 500ml</h4><div class="prow"><span class="num pr">₩56,000</span><span class="aff">제휴</span></div><p class="dsc">시트러스 + 티트리</p></div></article><article class="card c1" data-face><div class="face w1" style="--gnd:#E9E3FA;background:#E9E3FA"><span class="state on "><i></i>판매 중</span><div class="still o-tag" style="--m1:#4A505C;--m2:#232730;--m3:#C9CDD5;--m4:#8A91A0;--gnd:#E9E3FA"><b class="p1"></b><b class="p2"></b><b class="p3"></b><b class="p4"></b><b class="p5"></b><b class="p6"></b><b class="p7"></b><b class="p8"></b><s class="sh"></s></div></div><div class="tx"><div class="kick">SAMSUNG</div><h4 class="nm">갤럭시 스마트태그2 · 펫 스트랩</h4><div class="prow"><span class="num pr">₩22,800</span><span class="aff">제휴</span></div><p class="dsc">UWB + 스트랩 별도</p></div></article></div></div><footer class="foot"><p class="fire">상품은 러닝 기준으로 먼저 고르고, 제휴 여부는 그다음에 확인합니다.</p><p class="by">고른 사람 · 댕런 러닝팀</p><div class="cred"><span>반포 코스 실측</span><span>러닝 기록 기준 선정</span><span>별점·리뷰 없음</span><span>할인 없음</span></div></footer></div></div></div><aside class="side"><h3><b>Ⓥ①</b>라일락 웰 · LILAC WELL — the control</h3><p class='why'>One well, repeated ten times. The card never changes; the <em>room</em> does — the lilac deepens one degree per section, <b>#F8F6FE → #F1EDFC → #E9E3FA</b>, so scrolling the shop is a slow gradient descent. Musinsa's colour-differentiation trick applied vertically instead of across stores. Zero migration cost: a real packshot drops into the same well and nothing else moves.</p><div class='playbar'><button onclick="descent()">▶ COLOUR DESCENT</button><button class='q' onclick="descentReset()">reset</button></div><div class="mtr" id="m1">measuring…</div></aside></div></section><section class="sect"><div class="sect-head"><span class="n">Ⓥ②</span><h2>브랜드 필드 &nbsp;·&nbsp; BRAND FIELD</h2><p>Full-bleed gutterless 2-up colour tiles · brand-owned ground · product face floating</p></div><div class="frames"><div class="unit"><div class="phone" id="p2"><div class="scr d2"><header class="shead"><div class="kk">DAENGRUN · BOUTIQUE</div><div class="h1">부티크</div><p class="lead">고른 브랜드가 그대로 색이 됩니다.</p></header><div class="disc">이 셸프의 상품은 모두 제휴 링크입니다. 구매하시면 댕런이 수수료를 받습니다.</div><nav class="nv"><span class="on">첫 러닝</span><span class="">여름</span><span class="">발바닥</span><span class="">야간 안전</span></nav><div class="mod"><span class="ek">THE COLOUR WALL</span><h3>브랜드 색으로 세운 열 칸</h3></div><div class="wall"><article class="card c2" data-face data-txbg="#93481B" style="background:linear-gradient(158deg,#C26D2F 0%,#A75623 50%,#8A4118 100%);--ink:#FFF3E7;--ink2:rgba(255,243,231,.93);--dim2:rgba(255,243,231,.88);--ln:rgba(255,243,231,.34)"><div class="face w2" style="--gnd:#A75623"><span class="state on onfield"><i></i>판매 중</span><div class="still o-harness" style="--m1:#3E434D;--m2:#1D2026;--m3:#E4C9A8;--m4:#2C3038;--gnd:#A75623"><b class="p1"></b><b class="p2"></b><b class="p3"></b><b class="p4"></b><b class="p5"></b><b class="p6"></b><b class="p7"></b><b class="p8"></b><s class="sh"></s></div></div><div class="tx"><div class="kick">RUFFWEAR</div><h4 class="nm">프론트레인지 하네스</h4><div class="prow"><span class="num pr">₩41,000</span><span class="aff">제휴</span></div><p class="dsc">4점 조절 + 앞가슴 클립</p></div></article><article class="card c2" data-face data-txbg="#93481B" style="background:linear-gradient(158deg,#C26D2F 0%,#A75623 50%,#8A4118 100%);--ink:#FFF3E7;--ink2:rgba(255,243,231,.93);--dim2:rgba(255,243,231,.88);--ln:rgba(255,243,231,.34)"><div class="face w2" style="--gnd:#A75623"><span class="state on onfield"><i></i>판매 중</span><div class="still o-lead" style="--m1:#4A505C;--m2:#1E2127;--m3:#E4C9A8;--m4:#2E323A;--gnd:#A75623"><b class="p1"></b><b class="p2"></b><b class="p3"></b><b class="p4"></b><b class="p5"></b><b class="p6"></b><b class="p7"></b><b class="p8"></b><s class="sh"></s></div></div><div class="tx"><div class="kick">RUFFWEAR</div><h4 class="nm">플랫아웃 리드 1.8m</h4><div class="prow"><span class="num pr">₩73,600</span><span class="aff">제휴</span></div><p class="dsc">허리 착용 + 핸즈프리</p></div></article><article class="card c2" data-face data-txbg="#93481B" style="background:linear-gradient(158deg,#C26D2F 0%,#A75623 50%,#8A4118 100%);--ink:#FFF3E7;--ink2:rgba(255,243,231,.93);--dim2:rgba(255,243,231,.88);--ln:rgba(255,243,231,.34)"><div class="face w2" style="--gnd:#A75623"><span class="state off onfield"><i></i>입고 준비 중</span><div class="still o-pouch" style="--m1:#41474F;--m2:#1E2127;--m3:#E4C9A8;--m4:#2D3138;--gnd:#A75623"><b class="p1"></b><b class="p2"></b><b class="p3"></b><b class="p4"></b><b class="p5"></b><b class="p6"></b><b class="p7"></b><b class="p8"></b><s class="sh"></s></div></div><div class="tx"><div class="kick">RUFFWEAR</div><h4 class="nm">트릿 트레이더 파우치</h4><div class="prow"><span class="num pr">₩54,000</span><span class="aff">제휴</span></div><p class="dsc">자석 개폐 + 벨트 클립</p></div></article><article class="card c2" data-face data-txbg="#93481B" style="background:linear-gradient(158deg,#C26D2F 0%,#A75623 50%,#8A4118 100%);--ink:#FFF3E7;--ink2:rgba(255,243,231,.93);--dim2:rgba(255,243,231,.88);--ln:rgba(255,243,231,.34)"><div class="face w2" style="--gnd:#A75623"><span class="state off onfield"><i></i>입고 준비 중</span><div class="still o-hip" style="--m1:#434952;--m2:#1F2228;--m3:#E4C9A8;--m4:#2E323A;--gnd:#A75623"><b class="p1"></b><b class="p2"></b><b class="p3"></b><b class="p4"></b><b class="p5"></b><b class="p6"></b><b class="p7"></b><b class="p8"></b><s class="sh"></s></div></div><div class="tx"><div class="kick">RUFFWEAR</div><h4 class="nm">홈 트레일 힙팩</h4><div class="prow"><span class="num pr">₩68,000</span><span class="aff">제휴</span></div><p class="dsc">허리 착용 + 러닝 수납</p></div></article></div><section class="strip lil"><h5>색이 곧 브랜드입니다</h5><p>한 칸의 바탕색은 그 브랜드의 색입니다. 로고보다 색이 먼저 읽히기 때문에, 상품 이름은 작아도 됩니다.</p></section><div class="wall"><article class="card c2" data-face data-txbg="#454A55" style="background:linear-gradient(158deg,#727884 0%,#4E5461 55%,#3D424B 100%);--ink:#FFFFFF;--ink2:rgba(255,255,255,.93);--dim2:rgba(255,255,255,.86);--ln:rgba(255,255,255,.32)"><div class="face w2" style="--gnd:#4E5461"><span class="state off onfield"><i></i>입고 준비 중</span><div class="still o-cool" style="--m1:#E7EDF3;--m2:#A9B4C2;--m3:#FFFFFF;--m4:#C2CBD6;--gnd:#4E5461"><b class="p1"></b><b class="p2"></b><b class="p3"></b><b class="p4"></b><b class="p5"></b><b class="p6"></b><b class="p7"></b><b class="p8"></b><s class="sh"></s></div></div><div class="tx"><div class="kick">RUFFWEAR</div><h4 class="nm">스왐프 쿨러 쿨링 베스트</h4><div class="prow"><span class="num pr">₩106,000</span><span class="aff">제휴</span></div><p class="dsc">증발 냉각 + 여름 전용</p></div></article><article class="card c2" data-face data-txbg="#454A55" style="background:linear-gradient(158deg,#727884 0%,#4E5461 55%,#3D424B 100%);--ink:#FFFFFF;--ink2:rgba(255,255,255,.93);--dim2:rgba(255,255,255,.86);--ln:rgba(255,255,255,.32)"><div class="face w2" style="--gnd:#4E5461"><span class="state off onfield"><i></i>입고 준비 중</span><div class="still o-shoe" style="--m1:#D8843F;--m2:#8A4A18;--m3:#F3E6D3;--m4:#B0632A;--gnd:#4E5461"><b class="p1"></b><b class="p2"></b><b class="p3"></b><b class="p4"></b><b class="p5"></b><b class="p6"></b><b class="p7"></b><b class="p8"></b><s class="sh"></s></div></div><div class="tx"><div class="kick">RUFFWEAR</div><h4 class="nm">릿지라인 도그 슈즈</h4><div class="prow"><span class="num pr">₩89,000</span><span class="aff">제휴</span></div><p class="dsc">발바닥 보호 + 러닝용</p></div></article><article class="card c2" data-face data-txbg="#B0A0DA" style="background:linear-gradient(158deg,#D5C9F0 0%,#BCACE4 55%,#A796D6 100%);--ink:#241E44;--ink2:rgba(36,30,68,.93);--dim2:rgba(36,30,68,.84);--ln:rgba(36,30,68,.26)"><div class="face w2" style="--gnd:#BCACE4"><span class="state off onfield"><i></i>입고 준비 중</span><div class="still o-vest" style="--m1:#6C5CA8;--m2:#3B3070;--m3:#F4EFFF;--m4:#514391;--gnd:#BCACE4"><b class="p1"></b><b class="p2"></b><b class="p3"></b><b class="p4"></b><b class="p5"></b><b class="p6"></b><b class="p7"></b><b class="p8"></b><s class="sh"></s></div></div><div class="tx"><div class="kick">HOWLPOT</div><h4 class="nm">어드벤처 하네스 · 라일락</h4><div class="prow"><span class="num pr">₩24,000</span><span class="aff">제휴</span></div><p class="dsc">자수 디테일 + 라일락</p></div></article><article class="card c2" data-face data-txbg="#B4C29D" style="background:linear-gradient(158deg,#DCE4CE 0%,#BFCCA9 55%,#ACBB93 100%);--ink:#26301A;--ink2:rgba(38,48,26,.93);--dim2:rgba(38,48,26,.84);--ln:rgba(38,48,26,.26)"><div class="face w2" style="--gnd:#BFCCA9"><span class="state off onfield"><i></i>입고 준비 중</span><div class="still o-balm" style="--m1:#FBF8F1;--m2:#CFC7B6;--m3:#4E5C36;--m4:#39441F;--gnd:#BFCCA9"><b class="p1"></b><b class="p2"></b><b class="p3"></b><b class="p4"></b><b class="p5"></b><b class="p6"></b><b class="p7"></b><b class="p8"></b><s class="sh"></s></div></div><div class="tx"><div class="kick">LILA LOVES IT</div><h4 class="nm">포케어 발바닥 밤 60ml</h4><div class="prow"><span class="num pr">₩32,000</span><span class="aff">제휴</span></div><p class="dsc">유기농 인증 + 60ml</p></div></article><article class="card c2" data-face data-txbg="#CBBFA9" style="background:linear-gradient(158deg,#EAE2D4 0%,#D5CAB7 55%,#C3B69F 100%);--ink:#2F2618;--ink2:rgba(47,38,24,.93);--dim2:rgba(47,38,24,.84);--ln:rgba(47,38,24,.26)"><div class="face w2" style="--gnd:#D5CAB7"><span class="state off onfield"><i></i>입고 준비 중</span><div class="still o-bottle" style="--m1:#93662F;--m2:#432C12;--m3:#EFE7DA;--m4:#7C7264;--gnd:#D5CAB7"><b class="p1"></b><b class="p2"></b><b class="p3"></b><b class="p4"></b><b class="p5"></b><b class="p6"></b><b class="p7"></b><b class="p8"></b><s class="sh"></s></div></div><div class="tx"><div class="kick">AESOP</div><h4 class="nm">애니멀 500ml</h4><div class="prow"><span class="num pr">₩56,000</span><span class="aff">제휴</span></div><p class="dsc">시트러스 + 티트리</p></div></article><article class="card c2" data-face data-txbg="#212630" style="background:linear-gradient(158deg,#414755 0%,#272C36 55%,#1B1F26 100%);--ink:#FFFFFF;--ink2:rgba(255,255,255,.93);--dim2:rgba(255,255,255,.86);--ln:rgba(255,255,255,.28)"><div class="face w2" style="--gnd:#272C36"><span class="state on onfield"><i></i>판매 중</span><div class="still o-tag" style="--m1:#E9ECF1;--m2:#A8AFBC;--m3:#3A404C;--m4:#C6CCD6;--gnd:#272C36"><b class="p1"></b><b class="p2"></b><b class="p3"></b><b class="p4"></b><b class="p5"></b><b class="p6"></b><b class="p7"></b><b class="p8"></b><s class="sh"></s></div></div><div class="tx"><div class="kick">SAMSUNG</div><h4 class="nm">갤럭시 스마트태그2 · 펫 스트랩</h4><div class="prow"><span class="num pr">₩22,800</span><span class="aff">제휴</span></div><p class="dsc">UWB + 스트랩 별도</p></div></article></div><footer class="foot"><p class="fire">상품은 러닝 기준으로 먼저 고르고, 제휴 여부는 그다음에 확인합니다.</p><p class="by">고른 사람 · 댕런 러닝팀</p><div class="cred"><span>반포 코스 실측</span><span>러닝 기록 기준 선정</span><span>별점·리뷰 없음</span><span>할인 없음</span></div></footer></div></div></div><aside class="side"><h3><b>Ⓥ②</b>브랜드 필드 · BRAND FIELD</h3><p class='why'>Full-bleed, gutterless 2-up tiles; the ground <em>is</em> the partner brand's colour and the product floats on it. The shelf becomes a paint chart of the brands we chose, and our own lilac drops back to being the interstitial. <b>Nobody in KR pet commerce runs a continuous colour wall</b> — 지그재그 went white specifically to get out of the product's way; this goes the other direction and puts the brand's own world behind the object. Ordered by brand block, so adjacent hues never collide. <b>TILE PRESS</b> is the only motion — the object depresses into its field and its shadow tightens, which is the one thing an animation is allowed to do here: show that the product is a physical object sitting on something.</p><div class='playbar'><button onclick="press('p2')">▶ TILE PRESS</button></div><div class="mtr" id="m2">measuring…</div></aside></div></section><section class="sect"><div class="sect-head"><span class="n">Ⓥ③</span><h2>에디터의 다섯 줄 &nbsp;·&nbsp; EDITOR'S FIVE LINES</h2><p>Single column, full-width faces · five picks × five fixed lines · weekly pacing</p></div><div class="frames"><div class="unit"><div class="phone" id="p3"><div class="scr d3"><header class="shead"><div class="kk">DAENGRUN · BOUTIQUE</div><div class="h1">부티크</div><p class="lead">이번 주의 픽 다섯.</p></header><div class="disc">이 셸프의 상품은 모두 제휴 링크입니다. 구매하시면 댕런이 수수료를 받습니다.</div><nav class="nv"><span class="on">첫 러닝</span><span class="">여름</span><span class="">발바닥</span><span class="">야간 안전</span></nav><div class="mod"><span class="ek">THIS WEEK</span><h3>이번 주 러닝팀이 고른 다섯</h3></div><article class="card c3" data-face><div class="face w3" style="--gnd:#F4F1FE;background:#F4F1FE"><span class="state on "><i></i>판매 중</span><div class="still o-harness" style="--m1:#646A78;--m2:#33373F;--m3:#C9CDD5;--m4:#4B505A;--gnd:#F4F1FE"><b class="p1"></b><b class="p2"></b><b class="p3"></b><b class="p4"></b><b class="p5"></b><b class="p6"></b><b class="p7"></b><b class="p8"></b><s class="sh"></s></div></div><div class="tx"><div class="l1"><span class="kick">PICK 01</span><span class="purp">첫 러닝</span></div><div class="kick br">RUFFWEAR</div><h4 class="nm">프론트레인지 하네스</h4><div class="prow"><span class="num pr">₩41,000</span><span class="aff">제휴</span></div><p class="why">달릴 때 목에 하중이 걸리지 않는, 첫 러닝의 기본값.</p><div class="byl"><span>고른 사람 · 댕런 러닝팀</span><em class="flip">판매 중</em></div></div></article><article class="card c3" data-face><div class="face w3" style="--gnd:#F4F1FE;background:#F4F1FE"><span class="state on "><i></i>판매 중</span><div class="still o-lead" style="--m1:#7D8593;--m2:#3B404A;--m3:#C9CDD5;--m4:#5A606C;--gnd:#F4F1FE"><b class="p1"></b><b class="p2"></b><b class="p3"></b><b class="p4"></b><b class="p5"></b><b class="p6"></b><b class="p7"></b><b class="p8"></b><s class="sh"></s></div></div><div class="tx"><div class="l1"><span class="kick">PICK 02</span><span class="purp">핸즈프리</span></div><div class="kick br">RUFFWEAR</div><h4 class="nm">플랫아웃 리드 1.8m</h4><div class="prow"><span class="num pr">₩73,600</span><span class="aff">제휴</span></div><p class="why">허리에 차면 손이 빕니다. 쿠팡에서 확인된 유일한 러닝 리드.</p><div class="byl"><span>고른 사람 · 댕런 러닝팀</span><em class="flip">판매 중</em></div></div></article><section class="strip "><h5>이번 주는 두 개만 삽니다</h5><p>픽은 매주 다섯 개까지만 올립니다. 다 고르는 것보다 덜 고르는 편이 정확합니다.</p></section><article class="card c3" data-face><div class="face w3" style="--gnd:#F4F1FE;background:#F4F1FE"><span class="state off "><i></i>입고 준비 중</span><div class="still o-cool" style="--m1:#8E97A6;--m2:#4B5462;--m3:#DDE4EC;--m4:#69727F;--gnd:#F4F1FE"><b class="p1"></b><b class="p2"></b><b class="p3"></b><b class="p4"></b><b class="p5"></b><b class="p6"></b><b class="p7"></b><b class="p8"></b><s class="sh"></s></div></div><div class="tx"><div class="l1"><span class="kick">PICK 03</span><span class="purp">한여름</span></div><div class="kick br">RUFFWEAR</div><h4 class="nm">스왐프 쿨러 쿨링 베스트</h4><div class="prow"><span class="num pr">₩106,000</span><span class="aff">제휴</span></div><p class="why">7·8월 반포 아스팔트에서 “오늘 뛸까”에 답하는 한 벌.</p><div class="byl"><span>고른 사람 · 댕런 러닝팀</span><em class="flip">입고 준비 중 · 알림 받기</em></div></div></article><article class="card c3" data-face><div class="face w3" style="--gnd:#F4F1FE;background:#F4F1FE"><span class="state off "><i></i>입고 준비 중</span><div class="still o-balm" style="--m1:#EDE9E0;--m2:#BFB8A9;--m3:#7E8C63;--m4:#5F6B49;--gnd:#F4F1FE"><b class="p1"></b><b class="p2"></b><b class="p3"></b><b class="p4"></b><b class="p5"></b><b class="p6"></b><b class="p7"></b><b class="p8"></b><s class="sh"></s></div></div><div class="tx"><div class="l1"><span class="kick">PICK 04</span><span class="purp">발바닥</span></div><div class="kick br">LILA LOVES IT</div><h4 class="nm">포케어 발바닥 밤 60ml</h4><div class="prow"><span class="num pr">₩32,000</span><span class="aff">제휴</span></div><p class="why">여름 아스팔트를 5km 달린 뒤의 발바닥. 독일 유기농 인증 60ml.</p><div class="byl"><span>고른 사람 · 댕런 러닝팀</span><em class="flip">입고 준비 중 · 알림 받기</em></div></div></article><article class="card c3" data-face><div class="face w3" style="--gnd:#F4F1FE;background:#F4F1FE"><span class="state off "><i></i>입고 준비 중</span><div class="still o-bottle" style="--m1:#9A6A34;--m2:#4E3418;--m3:#D9CFC0;--m4:#8A7F6E;--gnd:#F4F1FE"><b class="p1"></b><b class="p2"></b><b class="p3"></b><b class="p4"></b><b class="p5"></b><b class="p6"></b><b class="p7"></b><b class="p8"></b><s class="sh"></s></div></div><div class="tx"><div class="l1"><span class="kick">PICK 05</span><span class="purp">러닝 후</span></div><div class="kick br">AESOP</div><h4 class="nm">애니멀 500ml</h4><div class="prow"><span class="num pr">₩56,000</span><span class="aff">제휴</span></div><p class="why">달리고 씻기는 순서까지 브랜드가 되는 지점. 시트러스·티트리·스피어민트.</p><div class="byl"><span>고른 사람 · 댕런 러닝팀</span><em class="flip">입고 준비 중 · 알림 받기</em></div></div></article><footer class="foot"><p class="fire">상품은 러닝 기준으로 먼저 고르고, 제휴 여부는 그다음에 확인합니다.</p><p class="by">고른 사람 · 댕런 러닝팀</p><div class="cred"><span>반포 코스 실측</span><span>러닝 기록 기준 선정</span><span>별점·리뷰 없음</span><span>할인 없음</span></div></footer></div></div></div><aside class="side"><h3><b>Ⓥ③</b>에디터의 다섯 줄 · EDITOR'S FIVE LINES</h3><p class='why'>Not a grid. Five picks, one per need, each a full-width single-column face — <b>the largest product face in the lab</b> — over exactly five fixed lines: pick + purpose · brand · name · price + 제휴 · the reason · the byline and the week's state. Wirecutter's scarcity of picks, 디에디트's byline discipline, SNKRS' honest state machine. The firewall line signs the shelf. <b>WEEKLY FLIP</b> advances every pick one step along that machine — 입고 준비 중 → 공개 예정 → 판매 중 → 종료. No countdown, because we have no real timestamp.</p><div class='playbar'><button onclick="flip('p3')">▶ WEEKLY FLIP</button><button class='q' onclick="flip('p3')">step again</button></div><div class="mtr" id="m3">measuring…</div></aside></div></section><section class="sect"><div class="sect-head"><span class="n">Ⓥ④</span><h2>에디터의 다섯 줄 × 브랜드 필드 &nbsp;·&nbsp; THE RECOMMENDATION</h2><p>③'s structure with ②'s card system — the study's stated best single shop</p></div><div class="frames"><div class="unit"><div class="phone" id="p4"><div class="scr d4"><header class="shead"><div class="kk">DAENGRUN · BOUTIQUE</div><div class="h1">부티크</div><p class="lead">이번 주의 픽 다섯.</p></header><div class="disc">이 셸프의 상품은 모두 제휴 링크입니다. 구매하시면 댕런이 수수료를 받습니다.</div><nav class="nv"><span class="on">첫 러닝</span><span class="">여름</span><span class="">발바닥</span><span class="">야간 안전</span></nav><div class="mod"><span class="ek">THIS WEEK</span><h3>이번 주 러닝팀이 고른 다섯</h3></div><article class="card c4" data-face data-txbg="#93481B" style="background:linear-gradient(158deg,#C26D2F 0%,#A75623 50%,#8A4118 100%);--ink:#FFF3E7;--ink2:rgba(255,243,231,.93);--dim2:rgba(255,243,231,.88);--ln:rgba(255,243,231,.34)"><div class="face w4" style="--gnd:#A75623"><span class="state on onfield"><i></i>판매 중</span><div class="still o-harness" style="--m1:#3E434D;--m2:#1D2026;--m3:#E4C9A8;--m4:#2C3038;--gnd:#A75623"><b class="p1"></b><b class="p2"></b><b class="p3"></b><b class="p4"></b><b class="p5"></b><b class="p6"></b><b class="p7"></b><b class="p8"></b><s class="sh"></s></div></div><div class="tx"><div class="l1"><span class="kick">PICK 01</span><span class="purp">첫 러닝</span></div><div class="kick br">RUFFWEAR</div><h4 class="nm">프론트레인지 하네스</h4><div class="prow"><span class="num pr">₩41,000</span><span class="aff">제휴</span></div><p class="why">달릴 때 목에 하중이 걸리지 않는, 첫 러닝의 기본값.</p><div class="byl"><span>고른 사람 · 댕런 러닝팀</span><em class="flip">판매 중</em></div></div></article><article class="card c4" data-face data-txbg="#93481B" style="background:linear-gradient(158deg,#C26D2F 0%,#A75623 50%,#8A4118 100%);--ink:#FFF3E7;--ink2:rgba(255,243,231,.93);--dim2:rgba(255,243,231,.88);--ln:rgba(255,243,231,.34)"><div class="face w4" style="--gnd:#A75623"><span class="state on onfield"><i></i>판매 중</span><div class="still o-lead" style="--m1:#4A505C;--m2:#1E2127;--m3:#E4C9A8;--m4:#2E323A;--gnd:#A75623"><b class="p1"></b><b class="p2"></b><b class="p3"></b><b class="p4"></b><b class="p5"></b><b class="p6"></b><b class="p7"></b><b class="p8"></b><s class="sh"></s></div></div><div class="tx"><div class="l1"><span class="kick">PICK 02</span><span class="purp">핸즈프리</span></div><div class="kick br">RUFFWEAR</div><h4 class="nm">플랫아웃 리드 1.8m</h4><div class="prow"><span class="num pr">₩73,600</span><span class="aff">제휴</span></div><p class="why">허리에 차면 손이 빕니다. 쿠팡에서 확인된 유일한 러닝 리드.</p><div class="byl"><span>고른 사람 · 댕런 러닝팀</span><em class="flip">판매 중</em></div></div></article><section class="strip lil"><h5>브랜드의 색 위에 놓인 픽</h5><p>픽 하나가 화면 하나입니다. 바탕은 그 브랜드의 색이고, 우리 라일락은 사이에만 나옵니다.</p></section><article class="card c4" data-face data-txbg="#454A55" style="background:linear-gradient(158deg,#727884 0%,#4E5461 55%,#3D424B 100%);--ink:#FFFFFF;--ink2:rgba(255,255,255,.93);--dim2:rgba(255,255,255,.86);--ln:rgba(255,255,255,.32)"><div class="face w4" style="--gnd:#4E5461"><span class="state off onfield"><i></i>입고 준비 중</span><div class="still o-cool" style="--m1:#E7EDF3;--m2:#A9B4C2;--m3:#FFFFFF;--m4:#C2CBD6;--gnd:#4E5461"><b class="p1"></b><b class="p2"></b><b class="p3"></b><b class="p4"></b><b class="p5"></b><b class="p6"></b><b class="p7"></b><b class="p8"></b><s class="sh"></s></div></div><div class="tx"><div class="l1"><span class="kick">PICK 03</span><span class="purp">한여름</span></div><div class="kick br">RUFFWEAR</div><h4 class="nm">스왐프 쿨러 쿨링 베스트</h4><div class="prow"><span class="num pr">₩106,000</span><span class="aff">제휴</span></div><p class="why">7·8월 반포 아스팔트에서 “오늘 뛸까”에 답하는 한 벌.</p><div class="byl"><span>고른 사람 · 댕런 러닝팀</span><em class="flip">입고 준비 중 · 알림 받기</em></div></div></article><article class="card c4" data-face data-txbg="#B4C29D" style="background:linear-gradient(158deg,#DCE4CE 0%,#BFCCA9 55%,#ACBB93 100%);--ink:#26301A;--ink2:rgba(38,48,26,.93);--dim2:rgba(38,48,26,.84);--ln:rgba(38,48,26,.26)"><div class="face w4" style="--gnd:#BFCCA9"><span class="state off onfield"><i></i>입고 준비 중</span><div class="still o-balm" style="--m1:#FBF8F1;--m2:#CFC7B6;--m3:#4E5C36;--m4:#39441F;--gnd:#BFCCA9"><b class="p1"></b><b class="p2"></b><b class="p3"></b><b class="p4"></b><b class="p5"></b><b class="p6"></b><b class="p7"></b><b class="p8"></b><s class="sh"></s></div></div><div class="tx"><div class="l1"><span class="kick">PICK 04</span><span class="purp">발바닥</span></div><div class="kick br">LILA LOVES IT</div><h4 class="nm">포케어 발바닥 밤 60ml</h4><div class="prow"><span class="num pr">₩32,000</span><span class="aff">제휴</span></div><p class="why">여름 아스팔트를 5km 달린 뒤의 발바닥. 독일 유기농 인증 60ml.</p><div class="byl"><span>고른 사람 · 댕런 러닝팀</span><em class="flip">입고 준비 중 · 알림 받기</em></div></div></article><article class="card c4" data-face data-txbg="#CBBFA9" style="background:linear-gradient(158deg,#EAE2D4 0%,#D5CAB7 55%,#C3B69F 100%);--ink:#2F2618;--ink2:rgba(47,38,24,.93);--dim2:rgba(47,38,24,.84);--ln:rgba(47,38,24,.26)"><div class="face w4" style="--gnd:#D5CAB7"><span class="state off onfield"><i></i>입고 준비 중</span><div class="still o-bottle" style="--m1:#93662F;--m2:#432C12;--m3:#EFE7DA;--m4:#7C7264;--gnd:#D5CAB7"><b class="p1"></b><b class="p2"></b><b class="p3"></b><b class="p4"></b><b class="p5"></b><b class="p6"></b><b class="p7"></b><b class="p8"></b><s class="sh"></s></div></div><div class="tx"><div class="l1"><span class="kick">PICK 05</span><span class="purp">러닝 후</span></div><div class="kick br">AESOP</div><h4 class="nm">애니멀 500ml</h4><div class="prow"><span class="num pr">₩56,000</span><span class="aff">제휴</span></div><p class="why">달리고 씻기는 순서까지 브랜드가 되는 지점. 시트러스·티트리·스피어민트.</p><div class="byl"><span>고른 사람 · 댕런 러닝팀</span><em class="flip">입고 준비 중 · 알림 받기</em></div></div></article><footer class="foot"><p class="fire">상품은 러닝 기준으로 먼저 고르고, 제휴 여부는 그다음에 확인합니다.</p><p class="by">고른 사람 · 댕런 러닝팀</p><div class="cred"><span>반포 코스 실측</span><span>러닝 기록 기준 선정</span><span>별점·리뷰 없음</span><span>할인 없음</span></div></footer></div></div></div><aside class="side"><h3><b>Ⓥ④</b>③의 구조 × ②의 카드 — the study's recommendation</h3><p class='why'>The pairing the study names as the best single shop: <b>picks paced weekly, each sitting on its brand's own colour field</b>, edge to edge. One pick is one screen; our lilac appears only between them. This is ③'s discipline with ②'s nerve, and it is the one that looks like nothing else in the category.</p><div class='playbar'><button onclick="flip('p4')">▶ WEEKLY FLIP</button><button class='q' onclick="flip('p4')">step again</button></div><div class="mtr" id="m4">measuring…</div></aside></div></section><section class="sect"><div class="sect-head"><span class="n">Ⓢ</span><h2>아웃바운드 시트 &nbsp;·&nbsp; OUTBOUND SHEET</h2><p>Verbatim partner sentence at the outbound moment · identical in all four directions</p></div><div class="frames"><div class="unit"><div class="phone" id="po"><div class="scr dout"><header class="shead"><div class="kk">DAENGRUN · BOUTIQUE</div><div class="h1">부티크</div><p class="lead">이번 주의 픽 다섯.</p></header><div class="disc">이 셸프의 상품은 모두 제휴 링크입니다. 구매하시면 댕런이 수수료를 받습니다.</div><nav class="nv"><span class="on">첫 러닝</span><span class="">여름</span><span class="">발바닥</span><span class="">야간 안전</span></nav><div class="mod"><span class="ek">THIS WEEK</span><h3>이번 주 러닝팀이 고른 다섯</h3></div><article class="card c3" data-face><div class="face w3" style="--gnd:#F4F1FE;background:#F4F1FE"><span class="state on "><i></i>판매 중</span><div class="still o-harness" style="--m1:#646A78;--m2:#33373F;--m3:#C9CDD5;--m4:#4B505A;--gnd:#F4F1FE"><b class="p1"></b><b class="p2"></b><b class="p3"></b><b class="p4"></b><b class="p5"></b><b class="p6"></b><b class="p7"></b><b class="p8"></b><s class="sh"></s></div></div><div class="tx"><div class="l1"><span class="kick">PICK 01</span><span class="purp">첫 러닝</span></div><div class="kick br">RUFFWEAR</div><h4 class="nm">프론트레인지 하네스</h4><div class="prow"><span class="num pr">₩41,000</span><span class="aff">제휴</span></div><p class="why">달릴 때 목에 하중이 걸리지 않는, 첫 러닝의 기본값.</p><div class="byl"><span>고른 사람 · 댕런 러닝팀</span><em class="flip">판매 중</em></div></div></article><div class="scrim"></div><div class="sheet"><div class="grab"></div><h5>쿠팡으로 이동합니다</h5><p class="dest">러프웨어 프론트레인지 하네스 · ₩41,000</p><p class="verb">이 포스팅은 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다.</p><button class="pri">쿠팡에서 열기</button><button class="sec2">닫기</button></div></div></div></div><aside class="side"><h3><b>Ⓢ</b>OUTBOUND SHEET — shared by all four</h3><p class='why'>The third disclosure placement: destination named, the partner's verbatim sentence repeated in full, one primary button. No ticket edges, no perforation, no serial number — v1's ceremony is deleted.</p><div class="mtr" id="mo">measuring…</div></aside></div></section>
+<div class="apx">
+<h2>Appendix — bindings, rules, and the calls I made</h2>
+<p>Everything that would have been an annotation inside a phone is here instead. v1 died of annotation density; the frames above carry shop UI only.</p>
+
+<h4>A · What each element binds to</h4>
+<table>
+<tr><th style="width:20%">Element</th><th style="width:34%">Real field / source</th><th>Note</th></tr>
+<tr><td><b>Product face</b></td><td><code>photography SLOT</code></td><td>CSS still-life stands in for a partner-supplied or self-shot photo. Ships as <code>Image resizeMode="contain"</code> on the same well. No stock, no AI product images, no scraped detail-page shots (study §c).</td></tr>
+<tr><td><b>Brand kicker</b></td><td><code>product.brand</code></td><td>Latin, letterspaced uppercase — the only text permitted below the 14pt floor.</td></tr>
+<tr><td><b>Name</b></td><td><code>product.name_ko</code></td><td>2-line clamp, fixed height, identical every card.</td></tr>
+<tr><td><b>Price</b></td><td><code>product.price_krw</code></td><td>Researched prices from <code>affiliate-product-research.md §2–3</code>. One number, never struck through. SmartTag2 shows the tag price only — <b>the pet-strap price is unverified and therefore stays numberless</b> ("스트랩 별도").</td></tr>
+<tr><td><b>제휴 chip</b></td><td>constant</td><td>Text area, right-aligned on the price row, never over the face. Present on every card in every direction.</td></tr>
+<tr><td><b>Descriptor</b></td><td><code>product.attr_pair</code></td><td>Lambwolf's attribute-pair grammar (방수 + 반사). Always sourceable, never a claim.</td></tr>
+<tr><td><b>State pill</b></td><td><code>deal.status</code></td><td>Filled dot = 판매 중 (🟢 Coupang confirmed live: 하네스 · 리드 · 스마트태그). Hollow dot = 입고 준비 중 (deal not signed). One ink, one size — SNKRS renders states, not urgency.</td></tr>
+<tr><td><b>알림 받기</b></td><td><code>notify_subscription</code></td><td>Real route: writes a row, sends one push when the deal opens. Not a dead button.</td></tr>
+<tr><td><b>Disclosure line</b></td><td>constant</td><td>Above the first product, 14.5pt, <code>--readv</code> on <code>--tint</code>, declarative, never conditional, never behind 더보기 (KFTC 2024-12-01).</td></tr>
+<tr><td><b>Outbound sheet</b></td><td>constant + <code>partner.verbatim</code></td><td>Coupang Partners' sentence repeated verbatim at the outbound moment. <b>Exact string to be confirmed in the Partners dashboard before ship.</b></td></tr>
+<tr><td><b>Firewall line</b></td><td>editorial constant</td><td>"상품은 러닝 기준으로 먼저 고르고, 제휴 여부는 그다음에 확인합니다." Wirecutter's structural claim, in Korean. Copy to be confirmed by Sean.</td></tr>
+<tr><td><b>Credential row</b></td><td>owned facts</td><td>반포 코스 실측 · 러닝 기록 기준 선정 · 별점·리뷰 없음 · 할인 없음.</td></tr>
+</table>
+
+<h4>B · The seven laws, and where to check them</h4>
+<table>
+<tr><th style="width:22%">Law</th><th>How it is satisfied above</th></tr>
+<tr><td><b>1 · face ≥65%</b></td><td>The lab measures itself: the block beside each phone is computed live in your browser from real bounding boxes, across <em>every</em> card, not a sample. Verified in Chromium at 2× — <b>① 67.5% · ② 67.1% · ③ 67.6% · ④ 68.7–71.1%</b>, floor 65%.</td></tr>
+<tr><td><b>2 · one type jump</b></td><td>Name → price is the only hierarchy. Exactly two sizes below 15pt per card (11.5 latin kicker, 14 body/chip) — failure-checklist #6 stays clear.</td></tr>
+<tr><td><b>3 · hairline chrome</b></td><td>One radius (14), one hairline colour, one ground per direction. No racks, gates, tickets, rails, tape or perforations anywhere. <code>--coral</code> appears nowhere inside a phone.</td></tr>
+<tr><td><b>4 · fixed fields</b></td><td>Every card in a direction carries the identical field set in the identical order, including the state pill. Missing data is stated (스트랩 별도), never dropped.</td></tr>
+<tr><td><b>5 · editorial interstitial</b></td><td>One story panel per shelf, sitting <em>between</em> blocks. Nothing is overlaid on a face; no editorial data line under any card.</td></tr>
+<tr><td><b>6 · purpose nav</b></td><td>첫 러닝 · 여름 · 발바닥 · 야간 안전. Module titles name their rule and count (네 가지 / 두 가지 / 다섯), never a mood.</td></tr>
+<tr><td><b>7 · owned proof</b></td><td>Credential row, claim-style descriptors, named curator byline, published firewall. No ratings, no review counts, no third-party rankings quoted as proof.</td></tr>
+</table>
+
+<h4>C · Honesty ledger</h4>
+<ul>
+<li><b>Absent by design:</b> star ratings, review counts, stock counters, discount percentages, struck-through prices, countdowns, urgency copy, point-payment affordances, 적립 badges, fabricated context data (weather / paw-stress numbers inside a card).</li>
+<li><b>Pre-deal state</b> is one quiet pill reading <b>입고 준비 중</b> with the price still shown at full strength — SNKRS shows the shoe and changes the state, it does not dim the product or clutter the card with 준비 중 labels. Seven of ten items are pre-deal today and the shelf is not embarrassed by it.</li>
+<li><b>Disclosure runs three times</b> and only three times: top of shelf (loud), per card (quiet, in the text area), outbound sheet (verbatim). Nothing is sprinkled.</li>
+<li><b>Prices</b> are the researched figures with their source recorded in <code>affiliate-product-research.md</code>; where two sources disagree (Front Range ₩41,000 Coupang / ₩68,000 PIGDOG) the shelf shows the price on the path we can actually link.</li>
+</ul>
+
+<h4>D · Judgment calls — argue with these</h4>
+<ul>
+<li><b>The study's card arithmetic is off by one line, and I corrected it rather than cheat the law.</b> §(b) budgets an 84pt text stack under a 216pt well for a 300pt card (72%). That only holds if the product name is one line. Holding the study's own LAW 4 — a fixed two-line name slot on every card — the stack measures ~125pt, which would have put the well at 60.6% and <em>failed LAW 1</em>. So the well grew instead of the text shrinking: <b>① 173×268, ② 195×272, ③ 358×448 (the study's 4:5, unchanged), ④ 390×470</b>. The law was the thing to keep; the 216 was an estimate.</li>
+<li><b>Brand hexes are placeholders.</b> The study sanctions three by name — Ruffwear ochre, HOWLPOT lilac, Aesop's amber-brown ground. LILA LOVES IT sage and Samsung graphite are my approximations. <b>Every field must be sampled from the brand's own site before this ships</b>; a colour is a fact, and these are not yet sourced facts.</li>
+<li><b>Ⓥ③/Ⓥ④ run five text lines</b> under the face, which trips failure-checklist #4 ("more than three text lines"). Taken deliberately: this is 디에디트's editorial card (kicker → headline → angle → date → byline), not a grid cell, and the face still measures well above the 65% law. The 2-up directions stay at four lines exactly per the study's executable card anatomy.</li>
+<li><b>The state pill sits inside the well</b>, top-left — the study's P9 badge slot. It is the one thing over the face, and it is a fact rather than merchandising. The 제휴 chip stays out of the well entirely.</li>
+<li><b>제휴 chip is 14pt, not the study's 11pt.</b> The 11pt exemption is written for letterspaced <em>latin</em> kickers; 제휴 is Korean, so it takes the 14pt floor. Slightly louder than the study drew it, and correct under CLAUDE.md.</li>
+<li><b>Text on brand fields is contrast-checked, not eyeballed.</b> Every text run in Ⓥ② and Ⓥ④ was measured against the colour actually behind it (the gradient's lower stop, not its midpoint) with opacity folded in. Worst case is <b>4.92:1</b> — the 11.5pt brand kicker on HOWLPOT lilac. Nothing on a field is below AA. This is the discipline the study warned Ⓥ② would demand.</li>
+<li><b>Ⓥ② repeats one brand colour across four adjacent tiles</b> (Ruffwear owns six of ten SKUs). That is Little Beast's "variants as rhythm" rather than a bug — but if the first shelf ever becomes brand-diverse, the wall gets better, not worse.</li>
+<li><b>The wall's colour list is the outreach list.</b> Ruffwear's field is really <b>갱스터도그 (RUFFWEAR KOREA)</b> — wave-1 target #2, one 사업자번호 that also carries Hurtta and Alphaicon, so a single yes turns four ochre tiles into three brand worlds. The two fields the wall is visibly missing are <b>하이포닉</b> (wave-1 #1, post-run care) and <b>데상트코리아</b> (wave-1 #10, owner-side) — both already in the wave-1 send. Ⓥ② gets stronger exactly as outreach lands, which is the argument for choosing it before the deals close rather than after.</li>
+<li><b>Ⓥ① is the control and it is genuinely good.</b> If Sean reads ② as too strong a hand-over of our surface to partner brands, ① is not a consolation prize — it is the version with zero rights exposure and zero migration cost.</li>
+<li><b>Ⓥ④ gives up the white card entirely.</b> Full-bleed brand colour on a single-column pick is the most aggressive thing in this lab. It is also the study's own recommendation, so it is here to be judged rather than described.</li>
+</ul>
+
+<h4>E · Sources</h4>
+<p><b>docs/biz/shop-design-study.md</b> — PART 3 laws, the three directions, imagery/rights position, executable card anatomy.
+<b>docs/biz/affiliate-product-research.md §3</b> — the ten-item shelf, prices, affiliate paths.
+<b>docs/biz/brand-outreach-longlist.md</b> — wave-1 brand names behind the colour fields.
+<b>CLAUDE.md</b> — tokens, 14pt floor, Black Han Sans once per screen, Oswald lineHeight ≥1.2, honesty laws.</p>
+</div>
+<script>
+function q(s,r){return (r||document).querySelectorAll(s)}
+var TINTS=['#F8F6FE','#F1EDFC','#E9E3FA'];
+
+/* ① colour descent — the wells deepen one degree per section */
+function descent(){
+  var secs=q('#p1 .sec');
+  secs.forEach(function(sec,i){
+    setTimeout(function(){
+      q('.face',sec).forEach(function(f){
+        f.style.transition='background-color .85s cubic-bezier(.4,0,.2,1)';
+        f.style.background=TINTS[i];
+      });
+    }, i*430);
+  });
+}
+function descentReset(){
+  q('#p1 .face').forEach(function(f){f.style.transition='none';f.style.background='#F4F1FE';});
+}
+
+/* ② tile press–depress — the object is a physical thing on a field */
+function press(id){
+  var cards=q('#'+id+' .card');
+  cards.forEach(function(c,i){
+    setTimeout(function(){
+      c.classList.add('press');
+      setTimeout(function(){c.classList.remove('press')},290);
+    }, i*105);
+  });
+}
+
+/* ③ / ④ weekly flip — every pick advances one step along the honest state machine */
+var STATES=['입고 준비 중 · 알림 받기','공개 예정 · 알림 받기','판매 중','이번 주 종료'];
+function flip(id){
+  q('#'+id+' .byl em').forEach(function(em,i){
+    setTimeout(function(){
+      em.classList.remove('rolling'); void em.offsetWidth; em.classList.add('rolling');
+      setTimeout(function(){
+        var t=em.textContent.trim(), k=STATES.indexOf(t);
+        em.textContent = STATES[(k<0?0:(k+1))%STATES.length];
+      },300);
+    }, i*150);
+  });
+}
+
+/* the lab measures itself — LAW 1 is a number, not a claim */
+function measure(){
+  [['p1','m1'],['p2','m2'],['p3','m3'],['p4','m4']].forEach(function(pr){
+    var ph=document.getElementById(pr[0]), out=document.getElementById(pr[1]);
+    if(!ph||!out) return;
+    var cards=[].slice.call(ph.querySelectorAll('.card[data-face]'));
+    var rows=cards.map(function(c){
+      var f=c.querySelector('.face'),cb=c.getBoundingClientRect(),fb=f.getBoundingClientRect();
+      return {n:(c.querySelector('.nm').textContent||'').trim(),
+              r:(fb.width*fb.height)/(cb.width*cb.height)*100,
+              cw:Math.round(cb.width),ch:Math.round(cb.height),
+              fw:Math.round(fb.width),fh:Math.round(fb.height)};
+    });
+    var mn=Math.min.apply(null,rows.map(function(x){return x.r}));
+    var s=[rows[0],rows[Math.floor(rows.length/2)],rows[rows.length-1]];
+    out.innerHTML='<b>FACE ÷ CARD — measured live in this browser</b><br>'+
+      s.map(function(x){return '<u>'+x.n+'</u> · '+x.fw+'×'+x.fh+' in '+x.cw+'×'+x.ch+' = <b>'+x.r.toFixed(1)+'%</b>'}).join('<br>')+
+      '<br>minimum across all '+rows.length+' cards: <b>'+mn.toFixed(1)+'%</b> — LAW 1 floor is 65%';
+  });
+}
+if(document.fonts&&document.fonts.ready){document.fonts.ready.then(function(){setTimeout(measure,120)})}
+window.addEventListener('load',function(){setTimeout(measure,600)});
+</script></body></html>
