@@ -69,30 +69,8 @@ export const lastRunTrace: TracePoint[] = [
   { x: 0.20, y: 0.88, v: 0.2 },
 ];
 
-export type CardTier = '일반' | '레어' | '에픽';
-
-export interface CollectCard {
-  id: string;
-  title: string;
-  date?: string;
-  tier: CardTier;
-  locked?: boolean;
-  run?: { km: string; pace: string; time: string; location?: string; trace?: TracePoint[] };
-  emblem?: string; // milestone cards: big glyph/number instead of trace
-  series?: string;
-}
-
-export const myCards: CollectCard[] = [
-  {
-    id: 'c1', title: '서울숲 이브닝 런', date: '7.21', tier: '일반',
-    run: { km: '5.02', pace: "6'49\"", time: '34:12', location: '서울숲, 반포동', trace: lastRunTrace },
-  },
-  { id: 'c2', title: '누적 50km 달성', date: '7.02', tier: '레어', emblem: '50' },
-  { id: 'c3', title: '스트릭 12일', date: '7.21', tier: '레어', emblem: '12' },
-  { id: 'c4', title: '첫 러닝', date: '5.14', tier: '일반', emblem: '1st' },
-  { id: 'c5', title: '한강 시리즈 I', tier: '에픽', locked: true, emblem: '漢', series: '한강 시리즈' },
-  { id: 'c6', title: '누적 100km', tier: '에픽', locked: true, emblem: '100' },
-];
+// [정직 수리 2026-08-05] CardTier/CollectCard/myCards 퇴역 — 조작 기록(5.02km 러닝·가짜 스트릭·없는 한강 시리즈)을
+// cards.tsx와 오너 홈 '최근 기록'에 실데이터처럼 그리던 목업. 실파생 후계자 = 코스 패치 월(fetchCoursePatches).
 
 export const runners: Runner[] = [
   {

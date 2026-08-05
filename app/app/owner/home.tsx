@@ -5,14 +5,13 @@ import { Alert, Animated, Dimensions, Easing, Image, Modal, Pressable, ScrollVie
 import { BottomNav } from '../../src/components/bottomnav';
 import { CourseStrip } from '../../src/components/CourseStrip';
 import { ClubHomeCard } from '../../src/components/clubcard';
-import { RunCard } from '../../src/components/runcard';
 import { Avatar, Icon } from '../../src/components/ui';
 import { Addr, BeaconInfo, BoardRow, confirmPayment, createBookingHold, DogProfile, fetchAddresses, fetchAvailableRunners, fetchCertifiedRunners, fetchDogBoardDelta, fetchFitness, fetchMyBookings, fetchMyDogs, fetchMyProfile, fetchRecentMoments, fetchRewardBeacon, fetchRoutes, fetchUnreadCount, Fitness, LiveRunner, Moment, MyProfile } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { haptic } from '../../src/lib/haptics';
 import { registerPushToken } from '../../src/lib/push';
-import { Booking, dog, draft, myCards, RouteInfo, runners } from '../../src/store';
+import { Booking, dog, draft, RouteInfo, runners } from '../../src/store';
 import { lilac, lilacRadius, lilacShadow, pricing } from '../../src/theme';
 import { useTheme } from '../../src/theme-context';
 
@@ -318,7 +317,8 @@ export default function OwnerHome() {
   const [infoBottomY, setInfoBottomY] = useState(214);
   const [stampBottomY, setStampBottomY] = useState(132);
   const morphLineY = Math.max(infoBottomY, stampBottomY) + MORPH_LINE_GAP;
-  const latestCard = myCards.find((c) => c.run);
+  // [정직 수리 2026-08-05] latestCard(myCards c1 — 조작 5.02km 러닝을 '최근 기록'으로 그리던 목업) 퇴역.
+  // 실사진 기반 '최근 순간' 섹션이 정직한 후계자 — 이미 바로 아래에 있다.
   const scrollY = useRef(new Animated.Value(0)).current;
   // [GO 터치 정합] 센터 콘텐츠는 컬랩스에서 opacity 0으로 사라지지만, RN에서 투명 뷰는 여전히 터치를 먹는다.
   // 보이지 않는 GO 디스크가 히어로(체력 리포트) 탭을 가로채면 안 되므로 pointerEvents를 끊어야 하는데,
@@ -1264,14 +1264,6 @@ export default function OwnerHome() {
             </Text>
             <Text style={{ fontSize: 14, color: lilac.accent, fontWeight: '900' }}>시간만 고르기 ›</Text>
           </Pressable>
-        )}
-
-        {/* ---------- 최근 기록 카드 (RunCard) — 히트 트레이스. 별도 최근-기록 카드로 유지 ---------- */}
-        {latestCard && (
-          <>
-            <SectionHead title="최근 기록" />
-            <RunCard card={latestCard} width={CARD_W} />
-          </>
         )}
 
         {/* ---------- 최근 순간 — 러너가 담아온 실러닝 사진 (runs.photos 재사용).

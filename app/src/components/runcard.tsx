@@ -1,9 +1,10 @@
 import { Text, View } from 'react-native';
-import { CollectCard, TracePoint } from '../store';
+import { TracePoint } from '../store';
 import { colors } from '../theme';
-import { useTheme } from '../theme-context';
 
-// Strava-style run card on a dark map backdrop.
+// 히트 트레이스 — 실좌표 기반 러닝 궤적 렌더 (report.tsx가 사용).
+// [정직 수리 2026-08-05] RunCard/CardStat/TIER_COLORS 퇴역 — 목업 카드 6장(myCards)의 유일한 소비자였고
+// 조작 데이터('컨디션 좋음'·'+12% 활동량'·'24°')를 실화면에 그렸다. HeatTrace만 생존.
 // Heat line: faster = red-orange, slower = green. Glowing segments.
 
 function heatColor(v: number): string {
@@ -90,121 +91,6 @@ function Marker({ x, y, label }: { x: number; y: number; label: string }) {
     >
       {/* 'S'/'F' 한 글자 = 트레이스 위 아이콘 티어 마커. 20px 핀(테두리 2 → 내부 16px)에 갇힌 조형이라 14pt 플로어 면제 */}
       <Text style={{ fontSize: 10.5, fontWeight: '900', color: '#fff' }}>{label}</Text>
-    </View>
-  );
-}
-
-const TIER_COLORS: Record<string, string> = { 일반: '#8fa093', 레어: '#C6F542', 에픽: '#FF5C3D' };
-
-export function RunCard({ card, width = 340 }: { card: CollectCard; width?: number }) {
-  const { mode, p } = useTheme();
-  const traceH = width * 0.5;
-  const inner = width - 34;
-  const tierColor = (tier: string) =>
-    mode === 'light' && tier === '레어' ? colors.voltDeep : TIER_COLORS[tier];
-
-  return (
-    <View
-      style={{
-        width,
-        backgroundColor: p.card,
-        borderRadius: 18,
-        padding: 16,
-        borderWidth: 1,
-        borderColor: p.line,
-        opacity: card.locked ? 0.55 : 1,
-        shadowColor: card.locked ? 'transparent' : colors.volt,
-        shadowOpacity: 0.12,
-        shadowRadius: 9,
-        shadowOffset: { width: 0, height: 4 },
-      }}
-    >
-      {/* header */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-        <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: p.chip, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontSize: 15, fontWeight: '900', color: mode === 'dark' ? colors.volt : colors.voltDeep }}>런</Text>
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 18.5, fontWeight: '800', color: card.locked ? p.dim : p.textStrong }}>
-            {card.title}
-          </Text>
-          <Text style={{ fontSize: 14, color: p.dim, marginTop: 1 }}>
-            {card.series ? `${card.series} · ` : ''}
-            {card.run?.location ? `${card.run.location} · ` : ''}
-            {card.date ?? '달성 조건: 시리즈 코스 완주'}
-          </Text>
-        </View>
-        <View
-          style={{
-            borderWidth: 1, borderColor: card.locked ? p.line : tierColor(card.tier),
-            borderRadius: 99, paddingVertical: 4, paddingHorizontal: 10,
-          }}
-        >
-          <Text style={{ fontSize: 14, fontWeight: '800', color: card.locked ? p.dim : tierColor(card.tier) }}>
-            {card.locked ? '잠금' : card.run ? '도그스하이' : card.tier}
-          </Text>
-        </View>
-      </View>
-
-      {/* trace / emblem */}
-      {card.run?.trace ? (
-        <View style={{ marginTop: 14, borderRadius: 16, backgroundColor: '#0a120d', padding: 12, overflow: 'hidden' }}>
-          <HeatTrace points={card.run.trace} width={inner - 24} height={traceH} />
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#1b2f21', borderRadius: 10, paddingVertical: 6, paddingHorizontal: 10 }}>
-              <Text style={{ fontSize: 14, fontWeight: '800', color: colors.volt }}>컨디션 좋음</Text>
-              <Text style={{ fontSize: 14, color: colors.dimDark }}>평소보다 +12% 활동량</Text>
-            </View>
-            <View style={{ backgroundColor: '#1b2330', borderRadius: 10, paddingVertical: 6, paddingHorizontal: 10 }}>
-              <Text style={{ fontSize: 14, fontWeight: '700', color: '#9fc3e8' }}>24°</Text>
-            </View>
-          </View>
-        </View>
-      ) : (
-        <View
-          style={{
-            marginTop: 14, height: traceH * 0.62, borderRadius: 16,
-            backgroundColor: '#0a120d', alignItems: 'center', justifyContent: 'center',
-          }}
-        >
-          <Text
-            style={{
-              fontSize: 53, fontWeight: '900',
-              color: card.locked ? '#2c3222' : TIER_COLORS[card.tier],
-              ...(card.locked ? {} : { textShadowColor: TIER_COLORS[card.tier], textShadowRadius: 18, textShadowOffset: { width: 0, height: 0 } }),
-            }}
-          >
-            {card.emblem}
-          </Text>
-          <Text style={{ fontSize: 13, color: colors.dimDark, marginTop: 6, letterSpacing: 2 }}>
-            {card.locked ? 'LOCKED' : card.tier.toUpperCase?.() ?? card.tier}
-          </Text>
-        </View>
-      )}
-
-      {/* stats */}
-      {card.run && (
-        <View style={{ flexDirection: 'row', marginTop: 14 }}>
-          <CardStat value={card.run.km} unit="거리 (km)" color={p.textStrong} dim={p.dim} />
-          <Divider color={p.line} />
-          <CardStat value={card.run.pace} unit="평균 페이스" color={p.textStrong} dim={p.dim} />
-          <Divider color={p.line} />
-          <CardStat value={card.run.time} unit="시간" color={p.textStrong} dim={p.dim} />
-        </View>
-      )}
-    </View>
-  );
-}
-
-function Divider({ color }: { color: string }) {
-  return <View style={{ width: 1, backgroundColor: color, marginVertical: 4 }} />;
-}
-
-function CardStat({ value, unit, color, dim }: { value: string; unit: string; color: string; dim: string }) {
-  return (
-    <View style={{ flex: 1, alignItems: 'center' }}>
-      <Text style={{ fontSize: 23, fontWeight: '900', color }}>{value}</Text>
-      <Text style={{ fontSize: 14, color: dim, marginTop: 2 }}>{unit}</Text>
     </View>
   );
 }

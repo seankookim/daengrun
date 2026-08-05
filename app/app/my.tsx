@@ -37,14 +37,17 @@ export default function My() {
   const df = useDisplayFont(); // 디스플레이 서체 — 화면 타이틀 (화면당 1회)
   const nf = useNumFont();     // [V4] Oswald — 숫자·마이크로캡 라벨
   const isRunner = session.role === 'runner';
-  // 나의 러닝 기록 — 실데이터 (보호자: fitness 집계 / 러너: 누적 스탯)
+  // 나의 러닝 기록 — 실데이터 (러너: 서버 누적 스탯 / 보호자: 이번 주 집계)
+  // [정직 수리 2026-08-05] Fitness에는 totalKm/totalRuns가 존재한 적 없다 — f:any가 가리던 채로
+  // 주간 수치가 '총 거리/총 횟수'로 표기되던 P1. 보호자는 주간 수치를 주간 라벨로 말한다.
+  // 실누적은 리워드 ② 구현에서 실카운트 쿼리와 함께 온다.
   const [rec, setRec] = useState<{ km: number; runs: number; pace: string } | null>(null);
   useEffect(() => {
     if (isRunner) {
       fetchMyRunnerStatus().then((r: any) => setRec({ km: r.totalKm ?? 0, runs: r.totalRuns ?? 0, pace: r.paceLabel ?? '—' })).catch(() => {});
     } else {
-      fetchFitness().then((f: any) => setRec({
-        km: f.totalKm ?? f.weekKm ?? 0, runs: f.totalRuns ?? f.weekRuns ?? 0,
+      fetchFitness().then((f) => setRec({
+        km: f.weekKm ?? 0, runs: f.weekRuns ?? 0,
         pace: f.avgPaceSec ? `${Math.floor(f.avgPaceSec / 60)}'${String(f.avgPaceSec % 60).padStart(2, '0')}"` : '—',
       })).catch(() => {});
     }
@@ -239,9 +242,9 @@ export default function My() {
             </Row>
             <Row>
               {[
-                { v: (rec?.km ?? 0).toFixed(1), u: ' km', l: '총 거리', div: false },
-                { v: `${rec?.runs ?? 0}`, u: ' 회', l: '총 횟수', div: true },
-                { v: rec?.pace ?? '—', u: '', l: '평균 페이스', div: true },
+                { v: (rec?.km ?? 0).toFixed(1), u: ' km', l: isRunner ? '총 거리' : '이번 주 거리', div: false },
+                { v: `${rec?.runs ?? 0}`, u: ' 회', l: isRunner ? '총 횟수' : '이번 주 횟수', div: true },
+                { v: rec?.pace ?? '—', u: '', l: isRunner ? '평균 페이스' : '주간 페이스', div: true },
               ].map((c) => (
                 <View key={c.l} style={[{ flex: 1 }, c.div && s.recDiv]}>
                   <Text style={[s.recN, nf]}>
