@@ -31,6 +31,10 @@ Opener for next session: **"read docs/session-handoff.md fully, then continue"**
 - Respond to Sean in English; code comments/commits Korean; commands as explicit lists without inline comments; SQL=editor, shell=terminal. Docs/discussion artifacts in English (new).
 - Owner-home + fitness morph pattern DO-NOT-REFACTOR: pinned absolute overlay + paddingTop reservation + transform/opacity native-driver only.
 
+## 2b. Glow-up × GO lab — DELIVERED, awaiting Sean's numbers
+
+`docs/labs/glowup-go-lab.html` — Section Ⓐ club widget 4 variants (① Departure Board ② Night Stub ③ Passport Spread ④ Seat Map), Section Ⓑ red GO in ring center 4 variants (① Red Core ② Orbit ③ Gauge ④ Stub), each Ⓑ frame walks all 5 live-run states (no booking → searching → directed → confirmed/handoff → LIVE) with real route targets annotated. Lab's recommended pairing: Ⓐ②×Ⓑ④ (shared stub grammar); safe alt Ⓐ①×Ⓑ④. Reply format: "A2 B4" (mixing parts fine). Implementation must respect: center layer transform/opacity-only, no dead states, 하이 포인트/patch-progress details are real reads.
+
 ## 3. Pending on Sean's side (ordered)
 
 1. `supabase db push` — 0055·0056 if not yet pushed (0051–0054 confirmed pushed+deployed).

@@ -1,0 +1,1444 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Glow-up × GO Lab — 하이클럽 위젯 + 모프 링 레드 GO</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;500;700;900&family=Oswald:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* ── Tailored Lilac tokens (src/theme.ts `lilac` + clubcard.tsx constants) ── */
+  :root{
+    --bg:#F4F2FB; --card:#FFFFFF; --inset:#EFECF9; --hair:#E6E2F4; --hair2:#EDEAF8;
+    --head:#221E3D; --text:#4B4668; --dim:#7C76A0;
+    --accent:#6C5CE7; --accentDeep:#7867EC; --readv:#4A3DA8;
+    --tint:#F4F1FE; --tintEdge:#DCD6F8;
+    --coral:#F0765A; --coralDeep:#E45F41; --coralSoft:#FFDCD1;
+    --amber:#C77414; --amberSoft:#FBEED9; --amberEdge:#F2DFC2;
+    --night:#1C1837; --nightDim:#A9A3C8; --nightEdge:#332C58;
+    --gold:#B99A4F; --goldSoft:#F4EBD3;
+    --holo:linear-gradient(90deg,#CFC5F6 0%,#FFDCD1 22%,#F3E9C6 45%,#EAF6C8 62%,#CDEAF3 80%,#CFC5F6 100%);
+    --track:#E6E2F4;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    background:#1C1837; font-family:'Noto Sans KR',sans-serif; color:#EDEAF8; padding:0 0 80px;
+    background-image:radial-gradient(1100px 520px at 16% -8%, rgba(240,118,90,.10), transparent 60%),
+                     radial-gradient(920px 460px at 88% 2%, rgba(108,92,231,.15), transparent 62%);
+    background-attachment:fixed;
+  }
+
+  /* ══════════ LAB CHROME (English) ══════════ */
+  .sticky{
+    position:sticky; top:0; z-index:120; backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+    background:rgba(20,16,44,.9); border-bottom:1px solid rgba(255,255,255,.09); padding:15px 26px 13px;
+  }
+  .wrap{max-width:1520px;margin:0 auto}
+  .lab-title{font-family:'Black Han Sans';font-size:24px;letter-spacing:.2px;color:#F2EFFA}
+  .lab-title em{font-style:normal;color:#F0765A}
+  .lab-title i{font-style:normal;color:#9F8FFF}
+  .lab-sub{font-size:13px;color:#A9A3C8;margin-top:7px;line-height:1.6;max-width:1120px}
+  .lab-sub b{color:#F2EFFA;font-weight:700}
+  .chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:11px}
+  .chips span{font-size:11.5px;color:#C9C2E8;border:1px solid rgba(201,194,232,.26);padding:4px 9px;border-radius:6px;background:rgba(255,255,255,.045)}
+  .chips b{color:#F0765A;font-weight:700}
+  .chips i{font-style:normal;color:#9F8FFF;font-weight:700}
+
+  .sect{max-width:1520px;margin:38px auto 0;padding:0 26px}
+  .sect-head{display:flex;align-items:baseline;gap:12px;border-bottom:1px solid rgba(255,255,255,.1);padding-bottom:11px}
+  .sect-head .n{font-family:'Oswald';font-weight:600;font-size:27px;line-height:1.24;color:#F0765A;letter-spacing:1px}
+  .sect-head h2{font-size:19px;color:#F2EFFA;font-weight:700}
+  .sect-head p{font-size:12.5px;color:#8F88B4;margin-left:auto;text-align:right;line-height:1.55;max-width:560px}
+  .frames{display:flex;flex-wrap:wrap;gap:30px;justify-content:center;margin-top:26px}
+  .unit{width:390px}
+  .phone{
+    width:390px;border-radius:26px;overflow:hidden;background:var(--bg);position:relative;
+    box-shadow:0 24px 60px rgba(8,5,24,.55),0 3px 12px rgba(8,5,24,.4);border:1px solid rgba(255,255,255,.09);
+  }
+  .cap{margin-top:13px}
+  .cap h3{font-size:16px;color:#F2EFFA;font-weight:700;line-height:1.4}
+  .cap h3 b{color:#F0765A;font-weight:700;margin-right:5px;font-family:'Oswald';font-size:17px;letter-spacing:.5px}
+  .cap .why{font-size:13px;color:#BDB6DC;line-height:1.6;margin-top:6px}
+  .cap .why b{color:#F2EFFA;font-weight:700}
+  .cap .meta{font-size:12px;color:#8F88B4;line-height:1.6;margin-top:7px;border-top:1px dashed rgba(255,255,255,.12);padding-top:7px}
+  .cap .meta b{color:#9F8FFF;font-weight:700;letter-spacing:.4px}
+  .cap .meta em{font-style:normal;color:#C9C2E8}
+  .cap .meta .rt{color:#FFB9A6}
+  .labdiv{
+    display:flex;align-items:center;gap:8px;margin:14px 12px 4px;font-size:11px;letter-spacing:1.2px;
+    color:#B4ADD2;text-transform:uppercase;font-family:'Oswald';font-weight:500;
+  }
+  .labdiv::before,.labdiv::after{content:'';flex:1;height:1px;background:repeating-linear-gradient(90deg,#CFC8EA 0 4px,transparent 4px 8px)}
+
+  /* state switcher (lab chrome) */
+  .switch{display:flex;flex-wrap:wrap;gap:5px;margin-top:11px}
+  .switch button{
+    font-family:'Noto Sans KR',sans-serif;font-size:11.5px;font-weight:700;letter-spacing:.2px;color:#BDB6DC;
+    background:rgba(255,255,255,.05);border:1px solid rgba(201,194,232,.24);border-radius:6px;padding:6px 9px;cursor:pointer;
+    transition:none;
+  }
+  .switch button:hover{border-color:rgba(240,118,90,.55);color:#F2EFFA}
+  .switch button.sel{background:#F0765A;border-color:#F0765A;color:#fff}
+  .switch button.sel[data-s="directed"]{background:#C77414;border-color:#C77414}
+  .switch button.sel[data-s="confirmed"]{background:#6C5CE7;border-color:#6C5CE7}
+  .replay{font-size:11px;color:#7C76A0;margin-top:6px;letter-spacing:.3px}
+
+  /* ══════════ SHARED IN-APP PRIMITIVES ══════════ */
+  .scr{padding:14px 14px 16px}
+  .holo{height:3px;background:var(--holo)}
+  .modhead{display:flex;align-items:center;gap:8px;margin-bottom:11px}
+  .modhead .t{font-size:16.5px;font-weight:800;color:var(--head)}
+  .modhead .hc{background:var(--tint);border:1px solid var(--tintEdge);border-radius:5px;padding:3px 8px;font-family:'Oswald';font-weight:500;font-size:11px;letter-spacing:1.1px;color:var(--readv)}
+  .modhead .d{font-size:14px;color:var(--dim)}
+  .kk{font-family:'Oswald';font-weight:500;font-size:11.5px;letter-spacing:1.3px;color:var(--accent);text-transform:uppercase}
+  .num{font-family:'Oswald';font-weight:600;line-height:1.24;font-feature-settings:'tnum'}
+  .cta{
+    background:var(--accent);border-radius:8px;padding:12px 0;text-align:center;font-size:14.5px;font-weight:800;color:#fff;
+    box-shadow:0 5px 13px rgba(108,92,231,.3);
+  }
+  .cta.quiet{background:var(--inset);border:1px solid var(--hair);color:var(--head);box-shadow:none;font-weight:700}
+  .mono{font-family:'Oswald';font-weight:500;letter-spacing:1px}
+
+  /* ══════════ SECTION A — 하이클럽 CARD VARIANTS ══════════ */
+  .acard{position:relative;background:var(--card);border:1px solid var(--tintEdge);border-radius:8px;overflow:hidden;
+    box-shadow:0 8px 15px rgba(108,92,231,.14);cursor:pointer;
+    transform:translateY(0);transition:transform .22s cubic-bezier(.2,.7,.3,1),box-shadow .22s ease}
+  .acard:hover{transform:translateY(-3px);box-shadow:0 14px 26px rgba(108,92,231,.22)}
+  .acard .dbl{position:absolute;top:4px;left:4px;right:4px;bottom:4px;border:1px solid var(--hair2);border-radius:6px;pointer-events:none}
+  .shine{position:absolute;top:0;left:0;right:0;height:3px;overflow:hidden;pointer-events:none}
+  .shine i{position:absolute;top:0;left:-40%;width:40%;height:3px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.95),transparent);transform:translateX(0)}
+  .acard:hover .shine i{animation:sweep 1.05s cubic-bezier(.4,0,.2,1) forwards}
+  @keyframes sweep{to{transform:translateX(350%)}}
+  .hosttag{background:var(--accent);border:1px solid var(--tintEdge);border-radius:5px;padding:3px 6px;font-family:'Oswald';font-weight:600;font-size:10.5px;letter-spacing:1px;color:#fff}
+  .monotag{background:var(--card);border:1px solid var(--tintEdge);border-radius:5px;padding:3px 7px;font-size:14px;font-weight:700;letter-spacing:.2px;color:var(--readv);white-space:nowrap}
+  .monotag.hot{background:var(--coralSoft);border-color:#F6C7B7;color:#B84A2E}
+  .amini{opacity:.97}
+
+  /* Ⓐ① Departure Board */
+  .a1 .top{display:flex;align-items:center;gap:8px;padding:11px 12px 0}
+  .a1 .name{font-family:'Black Han Sans';font-size:21px;color:var(--head);line-height:1.25;letter-spacing:.2px}
+  .a1 .board{display:flex;align-items:flex-end;gap:10px;padding:6px 12px 0}
+  .a1 .day{width:38px;height:38px;border-radius:6px;background:var(--tint);border:1px solid var(--tintEdge);display:flex;align-items:center;justify-content:center;
+    font-size:17px;font-weight:900;color:var(--readv)}
+  .a1 .time{font-family:'Oswald';font-weight:600;font-size:44px;line-height:1.22;color:var(--head);letter-spacing:-.5px}
+  .a1 .dd{margin-left:auto;text-align:right}
+  .a1 .dd .v{font-family:'Oswald';font-weight:600;font-size:22px;line-height:1.24;color:var(--coralDeep)}
+  .a1 .dd .l{font-size:11px;letter-spacing:1.1px;color:var(--dim);font-family:'Oswald';font-weight:500}
+  .a1 .gate{font-size:14px;color:var(--text);padding:5px 12px 0;line-height:1.5}
+  .a1 .gate b{color:var(--head);font-weight:700}
+  .a1 .meta{display:flex;margin:10px 12px 0;border-top:1px solid var(--hair2);padding-top:8px}
+  .a1 .cell{flex:1}
+  .a1 .cell+.cell{border-left:1px solid var(--hair2);padding-left:11px}
+  .a1 .k{font-family:'Oswald';font-weight:500;font-size:11px;letter-spacing:1.1px;color:var(--dim);text-transform:uppercase}
+  .a1 .v{font-size:14px;font-weight:700;color:var(--head);margin-top:2px}
+  .a1 .v span{font-family:'Oswald';font-weight:600;font-size:15.5px;line-height:1.24}
+  .a1 .foot{padding:11px 12px 12px}
+
+  /* Ⓐ② Night Stub */
+  .a2{background:var(--night);border-color:#3A3266;box-shadow:0 12px 26px rgba(8,5,24,.45)}
+  .a2 .dbl{border-color:rgba(255,255,255,.09)}
+  .a2 .body{display:flex;align-items:stretch}
+  .a2 .stub{width:96px;flex:0 0 96px;border-right:2px dashed rgba(255,255,255,.24);display:flex;flex-direction:column;
+    align-items:center;justify-content:center;padding:16px 0;gap:2px}
+  .a2 .stub .dv{font-family:'Oswald';font-weight:600;font-size:30px;line-height:1.24;color:#fff}
+  .a2 .stub .dl{font-family:'Oswald';font-weight:500;font-size:11px;letter-spacing:1.6px;color:rgba(255,255,255,.6)}
+  .a2 .stub .rsvp{margin-top:7px;display:flex;align-items:center;gap:4px;font-size:11px;letter-spacing:.8px;font-family:'Oswald';font-weight:500;color:#FFC3B1}
+  .a2 .stub .rsvp i{width:6px;height:6px;border-radius:50%;background:var(--coral);display:block;box-shadow:0 0 7px rgba(240,118,90,.9)}
+  .a2 .right{flex:1;min-width:0;padding:13px 13px 12px}
+  .a2 .idrow{display:flex;align-items:center;gap:9px}
+  .a2 .mono32{width:34px;height:34px;border-radius:6px;overflow:hidden;position:relative;display:flex;align-items:center;justify-content:center;
+    background:var(--holo);border:1px solid rgba(255,255,255,.65);flex:0 0 34px}
+  .a2 .mono32 span{font-family:'Black Han Sans';font-size:18px;color:#221E3D;line-height:1}
+  .a2 .kk2{font-family:'Oswald';font-weight:500;font-size:11.5px;letter-spacing:1.3px;color:#CFC5F6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .a2 .name{font-size:18px;font-weight:900;color:#fff;letter-spacing:-.2px;margin-top:1px}
+  .a2 .when{display:flex;align-items:baseline;gap:7px;margin-top:11px}
+  .a2 .when .t{font-family:'Oswald';font-weight:600;font-size:23px;line-height:1.24;color:#fff}
+  .a2 .when .d{font-size:15px;font-weight:800;color:#CFC5F6}
+  .a2 .sub{font-size:14px;color:var(--nightDim);margin-top:3px;line-height:1.5}
+  .a2 .seats{display:flex;align-items:center;gap:5px;margin-top:11px}
+  .a2 .seats i{width:11px;height:11px;border-radius:3px;border:1px solid rgba(255,255,255,.35);display:block;transform:scale(1)}
+  .a2 .seats i.f{background:var(--coral);border-color:var(--coral)}
+  .a2 .seats .lb{font-size:14px;color:#FFC3B1;font-weight:700;margin-left:5px}
+  .a2 .ghost{margin-top:12px;border:1px solid rgba(255,255,255,.3);border-radius:8px;padding:11px 0;text-align:center;
+    font-size:14.5px;font-weight:800;color:#fff;background:rgba(255,255,255,.06)}
+  .a2 .hosttag{background:#fff;color:var(--night);border-color:#fff}
+  .acard.play .seats i{animation:seatpop .34s cubic-bezier(.3,1.4,.5,1) backwards}
+  @keyframes seatpop{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
+
+  /* Ⓐ③ Passport Spread */
+  .a3 .pad{padding:13px 13px 12px}
+  .a3 .spread{display:flex;gap:12px}
+  .a3 .photo{width:68px;height:86px;flex:0 0 68px;border-radius:4px;overflow:hidden;position:relative;border:1px solid var(--tintEdge);
+    background:linear-gradient(150deg,#E7E1FA,#D5CCF3 55%,#C9BEEF)}
+  .a3 .photo .holoc{position:absolute;right:0;top:0;width:0;height:0;border-top:16px solid #FFDCD1;border-left:16px solid transparent;opacity:.9}
+  .a3 .photo .tagp{position:absolute;left:0;right:0;bottom:0;background:rgba(28,24,55,.62);color:#EDEAF8;font-family:'Oswald';font-weight:500;
+    font-size:10.5px;letter-spacing:.9px;text-align:center;padding:2px 0;white-space:nowrap}
+  .a3 .fields{flex:1;min-width:0}
+  .a3 .frow{display:flex;align-items:baseline;gap:8px;padding:3px 0}
+  .a3 .frow .k{font-family:'Oswald';font-weight:500;font-size:10.5px;letter-spacing:1.1px;color:var(--dim);width:66px;flex:0 0 66px}
+  .a3 .frow .v{font-size:14px;font-weight:700;color:var(--head);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .a3 .frow .v.big{font-family:'Black Han Sans';font-size:19px;font-weight:400;line-height:1.3}
+  .a3 .frow .v .t{font-family:'Oswald';font-weight:600;font-size:17px;line-height:1.24}
+  .a3 .seal{position:absolute;right:11px;bottom:60px;width:60px;height:60px;border-radius:50%;
+    border:2.5px solid var(--coralDeep);display:flex;flex-direction:column;align-items:center;justify-content:center;
+    transform:rotate(-11deg);opacity:.94;background:rgba(255,255,255,.55)}
+  .a3 .seal .s1{font-family:'Oswald';font-weight:600;font-size:19px;line-height:1.2;color:var(--coralDeep)}
+  .a3 .seal .s2{font-family:'Oswald';font-weight:500;font-size:10px;letter-spacing:1.2px;color:var(--coralDeep);margin-top:1px}
+  .a3 .seal.wait{border-color:var(--dim);border-style:dashed;transform:rotate(-6deg);background:transparent}
+  .a3 .seal.wait .s1,.a3 .seal.wait .s2{color:var(--dim)}
+  .acard.play .a3seal,.a3.play .seal{animation:stamp .34s cubic-bezier(.5,0,.7,.35) .1s backwards}
+  @keyframes stamp{0%{opacity:0;transform:scale(2.5) rotate(-20deg)}60%{opacity:1}100%{opacity:.94;transform:scale(1) rotate(-11deg)}}
+  .a3 .mrz{margin-top:11px;background:var(--inset);border-top:1px solid var(--hair2);border-radius:0 0 4px 4px;padding:8px 10px}
+  .a3 .mrz div{font-family:'Oswald';font-weight:500;font-size:12px;letter-spacing:2.6px;color:var(--readv);white-space:nowrap;overflow:hidden}
+  .a3 .mrz div+div{margin-top:3px;color:var(--dim)}
+  .a3 .foot{display:flex;gap:8px;padding:11px 13px 12px}
+  .a3 .foot .cta{flex:1}
+
+  /* Ⓐ④ Seat Map */
+  .a4 .top{display:flex;align-items:center;gap:9px;padding:10px 12px;background:var(--tint);border-bottom:1px solid #E0D9FA}
+  .a4 .mono{width:32px;height:32px;border-radius:6px;overflow:hidden;background:var(--holo);border:1px solid rgba(255,255,255,.7);
+    display:flex;align-items:center;justify-content:center;flex:0 0 32px}
+  .a4 .mono span{font-family:'Black Han Sans';font-size:17px;color:var(--head);line-height:1}
+  .a4 .name{font-size:17px;font-weight:900;color:var(--head);letter-spacing:-.2px}
+  .a4 .body{display:flex;gap:13px;padding:12px 12px 0}
+  .a4 .seatbox{flex:0 0 138px}
+  .a4 .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
+  .a4 .grid i{height:27px;border-radius:4px;background:var(--accent);border:1px solid var(--accent);display:block;position:relative;transform:scale(1)}
+  .a4 .grid i.free{background:var(--card);border:1.5px dashed var(--coral)}
+  .a4 .seatlab{font-size:14px;font-weight:800;color:var(--coralDeep);margin-top:7px}
+  .a4 .seatlab em{font-style:normal;color:var(--dim);font-weight:500}
+  .a4 .seatk{font-family:'Oswald';font-weight:500;font-size:11px;letter-spacing:1.2px;color:var(--dim);margin-bottom:5px;display:block}
+  .a4 .facts{flex:1;min-width:0}
+  .a4 .whenline{display:flex;align-items:baseline;gap:6px}
+  .a4 .whenline .d{font-size:17px;font-weight:900;color:var(--readv)}
+  .a4 .whenline .t{font-family:'Oswald';font-weight:600;font-size:26px;line-height:1.24;color:var(--head)}
+  .a4 .facts .sub{font-size:14px;color:var(--text);margin-top:4px;line-height:1.5}
+  .a4 .facts .sub b{color:var(--head);font-weight:700}
+  .a4 .ddchip{display:inline-flex;align-items:center;gap:5px;margin-top:9px;background:var(--coralSoft);border:1px solid #F6C7B7;
+    border-radius:5px;padding:4px 9px;font-family:'Oswald';font-weight:600;font-size:15px;line-height:1.24;letter-spacing:.6px;color:#B84A2E}
+  .a4 .meta{display:flex;margin:11px 12px 0;border-top:1px solid var(--hair2);padding-top:8px}
+  .a4 .cell{flex:1}
+  .a4 .cell+.cell{border-left:1px solid var(--hair2);padding-left:11px}
+  .a4 .k{font-family:'Oswald';font-weight:500;font-size:11px;letter-spacing:1.1px;color:var(--dim)}
+  .a4 .v{font-size:14px;font-weight:700;color:var(--head);margin-top:2px}
+  .a4 .v span{font-family:'Oswald';font-weight:600;font-size:15.5px;line-height:1.24}
+  .a4 .foot{padding:11px 12px 12px}
+  .acard.play .grid i{animation:seatpop .32s cubic-bezier(.3,1.4,.5,1) backwards}
+
+  /* ══════════ SECTION B — HERO / MORPH RING / GO ══════════ */
+  .apptop{display:flex;align-items:center;justify-content:space-between;padding:14px 14px 10px}
+  .apptop .who{font-size:15px;font-weight:800;color:var(--head)}
+  .apptop .who em{font-style:normal;color:var(--dim);font-weight:500;font-size:14px}
+  .apptop .av{width:34px;height:34px;border-radius:17px;background:var(--coral);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:15px}
+  .hero{position:relative;margin:0 14px;background:var(--card);border:1px solid var(--hair);border-radius:8px;overflow:hidden;
+    box-shadow:0 6px 14px rgba(28,24,55,.09);padding-bottom:52px}
+  .hero .dbl{position:absolute;top:4px;left:4px;right:4px;bottom:4px;border:1px solid var(--hair2);border-radius:6px;pointer-events:none}
+  .wkchip{position:absolute;left:12px;top:12px;z-index:3;background:var(--inset);border:1px solid var(--hair);border-radius:5px;
+    padding:5px 9px;font-size:14px;font-weight:700;color:var(--head)}
+  .repchip{position:absolute;left:12px;right:12px;bottom:11px;display:flex;align-items:center;justify-content:space-between;
+    background:var(--inset);border:1px solid var(--hair);border-radius:6px;padding:9px 11px}
+  .repchip span{font-size:14px;font-weight:800;color:var(--text)}
+  .repchip b{font-size:15px;font-weight:900;color:var(--accent)}
+  .ringwrap{position:relative;width:216px;height:216px;margin:44px auto 0}
+  .rdot{position:absolute;width:7px;height:7px;border-radius:50%;background:var(--track)}
+  .rdot.on{background:#9787DC}
+  .rdot.head{box-shadow:0 0 9px rgba(228,95,65,.85)}
+  .center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:1}
+
+  /* GO base */
+  .go{position:relative;cursor:pointer;-webkit-user-select:none;user-select:none;transform:translateZ(0)}
+  .go .ripple{position:absolute;inset:0;border-radius:inherit;border:2px solid var(--coral);opacity:0;pointer-events:none}
+  .play .go .ripple{animation:ripple .72s cubic-bezier(.2,.7,.3,1) forwards}
+  @keyframes ripple{0%{opacity:.75;transform:scale(1)}100%{opacity:0;transform:scale(1.85)}}
+  .play .go .press{animation:press .28s cubic-bezier(.3,1.3,.5,1)}
+  @keyframes press{40%{transform:scale(.93)}100%{transform:scale(1)}}
+  .golabel{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px}
+  .goword{font-family:'Oswald';font-weight:600;line-height:1.24;letter-spacing:1.5px;color:#fff}
+  .gosub{font-size:14px;font-weight:800;color:rgba(255,255,255,.94);line-height:1.35}
+  .st{display:none}
+  .st.on{display:flex}
+  .stb{display:none}
+  .stb.on{display:block}
+
+  /* state palettes shared */
+  .phone[data-state="none"]      .gofill{background:linear-gradient(160deg,#F58A70,#F0765A 45%,#E45F41)}
+  .phone[data-state="searching"] .gofill{background:linear-gradient(160deg,#F58A70,#EE6E51 55%,#D9553A)}
+  .phone[data-state="directed"]  .gofill{background:linear-gradient(160deg,#E0A24B,#C77414 60%,#A85E0D)}
+  .phone[data-state="confirmed"] .gofill{background:linear-gradient(160deg,#F0765A,#E45F41 55%,#C64A2F)}
+  .phone[data-state="active"]    .gofill{background:linear-gradient(160deg,#F0765A,#E45F41 40%,#B23F26)}
+  .phone[data-state="active"] .breathe{animation:breathe 2.2s ease-in-out infinite}
+  @keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.035)}}
+  .halo{position:absolute;inset:-9px;border-radius:inherit;border:2px solid rgba(228,95,65,.5);opacity:0;pointer-events:none}
+  .phone[data-state="active"] .halo{animation:halo 2.2s ease-out infinite}
+  @keyframes halo{0%{opacity:.6;transform:scale(.94)}70%{opacity:0;transform:scale(1.22)}100%{opacity:0;transform:scale(1.22)}}
+  .livedot{width:9px;height:9px;border-radius:50%;background:#fff;display:inline-block;margin-right:5px;vertical-align:middle}
+  .phone[data-state="active"] .livedot{animation:blink 1.15s steps(1,end) infinite}
+  @keyframes blink{0%,60%{opacity:1}61%,100%{opacity:.32}}
+  /* radar pulse for searching */
+  .pulse{position:absolute;inset:0;border-radius:inherit;border:1.5px solid rgba(255,255,255,.75);opacity:0;pointer-events:none}
+  .phone[data-state="searching"] .pulse{animation:pulse 1.9s ease-out infinite}
+  .phone[data-state="searching"] .pulse.p2{animation-delay:.63s}
+  .phone[data-state="searching"] .pulse.p3{animation-delay:1.26s}
+  @keyframes pulse{0%{opacity:.7;transform:scale(1)}100%{opacity:0;transform:scale(1.75)}}
+
+  /* Ⓑ① Red Core */
+  .b1 .kmline{display:flex;align-items:baseline;gap:5px;margin-bottom:10px;background:var(--inset);border:1px solid var(--hair);
+    border-radius:5px;padding:4px 10px;box-shadow:0 0 0 4px var(--card);white-space:nowrap}
+  .b1 .kmline .kk3{font-size:14px;font-weight:700;letter-spacing:.4px;color:var(--dim)}
+  .b1 .kmline .v{font-family:'Oswald';font-weight:600;font-size:24px;line-height:1.24;color:var(--head)}
+  .b1 .kmline .u{font-size:14px;color:var(--dim)}
+  .b1 .disc{width:122px;height:122px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    box-shadow:0 10px 22px rgba(228,95,65,.42),0 2px 6px rgba(228,95,65,.3),inset 0 0 0 2px rgba(255,255,255,.28)}
+  .b1 .disc .goword{font-size:30px}
+  .b1 .agechip{display:flex;align-items:center;gap:5px;margin-top:11px;background:var(--inset);border:1px solid var(--hair);
+    border-radius:5px;padding:5px 9px;box-shadow:0 0 0 4px var(--card);white-space:nowrap}
+  .b1 .agechip .l{font-size:14px;font-weight:800;color:var(--text)}
+  .b1 .agechip .v{font-family:'Oswald';font-weight:600;font-size:14px;line-height:1.3;color:var(--accent)}
+  .b1 .agechip .d{font-family:'Oswald';font-weight:600;font-size:14px;line-height:1.3;color:var(--coralDeep)}
+
+  /* Ⓑ② Orbit */
+  .b2 .kk3{font-size:14px;font-weight:700;letter-spacing:.5px;color:var(--dim);margin-bottom:3px}
+  .b2 .bigkm{line-height:1.22}
+  .b2 .bigkm .n{font-family:'Oswald';font-weight:600;font-size:54px;line-height:1.22;color:var(--head)}
+  .b2 .bigkm .u{font-family:'Oswald';font-weight:600;font-size:18px;color:var(--coral)}
+  .b2 .goal{font-size:14px;color:var(--text);margin-top:2px}
+  .b2 .goal b{color:var(--accent);font-weight:700}
+  .b2 .agechip{display:flex;align-items:center;gap:5px;margin-top:8px;background:var(--inset);border:1px solid var(--hair);border-radius:5px;padding:4px 8px}
+  .b2 .agechip .l{font-size:14px;font-weight:800;color:var(--text)}
+  .b2 .agechip .v{font-family:'Oswald';font-weight:600;font-size:14px;line-height:1.3;color:var(--accent)}
+  .b2 .caprail{position:absolute;left:-50px;right:-50px;bottom:-20px;display:flex;justify-content:center;pointer-events:none}
+  .b2 .capsule{position:relative;display:flex;align-items:stretch;white-space:nowrap;pointer-events:auto;
+    border-radius:24px;box-shadow:0 0 0 3px #fff,0 9px 20px rgba(228,95,65,.4)}
+  .b2 .capsule .main{display:flex;align-items:center;gap:7px;padding:11px 14px}
+  .b2 .capsule .goword{font-size:18px}
+  .b2 .capsule .lab{font-size:14px;font-weight:800;color:#fff}
+  .b2 .capsule .detail{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:6px 12px;
+    background:rgba(0,0,0,.17);border-left:1px solid rgba(255,255,255,.3);border-radius:0 24px 24px 0}
+  .b2 .capsule .detail .dv{font-family:'Oswald';font-weight:600;font-size:15px;line-height:1.24;color:#fff}
+  .b2 .capsule .detail .dl{font-size:14px;font-weight:700;letter-spacing:.2px;color:rgba(255,255,255,.9);line-height:1.3}
+  .play .b2 .capsule .lab,.b2 .play .capsule .lab{animation:swap .5s cubic-bezier(.2,.7,.3,1)}
+  @keyframes swap{0%{opacity:0;transform:translateY(9px)}55%{opacity:1;transform:translateY(0)}100%{opacity:1}}
+
+  /* Ⓑ③ Gauge */
+  .b3 .gauge{position:relative;width:132px;height:132px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    box-shadow:0 10px 22px rgba(228,95,65,.4),0 2px 6px rgba(228,95,65,.28)}
+  .b3 .gauge svg{position:absolute;inset:0;transform:rotate(-90deg)}
+  .b3 .gauge .goword{font-size:25px}
+  .b3 .patchk{position:absolute;left:0;right:0;bottom:24px;text-align:center;font-family:'Oswald';font-weight:500;font-size:10px;
+    letter-spacing:1.4px;color:rgba(255,255,255,.9)}
+  .b3 .sweepwrap{position:absolute;inset:0;border-radius:50%;overflow:hidden;pointer-events:none;opacity:0}
+  .play .b3 .sweepwrap,.b3 .play .sweepwrap{animation:sweepfade 1.05s ease-out forwards}
+  @keyframes sweepfade{0%{opacity:1}80%{opacity:.5}100%{opacity:0}}
+  .b3 .sweepwrap i{position:absolute;left:50%;top:50%;width:50%;height:2px;background:linear-gradient(90deg,rgba(255,255,255,.9),transparent);
+    transform-origin:0 50%;transform:rotate(0deg)}
+  .play .b3 .sweepwrap i,.b3 .play .sweepwrap i{animation:spin 1.05s cubic-bezier(.35,0,.2,1) forwards}
+  @keyframes spin{to{transform:rotate(720deg)}}
+  .b3 .twin{display:flex;align-items:stretch;margin-top:13px;background:var(--inset);border:1px solid var(--hair);border-radius:6px;overflow:hidden;box-shadow:0 0 0 4px var(--card);white-space:nowrap}
+  .b3 .twin>div{padding:6px 11px;text-align:center}
+  .b3 .twin>div+div{border-left:1px solid var(--hair)}
+  .b3 .twin .v{font-family:'Oswald';font-weight:600;font-size:16px;line-height:1.24;color:var(--head)}
+  .b3 .twin .v.a{color:var(--accent)}
+  .b3 .twin .l{font-size:14px;color:var(--dim);margin-top:1px;line-height:1.3}
+
+  /* Ⓑ④ Stub */
+  .b4 .stub{width:190px;border-radius:8px;overflow:visible;position:relative;
+    box-shadow:0 10px 22px rgba(28,24,55,.18),0 2px 6px rgba(28,24,55,.12)}
+  .b4 .stubtop{background:var(--card);border:1px solid var(--hair);border-bottom:0;border-radius:8px 8px 0 0;padding:11px 13px 9px}
+  .b4 .stubtop .kk3{font-size:14px;font-weight:700;letter-spacing:.2px;color:var(--dim)}
+  .b4 .stubtop .n{font-family:'Oswald';font-weight:600;font-size:34px;line-height:1.24;color:var(--head)}
+  .b4 .stubtop .u{font-size:14px;color:var(--dim);font-family:'Noto Sans KR';font-weight:500}
+  .b4 .perf{position:relative;height:0;border-top:2px dashed var(--hair);z-index:4}
+  .b4 .perf i{position:absolute;top:-8px;width:15px;height:15px;border-radius:50%;background:var(--card);border:1px solid var(--hair)}
+  .b4 .perf i.l{left:-8px}
+  .b4 .perf i.r{right:-8px}
+  .b4 .stubbot{border-radius:0 0 8px 8px;padding:12px 13px 11px;position:relative;transform-origin:6% 0%}
+  .b4 .stubbot .row{display:flex;align-items:center;gap:8px}
+  .b4 .stubbot .goword{font-size:21px}
+  .b4 .stubbot .lab{font-size:14px;font-weight:800;color:#fff;margin-left:auto}
+  .b4 .serial{display:flex;align-items:center;gap:6px;margin-top:8px;padding-top:7px;border-top:1px dashed rgba(255,255,255,.4)}
+  .b4 .serial .bar{flex:0 0 30px;height:15px;background-image:repeating-linear-gradient(90deg,#fff 0 2px,transparent 2px 5px);opacity:.85}
+  .b4 .serial .txt{font-family:'Oswald';font-weight:500;font-size:11px;letter-spacing:1.1px;color:rgba(255,255,255,.94);white-space:nowrap}
+  .play .b4 .stubbot,.b4 .play .stubbot{animation:tear .78s cubic-bezier(.35,.05,.4,1)}
+  @keyframes tear{0%{transform:rotate(0) translate(0,0)}30%{transform:rotate(3.5deg) translate(4px,3px)}55%{transform:rotate(6deg) translate(11px,9px);opacity:.92}100%{transform:rotate(0) translate(0,0);opacity:1}}
+
+  /* ══════════ SYNCED LIVE-RUN WIDGET ECHO (shared, app-real) ══════════ */
+  .sechead{display:flex;align-items:baseline;gap:8px;margin:16px 14px 8px}
+  .sechead .n{font-family:'Oswald';font-weight:500;font-size:11px;letter-spacing:1.4px;color:var(--accent)}
+  .sechead .t{font-size:15.5px;font-weight:800;color:var(--head)}
+  .sechead .l{margin-left:auto;font-size:14px;color:var(--dim)}
+  .tkt{position:relative;margin:0 14px;background:var(--card);border:1px solid var(--hair);border-radius:8px;overflow:hidden;
+    box-shadow:0 6px 14px rgba(28,24,55,.09)}
+  .tkt .th{display:flex;align-items:center;gap:6px;padding:10px 12px 0}
+  .tkt .glyph{width:17px;height:17px;border-radius:4px;background:var(--accent);color:#fff;font-size:10px;display:flex;align-items:center;justify-content:center}
+  .tkt .brand{font-family:'Oswald';font-weight:500;font-size:11px;letter-spacing:1.1px;color:var(--dim);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tkt .pill{margin-left:auto;border-radius:5px;padding:3px 8px;font-family:'Oswald';font-weight:600;font-size:14px;line-height:1.28;letter-spacing:.6px;white-space:nowrap;flex-shrink:0}
+  .tkt .pill.dday{background:var(--inset);color:var(--readv);margin-left:auto}
+  .tkt .pill.stt{margin-left:6px}
+  .tkt .pill.violet{background:#F2E7FC;color:var(--accent)}
+  .tkt .pill.coral{background:var(--coralSoft);color:#B84A2E}
+  .tkt .rowb{display:flex;align-items:center;gap:11px;padding:9px 12px 12px}
+  .tkt .av2{width:32px;height:32px;border-radius:16px;background:var(--coral);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px}
+  .tkt .when{font-family:'Oswald';font-weight:600;font-size:19px;line-height:1.24;color:var(--head)}
+  .tkt .sub{font-size:14px;color:var(--dim);margin-top:1px}
+  .tkt .goto{margin-left:auto;font-size:14px;font-weight:800;color:var(--accent);white-space:nowrap}
+  .island{position:relative;margin:0 14px;background:var(--night);border-radius:8px;padding:15px 15px 14px;overflow:hidden}
+  .island .arcs{position:absolute;left:0;top:50%;pointer-events:none;opacity:.9}
+  .island .arcs i{position:absolute;border-radius:50%;border:1px solid rgba(240,118,90,.34);display:block}
+  .island .core{position:absolute;left:-4px;top:-4px;width:8px;height:8px;border-radius:50%;background:var(--coral);box-shadow:0 0 9px rgba(240,118,90,.9)}
+  .island .kk4{font-family:'Oswald';font-weight:500;font-size:11px;letter-spacing:1.5px;color:#FFC3B1}
+  .island .ttl{font-family:'Black Han Sans';font-size:20px;color:#fff;margin-top:5px;line-height:1.3}
+  .island .dsc{font-size:14px;color:var(--nightDim);margin-top:5px;line-height:1.5}
+  .island .btn{display:inline-block;margin-top:12px;background:#fff;border-radius:8px;padding:9px 14px;font-size:14px;font-weight:900;color:var(--head)}
+  .island .sweepline{position:absolute;left:0;top:50%;width:112px;height:2px;background:rgba(240,118,90,.55);transform-origin:0 50%}
+  .phone[data-state="searching"] .island .sweepline{animation:radarsweep 2.6s linear infinite}
+  @keyframes radarsweep{to{transform:rotate(360deg)}}
+
+  /* press per-variant (variant class lives on .vb, .play lives on .phone) */
+  .play .b1 .disc{animation:press .32s cubic-bezier(.3,1.3,.5,1)}
+  .play .b3 .gauge{animation:press .32s cubic-bezier(.3,1.3,.5,1)}
+  .play .b2 .capsule{animation:press .32s cubic-bezier(.3,1.3,.5,1)}
+
+  /* ══════════ TABLES ══════════ */
+  .tblwrap{max-width:1520px;margin:44px auto 0;padding:0 26px}
+  table{width:100%;border-collapse:collapse;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.1);border-radius:10px;overflow:hidden}
+  caption{text-align:left;font-size:15px;font-weight:700;color:#F2EFFA;padding:0 0 9px}
+  th,td{font-size:12.5px;text-align:left;padding:9px 11px;border-bottom:1px solid rgba(255,255,255,.08);line-height:1.5;vertical-align:top}
+  th{background:rgba(255,255,255,.06);color:#C9C2E8;font-weight:700;font-size:11.5px;letter-spacing:.5px;text-transform:uppercase}
+  td{color:#BDB6DC}
+  td.v{color:#F2EFFA;font-weight:700;white-space:nowrap}
+  td b{color:#F0765A;font-weight:700}
+  tr:last-child td{border-bottom:0}
+  .rec{margin-top:20px;border:1px solid rgba(240,118,90,.35);background:rgba(240,118,90,.09);border-radius:10px;padding:15px 17px}
+  .rec h4{font-size:15px;color:#FFC3B1;font-weight:700;margin-bottom:7px}
+  .rec p{font-size:13px;color:#DCD6F8;line-height:1.7}
+  .rec p+p{margin-top:7px}
+  .rec b{color:#fff;font-weight:700}
+</style>
+</head>
+<body>
+
+<div class="sticky">
+  <div class="wrap">
+    <div class="lab-title">Glow-up × GO Lab — <em>Ⓐ 하이클럽 위젯 4종</em> · <i>Ⓑ 모프 링 레드 GO 4종</i></div>
+    <div class="lab-sub">
+      Two commissions in one lab. <b>Section A</b> reimagines the home ClubBanner (bland right now) — same data contract, four levels of emphasis.
+      <b>Section B</b> puts an actionable red GO in the 216px morph-ring center, synced to the Live-run state machine — click the state chips under each phone
+      to walk all five states, click the GO itself to replay its micro-motion. Reply with numbers, e.g. <b>"A2 B3"</b>; mixing parts is fine ("A2 shell + A4 seat map").
+    </div>
+    <div class="chips">
+      <span>Club binds = <b>fetchClubOverview()</b> → name·district·status·hostName·isHost·memberCount·interestCount·nextSession{when·meetupPoint·capacity·rsvpCount·joined}</span>
+      <span>Hero binds = <b>fetchFitness()</b> → weekKm <i>12.4</i> · goalKm <i>15</i> · fitnessAge <i>5.2</i> · dog.age <i>7.0</i></span>
+      <span>Point binds = <b>fetchMiles().balance</b> → <i>1,240</i> 하이 포인트</span>
+      <span>Patch binds = <b>fetchCoursePatches()</b> 서울숲 순환 <i>3회</i> → patchGrade ladder 5 → <i>다음 패치까지 2회</i></span>
+      <span>Foil budget: holo on monogram + ticket edge only · no invented streaks · photoUrl slot has a no-photo fallback</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════ SECTION A ═══════════════════════════ -->
+<div class="sect">
+  <div class="sect-head">
+    <div class="n">Ⓐ</div>
+    <h2>하이클럽 widget glow-up — 4 variants</h2>
+    <p>Each phone shows the module head + the ACTIVE card (next session bound), then the same shell in COLLECTING state under a lab divider. Hover / click a card to replay its flourish.</p>
+  </div>
+  <div class="frames">
+
+    <!-- ══ Ⓐ① Departure Board ══ -->
+    <div class="unit">
+      <div class="phone">
+        <div class="scr">
+          <div class="modhead"><span class="t">하이클럽</span><span class="hc">HIGH CLUB</span><span class="d">동네에서 함께 달려요</span></div>
+
+          <div class="acard a1" data-play>
+            <div class="holo"></div><div class="shine"><i></i></div>
+            <div class="top">
+              <div style="flex:1;min-width:0">
+                <div class="kk">HIGH CLUB · 반포동</div>
+                <div class="name">반포 하이클럽</div>
+              </div>
+              <div class="hosttag">HOST</div>
+              <div class="monotag hot">2자리</div>
+            </div>
+            <div class="board">
+              <div class="day">토</div>
+              <div class="time">19:30</div>
+              <div class="dd"><div class="v">D-3</div><div class="l">NEXT</div></div>
+            </div>
+            <div class="gate">반포한강공원 3주차장 · 호스트 <b>도윤</b></div>
+            <div class="meta">
+              <div class="cell"><div class="k">MEMBERS</div><div class="v">멤버 <span>24</span>명</div></div>
+              <div class="cell"><div class="k">SEATS</div><div class="v"><span>6</span> / 8 예약</div></div>
+            </div>
+            <div class="foot"><div class="cta">클럽 홈 ›</div></div>
+            <div class="dbl"></div>
+          </div>
+
+          <div class="labdiv">collecting state</div>
+          <div class="acard a1 amini" data-play>
+            <div class="holo"></div><div class="shine"><i></i></div>
+            <div class="top">
+              <div style="flex:1;min-width:0">
+                <div class="kk">HIGH CLUB · 반포동</div>
+                <div class="name" style="font-family:'Noto Sans KR';font-weight:900;font-size:18px;letter-spacing:-.2px">반포 하이클럽</div>
+              </div>
+              <div class="monotag">모집 중</div>
+            </div>
+            <div class="board">
+              <div class="day" style="background:var(--inset);border-color:var(--hair);color:var(--dim)">＋</div>
+              <div class="time" style="font-size:34px">12<span style="font-size:16px;color:var(--dim);font-family:'Noto Sans KR';font-weight:700">팀 관심</span></div>
+            </div>
+            <div class="gate">호스트를 기다려요 — 인증 러너가 첫 세션을 열면 시작돼요</div>
+            <div class="meta">
+              <div class="cell"><div class="k">INTEREST</div><div class="v">관심 <span>12</span>명</div></div>
+              <div class="cell"><div class="k">MEMBERS</div><div class="v">멤버 <span>24</span>명</div></div>
+            </div>
+            <div class="foot"><div class="cta">클럽 홈 ›</div></div>
+            <div class="dbl"></div>
+          </div>
+        </div>
+      </div>
+      <div class="cap">
+        <h3><b>Ⓐ①</b> Departure Board — the time is the headline</h3>
+        <div class="why"><b>Why:</b> today's card whispers every field at the same volume; here the <b>session time</b> becomes a 44px departure numeral and everything else demotes to gate copy, so the card answers "when do we run?" in one glance.</div>
+        <div class="meta">
+          <b>BINDS</b> nextSession.when → <em>토 / 19:30</em> · meetupPoint · hostName · dday(scheduledAt) → <em>D-3</em> · capacity−rsvpCount → <em>2자리</em> · memberCount · rsvpCount/capacity · isHost → HOST · status collecting → interestCount<br>
+          <b>FOIL</b> 3px holo top edge only (no monogram foil here) &nbsp;·&nbsp; <b>FLOURISH</b> hover = card lift + a single holo shine sweep across the top edge<br>
+          <b>RN</b> shine = absolutely-positioned Svg gradient with Animated translateX (native driver); lift = translateY. No layout animation.
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ Ⓐ② Night Stub ══ -->
+    <div class="unit">
+      <div class="phone">
+        <div class="scr">
+          <div class="modhead"><span class="t">하이클럽</span><span class="hc">HIGH CLUB</span><span class="d">동네에서 함께 달려요</span></div>
+
+          <div class="acard a2" data-play>
+            <div class="holo"></div>
+            <div class="body">
+              <div class="stub">
+                <div class="dv">D-3</div>
+                <div class="dl">NEXT</div>
+                <div class="rsvp"><i></i>RSVP</div>
+              </div>
+              <div class="right">
+                <div class="idrow">
+                  <div class="mono32"><span>반</span></div>
+                  <div style="flex:1;min-width:0">
+                    <div class="kk2">HIGH CLUB — 반포동</div>
+                    <div class="name">반포 하이클럽</div>
+                  </div>
+                  <div class="hosttag">HOST</div>
+                </div>
+                <div class="when"><span class="d">토</span><span class="t">19:30</span></div>
+                <div class="sub">반포한강공원 3주차장 · 호스트 도윤</div>
+                <div class="seats">
+                  <i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i></i><i></i>
+                  <span class="lb">2자리</span>
+                </div>
+                <div class="ghost">클럽 홈 ›</div>
+              </div>
+            </div>
+            <div class="dbl"></div>
+          </div>
+
+          <div class="labdiv">collecting state</div>
+          <div class="acard a2 amini" data-play>
+            <div class="holo"></div>
+            <div class="body">
+              <div class="stub">
+                <div class="dv">12</div>
+                <div class="dl">WAITING</div>
+              </div>
+              <div class="right">
+                <div class="idrow">
+                  <div class="mono32"><span style="font-family:'Noto Sans KR';font-weight:900;font-size:16px">반</span></div>
+                  <div style="flex:1;min-width:0">
+                    <div class="kk2">HIGH CLUB — 반포동</div>
+                    <div class="name">반포 하이클럽</div>
+                  </div>
+                  <div class="monotag" style="background:transparent;border-color:rgba(255,255,255,.3);color:#CFC5F6">모집 중</div>
+                </div>
+                <div class="sub" style="margin-top:9px">관심 12명 · 호스트를 기다려요 — 멤버 24명</div>
+                <div class="ghost">클럽 홈 ›</div>
+              </div>
+            </div>
+            <div class="dbl"></div>
+          </div>
+        </div>
+      </div>
+      <div class="cap">
+        <h3><b>Ⓐ②</b> Night Stub — a dark island in a light feed</h3>
+        <div class="why"><b>Why:</b> the strongest emphasis available is a <b>value change</b> — one night-lilac (#1C1837) card in a paper-white feed reads as a different class of object, and the torn stub column makes D-day physical.</div>
+        <div class="meta">
+          <b>BINDS</b> dday → stub <em>D-3</em> · joined → <em>RSVP</em> dot (renders only when ns.joined) · name·district · when → <em>토 19:30</em> · meetupPoint · hostName · rsvpCount/capacity → <em>6 filled / 2 hollow pips</em> · memberCount · interestCount (collecting) · isHost → HOST<br>
+          <b>PHOTO</b> monogram square = the <em>no-photoUrl fallback</em> (holo foil, club name initial). With a real photoUrl the same 34px square fills with the image and the foil retreats to the top edge.<br>
+          <b>FOIL</b> monogram + 3px top edge — exactly the budget, nothing else &nbsp;·&nbsp; <b>FLOURISH</b> tap = seat pips stagger-pop (scale/opacity)<br>
+          <b>RN</b> Animated.stagger over 8 pip scales, useNativeDriver. Night surface is a flat backgroundColor, no gradient Svg (3rd-feedback banding lesson).
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ Ⓐ③ Passport Spread ══ -->
+    <div class="unit">
+      <div class="phone">
+        <div class="scr">
+          <div class="modhead"><span class="t">하이클럽</span><span class="hc">HIGH CLUB</span><span class="d">동네에서 함께 달려요</span></div>
+
+          <div class="acard a3" data-play>
+            <div class="holo"></div>
+            <div class="pad">
+              <div class="spread">
+                <div class="photo">
+                  <div class="holoc"></div>
+                  <div class="tagp">PHOTO URL</div>
+                </div>
+                <div class="fields">
+                  <div class="frow"><div class="k">CLUB</div><div class="v big">반포 하이클럽</div></div>
+                  <div class="frow"><div class="k">DISTRICT</div><div class="v">반포동 · 멤버 24명</div></div>
+                  <div class="frow"><div class="k">SESSION</div><div class="v">토 <span class="t">19:30</span></div></div>
+                  <div class="frow"><div class="k">MEETUP</div><div class="v">반포한강공원 3주차장</div></div>
+                  <div class="frow"><div class="k">HOST</div><div class="v">도윤 · 내가 호스트</div></div>
+                </div>
+              </div>
+              <div class="mrz">
+                <div>HICLUB&lt;&lt;BANPO&lt;&lt;MEM024</div>
+                <div>SAT1930&lt;&lt;D03&lt;&lt;SEAT06OF08</div>
+              </div>
+            </div>
+            <div class="seal"><div class="s1">D-3</div><div class="s2">SEATS 2</div></div>
+            <div class="foot"><div class="cta">클럽 홈 ›</div></div>
+            <div class="dbl"></div>
+          </div>
+
+          <div class="labdiv">collecting state</div>
+          <div class="acard a3 amini" data-play>
+            <div class="holo"></div>
+            <div class="pad">
+              <div class="spread">
+                <div class="photo" style="background:var(--inset);display:flex;align-items:center;justify-content:center">
+                  <span style="font-family:'Noto Sans KR';font-weight:900;font-size:26px;color:var(--tintEdge)">반</span>
+                  <div class="tagp" style="background:rgba(124,118,160,.5)">NO PHOTO</div>
+                </div>
+                <div class="fields">
+                  <div class="frow"><div class="k">CLUB</div><div class="v" style="font-size:17px;font-weight:900">반포 하이클럽</div></div>
+                  <div class="frow"><div class="k">DISTRICT</div><div class="v">반포동 · 멤버 24명</div></div>
+                  <div class="frow"><div class="k">STATUS</div><div class="v">모집 중 · 관심 12명</div></div>
+                  <div class="frow"><div class="k">HOST</div><div class="v">준비 중</div></div>
+                </div>
+              </div>
+              <div class="mrz">
+                <div>HICLUB&lt;&lt;BANPO&lt;&lt;INT012</div>
+                <div>COLLECTING&lt;&lt;HOST&lt;PENDING</div>
+              </div>
+            </div>
+            <div class="seal wait"><div class="s1">12</div><div class="s2">INTEREST</div></div>
+            <div class="foot"><div class="cta">클럽 홈 ›</div></div>
+            <div class="dbl"></div>
+          </div>
+        </div>
+      </div>
+      <div class="cap">
+        <h3><b>Ⓐ③</b> Passport Spread — the club has papers</h3>
+        <div class="why"><b>Why:</b> the app already lives in the passport world; making the club an identity page (photo · field rows · stamp · MRZ) gives it institutional weight the current card has none of — and the MRZ turns dry counts into texture instead of more grey copy.</div>
+        <div class="meta">
+          <b>BINDS</b> photoUrl (real slot — fallback shown in the collecting card) · name · district · memberCount · when → <em>토 19:30</em> · meetupPoint · hostName · isHost · seal = dday + capacity−rsvpCount · MRZ = the SAME fields re-encoded (no new numbers)<br>
+          <b>FOIL</b> holo corner on the photo frame + 3px top edge · seal is coral ink, not gold (gold stays SETTLED-only)<br>
+          <b>FLOURISH</b> tap = the seal stamps down (scale 2.5→1 + rotate settle), lifted from choreography-lab ②<br>
+          <b>RN</b> Animated scale + rotate on the seal View, native driver. MRZ = Oswald 500 with letterSpacing 2.6 (caps serial → exempt from the 14px floor).
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ Ⓐ④ Seat Map ══ -->
+    <div class="unit">
+      <div class="phone">
+        <div class="scr">
+          <div class="modhead"><span class="t">하이클럽</span><span class="hc">HIGH CLUB</span><span class="d">동네에서 함께 달려요</span></div>
+
+          <div class="acard a4" data-play>
+            <div class="holo"></div>
+            <div class="top">
+              <div class="mono"><span>반</span></div>
+              <div style="flex:1;min-width:0">
+                <div class="kk">HIGH CLUB · 반포동</div>
+                <div class="name">반포 하이클럽</div>
+              </div>
+              <div class="hosttag">HOST</div>
+            </div>
+            <div class="body">
+              <div class="seatbox">
+                <span class="seatk">SEATS 6 / 8</span>
+                <div class="grid"><i></i><i></i><i></i><i></i><i></i><i></i><i class="free"></i><i class="free"></i></div>
+                <div class="seatlab">2자리 남았어요</div>
+              </div>
+              <div class="facts">
+                <div class="whenline"><span class="d">토</span><span class="t">19:30</span></div>
+                <div class="sub"><b>반포한강공원 3주차장</b><br>호스트 도윤</div>
+                <div class="ddchip">D-3</div>
+              </div>
+            </div>
+            <div class="meta">
+              <div class="cell"><div class="k">MEMBERS</div><div class="v">멤버 <span>24</span>명</div></div>
+              <div class="cell"><div class="k">RSVP</div><div class="v"><span>6</span>명 참여 예정</div></div>
+            </div>
+            <div class="foot"><div class="cta">클럽 홈 ›</div></div>
+            <div class="dbl"></div>
+          </div>
+
+          <div class="labdiv">collecting state</div>
+          <div class="acard a4 amini" data-play>
+            <div class="holo"></div>
+            <div class="top">
+              <div class="mono"><span style="font-family:'Noto Sans KR';font-weight:900;font-size:15px">반</span></div>
+              <div style="flex:1;min-width:0">
+                <div class="kk">HIGH CLUB · 반포동</div>
+                <div class="name">반포 하이클럽</div>
+              </div>
+              <div class="monotag">모집 중</div>
+            </div>
+            <div class="body">
+              <div class="seatbox">
+                <span class="seatk">NO SESSION YET</span>
+                <div class="grid"><i class="free" style="border-color:var(--tintEdge);border-style:dashed"></i><i class="free" style="border-color:var(--tintEdge);border-style:dashed"></i><i class="free" style="border-color:var(--tintEdge);border-style:dashed"></i><i class="free" style="border-color:var(--tintEdge);border-style:dashed"></i><i class="free" style="border-color:var(--tintEdge);border-style:dashed"></i><i class="free" style="border-color:var(--tintEdge);border-style:dashed"></i><i class="free" style="border-color:var(--tintEdge);border-style:dashed"></i><i class="free" style="border-color:var(--tintEdge);border-style:dashed"></i></div>
+                <div class="seatlab" style="color:var(--dim)">호스트를 기다려요</div>
+              </div>
+              <div class="facts">
+                <div class="whenline"><span class="t" style="color:var(--accent)">12</span><span class="d" style="color:var(--text);font-size:15px">팀 관심</span></div>
+                <div class="sub">인증 러너가 첫 세션을 열면<br>좌석이 열려요</div>
+              </div>
+            </div>
+            <div class="meta">
+              <div class="cell"><div class="k">INTEREST</div><div class="v">관심 <span>12</span>명</div></div>
+              <div class="cell"><div class="k">MEMBERS</div><div class="v">멤버 <span>24</span>명</div></div>
+            </div>
+            <div class="foot"><div class="cta">클럽 홈 ›</div></div>
+            <div class="dbl"></div>
+          </div>
+        </div>
+      </div>
+      <div class="cap">
+        <h3><b>Ⓐ④</b> Seat Map — scarcity you can count</h3>
+        <div class="why"><b>Why:</b> "2자리" as text is a shrug; eight seats with six taken is a decision. The card's emphasis comes from the one field that actually drives action (<b>capacity vs rsvpCount</b>) instead of from decoration.</div>
+        <div class="meta">
+          <b>BINDS</b> capacity → <em>grid length (8 cells)</em> · rsvpCount → <em>filled cells (6)</em> · capacity−rsvpCount → <em>2자리</em> · when → <em>토 19:30</em> · meetupPoint · hostName · dday → chip · memberCount · isHost → HOST · collecting → all cells dashed + interestCount<br>
+          <b>HONESTY</b> grid renders exactly `capacity` cells — a 12-person session draws 12; it never fakes a fixed 8.<br>
+          <b>FOIL</b> holo monogram only (tint header carries the emphasis) &nbsp;·&nbsp; <b>FLOURISH</b> tap = seats fill in stagger<br>
+          <b>RN</b> map over Array(capacity) with Animated.stagger scale/opacity, native driver; no reflow because cells are fixed-size in a grid row.
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════ SECTION B ═══════════════════════════ -->
+<div class="sect">
+  <div class="sect-head">
+    <div class="n">Ⓑ</div>
+    <h2>Red GO in the morph-ring center — 4 variants</h2>
+    <p>216px ring · 54 dots · pct 0.83 from weekKm/goalKm. Each frame opens on a different state on purpose — use the chips to walk all five. The widget under the divider is the real live-run widget, driven by the same state.</p>
+  </div>
+  <div class="frames">
+
+    <div class="unit">
+      <div class="phone " data-state="none">
+        <div class="vb b1">
+          <div class="apptop"><div class="who">초코<em> · 8월 첫째 주</em></div><div class="av">초</div></div>
+          <div class="hero">
+            <div class="holo"></div>
+            <div class="wkchip">이번 주 ▾</div>
+            <div class="ringwrap"><div class="ring" data-pct="0.83"></div>
+              <div class="center">
+                <div class="kmline">
+                  <span class="kk3">오늘까지</span><span class="v">12.4</span><span class="u">/ 15 km</span>
+                </div>
+                <div class="go disc gofill" data-motion>
+                  <div class="golabel st s-none"><div class="goword">GO</div><div class="gosub">러너 찾기</div></div>
+                  <div class="golabel st s-searching"><div class="gosub" style="font-size:17px">매칭 중</div><div class="gosub" style="opacity:.85">레이더 보기</div></div>
+                  <div class="golabel st s-directed"><div class="gosub" style="font-size:17px">지명 대기</div><div class="gosub" style="opacity:.85">일정 확인</div></div>
+                  <div class="golabel st s-confirmed"><div class="goword" style="font-size:26px">D-1</div><div class="gosub">시작 대기</div></div>
+                  <div class="golabel st s-active"><div class="goword" style="font-size:25px"><span class="livedot"></span>LIVE</div><div class="gosub">실시간 보기</div></div>
+                  <div class="pulse"></div><div class="pulse p2"></div><div class="pulse p3"></div>
+                  <div class="ripple"></div><div class="halo"></div>
+                </div>
+                <div class="agechip"><span class="l">체력 나이</span><span class="v">5.2살</span><span class="d">▼1.8</span></div>
+              </div>
+            </div>
+            <div class="repchip"><span>체력 리포트 · 주간 목표</span><b>›</b></div>
+            <div class="dbl"></div>
+          </div>
+          <div class="labdiv">synced live-run widget — same state</div>
+          <div class="stb s-none">
+            <div class="island">
+              <div class="arcs" style="left:26px">
+                <i style="width:56px;height:56px;left:-28px;top:-28px;border-width:1.5px"></i>
+                <i style="width:110px;height:110px;left:-55px;top:-55px"></i>
+                <i style="width:164px;height:164px;left:-82px;top:-82px;border-color:rgba(240,118,90,.2)"></i>
+                <i style="width:218px;height:218px;left:-109px;top:-109px;border-color:rgba(240,118,90,.14)"></i>
+                <div class="core"></div>
+              </div>
+              
+              <div style="position:relative">
+                <div class="kk4">LIVE RUNNERS · SEOCHO</div>
+                <div class="ttl">지금 러너 찾기</div>
+                <div class="dsc">주변 러너 3명이 바로 받을 수 있어요<br>결제·코스는 자동 — 확인만 하면 끝</div>
+                <div class="btn">주변 러너 검색 시작 ➤</div>
+              </div>
+            </div>
+          </div>
+          <div class="stb s-searching">
+            <div class="island">
+              <div class="arcs" style="left:26px">
+                <i style="width:56px;height:56px;left:-28px;top:-28px;border-width:1.5px"></i>
+                <i style="width:110px;height:110px;left:-55px;top:-55px"></i>
+                <i style="width:164px;height:164px;left:-82px;top:-82px;border-color:rgba(240,118,90,.2)"></i>
+                <i style="width:218px;height:218px;left:-109px;top:-109px;border-color:rgba(240,118,90,.14)"></i>
+                <div class="core"></div>
+              </div>
+              <div class="sweepline" style="left:26px"></div>
+              <div style="position:relative">
+                <div class="kk4">LIVE RUNNERS · SEOCHO</div>
+                <div class="ttl">러너 찾는 중…</div>
+                <div class="dsc">탭하면 레이더로 돌아가요</div>
+                <div class="btn">레이더 보기 ➤</div>
+              </div>
+            </div>
+          </div>
+          <div class="stb s-directed">
+            <div class="island">
+              <div class="arcs" style="left:26px">
+                <i style="width:56px;height:56px;left:-28px;top:-28px;border-width:1.5px"></i>
+                <i style="width:110px;height:110px;left:-55px;top:-55px"></i>
+                <i style="width:164px;height:164px;left:-82px;top:-82px;border-color:rgba(240,118,90,.2)"></i>
+                <i style="width:218px;height:218px;left:-109px;top:-109px;border-color:rgba(240,118,90,.14)"></i>
+                <div class="core"></div>
+              </div>
+              
+              <div style="position:relative">
+                <div class="kk4">LIVE RUNNERS · SEOCHO</div>
+                <div class="ttl">지명 러너 응답 대기 중</div>
+                <div class="dsc">도윤의 응답을 기다리고 있어요 — 탭하면 일정으로</div>
+                <div class="btn">일정에서 확인 ›</div>
+              </div>
+            </div>
+          </div>
+          <div class="stb s-confirmed">
+            <div class="sechead"><span class="n">01</span><span class="t">오늘의 티켓</span><span class="l">전체 일정 ›</span></div>
+            <div class="tkt">
+              <div class="holo"></div>
+              <div class="th">
+                <div class="glyph">✦</div><div class="brand">NEXT RUN · BOARDING PASS</div>
+                <div class="pill dday">D-1</div><div class="pill stt violet">확정됨</div>
+              </div>
+              <div class="rowb">
+                <div class="av2">초</div>
+                <div style="min-width:0">
+                  <div class="when">8월 6일 19:30</div>
+                  <div class="sub">초코 · 서울숲 순환</div>
+                </div>
+                <div class="goto">러너 만나기 ›</div>
+              </div>
+            </div>
+          </div>
+          <div class="stb s-active">
+            <div class="sechead"><span class="n">01</span><span class="t">오늘의 티켓</span><span class="l">전체 일정 ›</span></div>
+            <div class="tkt">
+              <div class="holo"></div>
+              <div class="th">
+                <div class="glyph">✦</div><div class="brand">NEXT RUN · BOARDING PASS</div>
+                <div class="pill dday">D-DAY</div><div class="pill stt coral">● LIVE</div>
+              </div>
+              <div class="rowb">
+                <div class="av2">초</div>
+                <div style="min-width:0">
+                  <div class="when">8월 6일 19:30</div>
+                  <div class="sub">초코 · 서울숲 순환</div>
+                </div>
+                <div class="goto">실시간 보기 ›</div>
+              </div>
+            </div>
+          </div>
+          <div style="height:14px"></div>
+        </div>
+      </div>
+      <div class="cap">
+        <div class="switch">
+          <button data-s="none">① no booking</button>
+          <button data-s="searching">② searching</button>
+          <button data-s="directed">③ directed</button>
+          <button data-s="confirmed">④ confirmed</button>
+          <button data-s="active">⑤ LIVE</button>
+        </div>
+        <div class="replay">↑ state chips drive BOTH the GO and the live-run widget below it · click the GO itself to replay its micro-motion</div>
+        <h3><b>Ⓑ①</b> Red Core — GO takes the middle, km splits around it</h3>
+        <div class="why"><b>Why:</b> the ring's center is the screen's optical bullseye; giving it to a coral disc makes the primary action unmissable, while the week numeral survives as a one-line read above and 체력 나이 keeps its chip below. Coexistence = <b>split</b>.</div>
+        <div class="meta">
+          <b>DETAIL</b> weekKm/goalKm (above) + fitnessAge with ▼(dog.age − fitnessAge) chip (below) — nothing new invented<br>
+          <b>ROUTES</b> <span class="rt">no booking → openFindNow() sheet / fnAvail=0 → /owner/request</span> · <span class="rt">searching → draft.bookingId=liveNext.id + /owner/radar</span> · <span class="rt">directed → /owner/schedule</span> · <span class="rt">confirmed·handoff → /owner/meetup</span> · <span class="rt">active → /owner/live</span> — no dead state<br>
+          <b>COLLAPSE</b> center layer fades as today (opacity only). Proposal: a compact coral echo pill rides the collapsed hero's right edge — its own absolute layer, opacity + translateY(-6→0) only, never touching the km block's measured layout.<br>
+          <b>MOTION</b> press = disc scale 1→.93→1 + a ripple ring scaling to 1.85 and fading · searching = 3 offset pulse rings · LIVE = halo breathing + blinking dot. RN: Animated.spring scale + looped Animated.timing on opacity/scale, all native driver.
+        </div>
+      </div>
+    </div>
+
+    <div class="unit">
+      <div class="phone " data-state="active">
+        <div class="vb b2">
+          <div class="apptop"><div class="who">초코<em> · 8월 첫째 주</em></div><div class="av">초</div></div>
+          <div class="hero" style="padding-bottom:76px">
+            <div class="holo"></div>
+            <div class="wkchip">이번 주 ▾</div>
+            <div class="ringwrap"><div class="ring" data-pct="0.83"></div>
+              <div class="center">
+                <div style="display:flex;flex-direction:column;align-items:center">
+                  <div class="kk3">오늘까지</div>
+                  <div class="bigkm"><span class="n">12.4</span><span class="u"> km</span></div>
+                  <div class="goal">/ 15km <b>주간 목표</b></div>
+                  <div class="agechip"><span class="l">체력 나이</span><span class="v">5.2살</span></div>
+                </div>
+                <div class="caprail"><div class="go capsule gofill" data-motion>
+                  <div class="golabel st s-none" style="flex-direction:row;align-items:center;gap:7px;padding:11px 14px"><span class="goword">GO</span><span class="lab">지금 러너 찾기</span></div>
+                  <div class="golabel st s-searching" style="flex-direction:row;align-items:center;gap:7px;padding:11px 14px"><span class="goword">GO</span><span class="lab">매칭 중 · 레이더</span></div>
+                  <div class="golabel st s-directed" style="flex-direction:row;align-items:center;gap:7px;padding:11px 14px"><span class="goword">GO</span><span class="lab">지명 대기 · 일정</span></div>
+                  <div class="golabel st s-confirmed" style="flex-direction:row;align-items:center;gap:7px;padding:11px 14px"><span class="goword">D-1</span><span class="lab">시작 대기</span></div>
+                  <div class="golabel st s-active" style="flex-direction:row;align-items:center;gap:7px;padding:11px 14px"><span class="goword"><span class="livedot"></span>LIVE</span><span class="lab">실시간 보기</span></div>
+                  <div class="detail breathe"><span class="dv">1,240</span><span class="dl">포인트</span></div>
+                  <div class="pulse"></div><div class="pulse p2"></div>
+                  <div class="ripple"></div>
+                </div></div>
+              </div>
+            </div>
+            <div class="repchip"><span>체력 리포트 · 주간 목표</span><b>›</b></div>
+            <div class="dbl"></div>
+          </div>
+          <div class="labdiv">synced live-run widget — same state</div>
+          <div class="stb s-none">
+            <div class="island">
+              <div class="arcs" style="left:26px">
+                <i style="width:56px;height:56px;left:-28px;top:-28px;border-width:1.5px"></i>
+                <i style="width:110px;height:110px;left:-55px;top:-55px"></i>
+                <i style="width:164px;height:164px;left:-82px;top:-82px;border-color:rgba(240,118,90,.2)"></i>
+                <i style="width:218px;height:218px;left:-109px;top:-109px;border-color:rgba(240,118,90,.14)"></i>
+                <div class="core"></div>
+              </div>
+              
+              <div style="position:relative">
+                <div class="kk4">LIVE RUNNERS · SEOCHO</div>
+                <div class="ttl">지금 러너 찾기</div>
+                <div class="dsc">주변 러너 3명이 바로 받을 수 있어요<br>결제·코스는 자동 — 확인만 하면 끝</div>
+                <div class="btn">주변 러너 검색 시작 ➤</div>
+              </div>
+            </div>
+          </div>
+          <div class="stb s-searching">
+            <div class="island">
+              <div class="arcs" style="left:26px">
+                <i style="width:56px;height:56px;left:-28px;top:-28px;border-width:1.5px"></i>
+                <i style="width:110px;height:110px;left:-55px;top:-55px"></i>
+                <i style="width:164px;height:164px;left:-82px;top:-82px;border-color:rgba(240,118,90,.2)"></i>
+                <i style="width:218px;height:218px;left:-109px;top:-109px;border-color:rgba(240,118,90,.14)"></i>
+                <div class="core"></div>
+              </div>
+              <div class="sweepline" style="left:26px"></div>
+              <div style="position:relative">
+                <div class="kk4">LIVE RUNNERS · SEOCHO</div>
+                <div class="ttl">러너 찾는 중…</div>
+                <div class="dsc">탭하면 레이더로 돌아가요</div>
+                <div class="btn">레이더 보기 ➤</div>
+              </div>
+            </div>
+          </div>
+          <div class="stb s-directed">
+            <div class="island">
+              <div class="arcs" style="left:26px">
+                <i style="width:56px;height:56px;left:-28px;top:-28px;border-width:1.5px"></i>
+                <i style="width:110px;height:110px;left:-55px;top:-55px"></i>
+                <i style="width:164px;height:164px;left:-82px;top:-82px;border-color:rgba(240,118,90,.2)"></i>
+                <i style="width:218px;height:218px;left:-109px;top:-109px;border-color:rgba(240,118,90,.14)"></i>
+                <div class="core"></div>
+              </div>
+              
+              <div style="position:relative">
+                <div class="kk4">LIVE RUNNERS · SEOCHO</div>
+                <div class="ttl">지명 러너 응답 대기 중</div>
+                <div class="dsc">도윤의 응답을 기다리고 있어요 — 탭하면 일정으로</div>
+                <div class="btn">일정에서 확인 ›</div>
+              </div>
+            </div>
+          </div>
+          <div class="stb s-confirmed">
+            <div class="sechead"><span class="n">01</span><span class="t">오늘의 티켓</span><span class="l">전체 일정 ›</span></div>
+            <div class="tkt">
+              <div class="holo"></div>
+              <div class="th">
+                <div class="glyph">✦</div><div class="brand">NEXT RUN · BOARDING PASS</div>
+                <div class="pill dday">D-1</div><div class="pill stt violet">확정됨</div>
+              </div>
+              <div class="rowb">
+                <div class="av2">초</div>
+                <div style="min-width:0">
+                  <div class="when">8월 6일 19:30</div>
+                  <div class="sub">초코 · 서울숲 순환</div>
+                </div>
+                <div class="goto">러너 만나기 ›</div>
+              </div>
+            </div>
+          </div>
+          <div class="stb s-active">
+            <div class="sechead"><span class="n">01</span><span class="t">오늘의 티켓</span><span class="l">전체 일정 ›</span></div>
+            <div class="tkt">
+              <div class="holo"></div>
+              <div class="th">
+                <div class="glyph">✦</div><div class="brand">NEXT RUN · BOARDING PASS</div>
+                <div class="pill dday">D-DAY</div><div class="pill stt coral">● LIVE</div>
+              </div>
+              <div class="rowb">
+                <div class="av2">초</div>
+                <div style="min-width:0">
+                  <div class="when">8월 6일 19:30</div>
+                  <div class="sub">초코 · 서울숲 순환</div>
+                </div>
+                <div class="goto">실시간 보기 ›</div>
+              </div>
+            </div>
+          </div>
+          <div style="height:14px"></div>
+        </div>
+      </div>
+      <div class="cap">
+        <div class="switch">
+          <button data-s="none">① no booking</button>
+          <button data-s="searching">② searching</button>
+          <button data-s="directed">③ directed</button>
+          <button data-s="confirmed">④ confirmed</button>
+          <button data-s="active">⑤ LIVE</button>
+        </div>
+        <div class="replay">↑ state chips drive BOTH the GO and the live-run widget below it · click the GO itself to replay its micro-motion</div>
+        <h3><b>Ⓑ②</b> Orbit — the km center is untouched, GO rides the bottom arc</h3>
+        <div class="why"><b>Why:</b> the least destructive option. Everything Sean already approved in the center stays exactly where it is; the GO capsule straddles the ring's bottom arc like a docked pod, so the hero gains an action without losing its report. Coexistence = <b>orbited</b>.</div>
+        <div class="meta">
+          <b>DETAIL</b> 하이 포인트 balance rides the capsule's right segment (fetchMiles().balance) — a live incentive number where the thumb already is<br>
+          <b>ROUTES</b> <span class="rt">no booking → openFindNow() / fnAvail=0 → /owner/request</span> · <span class="rt">searching → /owner/radar</span> · <span class="rt">directed → /owner/schedule</span> · <span class="rt">confirmed·handoff → /owner/meetup</span> · <span class="rt">active → /owner/live</span><br>
+          <b>COLLAPSE</b> cheapest of the four — the capsule belongs to the center layer and simply fades out; the night 지금 러너 찾기 island below already owns the action in the collapsed state, so no echo is needed. Only exception proposed: in <em>active</em>, a 9px coral dot fades in beside the collapsed progress line (opacity only).<br>
+          <b>MOTION</b> state change = label swaps with translateY(9→0) + opacity (two-layer crossfade, no text measurement) · LIVE = the point segment breathes. RN: Animated.timing on opacity/translateY, native driver.</div>
+      </div>
+    </div>
+
+    <div class="unit">
+      <div class="phone " data-state="searching">
+        <div class="vb b3">
+          <div class="apptop"><div class="who">초코<em> · 8월 첫째 주</em></div><div class="av">초</div></div>
+          <div class="hero">
+            <div class="holo"></div>
+            <div class="wkchip">이번 주 ▾</div>
+            <div class="ringwrap"><div class="ring" data-pct="0.83"></div>
+              <div class="center">
+                <div class="go gauge gofill" data-motion>
+                  <svg width="132" height="132" viewBox="0 0 132 132">
+                    <circle cx="66" cy="66" r="57" fill="none" stroke="rgba(255,255,255,0.26)" stroke-width="6"></circle>
+                    <circle cx="66" cy="66" r="57" fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" stroke-dasharray="214.9 358.14"></circle>
+                  </svg>
+                  <div class="golabel st s-none"><div class="goword">GO</div><div class="gosub">러너 찾기</div></div>
+                  <div class="golabel st s-searching"><div class="gosub" style="font-size:17px">매칭 중</div><div class="gosub" style="opacity:.85">레이더 보기</div></div>
+                  <div class="golabel st s-directed"><div class="gosub" style="font-size:17px">지명 대기</div><div class="gosub" style="opacity:.85">일정 확인</div></div>
+                  <div class="golabel st s-confirmed"><div class="goword" style="font-size:23px">D-1</div><div class="gosub">시작 대기</div></div>
+                  <div class="golabel st s-active"><div class="goword" style="font-size:22px"><span class="livedot"></span>LIVE</div><div class="gosub">실시간 보기</div></div>
+                  <div class="patchk">PATCH 3 / 5</div>
+                  <div class="sweepwrap"><i></i></div>
+                  <div class="pulse"></div><div class="pulse p2"></div>
+                  <div class="ripple"></div><div class="halo"></div>
+                </div>
+                <div class="twin">
+                  <div><div class="v">12.4<span style="font-size:14px;color:var(--dim)"> /15</span></div><div class="l">주간 km</div></div>
+                  <div><div class="v a">5.2살</div><div class="l">체력 나이</div></div>
+                </div>
+              </div>
+            </div>
+            <div class="repchip"><span>체력 리포트 · 주간 목표</span><b>›</b></div>
+            <div class="dbl"></div>
+          </div>
+          <div class="labdiv">synced live-run widget — same state</div>
+          <div class="stb s-none">
+            <div class="island">
+              <div class="arcs" style="left:26px">
+                <i style="width:56px;height:56px;left:-28px;top:-28px;border-width:1.5px"></i>
+                <i style="width:110px;height:110px;left:-55px;top:-55px"></i>
+                <i style="width:164px;height:164px;left:-82px;top:-82px;border-color:rgba(240,118,90,.2)"></i>
+                <i style="width:218px;height:218px;left:-109px;top:-109px;border-color:rgba(240,118,90,.14)"></i>
+                <div class="core"></div>
+              </div>
+              
+              <div style="position:relative">
+                <div class="kk4">LIVE RUNNERS · SEOCHO</div>
+                <div class="ttl">지금 러너 찾기</div>
+                <div class="dsc">주변 러너 3명이 바로 받을 수 있어요<br>결제·코스는 자동 — 확인만 하면 끝</div>
+                <div class="btn">주변 러너 검색 시작 ➤</div>
+              </div>
+            </div>
+          </div>
+          <div class="stb s-searching">
+            <div class="island">
+              <div class="arcs" style="left:26px">
+                <i style="width:56px;height:56px;left:-28px;top:-28px;border-width:1.5px"></i>
+                <i style="width:110px;height:110px;left:-55px;top:-55px"></i>
+                <i style="width:164px;height:164px;left:-82px;top:-82px;border-color:rgba(240,118,90,.2)"></i>
+                <i style="width:218px;height:218px;left:-109px;top:-109px;border-color:rgba(240,118,90,.14)"></i>
+                <div class="core"></div>
+              </div>
+              <div class="sweepline" style="left:26px"></div>
+              <div style="position:relative">
+                <div class="kk4">LIVE RUNNERS · SEOCHO</div>
+                <div class="ttl">러너 찾는 중…</div>
+                <div class="dsc">탭하면 레이더로 돌아가요</div>
+                <div class="btn">레이더 보기 ➤</div>
+              </div>
+            </div>
+          </div>
+          <div class="stb s-directed">
+            <div class="island">
+              <div class="arcs" style="left:26px">
+                <i style="width:56px;height:56px;left:-28px;top:-28px;border-width:1.5px"></i>
+                <i style="width:110px;height:110px;left:-55px;top:-55px"></i>
+                <i style="width:164px;height:164px;left:-82px;top:-82px;border-color:rgba(240,118,90,.2)"></i>
+                <i style="width:218px;height:218px;left:-109px;top:-109px;border-color:rgba(240,118,90,.14)"></i>
+                <div class="core"></div>
+              </div>
+              
+              <div style="position:relative">
+                <div class="kk4">LIVE RUNNERS · SEOCHO</div>
+                <div class="ttl">지명 러너 응답 대기 중</div>
+                <div class="dsc">도윤의 응답을 기다리고 있어요 — 탭하면 일정으로</div>
+                <div class="btn">일정에서 확인 ›</div>
+              </div>
+            </div>
+          </div>
+          <div class="stb s-confirmed">
+            <div class="sechead"><span class="n">01</span><span class="t">오늘의 티켓</span><span class="l">전체 일정 ›</span></div>
+            <div class="tkt">
+              <div class="holo"></div>
+              <div class="th">
+                <div class="glyph">✦</div><div class="brand">NEXT RUN · BOARDING PASS</div>
+                <div class="pill dday">D-1</div><div class="pill stt violet">확정됨</div>
+              </div>
+              <div class="rowb">
+                <div class="av2">초</div>
+                <div style="min-width:0">
+                  <div class="when">8월 6일 19:30</div>
+                  <div class="sub">초코 · 서울숲 순환</div>
+                </div>
+                <div class="goto">러너 만나기 ›</div>
+              </div>
+            </div>
+          </div>
+          <div class="stb s-active">
+            <div class="sechead"><span class="n">01</span><span class="t">오늘의 티켓</span><span class="l">전체 일정 ›</span></div>
+            <div class="tkt">
+              <div class="holo"></div>
+              <div class="th">
+                <div class="glyph">✦</div><div class="brand">NEXT RUN · BOARDING PASS</div>
+                <div class="pill dday">D-DAY</div><div class="pill stt coral">● LIVE</div>
+              </div>
+              <div class="rowb">
+                <div class="av2">초</div>
+                <div style="min-width:0">
+                  <div class="when">8월 6일 19:30</div>
+                  <div class="sub">초코 · 서울숲 순환</div>
+                </div>
+                <div class="goto">실시간 보기 ›</div>
+              </div>
+            </div>
+          </div>
+          <div style="height:14px"></div>
+        </div>
+      </div>
+      <div class="cap">
+        <div class="switch">
+          <button data-s="none">① no booking</button>
+          <button data-s="searching">② searching</button>
+          <button data-s="directed">③ directed</button>
+          <button data-s="confirmed">④ confirmed</button>
+          <button data-s="active">⑤ LIVE</button>
+        </div>
+        <div class="replay">↑ state chips drive BOTH the GO and the live-run widget below it · click the GO itself to replay its micro-motion</div>
+        <h3><b>Ⓑ③</b> Gauge — the button itself is a second, different meter</h3>
+        <div class="why"><b>Why:</b> a red disc with a white arc reads as "charged and ready". The outer 54-dot ring already encodes the week goal, so the button's own arc encodes a <b>different</b> real metric — course-patch progress — and the two never say the same thing twice. Coexistence = <b>replaced</b> (km demotes to a twin stat strip).</div>
+        <div class="meta">
+          <b>DETAIL</b> patch progress rides the button: fetchCoursePatches() 서울숲 순환 3회 → next ladder rung 5 → arc 60%, label PATCH 3/5 (= 다음 패치까지 2회). weekKm + fitnessAge move to the twin cells below.<br>
+          <b>ROUTES</b> <span class="rt">no booking → openFindNow() / fnAvail=0 → /owner/request</span> · <span class="rt">searching → /owner/radar</span> · <span class="rt">directed → /owner/schedule</span> · <span class="rt">confirmed·handoff → /owner/meetup</span> · <span class="rt">active → /owner/live</span><br>
+          <b>COLLAPSE</b> arc + button fade with the center; no new layer — the collapsed hero's existing coral glow head keeps the "hot" signal and the action passes to the sticky widget. Highest information cost of the four when collapsed.<br>
+          <b>MOTION</b> "charge" = a white sweep wedge rotates 720° behind the glass then fades, followed by the press ripple. RN: Animated rotate on an absolute View inside an overflow:hidden circle (transform only) — the arc itself is a <em>static</em> react-native-svg strokeDasharray from real data, never animated.</div>
+      </div>
+    </div>
+
+    <div class="unit">
+      <div class="phone " data-state="confirmed">
+        <div class="vb b4">
+          <div class="apptop"><div class="who">초코<em> · 8월 첫째 주</em></div><div class="av">초</div></div>
+          <div class="hero">
+            <div class="holo"></div>
+            <div class="wkchip">이번 주 ▾</div>
+            <div class="ringwrap"><div class="ring" data-pct="0.83"></div>
+              <div class="center">
+                <div class="go stub" data-motion>
+                  <div class="stubtop">
+                    <div class="kk3">오늘까지 · 이번 주</div>
+                    <div><span class="n">12.4</span><span class="u"> / 15 km</span></div>
+                  </div>
+                  <div class="perf"><i class="l"></i><i class="r"></i></div>
+                  <div class="stubbot gofill">
+                    <div class="golabel st s-none" style="flex-direction:row;align-items:center;gap:8px"><span class="goword">GO</span><span class="lab">지금 러너 찾기</span></div>
+                    <div class="golabel st s-searching" style="flex-direction:row;align-items:center;gap:8px"><span class="goword">GO</span><span class="lab">매칭 중 · 레이더</span></div>
+                    <div class="golabel st s-directed" style="flex-direction:row;align-items:center;gap:8px"><span class="goword">GO</span><span class="lab">지명 대기 · 일정</span></div>
+                    <div class="golabel st s-confirmed" style="flex-direction:row;align-items:center;gap:8px"><span class="goword">D-1</span><span class="lab">시작 대기 ›</span></div>
+                    <div class="golabel st s-active" style="flex-direction:row;align-items:center;gap:8px"><span class="goword"><span class="livedot"></span>LIVE</span><span class="lab">실시간 보기 ›</span></div>
+                    <div class="serial"><span class="bar"></span><span class="txt">FIT AGE 5.2 / REAL 7.0</span></div>
+                    <div class="pulse"></div><div class="pulse p2"></div>
+                    <div class="ripple"></div>
+                  </div>
+                  <div class="halo"></div>
+                </div>
+              </div>
+            </div>
+            <div class="repchip"><span>체력 리포트 · 주간 목표</span><b>›</b></div>
+            <div class="dbl"></div>
+          </div>
+          <div class="labdiv">synced live-run widget — same state</div>
+          <div class="stb s-none">
+            <div class="island">
+              <div class="arcs" style="left:26px">
+                <i style="width:56px;height:56px;left:-28px;top:-28px;border-width:1.5px"></i>
+                <i style="width:110px;height:110px;left:-55px;top:-55px"></i>
+                <i style="width:164px;height:164px;left:-82px;top:-82px;border-color:rgba(240,118,90,.2)"></i>
+                <i style="width:218px;height:218px;left:-109px;top:-109px;border-color:rgba(240,118,90,.14)"></i>
+                <div class="core"></div>
+              </div>
+              
+              <div style="position:relative">
+                <div class="kk4">LIVE RUNNERS · SEOCHO</div>
+                <div class="ttl">지금 러너 찾기</div>
+                <div class="dsc">주변 러너 3명이 바로 받을 수 있어요<br>결제·코스는 자동 — 확인만 하면 끝</div>
+                <div class="btn">주변 러너 검색 시작 ➤</div>
+              </div>
+            </div>
+          </div>
+          <div class="stb s-searching">
+            <div class="island">
+              <div class="arcs" style="left:26px">
+                <i style="width:56px;height:56px;left:-28px;top:-28px;border-width:1.5px"></i>
+                <i style="width:110px;height:110px;left:-55px;top:-55px"></i>
+                <i style="width:164px;height:164px;left:-82px;top:-82px;border-color:rgba(240,118,90,.2)"></i>
+                <i style="width:218px;height:218px;left:-109px;top:-109px;border-color:rgba(240,118,90,.14)"></i>
+                <div class="core"></div>
+              </div>
+              <div class="sweepline" style="left:26px"></div>
+              <div style="position:relative">
+                <div class="kk4">LIVE RUNNERS · SEOCHO</div>
+                <div class="ttl">러너 찾는 중…</div>
+                <div class="dsc">탭하면 레이더로 돌아가요</div>
+                <div class="btn">레이더 보기 ➤</div>
+              </div>
+            </div>
+          </div>
+          <div class="stb s-directed">
+            <div class="island">
+              <div class="arcs" style="left:26px">
+                <i style="width:56px;height:56px;left:-28px;top:-28px;border-width:1.5px"></i>
+                <i style="width:110px;height:110px;left:-55px;top:-55px"></i>
+                <i style="width:164px;height:164px;left:-82px;top:-82px;border-color:rgba(240,118,90,.2)"></i>
+                <i style="width:218px;height:218px;left:-109px;top:-109px;border-color:rgba(240,118,90,.14)"></i>
+                <div class="core"></div>
+              </div>
+              
+              <div style="position:relative">
+                <div class="kk4">LIVE RUNNERS · SEOCHO</div>
+                <div class="ttl">지명 러너 응답 대기 중</div>
+                <div class="dsc">도윤의 응답을 기다리고 있어요 — 탭하면 일정으로</div>
+                <div class="btn">일정에서 확인 ›</div>
+              </div>
+            </div>
+          </div>
+          <div class="stb s-confirmed">
+            <div class="sechead"><span class="n">01</span><span class="t">오늘의 티켓</span><span class="l">전체 일정 ›</span></div>
+            <div class="tkt">
+              <div class="holo"></div>
+              <div class="th">
+                <div class="glyph">✦</div><div class="brand">NEXT RUN · BOARDING PASS</div>
+                <div class="pill dday">D-1</div><div class="pill stt violet">확정됨</div>
+              </div>
+              <div class="rowb">
+                <div class="av2">초</div>
+                <div style="min-width:0">
+                  <div class="when">8월 6일 19:30</div>
+                  <div class="sub">초코 · 서울숲 순환</div>
+                </div>
+                <div class="goto">러너 만나기 ›</div>
+              </div>
+            </div>
+          </div>
+          <div class="stb s-active">
+            <div class="sechead"><span class="n">01</span><span class="t">오늘의 티켓</span><span class="l">전체 일정 ›</span></div>
+            <div class="tkt">
+              <div class="holo"></div>
+              <div class="th">
+                <div class="glyph">✦</div><div class="brand">NEXT RUN · BOARDING PASS</div>
+                <div class="pill dday">D-DAY</div><div class="pill stt coral">● LIVE</div>
+              </div>
+              <div class="rowb">
+                <div class="av2">초</div>
+                <div style="min-width:0">
+                  <div class="when">8월 6일 19:30</div>
+                  <div class="sub">초코 · 서울숲 순환</div>
+                </div>
+                <div class="goto">실시간 보기 ›</div>
+              </div>
+            </div>
+          </div>
+          <div style="height:14px"></div>
+        </div>
+      </div>
+      <div class="cap">
+        <div class="switch">
+          <button data-s="none">① no booking</button>
+          <button data-s="searching">② searching</button>
+          <button data-s="directed">③ directed</button>
+          <button data-s="confirmed">④ confirmed</button>
+          <button data-s="active">⑤ LIVE</button>
+        </div>
+        <div class="replay">↑ state chips drive BOTH the GO and the live-run widget below it · click the GO itself to replay its micro-motion</div>
+        <h3><b>Ⓑ④</b> Stub — the center becomes a boarding stub you tear</h3>
+        <div class="why"><b>Why:</b> it is the only variant that speaks the app's native language. The week number is printed on the pass, the red half <b>is</b> the stub, and tapping tears it — the same gesture the club ticket and check-in already use, so GO feels like the app rather than a button dropped on top of it. Coexistence = <b>split by perforation</b>.</div>
+        <div class="meta">
+          <b>DETAIL</b> 체력 나이 prints as the stub serial (fitnessAge 5.2 vs dog.age 7.0 — the same two numbers the chip shows today, in serial form). Caps serial → exempt from the 14px floor, same rule as the MRZ and NEXT RUN kicker.<br>
+          <b>ROUTES</b> <span class="rt">no booking → openFindNow() / fnAvail=0 → /owner/request</span> · <span class="rt">searching → /owner/radar</span> · <span class="rt">directed → /owner/schedule</span> · <span class="rt">confirmed·handoff → /owner/meetup</span> · <span class="rt">active → /owner/live</span><br>
+          <b>COLLAPSE</b> best echo story: as the center fades, a 26px torn stub tab fades in at the collapsed hero's right edge (opacity + translateX only, own absolute layer) — visually the stub "stayed behind" after the pass folded away.<br>
+          <b>MOTION</b> tap = the red half shears (rotate 6° + translate) and springs back — choreography-lab ③ retuned to return instead of leaving, because the stub must survive the tap. RN: Animated.sequence of rotate/translate on the bottom View, native driver.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════ COMPARISON ═══════════════════════════ -->
+<div class="tblwrap">
+  <table>
+    <caption>Ⓐ 하이클럽 card — craft dimensions</caption>
+    <tr>
+      <th style="width:120px">Variant</th><th>Emphasis engine</th><th>Surface</th><th>Foil spend</th>
+      <th>Fields on card</th><th>Collecting-state fit</th><th>Build cost / risk</th>
+    </tr>
+    <tr>
+      <td class="v">Ⓐ① Departure</td><td>Type scale — 44px session time dwarfs everything</td><td>Light editorial (white + tint kicker)</td>
+      <td class="v">Edge only</td><td>10</td><td>Strong — numeral swaps to interestCount</td><td>Lowest. Restyle of today's card, same tree</td>
+    </tr>
+    <tr>
+      <td class="v">Ⓐ② Night Stub</td><td>Value inversion — one dark island in a paper feed</td><td>Night lilac #1C1837</td>
+      <td class="v">Monogram + edge</td><td>11</td><td>Strong — stub shows interestCount / WAITING</td><td>Medium. New dark surface + contrast pass on every label</td>
+    </tr>
+    <tr>
+      <td class="v">Ⓐ③ Passport</td><td>Genre — identity page (photo · fields · seal · MRZ)</td><td>Light editorial + inset MRZ band</td>
+      <td class="v">Photo corner + edge</td><td>11 (+ photoUrl)</td><td>Strong — dashed seal + COLLECTING MRZ line</td><td>Highest. MRZ needs a real encoder + ellipsis rules at 320px</td>
+    </tr>
+    <tr>
+      <td class="v">Ⓐ④ Seat Map</td><td>Data — capacity vs rsvpCount drawn, not described</td><td>Light + violet tint header</td>
+      <td class="v">Monogram only</td><td>10</td><td>Medium — grid goes all-dashed, meaning carried by copy</td><td>Low-medium. Grid must render N=capacity, not a fixed 8</td>
+    </tr>
+  </table>
+</div>
+
+<div class="tblwrap" style="margin-top:26px">
+  <table>
+    <caption>Ⓑ Red GO — craft dimensions</caption>
+    <tr>
+      <th style="width:120px">Variant</th><th>km coexistence</th><th>Detail on/around the button</th><th>State legibility</th>
+      <th>Collapse cost</th><th>Ring interference</th><th>Motion cost</th>
+    </tr>
+    <tr>
+      <td class="v">Ⓑ① Red Core</td><td>Split — km one line above, age chip below</td><td>weekKm + fitnessAge (around)</td>
+      <td>Highest — verb sits at the optical center</td><td>Medium — proposes a new echo pill layer</td><td>None (fully inside)</td><td>Low</td>
+    </tr>
+    <tr>
+      <td class="v">Ⓑ② Orbit</td><td>Untouched — today's center survives verbatim</td><td>하이 포인트 balance (on)</td>
+      <td>Medium — reads as a dock, not the subject</td><td class="v">Lowest — fades, island below takes over</td><td>Overlaps the bottom arc (needs a 3px white halo)</td><td>Lowest</td>
+    </tr>
+    <tr>
+      <td class="v">Ⓑ③ Gauge</td><td>Replaced — km demotes to a twin stat strip</td><td>patch progress 3/5 (on, as the arc)</td>
+      <td>High — but the arc competes with the ring for meaning</td><td>Highest — most information leaves on collapse</td><td>None</td><td>Medium (rotating sweep)</td>
+    </tr>
+    <tr>
+      <td class="v">Ⓑ④ Stub</td><td>Split by perforation — km printed on the pass</td><td>fitnessAge as serial (on)</td>
+      <td>High — red half is unmistakably the action</td><td>Low — torn-tab echo is honest and cheap</td><td>None (178px inside a 216px ring)</td><td>Medium (tear + spring)</td>
+    </tr>
+  </table>
+
+  <div class="rec">
+    <h4>Recommended pairing — Ⓐ② Night Stub × Ⓑ④ Stub</h4>
+    <p><b>Why they belong together:</b> both are the ticket/stub grammar the app already owns. The hero center tears a stub to start a run; the club card <em>is</em> a stub with the D-day torn off. One shared metaphor, so the home screen reads as one document instead of four widgets — and the night club card sits far enough down the scroll that it never fights the white hero for attention.</p>
+    <p><b>Safe alternative if the dark island feels risky on device:</b> <b>Ⓐ① Departure × Ⓑ④ Stub</b> — the club card keeps the paper feed intact and still fixes the "bland" complaint with type scale alone, which is the cheapest possible fix and the least likely to regress on small screens.</p>
+    <p><b>Highest-ceiling / highest-cost pairing:</b> <b>Ⓐ③ Passport × Ⓑ③ Gauge</b> — the most distinctive, but it adds an MRZ encoder and puts a second meter inside a screen that already has one. Only worth it if the club is meant to feel like a separate product surface.</p>
+    <p><b>Do-not-refactor respected in all four Ⓑ variants:</b> the GO lives inside the existing center layer, which keeps crossfading on <em>opacity</em> alone; every proposed collapse echo is a new absolute sibling animated with transform/opacity only. No measured layout, no height animation, no change to the 54-dot ↔ progress-line crossfade.</p>
+  </div>
+</div>
+
+<script>
+  // ── 54-dot morph ring (RING_BIG 216 · MORPH_DOTS 54 · pct = weekKm/goalKm) ──
+  var RING = 216, DOT = 7, N = 54;
+  function hex(c){ return [parseInt(c.substr(1,2),16), parseInt(c.substr(3,2),16), parseInt(c.substr(5,2),16)]; }
+  function mix(a,b,t){
+    var A = hex(a), B = hex(b);
+    return 'rgb(' + Math.round(A[0]+(B[0]-A[0])*t) + ',' + Math.round(A[1]+(B[1]-A[1])*t) + ',' + Math.round(A[2]+(B[2]-A[2])*t) + ')';
+  }
+  document.querySelectorAll('.ring').forEach(function (el) {
+    var pct = parseFloat(el.getAttribute('data-pct') || '0'), on = Math.round(N * pct);
+    var r = RING / 2 - DOT, c = RING / 2;
+    for (var i = 0; i < N; i++) {
+      var a = (i / N) * Math.PI * 2 - Math.PI / 2;
+      var d = document.createElement('i');
+      d.className = 'rdot' + (i < on ? ' on' : '') + (i === on - 1 ? ' head' : '');
+      if (i < on) d.style.background = mix('#9787DC', '#E45F41', on > 1 ? i / (on - 1) : 1);
+      d.style.left = (c + Math.cos(a) * r - DOT / 2) + 'px';
+      d.style.top  = (c + Math.sin(a) * r - DOT / 2) + 'px';
+      el.appendChild(d);
+    }
+  });
+
+  // ── state switcher: drives the GO label AND the live-run widget in the same frame ──
+  function setState(phone, st) {
+    phone.setAttribute('data-state', st);
+    phone.querySelectorAll('.st, .stb').forEach(function (e) {
+      e.classList.toggle('on', e.classList.contains('s-' + st));
+    });
+    phone.parentElement.querySelectorAll('.switch button').forEach(function (b) {
+      b.classList.toggle('sel', b.getAttribute('data-s') === st);
+    });
+  }
+  document.querySelectorAll('.unit').forEach(function (unit) {
+    var phone = unit.querySelector('.phone');
+    if (!phone || !phone.hasAttribute('data-state')) return;
+    setState(phone, phone.getAttribute('data-state'));
+    unit.querySelectorAll('.switch button').forEach(function (b) {
+      b.addEventListener('click', function () { setState(phone, b.getAttribute('data-s')); });
+    });
+  });
+
+  // ── click-to-play micro-motion (reflow reset, same pattern as choreography-lab) ──
+  function play(host) {
+    host.classList.remove('play');
+    void host.offsetWidth;
+    host.classList.add('play');
+    clearTimeout(host._t);
+    host._t = setTimeout(function () { host.classList.remove('play'); }, 1300);
+  }
+  document.querySelectorAll('[data-motion]').forEach(function (go) {
+    var host = go.closest('.phone');
+    go.addEventListener('click', function (e) { e.stopPropagation(); play(host); });
+  });
+  document.querySelectorAll('[data-play]').forEach(function (card) {
+    card.addEventListener('click', function () { play(card); });
+    card.addEventListener('mouseenter', function () { if (!card.classList.contains('play')) play(card); });
+  });
+</script>
+</body>
+</html>
