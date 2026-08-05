@@ -1,0 +1,1283 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Passport Stamp Lab — 리워드 ② 도장 · 컬렉션 병합 · 런엔드 세리머니</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;500;700;800;900&family=Oswald:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* ── Tailored Lilac tokens (src/theme.ts `lilac`) + legacy forest (report.tsx) + patch worlds (patch.tsx) ── */
+  :root{
+    --bg:#F4F2FB; --card:#FFFFFF; --inset:#EFECF9; --hair:#E6E2F4; --hair2:#EDEAF8;
+    --head:#221E3D; --text:#4B4668; --dim:#7C76A0;
+    --accent:#6C5CE7; --readv:#4A3DA8;
+    --tint:#F4F1FE; --tintEdge:#DCD6F8;
+    --coral:#F0765A; --coralDeep:#E45F41; --coralSoft:#FFDCD1;
+    --night:#1C1837; --nightDim:#A9A3C8; --nightEdge:#332C58;
+    --gold:#B99A4F; --goldSoft:#F4EBD3;
+    --volt:#C6F542; --voltDeep:#7FA818; --forest:#0F1D13; --forestIn:#1d3023;
+    --tang:#FF5C3D; --cream:#FFFFFF;
+    /* stamp inks — violet is THE ink; coral survives as edge/dot only (my.tsx law) */
+    --ink:#4A3DA8; --inkFill:rgba(108,92,231,.05); --inkNight:#B9AEF5;
+    --edge1st:#E45F41; --edge1stNight:#FF9C82;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    background:#161230; font-family:'Noto Sans KR',sans-serif; color:#EDEAF8; padding:0 0 90px;
+    background-image:radial-gradient(1100px 520px at 14% -8%, rgba(240,118,90,.10), transparent 60%),
+                     radial-gradient(920px 460px at 88% 2%, rgba(108,92,231,.16), transparent 62%);
+    background-attachment:fixed;
+  }
+
+  /* ══════════ LAB CHROME (English) ══════════ */
+  .sticky{
+    position:sticky; top:0; z-index:200; backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+    background:rgba(20,16,44,.92); border-bottom:1px solid rgba(255,255,255,.09); padding:15px 26px 13px;
+  }
+  .wrap{max-width:1560px;margin:0 auto}
+  .lab-title{font-family:'Black Han Sans';font-size:24px;letter-spacing:.2px;color:#F2EFFA}
+  .lab-title em{font-style:normal;color:#F0765A}
+  .lab-title i{font-style:normal;color:#9F8FFF}
+  .lab-sub{font-size:13px;color:#A9A3C8;margin-top:7px;line-height:1.62;max-width:1180px}
+  .lab-sub b{color:#F2EFFA;font-weight:700}
+  .chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:11px}
+  .chips span{font-size:11.5px;color:#C9C2E8;border:1px solid rgba(201,194,232,.26);padding:4px 9px;border-radius:6px;background:rgba(255,255,255,.045)}
+  .chips b{color:#F0765A;font-weight:700}
+  .chips i{font-style:normal;color:#9F8FFF;font-weight:700}
+
+  .sect{max-width:1560px;margin:40px auto 0;padding:0 26px}
+  .sect-head{display:flex;align-items:baseline;gap:12px;border-bottom:1px solid rgba(255,255,255,.1);padding-bottom:11px}
+  .sect-head .n{font-family:'Oswald';font-weight:600;font-size:27px;line-height:1.24;color:#F0765A;letter-spacing:1px}
+  .sect-head h2{font-size:19px;color:#F2EFFA;font-weight:700}
+  .sect-head p{font-size:12.5px;color:#8F88B4;margin-left:auto;text-align:right;line-height:1.55;max-width:600px}
+  .frames{display:flex;flex-wrap:wrap;gap:30px;justify-content:center;margin-top:26px;align-items:flex-start}
+  .unit{width:390px}
+  .phone{
+    width:390px;border-radius:26px;overflow:hidden;background:var(--bg);position:relative;
+    box-shadow:0 24px 60px rgba(8,5,24,.55),0 3px 12px rgba(8,5,24,.4);border:1px solid rgba(255,255,255,.09);
+  }
+  .phone.cream{background:var(--cream)}
+  .cap{margin-top:13px}
+  .cap h3{font-size:16px;color:#F2EFFA;font-weight:700;line-height:1.42}
+  .cap h3 b{color:#F0765A;font-weight:700;margin-right:5px;font-family:'Oswald';font-size:17px;letter-spacing:.5px}
+  .cap .why{font-size:13px;color:#BDB6DC;line-height:1.62;margin-top:6px}
+  .cap .why b{color:#F2EFFA;font-weight:700}
+  .cap .meta{font-size:12px;color:#8F88B4;line-height:1.62;margin-top:8px;border-top:1px dashed rgba(255,255,255,.13);padding-top:8px}
+  .cap .meta b{color:#9F8FFF;font-weight:700;letter-spacing:.4px}
+  .cap .meta em{font-style:normal;color:#C9C2E8}
+  .cap .meta .rt{color:#FFB9A6}
+  .cap .meta .ok{color:#B7E27A}
+  .labdiv{
+    display:flex;align-items:center;gap:8px;margin:16px 12px 6px;font-size:11px;letter-spacing:1.2px;
+    color:#8B84AE;text-transform:uppercase;font-family:'Oswald';font-weight:500;
+  }
+  .labdiv::before,.labdiv::after{content:'';flex:1;height:1px;background:repeating-linear-gradient(90deg,#B9B2D8 0 4px,transparent 4px 8px)}
+  .playbar{display:flex;gap:6px;margin-top:11px;flex-wrap:wrap}
+  .playbar button{
+    font-family:'Noto Sans KR',sans-serif;font-size:11.5px;font-weight:700;color:#fff;
+    background:#F0765A;border:1px solid #F0765A;border-radius:6px;padding:7px 12px;cursor:pointer;
+  }
+  .playbar button.q{background:rgba(255,255,255,.05);border-color:rgba(201,194,232,.26);color:#BDB6DC}
+  .replay{font-size:11px;color:#7C76A0;margin-top:6px;letter-spacing:.3px}
+
+  /* ══════════ SHARED IN-APP PRIMITIVES (Korean copy lives here) ══════════ */
+  .scr{padding:14px 16px 16px}
+  .num{font-family:'Oswald';font-weight:600;line-height:1.24;font-feature-settings:'tnum'}
+  .kk{font-family:'Oswald';font-weight:500;font-size:12px;letter-spacing:2px;color:var(--dim);text-transform:uppercase}
+  .rule{flex:1;height:1px;background:var(--hair)}
+  .h1{font-family:'Black Han Sans';font-size:40px;line-height:1.2;color:var(--head)}
+  .official{border:1px solid var(--head);border-radius:2px;padding:5px 8px;background:var(--card);
+    font-family:'Oswald';font-weight:600;font-size:11.5px;letter-spacing:1.8px;color:var(--head);align-self:flex-start;margin-top:6px}
+  .subnote{font-size:14px;line-height:1.5;color:var(--text);margin-top:9px}
+  .krow{display:flex;align-items:center;gap:8px}
+
+  /* section label — matches my.tsx s.sec (§ · LATIN · 한글 · rule) */
+  .sec{display:flex;align-items:center;gap:8px;margin:18px 2px 9px}
+  .sec .no{font-family:'Oswald';font-weight:600;font-size:12px;color:var(--accent)}
+  .sec .t{font-family:'Oswald';font-weight:500;font-size:12px;letter-spacing:2px;color:var(--dim);text-transform:uppercase}
+  .sec .ko{font-size:14px;font-weight:700;color:var(--text)}
+
+  /* ② 기록면 — night lilac record card (verbatim geometry from my.tsx s.record) */
+  .record{background:var(--night);border-radius:8px;overflow:hidden;box-shadow:0 10px 26px rgba(18,14,44,.34)}
+  .record .holo{height:2px;background:linear-gradient(90deg,#CFC5F6,#FFDCD1 22%,#F3E9C6 45%,#EAF6C8 62%,#CDEAF3 80%,#CFC5F6);opacity:.85}
+  .record .in{margin:9px;border:1px solid rgba(255,255,255,.13);border-radius:6px;padding:13px}
+  .record .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+  .record .top .t{font-size:15px;font-weight:800;color:#fff}
+  .record .top .k{display:flex;align-items:center;gap:5px}
+  .record .top .k i{width:6px;height:6px;border-radius:50%;background:var(--coral);display:block}
+  .record .top .k span{font-family:'Oswald';font-weight:500;font-size:12px;letter-spacing:1.8px;color:rgba(255,255,255,.5)}
+  .record .stats{display:flex}
+  .record .stats .c{flex:1}
+  .record .stats .c+.c{border-left:1px solid rgba(255,255,255,.13);padding-left:11px}
+  .record .stats .v{font-family:'Oswald';font-weight:600;font-size:23px;line-height:1.24;color:#fff}
+  .record .stats .v u{text-decoration:none;font-size:14px;font-weight:500;color:rgba(255,255,255,.55)}
+  .record .stats .l{font-size:14px;color:rgba(255,255,255,.62);margin-top:4px}
+  .record .go{margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,.13);text-align:right;
+    font-size:14px;font-weight:700;color:#fff}
+
+  /* ④ 서류행 */
+  .doc{background:var(--card);border:1px solid var(--hair);border-radius:8px;overflow:hidden;box-shadow:0 6px 14px rgba(28,24,55,.09)}
+  .drow{display:flex;align-items:center;padding:13px 12px 13px 0;position:relative}
+  .drow+.drow{border-top:1px solid var(--hair2)}
+  .drow .tick{position:absolute;left:0;top:0;bottom:0;width:3px}
+  .drow .ic{width:27px;height:27px;border-radius:6px;display:flex;align-items:center;justify-content:center;margin:0 10px 0 11px;font-size:14px;flex:0 0 27px}
+  .drow .tt{font-size:14px;font-weight:700;color:var(--head)}
+  .drow .dd{font-size:14px;color:var(--dim);margin-top:2px;line-height:1.3}
+  .drow .ch{margin-left:auto;font-size:16px;color:var(--dim)}
+
+  /* ══════════ THE STAMP (ink grammar — no foil, no gold) ══════════ */
+  .sgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px 10px}
+  .sgrid.c2{grid-template-columns:repeat(2,1fr)}
+  .scell{display:flex;flex-direction:column;align-items:center;min-height:126px}
+  .disc{
+    width:76px;height:76px;border-radius:50%;position:relative;flex:0 0 76px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    border:2px solid var(--ink);background:var(--inkFill);
+  }
+  .disc .r2{position:absolute;left:4px;right:4px;top:4px;bottom:4px;border-radius:50%;border:1px solid var(--ink);opacity:.42}
+  .disc .r3{position:absolute;left:-5px;right:-5px;top:-5px;bottom:-5px;border-radius:50%;border:1.5px solid var(--ink);opacity:.55}
+  .disc .n{font-family:'Oswald';font-weight:600;font-size:22px;line-height:1.24;color:var(--ink)}
+  .disc .w{font-size:14px;line-height:16px;font-weight:800;color:var(--ink);margin-top:1px}
+  .disc .dot1{position:absolute;top:-3px;left:50%;margin-left:-3.5px;width:7px;height:7px;border-radius:50%;background:var(--edge1st)}
+  /* 첫-family: coral EDGE + coral DOT only — the ink stays violet (my.tsx: 코랄은 텍스트로 쓰지 않는다) */
+  .disc.first{border-color:var(--edge1st)}
+  .disc.first .r2{border-color:var(--edge1st);opacity:.34}
+  /* ladder escalation without gold: 1 ring → 2 rings → 3 rings (the die got bigger) */
+  .disc.g2 .r2{opacity:.85;border-width:1.5px}
+  .disc.g3 .r2{opacity:.9;border-width:1.5px}
+  .disc.lock{border:1.5px dashed var(--hair);background:transparent}
+  .disc.lock .r2,.disc.lock .r3,.disc.lock .dot1{display:none}
+  .disc.lock .n,.disc.lock .w{color:#A9A3C8}
+  .scell .lab{font-size:14px;line-height:18px;font-weight:700;color:var(--head);margin-top:6px;text-align:center}
+  .scell .sub{font-family:'Oswald';font-weight:500;font-size:14px;line-height:18px;color:var(--dim);margin-top:1px;text-align:center;letter-spacing:.3px}
+  .scell .sub.ko{font-family:'Noto Sans KR',sans-serif;font-weight:400;letter-spacing:0}
+  .scell.locked .lab{color:var(--dim);font-weight:600}
+  .scell .next{margin-top:2px;font-size:14px;line-height:18px;font-weight:700;color:var(--readv)}
+
+  /* night variant of the stamp (Ⓐ②) */
+  .disc.nt{border-color:var(--inkNight);background:rgba(185,174,245,.08)}
+  .disc.nt .r2{border-color:var(--inkNight)}
+  .disc.nt .n,.disc.nt .w{color:var(--inkNight)}
+  .disc.nt.first{border-color:var(--edge1stNight)}
+  .disc.nt.first .r2{border-color:var(--edge1stNight)}
+  .disc.nt .dot1{background:var(--edge1stNight)}
+  .disc.nt.lock{border-color:rgba(255,255,255,.24)}
+  .disc.nt.lock .n,.disc.nt.lock .w{color:rgba(255,255,255,.42)}
+
+  /* the visa page card (Ⓐ①) */
+  .visa{background:var(--card);border:1px solid var(--hair);border-radius:8px;overflow:hidden;box-shadow:0 6px 14px rgba(28,24,55,.09)}
+  .visa .in{margin:9px;border:1px solid var(--hair2);border-radius:6px;padding:11px}
+  .visa .strap{display:flex;justify-content:space-between;align-items:center;margin-bottom:11px}
+  .visa .strap .k{font-family:'Oswald';font-weight:500;font-size:12px;letter-spacing:1.6px;color:var(--dim);text-transform:uppercase}
+  .visa .cnt{border:1px solid var(--tintEdge);background:var(--tint);border-radius:5px;padding:3px 9px;
+    font-family:'Oswald';font-weight:600;font-size:14px;line-height:18px;letter-spacing:.8px;color:var(--readv)}
+  .visa .perf{height:1px;margin:11px 0 0;background:repeating-linear-gradient(90deg,var(--hair) 0 5px,transparent 5px 10px)}
+  .visa .foot{display:flex;align-items:center;justify-content:space-between;padding:10px 11px 11px}
+  .visa .foot .l{font-size:14px;color:var(--dim)}
+  .visa .foot .g{font-size:14px;font-weight:800;color:var(--readv)}
+  .empt{background:var(--inset);border:1px solid var(--hair);border-radius:6px;padding:11px;margin-bottom:11px}
+  .empt .t{font-size:14px;line-height:20px;font-weight:700;color:var(--head)}
+  .empt .d{font-size:14px;line-height:20px;color:var(--text);margin-top:3px}
+
+  /* Ⓐ② strip inside the night record card */
+  .strip{margin-top:12px;padding-top:11px;border-top:1px solid rgba(255,255,255,.13)}
+  .strip .hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+  .strip .hd .t{font-size:14px;font-weight:800;color:#fff}
+  .strip .hd .a{font-size:14px;font-weight:700;color:var(--inkNight)}
+  .strip .row{display:flex;gap:9px;overflow:hidden}
+  .strip .mini{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;width:62px}
+  .strip .mini .disc{width:52px;height:52px;flex:0 0 52px;border-width:1.5px}
+  .strip .mini .disc .n{font-size:16px}
+  .strip .mini .disc .w{font-size:14px;line-height:15px}
+  .strip .mini .disc .r2{left:3px;right:3px;top:3px;bottom:3px}
+  .strip .mini .lb{font-size:14px;line-height:17px;color:rgba(255,255,255,.72);margin-top:5px;text-align:center;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:62px}
+  .strip .fade{position:absolute;right:0;top:0;bottom:0;width:34px;
+    background:linear-gradient(90deg,rgba(28,24,55,0),var(--night));pointer-events:none}
+  .strip .rowwrap{position:relative}
+
+  /* Ⓐ③ passport fold — two pages, binding gutter */
+  .spread{background:var(--card);border:1px solid var(--hair);border-radius:8px;overflow:hidden;box-shadow:0 6px 14px rgba(28,24,55,.09);display:flex}
+  .spread .pg{padding:11px}
+  .spread .pgL{width:212px;flex:0 0 212px}
+  .spread .bind{width:12px;flex:0 0 12px;background:var(--inset);
+    border-left:1px dashed var(--hair);border-right:1px dashed var(--hair);position:relative}
+  .spread .bind i{position:absolute;left:50%;margin-left:-1px;width:2px;height:9px;background:var(--hair);display:block}
+  .spread .pgR{flex:1;min-width:0;background:var(--inset)}
+  .spread .pk{font-family:'Oswald';font-weight:500;font-size:12px;letter-spacing:1.5px;color:var(--dim);text-transform:uppercase;margin-bottom:9px;
+    display:flex;justify-content:space-between;align-items:center;gap:7px}
+  .spread .pk>span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+  .spread .pk b{font-family:'Oswald';font-weight:600;font-size:14px;line-height:18px;color:var(--readv);letter-spacing:.6px}
+  .spread .sgrid{gap:11px 10px}
+  .spread .disc{width:74px;height:74px;flex:0 0 74px}
+  .spread .scell{min-height:120px}
+  .trow{display:flex;align-items:center;gap:8px;padding:8px 0}
+  .trow+.trow{border-top:1px solid var(--hair)}
+  .trow .td{width:34px;height:34px;flex:0 0 34px;border-radius:50%;border:1.5px dashed var(--hair);
+    display:flex;align-items:center;justify-content:center;font-family:'Oswald';font-weight:600;font-size:14px;line-height:18px;color:#A9A3C8;background:var(--card)}
+  .trow .tt{min-width:0}
+  .trow .tt .a{font-size:14px;line-height:18px;font-weight:700;color:var(--head);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .trow .tt .b{font-size:14px;line-height:18px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pgmore{margin-top:9px;font-size:14px;line-height:18px;font-weight:700;color:var(--readv)}
+  .pgnote{margin-top:12px;padding-top:10px;border-top:1px solid var(--hair);font-size:14px;line-height:19px;color:var(--dim)}
+  .pgfoot{margin-top:9px;padding-top:9px;border-top:1px solid var(--hair);font-size:14px;font-weight:800;color:var(--readv)}
+
+  /* ══════════ Ⓑ COLLECTION PAGE ══════════ */
+  .cbar{display:flex;align-items:center;gap:7px;margin-bottom:4px}
+  .cbar .bk{font-size:22px;color:var(--head);line-height:1}
+  .cbar .bkl{font-size:14px;font-weight:700;color:var(--head)}
+  .sum{display:flex;background:var(--card);border:1px solid var(--hair);border-radius:8px;overflow:hidden;margin-top:12px;box-shadow:0 6px 14px rgba(28,24,55,.09)}
+  .sum .c{flex:1;padding:11px 12px}
+  .sum .c+.c{border-left:1px solid var(--hair2)}
+  .sum .k{font-family:'Oswald';font-weight:500;font-size:12px;letter-spacing:1.4px;color:var(--dim);text-transform:uppercase}
+  .sum .v{font-family:'Oswald';font-weight:600;font-size:22px;line-height:1.24;color:var(--head);margin-top:3px}
+  .sum .v u{text-decoration:none;font-size:14px;color:var(--dim)}
+  .sum .l{font-size:14px;color:var(--text);margin-top:2px}
+  .well{background:var(--night);border-radius:8px;padding:13px 11px;box-shadow:0 10px 26px rgba(18,14,44,.3)}
+  .well .wk{display:flex;justify-content:space-between;align-items:center;margin-bottom:11px}
+  .well .wk .t{font-size:14px;font-weight:800;color:#fff}
+  .well .wk .c{font-family:'Oswald';font-weight:600;font-size:14px;line-height:18px;color:var(--volt);letter-spacing:.6px}
+  .well .note{font-size:14px;line-height:19px;color:var(--nightDim);margin-bottom:12px}
+  .pgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:13px 10px}
+  .pcell{display:flex;flex-direction:column;align-items:center;min-height:126px}
+  .pb{width:76px;height:76px;border-radius:50%;flex:0 0 76px;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative}
+  .pb .st{position:absolute;left:5px;right:5px;top:5px;bottom:5px;border-radius:50%;border:1.5px solid}
+  .pb .km{font-weight:900;font-size:20px;line-height:1.1}
+  .pb .wl{font-size:7px;line-height:9px;font-weight:800;letter-spacing:1.2px;margin-top:2px}
+  .pb .cr{position:absolute;top:-11px;font-size:15px}
+  .pcell .lab{font-size:14px;line-height:18px;font-weight:700;margin-top:6px;text-align:center;max-width:104px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pcell .sub{font-size:14px;line-height:18px;margin-top:1px;text-align:center}
+  .onNight .lab{color:#fff}
+  .onNight .sub{color:var(--nightDim)}
+  .onLight .lab{color:var(--head)}
+  .onLight .sub{color:var(--dim)}
+  .fchips{display:flex;gap:6px;margin:12px 0 4px;flex-wrap:wrap}
+  .fchips span{font-size:14px;font-weight:700;padding:6px 11px;border-radius:5px;border:1px solid var(--hair);color:var(--text);background:var(--card)}
+  .fchips span.on{background:var(--head);border-color:var(--head);color:#fff}
+  .ugrid{background:var(--card);border:1px solid var(--hair);border-radius:8px;padding:13px 11px;box-shadow:0 6px 14px rgba(28,24,55,.09)}
+  .ugrid .glab{display:flex;align-items:center;gap:7px;margin:2px 0 11px}
+  .ugrid .glab i{width:5px;height:5px;border-radius:50%;display:block;background:var(--accent)}
+  .ugrid .glab span{font-family:'Oswald';font-weight:500;font-size:12px;letter-spacing:1.5px;color:var(--dim);text-transform:uppercase}
+  .ugrid .glab em{font-style:normal;font-size:14px;color:var(--text);font-weight:700}
+  .navbar{display:flex;border-top:1px solid var(--hair);background:var(--card)}
+  .navbar div{flex:1;text-align:center;padding:9px 0 12px}
+  .navbar .g{font-size:17px;color:var(--dim);line-height:1.2}
+  .navbar .t{font-size:14px;color:var(--dim);margin-top:2px}
+  .navbar .on .g,.navbar .on .t{color:var(--accent);font-weight:700}
+
+  /* ══════════ Ⓒ CEREMONY (report.tsx — legacy forest surface + new overlay) ══════════ */
+  .rpt{background:var(--cream);position:relative;overflow:hidden}
+  .rpt .bar{display:flex;align-items:center;justify-content:space-between;padding:14px 12px 0}
+  .rpt .bar .bb{width:36px;height:36px;border-radius:18px;background:#fff;border:1px solid #DCD6C4;display:flex;align-items:center;justify-content:center;font-size:18px;color:#333}
+  .rpt .bar .tt{font-size:21px;font-weight:900;color:var(--forest)}
+  .hero{background:var(--forest);padding:18px;margin-top:14px;position:relative}
+  .hero .when{font-size:14px;color:#b8c4ae}
+  .hero .dogt{font-size:26px;font-weight:900;color:#fff;margin-top:6px}
+  .hero .fin{position:absolute;top:48px;right:16px;border:2.5px solid var(--volt);border-radius:10px;padding:5px 11px;
+    transform:rotate(-9deg);opacity:.92;text-align:center}
+  .hero .fin .a{font-size:15px;font-weight:900;color:var(--volt);letter-spacing:1px}
+  .hero .fin .b{font-size:14px;font-weight:900;color:var(--volt);letter-spacing:1.6px;line-height:16px}
+  .hero .big{font-size:48px;font-weight:900;color:var(--tang);margin-top:8px;line-height:1.05}
+  .hero .big u{text-decoration:none;font-size:20px;color:#b8c4ae}
+  .hero .pills{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+  .hero .pills span{background:var(--volt);border-radius:99px;padding:4px 10px;font-size:14px;font-weight:900;color:var(--forest)}
+  .hero .stats{display:flex;justify-content:space-around;background:var(--forestIn);border-radius:14px;padding:11px 0;margin-top:14px}
+  .hero .stats .c{text-align:center}
+  .hero .stats .v{font-size:18px;font-weight:900;color:#fff}
+  .hero .stats .l{font-size:14px;color:#b8c4ae;margin-top:3px}
+  .hero .stats .dv{width:1px;background:#2c4034}
+  .earn{background:var(--bg);padding:14px 12px;border-bottom:1px solid var(--hair)}
+  .earn .k{font-size:14px;line-height:18px;font-weight:800;letter-spacing:1.2px;color:var(--readv)}
+  .earn .tot{font-family:'Oswald';font-weight:600;font-size:32px;line-height:1.24;color:var(--head);margin-top:3px}
+  .earn .tot u{text-decoration:none;font-family:'Noto Sans KR',sans-serif;font-size:15px;font-weight:800;color:var(--text)}
+  .earn .ln{display:flex;justify-content:space-between;margin-top:6px}
+  .earn .ln span{font-size:14px;color:var(--text)}
+  .earn .ln b{font-size:14px;color:var(--head)}
+
+  .rsec{background:#fff;padding:14px 12px;border-bottom:1px solid #DCD6C4}
+  .chips2{display:flex;gap:8px;flex-wrap:wrap}
+  .chips2 span{background:#eef4e0;border-radius:99px;padding:7px 13px;font-size:14px;font-weight:900;color:#3d5a2b}
+  .rnote{font-size:14px;color:#586055;margin-top:8px;line-height:1.45}
+  .tiles{display:flex;gap:2px;background:#fff}
+  .tiles i{flex:1;height:96px;background:#f4f2ea;display:block}
+  .rst{font-size:15px;font-weight:900;color:var(--forest);margin-bottom:6px}
+  .grow{display:flex;justify-content:space-between}
+  .grow span{font-size:14px;font-weight:700;color:#3d453d}
+  .grow b{font-size:15px;font-weight:900;color:#5a7a3c}
+  .track{height:8px;border-radius:99px;background:#f0eee3;margin-top:6px;overflow:hidden}
+  .track u{display:block;height:8px;border-radius:99px;background:#7FA818}
+
+  /* overlays */
+  .ovl{position:absolute;inset:0;z-index:40;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:26px;
+    opacity:0;visibility:hidden;pointer-events:none}
+  .ovl.patchpop{background:rgba(10,16,10,.72)}  /* verbatim from today's PatchPopOverlay */
+  .ovl.slam{background:rgba(18,14,44,.94)}      /* my.tsx shadowColor #120E2C, opaque enough to stop the forest hero bleeding through */
+  /* on a night backdrop the wall's #4A3DA8 ink is invisible — the ceremony uses the night ink */
+  .ovl.slam .disc{border-color:var(--inkNight);background:rgba(185,174,245,.1)}
+  .ovl.slam .disc .r2,.ovl.slam .disc .r3{border-color:var(--inkNight)}
+  .ovl.slam .disc .n,.ovl.slam .disc .w{color:var(--inkNight)}
+  .ovl.slam .disc.first{border-color:var(--edge1stNight)}
+  .ovl.slam .disc.first .r2{border-color:var(--edge1stNight)}
+  .ovl.slam .disc .dot1{background:var(--edge1stNight)}
+  .ovl .ttl{font-family:'Black Han Sans';font-size:25px;color:var(--volt);margin-top:18px;line-height:1.3}
+  .ovl .sub{font-size:14px;font-weight:800;color:#dfe7d8;margin-top:7px;text-align:center;line-height:1.5}
+  .ovl .cta{background:var(--volt);border-radius:99px;padding:10px 20px;margin-top:16px;font-size:14px;font-weight:900;color:var(--forest)}
+  .ovl .hint{font-size:14px;color:#8fa093;margin-top:12px}
+  .ovl.slam .ttl{color:#fff;font-size:24px}
+  .ovl.slam .sub{color:var(--nightDim)}
+  .ovl.slam .cta{background:#fff;color:var(--head)}
+  .ovl.slam .hint{color:var(--nightDim)}
+  .bigdisc{width:132px;height:132px;flex:0 0 132px;border-width:3px}
+  .bigdisc .n{font-size:38px}
+  .bigdisc .w{font-size:18px;line-height:22px;margin-top:2px}
+  .bigdisc .r2{left:7px;right:7px;top:7px;bottom:7px;border-width:1.5px}
+  .slamrow{display:flex;gap:14px;align-items:flex-start;justify-content:center;flex-wrap:wrap}
+  .slamitem{display:flex;flex-direction:column;align-items:center;width:104px}
+  .slamitem .disc{width:92px;height:92px;flex:0 0 92px}
+  .slamitem .disc .n{font-size:27px}
+  .slamitem .disc .w{font-size:15px;line-height:18px}
+  .slamitem .cp{font-size:14px;line-height:18px;font-weight:800;color:#fff;margin-top:8px;text-align:center}
+  /* 세리머니 키커는 한글을 품으므로 14pt 플로어를 지킨다 (마이의 12px 스트랩 예외를 여기로 끌고 오지 않는다) */
+  .kicker-ovl{font-family:'Oswald';font-weight:500;font-size:14px;line-height:18px;letter-spacing:2.4px;color:#B9AEF5;text-transform:uppercase;margin-bottom:14px}
+  .mrzline{font-family:'Oswald';font-weight:500;font-size:10px;letter-spacing:1px;color:rgba(255,255,255,.34);margin-top:14px}
+
+  /* — play choreography: transform/opacity only (RN native-driver parity) — */
+  .play .ovl.q1{animation:ovlIn .001s linear 0s both, ovlOut .001s linear 2.35s both}
+  .play .ovl.q2{animation:ovlIn .001s linear 2.45s both}
+  .play .ovl.one{animation:ovlIn .001s linear 0s both}
+  @keyframes ovlIn{to{opacity:1;visibility:visible}}
+  @keyframes ovlOut{to{opacity:0;visibility:hidden}}
+  .play .q1 .pbwrap{animation:springpop .46s cubic-bezier(.3,1.5,.5,1) .05s both}
+  .play .q1 .fade{animation:fadeup .4s ease-out .3s both}
+  .play .q2 .kicker-ovl{animation:fadeup .32s ease-out 2.5s both}
+  .play .q2 .s1{animation:slam .34s cubic-bezier(.5,0,.7,.35) 2.62s both}
+  .play .q2 .s2{animation:slam .34s cubic-bezier(.5,0,.7,.35) 2.80s both}
+  .play .q2 .fade{animation:fadeup .4s ease-out 3.2s both}
+  .play .one .pbwrap{animation:springpop .46s cubic-bezier(.3,1.5,.5,1) .06s both}
+  .play .one .s1{animation:slam .34s cubic-bezier(.5,0,.7,.35) .62s both}
+  .play .one .s2{animation:slam .34s cubic-bezier(.5,0,.7,.35) .80s both}
+  .play .one .fade{animation:fadeup .4s ease-out 1.15s both}
+  .play .one .kicker-ovl{animation:fadeup .3s ease-out .02s both}
+  @keyframes springpop{
+    from{opacity:0;transform:scale(.4) rotate(-18deg)}
+    60%{opacity:1;transform:scale(1.06) rotate(-2deg)}
+    to{opacity:1;transform:scale(1) rotate(-4deg)}
+  }
+  @keyframes slam{
+    from{opacity:0;transform:scale(2.6) rotate(-14deg)}
+    55%{opacity:1}
+    to{opacity:1;transform:scale(1) rotate(-8deg)}
+  }
+  @keyframes fadeup{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  .ovl .pbwrap,.ovl .s1,.ovl .s2,.ovl .fade,.ovl .kicker-ovl{opacity:0}
+
+  /* ink ladder legend (lab chrome, but the discs inside are in-app renders) */
+  .legend{margin-top:20px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);border-radius:10px;padding:15px 17px}
+  .lgt{font-size:13px;color:#DCD6F8;line-height:1.6;margin-bottom:13px}
+  .lgt b{color:#FFC3B1;font-weight:700}
+  .lgrow{display:flex;flex-wrap:wrap;gap:20px}
+  .lgi{display:flex;gap:11px;align-items:flex-start;width:274px;background:var(--card);border:1px solid var(--hair);border-radius:8px;padding:11px}
+  .lgl{min-width:0}
+  .lgl b{display:block;font-size:12.5px;color:var(--head);font-weight:800;letter-spacing:.2px}
+  .lgl span{display:block;font-size:12px;color:var(--text);line-height:1.55;margin-top:3px}
+
+  /* ══════════ TABLES ══════════ */
+  .tblwrap{max-width:1560px;margin:44px auto 0;padding:0 26px}
+  table{width:100%;border-collapse:collapse;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.1);border-radius:10px;overflow:hidden}
+  caption{text-align:left;font-size:15px;font-weight:700;color:#F2EFFA;padding:0 0 9px}
+  caption small{display:block;font-size:12px;font-weight:400;color:#8F88B4;margin-top:4px;line-height:1.55}
+  th,td{font-size:12.5px;text-align:left;padding:9px 11px;border-bottom:1px solid rgba(255,255,255,.08);line-height:1.5;vertical-align:top}
+  th{background:rgba(255,255,255,.06);color:#C9C2E8;font-weight:700;font-size:11.5px;letter-spacing:.5px;text-transform:uppercase}
+  td{color:#BDB6DC}
+  td.v{color:#F2EFFA;font-weight:700;white-space:nowrap}
+  td code{font-family:'Oswald';font-weight:400;font-size:12px;letter-spacing:.2px;color:#9F8FFF}
+  td b{color:#F0765A;font-weight:700}
+  td .in{color:#B7E27A;font-weight:700}
+  td .out{color:#FF9C82;font-weight:700}
+  tr:last-child td{border-bottom:0}
+  .rec{margin-top:20px;border:1px solid rgba(240,118,90,.35);background:rgba(240,118,90,.09);border-radius:10px;padding:15px 17px}
+  .rec h4{font-size:15px;color:#FFC3B1;font-weight:700;margin-bottom:7px}
+  .rec p{font-size:13px;color:#DCD6F8;line-height:1.7}
+  .rec p+p{margin-top:7px}
+  .rec b{color:#fff;font-weight:700}
+  .note{max-width:1560px;margin:22px auto 0;padding:0 26px;font-size:12.5px;color:#8F88B4;line-height:1.7}
+  .note b{color:#C9C2E8}
+</style>
+</head>
+<body>
+
+<div class="sticky">
+  <div class="wrap">
+    <div class="lab-title">Passport Stamp Lab — <em>Ⓐ 도장 벽 3종</em> · <i>Ⓑ 병합 컬렉션 2종</i> · <em>Ⓒ 런엔드 세리머니 2종</em></div>
+    <div class="lab-sub">
+      Rewards ② — stamps. <b>Ⓐ</b> places the stamp wall on <b>마이</b> (the passport). <b>Ⓑ</b> rebuilds <b>/cards</b> as the passport's collection annex where
+      course patches and milestone stamps live in one cabinet. <b>Ⓒ</b> puts the earning ceremony where Sean locked it — <b>report.tsx</b> at run end, next to the
+      existing patch pop. The wall itself is calm and motionless by decision; only Ⓒ animates (click <b>▶ play</b>). Reply with numbers, e.g. <b>"A1 B2 C1"</b>.
+    </div>
+    <div class="chips">
+      <span>Run count = <b>bookings.status='completed'</b> ∧ <b>runs.end_reason='completed'</b> — status alone counts early-terminated settlements</span>
+      <span>Courses = <b>fetchCoursePatches().earned.length</b></span>
+      <span>Club = <b>session_people.attendance='checked_in'</b> on <b>club_sessions.status='done'</b></span>
+      <span>Poop = <b>miles_ledger.reason='poop_bonus'</b> row count — <i>one row per RUN</i>, not per poop</span>
+      <span>Streak = max historical KST-week bucket run via <b>kstWeekStartMs</b></span>
+      <span>Ink law: violet <i>#4A3DA8</i> is the only stamp ink · coral survives as <b>edge + dot</b> only · <b>gold stays in the receipt</b> · <b>zero new foil</b> (my.tsx already spends 2 HoloEdges)</span>
+      <span>Balance-milestone stamps <b>excluded</b> — shop_spend can un-earn them</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════ TAXONOMY ═══════════════════════════ -->
+<div class="tblwrap" style="margin-top:34px">
+  <table>
+    <caption>v1 stamp taxonomy — every row is derivable client-side today, zero migrations
+      <small>"Earn date" is the timestamp of the row that crossed the threshold — for count stamps that is <code>scheduled_at</code> of the Nth completed booking in the ordered array <code>fetchCoursePatches</code> already walks, so the passport can print a date on every stamp without a new column.</small>
+    </caption>
+    <tr><th style="width:132px">도장</th><th style="width:78px">In-disc</th><th>Binding (client-side)</th><th style="width:150px">Monotonic?</th><th style="width:64px">v1</th></tr>
+    <tr><td class="v">첫 러닝</td><td><code>1 · 완주</code></td>
+      <td><code>bookings.select(route_id, scheduled_at, runs!inner(end_reason)).eq(status,'completed').eq(runs.end_reason,'completed').or(owner_id.eq.uid,runner_id.eq.uid)</code> → <b>length ≥ 1</b>. The <code>runs!inner</code> filter is load-bearing: <code>status='completed'</code> alone includes early-terminated settlements (0028 ②).</td>
+      <td>Yes — completed runs never un-complete</td><td><span class="in">IN</span></td></tr>
+    <tr><td class="v">5회 완주</td><td><code>5 · 완주</code></td><td>Same array, <b>length ≥ 5</b>. Threshold borrowed verbatim from <code>patchGrade</code> (silver) so the two ladders speak one vocabulary.</td><td>Yes</td><td><span class="in">IN</span></td></tr>
+    <tr><td class="v">10회 완주</td><td><code>10 · 완주</code></td><td>Same array, <b>length ≥ 10</b> (patchGrade gold).</td><td>Yes</td><td><span class="in">IN</span></td></tr>
+    <tr><td class="v">25회 완주</td><td><code>25 · 완주</code></td><td>Same array, <b>length ≥ 25</b> (patchGrade master).</td><td>Yes</td><td><span class="in">IN</span></td></tr>
+    <tr><td class="v">코스 2개 개척</td><td><code>2 · 코스</code></td><td><code>fetchCoursePatches().earned.length ≥ 2</code> — distinct routes with ≥1 완주.</td><td>Yes</td><td><span class="in">IN</span></td></tr>
+    <tr><td class="v">코스 3개 개척</td><td><code>3 · 코스</code></td><td>Same, <b>≥ 3</b>. <b>Ceiling check:</b> seed ships 4 active routes, so 3 is reachable and 5 would be a dead slot. And there is deliberately <b>no "전 코스 개척" stamp</b> — adding a route would un-earn it.</td><td>Yes, at a fixed threshold only</td><td><span class="in">IN</span></td></tr>
+    <tr><td class="v">첫 클럽 출석</td><td><code>1 · 클럽</code></td>
+      <td><code>session_people</code> where <code>profile_id=uid ∧ attendance='checked_in'</code> joined to <code>club_sessions.status='done'</code> — the exact predicate <code>club_my_stats</code> uses, minus the <code>p_club</code> scope. RLS <code>"people authed read"</code> already permits the client read, so no RPC is required (an un-scoped RPC is still the tidier option).</td>
+      <td>Yes — attendance can move rsvp→checked_in, never back</td><td><span class="in">IN</span></td></tr>
+    <tr><td class="v">연속 2주</td><td><code>2 · 연속</code></td>
+      <td>Bucket every completed run's <code>scheduled_at</code> by <code>kstWeekStartMs()</code>, walk the sorted distinct weeks, take the <b>longest historical</b> run of consecutive weeks ≥ 2. Grace-week allowance follows the day-streak precedent in <code>fetchFitness</code>.</td>
+      <td>Yes — <b>historical max</b>, not the live streak. The live streak decays; the record does not.</td><td><span class="in">IN</span></td></tr>
+    <tr><td class="v">응가 도장</td><td><code>1 · 응가</code></td>
+      <td><code>miles_ledger</code> rows where <code>reason='poop_bonus'</code> ∧ <code>profile_id=uid</code>, <b>count ≥ 1</b>. settle_run_tx writes exactly one +30 row per booking, so the count is <b>러닝 횟수</b> — the copy must say 러닝, never 응가 횟수.</td>
+      <td>Yes — ledger rows are append-only</td><td><span class="in">IN</span></td></tr>
+    <tr><td class="v">응가 도장 ×10</td><td><code>10 · 응가</code></td><td>Same count, <b>≥ 10</b>. Label: "응가 도장이 찍힌 러닝 10회".</td><td>Yes</td><td><span class="in">IN</span></td></tr>
+    <tr><td class="v">첫 자랑</td><td><code>1 · 자랑</code></td><td><code>feed_posts</code> where <code>author_id=uid</code>, count ≥ 1 (head-count query). Post delete is owner-permitted — see the caveat row below.</td><td>Mostly — see caveat</td><td><span class="in">IN</span></td></tr>
+    <tr><td class="v">첫 후기</td><td><code>1 · 후기</code></td><td><code>reviews</code> where <code>author_id=uid</code>, count ≥ 1. No client delete policy exists, so this one is strictly monotonic.</td><td>Yes</td><td><span class="in">IN</span></td></tr>
+    <tr><td class="v">잔액 마일스톤</td><td>—</td><td><code>fetchMiles().balance</code> — <code>shop_spend</code> writes negative rows.</td><td class="v" style="white-space:normal"><span class="out">NO</span> — spending un-earns it</td><td><span class="out">OUT</span></td></tr>
+    <tr><td class="v">이번 주 연속 (live)</td><td>—</td><td><code>fetchFitness().streakDays</code> / current week run.</td><td class="v" style="white-space:normal"><span class="out">NO</span> — decays on a rest week</td><td><span class="out">OUT</span></td></tr>
+    <tr><td class="v" style="color:#FFC3B1">⚠ 첫 자랑 caveat</td><td>—</td><td><b>feed_posts has a "feed delete own" policy</b> — a user who deletes their only post drops the count back to 0 and un-earns the stamp. Two honest fixes: (a) once a stamp is earned, persist it (needs a table = a migration, out of scope for v1); or (b) derive from <code>bookings.shared_to_feed</code>-style evidence if it exists. <b>Simplest v1-safe option: keep 첫 자랑 IN but derive it from the MIN(created_at) of any post the user has ever authored is not available after delete — so ship it accepting the edge, or drop it.</b> Flagging for Sean, not deciding.</td><td>—</td><td><span class="out">FLAG</span></td></tr>
+  </table>
+</div>
+
+<!-- ═══════════════════════════ SECTION Ⓐ ═══════════════════════════ -->
+<div class="sect">
+  <div class="sect-head">
+    <div class="n">Ⓐ</div>
+    <h2>Passport stamp wall — where + how on 마이</h2>
+    <p>Each phone is a real slice of 마이: masthead → ② 기록면 → the proposed stamp surface → ④ 서류행. Under the lab divider, the same surface in its <b>0-stamp</b> state. Sample profile is identical in all three so the variants are comparable.</p>
+  </div>
+
+  <!-- ink ladder legend (lab chrome — the sample never reaches 25회, so the top tier is shown here) -->
+  <div class="legend">
+    <div class="lgt">Ink ladder — escalation is carried by <b>ring count</b>, never by hue. Gold is not spent on this wall.</div>
+    <div class="lgrow">
+      <div class="lgi"><div class="disc first"><span class="dot1"></span><span class="n">1</span><span class="w">완주</span></div>
+        <div class="lgl"><b>첫-family</b><span>coral outer ring + dot, violet ink. Four of these exist and always will: 첫 러닝 · 첫 클럽 출석 · 첫 자랑 · 첫 후기.</span></div></div>
+      <div class="lgi"><div class="disc"><span class="n">2</span><span class="w">코스</span></div>
+        <div class="lgl"><b>1 ring — first-of-kind</b><span>the entry rung of any ladder that is not a 첫: 코스 2개, 연속 2주, 응가 도장.</span></div></div>
+      <div class="lgi"><div class="disc g2"><span class="r2"></span><span class="n">10</span><span class="w">완주</span></div>
+        <div class="lgl"><b>2 rings — milestone</b><span>the die gained an inner ring: 5회 · 10회 완주, 코스 3개, 응가 ×10.</span></div></div>
+      <div class="lgi"><div class="disc g3"><span class="r2"></span><span class="r3"></span><span class="n">25</span><span class="w">완주</span></div>
+        <div class="lgl"><b>3 rings — ladder top</b><span>only 25회 완주 today. The sample profile has not earned it, so it appears nowhere in the phones.</span></div></div>
+      <div class="lgi"><div class="disc lock"><span class="n">10</span><span class="w">응가</span></div>
+        <div class="lgl"><b>unearned slot</b><span>dashed hairline, dim ink, no coral, no rings. The condition prints under it at 14pt.</span></div></div>
+    </div>
+  </div>
+
+  <div class="frames">
+
+    <!-- ══ Ⓐ① 신설 §③ 도장면 (visa page) ══ -->
+    <div class="unit">
+      <div class="phone">
+        <div class="scr">
+          <div class="krow" style="gap:8px;margin:6px 0 8px"><span class="kk">DOGS HIGH · MEMBER</span><span class="rule"></span><span class="kk">KOR</span></div>
+          <div class="krow" style="align-items:flex-start;gap:10px"><span class="h1">마이</span><span class="official">PASSPORT</span></div>
+          <div class="subnote">이 화면은 내 여권이에요 — 신분면 · 기록면 · 도장면 · 서류가 한 권에 있어요</div>
+
+          <div class="record" style="margin-top:14px">
+            <div class="holo"></div>
+            <div class="in">
+              <div class="top"><span class="t">나의 러닝 기록</span><span class="k"><i></i><span>RECORD / 기록면</span></span></div>
+              <div class="stats">
+                <div class="c"><div class="v">12.4<u> km</u></div><div class="l">이번 주 거리</div></div>
+                <div class="c"><div class="v">3<u> 회</u></div><div class="l">이번 주 횟수</div></div>
+                <div class="c"><div class="v">6'12"</div><div class="l">주간 페이스</div></div>
+              </div>
+              <div class="go">상세 기록 보기 ›</div>
+            </div>
+          </div>
+
+          <div class="sec"><span class="no">§</span><span class="t">STAMPS</span><span class="ko">도장</span><span class="rule"></span></div>
+          <div class="visa">
+            <div class="in">
+              <div class="strap"><span class="k">STAMPS / 도장면</span><span class="cnt">8 / 12</span></div>
+              <div class="sgrid" data-stamps="full"></div>
+            </div>
+            <div class="perf" style="margin:0 9px"></div>
+            <div class="foot"><span class="l">코스 패치도 같은 수집함에 있어요</span><span class="g">컬렉션 전체 보기 ›</span></div>
+          </div>
+
+          <div class="sec"><span class="no">§</span><span class="t">DOCUMENTS</span><span class="ko">서류</span><span class="rule"></span></div>
+          <div class="doc">
+            <div class="drow"><span class="tick" style="background:#FF5C3D"></span><span class="ic" style="background:#FCE7E1;color:#FF5C3D">✚</span>
+              <span><span class="tt">안심 센터</span><span class="dd" style="display:block">SOS · 긴급 연락처 · 보험</span></span><span class="ch">›</span></div>
+            <div class="drow"><span class="tick" style="background:#7FA818"></span><span class="ic" style="background:#EDF5D8;color:#7FA818">⌂</span>
+              <span><span class="tt">주소 관리</span><span class="dd" style="display:block">픽업 장소 · 공동현관 정보</span></span><span class="ch">›</span></div>
+          </div>
+
+          <div class="labdiv">Empty state — 0 stamps</div>
+          <div class="visa">
+            <div class="in">
+              <div class="strap"><span class="k">STAMPS / 도장면</span><span class="cnt">0 / 12</span></div>
+              <div class="empt">
+                <div class="t">도장면은 비어 있는 채로 시작해요</div>
+                <div class="d">첫 러닝을 완주하면 왼쪽 위 칸부터 찍혀요. 도장은 한번 찍히면 지워지지 않아요.</div>
+              </div>
+              <div class="sgrid" data-stamps="empty"></div>
+            </div>
+            <div class="perf" style="margin:0 9px"></div>
+            <div class="foot"><span class="l">코스 패치도 같은 수집함에 있어요</span><span class="g">컬렉션 전체 보기 ›</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="cap">
+        <h3><b>Ⓐ①</b> §③ 도장면 — a real visa page between 기록면 and 서류행</h3>
+        <div class="why"><b>Why:</b> the vacant §③ slot exists because the passport was always going to need a stamp page. This is the only variant where the wall is <em>the</em> subject rather than a garnish — twelve slots printed on one sheet, earned and unearned side by side, so the empty ones do the recruiting. Order is <b>fixed forever</b> (a printed page's slots do not reshuffle when you earn one), which is what makes returning to it feel like a document rather than a feed.</div>
+        <div class="meta">
+          <b>SAMPLE</b> 완주 <em>7</em> · 코스 <em>3</em> · 클럽 체크인 <em>1</em> · 최장 주 연속 <em>3</em> · 응가 러닝 <em>4</em> · 자랑 <em>2</em> · 후기 <em>0</em> → <b>8 / 12</b>. Dates under earned stamps are the crossing row's date, not "today".<br>
+          <b>INK</b> earned = violet <em>#4A3DA8</em>; ring count carries the ladder (1 first-of-kind → 2 milestone → 3 ladder top — see the legend above). 첫-family (첫 러닝 · 첫 클럽 출석 · 첫 자랑 · 첫 후기) = <span class="rt">coral outer ring + coral dot</span>, violet text — coral never becomes type, per my.tsx's own law.<br>
+          <b>ANGLE</b> −11° … +10°, one fixed value per stamp key. Circles, so only the type tilts — which is exactly what a hand-pressed die does.<br>
+          <b>NO FOIL</b> zero HoloEdge here. The page tint is flat <code>lilac.inset</code> + a dashed perf rule. Foil budget stays at the 신분면 + 기록면 pair.<br>
+          <b>ROUTES</b> <span class="rt">컬렉션 전체 보기 → /cards</span> · individual stamps are <b>not</b> pressable in v1 (no detail screen exists — a tappable stamp with no destination is a dead button).<br>
+          <b>COST</b> measured at 390dp: the section label + card add <em>≈700px</em> of scroll to 마이 — roughly one more screenful. Acceptable at 12 stamps; a v2 at 20+ needs pagination or a "최근 6개 + 전체 보기" head.<br>
+          <b>MOTION</b> none. Sean's lock: the wall is calm, the ceremony lives on report.tsx.
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ Ⓐ② 기록면 내부 스트립 ══ -->
+    <div class="unit">
+      <div class="phone">
+        <div class="scr">
+          <div class="krow" style="gap:8px;margin:6px 0 8px"><span class="kk">DOGS HIGH · MEMBER</span><span class="rule"></span><span class="kk">KOR</span></div>
+          <div class="krow" style="align-items:flex-start;gap:10px"><span class="h1">마이</span><span class="official">PASSPORT</span></div>
+          <div class="subnote">이 화면은 내 여권이에요 — 신분면 · 기록면 · 서류가 한 권에 있어요</div>
+
+          <div class="record" style="margin-top:14px">
+            <div class="holo"></div>
+            <div class="in">
+              <div class="top"><span class="t">나의 러닝 기록</span><span class="k"><i></i><span>RECORD / 기록면</span></span></div>
+              <div class="stats">
+                <div class="c"><div class="v">12.4<u> km</u></div><div class="l">이번 주 거리</div></div>
+                <div class="c"><div class="v">3<u> 회</u></div><div class="l">이번 주 횟수</div></div>
+                <div class="c"><div class="v">6'12"</div><div class="l">주간 페이스</div></div>
+              </div>
+              <div class="strip">
+                <div class="hd"><span class="t">받은 도장 8개</span><span class="a">전체 보기 ›</span></div>
+                <div class="rowwrap">
+                  <div class="row" data-stamps="strip"></div>
+                  <div class="fade"></div>
+                </div>
+              </div>
+              <div class="go">상세 기록 보기 ›</div>
+            </div>
+          </div>
+
+          <div class="sec"><span class="no">§</span><span class="t">DOCUMENTS</span><span class="ko">서류</span><span class="rule"></span></div>
+          <div class="doc">
+            <div class="drow"><span class="tick" style="background:#FF5C3D"></span><span class="ic" style="background:#FCE7E1;color:#FF5C3D">✚</span>
+              <span><span class="tt">안심 센터</span><span class="dd" style="display:block">SOS · 긴급 연락처 · 보험</span></span><span class="ch">›</span></div>
+            <div class="drow"><span class="tick" style="background:#B8860B"></span><span class="ic" style="background:#FBF3DD;color:#B8860B">⌗</span>
+              <span><span class="tt">초코의 컬렉션</span><span class="dd" style="display:block">도장 · 코스 패치 · 러닝 히스토리</span></span><span class="ch">›</span></div>
+          </div>
+
+          <div class="labdiv">Empty state — 0 stamps</div>
+          <div class="record">
+            <div class="holo"></div>
+            <div class="in">
+              <div class="top"><span class="t">나의 러닝 기록</span><span class="k"><i></i><span>RECORD / 기록면</span></span></div>
+              <div class="stats">
+                <div class="c"><div class="v">0.0<u> km</u></div><div class="l">이번 주 거리</div></div>
+                <div class="c"><div class="v">0<u> 회</u></div><div class="l">이번 주 횟수</div></div>
+                <div class="c"><div class="v">—</div><div class="l">주간 페이스</div></div>
+              </div>
+              <div class="strip">
+                <div class="hd"><span class="t">도장</span><span class="a">전체 보기 ›</span></div>
+                <div class="rowwrap">
+                  <div class="row" data-stamps="stripEmpty"></div>
+                  <div class="fade"></div>
+                </div>
+                <div style="font-size:14px;line-height:19px;color:rgba(255,255,255,.62);margin-top:10px">
+                  첫 러닝을 완주하면 첫 도장이 찍혀요
+                </div>
+              </div>
+              <div class="go">상세 기록 보기 ›</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="cap">
+        <h3><b>Ⓐ②</b> 기록면 안의 도장 스트립 — compact, zero new sections</h3>
+        <div class="why"><b>Why:</b> the cheapest placement by far. 마이 gains no section and roughly <b>110px</b>; the night card already is the "what I've done" surface, so stamps are contextually right where the numbers are. The price is that the wall stops being a <em>page</em> — it becomes a teaser row, and the unearned slots (the actual recruiting device) get squeezed to two visible tiles.</div>
+        <div class="meta">
+          <b>INK ON NIGHT</b> violet inverts to <em>#B9AEF5</em> (8.3:1 on #1C1837); 첫-family edge inverts to <em>#FF9C82</em>. Labels sit at rgba(255,255,255,.72). No white type ever lands on a coral fill here — coral is still only a ring.<br>
+          <b>P1 RISK</b> the 기록면 is already a <code>Pressable</code> routing to <code>/owner/fitness</code>. A horizontal <code>ScrollView</code> and a "전체 보기" link nested inside it means nested touch responders — on Android the parent press wins scroll gestures unless the child gets its own responder. Either lift the strip out of the Pressable (making the card a View with an explicit "상세 기록 보기" row) or accept a non-scrolling clipped strip.<br>
+          <b>EMPTY</b> honest and non-shaming: the row still renders the first three <em>unearned</em> slots with their conditions, plus one sentence. No "0/12" in an alarm colour, no exhortation.<br>
+          <b>COST</b> measured <em>≈116px</em> — lowest build cost of the three and the only one that does not change 마이's shape; also the lowest ceiling: this is a widget, not a collection.<br>
+          <b>MOTION</b> none.
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ Ⓐ③ 여권 펼침 (spread) ══ -->
+    <div class="unit">
+      <div class="phone">
+        <div class="scr">
+          <div class="krow" style="gap:8px;margin:6px 0 8px"><span class="kk">DOGS HIGH · MEMBER</span><span class="rule"></span><span class="kk">KOR</span></div>
+          <div class="krow" style="align-items:flex-start;gap:10px"><span class="h1">마이</span><span class="official">PASSPORT</span></div>
+          <div class="subnote">이 화면은 내 여권이에요 — 신분면 · 기록면 · 도장면 · 서류가 한 권에 있어요</div>
+
+          <div class="record" style="margin-top:14px">
+            <div class="holo"></div>
+            <div class="in">
+              <div class="top"><span class="t">나의 러닝 기록</span><span class="k"><i></i><span>RECORD / 기록면</span></span></div>
+              <div class="stats">
+                <div class="c"><div class="v">12.4<u> km</u></div><div class="l">이번 주 거리</div></div>
+                <div class="c"><div class="v">3<u> 회</u></div><div class="l">이번 주 횟수</div></div>
+                <div class="c"><div class="v">6'12"</div><div class="l">주간 페이스</div></div>
+              </div>
+              <div class="go">상세 기록 보기 ›</div>
+            </div>
+          </div>
+
+          <div class="sec"><span class="no">§</span><span class="t">STAMPS</span><span class="ko">도장</span><span class="rule"></span></div>
+          <div class="spread">
+            <div class="pg pgL">
+              <div class="pk"><span>STAMPS / 받은 도장</span><b>8</b></div>
+              <div class="sgrid c2" data-stamps="spreadEarned"></div>
+              <div class="pgfoot">전체 보기 ›</div>
+            </div>
+            <div class="bind"><i style="top:16px"></i><i style="top:44px"></i><i style="top:72px"></i><i style="top:100px"></i><i style="top:128px"></i></div>
+            <div class="pg pgR">
+              <div class="pk"><span>NEXT / 다음</span><b>4</b></div>
+              <div data-stamps="spreadNext"></div>
+              <div class="pgnote">가까운 순서예요 · 도장은 한번 찍히면 지워지지 않아요</div>
+            </div>
+          </div>
+
+          <div class="sec"><span class="no">§</span><span class="t">DOCUMENTS</span><span class="ko">서류</span><span class="rule"></span></div>
+          <div class="doc">
+            <div class="drow"><span class="tick" style="background:#FF5C3D"></span><span class="ic" style="background:#FCE7E1;color:#FF5C3D">✚</span>
+              <span><span class="tt">안심 센터</span><span class="dd" style="display:block">SOS · 긴급 연락처 · 보험</span></span><span class="ch">›</span></div>
+          </div>
+
+          <div class="labdiv">Empty state — 0 stamps</div>
+          <div class="spread">
+            <div class="pg pgL">
+              <div class="pk"><span>STAMPS / 받은 도장</span><b>0</b></div>
+              <div class="empt" style="margin-bottom:0">
+                <div class="t">아직 비어 있어요</div>
+                <div class="d">왼쪽 면은 받은 도장, 오른쪽 면은 다음 도장이에요. 첫 러닝을 완주하면 이 면이 열려요.</div>
+              </div>
+            </div>
+            <div class="bind"><i style="top:16px"></i><i style="top:44px"></i><i style="top:72px"></i></div>
+            <div class="pg pgR">
+              <div class="pk"><span>NEXT / 다음</span><b>12</b></div>
+              <div data-stamps="spreadNextEmpty"></div>
+              <div class="pgnote">도장은 한번 찍히면 지워지지 않아요</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="cap">
+        <h3><b>Ⓐ③</b> 여권 펼침 — one spread, 받은 도장 left / 다음 도장 right</h3>
+        <div class="why"><b>Why:</b> the only variant that makes the <em>book</em> literal — a binding gutter down the middle, a left page you have filled and a right page you have not. It also solves Ⓐ①'s biggest weakness: unearned slots stop diluting the earned grid and become an explicit, ranked "next" column, so the wall answers <em>what do I do now</em> without any copy telling you to.</div>
+        <div class="meta">
+          <b>GEOMETRY</b> at 390dp: card inner 360 → left page <em>212</em> · binding <em>12</em> · right page <em>136</em>. Left holds a 2-col grid of 74px discs; right holds four 34px dashed targets with a 14px label and a 14px progress line. Nothing here drops below the 14pt floor; the binding stitches are pure decoration (<code>pointerEvents="none"</code>, same treatment as the MRZ strip).<br>
+          <b>RANKING</b> the right page is sorted by <b>closeness</b> (7/10 완주 above 4/10 응가 above 후기 1개) — an honest sort, since every number in it is a real derived count. No "recommended for you".<br>
+          <b>RISK</b> 136dp is the tightest column in the app. "응가 도장 ×10" at 14px is <em>≈88px</em> against 94px of usable width — it fits, but any future stamp with a longer name needs <code>numberOfLines={1}</code> + ellipsis, and the whole page breaks on 320dp devices unless the right column collapses below the left. <b>Recommend a width guard:</b> below 360dp width, stack the two pages vertically.<br>
+          <b>COST</b> measured <em>≈640px</em> — only about <b>8% less than Ⓐ①</b>, not the halving the two-column layout suggests, because the left page is a 2-col grid of the same discs. <b>Take Ⓐ③ for the framing, not to save scroll.</b> Highest craft, highest layout risk.<br>
+          <b>MOTION</b> none.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════ SECTION Ⓑ ═══════════════════════════ -->
+<div class="sect">
+  <div class="sect-head">
+    <div class="n">Ⓑ</div>
+    <h2>/cards reborn — the merged collection (lilac repaint)</h2>
+    <p>One trophy cabinet. <code style="color:#9F8FFF">PatchBadge</code> is reused verbatim in both — same component, same world colours, same <code style="color:#9F8FFF">worldOf(km)</code>. Back goes to <b>마이</b> (<span class="rt">router.replace('/my')</span>), not <code style="color:#9F8FFF">homePath()</code>, because the collection is now an annex of the passport.</p>
+  </div>
+  <div class="frames">
+
+    <!-- ══ Ⓑ① 부속서 ══ -->
+    <div class="unit">
+      <div class="phone">
+        <div class="scr" style="padding-bottom:0">
+          <div class="cbar"><span class="bk">‹</span><span class="bkl">마이</span></div>
+          <div class="krow" style="gap:8px;margin:8px 0 8px"><span class="kk">DOGS HIGH · COLLECTION</span><span class="rule"></span><span class="kk">ANNEX</span></div>
+          <div class="krow" style="align-items:flex-start;gap:10px"><span class="h1">컬렉션</span><span class="official">ANNEX</span></div>
+          <div class="subnote">여권의 부속서예요 — 도장과 코스 패치가 한 수집함에 있어요</div>
+
+          <div class="sum">
+            <div class="c"><div class="k">STAMPS</div><div class="v">8<u> / 12</u></div><div class="l">받은 도장</div></div>
+            <div class="c"><div class="k">COURSES</div><div class="v">3<u> / 4</u></div><div class="l">개척한 코스</div></div>
+          </div>
+
+          <div class="sec"><span class="no">§</span><span class="t">STAMPS</span><span class="ko">도장</span><span class="rule"></span></div>
+          <div class="visa">
+            <div class="in">
+              <div class="strap"><span class="k">MILESTONE / 마일스톤</span><span class="cnt">8 / 12</span></div>
+              <div class="sgrid" data-stamps="full"></div>
+            </div>
+          </div>
+
+          <div class="sec"><span class="no">§</span><span class="t">PATCHES</span><span class="ko">코스 패치</span><span class="rule"></span></div>
+          <div class="well">
+            <div class="wk"><span class="t">코스 패치</span><span class="c">3 / 4</span></div>
+            <div class="note">거리마다 색 세계 — TRAIL · FOREST · RIVER · NIGHT · HALF<br>×5 실버 · ×10 골드 · ×25 마스터</div>
+            <div class="pgrid onNight" data-patches="all"></div>
+          </div>
+          <div style="height:16px"></div>
+        </div>
+        <div class="navbar">
+          <div><div class="g">⌂</div><div class="t">홈</div></div>
+          <div><div class="g">▦</div><div class="t">내 일정</div></div>
+          <div><div class="g">◎</div><div class="t">커뮤니티</div></div>
+          <div><div class="g">◈</div><div class="t">샵</div></div>
+          <div class="on"><div class="g">☰</div><div class="t">마이</div></div>
+        </div>
+      </div>
+      <div class="cap">
+        <h3><b>Ⓑ①</b> 부속서 — two sections, two materials, one book</h3>
+        <div class="why"><b>Why:</b> stamps and patches are genuinely different objects — ink pressed on paper vs. an embroidered badge — and this variant refuses to pretend otherwise. The patch section gets its own <b>night-lilac well</b> so the dark <code>PatchBadge</code> discs sit in a world that explains them, instead of reading as holes punched in a white card. Two §-numbered sections, the same grammar as 마이 itself.</div>
+        <div class="meta">
+          <b>REUSE</b> <code>PatchBadge</code> verbatim at <em>size 76</em> (≥60 so the world label renders), <code>worldOf(km)</code> untouched, master crown untouched. Locked routes keep today's dashed world-tint treatment from cards.tsx. Zero changes to patch.tsx.<br>
+          <b>FOUND WHILE DRAWING</b> today's cards.tsx passes <code>name={pt.name}</code> <em>and</em> prints the same name in a Text below the badge — the course name renders twice, once at ≈8.6px inside the disc. These cells drop the in-badge <code>name</code> prop and keep only the 14px label underneath. The <b>TRAIL/FOREST/RIVER</b> world label stays at its production size (≈6-7px) as a letterspaced latin kicker — floor-exempt, and enlarging it would break the badge's proportions.<br>
+          <b>WHY THE DARK WELL</b> patch discs carry their own backgrounds (<em>#0F1D13</em> FOREST, <em>#0F2029</em> RIVER, <em>#2A1811</em> TRAIL). On a white lilac card they read as voids. The well is a plate, not a new theme — the page around it stays lilac.<br>
+          <b>ROUTES</b> <span class="rt">‹ 마이 → router.replace('/my')</span> · <span class="rt">patch tap → /course/[routeId]</span> (today's behaviour, preserved) · stamps inert.<br>
+          <b>GOLD</b> the ×10 골드 patch grade keeps its gold stitch — that gold belongs to the patch world and predates the receipt seal. The stamp section spends none, so the page never shows two competing golds in the same card.<br>
+          <b>SUMMARY STRIP</b> both numbers are real: 8/12 from the stamp derivations, 3/4 from <code>earned.length / (earned+locked).length</code>.
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ Ⓑ② 통합 그리드 ══ -->
+    <div class="unit">
+      <div class="phone">
+        <div class="scr" style="padding-bottom:0">
+          <div class="cbar"><span class="bk">‹</span><span class="bkl">마이</span></div>
+          <div class="krow" style="gap:8px;margin:8px 0 8px"><span class="kk">DOGS HIGH · COLLECTION</span><span class="rule"></span><span class="kk">ANNEX</span></div>
+          <div class="krow" style="align-items:flex-start;gap:10px"><span class="h1">컬렉션</span><span class="official">ANNEX</span></div>
+          <div class="subnote">초코가 달려서 모은 것들이에요 — 도장 8개 · 코스 패치 3개</div>
+
+          <div class="fchips"><span class="on">전체 11</span><span>도장 8</span><span>코스 3</span><span>못 받은 것 5</span></div>
+
+          <div class="ugrid">
+            <div class="glab"><i></i><span>EARNED</span><em>받은 것 11</em></div>
+            <div class="pgrid onLight" data-mixed="earned"></div>
+            <div class="perf" style="margin:15px 0 13px"></div>
+            <div class="glab"><i style="background:var(--hair)"></i><span>LOCKED</span><em>못 받은 것 5</em></div>
+            <div class="pgrid onLight" data-mixed="locked"></div>
+          </div>
+          <div style="height:16px"></div>
+        </div>
+        <div class="navbar">
+          <div><div class="g">⌂</div><div class="t">홈</div></div>
+          <div><div class="g">▦</div><div class="t">내 일정</div></div>
+          <div><div class="g">◎</div><div class="t">커뮤니티</div></div>
+          <div><div class="g">◈</div><div class="t">샵</div></div>
+          <div class="on"><div class="g">☰</div><div class="t">마이</div></div>
+        </div>
+      </div>
+      <div class="cap">
+        <h3><b>Ⓑ②</b> 통합 그리드 — one system = shared geometry, not shared colour</h3>
+        <div class="why"><b>Why:</b> a collector's cabinet reads as one collection when the <em>cells</em> match, not when the objects do. Every tile here is the same 76px disc in the same 108px cell with the same label + sub block, so the eye scans one grid — but a patch is still embroidered in its world colour and a stamp is still violet ink. Earned first, locked below a perf rule; the count chips at the top are the only navigation.</div>
+        <div class="meta">
+          <b>SORT</b> earned block is ordered by earn date (newest last, so the newest thing you got sits at the end of the run — the same reading direction as a stamp page filling up). This is the deliberate opposite of Ⓐ's fixed print order: a cabinet is a collection, a passport page is a document.<br>
+          <b>MIXING RISK</b> dark patch discs next to light ink discs on one white card is the exact clash Ⓑ① avoids with the night well. It survives here because the cells are identical and the patches are outnumbered — at 20 stamps and 12 patches it would get noisy. <b>This is the variant that ages worst.</b><br>
+          <b>CHIPS</b> 전체/도장/코스/못 받은 것 are honest filters over the already-fetched arrays — no extra queries, no server filtering.<br>
+          <b>REUSE</b> <code>PatchBadge</code> verbatim, same as Ⓑ①. The only new component is the ink disc, shared with Ⓐ.<br>
+          <b>ROUTES</b> identical to Ⓑ①.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════ SECTION Ⓒ ═══════════════════════════ -->
+<div class="sect">
+  <div class="sect-head">
+    <div class="n">Ⓒ</div>
+    <h2>Ceremony at run end — report.tsx, alongside the existing patch pop</h2>
+    <p>Same moment in both: 서울숲 순환 5th completion → <b>실버 승급</b> (patch) <b>+ 5회 완주 도장 + 연속 2주 도장</b>. Click <b>▶ play</b> to run the choreography. Transform/opacity only; the slam reuses the receipt seal's exact curve.</p>
+  </div>
+  <div class="frames">
+
+    <!-- ══ Ⓒ① 큐 ══ -->
+    <div class="unit">
+      <div class="phone cream" id="c1">
+        <div class="rpt">
+          <div class="bar"><span class="bb">‹</span><span class="tt">러닝 리포트</span><span class="bb">↗</span></div>
+          <div class="hero">
+            <div class="when">8월 6일 · 서울숲 순환 코스</div>
+            <div class="dogt">초코의 러닝</div>
+            <div class="fin"><div class="a">완주</div><div class="b">FINISHER</div></div>
+            <div class="big">5.0<u> km</u></div>
+            <div class="pills"><span>5번째 러닝</span><span>🏆 역대 최장 거리</span></div>
+            <div class="stats">
+              <div class="c"><div class="v">31:24</div><div class="l">러닝 시간</div></div>
+              <div class="dv"></div>
+              <div class="c"><div class="v">6'17"</div><div class="l">평균 페이스 /km</div></div>
+              <div class="dv"></div>
+              <div class="c"><div class="v">5km</div><div class="l">계획 거리</div></div>
+            </div>
+          </div>
+          <div class="earn">
+            <div class="k">하이 포인트 적립</div>
+            <div class="tot">+80<u> 포인트</u></div>
+            <div class="ln"><span>러닝 완주</span><b>+50</b></div>
+            <div class="ln"><span>응가 도장 보너스</span><b>+30</b></div>
+          </div>
+          <div class="rsec">
+            <div class="chips2"><span>&#128169; 응가 ×1</span><span>&#127830; 간식 ×1</span><span>&#128247; 사진 ×3</span></div>
+            <div class="rnote">러너가 러닝 중 실시간으로 기록한 순간들이에요</div>
+          </div>
+          <div class="tiles"><i></i><i></i><i></i></div>
+          <div class="rsec">
+            <div class="rst">목표 달성</div>
+            <div class="grow"><span>거리</span><b>100%</b></div>
+            <div class="track"><u style="width:100%"></u></div>
+            <div class="rnote">5.0 / 5km</div>
+          </div>
+          <div style="height:26px"></div>
+        </div>
+
+        <!-- ① existing PatchPopOverlay — untouched -->
+        <div class="ovl patchpop q1">
+          <div class="pbwrap" data-bigpatch></div>
+          <div class="fade" style="text-align:center">
+            <div class="ttl">실버 승급!</div>
+            <div class="sub">서울숲 순환 코스 · ×5 완주</div>
+            <div class="cta" style="display:inline-block">패치 월 보기 ›</div>
+            <div class="hint">탭하면 닫혀요</div>
+          </div>
+        </div>
+
+        <!-- ② new stamp slam -->
+        <div class="ovl slam q2">
+          <div class="kicker-ovl">NEW STAMP · 새 도장</div>
+          <div class="slamrow">
+            <div class="slamitem s1">
+              <div class="disc g2"><span class="r2"></span><span class="n">5</span><span class="w">완주</span></div>
+              <div class="cp">5회 완주</div>
+            </div>
+            <div class="slamitem s2">
+              <div class="disc"><span class="r2"></span><span class="n">2</span><span class="w">연속</span></div>
+              <div class="cp">연속 2주</div>
+            </div>
+          </div>
+          <div class="fade" style="text-align:center">
+            <div class="ttl">여권에 도장 2개</div>
+            <div class="sub">도장은 한번 찍히면 지워지지 않아요</div>
+            <div class="cta" style="display:inline-block">컬렉션 보기 ›</div>
+            <div class="hint">탭하면 닫혀요</div>
+          </div>
+        </div>
+      </div>
+      <div class="cap">
+        <div class="playbar"><button data-play="#c1">▶ play ceremony</button><button class="q" data-stop="#c1">reset</button></div>
+        <div class="replay">↑ lab auto-advances between the two overlays; in-app the first one waits for a tap</div>
+        <h3><b>Ⓒ①</b> Queue — patch pop first, then the stamp slam</h3>
+        <div class="why"><b>Why:</b> the existing <code>PatchPopOverlay</code> is not touched at all — the new stamp overlay is a second, independent component that mounts only after the first unmounts. Lowest regression risk on a celebration that already ships and already works, and each ceremony gets its own undivided moment.</div>
+        <div class="meta">
+          <b>GATE</b> <code>const _stampPopSeen = new Set&lt;string&gt;()</code> at module scope in api.ts, keyed by <code>bookingId</code> — literally the <code>_patchPopSeen</code> / <code>sealStampFresh</code> idiom, so re-entering the report on hydration never replays. Chain: <code>fetchPatchPop</code> resolves → pop 1 → user dismisses → <code>fetchStampPop</code>'s result renders.<br>
+          <b>WHAT MAY ANNOUNCE</b> only stamps whose threshold <em>this booking</em> crossed, and only when this booking is the newest completed one (the <code>data[0].id !== bookingId</code> guard <code>fetchPatchPop</code> already uses). So 첫 자랑 · 첫 후기 · 첫 클럽 출석 never fire here — they are earned on other screens and simply appear on the wall. <b>That silence is correct, not a gap.</b><br>
+          <b>WORLD CLASH</b> the honest cost: pop 1 is forest + volt (<em>#C6F542</em> on rgba(10,16,10,.72)), pop 2 is night-lilac + violet. Two different design worlds back to back on the one screen that has not been repainted yet. It reads as two apps for ~400ms.<br>
+          <b>FOUND WHILE DRAWING</b> pop 1 above is today's overlay rendered verbatim, and its <em>0.72</em> backdrop is <span class="rt">too transparent for this screen</span> — 실버 승급! and 패치 월 보기 land on top of the still-legible 하이 포인트 적립 rows and the 응가 ×1 chips. That is a live defect on the shipped pop, independent of which Ⓒ you pick. The stamp overlay here uses <em>0.94</em> of my.tsx's own shadow colour <code>#120E2C</code>; whichever variant ships, the patch pop's backdrop should go with it.<br>
+          <b>FATIGUE</b> two full-screen takeovers requiring two dismissals, on the screen the user reached to look at their run.<br>
+          <b>MOTION</b> slam = <code>scale 2.6→1</code> + <code>rotate -14°→-8°</code> + opacity, the receipt seal's curve <code>bezier(.5,0,.7,.35)</code> verbatim. <code>Animated.stagger</code>, 180ms apart, native driver.
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ Ⓒ② 통합 ══ -->
+    <div class="unit">
+      <div class="phone cream" id="c2">
+        <div class="rpt">
+          <div class="bar"><span class="bb">‹</span><span class="tt">러닝 리포트</span><span class="bb">↗</span></div>
+          <div class="hero">
+            <div class="when">8월 6일 · 서울숲 순환 코스</div>
+            <div class="dogt">초코의 러닝</div>
+            <div class="fin"><div class="a">완주</div><div class="b">FINISHER</div></div>
+            <div class="big">5.0<u> km</u></div>
+            <div class="pills"><span>5번째 러닝</span><span>🏆 역대 최장 거리</span></div>
+            <div class="stats">
+              <div class="c"><div class="v">31:24</div><div class="l">러닝 시간</div></div>
+              <div class="dv"></div>
+              <div class="c"><div class="v">6'17"</div><div class="l">평균 페이스 /km</div></div>
+              <div class="dv"></div>
+              <div class="c"><div class="v">5km</div><div class="l">계획 거리</div></div>
+            </div>
+          </div>
+          <div class="earn">
+            <div class="k">하이 포인트 적립</div>
+            <div class="tot">+80<u> 포인트</u></div>
+            <div class="ln"><span>러닝 완주</span><b>+50</b></div>
+            <div class="ln"><span>응가 도장 보너스</span><b>+30</b></div>
+          </div>
+          <div class="rsec">
+            <div class="chips2"><span>&#128169; 응가 ×1</span><span>&#127830; 간식 ×1</span><span>&#128247; 사진 ×3</span></div>
+            <div class="rnote">러너가 러닝 중 실시간으로 기록한 순간들이에요</div>
+          </div>
+          <div class="tiles"><i></i><i></i><i></i></div>
+          <div class="rsec">
+            <div class="rst">목표 달성</div>
+            <div class="grow"><span>거리</span><b>100%</b></div>
+            <div class="track"><u style="width:100%"></u></div>
+            <div class="rnote">5.0 / 5km</div>
+          </div>
+          <div style="height:26px"></div>
+        </div>
+
+        <div class="ovl slam one">
+          <div class="kicker-ovl">DOGS HIGH · 오늘의 수확</div>
+          <div class="pbwrap" data-bigpatch></div>
+          <div style="font-size:14px;line-height:18px;font-weight:800;color:#fff;margin-top:12px">실버 승급 · 서울숲 순환 코스 ×5</div>
+          <div style="height:1px;align-self:stretch;margin:15px 8px 14px;background:repeating-linear-gradient(90deg,rgba(255,255,255,.3) 0 5px,transparent 5px 10px)"></div>
+          <div class="slamrow">
+            <div class="slamitem s1">
+              <div class="disc g2"><span class="r2"></span><span class="n">5</span><span class="w">완주</span></div>
+              <div class="cp">5회 완주</div>
+            </div>
+            <div class="slamitem s2">
+              <div class="disc"><span class="r2"></span><span class="n">2</span><span class="w">연속</span></div>
+              <div class="cp">연속 2주</div>
+            </div>
+          </div>
+          <div class="fade" style="text-align:center">
+            <div class="sub" style="margin-top:14px">여권에 새 도장 2개가 찍혔어요</div>
+            <div class="cta" style="display:inline-block">컬렉션 보기 ›</div>
+            <div class="hint">탭하면 닫혀요</div>
+          </div>
+        </div>
+      </div>
+      <div class="cap">
+        <div class="playbar"><button data-play="#c2">▶ play ceremony</button><button class="q" data-stop="#c2">reset</button></div>
+        <div class="replay">↑ one overlay, one dismissal — the patch lands, then the stamps slam under it</div>
+        <h3><b>Ⓒ②</b> Merged — one overlay, stacked reveal (patch → stamps)</h3>
+        <div class="why"><b>Why:</b> one moment, one world, one dismissal. The patch keeps its own colours (PatchBadge verbatim — the embroidered object stays embroidered) but sits inside the passport's night-lilac backdrop, with a perf rule separating "what you upgraded" from "what got stamped". It reads as <em>today's haul</em> rather than two unrelated congratulations, and it degrades cleanly: patch only, stamps only, or both.</div>
+        <div class="meta">
+          <b>DEGRADES TO</b> patch-only → the rule and slam row simply do not render, and the overlay is today's pop with a new backdrop. Stamps-only → the patch block does not render. Both-empty → no overlay mounts at all. One component, three honest shapes.<br>
+          <b>GATE</b> one <code>Set</code>, one key, one dismissal — strictly simpler than Ⓒ①'s two chained gates. <code>fetchPatchPop</code> and <code>fetchStampPop</code> resolve in a <code>Promise.all</code>; the overlay mounts once both settle, so there is no flash of a half-ceremony.<br>
+          <b>CHANGES</b> <code>PatchPopOverlay</code> loses its own backdrop, title and CTA and becomes a <em>slot</em> inside the new overlay. That is a real edit to a shipped celebration — the risk Ⓒ① avoids. <code>PatchBadge</code> itself is untouched.<br>
+          <b>3-STAMP CEILING</b> the slam row wraps at 3 tiles on 390dp. A run crossing 4 thresholds at once is arithmetically possible (완주 25 + 코스 3 + 응가 10 + 연속 2). Cap the row at 3 and print "외 1개" — do not shrink the discs.<br>
+          <b>MOTION</b> patch <code>Animated.spring(friction 5, tension 90)</code> verbatim from today; stamps <code>Animated.stagger(180, [...])</code> with the receipt seal curve; the copy block fades up last. Transform/opacity only, native driver throughout.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════ COMPARISON ═══════════════════════════ -->
+<div class="tblwrap">
+  <table>
+    <caption>Ⓐ Passport stamp wall — craft dimensions</caption>
+    <tr>
+      <th style="width:120px">Variant</th><th>Placement</th><th>Scroll cost on 마이</th><th>Unearned slots do their job?</th>
+      <th>Empty state</th><th>Layout risk</th><th>Build cost</th>
+    </tr>
+    <tr>
+      <td class="v">Ⓐ① 도장면</td><td>New §③ card between 기록면 and 서류행</td><td class="v">≈700px</td>
+      <td>Best — all 12 printed, earned and empty on one sheet</td><td>Own honest block + 12 dashed slots with conditions</td>
+      <td>Low — a 3-col grid at 97px cells</td><td>Medium. One new section, one new component</td>
+    </tr>
+    <tr>
+      <td class="v">Ⓐ② 스트립</td><td>Inside the existing 기록면 night card</td><td class="v">≈116px</td>
+      <td>Weakest — two unearned tiles visible</td><td>Row of 3 unearned + one sentence</td>
+      <td class="v">Nested Pressable / ScrollView responder conflict</td><td>Lowest. No new section</td>
+    </tr>
+    <tr>
+      <td class="v">Ⓐ③ 펼침</td><td>New §③, two-page spread</td><td class="v">≈640px</td>
+      <td>Strongest framing — "next" gets its own page, ranked by closeness</td><td>Left page states it, right page lists all 12</td>
+      <td class="v">Highest — 136dp right column, breaks under 360dp</td><td>Highest. Two column systems + a width guard</td>
+    </tr>
+  </table>
+</div>
+
+<div class="tblwrap" style="margin-top:26px">
+  <table>
+    <caption>Ⓑ Merged collection — craft dimensions</caption>
+    <tr>
+      <th style="width:120px">Variant</th><th>Organising idea</th><th>Patch legibility</th><th>Scales to 20+ stamps?</th>
+      <th>PatchBadge reuse</th><th>New surface</th><th>Build cost</th>
+    </tr>
+    <tr>
+      <td class="v">Ⓑ① 부속서</td><td>Two §-sections — ink page, then patch wall</td>
+      <td class="v">Best — dark discs sit in a night well</td><td>Yes — each section paginates independently</td>
+      <td>Verbatim, size 76</td><td>One night-lilac well</td><td>Low-medium. Closest to today's cards.tsx tree</td>
+    </tr>
+    <tr>
+      <td class="v">Ⓑ② 통합</td><td>One grid, shared cell geometry, chip filters</td>
+      <td class="v">Weaker — dark discs on white, no plate</td><td>Degrades — mixed materials get noisy past ~30 tiles</td>
+      <td>Verbatim, size 76</td><td>Filter chips only</td><td>Medium. Merge + sort + filter logic</td>
+    </tr>
+  </table>
+</div>
+
+<div class="tblwrap" style="margin-top:26px">
+  <table>
+    <caption>Ⓒ Run-end ceremony — craft dimensions</caption>
+    <tr>
+      <th style="width:120px">Variant</th><th>Dismissals</th><th>Touches shipped code?</th><th>World coherence</th>
+      <th>Gate complexity</th><th>Degrades to one-item?</th><th>Risk</th>
+    </tr>
+    <tr>
+      <td class="v">Ⓒ① Queue</td><td class="v">2</td><td>No — PatchPopOverlay untouched</td>
+      <td class="v">Poor — volt/forest then violet/lilac</td><td>Two chained Sets, ordered</td><td>Yes, trivially</td><td>Lowest code risk, highest UX cost</td>
+    </tr>
+    <tr>
+      <td class="v">Ⓒ② Merged</td><td class="v">1</td><td>Yes — PatchPopOverlay becomes a slot</td>
+      <td class="v">Good — one backdrop, patch keeps its colours</td><td>One Set, one Promise.all</td><td>Yes — three honest shapes from one component</td><td>Edits a shipped celebration; needs a 3-tile cap</td>
+    </tr>
+  </table>
+
+  <div class="rec">
+    <h4>Recommended combo — Ⓐ① 도장면 × Ⓑ① 부속서 × Ⓒ② Merged</h4>
+    <p><b>Why:</b> §③ was left vacant for exactly this, and a visa page is the one placement where the <em>unearned</em> slots — the whole engine of a collection — are visible without being nagged about. Ⓑ① keeps the two materials honest instead of forcing a false unity, and its night well is the same move the 기록면 already makes on 마이, so the annex reads as part of the passport. Ⓒ② gives the run-end a single moment in a single world; the patch keeps its embroidered colours <em>inside</em> the passport backdrop, which is the visual sentence "this thing you collected went into your book."</p>
+    <p><b>If Ⓐ①'s 700px feels heavy on device:</b> <b>Ⓐ③ 펼침</b> will not fix that — measured, it is only ~8% shorter (640px). Take Ⓐ③ because it is the better-looking object and because it gives the next-targets their own ranked page, and accept the 136dp right column plus the sub-360dp stacking guard. <b>Ⓐ② is the fallback only</b> if 마이 must not grow at all; it turns a collection into a widget and needs the nested-Pressable fix regardless.</p>
+    <p><b>If touching PatchPopOverlay is off the table:</b> <b>Ⓒ①</b> ships with zero regression risk — but then repaint the stamp overlay in forest/volt to match the pop it follows, rather than shipping two worlds 400ms apart. That repaint is a real cost and is why Ⓒ② is the recommendation.</p>
+    <p><b>Ink decision, stated once:</b> earned stamps are <b>violet ink #4A3DA8</b>, never gold. Gold is the receipt's SETTLED seal and the patch ladder's ×10 grade — a third gold on the passport wall would flatten the app's rarest mark, and 25회 완주 in gold would sit next to a 골드 패치 meaning something else entirely. Escalation is carried by <b>ring count</b> (1 → 2 → 3), which is how a real die escalates. Coral appears only as the 첫-family <b>outer ring and dot</b> — my.tsx's own rule that coral is edge, never type. <b>Zero new foil:</b> the two HoloEdges on 신분면 and 기록면 remain the whole budget.</p>
+  </div>
+</div>
+
+<div class="note">
+  <b>Honesty notes carried into implementation.</b>
+  (1) Every count must filter <code>runs.end_reason='completed'</code> — <code>bookings.status='completed'</code> alone also covers early-terminated settlements, so a 조기 종료 run would silently inflate 완주 stamps.
+  (2) 연속 2주 is the <b>historical maximum</b> week streak, never the live one — a stamp that can be lost is not a stamp.
+  (3) 응가 도장 counts <code>poop_bonus</code> ledger rows, which settle_run_tx writes once per booking; the copy therefore says <b>러닝 N회</b>, never 응가 N번.
+  (4) Stamp rotation angles are a fixed per-key table, not <code>Math.random()</code> — a stamp's tilt is part of its identity and must survive re-render.
+  (5) Loading is not zero: until the derivations resolve, the wall renders its slot outlines with no counts rather than "0 / 12".
+  (6) Stamps are inert in v1 — there is no stamp-detail screen, and a tappable element with no destination is a dead button.
+  (7) <b>14pt floor, one precedented exception.</b> The "LATIN / 한글면" straps (<code>STAMPS / 도장면</code>, <code>NEXT / 다음 도장</code>, <code>MILESTONE / 마일스톤</code>) sit at 12px letterspaced — identical to the shipped <code>microK</code> (<code>IDENTITY / 신분면</code>) and <code>recordKick</code> (<code>RECORD / 기록면</code>) on this same screen. They inherit an existing exception rather than inventing one. Everything else Korean in these mockups is ≥14px, including the ceremony kickers, which were <em>raised</em> to 14px because a celebration is not a strap.
+</div>
+
+<script>
+  // ── the stamp model — mirrors the taxonomy table above; the lab's single source ──
+  // angle is a FIXED per-key value (never random): a stamp's tilt is part of its identity.
+  // rings = ladder depth: 1 = first-of-kind · 2 = milestone · 3 = top of ladder.
+  //   short = 스트립용 축약 (56dp 타일) · mid = 펼침 오른쪽 면용 (136dp 컬럼)
+  var S = [
+    {k:'run1',   n:'1',  w:'완주', lab:'첫 러닝',      short:'첫 러닝', mid:'첫 러닝',   cond:'완주 1회',      condS:'완주 1회',  first:true,  rings:1, ang:-11, earned:true,  date:'26.06.14'},
+    {k:'run5',   n:'5',  w:'완주', lab:'5회 완주',     short:'5회',    mid:'5회 완주',  cond:'완주 5회',      condS:'완주 5회',  first:false, rings:2, ang:7,   earned:true,  date:'26.07.19'},
+    {k:'run10',  n:'10', w:'완주', lab:'10회 완주',    short:'10회',   mid:'10회 완주', cond:'완주 10회',     condS:'완주 10회', first:false, rings:2, ang:-6,  earned:false, prog:'7 / 10 완주', progS:'7 / 10', near:3},
+    {k:'run25',  n:'25', w:'완주', lab:'25회 완주',    short:'25회',   mid:'25회 완주', cond:'완주 25회',     condS:'완주 25회', first:false, rings:3, ang:9,   earned:false, prog:'7 / 25 완주', progS:'7 / 25', near:18},
+    {k:'course2',n:'2',  w:'코스', lab:'코스 2개 개척', short:'코스 2',  mid:'코스 2개',  cond:'코스 2개',      condS:'코스 2개',  first:false, rings:1, ang:6,   earned:true,  date:'26.06.28'},
+    {k:'course3',n:'3',  w:'코스', lab:'코스 3개 개척', short:'코스 3',  mid:'코스 3개',  cond:'코스 3개',      condS:'코스 3개',  first:false, rings:2, ang:-9,  earned:true,  date:'26.07.05'},
+    {k:'club1',  n:'1',  w:'클럽', lab:'첫 클럽 출석',  short:'클럽',   mid:'첫 클럽',   cond:'클럽 출석 1회', condS:'출석 1회',  first:true,  rings:1, ang:10,  earned:true,  date:'26.07.26'},
+    {k:'streak2',n:'2',  w:'연속', lab:'연속 2주',     short:'2주',    mid:'연속 2주',  cond:'연속 2주',      condS:'연속 2주',  first:false, rings:1, ang:-7,  earned:true,  date:'26.07.19'},
+    {k:'poop1',  n:'1',  w:'응가', lab:'응가 도장',    short:'응가',   mid:'응가 도장', cond:'응가 러닝 1회', condS:'러닝 1회',  first:false, rings:1, ang:5,   earned:true,  date:'26.06.14'},
+    {k:'poop10', n:'10', w:'응가', lab:'응가 도장 ×10', short:'응가 10', mid:'응가 ×10', cond:'응가 러닝 10회', condS:'러닝 10회', first:false, rings:2, ang:-5,  earned:false, prog:'4 / 10 러닝', progS:'4 / 10', near:6},
+    {k:'share1', n:'1',  w:'자랑', lab:'첫 자랑',      short:'자랑',   mid:'첫 자랑',   cond:'피드 자랑 1회', condS:'자랑 1회',  first:true,  rings:1, ang:8,   earned:true,  date:'26.07.20'},
+    {k:'review1',n:'1',  w:'후기', lab:'첫 후기',      short:'후기',   mid:'첫 후기',   cond:'러너 후기 1개', condS:'후기 1개',  first:true,  rings:1, ang:-8,  earned:false, prog:'후기 1개 남기면', progS:'후기 1개', near:99}
+  ];
+
+  function discEl(s, opt) {
+    opt = opt || {};
+    var d = document.createElement('div');
+    var cls = ['disc'];
+    if (opt.night) cls.push('nt');
+    if (!opt.earned) cls.push('lock');
+    else {
+      if (s.first) cls.push('first');
+      if (s.rings >= 2) cls.push('g2');
+      if (s.rings >= 3) cls.push('g3');
+    }
+    d.className = cls.join(' ');
+    if (opt.earned) d.style.transform = 'rotate(' + s.ang + 'deg)';
+    var h = '';
+    if (opt.earned) {
+      if (s.rings >= 2) h += '<span class="r2"></span>';   // milestone — the die gained an inner ring
+      if (s.rings >= 3) h += '<span class="r3"></span>';   // ladder top — and an outer one
+      if (s.first) h += '<span class="dot1"></span>';
+    }
+    h += '<span class="n">' + s.n + '</span><span class="w">' + s.w + '</span>';
+    d.innerHTML = h;
+    return d;
+  }
+
+  function cellEl(s, opt) {
+    opt = opt || {};
+    var earned = opt.forceEmpty ? false : s.earned;
+    var c = document.createElement('div');
+    c.className = 'scell' + (earned ? '' : ' locked');
+    c.appendChild(discEl(s, { earned: earned, night: opt.night }));
+    var lab = document.createElement('div');
+    lab.className = 'lab'; lab.textContent = s.lab;
+    if (opt.night) lab.style.color = earned ? '#fff' : 'rgba(255,255,255,.62)';
+    c.appendChild(lab);
+    var sub = document.createElement('div');
+    sub.className = 'sub' + (earned ? '' : ' ko');
+    sub.textContent = earned ? s.date : (opt.forceEmpty ? s.cond : (s.prog || s.cond));
+    if (opt.night) sub.style.color = 'rgba(255,255,255,.55)';
+    c.appendChild(sub);
+    return c;
+  }
+
+  document.querySelectorAll('[data-stamps]').forEach(function (host) {
+    var mode = host.getAttribute('data-stamps');
+    if (mode === 'full') {
+      S.forEach(function (s) { host.appendChild(cellEl(s)); });
+    } else if (mode === 'empty') {
+      S.forEach(function (s) { host.appendChild(cellEl(s, { forceEmpty: true })); });
+    } else if (mode === 'strip') {
+      S.filter(function (s) { return s.earned; }).concat(S.filter(function (s) { return !s.earned; }))
+        .forEach(function (s) {
+          var m = document.createElement('div');
+          m.className = 'mini';
+          m.appendChild(discEl(s, { earned: s.earned, night: true }));
+          var l = document.createElement('div'); l.className = 'lb'; l.textContent = s.short;
+          m.appendChild(l); host.appendChild(m);
+        });
+    } else if (mode === 'stripEmpty') {
+      S.slice(0, 5).forEach(function (s) {
+        var m = document.createElement('div');
+        m.className = 'mini';
+        m.appendChild(discEl(s, { earned: false, night: true }));
+        var l = document.createElement('div'); l.className = 'lb'; l.textContent = s.condS;
+        m.appendChild(l); host.appendChild(m);
+      });
+    } else if (mode === 'spreadEarned') {
+      S.filter(function (s) { return s.earned; }).forEach(function (s) { host.appendChild(cellEl(s)); });
+    } else if (mode === 'spreadNext' || mode === 'spreadNextEmpty') {
+      // populated: nearest-first by remaining distance. empty: nothing is close, so order by
+      // threshold size — the honest "smallest first" — and cap the page at 4 with an overflow line.
+      var all = mode === 'spreadNext'
+        ? S.filter(function (s) { return !s.earned; }).sort(function (a, b) { return a.near - b.near; })
+        : S.slice(0).sort(function (a, b) { return parseInt(a.n, 10) - parseInt(b.n, 10); });
+      var list = all.slice(0, 4);
+      list.forEach(function (s) {
+        var r = document.createElement('div');
+        r.className = 'trow';
+        r.innerHTML = '<div class="td">' + s.n + '</div><div class="tt">' +
+          '<div class="a">' + s.mid + '</div>' +
+          '<div class="b">' + (mode === 'spreadNext' ? (s.progS || s.condS) : s.condS) + '</div></div>';
+        host.appendChild(r);
+      });
+      if (all.length > list.length) {
+        var more = document.createElement('div');
+        more.className = 'pgmore';
+        more.textContent = '외 ' + (all.length - list.length) + '개';
+        host.appendChild(more);
+      }
+    }
+  });
+
+  // ── patch model (patch.tsx worldOf + cards.tsx grade ladder), sample = 3 earned / 1 locked ──
+  function worldOf(km) {
+    return km <= 3.5 ? { label: 'TRAIL', bg: '#2A1811', tone: '#E08A5F', dim: 'rgba(224,138,95,.55)' }
+      : km <= 5.5 ? { label: 'FOREST', bg: '#0F1D13', tone: '#C6F542', dim: 'rgba(198,245,66,.55)' }
+      : km <= 8 ? { label: 'RIVER', bg: '#0F2029', tone: '#5BB8D4', dim: 'rgba(91,184,212,.55)' }
+      : km <= 14 ? { label: 'NIGHT', bg: '#1A1433', tone: '#9B8CE8', dim: 'rgba(155,140,232,.55)' }
+      : { label: 'HALF', bg: '#332D14', tone: '#F2DA96', dim: 'rgba(242,218,150,.55)' };
+  }
+  function stitchOf(g, w) {
+    return g === 'basic' ? { c: w.dim, solid: false }
+      : g === 'silver' ? { c: 'rgba(201,205,212,.9)', solid: true }
+      : g === 'gold' ? { c: 'rgba(242,218,150,.95)', solid: true }
+      : { c: w.tone, solid: true };
+  }
+  var GRADE_LABEL = { basic: '획득', silver: '실버', gold: '골드', master: '마스터' };
+  var P = [
+    { name: '서울숲 순환 코스', km: 5, count: 5, grade: 'silver', earned: true },
+    { name: '뚝섬 리버뷰 코스', km: 5, count: 1, grade: 'basic', earned: true },
+    { name: '뚝섬–잠원 7km', km: 7, count: 1, grade: 'basic', earned: true },
+    { name: '서울숲 숲길 3km', km: 3, count: 0, grade: 'basic', earned: false }
+  ];
+  function nextGrade(n) { return n < 5 ? '실버까지 ' + (5 - n) + '회' : n < 10 ? '골드까지 ' + (10 - n) + '회' : n < 25 ? '마스터까지 ' + (25 - n) + '회' : '코스 마스터'; }
+
+  function patchCell(p) {
+    var w = worldOf(p.km), st = stitchOf(p.grade, w);
+    var c = document.createElement('div');
+    c.className = 'pcell';
+    var b = document.createElement('div');
+    b.className = 'pb';
+    if (p.earned) {
+      b.style.background = w.bg;
+      b.style.boxShadow = p.grade === 'master' ? '0 0 12px ' + w.tone : '0 2px 6px rgba(15,29,19,.3)';
+      b.innerHTML = '<span class="st" style="border-color:' + st.c + ';border-style:' + (st.solid ? 'solid' : 'dashed') + '"></span>' +
+        (p.grade === 'master' ? '<span class="cr">&#128081;</span>' : '') +
+        '<span class="km" style="color:' + w.tone + '">' + p.km + 'K</span>' +
+        '<span class="wl" style="color:' + w.dim + '">' + w.label + '</span>';
+    } else {
+      b.style.border = '2px dashed ' + w.dim;
+      b.innerHTML = '<span class="km" style="color:' + w.tone + ';opacity:.75">' + p.km + 'K</span>' +
+        '<span class="wl" style="color:' + w.dim + '">' + w.label + '</span>';
+    }
+    c.appendChild(b);
+    var l = document.createElement('div'); l.className = 'lab'; l.textContent = p.name; c.appendChild(l);
+    var s2 = document.createElement('div'); s2.className = 'sub';
+    s2.textContent = p.earned ? (GRADE_LABEL[p.grade] + ' ×' + p.count) : '완주하면 획득 ›';
+    c.appendChild(s2);
+    return c;
+  }
+
+  document.querySelectorAll('[data-patches]').forEach(function (host) {
+    P.forEach(function (p) { host.appendChild(patchCell(p)); });
+  });
+
+  // Ⓑ② unified grid — same cell geometry for both materials, earned block then locked block
+  document.querySelectorAll('[data-mixed]').forEach(function (host) {
+    var want = host.getAttribute('data-mixed') === 'earned';
+    if (want) {
+      S.filter(function (s) { return s.earned; }).forEach(function (s) { host.appendChild(cellEl(s)); });
+      P.filter(function (p) { return p.earned; }).forEach(function (p) { host.appendChild(patchCell(p)); });
+    } else {
+      S.filter(function (s) { return !s.earned; }).forEach(function (s) { host.appendChild(cellEl(s)); });
+      P.filter(function (p) { return !p.earned; }).forEach(function (p) { host.appendChild(patchCell(p)); });
+    }
+  });
+
+  // big patch badge for the ceremonies (실버 승급, 서울숲 순환 5km ×5)
+  document.querySelectorAll('[data-bigpatch]').forEach(function (host) {
+    var w = worldOf(5), st = stitchOf('silver', w);
+    var b = document.createElement('div');
+    b.className = 'pb';
+    b.style.cssText = 'width:132px;height:132px;flex:0 0 132px;background:' + w.bg + ';box-shadow:0 4px 14px rgba(15,29,19,.45)';
+    b.innerHTML = '<span class="st" style="border-color:' + st.c + ';border-width:2.5px;left:8px;right:8px;top:8px;bottom:8px"></span>' +
+      '<span class="km" style="color:' + w.tone + ';font-size:34px">5K</span>' +
+      '<span class="wl" style="color:' + w.dim + ';font-size:10px;line-height:13px">FOREST</span>' +
+      '<span style="font-size:14px;line-height:18px;font-weight:800;color:#c9d4c0;margin-top:3px">서울숲 순환</span>';
+    host.appendChild(b);
+  });
+
+  // ── click-to-play ceremonies (reflow reset, same pattern as choreography-lab) ──
+  function play(host, ms) {
+    host.classList.remove('play');
+    void host.offsetWidth;
+    host.classList.add('play');
+    clearTimeout(host._t);
+    host._t = setTimeout(function () { host.classList.remove('play'); }, ms);
+  }
+  document.querySelectorAll('[data-play]').forEach(function (btn) {
+    var sel = btn.getAttribute('data-play');
+    btn.addEventListener('click', function () {
+      var host = document.querySelector(sel);
+      play(host, sel === '#c1' ? 7200 : 5600);
+    });
+  });
+  document.querySelectorAll('[data-stop]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var host = document.querySelector(btn.getAttribute('data-stop'));
+      clearTimeout(host._t); host.classList.remove('play');
+    });
+  });
+</script>
+</body>
+</html>

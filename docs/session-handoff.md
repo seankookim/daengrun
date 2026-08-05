@@ -60,6 +60,16 @@ Scout confirmed the office-hours claim and found it stronger: **miles_ledger.ref
 
 **NEW smoke items**: report earning strip (completed run vs early-terminated → absent vs pre-settlement → absent) · receipt earning line at 320dp + share PNG includes it + seal still lands on taller card · home beacon (real balance, 승급 copy, silence at 0-balance-no-progress, dark mode affordance color) · leaderboard/rewards 포인트 naming.
 
+## 2d. Rewards ② — scouted, honesty batch shipped, LAB DELIVERED (awaiting numbers)
+
+**Scout findings (a19f4a7)**: cards_owned path is NOT zero-migration (edge-fn writer exists but owners can never earn rows — struck; derived stamps are the only zero-migration path) · run-end lands on report.tsx, never my.tsx · app has no client persistence (one AsyncStorage UI pref) · verified derivable taxonomy: 첫 러닝·5/10/25회 완주·N번째 코스·첫 클럽 출석·연속 2주(historical max — monotonic)·응가 도장(per-RUN count)·첫 자랑·첫 후기. Balance-milestone stamps EXCLUDED (can un-earn; violates forever contract).
+
+**Honesty batch (9174398, shipped)**: six mock cards (myCards) fully retired — owner home's 최근 기록 rendered a FABRICATED 5.02km run; cards.tsx is now the pure real patch wall; RunCard/CardStat retired (carried 조작 컨디션/+12%/24° strings), HeatTrace survives (report.tsx). my.tsx record face: 총 거리/총 횟수 labels showed WEEKLY data (Fitness has no total fields; f:any hid it) → owner shows weekly numbers with weekly labels; runner keeps real server totals with 총. Real owner totals come with ② implementation.
+
+**Sean's ② decisions (all Recommended picked)**: ceremony on report.tsx (with patch pop — queue or merge, lab decides) · collections MERGE into passport world (/cards reborn lilac as the annex, back → 마이) · stamps are FOREVER (monotonic only) · 첫 클럽 = ATTENDED (session_people checked-in).
+
+**Lab (docs/labs/passport-stamp-lab.html)**: Ⓐ stamp wall ① §③ 도장면 visa page ② 기록면 strip ③ 여권 펼침 spread · Ⓑ merged collection ① 부속서 two-section ② 통합 그리드 · Ⓒ ceremony ① queue-behind-patch-pop ② merged single overlay. Ink law chosen: violet #4A3DA8 stamps, coral only as 첫-family ring+dot, gold stays in the receipt, zero new foil (my.tsx budget spent). Lab recommends **Ⓐ①×Ⓑ①×Ⓒ②**. Reply "A1 B1 C2" style. Lab-found defects to fix with implementation: PatchPopOverlay backdrop too transparent for report.tsx's new content · cards.tsx renders course name twice (once at ~8.6px inside PatchBadge).
+
 ## 3. Pending on Sean's side (ordered)
 
 1. `supabase db push` — 0055·0056 if not yet pushed (0051–0054 confirmed pushed+deployed).
