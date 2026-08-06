@@ -37,6 +37,51 @@ is complete; client honesty batch (item 2) still next, still needs Sean's produc
   예상/추정 labels; 0 such values at 0.20) — folds into the existing derive-preview-from-
   myCommissionRate() debt. Rewards ③ and brand-deals ⑤ now UNBLOCKED.
 
+## ⓪⓪⓪ PHASE DECISIONS — 2026-08-06 PM (autoplan premise gate + design-shotgun, all Sean-confirmed)
+
+**Phase reframed (D1)**: launch stack first — ① Sean deploys 0055-0059 + transition-booking +
+settle-run → ② 순백/코랄 token spec → ③ client honesty batch IN the new language (= style
+pilot; pay is a REBUILD against the PG state machine, not a repaint) → ④ PG 실연동 + rate
+snapshot + notice machinery → ⑤ cert-funnel minimum. Shop/rewards ride slack capacity.
+CEO voice's User Challenge (launch runway vs style work) accepted in synthesis form.
+
+**DESIGN LANGUAGE LOCKED (design-shotgun 2 rounds, pick ①)**: canvas #FFFFFF · ink #111 ·
+**solid coral #E8552F 1px hairlines** · full-bleed (no side margins) · 1-hero+2-duo layout ·
+mono spec micro-labels · Oswald numerals = the one type jump · sharp corners · ink-fill CTA.
+**STYLE FREEZE until 50 paying dogs** (mechanical convergence allowed). Dark ceremony world
+(passport/club/seals) stays dark — "dark is the artifact, light is the screen". Volt dies
+first. Full laws + design-review findings (ink ramp floors, button state matrix, custody-vs-
+decision surface classes): docs/plans/next-phase-style-shop-rewards-plan.md.
+Board: docs/labs/shop-shotgun-lab.html (repo copy).
+
+**Rewards ③ (D3)**: fee-side redemption; CONTRACT DOC only now (value/expiry/약관 liability);
+build after first real settlements. No 0060+ migrations pre-deploy.
+**Shop (D4)**: from-scratch language now locked; BUILD waits for first approved affiliate
+link — Sean sends 무신사 큐레이터 + 네이버 쇼핑 커넥트 applications this week.
+**iOS simulator**: dev build installed + running on iPhone 17 Pro sim (Metro on 8081).
+
+**FIRST 순백/코랄 BUILD SHIPPED (2026-08-06 PM)**: `paper` token block in theme.ts (ink ramp
+with contrast floors + coral line + wash; laws in the comment) + app/index.tsx rebuilt as the
+full-bleed two-half role screen (보호자 top / 러너 bottom, one tap = start(role), busy state
+inline, brand line = decorative class). Verified live in simulator. Volt entry retired —
+volt world die-off continues on touched screens only (freeze law).
+
+**OFFICE HOURS (design doc APPROVED, 9/10 after 2-round adversarial review)**:
+~/.gstack/projects/seankookim-daengrun/sean-redesign-v4-design-20260806-150000.md —
+라이브 캠 runner-funded premium (phone+chest-mount, owner-only stream, delivery-gated
+billing ≥70% actual duration, 50/50 split as NEW settlement class OUTSIDE min_fare clamp,
+ratio snapshotted at booking, addon `kind` discriminator) · km-coins = prepaid booking
+credit (won-value marketed in km, refundable, never mixes with points; 선불전자지급수단
+classification → counsel, NOT assumed safe) · contracts written together with rewards ③,
+implemented as SEPARATE adversarial cycles (0059 isolation doctrine) · live.tsx rebuild
+carries TYPE-LEVEL stream stubs only · promotion = badge + shelf, NO roster sort boost ·
+backlog recorded: first-run onboarding guides (after honesty batch), Instagram-grammar
+community feed (needs own office hours). Affiliate research verified: 무신사 pet category
+REAL (Ruffwear/HOWLPOT brand shops live), Coupang links-first (API gated ₩150k), Naver
+커넥트 highest upside, pet verticals BD-only.
+**Sean assignment (this week)**: send 3 affiliate applications + ask 5 real owners the
+라이브 캠 price question (anchor-free).
+
 ## ⓪ STATUS — 2026-08-05 END OF DAY
 
 **Everything below is COMMITTED on device (branch redesign-v4), gate-clean (device tsc + check-rpc; harness 234/0). NOTHING is pushed/deployed — all Sean-only. Device is ~24 commits ahead.**

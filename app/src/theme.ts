@@ -145,6 +145,22 @@ export const surfaces = {
   },
 } as const;
 
+// ═══ 순백/코랄 — 전역 라이트 캔버스 (2026-08-06 Sean 확정, 디자인 샷건 pick ①) ═══
+// 법: 캔버스 #FFFFFF · 잉크 램프 대비 하한(캔버스 기준) head ≥12:1 / text ≥7:1 / dim ≥4.5:1 ·
+//   faint는 장식 클래스(레터스페이스 캡스 키커) 전용 · 헤어라인 = 솔리드 코랄 1px, 불투명도 금지,
+//   풀블리드(라인이 화면 끝까지, 사이드 마진 금지) · 샤프 코너 · 강조 예산 = 코랄 라인 + CTA 1개 ·
+//   버튼 상태는 불투명도 트릭 금지, 명시 색으로. 스타일 프리즈: 유료견 50마리까지 신규 미학 금지.
+// 다크 세리머니 월드(패스포트·클럽·씰)는 의도적 유지 — "dark is the artifact, light is the screen".
+export const paper = {
+  canvas: '#FFFFFF',
+  ink: '#111111',      // head
+  text: '#333333',     // 본문 (12.6:1)
+  dim: '#666666',      // 디테일 (5.7:1 — 14pt 플로어와 함께 AA)
+  faint: '#999999',    // 장식 클래스 전용 (sub-4.5 허용 유일 지점)
+  line: '#E8552F',     // 솔리드 코랄 헤어라인 — 이 선이 곧 브랜드
+  wash: '#FFF6F4',     // 코랄 95% 화이트 워시 (pressed 상태 등)
+} as const;
+
 // Pricing (placeholder — validate against competitor research)
 export const pricing = {
   baseFare: 9900,

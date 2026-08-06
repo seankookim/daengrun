@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>도그스하이 — 샵 샷건 보드 v2 (리믹스: 풀블리드 × B레이아웃 × C스펙 × 솔리드 컬러라인)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#191921; color:#EDEDF2; font-family:-apple-system,'Apple SD Gothic Neo','Pretendard',sans-serif; padding:34px 22px 80px; }
+  .mast { max-width:1340px; margin:0 auto 26px; }
+  .mast h1 { font-size:20px; font-weight:800; letter-spacing:-0.3px; }
+  .mast p { font-size:13.5px; color:#9A9AB0; margin-top:7px; line-height:1.6; max-width:920px; }
+  .mast b { color:#E4E4EE; }
+  .row { display:flex; gap:30px; justify-content:center; flex-wrap:wrap; max-width:1340px; margin:0 auto; }
+  .col { width:392px; }
+  .tag { font-size:12px; letter-spacing:2.5px; color:#8A8AA5; margin-bottom:6px; }
+  .col h2 { font-size:16px; font-weight:800; margin-bottom:3px; }
+  .col .sub { font-size:12.5px; color:#9A9AB0; margin-bottom:13px; }
+  .phone { width:392px; height:820px; overflow:hidden; position:relative; border-radius:34px; border:6px solid #000; box-shadow:0 22px 60px rgba(0,0,0,.55); }
+  .scr { position:absolute; inset:0; overflow:hidden; }
+  .meta { margin-top:14px; font-size:12.5px; line-height:1.7; color:#ABABC2; border-top:1px solid #33334a; padding-top:11px; }
+  .meta b { color:#E4E4EE; }
+
+  /* ═══ 공통 리믹스 레이아웃 — 풀블리드, 마진 0 ═══ */
+  .scr { --ink:#111; --line:#E8552F; --canvas:#FFF; --dim:#6E6E6E; background:var(--canvas); color:var(--ink); }
+  .hdr { padding:52px 16px 0; }
+  .kick { font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:3px; color:var(--dim); }
+  .hd { font-size:17px; font-weight:800; margin-top:3px; }
+  .pts { margin:10px 16px 0; padding:8px 0; font-size:14px; color:var(--dim);
+         border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
+  .pts b { color:var(--ink); font-weight:700; }
+
+  /* 히어로 — 풀블리드, 제품 노출 극대화 */
+  .hero { margin-top:14px; border-top:1px solid var(--line); border-bottom:1px solid var(--line); position:relative; height:300px; }
+  .hero .face { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
+  .hero .spec { position:absolute; top:12px; right:14px; text-align:right;
+                font-family:'IBM Plex Mono',monospace; font-size:10.5px; letter-spacing:1.4px; color:var(--dim); line-height:2.0; }
+  .hero .cap { position:absolute; left:16px; bottom:12px; }
+  .cap .nm { font-size:15px; font-weight:700; }
+  .cap .pr { font-family:'Oswald'; font-size:29px; font-weight:600; margin-top:1px; }
+
+  /* 듀오 — 두 제품 한 줄, 풀블리드, 중앙 분리선만 */
+  .duo { display:flex; border-bottom:1px solid var(--line); }
+  .duo .half { flex:1; position:relative; height:240px; }
+  .duo .half + .half { border-left:1px solid var(--line); }
+  .duo .face { position:absolute; inset:0 0 58px; display:flex; align-items:center; justify-content:center; }
+  .duo .cap { position:absolute; left:12px; bottom:10px; }
+  .duo .cap .nm { font-size:14px; font-weight:700; }
+  .duo .cap .pr { font-family:'Oswald'; font-size:21px; font-weight:600; }
+  .duo .spec { position:absolute; top:10px; right:12px; text-align:right; font-family:'IBM Plex Mono',monospace;
+               font-size:10px; letter-spacing:1.2px; color:var(--dim); line-height:1.9; }
+
+  .empty { height:66px; display:flex; align-items:center; justify-content:center;
+           border-bottom:1px solid var(--line); font-size:14px; color:var(--dim); }
+  .cta { position:absolute; left:0; right:0; bottom:0; background:var(--ink); color:var(--canvas);
+         text-align:center; font-size:15.5px; font-weight:800; padding:18px 0; }
+
+  /* CSS 스틸라이프 (확대) */
+  .sil-harness { width:230px; height:160px; position:relative; }
+  .sil-harness .strap1 { position:absolute; left:10px; top:36px; width:206px; height:38px; background:#28303B; border-radius:20px; transform:rotate(-7deg); }
+  .sil-harness .strap2 { position:absolute; left:22px; top:90px; width:182px; height:30px; background:#37414E; border-radius:16px; transform:rotate(-7deg); }
+  .sil-harness .buckle { position:absolute; right:22px; top:26px; width:32px; height:32px; background:#C9CDD4; border-radius:6px; }
+  .sil-harness .ring { position:absolute; left:48px; top:20px; width:24px; height:24px; border:5px solid #A7ADB8; border-radius:50%; }
+  .sil-tin { width:130px; height:130px; position:relative; }
+  .sil-tin .lid { position:absolute; inset:8px; background:radial-gradient(circle at 36% 30%, #EDE6D6, #D9CEB4); border-radius:50%; border:1px solid #C4B896; }
+  .sil-tin .lbl { position:absolute; inset:40px; border:1px solid #A99B72; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:10px; letter-spacing:1.5px; color:#7A6E4C; }
+  .sil-pouch { width:130px; height:112px; position:relative; }
+  .sil-pouch .body { position:absolute; inset:18px 8px 0; background:#4C4438; border-radius:14px 14px 20px 20px; }
+  .sil-pouch .flap { position:absolute; left:8px; right:8px; top:8px; height:38px; background:#5E5545; border-radius:14px 14px 8px 8px; }
+  .sil-pouch .clip { position:absolute; top:0; left:56px; width:20px; height:15px; background:#C9BFA8; border-radius:4px; }
+
+  /* ═══ 캔버스 변형 ═══ */
+  .V1 { --canvas:#FFFFFF; --ink:#111111; --line:#E8552F; --dim:#6E6E6E; }   /* 순백 + 솔리드 코랄 라인 */
+  .V2 { --canvas:#F8F6F0; --ink:#211D18; --line:#B4552D; --dim:#7A7264; }   /* 웜 크림 + 솔리드 테라코타 라인 */
+  .V2 .sil-harness .strap1 { background:#3A3128; } .V2 .sil-harness .strap2 { background:#4C4234; }
+  .V3 { --canvas:#FAFAFC; --ink:#17151F; --line:#4A3DA8; --dim:#77738F; }   /* 디틴트 라일락 + 솔리드 라일락 라인 */
+
+  .laws { max-width:1340px; margin:34px auto 0; border:1px solid #33334A; padding:16px 18px; font-size:12.5px; color:#ABABC2; line-height:1.8; }
+  .laws b { color:#E4E4EE; }
+</style>
+</head>
+<body>
+  <div class="mast">
+    <h1>🛍 샵 샷건 보드 v2 — 리믹스 반영, 남은 축은 캔버스×라인 잉크뿐</h1>
+    <p>반영된 지시: <b>풀블리드(사이드 마진 0)</b> · <b>B 레이아웃(1개 히어로 + 2개 듀오)</b> · <b>제품 노출 확대(히어로 300pt)</b> ·
+       <b>C의 미니멀 스펙 라벨</b> · <b>A의 선명한 솔리드 라인 — 단 컬러로</b>(불투명도 없는 1px 솔리드).
+       세 폰은 이제 레이아웃이 동일하고 <b>캔버스 + 라인 잉크</b>만 다르다.</p>
+  </div>
+
+  <div class="row">
+    <div class="col">
+      <div class="tag">Ⓥ① WHITE × CORAL LINE</div>
+      <h2>순백 + 코랄 라인</h2>
+      <div class="sub">#FFFFFF 캔버스 · 솔리드 코랄 #E8552F 헤어라인 · 잉크 #111</div>
+      <div class="phone"><div class="scr V1">
+        <div class="hdr"><div class="kick">RUNNING SHOP</div><div class="hd">러닝 셸프</div></div>
+        <div class="pts">하이 포인트 <b>3,200</b> — 적립만 돼요</div>
+        <div class="hero">
+          <div class="face"><div class="sil-harness"><div class="strap1"></div><div class="strap2"></div><div class="buckle"></div><div class="ring"></div></div></div>
+          <div class="spec">WT 340g<br>S–XL<br>제휴</div>
+          <div class="cap"><div class="nm">러프웨어 프론트 레인지 하네스</div><div class="pr">₩89,000</div></div>
+        </div>
+        <div class="duo">
+          <div class="half">
+            <div class="face"><div class="sil-tin"><div class="lid"></div><div class="lbl">BALM</div></div></div>
+            <div class="spec">50ml<br>제휴</div>
+            <div class="cap"><div class="nm">포 밤</div><div class="pr">₩32,000</div></div>
+          </div>
+          <div class="half">
+            <div class="face"><div class="sil-pouch"><div class="body"></div><div class="flap"></div><div class="clip"></div></div></div>
+            <div class="spec">벨트형<br>제휴</div>
+            <div class="cap"><div class="nm">트릿 파우치</div><div class="pr">₩24,000</div></div>
+          </div>
+        </div>
+        <div class="empty">입고 준비 중</div>
+        <div class="cta">셸프 입장</div>
+      </div></div>
+      <div class="meta"><b>전역 함의:</b> 순백 캔버스, 검정 잉크, 컬러 라인이 유일한 채색 — 라인 자체가 브랜드가 된다. 가장 높은 대비.</div>
+    </div>
+
+    <div class="col">
+      <div class="tag">Ⓥ② CREAM × TERRACOTTA LINE</div>
+      <h2>웜 크림 + 테라코타 라인</h2>
+      <div class="sub">#F8F6F0 캔버스 · 솔리드 테라코타 #B4552D 헤어라인 · 잉크 #211D18</div>
+      <div class="phone"><div class="scr V2">
+        <div class="hdr"><div class="kick">RUNNING SHOP</div><div class="hd">러닝 셸프</div></div>
+        <div class="pts">하이 포인트 <b>3,200</b> — 적립만 돼요</div>
+        <div class="hero">
+          <div class="face"><div class="sil-harness"><div class="strap1"></div><div class="strap2"></div><div class="buckle"></div><div class="ring"></div></div></div>
+          <div class="spec">WT 340g<br>S–XL<br>제휴</div>
+          <div class="cap"><div class="nm">러프웨어 프론트 레인지 하네스</div><div class="pr">₩89,000</div></div>
+        </div>
+        <div class="duo">
+          <div class="half">
+            <div class="face"><div class="sil-tin"><div class="lid"></div><div class="lbl">BALM</div></div></div>
+            <div class="spec">50ml<br>제휴</div>
+            <div class="cap"><div class="nm">포 밤</div><div class="pr">₩32,000</div></div>
+          </div>
+          <div class="half">
+            <div class="face"><div class="sil-pouch"><div class="body"></div><div class="flap"></div><div class="clip"></div></div></div>
+            <div class="spec">벨트형<br>제휴</div>
+            <div class="cap"><div class="nm">트릿 파우치</div><div class="pr">₩24,000</div></div>
+          </div>
+        </div>
+        <div class="empty">입고 준비 중</div>
+        <div class="cta">셸프 입장</div>
+      </div></div>
+      <div class="meta"><b>전역 함의:</b> 웜 크림(레거시 브랜드 온기) + 흙빛 라인 — 프리미엄 오프화이트의 정공법. 대비는 ①보다 부드럽다.</div>
+    </div>
+
+    <div class="col">
+      <div class="tag">Ⓥ③ LILAC-WHITE × LILAC LINE</div>
+      <h2>디틴트 라일락 + 라일락 라인</h2>
+      <div class="sub">#FAFAFC 캔버스 · 솔리드 라일락 #4A3DA8 헤어라인 · 잉크 #17151F</div>
+      <div class="phone"><div class="scr V3">
+        <div class="hdr"><div class="kick">RUNNING SHOP</div><div class="hd">러닝 셸프</div></div>
+        <div class="pts">하이 포인트 <b>3,200</b> — 적립만 돼요</div>
+        <div class="hero">
+          <div class="face"><div class="sil-harness"><div class="strap1"></div><div class="strap2"></div><div class="buckle"></div><div class="ring"></div></div></div>
+          <div class="spec">WT 340g<br>S–XL<br>제휴</div>
+          <div class="cap"><div class="nm">러프웨어 프론트 레인지 하네스</div><div class="pr">₩89,000</div></div>
+        </div>
+        <div class="duo">
+          <div class="half">
+            <div class="face"><div class="sil-tin"><div class="lid"></div><div class="lbl">BALM</div></div></div>
+            <div class="spec">50ml<br>제휴</div>
+            <div class="cap"><div class="nm">포 밤</div><div class="pr">₩32,000</div></div>
+          </div>
+          <div class="half">
+            <div class="face"><div class="sil-pouch"><div class="body"></div><div class="flap"></div><div class="clip"></div></div></div>
+            <div class="spec">벨트형<br>제휴</div>
+            <div class="cap"><div class="nm">트릿 파우치</div><div class="pr">₩24,000</div></div>
+          </div>
+        </div>
+        <div class="empty">입고 준비 중</div>
+        <div class="cta">셸프 입장</div>
+      </div></div>
+      <div class="meta"><b>전역 함의:</b> 패스포트/나이트 세계와 혈연 유지 — 라일락이 낮의 잉크가 되고 밤의 캔버스로 이어진다. 마이그레이션 최소.</div>
+    </div>
+  </div>
+
+  <div class="laws">
+    <b>고정(모든 변형 공통):</b> 풀블리드 — 카드 좌우 마진 0, 라인이 화면 끝까지 · 히어로 300pt + 듀오 240pt(제품 노출 우선) ·
+    C식 모노 스펙 라벨(장식 클래스, 우상단) · 타입 점프는 Oswald 가격 1회 · 별점/할인/긴급 없음 · 제휴 칩은 스펙 라벨에 통합 ·
+    준비 중 정직 상태 · 포인트 적립만 · CTA 1개(잉크 배경 = 캔버스 글자). 선택 축: <b>캔버스 + 라인 잉크</b>.
+  </div>
+</body>
+</html>
