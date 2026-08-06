@@ -1,7 +1,7 @@
 // Live API layer — replaces store.ts mocks screen by screen.
 // Pattern: fetch → map to the app's existing types → screens fall back to mock on failure.
 import { FunctionsHttpError } from '@supabase/supabase-js';
-import { AddonKey, Booking, BookingStatus, dog as mockDog, lastRunTrace, RouteInfo, sampleRoutes, TracePoint } from '../store';
+import { AddonKey, Booking, BookingStatus, dog as mockDog, RouteInfo, TracePoint } from '../store';
 import { supabase } from './supabase';
 
 // Edge Function 오류 본문에서 실제 메시지 추출 ("non-2xx" 무의미 문구 대체)
@@ -34,8 +34,25 @@ function fmtChecked(dateStr: string | null): string {
   return `${d.getMonth() + 1}.${d.getDate()} 점검`;
 }
 
-// 서버 코스 → 앱 RouteInfo. 트레이스가 비면 목업 트레이스 재사용 (실좌표는 Phase 3).
-export async function fetchRoutes(): Promise<RouteInfo[]> {
+// routes에 desc 컬럼은 없다 (0001:139-152) — 실컬럼(terrain·features)만으로 한 줄을 조립한다.
+// 목업 개인화 문구('초코의 페이스와 슬개골 메모에 잘 맞아요')는 근거가 없어 제거 — 없는 건 안 쓴다.
+function composeDesc(r: RouteRow): string {
+  const parts: string[] = [];
+  const add = (v: string | null | undefined) => {
+    const s = (v ?? '').trim();
+    // 지형과 겹치는 라벨(흙길 70% ↔ 흙길)은 한 번만
+    if (s && !parts.some((p) => p.includes(s) || s.includes(p))) parts.push(s);
+  };
+  add(r.terrain);
+  (r.features ?? []).forEach((f) => add(f.label));
+  return parts.length > 0 ? parts.slice(0, 3).join(' · ') : `${r.area}의 안심 코스`;
+}
+
+// 서버 코스 → 앱 RouteInfo. 목업 코스 조인 제거 (2026-08-06 정직성 배치):
+//  · fit(적합도) — 실 스코어러가 없다. 목업 96%를 실측처럼 보이지 않도록 필드째 뺀다.
+//    반환 타입의 Omit은 store.ts RouteInfo에서 fit이 사라지면 그대로 지우면 된다.
+//  · trace — 실좌표가 없으면 빈 배열. 목업 폴리라인을 코스 모양이라고 그리지 않는다.
+export async function fetchRoutes(): Promise<RouteInfo[]> {  // [리뷰 F11] fit은 store.ts에서도 죽었다 — Omit 잔재 정리
   const { data, error } = await supabase
     .from('routes')
     .select('id,name,area,km,terrain,tags,features,trace,checked_at')
@@ -43,22 +60,18 @@ export async function fetchRoutes(): Promise<RouteInfo[]> {
     .order('km');
   if (error) throw error;
 
-  return (data as RouteRow[]).map((r) => {
-    const mockTwin = sampleRoutes.find((m) => m.name === r.name);
-    return {
-      id: r.id,
-      name: r.name,
-      area: r.area,
-      km: Number(r.km),
-      terrain: r.terrain ?? '',
-      tags: r.tags ?? [],
-      features: r.features ?? [],
-      fit: mockTwin?.fit ?? 80, // 적합도 계산은 매칭 엔진 몫 (Phase 3)
-      checkedAt: fmtChecked(r.checked_at),
-      desc: mockTwin?.desc ?? `${r.area}의 안심 코스`,
-      trace: r.trace && r.trace.length > 0 ? r.trace : mockTwin?.trace ?? lastRunTrace,
-    };
-  });
+  return (data as RouteRow[]).map((r) => ({
+    id: r.id,
+    name: r.name,
+    area: r.area,
+    km: Number(r.km),
+    terrain: r.terrain ?? '',
+    tags: r.tags ?? [],
+    features: r.features ?? [],
+    checkedAt: fmtChecked(r.checked_at),
+    desc: composeDesc(r),
+    trace: r.trace && r.trace.length > 0 ? r.trace : [],
+  }));
 }
 
 // 코스 페이지 '우리 기록' — 이 코스에서 내가 (보호자 또는 러너로) 완주한 러닝의 실사진.
@@ -589,8 +602,9 @@ const pickCurrent = (rows: { id: string; status: string; scheduled_at: string }[
 export async function fetchCurrentOwnerBookingId(): Promise<string | null> {
   const { data: user } = await supabase.auth.getUser();
   if (!user.user) return null;
-  const { data } = await supabase.from('bookings').select('id, status, scheduled_at')
+  const { data, error } = await supabase.from('bookings').select('id, status, scheduled_at')
     .eq('owner_id', user.user.id).in('status', IN_FLIGHT);
+  if (error) throw error; // 정직 배치: 네트워크 실패가 '진행 중 없음'으로 위장하면 라이브 화면 재시도 스트립이 영원히 안 뜬다
   return pickCurrent(data as any);
 }
 
@@ -1515,6 +1529,7 @@ export interface Fitness {
   dogPhotoUrl: string | null;
   goalKm: number;
   fitnessAge: number | null;
+  ageYears: number | null; // 생일 기준 실나이 (생일 없거나 비정상이면 null — 목업 나이 상수 금지)
   weekKm: number;       // 최근 7일
   weekRuns: number;
   avgPaceSec: number | null;
@@ -1536,6 +1551,10 @@ export async function fetchFitness(): Promise<Fitness> {
       .eq('owner_id', user.user.id).eq('status', 'completed')
       .order('scheduled_at', { ascending: false }).limit(120),
   ]);
+  // 조회 실패를 성공 모양(0km·0회·스트릭 0)으로 위장하지 않는다 — 로딩 ≠ 실패 ≠ 진짜 0.
+  // 호출부는 .catch로 실패 상태를 따로 그린다 (빈 주차와 구분).
+  if (dogRes.error) throw dogRes.error;
+  if (runRes.error) throw runRes.error;
   const d = dogRes.data?.[0];
   const rows = (runRes.data ?? [])
     .map((b: any) => {
@@ -1580,24 +1599,24 @@ export async function fetchFitness(): Promise<Fitness> {
   let fitnessAge: number | null = null;
   let fitnessGate: Fitness['fitnessGate'] = null;
   const recent28 = rows.filter((r) => r.at.getTime() >= now - 28 * 86400_000);
+  // 실나이 — 생일이 있고 정상 범위(0~25살)일 때만. 없으면 null (홈 ▼칩은 이 값만 쓴다).
+  const rawAgeYears = d?.birth_date ? (now - new Date(d.birth_date).getTime()) / (365.25 * 86400_000) : null;
+  const ageYears = rawAgeYears != null && rawAgeYears > 0 && rawAgeYears <= 25 ? Math.round(rawAgeYears * 10) / 10 : null;
   if (!d?.birth_date) {
     fitnessGate = { reason: 'birth' };
   } else if (recent28.length < 2) {
     fitnessGate = { reason: 'runs', left: 2 - recent28.length };
-  } else {
-    const ageYears = (now - new Date(d.birth_date).getTime()) / (365.25 * 86400_000);
-    if (ageYears > 0 && ageYears <= 25) { // 미래/비정상 생일은 측정 불가
-      const last28Km = recent28.reduce((s, r) => s + r.km, 0);
-      const goal = Number(d.weekly_goal_km ?? 15);
-      const ratio = goal > 0 ? Math.min(last28Km / 4 / goal, 1.5) : 0;
-      const calc = Math.max(0.5, Math.round((ageYears - 1.8 * ratio - 0.05 * Math.min(streakDays, 14)) * 10) / 10);
-      fitnessAge = calc;
-      if (d.fitness_age == null || Math.abs(Number(d.fitness_age) - calc) >= 0.1) {
-        supabase.from('dogs').update({ fitness_age: calc }).eq('id', d.id).then(() => {}, () => {});
-      }
-    } else {
-      fitnessGate = { reason: 'birth' }; // 비정상 생일도 생일 문제로 안내
+  } else if (rawAgeYears != null && rawAgeYears > 0 && rawAgeYears <= 25) { // 미래/비정상 생일은 측정 불가
+    const last28Km = recent28.reduce((s, r) => s + r.km, 0);
+    const goal = Number(d.weekly_goal_km ?? 15);
+    const ratio = goal > 0 ? Math.min(last28Km / 4 / goal, 1.5) : 0;
+    const calc = Math.max(0.5, Math.round((rawAgeYears - 1.8 * ratio - 0.05 * Math.min(streakDays, 14)) * 10) / 10);
+    fitnessAge = calc;
+    if (d.fitness_age == null || Math.abs(Number(d.fitness_age) - calc) >= 0.1) {
+      supabase.from('dogs').update({ fitness_age: calc }).eq('id', d.id).then(() => {}, () => {});
     }
+  } else {
+    fitnessGate = { reason: 'birth' }; // 비정상 생일도 생일 문제로 안내
   }
 
   // 요일 스탬프 — 이번 주(KST 월~일) 러닝이 있었던 요일
@@ -1613,6 +1632,7 @@ export async function fetchFitness(): Promise<Fitness> {
     dogPhotoUrl: d?.photo_url ?? null,
     goalKm: Number(d?.weekly_goal_km ?? 15),
     fitnessAge,
+    ageYears,
     weekKm, weekRuns: thisWeek.length, avgPaceSec, streakDays, weeks, recent, runDays, fitnessGate,
   };
 }
@@ -2825,11 +2845,12 @@ export async function markAllNotificationsRead(): Promise<void> {
   if (error) throw error;
 }
 
-export async function fetchMyBookings(): Promise<Booking[]> {
+// 예약의 routeId는 서버 route_id 그대로 — 코스 미지정이면 null (목업 'seoulforest-loop' 박제 제거).
+export async function fetchMyBookings(): Promise<Booking[]> {  // [리뷰 F11] Booking.routeId가 이미 string | null — Omit 잔재 정리
   const { data: user } = await supabase.auth.getUser();
   const { data, error } = await supabase
     .from('bookings')
-    .select('id, scheduled_at, km, pace_label, total_price, status, runner_id, owner_id, series_id, routes(name), dogs(name, collar), runners(profiles(name))')
+    .select('id, scheduled_at, km, pace_label, total_price, status, runner_id, owner_id, series_id, route_id, routes(name), dogs(name, collar), runners(profiles(name))')
     // 결제 미완 유령(draft/quoted/payment_hold)은 일정이 아니다 — '매칭 중'으로 위장 금지
     .not('status', 'in', '(draft,quoted,payment_hold)')
     // 듀얼 롤 계정에서 러너로 받은 예약이 '내 일정'에 섞이던 문제 — 보호자 소유만
@@ -2841,7 +2862,6 @@ export async function fetchMyBookings(): Promise<Booking[]> {
   return (data ?? []).map((r: any) => {
     const { dateLabel, timeLabel } = kstParts(r.scheduled_at);
     const routeName = r.routes?.name ?? '코스 미지정';
-    const mockTwin = sampleRoutes.find((m) => m.name === routeName);
     return {
       id: r.id,
       dateLabel,
@@ -2851,7 +2871,7 @@ export async function fetchMyBookings(): Promise<Booking[]> {
       dogCollar: r.dogs?.collar ?? null, // 칼라 컬러 (0033)
       runnerId: r.runner_id ?? '', // 실 러너 uuid (매칭 전 ''). 목업 상수 'minjun' 박제 제거 — 가짜 데이터 금지
       runnerName: r.runner_id ? (r.runners?.profiles?.name ?? '러너') : '매칭 중',
-      routeId: mockTwin?.id ?? 'seoulforest-loop',
+      routeId: r.route_id ?? null, // 실 코스 uuid (미지정이면 null)
       routeName,
       km: Number(r.km),
       paceLabel: r.pace_label ?? "보통 7'",

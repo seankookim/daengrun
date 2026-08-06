@@ -5,10 +5,9 @@ import { cancelBooking, fetchMyBookings, pauseRecurringSeries, shareRunToFeed } 
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { BottomNav } from '../../src/components/bottomnav';
-import { HeatTrace } from '../../src/components/runcard';
 import { Monogram, Row } from '../../src/components/ui';
-import { Booking, BookingStatus, cancelPolicy, draft, runners, sampleRoutes } from '../../src/store';
-import { CollarKey, collarColors, colors } from '../../src/theme';
+import { Booking, BookingStatus, cancelPolicy, draft, runners } from '../../src/store';
+import { CollarKey, collarColors, colors, paper } from '../../src/theme';
 
 // 내 일정 — agenda view. Tapping a booking opens a management sheet
 // (route card + predictions + runner + reschedule/cancel actions).
@@ -98,7 +97,10 @@ export default function Schedule() {
     ]);
   };
 
-  const route = selected ? sampleRoutes.find((r) => r.id === selected.routeId) : undefined;
+  // [정직 배치 2026-08-06 · item 6] 목업 코스 조회(sampleRoutes.find) 퇴역 — 실예약의 route_id를
+  // 목업 코스에 맞춰 '식수대 2곳 · 7.18 점검 · 초코의 슬개골 메모'로 채우던 자리다. 시트의 코스
+  // 카드는 이제 예약 행이 실제로 들고 있는 값(routeName·km)만 말한다. 실 코스 상세(특징·점검일·
+  // 트레이스)는 route_id로 실코스 행을 읽는 헬퍼가 생길 때 복귀한다 (스펙 wave-2).
   // live 예약은 실러너 이름으로 뷰 구성 — 목업 프로필 조회 금지
   const mockRunner = selected && !selected.live ? runners.find((r) => r.id === selected.runnerId) : undefined;
   const runner = selected
@@ -161,7 +163,6 @@ export default function Schedule() {
             <Text style={{ fontSize: 15, fontWeight: '900', color: '#49524a', paddingHorizontal: 12, marginBottom: 8 }}>{dateLabel}</Text>
             {items.map((b) => {
               const st = stFor(b);
-              const rt = sampleRoutes.find((r) => r.id === b.routeId);
               return (
                 <View key={b.id}>
                 <Pressable style={s.bookingCard} onPress={() => open(b)}>
@@ -195,11 +196,8 @@ export default function Schedule() {
                       </View>
                     </Row>
                     <Row style={{ gap: 12, marginTop: 10 }}>
-                      {rt && (
-                        <View style={s.thumbMap}>
-                          <HeatTrace points={rt.trace} width={64} height={48} />
-                        </View>
-                      )}
+                      {/* 목업 트레이스 썸네일 퇴역 (item 6) — 예약 행에는 코스 좌표가 없다.
+                          지어낸 모양 대신 아무것도 그리지 않는다 (실좌표는 코스 상세가 담당) */}
                       <View style={{ flex: 1 }}>
                         <Row style={{ gap: 4 }}>
                           <Text style={{ fontSize: 15, fontWeight: '800', color: FOREST }}>{b.routeName}</Text>
@@ -269,7 +267,7 @@ export default function Schedule() {
       {/* ---------- booking management sheet ---------- */}
       <Modal visible={!!selected} transparent animationType="slide" onRequestClose={close}>
         <Pressable style={s.backdrop} onPress={close} />
-        {selected && route && runner && (
+        {selected && runner && (
           <View style={s.sheet}>
             <View style={s.handle} />
             <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 560 }}>
@@ -290,25 +288,18 @@ export default function Schedule() {
                     </View>
                   </Row>
 
-                  {/* route card */}
+                  {/* route card — 예약 행이 실제로 들고 있는 값만. 목업 특징칩·점검 도장·설명 퇴역 (item 6).
+                      '안심 코스 · N.NN 점검' 도장은 실 checked_at이 있을 때만 찍힌다 — 지금 이 행에는 없다. */}
                   <View style={s.sheetCard}>
                     <Row style={{ gap: 5 }}>
-                      <Text style={{ fontSize: 17, fontWeight: '900', color: FOREST }}>{route.name}</Text>
-                      <View style={s.certDot}><Text style={{ fontSize: 8, fontWeight: '900', color: '#fff' }}>✓</Text></View>
-                      <Text style={{ fontSize: 14, color: colors.dim, alignSelf: 'center' }}>안심 코스 · {route.checkedAt}</Text>
+                      <Text style={{ fontSize: 17, fontWeight: '900', color: FOREST }}>{selected.routeName}</Text>
+                      {/* [리뷰 F8] ✓ 인증 도장 은퇴 — 이 행엔 checked_at 실데이터가 없다. 근거 없는 검증 마크 금지 */}
+                      <Text style={{ fontSize: 14, color: colors.dim, alignSelf: 'center' }}>{selected.km}km</Text>
                     </Row>
-                    <View style={s.sheetMap}>
-                      <HeatTrace points={route.trace} width={278} height={110} />
+                    {/* 실좌표 없는 코스 지도 슬롯 — 토큰으로 작성 (후속 리페인트 생존) */}
+                    <View style={s.sheetMapPending}>
+                      <Text style={s.sheetMapPendingTxt}>코스 지도 준비 중</Text>
                     </View>
-                    <Row style={{ gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
-                      {route.features.map((f) => (
-                        <View key={f.label} style={s.featChip}>
-                          <Text style={{ fontSize: 14, color: '#5a7a3c' }}>{f.g}</Text>
-                          <Text style={{ fontSize: 14, fontWeight: '700', color: '#3d5a2b' }}>{f.label}</Text>
-                        </View>
-                      ))}
-                    </Row>
-                    <Text style={{ fontSize: 15, color: '#75806f', marginTop: 9, lineHeight: 19.5 }}>{route.desc}</Text>
                   </View>
 
                   {/* predictions */}
@@ -581,7 +572,7 @@ const s = StyleSheet.create({
     marginTop: 11, backgroundColor: '#ffe9e2', borderRadius: 4, alignItems: 'center',
     paddingVertical: 12, borderWidth: 1.2, borderColor: '#ffc9b8',
   },
-  thumbMap: { width: 68, height: 52, borderRadius: 4, backgroundColor: '#0e150f', padding: 2, overflow: 'hidden' },
+  // thumbMap(목업 트레이스 썸네일) 퇴역 — item 6
   certDot: { width: 13, height: 13, borderRadius: 7, backgroundColor: '#3d8fd4', alignItems: 'center', justifyContent: 'center', alignSelf: 'center' },
   // 완료 카드 공유 행 — 카드 하단에 부착된 풀와이드 밴드 (도장을 가리지 않는 위치, Sean 2026-07-29)
   shareRow: { flexDirection: 'row', gap: 8, backgroundColor: '#FBFCF6', borderBottomWidth: 1, borderColor: '#D8DAD2', marginTop: -1, paddingVertical: 9, paddingHorizontal: 14 },
@@ -599,8 +590,12 @@ const s = StyleSheet.create({
   sheet: { backgroundColor: colors.cream, borderTopLeftRadius: 10, borderTopRightRadius: 10, padding: 16, paddingBottom: 36 },
   handle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: '#D8DAD2', marginBottom: 14 },
   sheetCard: { backgroundColor: '#fff', borderRadius: 6, padding: 15, borderWidth: 1, borderColor: '#D8DAD2', marginTop: 12 },
-  sheetMap: { marginTop: 10, borderRadius: 6, backgroundColor: '#0e150f', paddingVertical: 6, paddingHorizontal: 4, overflow: 'hidden', alignItems: 'center' },
-  featChip: { flexDirection: 'row', gap: 4, alignItems: 'center', backgroundColor: '#eef4e0', borderRadius: 9, paddingVertical: 4, paddingHorizontal: 8 },
+  // sheetMap(목업 트레이스)·featChip(목업 특징칩) 퇴역 — item 6. 실좌표가 오면 지도가 돌아온다.
+  sheetMapPending: {
+    marginTop: 10, height: 110, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line,
+  },
+  sheetMapPendingTxt: { fontSize: 14, fontWeight: '700', color: paper.dim },
   vDiv: { width: 1, backgroundColor: '#EEF0EA' },
   badgePill: { backgroundColor: '#e3f0c4', borderRadius: 4, paddingVertical: 2, paddingHorizontal: 7, alignSelf: 'center' },
   chatChip: { backgroundColor: '#eef4e0', borderRadius: 4, paddingVertical: 8, paddingHorizontal: 13, alignSelf: 'center' },

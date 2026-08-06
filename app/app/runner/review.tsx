@@ -1,149 +1,266 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { Monogram, Row } from '../../src/components/ui';
+import { Row } from '../../src/components/ui';
+import { fetchRunReport, RunReport } from '../../src/lib/api';
 import { supabase } from '../../src/lib/supabase';
-import { dogReviewTags, runRequests, runResult } from '../../src/store';
-import { colors } from '../../src/theme';
+import { dogReviewTags, runResult } from '../../src/store';
+import { paper } from '../../src/theme';
 
 // 러너 → 보호자·반려견 리뷰 (양방향 신뢰의 반쪽).
 // Schema seed: reviews table is bidirectional; private flags go to platform only.
-
-const FOREST = '#0F1D13';
+//
+// [정직 배치 2026-08-06 · item 3] 오프라인 큐가 없는데 '저장됐어요 (오프라인)'라고 말하던 거짓말 은퇴.
+// 저장 성공은 서버 진실(!error)일 때만 선언한다 — 실패하면 화면에 남아 인라인 라우드-페일 + 재시도.
+// 강아지 카드는 목업 초코(runRequests[0]) + 하드코딩 거리 → fetchRunReport 실데이터(runs.actual_km).
+// 표면은 순백/코랄: 결정 화면이라 밀도는 내리고, 섹션은 풀블리드 코랄 헤어라인으로만 나눈다.
 
 export default function RunnerReview() {
-  const req = runRequests[0];
+  // 마운트 시점의 예약 id를 고정 — 제출 실패 시에도 이 값은 살아 있어야 재시도가 된다
+  const [bookingId] = useState<string | null>(runResult.bookingId);
+  const [report, setReport] = useState<RunReport | null>(null);
+  const [reportErr, setReportErr] = useState(false);
   const [stars, setStars] = useState(0);
   const [tags, setTags] = useState<string[]>([]);
   const [privateFlag, setPrivateFlag] = useState(false);
   const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   const toggleTag = (t: string) =>
     setTags((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
 
-  const [busy, setBusy] = useState(false);
+  // 방금 끝난 러닝의 실컨텍스트 — 강아지 실명 + runs.actual_km (없으면 km 문구 자체를 생략)
+  useEffect(() => {
+    if (!bookingId) return;
+    fetchRunReport(bookingId)
+      .then(setReport)
+      .catch((e) => { setReportErr(true); console.warn('[r-review] report:', e?.message ?? e); });
+  }, [bookingId]);
 
   const submit = async () => {
+    if (!bookingId || stars === 0 || busy) return;
     setBusy(true);
-    let saved = false;
-    // 실예약이면 reviews 테이블에 실제 저장 (양방향 리뷰의 러너 쪽)
-    if (runResult.bookingId) {
-      try {
-        const { data: bk } = await supabase.from('bookings').select('dog_id').eq('id', runResult.bookingId).single();
-        const { data: user } = await supabase.auth.getUser();
-        if (bk && user.user) {
-          const { error } = await supabase.from('reviews').insert({
-            booking_id: runResult.bookingId,
-            author_id: user.user.id,
-            target_kind: 'dog',
-            target_id: bk.dog_id,
-            rating: stars,
-            tags,
-            note: note.trim() || null,
-            visibility: privateFlag ? 'platform_only' : 'public',
-          });
-          if (!error) saved = true;
-        }
-      } catch { /* fallback below */ }
+    setFailed(false);
+    try {
+      const { data: bk, error: bkErr } = await supabase.from('bookings').select('dog_id').eq('id', bookingId).single();
+      if (bkErr) throw bkErr;
+      const { data: user } = await supabase.auth.getUser();
+      if (!bk || !user.user) throw new Error('로그인 정보를 확인하지 못했어요');
+      const { error } = await supabase.from('reviews').insert({
+        booking_id: bookingId,
+        author_id: user.user.id,
+        target_kind: 'dog',
+        target_id: bk.dog_id,
+        rating: stars,          // 1-5 클라이언트 가드 (별점 0이면 여기까지 못 온다)
+        tags,
+        note: note.trim() || null,
+        visibility: privateFlag ? 'platform_only' : 'public',
+      });
+      if (error) throw error;
+    } catch (e) {
+      // 실패는 실패로 — 화면 유지 · 입력 보존 · bookingId 보존 (재시도 경로). 네비게이션 없음.
+      console.warn('[r-review] submit:', (e as Error)?.message ?? e);
+      setBusy(false);
+      setFailed(true);
+      Alert.alert('등록 실패', '리뷰가 저장되지 않았어요 — 다시 시도해주세요');
+      return;
     }
     setBusy(false);
     Alert.alert(
       '리뷰 완료',
-      (saved ? '리뷰가 서버에 저장됐어요.' : '리뷰가 저장됐어요 (오프라인).') +
-        (privateFlag ? '\n비공개 신고는 도그스하이 운영팀만 확인해요.' : '') +
-        '\n보호자 알림은 푸시 연동 시 전송돼요.',
+      '리뷰가 서버에 저장됐어요.' + (privateFlag ? '\n비공개 신고는 도그스하이 운영팀만 확인해요.' : ''),
     );
     runResult.bookingId = null;
     router.dismissTo('/runner/home');
   };
 
-  return (
-    <ScrollView style={{ flex: 1, backgroundColor: colors.cream }} contentContainerStyle={{ padding: 16, paddingTop: 56, paddingBottom: 40 }}>
-      <Text style={{ fontSize: 25.5, fontWeight: '900', color: FOREST, textAlign: 'center' }}>오늘 러닝 어땠나요?</Text>
-      <Text style={{ fontSize: 14, color: colors.dim, textAlign: 'center', marginTop: 5 }}>
-        러너의 리뷰가 다음 러너를 지켜요
-      </Text>
-
-      {/* dog */}
-      <View style={s.dogCard}>
-        <Monogram char={req.dogChar} bg={req.dogColor} size={52} />
-        <View style={{ marginLeft: 12 }}>
-          <Text style={{ fontSize: 18.5, fontWeight: '900', color: FOREST }}>{req.dogName}</Text>
-          <Text style={{ fontSize: 15, color: colors.dim, marginTop: 2 }}>{req.breed} · 5.02km 완주</Text>
+  // 남길 예약이 없으면 폼을 그리지 않는다 — '저장될 것처럼' 보이는 화면이 곧 거짓말이었다
+  if (!bookingId) {
+    return (
+      <View style={s.root}>
+        <View style={s.head}>
+          <Text style={s.kicker}>REVIEW</Text>
+          <Text style={s.title}>리뷰를 남길 예약을 찾지 못했어요</Text>
+          <Text style={s.helper}>러닝을 마치면 이 화면이 다시 열려요</Text>
+        </View>
+        <View style={s.rule} />
+        <View style={s.actions}>
+          <Pressable
+            style={({ pressed }) => [s.cta, pressed && s.ctaPressed]}
+            onPress={() => router.dismissTo('/runner/home')}
+          >
+            <Text style={s.ctaText}>홈으로 돌아가기</Text>
+          </Pressable>
         </View>
       </View>
+    );
+  }
 
-      {/* rating */}
-      <Row style={{ justifyContent: 'center', gap: 8, marginTop: 18 }}>
-        {[1, 2, 3, 4, 5].map((n) => (
-          <Pressable key={n} onPress={() => setStars(n)}>
-            <Text style={{ fontSize: 41.5, color: n <= stars ? '#f2a33c' : '#dcd9cc' }}>★</Text>
-          </Pressable>
-        ))}
+  const dogName = report?.dogName ?? null;
+  const actualKm = report?.run?.actualKm ?? 0;
+  const guardOff = stars === 0;      // 별점 가드 — 명시 fill로 칠하는 유일한 disabled
+  const blocked = guardOff || busy;  // 입력 차단. busy는 disabled로 칠하지 않는다 (버튼 매트릭스 법)
+
+  return (
+    <ScrollView style={s.root} contentContainerStyle={{ paddingBottom: 40 }}>
+      <View style={s.head}>
+        <Text style={s.kicker}>REVIEW</Text>
+        <Text style={s.title}>오늘 러닝 어땠나요?</Text>
+        <Text style={s.helper}>러너의 리뷰가 다음 러너를 지켜요</Text>
+      </View>
+      <View style={s.rule} />
+
+      {/* dog — 실데이터. 불러오는 중엔 '—' (로딩≠0), 실패해도 km는 지어내지 않는다 */}
+      <Row style={s.band}>
+        <View style={[s.mono, !dogName && s.monoOff]}>
+          <Text style={[s.monoChar, !dogName && s.monoCharOff]}>{dogName ? dogName[0] : '—'}</Text>
+        </View>
+        <View style={{ flex: 1, marginLeft: 12 }}>
+          <Text style={s.dogName}>{dogName ?? '—'}</Text>
+          {reportErr ? (
+            <Text style={s.dogErr}>강아지 정보를 불러오지 못했어요</Text>
+          ) : !report ? (
+            <Text style={s.dogMeta}>러닝 기록 불러오는 중...</Text>
+          ) : actualKm > 0 ? (
+            <Text style={s.dogMeta}>{actualKm.toFixed(2)}km 완주</Text>
+          ) : null}
+        </View>
       </Row>
+      <View style={s.rule} />
+
+      {/* rating — 이 화면의 강조는 결정 입력 그 자체 (코랄) */}
+      <View style={s.band}>
+        <Text style={s.label}>별점</Text>
+        <Row style={{ gap: 10 }}>
+          {[1, 2, 3, 4, 5].map((n) => (
+            <Pressable key={n} onPress={() => setStars(n)} hitSlop={4}>
+              <Text style={[s.star, n <= stars && s.starOn]}>★</Text>
+            </Pressable>
+          ))}
+        </Row>
+      </View>
+      <View style={s.rule} />
 
       {/* behavior tags */}
-      <Text style={s.label}>{req.dogName}는 어땠나요?</Text>
-      <Row style={{ flexWrap: 'wrap', gap: 8 }}>
-        {dogReviewTags.map((t) => (
-          <Pressable key={t} onPress={() => toggleTag(t)} style={[s.tag, tags.includes(t) && s.tagSel]}>
-            <Text style={{ fontSize: 14.5, fontWeight: '700', color: tags.includes(t) ? '#fff' : '#3d453d' }}>{t}</Text>
-          </Pressable>
-        ))}
-      </Row>
+      <View style={s.band}>
+        <Text style={s.label}>{dogName ? `${dogName}는 어땠나요?` : '강아지는 어땠나요?'}</Text>
+        <Row style={{ flexWrap: 'wrap', gap: 8 }}>
+          {dogReviewTags.map((t) => (
+            <Pressable key={t} onPress={() => toggleTag(t)} style={[s.tag, tags.includes(t) && s.tagSel]}>
+              <Text style={[s.tagText, tags.includes(t) && s.tagTextSel]}>{t}</Text>
+            </Pressable>
+          ))}
+        </Row>
+      </View>
+      <View style={s.rule} />
 
-      {/* private flag — protects the next runner */}
-      <Pressable onPress={() => setPrivateFlag((v) => !v)} style={[s.flagCard, privateFlag && { borderColor: '#e8b0a0', backgroundColor: '#fdf3f0' }]}>
-        <View style={[s.flagCheck, privateFlag && { backgroundColor: '#e8492a', borderColor: '#e8492a' }]}>
-          {privateFlag && <Text style={{ fontSize: 11.5, fontWeight: '900', color: '#fff' }}>✓</Text>}
+      {/* private flag — 다음 러너를 지키는 신고 어포던스라 critical 계열이 정색(正色) */}
+      <Pressable onPress={() => setPrivateFlag((v) => !v)} style={[s.band, s.flagBand, privateFlag && s.flagBandOn]}>
+        <View style={[s.flagCheck, privateFlag && s.flagCheckOn]}>
+          {privateFlag && <Text style={s.flagTick}>✓</Text>}
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 15.5, fontWeight: '800', color: FOREST }}>고지되지 않은 문제가 있었어요</Text>
-          <Text style={{ fontSize: 14.5, color: colors.dim, marginTop: 2 }}>
-            보호자에게 보이지 않아요 · 운영팀 확인 후 다음 러너 매칭에 반영
-          </Text>
+          <Text style={s.flagTitle}>고지되지 않은 문제가 있었어요</Text>
+          <Text style={s.flagSub}>보호자에게 보이지 않아요 · 운영팀 확인 후 다음 러너 매칭에 반영</Text>
         </View>
       </Pressable>
+      <View style={s.rule} />
 
       {/* note */}
-      <Text style={s.label}>보호자에게 남길 메모 (선택)</Text>
-      <TextInput
-        style={s.noteInput}
-        value={note}
-        onChangeText={setNote}
-        placeholder="다음 러닝에 도움될 정보를 남겨주세요"
-        placeholderTextColor="#a9a795"
-        multiline
-      />
+      <View style={s.band}>
+        <Text style={s.label}>보호자에게 남길 메모 (선택)</Text>
+        <TextInput
+          style={s.noteInput}
+          value={note}
+          onChangeText={setNote}
+          placeholder="다음 러닝에 도움될 정보를 남겨주세요"
+          placeholderTextColor={paper.faint}
+          multiline
+        />
+      </View>
+      <View style={s.rule} />
 
-      <Pressable style={[s.submit, (stars === 0 || busy) && { opacity: 0.4 }]} disabled={stars === 0 || busy} onPress={submit}>
-        <Text style={{ fontSize: 17, fontWeight: '900', color: FOREST }}>{busy ? '저장 중...' : '리뷰 남기기'}</Text>
-      </Pressable>
-      <Pressable style={{ alignItems: 'center', paddingVertical: 13 }} onPress={() => router.dismissTo('/runner/home')}>
-        <Text style={{ fontSize: 14.5, fontWeight: '700', color: colors.dim }}>다음에 할게요</Text>
-      </Pressable>
+      {/* 라우드-페일 — 전송이 실패한 사실은 화면에 남는다 (알럿을 닫아도 사라지지 않음) */}
+      {failed && (
+        <View style={s.failStrip}>
+          <Text style={s.failText}>리뷰가 저장되지 않았어요 — 다시 시도해주세요</Text>
+        </View>
+      )}
+
+      <View style={s.actions}>
+        <Pressable
+          style={({ pressed }) => [s.cta, guardOff && s.ctaOff, pressed && !blocked && s.ctaPressed]}
+          disabled={blocked}
+          onPress={submit}
+        >
+          <Text style={[s.ctaText, guardOff && s.ctaTextOff]}>{busy ? '저장 중...' : '리뷰 남기기'}</Text>
+        </Pressable>
+        {guardOff && <Text style={s.ctaHint}>별점을 선택하면 리뷰를 남길 수 있어요</Text>}
+        <Pressable style={s.quiet} onPress={() => router.dismissTo('/runner/home')}>
+          <Text style={s.quietText}>다음에 할게요</Text>
+        </Pressable>
+      </View>
     </ScrollView>
   );
 }
 
 const s = StyleSheet.create({
-  dogCard: {
-    flexDirection: 'row', alignItems: 'center', alignSelf: 'center',
-    backgroundColor: '#fff', borderRadius: 18, padding: 14, paddingHorizontal: 12,
-    borderWidth: 1, borderColor: '#DCD6C4', marginTop: 18,
-  },
-  label: { fontSize: 15.5, fontWeight: '900', color: FOREST, marginTop: 22, marginBottom: 9 },
-  tag: { backgroundColor: '#fff', borderRadius: 99, paddingVertical: 9, paddingHorizontal: 14, borderWidth: 1, borderColor: '#DCD6C4' },
-  tagSel: { backgroundColor: FOREST, borderColor: FOREST },
-  flagCard: {
-    flexDirection: 'row', alignItems: 'center', gap: 11,
-    backgroundColor: '#fff', borderWidth: 1.4, borderColor: '#DCD6C4', borderRadius: 16,
-    padding: 14, marginTop: 20,
-  },
-  flagCheck: { width: 22, height: 22, borderRadius: 7, borderWidth: 1.6, borderColor: '#dcd9cc', alignItems: 'center', justifyContent: 'center' },
+  // 풀블리드 — 사이드 마진 0, 섹션은 코랄 헤어라인이 화면 끝까지 그어 나눈다
+  root: { flex: 1, backgroundColor: paper.canvas },
+  rule: { height: 1, backgroundColor: paper.line, alignSelf: 'stretch' },
+  head: { paddingHorizontal: 18, paddingTop: 60, paddingBottom: 20 },
+  kicker: { fontSize: 12, letterSpacing: 3, color: paper.faint, marginBottom: 10 }, // 장식 클래스 (14pt 플로어 면제)
+  title: { fontSize: 24, lineHeight: 31, fontWeight: '800', color: paper.ink },
+  helper: { fontSize: 15, lineHeight: 21, fontWeight: '600', color: paper.dim, marginTop: 7 },
+  band: { paddingHorizontal: 18, paddingVertical: 18 },
+
+  // ── 강아지 (실데이터) ──
+  mono: { width: 52, height: 52, backgroundColor: paper.ink, alignItems: 'center', justifyContent: 'center' },
+  monoOff: { backgroundColor: paper.disabledFill },
+  monoChar: { fontSize: 22, fontWeight: '800', color: '#fff' }, // 잉크 fill 위 흰 글자 (hex 감사 KEEP)
+  monoCharOff: { color: paper.faint },
+  dogName: { fontSize: 18.5, lineHeight: 24, fontWeight: '800', color: paper.ink },
+  dogMeta: { fontSize: 15, lineHeight: 20, fontWeight: '600', color: paper.dim, marginTop: 3 },
+  dogErr: { fontSize: 14, lineHeight: 19, fontWeight: '700', color: paper.critical, marginTop: 3 },
+
+  // ── 라벨·입력 ──
+  label: { fontSize: 15.5, lineHeight: 21, fontWeight: '700', color: paper.text, marginBottom: 12 },
+  star: { fontSize: 40, lineHeight: 48, color: paper.faint },
+  starOn: { color: paper.line },
+  tag: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line, paddingVertical: 9, paddingHorizontal: 14 },
+  tagSel: { backgroundColor: paper.ink, borderColor: paper.ink },
+  tagText: { fontSize: 14.5, lineHeight: 19, fontWeight: '700', color: paper.text },
+  tagTextSel: { color: '#fff' },
   noteInput: {
-    backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: '#DCD6C4',
-    padding: 14, minHeight: 80, fontSize: 15.5, color: FOREST, textAlignVertical: 'top',
+    backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line,
+    padding: 13, minHeight: 84, fontSize: 15.5, lineHeight: 21, color: paper.ink, textAlignVertical: 'top',
   },
-  submit: { backgroundColor: colors.volt, borderRadius: 16, alignItems: 'center', paddingVertical: 15, marginTop: 20 },
+
+  // ── 비공개 신고 ──
+  flagBand: { flexDirection: 'row', alignItems: 'center', gap: 11 },
+  flagBandOn: { backgroundColor: paper.criticalWash },
+  flagCheck: { width: 22, height: 22, borderWidth: 1.5, borderColor: paper.faint, alignItems: 'center', justifyContent: 'center' },
+  flagCheckOn: { backgroundColor: paper.critical, borderColor: paper.critical },
+  flagTick: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: '#fff' },
+  flagTitle: { fontSize: 15.5, lineHeight: 21, fontWeight: '800', color: paper.ink },
+  flagSub: { fontSize: 14.5, lineHeight: 20, fontWeight: '600', color: paper.dim, marginTop: 3 },
+
+  // ── 라우드-페일 스트립 (F1.2) ──
+  failStrip: {
+    backgroundColor: paper.criticalWash, borderBottomWidth: 1, borderBottomColor: paper.critical,
+    paddingHorizontal: 18, paddingVertical: 14,
+  },
+  failText: { fontSize: 14.5, lineHeight: 20, fontWeight: '700', color: paper.critical },
+
+  // ── 버튼 매트릭스 (불투명도 트릭 금지 — disabled는 명시 fill) ──
+  actions: { paddingHorizontal: 18, paddingTop: 20 },
+  cta: { backgroundColor: paper.ink, alignItems: 'center', paddingVertical: 17 },
+  ctaPressed: { backgroundColor: paper.text }, // 매트릭스 pressed = #333 (paper.text와 동값)
+  ctaOff: { backgroundColor: paper.disabledFill },
+  ctaText: { fontSize: 17, lineHeight: 23, fontWeight: '800', color: '#fff' },
+  ctaTextOff: { color: paper.faint },
+  ctaHint: { fontSize: 14, lineHeight: 19, fontWeight: '600', color: paper.dim, textAlign: 'center', marginTop: 10 },
+  quiet: { alignItems: 'center', paddingVertical: 15, marginTop: 4 },
+  quietText: { fontSize: 14.5, lineHeight: 19, fontWeight: '700', color: paper.dim },
 });

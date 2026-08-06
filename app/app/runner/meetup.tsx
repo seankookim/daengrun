@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Animated, Easing, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Animated, Easing, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Defs, LinearGradient as SvgLinear, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { Avatar, Row } from '../../src/components/ui';
 import { confirmHandoff, fetchBookingSync, fetchCurrentRunnerJobId, fetchMeetupInfo, MeetupInfo, runnerEnroute, startRunServer, subscribeBooking } from '../../src/lib/api';
@@ -26,19 +26,9 @@ const PERF = '#D8D2EE';     // 천공 점선
 
 type Stage = 'enroute' | 'arrived' | 'waiting' | 'confirmed';
 
-// 네이버 지도 도보 길찾기 — 출발지 생략 시 현재 위치에서 시작 (nmap URL scheme)
-const PICKUP = { lat: 37.5443, lng: 127.0398, name: '서울숲 2번 출입구' };
-
-async function openNaverRoute() {
-  const app = `nmap://route/walk?dlat=${PICKUP.lat}&dlng=${PICKUP.lng}&dname=${encodeURIComponent(PICKUP.name)}&appname=com.daengrun.app`;
-  const web = `https://map.naver.com/p/directions/-/${PICKUP.lng},${PICKUP.lat},${encodeURIComponent(PICKUP.name)}/-/walk`;
-  try {
-    const canApp = await Linking.canOpenURL(app);
-    await Linking.openURL(canApp ? app : web);
-  } catch {
-    Linking.openURL(web).catch(() => {});
-  }
-}
+// [정직 배치 2026-08-06 · item 4 wave-1] 하드코딩 픽업 좌표·주소와 네이버 길찾기 숏컷 은퇴 —
+// 파일럿 동네와 무관한 성동구 좌표였고, bookings.address_id를 읽는 코드는 어디에도 없었다.
+// 실주소는 wave 3(러너용 definer RPC) 몫. 그때까지의 정직한 상태는 '모름'이지 '지어낸 주소'가 아니다.
 
 // 봉인 스탬프 — 빈 자리가 '실제로' 채워지는 순간에만 도장이 내려온다 (클럽 영수증 ② 스탬프 문법).
 // [P2-12 once-law] 첫 동기화가 '이미 봉인된' 상태로 도착하면 = 재진입이다 → 도장을 다시 찍지 않고
@@ -245,14 +235,9 @@ export default function Meetup() {
         {/* pickup info */}
         <View style={s.card}>
           <View pointerEvents="none" style={s.dbl} />
-          <Row style={{ justifyContent: 'space-between', gap: 8 }}>
-            <Text style={s.cardTitle} numberOfLines={1}>{PICKUP.name}</Text>
-            <Pressable onPress={openNaverRoute} style={s.navChip}>
-              <Text style={s.navChipText}>네이버 길찾기 ›</Text>
-            </Pressable>
-          </Row>
+          <Text style={s.cardTitle} numberOfLines={1}>픽업 장소</Text>
           <Text style={s.cardBody}>
-            성동구 뚝섬로 273 · 출입구 옆 벤치에서 만나요 (실주소는 곧){'\n'}
+            픽업 장소는 보호자와 채팅으로 확인해주세요{'\n'}
             {info?.dogMemo ? `보호자 메모: ${info.dogMemo}` : '보호자 메모가 없어요 — 채팅으로 미리 인사해보세요'}
           </Text>
         </View>
@@ -412,9 +397,12 @@ export default function Meetup() {
           </Pressable>
         )}
 
-        <Text style={s.foot}>
-          양측 확인 없이는 러닝이 시작되지 않아요{'\n'}인계 시점부터 펫보험이 적용됩니다
-        </Text>
+        {/* [정직 배치 · item 7] 서명된 보험 증권이 없다 — '인계 시점부터 적용' 주장 은퇴, 협의 중 진실로 */}
+        <Pressable onPress={() => router.push('/safety')} accessibilityRole="link" accessibilityLabel="안심 센터 열기">
+          <Text style={s.foot}>
+            양측 확인 없이는 러닝이 시작되지 않아요{'\n'}펫보험 파트너십 협의 중 — 사고 시 안심 센터에서 바로 도와드려요
+          </Text>
+        </Pressable>
       </ScrollView>
     </View>
   );
@@ -538,8 +526,6 @@ const s = StyleSheet.create({
   dbl: { position: 'absolute', top: 4, left: 4, right: 4, bottom: 4, borderWidth: 1, borderColor: L.hair2, borderRadius: lilacRadius.inner },
   cardTitle: { flexShrink: 1, fontSize: 17, fontWeight: '800', color: L.head },
   cardBody: { fontSize: 14, lineHeight: 20, color: L.text, marginTop: 6 },
-  navChip: { backgroundColor: '#F4F1FE', borderWidth: 1, borderColor: '#DCD6F8', borderRadius: lilacRadius.tag, paddingVertical: 8, paddingHorizontal: 11 },
-  navChipText: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: L.accent },
   peerName: { fontSize: 16.5, lineHeight: 22, fontWeight: '800', color: L.head },
   peerMeta: { fontSize: 14, lineHeight: 19, color: L.dim, marginTop: 3 },
   chatChip: { backgroundColor: L.inset, borderWidth: 1, borderColor: L.hair, borderRadius: lilacRadius.tag, paddingVertical: 9, paddingHorizontal: 11, alignSelf: 'center' },

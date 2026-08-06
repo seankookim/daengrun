@@ -115,6 +115,12 @@ export default function CourseScreen() {
             )}
 
             {/* ---------- 이름 + 핵심 정보 ---------- */}
+            {/* [리뷰 F5] 트레이스 없으면 히어로가 말없이 증발했다 — 정직한 준비 중 슬롯 */}
+            {route.trace.length <= 1 && (
+              <View style={[s.hero, { alignItems: 'center', justifyContent: 'center', minHeight: 120 }]}>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: '#75806f' }}>코스 지도 준비 중</Text>
+              </View>
+            )}
             <Text style={[{ fontSize: 27, color: FOREST, marginTop: 16, fontWeight: '900' }, df]}>{route.name}</Text>
             <Row style={{ gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
               <View style={s.infoChip}><Text style={s.infoChipText}>{route.area}</Text></View>

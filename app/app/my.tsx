@@ -11,7 +11,7 @@ import { Avatar, Row } from '../src/components/ui';
 import { deriveStamps, fetchFitness, fetchMyRunnerStatus, fetchStampStats, StampStats } from '../src/lib/api';
 import { fetchMyProfile, fetchMyRunnerBio, MyProfile, updateMyProfile, updateRunnerBio, uploadAvatar } from '../src/lib/api';
 import { dog, session } from '../src/store';
-import { colors, lilac, lilacRadius, lilacShadow } from '../src/theme';
+import { colors, lilac, lilacRadius, lilacShadow, paper } from '../src/theme';
 
 // 마이 — 여권(PASSPORT) 리페인트. 신분면(이중 프레임·MRZ)·기록면(나이트 라일락)·서류행.
 // 로직 동결: 실프로필(사진·이름·동네)·MENU 라우팅·편집 시트·아바타 업로드는 원본 그대로.
@@ -45,17 +45,27 @@ export default function My() {
   // [정직 수리 2026-08-05] Fitness에는 totalKm/totalRuns가 존재한 적 없다 — f:any가 가리던 채로
   // 주간 수치가 '총 거리/총 횟수'로 표기되던 P1. 보호자는 주간 수치를 주간 라벨로 말한다.
   // 실누적은 리워드 ② 구현에서 실카운트 쿼리와 함께 온다.
-  const [rec, setRec] = useState<{ km: number; runs: number; pace: string } | null>(null);
-  useEffect(() => {
+  const [rec, setRec] = useState<{ km: number; runs: number; pace: string; dogName?: string | null } | null>(null);
+  // [정직 배치 2026-08-06 · item 5] 로딩 ≠ 실패 ≠ 진짜 0. '—'만으론 영원한 로딩과 실패를 구별할 수
+  // 없어 기록면 아래에 라우드 페일 스트립 + 재시도를 단다 (fetchFitness는 이제 실패 시 throw한다).
+  const [recErr, setRecErr] = useState(false);
+  const loadRec = useCallback(() => {
+    setRecErr(false);
     if (isRunner) {
-      fetchMyRunnerStatus().then((r: any) => setRec({ km: r.totalKm ?? 0, runs: r.totalRuns ?? 0, pace: r.paceLabel ?? '—' })).catch(() => {});
-    } else {
-      fetchFitness().then((f) => setRec({
+      fetchMyRunnerStatus()
+        .then((r: any) => setRec({ km: r.totalKm ?? 0, runs: r.totalRuns ?? 0, pace: r.paceLabel ?? '—' }))
+        .catch((e) => { console.warn('[my] runner status:', e?.message ?? e); setRecErr(true); });
+      return;
+    }
+    fetchFitness()
+      .then((f) => setRec({
         km: f.weekKm ?? 0, runs: f.weekRuns ?? 0,
         pace: f.avgPaceSec ? `${Math.floor(f.avgPaceSec / 60)}'${String(f.avgPaceSec % 60).padStart(2, '0')}"` : '—',
-      })).catch(() => {});
-    }
+        dogName: f.dogName ?? null, // [리뷰 F4] 신분면·메뉴 라벨의 목업 초코 은퇴용 실이름
+      }))
+      .catch((e) => { console.warn('[my] fitness:', e?.message ?? e); setRecErr(true); }); // 직전 실값 유지
   }, [isRunner]);
+  useEffect(() => { loadRec(); }, [loadRec]);
   // ③ 도장면 — 파생 실데이터. null = 아직 안 왔거나 실패 = 섹션 통째로 침묵 (로딩은 0이 아니다).
   const [stampStats, setStampStats] = useState<StampStats | null>(null);
   const stamps = useMemo(() => (stampStats ? deriveStamps(stampStats) : null), [stampStats]);
@@ -138,13 +148,18 @@ export default function My() {
       : { glyph: '⌂', label: '주소 관리', desc: '픽업 장소 · 공동현관 정보', path: '/owner/addresses' as const, ink: colors.voltDeep, tint: '#EDF5D8' },
     ...(!isRunner ? [{ glyph: '◉', label: '반려견 프로필', desc: '사진 · 성향 · 러너에게 전달되는 정보', path: '/owner/dog' as const, ink: colors.terra, tint: colors.terraTint }] : []),
     { glyph: '▦', label: '예약 관리', desc: '다가오는 일정과 지난 예약', path: isRunner ? null : ('/owner/schedule' as const), ink: '#4A6E93', tint: '#E3EEF8' },
-    { glyph: '⌗', label: isRunner ? '내 러닝 기록' : `${dog.name}의 기록`, desc: '마이 카드 · 러닝 히스토리', path: '/cards' as const, ink: colors.goldDeep, tint: colors.goldTint },
+    { glyph: '⌗', label: isRunner ? '내 러닝 기록' : (rec?.dogName ? `${rec.dogName}의 기록` : '러닝 기록'), desc: '마이 카드 · 러닝 히스토리', path: '/cards' as const, ink: colors.goldDeep, tint: colors.goldTint }, // [리뷰 F4] 목업 초코 은퇴
     { glyph: '◔', label: '알림', desc: '알림 확인 및 설정', path: '/alerts' as const, ink: colors.clubInk, tint: colors.clubTint },
     { glyph: '⚙', label: '설정', desc: '계정 · 로그아웃 · 문의', path: '/settings' as const, ink: '#586055', tint: '#EFF1EC' },
   ];
 
-  // 신분면 필드 값 (원본 subtitle과 동일 바인딩 — 활동 동네 · 반려견/인증)
-  const districtLine = `${profile?.district ? `${profile.district} · ` : ''}${isRunner ? '신원인증 · 펫보험 가입' : `${dog.name} · ${dog.breed}`}`;
+  // 신분면 필드 값 (원본 subtitle과 동일 바인딩 — 활동 동네 · 반려견)
+  // [정직 배치 2026-08-06 · item 7] 러너 줄의 '신원인증 · 펫보험 가입' 은퇴 — 서명된 보험 증권도,
+  // 신원인증 상태를 읽는 코드도 없다(P1-6). 실등급이 붙기 전까진 활동 동네만 말한다.
+  // [리뷰 F4] 오너 줄의 목업 초코·품종 은퇴 — 실이름 있으면 이름만, 없으면 동네만 (품종 실소스 없음 → 생략)
+  const districtLine = isRunner
+    ? (profile?.district ? profile.district : '—')
+    : [profile?.district, rec?.dogName].filter(Boolean).join(' · ') || '—';
   const passportType = isRunner ? 'RUNNER' : 'OWNER';
   const docNo = profile?.id ? profile.id.replace(/-/g, '').slice(0, 8).toUpperCase() : null;
 
@@ -274,6 +289,15 @@ export default function My() {
             </View>
           </View>
         </Pressable>
+        {/* 기록 로드 실패 — 세 칸의 '—'가 로딩인지 실패인지 여기서 갈린다 (라우드 페일 + 재시도) */}
+        {recErr && (
+          <View style={s.recFail}>
+            <Text style={s.recFailTxt}>러닝 기록을 불러오지 못했어요</Text>
+            <Pressable onPress={loadRec} hitSlop={8} accessibilityRole="button" accessibilityLabel="러닝 기록 다시 불러오기">
+              <Text style={s.recFailRetry}>다시 시도</Text>
+            </Pressable>
+          </View>
+        )}
 
         {/* ————— ③ 도장면 — 비자 페이지 (리워드 ② · 랩 Ⓐ①) —————
             정적면이다: 애니메이션 0. 세리머니는 리포트(런엔드)가 진다 — 벽은 조용한 문서다.
@@ -495,6 +519,14 @@ const s = StyleSheet.create({
   recL: { fontSize: 14, color: 'rgba(255,255,255,0.62)', marginTop: 4 },
   recGoWrap: { marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.13)', alignItems: 'flex-end' },
   recGo: { fontSize: 14, fontWeight: '700', color: '#fff' },
+  // 기록 로드 실패 스트립 (item 5) — 라우드 페일 토큰 전용. 다크 기록면 '밖'에 붙여 대비를 지킨다.
+  recFail: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 9,
+    marginHorizontal: -16, marginTop: 8, paddingVertical: 11, paddingHorizontal: 16, // 풀블리드 (스크롤 패딩 16 상쇄)
+    backgroundColor: paper.canvas, borderTopWidth: 1, borderBottomWidth: 1, borderColor: paper.critical,
+  },
+  recFailTxt: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: paper.critical, flex: 1 },
+  recFailRetry: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },
 
   // 섹션 라벨
   sec: { alignItems: 'center', gap: 8, marginTop: 18, marginBottom: 9, marginHorizontal: 2 },

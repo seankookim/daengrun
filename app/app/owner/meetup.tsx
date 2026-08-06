@@ -106,7 +106,15 @@ export default function OwnerMeetup() {
           router.back();
         }
       })
-      .catch((e) => console.warn('[o-meetup] resolve:', e?.message ?? e));
+      .catch((e) => {
+        // [리뷰 F1] fetchCurrentOwnerBookingId가 이제 네트워크 실패 시 throw — 삼키면 버튼 죽은 유령
+        // 인계 화면이 된다. 정직하게 알리고 재시도/복귀를 준다 (스테이지 머신은 건드리지 않는다).
+        console.warn('[o-meetup] resolve:', e?.message ?? e);
+        Alert.alert('상태를 확인하지 못했어요', '네트워크를 확인하고 다시 시도해주세요', [
+          { text: '다시 시도', onPress: () => { draft.bookingId = null; setBookingId(null); } },
+          { text: '돌아가기', style: 'cancel', onPress: () => router.back() },
+        ]);
+      });
   }, [bookingId]);
 
   // 실컨텍스트 로드 — 러너·강아지·코스 실명
@@ -367,9 +375,11 @@ export default function OwnerMeetup() {
           </View>
         )}
 
-        <Text style={s.foot}>
-          인계 시점부터 펫보험이 적용됩니다{'\n'}러너가 10분 내 도착하지 않으면 자동으로 고객센터가 연결돼요
-        </Text>
+        {/* [정직 배치 · item 7 + P1-22] 서명된 보험 증권도, 10분 자동 에스컬레이션 타이머·채널도 없다.
+            둘 다 은퇴하고 협의 중 진실 한 문장만 남긴다 (탭 → 안심 센터). */}
+        <Pressable onPress={() => router.push('/safety')} accessibilityRole="link" accessibilityLabel="안심 센터 열기">
+          <Text style={s.foot}>펫보험 파트너십 협의 중 — 사고 시 안심 센터에서 바로 도와드려요</Text>
+        </Pressable>
       </ScrollView>
     </View>
   );

@@ -5,7 +5,7 @@ import { Row } from '../../src/components/ui';
 import { fetchFitness, fetchRecentMoments, Fitness, Moment, updateDogGoal } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
-import { lilac, lilacRadius } from '../../src/theme';
+import { lilac, lilacRadius, paper } from '../../src/theme';
 
 // 체력 리포트 — 모프 링의 도착지. 브랜드의 심장: 반려견 피트니스.
 // [2026-08-04 W4] 히어로 = 랩 ①(시네 스트립) 골격 × ③(파노라마 릴) 사진법.
@@ -85,8 +85,16 @@ export default function FitnessHub() {
       .then((ms) => { setMoments(ms); setMomentsErr(false); })
       .catch((e) => { console.warn('[fitness] moments:', e?.message ?? e); setMomentsErr(true); }); // 직전 상태 유지 — []로 덮으면 거짓말
   };
+  // [정직 배치 2026-08-06 · item 5] 체력 실패는 실패로. 로딩('—')과 구별되는 라우드 페일 + 재시도.
+  const [fitErr, setFitErr] = useState(false);
+  const loadFit = () => {
+    setFitErr(false);
+    fetchFitness()
+      .then((f) => { setFit(f); setFitErr(false); })
+      .catch((e) => { console.warn('[fitness]:', e?.message ?? e); setFitErr(true); }); // 직전 실값 유지
+  };
   const load = () => {
-    fetchFitness().then(setFit).catch((e) => console.warn('[fitness]:', e?.message ?? e));
+    loadFit();
     loadMoments();
   };
   useFocusEffect(useCallback(() => { load(); }, []));
@@ -160,6 +168,17 @@ export default function FitnessHub() {
         scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
       >
+        {/* ---------- 체력 로드 실패 스트립 (item 5) — 히어로는 고정 높이 핀 오버레이(모프 배관 불가침)라
+             스크롤 콘텐츠 최상단, 히어로 바로 아래에 붙인다. 히어로의 '—'가 로딩인지 실패인지 여기서 갈린다 ---------- */}
+        {fitErr && (
+          <View style={s.fitFail}>
+            <Text style={s.fitFailTxt}>체력 기록을 불러오지 못했어요</Text>
+            <Pressable onPress={loadFit} hitSlop={8} accessibilityRole="button" accessibilityLabel="체력 기록 다시 불러오기">
+              <Text style={s.fitFailRetry}>다시 시도</Text>
+            </Pressable>
+          </View>
+        )}
+
         {/* ---------- 체력 나이 — 히어로가 헤드라인, 이 카드가 설명 ---------- */}
         <View style={s.card}>
           <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
@@ -441,6 +460,15 @@ function SprocketRow() {
 }
 
 const s = StyleSheet.create({
+  // 체력 로드 실패 스트립 — 라우드 페일 문법(F1.2): 위아래 1px critical 헤어라인 · 14pt/700 critical
+  // 잉크 · 캔버스 바닥 · 재시도는 텍스트 버튼. GUTTER 밖까지 나가는 풀블리드는 음수 마진으로.
+  fitFail: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 9,
+    marginHorizontal: -GUTTER, paddingVertical: 11, paddingHorizontal: GUTTER,
+    backgroundColor: paper.canvas, borderTopWidth: 1, borderBottomWidth: 1, borderColor: paper.critical,
+  },
+  fitFailTxt: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: paper.critical, flex: 1 },
+  fitFailRetry: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },
   // ── 핀 고정 히어로 ──
   heroWrap: {
     position: 'absolute', left: 0, right: 0, top: 0, height: HERO_BIG, zIndex: 20,

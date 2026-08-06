@@ -11,7 +11,8 @@ import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { haptic } from '../../src/lib/haptics';
 import { registerPushToken } from '../../src/lib/push';
-import { Booking, dog, draft, RouteInfo, runners } from '../../src/store';
+// [정직 배치 2026-08-06 · item 5] 목업 dog(초코 상수)·runners 임포트 퇴역 — 홈은 실데이터만 읽는다
+import { Booking, draft, RouteInfo } from '../../src/store';
 import { lilac, lilacRadius, lilacShadow, paper, pricing } from '../../src/theme';
 import { useTheme } from '../../src/theme-context';
 
@@ -300,14 +301,20 @@ export default function OwnerHome() {
     }, 5000);
     return () => clearInterval(id);
   }, [gFlip]);
-  // 링 실데이터 — 완료 러닝 집계 (로드 전엔 0, 가짜 숫자 없음)
+  // 링 실데이터 — 완료 러닝 집계. [정직 배치 2026-08-06 · item 5] 세 상태를 절대 뭉개지 않는다:
+  //   로딩(fit=null, fitErr=false) = 숫자 '—' + 링 빈 채로 (0% 주장 금지)
+  //   실패(fitErr) = 히어로 아래 라우드 페일 스트립 + 재시도 (0주차로 위장 금지)
+  //   실 0주차 = 진짜 0으로 렌더 (지금까지와 동일)
+  // 목업 폴백(dog.name '초코' / dog.weeklyGoalKm 15 / dog.age 3)은 전부 퇴역 — 없는 값은 '—'다.
   const [fit, setFit] = useState<Fitness | null>(null);
-  const weekKm = fit?.weekKm ?? 0;
-  const goalKm = fit?.goalKm ?? dog.weeklyGoalKm;
+  const [fitErr, setFitErr] = useState(false);
+  const weekKm = fit?.weekKm ?? null;
+  const goalKm = fit?.goalKm ?? null;
   const fitnessAge = fit?.fitnessAge ?? null;
-  const dogName = fit?.dogName ?? dog.name; // 실반려견 이름 (프로필 위저드 반영)
-  const pct = goalKm > 0 ? weekKm / goalKm : 0;
-  const goalHit = pct >= 1;
+  const ageYears = fit?.ageYears ?? null; // 생일 기준 실나이 — 없으면 ▼칩 자체를 안 그린다
+  const dogName = fit?.dogName ?? null; // 실반려견 이름 (프로필 위저드 반영)
+  const pct = fit && goalKm != null && goalKm > 0 ? fit.weekKm / goalKm : 0;
+  const goalHit = fit != null && pct >= 1;
   // 요일 스탬프 — 이번 주(KST 월~일) 러닝 요일 + 오늘 하이라이트
   const runDays = fit?.runDays ?? [];
   const runDayCount = runDays.filter(Boolean).length;
@@ -338,6 +345,14 @@ export default function OwnerHome() {
     setHeroCollapsed((prev) => (prev === c ? prev : c));
   };
 
+  // 체력 로드 — 실패는 실패로 표시하고 재시도 문을 연다 (조용한 console.warn만으론 로딩과 구별 불가)
+  const loadFitness = useCallback(() => {
+    setFitErr(false);
+    fetchFitness()
+      .then((f) => { setFit(f); setFitErr(false); })
+      .catch((e) => { console.warn('[home] fitness:', e?.message ?? e); setFitErr(true); }); // 직전 실값은 유지
+  }, []);
+
   // 실예약 next booking — 위젯이 진짜 다음 일정을 보여준다 (없으면 목업)
   const [liveNext, setLiveNext] = useState<Booking | null>(null);
   const [lastDone, setLastDone] = useState<Booking | null>(null);
@@ -366,7 +381,7 @@ export default function OwnerHome() {
         setLastDone(bs.find((b) => b.status === 'completed') ?? null);
       })
       .catch((e) => console.warn('[home] bookings:', e?.message ?? e));
-    fetchFitness().then(setFit).catch((e) => console.warn('[home] fitness:', e?.message ?? e));
+    loadFitness();
     fetchUnreadCount().then(setUnread).catch((e) => console.warn('[home] unread:', e?.message ?? e));
     fetchMyProfile().then(setMe).catch((e) => console.warn('[home] me:', e?.message ?? e));
     fetchRecentMoments().then(setMoments).catch((e) => console.warn('[home] moments:', e?.message ?? e));
@@ -658,7 +673,7 @@ export default function OwnerHome() {
           {/* 그리팅 — 브랜드 행 아래로 내려앉아 히어로와의 갭을 봉합. 유틸 버튼이 위로 가며 전폭 확보 */}
           <View style={s.headerRow}>
             {/* pfp — 보호자 프로필 사진 (profiles.avatar_url), 없으면 모노그램. 홈 상단의 '나' 자리 */}
-            <Avatar url={me?.avatarUrl} char={(me?.name ?? dogName)[0]} bg={lilac.accent} size={34} />
+            <Avatar url={me?.avatarUrl} char={(me?.name ?? dogName ?? '나')[0]} bg={lilac.accent} size={34} />
             <View style={{ flex: 1, marginLeft: 9 }}>
               {/* 원라인 모토 — 전폭. 문구별 폭 차이는 adjustsFontSizeToFit이 흡수 */}
               <Animated.Text
@@ -674,7 +689,8 @@ export default function OwnerHome() {
                 adjustsFontSizeToFit
                 minimumFontScale={0.55}
               >
-                {GREETINGS[gIdx]}, <Text style={{ color: lilac.accent }}>우리 {dogName}</Text>
+                {/* 이름을 아직(또는 끝내) 모르면 이름 조각을 붙이지 않는다 — 목업 '초코'는 퇴역 */}
+                {GREETINGS[gIdx]}{dogName ? <Text style={{ color: lilac.accent }}>, 우리 {dogName}</Text> : ''}
               </Animated.Text>
             </View>
           </View>
@@ -736,25 +752,28 @@ export default function OwnerHome() {
               }}
               style={[s.info, { opacity: infoOpacity, transform: [{ translateX: infoX }] }]}
             >
-              <Text style={{ fontSize: 14, lineHeight: 18, fontWeight: '700', color: hp.textSoft }}>{dogName}의 주간 목표</Text>
+              <Text style={{ fontSize: 14, lineHeight: 18, fontWeight: '700', color: hp.textSoft }}>{dogName ? `${dogName}의 ` : ''}주간 목표</Text>
               <Text style={{ marginTop: 1, lineHeight: 38 }}>
                 <Text style={[{ fontSize: 31, fontWeight: '900', color: lilac.head }, nf]}>
-                  {weekKm}
+                  {weekKm ?? '—'}
                 </Text>
-                <Text style={{ fontSize: 14, color: hp.dim }}> / {goalKm} km</Text>
+                <Text style={{ fontSize: 14, color: hp.dim }}> / {goalKm ?? '—'} km</Text>
               </Text>
               <Text style={{ fontSize: 14, lineHeight: 18, color: hp.textSoft, marginTop: 2 }}>
-                {fitnessAge != null
-                  ? `체력 나이 ${fitnessAge}살 · 실제보다 젊어요`
-                  : fit?.fitnessGate?.reason === 'runs'
-                    ? `${(fit.fitnessGate as any).left}번 더 달리면 체력 나이 측정`
-                    : fit?.fitnessGate?.reason === 'birth'
-                      ? '생일 등록하면 체력 나이 측정 시작'
-                      : '체력 나이 측정 준비 중'}
+                {fit == null
+                  ? '—' /* [리뷰 F6] 로딩·실패 중엔 측정 상태를 주장하지 않는다 */
+                  : fitnessAge != null
+                    ? `체력 나이 ${fitnessAge}살 · 실제보다 젊어요`
+                    : fit?.fitnessGate?.reason === 'runs'
+                      ? `${(fit.fitnessGate as any).left}번 더 달리면 체력 나이 측정`
+                      : fit?.fitnessGate?.reason === 'birth'
+                        ? '생일 등록하면 체력 나이 측정 시작'
+                        : '체력 나이 측정 준비 중'}
               </Text>
-              {/* 미니바 은퇴 — 진행바는 링에서 풀려 내려온 도트 라인이 담당 */}
+              {/* 미니바 은퇴 — 진행바는 링에서 풀려 내려온 도트 라인이 담당.
+                  로딩·실패 중엔 '0% 달성'을 주장하지 않는다 (줄 수는 유지 — 모프 진행선 Y 실측 안정) */}
               <Text style={[{ fontSize: 14, lineHeight: 18, fontWeight: '800', color: lilac.coralDeep, marginTop: 2 }, nf]}>
-                {Math.round(pct * 100)}% 달성
+                {fit ? `${Math.round(pct * 100)}% 달성` : '진행률 —'}
               </Text>
             </Animated.View>
 
@@ -819,14 +838,14 @@ export default function OwnerHome() {
                 style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', opacity: centerOpacity }}
               >
                 {/* km 한 줄 — 링 도트를 가로지르므로 4px 카드색 헤일로로 도트에서 떼어낸다 (랩 box-shadow 0 0 0 4px --card).
-                    숫자는 weekKm/goalKm 둘 뿐 — 목표는 여기서 계속 보인다 (정직: 로딩 전 0은 기존 가드 그대로). */}
+                    숫자는 weekKm/goalKm 둘 뿐 — 목표는 여기서 계속 보인다 (로딩·실패는 '—', 0을 주장하지 않는다). */}
                 <View style={[s.goHalo, { marginBottom: 8, backgroundColor: GO_TINT[goState] }]}>
                   <View style={s.goPill}>
                     {/* 줄박스는 바깥 lineHeight 27(=22×1.23)이 지배 — Oswald 스팬에도 같은 값을 명시(숫자법) */}
                     <Text style={{ lineHeight: 27 }} numberOfLines={1}>
                       <Text style={{ fontSize: 14, fontWeight: '700', letterSpacing: 0.4, color: hp.dim }}>오늘까지 </Text>
-                      <Text style={[{ fontSize: 22, lineHeight: 27, fontWeight: '900', color: lilac.head }, nf]}>{weekKm}</Text>
-                      <Text style={{ fontSize: 14, fontWeight: '600', color: hp.dim }}> / {goalKm} km</Text>
+                      <Text style={[{ fontSize: 22, lineHeight: 27, fontWeight: '900', color: lilac.head }, nf]}>{weekKm ?? '—'}</Text>
+                      <Text style={{ fontSize: 14, fontWeight: '600', color: hp.dim }}> / {goalKm ?? '—'} km</Text>
                     </Text>
                   </View>
                 </View>
@@ -867,10 +886,11 @@ export default function OwnerHome() {
                         행을 지배해 센터 스택이 216을 넘는다 (세로 예산은 s.goDisc 주석 참조) */}
                     <Text style={{ fontSize: 14, lineHeight: 18, fontWeight: '800', color: hp.textSoft }}>체력 나이</Text>
                     <Text style={[{ fontSize: 14, lineHeight: 18, fontWeight: '900', color: lilac.accent }, nf]}>
-                      {fitnessAge != null ? `${fitnessAge}살` : '측정 전'}
+                      {fit == null ? '—' : fitnessAge != null ? `${fitnessAge}살` : '측정 전'}{/* [리뷰 F6] 로딩≠측정 전 */}
                     </Text>
-                    {fitnessAge != null && (
-                      <Text style={[{ fontSize: 14, lineHeight: 18, fontWeight: '800', color: lilac.coralDeep }, nf]}>▼{Math.max(dog.age - fitnessAge, 0).toFixed(1)}</Text>
+                    {/* ▼ 델타는 실나이(생일 파생 ageYears)가 있을 때만 — 목업 상수 3살 퇴역 (item 5/P1-9) */}
+                    {fitnessAge != null && ageYears != null && (
+                      <Text style={[{ fontSize: 14, lineHeight: 18, fontWeight: '800', color: lilac.coralDeep }, nf]}>▼{Math.max(ageYears - fitnessAge, 0).toFixed(1)}</Text>
                     )}
                   </View>
                 </View>
@@ -915,6 +935,18 @@ export default function OwnerHome() {
       >
         {/* [2026-08-06 Sean] 3열 스탯 셀 은퇴 — 모프 아래·클럽 위 정보 상자 제거 지시.
             연속일·주간회수·페이스는 피트니스 리포트가 계속 담당한다 (정보 소실 아님, 위치 이동). */}
+
+        {/* ── 체력 로드 실패 스트립 (item 5) — 히어로 바로 아래, 풀블리드 라우드 페일.
+            히어로는 핀 고정 오버레이(고정 높이 · 모프 실측)라 안쪽에 넣지 않는다: 모프 배관 불가침.
+            홈은 이번 배치의 리페인트 대상이 아니므로 유일한 시각 추가가 이 스트립이다 (토큰 전용). */}
+        {fitErr && (
+          <View style={s.fitFail}>
+            <Text style={s.fitFailTxt}>체력 기록을 불러오지 못했어요</Text>
+            <Pressable onPress={loadFitness} hitSlop={8} accessibilityRole="button" accessibilityLabel="다시 시도">
+              <Text style={s.fitFailRetry}>다시 시도</Text>
+            </Pressable>
+          </View>
+        )}
 
         {/* ═══ 오늘의 티켓 (owner-4 보딩패스) — 임박 예약(가장 액션 가능한 실예약)을 보딩패스로.
              상단=사실, 스텁=액션. 상태 태그는 실상태 텍스트. 예약 없으면 부재 안내. ═══ */}
@@ -1156,7 +1188,7 @@ export default function OwnerHome() {
           <View style={s.bookFacts}>
             <View style={{ flex: 1, paddingRight: 10 }}>
               <Text style={{ fontSize: 14, fontWeight: '700', color: lilac.head }} numberOfLines={1}>
-                {dogName} · {bookKm}km{lastDone?.routeName ? ` · ${lastDone.routeName}` : ''}
+                {dogName ? `${dogName} · ` : ''}{bookKm}km{lastDone?.routeName ? ` · ${lastDone.routeName}` : ''}
               </Text>
               <Text style={{ fontSize: 14, color: lilac.dim, marginTop: 2 }}>지난 러닝 그대로 채워뒀어요</Text>
             </View>
@@ -1221,11 +1253,12 @@ export default function OwnerHome() {
           </View>
         )}
 
-        {/* ---------- retention nudges (실데이터 기반, ui-audit P2) ---------- */}
-        {weekKm > 0 && weekKm < goalKm && new Date().getDay() >= 4 && (
+        {/* ---------- retention nudges (실데이터 기반, ui-audit P2) ----------
+             체력이 로드되기 전(또는 실패)엔 넛지 없음 — 없는 숫자로 재촉하지 않는다 */}
+        {fit != null && fit.weekKm > 0 && fit.weekKm < fit.goalKm && new Date().getDay() >= 4 && (
           <Pressable onPress={() => router.push('/owner/request')} style={[s.nudge, { backgroundColor: p.card }]}>
             <Text style={{ flex: 1, fontSize: 14, fontWeight: '800', color: p.textStrong }}>
-              주간 목표까지 <Text style={{ color: lilac.coralDeep, fontWeight: '900', fontSize: 14 }}>{Math.round((goalKm - weekKm) * 10) / 10}km</Text> — 주말 러닝으로 채워볼까요?
+              주간 목표까지 <Text style={{ color: lilac.coralDeep, fontWeight: '900', fontSize: 14 }}>{Math.round((fit.goalKm - fit.weekKm) * 10) / 10}km</Text> — 주말 러닝으로 채워볼까요?
             </Text>
             <Text style={{ fontSize: 14, color: lilac.accent, fontWeight: '900' }}>예약 ›</Text>
           </Pressable>
@@ -1256,7 +1289,7 @@ export default function OwnerHome() {
           <View style={{ marginTop: 16 }}>
             <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 7, marginBottom: 9, paddingHorizontal: 14 }}>
               <Text style={[s.sectionTitle, { color: p.textStrong }]}>최근 순간</Text>
-              <Text style={{ fontSize: 14, color: p.dim }}>러너가 담아온 {dogName}의 러닝</Text>
+              <Text style={{ fontSize: 14, color: p.dim }}>러너가 담아온 {dogName ? `${dogName}의 ` : ''}러닝</Text>
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 9, paddingLeft: 14, paddingRight: 12 }}>
               {moments.map((m, mi) => (
@@ -1636,6 +1669,15 @@ const s = StyleSheet.create({
     borderLeftWidth: 2.5, borderLeftColor: lilac.coral, paddingVertical: 11, paddingHorizontal: 14,
     ...lilacShadow,
   },
+  // 체력 로드 실패 스트립 (item 5) — 라우드 페일 문법: 풀블리드, 위아래 1px critical 헤어라인,
+  // 14pt/700 critical 잉크, 캔버스 바닥, 재시도는 텍스트 버튼. 후속 홈 리페인트에서도 살아남는다.
+  fitFail: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 9,
+    backgroundColor: paper.canvas, borderTopWidth: 1, borderBottomWidth: 1, borderColor: paper.critical,
+    paddingVertical: 11, paddingHorizontal: 14, marginBottom: 4,
+  },
+  fitFailTxt: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: paper.critical, flex: 1 },
+  fitFailRetry: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },
   safetyStrip: {
     flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: 0,
     paddingVertical: 11, paddingHorizontal: 14, marginTop: 12, // [풀블리드] 내부 거터 14

@@ -56,18 +56,9 @@ export const dog = {
 // Heat trace: route points in 0..1 coords, v = normalized speed (1 = fastest).
 export interface TracePoint { x: number; y: number; v: number }
 
-export const lastRunTrace: TracePoint[] = [
-  { x: 0.08, y: 0.86, v: 0.2 }, { x: 0.12, y: 0.78, v: 0.3 }, { x: 0.14, y: 0.69, v: 0.4 },
-  { x: 0.18, y: 0.61, v: 0.5 }, { x: 0.24, y: 0.55, v: 0.6 }, { x: 0.31, y: 0.52, v: 0.75 },
-  { x: 0.38, y: 0.48, v: 0.9 }, { x: 0.45, y: 0.43, v: 1.0 }, { x: 0.52, y: 0.38, v: 0.95 },
-  { x: 0.58, y: 0.32, v: 0.8 }, { x: 0.63, y: 0.25, v: 0.6 }, { x: 0.67, y: 0.18, v: 0.4 },
-  { x: 0.72, y: 0.13, v: 0.3 }, { x: 0.78, y: 0.11, v: 0.45 }, { x: 0.84, y: 0.14, v: 0.6 },
-  { x: 0.88, y: 0.21, v: 0.75 }, { x: 0.90, y: 0.30, v: 0.85 }, { x: 0.89, y: 0.39, v: 0.7 },
-  { x: 0.85, y: 0.47, v: 0.55 }, { x: 0.79, y: 0.53, v: 0.5 }, { x: 0.72, y: 0.58, v: 0.65 },
-  { x: 0.65, y: 0.64, v: 0.8 }, { x: 0.58, y: 0.70, v: 0.9 }, { x: 0.51, y: 0.76, v: 0.75 },
-  { x: 0.44, y: 0.81, v: 0.55 }, { x: 0.36, y: 0.85, v: 0.4 }, { x: 0.28, y: 0.87, v: 0.3 },
-  { x: 0.20, y: 0.88, v: 0.2 },
-];
+// [정직 배치 2026-08-06 · item 2/6] lastRunTrace 퇴역 — 소비처 0. 이 28점짜리 목업 폴리라인은
+// 라이브 화면의 데모 지도(가짜 러닝)와 sampleRoutes의 코스 모양 두 곳에서만 쓰였고, 둘 다 죽었다.
+// 실좌표는 러너 GPS(subscribePos)와 routes.trace뿐이다.
 
 // [정직 수리 2026-08-05] CardTier/CollectCard/myCards 퇴역 — 조작 기록(5.02km 러닝·가짜 스트릭·없는 한강 시리즈)을
 // cards.tsx와 오너 홈 '최근 기록'에 실데이터처럼 그리던 목업. 실파생 후계자 = 코스 패치 월(fetchCoursePatches).
@@ -116,64 +107,17 @@ export interface RouteInfo {
   terrain: string;
   tags: string[];
   features: { g: string; label: string }[]; // 뷰/식수/공원/흙길/도심 등
-  fit: number; // 초코 기준 적합도 % (mock)
+  // [정직 배치 2026-08-06 · item 6] fit(적합도 %) 필드 퇴역 — 실 스코어러가 앱에도 서버에도 없다.
+  // 목업 96/88/82/74가 요청 화면에 '적합도'로 실측처럼 찍히던 P0-5. 실산식이 생기면 그때 되돌아온다.
   checkedAt: string; // 마지막 안전 점검일
   desc: string;
   trace: TracePoint[];
 }
 
-const riverTrace: TracePoint[] = [
-  { x: 0.05, y: 0.62, v: 0.3 }, { x: 0.16, y: 0.5, v: 0.3 }, { x: 0.28, y: 0.44, v: 0.3 },
-  { x: 0.4, y: 0.46, v: 0.3 }, { x: 0.52, y: 0.54, v: 0.3 }, { x: 0.64, y: 0.56, v: 0.3 },
-  { x: 0.76, y: 0.48, v: 0.3 }, { x: 0.88, y: 0.38, v: 0.3 }, { x: 0.95, y: 0.3, v: 0.3 },
-];
-
-const forestTrace: TracePoint[] = [
-  { x: 0.15, y: 0.8, v: 0.3 }, { x: 0.3, y: 0.6, v: 0.3 }, { x: 0.22, y: 0.4, v: 0.3 },
-  { x: 0.42, y: 0.3, v: 0.3 }, { x: 0.6, y: 0.42, v: 0.3 }, { x: 0.55, y: 0.62, v: 0.3 },
-  { x: 0.75, y: 0.72, v: 0.3 }, { x: 0.85, y: 0.55, v: 0.3 },
-];
-
-const longTrace: TracePoint[] = [
-  { x: 0.05, y: 0.85, v: 0.3 }, { x: 0.2, y: 0.7, v: 0.3 }, { x: 0.32, y: 0.5, v: 0.3 },
-  { x: 0.45, y: 0.35, v: 0.3 }, { x: 0.6, y: 0.25, v: 0.3 }, { x: 0.75, y: 0.22, v: 0.3 },
-  { x: 0.88, y: 0.3, v: 0.3 }, { x: 0.94, y: 0.45, v: 0.3 }, { x: 0.88, y: 0.6, v: 0.3 },
-];
-
-export const sampleRoutes: RouteInfo[] = [
-  {
-    id: 'seoulforest-loop', name: '서울숲 순환 코스', area: '반포동', km: 5, terrain: '흙길 70%',
-    tags: ['중형견 최적', '그늘 많음', '식수대 2곳'],
-    features: [{ g: '❋', label: '공원' }, { g: '⏚', label: '흙길' }, { g: '♒', label: '식수대 2곳' }, { g: '☂', label: '그늘' }],
-    fit: 96, checkedAt: '7.18 점검',
-    desc: '자전거도로와 완전 분리된 순환로. 초코의 페이스와 슬개골 메모에 잘 맞아요.',
-    trace: lastRunTrace,
-  },
-  {
-    id: 'ttukseom-river', name: '뚝섬 리버뷰 코스', area: '뚝섬한강공원', km: 5, terrain: '포장 60%',
-    tags: ['리버뷰', '평지', '야간 조명'],
-    features: [{ g: '♒', label: '리버뷰' }, { g: '—', label: '평지' }, { g: '☀', label: '야간 조명' }, { g: '⌂', label: '도심 접근' }],
-    fit: 88, checkedAt: '7.20 점검',
-    desc: '한강을 따라 달리는 시원한 직선 코스. 저녁 러닝에 인기.',
-    trace: riverTrace,
-  },
-  {
-    id: 'forest-short', name: '서울숲 숲길 3km', area: '반포동', km: 3, terrain: '흙길 90%',
-    tags: ['소형견·시니어', '완만', '조용함'],
-    features: [{ g: '❋', label: '숲길' }, { g: '⏚', label: '흙길 90%' }, { g: '◡', label: '완만' }, { g: '♪', label: '조용함' }],
-    fit: 82, checkedAt: '7.15 점검',
-    desc: '짧고 부드러운 숲길. 회복 러닝이나 컨디션 낮은 날 추천.',
-    trace: forestTrace,
-  },
-  {
-    id: 'han-7k', name: '뚝섬–잠원 7km', area: '한강', km: 7, terrain: '포장 80%',
-    tags: ['고에너지견', '장거리', '한강 시리즈'],
-    features: [{ g: '♒', label: '리버뷰' }, { g: '⇢', label: '장거리' }, { g: '⌂', label: '도심' }, { g: '✦', label: '에픽 코스' }],
-    fit: 74, checkedAt: '7.19 점검',
-    desc: '에너지 넘치는 날을 위한 장거리. 한강 시리즈 에픽 카드 코스.',
-    trace: longTrace,
-  },
-];
+// [정직 배치 2026-08-06 · item 6] sampleRoutes(+riverTrace/forestTrace/longTrace) 퇴역 — 소비처 0.
+// 마지막 소비처였던 요청 캐러셀 시드(request.tsx)와 일정 시트의 코스 카드(schedule.tsx)가
+// 실코스(fetchRoutes)·실예약 필드로 갈아탔다. 목업 적합도·'초코의 슬개골 메모' 개인화 문구·
+// 가짜 폴리라인·'7.18 점검' 도장이 실코스로 위장하던 소스가 여기였다.
 
 // ---------- Bookings (calendar mock) ----------
 // handoff = picked_up: 인계 완료·시작 대기 — active(러닝 중)와 구분해야 라이브 UI가 조기 점화 안 됨
@@ -188,7 +132,7 @@ export interface Booking {
   dogCollar?: string | null; // 칼라 컬러 키 (0033) — theme.collarColors
   runnerId: string;
   runnerName: string;
-  routeId: string;
+  routeId: string | null; // 실 route_id (없는 예약도 있다 — '서울숲' 목업 스탬프 퇴역, item 6)
   routeName: string;
   km: number;
   paceLabel: string; // 요청 페이스

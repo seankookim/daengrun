@@ -6,8 +6,8 @@ import { addDog, Addr, AvailRule, confirmPayment, createBookingHold, createRecur
 import { HeatTrace } from '../../src/components/runcard';
 import { Avatar, Row } from '../../src/components/ui';
 import { haptic } from '../../src/lib/haptics';
-import { AddonKey, dog, draft, fmtWon, sampleRoutes } from '../../src/store';
-import { colors, pricing } from '../../src/theme';
+import { AddonKey, dog, draft, fmtWon, RouteInfo } from '../../src/store';
+import { colors, paper, pricing } from '../../src/theme';
 
 // 러닝 요청 — route carousel (도그스하이 안심 코스), time-slot bottom sheet,
 // slot-hold countdown on pay. See docs/calendar.md.
@@ -51,8 +51,11 @@ export default function Request() {
   const [routeId, setRouteId] = useState(draft.routeId);
   // 시간은 명시 선택 필수 — 라벨과 실예약 시각이 어긋나는 정직성 버그 방지 (ui-audit P0)
   const [timeLabel, setTimeLabel] = useState(draft.scheduledAtIso ? draft.timeLabel : '시간을 선택해주세요');
-  const [routes, setRoutes] = useState(sampleRoutes);
-  const [routesLive, setRoutesLive] = useState(false);
+  // [정직 배치 2026-08-06 · item 6/P2-6] 목업 캐러셀 시드(sampleRoutes) 은퇴 — 예약 불가능한
+  // 가짜 재고를 '예약 가능한 코스'로 그리던 자리다. 로딩 ≠ 실패 ≠ 진짜 0건을 각각 말한다.
+  const [routes, setRoutes] = useState<RouteInfo[]>([]);
+  const [routesState, setRoutesState] = useState<'loading' | 'ready' | 'error'>('loading');
+  const routesLive = routesState === 'ready' && routes.length > 0;
   const [myDogs, setMyDogs] = useState<DogProfile[]>([]);
   const [pickupAddr, setPickupAddr] = useState<Addr | null>(null);
   const [dogIdx, setDogIdx] = useState(0);
@@ -79,17 +82,19 @@ export default function Request() {
     setKm(DISTANCES.reduce((a, b) => (Math.abs(b - r.km) < Math.abs(a - r.km) ? b : a)));
   }, [paramRouteId, routes]);
 
-  // 첫 실화(實化) 지점: 안심 코스는 서버에서 온다. 실패 시 목업 유지.
-  useEffect(() => {
+  // 안심 코스는 서버에서만 온다 — 실패하면 실패라고 말한다 (목업 폴백 은퇴).
+  const loadRoutes = () => {
+    setRoutesState('loading');
     fetchRoutes()
       .then((r) => {
-        if (r.length > 0) {
-          setRoutes(r);
-          setRoutesLive(true);
-          if (!r.some((x) => x.id === draft.routeId)) setRouteId(r[0].id);
-        }
+        setRoutes(r);
+        setRoutesState('ready');
+        if (r.length > 0 && !r.some((x) => x.id === draft.routeId)) setRouteId(r[0].id);
       })
-      .catch(() => {});
+      .catch((e) => { console.warn('[request] routes:', e?.message ?? e); setRoutesState('error'); });
+  };
+  useEffect(() => {
+    loadRoutes();
     fetchMyDogs().then(setMyDogs).catch(() => {});
     fetchAddresses().then((l) => setPickupAddr(l.find((a) => a.isDefault) ?? l[0] ?? null)).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -123,7 +128,8 @@ export default function Request() {
 
   const addonSum = addons.reduce((s2, k) => s2 + pricing.addons[k].price, 0);
   const total = pricing.baseFare + km * pricing.perKm + addonSum;
-  const bestRoute = routes.reduce((a, b) => (a.fit > b.fit ? a : b));
+  // [정직 배치 2026-08-06 · item 6] bestRoute(적합도 최대값) 선택자 퇴역 — 근거가 목업 fit 하나였다.
+  // 실 스코어러가 생기기 전까진 추천 코스라는 말을 하지 않는다. 모든 코스는 '안심 코스'다.
 
   const toggleAddon = (k: AddonKey) =>
     setAddons((a) => (a.includes(k) ? a.filter((x) => x !== k) : [...a, k]));
@@ -342,7 +348,7 @@ export default function Request() {
           })}
         </Row>
 
-        {/* ---------- 안심 코스 carousel (live from Supabase, mock fallback) ---------- */}
+        {/* ---------- 안심 코스 carousel (서버 실코스 전용 — 목업 폴백 은퇴) ---------- */}
         <SectionHead
           glyph="✓"
           title="코스 선택"
@@ -352,23 +358,31 @@ export default function Request() {
         <Text style={{ fontSize: 14, color: '#82887a', marginBottom: 10 }}>
           픽업 후 코스까지는 러너가 아이와 함께 이동해요
         </Text>
+        {/* 로딩 ≠ 실패 ≠ 진짜 0건 — 셋을 각각 말한다 (실패는 라우드 페일 스트립 + 재시도) */}
+        {routesState === 'error' ? (
+          <View style={s.routeFailStrip}>
+            <Text style={s.routeFailTxt}>코스를 불러오지 못했어요 — 이대로 예약하면 코스 없이 접수돼요</Text>
+            <Pressable onPress={loadRoutes} hitSlop={8} accessibilityRole="button" accessibilityLabel="다시 시도">
+              <Text style={s.routeFailRetry}>다시 시도</Text>
+            </Pressable>
+          </View>
+        ) : routesState === 'loading' ? (
+          <Text style={s.routeNote}>코스를 불러오는 중...</Text>
+        ) : routes.length === 0 ? (
+          <Text style={s.routeNote}>지금 예약할 수 있는 코스가 없어요 — 이대로 예약하면 코스 없이 접수돼요</Text>
+        ) : null}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingRight: 12 }}>
           {routes.map((r) => {
             const sel = routeId === r.id;
-            const isBest = r.id === bestRoute.id;
             return (
               <Pressable
                 key={r.id}
                 onPress={() => setRouteId(r.id)}
-                style={[s.routeCard, isBest && { backgroundColor: '#DDF0A6', borderColor: '#c3dd76' }, sel && { borderColor: colors.volt, borderWidth: 2 }]}
+                style={[s.routeCard, sel && { borderColor: colors.volt, borderWidth: 2 }]}
               >
-                <View style={[s.routeTab, !isBest && { backgroundColor: FOREST }]}>
-                  <Text style={{ fontSize: 14, fontWeight: '900', color: isBest ? colors.volt : '#fff' }}>
-                    {isBest ? '★ 추천 코스' : '안심 코스'}
-                  </Text>
-                </View>
-                <View style={s.fitPillR}>
-                  <Text style={{ fontSize: 14, fontWeight: '900', color: FOREST }}>적합도 {r.fit}%</Text>
+                {/* 적합도·★추천 배지 퇴역 (item 6) — 실 스코어러 없음. 모든 코스는 동등한 '안심 코스' */}
+                <View style={[s.routeTab, { backgroundColor: FOREST }]}>
+                  <Text style={{ fontSize: 14, fontWeight: '900', color: '#fff' }}>안심 코스</Text>
                 </View>
 
                 <Row style={{ gap: 5, marginTop: 22 }}>
@@ -388,7 +402,14 @@ export default function Request() {
                 )}
 
                 <View style={s.routeMap}>
-                  <HeatTrace points={r.trace} width={208} height={92} />
+                  {/* 실좌표(routes.trace)가 없으면 코스 모양을 지어내지 않는다 — 빈 슬롯이 정직 */}
+                  {r.trace.length > 1 ? (
+                    <HeatTrace points={r.trace} width={208} height={92} />
+                  ) : (
+                    <View style={s.mapPending}>
+                      <Text style={s.mapPendingTxt}>코스 지도 준비 중</Text>
+                    </View>
+                  )}
                   {/* 코스 미리보기 — 트레이스·설명·점검일·우리 기록 (탭=선택은 카드가, 미리보기는 이 칩만) */}
                   <Pressable onPress={() => router.push(`/course/${r.id}`)} style={s.previewChip} hitSlop={6}>
                     <Text style={{ fontSize: 14, fontWeight: '900', color: FOREST }}>미리보기 ›</Text>
@@ -397,7 +418,7 @@ export default function Request() {
 
                 <Row style={{ gap: 4, marginTop: 9, flexWrap: 'wrap' }}>
                   {r.tags.map((tag) => (
-                    <View key={tag} style={[s.routeTag, isBest && { backgroundColor: '#ffffffcc' }]}>
+                    <View key={tag} style={s.routeTag}>
                       <Text style={{ fontSize: 14, fontWeight: '800', color: '#4a6d1f' }}>{tag}</Text>
                     </View>
                   ))}
@@ -461,7 +482,7 @@ export default function Request() {
               {myDog?.name ?? dog.name} · <Text style={{ color: colors.tang }}>{km}km</Text> · {pace}
             </Text>
             <Text style={{ fontSize: 14.5, color: '#b8c4ae', marginTop: 2 }} numberOfLines={1}>
-              {routes.find((r) => r.id === routeId)?.name ?? '코스 선택'}
+              {routes.find((r) => r.id === routeId)?.name ?? '코스 없이 예약돼요'}{/* [리뷰 F3] '코스 선택'은 불가능한 지시였다 — 정직하게 결과를 말한다 */}
             </Text>
           </View>
           <Pressable onPress={() => setSlotSheet(true)} style={s.timeChip}>
@@ -625,10 +646,7 @@ const s = StyleSheet.create({
     position: 'absolute', top: 0, left: 0, backgroundColor: '#0F1D13',
     borderTopLeftRadius: 20, borderBottomRightRadius: 14, paddingVertical: 6, paddingHorizontal: 12,
   },
-  fitPillR: {
-    position: 'absolute', top: 9, right: 10, backgroundColor: colors.volt,
-    borderRadius: 99, paddingVertical: 4, paddingHorizontal: 9,
-  },
+  // fitPillR(적합도 알약) 스타일 퇴역 — 적합도 렌더 삭제와 함께 (item 6)
   paceChip: {
     flex: 1, backgroundColor: '#fff', borderRadius: 18, paddingVertical: 14,
     alignItems: 'center', borderWidth: 1.5, borderColor: '#DCD6C4',
@@ -642,8 +660,20 @@ const s = StyleSheet.create({
     width: 15, height: 15, borderRadius: 8, backgroundColor: '#3d8fd4',
     alignItems: 'center', justifyContent: 'center', alignSelf: 'center',
   },
-  bestPill: { backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 3, paddingHorizontal: 8, alignSelf: 'flex-start' },
+  // bestPill(★ 추천 코스 알약) 퇴역 — 추천의 근거가 목업 적합도뿐이었다 (item 6)
   routeMap: { marginTop: 10, borderRadius: 12, backgroundColor: '#0e150f', padding: 0, overflow: 'hidden', paddingVertical: 4, paddingHorizontal: 2 },
+  // 실좌표 없는 코스의 지도 슬롯 — 토큰으로 작성해 후속 리페인트에서도 살아남는다 (item 6)
+  mapPending: { height: 92, alignItems: 'center', justifyContent: 'center', backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line },
+  mapPendingTxt: { fontSize: 14, fontWeight: '700', color: paper.dim },
+  // 코스 로드 실패 = 라우드 페일(F1.2) — 침묵도, 목업 폴백도 아니다
+  routeFailStrip: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: paper.canvas, borderTopWidth: 1, borderBottomWidth: 1, borderColor: paper.critical,
+    paddingVertical: 11, paddingHorizontal: 12, marginBottom: 10,
+  },
+  routeFailTxt: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: paper.critical, flex: 1 },
+  routeFailRetry: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },
+  routeNote: { fontSize: 14, color: paper.dim, marginBottom: 10 },
   routeTag: { backgroundColor: '#eef4e0', borderRadius: 7, paddingVertical: 3, paddingHorizontal: 6 },
   addon: { width: '47.8%', backgroundColor: '#fff', borderRadius: 18, padding: 13, borderWidth: 1.5, borderColor: '#DCD6C4' },
   recurRow: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#fff', borderRadius: 18, padding: 14, borderWidth: 1.5, borderColor: '#DCD6C4', marginTop: 12 },

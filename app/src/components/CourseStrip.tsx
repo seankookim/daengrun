@@ -56,9 +56,16 @@ export function CourseStrip({ title = '동네 코스', headerPad = 0 }: { title?
               <Text style={[{ fontSize: 24, fontWeight: '900', color: w.tone }, nf]}>{r.km}<Text style={{ fontSize: 14 }}>K</Text></Text>
             </View>
 
-            {/* 트레이스 — 월드 톤으로 발광 */}
+            {/* 트레이스 — 월드 톤으로 발광. [리뷰 F2] 빈 트레이스는 지도인 척하는 그리드+블롭을 그리지
+                않는다 — 정직한 준비 중 슬롯 (실 trace가 오면 그때 발광) */}
             <View style={{ marginTop: 6, marginHorizontal: -3 }}>
-              <HeatTrace points={r.trace} width={204} height={72} tint={w.tone} />
+              {r.trace.length > 1 ? (
+                <HeatTrace points={r.trace} width={204} height={72} tint={w.tone} />
+              ) : (
+                <View style={{ width: 204, height: 72, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: w.tone }}>
+                  <Text style={{ fontSize: 14, fontWeight: '700', color: w.dim }}>코스 지도 준비 중</Text>
+                </View>
+              )}
             </View>
 
             <Text style={{ fontSize: 16, fontWeight: '900', color: '#fff', marginTop: 8 }} numberOfLines={1}>{r.name}</Text>

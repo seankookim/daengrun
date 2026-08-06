@@ -2,7 +2,7 @@ import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Animated, Easing, Linking, Pressable, ScrollView, StyleSheet, Text, TextStyle, View } from 'react-native';
+import { Alert, Animated, Easing, Pressable, ScrollView, StyleSheet, Text, TextStyle, View } from 'react-native';
 import { BottomNav } from '../../src/components/bottomnav';
 import { CourseStrip } from '../../src/components/CourseStrip';
 import { RunnerClubCard } from '../../src/components/clubcard';
@@ -48,16 +48,8 @@ const STAGE: Record<string, { label: string; action: string; color: string }> = 
   active: { label: '러닝 중 · LIVE', action: '러닝 화면으로 ›', color: CORAL_INK },
 };
 
-// 픽업 지도 숏컷 — 실좌표는 주소 실화 후 (meetup과 동일한 목업 좌표)
-const PICKUP = { lat: 37.5443, lng: 127.0398, name: '서울숲 2번 출입구' };
-async function openNaverRoute() {
-  const app = `nmap://route/walk?dlat=${PICKUP.lat}&dlng=${PICKUP.lng}&dname=${encodeURIComponent(PICKUP.name)}&appname=com.daengrun.app`;
-  const web = `https://map.naver.com/p/directions/-/${PICKUP.lng},${PICKUP.lat},${encodeURIComponent(PICKUP.name)}/-/walk`;
-  try {
-    const canApp = await Linking.canOpenURL(app);
-    await Linking.openURL(canApp ? app : web);
-  } catch { Linking.openURL(web).catch(() => {}); }
-}
+// [정직 배치 2026-08-06 · item 4 wave-1] 픽업 지도 숏컷 은퇴 — 목업 좌표로 길을 안내하던 버튼이었다.
+// 실주소는 wave 3(러너용 definer RPC)에서 오고, 그 전까진 버튼 자리 자체가 없다 (죽은 버튼 금지법).
 
 // 파동 링 — 긴급/도착 신호. 링 두 개가 900ms 간격으로 퍼져나간다 (네이티브 드라이버)
 function PulseRings({ color = colors.tang, size = 30 }: { color?: string; size?: number }) {
@@ -460,11 +452,6 @@ export default function RunnerHome() {
                 <View style={[styles.btnCoral, { flex: 1.5 }]}>
                   <Text style={styles.btnCoralTxt}>{STAGE[current.rawStatus]?.action ?? '이어서 진행 ›'}</Text>
                 </View>
-                {(current.rawStatus === 'confirmed' || current.rawStatus === 'runner_enroute') && (
-                  <Pressable onPress={(e) => { e.stopPropagation(); openNaverRoute(); }} style={[styles.btnQuiet, { flex: 1 }]}>
-                    <Text style={styles.btnQuietTxt}>➤ 픽업 길찾기</Text>
-                  </Pressable>
-                )}
               </Row>
             </Pressable>
           </>
@@ -940,8 +927,6 @@ const styles = StyleSheet.create({
     shadowColor: lilac.coral, shadowOpacity: 0.34, shadowRadius: 16, shadowOffset: { width: 0, height: 6 },
   },
   btnCoralTxt: { fontSize: 14, fontWeight: '700', color: '#fff' },
-  btnQuiet: { borderRadius: lilacRadius.btn, alignItems: 'center', justifyContent: 'center', paddingVertical: 13, backgroundColor: lilac.inset, borderWidth: 1, borderColor: lilac.hair },
-  btnQuietTxt: { fontSize: 14, fontWeight: '700', color: lilac.head },
 
   // ① 티켓
   ticket: { marginTop: 9, shadowColor: '#1C1837', shadowOpacity: 0.1, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 3 },

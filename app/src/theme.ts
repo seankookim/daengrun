@@ -160,6 +160,12 @@ export const paper = {
   faint: '#999999',    // 장식 클래스 전용 (sub-4.5 허용 유일 지점)
   line: '#E8552F',     // 솔리드 코랄 헤어라인 — 이 선이 곧 브랜드
   wash: '#FFF6F4',     // 코랄 95% 화이트 워시 (pressed 상태 등)
+  // ── 정직 배치 선행 토큰 (F1.2 라우드-페일 · F2.1 버튼 매트릭스) ──
+  critical: '#B3261E',      // 라우드-페일 잉크 — 강조 예산 면제, line과 절대 공유 금지 (색 역할 분리 법). ≥14pt/700
+  criticalWash: '#FBEAE7',  // critical의 95% 워시 (인라인 실패 스트립 bg · destructive pressed)
+  disabledFill: '#F2F2F2',  // disabled 버튼 명시 fill — 불투명도 트릭 금지 법의 물화
+  // 버튼 매트릭스 법(F2.1): primary ink面/#333 pressed/disabledFill+faint · secondary canvas面+line 보더/wash pressed ·
+  // destructive canvas面+critical 잉크/criticalWash pressed · busy = 라벨 스왑(저장 중...), disabled로 칠하지 않는다
 } as const;
 
 // Pricing (placeholder — validate against competitor research)
