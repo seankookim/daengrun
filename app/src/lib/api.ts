@@ -336,7 +336,7 @@ export interface OpenRequest {
   when: string;
   km: number;
   paceLabel: string;
-  payout: number; // 수수료 20% 제외 추정
+  payout: number; // 수수료 33% 제외 추정 (0059)
   directed?: boolean; // 지명 요청 여부
   repeatPrior?: number; // 이 강아지와 이미 함께한 완료 러닝 수 (단골)
   photoUrl: string | null;
@@ -358,7 +358,7 @@ function mapOpenRequest(r: any, directed: boolean, rate: number): OpenRequest {
     when: `${dateLabel} ${timeLabel}`,
     km: Number(r.km),
     paceLabel: r.pace_label ?? "보통 7'",
-    payout: Math.round((r.base_fare + r.distance_fare + r.addon_fare) * (1 - rate)), // 티어 실수수료 (일괄 20% 은퇴)
+    payout: Math.round((r.base_fare + r.distance_fare + r.addon_fare) * (1 - rate)), // 실수수료 견적 (일괄 33%, 0059)
     directed,
     photoUrl: r.dogs?.photo_url ?? null,
     prefTags: (r.dogs?.preferences as any)?.tags ?? [],
@@ -385,7 +385,7 @@ function mapOpenRequestView(r: any, rate: number): OpenRequest {
     when: `${dateLabel} ${timeLabel}`,
     km: Number(r.km),
     paceLabel: r.pace_label ?? "보통 7'",
-    payout: Math.round((r.base_fare + r.distance_fare + r.addon_fare) * (1 - rate)), // 티어 실수수료
+    payout: Math.round((r.base_fare + r.distance_fare + r.addon_fare) * (1 - rate)), // 실수수료 견적 (일괄 33%, 0059)
     directed: false,
     photoUrl: r.photo_url ?? null,
     prefTags: (r.preferences as any)?.tags ?? [],
@@ -397,14 +397,14 @@ function mapOpenRequestView(r: any, rate: number): OpenRequest {
 
 // 러너 인박스: 지명 요청(runner_pending, 나에게) + 오픈 요청(matching, 미배정)
 // + 단골 감지: 함께 완주한 이력이 있는 강아지엔 repeatPrior (수락 결정이 쉬워진다)
-// 내 수수료율 — 견적용 (티어: 인증 20% / 베테랑 18% / 마스터 15%). 세션 캐시.
+// 내 수수료율 — 견적용 (일괄 33%, 0059 — 티어 연동 없음). 세션 캐시.
 let _commissionRate: number | null = null;
 async function myCommissionRate(): Promise<number> {
   if (_commissionRate != null) return _commissionRate;
   const { data: user } = await supabase.auth.getUser();
-  if (!user.user) return 0.2;
+  if (!user.user) return 0.33;
   const { data } = await supabase.from('runners').select('commission_rate').eq('profile_id', user.user.id).maybeSingle();
-  _commissionRate = Number(data?.commission_rate ?? 0.2);
+  _commissionRate = Number(data?.commission_rate ?? 0.33);
   return _commissionRate;
 }
 
@@ -735,7 +735,7 @@ export async function fetchRunnerJobs(): Promise<RunnerJob[]> {
       when: `${dateLabel} ${timeLabel}`,
       dogName: r.dogs?.name ?? '반려견',
       km: Number(r.km),
-      // 완료 = 원장 실수령, 그 외 = 티어 실수수료 견적 (일괄 20% 은퇴)
+      // 완료 = 원장 실수령, 그 외 = 실수수료 견적 (일괄 33%, 0059)
       payout: netByBooking[r.id] ?? Math.round((r.base_fare + r.distance_fare + r.addon_fare) * (1 - rate)),
       status: r.status === 'completed' ? 'completed' : r.status === 'confirmed' ? 'confirmed' : 'in_progress',
       rawStatus: r.status,
@@ -1159,7 +1159,7 @@ export async function fetchMyRunnerCert(): Promise<MyRunnerCert | null> {
     tier: String(data.tier),
     totalRuns: data.total_runs ?? 0,
     totalKm: Number(data.total_km ?? 0),
-    commissionRate: Number(data.commission_rate ?? 0.2),
+    commissionRate: Number(data.commission_rate ?? 0.33),
   };
 }
 

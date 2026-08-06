@@ -178,7 +178,7 @@ export default function Requests() {
                 <Text style={{ fontSize: 18.5, fontWeight: '900', color: '#5a7a3c' }}>
                   +{req.payout.toLocaleString()}
                 </Text>
-                <Text style={{ fontSize: 14, color: colors.dim, marginTop: 1 }}>수수료 20% 제외</Text>
+                <Text style={{ fontSize: 14, color: colors.dim, marginTop: 1 }}>수수료 33% 제외</Text>
               </View>
             </Row>
             {(req.prefTags.length > 0 || req.vaccines.length > 0) && (

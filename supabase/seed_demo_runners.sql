@@ -17,9 +17,9 @@ on conflict (id) do update set name = excluded.name, role = excluded.role, distr
 
 insert into runners (profile_id, tier, funnel_step, avg_pace_sec_per_km, identity_verified, insurance_active, trainer_certified, total_runs, total_km, compliance_pct, respond_rate_pct, commission_rate, online)
 values
-  ('20000000-0000-0000-0000-000000000001', 'veteran',   'certified', 410, true, true, false, 214, 1182, 97, 98, 0.18, true),
-  ('20000000-0000-0000-0000-000000000002', 'certified', 'certified', 430, true, true, true,   89,  512, 94, 95, 0.20, true),
-  ('20000000-0000-0000-0000-000000000003', 'certified', 'certified', 400, true, true, false,  78,  455, 88, 90, 0.20, true)
+  ('20000000-0000-0000-0000-000000000001', 'veteran',   'certified', 410, true, true, false, 214, 1182, 97, 98, 0.33, true),
+  ('20000000-0000-0000-0000-000000000002', 'certified', 'certified', 430, true, true, true,   89,  512, 94, 95, 0.33, true),
+  ('20000000-0000-0000-0000-000000000003', 'certified', 'certified', 400, true, true, false,  78,  455, 88, 90, 0.33, true)
 on conflict (profile_id) do update set online = true, tier = excluded.tier;
 
 insert into runner_availability_rules (runner_id, weekday, start_min, end_min)

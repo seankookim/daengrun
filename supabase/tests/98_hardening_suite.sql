@@ -18,6 +18,7 @@ declare
   v_n int; v_n2 int; v_n3 int; v_n4 int;
   v_bad text; v_state text; v_st text; v_uid uuid; v_err boolean;
   v_cols text[];
+  rH8 uuid; v_rate numeric; v_rate2 numeric;   -- H8 테이크레이트 핀용
   -- 0042:19-44의 select 리스트 = 뷰 형상의 정본. 0056은 WHERE만 건드렸다고 주장한다 — 여기서 검증.
   v_exp_cols text[] := array['id','scheduled_at','km','pace_label','base_fare','distance_fare',
                              'addon_fare','route_id','route_name','dog_id','dog_name','breed',
@@ -212,6 +213,27 @@ begin
                     'decline_upd=' || v_n || ' status=' || coalesce(v_st,'∅')
                     || ' rA=' || coalesce(v_n2::text,'∅') || ' rB=' || coalesce(v_n3::text,'∅')); end if;
   exception when others then call _fail('hard','H7 거절→재개방 e2e', sqlerrm);
+  end;
+
+  -- ---------- [H8] 테이크레이트 33% (0059) — 디폴트·신규행·기존행 평탄화 ----------
+  -- 신선 하네스에선 모든 runners 행이 0059 이후에 생겨 디폴트만 본다. 평탄화 UPDATE의 진짜
+  -- 검증은 업그레이드 경로: v1 시드가 0.20 디폴트로 만든 행을 0059가 0.33으로 밀었는지 (c)가
+  -- 본다. 0059의 update 줄을 지우면 업그레이드 런에서 (c)가 붉어진다 — 뮤테이션 검증.
+  -- (a)는 문자 비교가 아니라 ::numeric 캐스트 — '0.33'/'0.330' 렌더 차이에 면역.
+  begin
+    select (( select c.column_default from information_schema.columns c
+              where c.table_schema = 'public' and c.table_name = 'runners'
+                and c.column_name = 'commission_rate' ))::numeric into v_rate;   -- (a) 카탈로그 디폴트
+    rH8 := t_user('hd_h8', 'runner');                                            -- (b) 신규 행 동작
+    select r.commission_rate into v_rate2 from runners r where r.profile_id = rH8;
+    select count(*) into v_n from runners r
+      where r.commission_rate is distinct from 0.33;                             -- (c) 평탄화 전수
+    if v_rate = 0.33 and v_rate2 = 0.33 and v_n = 0
+      then call _pass('hard','H8 테이크레이트 33% — 카탈로그 디폴트·신규 행·기존 행 평탄화 (0059)');
+    else call _fail('hard','H8 테이크레이트 33%',
+                    'default=' || coalesce(v_rate::text,'∅') || ' fresh=' || coalesce(v_rate2::text,'∅')
+                    || ' drift_rows=' || v_n); end if;
+  exception when others then call _fail('hard','H8 테이크레이트 33%', sqlerrm);
   end;
 
   -- 시드 정리 — 오픈 풀 오염 방지 (80 선례). matching/runner_pending → expired는 허용 전이.

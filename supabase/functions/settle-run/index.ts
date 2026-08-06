@@ -20,7 +20,7 @@ Deno.serve(handle(async (req) => {
   }
 
   const { data: runner } = await db.from("runners").select("commission_rate").eq("profile_id", uid).single();
-  const commission = Number(runner?.commission_rate ?? 0.2);
+  const commission = Number(runner?.commission_rate ?? 0.33);  // 폴백도 0059 정책과 일치 — 행 부재 시 저과금 방지
 
   // ---------- 입력 신뢰 경계 (2026-07-29 하네스 발견) ----------
   // 이전엔 러너 자기 신고 actual_km를 무제한 신뢰 — 직접 API 호출로 999km 청구(급여 조작)

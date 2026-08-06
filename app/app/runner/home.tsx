@@ -622,14 +622,15 @@ export default function RunnerHome() {
         <SectionRule no="03" title="리워드" link="리워드 센터 ›" onPress={() => router.push('/runner/rewards')} />
         <Pressable onPress={() => router.push('/runner/rewards')} style={styles.card}>
           {(() => {
-            // v1 승급 기준: 베테랑 30회(수수료 18%), 마스터 100회(15%) — 심사 도입 전 잠정
+            // v1 승급 기준: 베테랑 30회, 마스터 100회 — 심사 도입 전 잠정.
+            // 수수료는 일괄 33%(0059) — 티어 연동 요율 없음. 요율 인하 약속 금지(정산은 33%를 뗀다).
             const t = rs.tier === 'veteran'
-              ? { next: '마스터', at: 100, fee: '15%' }
+              ? { next: '마스터', at: 100 }
               : rs.tier === 'master'
                 ? null
-                : { next: '베테랑', at: 30, fee: '18%' };
+                : { next: '베테랑', at: 30 };
             if (!t) {
-              return <Text style={{ fontSize: 14, lineHeight: 18, fontWeight: '700', color: lilac.head }}>🏅 마스터 러너 — 최저 수수료 15%</Text>;
+              return <Text style={{ fontSize: 14, lineHeight: 18, fontWeight: '700', color: lilac.head }}>🏅 마스터 러너</Text>;
             }
             const left = Math.max(t.at - rs.totalRuns, 0);
             const pct = Math.min(rs.totalRuns / t.at, 1);
@@ -639,7 +640,7 @@ export default function RunnerHome() {
                   <Text style={{ fontSize: 14, lineHeight: 18, fontWeight: '700', color: lilac.head }}>
                     {t.next}까지 러닝 <Text style={[{ fontSize: 14, color: CORAL_INK }, nf]}>{left}</Text>회
                   </Text>
-                  <Text style={[styles.fee, nf]}>수수료 <Text style={{ color: lilac.dim, textDecorationLine: 'line-through' }}>20%</Text> → <Text style={{ color: lilac.voltDeep }}>{t.fee}</Text></Text>
+                  <Text style={[styles.fee, nf]}>수수료 일괄 <Text style={{ color: lilac.voltDeep }}>33%</Text></Text>
                 </Row>
                 <Row style={{ alignItems: 'center', marginTop: 11, gap: 0 }}>
                   {[0, 1, 2, 3, 4].map((i) => {
@@ -652,7 +653,7 @@ export default function RunnerHome() {
                   })}
                 </Row>
                 <Text style={{ fontSize: 14, lineHeight: 18, color: lilac.dim, marginTop: 8 }}>
-                  같은 수익 기준 정산액이 늘어나요 · 승급 기준은 파일럿 중 조정될 수 있어요
+                  승급 혜택은 준비 중이에요 · 승급 기준은 파일럿 중 조정될 수 있어요
                 </Text>
               </>
             );

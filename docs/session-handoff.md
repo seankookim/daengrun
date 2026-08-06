@@ -4,6 +4,39 @@ English from here on (Sean: "use english"). In-app UI copy stays Korean (product
 Opener for next session: **"read docs/session-handoff.md fully, then continue"**.
 Detailed section index below (§2b–§2j) is the reference; this ⓪ is the current snapshot. CLAUDE.md at repo root is the permanent law book.
 
+## ⓪⓪ STATUS UPDATE — 2026-08-06 (0059 take-rate 33% SHIPPED, gate-clean)
+
+**0059 DONE** (this session, local Mac — full cycle: plan → /autoplan CEO+Eng dual-voice review →
+build → adversarial review with attacks EXECUTED → harness **235/0** + upgrade OK + H8
+mutation-verified both directions → tsc/check-rpc clean). Work order item 1 of §"Next-session"
+is complete; client honesty batch (item 2) still next, still needs Sean's product calls.
+
+- **Surface**: migration 0059 (default+flatten+comment) · settle-run fallback ?? 0.33 · theme.ts
+  0.33 · api.ts 3 fallbacks + 4 comments · runner home ③ 리워드 tier-ladder FEE PROMISES REMOVED
+  (was "수수료 ~~20%~~→18%/15%" — false vs flat 33%; 승급 count stays, 혜택 준비 중) ·
+  requests/detail "수수료 33% 제외" · store.ts mocks 16700/12700 + runnerStats dead mock retired ·
+  seeds ×3 flat 0.33 · 10_settle helper 8217 · **NEW pin 98 H8** (catalog default + fresh insert +
+  flatten; mutation-verified on upgrade path, drift_rows=11 red when UPDATE removed) ·
+  upgrade_check globs +006x · harness.sh+upgrade_check.sh macOS BIN detection fixed (old line
+  never fell back — head exits 0 on empty) · docs swept: runner-recruitment §1 (16,683 / 1.6×),
+  one-pager (순기여 6,395 · LTV ~213k · :23 GTM line), faq 1.6배, financial-slides 🔴 재산출 banner,
+  instagram ×4 (16,683/20,703/33,366 — their "take rate 확정 후" publication gates now genuinely
+  open), product-notes 확정 기록. Full detail: docs/plans/0059-take-rate-33-plan.md (review
+  trail + decision audit inside).
+- **⚠ DEPLOY QUEUE CHANGE**: `supabase db push` now carries **0055·0056·0057·0058·0059** +
+  `supabase functions deploy transition-booking` **and `settle-run`** (fallback 0.2→0.33; no
+  ordering hazard — row read dominates). Manual prod check from §2i-FIX2 unchanged.
+- **Sean manual**: growth-model.xlsx Assumptions!B13 → 0.33 (breakeven/plateau 마릿수 재산출 —
+  financial-slides + one-pager gates cite it) · smoke: runner home ③ (no fee ladder),
+  requests/detail 33% copy, apply.tsx shows 33.
+- **NEW pre-PG-launch workstream (recorded, deliberately NOT in 0059)**: bookings rate snapshot
+  (`commission_rate_at_booking` stamped at accept, settle-run reads it) + 약관 notice machinery —
+  rate changes are currently retroactive to in-flight bookings; legal/harmless only while real
+  runners = 0. 0059's instant-flip pattern must not be copy-pasted.
+- **Accepted debt**: preview-vs-settle ₩1 divergence when gross ≡ 50 (mod 100) at 0.33 (cosmetic,
+  예상/추정 labels; 0 such values at 0.20) — folds into the existing derive-preview-from-
+  myCommissionRate() debt. Rewards ③ and brand-deals ⑤ now UNBLOCKED.
+
 ## ⓪ STATUS — 2026-08-05 END OF DAY
 
 **Everything below is COMMITTED on device (branch redesign-v4), gate-clean (device tsc + check-rpc; harness 234/0). NOTHING is pushed/deployed — all Sean-only. Device is ~24 commits ahead.**

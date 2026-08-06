@@ -50,7 +50,7 @@ export default function RequestDetail() {
 
       <Card style={{ marginTop: 10, backgroundColor: '#faf8f0' }}>
         <Row style={{ justifyContent: 'space-between' }}>
-          <Text style={text.dim}>예상 수익 (수수료 20% 제외)</Text>
+          <Text style={text.dim}>예상 수익 (수수료 33% 제외)</Text>
           <Text style={{ fontSize: 25.5, fontWeight: '900', color: colors.voltDeep }}>
             {req.payout.toLocaleString()}원
           </Text>

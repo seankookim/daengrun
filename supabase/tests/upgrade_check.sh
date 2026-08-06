@@ -4,7 +4,9 @@
 # 기본 하네스(클린 설치)와 별도 — R0 계열 마이그레이션 변경 시 실행.
 set -u
 cd "$(dirname "$0")"
-BIN=$(dirname "$(ls /usr/lib/postgresql/*/bin/initdb 2>/dev/null | head -1 || which initdb)")
+# harness.sh와 동일한 2단 탐지 — 종전 한 줄짜리는 head가 빈 입력에도 성공해 macOS에서 BIN="." 사고.
+BIN=$(dirname "$(ls /usr/lib/postgresql/*/bin/initdb 2>/dev/null | head -1)")
+[ -x "$BIN/initdb" ] || BIN=$(dirname "$(command -v initdb)")
 export PGDATA=./.pgtest/data PGHOST=$(pwd)/.pgtest PGUSER=postgres PGDATABASE=daengrun_upgrade
 "$BIN/pg_ctl" -D "$PGDATA" -l ./.pgtest/pg.log start >/dev/null 2>&1 || true
 sleep 1
@@ -13,7 +15,7 @@ psql -d postgres -qc "create database daengrun_upgrade"
 psql -v ON_ERROR_STOP=1 -q -f 00_shim.sql || { echo "SHIM FAILED"; exit 1; }
 for f in ../migrations/*.sql; do
   base=$(basename "$f"); src="$f"
-  case "$base" in 004[0-9]_*|005[0-9]_*) continue;; esac        # 0039까지만 (R 계열 전부 제외)
+  case "$base" in 004[0-9]_*|005[0-9]_*|006[0-9]_*) continue;; esac  # 0039까지만 (R 계열 전부 제외; 006x 선제 — 0060이 조용히 빠지는 사고 방지)
   if [ "$base" = "0024_push.sql" ]; then
     sed 's/^create extension if not exists pg_net;/-- [harness] pg_net stubbed/' "$f" > ./.pgtest/_up.sql
     src=./.pgtest/_up.sql
@@ -29,7 +31,7 @@ psql -v ON_ERROR_STOP=1 -q -f upgrade_seed_v1.sql || { echo "❌ v1 seed"; exit 
 PRE=$(psql -qt -c "select count(*) filter (where ok) || '/' || count(*) from _t")
 echo "✅ v1 world built (suites: $PRE)"
 # 업그레이드
-for m in ../migrations/004[0-9]_*.sql ../migrations/005[0-9]_*.sql; do
+for m in ../migrations/004[0-9]_*.sql ../migrations/005[0-9]_*.sql ../migrations/006[0-9]_*.sql; do
   [ -e "$m" ] || continue
   psql -v ON_ERROR_STOP=1 -q -f "$m" || { echo "❌ upgrade $(basename "$m")"; exit 1; }
 done

@@ -149,7 +149,7 @@ export const surfaces = {
 export const pricing = {
   baseFare: 9900,
   perKm: 3000,
-  commission: 0.2,
+  commission: 0.33,  // 0059 — 일괄 33% (2026-08-05 Sean 결정). 서버 정본은 runners.commission_rate
   addons: {
     river: { label: '리버뷰 코스', desc: '한강을 따라 더 시원하게', price: 3000 },
     homecare: { label: '홈길 온리', desc: '집까지 안전하게 케어', price: 2000 },

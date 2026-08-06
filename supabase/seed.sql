@@ -22,8 +22,8 @@ values ('10000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000
 
 insert into runners (profile_id, tier, funnel_step, avg_pace_sec_per_km, identity_verified, insurance_active, trainer_certified, total_runs, total_km, compliance_pct, respond_rate_pct, commission_rate)
 values
-  ('00000000-0000-0000-0000-000000000002', 'certified', 'certified', 410, true, true, false, 214, 1182, 97, 98, 0.20),
-  ('00000000-0000-0000-0000-000000000003', 'certified', 'certified', 430, true, true, true, 89, 512, 94, 95, 0.20);
+  ('00000000-0000-0000-0000-000000000002', 'certified', 'certified', 410, true, true, false, 214, 1182, 97, 98, 0.33),
+  ('00000000-0000-0000-0000-000000000003', 'certified', 'certified', 430, true, true, true, 89, 512, 94, 95, 0.33);
 
 insert into addresses (owner_id, label, addr, detail, lat, lng, is_default) values
   ('00000000-0000-0000-0000-000000000001', '서울숲 2번 출입구', '성동구 뚝섬로 273', '출입구 옆 벤치에서 만나요', 37.5443, 127.0398, true);

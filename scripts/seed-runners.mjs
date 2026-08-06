@@ -60,7 +60,7 @@ for (const r of RUNNERS) {
       profile_id: uid, tier: r.tier, funnel_step: 'certified', bio: r.bio,
       avg_pace_sec_per_km: r.pace, total_runs: r.runs, total_km: r.km,
       respond_rate_pct: r.respond, identity_verified: true, online: true,
-      commission_rate: r.tier === 'master' ? 0.15 : r.tier === 'veteran' ? 0.18 : 0.2,
+      commission_rate: 0.33,  // 0059 — 일괄 33% (티어 연동 없음)
     }),
   });
   if (!rRes.ok) { console.log(`  ✗ ${r.name} runner: ${await rRes.text()}`); continue; }

@@ -39,7 +39,7 @@ end $$;
 -- 표준 정산 호출 (settle-run 엣지 함수가 넘기는 형태)
 create or replace function t_settle(p_bid uuid, p_reason text, p_km numeric default 5.0, p_sec int default 2100) returns jsonb
 language sql as $$
-  select settle_run_tx(p_bid, p_km, p_sec, p_reason, null, 9900, 15000, 0, 0, 4980)
+  select settle_run_tx(p_bid, p_km, p_sec, p_reason, null, 9900, 15000, 0, 0, 8217)
 $$;
 
 -- ---------- 시드 ----------

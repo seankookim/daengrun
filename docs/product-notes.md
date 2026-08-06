@@ -36,7 +36,7 @@
 
 ## Open questions
 
-- Commission rate (20% placeholder in prototype) — decide later
+- Commission rate: **33% 확정** (2026-08-05 Sean 결정, migration 0059) — 20% placeholder 시절 종료. 티어 연동 없음(일괄).
 - Pickup handoff verification: QR scan? photo confirmation? This is where liability lives.
 - Bodycam: hardware cost, who owns it, privacy law (filming in public in Korea), streaming infra cost
 - Premium runner tier definition (훈련사 certification? higher verification level?)
