@@ -83,6 +83,15 @@ REAL (Ruffwear/HOWLPOT brand shops live), Coupang links-first (API gated ₩150k
 anchor-free questions: ① 라이브 캠 price ② 정기 구독 price ("매주 정기 러닝 + 매 러닝
 10% 할인 월 구독 — 얼마까지?", asked BEFORE naming any number).
 
+**정직 배치 웨이브 1 SHIPPED (d06969e — Opus 빌더 3 + Opus 적대 리뷰 12발견 반영, 게이트 클린)**:
+클라이언트 P0 거짓 6종 제거 — 가짜 러닝/페이 경로 사망(live.tsx 재작성, resolve 4상태+스트림
+타입 스텁+hasFix), review 실패=실패, fetchFitness 3상태(홈·피트니스·마이), 목업 개인화 전멸
+(적합도·sampleRoutes·seoulforest 스탬프·조작 지도 패널), 보험 카피 통일, 서울숲 픽업 거짓 제거.
+토큰: paper.critical/criticalWash/disabledFill + 버튼 매트릭스. **웨이브 2 이연 목록**: F7 젊음
+비교식·F10 모노그램 대비·F12 라이브 empty 카피·O1 공용 Btn opacity·O2 바디캠 카피(schedule:350,
+report:333)·O5 pay.tsx 딥링크 잔존 — 전부 웨이브 2(pay 리빌드+미트업 씸 리페인트)에서. 스모크:
+스펙 각 item Smoke 목록 + 홈 3상태(비행기 모드)·리뷰 실패 재시도·코스 준비 중 슬롯 4곳.
+
 **BUSINESS MODEL DECISION (2026-08-06 PM office-hours, APPROVED)**: membership =
 **정기 구독** (monthly fee via 정기결제, first month free) + 정기 러닝 standing slot with
 per-run billing — NOT prepaid bundles. km-coins PARKED (ledger-contracts §3 dormant;
