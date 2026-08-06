@@ -1170,7 +1170,7 @@ export default function OwnerHome() {
           <Pressable onPress={goBook} style={s.cta}>
             <View pointerEvents="none" style={s.ctaSheen} />
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Text style={[{ fontSize: 27, lineHeight: 33, color: '#fff' }, df]}>예약하기</Text>
+              <Text style={[{ fontSize: 27, lineHeight: 33, color: '#fff' }, df]}>다음 런 미리</Text>
               <Text style={[{ fontSize: 19, lineHeight: 23, letterSpacing: 2, color: '#fff' }, nf]}>›››</Text>
             </View>
             {/* a11y: 작은 글씨는 코랄 위 직접 얹지 않고 잉크 플레이트(≥4.5:1) 위에 */}
