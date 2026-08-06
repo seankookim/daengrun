@@ -153,6 +153,7 @@ export const surfaces = {
 // 다크 세리머니 월드(패스포트·클럽·씰)는 의도적 유지 — "dark is the artifact, light is the screen".
 export const paper = {
   canvas: '#FFFFFF',
+  canvasSoft: '#FBFAF7',  // 소프트 화이트 — 홈 계열 바디 캔버스 (Sean 2026-08-06 "soft white"; 순백과 한 끗)
   ink: '#111111',      // head
   text: '#333333',     // 본문 (12.6:1)
   dim: '#666666',      // 디테일 (5.7:1 — 14pt 플로어와 함께 AA)

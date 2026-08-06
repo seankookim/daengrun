@@ -12,7 +12,7 @@ import { useNumFont } from '../../src/lib/fonts';
 import { haptic } from '../../src/lib/haptics';
 import { registerPushToken } from '../../src/lib/push';
 import { Booking, dog, draft, RouteInfo, runners } from '../../src/store';
-import { lilac, lilacRadius, lilacShadow, pricing } from '../../src/theme';
+import { lilac, lilacRadius, lilacShadow, paper, pricing } from '../../src/theme';
 import { useTheme } from '../../src/theme-context';
 
 // Owner home — 라일락 리페인트 (2026-08 "EDITORIAL SPORT × DAWN-DOT MORPH").
@@ -20,7 +20,7 @@ import { useTheme } from '../../src/theme-context';
 // 모프 위젯: 54-dot 새벽 링(바이올렛→코랄 아크, 코랄 글로우 헤드) ↔ 하단 새벽 진행선 크로스페이드 (좌표 보간 0 — 퍼포 법 유지).
 
 const { width: SCREEN_W } = Dimensions.get('window');
-const CARD_W = SCREEN_W - 22; // 거터 11*2 (0.9x 축소)
+const CARD_W = SCREEN_W; // [풀블리드 2026-08-06] 거터 11*2 은퇴 — 히어로도 화면 끝까지
 // [FLOOR14 폭 예산 · 2026-08-05] 요일 스탬프 칸은 고정 20px(행 146px)이었다 — 이건 360dp를 재고
 //   기기 폭에 비례하지 않아, 320dp(CARD_W 298)에서 좌측 info 블록과 ~21px 겹쳤다.
 // 좌우 분담: info = CARD_W*0.46 (left 18) · 스탬프 = CARD_W*0.44 (right 18). 행폭 = 7*칸 + 6*gap(1).
@@ -31,7 +31,7 @@ const CARD_W = SCREEN_W - 22; // 거터 11*2 (0.9x 축소)
 // (요일 한 글자는 칸에 종속된 글리프지 정보 텍스트가 아니다 — 정보는 위의 '이번 주 러닝 N일' 14pt 줄이 진다.)
 const STAMP_CELL = Math.min(20, Math.floor((CARD_W * 0.44 - 6) / 7));
 const STAMP_FONT = STAMP_CELL >= 20 ? 14 : 12;
-const RING_BIG = 216;
+const RING_BIG = 240; // [2026-08-06] 216 → 240 — 디스크 확대(122→144) 수용. 도트·컬랩스 수식 전부 파생이라 자가 정합
 // ── 모프 스트로크 상수 — 원(큰 상태) ↔ 하단 진행선(컬랩스) ──
 // 도트 간격 ≤ 도트 지름이 되도록 촘촘히 — 점 무리가 아니라 '이어진 선'으로 읽힌다 (Sean, 2026-07-28)
 const MORPH_DOTS = 54;
@@ -41,10 +41,11 @@ const MORPH_DOT = 11;
 // 'N% 달성' 텍스트와 절대 겹치지 않고 진행선이 항상 그 아래로 내려앉는다.
 const MORPH_LINE_GAP = 22; // 정보 블록 bottom ↔ 진행선 사이 숨 쉬는 간격
 
-// ── GO 코어 (랩 Ⓑ① "Red Core", Sean 승인 2026-08-05) — 216 링의 불스아이에 앉는 액션 디스크 ──
-// 지름 122: 도트 안쪽 반경이 RING_BIG/2 − MORPH_DOT − MORPH_DOT/2 = 91.5 라 디스크 가장자리와 도트
-// 사이에 30px가 남는다 → 아크와 코랄 헤드 글로우를 절대 덮지 않는다 (덮으면 진행도가 거짓말이 된다).
-const GO_DISC = 122;
+// ── GO 코어 (랩 Ⓑ① "Red Core", Sean 승인 2026-08-05) — 240 링의 불스아이에 앉는 액션 디스크 ──
+// [2026-08-06 확대] 지름 144: 도트 안쪽 반경이 RING_BIG/2 − MORPH_DOT − MORPH_DOT/2 = 103.5 라
+// 디스크 가장자리(r 72)와 도트 사이에 31.5px가 남는다 → 아크와 코랄 헤드 글로우를 절대 덮지 않는다.
+// 세로 예산 재계산: 43 + 8 + 144 + 8 + 34 = 237 ≤ RING_BIG 240 (s.goDisc 주석의 구성법 동일).
+const GO_DISC = 144;
 // ── 색 진행법 (Sean 2026-08-05: "빨강으로 시작, 찾을 땐 파랑, 확정되면 부드러운 초록") ──
 // 색이 곧 '지금 누구 차례인가'다:
 //   코랄  = 네 차례 — 예약이 없다(행동하라) · 러닝이 돌아간다(라이브). 둘 다 '움직임'의 색이라 원점 회귀.
@@ -253,7 +254,7 @@ const GREETINGS = [
   '오늘도 달린다', '오늘도 젊어진다', '오늘도 건강이다', '오늘도 뜨겁게', '오늘도 화이팅',
   '남들과는 다른', '가볍게 화이팅', '산책은 기본인', '이 정도면 선수다', '준비는 끝났다',
 ] as const;
-const HERO_BIG = 300; // 목업 widget 300px — 216 링 + 확장 크롬(주간칩·리포트칩)
+const HERO_BIG = 324; // [2026-08-06] 300 → 324 — 240 링 + 확장 크롬(주간칩·리포트칩)
 // [FLOOR14 2026-08-05] 190 → 199. 컬랩스 높이를 정하는 건 좌측 정보 블록 바닥(infoBottomY, onLayout 실측)이다.
 // 승급 산술 — 체력나이 줄: 12/16 → 14/18 (2줄 랩 기준 +4, 3줄이면 +6) · 'N% 달성' 줄: 12/15 → 14/18 (+3).
 // 최상단 두 줄은 각각 lineHeight 18·38 고정이라 불변 → 델타 +7 (2줄) ~ +9 (3줄). 최악값 +9를 상수에 반영.
@@ -626,7 +627,7 @@ export default function OwnerHome() {
   const hp = LILAC_SURF.light;
 
   return (
-    <View style={{ flex: 1, backgroundColor: p.bg }}>
+    <View style={{ flex: 1, backgroundColor: paper.canvasSoft }}>
       <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
 
       {/* ---------- pinned overlay: greeting + collapsing hero ---------- */}
@@ -634,7 +635,7 @@ export default function OwnerHome() {
           배경판이 네이티브 transform으로 접히면서 구 '오버레이 자동 축소'와 동일한 영역만 덮는다. */}
       <View pointerEvents="box-none" style={s.overlay}>
         <Animated.View
-          style={[StyleSheet.absoluteFill, { backgroundColor: p.bg, transform: [{ translateY: bgSlide }, { scaleY: bgScale }] }]}
+          style={[StyleSheet.absoluteFill, { backgroundColor: paper.canvasSoft, transform: [{ translateY: bgSlide }, { scaleY: bgScale }] }]}
         />
         <View style={{ height: HEADER_H, overflow: 'hidden' }}>
           <Animated.View style={{ opacity: headerOpacity, transform: [{ translateY: headerSlide }] }}>
@@ -896,7 +897,7 @@ export default function OwnerHome() {
       <Animated.ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{
-          paddingHorizontal: 14,
+          paddingHorizontal: 0, // [풀블리드 2026-08-06] 거터는 각 요소 내부 패딩으로 이동
           paddingTop: PAD_TOP + HEADER_H + HERO_BIG + 14,
           paddingBottom: 30,
         }}
@@ -912,25 +913,8 @@ export default function OwnerHome() {
         // 콘텐츠 높이가 바뀔 때만 도는 이벤트라 프레임 비용 0 (포커스 재진입의 리페치도 이 경로로 수렴).
         onContentSizeChange={(_w, h) => syncHeroCollapsed(Math.min(lastScrollY.current, Math.max(0, h - viewportH.current)))}
       >
-        {/* ---------- stat cells — 룰드 숫자 셀: 데이터가 차오르면 카피도 자랑스러워진다.
-            정직 원칙: 자랑 카피는 실데이터 임계(스트릭 3일·주 3회)에서만 점화 — 0에서 응원, 성과에서 축하 ---------- */}
-        <View style={{ flexDirection: 'row' }}>
-          <StatCell
-            bar={lilac.coral}
-            top={`연속 ${fit?.streakDays ?? 0}일`}
-            bottom={(fit?.streakDays ?? 0) >= 3 ? '불붙었어요' : (fit?.streakDays ?? 0) > 0 ? '연속 기록' : '오늘 시작해볼까요'}
-          />
-          <StatCell
-            bar={lilac.accent}
-            top={`${fit?.weekRuns ?? 0}회 완료`}
-            bottom={(fit?.weekRuns ?? 0) >= 3 ? '이번 주 벌써' : '이번 주'}
-          />
-          <StatCell
-            bar={lilac.head}
-            top={fit?.avgPaceSec ? `${Math.floor(fit.avgPaceSec / 60)}'${String(fit.avgPaceSec % 60).padStart(2, '0')}"` : '—'}
-            bottom={fit?.avgPaceSec ? '평균 페이스' : '첫 러닝 후 측정'}
-          />
-        </View>
+        {/* [2026-08-06 Sean] 3열 스탯 셀 은퇴 — 모프 아래·클럽 위 정보 상자 제거 지시.
+            연속일·주간회수·페이스는 피트니스 리포트가 계속 담당한다 (정보 소실 아님, 위치 이동). */}
 
         {/* ═══ 오늘의 티켓 (owner-4 보딩패스) — 임박 예약(가장 액션 가능한 실예약)을 보딩패스로.
              상단=사실, 스텁=액션. 상태 태그는 실상태 텍스트. 예약 없으면 부재 안내. ═══ */}
@@ -1270,11 +1254,11 @@ export default function OwnerHome() {
             사진 0장이면 섹션 자체 숨김 — 플레이스홀더/스톡 금지 (정직 원칙) ---------- */}
         {moments.length > 0 && (
           <View style={{ marginTop: 16 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 7, marginBottom: 9 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 7, marginBottom: 9, paddingHorizontal: 14 }}>
               <Text style={[s.sectionTitle, { color: p.textStrong }]}>최근 순간</Text>
               <Text style={{ fontSize: 14, color: p.dim }}>러너가 담아온 {dogName}의 러닝</Text>
             </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 9, paddingRight: 12 }}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 9, paddingLeft: 14, paddingRight: 12 }}>
               {moments.map((m, mi) => (
                 <Pressable
                   key={`${m.bookingId}-${mi}`}
@@ -1297,7 +1281,7 @@ export default function OwnerHome() {
         {/* ---------- 동네 러너 = 스타디움 로스터 (V2) — 러너는 서비스의 얼굴, PR 표면 ---------- */}
         {localRunners.length > 0 && (
           <View style={{ marginTop: 18 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8, marginBottom: 9, borderBottomWidth: 2.5, borderBottomColor: p.textStrong, paddingBottom: 7 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8, marginBottom: 9, borderBottomWidth: 2.5, borderBottomColor: p.textStrong, paddingBottom: 7, paddingHorizontal: 14 }}>
               <Text style={[s.sectionTitle, { color: p.textStrong }, df]}>동네 러너</Text>
               <Text style={{ fontSize: 12, fontWeight: '700', letterSpacing: 1.2, color: lilac.accent }}>ROSTER · {localRunners.length} ONLINE</Text>
               <View style={{ flex: 1 }} />
@@ -1333,7 +1317,7 @@ export default function OwnerHome() {
 
             {/* 나머지 로스터 — 라이트 라일락 미니 카드 */}
             {localRunners.length > 1 && (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 9 }} contentContainerStyle={{ gap: 9, paddingRight: 12 }}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 9 }} contentContainerStyle={{ gap: 9, paddingLeft: 14, paddingRight: 12 }}>
                 {localRunners.slice(1).map((r) => (
                   <Pressable key={r.profileId} onPress={() => router.push(`/runner-profile/${r.profileId}`)} style={s.rosterCard}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -1450,24 +1434,14 @@ export default function OwnerHome() {
     </View>
   );
 
-  // [V4] V1 룰드 숫자 셀 — 파스텔 스탬프 은퇴. bar는 액센트 언더라인 컬러
-  function StatCell({ top, bottom, bar }: { top: string; bottom: string; bar: string }) {
-    return (
-      <View style={s.statChip}>
-        {/* [5차] adjustsFontSizeToFit가 커스텀 폰트 측정 버그로 값을 최소 스케일까지 뭉개 위계가 뒤집혔다 — 제거 + 19pt 승급 */}
-        <Text style={[s.bibValue, { color: p.textStrong }, nf]} numberOfLines={1}>{top}</Text>
-        <View style={[s.accentBar, { backgroundColor: bar }]} />
-        <Text style={[s.bibLabel, { color: p.dim }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{bottom}</Text>
-      </View>
-    );
-  }
+  // [2026-08-06] StatCell 은퇴 — 3열 스탯 행 제거와 함께 (스타일 statChip/accentBar/bib*도 함께 삭제)
 }
 
 const s = StyleSheet.create({
   // 홀로 3px 엣지
   holo: { position: 'absolute', top: 0, left: 0, right: 0, height: 3, flexDirection: 'row', zIndex: 5 },
   // 섹션 헤더 — 키커 넘버 + 룰 + 링크
-  sec: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 16, marginBottom: 4 },
+  sec: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 16, marginBottom: 4, paddingHorizontal: 14 }, // [풀블리드] 헤더 텍스트는 내부 거터
   secN: { borderWidth: 1, borderColor: '#DCD6F8', backgroundColor: '#F4F1FE', borderRadius: lilacRadius.tag, paddingVertical: 2, paddingHorizontal: 5 },
   secNText: { fontSize: 11.5, fontWeight: '800', letterSpacing: 0.8, color: lilac.accent },
   secH: { fontSize: 14, fontWeight: '800', color: lilac.head, letterSpacing: -0.2 },
@@ -1522,11 +1496,11 @@ const s = StyleSheet.create({
   fnPay: { backgroundColor: MONEY_DEEP, borderRadius: lilacRadius.btn, alignItems: 'center', paddingVertical: 14, marginTop: 12 },
   overlay: {
     position: 'absolute', top: 0, left: 0, right: 0, zIndex: 20,
-    paddingTop: PAD_TOP, paddingHorizontal: 11, paddingBottom: 10,
+    paddingTop: PAD_TOP, paddingHorizontal: 0, paddingBottom: 10, // [풀블리드] 히어로 거터 은퇴 (CARD_W = SCREEN_W와 짝)
   },
-  headerRow: { flexDirection: 'row', alignItems: 'center', height: 44, marginBottom: 8 }, // 그리팅 줄(목업 34px BHS) — 아래 티커가 나머지를 채움
+  headerRow: { flexDirection: 'row', alignItems: 'center', height: 44, marginBottom: 8, paddingHorizontal: 11 }, // 그리팅 줄 — [풀블리드] 내부 거터로 이동
   // [4차] 브랜드 행 — 도그스하이 워드마크(로고 자격으로 df 허용) + 우측 유틸
-  brandRow: { flexDirection: 'row', alignItems: 'center', height: 28, marginBottom: 4 },
+  brandRow: { flexDirection: 'row', alignItems: 'center', height: 28, marginBottom: 4, paddingHorizontal: 11 }, // [풀블리드] 내부 거터
   brandmark: { fontSize: 16, color: lilac.head, letterSpacing: 0.4 },
   brandDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: lilac.coral, marginHorizontal: 7 },
   brandKick: { fontSize: 11.5, fontWeight: '700', letterSpacing: 2, color: lilac.dim },
@@ -1545,7 +1519,7 @@ const s = StyleSheet.create({
     shadowColor: lilac.coral, shadowOpacity: 1, shadowRadius: 4, shadowOffset: { width: 0, height: 0 },
   },
   hero: {
-    borderRadius: lilacRadius.card, padding: 18, overflow: 'hidden', borderWidth: 1,
+    borderRadius: 0, padding: 18, overflow: 'hidden', borderWidth: 1, borderLeftWidth: 0, borderRightWidth: 0, // [풀블리드]
     ...lilacShadow,
   },
   heroDbl: { position: 'absolute', top: 4, left: 4, right: 4, bottom: 4, borderWidth: 1, borderColor: lilac.hair2, borderRadius: lilacRadius.inner },
@@ -1596,19 +1570,10 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     borderRadius: lilacRadius.inner, paddingVertical: 8, paddingHorizontal: 10, borderWidth: 1,
   },
-  // [V4] V1 룰드 숫자 셀 — 카드가 아니라 지면: 위 2.5px 룰, 셀 사이 헤어라인, 액센트 언더라인
-  statChip: {
-    flex: 1, alignItems: 'flex-start', paddingVertical: 9, paddingHorizontal: 9,
-    borderTopWidth: 2.5, borderTopColor: lilac.head, borderRightWidth: 1, borderRightColor: lilac.hair,
-  },
-  accentBar: { width: 22, height: 3, marginTop: 6 },
-  bibLabel: { fontSize: 14, fontWeight: '800', letterSpacing: 0.1, marginTop: 5 },
-  // [FIX3 BUG A] 값은 그대로 16 — lineHeight ≥1.2×만 명시해 Oswald 어센더 클리핑 방지
-  bibValue: { fontSize: 19, lineHeight: 24, fontWeight: '900', fontVariant: ['tabular-nums'], letterSpacing: -0.3 },
   // 오늘의 티켓 — 보딩패스
   ticket: {
-    backgroundColor: lilac.card, borderRadius: lilacRadius.card, marginTop: 4, overflow: 'hidden',
-    borderWidth: 1, borderColor: lilac.hair2, ...lilacShadow,
+    backgroundColor: lilac.card, borderRadius: 0, marginTop: 4, overflow: 'hidden',
+    borderWidth: 1, borderLeftWidth: 0, borderRightWidth: 0, borderColor: lilac.hair2, ...lilacShadow, // [풀블리드] 측면 보더·라운드 은퇴
   },
   ticketDbl: { position: 'absolute', top: 4, left: 4, right: 4, bottom: 4, borderWidth: 1, borderColor: lilac.hair2, borderRadius: lilacRadius.inner },
   ticketHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 13, paddingTop: 12 },
@@ -1621,7 +1586,7 @@ const s = StyleSheet.create({
   // 무게는 위 딥 코랄 예약 CTA가 독점한다 (화면의 무게 중심은 하나).
   beacon: {
     flexDirection: 'row', alignItems: 'stretch', marginTop: 12, overflow: 'hidden',
-    borderRadius: lilacRadius.card, borderWidth: 1, ...lilacShadow,
+    borderRadius: 0, borderWidth: 1, borderLeftWidth: 0, borderRightWidth: 0, ...lilacShadow, // [풀블리드]
   },
   beaconCell: { flex: 1, paddingVertical: 13, paddingHorizontal: 13 },
   beaconDiv: { width: 1, marginVertical: 11 },
@@ -1635,12 +1600,13 @@ const s = StyleSheet.create({
   // lilac.accent가 3.20:1로 떨어지면 안 된다. 다크는 라이트 바이올렛으로 올린다.
   beaconGo: { fontSize: 14, lineHeight: 18, fontWeight: '800', marginTop: 4 },
   // 예약하기 = 돈 버튼 — 딥 코랄 (종단 ≥#C6472C, 흰 라벨 4.5:1)
-  book: { backgroundColor: lilac.card, borderWidth: 1, borderColor: lilac.hair2, borderRadius: lilacRadius.card, padding: 12, marginTop: 14, ...lilacShadow },
+  book: { backgroundColor: lilac.card, borderWidth: 1, borderLeftWidth: 0, borderRightWidth: 0, borderColor: lilac.hair2, borderRadius: 0, padding: 12, marginTop: 14, ...lilacShadow }, // [풀블리드]
   bookFacts: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', paddingHorizontal: 2, paddingBottom: 11 },
   // [FLOOR14] '예상 결제'는 한글 정보 라벨이다 — 트래킹은 라틴 키커의 문법이라 0.5로 내리고 크기를 올린다
   bookKicker: { fontSize: 14, lineHeight: 18, fontWeight: '600', letterSpacing: 0.5, color: lilac.dim, marginBottom: 2 },
   cta: {
-    borderRadius: lilacRadius.card, paddingVertical: 20, paddingHorizontal: 16, overflow: 'hidden',
+    borderRadius: 0, paddingVertical: 20, paddingHorizontal: 16, overflow: 'hidden', // [풀블리드] 샤프
+
     backgroundColor: MONEY_DEEP,
     shadowColor: MONEY_DEEP, shadowOpacity: 0.42, shadowRadius: 20, shadowOffset: { width: 0, height: 14 }, elevation: 8,
   },
@@ -1649,7 +1615,7 @@ const s = StyleSheet.create({
   ctaPlateDiv: { width: 1, height: 11, backgroundColor: 'rgba(255,255,255,0.4)' },
   // 하이클럽 셸 — 히어로 인접 격상 (바이올렛 라일락 엘리베이션)
   clubShell: {
-    marginTop: 14, borderRadius: lilacRadius.card,
+    marginTop: 14, borderRadius: 0, // [풀블리드]
     shadowColor: lilac.accent, shadowOpacity: 0.14, shadowRadius: 30, shadowOffset: { width: 0, height: 12 }, elevation: 3,
   },
   meetBtn: {
@@ -1666,8 +1632,8 @@ const s = StyleSheet.create({
   widgetBtn: { flex: 1, borderWidth: 1, borderColor: lilac.hair, backgroundColor: lilac.inset, borderRadius: lilacRadius.btn, alignItems: 'center', paddingVertical: 10 },
   nudge: {
     flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 10,
-    borderRadius: lilacRadius.card, borderWidth: 1, borderColor: lilac.hair2,
-    borderLeftWidth: 2.5, borderLeftColor: lilac.coral, paddingVertical: 11, paddingHorizontal: 12,
+    borderRadius: 0, borderWidth: 1, borderRightWidth: 0, borderColor: lilac.hair2, // [풀블리드] 좌측 코랄 스파인은 유지
+    borderLeftWidth: 2.5, borderLeftColor: lilac.coral, paddingVertical: 11, paddingHorizontal: 14,
     ...lilacShadow,
   },
   safetyStrip: {
@@ -1679,7 +1645,7 @@ const s = StyleSheet.create({
   safetyIcon: { width: 24, height: 24, borderRadius: lilacRadius.inner, backgroundColor: '#FFF1EC', alignItems: 'center', justifyContent: 'center' },
   sectionTitle: { fontSize: 14, lineHeight: 18, fontWeight: '800' },
   // 스타디움 로스터 — 피처드 = 나이트 라일락, 미니 = 라이트 라일락
-  featRunner: { backgroundColor: NIGHT, borderWidth: 1, borderColor: '#2E2A50', borderRadius: lilacRadius.card, padding: 13, paddingLeft: 16, overflow: 'hidden' },
+  featRunner: { backgroundColor: NIGHT, borderWidth: 1, borderLeftWidth: 0, borderRightWidth: 0, borderColor: '#2E2A50', borderRadius: 0, padding: 13, paddingLeft: 16, overflow: 'hidden' }, // [풀블리드] 다크 아티팩트도 화면 끝까지
   featEdge: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, backgroundColor: lilac.coral },
   featNum: { fontSize: 14, lineHeight: 17, fontWeight: '900', color: '#fff', fontVariant: ['tabular-nums'] },
   featK: { fontSize: 11.5, fontWeight: '700', letterSpacing: 1, color: '#9E94D2', marginTop: 3 },
