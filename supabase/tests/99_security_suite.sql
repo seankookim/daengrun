@@ -1,15 +1,27 @@
--- ═══ 0057 보안 경화 스위트 — 원격 P0 봉인의 상시 불변 핀 (audit-2026-08-05-server 워크리스트 4) ═══
--- 목적: 0057이 닫은 원격 악용 P0/K-급 구멍마다, **그 수정이 되돌려지면 빨간불이 되는** 핀을 건다.
---   0057은 적대 리뷰에서 공격 실증으로 닫혔지만(하네스 224/0), 마이그레이션 법(CLAUDE.md)은 새 보증마다
+-- ═══ 0057+0058 보안 경화 스위트 — 원격 P0/P1 봉인의 상시 불변 핀 (audit-2026-08-05-server 워크리스트 4) ═══
+-- 목적: 0057/0058이 닫은 원격 악용 P0/P1/K-급 구멍마다, **그 수정이 되돌려지면 빨간불이 되는** 핀을 건다.
+--   0057·0058은 각각 독립 적대 리뷰에서 공격 실증으로 닫혔지만, 마이그레이션 법(CLAUDE.md)은 새 보증마다
 --   MUTATION 검증된 핀을 요구한다 — 되돌리면 FAIL 하는 핀만이 실제 방벽이다.
+--   S1–S7 = 0057 봉인. S8(bookings deny-all status 우회)·S9(인시던트 NULL-오너 게이트 = P1 머니홀)·
+--   S10(이양 NULL-by fail-open) = 0058 §3/§1/§2. S2는 deny-all 승격(0058 §3)에 맞춰 양성 대조를 no-op으로 교체.
 -- 스타일: 98 형제 그대로 — `_pass('sec',…)`/`_fail('sec',…)`, 각 케이스는 자체 begin…exception when others,
---   definer/역할 판정은 postgres 세션에서 `set local role` + `request.jwt.claim.sub`(auth.uid() 모사)로
---   구성하고 항상 reset role. S1은 98 H1의 형제 — 스키마 전수 불변(anon 실행권 0).
+--   직접 클라 쓰기 경로는 `set local role` + `request.jwt.claim.sub`로 구성하고 항상 reset role. definer RPC
+--   경로(S6·S9·S10)는 postgres 세션에서 GUC(request.jwt.claim.sub=auth.uid())만 세팅해 호출(60 선례).
+--   S1은 98 H1의 형제 — 스키마 전수 불변(anon 실행권 0).
 -- 이 스위트는 하네스 마지막(98 다음)에 돈다. 시드는 fresh uuid라 앞 스위트와 충돌하지 않고, 부킹은 전부
---   matching이 아닌 상태(confirmed/active/completed)라 오픈 풀(marketplace_open_requests, status='matching')을
---   오염시키지 않는다 — 별도 정리 불필요.
+--   matching이 아닌 상태(confirmed/active/completed/cancelled_owner)라 오픈 풀(marketplace_open_requests,
+--   status='matching')을 오염시키지 않는다. S9/S10 클럽 무대는 club_test_accounts 등재로만 v2 게이트를 열어
+--   (전역 플래그 club_delegation_v2 미변경) 격리를 지킨다 — 별도 정리 불필요.
 --
--- ─── MUTATION 검증 (2026-08-06, 스크래치 DB daengrun_sectest — daengrun_test 무손상) ────────────────
+-- ─── F4 (비소유 definer 함수 anon 표면) — 로컬 핀 불가, 원격 수동 감사 ────────────────────────────
+-- 0058 §4는 소유 필터 없이 anon 실행권을 회수해 **비소유** definer 함수(대시보드/supabase 관리)의 표면까지
+--   닫는다. 그러나 로컬 스크래치는 전 함수가 postgres 소유라 '비소유 definer 함수'를 하네스 빌드를 관통시켜
+--   구성할 수 없다 → S1(소유 표면 tripwire)만 로컬에서 가능. 비소유 클래스는 **프로덕션에 아래 쿼리를 직접
+--   돌려** 확인한다(결과 0행이어야 함 — anon 실행 가능한 public definer 함수 부재):
+--     select p.oid::regprocedure from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+--       where n.nspname = 'public' and p.prosecdef and has_function_privilege('anon', p.oid, 'execute');
+--
+-- ─── MUTATION 검증 (S1–S7: 2026-08-06 daengrun_sectest · S8–S10: 2026-08-06 daengrun_sec2 — 둘 다 daengrun_test 무손상) ───
 -- 각 핀을 되돌리는 특정 revert 하나로 스크래치에서 빨간불을 실측 확인했다. green→revert→RED→restore→green.
 --   S1 ← grant execute on function session_proposal_respond(uuid,boolean,text) to anon      → RED
 --   S2 ← drop trigger _guard_booking_cols on bookings                                         → RED
@@ -18,6 +30,9 @@
 --   S5 ← drop trigger _guard_runner_doc_verify on runner_documents                            → RED
 --   S6 ← grant execute on 4 클럽 RPC to anon (0057 §1 sweep 회귀)                             → RED
 --   S7 ← grant execute on function grant_weekly_rewards() to anon, authenticated (§3 회귀)     → RED
+--   S8 ← _guard_booking_cols를 0057 블랙리스트(status 누락)로 되돌림 → 당사자 status 쓰기 통과      → RED
+--   S9 ← club_incident_resolve 게이트를 0052 `auth.uid() <> v_owner`로 되돌림(NULL fail-open)     → RED (party 해소)
+--   S10 ← session_transfer_accept 외부 게이트를 0045 `auth.uid() <> (by)`로 되돌림(NULL fail-open) → RED (외부인 확정)
 -- 각 revert 제거(restore) 후 다시 green으로 복귀함도 확인. 초록으로 남는 무가치 핀은 없다.
 set client_min_messages = warning;
 
@@ -26,8 +41,14 @@ declare
   oo uuid; rr uuid; dg uuid; rt uuid;
   b_g uuid;                              -- S2: 살아있는 부킹(양측 당사자)
   b_done uuid; b_live uuid;             -- S3: 정산 완료 · 라이브
+  b_s8 uuid;                             -- S8: deny-all 대상 confirmed 부킹
+  clb uuid; ses uuid;                    -- S9/S10: 클럽 무대
+  s_host uuid; s_cowner uuid; s_party uuid; s_outsider uuid; dg2 uuid;
+  sd_t uuid; inc_a uuid; inc_b uuid; inc_o uuid;   -- S10 session_dog · S9 인시던트 3종
   doc uuid;
   v_n int; v_raised int; v_ok boolean; v_bad text;
+  v_r boolean; v_p boolean;              -- S8/S10: raise · positive
+  v_party boolean; v_host boolean; v_owner boolean;   -- S9: 세 판정
   v_freeze boolean; v_prot boolean; v_live boolean;
   v_ins boolean; v_upd boolean; v_legit boolean;
   v_t timestamptz := timestamptz '2026-10-01 10:00:00+09';   -- now() 무관 고정 시각 (97/98과 구간 분리)
@@ -38,6 +59,7 @@ begin
   b_g    := t_av_booking(oo, dg, rt, rr, v_t,                     5.0, 'confirmed');  -- 양측 당사자 살아있음
   b_done := t_av_booking(oo, dg, rt, rr, v_t + interval '1 day',  5.0, 'completed');  -- 정산 종단
   b_live := t_av_booking(oo, dg, rt, rr, v_t + interval '2 days', 5.0, 'active');     -- 라이브
+  b_s8   := t_av_booking(oo, dg, rt, rr, v_t + interval '3 days', 5.0, 'confirmed');  -- S8: deny-all status 대상
   -- runs 행: b_done은 종단(freeze 대상), b_live는 라이브. end_reason=null로 둬 dog-records 트리거 회피.
   insert into runs (booking_id, started_at, ended_at, actual_km, duration_sec, avg_pace_sec_per_km, end_reason, events)
     values (b_done, v_t, v_t + interval '40 min', 5.0, 2100, 420, null, '[]'::jsonb);
@@ -59,10 +81,13 @@ begin
   exception when others then call _fail('sec','S1 anon-execute 봉인', sqlerrm);
   end;
 
-  -- ---------- [S2] bookings 돈·신원 컬럼 가드 (P0-1 + R1/R2) ----------
-  -- 당사자(owner)로 로그인해 8개 보호 컬럼을 직접 쓰면 전부 booking_protected_columns로 거부돼야 한다.
-  -- 양성 대조: 같은 당사자(같은 role=authenticated)가 비보호 컬럼(pace_label)을 쓰면 통과 — 가드가
-  --   '전부 차단'이 아니라 '컬럼으로' 판별함을 증명한다(가드가 모든 authenticated UPDATE를 막으면 여기서 빨간불).
+  -- ---------- [S2] bookings 클라 직접 쓰기 전면 차단 (P0-1 + R1/R2, 0058 §3 deny-all 승격) ----------
+  -- 당사자(owner)로 로그인해 8개(이전 블랙리스트) 컬럼을 직접 쓰면 전부 booking_protected_columns로 거부.
+  --   0058 §3이 블랙리스트를 deny-all-for-client로 승격 — 이제 클라의 '어떤' 컬럼 변경도 거부된다(S8이 그
+  --   목록 밖 status 우회를 별도로 핀한다). 그러므로 옛 양성 대조(비보호 pace_label 쓰기)는 이제 정당히 차단된다.
+  -- 양성 대조 (deny-all 판별성): 클라 no-op UPDATE(`pace_label = pace_label` — 아무 컬럼도 안 바뀜)는 통과해야
+  --   한다. 가드는 `new is distinct from old`로 판정하므로 멱등 no-op은 막지 않는다 — '전면 차단'이 '무조건
+  --   차단'이 아님을, 즉 가드가 변경 여부로 판별함을 증명한다(가드가 모든 authenticated UPDATE를 막으면 빨간불).
   begin
     declare
       stmts text[] := array[
@@ -88,15 +113,15 @@ begin
           else v_bad := v_bad || '[' || sqlstate || ':' || left(sqlerrm, 40) || '] '; end if;
         end;
       end loop;
-      -- 양성 대조: 비보호 컬럼은 같은 당사자 쓰기가 통과
+      -- 양성 대조: 클라 no-op UPDATE는 통과 (deny-all이 멱등 no-op을 막지 않음 = 판별성 증명)
       v_ok := false;
       begin
-        execute format($f$update bookings set pace_label = 'sec-pos' where id = %L$f$, b_g);
+        execute format($f$update bookings set pace_label = pace_label where id = %L$f$, b_g);
         get diagnostics v_n = row_count; v_ok := (v_n = 1);
       exception when others then v_bad := v_bad || '[pos:' || left(sqlerrm, 40) || '] '; end;
       reset role;
       if v_raised = array_length(stmts, 1) and v_ok and v_bad = ''
-        then call _pass('sec','S2 bookings 컬럼 가드 — 보호 8종 클라 쓰기 거부·비보호 pace_label 통과');
+        then call _pass('sec','S2 bookings 컬럼 가드 — 클라 직접 쓰기 전면 차단 · no-op은 통과');
       else call _fail('sec','S2 bookings 컬럼 가드',
                       'raised=' || v_raised || '/' || array_length(stmts, 1)
                       || ' pos=' || v_ok || ' ' || v_bad); end if;
@@ -285,5 +310,132 @@ begin
       then call _pass('sec','S7 배치/디버그 봉인 — grant_weekly_rewards anon·authenticated 둘 다 permission denied');
     else call _fail('sec','S7 배치/디버그 봉인', 'denied=' || v_raised || '/2 ' || v_bad); end if;
   exception when others then reset role; call _fail('sec','S7 배치/디버그 봉인', sqlerrm);
+  end;
+
+  -- ---------- [S8] bookings deny-all — status 우회 차단 (0058 §3, F1 fee-evasion / P1-5 bypass) ----------
+  -- 리뷰어 실증: 0057 §4 블랙리스트는 status를 열거 안 해, 당사자가 confirmed 부킹을 status='cancelled_owner'로
+  --   위조해 정산 전 상태(P1-5)를 조작·수수료를 회피할 수 있었다. 0058 §3 deny-all이 목록 밖 status까지 포섭한다.
+  -- 음성: 당사자(owner)의 status 직접 쓰기 → booking_protected_columns. 양성: **서버 문맥**(current_user=postgres)의
+  --   동일 status 변경은 통과 — 가드가 컬럼/값이 아니라 **역할**로 판별함을 증명(deny-all 판별성, confirmed→
+  --   cancelled_owner는 허용 전이라 전이 트리거는 통과, 가드가 먼저 발화 = 트리거 순서 0x5F<0x62 보장).
+  -- MUTATION: _guard_booking_cols를 0057 블랙리스트(status 누락)로 되돌리면 당사자 status 쓰기가 통과 → 빨간불.
+  begin
+    v_r := false; v_p := false; v_bad := '';
+    set local role authenticated;
+    perform set_config('request.jwt.claim.sub', oo::text, true);
+    begin
+      execute format($f$update bookings set status = 'cancelled_owner' where id = %L$f$, b_s8);
+      v_bad := v_bad || '[status→통과!] ';
+    exception when others then
+      if sqlerrm like '%booking_protected_columns%' then v_r := true;
+      else v_bad := v_bad || '[neg:' || sqlstate || ':' || left(sqlerrm, 40) || '] '; end if;
+    end;
+    reset role;
+    -- 양성 대조: 서버 문맥(postgres)에서 동일 status 변경 → 통과 (confirmed→cancelled_owner 허용 전이)
+    begin
+      execute format($f$update bookings set status = 'cancelled_owner' where id = %L$f$, b_s8);
+      get diagnostics v_n = row_count; v_p := (v_n = 1);
+    exception when others then v_bad := v_bad || '[pos:' || left(sqlerrm, 40) || '] '; end;
+    if v_r and v_p and v_bad = ''
+      then call _pass('sec','S8 bookings deny-all — 당사자 status 직접 쓰기 거부·서버 문맥 동일 변경 통과');
+    else call _fail('sec','S8 bookings deny-all', 'neg_raise=' || v_r || ' pos=' || v_p || ' ' || v_bad); end if;
+  exception when others then reset role; call _fail('sec','S8 bookings deny-all', sqlerrm);
+  end;
+
+  -- ---------- [S9/S10 시드] 클럽 무대 (fresh uuid — 앞 스위트·오픈 풀 무오염) ----------
+  -- 클럽 v2 게이트(_club_require_v2)는 club_test_accounts 등재로 통과 — 전역 플래그를 안 건드려 격리 유지.
+  begin
+    s_host     := t_user('sec_host', 'runner');
+    s_cowner   := t_user('sec_cowner', 'owner');
+    s_party    := t_user('sec_party', 'runner');     -- 비-호스트 비-케이스오너 당사자(처리 러너)
+    s_outsider := t_user('sec_outsider', 'runner');  -- 인증된 외부인
+    dg2 := t_dog(s_cowner, '보안클럽견');
+    insert into club_test_accounts (profile_id, note)
+      values (s_host,'sec'),(s_cowner,'sec'),(s_party,'sec'),(s_outsider,'sec');
+    insert into clubs (name, district) values ('sec_club', '성수동') returning id into clb;
+    insert into club_sessions (club_id, host_profile_id, scheduled_at, meetup_point, format)
+      values (clb, s_host, v_t, '보안 집결지', 'mixed') returning id into ses;
+    -- 인시던트 3종: (a) case_owner NULL·party가 무는 대상 (b) case_owner NULL·host 해소용 (c) case_owner 지정
+    insert into club_incidents (session_id, severity, state, opened_by, case_owner, summary)
+      values (ses, 'S2', 'open', s_party, null, 'sec null-owner A') returning id into inc_a;
+    insert into club_incidents (session_id, severity, state, opened_by, case_owner, summary)
+      values (ses, 'S2', 'open', s_party, null, 'sec null-owner B') returning id into inc_b;
+    insert into club_incidents (session_id, severity, state, opened_by, case_owner, summary)
+      values (ses, 'S2', 'open', s_cowner, s_cowner, 'sec owned') returning id into inc_o;
+  exception when others then call _fail('sec','S9/S10 시드', sqlerrm);
+  end;
+
+  -- ---------- [S9] club_incident_resolve NULL-오너 게이트 (0058 §1, F1 = P1 머니홀 — 최고가치 핀) ----------
+  -- 갓 개설 인시던트는 case_owner=NULL. 옛 게이트 `auth.uid() <> v_owner`는 NULL에서 미발화(3치 논리) →
+  --   비-호스트 비-케이스오너 당사자(처리 러너)가 자기 케이스를 해소하고 자기 payout_hold(held→none)를 풀었다 = 돈.
+  -- 음성: party가 NULL-오너 인시던트(inc_a) 해소 시도 → not_case_owner. 양성 둘: 세션 호스트가 NULL-오너
+  --   인시던트(inc_b) 해소 → 성공 · 정당한 case_owner가 자기 케이스(inc_o) 해소 → 성공(게이트 판별성).
+  -- MUTATION: 게이트를 0052 `auth.uid() <> v_owner`로 되돌리면 party 해소가 통과(NULL fail-open) → 빨간불.
+  begin
+    v_party := false; v_host := false; v_owner := false; v_bad := '';
+    -- (a) party (비-호스트·비-케이스오너) → not_case_owner
+    perform set_config('request.jwt.claim.sub', s_party::text, false);
+    begin
+      perform club_incident_resolve(inc_a, null);
+      v_bad := v_bad || '[party 해소됨!] ';
+    exception when others then
+      if sqlerrm like '%not_case_owner%' then v_party := true;
+      else v_bad := v_bad || '[party:' || left(sqlerrm, 40) || '] '; end if;
+    end;
+    -- (b) 세션 호스트가 NULL-오너 인시던트 해소 → 성공
+    perform set_config('request.jwt.claim.sub', s_host::text, false);
+    begin
+      perform club_incident_resolve(inc_b, null);
+      select (state = 'resolved') into v_host from club_incidents where id = inc_b;
+    exception when others then v_bad := v_bad || '[host:' || left(sqlerrm, 40) || '] '; end;
+    -- (c) 정당한 case_owner 해소 → 성공
+    perform set_config('request.jwt.claim.sub', s_cowner::text, false);
+    begin
+      perform club_incident_resolve(inc_o, null);
+      select (state = 'resolved') into v_owner from club_incidents where id = inc_o;
+    exception when others then v_bad := v_bad || '[owner:' || left(sqlerrm, 40) || '] '; end;
+    perform set_config('request.jwt.claim.sub', '', false);
+    if v_party and v_host and v_owner and v_bad = ''
+      then call _pass('sec','S9 인시던트 NULL-오너 게이트 — 당사자 해소 거부·호스트/케이스오너 해소 통과');
+    else call _fail('sec','S9 인시던트 NULL-오너 게이트',
+                    'party=' || v_party || ' host=' || v_host || ' owner=' || v_owner || ' ' || v_bad); end if;
+  exception when others then perform set_config('request.jwt.claim.sub', '', false);
+    call _fail('sec','S9 인시던트 NULL-오너 게이트', sqlerrm);
+  end;
+
+  -- ---------- [S10] session_transfer_accept NULL-by 게이트 (0058 §2, F2) ----------
+  -- pending_transfer.by=NULL(pre-0057 anon 개시가 by=auth.uid()=NULL로 남긴 shape)이면 외부 이양 분기 게이트
+  --   `auth.uid() <> by`가 NULL에서 미발화(fail-open) → 인증된 외부인이 외부 커스터디 이양을 확정했다.
+  --   0058 §2가 `(by) is null or auth.uid() is distinct from (by)`로 봉함.
+  -- 무대 구성: session_dog를 transfer_pending·pending_transfer.by=NULL·toType='clinic'(외부 분기)로 만든다.
+  --   v1 축 동기화 트리거가 custody_phase를 매 쓰기마다 덮으므로, 러너 커스터디 이벤트를 먼저 심고 그 위에서
+  --   transfer_pending으로 update — 트리거가 (최신 이벤트 to_type='runner' ∧ new.custody_phase='transfer_
+  --   pending')일 때만 transfer_pending을 보존하는 유일 경로(0048 _club_compute_axes:796).
+  -- MUTATION: 게이트를 0045 `auth.uid() <> (by)`로 되돌리면 NULL fail-open으로 외부인이 이양 확정 → 빨간불.
+  begin
+    v_r := false; v_bad := '';
+    insert into session_dogs (session_id, dog_id, owner_profile_id, responsible_profile_id, custody, approval)
+      values (ses, dg2, s_cowner, rr, 'runner_delegated', 'approved') returning id into sd_t;
+    insert into dog_custody_events (session_dog_id, from_type, from_profile_id, to_type, to_profile_id,
+        event_type, confirmation_kind)
+      values (sd_t, 'owner', s_cowner, 'runner', rr, 'outbound', 'app_user');
+    update session_dogs set custody_phase = 'transfer_pending',
+      pending_transfer = jsonb_build_object('toType','clinic','toProfile',null,'toExternal','응급동물병원',
+        'reason','주행 중 부상','by',null,'at',now())
+      where id = sd_t;
+    perform set_config('request.jwt.claim.sub', s_outsider::text, false);
+    begin
+      perform session_transfer_accept(sd_t, '{"receipt":"x"}'::jsonb);
+      v_bad := v_bad || '[외부인 확정됨!] ';
+    exception when others then
+      if sqlerrm like '%not_transfer_target%' then v_r := true;
+      else v_bad := v_bad || '[out:' || left(sqlerrm, 44) || '] '; end if;
+    end;
+    perform set_config('request.jwt.claim.sub', '', false);
+    if v_r and v_bad = ''
+      then call _pass('sec','S10 이양 NULL-by 게이트 — by=NULL 외부 분기에서 인증 외부인 확정 거부(not_transfer_target)');
+    else call _fail('sec','S10 이양 NULL-by 게이트', 'raise=' || v_r || ' ' || v_bad); end if;
+  exception when others then perform set_config('request.jwt.claim.sub', '', false);
+    call _fail('sec','S10 이양 NULL-by 게이트', sqlerrm);
   end;
 end $$;

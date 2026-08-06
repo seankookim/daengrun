@@ -58,6 +58,12 @@ grant usage on schema public to anon, authenticated, service_role;
 alter default privileges in schema public grant select, insert, update, delete on tables to anon, authenticated;
 alter default privileges in schema public grant all on tables to service_role;
 alter default privileges in schema public grant usage, select on sequences to authenticated, service_role;
+-- service_role은 함수 EXECUTE를 PUBLIC이 아니라 Supabase 함수 default privileges로 받는다(운영). 심이
+-- 이를 미모델링해 스크래치에서 settle_run_tx가 service_role=false로 보였다(리뷰어 플래그). 실환경과 맞춘다:
+-- 이후 마이그레이션(같은 postgres 역할)이 만드는 public 함수는 default privileges로 service_role EXECUTE를
+-- 받고(§1/§4의 public·anon 회수와 무관하게 유지), 심 시점 기존 함수엔 명시 grant로 소급한다.
+alter default privileges in schema public grant execute on functions to service_role;
+grant execute on all functions in schema public to service_role;
 
 -- R4(0048) 동의 헬퍼 — 위탁 신청 필수 동의의 표준 테스트 값
 create or replace function t_consent() returns jsonb
