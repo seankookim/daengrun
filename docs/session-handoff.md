@@ -1,17 +1,33 @@
-# SESSION HANDOFF — 2026-08-05 (motions ②④ + font floor 14 + rewards ceremony resolved)
+# SESSION HANDOFF — 2026-08-05 (END OF DAY: full UI/rewards/passport day + server security hardening 0057/0058)
 
 English from here on (Sean: "use english"). In-app UI copy stays Korean (product language); commit messages stay Korean.
-
-## ⓪ STATUS — 2026-08-05 batch (this commit)
-
-- **Motions ② (seal stamp) + ④ (drain ring): DONE** — Sean picked "2 and 4" from choreography lab, implemented with real deadline bindings, adversarially reviewed, all 8 review fixes applied and boss-verified.
-- **Font floor 12→14: DONE** — Sean chose "Floor 12 → 14–15pt" (NOT literal 2x). 506 sites bumped app-wide; 162 repo-wide survivors are all legitimately decorative-class (letterspaced caps ≥1, textTransform uppercase kickers, glyphs, FINISHER/DOGS HIGH serials) — verified by boss grep, no action needed. Coupled constants recomputed (fitness HERO_BIG 619 / COLLAPSE 542, owner-home HEADER_H 123 / HERO_SMALL 199, STAMP_CELL/STAMP_FONT 320dp guard).
-- **Rewards office hours: ALL THREE directions approved by Sean** — see `docs/gstack/rewards-office-hours.md` §4. ① surface earning moments (this sprint) · ② passport stamps (next sprint, joins glow-up lab) · ③ spendable points (queued behind take-rate). Plus: owner-side points named **하이 포인트** (unified with runner), **home beacon revival approved** (real balance + patch progress ONLY — `claimable` lie stays banned).
-- **gstack adopted as process layer** (garrytan/gstack; source mirror /tmp/gstack — container path, dies with container; re-clone if needed). Sprint = Think→Plan→Build→Review→Test→Ship→Reflect; office-hours premise challenge + plan-ceo-review ceremonies via AskUserQuestion. /browse /qa /ship don't apply (native app, Sean-only pushes).
-- Commit stack this session: 0ed2709 (0054, pushed+deployed) → 725bf78 (0055/0056) → 567cdb7 (earnings/D-day/bell) → b0daea2 (W4 hero) → 2162b90 (choreography lab) → [this commit].
-- **UNANSWERED Sean question**: add a gstack section to CLAUDE.md? Say "claude.md yes/no" in passing.
-
 Opener for next session: **"read docs/session-handoff.md fully, then continue"**.
+Detailed section index below (§2b–§2j) is the reference; this ⓪ is the current snapshot. CLAUDE.md at repo root is the permanent law book.
+
+## ⓪ STATUS — 2026-08-05 END OF DAY
+
+**Everything below is COMMITTED on device (branch redesign-v4), gate-clean (device tsc + check-rpc; harness 234/0). NOTHING is pushed/deployed — all Sean-only. Device is ~24 commits ahead.**
+
+Today's arc, in commit order: motions ②④ + font-floor-14 (abb65c3) → glow-up labs & implementation: night club card, GO disc color-progression, dual-seal meetup (a25d662/a007e62) → GO_TINT hero wash + **CLAUDE.md created** (f32919f) → gstack map (5f6fa2e) → **rewards ① earning moments** (0e496f9) → mock-card purge (9174398) → passport-stamp lab (caf396e) → shop truth-pass (9e25e04, other session) → **rewards ② passport stamps A1×B1×C2** (b48dc6f) → stamp.tsx extraction + runner dead-mock purge (cec3ff5) → **take-rate 33% recorded + apply.tsx truth repaint + cert-funnel spec + biz research** (c7a2047) → shop lab v1 (c77ac53) → **comprehensive audit + shop lab v2 + 62-brand longlist + shop design study** (ceb295a) → **🔴 0057 server security hardening** (5a80f1e) → **🔴 0058 security hardening 2 (independent verification found more)** (61596a4) → handoffs (2b7d03b, 2470b07).
+
+### 🔴 TOP PRIORITY — Sean must deploy the security fixes (remotely-exploitable P0s live on prod)
+A gstack comprehensive audit (docs/audit-2026-08-05-server.md, attacks EXECUTED) found 3 remotely-exploitable server P0s live on the remote DB, one callable by the **anon key in the app bundle** (custody transfer of a dog mid-run to a stranger). 0057 closed them; an independent verification pass (Fable + 2 Opus lenses) then found more (a P1 money hole: a party releasing his own payout hold via a NULL-fail-open incident gate) — 0058 closed those. Both proven closed by re-executed attacks, harness 234/0 with 3 new mutation-verified pins. **Deploy = `supabase db push` (0055·0056·0057·0058 together) + `supabase functions deploy transition-booking`.** Then run this manual check against prod (no pin can): `select oid::regprocedure from pg_proc where prosecdef and has_function_privilege('anon',oid,'execute')` → must be 0 rows. Full detail: §2i-FIX2 · §2i-FIX · §2i.
+
+### Sean's open queue (nothing blocks the next session except deploys + a few product calls)
+1. **Deploy 0055–0058 + transition-booking** (above) — the urgent one. `git push` after.
+2. **Shop lab v2 pick** — reply "V4" style (docs/labs/shop-redesign-lab-v2.html; V4 = study + builder recommendation). §2h.
+3. **Product calls** blocking the client honesty batch: delete pay.tsx (mock receipt)? insurance-copy fix? K-5 refund_pending terminality? P2-20 owner-corroboration on the 50% early-quit guarantee?
+4. **Biz**: apply to 무신사 큐레이터 + Coupang Partners (affiliate prerequisite); decide brand outreach wave-1 start (docs/biz/brand-outreach-longlist.md — 갱스터도그 = Ruffwear KR channel is the highest-leverage yes). §2j.
+5. Device smoke of everything shipped today (rewards ①/②, passport §③, annex, GO disc states, meetup dual-seal) — cumulative list across §2b–§2f.
+
+### Next-session work order (server-first, all gate-clean)
+1. **0059 take-rate 33%** — now unblocked (0057 K-1 made commission_rate server-only). Own migration: default+existing→0.33, theme.ts pricing.commission 0.2→0.33 same commit, RECOMPUTE 10_settle_suite (net 19,920→16,683). Kept separate from security so arithmetic can't mask a regression.
+2. **Client P0 honesty batch** — /owner/live empty-draft fake run→pay.tsx mock receipt, review-write "saved" lie, hardcoded pickup address, fetchFitness error-blind (0-as-success), live-course mock personalization (api.ts:46-61), insurance copy. Some need the product calls above. Full list: docs/audit-2026-08-05-client.md.
+3. **P1-7/P1-8 state-machine** (dead directed path, no_show writer) + **P2 sweep** (RLS-off table, club read-narrowing, fabricated-celebration gates). §2i worklist 5-6.
+4. Then: rewards ③ (spendable points, now unblocked by 33%), shop implementation (needs real affiliate links first), cert funnel real build (8 open questions in docs/specs/runner-cert-funnel-spec.md).
+
+### ⚠ Not audited (mirror gaps — flag for a device-side pass)
+geo.ts / supabase.ts / push.ts / haptics.ts / auth-context / theme-context are absent from the container mirror, so GPS-fix gating, push deep-links, and auth wiring were NOT audited. They exist on Sean's device.
 
 ## 1. This batch in detail
 
