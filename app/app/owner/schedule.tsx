@@ -107,7 +107,7 @@ export default function Schedule() {
     ? mockRunner ?? {
         id: 'live', name: selected.runnerName, char: selected.runnerName[0] ?? '러', color: '#5a7a3c',
         rating: null as number | null, reviews: null as number | null, runs: null as number | null,
-        pace: null as string | null, badges: ['신원인증'], desc: null as string | null,
+        pace: null as string | null, badges: [] as string[], desc: null as string | null, // [정직] 신원인증 배지 은퇴 — 뒷받침 데이터 없음 (wave-1 meetup P1-6과 동일)
         distanceKm: 0,
       }
     : undefined;
@@ -347,7 +347,9 @@ export default function Schedule() {
                         onPress={() => { draft.bookingId = selected.id; close(); router.push('/owner/live'); }}
                       >
                         <Text style={{ fontSize: 16.5, fontWeight: '900', color: '#d84a2f' }}>● 실시간 보기</Text>
-                        <Text style={{ fontSize: 14, color: '#b06a56', marginTop: 2 }}>러닝이 진행 중이에요 — GPS·바디캠으로 지켜보세요</Text>
+                        {/* [정직 배치 2.5 · Sean D3=B] 앱 전체에서 바디캠을 '앞으로'라고 말하는 자리는 여기 한 곳뿐 */}
+                        <Text style={{ fontSize: 14, color: '#b06a56', marginTop: 2 }}>러닝이 진행 중이에요 — GPS 경로를 실시간으로 지켜보세요</Text>
+                        <Text style={{ fontSize: 14, color: '#b06a56', marginTop: 2 }}>바디캠 뷰는 준비 중이에요</Text>
                       </Pressable>
                       <Text style={{ fontSize: 14.5, color: colors.dim, textAlign: 'center', marginTop: 12, lineHeight: 18.5 }}>
                         이미 시작된 러닝은 일정 변경·취소가 불가능해요{'\n'}긴급 상황은 안심 센터 SOS를 이용해주세요

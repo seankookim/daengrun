@@ -10,7 +10,7 @@ import { STAMP_GAP, STAMP_INK, StampCell } from '../src/components/stamp';
 import { Avatar, Row } from '../src/components/ui';
 import { deriveStamps, fetchFitness, fetchMyRunnerStatus, fetchStampStats, StampStats } from '../src/lib/api';
 import { fetchMyProfile, fetchMyRunnerBio, MyProfile, updateMyProfile, updateRunnerBio, uploadAvatar } from '../src/lib/api';
-import { dog, session } from '../src/store';
+import { session } from '../src/store';
 import { colors, lilac, lilacRadius, lilacShadow, paper } from '../src/theme';
 
 // 마이 — 여권(PASSPORT) 리페인트. 신분면(이중 프레임·MRZ)·기록면(나이트 라일락)·서류행.

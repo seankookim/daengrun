@@ -194,12 +194,20 @@ export default function OwnerMeetup() {
         <View style={s.roadA} />
         <View style={s.roadB} />
         {[0, 1, 2, 3, 4].map((i) => (
-          <View key={i} style={[s.pathDot, { right: 60 + i * 42, top: 80 + i * 26, opacity: stage === 'enroute' ? 1 : 0.3 }]} />
+          // [정직 배치 2.5] 경로 점은 '아는 경로'가 아니라 지면 무늬 — 주장 강도를 낮춘다
+          <View key={i} style={[s.pathDot, { right: 60 + i * 42, top: 80 + i * 26, opacity: stage === 'enroute' ? 0.35 : 0.2 }]} />
         ))}
         <View style={[s.runnerPin, stage !== 'enroute' && { right: 260, top: 196 }]}>
           <Text style={s.pinText}>{runnerName[0]}</Text>
         </View>
         <View style={s.pickupPin}><Text style={s.pinText}>픽업</Text></View>
+
+        {/* [정직 배치 2.5 · 감사 #28] 러너 핀은 스테이지가 바뀔 때 순간이동하는 장식이고, 이 판은
+            실제 위치를 하나도 모른다. 도형은 지면으로 남기되 '실시간'을 참칭하지 않도록 겹쳐 적는다.
+            문법은 owner/request.tsx의 '코스 지도 준비 중' 슬롯과 동일 (훅·상태 추가 없는 순수 JSX). */}
+        <View pointerEvents="none" style={s.mapPendingWrap}>
+          <View style={s.mapPending}><Text style={s.mapPendingTxt}>실시간 지도 준비 중</Text></View>
+        </View>
 
         <Row style={s.topBar}>
           <Pressable onPress={() => router.back()} style={s.circleBtn}><Text style={{ fontSize: 20.5, color: paper.ink }}>‹</Text></Pressable>
@@ -279,7 +287,10 @@ export default function OwnerMeetup() {
 
           <View style={s.steps}>
             <Step first done label="러너 수락 완료" />
-            <Step done={stage !== 'enroute'} active={stage === 'enroute'} label={stage === 'enroute' ? '러너 이동 중 — 실시간 위치가 위 지도에 보여요' : '러너 픽업 장소 도착'} />
+            {/* [정직 배치 2.5 · 감사 #30] 스테이지 이름이 실제 의미와 뒤집혀 있다(동결된 매핑):
+                'enroute' = 러너 수락 후 출발 전, 'arrived' = 러너가 실제로 이동 중.
+                머신은 건드리지 않고 라벨만 위 pill(:210)의 어휘에 맞춘다. */}
+            <Step done={stage !== 'enroute'} active={stage === 'enroute'} label={stage === 'enroute' ? '러너 출발 대기' : '러너가 픽업 장소로 이동'} />
             {/* 양측 확인 상태를 각각 서버 진실로 표시 — 누가 누굴 기다리는지 추측 금지 */}
             <Step
               done={stage === 'waiting' || stage === 'confirmed'}
@@ -303,10 +314,11 @@ export default function OwnerMeetup() {
           <View style={s.status}>
             <Row style={{ gap: 4 }}>
               <View style={s.pulseStage}><View style={[s.pulseCore, { backgroundColor: paper.pending }]} /></View>
-              <Text style={s.statusKick}>EN ROUTE</Text>
+              <Text style={s.statusKick}>WAITING</Text>
             </Row>
-            <Text style={s.statusText}>러너 도착을 기다리는 중...</Text>
-            <Text style={s.statusSub}>도착하면 알림을 보내드려요</Text>
+            <Text style={s.statusText}>러너의 출발을 기다리는 중...</Text>
+            {/* 도착 상태는 서버에 없다 — 러너의 출발(runner_enroute)만이 알림이 되는 유일한 사실 */}
+            <Text style={s.statusSub}>러너가 출발하면 알림을 보내드려요 · 도착은 채팅으로 확인해주세요</Text>
           </View>
         )}
         {stage === 'arrived' && (
@@ -428,6 +440,13 @@ const s = StyleSheet.create({
   roadA: { position: 'absolute', top: 140, left: -20, right: -20, height: 16, backgroundColor: paper.disabledFill, transform: [{ rotate: '10deg' }] },
   roadB: { position: 'absolute', top: 0, bottom: 0, left: 200, width: 13, backgroundColor: paper.disabledFill, transform: [{ rotate: '-14deg' }] },
   pathDot: { position: 'absolute', width: 8, height: 8, borderRadius: 4, backgroundColor: paper.line },
+  // 준비 중 오버레이 — request.tsx의 mapPending과 같은 문법(캔버스 면 + 1px 코랄 + dim 14/700)
+  mapPendingWrap: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
+  mapPending: {
+    backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line,
+    paddingVertical: 10, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center',
+  },
+  mapPendingTxt: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: paper.dim },
   // 핀은 지리 마커라 원형 예외 — 상태색은 남고(위탁 표면 법) 글로우만 떠난다
   runnerPin: {
     position: 'absolute', right: 34, top: 56, width: 26, height: 26, borderRadius: 13,
@@ -436,6 +455,7 @@ const s = StyleSheet.create({
   pickupPin: {
     position: 'absolute', left: 60, top: 200, width: 36, height: 26, borderRadius: 13,
     backgroundColor: paper.line, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: paper.canvas,
+    opacity: 0.4, // [정직 배치 2.5] 실좌표가 아니다 — 지면 무늬로 강등
   },
   pinText: { fontSize: 14, lineHeight: 18, fontWeight: '900', color: '#fff' },
   topBar: { position: 'absolute', top: 56, left: 10, right: 10, justifyContent: 'space-between' },

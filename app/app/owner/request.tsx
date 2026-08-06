@@ -1,12 +1,12 @@
 import { useDisplayFont } from '../../src/lib/displayFont';
-import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { addDog, Addr, AvailRule, createBookingHold, DogProfile, ensureDog, fetchAddresses, fetchMyDogs, fetchRoutes, fetchRunnerAvailability } from '../../src/lib/api';
+import { addDog, Addr, AvailRule, createBookingHold, DogProfile, fetchAddresses, fetchMyDogs, fetchRoutes, fetchRunnerAvailability } from '../../src/lib/api';
 import { HeatTrace } from '../../src/components/runcard';
-import { Avatar, Row } from '../../src/components/ui';
+import { Avatar, Row, Skeleton } from '../../src/components/ui';
 import { haptic } from '../../src/lib/haptics';
-import { AddonKey, dog, draft, fmtWon, RouteInfo } from '../../src/store';
+import { AddonKey, draft, fmtWon, RouteInfo } from '../../src/store';
 import { colors, paper, pricing } from '../../src/theme';
 
 // 러닝 요청 — route carousel (도그스하이 안심 코스), time-slot bottom sheet,
@@ -56,7 +56,11 @@ export default function Request() {
   const [routes, setRoutes] = useState<RouteInfo[]>([]);
   const [routesState, setRoutesState] = useState<'loading' | 'ready' | 'error'>('loading');
   const routesLive = routesState === 'ready' && routes.length > 0;
+  // [정직 웨이브 2.5 · 감사 #32] 반려견도 코스와 같은 3상태(routesState 문법 그대로).
+  // '없음'과 '아직 모름'은 다른 사실이다 — 목업 초코를 띄우거나 로딩 중에 등록 CTA를 내밀지 않는다.
+  // 빈 목록·부분 프로필은 상태가 아니라 파생값 (4번째 enum 금지 — 다견 칩 토글이 fetch 상태를 뒤집지 않도록)
   const [myDogs, setMyDogs] = useState<DogProfile[]>([]);
+  const [dogsState, setDogsState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [pickupAddr, setPickupAddr] = useState<Addr | null>(null);
   const [dogIdx, setDogIdx] = useState(0);
 
@@ -69,6 +73,14 @@ export default function Request() {
     setRouteId(best.id);
   };
   const myDog = myDogs[dogIdx] ?? null;
+  // 진짜 0마리 — ready일 때만 참 (로딩·실패를 '등록 안 함'으로 읽지 않는다)
+  const dogsEmpty = dogsState === 'ready' && myDogs.length === 0;
+  // 부분 프로필(addDog는 이름만 넣는다) — 없는 칸은 통째로 빠진다. '· kg' 같은 빈 구분자 금지
+  const dogMeta = myDog
+    ? [myDog.breed, myDog.weightKg != null ? `${myDog.weightKg}kg` : null].filter(Boolean).join('  ·  ')
+    : '';
+  // 티켓(다크)의 아이 자리 — 아이가 없을 때도 '미등록'과 '아직 모름'을 구분해서 말한다
+  const dogTicketLabel = dogsEmpty ? '반려견 미등록' : dogsState === 'loading' ? '반려견 확인 중' : '반려견 정보 오류';
 
   // 코스 페이지 '이 코스로 예약하기' 진입 — 코스를 프리셀렉트하고 km 칩을 코스 거리에 맞춘다
   const { routeId: paramRouteId } = useLocalSearchParams<{ routeId?: string }>();
@@ -95,10 +107,27 @@ export default function Request() {
   };
   useEffect(() => {
     loadRoutes();
-    fetchMyDogs().then(setMyDogs).catch(() => {});
     fetchAddresses().then((l) => setPickupAddr(l.find((a) => a.isDefault) ?? l[0] ?? null)).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // 목록 반영 — 아이가 지워져 인덱스가 밖으로 나가면 0으로 되돌린다 (빈 행·문자 없는 아바타 방지)
+  const applyDogs = useCallback((l: DogProfile[]) => {
+    setMyDogs(l);
+    setDogIdx((i) => (i < l.length ? i : 0));
+    setDogsState('ready');
+  }, []);
+
+  // 반려견 로드 — 실패는 실패로 (목업 폴백·침묵 없음). 코스와 달리 포커스마다 다시 읽는다:
+  // [감사 #26] 마운트 1회면 /owner/dog에서 등록하고 돌아와도 '등록해주세요'가 영원히 남는다.
+  const loadDogs = useCallback(() => {
+    // 재포커스마다 스켈레톤으로 덮지 않는다 — 이미 읽은 값 위에서 조용히 갱신 (첫 로드만 스켈레톤)
+    setDogsState((s) => (s === 'ready' ? s : 'loading'));
+    fetchMyDogs()
+      .then(applyDogs)
+      .catch((e) => { console.warn('[request] dogs:', e?.message ?? e); setDogsState('error'); });
+  }, [applyDogs]);
+  useFocusEffect(useCallback(() => { loadDogs(); }, [loadDogs]));
   const [slotSheet, setSlotSheet] = useState(false);
   const [recurringOn, setRecurringOn] = useState(false); // 매주 반복 (0026)
   const [holdVisible, setHoldVisible] = useState(false);
@@ -155,6 +184,27 @@ export default function Request() {
   };
 
   const pay = async () => {
+    // [정직 웨이브 2.5 · 감사 #27/#34] 반려견 게이트가 맨 앞. ensureDog(목업 아이 자동 생성) 은퇴 —
+    // 아이가 없으면 예약을 만들지 않고 등록 화면으로 보낸다. 여기서 아이를 만드는 일은 영원히 없다.
+    // myDogs=[]는 '없음'일 수도, 아직 못 읽었을 수도 있다 → ready가 아니면 먼저 사실을 확인한다.
+    let chosen = myDog;
+    if (dogsState !== 'ready') {
+      try {
+        const list = await fetchMyDogs();
+        applyDogs(list);
+        chosen = list[dogIdx] ?? list[0] ?? null;
+      } catch (e) {
+        // 모르는 것을 '없음'으로 만들지 않는다 — 카드의 실패 스트립이 재시도를 준다
+        console.warn('[request] dogs:', (e as Error)?.message ?? e);
+        haptic('error'); // [적대 리뷰 P2] 무반응 버튼 금지 — 실패는 느껴져야 한다
+        setDogsState('error');
+        return;
+      }
+    }
+    if (!chosen) {
+      router.push('/owner/dog'); // 등록 먼저 — 예약도, 아이 생성도 없다
+      return;
+    }
     if (!draft.scheduledAtIso) {
       setSlotSheet(true); // 시간 미선택 → 결제 대신 슬롯 시트
       return;
@@ -167,9 +217,8 @@ export default function Request() {
 
     // 실화: 서버에 원자적 홀드 + 예약 생성 (draft→quoted→payment_hold→matching)
     try {
-      const dogId = myDog?.id ?? await ensureDog(); // 선택한 아이로 예약 (다견 가구)
       const res = await createBookingHold({
-        dog_id: dogId,
+        dog_id: chosen.id, // 선택한 아이로 예약 (다견 가구) — 위 게이트가 존재를 보증
         route_id: routesLive ? routeId : undefined, // 목업 코스 id는 uuid가 아님
         address_id: pickupAddr?.id,
         scheduled_at: draft.scheduledAtIso!, // pay()에서 선택 강제됨 — +3h 폴백 은퇴
@@ -239,17 +288,54 @@ export default function Request() {
         {/* 누가 · 어디서 — 한 카드 (모던 목업: 티켓형 정보 블록) */}
         <SectionHead glyph="◉" title="누가 · 어디서" />
         <View style={s.card}>
-          <Pressable
-            onPress={() => router.push('/owner/dog')}
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}
-          >
-            <Avatar url={myDog?.photoUrl} char={(myDog?.name ?? dog.name)[0]} bg="#c9a86e" size={42} />
-            <Text style={{ flex: 1, fontSize: 16.5, fontWeight: '800', color: FOREST }}>
-              <Text style={{ fontWeight: '900' }}>{myDog?.name ?? dog.name}</Text>
-              {'  ·  '}{myDog?.breed ?? dog.breed}{'  ·  '}{myDog?.weightKg ?? dog.weightKg}kg
-            </Text>
-            <Text style={{ fontSize: 14, fontWeight: '800', color: '#5a7a3c' }}>프로필 ›</Text>
-          </Pressable>
+          {/* 반려견 행 — 로딩 ≠ 실패 ≠ 0마리 ≠ 등록됨. 넷을 각각 말하고 카드 높이는 유지한다 */}
+          {dogsState === 'loading' ? (
+            // 로딩: 로드된 행과 같은 높이의 스켈레톤 (아바타 판 42×42 + 텍스트 두 줄)
+            <Row style={{ gap: 12 }}>
+              <Skeleton width={42} height={42} radius={0} />
+              <View style={{ gap: 7 }}>
+                <Skeleton width={120} height={15} radius={0} />
+                <Skeleton width={180} height={13} radius={0} />
+              </View>
+            </Row>
+          ) : dogsState === 'error' ? (
+            // 실패: 라우드 페일 + 재시도 (코스 실패 스트립과 같은 문법). 등록 CTA는 절대 띄우지 않는다 —
+            // '모른다'는 '아이가 없다'가 아니다.
+            <View style={s.dogFailStrip}>
+              <Text style={s.routeFailTxt}>반려견 정보를 불러오지 못했어요</Text>
+              <Pressable onPress={loadDogs} hitSlop={8} accessibilityRole="button" accessibilityLabel="다시 시도">
+                <Text style={s.routeFailRetry}>다시 시도</Text>
+              </Pressable>
+            </View>
+          ) : dogsEmpty ? (
+            // 진짜 0마리: 반려견 행을 그 자리에서 등록 행으로 (같은 42pt 슬롯 — 카드가 튀지 않는다)
+            <Pressable
+              onPress={() => router.push('/owner/dog')}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}
+              accessibilityRole="button"
+              accessibilityLabel="반려견 등록"
+            >
+              <View style={s.dogAddPlate}><Text style={{ fontSize: 20, fontWeight: '800', color: '#5a7a3c' }}>＋</Text></View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 16.5, fontWeight: '800', color: FOREST }}>반려견을 등록해주세요</Text>
+                <Text style={{ fontSize: 14.5, color: colors.dim, marginTop: 2 }}>이름·품종·체중이 러너에게 전달돼요</Text>
+              </View>
+              <Text style={{ fontSize: 14, fontWeight: '800', color: '#5a7a3c' }}>등록 ›</Text>
+            </Pressable>
+          ) : myDog ? (
+            <Pressable
+              onPress={() => router.push('/owner/dog')}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}
+            >
+              <Avatar url={myDog.photoUrl} char={myDog.name.slice(0, 1)} bg={colors.ink} size={42} />
+              <Text style={{ flex: 1, fontSize: 16.5, fontWeight: '800', color: FOREST }}>
+                <Text style={{ fontWeight: '900' }}>{myDog.name}</Text>
+                {/* 품종·체중은 있는 것만 — 목업 폴백(?? dog.breed) 은퇴 */}
+                {dogMeta ? `  ·  ${dogMeta}` : ''}
+              </Text>
+              <Text style={{ fontSize: 14, fontWeight: '800', color: '#5a7a3c' }}>프로필 ›</Text>
+            </Pressable>
+          ) : null}
           <View style={{ height: 1, backgroundColor: '#DCD6C4', marginVertical: 13 }} />
           <Pressable
             onPress={() => router.push('/owner/addresses')}
@@ -283,6 +369,7 @@ export default function Request() {
                   const id = await addDog(n.trim());
                   const list = await fetchMyDogs();
                   setMyDogs(list);
+                  setDogsState('ready'); // 방금 읽은 사실 — 직전이 실패였어도 카드는 이 목록을 말한다
                   setDogIdx(Math.max(list.findIndex((d) => d.id === id), 0));
                   router.push({ pathname: '/owner/dog', params: { dogId: id } });
                 } catch (e) { Alert.alert('추가 실패', (e as Error).message); }
@@ -462,10 +549,14 @@ export default function Request() {
       {/* 티켓 푸터 — 고르는 대로 완성되는 티켓 (절취선 + 노치) */}
       <View style={s.ticket}>
         <Row style={{ gap: 11, alignItems: 'center' }}>
-          <Avatar url={myDog?.photoUrl} char={(myDog?.name ?? dog.name)[0]} bg="#c9a86e" size={40} />
+          {/* 아이가 확인되기 전엔 아바타도 이름도 없다 — 목업 초코 얼굴이 티켓에 앉아 있던 자리 */}
+          {myDog && <Avatar url={myDog.photoUrl} char={myDog.name.slice(0, 1)} bg={colors.ink} size={40} />}
           <View style={{ flex: 1 }}>
             <Text style={{ fontSize: 16, fontWeight: '900', color: '#fff' }} numberOfLines={1}>
-              {myDog?.name ?? dog.name} · <Text style={{ color: colors.tang }}>{km}km</Text> · {pace}
+              {myDog
+                ? <Text>{myDog.name}</Text>
+                : <Text style={{ fontSize: 14.5, fontWeight: '700', color: '#b8c4ae' }}>{dogTicketLabel}</Text>}
+              {' · '}<Text style={{ color: colors.tang }}>{km}km</Text> · {pace}
             </Text>
             <Text style={{ fontSize: 14.5, color: '#b8c4ae', marginTop: 2 }} numberOfLines={1}>
               {routes.find((r) => r.id === routeId)?.name ?? '코스 없이 예약돼요'}{/* [리뷰 F3] '코스 선택'은 불가능한 지시였다 — 정직하게 결과를 말한다 */}
@@ -493,8 +584,10 @@ export default function Request() {
             </Text>
           </View>
           <Pressable onPress={pay} style={s.payBtn}>
+            {/* 라벨 스왑 = 이 화면의 문법 ('시간부터 ›' 선례). 버튼을 disabled로 죽이지 않는다 —
+                누르면 다음에 해야 할 일로 데려간다 (등록 → 시간 → 결제) */}
             <Text style={{ fontSize: 17, fontWeight: '900', color: FOREST }}>
-              {draft.scheduledAtIso ? '결제하기 ›' : '시간부터 ›'}
+              {dogsState === 'error' ? '반려견 확인 다시 ›' : dogsState === 'loading' && !myDog ? '반려견 확인 중 ›' : !myDog ? '반려견부터 ›' : !draft.scheduledAtIso ? '시간부터 ›' : '결제하기 ›'}
             </Text>
           </Pressable>
         </Row>
@@ -656,6 +749,18 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     backgroundColor: paper.canvas, borderTopWidth: 1, borderBottomWidth: 1, borderColor: paper.critical,
     paddingVertical: 11, paddingHorizontal: 12, marginBottom: 10,
+  },
+  // 반려견 로드 실패 — 코스 실패 스트립과 같은 문법(잉크·굵기·재시도 밑줄).
+  // 흰 카드 안이라 배경만 criticalWash (같은 색 역할, 흰 위 흰 스트립 방지). marginBottom 없음
+  dogFailStrip: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: paper.criticalWash, borderTopWidth: 1, borderBottomWidth: 1, borderColor: paper.critical,
+    paddingVertical: 11, paddingHorizontal: 12,
+  },
+  // 등록 전 아바타 슬롯 — 실사진 자리에 아웃라인 ＋ 판 (사람도 아이도 아닌, 비어 있다는 표시)
+  dogAddPlate: {
+    width: 42, height: 42, borderRadius: 0, borderWidth: 1.5, borderColor: '#a9c47e',
+    backgroundColor: '#f6faee', alignItems: 'center', justifyContent: 'center',
   },
   routeFailTxt: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: paper.critical, flex: 1 },
   routeFailRetry: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },

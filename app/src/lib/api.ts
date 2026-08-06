@@ -1,7 +1,7 @@
 // Live API layer — replaces store.ts mocks screen by screen.
-// Pattern: fetch → map to the app's existing types → screens fall back to mock on failure.
+// Pattern: fetch → map to the app's existing types → screens show loading/error/empty honestly (목업 폴백 금지).
 import { FunctionsHttpError } from '@supabase/supabase-js';
-import { AddonKey, Booking, BookingStatus, dog as mockDog, RouteInfo, TracePoint } from '../store';
+import { AddonKey, Booking, BookingStatus, RouteInfo, TracePoint } from '../store';
 // bookings.status 원시 enum — store의 BookingStatus(목록 배지 어휘)와 다른 어휘라 별칭으로 받는다
 import type { BookingStatus as DbBookingStatus } from './payphase';
 import { supabase } from './supabase';
@@ -102,29 +102,12 @@ export async function fetchMyDistrict(): Promise<string | null> {
   return data?.district ?? null;
 }
 
-// ---------- dogs ----------
-// 유저의 첫 반려견 확보 (없으면 목업 초코 프로필로 생성 — 실 프로필 위저드는 후속)
-export async function ensureDog(): Promise<string> {
-  const { data: existing, error } = await supabase.from('dogs').select('id').limit(1);
-  if (error) throw error;
-  if (existing && existing.length > 0) return existing[0].id;
-
-  const { data: user } = await supabase.auth.getUser();
-  if (!user.user) throw new Error('not signed in');
-  const { data: created, error: cErr } = await supabase.from('dogs').insert({
-    owner_id: user.user.id,
-    name: mockDog.name,
-    breed: mockDog.breed,
-    weight_kg: mockDog.weightKg,
-    memo: mockDog.memo,
-    weekly_goal_km: mockDog.weeklyGoalKm,
-    // fitness_age 시드 금지 — 생일 없이 목업 1.8살이 실측처럼 표시되던 정직성 버그
-  }).select('id').single();
-  if (cErr) throw cErr;
-  return created.id;
-}
-
 // ---------- dog profile (실초코) ----------
+// [정직 웨이브 2.5 · 감사 #34] ensureDog() 삭제 — 반려견이 없는 보호자가 결제하면 목업 초코
+// (이름·품종·11kg·지어낸 슬개골 메모)를 dogs에 실제로 INSERT하던 자리다. 그 메모는 러너의
+// 인계 화면까지 흘러갔다. 게다가 셀렉트에 owner_id 필터가 없어(.select('id').limit(1))
+// 이중 역할 계정의 RLS에서 '남의 강아지 id'를 집어올 수 있었다. 없는 아이를 만들어 주는
+// 대신 화면이 등록을 요구한다 (request.tsx pay() 게이트 → /owner/dog).
 export interface DogProfile {
   id: string;
   name: string;
@@ -163,8 +146,9 @@ const DOG_SELECT = 'id, name, breed, birth_date, weight_kg, neutered, memo, pref
 export async function fetchMyDogs(): Promise<DogProfile[]> {
   const { data: user } = await supabase.auth.getUser();
   if (!user.user) return [];
-  const { data } = await supabase.from('dogs').select(DOG_SELECT)
+  const { data, error } = await supabase.from('dogs').select(DOG_SELECT)
     .eq('owner_id', user.user.id).order('created_at', { ascending: true });
+  if (error) throw error; // [적대 리뷰 P1] 실패를 삼키면 '개 없음'으로 둔갑 — 에러 브랜치가 죽는다
   return (data ?? []).map(mapDog);
 }
 

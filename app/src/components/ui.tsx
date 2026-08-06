@@ -1,7 +1,7 @@
-import { ReactNode } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { Image, Pressable, StyleProp, StyleSheet, Text, TextStyle, View, ViewStyle } from 'react-native';
 import { useNumFont } from '../lib/fonts';
-import { colors, radius } from '../theme';
+import { colors, paper, radius } from '../theme';
 
 // 도그스하이 shared UI kit — mirrors the prototype's design system.
 
@@ -18,12 +18,20 @@ export function Btn({
         s.btn,
         variant === 'volt' && { backgroundColor: colors.volt },
         variant === 'ghost' && s.btnGhost,
-        disabled && { opacity: 0.4 },
         pressed && { transform: [{ scale: 0.97 }] },
         style,
+        // 비활성 = 명시 fill. 불투명도 트릭 금지 (F2.1 버튼 매트릭스 법).
+        // RN은 배열을 왼→오로 병합하므로 이 두 줄은 반드시 맨 뒤 — variant/style 앞에 두면 조용히 무효화된다.
+        disabled && variant !== 'ghost' && { backgroundColor: paper.disabledFill },
+        disabled && variant === 'ghost' && { backgroundColor: 'transparent', borderColor: colors.line },
       ]}
     >
-      <Text style={[s.btnText, variant === 'volt' && { color: colors.ink }, variant === 'ghost' && { color: colors.ink }]}>
+      <Text style={[
+        s.btnText,
+        variant === 'volt' && { color: colors.ink },
+        variant === 'ghost' && { color: colors.ink },
+        disabled && { color: paper.faint }, // 라벨도 명시 색 — 맨 뒤라야 variant 색을 이긴다
+      ]}>
         {label}
       </Text>
     </Pressable>
@@ -56,7 +64,7 @@ export function Badge({ label, tone = 'green' }: { label: string; tone?: 'green'
 
 export function Monogram({ char, bg, size = 52 }: { char: string; bg: string; size?: number }) {
   return (
-    <View style={{ width: size, height: size, borderRadius: size * 0.3, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
+    <View style={{ width: size, height: size, borderRadius: 0, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
       <Text style={{ fontFamily: undefined, fontSize: size * 0.42, fontWeight: '800', color: '#fff' }}>{char}</Text>
     </View>
   );
@@ -79,11 +87,16 @@ export function Skeleton({ width, height, radius: r = 12, style }: { width: numb
 
 // 실사진 아바타 — url 없으면 Monogram 폴백. 신뢰 표면 전부가 이걸 쓴다.
 export function Avatar({ url, char, bg, size = 52 }: { url?: string | null; char: string; bg: string; size?: number }) {
-  if (!url) return <Monogram char={char} bg={bg} size={size} />;
+  // 훅은 조기 반환보다 위 — Rules of Hooks. url이 null↔값으로 뒤집히는 화면이 있어 순서가 흔들리면 크래시.
+  const [failed, setFailed] = useState(false);
+  // url이 바뀌면 실패 상태 리셋 — 리스트에서 재활용되는 아바타가 한 번의 로드 실패로 영영 모노그램에 갇히지 않게.
+  useEffect(() => { setFailed(false); }, [url]);
+  if (!url || failed) return <Monogram char={char} bg={bg} size={size} />;
   return (
     <Image
       source={{ uri: url }}
-      style={{ width: size, height: size, borderRadius: size * 0.3, backgroundColor: '#DCD6C4' }}
+      onError={() => setFailed(true)}
+      style={{ width: size, height: size, borderRadius: 0, backgroundColor: colors.clay }}
     />
   );
 }

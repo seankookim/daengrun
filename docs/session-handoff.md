@@ -1,6 +1,6 @@
 # SESSION HANDOFF — 2026-08-06 (END: 0059 take-rate · 순백/코랄 pivot · honesty waves 1+2 · 정기 구독 decision)
 
-English body (Sean: "use english") · in-app copy Korean · commit messages Korean.
+English body (Sean: "use english") · in-app copy Korean · commit messages English.
 **Opener for next session: "read docs/session-handoff.md fully, then continue."**
 CLAUDE.md at repo root is the permanent law book. The prior detailed §2b–§2j reference
 (rewards/passport/security history) lives in `docs/session-handoff-archive-20260805.md`.
@@ -13,6 +13,39 @@ DISJOINT file surfaces → Opus adversarial reviewer (attacks EXECUTED, not read
 Claude worktrees under `.claude/worktrees/` are STALE snapshots (migrations stop ~0036) — never
 build or gate there. The gstack skill suite is installed (`/qa /investigate /ship /office-hours`
 etc.); `/browse` for all web browsing, never mcp__claude-in-chrome__*.
+
+---
+
+## ⓪+ WAVE 2.5 SHIPPED — 2026-08-07 (client honesty, claim-scoped; /autoplan full pipeline)
+
+**What shipped (this commit):** ensureDog() DELETED (dog-less pay no longer writes mock 초코 +
+fabricated medical memo into the DB; pay gates via `반려견부터 ›` label swap) · request.tsx dog
+block honest 4-state (fetchMyDogs now THROWS on error — was silently "no dog") · both meetup
+screens: arrival-promise lies → departure-only truth, labels matched to the frozen stage
+machine (enroute=출발 대기), 준비 중 overlays on the decorative map plates · bodycam GPS-only
+truth ×3 + ONE approved 준비 중 line (schedule; Sean D3=B) · transition-booking owner notify
+no longer promises uncontracted insurance · safety.tsx insurance/신원 claims softened; schedule
+신원인증 badge retired · ui.tsx: Btn opacity-disabled → explicit fills, Avatar/Monogram sharp
+corners (radius 0 app-wide) + hooks-safe error fallback · e2e pins no-보험 + notification
+existence · dead mock feed/imports/fossil swept. Livecam addon KEPT as-is (Sean D4=C).
+Review trail: docs/plans/honesty-wave-2p5-deferred-plan.md (38-decision audit, 3 voices,
+adversarial FIX-THEN-SHIP all cleared). Gates green: tsc · check-rpc · e2e syntax.
+
+### 🔴 SEAN — new queue items (post-wave-2.5)
+1. `supabase functions deploy transition-booking` — picks up the honest 인계 notify copy.
+2. Device smoke: ~/.gstack/projects/seankookim-daengrun/sean-redesign-v4-eng-review-test-plan-
+   20260807-004920.md — highlights: dog-less pay → /owner/dog with NO dogs row created ·
+   airplane-mode request → 다시 시도 strip (NOT 등록 CTA) · avatar sharp corners one screen per
+   world · meetup 준비 중 map overlays · recycled-list avatar after one dead URL.
+3. `git push` when satisfied.
+NOTE: `git add -A` is FORBIDDEN in this tree — untracked `supabase/.temp/start-secrets/`
+holds real secrets and is NOT gitignored (rider: add to .gitignore + un-track .temp).
+
+**Next session (D2=A, Sean-confirmed): WAVE 3 — now UNBLOCKED** (0055-0059 + both functions
+verified deployed 2026-08-06 22:42). Scope: 0060 booking_pickup_address definer RPC +
+payment_hold expiry (spec: honesty-batch-sunbaek-spec.md WAVE 3) + arrival push + owner stage
+freshness + create-booking-hold ownership check + real meetup map. Full adversarial cycle +
+harness (235+N pins). Riders ledger: see plan doc "Build + adversarial review record".
 
 ---
 

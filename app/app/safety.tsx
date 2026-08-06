@@ -142,7 +142,8 @@ export default function Safety() {
         {/* ---------- 보험·안전 안내 (정보성) ---------- */}
         <Text style={s.section}>안전 체계</Text>
         <View style={s.card}>
-          <InfoRow glyph="🛡" title="펫보험" desc="인계 확인 시점부터 러닝 종료까지 적용 (파일럿 보험 파트너 협의 중)" />
+          {/* [정직 배치 2.5] 서명된 증권이 없다 — 적용 시점·범위 주장 은퇴, 협의 중이라는 사실만 남긴다 */}
+          <InfoRow glyph="🛡" title="펫보험" desc="파일럿 보험 파트너와 협의 중이에요" />
           <View style={s.div} />
           <InfoRow glyph="📍" title="실시간 위치" desc="러닝 중 보호자 라이브 지도에 러너 경로가 실시간 표시돼요" />
           <View style={s.div} />

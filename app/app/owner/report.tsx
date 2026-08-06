@@ -322,16 +322,16 @@ export default function Report() {
                 ))}
               </View>
             ) : (
-              <View style={[s.section, { flexDirection: 'row', gap: 2, paddingHorizontal: 0, paddingVertical: 0 }]}>
-                {[0, 1, 2].map((i) => (
-                  <View key={i} style={s.photoSlot}><Text style={{ fontSize: 18.5, color: '#c9ccc0' }}>▣</Text></View>
-                ))}
+              /* [정직 배치 2.5 · 감사 #31] 유령 타일 3개 은퇴 — 채워질 자리인 척하는 빈 액자였다.
+                 바디캠 하이라이트도 파이프라인이 없으므로 약속에서 뺀다. 끝난 러닝의 사실은 과거형 한 줄. */
+              <View style={{ backgroundColor: '#fff', paddingHorizontal: 20, paddingTop: 4, paddingBottom: 14 }}>
+                <Text style={{ fontSize: 15, fontWeight: '700', color: FOREST, textAlign: 'center' }}>
+                  이번 러닝은 사진이 없어요
+                </Text>
+                <Text style={{ fontSize: 14, color: colors.dim, textAlign: 'center', marginTop: 3 }}>
+                  러너가 러닝 중 남긴 사진이 있으면 여기에 표시돼요
+                </Text>
               </View>
-            )}
-            {run.photos.length === 0 && (
-              <Text style={{ fontSize: 14, color: colors.dim, textAlign: 'center', backgroundColor: '#fff', paddingBottom: 10 }}>
-                러너가 남긴 사진과 바디캠 하이라이트가 여기에 담겨요
-              </Text>
             )}
 
             {/* ---------- 목표 달성 ---------- */}
@@ -689,7 +689,6 @@ const s = StyleSheet.create({
   haulCta: { backgroundColor: '#fff', borderRadius: 99, paddingVertical: 11, paddingHorizontal: 22, marginTop: 16 },
   haulCtaText: { fontSize: 15, lineHeight: 20, fontWeight: '900', color: lilac.head },
   haulHint: { fontSize: 14, lineHeight: 18, color: HAUL_DIM, marginTop: 12 },
-  photoSlot: { width: TILE, height: TILE * 0.6, backgroundColor: '#f4f2ea', alignItems: 'center', justifyContent: 'center' },
   emptyBox: { margin: 20, backgroundColor: '#f4f2ea', borderRadius: 18, padding: 26, alignItems: 'center' },
   emptyText: { fontSize: 15, color: colors.dim, textAlign: 'center', lineHeight: 22 },
   ctaGhost: { marginTop: 14, backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 10, paddingHorizontal: 18 },

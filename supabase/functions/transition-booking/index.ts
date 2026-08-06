@@ -209,7 +209,8 @@ Deno.serve(handle(async (req) => {
       if (fresh?.owner_confirmed_handoff_at && fresh?.runner_confirmed_handoff_at) {
         if (fresh.status !== "picked_up" && fresh.status !== "active") {
           await set({ status: "picked_up" });
-          await notify(bk.owner_id, "인계 완료", "지금부터 펫보험이 적용됩니다");
+          // [정직 배치 2.5] 서명된 보험 증권이 없다 — '지금부터 적용' 은퇴. 앱 카피(owner/meetup.tsx 인계 완료 카드)와 동일 문장
+          await notify(bk.owner_id, "인계 완료", "양측 확인이 끝났어요 — 러너가 곧 러닝을 시작해요");
           if (bk.runner_id) await notify(bk.runner_id, "인계 완료", "러닝을 시작할 수 있어요");
         }
       } else {

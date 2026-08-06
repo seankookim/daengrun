@@ -59,7 +59,7 @@
 
 - **안심 코스 카탈로그** — request 화면이 Supabase `routes`에서 로드 (실패 시 목업 폴백, "실시간 코스 정보" 표시). 첫 라이브 데이터.
 - **인증** — 이메일 OTP 로그인 실동작, 세션 유지, profiles upsert. (카카오: Expo Go 리다이렉트 이슈 — dev build에서 해결 예정)
-- **예약 생성 파이프라인** — 결제하기 → ensureDog → create-booking-hold (서버 가격·원자 홀드) → payment_ok → matching 상태. 홀드 모달에 "서버 홀드 확보" 표시. 실패 시 오프라인 데모 모드 폴백.
+- **예약 생성 파이프라인** — 결제하기 → 반려견 게이트(미등록 시 /owner/dog, 자동 생성 없음 — wave 2.5에서 ensureDog 삭제) → create-booking-hold (서버 가격·원자 홀드) → payment_ok → matching 상태. 홀드 모달에 "서버 홀드 확보" 표시.
 - **내 일정 실예약 표시** — DB 예약이 LIVE 배지로 목업 위에 병합. 매칭 전 예약은 관리 시트 게이트.
 - **지명 매칭 (v0.18)** — 매칭 화면에 실러너 목록(● LIVE), 지명 요청 → runner_pending → 러너 인박스 ★ 지명 요청 표시. 목업 러너 카드는 데모 표기.
 - **인계 동기화 정직화** — 보호자 화면의 '러너 도착'이 서버 상태(runner_enroute) 기반. 러너 미트업 진입 시 enroute 보고. 가짜 타이머는 데모 경로에만.

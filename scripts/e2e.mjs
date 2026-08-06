@@ -262,6 +262,11 @@ try {
     expect(r.status === 200, 'runner confirm failed', r.body);
     const b = await admin(`/rest/v1/bookings?id=eq.${bookingId}&select=status`);
     expect(b.body?.[0]?.status === 'picked_up', `양측 확인 후에도 picked_up 아님: ${b.body?.[0]?.status}`, b.body);
+    // 정직 불변식 — picked_up 알림이 보호자에게 '보험'을 약속하면 안 된다 (미체결 상품).
+    const n = await admin(`/rest/v1/notifications?ref_id=eq.${bookingId}&profile_id=eq.${owner.id}&select=title,body`);
+    expect(Array.isArray(n.body) && n.body.some((x) => `${x.title ?? ''}`.includes('인계 완료')), '인계 완료 알림이 보호자에게 생성되지 않음', n.body);
+    const bad = (Array.isArray(n.body) ? n.body : []).filter((x) => `${x.title ?? ''} ${x.body ?? ''}`.includes('보험'));
+    expect(bad.length === 0, '인계 알림이 보호자에게 보험을 약속함 — 미체결 상품 (정직 불변식 위반)', bad);
   });
 
   await step('start_run → active', async () => {

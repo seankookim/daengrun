@@ -188,6 +188,13 @@ export default function Meetup() {
         <View style={s.mePin}><Text style={s.pinText}>나</Text></View>
         <View style={s.pickupPin}><Text style={s.pinText}>픽업</Text></View>
 
+        {/* [정직 배치 2.5 · 감사 #28] 이 판은 아무 위치도 모른다 — 실시간 지도 파이프라인이 아직 없다.
+            추상 도형(길·점·핀)은 지면으로 남기되, '지금 어디'를 말하는 척하지 않도록 겹쳐 적는다.
+            문법은 owner/request.tsx의 '코스 지도 준비 중' 슬롯과 동일 (같은 준비 중 어휘 한 벌). */}
+        <View pointerEvents="none" style={s.mapPendingWrap}>
+          <View style={s.mapPending}><Text style={s.mapPendingTxt}>실시간 지도 준비 중</Text></View>
+        </View>
+
         <Row style={s.topBar}>
           <Pressable onPress={() => router.back()} style={s.circleBtn}><Text style={{ fontSize: 20.5, color: paper.ink }}>‹</Text></Pressable>
           <View style={s.etaPill}>
@@ -316,7 +323,10 @@ export default function Meetup() {
           <View style={s.actions}>
             {/* 도착 확인은 화면의 계약 행동이 아니라 러너 자기보고 — 세컨더리로 정직하게 강등 */}
             <PaperBtn label="픽업 장소 도착 확인" variant="secondary" onPress={() => setStage('arrived')} />
-            <Text style={s.ctaHint}>보호자에게 도착 알림이 전송돼요</Text>
+            {/* [정직 배치 2.5 · 감사 #29] 잔여 갭: 도착은 이 버튼으로 로컬 스테이지만 바뀐다 —
+                보호자 쪽에 '도착'이라는 상태는 존재하지 않는다(runnerEnroute 출발 알림이 전부).
+                wave-3의 지명 러너 도착 푸시가 붙기 전까지 카피가 약속을 앞서 나가면 안 된다. */}
+            <Text style={s.ctaHint}>보호자에게는 출발 알림만 가요 · 도착은 채팅으로 알려주세요</Text>
           </View>
         )}
         {stage === 'arrived' && (
@@ -358,7 +368,7 @@ export default function Meetup() {
                 router.replace('/runner/run');
               }}
             />
-            <Text style={s.ctaHint}>인계 완료 · GPS와 바디캠이 켜져요</Text>
+            <Text style={s.ctaHint}>인계 완료 · 러닝을 시작하면 GPS 기록이 켜져요</Text>
           </View>
         )}
 
@@ -462,7 +472,8 @@ const s = StyleSheet.create({
   roadA: { position: 'absolute', top: 150, left: -20, right: -20, height: 16, backgroundColor: paper.disabledFill, transform: [{ rotate: '-14deg' }] },
   roadB: { position: 'absolute', top: 0, bottom: 0, left: 130, width: 13, backgroundColor: paper.disabledFill, transform: [{ rotate: '18deg' }] },
   pathDots: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
-  pathDot: { position: 'absolute', width: 8, height: 8, borderRadius: 4, backgroundColor: paper.line },
+  // [정직 배치 2.5] 경로 점·픽업 핀은 '아는 위치'가 아니라 지면 무늬다 — 주장 강도를 낮춘다
+  pathDot: { position: 'absolute', width: 8, height: 8, borderRadius: 4, backgroundColor: paper.line, opacity: 0.35 },
   // 핀은 지리 마커라 원형 예외 — 상태색은 남고(위탁 표면 법) 글로우만 떠난다
   mePin: {
     position: 'absolute', left: 28, top: 202, width: 26, height: 26, borderRadius: 13,
@@ -471,7 +482,15 @@ const s = StyleSheet.create({
   pickupPin: {
     position: 'absolute', left: 292, top: 62, width: 36, height: 26, borderRadius: 13,
     backgroundColor: paper.line, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: paper.canvas,
+    opacity: 0.4,
   },
+  // 준비 중 오버레이 — request.tsx의 mapPending과 같은 문법(캔버스 면 + 1px 코랄 + dim 14/700)
+  mapPendingWrap: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
+  mapPending: {
+    backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line,
+    paddingVertical: 10, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center',
+  },
+  mapPendingTxt: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: paper.dim },
   pinText: { fontSize: 14, lineHeight: 18, fontWeight: '900', color: '#fff' },
   topBar: { position: 'absolute', top: 56, left: 10, right: 10, justifyContent: 'space-between' },
   circleBtn: {

@@ -465,16 +465,25 @@ export default function Matching() {
           )}
 
           {/* 인증 장비 칩 (0019) — 사진으로 인증된 슬롯만. 없으면 그리지 않는다 */}
+          {/* [정직 배치 2.5 · 감사 #35] 바디캠 칩은 '보유'까지만 참이다 — 영상 전달 경로가 아직 없다.
+              바디캠이 없는 러너에게까지 부정문을 들이밀지 않도록 게이트 (없는 기능을 먼저 광고 금지) */}
           {selGear.length > 0 && (
-            <Row style={{ gap: 7, marginTop: 11, flexWrap: 'wrap' }}>
-              {selGear.map((g) => (
-                <View key={g.id} style={s.gearChip}>
-                  <Text style={{ fontSize: 14, fontWeight: '600', color: lilac.text }}>
-                    {GEAR_META[g.kind].glyph} {GEAR_META[g.kind].name} <Text style={{ color: lilac.accent, fontWeight: '700' }}>✓</Text>
-                  </Text>
-                </View>
-              ))}
-            </Row>
+            <>
+              <Text style={{ fontSize: 14, lineHeight: 18, color: lilac.dim, marginTop: 11 }}>
+                {selGear.some((g) => g.kind === 'bodycam')
+                  ? '러너가 보유한 장비예요 — 영상 제공은 아직 지원하지 않아요'
+                  : '러너가 보유한 장비예요'}
+              </Text>
+              <Row style={{ gap: 7, marginTop: 7, flexWrap: 'wrap' }}>
+                {selGear.map((g) => (
+                  <View key={g.id} style={s.gearChip}>
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: lilac.text }}>
+                      {GEAR_META[g.kind].glyph} {GEAR_META[g.kind].name} <Text style={{ color: lilac.accent, fontWeight: '700' }}>✓</Text>
+                    </Text>
+                  </View>
+                ))}
+              </Row>
+            </>
           )}
 
           {/* 유일한 큰 버튼 — 시트 안에 산다 */}
