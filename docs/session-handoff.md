@@ -96,7 +96,24 @@ Scout confirmed the office-hours claim and found it stronger: **miles_ledger.ref
 
 **docs/biz/affiliate-product-research.md**: Coupang Partners is the wrong default (≈3%→~2% effective, 24h cookie, API gated behind ₩150k cumulative sales). Better: 무신사 큐레이터 (up to 10%+, Ruffwear+HOWLPOT are official Musinsa brands) + 네이버 쇼핑 커넥트 (seller-set 3–50%). No Korean premium pet mall runs a public affiliate program → direct 제휴 priced on run data is the real opening. First shelf: 10 picks (Ruffwear harness/lead/treat-pouch/cooling vest/shoes, HOWLPOT 라일락 harness, LILA LOVES IT paw balm, Aesop 애니멀, hip pack, SmartTag2+pet strap). Category expansion: ratify E1 owner gear/E2 post-run care/E4 SmartTag; E3 nutrition editorial-only; reject E5–E8 (commodity). Corrections: 하울팟 is lifestyle not fresh-food; Julius-K9 no KR importer; Coupang Ruffwear pricing suggests parallel imports (warranty caution).
 
-## 🔴 2i. COMPREHENSIVE AUDIT (2026-08-05, /gstack) — SERVER HAS REMOTELY-EXPLOITABLE P0s
+## ✅ 2i-FIX. 0057 SECURITY HARDENING — SHIPPED (commit 5a80f1e, harness 231/0)
+
+The three remotely-exploitable server P0s are CLOSED. Full precision-director cycle: Opus builder → adversarial reviewer RE-EXECUTED all audit attacks against a scratch DB (every one proven closed) → Opus test author wrote 7 mutation-verified `[sec]` pins (each turns red if its fix is reverted) → boss-verified harness 231/0 + upgrade OK + device tsc/check-rpc clean.
+
+- **P0-1 (bookings payout theft/hijack)**: `_guard_booking_cols` BEFORE UPDATE trigger, 16-col blacklist (incl. R1 handoff timestamps → closes the insurance-flip forge, R2 scheduled_at) + WITH CHECK. Mechanism = SECURITY **INVOKER** trigger blocking `current_user in ('authenticated','anon')` (client JWT writes) while service_role/definer-RPC/postgres pass — reviewer empirically proved the discrimination.
+- **P0-3 (89 anon-callable definers + NULL fail-open)**: §1 dynamic sweep revokes public+anon from every owned public definer fn while capturing+restoring each fn's existing `authenticated` privilege (the `is_active_runner`/view-predicate fix — blanket revoke first broke K1/K2/H2, corrected to capture-and-restore). Schema-wide count of anon-executable definers = **0** (S1 pin, sibling of 98 H1). Belt-b: 5 custody RPCs got not_signed_in + is-distinct-from. session_transfer_accept left to belt-a only (99-line body, anon already closed).
+- **P0-2 (club booking seizure)** + **P1-5 (confirmed-decline)**: transition-booking edge-fn gates (runner_accept: status=matching + club_session_id null + tier≠applicant; runner_decline: status=runner_pending). Raw-SQL path already closed by party USING.
+- **P1-4** batch/debug 6× revoked from all roles · **P1-6** runs post-settlement freeze + col guard · **K-1** runners server-only cols (commission_rate now server-only = take-rate prerequisite) · **K-2** doc self-verify blocked · **K-3** ensureRunner now mints applicant/not-certified (api.ts).
+- **DEPLOY (Sean)**: `supabase db push` (0057) + `supabase functions deploy transition-booking` as ONE batch (P0-2 tier gate ↔ K-3 applicant mint are coupled). The edge-fn deploy can go FIRST to close the anon-custody path fastest; §1 also closes it at the DB. Run harness before push (expect 231/0).
+
+**STILL OPEN from the audit (next slices, NOT in 0057):**
+- **0058 take-rate 33%** — now unblocked (K-1 made commission_rate server-only). Own migration: set commission_rate default+existing to 0.33, update theme.ts pricing.commission 0.2→0.33 same commit, RECOMPUTE the 10_settle_suite expectations (net 19,920→16,683 at full completion etc.). Kept OUT of 0057 deliberately so settlement-arithmetic changes couldn't mask a security regression. Reviewer-worthy on its own (arithmetic).
+- **P1-7** directed-booking path structurally dead · **P1-8** no_show has no writer (past-due confirmed sweep) — state-machine slice, lower urgency.
+- **P2 sweep** (audit worklist item 6): P2-16 RLS-off club_critical_titles, P2-15 narrow club authed-read policies, P2-17 anon _club_compute_axes oracle (anon already closed by §1; authenticated remains), P2-19/24 fabricated-celebration gates, etc.
+- **R3** saveRunTrace dead code + contradictory post-settlement comment (api.ts:1303, 0 callers) — reconcile or delete.
+- **Product Qs (Sean, not eng)**: K-5 refund_pending terminality · P2-20 owner corroboration before paying the 50% early-quit guarantee (runner self-declares end_reason).
+
+## 🔴 2i. COMPREHENSIVE AUDIT (2026-08-05, /gstack) — SERVER HAD REMOTELY-EXPLOITABLE P0s [server P0s now fixed in 2i-FIX above]
 
 Three executed audits (server against scratch DB daengrun_audit, both-ends client, harness re-verified 224/224 untouched). Full reports: **docs/audit-2026-08-05-server.md · docs/audit-2026-08-05-client.md**. This is now the top of the 0057 worklist — ahead of take-rate/rewards ③.
 
