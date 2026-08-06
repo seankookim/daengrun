@@ -1340,7 +1340,7 @@ export default function OwnerHome() {
         )}
 
         {/* ---------- 동네 코스 — 러너 아래, 코스 발견 (Sean 배치 결정 2026-07-28) ---------- */}
-        <CourseStrip />
+        <CourseStrip headerPad={14} />
 
         {/* ---------- safety quick card ---------- */}
         <Pressable onPress={() => router.push('/safety')} style={[s.safetyStrip, { backgroundColor: p.card }]}>
@@ -1615,7 +1615,7 @@ const s = StyleSheet.create({
   ctaPlateDiv: { width: 1, height: 11, backgroundColor: 'rgba(255,255,255,0.4)' },
   // 하이클럽 셸 — 히어로 인접 격상 (바이올렛 라일락 엘리베이션)
   clubShell: {
-    marginTop: 14, borderRadius: 0, // [풀블리드]
+    marginTop: 14, marginHorizontal: 14, borderRadius: lilacRadius.card, // [Sean 2026-08-06] 클럽 위젯만 유일하게 측면 마진+라운드 유지 — 풀블리드 예외
     shadowColor: lilac.accent, shadowOpacity: 0.14, shadowRadius: 30, shadowOffset: { width: 0, height: 12 }, elevation: 3,
   },
   meetBtn: {
@@ -1637,8 +1637,9 @@ const s = StyleSheet.create({
     ...lilacShadow,
   },
   safetyStrip: {
-    flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: lilacRadius.card,
-    paddingVertical: 11, paddingHorizontal: 12, marginTop: 12,
+    flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: 0,
+    paddingVertical: 11, paddingHorizontal: 14, marginTop: 12, // [풀블리드] 내부 거터 14
+    borderLeftWidth: 0, borderRightWidth: 0,
     borderWidth: 1, borderColor: lilac.hair,
     ...lilacShadow,
   },

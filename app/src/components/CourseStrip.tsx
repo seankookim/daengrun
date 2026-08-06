@@ -15,7 +15,8 @@ import { HeatTrace } from './runcard';
 const FOREST = '#0F1D13';
 // [V4] 파스텔 은퇴 — 코스는 거리 월드 컬러(P2 배지 월드와 동일 소스)로: 코스 = 경험
 
-export function CourseStrip({ title = '동네 코스' }: { title?: string }) {
+// headerPad: 풀블리드 컨테이너(오너 홈)에서 헤더 텍스트만 안쪽 거터를 받는다 — 러너 홈(컨테이너 패딩 유지)은 0
+export function CourseStrip({ title = '동네 코스', headerPad = 0 }: { title?: string; headerPad?: number }) {
   const [routes, setRoutes] = useState<RouteInfo[]>([]);
   const nf = useNumFont();
 
@@ -36,11 +37,11 @@ export function CourseStrip({ title = '동네 코스' }: { title?: string }) {
 
   return (
     <View style={{ marginTop: 18 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8, marginBottom: 9, borderBottomWidth: 2.5, borderBottomColor: FOREST, paddingBottom: 7 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8, marginBottom: 9, borderBottomWidth: 2.5, borderBottomColor: FOREST, paddingBottom: 7, paddingHorizontal: headerPad }}>
         <Text style={{ fontSize: 16, fontWeight: '900', color: FOREST }}>{title}</Text>
         <Text style={{ fontSize: 9, fontWeight: '700', letterSpacing: 2, color: colors.voltDeep }}>VERIFIED COURSES</Text>
       </View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingRight: 12 }}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingLeft: headerPad, paddingRight: 12 }}>
         {routes.map((r) => {
           const w = worldOf(r.km); // [V4] 거리 = 색 세계 (TRAIL 테라 · FOREST 볼트 · RIVER 스카이 · NIGHT 바이올렛)
           return (
