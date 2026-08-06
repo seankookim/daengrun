@@ -96,7 +96,19 @@ Scout confirmed the office-hours claim and found it stronger: **miles_ledger.ref
 
 **docs/biz/affiliate-product-research.md**: Coupang Partners is the wrong default (≈3%→~2% effective, 24h cookie, API gated behind ₩150k cumulative sales). Better: 무신사 큐레이터 (up to 10%+, Ruffwear+HOWLPOT are official Musinsa brands) + 네이버 쇼핑 커넥트 (seller-set 3–50%). No Korean premium pet mall runs a public affiliate program → direct 제휴 priced on run data is the real opening. First shelf: 10 picks (Ruffwear harness/lead/treat-pouch/cooling vest/shoes, HOWLPOT 라일락 harness, LILA LOVES IT paw balm, Aesop 애니멀, hip pack, SmartTag2+pet strap). Category expansion: ratify E1 owner gear/E2 post-run care/E4 SmartTag; E3 nutrition editorial-only; reject E5–E8 (commodity). Corrections: 하울팟 is lifestyle not fresh-food; Julius-K9 no KR importer; Coupang Ruffwear pricing suggests parallel imports (warranty caution).
 
-## ✅ 2i-FIX. 0057 SECURITY HARDENING — SHIPPED (commit 5a80f1e, harness 231/0)
+## ✅ 2i-FIX2. 0058 SECURITY HARDENING 2 — SHIPPED (commit 61596a4, harness 234/0)
+
+Independent verification pass (Sean-requested: "check whether the 0057 sweep was thorough" — Fable directed + 2 Opus lenses each on its own scratch DB) found 0057 was NOT fully thorough. Both re-executed their attacks against 0058 and confirmed all CLOSED, no legit-flow over-block:
+- **P1 (MONEY) club_incident_resolve NULL-fail-open**: `case_owner` is NULL for every freshly-opened incident → `auth.uid() <> NULL` = NULL → gate never fires → the handling runner (a party) resolves an incident against himself AND releases his own payout_hold (executed held→none). The audit's own premise "authed non-party is safe because `<>` fires" was false when the RIGHT operand is NULL. §1: NULL-safe gate (case_owner OR host/backup_host) + not_signed_in, preserving 0052 backup-host-resolve.
+- **P2→P1 bookings status/reschedule unguarded** → owner writes status='cancelled_owner' to evade the 10% cancel fee, runner writes cancelled_runner to bypass the edge-fn P1-5 gate. §3: `_guard_booking_cols` blacklist → **deny-all-for-client** (client writes zero to bookings directly — verified — so this realizes the audit's "narrow to nothing"). Server/definer/service_role paths unaffected.
+- **P2 transfer NULL-`by` residue** (0057 §2 skipped session_transfer_accept) — §2 is-distinct-from + external-branch by-null guard.
+- **P2 §4 sweep-skip false-green**: 0057 §1 skipped non-postgres-owned definer fns; S1 pin is local-only so can't see them. §4 re-runs the sweep owner-agnostic (exception-wrapped; postgres superuser revokes any). Non-owned class is likely empty on this prod (dashboard fns are postgres-owned) but structurally closed now.
+- F5: all 21 `<>`-gate definer fns audited — the rest have NOT-NULL right operands (safe, table in 0058 header).
+- 3 new mutation-verified pins: **S8** (bookings status deny-all), **S9** (incident NULL-owner — the P1), **S10** (transfer NULL-by). 00_shim gained service_role fn-grant (test visibility). Harness 234/0.
+- **REMOTE manual check for Sean (no pin can cover it)**: run against prod — `select oid::regprocedure from pg_proc where prosecdef and has_function_privilege('anon',oid,'execute')` → must be 0 rows (catches any non-owned anon-exec fn 0058 §4 would still handle on push, but confirm).
+- **DEPLOY: 0057 + 0058 push together** (0058 depends on 0057's guard). transition-booking deploy unchanged from 0057.
+
+## ✅ 2i-FIX. 0057 SECURITY HARDENING — SHIPPED (commit 5a80f1e, harness 231/0 → now 234/0 with 0058)
 
 The three remotely-exploitable server P0s are CLOSED. Full precision-director cycle: Opus builder → adversarial reviewer RE-EXECUTED all audit attacks against a scratch DB (every one proven closed) → Opus test author wrote 7 mutation-verified `[sec]` pins (each turns red if its fix is reverted) → boss-verified harness 231/0 + upgrade OK + device tsc/check-rpc clean.
 
