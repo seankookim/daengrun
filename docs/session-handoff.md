@@ -92,6 +92,16 @@ anchor-free questions: ① 라이브 캠 price ② 정기 구독 price ("매주 
 report:333)·O5 pay.tsx 딥링크 잔존 — 전부 웨이브 2(pay 리빌드+미트업 씸 리페인트)에서. 스모크:
 스펙 각 item Smoke 목록 + 홈 3상태(비행기 모드)·리뷰 실패 재시도·코스 준비 중 슬롯 4곳.
 
+**정직 배치 웨이브 2 SHIPPED (c39c997 — /plan-eng-review Opus 보이스 20발견 선행 + Opus 빌더 2 +
+Opus 적대 리뷰 11발견, 게이트 클린, 시뮬레이터 검증)**: pay.tsx 리빌드(payphase.ts 9페이즈 머신,
+enum 16종 전수, PG는 driver만 추가하면 됨) · 두 결제 진입점 재배선(무언 confirmPayment 은퇴 —
+post-confirm 블록은 pay로 이주, 재시도 authorized 경로 승계) · 미트업 ×2 심-룰 리페인트(밴드만
+나이트, H6 동결 프로토콜 검증 통과) · PaperBtn/inkPressed/pending · dev/pay-lab.
+**웨이브 2 이연/기록**: 러너 '도착 알림 전송돼요' 카피 거짓(runner/meetup:318 — 알림 없음, P1) ·
+바디캠 카피 3곳 · 공용 Btn opacity(O1) · Monogram 라운드 vs 샤프 법 · countPill 중복 ·
+스펙 Item 9(payment_hold expire 서버 확장, 웨이브 3 동승). **디바이스 스모크(Sean)**: pay 9페이즈
+(dev/pay-lab) · 예약→홀드→pay→확정→지명/리커링 승계 · 미트업 스탬프 원스-로 재진입 · 320dp 밴드.
+
 **BUSINESS MODEL DECISION (2026-08-06 PM office-hours, APPROVED)**: membership =
 **정기 구독** (monthly fee via 정기결제, first month free) + 정기 러닝 standing slot with
 per-run billing — NOT prepaid bundles. km-coins PARKED (ledger-contracts §3 dormant;
