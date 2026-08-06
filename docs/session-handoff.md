@@ -79,8 +79,22 @@ backlog recorded: first-run onboarding guides (after honesty batch), Instagram-g
 community feed (needs own office hours). Affiliate research verified: 무신사 pet category
 REAL (Ruffwear/HOWLPOT brand shops live), Coupang links-first (API gated ₩150k), Naver
 커넥트 highest upside, pet verticals BD-only.
-**Sean assignment (this week)**: send 3 affiliate applications + ask 5 real owners the
-라이브 캠 price question (anchor-free).
+**Sean assignment (this week)**: send 3 affiliate applications + ask 5 real owners TWO
+anchor-free questions: ① 라이브 캠 price ② 정기 구독 price ("매주 정기 러닝 + 매 러닝
+10% 할인 월 구독 — 얼마까지?", asked BEFORE naming any number).
+
+**BUSINESS MODEL DECISION (2026-08-06 PM office-hours, APPROVED)**: membership =
+**정기 구독** (monthly fee via 정기결제, first month free) + 정기 러닝 standing slot with
+per-run billing — NOT prepaid bundles. km-coins PARKED (ledger-contracts §3 dormant;
+선불 counsel question off critical path). Discount is PLATFORM-ABSORBED (runner pay never
+shrinks; member_discount_rate_at_booking snapshot + discount ledger leg + post-settle
+member_bonus reason + MB1-4 pins). Milestone redefined: "예약의 40%가 정기 일정에서"
+(counts 반복 예약 too — measures retention; attach rate separate). **Numbers (₩9,900 /
+10% / ×1.5) = working hypotheses — dedicated pricing gate after owner interviews, before
+build.** Investor-doc sweep due when this ships: one-pager BM 문단 + faq :21/:27/:52
+(seasonality answer dies — pause/skip replaces 회차 이월) /:199/:259 + financial-slides A-2.
+Design doc: ~/.gstack/projects/seankookim-daengrun/sean-redesign-v4-design-20260806-170000.md.
+PG selection now requires 정기결제/빌링키 support. 머니 CTA 라벨 → '다음 런 미리' (031351c).
 
 ## ⓪ STATUS — 2026-08-05 END OF DAY
 
