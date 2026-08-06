@@ -31,7 +31,7 @@ Deno.serve(handle(async (req) => {
       break;
 
     case "runner_accept": {
-      const { data: r } = await db.from("runners").select("profile_id").eq("profile_id", uid).single();
+      const { data: r } = await db.from("runners").select("profile_id, tier").eq("profile_id", uid).single();
       if (!r) throw new HttpError(403, "runner only");
       if (bk.runner_id && bk.runner_id !== uid) throw new HttpError(409, "assigned to another runner");
       // 이미 내가 수락한 예약 재탭(낡은 푸시·인박스 카드) = 무동작 — 자기충돌 제외(.neq) 도입 후
@@ -76,6 +76,14 @@ Deno.serve(handle(async (req) => {
       // 인계 타임스탬프 초기화 — 이전 시도/재매칭의 잔재가 남으면 한쪽 확인만으로 즉시 picked_up 되는 사고
       const resetPatch = { runner_id: uid, status: "confirmed", owner_confirmed_handoff_at: null, runner_confirmed_handoff_at: null };
       if (!bk.runner_id) {
+        // ── P0-2 / P2-25: 오픈 풀 문(마켓플레이스 find-now)은 클럽 위탁·비매칭·미인증을 절대 통과시키지 않는다.
+        // 클럽 위탁 배정은 전용 RPC(session_proposal_respond)만 담당 — 이 문에서 도달 불가여야 한다
+        // (감사 a5.sql: 외부 계정이 matching+runner_id=null 클럽 부킹을 이 open-pool CAS로 선점 →
+        //  보호자의 위탁 보드에 '확정 러너'로 표시됐다). tier 게이트는 marketplace_open_requests의
+        // is_active_runner() 술어를 거울한다 — 표시(뷰)와 서버(수락)가 어긋나면 안 된다(0054 경고).
+        if (bk.status !== "matching") throw new HttpError(409, "지금은 수락할 수 없는 상태예요");
+        if (bk.club_session_id !== null) throw new HttpError(403, "클럽 위탁은 이 경로로 수락할 수 없어요");
+        if (r.tier === "applicant") throw new HttpError(403, "인증 러너만 오픈 요청을 수락할 수 있어요");
         // 오픈 매칭 선점 — 원자적 조건부 업데이트: 동시 수락 시 첫 번째만 승리 (find-now 브로드캐스트)
         const { data: claimed, error: ce } = await db.from("bookings")
           .update(resetPatch).eq("id", booking_id).is("runner_id", null).select("id");
@@ -149,6 +157,11 @@ Deno.serve(handle(async (req) => {
 
     case "runner_decline":
       if (!isRunner) throw new HttpError(403, "runner only");
+      // P1-5: 거절은 응답 대기(runner_pending)에서만. confirmed는 계약이라 그 이탈은 '거절'이 아니라
+      // '취소'다 — 0047이 전이 맵에 confirmed→matching을 열며(클럽 revoke용, 트리거는 호출자 구분 불가)
+      // 이 문을 무심코 열었다. confirmed를 여기서 되돌리면 cancelled_runner 상태·cancel_fee·완주율
+      // 반영 없이 러너가 계약을 조용히 버리고, 보호자는 "다른 러너를 찾고 있어요"만 듣는다(감사 a19).
+      if (bk.status !== "runner_pending") throw new HttpError(409, "확정된 예약은 거절이 아니라 취소로 처리해주세요");
       await set({ runner_id: null, status: "matching", owner_confirmed_handoff_at: null, runner_confirmed_handoff_at: null });
       // 거절 박제 (0056) — 위 set()이 부킹을 matching·runner_id=null로 되돌리는 순간 이 부킹은
       // 0042 뷰의 술어를 다시 만족한다 = 방금 거절한 러너의 오픈 풀에 그대로 되돌아온다.

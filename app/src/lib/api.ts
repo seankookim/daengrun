@@ -298,7 +298,10 @@ const STATUS_MAP: Record<string, BookingStatus> = {
 };
 
 // ---------- runner side ----------
-// 러너 행 확보 — 루프 테스트용으로 즉시 'certified' (실 퍼널은 /runner/apply가 대체 예정)
+// 러너 행 확보 — 정직한 비인증 기본값(applicant·미검증). 러너 모드 진입이 심사를 통과시키지 않는다.
+// (K-3: 옛 부트스트랩은 tier='certified'/identity_verified=true를 즉시 박아 '통과한 적 없는 인증'을
+//  통과로 보이게 했고, 그게 P0-2(클럽 위탁 탈취)를 공짜로 만들었다. 인증 승급은 서버 측 심사 몫 —
+//  실 퍼널은 /runner/apply가 대체 예정. 루프 테스트에서 인증 러너가 필요하면 서버에서 tier를 올린다.)
 export async function ensureRunner(): Promise<void> {
   const { data: user } = await supabase.auth.getUser();
   if (!user.user) throw new Error('not signed in');
@@ -309,10 +312,10 @@ export async function ensureRunner(): Promise<void> {
 
   const { error } = await supabase.from('runners').insert({
     profile_id: uid,
-    tier: 'certified',
-    funnel_step: 'certified',
+    tier: 'applicant',
+    funnel_step: 'info',
     avg_pace_sec_per_km: 420,
-    identity_verified: true, // TODO: 실 KYC 후 false 기본으로
+    identity_verified: false,
     online: true,
   });
   if (error) throw error;
