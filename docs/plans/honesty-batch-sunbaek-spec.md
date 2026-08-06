@@ -591,7 +591,57 @@ None (styling only + item-4 wave-1 pickup card + item-7 copy ride along in the s
 
 ---
 
+# WAVE 2 — GSTACK REVIEW REPORT (/plan-eng-review 2026-08-06, Opus outside voice, 20 findings — ALL AMENDED INTO THE BUILD)
+
+**CRITICAL (5, all adopted):**
+- **C1** `failed`의 예약 취소 btnDestructive는 죽은 버튼 (0047 전이표: payment_hold→cancelled_owner
+  불허) → failed의 정직한 출구는 재시도+홈으로 뿐. 취소 CTA 제거.
+- **C2** addons에 label은 실데이터에 없다 (create-booking-hold는 {key,price}만 기록) →
+  `{key: AddonKey; price: number}[]` + label은 pricing.addons[key]?.label 폴백 렌더.
+- **C3** confirmPayment 이후 로직(지명 requestRunner·리커링·라우팅)이 request.tsx에 남으면
+  지명이 409로 조용히 증발 → post-confirm 블록 전체가 pay.tsx 성공 경로로 이동 (draft 경유).
+- **C4** createRecurringSeries가 확정 전 실행되면 미결제 주간 예약 생성 → confirm 성공 뒤로 이동.
+- **C5** 상태 16종 중 8종 미매핑; no_show/incident_review가 '결제 완료'로 위장 →
+  exhaustive `Record<BookingStatus, PayPhase>` (리터럴 유니언, tsc가 누락을 잡는다) +
+  신설 `disputed` 페이즈 (정직 카피 + 안심 센터 링크). draft|quoted→error(도달 불가, 라우드).
+
+**HIGH (adopted):** H1 두 번째 confirmPayment 호출자 home.tsx findNowPay(:561)도 /owner/pay?bid=
+로 재배선 (무언의 자동과금 경로 제거) · H2 retry는 재fetch→재파생 후 payment_hold일 때만 confirm
+(레이스 409 방지) · H3 `.maybeSingle()` + `not_found` 페이즈 신설 (bid 부재/외부 bid/0행 —
+재시도 없는 정직 부재; error와 구분) · H4 mapper는 `derivePayPhase({status, attempt?})` —
+attempt는 오늘 항상 undefined, PG 슬라이스가 채운다 (3차 리빌드 방지) · H5 mapper 위치 =
+`src/lib/payphase.ts` (api.ts:295 STATUS_MAP과의 refund_pending 어휘 분기를 주석으로 명문화) ·
+H6 미트업 동결 프로토콜: 훅 호출 순서 byte-identical(grep 시퀀스 대조) · diff는 StyleSheet/style
+prop 밖 ±0 · interpolate 리터럴 11종 불변 · **s.band/slot/slotStage에 overflow 추가 금지**(립플
+1.85× 오버플로 자름 사고) · runner subscribe 이펙트(runnerEnroute 서버 쓰기) 순서 불변 ·
+H7 밴드 풀블리드 산술: marginHorizontal −9→−26 (card padding 13+border 1+container 12),
+notch bg → paper.canvas.
+
+**MEDIUM (adopted):** M1 `partial` 페이즈 삭제 — 정산은 원자적, 서버가 그 상태를 만들 수 없다
+(9페이즈 확정: loading·not_found·mock_pending·authorizing·authorized·disputed·failed·cancelled·
+refund_pending) · M2 pay 화면 방치 시 payment_hold 잔존 — 수용된 결과로 명기 + 웨이브 3 서버
+목록에 expire 확장 추가 · M3 공용 `PaperBtn` 신설(웨이브 2 선행) + `paper.inkPressed: '#333333'`
+토큰 (text를 fill로 재사용 금지 — F5 #10) · M4 check-rpc는 .from() 셀렉트 무커버 —
+scripts/e2e.mjs에 fetchBookingCharge 셀렉트 검증 스텝 추가 · M5 러너가 자기 잡 bid로 딥링크 시
+차지 테이블+403 CTA 노출 → owner_id ≠ auth.uid()면 not_found · M6 minFare 인터페이스에서 제거
+(렌더 계획 없음) · M7 클럽 예약은 payment_hold를 거치지 않는다 — authorized로 렌더됨을 주석 명기.
+
+**LOW (adopted):** L1 confirmPayment는 api.ts:242 · L2 dev 페이즈 스위치는 별도 라우트
+app/app/dev/pay-lab.tsx (__DEV__ 리다이렉트 선례) — 프로덕션 pay.tsx에 dev 분기 금지 ·
+L3 `paper.pending`(앰버 시맨틱) 토큰 신설, 미트업의 L.amber 고아 임포트 제거 ·
+L4 MapSky 삭제 시 Svg 임포트·mapFade 스타일 고아 정리 (DoD: 두 파일 데드 임포트 0).
+
+**Non-issues (재론 금지):** report→review 무영향 · request의 예약 생성은 pay 실패와 독립 ·
+fetchBookingCharge 셀렉트 RLS 안전 · refund_pending 실존 · pay.tsx 이미 고아.
+
 # WAVE 3 — needs a server slice (addresses read for the runner)
+
+## Item 9 (added by wave-2 M2) · payment_hold expiry extension
+Abandoned pay screens leave durable `payment_hold` rows (accepted in wave 2 — invisible by the
+fetchMyBookings ghost-filter law; slot hold self-releases at 5min). Server slice: extend
+`expire_unmatched_bookings` to cover `payment_hold` older than the hold window, and drop the
+`booking_id is null` clause from `purge_expired_holds` (0003:93) so lapsed holds clean up.
+Adversarial cycle: same slice as Item 4's definer RPC.
 
 ## Item 4 (wave-3 half) · Real pickup address via bookings.address_id
 

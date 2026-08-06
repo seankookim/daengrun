@@ -164,6 +164,8 @@ export const paper = {
   critical: '#B3261E',      // 라우드-페일 잉크 — 강조 예산 면제, line과 절대 공유 금지 (색 역할 분리 법). ≥14pt/700
   criticalWash: '#FBEAE7',  // critical의 95% 워시 (인라인 실패 스트립 bg · destructive pressed)
   disabledFill: '#F2F2F2',  // disabled 버튼 명시 fill — 불투명도 트릭 금지 법의 물화
+  inkPressed: '#333333',    // primary pressed fill — text와 값은 같아도 역할 토큰 분리 (F5 #10, 웨이브 2 리뷰 M3)
+  pending: '#C77414',       // 시맨틱 대기 상태(앰버) — 라일락 L.amber의 순백 세계 승계 (웨이브 2 리뷰 L3)
   // 버튼 매트릭스 법(F2.1): primary ink面/#333 pressed/disabledFill+faint · secondary canvas面+line 보더/wash pressed ·
   // destructive canvas面+critical 잉크/criticalWash pressed · busy = 라벨 스왑(저장 중...), disabled로 칠하지 않는다
 } as const;

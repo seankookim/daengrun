@@ -6,7 +6,7 @@ import { BottomNav } from '../../src/components/bottomnav';
 import { CourseStrip } from '../../src/components/CourseStrip';
 import { ClubHomeCard } from '../../src/components/clubcard';
 import { Avatar, Icon } from '../../src/components/ui';
-import { Addr, BeaconInfo, BoardRow, confirmPayment, createBookingHold, DogProfile, fetchAddresses, fetchAvailableRunners, fetchCertifiedRunners, fetchDogBoardDelta, fetchFitness, fetchMyBookings, fetchMyDogs, fetchMyProfile, fetchRecentMoments, fetchRewardBeacon, fetchRoutes, fetchUnreadCount, Fitness, LiveRunner, Moment, MyProfile } from '../../src/lib/api';
+import { Addr, BeaconInfo, BoardRow, createBookingHold, DogProfile, fetchAddresses, fetchAvailableRunners, fetchCertifiedRunners, fetchDogBoardDelta, fetchFitness, fetchMyBookings, fetchMyDogs, fetchMyProfile, fetchRecentMoments, fetchRewardBeacon, fetchRoutes, fetchUnreadCount, Fitness, LiveRunner, Moment, MyProfile } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { haptic } from '../../src/lib/haptics';
@@ -558,14 +558,17 @@ export default function OwnerHome() {
         pace_label: draft.pace,
         addons: [], // find-now는 스피드가 본질 — 옵션은 예약 플로우에서
       });
-      await confirmPayment(res.booking_id); // 결제 시뮬레이션 → matching (오픈 브로드캐스트)
-      draft.bookingId = res.booking_id;
+      // [정직 배치 2026-08-06 · 웨이브 2 item 1/H1] 무언의 자동 과금 경로 제거 — 여기서 confirmPayment를
+      // 부르면 사용자는 결제 화면을 본 적 없이 예약이 확정된다. 시트의 몫은 홀드까지이고,
+      // 확정과 그 이후는 /owner/pay가 서버 status를 읽고 말한다.
+      // after=radar: 파인드나우는 지명이 없다 → 확정 뒤 목적지는 레이더. 이 플래그를 draft에 남기면
+      // 다음 예약까지 따라붙으므로 파라미터로만 흘린다 (이번 내비게이션의 의도).
       draft.km = fnKm;
       // 오픈 브로드캐스트에 지명 잔재가 붙으면 매칭 화면이 자동 지명으로 오발사 — 소거
       draft.preferredRunnerId = null;
       draft.preferredRunnerName = null;
       setFnOpen(false);
-      router.push('/owner/radar');
+      router.push({ pathname: '/owner/pay', params: { bid: res.booking_id, after: 'radar' } });
     } catch (e) {
       Alert.alert('요청 실패', (e as Error).message); // 정직: 실패는 실패 — 데모 폴백 없음
     } finally {

@@ -2,7 +2,7 @@ import { useDisplayFont } from '../../src/lib/displayFont';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { addDog, Addr, AvailRule, confirmPayment, createBookingHold, createRecurringSeries, DogProfile, ensureDog, fetchAddresses, fetchMyDogs, fetchRoutes, fetchRunnerAvailability, requestRunner } from '../../src/lib/api';
+import { addDog, Addr, AvailRule, createBookingHold, DogProfile, ensureDog, fetchAddresses, fetchMyDogs, fetchRoutes, fetchRunnerAvailability } from '../../src/lib/api';
 import { HeatTrace } from '../../src/components/runcard';
 import { Avatar, Row } from '../../src/components/ui';
 import { haptic } from '../../src/lib/haptics';
@@ -102,7 +102,8 @@ export default function Request() {
   const [slotSheet, setSlotSheet] = useState(false);
   const [recurringOn, setRecurringOn] = useState(false); // 매주 반복 (0026)
   const [holdVisible, setHoldVisible] = useState(false);
-  const nominatedName = useRef<string | null>(null); // 결제 중 지명 성공 시 러너 이름
+  const holdBid = useRef<string | null>(null); // 홀드로 생성된 예약 id — 결제 화면에 넘길 값
+  const holdExp = useRef<string | null>(null); // 실홀드 만료 ISO — 결제 화면의 정직한 홀드 표시용 (리뷰 #5)
   const [holdSec, setHoldSec] = useState(300);
   const [holdLive, setHoldLive] = useState<null | boolean>(null); // null=진행, true=서버 홀드, false=목업 폴백
   const [dateIdx, setDateIdx] = useState(0);
@@ -176,29 +177,12 @@ export default function Request() {
         pace_label: pace,
         addons,
       });
-      await confirmPayment(res.booking_id); // 결제 성공 시뮬레이션 → matching
-      draft.bookingId = res.booking_id;
-      // 매주 반복 (0026) — 시리즈 생성 실패가 이번 예약을 막지 않는다 (예약은 이미 성립)
-      if (recurringOn) {
-        try {
-          await createRecurringSeries(res.booking_id);
-        } catch (e) {
-          console.warn('[pay] series:', (e as Error)?.message);
-          Alert.alert('반복 설정 실패', '이번 예약은 완료됐지만 매주 반복 설정에 실패했어요 — 다음 예약 때 다시 켜주세요');
-        }
-      }
-      // 지명 예약: 결제 직후 여기서 바로 지명 전송 — 러너 선택 화면을 아예 거치지 않는다
-      // (매칭 화면에 위임하던 방식은 실패 시 조용히 선택 화면에 좌초, 2026-07-23)
-      if (draft.preferredRunnerId) {
-        try {
-          await requestRunner(res.booking_id, draft.preferredRunnerId);
-          nominatedName.current = draft.preferredRunnerName ?? '선택한';
-          draft.preferredRunnerId = null;
-          draft.preferredRunnerName = null;
-        } catch (e) {
-          console.warn('[pay] nominate:', (e as Error)?.message); // 실패 → 매칭 화면 폴백 (preferred 유지)
-        }
-      }
+      // [정직 배치 2026-08-06 · 웨이브 2 item 1] 결제는 이 화면의 일이 아니다.
+      // 여기서 confirmPayment를 조용히 부르던 자리 = 사용자가 결제 화면을 본 적 없이 예약이 확정되던 경로였다.
+      // 홀드까지가 요청 화면의 몫이고, 확정과 그 이후(리커링·지명·라우팅)는 /owner/pay가
+      // 서버 status를 읽고 말한다 (C3/C4: 미결제 시리즈 생성·지명 409 증발 방지).
+      holdBid.current = res.booking_id;
+      holdExp.current = (res as any).hold_expires_at ?? null; // [리뷰 #5] 실홀드 만료 시각 — 결제 화면이 정직하게 표시
       setHoldLive(true);
     } catch (e) {
       // 실패는 실패로 — 데모 폴백 은퇴 (목업 김민준 화면이 실패를 숨기던 함정, 2026-07-23)
@@ -219,17 +203,19 @@ export default function Request() {
     if (!holdVisible || holdLive !== true) return;
     const go = setTimeout(() => {
       setHoldVisible(false);
-      if (nominatedName.current) {
-        // 지명 완료 — 러너 선택 화면 건너뛰고 내 일정에서 대기
-        Alert.alert('지명 요청 전송', `${nominatedName.current} 러너에게 우선 요청을 보냈어요.\n수락하면 알림으로 알려드릴게요.`);
-        nominatedName.current = null;
-        router.replace('/owner/schedule');
-        return;
-      }
-      router.push('/owner/matching');
+      const bid = holdBid.current;
+      if (!bid) return;
+      // 반복 여부는 draft가 아니라 파라미터로 넘긴다 — 이번 내비게이션의 의도이지 예약 초안의 속성이
+      // 아니다 (draft에 남기면 다음 예약까지 따라붙는다). 지명은 draft.preferredRunnerId 그대로 승계.
+      router.push({ pathname: '/owner/pay', params: { bid, ...(recurringOn ? { recurring: '1' } : {}), ...(holdExp.current ? { exp: holdExp.current } : {}) } });
+      // [리뷰 #10] 푸시 후 홀드 상태 초기화 — 일정에서 뒤로 온 사용자가 같은 폼으로 두 번째
+      // payment_hold를 조용히 만들지 않는다 (다시 예약하려면 명시적으로 다시 밟는다)
+      holdBid.current = null;
+      holdExp.current = null;
+      setHoldLive(null);
     }, 1400);
     return () => clearTimeout(go);
-  }, [holdVisible, holdLive]);
+  }, [holdVisible, holdLive, recurringOn]);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.cream }}>
@@ -587,7 +573,7 @@ export default function Request() {
               {Math.floor(holdSec / 60)}:{String(holdSec % 60).padStart(2, '0')}
             </Text>
             <Text style={{ fontSize: 15, color: colors.dim, marginTop: 8, textAlign: 'center' }}>
-              {timeLabel} 슬롯이 결제 완료까지{'\n'}다른 보호자에게 보이지 않아요
+              {timeLabel} 슬롯이 5분간{'\n'}다른 보호자에게 보이지 않아요
             </Text>
             <Text style={{ fontSize: 14, fontWeight: '800', marginTop: 10, color: holdLive === true ? '#4a6d1f' : colors.dim }}>
               {holdLive === true ? '● 서버 홀드 확보 — 예약이 생성됐어요' : '서버 연결 중...'}

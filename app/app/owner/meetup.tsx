@@ -1,28 +1,34 @@
 import { router } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Animated, Easing, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import Svg, { Defs, LinearGradient as SvgLinear, RadialGradient, Rect, Stop } from 'react-native-svg';
+import { PaperBtn } from '../../src/components/paper-btn';
 import { Monogram, Row } from '../../src/components/ui';
 import { confirmHandoff, fetchBookingSync, fetchCurrentOwnerBookingId, fetchMeetupInfo, MeetupInfo, subscribeBooking } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { haptic } from '../../src/lib/haptics';
 import { draft } from '../../src/store';
-import { lilac, lilacRadius, lilacShadow } from '../../src/theme';
+import { paper } from '../../src/theme';
 
 // 보호자 인계 화면 — 실신원만 (김민준·초코 목업 은퇴, ui-audit P0).
 // 모든 이름·상태는 서버에서. 가짜 ETA 문구 없음.
 //
-// [2026-08-05 라일락 리페인트 + 의식 격상] 포레스트/스웜프 전량 은퇴 → 테일러드 라일락.
 // 모티프 = 이중 봉인(二重封印): 양측 확인이 각각 하나의 도장 자리를 채운다. 자리는 서버 진실
 // (stage / peerConfirmed)로만 채워진다 — 가짜 진행 없음. 둘 다 채워지면 골드 SEALED 룰이 내려온다.
 // 로직 동결: 스테이지 머신·구독/폴링·confirmHandoff·라우팅·게이트 전부 원본 그대로.
+//
+// [2026-08-06 심 룰 리페인트 · 정직 배치 item 8] 테일러드 라일락 은퇴 → 순백/코랄.
+// 법: "dark is the artifact, light is the screen" — 봉인 밴드와 인계 완료 카드만 나이트 지면으로
+// 남고(코랄 헤어라인 심이 티켓처럼 물린다), 나머지 화면은 전부 순백 크롬. 새벽빛 블룸·이중 프레임·
+// 섀도·라운드는 사라지고 섹션은 풀블리드 코랄 1px로만 나뉜다. 밀도는 그대로(위탁 표면 법):
+// 스텝 레일·두 봉인 자리·2/2 카운터는 전부 살아남고 장식만 떠난다.
 
-const L = lilac;
-const NIGHT = '#1C1837';    // 나이트 라일락 다크 인셋 (owner/home·clubcard와 동일 토큰 — 포레스트 은퇴)
+const NIGHT = '#1C1837';    // 아티팩트 지면 — 다크 세리머니 월드는 의도적 존속 (theme.ts 순백 법 주석)
 const NIGHT_DIM = '#C6BEEB';
 const SEAL_INK = '#8a6f2a'; // 소인 잉크 — 클럽 영수증 골드 실과 같은 잉크
-const STUB = '#FBFAFE';     // 스텁 지면 (보딩패스 그래머)
-const PERF = '#D8D2EE';     // 천공 점선
+const GOLD = '#B99A4F';     // 봉인 골드 — 밴드 소인·SEALED 룰 전용 (아티팩트 어휘, 크롬 금지)
+const GOLD_SOFT = '#F4EBD3';
+const GOLD_SHEEN = '#D8C185';
+const PERF = 'rgba(255,255,255,0.25)'; // 천공 점선 — 밤 지면 위 흰 선
 
 type Stage = 'enroute' | 'arrived' | 'waiting' | 'confirmed';
 
@@ -46,41 +52,6 @@ function useStamp(sealed: boolean, hydrated: { current: boolean }) {
     return () => a.stop();
   }, [sealed, v, hydrated]);
   return v;
-}
-
-// 새벽빛 지도 하늘 — 코랄·바이올렛 블룸 (DawnCanvas와 같은 법, 지도 판 위에만)
-function MapSky() {
-  return (
-    <Svg width="100%" height="100%" style={StyleSheet.absoluteFill} pointerEvents="none">
-      <Defs>
-        <RadialGradient id="om-sky-c" cx="86%" cy="4%" rx="74%" ry="72%">
-          <Stop offset="0" stopColor="#F0765A" stopOpacity="0.17" />
-          <Stop offset="1" stopColor="#F0765A" stopOpacity="0" />
-        </RadialGradient>
-        <RadialGradient id="om-sky-v" cx="2%" cy="92%" rx="70%" ry="64%">
-          <Stop offset="0" stopColor="#6C5CE7" stopOpacity="0.15" />
-          <Stop offset="1" stopColor="#6C5CE7" stopOpacity="0" />
-        </RadialGradient>
-      </Defs>
-      <Rect x="0" y="0" width="100%" height="100%" fill="url(#om-sky-c)" />
-      <Rect x="0" y="0" width="100%" height="100%" fill="url(#om-sky-v)" />
-    </Svg>
-  );
-}
-
-// 지평선 페이드 — 지도 판이 종이(카드 지면)로 내려앉는다
-function MapHorizon() {
-  return (
-    <Svg width="100%" height={64} style={s.mapFade} pointerEvents="none">
-      <Defs>
-        <SvgLinear id="om-fade" x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0" stopColor="#F4F2FB" stopOpacity="0" />
-          <Stop offset="1" stopColor="#F4F2FB" stopOpacity="0.96" />
-        </SvgLinear>
-      </Defs>
-      <Rect x="0" y="0" width="100%" height="64" fill="url(#om-fade)" />
-    </Svg>
-  );
 }
 
 export default function OwnerMeetup() {
@@ -217,10 +188,9 @@ export default function OwnerMeetup() {
   useEffect(() => { if (synced) hydrated.current = true; }, [synced]);
 
   return (
-    <View style={{ flex: 1, backgroundColor: L.bg }}>
+    <View style={{ flex: 1, backgroundColor: paper.canvas }}>
       {/* map: runner approaching pickup */}
       <View style={s.mapPlate}>
-        <MapSky />
         <View style={s.roadA} />
         <View style={s.roadB} />
         {[0, 1, 2, 3, 4].map((i) => (
@@ -230,12 +200,12 @@ export default function OwnerMeetup() {
           <Text style={s.pinText}>{runnerName[0]}</Text>
         </View>
         <View style={s.pickupPin}><Text style={s.pinText}>픽업</Text></View>
-        <MapHorizon />
 
         <Row style={s.topBar}>
-          <Pressable onPress={() => router.back()} style={s.circleBtn}><Text style={{ fontSize: 20.5, color: L.head }}>‹</Text></Pressable>
+          <Pressable onPress={() => router.back()} style={s.circleBtn}><Text style={{ fontSize: 20.5, color: paper.ink }}>‹</Text></Pressable>
           <View style={s.etaPill}>
-            <View style={[s.etaDot, { backgroundColor: stage === 'enroute' ? L.amber : L.coral }]} />
+            {/* 상태 도트 = 시맨틱 (대기 앰버 → 이동 코랄). 강조 예산 면제, line과 값 공유 금지 */}
+            <View style={[s.etaDot, { backgroundColor: stage === 'enroute' ? paper.pending : paper.line }]} />
             <Text style={s.etaText} numberOfLines={2}>
               {stage === 'enroute' ? `${runnerName} 러너 매칭됨 — 출발 대기` : `${runnerName} 러너 이동 중`}
             </Text>
@@ -244,18 +214,15 @@ export default function OwnerMeetup() {
         </Row>
       </View>
 
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 12, paddingBottom: 34 }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 34 }}>
         {/* runner card — 낯선 사람이 내 개를 데려간다: 신원이 먼저다 */}
-        <View style={s.card}>
-          <View pointerEvents="none" style={s.dbl} />
+        {/* [정직 배치 item 8] '신원인증' 배지 은퇴 — 뒷받침하는 데이터 소스가 어디에도 없다 (P1-6) */}
+        <View style={s.section}>
           <Row style={{ gap: 12 }}>
-            <Monogram char={runnerName[0]} bg={L.accent} size={46} />
+            <Monogram char={runnerName[0]} bg={paper.ink} size={46} />
             <View style={{ flex: 1 }}>
-              <Row style={{ gap: 6 }}>
-                {/* [320dp] 이름 컬럼 ~144px — 긴 이름은 잘리지 않고 두 줄로 접힌다 (신뢰 화면에서 말줄임 금지) */}
-                <Text style={s.peerName} numberOfLines={2}>{runnerName} 러너</Text>
-                <View style={s.badgePill}><Text style={s.badgeText}>신원인증</Text></View>
-              </Row>
+              {/* [320dp] 긴 이름은 잘리지 않고 두 줄로 접힌다 (신뢰 화면에서 말줄임 금지) */}
+              <Text style={s.peerName} numberOfLines={2}>{runnerName} 러너</Text>
               <Text style={s.peerMeta} numberOfLines={2}>
                 {info ? `${info.when} · ${info.routeName} ${info.km}km` : '예약 정보 불러오는 중...'}
               </Text>
@@ -267,8 +234,7 @@ export default function OwnerMeetup() {
         </View>
 
         {/* handoff ceremony — 이중 봉인 + 정직한 순서 */}
-        <View style={s.card}>
-          <View pointerEvents="none" style={s.dbl} />
+        <View style={s.section}>
           <Row style={{ gap: 8 }}>
             <View style={{ flex: 1 }}>
               <Text style={s.kick}>HANDOFF</Text>
@@ -336,7 +302,7 @@ export default function OwnerMeetup() {
         {stage === 'enroute' && (
           <View style={s.status}>
             <Row style={{ gap: 4 }}>
-              <View style={s.pulseStage}><View style={[s.pulseCore, { backgroundColor: L.amber }]} /></View>
+              <View style={s.pulseStage}><View style={[s.pulseCore, { backgroundColor: paper.pending }]} /></View>
               <Text style={s.statusKick}>EN ROUTE</Text>
             </Row>
             <Text style={s.statusText}>러너 도착을 기다리는 중...</Text>
@@ -344,10 +310,11 @@ export default function OwnerMeetup() {
           </View>
         )}
         {stage === 'arrived' && (
-          <Pressable style={({ pressed }) => [s.cta, pressed && { transform: [{ scale: 0.985 }] }]} onPress={handoff}>
-            <Text style={s.ctaText}>{dogName}를 인계했어요</Text>
-            <Text style={s.ctaSub}>러너도 확인하면 러닝이 시작돼요</Text>
-          </Pressable>
+          <View style={s.actions}>
+            {/* 화면당 잉크-필 CTA 1개 — 이 화면의 계약 행동은 인계 확인 하나뿐 */}
+            <PaperBtn label={`${dogName}를 인계했어요`} onPress={handoff} />
+            <Text style={s.ctaHint}>러너도 확인하면 러닝이 시작돼요</Text>
+          </View>
         )}
         {stage === 'waiting' && (
           <View style={s.status}>
@@ -451,135 +418,129 @@ function Step({ label, done, active, first, last }: { label: string; done?: bool
   );
 }
 
+// 섹션 좌우 여백 — 밴드 marginHorizontal −26의 짝 (H7 산술: 구 컨테이너 12 + 보더 1 + 카드 패딩 13).
+// 이 값 덕분에 밴드가 정확히 화면 끝에서 끝까지 물린다.
+const PAD = 26;
+
 const s = StyleSheet.create({
-  // ── 지도 판 (기능 동일 — 표면만 라일락) ──
-  mapPlate: { height: 290, backgroundColor: L.inset, overflow: 'hidden' },
-  roadA: { position: 'absolute', top: 140, left: -20, right: -20, height: 16, backgroundColor: 'rgba(255,255,255,0.92)', transform: [{ rotate: '10deg' }] },
-  roadB: { position: 'absolute', top: 0, bottom: 0, left: 200, width: 13, backgroundColor: 'rgba(255,255,255,0.7)', transform: [{ rotate: '-14deg' }] },
-  pathDot: { position: 'absolute', width: 8, height: 8, borderRadius: 4, backgroundColor: L.accent },
+  // ── 지도 판 (기능 동일 — 새벽빛 블룸 은퇴, 판이 종이가 된다) ──
+  mapPlate: { height: 290, backgroundColor: paper.canvas, overflow: 'hidden', borderBottomWidth: 1, borderBottomColor: paper.line },
+  roadA: { position: 'absolute', top: 140, left: -20, right: -20, height: 16, backgroundColor: paper.disabledFill, transform: [{ rotate: '10deg' }] },
+  roadB: { position: 'absolute', top: 0, bottom: 0, left: 200, width: 13, backgroundColor: paper.disabledFill, transform: [{ rotate: '-14deg' }] },
+  pathDot: { position: 'absolute', width: 8, height: 8, borderRadius: 4, backgroundColor: paper.line },
+  // 핀은 지리 마커라 원형 예외 — 상태색은 남고(위탁 표면 법) 글로우만 떠난다
   runnerPin: {
     position: 'absolute', right: 34, top: 56, width: 26, height: 26, borderRadius: 13,
-    backgroundColor: L.coral, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#fff',
-    shadowColor: L.coral, shadowOpacity: 0.5, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 3,
+    backgroundColor: paper.ink, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: paper.canvas,
   },
   pickupPin: {
     position: 'absolute', left: 60, top: 200, width: 36, height: 26, borderRadius: 13,
-    backgroundColor: NIGHT, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#fff',
+    backgroundColor: paper.line, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: paper.canvas,
   },
   pinText: { fontSize: 14, lineHeight: 18, fontWeight: '900', color: '#fff' },
-  mapFade: { position: 'absolute', left: 0, right: 0, bottom: 0 },
   topBar: { position: 'absolute', top: 56, left: 10, right: 10, justifyContent: 'space-between' },
   circleBtn: {
-    width: 40, height: 40, borderRadius: 20, backgroundColor: L.card, alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1, borderColor: L.hair, ...lilacShadow, shadowOpacity: 0.1,
+    width: 40, height: 40, backgroundColor: paper.canvas, alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: paper.line,
   },
   etaPill: {
     flex: 1, marginHorizontal: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7,
-    backgroundColor: NIGHT, borderRadius: 99, paddingVertical: 10, paddingHorizontal: 14,
-    shadowColor: NIGHT, shadowOpacity: 0.28, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 4,
+    backgroundColor: paper.ink, paddingVertical: 10, paddingHorizontal: 14,
   },
   etaDot: { width: 7, height: 7, borderRadius: 4 },
   etaText: { flexShrink: 1, fontSize: 14, lineHeight: 18, fontWeight: '800', color: '#fff' },
 
-  // ── 카드 (헤어라인 법 · 히어로 이중 프레임) ──
-  card: {
-    backgroundColor: L.card, borderRadius: lilacRadius.card, borderWidth: 1, borderColor: L.hair,
-    padding: 13, marginBottom: 10, ...lilacShadow,
-  },
-  dbl: { position: 'absolute', top: 4, left: 4, right: 4, bottom: 4, borderWidth: 1, borderColor: L.hair2, borderRadius: lilacRadius.inner },
-  peerName: { flexShrink: 1, fontSize: 17, lineHeight: 23, fontWeight: '800', color: L.head },
-  badgePill: { backgroundColor: '#F4F1FE', borderWidth: 1, borderColor: '#DCD6F8', borderRadius: lilacRadius.tag, paddingVertical: 2, paddingHorizontal: 7 },
-  badgeText: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: L.accent },
-  peerMeta: { fontSize: 14, lineHeight: 19, color: L.dim, marginTop: 3 },
-  chatChip: { backgroundColor: L.inset, borderWidth: 1, borderColor: L.hair, borderRadius: lilacRadius.tag, paddingVertical: 9, paddingHorizontal: 12, alignSelf: 'center' },
-  chatChipText: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: L.accent },
+  // ── 섹션 (풀블리드 — 카드·라운드·섀도·이중 프레임 은퇴, 코랄 1px만이 면을 나눈다) ──
+  section: { paddingHorizontal: PAD, paddingVertical: 18, borderBottomWidth: 1, borderBottomColor: paper.line },
+  peerName: { flexShrink: 1, fontSize: 17, lineHeight: 23, fontWeight: '800', color: paper.ink },
+  peerMeta: { fontSize: 14, lineHeight: 19, color: paper.dim, marginTop: 3 },
+  chatChip: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line, paddingVertical: 9, paddingHorizontal: 12, alignSelf: 'center' },
+  chatChipText: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: paper.ink },
 
   // ── 의식 헤더 ──
-  kick: { fontSize: 10.5, fontWeight: '800', letterSpacing: 2.4, color: L.accent },
-  ttl: { fontSize: 20, fontWeight: '900', color: L.head, marginTop: 3 },
-  countPill: { alignSelf: 'flex-start', backgroundColor: L.inset, borderWidth: 1, borderColor: L.hair, borderRadius: lilacRadius.tag, paddingVertical: 4, paddingHorizontal: 9 },
-  countPillOn: { backgroundColor: L.goldSoft, borderColor: L.goldSheen },
-  countText: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: L.dim },
-  countTextOn: { color: SEAL_INK },
+  kick: { fontSize: 12, fontWeight: '700', letterSpacing: 3, color: paper.faint }, // 장식 클래스 (14pt 플로어 면제)
+  ttl: { fontSize: 20, fontWeight: '900', color: paper.ink, marginTop: 3 },
+  countPill: { alignSelf: 'flex-start', backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line, paddingVertical: 4, paddingHorizontal: 9 },
+  countPillOn: { backgroundColor: paper.ink, borderColor: paper.ink },
+  countText: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: paper.text },
+  countTextOn: { color: '#fff' },
 
-  // ── 봉인 스텁 (풀블리드 밴드 · 가운데 천공) ──
+  // ── 아티팩트 = 봉인 스텁 (나이트 풀블리드 · 코랄 헤어라인 심 · 가운데 천공) ──
+  // 밤 지면 안의 어휘는 그대로 살아남는다: 골드 소인 · SEAL_INK · NIGHT_DIM.
+  // [H6] band/slot/slotStage에 overflow 추가 금지 — 립플이 1.85배(133px)로 무대 밖까지 퍼진다.
   band: {
-    marginHorizontal: -9, marginTop: 13, flexDirection: 'row', alignItems: 'flex-start',
-    backgroundColor: STUB, borderTopWidth: 1, borderBottomWidth: 1, borderColor: L.hair,
-    paddingVertical: 16, paddingHorizontal: 8,
+    marginHorizontal: -PAD, marginTop: 16, flexDirection: 'row', alignItems: 'flex-start',
+    backgroundColor: NIGHT, borderTopWidth: 1, borderBottomWidth: 1, borderColor: paper.line,
+    paddingVertical: 18, paddingHorizontal: 8,
   },
   perfWrap: { position: 'absolute', left: '50%', marginLeft: -7.5, top: 0, bottom: 0, width: 15 },
   perfLine: { position: 'absolute', top: 0, bottom: 0, left: 6.75, borderLeftWidth: 1.5, borderStyle: 'dashed', borderColor: PERF },
-  notch: { position: 'absolute', left: 0, width: 15, height: 15, borderRadius: 7.5, backgroundColor: L.bg, borderWidth: 1, borderColor: L.hair },
+  notch: { position: 'absolute', left: 0, width: 15, height: 15, borderRadius: 7.5, backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line },
   slot: { flex: 1, alignItems: 'center', paddingHorizontal: 4 },
   slotStage: { width: 76, height: 76, alignItems: 'center', justifyContent: 'center' },
-  slotRipple: { position: 'absolute', width: 72, height: 72, borderRadius: 36, borderWidth: 2, borderColor: L.gold },
-  slotBreath: { position: 'absolute', width: 72, height: 72, borderRadius: 36, borderWidth: 2, borderColor: L.accent },
+  slotRipple: { position: 'absolute', width: 72, height: 72, borderRadius: 36, borderWidth: 2, borderColor: GOLD },
+  slotBreath: { position: 'absolute', width: 72, height: 72, borderRadius: 36, borderWidth: 2, borderColor: NIGHT_DIM },
   slotEmpty: {
     width: 72, height: 72, borderRadius: 36, borderWidth: 1.5, borderColor: PERF,
-    backgroundColor: L.inset, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center',
   },
   slotSeal: {
-    width: 72, height: 72, borderRadius: 36, borderWidth: 2, borderColor: L.gold, backgroundColor: L.goldSoft,
+    width: 72, height: 72, borderRadius: 36, borderWidth: 2, borderColor: GOLD, backgroundColor: GOLD_SOFT,
     alignItems: 'center', justifyContent: 'center',
-    shadowColor: L.gold, shadowOpacity: 0.38, shadowRadius: 9, shadowOffset: { width: 0, height: 3 }, elevation: 3,
+    shadowColor: GOLD, shadowOpacity: 0.38, shadowRadius: 9, shadowOffset: { width: 0, height: 3 }, elevation: 3,
   },
   slotMark: { fontSize: 21, lineHeight: 25, fontWeight: '900', color: SEAL_INK },
   // [FLOOR14 예외] 트래킹 라틴 캡스 키커 — 역할 각인. 읽는 정보는 아래 한글 두 줄이 진다.
   slotCaps: { fontSize: 8.5, fontWeight: '800', letterSpacing: 1.6, color: SEAL_INK, marginTop: 1 },
-  slotCapsOff: { fontSize: 8.5, fontWeight: '800', letterSpacing: 1.6, color: L.dim },
-  slotName: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: L.head, marginTop: 10 },
-  slotState: { fontSize: 14, lineHeight: 18, fontWeight: '600', color: L.dim, marginTop: 2 },
-  slotStateOn: { color: L.voltDeep, fontWeight: '800' },
+  slotCapsOff: { fontSize: 8.5, fontWeight: '800', letterSpacing: 1.6, color: NIGHT_DIM },
+  slotName: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: '#fff', marginTop: 10 },
+  slotState: { fontSize: 14, lineHeight: 18, fontWeight: '600', color: NIGHT_DIM, marginTop: 2 },
+  slotStateOn: { color: GOLD_SHEEN, fontWeight: '800' },
+  // SEALED 룰 — 밴드와 한 몸인 의식의 콜로폰이라 골드가 남는다 (크롬에는 골드 금지)
   ribbon: { flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 12, paddingHorizontal: 2 },
-  ribbonRule: { flex: 1, height: 1, backgroundColor: L.goldSheen },
+  ribbonRule: { flex: 1, height: 1, backgroundColor: GOLD_SHEEN },
   ribbonCaps: { fontSize: 9.5, fontWeight: '800', letterSpacing: 2.6, color: SEAL_INK },
 
-  // ── 스텝 레일 (정직한 순서) ──
+  // ── 스텝 레일 (정직한 순서 — 완료 잉크 / 진행 코랄 링 / 미완 페인트) ──
   steps: { marginTop: 14 },
   stepRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginTop: 11 },
   stepCol: { width: 20, alignSelf: 'stretch', alignItems: 'center' },
-  rail: { position: 'absolute', left: 9, top: 21, bottom: -11, width: 2, backgroundColor: L.hair },
-  railOn: { backgroundColor: L.accent },
+  rail: { position: 'absolute', left: 9.5, top: 21, bottom: -11, width: 1, backgroundColor: paper.faint },
+  railOn: { backgroundColor: paper.ink },
   stepDot: {
     width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: L.inset, borderWidth: 1, borderColor: L.hair,
+    backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.faint,
   },
-  stepDotDone: { backgroundColor: L.accent, borderColor: L.accent },
-  stepDotActive: { backgroundColor: L.card, borderWidth: 2, borderColor: L.amber },
-  stepCore: { width: 7, height: 7, borderRadius: 4, backgroundColor: L.amber },
+  stepDotDone: { backgroundColor: paper.ink, borderColor: paper.ink },
+  stepDotActive: { backgroundColor: paper.canvas, borderWidth: 2, borderColor: paper.line },
+  stepCore: { width: 7, height: 7, borderRadius: 4, backgroundColor: paper.line },
   stepTick: { fontSize: 11, lineHeight: 14, fontWeight: '900', color: '#fff' },
-  stepLabel: { flex: 1, fontSize: 14.5, lineHeight: 20, fontWeight: '500', color: L.dim },
-  stepLabelDone: { color: L.head, fontWeight: '700' },
-  stepLabelActive: { color: L.amber, fontWeight: '700' },
+  // 미완 라벨도 읽히는 정보라 dim(AA) — faint는 캡스 키커 전용
+  stepLabel: { flex: 1, fontSize: 14.5, lineHeight: 20, fontWeight: '500', color: paper.dim },
+  stepLabelDone: { color: paper.ink, fontWeight: '700' },
+  stepLabelActive: { color: paper.text, fontWeight: '700' },
 
-  // ── 행동 존 (여백 화면 = 큰 버튼) ──
-  cta: {
-    backgroundColor: L.coral, borderRadius: lilacRadius.btn, alignItems: 'center',
-    paddingVertical: 20, paddingHorizontal: 14, marginTop: 4,
-    shadowColor: L.coral, shadowOpacity: 0.4, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 5,
-  },
-  ctaText: { fontSize: 19, lineHeight: 25, fontWeight: '900', color: '#fff', textAlign: 'center' },
-  ctaSub: { fontSize: 14, lineHeight: 19, fontWeight: '600', color: 'rgba(255,255,255,0.88)', marginTop: 4, textAlign: 'center' },
+  // ── 행동 존 (버튼 매트릭스는 PaperBtn이 진다 — 여기는 자리와 힌트만) ──
+  actions: { paddingHorizontal: PAD, paddingVertical: 18, borderBottomWidth: 1, borderBottomColor: paper.line },
+  ctaHint: { fontSize: 14, lineHeight: 19, fontWeight: '600', color: paper.dim, textAlign: 'center', marginTop: 10 },
   status: {
-    backgroundColor: L.card, borderRadius: lilacRadius.card, borderWidth: 1, borderColor: L.hair,
-    paddingVertical: 18, paddingHorizontal: 14, marginTop: 4, alignItems: 'center',
-    ...lilacShadow, shadowOpacity: 0.06,
+    backgroundColor: paper.canvas, borderBottomWidth: 1, borderBottomColor: paper.line,
+    paddingVertical: 18, paddingHorizontal: PAD, alignItems: 'center',
   },
-  statusKick: { fontSize: 10, fontWeight: '800', letterSpacing: 2.2, color: L.dim },
-  statusText: { fontSize: 17, lineHeight: 23, fontWeight: '800', color: L.head, marginTop: 7, textAlign: 'center' },
-  statusSub: { fontSize: 14, lineHeight: 19, color: L.dim, marginTop: 4, textAlign: 'center' },
+  statusKick: { fontSize: 12, fontWeight: '700', letterSpacing: 3, color: paper.faint },
+  statusText: { fontSize: 17, lineHeight: 23, fontWeight: '800', color: paper.ink, marginTop: 7, textAlign: 'center' },
+  statusSub: { fontSize: 14, lineHeight: 19, color: paper.dim, marginTop: 4, textAlign: 'center' },
   // 헤일로가 1.9배(15.2px)로 퍼져도 무대(16) 안에 든다 — 안드로이드 클리핑 회피
   pulseStage: { width: 16, height: 16, alignItems: 'center', justifyContent: 'center', overflow: 'visible' },
-  pulseHalo: { position: 'absolute', width: 8, height: 8, borderRadius: 4, backgroundColor: L.coral },
-  pulseCore: { width: 8, height: 8, borderRadius: 4, backgroundColor: L.coral },
+  pulseHalo: { position: 'absolute', width: 8, height: 8, borderRadius: 4, backgroundColor: paper.line },
+  pulseCore: { width: 8, height: 8, borderRadius: 4, backgroundColor: paper.line },
+  // 인계 완료 카드 = 의식의 끝에 남는 두 번째 아티팩트 (심 룰 (c)) — 위 심은 앞 섹션의 코랄 1px
   night: {
-    backgroundColor: NIGHT, borderRadius: lilacRadius.card, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
-    paddingVertical: 20, paddingHorizontal: 16, marginTop: 4, alignItems: 'center',
-    shadowColor: NIGHT, shadowOpacity: 0.32, shadowRadius: 24, shadowOffset: { width: 0, height: 10 }, elevation: 6,
+    backgroundColor: NIGHT, borderBottomWidth: 1, borderBottomColor: paper.line,
+    paddingVertical: 20, paddingHorizontal: PAD, alignItems: 'center',
   },
-  nightKick: { fontSize: 10, fontWeight: '800', letterSpacing: 2.6, color: L.goldSheen },
+  nightKick: { fontSize: 10, fontWeight: '800', letterSpacing: 2.6, color: GOLD_SHEEN },
   nightText: { fontSize: 18, lineHeight: 24, fontWeight: '900', color: '#fff', marginTop: 7, textAlign: 'center' },
   nightSub: { fontSize: 14, lineHeight: 19, color: NIGHT_DIM, marginTop: 5, textAlign: 'center' },
-  foot: { fontSize: 14, lineHeight: 19, color: L.dim, textAlign: 'center', marginTop: 16 },
+  foot: { fontSize: 14, lineHeight: 19, color: paper.dim, textAlign: 'center', marginTop: 16, paddingHorizontal: PAD },
 });

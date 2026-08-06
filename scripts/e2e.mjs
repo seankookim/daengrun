@@ -195,6 +195,31 @@ try {
     expect(b.body?.[0]?.status === 'matching', `expected matching, got ${b.body?.[0]?.status}`);
   });
 
+  // 결제 화면(api.ts fetchBookingCharge)의 셀렉트 계약 — check-rpc는 .from() 셀렉트를 못 덮는다 (웨이브 2 리뷰 M4)
+  await step('결제 청구 셀렉트 (owner RLS)', async () => {
+    const cols = 'base_fare,distance_fare,addon_fare,total_price,km,addons,status,scheduled_at,owner_id,dogs(name),routes(name)';
+    const r = await call(`/rest/v1/bookings?id=eq.${bookingId}&select=${cols}`, { token: owner.token });
+    expect(r.status === 200 && Array.isArray(r.body) && r.body.length === 1, '보호자가 자기 예약 청구를 못 읽음 — 컬럼명/RLS 확인', r.body);
+    const row = r.body[0];
+    for (const k of ['base_fare', 'distance_fare', 'addon_fare', 'total_price', 'km', 'addons', 'status', 'scheduled_at', 'owner_id']) {
+      expect(row[k] !== undefined, `청구 컬럼 누락: ${k} (fetchBookingCharge가 깨진다)`, row);
+    }
+    expect(row.dogs && typeof row.dogs.name === 'string', 'dogs(name) 조인 실패', row);
+    // 비당사자(미인증)는 0행 — 남의 bid로 딥링크해도 청구서가 새지 않는다
+    const outsider = await call(`/rest/v1/bookings?id=eq.${bookingId}&select=${cols}`);
+    expect(outsider.status === 401 || (Array.isArray(outsider.body) && outsider.body.length === 0),
+      '비당사자에게 청구 행이 보임 — RLS 구멍', outsider.body);
+    // [리뷰 #7 · M5 위협 모델] 배정 러너는 RLS상 이 행을 '읽을 수 있다'(party read) — 경계는
+    // 클라이언트 가드(api.ts fetchBookingCharge의 owner_id 비교)다. 여기서 그 사실을 박제한다:
+    // 러너 읽기가 200/1행이어야 정상이며, 이 줄이 깨지면 RLS가 바뀐 것이니 클라 가드를 재검토하라.
+    if (!SOLO) {
+      const asRunner = await call(`/rest/v1/bookings?id=eq.${bookingId}&select=${cols}`, { token: runner.token });
+      expect(asRunner.status === 200 && Array.isArray(asRunner.body),
+        '러너 party read가 거부됨 — RLS 변경 여부 확인 (클라 가드 전제가 바뀐다)', asRunner.body);
+    }
+    return `${row.total_price?.toLocaleString()}원 · ${row.status}`;
+  });
+
   if (DIRECTED) {
     await step('request_runner → runner_pending (지명)', async () => {
       const r = await fn('transition-booking', owner.token, { booking_id: bookingId, action: 'request_runner', meta: { runner_id: runner.id } });

@@ -2,6 +2,8 @@
 // Pattern: fetch → map to the app's existing types → screens fall back to mock on failure.
 import { FunctionsHttpError } from '@supabase/supabase-js';
 import { AddonKey, Booking, BookingStatus, dog as mockDog, RouteInfo, TracePoint } from '../store';
+// bookings.status 원시 enum — store의 BookingStatus(목록 배지 어휘)와 다른 어휘라 별칭으로 받는다
+import type { BookingStatus as DbBookingStatus } from './payphase';
 import { supabase } from './supabase';
 
 // Edge Function 오류 본문에서 실제 메시지 추출 ("non-2xx" 무의미 문구 대체)
@@ -245,6 +247,56 @@ export async function confirmPayment(bookingId: string): Promise<void> {
   });
   if (error) throw error;
   if (data?.error) throw new Error(data.error);
+}
+
+// ---------- 결제 표면 (owner/pay) ----------
+// 한 예약의 청구 진실. 클라이언트 재계산 금지 — 요금은 서버가 만든 숫자다(create-booking-hold).
+// [M5] RLS는 러너에게도 자기 잡 예약을 보여준다 → owner_id가 내가 아니면 '부재'로 접는다:
+//      러너가 bid로 딥링크해도 남의 청구서를 보지 못한다.
+// [H3] 없는 bid·0행 = null (호출자가 not_found로 렌더) — throw(통신 실패)와 다른 사실이다.
+// [M6] min_fare는 이 화면이 렌더하지 않는다 → 셀렉트하지 않는다 (안 쓸 진실은 읽지 않는다).
+export interface BookingCharge {
+  bookingId: string;
+  status: DbBookingStatus;   // 원시 enum — 페이즈 파생은 src/lib/payphase.ts 하나뿐
+  baseFare: number;
+  distanceFare: number;
+  addonFare: number;
+  totalPrice: number;
+  km: number;
+  addons: { key: string; price: number }[]; // 실데이터 모양 (create-booking-hold:57) — label 컬럼은 없다 (C2)
+  scheduledAt: string;
+  dogName: string;
+  routeName: string | null;
+}
+
+export async function fetchBookingCharge(bookingId: string): Promise<BookingCharge | null> {
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) return null;
+  const { data, error } = await supabase.from('bookings')
+    .select('base_fare, distance_fare, addon_fare, total_price, km, addons, status, scheduled_at, owner_id, dogs(name), routes(name)')
+    .eq('id', bookingId).maybeSingle();
+  // [리뷰 #3] 비정형 bid(uuid 아님)는 22P02로 온다 — 통신 실패가 아니라 '부재'다.
+  // error로 던지면 영원히 실패할 재시도 버튼이 생긴다 (C1 죽은-버튼 법).
+  if (error && (error as any).code === '22P02') return null;
+  if (error) throw error;
+  if (!data) return null;
+  const b = data as any;
+  if (b.owner_id !== user.user.id) return null; // 내 예약이 아니다 = 부재 (M5)
+  return {
+    bookingId,
+    status: b.status,
+    baseFare: Number(b.base_fare ?? 0),
+    distanceFare: Number(b.distance_fare ?? 0),
+    addonFare: Number(b.addon_fare ?? 0),
+    totalPrice: Number(b.total_price ?? 0),
+    km: Number(b.km ?? 0),
+    addons: Array.isArray(b.addons)
+      ? b.addons.map((a: any) => ({ key: String(a?.key ?? ''), price: Number(a?.price ?? 0) }))
+      : [],
+    scheduledAt: b.scheduled_at,
+    dogName: b.dogs?.name ?? '반려견',
+    routeName: b.routes?.name ?? null,
+  };
 }
 
 // ---------- my bookings → UI Booking ----------
