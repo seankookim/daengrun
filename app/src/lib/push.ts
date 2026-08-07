@@ -10,8 +10,15 @@ let _registered = false;
 let _armed = false;
 const _handledTaps = new Set<string>();
 
+// 라이브 미트업 제목 — 서버↔클라이언트 계약 쌍이다. 이 두 문자열은 transition-booking의
+// enroute 케이스(:186 '러너 이동 중')와 arrived 케이스('러너 도착')가 보내는 제목 그대로이고,
+// 한쪽을 바꾸면 반드시 다른 쪽도 같이 바꿔야 한다.
+// 완전 일치만 쓴다 — includes로 부분 일치를 잡으면 '새 사진 도착 📷'·'위탁 배정 도착'·
+// '위탁 신청 도착'이 '도착'에 걸려 리포트 대신 인계 화면으로 잘못 새어 나간다.
+const LIVE_TITLES = ['러너 도착', '러너 이동 중'];
+
 // 알림 탭 도착지 — alerts.tsx 인박스와 단일 소스 (kind/ref_id는 0024 data 페이로드).
-// 역할별: 러너는 요청/캘린더, 보호자는 리포트(러닝 전이면 리포트가 상태 안내를 겸함).
+// 역할별: 러너는 요청/캘린더, 보호자는 라이브 미트업(도착·이동 중) 또는 리포트.
 export function routeForNotification(kind: string | null | undefined, refId: string | null | undefined, title: string): void {
   if (kind === 'community') { try { router.push('/community'); } catch { /* */ } return; } // 클럽 리캡 등
   if (kind === 'reward') { // 기록·마일스톤 (0034) — ref_id = booking → 리포트로
@@ -23,7 +30,9 @@ export function routeForNotification(kind: string | null | undefined, refId: str
     if (session.role === 'runner') {
       router.push(title.includes('요청') ? '/runner/requests' : '/runner/calendar');
     } else {
-      router.push({ pathname: '/owner/report', params: { bid: refId } });
+      router.push(LIVE_TITLES.includes(title)
+        ? '/owner/meetup'
+        : { pathname: '/owner/report', params: { bid: refId } });
     }
   } catch {
     // 내비게이션 미준비 등 — 딥링크는 부가 기능, 실패해도 앱은 살아있다

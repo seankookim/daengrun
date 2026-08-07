@@ -63,7 +63,12 @@
   kipris.or.kr → 상표 검색 → '도그스하이', 'DOGS HIGH', '독스하이', '하이독' × 분류 9(앱)·35(플랫폼 중개)·41(훈련/스포츠)·45(반려동물 돌봄) — 출원 전 변리사 1회 상담 권장
 - [ ] 핸들: 인스타 @dogshigh · 도메인 dogshigh.com/.kr 가용 확인 및 선점
 - [ ] 마스코트 포즈 시트 (방향 확정: 크림 진도 + 볼트 반다나 — '개를 칠하지 말고 입혀라'. 그린 도그 반려됨)
-- [ ] App Store 준비: 번들 com.seankookim.daengrun · EAS projectId 0436bc27 · 푸시 키 등록 완료 · TestFlight 빌드는 `eas build --profile preview -p ios`
+- [ ] App Store 준비: 번들 com.seankookim.daengrun · EAS projectId 0436bc27 · 푸시 키 등록 완료 ·
+      ⚠ **정정(2026-08-08)**: TestFlight는 `preview` 프로필로 안 된다 — eas.json의 preview는
+      `distribution: "internal"`(애드혹, UDID 등록 100대)이다. TestFlight는 스토어 배포가 필요:
+      `eas build --profile production -p ios` → `eas submit -p ios`
+- [ ] **런치 전 전체 체크리스트: `docs/launch-checklist.md`** (법률·돈·공급·검증·제품·배포 6항목 +
+      임계 경로). 파일럿에 앱스토어는 불필요 — TestFlight로 충분한 이유도 거기에.
 
 ## F. 기술 부채 / 환경
 - [x] app.json·eas.json 커밋 확인 — git ls-files로 검증 (03ba266에 포함)

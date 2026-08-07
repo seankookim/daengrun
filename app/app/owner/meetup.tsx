@@ -65,6 +65,9 @@ export default function OwnerMeetup() {
   const [bookingId, setBookingId] = useState<string | null>(draft.bookingId ?? null);
   const [peerConfirmed, setPeerConfirmed] = useState(false); // 러너 측 인계 확인 (서버 진실)
   const [synced, setSynced] = useState(false); // 첫 서버 동기화 도착 (스탬프 하이드레이션 판정용)
+  // [훅 배치 동결법] 새 useState는 이 뭉치의 끝에만 — 아래 effect 순서는 고정이고 하이드레이션
+  // 게이트 effect가 항상 마지막이어야 한다. 러너 도착 = 서버 진실(bookings.arrived_at, 0060).
+  const [arrivedAt, setArrivedAt] = useState<string | null>(null);
 
   // id 복원 — 리로드로 draft가 비어도 서버가 진실을 안다 (데모 전락 사고 방지, 2026-07-23)
   useEffect(() => {
@@ -110,6 +113,7 @@ export default function OwnerMeetup() {
         return;
       }
       setPeerConfirmed(sync.runnerConfirmed);
+      setArrivedAt(sync.arrivedAt); // 러너 도착 — 표시 조건일 뿐, 스테이지 머신은 건드리지 않는다
       setSynced(true); // [P2-12] 봉인 진실이 처음 도착한 지점 — 이 커밋 이후부터가 '라이브'
       if (sync.status === 'active') {
         router.replace('/owner/live'); // 러너가 start_run을 눌렀을 때만 라이브 진입
@@ -214,8 +218,11 @@ export default function OwnerMeetup() {
           <View style={s.etaPill}>
             {/* 상태 도트 = 시맨틱 (대기 앰버 → 이동 코랄). 강조 예산 면제, line과 값 공유 금지 */}
             <View style={[s.etaDot, { backgroundColor: stage === 'enroute' ? paper.pending : paper.line }]} />
+            {/* 도착은 새 서버 진실이라 스테이지가 아니라 arrivedAt이 결정한다 (머신 매핑은 동결) */}
             <Text style={s.etaText} numberOfLines={2}>
-              {stage === 'enroute' ? `${runnerName} 러너 매칭됨 — 출발 대기` : `${runnerName} 러너 이동 중`}
+              {arrivedAt ? `${runnerName} 러너 도착`
+                : stage === 'enroute' ? `${runnerName} 러너 매칭됨 — 출발 대기`
+                : `${runnerName} 러너 이동 중`}
             </Text>
           </View>
           <View style={{ width: 40 }} />
@@ -290,7 +297,13 @@ export default function OwnerMeetup() {
             {/* [정직 배치 2.5 · 감사 #30] 스테이지 이름이 실제 의미와 뒤집혀 있다(동결된 매핑):
                 'enroute' = 러너 수락 후 출발 전, 'arrived' = 러너가 실제로 이동 중.
                 머신은 건드리지 않고 라벨만 위 pill(:210)의 어휘에 맞춘다. */}
-            <Step done={stage !== 'enroute'} active={stage === 'enroute'} label={stage === 'enroute' ? '러너 출발 대기' : '러너가 픽업 장소로 이동'} />
+            {/* 도착 라벨은 '지금 그 단계일 때'만 — 인계 이후(waiting·confirmed)엔 이동 라벨이 남는다 */}
+            <Step
+              done={stage !== 'enroute'} active={stage === 'enroute'}
+              label={stage === 'enroute' ? '러너 출발 대기'
+                : arrivedAt && stage === 'arrived' ? '러너 픽업 장소 도착'
+                : '러너가 픽업 장소로 이동'}
+            />
             {/* 양측 확인 상태를 각각 서버 진실로 표시 — 누가 누굴 기다리는지 추측 금지 */}
             <Step
               done={stage === 'waiting' || stage === 'confirmed'}
@@ -317,8 +330,11 @@ export default function OwnerMeetup() {
               <Text style={s.statusKick}>WAITING</Text>
             </Row>
             <Text style={s.statusText}>러너의 출발을 기다리는 중...</Text>
-            {/* 도착 상태는 서버에 없다 — 러너의 출발(runner_enroute)만이 알림이 되는 유일한 사실 */}
-            <Text style={s.statusSub}>러너가 출발하면 알림을 보내드려요 · 도착은 채팅으로 확인해주세요</Text>
+            {/* [wave 3] 도착이 서버 진실이 됐다 (bookings.arrived_at + '러너 도착' 알림) — 옛 주석의
+                '도착 상태는 서버에 없다'와 '도착은 채팅으로' 카피는 이제 거짓이라 은퇴한다.
+                이 카드는 출발 전에만 뜨므로 arrivedAt 분기는 사실상 안 닿지만, 상태가 앞서 도착해도
+                화면이 거짓말하지 않도록 조건을 남겨둔다. */}
+            <Text style={s.statusSub}>러너가 출발하면 알림을 보내드려요 · 도착하면 다시 알려드려요</Text>
           </View>
         )}
         {stage === 'arrived' && (

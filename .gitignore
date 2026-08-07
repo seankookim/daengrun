@@ -4,3 +4,8 @@ node_modules/
 app/.env
 _to_delete/
 supabase/tests/.pgtest/
+
+# 로컬 Supabase 컨테이너 산출물 — 실제 시크릿이 들어 있다 (git add -A 사고 방지)
+supabase/.temp/
+supabase/.branches/
+app/supabase/

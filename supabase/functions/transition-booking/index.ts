@@ -1,6 +1,6 @@
 // 예약 상태 전이 — 액션 기반. DB 트리거가 최종 검증하고, 여기서 부수효과(알림·양측 인계) 처리.
 // input: { booking_id, action, meta? }
-// actions: payment_ok | runner_accept | runner_decline | enroute | confirm_handoff | start_run | cancel_owner
+// actions: payment_ok | runner_accept | runner_decline | enroute | arrived | confirm_handoff | start_run | cancel_owner
 //        | request_reschedule | accept_reschedule | decline_reschedule | withdraw_reschedule (0016)
 import { admin, caller, handle, HttpError } from "../_shared/ctx.ts";
 
@@ -24,11 +24,28 @@ Deno.serve(handle(async (req) => {
     db.from("notifications").insert({ profile_id, kind: "booking", title, body, ref_id: booking_id });
 
   switch (action) {
-    case "payment_ok":
+    case "payment_ok": {
       if (!isOwner) throw new HttpError(403, "owner only");
-      await set({ status: bk.runner_id ? "runner_pending" : "matching" });
-      if (bk.runner_id) await notify(bk.runner_id, "새 러닝 요청", "요청을 확인하고 응답해주세요");
+      // [웨이브 3] CAS — payment_hold일 때만 matching으로. 0060의 홀드 만료(30분, e_hold)와
+      // 결제 완료가 경합하면 여기서 0행이 나온다. 스냅샷 기반 무조건 쓰기는 그 레이스에서
+      // 만료된 예약을 조용히 되살리거나(트리거가 막으면 e.message 그대로 새는) 거짓 성공을 준다.
+      // pay.tsx에는 타이머가 없다 — 세워둔 결제 화면이 유예창 밖으로 나가는 것은 설계된 열화이고,
+      // 그때 보호자가 받아야 할 답은 '만료됐으니 다시 만들어라'라는 사실 한 문장이다.
+      // matching이 유일한 목표: 기존 `bk.runner_id ? "runner_pending" : "matching"` 분기는
+      // **죽은 코드**였다 — payment_hold→runner_pending이 0047 전이 맵에 없어 트리거가 거부한다.
+      // (주의: '클라가 runner_id를 안 보낸다'는 이유가 아니다 — create-booking-hold는 공개
+      //  HTTP 엔드포인트라 본문에 runner_id를 실을 수 있다. TS 래퍼 부재는 방어가 아니다.
+      //  적대 리뷰 P2 지적. 실제 근거는 전이 맵 하나뿐이고, 그것으로 충분하다.)
+      // 도달 불가능한 데다 도달하면 실패하는 분기를 '되는 것처럼' 보존하지 않는다.
+      // 같은 조건(bk.runner_id)에 걸려 있던 '새 러닝 요청' 알림도 함께 은퇴 — 이제 이 전이의
+      // 결과는 언제나 matching이라 그 알림은 러너에게 응답할 수 없는 요청을 알리는 거짓말이 된다.
+      const { data: paid, error: pe } = await db.from("bookings")
+        .update({ status: "matching" })
+        .eq("id", booking_id).eq("status", "payment_hold").select("id");
+      if (pe) throw new HttpError(409, pe.message);
+      if (!paid || paid.length === 0) throw new HttpError(409, "결제 시간이 만료됐어요 — 예약을 다시 만들어주세요");
       break;
+    }
 
     case "runner_accept": {
       const { data: r } = await db.from("runners").select("profile_id, tier").eq("profile_id", uid).single();
@@ -74,7 +91,9 @@ Deno.serve(handle(async (req) => {
         }
       }
       // 인계 타임스탬프 초기화 — 이전 시도/재매칭의 잔재가 남으면 한쪽 확인만으로 즉시 picked_up 되는 사고
-      const resetPatch = { runner_id: uid, status: "confirmed", owner_confirmed_handoff_at: null, runner_confirmed_handoff_at: null };
+      // arrived_at도 함께 소거 (웨이브 3) — 이전 러너의 도착 잔재가 남으면 새 러너의 arrived CAS가
+      // 0행으로 흘러 '이미 도착'으로 접히고, 보호자는 새 러너의 도착 알림을 영영 못 받는다.
+      const resetPatch = { runner_id: uid, status: "confirmed", owner_confirmed_handoff_at: null, runner_confirmed_handoff_at: null, arrived_at: null };
       if (!bk.runner_id) {
         // ── P0-2 / P2-25: 오픈 풀 문(마켓플레이스 find-now)은 클럽 위탁·비매칭·미인증을 절대 통과시키지 않는다.
         // 클럽 위탁 배정은 전용 RPC(session_proposal_respond)만 담당 — 이 문에서 도달 불가여야 한다
@@ -180,11 +199,49 @@ Deno.serve(handle(async (req) => {
       await notify(bk.owner_id, "러너 재탐색 중", "다른 러너를 찾고 있어요");
       break;
 
-    case "enroute":
+    case "enroute": {
       if (!isRunner) throw new HttpError(403, "runner only");
+      // [웨이브 3 적대 리뷰 P1] 시간 게이트 — 이게 없으면 0060의 24시간 주소 창이 장식이 된다.
+      // runner_enroute는 픽업 주소 RPC의 무조건 통과 분기라, 러너 홈에서 30일 뒤 예약을 한 번
+      // 탭하는 것만으로(러너 미트업 화면이 마운트 시 enroute를 자동 호출) 보호자 집 주소가 열렸다.
+      // 경계는 화면이 아니라 이 함수다. 덤으로 '러너 이동 중' 알림이 한 달 먼저 가던 것도 막는다.
+      const sched = new Date(bk.scheduled_at).getTime();
+      if (Number.isFinite(sched) && sched > Date.now() + 24 * 3_600_000) {
+        throw new HttpError(409, "출발 알림은 러닝 시작 24시간 전부터 보낼 수 있어요");
+      }
       await set({ status: "runner_enroute" });
       await notify(bk.owner_id, "러너 이동 중", "러너가 픽업 장소로 출발했어요");
       break;
+    }
+
+    case "arrived": {
+      // [웨이브 3] 도착 = 서버 진실. 예전엔 러너 화면의 로컬 스테이지뿐이라 리마운트하면 사라졌고,
+      // 보호자 화면은 '도착 상태는 서버에 없다'고 자백만 하고 있었다.
+      if (!isRunner) throw new HttpError(403, "runner only");
+      // 상태 전이가 아니라 타임스탬프 한 줄이다 — status는 runner_enroute 그대로.
+      // (0047 전이 맵에 도착 상태는 없고, 인계 기점은 여전히 양측 confirm_handoff다. 상태를 건드리면
+      //  보험·정산 기점이 앞당겨진다.) 0058 가드 트리거는 서비스롤을 막지 않으므로 이 경로만 쓸 수 있다.
+      // CAS: 아직 안 찍혔고(is null) 이동 중일 때(runner_enroute)만 한 번 — select-returning 1행이
+      // '내가 방금 찍었다'의 유일한 증거다. 알림은 그 증거가 있을 때만 = 구성상 정확히 1회.
+      // (enroute의 이중 발화 버그는 복제하지 않는다 — 라이더로 별도 명명됨)
+      const { data: marked, error: arErr } = await db.from("bookings")
+        .update({ arrived_at: new Date().toISOString() })
+        .eq("id", booking_id).is("arrived_at", null).eq("status", "runner_enroute")
+        .select("id");
+      if (arErr) throw new HttpError(409, arErr.message);
+      if (marked && marked.length > 0) {
+        await notify(bk.owner_id, "러너 도착", "러너가 픽업 장소에 도착했어요 — 인계를 준비해주세요");
+        break;
+      }
+      // 0행 — 여기서 스냅샷 bk를 믿으면 연타(두 요청이 같은 null을 읽음) 때 진 쪽에게 "이동 중이 아니에요"
+      // 라는 거짓 409를 준다. confirm_handoff의 '재조회 후 판정' 관용구를 그대로 쓴다 (bk는 stale일 수 있다).
+      const { data: fresh } = await db.from("bookings").select("arrived_at").eq("id", booking_id).single();
+      // 이미 도착이 찍혀 있으면 재탭은 무동작 성공 — 여기서 409를 던지면 러너가 인계 화면에 영원히
+      // 못 들어간다(연타·리마운트·낡은 푸시 = 핸드오프 락아웃). runner_accept 재탭 관용구와 같은 결론. 알림 없음.
+      if (fresh?.arrived_at ?? bk.arrived_at) return { unchanged: true };
+      // 진짜로 잘못된 상태(도착 도장도 없고 이동 중도 아님) — 사실만 말한다
+      throw new HttpError(409, "이동 중일 때만 도착을 확인할 수 있어요 — 화면을 새로고침해주세요");
+    }
 
     case "confirm_handoff": {
       // 양측 인계 확인 — 둘 다 눌러야 picked_up (보험 기점)

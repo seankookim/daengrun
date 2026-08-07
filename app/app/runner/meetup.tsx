@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Animated, Easing, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { PaperBtn } from '../../src/components/paper-btn';
 import { Avatar, Row } from '../../src/components/ui';
-import { confirmHandoff, fetchBookingSync, fetchCurrentRunnerJobId, fetchMeetupInfo, MeetupInfo, runnerEnroute, startRunServer, subscribeBooking } from '../../src/lib/api';
+import { confirmHandoff, fetchBookingAddress, fetchBookingSync, fetchCurrentRunnerJobId, fetchMeetupInfo, MeetupInfo, PickupAddress, runnerArrived, runnerEnroute, startRunServer, subscribeBooking } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { haptic } from '../../src/lib/haptics';
 import { runnerJob } from '../../src/store';
@@ -35,7 +35,8 @@ type Stage = 'enroute' | 'arrived' | 'waiting' | 'confirmed';
 
 // [정직 배치 2026-08-06 · item 4 wave-1] 하드코딩 픽업 좌표·주소와 네이버 길찾기 숏컷 은퇴 —
 // 파일럿 동네와 무관한 성동구 좌표였고, bookings.address_id를 읽는 코드는 어디에도 없었다.
-// 실주소는 wave 3(러너용 definer RPC) 몫. 그때까지의 정직한 상태는 '모름'이지 '지어낸 주소'가 아니다.
+// [wave 3] 실주소가 도착했다 — booking_pickup_address definer RPC(0060). 길찾기·지도는 여전히 없다:
+// 프로덕션 lat/lng가 전부 NULL이라 좌표 슬라이스 전까지 그 버튼은 죽은 버튼이다 (죽은 버튼 금지법).
 
 // 봉인 스탬프 — 빈 자리가 '실제로' 채워지는 순간에만 도장이 내려온다 (클럽 영수증 ② 스탬프 문법).
 // [P2-12 once-law] 첫 동기화가 '이미 봉인된' 상태로 도착하면 = 재진입이다 → 도장을 다시 찍지 않고
@@ -69,6 +70,15 @@ export default function Meetup() {
   // 인계 전 장비 체크리스트 (0019 연계) — 세 가지 모두 체크해야 인계 버튼이 열린다.
   // 로컬 상태로 충분: 서버 계약은 양측 confirm이고, 이 체크는 러너 자신을 위한 프리플라이트.
   const [check, setCheck] = useState({ leash: false, water: false, treats: false });
+  // [훅 배치 동결법] 새 useState는 이 상태 뭉치의 끝에만 — 아래 useRef poll부터 순서가 고정이다.
+  // 픽업 주소 삼상태를 한 값으로 묶는다 (로딩 / 결과 · 0행이면 a=null / 실패) — '로딩인데 에러' 같은
+  // 불가능한 조합이 생기지 않는다. addrTry는 재시도 트리거일 뿐 값 자체는 읽지 않는다.
+  const [pickup, setPickup] = useState<{ s: 'loading' } | { s: 'ok'; a: PickupAddress | null } | { s: 'err' }>({ s: 'loading' });
+  const [addrTry, setAddrTry] = useState(0);
+  // 도착 = 서버 진실 (bookings.arrived_at, 0060). 리마운트해도 syncNow가 되살리므로 성공 힌트가 살아남는다.
+  const [arrived, setArrived] = useState(false);
+  const [arriveBusy, setArriveBusy] = useState(false);
+  const [arriveFail, setArriveFail] = useState<string | null>(null); // 도착 전송 실패 — 라우드 인라인 한 줄
   const allChecked = check.leash && check.water && check.treats;
   const poll = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -92,6 +102,23 @@ export default function Meetup() {
     fetchMeetupInfo(jobId).then(setInfo).catch((e) => console.warn('[r-meetup] info:', e?.message ?? e));
   }, [jobId]);
 
+  // 픽업 실주소 (0060 definer RPC) — 잡이 정해지면 1회, '다시 시도'면 addrTry가 올라 다시 부른다.
+  // [훅 배치 동결법] 새 useEffect는 반드시 이 자리(fetchMeetupInfo 다음)에만 — 하이드레이션
+  // 게이트 effect는 언제나 마지막이어야 한다.
+  useEffect(() => {
+    if (!jobId) return;
+    let alive = true;
+    setPickup({ s: 'loading' });
+    fetchBookingAddress(jobId)
+      .then((a) => { if (alive) setPickup({ s: 'ok', a }); })
+      .catch((e) => {
+        // 실패를 '주소 없음'으로 접으면 러너는 영영 재시도 버튼을 못 본다 — 라우드 페일로 남긴다
+        console.warn('[r-meetup] addr:', e?.message ?? e);
+        if (alive) setPickup({ s: 'err' });
+      });
+    return () => { alive = false; };
+  }, [jobId, addrTry]);
+
   const syncNow = useCallback(async () => {
     if (!jobId) return;
     try {
@@ -103,9 +130,13 @@ export default function Meetup() {
         return;
       }
       setPeerConfirmed(s2.ownerConfirmed);
+      setArrived(!!s2.arrivedAt); // 도착도 서버 진실 — 로컬 낙관값을 서버 값에 정렬시킨다
       setSynced(true); // [P2-12] 봉인 진실이 처음 도착한 지점 — 이 커밋 이후부터가 '라이브'
       if (s2.status === 'picked_up' || s2.status === 'active') setStage('confirmed');
       else if (s2.runnerConfirmed) setStage('waiting');
+      // 도착 복원 — 이 분기가 없으면 도착 후 리마운트한 러너가 'enroute'에 좌초한다
+      // (장비 체크와 인계 CTA가 전부 'arrived' 뒤에 있다). 위 분기가 이긴 경우는 건드리지 않는다.
+      else if (s2.arrivedAt) setStage((cur) => (cur === 'enroute' ? 'arrived' : cur));
     } catch { /* 다음 이벤트/폴백이 처리 */ }
   }, [jobId]);
 
@@ -118,6 +149,30 @@ export default function Meetup() {
     poll.current = setInterval(syncNow, 8000);
     return () => { if (poll.current) clearInterval(poll.current); unsub(); };
   }, [jobId, syncNow]);
+
+  // 도착 보고 — 서버가 arrived_at을 찍어야만 스테이지가 오른다 (P1-4 정직법과 같은 규칙).
+  // 재탭은 서버가 { unchanged: true }로 200을 주므로 throw가 나지 않는다 = 그것도 성공 경로다.
+  // 진짜로 잘못된 상태(출발 전 등)만 던지고, 그때는 스테이지를 그대로 둬 CTA가 남는다.
+  const reportArrived = async () => {
+    if (!jobId || arriveBusy) return;
+    setArriveBusy(true);
+    setArriveFail(null);
+    try {
+      await runnerArrived(jobId);
+      haptic('success');
+      setArrived(true);
+      setStage('arrived');
+    } catch (e) {
+      const msg = (e as Error)?.message ?? '';
+      console.warn('[r-meetup] arrived:', msg || e);
+      // 서버가 한국어로 이유를 말해줬으면 그대로 쓴다 — 이동 중이 아닐 때의 409는 '새로고침'이라는
+      // 실제 복구 경로를 담고 있어서, 일반 문구로 덮으면 영영 안 되는 재시도만 남는다.
+      // 통신 실패의 영문 원문(Failed to send a request…)은 화면에 올리지 않고 일반 문구로 접는다.
+      setArriveFail(/[가-힣]/.test(msg) ? msg : '도착 알림을 보내지 못했어요 · 다시 시도해주세요');
+    } finally {
+      setArriveBusy(false);
+    }
+  };
 
   // [정직법 P1-4] 실패는 실패로 — 가짜 소인 금지. 서버가 확인을 받아야만 봉인 자리가 채워진다.
   // 전송 실패 시 'arrived'에 남아 CTA가 다시 뜬다 (재시도 경로 보장). 구: catch를 삼키고 무조건 waiting.
@@ -210,11 +265,27 @@ export default function Meetup() {
       </View>
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 34 }}>
-        {/* pickup info */}
+        {/* pickup info — 주소는 서버가 준 것만 그린다 (로딩 / 실주소 / 미지정 / 실패 네 상태) */}
         <View style={s.section}>
-          <Text style={s.cardTitle} numberOfLines={1}>픽업 장소</Text>
+          <Text style={s.cardTitle} numberOfLines={1}>
+            {pickup.s === 'ok' && pickup.a ? pickup.a.label : '픽업 장소'}
+          </Text>
+          {pickup.s === 'err' ? (
+            /* 라우드 페일 — 침묵도 '미지정' 위장도 아니다. 재시도가 실제로 RPC를 다시 부른다 */
+            <View style={s.addrFailStrip}>
+              <Text style={s.addrFailTxt}>주소를 불러오지 못했어요</Text>
+              <Pressable onPress={() => setAddrTry((n) => n + 1)} hitSlop={8} accessibilityRole="button" accessibilityLabel="다시 시도">
+                <Text style={s.addrFailRetry}>다시 시도</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <Text style={s.cardBody}>
+              {pickup.s === 'loading' ? '주소 확인 중...'
+                : pickup.s === 'ok' && pickup.a ? `${pickup.a.addr}${pickup.a.detail ? ` · ${pickup.a.detail}` : ''}`
+                : '픽업 장소는 보호자와 채팅으로 확인해주세요'}
+            </Text>
+          )}
           <Text style={s.cardBody}>
-            픽업 장소는 보호자와 채팅으로 확인해주세요{'\n'}
             {info?.dogMemo ? `보호자 메모: ${info.dogMemo}` : '보호자 메모가 없어요 — 채팅으로 미리 인사해보세요'}
           </Text>
         </View>
@@ -321,19 +392,23 @@ export default function Meetup() {
         {/* action */}
         {stage === 'enroute' && (
           <View style={s.actions}>
-            {/* 도착 확인은 화면의 계약 행동이 아니라 러너 자기보고 — 세컨더리로 정직하게 강등 */}
-            <PaperBtn label="픽업 장소 도착 확인" variant="secondary" onPress={() => setStage('arrived')} />
-            {/* [정직 배치 2.5 · 감사 #29] 잔여 갭: 도착은 이 버튼으로 로컬 스테이지만 바뀐다 —
-                보호자 쪽에 '도착'이라는 상태는 존재하지 않는다(runnerEnroute 출발 알림이 전부).
-                wave-3의 지명 러너 도착 푸시가 붙기 전까지 카피가 약속을 앞서 나가면 안 된다. */}
-            <Text style={s.ctaHint}>보호자에게는 출발 알림만 가요 · 도착은 채팅으로 알려주세요</Text>
+            {/* 도착 확인은 여전히 러너 자기보고라 세컨더리(잉크-필 CTA는 인계 하나뿐)지만, 이제 서버
+                계약 행동이다 — 탭이 arrived_at을 찍고 보호자에게 알림이 정확히 1회 나간다. */}
+            <PaperBtn label="픽업 장소 도착 확인" variant="secondary" busy={arriveBusy} busyLabel="전송 중..." onPress={reportArrived} />
+            {/* [wave 3 · 감사 #29 해소] 도착은 더 이상 로컬 스테이지가 아니다 — bookings.arrived_at이
+                정본이고 전송이 실패하면 스테이지는 그대로 남아 재시도 경로가 산다. */}
+            {arriveFail
+              ? <Text style={s.ctaFail}>{arriveFail}</Text>
+              : <Text style={s.ctaHint}>도착을 확인하면 보호자에게 알림이 가요</Text>}
           </View>
         )}
         {stage === 'arrived' && (
           <View style={s.actions}>
             {/* 게이트된 CTA — disabled는 명시 fill(disabledFill)로, 불투명도 트릭 금지 */}
             <PaperBtn label={`${dogName} 인계 받았어요`} onPress={handoff} disabled={!allChecked} />
+            {/* 도착 성공 힌트는 서버 값(arrived_at) 파생이라 리마운트해도 살아남는다 */}
             <Text style={s.ctaHint}>
+              {arrived ? '보호자에게 도착 알림이 갔어요 · ' : ''}
               {allChecked ? '보호자도 확인하면 러닝을 시작할 수 있어요' : '장비 체크를 완료하면 인계할 수 있어요'}
             </Text>
           </View>
@@ -508,6 +583,15 @@ const s = StyleSheet.create({
   section: { paddingHorizontal: PAD, paddingVertical: 18, borderBottomWidth: 1, borderBottomColor: paper.line },
   cardTitle: { flexShrink: 1, fontSize: 17, fontWeight: '800', color: paper.ink },
   cardBody: { fontSize: 14, lineHeight: 20, color: paper.text, marginTop: 6 },
+  // 주소 로드 실패 = 라우드 페일 (owner/request.tsx dogFailStrip과 같은 문법:
+  // criticalWash 면 + 위아래 1px critical + 밑줄 재시도). 새 미학이 아니라 있는 문법의 이식.
+  addrFailStrip: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: paper.criticalWash, borderTopWidth: 1, borderBottomWidth: 1, borderColor: paper.critical,
+    paddingVertical: 11, paddingHorizontal: 12, marginTop: 8,
+  },
+  addrFailTxt: { flex: 1, fontSize: 14, lineHeight: 18, fontWeight: '700', color: paper.critical },
+  addrFailRetry: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },
   peerName: { fontSize: 16.5, lineHeight: 22, fontWeight: '800', color: paper.ink },
   peerMeta: { fontSize: 14, lineHeight: 19, color: paper.dim, marginTop: 3 },
   chatChip: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line, paddingVertical: 9, paddingHorizontal: 11, alignSelf: 'center' },
@@ -599,6 +683,8 @@ const s = StyleSheet.create({
   // ── 행동 존 (버튼 매트릭스는 PaperBtn이 진다 — 여기는 자리와 힌트만) ──
   actions: { paddingHorizontal: PAD, paddingVertical: 18, borderBottomWidth: 1, borderBottomColor: paper.line },
   ctaHint: { fontSize: 14, lineHeight: 19, fontWeight: '600', color: paper.dim, textAlign: 'center', marginTop: 10 },
+  // 도착 전송 실패 — ctaHint와 같은 자리, 잉크만 critical (행동 존에는 스트립을 놓을 자리가 없다)
+  ctaFail: { fontSize: 14, lineHeight: 19, fontWeight: '700', color: paper.critical, textAlign: 'center', marginTop: 10 },
   status: {
     backgroundColor: paper.canvas, borderBottomWidth: 1, borderBottomColor: paper.line,
     paddingVertical: 18, paddingHorizontal: PAD, alignItems: 'center',

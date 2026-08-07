@@ -8,8 +8,8 @@ import { CourseStrip } from '../../src/components/CourseStrip';
 import { RunnerClubCard } from '../../src/components/clubcard';
 import { Icon, Row } from '../../src/components/ui';
 import {
-  acceptBooking, AvailRule, CoursePatch, declineBooking, fetchCoursePatches, fetchLedgerMonth, fetchLedgerTotal, fetchMyAvailability, fetchMyName, fetchMyRunnerStatus, fetchRunnerInbox, fetchRunnerJobs,
-  fetchRunnerWeekStats, fetchUnreadCount, MyRunnerStatus, OpenRequest, RunnerJob, RunnerWeekStats, saveMyAvailability, setRunnerOnline,
+  acceptBooking, AvailRule, CoursePatch, declineBooking, fetchBookingAddress, fetchCoursePatches, fetchLedgerMonth, fetchLedgerTotal, fetchMyAvailability, fetchMyName, fetchMyRunnerStatus, fetchRunnerInbox, fetchRunnerJobs,
+  fetchRunnerWeekStats, fetchUnreadCount, MyRunnerStatus, OpenRequest, PickupAddress, RunnerJob, RunnerWeekStats, saveMyAvailability, setRunnerOnline,
 } from '../../src/lib/api';
 import { PatchBadge } from '../../src/components/patch';
 import { registerPushToken } from '../../src/lib/push';
@@ -157,6 +157,9 @@ export default function RunnerHome() {
   const [rs, setRs] = useState<MyRunnerStatus>({ totalRuns: 0, totalKm: 0, online: false, tier: 'certified' });
   const [avail, setAvail] = useState<AvailRule[] | null>(null);
   const [busyReq, setBusyReq] = useState(false); // 티켓 문 실동작 중 (수락/거절)
+  // 진행 중 카드의 픽업 주소 한 줄 (0060 definer RPC). 서버가 행을 준 경우에만 채워진다 —
+  // 0행(주소 미지정·24h 창 밖)과 에러는 둘 다 null로 접고 카드에 아무 줄도 그리지 않는다.
+  const [jobAddr, setJobAddr] = useState<PickupAddress | null>(null);
 
   // [Sean] 거절한 요청은 다시 안 본다 — 서버 정본은 0056 booking_declines(뷰 제외). 이 Set은 거절 POST와
   // 다음 fetch 사이 깜빡임을 막는 낙관 레이어 + 로그 기록 실패(엣지 fn fail-open)의 폴백.
@@ -259,6 +262,19 @@ export default function RunnerHome() {
     ?? jobs.find((j) => j.rawStatus === 'confirmed');
   const upcoming = jobs.filter((j) => j.status === 'confirmed' && j.bookingId !== current?.bookingId).slice(0, 3);
   const past = jobs.filter((j) => j.status === 'completed').slice(0, 3);
+
+  // 진행 중 잡의 픽업 주소 — 키는 RunnerJob.bookingId (이 타입에 id 필드는 없다). 20행 잡 목록 전체를
+  // 훑지 않고 지금 진행 중인 한 건만 부른다. 실패는 여기서 조용하다: 홈 카드는 지나가는 요약이고,
+  // 라우드한 실패 표면(재시도 스트립)은 미트업 화면의 픽업 카드가 진다 — 두 곳에서 소리치지 않는다.
+  useEffect(() => {
+    const bid = current?.bookingId;
+    if (!bid) { setJobAddr(null); return; }
+    let alive = true;
+    fetchBookingAddress(bid)
+      .then((a) => { if (alive) setJobAddr(a); })
+      .catch((e) => { console.warn('[rhome] addr:', e?.message ?? e); if (alive) setJobAddr(null); });
+    return () => { alive = false; };
+  }, [current?.bookingId]);
 
   const openJob = (j: RunnerJob) => {
     runnerJob.bookingId = j.bookingId;
@@ -448,6 +464,10 @@ export default function RunnerHome() {
               <Text style={styles.nowSub}>
                 예상 수익 <Text style={{ fontWeight: '700', color: lilac.text }}>+{current.payout.toLocaleString()}원</Text>
               </Text>
+              {/* 주소는 서버가 준 행이 있을 때만 — 없으면 줄 자체가 없다 (죽은 줄·거짓 줄 금지) */}
+              {jobAddr && (
+                <Text style={styles.nowSub} numberOfLines={1}>{jobAddr.label} · {jobAddr.addr}</Text>
+              )}
               <Row style={{ gap: 7, marginTop: 11 }}>
                 <View style={[styles.btnCoral, { flex: 1.5 }]}>
                   <Text style={styles.btnCoralTxt}>{STAGE[current.rawStatus]?.action ?? '이어서 진행 ›'}</Text>

@@ -8,8 +8,8 @@
 // 필요: 리포 루트 .env 에 SUPABASE_SERVICE_ROLE_KEY=... (Dashboard → Settings → API)
 // .env 는 gitignore 됨 — 서비스 키는 절대 커밋 금지.
 //
-// 흐름: 유저 준비 → 강아지/코스 → hold → 결제 → 러너 인박스 노출(RLS) → 수락
-//      → enroute → 양측 confirm_handoff → picked_up ★ → start_run → settle → 원장 검증 → 청소
+// 흐름: 유저 준비 → 강아지/코스 → hold → 소유권 403 → 결제 → 러너 인박스 노출(RLS) → 수락
+//      → enroute → 도착 ★ → 양측 confirm_handoff → picked_up ★ → start_run → settle → 원장 검증 → 청소
 
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -188,6 +188,47 @@ try {
     return `${r.body.total_price?.toLocaleString()}원`;
   });
 
+  // ⚠️ 웨이브 3 단계 (아래 '남의 강아지' · '★ arrived' 두 단계): **Sean이 웨이브 3을 배포한 뒤에만**
+  //    통과한다. 0060(arrived_at 컬럼) + create-booking-hold·transition-booking 재배포 이전의
+  //    원격에서는 — 남의 강아지로도 홀드가 만들어지고(게이트 없음), 'arrived'는 unknown action 400이다.
+  //    즉 이 두 단계의 ✗는 "서버가 아직 그 진실을 모른다"는 정확한 신호다.
+  await step('남의 강아지로 hold → 403 (소유권 게이트)', async () => {
+    // 제3의 계정으로 강아지를 만든다 — --solo 에서는 owner와 runner가 한 계정이라 '남'을 러너로
+    // 대신할 수 없다(그러면 자기 강아지가 되어 이 단계가 조용히 거짓 통과한다).
+    const outsider = await ensureUser('e2e-outsider@daengrun.test');
+    await ensureProfile(outsider, 'E2E외부인', 'owner');
+    let foreignDogId;
+    const existing = await admin(`/rest/v1/dogs?select=id&owner_id=eq.${outsider.id}&limit=1`);
+    if (Array.isArray(existing.body) && existing.body.length > 0) foreignDogId = existing.body[0].id;
+    else {
+      const d = await admin('/rest/v1/dogs', {
+        method: 'POST', headers: { Prefer: 'return=representation' },
+        body: { owner_id: outsider.id, name: '외부인개E2E', breed: '믹스', weight_kg: 5, memo: 'E2E 소유권 게이트용' },
+      });
+      expect(d.status === 201, '외부인 강아지 생성 실패', d.body);
+      foreignDogId = d.body[0].id;
+    }
+    const foreign = await fn('create-booking-hold', owner.token, {
+      dog_id: foreignDogId, route_id: routeId, scheduled_at: tomorrow10KST(), km: 3, addons: [],
+    });
+    // 게이트 이전 서버는 여기서 진짜 예약을 만들어준다 — 잔재(예약+슬롯 홀드)를 즉시 지운다.
+    // (cleanup은 메인 bookingId만 추적한다. 남겨두면 외부인 강아지가 라이브 예약에 묶인다.)
+    if (foreign.status === 200 && foreign.body?.booking_id) {
+      await admin(`/rest/v1/slot_holds?booking_id=eq.${foreign.body.booking_id}`, { method: 'DELETE' });
+      await admin(`/rest/v1/bookings?id=eq.${foreign.body.booking_id}`, { method: 'DELETE' });
+    }
+    expect(foreign.status === 403,
+      `남의 강아지로 예약이 만들어짐 (status ${foreign.status}) — 0042 마켓플레이스 뷰가 그 강아지의 이름·메모·사진을 모든 활성 러너에게 연다`, foreign.body);
+    // 부재와 타인의 답은 같은 한 문장이어야 한다 — 존재 여부를 알려주는 열거 오라클 금지 (0054:73)
+    expect(foreign.body?.error === 'forbidden', `403 메시지가 'forbidden'이 아님`, foreign.body);
+    const ghost = await fn('create-booking-hold', owner.token, {
+      dog_id: '00000000-0000-0000-0000-000000000000', route_id: routeId, scheduled_at: tomorrow10KST(), km: 3, addons: [],
+    });
+    expect(ghost.status === 403 && ghost.body?.error === foreign.body?.error,
+      '없는 강아지와 남의 강아지의 답이 다름 — 응답 차이가 곧 존재 여부 오라클이다', ghost.body);
+    return '남의 개 · 없는 개 모두 403 forbidden';
+  });
+
   await step('payment_ok → matching', async () => {
     const r = await fn('transition-booking', owner.token, { booking_id: bookingId, action: 'payment_ok' });
     expect(r.status === 200, 'payment_ok failed', r.body);
@@ -242,9 +283,55 @@ try {
     expect(!b.body[0].owner_confirmed_handoff_at && !b.body[0].runner_confirmed_handoff_at, '수락 시 인계 타임스탬프가 초기화되지 않음 (stale → 즉시 picked_up 사고 위험)', b.body);
   });
 
-  await step('enroute → runner_enroute', async () => {
+  await step('enroute 24h 게이트 — 창 밖이면 거부 (웨이브 3)', async () => {
+    // 예약은 취소 무료 구간(24h 이후)을 쓰려고 내일 10시로 잡혀 있다 — 그래서 지금은 창 밖이다.
+    // 먼저 거부를 핀으로 박는다: 이게 뚫리면 0060의 24시간 픽업 주소 창이 장식이 된다.
+    const r = await fn('transition-booking', runner.token, { booking_id: bookingId, action: 'enroute' });
+    expect(r.status === 409, `24h 밖 enroute가 통과함 — 주소 창 우회 (status ${r.status})`, r.body);
+    const b = await admin(`/rest/v1/bookings?id=eq.${bookingId}&select=status`);
+    expect(b.body?.[0]?.status === 'confirmed', `거부됐는데 상태가 바뀜: ${b.body?.[0]?.status}`, b.body);
+  });
+
+  await step('enroute → runner_enroute (창 안으로 당긴 뒤)', async () => {
+    // 창 안으로 이동 — 취소 수수료 검증용 시각은 위 단계에서 이미 다 썼다.
+    const soon = new Date(Date.now() + 2 * 3_600_000).toISOString();
+    const p = await admin(`/rest/v1/bookings?id=eq.${bookingId}`, { method: 'PATCH', body: { scheduled_at: soon } });
+    expect([200, 204].includes(p.status), 'scheduled_at 당기기 실패', p.body);
     const r = await fn('transition-booking', runner.token, { booking_id: bookingId, action: 'enroute' });
     expect(r.status === 200, 'enroute failed', r.body);
+  });
+
+  // ⚠️ 웨이브 3 단계 — 위 소유권 단계와 같은 조건(0060 push + transition-booking 재배포) 이후에만 통과.
+  await step('★ arrived → 서버 도착 기록 + 도착 알림 정확히 1건', async () => {
+    const arrivedNotis = async () => {
+      const n = await admin(`/rest/v1/notifications?ref_id=eq.${bookingId}&profile_id=eq.${owner.id}&select=title,body`);
+      return (Array.isArray(n.body) ? n.body : []).filter((x) => x.title === '러너 도착');
+    };
+    const r = await fn('transition-booking', runner.token, { booking_id: bookingId, action: 'arrived' });
+    expect(r.status === 200, "arrived 실패 — 웨이브 3 transition-booking 배포 확인 (미배포면 'unknown action arrived' 400)", r.body);
+    const b = await admin(`/rest/v1/bookings?id=eq.${bookingId}&select=status,arrived_at`);
+    const stamp = b.body?.[0]?.arrived_at;
+    expect(!!stamp, 'arrived_at 이 서버에 없음 — 도착이 아직 클라 로컬 상태다 (0060 마이그레이션 확인)', b.body);
+    // 도착은 상태 전이가 아니다 — 인계(picked_up) 기점은 여전히 양측 confirm_handoff다
+    expect(b.body[0].status === 'runner_enroute', `도착이 상태를 바꿈: ${b.body[0].status}`, b.body);
+    const first = await arrivedNotis();
+    expect(first.length === 1, `'러너 도착' 알림이 정확히 1건이 아님 (${first.length}건)`, first);
+    // 재탭(연타·리마운트·낡은 푸시) = 무동작 성공. 여기서 409면 러너가 인계 화면에 못 들어간다(핸드오프 락아웃).
+    const again = await fn('transition-booking', runner.token, { booking_id: bookingId, action: 'arrived' });
+    expect(again.status === 200 && again.body?.unchanged === true, '도착 재탭이 200 {unchanged:true} 가 아님 — 핸드오프 락아웃 위험', again.body);
+    const second = await arrivedNotis();
+    expect(second.length === 1, `재탭이 도착 알림을 또 보냄 (${second.length}건) — 정확히 1회 보장이 깨짐`, second);
+    const b2 = await admin(`/rest/v1/bookings?id=eq.${bookingId}&select=arrived_at`);
+    expect(b2.body?.[0]?.arrived_at === stamp, '재탭이 도착 시각을 덮어씀 — CAS(.is arrived_at null)가 아니다', b2.body);
+    // fetchBookingSync 셀렉트 계약 (웨이브 2 M4 선례 — check-rpc는 .from() 셀렉트를 못 덮는다):
+    // 이 셀렉트에 arrived_at 이 없으면 리마운트한 러너가 'enroute'에 갇힌다(복원 분기의 입력이 없어진다).
+    const sync = await call(
+      `/rest/v1/bookings?id=eq.${bookingId}&select=status,owner_confirmed_handoff_at,runner_confirmed_handoff_at,arrived_at`,
+      { token: runner.token });
+    expect(sync.status === 200 && Array.isArray(sync.body) && sync.body.length === 1,
+      'fetchBookingSync 셀렉트가 거부됨 — arrived_at 컬럼 확인 (400이면 0060 미배포)', sync.body);
+    expect(sync.body[0].arrived_at, 'fetchBookingSync 셀렉트가 arrived_at 을 못 읽음 — 리마운트 시 러너가 enroute에 갇힌다', sync.body);
+    return `${stamp} · 알림 1건 · 재탭 무동작`;
   });
 
   await step('보호자 confirm_handoff (한쪽만 — picked_up 아니어야 함)', async () => {

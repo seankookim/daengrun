@@ -156,6 +156,16 @@ doctrine). Subscription money surface claimed the freed §3 cycle slot.
   ordering — style/copy only, hook order byte-identical.
 - Respond to Sean in English; code comments + commits Korean; commands as explicit lists.
 
+## Launch checklist (NEW 2026-08-08)
+`docs/launch-checklist.md` — everything required before the Banpo pilot, grouped (legal / money /
+supply / validation / product / distribution) with what's verified vs. documented. **Critical path
+finding: the two things actually blocking a paying customer are (1) no runner can become certified
+— /runner/apply has no submit and no applicant→certified path exists server-side, while
+transition-booking:103 + api.ts:543 both gate on certified, so the owner-facing runner list is
+structurally empty; and (2) GPS dies on screen lock (geo.ts:23 is foreground-only).** Neither is
+legal or store-related. Also: the pilot does NOT need the App Store (TestFlight external = 10k
+testers), and todo.md's TestFlight command was wrong (preview = ad-hoc; use production + submit).
+
 ## Key artifacts
 - Plans: docs/plans/next-phase-style-shop-rewards-plan.md (style pivot + reviews) ·
   honesty-batch-sunbaek-spec.md (waves 1-3 + wave-2 GSTACK REVIEW REPORT) ·

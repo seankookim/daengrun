@@ -600,16 +600,19 @@ export async function fetchAvailableRunners(): Promise<LiveRunner[]> {
 export const requestRunner = (bookingId: string, runnerId: string) =>
   invokeTransition(bookingId, 'request_runner', { runner_id: runnerId });
 
-// 예약 상세 (인계 동기화용): 상태 + 양측 확인 타임스탬프
+// 예약 상세 (인계 동기화용): 상태 + 양측 확인 타임스탬프 + 러너 도착
 export interface BookingSync {
   status: string;
   ownerConfirmed: boolean;
   runnerConfirmed: boolean;
+  // 러너 도착 = 서버 진실 (0060 bookings.arrived_at). 로컬 스테이지가 아니라 이 값이 정본이라
+  // 리마운트해도 양측 화면이 '도착 이전'으로 되돌아가지 않는다. null = 아직 도착 보고 없음.
+  arrivedAt: string | null;
 }
 export async function fetchBookingSync(id: string): Promise<BookingSync> {
   const { data, error } = await supabase
     .from('bookings')
-    .select('status, owner_confirmed_handoff_at, runner_confirmed_handoff_at')
+    .select('status, owner_confirmed_handoff_at, runner_confirmed_handoff_at, arrived_at')
     .eq('id', id)
     .single();
   if (error) throw error;
@@ -617,7 +620,36 @@ export async function fetchBookingSync(id: string): Promise<BookingSync> {
     status: data.status,
     ownerConfirmed: !!data.owner_confirmed_handoff_at,
     runnerConfirmed: !!data.runner_confirmed_handoff_at,
+    arrivedAt: data.arrived_at ?? null,
   };
+}
+
+// ---------- 픽업 실주소 (0060 definer RPC) ----------
+// 러너 전용 창구. 서버가 '배정된 러너 + 라이브 창(진행 중이거나 24h 이내 확정)'일 때만 행을 준다 —
+// 없는 예약과 남의 예약은 구별되지 않는다(열거 오라클 차단). gate_code_enc는 구조적으로 선택하지 않는다.
+// 삼상태 법: 0행 = null(주소 미지정·창 밖 → 화면은 '미지정'을 그린다) / 에러 = throw(라우드 페일).
+// 둘을 섞으면 통신 실패가 '주소 없음'으로 위장하고 러너는 영영 재시도 버튼을 못 본다.
+// 좌표(lat/lng)는 계약에 없다 — 프로덕션 값이 전부 NULL이라 길찾기·지도는 죽은 버튼이 된다.
+export interface PickupAddress {
+  label: string;
+  addr: string;
+  detail: string | null;
+}
+
+export async function fetchBookingAddress(bookingId: string): Promise<PickupAddress | null> {
+  // 인자는 반드시 `p_booking: bookingId` 형태 — 축약형 { p_booking }은 check-rpc 계약 검사의
+  // 키 정규식(콜론 필수)에 잡히지 않아 게이트를 조용히 통과한다.
+  const { data, error } = await supabase.rpc('booking_pickup_address', { p_booking: bookingId });
+  // [적대 리뷰 P2] not_runner는 '전송 실패'가 아니라 '아직/여기선 볼 수 없다'는 부재 신호다.
+  // 24시간 창 밖(먼 확정 예약)에서도 이게 뜨는데, throw하면 멀쩡한 예약에 빨간 실패 스트립이
+  // 뜨고 러너는 크리티컬 스트립을 무시하도록 학습된다. 부재는 null, 진짜 실패만 throw.
+  if (error) {
+    if (/not_runner/.test(error.message ?? '')) return null;
+    throw error;
+  }
+  const row = (data as any[] | null)?.[0];
+  if (!row) return null;
+  return { label: row.label, addr: row.addr, detail: row.detail ?? null };
 }
 
 // 진행 중 예약 복원 — 인메모리 id가 리로드로 날아가도 화면이 서버에서 스스로 찾는다.
@@ -1106,6 +1138,13 @@ export async function fetchStampPop(bookingId: string): Promise<StampInfo[]> {
 }
 
 export const runnerEnroute = (id: string) => invokeTransition(id, 'enroute');
+
+// 러너 도착 보고 — 서버가 arrived_at을 CAS로 찍고 보호자에게 '러너 도착' 알림을 정확히 1회 보낸다.
+// 이미 찍혀 있으면 서버가 { unchanged: true }로 200을 준다 (재탭·재시도 = 멱등 성공).
+// 호출부는 그 값을 그대로 받아 성공으로 처리해야 한다 — 재탭을 실패로 다루면 도착 후 인계가 잠긴다.
+export async function runnerArrived(id: string): Promise<{ unchanged?: boolean }> {
+  return invokeTransition(id, 'arrived');
+}
 
 // ---------- profile (identity layer) ----------
 export interface MyProfile { id: string; name: string | null; district: string | null; avatarUrl: string | null; email: string | null }
