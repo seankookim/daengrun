@@ -3,6 +3,7 @@
   "build": {
     "development": { "developmentClient": true, "distribution": "internal", "ios": { "simulator": false } },
     "preview": { "distribution": "internal" },
+    "testflight": { "distribution": "store", "autoIncrement": true, "ios": { "resourceClass": "m-medium" } },
     "production": { "autoIncrement": true }
   },
   "submit": { "production": {} }

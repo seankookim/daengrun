@@ -5,7 +5,13 @@ Session bridge: **read `docs/session-handoff.md` fully before doing anything** �
 
 ## Language
 
-Respond to Sean in English. In-app UI copy is Korean (product language). Code comments and commit messages are Korean. Docs and discussion artifacts are English.
+**English everywhere except in-app content.** Replies, docs, plans, code comments, and commit
+messages are English. The ONLY Korean is what a user reads inside the product: UI copy, button
+labels, notification titles/bodies, error strings, and user-facing legal documents (개인정보처리방침,
+이용약관). Korean product terms stay Korean when quoted in English prose (하이 포인트, 인계, 정산).
+
+Changed 2026-08-08 (Sean). Older files still carry Korean comments — do not mass-rewrite them;
+convert opportunistically when you are already editing a file for another reason.
 
 ## Operations — Sean-only
 
