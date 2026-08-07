@@ -154,7 +154,13 @@ export default function RunnerHome() {
   const [unread, setUnread] = useState(0); // 미읽음 알림 실카운트 — 벨 도트의 유일한 근거
   const [jobs, setJobs] = useState<RunnerJob[]>([]);
   const [patchMap, setPatchMap] = useState<Record<string, CoursePatch>>({}); // 완료 카드 미니 패치
-  const [rs, setRs] = useState<MyRunnerStatus>({ totalRuns: 0, totalKm: 0, online: false, tier: 'certified' });
+  // [honesty repair 2026-08-08 / plan §6.1-2, §6.3] The seed used to be tier: 'certified' — the same
+  // lie fetchMyRunnerStatus told one layer down, and it painted 인증 러너 on the bib of an applicant
+  // before any fetch resolved. null = not known yet / no runners row; a separate loaded flag keeps
+  // "not arrived" distinct from "known to be nothing" (loading is not empty).
+  const [rs, setRs] = useState<MyRunnerStatus>({ totalRuns: 0, totalKm: 0, online: false, tier: null });
+  const [rsLoaded, setRsLoaded] = useState(false);
+  const [rsErr, setRsErr] = useState(false);
   const [avail, setAvail] = useState<AvailRule[] | null>(null);
   const [busyReq, setBusyReq] = useState(false); // 티켓 문 실동작 중 (수락/거절)
   // 진행 중 카드의 픽업 주소 한 줄 (0060 definer RPC). 서버가 행을 준 경우에만 채워진다 —
@@ -230,7 +236,10 @@ export default function RunnerHome() {
       .then(({ earned }) => setPatchMap(Object.fromEntries(earned.map((pt) => [pt.routeId, pt]))))
       .catch(() => {});
     registerPushToken(); // APNs (0024) — 러너는 푸시가 곧 수입 (요청 도착 알림)
-    fetchMyRunnerStatus().then(setRs).catch((e) => console.warn('[rhome] status:', e?.message ?? e));
+    fetchMyRunnerStatus()
+      .then((v) => { setRs(v); setRsErr(false); })
+      .catch((e) => { console.warn('[rhome] status:', e?.message ?? e); setRsErr(true); })
+      .finally(() => setRsLoaded(true));
   }, []));
 
   // 온라인 토글 — 실저장 (오프라인이면 추천·동네 러너 셸프에서 빠짐). 빕 위 스위치가 이 상태를 쓴다.
@@ -286,7 +295,13 @@ export default function RunnerHome() {
   const remaining5 = 5 - cycle5;
   const cycle10 = rs.totalRuns % 10;
 
-  const tierLabel = TIER_LABEL[rs.tier] ?? '러너';
+  // While tier is null (not loaded, signed out, or no runners row) render a neutral 러너 — never
+  // 인증 러너, which asserts a certification that has not happened. 'applicant' also falls through
+  // to 러너 because TIER_LABEL deliberately has no applicant entry (plan §6.3).
+  const tierLabel = (rs.tier && TIER_LABEL[rs.tier]) || '러너';
+  // An applicant (and anyone without a runners row) cannot receive a request at all — the inbox and
+  // the tier ladder both say so instead of pretending it is a quiet day / a rung away.
+  const preCert = rsLoaded && !rsErr && (rs.tier === null || rs.tier === 'applicant');
   const avg = stats.runs > 0 ? Math.round(stats.net / stats.runs) : 0;
   // 오늘 라벨 — 기기 시계가 아니라 KST 고정(UTC+9, DST 없음). j.when은 서버 api의 kstParts 산출물이라
   // 기기가 UTC(에뮬레이터)·해외면 라벨이 하루 어긋나 오늘 잡이 통째로 안 잡혔다.
@@ -584,9 +599,29 @@ export default function RunnerHome() {
           </>
         ) : (
           <View style={styles.emptyInbox}>
-            <Text style={{ fontSize: 14, color: lilac.dim, textAlign: 'center', lineHeight: 18 }}>
-              {rs.online ? '지금은 새 요청이 없어요 — 오는 대로 여기에 떠요' : '오프라인 상태 — 켜야 요청을 받아요'}
-            </Text>
+            {/* [honesty repair 2026-08-08 / plan §6.3, §7.3] This box used to tell an applicant
+                "지금은 새 요청이 없어요 — 오는 대로 여기에 떠요". For an applicant a request can never
+                arrive: only tier <> 'applicant' runners are reachable. The failure was the empty state
+                with no explanation and no exit, not the emptiness. Now: loading says loading, a failed
+                load says it failed, and a pre-certification runner gets the reason plus a real route. */}
+            {!rsLoaded ? (
+              <Text style={styles.emptyInboxTxt}>내 러너 상태를 불러오는 중이에요…</Text>
+            ) : rsErr ? (
+              <Text style={styles.emptyInboxTxt}>내 러너 상태를 불러오지 못했어요</Text>
+            ) : preCert ? (
+              <Pressable
+                onPress={() => router.push('/runner/apply')}
+                accessibilityRole="button"
+                accessibilityLabel="인증 센터로 이동해 러너 지원하기"
+              >
+                <Text style={styles.emptyInboxTxt}>인증 전에는 요청이 오지 않아요</Text>
+                <Text style={styles.emptyInboxLink}>인증 센터에서 지원할 수 있어요 ›</Text>
+              </Pressable>
+            ) : (
+              <Text style={styles.emptyInboxTxt}>
+                {rs.online ? '지금은 새 요청이 없어요 — 오는 대로 여기에 떠요' : '오프라인 상태 — 켜야 요청을 받아요'}
+              </Text>
+            )}
           </View>
         )}
 
@@ -629,6 +664,19 @@ export default function RunnerHome() {
         <SectionRule no="03" title="리워드" link="리워드 센터 ›" onPress={() => router.push('/runner/rewards')} />
         <Pressable onPress={() => router.push('/runner/rewards')} style={styles.card}>
           {(() => {
+            // [honesty repair 2026-08-08 / plan §6.3, §7.3] The ladder is progress toward the rung
+            // ABOVE 인증 러너. Drawing "베테랑까지 30회" for someone who has not reached 인증 러너 yet
+            // measures them against a rung two steps away and implies the first one is already theirs.
+            // Loading and a failed load are stated as themselves — neither is a tier.
+            if (!rsLoaded) {
+              return <Text style={{ fontSize: 14, lineHeight: 18, color: lilac.dim }}>등급을 불러오는 중이에요…</Text>;
+            }
+            if (rsErr) {
+              return <Text style={{ fontSize: 14, lineHeight: 18, color: lilac.dim }}>등급을 불러오지 못했어요</Text>;
+            }
+            if (preCert) {
+              return <Text style={{ fontSize: 14, lineHeight: 18, fontWeight: '700', color: lilac.head }}>인증 러너가 되면 등급이 시작돼요</Text>;
+            }
             // v1 승급 기준: 베테랑 30회, 마스터 100회 — 심사 도입 전 잠정.
             // 수수료는 일괄 33%(0059) — 티어 연동 요율 없음. 요율 인하 약속 금지(정산은 33%를 뗀다).
             const t = rs.tier === 'veteran'
@@ -992,6 +1040,8 @@ const styles = StyleSheet.create({
   stubMoreTxt: { fontSize: 14, lineHeight: 18, color: lilac.text, flex: 1 },
   stubMoreLink: { fontSize: 14, fontWeight: '700', color: lilac.accent },
   emptyInbox: { marginTop: 9, backgroundColor: lilac.inset, borderRadius: lilacRadius.card, padding: 16, borderWidth: 1, borderColor: lilac.hair },
+  emptyInboxTxt: { fontSize: 14, lineHeight: 18, color: lilac.dim, textAlign: 'center' },
+  emptyInboxLink: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: lilac.accent, textAlign: 'center', marginTop: 5 },
 
   // ② 루트 — 목업 .stop padding 7 0 8, gap 11
   stop: { flexDirection: 'row', alignItems: 'flex-start', gap: 11, paddingTop: 7, paddingBottom: 8 },

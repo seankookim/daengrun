@@ -20,8 +20,10 @@
 -- That 0057 used `before insert or update` for _guard_runner_doc_verify (0057:539) but
 -- `before update` for this one makes it an oversight, not a decision.
 --
--- Fix shape: FORCE the privileged columns to their safe defaults on client INSERT rather than
--- raising. Rationale — the legitimate client payload (api.ts ensureRunner: tier 'applicant',
+-- Fix shape: FORCE the privileged columns to their safe values on client INSERT rather than
+-- raising. "Safe value" means the column's CURRENT default, which is not always the literal in
+-- 0001 — see the commission_rate note below, where 0059 moved it. Rationale for coercing rather
+-- than raising — the legitimate client payload (api.ts ensureRunner: tier 'applicant',
 -- funnel_step 'info', identity_verified false) already equals these defaults, so no shipped app
 -- build changes behavior; an old build in the wild cannot be broken by this migration; and an
 -- attacker learns nothing (no error to distinguish "blocked" from "allowed" — no oracle).
@@ -45,7 +47,12 @@ begin
     new.completion_rate        := null;
     new.compliance_pct         := null;
     new.respond_rate_pct       := null;
-    new.commission_rate        := 0.20;
+    -- 0.33, NOT 0.20. The 0001 table definition says 0.20 but 0059_take_rate_33.sql:14 reset the
+    -- column default to 0.33 and flattened every existing row. Coercing to the stale literal would
+    -- hand every client-created runner a 13-point discount on a column settle-run reads for real
+    -- money. Pin S7 in 101_runner_insert_seal_suite.sql compares this literal against the column's
+    -- live default, so the next take-rate change reddens the harness instead of leaking revenue.
+    new.commission_rate        := 0.33;
   end if;
   return new;
 end $$;

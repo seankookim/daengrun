@@ -43,7 +43,7 @@ begin
     select tier::text, commission_rate, identity_verified, funnel_step::text, total_runs, total_km
       into v_tier, v_comm, v_idv, v_fs, v_runs, v_km
       from runners where profile_id = atk;
-    if v_tier = 'applicant' and v_comm = 0.20 and v_idv = false and v_fs = 'info'
+    if v_tier = 'applicant' and v_comm = 0.33 and v_idv = false and v_fs = 'info'
        and v_runs = 0 and v_km = 0
       then call _pass('seal','S1 자가 등급 상승 봉인 — tier=master·commission=0·identity=true INSERT가 전부 기본값으로 강등');
     else call _fail('seal','S1 자가 등급 상승 봉인',
@@ -62,8 +62,8 @@ begin
     insert into runners (profile_id, commission_rate) values (atk, 0.000);
     reset role;
     select commission_rate into v_comm from runners where profile_id = atk;
-    if v_comm = 0.20
-      then call _pass('seal','S2 수수료율 봉인 — commission_rate=0 INSERT가 0.20으로 강등 (정산 절도 차단)');
+    if v_comm = 0.33
+      then call _pass('seal','S2 수수료율 봉인 — commission_rate=0 INSERT가 0.33으로 강등 (정산 절도 차단)');
     else call _fail('seal','S2 수수료율 봉인','commission_rate=' || coalesce(v_comm::text,'∅'));
     end if;
   exception when others then reset role; call _fail('seal','S2 수수료율 봉인', sqlerrm);
@@ -134,6 +134,41 @@ begin
       end if;
     end;
   exception when others then reset role; call _fail('seal','S6 UPDATE 가드 잔존', sqlerrm);
+  end;
+
+  -- ── S7: the coerced values must equal the column's LIVE defaults, not a stale literal ──
+  -- Why this pin exists: the first version of 0061 coerced commission_rate to 0.20, copied from the
+  -- 0001 table definition, without noticing 0059_take_rate_33.sql:14 had moved the default to 0.33.
+  -- That would have handed every client-created runner a 13-point discount on the column settle-run
+  -- reads for real money, and S2 would have pinned the wrong number in. A literal that disagrees
+  -- with the schema must fail the harness, not ship.
+  -- Reads the column's live default from the catalog and compares it against what the trigger
+  -- ACTUALLY wrote for a client insert. No literal on either side of the comparison, so moving the
+  -- default without updating 0061 fails here even if someone "fixes" S1/S2 by editing their
+  -- expected numbers. (A first draft of this pin compared the catalog against a literal in this
+  -- file, which pinned the schema and not the migration — it stayed green under the very bug it
+  -- was written for. Verified by mutation this time.)
+  declare v_def numeric;
+  begin
+    select (pg_get_expr(d.adbin, d.adrelid))::numeric into v_def
+      from pg_attribute a
+      join pg_attrdef  d on d.adrelid = a.attrelid and d.adnum = a.attnum
+     where a.attrelid = 'runners'::regclass and a.attname = 'commission_rate';
+
+    delete from runners where profile_id = atk;
+    perform set_config('request.jwt.claim.sub', atk::text, false);
+    set local role authenticated;
+    insert into runners (profile_id, commission_rate) values (atk, 0.000);
+    reset role;
+    select commission_rate into v_comm from runners where profile_id = atk;
+
+    if v_def is not null and v_comm = v_def
+      then call _pass('seal','S7 강등값 = 컬럼 실제 기본값 — 트리거가 쓴 값과 카탈로그 default가 일치 (수수료율 이동을 자동 적발)');
+    else call _fail('seal','S7 강등값 = 컬럼 실제 기본값',
+           '트리거가 쓴 값=' || coalesce(v_comm::text,'∅') || ' · 컬럼 default=' || coalesce(v_def::text,'∅')
+           || ' — 0061이 옛 리터럴을 박아넣고 있다 (0059처럼 default가 움직였을 때)');
+    end if;
+  exception when others then reset role; call _fail('seal','S7 강등값 = 컬럼 실제 기본값', sqlerrm);
   end;
 
   delete from runners where profile_id in (atk, leg);

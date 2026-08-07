@@ -8,7 +8,7 @@ import { useAuth } from '../src/auth-context';
 import { BottomNav } from '../src/components/bottomnav';
 import { STAMP_GAP, STAMP_INK, StampCell } from '../src/components/stamp';
 import { Avatar, Row } from '../src/components/ui';
-import { deriveStamps, fetchFitness, fetchMyRunnerStatus, fetchStampStats, StampStats } from '../src/lib/api';
+import { deriveStamps, fetchFitness, fetchMyRunnerApplication, fetchMyRunnerStatus, fetchStampStats, RunnerApplication, StampStats } from '../src/lib/api';
 import { fetchMyProfile, fetchMyRunnerBio, MyProfile, updateMyProfile, updateRunnerBio, uploadAvatar } from '../src/lib/api';
 import { session } from '../src/store';
 import { colors, lilac, lilacRadius, lilacShadow, paper } from '../src/theme';
@@ -80,9 +80,20 @@ export default function My() {
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  // [plan §6.4] 러너 인증 센터 행의 부제는 이제 상태를 말한다 — /runner/apply가 실퍼널이 됐기 때문에
+  // '인증 절차 안내'는 더 이상 그 화면이 하는 일의 전부가 아니다. loaded 플래그가 따로 있는 이유는
+  // 여기서도 같다: 미도착과 '지원한 적 없음'은 다른 사실이고, 미도착일 땐 상태를 주장하지 않는다.
+  const [runnerApp, setRunnerApp] = useState<RunnerApplication | null>(null);
+  const [runnerAppLoaded, setRunnerAppLoaded] = useState(false);
+
   useFocusEffect(useCallback(() => {
     fetchMyProfile().then(setProfile).catch((e) => console.warn('[my] profile:', e?.message ?? e));
     if (isRunner) fetchMyRunnerBio().then(setSavedBio).catch(() => {});
+    if (isRunner) {
+      fetchMyRunnerApplication()
+        .then((a) => { setRunnerApp(a); setRunnerAppLoaded(true); })
+        .catch((e) => console.warn('[my] runner application:', e?.message ?? e)); // 실패 = 미도착 유지
+    }
     // 도장은 다른 화면(리포트·클럽·피드)에서 찍히고 돌아온다 → 포커스마다 다시 센다.
     // 실패는 실패로: 이전 실값이 있으면 그대로 두고, 없으면 섹션이 나타나지 않는다 (0/12를 그리지 않는다).
     fetchStampStats().then(setStampStats).catch((e) => console.warn('[my] stamps:', e?.message ?? e));
@@ -139,12 +150,20 @@ export default function My() {
     }
   };
 
+  // 인증 센터 행 부제 — 지원 상태에 따라. 미도착이면 아무 상태도 주장하지 않고 화면 이름만 말한다.
+  const certDesc = !runnerAppLoaded ? '내 러너 레코드 · 인증 절차'
+    : runnerApp === null ? '내 러너 레코드 · 지원하기'
+      : runnerApp.state === 'submitted' || runnerApp.state === 'under_review' ? '내 러너 레코드 · 심사 중'
+        : runnerApp.state === 'approved' ? '내 러너 레코드 · 인증 완료'
+          : runnerApp.canReapply ? '내 러너 레코드 · 다시 지원하기'
+            : '내 러너 레코드 · 지원 결과 확인';
+
   const MENU = [
     { glyph: '✚', label: '안심 센터', desc: 'SOS · 긴급 연락처 · 보험', path: '/safety' as const, ink: colors.tang, tint: '#FCE7E1' },
     isRunner
       // [정직 수리 2026-08-05] 부제 교정 — 인증 센터에는 '등급 사다리'가 없다(목업 퍼널과 함께 퇴역).
-      // 지금 그 화면이 가진 건 서버 러너 레코드와 절차 설명뿐이다.
-      ? { glyph: '✓', label: '러너 인증 센터', desc: '내 러너 레코드 · 인증 절차 안내', path: '/runner/apply' as const, ink: colors.voltDeep, tint: '#EDF5D8' }
+      // [2026-08-08 / plan §6.4] 그 화면이 실퍼널이 되면서 부제가 상태를 말한다 (certDesc 참조).
+      ? { glyph: '✓', label: '러너 인증 센터', desc: certDesc, path: '/runner/apply' as const, ink: colors.voltDeep, tint: '#EDF5D8' }
       : { glyph: '⌂', label: '주소 관리', desc: '픽업 장소 · 공동현관 정보', path: '/owner/addresses' as const, ink: colors.voltDeep, tint: '#EDF5D8' },
     ...(!isRunner ? [{ glyph: '◉', label: '반려견 프로필', desc: '사진 · 성향 · 러너에게 전달되는 정보', path: '/owner/dog' as const, ink: colors.terra, tint: colors.terraTint }] : []),
     { glyph: '▦', label: '예약 관리', desc: '다가오는 일정과 지난 예약', path: isRunner ? null : ('/owner/schedule' as const), ink: '#4A6E93', tint: '#E3EEF8' },

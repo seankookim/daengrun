@@ -147,7 +147,18 @@ export default function Safety() {
           <View style={s.div} />
           <InfoRow glyph="📍" title="실시간 위치" desc="러닝 중 보호자 라이브 지도에 러너 경로가 실시간 표시돼요" />
           <View style={s.div} />
-          <InfoRow glyph="✓" title="러너 신원" desc="모든 러너는 신원 확인을 거쳐요 (본인인증 고도화 예정)" />
+          {/* [honesty repair 2026-08-08 / plan §7.1-7.2] The previous copy ("모든 러너는 신원 확인을
+              거쳐요 (본인인증 고도화 예정)") was the strongest false claim in the app: identity_verified
+              is hardcoded false at creation and no automated check exists. "고도화 예정" made it worse
+              by implying a basic check already runs. This copy states the manual process that actually
+              happens during the pilot — an operator meets the runner on video and checks the ID — and
+              promises no upgrade date. It is true only while approval flows through runner_app_approve
+              (the sole tier writer) and no seeded/grandfathered certified runners exist in prod. */}
+          <InfoRow
+            glyph="✓"
+            title="러너 신원"
+            desc="파일럿 기간에는 운영자가 화상 통화로 러너를 직접 만나 신분증을 확인하고 한 명씩 승인해요 — 자동 본인인증(PASS)은 아직 도입 전이에요"
+          />
         </View>
 
         {/* ---------- 준비 중 (정직 라벨) ---------- */}

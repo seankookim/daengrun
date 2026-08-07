@@ -1212,25 +1212,33 @@ export async function checkSlot(runnerId: string, startIso: string, endIso: stri
   return !!data;
 }
 
-// 러너 홈 상태 — 실누적/온라인/티어 (드랍 트레일·온라인 토글·티어 진행바의 진실)
-export interface MyRunnerStatus { totalRuns: number; totalKm: number; online: boolean; tier: string }
+// Runner home status — real totals / online / tier (the truth behind the drop trail, the online
+// toggle and the tier bar).
+// tier is `string | null`: null means "not known yet" — signed out, or no `runners` row at all.
+// It used to fall back to 'certified', which made the bib, kicker and footer read 인증 러너 for
+// someone who had passed nothing. A data layer must not invent a capability the server never
+// granted; the caller renders the unknown state (runner/home.tsx).
+export interface MyRunnerStatus { totalRuns: number; totalKm: number; online: boolean; tier: string | null }
 
 export async function fetchMyRunnerStatus(): Promise<MyRunnerStatus> {
   const { data: user } = await supabase.auth.getUser();
-  if (!user.user) return { totalRuns: 0, totalKm: 0, online: false, tier: 'certified' };
+  if (!user.user) return { totalRuns: 0, totalKm: 0, online: false, tier: null };
   const { data } = await supabase.from('runners')
     .select('total_runs, total_km, online, tier').eq('profile_id', user.user.id).maybeSingle();
   return {
     totalRuns: data?.total_runs ?? 0,
     totalKm: Number(data?.total_km ?? 0),
     online: !!data?.online,
-    tier: data?.tier ?? 'certified',
+    tier: data?.tier ?? null,
   };
 }
 
 // 러너 인증 현황 — 인증 센터(/runner/apply)의 단일 진실. null = runners 행 없음(러너 미등록).
-// fetchMyRunnerStatus와 나눈 이유: 저쪽은 행이 없으면 0/'certified'로 폴백한다(홈 진행바가 죽지 않게).
-// 인증 센터에서 그 폴백을 쓰면 '등록 안 됨'이 '0회 인증 러너'로 둔갑한다 — 다른 사실이므로 null로 구분한다.
+// Why this is separate from fetchMyRunnerStatus: that one returns a whole status object (totals,
+// online) with tier possibly null, for a screen that still renders when there is no runners row.
+// Here "no row" is itself the answer, so the whole record is null — 'not registered' must never
+// be rendered as 'a certified runner with 0 runs'. (Both are honest now: the 'certified'
+// fallback in fetchMyRunnerStatus was removed with the 0062 funnel slice.)
 // 반환 필드는 전부 서버가 쓰는 실컬럼: tier(스토어프런트·오픈풀 게이트), total_runs/total_km(정산이 증가),
 // commission_rate(settle-run이 그대로 읽는 정산 수수료율).
 // funnel_step·identity_verified·education_modules_done은 의도적으로 뺐다 — 지금 값의 출처가
@@ -1250,6 +1258,121 @@ export async function fetchMyRunnerCert(): Promise<MyRunnerCert | null> {
     totalKm: Number(data.total_km ?? 0),
     commissionRate: Number(data.commission_rate ?? 0.33),
   };
+}
+
+// ---------- runner application funnel (0062) ----------
+// The applicant's side of the certification funnel. `runner_applications` has no client policies
+// at all, so these three RPCs are the only routes in or out; there is no `.from('runner_applications')`
+// anywhere in this file by design.
+//
+// The projection is deliberately narrow (0062 §3.3): the ops fields (decided_by, decided_note) and
+// the applicant's own contact details never cross it. reject_reason is the one decision field the
+// applicant reads, and it is shown verbatim.
+export interface RunnerApplication {
+  id: string;
+  // 'submitted' | 'under_review' | 'approved' | 'rejected' | 'withdrawn' — kept as a plain string
+  // to match the server's text+check column (house convention since 0030; no client enum to drift).
+  state: string;
+  attemptNo: number;
+  submittedAt: string;
+  reviewedAt: string | null;
+  decidedAt: string | null;
+  rejectReason: string | null;
+  isHardBar: boolean;
+  // Server-computed: state in ('rejected','withdrawn') and not hard-barred and attempt_no < 3.
+  // Never recompute this on the client — the cap and the bar are the server's to enforce.
+  canReapply: boolean;
+}
+
+export interface RunnerApplicationForm {
+  district: string;
+  paceSecPerKm: number;
+  maxDogWeightKg: number;
+  serviceRadiusKm: number;
+  specialties: string[];
+  bio: string;
+  runningExperience: string;
+  dogExperience: string;
+  // Either a KakaoTalk ID or a phone number is required (constraint runner_app_contact_present);
+  // the form decides which, the server enforces that at least one arrived.
+  contactKakao: string | null;
+  contactPhone: string | null;
+  contactWindow: string | null;
+  consentTerms: boolean;
+  consentPrivacy: boolean;
+  consentIdCheck: boolean;
+}
+
+// Server tokens → behavior instructions, in the house style of fetchAvailableRunnersFor (:551).
+// Every token here is a state of the caller's OWN application, so none of these strings leaks
+// anything about another account. An unrecognized message is re-thrown as-is: swallowing it would
+// paint a real failure (network, RLS, a check constraint) as a known, tidy funnel state.
+function runnerApplyError(error: unknown): Error {
+  const raw = String((error as any)?.message ?? error);
+  if (raw.includes('not_signed_in')) return new Error('세션이 만료된 것 같아요 — 다시 로그인해주세요');
+  if (raw.includes('already_applied')) return new Error('이미 접수된 지원서가 있어요');
+  if (raw.includes('application_barred')) return new Error('이 계정으로는 다시 지원할 수 없어요 — 문의해주세요');
+  if (raw.includes('already_certified')) return new Error('이미 인증된 러너예요');
+  if (raw.includes('attempt_cap_reached')) return new Error('지원은 3번까지 할 수 있어요 — 문의해주세요');
+  if (raw.includes('consent_required')) return new Error('필수 동의 항목을 확인해주세요');
+  // One string for both, on purpose: runner_apply_withdraw raises a byte-identical `not_found` for
+  // "no such id" and "not yours" (pin F6), and splitting the copy here would rebuild the
+  // enumeration oracle the server just closed.
+  if (raw.includes('not_found') || raw.includes('not_withdrawable')) {
+    return new Error('지원서를 찾을 수 없거나 지금은 취소할 수 없어요');
+  }
+  return new Error(raw);
+}
+
+// Latest attempt only. null STRICTLY means "no application row ever" — it is never an error
+// fallback. Anything that goes wrong throws, so the 인증 센터 can render 로딩 / 실패 / 미지원 as
+// three different things (the loading ≠ empty law, one layer down).
+export async function fetchMyRunnerApplication(): Promise<RunnerApplication | null> {
+  const { data, error } = await supabase.rpc('runner_my_application', {});
+  if (error) throw runnerApplyError(error);
+  const row = (Array.isArray(data) ? data[0] : data) as any;
+  if (!row) return null;
+  return {
+    id: String(row.id),
+    state: String(row.state),
+    attemptNo: row.attempt_no ?? 1,
+    submittedAt: String(row.submitted_at),
+    reviewedAt: row.reviewed_at ?? null,
+    decidedAt: row.decided_at ?? null,
+    rejectReason: row.reject_reason ?? null,
+    isHardBar: !!row.is_hard_bar,
+    canReapply: !!row.can_reapply,
+  };
+}
+
+// Returns the new application id. The check constraints on runner_applications are the backstop for
+// field ranges — the form validates the same ranges first, so a constraint violation reaching here
+// is a bug, and it surfaces raw rather than being dressed up as a funnel state.
+export async function submitRunnerApplication(form: RunnerApplicationForm): Promise<string> {
+  const { data, error } = await supabase.rpc('runner_apply_submit', {
+    p_district: form.district,
+    p_pace: form.paceSecPerKm,
+    p_max_weight: form.maxDogWeightKg,
+    p_radius: form.serviceRadiusKm,
+    p_specialties: form.specialties,
+    p_bio: form.bio,
+    p_running_exp: form.runningExperience,
+    p_dog_exp: form.dogExperience,
+    p_contact_kakao: form.contactKakao,
+    p_contact_phone: form.contactPhone,
+    p_contact_window: form.contactWindow,
+    p_consent_terms: form.consentTerms,
+    p_consent_privacy: form.consentPrivacy,
+    p_consent_id_check: form.consentIdCheck,
+  });
+  if (error) throw runnerApplyError(error);
+  return String(data);
+}
+
+// Only 'submitted' and 'under_review' can be withdrawn; the server decides that, not the screen.
+export async function withdrawRunnerApplication(id: string): Promise<void> {
+  const { error } = await supabase.rpc('runner_apply_withdraw', { p_application: id });
+  if (error) throw runnerApplyError(error);
 }
 
 // 미트업 실컨텍스트 — 목업 김민준/초코 잔재 제거용 (양쪽 인계 화면의 진실)

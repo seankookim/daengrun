@@ -51,6 +51,7 @@ psql -q -f 98_hardening_suite.sql >/dev/null 2>&1            # 0055/0056 definer
 psql -q -f 99_security_suite.sql >/dev/null 2>&1            # 0057 보안 경화 핀 (P0/K-급 원격 봉인)
 psql -q -f 100_wave3_suite.sql >/dev/null 2>&1            # wave3: 0060 픽업 주소 RPC·홀드 만료·도착 핀
 psql -q -f 101_runner_insert_seal_suite.sql >/dev/null 2>&1            # 0061 P0: 러너 자가 등록 권한 열 봉인
+psql -q -f 102_runner_funnel_suite.sql >/dev/null 2>&1            # 0062 러너 지원·인증 퍼널 (지원서 봉인·승인 RPC)
 psql -c "select case when ok then '✅' else '❌' end || ' [' || suite || '] ' || name || case when ok then '' else ' — ' || detail end from _t order by at"
 psql -qt -c "select count(*) filter (where ok) || ' pass / ' || count(*) filter (where not ok) || ' fail' from _t"
 psql -qt -c "select case when count(*) filter (where not ok) > 0 then 'FAIL' else 'OK' end from _t" | grep -q OK
