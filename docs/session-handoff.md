@@ -156,6 +156,35 @@ doctrine). Subscription money surface claimed the freed §3 cycle slot.
   ordering — style/copy only, hook order byte-identical.
 - Respond to Sean in English; code comments + commits Korean; commands as explicit lists.
 
+## ⓪++ WAVE 3 SHIPPED — 2026-08-08 (ac936f5, server slice)
+
+0060 + 2 edge functions + client rebind. Harness **246/0** (11 new pins, 5 mutation-proofed),
+tsc · check-rpc 70/99 · e2e syntax all green. Adversarial pass executed its own attacks
+(FIX-THEN-SHIP → all blockers fixed before commit).
+
+**The P1 the reviewer caught and executed:** the 24h address window was decorative — `enroute`
+had no time gate and the runner meetup screen calls it on mount, so one tap on a job weeks out
+flipped the booking to `runner_enroute` and returned the owner's home address. Fixed at the
+edge function (the boundary), pinned in e2e both directions.
+
+### 🔴 SEAN — wave-3 queue
+0. **Measure first** (SQL editor, before push): `select count(*), min(created_at) from bookings
+   where status='payment_hold' and created_at < now() - interval '30 minutes';` — the first cron
+   run silently expires all of them. Fine at N=12, a conversation at N=1200.
+1. `supabase db push` (0060) · `supabase functions deploy transition-booking create-booking-hold`
+2. Prod check (must be 0 rows): `select oid::regprocedure from pg_proc where prosecdef and
+   has_function_privilege('anon',oid,'execute');`
+3. `git push` (2 commits: 8151139 wave 2.5, ac936f5 wave 3)
+4. Device smoke: runner pickup card shows the REAL address in-window · far-out confirmed job
+   shows no address and NO red error strip · 도착 확인 → owner gets exactly one push, survives
+   app restart · owner meetup shows 러너 도착 · parked pay screen after 30min → honest 409.
+   e2e steps pass only AFTER the deploy (they assert the new actions).
+
+**Riders (named, not done):** enroute double-fire on remount · push `bid` dropped on historical
+inbox rows routed to /owner/meetup · runner/meetup stage-restore has no inverse (replaced runner
+keeps the handoff CTA) · 9 tracked `supabase/.temp` version files (not secrets; new ones now
+gitignored) · harness.sh never stops its cluster (orphan postgres after repeat runs).
+
 ## Launch checklist (NEW 2026-08-08)
 `docs/launch-checklist.md` — everything required before the Banpo pilot, grouped (legal / money /
 supply / validation / product / distribution) with what's verified vs. documented. **Critical path
