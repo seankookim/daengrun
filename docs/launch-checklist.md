@@ -14,11 +14,9 @@ Status tags: `[verified]` = confirmed in code/DB this session · `[doc]` = from 
 
 Neither legal nor the App Store is what blocks a paying customer today. **Two things do:**
 
-1. **No runner can become certified.** `/runner/apply` is a brochure with no submit button; its
-   CTA routes to `/settings`. No applicant→certified path exists server-side. Meanwhile
-   `transition-booking:103` rejects `tier === 'applicant'` from accepting open requests and
-   `api.ts:543` filters applicants out of the owner-facing list — so **the runner list an owner
-   sees is structurally empty.** `[verified]` `[build]`
+1. ~~**No runner can become certified.**~~ **BUILT** 2026-08-08 (`cf6d93a`, migration 0062):
+   real application funnel, ops approval script, `runner_app_approve` as the sole tier writer.
+   Remaining: Sean deploys 0061+0062, then approves the first real runners. `[Sean]`
 2. **GPS dies when the screen locks.** `geo.ts:23` uses `requestForegroundPermissionsAsync` +
    `watchPositionAsync`, with no background permission, no `UIBackgroundModes`, no TaskManager.
    Distance tracking stops the moment the runner pockets the phone. `[verified]` `[build]`
@@ -36,10 +34,12 @@ bridge → 위치정보 신고 + privacy policy → TestFlight.
 - [ ] **위치기반서비스사업 신고** (Korea Communications Commission). The entire product collects
       and shares personal location data. Not mentioned anywhere in the repo. Filing before
       service launch is the norm. `[legal]`
-- [ ] **Privacy policy** (개인정보처리방침) at a public URL. Required by both App Store review and
-      개인정보보호법. Does not exist. Document itself is written in Korean.
-- [ ] **Terms of service** (이용약관) — marketplace liability, cancellation, custody handoff.
-      Does not exist. Korean.
+- [x] ~~Privacy policy draft~~ — `docs/legal/privacy-policy.md`, audited against real code paths.
+      **Still needs:** 변호사 review, the two open decisions marked inline, and hosting at a
+      public URL. `[legal]` `[Sean]`
+- [x] ~~Terms of service draft~~ — `docs/legal/terms-of-service.md`. **Still needs:** counsel
+      review of the custody/liability article, the insurance posture, and cancellation
+      percentages. `[legal]` `[Sean]`
 - [ ] **Insurance decision.** `safety.tsx` currently says "협의 중", which is honest. Strangers
       take dogs away; decide before real customers whether you launch uninsured, and say so
       plainly if you do.

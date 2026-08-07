@@ -156,6 +156,38 @@ doctrine). Subscription money surface claimed the freed §3 cycle slot.
   ordering — style/copy only, hook order byte-identical.
 - Respond to Sean in English; code comments + commits Korean; commands as explicit lists.
 
+## ⓪+++ RUNNER FUNNEL SHIPPED — 2026-08-08 (cf6d93a, migration 0062)
+
+**A runner can finally become bookable.** Before this the owner-facing runner list was
+structurally empty — no submit button, no applicant→certified path, and two independent gates
+filtering applicants out. Critical-path blocker #1 of 2 is closed in code.
+
+`runner_applications` (RLS on, zero policies, all access via definer RPCs) · 3 applicant RPCs +
+3 ops RPCs · `scripts/runner-ops.mjs` service-role queue · `/runner/apply` as a real 10-state
+funnel · honest `safety.tsx` identity copy · applicant-aware `/runner/home`.
+Harness **266/0**, 7 mutation proofs executed. Plan: `docs/plans/runner-funnel-plan.md`.
+
+**Two defects the build itself surfaced:**
+1. The plan's `ops_only` belt-and-braces check was **dead code** — inside SECURITY DEFINER,
+   `current_user` is always the function owner. The pin that actually granted EXECUTE (rather
+   than reasoning about it) caught a client role approving an application. Schema swept: no
+   other definer relied on the broken idiom.
+2. **My own 0061 bug**: it coerced `commission_rate` to 0.20 from the 0001 table definition,
+   but 0059 moved the default to 0.33 — 13 points of take rate on every normally-created runner,
+   on a column settle-run reads for real money. **Caught before 0061 shipped** (0060 is deployed,
+   0061 is not). Pin S7 now compares the trigger's written value against the catalog default with
+   no literal on either side.
+
+### 🔴 SEAN — funnel queue (after the 0061 push below)
+1. `supabase db push` carries **0061 + 0062** together.
+2. Approve your first runners: `node scripts/runner-ops.mjs list` → `review <id> <you>` →
+   `approve <id> <you> "<what you verified on the call>"`. The note is required on purpose —
+   it is the record that the video call happened, and `safety.tsx` now promises owners it did.
+3. **Decide on the seed runners before any real owner opens the app** (see 0061 block below).
+4. Device smoke: apply → submit → withdraw → re-apply · applicant home shows the funnel route,
+   not "requests will arrive" · approved runner sees the online/offline line matching their
+   real switch.
+
 ## 🚨 0061 — P0 LIVE VULNERABILITY SEALED (2f113d8) — DEPLOY THIS FIRST
 
 **Any authenticated user can currently make themselves a master-tier runner with zero
