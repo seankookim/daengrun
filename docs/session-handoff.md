@@ -156,6 +156,35 @@ doctrine). Subscription money surface claimed the freed §3 cycle slot.
   ordering — style/copy only, hook order byte-identical.
 - Respond to Sean in English; code comments + commits Korean; commands as explicit lists.
 
+## 🚨 0061 — P0 LIVE VULNERABILITY SEALED (2f113d8) — DEPLOY THIS FIRST
+
+**Any authenticated user can currently make themselves a master-tier runner with zero
+commission and forged identity verification, on production, right now.** One free signup, no
+prior state. Found by the runner-funnel scout, reproduced by execution:
+
+```
+insert into runners (profile_id, tier, commission_rate, identity_verified)
+values (auth.uid(), 'master', 0, true);   -- SUCCEEDED
+```
+
+Cause: the RLS insert policy (0002:71) checks only ownership, and `_guard_runner_cols` (0057)
+is `before update` only — the same migration got it right for `runner_documents`.
+Impact: (1) an unvetted stranger can accept bookings and take custody of a dog, (2) zero
+commission = payout theft, (3) `identity_verified=true` forges the claim the safety copy rests
+on. Fix coerces privileged columns to defaults on client INSERT; the legitimate `ensureRunner`
+payload is unchanged, so no shipped build breaks. Harness 252/0, two mutation proofs executed.
+
+**Sean: `supabase db push` for 0061 ahead of everything else.** Then check prod for anyone who
+already used it:
+```sql
+select profile_id, tier, commission_rate, identity_verified, created_at from runners
+where tier <> 'applicant' or commission_rate <> 0.20 or identity_verified;
+```
+Expect only the six `@daengrun.seed` accounts from `scripts/seed-runners.mjs` (which mints
+fabricated certified/veteran/master runners via the service role). **If those seeds are in
+production they are fake certified runners visible to owners — decide whether to wipe them
+before real users see the list.** Anything else in that result set is an exploited account.
+
 ## ⓪++ WAVE 3 SHIPPED — 2026-08-08 (ac936f5, server slice)
 
 0060 + 2 edge functions + client rebind. Harness **246/0** (11 new pins, 5 mutation-proofed),
