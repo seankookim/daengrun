@@ -1,5 +1,5 @@
 // geo.ts 실컴파일 산출물 직접 테스트 (재타이핑 사본 아님)
-const { distM, acceptFix, smoothTrace } = require('./geo.build.cjs');
+const { distM, acceptFix, smoothTrace, mergeFixes } = require('./geo.build.cjs');
 let pass = 0, fail = 0;
 const t = (name, cond, detail = '') => {
   if (cond) { pass++; console.log('✅ ' + name); }
@@ -65,6 +65,115 @@ const t0 = Date.now();
 smoothTrace(big);
 const ms = Date.now() - t0;
 t('smoothTrace: 1000픽스 성능 < 50ms', ms < 50, ms + 'ms');
+
+// ── mergeFixes (백그라운드 배치 병합 — 2026-08-08) ──
+// 이 함수가 km을 만든다. km은 곧 돈이다 (settle-run: km * 3000). 배달 방식이 숫자를 바꾸면 안 된다.
+const T0 = 1_700_000_000_000;
+// 북쪽으로 초당 2.5m (개와 함께 뛰는 속도) — 1초 간격 픽스 생성기.
+// 2.0m/s를 쓰면 1초 구간이 정확히 2m라 노이즈 게이트(d > 2)에 전부 걸린다 — 실제로도 그렇다.
+const walkPts = (n, { start = T0, stepMs = 1000, mps = 2.5, acc = 5, lat0 = 37.5, lng0 = 127.0 } = {}) =>
+  Array.from({ length: n }, (_, i) => ({
+    lat: lat0 + (i * mps * (stepMs / 1000)) / 111320,
+    lng: lng0,
+    t: start + i * stepMs,
+    acc,
+  }));
+
+{
+  const r = mergeFixes([], []);
+  t('mergeFixes: 빈 입력 → 빈 트레이스·km 0', r.trace.length === 0 && r.addedKm === 0);
+}
+{
+  const pts = walkPts(5);
+  const shuffled = [pts[3], pts[0], pts[4], pts[1], pts[2]];
+  const inOrder = mergeFixes([], pts);
+  const outOfOrder = mergeFixes([], shuffled);
+  t('mergeFixes: 순서 뒤섞인 배치 → t 오름차순 정렬 후 동일 km',
+    outOfOrder.trace.length === inOrder.trace.length
+    && Math.abs(outOfOrder.addedKm - inOrder.addedKm) < 1e-12
+    && outOfOrder.trace.every((p, i) => p.t === inOrder.trace[i].t),
+    `${outOfOrder.trace.length} vs ${inOrder.trace.length}`);
+}
+{
+  const existing = mergeFixes([], walkPts(5)).trace;
+  // 늦게 도착한 배치가 전부 마지막 픽스보다 과거 — 트레이스가 자라지 않고 km도 0
+  const late = walkPts(3, { start: T0 - 10_000 });
+  const r = mergeFixes(existing, late);
+  t('mergeFixes: 전부 과거인 늦은 배치 → 성장 없음·km 0',
+    r.trace.length === existing.length && r.addedKm === 0);
+}
+{
+  const existing = mergeFixes([], walkPts(3)).trace;
+  const dup = existing[existing.length - 1];
+  const r = mergeFixes(existing, [{ ...dup }]);
+  t('mergeFixes: 마지막 픽스와 완전 동일 → 버림', r.trace.length === existing.length && r.addedKm === 0);
+}
+{
+  const a = { lat: 37.5, lng: 127.0, t: T0, acc: 5 };
+  const b = { lat: 37.5 + 1 / 111320, lng: 127.0, t: T0 + 400, acc: 5 }; // 400ms 뒤
+  const r = mergeFixes([], [a, b]);
+  t('mergeFixes: 400ms 간격 두 번째 픽스 → 1초 규칙으로 버림', r.trace.length === 1);
+}
+{
+  // 경계: 포그라운드 마지막 픽스와 백그라운드 첫 픽스가 같은 초(t 차 <1000ms) — 하나만 남는다
+  const existing = [{ lat: 37.5, lng: 127.0, t: T0 + 250, acc: 5 }];
+  const batch = [{ lat: 37.5 + 2 / 111320, lng: 127.0, t: T0 + 900, acc: 5 }];
+  const r = mergeFixes(existing, batch);
+  t('mergeFixes: 같은 초의 포그라운드·백그라운드 픽스 → 하나만 생존', r.trace.length === 1 && r.addedKm === 0);
+  // 정확히 1000ms 차이는 살아남는다 (서버의 초 단위 단조와 동일 경계)
+  const r2 = mergeFixes(existing, [{ lat: 37.5 + 5 / 111320, lng: 127.0, t: T0 + 1250, acc: 5 }]);
+  t('mergeFixes: 정확히 1000ms 간격은 수락 (경계)', r2.trace.length === 2 && r2.addedKm > 0);
+}
+{
+  // 9m/s = acceptFix(10m/s)는 통과, 정산 게이트(8m/s)는 불통 — 트레이스엔 남고 km엔 안 센다
+  const a = { lat: 37.5, lng: 127.0, t: T0, acc: 5 };
+  const b = { lat: 37.5 + 9 / 111320, lng: 127.0, t: T0 + 1000, acc: 5 };
+  const r = mergeFixes([], [a, b]);
+  t('mergeFixes: 9m/s 구간 → 트레이스엔 남고 km엔 안 센다 (8m/s 정산 게이트)',
+    r.trace.length === 2 && r.addedKm === 0, 'km=' + r.addedKm);
+  const c = { lat: 37.5 + 7 / 111320, lng: 127.0, t: T0 + 1000, acc: 5 };
+  const r2 = mergeFixes([], [a, c]);
+  t('mergeFixes: 7m/s 구간은 km에 센다', r2.trace.length === 2 && r2.addedKm > 0);
+}
+{
+  const pts = walkPts(4);
+  const bad = { ...pts[2], acc: 26 };
+  const r = mergeFixes([], [pts[0], pts[1], bad, pts[3]]);
+  t('mergeFixes: 배치 안의 정확도 26m 픽스 → 버림', r.trace.length === 3 && r.trace.every((p) => p.t !== bad.t));
+}
+{
+  // ⚑ 이 케이스가 핵심이다: 60분 러닝을 30개 배치로 받든 한 점씩 받든 km이 같아야 한다.
+  // 다르면 화면에 뜨는 돈이 배달 타이밍에 따라 달라진다.
+  const pts = walkPts(1800); // 1Hz × 30분, 초당 2.5m
+  const oneByOne = pts.reduce((acc, p) => {
+    const r = mergeFixes(acc.trace, [p]);
+    return { trace: r.trace, km: acc.km + r.addedKm };
+  }, { trace: [], km: 0 });
+  let batched = { trace: [], km: 0 };
+  for (let i = 0; i < 30; i++) {
+    const r = mergeFixes(batched.trace, pts.slice(i * 60, (i + 1) * 60));
+    batched = { trace: r.trace, km: batched.km + r.addedKm };
+  }
+  t('mergeFixes: 30개 배치 vs 한 점씩 → km 완전 동일 (돈이다)',
+    Math.abs(batched.km - oneByOne.km) < 1e-9 && batched.trace.length === oneByOne.trace.length,
+    `${batched.km.toFixed(6)} vs ${oneByOne.km.toFixed(6)}`);
+  t('mergeFixes: 30분 1Hz 실측 km 타당 (4.5km ± 0.05)',
+    Math.abs(batched.km - 4.4975) < 0.05, '=' + batched.km.toFixed(3));
+}
+{
+  const batch = walkPts(20);
+  const first = mergeFixes([], batch);
+  const again = mergeFixes(first.trace, batch); // 같은 배치 재전송 (백그라운드 중복 배달)
+  t('mergeFixes: 멱등 — 같은 배치 두 번 → 트레이스·km 불변',
+    again.trace.length === first.trace.length && again.addedKm === 0);
+}
+{
+  const existing = mergeFixes([], walkPts(5)).trace;
+  const before = existing.slice();
+  mergeFixes(existing, walkPts(5, { start: T0 + 5000 }));
+  t('mergeFixes: 순수 함수 — 입력 배열을 변형하지 않는다',
+    existing.length === before.length && existing.every((p, i) => p.t === before[i].t));
+}
 
 console.log(`\n${pass} pass / ${fail} fail`);
 process.exit(fail > 0 ? 1 : 0);

@@ -1,5 +1,9 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+// Side-effect import: registers the background location task before React renders, which is
+// the only point at which the OS can be told where to deliver locations while the app is
+// backgrounded. Guarded internally — a build without expo-task-manager registers nothing.
+import '../src/lib/bgTrack';
 import { AuthProvider } from '../src/auth-context';
 import { ThemeProvider } from '../src/theme-context';
 import { colors } from '../src/theme';

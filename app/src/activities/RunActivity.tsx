@@ -4,7 +4,9 @@ import { createLiveActivity, type LiveActivityEnvironment } from 'expo-widgets';
 
 // 러닝 라이브 액티비티 — 잠금화면 배너 + 다이내믹 아일랜드.
 // 러너의 폰에서 러닝 중 항상 보이는 상태: 강아지·거리/목표·페이스·경과.
-// 업데이트는 앱이 update()를 호출할 때 (포그라운드 러닝 기준 — 백그라운드 추적은 후속).
+// 업데이트는 앱이 update()를 호출할 때. [2026-08-08] 백그라운드 위치 태스크가 붙으면서
+// 잠금화면에서도 살아있다: 백그라운드 픽스 → geo.ingestFixes → run.tsx 구독 → gpsKm 변경 →
+// updateRunActivity (5초 스로틀). 앱이 종료(스와이프)되면 추적도 배너도 함께 끝난다.
 
 export type RunActivityProps = {
   dogName: string;

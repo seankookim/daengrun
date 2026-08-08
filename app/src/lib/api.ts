@@ -1516,6 +1516,13 @@ export async function saveRunTrace(bookingId: string, trace: { lat: number; lng:
   if (error) throw error;
 }
 
+// 1:1 트레이스 시드 — 재진입·앱 종료 후 재개 시 km이 0부터 다시 시작하지 않게 (클럽 hydrateFromServer와 동일 관용구).
+// saveRunTrace는 배열 통째 덮어쓰기라(서버 append-merge 없음) 시드 없이 저장하면 기존 기록이 잘린다.
+export async function fetchRunTrace(bookingId: string): Promise<{ lat: number; lng: number; t: number }[]> {
+  const { data } = await supabase.from('runs').select('trace').eq('booking_id', bookingId).maybeSingle();
+  return ((data as any)?.trace ?? []) as { lat: number; lng: number; t: number }[];
+}
+
 // 이 러닝의 개인 기록 순위 — 내 완료 러닝 안에서 (RLS상 타인 비교는 서버 집계 함수로, 추후 리더보드)
 export interface RunStandings { nth: number; total: number; kmRank: number; paceRank: number | null }
 

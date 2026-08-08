@@ -1,19 +1,25 @@
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { router } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
-import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Alert, AppState, Linking, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Monogram, Row } from '../../src/components/ui';
-import { addRunEvent, ensureThread, fetchCurrentRunnerJobId, fetchMeetupInfo, MeetupInfo, notifyKmMilestone, RunEventKind, saveRunTrace, sendChatMessage, sendChatPhoto, settleRun, startRunServer, uploadRunPhoto } from '../../src/lib/api';
-import { acceptFix, distM, GeoPoint, getNaverMap, publishPos, smoothTrace, startTracking, stopPublishing } from '../../src/lib/geo';
+import { addRunEvent, ensureThread, fetchCurrentRunnerJobId, fetchMeetupInfo, fetchRunStartedAt, fetchRunTrace, MeetupInfo, notifyKmMilestone, RunEventKind, saveRunTrace, sendChatMessage, sendChatPhoto, settleRun, startRunServer, uploadRunPhoto } from '../../src/lib/api';
+import { GeoPoint, getNaverMap, getTraceSnapshot, getTrackPermission, publishPos, resetTrace, seedTrace, smoothTrace, startTracking, stopPublishing, TrackHandle, TrackMode, TrackSnapshot } from '../../src/lib/geo';
 import { haptic } from '../../src/lib/haptics';
+import { notifyLocal } from '../../src/lib/push';
 import { endRunActivity, RunLAProps, startRunActivity, updateRunActivity } from '../../src/lib/runActivity';
 import { EndReason, payoutFor, runnerJob, runRequests, runResult } from '../../src/store';
 import { colors } from '../../src/theme';
 
 const REASON_MAP = { dog: 'dog_condition', owner: 'owner_request', runner: 'runner_personal' } as const;
 
-// Runner-side live run: route progress map (placeholder), camera status,
-// pinned customer chat. Real version: expo-location + react-native-maps + camera stream.
+// Runner-side live run: real GPS distance (background-capable since 2026-08-08), event
+// stamps, photo snaps, pinned owner chat.
+//
+// Tracking law (Sean, 2026-08-08): a run may not start unless distance can be recorded
+// continuously — screen locked, phone pocketed. Anything short of TrackMode 'background'
+// blocks the start and says why, because a truncated trace is a short payout and the runner
+// only finds out at settlement. There is no demo-distance path any more.
 
 const fmt = (sec: number) =>
   `${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(Math.floor(sec % 60)).padStart(2, '0')}`;
@@ -33,8 +39,14 @@ export default function ActiveRun() {
   const [running, setRunning] = useState(false);
   const [sec, setSec] = useState(0);
   const [endSheet, setEndSheet] = useState(false);
-  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
   const settled = useRef(false); // 중복 정산 방지 (자동완주 + 수동종료 레이스)
+  // Foreground/background truth. Money is never settled from the background (§5.4), and the
+  // buffer is re-read on every return to the foreground rather than trusted incrementally.
+  const [appActive, setAppActive] = useState(AppState.currentState === 'active');
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (st) => setAppActive(st === 'active'));
+    return () => sub.remove();
+  }, []);
 
   // 레이아웃 A/B — 'panel'(하단 고정 패널) vs 'island'(지도 위 플로팅 카드). ⧉ 토글, 선택 유지.
   const [layout, setLayout] = useState<'panel' | 'island'>('panel');
@@ -116,8 +128,44 @@ export default function ActiveRun() {
     }
   };
 
-  // id 복원 — 리로드로 유실돼도 서버의 active 예약으로 정산이 연결되게
+  // ---------- 실GPS 거리 (핵심 실화) ----------
+  // 거리는 geo.ts의 단일 버퍼가 소유한다 — 포그라운드 워처와 백그라운드 태스크가 같은 싱크로 들어오고,
+  // km 누적은 mergeFixes 한 곳에서만 일어난다. 이 화면은 스냅샷을 그릴 뿐 산수를 하지 않는다.
+  const [gps, setGps] = useState(false);            // 백그라운드 추적 가동 중
+  const [gpsKm, setGpsKm] = useState(0);
+  const [lastPos, setLastPos] = useState<GeoPoint | null>(null);
+  const [trackMode, setTrackMode] = useState<TrackMode | null>(null); // null = 아직 시도 전
+  const [rationale, setRationale] = useState(false); // OS 시트 전 1회 설명 (한 번뿐인 프롬프트라)
+  const [starting, setStarting] = useState(false);
+  const [saveLag, setSaveLag] = useState(false);     // 트레이스 저장 실패를 침묵시키지 않는다
+  const [ceilingHit, setCeilingHit] = useState(false); // 정산 밴드 상한 근접 → 기록 정지
+  const maps = getNaverMap(); // 네이버 지도 (2026-07-29) — 미탑재 빌드는 대기 배경 폴백
+  const trace = useRef<GeoPoint[]>([]);
+  const lastMilestone = useRef(0);
+  const handle = useRef<TrackHandle | null>(null);
+  const startedAtMs = useRef<number | null>(null);
+  const modeRef = useRef<TrackMode | null>(null);
+  const overrunNotified = useRef(false);
+
+  const km = gpsKm;
+  const remaining = Math.max(targetKm - km, 0);
+  const progress = Math.min(km / targetKm, 1);
+  // settle-run 400 밴드(plannedKm*2+2)의 코앞. 넘기면 재시도 루프로도 못 푸는 400이라 예약이 좌초된다.
+  const ceilingKm = targetKm * 2 + 2 - 0.5;
+
+  const refreshStartedAt = useCallback(() => {
+    const bid = runnerJob.bookingId;
+    if (!bid) return;
+    fetchRunStartedAt(bid)
+      .then((iso) => { if (iso) startedAtMs.current = new Date(iso).getTime(); })
+      .catch(() => { /* 다음 복귀에 다시 시도 */ });
+  }, []);
+
+  // id 복원 — 리로드로 유실돼도 서버의 active 예약으로 정산이 연결되게.
+  // + 트레이스 시드 (2026-08-08): 재진입 시 km이 0부터 다시 시작해 서버 트레이스를 덮어쓰던 구멍.
   useEffect(() => {
+    // 공용 버퍼는 앱 전역 싱글턴이다 — 이전 러닝(클럽 포함)의 점을 물려받지 않게 먼저 비운다
+    resetTrace();
     (async () => {
       if (!runnerJob.bookingId) {
         try {
@@ -125,75 +173,58 @@ export default function ActiveRun() {
           if (id) runnerJob.bookingId = id;
         } catch (e) { console.warn('[run] resolve:', (e as Error)?.message); }
       }
-      if (runnerJob.bookingId) {
-        fetchMeetupInfo(runnerJob.bookingId).then(setInfo).catch((e) => console.warn('[run] info:', e?.message ?? e));
-      }
+      const bid = runnerJob.bookingId;
+      if (!bid) return;
+      fetchMeetupInfo(bid).then(setInfo).catch((e) => console.warn('[run] info:', e?.message ?? e));
+      refreshStartedAt();
+      try {
+        const saved = await fetchRunTrace(bid);
+        if (saved.length > 1) {
+          // 서버는 t를 초로 저장한다 (club_save_run_trace와 동일 규약) — 밀리초로 되돌린다.
+          const snap = seedTrace(saved.map((p) => ({ lat: p.lat, lng: p.lng, t: p.t > 1e11 ? p.t : p.t * 1000 })));
+          if (snap) {
+            trace.current = snap.trace;
+            setGpsKm(snap.km);
+            setLastPos(snap.last);
+            lastMilestone.current = Math.floor(snap.km);
+          }
+        }
+      } catch (e) { console.warn('[run] hydrate:', (e as Error)?.message); }
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ---------- 실GPS 거리 (핵심 실화) ----------
-  // gps=true: 실좌표 누적 거리 · 실시간 초 · 위치 브로드캐스트 · km 마일스톤 알림
-  // gps=false(모듈 없음/권한 거부/구 빌드): 가속 데모 타이머 폴백 — 화면에 '데모 거리' 표기
-  const [gps, setGps] = useState(false);
-  const [gpsKm, setGpsKm] = useState(0);
-  const [lastPos, setLastPos] = useState<GeoPoint | null>(null);
-  const maps = getNaverMap(); // 네이버 지도 (2026-07-29) — 미탑재 빌드는 대기 배경 폴백
-  const trace = useRef<GeoPoint[]>([]);
-  const lastMilestone = useRef(0);
-  const stopTrack = useRef<null | (() => void)>(null);
-
-  useEffect(() => {
-    if (!running) {
-      if (stopTrack.current) { stopTrack.current(); stopTrack.current = null; }
-      return;
+  // 단일 싱크의 구독자 — 여기서 하는 일은 그리기·브로드캐스트·마일스톤뿐 (거리 산수 없음)
+  const onTrack = useCallback((snap: TrackSnapshot) => {
+    trace.current = snap.trace;
+    setLastPos(snap.last);
+    setGpsKm(snap.km);
+    const crossed = Math.floor(snap.km);
+    if (crossed > lastMilestone.current && runnerJob.bookingId) {
+      lastMilestone.current = crossed;
+      notifyKmMilestone(runnerJob.bookingId, crossed).catch(() => {});
+      haptic('success');
     }
-    let alive = true;
-    startTracking((p) => {
-      if (!alive) return;
-      const prev = trace.current[trace.current.length - 1] ?? null;
-      // 픽스 게이트 (2026-07-29) — 정확도 나쁨/순간이동 픽스는 그리지도, 거리에 세지도 않는다
-      if (!acceptFix(prev, p)) return;
-      setLastPos(p);
-      trace.current.push(p);
-      if (prev) {
-        const d = distM(prev, p);
-        if (d > 2 && d < 120) { // GPS 노이즈/텔레포트 필터
-          setGpsKm((cur) => {
-            const next = cur + d / 1000;
-            // km 마일스톤 — 실거리에서만 실알림
-            const crossed = Math.floor(next);
-            if (crossed > lastMilestone.current && runnerJob.bookingId) {
-              lastMilestone.current = crossed;
-              notifyKmMilestone(runnerJob.bookingId, crossed).catch(() => {});
-              haptic('success');
-            }
-            return next;
-          });
-        }
-      }
-      if (runnerJob.bookingId) {
-        publishPos(runnerJob.bookingId, { lat: p.lat, lng: p.lng, km: gpsKmRef.current, paceSec: null });
-      }
-    }).then((stop) => {
-      if (!alive) { stop?.(); return; }
-      if (stop) {
-        stopTrack.current = stop;
-        setGps(true);
-        setSec(0); // 데모 카운터(80배속)가 GPS 대기 중 부풀린 시간 초기화 — 페이스·기록 오염 방지
-      }
-    });
-    return () => { alive = false; if (stopTrack.current) { stopTrack.current(); stopTrack.current = null; } };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [running]);
+    if (runnerJob.bookingId) {
+      publishPos(runnerJob.bookingId, {
+        lat: snap.last.lat, lng: snap.last.lng, km: snap.km, paceSec: null,
+        mode: modeRef.current ?? undefined,
+      });
+    }
+  }, []);
 
-  // publishPos 클로저용 최신 km
-  const gpsKmRef = useRef(0);
-  useEffect(() => { gpsKmRef.current = gpsKm; }, [gpsKm]);
+  // 언마운트 정리 — 추적 태스크는 화면이 사라져도 OS에 남는다
+  useEffect(() => () => { handle.current?.stop(); handle.current = null; }, []);
 
-  const demoKm = Math.min(sec / 409, targetKm + 0.02); // 데모 폴백: ~6'49" 가속
-  const km = gps ? gpsKm : demoKm;
-  const remaining = Math.max(targetKm - km, 0);
-  const progress = Math.min(km / targetKm, 1);
+  // 포그라운드 복귀 정합 — 백그라운드 km을 포그라운드 누계에 '더하지' 않는다. 병합 버퍼가 유일 진실이다.
+  useEffect(() => {
+    if (!appActive || !running) return;
+    const snap = getTraceSnapshot();
+    trace.current = snap.trace;
+    setGpsKm(snap.km);
+    if (snap.trace.length > 0) setLastPos(snap.trace[snap.trace.length - 1]);
+    refreshStartedAt(); // 경과는 로컬 카운터가 아니라 runs.started_at 기준으로 되맞춘다
+  }, [appActive, running, refreshStartedAt]);
 
   // ---------- 라이브 액티비티 (다이내믹 아일랜드 + 잠금화면) ----------
   const laProps = (): RunLAProps => ({
@@ -220,6 +251,10 @@ export default function ActiveRun() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [running]);
 
+  // [2026-08-08] gpsKm를 의존성에 추가 — 잠금화면/다이내믹 아일랜드가 '실제로 라이브'가 되는 지점이다.
+  // 예전엔 sec(=setInterval)에만 걸려 있었고, 백그라운드에서 타이머가 스로틀되면 배너가 얼어붙었다.
+  // 백그라운드 픽스는 JS를 확실히 깨우므로(태스크 핸들러 → ingestFixes → 이 구독), km 변화가
+  // 업데이트를 끈다. ActivityKit update()는 앱이 실행 중이기만 하면 백그라운드에서도 유효하다.
   useEffect(() => {
     if (!running || !laStarted.current) return;
     const now = Date.now();
@@ -227,14 +262,77 @@ export default function ActiveRun() {
     laLastUpdate.current = now;
     updateRunActivity(laProps());
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sec]);
+  }, [sec, gpsKm]);
+
+  // 경과 — runs.started_at이 있으면 벽시계 기준 (백그라운드에서 타이머가 스로틀돼도 시간이 새지 않는다).
+  // 데모 80배속 이중 속도 타이머는 데모 경로와 함께 퇴역 (2026-08-08).
+  useEffect(() => {
+    if (!running) return;
+    const id = setInterval(() => {
+      if (startedAtMs.current) setSec(Math.max(0, Math.round((Date.now() - startedAtMs.current) / 1000)));
+      else setSec((s) => s + 1);
+    }, 1000);
+    return () => clearInterval(id);
+  }, [running]);
+
+  // ---------- 트레이스 저장 (러닝 중에) ----------
+  // 2026-08-08 수정: 예전엔 settleRun 성공 '뒤'에 저장해서 _guard_run_cols가
+  // run_frozen_after_settlement로 전부 거부했고, 그 에러는 console.warn으로 삼켜졌다 —
+  // 1:1 트레이스는 사실상 한 번도 저장된 적이 없다. 부킹이 살아있는 동안 저장한다.
+  const buildTracePts = (src: GeoPoint[]): { lat: number; lng: number; t: number }[] => {
+    const pts: { lat: number; lng: number; t: number }[] = [];
+    let lastT = -1;
+    let prev: { lat: number; lng: number; t: number } | null = null;
+    for (const p of src) {
+      const t = Math.floor(p.t / 1000); // 서버 규약: 초 단위 단조
+      if (t <= lastT) continue;
+      if (prev) {
+        const dist = Math.sqrt(((p.lat - prev.lat) * 111000) ** 2 + ((p.lng - prev.lng) * 88800) ** 2);
+        if (dist / (t - prev.t) > 8) continue; // 서버 게이트와 같은 8m/s — 배치 전체 거부 예방
+      }
+      lastT = t;
+      prev = { lat: p.lat, lng: p.lng, t };
+      pts.push(prev);
+    }
+    return pts;
+  };
+
+  const saveTrace = useCallback(async () => {
+    const bid = runnerJob.bookingId;
+    if (!bid || trace.current.length < 2) return;
+    const pts = buildTracePts(trace.current);
+    if (pts.length < 2) return;
+    try {
+      await saveRunTrace(bid, pts);
+      setSaveLag(false);
+    } catch {
+      setSaveLag(true); // 침묵하지 않는다 — 신호가 잡히면 다음 주기에 자동 재시도
+    }
+  }, []);
 
   useEffect(() => {
-    if (running) {
-      timer.current = setInterval(() => setSec((s) => s + (gps ? 1 : 8)), gps ? 1000 : 100); // GPS면 실시간
+    if (!running) return;
+    const id = setInterval(() => { saveTrace(); }, 60_000);
+    return () => { clearInterval(id); saveTrace(); }; // 언마운트 시 최대 60초분 유실 방지
+  }, [running, saveTrace]);
+
+  // ---------- 오버런 봉쇄 (백그라운드 추적이 만든 새 실패 모드) ----------
+  // 종료를 잊은 러너가 집까지 계속 기록하면 settle-run의 km > plannedKm*2+2 밴드에 걸려 400이 나고,
+  // 재시도 루프로도 못 풀어 예약이 active로 좌초된다 (● LIVE 좀비의 재발).
+  useEffect(() => {
+    if (!running || !gps) return;
+    if (km >= targetKm && !overrunNotified.current && !appActive) {
+      overrunNotified.current = true;
+      notifyLocal('목표 거리에 도달했어요', '앱을 열어 러닝을 종료해주세요');
     }
-    return () => { if (timer.current) clearInterval(timer.current); };
-  }, [running, gps]);
+    if (km >= ceilingKm && !ceilingHit) {
+      setCeilingHit(true);
+      handle.current?.stop(); // 기록만 멈춘다 — 지금까지의 트레이스는 그대로 남는다
+      handle.current = null;
+      notifyLocal('정산 가능한 최대 거리에 근접했어요', '지금 러닝을 종료해주세요');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [km, running, gps, appActive]);
 
   // per-reason payout (docs/product-notes: all pay actual km — never incentivize pushing a hurt dog)
   const payoutByReason = (reason: EndReason): number => {
@@ -249,15 +347,16 @@ export default function ActiveRun() {
     settled.current = true;
     const bid = runnerJob.bookingId;
     // 추적 종료 + 브로드캐스트 + 라이브 액티비티 정리
-    if (stopTrack.current) { stopTrack.current(); stopTrack.current = null; }
+    await handle.current?.stop();
+    handle.current = null;
     stopPublishing();
     endRunActivity(laProps());
     const localPayout = completed ? payoutFor(km) : payoutByReason(reason);
     Object.assign(runResult, { km, sec, payout: localPayout, completed, reason, bookingId: bid });
 
     if (bid && !gps) {
-      // 정직 가드 — 80배속 데모 거리는 실예약 정산 불가 (위치 권한 거부 상태에서
-      // 26초 만에 5km 완주·전액 지급되던 구멍). 데모는 데모로만 끝난다.
+      // 정직 가드 — 실측되지 않은 거리로는 실예약을 정산하지 않는다.
+      // (데모 거리 경로는 2026-08-08 퇴역했지만, 가드는 남긴다 — 정산은 실측만이라는 법 자체다.)
       settled.current = false;
       Alert.alert(
         'GPS 없이 정산할 수 없어요',
@@ -266,6 +365,9 @@ export default function ActiveRun() {
       return;
     }
     if (bid) {
+      // 트레이스는 정산 '전에' 저장한다 — settle_run_tx가 부킹을 completed로 만드는 순간
+      // _guard_run_cols가 클라이언트 쓰기를 전부 거부한다 (저장 창이 닫힌다).
+      await saveTrace();
       // 정산 재시도 루프 (2026-07-29) — 실패 시 예약이 active로 남아 좌초되던 문제.
       // 서버 트랜잭션은 전체 롤백이라 재시도 안전. 네트워크 블립('Failed to send a request')도 여기서 회복.
       const trySettle = async (): Promise<boolean> => {
@@ -279,8 +381,6 @@ export default function ActiveRun() {
           });
           runResult.payout = res.net; // 서버가 계산한 실지급액
           runnerJob.bookingId = null;
-          // 실트레이스 저장 — 리포트 지도·기록의 원천
-          if (trace.current.length > 1) saveRunTrace(bid, trace.current).catch((e) => console.warn('[run] trace:', e?.message ?? e));
           if (res.drop) Alert.alert('드랍 도착!', res.drop === 'pick' ? '픽 드랍 — 리워드 센터에서 선택하세요' : '보급 상자가 도착했어요');
           return true;
         } catch (e) {
@@ -315,13 +415,72 @@ export default function ActiveRun() {
 
   // 자동 완주도 반드시 서버 정산을 거친다 — 예전엔 여기서 정산 없이 done으로 직행해
   // 예약이 영원히 active로 남았음 (보호자 위젯 ● LIVE 좀비의 원인, 2026-07-23)
+  // [2026-08-08] appActive 게이트: 백그라운드에서 사람 없이 돈이 확정되면 안 된다.
+  // 백그라운드에서 목표를 넘겼다면 복귀 시점(appActive 전환)에 이 효과가 다시 돌아 정산한다.
   useEffect(() => {
+    if (!running || !appActive) return;
     if (km >= targetKm) {
       setRunning(false);
       settle(null, true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [km >= targetKm]);
+  }, [km >= targetKm, appActive, running]);
+
+  // ---------- 러닝 시작 — 연속 기록이 안 되면 시작하지 않는다 (Sean 2026-08-08) ----------
+  const startRun = async () => {
+    setRationale(false);
+    const h = await startTracking(onTrack, { dogName });
+    setTrackMode(h.mode);
+    modeRef.current = h.mode;
+    if (h.mode !== 'background') {
+      // 하드 블록 — 화면이 꺼지면 멈추는 기록으로 러닝을 시작시키면, 러너는 정산 시점에야
+      // 거리가 짧다는 걸 알게 된다. 시작하지 않고 이유와 해결 경로를 말한다.
+      await h.stop();
+      setGps(false);
+      haptic('light');
+      return;
+    }
+    handle.current = h;
+    setGps(true);
+    setSec(0);
+    const bid = runnerJob.bookingId;
+    if (bid) {
+      // 캘린더에서 picked_up 상태로 재진입한 경우에도 start_run이 호출되도록
+      startRunServer(bid).catch(() => { /* 이미 active면 무시 */ }).then(() => refreshStartedAt());
+    }
+    setRunning(true);
+  };
+
+  const beginRun = async () => {
+    if (starting) return;
+    setStarting(true);
+    try {
+      const perm = await getTrackPermission();
+      // OS 시트는 단 한 번뿐 — 거부되면 설정에서만 되돌릴 수 있으니, 왜 필요한지 먼저 말한다
+      if (perm === 'undetermined') { setRationale(true); return; }
+      await startRun();
+    } finally {
+      setStarting(false);
+    }
+  };
+
+  // 추적 불가 사유별 정직 카피 — '모듈 없는 빌드'와 '권한 거부'는 같은 문장이 아니다
+  const blockStrip = (): { text: string; action?: string; onAction?: () => void } | null => {
+    if (ceilingHit) return { text: '정산 가능한 최대 거리에 근접했어요 — 지금 종료해주세요' };
+    if (trackMode == null || trackMode === 'background') return null;
+    if (trackMode === 'denied') {
+      return {
+        text: '위치 권한이 꺼져 있어요 — 거리를 잴 수도, 정산할 수도 없어요',
+        action: '설정 열기',
+        onAction: () => { Linking.openSettings().catch(() => {}); },
+      };
+    }
+    if (trackMode === 'foreground') {
+      return { text: '앱을 켜 둔 동안만 기록돼요 — 화면이 꺼지면 거리가 멈춰요 · 새 빌드에서 러닝을 시작할 수 있어요' };
+    }
+    return { text: '위치 기능이 없는 빌드예요 — 새 빌드에서 기록돼요' };
+  };
+  const strip = blockStrip();
 
   return (
     <View style={s.root}>
@@ -357,8 +516,11 @@ export default function ActiveRun() {
         <Row style={{ justifyContent: 'space-between', paddingHorizontal: 16 }}>
           <View style={s.statusBadge}>
             <Text style={{ fontSize: 14, fontWeight: '700', color: colors.volt }}>
-              {running ? `● ${dogName}와 러닝 중${gps ? ' · GPS' : ' · 데모 거리'}` : `${dogName}와 러닝 준비`}
+              {running ? `● ${dogName}와 러닝 중 · GPS` : `${dogName}와 러닝 준비`}
             </Text>
+            {running && gps && !ceilingHit && (
+              <Text style={{ fontSize: 14, color: '#8fa093', marginTop: 2 }}>화면이 꺼져도 거리가 기록돼요</Text>
+            )}
           </View>
           <Row style={{ gap: 8 }}>
             <View style={s.camStatus}>
@@ -405,6 +567,24 @@ export default function ActiveRun() {
             </View>
           </View>
         )}
+        {/* 추적 상태 라우드 페일 — 실패는 실패로 보인다 (침묵 강등 금지).
+            팔레트는 이 화면의 다크 패널에 맞춰 코랄, 문법은 paper 라우드 페일 그대로 */}
+        {strip && (
+          <View style={s.failStrip}>
+            <Text style={s.failTxt}>{strip.text}</Text>
+            {strip.action && (
+              <Pressable onPress={strip.onAction} hitSlop={8} accessibilityRole="button" accessibilityLabel={strip.action}>
+                <Text style={s.failAction}>{strip.action}</Text>
+              </Pressable>
+            )}
+          </View>
+        )}
+        {saveLag && (
+          <View style={s.failStrip}>
+            <Text style={s.failTxt}>기록 저장이 밀리고 있어요 — 신호가 잡히면 자동 재시도해요</Text>
+          </View>
+        )}
+
         {/* 고정된 고객 채팅 */}
         <Pressable
           style={s.chatPin}
@@ -460,20 +640,39 @@ export default function ActiveRun() {
             </Pressable>
           )}
           <Pressable
-            style={[s.btn, { backgroundColor: colors.volt }]}
+            style={[s.btn, { backgroundColor: colors.volt }, starting && { opacity: 0.6 }]}
+            disabled={starting}
             onPress={() => {
               if (running) { setEndSheet(true); return; }
-              // 캘린더에서 picked_up 상태로 재진입한 경우에도 start_run이 호출되도록
-              if (runnerJob.bookingId) startRunServer(runnerJob.bookingId).catch(() => { /* 이미 active면 무시 */ });
-              setRunning(true);
+              beginRun();
             }}
           >
             <Text style={[{ fontSize: 19.5, fontWeight: '800', color: colors.ink }, df]}>
-              {running ? '러닝 종료' : '러닝 시작'}
+              {running ? '러닝 종료' : starting ? '위치 확인 중...' : '러닝 시작'}
             </Text>
           </Pressable>
         </View>
       </View>
+
+      {/* ---------- 위치 사전 설명 (OS 시트 직전, 최초 1회) ----------
+          시스템 프롬프트는 한 번뿐이고, 거절하면 설정에서만 되돌릴 수 있다 — 먼저 이유를 말한다 */}
+      <Modal visible={rationale} transparent animationType="slide" onRequestClose={() => setRationale(false)}>
+        <Pressable style={s.sheetBackdrop} onPress={() => { setRationale(false); setTrackMode('denied'); }} />
+        <View style={s.sheet}>
+          <View style={s.sheetHandle} />
+          <Text style={{ fontSize: 19.5, fontWeight: '900', color: colors.cream }}>러닝 거리는 위치로 재요</Text>
+          <Text style={{ fontSize: 15, color: '#8fa093', marginTop: 8, lineHeight: 21 }}>
+            주머니에 넣거나 화면이 꺼져도 거리와 경로가 계속 기록돼요. 이 거리가 보호자에게 보이는 기록이자 정산 기준이에요.{'\n'}
+            러닝을 종료하면 기록도 함께 멈춰요.
+          </Text>
+          <Pressable style={[s.btn, { backgroundColor: colors.volt, marginTop: 18 }]} onPress={() => { startRun(); }}>
+            <Text style={[{ fontSize: 17, fontWeight: '800', color: colors.ink }, df]}>위치 허용하기</Text>
+          </Pressable>
+          <Pressable style={s.sheetCancel} onPress={() => { setRationale(false); setTrackMode('denied'); }}>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: '#8fa093' }}>나중에</Text>
+          </Pressable>
+        </View>
+      </Modal>
 
       {/* ---------- end-run options sheet ---------- */}
       <Modal visible={endSheet} transparent animationType="slide" onRequestClose={() => setEndSheet(false)}>
@@ -570,6 +769,16 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 10,
     backgroundColor: '#1c2b21', borderRadius: 16, padding: 12,
   },
+  // Loud fail (F1.2 grammar): full-bleed strip, 1px hairline top and bottom, 14pt/700 ink,
+  // underlined action. Palette is coral because this screen is still on the dark tokens —
+  // porting the grammar, not the paper palette.
+  failStrip: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+    marginHorizontal: -20, paddingHorizontal: 20, paddingVertical: 12, marginBottom: 12,
+    borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.coralText,
+  },
+  failTxt: { flex: 1, fontSize: 14, fontWeight: '700', color: colors.tang },
+  failAction: { fontSize: 14, fontWeight: '800', color: colors.tang, textDecorationLine: 'underline' },
   btn: { flex: 1, borderRadius: 16, padding: 16, alignItems: 'center' },
   moreBtn: { width: 44, height: 52, borderRadius: 16, backgroundColor: '#1c2b21', alignItems: 'center', justifyContent: 'center' },
   eventBtn: { flex: 1, flexDirection: 'row', gap: 5, borderRadius: 99, alignItems: 'center', justifyContent: 'center', paddingVertical: 12 },

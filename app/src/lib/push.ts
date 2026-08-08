@@ -104,3 +104,17 @@ export async function registerPushToken(): Promise<void> {
     console.warn('[push] register:', (e as Error)?.message);
   }
 }
+
+// Local (device-only) notification — no server, no push token. Used by the run screen when
+// background tracking crosses a line the runner has to act on (target reached, settlement
+// ceiling approaching) while the app is not on screen. Silent no-op on an old build: this is
+// a nudge, and a missing nudge must never break a run.
+export async function notifyLocal(title: string, body: string): Promise<void> {
+  let Notifications: any;
+  try { Notifications = require('expo-notifications'); } catch { return; }
+  try {
+    await Notifications.scheduleNotificationAsync({ content: { title, body, sound: true }, trigger: null });
+  } catch (e) {
+    console.warn('[push] local:', (e as Error)?.message);
+  }
+}

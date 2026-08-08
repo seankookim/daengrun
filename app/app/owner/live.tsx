@@ -67,6 +67,10 @@ export default function Live() {
   const [pathLen, setPathLen] = useState(0);
   const startAt = useRef<number | null>(null);
   const [liveSec, setLiveSec] = useState(0);
+  // [2026-08-08] 신선도 시계 — 멈춘 점을 살아있는 점처럼 보여주던 것이 보호자 쪽 거짓말이었다.
+  // 러너가 백그라운드로 계속 기록하는 지금, '갱신 없음'은 '러닝 종료'가 아니라 신호 문제일 수 있다.
+  const lastFixAt = useRef<number | null>(null);
+  const [staleSec, setStaleSec] = useState(0);
   const maps = getNaverMap(); // 네이버 지도 (2026-07-29) — 미탑재 빌드는 대기 화면 폴백
 
   // id 복원 — 리로드로 draft가 비어도 서버가 진실을 안다. 실패(네트워크)는 '진행 중 없음'과 다르다:
@@ -94,6 +98,8 @@ export default function Live() {
     fetchMeetupInfo(bid).then(setInfo).catch(() => {});
     const unsubPos = subscribePos(bid, (p) => {
       if (!startAt.current) startAt.current = Date.now();
+      lastFixAt.current = Date.now();
+      setStaleSec(0);
       path.current.push({ latitude: p.lat, longitude: p.lng });
       setPathLen(path.current.length);
       setPos(p);
@@ -106,7 +112,10 @@ export default function Live() {
     };
     const unsubBk = subscribeBooking(bid, done);
     const poll = setInterval(done, 10000);
-    const tick = setInterval(() => { if (startAt.current) setLiveSec(Math.floor((Date.now() - startAt.current) / 1000)); }, 1000);
+    const tick = setInterval(() => {
+      if (startAt.current) setLiveSec(Math.floor((Date.now() - startAt.current) / 1000));
+      if (lastFixAt.current) setStaleSec(Math.floor((Date.now() - lastFixAt.current) / 1000));
+    }, 1000);
     return () => { unsubPos(); unsubBk(); clearInterval(poll); clearInterval(tick); };
   }, [bookingId]);
 
@@ -122,6 +131,9 @@ export default function Live() {
   const targetKm = info?.km ?? null; // 목표 거리는 실예약에서만 — draft 목업 5km 폴백 퇴역
   // 첫 GPS 픽스 전에는 거리·시간·페이스를 모른다 — 0을 주장하지 않는다 (로딩 ≠ 0)
   const hasFix = pos != null;
+  // 90초 넘게 갱신이 없으면 지도의 점은 더 이상 '지금'이 아니다 — 그렇다고 말한다.
+  const stale = hasFix && staleSec >= 90;
+  const staleMin = Math.max(1, Math.floor(staleSec / 60));
   const km = pos?.km ?? 0;
   const sec = liveSec;
   const progressT = hasFix && targetKm != null ? Math.min(km / Math.max(targetKm, 0.1), 1) : 0;
@@ -197,8 +209,8 @@ export default function Live() {
             (진행 중 예약에는 confirmed·인계 대기도 포함된다 — 아직 러닝이 아니다) */}
         <View style={s.livePill}>
           <Text style={s.livePillTxt}>
-            <Text style={{ color: hasFix ? paper.line : paper.faint }}>●</Text>
-            {hasFix ? ` LIVE · ${dogName}가 달리는 중` : ` ${dogName} · 위치 수신 대기`}
+            <Text style={{ color: hasFix && !stale ? paper.line : paper.faint }}>●</Text>
+            {!hasFix ? ` ${dogName} · 위치 수신 대기` : stale ? ` ${dogName} · 위치 갱신 없음` : ` LIVE · ${dogName}가 달리는 중`}
           </Text>
         </View>
         {/* SOS = 긴급 어포던스 — 라우드 페일 토큰이 정확히 이 자리를 위한 색이다 */}
@@ -218,13 +230,28 @@ export default function Live() {
               {info?.routeName ?? '코스'}{targetKm != null ? ` · ${targetKm}km` : ''}
             </Text>
           </View>
-          {/* 신호 상태는 두 상태가 명시적으로 달라야 한다 (양육권 법) — 면색·잉크·도트 전부 구분 */}
-          <View style={[s.signalPill, hasFix ? s.signalOn : s.signalOff]}>
-            <Text style={hasFix ? s.signalTxtOn : s.signalTxtOff}>
-              <Text style={{ color: hasFix ? paper.line : paper.faint }}>●</Text> {hasFix ? '위치 수신' : '수신 대기'}
+          {/* 신호 상태는 두 상태가 명시적으로 달라야 한다 (양육권 법) — 면색·잉크·도트 전부 구분.
+              '수신 중'과 '멈춘 지 오래'도 서로 다른 상태다 (프리즈를 라이브로 그리지 않는다) */}
+          <View style={[s.signalPill, hasFix && !stale ? s.signalOn : s.signalOff]}>
+            <Text style={hasFix && !stale ? s.signalTxtOn : s.signalTxtOff}>
+              <Text style={{ color: hasFix && !stale ? paper.line : paper.faint }}>●</Text> {!hasFix ? '수신 대기' : stale ? '갱신 없음' : '위치 수신'}
             </Text>
           </View>
         </Row>
+
+        {/* 신선도 — 멈춘 점을 라이브라고 말하지 않는다 */}
+        {stale && (
+          <View style={[s.failStrip, { marginTop: 12 }]}>
+            <Text style={s.failTxt}>위치가 {staleMin}분째 갱신되지 않았어요</Text>
+            <Pressable onPress={() => router.push({ pathname: '/chat', params: { bid: bookingId! } })} hitSlop={8} accessibilityRole="button" accessibilityLabel="러너와 채팅으로 확인">
+              <Text style={s.failRetry}>채팅으로 확인</Text>
+            </Pressable>
+          </View>
+        )}
+        {/* 러너 빌드가 포그라운드 전용일 때만 (mode 없는 구 빌드에선 아무것도 추측하지 않는다) */}
+        {pos?.mode === 'foreground' && (
+          <Text style={s.modeNote}>러너 앱이 화면에 떠 있는 동안만 위치가 전송돼요 — 잠시 끊길 수 있어요</Text>
+        )}
 
         {/* 라이브 캠 슬롯 — 오늘은 null이라 아무것도 그려지지 않는다 */}
         <StreamSlot session={streamSession} />
@@ -352,6 +379,7 @@ const s = StyleSheet.create({
   signalOff: { backgroundColor: paper.canvas, borderColor: paper.faint },
   signalTxtOn: { fontSize: 14, fontWeight: '800', color: paper.ink },
   signalTxtOff: { fontSize: 14, fontWeight: '800', color: paper.dim },
+  modeNote: { fontSize: 14, color: paper.dim, marginTop: 10, lineHeight: 19 },
   // 라이브 캠 슬롯 — null이면 렌더되지 않는다 (자리만 예약)
   streamSlot: { marginTop: 12, borderWidth: 1, borderColor: paper.line, paddingVertical: 8, paddingHorizontal: 12 },
   streamTxt: { fontSize: 14, fontWeight: '700', color: paper.text },

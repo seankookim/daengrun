@@ -8,7 +8,7 @@ import {
   fetchSessionRoster, incidentOpen, saveClubRunTrace, SessionRoster, settleRun, uploadRunPhoto,
 } from '../../../src/lib/api';
 import { supabase } from '../../../src/lib/supabase';
-import { acceptFix, createPosPublisher, distM, GeoPoint, getNaverMap, LL, smoothTrace, startTracking } from '../../../src/lib/geo';
+import { createPosPublisher, distM, GeoPoint, getNaverMap, getTraceSnapshot, LL, resetTrace, seedTrace, smoothTrace, startTracking, TrackHandle, TrackMode } from '../../../src/lib/geo';
 import { useNumFont } from '../../../src/lib/fonts';
 import { haptic } from '../../../src/lib/haptics';
 import { collarColors, CollarKey, lilac, lilacRadius, lilacShadow } from '../../../src/theme';
@@ -42,7 +42,9 @@ export default function ClubRun() {
   const { sid, clubName } = useLocalSearchParams<{ sid: string; clubName?: string }>();
   const [board, setBoard] = useState<DelegationBoard | null>(null);
   const [roster, setRoster] = useState<SessionRoster | null>(null);
-  const [gpsOn, setGpsOn] = useState<boolean | null>(null); // null = 준비 중
+  // [2026-08-08] boolean이 아니라 판별 결과 — '지도 미탑재 빌드'와 '권한 거부'가 한 불리언으로
+  // 뭉개져 엉뚱한 이유를 보여주던 것을 끝낸다. null = 준비 중
+  const [trackMode, setTrackMode] = useState<TrackMode | null>(null);
   const [km, setKm] = useState(0);
   const [lastPos, setLastPos] = useState<GeoPoint | null>(null);
   const [elapsed, setElapsed] = useState(0);
@@ -54,7 +56,8 @@ export default function ClubRun() {
   const trace = useRef<GeoPoint[]>([]);
   const kmRef = useRef(0);
   const hydrated = useRef(false);
-  const stopTrack = useRef<null | (() => void)>(null);
+  const handle = useRef<TrackHandle | null>(null);
+  const modeRef = useRef<TrackMode | null>(null);
   const publisher = useRef<null | { publish: (p: any) => void; stop: () => void }>(null);
   const startedAtMs = useRef<number | null>(null);
   const maps = getNaverMap();
@@ -67,18 +70,16 @@ export default function ClubRun() {
     try {
       const { data } = await supabase.from('runs').select('trace').eq('booking_id', bookingId).maybeSingle();
       const saved: { lat: number; lng: number; t: number }[] = (data as any)?.trace ?? [];
-      if (saved.length > 1 && trace.current.length === 0) {
-        let km = 0;
-        const pts: GeoPoint[] = saved.map((p) => ({ lat: p.lat, lng: p.lng, t: p.t * 1000 }));
-        for (let i = 1; i < pts.length; i++) {
-          const d = distM(pts[i - 1], pts[i]);
-          const dt = (pts[i].t - pts[i - 1].t) / 1000;
-          if (d > 2 && d < 120 && dt > 0 && d / dt <= 8) km += d / 1000;
+      // [2026-08-08] km 재계산은 seedTrace(=mergeFixes)가 한다 — 라이브와 하이드레이션이
+      // 같은 게이트를 쓰지 않으면 두 숫자가 갈라진다. 이미 픽스가 들어온 뒤면 덮지 않는다.
+      if (saved.length > 1 && getTraceSnapshot().trace.length === 0) {
+        const snap = seedTrace(saved.map((p) => ({ lat: p.lat, lng: p.lng, t: p.t * 1000 })));
+        if (snap) {
+          trace.current = snap.trace;
+          kmRef.current = snap.km;
+          setKm(snap.km);
+          setPathLen(snap.trace.length);
         }
-        trace.current = pts.concat(trace.current);
-        kmRef.current = km + kmRef.current;
-        setKm(kmRef.current);
-        setPathLen(trace.current.length);
       }
     } catch { /* 시드 실패 = 새 트레이스로 진행 (저장은 덮어쓰기라 이 경우 이전 기록이 짧아질 수 있음) */ }
   }, []);
@@ -125,35 +126,33 @@ export default function ClubRun() {
     let alive = true;
     publisher.current?.stop();
     publisher.current = createPosPublisher(activeKey.split(','));
-    startTracking((p) => {
+    // [2026-08-08] 거리 산수는 geo.ts의 단일 싱크(mergeFixes)로 이동 — 8m/s 정산 게이트도 거기 있다.
+    // 백그라운드 배치로 들어오든 포그라운드 한 점씩 들어오든 km은 같아야 한다.
+    startTracking((snap) => {
       if (!alive) return;
-      const prev = trace.current[trace.current.length - 1] ?? null;
-      if (!acceptFix(prev, p)) return; // 나쁜 픽스는 그리지도, 세지도 않는다
-      trace.current.push(p);
-      setPathLen(trace.current.length);
-      setLastPos(p);
-      if (prev) {
-        const d = distM(prev, p);
-        const dt = (p.t - prev.t) / 1000;
-        // [감사 P1] 서버 트레이스 게이트(8m/s)와 동일한 속도 게이트 — 서버가 '불가능'이라 부르는
-        // 이동을 정산 거리에 넣지 않는다 (acceptFix의 10m/s보다 좁다)
-        if (d > 2 && d < 120 && dt > 0 && d / dt <= 8) {
-          kmRef.current += d / 1000;
-          setKm(kmRef.current);
-        }
-      }
-      publisher.current?.publish({ lat: p.lat, lng: p.lng, km: kmRef.current, paceSec: null });
-    }).then((stop) => {
-      if (!alive) { stop?.(); return; }
-      stopTrack.current = stop;
-      setGpsOn(stop != null);
-    }).catch(() => { if (alive) setGpsOn(false); }); // [감사 P1] 거부 시 gpsOn=null 영구 고착 방지
+      trace.current = snap.trace;
+      setPathLen(snap.trace.length);
+      setLastPos(snap.last);
+      kmRef.current = snap.km;
+      setKm(snap.km);
+      publisher.current?.publish({
+        lat: snap.last.lat, lng: snap.last.lng, km: snap.km, paceSec: null, mode: modeRef.current ?? undefined,
+      });
+    }, { dogName: active.map((d) => d.dogName).join('·') }).then((h) => {
+      if (!alive) { h.stop(); return; }
+      handle.current = h;
+      modeRef.current = h.mode;
+      setTrackMode(h.mode);
+    }).catch(() => { if (alive) setTrackMode('unavailable'); }); // 영구 '준비 중' 고착 방지
     return () => {
       alive = false;
-      stopTrack.current?.(); stopTrack.current = null;
+      handle.current?.stop(); handle.current = null;
       publisher.current?.stop(); publisher.current = null;
     };
-  }, [activeKey]);
+  }, [activeKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 화면을 떠날 때 공용 버퍼를 비운다 — 다음 러닝(1:1 포함)이 이 세션의 점을 물려받으면 안 된다
+  useEffect(() => () => { resetTrace(); }, []);
 
   // §13 — 60초 배치 트레이스 저장 (전체 덮어쓰기, t 초 단위 단조).
   // [감사 P1] 실패를 삼키지 않는다: 무결성 거부(impossible_speed 등)면 문제 구간을 잘라 1회 재시도,
@@ -197,14 +196,20 @@ export default function ClubRun() {
   // [감사 P1] Math.max(60, elapsed)는 시간을 지어냈다 — 실측 그대로 보낸다 (40초 러닝은 40초다).
   const doSettle = async (d: DelegationDog, endReason: 'completed' | 'dog_condition' | 'owner_request' | 'runner_personal', note?: string) => {
     if (!d.bookingId || busy) return;
-    if (gpsOn === false) {
+    if (trackMode === 'denied') {
       Alert.alert('GPS 없이 정산할 수 없어요', '클럽 정산은 실측 거리로만 가능해요.\n설정에서 위치 권한을 켠 뒤 다시 시도해주세요.');
       return;
     }
-    if (gpsOn == null) {
+    if (trackMode === 'unavailable') {
+      Alert.alert('위치 기능이 없는 빌드예요', '이 빌드로는 거리를 잴 수 없어요 — 새 빌드에서 다시 시도해주세요.');
+      return;
+    }
+    if (trackMode == null) {
       Alert.alert('위치 준비 중이에요', '잠시 후 다시 시도해주세요.');
       return;
     }
+    // 'foreground'는 막지 않는다: 이미 진행 중인 클럽 러닝의 정산을 막으면 예약이 좌초된다.
+    // 대신 화면 상단 스트립이 러닝 내내 '앱을 켜 둔 동안만 기록된다'고 계속 말하고 있다.
     setBusy(true);
     try {
       const iso = await fetchRunStartedAt(d.bookingId);
@@ -339,6 +344,11 @@ export default function ClubRun() {
             <Text style={{ fontSize: 14, color: '#7a5a2a' }}>트레이스 저장이 밀리고 있어요 — 신호가 잡히면 자동 재시도해요</Text>
           </View>
         )}
+        {trackMode === 'foreground' && (
+          <View style={s.lagBanner}>
+            <Text style={{ fontSize: 14, color: '#7a5a2a' }}>앱을 켜 둔 동안만 기록돼요 — 화면이 꺼지면 거리가 멈춰요</Text>
+          </View>
+        )}
 
         {/* ---------- 지도 (실지도 or 정직한 대기 패널) ---------- */}
         <View style={s.mapCard}>
@@ -366,7 +376,8 @@ export default function ClubRun() {
             <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 }}>
               <LiveDot />
               <Text style={{ fontSize: 14, color: L.dim, textAlign: 'center', lineHeight: 18 }}>
-                {gpsOn === false ? '위치 권한이 꺼져 있어요 — 트레이스·정산이 불가능해요'
+                {trackMode === 'denied' ? '위치 권한이 꺼져 있어요 — 트레이스·정산이 불가능해요'
+                  : trackMode === 'unavailable' ? '위치 기능이 없는 빌드예요 — 새 빌드에서 기록돼요'
                   : !maps ? '지도 미탑재 빌드 — 위치는 기록되고 있어요'
                   : 'GPS 신호를 기다리는 중...'}
               </Text>

@@ -1,5 +1,6 @@
 // 위치/지도 유틸 — 실거리·트레이스·실시간 위치 브로드캐스트.
-// expo-location은 지연 로드: 네이티브 모듈 없는 빌드(구 dev build)에선 null 반환 → 화면이 데모 폴백.
+// Native modules are lazy-required everywhere in this file: an old build that lacks
+// expo-location / expo-task-manager degrades to a stated mode instead of crashing.
 import { supabase } from './supabase';
 
 export interface GeoPoint { lat: number; lng: number; t: number; acc?: number }
@@ -15,21 +16,6 @@ export function distM(a: GeoPoint, b: GeoPoint): number {
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 
-// GPS 추적 시작 — 성공 시 stop 함수, 모듈 없음/권한 거부 시 null (호출측이 데모 폴백)
-export async function startTracking(onFix: (p: GeoPoint) => void): Promise<null | (() => void)> {
-  let Location: any;
-  try { Location = require('expo-location'); } catch { return null; }
-  try {
-    const perm = await Location.requestForegroundPermissionsAsync();
-    if (!perm.granted) return null;
-    const sub = await Location.watchPositionAsync(
-      { accuracy: Location.Accuracy.BestForNavigation, distanceInterval: 5, timeInterval: 2000 },
-      (loc: any) => onFix({ lat: loc.coords.latitude, lng: loc.coords.longitude, t: Date.now(), acc: loc.coords.accuracy ?? undefined }),
-    );
-    return () => sub.remove();
-  } catch { return null; }
-}
-
 // ---------- 트레이스 품질 (2026-07-29 — 스트라바풍 스무딩) ----------
 // 원칙: 나쁜 픽스는 그리지도, 거리에 세지도 않는다 (지터가 km를 부풀리면 정산 부정직).
 
@@ -42,6 +28,230 @@ export function acceptFix(prev: GeoPoint | null, p: GeoPoint): boolean {
     if (distM(prev, p) / dt > 10) return false;
   }
   return true;
+}
+
+// ---------- Background-capable tracking (2026-08-08) ----------
+// One sink, two sources. The expo-task-manager background task and the foreground
+// watchPositionAsync fallback both call ingestFixes, which owns the only trace buffer and
+// is the only place where a fix becomes distance. km is money (settle-run pays km * 3000),
+// so there must be exactly one accumulator and it must not care how the OS batched delivery.
+
+// Task name — also used by bgTrack.ts, which registers the handler at module scope.
+// It lives here (not in bgTrack.ts) so geo.ts never has to import bgTrack: bgTrack → geo is
+// the only direction, and a cycle would break the lazy-require degradation story.
+export const BG_TASK = 'daengrun-run-location';
+
+export type TrackMode =
+  | 'background'    // location task running — survives screen lock and a pocketed phone
+  | 'foreground'    // watchPositionAsync only — dies on screen lock (old build, no background mode)
+  | 'denied'        // the runner refused the location permission
+  | 'unavailable';  // expo-location missing/unusable (old build)
+
+export interface TrackSnapshot {
+  trace: GeoPoint[];   // the whole merged buffer (single source of truth)
+  km: number;          // billable distance accumulated over that buffer
+  last: GeoPoint;      // newest accepted fix
+  addedKm: number;     // delta contributed by this delivery
+}
+
+export interface TrackHandle {
+  mode: TrackMode;
+  stop: () => Promise<void>;
+}
+
+export interface TrackOptions {
+  dogName?: string;    // Android foreground-service notification body
+  bookingId?: string;  // reserved for future task-side attribution — not required today
+}
+
+// Billable speed gate — 8 m/s, matching the server's trace gate (club_save_run_trace, 0053).
+// Tighter than acceptFix's 10 m/s on purpose: a segment the server would call impossible must
+// never be paid for. Points above it stay in the trace (they happened) but earn nothing.
+const BILLABLE_MPS = 8;
+// The server stores t in whole seconds, so two fixes inside the same second collapse there
+// anyway. Collapsing client-side keeps client km and the stored trace consistent.
+const DEDUP_MS = 1000;
+
+// Pure, dependency-free, and therefore testable — see app/test/geo.test.cjs.
+// Rules, in order: sort by t · drop non-monotonic · drop sub-second · acceptFix gate ·
+// accumulate km only over segments the server would also accept.
+export function mergeFixes(
+  existing: GeoPoint[],
+  incoming: GeoPoint[],
+): { trace: GeoPoint[]; addedKm: number } {
+  const trace = existing.slice();
+  if (incoming.length === 0) return { trace, addedKm: 0 };
+  const sorted = incoming.slice().sort((a, b) => a.t - b.t);
+  let prev: GeoPoint | null = trace[trace.length - 1] ?? null;
+  let addedKm = 0;
+  for (const p of sorted) {
+    if (prev) {
+      if (p.t <= prev.t) continue;            // monotonic — mirrors the server's trace_out_of_order law
+      if (p.t - prev.t < DEDUP_MS) continue;  // same-second dedup
+    }
+    if (!acceptFix(prev, p)) continue;        // accuracy + 10 m/s teleport gate
+    if (prev) {
+      const d = distM(prev, p);
+      const dt = (p.t - prev.t) / 1000;
+      if (d > 2 && d < 120 && dt > 0 && d / dt <= BILLABLE_MPS) addedKm += d / 1000;
+    }
+    trace.push(p);
+    prev = p;
+  }
+  return { trace, addedKm };
+}
+
+// ---------- the single live buffer ----------
+let liveTrace: GeoPoint[] = [];
+let liveKm = 0;
+let liveSub: ((s: TrackSnapshot) => void) | null = null;
+
+// The sink. Called with one fix from the foreground watcher, or with a whole batch from the
+// background task. Batching must not change km — that is pinned in the test suite.
+export function ingestFixes(points: GeoPoint[]): void {
+  if (!points || points.length === 0) return;
+  const { trace, addedKm } = mergeFixes(liveTrace, points);
+  if (trace.length === liveTrace.length) return; // nothing survived the gates
+  liveTrace = trace;
+  liveKm += addedKm;
+  const last = liveTrace[liveTrace.length - 1];
+  if (liveSub) liveSub({ trace: liveTrace, km: liveKm, last, addedKm });
+}
+
+// Seed from the server trace on mount (reload/kill recovery). km is recomputed through the
+// same gate rather than trusted, so a hydrated run and a live run measure identically.
+export function seedTrace(points: GeoPoint[]): TrackSnapshot | null {
+  liveTrace = [];
+  liveKm = 0;
+  const { trace, addedKm } = mergeFixes([], points);
+  liveTrace = trace;
+  liveKm = addedKm;
+  if (liveTrace.length === 0) return null;
+  return { trace: liveTrace, km: liveKm, last: liveTrace[liveTrace.length - 1], addedKm };
+}
+
+export function resetTrace(): void {
+  liveTrace = [];
+  liveKm = 0;
+}
+
+export function getTraceSnapshot(): { trace: GeoPoint[]; km: number } {
+  return { trace: liveTrace, km: liveKm };
+}
+
+function toGeoPoint(loc: any): GeoPoint {
+  // Use the OS timestamp, never Date.now(): a background batch arrives all at once, and
+  // stamping it with arrival time would collapse the whole batch into one second.
+  const t = typeof loc?.timestamp === 'number' && loc.timestamp > 0 ? loc.timestamp : Date.now();
+  return {
+    lat: loc.coords.latitude,
+    lng: loc.coords.longitude,
+    t,
+    acc: loc.coords.accuracy ?? undefined,
+  };
+}
+
+// Permission state without asking — lets the run screen show its own rationale before the
+// one-shot OS sheet (a declined system prompt is only recoverable through Settings).
+export async function getTrackPermission(): Promise<'undetermined' | 'granted' | 'denied' | 'unavailable'> {
+  let Location: any;
+  try { Location = require('expo-location'); } catch { return 'unavailable'; }
+  try {
+    const perm = await Location.getForegroundPermissionsAsync();
+    if (perm?.granted) return 'granted';
+    if (perm?.canAskAgain === false) return 'denied';
+    return perm?.status === 'undetermined' ? 'undetermined' : 'denied';
+  } catch { return 'unavailable'; }
+}
+
+// Start tracking. Never returns null again — the caller is told which mode it got so it can
+// be honest about *why* tracking is degraded (module missing ≠ permission denied).
+// Resolution order: expo-location missing → unavailable · permission refused → denied ·
+// task registered and startLocationUpdatesAsync accepted → background · otherwise foreground.
+export async function startTracking(
+  onUpdate: (s: TrackSnapshot) => void,
+  opts: TrackOptions = {},
+): Promise<TrackHandle> {
+  // Even the no-op stop clears the subscriber: a failed start must not leave the previous
+  // screen's callback wired to the sink.
+  const noop = async () => { liveSub = null; };
+  let Location: any;
+  try { Location = require('expo-location'); } catch { return { mode: 'unavailable', stop: noop }; }
+
+  try {
+    const perm = await Location.requestForegroundPermissionsAsync();
+    if (!perm?.granted) return { mode: 'denied', stop: noop };
+  } catch {
+    // The module is present but the permission call itself failed — we cannot claim the
+    // runner denied anything, so report the honest weaker claim.
+    return { mode: 'unavailable', stop: noop };
+  }
+
+  liveSub = onUpdate;
+
+  // ---- preferred path: background location task ----
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const TaskManager = require('expo-task-manager');
+    if (TaskManager.isTaskDefined(BG_TASK)) {
+      if (await Location.hasStartedLocationUpdatesAsync(BG_TASK)) {
+        await Location.stopLocationUpdatesAsync(BG_TASK); // stale task from a killed run
+      }
+      await Location.startLocationUpdatesAsync(BG_TASK, {
+        accuracy: Location.Accuracy.BestForNavigation,
+        distanceInterval: 5,
+        timeInterval: 2000,
+        // CRITICAL, not tuning: iOS auto-pause decides on its own that the user stopped
+        // moving and silently stops delivering — a truncated trace is a short payout.
+        pausesUpdatesAutomatically: false,
+        // expo-location re-exports the enum as ActivityType (LocationActivityType is the
+        // internal name) — read both, fall back to the literal so an API rename cannot
+        // silently drop us to the default activity type. Fitness = 3.
+        activityType: Location.ActivityType?.Fitness ?? Location.LocationActivityType?.Fitness ?? 3,
+        showsBackgroundLocationIndicator: true,
+        foregroundService: {
+          notificationTitle: '도그스하이 · 러닝 기록 중',
+          notificationBody: opts.dogName
+            ? `${opts.dogName}와 러닝 중 — 거리와 경로를 기록하고 있어요`
+            : '거리와 경로를 기록하고 있어요',
+          notificationColor: '#6C5CE7',
+          // App killed ⇒ tracking stops. We do not support kill-continuation, and a service
+          // that outlives the app would be a silent liar.
+          killServiceOnDestroy: true,
+        },
+      });
+      return {
+        mode: 'background',
+        stop: async () => {
+          liveSub = null;
+          try {
+            if (await Location.hasStartedLocationUpdatesAsync(BG_TASK)) {
+              await Location.stopLocationUpdatesAsync(BG_TASK);
+            }
+          } catch { /* already stopped */ }
+        },
+      };
+    }
+  } catch {
+    // No expo-task-manager, or no UIBackgroundModes / FOREGROUND_SERVICE_LOCATION in this
+    // binary (LocationUpdatesUnavailable / ForegroundServicePermissionsException).
+    // Fall through — and say so, rather than pretending the screen lock is safe.
+  }
+
+  // ---- fallback: foreground-only watcher (old build) ----
+  try {
+    const sub = await Location.watchPositionAsync(
+      { accuracy: Location.Accuracy.BestForNavigation, distanceInterval: 5, timeInterval: 2000 },
+      (loc: any) => ingestFixes([toGeoPoint(loc)]),
+    );
+    return {
+      mode: 'foreground',
+      stop: async () => { liveSub = null; try { sub.remove(); } catch { /* no-op */ } },
+    };
+  } catch {
+    liveSub = null;
+    return { mode: 'unavailable', stop: noop };
+  }
 }
 
 export interface LL { latitude: number; longitude: number }
@@ -92,22 +302,34 @@ export function getNaverMap(): null | { NaverMapView: any; NaverMapPolylineOverl
 }
 
 // ---------- 실시간 위치 브로드캐스트 (DB 기록 없음 — 채널만) ----------
-export interface LivePos { lat: number; lng: number; km: number; paceSec: number | null }
+// mode is optional on the wire: an old runner build sends none, and an old owner build
+// ignores it. The owner screen renders nothing extra when it is absent — never a guess.
+export interface LivePos { lat: number; lng: number; km: number; paceSec: number | null; mode?: TrackMode }
+
+// Broadcast throttle. Every accepted fix used to become a message (~1,800/hour on an hour-long
+// run) while the Live Activity next to it was already throttled to 5 s. The owner's map gains
+// nothing from sub-3-second updates; the runner's battery and the Realtime quota lose.
+const PUB_MIN_MS = 3000;
 
 let pubCh: ReturnType<typeof supabase.channel> | null = null;
 let pubId: string | null = null;
 let pubJoined = false;
+let pubLastAt = 0;
 
 export function publishPos(bookingId: string, pos: LivePos): void {
   if (!pubCh || pubId !== bookingId) {
     if (pubCh) supabase.removeChannel(pubCh);
     pubJoined = false;
+    pubLastAt = 0;
     pubCh = supabase.channel(`run-${bookingId}`);
     pubId = bookingId;
     pubCh.subscribe((status) => { pubJoined = status === 'SUBSCRIBED'; });
   }
   // 채널 조인 전 전송은 스킵 (REST 폴백 경고 방지 — 2초마다 다음 픽스가 어차피 온다)
   if (!pubJoined) return;
+  const now = Date.now();
+  if (now - pubLastAt < PUB_MIN_MS) return;
+  pubLastAt = now;
   pubCh.send({ type: 'broadcast', event: 'pos', payload: pos }).catch(() => {});
 }
 
@@ -115,6 +337,7 @@ export function stopPublishing(): void {
   if (pubCh) supabase.removeChannel(pubCh);
   pubCh = null;
   pubId = null;
+  pubLastAt = 0;
 }
 
 // 러너 위치 구독 — 해제 함수 반환
@@ -135,8 +358,12 @@ export function createPosPublisher(bookingIds: string[]): { publish: (pos: LiveP
     c.ch.subscribe((status: string) => { c.joined = status === 'SUBSCRIBED'; });
     return c;
   });
+  let lastAt = 0;
   return {
     publish: (pos) => {
+      const now = Date.now();
+      if (now - lastAt < PUB_MIN_MS) return; // same 3s throttle as the 1:1 publisher
+      lastAt = now;
       for (const c of chs) {
         if (c.joined) c.ch.send({ type: 'broadcast', event: 'pos', payload: pos }).catch(() => {});
       }
