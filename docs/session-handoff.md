@@ -156,6 +156,51 @@ doctrine). Subscription money surface claimed the freed §3 cycle slot.
   ordering — style/copy only, hook order byte-identical.
 - Respond to Sean in English; code comments + commits Korean; commands as explicit lists.
 
+## ⓪++++ BACKGROUND GPS SHIPPED — 2026-08-08 (9e2ec68) — blocker #2 closed
+
+Tracking now survives the screen lock. **Sean's call: all the time, hard block** — only
+`mode === 'background'` starts a run; every other mode blocks with its own honest strip and a
+real route to Settings. Permission model stops at While-In-Use + `UIBackgroundModes` (that is
+all `startLocationUpdatesAsync` needs; iOS Always would buy only relaunch-after-kill).
+geo tests 23 → 37. SQL harness untouched at 266/0.
+
+**Three defects fixed on the way:**
+1. **Run traces were almost certainly never persisted.** `saveRunTrace` ran *after* `settleRun`,
+   by which point the row is `completed` and `_guard_run_cols` rejects the client write — and the
+   error was swallowed by `.catch(console.warn)`. Now saved during the run, hydrated on mount.
+2. **The Live Activity was frozen in exactly the situation it exists for.** Its update effect was
+   keyed on a timer, but the guaranteed wakeup while locked is location delivery. Re-keyed on
+   `[sec, gpsKm]` so OS location batches drive the lock-screen banner.
+3. **Overrun containment** — `settle-run` rejects `km > planned*2+2`, previously unreachable.
+   A runner who forgets to end a run would have stranded the booking in `active`. Recording now
+   stops before the ceiling; auto-complete is gated on the app being foregrounded so money never
+   settles from the background.
+
+### 🔴 SEAN — GPS needs a native rebuild
+`cd app && npx expo prebuild -p ios --clean && npx expo run:ios --device`
+(`expo-task-manager` is already installed and in package.json.) Full 15-item device smoke list is
+in the builder's report; **item 4 is the feature: lock the screen, pocket the phone, walk 500 m,
+unlock — km must reflect the full distance with no straight-line shortcut.** Item 8 verifies
+`runs.trace` is non-empty in the DB, which is defect #1 above.
+
+⚑ **One money observation, not changed:** the pre-existing `d > 2` metre noise gate is now the
+only thing between a slow dog walk and a zero payout. `distanceInterval: 5` means the OS reports
+every ~5 m so it should not bite, but smoke item 9 (compare settled km against Strava on the same
+walk) is where you would see it. Left alone deliberately — it is a money surface.
+⚑ **Club runs are not start-gated** — the hard block lives on the 1:1 run screen; club runs start
+from the session screen. Say if you want that gated too.
+
+## 🎨 LIVE ACTIVITY LAB — needs your pick
+`docs/labs/live-activity-lab.html` (opened in your browser). The runner LA exists but is still in
+the **retired volt language** — and it is the surface visible longest during a run. The owner LA
+**does not exist at all**, which is the bigger gap: an owner watching their dog run is the
+emotional core of the product and the thing people screenshot.
+3 numbered options for the owner banner + the 4 mandatory states + Dynamic Island + a volt→coral
+reskin of the runner LA. **Recommendation: ②.** Pick by number.
+Technical precondition recorded there: the owner's app is not running, so the owner LA must be
+updated by **APNs push** (`apns-push-type: liveactivity`), not by the app — different plumbing
+from the runner LA, and the GPS commit is what makes that position flow real.
+
 ## ⓪+++ RUNNER FUNNEL SHIPPED — 2026-08-08 (cf6d93a, migration 0062)
 
 **A runner can finally become bookable.** Before this the owner-facing runner list was

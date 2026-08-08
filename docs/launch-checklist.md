@@ -17,11 +17,13 @@ Neither legal nor the App Store is what blocks a paying customer today. **Two th
 1. ~~**No runner can become certified.**~~ **BUILT** 2026-08-08 (`cf6d93a`, migration 0062):
    real application funnel, ops approval script, `runner_app_approve` as the sole tier writer.
    Remaining: Sean deploys 0061+0062, then approves the first real runners. `[Sean]`
-2. **GPS dies when the screen locks.** `geo.ts:23` uses `requestForegroundPermissionsAsync` +
-   `watchPositionAsync`, with no background permission, no `UIBackgroundModes`, no TaskManager.
-   Distance tracking stops the moment the runner pockets the phone. `[verified]` `[build]`
+2. ~~**GPS dies when the screen locks.**~~ **BUILT** 2026-08-08 (`9e2ec68`): background task,
+   single trace sink, hard block when continuous tracking is unavailable (Sean's call).
+   Remaining: `expo prebuild -p ios --clean` + device smoke — item 4 (lock, walk 500m, unlock)
+   is the whole feature. `[Sean]`
 
-Everything else has a workaround at 50-dog scale. These two do not.
+**Both critical-path blockers are now built.** What remains between here and a paying customer is
+deployment, device verification, interviews, and the legal/payment track below.
 
 **Shortest path to a paying customer** (and it never requires 사업자등록, which keeps
 예비창업패키지 2027 alive): interviews → runner funnel → background GPS → manual payment
