@@ -374,8 +374,26 @@ export default function Apply() {
           </View>
         )}
 
+        {/* Grandfathered: certified with no application row. Every runner certified before 0062
+            existed is in this state, so it is the common case today, not an edge case. Without
+            this branch they saw "아직 지원서를 내지 않았어요" plus a submit CTA that fills out ten
+            fields and then dies on the server's already_certified guard — a dead button by the
+            length of a whole form. Found on the simulator, 2026-08-10. */}
+        {appLoaded && appErr === null && app === null && !formOpen
+          && certLoaded && certErr === null && cert !== null && cert.tier !== 'applicant' && (
+          <View style={s.stateCard}>
+            <StateStrap tone={lilac.voltDeep} label="승인" />
+            <Text style={s.stateT}>이미 인증된 러너예요</Text>
+            <Text style={s.stateD}>
+              지금 등급은 {TIER_LABEL[cert.tier] ?? cert.tier}예요 — 지원서를 다시 낼 필요는 없어요.{'\n'}
+              등급이나 기록이 잘못돼 보이면 설정의 문의하기로 알려주세요.
+            </Text>
+          </View>
+        )}
+
         {/* no row — never applied. The screen's first real submit. */}
-        {appLoaded && appErr === null && app === null && !formOpen && (
+        {appLoaded && appErr === null && app === null && !formOpen
+          && !(certLoaded && certErr === null && cert !== null && cert.tier !== 'applicant') && (
           <View style={s.stateCard}>
             <Text style={s.stateT}>아직 지원서를 내지 않았어요</Text>
             <Text style={s.stateD}>
