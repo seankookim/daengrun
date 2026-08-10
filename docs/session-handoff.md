@@ -233,6 +233,37 @@ Harness **266/0**, 7 mutation proofs executed. Plan: `docs/plans/runner-funnel-p
    not "requests will arrive" · approved runner sees the online/offline line matching their
    real switch.
 
+## ⓪⁵ A-WAVE SHIPPED — 2026-08-10 (719edd3) · harness 296/0
+
+Owner Live Activity (0063) · private media bucket (0064) · runner LA reskin · 4 honesty riders.
+Four builders, disjoint surfaces, adversarial pass with attacks executed. Plan:
+`docs/plans/finish-the-app-plan.md`. **Premise gate (Sean, D1=A): code-complete this week; the
+gated surface below is an explicit checklist, and nothing is called "finished" while its gate is
+open.**
+
+### 🔴 SEAN — A-wave queue
+1. `supabase db push` — carries **0063 + 0064**. ⚠ The audit's standing rule: never push from a
+   worktree with an unfinished migration in it.
+2. **Owner LA needs three things I cannot do:** `app.json` expo-widgets
+   `"enablePushNotifications": true` → prebuild · a **relay edge function** holding the APNs
+   `.p8` (ES256 JWT, sandbox/prod host switch) · then
+   `insert into owner_la_push_config (id, relay_url, relay_secret) values (true, '<fn url>', '<secret>')`
+   with the service role. Until that row exists the composer is a deliberate silent no-op — no
+   phantom pipeline. Also confirm pg_cron + pg_net are enabled.
+3. **Media backfill:** `node scripts/migrate-private-media.mjs` (dry-run) → `--yes` → verify in
+   app → `--yes --purge`. **Legacy photos stay world-readable until purge**, and the privacy
+   policy cannot claim "private" before then.
+4. Prebuild + device smoke (background GPS + both Live Activities are all native-gated).
+
+**Prod exposure check, already run (2026-08-10): zero exploitation of the 0061 hole.** All 9
+privileged `runners` rows are the 6 `@daengrun.seed` accounts + 2 e2e + `s4kim2025`; every
+`commission_rate` is 0.33, no unknown accounts. 0061 + 0062 are confirmed applied on prod.
+
+**⚠ Still open and now concrete:** production has **6 fabricated certified/veteran/master runners
+with `identity_verified: true` and zero real runners**, while `safety.tsx` tells owners an
+operator personally verified each one on video. That sentence is false until they are wiped or
+demoted. One command either way — Sean's call.
+
 ## 🚨 0061 — P0 LIVE VULNERABILITY SEALED (2f113d8) — DEPLOY THIS FIRST
 
 **Any authenticated user can currently make themselves a master-tier runner with zero
