@@ -1,7 +1,8 @@
 import { router } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Animated, Easing, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Animated, Easing, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { PaperBtn } from '../../src/components/paper-btn';
+import { PickupMap } from '../../src/components/PickupMap';
 import { Avatar, Row } from '../../src/components/ui';
 import { confirmHandoff, fetchBookingAddress, fetchBookingSync, fetchCurrentRunnerJobId, fetchMeetupInfo, MeetupInfo, PickupAddress, runnerArrived, runnerEnroute, startRunServer, subscribeBooking } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
@@ -236,27 +237,66 @@ export default function Meetup() {
   // 게이트가 열린다. 첫 동기화가 이미 봉인 상태였다면 그 커밋은 점프, 그 다음 봉인부터 애니메이션.
   useEffect(() => { if (synced) hydrated.current = true; }, [synced]);
 
+  // 길찾기 (0065) — nmap scheme (whitelisted in app.json LSApplicationQueriesSchemes)
+  // with a Naver web-map fallback; only rendered when coordinates exist (dead-button
+  // law). Plain function, not a hook — the hook-freeze law leaves hook order untouched.
+  const openDirections = async (dlat: number, dlng: number, name: string) => {
+    const nmap = `nmap://route/walk?dlat=${dlat}&dlng=${dlng}&dname=${encodeURIComponent(name)}&appname=com.seankookim.daengrun`;
+    const web = `https://map.naver.com/p/directions/-/${dlng},${dlat},${encodeURIComponent(name)}/-/walk`;
+    try {
+      if (await Linking.canOpenURL(nmap)) { await Linking.openURL(nmap); return; }
+      await Linking.openURL(web);
+    } catch {
+      Alert.alert('링크를 열 수 없어요'); // house pattern — no toast primitive (DS-2)
+    }
+  };
+  const hasCoords = pickup.s === 'ok' && pickup.a != null && pickup.a.lat != null && pickup.a.lng != null;
+
   return (
     <View style={{ flex: 1, backgroundColor: paper.canvas }}>
-      {/* map to pickup (placeholder) */}
+      {/* map plate — real pickup map when coords exist (0065), honest placeholder otherwise.
+          Pure JSX swap in the frozen slot; PickupMap is memoized so the 8s poll's re-renders
+          never touch the native view (ES-3). Plate keeps its exact 300pt height (DS-7). */}
       <View style={s.mapPlate}>
-        <View style={s.roadA} />
-        <View style={s.roadB} />
-        {/* runner → pickup path */}
-        <View style={s.pathDots}>
-          {[0, 1, 2, 3, 4, 5].map((i) => (
-            <View key={i} style={[s.pathDot, { left: 40 + i * 44, top: 190 - i * 22 }]} />
-          ))}
-        </View>
-        <View style={s.mePin}><Text style={s.pinText}>나</Text></View>
-        <View style={s.pickupPin}><Text style={s.pinText}>픽업</Text></View>
+        {hasCoords ? (
+          <>
+            <PickupMap lat={pickup.a!.lat!} lng={pickup.a!.lng!} />
+            <Pressable
+              style={s.naviChip}
+              onPress={() => openDirections(pickup.a!.lat!, pickup.a!.lng!, pickup.a!.label)}
+              hitSlop={6}
+              accessibilityRole="button"
+              accessibilityLabel="길찾기"
+            >
+              <Text style={s.naviChipTxt}>길찾기</Text>
+            </Pressable>
+          </>
+        ) : (
+          <>
+            <View style={s.roadA} />
+            <View style={s.roadB} />
+            {/* runner → pickup path */}
+            <View style={s.pathDots}>
+              {[0, 1, 2, 3, 4, 5].map((i) => (
+                <View key={i} style={[s.pathDot, { left: 40 + i * 44, top: 190 - i * 22 }]} />
+              ))}
+            </View>
+            <View style={s.mePin}><Text style={s.pinText}>나</Text></View>
+            <View style={s.pickupPin}><Text style={s.pinText}>픽업</Text></View>
 
-        {/* [정직 배치 2.5 · 감사 #28] 이 판은 아무 위치도 모른다 — 실시간 지도 파이프라인이 아직 없다.
-            추상 도형(길·점·핀)은 지면으로 남기되, '지금 어디'를 말하는 척하지 않도록 겹쳐 적는다.
-            문법은 owner/request.tsx의 '코스 지도 준비 중' 슬롯과 동일 (같은 준비 중 어휘 한 벌). */}
-        <View pointerEvents="none" style={s.mapPendingWrap}>
-          <View style={s.mapPending}><Text style={s.mapPendingTxt}>실시간 지도 준비 중</Text></View>
-        </View>
+            {/* [정직 배치 2.5 · 감사 #28 → 0065 ES-4] the dark plate names its real cause:
+                loading = transient; err = section strip carries the retry; ok-without-
+                coords = the owner hasn't pinned — copy routes recovery through chat
+                instead of blaming the app (DF-3). */}
+            <View pointerEvents="none" style={s.mapPendingWrap}>
+              <View style={s.mapPending}><Text style={s.mapPendingTxt}>
+                {pickup.s === 'loading' ? '주소 확인 중...'
+                  : pickup.s === 'err' ? '지도를 불러오지 못했어요'
+                  : '픽업 위치가 아직 지정되지 않았어요\n보호자와 채팅으로 확인해주세요'}
+              </Text></View>
+            </View>
+          </>
+        )}
 
         <Row style={s.topBar}>
           <Pressable onPress={() => router.back()} style={s.circleBtn}><Text style={{ fontSize: 20.5, color: paper.ink }}>‹</Text></Pressable>
@@ -570,10 +610,17 @@ const s = StyleSheet.create({
   // 준비 중 오버레이 — request.tsx의 mapPending과 같은 문법(캔버스 면 + 1px 코랄 + dim 14/700)
   mapPendingWrap: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
   mapPending: {
-    backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line,
+    backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line, maxWidth: 300,
     paddingVertical: 10, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center',
   },
-  mapPendingTxt: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: paper.dim },
+  mapPendingTxt: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: paper.dim, textAlign: 'center' },
+  // 길찾기 overlay chip (DS-2) — circleBtn/chatChip chrome grammar, ≥44pt hit target,
+  // anchored inside the plate so it never enters the stage machine's CTA stack
+  naviChip: {
+    position: 'absolute', right: 12, bottom: 12, backgroundColor: paper.canvas,
+    borderWidth: 1, borderColor: paper.line, paddingVertical: 13, paddingHorizontal: 16,
+  },
+  naviChipTxt: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: paper.ink },
   pinText: { fontSize: 14, lineHeight: 18, fontWeight: '900', color: '#fff' },
   topBar: { position: 'absolute', top: 56, left: 10, right: 10, justifyContent: 'space-between' },
   circleBtn: {

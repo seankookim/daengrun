@@ -631,11 +631,16 @@ export async function fetchBookingSync(id: string): Promise<BookingSync> {
 // 없는 예약과 남의 예약은 구별되지 않는다(열거 오라클 차단). gate_code_enc는 구조적으로 선택하지 않는다.
 // 삼상태 법: 0행 = null(주소 미지정·창 밖 → 화면은 '미지정'을 그린다) / 에러 = throw(라우드 페일).
 // 둘을 섞으면 통신 실패가 '주소 없음'으로 위장하고 러너는 영영 재시도 버튼을 못 본다.
-// 좌표(lat/lng)는 계약에 없다 — 프로덕션 값이 전부 NULL이라 길찾기·지도는 죽은 버튼이 된다.
+// lat/lng joined the contract in 0065 (coordinates slice). They are NULL until the
+// owner pins the address — the screen must branch on `lat`, not on row presence:
+// row-with-NULL-coords is the honest dark state ("위치가 아직 지정되지 않았어요"),
+// distinct from row-absent (unassigned/outside window) and from throw (real failure).
 export interface PickupAddress {
   label: string;
   addr: string;
   detail: string | null;
+  lat: number | null;
+  lng: number | null;
 }
 
 export async function fetchBookingAddress(bookingId: string): Promise<PickupAddress | null> {
@@ -651,7 +656,11 @@ export async function fetchBookingAddress(bookingId: string): Promise<PickupAddr
   }
   const row = (data as any[] | null)?.[0];
   if (!row) return null;
-  return { label: row.label, addr: row.addr, detail: row.detail ?? null };
+  return {
+    label: row.label, addr: row.addr, detail: row.detail ?? null,
+    lat: row.lat != null ? Number(row.lat) : null,
+    lng: row.lng != null ? Number(row.lng) : null,
+  };
 }
 
 // 진행 중 예약 복원 — 인메모리 id가 리로드로 날아가도 화면이 서버에서 스스로 찾는다.
@@ -2191,24 +2200,70 @@ export async function fetchGearClaims(): Promise<GearClaim[]> {
 }
 
 // ---------- 주소 (픽업 장소) ----------
-export interface Addr { id: string; label: string; addr: string; detail: string | null; isDefault: boolean }
+// lat/lng joined in the 0065 coordinates slice. Written ONLY by the pin picker
+// (user-confirmed pin is the coordinate truth — never silently geocoded) via
+// setAddressPin; both NULL until then. Server CHECK addresses_latlng_shape
+// rejects half-pairs and out-of-Korea values — the client clamps first, but a
+// rejected write must still surface as a visible failure (honesty law).
+export interface Addr {
+  id: string; label: string; addr: string; detail: string | null; isDefault: boolean;
+  lat: number | null; lng: number | null;
+}
 
 export async function fetchAddresses(): Promise<Addr[]> {
   const { data, error } = await supabase.from('addresses')
-    .select('id, label, addr, detail, is_default').order('created_at');
+    .select('id, label, addr, detail, is_default, lat, lng').order('created_at');
   if (error) throw error;
-  return (data ?? []).map((a: any) => ({ id: a.id, label: a.label, addr: a.addr, detail: a.detail, isDefault: a.is_default }));
+  return (data ?? []).map((a: any) => ({
+    id: a.id, label: a.label, addr: a.addr, detail: a.detail, isDefault: a.is_default,
+    lat: a.lat != null ? Number(a.lat) : null,
+    lng: a.lng != null ? Number(a.lng) : null,
+  }));
 }
 
-export async function addAddress(p: { label: string; addr: string; detail?: string }): Promise<void> {
+// Returns the new row id so the add flow can route straight into the pin picker
+// (the picker is the second half of saving an address, not a separate errand).
+export async function addAddress(p: { label: string; addr: string; detail?: string }): Promise<string> {
   const { data: user } = await supabase.auth.getUser();
   if (!user.user) throw new Error('not signed in');
   const existing = await fetchAddresses();
-  const { error } = await supabase.from('addresses').insert({
+  const { data, error } = await supabase.from('addresses').insert({
     owner_id: user.user.id, label: p.label, addr: p.addr, detail: p.detail ?? null,
     is_default: existing.length === 0, // 첫 주소 자동 기본
-  });
+  }).select('id').single();
   if (error) throw error;
+  return (data as any).id as string;
+}
+
+// Pin write — direct table update under owner RLS (0002: "addresses owner all").
+// No RPC needed: the owner may only reach their own rows, and the CHECK carries
+// the shape law server-side.
+export async function setAddressPin(id: string, lat: number, lng: number): Promise<void> {
+  const { error } = await supabase.from('addresses')
+    .update({ lat, lng }).eq('id', id);
+  if (error) throw error;
+}
+
+// Owner-side pickup coords for the meetup plate — two owner-RLS selects
+// (own booking's address_id → own address row), no new server surface.
+// null = booking has no address assigned; row with NULL lat = address exists
+// but is unpinned (plate shows the "위치 지정하기" CTA with this addressId).
+export interface OwnerPickup { addressId: string; lat: number | null; lng: number | null }
+
+export async function fetchOwnerPickupCoords(bookingId: string): Promise<OwnerPickup | null> {
+  const { data: b, error: be } = await supabase.from('bookings')
+    .select('address_id').eq('id', bookingId).maybeSingle();
+  if (be) throw be;
+  if (!b?.address_id) return null;
+  const { data: a, error: ae } = await supabase.from('addresses')
+    .select('id, lat, lng').eq('id', b.address_id).maybeSingle();
+  if (ae) throw ae;
+  if (!a) return null;
+  return {
+    addressId: a.id,
+    lat: a.lat != null ? Number(a.lat) : null,
+    lng: a.lng != null ? Number(a.lng) : null,
+  };
 }
 
 export async function setDefaultAddress(id: string): Promise<void> {

@@ -1,153 +1,149 @@
-# SESSION HANDOFF — 2026-08-10 (both blockers closed · A-wave shipped · everything deployed)
+# SESSION HANDOFF — 2026-08-10 (coordinates/geocoding slice shipped end to end)
 
 English everywhere except in-app user-facing copy (CLAUDE.md §Language).
 **Opener for next session: "read docs/session-handoff.md fully, then continue."**
 CLAUDE.md is the permanent law book. Prior handoffs: `docs/session-handoff-archive-20260805.md`
-and this file's git history.
+and this file's git history (the previous version of this file covers the A-wave close).
 
 **Build in the MAIN checkout `/Users/sean/dev/daengrun` (branch redesign-v4).** Worktrees under
 `.claude/worktrees/` are stale snapshots — never build or gate there.
 
 ---
 
-## ⓪ STATUS — everything is deployed and pushed
+## ⓪ STATUS
 
 | | |
 |---|---|
-| git | **origin up to date** (through `3ec216c`) — nothing local, working tree clean |
-| database | **0064** applied on prod; 0060–0064 all live |
-| edge functions | current — `transition-booking` v30 verified at parity ("No change found") |
-| harness | **296 / 0** |
-| tsc · check-rpc · geo | 0 · 75 calls/108 sigs · 37/0 |
-| simulator | fresh build **Aug 10 14:28** installed and verified running |
+| git | this session's slice committed on redesign-v4 and pushed |
+| database | **0065** applied + verified on prod (`migration list` local=remote; anon-definer probe DENIED) |
+| edge functions | `geocode-address` deployed — honest no-op (`available:false`) until secret exists |
+| harness | **298 / 0** (was 296; +W12 constraint, +W13 NULL-coords) |
+| commit gates | tsc 0 · check-rpc 75/108 green · **geo runner 38/0 — NOW PART OF THE GATE** |
+| simulator | every changed screen visually verified this session (list below) |
 
-**Both critical-path blockers are closed.** A runner can become bookable (0062), and GPS survives
-the screen lock (background task + hard block). What remains between here and a paying customer is
-payments, legal, interviews, and device verification — not missing features.
+### What shipped — the coordinates slice (plan: `docs/plans/coordinates-geocoding-plan.md`)
 
-### 🔑 Authorization changed this session
-**Claude may now run `supabase db push`, `supabase functions deploy`, and `git push`** (CLAUDE.md
-§Operations). Conditions: gates green first, never push from a worktree holding an unfinished
-migration, verify after rather than assume, announce what ran. **Still Sean-only:** anything
-needing a credential's *value* (APNs `.p8`, App Store Connect, PG contracts), and product
-decisions with real-world consequences even when the command is one line.
+Ran through /autoplan (CEO → Design → Eng, all voices [subagent-only] on fable; premise +
+final gates answered by Sean). 44 review findings absorbed as binding specs DS-1..9 + ES-1..10.
 
----
+- **0065**: `addresses_latlng_shape` CHECK (NULL-proof pair form — the naive OR admits
+  half-pairs; mutation-verified 297/1) + `booking_pickup_address` widened to 5 fields
+  (drop + create-or-replace; grants/comment re-issued; W6 value pin kills constant-NULL
+  substitution, mutation-verified 297/1).
+- **Capture UX**: `owner/address-pin.tsx` picker (pin-is-truth; center chain existing-pin →
+  geocode → one-shot GPS → 반포 constant; 8 Banpo spot chips; AD-7 pan-wins; safe-area
+  confirm; haptic; addrFailStrip failure state). `addresses.tsx` repainted to paper (DS-1)
+  with 위치 지정됨/필요 row strips (edit path = same strip). `request.tsx` +14 lines:
+  coral "픽업 위치 지정 필요 ›" sub-line only when the default address lacks coords.
+- **Surfaces**: shared memoized `PickupMap` (ready-event crossfade + 1.5s force-reveal);
+  runner/meetup real map + captioned 픽업 marker + 길찾기 overlay chip (nmap:// scheme,
+  web fallback, Alert on failure) + ES-4 three-way dark state; owner/meetup map +
+  위치 지정하기 dark-state fix path + fetch-error retry. Course surfaces untouched (P3 —
+  routes.trace is still schematic {x,y}).
+- **§D enhancement**: `geocode-address` edge fn (NCP, auth + 100-char cap, any failure ⇒
+  available:false), `scripts/geocode-backfill.mjs` (dry-run default, single-match-only,
+  per-row CHECK catch, prints scoped undo), diag.mjs coordinate-coverage %, sean-commands
+  §9, privacy-policy coordinates rider (counsel-flagged).
+- api.ts: `Addr`/`PickupAddress` carry lat/lng; `addAddress` returns new id;
+  `setAddressPin`; `fetchOwnerPickupCoords`. geo.ts: `getOneShotPosition` (never prompts).
+- TODOS.md created (9 deferrals: distance-on-job-cards privacy call, course geo-traces,
+  club picker reuse, schedule-sheet map, reverse-geocode, Daum-postcode story, PostGIS
+  note, mid-booking staleness fix, geocode rate limit).
 
-## 🔴 WHAT ONLY SEAN CAN DO — full commands in `docs/sean-commands.md`
+### Simulator verification (all seen with my own eyes this session)
 
-1. **Decide the seed runners.** Production has **6 fabricated certified/veteran/master runners
-   with `identity_verified: true` and zero real runners**, while `safety.tsx` now tells owners an
-   operator personally verified each one on video. **That sentence is false until this is done.**
-   Recommended (reversible):
-   ```sql
-   update runners set tier = 'applicant', identity_verified = false, online = false
-   where profile_id in (select id from auth.users where email like '%@daengrun.seed');
-   ```
-2. **Owner Live Activity relay** — the only unfinished half of 0063. Write
-   `supabase/functions/live-activity-push` holding your APNs `.p8` (I can write the function; you
-   supply the key as a function secret), deploy it, then:
-   ```sql
-   insert into owner_la_push_config (id, relay_url, relay_secret)
-   values (true, '<function url>', '<long random string>');
-   ```
-   Until that row exists the push composer is a deliberate silent no-op — no phantom pipeline.
-   Also confirm `pg_cron` + `pg_net` are enabled (Database → Extensions).
-3. **Media backfill** — `node scripts/migrate-private-media.mjs` → `--yes` → verify in app →
-   `--yes --purge`. **New uploads are already private; existing dog/run/chat photos stay
-   world-readable until purge**, and the privacy policy cannot claim "private" before then.
-4. **Device smoke on real hardware** — the simulator covered UI; it cannot do real GPS movement,
-   real APNs delivery, or battery/thermal. The one that matters most: **lock the screen, pocket
-   the phone, walk 500 m, unlock — the distance must reflect all of it.**
-5. **Off-machine:** 변호사 review of `docs/legal/`, 위치기반서비스 신고, 사업자등록 ⟷
-   예비창업패키지 2027 fork then PG, 15-20 owner interviews, App Store privacy labels →
-   `eas build --profile testflight -p ios`.
+addresses empty/repaint/form · add→picker auto-route · picker resolving banner →
+GPS-centered AND 반포-fallback states · chip select + deselect-on-pan · pan → confirm →
+haptic → row flips 지정됨 · edit-mode reentry pre-centered on pin · request CTA present
+(no coords) / absent (coords) / routes to picker · runner meetup dark (honest copy) and
+LIT (map + 픽업 marker + 길찾기 → Safari web fallback) · owner meetup dark (위치 지정하기 →
+addresses) and LIT · course cards unchanged. Prod round trip confirmed: pin written under
+the CHECK, coords returned through the widened RPC.
 
 ---
 
-## What shipped today
+## 🔴 WHAT ONLY SEAN CAN DO (new items first; full commands in `docs/sean-commands.md` §9)
 
-`8151139` honesty wave 2.5 · `ac936f5` wave 3 · `2f113d8` **0061 P0 seal** · `cf6d93a` **0062
-runner funnel** · `9e2ec68` **background GPS** · `719edd3` **A-wave** (0063 owner LA, 0064 private
-media, LA reskin, 4 riders) · `3ec216c` grandfathered-runner fix · plus docs, legal drafts,
-privacy answers, the LA lab, and the geo-test-runner repair.
+1. **NCP console — TWO checkboxes** (blocks device maps + geocoding): Mobile Dynamic Map
+   AND Geocoding API enabled on the application registered for `com.seankookim.daengrun`
+   (launch-checklist §5 was still open; sim rendering ≠ device evidence).
+2. **`supabase secrets set NAVER_GEOCODE_SECRET=...`** — until then the picker works
+   pin-only (by design) and backfill refuses. Note: prod `addresses` had **0 rows** at
+   ship time, so backfill is moot until real users add addresses.
+3. **Counsel flag**: privacy-policy coordinates rider added (marked with HTML comment) —
+   AND the §D agent noticed the policy never listed the pickup **address itself** as
+   collected data. Flag both in the same review cycle.
+4. **Spot-chip review** (5 min): 세빛섬 앞 was calibrated on the real map this session
+   (37.5122, 126.9961 — measured by confirming a pin there and reading the row back).
+   The other 7 chips are my map-reading; swap any by name in `address-pin.tsx` CHIPS.
+5. **Device smoke** (additions to the standing list): tap 길찾기 with the Naver Map app
+   installed (nmap:// scheme path — sim only proved the web fallback); verify the
+   map.naver.com directions URL format renders on device Safari.
+6. Standing items from last session remain: seed-runner decision, owner LA relay +
+   `owner_la_push_config` row, media backfill/purge, background-GPS pocket walk,
+   변호사/신고/interviews/TestFlight.
 
-**Verified against production (2026-08-10): zero exploitation of the 0061 hole.** All 9 privileged
-`runners` rows are the 6 seeds + 2 e2e + `s4kim2025`; every `commission_rate` is 0.33.
+### Test-data note (deliberate, harmless, yours to keep or clean)
 
----
-
-## The lesson worth carrying: three times, the *test* was the thing that was wrong
-
-- My commission-rate drift pin compared a literal against the schema and **stayed green under the
-  exact bug it was written for.**
-- The relay-secret pin counted an **empty table** — it ran before the config row was inserted, so
-  it passed regardless of whether RLS worked.
-- A funnel pin probed a *live* foreign row where only a **terminal** one exposes the oracle.
-
-All three looked like coverage. **Mutation-proof every pin, and verify the revert actually
-applied** — a regex that matches nothing is a fake proof.
-
-**And the corollary, learned on the simulator:** every automated gate passed while the app showed
-certified runners a submit button that the server would reject. Gates test the contract; only
-looking at the screen finds a client offering an action the server refuses. **Run the app.**
-
----
-
-## Environment gotchas (both produce false success, not honest failure)
-
-- **CocoaPods needs a UTF-8 locale on this machine** — the same gap that breaks the SQL harness.
-  Without it `pod install` dies on a Unicode error and **Expo still exits 0**, leaving a stale
-  binary installed while reporting success. Always:
-  `export LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 && cd app && npx expo run:ios`.
-  Verify by the installed bundle's timestamp, never the exit code.
-- **Expo's auto-launch is blocked by macOS automation permission** (it AppleScripts System Events).
-  Build and install succeed; only the launch fails. Launch directly, or approve
-  Terminal → System Events in Privacy & Security → Automation.
-- Harness: `pkill -f "bin/postgres -D .pgtest/data"` before each run — repeated runs orphan
-  clusters and eventually fail with a misleading error.
+Your solo-test account s4kim2025 now has one address ("Home", garbled test addr text,
+pin at 세빛섬) attached to both 8/4 runner_enroute bookings — staged so the meetup
+surfaces could be verified live. Long-press deletes the address; the bookings' address_id
+survives it (RPC then returns 0 rows → honest dark state).
 
 ---
+
+## Lessons carried / resolved this session
+
+- **The dev-warnings toast mystery from last session is SOLVED**: it's the RN dev-client
+  "Open debugger to view warnings." LogBox banner — dev builds only, not a product bug.
+- **The geo test runner is now a commit gate** (`bash app/test/run-geo-tests.sh` alongside
+  tsc + check-rpc). It existed since 12027d1 but was wired into NO gate — the exact
+  silent-not-running failure shape that commit fixed once already. 38/0.
+- Mutation-proofing paid for itself again: the naive CHECK formulation really does accept
+  half-pairs (W12 red showed `lat-only:accepted lng-only:accepted` verbatim), and a
+  key-only contract pin really does stay green under constant-NULL substitution (W6).
+- CHECK constraints bind service-role writes — treat that as a feature (backfill catches
+  per-row violations instead of trusting NCP output).
 
 ## Standing laws (CLAUDE.md is authoritative)
 
-- **Never `git add -A`** — untracked investor decks, agent tooling, and Supabase container secrets
-  live in this tree. Stage explicitly.
-- Honesty: no mock data, failures shown as failures, loading ≠ empty, no dead buttons, gate on
-  `rawStatus` not display vocabulary.
-- Commit gate: tsc + check-rpc. Migrations also: PG16 harness with mutation proofs. Money changes
-  get their own migration and their own adversarial cycle (0059 doctrine).
-- New definer functions: `set search_path = public, pg_temp` **in the body**; revoke from
-  public/anon; party gate before state gate; errors identical for absent vs not-yours.
-- DO-NOT-REFACTOR: owner-home collapsing hero · meetup stage machines and once-law hydration
-  ordering · the 2-layer matching compositor.
+- **Never `git add -A`** — stage explicitly.
+- Honesty: no mock data, failures shown as failures, loading ≠ empty, no dead buttons,
+  gate on `rawStatus` not display vocabulary.
+- Commit gate: tsc + check-rpc + **geo runner**. Migrations: PG16 harness with
+  mutation-proof pins; money changes get their own adversarial cycle (0059).
+- New definer functions: `set search_path = public, pg_temp` in the body; revoke
+  public/anon; party gate before state gate; identical errors absent vs not-yours.
+  Return-type changes need drop + **create-or-replace** (check-rpc parses only the
+  latter) + re-issued grants/comment.
+- DO-NOT-REFACTOR: owner-home collapsing hero · meetup stage machines + once-law
+  hydration ordering (0065 additions used pure-JSX plate swaps + end-of-bundle state,
+  per the freeze) · 2-layer matching compositor.
+- CocoaPods/harness need UTF-8 locale; verify installs by bundle container path, never
+  exit code; `pkill -f "bin/postgres -D .pgtest/data"` before harness runs.
 
 ## Key artifacts
 
-`docs/sean-commands.md` (every command + undo) · `docs/launch-checklist.md` ·
-`docs/plans/finish-the-app-plan.md` · `docs/labs/live-activity-lab.html` (**option ② picked,
-awaiting your confirmation**) · `docs/legal/` · `docs/appstore-privacy-answers.md` ·
-plans for the funnel, background GPS, and wave 3.
+`docs/plans/coordinates-geocoding-plan.md` (plan + full 3-phase review + audit trail +
+GSTACK REVIEW REPORT) · `docs/sean-commands.md` §9 · TODOS.md ·
+`~/.gstack/projects/seankookim-daengrun/sean-redesign-v4-eng-review-test-plan-20260810.md`
 
 ## Open / unresolved
 
-- **A dev warnings toast appears in the app and I could not identify its source** — log queries
-  came back empty. Could be a benign RN deprecation or something from today. Check via the in-app
-  debugger or `npx expo start` console. Flagged rather than assumed harmless.
-- Riders: `GEAR_META.bodycam.hint` still promises video on the runner profile · 3 surviving
-  opacity-disabled tricks · `store.runners` dead mock with 신원인증/펫보험 badges · signed-URL TTL
-  is a real 1h window outliving permission revocation (documented in `media.tsx`) · owner/live
-  local `done` km can differ from settled km by metres · harness.sh never stops its cluster.
-- **Product gaps behind honest "준비 중" labels:** payments (the biggest — `payment_ok` is a mock
-  and pay.tsx says so), shop (gated on your first affiliate link), incident reporting on the
-  safety screen, and map coordinates (nothing ever writes `addresses.lat/lng`; there is no
-  geocoding path, which is why every map surface says 준비 중).
+- 7 of 8 spot-chip coordinates unverified against the map (item 4 above).
+- Owner-meetup fetch-error retry state implemented but not fault-injected in the sim.
+- Naver web directions URL format assumed from the v5 URL scheme — device check pending.
+- Riders carried from last session: GEAR_META.bodycam hint · 3 opacity-disabled tricks ·
+  store.runners dead mock · signed-URL 1h TTL · owner/live done-km drift · harness.sh
+  never stops its cluster.
+- Product gaps behind honest labels: payments (the big one), shop, incident reporting,
+  course geo-traces (now a TODOS item with a shape: promote runs.trace).
 
 ## Next 1-3
 
-1. **[Sean]** Seed-runner decision, then the relay function and the media purge.
-2. **[me]** Whichever product gap you pick — my read is **coordinates/geocoding** unlocks the most
-   (real maps on meetup, request, and course all at once, plus 길찾기), and **incident reporting**
-   is the one whose absence is least defensible on a safety screen.
-3. **[Sean]** Interviews and the 사업자등록 fork — those set the payment timeline, which sets
-   everything else.
+1. **[Sean]** NCP checkboxes + secret (unblocks device maps + geocode pre-centering),
+   counsel flag, chip review.
+2. **[me]** Next product gap: the CEO voice made a strong case this session that the
+   **manual payment bridge** (payments.md §파일럿 브리지 — buildable, not Sean-gated)
+   and **incident reporting** outrank everything else left. Pick one.
+3. **[Sean]** Interviews + 사업자등록 fork — still the timeline-setters.

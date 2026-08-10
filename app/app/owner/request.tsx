@@ -349,6 +349,20 @@ export default function Request() {
               <Text style={{ fontSize: 14.5, color: colors.dim, marginTop: 2 }} numberOfLines={1}>
                 {pickupAddr ? pickupAddr.addr : '첫 주소가 기본 픽업이 돼요'}
               </Text>
+              {/* [0065 · DS-6] default address without coords = one coral invitation line (not an
+                  error) — its own Pressable, separate from the outer row tap (address list), routes
+                  straight into the pin picker for this address. With coords: nothing renders. */}
+              {pickupAddr && pickupAddr.lat == null && (
+                <Pressable
+                  onPress={() => router.push({ pathname: '/owner/address-pin', params: { id: pickupAddr.id } })}
+                  hitSlop={10}
+                  style={{ marginTop: 4, alignSelf: 'flex-start' }}
+                  accessibilityRole="button"
+                  accessibilityLabel="픽업 위치 지정"
+                >
+                  <Text style={{ fontSize: 14, fontWeight: '800', color: paper.line }}>픽업 위치 지정 필요 ›</Text>
+                </Pressable>
+              )}
             </View>
             <Text style={{ fontSize: 15, fontWeight: '800', color: colors.dim }}>변경 ›</Text>
           </Pressable>

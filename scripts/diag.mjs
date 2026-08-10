@@ -42,5 +42,11 @@ const bks = await q('/rest/v1/bookings?select=id,status,scheduled_at,runner_id,d
 if (!Array.isArray(bks) || bks.length === 0) console.log('  (없음)');
 else bks.forEach((b) => console.log(`  ${b.status.padEnd(15)} ${b.dogs?.name ?? '?'}  ${b.scheduled_at?.slice(0, 16)}  runner=${b.runner_id ? b.runner_id.slice(0, 8) + '…' : '미배정'}  (${b.id.slice(0, 8)}…)`));
 
+console.log('\n===== 주소 좌표 커버리지 (E2 pin-adoption metric) =====');
+const addrs = await q('/rest/v1/addresses?select=id,lat');
+const withPin = (Array.isArray(addrs) ? addrs : []).filter((a) => a.lat !== null).length;
+const addrTotal = Array.isArray(addrs) ? addrs.length : 0;
+console.log(`  핀 지정 ${withPin}/${addrTotal} (${addrTotal ? Math.round((withPin / addrTotal) * 100) : 0}%)`);
+
 console.log('\n힌트: 내 러너 카드가 안 보이면 위에서 내 계정 id의 online/tier를 확인하세요.');
 console.log('      계정이 2개면(OTP·카카오 각각) 러너 행이 다른 계정에 있을 수 있어요.\n');

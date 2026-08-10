@@ -164,6 +164,23 @@ export async function getTrackPermission(): Promise<'undetermined' | 'granted' |
   } catch { return 'unavailable'; }
 }
 
+// One-shot current position for the address-pin picker's default center (0065 slice).
+// Deliberately NEVER prompts: it checks the existing grant via getTrackPermission and
+// returns null on anything but 'granted' — the picker must not escalate a permission
+// sheet for a map that has a perfectly good 반포 fallback. null means "use the next
+// center in the chain", never an error state.
+export async function getOneShotPosition(): Promise<{ lat: number; lng: number } | null> {
+  const perm = await getTrackPermission();
+  if (perm !== 'granted') return null;
+  let Location: any;
+  try { Location = require('expo-location'); } catch { return null; }
+  try {
+    const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy?.Balanced ?? 3 });
+    if (typeof loc?.coords?.latitude !== 'number' || typeof loc?.coords?.longitude !== 'number') return null;
+    return { lat: loc.coords.latitude, lng: loc.coords.longitude };
+  } catch { return null; }
+}
+
 // Start tracking. Never returns null again — the caller is told which mode it got so it can
 // be honest about *why* tracking is degraded (module missing ≠ permission denied).
 // Resolution order: expo-location missing → unavailable · permission refused → denied ·

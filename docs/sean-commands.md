@@ -138,7 +138,62 @@ Full lists live in the handoff. The five that would each be a bug you ship if sk
 5. Owner Live Activity appears at handoff and **goes grey with "위치가 갱신되지 않았어요"** when
    updates stop — that state is the honesty contract, not a nicety.
 
-## 9. Off the machine entirely
+## 9. NCP geocoding — console check, secret, backfill (coordinates slice)
+
+Optional enhancement (plan §D, P2): the pin picker and meetup maps work fully without any of
+this. What it adds: the picker pre-centers from the typed address, and the backfill fills
+coordinates for pre-existing address rows.
+
+**Step 0 — NCP console (ES-8: one visit, two checkboxes).** On the NCP application registered
+for bundle id `com.seankookim.daengrun`, confirm BOTH products are enabled:
+1. **Mobile Dynamic Map** — the still-open launch-checklist §5 item (AD-11). Simulator
+   rendering is not device evidence; verify on the console.
+2. **Geocoding API** on the *same* application — the edge function sends the map client id as
+   its API key id, so both products must live on one application.
+
+**Step 1 — provision the secret.** Paste the value yourself; I never handle it:
+```bash
+supabase secrets set NAVER_GEOCODE_SECRET=<paste from NCP console>
+```
+For the backfill script, also add `NAVER_GEOCODE_SECRET=...` to the root `.env`.
+Until the secret exists, `geocode-address` answers `{available:false}` on purpose (0063
+no-phantom-pipeline doctrine) — nothing breaks, nothing pretends.
+
+```bash
+supabase functions deploy geocode-address
+```
+**Undo:** `supabase functions delete geocode-address` — the client treats any invoke error as
+`available:false`, so removal degrades silently.
+
+**Step 2 — pre-push prod probe (ES-7).** Dashboard SQL editor, BEFORE `supabase db push`
+carries 0065:
+```sql
+select count(*) filter (where lat is not null) as with_coords,
+       count(*) filter (where lat is not null and
+                        (lat not between 33 and 39 or lng not between 124 and 132)) as out_of_bounds
+from addresses;
+```
+Expect `out_of_bounds = 0`. The 0065 CHECK is added without NOT VALID, so a single
+out-of-bounds row aborts the migration mid-push — fix those rows first.
+
+**Step 3 — backfill existing rows.**
+```bash
+node scripts/geocode-backfill.mjs          # dry run — shows what would be written
+node scripts/geocode-backfill.mjs --yes    # write unambiguous single-match results only
+```
+Rows with 0 or 2+ matches are skipped and listed for manual pinning in the app (pin is
+truth). The script refuses to run without `NAVER_GEOCODE_SECRET` and sleeps ~200ms between
+NCP calls.
+**Undo:** the `--yes` run ends by printing a ready-made `update ... where id in (...)`
+statement covering exactly the rows it wrote — run that. Do **not** blanket-null with
+`where lat is not null` once real users exist: that would also erase pins owners set by hand
+in the picker.
+
+**Legal:** `docs/legal/privacy-policy.md` §1 gained a marked coordinates rider
+(`<!-- 2026-08-10 coordinates rider -->`) — flag it to 변호사 together with the rest of the
+policy review.
+
+## 10. Off the machine entirely
 
 - 변호사: `docs/legal/privacy-policy.md` + `terms-of-service.md` (open questions marked inline)
 - 위치기반서비스사업 신고 (방통위)

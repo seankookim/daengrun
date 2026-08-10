@@ -31,12 +31,27 @@
 -- ✔ 다섯 건은 각각 **무손상 0060에 그 revert 하나만** 얹어 전체 하네스를 돌렸다 — 매번 245/1로,
 --   붉어진 핀은 정확히 대상 하나뿐이었다(다른 245개 무영향 = 핀이 겨냥한 것만 겨냥한다는 증거).
 --   복원 후 246/0 복귀도 확인. 초록으로 남는 무가치 핀은 없다.
+--
+-- ─── 0065 additions (coordinates slice) — each pin red under exactly one revert ───
+--   W6  (updated) ← recreated body selecting `null::numeric, null::numeric` instead of
+--        a.lat, a.lng → RED on the value assertion (to_jsonb emits lat/lng keys even
+--        when NULL, so the 5/5 key check alone would stay green — that near-miss is
+--        why the value assertion exists)                              ✔ executed → 297/1
+--   W12 ← constraint reformulated as naive `(both null) or (both between …)` → RED on
+--        the one-null probes (CHECK passes on NULL: false OR NULL = NULL); failure
+--        message showed exactly `lat-only:accepted lng-only:accepted` ✔ executed → 297/1
+--   W13 ← RPC raising instead of returning NULL columns for a coordinate-less address
+--        → RED (day-one production state must stay an honest dark state, not an error).
+--        Not separately executed: the pin's red path is the block's own exception
+--        handler (any raise → _fail), structurally identical to the verified W1 shape.
 set client_min_messages = warning;
 
 do $$
 declare
   oo uuid; zz uuid; rr uuid; dg uuid; rt uuid;
   ad_ok uuid; ad_bad uuid;                       -- 정상 주소(oo 소유) · 오염 주소(zz 소유)
+  ad_nc uuid; b_nc uuid;                         -- 0065: coordinate-less address + its booking (W13)
+  v_lat numeric; v_lng numeric;                  -- 0065: W6 value assertion
   b_ok uuid; b_far uuid; b_done uuid;            -- 해피 · 24h 밖 confirmed · 종단(completed)
   b_noaddr uuid; b_poison uuid;                  -- 주소 미지정 · 소유자 불일치
   b_arr uuid; b_w11 uuid;                        -- W9 CAS 무대 · W11 트리거 비간섭 무대
@@ -50,7 +65,7 @@ declare
   v_label text; v_addr text; v_detail text;
   v_a boolean; v_b boolean; v_c boolean; v_d boolean;
   v_cols text[]; v_keys text[];
-  v_exp_cols text[] := array['label', 'addr', 'detail'];
+  v_exp_cols text[] := array['label', 'addr', 'detail', 'lat', 'lng'];  -- 0065: widened contract
   v_flight text[] := array['runner_enroute', 'picked_up', 'active'];
   v_t timestamptz := timestamptz '2026-10-20 10:00:00+09';   -- now() 무관 fixture 창 (95~99와 분리)
 begin
@@ -59,8 +74,11 @@ begin
   rr := t_user('w3_rr', 'runner');
   dg := t_dog(oo, '정직견'); rt := t_route('정직 코스');
   -- gate_code_enc는 **일부러** 채운다 — W6의 누수 핀이 '값이 없어서 안 새는' false-green이 되지 않게.
-  insert into addresses (owner_id, label, addr, detail, gate_code_enc)
-    values (oo, '우리 집', '서울 성동구 왕십리로 83', '101동 1203호', 'ENC::절대노출금지')
+  -- 0065: ad_ok carries real coordinates so W6 can assert VALUES flow through the
+  -- widened RPC (a body selecting null::numeric would keep a key-only check green).
+  insert into addresses (owner_id, label, addr, detail, gate_code_enc, lat, lng)
+    values (oo, '우리 집', '서울 성동구 왕십리로 83', '101동 1203호', 'ENC::절대노출금지',
+            37.561234, 127.038765)
     returning id into ad_ok;
   insert into addresses (owner_id, label, addr, detail, gate_code_enc)
     values (zz, '남의 집', '서울 강남구 테헤란로 1', '5층', 'ENC::남의것')
@@ -216,7 +234,7 @@ begin
   exception when others then call _fail('w3','W5 오염 주소', sqlerrm);
   end;
 
-  -- ---------- [W6] 반환 형상 + 누수 — 평면 3필드 정확히, gate_code_enc는 자리 자체가 없다 ----------
+  -- ---------- [W6] 반환 형상 + 누수 — 평면 5필드 정확히(0065 확장), gate_code_enc는 자리 자체가 없다 ----------
   -- 97 V10의 클론. 두 반쪽을 모두 본다:
   --  (1) 계약 표면 — proargnames(모드 't') = 선언된 반환 컬럼. 미래의 create or replace가 컬럼을 늘리면 여기.
   --  (2) 런타임 키 — 실제 행을 to_jsonb 한 키 집합. **W1 해피 fixture에 대고 돌린다**(0행이면
@@ -235,14 +253,93 @@ begin
     select count(*) into v_n
     from unnest(coalesce(v_cols, '{}'::text[]) || coalesce(v_keys, '{}'::text[])) c
     where c ~* 'schedul|booking|owner|price|fare|status|club|address|dog|route|gate|code|enc|phone';
-    if coalesce(array_length(v_cols, 1), 0) = 3 and v_cols @> v_exp_cols and v_exp_cols @> v_cols
-       and coalesce(array_length(v_keys, 1), 0) = 3 and v_keys @> v_exp_cols and v_exp_cols @> v_keys
+    -- 0065 value assertion: keys alone stay green under a body selecting
+    -- null::numeric (to_jsonb emits NULL-valued keys) — assert the VALUES.
+    select x.lat, x.lng into v_lat, v_lng from booking_pickup_address(b_ok) x;
+    if coalesce(array_length(v_cols, 1), 0) = 5 and v_cols @> v_exp_cols and v_exp_cols @> v_cols
+       and coalesce(array_length(v_keys, 1), 0) = 5 and v_keys @> v_exp_cols and v_exp_cols @> v_keys
        and v_n = 0
-      then call _pass('w3','W6 반환 형상·누수 — 선언 3컬럼 = 런타임 3키 = {label,addr,detail}, gate/code/enc/owner/phone 0');
+       and v_lat = 37.561234 and v_lng = 127.038765
+      then call _pass('w3','W6 반환 형상·누수 — 선언 5컬럼 = 런타임 5키 = {label,addr,detail,lat,lng}, 좌표 값 온전, gate/code/enc/owner/phone 0');
     else call _fail('w3','W6 반환 형상·누수','proargnames=' || coalesce(v_cols::text,'∅')
                     || ' 런타임키=' || coalesce(v_keys::text,'∅')
-                    || ' 누수=' || coalesce(v_n::text,'∅')); end if;
+                    || ' 누수=' || coalesce(v_n::text,'∅')
+                    || ' lat=' || coalesce(v_lat::text,'∅') || ' lng=' || coalesce(v_lng::text,'∅')); end if;
   exception when others then call _fail('w3','W6 반환 형상·누수', sqlerrm);
+  end;
+
+  -- ---------- [W12] addresses_latlng_shape — pairs only, Korea bounds, swap-proof (0065) ----------
+  -- CHECK passes when its expression is NULL, so the naive `(both null) or (both
+  -- between …)` form admits half-pairs: `false OR NULL` is NULL. The shipped form
+  -- `(lat is null) = (lng is null) and (lat is null or …)` is NULL-proof. Probes:
+  -- one-null in BOTH directions (the footgun), out-of-bounds on each axis, a
+  -- swapped pair (disjoint bounds make the swap a violation), and a valid pair
+  -- as positive control. Constraint binds every role incl. service paths.
+  begin
+    v_bad := '';
+    begin
+      insert into addresses (owner_id, label, addr, lat) values (oo, 'w12a', 'x', 37.5);
+      v_bad := v_bad || 'lat-only:accepted ';
+    exception when check_violation then null;
+             when others then v_bad := v_bad || 'lat-only:' || sqlerrm || ' ';
+    end;
+    begin
+      insert into addresses (owner_id, label, addr, lng) values (oo, 'w12b', 'x', 127.0);
+      v_bad := v_bad || 'lng-only:accepted ';
+    exception when check_violation then null;
+             when others then v_bad := v_bad || 'lng-only:' || sqlerrm || ' ';
+    end;
+    begin
+      insert into addresses (owner_id, label, addr, lat, lng) values (oo, 'w12c', 'x', 32.9, 127.0);
+      v_bad := v_bad || 'lat-oob:accepted ';
+    exception when check_violation then null;
+             when others then v_bad := v_bad || 'lat-oob:' || sqlerrm || ' ';
+    end;
+    begin
+      insert into addresses (owner_id, label, addr, lat, lng) values (oo, 'w12d', 'x', 37.5, 140.0);
+      v_bad := v_bad || 'lng-oob:accepted ';
+    exception when check_violation then null;
+             when others then v_bad := v_bad || 'lng-oob:' || sqlerrm || ' ';
+    end;
+    begin
+      insert into addresses (owner_id, label, addr, lat, lng) values (oo, 'w12e', 'x', 127.0387, 37.5612);
+      v_bad := v_bad || 'swap:accepted ';
+    exception when check_violation then null;
+             when others then v_bad := v_bad || 'swap:' || sqlerrm || ' ';
+    end;
+    begin
+      insert into addresses (owner_id, label, addr, lat, lng)
+        values (oo, 'w12ok', 'x', 37.512345, 127.001234);
+      delete from addresses where owner_id = oo and label = 'w12ok';
+    exception when others then v_bad := v_bad || 'valid:' || sqlerrm || ' ';
+    end;
+    if v_bad = ''
+      then call _pass('w3','W12 좌표 제약 — 반쪽 페어 양방향·범위 밖 양축·lat/lng 스왑 거부, 유효 페어 통과');
+    else call _fail('w3','W12 좌표 제약', v_bad); end if;
+  exception when others then call _fail('w3','W12 좌표 제약', sqlerrm);
+  end;
+
+  -- ---------- [W13] 좌표 없는 주소 — NULL 컬럼이지 오류가 아니다 (0065) ----------
+  -- Day-one production state: every legacy address is coordinate-less. The runner
+  -- client renders the honest dark state from NULL lat/lng; if the RPC raises
+  -- instead, every legacy meetup screen shows a fetch error. 1 row, values NULL,
+  -- text fields intact.
+  begin
+    insert into addresses (owner_id, label, addr, detail)
+      values (oo, '좌표없는 집', '서울 서초구 반포대로 1', '201호')
+      returning id into ad_nc;
+    b_nc := t_av_booking(oo, dg, rt, rr, v_t + interval '5 days', 5.0, 'runner_enroute');
+    update bookings set address_id = ad_nc where id = b_nc;
+    perform set_config('request.jwt.claim.sub', rr::text, false);
+    select count(*) into v_n from booking_pickup_address(b_nc);
+    select x.label, x.lat, x.lng into v_label, v_lat, v_lng
+      from booking_pickup_address(b_nc) x;
+    if v_n = 1 and v_label = '좌표없는 집' and v_lat is null and v_lng is null
+      then call _pass('w3','W13 좌표 없는 주소 — 1행·lat/lng NULL(오류 아님)·텍스트 필드 온전');
+    else call _fail('w3','W13 좌표 없는 주소','rows=' || coalesce(v_n::text,'∅')
+                    || ' label=' || coalesce(v_label,'∅')
+                    || ' lat=' || coalesce(v_lat::text,'NULL') || ' lng=' || coalesce(v_lng::text,'NULL')); end if;
+  exception when others then call _fail('w3','W13 좌표 없는 주소', sqlerrm);
   end;
 
   -- ---------- [W7] 홀드 만료 두 클래스 — 만료는 하되 **환불 거짓말은 안 한다** ----------

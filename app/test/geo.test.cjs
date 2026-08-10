@@ -1,5 +1,5 @@
 // geo.ts 실컴파일 산출물 직접 테스트 (재타이핑 사본 아님)
-const { distM, acceptFix, smoothTrace, mergeFixes } = require('./geo.build.cjs');
+const { distM, acceptFix, smoothTrace, mergeFixes, getOneShotPosition } = require('./geo.build.cjs');
 let pass = 0, fail = 0;
 const t = (name, cond, detail = '') => {
   if (cond) { pass++; console.log('✅ ' + name); }
@@ -175,5 +175,15 @@ const walkPts = (n, { start = T0, stepMs = 1000, mps = 2.5, acc = 5, lat0 = 37.5
     existing.length === before.length && existing.every((p, i) => p.t === before[i].t));
 }
 
-console.log(`\n${pass} pass / ${fail} fail`);
-process.exit(fail > 0 ? 1 : 0);
+// ── getOneShotPosition (0065 picker center chain) ──
+// In this node environment expo-location is external/absent, so the helper must
+// resolve null — never throw, never hang. null = "try the next center", the
+// contract the picker's fallback chain depends on.
+(async () => {
+  let oneShot;
+  try { oneShot = await getOneShotPosition(); } catch (e) { oneShot = 'threw:' + e; }
+  t('getOneShotPosition: 네이티브 모듈 없는 환경 → null (throw 금지)', oneShot === null,
+    String(oneShot));
+  console.log(`\n${pass} pass / ${fail} fail`);
+  process.exit(fail > 0 ? 1 : 0);
+})();

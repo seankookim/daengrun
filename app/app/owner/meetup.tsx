@@ -2,8 +2,9 @@ import { router } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Animated, Easing, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { PaperBtn } from '../../src/components/paper-btn';
+import { PickupMap } from '../../src/components/PickupMap';
 import { Monogram, Row } from '../../src/components/ui';
-import { confirmHandoff, fetchBookingSync, fetchCurrentOwnerBookingId, fetchMeetupInfo, MeetupInfo, subscribeBooking } from '../../src/lib/api';
+import { confirmHandoff, fetchBookingSync, fetchCurrentOwnerBookingId, fetchMeetupInfo, fetchOwnerPickupCoords, MeetupInfo, OwnerPickup, subscribeBooking } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { startOwnerActivity } from '../../src/lib/ownerActivity';
 import { haptic } from '../../src/lib/haptics';
@@ -69,6 +70,10 @@ export default function OwnerMeetup() {
   // [훅 배치 동결법] 새 useState는 이 뭉치의 끝에만 — 아래 effect 순서는 고정이고 하이드레이션
   // 게이트 effect가 항상 마지막이어야 한다. 러너 도착 = 서버 진실(bookings.arrived_at, 0060).
   const [arrivedAt, setArrivedAt] = useState<string | null>(null);
+  // 0065: pickup coords for the map plate (owner-RLS read, no new server surface).
+  // Appended at the end of the bundle per the freeze law above.
+  const [pin, setPin] = useState<{ s: 'loading' | 'ok' | 'err'; c: OwnerPickup | null }>({ s: 'loading', c: null });
+  const [pinTry, setPinTry] = useState(0);
 
   // id 복원 — 리로드로 draft가 비어도 서버가 진실을 안다 (데모 전락 사고 방지, 2026-07-23)
   useEffect(() => {
@@ -97,6 +102,22 @@ export default function OwnerMeetup() {
     if (!bookingId) return;
     fetchMeetupInfo(bookingId).then(setInfo).catch((e) => console.warn('[o-meetup] info:', e?.message ?? e));
   }, [bookingId]);
+
+  // 0065: pickup coords for the plate. New effect sits HERE (after fetchMeetupInfo,
+  // before the frozen sync machinery) per the hook-placement freeze. Error is its own
+  // state — the plate shows an inline retry, never a silent placeholder (DS-3).
+  useEffect(() => {
+    if (!bookingId) return;
+    let alive = true;
+    setPin({ s: 'loading', c: null });
+    fetchOwnerPickupCoords(bookingId)
+      .then((c) => { if (alive) setPin({ s: 'ok', c }); })
+      .catch((e) => {
+        console.warn('[o-meetup] pin:', e?.message ?? e);
+        if (alive) setPin({ s: 'err', c: null });
+      });
+    return () => { alive = false; };
+  }, [bookingId, pinTry]);
 
   // 모든 단계가 서버 진실을 따른다 — 가짜 도착 없음
   const refresh = useCallback(async () => {
@@ -207,25 +228,53 @@ export default function OwnerMeetup() {
 
   return (
     <View style={{ flex: 1, backgroundColor: paper.canvas }}>
-      {/* map: runner approaching pickup */}
+      {/* map plate — real pickup map when the address has a pin (0065); otherwise the
+          honest dark state now carries its own fix path (P4: the owner CAN fix it).
+          Pure JSX swap in the frozen slot; PickupMap memoized (ES-3), height unchanged. */}
       <View style={s.mapPlate}>
-        <View style={s.roadA} />
-        <View style={s.roadB} />
-        {[0, 1, 2, 3, 4].map((i) => (
-          // [정직 배치 2.5] 경로 점은 '아는 경로'가 아니라 지면 무늬 — 주장 강도를 낮춘다
-          <View key={i} style={[s.pathDot, { right: 60 + i * 42, top: 80 + i * 26, opacity: stage === 'enroute' ? 0.35 : 0.2 }]} />
-        ))}
-        <View style={[s.runnerPin, stage !== 'enroute' && { right: 260, top: 196 }]}>
-          <Text style={s.pinText}>{runnerName[0]}</Text>
-        </View>
-        <View style={s.pickupPin}><Text style={s.pinText}>픽업</Text></View>
+        {pin.s === 'ok' && pin.c?.lat != null && pin.c.lng != null ? (
+          <PickupMap lat={pin.c.lat} lng={pin.c.lng} />
+        ) : (
+          <>
+            <View style={s.roadA} />
+            <View style={s.roadB} />
+            {[0, 1, 2, 3, 4].map((i) => (
+              // [정직 배치 2.5] 경로 점은 '아는 경로'가 아니라 지면 무늬 — 주장 강도를 낮춘다
+              <View key={i} style={[s.pathDot, { right: 60 + i * 42, top: 80 + i * 26, opacity: stage === 'enroute' ? 0.35 : 0.2 }]} />
+            ))}
+            <View style={[s.runnerPin, stage !== 'enroute' && { right: 260, top: 196 }]}>
+              <Text style={s.pinText}>{runnerName[0]}</Text>
+            </View>
+            <View style={s.pickupPin}><Text style={s.pinText}>픽업</Text></View>
 
-        {/* [정직 배치 2.5 · 감사 #28] 러너 핀은 스테이지가 바뀔 때 순간이동하는 장식이고, 이 판은
-            실제 위치를 하나도 모른다. 도형은 지면으로 남기되 '실시간'을 참칭하지 않도록 겹쳐 적는다.
-            문법은 owner/request.tsx의 '코스 지도 준비 중' 슬롯과 동일 (훅·상태 추가 없는 순수 JSX). */}
-        <View pointerEvents="none" style={s.mapPendingWrap}>
-          <View style={s.mapPending}><Text style={s.mapPendingTxt}>실시간 지도 준비 중</Text></View>
-        </View>
+            {/* [정직 배치 2.5 · 감사 #28 → 0065 DS-3/DF-8] box-none so the plate stays
+                inert except the pending box itself, which now holds the fix path:
+                no-pin → 위치 지정하기 link (picker for the assigned address, or the
+                address list when the booking has none); fetch error → inline retry. */}
+            <View pointerEvents="box-none" style={s.mapPendingWrap}>
+              <View style={s.mapPending}>
+                {pin.s === 'err' ? (
+                  <Pressable onPress={() => setPinTry((n) => n + 1)} hitSlop={8} accessibilityRole="button" accessibilityLabel="다시 시도">
+                    <Text style={s.mapPendingTxt}>정보를 불러오지 못했어요</Text>
+                    <Text style={s.mapPendingLink}>다시 시도</Text>
+                  </Pressable>
+                ) : pin.s === 'ok' ? (
+                  <Pressable
+                    onPress={() => pin.c
+                      ? router.push({ pathname: '/owner/address-pin', params: { id: pin.c.addressId } })
+                      : router.push('/owner/addresses')}
+                    hitSlop={8} accessibilityRole="button" accessibilityLabel="위치 지정하기"
+                  >
+                    <Text style={s.mapPendingTxt}>픽업 위치가 아직 지정되지 않았어요</Text>
+                    <Text style={s.mapPendingLink}>위치 지정하기 ›</Text>
+                  </Pressable>
+                ) : (
+                  <Text style={s.mapPendingTxt}>주소 확인 중...</Text>
+                )}
+              </View>
+            </View>
+          </>
+        )}
 
         <Row style={s.topBar}>
           <Pressable onPress={() => router.back()} style={s.circleBtn}><Text style={{ fontSize: 20.5, color: paper.ink }}>‹</Text></Pressable>
@@ -476,7 +525,9 @@ const s = StyleSheet.create({
     backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line,
     paddingVertical: 10, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center',
   },
-  mapPendingTxt: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: paper.dim },
+  mapPendingTxt: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: paper.dim, textAlign: 'center' },
+  // fix-path line inside the pending box (DS-3) — coral, invitation not error
+  mapPendingLink: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: paper.line, textAlign: 'center', marginTop: 5 },
   // 핀은 지리 마커라 원형 예외 — 상태색은 남고(위탁 표면 법) 글로우만 떠난다
   runnerPin: {
     position: 'absolute', right: 34, top: 56, width: 26, height: 26, borderRadius: 13,
