@@ -62,13 +62,16 @@ const GO_BLUE_WAIT_DEEP = '#3A5BB4'; // 지명 대기 press — 같은 계열 �
 const GO_SAGE = '#3F9A75'; // 확정 · 시작 대기 — 소프트 세이지
 const GO_SAGE_DEEP = '#358363'; // 세이지 press (4.6:1)
 type GoState = 'none' | 'searching' | 'directed' | 'confirmed' | 'handoff' | 'active';
+// [Sean 2026-08-10 · go-premium-lab Ⓐ④] coral pushed redder — values already in-system
+// (#E8552F = lilac.tang/paper.line brand coral · #C6472C = MONEY_DEEP below), zero new
+// colors under the style freeze. White label contrast improves: 2.68:1 → 3.5:1 base.
 const GO_SKIN: Record<GoState, { base: string; deep: string }> = {
-  none: { base: lilac.coral, deep: lilac.coralDeep },
+  none: { base: '#E8552F', deep: '#C6472C' },
   searching: { base: GO_BLUE, deep: GO_BLUE_DEEP },
   directed: { base: GO_BLUE_DEEP, deep: GO_BLUE_WAIT_DEEP },
   confirmed: { base: GO_SAGE, deep: GO_SAGE_DEEP },
   handoff: { base: GO_SAGE, deep: GO_SAGE_DEEP },
-  active: { base: lilac.coral, deep: lilac.coralDeep },
+  active: { base: '#E8552F', deep: '#C6472C' },
 };
 // [Sean 2026-08-05] 히어로 카드 배경이 디스크 색을 아주 옅게 따라간다 — "ever so slightest light hue".
 // ~95% 흰색 혼합 워시, 상태 가족당 하나(서칭·지명은 같은 블루 가족 = 같은 워시).
@@ -646,7 +649,7 @@ export default function OwnerHome() {
   const hp = LILAC_SURF.light;
 
   return (
-    <View style={{ flex: 1, backgroundColor: paper.canvasSoft }}>
+    <View style={{ flex: 1, backgroundColor: paper.canvas }}>
       <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
 
       {/* ---------- pinned overlay: greeting + collapsing hero ---------- */}
@@ -654,7 +657,7 @@ export default function OwnerHome() {
           배경판이 네이티브 transform으로 접히면서 구 '오버레이 자동 축소'와 동일한 영역만 덮는다. */}
       <View pointerEvents="box-none" style={s.overlay}>
         <Animated.View
-          style={[StyleSheet.absoluteFill, { backgroundColor: paper.canvasSoft, transform: [{ translateY: bgSlide }, { scaleY: bgScale }] }]}
+          style={[StyleSheet.absoluteFill, { backgroundColor: paper.canvas, transform: [{ translateY: bgSlide }, { scaleY: bgScale }] }]}
         />
         <View style={{ height: HEADER_H, overflow: 'hidden' }}>
           <Animated.View style={{ opacity: headerOpacity, transform: [{ translateY: headerSlide }] }}>
@@ -860,6 +863,12 @@ export default function OwnerHome() {
                      프레스 피드백은 디스크 자기 면색 교체 base→deep 하나뿐이다.)
                     각 분기는 기존 핸들러를 그대로 미러한다: 티켓의 인계/라이브 버튼 + '지금 러너 찾기' 섬. */}
                 <Animated.View style={{ opacity: goBreathOpacity }}>
+                  {/* [Ⓐ④ Keyline Orbit] 1.5px 상태색 궤도 키라인 — 디스크와 5px 갭, 54도트 링과 한 가족.
+                      absolute라 레이아웃 불변(GO 스택 237≤240 예산 무접촉); 시각 돌출 5px는 헤일로 갭 8px 안. */}
+                  <View
+                    pointerEvents="none"
+                    style={[s.goKeyline, { borderColor: goSkin.base }]}
+                  />
                   <Pressable
                     onPress={(e) => {
                       e.stopPropagation();
@@ -871,7 +880,12 @@ export default function OwnerHome() {
                       if (fnAvail.length === 0) { router.push('/owner/request'); return; }
                       openFindNow();
                     }}
-                    style={({ pressed }) => [s.goDisc, { backgroundColor: pressed ? goSkin.deep : goSkin.base, shadowColor: goSkin.deep }]}
+                    style={({ pressed }) => [s.goDisc, {
+                      backgroundColor: pressed ? goSkin.deep : goSkin.base,
+                      // [Ⓐ④] 상태색 섀도 은퇴 → 뉴트럴 잉크 섀도 (색은 면과 키라인 둘만 말한다)
+                      // [Ⓑ] scale 0.96 프레스 촉감 (compositor-only) — 색 스왑은 그대로 유지
+                      transform: [{ scale: pressed ? 0.96 : 1 }],
+                    }]}
                   >
                     <Text
                       style={[s.goWord, goNum ? nf : null, { fontSize: goFont, lineHeight: Math.round(goFont * 1.24), letterSpacing: goNum ? 1.4 : 0 }]}
@@ -987,7 +1001,8 @@ export default function OwnerHome() {
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 10 }}>
                 <Avatar url={fit?.dogPhotoUrl} char={liveNext.dogName[0]} bg={lilac.coral} size={34} />
                 <View style={{ flex: 1 }}>
-                  <Text style={[{ fontSize: 20, lineHeight: 24, fontWeight: '900', color: lilac.head }, nf]} numberOfLines={1}>
+                  {/* [Sean 2026-08-10 · 랩 Ⓒ] 티켓의 헤드라인 값 확대 20→26 (Oswald, BUG A lineHeight 1.27×) */}
+                  <Text style={[{ fontSize: 26, lineHeight: 33, fontWeight: '900', color: lilac.head }, nf]} numberOfLines={1}>
                     {/* split(' ')[0] 이 '7월'만 남기던 버그 — 요일 괄호만 떼고 날짜 전체 표기 */}
                     {liveNext.dateLabel.replace(/ \(.+\)$/, '')} {liveNext.timeLabel}
                   </Text>
@@ -1005,16 +1020,19 @@ export default function OwnerHome() {
               {liveNext?.status === 'active' ? (
                 <View style={{ flexDirection: 'row', gap: 8, marginTop: 13 }}>
                   <Pressable
-                    style={s.meetBtn}
+                    style={({ pressed }) => [s.meetBtn, {
+                      backgroundColor: pressed ? goSkin.deep : goSkin.base, shadowColor: goSkin.base,
+                      transform: [{ scale: pressed ? 0.96 : 1 }],
+                    }]}
                     onPress={(e) => { e.stopPropagation(); if (liveNext) draft.bookingId = liveNext.id; router.push('/owner/live'); }}
                   >
-                    <Text style={{ fontSize: 14, fontWeight: '900', color: '#fff' }}>실시간 보기 ›</Text>
+                    <Text style={{ fontSize: 16, fontWeight: '900', color: '#fff' }}>실시간 보기 ›</Text>
                   </Pressable>
                 </View>
               ) : liveNext?.status === 'handoff' ? (
                 <View style={{ flexDirection: 'row', gap: 8, marginTop: 13 }}>
                   <Pressable
-                    style={[s.widgetBtn, { flex: 1 }]}
+                    style={({ pressed }) => [s.widgetBtn, { flex: 1, transform: [{ scale: pressed ? 0.96 : 1 }] }]}
                     onPress={(e) => {
                       e.stopPropagation();
                       if (liveNext) draft.bookingId = liveNext.id;
@@ -1028,18 +1046,21 @@ export default function OwnerHome() {
                 <View style={{ marginTop: 13, gap: 8 }}>
                   {/* 3버튼 한 줄은 과밀 — 주 액션 전폭 + 보조 2개 반반 (2단) */}
                   <Pressable
-                    style={s.meetBtn}
+                    style={({ pressed }) => [s.meetBtn, {
+                      backgroundColor: pressed ? goSkin.deep : goSkin.base, shadowColor: goSkin.base,
+                      transform: [{ scale: pressed ? 0.96 : 1 }],
+                    }]}
                     onPress={(e) => {
                       e.stopPropagation();
                       if (liveNext) draft.bookingId = liveNext.id; // 재시작 후에도 실예약으로 인계 재개
                       router.push('/owner/meetup');
                     }}
                   >
-                    <Text style={{ fontSize: 14, fontWeight: '900', color: '#fff' }}>러너 만나기 · 인계 확인 ›</Text>
+                    <Text style={{ fontSize: 16, fontWeight: '900', color: '#fff' }}>러너 만나기 · 인계 확인 ›</Text>
                   </Pressable>
                   <View style={{ flexDirection: 'row', gap: 8 }}>
                     <Pressable
-                      style={s.widgetBtn}
+                      style={({ pressed }) => [s.widgetBtn, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
                       onPress={(e) => {
                         e.stopPropagation();
                         if (liveNext) router.push({ pathname: '/owner/reschedule', params: { bid: liveNext.id } });
@@ -1048,7 +1069,7 @@ export default function OwnerHome() {
                       <Text style={{ fontSize: 14, fontWeight: '700', color: p.textSoft }}>일정 변경</Text>
                     </Pressable>
                     <Pressable
-                      style={s.widgetBtn}
+                      style={({ pressed }) => [s.widgetBtn, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
                       onPress={(e) => { e.stopPropagation(); router.push({ pathname: '/chat', params: liveNext ? { bid: liveNext.id } : {} }); }}
                     >
                       <Text style={{ fontSize: 14, fontWeight: '700', color: p.textSoft }}>러너와 채팅</Text>
@@ -1142,7 +1163,8 @@ export default function OwnerHome() {
 
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <View style={{ flex: 1 }}>
-                <Text style={s.fnKick}>LIVE RUNNERS · SEOCHO</Text>
+                {/* [2026-08-10 정직] 하드코딩 지역 주장(SEOCHO) 퇴역 — 위치를 모르면 말하지 않는다 */}
+                <Text style={s.fnKick}>LIVE RUNNERS</Text>
                 <Text style={[{ fontSize: 22, fontWeight: '900', color: '#fff', marginTop: 6 }, df]}>
                   {fnDirected ? '지명 러너 응답 대기 중' : fnSearching ? '러너 찾는 중…' : '지금 러너 찾기'}
                 </Text>
@@ -1581,6 +1603,7 @@ const s = StyleSheet.create({
     backgroundColor: lilac.inset, borderWidth: 1, borderColor: lilac.hair,
     borderRadius: lilacRadius.tag, paddingVertical: 3, paddingHorizontal: 10,
   },
+  // [2026-08-10 수치 갱신] 아래 주석의 122/216/215는 확대 전 값 — 현행 정본은 파일 상단 :49 (144/240/237).
   // 122 디스크 — 흰 인셋 링 2px(랩 inset 0 0 0 2px rgba(255,255,255,.28))은 테두리로, 드롭 섀도는 상태색으로.
   // 세로 예산 (링 216 안에 갇혀야 한다 · 모든 줄이 lineHeight를 명시해야 성립한다):
   //   km 헤일로 4+(1+3+27+3+1)+4 = 43 · 갭 8 · 디스크 122(고정) · 갭 8 · 나이 헤일로 4+(1+3+18+3+1)+4 = 34
@@ -1591,7 +1614,13 @@ const s = StyleSheet.create({
     width: GO_DISC, height: GO_DISC, borderRadius: GO_DISC / 2,
     alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8,
     borderWidth: 2, borderColor: 'rgba(255,255,255,0.28)',
-    shadowOpacity: 0.42, shadowRadius: 11, shadowOffset: { width: 0, height: 6 }, elevation: 8,
+    // [Ⓐ④ 2026-08-10] 뉴트럴 잉크 섀도 — 상태색 섀도 은퇴 (JSX의 backgroundColor만 상태색)
+    shadowColor: '#1C1837', shadowOpacity: 0.16, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 8,
+  },
+  // [Ⓐ④] 궤도 키라인 — 디스크 밖 5px, 1.5px, 상태색은 JSX 주입. absolute라 GO 스택 예산(파일 상단 :49, 237≤240) 무접촉.
+  goKeyline: {
+    position: 'absolute', top: -5, left: -5, right: -5, bottom: -5,
+    borderRadius: (GO_DISC + 10) / 2, borderWidth: 1.5,
   },
   // fontSize·lineHeight(≥1.24×)·letterSpacing은 상태별로 주입 — Oswald 숫자법(명시 lineHeight) 유지
   goWord: { fontWeight: '900', color: '#fff', textAlign: 'center' },
@@ -1656,8 +1685,10 @@ const s = StyleSheet.create({
     marginTop: 14, marginHorizontal: 14, borderRadius: lilacRadius.card, // [Sean 2026-08-06] 클럽 위젯만 유일하게 측면 마진+라운드 유지 — 풀블리드 예외
     shadowColor: lilac.accent, shadowOpacity: 0.14, shadowRadius: 30, shadowOffset: { width: 0, height: 12 }, elevation: 3,
   },
+  // [Sean 2026-08-10] 티켓 주 버튼은 GO 상태색을 입는다 (같은 상태 기계 = 같은 색 목소리) —
+  // bg/shadowColor는 JSX에서 goSkin 주입, 여기 값은 폴백. 라벨 14→16 · 패딩 13→15 (랩 Ⓒ 채택분).
   meetBtn: {
-    flex: 1, backgroundColor: lilac.accent, borderRadius: lilacRadius.btn, alignItems: 'center', paddingVertical: 13,
+    flex: 1, backgroundColor: lilac.accent, borderRadius: lilacRadius.btn, alignItems: 'center', paddingVertical: 15,
     shadowColor: lilac.accent, shadowOpacity: 0.3, shadowRadius: 13, shadowOffset: { width: 0, height: 5 },
   },
   countdownPill: { borderRadius: lilacRadius.tag, paddingVertical: 4, paddingHorizontal: 8 },

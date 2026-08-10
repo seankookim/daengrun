@@ -24,7 +24,10 @@ export function PaperBtn({ label, busyLabel, onPress, variant = 'primary', disab
       accessibilityLabel={busy ? (busyLabel ?? '처리 중...') : label}
       accessibilityState={{ disabled, busy }}
       style={({ pressed }) => [
-        { alignItems: 'center', justifyContent: 'center', paddingVertical: 16, borderRadius: 0 },
+        // [Sean 2026-08-10 · go-premium-lab Ⓑ] scale 0.96 press tactility (compositor-only).
+        // Color swap stays — motion is never the only feedback channel (DESIGN.md §6).
+        { alignItems: 'center', justifyContent: 'center', paddingVertical: 16, borderRadius: 0,
+          transform: [{ scale: pressed && !blocked ? 0.96 : 1 }] },
         variant === 'primary' && {
           backgroundColor: disabled ? paper.disabledFill : pressed && !busy ? paper.inkPressed : paper.ink,
         },
@@ -40,7 +43,8 @@ export function PaperBtn({ label, busyLabel, onPress, variant = 'primary', disab
       ]}
     >
       <Text style={{
-        fontSize: 15.5, fontWeight: '800',
+        // [2026-08-10 랩 Ⓒ] 버튼 라벨 플로어 16
+        fontSize: 16, fontWeight: '800',
         color: variant === 'primary'
           ? (disabled ? paper.faint : '#FFFFFF')
           : disabled ? paper.faint

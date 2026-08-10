@@ -154,7 +154,8 @@ export default function Schedule() {
         {visible.length === 0 && (
           <View style={s.emptyBox}>
             <Text style={{ fontSize: 15, color: colors.dim, textAlign: 'center', lineHeight: 23 }}>
-              {liveBookings.length === 0 ? '예정된 러닝이 없어요\n홈에서 슬라이드로 예약해보세요' : '이 조건의 일정이 없어요'}
+              {/* [2026-08-10 감사] 슬라이드 예약은 은퇴한 제스처였다(owner/home.tsx:1222) — 죽은 안내 문구 교정 */}
+              {liveBookings.length === 0 ? '예정된 러닝이 없어요\n홈의 GO 버튼으로 러너를 찾아보세요' : '이 조건의 일정이 없어요'}
             </Text>
           </View>
         )}
