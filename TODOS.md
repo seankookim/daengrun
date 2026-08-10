@@ -45,3 +45,10 @@ Deferred work, written down so it exists. Format: what / why / context / effort
   S → S. P2.
 - [ ] **geocode-address soft rate limit** — instance-local per-user throttle
   (AD-10 shipped auth + ≤100-char cap + logging only). Effort S → S. P3.
+- [ ] **Owner/runner "current booking" resolver divergence** — with two parallel
+  in-flight bookings on one account, owner/meetup resolves via pickCurrent
+  (api.ts:673, earliest-first) while the runner side inherits whatever job the
+  runner-home 진행 중 card surfaced (home.tsx:289 sets runnerJob.bookingId) — the
+  two role views can show different handoffs. Solo-test artifact today; matters
+  if multi-booking runners become real at pilot scale. Fix shape: one shared
+  resolver, or the runner card feed adopts pickCurrent ordering. Effort S → S. P3.

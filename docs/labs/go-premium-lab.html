@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GO Premium Lab — 프리즈 안의 크래프트 (2026-08-10)</title>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Oswald:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  /* ── 랩 크롬 (문서 자체는 페이퍼 문법) ── */
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'IBM Plex Sans KR',sans-serif; background:#FFFFFF; color:#111; padding:34px 22px 80px; }
+  .wrap { max-width:1080px; margin:0 auto; }
+  h1 { font-family:'Black Han Sans'; font-size:34px; font-weight:400; letter-spacing:.5px; }
+  .sub { font-size:14px; color:#666; margin:6px 0 8px; line-height:1.55; }
+  .law { font-size:13px; letter-spacing:2.5px; color:#999; text-transform:uppercase; margin-bottom:26px; }
+  h2 { font-size:21px; font-weight:800; margin:44px 0 4px; padding-top:26px; border-top:1px solid #E8552F; }
+  h3 { font-size:16.5px; font-weight:800; margin:0 0 2px; }
+  h3 b { color:#E8552F; margin-right:6px; }
+  .thesis { font-size:14px; color:#666; margin-bottom:12px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:26px; margin-top:18px; }
+  .cell { border:1px solid #EEE; }
+  .meta { padding:12px 14px 14px; border-top:1px solid #EEE; }
+  .note { font-size:13px; color:#666; line-height:1.6; margin-top:5px; }
+  .flag { display:inline-block; font-size:12px; font-weight:800; letter-spacing:1.5px; color:#B3261E; border:1px solid #B3261E; padding:2px 7px; margin-top:8px; }
+  .ok { color:#3F9A75; border-color:#3F9A75; }
+
+  /* ── 상태 스위처 ── */
+  .states { display:flex; gap:6px; padding:10px 14px 0; }
+  .states button { font-family:inherit; font-size:13px; font-weight:700; padding:6px 10px; background:#fff; border:1px solid #DDD; cursor:pointer; }
+  .states button.on { border-color:#111; background:#111; color:#fff; }
+
+  /* ── 스테이지: GO_TINT 카드 + 54도트 링 근사 + 디스크 ──
+     상태 색은 variant 카드의 data-s 속성 → CSS 변수로 주입 (실코드 GO_SKIN/GO_TINT 값 그대로) */
+  .stage { position:relative; height:320px; display:flex; align-items:center; justify-content:center;
+           background:var(--tint); border-bottom:1px solid #F0ECFA; transition:background .2s; }
+  [data-s="none"]      { --base:#F0765A; --deep:#E45F41; --tint:#FEF6F3; }
+  [data-s="searching"] { --base:#5B82E8; --deep:#4468CC; --tint:#F5F7FE; }
+  [data-s="confirmed"] { --base:#3F9A75; --deep:#358363; --tint:#F4FAF7; }
+  .ring { position:absolute; width:240px; height:240px; }
+  .ring i { position:absolute; width:7px; height:7px; border-radius:50%; background:#E6E2F4; }
+  .km { position:absolute; top:calc(50% - 118px); width:100%; text-align:center; font-family:Oswald; font-size:15px; letter-spacing:1px; color:#7C76A0; }
+  .chip { position:absolute; bottom:calc(50% - 118px); left:50%; transform:translateX(-50%); font-size:12.5px; font-weight:700; color:#7C76A0; background:#fff; border:1px solid #E6E2F4; padding:3px 10px; border-radius:11px; white-space:nowrap; }
+
+  .disc { width:144px; height:144px; border-radius:50%; border:0; cursor:pointer; color:#fff; position:relative;
+          display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px;
+          background:var(--base);
+          transition:transform .12s ease-out, background .12s, box-shadow .12s; }
+  .disc:active { transform:scale(.96); background:var(--deep); }
+  .disc .go { font-weight:900; font-size:34px; letter-spacing:1px; line-height:1.1; }
+  .disc .lb { font-size:13.5px; font-weight:700; opacity:.92; }
+
+  /* Ⓐ① 현행 Red Core — 단색 + 상태색 단일 섀도 */
+  .v1 .disc { box-shadow:0 10px 24px color-mix(in srgb, var(--deep) 34%, transparent); }
+
+  /* Ⓐ② Machined Seal — 동심 헤어라인 인셋 + 레이어드 투명 섀도 + Oswald 라벨 */
+  .v2 .disc { box-shadow:0 1px 2px color-mix(in srgb, var(--deep) 30%, transparent),
+                         0 6px 16px color-mix(in srgb, var(--deep) 22%, transparent),
+                         0 16px 36px rgba(28,24,55,.10); }
+  .v2 .disc::after { content:''; position:absolute; inset:5px; border-radius:50%;
+                     border:1px solid rgba(255,255,255,.38); pointer-events:none; }
+  .v2 .go { font-family:Oswald; font-weight:600; font-size:37px; letter-spacing:2.5px; }
+
+  /* Ⓐ③ Embossed Medallion — Ⓐ② + 동일 색상군 셀프셰이드 + 상단 하이라이트 (프리즈 예외 후보) */
+  .v3 .disc { background:radial-gradient(circle at 50% 34%,
+                color-mix(in srgb, var(--base) 100%, white 6%) 0%,
+                var(--base) 58%,
+                color-mix(in srgb, var(--base) 62%, var(--deep) 38%) 100%);
+              box-shadow:inset 0 1px 0 rgba(255,255,255,.26),
+                         0 1px 2px color-mix(in srgb, var(--deep) 30%, transparent),
+                         0 6px 16px color-mix(in srgb, var(--deep) 22%, transparent),
+                         0 16px 36px rgba(28,24,55,.10); }
+  .v3 .disc:active { background:radial-gradient(circle at 50% 34%, var(--deep) 0%, var(--deep) 100%); }
+  .v3 .disc::after { content:''; position:absolute; inset:5px; border-radius:50%;
+                     border:1px solid rgba(255,255,255,.34); pointer-events:none; }
+  .v3 .go { font-family:Oswald; font-weight:600; font-size:37px; letter-spacing:2.5px; }
+
+  /* Ⓐ④ Keyline Orbit — 플랫 디스크 + 5px 갭 밖 1.5px 상태색 키라인 */
+  .v4 .disc { box-shadow:0 6px 18px rgba(28,24,55,.12); }
+  .v4 .disc::before { content:''; position:absolute; inset:-7px; border-radius:50%;
+                      border:1.5px solid var(--base); pointer-events:none; transition:border-color .12s; }
+  .v4 .disc:active::before { border-color:var(--deep); }
+  .v4 .go { font-family:Oswald; font-weight:600; font-size:37px; letter-spacing:2.5px; }
+
+  /* Ⓐ⑤ Bib Seal — 잉크 코어 + 두꺼운 상태색 에지 링 (GO 색법 긴장 — 상태색이 림으로 강등) */
+  .v5 .disc { background:#141414; border:10px solid var(--base);
+              box-shadow:0 8px 22px rgba(17,17,17,.22); }
+  .v5 .disc:active { border-color:var(--deep); background:#111; }
+  .v5 .go { font-family:Oswald; font-weight:600; font-size:36px; letter-spacing:3px; }
+
+  /* ── Ⓑ 프레스 촉감 데모 ── */
+  .press-row { display:flex; gap:18px; flex-wrap:wrap; margin-top:16px; }
+  .pbtn { font-family:inherit; font-size:16px; font-weight:800; color:#fff; background:#111;
+          border:0; padding:16px 40px; cursor:pointer; }
+  .pbtn.color-only:active { background:#333; }
+  .pbtn.with-scale { transition:transform .12s ease-out, background .12s; }
+  .pbtn.with-scale:active { background:#333; transform:scale(.96); }
+  .press-note { font-size:14px; color:#666; margin-top:10px; }
+
+  /* ── Ⓒ 디덴시파이 before/after ── */
+  .phones { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:26px; margin-top:16px; }
+  .phone { border:1px solid #DDD; background:#F4F2FB; padding:0 0 18px; }
+  .phone h4 { font-size:13px; letter-spacing:2px; color:#999; text-transform:uppercase; padding:10px 14px; background:#fff; border-bottom:1px solid #EEE; }
+  .mast { font-family:'Black Han Sans'; font-size:21px; padding:14px var(--g) 4px; color:#221E3D; }
+  .mast small { font-family:'IBM Plex Sans KR'; font-weight:700; font-size:11px; color:#F0765A; letter-spacing:1px; }
+  .card { background:#fff; border:1px solid #E6E2F4; border-radius:8px; margin:8px var(--g); padding:14px; }
+  .b .card { margin-top:14px; padding:18px 16px; }
+  .goal-num { font-family:Oswald; font-weight:600; color:#221E3D; }
+  .a .goal-num { font-size:24px; }
+  .b .goal-num { font-size:34px; }
+  .cap { color:#7C76A0; }
+  .a .cap { font-size:12px; }
+  .b .cap { font-size:14px; }
+  .a { --g:11px; }
+  .b { --g:15px; }
+  .strike { text-decoration:line-through; color:#B3261E; }
+  .delta-list { font-size:14px; line-height:1.9; margin-top:14px; }
+  .delta-list b { font-weight:800; }
+  .tag { font-size:12px; font-weight:800; letter-spacing:1px; color:#3F9A75; border:1px solid #3F9A75; padding:1px 6px; margin-right:6px; }
+  .ticket-line { display:flex; justify-content:space-between; align-items:baseline; margin-top:8px; }
+  .tk-time { font-family:Oswald; font-weight:600; color:#221E3D; }
+  .a .tk-time { font-size:19px; }
+  .b .tk-time { font-size:26px; }
+  .cta { display:block; width:100%; text-align:center; color:#fff; background:#6C5CE7; border:0; border-radius:8px; font-weight:800; font-family:inherit; margin-top:12px; cursor:pointer; }
+  .a .cta { font-size:14px; padding:12px; }
+  .b .cta { font-size:16.5px; padding:15px; transition:transform .12s; }
+  .b .cta:active { transform:scale(.96); background:#5A4BC7; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>GO 프리미엄 랩</h1>
+  <p class="sub">2026-08-10 폴리시 패스 — <b>프리즈 안의 크래프트</b>. 새 색·새 폰트·새 모티프 없음: 같은 GO 색법
+  (코랄=네 차례 · 블루=시스템 차례 · 세이지=준비 완료), 같은 링, 같은 144 디스크. 달라지는 건 가공 정밀도뿐.
+  각 변형에서 상태 버튼을 눌러 3색 모두 확인하고, 디스크를 눌러 촉감(0.96 스케일)을 확인하세요.</p>
+  <p class="law">SAME LAW · SHARPER CRAFT · 번호로 골라주세요</p>
+
+  <h2>Ⓐ GO 디스크 — 5 변형 × 3 상태</h2>
+
+  <div class="grid">
+    <div class="cell v1 variant" data-s="none">
+      <div class="states"></div>
+      <div class="stage"><div class="ring"></div>
+        <div class="km">오늘까지 0 / 14 KM</div>
+        <button class="disc"><span class="go">GO</span><span class="lb">러닝 부르기</span></button>
+        <div class="chip">체력 나이 측정 전</div>
+      </div>
+      <div class="meta"><h3><b>Ⓐ①</b> Red Core 현행 — 기준선</h3>
+        <p class="note">지금 프로덕션. 단색 면 + 상태색 단일 섀도 + 시스템 900 라벨. 정직하지만 평평하다 —
+        "장난감 FAB"로 읽히는 게 문제의식.</p>
+        <span class="flag ok">현행</span></div>
+    </div>
+
+    <div class="cell v2 variant" data-s="none">
+      <div class="states"></div>
+      <div class="stage"><div class="ring"></div>
+        <div class="km">오늘까지 0 / 14 KM</div>
+        <button class="disc"><span class="go">GO</span><span class="lb">러닝 부르기</span></button>
+        <div class="chip">체력 나이 측정 전</div>
+      </div>
+      <div class="meta"><h3><b>Ⓐ②</b> Machined Seal — 기계 가공 도장</h3>
+        <p class="note">동심 인셋 헤어라인 1px(도장 테두리) + 레이어드 투명 섀도 3층(단색 섀도 은퇴) +
+        Oswald 라벨(레이스 빕 서체). 면 색은 순수 단색 그대로 — 프리즈 완전 준수.</p>
+        <span class="flag ok">프리즈 안</span></div>
+    </div>
+
+    <div class="cell v3 variant" data-s="none">
+      <div class="states"></div>
+      <div class="stage"><div class="ring"></div>
+        <div class="km">오늘까지 0 / 14 KM</div>
+        <button class="disc"><span class="go">GO</span><span class="lb">러닝 부르기</span></button>
+        <div class="chip">체력 나이 측정 전</div>
+      </div>
+      <div class="meta"><h3><b>Ⓐ③</b> Embossed Medallion — 양각 메달</h3>
+        <p class="note">Ⓐ② + 동일 색상군 셀프셰이드(림 쪽 ~38% 딥 혼합)와 상단 인셋 하이라이트.
+        시계 문자판 문법 — 슬롭 그라디언트(보라·다색)와는 다른 종. 그래도 '그라디언트'는 그라디언트.</p>
+        <span class="flag">프리즈 예외 필요</span></div>
+    </div>
+
+    <div class="cell v4 variant" data-s="none">
+      <div class="states"></div>
+      <div class="stage"><div class="ring"></div>
+        <div class="km">오늘까지 0 / 14 KM</div>
+        <button class="disc"><span class="go">GO</span><span class="lb">러닝 부르기</span></button>
+        <div class="chip">체력 나이 측정 전</div>
+      </div>
+      <div class="meta"><h3><b>Ⓐ④</b> Keyline Orbit — 궤도 키라인</h3>
+        <p class="note">플랫 디스크 + 5px 갭 바깥의 1.5px 상태색 키라인. 54도트 링과 한 가족으로 읽힌다
+        (링 안에 링). 섀도는 뉴트럴로 후퇴 — 색은 면과 키라인 둘만 말한다.</p>
+        <span class="flag ok">프리즈 안</span></div>
+    </div>
+
+    <div class="cell v5 variant" data-s="none">
+      <div class="states"></div>
+      <div class="stage"><div class="ring"></div>
+        <div class="km">오늘까지 0 / 14 KM</div>
+        <button class="disc"><span class="go">GO</span><span class="lb">러닝 부르기</span></button>
+        <div class="chip">체력 나이 측정 전</div>
+      </div>
+      <div class="meta"><h3><b>Ⓐ⑤</b> Bib Seal — 잉크 코어 도발</h3>
+        <p class="note">잉크 코어 + 10px 상태색 에지. 아티팩트 문법(빕·소인)에 가장 가깝지만 <b>GO 색법과
+        긴장</b>: '지금 누구 차례인가'가 면이 아니라 림으로 강등된다. 도발용으로 포함.</p>
+        <span class="flag">색법 긴장</span></div>
+    </div>
+  </div>
+
+  <h2>Ⓑ 프레스 촉감 — 전앱 공통 후보</h2>
+  <p class="thesis">버튼 매트릭스 법(명시 색 스왑)은 유지하고, 그 위에 compositor-only <b>scale(0.96)</b>을 얹는다.
+  0.95 밑으로 내려가면 과장으로 읽힌다(better-ui 계측). 아래 둘을 번갈아 눌러보세요.</p>
+  <div class="press-row">
+    <button class="pbtn color-only">색 스왑만 (현행)</button>
+    <button class="pbtn with-scale">색 스왑 + scale 0.96 (제안)</button>
+  </div>
+  <p class="press-note">채택 시: PaperBtn·GO 디스크·칩 전부. 모프 법 합치(transform, 네이티브 드라이버).
+  모션이 유일한 피드백 채널이 되면 안 되므로 색 스왑은 그대로 유지.</p>
+
+  <h2>Ⓒ 디덴시파이 — 홈 상단 before / after</h2>
+  <p class="thesis">타입 플로어 인상(label 13→14 · caption 12→14 · 버튼 ≥16) + 거터 11→15 + 핵심 숫자 확대(Oswald)
+  + 자명한 설명문 삭제. 히어로 수직 예산(GO 스택 237≤240)은 구현 단계에서 재계산 — 여기선 밀도 목표만 고른다.</p>
+  <div class="phones">
+    <div class="phone a">
+      <h4>현행 밀도 (gutter 11 · label 13 · caption 12)</h4>
+      <div class="mast"><small>S</small> 오늘도 달린다, 우리 초코</div>
+      <div class="card">
+        <div class="cap">오늘까지</div>
+        <div><span class="goal-num">0</span> <span class="cap">/ 14 km</span></div>
+        <div class="cap" style="margin-top:6px">생일 등록하면 체력 나이 측정 시작</div>
+        <div class="cap">0% 달성</div>
+      </div>
+      <div class="card">
+        <div class="cap" style="letter-spacing:1px">NEXT RUN · BOARDING PASS</div>
+        <div class="ticket-line"><span class="tk-time">8월 4일 오후 3:30</span><span class="cap">확정됨</span></div>
+        <div class="cap">초코 · 서울숲 숲길 3km</div>
+        <button class="cta">러너 만나기 · 인계 확인 ›</button>
+        <button class="cta" style="background:#fff;color:#221E3D;border:1px solid #E6E2F4">일정 변경</button>
+      </div>
+    </div>
+    <div class="phone b">
+      <h4>제안 밀도 (gutter 15 · label 14 · 핵심 숫자 확대)</h4>
+      <div class="mast"><small>S</small> 오늘도 달린다, 우리 초코</div>
+      <div class="card">
+        <div class="cap">오늘까지</div>
+        <div><span class="goal-num">0</span> <span class="cap" style="font-size:16px">/ 14 km</span></div>
+        <div class="cap strike" style="margin-top:6px">생일 등록하면 체력 나이 측정 시작</div>
+        <div class="cap strike">0% 달성</div>
+      </div>
+      <div class="card">
+        <div class="cap" style="letter-spacing:1px">NEXT RUN</div>
+        <div class="ticket-line"><span class="tk-time">8월 4일 오후 3:30</span><span class="cap">확정됨</span></div>
+        <div class="cap">초코 · 서울숲 숲길 3km</div>
+        <button class="cta">러너 만나기 · 인계 확인 ›</button>
+      </div>
+    </div>
+  </div>
+  <div class="delta-list">
+    <div><span class="tag">CUT</span><b>자명문 삭제 후보</b> — <span class="strike">"0% 달성"</span>(링이 이미 말한다) ·
+      <span class="strike">"생일 등록하면…"</span>(측정 전 칩이 이미 말한다 — 온보딩 1회 노출로 이동) ·
+      <span class="strike">"길게 눌러 삭제"</span>(주소 행 상시 노출 → 최초 1회 힌트로) ·
+      <span class="strike">"· BOARDING PASS"</span>(키커 중복) ·
+      <span class="strike">주소 화면 로드맵 각주("공동현관 코드는 다음 세션에서…")</span></div>
+    <div><span class="tag">GROW</span><b>확대</b> — 티켓 시간 19→26(Oswald) · 주간 목표 숫자 24→34 · 보조 버튼은 시트로 후퇴(CTA 1개 법)</div>
+    <div><span class="tag">AIR</span><b>공기</b> — gutter 11→15 · 카드 내부 패딩 14→18 · 섹션 간 12→20</div>
+  </div>
+</div>
+
+<script>
+  // 54도트 링 근사 + 상태 스위처 (실코드 GO_SKIN 값과 동일한 3상태)
+  document.querySelectorAll('.ring').forEach(ring => {
+    for (let i = 0; i < 54; i++) {
+      const a = (i / 54) * Math.PI * 2 - Math.PI / 2, d = document.createElement('i');
+      d.style.left = (116.5 + 116.5 * Math.cos(a)) + 'px';
+      d.style.top  = (116.5 + 116.5 * Math.sin(a)) + 'px';
+      ring.appendChild(d);
+    }
+  });
+  const STATES = [['none','① 예약 없음'],['searching','② 매칭 중'],['confirmed','③ 확정']];
+  const LABELS = { none:['GO','러닝 부르기'], searching:['찾는 중','매칭 진행'], confirmed:['확정','인계 확인'] };
+  document.querySelectorAll('.variant').forEach(v => {
+    const bar = v.querySelector('.states');
+    STATES.forEach(([s, label], i) => {
+      const b = document.createElement('button');
+      b.textContent = label; if (i === 0) b.classList.add('on');
+      b.onclick = () => {
+        v.dataset.s = s;
+        bar.querySelectorAll('button').forEach(x => x.classList.remove('on')); b.classList.add('on');
+        const [go, lb] = LABELS[s];
+        v.querySelector('.go').textContent = go; v.querySelector('.lb').textContent = lb;
+      };
+      bar.appendChild(b);
+    });
+  });
+</script>
+</body>
+</html>
