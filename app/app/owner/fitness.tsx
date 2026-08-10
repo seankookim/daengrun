@@ -2,6 +2,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Animated, Image, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { Row } from '../../src/components/ui';
+import { MediaImage } from '../../src/lib/media';
 import { fetchFitness, fetchRecentMoments, Fitness, Moment, updateDogGoal } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
@@ -318,7 +319,7 @@ export default function FitnessHub() {
             /* 사진 0장 = 정직한 빈 프레임. 스톡/플레이스홀더 이미지 금지 */
             <View pointerEvents="none" style={s.emptySlot}>
               <View style={s.emptyFilm}>
-                {fit?.dogPhotoUrl ? <Image source={{ uri: fit.dogPhotoUrl }} style={s.emptyDog} /> : null}
+                {fit?.dogPhotoUrl ? <MediaImage source={fit.dogPhotoUrl} style={s.emptyDog} /> : null}
                 <Text style={s.emptyCopy}>
                   아직 러닝 사진이 없어요{'\n'}완주하면 러너가 남긴 순간이 여기 걸려요
                 </Text>
@@ -329,7 +330,8 @@ export default function FitnessHub() {
               <SprocketRow />
               {/* 파노라마 — 한 컷을 풀블리드로. 숫자는 사진 위 스크림에 얹는다 */}
               <View pointerEvents="none" style={{ height: PANO_H }}>
-                <Image source={{ uri: sel.url }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                {/* [0064] 러닝 사진은 media 경로 — 서명 URL로 렌더 */}
+                <MediaImage source={sel.url} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
                 {/* 스크림 — expo-linear-gradient 미도입 프로젝트라 반투명 뷰를 겹쳐 램프를 만든다 */}
                 <View style={[s.scrim, { height: 96, backgroundColor: 'rgba(16,12,36,0.32)' }]} />
                 <View style={[s.scrim, { height: 62, backgroundColor: 'rgba(16,12,36,0.40)' }]} />
@@ -356,7 +358,7 @@ export default function FitnessHub() {
                     accessibilityRole="button"
                     accessibilityLabel={`${m.when} ${m.km}km 사진 보기`}
                   >
-                    <Image source={{ uri: m.url }} style={{ flex: 1 }} resizeMode="cover" />
+                    <MediaImage source={m.url} style={{ flex: 1 }} resizeMode="cover" />
                   </Pressable>
                 ))}
               </View>

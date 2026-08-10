@@ -4,6 +4,7 @@ import { Animated, Dimensions, Easing, Image, Pressable, ScrollView, StyleSheet,
 import { Row } from '../../src/components/ui';
 import { HeatTrace } from '../../src/components/runcard';
 import { fetchMyRoutePhotos, fetchRoutes } from '../../src/lib/api';
+import { MediaImage } from '../../src/lib/media';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { RouteInfo, session } from '../../src/store';
 import { colors } from '../../src/theme';
@@ -161,7 +162,8 @@ export default function CourseScreen() {
                 <Text style={s.sectionTitle}>이 코스에서의 우리 기록</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
                   {photos.map((url) => (
-                    <Image key={url} source={{ uri: url }} style={{ width: 108, height: 108, borderRadius: 12, backgroundColor: '#DCD6C4' }} />
+                    /* [0064] 내 러닝 사진은 media 경로 — 서명 URL로 렌더 */
+                    <MediaImage key={url} source={url} style={{ width: 108, height: 108, borderRadius: 12, backgroundColor: '#DCD6C4' }} />
                   ))}
                 </ScrollView>
               </View>

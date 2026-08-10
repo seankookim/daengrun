@@ -1,6 +1,7 @@
 import { ReactNode, useEffect, useState } from 'react';
 import { Image, Pressable, StyleProp, StyleSheet, Text, TextStyle, View, ViewStyle } from 'react-native';
 import { useNumFont } from '../lib/fonts';
+import { isMediaPath, useMediaUrl } from '../lib/media';
 import { colors, paper, radius } from '../theme';
 
 // 도그스하이 shared UI kit — mirrors the prototype's design system.
@@ -86,16 +87,23 @@ export function Skeleton({ width, height, radius: r = 12, style }: { width: numb
 }
 
 // 실사진 아바타 — url 없으면 Monogram 폴백. 신뢰 표면 전부가 이걸 쓴다.
+// [0064] url이 PRIVATE media 버킷 경로일 수도 있다 (강아지 사진) — useMediaUrl이 서명 URL로
+// 풀고, 이미지 로드 실패 시 서명 만료를 의심해 정확히 1회 재서명 후에만 모노그램 폴백.
 export function Avatar({ url, char, bg, size = 52 }: { url?: string | null; char: string; bg: string; size?: number }) {
   // 훅은 조기 반환보다 위 — Rules of Hooks. url이 null↔값으로 뒤집히는 화면이 있어 순서가 흔들리면 크래시.
+  const { uri, failed: signFailed, retry } = useMediaUrl(url);
   const [failed, setFailed] = useState(false);
+  const [resigned, setResigned] = useState(false);
   // url이 바뀌면 실패 상태 리셋 — 리스트에서 재활용되는 아바타가 한 번의 로드 실패로 영영 모노그램에 갇히지 않게.
-  useEffect(() => { setFailed(false); }, [url]);
-  if (!url || failed) return <Monogram char={char} bg={bg} size={size} />;
+  useEffect(() => { setFailed(false); setResigned(false); }, [url]);
+  if (!url || failed || signFailed) return <Monogram char={char} bg={bg} size={size} />;
+  if (!uri) return <Monogram char={char} bg={bg} size={size} />; // 서명 대기 중 — 모노그램이 자리를 지킨다
   return (
     <Image
-      source={{ uri: url }}
-      onError={() => setFailed(true)}
+      source={{ uri }}
+      onError={() => {
+        if (isMediaPath(url) && !resigned) { setResigned(true); retry(); } else { setFailed(true); }
+      }}
       style={{ width: size, height: size, borderRadius: 0, backgroundColor: colors.clay }}
     />
   );

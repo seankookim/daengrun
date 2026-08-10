@@ -301,6 +301,25 @@ try {
     expect(r.status === 200, 'enroute failed', r.body);
   });
 
+  await step('★ enroute 재발화 = 무동작 — "러너 이동 중" 알림 정확히 1건', async () => {
+    // 러너 미트업 화면은 마운트마다 enroute를 부른다. 0047 트리거는 무동작 상태 변경에 조기 리턴하므로
+    // 서버가 CAS로 막지 않으면 화면을 열 때마다 보호자에게 "러너 이동 중"이 또 간다 (arrived와 같은 계약).
+    const enrouteNotis = async () => {
+      const n = await admin(`/rest/v1/notifications?ref_id=eq.${bookingId}&profile_id=eq.${owner.id}&select=title`);
+      return (Array.isArray(n.body) ? n.body : []).filter((x) => x.title === '러너 이동 중');
+    };
+    const first = await enrouteNotis();
+    expect(first.length === 1, `'러너 이동 중' 알림이 정확히 1건이 아님 (${first.length}건)`, first);
+    const again = await fn('transition-booking', runner.token, { booking_id: bookingId, action: 'enroute' });
+    expect(again.status === 200 && again.body?.unchanged === true,
+      '재발화가 200 {unchanged:true} 가 아님 — 화면 리마운트마다 알림이 또 간다', again.body);
+    const second = await enrouteNotis();
+    expect(second.length === 1, `재발화가 이동 중 알림을 또 보냄 (${second.length}건) — 정확히 1회 보장이 깨짐`, second);
+    const b = await admin(`/rest/v1/bookings?id=eq.${bookingId}&select=status`);
+    expect(b.body?.[0]?.status === 'runner_enroute', `재발화가 상태를 흔듦: ${b.body?.[0]?.status}`, b.body);
+    return '알림 1건 · 재발화 무동작';
+  });
+
   // ⚠️ 웨이브 3 단계 — 위 소유권 단계와 같은 조건(0060 push + transition-booking 재배포) 이후에만 통과.
   await step('★ arrived → 서버 도착 기록 + 도착 알림 정확히 1건', async () => {
     const arrivedNotis = async () => {

@@ -22,23 +22,29 @@ const RunActivity = (props: RunActivityProps, env: LiveActivityEnvironment) => {
 
   // ⚠️ 모든 상수는 함수 안에 — 'widget' 함수는 문자열화되어 위젯 컨텍스트에서 실행되므로
   // 모듈 스코프 클로저가 존재하지 않는다 (CORAL ReferenceError의 원인, 2026-07-23)
-  const VOLT = '#C6F542';
+  // [2026-08-10] Volt/forest retired here too — this was the last surface still speaking the old
+  // language, and the one a runner stares at longest. Palette now follows the artifact world of
+  // docs/labs/live-activity-lab.html §E: coral numerals, cream text, night dim. Layout and data
+  // are untouched. The sibling OwnerRunActivity must keep these exact constants/names.
   const CORAL = '#FF5C3D';
-  const CREAM = '#F6F2E9';
-  const DIMTEXT = '#8fa093';
+  const CORAL_DEEP = '#E8552F'; // legible coral for light system material (lab --coralDeep)
+  const CREAM = '#F8F6F0';      // lab --cream
+  const DIM = '#9A93B5';        // lab --dim (night-violet dim, replaces forest #8fa093)
 
   // 잠금화면 배너 배경은 시스템(밝은 배경화면 = 밝은 소재)을 따르므로 텍스트를 스킴에 맞춘다 (HIG).
+  // (expo-widgets exposes no activityBackgroundTint — a self-painted "night ground" is not
+  //  available to this surface, so the banner keeps the adaptive convention with the new palette.)
   // 아일랜드 3종은 항상 검정 배경 — 고정 라이트 텍스트가 정답.
-  const bannerText = env.colorScheme === 'dark' ? CREAM : '#0F1D13';
-  const bannerDim = env.colorScheme === 'dark' ? DIMTEXT : '#5d655d';
-  const bannerGreen = env.colorScheme === 'dark' ? VOLT : '#5a7a3c';
+  const bannerText = env.colorScheme === 'dark' ? CREAM : '#111111';
+  const bannerDim = env.colorScheme === 'dark' ? DIM : '#6b6478';
+  const bannerAccent = env.colorScheme === 'dark' ? CORAL : CORAL_DEEP;
 
   return {
     // ---------- 잠금화면 배너 (비-아일랜드 기기·StandBy·워치 스마트 스택도 이 뷰) ----------
     banner: (
       <VStack modifiers={[padding({ all: 14 })]}>
         <HStack>
-          <Image systemName="pawprint.fill" color={bannerGreen} />
+          <Image systemName="pawprint.fill" color={bannerAccent} />
           <Text modifiers={[font({ weight: 'bold', size: 15 }), foregroundStyle(bannerText), padding({ leading: 6 })]}>
             {props.dogName} 러닝 중
           </Text>
@@ -53,7 +59,7 @@ const RunActivity = (props: RunActivityProps, env: LiveActivityEnvironment) => {
           <Text modifiers={[font({ size: 14 }), foregroundStyle(bannerDim), padding({ leading: 3 })]}>
             / {props.targetKm}km
           </Text>
-          <Text modifiers={[font({ size: 13 }), foregroundStyle(bannerGreen), padding({ leading: 12 })]}>
+          <Text modifiers={[font({ size: 13 }), foregroundStyle(bannerAccent), padding({ leading: 12 })]}>
             {props.pace}/km
           </Text>
         </HStack>
@@ -66,7 +72,7 @@ const RunActivity = (props: RunActivityProps, env: LiveActivityEnvironment) => {
     // ---------- 워치 스마트 스택 · CarPlay (작은 배너) ----------
     bannerSmall: (
       <HStack modifiers={[padding({ all: 10 })]}>
-        <Image systemName="pawprint.fill" color={bannerGreen} />
+        <Image systemName="pawprint.fill" color={bannerAccent} />
         <Text modifiers={[font({ weight: 'bold', size: 14 }), foregroundStyle(bannerText), padding({ leading: 5 })]}>
           {props.dogName}
         </Text>
@@ -80,7 +86,7 @@ const RunActivity = (props: RunActivityProps, env: LiveActivityEnvironment) => {
     ),
 
     // ---------- 다이내믹 아일랜드: 컴팩트 ----------
-    compactLeading: <Image systemName="pawprint.fill" color={VOLT} />,
+    compactLeading: <Image systemName="pawprint.fill" color={CORAL} />,
     compactTrailing: (
       <Text modifiers={[font({ weight: 'bold', size: 14 }), foregroundStyle(CORAL)]}>
         {props.km}km
@@ -88,12 +94,12 @@ const RunActivity = (props: RunActivityProps, env: LiveActivityEnvironment) => {
     ),
 
     // ---------- 최소 (다른 액티비티와 공존 시) ----------
-    minimal: <Image systemName="pawprint.fill" color={VOLT} />,
+    minimal: <Image systemName="pawprint.fill" color={CORAL} />,
 
     // ---------- 확장 ----------
     expandedLeading: (
       <VStack modifiers={[padding({ all: 10 })]}>
-        <Image systemName="pawprint.fill" color={VOLT} />
+        <Image systemName="pawprint.fill" color={CORAL} />
         <Text modifiers={[font({ weight: 'bold', size: 12 }), foregroundStyle(CREAM), padding({ top: 3 })]}>
           {props.dogName}
         </Text>
@@ -104,20 +110,20 @@ const RunActivity = (props: RunActivityProps, env: LiveActivityEnvironment) => {
         <Text modifiers={[font({ weight: 'bold', size: 24 }), foregroundStyle(CORAL)]}>
           {props.km}
         </Text>
-        <Text modifiers={[font({ size: 11 }), foregroundStyle(DIMTEXT)]}>
+        <Text modifiers={[font({ size: 11 }), foregroundStyle(DIM)]}>
           / {props.targetKm}km
         </Text>
       </VStack>
     ),
     expandedBottom: (
       <HStack modifiers={[padding({ all: 10 })]}>
-        <Text modifiers={[font({ size: 13 }), foregroundStyle(VOLT)]}>
+        <Text modifiers={[font({ size: 13 }), foregroundStyle(CORAL)]}>
           {props.pace}/km
         </Text>
         <Text modifiers={[font({ size: 13 }), foregroundStyle(CREAM), padding({ leading: 12 })]}>
           ⏱ {props.elapsed}
         </Text>
-        <Text modifiers={[font({ size: 13 }), foregroundStyle(DIMTEXT), padding({ leading: 12 })]}>
+        <Text modifiers={[font({ size: 13 }), foregroundStyle(DIM), padding({ leading: 12 })]}>
           {props.eventLine}
         </Text>
       </HStack>

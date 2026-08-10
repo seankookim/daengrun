@@ -209,9 +209,29 @@ Deno.serve(handle(async (req) => {
       if (Number.isFinite(sched) && sched > Date.now() + 24 * 3_600_000) {
         throw new HttpError(409, "출발 알림은 러닝 시작 24시간 전부터 보낼 수 있어요");
       }
-      await set({ status: "runner_enroute" });
-      await notify(bk.owner_id, "러너 이동 중", "러너가 픽업 장소로 출발했어요");
-      break;
+      // CAS + { unchanged: true } — same idempotence shape as `arrived` below. The runner meetup
+      // screen fires enroute on EVERY mount, and enforce_booking_transition (0047:29) returns
+      // early on a no-op status change — so the old unconditional set() silently succeeded on
+      // re-fire and the owner got "러너 이동 중" every time the runner reopened the screen.
+      // Notify only when the row actually moved confirmed → runner_enroute: the select-returning
+      // 1 row is the only proof this call did the transition = exactly-once by construction.
+      const { data: moved, error: enErr } = await db.from("bookings")
+        .update({ status: "runner_enroute" })
+        .eq("id", booking_id).eq("status", "confirmed")
+        .select("id");
+      if (enErr) throw new HttpError(409, enErr.message);
+      if (moved && moved.length > 0) {
+        await notify(bk.owner_id, "러너 이동 중", "러너가 픽업 장소로 출발했어요");
+        break;
+      }
+      // 0 rows — re-read instead of trusting the stale bk snapshot (the `arrived` idiom below:
+      // two racing calls both read the same pre-state, and the loser must not get a false 409).
+      // Already enroute or further along = no-op success, no notification.
+      const { data: freshEn } = await db.from("bookings").select("status").eq("id", booking_id).single();
+      const curStatus = freshEn?.status ?? bk.status;
+      if (["runner_enroute", "picked_up", "active"].includes(curStatus)) return { unchanged: true };
+      // Genuinely wrong state (matching / cancelled / ...) — say the fact.
+      throw new HttpError(409, "지금은 출발을 알릴 수 없는 상태예요 — 화면을 새로고침해주세요");
     }
 
     case "arrived": {

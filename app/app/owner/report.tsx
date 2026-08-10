@@ -4,6 +4,7 @@ import { Alert, Animated, Dimensions, Easing, Image, Pressable, ScrollView, Shar
 import { PatchBadge } from '../../src/components/patch';
 import { HeatTrace } from '../../src/components/runcard';
 import { Monogram, Row, Skeleton } from '../../src/components/ui';
+import { MediaImage } from '../../src/lib/media';
 import { CoursePatch, fetchPatchPop, fetchRunEarning, fetchRunReport, fetchRunStandings, fetchStampPop, RunEarning, RunReport, RunStandings, shareRunToFeed, StampInfo } from '../../src/lib/api';
 import { haptic } from '../../src/lib/haptics';
 import { useDisplayFont } from '../../src/lib/displayFont';
@@ -179,8 +180,9 @@ export default function Report() {
             {/* ---------- hero: 풀블리드 + 사진 구조화 (사진이 디자인이다) ---------- */}
             <View style={[s.hero, { overflow: 'hidden' }]}>
               {run.photos[0] && (
-                <Image
-                  source={{ uri: run.photos[0] }}
+                /* [0064] 러닝 사진은 프라이빗 media 경로 — 서명 URL로 렌더 */
+                <MediaImage
+                  source={run.photos[0]}
                   style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, opacity: 0.28 }}
                   resizeMode="cover"
                 />
@@ -318,7 +320,7 @@ export default function Report() {
             {run.photos.length > 0 ? (
               <View style={{ backgroundColor: '#fff', flexDirection: 'row', flexWrap: 'wrap', gap: 2 }}>
                 {run.photos.map((url) => (
-                  <Image key={url} source={{ uri: url }} style={{ width: TILE, height: TILE, backgroundColor: '#DCD6C4' }} />
+                  <MediaImage key={url} source={url} style={{ width: TILE, height: TILE, backgroundColor: '#DCD6C4' }} />
                 ))}
               </View>
             ) : (

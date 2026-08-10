@@ -16,6 +16,8 @@ import {
   subscribeClubChat, withdrawAsHandler,
 } from '../../../src/lib/api'; // finishClubSession=콘솔 · settleRun/fetchRunStartedAt=클럽 런 화면
 import { draft as liveDraft } from '../../../src/store'; // 라이브 화면 진입 키 (챗 draft 상태와 이름 충돌 주의)
+import { getTrackPermission, resetTrace, startTracking } from '../../../src/lib/geo';
+import { MediaImage } from '../../../src/lib/media';
 import { useNumFont } from '../../../src/lib/fonts';
 import { haptic } from '../../../src/lib/haptics';
 import { collarColors, CollarKey, lilac, lilacRadius } from '../../../src/theme';
@@ -356,17 +358,64 @@ export default function ClubSessionShell() {
       .catch((e) => Alert.alert('반환 확인 실패', (e as Error).message));
   };
   // 러닝 시작 = 러너 액션 (서버: 내 픽업 부킹만) — 시작 즉시 러닝 화면으로 (GPS·트레이스·종료는 거기서)
+  // Background-GPS start gate — the SAME hard block as the 1:1 run screen (runner/run.tsx
+  // startRun, Sean 2026-08-08: a run may not start without continuous tracking). Club runs used
+  // to start ungated because the start lives here, not on the run screen. The probe learns the
+  // real TrackMode the run screen would get; anything short of 'background' blocks the start
+  // BEFORE startDelegatedRuns marks anything server-side. Copy below is the 1:1 screen's
+  // discriminated-mode vocabulary verbatim (blockStrip + rationale sheet) — no second vocabulary.
+  // Re-entry to an in-progress run does NOT pass through here (the '러닝 화면' CTA routes straight
+  // to /club/run), so this gate cannot strand a session that already started.
+  const gateThenStart = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const h = await startTracking(() => {}, { dogName: myCharges.map((d) => d.dogName).join('·') });
+      await h.stop();
+      // The probe may have pushed fixes into the shared trace buffer; a dirty buffer would make
+      // the run screen skip its server-trace hydration (its P0: truncated trace = short payout).
+      resetTrace();
+      if (h.mode !== 'background') {
+        if (h.mode === 'denied') {
+          Alert.alert('러닝을 시작할 수 없어요', '위치 권한이 꺼져 있어요 — 거리를 잴 수도, 정산할 수도 없어요', [
+            { text: '닫기', style: 'cancel' },
+            { text: '설정 열기', onPress: () => { Linking.openSettings().catch(() => {}); } },
+          ]);
+        } else if (h.mode === 'foreground') {
+          Alert.alert('러닝을 시작할 수 없어요', '앱을 켜 둔 동안만 기록돼요 — 화면이 꺼지면 거리가 멈춰요 · 새 빌드에서 러닝을 시작할 수 있어요');
+        } else {
+          Alert.alert('러닝을 시작할 수 없어요', '위치 기능이 없는 빌드예요 — 새 빌드에서 기록돼요');
+        }
+        return;
+      }
+      await startDelegatedRuns(sess.id);
+      haptic('success'); load();
+      router.push({ pathname: `/club/run/${sess.id}`, params: { clubName: clubName ?? '' } });
+    } catch (e) {
+      Alert.alert('시작 실패', (e as Error).message.includes('nothing_to_start') ? '인계 확인이 끝난 아이가 아직 없어요' : (e as Error).message);
+    } finally { setBusy(false); }
+  };
   const doStartRuns = () => {
     Alert.alert('러닝 시작', '인계받은 아이들의 러닝 트랙이 시작돼요.', [
       { text: '아직', style: 'cancel' },
       {
         text: '시작',
-        onPress: () => startDelegatedRuns(sess.id)
-          .then(() => {
-            haptic('success'); load();
-            router.push({ pathname: `/club/run/${sess.id}`, params: { clubName: clubName ?? '' } });
-          })
-          .catch((e) => Alert.alert('시작 실패', (e as Error).message.includes('nothing_to_start') ? '인계 확인이 끝난 아이가 아직 없어요' : (e as Error).message)),
+        onPress: async () => {
+          // The OS location sheet is one-shot — say why first (1:1 rationale copy verbatim).
+          const perm = await getTrackPermission().catch(() => 'unavailable' as const);
+          if (perm === 'undetermined') {
+            Alert.alert(
+              '러닝 거리는 위치로 재요',
+              '주머니에 넣거나 화면이 꺼져도 거리와 경로가 계속 기록돼요. 이 거리가 보호자에게 보이는 기록이자 정산 기준이에요.\n러닝을 종료하면 기록도 함께 멈춰요.',
+              [
+                { text: '나중에', style: 'cancel' },
+                { text: '위치 허용하기', onPress: () => { gateThenStart(); } },
+              ],
+            );
+            return;
+          }
+          gateThenStart();
+        },
       },
     ]);
   };
@@ -516,7 +565,9 @@ export default function ClubSessionShell() {
     <Pressable key={m.id} onLongPress={() => msgActions(m)} style={[s.msgRow, m.mine && { alignItems: 'flex-end' }]}>
       {!m.mine && <Text style={s.msgWho}>{m.senderName}</Text>}
       {m.kind === 'photo' && !m.deleted && m.mediaPath ? (
-        <Image source={{ uri: m.mediaPath }} style={s.bbPhoto} resizeMode="cover" />
+        /* [0064] media_path is a private-bucket path, not a URL — MediaImage signs it and
+           renders expiry as an explicit failure. A raw <Image> here would render broken. */
+        <MediaImage source={m.mediaPath} style={s.bbPhoto} resizeMode="cover" />
       ) : (
         <View style={[s.bb, m.mine && s.bbMine]}>
           <Text style={[s.bbTxt, m.mine && { color: '#fff' }, m.deleted && { fontStyle: 'italic', color: L.dim }]}>

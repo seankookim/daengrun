@@ -4,6 +4,7 @@ import { Alert, Animated, Dimensions, Image, Pressable, RefreshControl, ScrollVi
 import { BottomNav } from '../src/components/bottomnav';
 import { HeatTrace } from '../src/components/runcard';
 import { Avatar, Row } from '../src/components/ui';
+import { MediaImage } from '../src/lib/media';
 import {
   addComment, deleteFeedPost, fetchComments, fetchFeed, fetchRecentReviews,
   FeedComment, FeedPost, PublicReview, toggleFeedLike,
@@ -331,7 +332,8 @@ export default function Community() {
                 {/* 사진 = 본문 (콘텐츠 유지) */}
                 <Pressable onPress={() => onPhotoTap(p)}>
                   <View style={s.photoWrap}>
-                    <Image source={{ uri: p.photoUrl }} style={{ width: CARDW, height: CARDW * 1.1, backgroundColor: lilac.inset }} resizeMode="cover" />
+                    {/* [0064] 피드 사진 = 공유된 러닝 사진 — 새 포스트는 media 경로라 서명이 필요 */}
+                    <MediaImage source={p.photoUrl} style={{ width: CARDW, height: CARDW * 1.1, backgroundColor: lilac.inset }} resizeMode="cover" />
                     {(p.meta.badges ?? []).length > 0 && (
                       <View pointerEvents="none" style={s.badgeCol}>
                         {(p.meta.badges ?? []).map((b) => (

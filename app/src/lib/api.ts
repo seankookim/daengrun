@@ -4,6 +4,7 @@ import { FunctionsHttpError } from '@supabase/supabase-js';
 import { AddonKey, Booking, BookingStatus, RouteInfo, TracePoint } from '../store';
 // bookings.status 원시 enum — store의 BookingStatus(목록 배지 어휘)와 다른 어휘라 별칭으로 받는다
 import type { BookingStatus as DbBookingStatus } from './payphase';
+import { MEDIA_BUCKET } from './media';
 import { supabase } from './supabase';
 
 // Edge Function 오류 본문에서 실제 메시지 추출 ("non-2xx" 무의미 문구 대체)
@@ -179,18 +180,19 @@ export async function updateMyDog(dogId: string, p: {
   if (error) throw error;
 }
 
+// [0064] 강아지 사진은 PRIVATE media 버킷 — DB에는 경로만 저장, 화면이 서명 URL로 푼다.
+// ?v= 는 교체 시 클라이언트 이미지 캐시 무효화용 (서명 시 쿼리는 떼고 서명 후 다시 붙인다).
 export async function uploadDogPhoto(dogId: string, base64: string): Promise<string> {
   const { data: user } = await supabase.auth.getUser();
   if (!user.user) throw new Error('not signed in');
   const path = `${user.user.id}/dogs/${dogId}.jpg`;
-  const { error } = await supabase.storage.from('avatars')
+  const { error } = await supabase.storage.from(MEDIA_BUCKET)
     .upload(path, b64ToBytes(base64), { contentType: 'image/jpeg', upsert: true });
   if (error) throw error;
-  const { data: pub } = supabase.storage.from('avatars').getPublicUrl(path);
-  const url = `${pub.publicUrl}?v=${Date.now()}`;
-  const { error: e2 } = await supabase.from('dogs').update({ photo_url: url }).eq('id', dogId);
+  const stored = `${path}?v=${Date.now()}`;
+  const { error: e2 } = await supabase.from('dogs').update({ photo_url: stored }).eq('id', dogId);
   if (e2) throw e2;
-  return url;
+  return stored;
 }
 
 // ---------- bookings (edge functions) ----------
@@ -1456,18 +1458,18 @@ export async function deleteRunnerPhoto(url: string): Promise<string[]> {
   return photos;
 }
 
-// 러닝 사진 업로드 (러너, 종료 후) — runs.photos + avatars 버킷 {uid}/runs/{booking}/*
+// 러닝 사진 업로드 (러너, 종료 후) — runs.photos + [0064] PRIVATE media 버킷 {uid}/runs/{booking}/*
+// runs.photos에는 경로가 들어간다 (레거시 행은 공개 URL 그대로) — 화면이 서명 URL로 푼다.
 export async function uploadRunPhoto(bookingId: string, base64: string): Promise<string[]> {
   const { data: user } = await supabase.auth.getUser();
   if (!user.user) throw new Error('not signed in');
   const path = `${user.user.id}/runs/${bookingId}/${Date.now()}.jpg`;
-  const { error } = await supabase.storage.from('avatars')
+  const { error } = await supabase.storage.from(MEDIA_BUCKET)
     .upload(path, b64ToBytes(base64), { contentType: 'image/jpeg' });
   if (error) throw error;
-  const { data: pub } = supabase.storage.from('avatars').getPublicUrl(path);
   // 원자 append (0018) — RMW 레이스 제거, 서버가 최신 photos 배열을 반환
   const { data: photos, error: e2 } = await supabase.rpc('append_run_photo', {
-    p_booking: bookingId, p_url: pub.publicUrl,
+    p_booking: bookingId, p_url: path,
   });
   if (e2) throw e2;
   return (photos as string[] | null) ?? [];
@@ -2010,17 +2012,17 @@ export async function sendChatMessage(threadId: string, body: string): Promise<v
   if (error) throw error;
 }
 
-// 사진 메시지 — avatars 버킷 {uid}/chat/{thread}/* + kind 'photo'
+// 사진 메시지 — [0064] PRIVATE media 버킷 {uid}/chat/{thread}/* + kind 'photo'
+// media_path엔 경로 저장 — 스토리지 정책이 chat_messages RLS(스레드 당사자)로 읽기를 위임한다.
 export async function sendChatPhoto(threadId: string, base64: string): Promise<void> {
   const { data: user } = await supabase.auth.getUser();
   if (!user.user) throw new Error('not signed in');
   const path = `${user.user.id}/chat/${threadId}/${Date.now()}.jpg`;
-  const { error } = await supabase.storage.from('avatars')
+  const { error } = await supabase.storage.from(MEDIA_BUCKET)
     .upload(path, b64ToBytes(base64), { contentType: 'image/jpeg' });
   if (error) throw error;
-  const { data: pub } = supabase.storage.from('avatars').getPublicUrl(path);
   const { error: e2 } = await supabase.from('chat_messages').insert({
-    thread_id: threadId, sender_id: user.user.id, kind: 'photo', media_path: pub.publicUrl, body: null,
+    thread_id: threadId, sender_id: user.user.id, kind: 'photo', media_path: path, body: null,
   });
   if (e2) throw e2;
 }
@@ -2636,7 +2638,8 @@ export async function sendClubChat(
   });
   if (error) throw error;
 }
-// 사진 메시지 — avatars 버킷 {uid}/clubchat/{session}/* + kind 'photo' (RLS insert 정책이 kind를 허용)
+// 사진 메시지 — [0064] PRIVATE media 버킷 {uid}/clubchat/{session}/* + kind 'photo'
+// media_path엔 경로 저장 — 스토리지 정책이 club_chat_messages RLS(메시지 가시성)로 읽기를 위임한다.
 export async function sendClubChatPhoto(
   sessionId: string, base64: string,
   opts: { audience?: 'group' | 'host_channel'; recipient?: string | null } = {},
@@ -2644,15 +2647,14 @@ export async function sendClubChatPhoto(
   const { data: user } = await supabase.auth.getUser();
   if (!user.user) throw new Error('not signed in');
   const path = `${user.user.id}/clubchat/${sessionId}/${Date.now()}.jpg`;
-  const { error } = await supabase.storage.from('avatars')
+  const { error } = await supabase.storage.from(MEDIA_BUCKET)
     .upload(path, b64ToBytes(base64), { contentType: 'image/jpeg' });
   if (error) throw error;
-  const { data: pub } = supabase.storage.from('avatars').getPublicUrl(path);
   const audience = opts.audience ?? 'group';
   const { error: e2 } = await supabase.from('club_chat_messages').insert({
     session_id: sessionId, sender_id: user.user.id, audience,
     recipient_profile_id: audience === 'host_channel' ? (opts.recipient ?? user.user.id) : null,
-    kind: 'photo', body: null, media_path: pub.publicUrl,
+    kind: 'photo', body: null, media_path: path,
   });
   if (e2) throw e2;
 }
@@ -2673,8 +2675,14 @@ export async function clubChatDelete(messageId: number): Promise<void> {
     .select('media_path').eq('id', messageId).maybeSingle();
   await clubRpc('club_chat_delete', { p_message: messageId });
   const media = (row as any)?.media_path as string | null | undefined;
-  const at = media ? media.indexOf('/avatars/') : -1;
-  if (media && at >= 0) {
+  if (!media) return;
+  if (!/^https?:/.test(media)) {
+    // [0064] 새 형식: media 버킷의 경로. 잔존해도 스토리지 정책이 deleted_at으로 읽기를 봉인한다.
+    try { await supabase.storage.from(MEDIA_BUCKET).remove([media.split('?')[0]]); } catch { /* 원본 잔존은 로그 없이 넘긴다 */ }
+    return;
+  }
+  const at = media.indexOf('/avatars/');
+  if (at >= 0) {
     const path = media.slice(at + '/avatars/'.length).split('?')[0];
     if (path) {
       try { await supabase.storage.from('avatars').remove([path]); } catch { /* 원본 잔존은 로그 없이 넘긴다 */ }
@@ -3127,3 +3135,22 @@ export const startClubSeries = (
   }) as Promise<string>;
 export const pauseClubSeries = (seriesId: string) =>
   clubRpc('club_series_pause', { p_series: seriesId }) as Promise<void>;
+
+// ---------- owner Live Activity token registration (0063) ----------
+// The ActivityKit push token is PER-ACTIVITY (one lock-screen banner instance), not per-device —
+// a different animal from the Expo token in push.ts/push_tokens (0024). Registered so the 0063
+// server pipeline (trace trigger · stale sweep · completion trigger) can drive the owner's lock
+// screen over APNs while the app is suspended. Called only by ownerActivity.ts.
+export async function ownerLaRegister(
+  bookingId: string, activityId: string, token: string, env: 'development' | 'production',
+): Promise<void> {
+  const { error } = await supabase.rpc('owner_la_register', {
+    p_booking: bookingId, p_activity_id: activityId, p_token: token, p_env: env,
+  });
+  if (error) throw error;
+}
+
+export async function ownerLaUnregister(bookingId: string): Promise<void> {
+  const { error } = await supabase.rpc('owner_la_unregister', { p_booking: bookingId });
+  if (error) throw error;
+}

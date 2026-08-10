@@ -5,6 +5,7 @@ import { PaperBtn } from '../../src/components/paper-btn';
 import { Monogram, Row } from '../../src/components/ui';
 import { confirmHandoff, fetchBookingSync, fetchCurrentOwnerBookingId, fetchMeetupInfo, MeetupInfo, subscribeBooking } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
+import { startOwnerActivity } from '../../src/lib/ownerActivity';
 import { haptic } from '../../src/lib/haptics';
 import { draft } from '../../src/store';
 import { paper } from '../../src/theme';
@@ -186,6 +187,19 @@ export default function OwnerMeetup() {
     loop.start();
     return () => loop.stop();
   }, [isWaiting, pulse]);
+
+  // [0063] owner Live Activity — starts at the sealed handoff (server truth: status picked_up),
+  // the lab's '인계 완료' card. No 0.00 is drawn (km: '' — the number does not exist yet). From
+  // here the lock screen is driven by the APNs pipeline, not this screen; startOwnerActivity also
+  // registers the per-activity push token. Re-render repeats are absorbed by the controller
+  // (adopt-existing, update-in-place).
+  useEffect(() => {
+    if (stage !== 'confirmed' || !bookingId || !info) return;
+    startOwnerActivity(bookingId, {
+      phase: 'pre', dogName: info.dogName, runnerName: info.runnerName ?? '러너',
+      km: '', targetKm: String(info.km), pace: '', elapsed: '', statusLine: '',
+    });
+  }, [stage, bookingId, info]);
 
   // [P2-12] 반드시 마지막 effect — 같은 커밋에서 useStamp·celebrate effect가 먼저 실행된 뒤에
   // 게이트가 열린다. 첫 동기화가 이미 봉인 상태였다면 그 커밋은 점프, 그 다음 봉인부터 애니메이션.

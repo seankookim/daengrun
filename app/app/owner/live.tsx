@@ -6,6 +6,7 @@ import { Avatar, Row } from '../../src/components/ui';
 import { fetchBookingStatus, fetchCurrentOwnerBookingId, fetchMeetupInfo, MeetupInfo, subscribeBooking } from '../../src/lib/api';
 import { useNumFont } from '../../src/lib/fonts';
 import { getNaverMap, LivePos, smoothTrace, subscribePos } from '../../src/lib/geo';
+import { endOwnerActivity, OwnerLAProps, startOwnerActivity, updateOwnerActivity } from '../../src/lib/ownerActivity';
 import { draft } from '../../src/store';
 import { paper } from '../../src/theme';
 
@@ -107,7 +108,15 @@ export default function Live() {
     const done = async () => {
       try {
         const st = await fetchBookingStatus(bid);
-        if (st === 'completed') router.replace({ pathname: '/owner/report', params: { bid } });
+        if (st === 'completed') {
+          // [0063] local end fallback — the completion push (settled numbers) also ends the LA
+          // server-side; whichever lands first wins, the other is a no-op. Uses the last drawn
+          // props so the banner never shows numbers this screen did not.
+          if (laPropsRef.current) {
+            endOwnerActivity({ ...laPropsRef.current, phase: 'done', targetKm: '', pace: '', statusLine: '' });
+          }
+          router.replace({ pathname: '/owner/report', params: { bid } });
+        }
       } catch { /* 폴백이 처리 */ }
     };
     const unsubBk = subscribeBooking(bid, done);
@@ -137,6 +146,40 @@ export default function Live() {
   const km = pos?.km ?? 0;
   const sec = liveSec;
   const progressT = hasFix && targetKm != null ? Math.min(km / Math.max(targetKm, 0.1), 1) : 0;
+
+  // ---------- [0063] owner Live Activity — this screen's lock-screen mirror ----------
+  // While the app is awake this screen refreshes the LA locally from the same broadcast that draws
+  // the map (5s throttle — runner LA convention). The moment the app sleeps, the 0063 APNs
+  // pipeline takes over from runs.trace — same truth, different transport. Same honesty rules as
+  // this screen: no fix → no number, stale ≥90s → the number greys out and says how long.
+  const laPropsRef = useRef<OwnerLAProps | null>(null);
+  const laLast = useRef(0);
+  laPropsRef.current = {
+    phase: !hasFix ? 'running' : stale ? 'stale' : 'running',
+    dogName,
+    runnerName,
+    km: hasFix ? km.toFixed(2) : '',
+    targetKm: targetKm != null ? String(targetKm) : '',
+    pace: hasFix && !stale ? paceStr(sec, km) : '',
+    elapsed: hasFix && !stale ? fmt(sec) : '',
+    statusLine: !hasFix ? '' : stale ? `${staleMin}분째 위치가 갱신되지 않았어요` : '방금 업데이트',
+  };
+  // Adopt-or-start (re-entry safe) + per-activity push token registration — needs real identities,
+  // so it waits for info. This screen only opens for a live booking, so the state gate holds.
+  useEffect(() => {
+    if (!bookingId || !info) return;
+    startOwnerActivity(bookingId, laPropsRef.current!);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bookingId, info]);
+  // Local refresh — every position/clock/staleness change, throttled to 5s.
+  useEffect(() => {
+    if (!bookingId || !info) return;
+    const now = Date.now();
+    if (now - laLast.current < 5000) return;
+    laLast.current = now;
+    updateOwnerActivity(laPropsRef.current!);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pos, liveSec, staleSec]);
 
   // ---------- 해석 중 · 없음 · 실패 — 지도도 숫자도 없는 중립 대기면 ----------
   if (resolve !== 'ready') {

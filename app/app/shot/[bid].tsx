@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Animated, Dimensions, Image, Modal, PanResponder, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { fetchRunReport, fetchRunStandings, RunReport, RunStandings } from '../../src/lib/api';
+import { resolveMediaUrl } from '../../src/lib/media';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { haptic } from '../../src/lib/haptics';
 import { colors } from '../../src/theme';
@@ -170,7 +171,23 @@ export default function ShotStudio() {
 
   const run = report?.run ?? null;
   const pts = useMemo(() => (run && run.trace.length > 1 ? normalizeTrace(run.trace) : null), [run]);
-  const runPhotos = run?.photos ?? [];
+  // [0064] runs.photos는 프라이빗 media 경로일 수 있다 — PhotoLayer/캡처가 실 URI를 요구하므로
+  // 여기서 한 번 서명 URL로 풀어 상태에 담는다. 실패 장수는 시트에 정직하게 고지 (침묵 강등 금지).
+  const [runPhotos, setRunPhotos] = useState<string[]>([]);
+  const [photoSignFails, setPhotoSignFails] = useState(0);
+  useEffect(() => {
+    const paths = run?.photos ?? [];
+    if (paths.length === 0) { setRunPhotos([]); setPhotoSignFails(0); return; }
+    let live = true;
+    Promise.all(paths.map((p) => resolveMediaUrl(p).catch(() => null))).then((rs) => {
+      if (!live) return;
+      setRunPhotos(rs.filter((x): x is string => !!x));
+      setPhotoSignFails(rs.filter((x) => x === null).length);
+    });
+    return () => { live = false; };
+    // sheetOpen 재오픈 = 실패분 재시도 (서명 캐시가 있어 성공분은 공짜)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [run, sheetOpen]);
 
   // 러너 사진이 있으면 자동 기본 사진 (스킨별, 이미 고른 스킨은 유지)
   useEffect(() => {
@@ -562,6 +579,12 @@ export default function ShotStudio() {
                 </Pressable>
               ))}
             </View>
+          )}
+          {photoSignFails > 0 && (
+            /* [0064] 서명 실패 = 명시적 실패 상태 — 조용히 장수를 줄이지 않는다 */
+            <Text style={{ fontSize: 13, fontWeight: '700', color: '#b4552d', marginTop: 8 }}>
+              ⚠️ 사진 {photoSignFails}장을 못 불러왔어요 — 시트를 닫았다 다시 열면 재시도해요
+            </Text>
           )}
           <Pressable onPress={pickFromGallery} style={s.galBtn}>
             <Text style={{ fontSize: 14, fontWeight: '800', color: colors.dim }}>🖼 내 갤러리에서 선택</Text>

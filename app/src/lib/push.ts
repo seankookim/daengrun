@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
 import { session } from '../store';
+import { fetchCurrentOwnerBookingId } from './api';
 import { supabase } from './supabase';
 
 // APNs 푸시 등록 (Expo Push 경유, 0024) — 홈 진입 시 1회 호출 (양 역할).
@@ -29,10 +30,26 @@ export function routeForNotification(kind: string | null | undefined, refId: str
   try {
     if (session.role === 'runner') {
       router.push(title.includes('요청') ? '/runner/requests' : '/runner/calendar');
+    } else if (LIVE_TITLES.includes(title)) {
+      // /owner/meetup takes no bid — it self-restores to whatever booking is CURRENTLY in
+      // flight. Fine for a live push tapped in the moment; wrong for the historical inbox
+      // (alerts.tsx shares this router): a months-old "러너 이동 중" row would open today's
+      // unrelated booking, or dead-end on "진행 중인 예약이 없어요". Route to the meetup screen
+      // only when this notification IS the current booking; otherwise keep the report route.
+      // Async by necessity — deep links are best-effort, so the fetch failing folds to report
+      // (still bid-scoped and honest) rather than to a screen that guesses.
+      fetchCurrentOwnerBookingId()
+        .then((cur) => {
+          try {
+            if (cur && cur === refId) router.push('/owner/meetup');
+            else router.push({ pathname: '/owner/report', params: { bid: refId } });
+          } catch { /* navigation not ready — deep link is best-effort */ }
+        })
+        .catch(() => {
+          try { router.push({ pathname: '/owner/report', params: { bid: refId } }); } catch { /* */ }
+        });
     } else {
-      router.push(LIVE_TITLES.includes(title)
-        ? '/owner/meetup'
-        : { pathname: '/owner/report', params: { bid: refId } });
+      router.push({ pathname: '/owner/report', params: { bid: refId } });
     }
   } catch {
     // 내비게이션 미준비 등 — 딥링크는 부가 기능, 실패해도 앱은 살아있다

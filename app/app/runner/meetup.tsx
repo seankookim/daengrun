@@ -137,6 +137,14 @@ export default function Meetup() {
       // 도착 복원 — 이 분기가 없으면 도착 후 리마운트한 러너가 'enroute'에 좌초한다
       // (장비 체크와 인계 CTA가 전부 'arrived' 뒤에 있다). 위 분기가 이긴 경우는 건드리지 않는다.
       else if (s2.arrivedAt) setStage((cur) => (cur === 'enroute' ? 'arrived' : cur));
+      // Inverse of the restore above — server truth can also move BACKWARDS: when the owner
+      // swaps runners, runner_accept's resetPatch nulls arrived_at and both handoff confirms.
+      // Without this the replaced runner's mounted screen stays on 'arrived'/'waiting' and keeps
+      // offering the 인계 CTA for a booking it no longer owns (confirmHandoff would 403).
+      // Reaching here means: not picked_up/active, no runner confirm, no arrived_at — the local
+      // 'arrived'/'waiting' stages are only ever set after a server ack, so a null arrived_at
+      // here is a genuine reset. (A sync that raced the ack self-heals on the next poll/event.)
+      else setStage((cur) => (cur === 'arrived' || cur === 'waiting' ? 'enroute' : cur));
     } catch { /* 다음 이벤트/폴백이 처리 */ }
   }, [jobId]);
 

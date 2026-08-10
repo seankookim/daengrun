@@ -2,6 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Monogram, Row } from '../src/components/ui';
+import { MediaImage } from '../src/lib/media';
 import {
   ChatContext, ChatMsg, fetchCurrentOwnerBookingId, fetchCurrentRunnerJobId,
   fetchMessages, openChatForBooking, sendChatMessage, sendChatPhoto, subscribeMessages,
@@ -153,7 +154,8 @@ export default function Chat() {
               {m.mine && <Text style={s.time}>{m.when}</Text>}
               <View style={[s.bubble, m.mine ? s.bubbleMine : s.bubblePeer, m.mediaUrl != null && { padding: 4 }]}>
                 {m.mediaUrl ? (
-                  <Image source={{ uri: m.mediaUrl }} style={{ width: 190, height: 190, borderRadius: 14 }} resizeMode="cover" />
+                  /* [0064] media_path는 프라이빗 버킷 경로 — MediaImage가 서명 URL로 풀고 만료를 명시 실패로 그린다 */
+                  <MediaImage source={m.mediaUrl} style={{ width: 190, height: 190, borderRadius: 14 }} resizeMode="cover" />
                 ) : (
                   <Text style={{ fontSize: 15.5, lineHeight: 22, color: m.mine ? FOREST : '#2c332c' }}>{m.body}</Text>
                 )}

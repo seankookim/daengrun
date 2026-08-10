@@ -6,6 +6,7 @@ import { BottomNav } from '../../src/components/bottomnav';
 import { CourseStrip } from '../../src/components/CourseStrip';
 import { ClubHomeCard } from '../../src/components/clubcard';
 import { Avatar, Icon } from '../../src/components/ui';
+import { MediaImage } from '../../src/lib/media';
 import { Addr, BeaconInfo, BoardRow, createBookingHold, DogProfile, fetchAddresses, fetchAvailableRunners, fetchCertifiedRunners, fetchDogBoardDelta, fetchFitness, fetchMyBookings, fetchMyDogs, fetchMyProfile, fetchRecentMoments, fetchRewardBeacon, fetchRoutes, fetchUnreadCount, Fitness, LiveRunner, Moment, MyProfile } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
@@ -1301,7 +1302,8 @@ export default function OwnerHome() {
                   onPress={() => router.push({ pathname: '/owner/report', params: { bid: m.bookingId } })}
                   style={[s.momentCard, mi === 0 && { width: 150 }]}
                 >
-                  <Image source={{ uri: m.url }} style={{ width: '100%', height: '100%' }} />
+                  {/* [0064] 러닝 사진은 media 경로 — 서명 URL로 렌더 */}
+                  <MediaImage source={m.url} style={{ width: '100%', height: '100%' }} />
                   <View style={s.momentPill}>
                     <Text style={[{ fontSize: 14, lineHeight: 18, fontWeight: '900', color: '#fff' }, nf]}>
                       {m.km}km

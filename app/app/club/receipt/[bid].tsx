@@ -2,6 +2,7 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Animated, Easing, Image, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { Row } from '../../../src/components/ui';
+import { MediaImage } from '../../../src/lib/media';
 import { ClubCta, ClubMast, DawnCanvas, Flap } from '../../../src/components/club-ui';
 import { fetchRunEarning, fetchRunReport, RunEarning, runPhotoAllowed, RunReport, sealStampFresh, shareRunToFeed } from '../../../src/lib/api';
 import { useDisplayFont } from '../../../src/lib/displayFont';
@@ -167,7 +168,8 @@ export default function ClubReceipt() {
             {/* 베스트 샷 인화 — 있으면 사진이 카드의 상단을 산다, 골드 실이 반쯤 걸친다 */}
             {bestShot && (
               <View style={s.photoWrap}>
-                <Image source={{ uri: bestShot }} style={s.photo} resizeMode="cover" />
+                {/* [0064] 러닝 사진은 media 경로 — 서명 URL로 렌더 */}
+                <MediaImage source={bestShot} style={s.photo} resizeMode="cover" />
               </View>
             )}
             <View style={{ alignItems: 'center', marginTop: bestShot ? -26 : 16 }}>

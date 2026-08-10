@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Alert, Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { Btn, Card, Row, text } from '../../src/components/ui';
 import { DropRow, fetchDrops, uploadRunPhoto } from '../../src/lib/api';
+import { MediaImage } from '../../src/lib/media';
 import { runRequests, runResult } from '../../src/store';
 import { colors } from '../../src/theme';
 
@@ -80,7 +81,8 @@ export default function RunDone() {
           </Row>
           <Row style={{ gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
             {photos.map((url) => (
-              <Image key={url} source={{ uri: url }} style={{ width: 64, height: 64, borderRadius: 10, backgroundColor: '#DCD6C4' }} />
+              /* [0064] uploadRunPhoto가 media 경로를 돌려준다 — 서명 URL로 렌더 */
+              <MediaImage key={url} source={url} style={{ width: 64, height: 64, borderRadius: 10, backgroundColor: '#DCD6C4' }} />
             ))}
             {photos.length < 6 && (
               <Pressable
