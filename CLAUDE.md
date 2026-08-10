@@ -15,7 +15,23 @@ convert opportunistically when you are already editing a file for another reason
 
 ## Operations — Sean-only
 
-`supabase db push`, `supabase functions deploy`, and `git push` are performed by Sean ONLY. Never run them. Prepare, verify, commit locally, then list what's on Sean's side as explicit commands without inline comments. SQL goes to the SQL editor; shell commands to the terminal — say which.
+**Changed 2026-08-10 (Sean): Claude may run `supabase db push`, `supabase functions deploy`, and
+`git push`.** Conditions that still hold:
+
+- Gates green first — tsc, check-rpc, and the SQL harness for anything touching migrations. Never
+  deploy on a red or unrun gate.
+- Never push from a worktree carrying an unfinished migration; `db push` applies every pending
+  local file.
+- Verify after, don't assume: `supabase migration list` after a push, the anon-definer check after
+  a security migration, and read back what actually landed.
+- Announce what you ran and what it changed. Say plainly if something failed.
+- **Still Sean-only, and not because of policy:** anything requiring a credential's *value* — the
+  APNs `.p8`, App Store Connect, a PG contract, 사업자등록. Claude may use credentials already
+  configured on the machine, but never types, copies, or relays a secret's value.
+- Product decisions with real-world consequences (wiping production accounts, changing what users
+  are told about safety) stay Sean's call even when the command is trivial.
+
+Never claim device-visual success — verify on the simulator, or say it is unverified.
 
 Never claim device-visual success — Sean smoke-tests on hardware. Provide a smoke list instead.
 
