@@ -13,7 +13,7 @@ import { useClubOverview } from '../src/components/clubcard';
 import { useDisplayFont } from '../src/lib/displayFont';
 import { useNumFont } from '../src/lib/fonts';
 import { haptic } from '../src/lib/haptics';
-import { CollarKey, collarColors, lilac, lilacRadius, lilacShadow } from '../src/theme';
+import { CollarKey, collarColors, lilac, paper } from '../src/theme';
 
 // 동네 피드 — "동네 신문 (LOCAL PAPER)" 리페인트 (라일락 정본, delegation-premium-refresh2).
 // 편집 문법: 마스트헤드(판권 라인 + Black Han Sans 워드마크 1회) → 홀로 엣지 클럽 배너 →
@@ -166,7 +166,7 @@ export default function Community() {
   const sealPostId = posts.find((p) => (p.meta.badges ?? []).some(isMilestone))?.id;
 
   return (
-    <View style={{ flex: 1, backgroundColor: lilac.bg }}>
+    <View style={{ flex: 1, backgroundColor: paper.canvas }}>{/* [페이퍼 크롬 2026-08-10] 라일락 캔버스 은퇴 → 백지 */}
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingTop: 56, paddingBottom: 30 }}
@@ -229,7 +229,7 @@ export default function Community() {
         )}
 
         {/* ───────── 섹션 탭 — 피드 | 러너 후기 ───────── */}
-        <Row style={{ marginTop: 14, paddingHorizontal: GUTTER + 2, gap: 20, borderBottomWidth: 1, borderBottomColor: lilac.hair }}>
+        <Row style={{ marginTop: 14, paddingHorizontal: GUTTER + 2, gap: 20, borderBottomWidth: 1, borderBottomColor: paper.line }}>{/* [페이퍼 크롬] 섹션 분리 = 풀블리드 코랄 1px */}
           {([['feed', '피드'], ['reviews', '러너 후기']] as const).map(([k, label]) => {
             const count = k === 'feed' ? posts.length : reviews?.length;
             return (
@@ -499,26 +499,28 @@ export default function Community() {
   );
 }
 
+// [페이퍼 크롬 2026-08-10] 크롬 페이퍼 이행 — 카드 샤프 1px #EEE · 소프트 섀도 은퇴 · 섹션 룰 = 코랄.
+// 생존: 칼라 팔레트·사진 콘텐츠·클럽 나이트 리캡·골드 소인(원형 아티팩트)·코랄 발자국 신호·홀로 예산.
 const s = StyleSheet.create({
-  // 마스트헤드 — [FIX3] 키커·모노그램 12pt 밴드 승급, 박스 22로 성장
+  // 마스트헤드 — [FIX3] 키커·모노그램 12pt 밴드 승급, 박스 22로 성장 (모노그램 = 홀로 아티팩트, 라운드 유지)
   mono: { width: 22, height: 22, borderRadius: 6, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
   monoTxt: { fontSize: 12, fontWeight: '600', color: lilac.head, letterSpacing: 0.5 },
   kickerLabel: { fontSize: 12, fontWeight: '600', letterSpacing: 2, color: lilac.dim, textTransform: 'uppercase' },
-  kickerRule: { flex: 1, height: 1, backgroundColor: lilac.hair },
+  kickerRule: { flex: 1, height: 1, backgroundColor: '#EEEEEE' }, // [페이퍼 크롬] 인라인 룰은 뉴트럴
   h1: { fontSize: 38, fontWeight: '900', color: lilac.head, letterSpacing: -0.4, lineHeight: 46 }, // [BUG A] lineHeight ≥1.2× — 상단 클리핑 방지 (크기 불변)
   lede: { fontSize: 14, color: lilac.text, marginTop: 8, lineHeight: 20, maxWidth: 265 },
-  liveBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderColor: '#F6C3B4', borderRadius: lilacRadius.tag, backgroundColor: lilac.card, paddingVertical: 4, paddingHorizontal: 8, alignSelf: 'center' },
+  liveBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderColor: '#F6C3B4', borderRadius: 0, backgroundColor: lilac.card, paddingVertical: 4, paddingHorizontal: 8, alignSelf: 'center' }, // [페이퍼 크롬] 샤프 (코랄 틴트 보더 = LIVE 신호 생존)
   liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: lilac.coral },
   liveTxt: { fontSize: 12, fontWeight: '600', letterSpacing: 1.2, color: lilac.coralDeep },
-  rankBtn: { flexDirection: 'column', alignItems: 'center', gap: 2, backgroundColor: lilac.card, borderRadius: lilacRadius.card, paddingVertical: 8, paddingHorizontal: 12, borderWidth: 1, borderColor: lilac.hair, alignSelf: 'flex-start', marginTop: 4, ...lilacShadow },
+  rankBtn: { flexDirection: 'column', alignItems: 'center', gap: 2, backgroundColor: lilac.card, borderRadius: 0, paddingVertical: 8, paddingHorizontal: 12, borderWidth: 1, borderColor: '#EEEEEE', alignSelf: 'flex-start', marginTop: 4 }, // [페이퍼 크롬] 샤프·뉴트럴, 섀도 은퇴
   rankTxt: { fontSize: 12, fontWeight: '600', letterSpacing: 1, color: lilac.head, textTransform: 'uppercase' },
 
-  // 클럽 스트립 (홀로 엣지) — [FIX3] 텍스트 승급분만큼 높이 72 → 80
-  clubStrip: { height: 80, borderRadius: 6, overflow: 'hidden', backgroundColor: lilac.head, marginHorizontal: GUTTER, marginTop: 13 },
+  // 클럽 스트립 (홀로 엣지) — [FIX3] 높이 72 → 80 · [페이퍼 크롬] 코너만 샤프 (나이트 표면·홀로는 아티팩트)
+  clubStrip: { height: 80, borderRadius: 0, overflow: 'hidden', backgroundColor: lilac.head, marginHorizontal: GUTTER, marginTop: 13 },
   clubScrim: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(28,24,55,.40)' },
   clubKick: { fontSize: 12, fontWeight: '600', letterSpacing: 1.5, color: 'rgba(255,255,255,.82)', textTransform: 'uppercase', marginBottom: 4 },
   clubName: { fontSize: 14.5, fontWeight: '700', color: '#fff', letterSpacing: -0.2 },
-  clubPill: { backgroundColor: lilac.glassEdge, borderRadius: lilacRadius.tag, paddingVertical: 6, paddingHorizontal: 10, alignItems: 'flex-end' },
+  clubPill: { backgroundColor: lilac.glassEdge, borderRadius: 0, paddingVertical: 6, paddingHorizontal: 10, alignItems: 'flex-end' }, // 사진 위 판독 플레이트 — 필 유지, 샤프
   clubPillN: { fontSize: 14, fontWeight: '700', color: lilac.head, lineHeight: 18 },
   clubGo: { fontSize: 12, fontWeight: '600', letterSpacing: 1, color: lilac.accent, marginTop: 3, textTransform: 'uppercase' },
   holoTop: { position: 'absolute', top: 0, left: 0, right: 0, height: 3, zIndex: 3 },
@@ -526,45 +528,45 @@ const s = StyleSheet.create({
 
   tabCount: { fontSize: 12, fontWeight: '600', letterSpacing: 1 },
 
-  // 후기 카드
-  revCard: { backgroundColor: lilac.card, borderRadius: lilacRadius.card, padding: 12, borderWidth: 1, borderColor: lilac.hair, ...lilacShadow },
-  monoTag: { borderWidth: 1, borderColor: lilac.hair, borderRadius: lilacRadius.tag, backgroundColor: lilac.card, paddingVertical: 4, paddingHorizontal: 8 },
+  // 후기 카드 — [페이퍼 크롬] 샤프·뉴트럴, 섀도 은퇴
+  revCard: { backgroundColor: lilac.card, borderRadius: 0, padding: 12, borderWidth: 1, borderColor: '#EEEEEE' },
+  monoTag: { borderWidth: 1, borderColor: '#EEEEEE', borderRadius: 0, backgroundColor: lilac.card, paddingVertical: 4, paddingHorizontal: 8 },
   monoTagTxt: { fontSize: 12, fontWeight: '600', letterSpacing: 1, color: lilac.text, textTransform: 'uppercase' },
-  voltTag: { borderWidth: 1, borderColor: '#D9EBAA', borderRadius: lilacRadius.tag, backgroundColor: lilac.voltFill, paddingVertical: 4, paddingHorizontal: 8 },
+  voltTag: { borderWidth: 1, borderColor: '#D9EBAA', borderRadius: 0, backgroundColor: lilac.voltFill, paddingVertical: 4, paddingHorizontal: 8 }, // 볼트 = 시맨틱 (마일스톤)
   voltTagTxt: { fontSize: 12, fontWeight: '600', letterSpacing: 1, color: lilac.voltDeep, textTransform: 'uppercase' },
 
-  emptyBox: { marginHorizontal: GUTTER, marginTop: 20, backgroundColor: lilac.inset, borderRadius: lilacRadius.card, borderWidth: 1, borderColor: lilac.hair, padding: 26 },
+  emptyBox: { marginHorizontal: GUTTER, marginTop: 20, backgroundColor: lilac.inset, borderRadius: 0, borderWidth: 1, borderColor: '#EEEEEE', padding: 26 },
 
-  // 기사 카드 — [FIX3] 스탬프·인덱스 12pt 승급
-  post: { backgroundColor: lilac.card, marginHorizontal: GUTTER, marginTop: 11, borderWidth: 1, borderColor: lilac.hair, borderRadius: lilacRadius.card, overflow: 'hidden', ...lilacShadow },
+  // 기사 카드 — [FIX3] 스탬프·인덱스 12pt 승급 · [페이퍼 크롬] 피드 카드 = 샤프 1px #EEE, 섀도 은퇴
+  post: { backgroundColor: lilac.card, marginHorizontal: GUTTER, marginTop: 11, borderWidth: 1, borderColor: '#EEEEEE', borderRadius: 0, overflow: 'hidden' },
   stamp: { fontSize: 12, fontWeight: '600', letterSpacing: 1, color: lilac.head, textTransform: 'uppercase' },
-  idx: { fontSize: 12, fontWeight: '600', letterSpacing: 1, color: lilac.head, borderWidth: 1, borderColor: lilac.hair, borderRadius: lilacRadius.doc, paddingVertical: 3, paddingHorizontal: 5, marginLeft: 2, alignSelf: 'flex-start' },
+  idx: { fontSize: 12, fontWeight: '600', letterSpacing: 1, color: lilac.head, borderWidth: 1, borderColor: '#EEEEEE', borderRadius: 0, paddingVertical: 3, paddingHorizontal: 5, marginLeft: 2, alignSelf: 'flex-start' },
 
-  // 사진
-  photoWrap: { position: 'relative', borderTopWidth: 1, borderBottomWidth: 1, borderColor: lilac.hair2, backgroundColor: lilac.inset },
+  // 사진 (콘텐츠 불가침 — 크롬 엣지만 뉴트럴)
+  photoWrap: { position: 'relative', borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#EEEEEE', backgroundColor: lilac.inset },
   badgeCol: { position: 'absolute', top: 8, right: 8, gap: 4, alignItems: 'flex-end' },
-  badge: { backgroundColor: lilac.glassEdge, borderRadius: lilacRadius.tag, paddingVertical: 4, paddingHorizontal: 8 },
+  badge: { backgroundColor: lilac.glassEdge, borderRadius: 0, paddingVertical: 4, paddingHorizontal: 8 },
   badgeTxt: { fontSize: 12, fontWeight: '600', letterSpacing: 1, color: lilac.head, textTransform: 'uppercase' },
   // 기록 소인 (골드) — 화면당 1개 · [FIX3] 텍스트 승급분만큼 56 → 68 원형 성장
   seal: { position: 'absolute', right: 10, bottom: 10, width: 68, height: 68, borderRadius: 34, backgroundColor: lilac.goldSoft, borderWidth: 1.4, borderColor: lilac.gold, alignItems: 'center', justifyContent: 'center', transform: [{ rotate: '-8deg' }] },
   sealB: { fontSize: 14, fontWeight: '700', color: lilac.head, lineHeight: 18 },
   sealS: { fontSize: 11.5, fontWeight: '600', letterSpacing: 1, color: lilac.head, textTransform: 'uppercase', marginTop: 2 },
 
-  // 하이라인 스탯 표 — [FIX3] 키 12pt · [BUG A] 값 lineHeight 명시
-  statTable: { marginHorizontal: 11, marginTop: 9, borderTopWidth: 1, borderBottomWidth: 1, borderColor: lilac.hair },
+  // 하이라인 스탯 표 — [FIX3] 키 12pt · [BUG A] 값 lineHeight 명시 · [페이퍼 크롬] 카드 내부 룰 = 뉴트럴
+  statTable: { marginHorizontal: 11, marginTop: 9, borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#EEEEEE' },
   statCell: { flex: 1, paddingVertical: 9 },
-  statDiv: { borderLeftWidth: 1, borderLeftColor: lilac.hair2, paddingLeft: 11 },
+  statDiv: { borderLeftWidth: 1, borderLeftColor: '#EEEEEE', paddingLeft: 11 },
   statK: { fontSize: 12, fontWeight: '600', letterSpacing: 1, color: lilac.dim, textTransform: 'uppercase', marginBottom: 4 },
   statV: { fontSize: 17, fontWeight: '600', color: lilac.head, fontVariant: ['tabular-nums'], lineHeight: 21 },
 
   // 기록 조판 블록 (사진 없음) — [BUG A] 큰 Oswald 숫자 lineHeight 46 (≥1.2×38)
-  record: { flexDirection: 'row', gap: 10, alignItems: 'stretch', backgroundColor: lilac.inset, borderTopWidth: 1, borderBottomWidth: 1, borderColor: lilac.hair2, paddingHorizontal: 11, paddingVertical: 12 },
+  record: { flexDirection: 'row', gap: 10, alignItems: 'stretch', backgroundColor: lilac.inset, borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#EEEEEE', paddingHorizontal: 11, paddingVertical: 12 },
   recordKm: { fontSize: 38, fontWeight: '600', color: lilac.head, letterSpacing: -0.5, lineHeight: 46, fontVariant: ['tabular-nums'] },
   recordPace: { fontSize: 14, lineHeight: 18, fontWeight: '600', letterSpacing: 0.6, color: lilac.accent, marginTop: 3 },
-  traceBox: { alignItems: 'center', justifyContent: 'center', backgroundColor: lilac.card, borderWidth: 1, borderColor: lilac.hair, borderRadius: lilacRadius.inner },
+  traceBox: { alignItems: 'center', justifyContent: 'center', backgroundColor: lilac.card, borderWidth: 1, borderColor: '#EEEEEE', borderRadius: 0 },
 
   // 클럽 리캡 = 밤의 창 (나이트 라일락) — [FIX3] 키커·키 12pt · [BUG A] 숫자 lineHeight 명시
-  recapCard: { backgroundColor: '#1C1837', paddingLeft: 16, paddingRight: 14, paddingVertical: 13, borderTopWidth: 1, borderBottomWidth: 1, borderColor: lilac.hair2, overflow: 'hidden' },
+  recapCard: { backgroundColor: '#1C1837', paddingLeft: 16, paddingRight: 14, paddingVertical: 13, borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#EEEEEE', overflow: 'hidden' }, // 밤의 창은 아티팩트 — 크롬 엣지만 뉴트럴
   recapEdge: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 3 },
   recapKick: { fontSize: 12, fontWeight: '600', letterSpacing: 1.8, color: '#CFC4FF', textTransform: 'uppercase' },
   recapNumCell: { flex: 1 },
@@ -572,8 +574,8 @@ const s = StyleSheet.create({
   recapNum: { fontSize: 19, fontWeight: '600', color: '#fff', fontVariant: ['tabular-nums'], lineHeight: 23 },
   recapK: { fontSize: 12, fontWeight: '600', letterSpacing: 1.2, color: lilac.dim, textTransform: 'uppercase', marginTop: 4 },
 
-  // 조용한 액션 행 — [FIX3] 라벨·숫자 승급, 칩 패딩 성장
-  act: { flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderColor: lilac.hair, backgroundColor: lilac.card, borderRadius: lilacRadius.tag, paddingVertical: 6, paddingHorizontal: 10 },
+  // 조용한 액션 행 — [FIX3] 라벨·숫자 승급, 칩 패딩 성장 · [페이퍼 크롬] 샤프 (actOn 코랄 = 단일 신호 생존)
+  act: { flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderColor: '#EEEEEE', backgroundColor: lilac.card, borderRadius: 0, paddingVertical: 6, paddingHorizontal: 10 },
   actOn: { borderColor: '#F6C3B4', backgroundColor: '#FFF7F4', borderLeftWidth: 2.5, borderLeftColor: lilac.coral },
   actLabel: { fontSize: 12, fontWeight: '600', letterSpacing: 1, color: lilac.dim, textTransform: 'uppercase' },
   actLabelOn: { color: lilac.head },
@@ -581,16 +583,16 @@ const s = StyleSheet.create({
   when: { fontSize: 12, fontWeight: '600', letterSpacing: 1, color: lilac.dim, textTransform: 'uppercase', marginTop: 7, marginBottom: 11 },
 
   // 독자 편지 (댓글) — [FIX3] 키커 12pt · 입력 14pt · 보내기 버튼 36
-  letters: { borderTopWidth: 1, borderTopColor: lilac.hair, backgroundColor: lilac.card, paddingHorizontal: 11, paddingTop: 10, paddingBottom: 11 },
+  letters: { borderTopWidth: 1, borderTopColor: '#EEEEEE', backgroundColor: lilac.card, paddingHorizontal: 11, paddingTop: 10, paddingBottom: 11 },
   lettersKick: { fontSize: 12, fontWeight: '600', letterSpacing: 1.5, color: lilac.dim, textTransform: 'uppercase' },
   commentInput: {
-    flex: 1, backgroundColor: lilac.inset, borderRadius: lilacRadius.inner, borderWidth: 1, borderColor: lilac.hair,
+    flex: 1, backgroundColor: lilac.inset, borderRadius: 0, borderWidth: 1, borderColor: '#EEEEEE', // [페이퍼 크롬]
     paddingVertical: 9, paddingHorizontal: 12, fontSize: 14, color: lilac.head,
   },
-  commentSend: { width: 36, height: 36, borderRadius: lilacRadius.btn, backgroundColor: CORAL_INK, alignItems: 'center', justifyContent: 'center' },
+  commentSend: { width: 36, height: 36, borderRadius: 0, backgroundColor: CORAL_INK, alignItems: 'center', justifyContent: 'center' }, // 코랄 = 보내기 단일 신호 생존
 
-  // 콜로폰 — [FIX3] 본문 13 · 풋라인 12
-  colophon: { marginHorizontal: GUTTER + 2, marginTop: 14, paddingTop: 11, borderTopWidth: 1, borderTopColor: lilac.hair },
+  // 콜로폰 — [FIX3] 본문 13 · 풋라인 12 · [페이퍼 크롬] 섹션 룰 = 풀블리드 코랄 (마진 → 내부 패딩)
+  colophon: { marginHorizontal: 0, paddingHorizontal: GUTTER + 2, marginTop: 14, paddingTop: 11, borderTopWidth: 1, borderTopColor: paper.line },
   coloBody: { fontSize: 14, color: lilac.dim, lineHeight: 19 },
   coloFoot: { fontSize: 14, lineHeight: 18, color: lilac.dim, letterSpacing: 0.2 },
   coloDot: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: lilac.hair },

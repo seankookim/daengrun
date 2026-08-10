@@ -11,11 +11,14 @@ import { Avatar, Row } from '../src/components/ui';
 import { deriveStamps, fetchFitness, fetchMyRunnerApplication, fetchMyRunnerStatus, fetchStampStats, RunnerApplication, StampStats } from '../src/lib/api';
 import { fetchMyProfile, fetchMyRunnerBio, MyProfile, updateMyProfile, updateRunnerBio, uploadAvatar } from '../src/lib/api';
 import { session } from '../src/store';
-import { colors, layout, lilac, lilacRadius, lilacShadow, paper } from '../src/theme';
+import { colors, layout, lilac, lilacRadius, paper } from '../src/theme';
 
 // 마이 — 여권(PASSPORT) 리페인트. 신분면(이중 프레임·MRZ)·기록면(나이트 라일락)·서류행.
 // 로직 동결: 실프로필(사진·이름·동네)·MENU 라우팅·편집 시트·아바타 업로드는 원본 그대로.
-// 코랄은 텍스트로 쓰지 않는다 — 필/엣지/도트(홀로 엣지·씰·틱)로만. 배지 = coralSoft + head 잉크.
+// [paper chrome 2026-08-10] 라일락 크롬 은퇴 → 페이퍼: 순백 캔버스 · 샤프 · 신분면 = 이 화면의
+// 강조 카드(1px 코랄, 예산 1회) · 내부 선은 #EEE. 다크 아티팩트는 그대로: 기록면(나이트 라일락),
+// 도장면 그리드+소인, MRZ 스트립, 홀로 엣지 (artifact law — 주변 크롬만 페이퍼).
+// 코랄은 텍스트로 쓰지 않는다 — 라인/엣지/틱으로만.
 
 // 홀로 엣지 (여권 각인 · 티켓 엣지 문법) — 코랄이 텍스트가 아닌 엣지로만 등장
 const HOLO = ['#CFC5F6', '#FFDCD1', '#F3E9C6', '#EAF6C8', '#CDEAF3', '#CFC5F6'];
@@ -183,7 +186,7 @@ export default function My() {
   const docNo = profile?.id ? profile.id.replace(/-/g, '').slice(0, 8).toUpperCase() : null;
 
   return (
-    <View style={{ flex: 1, backgroundColor: lilac.bg }}>
+    <View style={{ flex: 1, backgroundColor: paper.canvas }}>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: layout.gutter, paddingTop: 64, paddingBottom: 24 }}>
 
         {/* ————— 마스트헤드 (에디토리얼 키커 + Black Han Sans 타이틀) ————— */}
@@ -367,7 +370,7 @@ export default function My() {
           {MENU.map((m, i) => (
             <Pressable
               key={m.label}
-              style={[s.drow, i > 0 && s.drowDiv]}
+              style={({ pressed }) => [s.drow, i > 0 && s.drowDiv, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
               onPress={() => {
                 if (m.path) router.push(m.path);
                 else Alert.alert(m.label, '준비 중이에요');
@@ -382,13 +385,13 @@ export default function My() {
                 <Text style={s.drowTitle}>{m.label}</Text>
                 <Text style={s.drowDesc}>{m.desc}</Text>
               </View>
-              <Text style={{ fontSize: 16, color: lilac.dim }}>›</Text>
+              <Text style={{ fontSize: 16, color: paper.dim }}>›</Text>
             </Pressable>
           ))}
         </View>
 
         {/* ————— ⑤ 큰 버튼 (여백엔 큰 버튼 — Sean 룰) ————— */}
-        <Pressable style={s.btnRole} onPress={() => router.dismissTo('/')}>
+        <Pressable style={({ pressed }) => [s.btnRole, { transform: [{ scale: pressed ? 0.96 : 1 }] }]} onPress={() => router.dismissTo('/')}>
           <View>
             <Text style={s.btnRoleTitle}>역할 전환</Text>
             <Text style={[s.btnRoleSub, nf]}>OWNER ↔ RUNNER</Text>
@@ -397,7 +400,7 @@ export default function My() {
         </Pressable>
 
         <Pressable
-          style={s.signout}
+          style={({ pressed }) => [s.signout, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
           onPress={async () => { await signOut(); router.dismissTo('/login'); }}
         >
           <View style={s.signoutTick} />
@@ -405,7 +408,7 @@ export default function My() {
             <Text style={s.signoutTitle}>로그아웃</Text>
             {auth?.user.email ? <Text style={s.signoutSub}>{auth.user.email}</Text> : null}
           </View>
-          <Text style={{ fontSize: 15, color: lilac.dim }}>›</Text>
+          <Text style={{ fontSize: 15, color: paper.dim }}>›</Text>
         </Pressable>
 
         {/* ————— ⑥ 콜로폰 (브랜드 워드마크 — 정적 브랜딩) ————— */}
@@ -420,14 +423,14 @@ export default function My() {
         <Pressable style={s.backdrop} onPress={() => setEditing(false)} />
         <View style={s.sheet}>
           <View style={s.handle} />
-          <Text style={{ fontSize: 22, fontWeight: '900', color: lilac.head }}>프로필 설정</Text>
+          <Text style={{ fontSize: 22, fontWeight: '900', color: paper.ink }}>프로필 설정</Text>
 
           <Text style={s.fieldLabel}>이름</Text>
           <TextInput
             value={name}
             onChangeText={setName}
             placeholder="이름 또는 닉네임"
-            placeholderTextColor="#A9A3C4"
+            placeholderTextColor={paper.faint}
             style={s.input}
             maxLength={20}
           />
@@ -436,7 +439,7 @@ export default function My() {
             value={district}
             onChangeText={setDistrict}
             placeholder="예: 반포동"
-            placeholderTextColor="#A9A3C4"
+            placeholderTextColor={paper.faint}
             style={s.input}
             maxLength={20}
           />
@@ -447,18 +450,19 @@ export default function My() {
                 value={bio}
                 onChangeText={setBio}
                 placeholder="보호자에게 보여줄 소개를 적어보세요 — 러닝 경력, 반려견 경험, 나의 강점"
-                placeholderTextColor="#A9A3C4"
+                placeholderTextColor={paper.faint}
                 style={[s.input, { height: 96, textAlignVertical: 'top', paddingTop: 12 }]}
                 multiline
                 maxLength={300}
               />
             </>
           )}
-          <Text style={{ fontSize: 14, color: lilac.dim, marginTop: 8, lineHeight: 17 }}>
+          <Text style={{ fontSize: 14, color: paper.dim, marginTop: 8, lineHeight: 17 }}>
             이름과 동네는 매칭 화면에서 상대방에게 보여요{'\n'}프로필 사진은 마이 화면에서 사진을 탭해 변경해요
           </Text>
 
-          <Pressable onPress={save} disabled={saving} style={[s.saveBtn, saving && { opacity: 0.5 }]}>
+          {/* busy = 라벨 스왑 (버튼 매트릭스 법 — 불투명도 트릭 금지) */}
+          <Pressable onPress={save} disabled={saving} style={s.saveBtn}>
             <Text style={{ fontSize: 16, fontWeight: '800', color: '#fff' }}>{saving ? '저장 중...' : '저장'}</Text>
           </Pressable>
         </View>
@@ -468,33 +472,34 @@ export default function My() {
 }
 
 const s = StyleSheet.create({
-  // 마스트헤드
+  // 마스트헤드 — 키커 = faint 장식 클래스 (라틴 캡스 12 면제), 인라인 룰은 중립 #EEE
   kicker: { alignItems: 'center', gap: 8, marginTop: 6, marginBottom: 8 },
-  kickerTxt: { fontSize: 12, letterSpacing: 2, color: lilac.dim, textTransform: 'uppercase' },
-  rule: { flex: 1, height: 1, backgroundColor: lilac.hair },
-  h1: { fontSize: 40, fontWeight: '900', color: lilac.head, lineHeight: 48 },
+  kickerTxt: { fontSize: 12, letterSpacing: 2, color: paper.faint, textTransform: 'uppercase' },
+  rule: { flex: 1, height: 1, backgroundColor: '#EEE' },
+  h1: { fontSize: 40, fontWeight: '900', color: paper.ink, lineHeight: 48 },
+  // PASSPORT 태그 — 1px 잉크 보더 샤프로 정규화
   official: {
-    marginTop: 6, borderWidth: 1, borderColor: lilac.head, borderRadius: 2,
-    paddingVertical: 5, paddingHorizontal: 8, backgroundColor: lilac.card,
+    marginTop: 6, borderWidth: 1, borderColor: paper.ink,
+    paddingVertical: 5, paddingHorizontal: 8, backgroundColor: paper.canvas,
   },
-  officialTxt: { fontSize: 11.5, letterSpacing: 1.8, color: lilac.head, fontWeight: '600' },
+  officialTxt: { fontSize: 11.5, letterSpacing: 1.8, color: paper.ink, fontWeight: '600' },
   // subNote (TOC line) retired — 2026-08-10 density audit
 
-  // ① 신분면 — marginTop keeps the masthead gap the cut TOC line used to provide
+  // ① 신분면 — 이 화면의 강조 카드: 1px 코랄 (예산 1회), 내부 선은 전부 #EEE. 샤프·섀도 은퇴.
   idcard: {
-    backgroundColor: lilac.card, borderWidth: 1, borderColor: lilac.hair,
-    borderRadius: lilacRadius.card, overflow: 'hidden', marginTop: 14, ...lilacShadow,
+    backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line,
+    overflow: 'hidden', marginTop: 14,
   },
-  idInner: { margin: 9, borderWidth: 1, borderColor: lilac.hair2, borderRadius: lilacRadius.inner, padding: 12, paddingBottom: 0 },
+  idInner: { margin: 9, borderWidth: 1, borderColor: '#EEE', padding: 12, paddingBottom: 0 },
   idStrap: { justifyContent: 'space-between', alignItems: 'center', marginBottom: 11 },
   // Korean-data-in-kicker (신분면/도장면 halves) — 14pt floor applies; letterSpacing tightened
   // so the passport look survives the raise. Latin-only kickers elsewhere stay 12.
-  microK: { fontSize: 14, lineHeight: 18, letterSpacing: 1, color: lilac.dim, textTransform: 'uppercase' },
-  roleTag: { borderWidth: 1, borderColor: '#DCD6F8', backgroundColor: '#F4F1FE', borderRadius: lilacRadius.tag, paddingVertical: 4, paddingHorizontal: 9 },
-  roleTagTxt: { fontSize: 14, lineHeight: 18, letterSpacing: 1, color: lilac.accent, fontWeight: '600' }, // '러너'/'보호자' is data, not decoration — 14pt floor
+  microK: { fontSize: 14, lineHeight: 18, letterSpacing: 1, color: paper.dim, textTransform: 'uppercase' },
+  roleTag: { borderWidth: 1, borderColor: '#EEE', backgroundColor: paper.canvas, paddingVertical: 4, paddingHorizontal: 9 },
+  roleTagTxt: { fontSize: 14, lineHeight: 18, letterSpacing: 1, color: paper.ink, fontWeight: '600' }, // '러너'/'보호자' is data, not decoration — 14pt floor
   photoWin: {
-    width: 62, height: 74, borderRadius: lilacRadius.inner, borderWidth: 1, borderColor: lilac.hair,
-    backgroundColor: lilac.inset, alignItems: 'center', justifyContent: 'center',
+    width: 62, height: 74, borderWidth: 1, borderColor: '#EEE',
+    backgroundColor: paper.canvas, alignItems: 'center', justifyContent: 'center',
   },
   cam: {
     position: 'absolute', right: -6, bottom: 2, width: 22, height: 22, borderRadius: 11,
@@ -502,22 +507,23 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   fld: { marginBottom: 8 },
-  fldK: { fontSize: 14, lineHeight: 18, letterSpacing: 1, color: lilac.dim, textTransform: 'uppercase', marginBottom: 4 }, // 'NAME / 이름' carries Korean — 14pt floor
-  fldV: { fontSize: 17, fontWeight: '800', color: lilac.head }, // user name = the page's lead datum (15 -> 17)
-  fldVSmall: { fontSize: 14, fontWeight: '600', color: lilac.text },
-  fldV2: { fontSize: 14, fontWeight: '600', color: lilac.text, lineHeight: 18 },
+  fldK: { fontSize: 14, lineHeight: 18, letterSpacing: 1, color: paper.dim, textTransform: 'uppercase', marginBottom: 4 }, // 'NAME / 이름' carries Korean — 14pt floor
+  fldV: { fontSize: 17, fontWeight: '800', color: paper.ink }, // user name = the page's lead datum (15 -> 17)
+  fldVSmall: { fontSize: 14, fontWeight: '600', color: paper.text },
+  fldV2: { fontSize: 14, fontWeight: '600', color: paper.text, lineHeight: 18 },
   idEdit: {
     marginTop: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    borderWidth: 1, borderColor: lilac.hair, backgroundColor: lilac.inset,
-    borderRadius: lilacRadius.btn, paddingVertical: 10, paddingHorizontal: 11,
+    borderWidth: 1, borderColor: '#EEE', backgroundColor: paper.canvas,
+    paddingVertical: 10, paddingHorizontal: 11,
   },
-  idEditTxt: { fontSize: 14, fontWeight: '700', color: lilac.head },
-  idEditEm: { fontSize: 14, lineHeight: 18, letterSpacing: 1.4, color: lilac.accent, textTransform: 'uppercase' }, // pressable emphasis, not decoration — 14pt floor
-  idGrid: { marginTop: 10, marginHorizontal: -12, borderTopWidth: 1, borderTopColor: lilac.hair2 },
+  idEditTxt: { fontSize: 14, fontWeight: '700', color: paper.ink },
+  idEditEm: { fontSize: 14, lineHeight: 18, letterSpacing: 1.4, color: paper.ink, textTransform: 'uppercase' }, // pressable emphasis, not decoration — 14pt floor
+  idGrid: { marginTop: 10, marginHorizontal: -12, borderTopWidth: 1, borderTopColor: '#EEE' },
   idCell: { flex: 1, paddingTop: 9, paddingBottom: 10, paddingLeft: 12 },
-  idCellDiv: { borderLeftWidth: 1, borderLeftColor: lilac.hair2 },
-  gridK: { fontSize: 11.5, letterSpacing: 1.2, color: lilac.dim, textTransform: 'uppercase', marginBottom: 3 },
-  gridV: { fontSize: 13, letterSpacing: 0.6, color: lilac.head, fontWeight: '600' },
+  idCellDiv: { borderLeftWidth: 1, borderLeftColor: '#EEE' },
+  gridK: { fontSize: 11.5, letterSpacing: 1.2, color: paper.dim, textTransform: 'uppercase', marginBottom: 3 },
+  gridV: { fontSize: 13, letterSpacing: 0.6, color: paper.ink, fontWeight: '600' },
+  // MRZ 스트립 — 아티팩트, 그대로 (artifact law)
   mrz: { backgroundColor: lilac.inset, borderTopWidth: 1, borderTopColor: lilac.hair2, paddingVertical: 7, paddingHorizontal: 10, gap: 2 },
   mrzTxt: { fontSize: 9, letterSpacing: 0.8, color: '#6E67A0' },
   // photoHint / photoHintDot retired — 2026-08-10 density audit (✎ badge + edit sheet keep coverage)
@@ -546,75 +552,78 @@ const s = StyleSheet.create({
   recFailTxt: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: paper.critical, flex: 1 },
   recFailRetry: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },
 
-  // 섹션 라벨
-  sec: { alignItems: 'center', gap: 8, marginTop: 18, marginBottom: 9, marginHorizontal: 2 },
-  secNo: { fontSize: 12, color: lilac.accent, fontWeight: '600' }, // 글리프 전용(§) — 12pt 플로어 면제
-  secT: { fontSize: 12, letterSpacing: 2, color: lilac.dim, textTransform: 'uppercase' },
-  secKo: { fontSize: 14, fontWeight: '700', color: lilac.text },
-
-  // ③ 도장면 — 비자 페이지 카드 (포일 0 · 잉크와 틴트만)
-  visa: {
-    backgroundColor: lilac.card, borderWidth: 1, borderColor: lilac.hair,
-    borderRadius: lilacRadius.card, overflow: 'hidden', ...lilacShadow,
+  // 섹션 라벨 — 섹션 헤드 위 코랄 1px 풀블리드 룰 (페이퍼 섹션 분리 법)
+  sec: {
+    alignItems: 'center', gap: 8, marginTop: 18, marginBottom: 9,
+    marginHorizontal: -layout.gutter, paddingHorizontal: layout.gutter + 2,
+    borderTopWidth: 1, borderTopColor: paper.line, paddingTop: 12,
   },
-  visaInner: { margin: 9, borderWidth: 1, borderColor: lilac.hair2, borderRadius: lilacRadius.inner, padding: 11 },
+  secNo: { fontSize: 12, color: paper.line, fontWeight: '600' }, // 글리프 전용(§) — 코랄 룰과 한 시스템, 12pt 플로어 면제
+  secT: { fontSize: 12, letterSpacing: 2, color: paper.faint, textTransform: 'uppercase' },
+  secKo: { fontSize: 14, fontWeight: '700', color: paper.text },
+
+  // ③ 도장면 — 도장 그리드·소인은 아티팩트 그대로, 카드 크롬만 페이퍼 (백지 샤프 + #EEE)
+  visa: {
+    backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEE',
+    overflow: 'hidden',
+  },
+  visaInner: { margin: 9, borderWidth: 1, borderColor: '#EEE', padding: 11 },
   visaStrap: { justifyContent: 'space-between', alignItems: 'center', marginBottom: 11 },
   visaCnt: {
-    borderWidth: 1, borderColor: '#DCD6F8', backgroundColor: '#F4F1FE',
-    borderRadius: lilacRadius.tag, paddingVertical: 3, paddingHorizontal: 9,
+    borderWidth: 1, borderColor: '#EEE', backgroundColor: paper.canvas,
+    paddingVertical: 3, paddingHorizontal: 9,
   },
-  visaCntTxt: { fontSize: 16, lineHeight: 21, letterSpacing: 0.8, color: STAMP_INK, fontWeight: '600' }, // Oswald — lineHeight 1.31x (BUG A)
-  perf: { marginHorizontal: 9, borderTopWidth: 1, borderStyle: 'dashed', borderTopColor: lilac.hair }, // 절취선
+  visaCntTxt: { fontSize: 16, lineHeight: 21, letterSpacing: 0.8, color: STAMP_INK, fontWeight: '600' }, // Oswald — lineHeight 1.31x (BUG A) · STAMP_INK = 아티팩트 어휘
+  perf: { marginHorizontal: 9, borderTopWidth: 1, borderStyle: 'dashed', borderTopColor: '#EEE' }, // 절취선
   // visaFootL retired with its lead-in copy — the foot is now just the right-aligned link
   visaFoot: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', paddingVertical: 10, paddingHorizontal: 11 },
   visaFootG: { fontSize: 14, fontWeight: '800', color: STAMP_INK },
-  empt: { backgroundColor: lilac.inset, borderWidth: 1, borderColor: lilac.hair, borderRadius: lilacRadius.inner, padding: 11, marginBottom: 11 },
-  emptT: { fontSize: 14, lineHeight: 20, fontWeight: '700', color: lilac.head },
-  emptD: { fontSize: 14, lineHeight: 20, color: lilac.text, marginTop: 3 },
+  empt: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEE', padding: 11, marginBottom: 11 },
+  emptT: { fontSize: 14, lineHeight: 20, fontWeight: '700', color: paper.ink },
+  emptD: { fontSize: 14, lineHeight: 20, color: paper.text, marginTop: 3 },
 
   // 도장 그리드 — 칸/디스크/링은 stamp.tsx가 전담, 여기는 배열만
   sgrid: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', columnGap: STAMP_GAP, rowGap: 12 },
 
-  // ④ 서류행
-  doc: { backgroundColor: lilac.card, borderWidth: 1, borderColor: lilac.hair, borderRadius: lilacRadius.card, overflow: 'hidden', ...lilacShadow },
-  drow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 13, paddingRight: 12, backgroundColor: lilac.card },
-  drowDiv: { borderTopWidth: 1, borderTopColor: lilac.hair2 },
+  // ④ 서류행 — 백지 샤프 카드 1px #EEE (도메인 잉크 틱·틴트 칩은 시맨틱 — 생존)
+  doc: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEE', overflow: 'hidden' },
+  drow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 13, paddingRight: 12, backgroundColor: paper.canvas },
+  drowDiv: { borderTopWidth: 1, borderTopColor: '#EEE' },
   drowTick: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 3 },
-  drowIcon: { width: 27, height: 27, borderRadius: lilacRadius.inner, alignItems: 'center', justifyContent: 'center', marginLeft: 11, marginRight: 10 },
-  drowTitle: { fontSize: 14, fontWeight: '700', color: lilac.head },
-  drowDesc: { fontSize: 14, color: lilac.dim, marginTop: 2, lineHeight: 18 },
+  drowIcon: { width: 27, height: 27, alignItems: 'center', justifyContent: 'center', marginLeft: 11, marginRight: 10 },
+  drowTitle: { fontSize: 14, fontWeight: '700', color: paper.ink },
+  drowDesc: { fontSize: 14, color: paper.dim, marginTop: 2, lineHeight: 18 },
 
-  // ⑤ 큰 버튼
+  // ⑤ 큰 버튼 — 역할 전환 = 잉크 면 프라이머리 (15/14 라벨 유지, 섀도 은퇴)
   btnRole: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: lilac.head, borderRadius: lilacRadius.btn, paddingVertical: 16, paddingHorizontal: 15, marginTop: 20,
-    shadowColor: '#221E3D', shadowOpacity: 0.28, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 5,
+    backgroundColor: paper.ink, paddingVertical: 16, paddingHorizontal: 15, marginTop: 20,
   },
   btnRoleTitle: { fontSize: 15, fontWeight: '800', color: '#fff' },
   btnRoleSub: { fontSize: 12, letterSpacing: 1.8, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', marginTop: 3 },
-  btnRoleSw: { borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)', borderRadius: lilacRadius.tag, paddingVertical: 6, paddingHorizontal: 10 },
+  btnRoleSw: { borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)', paddingVertical: 6, paddingHorizontal: 10 },
   btnRoleSwTxt: { fontSize: 14, lineHeight: 18, letterSpacing: 1, color: '#fff', fontWeight: '600' }, // '보호자 ↔ 러너' is the button label — 14pt floor
 
   signout: {
-    flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: lilac.card,
-    borderWidth: 1, borderColor: lilac.hair, borderRadius: lilacRadius.btn, paddingVertical: 13, paddingHorizontal: 12, marginTop: 12,
+    flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: paper.canvas,
+    borderWidth: 1, borderColor: '#EEE', paddingVertical: 13, paddingHorizontal: 12, marginTop: 12,
   },
-  signoutTick: { width: 3, height: 30, borderRadius: 2, backgroundColor: lilac.coralDeep },
-  signoutTitle: { fontSize: 14, fontWeight: '700', color: lilac.head },
-  signoutSub: { fontSize: 14, color: lilac.dim, marginTop: 2 },
+  signoutTick: { width: 3, height: 30, backgroundColor: paper.line }, // 코랄 틱 — critical 아님 (로그아웃은 실패가 아니다)
+  signoutTitle: { fontSize: 14, fontWeight: '700', color: paper.ink },
+  signoutSub: { fontSize: 14, color: paper.dim, marginTop: 2 },
 
   // ⑥ 콜로폰
-  colophon: { marginTop: 18, paddingTop: 12, borderTopWidth: 1, borderTopColor: lilac.hair, alignItems: 'center' },
-  colophonTxt: { fontSize: 12, letterSpacing: 1.8, color: lilac.dim, textTransform: 'uppercase' },
+  colophon: { marginTop: 18, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#EEE', alignItems: 'center' },
+  colophonTxt: { fontSize: 12, letterSpacing: 1.8, color: paper.faint, textTransform: 'uppercase' },
 
-  // 편집 시트
-  backdrop: { flex: 1, backgroundColor: 'rgba(28,24,55,0.34)' },
-  sheet: { backgroundColor: lilac.card, borderTopLeftRadius: lilacRadius.card, borderTopRightRadius: lilacRadius.card, padding: 16, paddingBottom: 40 },
-  handle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: lilac.hair, marginBottom: 14 },
-  fieldLabel: { fontSize: 14, fontWeight: '700', color: lilac.head, marginTop: 14, marginBottom: 6 },
+  // 편집 시트 — 순백·샤프 (인풋 = addresses 문법: 캔버스 면 + 1px 코랄)
+  backdrop: { flex: 1, backgroundColor: '#00000055' },
+  sheet: { backgroundColor: paper.canvas, padding: 16, paddingBottom: 40 },
+  handle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: '#EEE', marginBottom: 14 },
+  fieldLabel: { fontSize: 14, fontWeight: '700', color: paper.ink, marginTop: 14, marginBottom: 6 },
   input: {
-    backgroundColor: lilac.inset, borderRadius: lilacRadius.inner, borderWidth: 1, borderColor: lilac.hair,
-    paddingVertical: 12, paddingHorizontal: 14, fontSize: 16, color: lilac.head,
+    backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line,
+    paddingVertical: 12, paddingHorizontal: 14, fontSize: 16, color: paper.ink,
   },
-  saveBtn: { backgroundColor: lilac.accent, borderRadius: lilacRadius.btn, alignItems: 'center', paddingVertical: 15, marginTop: 18 },
+  saveBtn: { backgroundColor: paper.ink, alignItems: 'center', paddingVertical: 15, marginTop: 18 },
 });

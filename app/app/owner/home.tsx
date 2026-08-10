@@ -14,7 +14,7 @@ import { haptic } from '../../src/lib/haptics';
 import { registerPushToken } from '../../src/lib/push';
 // [정직 배치 2026-08-06 · item 5] 목업 dog(초코 상수)·runners 임포트 퇴역 — 홈은 실데이터만 읽는다
 import { Booking, draft, RouteInfo } from '../../src/store';
-import { layout, lilac, lilacRadius, lilacShadow, paper, pricing } from '../../src/theme';
+import { layout, lilac, lilacRadius, paper, pricing } from '../../src/theme';
 import { useTheme } from '../../src/theme-context';
 
 // Owner home — 라일락 리페인트 (2026-08 "EDITORIAL SPORT × DAWN-DOT MORPH").
@@ -97,7 +97,9 @@ const HOLO = ['#CFC5F6', '#FFDCD1', '#F3E9C6', '#EAF6C8', '#CDEAF3']; // 홀로 
 // light = 라이트 라일락 · dark = 나이트 라일락. mode가 여전히 어느 팔레트인지 결정한다.
 const LILAC_SURF = {
   light: {
-    bg: lilac.bg, card: lilac.card, line: lilac.hair, line2: lilac.hair2,
+    // [페이퍼 크롬 2026-08-10] 크롬 헤어라인은 뉴트럴 #EEE로 — 라일락 헤어 은퇴 (섹션 분리는 코랄 풀블리드가 전담).
+    // track(링 도트 트랙)은 데이터 마크라 라일락 유지 — 크롬이 아니다.
+    bg: lilac.bg, card: lilac.card, line: '#EEEEEE', line2: '#EEEEEE',
     chip: lilac.inset, track: lilac.hair, dim: lilac.dim,
     textStrong: lilac.head, textSoft: lilac.text,
   },
@@ -743,14 +745,15 @@ export default function OwnerHome() {
         <Animated.View style={{ transform: [{ translateY: heroSlide }, { scaleY: heroScale }] }}>
           <Pressable onPress={() => router.push('/owner/fitness')}>
             {/* [GO_TINT] 카드 배경 = 디스크 상태색의 옅은 워시 (컴팩트 티켓도 같은 속삭임을 물려받는다) */}
-            <Animated.View style={[s.hero, { height: HERO_BIG, backgroundColor: GO_TINT[goState], borderColor: lilac.hair }]}>
+            {/* [페이퍼 크롬] GO_TINT 워시는 시맨틱이라 생존 — 보더만 뉴트럴 #EEE (샤프 코너는 이미 확보) */}
+            <Animated.View style={[s.hero, { height: HERO_BIG, backgroundColor: GO_TINT[goState], borderColor: '#EEEEEE' }]}>
             {/* 인셋 더블 헤어라인은 역보정 밖 — 카드와 함께 축소돼 4면 인셋을 유지한다 (구 heroH 추종과 동일) */}
             <View pointerEvents="none" style={s.heroDbl} />
             {/* 역보정 레이어 — 카드 scaleY를 1/s로 되돌린다. 박스가 카드 안쪽 테두리에 정확히 겹치고
                 padding도 카드와 동일해서 절대·흐름 자식 좌표가 모두 그대로다 (onLayout 실측 상대차 불변). */}
             <Animated.View style={[s.heroInner, { transform: [{ translateY: heroUnshift }, { scaleY: heroUnscale }] }]}>
             <HoloBar />
-            <View style={[s.weekChip, { backgroundColor: hp.chip, borderColor: lilac.hair }]}>
+            <View style={[s.weekChip, { backgroundColor: hp.chip, borderColor: '#EEEEEE' }]}>
               <Text style={{ fontSize: 14, fontWeight: '700', color: lilac.head }}>이번 주 ▾</Text>
             </View>
 
@@ -923,7 +926,7 @@ export default function OwnerHome() {
             {/* 체력 리포트 진입 칩 — 히어로가 탭 가능하다는 걸 매트한 칩이 말해준다.
                 역보정 밖에 둬서 구현과 동일하게 카드의 줄어드는 하단 엣지를 타고 올라온다 (t≈0.35에 소멸).
                 카드 높이가 상수가 된 지금 bottom:11은 애니메이션 의존이 아니라 1회 확정 레이아웃이다. */}
-            <Animated.View style={[s.reportChip, { opacity: bigMsgOpacity, backgroundColor: hp.chip, borderColor: lilac.hair }]}>
+            <Animated.View style={[s.reportChip, { opacity: bigMsgOpacity, backgroundColor: hp.chip, borderColor: '#EEEEEE' }]}>
               <Text style={{ fontSize: 14, fontWeight: '800', color: hp.textSoft }}>
                 {goalHit ? '🎉 목표 달성 — 체력 리포트' : '체력 리포트 · 주간 목표'}
               </Text>
@@ -1319,7 +1322,7 @@ export default function OwnerHome() {
         {/* ---------- 최근 순간 — 러너가 담아온 실러닝 사진 (runs.photos 재사용).
             사진 0장이면 섹션 자체 숨김 — 플레이스홀더/스톡 금지 (정직 원칙) ---------- */}
         {moments.length > 0 && (
-          <View style={{ marginTop: 16 }}>
+          <View style={{ marginTop: 16, borderTopWidth: 1, borderTopColor: paper.line, paddingTop: 12 }}>{/* [페이퍼 크롬] 섹션 분리 = 풀블리드 코랄 1px */}
             <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 7, marginBottom: 9, paddingHorizontal: layout.gutter }}>
               <Text style={[s.sectionTitle, { color: p.textStrong }]}>최근 순간</Text>
               <Text style={{ fontSize: 14, color: p.dim }}>러너가 담아온 {dogName ? `${dogName}의 ` : ''}러닝</Text>
@@ -1347,7 +1350,7 @@ export default function OwnerHome() {
 
         {/* ---------- 동네 러너 = 스타디움 로스터 (V2) — 러너는 서비스의 얼굴, PR 표면 ---------- */}
         {localRunners.length > 0 && (
-          <View style={{ marginTop: 18 }}>
+          <View style={{ marginTop: 18, borderTopWidth: 1, borderTopColor: paper.line, paddingTop: 12 }}>{/* [페이퍼 크롬] 섹션 분리 = 풀블리드 코랄 1px (헤더의 잉크 2.5px 언더라인은 섹션 내부 에디토리얼 장치로 존치) */}
             <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8, marginBottom: 9, borderBottomWidth: 2.5, borderBottomColor: p.textStrong, paddingBottom: 7, paddingHorizontal: layout.gutter }}>
               <Text style={[s.sectionTitle, { color: p.textStrong }, df]}>동네 러너</Text>
               <Text style={{ fontSize: 12, fontWeight: '700', letterSpacing: 1.2, color: lilac.accent }}>ROSTER · {localRunners.length} ONLINE</Text>
@@ -1399,7 +1402,7 @@ export default function OwnerHome() {
                         <Text style={{ fontSize: 14, color: lilac.dim, marginTop: 1 }} numberOfLines={1}>{r.district || '근처'}</Text>
                       </View>
                     </View>
-                    <View style={{ flexDirection: 'row', gap: 10, marginTop: 9, alignItems: 'baseline', borderTopWidth: 1, borderTopColor: lilac.hair2, paddingTop: 8 }}>
+                    <View style={{ flexDirection: 'row', gap: 10, marginTop: 9, alignItems: 'baseline', borderTopWidth: 1, borderTopColor: '#EEEEEE', paddingTop: 8 }}>
                       <Text style={[{ fontSize: 14, lineHeight: 18, fontWeight: '900', color: lilac.head }, nf]}>{r.totalRuns}<Text style={{ fontSize: 14, color: lilac.dim }}> RUNS</Text></Text>
                       <Text style={[{ fontSize: 14, lineHeight: 18, fontWeight: '900', color: lilac.head }, nf]}>{r.paceLabel}</Text>
                     </View>
@@ -1511,16 +1514,16 @@ export default function OwnerHome() {
 const s = StyleSheet.create({
   // 홀로 3px 엣지
   holo: { position: 'absolute', top: 0, left: 0, right: 0, height: 3, flexDirection: 'row', zIndex: 5 },
-  // 섹션 헤더 — 키커 넘버 + 룰 + 링크
-  sec: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 16, marginBottom: 4, paddingHorizontal: layout.gutter }, // [풀블리드] 헤더 텍스트는 내부 거터 — [2026-08-10] 11/13/14 혼용 → layout.gutter(15)로 통일
-  secN: { borderWidth: 1, borderColor: '#DCD6F8', backgroundColor: '#F4F1FE', borderRadius: lilacRadius.tag, paddingVertical: 2, paddingHorizontal: 5 },
+  // 섹션 헤더 — 키커 넘버 + 룰 + 링크. [페이퍼 크롬] 섹션 분리 = 풀블리드 솔리드 코랄 1px (paper.line 법)
+  sec: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 16, marginBottom: 4, paddingHorizontal: layout.gutter, borderTopWidth: 1, borderTopColor: paper.line, paddingTop: 12 }, // [풀블리드] 헤더 텍스트는 내부 거터 — [2026-08-10] 11/13/14 혼용 → layout.gutter(15)로 통일
+  secN: { borderWidth: 1, borderColor: '#DCD6F8', backgroundColor: '#F4F1FE', borderRadius: 0, paddingVertical: 2, paddingHorizontal: 5 }, // [페이퍼 크롬] 샤프
   secNText: { fontSize: 11.5, fontWeight: '800', letterSpacing: 0.8, color: lilac.accent },
   secH: { fontSize: 14, fontWeight: '800', color: lilac.head, letterSpacing: -0.2 },
-  secRule: { flex: 1, height: 1, backgroundColor: lilac.hair },
+  secRule: { flex: 1, height: 1, backgroundColor: '#EEEEEE' }, // [페이퍼 크롬] 인라인 룰은 뉴트럴 (코랄은 풀블리드 상단 룰이 전담)
   secLink: { fontSize: 14, fontWeight: '800', letterSpacing: 1, color: lilac.accent },
   // 지금 러너 찾기 — 나이트 라일락 다크 인셋 섬
   findNow: {
-    backgroundColor: NIGHT, borderRadius: lilacRadius.card, padding: 15, marginTop: 14,
+    backgroundColor: NIGHT, borderRadius: 0, padding: 15, marginTop: 14, // [페이퍼 크롬] 다크 섬은 아티팩트로 생존, 코너만 샤프
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', overflow: 'hidden',
     shadowColor: '#1C1837', shadowOpacity: 0.3, shadowRadius: 26, shadowOffset: { width: 0, height: 10 }, elevation: 6,
   },
@@ -1532,15 +1535,15 @@ const s = StyleSheet.create({
     shadowColor: lilac.coral, shadowOpacity: 0.55, shadowRadius: 6, shadowOffset: { width: 0, height: 0 },
   },
   fnCta: {
-    flex: 1, backgroundColor: lilac.bg, borderRadius: lilacRadius.btn, alignItems: 'center',
+    flex: 1, backgroundColor: lilac.bg, borderRadius: 0, alignItems: 'center', // [페이퍼 크롬] 필은 유지(다크 위 페이퍼 버튼), 코너 샤프
     justifyContent: 'center', paddingVertical: 14, paddingHorizontal: 10, overflow: 'visible',
     shadowColor: '#000', shadowOpacity: 0.28, shadowRadius: 16, shadowOffset: { width: 0, height: 6 },
   },
   fnPulseRing: {
     position: 'absolute', left: 0, right: 0, top: 0, bottom: 0,
-    borderRadius: lilacRadius.btn, borderWidth: 2, borderColor: 'rgba(240,118,90,0.5)',
+    borderRadius: 0, borderWidth: 2, borderColor: 'rgba(240,118,90,0.5)',
   },
-  fnCustom: { borderWidth: 1, borderColor: 'rgba(255,255,255,0.24)', borderRadius: lilacRadius.btn, paddingVertical: 14, paddingHorizontal: 12 },
+  fnCustom: { borderWidth: 1, borderColor: 'rgba(255,255,255,0.24)', borderRadius: 0, paddingVertical: 14, paddingHorizontal: 12 },
   fnSheet: {
     backgroundColor: '#fff', borderTopLeftRadius: 28, borderTopRightRadius: 28,
     paddingHorizontal: 12, paddingTop: 12, paddingBottom: 40,
@@ -1577,14 +1580,14 @@ const s = StyleSheet.create({
   brandKick: { fontSize: 11.5, fontWeight: '700', letterSpacing: 2, color: lilac.dim },
   rankticker: {
     overflow: 'hidden', marginTop: 8, paddingVertical: 5,
-    borderTopWidth: 1, borderBottomWidth: 1, borderColor: lilac.hair,
+    borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#EEEEEE', // [페이퍼 크롬] 헤더 내부 룰 = 뉴트럴
   },
   tickerLead: { fontSize: 12, fontWeight: '700', letterSpacing: 1.2, color: lilac.dim, marginRight: 2 },
   // [2026-08-10] Korean league name inside the ticker lead — data-class, 14pt floor; lineHeight 18
   // keeps the ticker line box at 18 (HEADER_H 123 budget comment at the top of the file holds).
   tickerLeadKo: { fontSize: 14, lineHeight: 18, fontWeight: '600', letterSpacing: 0, color: lilac.dim },
   themeBtn: {
-    width: 30, height: 30, borderRadius: lilacRadius.btn, borderWidth: 1,
+    width: 30, height: 30, borderRadius: 0, borderWidth: 1, // [페이퍼 크롬] 샤프
     alignItems: 'center', justifyContent: 'center',
   },
   bellDot: {
@@ -1593,10 +1596,9 @@ const s = StyleSheet.create({
     shadowColor: lilac.coral, shadowOpacity: 1, shadowRadius: 4, shadowOffset: { width: 0, height: 0 },
   },
   hero: {
-    borderRadius: 0, padding: 18, overflow: 'hidden', borderWidth: 1, borderLeftWidth: 0, borderRightWidth: 0, // [풀블리드]
-    ...lilacShadow,
+    borderRadius: 0, padding: 18, overflow: 'hidden', borderWidth: 1, borderLeftWidth: 0, borderRightWidth: 0, // [풀블리드] [페이퍼 크롬] 소프트 섀도 은퇴 (샤프 코너 법)
   },
-  heroDbl: { position: 'absolute', top: 4, left: 4, right: 4, bottom: 4, borderWidth: 1, borderColor: lilac.hair2, borderRadius: lilacRadius.inner },
+  heroDbl: { position: 'absolute', top: 4, left: 4, right: 4, bottom: 4, borderWidth: 1, borderColor: '#EEEEEE', borderRadius: 0 }, // [페이퍼 크롬] 인셋 프레임 샤프·뉴트럴
   // 역보정 레이어 — 카드 안쪽 테두리 박스에 정확히 겹친다(절대 자식 인셋 불변) + 카드와 동일 padding(흐름 자식 불변).
   // 테두리 0 · 상하 대칭이라 scaleY 원점이 카드 중심과 일치 → 역보정 이동량이 (HERO_LIFT·t)/s로 닫힌 형태.
   heroInner: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, padding: 18 },
@@ -1605,17 +1607,18 @@ const s = StyleSheet.create({
   // (요일 스탬프는 컬랩스 전용 opacity 0, top 46이라 칩 박스 12~38과 세로로도 안 만난다).
   weekChip: {
     position: 'absolute', top: 12, right: 14, zIndex: 4, borderWidth: 1,
-    borderRadius: lilacRadius.tag, paddingVertical: 3, paddingHorizontal: 7,
+    borderRadius: 0, paddingVertical: 3, paddingHorizontal: 7, // [페이퍼 크롬] 샤프
   },
   info: { position: 'absolute', left: 18, top: 40, width: CARD_W * 0.46, zIndex: 3 }, // 요일 스탬프와 좌우 분담
   stampBox: { position: 'absolute', right: 18, top: 46, zIndex: 3, alignItems: 'flex-end' }, // 링이 떠난 자리 (컬랩스)
   // ── GO 코어 (Ⓑ①) — 구 goalChip은 은퇴(센터 스택 재편으로 유일 사용처가 사라졌다) ──
   // 헤일로 = 랩의 box-shadow 0 0 0 4px var(--card) 대응. 링 도트를 가로지르는 두 줄을 카드색 4px로 떼어낸다.
-  goHalo: { backgroundColor: lilac.card, borderRadius: lilacRadius.tag + 4, padding: 4 },
+  // [페이퍼 크롬] 헤일로·필 샤프 + 뉴트럴 보더 — 패딩·보더폭 불변이라 GO 스택 세로 예산(:49) 무접촉
+  goHalo: { backgroundColor: lilac.card, borderRadius: 0, padding: 4 },
   goPill: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: lilac.inset, borderWidth: 1, borderColor: lilac.hair,
-    borderRadius: lilacRadius.tag, paddingVertical: 3, paddingHorizontal: 10,
+    backgroundColor: lilac.inset, borderWidth: 1, borderColor: '#EEEEEE',
+    borderRadius: 0, paddingVertical: 3, paddingHorizontal: 10,
   },
   // [2026-08-10 수치 갱신] 아래 주석의 122/216/215는 확대 전 값 — 현행 정본은 파일 상단 :49 (144/240/237).
   // 122 디스크 — 흰 인셋 링 2px(랩 inset 0 0 0 2px rgba(255,255,255,.28))은 테두리로, 드롭 섀도는 상태색으로.
@@ -1649,26 +1652,26 @@ const s = StyleSheet.create({
   reportChip: {
     position: 'absolute', left: 12, right: 12, bottom: 11, zIndex: 3,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    borderRadius: lilacRadius.inner, paddingVertical: 8, paddingHorizontal: 10, borderWidth: 1,
+    borderRadius: 0, paddingVertical: 8, paddingHorizontal: 10, borderWidth: 1, // [페이퍼 크롬] 샤프
   },
   // 오늘의 티켓 — 보딩패스
   ticket: {
     backgroundColor: lilac.card, borderRadius: 0, marginTop: 4, overflow: 'hidden',
-    borderWidth: 1, borderLeftWidth: 0, borderRightWidth: 0, borderColor: lilac.hair2, ...lilacShadow, // [풀블리드] 측면 보더·라운드 은퇴
+    borderWidth: 1, borderLeftWidth: 0, borderRightWidth: 0, borderColor: '#EEEEEE', // [풀블리드] 측면 보더·라운드 은퇴 · [페이퍼 크롬] 뉴트럴 보더, 소프트 섀도 은퇴
   },
-  ticketDbl: { position: 'absolute', top: 4, left: 4, right: 4, bottom: 4, borderWidth: 1, borderColor: lilac.hair2, borderRadius: lilacRadius.inner },
+  ticketDbl: { position: 'absolute', top: 4, left: 4, right: 4, bottom: 4, borderWidth: 1, borderColor: '#EEEEEE', borderRadius: 0 },
   ticketHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: layout.gutter, paddingTop: 12 },
-  ticketGlyph: { width: 18, height: 18, borderRadius: lilacRadius.tag, backgroundColor: lilac.accent, alignItems: 'center', justifyContent: 'center' },
+  ticketGlyph: { width: 18, height: 18, borderRadius: 0, backgroundColor: lilac.accent, alignItems: 'center', justifyContent: 'center' }, // [페이퍼 크롬] 샤프
   ticketBrand: { fontSize: 12, fontWeight: '800', letterSpacing: 1.2, color: lilac.head, flexShrink: 1 },
   // negative margin mirrors the ticket-body gutter so the perforation stays full-bleed
   perf: { marginTop: 11, height: 0, borderTopWidth: 1.5, borderStyle: 'dashed', borderColor: '#DCD7F0', marginHorizontal: -layout.gutter },
-  notch: { position: 'absolute', top: -9, width: 18, height: 18, borderRadius: 9, backgroundColor: lilac.bg, borderWidth: 1, borderColor: lilac.hair2 },
+  notch: { position: 'absolute', top: -9, width: 18, height: 18, borderRadius: 9, backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE' }, // 노치 = 캔버스가 비쳐 보이는 구멍 — 캔버스가 백지가 됐으니 함께 (원형은 퍼포레이션 아티팩트라 예외)
   // ── 리워드 비컨 — 조용한 라일락 2칸 모듈 (구 rewardCard/gift*/claimBtn/ladderSheet 은퇴) ──
   // 코랄 섀도·헤일로·배지는 전부 지어낸 긴급함이었다. 여기선 헤어라인 카드 + 바이올렛 링크뿐:
   // 무게는 위 딥 코랄 예약 CTA가 독점한다 (화면의 무게 중심은 하나).
   beacon: {
     flexDirection: 'row', alignItems: 'stretch', marginTop: 12, overflow: 'hidden',
-    borderRadius: 0, borderWidth: 1, borderLeftWidth: 0, borderRightWidth: 0, ...lilacShadow, // [풀블리드]
+    borderRadius: 0, borderWidth: 1, borderLeftWidth: 0, borderRightWidth: 0, // [풀블리드] [페이퍼 크롬] 소프트 섀도 은퇴 (보더는 p.line2 = #EEE 주입)
   },
   beaconCell: { flex: 1, paddingVertical: 13, paddingHorizontal: layout.gutter }, // horizontal only → gutter 15 (vertical rhythm untouched)
   beaconDiv: { width: 1, marginVertical: 11 },
@@ -1682,7 +1685,7 @@ const s = StyleSheet.create({
   // lilac.accent가 3.20:1로 떨어지면 안 된다. 다크는 라이트 바이올렛으로 올린다.
   beaconGo: { fontSize: 14, lineHeight: 18, fontWeight: '800', marginTop: 4 },
   // 예약하기 = 돈 버튼 — 딥 코랄 (종단 ≥#C6472C, 흰 라벨 4.5:1)
-  book: { backgroundColor: lilac.card, borderWidth: 1, borderLeftWidth: 0, borderRightWidth: 0, borderColor: lilac.hair2, borderRadius: 0, padding: 12, marginTop: 14, ...lilacShadow }, // [풀블리드]
+  book: { backgroundColor: lilac.card, borderWidth: 1, borderLeftWidth: 0, borderRightWidth: 0, borderColor: '#EEEEEE', borderRadius: 0, padding: 12, marginTop: 14 }, // [풀블리드] [페이퍼 크롬] 뉴트럴 보더 · 카드 섀도 은퇴 (무게는 안의 딥 코랄 CTA가 진다)
   bookFacts: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', paddingHorizontal: 2, paddingBottom: 11 },
   // [FLOOR14] '예상 결제'는 한글 정보 라벨이다 — 트래킹은 라틴 키커의 문법이라 0.5로 내리고 크기를 올린다
   bookKicker: { fontSize: 14, lineHeight: 18, fontWeight: '600', letterSpacing: 0.5, color: lilac.dim, marginBottom: 2 },
@@ -1695,10 +1698,12 @@ const s = StyleSheet.create({
   ctaSheen: { position: 'absolute', right: -30, top: -40, width: 130, height: 130, borderRadius: 65, backgroundColor: 'rgba(255,255,255,0.12)' },
   ctaPlate: { marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(28,24,55,0.55)', borderRadius: lilacRadius.inner, paddingVertical: 8, paddingHorizontal: 10 },
   ctaPlateDiv: { width: 1, height: 11, backgroundColor: 'rgba(255,255,255,0.4)' },
-  // 하이클럽 셸 — 히어로 인접 격상 (바이올렛 라일락 엘리베이션)
+  // 하이클럽 셸 — 히어로 인접 격상.
+  // ★★★ [SUPERSEDED 2026-08-10 페이퍼 크롬 웨이브] Sean 2026-08-06의 "클럽 위젯만 측면 마진+라운드 유지"
+  // 예외는 이 웨이브로 은퇴 — 메인 탭의 모든 카드가 샤프/풀블리드가 되면서 예외 근거가 소멸했다.
+  // 나이트 카드(내부 다크 월드)는 아티팩트로 그대로 산다; 셸의 크롬(마진·라운드·바이올렛 섀도)만 페이퍼로. ★★★
   clubShell: {
-    marginTop: 14, marginHorizontal: 14, borderRadius: lilacRadius.card, // [Sean 2026-08-06] 클럽 위젯만 유일하게 측면 마진+라운드 유지 — 풀블리드 예외
-    shadowColor: lilac.accent, shadowOpacity: 0.14, shadowRadius: 30, shadowOffset: { width: 0, height: 12 }, elevation: 3,
+    marginTop: 14, marginHorizontal: 0, borderRadius: 0,
   },
   // [Sean 2026-08-10] 티켓 주 버튼은 GO 상태색을 입는다 (같은 상태 기계 = 같은 색 목소리) —
   // bg/shadowColor는 JSX에서 goSkin 주입, 여기 값은 폴백. 라벨 14→16 · 패딩 13→15 (랩 Ⓒ 채택분).
@@ -1706,19 +1711,18 @@ const s = StyleSheet.create({
     flex: 1, backgroundColor: lilac.accent, borderRadius: lilacRadius.btn, alignItems: 'center', paddingVertical: 15,
     shadowColor: lilac.accent, shadowOpacity: 0.3, shadowRadius: 13, shadowOffset: { width: 0, height: 5 },
   },
-  countdownPill: { borderRadius: lilacRadius.tag, paddingVertical: 4, paddingHorizontal: 8 },
+  countdownPill: { borderRadius: 0, paddingVertical: 4, paddingHorizontal: 8 }, // [페이퍼 크롬] 샤프
   // D-day 칩 — countdownPill과 동일 메트릭, 중립 인셋 표면 (상태 태그가 색을 갖는다)
   ddayChip: {
-    borderRadius: lilacRadius.tag, paddingVertical: 4, paddingHorizontal: 8,
-    borderWidth: 1, borderColor: lilac.hair2, backgroundColor: lilac.inset,
+    borderRadius: 0, paddingVertical: 4, paddingHorizontal: 8,
+    borderWidth: 1, borderColor: '#EEEEEE', backgroundColor: lilac.inset, // [페이퍼 크롬]
   },
   ddayTxt: { fontSize: 14, lineHeight: 18, fontWeight: '900', letterSpacing: 0.5, color: lilac.head },
-  widgetBtn: { flex: 1, borderWidth: 1, borderColor: lilac.hair, backgroundColor: lilac.inset, borderRadius: lilacRadius.btn, alignItems: 'center', paddingVertical: 10 },
+  widgetBtn: { flex: 1, borderWidth: 1, borderColor: '#EEEEEE', backgroundColor: paper.canvas, borderRadius: 0, alignItems: 'center', paddingVertical: 10 }, // [페이퍼 크롬] 캔버스 면 + 뉴트럴 1px
   nudge: {
     flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 10,
-    borderRadius: 0, borderWidth: 1, borderRightWidth: 0, borderColor: lilac.hair2, // [풀블리드] 좌측 코랄 스파인은 유지
+    borderRadius: 0, borderWidth: 1, borderRightWidth: 0, borderColor: '#EEEEEE', // [풀블리드] 좌측 코랄 스파인은 유지 · [페이퍼 크롬] 뉴트럴 보더, 섀도 은퇴
     borderLeftWidth: 2.5, borderLeftColor: lilac.coral, paddingVertical: 11, paddingHorizontal: layout.gutter,
-    ...lilacShadow,
   },
   // 체력 로드 실패 스트립 (item 5) — 라우드 페일 문법: 풀블리드, 위아래 1px critical 헤어라인,
   // 14pt/700 critical 잉크, 캔버스 바닥, 재시도는 텍스트 버튼. 후속 홈 리페인트에서도 살아남는다.
@@ -1733,10 +1737,9 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: 0,
     paddingVertical: 11, paddingHorizontal: layout.gutter, marginTop: 12, // [풀블리드] 내부 거터 = layout.gutter
     borderLeftWidth: 0, borderRightWidth: 0,
-    borderWidth: 1, borderColor: lilac.hair,
-    ...lilacShadow,
+    borderWidth: 1, borderColor: '#EEEEEE', // [페이퍼 크롬] 뉴트럴 보더, 섀도 은퇴
   },
-  safetyIcon: { width: 24, height: 24, borderRadius: lilacRadius.inner, backgroundColor: '#FFF1EC', alignItems: 'center', justifyContent: 'center' },
+  safetyIcon: { width: 24, height: 24, borderRadius: 0, backgroundColor: '#FFF1EC', alignItems: 'center', justifyContent: 'center' },
   sectionTitle: { fontSize: 14, lineHeight: 18, fontWeight: '800' },
   // 스타디움 로스터 — 피처드 = 나이트 라일락, 미니 = 라이트 라일락
   featRunner: { backgroundColor: NIGHT, borderWidth: 1, borderLeftWidth: 0, borderRightWidth: 0, borderColor: '#2E2A50', borderRadius: 0, padding: 13, paddingLeft: 16, overflow: 'hidden' }, // [풀블리드] 다크 아티팩트도 화면 끝까지
@@ -1744,11 +1747,11 @@ const s = StyleSheet.create({
   featNum: { fontSize: 14, lineHeight: 17, fontWeight: '900', color: '#fff', fontVariant: ['tabular-nums'] },
   featK: { fontSize: 11.5, fontWeight: '700', letterSpacing: 1, color: '#9E94D2', marginTop: 3 },
   featCta: { backgroundColor: lilac.card, borderRadius: lilacRadius.btn, paddingVertical: 9, paddingHorizontal: 10, alignSelf: 'center' },
-  rosterCard: { width: 146, backgroundColor: lilac.card, borderWidth: 1, borderColor: lilac.hair, borderRadius: lilacRadius.card, padding: 10, ...lilacShadow },
-  momentCard: { width: 118, height: 146, borderRadius: lilacRadius.inner, overflow: 'hidden', backgroundColor: lilac.inset, borderWidth: 1, borderColor: lilac.hair },
+  rosterCard: { width: 146, backgroundColor: lilac.card, borderWidth: 1, borderColor: '#EEEEEE', borderRadius: 0, padding: 10 }, // [페이퍼 크롬] 샤프·뉴트럴, 섀도 은퇴
+  momentCard: { width: 118, height: 146, borderRadius: 0, overflow: 'hidden', backgroundColor: lilac.inset, borderWidth: 1, borderColor: '#EEEEEE' }, // [페이퍼 크롬]
   momentPill: {
     position: 'absolute', left: 7, bottom: 7,
-    backgroundColor: 'rgba(28,24,55,0.62)', borderRadius: lilacRadius.tag, paddingVertical: 3, paddingHorizontal: 7,
+    backgroundColor: 'rgba(28,24,55,0.62)', borderRadius: 0, paddingVertical: 3, paddingHorizontal: 7, // [페이퍼 크롬] 샤프
   },
   tickerItem: { fontSize: 14, fontWeight: '600', color: lilac.text },
   tickerSep: { width: 3, height: 3, borderRadius: 2, backgroundColor: lilac.hair, marginHorizontal: 8 },

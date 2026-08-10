@@ -15,7 +15,7 @@ import { PatchBadge } from '../../src/components/patch';
 import { registerPushToken } from '../../src/lib/push';
 import { haptic } from '../../src/lib/haptics';
 import { runnerJob } from '../../src/store';
-import { colors, layout, lilac, lilacRadius } from '../../src/theme';
+import { colors, layout, lilac, paper } from '../../src/theme';
 
 // 러너 홈 — 테일러드 라일락 리페인트 (빕 퍼스트 × 정산 장부 × 클럽 엔진).
 // 컬러 월드 결정: DAWN DUAL — 코랄이 정체성·CTA(빕 토글·수락 문·라이브), 바이올렛이 구조·클럽.
@@ -83,9 +83,10 @@ function PulseRings({ color = colors.tang, size = 30 }: { color?: string; size?:
 
 // 홀로 상단 엣지 — 3px 포일 트림 (빕·장부·티켓·스텁). 포일 예산: 모노그램 + 카드 엣지만.
 const HOLO = ['#CFC4FF', '#FFD9CB', '#F3E9C6', '#EAF6C8', '#CFE0FF'];
-function HoloEdge({ radius = false }: { radius?: boolean }) {
+function HoloEdge() {
+  // [페이퍼 크롬 2026-08-10] radius 프롭 은퇴 — 모든 카드가 샤프라 라운드 홀로 엣지 변형이 사라졌다
   return (
-    <View style={[styles.holo, radius && { borderTopLeftRadius: lilacRadius.card, borderTopRightRadius: lilacRadius.card }]}>
+    <View style={styles.holo}>
       {HOLO.map((c, i) => <View key={i} style={{ flex: 1, backgroundColor: c }} />)}
     </View>
   );
@@ -105,8 +106,9 @@ function Barcode({ width = 120 }: { width?: number }) {
 
 // 섹션 룰 — 에디토리얼 순차 넘버 (01→06)
 function SectionRule({ no, title, link, onPress }: { no: string; title: string; link?: string; onPress?: () => void }) {
+  // [페이퍼 크롬] 섹션 분리 = 풀블리드 솔리드 코랄 1px — 거터를 음수 마진으로 뚫어 화면 끝까지 (paper.line 법)
   return (
-    <Row style={{ alignItems: 'center', gap: 8, marginTop: 14 }}>
+    <Row style={[styles.secWrap, { alignItems: 'center', gap: 8, marginTop: 14 }]}>
       <Text style={styles.srNo}>{no}</Text>
       <Text style={styles.srTitle}>{title}</Text>
       <View style={styles.rule} />
@@ -118,7 +120,7 @@ function SectionRule({ no, title, link, onPress }: { no: string; title: string; 
 // 캡션 헤더 — 넘버 없는 섹션 (진행중·클럽)
 function CapHead({ title, link, onPress }: { title: string; link?: string; onPress?: () => void }) {
   return (
-    <Row style={{ alignItems: 'center', gap: 8, marginTop: 14 }}>
+    <Row style={[styles.secWrap, { alignItems: 'center', gap: 8, marginTop: 14 }]}>
       <Text style={styles.srTitle}>{title}</Text>
       <View style={styles.rule} />
       {link ? <Pressable onPress={onPress}><Text style={styles.srLink}>{link}</Text></Pressable> : null}
@@ -326,8 +328,8 @@ export default function RunnerHome() {
   ];
 
   return (
-    <View style={{ flex: 1, backgroundColor: lilac.bg }}>
-      {/* ————— 프로스트 상단 크롬 — 알림 벨 보존 (/alerts) ————— */}
+    <View style={{ flex: 1, backgroundColor: paper.canvas }}>{/* [페이퍼 크롬] 라일락 캔버스 은퇴 → 백지 */}
+      {/* ————— 상단 크롬 — 플레인 화이트 + 코랄 헤어라인 (글래스 은퇴) · 알림 벨 보존 (/alerts) ————— */}
       <View style={styles.top}>
         <Row style={{ alignItems: 'center', gap: 6 }}>
           <View style={styles.brandmark}><Text style={styles.brandmarkGlyph}>다</Text></View>
@@ -442,7 +444,7 @@ export default function RunnerHome() {
               </Text>
             )}
 
-            <View style={{ marginTop: 11, borderTopWidth: 1, borderTopColor: lilac.hair }}>
+            <View style={{ marginTop: 11, borderTopWidth: 1, borderTopColor: '#EEEEEE' }}>
               <LedgerRow label="완료 러닝" sub="THIS WEEK" value={String(stats.runs)} unit="회" nf={nf} />
               <LedgerRow label="총 거리" sub="DISTANCE" value={String(stats.km)} unit="km" nf={nf} />
               <LedgerRow label="회당 평균" sub="AVG / RUN" value={avg.toLocaleString()} unit="원" nf={nf} total />
@@ -526,7 +528,7 @@ export default function RunnerHome() {
                     <Text style={styles.tWhere}>{inbox[0].dogName}</Text>
                     <Text style={styles.tWhereSub}>· 지명 요청 픽업</Text>
                   </Row>
-                  <Row style={{ marginTop: 10, borderTopWidth: 1, borderTopColor: lilac.hair2, paddingTop: 9 }}>
+                  <Row style={{ marginTop: 10, borderTopWidth: 1, borderTopColor: '#EEEEEE', paddingTop: 9 }}>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.factK}>COURSE</Text>
                       <Text style={styles.factV}><Text style={[styles.factVNum, nf]}>{inbox[0].km}</Text><Text style={styles.factVUnit}> km</Text></Text>
@@ -575,7 +577,7 @@ export default function RunnerHome() {
             <View style={{ gap: 9, marginTop: 9 }}>
               {inbox.slice(1).map((rq, i) => (
                 <View key={i} style={styles.stub}>
-                  <HoloEdge radius />
+                  <HoloEdge />
                   <View style={{ flex: 1, minWidth: 0, paddingHorizontal: 11, paddingTop: 12, paddingBottom: 10 }}>
                     <Row style={{ alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                       <Text style={styles.stubNm}>{rq.dogName}</Text>
@@ -648,7 +650,7 @@ export default function RunnerHome() {
                     <Pressable
                       key={st.job.bookingId}
                       onPress={() => openJob(st.job)}
-                      style={[styles.stop, i > 0 && { borderTopWidth: 1, borderTopColor: lilac.hair2 }]}
+                      style={[styles.stop, i > 0 && { borderTopWidth: 1, borderTopColor: '#EEEEEE' }]}
                     >
                       <View style={[styles.stopPt, on && styles.stopPtOn]}>
                         {on && <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: lilac.coral }} />}
@@ -728,7 +730,7 @@ export default function RunnerHome() {
             );
           })()}
 
-          <View style={{ height: 1, backgroundColor: lilac.hair2, marginTop: 11, marginBottom: 10 }} />
+          <View style={{ height: 1, backgroundColor: '#EEEEEE', marginTop: 11, marginBottom: 10 }} />
 
           {/* 보급 드랍 트레일 — 지그재그 체크포인트 (i<cycle5 지남=accent, i===cycle5 다음=accent 링, 끝=보급 상자) */}
           <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
@@ -774,7 +776,7 @@ export default function RunnerHome() {
                 ? '보급 드랍 도착! 리워드 센터에서 열어보세요'
                 : `${remaining5}번 더 달리면 보급 드랍!`}
           </Text>
-          <Row style={{ alignItems: 'center', gap: 7, marginTop: 9, paddingTop: 9, borderTopWidth: 1, borderTopColor: lilac.hair2 }}>
+          <Row style={{ alignItems: 'center', gap: 7, marginTop: 9, paddingTop: 9, borderTopWidth: 1, borderTopColor: '#EEEEEE' }}>
             <Text style={styles.flagLb}>픽 드랍</Text>
             <View style={styles.flagTrack}>
               <View style={[styles.flagFill, { width: `${(cycle10 / 10) * 100}%` }]} />
@@ -818,7 +820,7 @@ export default function RunnerHome() {
             <SectionRule no="05" title="최근 완료" link="수익 상세 ›" onPress={() => router.push('/runner/earnings')} />
             <View style={[styles.card, { padding: 0, overflow: 'hidden' }]}>
               {past.map((j, i) => (
-                <Row key={j.bookingId} style={[styles.drow, i > 0 && { borderTopWidth: 1, borderTopColor: lilac.hair2 }]}>
+                <Row key={j.bookingId} style={[styles.drow, i > 0 && { borderTopWidth: 1, borderTopColor: '#EEEEEE' }]}>
                   <View style={{ alignSelf: 'center' }}>
                     {j.routeId && patchMap[j.routeId] ? (
                       <Pressable onPress={() => router.push('/cards')}>
@@ -881,11 +883,11 @@ export default function RunnerHome() {
 }
 
 const styles = StyleSheet.create({
-  // 상단 크롬 — 목업 .top padding:11 12 9 (paddingTop 48 = 세이프에어리어)
+  // 상단 크롬 — [페이퍼 크롬] 글래스 은퇴: 플레인 화이트 + 코랄 헤어라인 바텀 엣지 (마스트헤드 법)
   top: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingTop: 48, paddingBottom: 9, paddingHorizontal: 12,
-    backgroundColor: lilac.glass, borderBottomWidth: 1, borderBottomColor: lilac.glassEdge,
+    backgroundColor: paper.canvas, borderBottomWidth: 1, borderBottomColor: paper.line,
   },
   brandmark: {
     width: 20, height: 20, borderRadius: 6, backgroundColor: HOLO[0], alignItems: 'center', justifyContent: 'center',
@@ -894,7 +896,7 @@ const styles = StyleSheet.create({
   brandmarkGlyph: { fontSize: 10, color: lilac.head, lineHeight: 12 }, // 글리프 전용 브랜드마크('다') — 20px 칩 안 조형이라 플로어 면제
   crumb: { fontSize: 12, lineHeight: 15, letterSpacing: 2, color: lilac.dim, fontWeight: '600' },
   bell: {
-    width: 26, height: 26, borderRadius: 6, borderWidth: 1, borderColor: lilac.hair,
+    width: 26, height: 26, borderRadius: 0, borderWidth: 1, borderColor: '#EEEEEE', // [페이퍼 크롬] 샤프·뉴트럴
     backgroundColor: lilac.card, alignItems: 'center', justifyContent: 'center',
   },
   // 미읽음 도트 — 보호자 홈과 동일 어휘(코랄 6px 글로우), 26px 벨에 맞춘 인셋
@@ -904,13 +906,14 @@ const styles = StyleSheet.create({
     shadowColor: lilac.coral, shadowOpacity: 1, shadowRadius: 4, shadowOffset: { width: 0, height: 0 },
   },
 
-  // 공통 카드 + 룰 — 목업 카드 padding 대략 12/13 (섹션별 오버라이드)
+  // 공통 카드 + 룰 — [페이퍼 크롬] 샤프 코너 · 뉴트럴 #EEE 1px · 소프트 섀도 은퇴
   card: {
-    backgroundColor: lilac.card, borderRadius: lilacRadius.card, borderWidth: 1, borderColor: lilac.hair,
+    backgroundColor: lilac.card, borderRadius: 0, borderWidth: 1, borderColor: '#EEEEEE',
     paddingVertical: 12, paddingHorizontal: 13, marginTop: 10,
-    shadowColor: '#1C1837', shadowOpacity: 0.08, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 2,
   },
-  rule: { flex: 1, height: 1, backgroundColor: lilac.hair },
+  rule: { flex: 1, height: 1, backgroundColor: '#EEEEEE' }, // 인라인 룰은 뉴트럴 — 코랄은 풀블리드 섹션 룰(secWrap)이 전담
+  // [페이퍼 크롬] 섹션 헤더 래퍼 — 거터를 음수 마진으로 뚫은 풀블리드 코랄 1px 상단 룰
+  secWrap: { marginHorizontal: -layout.gutter, paddingHorizontal: layout.gutter, borderTopWidth: 1, borderTopColor: paper.line, paddingTop: 10 },
   holo: { flexDirection: 'row', height: 3, position: 'absolute', top: 0, left: 0, right: 0, zIndex: 3 },
 
   // 마스트헤드 — 키커: FIX3 디테일 밴드 12–15 (구 8px 목업값 → 12, 자간은 ≤2로 타이트닝)
@@ -924,13 +927,12 @@ const styles = StyleSheet.create({
   srTitle: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: lilac.head },
   srLink: { fontSize: 14, lineHeight: 18, color: lilac.dim, fontWeight: '500' },
 
-  // ① 빕
+  // ① 빕 — [페이퍼 크롬] 카드 크롬만 샤프·뉴트럴 (홀로·바코드·핀·모노그램 아티팩트는 생존)
   bib: {
-    backgroundColor: lilac.card, borderWidth: 1, borderColor: lilac.hair, borderRadius: lilacRadius.card,
+    backgroundColor: lilac.card, borderWidth: 1, borderColor: '#EEEEEE', borderRadius: 0,
     overflow: 'hidden', paddingBottom: 0,
-    shadowColor: '#1C1837', shadowOpacity: 0.09, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 3,
   },
-  bibInner: { position: 'absolute', top: 4, left: 4, right: 4, bottom: 4, borderWidth: 1, borderColor: lilac.hair2, borderRadius: lilacRadius.inner },
+  bibInner: { position: 'absolute', top: 4, left: 4, right: 4, bottom: 4, borderWidth: 1, borderColor: '#EEEEEE', borderRadius: 0 },
   pin: {
     position: 'absolute', width: 7, height: 7, borderRadius: 3.5, backgroundColor: lilac.inset,
     borderWidth: 1, borderColor: lilac.hair, zIndex: 2,
@@ -960,9 +962,9 @@ const styles = StyleSheet.create({
   // BUG A: lineHeight 92 = 1.24×74 — Oswald 어센더 확보, includeFontPadding 제거 → "0" 상단 온전한 타원
   bibNo: { fontSize: 74, color: lilac.head, lineHeight: 92, letterSpacing: -1.5 },
   bibNoCap: { marginTop: 4, fontSize: 14, fontWeight: '600', color: lilac.text, lineHeight: 18 },
-  bibSide: { flex: 1, minWidth: 0, borderLeftWidth: 1, borderLeftColor: lilac.hair2, paddingLeft: 11, paddingBottom: 3 },
+  bibSide: { flex: 1, minWidth: 0, borderLeftWidth: 1, borderLeftColor: '#EEEEEE', paddingLeft: 11, paddingBottom: 3 },
   bsRow: { justifyContent: 'space-between', alignItems: 'baseline', gap: 6, paddingVertical: 5 },
-  bsRowTop: { borderTopWidth: 1, borderTopColor: lilac.hair2 },
+  bsRowTop: { borderTopWidth: 1, borderTopColor: '#EEEEEE' },
   bsK: { fontSize: 12, lineHeight: 15, letterSpacing: 1.3, color: lilac.dim, fontWeight: '600' },
   bsV: { fontSize: 14, lineHeight: 18, fontWeight: '600', color: lilac.head },
   bsVNum: { fontSize: 14, color: lilac.head },
@@ -972,13 +974,13 @@ const styles = StyleSheet.create({
   },
   bibFootTxt: { fontSize: 12, lineHeight: 15, letterSpacing: 1.5, color: lilac.dim, fontWeight: '500' },
 
-  // ② 장부 — 목업 .l-in padding 11 12 10
-  ledgerIn: { borderWidth: 1, borderColor: lilac.hair2, borderRadius: lilacRadius.inner, paddingHorizontal: 12, paddingTop: 11, paddingBottom: 10, overflow: 'hidden' },
+  // ② 장부 — 목업 .l-in padding 11 12 10 · [페이퍼 크롬] 샤프·뉴트럴 (점선 리더는 장부 아티팩트로 생존)
+  ledgerIn: { borderWidth: 1, borderColor: '#EEEEEE', borderRadius: 0, paddingHorizontal: 12, paddingTop: 11, paddingBottom: 10, overflow: 'hidden' },
   lGlyph: { width: 16, height: 16, borderRadius: 5, backgroundColor: lilac.accent, alignItems: 'center', justifyContent: 'center' },
   lBrand: { fontSize: 12, lineHeight: 15, letterSpacing: 1.5, color: lilac.head, fontWeight: '700' },
-  monoTagV: { borderWidth: 1, borderColor: '#DCD6F8', backgroundColor: '#F4F1FE', borderRadius: lilacRadius.tag, paddingHorizontal: 6, paddingVertical: 2 },
+  monoTagV: { borderWidth: 1, borderColor: '#DCD6F8', backgroundColor: '#F4F1FE', borderRadius: 0, paddingHorizontal: 6, paddingVertical: 2 }, // [페이퍼 크롬] 칩 샤프 (바이올렛 틴트 필은 액센트로 생존)
   monoTagVTxt: { fontSize: 12, lineHeight: 15, letterSpacing: 1, color: lilac.accent, fontWeight: '600' },
-  monoTagStar: { borderWidth: 1, borderColor: lilac.amberEdge, backgroundColor: lilac.amberSoft, borderRadius: lilacRadius.tag, paddingHorizontal: 6, paddingVertical: 2 },
+  monoTagStar: { borderWidth: 1, borderColor: lilac.amberEdge, backgroundColor: lilac.amberSoft, borderRadius: 0, paddingHorizontal: 6, paddingVertical: 2 }, // [페이퍼 크롬] 샤프 (앰버 = 시맨틱)
   monoTagStarTxt: { fontSize: 14, lineHeight: 18, letterSpacing: 1, color: lilac.amber, fontWeight: '700' },
   // ₩와 금액은 baseline 정렬 · won은 flexShrink 0로 자기 폭 확보, 금액은 numberOfLines 1 (오버랩 FIX #2)
   // BUG A: 둘 다 lineHeight ≥1.2×fontSize, includeFontPadding 제거 → "₩0"의 0이 온전한 타원으로
@@ -997,37 +999,35 @@ const styles = StyleSheet.create({
   lWinNum: { fontSize: 16, lineHeight: 20, color: lilac.head },
   lWinSep: { fontSize: 12, lineHeight: 16, color: lilac.dim }, // 글리프 전용(·) 구분자 — 플로어 면제
   lCap: { marginTop: 6, fontSize: 14, color: lilac.dim, lineHeight: 18 },
-  lr: { alignItems: 'baseline', gap: 7, paddingTop: 7, paddingBottom: 6, borderBottomWidth: 1, borderBottomColor: lilac.hair2 },
+  lr: { alignItems: 'baseline', gap: 7, paddingTop: 7, paddingBottom: 6, borderBottomWidth: 1, borderBottomColor: '#EEEEEE' },
   lrLabel: { fontSize: 14, lineHeight: 18, fontWeight: '600', color: lilac.head },
   lrSub: { fontSize: 11.5, lineHeight: 14, letterSpacing: 1.1, color: lilac.dim, fontWeight: '500', marginTop: 2 },
   lead: { flex: 1, borderBottomWidth: 1, borderStyle: 'dotted', borderBottomColor: '#D5CFEC', transform: [{ translateY: -3 }] },
   lrVal: { fontSize: 14, lineHeight: 18, fontWeight: '500', color: lilac.text },
   lrValNum: { fontSize: 14, color: lilac.head },
-  lFoot: { justifyContent: 'space-between', alignItems: 'center', gap: 8, marginTop: 9, paddingTop: 8, borderTopWidth: 1, borderTopColor: lilac.hair2 },
+  lFoot: { justifyContent: 'space-between', alignItems: 'center', gap: 8, marginTop: 9, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#EEEEEE' },
   lFootTxt: { fontSize: 14, lineHeight: 18, color: lilac.dim, flex: 1 },
   lFootLink: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: lilac.accent },
 
-  // 진행 중 — 목업 .now padding 11 12 12 14
+  // 진행 중 — 목업 .now padding 11 12 12 14 · [페이퍼 크롬] 샤프·뉴트럴 (코랄 좌측 엣지 = DAWN DUAL 액센트 생존)
   now: {
-    backgroundColor: lilac.card, borderWidth: 1, borderColor: lilac.hair2, borderRadius: lilacRadius.card,
+    backgroundColor: lilac.card, borderWidth: 1, borderColor: '#EEEEEE', borderRadius: 0,
     overflow: 'hidden', paddingTop: 11, paddingRight: 12, paddingBottom: 12, paddingLeft: 14, marginTop: 10,
-    shadowColor: '#1C1837', shadowOpacity: 0.08, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 2,
   },
   nowEdge: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, backgroundColor: lilac.coral },
   nowWhen: { fontSize: 14, lineHeight: 18, letterSpacing: 1.2, color: lilac.dim, fontWeight: '500' },
   nowTitle: { marginTop: 8, fontSize: 16, lineHeight: 21, fontWeight: '700', color: lilac.head },
   nowSub: { marginTop: 3, fontSize: 14, lineHeight: 18, color: lilac.dim },
   btnCoral: {
-    borderRadius: lilacRadius.btn, alignItems: 'center', justifyContent: 'center', paddingVertical: 13, backgroundColor: CORAL_INK,
+    borderRadius: 0, alignItems: 'center', justifyContent: 'center', paddingVertical: 13, backgroundColor: CORAL_INK, // [페이퍼 크롬] 샤프 · 코랄 글로우 섀도 은퇴 (CTA 필은 시맨틱 생존)
     borderWidth: 1, borderColor: CORAL_INK_DEEP,
-    shadowColor: lilac.coral, shadowOpacity: 0.34, shadowRadius: 16, shadowOffset: { width: 0, height: 6 },
   },
   btnCoralTxt: { fontSize: 16, lineHeight: 20, fontWeight: '700', color: '#fff' }, // [2026-08-10] 14 → 16 (primary button floor)
 
-  // ① 티켓
-  ticket: { marginTop: 9, shadowColor: '#1C1837', shadowOpacity: 0.1, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 3 },
-  tMain: { backgroundColor: lilac.card, borderTopLeftRadius: lilacRadius.card, borderTopRightRadius: lilacRadius.card, borderWidth: 1, borderBottomWidth: 0, borderColor: lilac.hair2, overflow: 'hidden' },
-  tGlyph: { width: 16, height: 16, borderRadius: 5, backgroundColor: lilac.accent, alignItems: 'center', justifyContent: 'center' },
+  // ① 티켓 — [페이퍼 크롬] 샤프·뉴트럴, 섀도 은퇴 (퍼포레이션·바코드·홀로 아티팩트 생존)
+  ticket: { marginTop: 9 },
+  tMain: { backgroundColor: lilac.card, borderTopLeftRadius: 0, borderTopRightRadius: 0, borderWidth: 1, borderBottomWidth: 0, borderColor: '#EEEEEE', overflow: 'hidden' },
+  tGlyph: { width: 16, height: 16, borderRadius: 0, backgroundColor: lilac.accent, alignItems: 'center', justifyContent: 'center' },
   tBrand: { fontSize: 12, lineHeight: 15, letterSpacing: 1.5, color: lilac.head, fontWeight: '700' },
   // BUG A: 티켓 시각 31pt → lineHeight 39 (1.26×), includeFontPadding 제거 — "0" 상단 온전
   tBig: { fontSize: 31, color: lilac.head, lineHeight: 39 },
@@ -1039,20 +1039,20 @@ const styles = StyleSheet.create({
   factV: { fontSize: 14, lineHeight: 18, fontWeight: '600', color: lilac.head },
   factVNum: { fontSize: 14, color: lilac.head },
   factVUnit: { fontSize: 14, fontWeight: '500', color: lilac.text },
-  factDiv: { flex: 1, borderLeftWidth: 1, borderLeftColor: lilac.hair2, paddingLeft: 10 },
-  perfWrap: { backgroundColor: lilac.card, borderLeftWidth: 1, borderRightWidth: 1, borderColor: lilac.hair2, position: 'relative' },
+  factDiv: { flex: 1, borderLeftWidth: 1, borderLeftColor: '#EEEEEE', paddingLeft: 10 },
+  perfWrap: { backgroundColor: lilac.card, borderLeftWidth: 1, borderRightWidth: 1, borderColor: '#EEEEEE', position: 'relative' },
   perf: { borderTopWidth: 1.5, borderTopColor: '#DCD7F0', borderStyle: 'dashed' },
-  perfNotch: { position: 'absolute', top: -8, width: 16, height: 16, borderRadius: 8, backgroundColor: lilac.bg, borderWidth: 1, borderColor: lilac.hair2 },
-  tStub: { backgroundColor: lilac.card, borderBottomLeftRadius: lilacRadius.card, borderBottomRightRadius: lilacRadius.card, borderWidth: 1, borderTopWidth: 0, borderColor: lilac.hair2, paddingHorizontal: 13, paddingTop: 11, paddingBottom: 12 },
-  door: { flex: 1, borderRadius: lilacRadius.btn, paddingVertical: 12, paddingHorizontal: 11, overflow: 'hidden' },
-  doorCoral: { backgroundColor: CORAL_INK, borderWidth: 1, borderColor: CORAL_INK_DEEP, shadowColor: lilac.coral, shadowOpacity: 0.34, shadowRadius: 16, shadowOffset: { width: 0, height: 6 } },
-  doorQuiet: { backgroundColor: lilac.inset, borderWidth: 1, borderColor: lilac.hair },
+  perfNotch: { position: 'absolute', top: -8, width: 16, height: 16, borderRadius: 8, backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE' }, // 노치 = 캔버스 구멍 (원형은 퍼포 아티팩트 예외)
+  tStub: { backgroundColor: lilac.card, borderBottomLeftRadius: 0, borderBottomRightRadius: 0, borderWidth: 1, borderTopWidth: 0, borderColor: '#EEEEEE', paddingHorizontal: 13, paddingTop: 11, paddingBottom: 12 },
+  door: { flex: 1, borderRadius: 0, paddingVertical: 12, paddingHorizontal: 11, overflow: 'hidden' }, // [페이퍼 크롬] 샤프
+  doorCoral: { backgroundColor: CORAL_INK, borderWidth: 1, borderColor: CORAL_INK_DEEP }, // 코랄 글로우 섀도 은퇴
+  doorQuiet: { backgroundColor: lilac.inset, borderWidth: 1, borderColor: '#EEEEEE' },
   doorName: { fontSize: 16, lineHeight: 20, fontWeight: '800' }, // [2026-08-10] 14.5 → 16 — the money action wears the primary-button floor
   doorSub: { marginTop: 4, fontSize: 14, lineHeight: 18 },
   doorSubNum: { fontSize: 14, lineHeight: 18 },
 
   // 스텁 행 — 목업 .s-act width 92 → 96 (FIX3: 11.5pt 캡션 한 줄 여유 확보, 구조는 동일)
-  stub: { flexDirection: 'row', backgroundColor: lilac.card, borderWidth: 1, borderColor: lilac.hair2, borderRadius: lilacRadius.card, overflow: 'hidden', shadowColor: '#1C1837', shadowOpacity: 0.08, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 2 },
+  stub: { flexDirection: 'row', backgroundColor: lilac.card, borderWidth: 1, borderColor: '#EEEEEE', borderRadius: 0, overflow: 'hidden' }, // [페이퍼 크롬] 샤프·뉴트럴, 섀도 은퇴
   stubNm: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: lilac.head },
   stubKm: { fontSize: 14, lineHeight: 18, fontWeight: '600', color: lilac.head },
   stubKmUnit: { fontSize: 14, color: CORAL_INK, fontWeight: '600' },
@@ -1060,16 +1060,16 @@ const styles = StyleSheet.create({
   // [FLOOR14 2026-08-05] 96 → 112. 스텁 캡션 'KRW 실수령'이 11.5 → 14pt 가 되며 한 줄 폭 ≈ 4×8(KRW+공백) + 3×14 = 74px,
   // 여기에 paddingHorizontal 8×2 = 16 을 더하면 90px 필요 → 96은 여유 6px 뿐이라 기기 폰트 스케일에서 랩됐다. 112 = 90 + 22 여유.
   stubAct: { width: 112, borderLeftWidth: 1.4, borderStyle: 'dashed', borderLeftColor: '#DCD7F0', paddingVertical: 11, paddingHorizontal: 8, alignItems: 'center', justifyContent: 'center', gap: 7 },
-  stubNotch: { position: 'absolute', left: -6, width: 12, height: 12, borderRadius: 6, backgroundColor: lilac.bg, borderWidth: 1, borderColor: lilac.hair2, zIndex: 3 },
+  stubNotch: { position: 'absolute', left: -6, width: 12, height: 12, borderRadius: 6, backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE', zIndex: 3 },
   // BUG A: 스텁 요금 17pt → lineHeight 22 (1.29×), includeFontPadding 제거
   stubFare: { fontSize: 17, lineHeight: 22, color: lilac.head },
   stubFareCap: { fontSize: 14, lineHeight: 18, letterSpacing: 1, color: lilac.dim, fontWeight: '500', marginTop: 2 },
-  accept: { width: '100%', borderRadius: lilacRadius.btn, paddingVertical: 9, alignItems: 'center', backgroundColor: CORAL_INK, borderWidth: 1, borderColor: CORAL_INK_DEEP },
+  accept: { width: '100%', borderRadius: 0, paddingVertical: 9, alignItems: 'center', backgroundColor: CORAL_INK, borderWidth: 1, borderColor: CORAL_INK_DEEP }, // [페이퍼 크롬] 샤프
   acceptTxt: { fontSize: 16, lineHeight: 20, fontWeight: '700', color: '#fff' }, // [2026-08-10] 14 → 16 (primary button floor); '수락' 2 glyphs ≈ 32px, well inside the 112 stubAct cage
   // [2026-08-10] narration text culled → the link centers alone (stubMoreTxt style retired with it)
-  stubMore: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, borderWidth: 1, borderStyle: 'dashed', borderColor: lilac.hair, borderRadius: lilacRadius.card, paddingVertical: 9, paddingHorizontal: 11, backgroundColor: lilac.glass },
+  stubMore: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, borderWidth: 1, borderStyle: 'dashed', borderColor: '#EEEEEE', borderRadius: 0, paddingVertical: 9, paddingHorizontal: 11, backgroundColor: paper.canvas }, // [페이퍼 크롬] 글래스 은퇴
   stubMoreLink: { fontSize: 14, fontWeight: '700', color: lilac.accent },
-  emptyInbox: { marginTop: 9, backgroundColor: lilac.inset, borderRadius: lilacRadius.card, padding: 16, borderWidth: 1, borderColor: lilac.hair },
+  emptyInbox: { marginTop: 9, backgroundColor: lilac.inset, borderRadius: 0, padding: 16, borderWidth: 1, borderColor: '#EEEEEE' }, // [페이퍼 크롬] 샤프 (인셋 필 생존)
   emptyInboxTxt: { fontSize: 14, lineHeight: 18, color: lilac.dim, textAlign: 'center' },
   emptyInboxLink: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: lilac.accent, textAlign: 'center', marginTop: 5 },
 
@@ -1088,18 +1088,18 @@ const styles = StyleSheet.create({
 
   // ③ 리워드
   fee: { fontSize: 14, lineHeight: 18, letterSpacing: 0.5, color: lilac.head, fontWeight: '600' },
-  rung: { flex: 1, height: 6, backgroundColor: lilac.inset, borderWidth: 1, borderColor: lilac.hair, overflow: 'hidden' },
+  rung: { flex: 1, height: 6, backgroundColor: lilac.inset, borderWidth: 1, borderColor: '#EEEEEE', overflow: 'hidden' },
   rungL: { borderTopLeftRadius: 99, borderBottomLeftRadius: 99 },
   rungR: { borderTopRightRadius: 99, borderBottomRightRadius: 99 },
   rungFill: { height: '100%', backgroundColor: lilac.accent },
   trailCnt: { fontSize: 14, lineHeight: 18, letterSpacing: 1, color: lilac.accent, fontWeight: '500' },
   flagLb: { fontSize: 14, lineHeight: 18, letterSpacing: 1.2, color: lilac.dim, fontWeight: '600' },
-  flagTrack: { flex: 1, height: 5, borderRadius: 99, backgroundColor: lilac.inset, overflow: 'hidden', borderWidth: 1, borderColor: lilac.hair },
+  flagTrack: { flex: 1, height: 5, borderRadius: 99, backgroundColor: lilac.inset, overflow: 'hidden', borderWidth: 1, borderColor: '#EEEEEE' },
   flagFill: { height: '100%', borderRadius: 99, backgroundColor: lilac.accent },
   flagCnt: { fontSize: 14, lineHeight: 18, fontWeight: '600', color: lilac.head },
 
-  // ④ 가능 시간 — 목업 .day padding 8 0 7
-  day: { flex: 1, borderRadius: lilacRadius.inner, paddingVertical: 8, alignItems: 'center', backgroundColor: lilac.card, borderWidth: 1, borderColor: lilac.hair },
+  // ④ 가능 시간 — 목업 .day padding 8 0 7 · [페이퍼 크롬] 샤프·뉴트럴 (dayOn 바이올렛 틴트는 액센트 생존)
+  day: { flex: 1, borderRadius: 0, paddingVertical: 8, alignItems: 'center', backgroundColor: lilac.card, borderWidth: 1, borderColor: '#EEEEEE' },
   dayOn: { backgroundColor: '#F4F1FE', borderColor: '#DCD6F8' },
   dayD: { fontSize: 14, fontWeight: '700', lineHeight: 18 },
   dayH: { fontSize: 14, lineHeight: 18, letterSpacing: 0.4, fontWeight: '500', marginTop: 4 },
@@ -1111,14 +1111,14 @@ const styles = StyleSheet.create({
   drowB: { fontSize: 14, lineHeight: 18, fontWeight: '600', color: lilac.head },
   drowS: { fontSize: 14, lineHeight: 18, color: lilac.dim, marginTop: 3 },
   drowPay: { fontSize: 14, lineHeight: 18, fontWeight: '600', color: lilac.text },
-  shot: { borderWidth: 1, borderColor: lilac.hair, backgroundColor: lilac.card, borderRadius: lilacRadius.tag, paddingVertical: 4, paddingHorizontal: 6 },
+  shot: { borderWidth: 1, borderColor: '#EEEEEE', backgroundColor: lilac.card, borderRadius: 0, paddingVertical: 4, paddingHorizontal: 6 }, // [페이퍼 크롬]
   shotTxt: { fontSize: 14, fontWeight: '600', color: lilac.head },
 
   // 퀵 링크 + 푸터 — 목업 .qlink padding 10 11
-  qlink: { flexBasis: '48%', flexGrow: 1, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 6, backgroundColor: lilac.glass, borderWidth: 1, borderStyle: 'dashed', borderColor: lilac.hair, borderRadius: lilacRadius.card, paddingVertical: 10, paddingHorizontal: 11 },
+  qlink: { flexBasis: '48%', flexGrow: 1, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 6, backgroundColor: paper.canvas, borderWidth: 1, borderStyle: 'dashed', borderColor: '#EEEEEE', borderRadius: 0, paddingVertical: 10, paddingHorizontal: 11 }, // [페이퍼 크롬] 글래스 은퇴
   qlinkB: { fontSize: 14, fontWeight: '600', color: lilac.head },
   qlinkChev: { fontSize: 12, color: lilac.dim }, // 글리프 전용(›) 셰브런 — 플로어 면제
-  foot: { alignItems: 'center', gap: 6, paddingTop: 10, marginTop: 12, borderTopWidth: 1, borderTopColor: lilac.hair },
+  foot: { alignItems: 'center', gap: 6, paddingTop: 10, marginTop: 12, borderTopWidth: 1, borderTopColor: '#EEEEEE' },
   footTxt: { fontSize: 14, lineHeight: 18, letterSpacing: 0.2, color: lilac.dim },
   footDot: { width: 2, height: 2, borderRadius: 1, backgroundColor: lilac.hair },
 });

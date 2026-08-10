@@ -41,6 +41,35 @@ Sub-palettes with single jurisdictions: gold = PB/milestone events only (일상�
 볼트, 사건만 골드) · terracotta = shop only (부티크 온도) · collar palette =
 per-dog personal color, must never equal a system signal color.
 
+### Paper chrome migration grammar (2026-08-10, Sean: "all main tabs")
+
+The chrome of every main-tab screen migrates to paper; each screen's SEMANTIC
+color system survives (GO state colors, schedule status rails/badges, collar
+palette, gold events, shop terracotta accents, club night world = artifact).
+Component translations, from the reference screens (pay.tsx, runner/meetup,
+addresses):
+
+- **Canvas**: `paper.canvas` #FFFFFF for every screen body and scroll area. No
+  tinted canvases (lilac.bg, cream, terraCraft retired as BACKGROUNDS; their
+  hues may survive as accents/washes inside components).
+- **Back button**: 40×40 square, canvas fill, 1px coral border, ‹ glyph 20.5 ink
+  (the runner/meetup `circleBtn` grammar — square despite the legacy name).
+- **Section separation**: full-bleed solid coral 1px (`paper.line`), edge to
+  edge. Cards inside a section separate with neutral #EEE 1px or spacing.
+- **Cards**: radius 0. Emphasis card = 1px coral border; neutral card = 1px
+  #EEE. Soft shadows retire with the rounded corners (shadow only where a
+  floating surface genuinely floats, e.g. the request floating ticket).
+- **Kickers**: latin letterspaced caps, `paper.faint` (the "PAYMENT" /
+  "MOCK · 준비 중" grammar).
+- **Primary CTA**: PaperBtn primary (full-width ink bar, white ≥16 label) or
+  screen-specific state color where a law assigns one (GO-colored ticket CTA).
+- **Notice/wash panels**: sharp boxes on `paper.wash` (info) or `criticalWash`
+  (failure) — the hold-timer notice grammar. System Alert.alert dialogs are OS
+  chrome and stay native.
+- **Numerals**: Oswald everywhere (done in the consistency wave).
+- **Dark artifacts stay dark**: passport record face + stamps, handoff seal
+  band, club night world, course photo cards — chrome around them goes paper.
+
 ### Paper laws (the target world — memorize these)
 
 - Canvas `#FFFFFF` (`canvasSoft #FBFAF7` for home-family body).

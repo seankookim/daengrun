@@ -7,7 +7,7 @@ import { BottomNav } from '../src/components/bottomnav';
 import { Row } from '../src/components/ui';
 import { DropRow, fetchActiveBoostLabel, fetchDrops, fetchGearClaims, fetchMiles, GearClaim, MilesInfo } from '../src/lib/api';
 import { products, session } from '../src/store';
-import { colors } from '../src/theme';
+import { colors, paper } from '../src/theme';
 
 // 도그스하이 샵 셸 (2026-07-29) — '하이 포인트 사용처' 허브.
 // 실데이터: 포인트 잔액(0027 RPC)·최근 적립·기어 교환권·도착한 드랍(러너).
@@ -40,7 +40,7 @@ export default function Shop() {
   const claimable = claims.filter((g) => g.status === 'claimable');
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.terraCraft }}>{/* 크래프트 종이 — 샵 = 부티크 (P5) */}
+    <View style={{ flex: 1, backgroundColor: paper.canvas }}>{/* [페이퍼 크롬 2026-08-10] 테라 크래프트 배경 은퇴 → 백지 캔버스. 테라코타는 액센트·가격·CTA(부티크 보이스)로만 생존 */}
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ padding: 16, paddingTop: 56 }}
@@ -112,7 +112,7 @@ export default function Shop() {
         {/* 기어 교환권 (실데이터) — 있을 때만 */}
         {claims.length > 0 && (
           <>
-            <Row style={{ gap: 7, marginTop: 18, marginBottom: 8 }}>
+            <Row style={[s.secRow, { gap: 7, marginTop: 18, marginBottom: 8 }]}>
               <Text style={s.section}>내 기어 교환권</Text>
               {claimable.length > 0 && (
                 <View style={s.countPill}><Text style={{ fontSize: 14, fontWeight: '900', color: '#3d5a2b' }}>{claimable.length}</Text></View>
@@ -140,7 +140,7 @@ export default function Shop() {
         )}
 
         {/* ---------- 스토어 미리보기 — 실 SKU 전, 섹션 단위 정직 라벨 ---------- */}
-        <Row style={{ gap: 7, marginTop: 20, marginBottom: 2, alignItems: 'center' }}>
+        <Row style={[s.secRow, { gap: 7, marginTop: 20, marginBottom: 2, alignItems: 'center' }]}>
           <View style={s.gearTag}><Text style={{ fontSize: 9.5, fontWeight: '900', letterSpacing: 1.5, color: '#fff' }}>DOGS HIGH GEAR</Text></View>
           <Text style={[s.section, { color: colors.terraInk }]}>부티크 미리보기</Text>
           <Text style={{ fontSize: 14.5, color: '#A87A62', fontWeight: '700' }}>· 오픈 준비 중</Text>
@@ -158,7 +158,7 @@ export default function Shop() {
         {/* product grid — 예정 상품 미리보기 (가격은 예정가) */}
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
           {products.map((p) => (
-            <Pressable key={p.id} style={[s.prod, { backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#E8CDBE' }]} onPress={() => Alert.alert(p.name, '스토어 오픈 준비 중이에요')}>
+            <Pressable key={p.id} style={[s.prod, { backgroundColor: '#fff', borderWidth: 1, borderColor: '#EEEEEE' }]} onPress={() => Alert.alert(p.name, '스토어 오픈 준비 중이에요')}>{/* [페이퍼 크롬] 카드 = 샤프 1px #EEE (테라 틴트 보더 은퇴) */}
               <Text style={{ fontSize: 14, fontWeight: '900', color: p.fg }}>{p.tag}</Text>
               <Text style={s.prodName} numberOfLines={2}>{p.name}</Text>
               <Text style={{ fontSize: 14, color: '#A87A62', marginTop: 3 }}>{p.collab}</Text>
@@ -183,22 +183,27 @@ export default function Shop() {
   );
 }
 
+// [페이퍼 크롬 2026-08-10] 샵 크롬 페이퍼 이행 — 라운드·테라 틴트 보더 은퇴, 카드 = 샤프 1px #EEE.
+// 테라코타(gearTag·addBtn·가격 잉크·활성 카테고리)와 볼트 리워드 스트립 필은 시맨틱으로 생존.
 const s = StyleSheet.create({
-  search: { backgroundColor: '#fff', borderRadius: 6, paddingVertical: 12, paddingHorizontal: 14, borderWidth: 1, borderColor: '#E5D5C6', marginBottom: 12 },
-  circleBtn: { width: 40, height: 40, borderRadius: 6, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#D8DAD2' },
-  hero: { backgroundColor: FOREST, borderRadius: 6, padding: 18 },
-  heroGo: { backgroundColor: colors.volt, borderRadius: 4, paddingVertical: 8, paddingHorizontal: 13 },
-  dropStrip: { backgroundColor: '#eaf7c8', borderRadius: 6, padding: 14, marginTop: 10, borderWidth: 1.5, borderColor: '#c9dd8f', alignItems: 'center' },
-  boostStrip: { backgroundColor: '#fff', borderRadius: 6, padding: 12, marginTop: 10, borderWidth: 1.5, borderColor: '#c9dd8f', alignItems: 'center' },
+  // 섹션 헤더 — 풀블리드 코랄 1px 룰 (스크롤 패딩 16을 음수 마진으로 뚫는다)
+  secRow: { marginHorizontal: -16, paddingHorizontal: 16, borderTopWidth: 1, borderTopColor: paper.line, paddingTop: 12 },
+  search: { backgroundColor: '#fff', borderRadius: 0, paddingVertical: 12, paddingHorizontal: 14, borderWidth: 1, borderColor: '#EEEEEE', marginBottom: 12 },
+  // 40×40 스퀘어 · 캔버스 필 · 1px 코랄 보더 — 페이퍼 크롬 버튼 문법 (runner/meetup circleBtn 클래스)
+  circleBtn: { width: 40, height: 40, borderRadius: 0, backgroundColor: paper.canvas, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: paper.line },
+  hero: { backgroundColor: FOREST, borderRadius: 0, padding: 18 }, // 다크 앵커는 아티팩트 — 코너만 샤프
+  heroGo: { backgroundColor: colors.volt, borderRadius: 0, paddingVertical: 8, paddingHorizontal: 13 },
+  dropStrip: { backgroundColor: '#eaf7c8', borderRadius: 0, padding: 14, marginTop: 10, borderWidth: 1, borderColor: '#c9dd8f', alignItems: 'center' }, // 볼트 워시 = 시맨틱 (보상 신호)
+  boostStrip: { backgroundColor: '#fff', borderRadius: 0, padding: 12, marginTop: 10, borderWidth: 1, borderColor: '#c9dd8f', alignItems: 'center' },
   section: { fontSize: 17, fontWeight: '900', color: FOREST },
-  countPill: { minWidth: 20, height: 20, borderRadius: 4, backgroundColor: '#e3f0c4', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5, alignSelf: 'center' },
-  card: { backgroundColor: '#fff', borderRadius: 6, padding: 14, borderWidth: 1, borderColor: '#D8DAD2' },
-  div: { height: 1, backgroundColor: '#EEF0EA' },
-  claimPill: { backgroundColor: '#eaf7c8', borderRadius: 4, paddingVertical: 5, paddingHorizontal: 10, alignSelf: 'center' },
-  cat: { borderRadius: 4, paddingVertical: 10, paddingHorizontal: 18, backgroundColor: '#fff', borderWidth: 1, borderColor: '#E5D5C6' },
-  gearTag: { backgroundColor: colors.terra, borderRadius: 4, paddingVertical: 3, paddingHorizontal: 9 },
-  prod: { width: '47.5%', borderRadius: 6, padding: 14, minHeight: 210 },
+  countPill: { minWidth: 20, height: 20, borderRadius: 0, backgroundColor: '#e3f0c4', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5, alignSelf: 'center' },
+  card: { backgroundColor: '#fff', borderRadius: 0, padding: 14, borderWidth: 1, borderColor: '#EEEEEE' },
+  div: { height: 1, backgroundColor: '#EEEEEE' },
+  claimPill: { backgroundColor: '#eaf7c8', borderRadius: 0, paddingVertical: 5, paddingHorizontal: 10, alignSelf: 'center' },
+  cat: { borderRadius: 0, paddingVertical: 10, paddingHorizontal: 18, backgroundColor: '#fff', borderWidth: 1, borderColor: '#EEEEEE' },
+  gearTag: { backgroundColor: colors.terra, borderRadius: 0, paddingVertical: 3, paddingHorizontal: 9 },
+  prod: { width: '47.5%', borderRadius: 0, padding: 14, minHeight: 210 },
   prodName: { fontSize: 16.5, fontWeight: '900', color: '#4A2A18', marginTop: 6, lineHeight: 23 },
   prodVisual: { flex: 1, alignItems: 'center', justifyContent: 'center', marginVertical: 8 },
-  addBtn: { width: 30, height: 30, borderRadius: 6, backgroundColor: colors.terra, alignItems: 'center', justifyContent: 'center' },
+  addBtn: { width: 30, height: 30, borderRadius: 0, backgroundColor: colors.terra, alignItems: 'center', justifyContent: 'center' },
 });
