@@ -14,7 +14,7 @@ import { haptic } from '../../src/lib/haptics';
 import { registerPushToken } from '../../src/lib/push';
 // [정직 배치 2026-08-06 · item 5] 목업 dog(초코 상수)·runners 임포트 퇴역 — 홈은 실데이터만 읽는다
 import { Booking, draft, RouteInfo } from '../../src/store';
-import { lilac, lilacRadius, lilacShadow, paper, pricing } from '../../src/theme';
+import { layout, lilac, lilacRadius, lilacShadow, paper, pricing } from '../../src/theme';
 import { useTheme } from '../../src/theme-context';
 
 // Owner home — 라일락 리페인트 (2026-08 "EDITORIAL SPORT × DAWN-DOT MORPH").
@@ -712,7 +712,10 @@ export default function OwnerHome() {
                     style={{ flexDirection: 'row', alignItems: 'center' }}
                     onLayout={dup === 0 ? (e) => { const w = Math.round(e.nativeEvent.layout.width); if (Math.abs(w - tickerW) > 2) setTickerW(w); } : undefined}
                   >
-                    <Text style={s.tickerLead}>THIS WEEK · 동네 리그</Text>
+                    {/* [2026-08-10 type wave] '동네 리그' is Korean data-class text, not kicker decoration —
+                        14pt span (DESIGN.md §3); latin 'THIS WEEK' stays kicker-class. Line box stays 18
+                        (nested-span max, same as ticker items) so the HEADER_H 123 budget is untouched. */}
+                    <Text style={s.tickerLead}>THIS WEEK<Text style={s.tickerLeadKo}> · 동네 리그</Text></Text>
                     <View style={s.tickerSep} />
                     {ticker.map((d, i) => (
                       <View key={`${dup}-${i}`} style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -997,7 +1000,7 @@ export default function OwnerHome() {
             ) : null}
           </View>
           {liveNext ? (
-            <View style={{ paddingHorizontal: 13, paddingBottom: 12 }}>
+            <View style={{ paddingHorizontal: layout.gutter, paddingBottom: 12 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 10 }}>
                 <Avatar url={fit?.dogPhotoUrl} char={liveNext.dogName[0]} bg={lilac.coral} size={34} />
                 <View style={{ flex: 1 }}>
@@ -1099,9 +1102,9 @@ export default function OwnerHome() {
               )}
             </View>
           ) : (
-            <View style={{ marginTop: 4, alignItems: 'center', paddingVertical: 14, paddingHorizontal: 13 }}>
+            <View style={{ marginTop: 4, alignItems: 'center', paddingVertical: 14, paddingHorizontal: layout.gutter }}>
+              {/* [2026-08-10 filler cull] '아래에서 첫 러닝을 예약해보세요' removed — the deep-coral CTA below already is the instruction */}
               <Text style={{ fontSize: 14, fontWeight: '800', color: p.textStrong }}>예정된 러닝이 없어요</Text>
-              <Text style={{ fontSize: 14, color: p.dim, marginTop: 4 }}>아래에서 첫 러닝을 예약해보세요</Text>
             </View>
           )}
         </Pressable>
@@ -1168,15 +1171,17 @@ export default function OwnerHome() {
                 <Text style={[{ fontSize: 22, fontWeight: '900', color: '#fff', marginTop: 6 }, df]}>
                   {fnDirected ? '지명 러너 응답 대기 중' : fnSearching ? '러너 찾는 중…' : '지금 러너 찾기'}
                 </Text>
-                <Text style={{ fontSize: 14, color: NIGHT_DIM, marginTop: 6, lineHeight: 19 }}>
-                  {fnDirected
-                    ? `${liveNext?.runnerName ?? '지명한 러너'}의 응답을 기다리고 있어요 — 탭하면 일정으로`
-                    : fnSearching
-                    ? '탭하면 레이더로 돌아가요'
-                    : fnAvail.length > 0
-                      ? `주변 러너 ${fnAvail.length}명이 바로 받을 수 있어요\n결제·코스는 자동 — 확인만 하면 끝`
-                      : '지금 바로 가능한 러너가 없어요 — 예약으로 잡아두세요'}
-                </Text>
+                {/* [2026-08-10 filler cull] Tap-narration tails removed — the CTA labels below already carry
+                    the destination. The searching state renders no sub-line at all (title + CTA say it). */}
+                {!fnSearching && (
+                  <Text style={{ fontSize: 14, color: NIGHT_DIM, marginTop: 6, lineHeight: 19 }}>
+                    {fnDirected
+                      ? `${liveNext?.runnerName ?? '지명한 러너'}의 응답을 기다리고 있어요`
+                      : fnAvail.length > 0
+                        ? `주변 러너 ${fnAvail.length}명이 바로 받을 수 있어요`
+                        : '지금 바로 가능한 러너가 없어요 — 예약으로 잡아두세요'}
+                  </Text>
+                )}
               </View>
             </View>
 
@@ -1188,7 +1193,8 @@ export default function OwnerHome() {
                   transform: [{ scaleX: fnPulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.06] }) },
                               { scaleY: fnPulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.5] }) }],
                 }]} />
-                <Text style={{ fontSize: 14, fontWeight: '900', color: lilac.head }}>
+                {/* [2026-08-10] primary CTA label 14 → 16 (button floor, DESIGN.md §3) */}
+                <Text style={{ fontSize: 16, fontWeight: '900', color: lilac.head }}>
                   {fnDirected ? '일정에서 확인 ›' : fnSearching ? '레이더 보기 ➤' : '주변 러너 검색 시작 ➤'}
                 </Text>
               </View>
@@ -1213,14 +1219,15 @@ export default function OwnerHome() {
         <View style={s.book}>
           <View style={s.bookFacts}>
             <View style={{ flex: 1, paddingRight: 10 }}>
+              {/* [2026-08-10 filler cull] '지난 러닝 그대로 채워뒀어요' removed — the prefilled facts line IS the evidence */}
               <Text style={{ fontSize: 14, fontWeight: '700', color: lilac.head }} numberOfLines={1}>
                 {dogName ? `${dogName} · ` : ''}{bookKm}km{lastDone?.routeName ? ` · ${lastDone.routeName}` : ''}
               </Text>
-              <Text style={{ fontSize: 14, color: lilac.dim, marginTop: 2 }}>지난 러닝 그대로 채워뒀어요</Text>
             </View>
             <View style={{ alignItems: 'flex-end' }}>
               <Text style={s.bookKicker}>예상 결제</Text>
-              <Text style={[{ fontSize: 19, lineHeight: 23, color: lilac.head }, nf]}>
+              {/* [2026-08-10] money number 19 → 22 · lineHeight 28 = 1.27× (Oswald BUG A law) */}
+              <Text style={[{ fontSize: 22, lineHeight: 28, color: lilac.head }, nf]}>
                 {bookPrice.toLocaleString()}<Text style={{ fontSize: 14, color: lilac.text, fontWeight: '600' }}>원</Text>
               </Text>
             </View>
@@ -1270,7 +1277,7 @@ export default function OwnerHome() {
                   <Text style={[s.beaconLine, { color: p.textStrong }]} numberOfLines={1}>
                     {nextGradeName}까지 <Text style={[s.beaconNum, nf]}>{beacon.next.toNext}</Text>회
                   </Text>
-                  {/* 어느 코스의 승급인지 — 반칸(320dp ≈ 122px)이라 한 줄로 자른다 */}
+                  {/* 어느 코스의 승급인지 — half-cell content ≈ 129px at 320dp (full-bleed (320−1)/2 − gutter 15×2), one line only */}
                   <Text style={[s.beaconSub, { color: p.dim }]} numberOfLines={1}>{beacon.next.name}</Text>
                   <Text style={[s.beaconGo, { color: mode === 'dark' ? '#B7A9FF' : lilac.accent }]}>카드 보기 ›</Text>
                 </Pressable>
@@ -1313,11 +1320,11 @@ export default function OwnerHome() {
             사진 0장이면 섹션 자체 숨김 — 플레이스홀더/스톡 금지 (정직 원칙) ---------- */}
         {moments.length > 0 && (
           <View style={{ marginTop: 16 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 7, marginBottom: 9, paddingHorizontal: 14 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 7, marginBottom: 9, paddingHorizontal: layout.gutter }}>
               <Text style={[s.sectionTitle, { color: p.textStrong }]}>최근 순간</Text>
               <Text style={{ fontSize: 14, color: p.dim }}>러너가 담아온 {dogName ? `${dogName}의 ` : ''}러닝</Text>
             </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 9, paddingLeft: 14, paddingRight: 12 }}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 9, paddingLeft: layout.gutter, paddingRight: 12 }}>
               {moments.map((m, mi) => (
                 <Pressable
                   key={`${m.bookingId}-${mi}`}
@@ -1341,7 +1348,7 @@ export default function OwnerHome() {
         {/* ---------- 동네 러너 = 스타디움 로스터 (V2) — 러너는 서비스의 얼굴, PR 표면 ---------- */}
         {localRunners.length > 0 && (
           <View style={{ marginTop: 18 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8, marginBottom: 9, borderBottomWidth: 2.5, borderBottomColor: p.textStrong, paddingBottom: 7, paddingHorizontal: 14 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8, marginBottom: 9, borderBottomWidth: 2.5, borderBottomColor: p.textStrong, paddingBottom: 7, paddingHorizontal: layout.gutter }}>
               <Text style={[s.sectionTitle, { color: p.textStrong }, df]}>동네 러너</Text>
               <Text style={{ fontSize: 12, fontWeight: '700', letterSpacing: 1.2, color: lilac.accent }}>ROSTER · {localRunners.length} ONLINE</Text>
               <View style={{ flex: 1 }} />
@@ -1354,15 +1361,19 @@ export default function OwnerHome() {
             {localRunners[0] && (() => { const f = localRunners[0]; return (
               <Pressable onPress={() => router.push(`/runner-profile/${f.profileId}`)} style={s.featRunner}>
                 <View style={s.featEdge} />
-                <Text style={{ fontSize: 12, fontWeight: '700', letterSpacing: 1.5, color: NIGHT_DIM }}>FEATURED RUNNER — {f.district || '근처'}</Text>
+                {/* [2026-08-10 type wave] Kicker is decoration, not data (DESIGN.md §3) — district moved
+                    out of the 12pt letterspaced caps into the 14pt meta span next to the name. */}
+                <Text style={{ fontSize: 12, fontWeight: '700', letterSpacing: 1.5, color: NIGHT_DIM }}>FEATURED RUNNER</Text>
                 <View style={{ flexDirection: 'row', gap: 11, alignItems: 'center', marginTop: 9 }}>
                   <Avatar url={f.avatarUrl} char={f.name[0]} bg={lilac.accent} size={48} />
                   <View style={{ flex: 1 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
-                      <Text style={[{ fontSize: 17, fontWeight: '900', color: '#fff' }, df]} numberOfLines={1}>{f.name}</Text>
+                      <Text style={[{ fontSize: 17, fontWeight: '900', color: '#fff', flexShrink: 1 }, df]} numberOfLines={1}>{f.name}</Text>
                       <View style={{ borderWidth: 1, borderColor: 'rgba(240,118,90,0.7)', paddingVertical: 2, paddingHorizontal: 6, borderRadius: lilacRadius.tag }}>
-                        <Text style={{ fontSize: 11.5, fontWeight: '800', letterSpacing: 1, color: '#FFCBBB' }}>{f.tier.toUpperCase()}</Text>
+                        {/* tier is data riding a badge — 11.5 → 14 (floor law) */}
+                        <Text style={{ fontSize: 14, fontWeight: '800', letterSpacing: 1, color: '#FFCBBB' }}>{f.tier.toUpperCase()}</Text>
                       </View>
+                      <Text style={{ fontSize: 14, fontWeight: '600', color: NIGHT_DIM, flexShrink: 1 }} numberOfLines={1}>{f.district || '근처'}</Text>
                     </View>
                     <View style={{ flexDirection: 'row', gap: 15, marginTop: 7 }}>
                       <View><Text style={[s.featNum, nf]}>{f.totalRuns}</Text><Text style={s.featK}>RUNS</Text></View>
@@ -1377,7 +1388,7 @@ export default function OwnerHome() {
 
             {/* 나머지 로스터 — 라이트 라일락 미니 카드 */}
             {localRunners.length > 1 && (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 9 }} contentContainerStyle={{ gap: 9, paddingLeft: 14, paddingRight: 12 }}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 9 }} contentContainerStyle={{ gap: 9, paddingLeft: layout.gutter, paddingRight: 12 }}>
                 {localRunners.slice(1).map((r) => (
                   <Pressable key={r.profileId} onPress={() => router.push(`/runner-profile/${r.profileId}`)} style={s.rosterCard}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -1400,7 +1411,7 @@ export default function OwnerHome() {
         )}
 
         {/* ---------- 동네 코스 — 러너 아래, 코스 발견 (Sean 배치 결정 2026-07-28) ---------- */}
-        <CourseStrip headerPad={14} />
+        <CourseStrip headerPad={layout.gutter} />
 
         {/* ---------- safety quick card ---------- */}
         <Pressable onPress={() => router.push('/safety')} style={[s.safetyStrip, { backgroundColor: p.card }]}>
@@ -1419,10 +1430,8 @@ export default function OwnerHome() {
         <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)' }} onPress={() => setFnOpen(false)} />
         <View style={s.fnSheet}>
           <View style={s.fnGrip} />
+          {/* [2026-08-10 filler cull] '모두 채워뒀어요…' removed — the prefilled chips below demonstrate it */}
           <Text style={[{ fontSize: 21, fontWeight: '900', color: lilac.head }, df]}>지금 바로 러닝 찾기</Text>
-          <Text style={{ fontSize: 14, color: lilac.text, marginTop: 4 }}>
-            모두 채워뒀어요 — 바꾸고 싶은 것만 눌러서 바꾸세요
-          </Text>
 
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 16 }}>
             {/* 강아지 — 다견이면 탭으로 순환 */}
@@ -1464,9 +1473,9 @@ export default function OwnerHome() {
           {/* 거리 스테퍼 */}
           <View style={s.fnKmRow}>
             <Pressable onPress={() => setFnKm((k) => { const n = Math.max(1, k - 1); setFnRouteIdx(pickRouteFor(n, fnRoutes)); return n; })} style={s.fnStep}><Text style={s.fnStepText}>−</Text></Pressable>
+            {/* [2026-08-10 filler cull] '러닝 거리' caption removed — the km value between ± steppers restates itself */}
             <View style={{ alignItems: 'center', flex: 1 }}>
               <Text style={[{ fontSize: 22, lineHeight: 27, fontWeight: '900', color: lilac.head }, nf]}>{fnKm}km</Text>
-              <Text style={{ fontSize: 14, color: lilac.text, marginTop: 2 }}>러닝 거리</Text>
             </View>
             <Pressable onPress={() => setFnKm((k) => { const n = Math.min(10, k + 1); setFnRouteIdx(pickRouteFor(n, fnRoutes)); return n; })} style={s.fnStep}><Text style={s.fnStepText}>＋</Text></Pressable>
           </View>
@@ -1477,12 +1486,14 @@ export default function OwnerHome() {
           </View>
 
           <Pressable onPress={findNowPay} disabled={fnBusy} style={[s.fnPay, fnBusy && { opacity: 0.5 }]}>
-            <Text style={{ fontSize: 15, fontWeight: '900', color: '#fff' }}>
+            {/* [2026-08-10] primary pay label 15 → 16 (button floor) */}
+            <Text style={{ fontSize: 16, fontWeight: '900', color: '#fff' }}>
               {fnBusy ? '요청 보내는 중...' : '결제하고 바로 찾기 ➤'}
             </Text>
           </Pressable>
+          {/* [2026-08-10 filler cull] broadcast mechanics clause removed — only the refund promise earns the line */}
           <Text style={{ fontSize: 14, color: lilac.dim, textAlign: 'center', marginTop: 10 }}>
-            온라인 러너 전원에게 요청이 전송돼요 · 매칭 전 취소는 전액 환불
+            매칭 전 취소는 전액 환불
           </Text>
         </View>
       </Modal>
@@ -1501,7 +1512,7 @@ const s = StyleSheet.create({
   // 홀로 3px 엣지
   holo: { position: 'absolute', top: 0, left: 0, right: 0, height: 3, flexDirection: 'row', zIndex: 5 },
   // 섹션 헤더 — 키커 넘버 + 룰 + 링크
-  sec: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 16, marginBottom: 4, paddingHorizontal: 14 }, // [풀블리드] 헤더 텍스트는 내부 거터
+  sec: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 16, marginBottom: 4, paddingHorizontal: layout.gutter }, // [풀블리드] 헤더 텍스트는 내부 거터 — [2026-08-10] 11/13/14 혼용 → layout.gutter(15)로 통일
   secN: { borderWidth: 1, borderColor: '#DCD6F8', backgroundColor: '#F4F1FE', borderRadius: lilacRadius.tag, paddingVertical: 2, paddingHorizontal: 5 },
   secNText: { fontSize: 11.5, fontWeight: '800', letterSpacing: 0.8, color: lilac.accent },
   secH: { fontSize: 14, fontWeight: '800', color: lilac.head, letterSpacing: -0.2 },
@@ -1558,9 +1569,9 @@ const s = StyleSheet.create({
     position: 'absolute', top: 0, left: 0, right: 0, zIndex: 20,
     paddingTop: PAD_TOP, paddingHorizontal: 0, paddingBottom: 10, // [풀블리드] 히어로 거터 은퇴 (CARD_W = SCREEN_W와 짝)
   },
-  headerRow: { flexDirection: 'row', alignItems: 'center', height: 44, marginBottom: 8, paddingHorizontal: 11 }, // 그리팅 줄 — [풀블리드] 내부 거터로 이동
+  headerRow: { flexDirection: 'row', alignItems: 'center', height: 44, marginBottom: 8, paddingHorizontal: layout.gutter }, // 그리팅 줄 — [풀블리드] 내부 거터로 이동 (fixed height 44: HEADER_H math untouched by the gutter change)
   // [4차] 브랜드 행 — 도그스하이 워드마크(로고 자격으로 df 허용) + 우측 유틸
-  brandRow: { flexDirection: 'row', alignItems: 'center', height: 28, marginBottom: 4, paddingHorizontal: 11 }, // [풀블리드] 내부 거터
+  brandRow: { flexDirection: 'row', alignItems: 'center', height: 28, marginBottom: 4, paddingHorizontal: layout.gutter }, // [풀블리드] 내부 거터 (fixed height 28: HEADER_H math untouched)
   brandmark: { fontSize: 16, color: lilac.head, letterSpacing: 0.4 },
   brandDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: lilac.coral, marginHorizontal: 7 },
   brandKick: { fontSize: 11.5, fontWeight: '700', letterSpacing: 2, color: lilac.dim },
@@ -1569,6 +1580,9 @@ const s = StyleSheet.create({
     borderTopWidth: 1, borderBottomWidth: 1, borderColor: lilac.hair,
   },
   tickerLead: { fontSize: 12, fontWeight: '700', letterSpacing: 1.2, color: lilac.dim, marginRight: 2 },
+  // [2026-08-10] Korean league name inside the ticker lead — data-class, 14pt floor; lineHeight 18
+  // keeps the ticker line box at 18 (HEADER_H 123 budget comment at the top of the file holds).
+  tickerLeadKo: { fontSize: 14, lineHeight: 18, fontWeight: '600', letterSpacing: 0, color: lilac.dim },
   themeBtn: {
     width: 30, height: 30, borderRadius: lilacRadius.btn, borderWidth: 1,
     alignItems: 'center', justifyContent: 'center',
@@ -1643,10 +1657,11 @@ const s = StyleSheet.create({
     borderWidth: 1, borderLeftWidth: 0, borderRightWidth: 0, borderColor: lilac.hair2, ...lilacShadow, // [풀블리드] 측면 보더·라운드 은퇴
   },
   ticketDbl: { position: 'absolute', top: 4, left: 4, right: 4, bottom: 4, borderWidth: 1, borderColor: lilac.hair2, borderRadius: lilacRadius.inner },
-  ticketHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 13, paddingTop: 12 },
+  ticketHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: layout.gutter, paddingTop: 12 },
   ticketGlyph: { width: 18, height: 18, borderRadius: lilacRadius.tag, backgroundColor: lilac.accent, alignItems: 'center', justifyContent: 'center' },
   ticketBrand: { fontSize: 12, fontWeight: '800', letterSpacing: 1.2, color: lilac.head, flexShrink: 1 },
-  perf: { marginTop: 11, height: 0, borderTopWidth: 1.5, borderStyle: 'dashed', borderColor: '#DCD7F0', marginHorizontal: -13 },
+  // negative margin mirrors the ticket-body gutter so the perforation stays full-bleed
+  perf: { marginTop: 11, height: 0, borderTopWidth: 1.5, borderStyle: 'dashed', borderColor: '#DCD7F0', marginHorizontal: -layout.gutter },
   notch: { position: 'absolute', top: -9, width: 18, height: 18, borderRadius: 9, backgroundColor: lilac.bg, borderWidth: 1, borderColor: lilac.hair2 },
   // ── 리워드 비컨 — 조용한 라일락 2칸 모듈 (구 rewardCard/gift*/claimBtn/ladderSheet 은퇴) ──
   // 코랄 섀도·헤일로·배지는 전부 지어낸 긴급함이었다. 여기선 헤어라인 카드 + 바이올렛 링크뿐:
@@ -1655,7 +1670,7 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'stretch', marginTop: 12, overflow: 'hidden',
     borderRadius: 0, borderWidth: 1, borderLeftWidth: 0, borderRightWidth: 0, ...lilacShadow, // [풀블리드]
   },
-  beaconCell: { flex: 1, paddingVertical: 13, paddingHorizontal: 13 },
+  beaconCell: { flex: 1, paddingVertical: 13, paddingHorizontal: layout.gutter }, // horizontal only → gutter 15 (vertical rhythm untouched)
   beaconDiv: { width: 1, marginVertical: 11 },
   // 한글 정보 라벨 — 라틴 키커가 아니므로 14pt 플로어를 그대로 받는다 (트래킹만 0.5로 절제)
   beaconKick: { fontSize: 14, lineHeight: 18, fontWeight: '600', letterSpacing: 0.5 },
@@ -1702,7 +1717,7 @@ const s = StyleSheet.create({
   nudge: {
     flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 10,
     borderRadius: 0, borderWidth: 1, borderRightWidth: 0, borderColor: lilac.hair2, // [풀블리드] 좌측 코랄 스파인은 유지
-    borderLeftWidth: 2.5, borderLeftColor: lilac.coral, paddingVertical: 11, paddingHorizontal: 14,
+    borderLeftWidth: 2.5, borderLeftColor: lilac.coral, paddingVertical: 11, paddingHorizontal: layout.gutter,
     ...lilacShadow,
   },
   // 체력 로드 실패 스트립 (item 5) — 라우드 페일 문법: 풀블리드, 위아래 1px critical 헤어라인,
@@ -1710,13 +1725,13 @@ const s = StyleSheet.create({
   fitFail: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 9,
     backgroundColor: paper.canvas, borderTopWidth: 1, borderBottomWidth: 1, borderColor: paper.critical,
-    paddingVertical: 11, paddingHorizontal: 14, marginBottom: 4,
+    paddingVertical: 11, paddingHorizontal: layout.gutter, marginBottom: 4,
   },
   fitFailTxt: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: paper.critical, flex: 1 },
   fitFailRetry: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },
   safetyStrip: {
     flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: 0,
-    paddingVertical: 11, paddingHorizontal: 14, marginTop: 12, // [풀블리드] 내부 거터 14
+    paddingVertical: 11, paddingHorizontal: layout.gutter, marginTop: 12, // [풀블리드] 내부 거터 = layout.gutter
     borderLeftWidth: 0, borderRightWidth: 0,
     borderWidth: 1, borderColor: lilac.hair,
     ...lilacShadow,

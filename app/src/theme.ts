@@ -102,19 +102,24 @@ export const BODY_FONT = 'IBMPlexSansKR_400Regular' as const;
 export const BODY_FONT_BOLD = 'IBMPlexSansKR_700Bold' as const;
 
 export const radius = { card: 6, btn: 6, chip: 4 } as const; // [V4] 샤프 — 소프트 코너 은퇴
-// 글로벌 거터 — 화면 좌우 여백은 이 값 하나로 (에지-투-에지 프리미엄)
-export const layout = { gutter: 11 } as const; // 2026-07-28 0.9x 축소 (홈·설정 적용, 나머지 화면은 점진 수렴)
+// Global gutter — one value for screen side padding. [2026-08-10 폴리시 패스, Sean]
+// 15 supersedes the 2026-07-28 "0.9x" 11: the audit found ZERO screens actually
+// imported this token (real gutters ran 11/13/14/16), so 15 is the first enforced
+// value, wired into the seven audited screens. login's spacious 28 stays local.
+export const layout = { gutter: 15 } as const;
 
 // 타이포 스케일 — 규칙: 900은 오직 숫자(display)와 화면 제목(title)에만.
 // 본문·라벨이 전부 900이면 위계가 무너진다 (ui-audit). 새 코드는 이 프리셋을 쓸 것.
+// [2026-08-10] label/caption raised to the 14pt detail floor (DESIGN.md §3 — they
+// predated the 2026-08-06 floor law), body 15.5→16, button labels ≥16 (PaperBtn).
 export const type = {
   display: { fontSize: 48.5, fontWeight: '900', fontVariant: ['tabular-nums'] } as const, // 큰 숫자 전용
   numeric: { fontSize: 25.5, fontWeight: '900', fontVariant: ['tabular-nums'] } as const, // 중간 숫자
   title: { fontSize: 24, fontWeight: '900' } as const,   // 화면 제목
   heading: { fontSize: 16.5, fontWeight: '800' } as const, // 섹션/카드 제목
-  body: { fontSize: 15.5, fontWeight: '600' } as const,
-  label: { fontSize: 13, fontWeight: '700' } as const,
-  caption: { fontSize: 12, fontWeight: '400' } as const,
+  body: { fontSize: 16, fontWeight: '600' } as const,
+  label: { fontSize: 14, fontWeight: '700' } as const,
+  caption: { fontSize: 14, fontWeight: '400' } as const,
 } as const;
 
 // Surface palettes for themed screens (home, cards). Toggled by ThemeProvider.

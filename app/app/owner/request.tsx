@@ -1,4 +1,5 @@
 import { useDisplayFont } from '../../src/lib/displayFont';
+import { useNumFont } from '../../src/lib/fonts';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -7,7 +8,7 @@ import { HeatTrace } from '../../src/components/runcard';
 import { Avatar, Row, Skeleton } from '../../src/components/ui';
 import { haptic } from '../../src/lib/haptics';
 import { AddonKey, draft, fmtWon, RouteInfo } from '../../src/store';
-import { colors, paper, pricing } from '../../src/theme';
+import { colors, layout, paper, pricing } from '../../src/theme';
 
 // 러닝 요청 — route carousel (도그스하이 안심 코스), time-slot bottom sheet,
 // slot-hold countdown on pay. See docs/calendar.md.
@@ -43,6 +44,7 @@ const toDate = (dateIdx: number, t: string): Date => {
 
 export default function Request() {
   const df = useDisplayFont(); // 디스플레이 서체 — 화면 타이틀
+  const nf = useNumFont(); // [V4] numerals = Oswald — total, distance, countdown, prices
   // 날짜 스트립 갱신 — 마운트 시점 기준 (자정 넘김 스테일 방지)
   useMemo(() => { DATES = buildDates(); }, []);
   const [km, setKm] = useState(draft.km);
@@ -268,7 +270,7 @@ export default function Request() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.cream }}>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingTop: 56, paddingBottom: 190 }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: layout.gutter, paddingTop: 56, paddingBottom: 190 }}>
         {/* header */}
         <Row style={{ gap: 12 }}>
           <Pressable onPress={() => router.back()} style={s.circleBtn}><Text style={{ fontSize: 20.5 }}>‹</Text></Pressable>
@@ -281,9 +283,7 @@ export default function Request() {
             </Text>
           </View>
         </Row>
-        <Text style={{ fontSize: 14.5, color: '#49524a', marginTop: 6 }}>
-          고르는 대로 아래 티켓이 완성돼요 🎫
-        </Text>
+        {/* [2026-08-10 density audit] cut "고르는 대로 아래 티켓이 완성돼요 🎫" — narrated what the ticket already shows */}
 
         {/* 누가 · 어디서 — 한 카드 (모던 목업: 티켓형 정보 블록) */}
         <SectionHead glyph="◉" title="누가 · 어디서" />
@@ -402,11 +402,13 @@ export default function Request() {
             const sel = km === d;
             return (
               <Pressable key={d} onPress={() => { setKm(d); pickRouteForKm(d); }} style={{ alignItems: 'center', paddingHorizontal: 8 }}>
-                <Text style={{ fontSize: sel ? 46 : 36, fontWeight: '900', color: sel ? colors.tang : '#c9c5b8', lineHeight: sel ? 50 : 42 }}>
+                {/* Oswald distance numerals — lineHeight 58/46 = 1.26x (BUG A) */}
+                <Text style={[{ fontSize: sel ? 46 : 36, fontWeight: '900', color: sel ? colors.tang : '#c9c5b8', lineHeight: sel ? 58 : 46 }, nf]}>
                   {d}<Text style={{ fontSize: sel ? 19 : 15 }}>km</Text>
                 </Text>
                 <View style={{ width: 36, height: 5, borderRadius: 3, backgroundColor: sel ? colors.volt : 'transparent', marginTop: 3 }} />
-                <Text style={{ fontSize: 14.5, fontWeight: sel ? '900' : '600', color: sel ? FOREST : '#a09c8e', marginTop: 5 }}>
+                {/* option price = Oswald (size kept) — lineHeight 19 >= 1.26x (BUG A) */}
+                <Text style={[{ fontSize: 14.5, fontWeight: sel ? '900' : '600', color: sel ? FOREST : '#a09c8e', marginTop: 5, lineHeight: 19 }, nf]}>
                   {optPrice.toLocaleString()}원
                 </Text>
               </Pressable>
@@ -436,11 +438,8 @@ export default function Request() {
         </Row>
 
         {/* ---------- 안심 코스 carousel (서버 실코스 전용 — 목업 폴백 은퇴) ---------- */}
-        <SectionHead
-          glyph="✓"
-          title="코스 선택"
-          sub={routesLive ? '· 실시간 코스 정보' : '· 모든 코스는 도그스하이가 직접 점검해요'}
-        />
+        {/* [2026-08-10 density audit] non-live sub cut — only the live fact is stated */}
+        <SectionHead glyph="✓" title="코스 선택" sub={routesLive ? '· 실시간 코스 정보' : undefined} />
         {/* 지리 고지 — 코스와 픽업지는 별개라는 걸 예약 전에 정직하게 (좌표 모델링 전 v1) */}
         <Text style={{ fontSize: 14, color: '#82887a', marginBottom: 10 }}>
           픽업 후 코스까지는 러너가 아이와 함께 이동해요
@@ -517,7 +516,7 @@ export default function Request() {
         </ScrollView>
 
         {/* premium addons */}
-        <SectionHead glyph="✦" title="프리미엄 옵션" sub="· 원하는 만큼 추가해보세요" />
+        <SectionHead glyph="✦" title="프리미엄 옵션" />
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
           {(Object.keys(pricing.addons) as AddonKey[]).map((k) => {
             const a = pricing.addons[k];
@@ -577,7 +576,8 @@ export default function Request() {
             </Text>
           </View>
           <Pressable onPress={() => setSlotSheet(true)} style={s.timeChip}>
-            <Text style={{ fontSize: 14, fontWeight: '900', color: '#0F1D13' }} numberOfLines={1}>
+            {/* 16pt button floor — maxWidth 144 fits "8월 12일 19:30"; numberOfLines guards overflow */}
+            <Text style={{ fontSize: 16, fontWeight: '900', color: '#0F1D13' }} numberOfLines={1}>
               {draft.scheduledAtIso ? timeLabel : '시간 선택 ›'}
             </Text>
           </Pressable>
@@ -593,8 +593,11 @@ export default function Request() {
         <Row style={{ alignItems: 'center' }}>
           <View style={{ flex: 1 }}>
             <Text style={{ fontSize: 14, color: '#8fa093' }}>총 결제 금액</Text>
-            <Text style={{ fontSize: 28.5, fontWeight: '900', color: '#fff', marginTop: 1 }}>
-              {fmtWon(total)}<Text style={{ fontSize: 15, color: '#b8c4ae' }}> 원</Text>
+            {/* total = Oswald + explicit lineHeight 36 (1.26x) — BUG A: ascenders clip without it */}
+            <Text style={[{ fontSize: 28.5, fontWeight: '900', color: '#fff', marginTop: 1, lineHeight: 36 }, nf]}>
+              {/* [2026-08-10] fmtWon appends 원 — the extra suffix span double-printed it ("24,900원 원",
+                  pre-existing). Raw digits keep the Oswald run pure; the small suffix carries the unit. */}
+              {total.toLocaleString('ko-KR')}<Text style={{ fontSize: 15, color: '#b8c4ae' }}> 원</Text>
             </Text>
           </View>
           <Pressable onPress={pay} style={s.payBtn}>
@@ -626,9 +629,7 @@ export default function Request() {
             <Pressable style={s.methodChip} onPress={pickEarliest}>
               <Text style={{ fontSize: 14, fontWeight: '700', color: '#3d453d' }}>가장 빠른 시간</Text>
             </Pressable>
-            <View style={[s.methodChip, { opacity: 0.45 }]}>
-              <Text style={{ fontSize: 14, fontWeight: '700', color: '#3d453d' }}>반복 예약 (준비 중)</Text>
-            </View>
+            {/* [2026-08-10 density audit] dead "반복 예약 (준비 중)" chip cut — the working 매주 반복 toggle lives on this screen */}
           </Row>
 
           {/* date strip */}
@@ -676,7 +677,8 @@ export default function Request() {
         <View style={s.holdBackdrop}>
           <View style={s.holdCard}>
             <Text style={{ fontSize: 17, fontWeight: '900', color: FOREST }}>슬롯을 잡아두고 있어요</Text>
-            <Text style={{ fontSize: 34.5, fontWeight: '900', color: '#5a7a3c', marginTop: 10 }}>
+            {/* countdown = Oswald — lineHeight 44 >= 1.26x (BUG A) */}
+            <Text style={[{ fontSize: 34.5, fontWeight: '900', color: '#5a7a3c', marginTop: 10, lineHeight: 44 }, nf]}>
               {Math.floor(holdSec / 60)}:{String(holdSec % 60).padStart(2, '0')}
             </Text>
             <Text style={{ fontSize: 15, color: colors.dim, marginTop: 8, textAlign: 'center' }}>
@@ -796,7 +798,7 @@ const s = StyleSheet.create({
   },
   timeChip: {
     backgroundColor: '#f2ead8', borderRadius: 99, paddingVertical: 9, paddingHorizontal: 13,
-    maxWidth: 128,
+    maxWidth: 144, // cage widened for the 16pt label promotion (128 -> 144)
   },
   payBtn: { backgroundColor: colors.volt, borderRadius: 16, paddingVertical: 14, paddingHorizontal: 12 },
   // slot sheet

@@ -15,7 +15,7 @@ import { PatchBadge } from '../../src/components/patch';
 import { registerPushToken } from '../../src/lib/push';
 import { haptic } from '../../src/lib/haptics';
 import { runnerJob } from '../../src/store';
-import { colors, lilac, lilacRadius } from '../../src/theme';
+import { colors, layout, lilac, lilacRadius } from '../../src/theme';
 
 // 러너 홈 — 테일러드 라일락 리페인트 (빕 퍼스트 × 정산 장부 × 클럽 엔진).
 // 컬러 월드 결정: DAWN DUAL — 코랄이 정체성·CTA(빕 토글·수락 문·라이브), 바이올렛이 구조·클럽.
@@ -23,8 +23,10 @@ import { colors, lilac, lilacRadius } from '../../src/theme';
 // 2026-08-03 스케일 교정 라운드 (Sean 디바이스): 타입/스페이싱을 runner-FINAL.html 목업 px에 1:1 정합
 // (그랜마폰 ~1.75x 과대 제거). 빕 대형숫자 고정폭 열·₩+금액 baseline+gap 오버랩 픽스는 유지, 사이즈만 목업으로.
 // 2026-08-03 정밀 픽스 라운드 (FIX3): BUG A — 모든 대형 Oswald 숫자에 lineHeight ≥1.2×fontSize,
-// includeFontPadding:false 제거 (0의 상단 잘림 "UU"/"₩U" 픽스). 디테일 텍스트 12–15pt 밴드(플로어 11.5)로
-// 승급 — 키커·모노태그·키/값·장부 캡션·행 라벨·섹션 룰·요일칩 시간·완료 메타. 히어로/빅넘버 크기는 동결.
+// includeFontPadding:false 제거 (0의 상단 잘림 "UU"/"₩U" 픽스). 히어로/빅넘버 크기는 동결.
+// 2026-08-10 type/density wave: FIX3's private "11.5pt floor" is RETIRED — the governing law is the
+// 14pt detail-text floor (DESIGN.md §3). Only latin letterspaced caps kickers, serial/MRZ strings and
+// barcode/glyph-only marks stay below it; Korean data never rides a kicker style.
 
 const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0]; // 월…일
 const DAY_NAME = '일월화수목금토';
@@ -338,13 +340,16 @@ export default function RunnerHome() {
         </Pressable>
       </View>
 
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 14, paddingTop: 12, paddingBottom: 28 }}>
+      {/* [2026-08-10] screen gutter 14 → layout.gutter (15) — vertical paddings unchanged */}
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: layout.gutter, paddingTop: 12, paddingBottom: 28 }}>
 
         {/* ————— 마스트헤드 · ① HERO 레이스 빕 (온라인 토글이 빕 위에) ————— */}
         <Row style={styles.kicker}>
           <Text style={styles.kickerTxt}>DAENGRUN RUNNER</Text>
           <View style={styles.rule} />
-          <Text style={styles.kickerTxt}>{tierLabel}</Text>
+          {/* [2026-08-10] tierLabel is Korean data, not kicker decoration — 14pt (DESIGN.md §3);
+              the latin kicker on the left keeps its 12pt letterspaced-caps exemption */}
+          <Text style={styles.kickerTxtKo}>{tierLabel}</Text>
         </Row>
 
         <View style={styles.bib}>
@@ -418,7 +423,8 @@ export default function RunnerHome() {
               <Text style={[styles.won, nf]}>₩</Text>
               <Text style={[styles.lBig, nf]} numberOfLines={1}>{stats.net.toLocaleString()}</Text>
             </Row>
-            <Text style={styles.lCap}>이번 주 실수령 예정 금액 · 수수료 차감 후 기준</Text>
+            {/* [2026-08-10 filler cull] 'THIS WEEK' tag + ₩ hero already say week/earnings — only the fee basis earns the caption */}
+            <Text style={styles.lCap}>수수료 차감 후 기준</Text>
             {/* 넓은 창 — 이번 달(KST 월 1일~ 원장 합) · 누적(my_ledger_total RPC). 실값만, 로드 전엔 '—' */}
             <Row style={styles.lWin}>
               <Text style={styles.lWinK}>이번 달</Text>
@@ -443,7 +449,8 @@ export default function RunnerHome() {
             </View>
 
             <Row style={styles.lFoot}>
-              <Text style={styles.lFootTxt}>매주 정산 · 수익 상세에서 입금 내역 확인</Text>
+              {/* [2026-08-10 filler cull] the 수익 상세 link right next to this already names the destination */}
+              <Text style={styles.lFootTxt}>매주 정산</Text>
               <Pressable onPress={() => router.push('/runner/earnings')}>
                 <Text style={styles.lFootLink}>수익 상세 ›</Text>
               </Pressable>
@@ -525,7 +532,8 @@ export default function RunnerHome() {
                       <Text style={styles.factV}><Text style={[styles.factVNum, nf]}>{inbox[0].km}</Text><Text style={styles.factVUnit}> km</Text></Text>
                     </View>
                     <View style={styles.factDiv}>
-                      <Text style={styles.factK}>정산</Text>
+                      {/* [2026-08-10] '정산' is a Korean info label, not a latin kicker — 14pt override */}
+                      <Text style={[styles.factK, styles.factKKo]}>정산</Text>
                       <Text style={styles.factV}><Text style={[styles.factVNum, nf]}>{inbox[0].payout.toLocaleString()}</Text><Text style={styles.factVUnit}> 원</Text></Text>
                     </View>
                   </Row>
@@ -544,8 +552,9 @@ export default function RunnerHome() {
                   {/* [실동작] 문이 곧 행동 — 수락은 여기서 끝난다. 상세(사진·메모)가 필요하면 콰이엇 문(오픈 요청) */}
                   <Pressable onPress={acceptFront} disabled={busyReq} style={[styles.door, styles.doorCoral, busyReq && { opacity: 0.55 }]}>
                     <Text style={[styles.doorName, { color: '#fff' }]}>{busyReq ? '전송 중...' : '수락'}</Text>
+                    {/* [2026-08-10 filler cull] ' · 바로 확정돼요' dropped — the confirm Alert states the consequence */}
                     <Text style={[styles.doorSub, { color: '#fff' }]}>
-                      <Text style={[styles.doorSubNum, nf]}>{inbox[0].payout.toLocaleString()}</Text>원 · 바로 확정돼요
+                      <Text style={[styles.doorSubNum, nf]}>{inbox[0].payout.toLocaleString()}</Text>원
                     </Text>
                   </Pressable>
                   <Pressable onPress={declineFront} disabled={busyReq} style={[styles.door, styles.doorQuiet, busyReq && { opacity: 0.55 }]}>
@@ -591,8 +600,9 @@ export default function RunnerHome() {
                 </View>
               ))}
 
+              {/* [2026-08-10 filler cull] queue-mechanics narration removed — the real empty state
+                  (emptyInbox below) already explains quiet days; this row is just the door to 요청함 */}
               <Pressable onPress={() => router.push('/runner/requests')} style={styles.stubMore}>
-                <Text style={styles.stubMoreTxt}>비어 있으면 조용한 날 — 요청이 오는 대로 맨 앞에 붙어요</Text>
                 <Text style={styles.stubMoreLink}>모두 보기 ›</Text>
               </Pressable>
             </View>
@@ -643,7 +653,9 @@ export default function RunnerHome() {
                       <View style={[styles.stopPt, on && styles.stopPtOn]}>
                         {on && <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: lilac.coral }} />}
                       </View>
-                      <View style={{ width: 52 }}>
+                      {/* [2026-08-10] time col 52 → 60: stopTm went 14 → 16pt Oswald — 'HH:MM' ≈ 5 glyphs
+                          × ~9px + tracking ≈ 48px, 60 leaves device-font-scale headroom (52 fit 14pt ≈ 42px) */}
+                      <View style={{ width: 60 }}>
                         <Text style={[styles.stopTm, nf]}>{wt}</Text>
                         <Text style={styles.stopTmSub}>{on ? '지금' : wd || '예정'}</Text>
                       </View>
@@ -707,8 +719,10 @@ export default function RunnerHome() {
                     );
                   })}
                 </Row>
+                {/* [2026-08-10 filler cull] '승급 혜택은 준비 중이에요' clause dropped — announcing an
+                    unbuilt benefit is filler; the honest disclaimer stays */}
                 <Text style={{ fontSize: 14, lineHeight: 18, color: lilac.dim, marginTop: 8 }}>
-                  승급 혜택은 준비 중이에요 · 승급 기준은 파일럿 중 조정될 수 있어요
+                  승급 기준은 파일럿 중 조정될 수 있어요
                 </Text>
               </>
             );
@@ -790,8 +804,9 @@ export default function RunnerHome() {
                   );
                 })}
               </Row>
+              {/* [2026-08-10 filler cull] tap-narration clause dropped — the chips demonstrate the tap */}
               <Text style={{ fontSize: 14, lineHeight: 18, color: lilac.dim, marginTop: 9 }}>
-                요일을 탭하면 바로 열리고 닫혀요 (기본 06–22시) · 보호자 예약 화면에 즉시 반영
+                기본 06–22시 · 보호자 예약 화면에 즉시 반영
               </Text>
             </>
           )}
@@ -901,6 +916,9 @@ const styles = StyleSheet.create({
   // 마스트헤드 — 키커: FIX3 디테일 밴드 12–15 (구 8px 목업값 → 12, 자간은 ≤2로 타이트닝)
   kicker: { alignItems: 'center', gap: 8, marginBottom: 10, marginTop: 2 },
   kickerTxt: { fontSize: 12, lineHeight: 15, letterSpacing: 2, color: lilac.dim, fontWeight: '600' },
+  // [2026-08-10] Korean data slot in the masthead kicker row — 14pt floor, tracking eased to 1.2
+  // (letterSpacing 2 is a latin-caps device; Korean glyphs read gappy at 2)
+  kickerTxtKo: { fontSize: 14, lineHeight: 18, letterSpacing: 1.2, color: lilac.dim, fontWeight: '600' },
 
   srNo: { fontSize: 12, lineHeight: 15, letterSpacing: 1.2, color: lilac.accent, fontWeight: '700' },
   srTitle: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: lilac.head },
@@ -917,7 +935,11 @@ const styles = StyleSheet.create({
     position: 'absolute', width: 7, height: 7, borderRadius: 3.5, backgroundColor: lilac.inset,
     borderWidth: 1, borderColor: lilac.hair, zIndex: 2,
   },
-  bibOrg: { fontSize: 12, lineHeight: 15, letterSpacing: 1.6, color: lilac.dim, fontWeight: '600', marginBottom: 6 },
+  // [2026-08-10] carries {tierLabel} (Korean data) → 12 → 14 with tracking eased 1.6 → 1.
+  // Width check (header row, not the bibNoCol cage): 'DAENGRUN · 인증 러너' ≈ 8×9 (latin 14pt)
+  // + 20 (· + spaces) + 5×14 (Korean) + 12×1 (ls) ≈ 174px < left column ≈ 240px at 320dp
+  // (320 − 26×2 side pads − ~64 toggle column) — fits on one line.
+  bibOrg: { fontSize: 14, lineHeight: 18, letterSpacing: 1, color: lilac.dim, fontWeight: '600', marginBottom: 6 },
   bibName: { fontSize: 31, color: lilac.head, lineHeight: 37 }, // 사이즈 동결 · lineHeight 1.2×로 상단 잘림 방지
   bibNameEm: { fontSize: 14, color: lilac.dim, fontWeight: '600' },
   swTrack: { width: 44, height: 25, borderRadius: 99, padding: 3, flexDirection: 'row' },
@@ -927,7 +949,9 @@ const styles = StyleSheet.create({
   },
   swTrackOff: { backgroundColor: lilac.inset, justifyContent: 'flex-start', borderWidth: 1, borderColor: lilac.hair },
   swKnob: { width: 19, height: 19, borderRadius: 9.5, backgroundColor: '#fff', shadowColor: '#1C1837', shadowOpacity: 0.3, shadowRadius: 2, shadowOffset: { width: 0, height: 1 } },
-  swLabel: { fontSize: 14, lineHeight: 18, letterSpacing: 1.2, fontWeight: '700' },
+  // [2026-08-10] 14 → 15 with tracking 1.2 → 1: '오프라인' width stays ≈ 63px (4×15 + 3×1 vs 4×14 + 3×1.2),
+  // so the toggle column footprint next to the bib name is unchanged — the switch layout still fits.
+  swLabel: { fontSize: 15, lineHeight: 19, letterSpacing: 1, fontWeight: '700' },
   // 대형숫자 열 — 고정폭 116으로 경계 (2자리 "07" ~76px + 캡션 14pt 한 줄이 안에 완전히 들어감
   // · gap 12 + 좌측보더로 사이드 스탯과 절대 충돌 안함)
   // [FLOOR14 2026-08-05] 100 → 116. bibNoCap '이번 주 완료 러닝' = 한글 7자 + 공백 2 ≈ 7×14 + 8 = 106px (구 12pt 91px).
@@ -963,10 +987,14 @@ const styles = StyleSheet.create({
   lToday: { fontSize: 14, fontWeight: '700', color: '#3D6B1F', marginTop: 7 },
   lTodayNum: { fontSize: 16, fontWeight: '700' },
   // 월·누적 행 — 히어로 아래 조용한 보조 창. Oswald 숫자는 lineHeight ≥1.2× (BUG A 법)
+  // [2026-08-10] lWinNum 14 → 16/20 (1.25×). Width check at 320dp: ledger content ≈ 320 − 30 gutter
+  // − 10 card pad(5×2) − 24 ledgerIn pad − 4 borders ≈ 252px; '이번 달 ₩9,999,999 · 누적 ₩9,999,999'
+  // ≈ 2×(46 + 10 + 9×8.8) + 18 ≈ 250px — worst case wraps onto a second line via flexWrap (by design),
+  // typical 6-digit sums stay on one. This row is NOT the LedgerRow 86px label cage below (unchanged).
   lWin: { alignItems: 'baseline', gap: 5, marginTop: 8, flexWrap: 'wrap' },
   lWinK: { fontSize: 14, lineHeight: 18, color: lilac.dim, fontWeight: '600' },
   lWinV: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: lilac.head },
-  lWinNum: { fontSize: 14, lineHeight: 18, color: lilac.head },
+  lWinNum: { fontSize: 16, lineHeight: 20, color: lilac.head },
   lWinSep: { fontSize: 12, lineHeight: 16, color: lilac.dim }, // 글리프 전용(·) 구분자 — 플로어 면제
   lCap: { marginTop: 6, fontSize: 14, color: lilac.dim, lineHeight: 18 },
   lr: { alignItems: 'baseline', gap: 7, paddingTop: 7, paddingBottom: 6, borderBottomWidth: 1, borderBottomColor: lilac.hair2 },
@@ -994,7 +1022,7 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: CORAL_INK_DEEP,
     shadowColor: lilac.coral, shadowOpacity: 0.34, shadowRadius: 16, shadowOffset: { width: 0, height: 6 },
   },
-  btnCoralTxt: { fontSize: 14, fontWeight: '700', color: '#fff' },
+  btnCoralTxt: { fontSize: 16, lineHeight: 20, fontWeight: '700', color: '#fff' }, // [2026-08-10] 14 → 16 (primary button floor)
 
   // ① 티켓
   ticket: { marginTop: 9, shadowColor: '#1C1837', shadowOpacity: 0.1, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 3 },
@@ -1006,6 +1034,8 @@ const styles = StyleSheet.create({
   tWhere: { fontSize: 14, lineHeight: 18, fontWeight: '600', color: lilac.head },
   tWhereSub: { fontSize: 14, lineHeight: 18, color: lilac.dim },
   factK: { fontSize: 12, lineHeight: 15, letterSpacing: 1.2, color: lilac.dim, fontWeight: '600', marginBottom: 3 },
+  // [2026-08-10] Korean override for factK — 14pt floor, tracking eased for hangul
+  factKKo: { fontSize: 14, lineHeight: 18, letterSpacing: 0.5 },
   factV: { fontSize: 14, lineHeight: 18, fontWeight: '600', color: lilac.head },
   factVNum: { fontSize: 14, color: lilac.head },
   factVUnit: { fontSize: 14, fontWeight: '500', color: lilac.text },
@@ -1017,7 +1047,7 @@ const styles = StyleSheet.create({
   door: { flex: 1, borderRadius: lilacRadius.btn, paddingVertical: 12, paddingHorizontal: 11, overflow: 'hidden' },
   doorCoral: { backgroundColor: CORAL_INK, borderWidth: 1, borderColor: CORAL_INK_DEEP, shadowColor: lilac.coral, shadowOpacity: 0.34, shadowRadius: 16, shadowOffset: { width: 0, height: 6 } },
   doorQuiet: { backgroundColor: lilac.inset, borderWidth: 1, borderColor: lilac.hair },
-  doorName: { fontSize: 14.5, lineHeight: 19, fontWeight: '800' },
+  doorName: { fontSize: 16, lineHeight: 20, fontWeight: '800' }, // [2026-08-10] 14.5 → 16 — the money action wears the primary-button floor
   doorSub: { marginTop: 4, fontSize: 14, lineHeight: 18 },
   doorSubNum: { fontSize: 14, lineHeight: 18 },
 
@@ -1035,9 +1065,9 @@ const styles = StyleSheet.create({
   stubFare: { fontSize: 17, lineHeight: 22, color: lilac.head },
   stubFareCap: { fontSize: 14, lineHeight: 18, letterSpacing: 1, color: lilac.dim, fontWeight: '500', marginTop: 2 },
   accept: { width: '100%', borderRadius: lilacRadius.btn, paddingVertical: 9, alignItems: 'center', backgroundColor: CORAL_INK, borderWidth: 1, borderColor: CORAL_INK_DEEP },
-  acceptTxt: { fontSize: 14, fontWeight: '700', color: '#fff' },
-  stubMore: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8, borderWidth: 1, borderStyle: 'dashed', borderColor: lilac.hair, borderRadius: lilacRadius.card, paddingVertical: 9, paddingHorizontal: 11, backgroundColor: lilac.glass },
-  stubMoreTxt: { fontSize: 14, lineHeight: 18, color: lilac.text, flex: 1 },
+  acceptTxt: { fontSize: 16, lineHeight: 20, fontWeight: '700', color: '#fff' }, // [2026-08-10] 14 → 16 (primary button floor); '수락' 2 glyphs ≈ 32px, well inside the 112 stubAct cage
+  // [2026-08-10] narration text culled → the link centers alone (stubMoreTxt style retired with it)
+  stubMore: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, borderWidth: 1, borderStyle: 'dashed', borderColor: lilac.hair, borderRadius: lilacRadius.card, paddingVertical: 9, paddingHorizontal: 11, backgroundColor: lilac.glass },
   stubMoreLink: { fontSize: 14, fontWeight: '700', color: lilac.accent },
   emptyInbox: { marginTop: 9, backgroundColor: lilac.inset, borderRadius: lilacRadius.card, padding: 16, borderWidth: 1, borderColor: lilac.hair },
   emptyInboxTxt: { fontSize: 14, lineHeight: 18, color: lilac.dim, textAlign: 'center' },
@@ -1047,11 +1077,14 @@ const styles = StyleSheet.create({
   stop: { flexDirection: 'row', alignItems: 'flex-start', gap: 11, paddingTop: 7, paddingBottom: 8 },
   stopPt: { width: 14, height: 14, borderRadius: 7, marginTop: 2, backgroundColor: lilac.card, borderWidth: 1.5, borderColor: '#DCD6F8', alignItems: 'center', justifyContent: 'center' },
   stopPtOn: { borderColor: lilac.coral },
-  stopTm: { fontSize: 14, lineHeight: 18, fontWeight: '600', color: lilac.head },
+  stopTm: { fontSize: 16, lineHeight: 20, fontWeight: '600', color: lilac.head }, // [2026-08-10] 14 → 16 Oswald · lineHeight 20 = 1.25× (BUG A); time col widened 52 → 60 in JSX
   stopTmSub: { fontSize: 14, lineHeight: 18, color: lilac.dim, fontWeight: '500', marginTop: 2 },
   stopInfoB: { fontSize: 14, lineHeight: 18, fontWeight: '600', color: lilac.head },
   stopInfoS: { fontSize: 14, lineHeight: 18, color: lilac.dim, marginTop: 2 },
-  stopPay: { fontSize: 14, lineHeight: 18, fontWeight: '600', color: lilac.head, marginTop: 1 },
+  // [2026-08-10] 14 → 16 Oswald · lineHeight 20 = 1.25× (BUG A). Row check at 320dp: card content
+  // 320 − 30 gutter − 26 card pad − 2 border = 262 → minus pt 14, gaps 3×11, time 60, pay '+99,000'
+  // ≈ 60 leaves ≈ 95px for the info column (flex, minWidth 0 — long dog names ellipsize, no overlap).
+  stopPay: { fontSize: 16, lineHeight: 20, fontWeight: '600', color: lilac.head, marginTop: 1 },
 
   // ③ 리워드
   fee: { fontSize: 14, lineHeight: 18, letterSpacing: 0.5, color: lilac.head, fontWeight: '600' },

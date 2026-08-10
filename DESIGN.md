@@ -68,16 +68,18 @@ per-dog personal color, must never equal a system signal color.
   retired ("시스템폰트 박멸", upheaval lab).
 - Weight law: **900 only for numbers and screen titles.** Body/labels at 900
   flatten hierarchy (ui-audit).
-- **Detail-text floor: 14pt.** Exemptions: letterspaced caps kickers, serial/MRZ
-  strings, barcode glyphs. ⚠ Known debt: `type.label` (13) and `type.caption`
-  (12) predate the floor — being raised in the 2026-08-10 polish pass; do not
-  copy them into new code.
+- **Detail-text floor: 14pt.** Exemptions: LATIN letterspaced caps kickers,
+  serial/MRZ strings, barcode/stamp glyphs. Korean text never rides the kicker
+  exemption — data in a kicker slot renders ≥14 (2026-08-10 audit law).
+  `type.label`/`type.caption` = 14 as of 2026-08-10; button labels ≥16
+  (primary/door class; chips and links may stay 14).
 - Small white text never sits directly on coral/sage — use an ink plate (≥4.5:1).
 
 ## 4. Space & structure
 
-- Global gutter: `layout.gutter` (11; under review in the de-densify pass —
-  changes land here first).
+- Global gutter: `layout.gutter` = **15** (2026-08-10; supersedes the never-
+  enforced 11 — the seven core screens now import it). login's spacious 28 is a
+  deliberate local exception.
 - Section division by full-bleed hairline, not by cards. Card-soup and rounded
   card grids are retired in paper/V4 worlds; a card must BE the interaction
   (ticket, stub) to earn existence.

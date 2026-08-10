@@ -126,7 +126,8 @@ export default function Schedule() {
         <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <View>
             <Text style={[{ fontSize: 30, fontWeight: '900', color: FOREST }, df]}>내 일정</Text>
-            <Text style={{ fontSize: 14.5, color: '#49524a', marginTop: 4 }}>실예약 {liveBookings.length}건</Text>
+            {/* [2026-08-10 density audit] "실예약" was internal jargon — users only know 예약 */}
+            <Text style={{ fontSize: 14.5, color: '#49524a', marginTop: 4 }}>예약 {liveBookings.length}건</Text>
           </View>
           <Pressable onPress={() => router.push('/owner/request')} style={[s.circleBtn, { backgroundColor: FOREST }]}>
             <Text style={{ fontSize: 19.5, color: colors.volt }}>＋</Text>
@@ -184,7 +185,8 @@ export default function Schedule() {
                   <View style={{ flex: 1, padding: 14 }}>
                     <Row style={{ justifyContent: 'space-between' }}>
                       <Row style={{ gap: 6 }}>
-                        <Text style={[{ fontSize: 18, fontWeight: '900', color: FOREST }, nf]}>{b.timeLabel}</Text>
+                        {/* 18 -> 20, lineHeight 25 >= 1.2x (BUG A) */}
+                        <Text style={[{ fontSize: 20, fontWeight: '900', color: FOREST, lineHeight: 25 }, nf]}>{b.timeLabel}</Text>
                         {b.recurring && (
                           <View style={s.recurPill}><Text style={{ fontSize: 14, fontWeight: '800', color: '#4a6d1f' }}>⟳ 매주</Text></View>
                         )}
@@ -213,7 +215,8 @@ export default function Schedule() {
                             {b.dogName} · {b.runnerName} 러너 · {b.km}km
                           </Text>
                         </Row>
-                        <Text style={{ fontSize: 14.5, color: colors.dim, marginTop: 2 }}>
+                        {/* money = Oswald (color/size kept) — lineHeight 19 >= 1.26x (BUG A) */}
+                        <Text style={[{ fontSize: 14.5, color: colors.dim, marginTop: 2, lineHeight: 19 }, nf]}>
                           {b.price.toLocaleString()}원 · {b.paceLabel}
                         </Text>
                       </View>
@@ -230,7 +233,7 @@ export default function Schedule() {
                         onPress={(e) => { e.stopPropagation(); draft.bookingId = b.id; router.push('/owner/live'); }}
                         style={s.goLiveBtn}
                       >
-                        <Text style={{ fontSize: 15, fontWeight: '900', color: '#d84a2f' }}>● 실시간 보기 ›</Text>
+                        <Text style={{ fontSize: 16, fontWeight: '900', color: '#d84a2f' }}>● 실시간 보기 ›</Text>
                       </Pressable>
                     )}
                   </View>
@@ -260,7 +263,7 @@ export default function Schedule() {
         ))}
 
         <Pressable style={s.emptyCta} onPress={() => router.push('/owner/request')}>
-          <Text style={{ fontSize: 14.5, fontWeight: '700', color: '#5a7a3c' }}>＋ 새 러닝 예약하기</Text>
+          <Text style={{ fontSize: 16, fontWeight: '700', color: '#5a7a3c' }}>＋ 새 러닝 예약하기</Text>
         </Pressable>
       </ScrollView>
       <BottomNav />
@@ -278,7 +281,8 @@ export default function Schedule() {
                   <Row style={{ justifyContent: 'space-between' }}>
                     <View>
                       <Text style={{ fontSize: 14, color: colors.dim }}>{selected.dateLabel}</Text>
-                      <Text style={{ fontSize: 25.5, fontWeight: '900', color: FOREST, marginTop: 2 }}>
+                      {/* Oswald numerals (900 = numbers+titles law) — lineHeight 32 >= 1.2x (BUG A) */}
+                      <Text style={[{ fontSize: 25.5, fontWeight: '900', color: FOREST, marginTop: 2, lineHeight: 32 }, nf]}>
                         {selected.timeLabel} · {selected.dogName}
                       </Text>
                     </View>
@@ -367,7 +371,7 @@ export default function Schedule() {
                         onPress={() => { const bid = selected.id; close(); router.push({ pathname: '/owner/report', params: { bid } }); }}
                       >
                         <Text style={{ fontSize: 16.5, fontWeight: '900', color: FOREST }}>러닝 리포트 보기</Text>
-                        <Text style={{ fontSize: 14, color: '#5d6b4a', marginTop: 2 }}>실거리·시간·페이스·종료 사유를 확인해요</Text>
+                        {/* [2026-08-10 density audit] sub-line cut — it narrated the button above it */}
                       </Pressable>
                       {/* 인증샷 바로가기 — 완료 러닝의 자랑 동선 한 탭 단축 (공유가 곧 마케팅) */}
                       <Pressable

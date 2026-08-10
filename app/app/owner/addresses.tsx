@@ -81,7 +81,8 @@ export default function Addresses() {
                   <View style={s.defaultTag}><Text style={{ fontSize: 14, fontWeight: '800', color: paper.line }}>기본 픽업</Text></View>
                 )}
               </Row>
-              <Text style={{ fontSize: 14, color: paper.dim }}>길게 눌러 삭제</Text>
+              {/* [2026-08-10 density audit] per-row "길게 눌러 삭제" cut — one list-level
+                  footer line below the cards keeps the invisible gesture discoverable */}
             </Row>
             <Text style={{ fontSize: 14.5, color: paper.text, marginTop: 5 }}>{a.addr}</Text>
             {a.detail && <Text style={{ fontSize: 14.5, color: paper.dim, marginTop: 2 }}>{a.detail}</Text>}
@@ -116,13 +117,22 @@ export default function Addresses() {
           </View>
         ) : (
           <Pressable style={s.addBtn} onPress={() => setAdding(true)} accessibilityRole="button" accessibilityLabel="주소 추가">
-            <Text style={{ fontSize: 14.5, fontWeight: '800', color: paper.ink }}>＋ 주소 추가</Text>
+            <Text style={{ fontSize: 16, fontWeight: '800', color: paper.ink }}>＋ 주소 추가</Text>
           </Pressable>
         )}
       </View>
 
-      <Text style={{ fontSize: 14, color: paper.dim, textAlign: 'center', marginTop: 16, lineHeight: 19 }}>
-        지도 핀으로 지정한 위치가 픽업 안내에 쓰여요{'\n'}공동현관 코드(암호화)는 다음 세션에서 추가돼요
+      {/* list-level delete hint — the long-press gesture has no visual affordance, so one
+          quiet line replaces the retired per-row hint (only when there are rows to press) */}
+      {list.length > 0 && (
+        <Text style={{ fontSize: 14, color: paper.dim, textAlign: 'center', marginTop: 12 }}>
+          주소를 길게 누르면 삭제돼요
+        </Text>
+      )}
+      {/* [2026-08-10 density audit] roadmap clause ("공동현관 코드...다음 세션") cut — screens state
+          facts, not the backlog. The pin-fact line stays: it explains what the pin strip does. */}
+      <Text style={{ fontSize: 14, color: paper.dim, textAlign: 'center', marginTop: 16 }}>
+        지도 핀으로 지정한 위치가 픽업 안내에 쓰여요
       </Text>
     </ScrollView>
   );
