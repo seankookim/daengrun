@@ -76,13 +76,20 @@ Deferred work, written down so it exists. Format: what / why / context / effort
 
 ## From the 2026-08-11 runner scrap + design review (honesty findings, not yet fixed)
 
-- [ ] **done.tsx dog name can be a stale mock** — `done.tsx:30` reads the dog name
+- [x] ~~**done.tsx dog name can be a stale mock**~~ **ALREADY FIXED — the backlog was stale.**
+  Verified 2026-08-11 at `done.tsx:27-35`: the real name rides on `runResult.dogName`, falls back to
+  re-reading the settled booking, and `realName()` rejects the server's generic '반려견' so the copy
+  names no dog rather than a wrong one. Flagged by the Codex review as a stale entry; confirmed by
+  reading the code before touching it. Original text:
+  - ~~`done.tsx:30` reads the dog name
   from `runRequests[0]` (a store fallback) because `runResult` carries no
   dogName; on a cold entry the completion screen can print a name that isn't the
   settled booking's dog. Left untouched under the behavior freeze. Fix shape:
   widen the settle/run result to carry dogName, or read it from the booking.
   Effort S → S. **P1 — it is a false claim on a Peak moment.**
-- [ ] **rewards.tsx prints a raw English enum** — `rewards.tsx:168` renders
+- [ ] **rewards.tsx prints a raw English enum** *(Codex review 2026-08-11 classifies this as cosmetic
+  on its own — the swallowed catches in the same file are the real harm: a failed load renders as an
+  absence of rewards. Fix them together, catches first.)* — `rewards.tsx:168` renders
   `g.status` untranslated for non-claimable gear rows. Honest but unreadable
   Korean-side. Fix: a status→Korean map. Effort S → S. P2.
 - [ ] **earnings.tsx has two announcement-only buttons** — "빠른 정산 신청" and
@@ -126,6 +133,13 @@ Deferred work, written down so it exists. Format: what / why / context / effort
   The owner-stop *transition* (genuinely money) stays deferred to payments.
   Caveat: `push_tokens` has **1 row** in prod, so this is testable on one device
   only until more register. Effort S → S. **P1, and no longer Sean-gated.**
+
+  **[x] DONE 2026-08-11 (`db320b1`).** Chat stays (it is the record); the notification is what makes
+  it arrive. Routing mattered more than the insert — a `booking` notification sent runners to
+  `/runner/calendar`, which is not where you go when asked to stop the run you are on, so
+  `RUN_STOP_TITLE` is an exact-match constant shared by api.ts and push.ts and routes to
+  `/runner/run`. A failed notification does not throw (the chat already went) but the owner is told
+  the runner must open chat, so the app never claims a delivery it did not make.
 - [ ] **identity_verified prod cleanup gates the 신원인증 badge** — the badge was
   REMOVED from `owner/report.tsx` rather than bound, because the column's current
   values are fabricated (0061 names this exact forgery risk; api.ts:1255 already
@@ -297,22 +311,27 @@ Ordered by the auditor's recommended fix order. **C2 is DONE** (`0d79b4f`). The 
   unowned open incident (0048:398), so the host cannot force-resolve and walk away. Also fix the
   blocker label: '반환 미완' → '러닝 미종료'. Cheapest of the three.
 
-- [ ] **H1 — club/run/[sid] is the only club screen without LoadGate.** `:92` silent catch, `:315`
+- [x] ~~**H1 — club/run/[sid] is the only club screen without LoadGate.**~~ **ALREADY FIXED** —
+  verified at `club/run/[sid].tsx:333` (three-state LoadGate incl. `denied`). Stale entry. Original: `:92` silent catch, `:315`
   renders eternal '불러오는 중...' with no back and no retry — on the screen holding a running dog.
   Every other deep-link club screen was migrated. P1.
 
-- [ ] **H2 — console runner chips are dead in 3 states.** Gated only on `assigned >= cap`; the server
+- [x] ~~**H2 — console runner chips are dead in 3 states.**~~ **ALREADY FIXED** — verified at
+  `console/[sid].tsx:415`, the chips now carry check-in and assign-window state with the reason
+  printed on the chip. Stale entry. Original: Gated only on `assigned >= cap`; the server
   also rejects `runner_not_checked_in` (0048:465) and outside `assign_window` (0048:454), and
   `_club_runner_load` counts live proposals the client ignores. Client already HAS `checkedIn` and
   `checkinOpen` and never uses them. P2.
 
-- [ ] **H3 — club/[id] renders a fabricated club while loading AND when none exists.** `:274,283,293`
-  show title 하이클럽 / DISTRICT '—' / HOST '모집 중' during load; `fetchClubOverview` returns null for
-  both "loading" and "no club". P2.
+- [x] ~~**H3 — club/[id] renders a fabricated club while loading AND when none exists.**~~
+  **FIXED 2026-08-11 (`082bf32`).** Three states now render differently, and the OFFICIAL badge only
+  appears on a club that exists — putting it on a null club was itself a claim. The no-club case says
+  so and points at the interest registration that already existed.
 
-- [ ] **H4 — no way to cancel a club session.** `cancelClubSession` (api.ts:2607) has zero non-dev
-  call sites, yet club-acks registers '세션 취소 — 전액 환불' as a critical ack: the client can receive
-  a cancellation it can never issue. P2.
+- [x] ~~**H4 — no way to cancel a club session.**~~ **FIXED 2026-08-11 (`082bf32`).** The door is in
+  the host console beside 세션 종료, exposing the 0038 contract exactly: host-only, open/full only,
+  refused when a dog is already handed off (a dog that is out is a case, not a cancellation). The RPC
+  returns the refund count so the success message prints the real number instead of asserting one.
 
 - [~] **H5 — partly closed 2026-08-11.** The dangerous half (a dog stalled mid-run) now has a
   host terminal via `session_host_force_resolve`. Still open: a transfer stalled on a *completed*
