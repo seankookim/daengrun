@@ -164,6 +164,109 @@ Deferred work, written down so it exists. Format: what / why / context / effort
   forbidden. If early settlement is a real product intent, it needs a table +
   a real flow. P3 until payments land.
 
+## 🔴🔴 SEAN'S DIRECTIVE LIST — 2026-08-11 (verbatim, then my notes)
+
+Given at the end of the 2026-08-11 session as "things I want done in the next sessions". His
+wording is preserved; anything after a `→` is mine (file pointers, what I verified, what needs a
+decision). **These outrank the older P1/P2 backlog below** unless something here turns out to be
+blocked.
+
+### A. Business model — the km prepay / token system  *(biggest, think before building)*
+
+- **"Think about Pre pay for km model, follow claude's token model"**
+- **"Subscription screen, free 5 km on us, onboarding + easily accessible refill button"**
+- **"Think about: Make km token system creative and prevalent, make unique token icon"**
+
+→ This is a **pricing-model change, not a feature**, and it should be thought through before any
+screen is drawn. Three things I'd want settled first: (1) does a km balance expire? (2) what happens
+when a run overruns the balance mid-run — the dog is already out, so it cannot hard-stop; (3) refunds
+against a balance instead of a card change what `marketplace_cancel_fee` (0066) and 0072's settlement
+quote are denominated in. **It also reshapes the Toss integration** (`docs/plans/payments-toss-plan.md`):
+prepay means fewer, larger charges instead of per-run ones, which is a simpler PG story, not a harder
+one. Worth telling Sean that before he files. The "free 5km on us" grant is the cheapest honest
+acquisition lever we have and needs a real ledger, not a client constant.
+→ Sequencing: **model decision → ledger table + pins → screens.** Do not start with the screen.
+
+### B. Navigation & information architecture
+
+- **"Reorganize tab to home being center"** → `src/components/bottomnav.tsx:18-30`. Owner order is
+  홈·내 일정·커뮤니티·샵·마이; runner 홈·캘린더·요청·수익·마이. Centring 홈 means a 5-tab reorder on
+  both roles; check `bottomnav`'s active-indicator math and every `router.push` that assumes order.
+- **"Make screens slidable between different tabs so screens can be navigated not just through the
+  tab bar at the bottom"** → needs a pager (react-native-pager-view or Reanimated) wrapping the tab
+  stack. ⚠ Interacts with the **frozen** collapsing heroes on owner-home/fitness (DESIGN.md §9) —
+  horizontal pan vs the vertical scroll/collapse gesture is the risk. Prototype the gesture conflict
+  before committing.
+- **"Tab in screen titles font size difference"** → screen titles are inconsistent across tabs;
+  §3b says one section-header grammar. Audit and normalise.
+
+### C. Community / feed — the Instagram direction
+
+- **"Community rewire ui to copy instagram"**
+- **"In community, instagram story-circlify the club widget"**
+- **"Feed upload should be more intuitive like insta, show route traces, premade cards, also have
+  share to insta instant button option"**
+- **"Community post too boring, make mock ups."**
+
+→ Labs first (CLAUDE.md: HTML labs in `docs/labs/` are the sanctioned mockup arena, Sean picks by
+number). ⚠ **Route traces on feed cards are blocked**: `routes.trace` is normalised `{x,y}`
+schematic, not geo (see the P2 entry below) — a completed **run** has a real trace (`runs.trace`),
+so the honest version shows the RUN's trace, not the route's. Share-to-Instagram needs the
+share-sheet path `shot/[bid]` already uses.
+
+### D. Owner side
+
+- **"Big Red Reservation button delete price tag"** → `owner/pay.tsx:334` is the button;
+  the amount plate is `:275`. ⚠ **Do not delete the button itself** — `:334` → `api.ts:230`
+  `payment_ok` is the only path a booking has into `matching` today (toss-plan §3). The price tag
+  is what he wants gone, not the CTA.
+- **"Font consistency (pre reserve card vs rest)"**
+- **"Clean small info text"** → likely the 14pt floor sweep's remainder; check against DESIGN.md §3.
+- **"My screen subtext filler removal"** → `my.tsx` row `desc` strings (`:179` etc).
+- **"Both map pin should auto update / sync with address + special note section editable for owner
+  in preference and always visible in intermediary"** → the pin/address sync is the known
+  "Mid-booking pin staleness" P2 below; the special-note edit + always-visible-in-intermediary part
+  is new.
+
+### E. Runner side
+
+- **"Runner home add logo at top like owner"** → ⚠ **conflicts with a decision I shipped today.**
+  The 다 glyph + RUNNER kicker were REMOVED from runner home this session on the rule
+  보호자=패스포트 / 러너=빕 (identity printed once per screen; the bib strap carries it). Sean may
+  be overruling that, or may not have seen it. **Ask before re-adding** — and if re-added, the bib
+  strap probably loses its name to avoid printing identity twice.
+- **"Runner side make the current run info widget more action inviting (too nonchalant rn)"** →
+  `runner/home.tsx` 진행 중 card. Note its coral face was demoted to an ink link today precisely
+  because it was a fake button (a `<View>`, not a target). Making it inviting must keep the tap
+  target honest — make the whole card visibly pressable rather than repainting a non-target.
+- **"Runner side there is a duplicate high club title"** → `runner/home.tsx:626` `SectionHead
+  title="하이클럽"` and `runner/requests.tsx:119` 하이클럽 호스트 수요 스트립. Verify on screen which
+  pair he means.
+- **"Runner side, collapse the available time widget like u did in one of the earlier mockups"** →
+  `runner/availability.tsx`. ⚠ availability's 3 predicates are deliberately distinct (DO-NOT-REFACTOR).
+- **"Runner Make profit number larger in calendar tab"** → `runner/calendar.tsx:66` `expected`.
+- **"Profit tab revamp / no green"** → `runner/earnings.tsx:25` `MONEY_GREEN #3D6B1F` + `colors.volt`
+  numerals at `:82`,`:157`. Removing green from money is a **token-level** change; check it does not
+  collide with the GO sage/ready green law (DESIGN.md §5).
+- **"Runner page, stuff like my records should be in home, not my page, and why am I seeing this?
+  Thus what?"** → `my.tsx:179` 내 러닝 기록 row → `/cards`. The second half reads as: the row does
+  not say why it matters or what to do next. Move to runner home AND give it a reason to exist.
+- **"Runner notification icon update (also do full design sweep)"** → the bell at `runner/home.tsx`.
+
+### F. Cross-cutting
+
+- **"Onboarding screens for both, info, pet, pace, guide buttons, etc"** → nothing exists today.
+  Ties to A (the free-5km grant is an onboarding moment).
+- **"Check if chat is real"** → **I checked: it is real.** `chat_messages` table with party RLS,
+  `sendChatMessage` (api.ts:2024), photo messages (`:2040`), realtime subscription (`:2051`).
+  What is NOT real: chat has **no push** (0024 triggers on `notifications`, not `messages`) — that
+  is why the mid-run stop needed its own notification today. If he means "does the other side
+  actually receive it", the answer is: in-app yes, push no.
+- **"Make sample routes real in backend"** → `seed.sql` routes carry no `trace` at all, and
+  `routes.trace` is schematic `{x,y}` by design (0001:147). This is the "Course geo-traces" P2 below.
+  Real routes need actual GPS traces — likely promoted from a completed `runs.trace`.
+- **"(also do full design sweep)"** → after B/C/D/E land, not before.
+
 ## 🔴 The emoji purge missed a whole class — font fallback, not authoring (found 2026-08-11 on device)
 
 The 2026-08-10 purge (~160 marks / 33 files) removed emoji **written as emoji**. It could not see
