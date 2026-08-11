@@ -933,7 +933,9 @@ const styles = StyleSheet.create({
   lrValNum: { fontSize: 14, color: lilac.head },
   lFoot: { justifyContent: 'space-between', alignItems: 'center', gap: 8, marginTop: 9, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#EEEEEE' },
   lFootTxt: { fontSize: 14, lineHeight: 18, color: lilac.dim, flex: 1 },
-  lFootLink: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: lilac.accent },
+  // [액션 롤아웃] 액션 링크가 바이올렛이었다 — 바이올렛은 §5에서 클럽 정체성이지 '누를 곳'이
+  // 아니고, 흰 캔버스 위 실측 4.38:1로 AA도 못 넘는다. actionInk = 5.99:1.
+  lFootLink: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: paper.actionInk },
 
   // 진행 중 — 목업 .now padding 11 12 12 14 · [페이퍼 크롬] 샤프·뉴트럴 (코랄 좌측 엣지 = DAWN DUAL 액센트 생존)
   now: {
@@ -986,7 +988,7 @@ const styles = StyleSheet.create({
   stubViewTxt: { fontSize: 16, lineHeight: 20, fontWeight: '800', color: lilac.head },
   emptyInbox: { marginTop: 9, backgroundColor: lilac.inset, borderRadius: 0, padding: 16, borderWidth: 1, borderColor: '#EEEEEE' }, // [페이퍼 크롬] 샤프 (인셋 필 생존)
   emptyInboxTxt: { fontSize: 14, lineHeight: 18, color: lilac.dim, textAlign: 'center' },
-  emptyInboxLink: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: lilac.accent, textAlign: 'center', marginTop: 5 },
+  emptyInboxLink: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: paper.actionInk, textAlign: 'center', marginTop: 5 },
 
   // ② 루트 — 목업 .stop padding 7 0 8, gap 11
   stop: { flexDirection: 'row', alignItems: 'flex-start', gap: 11, paddingTop: 7, paddingBottom: 8 },

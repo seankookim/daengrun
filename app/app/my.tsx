@@ -409,9 +409,14 @@ export default function My() {
         <Pressable style={({ pressed }) => [s.btnRole, { transform: [{ scale: pressed ? 0.96 : 1 }] }]} onPress={() => router.dismissTo('/')}>
           <View>
             <Text style={s.btnRoleTitle}>역할 전환</Text>
-            <Text style={[s.btnRoleSub, nf]}>OWNER ↔ RUNNER</Text>
+            {/* [이모지 법 2026-08-11] ↔(U+2194)는 소스상 변이 셀렉터 없는 **타이포그래픽 글리프**라
+                산증 클래스다 — 그런데 Oswald(nf)에 그 글리프가 없어 iOS가 Apple Color Emoji로
+                폴백했고, 화면엔 파란 상자 이모지가 떴다 (시뮬레이터 실측). 저자가 아니라
+                폰트 폴백이 만든 컬러 이모지 — 금지는 결과에 걸린다 (§7b). 산증 글리프
+                ›로 바꾸고 양방향은 제목('역할 전환')과 스위치 칩이 말한다. */}
+            <Text style={[s.btnRoleSub, nf]}>OWNER › RUNNER</Text>
           </View>
-          <View style={s.btnRoleSw}><Text style={[s.btnRoleSwTxt, nf]}>보호자 ↔ 러너</Text></View>
+          <View style={s.btnRoleSw}><Text style={[s.btnRoleSwTxt, nf]}>보호자 › 러너</Text></View>
         </Pressable>
 
         <Pressable

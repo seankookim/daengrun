@@ -150,6 +150,53 @@ Deferred work, written down so it exists. Format: what / why / context / effort
   forbidden. If early settlement is a real product intent, it needs a table +
   a real flow. P3 until payments land.
 
+## 🔴 The emoji purge missed a whole class — font fallback, not authoring (found 2026-08-11 on device)
+
+The 2026-08-10 purge (~160 marks / 33 files) removed emoji **written as emoji**. It could not see
+the other class: **typographic glyphs that iOS renders as colour emoji because the chosen font
+lacks them.** Source looks compliant; the screen does not. Confirmed on the simulator:
+
+- `my.tsx:412` `OWNER ↔ RUNNER` — `↔` is U+2194 with NO variation selector (correct, sanctioned
+  glyph class) but it is styled with `useNumFont` (Oswald), which has no U+2194, so iOS fell back
+  to Apple Color Emoji and shipped a blue box on the role-switch button. **Fixed 2026-08-11** by
+  swapping to `›` (a glyph the fonts actually have).
+- `supabase/seed.sql:33-37` `routes.features` carries `♒` (U+2652) and `☀` (U+2600) — same story,
+  rendering as colour emoji on the owner-home course cards (뚝섬 리버뷰 코스) **right now, in prod
+  data**. Still open: this is a data change plus a render-path decision, not a code edit.
+
+**Law this establishes:** the emoji ban is a rule about what RENDERS, not about what is typed. A
+glyph is only in the sanctioned class if the font it is styled with actually contains it. Any new
+glyph must be checked on screen in its real font, or restricted to the small set already proven
+(`› ‹ ✓ ✎ ◐ ● § ★`). Effort S → S. P2 — visible on the main owner screen.
+
+## From the 0067-0070 adversarial cycle — what the two voices found and I did NOT fix
+
+Recorded so the next session does not rediscover them. Everything here was executed, not guessed.
+
+- [ ] 🔴 **`incident_review` is a booking terminal with no commercial exit.** Both voices, independently.
+  `0001_init.sql:206-209` lets nothing out of it (verified live: `incident_review -> active` raises).
+  `session_host_force_resolve` (0069) and `session_transfer_accept`'s external branch (0058, shipped
+  since August) both park bookings there. Result: the owner stays charged, the runner can never be
+  paid, and resolving the case changes nothing because `payout_state` never reaches `payable`. The
+  console sheet now says so in plain Korean instead of claiming 정산은 보류돼요 (a "pending" label
+  over a terminal state), but the honest copy is a disclosure, not a fix. **Real fix: case
+  resolution must choose and execute a commercial terminal — full refund, partial settlement, or
+  pay-the-runner.** That is the payments track, not this slice. Effort M → M. **P1 once real money
+  moves.**
+- [ ] **Guest RSVP grants `_club_shell_access = 'full'`, which is broader than it looks.**
+  `session_rsvp` (0048:158) admits any signed-in user to any open session by design ("게스트 RSVP
+  1급"), and `full` is what `_club_incident_can_open` accepts. 0070 §H caps *unresolved subjectless*
+  cases at 2 per actor per session, and 0070 §E means the money is no longer hostage to
+  `club_finish_session` — but N accounts can still add noise, and each S1 fans a critical ack to the
+  host and every committed runner. Fix shape: require checked-in presence for a close-blocking case,
+  or make subjectless reports non-blocking until host triage. Effort S → S. P2.
+- [ ] **A runner who held a dog through an emergency transfer loses case-open rights afterwards.**
+  `_club_incident_can_open`'s third arm reads `bookings.runner_id`, which is the CURRENT runner. After
+  R1 → R2, R1 has `dog_run_segments` and `dog_custody_events` history but no standing to open a case
+  about the window they physically held the dog. Narrow today (emergency transfer has no production
+  UI) and it becomes real the moment H5 gets one. Fix shape: base the historical arm on
+  `dog_run_segments` / accepted `assignment_events` rather than the live pointer. Effort S → S. P2.
+
 ## Club system audit — 2026-08-11 (independent eng voice, findings verified by lead)
 
 Ordered by the auditor's recommended fix order. **C2 is DONE** (`0d79b4f`). The rest are open.
@@ -159,17 +206,28 @@ Ordered by the auditor's recommended fix order. **C2 is DONE** (`0d79b4f`). The 
   simulation 3×; the club sheet disclosed it 0× and showed 동의하고 결제 + a real fee ladder +
   '결제 완료'. Now discloses, CTA reads 자리 확정, ladder marked as post-integration.
 
-- [ ] 🔴 **C1 — the T-10 cron auto-refunds every delegation the app promises is assigned AT the meetup.**
-  `club_assignment_recovery` (0049:344-365, `*/5` cron) refunds every paid delegation still
-  `matching` from `scheduled_at - 10min`. But the consent checkbox itself says assignment happens
-  집결지에서 (session/[sid].tsx:1283), and the console says 담당은 집결지에서 정해져요
-  (console:359). Real window is [T-2h, T-10min] and additionally requires the runner already
-  `checked_in` (0048:454,465). A host arriving at 06:50 for a 07:00 run finds everything refunded
-  and owners standing there with dogs. **Fix: move the hard stop past T-0, or surface a real
-  countdown + host push at T-30/T-15. Do not ship with copy and cron disagreeing.** P1.
+- [x] ~~🔴 **C1 — the T-10 cron auto-refunds every delegation the app promises is assigned AT the meetup.**~~
+  **FIXED 2026-08-11 — `0068_retire_t10_hard_stop.sql`.** Block ① deleted outright (a DELETE, not
+  a relocated constant: moving the hard stop to T+0 or T+6h only relocates the same disagreement).
+  The honest terminal already existed — `club_finish_session` refunds every still-`matching` club
+  booking as `club_not_picked_up` / '위탁 미진행 — 전액 환불', a registered critical-ack title.
+  Pins: 65 A8 rewritten in the same commit (it pinned the auto-refund and would otherwise have
+  read as a regression) + 107 R1 (assignment genuinely still works past T-10) + 107 R2 (the
+  session-close terminal still refunds). R1 mutation-proven: restoring block ① reds R1 and A8.
+  - [ ] **Residual, accepted deliberately:** a host who never presses 종료 now leaves paid
+    delegations sitting in `matching` forever. That is a stuck refund an operator can still
+    resolve, and it is strictly better than an automatic refund fired at the moment the service
+    was about to be delivered — but nothing sweeps it. Fix shape: a session-level stale sweep at
+    T+24h that runs the same `club_not_picked_up` terminal, or surface it in the host console.
+    Effort S → S. P2.
 
-- [ ] 🔴 **C3 — two SOS buttons, same promise, each missing the half the other has, neither tells
-  the owner.** Both say "호스트와 러너 전원에게 즉시 알림". Owner SOS (`club_sos`, 0050:59-73) passes
+- [x] ~~🔴 **C3 — two SOS buttons, same promise, each missing the half the other has, neither tells
+  the owner.**~~ **FIXED 2026-08-11 — `0067 §E`.** `club_sos` is now a thin wrapper over
+  `club_incident_open` (never dropped — check-rpc keeps dead signatures forever; return type stays
+  `uuid` because no gate reads return shape). Fan-out, the payout hold and the affected owner's
+  notification all live in the one function, so both doors keep the same promise. Owner title is a
+  constant ('담당견 인시던트') so it registers in `club_critical_titles` and rides the ack banner;
+  the dog's name goes in the body. Pin 106 S7. Original writeup: Both say "호스트와 러너 전원에게 즉시 알림". Owner SOS (`club_sos`, 0050:59-73) passes
   `p_dog => null` ⇒ **no payout hold** — the runner gets paid on the dog the owner just raised an
   emergency about. Runner SOS (`club_incident_open`) holds payout but has **no runner fan-out**.
   Both notify only host + backup host — **the dog's owner is never notified**.
@@ -182,7 +240,16 @@ Ordered by the auditor's recommended fix order. **C2 is DONE** (`0d79b4f`). The 
   `긴급 — {개이름} 러닝 중 SOS` / `담당 러너가 긴급 SOS를 눌렀어요. 호스트가 대응 중이에요 — 케이스를
   열어 상황을 확인하세요.` Owner already passes the party gate (0050:110). Ship this one FIRST.
 
-- [ ] 🔴 **C4 — a picked-up dog whose run never ends locks the session and payouts forever.**
+- [x] ~~🔴 **C4 — a picked-up dog whose run never ends locks the session and payouts forever.**~~
+  **FIXED 2026-08-11 — `0069 §A` + `0070 §F`.** `session_host_force_resolve`: booking →
+  `incident_review` (already legal, no transition-map change), an S2 case through the hardened
+  0067 path, no fabricated return. ⚠ The first cut was **unusable in the shape the audit
+  described** — host-only + self-override-banned meant that in a small club, where the host runs
+  the dogs, literally nobody could call it (found by the adversarial review, which executed it).
+  0070 §F opens it to the backup host and narrows self-override to the dog's *owner*: a host
+  reporting their own run stuck is self-incrimination (their payout is held, a case opens against
+  them), not self-dealing. Console gained the button + honest blocker labels. Pins 107 R3/R4/R6.
+  Original writeup:
   `_club_dogs_unresolved` (0045:328-336) blocks finish; the console's only override renders solely
   for `return_pending` (console:201,483-508). Runner confirms handoff then never presses 시작/종료
   (phone dies) ⇒ permanent block, no row, no button, and the blocker says '반환 미완' for a dog that
@@ -214,7 +281,11 @@ Ordered by the auditor's recommended fix order. **C2 is DONE** (`0d79b4f`). The 
   call sites, yet club-acks registers '세션 취소 — 전액 환불' as a critical ack: the client can receive
   a cancellation it can never issue. P2.
 
-- [ ] **H5 — custody transfer (clinic/authority) has no production UI** and `transfer_pending` is a
+- [~] **H5 — partly closed 2026-08-11.** The dangerous half (a dog stalled mid-run) now has a
+  host terminal via `session_host_force_resolve`. Still open: a transfer stalled on a *completed*
+  booking, where `session_transfer_cancel` (0045:299) already returns it to `return_pending` but
+  has no production call site, and the clinic/authority record itself is still dev-lab only
+  (`app/app/dev/club-lab.tsx:308`). Original writeup: and `transfer_pending` is a
   dead end if reached (session:763 draws the confirm block only for `return_pending`), blocking
   session finish forever. The one scenario most needing a record — dog goes to a vet mid-run. P2.
 
@@ -235,7 +306,17 @@ Ordered by the auditor's recommended fix order. **C2 is DONE** (`0d79b4f`). The 
   no-ops on non-matching bookings (0037:64-70); a delegating owner is never added to `session_people`
   so their 입장권 door never appears and the recap under-counts. P3.
 
-## 🔴 P1 SECURITY — club incident subject injection (found 2026-08-11, panel eng voice, verified by lead)
+## ~~🔴 P1 SECURITY — club incident subject injection~~ FIXED 2026-08-11 (`0067` + `0070`)
+
+**Shipped as `0067_incident_subject_gate.sql` and hardened by `0070_incident_accountability.sql`**
+after a two-voice adversarial cycle (Codex + an independent Claude engineer that executed attacks
+against a live scratch DB). Neither could reopen the arbitrary-booking freeze. What they DID find
+is recorded in 0070's header — four sentences written in 0067/0069's own headers were false as
+shipped, chiefly: `club_incident_assign` accepted any uuid as case owner (so "the host cannot
+force-resolve and walk away" was false), the hold-CLEARING path was still cross-club on `dog_id`,
+two incidents on one dog orphaned the hold forever, and `club_release_payouts` never took the
+session lock the "serialization law" comment claimed. Pins: 106 (S1-S7), 108 (A1-A6). The original
+finding, kept for provenance:
 
 `club_incident_open` (0050:14-45) validates severity, summary, session existence, and
 `_club_shell_access <> 'none'`. It does **NOT validate `p_dog` or `p_booking`** against the

@@ -187,10 +187,15 @@ export default function Report() {
                   resizeMode="cover"
                 />
               )}
-              <Row style={{ justifyContent: 'space-between' }}>
-                <Text style={{ fontSize: 14, color: '#b8c4ae' }}>{report.when} · {report.routeName}</Text>
+              {/* [시뮬 실측 2026-08-11] 두 자식 모두 폭 예산이 없어, 종료 사유 칩이 코스명 위로
+                  올라타 '서울숲 숲길 3km'가 잘렸다. 메타 줄은 남는 폭만 갖고 한 줄로 접고(넘치면
+                  ellipsize), 칩은 자기 크기를 지킨다 — 칩이 말하는 건 사유이고, 사유는 잘리면 안 된다. */}
+              <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                <Text style={{ fontSize: 14, color: '#b8c4ae', flex: 1, minWidth: 0 }} numberOfLines={1}>
+                  {report.when} · {report.routeName}
+                </Text>
                 {reason && run.endReason !== 'completed' && (
-                  <View style={[s.heroReason, { backgroundColor: reason.bg }]}>
+                  <View style={[s.heroReason, { backgroundColor: reason.bg, flexShrink: 0 }]}>
                     <Text style={{ fontSize: 14, fontWeight: '900', color: reason.color }}>{reason.label}</Text>
                   </View>
                 )}
@@ -624,7 +629,7 @@ const s = StyleSheet.create({
   // 이름만 circle이고 모양은 사각이다). 종전 borderRadius 20 + 베이지 트림은 V4 잔재였다.
   backBtn: { width: 40, height: 40, borderRadius: 0, backgroundColor: paper.canvas, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: paper.line },
   hero: { backgroundColor: FOREST, padding: 20, marginTop: 14 },
-  heroReason: { borderRadius: 99, paddingVertical: 4, paddingHorizontal: 9 },
+  heroReason: { borderRadius: 0, paddingVertical: 4, paddingHorizontal: 9 }, // §3b 상태 칩 = radius 0
   finStamp: {
     position: 'absolute', top: 52, right: 18, alignItems: 'center',
     borderWidth: 2.5, borderColor: colors.volt, borderRadius: 10,
@@ -636,7 +641,7 @@ const s = StyleSheet.create({
   section: { backgroundColor: paper.canvas, paddingHorizontal: 12, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: paper.line },
   // §3b 섹션 헤더는 앱 전체에서 하나의 문법: 20/800 잉크. 화면마다 크기를 달리 쓰지 않는다.
   sectionTitle: { fontSize: 20, fontWeight: '800', color: paper.ink, marginBottom: 6 },
-  barTrack: { height: 8, borderRadius: 99, backgroundColor: '#f0eee3', marginTop: 6, overflow: 'hidden' },
+  barTrack: { height: 8, borderRadius: 99, backgroundColor: '#EEEEEE', marginTop: 6, overflow: 'hidden' }, // 은퇴 팔레트 크림(#f0eee3) → 뉴트럴
   barFill: { height: 8, borderRadius: 99, backgroundColor: colors.volt },
   // 은퇴 팔레트(연두 워시)의 마지막 잔재 + 알약 코너. 코랄 워시 위 샤프 칩으로.
   stampChip: { backgroundColor: paper.wash, borderRadius: 0, paddingVertical: 7, paddingHorizontal: 13 },

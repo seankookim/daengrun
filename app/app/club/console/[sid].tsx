@@ -206,10 +206,15 @@ export default function HostConsole() {
   // [클럽 감사 C4] 러닝이 끝나지 않아 종료가 막힌 개 — 반환 미완과는 **다른 차단이고 다른 탈출구**다.
   // 러너가 인계만 받고 시작/종료를 누르지 않으면(폰 사망) 여기 남는다: 행도 버튼도 없이 세션과
   // 정산이 영구 정지했고, 차단 배너는 시작조차 안 한 러닝을 '반환 미완'이라 불렀다.
+  // [적대 리뷰 2026-08-11] 자기 개(호스트가 그 개의 보호자)는 서버가 self_override로 거부한다 —
+  // 그 행에도 버튼을 그리면 **눌러도 항상 실패하는 죽은 버튼**이다 (정직 법: 죽은 버튼 금지).
+  // 호스트가 그 개의 러너인 경우는 다르다: 자기 러닝을 '안 끝났다'고 신고하는 건 자기고발이고
+  // 서버가 허용한다 (0070 §F) — 소규모 클럽의 가장 흔한 모양이라 여기서 빠지면 C4가 안 고쳐진다.
   const runStuck = dogs.filter((d) =>
     ['runner', 'host'].includes(d.custodianType ?? '')
     && d.custodyPhase !== 'resolved'
-    && ['picked_up', 'active'].includes(d.bookingStatus ?? ''));
+    && ['picked_up', 'active'].includes(d.bookingStatus ?? '')
+    && !d.isMine);   // isMine = 서버가 판정한 '내가 이 아이의 보호자' (클라가 재구성하지 않는다)
   // 반환 대기(한쪽 이상 미확인)로 종료가 막힌 개 — 호스트 대리 확인 대상
   const returnStuck = dogs.filter((d) => d.custodyPhase === 'return_pending' && (!d.ownerReturnConfirmed || !d.runnerReturnConfirmed));
   const doOverride = (d: DelegationDog, side: 'owner' | 'runner') => {
@@ -232,7 +237,7 @@ export default function HostConsole() {
         .then((id) => { setForceTarget(null); router.push(`/club/case/${id}`); }),
       '강제 종결 실패',
       (m) => m.includes('not_stuck') ? '이 아이는 러닝 중이 아니에요 — 반환 확인 흐름을 쓰세요'
-        : m.includes('self_override') ? '당사자는 자기 건을 강제 종결할 수 없어요 (백업 호스트 몫)'
+        : m.includes('self_override') ? '이 아이의 보호자는 강제 종결할 수 없어요 — 백업 호스트나 운영에 요청하세요'
         : m.includes('not_host') ? '호스트만 강제 종결할 수 있어요'
         : m.includes('artifact_required') || m.includes('reason_required') ? '무슨 일이 있었는지 적어주세요' : null,
     );
@@ -584,7 +589,11 @@ export default function HostConsole() {
           <View style={s.grab} />
           <Text style={{ fontSize: 15, fontWeight: '800', color: L.head }}>{forceTarget?.dogName} 강제 종결</Text>
           <Text style={{ fontSize: 14, color: L.text, marginTop: 5, lineHeight: 19 }}>
-            반환으로 기록하지 않아요 — 아이가 어디 있는지 앱은 모릅니다. S2 케이스가 열리고 정산은 보류돼요.
+            {/* [적대 리뷰 2026-08-11] 종전 카피는 '정산은 보류돼요'였다 — 보류는 '곧 풀린다'는 뜻인데,
+                incident_review는 전이 맵의 종단이라(0001:206) 케이스를 해소해도 정산이 스스로
+                풀리지 않는다. 앱이 못 지키는 약속을 지우고 실제로 참인 것만 말한다. */}
+            반환으로 기록하지 않아요 — 아이가 어디 있는지 앱은 모릅니다. S2 케이스가 열리고,
+            이 예약의 정산은 케이스가 끝난 뒤 운영 처리로만 마무리돼요 (앱이 자동으로 풀지 않아요).
             적은 내용은 케이스 증빙으로 남고, 담당 러너와 보호자에게 알림이 갑니다.
           </Text>
           <TextInput

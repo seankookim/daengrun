@@ -15,8 +15,16 @@
 --   R1 ← 0068: restore block ① (the T-10 hard stop) to club_assignment_recovery      → RED
 --   R2 ← 0045/0048 §J: delete the `_club_refund_bookings(..., 'club_not_picked_up')`
 --        call from club_finish_session — the honest terminal C1 relies on             → RED
---   R3 ← 0069 §A: delete any one of the not_host / self_override / artifact_required /
---        reason_required / not_stuck guards                                           → RED
+--   R3 ← 0069 §A / 0070 §F: delete any one of the not_host / self_override /
+--        artifact_required / reason_required / not_stuck guards                        → RED
+--        ⚠ REWRITTEN 2026-08-11. The adversarial review PROVED the old R3 could not go red on
+--        a self_override revert: every R3 actor was a non-party host, so no call ever reached
+--        that guard. It re-ran the whole harness with the single line deleted and got 317/0.
+--        Same defect class as 106 S5 — a pin that cannot go red reads as proof. R3 now uses a
+--        host who is the dog's OWNER (the only self_override case left after 0070 §F narrowed
+--        it), and R6 pins the other half: a host who is the dog's RUNNER may force-resolve,
+--        because that is self-incrimination, not self-dealing — and it is the ordinary shape
+--        of a small club, where the old gate left literally nobody able to call this RPC.
 --   R4 ← 0069 §A: delete `update bookings set status = 'incident_review'` (the session
 --        stays blocked), or delete the club_incident_open call (no case, no hold)      → RED
 --   R5 ← 0069 §B: delete `perform _club_finalize_return(p_session_dog)` from
@@ -27,8 +35,10 @@
 --       R1 → 315/2, red = [R1, 65 A8] — DELIBERATE overlap: A8 is the collision rewrite for
 --            this very change (it used to pin the auto-refund), so restoring block ① must
 --            red both. If only one went red, one of them would be lying.
---     R2/R3 follow the identical shape and were not machine-proven (they guard an
---     unchanged terminal and pure argument validation respectively).
+--   R6 ← 0070 §F: restore host-only + runner-banned (nobody in a small club can call it) → RED
+--     ✔ RE-PROVEN 2026-08-11 after the rewrite: R3 → 323/1 red = [R3] (deleting the
+--       self_override line — the revert the OLD R3 could not see), R6 → 323/1 red = [R6].
+--     R2 follows the identical shape and was not machine-proven (it guards an unchanged terminal).
 set client_min_messages = warning;
 
 do $$
@@ -37,6 +47,8 @@ declare
   v_club uuid; v_club2 uuid; v_club3 uuid; v_sa uuid; sdz uuid; sdq uuid; bz uuid; bq uuid;
   hb uuid; rc uuid; oc uuid; dc uuid; v_sb uuid; sdc uuid; bc uuid;
   hd uuid; rd uuid; od uuid; dd uuid; v_sd uuid; sdd uuid; bd uuid;
+  hs uuid; rs2 uuid; ds uuid; v_club4 uuid; v_ss uuid; sds uuid; bs uuid;
+  or2 uuid; dr2 uuid; sdr uuid; br uuid;
   v_km numeric; v_n int; v_inc uuid; v_bst text; v_phase text; v_err text;
 begin
   -- ═══ 픽스처 ① — C1용 세션 (배정 안 된 위탁 하나 + T-10 이후 배정될 위탁 하나) ═══
@@ -186,8 +198,46 @@ begin
       v_err := v_err || ' not_stuck:통과';
     exception when others then if sqlerrm not like '%not_stuck%' then v_err := v_err || ' not_stuck:' || sqlerrm; end if;
     end;
+    -- self_override: 호스트가 그 개의 **보호자**일 때. 0070 §F 이후 이것이 유일한 자기-금지다
+    -- (호스트가 러너인 경우는 R6이 허용을 핀한다). 픽스처 ④를 여기서 만든다.
+    hs := t_user('hfr_hs', 'runner');
+    ds := t_dog(hs, '호스트견S');                       -- 호스트가 곧 보호자
+    rs2 := t_user('hfr_rs2', 'runner');
+    perform set_config('request.jwt.claim.sub', hs::text, false);
+    v_club4 := club_request_district('자기견동');
+    perform club_claim_host(v_club4);
+    v_ss := club_create_session(v_club4, now() + interval '70 minutes', '자기견 집결지', rt, 8, 'mixed');
+    perform session_runner_commit(v_ss); perform session_checkin(v_ss);
+    perform set_config('request.jwt.claim.sub', rs2::text, false);
+    perform session_runner_commit(v_ss); perform session_checkin(v_ss);
+    perform set_config('request.jwt.claim.sub', hs::text, false);
+    sds := session_delegate_dog(v_ss, ds, t_consent());
+    perform session_approve_dog(sds, true);
+    bs := session_pay_delegation(sds, 'idem-hfr-s', true);
+    perform session_assign_dog(sds, rs2);
+    perform set_config('request.jwt.claim.sub', rs2::text, false);
+    perform session_proposal_respond(sds, true);
+    update bookings set owner_confirmed_handoff_at = now(), runner_confirmed_handoff_at = now() where id = bs;
+    update bookings set status = 'picked_up' where id = bs;
+    perform set_config('request.jwt.claim.sub', hs::text, false);
+    begin perform session_host_force_resolve(sds, '자기 개 강제 종결 시도', jsonb_build_object('note','x'));
+      v_err := v_err || ' self_override:통과';
+    exception when others then if sqlerrm not like '%self_override%' then v_err := v_err || ' self_override:' || sqlerrm; end if;
+    end;
+    -- [0070 §F] 존재 오라클 폐쇄: 없는 행과 남의 행이 같은 답이어야 한다
+    perform set_config('request.jwt.claim.sub', rc::text, false);
+    begin perform session_host_force_resolve(gen_random_uuid(), '없는 행', jsonb_build_object('note','x'));
+      v_err := v_err || ' oracle:통과';
+    exception when others then if sqlerrm not like '%not_host%' then v_err := v_err || ' oracle:' || sqlerrm; end if;
+    end;
+    -- [0070 §B] 증빙은 형태까지 — '[]'/'null'은 객체가 아니다
+    perform set_config('request.jwt.claim.sub', hb::text, false);
+    begin perform session_host_force_resolve(sdc, '형태 검사', '[]'::jsonb);
+      v_err := v_err || ' artifact_shape:통과';
+    exception when others then if sqlerrm not like '%artifact_required%' then v_err := v_err || ' artifact_shape:' || sqlerrm; end if;
+    end;
     if v_err = ''
-      then call _pass('hfr','R3 강제 종결 문지기 — not_host·reason_required·artifact_required·not_stuck(반환 국면)');
+      then call _pass('hfr','R3 강제 종결 문지기 — not_host·reason_required·artifact_required(형태 포함)·not_stuck·self_override(보호자)·존재 오라클 없음');
     else call _fail('hfr','R3 문지기', v_err); end if;
   exception when others then call _fail('hfr','R3', sqlerrm);
   end;
@@ -243,6 +293,35 @@ begin
       end if;
     end;
   exception when others then call _fail('hfr','R4', sqlerrm);
+  end;
+
+  -- ---------- [R6] 호스트가 곧 러너인 소규모 클럽에서도 출구가 있다 (0070 §F) ----------
+  -- 종전 게이트는 not_host(호스트만) + self_override(보호자 또는 러너 금지)였다. 소규모 클럽은
+  -- 호스트가 직접 개를 맡으므로 **호스트=러너**가 기본형이고, 그때 아무도 이 RPC를 부를 수 없었다 —
+  -- C4가 정확히 감사가 묘사한 경우에 안 고쳐진 채였다 (독립 리뷰가 실행해서 증명).
+  -- 자기 러닝을 '안 끝났다'고 신고하는 것은 자기고발이다: 자기 지급이 보류되고 자기 앞에 케이스가 열린다.
+  -- 픽스처는 처음부터 호스트 자기 제안(= 즉시 수락)으로 만든다 — 인계 후에는 배정 철회가 불가하다.
+  begin
+    or2 := t_user('hfr_or2', 'owner'); dr2 := t_dog(or2, '호스트러너R');
+    perform set_config('request.jwt.claim.sub', or2::text, false);
+    sdr := session_delegate_dog(v_ss, dr2, t_consent());
+    perform set_config('request.jwt.claim.sub', hs::text, false);
+    perform session_approve_dog(sdr, true);
+    perform set_config('request.jwt.claim.sub', or2::text, false);
+    br := session_pay_delegation(sdr, 'idem-hfr-r', true);
+    perform set_config('request.jwt.claim.sub', hs::text, false);
+    perform session_assign_dog(sdr, hs);                     -- 호스트가 직접 맡는다 (자기 제안 = 즉시 수락)
+    update bookings set owner_confirmed_handoff_at = now(), runner_confirmed_handoff_at = now() where id = br;
+    update bookings set status = 'picked_up' where id = br;
+    v_inc := session_host_force_resolve(sdr, '내가 맡았는데 러닝을 종료하지 못했어요',
+               jsonb_build_object('kind','host_log','note','현장 기록'));
+    if (select status::text from bookings where id = br) = 'incident_review'
+       and (select payout_hold from session_dogs where id = sdr) = 'held'
+       and (select runner_id from bookings where id = br) = hs        -- 정말 호스트=러너였다
+      then call _pass('hfr','R6 호스트=러너 강제 종결 허용 — 자기고발은 막지 않는다 (소규모 클럽의 기본형)');
+    else call _fail('hfr','R6 호스트=러너','b=' || (select status::text from bookings where id = br)
+                    || ' hold=' || coalesce((select payout_hold from session_dogs where id = sdr),'∅')); end if;
+  exception when others then call _fail('hfr','R6', sqlerrm);
   end;
 
   -- ---------- [R5] 양측 오버라이드도 마감된다 (콘솔이 버튼 두 개를 그린다) ----------

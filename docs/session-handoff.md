@@ -1,13 +1,12 @@
-# SESSION HANDOFF — 2026-08-10/11 · coordinates shipped · design system rebuilt · honesty sweep
+# SESSION HANDOFF — 2026-08-11 pm · club security slice shipped · action rollout complete
 
 **Opener for the next session: "read docs/session-handoff.md fully, then continue."**
 
 Companion docs to read before working:
 - **`CLAUDE.md`** — permanent law book (language, gates, migration doctrine, ops authority).
-- **`DESIGN.md`** — design law book. Written this session. Read before ANY UI work.
-- **`docs/design/design-review-20260811.md`** — full-app review; the P2/P3 backlog lives here.
-- **`TODOS.md`** — deferred work + the decisions waiting on Sean.
-- `docs/labs/go-premium-lab.html`, `docs/labs/declutter-lab.html` — numbered labs Sean picks from.
+- **`DESIGN.md`** — design law book. Read before ANY UI work.
+- **`TODOS.md`** — deferred work + what the adversarial cycle found and I deliberately did NOT fix.
+- `docs/design/design-review-20260811.md` — full-app review; the P2/P3 backlog lives here.
 
 **Build in the MAIN checkout `/Users/sean/dev/daengrun`, branch `redesign-v4`.**
 Worktrees under `.claude/worktrees/` are stale snapshots — never build or gate there.
@@ -22,22 +21,30 @@ so, not independently confirmed · **[from-history]** remembered, recheck ·
 
 | System | State | Provenance |
 |---|---|---|
-| git | `5b832eb` on redesign-v4, **0 dirty tracked files**, origin up to date | **[verified-now]** |
-| Database | prod through **0066**; local = remote | **[verified-now]** (`migration list`) |
-| Edge functions | `geocode-address`, `transition-booking` deployed | **[verified-now]** (deploy output) |
-| SQL harness | **305 / 0** | **[verified-now]** (re-run at handoff) |
+| git | 3 commits on redesign-v4, 0 dirty tracked files | **[verified-now]** |
+| Database | prod through **0066** — ⚠ **0067-0070 are LOCAL ONLY, not pushed** | **[verified-now]** |
+| SQL harness | **324 / 0** (was 305 — 19 new pins across 106/107/108) | **[verified-now]** |
 | tsc | 0 errors | **[verified-now]** |
-| check-rpc | 75 calls / 109 signatures, all match | **[verified-now]** |
-| geo runner | 38 / 0 — **now a commit gate** | **[verified-now]** |
-| Device verification | owner home · request stepper + gear dial · runner home · earnings · community · compose · meetup walked on sim | **[verified-now]** |
-| Runner screens (7 scrapped) | code-verified + gates; **only earnings seen on screen** | **[reported]** for the other 6 |
-| NCP maps on a real device | **never verified** — launch-checklist §5 still open | **[uncertain]** |
+| check-rpc | 76 calls / 111 signatures, all match | **[verified-now]** |
+| geo runner | 38 / 0 | **[verified-now]** |
+| Device verification | runner home · owner report · owner schedule + booking sheet · my/passport walked on sim | **[verified-now]** |
+| Club screens | code + gates only — **not seen on screen** (this account has no club, so the club world is unreachable in the sim) | **[uncertain]** |
 
-⚠ **Ordering constraint:** 0066 must be pushed **before** any
-`supabase functions deploy` — `transition-booking` calls `marketplace_cancel_fee`,
-which 0066 creates. **[verified-now]**
+🔴 **THE ONE THING TO DECIDE FIRST: push 0067-0070 or not.** The gates are green and
+CLAUDE.md permits `supabase db push`, but I did not run it — this is four migrations on
+the money path, and the adversarial cycle finished only minutes before the session ended.
+`supabase migration list` will show the gap. Push is the natural next step; it is Sean's
+call whether it happens before he has read 0070's header.
 
----
+## ⓪b Correction to a commit message I wrote
+
+`12f5963`'s body says *"Every pin mutation-proven by a full-harness run under its own named
+revert."* **That was an overclaim** and the review caught it: 106's own header lists S1/S3/S4/S5/S7
+as proven and silently omits **S2 and S6**, and 107 R3 could not go red at all under the
+`self_override` revert it claimed to guard (every R3 actor was a non-party host, so no call ever
+reached that line — the reviewer proved it by deleting the guard and getting 317/0). R3 is rewritten
+and both halves are now pinned (107 R3 + R6). The lesson is already written into 106's header from
+the S5 incident and it applies to the message too: **a pin that cannot go red reads as proof.**
 
 ## ① Goal & current state
 
@@ -339,67 +346,51 @@ ui.tsx sweep first** (it's one file and clears the most findings per hour), then
 payments — and let reduced motion and the dial ride along with whatever screens
 payments touches.
 
-## ⑯ Next 1–3  *(rewritten 2026-08-11 pm — action system landed, club audit open)*
+## ⑯ Next 1–3  *(rewritten 2026-08-11 pm — §⑯-0, -0b and -3 are all DONE)*
 
-0. 🔴 **[SECURITY, do first] `club_incident_open` subject injection.** It never validates `p_dog`
-   or `p_booking`; `_club_shell_access` grants `'limited'` permanently to any rejected/withdrawn
-   applicant; and `club_release_payouts` matches a booking subject with **no session join**
-   (verified 0045:433) — so an arbitrary booking UUID freezes that booking's payout cross-club.
-   ⚠ `95 G12` is green TODAY *because* the validation is absent — it must be rewritten in the same
-   commit or the fix reads as a regression. Full design + pin table in TODOS.md.
+**Done this session.** The three items the last handoff put in order all shipped:
+- **§⑯-0 SECURITY** → `0067_incident_subject_gate.sql`. Both traps were handled as briefed: 95 G12
+  was rewritten in the same commit (it was green *because* the validation was absent), and
+  `club_sos` became a thin wrapper rather than being dropped and repointed, still returning `uuid`.
+  One thing the brief did not anticipate: **`_club_shell_access`'s permanent `'limited'` must NOT be
+  narrowed** — 0053 §5 made it permanent on purpose (a rejected applicant reads their own rejection
+  card and their own host_channel thread) and 96 F5 pins it. The right cut was a separate
+  `_club_incident_can_open`: seeing the door and freezing money are different rights.
+- **§⑯-0b** → C1 `0068` (the T-10 auto-refund deleted, 65 A8 inverted in the same commit),
+  C3 `0067 §E` (SOS unified, owner finally notified), C4/H5 `0069` + `0070 §F`.
+- **§⑯-3** → `ed0adb9`. ClubCta's coral was 2.83:1 white; it now uses `paper.action` (4.84:1, the
+  same hex already shipping as MONEY_DEEP/GO_SKIN.deep), `violet` is retired as an action tone, and
+  `secondary`/`destructive` faces exist so 10 `quiet` CTAs stopped standing in for them.
+  report.tsx migrated to paper and went from six CTAs to three. runner/home.tsx retired its local
+  coral consts, demoted the fake coral `<View>`, and the bib strap inverted to ink.
 
-0b. 🔴 **The club audit's C1/C3/C4 are live bugs**, written up
-   in TODOS.md with file:line. Short form: a `*/5` cron auto-refunds every delegation 10 minutes
-   before a session the app *promises* is assigned at the meetup (C1); the two SOS buttons make
-   the same promise and each implements the half the other is missing, and **neither notifies the
-   dog's owner** (C3); a picked-up dog whose run never ends locks the session and payouts forever
-   with no host override (C4). C2 (the payment sheet claiming a charge that never happens) is
-   **already fixed** in `0d79b4f`. Do C1/C3/C4 before any real club member exists.
+**Then the adversarial cycle ran, and it mattered.** Codex + an independent Claude engineer, both
+executing attacks against a live scratch DB. Neither could reopen the payout freeze. They found
+that **four sentences written in 0067/0069's own headers were false as shipped** — fixed in
+`0070_incident_accountability.sql`, whose header is the best single account of it. The one worth
+knowing by heart: **`session_host_force_resolve` was unusable in exactly the shape the audit
+described.** Host-only + self-override-banned meant that in a small club, where the host runs the
+dogs, nobody could call it — and the console drew the button anyway, so C4's "fix" was a dead
+button. 0070 §F opens it to the backup host and narrows self-override to the dog's *owner*: a host
+reporting their own run stuck is self-incrimination, not self-dealing.
 
+**Next 1–3, in order:**
 
+1. 🔴 **Push 0067-0070** (see §⑯-0 status block) and verify with `supabase migration list` + the
+   anon-definer check. Nothing else here is blocked by it, but prod is four migrations behind local.
+2. 🔴 **`incident_review` has no commercial exit** (TODOS, both voices). Force-resolve and the 0058
+   clinic transfer both park bookings in a terminal state where the owner stays charged and the
+   runner can never be paid. The console now says so honestly instead of claiming 정산은 보류돼요,
+   but a disclosure is not a fix. This is the payments track's first real customer.
+3. **[needs-user]** The rest of §⑨: NCP checkboxes, geocode secret, counsel flags, chip review.
+   Plus `identity_verified` (9/9 fabricated) and the seed-runner decision — both re-measured
+   against prod and unchanged.
 
-1. **[needs-user] Payments = the filing chain.** D-A was **answered**: Sean
-   registers. The bridge is superseded (`payments-bridge-plan.md` is a tombstone,
-   do not build it); `docs/plans/payments-toss-plan.md` is the live scope.
-   Chain: 사업자등록 (홈택스, same-day, free) → 통신판매업 신고 (시/군/구, ~₩40k/yr)
-   → 토스페이먼츠 계약 (1–2wk review) → `supabase secrets set TOSS_SECRET_KEY`
-   (Sean only). ⚠ 예비창업패키지 2027 (~₩40M) closes on registration — decided,
-   recorded so it isn't rediscovered as a surprise.
-   **Buildable NOW without any of that** (toss-plan §5-1): the `payments` table +
-   RLS + pins. That is the whole unblocked list.
-   ⚠ **Do NOT pre-delete `pay.tsx:334` (the 예약 확정하기 button) or `pay.tsx:299`
-   ("실결제는 발생하지 않았어요").** `:334` → `api.ts:230` `payment_ok` is the only
-   path a booking has into `matching` today — removing it before `confirm-payment`
-   exists bricks confirmation entirely. And `:299` is **currently true**. Both are
-   correct today and become wrong at the same instant, when `confirm-payment` goes
-   live. They are toss-plan step 3, not step 1.
-2. **[needs-user]** The rest of §⑨: NCP checkboxes, geocode secret, counsel
-   flags, chip review. The two P1 decisions changed shape — **mid-run stop is no
-   longer Sean-gated** (0024 push already exists; ~6 lines, see TODOS) and
-   **`identity_verified` is 9/9 fabricated including `s4kim2025`**, so the cleanup
-   empties the marketplace. Both re-measured against prod.
-3. **[local-edit] Action rollout, remainder.** The token system, `PaperBtn` (primary/climax/
-   secondary/quiet/destructive), the census, and 12 CTA conversions are DONE (`76a1d2e`). Left:
-   `owner/report.tsx` (still cream/volt/rounded — migrate to paper AND cut 3 duplicate CTAs:
-   `:403` `:417` `:447`), `runner/home.tsx` (retire local `CORAL_INK`/`CORAL_INK_DEEP`, demote the
-   fake `btnCoral` `<View>` at `:449`, and the 보호자=패스포트 / 러너=빕 identity move — delete the
-   `다` glyph brandmark at `:335` and the `RUNNER` kicker at `:336`, invert `strap` to ink),
-   `club-ui.tsx` (`ClubCta` coral measures **2.83:1 white — fails even the 3:1 large floor**;
-   point it at `paper.action`, retire `tone="violet"` as an ACTION tone, ADD a `secondary` tone —
-   `session/[sid].tsx` alone has 8 quiet CTAs with nowhere else to go). Full classified census in
-   the design voice's output; the governing rule is **ink = state, coral = action**.
-
-3b. **[local-edit]** The P2 tier the sweep didn't reach: reduced motion across the
-   ~8 remaining loops · gear-dial momentum projection · the surviving CIF items
-   (`rewards.tsx:181` raw English enum, `rewards.tsx:38/42/43` swallowed catches,
-   `requests.tsx` accept-without-confirm, `calendar.tsx:92` filler claim) · and
-   **`apply.tsx:964,:985`, which the design review missed** — opacity state paints
-   survived the purge there.
-
-**Done this session (2026-08-11 pm):** §⑯-2 component sweep shipped (`3001c5f`);
-`[CIF]` findings re-verified (every CIF P1 genuinely fixed by the conversion);
-§⑮ pressure-tested and overruled by Sean; payments plan drafted, reviewed by three
-independent voices, and **paused at D-A**.
+3b. **[local-edit]** The P2 tier: reduced motion across the ~8 remaining loops · gear-dial momentum
+   projection · the surviving CIF items (`rewards.tsx:181`, `rewards.tsx:38/42/43`,
+   `requests.tsx` accept-without-confirm, `calendar.tsx:92`) · `apply.tsx:964,:985` opacity state
+   paints · and the **new** emoji finding in TODOS: `seed.sql` ships `♒`/`☀` in `routes.features`
+   which iOS renders as colour emoji by font fallback, on the owner home, right now.
 
 ## ⑰ Verification commands
 
