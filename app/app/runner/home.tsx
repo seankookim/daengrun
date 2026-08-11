@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Animated, Easing, Pressable, ScrollView, StyleSheet, Text, TextStyle, View } from 'react-native';
 import { BottomNav } from '../../src/components/bottomnav';
 import { BrandMark } from '../../src/components/brandmark';
+import { TabSwipe } from '../../src/components/tabswipe';
 import { CourseStrip } from '../../src/components/CourseStrip';
 import { RunnerClubCard } from '../../src/components/clubcard';
 import { Icon, Row } from '../../src/components/ui';
@@ -168,6 +169,18 @@ export default function RunnerHome() {
   // 진행 중 카드의 픽업 주소 한 줄 (0060 definer RPC). 서버가 행을 준 경우에만 채워진다 —
   // 0행(주소 미지정·24h 창 밖)과 에러는 둘 다 null로 접고 카드에 아무 줄도 그리지 않는다.
   const [jobAddr, setJobAddr] = useState<PickupAddress | null>(null);
+  // [Ⓑ② 2026-08-12] 가용시간 접기 — 순수 표시 상태. 기본은 접힘(요약이 기본값이라 접기가 의미를 갖는다).
+  // avail 데이터·toggleDay·3개 술어와 아무 관계 없다.
+  const [availOpen, setAvailOpen] = useState(false);
+  const availDays = avail?.length ?? 0;
+  // [E7 2026-08-12] 기록면이 이 화면으로 오면서 rs 로드가 **재시도 가능한 문**을 갖게 됐다 —
+  // 실패 스트립의 '다시 시도'가 부를 대상. 포커스 이펙트도 이걸 쓴다 (한 곳에서만 로드).
+  const reloadStatus = useCallback(() => {
+    fetchMyRunnerStatus()
+      .then((v) => { setRs(v); setRsErr(false); })
+      .catch((e) => { console.warn('[rhome] status:', e?.message ?? e); setRsErr(true); })
+      .finally(() => setRsLoaded(true));
+  }, []);
 
   // [Sean] 거절한 요청은 다시 안 본다 — 서버 정본은 0056 booking_declines(뷰 제외). 이 Set은 거절 POST와
   // 다음 fetch 사이 깜빡임을 막는 낙관 레이어 + 로그 기록 실패(엣지 fn fail-open)의 폴백.
@@ -245,11 +258,8 @@ export default function RunnerHome() {
       .then(({ earned }) => setPatchMap(Object.fromEntries(earned.map((pt) => [pt.routeId, pt]))))
       .catch(() => {});
     registerPushToken(); // APNs (0024) — 러너는 푸시가 곧 수입 (요청 도착 알림)
-    fetchMyRunnerStatus()
-      .then((v) => { setRs(v); setRsErr(false); })
-      .catch((e) => { console.warn('[rhome] status:', e?.message ?? e); setRsErr(true); })
-      .finally(() => setRsLoaded(true));
-  }, [loadInbox]));
+    reloadStatus();
+  }, [loadInbox, reloadStatus]));
 
   // 온라인 토글 — 실저장 (오프라인이면 추천·동네 러너 셸프에서 빠짐). 빕 위 스위치가 이 상태를 쓴다.
   const toggleOnline = () => {
@@ -334,6 +344,8 @@ export default function RunnerHome() {
 
   return (
     <View style={{ flex: 1, backgroundColor: paper.canvas }}>{/* [페이퍼 크롬] 라일락 캔버스 은퇴 → 백지 */}
+      {/* [2026-08-12] 탭 스와이프 — 상단 크롬(브랜드 마크+벨)까지 함께 민다. 도크만 제자리. */}
+      <TabSwipe>
       {/* ————— 상단 크롬 — 플레인 화이트 + 코랄 헤어라인 · 브랜드 마크 + 알림 벨 —————
            [정체성 2026-08-11 · Sean 재정] 보호자 홈은 **패스포트**(브랜드 마스트헤드), 러너 홈은
            **빕**(아래 스트랩). 이 규칙으로 오늘 아침 '다' 글리프 칩 + 'RUNNER' 키커를 뺐는데 —
@@ -466,11 +478,18 @@ export default function RunnerHome() {
               {jobAddr && (
                 <Text style={styles.nowSub} numberOfLines={1}>{jobAddr.label} · {jobAddr.addr}</Text>
               )}
-              {/* [액션 롤아웃 2026-08-11] 여기엔 코랄 **면**이 있었다 — 그런데 그건 버튼이 아니라
-                  <View>였다. 탭 타깃은 카드 전체(이 Pressable)다. 코랄 면은 '여기를 누르세요'라는
-                  약속인데 그 자리는 누를 수 없는 자리였다. 면을 링크로 강등한다: 잉크 링크가
-                  '카드가 눌린다'를 정직하게 말하고, 코랄 면은 진짜 타깃에만 남는다. */}
-              <Text style={styles.nowGo}>{STAGE[current.rawStatus]?.action ?? '이어서 진행 ›'}</Text>
+              {/* [Ⓐ① 2026-08-12 · Sean 랩 픽] 코랄 **면**이 돌아온다 — 이번엔 진짜 타깃 위에.
+                  경위: 8/11에 여기 있던 코랄 면은 버튼이 아니라 <View>였다. 누를 수 없는 자리에
+                  '누르세요'라고 칠해져 있었으므로 잉크 링크로 강등한 것이 옳았다. Sean의 지적은
+                  그 다음 문제였다 — 링크는 링크로 읽히고, 관제탑의 심장이 너무 무심했다.
+                  해법은 다시 칠하는 게 아니라 **진짜 타깃을 보이게** 하는 것: 이 바는 카드와 같은
+                  Pressable 안에 있다(별도 onPress 없음 — 카드 전체가 여전히 하나의 타깃이다).
+                  그래서 코랄 면이 가리키는 자리와 실제로 눌리는 자리가 처음으로 일치한다.
+                  라벨은 STAGE[rawStatus].action 실값 그대로 — 단계마다 다음 행동이 다르다.
+                  pointerEvents="none": 바는 그림이지 중첩 타깃이 아니다 (탭 타깃은 하나로 유지). */}
+              <View pointerEvents="none" style={styles.nowBar}>
+                <Text style={styles.nowBarTxt}>{STAGE[current.rawStatus]?.action ?? '이어서 진행 ›'}</Text>
+              </View>
             </Pressable>
           </>
         )}
@@ -758,29 +777,73 @@ export default function RunnerHome() {
 
         {/* ————— 러닝 가능 시간 — 요일 탭 (온라인 토글은 스트랩 위) ————— */}
         <SectionHead title="러닝 가능 시간" link="시간 조정 ›" onPress={() => router.push('/runner/availability')} />
+        {/* [Ⓑ② 2026-08-12 · Sean 랩 픽] 접기 — 7칸 스트립.
+            ⚠ 표시만 바뀐다. avail · toggleDay · DAY_ORDER/DAY_NAME/hh · 가용성의 3개 술어는
+            전부 그대로다 (DO-NOT-REFACTOR, DESIGN.md §9).
+            접힘 = 어느 요일에 뛰는가(7칸) · 펼침 = 몇 시에 뛰는가(기존 칩, 여기서만 토글).
+            스트립과 칩은 **동시에 뜨지 않는다** — 둘 다 요일 글자를 인쇄하므로 겹치면 같은 사실이
+            한 화면에 두 번이다.
+            🔴 랩에서 이 안에 걸어둔 유일한 반대가 타입 플로어였는데(12pt 요일 글자, 한글은 라틴
+            키커 예외를 못 탄다 — §3), 실측해보니 걸 필요가 없었다: 320dp에서 카드 콘텐츠 폭은
+            320 − 30 거터 − 26 카드 패딩 = 264, 갭 3×6 = 18을 빼면 칸당 ≈ 35px. 14pt 한글 한 글자는
+            ≈ 14px이라 여유가 두 배다. 그래서 **14pt로 짓는다** — 플로어를 지키고 칸도 안 키운다. */}
         <View style={styles.card}>
           {!avail ? (
             <Text style={{ fontSize: 14, color: lilac.dim }}>불러오는 중...</Text>
           ) : (
             <>
-              <Row style={{ gap: 4 }}>
-                {DAY_ORDER.map((wd) => {
-                  const rule = avail.find((r) => r.weekday === wd);
-                  const on = !!rule;
-                  return (
-                    <Pressable key={wd} onPress={() => toggleDay(wd)} style={[styles.day, on && styles.dayOn]}>
-                      <Text style={[styles.dayD, { color: on ? lilac.head : lilac.dim }]}>{DAY_NAME[wd]}</Text>
-                      <Text style={[styles.dayH, { color: on ? lilac.accent : lilac.dim }]}>
-                        {rule ? `${hh(rule.startMin)}–${hh(rule.endMin)}` : '쉼'}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </Row>
-              {/* [2026-08-10 filler cull] tap-narration clause dropped — the chips demonstrate the tap */}
-              <Text style={{ fontSize: 14, lineHeight: 18, color: lilac.dim, marginTop: 9 }}>
-                기본 06–22시 · 보호자 예약 화면에 즉시 반영
-              </Text>
+              <Pressable
+                onPress={() => setAvailOpen((v) => !v)}
+                accessibilityRole="button"
+                accessibilityState={{ expanded: availOpen }}
+                accessibilityLabel={`러닝 가능 시간 주 ${availDays}일 — ${availOpen ? '접기' : '펼치기'}`}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 44 }}
+              >
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={{ fontSize: 14, lineHeight: 18, fontWeight: '700', color: lilac.head }}>
+                    주 {availDays}일 가능
+                  </Text>
+                  {/* 접힘 상태의 정보량이 이 안의 값 — 며칠인지가 아니라 **어느 요일**인지 보인다.
+                      요약 스트립이라 토글하지 않는다 (토글은 펼친 칩의 일). */}
+                  {!availOpen && (
+                    <Row style={{ gap: 3, marginTop: 7 }}>
+                      {DAY_ORDER.map((wd) => {
+                        const on = !!avail.find((r) => r.weekday === wd);
+                        return (
+                          <View key={wd} style={[styles.sq, on && styles.sqOn]}>
+                            <Text style={[styles.sqTxt, { color: on ? '#FFFFFF' : lilac.dim }]}>{DAY_NAME[wd]}</Text>
+                          </View>
+                        );
+                      })}
+                    </Row>
+                  )}
+                </View>
+                {/* 셰브론 — 펼침이면 ⌄, 접힘이면 › (산증 글리프만) */}
+                <Text style={{ fontSize: 19, lineHeight: 24, color: lilac.dim }}>{availOpen ? '⌄' : '›'}</Text>
+              </Pressable>
+
+              {availOpen && (
+                <View style={{ marginTop: 11, paddingTop: 11, borderTopWidth: 1, borderTopColor: '#EEEEEE' }}>
+                  <Row style={{ gap: 4 }}>
+                    {DAY_ORDER.map((wd) => {
+                      const rule = avail.find((r) => r.weekday === wd);
+                      const on = !!rule;
+                      return (
+                        <Pressable key={wd} onPress={() => toggleDay(wd)} style={[styles.day, on && styles.dayOn]}>
+                          <Text style={[styles.dayD, { color: on ? lilac.head : lilac.dim }]}>{DAY_NAME[wd]}</Text>
+                          <Text style={[styles.dayH, { color: on ? lilac.accent : lilac.dim }]}>
+                            {rule ? `${hh(rule.startMin)}–${hh(rule.endMin)}` : '쉼'}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </Row>
+                  {/* [2026-08-10 filler cull] tap-narration clause dropped — the chips demonstrate the tap */}
+                  <Text style={{ fontSize: 14, lineHeight: 18, color: lilac.dim, marginTop: 9 }}>
+                    기본 06–22시 · 보호자 예약 화면에 즉시 반영
+                  </Text>
+                </View>
+              )}
             </>
           )}
         </View>
@@ -836,22 +899,53 @@ export default function RunnerHome() {
              수치는 rs.totalKm — settle_run_tx가 실주행마다 올리는 runners.total_km이고, 이 화면
              어디에도 인쇄되지 않은 유일한 러너 실적이다 (누적 '회수'는 리워드 트레일이 이미 말한다 —
              한 사실은 한 화면에 한 번). 로딩·실패는 0이 아니라 '—' (로딩≠0 법). ————— */}
+        {/* [E7 승인 2026-08-12 · Sean] 여권의 **기록면**이 마이에서 여기로 왔다. 어제는 이 자리에
+            임시 라이트 카드를 뒀었는데(아티팩트를 임의로 뜯을 수 없어서), 승인이 났으니 진짜 물건을
+            옮긴다 — 나이트 라일락 면 · 홀로 엣지 · 상세 기록 보기 문까지 같은 오브젝트다.
+            🔴 옮기면서 **죽은 칸 하나를 버렸다**: 러너의 '평균 페이스'는 영원히 '—'였다.
+            my.tsx:59가 `fetchMyRunnerStatus()`를 `any`로 캐스팅한 뒤 `r.paceLabel`을 읽는데
+            MyRunnerStatus에 그런 필드가 없다 (`{totalRuns, totalKm, online, tier}`) — 즉 값이 온 적이
+            없는 칸이다 (시뮬레이터에서도 '—'로 확인). 없는 필드를 홈까지 데려가지 않는다.
+            '총 횟수'도 뺐다 — 리워드 트레일이 같은 화면에서 '누적 N회'로 이미 인쇄한다.
+            남는 실적은 총 거리 하나, 그리고 그게 이 면의 큰 숫자가 된다.
+            목적지는 /cards(컬렉션) — 마이에서는 /runner/home이었는데, 홈에 사는 카드가 홈으로
+            가리키면 순환이다. */}
         <SectionHead title="내 기록" link="컬렉션 ›" onPress={() => router.push('/cards')} />
         <Pressable
           onPress={() => router.push('/cards')}
-          style={({ pressed }) => [styles.card, pressed && styles.pressed96]}
+          style={({ pressed }) => [styles.record, pressed && styles.pressed96]}
           accessibilityRole="button"
           accessibilityLabel="컬렉션 열기"
         >
-          <Row style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
-            <Text style={{ fontSize: 14, lineHeight: 18, fontWeight: '700', color: lilac.head }}>누적 거리</Text>
-            {/* Oswald — lineHeight 33 = 1.27× (BUG A) */}
-            <Text style={[{ fontSize: 26, lineHeight: 33, fontWeight: '900', color: paper.ink, fontVariant: ['tabular-nums'] as const }, nf]}>
+          <View style={styles.recordInner}>
+            <Row style={{ justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <Text style={{ fontSize: 15, fontWeight: '800', color: '#fff' }}>나의 러닝 기록</Text>
+              <Row style={{ alignItems: 'center', gap: 5 }}>
+                <View style={styles.coralDot} />
+                <Text style={[styles.recordKick, nf]}>RECORD / 기록면</Text>
+              </Row>
+            </Row>
+            {/* 로딩·실패는 0이 아니라 '—' (단위도 함께 접어 대시에 매달리지 않게) */}
+            <Text style={[styles.recN, nf]}>
               {rsLoaded && !rsErr ? rs.totalKm.toFixed(1) : '—'}
-              <Text style={{ fontSize: 15, fontWeight: '800', color: lilac.dim }}> km</Text>
+              <Text style={styles.recU}>{rsLoaded && !rsErr ? ' km' : ''}</Text>
             </Text>
-          </Row>
+            <Text style={styles.recL}>총 거리</Text>
+            <View style={styles.recGoWrap}>
+              <Text style={styles.recGo}>상세 기록 보기 ›</Text>
+            </View>
+          </View>
         </Pressable>
+        {/* 기록 로드 실패 — '—'가 로딩인지 실패인지 여기서 갈린다 (라우드 페일 + 재시도).
+            다크 면 '밖'에 붙여 크리티컬 잉크의 대비를 지킨다 (my.tsx recFail 선례 그대로). */}
+        {rsErr && (
+          <Row style={styles.recFail}>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: paper.critical }}>러닝 기록을 불러오지 못했어요</Text>
+            <Pressable onPress={reloadStatus} hitSlop={8} accessibilityRole="button" accessibilityLabel="러닝 기록 다시 불러오기">
+              <Text style={{ fontSize: 16, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' }}>다시 시도</Text>
+            </Pressable>
+          </Row>
+        )}
 
         {/* ————— 동네 코스 — 헤더는 컴포넌트가 §3b 그램마로 그린다 (bleed = 패딩 컨테이너에서 풀블리드 룰) ————— */}
         <View style={{ marginTop: 8 }}>
@@ -876,6 +970,7 @@ export default function RunnerHome() {
         {/* [Ⓑ① 2026-08-11] 푸터 은퇴 — 누적·티어·온라인 전부 재인쇄였다 (티어·온라인 = 스트랩,
             누적 = 리워드 트레일 '누적 N회'). 각 사실은 화면에 한 번만. */}
       </ScrollView>
+      </TabSwipe>
 
       <BottomNav />
     </View>
@@ -951,8 +1046,12 @@ const styles = StyleSheet.create({
   swLabel: { fontSize: 15, lineHeight: 19, letterSpacing: 1, fontWeight: '700' },
 
   // ② 머니 히어로 장부 — [Ⓑ①] 잉크 1.5px 보더 = 히어로 강조 (구 이중 프레임 card+ledgerIn 은퇴 → 단일 박스)
+  // [Ⓐ① 동반 변경 2026-08-12] 보더 1.5 → 1px. §7b Von Restorff / 강조 예산은 화면당 고립된 강조
+  // **하나**다. 진행 중 카드가 코랄 액션 바를 얻는 순간, 장부의 1.5px 잉크 보더와 둘이 싸운다 —
+  // 그리고 러닝이 진행 중일 때 러너 홈의 강조는 장부가 아니라 그 카드여야 한다 (관제탑의 심장).
+  // 장부는 카드 중 가장 무거운 상태를 유지하되(잉크 1px + 홀로 엣지), 우승은 넘긴다.
   ledger: {
-    marginTop: 12, backgroundColor: lilac.card, borderWidth: 1.5, borderColor: lilac.head, borderRadius: 0,
+    marginTop: 12, backgroundColor: lilac.card, borderWidth: 1, borderColor: lilac.head, borderRadius: 0,
     paddingHorizontal: 12, paddingTop: 11, paddingBottom: 10, overflow: 'hidden',
   },
   // [§3b status chip] 16/800 · 보더 없는 틴트 필 · 샤프 (앰버 = 시맨틱 지명 신호)
@@ -997,7 +1096,15 @@ const styles = StyleSheet.create({
   nowTitle: { marginTop: 8, fontSize: 16, lineHeight: 21, fontWeight: '700', color: lilac.head },
   nowSub: { marginTop: 3, fontSize: 14, lineHeight: 18, color: lilac.dim },
   // 액션 링크 — 면이 아니라 잉크. actionInk는 캔버스 위 5.99:1.
-  nowGo: { marginTop: 11, fontSize: 16, lineHeight: 21, fontWeight: '800', color: paper.actionInk, textAlign: 'right' },
+  // [Ⓐ①] nowGo(잉크 링크) → nowBar(액션 면). §3b 버튼 매트릭스의 프라이머리 치수를 그대로 쓴다:
+  // paper.action 면 · radius 0 · paddingVertical ≥15 · 흰 라벨 17/800 (실측 4.84:1, 전 크기 AA).
+  // 카드 안쪽 패딩(좌 14 / 우 12)을 음수 마진으로 되받아 바가 카드 폭을 가득 채운다 — 머니 버튼의
+  // '풀블리드, 사이드 마진 없음' 문법. 아래쪽은 카드의 paddingBottom 12를 그대로 먹고 앉는다.
+  nowBar: {
+    marginTop: 12, marginLeft: -14, marginRight: -12, marginBottom: -12,
+    backgroundColor: paper.action, paddingVertical: 15, alignItems: 'center',
+  },
+  nowBarTxt: { fontSize: 17, lineHeight: 22, fontWeight: '800', color: '#FFFFFF' },
 
   // ① 티켓 — [페이퍼 크롬] 샤프·뉴트럴, 섀도 은퇴 (퍼포레이션 아티팩트 생존 · [Ⓑ①] 홀로/바코드는 예산 은퇴)
   ticket: { marginTop: 9 },
@@ -1066,6 +1173,38 @@ const styles = StyleSheet.create({
   flagCnt: { fontSize: 14, lineHeight: 18, fontWeight: '600', color: lilac.head },
 
   // ④ 가능 시간 — 목업 .day padding 8 0 7 · [페이퍼 크롬] 샤프·뉴트럴 (dayOn 바이올렛 틴트는 액센트 생존)
+  // [E7 2026-08-12] 기록면 — my.tsx에서 그대로 옮겨온 아티팩트 (§1 "다크는 아티팩트"). 값은
+  // my.tsx의 s.record / s.recordInner / s.recN … 과 동일하다. 라디우스만 라일락 스케일 대신
+  // 0 — 이 화면은 페이퍼 크롬이고 §3b는 클럽 카드까지 포함해 모든 코너를 샤프로 못박았다.
+  record: {
+    backgroundColor: '#1C1837', borderRadius: 0, overflow: 'hidden', marginTop: 10,
+    shadowColor: '#120E2C', shadowOpacity: 0.34, shadowRadius: 26, shadowOffset: { width: 0, height: 10 }, elevation: 6,
+  },
+  recordInner: { margin: 9, borderWidth: 1, borderColor: 'rgba(255,255,255,0.13)', borderRadius: 0, padding: 13 },
+  recordKick: { fontSize: 14, lineHeight: 18, letterSpacing: 1, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase' },
+  coralDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: lilac.coral },
+  // 큰 숫자 — 세 칸이 한 칸이 되면서 23 → 34로 승격 (BUG A: lineHeight 43 = 1.26×)
+  recN: { fontSize: 34, lineHeight: 43, fontWeight: '800', color: '#fff' },
+  recU: { fontSize: 15, fontWeight: '500', color: 'rgba(255,255,255,0.55)' },
+  recL: { fontSize: 14, lineHeight: 18, color: 'rgba(255,255,255,0.62)', marginTop: 2 },
+  recGoWrap: { marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.13)', alignItems: 'flex-end' },
+  recGo: { fontSize: 14, fontWeight: '700', color: '#fff' },
+  recFail: {
+    alignItems: 'center', justifyContent: 'space-between', gap: 9,
+    marginHorizontal: -layout.gutter, marginTop: 8, paddingVertical: 11, paddingHorizontal: layout.gutter,
+    backgroundColor: paper.canvas, borderTopWidth: 1, borderBottomWidth: 1, borderColor: paper.critical,
+  },
+
+  // [Ⓑ②] 접힘 상태의 7칸 스트립. 320dp 실측: 콘텐츠 264 − 갭 3×6 = 246 / 7 ≈ 35px/칸.
+  // 14pt 한글 한 글자 ≈ 14px이라 여유가 두 배 — 랩이 걸어둔 타입 플로어 반대는 실측으로 해소됐다.
+  // 높이 26은 요약 표식의 크기다 (탭 타깃은 이 스트립이 아니라 감싸는 44pt 행이 진다).
+  sq: {
+    flex: 1, height: 26, borderRadius: 0, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: lilac.card, borderWidth: 1, borderColor: '#E6E2F4',
+  },
+  sqOn: { backgroundColor: lilac.accent, borderColor: lilac.accent },
+  sqTxt: { fontSize: 14, lineHeight: 18, fontWeight: '800' },
+
   day: { flex: 1, borderRadius: 0, paddingVertical: 8, alignItems: 'center', backgroundColor: lilac.card, borderWidth: 1, borderColor: '#EEEEEE' },
   dayOn: { backgroundColor: '#F4F1FE', borderColor: '#DCD6F8' },
   dayD: { fontSize: 14, fontWeight: '700', lineHeight: 18 },

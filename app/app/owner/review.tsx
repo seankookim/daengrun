@@ -4,13 +4,16 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 
 import { Row } from '../../src/components/ui';
 import { haptic } from '../../src/lib/haptics';
 import { supabase } from '../../src/lib/supabase';
-import { colors } from '../../src/theme';
+import { colors, paper } from '../../src/theme';
 
 // 보호자 → 러너 후기 — 양방향 신뢰의 나머지 반쪽. reviews(target_kind 'runner').
 // 러너 스토어프런트 ★평균·후기 리스트의 원천 (0011 정책으로 전체 공개 읽기).
 // 진입: 리포트 '러너 후기 남기기' (bid·rid·rname 파라미터)
 
-const FOREST = '#0F1D13';
+// [2026-08-12 · Sean "remove forest"] 이 파일의 로컬 상수 FOREST = '#0F1D13' 은퇴. 은퇴된 스왈프/포레스트 팔레트의
+// 마지막 잔재였고, 12개 파일에 각자 로컬 상수로 복사돼 있었다 (한 값에 주인 12명).
+// paper.ink(#111111)로 접는다 — 색차는 사실상 안 보이고(둘 다 근처 검정), 그게 정확히 아무도
+// 못 본 이유다. 다크 면에도 같은 토큰을 쓴다 — 캘린더 보드·정산 티켓·빕 스트랩이 이미 그런다.
 const TAGS = ['시간 약속 철저', '사진 잘 찍어줘요', '소통이 빨라요', '아이를 잘 다뤄요', '페이스 조절 굿', '또 부르고 싶어요'];
 
 export default function OwnerReview() {
@@ -59,11 +62,11 @@ export default function OwnerReview() {
     <ScrollView style={{ flex: 1, backgroundColor: colors.cream }} contentContainerStyle={{ padding: 16, paddingTop: 56, paddingBottom: 40 }}>
       <Row style={{ justifyContent: 'space-between' }}>
         <Pressable onPress={() => router.back()} style={s.backBtn}><Text style={{ fontSize: 20.5 }}>‹</Text></Pressable>
-        <Text style={{ fontSize: 23, fontWeight: '900', color: FOREST }}>러너 후기</Text>
+        <Text style={{ fontSize: 23, fontWeight: '900', color: paper.ink }}>러너 후기</Text>
         <View style={{ width: 40 }} />
       </Row>
 
-      <Text style={{ fontSize: 17, fontWeight: '800', color: FOREST, textAlign: 'center', marginTop: 22 }}>
+      <Text style={{ fontSize: 17, fontWeight: '800', color: paper.ink, textAlign: 'center', marginTop: 22 }}>
         {rname ?? '러너'}님과의 러닝, 어땠나요?
       </Text>
 
@@ -101,7 +104,7 @@ export default function OwnerReview() {
 
       {/* private flag */}
       <Pressable onPress={() => setPrivateFlag((v) => !v)} style={s.privRow}>
-        <View style={[s.check, privateFlag && { backgroundColor: FOREST, borderColor: FOREST }]}>
+        <View style={[s.check, privateFlag && { backgroundColor: paper.ink, borderColor: paper.ink }]}>
           {privateFlag && <Text style={{ fontSize: 11.5, fontWeight: '900', color: '#fff' }}>✓</Text>}
         </View>
         <Text style={{ flex: 1, fontSize: 14, color: '#49524a', lineHeight: 19.5 }}>
@@ -110,7 +113,7 @@ export default function OwnerReview() {
       </Pressable>
 
       <Pressable onPress={submit} disabled={busy} style={[s.cta, busy && { opacity: 0.5 }]}>
-        <Text style={{ fontSize: 16.5, fontWeight: '900', color: FOREST }}>{busy ? '등록 중...' : '후기 등록'}</Text>
+        <Text style={{ fontSize: 16.5, fontWeight: '900', color: paper.ink }}>{busy ? '등록 중...' : '후기 등록'}</Text>
       </Pressable>
     </ScrollView>
   );
@@ -121,7 +124,7 @@ const s = StyleSheet.create({
   tag: { backgroundColor: '#fff', borderRadius: 99, borderWidth: 1.3, borderColor: '#DCD6C4', paddingVertical: 9, paddingHorizontal: 14 },
   input: {
     backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: '#DCD6C4',
-    padding: 14, marginTop: 20, height: 100, textAlignVertical: 'top', fontSize: 15.5, color: FOREST,
+    padding: 14, marginTop: 20, height: 100, textAlignVertical: 'top', fontSize: 15.5, color: paper.ink,
   },
   privRow: { flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 14 },
   check: { width: 20, height: 20, borderRadius: 6, borderWidth: 1.5, borderColor: '#dcd9cc', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },

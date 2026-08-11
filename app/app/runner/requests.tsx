@@ -2,6 +2,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BottomNav } from '../../src/components/bottomnav';
+import { TabSwipe } from '../../src/components/tabswipe';
 import { DemandStrip } from '../../src/components/clubcard';
 import { Avatar, Row } from '../../src/components/ui';
 import { acceptBooking, acceptReschedule, declineReschedule, fetchRescheduleRequests, fetchRunnerInbox, OpenRequest, RescheduleRequest } from '../../src/lib/api';
@@ -96,6 +97,7 @@ export default function Requests() {
 
   return (
     <View style={{ flex: 1, backgroundColor: paper.canvas }}>
+      <TabSwipe>
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingHorizontal: layout.gutter, paddingTop: 60, paddingBottom: 30 }}
@@ -314,6 +316,7 @@ export default function Requests() {
           </Text>
         </View>
       </ScrollView>
+      </TabSwipe>
       <BottomNav />
     </View>
   );

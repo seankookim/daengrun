@@ -2,6 +2,7 @@ import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BottomNav } from '../../src/components/bottomnav';
+import { TabSwipe } from '../../src/components/tabswipe';
 import { Row } from '../../src/components/ui';
 import { fetchLedger, fetchLedgerTotal, LiveLedgerItem } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
@@ -58,6 +59,7 @@ export default function Earnings() {
 
   return (
     <View style={{ flex: 1, backgroundColor: paper.canvas }}>
+      <TabSwipe>
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingHorizontal: layout.gutter, paddingTop: 60, paddingBottom: 30 }}
@@ -166,6 +168,7 @@ export default function Earnings() {
           기록된 금액이에요 — 지급 일정은 결제 연동 후 안내드려요 (사업소득 3.3% 원천징수 예정)
         </Text>
       </ScrollView>
+      </TabSwipe>
       <BottomNav />
     </View>
   );

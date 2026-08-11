@@ -9,7 +9,10 @@ import { colors, paper } from '../src/theme';
 // 동네 랭킹 — 주간 리더보드 (강아지 km / 러너 러닝 수) + 내 하이 포인트.
 // 서버 집계 함수(0012) 기반 — 개인 데이터는 비공개, 이름·사진·주간 합계만.
 
-const FOREST = '#0F1D13';
+// [2026-08-12 · Sean "remove forest"] 이 파일의 로컬 상수 FOREST = '#0F1D13' 은퇴. 은퇴된 스왈프/포레스트 팔레트의
+// 마지막 잔재였고, 12개 파일에 각자 로컬 상수로 복사돼 있었다 (한 값에 주인 12명).
+// paper.ink(#111111)로 접는다 — 색차는 사실상 안 보이고(둘 다 근처 검정), 그게 정확히 아무도
+// 못 본 이유다. 다크 면에도 같은 토큰을 쓴다 — 캘린더 보드·정산 티켓·빕 스트랩이 이미 그런다.
 const BIB_BAND = ['#F2DA96', '#dfe3e8', '#f3cba8']; // 골드 · 실버 · 브론즈 파스텔 밴드 — 메달 이모지 은퇴, 밴드 색이 순위를 말한다
 
 export default function Leaderboard() {
@@ -47,7 +50,7 @@ export default function Leaderboard() {
       >
         <Row style={{ justifyContent: 'space-between' }}>
           <Pressable onPress={() => router.back()} style={s.backBtn}><Text style={{ fontSize: 20.5 }}>‹</Text></Pressable>
-          <Text style={[{ fontSize: 23, fontWeight: '900', color: FOREST }, df]}>동네 랭킹</Text>
+          <Text style={[{ fontSize: 23, fontWeight: '900', color: paper.ink }, df]}>동네 랭킹</Text>
           <View style={{ width: 40 }} />
         </Row>
         <Text style={{ fontSize: 15, color: colors.dim, textAlign: 'center', marginTop: 6 }}>
@@ -84,7 +87,7 @@ export default function Leaderboard() {
         {/* tabs */}
         <View style={s.tabWrap}>
           {([['dogs', '강아지 (거리)'], ['runners', '러너 (러닝 수)']] as const).map(([k, label]) => (
-            <Pressable key={k} onPress={() => setTab(k)} style={[s.tab, tab === k && { backgroundColor: FOREST }]}>
+            <Pressable key={k} onPress={() => setTab(k)} style={[s.tab, tab === k && { backgroundColor: paper.ink }]}>
               <Text style={{ fontSize: 14.5, fontWeight: '800', color: tab === k ? '#fff' : '#49524a' }}>{label}</Text>
             </Pressable>
           ))}
@@ -100,7 +103,7 @@ export default function Leaderboard() {
           <View style={s.failStrip}>
             <Text style={{ fontSize: 14, fontWeight: '700', color: paper.critical }}>랭킹을 불러오지 못했어요</Text>
             <Pressable onPress={load} style={s.retryBtn} accessibilityRole="button">
-              <Text style={{ fontSize: 16, fontWeight: '800', color: FOREST }}>다시 시도</Text>
+              <Text style={{ fontSize: 16, fontWeight: '800', color: paper.ink }}>다시 시도</Text>
             </Pressable>
           </View>
         )}
@@ -122,14 +125,14 @@ export default function Leaderboard() {
                 <View key={`${r.name}-${rank}`} style={[s.bib, first && s.bibFirst]}>
                   {/* 상단 밴드 + 펀치홀 — 레이스 빕 조형 (미니 빕 스탯과 같은 모티프) */}
                   <View style={[s.bibBand, { backgroundColor: BIB_BAND[rank] }]}>
-                    <Text style={{ fontSize: 10, fontWeight: '900', color: FOREST, letterSpacing: 1.5 }}>NO.{rank + 1}</Text>
+                    <Text style={{ fontSize: 10, fontWeight: '900', color: paper.ink, letterSpacing: 1.5 }}>NO.{rank + 1}</Text>
                   </View>
                   <Row style={{ justifyContent: 'space-between', paddingHorizontal: 14, marginTop: -5 }}>
                     <View style={s.bibHole} /><View style={s.bibHole} />
                   </Row>
                   <View style={{ alignItems: 'center', paddingTop: 4, paddingBottom: first ? 14 : 11 }}>
                     <Avatar url={r.photoUrl} char={r.name[0]} bg={tab === 'dogs' ? '#c9a86e' : '#5a7a3c'} size={first ? 46 : 38} />
-                    <Text style={{ fontSize: first ? 15 : 14, fontWeight: '900', color: FOREST, marginTop: 6 }} numberOfLines={1}>
+                    <Text style={{ fontSize: first ? 15 : 14, fontWeight: '900', color: paper.ink, marginTop: 6 }} numberOfLines={1}>
                       {r.name}
                     </Text>
                     <Text style={{ fontSize: first ? 19 : 16, fontWeight: '900', color: '#5a7a3c', marginTop: 2 }}>
@@ -147,7 +150,7 @@ export default function Leaderboard() {
               {i + 4}
             </Text>
             <Avatar url={r.photoUrl} char={r.name[0]} bg={tab === 'dogs' ? '#c9a86e' : '#5a7a3c'} size={40} />
-            <Text style={{ flex: 1, fontSize: 16.5, fontWeight: '800', color: FOREST, marginLeft: 10 }} numberOfLines={1}>
+            <Text style={{ flex: 1, fontSize: 16.5, fontWeight: '800', color: paper.ink, marginLeft: 10 }} numberOfLines={1}>
               {r.name}
             </Text>
             <Text style={{ fontSize: 17, fontWeight: '900', color: '#5a7a3c' }}>
@@ -166,13 +169,13 @@ export default function Leaderboard() {
 
 const s = StyleSheet.create({
   backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DCD6C4' },
-  milesCard: { backgroundColor: FOREST, borderRadius: 20, padding: 18, marginTop: 16 },
+  milesCard: { backgroundColor: paper.ink, borderRadius: 20, padding: 18, marginTop: 16 },
   tabWrap: { flexDirection: 'row', backgroundColor: '#fff', borderRadius: 99, padding: 4, marginTop: 16, borderWidth: 1, borderColor: '#DCD6C4' },
   tab: { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 99 },
   emptyBox: { marginTop: 20, backgroundColor: '#f4f2ea', borderRadius: 16, padding: 18 },
   // loud-fail strip — criticalWash bg + critical ink + retry (community.tsx grammar)
   failStrip: { marginTop: 20, backgroundColor: paper.criticalWash, borderRadius: 16, padding: 13 },
-  retryBtn: { alignSelf: 'flex-start', marginTop: 10, minHeight: 40, justifyContent: 'center', paddingHorizontal: 14, borderWidth: 1, borderColor: FOREST, backgroundColor: '#fff' },
+  retryBtn: { alignSelf: 'flex-start', marginTop: 10, minHeight: 40, justifyContent: 'center', paddingHorizontal: 14, borderWidth: 1, borderColor: paper.ink, backgroundColor: '#fff' },
   row: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff',
     borderRadius: 16, padding: 12, borderWidth: 1, borderColor: '#DCD6C4', marginTop: 8,
@@ -181,7 +184,7 @@ const s = StyleSheet.create({
   bib: {
     flex: 1, backgroundColor: '#fff', borderRadius: 14, overflow: 'hidden',
     borderWidth: 1, borderColor: '#DCD6C4',
-    shadowColor: FOREST, shadowOpacity: 0.08, shadowRadius: 7, shadowOffset: { width: 0, height: 4 },
+    shadowColor: paper.ink, shadowOpacity: 0.08, shadowRadius: 7, shadowOffset: { width: 0, height: 4 },
   },
   bibFirst: { borderColor: '#e2c56b', borderWidth: 1.5, shadowOpacity: 0.14 },
   bibBand: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 10, paddingVertical: 6 },

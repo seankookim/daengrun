@@ -5,11 +5,14 @@ import { useAuth } from '../src/auth-context';
 import { Row } from '../src/components/ui';
 import { fetchMyProfile, MyProfile } from '../src/lib/api';
 import { session } from '../src/store';
-import { colors } from '../src/theme';
+import { colors, paper } from '../src/theme';
 
 // 설정 — 실화면. 가짜 하위메뉴 없음: 실계정 정보 + 실동작만, 나머지는 정직 라벨.
 
-const FOREST = '#0F1D13';
+// [2026-08-12 · Sean "remove forest"] 이 파일의 로컬 상수 FOREST = '#0F1D13' 은퇴. 은퇴된 스왈프/포레스트 팔레트의
+// 마지막 잔재였고, 12개 파일에 각자 로컬 상수로 복사돼 있었다 (한 값에 주인 12명).
+// paper.ink(#111111)로 접는다 — 색차는 사실상 안 보이고(둘 다 근처 검정), 그게 정확히 아무도
+// 못 본 이유다. 다크 면에도 같은 토큰을 쓴다 — 캘린더 보드·정산 티켓·빕 스트랩이 이미 그런다.
 const APP_VERSION = '0.9 (파일럿)';
 
 export default function Settings() {
@@ -24,7 +27,7 @@ export default function Settings() {
     <ScrollView style={{ flex: 1, backgroundColor: colors.cream }} contentContainerStyle={{ paddingHorizontal: 11, paddingTop: 56, paddingBottom: 40 }}>
       <Row style={{ justifyContent: 'space-between' }}>
         <Pressable onPress={() => router.back()} style={s.backBtn}><Text style={{ fontSize: 20.5 }}>‹</Text></Pressable>
-        <Text style={{ fontSize: 23, fontWeight: '900', color: FOREST }}>설정</Text>
+        <Text style={{ fontSize: 23, fontWeight: '900', color: paper.ink }}>설정</Text>
         <View style={{ width: 40 }} />
       </Row>
 
@@ -92,16 +95,16 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   return (
     <Row style={{ justifyContent: 'space-between', paddingVertical: 12 }}>
       <Text style={{ fontSize: 15.5, color: '#3d453d' }}>{label}</Text>
-      <Text style={{ fontSize: 15.5, fontWeight: '700', color: FOREST }} numberOfLines={1}>{value}</Text>
+      <Text style={{ fontSize: 15.5, fontWeight: '700', color: paper.ink }} numberOfLines={1}>{value}</Text>
     </Row>
   );
 }
 
 const s = StyleSheet.create({
   backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DCD6C4' },
-  section: { fontSize: 17, fontWeight: '900', color: FOREST, marginTop: 20, marginBottom: 8 },
+  section: { fontSize: 17, fontWeight: '900', color: paper.ink, marginTop: 20, marginBottom: 8 },
   card: { backgroundColor: '#fff', borderRadius: 16, paddingHorizontal: 15, borderWidth: 1, borderColor: '#DCD6C4' },
   div: { height: 1, backgroundColor: '#f0eee3' },
   actionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 14 },
-  actionText: { fontSize: 16, fontWeight: '700', color: FOREST },
+  actionText: { fontSize: 16, fontWeight: '700', color: paper.ink },
 });

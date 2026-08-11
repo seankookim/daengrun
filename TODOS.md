@@ -213,9 +213,31 @@ the screen; a subscription screen bound to a client constant is fabricated data.
   `absolute` inside each tab's own `flex:1` box (no index arithmetic) and every transition is a path
   string via `router.replace(t.path)` — grep found **zero** call sites that depend on tab order.
 
-- [ ] 🔴 **"Make screens slidable between different tabs"** — **SCOPED, NOT BUILT. It is not a
-  mechanical change, and the last session's one-line estimate ("needs a pager") was wrong by an
-  order of magnitude.** Four blockers, all measured 2026-08-11:
+- [x] ~~🔴 **"Make screens slidable between different tabs"**~~ **BUILT 2026-08-12 —
+  `src/components/tabswipe.tsx`.** Sean: *"I dont see the slide to switch tab functionality motion
+  working"* — correct; it had been scoped and deliberately left unbuilt. Now shipped as the
+  **edge-swipe** variant (option (b) below), which needs **zero new dependencies and zero native
+  rebuild**, so none of the four blockers had to be paid for.
+  - **Arming is the whole design.** It claims only when the finger *starts within 24pt of a screen
+    edge* AND then moves ≥12px horizontally AND that motion is ≥1.75× the vertical delta. All three
+    are required, which is what lets it coexist with the four horizontal scrollers in ③ (they live
+    inside the 15pt gutter, so a gesture can't start on them at the edge) and with a vertical scroll
+    that happens to begin near the bezel (it fails the ratio test).
+  - **Real 1:1 tracking, not a trigger.** The screen follows the finger; where there is no neighbour
+    it rubber-bands at 0.28× instead of hard-stopping (§7c); it commits on distance **or** flick
+    velocity. The outgoing screen slides out and the incoming one enters from the opposite side —
+    handed over via a module-scope `enterFrom` flag, since the two screens never meet and the router
+    carries no params.
+  - `transform` only, native driver — inside §6, and therefore compatible with the frozen collapsing
+    heroes (the wrapper is `flex:1`, so `s.overlay`'s absolute frame is unchanged; paddingTop
+    reservation, `bgSlide`/`bgScale` and the 36-dot ring are untouched).
+  - Tab order is read from `tabNeighbors()` in `bottomnav.tsx` — one source, so the dock and the
+    gesture can never point different ways. Wired into all 9 tab screens; **only the body slides**,
+    the dock and any modals stay put.
+  - [ ] **A real pager (option (a)) is still a separate slice** and the four blockers below are all
+    still true. Revisit after payments if edge-swipe proves too hidden.
+
+  The four measured blockers, kept for that decision:
 
   1. **No gesture stack exists.** `package.json` has **no** `react-native-gesture-handler`, **no**
      `react-native-reanimated`, **no** `react-native-pager-view`. The whole app runs on RN's
@@ -254,7 +276,14 @@ the screen; a subscription screen bound to a client constant is fabricated data.
   size/weight/lineHeight universal, **color follows the screen's world** (§2), lockup screens
   (owner home brandmark, runner home bib) exempt.
 
-- [ ] **`FOREST = '#0F1D13'` is copy-pasted as a local const in 12 files** — found while auditing
+- [x] ~~**`FOREST = '#0F1D13'` is copy-pasted as a local const in 12 files**~~ **DONE 2026-08-12
+  (Sean: "remove forest").** All 12 local constants deleted, 122 usages folded to `paper.ink`,
+  including the 19 dark-surface uses — `paper.ink` is already the established dark-artifact face
+  (calendar board, settlement ticket, bib strap), so this needed no new token. `FOREST_INNER
+  '#1d3023'` (1 use, owner/report) → `paper.inkPressed`. Zero visual delta by construction, which is
+  exactly why it survived this long. ⚠ **Left alone on purpose:** `patch.tsx`'s `FOREST` is a *course
+  world* name in the TRAIL/FOREST/RIVER/NIGHT/GOLD badge palette — a different jurisdiction that
+  happens to share the hex, not the retired chrome constant. Original finding: — found while auditing
   titles (shop, safety, leaderboard, settings, chat, course/[id], owner/review, owner/radar,
   owner/report, owner/reschedule, runner-profile/[id], shot/[bid]). It is the **retired**
   swamp/forest palette (CLAUDE.md §Design system, DESIGN.md §2) surviving as a private constant in
@@ -300,9 +329,14 @@ share-sheet path `shot/[bid]` already uses.
   deletion. A brandmark says *"도그스하이"*, a **different claim**, so it is not a second printing of
   the same identity. Hence the **mark without the wordmark** (the owner's full `BrandLockup` stays
   the owner's): brand identity once in chrome, runner identity once on the bib.
-- [ ] **"Runner side make the current run info widget more action inviting (too nonchalant rn)"** →
-  **LAB: `docs/labs/runner-sweep-lab.html` Ⓐ①②③ — Sean picks by number.** Not implemented, because
-  the fix is a direction, not a value. Constraint carried in: the coral face was demoted to an ink
+- [x] ~~**"Runner side make the current run info widget more action inviting (too nonchalant rn)"**~~
+  **DONE 2026-08-12 — Sean picked Ⓐ①.** A full-width `paper.action` bar now sits **inside the same
+  Pressable** as the card (`pointerEvents="none"`, no second onPress), so the coral face and the real
+  tap target are finally the same rectangle — which was the whole objection to the old coral `<View>`.
+  Label is `STAGE[rawStatus].action`, so it names the actual next move at each stage.
+  **Companion change shipped with it:** the ledger hero's border went 1.5px → 1px. §7b allows one
+  isolated emphasis per screen, and while a run is live that emphasis belongs to the 진행 중 card.
+  Original lab framing: Constraint carried in: the coral face was demoted to an ink
   link on 2026-08-11 because it was a `<View>`, not a target — so repainting is not the answer,
   making the real target visible is. Ⓐ① (an action bar **inside** the same Pressable, on
   `paper.action`) is my pick. ⚠ If Ⓐ① or Ⓐ②, the ledger hero's ink 1.5px border must drop to 1px in
@@ -315,19 +349,33 @@ share-sheet path `shot/[bid]` already uses.
   (`owner/home.tsx:1181` renders `<ClubHomeCard />` alone); only runner home still carried the
   wrapper from before the module owned its header. Outer `SectionHead` deleted — the header's owner
   is the module.
-- [ ] **"Runner side, collapse the available time widget"** → **LAB: `runner-sweep-lab.html` Ⓑ①②③.**
-  Ⓑ① (summary row stating 주 N일 · 시간대) is my pick — it is the only one where collapsing does not
-  become hiding (§7b). Ⓑ② is prettier but its 12pt weekday glyphs break the **14pt floor** and Korean
-  cannot ride the kicker exemption; Ⓑ③ puts data in §3b's section-header *link* slot and forks the
-  one section grammar. ⚠ Display only — `avail`, `toggleDay` and the 3 deliberately distinct
-  predicates (DO-NOT-REFACTOR) are untouched in all three.
+- [x] ~~**"Runner side, collapse the available time widget"**~~ **DONE 2026-08-12 — Sean picked Ⓑ②**
+  (the 7-square strip), over my Ⓑ① recommendation. **My type-floor objection to Ⓑ② turned out to be
+  wrong and I withdrew it by measuring instead of asserting:** at 320dp the card's content width is
+  264, minus 6×3 gaps leaves ≈35px per square, and a 14pt Korean glyph is ≈14px — twice the room
+  needed. So it is built at **14pt**, floor intact, squares not enlarged.
+  Collapsed = *which days* (7 squares); expanded = *which hours* (the existing chips, which remain
+  the only place `toggleDay` fires). The two never render together — both print weekday letters, and
+  showing both would put one fact on screen twice. ⚠ Display only: `avail`, `toggleDay` and the 3
+  deliberately distinct predicates (DO-NOT-REFACTOR) are untouched.
 - [x] ~~**"Runner Make profit number larger in calendar tab"**~~ **DONE 2026-08-11.** Split-flap
   digits 20 → **30pt** (lineHeight 38 = 1.27×, BUG A). The width budget is the real work and it is
   written into the code comment: at 320dp the usable width is 258px, and `+248,000` at 30pt needs
   `flap` paddingHorizontal cut 8 → 5 to land at ~210. The inline `원 예상` tail was pulled out to a
   caption — a 14pt tail beside a 30pt number made the number look small again, and "예상" now sits
   where it belongs (확정 건 예상 정산 합계 — it is an estimate and still says so).
-- [ ] **"Profit tab revamp / no green"** → **LAB: `runner-sweep-lab.html` Ⓒ①②③.** The audit is worth
+- [~] **"Profit tab revamp / no green"** — **PARKED by Sean 2026-08-12: "just keep it for now, be
+  more creative."** The code is untouched (all three greens still there, deliberately).
+  🔴 **The criticism was correct and worth recording:** Ⓒ①②③ were three *recolourings* of one screen —
+  ink, coral, green — when the ask said **revamp**. Colour should be the consequence of a decision,
+  not the decision. **New lab: `docs/labs/profit-tab-lab.html`** — four different *objects* rather
+  than four palettes: ① 급여명세서 (지급/공제 columns mapping 1:1 to `ledger_items`) · ② 오도미터
+  (earnings as cumulative distance — ties the runner to the same km unit the owner will buy) ·
+  ③ 경주 성적표 · ④ 통장 정리. Green disappears in all four as a side effect; no new colours.
+  My pick is ① plus ②'s "1km당 N원" line. ③ lets the metaphor outrun the data (there is no prize and
+  no ranking) and ④'s "잔액" implies money that has actually been paid. Whichever wins must also be
+  applied to `runner/calendar.tsx`'s board flaps in the same commit.
+  Superseded first attempt: The audit is worth
   reading before picking: there are **three** greens from three sources — `MONEY_GREEN #3D6B1F`
   (a **file-local constant** with no jurisdiction in DESIGN.md at all), `colors.volt` (§5 says volt
   = **personal**, not money), and GO ready green (§3b **state-only**). Ⓒ① (money is ink; color

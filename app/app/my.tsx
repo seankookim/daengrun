@@ -6,6 +6,7 @@ import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View 
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { useAuth } from '../src/auth-context';
 import { BottomNav } from '../src/components/bottomnav';
+import { TabSwipe } from '../src/components/tabswipe';
 import { STAMP_GAP, STAMP_INK, StampCell } from '../src/components/stamp';
 import { Avatar, Row } from '../src/components/ui';
 import { deriveStamps, fetchFitness, fetchMyRunnerApplication, fetchMyRunnerStatus, fetchStampStats, RunnerApplication, StampStats } from '../src/lib/api';
@@ -54,12 +55,11 @@ export default function My() {
   const [recErr, setRecErr] = useState(false);
   const loadRec = useCallback(() => {
     setRecErr(false);
-    if (isRunner) {
-      fetchMyRunnerStatus()
-        .then((r: any) => setRec({ km: r.totalKm ?? 0, runs: r.totalRuns ?? 0, pace: r.paceLabel ?? '—' }))
-        .catch((e) => { console.warn('[my] runner status:', e?.message ?? e); setRecErr(true); });
-      return;
-    }
+    // [E7 2026-08-12] 러너 분기 삭제 — 기록면이 러너 홈으로 갔으므로 이 화면에서 러너는 rec를
+    // 쓰지 않는다. 그 분기에는 버그도 있었다: `(r: any)`로 캐스팅해 `r.paceLabel`을 읽었는데
+    // MyRunnerStatus에 그런 필드가 없어(`{totalRuns, totalKm, online, tier}`) 페이스는 항상 '—'였다.
+    // any 캐스트가 타입 검사기의 눈을 가린 자리다 — 옮기면서 필드째 은퇴시켰다.
+    if (isRunner) return;
     fetchFitness()
       .then((f) => setRec({
         km: f.weekKm ?? 0, runs: f.weekRuns ?? 0,
@@ -209,6 +209,7 @@ export default function My() {
 
   return (
     <View style={{ flex: 1, backgroundColor: paper.canvas }}>
+      <TabSwipe>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: layout.gutter, paddingTop: 64, paddingBottom: 24 }}>
 
         {/* ————— 마스트헤드 (에디토리얼 키커 + Black Han Sans 타이틀) ————— */}
@@ -296,9 +297,15 @@ export default function My() {
         {/* [2026-08-10 density audit] photo-change hint row cut — the ✎ badge on the photo and the
             edit-sheet hint already cover it (this was the 3rd copy of the same instruction) */}
 
-        {/* ————— ② 기록면 — 나이트 라일락 앵커 (실데이터) ————— */}
+        {/* ————— ② 기록면 — 나이트 라일락 앵커 (실데이터) —————
+             [E7 승인 2026-08-12 · Sean] **러너에게는 여기 없다** — 러너 홈의 '내 기록' 섹션으로
+             옮겼다 ("러너 페이지의 내 기록 같은 건 마이가 아니라 홈에 있어야 한다").
+             보호자는 남는다: 보호자 홈에 대응 섹션이 없고, 보호자의 세 칸(주간 거리·횟수·페이스)은
+             fetchFitness가 전부 실값으로 채운다. 러너 쪽 '평균 페이스'는 그렇지 않았다 —
+             MyRunnerStatus에 paceLabel이 없어 영원히 '—'였고, 그 칸은 이사하면서 버렸다. */}
+        {!isRunner && (
         <Pressable
-          onPress={() => router.push(isRunner ? '/runner/home' : '/owner/fitness')}
+          onPress={() => router.push('/owner/fitness')}
           style={s.record}
         >
           <HoloEdge height={2} opacity={0.85} />
@@ -330,8 +337,9 @@ export default function My() {
             </View>
           </View>
         </Pressable>
+        )}
         {/* 기록 로드 실패 — 세 칸의 '—'가 로딩인지 실패인지 여기서 갈린다 (라우드 페일 + 재시도) */}
-        {recErr && (
+        {!isRunner && recErr && (
           <View style={s.recFail}>
             <Text style={s.recFailTxt}>러닝 기록을 불러오지 못했어요</Text>
             <Pressable onPress={loadRec} hitSlop={8} accessibilityRole="button" accessibilityLabel="러닝 기록 다시 불러오기">
@@ -452,6 +460,7 @@ export default function My() {
           <Text style={[s.colophonTxt, nf]}>도그스하이 · DOGS HIGH</Text>
         </View>
       </ScrollView>
+      </TabSwipe>
       <BottomNav />
 
       {/* ---------- 프로필 편집 시트 ---------- */}

@@ -8,13 +8,16 @@ import { MediaImage } from '../../src/lib/media';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useReducedMotion } from '../../src/lib/reducedMotion';
 import { RouteInfo, session } from '../../src/store';
-import { colors } from '../../src/theme';
+import { colors, paper } from '../../src/theme';
 
 // 코스 미리보기 — 보호자·러너 공용 (코스는 공개 콘텐츠).
 // 히어로: 스키마틱 트레이스 + 볼트 러너 도트 애니메이션 (실좌표 지도는 v2 — 네이티브 지도 SDK 없이).
 // '우리 기록': 이 코스에서 내가 당사자였던 러닝의 실사진만 (타인 사진 공개는 v2 동의 UI와 함께).
 
-const FOREST = '#0F1D13';
+// [2026-08-12 · Sean "remove forest"] 이 파일의 로컬 상수 FOREST = '#0F1D13' 은퇴. 은퇴된 스왈프/포레스트 팔레트의
+// 마지막 잔재였고, 12개 파일에 각자 로컬 상수로 복사돼 있었다 (한 값에 주인 12명).
+// paper.ink(#111111)로 접는다 — 색차는 사실상 안 보이고(둘 다 근처 검정), 그게 정확히 아무도
+// 못 본 이유다. 다크 면에도 같은 토큰을 쓴다 — 캘린더 보드·정산 티켓·빕 스트랩이 이미 그런다.
 const W = Dimensions.get('window').width;
 const TRACE_W = W - 60;
 const TRACE_H = 190;
@@ -93,7 +96,7 @@ export default function CourseScreen() {
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: isOwner ? 120 : 40 }}>
         <Row style={{ justifyContent: 'space-between', paddingHorizontal: 12, paddingTop: 56 }}>
           <Pressable onPress={() => router.back()} style={s.backBtn}><Text style={{ fontSize: 20.5 }}>‹</Text></Pressable>
-          <Text style={[{ fontSize: 23, fontWeight: '900', color: FOREST }, df]}>코스 미리보기</Text>
+          <Text style={[{ fontSize: 23, fontWeight: '900', color: paper.ink }, df]}>코스 미리보기</Text>
           <View style={{ width: 40 }} />
         </Row>
 
@@ -127,7 +130,7 @@ export default function CourseScreen() {
                 <Text style={{ fontSize: 14, fontWeight: '700', color: '#75806f' }}>코스 지도 준비 중</Text>
               </View>
             )}
-            <Text style={[{ fontSize: 27, color: FOREST, marginTop: 16, fontWeight: '900' }, df]}>{route.name}</Text>
+            <Text style={[{ fontSize: 27, color: paper.ink, marginTop: 16, fontWeight: '900' }, df]}>{route.name}</Text>
             <Row style={{ gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
               <View style={s.infoChip}><Text style={s.infoChipText}>{route.area}</Text></View>
               <View style={s.infoChip}><Text style={s.infoChipText}>{route.terrain}</Text></View>
@@ -147,7 +150,7 @@ export default function CourseScreen() {
                   {route.features.map((f) => (
                     <View key={f.label} style={s.featCard}>
                       <Text style={{ fontSize: 17 }}>{f.g}</Text>
-                      <Text style={{ fontSize: 14, fontWeight: '800', color: FOREST, marginTop: 3 }}>{f.label}</Text>
+                      <Text style={{ fontSize: 14, fontWeight: '800', color: paper.ink, marginTop: 3 }}>{f.label}</Text>
                     </View>
                   ))}
                 </Row>
@@ -184,7 +187,7 @@ export default function CourseScreen() {
             onPress={() => router.push({ pathname: '/owner/request', params: { routeId: route.id } })}
             style={s.ctaBtn}
           >
-            <Text style={[{ fontSize: 17, fontWeight: '900', color: FOREST }, df]}>이 코스로 예약하기 ›</Text>
+            <Text style={[{ fontSize: 17, fontWeight: '900', color: paper.ink }, df]}>이 코스로 예약하기 ›</Text>
           </Pressable>
         </View>
       )}
@@ -195,17 +198,17 @@ export default function CourseScreen() {
 const s = StyleSheet.create({
   backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DCD6C4' },
   emptyBox: { margin: 16, backgroundColor: '#fff', borderRadius: 16, padding: 20, alignItems: 'center', borderWidth: 1, borderColor: '#DCD6C4' },
-  hero: { backgroundColor: FOREST, borderRadius: 22, padding: 15, marginTop: 14, overflow: 'hidden' },
+  hero: { backgroundColor: paper.ink, borderRadius: 22, padding: 15, marginTop: 14, overflow: 'hidden' },
   pin: { position: 'absolute', width: 10, height: 10, borderRadius: 5, borderWidth: 1.5, borderColor: '#fff' },
   infoChip: { backgroundColor: '#fff', borderRadius: 99, paddingVertical: 5, paddingHorizontal: 11, borderWidth: 1, borderColor: '#DCD6C4' },
   infoChipText: { fontSize: 14.5, fontWeight: '800', color: '#49524a' },
   section: { marginTop: 22 },
-  sectionTitle: { fontSize: 16.5, fontWeight: '900', color: FOREST, marginBottom: 10 },
+  sectionTitle: { fontSize: 16.5, fontWeight: '900', color: paper.ink, marginBottom: 10 },
   featCard: { backgroundColor: '#fff', borderRadius: 14, paddingVertical: 10, paddingHorizontal: 13, alignItems: 'center', borderWidth: 1, borderColor: '#DCD6C4', minWidth: 76 },
   tagChip: { backgroundColor: '#EDE8DA', borderRadius: 99, paddingVertical: 4, paddingHorizontal: 10 },
   ctaBar: { position: 'absolute', left: 10, right: 10, bottom: 26 },
   ctaBtn: {
     backgroundColor: colors.volt, borderRadius: 18, alignItems: 'center', paddingVertical: 16,
-    shadowColor: FOREST, shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 5 },
+    shadowColor: paper.ink, shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 5 },
   },
 });

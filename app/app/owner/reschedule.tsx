@@ -15,7 +15,10 @@ import { colors, paper } from '../../src/theme';
 // 슬롯은 이 예약의 러너 가용시간에 바인딩 (러너 프로필 그리드와 동일 검증: is_slot_available).
 // 원래 시작 2시간 전까지 응답이 없으면 자동 만료 — 기존 시간이 확정.
 
-const FOREST = '#0F1D13';
+// [2026-08-12 · Sean "remove forest"] 이 파일의 로컬 상수 FOREST = '#0F1D13' 은퇴. 은퇴된 스왈프/포레스트 팔레트의
+// 마지막 잔재였고, 12개 파일에 각자 로컬 상수로 복사돼 있었다 (한 값에 주인 12명).
+// paper.ink(#111111)로 접는다 — 색차는 사실상 안 보이고(둘 다 근처 검정), 그게 정확히 아무도
+// 못 본 이유다. 다크 면에도 같은 토큰을 쓴다 — 캘린더 보드·정산 티켓·빕 스트랩이 이미 그런다.
 const DAY = ['일', '월', '화', '수', '목', '금', '토'];
 const fmtMin = (m: number) => {
   const h = Math.floor(m / 60);
@@ -139,7 +142,7 @@ export default function Reschedule() {
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingTop: 56, paddingHorizontal: 16, paddingBottom: 140 }}>
         <Row style={{ gap: 12 }}>
           <Pressable onPress={() => router.back()} style={s.circleBtn}><Text style={{ fontSize: 20.5 }}>‹</Text></Pressable>
-          <Text style={[{ fontSize: 27.5, fontWeight: '900', color: FOREST }, df]}>일정 변경</Text>
+          <Text style={[{ fontSize: 27.5, fontWeight: '900', color: paper.ink }, df]}>일정 변경</Text>
         </Row>
 
         {err && (
@@ -154,7 +157,7 @@ export default function Reschedule() {
                 : '진행 중이거나 종료된 예약은 변경할 수 없어요'}
             </Text>
             <Pressable onPress={() => router.back()} style={s.noticeBtn}>
-              <Text style={{ fontSize: 14.5, fontWeight: '800', color: FOREST }}>돌아가기</Text>
+              <Text style={{ fontSize: 14.5, fontWeight: '800', color: paper.ink }}>돌아가기</Text>
             </Pressable>
           </View>
         )}
@@ -194,7 +197,7 @@ export default function Reschedule() {
               {days.map((d, i) => (
                 <Pressable key={i} onPress={() => { setDayIdx(i); setPicked(null); }} style={[s.dayChip, dayIdx === i && s.dayChipOn]}>
                   <Text style={{ fontSize: 14, fontWeight: '700', color: dayIdx === i ? '#b8c4ae' : colors.dim }}>{d.label ?? d.w}</Text>
-                  <Text style={{ fontSize: 17, fontWeight: '900', color: dayIdx === i ? '#fff' : FOREST, marginTop: 2 }}>{d.d}</Text>
+                  <Text style={{ fontSize: 17, fontWeight: '900', color: dayIdx === i ? '#fff' : paper.ink, marginTop: 2 }}>{d.d}</Text>
                 </Pressable>
               ))}
             </ScrollView>
@@ -223,7 +226,7 @@ export default function Reschedule() {
                     >
                       <Text style={{
                         fontSize: 14, fontWeight: '800',
-                        color: isPicked ? '#fff' : ok === false ? '#b7b4a5' : FOREST,
+                        color: isPicked ? '#fff' : ok === false ? '#b7b4a5' : paper.ink,
                       }}>
                         {sl.label}
                       </Text>
@@ -246,7 +249,7 @@ export default function Reschedule() {
             {fmtIso(picked.start.toISOString())}로 변경 요청
           </Text>
           <Pressable onPress={send} disabled={busy} style={[s.confirmBtn, busy && { opacity: 0.5 }]}>
-            <Text style={[{ fontSize: 15.5, fontWeight: '900', color: FOREST }, df]}>
+            <Text style={[{ fontSize: 15.5, fontWeight: '900', color: paper.ink }, df]}>
               {busy ? '보내는 중...' : '러너에게 변경 요청 ➤'}
             </Text>
           </Pressable>
@@ -262,7 +265,7 @@ export default function Reschedule() {
 const s = StyleSheet.create({
   circleBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DCD6C4' },
   current: {
-    backgroundColor: FOREST, borderRadius: 20, padding: 18, marginTop: 16,
+    backgroundColor: paper.ink, borderRadius: 20, padding: 18, marginTop: 16,
     borderWidth: 1.5, borderColor: 'rgba(198,245,66,0.4)',
   },
   pendingBanner: {
@@ -271,9 +274,9 @@ const s = StyleSheet.create({
   },
   withdrawBtn: { borderWidth: 1.5, borderColor: '#F59A43', borderRadius: 99, paddingVertical: 7, paddingHorizontal: 13 },
   dayChip: { width: 54, alignItems: 'center', backgroundColor: '#fff', borderRadius: 14, paddingVertical: 10, borderWidth: 1, borderColor: '#DCD6C4' },
-  dayChipOn: { backgroundColor: FOREST, borderColor: FOREST },
+  dayChipOn: { backgroundColor: paper.ink, borderColor: paper.ink },
   slot: { width: '31%', backgroundColor: '#fff', borderRadius: 13, borderWidth: 1, borderColor: '#DCD6C4', alignItems: 'center', paddingVertical: 11 },
-  slotPicked: { backgroundColor: FOREST, borderColor: FOREST },
+  slotPicked: { backgroundColor: paper.ink, borderColor: paper.ink },
   slotOff: { backgroundColor: '#f0eee5', borderColor: '#e5e2d4' },
   slotCur: { borderColor: colors.voltDeep, borderWidth: 1.6, backgroundColor: '#F3F8E2' },
   notice: {
@@ -283,7 +286,7 @@ const s = StyleSheet.create({
   noticeText: { fontSize: 14.5, color: colors.dim, textAlign: 'center', lineHeight: 22 },
   noticeBtn: { marginTop: 12, backgroundColor: colors.volt, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 18 },
   confirmBar: {
-    position: 'absolute', left: 11, right: 11, bottom: 26, backgroundColor: FOREST,
+    position: 'absolute', left: 11, right: 11, bottom: 26, backgroundColor: paper.ink,
     borderRadius: 20, padding: 14, borderWidth: 1.5, borderColor: 'rgba(198,245,66,0.5)',
     shadowColor: '#0F1D13', shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 5 },
   },

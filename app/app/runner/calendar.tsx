@@ -2,6 +2,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BottomNav } from '../../src/components/bottomnav';
+import { TabSwipe } from '../../src/components/tabswipe';
 import { Row } from '../../src/components/ui';
 import { fetchRunnerJobs, RunnerJob } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
@@ -68,6 +69,7 @@ export default function RunnerCalendar() {
 
   return (
     <View style={{ flex: 1, backgroundColor: paper.canvas }}>
+      <TabSwipe>
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingHorizontal: layout.gutter, paddingTop: 60, paddingBottom: 30 }}
@@ -194,6 +196,7 @@ export default function RunnerCalendar() {
           })}
         </View>
       </ScrollView>
+      </TabSwipe>
       <BottomNav />
     </View>
   );

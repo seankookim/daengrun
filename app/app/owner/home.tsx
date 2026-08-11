@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Animated, Dimensions, Easing, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BottomNav } from '../../src/components/bottomnav';
+import { TabSwipe } from '../../src/components/tabswipe';
 import { BrandLockup } from '../../src/components/brandmark';
 import { CourseStrip } from '../../src/components/CourseStrip';
 import { ClubHomeCard } from '../../src/components/clubcard';
@@ -691,6 +692,12 @@ export default function OwnerHome() {
       {/* ---------- pinned overlay: greeting + collapsing hero ---------- */}
       {/* 컨테이너는 이제 높이 고정 = 순수 레이아웃 박스(box-none). 칠·터치 차단은 아래 배경판이 전담하고,
           배경판이 네이티브 transform으로 접히면서 구 '오버레이 자동 축소'와 동일한 영역만 덮는다. */}
+      {/* [2026-08-12] 탭 스와이프 — 핀 오버레이 + 컬랩싱 히어로 스크롤을 **한 덩어리로** 민다.
+           ⚠ 프리즈 존(DESIGN.md §9)을 건드리지 않는 이유: 이 래퍼는 flex:1로 부모와 같은 박스를
+           채우므로 s.overlay의 absolute 기준 프레임이 그대로고, 애니메이션은 transform 하나뿐이라
+           §6 "네이티브 드라이버 transform/opacity만" 안에 있다. paddingTop 예약·bgSlide/bgScale·
+           36닷 링 레이어는 전부 손대지 않았다. 모달과 도크는 밖에 남는다 — 시트가 같이 밀리면 안 된다. */}
+      <TabSwipe>
       <View pointerEvents="box-none" style={s.overlay}>
         <Animated.View
           style={[StyleSheet.absoluteFill, { backgroundColor: paper.canvas, transform: [{ translateY: bgSlide }, { scaleY: bgScale }] }]}
@@ -1497,6 +1504,7 @@ export default function OwnerHome() {
         {/* 최근 활동 목업 카드·'내 주변 인기 러너' 목업 섹션 은퇴 (ui-audit P0)
             — 실카드는 리포트/기록이, 실러너는 위 동네 러너 셸프가 담당 */}
       </Animated.ScrollView>
+      </TabSwipe>
       {/* ---------- 지금 러너 찾기 — 프리필 시트 (모두 채워져 있음, 탭 2번이면 끝) ---------- */}
       <Modal visible={fnOpen} transparent animationType="slide" onRequestClose={() => setFnOpen(false)}>
         <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)' }} onPress={() => setFnOpen(false)} />

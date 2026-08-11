@@ -6,7 +6,7 @@ import { fetchRunReport, fetchRunStandings, RunReport, RunStandings } from '../.
 import { resolveMediaUrl } from '../../src/lib/media';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { haptic } from '../../src/lib/haptics';
-import { colors } from '../../src/theme';
+import { colors, paper } from '../../src/theme';
 import { Icon } from '../../src/components/ui';
 
 // 인증샷 스튜디오 (2026-07-28 확정 스펙) — 공유가 곧 마케팅.
@@ -14,7 +14,10 @@ import { Icon } from '../../src/components/ui';
 // 러너 사진이 있으면 B 포토가 2번 슬롯으로 승격. 완성 = 즉시 캡처 + iOS 공유 시트 (재탭 금지).
 // 브랜드 디바이스: 아이콘 칩 · 브랜드 테이프 · 워드마크 락업 — 어느 스킨이 돌아다녀도 도그스하이가 남는다.
 
-const FOREST = '#0F1D13';
+// [2026-08-12 · Sean "remove forest"] 이 파일의 로컬 상수 FOREST = '#0F1D13' 은퇴. 은퇴된 스왈프/포레스트 팔레트의
+// 마지막 잔재였고, 12개 파일에 각자 로컬 상수로 복사돼 있었다 (한 값에 주인 12명).
+// paper.ink(#111111)로 접는다 — 색차는 사실상 안 보이고(둘 다 근처 검정), 그게 정확히 아무도
+// 못 본 이유다. 다크 면에도 같은 토큰을 쓴다 — 캘린더 보드·정산 티켓·빕 스트랩이 이미 그런다.
 const W = Dimensions.get('window').width;
 const CARD_W = W - 96;
 const STORY_H = Math.round(CARD_W * (16 / 9) * 0.92); // 9:16 근사 — 화면 안에 액션 바까지
@@ -44,7 +47,7 @@ function pathFrom(pts: { x: number; y: number }[], w: number, h: number, pad = 1
 function IconChip({ size, df }: { size: number; df: any }) {
   return (
     <View style={{
-      width: size, height: size, borderRadius: size * 0.22, backgroundColor: FOREST,
+      width: size, height: size, borderRadius: size * 0.22, backgroundColor: paper.ink,
       alignItems: 'center', justifyContent: 'center',
       shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 4, shadowOffset: { width: 0, height: 2 },
     }}>
@@ -61,7 +64,7 @@ function BrandTape({ width, rotate, df }: { width: number; rotate: string; df: a
       flexDirection: 'row', alignItems: 'center', overflow: 'hidden',
       shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 5, shadowOffset: { width: 0, height: 2 },
     }}>
-      <Text numberOfLines={1} style={[{ fontSize: 13, color: FOREST, fontWeight: '900', letterSpacing: 2, paddingLeft: 6 }, df]}>
+      <Text numberOfLines={1} style={[{ fontSize: 13, color: paper.ink, fontWeight: '900', letterSpacing: 2, paddingLeft: 6 }, df]}>
         도그스하이 · DOGS HIGH · 도그스하이 · DOGS HIGH · 도그스하이 · DOGS HIGH
       </Text>
     </View>
@@ -73,7 +76,7 @@ function Lockup({ df, small, light = true }: { df: any; small?: boolean; light?:
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: small ? 6 : 8 }}>
       <IconChip size={small ? 24 : 32} df={df} />
       <Text style={[{
-        fontSize: small ? 12.5 : 15.5, color: light ? '#fff' : FOREST, fontWeight: '900', letterSpacing: 2,
+        fontSize: small ? 12.5 : 15.5, color: light ? '#fff' : paper.ink, fontWeight: '900', letterSpacing: 2,
         ...(light ? { textShadowColor: 'rgba(0,0,0,.5)', textShadowRadius: 6, textShadowOffset: { width: 0, height: 1 } } : {}),
       }, df]}>
         도그스하이 <Text style={{ color: light ? colors.volt : colors.voltDeep }}>DOGS HIGH</Text>
@@ -302,7 +305,7 @@ export default function ShotStudio() {
         {[['DISTANCE', `${km}km`], ['PACE', statLine.pace], ['TIME', statLine.time]].map(([l, v]) => (
           <View key={l}>
             <Text style={[s.hudL, !light && { color: '#3d453d', textShadowRadius: 0 }]}>{l}</Text>
-            <Text style={[s.hudV, !light && { color: FOREST, textShadowRadius: 0 }]}>{v}</Text>
+            <Text style={[s.hudV, !light && { color: paper.ink, textShadowRadius: 0 }]}>{v}</Text>
           </View>
         ))}
       </View>
@@ -363,7 +366,7 @@ export default function ShotStudio() {
         );
       }
       return (
-        <View style={{ width: CARD_W, height: h, borderRadius: 20, overflow: 'hidden', backgroundColor: FOREST }}>
+        <View style={{ width: CARD_W, height: h, borderRadius: 20, overflow: 'hidden', backgroundColor: paper.ink }}>
           <PhotoLayer uri={photos.Bp!} w={CARD_W} h={h} resetKey={photos.Bp!} />
           <View pointerEvents="none" style={s.scrimBottom} />
           <View pointerEvents="none" style={{ position: 'absolute', top: 14, right: 14 }}><IconChip size={40} df={df} /></View>
@@ -387,7 +390,7 @@ export default function ShotStudio() {
       const PH = h - 96;
       return (
         <View style={{ width: CARD_W, height: h, backgroundColor: '#e9e4d6', alignItems: 'center', justifyContent: 'center' }}>
-          <View style={{ width: CARD_W - 64, backgroundColor: '#fff', padding: 10, paddingBottom: 0, transform: [{ rotate: '-2.5deg' }], shadowColor: FOREST, shadowOpacity: 0.28, shadowRadius: 12, shadowOffset: { width: 0, height: 8 } }}>
+          <View style={{ width: CARD_W - 64, backgroundColor: '#fff', padding: 10, paddingBottom: 0, transform: [{ rotate: '-2.5deg' }], shadowColor: paper.ink, shadowOpacity: 0.28, shadowRadius: 12, shadowOffset: { width: 0, height: 8 } }}>
             <View style={{ height: PH - 62, overflow: 'hidden', backgroundColor: '#c9ccc0' }}>
               {photos.G
                 ? <PhotoLayer uri={photos.G} w={CARD_W - 84} h={PH - 62} resetKey={photos.G} />
@@ -417,7 +420,7 @@ export default function ShotStudio() {
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 9 }}>
               <IconChip size={28} df={df} />
-              <Text numberOfLines={2} style={{ flex: 1, fontSize: 14.5, fontWeight: '800', color: FOREST, fontStyle: 'italic' }}>
+              <Text numberOfLines={2} style={{ flex: 1, fontSize: 14.5, fontWeight: '800', color: paper.ink, fontStyle: 'italic' }}>
                 {dog}, {km}km 완주!! <Text style={{ fontSize: 14, color: '#5B594A' }}>{report.when.split(' ')[0]} {report.when.split(' ')[1]} · 도그스하이</Text>
               </Text>
             </View>
@@ -434,7 +437,7 @@ export default function ShotStudio() {
       <View style={{ width: CARD_W, height: h, backgroundColor: colors.volt, padding: 18, overflow: 'hidden' }}>
         <Text style={s.iTiny}>{report.when} · {report.routeName}</Text>
         <Text style={s.iGiant}>{km}<Text style={{ fontSize: 26, letterSpacing: -1 }}>KM</Text></Text>
-        <Text style={[{ fontSize: 24, fontWeight: '900', color: FOREST, marginTop: 2 }, df]}>{dog} 완주</Text>
+        <Text style={[{ fontSize: 24, fontWeight: '900', color: paper.ink, marginTop: 2 }, df]}>{dog} 완주</Text>
         {/* GPS 트레이스 — 숫자 위를 '의도적으로' 가로지른다 (Sean 2026-07-29: 겹침을 전경화).
             포레스트 선은 숫자와 한 색이라 사고처럼 보였다 → 화이트 케이싱 + 탱 라인 =
             스티커처럼 확실히 앞层. 도착점은 탱 선 위에서 읽히게 포레스트로 반전 */}
@@ -443,25 +446,25 @@ export default function ShotStudio() {
             <Path d={pathFrom(pts, 150, 150, 12)} stroke="#fff" strokeWidth={8} strokeLinecap="round" strokeLinejoin="round" fill="none" />
             <Path d={pathFrom(pts, 150, 150, 12)} stroke={colors.tang} strokeWidth={4} strokeLinecap="round" strokeLinejoin="round" fill="none" />
             <Circle cx={12 + pts[0].x * 126} cy={12 + pts[0].y * 126} r={5.5} fill="#fff" />
-            <Circle cx={12 + pts[pts.length - 1].x * 126} cy={12 + pts[pts.length - 1].y * 126} r={5.5} fill={FOREST} />
+            <Circle cx={12 + pts[pts.length - 1].x * 126} cy={12 + pts[pts.length - 1].y * 126} r={5.5} fill={paper.ink} />
           </Svg>
         )}
         <View style={{ position: 'absolute', right: 8, top: 14 }}>
           {['도', '그', '스', '하', '이'].map((c) => (
-            <Text key={c} style={[{ fontSize: 22, color: FOREST, fontWeight: '900', lineHeight: 24, textAlign: 'center' }, df]}>{c}</Text>
+            <Text key={c} style={[{ fontSize: 22, color: paper.ink, fontWeight: '900', lineHeight: 24, textAlign: 'center' }, df]}>{c}</Text>
           ))}
         </View>
-        <View style={{ position: 'absolute', bottom: 56, left: 18, right: 18, borderTopWidth: 2.5, borderTopColor: FOREST }}>
+        <View style={{ position: 'absolute', bottom: 56, left: 18, right: 18, borderTopWidth: 2.5, borderTopColor: paper.ink }}>
           {[['TIME', statLine.time], ['PACE', `${statLine.pace} /KM`], ...(recordLine ? [['RECORD', recordLine]] : [])].map(([l, v]) => (
             <View key={l} style={s.iRow}>
-              <Text style={{ fontSize: 14, fontWeight: '800', color: FOREST }}>{l}</Text>
-              <Text style={{ fontSize: 14, fontWeight: '900', color: FOREST }}>{v}</Text>
+              <Text style={{ fontSize: 14, fontWeight: '800', color: paper.ink }}>{l}</Text>
+              <Text style={{ fontSize: 14, fontWeight: '900', color: paper.ink }}>{v}</Text>
             </View>
           ))}
         </View>
         <View style={{ position: 'absolute', bottom: 16, left: 18, flexDirection: 'row', alignItems: 'center', gap: 7 }}>
           <IconChip size={26} df={df} />
-          <Text style={[{ fontSize: 12.5, color: FOREST, fontWeight: '900', letterSpacing: 2.5 }, df]}>DOGS HIGH</Text>
+          <Text style={[{ fontSize: 12.5, color: paper.ink, fontWeight: '900', letterSpacing: 2.5 }, df]}>DOGS HIGH</Text>
         </View>
       </View>
     );
@@ -556,7 +559,7 @@ export default function ShotStudio() {
               <Text style={{ fontSize: 14, fontWeight: '800', color: '#b8c4ae' }}>{ghostLabel}</Text>
             </Pressable>
             <Pressable onPress={onMain} disabled={busy} style={[s.actMain, busy && { opacity: 0.6 }]}>
-              <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST }}>{mainLabel}</Text>
+              <Text style={{ fontSize: 15, fontWeight: '900', color: paper.ink }}>{mainLabel}</Text>
             </Pressable>
           </View>
         </>
@@ -567,7 +570,7 @@ export default function ShotStudio() {
         <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,.5)' }} onPress={() => setSheetOpen(false)} />
         <View style={s.sheet}>
           <View style={s.grab} />
-          <Text style={[{ fontSize: 19, fontWeight: '900', color: FOREST }, df]}>사진 고르기</Text>
+          <Text style={[{ fontSize: 19, fontWeight: '900', color: paper.ink }, df]}>사진 고르기</Text>
           <Text style={{ fontSize: 14, color: colors.dim, marginTop: 3 }}>
             {runPhotos.length > 0 ? '이 러닝에서 러너가 담아온 순간들이에요' : '이 러닝엔 러너 사진이 없어요 — 갤러리에서 골라주세요'}
           </Text>
@@ -576,7 +579,7 @@ export default function ShotStudio() {
               {runPhotos.slice(0, 9).map((url) => (
                 <Pressable key={url} onPress={() => setPhotos((p) => ({ ...p, [sheetKey]: url }))} style={[s.wph, photos[sheetKey] === url && s.wphSel]}>
                   <Image source={{ uri: url }} style={{ width: '100%', height: '100%' }} />
-                  {photos[sheetKey] === url && <View style={s.wphTick}><Text style={{ fontSize: 11, fontWeight: '900', color: FOREST }}>✓</Text></View>}
+                  {photos[sheetKey] === url && <View style={s.wphTick}><Text style={{ fontSize: 11, fontWeight: '900', color: paper.ink }}>✓</Text></View>}
                 </Pressable>
               ))}
             </View>
@@ -611,8 +614,8 @@ const s = StyleSheet.create({
   dogTitle: { fontSize: 24, fontWeight: '900', color: '#fff', textShadowColor: 'rgba(0,0,0,.45)', textShadowRadius: 10, textShadowOffset: { width: 0, height: 2 } },
   scrimBottom: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 190, backgroundColor: 'rgba(10,16,10,.38)' },
   photoEmpty: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: '#1d3023' },
-  iTiny: { fontSize: 10, fontWeight: '900', letterSpacing: 2, color: FOREST },
-  iGiant: { fontSize: 104, fontWeight: '900', color: FOREST, letterSpacing: -6, lineHeight: 106, marginTop: 8 },
+  iTiny: { fontSize: 10, fontWeight: '900', letterSpacing: 2, color: paper.ink },
+  iGiant: { fontSize: 104, fontWeight: '900', color: paper.ink, letterSpacing: -6, lineHeight: 106, marginTop: 8 },
   iRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: 'rgba(15,29,19,.35)' },
   dots: { flexDirection: 'row', gap: 5, justifyContent: 'center', marginTop: 12 },
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#2c4034' },
@@ -628,5 +631,5 @@ const s = StyleSheet.create({
   wphSel: { borderWidth: 3, borderColor: colors.volt },
   wphTick: { position: 'absolute', top: 5, right: 5, width: 19, height: 19, borderRadius: 10, backgroundColor: colors.volt, alignItems: 'center', justifyContent: 'center' },
   galBtn: { marginTop: 10, borderWidth: 1.5, borderColor: '#b9b39f', borderStyle: 'dashed', borderRadius: 12, alignItems: 'center', paddingVertical: 12 },
-  sheetCta: { marginTop: 12, backgroundColor: FOREST, borderRadius: 14, alignItems: 'center', paddingVertical: 14 },
+  sheetCta: { marginTop: 12, backgroundColor: paper.ink, borderRadius: 14, alignItems: 'center', paddingVertical: 14 },
 });

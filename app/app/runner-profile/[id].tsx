@@ -13,7 +13,10 @@ import { colors, paper } from '../../src/theme';
 // 갤러리(runners.photos) · 실슬롯 예약 · 본인이 보면 편집/미리보기 모드.
 // 솔로 테스트: 본인 슬롯 예약도 허용 (owner==runner 루프가 테스트 체제)
 
-const FOREST = '#0F1D13';
+// [2026-08-12 · Sean "remove forest"] 이 파일의 로컬 상수 FOREST = '#0F1D13' 은퇴. 은퇴된 스왈프/포레스트 팔레트의
+// 마지막 잔재였고, 12개 파일에 각자 로컬 상수로 복사돼 있었다 (한 값에 주인 12명).
+// paper.ink(#111111)로 접는다 — 색차는 사실상 안 보이고(둘 다 근처 검정), 그게 정확히 아무도
+// 못 본 이유다. 다크 면에도 같은 토큰을 쓴다 — 캘린더 보드·정산 티켓·빕 스트랩이 이미 그런다.
 const DAY = '일월화수목금토';
 const W = Dimensions.get('window').width;
 const TILE = (W - 4) / 3; // 3열 엣지-투-엣지, 2px 갭
@@ -241,7 +244,7 @@ export default function RunnerProfileScreen() {
         {/* header (패딩 있는 유일한 상단 영역) */}
         <Row style={{ justifyContent: 'space-between', paddingHorizontal: 12, paddingTop: 56 }}>
           <Pressable onPress={() => router.back()} style={s.backBtn}><Text style={{ fontSize: 20.5 }}>‹</Text></Pressable>
-          <Text style={{ fontSize: 23, fontWeight: '900', color: FOREST }}>러너 프로필</Text>
+          <Text style={{ fontSize: 23, fontWeight: '900', color: paper.ink }}>러너 프로필</Text>
           <View style={{ width: 40 }} />
         </Row>
 
@@ -267,7 +270,7 @@ export default function RunnerProfileScreen() {
                     {p.online && <View style={s.onlineDot} />}
                   </Row>
                   <Row style={{ gap: 5, marginTop: 6 }}>
-                    <View style={s.limePill}><Text style={{ fontSize: 14, fontWeight: '800', color: FOREST }}>✓ {p.tier}</Text></View>
+                    <View style={s.limePill}><Text style={{ fontSize: 14, fontWeight: '800', color: paper.ink }}>✓ {p.tier}</Text></View>
                     {p.trainerCertified && (
                       <View style={[s.limePill, { backgroundColor: '#fde8e3' }]}>
                         <Text style={{ fontSize: 14, fontWeight: '800', color: '#d84a2f' }}>훈련사</Text>
@@ -280,7 +283,7 @@ export default function RunnerProfileScreen() {
                 </View>
                 {canEdit && (
                   <Pressable onPress={openEdit} style={s.editChip}>
-                    <Text style={{ fontSize: 14, fontWeight: '800', color: FOREST }}>✎ 편집</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '800', color: paper.ink }}>✎ 편집</Text>
                   </Pressable>
                 )}
               </Row>
@@ -360,7 +363,7 @@ export default function RunnerProfileScreen() {
                               : <Icon name={meta.icon} glyph="●" size={24} color="#8a8672" />}
                           </View>
                         )}
-                        <Text style={{ fontSize: 14.5, fontWeight: '800', color: item ? FOREST : colors.dim, marginTop: 6 }}>
+                        <Text style={{ fontSize: 14.5, fontWeight: '800', color: item ? paper.ink : colors.dim, marginTop: 6 }}>
                           {meta.name}
                         </Text>
                         {item?.verified ? (
@@ -391,7 +394,7 @@ export default function RunnerProfileScreen() {
                   {courseHist.map((c) => (
                     <Pressable key={c.routeId} onPress={() => router.push(`/course/${c.routeId}`)} style={{ alignItems: 'center', width: 76 }}>
                       <PatchBadge km={c.km} name={c.name} grade={c.grade} size={64} />
-                      <Text numberOfLines={1} style={{ fontSize: 14, fontWeight: '800', color: FOREST, marginTop: 6 }}>{c.name}</Text>
+                      <Text numberOfLines={1} style={{ fontSize: 14, fontWeight: '800', color: paper.ink, marginTop: 6 }}>{c.name}</Text>
                       <Text style={{ fontSize: 14, color: colors.dim, marginTop: 1 }}>×{c.count} 완주</Text>
                     </Pressable>
                   ))}
@@ -418,9 +421,9 @@ export default function RunnerProfileScreen() {
                   <Text style={{ fontSize: 14, color: colors.dim, marginBottom: 10 }}>{avail.join(' · ')}</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
                     {days.map((d, i) => (
-                      <Pressable key={d.date.toISOString()} onPress={() => { setDayIdx(i); setSelected(null); }} style={[s.dayChip, dayIdx === i && { backgroundColor: FOREST }]}>
+                      <Pressable key={d.date.toISOString()} onPress={() => { setDayIdx(i); setSelected(null); }} style={[s.dayChip, dayIdx === i && { backgroundColor: paper.ink }]}>
                         <Text style={{ fontSize: 14, color: dayIdx === i ? '#b8c4ae' : colors.dim }}>{d.w}</Text>
-                        <Text style={{ fontSize: 17, fontWeight: '900', color: dayIdx === i ? '#fff' : FOREST }}>{d.d}</Text>
+                        <Text style={{ fontSize: 17, fontWeight: '900', color: dayIdx === i ? '#fff' : paper.ink }}>{d.d}</Text>
                         {d.label && <Text style={{ fontSize: 9, fontWeight: '700', color: dayIdx === i ? colors.volt : '#5a7a3c' }}>{d.label}</Text>}
                       </Pressable>
                     ))}
@@ -445,10 +448,10 @@ export default function RunnerProfileScreen() {
                               s.slotChip,
                               ok === false && { opacity: 0.35 },
                               ok === null && { opacity: 0.6 },
-                              sel && { backgroundColor: FOREST, borderColor: FOREST },
+                              sel && { backgroundColor: paper.ink, borderColor: paper.ink },
                             ]}
                           >
-                            <Text style={{ fontSize: 15, fontWeight: '800', color: sel ? '#fff' : FOREST }}>{sl.label}</Text>
+                            <Text style={{ fontSize: 15, fontWeight: '800', color: sel ? '#fff' : paper.ink }}>{sl.label}</Text>
                             <Text style={{ fontSize: 14, marginTop: 1, color: sel ? colors.volt : ok === false ? '#d84a2f' : ok === 'error' ? paper.critical : ok === null ? colors.dim : '#5a7a3c' }}>
                               {sel ? '선택됨 ✓' : ok === false ? '마감' : ok === 'error' ? '확인 실패 · 재시도' : ok === null ? '확인 중' : '가능'}
                             </Text>
@@ -504,7 +507,7 @@ export default function RunnerProfileScreen() {
                       router.push('/owner/request');
                     }}
                   >
-                    <Text style={{ fontSize: 17, fontWeight: '900', color: FOREST }}>{p.name} 러너와 예약하기</Text>
+                    <Text style={{ fontSize: 17, fontWeight: '900', color: paper.ink }}>{p.name} 러너와 예약하기</Text>
                     <Text style={{ fontSize: 14, color: '#5d6b4a', marginTop: 2 }}>결제 후 이 러너에게 지명 요청이 우선 안내돼요</Text>
                   </Pressable>
                   <Pressable
@@ -529,7 +532,7 @@ export default function RunnerProfileScreen() {
         <Pressable style={s.editBackdrop} onPress={() => setEditing(false)} />
         <View style={s.editSheet}>
           <View style={s.editHandle} />
-          <Text style={{ fontSize: 22, fontWeight: '900', color: FOREST }}>프로필 편집</Text>
+          <Text style={{ fontSize: 22, fontWeight: '900', color: paper.ink }}>프로필 편집</Text>
           <Text style={s.editLabel}>이름</Text>
           <TextInput value={eName} onChangeText={setEName} style={s.editInput} maxLength={20} placeholder="이름 또는 닉네임" placeholderTextColor="#b0ada0" />
           <Text style={s.editLabel}>활동 동네</Text>
@@ -546,7 +549,7 @@ export default function RunnerProfileScreen() {
           />
           <Text style={{ fontSize: 14, color: colors.dim, marginTop: 8 }}>사진·갤러리는 이 페이지에서 바로 편집해요</Text>
           <Pressable onPress={saveEdit} disabled={saving} style={[s.editSave, saving && { opacity: 0.5 }]}>
-            <Text style={{ fontSize: 16, fontWeight: '900', color: FOREST }}>{saving ? '저장 중...' : '저장'}</Text>
+            <Text style={{ fontSize: 16, fontWeight: '900', color: paper.ink }}>{saving ? '저장 중...' : '저장'}</Text>
           </Pressable>
         </View>
       </Modal>
@@ -563,7 +566,7 @@ export default function RunnerProfileScreen() {
             </Text>
           </View>
           <Pressable onPress={() => confirmSlot(selected)} style={s.confirmBtn}>
-            <Text style={{ fontSize: 16, fontWeight: '900', color: FOREST }}>이 시간으로 ›</Text>
+            <Text style={{ fontSize: 16, fontWeight: '900', color: paper.ink }}>이 시간으로 ›</Text>
           </Pressable>
         </Animated.View>
       )}
@@ -583,12 +586,12 @@ function HeroStat({ value, label }: { value: string; label: string }) {
 const s = StyleSheet.create({
   backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DCD6C4' },
   // 풀블리드: 히어로·섹션 모두 좌우 마진 없음, 내부 패딩만
-  hero: { backgroundColor: FOREST, padding: 20, marginTop: 14 },
+  hero: { backgroundColor: paper.ink, padding: 20, marginTop: 14 },
   heroDiv: { width: 1, backgroundColor: '#2c4034' },
   onlineDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: colors.volt, alignSelf: 'center' },
   limePill: { backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 3, paddingHorizontal: 8 },
   section: { backgroundColor: '#fff', paddingHorizontal: 12, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#DCD6C4' },
-  sectionTitle: { fontSize: 15.5, fontWeight: '900', color: FOREST, marginBottom: 8 },
+  sectionTitle: { fontSize: 15.5, fontWeight: '900', color: paper.ink, marginBottom: 8 },
   specChip: { backgroundColor: '#eef4e0', borderRadius: 99, paddingVertical: 4, paddingHorizontal: 10 },
   // 장비 로드아웃 슬롯 (0019)
   gearSlot: { width: 104, backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: '#DCD6C4', padding: 8, alignItems: 'center' },
@@ -606,12 +609,12 @@ const s = StyleSheet.create({
   editSheet: { backgroundColor: colors.cream, borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 16, paddingBottom: 40 },
   editHandle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: '#DCD6C4', marginBottom: 14 },
   editLabel: { fontSize: 14, fontWeight: '800', color: '#3d453d', marginTop: 14, marginBottom: 6 },
-  editInput: { backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: '#DCD6C4', paddingVertical: 12, paddingHorizontal: 14, fontSize: 16.5, color: FOREST },
+  editInput: { backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: '#DCD6C4', paddingVertical: 12, paddingHorizontal: 14, fontSize: 16.5, color: paper.ink },
   editSave: { backgroundColor: colors.volt, borderRadius: 16, alignItems: 'center', paddingVertical: 14, marginTop: 18 },
   confirmBar: {
     position: 'absolute', left: 0, right: 0, bottom: 0,
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: FOREST, paddingHorizontal: 12, paddingTop: 14, paddingBottom: 30,
+    backgroundColor: paper.ink, paddingHorizontal: 12, paddingTop: 14, paddingBottom: 30,
     borderTopLeftRadius: 24, borderTopRightRadius: 24,
   },
   confirmBtn: { backgroundColor: colors.volt, borderRadius: 16, paddingVertical: 13, paddingHorizontal: 16 },

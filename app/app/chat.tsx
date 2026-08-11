@@ -9,12 +9,15 @@ import {
 } from '../src/lib/api';
 import { supabase } from '../src/lib/supabase';
 import { session } from '../src/store';
-import { colors } from '../src/theme';
+import { colors, paper } from '../src/theme';
 
 // 채팅 — 예약당 스레드 1개, Supabase Realtime 실배달.
 // 진입: 위젯·일정 시트·미트업의 채팅 버튼(bid 전달) 또는 역할별 진행 중 예약 자동 해석.
 
-const FOREST = '#0F1D13';
+// [2026-08-12 · Sean "remove forest"] 이 파일의 로컬 상수 FOREST = '#0F1D13' 은퇴. 은퇴된 스왈프/포레스트 팔레트의
+// 마지막 잔재였고, 12개 파일에 각자 로컬 상수로 복사돼 있었다 (한 값에 주인 12명).
+// paper.ink(#111111)로 접는다 — 색차는 사실상 안 보이고(둘 다 근처 검정), 그게 정확히 아무도
+// 못 본 이유다. 다크 면에도 같은 토큰을 쓴다 — 캘린더 보드·정산 티켓·빕 스트랩이 이미 그런다.
 
 const QUICK = ['네 좋아요!', '조금 늦을 것 같아요', '지금 어디쯤이세요?', '사진 부탁드려요'];
 
@@ -105,7 +108,7 @@ export default function Chat() {
         <Pressable onPress={() => router.back()} style={s.circleBtn}><Text style={{ fontSize: 20.5 }}>‹</Text></Pressable>
         <Monogram char={(ctx?.peerName ?? '·')[0]} bg={isRunner ? '#c9a86e' : '#5a7a3c'} size={40} />
         <View style={{ flex: 1, marginLeft: 10 }}>
-          <Text style={{ fontSize: 17, fontWeight: '900', color: FOREST }}>{ctx?.peerName ?? '채팅'}</Text>
+          <Text style={{ fontSize: 17, fontWeight: '900', color: paper.ink }}>{ctx?.peerName ?? '채팅'}</Text>
           <Text style={{ fontSize: 14, color: colors.dim, marginTop: 1 }}>
             {state === 'ready' ? '● 실시간 연결됨' : state === 'loading' ? '연결 중...' : ''}
           </Text>
@@ -125,7 +128,7 @@ export default function Chat() {
       {/* body */}
       {state === 'none' && (
         <View style={s.emptyWrap}>
-          <Text style={{ fontSize: 16, fontWeight: '900', color: FOREST, textAlign: 'center' }}>진행 중인 예약이 없어요</Text>
+          <Text style={{ fontSize: 16, fontWeight: '900', color: paper.ink, textAlign: 'center' }}>진행 중인 예약이 없어요</Text>
           <Text style={{ fontSize: 14, color: colors.dim, textAlign: 'center', marginTop: 6, lineHeight: 20.5 }}>
             채팅은 예약이 생기면 상대방과 자동으로 연결돼요
           </Text>
@@ -157,7 +160,7 @@ export default function Chat() {
                   /* [0064] media_path는 프라이빗 버킷 경로 — MediaImage가 서명 URL로 풀고 만료를 명시 실패로 그린다 */
                   <MediaImage source={m.mediaUrl} style={{ width: 190, height: 190, borderRadius: 14 }} resizeMode="cover" />
                 ) : (
-                  <Text style={{ fontSize: 15.5, lineHeight: 22, color: m.mine ? FOREST : '#2c332c' }}>{m.body}</Text>
+                  <Text style={{ fontSize: 15.5, lineHeight: 22, color: m.mine ? paper.ink : '#2c332c' }}>{m.body}</Text>
                 )}
               </View>
               {!m.mine && <Text style={s.time}>{m.when}</Text>}
@@ -198,7 +201,7 @@ export default function Chat() {
           returnKeyType="send"
         />
         <Pressable style={[s.sendBtn, (sending || state !== 'ready') && { opacity: 0.5 }]} onPress={() => send(input)}>
-          <Text style={{ fontSize: 17, fontWeight: '900', color: FOREST }}>↑</Text>
+          <Text style={{ fontSize: 17, fontWeight: '900', color: paper.ink }}>↑</Text>
         </Pressable>
       </Row>
     </KeyboardAvoidingView>
@@ -218,6 +221,6 @@ const s = StyleSheet.create({
   quick: { backgroundColor: '#fff', borderRadius: 99, paddingVertical: 9, paddingHorizontal: 14, borderWidth: 1, borderColor: '#DCD6C4', alignSelf: 'center' },
   inputBar: { padding: 14, paddingBottom: 30, gap: 8, backgroundColor: colors.cream },
   attach: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DCD6C4' },
-  input: { flex: 1, backgroundColor: '#fff', borderRadius: 22, paddingHorizontal: 16, paddingVertical: 11, fontSize: 16, borderWidth: 1, borderColor: '#DCD6C4', color: FOREST },
+  input: { flex: 1, backgroundColor: '#fff', borderRadius: 22, paddingHorizontal: 16, paddingVertical: 11, fontSize: 16, borderWidth: 1, borderColor: '#DCD6C4', color: paper.ink },
   sendBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: colors.volt, alignItems: 'center', justifyContent: 'center' },
 });

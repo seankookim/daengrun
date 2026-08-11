@@ -5,6 +5,7 @@ import { cancelBooking, fetchMyBookings, pauseRecurringSeries, shareRunToFeed } 
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { BottomNav } from '../../src/components/bottomnav';
+import { TabSwipe } from '../../src/components/tabswipe';
 import { Monogram, Row } from '../../src/components/ui';
 import { Booking, BookingStatus, cancelPolicy, draft, runners } from '../../src/store';
 import { CollarKey, collarColors, colors, paper } from '../../src/theme';
@@ -131,6 +132,7 @@ export default function Schedule() {
 
   return (
     <View style={{ flex: 1, backgroundColor: paper.canvas }}>
+      <TabSwipe>
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingTop: 56, paddingBottom: 30 }}
@@ -301,6 +303,7 @@ export default function Schedule() {
           <Text style={{ fontSize: 16, fontWeight: '800', color: paper.ink }}>＋ 새 러닝 예약하기</Text>
         </Pressable>
       </ScrollView>
+      </TabSwipe>
       <BottomNav />
 
       {/* ---------- booking management sheet ---------- */}

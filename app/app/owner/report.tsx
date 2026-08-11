@@ -17,8 +17,11 @@ import { colors, lilac, paper } from '../../src/theme';
 // 러닝 리포트 — 러닝 하나의 '프로필 페이지'. 풀블리드 · 공유 가능 · 사진 · 개인 기록 배지.
 // 진입: 알림 · 내 일정 완료 카드 · 체력 리포트 최근 러닝. 공유가 곧 마케팅 (자랑 = 전파).
 
-const FOREST = '#0F1D13';
-const FOREST_INNER = '#1d3023';
+// [2026-08-12 · Sean "remove forest"] 이 파일의 로컬 상수 FOREST = '#0F1D13' 은퇴. 은퇴된 스왈프/포레스트 팔레트의
+// 마지막 잔재였고, 12개 파일에 각자 로컬 상수로 복사돼 있었다 (한 값에 주인 12명).
+// paper.ink(#111111)로 접는다 — 색차는 사실상 안 보이고(둘 다 근처 검정), 그게 정확히 아무도
+// 못 본 이유다. 다크 면에도 같은 토큰을 쓴다 — 캘린더 보드·정산 티켓·빕 스트랩이 이미 그런다.
+// paper.inkPressed 동반 은퇴 — 다크 카드 위의 더 밝은 안쪽 패널은 paper.inkPressed(#333)가 같은 역할을 한다 (신규 색 0개).
 // 읽는 바이올렛 (colors.clubInk와 같은 값 — '텍스트용 2단' 문법). 적립 스트립 키커 전용.
 // lilac.bg(#F4F2FB) 위 실측 대비: accent #6C5CE7 = 4.38:1 (AA 미달) · #4A3DA8 = 7.50:1 (통과).
 const READ_VIOLET = '#4A3DA8';
@@ -218,12 +221,12 @@ export default function Report() {
                 <Row style={{ gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
                   {bList.map((b) => (
                     <View key={b} style={s.badgePill}>
-                      <Text style={{ fontSize: 14, fontWeight: '900', color: FOREST }}>{b}</Text>
+                      <Text style={{ fontSize: 14, fontWeight: '900', color: paper.ink }}>{b}</Text>
                     </View>
                   ))}
                 </Row>
               )}
-              <Row style={{ marginTop: 14, backgroundColor: FOREST_INNER, borderRadius: 14, paddingVertical: 12, justifyContent: 'space-around' }}>
+              <Row style={{ marginTop: 14, backgroundColor: paper.inkPressed, borderRadius: 14, paddingVertical: 12, justifyContent: 'space-around' }}>
                 <HeroStat value={fmtDur(run.durationSec)} label="러닝 시간" />
                 <View style={s.heroDiv} />
                 <HeroStat value={fmtPace(run.paceSecPerKm)} label="평균 페이스 /km" />
@@ -628,7 +631,7 @@ const s = StyleSheet.create({
   // §2 종이 크롬: 40×40 **정사각**, 캔버스 면, 1px 코랄 트림 (runner/meetup circleBtn 문법 —
   // 이름만 circle이고 모양은 사각이다). 종전 borderRadius 20 + 베이지 트림은 V4 잔재였다.
   backBtn: { width: 40, height: 40, borderRadius: 0, backgroundColor: paper.canvas, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: paper.line },
-  hero: { backgroundColor: FOREST, padding: 20, marginTop: 14 },
+  hero: { backgroundColor: paper.ink, padding: 20, marginTop: 14 },
   heroReason: { borderRadius: 0, paddingVertical: 4, paddingHorizontal: 9 }, // §3b 상태 칩 = radius 0
   finStamp: {
     position: 'absolute', top: 52, right: 18, alignItems: 'center',

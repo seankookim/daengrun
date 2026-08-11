@@ -39,6 +39,16 @@ export function homePath(): '/owner/home' | '/runner/home' {
   return session.role === 'runner' ? '/runner/home' : '/owner/home';
 }
 
+// [2026-08-12] 탭 순서를 밖으로 낸다 — 좌우 스와이프(TabSwipe)가 '이웃 탭'을 알아야 하고,
+// 그 순서의 정본은 이 배열 하나여야 한다. 두 벌이 되는 순간 도크와 제스처가 다른 곳으로 간다.
+// 반환: [왼쪽 이웃, 오른쪽 이웃] — 양끝은 null (없는 이웃으로는 넘어가지 않는다).
+export function tabNeighbors(pathname: string): [string | null, string | null] {
+  const tabs = session.role === 'runner' ? RUNNER_TABS : OWNER_TABS;
+  const i = tabs.findIndex((t) => t.path === pathname);
+  if (i < 0) return [null, null]; // 탭이 아닌 화면 = 스와이프 대상 아님
+  return [i > 0 ? tabs[i - 1].path : null, i < tabs.length - 1 ? tabs[i + 1].path : null];
+}
+
 export function BottomNav({ dark }: { dark?: boolean }) {
   const pathname = usePathname();
   const tabs = session.role === 'runner' ? RUNNER_TABS : OWNER_TABS;

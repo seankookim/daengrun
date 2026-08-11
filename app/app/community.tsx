@@ -2,6 +2,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Animated, Dimensions, Image, Pressable, RefreshControl, ScrollView, StyleProp, StyleSheet, Text, TextInput, View, ViewStyle } from 'react-native';
 import { BottomNav } from '../src/components/bottomnav';
+import { TabSwipe } from '../src/components/tabswipe';
 import { HeatTrace } from '../src/components/runcard';
 import { Avatar, Icon, Row } from '../src/components/ui';
 import { MediaImage } from '../src/lib/media';
@@ -189,6 +190,7 @@ export default function Community() {
 
   return (
     <View style={{ flex: 1, backgroundColor: paper.canvas }}>{/* [페이퍼 크롬 2026-08-10] 라일락 캔버스 은퇴 → 백지 */}
+      <TabSwipe>
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingTop: 56, paddingBottom: 30 }}
@@ -568,6 +570,7 @@ export default function Community() {
           </View>
         )}
       </ScrollView>
+      </TabSwipe>
       <BottomNav />
     </View>
   );

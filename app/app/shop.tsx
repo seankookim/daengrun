@@ -4,6 +4,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BottomNav } from '../src/components/bottomnav';
+import { TabSwipe } from '../src/components/tabswipe';
 import { Row } from '../src/components/ui';
 import { DropRow, fetchActiveBoostLabel, fetchDrops, fetchGearClaims, fetchMiles, GearClaim, MilesInfo } from '../src/lib/api';
 import { products, session } from '../src/store';
@@ -14,7 +15,10 @@ import { colors, paper } from '../src/theme';
 // 상품 그리드는 실 SKU 전 미리보기 — 섹션 단위로 '오픈 준비 중'을 명시 (정직 폴리시).
 // 은퇴: '멤버는 전 상품 10% 할인' 히어로 — 존재하지 않는 혜택의 확정 약속은 정직 원칙 위반.
 
-const FOREST = '#0F1D13';
+// [2026-08-12 · Sean "remove forest"] 이 파일의 로컬 상수 FOREST = '#0F1D13' 은퇴. 은퇴된 스왈프/포레스트 팔레트의
+// 마지막 잔재였고, 12개 파일에 각자 로컬 상수로 복사돼 있었다 (한 값에 주인 12명).
+// paper.ink(#111111)로 접는다 — 색차는 사실상 안 보이고(둘 다 근처 검정), 그게 정확히 아무도
+// 못 본 이유다. 다크 면에도 같은 토큰을 쓴다 — 캘린더 보드·정산 티켓·빕 스트랩이 이미 그런다.
 const CATS = ['전체', '간식', '용품', '의류', '영양제'];
 
 export default function Shop() {
@@ -41,6 +45,7 @@ export default function Shop() {
 
   return (
     <View style={{ flex: 1, backgroundColor: paper.canvas }}>{/* [페이퍼 크롬 2026-08-10] 테라 크래프트 배경 은퇴 → 백지 캔버스. 테라코타는 액센트·가격·CTA(부티크 보이스)로만 생존 */}
+      <TabSwipe>
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ padding: 16, paddingTop: 56 }}
@@ -49,9 +54,9 @@ export default function Shop() {
         <Row style={{ justifyContent: 'space-between', marginBottom: 16 }}>
           {/* 탭 루트 — 뒤로가기 없음 (표준 탭 헤더) */}
           {/* [§3c 화면 타이틀 2026-08-11] 30/900 · lineHeight 37 (1.23× — BUG A). 색은 이 화면의 월드 유지 */}
-          <Text style={[{ fontSize: 30, lineHeight: 37, fontWeight: '900', color: FOREST }, df]}>도그스하이 샵</Text>
+          <Text style={[{ fontSize: 30, lineHeight: 37, fontWeight: '900', color: paper.ink }, df]}>도그스하이 샵</Text>
           <Pressable style={s.circleBtn} onPress={() => Alert.alert('준비 중', '스토어 오픈 시 장바구니가 열려요')}>
-            <Text style={{ fontSize: 17, color: FOREST }}>◱</Text>
+            <Text style={{ fontSize: 17, color: paper.ink }}>◱</Text>
           </Pressable>
         </Row>
 
@@ -72,7 +77,7 @@ export default function Shop() {
             </View>
             {isRunner && (
               <Pressable onPress={() => router.push('/runner/rewards')} style={s.heroGo}>
-                <Text style={{ fontSize: 14, fontWeight: '900', color: FOREST }}>리워드 센터 ›</Text>
+                <Text style={{ fontSize: 14, fontWeight: '900', color: paper.ink }}>리워드 센터 ›</Text>
               </Pressable>
             )}
           </Row>
@@ -104,7 +109,7 @@ export default function Shop() {
         {/* 도착한 드랍 (러너, 실카운트) — 열 것이 있을 때만 그린다 */}
         {isRunner && unopened.length > 0 && (
           <Pressable onPress={() => router.push('/runner/rewards')} style={s.dropStrip}>
-            <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST }}>
+            <Text style={{ fontSize: 15, fontWeight: '900', color: paper.ink }}>
               도착한 드랍 {unopened.length}개 — 열어보세요 ›
             </Text>
           </Pressable>
@@ -125,7 +130,7 @@ export default function Shop() {
                   {i > 0 && <View style={s.div} />}
                   <Row style={{ paddingVertical: 10, justifyContent: 'space-between' }}>
                     <View style={{ flex: 1, paddingRight: 8 }}>
-                      <Text style={{ fontSize: 15.5, fontWeight: '800', color: FOREST }}>{g.item}</Text>
+                      <Text style={{ fontSize: 15.5, fontWeight: '800', color: paper.ink }}>{g.item}</Text>
                       <Text style={{ fontSize: 14, color: colors.dim, marginTop: 2 }}>{g.milestone}회 달성 보상</Text>
                     </View>
                     <View style={[s.claimPill, g.status !== 'claimable' && { backgroundColor: '#EEF0EA' }]}>
@@ -179,6 +184,7 @@ export default function Shop() {
           ))}
         </View>
       </ScrollView>
+      </TabSwipe>
       <BottomNav />
     </View>
   );
@@ -192,11 +198,11 @@ const s = StyleSheet.create({
   search: { backgroundColor: '#fff', borderRadius: 0, paddingVertical: 12, paddingHorizontal: 14, borderWidth: 1, borderColor: '#EEEEEE', marginBottom: 12 },
   // 40×40 스퀘어 · 캔버스 필 · 1px 코랄 보더 — 페이퍼 크롬 버튼 문법 (runner/meetup circleBtn 클래스)
   circleBtn: { width: 40, height: 40, borderRadius: 0, backgroundColor: paper.canvas, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: paper.line },
-  hero: { backgroundColor: FOREST, borderRadius: 0, padding: 18 }, // 다크 앵커는 아티팩트 — 코너만 샤프
+  hero: { backgroundColor: paper.ink, borderRadius: 0, padding: 18 }, // 다크 앵커는 아티팩트 — 코너만 샤프
   heroGo: { backgroundColor: colors.volt, borderRadius: 0, paddingVertical: 8, paddingHorizontal: 13 },
   dropStrip: { backgroundColor: '#eaf7c8', borderRadius: 0, padding: 14, marginTop: 10, borderWidth: 1, borderColor: '#c9dd8f', alignItems: 'center' }, // 볼트 워시 = 시맨틱 (보상 신호)
   boostStrip: { backgroundColor: '#fff', borderRadius: 0, padding: 12, marginTop: 10, borderWidth: 1, borderColor: '#c9dd8f', alignItems: 'center' },
-  section: { fontSize: 17, fontWeight: '900', color: FOREST },
+  section: { fontSize: 17, fontWeight: '900', color: paper.ink },
   countPill: { minWidth: 20, height: 20, borderRadius: 0, backgroundColor: '#e3f0c4', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5, alignSelf: 'center' },
   card: { backgroundColor: '#fff', borderRadius: 0, padding: 14, borderWidth: 1, borderColor: '#EEEEEE' },
   div: { height: 1, backgroundColor: '#EEEEEE' },

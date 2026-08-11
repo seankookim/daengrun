@@ -13,7 +13,10 @@ import { colors, paper } from '../../src/theme';
 // 결과는 이 화면에 뜬다: 수락한 러너가 매치 카드로 나타나고 일정으로 이동.
 // 정직 원칙: 가짜 진행률/가짜 지도 점 없음 — 실가용 러너 목록, 경과 시간, 실상태만.
 
-const FOREST = '#0F1D13';
+// [2026-08-12 · Sean "remove forest"] 이 파일의 로컬 상수 FOREST = '#0F1D13' 은퇴. 은퇴된 스왈프/포레스트 팔레트의
+// 마지막 잔재였고, 12개 파일에 각자 로컬 상수로 복사돼 있었다 (한 값에 주인 12명).
+// paper.ink(#111111)로 접는다 — 색차는 사실상 안 보이고(둘 다 근처 검정), 그게 정확히 아무도
+// 못 본 이유다. 다크 면에도 같은 토큰을 쓴다 — 캘린더 보드·정산 티켓·빕 스트랩이 이미 그런다.
 const CORAL = colors.tang; // #FF5C3D — 워터 리플
 
 const fmtElapsed = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
@@ -139,7 +142,7 @@ export default function Radar() {
       <View style={{ paddingTop: 64, paddingHorizontal: 12 }}>
         <Row style={{ justifyContent: 'space-between' }}>
           <Pressable onPress={() => router.replace('/owner/home')} style={s.backBtn}>
-            <Text style={{ fontSize: 20.5, color: FOREST }}>‹</Text>
+            <Text style={{ fontSize: 20.5, color: paper.ink }}>‹</Text>
           </Pressable>
           <View style={s.livePill}>
             <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: CORAL }} />
@@ -178,7 +181,7 @@ export default function Radar() {
         ) : (
           <>
             <View style={{ alignItems: 'center', marginTop: 14 }}>
-              <Text style={{ fontSize: 25.5, fontWeight: '900', color: FOREST }}>러너를 찾고 있어요</Text>
+              <Text style={{ fontSize: 25.5, fontWeight: '900', color: paper.ink }}>러너를 찾고 있어요</Text>
               <Text style={{ fontSize: 15.5, color: '#49524a', marginTop: 7 }}>
                 경과 {fmtElapsed(elapsed)} · 수락한 러너가 이 화면에 바로 나타나요
               </Text>
@@ -187,7 +190,7 @@ export default function Radar() {
             {/* ---------- 요청을 받은 러너들 — 실가용 (러닝 중 제외) ---------- */}
             <View style={{ marginTop: 26 }}>
               <Row style={{ justifyContent: 'space-between', marginBottom: 10 }}>
-                <Text style={{ fontSize: 15.5, fontWeight: '900', color: FOREST }}>요청을 받은 러너</Text>
+                <Text style={{ fontSize: 15.5, fontWeight: '900', color: paper.ink }}>요청을 받은 러너</Text>
                 <Text style={{ fontSize: 15, color: avail == null && availErr ? paper.critical : '#49524a' }}>
                   {avail == null
                     ? availErr ? '확인 실패 — 30초 내 재시도' : '확인 중…'
@@ -205,7 +208,7 @@ export default function Radar() {
                 <Pressable key={r.profileId} onPress={() => router.push(`/runner-profile/${r.profileId}`)} style={s.runnerRow}>
                   <Avatar url={r.avatarUrl} char={r.name[0]} bg="#5a7a3c" size={42} />
                   <View style={{ flex: 1, marginLeft: 11 }}>
-                    <Text style={{ fontSize: 16.5, fontWeight: '900', color: FOREST }}>{r.name}</Text>
+                    <Text style={{ fontSize: 16.5, fontWeight: '900', color: paper.ink }}>{r.name}</Text>
                     <Text style={{ fontSize: 14.5, color: '#49524a', marginTop: 2 }}>
                       {r.tier} · {r.district || '근처'} · 러닝 {r.totalRuns}회
                     </Text>
@@ -274,8 +277,8 @@ const s = StyleSheet.create({
     position: 'absolute', left: 12, right: 12, bottom: 42, gap: 8,
   },
   pickBtn: {
-    backgroundColor: FOREST, borderRadius: 16, alignItems: 'center', paddingVertical: 16,
-    shadowColor: FOREST, shadowOpacity: 0.25, shadowRadius: 7, shadowOffset: { width: 0, height: 6 },
+    backgroundColor: paper.ink, borderRadius: 16, alignItems: 'center', paddingVertical: 16,
+    shadowColor: paper.ink, shadowOpacity: 0.25, shadowRadius: 7, shadowOffset: { width: 0, height: 6 },
   },
   cancelBtn: { alignItems: 'center', paddingVertical: 9 },
 });
