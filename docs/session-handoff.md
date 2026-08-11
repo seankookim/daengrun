@@ -22,19 +22,20 @@ so, not independently confirmed · **[from-history]** remembered, recheck ·
 | System | State | Provenance |
 |---|---|---|
 | git | 3 commits on redesign-v4, 0 dirty tracked files | **[verified-now]** |
-| Database | prod through **0066** — ⚠ **0067-0070 are LOCAL ONLY, not pushed** | **[verified-now]** |
-| SQL harness | **324 / 0** (was 305 — 19 new pins across 106/107/108) | **[verified-now]** |
+| Database | prod through **0071** — local == remote, pushed + verified this session | **[verified-now]** |
+| SQL harness | **330 / 0** (was 305 — 25 new pins across 106/107/108/109) | **[verified-now]** |
 | tsc | 0 errors | **[verified-now]** |
 | check-rpc | 76 calls / 111 signatures, all match | **[verified-now]** |
+| Prod post-push checks | anon denied on all 6 new/changed RPCs (401, not 404 — they exist) · `payments` anon SELECT 0 rows + anon INSERT refused by RLS | **[verified-now]** |
 | geo runner | 38 / 0 | **[verified-now]** |
 | Device verification | runner home · owner report · owner schedule + booking sheet · my/passport walked on sim | **[verified-now]** |
 | Club screens | code + gates only — **not seen on screen** (this account has no club, so the club world is unreachable in the sim) | **[uncertain]** |
 
-🔴 **THE ONE THING TO DECIDE FIRST: push 0067-0070 or not.** The gates are green and
-CLAUDE.md permits `supabase db push`, but I did not run it — this is four migrations on
-the money path, and the adversarial cycle finished only minutes before the session ended.
-`supabase migration list` will show the gap. Push is the natural next step; it is Sean's
-call whether it happens before he has read 0070's header.
+**Pushed 2026-08-11 pm (Sean: "push ahead").** 0067-0071 applied, `migration list` shows
+local == remote, and the post-push verification was empirical rather than assumed: all six
+new/changed club RPCs return 401 permission-denied to anon (401, not 404 — so they exist AND
+are sealed), and `payments` refuses an anon INSERT with a row-level-security error rather than
+a missing-grant error, which is the distinction 0057 exists to enforce.
 
 ## ⓪b Correction to a commit message I wrote
 
@@ -374,11 +375,36 @@ dogs, nobody could call it — and the console drew the button anyway, so C4's "
 button. 0070 §F opens it to the backup host and narrows self-override to the dog's *owner*: a host
 reporting their own run stuck is self-incrimination, not self-dealing.
 
+**Also done: the payments table (`0071` + pins `109`).** That was the *entire* unblocked payments
+list per toss-plan §5-1, and it closes finding R7 — `ledger_items` recorded only the runner's
+payout, so nothing anywhere said money had arrived (no revenue record, no tax record, no refund
+handle). Nothing charges anyone; the transition map is untouched, and P6 pins that premise because
+the whole reason the Toss track is small rests on it. **Step 1 of §5 is now empty: everything
+remaining on payments is behind Sean's filings.**
+
+## 🔴 Payments — where it actually stands (asked + answered 2026-08-11)
+
+**Real payments cannot be made yet, and 사업자등록 is the first of four locks, all Sean-only:**
+
+| Lock | Detail | Blocks |
+|---|---|---|
+| 사업자등록 | 홈택스, same-day, free. 개인사업자 is fine to start | everything below |
+| 통신판매업 신고 | 시/군/구, after 사업자등록. ~₩40,000/yr 등록면허세 | the PG contract |
+| 토스페이먼츠 계약 | 1–2 week review; needs both documents above | the live switch |
+| `TOSS_SECRET_KEY` | `supabase secrets set …` — Sean only, value never relayed | `confirm-payment` |
+
+Realistically **~2–3 weeks from the day the first filing goes in**, and the clock cannot start
+without Sean. ⚠ 예비창업패키지 2027 (~₩40M) closes the moment 사업자등록 lands — decided already,
+restated here because the timing question keeps coming back.
+
+What is true today and must stay true until the switch: `pay.tsx:299`'s
+"실결제는 발생하지 않았어요" is **accurate**, and `pay.tsx:334` → `api.ts:230` `payment_ok` is the
+only path a booking has into `matching`. Deleting either before `confirm-payment` is live bricks
+confirmation and turns an honest sentence into a lie. They are toss-plan step 3, not step 1.
+
 **Next 1–3, in order:**
 
-1. 🔴 **Push 0067-0070** (see §⑯-0 status block) and verify with `supabase migration list` + the
-   anon-definer check. Nothing else here is blocked by it, but prod is four migrations behind local.
-2. 🔴 **`incident_review` has no commercial exit** (TODOS, both voices). Force-resolve and the 0058
+1. 🔴 **`incident_review` has no commercial exit** (TODOS, both voices). Force-resolve and the 0058
    clinic transfer both park bookings in a terminal state where the owner stays charged and the
    runner can never be paid. The console now says so honestly instead of claiming 정산은 보류돼요,
    but a disclosure is not a fix. This is the payments track's first real customer.
