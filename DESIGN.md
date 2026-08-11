@@ -247,6 +247,50 @@ Maze UI principles. Binding consequences for this app:
 - **Fitts / HIG**: 44pt minimum targets, safe-area respect, hierarchy from size,
   weight, and space rather than decoration.
 
+## 7c. Motion & feel — Apple fluid-interface doctrine (2026-08-11)
+
+Adopted from the `apple-design` skill (Apple's *Designing Fluid Interfaces*),
+translated to React Native. Installed skills: `apple-design`, `prototype`
+(both apply). `pick-ui-library` and `ask-sonner` are **web-only** (Sonner,
+base-ui, cmdk, Framer Motion) — they cannot be installed here; consult them for
+taste, never for dependencies. RN equivalents: `Animated`/Reanimated springs,
+`expo-blur` for materials, `AccessibilityInfo.isReduceMotionEnabled()`.
+
+- **Respond on press-down, never on release.** Feedback at touch-down; commit at
+  touch-up. Our scale-0.96 press already does this — keep it instant (≤100ms).
+- **Interruptibility is the highest law of motion.** Any animation a finger can
+  reach must be grabbable and reversible mid-flight, and must animate **from the
+  current on-screen value**, never from the target (that causes the jump).
+  Practically: gesture-driven surfaces use springs, not timing curves.
+- **Spring defaults**: critically damped (`damping 1.0`, response 0.3–0.4) for
+  ordinary UI. Bounce (`damping ~0.8`) ONLY after a gesture that carried
+  momentum — a flick or throw. Never bounce something that merely faded in.
+- **Velocity handoff**: when a drag ends, the spring starts at the finger's
+  release velocity — no seam between dragging and animating.
+- **Momentum projection**: a flick lands where the gesture was *going*
+  (`current + (v/1000)·d/(1−d)`, d≈0.998), then snaps to the nearest detent —
+  not the nearest point to the release. **The request gear dial must follow
+  this**; snapToInterval alone lands short on a fast flick.
+- **Rubber-band at boundaries** rather than hard-stopping.
+- **Spatial consistency**: a surface exits along the path it entered; sheets and
+  popovers originate from the control that opened them.
+- **1:1 tracking** with the grab offset respected — never snap content to the
+  finger's center.
+- **Multimodal harmony**: visual + haptic fire on the SAME frame; reserve
+  haptics for commit/snap/success (our dial detent and seal stamp qualify).
+- **Typography**: tracking is size-specific — tighten large display text
+  (negative tracking), body near 0; leading tightens as size grows. A single
+  `letterSpacing` across sizes is wrong somewhere.
+- **Reduced motion is not "no motion"** — swap slides/springs for a short
+  cross-fade, keep the static cue. Check `isReduceMotionEnabled` and honor it.
+- **Materials**: we are a paper system, so translucency is used sparingly —
+  never stack a light translucent surface on another; a dark artifact may carry
+  blur, chrome may not.
+- Apple's eight foundations (purpose · agency · responsibility · familiarity ·
+  flexibility · simplicity-not-minimalism · craft · delight) are the vocabulary
+  for design arguments here. "Simplicity is not minimalism" is the guard against
+  decluttering into blandness — pairs with §7b Peak-End protection.
+
 ## 8. Budgets (scarcity is the aesthetic)
 
 | Thing | Budget |
