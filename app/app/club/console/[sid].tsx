@@ -6,9 +6,9 @@ import { AckStack } from '../../../src/components/club-acks';
 import { BigNumRow, ClubCta, ClubMast, ClubTag, DawnCanvas, LilacCard, LoadGate, clubText } from '../../../src/components/club-ui';
 import { DrainRing } from '../../../src/components/drainring';
 import {
-  approveDelegation, assignmentRevoke, ClubIncident, custodyOverride, DelegationBoard, DelegationDog, DelegationRunner,
-  fetchDelegationBoard, fetchSessionIncidents, finishClubSession, hostForceResolve, incidentAssign, incidentResolve,
-  proposalRevoke, proposeDog, reviewDelegation,
+  approveDelegation, assignmentRevoke, cancelClubSession, ClubIncident, custodyOverride, DelegationBoard, DelegationDog,
+  DelegationRunner, fetchDelegationBoard, fetchSessionIncidents, finishClubSession, hostForceResolve, incidentAssign,
+  incidentResolve, proposalRevoke, proposeDog, reviewDelegation,
 } from '../../../src/lib/api';
 import { haptic } from '../../../src/lib/haptics';
 import { collarColors, CollarKey, lilac, lilacRadius } from '../../../src/theme';
@@ -251,6 +251,30 @@ export default function HostConsole() {
     ...(returnBlocked.length > 0 ? [`${returnBlocked.map((d) => d.dogName).join('·')} 반환 미완`] : []),
     ...(unownedCases.length > 0 ? [`케이스 오너 미지정 ${unownedCases.length}건`] : []),
   ];
+  // [감사 H4 2026-08-11] `cancelClubSession`은 0038부터 서버에 있는데 비-dev 호출부가 0이었다.
+  // 그러면서 club-acks는 '세션 취소 — 전액 환불'을 크리티컬 ack로 등록해 둔다 — 클라이언트가
+  // **받을 수는 있지만 절대 보낼 수 없는** 취소였다. 호스트가 세션을 못 여는 게 아니라 못 닫는다.
+  // 서버 계약 그대로 노출한다: 호스트만 · open/full일 때만 · 인계된 아이가 있으면 서버가 거절 ·
+  // 반환값은 실제 환불 건수라 결과를 주장하지 않고 **인쇄**할 수 있다.
+  const doCancelSession = () => {
+    Alert.alert('세션 취소',
+      '이 세션을 취소할까요?\n참여자 전원에게 알림이 가고, 결제된 위탁은 전액 환불돼요. 되돌릴 수 없어요.',
+      [
+        { text: '아직', style: 'cancel' },
+        {
+          text: '세션 취소', style: 'destructive',
+          onPress: () => run(
+            () => cancelClubSession(sess.id).then((n) => {
+              Alert.alert('세션이 취소됐어요',
+                typeof n === 'number' && n > 0 ? `${n}건이 환불 처리로 넘어갔어요` : '환불 대상 예약은 없었어요');
+            }),
+            '취소 실패',
+            (m) => m.includes('session_in_flight') ? '이미 인계된 아이가 있어요 — 밖에 나가 있는 러닝은 취소가 아니라 케이스로 다뤄요'
+              : m.includes('not_host_or_closed') ? '호스트만, 그리고 진행 전 세션만 취소할 수 있어요' : null,
+          ),
+        },
+      ]);
+  };
   const doFinish = () => {
     Alert.alert('세션 종료', '세션을 마무리할까요?', [
       { text: '아직', style: 'cancel' },
@@ -579,6 +603,10 @@ export default function HostConsole() {
           onPress={blockers.length > 0 ? undefined : doFinish}
           busy={busy}
         />
+        {/* 취소는 종료와 다른 일이다 — 종료는 '끝났다', 취소는 '열지 않는다'. 진행 전에만 보인다. */}
+        {!isDone && (
+          <ClubCta label="세션 취소 — 전액 환불" tone="destructive" onPress={doCancelSession} busy={busy} />
+        )}
         <Text style={[clubText.dim, { textAlign: 'center', marginTop: 10 }]}>결제는 서버가 관리해요 — 호스트는 돈을 만지지 않아요</Text>
       </ScrollView>
 

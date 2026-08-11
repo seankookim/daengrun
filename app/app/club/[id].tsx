@@ -96,10 +96,16 @@ export default function ClubPage() {
   // [honesty 2026-08-11] overview 로드 실패가 무지 셸(빈 마스트헤드)로 침묵하던 것 —
   // 실패는 스트립으로 말하고 재시도 문을 연다. 서브 집계(myStats 등)는 장식이라 soft 유지.
   const [clubErr, setClubErr] = useState(false);
+  // [감사 H3 2026-08-11] fetchClubOverview는 '로딩 중'과 '이 동네에 클럽이 없다'를 **똑같이 null**로
+  // 돌려준다. 그래서 마스트헤드가 두 경우 모두 하이클럽 / DISTRICT — / HOST 모집 중을 그렸다 —
+  // 없는 클럽의 이름과 '모집 중'이라는 진행 상태를 지어낸 것이다 (정직 법: 로딩 ≠ 빈 값 ≠ 실패).
+  // 한 번이라도 응답을 받았는지를 따로 들고, 세 상태를 다르게 그린다.
+  const [clubLoaded, setClubLoaded] = useState(false);
   const load = () => {
     setClubErr(false);
     return fetchClubOverview().then((c) => {
       setClub(c);
+      setClubLoaded(true);
       if (c && c.status === 'active') {
         fetchClubMyStats(c.id).then(setMyStats).catch(() => {});
         fetchClubHostStats(c.id).then(setHostStats).catch(() => {});
@@ -271,12 +277,20 @@ export default function ClubPage() {
             <Text style={s.kicker}>DOGS HIGH</Text>
           </Row>
           <Row style={{ alignItems: 'flex-start', gap: 10, marginTop: 9 }}>
-            <Text style={[s.mastTitle, df]}>{club?.name ?? '하이클럽'}</Text>
-            <View style={s.officialTab}>
-              <Text style={s.officialTxt}>OFFICIAL</Text>
-            </View>
+            <Text style={[s.mastTitle, df]}>
+              {club ? club.name : clubErr ? '불러오지 못했어요' : clubLoaded ? '아직 클럽이 없어요' : '불러오는 중...'}
+            </Text>
+            {/* OFFICIAL은 실재하는 클럽의 표식이다 — 없는 클럽에 붙이면 그 자체가 거짓 주장이다 */}
+            {!!club && (
+              <View style={s.officialTab}>
+                <Text style={s.officialTxt}>OFFICIAL</Text>
+              </View>
+            )}
           </Row>
           {!!club?.description && <Text style={s.mastDesc}>{club.description}</Text>}
+          {!club && clubLoaded && !clubErr && (
+            <Text style={s.mastDesc}>이 동네엔 아직 하이클럽이 없어요 — 관심을 등록하면 열릴 때 알려드려요</Text>
+          )}
           <Row style={s.metaRow}>
             <View style={s.metaCell}>
               <Text style={s.metaK}>DISTRICT</Text>
@@ -290,7 +304,8 @@ export default function ClubPage() {
             </View>
             <View style={[s.metaCell, s.metaCellDiv]}>
               <Text style={s.metaK}>HOST</Text>
-              <Text style={s.metaV} numberOfLines={1}>{club?.hostName ?? '모집 중'}</Text>
+              {/* '모집 중'은 진행 중인 활동을 주장한다 — 클럽 자체가 없을 때는 참이 아니다 */}
+              <Text style={s.metaV} numberOfLines={1}>{club?.hostName ?? '—'}</Text>
             </View>
           </Row>
         </View>
