@@ -169,11 +169,40 @@ glyph is only in the sanctioned class if the font it is styled with actually con
 glyph must be checked on screen in its real font, or restricted to the small set already proven
 (`› ‹ ✓ ✎ ◐ ● § ★`). Effort S → S. P2 — visible on the main owner screen.
 
+## 🔴 Harness law found the hard way — `_fail` arguments must never be subqueries
+
+`call _fail('x','y','z=' || (select …))` raises **`cannot use subquery in CALL argument`**. It only
+ever fires on the FAILURE path, so it sits green forever — and when it does fire, the exception
+unwinds that pin's `begin…end` block, which **rolls back the fixture the pin already wrote**.
+Observed 2026-08-11 during 0072's mutation run: one revert silently un-settled a booking and made
+three unrelated pins fail for reasons that had nothing to do with the revert, which made the
+mutation map unreadable until it was found.
+
+**Law: pre-compute the message into a variable, then call.** All 14 sites across 106-110 are fixed.
+
+- [ ] **`95_audit_gates_suite.sql` (×3) and `60_custody_suite.sql` (×1) still carry the pattern.**
+  Same latent defect, in the audit-gate and custody suites. Left alone here only to keep this
+  slice's diff honest; they are one-line fixes each. Effort S → S. P2.
+
 ## From the 0067-0070 adversarial cycle — what the two voices found and I did NOT fix
 
 Recorded so the next session does not rediscover them. Everything here was executed, not guessed.
 
-- [ ] 🔴 **`incident_review` is a booking terminal with no commercial exit.** Both voices, independently.
+- [x] ~~🔴 **`incident_review` is a booking terminal with no commercial exit.**~~ **FIXED 2026-08-11 —
+  `0072_incident_settlement.sql`.** A correction to the finding first: the map's `else` arm
+  (0066:56) already allowed `<anything> → refund_pending`, so the REFUND edge existed and nothing
+  called it; `incident_review → active` is what is really blocked. `club_incident_settle` gives the
+  case owner three outcomes (refund_full · settle_measured · pay_full) and each one actually moves
+  money — ledger_items, payout_state, the booking, plus a recorded basis and evidence. **No new
+  money constant:** the quote derives from the booking's own recorded fares, the handoff stamps,
+  runs.actual_km and runners.commission_rate, so it stayed out of Sean-decision territory.
+  `club_incident_resolve` now refuses while an unsettled `incident_review` subject remains
+  (settlement_required) — a case can no longer close on top of stranded money. Pins 110 S1-S7.
+  - [ ] **Still open: the same exit for a NON-club booking.** `runner_enroute → incident_review`
+    is legal for any booking, but `club_incident_settle` needs a club case and a case owner.
+    There is no ops role, so a marketplace incident has no one with authority to settle it.
+    Nothing creates one today (both writers are club paths), which is why this is P2 and not P1.
+    Effort M → M. P2. Original finding:
   `0001_init.sql:206-209` lets nothing out of it (verified live: `incident_review -> active` raises).
   `session_host_force_resolve` (0069) and `session_transfer_accept`'s external branch (0058, shipped
   since August) both park bookings there. Result: the owner stays charged, the runner can never be

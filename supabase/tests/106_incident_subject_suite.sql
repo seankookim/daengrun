@@ -44,7 +44,7 @@ declare
   v_club2 uuid; v_s2 uuid; sdv uuid; sdw uuid; bv uuid; bw uuid;
   v_km numeric; v_km2 numeric;
   v_inc uuid; v_n int; v_hold text; v_state text;
-  v_e1 text; v_e2 text;
+  v_e1 text; v_e2 text; v_msg text;
 begin
   -- ---------- seed: club ① (the attacker's own session, where they ARE a party) ----------
   hh := t_user('inc_hh', 'runner');
@@ -249,8 +249,10 @@ begin
                        and title = '담당견 인시던트' and body like '%인시던트A%' and body like '%담당 러너%')
            and exists (select 1 from club_acks where profile_id = oa and title = '담당견 인시던트')
           then call _pass('inc','S7 C3 통합 — SOS는 팬아웃·지급 보류·대상견 보호자 크리티컬 알림을 모두 지킨다');
-        else call _fail('inc','S7 보호자 알림','hold=' || coalesce(v_hold,'∅') || ' noti=' ||
-          coalesce((select body from notifications where profile_id = oa and title = '담당견 인시던트' limit 1),'∅')); end if;
+        else
+          select coalesce(n.body,'∅') into v_msg from notifications n
+          where n.profile_id = oa and n.title = '담당견 인시던트' limit 1;
+          call _fail('inc','S7 보호자 알림','hold=' || coalesce(v_hold,'∅') || ' noti=' || coalesce(v_msg,'∅')); end if;
       end if;
     end if;
   exception when others then call _fail('inc','S7', sqlerrm);

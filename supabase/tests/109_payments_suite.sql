@@ -43,7 +43,7 @@ set client_min_messages = warning;
 do $$
 declare
   oo uuid; oz uuid; rr uuid; dg uuid; rt uuid; bk uuid; bk2 uuid;
-  v_bad text := ''; v_n int; v_err boolean; v_pid uuid; b_ok uuid; b_no uuid;
+  v_bad text := ''; v_n int; v_err boolean; v_pid uuid; b_ok uuid; b_no uuid; v_msg text;
 begin
   -- ---------- seed ----------
   oo := t_user('pay_oo', 'owner'); oz := t_user('pay_oz', 'owner');
@@ -100,8 +100,10 @@ begin
   -- 68 V1의 교훈: 읽기만 검사하면 쓰기가 열린 채로 초록이 된다. insert·update·delete 전부 본다.
   begin
     if (select count(*) from pg_policies where tablename = 'payments') <> 1
-      then call _fail('pay','P3 정책 수','SELECT 정책 하나만 있어야 한다 — n=' ||
-        (select count(*) from pg_policies where tablename = 'payments')); else
+      then
+      select 'SELECT 정책 하나만 있어야 한다 — n=' || count(*)::text into v_msg
+      from pg_policies where tablename = 'payments';
+      call _fail('pay','P3 정책 수', coalesce(v_msg,'∅')); else
       if exists (select 1 from pg_policies where tablename = 'payments' and cmd <> 'SELECT')
         then call _fail('pay','P3 정책 종류','SELECT 아닌 정책이 있다'); else
         v_err := false;

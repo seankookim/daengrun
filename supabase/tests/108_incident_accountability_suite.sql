@@ -41,7 +41,7 @@ declare
   hb uuid; ob uuid; db2 uuid;
   v_club uuid; v_s uuid; sda uuid; ba uuid;
   v_club2 uuid; v_s2 uuid; sdb uuid; bb uuid;
-  og uuid; dg uuid; sdg uuid; bg uuid; rg uuid;
+  og uuid; dg uuid; sdg uuid; bg uuid; rg uuid; v_msg text;
   v_km numeric; v_inc uuid; v_inc2 uuid; v_n int; v_hold text; v_state text; v_kind text;
 begin
   -- ---------- seed: club ①, one dog run all the way to payable ----------
@@ -146,8 +146,9 @@ begin
         v_n := club_release_payouts();
         if v_hold = 'none' and (select payout_state from session_dogs where id = sda) = 'released'
           then call _pass('acc','A3 다중 인시던트 보류 고아 폐쇄 — 전부 해소되면 실제로 풀리고 릴리스된다');
-        else call _fail('acc','A3 고아','hold=' || coalesce(v_hold,'∅') || ' payout=' ||
-          coalesce((select payout_state from session_dogs where id = sda),'∅')); end if;
+        else
+          select coalesce(sd.payout_state,'∅') into v_msg from session_dogs sd where sd.id = sda;
+          call _fail('acc','A3 고아','hold=' || coalesce(v_hold,'∅') || ' payout=' || coalesce(v_msg,'∅')); end if;
       end if;
     end if;
   exception when others then call _fail('acc','A3', sqlerrm);
@@ -176,8 +177,12 @@ begin
           and title = '미진행 위탁 자동 환불') = 1
         then call _pass('acc','A4 좌초 위탁 회수 — 배정 창 마감 후 자동 환불·세션은 열린 채·재실행 멱등');
       else call _fail('acc','A4 멱등','호스트 알림 중복'); end if;
-    else call _fail('acc','A4 회수','b=' || (select status from bookings where id = bb)::text
-                    || ' sess=' || (select status from club_sessions where id = v_s2)); end if;
+    else
+      -- _fail 인자에 서브쿼리를 넣으면 plpgsql이 'cannot use subquery in CALL argument'로 터지고,
+      -- 그 예외가 블록을 롤백해 픽스처까지 되돌린다 (110에서 실측). 먼저 변수에 담는다.
+      select 'b=' || b.status::text || ' sess=' || cs.status into v_msg
+      from bookings b, club_sessions cs where b.id = bb and cs.id = v_s2;
+      call _fail('acc','A4 회수', coalesce(v_msg,'∅')); end if;
   exception when others then call _fail('acc','A4', sqlerrm);
   end;
 
@@ -238,8 +243,9 @@ begin
        and (select return_override->'sides'->'owner'->>'kind' from session_dogs where id = sdg) = 'authorized_person_pin'
        and (select return_override->'sides'->'runner'->>'kind' from session_dogs where id = sdg) = 'host_witnessed_receipt'
       then call _pass('acc','A6 증거 세탁 폐쇄 — 측별로 쌓이고 커스터디 기록은 약한 쪽(assisted)을 적는다');
-    else call _fail('acc','A6 세탁','kind=' || coalesce(v_kind,'∅') || ' sides=' ||
-      coalesce((select return_override->'sides' from session_dogs where id = sdg)::text,'∅')); end if;
+    else
+      select coalesce((sd.return_override->'sides')::text,'∅') into v_msg from session_dogs sd where sd.id = sdg;
+      call _fail('acc','A6 세탁','kind=' || coalesce(v_kind,'∅') || ' sides=' || coalesce(v_msg,'∅')); end if;
   exception when others then call _fail('acc','A6', sqlerrm);
   end;
 end $$;

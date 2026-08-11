@@ -2805,6 +2805,29 @@ export const clubSos = (sessionId: string, location: unknown = null) =>
 export const incidentEvidenceAdd = (incidentId: string, kind: 'photo' | 'text' | 'location' | 'document', payload: unknown) =>
   clubRpc('club_incident_evidence_add', { p_incident: incidentId, p_kind: kind, p_payload: payload }) as Promise<void>;
 
+// [0072] 케이스 정산 — incident_review에 멈춘 부킹의 유일한 상업적 출구.
+// 견적은 서버가 계산한다 (부킹이 기록한 요금 구성 + 실측 거리 + 러너 수수료율에서 파생 —
+// 클라가 금액을 만들지 않는다). 호출자는 세 결말 중 하나만 고른다.
+export type SettleOutcome = 'refund_full' | 'settle_measured' | 'pay_full';
+export interface SettleQuote {
+  refund: number; runnerGross: number; runnerFee: number; runnerNet: number;
+  measuredKm: number; tookCustody: boolean; basis: string;
+}
+export const incidentSettleQuote = async (bookingId: string, outcome: SettleOutcome): Promise<SettleQuote> => {
+  const raw = await clubRpc('club_incident_settle_quote', { p_booking: bookingId, p_outcome: outcome }) as any;
+  const r = Array.isArray(raw) ? raw[0] : raw;
+  return {
+    refund: Number(r?.refund ?? 0), runnerGross: Number(r?.runner_gross ?? 0),
+    runnerFee: Number(r?.runner_fee ?? 0), runnerNet: Number(r?.runner_net ?? 0),
+    measuredKm: Number(r?.measured_km ?? 0), tookCustody: !!r?.took_custody,
+    basis: String(r?.basis ?? ''),
+  };
+};
+export const incidentSettle = (incidentId: string, bookingId: string, outcome: SettleOutcome, note: string | null = null) =>
+  clubRpc('club_incident_settle', {
+    p_incident: incidentId, p_booking: bookingId, p_outcome: outcome, p_note: note,
+  }) as Promise<{ refund: number; runnerGross: number; runnerNet: number; rule: string }>;
+
 // 클럽 러닝 종료용 — runs는 당사자 읽기 가능 (0002). 경과 시간은 실측으로 계산한다 (가짜 숫자 금지)
 export async function fetchRunStartedAt(bookingId: string): Promise<string | null> {
   const { data } = await supabase.from('runs').select('started_at').eq('booking_id', bookingId).maybeSingle();

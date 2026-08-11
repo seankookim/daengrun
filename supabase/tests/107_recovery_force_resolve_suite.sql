@@ -49,7 +49,7 @@ declare
   hd uuid; rd uuid; od uuid; dd uuid; v_sd uuid; sdd uuid; bd uuid;
   hs uuid; rs2 uuid; ds uuid; v_club4 uuid; v_ss uuid; sds uuid; bs uuid;
   or2 uuid; dr2 uuid; sdr uuid; br uuid;
-  v_km numeric; v_n int; v_inc uuid; v_bst text; v_phase text; v_err text;
+  v_km numeric; v_n int; v_inc uuid; v_bst text; v_phase text; v_err text; v_msg text;
 begin
   -- ═══ 픽스처 ① — C1용 세션 (배정 안 된 위탁 하나 + T-10 이후 배정될 위탁 하나) ═══
   ha := t_user('hfr_ha', 'runner');
@@ -85,8 +85,9 @@ begin
     v_n := club_assignment_recovery();
     if (select status from bookings where id = bz) <> 'matching'
        or (select status from bookings where id = bq) <> 'matching'
-      then call _fail('hfr','R1 T-10 무간섭','크론이 환불했다 — bz=' ||
-        (select status from bookings where id = bz)::text); else
+      then
+      select '크론이 환불했다 — bz=' || b.status::text into v_msg from bookings b where b.id = bz;
+      call _fail('hfr','R1 T-10 무간섭', coalesce(v_msg,'∅')); else
       perform set_config('request.jwt.claim.sub', ha::text, false);
       perform session_propose_dog(sdz, rb);                    -- T-7분에 집결지 배정
       perform set_config('request.jwt.claim.sub', rb::text, false);
@@ -94,7 +95,9 @@ begin
       if (select status from bookings where id = bz) = 'confirmed'
          and (select runner_id from bookings where id = bz) = rb
         then call _pass('hfr','R1 T-10 이후 배정 성립 — 크론 무간섭 + 집결지 배정이 실제로 동작한다');
-      else call _fail('hfr','R1 배정','b=' || (select status from bookings where id = bz)::text); end if;
+      else
+        select 'b=' || b.status::text into v_msg from bookings b where b.id = bz;
+        call _fail('hfr','R1 배정', coalesce(v_msg,'∅')); end if;
     end if;
   exception when others then call _fail('hfr','R1', sqlerrm);
   end;
@@ -111,8 +114,10 @@ begin
                    and title = '위탁 미진행 — 전액 환불')
        and (select status from club_sessions where id = v_sa) = 'done'
       then call _pass('hfr','R2 종료가 환불의 종단 — 미배정 위탁은 club_not_picked_up으로 전액 환불');
-    else call _fail('hfr','R2 종단','bq=' || (select status from bookings where id = bq)::text
-                    || ' reason=' || coalesce((select cancel_reason from bookings where id = bq),'∅')); end if;
+    else
+      select 'bq=' || b.status::text || ' reason=' || coalesce(b.cancel_reason,'∅') into v_msg
+      from bookings b where b.id = bq;
+      call _fail('hfr','R2 종단', coalesce(v_msg,'∅')); end if;
   exception when others then call _fail('hfr','R2', sqlerrm);
   end;
 
@@ -319,8 +324,10 @@ begin
        and (select payout_hold from session_dogs where id = sdr) = 'held'
        and (select runner_id from bookings where id = br) = hs        -- 정말 호스트=러너였다
       then call _pass('hfr','R6 호스트=러너 강제 종결 허용 — 자기고발은 막지 않는다 (소규모 클럽의 기본형)');
-    else call _fail('hfr','R6 호스트=러너','b=' || (select status::text from bookings where id = br)
-                    || ' hold=' || coalesce((select payout_hold from session_dogs where id = sdr),'∅')); end if;
+    else
+      select 'b=' || b.status::text || ' hold=' || coalesce(sd.payout_hold,'∅') into v_msg
+      from bookings b, session_dogs sd where b.id = br and sd.id = sdr;
+      call _fail('hfr','R6 호스트=러너', coalesce(v_msg,'∅')); end if;
   exception when others then call _fail('hfr','R6', sqlerrm);
   end;
 
@@ -337,8 +344,9 @@ begin
        and (select custodian_type from session_dogs where id = sdd) = 'owner'
        and exists (select 1 from dog_custody_events where session_dog_id = sdd and event_type = 'return')
       then call _pass('hfr','R5 양측 오버라이드 마감 — 호스트가 양측을 대리해도 resolved·payable·커스터디 이벤트');
-    else call _fail('hfr','R5 양측 오버라이드','phase=' || coalesce(v_phase,'∅') || ' payout=' ||
-      coalesce((select payout_state from session_dogs where id = sdd),'∅')); end if;
+    else
+      select coalesce(sd.payout_state,'∅') into v_msg from session_dogs sd where sd.id = sdd;
+      call _fail('hfr','R5 양측 오버라이드','phase=' || coalesce(v_phase,'∅') || ' payout=' || coalesce(v_msg,'∅')); end if;
   exception when others then call _fail('hfr','R5', sqlerrm);
   end;
 end $$;
