@@ -247,7 +247,16 @@ honest) · seed-runner decision · TestFlight · **recruiting one real owner and
 3. **Then re-read TODOS** with real usage in hand — the priorities will have changed, and several
    P2s exist only because nobody has ever hit them.
 
-**If you want code anyway**, in TODOS priority order: `rewards.tsx` swallowed catches (a failed
+**Sean's own list overrides all of this.** On 2026-08-11 he gave ~25 directives for the next
+sessions — km prepay/token model, tab reorder + swipeable tabs, an Instagram-shaped community,
+and a runner-side sweep. They are written verbatim into **TODOS.md → "SEAN'S DIRECTIVE LIST"**,
+each annotated with file:line and with the collisions flagged: the runner-home logo request
+contradicts the 보호자=패스포트 / 러너=빕 rule shipped on 2026-08-11 (ask him), a horizontal pager
+fights the frozen collapsing heroes, and removing green from money touches the GO ready-green
+token law. The km-prepay item is a pricing decision, not a screen — settle expiry, mid-run
+overrun, and what refunds are denominated in before drawing anything.
+
+**If you want the older backlog instead**, in TODOS priority order: `rewards.tsx` swallowed catches (a failed
 load renders as an absence of rewards — the raw enum beside it is cosmetic, the catches are not) ·
 club M1 (`ui.allowedActions` is always `[]`, the structural source of the dead-button class) ·
 club M2 (fee terms hardcoded in consent copy while the server reads `club_cfg` — a config change
