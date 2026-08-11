@@ -3,7 +3,7 @@ import { Animated, PanResponder, Pressable, StyleProp as RNStyleProp, StyleSheet
 import Svg, { Circle, Defs, LinearGradient as SvgLinear, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { useNumFont } from '../lib/fonts';
 import { FlapState } from '../lib/api';
-import { lilac, lilacRadius, lilacShadow } from '../theme';
+import { lilac, lilacRadius, lilacShadow, paper } from '../theme';
 
 // ═══ 클럽 위탁 UI 킷 — 테일러드 라일락 (정본: docs/design/delegation-premium-refresh2 + master-lab) ═══
 // 법: 크리스프 코너 + 소프트 섀도 · 헤어라인 전면 트림 · 히어로 = 이중 프레임 · 태그 = 사각 모노
@@ -12,27 +12,12 @@ import { lilac, lilacRadius, lilacShadow } from '../theme';
 const L = lilac;
 const R = lilacRadius;
 
-// ---------- 새벽빛 캔버스 — 코랄·바이올렛 블룸 (캔버스만, 카드 위 금지) ----------
+// ---------- 캔버스 ----------
+// [Sean 2026-08-11 리밴프] 라일락 캔버스(#F4F2FB) + 새벽빛 블룸 은퇴 → 페이퍼 흰 캔버스.
+// §2 페이퍼 법: 틴티드 캔버스 없음. 클럽의 시맨틱 색(바이올렛 강조·상태 톤)은 컴포넌트 안에 살아남고,
+// 배경만 앱 나머지와 같은 종이가 된다. 이름은 유지 — 8개 화면이 이 이름으로 임포트한다.
 export function DawnCanvas({ children, style }: { children: ReactNode; style?: ViewStyle }) {
-  return (
-    <View style={[{ flex: 1, backgroundColor: L.bg }, style]}>
-      <Svg width="100%" height={260} style={StyleSheet.absoluteFill} pointerEvents="none">
-        <Defs>
-          <RadialGradient id="dc" cx="88%" cy="0%" rx="70%" ry="55%">
-            <Stop offset="0" stopColor="#F0765A" stopOpacity="0.11" />
-            <Stop offset="1" stopColor="#F0765A" stopOpacity="0" />
-          </RadialGradient>
-          <RadialGradient id="dv" cx="0%" cy="8%" rx="60%" ry="45%">
-            <Stop offset="0" stopColor="#6C5CE7" stopOpacity="0.09" />
-            <Stop offset="1" stopColor="#6C5CE7" stopOpacity="0" />
-          </RadialGradient>
-        </Defs>
-        <Rect x="0" y="0" width="100%" height="260" fill="url(#dc)" />
-        <Rect x="0" y="0" width="100%" height="260" fill="url(#dv)" />
-      </Svg>
-      {children}
-    </View>
-  );
+  return <View style={[{ flex: 1, backgroundColor: paper.canvas }, style]}>{children}</View>;
 }
 
 // ---------- DH 모노그램 — 홀로 포일 (앱 내 홀로 예산: 모노그램 + 티켓 엣지만) ----------
@@ -331,23 +316,24 @@ export const clubText: Record<string, TextStyle> = {
 };
 
 const s = StyleSheet.create({
+  // [리밴프] 글래스 알약 마스트헤드 은퇴 — 페이퍼 크롬: 캔버스 + 풀블리드 코랄 헤어라인, radius 0.
   mast: {
     flexDirection: 'row', alignItems: 'center', gap: 9,
-    paddingVertical: 10, paddingHorizontal: 12,
-    backgroundColor: L.glass, borderRadius: 10,
-    borderWidth: 1, borderColor: L.glassEdge,
-    ...lilacShadow, shadowOpacity: 0.07,
+    paddingVertical: 12, paddingHorizontal: 15,
+    backgroundColor: paper.canvas, borderRadius: 0,
+    borderBottomWidth: 1, borderBottomColor: paper.line,
   },
   // [FLOOR14] 마스트 서브는 날짜·클럽명(한글 정보)이다 — 트래킹 라틴 마이크로 옷을 벗긴다.
   // numberOfLines={1} 이라 폭이 모자라면 줄바꿈이 아니라 말줄임 — 어느 기기에서도 레이아웃은 안 깨진다.
   mastSub: { fontSize: 14, lineHeight: 18, fontWeight: '700', letterSpacing: 0.5, color: L.dim, marginTop: 1 },
+  // [리밴프] 샤프 코너 + 소프트 섀도 은퇴 (§2 페이퍼: 진짜 떠 있는 표면에만 그림자).
   card: {
-    backgroundColor: L.card, borderRadius: R.card, borderWidth: 1, borderColor: L.hair,
-    padding: 13, marginTop: 10, ...lilacShadow,
+    backgroundColor: paper.canvas, borderRadius: 0, borderWidth: 1, borderColor: '#EEEEEE',
+    padding: 13, marginTop: 10,
   },
   innerFrame: {
     position: 'absolute', left: 4, right: 4, top: 4, bottom: 4,
-    borderWidth: 1, borderColor: L.hair2, borderRadius: 4,
+    borderWidth: 1, borderColor: '#EEEEEE', borderRadius: 0,
   },
   flapTile: {
     minWidth: 13, paddingVertical: 2, paddingHorizontal: 3, alignItems: 'center',
@@ -357,15 +343,15 @@ const s = StyleSheet.create({
   },
   flapSlit: { position: 'absolute', left: 0, right: 0, top: '50%', height: 1, backgroundColor: 'rgba(34,30,61,0.13)' },
   cta: {
-    backgroundColor: L.coral, borderRadius: R.btn, alignItems: 'center', paddingVertical: 15, marginTop: 12,
+    backgroundColor: L.coral, borderRadius: 0, alignItems: 'center', paddingVertical: 15, marginTop: 12,
     shadowColor: L.coral, shadowOpacity: 0.38, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 4,
   },
   // §3b: all four button kinds paddingVertical ≥15 (was 14 / 11 — the quiet one was a 33pt target).
   ctaQuiet: { backgroundColor: L.card, borderWidth: 1, borderColor: L.hair, shadowOpacity: 0, paddingVertical: 15, elevation: 0 },
   ctaOff: { backgroundColor: L.inset, shadowOpacity: 0, elevation: 0 },
   bignum: {
-    flexDirection: 'row', backgroundColor: L.inset, borderRadius: R.inner,
-    borderWidth: 1, borderColor: L.hair, marginTop: 11, overflow: 'hidden',
+    flexDirection: 'row', backgroundColor: paper.canvas, borderRadius: 0,
+    borderWidth: 1, borderColor: '#EEEEEE', marginTop: 11, overflow: 'hidden',
   },
   bignumCell: { flex: 1, paddingVertical: 9, paddingHorizontal: 6, borderRightWidth: 1, borderRightColor: L.hair },
   // [FLOOR14] 셀 라벨은 '원 · 확약 러너 · 코스명' — 한글 정보다. 320dp 셀 가용폭 ~86px 에서
@@ -375,8 +361,8 @@ const s = StyleSheet.create({
     marginTop: 4, paddingTop: 3, borderTopWidth: 1, borderTopColor: L.hair,
   },
   ticket: {
-    backgroundColor: L.card, borderRadius: R.card, borderWidth: 1, borderColor: L.hair,
-    marginTop: 10, overflow: 'hidden', ...lilacShadow,
+    backgroundColor: paper.canvas, borderRadius: 0, borderWidth: 1, borderColor: '#EEEEEE',
+    marginTop: 10, overflow: 'hidden',
   },
   perfRow: { height: 0, marginHorizontal: 10, flexDirection: 'row', alignItems: 'center' },
   perfLine: { flex: 1, borderTopWidth: 1.5, borderStyle: 'dashed', borderColor: '#D8D2EE' },

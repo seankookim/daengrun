@@ -203,10 +203,12 @@ export default function ClubPage() {
   if (club?.hostName) facts.push({ k: 'HOST', v: club.hostName });
   if (club && club.status === 'active') facts.push({ k: 'CREW', v: String(club.memberCount), unit: '멤버', num: true });
 
+  // [리밴프] 라일락 캔버스 → 페이퍼 흰 캔버스 (§2: 틴티드 캔버스 없음). 이 화면은 킷의
+  // DawnCanvas를 쓰지 않고 자기 배경을 칠하므로 여기서 따로 바꾼다. 새벽빛 블룸도 함께 은퇴 —
+  // 블룸은 라일락 캔버스 위에서만 성립하고, 흰 종이 위에서는 얼룩으로 읽힌다.
   return (
-    <View style={{ flex: 1, backgroundColor: L.bg }}>
-      {/* 새벽빛 블룸 (캔버스만, 카드 위 금지) */}
-      <Svg width="100%" height={240} style={StyleSheet.absoluteFill} pointerEvents="none">
+    <View style={{ flex: 1, backgroundColor: paper.canvas }}>
+      <Svg width="100%" height={0} style={StyleSheet.absoluteFill} pointerEvents="none">
         <Defs>
           <SvgLinear id="homeDawn" x1="0" y1="0" x2="0" y2="1">
             <Stop offset="0" stopColor="#6C5CE7" stopOpacity="0.07" />
@@ -526,7 +528,9 @@ export default function ClubPage() {
                   {!!club.hostName && (
                     <Row style={s.hostLine}>
                       <View style={s.hostDot}><Text style={{ fontSize: 7, fontWeight: '700', color: '#fff' }}>{club.hostName.slice(0, 1)}</Text></View>
-                      <Text style={{ fontSize: 14, lineHeight: 19, fontWeight: '600', color: L.text }} numberOfLines={1}>{/* CLUB15 */}
+                      {/* numberOfLines 1 → 2: '· N세션째 같은 자리'가 말줄임으로 잘려 문장이 사라졌다.
+                          호스트 신뢰의 유일한 서술문이라 줄여 없앨 대상이 아니다. */}
+                      <Text style={{ flex: 1, fontSize: 14, lineHeight: 19, fontWeight: '600', color: L.text }} numberOfLines={2}>
                         {club.hostName} <Text style={{ color: L.dim }}>· {hostStats.sessions}세션째 같은 자리</Text>
                       </Text>
                     </Row>
@@ -537,13 +541,16 @@ export default function ClubPage() {
           )}
 
           {/* ---------- 호스트 도구: 세션 열기 ---------- */}
+          {/* [Sean 2026-08-11] 가로 배치라 설명문이 '…열 수 있 / 어요'로 낱말 중간에서 끊기고
+              CTA는 눌린 폭으로 쪼그라들었다. 세로로 쌓으면 문장은 한 줄, 버튼은 풀폭이 된다
+              (§3b 프라이머리는 어차피 풀블리드에 가깝게 놓인다). */}
           {club?.isHost && (
-            <Row style={s.hostTool}>
-              <Text style={{ flex: 1, fontSize: 15, color: L.dim, lineHeight: 20 }}>{/* CLUB15 */}호스트 전용 · 다음 회차를 미리 열 수 있어요</Text>
-              <Pressable onPress={openSheet} style={({ pressed }) => [s.hostBtn, pressed && { transform: [{ scale: 0.97 }] }]}>
-                <Text style={{ fontSize: 15, lineHeight: 20, fontWeight: '800', color: '#fff' }}>{/* CLUB15 */}＋ 세션 열기</Text>
+            <View style={s.hostTool}>
+              <Text style={{ fontSize: 14, color: paper.dim, lineHeight: 19 }}>호스트 전용 · 다음 회차를 미리 열 수 있어요</Text>
+              <Pressable onPress={openSheet} style={({ pressed }) => [s.hostBtn, pressed && { backgroundColor: paper.inkPressed }]}>
+                <Text style={{ fontSize: 17, lineHeight: 22, fontWeight: '800', color: '#fff' }}>＋ 세션 열기</Text>
               </Pressable>
-            </Row>
+            </View>
           )}
 
           {/* ---------- 콜로폰 ---------- */}
@@ -700,10 +707,12 @@ const s = StyleSheet.create({
   },
   // ⑥ 타일
   tile: {
-    flex: 1, minWidth: 0, backgroundColor: L.card, borderWidth: 1, borderColor: L.hair2,
-    borderRadius: lilacRadius.card, padding: 11, ...lilacShadow, shadowOpacity: 0.06,
+    flex: 1, minWidth: 0, backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE',
+    borderRadius: 0, padding: 12,
   },
-  tileK: { fontSize: 8, fontWeight: '700', letterSpacing: 1.8, color: L.dim },
+  // [FLOOR14] '내 출석' · '호스트 신뢰'는 한글 라벨인데 8pt + 트래킹 1.8로 렌더됐다 —
+  // 라틴 레터스페이스 키커 문법을 한글에 입힌 정확한 위반 (§3). 14로 올리고 트래킹을 걷는다.
+  tileK: { fontSize: 14, lineHeight: 18, fontWeight: '800', letterSpacing: 0.2, color: paper.dim },
   streakTag: { borderWidth: 1, borderColor: L.hair, borderRadius: 5, backgroundColor: L.card, paddingVertical: 2, paddingHorizontal: 5 },
   stampOn: { width: 11, height: 11, borderRadius: 2, backgroundColor: L.accent, alignItems: 'center', justifyContent: 'center', opacity: 0.92 },
   stampNext: { width: 11, height: 11, borderRadius: 2, borderWidth: 1.2, borderColor: L.hair },
@@ -714,19 +723,18 @@ const s = StyleSheet.create({
   },
   // 호스트 도구
   hostTool: {
-    alignItems: 'center', gap: 10, marginTop: 10,
-    borderWidth: 1, borderColor: L.hair, borderStyle: 'dashed', borderRadius: lilacRadius.card,
-    paddingVertical: 10, paddingHorizontal: 12, backgroundColor: L.glass,
+    gap: 10, marginTop: 12,
+    borderWidth: 1, borderColor: '#EEEEEE', borderRadius: 0,
+    paddingVertical: 13, paddingHorizontal: 13, backgroundColor: paper.canvas,
   },
   hostBtn: {
-    backgroundColor: L.head, borderRadius: lilacRadius.btn, paddingVertical: 12, paddingHorizontal: 18,
-    shadowColor: L.head, shadowOpacity: 0.28, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 3,
+    backgroundColor: paper.ink, borderRadius: 0, paddingVertical: 15, alignItems: 'center',
   },
   // 콜로폰
   colophon: { justifyContent: 'space-between', marginTop: 18, paddingTop: 11, borderTopWidth: 1, borderTopColor: L.hair },
   colophonTxt: { fontSize: 7.5, fontWeight: '700', letterSpacing: 2.2, color: L.dim },
   // 시트
-  sheet: { backgroundColor: L.bg, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 18, paddingBottom: 34 },
+  sheet: { backgroundColor: paper.canvas, borderTopLeftRadius: 0, borderTopRightRadius: 0, padding: 18, paddingBottom: 34, borderTopWidth: 1, borderTopColor: paper.line },
   chip: {
     borderRadius: 99, paddingVertical: 9, paddingHorizontal: 14,
     backgroundColor: L.card, borderWidth: 1.3, borderColor: L.hair,
