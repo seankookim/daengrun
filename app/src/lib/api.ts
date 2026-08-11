@@ -2163,6 +2163,24 @@ export async function sendSOS(role: 'owner' | 'runner'): Promise<string | null> 
   return bookingId;
 }
 
+// 러닝 중단 요청 — 보호자 → 담당 러너. **채팅은 푸시를 만들지 않는다**: notifications INSERT만
+// 0024의 트리거(notifications → pg_net → Expo Push)를 탄다. 그래서 중단 요청은 채팅(기록·증거)과
+// 알림(도달)을 **둘 다** 쓴다. 새 마이그레이션 없음 — 0009 'noti party insert' 정책이 이미
+// 예약 당사자의 상대방 앞 booking 알림을 허용하고, sendSOS가 그 경로를 프로덕션에서 쓰고 있다.
+// 제목은 상수다: push.ts의 라우팅이 완전 일치로 판정한다 (부분 일치는 '도착' 사고의 원인).
+export const RUN_STOP_TITLE = '러닝 중단 요청';
+export async function notifyRunStop(bookingId: string, reason: string): Promise<void> {
+  const { data: bk } = await supabase.from('bookings').select('owner_id, runner_id').eq('id', bookingId).single();
+  const target = (bk as any)?.runner_id;
+  if (!target) return;   // 아직 담당 러너가 없으면 보낼 상대가 없다 (조용한 무동작, 거짓 주장 없음)
+  const { error } = await supabase.from('notifications').insert({
+    profile_id: target, kind: 'booking',
+    title: RUN_STOP_TITLE, body: `보호자가 러닝 중단을 요청했어요 — 사유: ${reason}`,
+    ref_id: bookingId,
+  });
+  if (error) throw error;
+}
+
 // ---------- 리워드 (드랍·기어) ----------
 export interface DropRow {
   id: string; kind: string; runCountAt: number;

@@ -3,7 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Avatar, Row } from '../../src/components/ui';
-import { ensureThread, fetchBookingStatus, fetchCurrentOwnerBookingId, fetchMeetupInfo, MeetupInfo, sendChatMessage, subscribeBooking } from '../../src/lib/api';
+import { ensureThread, fetchBookingStatus, fetchCurrentOwnerBookingId, fetchMeetupInfo, MeetupInfo, notifyRunStop, sendChatMessage, subscribeBooking } from '../../src/lib/api';
 import { useNumFont } from '../../src/lib/fonts';
 import { getNaverMap, LivePos, smoothTrace, subscribePos } from '../../src/lib/geo';
 import { endOwnerActivity, OwnerLAProps, startOwnerActivity, updateOwnerActivity } from '../../src/lib/ownerActivity';
@@ -145,9 +145,19 @@ export default function Live() {
         threadId,
         `[러닝 종료 요청] 사유: ${stopReason}\n안전한 지점에서 정지한 뒤 픽업 장소로 복귀 부탁드려요.`,
       );
+      // [2026-08-11] 채팅만으로는 **도달하지 않는다** — messages는 notifications 행을 만들지 않고,
+      // 0024의 푸시 브리지는 notifications INSERT에만 걸린다. 그래서 러너가 채팅을 열기 전까지
+      // 중단 요청이 보이지 않았다. 이제 알림도 함께 넣는다 (기록은 채팅, 도달은 알림).
+      // 알림 실패가 이미 전송된 채팅을 되돌릴 수는 없으므로 여기서 던지지 않는다 — 다만
+      // 뒤따르는 카피가 '푸시가 갔다'고 주장하지 않도록 성공 여부를 들고 간다.
+      let pushed = true;
+      try { await notifyRunStop(bookingId, stopReason); } catch { pushed = false; }
       setStopSheet(false);
-      // No overclaim: what actually happened is a chat send, not a push — land the owner in the
-      // thread where the sent request is visible (proof, not assertion).
+      if (!pushed) {
+        Alert.alert('요청은 전달됐어요',
+          '채팅으로 전달했지만 알림은 보내지 못했어요 — 러너가 채팅을 열어야 볼 수 있어요. 급하면 직접 연락해주세요.');
+      }
+      // 어느 쪽이든 채팅 스레드로 — 보낸 요청이 눈에 보이는 곳이다 (주장이 아니라 증거).
       router.push({ pathname: '/chat', params: { bid: bookingId } });
     } catch (e) {
       // Failure renders as failure — sheet stays open, retry possible
@@ -367,9 +377,10 @@ export default function Live() {
         <View style={s.stopSheet}>
           <View style={s.sheetHandle} />
           <Text style={s.sheetTitle}>정말 러닝을 종료할까요?</Text>
-          {/* Honest copy — only what actually happens: chat send (not a push) → runner sees it → stop & return */}
+          {/* 정직 카피 — 실제로 일어나는 것만: 채팅(기록) + 알림(도달) → 러너가 확인 → 정지·복귀.
+              2026-08-11까지는 채팅뿐이었고 그건 러너가 채팅을 열어야만 보였다. 이제 알림도 간다. */}
           <Text style={s.sheetBody}>
-            종료 요청과 사유가 채팅으로 러너에게 전송돼요.{'\n'}러너가 확인하면 안전하게 정지한 뒤 {dogName}를 데리고 픽업 장소로 복귀해요.
+            종료 요청과 사유가 러너에게 알림과 채팅으로 함께 전달돼요.{'\n'}러너가 확인하면 안전하게 정지한 뒤 {dogName}를 데리고 픽업 장소로 복귀해요.
           </Text>
 
           <Text style={s.sheetLabel}>종료 사유</Text>

@@ -17,6 +17,10 @@ const _handledTaps = new Set<string>();
 // 완전 일치만 쓴다 — includes로 부분 일치를 잡으면 '새 사진 도착'·'위탁 배정 도착'·
 // '위탁 신청 도착'이 '도착'에 걸려 리포트 대신 인계 화면으로 잘못 새어 나간다.
 const LIVE_TITLES = ['러너 도착', '러너 이동 중'];
+// 보호자 → 러너 중단 요청 (api.ts RUN_STOP_TITLE와 같은 문자열 — 한쪽을 바꾸면 둘 다 바꾼다).
+// 러너의 기본 booking 도착지는 캘린더인데, 진행 중인 러닝을 멈춰달라는 요청이 캘린더에 떨어지면
+// 그건 도달이 아니다. 이 제목만 러닝 화면으로 보낸다.
+const RUN_STOP_TITLE = '러닝 중단 요청';
 
 // 알림 탭 도착지 — alerts.tsx 인박스와 단일 소스 (kind/ref_id는 0024 data 페이로드).
 // 역할별: 러너는 요청/캘린더, 보호자는 라이브 미트업(도착·이동 중) 또는 리포트.
@@ -29,6 +33,7 @@ export function routeForNotification(kind: string | null | undefined, refId: str
   if (kind !== 'booking' || !refId) return;
   try {
     if (session.role === 'runner') {
+      if (title === RUN_STOP_TITLE) { router.push('/runner/run'); return; }
       router.push(title.includes('요청') ? '/runner/requests' : '/runner/calendar');
     } else if (LIVE_TITLES.includes(title)) {
       // /owner/meetup takes no bid — it self-restores to whatever booking is CURRENTLY in
