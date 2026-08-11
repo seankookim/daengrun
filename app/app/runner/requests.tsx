@@ -59,7 +59,20 @@ export default function Requests() {
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = () => { setRefreshing(true); load().finally(() => setRefreshing(false)); };
 
-  const accept = async (req: OpenRequest) => {
+  // [2026-08-11] 여기는 한 번의 탭이 곧 커밋이었다. 수락은 **현실 세계의 약속**이다 — 그 시간에
+  // 남의 개를 데리러 가겠다는 것이고, 동시에 다른 일에 쓸 수 있는 자리를 없앤다. 잘못 눌린 수락은
+  // 보호자를 길에 세우거나 노쇼가 된다. 러너 홈의 티켓(home.tsx:182)은 이미 개·시각·실수령을
+  // 보여주고 확인을 받는데, 정작 요청이 잔뜩 쌓이는 이 화면만 즉시 커밋이었다. 같은 계약으로 맞춘다.
+  const accept = (req: OpenRequest) => {
+    if (accepting) return;
+    Alert.alert('요청 수락',
+      `${req.dogName} · ${req.when}\n${req.payout.toLocaleString()}원 실수령 — 수락할까요?\n수락하면 이 시간에 갈 사람은 나예요.`,
+      [
+        { text: '아직', style: 'cancel' },
+        { text: '수락', style: 'default', onPress: () => void commitAccept(req) },
+      ]);
+  };
+  const commitAccept = async (req: OpenRequest) => {
     setAccepting(req.bookingId);
     try {
       await acceptBooking(req.bookingId);
@@ -147,15 +160,25 @@ export default function Requests() {
               <Pressable
                 style={({ pressed }) => [s.acceptDoor, pressed && { backgroundColor: CORAL_INK_DEEP, transform: [{ scale: 0.96 }] }]}
                 disabled={reschedBusy !== null}
-                onPress={async () => {
-                  setReschedBusy(rq.bookingId);
-                  try {
-                    await acceptReschedule(rq.bookingId);
-                    haptic('success');
-                    Alert.alert('변경 수락', '일정이 새 시간으로 변경됐어요 — 캘린더에 반영됩니다');
-                    load();
-                  } catch (e) { Alert.alert('수락 실패', (e as Error).message); load(); }
-                  finally { setReschedBusy(null); }
+                /* 같은 법: 이건 **이미 확정된 약속의 시간을 바꾸는** 커밋이다. 한 번의 탭으로
+                   내 캘린더가 조용히 옮겨가면 안 된다 — 옛 시간과 새 시간을 다시 보여주고 묻는다. */
+                onPress={() => {
+                  if (reschedBusy) return;
+                  Alert.alert('새 시간 수락',
+                    `${rq.dogName} · ${rq.km}km\n${rq.curDate} ${rq.curTime} → ${rq.newDate} ${rq.newTime}\n이 시간으로 바꿀까요?`,
+                    [
+                      { text: '아직', style: 'cancel' },
+                      { text: '수락', style: 'default', onPress: async () => {
+                        setReschedBusy(rq.bookingId);
+                        try {
+                          await acceptReschedule(rq.bookingId);
+                          haptic('success');
+                          Alert.alert('변경 수락', '일정이 새 시간으로 변경됐어요 — 캘린더에 반영됩니다');
+                          load();
+                        } catch (e) { Alert.alert('수락 실패', (e as Error).message); load(); }
+                        finally { setReschedBusy(null); }
+                      } },
+                    ]);
                 }}
               >
                 <Text style={{ fontSize: 17, fontWeight: '800', color: '#FFFFFF' }}>
