@@ -595,7 +595,7 @@ export default function HostConsole() {
           />
           <ClubCta
             label="강제 종결하고 케이스 열기"
-            tone="coral"
+            tone="destructive"
             busy={busy}
             onPress={() => {
               const t = forceDraft.trim();

@@ -1,17 +1,18 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Animated, Dimensions, Easing, Image, Pressable, ScrollView, Share, StyleSheet, Text, TextStyle, View } from 'react-native';
+import { Animated, Dimensions, Easing, Image, Pressable, ScrollView, Share, StyleSheet, Text, TextStyle, View } from 'react-native';
 import { PatchBadge } from '../../src/components/patch';
 import { HeatTrace } from '../../src/components/runcard';
+import { PaperBtn } from '../../src/components/paper-btn';
 import { Monogram, Row, Skeleton } from '../../src/components/ui';
 import { MediaImage } from '../../src/lib/media';
-import { CoursePatch, fetchPatchPop, fetchRunEarning, fetchRunReport, fetchRunStandings, fetchStampPop, RunEarning, RunReport, RunStandings, shareRunToFeed, StampInfo } from '../../src/lib/api';
+import { CoursePatch, fetchPatchPop, fetchRunEarning, fetchRunReport, fetchRunStandings, fetchStampPop, RunEarning, RunReport, RunStandings, StampInfo } from '../../src/lib/api';
 import { haptic } from '../../src/lib/haptics';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { getNaverMap, smoothTrace } from '../../src/lib/geo';
 import { draft, TracePoint } from '../../src/store';
-import { colors, lilac } from '../../src/theme';
+import { colors, lilac, paper } from '../../src/theme';
 
 // 러닝 리포트 — 러닝 하나의 '프로필 페이지'. 풀블리드 · 공유 가능 · 사진 · 개인 기록 배지.
 // 진입: 알림 · 내 일정 완료 카드 · 체력 리포트 최근 러닝. 공유가 곧 마케팅 (자랑 = 전파).
@@ -148,7 +149,7 @@ export default function Report() {
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 40 }}>
         <Row style={{ justifyContent: 'space-between', paddingHorizontal: 12, paddingTop: 56 }}>
           <Pressable onPress={() => router.back()} style={s.backBtn}><Text style={{ fontSize: 20.5 }}>‹</Text></Pressable>
-          <Text style={[{ fontSize: 23, fontWeight: '900', color: FOREST }, df]}>러닝 리포트</Text>
+          <Text style={[{ fontSize: 23, fontWeight: '900', color: paper.ink }, df]}>러닝 리포트</Text>
           {run ? (
             <Pressable onPress={share} style={s.backBtn}><Text style={{ fontSize: 17 }}>↗</Text></Pressable>
           ) : <View style={{ width: 40 }} />}
@@ -165,13 +166,12 @@ export default function Report() {
 
         {report && !run && (
           <View style={s.emptyBox}>
-            <Text style={{ fontSize: 17, fontWeight: '900', color: FOREST }}>
+            <Text style={{ fontSize: 17, fontWeight: '900', color: paper.ink }}>
               {STATUS_LABEL[report.status] ?? '진행 상황 확인 중'}
             </Text>
             <Text style={[s.emptyText, { marginTop: 6 }]}>러닝이 끝나면 여기서 기록을 볼 수 있어요</Text>
-            <Pressable onPress={() => router.replace('/owner/schedule')} style={s.ctaGhost}>
-              <Text style={{ fontSize: 14.5, fontWeight: '800', color: FOREST }}>내 일정에서 보기 ›</Text>
-            </Pressable>
+            <PaperBtn label="내 일정에서 보기 ›" variant="secondary" style={{ alignSelf: 'stretch', marginTop: 14 }}
+              onPress={() => router.replace('/owner/schedule')} />
           </View>
         )}
 
@@ -306,7 +306,7 @@ export default function Report() {
                   if (n === 0) return null;
                   return (
                     <View key={kind} style={s.stampChip}>
-                      <Text style={{ fontSize: 14.5, fontWeight: '900', color: '#3d5a2b' }}>{label} ×{n}</Text>
+                      <Text style={{ fontSize: 14.5, fontWeight: '900', color: paper.actionInk }}>{label} ×{n}</Text>
                     </View>
                   );
                 })}
@@ -327,7 +327,7 @@ export default function Report() {
               /* [정직 배치 2.5 · 감사 #31] 유령 타일 3개 은퇴 — 채워질 자리인 척하는 빈 액자였다.
                  바디캠 하이라이트도 파이프라인이 없으므로 약속에서 뺀다. 끝난 러닝의 사실은 과거형 한 줄. */
               <View style={{ backgroundColor: '#fff', paddingHorizontal: 20, paddingTop: 4, paddingBottom: 14 }}>
-                <Text style={{ fontSize: 15, fontWeight: '700', color: FOREST, textAlign: 'center' }}>
+                <Text style={{ fontSize: 15, fontWeight: '700', color: paper.ink, textAlign: 'center' }}>
                   이번 러닝은 사진이 없어요
                 </Text>
                 <Text style={{ fontSize: 14, color: colors.dim, textAlign: 'center', marginTop: 3 }}>
@@ -350,7 +350,7 @@ export default function Report() {
               <Row style={{ gap: 12 }}>
                 <Monogram char={(report.runnerName ?? '러')[0]} bg="#5a7a3c" size={44} />
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 16.5, fontWeight: '900', color: FOREST }}>
+                  <Text style={{ fontSize: 16.5, fontWeight: '900', color: paper.ink }}>
                     {report.runnerName ?? '러너'} 러너
                   </Text>
                   <Text style={{ fontSize: 15, color: colors.dim, marginTop: 2 }}>
@@ -386,47 +386,25 @@ export default function Report() {
             {/* ---------- 결제 ---------- */}
             <View style={s.section}>
               <Row style={{ justifyContent: 'space-between' }}>
-                <Text style={{ fontSize: 15, fontWeight: '800', color: FOREST }}>결제 금액</Text>
-                <Text style={{ fontSize: 18.5, fontWeight: '900', color: FOREST }}>{report.price.toLocaleString()}원</Text>
+                <Text style={{ fontSize: 15, fontWeight: '800', color: paper.ink }}>결제 금액</Text>
+                <Text style={{ fontSize: 18.5, fontWeight: '900', color: paper.ink }}>{report.price.toLocaleString()}원</Text>
               </Row>
-              <Text style={{ fontSize: 14, color: colors.dim, marginTop: 5 }}>
+              <Text style={{ fontSize: 14, color: paper.dim, marginTop: 5 }}>
                 조기 종료 시 정산 조정은 고객센터를 통해 처리돼요
               </Text>
             </View>
 
             {/* ---------- CTA ---------- */}
-            <View style={{ paddingHorizontal: 12 }}>
-              <Pressable onPress={() => bid && router.push(`/shot/${bid}`)} style={s.cta}>
-                <Text style={{ fontSize: 17, fontWeight: '900', color: FOREST }}>인증샷 만들기</Text>
-                <Text style={{ fontSize: 14, color: '#5d6b4a', marginTop: 2 }}>인스타그램용 브랜디드 카드로 자랑해요</Text>
-              </Pressable>
-              <Pressable
-                onPress={() => {
-                  if (!bid) return;
-                  shareRunToFeed(bid)
-                    .then(() => {
-                      Alert.alert('피드에 올렸어요', '동네 이웃들이 응원할 거예요');
-                      router.push('/community');
-                    })
-                    .catch((e) => Alert.alert('공유 실패', (e as Error).message));
-                }}
-                style={s.ghostCta}
-              >
-                <Text style={{ fontSize: 15, fontWeight: '800', color: '#3d5a2b' }}>동네 피드에 자랑하기</Text>
-              </Pressable>
-              <Pressable onPress={share} style={s.ghostCta}>
-                <Text style={{ fontSize: 15, fontWeight: '800', color: '#3d453d' }}>↗ 텍스트로 공유</Text>
-              </Pressable>
-              {report.status === 'completed' && report.runnerProfileId && (
-                <Pressable
-                  onPress={() => router.push({ pathname: '/owner/review', params: { bid: bid!, rid: report.runnerProfileId!, rname: report.runnerName ?? '러너' } })}
-                  style={s.ghostCta}
-                >
-                  <Text style={{ fontSize: 15, fontWeight: '800', color: '#a97c12' }}>★ {report.runnerName ?? ''} 러너 후기 남기기</Text>
-                </Pressable>
-              )}
-              {/* 재예약 = 두 번째 예약이 첫 예약보다 중요하다 — 설정 전부 프리필, 시간만 고르면 끝 */}
-              <Pressable
+            {/* [액션 롤아웃 2026-08-11] 여섯 개가 세로로 쌓여 있었고 셋은 중복이었다:
+                · '동네 피드에 자랑하기' — compose.tsx가 완주 러닝 피커로 이 일을 이미 한다
+                · '↗ 텍스트로 공유' — 인증샷 스튜디오가 끝나면서 여는 OS 공유 시트가 상위 호환이다
+                  (그건 실제 이미지를 나른다; 이건 글자만 나른다). 헤더의 ↗ 버튼도 남아 있다.
+                · '홈으로' — 뒤로가기 버튼과 탭바가 이미 하는 일
+                남은 셋은 서로 다른 일을 한다. 강조는 하나다 (§7b Von Restorff):
+                **이대로 다시 예약**이 프라이머리다 — 두 번째 예약이 이 제품의 PMF 지표다. */}
+            <View style={{ paddingHorizontal: 12, gap: 8, marginTop: 16 }}>
+              <PaperBtn
+                label="⟳ 이대로 다시 예약"
                 onPress={() => {
                   draft.km = report.plannedKm;
                   draft.pace = report.paceLabel;
@@ -437,16 +415,16 @@ export default function Report() {
                   draft.timeLabel = '시간을 선택해주세요';
                   router.push('/owner/request');
                 }}
-                style={[s.cta, { backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#a9c47e' }]}
-              >
-                <Text style={{ fontSize: 16, fontWeight: '900', color: '#3d5a2b' }}>⟳ 이대로 다시 예약</Text>
-                <Text style={{ fontSize: 14, color: colors.dim, marginTop: 2 }}>
-                  같은 코스·거리{report.runnerName ? ` · ${report.runnerName} 러너 지명` : ''} — 시간만 고르면 돼요
-                </Text>
-              </Pressable>
-              <Pressable onPress={() => router.replace('/owner/home')} style={s.ghostCta}>
-                <Text style={{ fontSize: 15, fontWeight: '800', color: '#3d453d' }}>홈으로</Text>
-              </Pressable>
+              />
+              <Text style={{ fontSize: 14, lineHeight: 19, color: paper.dim, textAlign: 'center', marginBottom: 4 }}>
+                같은 코스·거리{report.runnerName ? ` · ${report.runnerName} 러너 지명` : ''} — 시간만 고르면 돼요
+              </Text>
+              <PaperBtn label="인증샷 만들기" variant="secondary"
+                onPress={() => bid && router.push(`/shot/${bid}`)} />
+              {report.status === 'completed' && report.runnerProfileId && (
+                <PaperBtn label={`★ ${report.runnerName ?? ''} 러너 후기 남기기`} variant="secondary"
+                  onPress={() => router.push({ pathname: '/owner/review', params: { bid: bid!, rid: report.runnerProfileId!, rname: report.runnerName ?? '러너' } })} />
+              )}
             </View>
           </>
         )}
@@ -625,7 +603,7 @@ function GoalBar({ label, pct, detail }: { label: string; pct: number; detail: s
     <View style={{ marginTop: 10 }}>
       <Row style={{ justifyContent: 'space-between' }}>
         <Text style={{ fontSize: 14, fontWeight: '700', color: '#3d453d' }}>{label}</Text>
-        <Text style={{ fontSize: 15, fontWeight: '900', color: pct >= 100 ? '#5a7a3c' : FOREST }}>{pct}%</Text>
+        <Text style={{ fontSize: 15, fontWeight: '900', color: pct >= 100 ? paper.readyDeep : paper.ink }}>{pct}%</Text>
       </Row>
       <View style={s.barTrack}>
         <Animated.View
@@ -642,7 +620,9 @@ function GoalBar({ label, pct, detail }: { label: string; pct: number; detail: s
 }
 
 const s = StyleSheet.create({
-  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DCD6C4' },
+  // §2 종이 크롬: 40×40 **정사각**, 캔버스 면, 1px 코랄 트림 (runner/meetup circleBtn 문법 —
+  // 이름만 circle이고 모양은 사각이다). 종전 borderRadius 20 + 베이지 트림은 V4 잔재였다.
+  backBtn: { width: 40, height: 40, borderRadius: 0, backgroundColor: paper.canvas, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: paper.line },
   hero: { backgroundColor: FOREST, padding: 20, marginTop: 14 },
   heroReason: { borderRadius: 99, paddingVertical: 4, paddingHorizontal: 9 },
   finStamp: {
@@ -652,11 +632,14 @@ const s = StyleSheet.create({
   },
   heroDiv: { width: 1, backgroundColor: '#2c4034' },
   badgePill: { backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 4, paddingHorizontal: 10 },
-  section: { backgroundColor: '#fff', paddingHorizontal: 12, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#DCD6C4' },
-  sectionTitle: { fontSize: 15.5, fontWeight: '900', color: FOREST, marginBottom: 6 },
+  // 섹션 분할은 풀블리드 솔리드 코랄 1px — 이 선이 곧 브랜드 (§2 종이 법)
+  section: { backgroundColor: paper.canvas, paddingHorizontal: 12, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: paper.line },
+  // §3b 섹션 헤더는 앱 전체에서 하나의 문법: 20/800 잉크. 화면마다 크기를 달리 쓰지 않는다.
+  sectionTitle: { fontSize: 20, fontWeight: '800', color: paper.ink, marginBottom: 6 },
   barTrack: { height: 8, borderRadius: 99, backgroundColor: '#f0eee3', marginTop: 6, overflow: 'hidden' },
   barFill: { height: 8, borderRadius: 99, backgroundColor: colors.volt },
-  stampChip: { backgroundColor: '#eef4e0', borderRadius: 99, paddingVertical: 7, paddingHorizontal: 13 },
+  // 은퇴 팔레트(연두 워시)의 마지막 잔재 + 알약 코너. 코랄 워시 위 샤프 칩으로.
+  stampChip: { backgroundColor: paper.wash, borderRadius: 0, paddingVertical: 7, paddingHorizontal: 13 },
   // ---------- 리워드 ① 적립 스트립 — 조용한 라일락 영수증 (섹션 리듬은 s.section과 동일) ----------
   earnSection: {
     backgroundColor: lilac.bg, paddingHorizontal: 12, paddingVertical: 16,
@@ -697,9 +680,6 @@ const s = StyleSheet.create({
   haulCta: { backgroundColor: '#fff', borderRadius: 99, paddingVertical: 11, paddingHorizontal: 22, marginTop: 16 },
   haulCtaText: { fontSize: 15, lineHeight: 20, fontWeight: '900', color: lilac.head },
   haulHint: { fontSize: 14, lineHeight: 18, color: HAUL_DIM, marginTop: 12 },
-  emptyBox: { margin: 20, backgroundColor: '#f4f2ea', borderRadius: 18, padding: 26, alignItems: 'center' },
-  emptyText: { fontSize: 15, color: colors.dim, textAlign: 'center', lineHeight: 22 },
-  ctaGhost: { marginTop: 14, backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 10, paddingHorizontal: 18 },
-  cta: { backgroundColor: colors.volt, borderRadius: 18, alignItems: 'center', paddingVertical: 15, marginTop: 16 },
-  ghostCta: { backgroundColor: '#fff', borderRadius: 16, alignItems: 'center', paddingVertical: 13, marginTop: 8, borderWidth: 1, borderColor: '#DCD6C4' },
+  emptyBox: { margin: 20, backgroundColor: paper.wash, borderRadius: 0, padding: 26, alignItems: 'center', borderWidth: 1, borderColor: paper.line },
+  emptyText: { fontSize: 15, color: paper.dim, textAlign: 'center', lineHeight: 22 },
 });

@@ -134,9 +134,22 @@ export function Flap({ word, state }: { word?: string; state?: FlapState }) {
   );
 }
 
-// ---------- CTA — 코랄 · 크리스프 8px · 소프트 글로우 ----------
+// ---------- CTA — 액션 시스템 (ink = 상태, coral = 액션) ----------
+// [2026-08-11 액션 롤아웃] 두 가지가 틀려 있었다.
+//  ① 프라이머리 면이 L.coral(#F0765A)이었다 — 흰 라벨 **2.83:1**. 큰 활자 하한 3:1조차 못 넘는다
+//     (§3 "작은 흰 글씨는 코랄 위에 절대 앉지 않는다"의 정면 위반이 CTA 부품 자체에 있었다).
+//     paper.action(#C6472C, 흰 라벨 4.84:1)로 옮긴다. 새 색 0개 — 이미 home.tsx MONEY_DEEP ·
+//     GO_SKIN.deep · community CORAL_INK과 같은 값이라, 클럽 버튼과 GO 디스크가 두 개의 비슷한
+//     색이 아니라 **하나의 시스템**으로 읽힌다.
+//  ② tone="violet"이 액션 톤으로 쓰였다. 바이올렛은 §5에서 **클럽 정체성**이지 '누를 곳'이 아니다.
+//     액션 톤에서 은퇴 — 5개 호출부는 전부 진짜 프라이머리 액션이라 기본 톤으로 간다.
+// 새로 생긴 자리: secondary(액션인데 화면의 유일 강조는 아닌 것 — 종전엔 quiet에 몰려 있었다)와
+// destructive(취소·강제 종결 — 종전엔 coral과 구분이 없었다). quiet은 '돌아가기 / 아직'처럼
+// 액션이 아닌 문에만 남는다 (§3b: 드물게).
 export function ClubCta({ label, onPress, tone = 'coral', disabled, busy, style }: {
-  label: string; onPress?: () => void; tone?: 'coral' | 'violet' | 'quiet' | 'disabled'; disabled?: boolean; busy?: boolean; style?: ViewStyle;
+  label: string; onPress?: () => void;
+  tone?: 'coral' | 'secondary' | 'destructive' | 'quiet' | 'disabled';
+  disabled?: boolean; busy?: boolean; style?: ViewStyle;
 }) {
   const off = disabled || busy || tone === 'disabled';
   return (
@@ -144,19 +157,27 @@ export function ClubCta({ label, onPress, tone = 'coral', disabled, busy, style 
       onPress={off ? undefined : onPress}
       style={({ pressed }) => [
         s.cta,
-        tone === 'violet' && { backgroundColor: L.accent, shadowColor: L.accent },
+        tone === 'secondary' && s.ctaSecondary,
+        tone === 'destructive' && s.ctaDestructive,
         tone === 'quiet' && s.ctaQuiet,
         off && s.ctaOff,
+        // 눌림은 명시 색으로 — 알파 트릭 금지 (§2 버튼 매트릭스). 면이 있는 톤은 면이 어두워지고,
+        // 아웃라인 톤은 자기 워시로 채워진다.
+        pressed && !off && tone === 'coral' && { backgroundColor: paper.actionPressed },
+        pressed && !off && tone === 'secondary' && { backgroundColor: '#FBE7E1' },
+        pressed && !off && tone === 'destructive' && { backgroundColor: paper.criticalWash },
         pressed && !off && { transform: [{ scale: 0.96 }] }, // §3b: 0.96, not 0.98
         style,
       ]}
     >
       {/* [§3b-B sweep 2026-08-11] Button matrix: primary label 17/800, secondary 16/800.
-          Shipped 14 for both. `style` stays last so callers can still stretch/position the CTA —
-          but note paper-btn's known hole (caller style landing after the variant fill) does not
-          apply here: the variant fills are on the Pressable, the label colors are on the Text. */}
+          `style` stays last so callers can still stretch/position the CTA — but note paper-btn's
+          known hole (caller style landing after the variant fill) does not apply here: the variant
+          fills are on the Pressable, the label colors are on the Text. */}
       <Text style={[
         { fontSize: 17, fontWeight: '800', letterSpacing: 0.3, color: '#fff' },
+        tone === 'secondary' && { color: paper.actionInk, fontSize: 16 },
+        tone === 'destructive' && { color: paper.critical, fontSize: 16 },
         tone === 'quiet' && { color: L.dim, fontSize: 16 },
         off && { color: L.dim },
       ]}>
@@ -343,10 +364,23 @@ const s = StyleSheet.create({
   },
   flapSlit: { position: 'absolute', left: 0, right: 0, top: '50%', height: 1, backgroundColor: 'rgba(34,30,61,0.13)' },
   cta: {
-    backgroundColor: L.coral, borderRadius: 0, alignItems: 'center', paddingVertical: 15, marginTop: 12,
-    shadowColor: L.coral, shadowOpacity: 0.38, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 4,
+    backgroundColor: paper.action, borderRadius: 0, alignItems: 'center', paddingVertical: 15, marginTop: 12,
+    shadowColor: paper.action, shadowOpacity: 0.38, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 4,
   },
   // §3b: all four button kinds paddingVertical ≥15 (was 14 / 11 — the quiet one was a 33pt target).
+  // Outlined tones drop the glow — a shadow under a canvas-filled button reads as a floating card,
+  // and only the primary action gets to float.
+  // Same grammar as PaperBtn's secondary/destructive on purpose — a wash face (not an empty
+  // white one) so a secondary button still reads as part of the action family, and a canvas
+  // face with critical trim for destructive. Two components, one system.
+  ctaSecondary: {
+    backgroundColor: paper.wash, borderWidth: 1, borderColor: paper.line,
+    shadowOpacity: 0, elevation: 0, paddingVertical: 15,
+  },
+  ctaDestructive: {
+    backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.critical,
+    shadowOpacity: 0, elevation: 0, paddingVertical: 15,
+  },
   ctaQuiet: { backgroundColor: L.card, borderWidth: 1, borderColor: L.hair, shadowOpacity: 0, paddingVertical: 15, elevation: 0 },
   ctaOff: { backgroundColor: L.inset, shadowOpacity: 0, elevation: 0 },
   bignum: {

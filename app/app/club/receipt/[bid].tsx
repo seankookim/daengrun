@@ -249,7 +249,7 @@ export default function ClubReceipt() {
         {/* ---------- 공유 = 성장 루프 (카드 밖 — 캡처에 안 들어간다). [Sean 규칙] 여백 화면 = 큰 버튼 ---------- */}
         <ClubCta label={stamping ? '도장 찍는 중…' : '이미지로 공유 →'} disabled={stamping} onPress={shareImage}
           style={{ marginTop: 14, paddingVertical: 18 }} />
-        <ClubCta label="동네 피드에 자랑하기" tone="quiet" onPress={shareFeed} busy={busy} style={{ paddingVertical: 15 }} />
+        <ClubCta label="동네 피드에 자랑하기" tone="secondary" onPress={shareFeed} busy={busy} style={{ paddingVertical: 15 }} />
         <Pressable onPress={() => router.push({ pathname: '/owner/report', params: { bid: bid! } })}>
           <Text style={s.detailLink}>상세 리포트 (지도·이벤트) →</Text>
         </Pressable>

@@ -689,7 +689,7 @@ export default function ClubSessionShell() {
                 ...(board?.session.routeKm ? [{ v: String(board.session.routeKm), unit: 'km', label: board.session.routeName ?? '코스' }] : []),
               ]} />
             )}
-            <ClubCta label="신청 취소 (무료)" tone="quiet" onPress={() => doWithdraw(d)} />
+            <ClubCta label="신청 취소 (무료)" tone="destructive" onPress={() => doWithdraw(d)} />
           </>
         )}
 
@@ -796,7 +796,7 @@ export default function ClubSessionShell() {
         )}
         {/* O11 — 완료: 골드 실 영수증 (상세 리포트는 영수증 안의 문) */}
         {d.flap === 'SETTLED' && d.bookingId && (
-          <ClubCta label="오늘의 영수증 →" tone="quiet"
+          <ClubCta label="오늘의 영수증 →" tone="secondary"
             onPress={() => router.push({ pathname: `/club/receipt/${d.bookingId}`, params: { clubName: clubName ?? '' } })} />
         )}
         {/* BOARDED/OUTSIDE/REFUND/REFUSED — 상태는 카드가 정직하게 말한다 (위 카드의 서버 primaryStage가 마지막 말).
@@ -807,7 +807,7 @@ export default function ClubSessionShell() {
             거절(rejected)엔 문을 그리지 않는다 — 위 카드 문구가 정직한 마지막 말이다. */}
         {d.flap === 'REFUSED' && d.approval === 'withdrawn' && isOpenish && startMs > Date.now()
           && (board?.session.format === 'mixed' || board?.session.format === 'delegated_only') && (
-          <ClubCta label="다시 신청하기 →" tone="quiet"
+          <ClubCta label="다시 신청하기 →" tone="secondary"
             onPress={() => router.push({ pathname: `/club/delegate/${sess.id}`, params: { clubName: clubName ?? '', when: sess.when } })} />
         )}
       </View>
@@ -970,7 +970,7 @@ export default function ClubSessionShell() {
 
             {/* [Sean 규칙] 여백 많은 화면의 버튼은 크게 — 결과 화면은 한 손 엄지 존 */}
             {sess.nextSessionId && (
-              <ClubCta label="다음 세션 참여하기 →" tone="violet" style={{ paddingVertical: 18 }}
+              <ClubCta label="다음 세션 참여하기 →" tone="secondary" style={{ paddingVertical: 18 }}
                 onPress={() => router.replace({ pathname: `/club/session/${sess.nextSessionId}`, params: { clubName } })} />
             )}
 
@@ -1071,7 +1071,7 @@ export default function ClubSessionShell() {
                             style={{ marginTop: 9, paddingVertical: 11 }} />
                         )}
                         {running && (
-                          <ClubCta label="러닝 화면 (트래킹 · 종료) →" tone="violet"
+                          <ClubCta label="러닝 화면 (트래킹 · 종료) →" tone="secondary"
                             onPress={() => router.push({ pathname: `/club/run/${sess.id}`, params: { clubName: clubName ?? '' } })}
                             style={{ marginTop: 9, paddingVertical: 11 }} />
                         )}
@@ -1099,14 +1099,14 @@ export default function ClubSessionShell() {
                 )}
                 {/* 러닝 시작 — 인계(픽업) 확정된 아이가 있을 때만 (러너 액션) */}
                 {myCharges.some((d) => d.bookingStatus === 'picked_up') && (
-                  <ClubCta label="러닝 시작 →" tone="violet" onPress={doStartRuns} busy={busy} />
+                  <ClubCta label="러닝 시작 →" onPress={doStartRuns} busy={busy} />
                 )}
               </>
             )}
 
             {/* ---------- 러너 확약 — 인증 러너(cap>0) + 위탁 세션에만 문을 그린다 ([감사 P1] owner_only 죽은 버튼) ---------- */}
             {isOpenish && board && board.session.format !== 'owner_only' && !board.me.committed && board.me.runnerCap > 0 && (
-              <ClubCta label={`이번 세션 러너로 확약하기 (담당 ${board.me.runnerCap}마리까지)`} tone="violet"
+              <ClubCta label={`이번 세션 러너로 확약하기 (담당 ${board.me.runnerCap}마리까지)`}
                 onPress={doCommit} busy={busy} />
             )}
             {isOpenish && board?.me.committed && myCharges.length === 0 && myProposals.length === 0 && (
@@ -1124,7 +1124,7 @@ export default function ClubSessionShell() {
                 label={sess.status === 'full' ? '정원이 찼어요' : '함께 뛰기 — 동의하고 참여'}
                 onPress={doRsvp}
                 disabled={busy || sess.status === 'full'}
-                tone={myDogs.length > 0 ? 'quiet' : 'coral'}
+                tone={myDogs.length > 0 ? 'secondary' : 'coral'}
               />
             )}
             {isOpenish && sess.joined && sess.myAttendance === 'rsvp' && (
@@ -1139,7 +1139,7 @@ export default function ClubSessionShell() {
                     </Row>
                   </>
                 )
-                : <ClubCta label="참여 중 — 취소하려면 탭" tone="quiet" onPress={doCancelRsvp} />
+                : <ClubCta label="참여 중 — 취소하려면 탭" tone="destructive" onPress={doCancelRsvp} />
             )}
             {isOpenish && sess.myAttendance === 'checked_in' && (
               <View style={s.checkedCard}>
@@ -1156,7 +1156,7 @@ export default function ClubSessionShell() {
 
             {/* 호스트 콘솔 문 — 심사·배정·종료는 콘솔에서 */}
             {sess.isHost && !isDone && (
-              <ClubCta label="호스트 콘솔 →" tone="violet"
+              <ClubCta label="호스트 콘솔 →" tone="secondary"
                 onPress={() => router.push({ pathname: `/club/console/${sess.id}`, params: { clubName: clubName ?? '' } })}
                 style={{ marginTop: 16 }} />
             )}
@@ -1359,7 +1359,7 @@ export default function ClubSessionShell() {
             <ClubCta
               key={a.label}
               label={a.label}
-              tone={a.destructive ? 'coral' : 'violet'}
+              tone={a.destructive ? 'destructive' : 'coral'}
               onPress={() => {
                 const t = askDraft.trim();
                 if (askText.requireText && !t) { Alert.alert('내용이 필요해요'); return; }

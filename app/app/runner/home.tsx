@@ -39,8 +39,12 @@ const hh = (m: number) => String(Math.floor(m / 60)).padStart(2, '0');
 
 // 코랄-텍스트 법: 흰 텍스트는 오직 어두운 터미널 스톱(≥ #C6472C, 백지 4.84:1) 위에.
 // 밝은 --coral(#F0765A)은 fill/edge/dot·글로우 섀도로만 생존, 절대 그 위에 흰 소자 텍스트 금지.
-const CORAL_INK = '#C6472C';
-const CORAL_INK_DEEP = '#B23E25';
+// [액션 롤아웃 2026-08-11] 이 화면이 들고 있던 로컬 코랄 상수 두 개는 은퇴한다.
+// CORAL_INK은 paper.action과 **같은 값**이었고 (#C6472C), CORAL_INK_DEEP(#B23E25)은
+// actionPressed(#A83315)와 분리도 1.1로 눈에 구분되지 않는 중복 헥스였다. 한 화면이 자기
+// 팔레트를 들고 있으면 시스템이 두 개가 된다 — 토큰 하나로 접는다.
+const CORAL_INK = paper.action;
+const CORAL_INK_DEEP = paper.actionPressed;
 
 const TIER_LABEL: Record<string, string> = { certified: '인증 러너', veteran: '베테랑', master: '마스터' };
 
@@ -329,12 +333,12 @@ export default function RunnerHome() {
 
   return (
     <View style={{ flex: 1, backgroundColor: paper.canvas }}>{/* [페이퍼 크롬] 라일락 캔버스 은퇴 → 백지 */}
-      {/* ————— 상단 크롬 — 플레인 화이트 + 코랄 헤어라인 (글래스 은퇴) · 알림 벨 보존 (/alerts) ————— */}
+      {/* ————— 상단 크롬 — 플레인 화이트 + 코랄 헤어라인 · 알림 벨만 (/alerts) —————
+           [정체성 2026-08-11] 보호자 홈은 **패스포트**(브랜드 마스트헤드)로 자기를 말하고,
+           러너 홈은 **빕**(아래 스트랩)으로 말한다. 여기 있던 '다' 글리프 칩 + 'RUNNER' 키커는
+           그 빕이 이미 하는 말을 한 번 더 한 것이었고, 라틴 레터스페이스 키커는 §3b가 앱 전체에서
+           은퇴시킨 장식이다. 정체성은 한 화면에 한 번만 인쇄된다. */}
       <View style={styles.top}>
-        <Row style={{ alignItems: 'center', gap: 6 }}>
-          <View style={styles.brandmark}><Text style={styles.brandmarkGlyph}>다</Text></View>
-          <Text style={styles.crumb}>RUNNER</Text>
-        </Row>
         <Pressable onPress={() => router.push('/alerts')} style={styles.bell} accessibilityLabel="알림">
           {/* 도트는 실 미읽음 수가 있을 때만 — 무조건 점은 가짜 알림 신호다 */}
           {unread > 0 && <View style={styles.bellDot} />}
@@ -361,7 +365,9 @@ export default function RunnerHome() {
           {/* 온라인 토글 — 러너의 유일한 스위치, 스트랩 우측에 산다. 같은 rs.online/toggleOnline 상태 */}
           <Pressable onPress={toggleOnline} accessibilityRole="switch" accessibilityState={{ checked: rs.online }}>
             <Row style={{ alignItems: 'center', gap: 7 }}>
-              <Text style={[styles.swLabel, { color: rs.online ? CORAL_INK : lilac.dim }]}>
+              {/* 잉크 위에서는 코랄의 **표시판**이 읽는 판이 된다 (2단 법의 반전): 실측
+                  #C6472C는 잉크 위 3.87:1로 미달하고, #F0765A는 6.63:1로 통과한다. */}
+              <Text style={[styles.swLabel, { color: rs.online ? lilac.coral : paper.faint }]}>
                 {rs.online ? '온라인' : '오프라인'}
               </Text>
               <View style={[styles.swTrack, rs.online ? styles.swTrackOn : styles.swTrackOff]}>
@@ -445,11 +451,11 @@ export default function RunnerHome() {
               {jobAddr && (
                 <Text style={styles.nowSub} numberOfLines={1}>{jobAddr.label} · {jobAddr.addr}</Text>
               )}
-              <Row style={{ gap: 7, marginTop: 11 }}>
-                <View style={[styles.btnCoral, { flex: 1.5 }]}>
-                  <Text style={styles.btnCoralTxt}>{STAGE[current.rawStatus]?.action ?? '이어서 진행 ›'}</Text>
-                </View>
-              </Row>
+              {/* [액션 롤아웃 2026-08-11] 여기엔 코랄 **면**이 있었다 — 그런데 그건 버튼이 아니라
+                  <View>였다. 탭 타깃은 카드 전체(이 Pressable)다. 코랄 면은 '여기를 누르세요'라는
+                  약속인데 그 자리는 누를 수 없는 자리였다. 면을 링크로 강등한다: 잉크 링크가
+                  '카드가 눌린다'를 정직하게 말하고, 코랄 면은 진짜 타깃에만 남는다. */}
+              <Text style={styles.nowGo}>{STAGE[current.rawStatus]?.action ?? '이어서 진행 ›'}</Text>
             </Pressable>
           </>
         )}
@@ -835,16 +841,10 @@ export default function RunnerHome() {
 const styles = StyleSheet.create({
   // 상단 크롬 — [페이퍼 크롬] 글래스 은퇴: 플레인 화이트 + 코랄 헤어라인 바텀 엣지 (마스트헤드 법)
   top: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end',
     paddingTop: 48, paddingBottom: 9, paddingHorizontal: 12,
     backgroundColor: paper.canvas, borderBottomWidth: 1, borderBottomColor: paper.line,
   },
-  brandmark: {
-    width: 20, height: 20, borderRadius: 6, backgroundColor: HOLO[0], alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1, borderColor: 'rgba(34,30,61,0.16)',
-  },
-  brandmarkGlyph: { fontSize: 10, color: lilac.head, lineHeight: 12 }, // 글리프 전용 브랜드마크('다') — 20px 칩 안 조형이라 플로어 면제
-  crumb: { fontSize: 12, lineHeight: 15, letterSpacing: 2, color: lilac.dim, fontWeight: '600' },
   bell: {
     width: 26, height: 26, borderRadius: 0, borderWidth: 1, borderColor: '#EEEEEE', // [페이퍼 크롬] 샤프·뉴트럴
     backgroundColor: lilac.card, alignItems: 'center', justifyContent: 'center',
@@ -878,19 +878,23 @@ const styles = StyleSheet.create({
   pressed96: { transform: [{ scale: 0.96 }] },
 
   // ① 빕 스트랩 — [Ⓑ①] 빕이 한 줄로: 이름(df)·티어·온라인 토글. 케이지 산식은 JSX 주석에.
+  // [정체성 2026-08-11] 빕은 아티팩트다 — "dark is the artifact, light is the screen" (§1).
+  // 흰 카드로 앉아 있을 때는 다른 카드와 구별되지 않았다. 잉크로 뒤집으면 이 줄이 러너의
+  // 레이스 빕으로 읽히고, 화면의 정체성 인쇄가 정확히 한 번이 된다.
   strap: {
-    marginTop: 12, backgroundColor: lilac.card, borderWidth: 1, borderColor: '#EEEEEE', borderRadius: 0,
-    alignItems: 'center', gap: 10, paddingVertical: 10, paddingHorizontal: 12,
+    marginTop: 12, backgroundColor: paper.ink, borderRadius: 0,
+    alignItems: 'center', gap: 10, paddingVertical: 12, paddingHorizontal: 12,
   },
-  strapName: { fontSize: 17, lineHeight: 22, color: lilac.head }, // 디스플레이 서체(df) 지참 — 화면당 1회 예산
-  strapNameEm: { fontSize: 14, lineHeight: 18, color: lilac.dim, fontWeight: '600' },
-  strapTier: { fontSize: 14, lineHeight: 18, color: lilac.dim, fontWeight: '700' },
+  strapName: { fontSize: 17, lineHeight: 22, color: '#FFFFFF' }, // 디스플레이 서체(df) 지참 — 화면당 1회 예산
+  // 잉크 위 실측: #999 = 6.57:1 (AA 통과). lilac.dim(#7C76A0)은 잉크 위에서 3.4:1로 미달한다.
+  strapNameEm: { fontSize: 14, lineHeight: 18, color: paper.faint, fontWeight: '600' },
+  strapTier: { fontSize: 14, lineHeight: 18, color: paper.faint, fontWeight: '700' },
   swTrack: { width: 44, height: 25, borderRadius: 99, padding: 3, flexDirection: 'row' },
   swTrackOn: {
     backgroundColor: lilac.coral, justifyContent: 'flex-end',
     shadowColor: lilac.coral, shadowOpacity: 0.32, shadowRadius: 9, shadowOffset: { width: 0, height: 3 },
   },
-  swTrackOff: { backgroundColor: lilac.inset, justifyContent: 'flex-start', borderWidth: 1, borderColor: lilac.hair },
+  swTrackOff: { backgroundColor: '#3A3A3A', justifyContent: 'flex-start', borderWidth: 1, borderColor: '#4A4A4A' }, // 잉크 빕 위 오프 상태 (흰 카드 위 inset은 안 보인다)
   swKnob: { width: 19, height: 19, borderRadius: 9.5, backgroundColor: '#fff', shadowColor: '#1C1837', shadowOpacity: 0.3, shadowRadius: 2, shadowOffset: { width: 0, height: 1 } },
   // [2026-08-10] 14 → 15 with tracking 1.2 → 1: '오프라인' width stays ≈ 63px (4×15 + 3×1 vs 4×14 + 3×1.2),
   // so the toggle column footprint next to the strap name is unchanged — the switch layout still fits.
@@ -940,11 +944,8 @@ const styles = StyleSheet.create({
   nowWhen: { fontSize: 14, lineHeight: 18, letterSpacing: 1.2, color: lilac.dim, fontWeight: '500' },
   nowTitle: { marginTop: 8, fontSize: 16, lineHeight: 21, fontWeight: '700', color: lilac.head },
   nowSub: { marginTop: 3, fontSize: 14, lineHeight: 18, color: lilac.dim },
-  btnCoral: {
-    borderRadius: 0, alignItems: 'center', justifyContent: 'center', paddingVertical: 15, backgroundColor: CORAL_INK, // [§3b] pv 13 → 15 (버튼 공통 플로어) · 샤프 · 코랄 필 = 시맨틱 CTA 생존
-    borderWidth: 1, borderColor: CORAL_INK_DEEP,
-  },
-  btnCoralTxt: { fontSize: 17, lineHeight: 22, fontWeight: '800', color: '#fff' }, // [§3b] 16/700 → 17/800 (프라이머리급 라벨)
+  // 액션 링크 — 면이 아니라 잉크. actionInk는 캔버스 위 5.99:1.
+  nowGo: { marginTop: 11, fontSize: 16, lineHeight: 21, fontWeight: '800', color: paper.actionInk, textAlign: 'right' },
 
   // ① 티켓 — [페이퍼 크롬] 샤프·뉴트럴, 섀도 은퇴 (퍼포레이션 아티팩트 생존 · [Ⓑ①] 홀로/바코드는 예산 은퇴)
   ticket: { marginTop: 9 },
