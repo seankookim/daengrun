@@ -391,6 +391,25 @@ share-sheet path `shot/[bid]` already uses.
   Real routes need actual GPS traces — likely promoted from a completed `runs.trace`.
 - **"(also do full design sweep)"** → after B/C/D/E land, not before.
 
+- 🔴 **The 절취선 renders as a SOLID line, not a perforation.** Found 2026-08-12 from the runtime
+  log (`WARN Unsupported dashed / dotted border style`, repeating). The New Architecture is on
+  (152 `React-Fabric` pods) and Fabric on iOS only honours `borderStyle: 'dashed'/'dotted'` when
+  the border width is **uniform**; a single-side `borderTopWidth`/`borderLeftWidth` + dashed falls
+  back to solid, silently. **17 uniform usages render correctly** — proven on screen by the locked
+  stamp circles in `cards.tsx:307`. **15 single-side usages render solid**, and they are almost all
+  the perforation motif, which DESIGN.md treats as a signature of the paper world:
+  `owner/home.tsx:1747` (verified solid on screen in the 오늘의 티켓 card) · `my.tsx:614` (`// 절취선`) ·
+  `runner/home.tsx:1011`,`:1030`,`:981` · `owner/meetup.tsx:650` · `runner/meetup.tsx:674` ·
+  `owner/report.tsx:672` · `club/pass/[sid].tsx:162` · `club/delegate/[sid].tsx:206` ·
+  `alerts.tsx:279`,`:295` · `runner/calendar.tsx` · `clubcard.tsx` ×2 · `club-ui.tsx`.
+  → Fix is a shared `<Perforation />` primitive (a row of dots/dashes, or an SVG `strokeDasharray`),
+  not 15 style edits — the RN border property cannot express this shape on iOS Fabric.
+
+- **`my.tsx` and `cards.tsx` scroll content under the status bar.** 전체 보기 › collides with the
+  clock on 마이; 프로필 / EDIT › collides on 기록. Owner home is correct, so this is those two
+  screens missing a top safe-area inset, not a global chrome problem.
+
+
 ## ⚠ The geo runner produced 37/1 once — under concurrent load (2026-08-11)
 
 Recorded because a gate that flickers is worse than one that fails. The **first** `run-geo-tests.sh`
