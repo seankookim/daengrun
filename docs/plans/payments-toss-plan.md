@@ -55,16 +55,24 @@ Mirrors `transition-booking`'s shape. Steps, in order:
 6. Idempotency: a repeat call with the same `paymentKey` must be a no-op success, not a second
    charge and not a false 409. Copy `payment_attempts`' unique-index idiom (`0041:28`).
 
-### Migration `0067_payments.sql` — one table, no transition changes
+### Migration ~~`0067_payments.sql`~~ **`0071_payments.sql` — SHIPPED 2026-08-11** (0067 was taken by the incident subject gate)
 `payments` (booking_id, provider, payment_key unique, order_id, amount, status, raw jsonb,
 created_at). This closes review finding **R7**: today `ledger_items` records only runner *payout*,
 so there is **no accounting artifact for money coming in at all** — no revenue record, no tax
 record, no refund handle. That gap predates this plan and is the one thing here that genuinely
 needs a migration.
 
-RLS: enabled, owner-read-own only, no client write. Add to the sealed-table array in
-`68_adversarial_suite.sql:8`. Definer functions (if any) carry `set search_path = public, pg_temp`
-**in the body**.
+RLS: enabled, owner-read-own only, no client write. ⚠ **Do NOT add it to the sealed-table array
+in `68_adversarial_suite.sql:8`** — that pin asserts **policy count = 0**, and this table
+deliberately carries one so an owner can read their own receipt. Adding it there fails the harness
+for the wrong reason. `109_payments_suite.sql` pins the stricter shape instead: exactly one policy,
+SELECT-only, every client write refused including the owner's own. No definer functions were needed.
+
+**As shipped:** `refunded_amount` (with a `<= amount` check) is present so the refund handle R7 asks
+for exists on day one, but nothing writes it — the refund path keeps its own adversarial cycle
+(§5-4). The runner is deliberately not a reader: their money view is `ledger_items`, and `raw`
+carries the payer's own card metadata. Pins P1-P6; P4/P5 mutation-proven, P1/P2/P3 shown to cascade
+correctly (a `using(true)` policy leaks to anon too). Harness 324 → 330/0.
 
 ### Cancel/refund
 `cancel_owner` already computes the fee via `marketplace_cancel_fee` (0066). Wire the refund side
@@ -103,7 +111,8 @@ constant no pin can protect"). Pin what SQL can hold:
 
 ## 5. Sequencing
 
-1. **Now, unblocked:** the `payments` table + RLS + pins. Nothing else.
+1. ~~**Now, unblocked:** the `payments` table + RLS + pins. Nothing else.~~ **DONE 2026-08-11**
+   (`0071` + `109`). With this, step 1 is empty: **everything remaining is behind Sean's filings.**
 2. **On contract:** `confirm-payment`, widget SDK, native rebuild, 사업자 정보 copy.
 3. **Only once `confirm-payment` is live and verified:** the pay.tsx deletions in §3.
 4. **After the charge path is verified:** the refund/cancel path, as its own cycle.

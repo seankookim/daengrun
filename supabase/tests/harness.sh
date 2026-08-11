@@ -78,6 +78,7 @@ psql -q -f 105_enroute_cancel_suite.sql >/dev/null 2>&1            # 0066 en-rou
 psql -q -f 106_incident_subject_suite.sql >/dev/null 2>&1            # 0067 P1 SECURITY: incident subject gate + SOS unification
 psql -q -f 107_recovery_force_resolve_suite.sql >/dev/null 2>&1            # 0068/0069 C1 T-10 retire · C4/H5 host force resolve · two-sided override
 psql -q -f 108_incident_accountability_suite.sql >/dev/null 2>&1            # 0070 adversarial-review follow-ups (case ownership · hold recompute · stale sweep)
+psql -q -f 109_payments_suite.sql >/dev/null 2>&1            # 0071 payments table (the accounting artifact for money coming IN — R7)
 psql -c "select case when ok then '✅' else '❌' end || ' [' || suite || '] ' || name || case when ok then '' else ' — ' || detail end from _t order by at"
 psql -qt -c "select count(*) filter (where ok) || ' pass / ' || count(*) filter (where not ok) || ' fail' from _t"
 psql -qt -c "select case when count(*) filter (where not ok) > 0 then 'FAIL' else 'OK' end from _t" | grep -q OK
