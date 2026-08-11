@@ -416,8 +416,10 @@ export default function RunnerHome() {
           </View>
 
           <Row style={styles.lFoot}>
-            {/* [2026-08-10 filler cull] the 수익 상세 link right next to this already names the destination */}
-            <Text style={styles.lFootTxt}>매주 정산</Text>
+            {/* [2026-08-11] '매주 정산'은 존재하지 않는 지급 운영을 주장했다 — 실결제도, 러너
+                지급을 실행하는 코드도 아직 없다. 원장은 진짜고 일정은 진짜가 아니었다. 진짜만 남긴다.
+                (같은 주장을 done.tsx도 '매주 수요일'로 하고 있었고 함께 지웠다.) */}
+            <Text style={styles.lFootTxt}>정산 기록</Text>
             <Pressable onPress={() => router.push('/runner/earnings')}>
               <Text style={styles.lFootLink}>수익 상세 ›</Text>
             </Pressable>

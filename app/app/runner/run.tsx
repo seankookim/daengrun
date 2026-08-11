@@ -386,7 +386,8 @@ export default function ActiveRun() {
     const localPayout = completed ? payoutFor(km) : payoutByReason(reason);
     // dogName rides along from the real booking context (null when it never loaded —
     // the done screen then re-reads the booking or uses generic wording, never a fake name).
-    Object.assign(runResult, { km, sec, payout: localPayout, completed, reason, bookingId: bid, dogName });
+    // settled=false until the server says otherwise — the estimate never masquerades as income
+    Object.assign(runResult, { km, sec, payout: localPayout, settled: false, completed, reason, bookingId: bid, dogName });
 
     if (bid && !gps) {
       // 정직 가드 — 실측되지 않은 거리로는 실예약을 정산하지 않는다.
@@ -414,6 +415,7 @@ export default function ActiveRun() {
             condition_note: reason === 'dog' ? '러너 판단: 컨디션 저하 관찰' : undefined,
           });
           runResult.payout = res.net; // 서버가 계산한 실지급액
+          runResult.settled = true;  // 이제서야 '수익'이라고 부를 수 있다
           runnerJob.bookingId = null;
           if (res.drop) Alert.alert('드랍 도착!', res.drop === 'pick' ? '픽 드랍 — 리워드 센터에서 선택하세요' : '보급 상자가 도착했어요');
           return true;

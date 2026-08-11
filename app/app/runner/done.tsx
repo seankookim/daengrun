@@ -81,7 +81,12 @@ export default function RunDone() {
 
       {/* 정산 영수증 — dark artifact face (sharp, ink), volt money numeral */}
       <View style={s.receipt}>
-        <Text style={{ fontSize: 14, lineHeight: 18, color: '#BBBBBB' }}>오늘의 수익</Text>
+        {/* [2026-08-11] 정산 성공 여부가 이 낱말을 정한다. 서버가 확정한 금액만 '수익'이고,
+            정산이 실패해 러너가 '나중에 (추정치 표시)'를 고른 경우는 클라이언트 추정치다 —
+            그걸 수익이라 부르는 순간 앱이 못 지킬 돈을 약속한 것이 된다. */}
+        <Text style={{ fontSize: 14, lineHeight: 18, color: '#BBBBBB' }}>
+          {runResult.settled ? '오늘의 수익' : '예상 수익 (정산 미완료)'}
+        </Text>
         {/* Oswald payout — lineHeight 63 = 1.25× (BUG A) */}
         <Text style={[{ fontSize: 50.5, lineHeight: 63, fontWeight: '900', color: colors.volt, marginTop: 8, fontVariant: ['tabular-nums'] as const }, nf]}>
           +{runResult.payout.toLocaleString()}원
@@ -89,6 +94,12 @@ export default function RunDone() {
         <Text style={{ fontSize: 14, lineHeight: 18, color: '#BBBBBB', marginTop: 8 }}>
           {runResult.km.toFixed(2)}km · {fmt(runResult.sec)}{dogName ? ` · ${dogName}` : ''}
         </Text>
+        {!runResult.settled && (
+          <Text style={{ fontSize: 14, lineHeight: 19, color: '#e0a06a', marginTop: 10, textAlign: 'center' }}>
+            정산이 아직 서버에 반영되지 않았어요 — 이 숫자는 앱이 계산한 추정치예요.{'\n'}
+            예약은 진행 중으로 남아 있어요. 러닝 화면에서 다시 정산하면 실제 금액으로 확정돼요.
+          </Text>
+        )}
         {!runResult.completed && (
           <Text style={{ fontSize: 14, lineHeight: 19, color: '#c9a15e', marginTop: 10, textAlign: 'center' }}>
             {runResult.reason === 'dog' && '컨디션 종료 — 실제 거리 정산 · 완주율 무영향\n상태 사진과 메모가 보호자에게 전달돼요'}
@@ -144,7 +155,14 @@ export default function RunDone() {
         </Pressable>
       )}
 
-      <Text style={{ fontSize: 14, color: paper.dim, textAlign: 'center', marginTop: 14 }}>수익은 매주 수요일 정산됩니다</Text>
+      {/* [2026-08-11] '수익은 매주 수요일 정산됩니다'를 지웠다. 수요일 지급 운영은 존재하지
+          않는다 — 실결제가 아직 없고(pay.tsx가 그렇게 말한다), 러너 지급을 실행하는 코드도 없다.
+          기록은 진짜다(ledger_items). 지급 일정은 진짜가 아니었다. 아는 것만 말한다. */}
+      <Text style={{ fontSize: 14, color: paper.dim, textAlign: 'center', marginTop: 14 }}>
+        {runResult.settled
+          ? '정산 기록이 저장됐어요 — 수익 화면에서 누적을 볼 수 있어요'
+          : '정산이 확정되면 수익 화면에 반영돼요'}
+      </Text>
       <PaperBtn label={dogName ? `${dogName} 리뷰 남기기` : '반려견 리뷰 남기기'} style={{ marginTop: 20 }} onPress={() => router.push('/runner/review')} />
       <PaperBtn label="홈으로" variant="secondary" style={{ marginTop: 8 }} onPress={() => router.dismissTo('/runner/home')} />
     </ScrollView>

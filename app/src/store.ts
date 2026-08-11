@@ -12,7 +12,13 @@ export const runnerJob = { bookingId: null as string | null };
 // the booking context never loaded; the done screen must then use generic wording, never a
 // fabricated name (fake-inventory 2026-08-11).
 export type EndReason = 'dog' | 'owner' | 'runner' | null;
-export const runResult = { km: 0, sec: 0, payout: 0, completed: false, reason: null as EndReason, bookingId: null as string | null, dogName: null as string | null };
+// `settled` is the difference between money the server confirmed and a number this client
+// guessed. payoutFor() below is a CLIENT estimate off pricing constants; the real amount comes
+// from settle_run_tx using the runner's own commission_rate (0059). When settlement fails the
+// runner may choose '나중에 (추정치 표시)' — and the done screen used to print that estimate under
+// '오늘의 수익'. The app knew it was an estimate and called it earnings anyway. It now carries
+// the distinction instead of losing it.
+export const runResult = { km: 0, sec: 0, payout: 0, settled: false, completed: false, reason: null as EndReason, bookingId: null as string | null, dogName: null as string | null };
 
 // Demo flag: shows the home widget in "imminent" (곧 시작) state
 export const demoImminent = true;
