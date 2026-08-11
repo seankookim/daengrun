@@ -51,8 +51,11 @@ function IconChip({ size, df }: { size: number; df: any }) {
       alignItems: 'center', justifyContent: 'center',
       shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 4, shadowOffset: { width: 0, height: 2 },
     }}>
-      <Text style={[{ fontSize: size * 0.24, color: colors.volt, fontWeight: '900', lineHeight: size * 0.28 }, df]}>도그스</Text>
-      <Text style={[{ fontSize: size * 0.32, color: colors.volt, fontWeight: '900', lineHeight: size * 0.36, letterSpacing: 1 }, df]}>하이</Text>
+      {/* [D13 2026-08-12] 로고 아트워크 예외 (DESIGN.md §3) — 이 두 줄은 문장이 아니라 **마크**다
+          (size 24에서 5.8/7.7pt). 예외를 타려면 선언이 필요하다: 보조기술에는 장식으로 감춘다.
+          바깥 BrandLockup이 읽을 이름을 갖는다. 데이터는 한 글자도 여기 들어오지 않는다. */}
+      <Text accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[{ fontSize: size * 0.24, color: colors.volt, fontWeight: '900', lineHeight: size * 0.28 }, df]}>도그스</Text>
+      <Text accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[{ fontSize: size * 0.32, color: colors.volt, fontWeight: '900', lineHeight: size * 0.36, letterSpacing: 1 }, df]}>하이</Text>
     </View>
   );
 }
@@ -64,7 +67,11 @@ function BrandTape({ width, rotate, df }: { width: number; rotate: string; df: a
       flexDirection: 'row', alignItems: 'center', overflow: 'hidden',
       shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 5, shadowOffset: { width: 0, height: 2 },
     }}>
-      <Text numberOfLines={1} style={[{ fontSize: 13, color: paper.ink, fontWeight: '900', letterSpacing: 2, paddingLeft: 6 }, df]}>
+      {/* [D13 2026-08-12] 반복 브랜드 테이프 = 워드마크 아트워크 (DESIGN.md §3 로고 예외).
+          코덱스는 "반복은 한글을 글리프로 만들지 않는다"며 14pt를 요구했고 그 지적은 옳다 —
+          그래서 '반복하니까 괜찮다'가 아니라 '이건 워드마크다'로 예외를 세우고 선언한다.
+          데이터는 없고(브랜드 이름뿐), 스크린리더에는 장식으로 감춘다. */}
+      <Text accessibilityElementsHidden importantForAccessibility="no-hide-descendants" numberOfLines={1} style={[{ fontSize: 13, color: paper.ink, fontWeight: '900', letterSpacing: 2, paddingLeft: 6 }, df]}>
         도그스하이 · DOGS HIGH · 도그스하이 · DOGS HIGH · 도그스하이 · DOGS HIGH
       </Text>
     </View>
@@ -586,7 +593,8 @@ export default function ShotStudio() {
           )}
           {photoSignFails > 0 && (
             /* [0064] 서명 실패 = 명시적 실패 상태 — 조용히 장수를 줄이지 않는다 */
-            <Text style={{ fontSize: 13, fontWeight: '700', color: '#b4552d', marginTop: 8 }}>
+            /* [D13 FLOOR14 2026-08-12] 13 → 14. 실패 메시지는 반드시 읽혀야 하는 한 종류다. */
+            <Text style={{ fontSize: 14, lineHeight: 19, fontWeight: '700', color: '#b4552d', marginTop: 8 }}>
               사진 {photoSignFails}장을 못 불러왔어요 — 시트를 닫았다 다시 열면 재시도해요
             </Text>
           )}
@@ -614,7 +622,9 @@ const s = StyleSheet.create({
   dogTitle: { fontSize: 24, fontWeight: '900', color: '#fff', textShadowColor: 'rgba(0,0,0,.45)', textShadowRadius: 10, textShadowOffset: { width: 0, height: 2 } },
   scrimBottom: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 190, backgroundColor: 'rgba(10,16,10,.38)' },
   photoEmpty: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: '#1d3023' },
-  iTiny: { fontSize: 10, fontWeight: '900', letterSpacing: 2, color: paper.ink },
+  // [D13 FLOOR14 2026-08-12] 10 → 14. {report.when} · {report.routeName} — 한글 날짜와 한글 코스명이다
+  // (인스타 내보내기 카드 상단). 로고 아트워크가 아니라 데이터다.
+  iTiny: { fontSize: 14, lineHeight: 18, fontWeight: '900', letterSpacing: 0.6, color: paper.ink },
   iGiant: { fontSize: 104, fontWeight: '900', color: paper.ink, letterSpacing: -6, lineHeight: 106, marginTop: 8 },
   iRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: 'rgba(15,29,19,.35)' },
   dots: { flexDirection: 'row', gap: 5, justifyContent: 'center', marginTop: 12 },

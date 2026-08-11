@@ -327,11 +327,32 @@ export default function Meetup() {
               </Pressable>
             </View>
           ) : (
-            <Text style={s.cardBody}>
-              {pickup.s === 'loading' ? '주소 확인 중...'
-                : pickup.s === 'ok' && pickup.a ? `${pickup.a.addr}${pickup.a.detail ? ` · ${pickup.a.detail}` : ''}`
-                : '픽업 장소는 보호자와 채팅으로 확인해주세요'}
-            </Text>
+            <>
+              <Text style={s.cardBody}>
+                {pickup.s === 'loading' ? '주소 확인 중...'
+                  : pickup.s === 'ok' && pickup.a ? `${pickup.a.addr}${pickup.a.detail ? ` · ${pickup.a.detail}` : ''}`
+                  : '픽업 장소는 보호자와 채팅으로 확인해주세요'}
+              </Text>
+              {/* [D15c 2026-08-12] 주소·메모 **수동** 새로고침.
+                  문제: 이 화면이 열려 있는 동안 보호자가 핀을 찍거나 픽업 메모를 고치면, 러너에게는
+                  리마운트 전까지 도착하지 않는다 (주소는 잡이 정해질 때 1회만 부른다).
+                  자동으로 하지 않는 이유가 진짜다 — 자동 갱신은 8초 부킹 폴을 건드려야 하고 그 폴은
+                  DESIGN.md §9 동결 구역이다. 코덱스가 그 경로의 실패 모드를 열거했다: 주소 RPC 실패가
+                  부킹 상태 갱신을 삼키고, 겹친 비동기 호출이 옛 주소로 새 핀을 덮고, 매 폴마다
+                  loading이 켜지면 지도가 깜빡이고, 상태 게이트 전이가 '아는 주소'를 '주소 없음'으로
+                  뒤집고, effect 순서가 바뀌면 인계 세리머니의 1회-법이 재생된다. 인계 직전 화면에서
+                  치를 값이 아니다.
+                  그래서 이미 있는 addrTry 하나만 노출한다 — 폴은 손대지 않고, 러너가 필요할 때 누른다. */}
+              <Pressable
+                onPress={() => setAddrTry((n) => n + 1)}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="픽업 주소와 메모 다시 확인"
+                style={{ minHeight: 44, justifyContent: 'center' }}
+              >
+                <Text style={s.addrRefresh}>주소·메모 다시 확인 ›</Text>
+              </Pressable>
+            </>
           )}
           <Text style={s.cardBody}>
             {info?.dogMemo ? `보호자 메모: ${info.dogMemo}` : '보호자 메모가 없어요 — 채팅으로 미리 인사해보세요'}
@@ -646,6 +667,8 @@ const s = StyleSheet.create({
     paddingVertical: 11, paddingHorizontal: 12, marginTop: 8,
   },
   addrFailTxt: { flex: 1, fontSize: 14, lineHeight: 18, fontWeight: '700', color: paper.critical },
+  // [D15c] 새로고침 링크 — 실패가 아니므로 크리티컬 잉크가 아니라 액션 잉크. 14pt 플로어 준수.
+  addrRefresh: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: paper.actionInk },
   addrFailRetry: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },
   peerName: { fontSize: 16.5, lineHeight: 22, fontWeight: '800', color: paper.ink },
   peerMeta: { fontSize: 14, lineHeight: 19, color: paper.dim, marginTop: 3 },

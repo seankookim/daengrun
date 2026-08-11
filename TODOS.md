@@ -308,17 +308,79 @@ share-sheet path `shot/[bid]` already uses.
 
 ### D. Owner side
 
-- **"Big Red Reservation button delete price tag"** → `owner/pay.tsx:334` is the button;
-  the amount plate is `:275`. ⚠ **Do not delete the button itself** — `:334` → `api.ts:230`
-  `payment_ok` is the only path a booking has into `matching` today (toss-plan §3). The price tag
-  is what he wants gone, not the CTA.
-- **"Font consistency (pre reserve card vs rest)"**
-- **"Clean small info text"** → likely the 14pt floor sweep's remainder; check against DESIGN.md §3.
-- **"My screen subtext filler removal"** → `my.tsx` row `desc` strings (`:179` etc).
-- **"Both map pin should auto update / sync with address + special note section editable for owner
-  in preference and always visible in intermediary"** → the pin/address sync is the known
-  "Mid-booking pin staleness" P2 below; the special-note edit + always-visible-in-intermediary part
-  is new.
+- [x] ~~**"Big Red Reservation button delete price tag"**~~ **DONE 2026-08-12 — and the backlog's
+  pointer was wrong.** It is not `pay.tsx` (whose CTA carries no price at all). The big **red**
+  button is `owner/home.tsx`'s 미리 예약 (`MONEY_DEEP #C6472C`, 31pt display); its price tag was the
+  예상 결제 / 22pt block at `:1306-1311`. Deleted, along with the now-dead `bookPrice` (`:620`) and
+  `bookKicker` style. The CTA is untouched — `goBook → /owner/request` is the funnel entrance.
+  Three reasons beyond "Sean asked": the number was a **client estimate** (`baseFare + km*perKm`,
+  no addons, for a booking that does not exist); it hides nothing (the destination screen's
+  `KmDial` at `request.tsx:564` draws a 54pt km with the live price under it, on arrival, as the
+  screen's main content); and §A's km-token model retires the base fare, so the formula has a shelf
+  life. ⚠ **Codex objected**, arguing a red money button with no number reads as concealment and
+  that price disclosure comes "too late". I checked the claim on the actual screen and it does not
+  hold — hence overruled, recorded here so the disagreement is visible rather than buried.
+- [ ] **"Font consistency (pre reserve card vs rest)"** — deliberately sequenced AFTER D11 and
+  still open. Removing the price block took two of the card's four type treatments with it (the
+  14/600 kicker and the 22pt Oswald numeral), leaving a 14/700 facts line and the sanctioned 31pt
+  display CTA. Codex's read, which I share: that may already be consistent, and an undefined
+  "normalise" pass inside owner-home is not worth authorising blind. **Look at it on the device
+  first.**
+- [x] ~~**"Clean small info text"**~~ **DONE 2026-08-12.** Wrote a scanner for it, because a plain
+  grep under-reports the class that matters: **Korean that arrives at runtime through a variable**
+  (a static Hangul scan sees `{tagFor(...)}`, not 기록/클럽/취소). Fixed, all Korean below the floor:
+  `owner/pay.tsx` status chip 11.5→14 (`MOCK · 준비 중` — on the money screen) · `alerts.tsx`
+  tagFor 12→14 · `community.tsx` stamp/when/monoTag/voltTag/badge 12→14 (Korean dates and
+  user-authored tags; `textTransform:'uppercase'` dropped too — it did nothing to Hangul and made
+  the styles pose as latin caps) · `club/run/[sid].tsx` 조기 종료 9.5→14 · `shot/[bid].tsx` failure
+  message 13→14 and `iTiny` 10→14 (Korean date + course name on the Instagram export card).
+  Tracking reduced wherever it survived — letterspacing is latin-caps grammar and hurts Hangul.
+  **New law, because the alternative was an unwritten excuse:** DESIGN.md §3 now defines a
+  **logo-artwork exemption** — the wordmark may sit below the floor, but only when it is the
+  mark (never product copy), is declared decoration to assistive tech, and carries no data.
+  `shot/[bid].tsx`'s IconChip and brand tape now satisfy all three explicitly.
+  ⚠ Correctly left alone: `FINISHER`/`DOGS HIGH` stamp caps, glyph-only ✓/›/·/✚, and
+  `club/[id].tsx:376`'s marked `CLUB15 단위 접미사 예외`.
+  - [x] **TODOS M5 was stale** — `club-acks.tsx` is already 14pt body / 16pt button with FLOOR14
+    comments, and `club/case/[cid].tsx` has **zero** sub-14pt. Entry retired below.
+- [x] ~~**"My screen subtext filler removal"**~~ **DONE 2026-08-12.** Audited all 8 MENU rows
+  instead of cutting by feel. Two are pure restatement and are gone: 알림 / '알림 확인 및 설정'
+  (opening 알림 shows 알림) and 예약 관리 / '다가오는 일정과 지난 예약'. Six stay because they name
+  something the label does not — contents (안심 센터, 주소 관리, 설정, 러닝 기록), live funnel state
+  (러너 인증 센터), or a real disclosure (반려견 프로필's "러너에게 전달되는 정보").
+  `desc` is now optional on the row type and conditionally rendered — no empty line, no reserved
+  space. Codex agreed mixed 1-line/2-line rows are correct: semantic usefulness beats row
+  uniformity, and cutting all 8 would throw away live certification state.
+- [x] ~~**"Both map pin should auto update / sync with address + special note section editable for
+  owner in preference and always visible in intermediary"**~~ **DONE 2026-08-12 — three parts, and
+  the ground truth reframed all three.**
+  - **The note already existed and was write-once.** `addresses.detail` IS the special note: in the
+    schema since `0001:122`, returned to the runner by `booking_pickup_address` (0060→0065), and
+    rendered at `runner/meetup.tsx:332`. What was missing was any **update** path — `api.ts` had
+    add/pin/default/delete and **no update at all**. Changing '1층 로비에서 인계' meant deleting the
+    address and rebuilding it, losing the pin and the default flag.
+  - **`0073_address_note.sql` + `owner_update_address_detail`.** The first draft used a plain
+    PostgREST `.update({detail})` on the grounds that owner RLS already applies. **Codex rejected
+    that and was right** — RLS is row-scoped, this repo has no column grants on `addresses`, and a
+    TS payload type is not a boundary. Now a one-column definer: ownership checked in-function,
+    trim, empty→NULL, 60-char cap, absent and foreign ids raising the same `not_owner`.
+    Pins `111_address_note_suite.sql` N1-N7, **all six reverts run and observed** (N6 the column
+    whitelist → 342/1 clean single; the cascades are in the suite header). Harness 336 → **343/0**.
+    ⚠ It is a narrow writer, **not a seal** — see the P1 SECURITY entry below, which 0073's own
+    header points at rather than pretending to have closed.
+  - **Owner can now see what the runner reads.** `owner/meetup.tsx` never rendered `detail` at all,
+    so the only person who could fix the note was the only person who could not see it. A note strip
+    now sits under the map plate in every state where an address exists, with add/edit routing to
+    the address list. (Codex's correction accepted: the *runner* side needed nothing — it already
+    renders `detail` whenever the RPC returned an address.)
+  - **Pin sync: explicit, not automatic — deliberately.** Folding an address refetch into the 8s
+    meetup poll touches DESIGN §9's frozen zone, and codex enumerated exactly what that buys:
+    an address failure swallowing booking-state refresh, overlapping calls letting a stale address
+    overwrite a fresh pin, `loading` blanking the map every poll, a state-gate flip turning a known
+    address into "no address", and effect-order changes replaying the handoff once-law. Not a price
+    worth paying on the screen immediately before a dog changes hands. Shipped instead: a
+    **주소·메모 다시 확인** control in the runner's ok state, reusing the existing `addrTry` counter.
+    The poll is untouched. Automatic freshness stays deferred.
 
 ### E. Runner side
 
@@ -473,6 +535,37 @@ Not blocking (the gate is green and reproducibly so), but the failing test's ide
 `tail` truncated it before it was read. **If it recurs, capture the `❌` line first.** Fix shape:
 have the script build into a unique temp dir instead of writing fixed filenames into `app/test/`,
 so a concurrent run cannot race it. Effort S → S. P2.
+
+## 🔴 P1 SECURITY — `addresses` has no column grants; broad UPDATE is open to `authenticated`
+
+Surfaced by the Codex review of §D on 2026-08-12, then verified directly. **Pre-existing — nothing
+in the 0073 slice caused it, and 0073 deliberately does NOT claim to fix it.**
+
+Measured facts:
+- `create policy "addresses owner all" on addresses for all using (owner_id = auth.uid())`
+  (`0002_rls.sql:82`) is **row**-scoped. Postgres RLS does not restrict columns.
+- There are **zero `grant`/`revoke` statements for `addresses` in any migration** — so the table
+  runs on Supabase's default full-DML grant to `authenticated`.
+- Consequence: a client holding a session can `PATCH` **any column of its own address rows** —
+  `gate_code_enc`, `lat`, `lng`, `addr`, `label`, `is_default`.
+
+Two things that make it **less** alarming than it first reads, both checked rather than assumed:
+- `gate_code_enc` is written by **nothing** — no migration, no client file. The column is dead, so
+  this is an unfilled hole rather than a leaking secret.
+- The policy has no `WITH CHECK`, so Postgres reuses `USING` as the UPDATE check — an owner cannot
+  re-home a row to another `owner_id`. **Not a cross-tenant hole.**
+
+The real exposure is integrity, and it is genuine: `addresses` rows are referenced by
+`bookings.address_id`, so a write silently rewrites every live and future booking pointing at that
+row — and changing `addr` while keeping `lat/lng` produces a **falsely pinned address on a handoff
+screen**, which is a safety surface.
+
+**Fix (its own slice, own adversarial cycle):** `revoke update on addresses from authenticated`,
+then move the two shipped direct writers — `setAddressPin` (`api.ts:2278`) and `setDefaultAddress`
+(`api.ts:2306`) — onto narrow definer RPCs the way `owner_update_address_detail` (0073) already is.
+Any future `addr` edit must clear `lat`/`lng` atomically and re-run the pin flow.
+⚠ Do not do this half-way. An RPC added while the grants stay open is, in Codex's phrase, security
+theater — 0073's header says so about itself in writing. Effort M → M. **P1.**
 
 ## 🔴 The emoji purge missed a whole class — font fallback, not authoring (found 2026-08-11 on device)
 
@@ -658,10 +751,14 @@ Ordered by the auditor's recommended fix order. **C2 is DONE** (`0d79b4f`). The 
 - [ ] **M2 — fee/hold terms hardcoded in consent copy** while the server reads `club_cfg`
   (0057:225-231). A config change silently makes the legal checkbox false. P2.
 
-- [ ] **M5 — club-acks.tsx missed FLOOR14**: `:89` body 9.5pt and `:94` button label 9.5pt — on the
+- [x] ~~**M5 — club-acks.tsx missed FLOOR14**~~ **ALREADY FIXED — stale entry, verified 2026-08-12
+  while sweeping §D13.** `src/components/club-acks.tsx` carries `body: { fontSize: 14 … }` and
+  `btnTxt: { fontSize: 16 … }`, both with `[FLOOR14 2026-08-11]` comments explaining the promotion.
+  `club/case/[cid].tsx` has **zero** sub-14pt sites. Original text:
+  ~~`:89` body 9.5pt and `:94` button label 9.5pt — on the
   body and only tap target of a **critical safety banner**, on every club screen. Also
   case/[cid]:109 evidence timestamps at 8.5pt. Directly in Sean's "too small text" directive. P1
-  for type, trivial fix.
+  for type, trivial fix.~~
 
 - [ ] **M3/M4/M6/M7** — disabled ClubCta used as a status label (session:741); objection window uses
   a frozen `Date.now()` instead of the ticking clock (session:749); `_club_refund_bookings` silently

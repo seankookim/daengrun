@@ -80,6 +80,7 @@ psql -q -f 107_recovery_force_resolve_suite.sql >/dev/null 2>&1            # 006
 psql -q -f 108_incident_accountability_suite.sql >/dev/null 2>&1            # 0070 adversarial-review follow-ups (case ownership · hold recompute · stale sweep)
 psql -q -f 109_payments_suite.sql >/dev/null 2>&1            # 0071 payments table (the accounting artifact for money coming IN — R7)
 psql -q -f 110_incident_settlement_suite.sql >/dev/null 2>&1            # 0072 the commercial exit from incident_review (money path)
+psql -q -f 111_address_note_suite.sql >/dev/null 2>&1            # 0073 owner-editable pickup note — column whitelist is the point (N6)
 psql -c "select case when ok then '✅' else '❌' end || ' [' || suite || '] ' || name || case when ok then '' else ' — ' || detail end from _t order by at"
 psql -qt -c "select count(*) filter (where ok) || ' pass / ' || count(*) filter (where not ok) || ' fail' from _t"
 psql -qt -c "select case when count(*) filter (where not ok) > 0 then 'FAIL' else 'OK' end from _t" | grep -q OK

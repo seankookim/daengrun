@@ -9,7 +9,7 @@ import { useDisplayFont } from '../../src/lib/displayFont';
 import { startOwnerActivity } from '../../src/lib/ownerActivity';
 import { haptic } from '../../src/lib/haptics';
 import { cancelPolicy, draft } from '../../src/store';
-import { paper } from '../../src/theme';
+import { layout, paper } from '../../src/theme';
 
 // 보호자 인계 화면 — 실신원만 (김민준·초코 목업 은퇴, ui-audit P0).
 // 모든 이름·상태는 서버에서. 가짜 ETA 문구 없음.
@@ -346,6 +346,28 @@ export default function OwnerMeetup() {
       </View>
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 34 }}>
+        {/* [D15 2026-08-12 · Sean "special note … always visible in intermediary"]
+            픽업 메모 스트립 — 지도판 바로 아래, 주소가 있는 **모든 상태**에서 그린다.
+            왜 여기 있어야 하나: 이 문장(addresses.detail)은 배정된 러너가 인계 화면에서 읽는 줄인데
+            (runner/meetup.tsx:332), 정작 그걸 쓴 보호자는 인계 화면에서 볼 방법이 없었다 —
+            고칠 수 있는 유일한 사람만 자기가 뭘 보냈는지 못 보는 상태였다.
+            메모가 없으면 '추가하기' 초대를, 있으면 문장과 수정 문을 준다 (죽은 줄은 그리지 않는다).
+            로딩·에러 상태에서는 아무 주장도 하지 않는다 — 위 지도판이 이미 그 상태를 말한다. */}
+        {pin.s === 'ok' && pin.c && (
+          <Pressable
+            onPress={() => router.push('/owner/addresses')}
+            style={s.noteStrip}
+            accessibilityRole="button"
+            accessibilityLabel={pin.c.detail ? '픽업 메모 수정' : '픽업 메모 추가'}
+          >
+            <Text style={s.noteK}>러너에게 보이는 픽업 메모</Text>
+            {pin.c.detail
+              ? <Text style={s.noteV}>{pin.c.detail}</Text>
+              : <Text style={s.noteEmpty}>아직 없어요 — 만날 지점을 한 줄로 남겨보세요</Text>}
+            <Text style={s.noteGo}>{pin.c.detail ? '메모 수정 ›' : '메모 추가 ›'}</Text>
+          </Pressable>
+        )}
+
         {/* runner card — 낯선 사람이 내 개를 데려간다: 신원이 먼저다 */}
         {/* [정직 배치 item 8] '신원인증' 배지 은퇴 — 뒷받침하는 데이터 소스가 어디에도 없다 (P1-6) */}
         <View style={s.section}>
@@ -605,6 +627,14 @@ const s = StyleSheet.create({
     position: 'absolute', right: 34, top: 56, width: 26, height: 26, borderRadius: 13,
     backgroundColor: paper.ink, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: paper.canvas,
   },
+  noteStrip: {
+    marginHorizontal: layout.gutter, marginTop: 12, paddingVertical: 12, paddingHorizontal: 13,
+    backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE', borderRadius: 0,
+  },
+  noteK: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: paper.dim },
+  noteV: { fontSize: 16, lineHeight: 21, fontWeight: '700', color: paper.ink, marginTop: 3 },
+  noteEmpty: { fontSize: 14, lineHeight: 19, color: paper.dim, marginTop: 3 },
+  noteGo: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: paper.actionInk, marginTop: 7, textAlign: 'right' },
   pickupPin: {
     position: 'absolute', left: 60, top: 200, width: 36, height: 26, borderRadius: 13,
     backgroundColor: paper.line, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: paper.canvas,

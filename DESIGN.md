@@ -109,6 +109,16 @@ addresses):
 - **Detail-text floor: 14pt.** Exemptions: LATIN letterspaced caps kickers,
   serial/MRZ strings, barcode/stamp glyphs. Korean text never rides the kicker
   exemption — data in a kicker slot renders ≥14 (2026-08-10 audit law).
+- **Logo artwork is the one Korean exemption, and it must be declared (2026-08-12).**
+  The wordmark — `도그스하이` set as a *mark* rather than a sentence (`shot/[bid].tsx`'s
+  `IconChip` and its lockup) — is drawing, not text. It may sit below the floor, but only
+  when **all three** hold: (1) it is the brandmark or wordmark, never product copy;
+  (2) it is marked as decoration for assistive tech (`accessibilityElementsHidden` +
+  `importantForAccessibility="no-hide-descendants"`), with any needed label on the parent;
+  (3) it carries no data — a route name, date, or status beside a logo is data and renders ≥14.
+  Anything that fails a clause is text. **Repetition and decorative placement do not turn Korean
+  words into glyphs** — a repeating brand tape is still the wordmark, and is exempt for that
+  reason, not because it repeats.
   `type.label`/`type.caption` = 14 as of 2026-08-10; button labels ≥16
   (primary/door class; chips and links may stay 14).
 - Small white text never sits directly on coral/sage — use an ink plate (≥4.5:1).

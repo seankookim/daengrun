@@ -400,9 +400,13 @@ const s = StyleSheet.create({
   back: { fontSize: 26, lineHeight: 30, color: paper.ink, marginBottom: 6 },
   // 모노 캡스 키커 — 장식 클래스(14pt 플로어 면제), 자간으로 모노 질감을 대신한다
   kicker: { fontSize: 11.5, fontWeight: '800', letterSpacing: 2.6, color: paper.faint },
-  chip: { fontSize: 11.5, fontWeight: '800', letterSpacing: 1.6, color: paper.faint, marginTop: 2 },
+  // [D13 FLOOR14 2026-08-12] 11.5 → 14. CHIP은 순수 라틴이 아니다 — 'MOCK · 준비 중',
+  // 'REVIEW · 확인 중', 'REFUND · 환불 중'이 한글을 싣는다. 한글은 라틴 레터스페이스 캡스
+  // 키커 예외를 타지 못한다(§3). 하필 **결제 화면의 상태 표시**다. 트래킹도 1.6 → 0.8로
+  // 낮춘다 — 레터스페이싱은 라틴 캡스의 문법이고 한글에 걸면 자간이 벌어져 더 안 읽힌다.
+  chip: { fontSize: 14, lineHeight: 18, fontWeight: '800', letterSpacing: 0.8, color: paper.dim, marginTop: 2 },
   // [리뷰 #9] critical 잉크는 ≥14pt/700 플로어를 받는다 — 라우드일 땐 장식 클래스에서 승격
-  chipLoud: { color: paper.critical, fontSize: 14, letterSpacing: 1.2 },
+  chipLoud: { color: paper.critical, fontSize: 14, letterSpacing: 0.8 },
   headline: { fontSize: 25.5, lineHeight: 32, fontWeight: '900', color: paper.ink, paddingHorizontal: 18, marginTop: 10 },
   meta: { fontSize: 14.5, lineHeight: 19, color: paper.dim, paddingHorizontal: 18, marginTop: 6 },
   body: { fontSize: 15, lineHeight: 21, color: paper.text, paddingHorizontal: 18, marginTop: 16 },

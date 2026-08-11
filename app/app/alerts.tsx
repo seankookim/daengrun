@@ -315,7 +315,8 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: 'rgba(34,30,61,0.1)', borderRadius: lilacRadius.tag,
     paddingHorizontal: 7, paddingTop: 4, paddingBottom: 3,
   },
-  typeTagTxt: { fontSize: 12, letterSpacing: 1, color: lilac.head },
+  // [D13 FLOOR14 2026-08-12] 12 → 14. tagFor()는 순수 한글을 돌려준다 (기록·클럽·취소·반복·변경·확정·완료).
+  typeTagTxt: { fontSize: 14, lineHeight: 18, letterSpacing: 0.4, color: lilac.head },
   seal: {
     marginLeft: 'auto', backgroundColor: lilac.coralSoft, borderWidth: 1, borderColor: lilac.coral,
     borderRadius: lilacRadius.tag, paddingHorizontal: 7, paddingTop: 4, paddingBottom: 3,

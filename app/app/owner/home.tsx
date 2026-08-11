@@ -617,7 +617,8 @@ export default function OwnerHome() {
 
   // 예약하기 머니 CTA — 슬라이드 예약과 동일 목적지(제네릭 오픈 예약). 지난 러닝 값으로 프리필 표기.
   const bookKm = lastDone?.km ?? draft.km;
-  const bookPrice = pricing.baseFare + bookKm * pricing.perKm;
+  // [D11 2026-08-12] bookPrice 삭제 — 위 카드의 '예상 결제' 블록이 유일한 소비처였다. 계산식만
+  // 남겨두면 되살리기 쉬운 형태의 유통기한 지난 공식이 된다 (km 토큰 모델이 baseFare를 은퇴시킨다).
   const goBook = () => {
     // 제네릭 예약 = 오픈 브로드캐스트 — 이전 플로우의 지명/시각 잔재를 소거 (스테일 지명이 슬롯을 한 러너로 묶던 버그)
     draft.preferredRunnerId = null;
@@ -1303,13 +1304,19 @@ export default function OwnerHome() {
                 {dogName ? `${dogName} · ` : ''}{bookKm}km{lastDone?.routeName ? ` · ${lastDone.routeName}` : ''}
               </Text>
             </View>
-            <View style={{ alignItems: 'flex-end' }}>
-              <Text style={s.bookKicker}>예상 결제</Text>
-              {/* [2026-08-10] money number 19 → 22 · lineHeight 28 = 1.27× (Oswald BUG A law) */}
-              <Text style={[{ fontSize: 22, lineHeight: 28, color: lilac.head }, nf]}>
-                {bookPrice.toLocaleString()}<Text style={{ fontSize: 14, color: lilac.text, fontWeight: '600' }}>원</Text>
-              </Text>
-            </View>
+            {/* [D11 2026-08-12 · Sean "빨간 예약 버튼의 가격표 삭제"] '예상 결제 / 22pt 금액' 블록 삭제.
+                2026-08-10에 머니 버튼의 가격 서브 플레이트를 지우면서 "예상 결제액은 위 facts 행이
+                이미 말한다"는 이유로 이 행만 남겼는데, Sean이 남은 쪽을 마저 지우라고 했다.
+                지워도 되는 근거 세 가지:
+                ① 이 숫자는 서버가 준 값이 아니라 클라 추정치다 — bookPrice = baseFare + bookKm*perKm
+                   (:620), 옵션 없음, 존재하지 않는 예약에 대한 값. 화면에서 가장 덜 벌어들인 숫자다.
+                ② 가격 정보를 숨기지 않는다. 이 버튼은 커밋이 아니라 이동이고, 도착지
+                   /owner/request는 KmDial(:564)이 54pt km + 그 아래 17pt 실시간 금액을 화면 본문으로
+                   그린다 — 도착 즉시, 조작 없이 보인다. (코덱스가 "가격 공개가 너무 늦다"고 반대해서
+                   실제로 확인했고, 사실이 아니었다.)
+                ③ km 토큰 모델(§A 확정)이 기본요금을 은퇴시키므로 baseFare + km*perKm은 유통기한이
+                   있는 공식이다. 지금 지우면 나중에 거짓말이 될 자리를 미리 없앤다.
+                ⚠ 버튼 자체는 건드리지 않는다 — goBook → /owner/request는 예약 퍼널의 유일한 입구다. */}
           </View>
           {/* [§3b Money] 가격 서브 플레이트(9,900원부터 · km당 · 코스·결제 자동) 전면 삭제 — 실측 예상
               결제액은 위 bookFacts 행이 이미 말한다. 버튼은 측면 마진 0 풀블리드, 라벨 '미리 예약'
@@ -1778,7 +1785,7 @@ const s = StyleSheet.create({
   book: { backgroundColor: lilac.card, borderWidth: 1, borderLeftWidth: 0, borderRightWidth: 0, borderColor: '#EEEEEE', borderRadius: 0, paddingVertical: 12, paddingHorizontal: 0, marginTop: 14 }, // [풀블리드] [페이퍼 크롬] 뉴트럴 보더 · 카드 섀도 은퇴 (무게는 안의 딥 코랄 CTA가 진다)
   bookFacts: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', paddingHorizontal: layout.gutter, paddingBottom: 11 },
   // [FLOOR14] '예상 결제'는 한글 정보 라벨이다 — 트래킹은 라틴 키커의 문법이라 0.5로 내리고 크기를 올린다
-  bookKicker: { fontSize: 14, lineHeight: 18, fontWeight: '600', letterSpacing: 0.5, color: lilac.dim, marginBottom: 2 },
+  // [D11 2026-08-12] bookKicker 삭제 — '예상 결제' 라벨 전용 스타일이었고 사용처가 0이 됐다.
   cta: {
     borderRadius: 0, paddingVertical: 20, paddingHorizontal: 16, overflow: 'hidden', // [풀블리드] 샤프
 

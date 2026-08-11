@@ -2279,7 +2279,15 @@ export async function setAddressPin(id: string, lat: number, lng: number): Promi
 // (own booking's address_id → own address row), no new server surface.
 // null = booking has no address assigned; row with NULL lat = address exists
 // but is unpinned (plate shows the "위치 지정하기" CTA with this addressId).
-export interface OwnerPickup { addressId: string; lat: number | null; lng: number | null }
+// [D15 2026-08-12] label/addr/detail 추가 — 보호자 미트업이 **자기가 쓴 픽업 메모**를 보여줘야 한다.
+// 지금까지 이 문장은 러너만 봤다 (runner/meetup.tsx가 booking_pickup_address로 읽는다). 보호자는
+// 자기가 뭘 적어 보냈는지 인계 화면에서 확인할 방법이 없었다 — 고칠 수 있는 사람만 못 보는 상태였다.
+// 새 서버 표면은 없다: 보호자가 자기 주소를 owner RLS로 읽는 기존 경로에 컬럼만 더한다.
+// gate_code_enc는 여기서도 구조적으로 선택하지 않는다 (0060 독트린).
+export interface OwnerPickup {
+  addressId: string; lat: number | null; lng: number | null;
+  label: string; addr: string; detail: string | null;
+}
 
 export async function fetchOwnerPickupCoords(bookingId: string): Promise<OwnerPickup | null> {
   const { data: b, error: be } = await supabase.from('bookings')
@@ -2287,13 +2295,14 @@ export async function fetchOwnerPickupCoords(bookingId: string): Promise<OwnerPi
   if (be) throw be;
   if (!b?.address_id) return null;
   const { data: a, error: ae } = await supabase.from('addresses')
-    .select('id, lat, lng').eq('id', b.address_id).maybeSingle();
+    .select('id, lat, lng, label, addr, detail').eq('id', b.address_id).maybeSingle();
   if (ae) throw ae;
   if (!a) return null;
   return {
     addressId: a.id,
     lat: a.lat != null ? Number(a.lat) : null,
     lng: a.lng != null ? Number(a.lng) : null,
+    label: a.label, addr: a.addr, detail: a.detail ?? null,
   };
 }
 
@@ -2308,6 +2317,28 @@ export async function setDefaultAddress(id: string): Promise<void> {
 export async function deleteAddress(id: string): Promise<void> {
   const { error } = await supabase.from('addresses').delete().eq('id', id);
   if (error) throw error;
+}
+
+// 픽업 메모(addresses.detail) 수정 — 배정된 러너가 읽는 그 문장이다 (booking_pickup_address).
+// ⚠ 여긴 일부러 `.from('addresses').update(...)`가 아니다. 0073 §1: `addresses`의 RLS는 **행**
+// 단위이고 이 저장소엔 이 테이블에 대한 컬럼 grant가 한 줄도 없다 — 클라가 보내는 페이로드의
+// TypeScript 타입은 보안 경계가 아니다. 그리고 진짜 위험은 테넌시가 아니라 정합성이다:
+// addresses 행은 bookings.address_id가 가리키므로, addr를 고치면서 lat/lng를 남기면 **인계 화면에
+// 거짓으로 핀이 박힌 주소**가 만들어진다. 그래서 컬럼 하나짜리 데피너 하나만 연다.
+// 서버가 트림·빈문자열→NULL·60자 상한을 강제하므로 클라는 원문을 그대로 보낸다 (검증 이중화 금지 —
+// 두 곳에서 자르면 두 규칙이 갈라진다). 상한만 입력 UI가 maxLength로 미리 알려준다.
+export async function updateAddressDetail(id: string, detail: string): Promise<void> {
+  const { error } = await supabase.rpc('owner_update_address_detail', {
+    p_address: id,
+    p_detail: detail,
+  });
+  if (error) {
+    // 서버 문장을 사람 말로 한 번만 접는다. not_owner는 '없는 주소'와 '남의 주소'가 같은 문장이라
+    // (열거 오라클 차단) 클라도 구별해서 말하지 않는다.
+    if (error.message.includes('detail_too_long')) throw new Error('메모는 60자까지 쓸 수 있어요');
+    if (error.message.includes('not_owner')) throw new Error('이 주소를 수정할 수 없어요');
+    throw error;
+  }
 }
 
 // ---------- 동네 피드 (옵트인 러닝 자랑) ----------

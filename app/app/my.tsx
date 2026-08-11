@@ -171,7 +171,10 @@ export default function My() {
   // 원소 타입을 `never`로 접었다 (`m.label` does not exist on type 'never'). 리터럴 라우트 유니온을
   // 타입으로 못박으면 router.push의 타입 안전성은 그대로 두고 추론만 안정된다.
   type MenuRow = {
-    glyph: string; label: string; desc: string; ink: string; tint: string;
+    glyph: string; label: string; ink: string; tint: string;
+    // [D14 2026-08-12] desc 옵셔널 — 부제가 라벨을 되풀이하기만 하는 행에서는 아예 없앤다.
+    // 빈 줄을 그리거나 자리를 예약하지 않는다 (없는 부제는 없는 높이다).
+    desc?: string;
     path: '/safety' | '/runner/apply' | '/owner/addresses' | '/owner/dog'
         | '/owner/schedule' | '/cards' | '/alerts' | '/settings';
   };
@@ -187,13 +190,15 @@ export default function My() {
     // 러너의 '다가오는 일정과 지난 예약'은 **준비 중이 아니다**. 캘린더 탭이 바로 그 화면이고 탭 바에서
     // 한 번에 간다. 없는 기능이라 거짓말한 게 아니라, 있는 기능을 없다고 말하던 행이다.
     // 보호자에게만 남긴다 (보호자는 일정 탭이 있지만 이 허브에서도 들어오는 기존 경로를 유지).
-    ...(isRunner ? [] : ([{ glyph: '▦', label: '예약 관리', desc: '다가오는 일정과 지난 예약', path: '/owner/schedule', ink: '#4A6E93', tint: '#E3EEF8' }] as MenuRow[])),
+    // [D14] desc '다가오는 일정과 지난 예약' 삭제 — 라벨을 더 긴 말로 다시 쓴 것뿐이다.
+    ...(isRunner ? [] : ([{ glyph: '▦', label: '예약 관리', path: '/owner/schedule', ink: '#4A6E93', tint: '#E3EEF8' }] as MenuRow[])),
     // [Sean 2026-08-11] 러너의 '내 러닝 기록' 행은 러너 홈의 '내 기록' 섹션으로 옮겼다 —
     // 같은 목적지(/cards)로 가는 문이 마이와 홈에 둘 있었고, 홈 쪽만 실수치(누적 거리)를 말한다.
     // 보호자 행은 남는다 (보호자 홈에는 대응 섹션이 없다). ⚠ 두 행 모두 목적지 이름이 틀렸었다:
     // /cards는 **컬렉션(ANNEX — 도장 + 코스 패치)**이지 '러닝 히스토리'가 아니다 (cards.tsx:89 '컬렉션').
     ...(isRunner ? [] : ([{ glyph: '⌗', label: rec?.dogName ? `${rec.dogName}의 기록` : '러닝 기록', desc: '도장 · 코스 패치 컬렉션', path: '/cards', ink: colors.goldDeep, tint: colors.goldTint }] as MenuRow[])),
-    { glyph: '◔', label: '알림', desc: '알림 확인 및 설정', path: '/alerts', ink: colors.clubInk, tint: colors.clubTint },
+    // [D14] desc '알림 확인 및 설정' 삭제 — 최악의 되풀이였다 ('알림'을 열면 알림을 확인한다).
+    { glyph: '◔', label: '알림', path: '/alerts', ink: colors.clubInk, tint: colors.clubTint },
     { glyph: '⚙', label: '설정', desc: '계정 · 로그아웃 · 문의', path: '/settings', ink: '#586055', tint: '#EFF1EC' },
   ];
 
@@ -422,7 +427,7 @@ export default function My() {
               </View>
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={s.drowTitle}>{m.label}</Text>
-                <Text style={s.drowDesc}>{m.desc}</Text>
+                {m.desc ? <Text style={s.drowDesc}>{m.desc}</Text> : null}
               </View>
               <Text style={{ fontSize: 16, color: paper.dim }}>›</Text>
             </Pressable>

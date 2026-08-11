@@ -3,7 +3,7 @@ import { useCallback, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { PaperBtn } from '../../src/components/paper-btn';
 import { Row } from '../../src/components/ui';
-import { addAddress, Addr, deleteAddress, fetchAddresses, setDefaultAddress } from '../../src/lib/api';
+import { addAddress, Addr, deleteAddress, fetchAddresses, setDefaultAddress, updateAddressDetail } from '../../src/lib/api';
 import { paper } from '../../src/theme';
 
 // Address management — real CRUD. The default pickup address shows on the request
@@ -25,6 +25,13 @@ export default function Addresses() {
   const [label, setLabel] = useState('');
   const [addr, setAddr] = useState('');
   const [detail, setDetail] = useState('');
+  // [D15 2026-08-12 · Sean "special note … editable for owner in preference"] 픽업 메모 인라인 편집.
+  // 지금까지 addresses.detail은 **생성 시 1회 쓰기**였다 — api.ts에 update가 아예 없어서,
+  // '1층 로비에서 인계'를 '경비실에 맡겨주세요'로 바꾸려면 주소를 지우고 다시 만들어야 했고
+  // 그 과정에서 핀과 기본-픽업 플래그가 함께 날아갔다. 그게 이 상태 두 줄이 고치는 것이다.
+  const [noteId, setNoteId] = useState<string | null>(null);  // 편집 중인 주소 (null = 없음)
+  const [noteVal, setNoteVal] = useState('');
+  const [noteBusy, setNoteBusy] = useState(false);
 
   const load = () => {
     setLoadErr(false);
@@ -43,6 +50,21 @@ export default function Addresses() {
       // [DS-9] straight into the picker — back from it lands on the list with the row visible
       router.push({ pathname: '/owner/address-pin', params: { id: newId } });
     } catch (e) { Alert.alert('추가 실패', (e as Error).message); }
+  };
+
+  const openNote = (a: Addr) => { setNoteId(a.id); setNoteVal(a.detail ?? ''); };
+  const saveNote = async () => {
+    if (!noteId || noteBusy) return;
+    setNoteBusy(true);
+    try {
+      // 원문 그대로 보낸다 — 트림·빈문자열→NULL·60자 상한은 서버(0073)가 단일 소유자다.
+      await updateAddressDetail(noteId, noteVal);
+      setNoteId(null); setNoteVal('');
+      await load();
+    } catch (e) {
+      // 조용한 실패 금지 — 보호자는 러너가 읽을 문장을 바꿨다고 믿는다.
+      Alert.alert('메모 저장 실패', (e as Error).message);
+    } finally { setNoteBusy(false); }
   };
 
   const remove = (a: Addr) => {
@@ -133,6 +155,42 @@ export default function Addresses() {
                 <Text style={s.pinNeedTxt}>위치 지정 필요 ›</Text>
               )}
             </Pressable>
+            {/* [D15] 픽업 메모 스트립 — pinStrip과 같은 문법(자체 Pressable, ≥44pt, 두 상태 모두 동작).
+                이 문장은 장식이 아니다: 배정된 러너가 인계 화면에서 읽는 바로 그 줄이다. */}
+            {noteId === a.id ? (
+              <View style={s.noteEdit}>
+                <TextInput
+                  value={noteVal}
+                  onChangeText={setNoteVal}
+                  placeholder="예: 공동현관 #1204 · 경비실에 맡겨주세요"
+                  placeholderTextColor={paper.faint}
+                  style={s.input}
+                  maxLength={60}
+                  autoFocus
+                  multiline={false}
+                  returnKeyType="done"
+                  onSubmitEditing={saveNote}
+                />
+                {/* 60자는 서버 상한과 같은 수 — 여기 maxLength는 막는 장치가 아니라 미리 알려주는 장치다 */}
+                <Text style={s.noteCount}>{noteVal.length}/60 · 러너가 이 문장을 봐요</Text>
+                <Row style={{ gap: 8, marginTop: 10 }}>
+                  <PaperBtn label="저장" busyLabel="저장 중..." busy={noteBusy} onPress={saveNote} style={{ flex: 1.4 }} />
+                  <PaperBtn label="취소" variant="secondary" onPress={() => setNoteId(null)} style={{ flex: 1 }} />
+                </Row>
+              </View>
+            ) : (
+              <Pressable
+                onPress={() => openNote(a)}
+                hitSlop={6}
+                style={s.pinStrip}
+                accessibilityRole="button"
+                accessibilityLabel={a.detail ? '픽업 메모 수정' : '픽업 메모 추가'}
+              >
+                {a.detail
+                  ? <Text style={s.pinSetTxt} numberOfLines={1}>메모 · {a.detail} ›</Text>
+                  : <Text style={s.pinNeedTxt}>픽업 메모 추가 ›</Text>}
+              </Pressable>
+            )}
           </Pressable>
         ))}
 
@@ -193,6 +251,8 @@ const s = StyleSheet.create({
     paddingHorizontal: 14, justifyContent: 'center',
   },
   pinSetTxt: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: paper.dim },
+  noteEdit: { marginTop: 10, marginHorizontal: -14, borderTopWidth: 1, borderTopColor: paper.line, paddingHorizontal: 14, paddingTop: 12 },
+  noteCount: { fontSize: 14, lineHeight: 18, color: paper.dim, marginTop: 6 },
   pinNeedTxt: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: paper.line },
   input: {
     backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line,

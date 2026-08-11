@@ -611,9 +611,11 @@ const s = StyleSheet.create({
   // 후기 카드 — [페이퍼 크롬] 샤프·뉴트럴, 섀도 은퇴
   revCard: { backgroundColor: lilac.card, borderRadius: 0, padding: 12, borderWidth: 1, borderColor: '#EEEEEE' },
   monoTag: { borderWidth: 1, borderColor: '#EEEEEE', borderRadius: 0, backgroundColor: lilac.card, paddingVertical: 4, paddingHorizontal: 8 },
-  monoTagTxt: { fontSize: 12, fontWeight: '600', letterSpacing: 1, color: lilac.text, textTransform: 'uppercase' },
+  // [D13 FLOOR14 2026-08-12] 12 → 14. 리뷰 태그는 사용자가 쓴 한글이다. textTransform:uppercase는
+  // 한글에 아무 효과가 없으면서 이 스타일이 '라틴 캡스'인 척하게 만들던 잔재라 함께 뗀다.
+  monoTagTxt: { fontSize: 14, lineHeight: 18, fontWeight: '600', letterSpacing: 0.4, color: lilac.text },
   voltTag: { borderWidth: 1, borderColor: '#D9EBAA', borderRadius: 0, backgroundColor: lilac.voltFill, paddingVertical: 4, paddingHorizontal: 8 }, // 볼트 = 시맨틱 (마일스톤)
-  voltTagTxt: { fontSize: 12, fontWeight: '600', letterSpacing: 1, color: lilac.voltDeep, textTransform: 'uppercase' },
+  voltTagTxt: { fontSize: 14, lineHeight: 18, fontWeight: '600', letterSpacing: 0.4, color: lilac.voltDeep },
 
   emptyBox: { marginHorizontal: GUTTER, marginTop: 20, backgroundColor: lilac.inset, borderRadius: 0, borderWidth: 1, borderColor: '#EEEEEE', padding: 26 },
 
@@ -621,7 +623,8 @@ const s = StyleSheet.create({
   post: { backgroundColor: paper.canvas, marginTop: 12, borderTopWidth: 1, borderTopColor: paper.line, borderRadius: 0, overflow: 'hidden' },
   // ⋯ 오버플로 (내 포스트만) — 44pt 타깃 (36 + hitSlop 8)
   more: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
-  stamp: { fontSize: 12, fontWeight: '600', letterSpacing: 1, color: lilac.head, textTransform: 'uppercase' },
+  // [D13 FLOOR14 2026-08-12] 12 → 14. {rv.when}은 '8월 3일 (일)' 같은 한글 날짜다.
+  stamp: { fontSize: 14, lineHeight: 18, fontWeight: '600', letterSpacing: 0.4, color: lilac.head },
 
   // 컴포즈 바 — 아바타 + 플레이스홀더 + 샤프 코랄 보더 버튼 (전체가 /compose 프레스 타깃)
   composeBar: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: GUTTER + 2, paddingVertical: 11, minHeight: 56, backgroundColor: paper.canvas },
@@ -640,7 +643,7 @@ const s = StyleSheet.create({
   photoWrap: { position: 'relative', borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#EEEEEE', backgroundColor: lilac.inset },
   badgeCol: { position: 'absolute', top: 8, right: 8, gap: 4, alignItems: 'flex-end' },
   badge: { backgroundColor: lilac.glassEdge, borderRadius: 0, paddingVertical: 4, paddingHorizontal: 8 },
-  badgeTxt: { fontSize: 12, fontWeight: '600', letterSpacing: 1, color: lilac.head, textTransform: 'uppercase' },
+  badgeTxt: { fontSize: 14, lineHeight: 18, fontWeight: '600', letterSpacing: 0.4, color: lilac.head },
   // 기록 소인 (골드) — 화면당 1개 · [FIX3] 텍스트 승급분만큼 56 → 68 원형 성장
   seal: { position: 'absolute', right: 10, bottom: 10, width: 68, height: 68, borderRadius: 34, backgroundColor: lilac.goldSoft, borderWidth: 1.4, borderColor: lilac.gold, alignItems: 'center', justifyContent: 'center', transform: [{ rotate: '-8deg' }] },
   sealB: { fontSize: 14, fontWeight: '700', color: lilac.head, lineHeight: 18 },
@@ -674,7 +677,7 @@ const s = StyleSheet.create({
   actLabelOn: { color: CORAL_INK },
   actNum: { fontSize: 15, lineHeight: 19, fontWeight: '600', color: lilac.head, letterSpacing: 0.4 },
   actNumOn: { color: CORAL_INK },
-  when: { fontSize: 12, fontWeight: '600', letterSpacing: 1, color: lilac.dim, textTransform: 'uppercase', marginTop: 7, marginBottom: 11 },
+  when: { fontSize: 14, lineHeight: 18, fontWeight: '600', letterSpacing: 0.4, color: lilac.dim, marginTop: 7, marginBottom: 11 },
 
   // 독자 편지 (댓글) — [FIX3] 키커 12pt · 입력 14pt · 보내기 버튼 36
   letters: { borderTopWidth: 1, borderTopColor: '#EEEEEE', backgroundColor: lilac.card, paddingHorizontal: GUTTER + 2, paddingTop: 10, paddingBottom: 11 },

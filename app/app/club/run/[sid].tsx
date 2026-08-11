@@ -487,7 +487,8 @@ export default function ClubRun() {
               : `실측 ${km.toFixed(2)}km · ${mmssStr(elapsed)} — 이 기록으로 정산돼요`}
           </Text>
           <ClubCta label="완주로 종료 →" onPress={() => endTarget && doSettle(endTarget, 'completed')} busy={busy} />
-          <Text style={{ fontSize: 9.5, color: L.dim, marginTop: 14, marginBottom: 4, fontWeight: '700', letterSpacing: 1 }}>조기 종료</Text>
+          {/* [D13 FLOOR14 2026-08-12] 9.5 → 14. '조기 종료'는 러닝 종료 화면의 한글 섹션 라벨이다. */}
+          <Text style={{ fontSize: 14, lineHeight: 18, color: L.dim, marginTop: 14, marginBottom: 4, fontWeight: '700', letterSpacing: 0.4 }}>조기 종료</Text>
           {END_REASONS.map((r) => (
             <Pressable key={r.key} disabled={busy}
               onPress={() => endTarget && doSettle(endTarget, r.key, r.note)}
