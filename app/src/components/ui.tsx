@@ -1,72 +1,25 @@
 import { ReactNode, useEffect, useState } from 'react';
-import { Image, Pressable, StyleProp, StyleSheet, Text, TextStyle, View, ViewStyle } from 'react-native';
-import { useNumFont } from '../lib/fonts';
+import { Image, StyleProp, Text, View, ViewStyle } from 'react-native';
+import { useBodyBold } from '../lib/fonts';
 import { isMediaPath, useMediaUrl } from '../lib/media';
-import { colors, paper, radius } from '../theme';
+import { colors } from '../theme';
 
-// 도그스하이 shared UI kit — mirrors the prototype's design system.
-
-export function Btn({
-  label, onPress, variant = 'ink', disabled, style,
-}: {
-  label: string; onPress?: () => void; variant?: 'ink' | 'volt' | 'ghost'; disabled?: boolean; style?: ViewStyle;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      disabled={disabled}
-      style={({ pressed }) => [
-        s.btn,
-        variant === 'volt' && { backgroundColor: colors.volt },
-        variant === 'ghost' && s.btnGhost,
-        pressed && { transform: [{ scale: 0.97 }] },
-        style,
-        // 비활성 = 명시 fill. 불투명도 트릭 금지 (F2.1 버튼 매트릭스 법).
-        // RN은 배열을 왼→오로 병합하므로 이 두 줄은 반드시 맨 뒤 — variant/style 앞에 두면 조용히 무효화된다.
-        disabled && variant !== 'ghost' && { backgroundColor: paper.disabledFill },
-        disabled && variant === 'ghost' && { backgroundColor: 'transparent', borderColor: colors.line },
-      ]}
-    >
-      <Text style={[
-        s.btnText,
-        variant === 'volt' && { color: colors.ink },
-        variant === 'ghost' && { color: colors.ink },
-        disabled && { color: paper.faint }, // 라벨도 명시 색 — 맨 뒤라야 variant 색을 이긴다
-      ]}>
-        {label}
-      </Text>
-    </Pressable>
-  );
-}
-
-export function Card({ children, dark, style }: { children: ReactNode; dark?: boolean; style?: StyleProp<ViewStyle> }) {
-  return <View style={[s.card, dark && s.cardDark, style]}>{children}</View>;
-}
-
-export function Chip({
-  label, selected, onPress, style,
-}: { label: string; selected?: boolean; onPress?: () => void; style?: ViewStyle }) {
-  return (
-    <Pressable onPress={onPress} style={[s.chip, selected && s.chipSel, style]}>
-      <Text style={[s.chipText, selected && { color: colors.volt }]}>{label}</Text>
-    </Pressable>
-  );
-}
-
-export function Badge({ label, tone = 'green' }: { label: string; tone?: 'green' | 'red' | 'ink' }) {
-  const bg = tone === 'green' ? '#DDE8D4' : tone === 'red' ? '#ffe4dc' : colors.ink;
-  const fg = tone === 'green' ? '#2f4a35' : tone === 'red' ? '#c2340f' : colors.volt;
-  return (
-    <View style={[s.badge, { backgroundColor: bg }]}>
-      <Text style={{ fontSize: 14, fontWeight: '700', color: fg }}>{label}</Text>
-    </View>
-  );
-}
+// 도그스하이 shared UI kit.
+//
+// [§3b sweep 2026-08-11] The pre-§3b kit (Btn / Card / Chip / Badge / StatBlock / text) was
+// deleted, not converted: an importer census proved every one of them had ZERO call sites, so
+// they were a superseded kit sitting in the tree waiting for a new screen to import the old law
+// (review §4-8 "kit drift"). What remains is the live surface — Row(43) · Icon(15) · Avatar(14) ·
+// Monogram(4) · Skeleton(2) — and it now obeys the law it materializes.
 
 export function Monogram({ char, bg, size = 52 }: { char: string; bg: string; size?: number }) {
+  // [시스템폰트 박멸 §3] fontFamily was `undefined` here — i.e. the OS system font, on the fallback
+  // face of every avatar in the app (Avatar renders this whenever a photo is missing or fails).
+  // The single most-rendered system-font leak in the codebase.
+  const bf = useBodyBold();
   return (
     <View style={{ width: size, height: size, borderRadius: 0, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
-      <Text style={{ fontFamily: undefined, fontSize: size * 0.42, fontWeight: '800', color: '#fff' }}>{char}</Text>
+      <Text style={[{ fontSize: size * 0.42, fontWeight: '800', color: '#fff' }, bf]}>{char}</Text>
     </View>
   );
 }
@@ -81,9 +34,13 @@ export function Icon({ name, glyph, size = 18, color }: { name: string; glyph: s
   return <Text style={{ fontSize: size * 0.9, color }}>{glyph}</Text>;
 }
 
-// 스켈레톤 — '불러오는 중...' 텍스트 대체 (은은한 펄스)
-export function Skeleton({ width, height, radius: r = 12, style }: { width: number | `${number}%`; height: number; radius?: number; style?: ViewStyle }) {
-  return <View style={[{ width, height, borderRadius: r, backgroundColor: '#e8e5d8', opacity: 0.7 }, style]} />;
+// 로딩 자리표시 — 정적 블록이다.
+// [§7 sweep 2026-08-11] 주석은 '은은한 펄스'라고 적혀 있었지만 펄스는 구현된 적이 없다 (정적 View +
+// opacity 0.7). 없는 모션을 주장하는 주석은 다음 사람이 믿는 거짓말이라 문구를 사실로 고쳤고,
+// opacity 트릭은 명시 fill로 바꿨다 (F2.1). radius 기본값 12 → 0: 두 호출부(request·report)가
+// 전부 샤프 코너 화면이다.
+export function Skeleton({ width, height, radius: r = 0, style }: { width: number | `${number}%`; height: number; radius?: number; style?: ViewStyle }) {
+  return <View style={[{ width, height, borderRadius: r, backgroundColor: '#ECEAE2' }, style]} />;
 }
 
 // 실사진 아바타 — url 없으면 Monogram 폴백. 신뢰 표면 전부가 이걸 쓴다.
@@ -109,36 +66,6 @@ export function Avatar({ url, char, bg, size = 52 }: { url?: string | null; char
   );
 }
 
-export function StatBlock({ value, label, valueColor = colors.volt }: { value: string; label: string; valueColor?: string }) {
-  const nf = useNumFont(); // [V4] 숫자 = Oswald (공용 스탯 블록 전역 승급)
-  return (
-    <View style={{ alignItems: 'center' }}>
-      <Text style={[{ fontSize: 32, fontWeight: '900', color: valueColor, fontVariant: ['tabular-nums'] }, nf]}>{value}</Text>
-      <Text style={{ fontSize: 14, fontWeight: '700', letterSpacing: 0.5, color: '#8fa093', marginTop: 3 }}>{label}</Text>
-    </View>
-  );
-}
-
 export function Row({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
   return <View style={[{ flexDirection: 'row', alignItems: 'center' }, style]}>{children}</View>;
 }
-
-export const text: Record<string, TextStyle> = {
-  h1: { fontSize: 32, fontWeight: '900', color: colors.ink },
-  h2: { fontSize: 20.5, fontWeight: '800', color: colors.ink },
-  label: { fontSize: 15, fontWeight: '700', color: colors.ink },
-  dim: { fontSize: 14, color: colors.dim },
-  body: { fontSize: 15, color: colors.ink, lineHeight: 23 },
-};
-
-const s = StyleSheet.create({
-  btn: { backgroundColor: colors.ink, borderRadius: radius.btn, padding: 17, alignItems: 'center' },
-  btnGhost: { backgroundColor: 'transparent', borderWidth: 2, borderColor: colors.ink },
-  btnText: { fontSize: 19.5, fontWeight: '800', color: colors.volt, letterSpacing: 0.5 },
-  card: { backgroundColor: colors.card, borderRadius: radius.card, padding: 18, borderWidth: 1, borderColor: colors.line },
-  cardDark: { backgroundColor: colors.ink, borderColor: colors.ink },
-  chip: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: radius.chip, borderWidth: 1.5, borderColor: colors.line, backgroundColor: '#fff' },
-  chipSel: { backgroundColor: colors.ink, borderColor: colors.ink },
-  chipText: { fontSize: 15, fontWeight: '500', color: colors.ink },
-  badge: { paddingVertical: 3, paddingHorizontal: 9, borderRadius: 99, alignSelf: 'flex-start' },
-});

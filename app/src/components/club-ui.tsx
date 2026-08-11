@@ -103,11 +103,24 @@ const TAG_TONES = {
   gold: { bg: L.goldSoft, fg: '#8a6f2a' },
   dim: { bg: L.inset, fg: L.dim },
 } as const;
+// [§3b-C sweep 2026-08-11] ClubTag IS the club world's status chip, so §3b's status-chip clause
+// governs it: 16/800, radius 0, tinted fill + no border. It shipped 9.5pt with tracking 1.1 —
+// i.e. Korean status words (확정 · 완료 · 진행 중 · 수락 대기 · 마감 임박 · 재검토) rendered at
+// 9.5pt across 22 call sites on five club screens. Korean never rides the letterspaced-caps
+// kicker exemption (§3), so every one of those was a floor violation from one component.
+// Tracking drops 1.1 → 0.3: 1.1 is latin-microcaps grammar and smears Korean at 16pt (§7c,
+// tracking is size-specific). Radius follows §3b (the chip clause is explicit and later than
+// §2's lilac radius scale); LilacCard/ClubCta keep the lilac scale — those are §2's jurisdiction
+// and their fate is a per-screen migration call, not a component sweep's.
 export function ClubTag({ label, tone = 'dim' }: { label: string; tone?: keyof typeof TAG_TONES }) {
   const t = TAG_TONES[tone];
   return (
-    <View style={{ backgroundColor: t.bg, borderRadius: R.tag, paddingVertical: 4, paddingHorizontal: 8, alignSelf: 'flex-start' }}>
-      <Text style={{ fontSize: 9.5, fontWeight: '800', letterSpacing: 1.1, color: t.fg, fontVariant: ['tabular-nums'] }}>{label}</Text>
+    <View style={{ backgroundColor: t.bg, borderRadius: 0, paddingVertical: 5, paddingHorizontal: 9, alignSelf: 'flex-start' }}>
+      {/* Explicit lineHeight is load-bearing, not cosmetic: without it a latin label ('S2', 'DONE',
+          'HOST') and a Korean one ('해소', '확정') resolve DIFFERENT default line boxes at the same
+          fontSize, so two chips sitting on one row render at two different heights — visible on
+          club/case, which shows S2 and 해소 side by side. 20 fixes both to one box. */}
+      <Text style={{ fontSize: 16, lineHeight: 20, fontWeight: '800', letterSpacing: 0.3, color: t.fg, fontVariant: ['tabular-nums'] }}>{label}</Text>
     </View>
   );
 }
@@ -125,7 +138,10 @@ export function Flap({ word, state }: { word?: string; state?: FlapState }) {
     <View style={{ flexDirection: 'row', gap: 1.5 }}>
       {w.split('').map((ch, i) => (
         <View key={i} style={s.flapTile}>
-          <Text style={[{ fontSize: 9, fontWeight: '600', color, letterSpacing: 0.5 }, nf]}>{ch}</Text>
+          {/* [BUG A] Oswald requires an explicit lineHeight ≥1.2× or ascenders clip. ceil(9×1.24)=12
+              — Math.ceil, never round. 9pt survives the floor as a single LATIN glyph per tile
+              (split-flap character, stamp/glyph class); it never carries Korean. */}
+          <Text style={[{ fontSize: 9, lineHeight: 12, fontWeight: '600', color, letterSpacing: 0.5 }, nf]}>{ch}</Text>
           <View pointerEvents="none" style={s.flapSlit} />
         </View>
       ))}
@@ -146,13 +162,17 @@ export function ClubCta({ label, onPress, tone = 'coral', disabled, busy, style 
         tone === 'violet' && { backgroundColor: L.accent, shadowColor: L.accent },
         tone === 'quiet' && s.ctaQuiet,
         off && s.ctaOff,
-        pressed && !off && { transform: [{ scale: 0.98 }] },
+        pressed && !off && { transform: [{ scale: 0.96 }] }, // §3b: 0.96, not 0.98
         style,
       ]}
     >
+      {/* [§3b-B sweep 2026-08-11] Button matrix: primary label 17/800, secondary 16/800.
+          Shipped 14 for both. `style` stays last so callers can still stretch/position the CTA —
+          but note paper-btn's known hole (caller style landing after the variant fill) does not
+          apply here: the variant fills are on the Pressable, the label colors are on the Text. */}
       <Text style={[
-        { fontSize: 14, fontWeight: '800', letterSpacing: 0.4, color: '#fff' },
-        tone === 'quiet' && { color: L.dim, fontSize: 14 },
+        { fontSize: 17, fontWeight: '800', letterSpacing: 0.3, color: '#fff' },
+        tone === 'quiet' && { color: L.dim, fontSize: 16 },
         off && { color: L.dim },
       ]}>
         {busy ? '처리 중...' : label}
@@ -195,8 +215,9 @@ export function BigNumRow({ items }: { items: { v: string; unit?: string; label:
     <View style={s.bignum}>
       {items.map((it, i) => (
         <View key={it.label} style={[s.bignumCell, i === items.length - 1 && { borderRightWidth: 0 }]}>
-          <Text style={[{ fontSize: 21, fontWeight: '600', color: L.head, fontVariant: ['tabular-nums'] }, nf]}>
-            {it.v}{it.unit ? <Text style={{ color: L.coral, fontSize: 14 }}>{it.unit}</Text> : null}
+          {/* [BUG A] ceil(21×1.24)=27 — BigNumRow was a BUG A component by construction (review §4-5). */}
+          <Text style={[{ fontSize: 21, lineHeight: 27, fontWeight: '600', color: L.head, fontVariant: ['tabular-nums'] }, nf]}>
+            {it.v}{it.unit ? <Text style={{ color: L.coral, fontSize: 14, lineHeight: 27 }}>{it.unit}</Text> : null}
           </Text>
           <Text style={s.bignumLabel}>{it.label}</Text>
         </View>
@@ -268,14 +289,18 @@ export function SealSlide({ label = '끌어서 봉인', onSeal, disabled, width:
     onPanResponderTerminate: () => reset(),
   })).current;
 
+  // [F2.1 sweep 2026-08-11] Disabled was painted with `opacity: 0.45` on the whole track — the
+  // same banned trick the TouchableOpacity purge removed at component level (review §4-7).
+  // Every disabled state is now an explicit color. Gesture logic below is untouched (frozen:
+  // PanResponder + the 700ms long-press accessibility path).
   return (
-    <View style={[s.sealTrack, { width: trackW, opacity: disabled ? 0.45 : 1 }]}>
-      <Animated.View style={[s.sealFill, { width: fillW }]} />
-      <Text style={s.sealLabel}>{label}</Text>
-      <Text style={s.sealArrows}>›››</Text>
-      <Animated.View {...pan.panHandlers} style={[s.sealPaw, { transform: [{ translateX: x }] }]}>
+    <View style={[s.sealTrack, { width: trackW }, disabled && s.sealTrackOff]}>
+      <Animated.View style={[s.sealFill, { width: fillW }, disabled && { backgroundColor: L.inset }]} />
+      <Text style={[s.sealLabel, disabled && { color: L.dim }]}>{label}</Text>
+      <Text style={[s.sealArrows, disabled && { color: L.hair }]}>›››</Text>
+      <Animated.View {...pan.panHandlers} style={[s.sealPaw, disabled && s.sealPawOff, { transform: [{ translateX: x }] }]}>
         <Pressable onLongPress={complete} delayLongPress={700} style={{ flex: 1, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontSize: 14, lineHeight: 18, fontWeight: '800', color: L.coral, textAlign: 'center' }}>위탁{'\n'}승낙</Text>
+          <Text style={{ fontSize: 14, lineHeight: 18, fontWeight: '800', color: disabled ? L.dim : L.coral, textAlign: 'center' }}>위탁{'\n'}승낙</Text>
         </Pressable>
       </Animated.View>
     </View>
@@ -332,10 +357,11 @@ const s = StyleSheet.create({
   },
   flapSlit: { position: 'absolute', left: 0, right: 0, top: '50%', height: 1, backgroundColor: 'rgba(34,30,61,0.13)' },
   cta: {
-    backgroundColor: L.coral, borderRadius: R.btn, alignItems: 'center', paddingVertical: 14, marginTop: 12,
+    backgroundColor: L.coral, borderRadius: R.btn, alignItems: 'center', paddingVertical: 15, marginTop: 12,
     shadowColor: L.coral, shadowOpacity: 0.38, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 4,
   },
-  ctaQuiet: { backgroundColor: L.card, borderWidth: 1, borderColor: L.hair, shadowOpacity: 0, paddingVertical: 11, elevation: 0 },
+  // §3b: all four button kinds paddingVertical ≥15 (was 14 / 11 — the quiet one was a 33pt target).
+  ctaQuiet: { backgroundColor: L.card, borderWidth: 1, borderColor: L.hair, shadowOpacity: 0, paddingVertical: 15, elevation: 0 },
   ctaOff: { backgroundColor: L.inset, shadowOpacity: 0, elevation: 0 },
   bignum: {
     flexDirection: 'row', backgroundColor: L.inset, borderRadius: R.inner,
@@ -359,6 +385,7 @@ const s = StyleSheet.create({
     height: 52, borderRadius: 8, backgroundColor: '#FBF9F3',
     borderWidth: 1.5, borderColor: '#26231b', justifyContent: 'center', overflow: 'hidden', marginTop: 10,
   },
+  sealTrackOff: { backgroundColor: L.inset, borderColor: L.hair },
   sealFill: { position: 'absolute', left: 0, top: 0, bottom: 0, backgroundColor: L.coralSoft },
   // [FLOOR14] 봉인 슬라이더는 동의 서명 컨트롤이다 — 라벨('끌어서 봉인')·썸('위탁 승낙') 모두 한글 정보.
   // 트랙 폭 262px(320dp)에 14pt 5음절 ≈76px, 썸 44px에 2줄×18 =36px — 둘 다 여유 있게 든다.
@@ -369,4 +396,5 @@ const s = StyleSheet.create({
     borderWidth: 2.5, borderColor: L.coral, backgroundColor: '#fff',
     alignItems: 'center', justifyContent: 'center',
   },
+  sealPawOff: { borderColor: L.hair, backgroundColor: L.card },
 });

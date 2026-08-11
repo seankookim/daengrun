@@ -194,7 +194,13 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 8,
     borderBottomWidth: 1, borderBottomColor: '#E4DFD1', paddingVertical: 8,
   },
-  pdKey: { width: 76, fontSize: 8.5, letterSpacing: 1, color: '#8a8272', fontWeight: '700' },
+  // [FLOOR14 sweep 2026-08-11] These are the field labels of a legal consent document
+  // (위탁견 · 비상 연락처 · 픽업 지정인 · 진료 한도 · 사진 동의) and they shipped at 8.5pt with
+  // tracking 1 — the smallest Korean in the app, on the surface where comprehension matters most.
+  // Korean never rides the letterspaced-caps kicker exemption (§3). Width 76 → 96 so the longest
+  // label ('비상 연락처 *' ≈ 94px at 14pt) holds one line; the paper's inner width is 352 on a
+  // 402pt screen, so the dashed input keeps ~248 — measured, not eyeballed.
+  pdKey: { width: 96, fontSize: 14, lineHeight: 18, letterSpacing: 0.2, color: '#8a8272', fontWeight: '700' },
   pdInput: {
     flex: 1, fontSize: 14, fontWeight: '700', color: INK, padding: 0,
     borderBottomWidth: 1.5, borderStyle: 'dashed', borderBottomColor: '#C9C2AE', paddingBottom: 2,

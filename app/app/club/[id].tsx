@@ -509,7 +509,13 @@ export default function ClubPage() {
               {hostStats && hostStats.sessions > 0 && (
                 <View style={s.tile}>
                   <Text style={[s.tileK, { marginBottom: 7 }]}>호스트 신뢰</Text>
-                  <Row>
+                  {/* [sweep 2026-08-11] `Row` is alignItems:'center', so this hand-rolled stat row
+                      VERTICALLY CENTERED its three cells: '총 참여 팀' wraps to two lines, making
+                      that cell taller, which pushed its number above the other two and left the
+                      divider hairlines ragged (three numbers at three heights — visible on device).
+                      'stretch' makes every cell the tallest cell's height: numbers top-align on one
+                      line and the dividers run full height. */}
+                  <Row style={{ alignItems: 'stretch' }}>
                     {[[hostStats.sessions, '세션'], [hostStats.totalTeams, '총 참여 팀'], [hostStats.returning, '재방문']].map(([v, l], i) => (
                       <View key={l as string} style={[{ flex: 1, minWidth: 0 }, i > 0 && { borderLeftWidth: 1, borderLeftColor: L.hair2, paddingLeft: 8 }]}>
                         <Text style={[{ fontSize: 16, lineHeight: 20, fontWeight: '600', color: L.head }, nf]}>{v}</Text>
