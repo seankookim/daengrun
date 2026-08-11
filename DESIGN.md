@@ -113,6 +113,58 @@ addresses):
   (primary/door class; chips and links may stay 14).
 - Small white text never sits directly on coral/sage — use an ink plate (≥4.5:1).
 
+## 3b. COMPONENT SPEC (binding — 2026-08-11)
+
+The 2026-08-10 waves fixed tokens but left *components* unspecified, so every
+screen invented its own section header and chip. These are now components with
+exact values. New code MUST use them; when you touch a screen, convert it.
+
+### Section header — ONE grammar, no exceptions
+```
+[full-bleed coral 1px rule]
+<title 20/800 ink>            [optional right link 16/800 accent + ›]
+```
+- **No latin kicker** ("ROSTER", "VERIFIED COURSES", "HIGH CLUB", "NEXT RUN ·
+  BOARDING PASS"). They were decoration that competed with the title and made
+  every section look different. Retired app-wide.
+- **No section subtitle** ("동네에서 함께 달려요", "우리 동네 강아지들의 오늘 러닝").
+  If the title doesn't say it, the section is misnamed.
+- Numbered chips (01/02) only inside a genuinely ordered sequence; never as
+  decoration.
+- Every section title in the app is the SAME size/weight/color. A section is not
+  more important because someone typed a bigger number.
+
+### Buttons — four kinds, nothing else
+| Kind | Fill | Border | Label | Notes |
+|---|---|---|---|---|
+| Primary | `paper.ink` (`inkPressed` on press) | none | white **17/800** | one per screen |
+| Money | `MONEY_DEEP` coral | none | white **31 display** | full-bleed, no side margins, no price sub-plate |
+| Secondary | canvas (`wash` pressed) | 1px `paper.line` | ink **16/800** | |
+| Destructive | canvas (`criticalWash` pressed) | 1px `critical` | critical **16/800** | |
+All: radius 0, `paddingVertical` ≥15, `scale(0.96)` press, busy = label swap.
+No opacity tricks. Icon-only controls: 40×40 square, canvas, 1px coral.
+
+### Status chip (확정됨 · 확인 대기 · LIVE …)
+16/800, radius 0, tinted fill + no border, and it sits on the **same baseline row
+as the datum it qualifies** (a booking's status belongs beside its date, not
+floating in a corner).
+
+### Cards
+Radius 0 everywhere including the club card — the earlier club exception covered
+its *margins*, never its corners. Club keeps side margins (night artifact
+island); its corners are sharp like everything else.
+
+### GO disc (owner home)
+Word ladder **38/33/28/22** (was 30/26/22/17) with lineHeight ≥1.24×; sub-label
+**17/800** on its ink plate. Ring: **36 dots** (was 54 — beyond ~36 they read as
+texture, not count, and cost fill-rate on a frozen screen).
+
+### Ready/confirmed green (GO sage → energy green)
+`#12A05C` base / `#0E7F49` deep — brighter and more saturated than the retired
+`#3F9A75`, deliberately NOT volt/neon. Implementer MUST verify white-label
+contrast ≥3.5:1 on base and ≥4.5:1 on deep before shipping, and adjust within
+the same hue if it misses.
+
 ## 4. Space & structure
 
 - Global gutter: `layout.gutter` = **15** (2026-08-10; supersedes the never-
@@ -160,8 +212,8 @@ addresses):
   (compositor-only) is the approved tactility pattern of the 2026-08-10 polish
   pass — pending lab pick before app-wide adoption.
 - Collapsing heroes (owner home, fitness): pinned absolute overlay + ScrollView
-  paddingTop reservation; 54-dot ring layers hardware-textured; center layer
-  fades via its own opacity. **DO-NOT-REFACTOR.**
+  paddingTop reservation; dot-ring layers (36 dots per §3b) hardware-textured;
+  center layer fades via its own opacity. **DO-NOT-REFACTOR.**
 
 ## 7. Honesty laws (UI face of CLAUDE.md §Honesty)
 

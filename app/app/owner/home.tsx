@@ -20,7 +20,9 @@ import { useTheme } from '../../src/theme-context';
 
 // Owner home — 라일락 리페인트 (2026-08 "EDITORIAL SPORT × DAWN-DOT MORPH").
 // 스크롤 컬랩스 히어로 역학은 그대로. 표면만 포레스트/볼트 → 라일락(라이트 라일락 · 나이트 라일락 #1C1837)으로 전환.
-// 모프 위젯: 54-dot 새벽 링(바이올렛→코랄 아크, 코랄 글로우 헤드) ↔ 하단 새벽 진행선 크로스페이드 (좌표 보간 0 — 퍼포 법 유지).
+// 모프 위젯: 36-dot 새벽 링(바이올렛→코랄 아크, 코랄 글로우 헤드) ↔ 하단 새벽 진행선 크로스페이드 (좌표 보간 0 — 퍼포 법 유지).
+// [2026-08-11 §3b COMPONENT SPEC] 섹션 헤더 단일 문법(코랄 풀블리드 룰 + 20/800 잉크 타이틀) · 버튼 4종 ·
+// 상태칩 16/800 데이터 행 동반 · GO 워드 래더 38/33/28/22 · 링 36도트 · 에너지 그린 — 이 화면이 스펙 정본 적용 1호.
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const CARD_W = SCREEN_W; // [풀블리드 2026-08-06] 거터 11*2 은퇴 — 히어로도 화면 끝까지
@@ -36,8 +38,10 @@ const STAMP_CELL = Math.min(20, Math.floor((CARD_W * 0.44 - 6) / 7));
 const STAMP_FONT = STAMP_CELL >= 20 ? 14 : 12;
 const RING_BIG = 240; // [2026-08-06] 216 → 240 — 디스크 확대(122→144) 수용. 도트·컬랩스 수식 전부 파생이라 자가 정합
 // ── 모프 스트로크 상수 — 원(큰 상태) ↔ 하단 진행선(컬랩스) ──
-// 도트 간격 ≤ 도트 지름이 되도록 촘촘히 — 점 무리가 아니라 '이어진 선'으로 읽힌다 (Sean, 2026-07-28)
-const MORPH_DOTS = 54;
+// [§3b 2026-08-11] 54 → 36 — ~36을 넘으면 도트가 '개수'가 아니라 텍스처로 읽히고, 동결 화면에서
+// 필레이트만 먹는다. 구 '간격 ≤ 지름 = 이어진 선' 법(2026-07-28)은 이 스펙으로 대체 — 이제 도트는
+// 셀 수 있는 데이터 마크다 (링 간격 ≈ 2π·109/36 ≈ 19px > 지름 11). 모프/컬랩스 역학은 무접촉.
+const MORPH_DOTS = 36;
 const MORPH_DOT = 11;
 // [FIX 2026-08-03] 컬랩스 진행선 Y는 더 이상 하드코딩(구 LINE_Y_HERO=154)하지 않는다.
 // 좌/우 컴팩트 정보 블록의 실측 bottom(onLayout)에서 파생 → 타입 1.7× 스케일업 후에도
@@ -47,21 +51,26 @@ const MORPH_LINE_GAP = 22; // 정보 블록 bottom ↔ 진행선 사이 숨 쉬�
 // ── GO 코어 (랩 Ⓑ① "Red Core", Sean 승인 2026-08-05) — 240 링의 불스아이에 앉는 액션 디스크 ──
 // [2026-08-06 확대] 지름 144: 도트 안쪽 반경이 RING_BIG/2 − MORPH_DOT − MORPH_DOT/2 = 103.5 라
 // 디스크 가장자리(r 72)와 도트 사이에 31.5px가 남는다 → 아크와 코랄 헤드 글로우를 절대 덮지 않는다.
-// 세로 예산 재계산: 43 + 8 + 144 + 8 + 34 = 237 ≤ RING_BIG 240 (s.goDisc 주석의 구성법 동일).
+// 세로 예산 재계산 [§3b 래더 38/33/28/22 반영, 2026-08-11]:
+//   km 헤일로 4+(1+3+27+3+1)+4 = 43 · 갭 8 · 디스크 144(고정) · 갭 8 · 나이 헤일로 4+(1+3+18+3+1)+4 = 34
+//   합 43 + 8 + 144 + 8 + 34 = 237 ≤ RING_BIG 240 — 래더는 디스크 '안'의 텍스트라 바깥 스택 무접촉.
+//   디스크 내부: 워드 최대 ceil(38×1.24) = 48 + 서브(marginTop 1 + 패딩 2+2 + lineHeight 22) = 27 →
+//   75 ≤ 디스크 안쪽 140 (144 − 보더 2×2). 상태별 워드 줄박스 = ceil(폰트×1.24): 48/41/35/28.
 const GO_DISC = 144;
 // ── 색 진행법 (Sean 2026-08-05: "빨강으로 시작, 찾을 땐 파랑, 확정되면 부드러운 초록") ──
 // 색이 곧 '지금 누구 차례인가'다:
 //   코랄  = 네 차례 — 예약이 없다(행동하라) · 러닝이 돌아간다(라이브). 둘 다 '움직임'의 색이라 원점 회귀.
 //   블루  = 시스템 차례 — 매칭 중·지명 응답 대기. 기다림은 차가운 색이어야 재촉으로 읽히지 않는다.
-//   세이지 = 준비 완료 — 확정·인계 대기. 만나기만 하면 되는 상태의 안심색.
+//   그린  = 준비 완료 — 확정·인계 대기. 만나기만 하면 되는 상태의 안심색.
 // 블루는 액센트 바이올렛(#6C5CE7)과 절대 헷갈리면 안 되므로 초록 성분이 많은 페리윙클로 밀었다.
-// 세이지는 네온 금지 — 라일락 캔버스에 얹혀도 튀지 않는 채도. 흰 라벨 대비가 승인색 코랄(2.8:1)보다
-// 낮아지지 않도록 세이지는 계열의 '딥'(#3F9A75, 3.4:1)을 기본면으로 쓴다 (원 #58B58D는 2.5:1로 하회).
+// [§3b 2026-08-11] 세이지(#3F9A75) 은퇴 → 에너지 그린 — 더 밝고 채도 높게, 단 볼트/네온은 아님.
+// 스펙 명목값 #12A05C는 실측 흰 라벨 3.38:1로 스펙 자체의 ≥3.5 게이트를 하회 → 같은 색상(hue 151°)
+// 안에서 한 단계 눌러 #119B58 채택 (실측 3.59:1 ✓, hue 150.9°). 딥 #0E7F49는 실측 5.06:1 (≥4.5 ✓).
 const GO_BLUE = '#5B82E8'; // 매칭 중 — 페리윙클 (흰 라벨 3.6:1)
 const GO_BLUE_DEEP = '#4468CC'; // 매칭 중 press · 지명 대기 기본면 (5.1:1)
 const GO_BLUE_WAIT_DEEP = '#3A5BB4'; // 지명 대기 press — 같은 계열 한 단계 더 깊게 (6.3:1)
-const GO_SAGE = '#3F9A75'; // 확정 · 시작 대기 — 소프트 세이지
-const GO_SAGE_DEEP = '#358363'; // 세이지 press (4.6:1)
+const GO_SAGE = '#119B58'; // 확정 · 시작 대기 — 에너지 그린 (스펙 #12A05C의 대비 보정판, 흰 라벨 3.59:1)
+const GO_SAGE_DEEP = '#0E7F49'; // 에너지 그린 press (흰 라벨 5.06:1)
 type GoState = 'none' | 'searching' | 'directed' | 'confirmed' | 'handoff' | 'active';
 // [Sean 2026-08-10 · go-premium-lab Ⓐ④] coral pushed redder — values already in-system
 // (#E8552F = lilac.tang/paper.line brand coral · #C6472C = MONEY_DEEP below), zero new
@@ -82,15 +91,15 @@ const GO_TINT: Record<GoState, string> = {
   none: '#FEF6F3', // 코랄 워시
   searching: '#F5F7FE', // 블루 워시
   directed: '#F5F7FE',
-  confirmed: '#F4FAF7', // 세이지 워시
-  handoff: '#F4FAF7',
+  confirmed: '#F3FAF7', // 에너지 그린 워시 — 255×0.95 + #119B58×0.05 채널별 (§3b 그린 동기)
+  handoff: '#F3FAF7',
   active: '#FEF6F3',
 };
 
 // 라일락 서피스 토큰 — 나이트 라일락 다크 인셋 / 딥 코랄 머니 스톱(종단 ≥#C6472C, 흰 라벨 4.5:1)
 const NIGHT = '#1C1837';
 const NIGHT_DIM = '#C6BEEB';
-const NIGHT_KICK = '#B7ADE4';
+// [§3b] NIGHT_KICK 은퇴 — 유일 사용처였던 'LIVE RUNNERS' 라틴 키커가 사라졌다
 const MONEY_DEEP = '#C6472C'; // 예약 CTA 종단 스톱 — 흰 라벨 대비 확보
 const HOLO = ['#CFC5F6', '#FFDCD1', '#F3E9C6', '#EAF6C8', '#CDEAF3']; // 홀로 3px 엣지 근사
 
@@ -117,7 +126,7 @@ function lerpHex(a: string, b: string, tt: number): string {
   return `#${pa.map((x, i) => Math.round(x + (pb[i] - x) * tt).toString(16).padStart(2, '0')).join('')}`;
 }
 
-// [퍼포먼스 단순화, Sean 2026-08-02] 점별 좌표 보간(54점 × 2 = 프레임당 ~108개 트랜스폼)이 스크롤을
+// [퍼포먼스 단순화, Sean 2026-08-02] 점별 좌표 보간(36점 × 2 = 프레임당 ~72개 트랜스폼)이 스크롤을
 // 무겁게 했다 → 링·선을 각각 '정적' 레이어로 그리고, 스크롤 t는 크로스페이드 + 선 살짝 내려앉기(총 3개
 // 애니메이션 값)만 움직인다. 점이 곧 데이터라는 문법(진행 점등·헤드 글로우)은 두 레이어가 동일하게 유지.
 // [라일락 리페인트] 스웜프 그린 → 새벽 아크: 시작(주 초반) 바이올렛 #6C5CE7 → 헤드(진행 끝) 코랄 #F0765A.
@@ -222,17 +231,14 @@ function HoloBar() {
   );
 }
 
-// 섹션 헤더 — 키커 넘버 + 룰 + 링크 (에디토리얼 마스트 문법)
-function SectionHead({ n, title, link, onLink }: { n?: string; title: string; link?: string; onLink?: () => void }) {
+// 섹션 헤더 — 단일 문법 (§3b 2026-08-11): 풀블리드 코랄 1px 룰 + 20/800 잉크 타이틀 + 우측 16/800 액센트 링크.
+// 넘버 칩(01)·라틴 키커·인라인 룰·서브타이틀은 전부 은퇴 — 모든 섹션이 같은 헤더를 쓴다.
+function SectionHead({ title, link, onLink }: { title: string; link?: string; onLink?: () => void }) {
   return (
     <View style={s.sec}>
-      {n ? (
-        <View style={s.secN}><Text style={s.secNText}>{n}</Text></View>
-      ) : null}
       <Text style={s.secH}>{title}</Text>
-      <View style={s.secRule} />
       {link ? (
-        <Pressable onPress={onLink}><Text style={s.secLink}>{link}</Text></Pressable>
+        <Pressable onPress={onLink} hitSlop={8}><Text style={s.secLink}>{link}</Text></Pressable>
       ) : null}
     </View>
   );
@@ -462,7 +468,7 @@ export default function OwnerHome() {
     routes.forEach((r, i) => { if (Math.abs(r.km - km) < Math.abs(routes[best].km - km)) best = i; });
     return best;
   };
-  const fnPulse = useRef(new Animated.Value(0)).current;
+  // [§3b] fnPulse(CTA 펄스 링) 은퇴 — 4종 버튼엔 장식 레이어가 없고, idle 무한 펄스는 거짓 모션 경계였다.
   // 오픈 브로드캐스트만 '검색 중' — 지명 대기(runner_pending, matched)는 레이더가 거짓말이 된다
   const fnSearching = liveNext?.status === 'pending' && !liveNext.matched;
   const fnDirected = liveNext?.status === 'pending' && !!liveNext.matched; // ★ 지명 응답 대기
@@ -493,7 +499,9 @@ export default function OwnerHome() {
         : goState === 'confirmed' ? (ddayLabel !== null ? '확정' : '인계 확인')
           : goState === 'handoff' ? '미트업 보기'
             : '실시간 보기';
-  const goFont = goState === 'none' ? 30 : goState === 'active' ? 22 : goNum ? 26 : 17;
+  // [§3b] 워드 래더 38/33/28/22 (구 30/26/22/17) — GO 38 · 숫자(D-day) 33 · ● LIVE 28 · 한글 상태어 22.
+  // 줄박스는 ceil(폰트×1.24) — 스펙의 lineHeight ≥1.24×를 내림(round)으로 깨지 않는다 (렌더부에서 계산).
+  const goFont = goState === 'none' ? 38 : goState === 'active' ? 28 : goNum ? 33 : 22;
   // GO 호흡 — '매칭 중'(잔잔한 맥박)과 '● LIVE'(느린 숨)에서만 돈다. idle에 돌리면 거짓 모션
   // (스윕 회전과 같은 법). opacity 단일 값 · 네이티브 드라이버 — 레이아웃/스케일은 건드리지 않는다.
   const goBreath = useRef(new Animated.Value(0)).current;
@@ -529,15 +537,6 @@ export default function OwnerHome() {
     loop.start();
     return () => loop.stop();
   }, [fnSearching, sweep]);
-  useEffect(() => {
-    const loop = Animated.loop(Animated.sequence([
-      Animated.timing(fnPulse, { toValue: 1, duration: 1100, useNativeDriver: true }),
-      Animated.timing(fnPulse, { toValue: 0, duration: 1100, useNativeDriver: true }),
-    ]));
-    loop.start();
-    return () => loop.stop();
-  }, [fnPulse]);
-
   const openFindNow = async () => {
     haptic('medium');
     try {
@@ -685,14 +684,16 @@ export default function OwnerHome() {
           <View style={s.brandRow}>
             <BrandLockup height={40} />
             <View style={{ flex: 1 }} />
-            {/* 나이트 라일락 테마 토글 — 라일락 전 화면 정합 후 복귀 (toggle 역학 유지) */}
-            <Pressable onPress={toggle} style={[s.themeBtn, { borderColor: p.line, backgroundColor: p.card }]}>
-              <Text style={{ fontSize: 13, color: lilac.accent }}>◐</Text>
+            {/* 나이트 라일락 테마 토글 — 라일락 전 화면 정합 후 복귀 (toggle 역학 유지)
+                [§3b] 아이콘 전용 컨트롤 = 40×40 스퀘어 · 캔버스 면 · 1px 코랄 (30×30 뉴트럴 은퇴).
+                brandRow 높이 52 = HEADER_LOCKUP — 40 버튼이 그대로 들어간다 (헤더 예산 무접촉). */}
+            <Pressable onPress={toggle} style={({ pressed }) => [s.themeBtn, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}>
+              <Text style={{ fontSize: 16, color: lilac.accent }}>◐</Text>
             </Pressable>
-            <Pressable onPress={() => router.push('/alerts')} style={[s.themeBtn, { borderColor: p.line, backgroundColor: p.card, marginLeft: 8 }]}>
+            <Pressable onPress={() => router.push('/alerts')} style={({ pressed }) => [s.themeBtn, { marginLeft: 8, transform: [{ scale: pressed ? 0.96 : 1 }] }]}>
               {/* 도트는 실 미읽음 수가 있을 때만 — 무조건 점은 가짜 알림 신호였다 */}
               {unread > 0 && <View style={s.bellDot} />}
-              <Icon name="Bell" glyph="◔" size={15} color={lilac.head} />
+              <Icon name="Bell" glyph="◔" size={18} color={lilac.head} />
             </Pressable>
           </View>
           {/* 동네 랭킹 티커 — 주식 시세줄처럼 흐르는 실집계 (탭 → 리더보드).
@@ -706,10 +707,10 @@ export default function OwnerHome() {
                     style={{ flexDirection: 'row', alignItems: 'center' }}
                     onLayout={dup === 0 ? (e) => { const w = Math.round(e.nativeEvent.layout.width); if (Math.abs(w - tickerW) > 2) setTickerW(w); } : undefined}
                   >
-                    {/* [2026-08-10 type wave] '동네 리그' is Korean data-class text, not kicker decoration —
-                        14pt span (DESIGN.md §3); latin 'THIS WEEK' stays kicker-class. Line box stays 18
-                        (nested-span max, same as ticker items) so the HEADER_H 123 budget is untouched. */}
-                    <Text style={s.tickerLead}>THIS WEEK<Text style={s.tickerLeadKo}> · 동네 리그</Text></Text>
+                    {/* [§3b 2026-08-11] latin kicker 'THIS WEEK' retired app-wide — the lead is the Korean
+                        data-class label alone, 14pt / lineHeight 18. Line box stays 18 (nested-span max,
+                        same as ticker items) so the HEADER_TICKER 36 budget is untouched. */}
+                    <Text style={s.tickerLead}>동네 리그</Text>
                     <View style={s.tickerSep} />
                     {ticker.map((d, i) => (
                       <View key={`${dup}-${i}`} style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -848,7 +849,7 @@ export default function OwnerHome() {
               }}
               style={{ alignSelf: 'center', marginTop: 6, width: RING_BIG, height: RING_BIG }}
             >
-              {/* 54-dot 레이어는 하드웨어 텍스처로 승격 — 크로스페이드 프레임마다 그림자 달린 도트를 재합성하지 않는다.
+              {/* 36-dot 레이어는 하드웨어 텍스처로 승격 — 크로스페이드 프레임마다 그림자 달린 도트를 재합성하지 않는다.
                   (shouldRasterizeIOS는 의도적으로 제외: 살아있는 상위 scaleY 아래에서 캐시 비트맵이 리샘플되며 헤드 글로우가 뭉갠다) */}
               <Animated.View pointerEvents="none" renderToHardwareTextureAndroid style={[StyleSheet.absoluteFill, { opacity: ringOpacity }]}>
                 <RingDots pct={pct} track={hp.track} />
@@ -886,7 +887,7 @@ export default function OwnerHome() {
                      프레스 피드백은 디스크 자기 면색 교체 base→deep 하나뿐이다.)
                     각 분기는 기존 핸들러를 그대로 미러한다: 티켓의 인계/라이브 버튼 + '지금 러너 찾기' 섬. */}
                 <Animated.View style={{ opacity: goBreathOpacity }}>
-                  {/* [Ⓐ④ Keyline Orbit] 1.5px 상태색 궤도 키라인 — 디스크와 5px 갭, 54도트 링과 한 가족.
+                  {/* [Ⓐ④ Keyline Orbit] 1.5px 상태색 궤도 키라인 — 디스크와 5px 갭, 36도트 링과 한 가족.
                       absolute라 레이아웃 불변(GO 스택 237≤240 예산 무접촉); 시각 돌출 5px는 헤일로 갭 8px 안. */}
                   <View
                     pointerEvents="none"
@@ -911,11 +912,12 @@ export default function OwnerHome() {
                     }]}
                   >
                     <Text
-                      style={[s.goWord, goNum ? nf : null, { fontSize: goFont, lineHeight: Math.round(goFont * 1.24), letterSpacing: goNum ? 1.4 : 0 }]}
+                      style={[s.goWord, goNum ? nf : null, { fontSize: goFont, lineHeight: Math.ceil(goFont * 1.24), letterSpacing: goNum ? 1.4 : 0 }]}
                       numberOfLines={1}
                     >
                       {goMain}
                     </Text>
+                    {/* [§3b] 서브 라벨 14 → 17/800 — 잉크 플레이트 유지 (플레이트 합성 대비는 s.goSub 주석) */}
                     <Text style={s.goSub} numberOfLines={1}>{goSub}</Text>
                   </Pressable>
                 </Animated.View>
@@ -924,7 +926,7 @@ export default function OwnerHome() {
                 <View style={[s.goHalo, { marginTop: 8, backgroundColor: GO_TINT[goState] }]}>
                   <View style={s.goPill}>
                     {/* 세 자식 모두 lineHeight 18 명시 — 라벨만 빠지면 안드로이드 기본 줄높이(≈20)가
-                        행을 지배해 센터 스택이 216을 넘는다 (세로 예산은 s.goDisc 주석 참조) */}
+                        행을 지배해 센터 스택이 240을 넘는다 (세로 예산 정본은 파일 상단 GO_DISC 주석: 237 ≤ 240) */}
                     <Text style={{ fontSize: 14, lineHeight: 18, fontWeight: '800', color: hp.textSoft }}>체력 나이</Text>
                     <Text style={[{ fontSize: 14, lineHeight: 18, fontWeight: '900', color: lilac.accent }, nf]}>
                       {fit == null ? '—' : fitnessAge != null ? `${fitnessAge}살` : '측정 전'}{/* [리뷰 F6] 로딩≠측정 전 */}
@@ -991,44 +993,38 @@ export default function OwnerHome() {
 
         {/* ═══ 오늘의 티켓 (owner-4 보딩패스) — 임박 예약(가장 액션 가능한 실예약)을 보딩패스로.
              상단=사실, 스텁=액션. 상태 태그는 실상태 텍스트. 예약 없으면 부재 안내. ═══ */}
-        <SectionHead n="01" title="오늘의 티켓" link="전체 일정 ›" onLink={() => router.push('/owner/schedule')} />
+        <SectionHead title="오늘의 티켓" link="전체 일정 ›" onLink={() => router.push('/owner/schedule')} />
         {/* whole card taps through to 내 일정 — buttons stop propagation */}
+        {/* [§3b item 5] 'NEXT RUN · BOARDING PASS' 키커 + ✦ 브랜드 글리프 칩 은퇴 — 티켓 헤더 행 자체가
+            사라지고 상태·D-day 칩은 아래 날짜 행(수식하는 데이터 옆)으로 내려앉는다. 홀로 엣지는 티켓
+            포일 예산이라 생존. */}
         <Pressable onPress={() => router.push('/owner/schedule')} style={s.ticket}>
           <HoloBar />
           <View pointerEvents="none" style={s.ticketDbl} />
-          <View style={s.ticketHead}>
-            {/* 칩이 둘(D-day + 상태)이 되며 헤더 폭이 빡빡해졌다 — 브랜드 라인이 줄바꿈/클리핑되는 대신
-                줄어들고(ticket은 overflow:hidden) 칩들은 온전히 남게 flex 배분 */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>
-              <View style={s.ticketGlyph}><Text style={{ fontSize: 11, color: '#fff' }}>✦</Text></View>
-              <Text style={s.ticketBrand} numberOfLines={1}>NEXT RUN · BOARDING PASS</Text>
-            </View>
-            {liveNext ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 0, marginLeft: 6 }}>
-                {/* D-day 칩 — 상태 태그 왼쪽. scheduled_at 없거나 지난 건이면 렌더 없음 */}
-                {ddayLabel ? (
-                  <View style={s.ddayChip}><Text style={[s.ddayTxt, nf]}>{ddayLabel}</Text></View>
-                ) : null}
-                <View style={[s.countdownPill, liveNext.status === 'pending'
-                  ? { backgroundColor: lilac.amberSoft }
-                  : { backgroundColor: '#F2E7FC' }]}>
-                  <Text style={[{ fontSize: 14, lineHeight: 18, fontWeight: '900', letterSpacing: 0.5 }, nf, { color: liveNext.status === 'pending' ? lilac.amber : lilac.accent }]}>
-                    {liveNext.status === 'pending' ? (liveNext.matched ? '지명 대기' : '매칭 중') : liveNext.status === 'active' ? '● LIVE' : liveNext.status === 'handoff' ? '시작 대기' : '확정됨'}
-                  </Text>
-                </View>
-              </View>
-            ) : null}
-          </View>
           {liveNext ? (
-            <View style={{ paddingHorizontal: layout.gutter, paddingBottom: 12 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 10 }}>
+            <View style={{ paddingHorizontal: layout.gutter, paddingTop: 14, paddingBottom: 12 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                 <Avatar url={fit?.dogPhotoUrl} char={liveNext.dogName[0]} bg={lilac.coral} size={34} />
-                <View style={{ flex: 1 }}>
-                  {/* [Sean 2026-08-10 · 랩 Ⓒ] 티켓의 헤드라인 값 확대 20→26 (Oswald, BUG A lineHeight 1.27×) */}
-                  <Text style={[{ fontSize: 26, lineHeight: 33, fontWeight: '900', color: lilac.head }, nf]} numberOfLines={1}>
-                    {/* split(' ')[0] 이 '7월'만 남기던 버그 — 요일 괄호만 떼고 날짜 전체 표기 */}
-                    {liveNext.dateLabel.replace(/ \(.+\)$/, '')} {liveNext.timeLabel}
-                  </Text>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  {/* [§3b 상태칩] 16/800 · 샤프 · 틴트 면 — 예약의 상태는 코너에 뜨지 않고 그 예약의
+                      날짜·시각과 같은 행에 앉는다. D-day 칩도 같은 행 (없으면 렌더 없음). */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
+                    {/* [Sean 2026-08-10 · 랩 Ⓒ] 티켓의 헤드라인 값 확대 20→26 (Oswald, BUG A lineHeight 1.27×)
+                        — split(' ')[0] 이 '7월'만 남기던 버그: 요일 괄호만 떼고 날짜 전체 표기 */}
+                    <Text style={[{ fontSize: 26, lineHeight: 33, fontWeight: '900', color: lilac.head, flexShrink: 1 }, nf]} numberOfLines={1}>
+                      {liveNext.dateLabel.replace(/ \(.+\)$/, '')} {liveNext.timeLabel}
+                    </Text>
+                    <View style={[s.statusChip, liveNext.status === 'pending'
+                      ? { backgroundColor: lilac.amberSoft }
+                      : { backgroundColor: '#F2E7FC' }]}>
+                      <Text style={[s.statusChipTxt, nf, { color: liveNext.status === 'pending' ? lilac.amber : lilac.accent }]}>
+                        {liveNext.status === 'pending' ? (liveNext.matched ? '지명 대기' : '매칭 중') : liveNext.status === 'active' ? '● LIVE' : liveNext.status === 'handoff' ? '시작 대기' : '확정됨'}
+                      </Text>
+                    </View>
+                    {ddayLabel ? (
+                      <View style={s.ddayChip}><Text style={[s.ddayTxt, nf]}>{ddayLabel}</Text></View>
+                    ) : null}
+                  </View>
                   <Text style={{ fontSize: 14, color: lilac.dim, marginTop: 2 }} numberOfLines={1}>
                     {liveNext.dogName} · {liveNext.routeName}
                   </Text>
@@ -1039,38 +1035,45 @@ export default function OwnerHome() {
                 <View style={[s.notch, { left: -19 }]} />
                 <View style={[s.notch, { right: -19 }]} />
               </View>
-              {/* 30분 전부터/러너 확정 시: 확인·시작 액션이 위젯에 올라온다 */}
+              {/* 30분 전부터/러너 확정 시: 확인·시작 액션이 위젯에 올라온다.
+                  [§3b 버튼 4종] 티켓 주 액션 = Primary(잉크 면 · 흰 17/800 · 프레스 inkPressed) — 구
+                  goSkin 상태색 필(Sean 2026-08-10)은 4종 법으로 은퇴, 상태색은 GO 디스크·워시·상태칩이
+                  말한다. 보조 = Secondary(캔버스 면 · 1px 코랄 헤어라인 · 잉크 16/800). 전부 샤프 ·
+                  paddingVertical 15 · scale 0.96 프레스. */}
               {liveNext?.status === 'active' ? (
                 <View style={{ flexDirection: 'row', gap: 8, marginTop: 13 }}>
                   <Pressable
-                    style={({ pressed }) => [s.meetBtn, {
-                      backgroundColor: pressed ? goSkin.deep : goSkin.base, shadowColor: goSkin.base,
+                    style={({ pressed }) => [s.primaryBtn, {
+                      backgroundColor: pressed ? paper.inkPressed : paper.ink,
                       transform: [{ scale: pressed ? 0.96 : 1 }],
                     }]}
                     onPress={(e) => { e.stopPropagation(); if (liveNext) draft.bookingId = liveNext.id; router.push('/owner/live'); }}
                   >
-                    <Text style={{ fontSize: 16, fontWeight: '900', color: '#fff' }}>실시간 보기 ›</Text>
+                    <Text style={s.primaryBtnTxt}>실시간 보기 ›</Text>
                   </Pressable>
                 </View>
               ) : liveNext?.status === 'handoff' ? (
                 <View style={{ flexDirection: 'row', gap: 8, marginTop: 13 }}>
                   <Pressable
-                    style={({ pressed }) => [s.widgetBtn, { flex: 1, transform: [{ scale: pressed ? 0.96 : 1 }] }]}
+                    style={({ pressed }) => [s.widgetBtn, {
+                      backgroundColor: pressed ? paper.wash : paper.canvas,
+                      transform: [{ scale: pressed ? 0.96 : 1 }],
+                    }]}
                     onPress={(e) => {
                       e.stopPropagation();
                       if (liveNext) draft.bookingId = liveNext.id;
                       router.push('/owner/meetup'); // 시작되면 미트업이 라이브로 자동 전환
                     }}
                   >
-                    <Text style={{ fontSize: 14, fontWeight: '700', color: p.textSoft }}>인계 완료 · 러닝 시작 대기 중 ›</Text>
+                    <Text style={s.widgetBtnTxt}>인계 완료 · 러닝 시작 대기 중 ›</Text>
                   </Pressable>
                 </View>
               ) : liveNext?.status === 'confirmed' ? (
                 <View style={{ marginTop: 13, gap: 8 }}>
                   {/* 3버튼 한 줄은 과밀 — 주 액션 전폭 + 보조 2개 반반 (2단) */}
                   <Pressable
-                    style={({ pressed }) => [s.meetBtn, {
-                      backgroundColor: pressed ? goSkin.deep : goSkin.base, shadowColor: goSkin.base,
+                    style={({ pressed }) => [s.primaryBtn, {
+                      backgroundColor: pressed ? paper.inkPressed : paper.ink,
                       transform: [{ scale: pressed ? 0.96 : 1 }],
                     }]}
                     onPress={(e) => {
@@ -1079,30 +1082,39 @@ export default function OwnerHome() {
                       router.push('/owner/meetup');
                     }}
                   >
-                    <Text style={{ fontSize: 16, fontWeight: '900', color: '#fff' }}>러너 만나기 · 인계 확인 ›</Text>
+                    <Text style={s.primaryBtnTxt}>러너 만나기 · 인계 확인 ›</Text>
                   </Pressable>
                   <View style={{ flexDirection: 'row', gap: 8 }}>
                     <Pressable
-                      style={({ pressed }) => [s.widgetBtn, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
+                      style={({ pressed }) => [s.widgetBtn, {
+                        backgroundColor: pressed ? paper.wash : paper.canvas,
+                        transform: [{ scale: pressed ? 0.96 : 1 }],
+                      }]}
                       onPress={(e) => {
                         e.stopPropagation();
                         if (liveNext) router.push({ pathname: '/owner/reschedule', params: { bid: liveNext.id } });
                       }}
                     >
-                      <Text style={{ fontSize: 14, fontWeight: '700', color: p.textSoft }}>일정 변경</Text>
+                      <Text style={s.widgetBtnTxt}>일정 변경</Text>
                     </Pressable>
                     <Pressable
-                      style={({ pressed }) => [s.widgetBtn, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
+                      style={({ pressed }) => [s.widgetBtn, {
+                        backgroundColor: pressed ? paper.wash : paper.canvas,
+                        transform: [{ scale: pressed ? 0.96 : 1 }],
+                      }]}
                       onPress={(e) => { e.stopPropagation(); router.push({ pathname: '/chat', params: liveNext ? { bid: liveNext.id } : {} }); }}
                     >
-                      <Text style={{ fontSize: 14, fontWeight: '700', color: p.textSoft }}>러너와 채팅</Text>
+                      <Text style={s.widgetBtnTxt}>러너와 채팅</Text>
                     </Pressable>
                   </View>
                 </View>
               ) : (
                 <View style={{ flexDirection: 'row', gap: 8, marginTop: 13 }}>
                   <Pressable
-                    style={s.widgetBtn}
+                    style={({ pressed }) => [s.widgetBtn, {
+                      backgroundColor: pressed ? paper.wash : paper.canvas,
+                      transform: [{ scale: pressed ? 0.96 : 1 }],
+                    }]}
                     onPress={(e) => {
                       e.stopPropagation();
                       // 리스케줄 화면 직행 — 일정 탭 우회는 데드엔드였다 (러너 확정 전이면 화면이 정직하게 안내)
@@ -1110,13 +1122,16 @@ export default function OwnerHome() {
                       else router.push('/owner/schedule');
                     }}
                   >
-                    <Text style={{ fontSize: 14, fontWeight: '700', color: p.textSoft }}>일정 변경</Text>
+                    <Text style={s.widgetBtnTxt}>일정 변경</Text>
                   </Pressable>
                   <Pressable
-                    style={s.widgetBtn}
+                    style={({ pressed }) => [s.widgetBtn, {
+                      backgroundColor: pressed ? paper.wash : paper.canvas,
+                      transform: [{ scale: pressed ? 0.96 : 1 }],
+                    }]}
                     onPress={(e) => { e.stopPropagation(); router.push({ pathname: '/chat', params: liveNext ? { bid: liveNext.id } : {} }); }}
                   >
-                    <Text style={{ fontSize: 14, fontWeight: '700', color: p.textSoft }}>러너와 채팅</Text>
+                    <Text style={s.widgetBtnTxt}>러너와 채팅</Text>
                   </Pressable>
                 </View>
               )}
@@ -1145,6 +1160,7 @@ export default function OwnerHome() {
             }}
             style={s.findNow}
           >
+            {({ pressed }) => (<>
             {/* 레이더 백드롭 — 아크는 상시(브리딩), 스윕은 검색 중에만, 블립은 실가용 러너.
                 반경/각도는 연출값 (거리 의미 없음 — 거리 라벨은 금지: GPS 없는 위치 조작 방지) */}
             <View pointerEvents="none" style={s.radarLayer}>
@@ -1187,8 +1203,8 @@ export default function OwnerHome() {
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <View style={{ flex: 1 }}>
                 {/* [2026-08-10 정직] 하드코딩 지역 주장(SEOCHO) 퇴역 — 위치를 모르면 말하지 않는다 */}
-                <Text style={s.fnKick}>LIVE RUNNERS</Text>
-                <Text style={[{ fontSize: 22, fontWeight: '900', color: '#fff', marginTop: 6 }, df]}>
+                {/* [§3b item 10] 'LIVE RUNNERS' 라틴 키커 은퇴 — 타이틀이 곧 헤더다 */}
+                <Text style={[{ fontSize: 22, fontWeight: '900', color: '#fff' }, df]}>
                   {fnDirected ? '지명 러너 응답 대기 중' : fnSearching ? '러너 찾는 중…' : '지금 러너 찾기'}
                 </Text>
                 {/* [2026-08-10 filler cull] Tap-narration tails removed — the CTA labels below already carry
@@ -1205,16 +1221,15 @@ export default function OwnerHome() {
               </View>
             </View>
 
-            {/* 레이더 CTA는 코랄 아님 — 코랄은 아크·코어·블립(면·도트) 전용. 주 액션은 페이퍼 버튼 (코랄 텍스트 법) */}
+            {/* [§3b 버튼 4종] 섬 CTA = Secondary(캔버스 면 · 1px 코랄 · 잉크 16/800) — 구 라일락 필 +
+                섀도 + 펄스 링 은퇴. 프레스 피드백은 섬 Pressable의 pressed를 내려받아 워시 + scale 0.96
+                (자식 함수 렌더 — 핸들러는 섬 하나, 시각은 CTA가 진다). */}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 14 }}>
-              <View style={s.fnCta}>
-                <Animated.View style={[s.fnPulseRing, {
-                  opacity: fnPulse.interpolate({ inputRange: [0, 1], outputRange: [0.4, 0] }),
-                  transform: [{ scaleX: fnPulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.06] }) },
-                              { scaleY: fnPulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.5] }) }],
-                }]} />
-                {/* [2026-08-10] primary CTA label 14 → 16 (button floor, DESIGN.md §3) */}
-                <Text style={{ fontSize: 16, fontWeight: '900', color: lilac.head }}>
+              <View style={[s.fnCta, {
+                backgroundColor: pressed ? paper.wash : paper.canvas,
+                transform: [{ scale: pressed ? 0.96 : 1 }],
+              }]}>
+                <Text style={s.fnCtaTxt}>
                   {fnDirected ? '일정에서 확인 ›' : fnSearching ? '레이더 보기 ➤' : '주변 러너 검색 시작 ➤'}
                 </Text>
               </View>
@@ -1226,12 +1241,16 @@ export default function OwnerHome() {
                     draft.preferredRunnerName = null;
                     router.push('/owner/request');
                   }}
-                  style={s.fnCustom}
+                  style={({ pressed: cp }) => [s.fnCustom, {
+                    backgroundColor: cp ? paper.wash : paper.canvas,
+                    transform: [{ scale: cp ? 0.96 : 1 }],
+                  }]}
                 >
-                  <Text style={{ fontSize: 14, fontWeight: '800', color: '#EDE9FB' }}>직접 설정 ›</Text>
+                  <Text style={s.fnCtaTxt}>직접 설정 ›</Text>
                 </Pressable>
               )}
             </View>
+            </>)}
           </Pressable>
         )}
 
@@ -1252,19 +1271,15 @@ export default function OwnerHome() {
               </Text>
             </View>
           </View>
-          <Pressable onPress={goBook} style={s.cta}>
+          {/* [§3b Money] 가격 서브 플레이트(9,900원부터 · km당 · 코스·결제 자동) 전면 삭제 — 실측 예상
+              결제액은 위 bookFacts 행이 이미 말한다. 버튼은 측면 마진 0 풀블리드, 라벨 '미리 예약'
+              31 디스플레이 단독. 시엔·MONEY_DEEP·섀도 유지, scale 0.96 프레스 추가. */}
+          <Pressable onPress={goBook} style={({ pressed }) => [s.cta, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}>
             <View pointerEvents="none" style={s.ctaSheen} />
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
               {/* [Sean 2026-08-11] '다음 하이 미리 예약' → '미리 예약' — 짧은 쪽이 더 크게 읽힌다 */}
               <Text style={[{ fontSize: 31, lineHeight: 38, color: '#fff' }, df]}>미리 예약</Text>
               <Text style={[{ fontSize: 19, lineHeight: 23, letterSpacing: 2, color: '#fff' }, nf]}>›››</Text>
-            </View>
-            {/* a11y: 작은 글씨는 코랄 위 직접 얹지 않고 잉크 플레이트(≥4.5:1) 위에 */}
-            <View style={s.ctaPlate}>
-              <Text style={[{ fontSize: 14, lineHeight: 17, color: '#fff' }, nf]}>{pricing.baseFare.toLocaleString()}</Text>
-              <Text style={{ fontSize: 14, color: '#fff' }}>원부터 · km당 {pricing.perKm.toLocaleString()}원</Text>
-              <View style={s.ctaPlateDiv} />
-              <Text style={{ fontSize: 14, color: '#fff' }}>코스·결제 자동</Text>
             </View>
           </Pressable>
         </View>
@@ -1281,7 +1296,7 @@ export default function OwnerHome() {
             [P1-2] 좌측 라벨은 '샵 보기' — /shop은 전 섹션 '오픈 준비 중'이라 '쓰기'는 없는 기능의 약속이다. */}
         {beaconLoaded && beacon && (beacon.balance > 0 || nextGradeName !== null) && (
           <View style={[s.beacon, { backgroundColor: p.card, borderColor: p.line2 }]}>
-            <Pressable onPress={() => router.push('/shop')} style={s.beaconCell}>
+            <Pressable onPress={() => router.push('/shop')} style={({ pressed }) => [s.beaconCell, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}>
               {/* 잔액은 profile 스코프 — 듀얼롤 계정에선 러너 적립분이 합쳐진다. '보호자 포인트'라
                   부르면 스코프를 속이는 것이라 앱 전역 어휘 그대로 '하이 포인트' */}
               <Text style={[s.beaconKick, { color: p.dim }]}>하이 포인트</Text>
@@ -1293,7 +1308,7 @@ export default function OwnerHome() {
             {beacon.next !== null && nextGradeName !== null && (
               <>
                 <View style={[s.beaconDiv, { backgroundColor: p.line }]} />
-                <Pressable onPress={() => router.push('/cards')} style={s.beaconCell}>
+                <Pressable onPress={() => router.push('/cards')} style={({ pressed }) => [s.beaconCell, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}>
                   <Text style={[s.beaconKick, { color: p.dim }]}>다음 승급</Text>
                   <Text style={[s.beaconLine, { color: p.textStrong }]} numberOfLines={1}>
                     {nextGradeName}까지 <Text style={[s.beaconNum, nf]}>{beacon.next.toNext}</Text>회
@@ -1309,12 +1324,13 @@ export default function OwnerHome() {
 
         {/* ---------- retention nudges (실데이터 기반, ui-audit P2) ----------
              체력이 로드되기 전(또는 실패)엔 넛지 없음 — 없는 숫자로 재촉하지 않는다 */}
+        {/* [§3b] 넛지 행 — 샤프 유지 · 트레일 링크는 링크 문법 16/800 액센트 + › · scale 0.96 프레스 */}
         {fit != null && fit.weekKm > 0 && fit.weekKm < fit.goalKm && new Date().getDay() >= 4 && (
-          <Pressable onPress={() => router.push('/owner/request')} style={[s.nudge, { backgroundColor: p.card }]}>
+          <Pressable onPress={() => router.push('/owner/request')} style={({ pressed }) => [s.nudge, { backgroundColor: pressed ? paper.wash : p.card, transform: [{ scale: pressed ? 0.96 : 1 }] }]}>
             <Text style={{ flex: 1, fontSize: 14, fontWeight: '800', color: p.textStrong }}>
               주간 목표까지 <Text style={{ color: lilac.coralDeep, fontWeight: '900', fontSize: 14 }}>{Math.round((fit.goalKm - fit.weekKm) * 10) / 10}km</Text> — 주말 러닝으로 채워볼까요?
             </Text>
-            <Text style={{ fontSize: 14, color: lilac.accent, fontWeight: '900' }}>예약 ›</Text>
+            <Text style={s.rowLink}>예약 ›</Text>
           </Pressable>
         )}
         {!liveNext && lastDone && (
@@ -1328,23 +1344,21 @@ export default function OwnerHome() {
               draft.timeLabel = '시간을 선택해주세요';
               router.push('/owner/request');
             }}
-            style={[s.nudge, { backgroundColor: p.card }]}
+            style={({ pressed }) => [s.nudge, { backgroundColor: pressed ? paper.wash : p.card, transform: [{ scale: pressed ? 0.96 : 1 }] }]}
           >
             <Text style={{ flex: 1, fontSize: 14, fontWeight: '800', color: p.textStrong }}>
               ⟳ 지난번처럼 다시 예약할까요? <Text style={{ color: p.dim, fontWeight: '600' }}>{lastDone.km}km{lastDone.runnerProfileId ? ` · ${lastDone.runnerName} 러너` : ''}</Text>
             </Text>
-            <Text style={{ fontSize: 14, color: lilac.accent, fontWeight: '900' }}>시간만 고르기 ›</Text>
+            <Text style={s.rowLink}>시간만 고르기 ›</Text>
           </Pressable>
         )}
 
         {/* ---------- 최근 순간 — 러너가 담아온 실러닝 사진 (runs.photos 재사용).
             사진 0장이면 섹션 자체 숨김 — 플레이스홀더/스톡 금지 (정직 원칙) ---------- */}
         {moments.length > 0 && (
-          <View style={{ marginTop: 16, borderTopWidth: 1, borderTopColor: paper.line, paddingTop: 12 }}>{/* [페이퍼 크롬] 섹션 분리 = 풀블리드 코랄 1px */}
-            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 7, marginBottom: 9, paddingHorizontal: layout.gutter }}>
-              <Text style={[s.sectionTitle, { color: p.textStrong }]}>최근 순간</Text>
-              <Text style={{ fontSize: 14, color: p.dim }}>러너가 담아온 {dogName ? `${dogName}의 ` : ''}러닝</Text>
-            </View>
+          <View>
+            {/* [§3b] '러너가 담아온 …의 러닝' 서브타이틀 삭제 — 섹션 헤더는 단일 문법(20/800 잉크)뿐 */}
+            <SectionHead title="최근 순간" />
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 9, paddingLeft: layout.gutter, paddingRight: 12 }}>
               {moments.map((m, mi) => (
                 <Pressable
@@ -1366,36 +1380,29 @@ export default function OwnerHome() {
           </View>
         )}
 
-        {/* ---------- 피드 직행 — 완료 러닝이 있을 때만 (compose.tsx가 전제조건·중복 공유를 정직하게 처리) ---------- */}
+        {/* ---------- 피드 직행 — 완료 러닝이 있을 때만 (compose.tsx가 전제조건·중복 공유를 정직하게 처리)
+            [§3b item 11] 강아지 이름 문장 + 트레일 링크 2요소 행 은퇴 → 풀와이드 스트립 하나,
+            내용은 '크루 피드에 자랑' 18/800 + › 뿐. ---------- */}
         {lastDone && (
-          <Pressable onPress={() => router.push('/compose')} style={[s.nudge, { backgroundColor: p.card }]}>
-            <Text style={{ flex: 1, fontSize: 14, fontWeight: '800', color: p.textStrong }}>
-              {lastDone.dogName}의 완주, 동네 피드에 자랑해볼까요?
-            </Text>
-            <Text style={{ fontSize: 14, color: lilac.accent, fontWeight: '900' }}>자랑하기 ›</Text>
+          <Pressable onPress={() => router.push('/compose')} style={({ pressed }) => [s.shareStrip, { backgroundColor: pressed ? paper.wash : p.card, transform: [{ scale: pressed ? 0.96 : 1 }] }]}>
+            <Text style={{ flex: 1, fontSize: 18, lineHeight: 24, fontWeight: '800', color: p.textStrong }}>크루 피드에 자랑</Text>
+            <Text style={{ fontSize: 18, lineHeight: 24, fontWeight: '800', color: lilac.accent }}>›</Text>
           </Pressable>
         )}
 
         {/* ---------- 동네 러너 = 스타디움 로스터 (V2) — 러너는 서비스의 얼굴, PR 표면 ---------- */}
         {localRunners.length > 0 && (
-          <View style={{ marginTop: 18, borderTopWidth: 1, borderTopColor: paper.line, paddingTop: 12 }}>{/* [페이퍼 크롬] 섹션 분리 = 풀블리드 코랄 1px (헤더의 잉크 2.5px 언더라인은 섹션 내부 에디토리얼 장치로 존치) */}
-            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8, marginBottom: 9, borderBottomWidth: 2.5, borderBottomColor: p.textStrong, paddingBottom: 7, paddingHorizontal: layout.gutter }}>
-              <Text style={[s.sectionTitle, { color: p.textStrong }, df]}>동네 러너</Text>
-              <Text style={{ fontSize: 12, fontWeight: '700', letterSpacing: 1.2, color: lilac.accent }}>ROSTER · {localRunners.length} ONLINE</Text>
-              <View style={{ flex: 1 }} />
-              <Pressable onPress={() => router.push('/leaderboard')}>
-                <Text style={{ fontSize: 14, fontWeight: '800', color: lilac.coralDeep }}>동네 랭킹 ›</Text>
-              </Pressable>
-            </View>
+          <View>
+            {/* [§3b item 10] 'ROSTER · N ONLINE' 키커 + 2.5px 잉크 언더라인 은퇴 — 단일 헤더 문법.
+                디스플레이 서체 타이틀도 은퇴 (모든 섹션 타이틀은 같은 서체·같은 20/800 잉크). */}
+            <SectionHead title="동네 러너" link="동네 랭킹 ›" onLink={() => router.push('/leaderboard')} />
 
-            {/* 피처드 러너 — 풀와이드 나이트-라일락 스타디움 카드 (로스터 1번) */}
+            {/* 피처드 러너 — 풀와이드 나이트-라일락 스타디움 카드 (로스터 1번)
+                [§3b item 10] 'FEATURED RUNNER' 라틴 키커 은퇴 — 카드가 곧 피처드다 */}
             {localRunners[0] && (() => { const f = localRunners[0]; return (
               <Pressable onPress={() => router.push(`/runner-profile/${f.profileId}`)} style={s.featRunner}>
                 <View style={s.featEdge} />
-                {/* [2026-08-10 type wave] Kicker is decoration, not data (DESIGN.md §3) — district moved
-                    out of the 12pt letterspaced caps into the 14pt meta span next to the name. */}
-                <Text style={{ fontSize: 12, fontWeight: '700', letterSpacing: 1.5, color: NIGHT_DIM }}>FEATURED RUNNER</Text>
-                <View style={{ flexDirection: 'row', gap: 11, alignItems: 'center', marginTop: 9 }}>
+                <View style={{ flexDirection: 'row', gap: 11, alignItems: 'center' }}>
                   <Avatar url={f.avatarUrl} char={f.name[0]} bg={lilac.accent} size={48} />
                   <View style={{ flex: 1 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
@@ -1412,7 +1419,8 @@ export default function OwnerHome() {
                       <View><Text style={[s.featNum, nf, { color: lilac.coral }]}>●</Text><Text style={s.featK}>ONLINE</Text></View>
                     </View>
                   </View>
-                  <View style={s.featCta}><Text style={{ fontSize: 14, fontWeight: '900', color: lilac.head }}>프로필 ›</Text></View>
+                  {/* 링크 문법 16/800 (카드 전체가 Pressable — 이 칩은 어포던스 라벨) */}
+                  <View style={s.featCta}><Text style={{ fontSize: 16, fontWeight: '800', color: lilac.head }}>프로필 ›</Text></View>
                 </View>
               </Pressable>
             ); })()}
@@ -1445,12 +1453,12 @@ export default function OwnerHome() {
         <CourseStrip headerPad={layout.gutter} />
 
         {/* ---------- safety quick card ---------- */}
-        <Pressable onPress={() => router.push('/safety')} style={[s.safetyStrip, { backgroundColor: p.card }]}>
+        <Pressable onPress={() => router.push('/safety')} style={({ pressed }) => [s.safetyStrip, { backgroundColor: pressed ? paper.wash : p.card, transform: [{ scale: pressed ? 0.96 : 1 }] }]}>
           <View style={s.safetyIcon}><Text style={{ fontSize: 12, color: lilac.coralDeep }}>✚</Text></View>
           <Text style={{ flex: 1, fontSize: 14, fontWeight: '700', color: p.textStrong }}>
             안심 센터 <Text style={{ fontWeight: '400', color: p.dim, fontSize: 14 }}>· SOS · 실시간 위치 · 보험</Text>
           </Text>
-          <Text style={{ fontSize: 13, color: p.dim }}>›</Text>
+          <Text style={{ fontSize: 16, fontWeight: '800', color: lilac.accent }}>›</Text>
         </Pressable>
 
         {/* 최근 활동 목업 카드·'내 주변 인기 러너' 목업 섹션 은퇴 (ui-audit P0)
@@ -1507,12 +1515,13 @@ export default function OwnerHome() {
 
           {/* 거리 스테퍼 */}
           <View style={s.fnKmRow}>
-            <Pressable onPress={() => setFnKm((k) => { const n = Math.max(1, k - 1); setFnRouteIdx(pickRouteFor(n, fnRoutes)); return n; })} style={s.fnStep}><Text style={s.fnStepText}>−</Text></Pressable>
+            {/* [§3b] 스테퍼 = 아이콘 전용 컨트롤 문법(스퀘어·캔버스·1px 코랄) — 44pt는 Fitts 하한이라 유지 */}
+            <Pressable onPress={() => setFnKm((k) => { const n = Math.max(1, k - 1); setFnRouteIdx(pickRouteFor(n, fnRoutes)); return n; })} style={({ pressed }) => [s.fnStep, { backgroundColor: pressed ? paper.wash : paper.canvas, transform: [{ scale: pressed ? 0.96 : 1 }] }]}><Text style={s.fnStepText}>−</Text></Pressable>
             {/* [2026-08-10 filler cull] '러닝 거리' caption removed — the km value between ± steppers restates itself */}
             <View style={{ alignItems: 'center', flex: 1 }}>
               <Text style={[{ fontSize: 22, lineHeight: 27, fontWeight: '900', color: lilac.head }, nf]}>{fnKm}km</Text>
             </View>
-            <Pressable onPress={() => setFnKm((k) => { const n = Math.min(10, k + 1); setFnRouteIdx(pickRouteFor(n, fnRoutes)); return n; })} style={s.fnStep}><Text style={s.fnStepText}>＋</Text></Pressable>
+            <Pressable onPress={() => setFnKm((k) => { const n = Math.min(10, k + 1); setFnRouteIdx(pickRouteFor(n, fnRoutes)); return n; })} style={({ pressed }) => [s.fnStep, { backgroundColor: pressed ? paper.wash : paper.canvas, transform: [{ scale: pressed ? 0.96 : 1 }] }]}><Text style={s.fnStepText}>＋</Text></Pressable>
           </View>
 
           <View style={s.fnPriceRow}>
@@ -1520,9 +1529,18 @@ export default function OwnerHome() {
             <Text style={[{ fontSize: 22, lineHeight: 27, fontWeight: '900', color: lilac.head }, nf]}>{fnPrice.toLocaleString()}원</Text>
           </View>
 
-          <Pressable onPress={findNowPay} disabled={fnBusy} style={[s.fnPay, fnBusy && { opacity: 0.5 }]}>
-            {/* [2026-08-10] primary pay label 15 → 16 (button floor) */}
-            <Text style={{ fontSize: 16, fontWeight: '900', color: '#fff' }}>
+          {/* [§3b 버튼 4종] 시트 주 액션 = Primary(잉크 면 · 흰 17/800 · inkPressed 프레스 · scale 0.96).
+              busy = 라벨 스왑만 — 구 opacity 0.5는 불투명도 트릭 금지 법 위반이라 은퇴.
+              (Money 종은 화면의 '미리 예약' 하나 — 31 디스플레이 풀블리드는 시트 안에 성립하지 않는다.) */}
+          <Pressable
+            onPress={findNowPay}
+            disabled={fnBusy}
+            style={({ pressed }) => [s.fnPay, {
+              backgroundColor: pressed ? paper.inkPressed : paper.ink,
+              transform: [{ scale: pressed ? 0.96 : 1 }],
+            }]}
+          >
+            <Text style={s.primaryBtnTxt}>
               {fnBusy ? '요청 보내는 중...' : '결제하고 바로 찾기 ➤'}
             </Text>
           </Pressable>
@@ -1546,36 +1564,33 @@ export default function OwnerHome() {
 const s = StyleSheet.create({
   // 홀로 3px 엣지
   holo: { position: 'absolute', top: 0, left: 0, right: 0, height: 3, flexDirection: 'row', zIndex: 5 },
-  // 섹션 헤더 — 키커 넘버 + 룰 + 링크. [페이퍼 크롬] 섹션 분리 = 풀블리드 솔리드 코랄 1px (paper.line 법)
-  sec: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 16, marginBottom: 4, paddingHorizontal: layout.gutter, borderTopWidth: 1, borderTopColor: paper.line, paddingTop: 12 }, // [풀블리드] 헤더 텍스트는 내부 거터 — [2026-08-10] 11/13/14 혼용 → layout.gutter(15)로 통일
-  secN: { borderWidth: 1, borderColor: '#DCD6F8', backgroundColor: '#F4F1FE', borderRadius: 0, paddingVertical: 2, paddingHorizontal: 5 }, // [페이퍼 크롬] 샤프
-  secNText: { fontSize: 11.5, fontWeight: '800', letterSpacing: 0.8, color: lilac.accent },
-  secH: { fontSize: 14, fontWeight: '800', color: lilac.head, letterSpacing: -0.2 },
-  secRule: { flex: 1, height: 1, backgroundColor: '#EEEEEE' }, // [페이퍼 크롬] 인라인 룰은 뉴트럴 (코랄은 풀블리드 상단 룰이 전담)
-  secLink: { fontSize: 14, fontWeight: '800', letterSpacing: 1, color: lilac.accent },
+  // 섹션 헤더 — 단일 문법 (§3b): 풀블리드 코랄 1px 룰 + 20/800 잉크 타이틀 + 우측 16/800 액센트 링크.
+  // 넘버 칩·인라인 룰·서브타이틀·라틴 키커 스타일은 전부 은퇴 — 화면의 모든 섹션이 이 두 스타일만 쓴다.
+  sec: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, marginTop: 16, marginBottom: 9, paddingHorizontal: layout.gutter, borderTopWidth: 1, borderTopColor: paper.line, paddingTop: 12 },
+  secH: { fontSize: 20, lineHeight: 26, fontWeight: '800', color: paper.ink, letterSpacing: -0.2 },
+  secLink: { fontSize: 16, lineHeight: 21, fontWeight: '800', color: lilac.accent },
+  // 행 트레일 링크(넛지 등) — 헤더 링크와 같은 문법
+  rowLink: { fontSize: 16, lineHeight: 21, fontWeight: '800', color: lilac.accent },
   // 지금 러너 찾기 — 나이트 라일락 다크 인셋 섬
   findNow: {
     backgroundColor: NIGHT, borderRadius: 0, padding: 15, marginTop: 14, // [페이퍼 크롬] 다크 섬은 아티팩트로 생존, 코너만 샤프
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', overflow: 'hidden',
     shadowColor: '#1C1837', shadowOpacity: 0.3, shadowRadius: 26, shadowOffset: { width: 0, height: 10 }, elevation: 6,
   },
-  fnKick: { fontSize: 12, fontWeight: '700', letterSpacing: 1.5, color: NIGHT_KICK },
   // 레이더 중심점 — 카드 우측 가장자리 살짝 밖, 아크/스윕/블립의 원점
   radarLayer: { position: 'absolute', right: -14, top: 44 },
   fnBlip: {
     borderWidth: 2, borderColor: lilac.coral, borderRadius: 6, backgroundColor: NIGHT,
     shadowColor: lilac.coral, shadowOpacity: 0.55, shadowRadius: 6, shadowOffset: { width: 0, height: 0 },
   },
+  // [§3b] 섬 CTA·직접 설정 = Secondary 버튼 (캔버스 면은 JSX pressed 주입 · 1px 코랄 · 잉크 16/800).
+  // 구 라일락 필·블랙 섀도·펄스 링·백지 고스트 보더 은퇴 — 다크 섬 위에서도 버튼은 4종 문법 하나다.
   fnCta: {
-    flex: 1, backgroundColor: lilac.bg, borderRadius: 0, alignItems: 'center', // [페이퍼 크롬] 필은 유지(다크 위 페이퍼 버튼), 코너 샤프
-    justifyContent: 'center', paddingVertical: 14, paddingHorizontal: 10, overflow: 'visible',
-    shadowColor: '#000', shadowOpacity: 0.28, shadowRadius: 16, shadowOffset: { width: 0, height: 6 },
+    flex: 1, borderRadius: 0, borderWidth: 1, borderColor: paper.line, alignItems: 'center',
+    justifyContent: 'center', paddingVertical: 15, paddingHorizontal: 10,
   },
-  fnPulseRing: {
-    position: 'absolute', left: 0, right: 0, top: 0, bottom: 0,
-    borderRadius: 0, borderWidth: 2, borderColor: 'rgba(240,118,90,0.5)',
-  },
-  fnCustom: { borderWidth: 1, borderColor: 'rgba(255,255,255,0.24)', borderRadius: 0, paddingVertical: 14, paddingHorizontal: 12 },
+  fnCtaTxt: { fontSize: 16, lineHeight: 21, fontWeight: '800', color: paper.ink },
+  fnCustom: { borderWidth: 1, borderColor: paper.line, borderRadius: 0, paddingVertical: 15, paddingHorizontal: 12 },
   fnSheet: {
     backgroundColor: '#fff', borderTopLeftRadius: 28, borderTopRightRadius: 28,
     paddingHorizontal: 12, paddingTop: 12, paddingBottom: 40,
@@ -1591,16 +1606,18 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', marginTop: 16, backgroundColor: lilac.card,
     borderRadius: lilacRadius.card, padding: 14, borderWidth: 1, borderColor: lilac.hair,
   },
+  // [§3b] 아이콘 전용 컨트롤 문법 — 스퀘어·캔버스(JSX 주입)·1px 코랄. 44는 Fitts 44pt 하한 (스펙 40 상회)
   fnStep: {
-    width: 44, height: 44, borderRadius: 22, backgroundColor: lilac.inset, alignItems: 'center',
-    justifyContent: 'center', borderWidth: 1, borderColor: lilac.hair,
+    width: 44, height: 44, borderRadius: 0, alignItems: 'center',
+    justifyContent: 'center', borderWidth: 1, borderColor: paper.line,
   },
-  fnStepText: { fontSize: 24, fontWeight: '800', color: lilac.head },
+  fnStepText: { fontSize: 24, fontWeight: '800', color: paper.ink },
   fnPriceRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     marginTop: 14, paddingHorizontal: 4,
   },
-  fnPay: { backgroundColor: MONEY_DEEP, borderRadius: lilacRadius.btn, alignItems: 'center', paddingVertical: 14, marginTop: 12 },
+  // [§3b] 시트 주 액션 = Primary — 잉크 면은 JSX pressed 주입 (구 MONEY_DEEP 필 · 라운드 은퇴)
+  fnPay: { borderRadius: 0, alignItems: 'center', paddingVertical: 15, marginTop: 12 },
   overlay: {
     position: 'absolute', top: 0, left: 0, right: 0, zIndex: 20,
     paddingTop: PAD_TOP, paddingHorizontal: 0, paddingBottom: 10, // [풀블리드] 히어로 거터 은퇴 (CARD_W = SCREEN_W와 짝)
@@ -1610,20 +1627,18 @@ const s = StyleSheet.create({
   // [4차] 브랜드 행 — 도그스하이 워드마크(로고 자격으로 df 허용) + 우측 유틸
   // [2026-08-10] 락업 행 — 높이 52 = HEADER_LOCKUP (마크 40 + 여유). 파일 상단 headerHFor와 한 쌍.
   brandRow: { flexDirection: 'row', alignItems: 'center', height: HEADER_LOCKUP, marginBottom: 6, paddingHorizontal: layout.gutter },
-  brandmark: { fontSize: 16, color: lilac.head, letterSpacing: 0.4 },
-  brandDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: lilac.coral, marginHorizontal: 7 },
-  brandKick: { fontSize: 11.5, fontWeight: '700', letterSpacing: 2, color: lilac.dim },
+  // [§3b] brandmark/brandDot/brandKick 고아 스타일 삭제 — BrandLockup 컴포넌트 전환 후 사용처 0이었다
   rankticker: {
     overflow: 'hidden', marginTop: 8, paddingVertical: 5,
     borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#EEEEEE', // [페이퍼 크롬] 헤더 내부 룰 = 뉴트럴
   },
-  tickerLead: { fontSize: 12, fontWeight: '700', letterSpacing: 1.2, color: lilac.dim, marginRight: 2 },
-  // [2026-08-10] Korean league name inside the ticker lead — data-class, 14pt floor; lineHeight 18
-  // keeps the ticker line box at 18 (HEADER_H 123 budget comment at the top of the file holds).
-  tickerLeadKo: { fontSize: 14, lineHeight: 18, fontWeight: '600', letterSpacing: 0, color: lilac.dim },
+  // [§3b] 'THIS WEEK' 라틴 키커 은퇴 — 리드는 한글 데이터 라벨 하나, 14pt / lineHeight 18
+  // (중첩 스팬 최댓값 18 유지 → HEADER_TICKER 36 예산 무접촉).
+  tickerLead: { fontSize: 14, lineHeight: 18, fontWeight: '600', color: lilac.dim, marginRight: 2 },
+  // [§3b] 아이콘 전용 컨트롤 — 40×40 스퀘어 · 캔버스 · 1px 코랄 (구 30×30 · 테마 주입 뉴트럴 은퇴)
   themeBtn: {
-    width: 30, height: 30, borderRadius: 0, borderWidth: 1, // [페이퍼 크롬] 샤프
-    alignItems: 'center', justifyContent: 'center',
+    width: 40, height: 40, borderRadius: 0, borderWidth: 1, borderColor: paper.line,
+    backgroundColor: paper.canvas, alignItems: 'center', justifyContent: 'center',
   },
   bellDot: {
     position: 'absolute', top: 6, right: 6, width: 6, height: 6, borderRadius: 3,
@@ -1648,20 +1663,17 @@ const s = StyleSheet.create({
   stampBox: { position: 'absolute', right: 18, top: 46, zIndex: 3, alignItems: 'flex-end' }, // 링이 떠난 자리 (컬랩스)
   // ── GO 코어 (Ⓑ①) — 구 goalChip은 은퇴(센터 스택 재편으로 유일 사용처가 사라졌다) ──
   // 헤일로 = 랩의 box-shadow 0 0 0 4px var(--card) 대응. 링 도트를 가로지르는 두 줄을 카드색 4px로 떼어낸다.
-  // [페이퍼 크롬] 헤일로·필 샤프 + 뉴트럴 보더 — 패딩·보더폭 불변이라 GO 스택 세로 예산(:49) 무접촉
+  // [페이퍼 크롬] 헤일로·필 샤프 + 뉴트럴 보더 — 패딩·보더폭 불변이라 GO 스택 세로 예산(GO_DISC 주석) 무접촉
   goHalo: { backgroundColor: lilac.card, borderRadius: 0, padding: 4 },
   goPill: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
     backgroundColor: lilac.inset, borderWidth: 1, borderColor: '#EEEEEE',
     borderRadius: 0, paddingVertical: 3, paddingHorizontal: 10,
   },
-  // [2026-08-10 수치 갱신] 아래 주석의 122/216/215는 확대 전 값 — 현행 정본은 파일 상단 :49 (144/240/237).
-  // 122 디스크 — 흰 인셋 링 2px(랩 inset 0 0 0 2px rgba(255,255,255,.28))은 테두리로, 드롭 섀도는 상태색으로.
-  // 세로 예산 (링 216 안에 갇혀야 한다 · 모든 줄이 lineHeight를 명시해야 성립한다):
-  //   km 헤일로 4+(1+3+27+3+1)+4 = 43 · 갭 8 · 디스크 122(고정) · 갭 8 · 나이 헤일로 4+(1+3+18+3+1)+4 = 34
-  //   합 215 ≤ RING_BIG 216. goSub 잉크 플레이트는 디스크 '안'이라 이 합에 들어오지 않는다
-  //   (디스크 내부: 워드 최대 37 + 서브 1+2+18+2 = 60 ≤ 안쪽 118). 주간칩은 right 14로 비켰고(P1-1),
-  //   리포트칩은 역보정 밖 bottom 11이라 둘 다 이 스택과 만나지 않는다.
+  // 세로 예산 정본 = 파일 상단 GO_DISC 상수 주석 (§3b 래더 반영: 43+8+144+8+34 = 237 ≤ 240 ·
+  // 디스크 내부 워드 48 + 서브 27 = 75 ≤ 140). 성립 조건: 모든 줄이 lineHeight를 명시해야 한다.
+  // 흰 인셋 링 2px(랩 inset 0 0 0 2px rgba(255,255,255,.28))은 테두리로. 주간칩은 right 14로
+  // 비켰고(P1-1), 리포트칩은 역보정 밖 bottom 11이라 둘 다 이 스택과 만나지 않는다.
   goDisc: {
     width: GO_DISC, height: GO_DISC, borderRadius: GO_DISC / 2,
     alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8,
@@ -1669,20 +1681,21 @@ const s = StyleSheet.create({
     // [Ⓐ④ 2026-08-10] 뉴트럴 잉크 섀도 — 상태색 섀도 은퇴 (JSX의 backgroundColor만 상태색)
     shadowColor: '#1C1837', shadowOpacity: 0.16, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 8,
   },
-  // [Ⓐ④] 궤도 키라인 — 디스크 밖 5px, 1.5px, 상태색은 JSX 주입. absolute라 GO 스택 예산(파일 상단 :49, 237≤240) 무접촉.
+  // [Ⓐ④] 궤도 키라인 — 디스크 밖 5px, 1.5px, 상태색은 JSX 주입. absolute라 GO 스택 예산(GO_DISC 주석, 237≤240) 무접촉.
   goKeyline: {
     position: 'absolute', top: -5, left: -5, right: -5, bottom: -5,
     borderRadius: (GO_DISC + 10) / 2, borderWidth: 1.5,
   },
   // fontSize·lineHeight(≥1.24×)·letterSpacing은 상태별로 주입 — Oswald 숫자법(명시 lineHeight) 유지
   goWord: { fontWeight: '900', color: '#fff', textAlign: 'center' },
-  // [P1-3] 서브 라벨은 상태색 면 위에 직접 얹지 않는다 — 흰 14px가 코랄 2.68:1 · 세이지 3.24:1로
-  // 이 파일의 잉크 플레이트 법(s.ctaPlate, ≥4.5:1)을 어겼다. 같은 관용구로 플레이트를 깔아
-  // 코랄 6.0 · 세이지 6.8 · 블루 6.9:1 로 올린다 (면색이 바뀌어도 플레이트가 하한을 보증).
+  // [P1-3] 서브 라벨은 상태색 면 위에 직접 얹지 않는다 — 잉크 플레이트(rgba 잉크 0.42 합성)가
+  // ≥4.5:1 하한을 보증한다. [§3b 재실측 · 17/800 승급] 플레이트 합성 흰 라벨 대비:
+  // 코랄(#E8552F) 7.3 · 에너지 그린(#119B58) 7.2 · 그린 딥(#0E7F49) 8.8 · 블루(#5B82E8) 7.0:1.
+  // lineHeight 22 = 17×1.29 — 디스크 내부 예산(파일 상단 GO_DISC 주석: 워드 48 + 서브 27 = 75 ≤ 140)의 한 항.
   goSub: {
-    fontSize: 14, lineHeight: 18, fontWeight: '800', color: '#fff', marginTop: 1,
+    fontSize: 17, lineHeight: 22, fontWeight: '800', color: '#fff', marginTop: 1,
     backgroundColor: 'rgba(28,24,55,0.42)', borderRadius: lilacRadius.tag,
-    paddingVertical: 2, paddingHorizontal: 7, overflow: 'hidden',
+    paddingVertical: 2, paddingHorizontal: 8, overflow: 'hidden',
   },
   reportChip: {
     position: 'absolute', left: 12, right: 12, bottom: 11, zIndex: 3,
@@ -1695,9 +1708,7 @@ const s = StyleSheet.create({
     borderWidth: 1, borderLeftWidth: 0, borderRightWidth: 0, borderColor: '#EEEEEE', // [풀블리드] 측면 보더·라운드 은퇴 · [페이퍼 크롬] 뉴트럴 보더, 소프트 섀도 은퇴
   },
   ticketDbl: { position: 'absolute', top: 4, left: 4, right: 4, bottom: 4, borderWidth: 1, borderColor: '#EEEEEE', borderRadius: 0 },
-  ticketHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: layout.gutter, paddingTop: 12 },
-  ticketGlyph: { width: 18, height: 18, borderRadius: 0, backgroundColor: lilac.accent, alignItems: 'center', justifyContent: 'center' }, // [페이퍼 크롬] 샤프
-  ticketBrand: { fontSize: 12, fontWeight: '800', letterSpacing: 1.2, color: lilac.head, flexShrink: 1 },
+  // [§3b item 5] ticketHead/ticketGlyph/ticketBrand 은퇴 — 'NEXT RUN · BOARDING PASS' 키커 행 삭제
   // negative margin mirrors the ticket-body gutter so the perforation stays full-bleed
   perf: { marginTop: 11, height: 0, borderTopWidth: 1.5, borderStyle: 'dashed', borderColor: '#DCD7F0', marginHorizontal: -layout.gutter },
   notch: { position: 'absolute', top: -9, width: 18, height: 18, borderRadius: 9, backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE' }, // 노치 = 캔버스가 비쳐 보이는 구멍 — 캔버스가 백지가 됐으니 함께 (원형은 퍼포레이션 아티팩트라 예외)
@@ -1721,8 +1732,9 @@ const s = StyleSheet.create({
   // lilac.accent가 3.20:1로 떨어지면 안 된다. 다크는 라이트 바이올렛으로 올린다.
   beaconGo: { fontSize: 16, lineHeight: 21, fontWeight: '800', marginTop: 6 },
   // 예약하기 = 돈 버튼 — 딥 코랄 (종단 ≥#C6472C, 흰 라벨 4.5:1)
-  book: { backgroundColor: lilac.card, borderWidth: 1, borderLeftWidth: 0, borderRightWidth: 0, borderColor: '#EEEEEE', borderRadius: 0, padding: 12, marginTop: 14 }, // [풀블리드] [페이퍼 크롬] 뉴트럴 보더 · 카드 섀도 은퇴 (무게는 안의 딥 코랄 CTA가 진다)
-  bookFacts: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', paddingHorizontal: 2, paddingBottom: 11 },
+  // [§3b Money] 버튼 풀블리드 — 셸의 좌우 패딩 0 (facts 행만 거터를 받는다), 상하 12는 유지
+  book: { backgroundColor: lilac.card, borderWidth: 1, borderLeftWidth: 0, borderRightWidth: 0, borderColor: '#EEEEEE', borderRadius: 0, paddingVertical: 12, paddingHorizontal: 0, marginTop: 14 }, // [풀블리드] [페이퍼 크롬] 뉴트럴 보더 · 카드 섀도 은퇴 (무게는 안의 딥 코랄 CTA가 진다)
+  bookFacts: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', paddingHorizontal: layout.gutter, paddingBottom: 11 },
   // [FLOOR14] '예상 결제'는 한글 정보 라벨이다 — 트래킹은 라틴 키커의 문법이라 0.5로 내리고 크기를 올린다
   bookKicker: { fontSize: 14, lineHeight: 18, fontWeight: '600', letterSpacing: 0.5, color: lilac.dim, marginBottom: 2 },
   cta: {
@@ -1732,32 +1744,32 @@ const s = StyleSheet.create({
     shadowColor: MONEY_DEEP, shadowOpacity: 0.42, shadowRadius: 20, shadowOffset: { width: 0, height: 14 }, elevation: 8,
   },
   ctaSheen: { position: 'absolute', right: -30, top: -40, width: 130, height: 130, borderRadius: 65, backgroundColor: 'rgba(255,255,255,0.12)' },
-  ctaPlate: { marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(28,24,55,0.55)', borderRadius: lilacRadius.inner, paddingVertical: 8, paddingHorizontal: 10 },
-  ctaPlateDiv: { width: 1, height: 11, backgroundColor: 'rgba(255,255,255,0.4)' },
+  // [§3b Money] ctaPlate/ctaPlateDiv 은퇴 — 가격 서브 플레이트 삭제 (버튼은 라벨 하나)
   // 하이클럽 셸 — 히어로 인접 격상.
   // ★★★ [SUPERSEDED 2026-08-10 페이퍼 크롬 웨이브] Sean 2026-08-06의 "클럽 위젯만 측면 마진+라운드 유지"
   // 예외는 이 웨이브로 은퇴 — 메인 탭의 모든 카드가 샤프/풀블리드가 되면서 예외 근거가 소멸했다.
   // 나이트 카드(내부 다크 월드)는 아티팩트로 그대로 산다; 셸의 크롬(마진·라운드·바이올렛 섀도)만 페이퍼로. ★★★
   // [Sean 2026-08-10 — VETO of the paper-wave supersession] 하이클럽은 측면 마진을 되찾는다.
   // 클럽은 나이트 아티팩트 섬이라 풀블리드 종이 문법의 예외로 남는다 (원 예외 2026-08-06 복원).
+  // [§3b item 9] 예외는 언제나 '마진'이었다 — 코너는 아니다. 셸·나이트 카드 모두 샤프 (radius 0).
   clubShell: {
-    marginTop: 14, marginHorizontal: layout.gutter, borderRadius: lilacRadius.card,
+    marginTop: 14, marginHorizontal: layout.gutter, borderRadius: 0,
     shadowColor: lilac.accent, shadowOpacity: 0.14, shadowRadius: 30, shadowOffset: { width: 0, height: 12 }, elevation: 3,
   },
-  // [Sean 2026-08-10] 티켓 주 버튼은 GO 상태색을 입는다 (같은 상태 기계 = 같은 색 목소리) —
-  // bg/shadowColor는 JSX에서 goSkin 주입, 여기 값은 폴백. 라벨 14→16 · 패딩 13→15 (랩 Ⓒ 채택분).
-  meetBtn: {
-    flex: 1, backgroundColor: lilac.accent, borderRadius: lilacRadius.btn, alignItems: 'center', paddingVertical: 15,
-    shadowColor: lilac.accent, shadowOpacity: 0.3, shadowRadius: 13, shadowOffset: { width: 0, height: 5 },
-  },
-  countdownPill: { borderRadius: 0, paddingVertical: 4, paddingHorizontal: 8 }, // [페이퍼 크롬] 샤프
-  // D-day 칩 — countdownPill과 동일 메트릭, 중립 인셋 표면 (상태 태그가 색을 갖는다)
-  ddayChip: {
-    borderRadius: 0, paddingVertical: 4, paddingHorizontal: 8,
-    borderWidth: 1, borderColor: '#EEEEEE', backgroundColor: lilac.inset, // [페이퍼 크롬]
-  },
-  ddayTxt: { fontSize: 14, lineHeight: 18, fontWeight: '900', letterSpacing: 0.5, color: lilac.head },
-  widgetBtn: { flex: 1, borderWidth: 1, borderColor: '#EEEEEE', backgroundColor: paper.canvas, borderRadius: 0, alignItems: 'center', paddingVertical: 10 }, // [페이퍼 크롬] 캔버스 면 + 뉴트럴 1px
+  // [§3b 버튼 4종] Primary — 잉크 면(JSX pressed = inkPressed 주입) · 흰 17/800 · 샤프 · 섀도 없음.
+  // 구 meetBtn(goSkin 상태색 필 + 상태색 섀도, Sean 2026-08-10)은 4종 법으로 은퇴 — 화면당 Primary 1.
+  primaryBtn: { flex: 1, backgroundColor: paper.ink, borderRadius: 0, alignItems: 'center', paddingVertical: 15 },
+  primaryBtnTxt: { fontSize: 17, lineHeight: 22, fontWeight: '800', color: '#fff' },
+  // [§3b 상태칩] 16/800 · 샤프 · 틴트 면 · 무보더 — 수식하는 데이터(날짜·시각)와 같은 행에 앉는다
+  statusChip: { borderRadius: 0, paddingVertical: 3, paddingHorizontal: 8 },
+  statusChipTxt: { fontSize: 16, lineHeight: 20, fontWeight: '800', letterSpacing: 0.3 },
+  // D-day 칩 — 상태칩과 동일 메트릭, 중립 인셋 표면 (상태칩 문법: 틴트 면 + 무보더)
+  ddayChip: { borderRadius: 0, paddingVertical: 3, paddingHorizontal: 8, backgroundColor: lilac.inset },
+  ddayTxt: { fontSize: 16, lineHeight: 20, fontWeight: '800', letterSpacing: 0.5, color: lilac.head },
+  // [§3b 버튼 4종] Secondary — 캔버스 면(JSX pressed = wash 주입) · 1px 코랄 헤어라인 · 잉크 16/800 ·
+  // paddingVertical 15 (구 10 — 뉴트럴 #EEE 보더·14/700 딤 라벨 은퇴)
+  widgetBtn: { flex: 1, borderWidth: 1, borderColor: paper.line, borderRadius: 0, alignItems: 'center', paddingVertical: 15 },
+  widgetBtnTxt: { fontSize: 16, lineHeight: 21, fontWeight: '800', color: paper.ink },
   nudge: {
     flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 10,
     borderRadius: 0, borderWidth: 1, borderRightWidth: 0, borderColor: '#EEEEEE', // [풀블리드] 좌측 코랄 스파인은 유지 · [페이퍼 크롬] 뉴트럴 보더, 섀도 은퇴
@@ -1779,7 +1791,13 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: '#EEEEEE', // [페이퍼 크롬] 뉴트럴 보더, 섀도 은퇴
   },
   safetyIcon: { width: 24, height: 24, borderRadius: 0, backgroundColor: '#FFF1EC', alignItems: 'center', justifyContent: 'center' },
-  sectionTitle: { fontSize: 14, lineHeight: 18, fontWeight: '800' },
+  // [§3b] sectionTitle(14/800) 은퇴 — 모든 섹션 타이틀은 s.secH(20/800 잉크) 하나
+  // [§3b item 11] 피드 자랑 풀와이드 스트립 — 내용은 '크루 피드에 자랑' 18/800 + › 뿐
+  shareStrip: {
+    flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 12,
+    borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#EEEEEE',
+    paddingVertical: 14, paddingHorizontal: layout.gutter,
+  },
   // 스타디움 로스터 — 피처드 = 나이트 라일락, 미니 = 라이트 라일락
   featRunner: { backgroundColor: NIGHT, borderWidth: 1, borderLeftWidth: 0, borderRightWidth: 0, borderColor: '#2E2A50', borderRadius: 0, padding: 13, paddingLeft: 16, overflow: 'hidden' }, // [풀블리드] 다크 아티팩트도 화면 끝까지
   featEdge: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, backgroundColor: lilac.coral },

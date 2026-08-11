@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { fetchMyDistrict, fetchRoutes } from '../lib/api';
 import { RouteInfo } from '../store';
-import { colors } from '../theme';
+import { paper } from '../theme';
 import { useNumFont } from '../lib/fonts';
 import { worldOf } from './patch';
 import { HeatTrace } from './runcard';
@@ -12,11 +12,12 @@ import { HeatTrace } from './runcard';
 // 파스텔 로테이션 + 살짝 기운 스티커 + km 빕 + 점검 도장: 코스를 '수집하고 싶은 배지'처럼.
 // 로컬 우선: profiles.district = area 일치 코스 앞으로 (지오 거리 정렬은 실좌표 v2).
 
-const FOREST = '#0F1D13';
 // [V4] 파스텔 은퇴 — 코스는 거리 월드 컬러(P2 배지 월드와 동일 소스)로: 코스 = 경험
+// [§3b] 구 FOREST 헤더 잉크(#0F1D13)는 헤더가 paper.ink로 통일되며 은퇴
 
 // headerPad: 풀블리드 컨테이너(오너 홈)에서 헤더 텍스트만 안쪽 거터를 받는다 — 러너 홈(컨테이너 패딩 유지)은 0
-export function CourseStrip({ title = '동네 코스', headerPad = 0 }: { title?: string; headerPad?: number }) {
+// bleed: 패딩 있는 컨테이너(러너 홈)에서 §3b 코랄 룰을 음수 마진으로 화면 끝까지 뚫는 양 — 풀블리드 컨테이너는 0
+export function CourseStrip({ title = '동네 코스', headerPad = 0, bleed = 0 }: { title?: string; headerPad?: number; bleed?: number }) {
   const [routes, setRoutes] = useState<RouteInfo[]>([]);
   const nf = useNumFont();
 
@@ -37,9 +38,11 @@ export function CourseStrip({ title = '동네 코스', headerPad = 0 }: { title?
 
   return (
     <View style={{ marginTop: 18 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8, marginBottom: 9, borderBottomWidth: 2.5, borderBottomColor: FOREST, paddingBottom: 7, paddingHorizontal: headerPad }}>
-        <Text style={{ fontSize: 16, fontWeight: '900', color: FOREST }}>{title}</Text>
-        <Text style={{ fontSize: 9, fontWeight: '700', letterSpacing: 2, color: colors.voltDeep }}>VERIFIED COURSES</Text>
+      {/* [§3b 2026-08-11] 단일 섹션 헤더 그램마 — 풀블리드 코랄 룰 위 + 타이틀 20/800 잉크.
+          'VERIFIED COURSES' 라틴 키커는 DESIGN.md §3b가 이름 불러 은퇴시킨 바로 그 사례. FOREST 2.5px
+          언더라인도 헤더 크롬에서 은퇴 (코스 카드 안 월드 컬러는 시맨틱으로 생존). */}
+      <View style={{ marginHorizontal: -bleed, paddingHorizontal: bleed + headerPad, borderTopWidth: 1, borderTopColor: paper.line, paddingTop: 10, marginBottom: 9 }}>
+        <Text style={{ fontSize: 20, lineHeight: 25, fontWeight: '800', color: paper.ink }}>{title}</Text>
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingLeft: headerPad, paddingRight: 12 }}>
         {routes.map((r) => {

@@ -7,7 +7,7 @@ import {
   registerClubInterest, requestDistrictClub, searchClubs,
 } from '../lib/api';
 import { useDisplayFont } from '../lib/displayFont';
-import { lilac, lilacRadius, lilacShadow } from '../theme';
+import { lilac, lilacShadow, paper } from '../theme';
 import { Icon, Row } from './ui';
 
 // 하이클럽 홈 모듈 v5 — 나이트 스텁 × 시트맵 (2026-08-05 Sean 확정: glowup-go-lab Ⓐ② 전반 + Ⓐ④ 시트맵).
@@ -144,7 +144,8 @@ function ClubSearchBar() {
                 </Text>
               </View>
               <View style={[s.dropTag, h.status !== 'active' && { backgroundColor: lilac.inset }]}>
-                <Text style={{ fontSize: 14, fontWeight: '800', letterSpacing: 0.6, color: h.status === 'active' ? READ_VIOLET : lilac.dim }}>
+                {/* [§3b 상태칩] 16/800 */}
+                <Text style={{ fontSize: 16, fontWeight: '800', letterSpacing: 0.6, color: h.status === 'active' ? READ_VIOLET : lilac.dim }}>
                   {h.status === 'active' ? 'OPEN' : '모집 중'}
                 </Text>
               </View>
@@ -266,7 +267,7 @@ function ClubBanner({ club, role, reload }: { club: ClubOverview; role: 'owner' 
           )}
 
           {/* CTA 하나 — 문은 클럽 홈뿐 (Sean 3차: 두 버튼의 차이가 불명확 → 홈이 모든 갈래를 가진다) */}
-          <Pressable onPress={onPress} style={s.clubGhost}>
+          <Pressable onPress={onPress} style={({ pressed }) => [s.clubGhost, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}>
             <Text style={s.clubGhostText}>클럽 홈 ›</Text>
           </Pressable>
         </View>
@@ -301,8 +302,9 @@ function DemandTicket({ board, reload }: { board: DemandBoard; reload: () => voi
       <View style={{ flex: 1, padding: 15 }}>
         <Text style={{ fontSize: 15, fontWeight: '800', color: lilac.head }}>{mine.district}에서 {mine.interestCount}팀이 기다려요</Text>
         <Text style={{ fontSize: 14, color: lilac.text, marginTop: 5, lineHeight: 19 }}>인증 러너가 호스트를 맡으면 클럽이 열려요.</Text>
-        <Pressable onPress={claim} style={s.tktCta}>
-          <Text style={{ fontSize: 15, fontWeight: '800', color: '#fff' }}>호스트 되기</Text>
+        <Pressable onPress={claim} style={({ pressed }) => [s.tktCta, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}>
+          {/* [§3b] 버튼 라벨 플로어 16/800 · scale 0.96 프레스 */}
+          <Text style={{ fontSize: 16, fontWeight: '800', color: '#fff' }}>호스트 되기</Text>
         </Pressable>
       </View>
     </View>
@@ -366,14 +368,15 @@ function OwnerDemand({ board, reload }: { board: DemandBoard; reload: () => void
             <Text style={{ fontSize: 14, color: lilac.text, marginTop: 5, lineHeight: 19 }}>
               {mine.threshold}팀이 모이면 호스트 모집 시작 — 이웃을 초대할수록 빨리 열려요.
             </Text>
-            <Pressable onPress={invite} style={s.inviteCta}>
-              <Text style={{ fontSize: 14, fontWeight: '800', color: '#fff' }}>이웃 초대하기</Text>
+            <Pressable onPress={invite} style={({ pressed }) => [s.inviteCta, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}>
+              {/* [§3b] 버튼 라벨 플로어 16/800 · scale 0.96 프레스 */}
+              <Text style={{ fontSize: 16, fontWeight: '800', color: '#fff' }}>이웃 초대하기</Text>
             </Pressable>
           </View>
         </View>
       )}
       {league.length > 0 && (
-        <View style={[s.league, !collecting && { borderTopWidth: 1, borderTopLeftRadius: lilacRadius.card, borderTopRightRadius: lilacRadius.card }]}>
+        <View style={[s.league, !collecting && { borderTopWidth: 1 }]}>
           <Text style={{ fontSize: 14, fontWeight: '800', letterSpacing: 1, color: READ_VIOLET, marginBottom: 8 }}>동네 리그 — 이번 달</Text>
           {league.map((l, i) => (
             <Pressable key={l.clubId} onPress={() => router.push(`/club/${l.clubId}`)} style={[s.lrow, l.mine && s.lrowMe]}>
@@ -401,10 +404,11 @@ export function ClubModule({ role }: { role: 'owner' | 'runner' }) {
   const reloadAll = () => { reload(); reloadBoard(); };
   return (
     <View style={{ marginTop: 14 }}>
-      <Row style={{ gap: 8, marginBottom: 11, alignItems: 'center' }}>
-        <Text style={{ fontSize: 16.5, fontWeight: '800', color: lilac.head }}>하이클럽</Text>
-        <View style={s.hcChip}><Text style={{ fontSize: 11, fontWeight: '800', letterSpacing: 1, color: READ_VIOLET }}>HIGH CLUB</Text></View>
-        <Text style={{ fontSize: 14, color: lilac.dim }}>동네에서 함께 달려요</Text>
+      {/* [§3b 2026-08-11] 섹션 헤더 단일 문법 — 'HIGH CLUB' 라틴 키커 칩 · '동네에서 함께 달려요'
+          서브타이틀 은퇴, 타이틀은 앱 공통 20/800 잉크. 코랄 1px 상단 룰은 모듈 폭 (클럽 섬은
+          측면 마진 예외라 풀블리드 대신 모듈 브레드스 — 문법은 동일). */}
+      <Row style={{ marginBottom: 9, alignItems: 'baseline', borderTopWidth: 1, borderTopColor: paper.line, paddingTop: 12 }}>
+        <Text style={{ fontSize: 20, lineHeight: 26, fontWeight: '800', color: paper.ink, letterSpacing: -0.2 }}>하이클럽</Text>
       </Row>
       <ClubSearchBar />
       {club && <ClubBanner club={club} role={role} reload={reloadAll} />}
@@ -419,28 +423,31 @@ export function ClubHomeCard() { return <ClubModule role="owner" />; }
 export function RunnerClubCard() { return <ClubModule role="runner" />; }
 
 const s = StyleSheet.create({
-  searchWrap: { flexDirection: 'row', alignItems: 'center', gap: 9, backgroundColor: lilac.card, borderRadius: 12, borderWidth: 1, borderColor: lilac.hair, paddingHorizontal: 15, paddingVertical: 2, ...lilacShadow, shadowOpacity: 0.06 },
+  // [§3b] 카드·필드 코너 샤프 (radius 0 everywhere) — 클럽 예외는 마진뿐
+  searchWrap: { flexDirection: 'row', alignItems: 'center', gap: 9, backgroundColor: lilac.card, borderRadius: 0, borderWidth: 1, borderColor: lilac.hair, paddingHorizontal: 15, paddingVertical: 2, ...lilacShadow, shadowOpacity: 0.06 },
   searchInput: { flex: 1, fontSize: 16, color: lilac.head, paddingVertical: 13 },
-  drop: { position: 'absolute', top: 60, left: 0, right: 0, backgroundColor: lilac.card, borderRadius: 14, borderWidth: 1, borderColor: lilac.hair, paddingVertical: 5, ...lilacShadow, shadowOpacity: 0.14, shadowRadius: 18, zIndex: 30 },
+  drop: { position: 'absolute', top: 60, left: 0, right: 0, backgroundColor: lilac.card, borderRadius: 0, borderWidth: 1, borderColor: lilac.hair, paddingVertical: 5, ...lilacShadow, shadowOpacity: 0.14, shadowRadius: 18, zIndex: 30 },
   dropRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 14 },
-  dropThumb: { width: 44, height: 44, borderRadius: 11, backgroundColor: lilac.inset, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  dropTag: { backgroundColor: VIOLET_TINT, borderWidth: 1, borderColor: VIOLET_TINT_EDGE, borderRadius: lilacRadius.tag, paddingVertical: 4, paddingHorizontal: 9 },
+  dropThumb: { width: 44, height: 44, borderRadius: 0, backgroundColor: lilac.inset, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  // [§3b 상태칩 문법] 틴트 면 · 무보더 · 샤프 (OPEN/모집 중 상태 태그)
+  dropTag: { backgroundColor: VIOLET_TINT, borderRadius: 0, paddingVertical: 4, paddingHorizontal: 9 },
 
   // ── 하이클럽 나이트 스텁 카드 (Ⓐ② 다크 아일랜드 × Ⓐ④ 시트맵) ──
+  // [§3b item 9] 샤프 코너 — 클럽 예외는 '마진'이었지 코너가 아니다 (radius 0, 마진은 셸이 유지)
   clubCard: {
     position: 'relative', backgroundColor: NIGHT, borderWidth: 1, borderColor: NIGHT_EDGE,
-    borderRadius: lilacRadius.card, overflow: 'hidden', marginTop: 12,
+    borderRadius: 0, overflow: 'hidden', marginTop: 12,
     shadowColor: '#0B0720', shadowOpacity: 0.42, shadowRadius: 20, shadowOffset: { width: 0, height: 11 }, elevation: 6,
   },
   clubEdge: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 3 },
-  clubDbl: { position: 'absolute', top: 4, left: 4, right: 4, bottom: 4, borderWidth: 1, borderColor: 'rgba(255,255,255,0.09)', borderRadius: lilacRadius.inner },
+  clubDbl: { position: 'absolute', top: 4, left: 4, right: 4, bottom: 4, borderWidth: 1, borderColor: 'rgba(255,255,255,0.09)', borderRadius: 0 },
   clubRow: { flexDirection: 'row', alignItems: 'stretch' },
   // 스텁 열 — 찢김선(점선)은 tktStub 선례와 동일 문법(단면 borderWidth + borderStyle dashed)
   clubStub: {
     width: 84, paddingVertical: 14, paddingHorizontal: 6, alignItems: 'center', justifyContent: 'center',
     borderRightWidth: 2, borderRightColor: NIGHT_HAIR, borderStyle: 'dashed',
   },
-  stubHost: { backgroundColor: '#fff', borderRadius: lilacRadius.tag, paddingHorizontal: 7, paddingVertical: 3, marginBottom: 9 },
+  stubHost: { backgroundColor: '#fff', borderRadius: 0, paddingHorizontal: 7, paddingVertical: 3, marginBottom: 9 }, // [§3b] 샤프
   stubHostText: { fontSize: 10.5, fontWeight: '800', letterSpacing: 1, color: NIGHT },
   // 디스플레이 서체(Black Han Sans) 1회 — 카드에서 가장 값진 자리인 D-day 숫자에만. lineHeight ≥1.2×
   stubNum: { fontSize: 26, lineHeight: 33, fontWeight: '900', color: '#fff', includeFontPadding: false, letterSpacing: -0.3 },
@@ -452,7 +459,7 @@ const s = StyleSheet.create({
   // 본문 열
   clubMain: { flex: 1, minWidth: 0, paddingHorizontal: 12, paddingTop: 11, paddingBottom: 11 },
   clubIdRow: { flexDirection: 'row', alignItems: 'center', gap: 9 },
-  clubMono: { width: 32, height: 32, borderRadius: 6, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.65)' },
+  clubMono: { width: 32, height: 32, borderRadius: 0, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.65)' }, // [§3b] 샤프
   clubMonoText: { fontSize: 17, lineHeight: 22, fontWeight: '900', color: lilac.head, includeFontPadding: false },
   clubKk: { fontSize: 11.5, fontWeight: '700', letterSpacing: 1.3, color: NIGHT_KK, textTransform: 'uppercase', marginBottom: 2 },
   clubName: { fontSize: 18, lineHeight: 23, fontWeight: '900', color: '#fff', letterSpacing: -0.2 },
@@ -469,27 +476,28 @@ const s = StyleSheet.create({
   seatPipOn: { backgroundColor: SEAT_ON, borderColor: SEAT_ON },
   seatLb: { fontSize: 14.5, lineHeight: 19, fontWeight: '800', color: CORAL_READ, marginLeft: 7 },
   // 고스트 CTA — 나이트 위에선 바이올렛 솔리드가 카드와 싸운다 (lab .a2 .ghost)
+  // [§3b] 샤프 · 라벨 16/800 (버튼 라벨 플로어)
   clubGhost: {
-    marginTop: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', borderRadius: lilacRadius.btn,
+    marginTop: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', borderRadius: 0,
     backgroundColor: 'rgba(255,255,255,0.06)', paddingVertical: 9, alignItems: 'center', justifyContent: 'center',
   },
-  clubGhostText: { fontSize: 15, lineHeight: 19, fontWeight: '800', color: '#fff' },
+  clubGhostText: { fontSize: 16, lineHeight: 21, fontWeight: '800', color: '#fff' },
 
   // ── 클럽 월드 공통 (바이올렛 라일락) ──
-  hcChip: { backgroundColor: VIOLET_TINT, borderWidth: 1, borderColor: VIOLET_TINT_EDGE, borderRadius: lilacRadius.tag, paddingVertical: 4, paddingHorizontal: 9 },
+  // [§3b] hcChip('HIGH CLUB' 키커 칩) 은퇴 — 섹션 헤더 단일 문법. 카드·버튼·태그 코너 전부 샤프.
   // R1-A 대기 티켓 (대형 CTA · 라일락)
-  tkt: { flexDirection: 'row', backgroundColor: lilac.card, borderWidth: 1, borderColor: lilac.hair2, borderRadius: lilacRadius.card, overflow: 'hidden', marginTop: 12, ...lilacShadow },
+  tkt: { flexDirection: 'row', backgroundColor: lilac.card, borderWidth: 1, borderColor: lilac.hair2, borderRadius: 0, overflow: 'hidden', marginTop: 12, ...lilacShadow },
   tktHolo: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 3 },
   tktStub: { width: 104, backgroundColor: lilac.accent, alignItems: 'center', justifyContent: 'center', borderRightWidth: 2, borderRightColor: 'rgba(255,255,255,.42)', borderStyle: 'dashed' },
-  tktCta: { backgroundColor: lilac.accent, borderRadius: lilacRadius.btn, alignItems: 'center', paddingVertical: 15, marginTop: 12, shadowColor: lilac.accent, shadowOpacity: 0.32, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 3 },
+  tktCta: { backgroundColor: lilac.accent, borderRadius: 0, alignItems: 'center', paddingVertical: 15, marginTop: 12, shadowColor: lilac.accent, shadowOpacity: 0.32, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 3 },
   // R1-C 스트립 (요청 탭 · 나이트-라일락 아일랜드)
-  strip: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: NIGHT, borderRadius: lilacRadius.card, paddingVertical: 15, paddingHorizontal: 16 },
-  stripN: { backgroundColor: '#fff', borderRadius: lilacRadius.tag, paddingVertical: 6, paddingHorizontal: 12 },
+  strip: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: NIGHT, borderRadius: 0, paddingVertical: 15, paddingHorizontal: 16 },
+  stripN: { backgroundColor: '#fff', borderRadius: 0, paddingVertical: 6, paddingHorizontal: 12 },
   // D-A 진행 링 + 동네 리그
   demand: { marginTop: 12 },
-  prog: { flexDirection: 'row', gap: 16, alignItems: 'center', backgroundColor: lilac.card, borderWidth: 1, borderColor: lilac.hair, borderTopLeftRadius: lilacRadius.card, borderTopRightRadius: lilacRadius.card, padding: 16, ...lilacShadow },
-  inviteCta: { backgroundColor: lilac.accent, borderRadius: lilacRadius.btn, alignSelf: 'flex-start', paddingVertical: 10, paddingHorizontal: 16, marginTop: 10, shadowColor: lilac.accent, shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 2 },
-  league: { backgroundColor: lilac.card, borderWidth: 1, borderTopWidth: 0, borderColor: lilac.hair, borderBottomLeftRadius: lilacRadius.card, borderBottomRightRadius: lilacRadius.card, paddingVertical: 13, paddingHorizontal: 14 },
-  lrow: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 9, paddingHorizontal: 10, borderRadius: lilacRadius.inner },
+  prog: { flexDirection: 'row', gap: 16, alignItems: 'center', backgroundColor: lilac.card, borderWidth: 1, borderColor: lilac.hair, borderTopLeftRadius: 0, borderTopRightRadius: 0, padding: 16, ...lilacShadow },
+  inviteCta: { backgroundColor: lilac.accent, borderRadius: 0, alignSelf: 'flex-start', paddingVertical: 10, paddingHorizontal: 16, marginTop: 10, shadowColor: lilac.accent, shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 2 },
+  league: { backgroundColor: lilac.card, borderWidth: 1, borderTopWidth: 0, borderColor: lilac.hair, borderBottomLeftRadius: 0, borderBottomRightRadius: 0, paddingVertical: 13, paddingHorizontal: 14 },
+  lrow: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 9, paddingHorizontal: 10, borderRadius: 0 },
   lrowMe: { backgroundColor: VIOLET_TINT, borderWidth: 1, borderColor: VIOLET_TINT_EDGE },
 });
