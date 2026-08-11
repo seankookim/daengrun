@@ -149,3 +149,72 @@ Deferred work, written down so it exists. Format: what / why / context / effort
   because no intent store exists in any migration and inventing one is
   forbidden. If early settlement is a real product intent, it needs a table +
   a real flow. P3 until payments land.
+
+## Club system audit — 2026-08-11 (independent eng voice, findings verified by lead)
+
+Ordered by the auditor's recommended fix order. **C2 is DONE** (`0d79b4f`). The rest are open.
+
+- [x] ~~**C2 — club payment claimed a charge that never happens**~~ FIXED 2026-08-11. No PG exists
+  anywhere in the repo; server writes '모의 시대: 청구 없음' (0057:250); owner/pay.tsx discloses the
+  simulation 3×; the club sheet disclosed it 0× and showed 동의하고 결제 + a real fee ladder +
+  '결제 완료'. Now discloses, CTA reads 자리 확정, ladder marked as post-integration.
+
+- [ ] 🔴 **C1 — the T-10 cron auto-refunds every delegation the app promises is assigned AT the meetup.**
+  `club_assignment_recovery` (0049:344-365, `*/5` cron) refunds every paid delegation still
+  `matching` from `scheduled_at - 10min`. But the consent checkbox itself says assignment happens
+  집결지에서 (session/[sid].tsx:1283), and the console says 담당은 집결지에서 정해져요
+  (console:359). Real window is [T-2h, T-10min] and additionally requires the runner already
+  `checked_in` (0048:454,465). A host arriving at 06:50 for a 07:00 run finds everything refunded
+  and owners standing there with dogs. **Fix: move the hard stop past T-0, or surface a real
+  countdown + host push at T-30/T-15. Do not ship with copy and cron disagreeing.** P1.
+
+- [ ] 🔴 **C3 — two SOS buttons, same promise, each missing the half the other has, neither tells
+  the owner.** Both say "호스트와 러너 전원에게 즉시 알림". Owner SOS (`club_sos`, 0050:59-73) passes
+  `p_dog => null` ⇒ **no payout hold** — the runner gets paid on the dog the owner just raised an
+  emergency about. Runner SOS (`club_incident_open`) holds payout but has **no runner fan-out**.
+  Both notify only host + backup host — **the dog's owner is never notified**. Fix: one code path.
+  P1.
+
+- [ ] 🔴 **C4 — a picked-up dog whose run never ends locks the session and payouts forever.**
+  `_club_dogs_unresolved` (0045:328-336) blocks finish; the console's only override renders solely
+  for `return_pending` (console:201,483-508). Runner confirms handoff then never presses 시작/종료
+  (phone dies) ⇒ permanent block, no row, no button, and the blocker says '반환 미완' for a dog that
+  was never returned because the run never started. Same trap class as H5. P1.
+
+- [ ] **H1 — club/run/[sid] is the only club screen without LoadGate.** `:92` silent catch, `:315`
+  renders eternal '불러오는 중...' with no back and no retry — on the screen holding a running dog.
+  Every other deep-link club screen was migrated. P1.
+
+- [ ] **H2 — console runner chips are dead in 3 states.** Gated only on `assigned >= cap`; the server
+  also rejects `runner_not_checked_in` (0048:465) and outside `assign_window` (0048:454), and
+  `_club_runner_load` counts live proposals the client ignores. Client already HAS `checkedIn` and
+  `checkinOpen` and never uses them. P2.
+
+- [ ] **H3 — club/[id] renders a fabricated club while loading AND when none exists.** `:274,283,293`
+  show title 하이클럽 / DISTRICT '—' / HOST '모집 중' during load; `fetchClubOverview` returns null for
+  both "loading" and "no club". P2.
+
+- [ ] **H4 — no way to cancel a club session.** `cancelClubSession` (api.ts:2607) has zero non-dev
+  call sites, yet club-acks registers '세션 취소 — 전액 환불' as a critical ack: the client can receive
+  a cancellation it can never issue. P2.
+
+- [ ] **H5 — custody transfer (clinic/authority) has no production UI** and `transfer_pending` is a
+  dead end if reached (session:763 draws the confirm block only for `return_pending`), blocking
+  session finish forever. The one scenario most needing a record — dog goes to a vet mid-run. P2.
+
+- [ ] **M1 — `ui.allowedActions` is always `[]`** (0040:406, 0045:627, 0047:642, 0048:579, 0052:354)
+  and the client never reads it, so every action gate is a client-side re-derivation of a server
+  predicate. This is the structural cause of H2 and the whole club dead-button class. P2.
+
+- [ ] **M2 — fee/hold terms hardcoded in consent copy** while the server reads `club_cfg`
+  (0057:225-231). A config change silently makes the legal checkbox false. P2.
+
+- [ ] **M5 — club-acks.tsx missed FLOOR14**: `:89` body 9.5pt and `:94` button label 9.5pt — on the
+  body and only tap target of a **critical safety banner**, on every club screen. Also
+  case/[cid]:109 evidence timestamps at 8.5pt. Directly in Sean's "too small text" directive. P1
+  for type, trivial fix.
+
+- [ ] **M3/M4/M6/M7** — disabled ClubCta used as a status label (session:741); objection window uses
+  a frozen `Date.now()` instead of the ticking clock (session:749); `_club_refund_bookings` silently
+  no-ops on non-matching bookings (0037:64-70); a delegating owner is never added to `session_people`
+  so their 입장권 door never appears and the recap under-counts. P3.

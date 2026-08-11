@@ -339,7 +339,17 @@ ui.tsx sweep first** (it's one file and clears the most findings per hour), then
 payments — and let reduced motion and the dial ride along with whatever screens
 payments touches.
 
-## ⑯ Next 1–3  *(rewritten 2026-08-11 — items 2 and 3 are done)*
+## ⑯ Next 1–3  *(rewritten 2026-08-11 pm — action system landed, club audit open)*
+
+0. 🔴 **[correctness, BLOCKING a real club] The club audit's C1/C3/C4 are live bugs**, written up
+   in TODOS.md with file:line. Short form: a `*/5` cron auto-refunds every delegation 10 minutes
+   before a session the app *promises* is assigned at the meetup (C1); the two SOS buttons make
+   the same promise and each implements the half the other is missing, and **neither notifies the
+   dog's owner** (C3); a picked-up dog whose run never ends locks the session and payouts forever
+   with no host override (C4). C2 (the payment sheet claiming a charge that never happens) is
+   **already fixed** in `0d79b4f`. Do C1/C3/C4 before any real club member exists.
+
+
 
 1. **[needs-user] Payments = the filing chain.** D-A was **answered**: Sean
    registers. The bridge is superseded (`payments-bridge-plan.md` is a tombstone,
