@@ -293,10 +293,19 @@ begin
   -- ---------- [G12] 교차 세션 인시던트 억제 (0052 §1·§6 rev2 P2 / 리뷰어 A·B) ----------
   -- openIncidentId(세션 한정)와 '인시던트 확인 중' 배지(예전 세션 무한정)의 비대칭을 없앴다:
   -- 타 세션의 미해소 인시던트가 오늘 보드에서 크리티컬 배지+null id(죽은 딥링크)로 새면 안 된다.
+  --
+  -- [0067에서 재작성] 이 시드는 원래 club_incident_open(v_s2, …, dgq)로 만들었다 — dgq는 v_s2가
+  -- 아니라 v_s의 개다. 그게 통했던 이유가 바로 0067이 막은 결함(주체 미검증)이었으므로, 이제는
+  -- not_dog_party로 거부된다. G12가 단언하는 것은 '개설이 가능하다'가 아니라 **프로젝션의 세션
+  -- 억제**이므로, 교차 세션 인시던트는 직접 INSERT로 심는다 (RPC를 통과시키려 검증을 완화하는
+  -- 것은 핀이 검증을 인질로 잡는 것이다). 0067 자체의 거부는 106 S3가 핀한다.
   begin
     perform set_config('request.jwt.claim.sub', hh::text, false);
     v_s2 := club_create_session(v_club, now() + interval '5 hours', '감사 집결지2', rt, 8, 'mixed');
-    v_inc2 := club_incident_open(v_s2, 'S2', '타세션 케이스 — dgq 대상', dgq);  -- 다른 세션의 미해소 인시던트
+    insert into club_incidents (session_id, severity, state, opened_by, summary)
+    values (v_s2, 'S2', 'open', hh, '타세션 케이스 — dgq 대상') returning id into v_inc2;
+    insert into club_incident_subjects (incident_id, subject_type, subject_id)
+    values (v_inc2, 'session', v_s2), (v_inc2, 'dog', dgq);      -- 다른 세션의 미해소 인시던트
     perform set_config('request.jwt.claim.sub', qq::text, false);
     v_js := club_delegation_board(v_s);           -- 이 세션 보드
     v_js2 := club_dog_ui_state(sdq);              -- 이 세션 dog 프로젝션

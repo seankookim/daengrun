@@ -75,6 +75,8 @@ psql -q -f 102_runner_funnel_suite.sql >/dev/null 2>&1            # 0062 러너 
 psql -q -f 103_owner_la_suite.sql >/dev/null 2>&1            # 0063 owner Live Activity pins (token seal / push jobs / staleness)
 psql -q -f 104_private_media_suite.sql >/dev/null 2>&1            # 0064 프라이빗 미디어 버킷 (강아지·러닝·채팅 사진 봉인)
 psql -q -f 105_enroute_cancel_suite.sql >/dev/null 2>&1            # 0066 en-route owner cancel (transition widening + fee ladder)
+psql -q -f 106_incident_subject_suite.sql >/dev/null 2>&1            # 0067 P1 SECURITY: incident subject gate + SOS unification
+psql -q -f 107_recovery_force_resolve_suite.sql >/dev/null 2>&1            # 0068/0069 C1 T-10 retire · C4/H5 host force resolve · two-sided override
 psql -c "select case when ok then '✅' else '❌' end || ' [' || suite || '] ' || name || case when ok then '' else ' — ' || detail end from _t order by at"
 psql -qt -c "select count(*) filter (where ok) || ' pass / ' || count(*) filter (where not ok) || ' fail' from _t"
 psql -qt -c "select case when count(*) filter (where not ok) > 0 then 'FAIL' else 'OK' end from _t" | grep -q OK

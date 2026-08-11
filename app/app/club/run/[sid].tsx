@@ -265,8 +265,10 @@ export default function ClubRun() {
     } finally { setBusy(false); }
   };
 
-  // [감사 P1] club_sos는 p_dog가 구조적으로 null이라 지급 보류가 안 걸리고 보호자가 케이스를 못 봤다 —
-  // 러닝 중 SOS는 담당견을 대상에 붙여 S1을 연다 (여러 마리면 고른다, 팬아웃은 알림 제목 레지스트리가 동일 처리)
+  // [감사 P1 → 0067 C3] 러닝 중 SOS는 담당견을 대상에 붙여 S1을 연다 (여러 마리면 고른다).
+  // 0067이 club_sos를 club_incident_open의 얇은 래퍼로 통합했으므로 어느 문으로 들어와도
+  // 팬아웃·지급 보류·보호자 알림이 같이 온다 — 여기서 개를 붙이는 이유는 이제 '보류를 걸기
+  // 위해서'가 아니라 **누구 일인지 말하기 위해서**다 (보호자 알림이 아이 이름을 싣는다).
   const fireSos = (d: DelegationDog | null) => {
     incidentOpen(sid, 'S1', '긴급 SOS', {
       dog: d?.dogId ?? null, booking: d?.bookingId ?? null,
@@ -276,7 +278,11 @@ export default function ClubRun() {
       .catch((e) => Alert.alert('SOS 실패', (e as Error).message));
   };
   const doSosPress = () => {
-    Alert.alert('긴급 SOS', 'S1 케이스가 열리고 호스트와 러너 전원에게 즉시 알림이 가요.', [
+    // 카피는 이 순간 참인 것만 말한다: 맡고 있는 아이가 없으면 대상견도, 보호자 알림도,
+    // 지급 보류도 없다 — 그때 보류를 약속하면 거짓말이 된다.
+    Alert.alert('긴급 SOS', active.length > 0
+      ? 'S1 케이스가 열려요 — 호스트·러너 전원과 그 아이 보호자에게 즉시 알림이 가고, 그 아이 정산은 해소까지 보류돼요.'
+      : 'S1 케이스가 열리고 호스트와 러너 전원에게 즉시 알림이 가요. 지금 맡고 있는 아이가 없어 세션 전체 건으로 접수돼요.', [
       { text: '아직', style: 'cancel' },
       ...(active.length > 1
         ? active.slice(0, 3).map((d) => ({ text: `SOS — ${d.dogName}`, style: 'destructive' as const, onPress: () => fireSos(d) }))

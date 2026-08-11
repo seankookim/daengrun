@@ -1,13 +1,13 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Row } from '../../../src/components/ui';
 import { AckStack } from '../../../src/components/club-acks';
 import { BigNumRow, ClubCta, ClubMast, ClubTag, DawnCanvas, LilacCard, LoadGate, clubText } from '../../../src/components/club-ui';
 import { DrainRing } from '../../../src/components/drainring';
 import {
   approveDelegation, assignmentRevoke, ClubIncident, custodyOverride, DelegationBoard, DelegationDog, DelegationRunner,
-  fetchDelegationBoard, fetchSessionIncidents, finishClubSession, incidentAssign, incidentResolve,
+  fetchDelegationBoard, fetchSessionIncidents, finishClubSession, hostForceResolve, incidentAssign, incidentResolve,
   proposalRevoke, proposeDog, reviewDelegation,
 } from '../../../src/lib/api';
 import { haptic } from '../../../src/lib/haptics';
@@ -62,6 +62,10 @@ export default function HostConsole() {
   const [busy, setBusy] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [now, setNow] = useState(Date.now());
+  // [클럽 감사 C4] 강제 종결 사유 입력 — Alert.prompt는 iOS 전용(안드로이드에선 무반응 죽은
+  // 버튼)이라 session/[sid].tsx가 세운 공용 시트 문법을 그대로 쓴다.
+  const [forceTarget, setForceTarget] = useState<DelegationDog | null>(null);
+  const [forceDraft, setForceDraft] = useState('');
 
   // [honesty 2026-08-11] 보드 실패가 영원한 '불러오는 중...' 골목이던 것 — LoadGate 3상태.
   // 직전 실값은 유지 (리프레시 실패가 화면을 비우지 않는다).
@@ -199,6 +203,13 @@ export default function HostConsole() {
     || (['runner', 'host'].includes(d.custodianType ?? '')
         && d.custodyPhase !== 'resolved'
         && ['picked_up', 'active', 'completed'].includes(d.bookingStatus ?? '')));
+  // [클럽 감사 C4] 러닝이 끝나지 않아 종료가 막힌 개 — 반환 미완과는 **다른 차단이고 다른 탈출구**다.
+  // 러너가 인계만 받고 시작/종료를 누르지 않으면(폰 사망) 여기 남는다: 행도 버튼도 없이 세션과
+  // 정산이 영구 정지했고, 차단 배너는 시작조차 안 한 러닝을 '반환 미완'이라 불렀다.
+  const runStuck = dogs.filter((d) =>
+    ['runner', 'host'].includes(d.custodianType ?? '')
+    && d.custodyPhase !== 'resolved'
+    && ['picked_up', 'active'].includes(d.bookingStatus ?? ''));
   // 반환 대기(한쪽 이상 미확인)로 종료가 막힌 개 — 호스트 대리 확인 대상
   const returnStuck = dogs.filter((d) => d.custodyPhase === 'return_pending' && (!d.ownerReturnConfirmed || !d.runnerReturnConfirmed));
   const doOverride = (d: DelegationDog, side: 'owner' | 'runner') => {
@@ -211,10 +222,28 @@ export default function HostConsole() {
       },
     ]);
   };
+  // [클럽 감사 C4] 강제 종결 = 케이스를 여는 행동이지 반환 기록이 아니다. 서버는 개가 어디
+  // 있는지 모른다고 말하고(커스터디언은 러너 유지), 진실은 열리는 S2 케이스가 나른다.
+  // 호스트가 걸어나갈 수는 없다 — club_finish_session이 케이스 인수 전까진 여전히 거부한다.
+  const doForceResolve = (d: DelegationDog, reason: string) => {
+    const at = new Date().toISOString();
+    run(
+      () => hostForceResolve(d.sdId, reason, { kind: 'host_log', note: reason, at, by: 'host' })
+        .then((id) => { setForceTarget(null); router.push(`/club/case/${id}`); }),
+      '강제 종결 실패',
+      (m) => m.includes('not_stuck') ? '이 아이는 러닝 중이 아니에요 — 반환 확인 흐름을 쓰세요'
+        : m.includes('self_override') ? '당사자는 자기 건을 강제 종결할 수 없어요 (백업 호스트 몫)'
+        : m.includes('not_host') ? '호스트만 강제 종결할 수 있어요'
+        : m.includes('artifact_required') || m.includes('reason_required') ? '무슨 일이 있었는지 적어주세요' : null,
+    );
+  };
   const openCases = incidents.filter((i) => i.state !== 'resolved');
   const unownedCases = openCases.filter((i) => !i.caseOwner);
+  // 차단 사유는 실제 사유대로 말한다: 러닝이 끝나지 않은 것과 반환이 끝나지 않은 것은 다른 일이다
+  const returnBlocked = unreturned.filter((d) => !runStuck.some((x) => x.sdId === d.sdId));
   const blockers: string[] = [
-    ...(unreturned.length > 0 ? [`${unreturned.map((d) => d.dogName).join('·')} 반환 미완`] : []),
+    ...(runStuck.length > 0 ? [`${runStuck.map((d) => d.dogName).join('·')} 러닝 미종료`] : []),
+    ...(returnBlocked.length > 0 ? [`${returnBlocked.map((d) => d.dogName).join('·')} 반환 미완`] : []),
     ...(unownedCases.length > 0 ? [`케이스 오너 미지정 ${unownedCases.length}건`] : []),
   ];
   const doFinish = () => {
@@ -492,6 +521,25 @@ export default function HostConsole() {
             <Text style={{ fontSize: 14, color: L.text, marginTop: 6, lineHeight: 18 }}>{blockers.join(' · ')}</Text>
           </LilacCard>
         )}
+        {/* [클럽 감사 C4] 러닝이 끝나지 않은 개 — 인계까지 갔는데 러너가 시작/종료를 누르지 않으면
+            (폰 사망·연락 두절) 세션도 정산도 영원히 멈췄다. 행도 버튼도 없었고, 차단 배너는
+            시작조차 안 한 러닝을 '반환 미완'이라 불렀다. 여기가 그 유일한 출구다. */}
+        {runStuck.map((d) => (
+          <View key={d.sdId} style={s.drow}>
+            <Row style={{ gap: 8, alignItems: 'center' }}>
+              <DogDot name={d.dogName} collar={d.collar} size={28} />
+              <View style={{ flex: 1 }}>
+                <Text style={s.dogName}>{d.dogName} 러닝 미종료</Text>
+                <Text style={s.dogSub}>
+                  {d.bookingStatus === 'picked_up' ? '인계됨 — 러닝이 시작되지 않았어요' : '러닝 중 — 종료 기록이 없어요'}
+                </Text>
+              </View>
+            </Row>
+            <Pressable onPress={() => { setForceDraft(''); setForceTarget(d); }} style={[s.abtn, s.abtnWarn, { marginTop: 9 }]}>
+              <Text style={[s.abtnTxt, { color: L.tang }]}>강제 종결 — 케이스 열기</Text>
+            </Pressable>
+          </View>
+        ))}
         {/* [감사 P1] 반환 한쪽 미확인 = 서버 종료 게이트인데 UI에 탈출구가 없어 세션이 영구 미종료였다.
             서버가 준 수단(session_custody_override) 노출 — 호스트가 증인 자격으로 대리 반환 확인. 당사자 호스트는 자기대리 금지(서버 판정). */}
         {returnStuck.map((d) => (
@@ -528,6 +576,36 @@ export default function HostConsole() {
         />
         <Text style={[clubText.dim, { textAlign: 'center', marginTop: 10 }]}>결제는 서버가 관리해요 — 호스트는 돈을 만지지 않아요</Text>
       </ScrollView>
+
+      {/* 강제 종결 사유 시트 — 적은 내용이 그대로 케이스 증빙(document)이 된다. 빈 채로는 못 넘긴다. */}
+      <Modal visible={!!forceTarget} transparent animationType="slide" onRequestClose={() => setForceTarget(null)}>
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(28,24,55,.45)' }} onPress={() => setForceTarget(null)} />
+        <View style={s.sheet}>
+          <View style={s.grab} />
+          <Text style={{ fontSize: 15, fontWeight: '800', color: L.head }}>{forceTarget?.dogName} 강제 종결</Text>
+          <Text style={{ fontSize: 14, color: L.text, marginTop: 5, lineHeight: 19 }}>
+            반환으로 기록하지 않아요 — 아이가 어디 있는지 앱은 모릅니다. S2 케이스가 열리고 정산은 보류돼요.
+            적은 내용은 케이스 증빙으로 남고, 담당 러너와 보호자에게 알림이 갑니다.
+          </Text>
+          <TextInput
+            value={forceDraft} onChangeText={setForceDraft} multiline autoFocus
+            placeholder="예: 06:50 집결지 확인, 담당 러너 연락 두절"
+            placeholderTextColor={L.dim}
+            style={s.inputField}
+          />
+          <ClubCta
+            label="강제 종결하고 케이스 열기"
+            tone="coral"
+            busy={busy}
+            onPress={() => {
+              const t = forceDraft.trim();
+              if (!t) { Alert.alert('무슨 일이 있었는지 적어주세요'); return; }
+              if (forceTarget) doForceResolve(forceTarget, t);
+            }}
+          />
+          <ClubCta label="아직" tone="quiet" onPress={() => setForceTarget(null)} />
+        </View>
+      </Modal>
     </DawnCanvas>
   );
 }
@@ -559,4 +637,15 @@ const s = StyleSheet.create({
   abtnTxt: { fontSize: 14, fontWeight: '800', color: L.voltDeep },
   runnerChipOff: { backgroundColor: L.inset, borderColor: L.hair },
   runnerChip: { backgroundColor: L.hair2, flexGrow: 0 },
+  // 강제 종결 시트 — session/[sid].tsx의 공용 시트 문법 이식 (같은 부품, 같은 느낌)
+  sheet: {
+    backgroundColor: L.bg, borderTopLeftRadius: lilacRadius.screen, borderTopRightRadius: lilacRadius.screen,
+    padding: 16, paddingBottom: 34,
+  },
+  grab: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: L.hair, marginBottom: 12 },
+  inputField: {
+    backgroundColor: '#fff', borderWidth: 1, borderColor: L.hair, borderRadius: lilacRadius.btn,
+    paddingVertical: 10, paddingHorizontal: 12, fontSize: 14, color: L.head,
+    marginTop: 12, minHeight: 72, textAlignVertical: 'top',
+  },
 });

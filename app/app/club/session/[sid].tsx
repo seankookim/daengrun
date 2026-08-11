@@ -480,7 +480,10 @@ export default function ClubSessionShell() {
       },
       {
         text: '긴급 SOS', style: 'destructive',
-        onPress: () => Alert.alert('긴급 SOS', 'S1 케이스가 열리고 호스트와 러너 전원에게 즉시 알림이 가요.', [
+        // [C3 / 0067] 세션 SOS는 대상견을 붙이지 않는다 — 풀린 개·싸움·사람이 쓰러진 상황엔
+        // 대상견이 없고, 아무 아이나 붙이면 무관한 러너의 정산에 보류가 떨어진다. 그래서 카피는
+        // 지급 보류를 약속하지 않고, 아이 건이면 '케이스 접수'로 지정하라고 길을 준다.
+        onPress: () => Alert.alert('긴급 SOS', 'S1 케이스가 열리고 호스트와 러너 전원에게 즉시 알림이 가요. 특정 아이 일이면 위 케이스 접수로 아이를 지정하세요 — 그래야 그 아이 정산도 함께 보류돼요.', [
           { text: '아직', style: 'cancel' },
           {
             text: 'SOS', style: 'destructive',

@@ -2543,6 +2543,13 @@ export const confirmReturn = (sdId: string, side: 'owner' | 'runner') =>
 // [R2] 커스터디 대리 기록 — 증인 증빙 필수, 자기 대리 금지 (0045)
 export const custodyOverride = (sdId: string, side: 'owner' | 'runner', kind: 'assisted' | 'witness', artifact: unknown) =>
   clubRpc('session_custody_override', { p_session_dog: sdId, p_side: side, p_kind: kind, p_artifact: artifact }) as Promise<void>;
+// [0069 C4/H5] 호스트 강제 종결 — 러닝이 끝나지 않은 위탁견(picked_up/active)의 유일한 출구.
+// 반환을 날조하지 않는다: 부킹만 incident_review로 내려가고, 진실은 열리는 S2 케이스가 나른다.
+// 반환 값 = 케이스 id (호스트가 곧바로 인수해야 세션이 닫힌다 — club_finish_session이 강제).
+export const hostForceResolve = (sdId: string, reason: string, artifact: unknown) =>
+  clubRpc('session_host_force_resolve', {
+    p_session_dog: sdId, p_reason: reason, p_artifact: artifact,
+  }) as Promise<string>;
 // [R2] 이양 — 러너→러너(수락 필요) · clinic/authority(즉시·미드런은 원자 인시던트 경로)
 export const transferInitiate = (
   sdId: string, toType: 'runner' | 'clinic' | 'authority',

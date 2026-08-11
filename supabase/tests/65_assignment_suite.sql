@@ -228,25 +228,28 @@ begin
     end;
   end;
 
-  -- [A8] T-10 하드 스톱: 결제·미수락(sdz는 matching) → 자동 전액 환불 (좌초 불가) —
-  -- 수락된 sdx(confirmed)는 건드리지 않는다 (그건 종료 정리의 몫)
+  -- [A8] T-10 하드 스톱 **폐지** (0068 / 클럽 감사 C1) — 이 핀은 뒤집혔다.
+  -- 예전엔 T-10에 결제·미배정 위탁을 크론이 전액 환불하는 것을 핀했다. 그런데 앱은 정반대를
+  -- 약속한다: 위탁 동의 체크박스가 '담당은 집결지에서 정해져요'(session/[sid].tsx:1283)라고 말하고,
+  -- 서버 배정 창도 [T-2h, T+6h] + 러너 체크인 필수다(0048:454,465). 06:50에 도착한 호스트가
+  -- 이미 전부 환불된 화면을 보는 것 — 그게 이 크론이 만든 사고였다.
+  -- 이제 핀은 **크론이 손대지 않는다**를 단언한다. 환불의 정직한 종단은 club_finish_session의
+  -- club_not_picked_up('위탁 미진행 — 전액 환불')이다. T-10 이후에도 배정이 가능하다는 나머지
+  -- 절반은 107 R1이 자체 픽스처로 핀한다.
   begin
     update club_sessions set scheduled_at = now() + interval '9 minutes' where id = v_s;
     v_n := club_assignment_recovery();
-    if (select status from bookings where id = bz) = 'refund_pending'
-       and (select cancel_reason from bookings where id = bz) = 'club_assignment_failed'
+    v_n := club_assignment_recovery();                             -- 재실행해도 여전히 손대지 않는다
+    if (select status from bookings where id = bz) = 'matching'
+       and (select cancel_reason from bookings where id = bz) is null
        and (select status from bookings where id = bx) = 'confirmed'
-       and exists (select 1 from notifications where profile_id = oz and ref_id = bz
-                   and title = '배정 불발 — 전액 환불')
-       and exists (select 1 from notifications where profile_id = ha and ref_id = v_s
-                   and title = '배정 불발 자동 환불')
-      then
-      v_n := club_assignment_recovery();                           -- 재실행 멱등 (이중 환불 없음)
-      if (select count(*) from notifications where profile_id = ha and ref_id = v_s
-          and title = '배정 불발 자동 환불') = 1
-        then call _pass('asg','A8 T-10 하드 스톱 — 자동 환불·양측 알림·재실행 멱등');
-      else call _fail('asg','A8 멱등','알림 중복'); end if;
-    else call _fail('asg','A8 하드 스톱','b=' || (select status from bookings where id = bz)); end if;
+       and not exists (select 1 from notifications where profile_id = oz and ref_id = bz
+                       and title = '배정 불발 — 전액 환불')
+       and not exists (select 1 from notifications where profile_id = ha and ref_id = v_s
+                       and title = '배정 불발 자동 환불')
+      then call _pass('asg','A8 T-10 자동환불 폐지 — 집결지 배정을 약속하는 동안 크론은 환불하지 않는다');
+    else call _fail('asg','A8 T-10 폐지','b=' || (select status from bookings where id = bz)
+                    || ' reason=' || coalesce((select cancel_reason from bookings where id = bz),'∅')); end if;
   exception when others then call _fail('asg','A8', sqlerrm);
   end;
 
@@ -301,5 +304,7 @@ begin
   end;
 
   -- 정리: v_s는 T+9분 세션으로 남음 — 이후 스위트 오염 방지 위해 종료 불가 상태 아님을 확인만.
-  -- (남은 위탁: sdz 결제·미배정 → A8 크론이 이미 환불. matching 부킹 없음 → 방치 안전)
+  -- (남은 위탁: sdz 결제·미배정 = matching 그대로 — 0068이 T-10 자동 환불을 폐지했으므로 이건
+  --  이제 정상 상태다. 이후 어떤 스위트도 전역 matching 부킹을 쓸지 않는다: 회복 크론은 더 이상
+  --  건드리지 않고, club_release_payouts는 관심 없고, club_finish_session은 세션 단위다.)
 end $$;
