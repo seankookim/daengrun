@@ -106,7 +106,7 @@ export default function CaseDetail() {
             <View key={i} style={s.ev}>
               <View style={[s.evDot, e.kind === 'location' && { backgroundColor: L.tang }]} />
               <Text style={{ fontSize: 14, color: L.text, flex: 1, lineHeight: 18 }}>
-                <Text style={{ fontSize: 8.5, color: L.dim }}>{e.when} </Text>
+                <Text style={{ fontSize: 14, color: L.dim }}>{e.when} </Text>
                 <Text style={{ fontWeight: '800', color: L.head }}>{KIND_LABEL[e.kind] ?? e.kind}</Text>
                 {e.kind === 'text' && e.payload?.note ? ` — ${e.payload.note}` : ''}
                 {e.kind === 'location' ? ' — 좌표 기록됨' : ''}

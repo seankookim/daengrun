@@ -2,7 +2,7 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Linking, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Icon, Row } from '../../../src/components/ui';
-import { BigNumRow, ClubCta, ClubMast, ClubTag, DawnCanvas, LiveDot } from '../../../src/components/club-ui';
+import { BigNumRow, ClubCta, ClubMast, ClubTag, DawnCanvas, LiveDot, LoadGate } from '../../../src/components/club-ui';
 import {
   addRunEvent, DelegationBoard, DelegationDog, fetchDelegationBoard, fetchRunStartedAt,
   fetchSessionRoster, incidentOpen, saveClubRunTrace, SessionRoster, settleRun, uploadRunPhoto,
@@ -87,9 +87,14 @@ export default function ClubRun() {
   // [honesty 2026-08-11] 로스터(비상 연락처) 실패가 라이브 러닝 중 '로딩 중'으로 영원히
   // 굳던 것 — 안전 데이터는 라우드 페일 + 재시도. 직전 실값은 유지.
   const [rosterErr, setRosterErr] = useState(false);
+  // [감사 H1 2026-08-11] 이 화면은 클럽에서 유일하게 LoadGate가 없었다 — board 실패를 조용히 삼키고
+  // '불러오는 중...'을 영원히 그렸다. 뒤로도, 재시도도 없이. **달리고 있는 개를 들고 있는 화면**에서
+  // 진입 시 네트워크 한 번 튀면 영영 갇힌다. 나머지 5개 딥링크 화면은 전부 LoadGate로 이관됐다.
+  const [boardErr, setBoardErr] = useState(false);
   const load = useCallback(() => {
     if (!sid) return;
-    fetchDelegationBoard(sid).then(setBoard).catch(() => {});
+    setBoardErr(false);
+    fetchDelegationBoard(sid).then(setBoard).catch(() => setBoardErr(true));
     setRosterErr(false);
     fetchSessionRoster(sid).then(setRoster).catch(() => setRosterErr(true));
   }, [sid]);
@@ -314,11 +319,12 @@ export default function ClubRun() {
 
   if (!board) {
     return (
-      <DawnCanvas>
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontSize: 14, color: L.dim }}>불러오는 중...</Text>
-        </View>
-      </DawnCanvas>
+      <LoadGate
+        mode={boardErr ? 'error' : 'loading'}
+        errorLabel="러닝 정보를 불러오지 못했어요"
+        onRetry={load}
+        onBack={() => router.back()}
+      />
     );
   }
   if (active.length === 0) {

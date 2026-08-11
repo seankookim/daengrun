@@ -378,12 +378,24 @@ export default function HostConsole() {
               {d.assignmentState === 'declined' && <ClubTag label="재확인" tone="coral" />}
             </Row>
             <Row style={{ gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+              {/* [감사 H2 2026-08-11] 칩은 만석만 막고 있었다. 서버는 세 가지로 거절한다:
+                  만석(_club_runner_load, 0048:478) · **체크인 전**(0048:465) · **배정 창 밖**(0048:454).
+                  뒤의 둘은 클라가 이미 데이터를 들고 있으면서(board.runners[].checkedIn · sess.checkinOpen)
+                  쓰지 않아, 눌리지만 실패하는 버튼 = 죽은 버튼(정직 법)이었다. 이유를 칩에 적는다 —
+                  실패한 뒤 Alert로 알려주는 것은 이유를 말하는 게 아니라 변명하는 것이다. */}
               {board.runners.map((r) => {
                 const full = r.assigned >= r.cap;
+                const windowShut = !sess.checkinOpen;
+                const notIn = !r.checkedIn;
+                const blocked = full || windowShut || notIn;
+                const why = full ? ' 만석' : windowShut ? ' 배정 창 닫힘' : notIn ? ' 체크인 전' : '';
                 return (
-                  <Pressable key={r.profileId} onPress={full ? undefined : () => doPropose(d, r)}
-                    style={[s.abtn, s.runnerChip, full && { opacity: 0.45 }]}>
-                    <Text style={[s.abtnTxt, { color: L.accent }]}>{r.name}{r.isMe ? '(나)' : ''} {r.assigned}/{r.cap}{full ? ' 만석' : ''}</Text>
+                  <Pressable key={r.profileId} onPress={blocked ? undefined : () => doPropose(d, r)}
+                    accessibilityState={{ disabled: blocked }}
+                    style={[s.abtn, s.runnerChip, blocked && s.runnerChipOff]}>
+                    <Text style={[s.abtnTxt, { color: blocked ? L.dim : L.accent }]}>
+                      {r.name}{r.isMe ? '(나)' : ''} {r.assigned}/{r.cap}{why}
+                    </Text>
                   </Pressable>
                 );
               })}
@@ -545,5 +557,6 @@ const s = StyleSheet.create({
   abtnGhost: { backgroundColor: L.inset },
   abtnWarn: { backgroundColor: L.amberSoft },
   abtnTxt: { fontSize: 14, fontWeight: '800', color: L.voltDeep },
+  runnerChipOff: { backgroundColor: L.inset, borderColor: L.hair },
   runnerChip: { backgroundColor: L.hair2, flexGrow: 0 },
 });
