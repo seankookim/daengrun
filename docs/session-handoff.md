@@ -341,7 +341,14 @@ payments touches.
 
 ## ⑯ Next 1–3  *(rewritten 2026-08-11 pm — action system landed, club audit open)*
 
-0. 🔴 **[correctness, BLOCKING a real club] The club audit's C1/C3/C4 are live bugs**, written up
+0. 🔴 **[SECURITY, do first] `club_incident_open` subject injection.** It never validates `p_dog`
+   or `p_booking`; `_club_shell_access` grants `'limited'` permanently to any rejected/withdrawn
+   applicant; and `club_release_payouts` matches a booking subject with **no session join**
+   (verified 0045:433) — so an arbitrary booking UUID freezes that booking's payout cross-club.
+   ⚠ `95 G12` is green TODAY *because* the validation is absent — it must be rewritten in the same
+   commit or the fix reads as a regression. Full design + pin table in TODOS.md.
+
+0b. 🔴 **The club audit's C1/C3/C4 are live bugs**, written up
    in TODOS.md with file:line. Short form: a `*/5` cron auto-refunds every delegation 10 minutes
    before a session the app *promises* is assigned at the meetup (C1); the two SOS buttons make
    the same promise and each implements the half the other is missing, and **neither notifies the
@@ -371,7 +378,18 @@ payments touches.
    longer Sean-gated** (0024 push already exists; ~6 lines, see TODOS) and
    **`identity_verified` is 9/9 fabricated including `s4kim2025`**, so the cleanup
    empties the marketplace. Both re-measured against prod.
-3. **[local-edit]** The P2 tier the sweep didn't reach: reduced motion across the
+3. **[local-edit] Action rollout, remainder.** The token system, `PaperBtn` (primary/climax/
+   secondary/quiet/destructive), the census, and 12 CTA conversions are DONE (`76a1d2e`). Left:
+   `owner/report.tsx` (still cream/volt/rounded — migrate to paper AND cut 3 duplicate CTAs:
+   `:403` `:417` `:447`), `runner/home.tsx` (retire local `CORAL_INK`/`CORAL_INK_DEEP`, demote the
+   fake `btnCoral` `<View>` at `:449`, and the 보호자=패스포트 / 러너=빕 identity move — delete the
+   `다` glyph brandmark at `:335` and the `RUNNER` kicker at `:336`, invert `strap` to ink),
+   `club-ui.tsx` (`ClubCta` coral measures **2.83:1 white — fails even the 3:1 large floor**;
+   point it at `paper.action`, retire `tone="violet"` as an ACTION tone, ADD a `secondary` tone —
+   `session/[sid].tsx` alone has 8 quiet CTAs with nowhere else to go). Full classified census in
+   the design voice's output; the governing rule is **ink = state, coral = action**.
+
+3b. **[local-edit]** The P2 tier the sweep didn't reach: reduced motion across the
    ~8 remaining loops · gear-dial momentum projection · the surviving CIF items
    (`rewards.tsx:181` raw English enum, `rewards.tsx:38/42/43` swallowed catches,
    `requests.tsx` accept-without-confirm, `calendar.tsx:92` filler claim) · and
