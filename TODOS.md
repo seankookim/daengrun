@@ -234,3 +234,73 @@ Ordered by the auditor's recommended fix order. **C2 is DONE** (`0d79b4f`). The 
   a frozen `Date.now()` instead of the ticking clock (session:749); `_club_refund_bookings` silently
   no-ops on non-matching bookings (0037:64-70); a delegating owner is never added to `session_people`
   so their 입장권 door never appears and the recap under-counts. P3.
+
+## 🔴 P1 SECURITY — club incident subject injection (found 2026-08-11, panel eng voice, verified by lead)
+
+`club_incident_open` (0050:14-45) validates severity, summary, session existence, and
+`_club_shell_access <> 'none'`. It does **NOT validate `p_dog` or `p_booking`** against the
+session or the caller.
+
+Verified consequences:
+- **`'limited'` access is permanent and near-unbounded.** `_club_shell_access` (0049:21-22)
+  returns `'limited'` for any profile with ANY `session_dogs` row of `custody='runner_delegated'`
+  — no approval check, no `service_state` check. A rejected or withdrawn applicant keeps it
+  forever.
+- **`p_dog`**: the payout-hold loop IS session-scoped (`where session_id = p_session and
+  dog_id = p_dog`), so the hold lands only on dogs in that session — but a `'limited'` caller can
+  still freeze **another owner's** dog's payout there, and the unvalidated subject row is inserted
+  regardless.
+- **`p_booking` is the bad one.** Inserted as a subject with zero validation, and
+  `club_release_payouts` (0045:433-436) matches `s.subject_type='booking' and s.subject_id =
+  sd.booking_id` **with no session join** — verified. So an arbitrary booking UUID freezes that
+  booking's payout **cross-session and cross-club**.
+- Either also blocks `club_finish_session` via `incident_unassigned` (0048:398) until a host
+  adopts the case.
+
+Fix: validate inside a `_club_incident_attach_dog` helper — dog must have a `session_dogs` row in
+`p_session`, actor must be that dog's owner / its `bookings.runner_id` / session host or backup,
+else `not_dog_party`. Same for `p_booking` (`bookings.club_session_id = p_session`). Also reorder
+`not_found` / `not_party` — state is currently checked before party (0050:18-19), leaking session
+existence, against CLAUDE.md §"party gate before state gate".
+
+⚠ **Pin collision, do not discover this during the harness run:** `95_audit_gates_suite.sql:299`
+(G12) passes a dog from ANOTHER session through this RPC and is **green today precisely because
+the validation is absent**. Adding the check turns G12 red. G12 must be rewritten in the same
+commit to seed its cross-session incident by direct INSERT rather than through the RPC.
+
+## 🔴 GATE BLIND SPOT #2 — check-rpc never removes a dropped signature
+
+`app/scripts/check-rpc-contracts.mjs:37-38` only ever `sigs.get(name).push(params)`; there is no
+removal path (verified). Signatures accumulate across every migration file forever — deliberate
+for overloads, but it means **`drop function foo(...)` leaves `foo` validated by the gate for the
+rest of the repo's life**. A client call to a dropped RPC passes the commit gate and fails at
+runtime.
+
+Consequence for the C3 work: `club_sos` must become a **thin wrapper**, not be dropped and
+repointed — the drop path is green-on-broken by construction.
+
+Related, and worse: **no gate checks RPC return SHAPE at all.** check-rpc never parses return
+types, and `api.ts` casts (`as Promise<string>`) erase it for tsc. Changing `club_sos` from
+`uuid` to `jsonb` would pass both gates and render `/club/case/[object Object]` on the screen the
+user reaches immediately after pressing SOS (run/[sid].tsx:268, session/[sid].tsx:488).
+
+This is the second blind spot found in our own gates today; the first was the harness enum
+transaction hole fixed in `17e1124`.
+
+## Club C4 — the CURRENT console override reproduces the bug it works around
+
+`session_custody_override` (0045:145-150) stamps ONE side and leaves finalization to the other
+party. But `console/[sid].tsx:485-505` renders BOTH buttons when both sides are unconfirmed.
+Press both: both timestamps set, `custody_phase` stays `return_pending`, no `dog_custody_events`
+row, `payout_state` never reaches `payable`. The dog then leaves `returnStuck` (console:203) but
+stays in `unreturned` (console:198) — blocker banner reads '반환 미완' with **no button at all**,
+`club_finish_session` raises `dogs_not_returned` forever, payout stranded. `60 E19` covers only
+the single-sided path, so this is green today.
+
+Fix (a): extract 0045:107-119 into `_club_finalize_return(session_dog)` and call it from BOTH
+`session_confirm_return` and `session_custody_override` when both timestamps are non-null.
+Fix (b) for C4 proper: do NOT widen the return override to `with_custodian` (it would fabricate a
+return that never happened). The correct terminal already exists byte-for-byte in
+`session_transfer_accept`'s external branch (0058:164-179); it is unreachable only because
+`session_transfer_initiate` is runner-only (0045:177). Add one host-only
+`session_host_force_resolve` RPC using that block. **That single RPC closes C4 AND H5.**
