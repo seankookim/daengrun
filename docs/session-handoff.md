@@ -22,8 +22,9 @@ so, not independently confirmed · **[from-history]** remembered, recheck ·
 | System | State | Provenance |
 |---|---|---|
 | git | 3 commits on redesign-v4, 0 dirty tracked files | **[verified-now]** |
-| Database | prod through **0071** — local == remote, pushed + verified this session | **[verified-now]** |
-| SQL harness | **330 / 0** (was 305 — 25 new pins across 106/107/108/109) | **[verified-now]** |
+| Database | prod through **0072** — local == remote, pushed + verified | **[verified-now]** |
+| Real customers | **zero** — all 23 prod bookings belong to `s4kim2025` (in `club_test_accounts`). 8 completed runs, all solo testing | **[verified-now]** (`scripts/pilot-metrics.mjs`) |
+| SQL harness | **336 / 0** (was 305 — 31 new pins across 106-110) | **[verified-now]** |
 | tsc | 0 errors | **[verified-now]** |
 | check-rpc | 76 calls / 111 signatures, all match | **[verified-now]** |
 | Prod post-push checks | anon denied on all 6 new/changed RPCs (401, not 404 — they exist) · `payments` anon SELECT 0 rows + anon INSERT refused by RLS | **[verified-now]** |
@@ -382,6 +383,21 @@ handle). Nothing charges anyone; the transition map is untouched, and P6 pins th
 the whole reason the Toss track is small rests on it. **Step 1 of §5 is now empty: everything
 remaining on payments is behind Sean's filings.**
 
+## 🔴 The strategic call I'd put in front of you first (Codex, standing in for you)
+
+You delegated decisions to Codex for the unattended run. It ranked the work, I built all five, and
+then it said something worth reading before you pick up the next thing:
+
+> "The absence of real runners and customers changes the answer completely: after these five, stop
+> building. The next unit of progress is a real two-person run followed by a second booking — not
+> reduced motion, emoji cleanup, rewards polish, another club abstraction, or more backend
+> hardening. Existing rebooking UX is already sufficient to test; the company now needs people,
+> observation, and a trustworthy number."
+
+I agree, and the metric I built proves the shape of it: `node scripts/pilot-metrics.mjs` reports
+**—**, because every booking in production is yours. The remaining TODOS backlog is real but it is
+all downstream of having one real owner and one real runner.
+
 ## 🔴 Payments — where it actually stands (asked + answered 2026-08-11)
 
 **Real payments cannot be made yet, and 사업자등록 is the first of four locks, all Sean-only:**
@@ -401,6 +417,29 @@ What is true today and must stay true until the switch: `pay.tsx:299`'s
 "실결제는 발생하지 않았어요" is **accurate**, and `pay.tsx:334` → `api.ts:230` `payment_ok` is the
 only path a booking has into `matching`. Deleting either before `confirm-payment` is live bricks
 confirmation and turns an honest sentence into a lie. They are toss-plan step 3, not step 1.
+
+## ⑯-b Unattended run, 2026-08-11 (Sean away, Codex in the decision seat)
+
+Seven commits. Codex ranked the work; every item below is its pick, executed and gate-verified.
+
+- **Harness law, repo-wide** (`28da5b0`). The `_fail`-subquery defect was 12 executable sites across
+  five suites, not the 4 a single-line grep found. Mechanically rewritten (`v_msg := <expr>` then
+  call), and verified the only way this defect allows: forced a pin's assertion false against a
+  fresh harness and watched its failure path render instead of raise.
+- **Mid-run stop actually arrives** (`db320b1`). Chat carries no push; the notification does. The
+  routing was the real work — a `booking` notification sent runners to `/runner/calendar`.
+- **Accepting is a promise** (`5209c2c`). Both doors on runner/requests committed on one tap.
+  The reschedule door was worse: it silently moved an already-confirmed booking's time.
+- **The completion screen stops lying about money** (`4557e99`). On settlement failure the runner
+  taps "나중에 (추정치 표시)" and the next screen printed that estimate as 오늘의 수익 on a receipt.
+  `runResult.settled` now separates server-confirmed money from a client guess. Also deleted
+  "수익은 매주 수요일 정산됩니다" and "매주 정산" — there is no payout operation to schedule.
+- **The PMF gate is computable** (`78ce95e`). See §⑯-b above.
+- **Club H3/H4** (`082bf32`). Stopped rendering a fabricated club (with an OFFICIAL badge) for both
+  "loading" and "no club exists"; gave the host the session-cancel door that has existed server-side
+  since 0038 with zero call sites.
+- **Backlog truth** (`c12f4ee`). Four TODOS entries listed finished work as open — done.tsx's dog
+  name, club H1, club H2, M5. Verified each in code before believing Codex, then corrected.
 
 **Next 1–3, in order:**
 
