@@ -105,11 +105,27 @@ Deferred work, written down so it exists. Format: what / why / context / effort
   sends the owner's stop reason as a real chat message (the ONLY existing
   delivery channel: there is no owner-side server transition for an active run —
   transition-booking has no such action, settle-run is runner-only, and
-  `incident_review` is club-side only). But chat messages carry **no push**, and
-  the runner's live-run chat pin shows no preview — so an owner asking to stop
-  mid-run may not be seen until the runner opens chat. Fix shape (Sean's call):
-  a real owner-stop transition (money implications ⇒ own migration + adversarial
-  cycle) OR a chat push. Effort M → S once the policy is decided. **P1.**
+  `incident_review` is club-side only). Chat messages carry **no push** (nothing
+  inserts a `notifications` row for `messages`), so an owner asking to stop
+  mid-run may not be seen until the runner opens chat.
+
+  **[2026-08-11 correction — this was priced wrong.]** The prior framing said the
+  fix is "an owner-stop transition (money ⇒ own migration + adversarial cycle) OR
+  build a chat push." Neither is required:
+  - `0024_push.sql` already ships a **generic** bridge — a trigger on
+    `notifications` INSERT → `pg_net` → Expo Push. Its own comment: existing
+    notify() call sites get push "코드 수정 0으로".
+  - `0009_run_events.sql:7` (`noti party insert`) already permits a booking party
+    to insert a notification **for the counterparty** on their own booking.
+  - `api.ts:2151 sendSOS` already runs exactly this path, owner → runner, on an
+    in-flight booking. It works in production today. (Its comment "푸시 도입 전엔
+    인앱 알림" is stale — 0024 landed after it.)
+
+  So the fix is a `notifications` insert beside the existing chat send in
+  `confirmStop`: **~6 lines, no migration, no edge function**, on a proven path.
+  The owner-stop *transition* (genuinely money) stays deferred to payments.
+  Caveat: `push_tokens` has **1 row** in prod, so this is testable on one device
+  only until more register. Effort S → S. **P1, and no longer Sean-gated.**
 - [ ] **identity_verified prod cleanup gates the 신원인증 badge** — the badge was
   REMOVED from `owner/report.tsx` rather than bound, because the column's current
   values are fabricated (0061 names this exact forgery risk; api.ts:1255 already
@@ -117,6 +133,17 @@ Deferred work, written down so it exists. Format: what / why / context / effort
   Re-adding it requires: the 0062 funnel as the sole writer AND the fabricated
   seed rows cleaned. Same prerequisite as the safety.tsx verification claim.
   Data-cleanup decision, not client work. **P1 — Sean only.**
+
+  **[2026-08-11 — measured against prod, it is worse than described.]**
+  `identity_verified = true` on **9 of 9** runner rows: the 6 seeds
+  (지수·민아·태윤·하늘·도윤·서준), both e2e accounts, **and `s4kim2025`**. There is
+  not one honestly-verified runner in the database. The same 6 rows also carry
+  fabricated `respond_rate_pct` (98/95/91/99/88/96; the real accounts are null) —
+  that is the actual root of the `?? 88` matching finding, not a separate bug.
+  `runner_applications` has **0 rows**, so the 0062 funnel has never been used.
+  Recommended cleanup: set all 9 to false and delete the 6 seed runners. That
+  empties the marketplace, which is honest (there are no real runners), and is a
+  product-visible consequence ⇒ Sean's call.
 - [ ] **No honest home for settlement intent** — `runner/earnings.tsx`'s
   "빠른 정산 신청" and 계좌 "등록" were removed (not converted to a waitlist)
   because no intent store exists in any migration and inventing one is
