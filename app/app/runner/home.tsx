@@ -137,8 +137,14 @@ export default function RunnerHome() {
   const df = useDisplayFont(); // 디스플레이 서체 — 화면당 1회 (빕 네임)
   const nf = useNumFont();     // 숫자 서체 — Oswald tabular
   const [inbox, setInbox] = useState<OpenRequest[]>([]);
+  // [honesty 2026-08-11] inbox fetch failure used to render the online empty copy
+  // ("지금은 새 요청이 없어요") — a quiet day fabricated from a network error.
+  const [inboxLoaded, setInboxLoaded] = useState(false);
+  const [inboxErr, setInboxErr] = useState(false);
   const [name, setName] = useState<string | null>(null);
-  const [stats, setStats] = useState<RunnerWeekStats>({ net: 0, runs: 0, km: 0 });
+  // [honesty 2026-08-11] weekly stats used to seed {net: 0} → the money hero printed
+  // ₩0 in flight and on failure. null = not known yet → '—' (0원 위장 금지).
+  const [stats, setStats] = useState<RunnerWeekStats | null>(null);
   // 장부 넓은 창 — 이번 달(KST 월 1일~) · 누적(정산 예정 총액). 로드 전엔 null → '—' (0원 위장 금지)
   const [monthNet, setMonthNet] = useState<number | null>(null);
   const [totalNet, setTotalNet] = useState<number | null>(null);
@@ -166,7 +172,7 @@ export default function RunnerHome() {
 
   // [실동작] 홈 티켓의 수락/거절 — 라벨만 있고 요청함으로 도망가던 문을 진짜 문으로.
   const reloadQueue = () => {
-    fetchRunnerInbox().then((l) => setInbox(filterDeclined(l))).catch((e) => console.warn('[rhome] inbox:', e?.message ?? e));
+    loadInbox();
     fetchRunnerJobs().then(setJobs).catch((e) => console.warn('[rhome] jobs:', e?.message ?? e));
   };
   const acceptFront = () => {
@@ -214,9 +220,16 @@ export default function RunnerHome() {
     ]);
   };
 
+  const loadInbox = useCallback(() => {
+    setInboxErr(false);
+    fetchRunnerInbox()
+      .then((l) => { setInbox(filterDeclined(l)); setInboxLoaded(true); })
+      .catch((e) => { console.warn('[rhome] inbox:', e?.message ?? e); setInboxErr(true); });
+  }, []);
+
   useFocusEffect(useCallback(() => {
     fetchMyAvailability().then(setAvail).catch((e) => console.warn('[rhome] avail:', e?.message ?? e));
-    fetchRunnerInbox().then((l) => setInbox(filterDeclined(l))).catch((e) => console.warn('[rhome] inbox:', e?.message ?? e));
+    loadInbox();
     fetchMyName().then(setName).catch(() => {});
     fetchRunnerWeekStats().then(setStats).catch((e) => console.warn('[rhome] stats:', e?.message ?? e));
     fetchLedgerMonth().then(setMonthNet).catch((e) => console.warn('[rhome] month:', e?.message ?? e));
@@ -231,7 +244,7 @@ export default function RunnerHome() {
       .then((v) => { setRs(v); setRsErr(false); })
       .catch((e) => { console.warn('[rhome] status:', e?.message ?? e); setRsErr(true); })
       .finally(() => setRsLoaded(true));
-  }, []));
+  }, [loadInbox]));
 
   // 온라인 토글 — 실저장 (오프라인이면 추천·동네 러너 셸프에서 빠짐). 빕 위 스위치가 이 상태를 쓴다.
   const toggleOnline = () => {
@@ -293,7 +306,7 @@ export default function RunnerHome() {
   // An applicant (and anyone without a runners row) cannot receive a request at all — the inbox and
   // the tier ladder both say so instead of pretending it is a quiet day / a rung away.
   const preCert = rsLoaded && !rsErr && (rs.tier === null || rs.tier === 'applicant');
-  const avg = stats.runs > 0 ? Math.round(stats.net / stats.runs) : 0;
+  const avg = stats != null && stats.runs > 0 ? Math.round(stats.net / stats.runs) : 0;
   // 오늘 라벨 — 기기 시계가 아니라 KST 고정(UTC+9, DST 없음). j.when은 서버 api의 kstParts 산출물이라
   // 기기가 UTC(에뮬레이터)·해외면 라벨이 하루 어긋나 오늘 잡이 통째로 안 잡혔다.
   const _t = new Date(Date.now() + 9 * 3_600_000);
@@ -368,7 +381,7 @@ export default function RunnerHome() {
               (320 − 30 거터 − 24 패딩 − 3 보더). lineHeight 62 = 1.24× (BUG A). */}
           <Row style={{ alignItems: 'baseline', gap: 4, marginTop: 6 }}>
             <Text style={[styles.won, nf]}>₩</Text>
-            <Text style={[styles.lBig, nf]} numberOfLines={1}>{stats.net.toLocaleString()}</Text>
+            <Text style={[styles.lBig, nf]} numberOfLines={1}>{stats === null ? '—' : stats.net.toLocaleString()}</Text>
           </Row>
           {/* [§3b] 'THIS WEEK' 라틴 태그 은퇴 — 주간 컨텍스트는 캡션이 한국어로 한 번 말한다 */}
           <Text style={styles.lCap}>이번 주 실수령 · 수수료 차감 후 기준</Text>
@@ -391,9 +404,9 @@ export default function RunnerHome() {
 
           {/* 주간 스탯 — 화면 유일 인쇄 (빕 재인쇄 은퇴) */}
           <View style={{ marginTop: 11, borderTopWidth: 1, borderTopColor: '#EEEEEE' }}>
-            <LedgerRow label="완료 러닝" value={String(stats.runs)} unit="회" nf={nf} />
-            <LedgerRow label="총 거리" value={String(stats.km)} unit="km" nf={nf} />
-            <LedgerRow label="회당 평균" value={avg.toLocaleString()} unit="원" nf={nf} total />
+            <LedgerRow label="완료 러닝" value={stats === null ? '—' : String(stats.runs)} unit="회" nf={nf} />
+            <LedgerRow label="총 거리" value={stats === null ? '—' : String(stats.km)} unit="km" nf={nf} />
+            <LedgerRow label="회당 평균" value={stats === null ? '—' : avg.toLocaleString()} unit="원" nf={nf} total />
           </View>
 
           <Row style={styles.lFoot}>
@@ -547,6 +560,14 @@ export default function RunnerHome() {
                 <Text style={styles.emptyInboxTxt}>인증 전에는 요청이 오지 않아요</Text>
                 <Text style={styles.emptyInboxLink}>인증 센터에서 지원할 수 있어요 ›</Text>
               </Pressable>
+            ) : inboxErr ? (
+              // [honesty 2026-08-11] a failed inbox fetch is not a quiet day — say so, offer retry
+              <Pressable onPress={loadInbox} accessibilityRole="button" accessibilityLabel="요청 인박스 다시 불러오기">
+                <Text style={styles.emptyInboxTxt}>요청을 불러오지 못했어요</Text>
+                <Text style={styles.emptyInboxLink}>다시 시도 ›</Text>
+              </Pressable>
+            ) : !inboxLoaded ? (
+              <Text style={styles.emptyInboxTxt}>요청을 확인하는 중이에요…</Text>
             ) : (
               <Text style={styles.emptyInboxTxt}>
                 {rs.online ? '지금은 새 요청이 없어요 — 오는 대로 여기에 떠요' : '오프라인 상태 — 켜야 요청을 받아요'}

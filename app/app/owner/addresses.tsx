@@ -17,12 +17,21 @@ import { paper } from '../../src/theme';
 
 export default function Addresses() {
   const [list, setList] = useState<Addr[]>([]);
+  // [honesty 2026-08-11] loading ≠ 0 ≠ empty: a failed load used to render
+  // "등록된 주소가 없어요" (and the list showed the same in flight). Three states now.
+  const [loaded, setLoaded] = useState(false);
+  const [loadErr, setLoadErr] = useState(false);
   const [adding, setAdding] = useState(false);
   const [label, setLabel] = useState('');
   const [addr, setAddr] = useState('');
   const [detail, setDetail] = useState('');
 
-  const load = () => fetchAddresses().then(setList).catch((e) => console.warn('[addr]:', e?.message ?? e));
+  const load = () => {
+    setLoadErr(false);
+    return fetchAddresses()
+      .then((l) => { setList(l); setLoaded(true); })
+      .catch((e) => { console.warn('[addr]:', e?.message ?? e); setLoadErr(true); });
+  };
   useFocusEffect(useCallback(() => { load(); }, []));
 
   const save = async () => {
@@ -39,7 +48,12 @@ export default function Addresses() {
   const remove = (a: Addr) => {
     Alert.alert('주소 삭제', `'${a.label}'을(를) 삭제할까요?`, [
       { text: '취소', style: 'cancel' },
-      { text: '삭제', style: 'destructive', onPress: () => deleteAddress(a.id).then(load).catch(() => {}) },
+      {
+        text: '삭제', style: 'destructive',
+        // [honesty 2026-08-11] a confirmed destructive delete used to fail silently —
+        // the row just stayed. Failure now says so.
+        onPress: () => deleteAddress(a.id).then(load).catch((e) => Alert.alert('삭제 실패', (e as Error).message)),
+      },
     ]);
   };
 
@@ -60,7 +74,21 @@ export default function Addresses() {
       </Text>
 
       <View style={{ marginTop: 16, gap: 10 }}>
-        {list.length === 0 && !adding && (
+        {!loaded && !loadErr && (
+          <View style={s.emptyBox}>
+            <Text style={{ fontSize: 14.5, color: paper.dim, textAlign: 'center' }}>불러오는 중...</Text>
+          </View>
+        )}
+        {/* loud-fail strip — criticalWash bg + critical ink + retry (never a fake empty) */}
+        {loadErr && (
+          <View style={s.failStrip}>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: paper.critical }}>주소를 불러오지 못했어요</Text>
+            <Pressable onPress={load} style={s.retryBtn} accessibilityRole="button">
+              <Text style={{ fontSize: 16, fontWeight: '800', color: paper.ink }}>다시 시도</Text>
+            </Pressable>
+          </View>
+        )}
+        {loaded && !loadErr && list.length === 0 && !adding && (
           <View style={s.emptyBox}>
             <Text style={{ fontSize: 14.5, color: paper.dim, textAlign: 'center', lineHeight: 22 }}>
               등록된 주소가 없어요{'\n'}첫 주소를 추가하면 자동으로 기본 픽업이 돼요
@@ -70,7 +98,10 @@ export default function Addresses() {
         {list.map((a) => (
           <Pressable
             key={a.id}
-            onPress={() => { if (!a.isDefault) setDefaultAddress(a.id).then(load).catch(() => {}); }}
+            onPress={() => {
+              // silent failure here left the old default active while the user believed it changed
+              if (!a.isDefault) setDefaultAddress(a.id).then(load).catch((e) => Alert.alert('기본 픽업 변경 실패', (e as Error).message));
+            }}
             onLongPress={() => remove(a)}
             style={s.card}
           >
@@ -144,6 +175,9 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: paper.line,
   },
   emptyBox: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line, padding: 16 },
+  // loud-fail strip — community.tsx failStrip grammar (criticalWash + critical, retry ≥40pt)
+  failStrip: { backgroundColor: paper.criticalWash, padding: 13 },
+  retryBtn: { alignSelf: 'flex-start', marginTop: 10, minHeight: 40, justifyContent: 'center', paddingHorizontal: 14, borderWidth: 1, borderColor: paper.ink, backgroundColor: paper.canvas },
   card: { backgroundColor: paper.canvas, padding: 14, paddingBottom: 0, borderWidth: 1, borderColor: paper.line },
   defaultTag: {
     backgroundColor: paper.wash, borderWidth: 1, borderColor: paper.line,

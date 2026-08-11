@@ -4,7 +4,7 @@ import { useCallback, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Avatar, Row } from '../src/components/ui';
 import { BoardRow, fetchLeaderboards, fetchMiles, MilesInfo } from '../src/lib/api';
-import { colors } from '../src/theme';
+import { colors, paper } from '../src/theme';
 
 // 동네 랭킹 — 주간 리더보드 (강아지 km / 러너 러닝 수) + 내 하이 포인트.
 // 서버 집계 함수(0012) 기반 — 개인 데이터는 비공개, 이름·사진·주간 합계만.
@@ -19,10 +19,20 @@ export default function Leaderboard() {
   const [miles, setMiles] = useState<MilesInfo | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  const load = () => Promise.all([
-    fetchLeaderboards().then(setBoards).catch((e) => console.warn('[board]:', e?.message ?? e)),
-    fetchMiles().then(setMiles).catch(() => {}),
-  ]);
+  // [honesty 2026-08-11] silent board catch + no loading state rendered "지금이
+  // 기회!" (fake fresh-week empty) while loading AND on failure. Three states now.
+  // fetchMiles stays soft — the hero already renders '—' for missing balance.
+  const [loaded, setLoaded] = useState(false);
+  const [loadErr, setLoadErr] = useState(false);
+  const load = () => {
+    setLoadErr(false);
+    return Promise.all([
+      fetchLeaderboards()
+        .then((b) => { setBoards(b); setLoaded(true); })
+        .catch((e) => { console.warn('[board]:', e?.message ?? e); setLoadErr(true); }),
+      fetchMiles().then(setMiles).catch(() => {}),
+    ]);
+  };
   useFocusEffect(useCallback(() => { load(); }, []));
   const onRefresh = () => { setRefreshing(true); load().finally(() => setRefreshing(false)); };
 
@@ -80,8 +90,21 @@ export default function Leaderboard() {
           ))}
         </View>
 
-        {/* board */}
-        {rows.length === 0 && (
+        {/* board — loading / error+retry / honest empty (never a fake fresh week) */}
+        {!loaded && !loadErr && (
+          <View style={s.emptyBox}>
+            <Text style={{ fontSize: 15, color: colors.dim, textAlign: 'center' }}>랭킹 불러오는 중...</Text>
+          </View>
+        )}
+        {loadErr && (
+          <View style={s.failStrip}>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: paper.critical }}>랭킹을 불러오지 못했어요</Text>
+            <Pressable onPress={load} style={s.retryBtn} accessibilityRole="button">
+              <Text style={{ fontSize: 16, fontWeight: '800', color: FOREST }}>다시 시도</Text>
+            </Pressable>
+          </View>
+        )}
+        {loaded && !loadErr && rows.length === 0 && (
           <View style={s.emptyBox}>
             <Text style={{ fontSize: 15, color: colors.dim, textAlign: 'center', lineHeight: 23 }}>
               이번 주 완주 기록이 아직 없어요{'\n'}첫 러닝이 1위가 되는 주예요 — 지금이 기회!
@@ -147,6 +170,9 @@ const s = StyleSheet.create({
   tabWrap: { flexDirection: 'row', backgroundColor: '#fff', borderRadius: 99, padding: 4, marginTop: 16, borderWidth: 1, borderColor: '#DCD6C4' },
   tab: { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 99 },
   emptyBox: { marginTop: 20, backgroundColor: '#f4f2ea', borderRadius: 16, padding: 18 },
+  // loud-fail strip — criticalWash bg + critical ink + retry (community.tsx grammar)
+  failStrip: { marginTop: 20, backgroundColor: paper.criticalWash, borderRadius: 16, padding: 13 },
+  retryBtn: { alignSelf: 'flex-start', marginTop: 10, minHeight: 40, justifyContent: 'center', paddingHorizontal: 14, borderWidth: 1, borderColor: FOREST, backgroundColor: '#fff' },
   row: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff',
     borderRadius: 16, padding: 12, borderWidth: 1, borderColor: '#DCD6C4', marginTop: 8,

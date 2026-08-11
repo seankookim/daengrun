@@ -7,7 +7,7 @@ import {
 } from '../../src/lib/api';
 import { haptic } from '../../src/lib/haptics';
 import { draft } from '../../src/store';
-import { colors } from '../../src/theme';
+import { colors, paper } from '../../src/theme';
 
 // 지금 러너 찾기 → 오픈 브로드캐스트 대기 화면 (라이트 + 코랄 웨이브).
 // 결과는 이 화면에 뜬다: 수락한 러너가 매치 카드로 나타나고 일정으로 이동.
@@ -71,8 +71,13 @@ export default function Radar() {
   }, []);
 
   // 가용 러너 = 요청을 실제로 받을 수 있는 사람들 (러닝 중 제외, 0015 뷰) — 30초마다 갱신
+  // [honesty 2026-08-11] 실패 시 '확인 중…'으로 영원히 굳던 것 — 실패는 실패로 말한다
+  // (30초 자동 재시도는 유지, 직전 실값은 유지).
+  const [availErr, setAvailErr] = useState(false);
   useEffect(() => {
-    const load = () => fetchAvailableRunners().then(setAvail).catch(() => {});
+    const load = () => fetchAvailableRunners()
+      .then((a) => { setAvail(a); setAvailErr(false); })
+      .catch(() => setAvailErr(true));
     load();
     const t = setInterval(load, 30_000);
     return () => clearInterval(t);
@@ -183,8 +188,10 @@ export default function Radar() {
             <View style={{ marginTop: 26 }}>
               <Row style={{ justifyContent: 'space-between', marginBottom: 10 }}>
                 <Text style={{ fontSize: 15.5, fontWeight: '900', color: FOREST }}>요청을 받은 러너</Text>
-                <Text style={{ fontSize: 15, color: '#49524a' }}>
-                  {avail == null ? '확인 중…' : `${avail.length}명 가능`}
+                <Text style={{ fontSize: 15, color: avail == null && availErr ? paper.critical : '#49524a' }}>
+                  {avail == null
+                    ? availErr ? '확인 실패 — 30초 내 재시도' : '확인 중…'
+                    : `${avail.length}명 가능`}
                 </Text>
               </Row>
               {avail != null && avail.length === 0 && (

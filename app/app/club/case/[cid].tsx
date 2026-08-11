@@ -2,7 +2,7 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Row } from '../../../src/components/ui';
-import { ClubCta, ClubMast, ClubTag, DawnCanvas, Flap, LilacCard } from '../../../src/components/club-ui';
+import { ClubCta, ClubMast, ClubTag, DawnCanvas, Flap, LilacCard, LoadGate } from '../../../src/components/club-ui';
 import { fetchIncidentDetail, incidentEvidenceAdd, incidentResolve, IncidentDetail } from '../../../src/lib/api';
 import { haptic } from '../../../src/lib/haptics';
 import { lilac, lilacRadius } from '../../../src/theme';
@@ -38,25 +38,19 @@ export default function CaseDetail() {
   useFocusEffect(useCallback(() => { load(); }, [load]));
   const onRefresh = () => { setRefreshing(true); Promise.resolve(load()).finally(() => setTimeout(() => setRefreshing(false), 400)); };
 
+  // [2026-08-11] this screen's error/denied/retry trio was promoted to the shared
+  // LoadGate (club-ui.tsx) — it now consumes its own pattern.
   if (denied) {
-    return (
-      <DawnCanvas>
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-          <Text style={{ fontSize: 14, color: L.dim }}>케이스 당사자만 볼 수 있어요</Text>
-          <ClubCta label="돌아가기" tone="quiet" onPress={() => router.back()} style={{ alignSelf: 'stretch' }} />
-        </View>
-      </DawnCanvas>
-    );
+    return <LoadGate mode="denied" deniedLabel="케이스 당사자만 볼 수 있어요" onBack={() => router.back()} />;
   }
   if (!inc) {
     return (
-      <DawnCanvas>
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-          <Text style={{ fontSize: 14, color: L.dim }}>{loadErr ? '케이스를 불러오지 못했어요' : '불러오는 중...'}</Text>
-          {loadErr && <ClubCta label="다시 시도" onPress={() => { setLoadErr(false); load(); }} style={{ alignSelf: 'stretch', paddingVertical: 17 }} />}
-          <ClubCta label="돌아가기" tone="quiet" onPress={() => router.back()} style={{ alignSelf: 'stretch' }} />
-        </View>
-      </DawnCanvas>
+      <LoadGate
+        mode={loadErr ? 'error' : 'loading'}
+        errorLabel="케이스를 불러오지 못했어요"
+        onRetry={() => { setLoadErr(false); load(); }}
+        onBack={() => router.back()}
+      />
     );
   }
 

@@ -357,7 +357,14 @@ export default function Report() {
                     {report.routeName}{report.routeArea ? ` · ${report.routeArea}` : ''}
                   </Text>
                 </View>
-                <View style={s.certPill}><Text style={{ fontSize: 14, fontWeight: '800', color: '#4a6d1f' }}>신원인증</Text></View>
+                {/* [honesty audit 2026-08-11 · P1 #3] 신원인증 badge retired — it was stamped on
+                    every runner unconditionally with no data source (meetup.tsx already retired
+                    the same badge for the same reason, P1-6). The runners.identity_verified
+                    column exists, but its current values originate from the bootstrap/seed
+                    fabrication (see api.ts fetchMyRunnerCert note and the 0061 insert-seal
+                    rationale), so binding it would still render a review that never happened.
+                    Re-add bound to the real field once the 0062 application funnel is the only
+                    writer and existing fabricated rows are cleaned. */}
               </Row>
             </View>
 
@@ -649,7 +656,6 @@ const s = StyleSheet.create({
   sectionTitle: { fontSize: 15.5, fontWeight: '900', color: FOREST, marginBottom: 6 },
   barTrack: { height: 8, borderRadius: 99, backgroundColor: '#f0eee3', marginTop: 6, overflow: 'hidden' },
   barFill: { height: 8, borderRadius: 99, backgroundColor: colors.volt },
-  certPill: { backgroundColor: '#e3f0c4', borderRadius: 99, paddingVertical: 4, paddingHorizontal: 9, alignSelf: 'center' },
   stampChip: { backgroundColor: '#eef4e0', borderRadius: 99, paddingVertical: 7, paddingHorizontal: 13 },
   // ---------- 리워드 ① 적립 스트립 — 조용한 라일락 영수증 (섹션 리듬은 s.section과 동일) ----------
   earnSection: {

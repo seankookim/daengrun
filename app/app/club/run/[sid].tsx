@@ -84,10 +84,14 @@ export default function ClubRun() {
     } catch { /* 시드 실패 = 새 트레이스로 진행 (저장은 덮어쓰기라 이 경우 이전 기록이 짧아질 수 있음) */ }
   }, []);
 
+  // [honesty 2026-08-11] 로스터(비상 연락처) 실패가 라이브 러닝 중 '로딩 중'으로 영원히
+  // 굳던 것 — 안전 데이터는 라우드 페일 + 재시도. 직전 실값은 유지.
+  const [rosterErr, setRosterErr] = useState(false);
   const load = useCallback(() => {
     if (!sid) return;
     fetchDelegationBoard(sid).then(setBoard).catch(() => {});
-    fetchSessionRoster(sid).then(setRoster).catch(() => {});
+    setRosterErr(false);
+    fetchSessionRoster(sid).then(setRoster).catch(() => setRosterErr(true));
   }, [sid]);
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
@@ -406,8 +410,15 @@ export default function ClubRun() {
                   <Pressable onPress={() => Linking.openURL(`tel:${em.replace(/[^0-9+]/g, '')}`).catch(() => {})}>
                     <Text style={{ fontSize: 14, color: L.accent, marginTop: 1, fontWeight: '700' }}>비상 {em} — 탭하면 전화</Text>
                   </Pressable>
-                ) : (
+                ) : rosterErr && roster == null ? (
+                  // safety datum failed during a LIVE run — loud fail + retry, never eternal loading
+                  <Pressable onPress={load} hitSlop={8} accessibilityRole="button">
+                    <Text style={{ fontSize: 14, color: L.tang, marginTop: 1, fontWeight: '800' }}>비상 연락처를 불러오지 못했어요 — 다시 시도 ›</Text>
+                  </Pressable>
+                ) : roster == null ? (
                   <Text style={{ fontSize: 14, color: L.dim, marginTop: 1 }}>비상 연락처 로딩 중</Text>
+                ) : (
+                  <Text style={{ fontSize: 14, color: L.dim, marginTop: 1 }}>비상 연락처 미등록</Text>
                 )}
               </View>
               <Pressable onPress={() => setEndTarget(d)} style={s.endBtn}>

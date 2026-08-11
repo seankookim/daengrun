@@ -12,7 +12,7 @@ import { useNumFont } from '../../src/lib/fonts';
 import { haptic } from '../../src/lib/haptics';
 import { AckStack } from '../../src/components/club-acks';
 import { ClubCta, ClubTag, Ticket } from '../../src/components/club-ui';
-import { lilac, lilacRadius, lilacShadow } from '../../src/theme';
+import { lilac, lilacRadius, lilacShadow, paper } from '../../src/theme';
 
 // 하이클럽 홈 — 변형 D (Sean 확정: 3 티켓-퍼스트 골격 × 2 에디토리얼 마스트헤드, home-repaint lab).
 // 구조: 초박 내비 → 홀로 엣지 사진 스트립(3) → 거대 활자 마스트헤드(2) → ack → 보딩패스 티켓 + 두 문(3)
@@ -93,16 +93,22 @@ export default function ClubPage() {
   const [refreshing, setRefreshing] = useState(false);
   // [홈 = 루트] 내 진행 스레드 감지 — 보드 한 번으로 세 역할 전부 (dogs.isMine=보호자 위탁 · me.committed=러너 · isHost)
   const [board, setBoard] = useState<DelegationBoard | null>(null);
-  const load = () => fetchClubOverview().then((c) => {
-    setClub(c);
-    if (c && c.status === 'active') {
-      fetchClubMyStats(c.id).then(setMyStats).catch(() => {});
-      fetchClubHostStats(c.id).then(setHostStats).catch(() => {});
-      fetchClubSeries(c.id).then(setSeries).catch(() => {}); // ⟳ 정기 시리즈 (0035)
-      if (c.nextSession) fetchDelegationBoard(c.nextSession.id).then(setBoard).catch(() => setBoard(null));
-      else setBoard(null);
-    }
-  }).catch(() => {});
+  // [honesty 2026-08-11] overview 로드 실패가 무지 셸(빈 마스트헤드)로 침묵하던 것 —
+  // 실패는 스트립으로 말하고 재시도 문을 연다. 서브 집계(myStats 등)는 장식이라 soft 유지.
+  const [clubErr, setClubErr] = useState(false);
+  const load = () => {
+    setClubErr(false);
+    return fetchClubOverview().then((c) => {
+      setClub(c);
+      if (c && c.status === 'active') {
+        fetchClubMyStats(c.id).then(setMyStats).catch(() => {});
+        fetchClubHostStats(c.id).then(setHostStats).catch(() => {});
+        fetchClubSeries(c.id).then(setSeries).catch(() => {}); // ⟳ 정기 시리즈 (0035)
+        if (c.nextSession) fetchDelegationBoard(c.nextSession.id).then(setBoard).catch(() => setBoard(null));
+        else setBoard(null);
+      }
+    }).catch(() => setClubErr(true));
+  };
   useFocusEffect(useCallback(() => { load(); }, []));
   const onRefresh = () => { setRefreshing(true); Promise.resolve(load()).finally(() => setRefreshing(false)); };
 
@@ -117,11 +123,16 @@ export default function ClubPage() {
   // 코스 — mixed 세션은 코스 필수 (위탁 요금 = club_fare(km), 서버 route_required 게이트)
   const [routes, setRoutes] = useState<{ id: string; name: string; km: number }[]>([]);
   const [routeIdx, setRouteIdx] = useState(0);
+  // [honesty 2026-08-11] routes 실패가 시트 안 영원한 '불러오는 중...'으로 굳어
+  // 세션 개설을 말없이 막던 것 — 실패 상태 + 재시도로 교정.
+  const [routesErr, setRoutesErr] = useState(false);
+  const loadRoutes = () => {
+    setRoutesErr(false);
+    fetchRoutes().then((rs) => setRoutes(rs.map((r) => ({ id: r.id, name: r.name, km: r.km })))).catch(() => setRoutesErr(true));
+  };
   const openSheet = () => {
     setSheetOpen(true);
-    if (routes.length === 0) {
-      fetchRoutes().then((rs) => setRoutes(rs.map((r) => ({ id: r.id, name: r.name, km: r.km })))).catch(() => {});
-    }
+    if (routes.length === 0) loadRoutes();
   };
 
   const createSession = async () => {
@@ -217,6 +228,16 @@ export default function ClubPage() {
           <View style={{ width: 30 }} />
         </Row>
 
+        {/* 라우드-페일 스트립 — 실패는 빈 셸로 침묵하지 않는다 (재시도 동반) */}
+        {clubErr && (
+          <View style={s.failStrip}>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: paper.critical }}>클럽 정보를 불러오지 못했어요</Text>
+            <Pressable onPress={load} style={s.failRetry} accessibilityRole="button">
+              <Text style={{ fontSize: 16, fontWeight: '800', color: L.head }}>다시 시도</Text>
+            </Pressable>
+          </View>
+        )}
+
         {/* ---------- ② 사진 = 홀로 엣지 배너 스트립 (변형 3) ---------- */}
         <View style={s.strip}>
           {club?.photoUrl
@@ -262,7 +283,7 @@ export default function ClubPage() {
             <View style={[s.metaCell, s.metaCellDiv]}>
               <Text style={s.metaK}>{club?.status === 'collecting' ? 'INTEREST' : 'MEMBERS'}</Text>
               <Text style={s.metaV}>
-                {/* CLUB15 */}<Text style={[{ fontSize: 16, lineHeight: 20 }, nf]}>{club ? (club.status === 'collecting' ? club.interestCount : club.memberCount) : 0}</Text>명
+                {/* CLUB15 */}<Text style={[{ fontSize: 16, lineHeight: 20 }, nf]}>{club ? (club.status === 'collecting' ? club.interestCount : club.memberCount) : '—'}</Text>명
               </Text>
             </View>
             <View style={[s.metaCell, s.metaCellDiv]}>
@@ -548,7 +569,12 @@ export default function ClubPage() {
           {/* 코스 — mixed 필수 (요금 기준) */}
           <Row style={{ gap: 8, marginTop: 12, flexWrap: 'wrap', alignItems: 'center' }}>
             <Text style={{ fontSize: 15, lineHeight: 20, fontWeight: '800', color: L.head }}>{/* CLUB15 */}코스</Text>
-            {routes.length === 0 && <Text style={{ fontSize: 15, lineHeight: 20, color: L.dim }}>{/* CLUB15 */}불러오는 중...</Text>}
+            {routes.length === 0 && !routesErr && <Text style={{ fontSize: 15, lineHeight: 20, color: L.dim }}>{/* CLUB15 */}불러오는 중...</Text>}
+            {routes.length === 0 && routesErr && (
+              <Pressable onPress={loadRoutes} hitSlop={8} accessibilityRole="button">
+                <Text style={{ fontSize: 15, lineHeight: 20, fontWeight: '800', color: paper.critical }}>{/* CLUB15 */}코스를 불러오지 못했어요 — 다시 시도 ›</Text>
+              </Pressable>
+            )}
             {routes.map((r, i) => (
               <Pressable key={r.id} onPress={() => setRouteIdx(i)} style={[s.chip, routeIdx === i && s.chipOn]}>
                 <Text style={{ fontSize: 15, lineHeight: 20, fontWeight: '800', color: routeIdx === i ? '#fff' : L.text }}>{/* CLUB15 */}{r.name} {r.km}km</Text>
@@ -589,6 +615,9 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', ...lilacShadow, shadowOpacity: 0.06,
   },
   crumb: { fontSize: 9, fontWeight: '700', letterSpacing: 3, color: L.dim },
+  // 라우드-페일 스트립 — criticalWash 바닥 + critical 잉크 + 재시도 (community.tsx 문법)
+  failStrip: { marginTop: 10, backgroundColor: paper.criticalWash, borderRadius: lilacRadius.card, padding: 13 },
+  failRetry: { alignSelf: 'flex-start', marginTop: 10, minHeight: 40, justifyContent: 'center', paddingHorizontal: 14, borderWidth: 1, borderColor: L.head, borderRadius: lilacRadius.btn, backgroundColor: '#fff' },
   // ② 사진 스트립
   strip: { height: 86, overflow: 'hidden', backgroundColor: L.inset },
   photoBtn: {

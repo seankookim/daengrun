@@ -7,7 +7,7 @@ import { PatchBadge } from '../../src/components/patch';
 import { haptic } from '../../src/lib/haptics';
 import { supabase } from '../../src/lib/supabase';
 import { draft, session } from '../../src/store';
-import { colors } from '../../src/theme';
+import { colors, paper } from '../../src/theme';
 
 // 러너 공개 프로필 — 풀블리드(인스타 스타일) 스토어프런트.
 // 갤러리(runners.photos) · 실슬롯 예약 · 본인이 보면 편집/미리보기 모드.
@@ -37,7 +37,8 @@ export default function RunnerProfileScreen() {
   const [err, setErr] = useState<string | null>(null);
   const [isMe, setIsMe] = useState(false);
   const [dayIdx, setDayIdx] = useState(0);
-  const [slotOk, setSlotOk] = useState<Record<string, boolean | null>>({});
+  // null = 확인 중 · 'error' = check failed (availability UNKNOWN — never painted 가능)
+  const [slotOk, setSlotOk] = useState<Record<string, boolean | null | 'error'>>({});
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   // 러너 장비 로드아웃 (0019) — kind당 1슬롯, 사진이 곧 인증
   const [gear, setGear] = useState<GearItem[]>([]);
@@ -132,10 +133,22 @@ export default function RunnerProfileScreen() {
       const end = new Date(sl.start.getTime() + 60 * 60_000);
       checkSlot(p.profileId, sl.start.toISOString(), end.toISOString())
         .then((ok) => { if (alive) setSlotOk((m) => ({ ...m, [sl.key]: ok })); })
-        .catch(() => { if (alive) setSlotOk((m) => ({ ...m, [sl.key]: true })); });
+        // [honesty P1 2026-08-11] failure used to paint the slot 가능 — a booking
+        // against fabricated availability is a real-world no-show. Unknown stays unknown.
+        .catch(() => { if (alive) setSlotOk((m) => ({ ...m, [sl.key]: 'error' })); });
     });
     return () => { alive = false; };
   }, [p, daySlots]);
+
+  // single-slot recheck — the retry path for a failed availability check
+  const recheckSlot = (sl: { key: string; start: Date }) => {
+    if (!p) return;
+    setSlotOk((m) => ({ ...m, [sl.key]: null }));
+    const end = new Date(sl.start.getTime() + 60 * 60_000);
+    checkSlot(p.profileId, sl.start.toISOString(), end.toISOString())
+      .then((ok) => setSlotOk((m) => ({ ...m, [sl.key]: ok })))
+      .catch(() => setSlotOk((m) => ({ ...m, [sl.key]: 'error' })));
+  };
 
   const confirmSlot = (sl: { label: string; start: Date }) => {
     if (!p) return;
@@ -423,7 +436,11 @@ export default function RunnerProfileScreen() {
                           <Pressable
                             key={sl.key}
                             disabled={ok === false}
-                            onPress={() => setSelected(sel ? null : sl)}
+                            onPress={() => {
+                              if (ok === 'error') { recheckSlot(sl); return; } // unknown never books — retry the check
+                              if (ok !== true) return; // still verifying — selectable only once confirmed
+                              setSelected(sel ? null : sl);
+                            }}
                             style={[
                               s.slotChip,
                               ok === false && { opacity: 0.35 },
@@ -432,8 +449,8 @@ export default function RunnerProfileScreen() {
                             ]}
                           >
                             <Text style={{ fontSize: 15, fontWeight: '800', color: sel ? '#fff' : FOREST }}>{sl.label}</Text>
-                            <Text style={{ fontSize: 14, marginTop: 1, color: sel ? colors.volt : ok === false ? '#d84a2f' : ok === null ? colors.dim : '#5a7a3c' }}>
-                              {sel ? '선택됨 ✓' : ok === false ? '마감' : ok === null ? '확인 중' : '가능'}
+                            <Text style={{ fontSize: 14, marginTop: 1, color: sel ? colors.volt : ok === false ? '#d84a2f' : ok === 'error' ? paper.critical : ok === null ? colors.dim : '#5a7a3c' }}>
+                              {sel ? '선택됨 ✓' : ok === false ? '마감' : ok === 'error' ? '확인 실패 · 재시도' : ok === null ? '확인 중' : '가능'}
                             </Text>
                           </Pressable>
                         );

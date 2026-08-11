@@ -98,3 +98,27 @@ Deferred work, written down so it exists. Format: what / why / context / effort
   (src/lib/reducedMotion.ts, 2026-08-11) is applied to the course-detail dot and
   the GO breath. Remaining motion (radar sweep, pulse rings, seal stamps, ring
   morph, Live Activity) still ignores the OS setting. Effort M → S. P2.
+
+## From the 2026-08-11 design review P1 fixes (Sean decisions raised)
+
+- [ ] **Mid-run stop request can go unseen** — `owner/live.tsx` confirmStop now
+  sends the owner's stop reason as a real chat message (the ONLY existing
+  delivery channel: there is no owner-side server transition for an active run —
+  transition-booking has no such action, settle-run is runner-only, and
+  `incident_review` is club-side only). But chat messages carry **no push**, and
+  the runner's live-run chat pin shows no preview — so an owner asking to stop
+  mid-run may not be seen until the runner opens chat. Fix shape (Sean's call):
+  a real owner-stop transition (money implications ⇒ own migration + adversarial
+  cycle) OR a chat push. Effort M → S once the policy is decided. **P1.**
+- [ ] **identity_verified prod cleanup gates the 신원인증 badge** — the badge was
+  REMOVED from `owner/report.tsx` rather than bound, because the column's current
+  values are fabricated (0061 names this exact forgery risk; api.ts:1255 already
+  excludes the field deliberately; meetup.tsx retired the same badge as P1-6).
+  Re-adding it requires: the 0062 funnel as the sole writer AND the fabricated
+  seed rows cleaned. Same prerequisite as the safety.tsx verification claim.
+  Data-cleanup decision, not client work. **P1 — Sean only.**
+- [ ] **No honest home for settlement intent** — `runner/earnings.tsx`'s
+  "빠른 정산 신청" and 계좌 "등록" were removed (not converted to a waitlist)
+  because no intent store exists in any migration and inventing one is
+  forbidden. If early settlement is a real product intent, it needs a table +
+  a real flow. P3 until payments land.

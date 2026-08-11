@@ -8,8 +8,11 @@ export const session = { role: 'owner' as 'owner' | 'runner' };
 export const runnerJob = { bookingId: null as string | null };
 
 // Result of the runner's latest run (set by run screen, read by done screen).
+// dogName comes from the real booking context (fetchMeetupInfo) at settle time — null when
+// the booking context never loaded; the done screen must then use generic wording, never a
+// fabricated name (fake-inventory 2026-08-11).
 export type EndReason = 'dog' | 'owner' | 'runner' | null;
-export const runResult = { km: 0, sec: 0, payout: 0, completed: false, reason: null as EndReason, bookingId: null as string | null };
+export const runResult = { km: 0, sec: 0, payout: 0, completed: false, reason: null as EndReason, bookingId: null as string | null, dogName: null as string | null };
 
 // Demo flag: shows the home widget in "imminent" (곧 시작) state
 export const demoImminent = true;
@@ -266,24 +269,11 @@ export const products: Product[] = [
 //   커뮤니티 화면은 서버의 실제 피드(FeedPost)만 그린다.
 
 // ---------- Runner side ----------
-export interface RunRequest {
-  id: string; dogName: string; dogChar: string; dogColor: string; breed: string; weightKg: number;
-  when: string; place: string; km: number; pace: string; pickupKm: number; payout: number;
-  memo?: string; urgent?: boolean;
-}
-
-export const runRequests: RunRequest[] = [
-  {
-    id: 'req1', dogName: '초코', dogChar: '초', dogColor: '#e8b04b', breed: '웰시코기', weightKg: 11,
-    when: '오늘 18:30', place: '서울숲', km: 5, pace: "7'", pickupKm: 0.8, payout: 16700,
-    memo: '겁이 없어서 큰 개한테도 달려들어요. 자전거를 보면 짖으니 자전거도로는 피해주세요. 물은 30분마다 한 번씩 부탁드려요.',
-    urgent: true,
-  },
-  {
-    id: 'req2', dogName: '몽이', dogChar: '몽', dogColor: '#9b8bb4', breed: '푸들', weightKg: 6,
-    when: '내일 07:00', place: '뚝섬한강공원', km: 3, pace: "8'", pickupKm: 1.4, payout: 12700,
-  },
-];
+// [fake-inventory 2026-08-11] RunRequest/runRequests (mock 초코/몽이 cards) retired. Last
+// consumers: runner/run.tsx (mock km fed the auto-settle threshold, mock dog-name fallback)
+// and runner/done.tsx (mock dog name on the completion Peak) — both now read the real booking
+// context (fetchMeetupInfo / runResult.dogName); the 100% mock orphan runner/detail.tsx was
+// deleted (zero inbound routes).
 
 
 // ---------- Notifications ----------

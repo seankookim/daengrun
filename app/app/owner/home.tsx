@@ -383,8 +383,13 @@ export default function OwnerHome() {
   // 실예약 next booking — 위젯이 진짜 다음 일정을 보여준다 (없으면 목업)
   const [liveNext, setLiveNext] = useState<Booking | null>(null);
   const [lastDone, setLastDone] = useState<Booking | null>(null);
+  // [honesty 2026-08-11] fitErr와 같은 모델 — 예약 로드 실패가 "예정된 러닝이 없어요"로
+  // 분장하던 것 교정. 로딩/실패/실빈을 위젯이 구분해 말한다.
+  const [bookingsLoaded, setBookingsLoaded] = useState(false);
+  const [bookingsErr, setBookingsErr] = useState(false);
   const [unread, setUnread] = useState(0); // 미읽음 알림 실카운트 — 벨 도트의 유일한 근거
-  useFocusEffect(useCallback(() => {
+  const loadBookings = useCallback(() => {
+    setBookingsErr(false);
     fetchMyBookings()
       .then((bs) => {
         // 가장 액션 가능한 예약 우선: active > handoff > confirmed > pending —
@@ -406,8 +411,12 @@ export default function OwnerHome() {
             .sort((a, b) => RANK[a.status] - RANK[b.status] || Number(past(a)) - Number(past(b)) || at(a) - at(b))[0] ?? null,
         );
         setLastDone(bs.find((b) => b.status === 'completed') ?? null);
+        setBookingsLoaded(true);
       })
-      .catch((e) => console.warn('[home] bookings:', e?.message ?? e));
+      .catch((e) => { console.warn('[home] bookings:', e?.message ?? e); setBookingsErr(true); }); // 직전 실값은 유지
+  }, []);
+  useFocusEffect(useCallback(() => {
+    loadBookings();
     loadFitness();
     fetchUnreadCount().then(setUnread).catch((e) => console.warn('[home] unread:', e?.message ?? e));
     fetchMyProfile().then(setMe).catch((e) => console.warn('[home] me:', e?.message ?? e));
@@ -423,7 +432,7 @@ export default function OwnerHome() {
     fetchRewardBeacon()
       .then((b) => { setBeacon(b); setBeaconLoaded(true); })
       .catch((e) => console.warn('[home] beacon:', e?.message ?? e));
-  }, []));
+  }, [loadBookings, loadFitness]));
 
   // 티켓 D-day — 실 scheduled_at 기준. 값이 없거나 이미 지난 건이면 null → 칩 자체를 안 그린다
   // (가짜 카운트다운 금지). 0 = 오늘.
@@ -1139,6 +1148,19 @@ export default function OwnerHome() {
                   </Pressable>
                 </View>
               )}
+            </View>
+          ) : bookingsErr ? (
+            // 라우드-페일 — 실패는 빈 일정으로 분장하지 않는다 (fitFail 스트립 문법 재사용:
+            // 자체 캔버스 바닥이라 나이트 위젯 위에서도 critical 잉크 대비가 산다)
+            <View style={[s.fitFail, { marginTop: 8, marginBottom: 0 }]}>
+              <Text style={s.fitFailTxt}>예약을 불러오지 못했어요</Text>
+              <Pressable onPress={(e) => { e.stopPropagation(); loadBookings(); }} hitSlop={8} accessibilityRole="button" accessibilityLabel="다시 시도">
+                <Text style={s.fitFailRetry}>다시 시도</Text>
+              </Pressable>
+            </View>
+          ) : !bookingsLoaded ? (
+            <View style={{ marginTop: 4, alignItems: 'center', paddingVertical: 14, paddingHorizontal: layout.gutter }}>
+              <Text style={{ fontSize: 14, fontWeight: '700', color: p.textSoft }}>일정 확인 중...</Text>
             </View>
           ) : (
             <View style={{ marginTop: 4, alignItems: 'center', paddingVertical: 14, paddingHorizontal: layout.gutter }}>

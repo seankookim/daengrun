@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Row } from '../../../src/components/ui';
 import { AckStack } from '../../../src/components/club-acks';
-import { BigNumRow, ClubCta, ClubMast, ClubTag, DawnCanvas, LilacCard, clubText } from '../../../src/components/club-ui';
+import { BigNumRow, ClubCta, ClubMast, ClubTag, DawnCanvas, LilacCard, LoadGate, clubText } from '../../../src/components/club-ui';
 import { DrainRing } from '../../../src/components/drainring';
 import {
   approveDelegation, assignmentRevoke, ClubIncident, custodyOverride, DelegationBoard, DelegationDog, DelegationRunner,
@@ -61,9 +61,13 @@ export default function HostConsole() {
   const [refreshing, setRefreshing] = useState(false);
   const [now, setNow] = useState(Date.now());
 
+  // [honesty 2026-08-11] 보드 실패가 영원한 '불러오는 중...' 골목이던 것 — LoadGate 3상태.
+  // 직전 실값은 유지 (리프레시 실패가 화면을 비우지 않는다).
+  const [boardErr, setBoardErr] = useState(false);
   const load = useCallback(() => {
     if (!sid) return;
-    fetchDelegationBoard(sid).then(setBoard).catch(() => {});
+    setBoardErr(false);
+    fetchDelegationBoard(sid).then(setBoard).catch(() => setBoardErr(true));
     // [감사 P2] 실패 시 []로 덮으면 종료 차단 배너가 사라져 죽은 버튼 미스터리 — 이전 값 유지
     fetchSessionIncidents(sid).then(setIncidents).catch(() => {});
   }, [sid]);
@@ -80,11 +84,12 @@ export default function HostConsole() {
 
   if (!board) {
     return (
-      <DawnCanvas>
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontSize: 14, color: L.dim }}>불러오는 중...</Text>
-        </View>
-      </DawnCanvas>
+      <LoadGate
+        mode={boardErr ? 'error' : 'loading'}
+        errorLabel="호스트 콘솔을 불러오지 못했어요"
+        onRetry={load}
+        onBack={() => router.back()}
+      />
     );
   }
   if (!board.session.isHost) {

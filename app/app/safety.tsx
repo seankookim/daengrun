@@ -55,7 +55,12 @@ export default function Safety() {
   const removeContact = (c: EmContact) => {
     Alert.alert('연락처 삭제', `${c.name}을(를) 긴급 연락처에서 삭제할까요?`, [
       { text: '취소', style: 'cancel' },
-      { text: '삭제', style: 'destructive', onPress: () => deleteEmergencyContact(c.id).then(load).catch(() => {}) },
+      {
+        text: '삭제', style: 'destructive',
+        // [honesty 2026-08-11] a confirmed destructive delete of an EMERGENCY contact
+        // used to fail silently — the user believed the safety roster changed. It says so now.
+        onPress: () => deleteEmergencyContact(c.id).then(load).catch((e) => Alert.alert('삭제 실패', (e as Error).message)),
+      },
     ]);
   };
 

@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Animated, Easing, Image, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { Row } from '../../../src/components/ui';
 import { MediaImage } from '../../../src/lib/media';
-import { ClubCta, ClubMast, DawnCanvas, Flap } from '../../../src/components/club-ui';
+import { ClubCta, ClubMast, DawnCanvas, Flap, LoadGate } from '../../../src/components/club-ui';
 import { fetchRunEarning, fetchRunReport, RunEarning, runPhotoAllowed, RunReport, sealStampFresh, shareRunToFeed } from '../../../src/lib/api';
 import { useDisplayFont } from '../../../src/lib/displayFont';
 import { useNumFont } from '../../../src/lib/fonts';
@@ -40,8 +40,12 @@ export default function ClubReceipt() {
   const [earning, setEarning] = useState<RunEarning | null>(null);
   const [earningLoaded, setEarningLoaded] = useState(false);
 
+  // [honesty 2026-08-11] 리포트 실패가 영원한 '불러오는 중...'(백·재시도 없음)이던 것 — LoadGate.
+  const [reportErr, setReportErr] = useState(false);
   const load = useCallback(() => {
-    if (bid) fetchRunReport(bid).then(setReport).catch(() => {});
+    if (!bid) return;
+    setReportErr(false);
+    fetchRunReport(bid).then(setReport).catch(() => setReportErr(true));
   }, [bid]);
   useFocusEffect(useCallback(() => { load(); }, [load]));
   useEffect(() => {
@@ -99,11 +103,12 @@ export default function ClubReceipt() {
 
   if (!report) {
     return (
-      <DawnCanvas>
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontSize: 14, color: L.dim }}>불러오는 중...</Text>
-        </View>
-      </DawnCanvas>
+      <LoadGate
+        mode={reportErr ? 'error' : 'loading'}
+        errorLabel="영수증을 불러오지 못했어요"
+        onRetry={load}
+        onBack={() => router.back()}
+      />
     );
   }
   if (!report.run) {

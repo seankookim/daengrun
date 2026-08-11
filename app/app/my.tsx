@@ -71,6 +71,11 @@ export default function My() {
   useEffect(() => { loadRec(); }, [loadRec]);
   // ③ 도장면 — 파생 실데이터. null = 아직 안 왔거나 실패 = 섹션 통째로 침묵 (로딩은 0이 아니다).
   const [stampStats, setStampStats] = useState<StampStats | null>(null);
+  const [stampErr, setStampErr] = useState(false);
+  const loadStamps = () => {
+    setStampErr(false);
+    fetchStampStats().then(setStampStats).catch((e) => { console.warn('[my] stamps:', e?.message ?? e); setStampErr(true); });
+  };
   const stamps = useMemo(() => (stampStats ? deriveStamps(stampStats) : null), [stampStats]);
   const stampsEarned = stamps ? stamps.filter((x) => x.earned).length : 0;
   const { session: auth, signOut } = useAuth();
@@ -98,8 +103,9 @@ export default function My() {
         .catch((e) => console.warn('[my] runner application:', e?.message ?? e)); // 실패 = 미도착 유지
     }
     // 도장은 다른 화면(리포트·클럽·피드)에서 찍히고 돌아온다 → 포커스마다 다시 센다.
-    // 실패는 실패로: 이전 실값이 있으면 그대로 두고, 없으면 섹션이 나타나지 않는다 (0/12를 그리지 않는다).
-    fetchStampStats().then(setStampStats).catch((e) => console.warn('[my] stamps:', e?.message ?? e));
+    // 실패는 실패로: 이전 실값이 있으면 그대로 두고, 없으면 실패 스트립이 말한다
+    // (0/12를 그리지 않는다 — [honesty 2026-08-11] 조용한 섹션 증발도 그만: recErr 모델 복제).
+    loadStamps();
   }, [isRunner]));
 
   const openEdit = () => {
@@ -321,6 +327,15 @@ export default function My() {
         {/* ————— ③ 도장면 — 비자 페이지 (리워드 ② · 랩 Ⓐ①) —————
             정적면이다: 애니메이션 0. 세리머니는 리포트(런엔드)가 진다 — 벽은 조용한 문서다.
             파생이 도착하기 전에는 섹션 자체가 없다 (로딩은 0이 아니다 → '0 / 12'를 그리지 않는다). */}
+        {/* 도장 로드 실패 — 섹션이 말없이 증발하는 대신 라우드 페일 + 재시도 (recErr 모델) */}
+        {!stamps && stampErr && (
+          <View style={s.recFail}>
+            <Text style={s.recFailTxt}>도장 현황을 불러오지 못했어요</Text>
+            <Pressable onPress={loadStamps} hitSlop={8} accessibilityRole="button" accessibilityLabel="도장 현황 다시 불러오기">
+              <Text style={s.recFailRetry}>다시 시도</Text>
+            </Pressable>
+          </View>
+        )}
         {stamps && (
           <>
             <Row style={s.sec}>

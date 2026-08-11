@@ -28,12 +28,21 @@ export default function Rewards() {
   const [busy, setBusy] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  const load = () => Promise.all([
-    fetchMiles().then(setMiles).catch(() => {}),
-    fetchDrops().then(setDrops).catch((e) => console.warn('[rewards] drops:', e?.message ?? e)),
-    fetchGearClaims().then(setClaims).catch(() => {}),
-    fetchMyRunnerStatus().then(setRs).catch(() => {}),
-  ]);
+  // [honesty 2026-08-11] drops 실패가 "대기 중인 드랍이 없어요 + N번 더 완주"라는
+  // 지어낸 빈 상태로 굳던 것 — 3상태 분리. miles/claims/rs는 이미 null→'—'/생략 처리라 soft 유지.
+  const [dropsLoaded, setDropsLoaded] = useState(false);
+  const [dropsErr, setDropsErr] = useState(false);
+  const load = () => {
+    setDropsErr(false);
+    return Promise.all([
+      fetchMiles().then(setMiles).catch(() => {}),
+      fetchDrops()
+        .then((d) => { setDrops(d); setDropsLoaded(true); })
+        .catch((e) => { console.warn('[rewards] drops:', e?.message ?? e); setDropsErr(true); }),
+      fetchGearClaims().then(setClaims).catch(() => {}),
+      fetchMyRunnerStatus().then(setRs).catch(() => {}),
+    ]);
+  };
   useFocusEffect(useCallback(() => { load(); }, []));
   const onRefresh = () => { setRefreshing(true); load().finally(() => setRefreshing(false)); };
 
@@ -90,10 +99,26 @@ export default function Rewards() {
       <Row style={s.secWrap}>
         <Text style={s.secTitle}>도착한 드랍{unopened.length > 0 ? ` · ${unopened.length}` : ''}</Text>
       </Row>
-      {unopened.length === 0 && (
+      {!dropsLoaded && !dropsErr && (
+        <View style={s.emptyBox}>
+          <Text style={{ fontSize: 14.5, color: paper.dim, textAlign: 'center' }}>불러오는 중...</Text>
+        </View>
+      )}
+      {/* loud-fail strip — criticalWash bg + critical ink + retry (never a fake empty) */}
+      {dropsErr && (
+        <View style={s.failStrip}>
+          <Text style={{ fontSize: 14, fontWeight: '700', color: paper.critical }}>드랍을 불러오지 못했어요</Text>
+          <Pressable onPress={load} style={s.retryBtn} accessibilityRole="button">
+            <Text style={{ fontSize: 16, fontWeight: '800', color: paper.ink }}>다시 시도</Text>
+          </Pressable>
+        </View>
+      )}
+      {dropsLoaded && !dropsErr && unopened.length === 0 && (
         <View style={s.emptyBox}>
           <Text style={{ fontSize: 14.5, color: paper.dim, textAlign: 'center', lineHeight: 22 }}>
-            대기 중인 드랍이 없어요{'\n'}{5 - cycle5}번 더 완주하면 보급 드랍이 도착해요
+            대기 중인 드랍이 없어요
+            {/* run count claim only when the runner status actually arrived — no fabricated "5번 더" */}
+            {rs != null ? `\n${5 - cycle5}번 더 완주하면 보급 드랍이 도착해요` : ''}
           </Text>
         </View>
       )}
@@ -208,6 +233,9 @@ const s = StyleSheet.create({
   },
   secTitle: { fontSize: 20, lineHeight: 25, fontWeight: '800', color: paper.ink },
   emptyBox: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE', padding: 20 },
+  // loud-fail strip — community.tsx failStrip grammar (criticalWash + critical, retry ≥40pt)
+  failStrip: { backgroundColor: paper.criticalWash, padding: 13 },
+  retryBtn: { alignSelf: 'flex-start', marginTop: 10, minHeight: 40, justifyContent: 'center', paddingHorizontal: 14, borderWidth: 1, borderColor: paper.ink, backgroundColor: paper.canvas },
   // unopened drop — dark ceremony card, volt edge (artifact vocabulary survives)
   dropCard: { backgroundColor: paper.ink, padding: 16, marginBottom: 10, borderWidth: 1.5, borderColor: colors.volt },
   openBtn: { backgroundColor: colors.volt, alignItems: 'center', paddingVertical: 15, marginTop: 12 },

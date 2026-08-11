@@ -161,6 +161,33 @@ export function ClubCta({ label, onPress, tone = 'coral', disabled, busy, style 
   );
 }
 
+// ---------- LoadGate — 딥링크 화면 3상태 게이트 (club/case 정본 승격, 리뷰 2026-08-11 §4-3) ----------
+// loading / error+retry / denied. 돌아가기는 항상 마운트 — 실패한 푸시 딥링크가 영원한
+// '불러오는 중...' 골목이 되지 않게. 정직 법: 로딩 ≠ 실패 ≠ 권한 없음, 전부 이름을 말한다.
+export function LoadGate({ mode, errorLabel, deniedLabel, onRetry, onBack }: {
+  mode: 'loading' | 'error' | 'denied';
+  errorLabel?: string;   // full sentence, e.g. '세션을 불러오지 못했어요'
+  deniedLabel?: string;  // full sentence, e.g. '케이스 당사자만 볼 수 있어요'
+  onRetry?: () => void;
+  onBack: () => void;
+}) {
+  return (
+    <DawnCanvas>
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+        <Text style={{ fontSize: 14, color: L.dim, textAlign: 'center' }}>
+          {mode === 'denied' ? (deniedLabel ?? '열람 권한이 없어요')
+            : mode === 'error' ? (errorLabel ?? '불러오지 못했어요')
+            : '불러오는 중...'}
+        </Text>
+        {mode === 'error' && onRetry && (
+          <ClubCta label="다시 시도" onPress={onRetry} style={{ alignSelf: 'stretch', paddingVertical: 17 }} />
+        )}
+        <ClubCta label="돌아가기" tone="quiet" onPress={onBack} style={{ alignSelf: 'stretch' }} />
+      </View>
+    </DawnCanvas>
+  );
+}
+
 // ---------- 레저 숫자 행 — 타뷸러 Oswald, 헤어라인 룰 위 라벨 ----------
 export function BigNumRow({ items }: { items: { v: string; unit?: string; label: string }[] }) {
   const nf = useNumFont();

@@ -37,8 +37,17 @@ export default function RunnerCalendar() {
   const df = useDisplayFont(); // display font — screen title only (1/screen budget)
   const nf = useNumFont();     // Oswald — flap digits, ticket times, payouts
   const [jobs, setJobs] = useState<RunnerJob[]>([]);
+  // [honesty 2026-08-11] warn-only catch + no loading state rendered "확정된 작업이
+  // 아직 없어요" while loading AND on failure. Three states now.
+  const [loaded, setLoaded] = useState(false);
+  const [loadErr, setLoadErr] = useState(false);
 
-  const load = () => fetchRunnerJobs().then(setJobs).catch((e) => console.warn('[calendar] jobs:', e?.message ?? e));
+  const load = () => {
+    setLoadErr(false);
+    return fetchRunnerJobs()
+      .then((j) => { setJobs(j); setLoaded(true); })
+      .catch((e) => { console.warn('[calendar] jobs:', e?.message ?? e); setLoadErr(true); });
+  };
   useFocusEffect(useCallback(() => { load(); }, []));
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = () => { setRefreshing(true); load().finally(() => setRefreshing(false)); };
@@ -96,7 +105,21 @@ export default function RunnerCalendar() {
         </View>
 
         {/* ---------- 티켓 스택 (C2) ---------- */}
-        {jobs.length === 0 && (
+        {!loaded && !loadErr && (
+          <View style={s.emptyJobs}>
+            <Text style={{ fontSize: 14.5, color: paper.dim, textAlign: 'center' }}>불러오는 중...</Text>
+          </View>
+        )}
+        {/* loud-fail strip — criticalWash bg + critical ink + retry (never a fake empty) */}
+        {loadErr && (
+          <View style={s.failStrip}>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: paper.critical }}>확정 일정을 불러오지 못했어요</Text>
+            <Pressable onPress={load} style={s.retryBtn} accessibilityRole="button">
+              <Text style={{ fontSize: 16, fontWeight: '800', color: paper.ink }}>다시 시도</Text>
+            </Pressable>
+          </View>
+        )}
+        {loaded && !loadErr && jobs.length === 0 && (
           <View style={s.emptyJobs}>
             <Text style={{ fontSize: 14.5, color: paper.dim, textAlign: 'center', lineHeight: 22 }}>
               확정된 작업이 아직 없어요{'\n'}요청 탭에서 새 요청을 수락해보세요
@@ -182,5 +205,8 @@ const s = StyleSheet.create({
     paddingVertical: 3, paddingHorizontal: 8, transform: [{ rotate: '-9deg' }], zIndex: 2,
   },
   emptyJobs: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE', padding: 20, alignItems: 'center', gap: 12, marginTop: 16 },
+  // loud-fail strip — community.tsx failStrip grammar (criticalWash + critical, retry ≥40pt)
+  failStrip: { marginTop: 16, backgroundColor: paper.criticalWash, padding: 13 },
+  retryBtn: { alignSelf: 'flex-start', marginTop: 10, minHeight: 40, justifyContent: 'center', paddingHorizontal: 14, borderWidth: 1, borderColor: paper.ink, backgroundColor: paper.canvas },
   emptyBtn: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line, paddingVertical: 12, paddingHorizontal: 16 },
 });

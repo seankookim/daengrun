@@ -1,6 +1,6 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BottomNav } from '../../src/components/bottomnav';
 import { Row } from '../../src/components/ui';
 import { fetchLedger, fetchLedgerTotal, LiveLedgerItem } from '../../src/lib/api';
@@ -15,9 +15,12 @@ import { colors, layout, paper } from '../../src/theme';
 // now sharp with Oswald money numerals + explicit lineHeight (BUG A). Fixed in passing:
 // the ticket/stub notches were still painted stale beige #F8F6F0 against the white canvas
 // — they punch paper.canvas now. Korean captions lose their latin letterspacing (§3).
-// No ink primary on this screen — 빠른 정산/계좌 등록 are announcement doors (backend
-// pending), styled quiet so the money numeral keeps the emphasis budget.
-// Behavior frozen: fetchLedger/fetchLedgerTotal, pendingSum fallback, tax calc, alerts.
+// [honesty audit 2026-08-11 · P1 #3] 빠른 정산 신청 / 계좌 등록 buttons retired — both were dead
+// doors firing "준비 중" alerts (demoting them to quiet outlines didn't change the lie). There is
+// no real store for a waitlist/notify intent (no such table, and we don't invent schema), so an
+// honest waitlist conversion is impossible today — removed until the feature exists. The missing
+// account is stated as a non-pressable info sentence (the sanctioned settings.tsx 준비-중 pattern).
+// Behavior frozen: fetchLedger/fetchLedgerTotal, pendingSum fallback, tax calc.
 
 const MONEY_GREEN = '#3D6B1F'; // reading green for money-positive text on paper (volt stays display-only)
 
@@ -34,15 +37,25 @@ export default function Earnings() {
   const [ledger, setLedger] = useState<LiveLedgerItem[]>([]);
 
   const [total, setTotal] = useState<number | null>(null);
-  const load = () => Promise.all([
-    fetchLedger().then(setLedger),
-    fetchLedgerTotal().then(setTotal),
-  ]).catch((e) => console.warn('[earnings] ledger:', e?.message ?? e));
+  // [honesty 2026-08-11] warn-only catch + no loading state rendered "0원" + "아직
+  // 정산 내역이 없어요" in flight and on failure. Three states now.
+  const [loaded, setLoaded] = useState(false);
+  const [loadErr, setLoadErr] = useState(false);
+  const load = () => {
+    setLoadErr(false);
+    return Promise.all([
+      fetchLedger().then(setLedger),
+      fetchLedgerTotal().then(setTotal),
+    ]).then(() => setLoaded(true))
+      .catch((e) => { console.warn('[earnings] ledger:', e?.message ?? e); setLoadErr(true); });
+  };
   useFocusEffect(useCallback(() => { load(); }, []));
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = () => { setRefreshing(true); load().finally(() => setRefreshing(false)); };
 
   // 정산 예정 = 원장 전체 누적 (30행 캡 합계가 31번째 러닝부터 오히려 줄어들던 버그 — 로드 전엔 표시 리스트 합으로 폴백)
+  // [honesty 2026-08-11] sumKnown 전에는 '—' — 로딩/실패를 0원으로 위장하지 않는다.
+  const sumKnown = loaded || total != null;
   const pendingSum = total ?? ledger.reduce((sum, l) => sum + l.net, 0);
   const tax = Math.round(pendingSum * 0.033);
 
@@ -67,7 +80,7 @@ export default function Earnings() {
           <Text style={{ fontSize: 14, lineHeight: 18, color: '#BBBBBB' }}>정산 예정 (원장 합계)</Text>
           {/* Oswald settlement sum — lineHeight 54 = 1.24× (BUG A) */}
           <Text style={[{ fontSize: 43.5, lineHeight: 54, fontWeight: '900', color: colors.volt, marginTop: 6, fontVariant: ['tabular-nums'] as const }, nf]}>
-            {pendingSum.toLocaleString()}원
+            {sumKnown ? `${pendingSum.toLocaleString()}원` : '—'}
           </Text>
           {/* 절취선 + 노치 — notches punch the real canvas (stale beige #F8F6F0 fixed) */}
           <View style={{ marginVertical: 14, height: 1 }}>
@@ -77,39 +90,37 @@ export default function Earnings() {
           </View>
           <Row style={{ justifyContent: 'space-between' }}>
             <Text style={{ fontSize: 14, lineHeight: 18, color: '#BBBBBB' }}>다음 정산일 {nextWednesday()}</Text>
-            <Text style={{ fontSize: 14, lineHeight: 18, color: '#BBBBBB' }}>원천징수 3.3% 약 −{tax.toLocaleString()}원</Text>
+            <Text style={{ fontSize: 14, lineHeight: 18, color: '#BBBBBB' }}>원천징수 3.3% 약 −{sumKnown ? tax.toLocaleString() : '—'}원</Text>
           </Row>
-          {/* quiet on-artifact door — the tap only announces the open-banking timeline, so it
-              must not read as the screen's money CTA (emphasis budget stays on the numeral) */}
-          <Pressable
-            style={({ pressed }) => [s.settleBtn, pressed && { backgroundColor: '#2A2A2A' }]}
-            onPress={() => Alert.alert('빠른 정산', '정산 자동화(오픈뱅킹) 연동 후 제공돼요')}
-          >
-            <Text style={{ fontSize: 16, fontWeight: '800', color: '#FFFFFF' }}>빠른 정산 신청</Text>
-          </Pressable>
         </View>
 
-        {/* bank account */}
+        {/* bank account — honest info row, not a door: registration ships with open banking */}
         <View style={s.card}>
-          <Row style={{ justifyContent: 'space-between' }}>
-            <View>
-              <Text style={{ fontSize: 15.5, fontWeight: '800', color: paper.ink }}>정산 계좌</Text>
-              <Text style={{ fontSize: 14, color: paper.dim, marginTop: 3 }}>아직 등록된 계좌가 없어요</Text>
-            </View>
-            <Pressable
-              style={({ pressed }) => [s.changeChip, pressed && { backgroundColor: paper.wash }]}
-              onPress={() => Alert.alert('계좌 등록', '본인 명의 계좌 인증과 함께 제공 예정')}
-            >
-              <Text style={{ fontSize: 14, fontWeight: '800', color: paper.ink }}>등록</Text>
-            </Pressable>
-          </Row>
+          <Text style={{ fontSize: 15.5, fontWeight: '800', color: paper.ink }}>정산 계좌</Text>
+          <Text style={{ fontSize: 14, color: paper.dim, marginTop: 3, lineHeight: 19 }}>
+            아직 등록된 계좌가 없어요 — 계좌 등록은 오픈뱅킹 연동과 함께 제공돼요
+          </Text>
         </View>
 
         {/* ledger — §3b section header: full-bleed coral rule + 20/800 ink */}
         <Row style={s.secWrap}>
           <Text style={s.secTitle}>러닝별 내역</Text>
         </Row>
-        {ledger.length === 0 && (
+        {!loaded && !loadErr && (
+          <View style={s.emptyBox}>
+            <Text style={{ fontSize: 14.5, color: paper.dim, textAlign: 'center' }}>불러오는 중...</Text>
+          </View>
+        )}
+        {/* loud-fail strip — criticalWash bg + critical ink + retry (never a fake empty) */}
+        {loadErr && (
+          <View style={s.failStrip}>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: paper.critical }}>정산 내역을 불러오지 못했어요</Text>
+            <Pressable onPress={load} style={s.retryBtn} accessibilityRole="button">
+              <Text style={{ fontSize: 16, fontWeight: '800', color: paper.ink }}>다시 시도</Text>
+            </Pressable>
+          </View>
+        )}
+        {loaded && !loadErr && ledger.length === 0 && (
           <View style={s.emptyBox}>
             <Text style={{ fontSize: 14.5, color: paper.dim, textAlign: 'center', lineHeight: 22 }}>
               아직 정산 내역이 없어요{'\n'}러닝을 완료하면 여기에 기록돼요
@@ -176,10 +187,11 @@ const s = StyleSheet.create({
   stubDivWrap: { width: 1, alignSelf: 'stretch', marginRight: 11 },
   stubDash: { flex: 1, width: 1, borderWidth: 0.7, borderColor: '#DDDDDD', borderStyle: 'dashed' },
   stubNotch: { position: 'absolute', left: -12.5, width: 26, height: 26, borderRadius: 13, backgroundColor: paper.canvas },
-  settleBtn: { borderWidth: 1, borderColor: '#555555', alignItems: 'center', paddingVertical: 12, marginTop: 14 },
   card: { backgroundColor: paper.canvas, padding: 15, borderWidth: 1, borderColor: '#EEEEEE', marginTop: 12 },
-  changeChip: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line, paddingVertical: 8, paddingHorizontal: 13, alignSelf: 'center' },
   emptyBox: { backgroundColor: paper.canvas, padding: 18, alignItems: 'center', borderWidth: 1, borderColor: '#EEEEEE' },
+  // loud-fail strip — community.tsx failStrip grammar (criticalWash + critical, retry ≥40pt)
+  failStrip: { backgroundColor: paper.criticalWash, padding: 13 },
+  retryBtn: { alignSelf: 'flex-start', marginTop: 10, minHeight: 40, justifyContent: 'center', paddingHorizontal: 14, borderWidth: 1, borderColor: paper.ink, backgroundColor: paper.canvas },
   // §3b section header — full-bleed coral rule via negative gutter margins
   secWrap: {
     marginHorizontal: -layout.gutter, paddingHorizontal: layout.gutter,

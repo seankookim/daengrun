@@ -41,11 +41,19 @@ export default function Requests() {
   // 일정 변경 요청 (0016) — 확정 예약의 새 시간 제안, 수락해야만 시간이 바뀐다
   const [resched, setResched] = useState<RescheduleRequest[]>([]);
   const [reschedBusy, setReschedBusy] = useState<string | null>(null);
+  // [honesty 2026-08-11] warn-only catch + no loading state rendered "새 요청 0건 /
+  // 지금은 열린 요청이 없어요" while loading AND on failure. Three states now.
+  const [loaded, setLoaded] = useState(false);
+  const [loadErr, setLoadErr] = useState(false);
 
-  const load = () => Promise.all([
-    fetchRunnerInbox().then(setLive),
-    fetchRescheduleRequests().then(setResched),
-  ]).catch((e) => console.warn('[requests] inbox:', e?.message ?? e));
+  const load = () => {
+    setLoadErr(false);
+    return Promise.all([
+      fetchRunnerInbox().then(setLive),
+      fetchRescheduleRequests().then(setResched),
+    ]).then(() => setLoaded(true))
+      .catch((e) => { console.warn('[requests] inbox:', e?.message ?? e); setLoadErr(true); });
+  };
   // 화면에 돌아올 때마다 갱신 — 수락/완료된 요청 카드가 남지 않게
   useFocusEffect(useCallback(() => { load(); }, []));
   const [refreshing, setRefreshing] = useState(false);
@@ -78,7 +86,10 @@ export default function Requests() {
           <View>
             <Text style={[{ fontSize: 30, fontWeight: '900', color: paper.ink }, df]}>요청</Text>
             <Text style={{ fontSize: 14, color: paper.dim, marginTop: 3 }}>
-              새 요청 {live.length}건{resched.length > 0 ? ` · 변경 요청 ${resched.length}건` : ''}
+              {/* count only after a real load — never "0건" in flight or on failure */}
+              {!loaded
+                ? loadErr ? '요청을 불러오지 못했어요' : '요청 확인 중...'
+                : `새 요청 ${live.length}건${resched.length > 0 ? ` · 변경 요청 ${resched.length}건` : ''}`}
             </Text>
           </View>
           <Pressable style={({ pressed }) => [s.refreshChip, pressed && { backgroundColor: paper.wash }]} onPress={load}>
@@ -243,7 +254,21 @@ export default function Requests() {
           </View>
         ))}
 
-        {live.length === 0 && resched.length === 0 && (
+        {!loaded && !loadErr && (
+          <View style={s.empty}>
+            <Text style={{ fontSize: 14.5, color: paper.dim, textAlign: 'center' }}>불러오는 중...</Text>
+          </View>
+        )}
+        {/* loud-fail strip — criticalWash bg + critical ink + retry (never a fake empty) */}
+        {loadErr && (
+          <View style={s.failStrip}>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: paper.critical }}>요청 인박스를 불러오지 못했어요</Text>
+            <Pressable onPress={load} style={s.retryBtn} accessibilityRole="button">
+              <Text style={{ fontSize: 16, fontWeight: '800', color: paper.ink }}>다시 시도</Text>
+            </Pressable>
+          </View>
+        )}
+        {loaded && !loadErr && live.length === 0 && resched.length === 0 && (
           <View style={s.empty}>
             <Text style={{ fontSize: 14.5, color: paper.dim, textAlign: 'center', lineHeight: 22 }}>
               지금은 열린 요청이 없어요{'\n'}새 요청이 오면 여기에 표시돼요
@@ -289,5 +314,8 @@ const s = StyleSheet.create({
     alignItems: 'center', paddingVertical: 15,
   },
   empty: { marginTop: 24, backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE', padding: 18, alignItems: 'center' },
+  // loud-fail strip — community.tsx failStrip grammar (criticalWash + critical, retry ≥40pt)
+  failStrip: { marginTop: 24, backgroundColor: paper.criticalWash, padding: 13 },
+  retryBtn: { alignSelf: 'flex-start', marginTop: 10, minHeight: 40, justifyContent: 'center', paddingHorizontal: 14, borderWidth: 1, borderColor: paper.ink, backgroundColor: paper.canvas },
   note: { marginTop: 18, padding: 10 },
 });

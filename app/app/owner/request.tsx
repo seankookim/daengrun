@@ -83,6 +83,9 @@ export default function Request() {
   const [myDogs, setMyDogs] = useState<DogProfile[]>([]);
   const [dogsState, setDogsState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [pickupAddr, setPickupAddr] = useState<Addr | null>(null);
+  // [honesty 2026-08-11] 주소 로드 실패가 '주소 미등록'으로 분장하던 것 —
+  // loading/error/ready를 라벨이 구분해 말한다 (미등록은 ready에서만).
+  const [addrState, setAddrState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [dogIdx, setDogIdx] = useState(0);
 
   // Ⓒ① stepper state — the flow is a re-sequencing, not a rewrite: every handler below
@@ -138,7 +141,9 @@ export default function Request() {
   };
   useEffect(() => {
     loadRoutes();
-    fetchAddresses().then((l) => setPickupAddr(l.find((a) => a.isDefault) ?? l[0] ?? null)).catch(() => {});
+    fetchAddresses()
+      .then((l) => { setPickupAddr(l.find((a) => a.isDefault) ?? l[0] ?? null); setAddrState('ready'); })
+      .catch(() => setAddrState('error'));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -415,7 +420,7 @@ export default function Request() {
                 <Pressable onPress={() => setWhoOpen((v) => !v)} style={s.foldRow} accessibilityRole="button" accessibilityLabel={`누가 어디서 ${whoOpen ? '접기' : '변경'}`}>
                   <Row style={{ justifyContent: 'space-between' }}>
                     <Text style={{ flex: 1, fontSize: 16, fontWeight: '800', color: paper.ink }} numberOfLines={1}>
-                      {myDog ? myDog.name : dogTicketLabel} · {pickupAddr ? pickupAddr.label : '픽업 주소 미등록'}
+                      {myDog ? myDog.name : dogTicketLabel} · {pickupAddr ? pickupAddr.label : addrState === 'error' ? '주소 확인 실패' : addrState === 'loading' ? '주소 확인 중' : '픽업 주소 미등록'}
                     </Text>
                     <Text style={{ fontSize: 14, fontWeight: '800', color: paper.dim }}>{whoOpen ? '접기 ▴' : '변경 ▾'}</Text>
                   </Row>
@@ -454,11 +459,17 @@ export default function Request() {
                       <Pressable onPress={() => router.push('/owner/addresses')} style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                         <View style={s.addrIcon}><Text style={{ fontSize: 17, color: paper.dim }}>➤</Text></View>
                         <View style={{ flex: 1 }}>
-                          <Text style={{ fontSize: 16, fontWeight: '900', color: paper.ink }} numberOfLines={1}>
-                            {pickupAddr ? pickupAddr.label : '픽업 주소를 등록해주세요'}
+                          <Text style={{ fontSize: 16, fontWeight: '900', color: pickupAddr == null && addrState === 'error' ? paper.critical : paper.ink }} numberOfLines={1}>
+                            {pickupAddr ? pickupAddr.label
+                              : addrState === 'error' ? '주소를 불러오지 못했어요'
+                              : addrState === 'loading' ? '주소 확인 중...'
+                              : '픽업 주소를 등록해주세요'}
                           </Text>
                           <Text style={{ fontSize: 14.5, color: paper.dim, marginTop: 2 }} numberOfLines={1}>
-                            {pickupAddr ? pickupAddr.addr : '첫 주소가 기본 픽업이 돼요'}
+                            {pickupAddr ? pickupAddr.addr
+                              : addrState === 'error' ? '주소 관리에서 다시 확인해주세요'
+                              : addrState === 'loading' ? '잠시만요'
+                              : '첫 주소가 기본 픽업이 돼요'}
                           </Text>
                           {pickupAddr && pickupAddr.lat == null && (
                             <Pressable
@@ -664,7 +675,7 @@ export default function Request() {
               <Pressable onPress={() => goStep(0)} style={s.sumRow} accessibilityRole="button" accessibilityLabel="누가 어디서 변경">
                 <Text style={s.sumLabel}>누가 · 어디서</Text>
                 <Text style={s.sumValue} numberOfLines={1}>
-                  {myDog ? myDog.name : dogTicketLabel} · {pickupAddr ? pickupAddr.label : '주소 미등록'}
+                  {myDog ? myDog.name : dogTicketLabel} · {pickupAddr ? pickupAddr.label : addrState === 'error' ? '주소 확인 실패' : addrState === 'loading' ? '주소 확인 중' : '주소 미등록'}
                 </Text>
                 <Text style={s.sumGlyph}>›</Text>
               </Pressable>

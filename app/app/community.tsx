@@ -140,12 +140,23 @@ export default function Community() {
   const [comments, setComments] = useState<FeedComment[]>([]);
   const [commentInput, setCommentInput] = useState('');
   const [sending, setSending] = useState(false);
+  // [honesty 2026-08-11] 댓글 로드 실패가 "첫 댓글을 남겨보세요"로 분장하던 것 —
+  // 로딩/실패/실빈 3상태 분리 + 재시도.
+  const [commentsLoaded, setCommentsLoaded] = useState(false);
+  const [commentsErr, setCommentsErr] = useState(false);
 
+  const loadComments = (postId: string) => {
+    setCommentsErr(false);
+    setCommentsLoaded(false);
+    fetchComments(postId)
+      .then((cs) => { setComments(cs); setCommentsLoaded(true); })
+      .catch(() => setCommentsErr(true));
+  };
   const toggleComments = (p: FeedPost) => {
     if (openComments === p.id) { setOpenComments(null); return; }
     setOpenComments(p.id);
     setComments([]);
-    fetchComments(p.id).then(setComments).catch(() => {});
+    loadComments(p.id);
   };
 
   const submitComment = async (postId: string) => {
@@ -515,7 +526,15 @@ export default function Community() {
                     </View>
                   </Row>
                 ))}
-                {comments.length === 0 && (
+                {!commentsLoaded && !commentsErr && (
+                  <Text style={{ fontSize: 14, color: lilac.dim, marginBottom: 9 }}>댓글 불러오는 중...</Text>
+                )}
+                {commentsErr && (
+                  <Pressable onPress={() => loadComments(p.id)} hitSlop={8} accessibilityRole="button" style={{ marginBottom: 9 }}>
+                    <Text style={{ fontSize: 14, fontWeight: '700', color: paper.critical }}>댓글을 불러오지 못했어요 — 다시 시도 ›</Text>
+                  </Pressable>
+                )}
+                {commentsLoaded && !commentsErr && comments.length === 0 && (
                   <Text style={{ fontSize: 14, color: lilac.dim, marginBottom: 9 }}>첫 댓글을 남겨보세요</Text>
                 )}
                 <Row style={{ gap: 8, alignItems: 'center' }}>

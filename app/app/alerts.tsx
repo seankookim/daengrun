@@ -7,7 +7,7 @@ import { fetchNotifications, LiveNoti, markAllNotificationsRead } from '../src/l
 import { useDisplayFont } from '../src/lib/displayFont';
 import { useNumFont } from '../src/lib/fonts';
 import { routeForNotification } from '../src/lib/push';
-import { colors, lilac, lilacRadius, lilacShadow } from '../src/theme';
+import { colors, lilac, lilacRadius, lilacShadow, paper } from '../src/theme';
 
 // 알림 — "여권 × 안내판(Arrivals board)" 정본 (Sean 확정, 2026-08-01 delegation-premium-refresh2).
 // 문법: 시각 컬럼(Oswald) · 정사각 모노 타입 태그 · 헤어라인 행 · 안 읽음 = 좌측 코랄 틱(도트/엣지, 텍스트 금지).
@@ -52,8 +52,17 @@ export default function Alerts() {
   const df = useDisplayFont();
   const nf = useNumFont(); // Oswald — 시각·소인·카운트 (안내판 문법)
   const [liveNotis, setLiveNotis] = useState<LiveNoti[]>([]);
+  // [honesty 2026-08-11] silent catch + no loading state rendered "아직 알림이
+  // 없어요" while loading AND on failure. Three states now: loading / error+retry / loaded.
+  const [loaded, setLoaded] = useState(false);
+  const [loadErr, setLoadErr] = useState(false);
 
-  const load = () => fetchNotifications().then(setLiveNotis).catch(() => {});
+  const load = () => {
+    setLoadErr(false);
+    return fetchNotifications()
+      .then((n) => { setLiveNotis(n); setLoaded(true); })
+      .catch(() => setLoadErr(true));
+  };
   useFocusEffect(useCallback(() => { load(); }, []));
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = () => { setRefreshing(true); load().finally(() => setRefreshing(false)); };
@@ -141,8 +150,23 @@ export default function Alerts() {
             </Row>
           )}
 
-          {/* 빈 상태 */}
-          {groups.length === 0 && (
+          {/* 로딩 — 빈 상태와 절대 겹치지 않는다 (loading ≠ 0 ≠ empty) */}
+          {!loaded && !loadErr && (
+            <Text style={{ fontSize: 14, color: lilac.dim, textAlign: 'center', marginTop: 26 }}>알림 불러오는 중...</Text>
+          )}
+
+          {/* 라우드-페일 스트립 — criticalWash + critical 잉크 + 재시도 */}
+          {loadErr && (
+            <View style={s.failStrip}>
+              <Text style={{ fontSize: 14, fontWeight: '700', color: paper.critical }}>알림을 불러오지 못했어요</Text>
+              <Pressable onPress={load} style={s.retryBtn} accessibilityRole="button">
+                <Text style={{ fontSize: 16, fontWeight: '800', color: lilac.head }}>다시 시도</Text>
+              </Pressable>
+            </View>
+          )}
+
+          {/* 빈 상태 — 실제로 불러온 뒤에만 */}
+          {loaded && !loadErr && groups.length === 0 && (
             <View style={s.empty}>
               <View style={s.emptyTag}><Text style={[s.emptyTagTxt, nf]}>EMPTY STATE</Text></View>
               <Text style={{ fontSize: 14.5, color: lilac.dim, textAlign: 'center', lineHeight: 23 }}>
@@ -254,6 +278,9 @@ const s = StyleSheet.create({
     marginTop: 14, borderWidth: 1, borderColor: lilac.hair, borderStyle: 'dashed',
     borderRadius: lilacRadius.card, backgroundColor: lilac.glass, paddingVertical: 20, paddingHorizontal: 14, alignItems: 'center',
   },
+  // 라우드-페일 스트립 — criticalWash 바닥 + critical 잉크 + 재시도 (community.tsx 문법)
+  failStrip: { marginTop: 14, backgroundColor: paper.criticalWash, borderRadius: lilacRadius.card, padding: 13 },
+  retryBtn: { alignSelf: 'flex-start', marginTop: 10, minHeight: 40, justifyContent: 'center', paddingHorizontal: 14, borderWidth: 1, borderColor: lilac.head, borderRadius: lilacRadius.btn, backgroundColor: '#fff' },
   emptyTag: { borderWidth: 1, borderColor: lilac.hair, borderRadius: lilacRadius.tag, paddingHorizontal: 8, paddingVertical: 4, marginBottom: 10 },
   emptyTagTxt: { fontSize: 12, letterSpacing: 1.2, color: lilac.dim },
 

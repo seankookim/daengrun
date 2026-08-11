@@ -3,6 +3,7 @@ import { useCallback, useState } from 'react';
 import { Alert, Pressable, ScrollView, Text, View, StyleSheet } from 'react-native';
 import { Row } from '../../../src/components/ui';
 import { checkinClubSession, ClubSessionDetail, fetchClubSession } from '../../../src/lib/api';
+import { LoadGate } from '../../../src/components/club-ui';
 import { useDisplayFont } from '../../../src/lib/displayFont';
 import { haptic } from '../../../src/lib/haptics';
 import { colors } from '../../../src/theme';
@@ -20,16 +21,23 @@ export default function ClubPass() {
   const [sess, setSess] = useState<ClubSessionDetail | null>(null);
   const [busy, setBusy] = useState(false);
 
+  // [honesty 2026-08-11] 입장권 딥링크 실패가 백 없는 영원한 '불러오는 중...'이던 것 — LoadGate.
+  const [sessErr, setSessErr] = useState(false);
   const load = useCallback(() => {
-    if (sid) fetchClubSession(sid).then(setSess).catch(() => {});
+    if (!sid) return;
+    setSessErr(false);
+    fetchClubSession(sid).then(setSess).catch(() => setSessErr(true));
   }, [sid]);
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   if (!sess) {
     return (
-      <View style={[s.stage, { alignItems: 'center', justifyContent: 'center' }]}>
-        <Text style={{ fontSize: 14.5, color: colors.nightDim }}>불러오는 중...</Text>
-      </View>
+      <LoadGate
+        mode={sessErr ? 'error' : 'loading'}
+        errorLabel="입장권을 불러오지 못했어요"
+        onRetry={load}
+        onBack={() => router.back()}
+      />
     );
   }
 

@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { ClubMast, ClubTag, DawnCanvas, SealSlide, clubText } from '../../../src/components/club-ui';
 import { DelegationConsent, DogProfile, delegateDog, fetchMyDogs } from '../../../src/lib/api';
@@ -28,8 +28,18 @@ export default function DelegateConsentScreen() {
   const [photoOk, setPhotoOk] = useState(true);
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => { fetchMyDogs().then(setDogs).catch(() => {}); }, []);
-  const dog = dogs[dogIdx] ?? null;
+  // [honesty P1 2026-08-11] A failed dogs fetch used to render "등록된 강아지가
+  // 없어요 — 프로필에서 먼저 등록해주세요" on this legal consent document — a
+  // network error stated as fact, with a false instruction. Three states now:
+  // loading / error+retry / loaded (and loaded-empty keeps the honest-empty copy).
+  const [dogsLoaded, setDogsLoaded] = useState(false);
+  const [dogsErr, setDogsErr] = useState(false);
+  const loadDogs = useCallback(() => {
+    setDogsErr(false);
+    fetchMyDogs().then((d) => { setDogs(d); setDogsLoaded(true); }).catch(() => setDogsErr(true));
+  }, []);
+  useEffect(() => { loadDogs(); }, [loadDogs]);
+  const dog = dogsLoaded ? dogs[dogIdx] ?? null : null;
   const ready = !!dog && emergency.trim().length >= 9;
 
   const consent = useMemo((): DelegationConsent => {
@@ -85,8 +95,17 @@ export default function DelegateConsentScreen() {
           <View style={s.pdRow}>
             <Text style={s.pdKey}>위탁견</Text>
             <View style={{ flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-              {dogs.length === 0 && <Text style={{ fontSize: 14, color: '#8a8272' }}>등록된 강아지가 없어요 — 프로필에서 먼저 등록해주세요</Text>}
-              {dogs.map((d, i) => (
+              {!dogsLoaded && !dogsErr && <Text style={{ fontSize: 14, color: '#8a8272' }}>강아지 목록 불러오는 중...</Text>}
+              {dogsErr && (
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '700', color: L.tang }}>강아지 목록을 불러오지 못했어요</Text>
+                  <Pressable onPress={loadDogs} style={s.dogsRetry} accessibilityRole="button">
+                    <Text style={{ fontSize: 16, fontWeight: '800', color: INK }}>다시 시도</Text>
+                  </Pressable>
+                </View>
+              )}
+              {dogsLoaded && dogs.length === 0 && <Text style={{ fontSize: 14, color: '#8a8272' }}>등록된 강아지가 없어요 — 프로필에서 먼저 등록해주세요</Text>}
+              {dogsLoaded && dogs.map((d, i) => (
                 <Pressable key={d.id} onPress={() => setDogIdx(i)}
                   style={[s.dogChip, i === dogIdx && { backgroundColor: INK, borderColor: INK }]}>
                   <Text style={{ fontSize: 14, fontWeight: '700', color: i === dogIdx ? '#fff' : INK }}>
@@ -142,7 +161,9 @@ export default function DelegateConsentScreen() {
           <SealSlide width={width - 24 - 26 - 8} onSeal={submit} disabled={!ready || busy} />
           {!ready && (
             <Text style={{ fontSize: 14, color: '#a4917f', textAlign: 'center', marginTop: 7 }}>
-              {dogs.length === 0 ? '위탁견이 있어야 봉인할 수 있어요' : '비상 연락처를 채우면 봉인이 열려요'}
+              {!dogsLoaded
+                ? dogsErr ? '강아지 목록을 불러와야 봉인할 수 있어요' : '강아지 목록을 확인하는 중이에요'
+                : dogs.length === 0 ? '위탁견이 있어야 봉인할 수 있어요' : '비상 연락처를 채우면 봉인이 열려요'}
             </Text>
           )}
         </View>
@@ -177,6 +198,11 @@ const s = StyleSheet.create({
   pdInput: {
     flex: 1, fontSize: 14, fontWeight: '700', color: INK, padding: 0,
     borderBottomWidth: 1.5, borderStyle: 'dashed', borderBottomColor: '#C9C2AE', paddingBottom: 2,
+  },
+  // retry chip inside the paper document — document grammar (ink border, sanctioned radius 4)
+  dogsRetry: {
+    alignSelf: 'flex-start', marginTop: 7, minHeight: 36, justifyContent: 'center', paddingHorizontal: 12,
+    borderWidth: 1.3, borderColor: INK, borderRadius: 4, backgroundColor: '#FBF9F3',
   },
   dogChip: {
     borderWidth: 1.3, borderColor: '#C9C2AE', borderRadius: 4,

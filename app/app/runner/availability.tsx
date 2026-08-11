@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextStyle, View } from 'react-native';
 import { PaperBtn } from '../../src/components/paper-btn';
 import { Row } from '../../src/components/ui';
@@ -30,10 +30,16 @@ export default function Availability() {
   const nf = useNumFont(); // Oswald — stepper time values
   const [days, setDays] = useState<DayState[]>(Array.from({ length: 7 }, () => ({ ...DEFAULT_DAY })));
   const [loaded, setLoaded] = useState(false);
+  const [loadErr, setLoadErr] = useState(false);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
 
-  useEffect(() => {
+  // [honesty P1 2026-08-11] A failed load used to setLoaded(true) and render the
+  // default all-쉬는날 grid as if it were the runner's saved rules — one 저장하기
+  // tap then overwrote the real server rules with an empty set. Failure now
+  // renders as failure, and the save bar only mounts after a real load succeeded.
+  const load = useCallback(() => {
+    setLoadErr(false);
     fetchMyAvailability()
       .then((rules) => {
         const next = Array.from({ length: 7 }, () => ({ ...DEFAULT_DAY }));
@@ -41,8 +47,9 @@ export default function Availability() {
         setDays(next);
         setLoaded(true);
       })
-      .catch((e) => { console.warn('[avail] load:', e?.message ?? e); setLoaded(true); });
+      .catch((e) => { console.warn('[avail] load:', e?.message ?? e); setLoadErr(true); });
   }, []);
+  useEffect(() => { load(); }, [load]);
 
   const mutate = (wd: number, patch: Partial<DayState>) => {
     setDays((ds) => ds.map((d, i) => (i === wd ? { ...d, ...patch } : d)));
@@ -65,6 +72,7 @@ export default function Availability() {
   };
 
   const save = async () => {
+    if (!loaded) return; // hard guard — never write from a grid the server didn't seed
     setSaving(true);
     try {
       const rules: AvailRule[] = days
@@ -97,8 +105,21 @@ export default function Availability() {
           설정한 시간에만 요청을 받아요 · 주 {activeCount}일 러닝
         </Text>
 
-        {!loaded && (
+        {!loaded && !loadErr && (
           <View style={s.card}><Text style={{ fontSize: 14.5, color: paper.dim, textAlign: 'center', paddingVertical: 10 }}>불러오는 중...</Text></View>
+        )}
+
+        {/* loud-fail strip — criticalWash bg + critical ink (never shares paper.line) + retry */}
+        {!loaded && loadErr && (
+          <View style={s.failStrip}>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: paper.critical }}>저장된 가용시간을 불러오지 못했어요</Text>
+            <Text style={{ fontSize: 14, lineHeight: 19, color: paper.critical, marginTop: 3 }}>
+              불러오기 전에는 편집과 저장을 열지 않아요 — 기존 설정을 지우지 않기 위해서예요
+            </Text>
+            <Pressable onPress={load} style={s.retryBtn} accessibilityRole="button">
+              <Text style={{ fontSize: 16, fontWeight: '800', color: paper.ink }}>다시 시도</Text>
+            </Pressable>
+          </View>
         )}
 
         {loaded && (
@@ -170,16 +191,19 @@ export default function Availability() {
         </View>
       </ScrollView>
 
-      {/* sticky save — PaperBtn matrix: busy = label swap, saved = explicit disabledFill */}
-      <View style={s.saveBar}>
-        <PaperBtn
-          label={dirty ? '저장하기' : '저장됨 ✓'}
-          busyLabel="저장 중..."
-          busy={saving}
-          disabled={!dirty}
-          onPress={save}
-        />
-      </View>
+      {/* sticky save — PaperBtn matrix: busy = label swap, saved = explicit disabledFill.
+          Mounts ONLY after a real load: saving an unseeded grid would wipe server rules. */}
+      {loaded && (
+        <View style={s.saveBar}>
+          <PaperBtn
+            label={dirty ? '저장하기' : '저장됨 ✓'}
+            busyLabel="저장 중..."
+            busy={saving}
+            disabled={!dirty}
+            onPress={save}
+          />
+        </View>
+      )}
     </View>
   );
 }
@@ -208,6 +232,9 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: paper.line,
   },
   card: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE', paddingHorizontal: 14, paddingVertical: 6 },
+  // loud-fail strip — community.tsx failStrip grammar (criticalWash + critical, retry ≥40pt)
+  failStrip: { backgroundColor: paper.criticalWash, padding: 13 },
+  retryBtn: { alignSelf: 'flex-start', marginTop: 10, minHeight: 40, justifyContent: 'center', paddingHorizontal: 14, borderWidth: 1, borderColor: paper.ink, backgroundColor: paper.canvas },
   div: { height: 1, backgroundColor: '#EEEEEE' },
   toggleChip: { paddingVertical: 8, paddingHorizontal: 15, borderRadius: 0 },
   toggleChipOn: { backgroundColor: paper.ink },

@@ -4,7 +4,7 @@ import { Alert, Image, Linking, Modal, Pressable, RefreshControl, ScrollView, St
 import { Avatar, Icon, Row } from '../../../src/components/ui';
 import { AckStack } from '../../../src/components/club-acks';
 import {
-  BigNumRow, ClubCta, ClubMast, ClubTag, DawnCanvas, Flap, LilacCard, clubText,
+  BigNumRow, ClubCta, ClubMast, ClubTag, DawnCanvas, Flap, LilacCard, LoadGate, clubText,
 } from '../../../src/components/club-ui';
 import { DrainRing } from '../../../src/components/drainring';
 import {
@@ -102,9 +102,13 @@ export default function ClubSessionShell() {
   const [hostThread, setHostThread] = useState<string | null>(null); // 열린 1:1 상대 (호스트: 신청자 id · 참가자: 'me')
   const [threadDraft, setThreadDraft] = useState('');
 
+  // [honesty P1 2026-08-11] 세션 실패가 앱 대표 딥링크에서 영원한 '불러오는 중...'(백 없음)
+  // 이던 것 — LoadGate 3상태 + 돌아가기 상시. 직전 실값은 유지.
+  const [sessErr, setSessErr] = useState(false);
   const load = useCallback(() => {
     if (!sid) return;
-    fetchClubSession(sid).then(setSess).catch(() => {});
+    setSessErr(false);
+    fetchClubSession(sid).then(setSess).catch(() => setSessErr(true));
     // [감사 P1] 일시적 네트워크 오류가 board=null·access='none'으로 리셋해 카드·버튼이 전멸하던 것 —
     // 실패 시 이전 상태 유지 (access='none'은 서버가 실제로 준 값일 때만)
     fetchDelegationBoard(sid).then(setBoard).catch(() => {});
@@ -163,11 +167,12 @@ export default function ClubSessionShell() {
 
   if (!sess) {
     return (
-      <DawnCanvas>
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontSize: 14, color: L.dim }}>불러오는 중...</Text>
-        </View>
-      </DawnCanvas>
+      <LoadGate
+        mode={sessErr ? 'error' : 'loading'}
+        errorLabel="세션을 불러오지 못했어요"
+        onRetry={load}
+        onBack={() => router.back()}
+      />
     );
   }
 

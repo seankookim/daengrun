@@ -2,14 +2,14 @@ import { useDisplayFont } from '../../src/lib/displayFont';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, AppState, Linking, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Icon, Monogram, Row } from '../../src/components/ui';
+import { Avatar, Icon, Row } from '../../src/components/ui';
 import { addRunEvent, ensureThread, fetchCurrentRunnerJobId, fetchMeetupInfo, fetchRunStartedAt, fetchRunTrace, MeetupInfo, notifyKmMilestone, RunEventKind, saveRunTrace, sendChatMessage, sendChatPhoto, settleRun, startRunServer, uploadRunPhoto } from '../../src/lib/api';
 import { GeoPoint, getNaverMap, getTraceSnapshot, getTrackPermission, publishPos, resetTrace, seedTrace, smoothTrace, startTracking, stopPublishing, TrackHandle, TrackMode, TrackSnapshot } from '../../src/lib/geo';
 import { haptic } from '../../src/lib/haptics';
 import { notifyLocal } from '../../src/lib/push';
 import { endRunActivity, RunLAProps, startRunActivity, updateRunActivity } from '../../src/lib/runActivity';
 import { useNumFont } from '../../src/lib/fonts';
-import { EndReason, payoutFor, runnerJob, runRequests, runResult } from '../../src/store';
+import { EndReason, payoutFor, runnerJob, runResult } from '../../src/store';
 import { colors, paper } from '../../src/theme';
 
 const REASON_MAP = { dog: 'dog_condition', owner: 'owner_request', runner: 'runner_personal' } as const;
@@ -41,11 +41,15 @@ const paceStr = (sec: number, km: number) => {
 
 export default function ActiveRun() {
   const df = useDisplayFont(); // 디스플레이 서체 — 러닝 시작/종료 CTA
-  const req = runRequests[0]; // 시각 폴백 전용 — 실값은 info가 우선
   const [info, setInfo] = useState<MeetupInfo | null>(null);
-  const dogName = info?.dogName ?? req.dogName;
-  // 목표 거리 실화 — mock 5km가 진행/자동완주 임계로 쓰이던 버그 수정 (fake-inventory)
-  const targetKm = info?.km ?? req.km;
+  // Booking context is the ONLY source of dog name and target distance — the runRequests
+  // mock fallback is retired (fake-inventory 2026-08-11). loading != error != no booking:
+  // on error the strip below says so and offers retry.
+  const [infoStatus, setInfoStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
+  const dogName = info?.dogName ?? null;
+  // null target = unknown. A guessed threshold must never move money: with targetKm null the
+  // auto-settle and overrun ceiling are OFF and the run can only end via the manual end sheet.
+  const targetKm = info?.km ?? null;
   const [running, setRunning] = useState(false);
   const [sec, setSec] = useState(0);
   const [endSheet, setEndSheet] = useState(false);
@@ -91,12 +95,19 @@ export default function ActiveRun() {
   const funLine = (): string => {
     const k = km.toFixed(2);
     const t = fmt(sec);
-    const lines = [
-      `${dogName}, ${k}km 지점에서 한 컷! ${t} · 오늘도 체력 적금 +1`,
-      `${k}km 통과 중인 ${dogName} — 꼬리 텐션 최상입니다 (${t})`,
-      `지금 ${dogName} 표정 보세요! ${k}km 달리고 이 컨디션 · 체력 나이 -0.01살 적립 중`,
-      `${dogName} 현장 소식: ${k}km · ${t} · 산소 가득 마시는 중`,
-    ];
+    // Name the dog only when the real booking told us the name — no invented names.
+    const lines = dogName
+      ? [
+          `${dogName}, ${k}km 지점에서 한 컷! ${t} · 오늘도 체력 적금 +1`,
+          `${k}km 통과 중인 ${dogName} — 꼬리 텐션 최상입니다 (${t})`,
+          `지금 ${dogName} 표정 보세요! ${k}km 달리고 이 컨디션 · 체력 나이 -0.01살 적립 중`,
+          `${dogName} 현장 소식: ${k}km · ${t} · 산소 가득 마시는 중`,
+        ]
+      : [
+          `${k}km 지점에서 한 컷! ${t} · 오늘도 체력 적금 +1`,
+          `${k}km 통과 중 — 꼬리 텐션 최상입니다 (${t})`,
+          `현장 소식: ${k}km · ${t} · 산소 가득 마시는 중`,
+        ];
     return lines[Math.floor(Math.random() * lines.length)];
   };
 
@@ -158,10 +169,19 @@ export default function ActiveRun() {
   const overrunNotified = useRef(false);
 
   const km = gpsKm;
-  const remaining = Math.max(targetKm - km, 0);
-  const progress = Math.min(km / targetKm, 1);
+  const remaining = targetKm != null ? Math.max(targetKm - km, 0) : null;
+  const progress = targetKm != null ? Math.min(km / targetKm, 1) : 0;
   // settle-run 400 밴드(plannedKm*2+2)의 코앞. 넘기면 재시도 루프로도 못 푸는 400이라 예약이 좌초된다.
-  const ceilingKm = targetKm * 2 + 2 - 0.5;
+  // Unknown target → no client ceiling (the server band still guards settlement).
+  const ceilingKm = targetKm != null ? targetKm * 2 + 2 - 0.5 : null;
+
+  // Booking context load — retryable, and its failure is announced (blockStrip below).
+  const loadInfo = useCallback((bid: string) => {
+    setInfoStatus('loading');
+    fetchMeetupInfo(bid)
+      .then((i) => { setInfo(i); setInfoStatus('ready'); })
+      .catch((e) => { console.warn('[run] info:', e?.message ?? e); setInfoStatus('error'); });
+  }, []);
 
   const refreshStartedAt = useCallback(() => {
     const bid = runnerJob.bookingId;
@@ -185,7 +205,7 @@ export default function ActiveRun() {
       }
       const bid = runnerJob.bookingId;
       if (!bid) return;
-      fetchMeetupInfo(bid).then(setInfo).catch((e) => console.warn('[run] info:', e?.message ?? e));
+      loadInfo(bid);
       refreshStartedAt();
       try {
         const saved = await fetchRunTrace(bid);
@@ -238,9 +258,9 @@ export default function ActiveRun() {
 
   // ---------- 라이브 액티비티 (다이내믹 아일랜드 + 잠금화면) ----------
   const laProps = (): RunLAProps => ({
-    dogName,
+    dogName: dogName ?? '반려견',
     km: km.toFixed(2),
-    targetKm: String(targetKm),
+    targetKm: targetKm != null ? String(targetKm) : '—',
     pace: paceStr(sec, km),
     elapsed: fmt(sec),
     eventLine: [
@@ -331,11 +351,11 @@ export default function ActiveRun() {
   // 재시도 루프로도 못 풀어 예약이 active로 좌초된다 (● LIVE 좀비의 재발).
   useEffect(() => {
     if (!running || !gps) return;
-    if (km >= targetKm && !overrunNotified.current && !appActive) {
+    if (targetKm != null && km >= targetKm && !overrunNotified.current && !appActive) {
       overrunNotified.current = true;
       notifyLocal('목표 거리에 도달했어요', '앱을 열어 러닝을 종료해주세요');
     }
-    if (km >= ceilingKm && !ceilingHit) {
+    if (ceilingKm != null && km >= ceilingKm && !ceilingHit) {
       setCeilingHit(true);
       handle.current?.stop(); // 기록만 멈춘다 — 지금까지의 트레이스는 그대로 남는다
       handle.current = null;
@@ -347,7 +367,9 @@ export default function ActiveRun() {
   // per-reason payout (docs/product-notes: all pay actual km — never incentivize pushing a hurt dog)
   const payoutByReason = (reason: EndReason): number => {
     const actual = payoutFor(km);
-    if (reason === 'owner') return actual + Math.round((payoutFor(targetKm) - actual) * 0.5); // + 잔여 50% 보장
+    // The remaining-50% guarantee is only *estimated* when the real target is known —
+    // the server computes the actual amount either way (settleRun res.net).
+    if (reason === 'owner' && targetKm != null) return actual + Math.round((payoutFor(targetKm) - actual) * 0.5);
     return actual; // dog / runner: actual km
   };
 
@@ -362,7 +384,9 @@ export default function ActiveRun() {
     stopPublishing();
     endRunActivity(laProps());
     const localPayout = completed ? payoutFor(km) : payoutByReason(reason);
-    Object.assign(runResult, { km, sec, payout: localPayout, completed, reason, bookingId: bid });
+    // dogName rides along from the real booking context (null when it never loaded —
+    // the done screen then re-reads the booking or uses generic wording, never a fake name).
+    Object.assign(runResult, { km, sec, payout: localPayout, completed, reason, bookingId: bid, dogName });
 
     if (bid && !gps) {
       // 정직 가드 — 실측되지 않은 거리로는 실예약을 정산하지 않는다.
@@ -414,7 +438,9 @@ export default function ActiveRun() {
   const endWith = (reason: EndReason) => {
     setEndSheet(false);
     if (reason === 'dog') {
-      Alert.alert('컨디션 종료', '보호자에게 알림 전송됨 · 상태 사진과 메모를 남겨주세요\n근처 동물병원: 반포동물병원 650m');
+      // The fabricated "nearby vet" line is gone — there is no vet data source, and invented
+      // safety copy is worse than none (fake-inventory 2026-08-11).
+      Alert.alert('컨디션 종료', '보호자에게 알림 전송됨 · 상태 사진과 메모를 남겨주세요');
     }
     settle(reason, false);
   };
@@ -427,19 +453,22 @@ export default function ActiveRun() {
   // 예약이 영원히 active로 남았음 (보호자 위젯 ● LIVE 좀비의 원인, 2026-07-23)
   // [2026-08-08] appActive 게이트: 백그라운드에서 사람 없이 돈이 확정되면 안 된다.
   // 백그라운드에서 목표를 넘겼다면 복귀 시점(appActive 전환)에 이 효과가 다시 돌아 정산한다.
+  // A guessed threshold must never move money: with targetKm unknown (null) this stays off
+  // and the run ends only through the manual end sheet — the strip below says so.
+  const reachedTarget = targetKm != null && km >= targetKm;
   useEffect(() => {
     if (!running || !appActive) return;
-    if (km >= targetKm) {
+    if (reachedTarget) {
       setRunning(false);
       settle(null, true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [km >= targetKm, appActive, running]);
+  }, [reachedTarget, appActive, running]);
 
   // ---------- 러닝 시작 — 연속 기록이 안 되면 시작하지 않는다 (Sean 2026-08-08) ----------
   const startRun = async () => {
     setRationale(false);
-    const h = await startTracking(onTrack, { dogName });
+    const h = await startTracking(onTrack, { dogName: dogName ?? undefined });
     setTrackMode(h.mode);
     modeRef.current = h.mode;
     if (h.mode !== 'background') {
@@ -477,7 +506,18 @@ export default function ActiveRun() {
   // 추적 불가 사유별 정직 카피 — '모듈 없는 빌드'와 '권한 거부'는 같은 문장이 아니다
   const blockStrip = (): { text: string; action?: string; onAction?: () => void } | null => {
     if (ceilingHit) return { text: '정산 가능한 최대 거리에 근접했어요 — 지금 종료해주세요' };
-    if (trackMode == null || trackMode === 'background') return null;
+    if (trackMode == null || trackMode === 'background') {
+      // Booking context failed → target distance unknown → auto-complete is OFF. Say so
+      // honestly instead of settling on a guessed threshold, and offer retry.
+      if (infoStatus === 'error') {
+        return {
+          text: '예약 정보를 불러오지 못했어요 — 자동 완주 없이 종료 버튼으로 정산돼요',
+          action: '다시 시도',
+          onAction: () => { if (runnerJob.bookingId) loadInfo(runnerJob.bookingId); },
+        };
+      }
+      return null;
+    }
     if (trackMode === 'denied') {
       return {
         text: '위치 권한이 꺼져 있어요 — 거리를 잴 수도, 정산할 수도 없어요',
@@ -527,7 +567,9 @@ export default function ActiveRun() {
         <Row style={{ justifyContent: 'space-between', paddingHorizontal: 16 }}>
           <View style={s.statusBadge}>
             <Text style={{ fontSize: 14, fontWeight: '700', color: colors.volt }}>
-              {running ? `● ${dogName}와 러닝 중 · GPS` : `${dogName}와 러닝 준비`}
+              {running
+                ? dogName ? `● ${dogName}와 러닝 중 · GPS` : '● 러닝 중 · GPS'
+                : dogName ? `${dogName}와 러닝 준비` : '러닝 준비'}
             </Text>
             {running && gps && !ceilingHit && (
               <Text style={{ fontSize: 14, color: '#BBBBBB', marginTop: 2 }}>화면이 꺼져도 거리가 기록돼요</Text>
@@ -546,28 +588,36 @@ export default function ActiveRun() {
           </Row>
         </Row>
 
+        {/* Course + progress render only from the real booking (mock course retired).
+            loading != absent: while the context loads we say so; unknown target = no bar. */}
         <View style={[s.trackWrap, layout === 'island' && { display: 'none' }]}>
-          <Row style={{ justifyContent: 'space-between', marginBottom: 8 }}>
-            <Text style={{ fontSize: 14, color: paper.dim }}>{info?.routeName ?? req.place} 코스 · {targetKm}km</Text>
-            <Text style={{ fontSize: 14, fontWeight: '800', color: paper.ink }}>
-              남은 거리 {remaining.toFixed(1)}km
-            </Text>
-          </Row>
-          <View style={s.track}>
-            <View style={[s.trackFill, { width: `${progress * 100}%` }]} />
-            <View style={[s.trackDot, { left: `${Math.max(progress * 100 - 2, 0)}%` }]} />
-          </View>
+          {targetKm != null && remaining != null ? (
+            <>
+              <Row style={{ justifyContent: 'space-between', marginBottom: 8 }}>
+                <Text style={{ fontSize: 14, color: paper.dim }}>{info?.routeName} 코스 · {targetKm}km</Text>
+                <Text style={{ fontSize: 14, fontWeight: '800', color: paper.ink }}>
+                  남은 거리 {remaining.toFixed(1)}km
+                </Text>
+              </Row>
+              <View style={s.track}>
+                <View style={[s.trackFill, { width: `${progress * 100}%` }]} />
+                <View style={[s.trackDot, { left: `${Math.max(progress * 100 - 2, 0)}%` }]} />
+              </View>
+            </>
+          ) : infoStatus === 'loading' ? (
+            <Text style={{ fontSize: 14, color: paper.dim }}>코스 정보 불러오는 중...</Text>
+          ) : null}
         </View>
       </View>
 
       {/* 스탯 + 컨트롤 — panel: 하단 고정 / island: 지도 위 플로팅 */}
       <View style={[s.panel, layout === 'island' && s.panelIsland]}>
         {/* island 모드: 코스·남은 거리·진행바가 카드 안으로 들어온다 (숨기지 않는다) */}
-        {layout === 'island' && (
+        {layout === 'island' && targetKm != null && remaining != null && (
           <View style={{ marginBottom: 12 }}>
             <Row style={{ justifyContent: 'space-between', marginBottom: 7 }}>
               <Text style={{ fontSize: 15, color: '#BBBBBB' }} numberOfLines={1}>
-                {info?.routeName ?? req.place} 코스 · {targetKm}km
+                {info?.routeName} 코스 · {targetKm}km
               </Text>
               <Text style={{ fontSize: 14, fontWeight: '800', color: '#FFFFFF' }}>
                 남은 거리 {remaining.toFixed(1)}km
@@ -577,6 +627,9 @@ export default function ActiveRun() {
               <View style={{ height: 5, backgroundColor: colors.volt, width: `${progress * 100}%` }} />
             </View>
           </View>
+        )}
+        {layout === 'island' && targetKm == null && infoStatus === 'loading' && (
+          <Text style={{ fontSize: 14, color: '#BBBBBB', marginBottom: 12 }}>코스 정보 불러오는 중...</Text>
         )}
         {/* 추적 상태 라우드 페일 — 실패는 실패로 보인다 (침묵 강등 금지).
             팔레트는 이 화면의 다크 패널에 맞춰 코랄, 문법은 paper 라우드 페일 그대로 */}
@@ -601,9 +654,11 @@ export default function ActiveRun() {
           style={s.chatPin}
           onPress={() => router.push('/chat')}
         >
-          <Monogram char={req.dogChar} bg={req.dogColor} size={36} />
+          {/* Real dog identity — booking photo when it exists, monogram of the real name
+              otherwise (mock char/color retired). Neutral tile on the dark panel. */}
+          <Avatar url={info?.dogPhotoUrl} char={(dogName ?? '반려견')[0]} bg="#3A3A3A" size={36} />
           <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 15, fontWeight: '700', color: '#FFFFFF' }}>{dogName} 보호자님</Text>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: '#FFFFFF' }}>{dogName ? `${dogName} 보호자님` : '보호자님'}</Text>
             <Text style={{ fontSize: 14.5, color: '#BBBBBB' }} numberOfLines={1}>
               {info?.dogMemo ?? '채팅으로 이동'}
             </Text>
@@ -619,7 +674,8 @@ export default function ActiveRun() {
 
         <Row style={{ justifyContent: 'center', marginBottom: 14 }}>
           <Text style={{ fontSize: 14, color: '#BBBBBB' }}>
-            현재 예상 수익 <Text style={{ color: colors.volt, fontWeight: '800' }}>{payoutFor(km).toLocaleString()}원</Text> · 완주 시 {payoutFor(targetKm + 0.02).toLocaleString()}원
+            현재 예상 수익 <Text style={{ color: colors.volt, fontWeight: '800' }}>{payoutFor(km).toLocaleString()}원</Text>
+            {targetKm != null ? ` · 완주 시 ${payoutFor(targetKm + 0.02).toLocaleString()}원` : ''}
           </Text>
         </Row>
 
@@ -707,7 +763,9 @@ export default function ActiveRun() {
           <EndOption
             title="보호자 요청"
             desc="보호자가 조기 종료를 요청했어요"
-            pay={`${payoutByReason('owner').toLocaleString()}원 · 잔여 거리 50% 보장 포함`}
+            pay={targetKm != null
+              ? `${payoutByReason('owner').toLocaleString()}원 · 잔여 거리 50% 보장 포함`
+              : `${payoutByReason('owner').toLocaleString()}원 + 잔여 거리 50% 보장 · 정산 시 확정`}
             accent="#9fc3e8"
             onPress={() => endWith('owner')}
           />

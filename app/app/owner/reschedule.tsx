@@ -8,7 +8,7 @@ import {
 } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { haptic } from '../../src/lib/haptics';
-import { colors } from '../../src/theme';
+import { colors, paper } from '../../src/theme';
 
 // 일정 변경 = 제안 (reschedule-as-proposal, 0016)
 // 확정 예약은 계약 — 여기서 고른 새 시간은 '요청'일 뿐, 러너가 수락해야 실제로 바뀐다.
@@ -33,7 +33,8 @@ export default function Reschedule() {
   const [err, setErr] = useState<string | null>(null);
   const [rules, setRules] = useState<AvailRule[]>([]);
   const [dayIdx, setDayIdx] = useState(0);
-  const [slotOk, setSlotOk] = useState<Record<string, boolean | null>>({});
+  // null = 확인 중 · 'error' = check failed (availability UNKNOWN — never painted 가능)
+  const [slotOk, setSlotOk] = useState<Record<string, boolean | null | 'error'>>({});
   const [picked, setPicked] = useState<{ label: string; start: Date } | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -69,6 +70,9 @@ export default function Reschedule() {
   }, [rules, dayIdx, days]);
 
   // 슬롯별 서버 검증 — 러너 프로필 그리드와 동일 (규칙 + 예약 충돌 + 휴식 버퍼)
+  // [honesty P1 2026-08-11] a failed check used to paint the slot 가능 — a booking
+  // against fabricated availability is a real-world no-show. Failure now renders
+  // as 확인 실패 (unknown), tappable only to retry the check.
   useEffect(() => {
     if (!info?.runnerId || daySlots.length === 0) return;
     let alive = true;
@@ -81,10 +85,20 @@ export default function Reschedule() {
       const end = new Date(sl.start.getTime() + 60 * 60_000);
       checkSlot(info.runnerId!, sl.start.toISOString(), end.toISOString())
         .then((ok) => { if (alive) setSlotOk((m) => ({ ...m, [sl.key]: ok })); })
-        .catch(() => { if (alive) setSlotOk((m) => ({ ...m, [sl.key]: true })); });
+        .catch(() => { if (alive) setSlotOk((m) => ({ ...m, [sl.key]: 'error' })); });
     });
     return () => { alive = false; };
   }, [info, daySlots]);
+
+  // single-slot recheck — the retry path for a failed availability check
+  const recheckSlot = (sl: { key: string; start: Date }) => {
+    if (!info?.runnerId) return;
+    setSlotOk((m) => ({ ...m, [sl.key]: null }));
+    const end = new Date(sl.start.getTime() + 60 * 60_000);
+    checkSlot(info.runnerId, sl.start.toISOString(), end.toISOString())
+      .then((ok) => setSlotOk((m) => ({ ...m, [sl.key]: ok })))
+      .catch(() => setSlotOk((m) => ({ ...m, [sl.key]: 'error' })));
+  };
 
   const send = async () => {
     if (!info || !picked || busy) return;
@@ -200,7 +214,11 @@ export default function Reschedule() {
                     <Pressable
                       key={sl.key}
                       disabled={ok === false || isCur}
-                      onPress={() => { haptic('light'); setPicked(sl); }}
+                      onPress={() => {
+                        if (ok === 'error') { recheckSlot(sl); return; } // unknown never books — retry the check
+                        if (ok !== true) return; // still verifying — a slot is pickable only once confirmed
+                        haptic('light'); setPicked(sl);
+                      }}
                       style={[s.slot, isPicked && s.slotPicked, ok === false && s.slotOff, isCur && s.slotCur]}
                     >
                       <Text style={{
@@ -209,8 +227,8 @@ export default function Reschedule() {
                       }}>
                         {sl.label}
                       </Text>
-                      <Text style={{ fontSize: 14, fontWeight: '700', marginTop: 2, color: isPicked ? '#b8c4ae' : isCur ? colors.voltDeep : ok === false ? '#b7b4a5' : '#82887a' }}>
-                        {isCur ? '현재' : ok === null ? '확인 중' : ok === false ? '마감' : '가능'}
+                      <Text style={{ fontSize: 14, fontWeight: '700', marginTop: 2, color: isPicked ? '#b8c4ae' : isCur ? colors.voltDeep : ok === false ? '#b7b4a5' : ok === 'error' ? paper.critical : '#82887a' }}>
+                        {isCur ? '현재' : ok === null ? '확인 중' : ok === 'error' ? '확인 실패 · 재시도' : ok === false ? '마감' : '가능'}
                       </Text>
                     </Pressable>
                   );

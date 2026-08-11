@@ -3,7 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Avatar, Row } from '../../src/components/ui';
-import { fetchBookingStatus, fetchCurrentOwnerBookingId, fetchMeetupInfo, MeetupInfo, subscribeBooking } from '../../src/lib/api';
+import { ensureThread, fetchBookingStatus, fetchCurrentOwnerBookingId, fetchMeetupInfo, MeetupInfo, sendChatMessage, subscribeBooking } from '../../src/lib/api';
 import { useNumFont } from '../../src/lib/fonts';
 import { getNaverMap, LivePos, smoothTrace, subscribePos } from '../../src/lib/geo';
 import { endOwnerActivity, OwnerLAProps, startOwnerActivity, updateOwnerActivity } from '../../src/lib/ownerActivity';
@@ -58,6 +58,7 @@ export default function Live() {
   const [resolve, setResolve] = useState<Resolve>(draft.bookingId ? 'ready' : 'resolving');
   const [stopSheet, setStopSheet] = useState(false);
   const [stopReason, setStopReason] = useState<string | null>(null);
+  const [stopBusy, setStopBusy] = useState(false);
   // 라이브 캠 세션 — 오늘은 항상 null (전송 계층이 없다). 타입만 먼저 못 박아 둔다.
   const [streamSession] = useState<LiveStreamSession | null>(null);
 
@@ -128,11 +129,32 @@ export default function Live() {
     return () => { unsubPos(); unsubBk(); clearInterval(poll); clearInterval(tick); };
   }, [bookingId]);
 
-  const confirmStop = () => {
-    setStopSheet(false);
-    if (!bookingId) return;
-    Alert.alert('러너에게 알렸어요', '안전한 지점에서 정지 후 조율해요 — 채팅으로 이어드릴게요');
-    router.push({ pathname: '/chat', params: { bid: bookingId } });
+  // [honesty audit 2026-08-11 · P1 #3] Before this fix confirmStop made no server call: it closed
+  // the sheet, claimed "러너에게 알렸어요", and discarded the chosen reason. No owner-side server
+  // transition exists for an active run (transition-booking: cancel_owner covers pre-run states
+  // only; settle-run is 403 for anyone but the assigned runner). The only real delivery channel
+  // is chat — so the chosen reason is now sent as an actual chat message (recorded in the thread)
+  // and the sheet closes only on success. The settlement copy below (remaining-50% guarantee +
+  // min fare) is the real settle-run policy applied when the runner ends with 'owner_request'.
+  const confirmStop = async () => {
+    if (!bookingId || !stopReason || stopBusy) return;
+    setStopBusy(true);
+    try {
+      const threadId = await ensureThread(bookingId);
+      await sendChatMessage(
+        threadId,
+        `[러닝 종료 요청] 사유: ${stopReason}\n안전한 지점에서 정지한 뒤 픽업 장소로 복귀 부탁드려요.`,
+      );
+      setStopSheet(false);
+      // No overclaim: what actually happened is a chat send, not a push — land the owner in the
+      // thread where the sent request is visible (proof, not assertion).
+      router.push({ pathname: '/chat', params: { bid: bookingId } });
+    } catch (e) {
+      // Failure renders as failure — sheet stays open, retry possible
+      Alert.alert('요청을 보내지 못했어요', (e as Error)?.message ?? '네트워크를 확인하고 다시 시도해주세요');
+    } finally {
+      setStopBusy(false);
+    }
   };
 
   const dogName = info?.dogName ?? '반려견';
@@ -345,8 +367,9 @@ export default function Live() {
         <View style={s.stopSheet}>
           <View style={s.sheetHandle} />
           <Text style={s.sheetTitle}>정말 러닝을 종료할까요?</Text>
+          {/* Honest copy — only what actually happens: chat send (not a push) → runner sees it → stop & return */}
           <Text style={s.sheetBody}>
-            러너에게 알림이 가고, 안전하게 정지한 뒤{'\n'}{dogName}를 데리고 픽업 장소로 복귀해요.
+            종료 요청과 사유가 채팅으로 러너에게 전송돼요.{'\n'}러너가 확인하면 안전하게 정지한 뒤 {dogName}를 데리고 픽업 장소로 복귀해요.
           </Text>
 
           <Text style={s.sheetLabel}>종료 사유</Text>
@@ -361,18 +384,21 @@ export default function Live() {
 
           <View style={s.feeNote}>
             <Text style={s.feeTxt}>
-              {hasFix ? `지금까지 달린 ${km.toFixed(1)}km 기준으로 정산돼요.` : '지금까지 달린 거리 기준으로 정산돼요.'}{'\n'}
+              {hasFix ? `러너가 종료하면 지금까지 달린 ${km.toFixed(1)}km 기준으로 정산돼요.` : '러너가 종료하면 지금까지 달린 거리 기준으로 정산돼요.'}{'\n'}
               최소 기본요금 9,900원은 결제되며, 러너에게는 잔여 거리 보장이 적용돼요.
             </Text>
           </View>
 
-          {/* destructive-filled — 사유 없으면 명시 disabledFill (불투명도 트릭 퇴역) */}
+          {/* destructive-filled — 사유 없으면 명시 disabledFill (불투명도 트릭 퇴역).
+              While sending: label swap + lock (no opacity paint) */}
           <Pressable
             style={[s.stopConfirm, !stopReason && s.stopConfirmOff]}
-            disabled={!stopReason}
+            disabled={!stopReason || stopBusy}
             onPress={confirmStop}
           >
-            <Text style={[s.stopConfirmTxt, !stopReason && { color: paper.faint }]}>종료 요청 보내기</Text>
+            <Text style={[s.stopConfirmTxt, !stopReason && { color: paper.faint }]}>
+              {stopBusy ? '전송 중...' : '종료 요청 보내기'}
+            </Text>
           </Pressable>
           <Pressable style={{ alignItems: 'center', paddingVertical: 13 }} onPress={() => setStopSheet(false)}>
             <Text style={s.keepWatchTxt}>계속 지켜볼게요</Text>

@@ -3,11 +3,11 @@ import { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { PaperBtn } from '../../src/components/paper-btn';
 import { Icon, Row } from '../../src/components/ui';
-import { DropRow, fetchDrops, uploadRunPhoto } from '../../src/lib/api';
+import { DropRow, fetchDrops, fetchMeetupInfo, uploadRunPhoto } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { MediaImage } from '../../src/lib/media';
-import { runRequests, runResult } from '../../src/store';
+import { runResult } from '../../src/store';
 import { colors, layout, paper } from '../../src/theme';
 
 // 러닝 완료 — the completion Peak (§7b Peak-End: exempt from minimization).
@@ -24,7 +24,19 @@ const fmt = (sec: number) =>
 export default function RunDone() {
   const df = useDisplayFont(); // display font — celebration headline (1/screen budget)
   const nf = useNumFont();     // Oswald — payout numeral
-  const req = runRequests[0];
+  // Real dog name — settle put it on runResult from the booking context; if that never
+  // loaded, re-read the settled booking once. If the name is genuinely unknown (or the
+  // server's own generic '반려견' placeholder), the copy names no dog — never a fake one.
+  const realName = (n: string | null | undefined) => (n && n !== '반려견' ? n : null);
+  const [dogName, setDogName] = useState<string | null>(realName(runResult.dogName));
+  useEffect(() => {
+    if (!realName(runResult.dogName) && runResult.bookingId) {
+      fetchMeetupInfo(runResult.bookingId)
+        .then((i) => setDogName(realName(i.dogName)))
+        .catch((e) => console.warn('[done] dogName:', (e as Error)?.message)); // unknown → generic wording stays
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   // 실드랍 — settle-run이 굴린 결과를 DB에서 읽는다 (목업 215회 은퇴, fake-inventory)
   const [pendingDrop, setPendingDrop] = useState<DropRow | null>(null);
   useEffect(() => {
@@ -64,7 +76,7 @@ export default function RunDone() {
         {runResult.completed ? '러닝 완료!' : '러닝 종료'}
       </Text>
       <Text style={{ fontSize: 14, lineHeight: 19, color: paper.dim, textAlign: 'center', marginTop: 8 }}>
-        {req.dogName}를 보호자에게 안전하게 인계해 주세요
+        {dogName ? `${dogName}를 보호자에게 안전하게 인계해 주세요` : '반려견을 보호자에게 안전하게 인계해 주세요'}
       </Text>
 
       {/* 정산 영수증 — dark artifact face (sharp, ink), volt money numeral */}
@@ -75,7 +87,7 @@ export default function RunDone() {
           +{runResult.payout.toLocaleString()}원
         </Text>
         <Text style={{ fontSize: 14, lineHeight: 18, color: '#BBBBBB', marginTop: 8 }}>
-          {runResult.km.toFixed(2)}km · {fmt(runResult.sec)} · {req.dogName}
+          {runResult.km.toFixed(2)}km · {fmt(runResult.sec)}{dogName ? ` · ${dogName}` : ''}
         </Text>
         {!runResult.completed && (
           <Text style={{ fontSize: 14, lineHeight: 19, color: '#c9a15e', marginTop: 10, textAlign: 'center' }}>
@@ -112,7 +124,7 @@ export default function RunDone() {
             )}
           </Row>
           <Text style={{ fontSize: 14, lineHeight: 19, color: paper.dim, marginTop: 8 }}>
-            {req.dogName}의 신나는 순간을 남겨주세요 — 보호자 만족도와 재지명율이 올라가요
+            {dogName ?? '반려견'}의 신나는 순간을 남겨주세요 — 보호자 만족도와 재지명율이 올라가요
           </Text>
         </View>
       )}
@@ -133,7 +145,7 @@ export default function RunDone() {
       )}
 
       <Text style={{ fontSize: 14, color: paper.dim, textAlign: 'center', marginTop: 14 }}>수익은 매주 수요일 정산됩니다</Text>
-      <PaperBtn label={`${req.dogName} 리뷰 남기기`} style={{ marginTop: 20 }} onPress={() => router.push('/runner/review')} />
+      <PaperBtn label={dogName ? `${dogName} 리뷰 남기기` : '반려견 리뷰 남기기'} style={{ marginTop: 20 }} onPress={() => router.push('/runner/review')} />
       <PaperBtn label="홈으로" variant="secondary" style={{ marginTop: 8 }} onPress={() => router.dismissTo('/runner/home')} />
     </ScrollView>
   );

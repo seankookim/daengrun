@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Avatar, Row } from '../../src/components/ui';
 import { addDog, DogProfile, fetchMyDogs, updateMyDog, uploadDogPhoto } from '../../src/lib/api';
-import { CollarKey, collarColors, collarLabels, colors } from '../../src/theme';
+import { CollarKey, collarColors, collarLabels, colors, paper } from '../../src/theme';
 
 // 반려견 프로필 — 실초코. 사진·정보·성향 메모·선호 태그가 러너에게 전달된다.
 // 진입: 예약 화면 강아지 카드 · 마이 메뉴. 저장은 섹션 하단 버튼 1개.
@@ -22,6 +22,7 @@ export default function DogProfileScreen() {
   const [dogs, setDogs] = useState<DogProfile[]>([]);
   const [dog, setDog] = useState<DogProfile | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [loadErr, setLoadErr] = useState(false);
   const [name, setName] = useState('');
   const [breed, setBreed] = useState('');
   const [birth, setBirth] = useState('');
@@ -47,14 +48,19 @@ export default function DogProfileScreen() {
     setCollar((d.collar as CollarKey) ?? null);
   };
 
-  const load = (preferId?: string) => fetchMyDogs()
-    .then((list) => {
-      setDogs(list);
-      const target = list.find((x) => x.id === (preferId ?? dogId)) ?? list[0];
-      if (target) selectDog(target);
-      setLoaded(true);
-    })
-    .catch((e) => { console.warn('[dog] load:', e?.message ?? e); setLoaded(true); });
+  // [honesty 2026-08-11] a failed fetch used to setLoaded(true) and render the
+  // "아직 반려견이 없어요" empty state — a network error stated as fact. Error renders now.
+  const load = (preferId?: string) => {
+    setLoadErr(false);
+    return fetchMyDogs()
+      .then((list) => {
+        setDogs(list);
+        const target = list.find((x) => x.id === (preferId ?? dogId)) ?? list[0];
+        if (target) selectDog(target);
+        setLoaded(true);
+      })
+      .catch((e) => { console.warn('[dog] load:', e?.message ?? e); setLoadErr(true); });
+  };
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, []);
@@ -141,7 +147,16 @@ export default function DogProfileScreen() {
           <Text style={{ fontSize: 14.5, color: colors.dim, marginTop: 6 }}>사진을 탭해서 변경 — 러너가 픽업 때 알아봐요</Text>
         </View>
 
-        {!loaded && <Text style={{ padding: 16, fontSize: 14.5, color: colors.dim }}>불러오는 중...</Text>}
+        {!loaded && !loadErr && <Text style={{ padding: 16, fontSize: 14.5, color: colors.dim }}>불러오는 중...</Text>}
+        {/* loud-fail strip — failure is never dressed as the empty state */}
+        {!loaded && loadErr && (
+          <View style={s.failStrip}>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: paper.critical }}>반려견 정보를 불러오지 못했어요</Text>
+            <Pressable onPress={() => load()} style={s.retryBtn} accessibilityRole="button">
+              <Text style={{ fontSize: 16, fontWeight: '800', color: FOREST }}>다시 시도</Text>
+            </Pressable>
+          </View>
+        )}
         {loaded && !dog && (
           <Text style={{ padding: 16, fontSize: 14.5, color: colors.dim }}>
             아직 반려견이 없어요 — 첫 예약 때 자동으로 만들어져요
@@ -270,6 +285,9 @@ export default function DogProfileScreen() {
 
 const s = StyleSheet.create({
   backBtn: { position: 'absolute', top: 56, left: 16, width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
+  // loud-fail strip — criticalWash bg + critical ink + retry (community.tsx grammar)
+  failStrip: { marginHorizontal: 12, marginTop: 14, backgroundColor: paper.criticalWash, padding: 13 },
+  retryBtn: { alignSelf: 'flex-start', marginTop: 10, minHeight: 40, justifyContent: 'center', paddingHorizontal: 14, borderWidth: 1, borderColor: FOREST, backgroundColor: '#fff' },
   camBadge: {
     position: 'absolute', right: -2, bottom: -2, width: 22, height: 22, borderRadius: 11,
     backgroundColor: '#5a7a3c', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.cream,

@@ -30,14 +30,24 @@ const paceSecOf = (label?: string | null) => { const m = /(\d+)/.exec(label ?? '
 
 // 실러너 추천 점수 — 응답률·경험·페이스 적합의 가중합.
 // 데이터가 쌓이면 매칭 엔진(견종 경험·후기·거리)으로 교체. 병원 레지던트식 하이브리드 매칭의 v1.
-interface Match { total: number; reasons: { label: string; pct: number }[] }
+// pct: null = no data (a new runner's respond rate) — the bar says 신규 instead of inventing a value.
+interface Match { total: number; partial: boolean; reasons: { label: string; pct: number | null }[] }
 // gearVerified: 인증 장비 부스트 — 슬롯당 +1, 최대 +2 (가드레일: 핵심 점수 불변, 장비는 승부축이 아니다)
+// [honesty audit 2026-08-11 · P1 #3] The old `?? 88` fabricated an 88% respond rate for exactly
+// the runners with no data and fed it into the score at 35% weight. Now an unknown respond rate
+// excludes that axis and renormalizes the two known axes over their own weight sum
+// (0.30 + 0.35 = 0.65) — relative weights between the remaining axes are unchanged, and no
+// value is invented. `partial` marks the score so the UI can disclose the two-axis computation.
 function matchFor(r: LiveRunner, gearVerified = 0, targetPaceSec = 420): Match {
-  const respond = r.respondRate ?? 88;
+  const respond = r.respondRate; // number | null — null flows through untouched
   const exp = Math.min(97, 62 + r.totalRuns * 5);
   const paceFit = Math.max(58, 100 - Math.round(Math.abs(r.paceSec - targetPaceSec) / 4));
+  const weighted = respond != null
+    ? respond * 0.35 + exp * 0.3 + paceFit * 0.35
+    : (exp * 0.3 + paceFit * 0.35) / 0.65;
   return {
-    total: Math.min(99, Math.round(respond * 0.35 + exp * 0.3 + paceFit * 0.35) + Math.min(2, gearVerified)),
+    total: Math.min(99, Math.round(weighted) + Math.min(2, gearVerified)),
+    partial: respond == null,
     reasons: [
       { label: '응답 신뢰도', pct: respond },
       { label: '러닝 경험', pct: exp },
@@ -99,7 +109,17 @@ function RosterRow({ r, m, rank, selected, isTop, isCurrent, onPress, nf }: {
 }
 
 // ── 시트 매치 축 바 — 80 미만은 앰버(약점 축 신호) ──
-function Bar({ label, pct, nf }: { label: string; pct: number; nf: any }) {
+// pct null = no data: empty track + "신규 · 데이터 없음" — neither a bar length nor a number is invented
+function Bar({ label, pct, nf }: { label: string; pct: number | null; nf: any }) {
+  if (pct == null) {
+    return (
+      <Row style={{ gap: 10 }}>
+        <Text style={{ width: 84, fontSize: 14, color: lilac.text }}>{label}</Text>
+        <View style={s.track} />
+        <Text style={{ textAlign: 'right', fontSize: 14, lineHeight: 18, fontWeight: '600', color: lilac.dim }}>신규 · 데이터 없음</Text>
+      </Row>
+    );
+  }
   const weak = pct < 80;
   const w = Math.max(0, Math.min(100, pct));
   return (
@@ -331,7 +351,7 @@ export default function Matching() {
                 </Row>
               </View>
               <Text style={{ marginTop: 11, paddingTop: 10, borderTopWidth: 1, borderTopColor: lilac.hair2, fontSize: 14, lineHeight: 18, color: lilac.dim }}>
-                세 축을 합쳐 매치 점수가 되고, 그 순서가 AI 추천 1순위예요. 인증 장비는 슬롯당 +1(최대 +2)만 더해요.
+                세 축을 합쳐 매치 점수가 되고, 그 순서가 AI 추천 1순위예요. 응답률 데이터가 없는 신규 러너는 나머지 두 축으로만 계산해요. 인증 장비는 슬롯당 +1(최대 +2)만 더해요.
               </Text>
             </View>
 
@@ -434,11 +454,16 @@ export default function Matching() {
             </View>
           </Row>
 
-          {/* 매치 3축 */}
+          {/* Match axes — an unknown respond rate renders as 신규 and the score discloses it's partial */}
           <View style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: lilac.hair2, gap: 7 }}>
             {sel.m.reasons.map((reason) => (
               <Bar key={reason.label} label={reason.label} pct={reason.pct} nf={nf} />
             ))}
+            {sel.m.partial && (
+              <Text style={{ fontSize: 14, lineHeight: 18, color: lilac.dim }}>
+                아직 응답률 데이터가 없어 경험·페이스 두 축으로만 계산한 점수예요
+              </Text>
+            )}
           </View>
 
           {/* 러너 변경 델타 — 현재 지명 러너 대비 (실필드로 계산 가능한 축만) */}

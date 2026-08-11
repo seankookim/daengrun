@@ -52,8 +52,17 @@ export default function Schedule() {
   const [sheetMode, setSheetMode] = useState<'detail' | 'cancel'>('detail');
   const [liveBookings, setLiveBookings] = useState<Booking[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  // [honesty 2026-08-11] warn-only catch + [] seed rendered "예정된 러닝이 없어요"
+  // in flight and on failure. Three states now: loading / error+retry / loaded.
+  const [loaded, setLoaded] = useState(false);
+  const [loadErr, setLoadErr] = useState(false);
 
-  const load = () => fetchMyBookings().then(setLiveBookings).catch((e) => console.warn('[schedule] bookings:', e?.message ?? e));
+  const load = () => {
+    setLoadErr(false);
+    return fetchMyBookings()
+      .then((b) => { setLiveBookings(b); setLoaded(true); })
+      .catch((e) => { console.warn('[schedule] bookings:', e?.message ?? e); setLoadErr(true); });
+  };
   useFocusEffect(useCallback(() => { load(); }, []));
   const onRefresh = () => { setRefreshing(true); load().finally(() => setRefreshing(false)); };
 
@@ -159,7 +168,21 @@ export default function Schedule() {
         </View>
 
         {/* agenda — 풀와이드 밴드 (모던 패스: 카드 수프 → 엣지-투-엣지) */}
-        {visible.length === 0 && (
+        {!loaded && !loadErr && (
+          <View style={s.emptyBox}>
+            <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center' }}>일정 불러오는 중...</Text>
+          </View>
+        )}
+        {/* 라우드-페일 스트립 — 실패는 빈 일정으로 분장하지 않는다 */}
+        {loadErr && (
+          <View style={s.failStrip}>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: paper.critical }}>일정을 불러오지 못했어요</Text>
+            <Pressable onPress={load} style={s.retryBtn} accessibilityRole="button">
+              <Text style={{ fontSize: 16, fontWeight: '800', color: paper.ink }}>다시 시도</Text>
+            </Pressable>
+          </View>
+        )}
+        {loaded && !loadErr && visible.length === 0 && (
           <View style={s.emptyBox}>
             <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center', lineHeight: 23 }}>
               {/* [2026-08-10 감사] 슬라이드 예약은 은퇴한 제스처였다(owner/home.tsx:1222) — 죽은 안내 문구 교정 */}
@@ -587,6 +610,9 @@ const s = StyleSheet.create({
   // viewToggle/viewTab/comingSoon 스타일 퇴역 — 주간/월간 데드 토글과 함께 (ui-audit P1, JSX엔 이미 없음)
   filter: { backgroundColor: '#fff', paddingVertical: 8, paddingHorizontal: 14, borderWidth: 1, borderColor: '#EEE' },
   emptyBox: { marginTop: 24, marginHorizontal: 12, padding: 18, backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEE' },
+  // loud-fail strip — community.tsx failStrip grammar (criticalWash + critical, retry ≥40pt)
+  failStrip: { marginTop: 24, marginHorizontal: 12, backgroundColor: paper.criticalWash, padding: 13 },
+  retryBtn: { alignSelf: 'flex-start', marginTop: 10, minHeight: 40, justifyContent: 'center', paddingHorizontal: 14, borderWidth: 1, borderColor: paper.ink, backgroundColor: paper.canvas },
   bookingCard: { flexDirection: 'row', backgroundColor: '#fff', borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#EEE', marginTop: -1, overflow: 'hidden' },
   rail: { width: 8 }, // 상태 컬러 레일 1.6배 (5→8) — 시맨틱, 페이퍼 이관에서 생존
   // 확정 카드 절취선 — 레일 경계 x=8 중심 (노치 지름 10, 도트 2.5)
