@@ -1,16 +1,29 @@
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, Image, Pressable, ScrollView, Text, View } from 'react-native';
-import { Btn, Card, Icon, Row, text } from '../../src/components/ui';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { PaperBtn } from '../../src/components/paper-btn';
+import { Icon, Row } from '../../src/components/ui';
 import { DropRow, fetchDrops, uploadRunPhoto } from '../../src/lib/api';
+import { useDisplayFont } from '../../src/lib/displayFont';
+import { useNumFont } from '../../src/lib/fonts';
 import { MediaImage } from '../../src/lib/media';
 import { runRequests, runResult } from '../../src/store';
-import { colors } from '../../src/theme';
+import { colors, layout, paper } from '../../src/theme';
+
+// 러닝 완료 — the completion Peak (§7b Peak-End: exempt from minimization).
+// [paper repaint 2026-08-11] cream/rounded legacy scrapped → paper chrome. The payout
+// receipt stays a DARK artifact (paper.ink face, volt money numeral — dark is the
+// artifact, light is the screen), now sharp-cornered with an Oswald numeral (BUG A
+// lineHeight). The drop banner keeps its ink+volt ceremony face (glow shadow retired —
+// nothing floats). Buttons → PaperBtn matrix: 리뷰 = the one primary, 홈으로 secondary.
+// Behavior frozen: fetchDrops/addPhoto/uploadRunPhoto, photo cap 6, all routes.
 
 const fmt = (sec: number) =>
   `${Math.floor(sec / 60)}분 ${String(Math.floor(sec % 60)).padStart(2, '0')}초`;
 
 export default function RunDone() {
+  const df = useDisplayFont(); // display font — celebration headline (1/screen budget)
+  const nf = useNumFont();     // Oswald — payout numeral
   const req = runRequests[0];
   // 실드랍 — settle-run이 굴린 결과를 DB에서 읽는다 (목업 215회 은퇴, fake-inventory)
   const [pendingDrop, setPendingDrop] = useState<DropRow | null>(null);
@@ -43,87 +56,98 @@ export default function RunDone() {
   };
 
   return (
-    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ justifyContent: 'center', padding: 16, paddingTop: 70, paddingBottom: 40, flexGrow: 1 }}>
-      <Text style={[text.h1, { textAlign: 'center' }]}>
+    <ScrollView
+      style={{ flex: 1, backgroundColor: paper.canvas }}
+      contentContainerStyle={{ justifyContent: 'center', paddingHorizontal: layout.gutter, paddingTop: 70, paddingBottom: 40, flexGrow: 1 }}
+    >
+      <Text style={[{ fontSize: 32, fontWeight: '900', color: paper.ink, textAlign: 'center' }, df]}>
         {runResult.completed ? '러닝 완료!' : '러닝 종료'}
       </Text>
-      <Text style={[text.dim, { textAlign: 'center', marginTop: 8 }]}>
+      <Text style={{ fontSize: 14, lineHeight: 19, color: paper.dim, textAlign: 'center', marginTop: 8 }}>
         {req.dogName}를 보호자에게 안전하게 인계해 주세요
       </Text>
 
-      <Card dark style={{ marginTop: 24, alignItems: 'center', padding: 26 }}>
-        <Text style={{ fontSize: 14, color: '#8fa093', letterSpacing: 2 }}>오늘의 수익</Text>
-        <Text style={{ fontSize: 50.5, fontWeight: '900', color: colors.volt, marginTop: 8 }}>
+      {/* 정산 영수증 — dark artifact face (sharp, ink), volt money numeral */}
+      <View style={s.receipt}>
+        <Text style={{ fontSize: 14, lineHeight: 18, color: '#BBBBBB' }}>오늘의 수익</Text>
+        {/* Oswald payout — lineHeight 63 = 1.25× (BUG A) */}
+        <Text style={[{ fontSize: 50.5, lineHeight: 63, fontWeight: '900', color: colors.volt, marginTop: 8, fontVariant: ['tabular-nums'] as const }, nf]}>
           +{runResult.payout.toLocaleString()}원
         </Text>
-        <Text style={{ fontSize: 14, color: '#8fa093', marginTop: 8 }}>
+        <Text style={{ fontSize: 14, lineHeight: 18, color: '#BBBBBB', marginTop: 8 }}>
           {runResult.km.toFixed(2)}km · {fmt(runResult.sec)} · {req.dogName}
         </Text>
         {!runResult.completed && (
-          <Text style={{ fontSize: 14, color: '#c9a15e', marginTop: 10, textAlign: 'center' }}>
+          <Text style={{ fontSize: 14, lineHeight: 19, color: '#c9a15e', marginTop: 10, textAlign: 'center' }}>
             {runResult.reason === 'dog' && '컨디션 종료 — 실제 거리 정산 · 완주율 무영향\n상태 사진과 메모가 보호자에게 전달돼요'}
             {runResult.reason === 'owner' && '보호자 요청 종료 — 실제 거리 + 잔여 거리 50% 보장 포함'}
             {runResult.reason === 'runner' && '개인 사유 종료 — 실제 거리 정산 · 완주율에 반영돼요'}
             {!runResult.reason && '조기 종료 — 실제 뛴 거리만큼 정산됩니다'}
           </Text>
         )}
-      </Card>
+      </View>
 
       {/* 오늘의 순간 — 사진이 보호자의 러닝 리포트에 실려요 (실예약만) */}
       {runResult.bookingId && (
-        <View style={{
-          marginTop: 14, backgroundColor: '#fff', borderRadius: 18, padding: 15,
-          borderWidth: 1, borderColor: '#DCD6C4',
-        }}>
+        <View style={s.photoCard}>
           <Row style={{ justifyContent: 'space-between' }}>
-            <Text style={{ fontSize: 15.5, fontWeight: '900', color: '#0F1D13' }}>오늘의 순간</Text>
-            <Text style={{ fontSize: 14, color: colors.dim }}>보호자 리포트에 실려요</Text>
+            <Text style={{ fontSize: 15.5, fontWeight: '800', color: paper.ink }}>오늘의 순간</Text>
+            <Text style={{ fontSize: 14, color: paper.dim }}>보호자 리포트에 실려요</Text>
           </Row>
           <Row style={{ gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
             {photos.map((url) => (
               /* [0064] uploadRunPhoto가 media 경로를 돌려준다 — 서명 URL로 렌더 */
-              <MediaImage key={url} source={url} style={{ width: 64, height: 64, borderRadius: 10, backgroundColor: '#DCD6C4' }} />
+              <MediaImage key={url} source={url} style={{ width: 64, height: 64, borderRadius: 0, backgroundColor: '#EEEEEE' }} />
             ))}
             {photos.length < 6 && (
               <Pressable
                 onPress={addPhoto}
                 disabled={uploading}
-                style={{
-                  width: 64, height: 64, borderRadius: 10, backgroundColor: '#f4f2ea',
-                  alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#dde8c4', borderStyle: 'dashed',
-                }}
+                style={s.addTile}
+                accessibilityRole="button"
+                accessibilityLabel="사진 추가"
               >
-                <Text style={{ fontSize: 20.5, color: '#5a7a3c' }}>{uploading ? '…' : '＋'}</Text>
+                <Text style={{ fontSize: 20.5, color: paper.ink }}>{uploading ? '…' : '＋'}</Text>
               </Pressable>
             )}
           </Row>
-          <Text style={{ fontSize: 14, color: colors.dim, marginTop: 8 }}>
+          <Text style={{ fontSize: 14, lineHeight: 19, color: paper.dim, marginTop: 8 }}>
             {req.dogName}의 신나는 순간을 남겨주세요 — 보호자 만족도와 재지명율이 올라가요
           </Text>
         </View>
       )}
 
-      {/* 실드랍 — 미오픈 드랍이 있을 때만, 오픈은 리워드 센터에서 */}
+      {/* 실드랍 — 미오픈 드랍이 있을 때만, 오픈은 리워드 센터에서. Ink+volt ceremony face
+          stays (drop = milestone artifact); glow shadow retired, corners sharp */}
       {pendingDrop && (
         <Pressable
           onPress={() => router.push('/runner/rewards')}
-          style={{
-            marginTop: 14, borderRadius: 18, padding: 18, alignItems: 'center',
-            backgroundColor: colors.ink, borderWidth: 1.5, borderColor: colors.volt,
-            shadowColor: colors.volt, shadowOpacity: 0.35, shadowRadius: 7, shadowOffset: { width: 0, height: 3 },
-          }}
+          style={({ pressed }) => [s.dropBanner, pressed && { transform: [{ scale: 0.96 }] }]}
         >
           <Icon name={pendingDrop.kind === 'pick' ? 'Gift' : 'Package'} glyph="●" size={24} color={colors.volt} />
-          <Text style={{ fontSize: 16, fontWeight: '900', color: colors.volt, marginTop: 5 }}>
+          <Text style={{ fontSize: 16, fontWeight: '800', color: colors.volt, marginTop: 5 }}>
             {pendingDrop.runCountAt}회 달성 — {pendingDrop.kind === 'pick' ? '픽 드랍' : '보급 상자'} 도착!
           </Text>
-          <Text style={{ fontSize: 14, color: '#8fa093', marginTop: 3 }}>리워드 센터에서 열기 ›</Text>
+          <Text style={{ fontSize: 14, color: '#BBBBBB', marginTop: 3 }}>리워드 센터에서 열기 ›</Text>
         </Pressable>
       )}
 
-      <Text style={[text.dim, { textAlign: 'center', marginTop: 14 }]}>수익은 매주 수요일 정산됩니다</Text>
-      <Btn label={`${req.dogName} 리뷰 남기기`} variant="volt" style={{ marginTop: 20 }} onPress={() => router.push('/runner/review')} />
-      <Btn label="홈으로" style={{ marginTop: 8 }} onPress={() => router.dismissTo('/runner/home')} />
+      <Text style={{ fontSize: 14, color: paper.dim, textAlign: 'center', marginTop: 14 }}>수익은 매주 수요일 정산됩니다</Text>
+      <PaperBtn label={`${req.dogName} 리뷰 남기기`} style={{ marginTop: 20 }} onPress={() => router.push('/runner/review')} />
+      <PaperBtn label="홈으로" variant="secondary" style={{ marginTop: 8 }} onPress={() => router.dismissTo('/runner/home')} />
     </ScrollView>
   );
 }
+
+const s = StyleSheet.create({
+  receipt: { marginTop: 24, alignItems: 'center', padding: 26, backgroundColor: paper.ink, borderRadius: 0 },
+  photoCard: { marginTop: 14, backgroundColor: paper.canvas, padding: 15, borderWidth: 1, borderColor: '#EEEEEE' },
+  addTile: {
+    width: 64, height: 64, backgroundColor: paper.canvas, alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: '#CCCCCC', borderStyle: 'dashed',
+  },
+  dropBanner: {
+    marginTop: 14, padding: 18, alignItems: 'center',
+    backgroundColor: paper.ink, borderWidth: 1.5, borderColor: colors.volt,
+  },
+});

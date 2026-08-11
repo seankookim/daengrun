@@ -8,8 +8,9 @@ import { GeoPoint, getNaverMap, getTraceSnapshot, getTrackPermission, publishPos
 import { haptic } from '../../src/lib/haptics';
 import { notifyLocal } from '../../src/lib/push';
 import { endRunActivity, RunLAProps, startRunActivity, updateRunActivity } from '../../src/lib/runActivity';
+import { useNumFont } from '../../src/lib/fonts';
 import { EndReason, payoutFor, runnerJob, runRequests, runResult } from '../../src/store';
-import { colors } from '../../src/theme';
+import { colors, paper } from '../../src/theme';
 
 const REASON_MAP = { dog: 'dog_condition', owner: 'owner_request', runner: 'runner_personal' } as const;
 
@@ -20,6 +21,15 @@ const REASON_MAP = { dog: 'dog_condition', owner: 'owner_request', runner: 'runn
 // continuously — screen locked, phone pocketed. Anything short of TrackMode 'background'
 // blocks the start and says why, because a truncated trace is a short payout and the runner
 // only finds out at settlement. There is no demo-distance path any more.
+//
+// [paper repaint 2026-08-11] The LIVE run is a Peak (§7b) — calmer, not smaller. Light
+// chrome (map area, status plates, progress) goes paper; the control panel and end-run
+// sheets stay DARK as the run-world artifact, de-greened from forest to neutral ink with
+// a coral hairline seam. Kept: every GPS/permission honest state and loud-fail strip,
+// the Korean event stamp chips (fresh de-emoji pass), volt = personal run semantics,
+// coral progress fill (LIVE = watch). Retired: rounded chrome, opacity press/busy paints
+// (labels already swap), display font on the sheet button (budget = main CTA once).
+// Logic frozen: tracking singleton, settle retry loop, overrun ceiling, Live Activity.
 
 const fmt = (sec: number) =>
   `${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(Math.floor(sec % 60)).padStart(2, '0')}`;
@@ -510,7 +520,8 @@ export default function ActiveRun() {
         )}
         {maps && !lastPos && running && (
           <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ fontSize: 14.5, color: '#8fa093' }}>GPS 신호 잡는 중... (실외에서 몇 초 걸려요)</Text>
+            {/* sits on the white map canvas, not the dark panel — dim ink for the ≥4.5:1 floor */}
+            <Text style={{ fontSize: 14.5, color: paper.dim }}>GPS 신호 잡는 중... (실외에서 몇 초 걸려요)</Text>
           </View>
         )}
         <Row style={{ justifyContent: 'space-between', paddingHorizontal: 16 }}>
@@ -519,12 +530,12 @@ export default function ActiveRun() {
               {running ? `● ${dogName}와 러닝 중 · GPS` : `${dogName}와 러닝 준비`}
             </Text>
             {running && gps && !ceilingHit && (
-              <Text style={{ fontSize: 14, color: '#8fa093', marginTop: 2 }}>화면이 꺼져도 거리가 기록돼요</Text>
+              <Text style={{ fontSize: 14, color: '#BBBBBB', marginTop: 2 }}>화면이 꺼져도 거리가 기록돼요</Text>
             )}
           </View>
           <Row style={{ gap: 8 }}>
             <View style={s.camStatus}>
-              <View style={[s.recDot, !(running && gps) && { backgroundColor: '#8a8877' }]} />
+              <View style={[s.recDot, !(running && gps) && { backgroundColor: '#BBBBBB' }]} />
               <Text style={s.camText}>
                 {running && gps ? '보호자에게 위치 공유 중' : running ? '위치 공유 대기' : '시작 전'}
               </Text>
@@ -537,8 +548,8 @@ export default function ActiveRun() {
 
         <View style={[s.trackWrap, layout === 'island' && { display: 'none' }]}>
           <Row style={{ justifyContent: 'space-between', marginBottom: 8 }}>
-            <Text style={{ fontSize: 14, color: colors.dim }}>{info?.routeName ?? req.place} 코스 · {targetKm}km</Text>
-            <Text style={{ fontSize: 14, fontWeight: '800', color: colors.ink }}>
+            <Text style={{ fontSize: 14, color: paper.dim }}>{info?.routeName ?? req.place} 코스 · {targetKm}km</Text>
+            <Text style={{ fontSize: 14, fontWeight: '800', color: paper.ink }}>
               남은 거리 {remaining.toFixed(1)}km
             </Text>
           </Row>
@@ -555,15 +566,15 @@ export default function ActiveRun() {
         {layout === 'island' && (
           <View style={{ marginBottom: 12 }}>
             <Row style={{ justifyContent: 'space-between', marginBottom: 7 }}>
-              <Text style={{ fontSize: 15, color: '#8fa093' }} numberOfLines={1}>
+              <Text style={{ fontSize: 15, color: '#BBBBBB' }} numberOfLines={1}>
                 {info?.routeName ?? req.place} 코스 · {targetKm}km
               </Text>
-              <Text style={{ fontSize: 14, fontWeight: '800', color: colors.cream }}>
+              <Text style={{ fontSize: 14, fontWeight: '800', color: '#FFFFFF' }}>
                 남은 거리 {remaining.toFixed(1)}km
               </Text>
             </Row>
-            <View style={{ height: 5, borderRadius: 99, backgroundColor: '#2c4034', overflow: 'hidden' }}>
-              <View style={{ height: 5, borderRadius: 99, backgroundColor: colors.volt, width: `${progress * 100}%` }} />
+            <View style={{ height: 5, backgroundColor: '#333333', overflow: 'hidden' }}>
+              <View style={{ height: 5, backgroundColor: colors.volt, width: `${progress * 100}%` }} />
             </View>
           </View>
         )}
@@ -592,8 +603,8 @@ export default function ActiveRun() {
         >
           <Monogram char={req.dogChar} bg={req.dogColor} size={36} />
           <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 15, fontWeight: '700', color: colors.cream }}>{dogName} 보호자님</Text>
-            <Text style={{ fontSize: 14.5, color: '#8fa093' }} numberOfLines={1}>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: '#FFFFFF' }}>{dogName} 보호자님</Text>
+            <Text style={{ fontSize: 14.5, color: '#BBBBBB' }} numberOfLines={1}>
               {info?.dogMemo ?? '채팅으로 이동'}
             </Text>
           </View>
@@ -607,7 +618,7 @@ export default function ActiveRun() {
         </Row>
 
         <Row style={{ justifyContent: 'center', marginBottom: 14 }}>
-          <Text style={{ fontSize: 14, color: '#8fa093' }}>
+          <Text style={{ fontSize: 14, color: '#BBBBBB' }}>
             현재 예상 수익 <Text style={{ color: colors.volt, fontWeight: '800' }}>{payoutFor(km).toLocaleString()}원</Text> · 완주 시 {payoutFor(targetKm + 0.02).toLocaleString()}원
           </Text>
         </Row>
@@ -618,14 +629,15 @@ export default function ActiveRun() {
           <View style={{ flexDirection: 'row', gap: 7, marginBottom: 14 }}>
             {([['poop', '응가', '#FFCDB6'], ['snack', '간식', '#F2DA96'], ['water', '물', '#C3D9AE']] as const).map(([k, label, bg]) => (
               <Pressable key={k} onPress={() => fireEvent(k)} style={[s.eventBtn, { backgroundColor: bg }]}>
-                <Text style={{ fontSize: 14, fontWeight: '800', color: colors.forest }}>
+                <Text style={{ fontSize: 14, fontWeight: '800', color: '#111111' }}>
                   {label}{evCounts[k] ? ` ${evCounts[k]}` : ''}
                 </Text>
               </Pressable>
             ))}
-            <Pressable onPress={firePhoto} disabled={snapBusy} style={[s.eventBtn, { backgroundColor: '#DDF0A6' }, snapBusy && { opacity: 0.5 }]}>
-              <Icon name="Camera" glyph="◉" size={15} color={colors.forest} />
-              <Text style={{ fontSize: 14, fontWeight: '800', color: colors.forest }}>
+            {/* busy = label swap ('전송 중') — opacity paint retired */}
+            <Pressable onPress={firePhoto} disabled={snapBusy} style={[s.eventBtn, { backgroundColor: '#DDF0A6' }]}>
+              <Icon name="Camera" glyph="◉" size={15} color={'#111111'} />
+              <Text style={{ fontSize: 14, fontWeight: '800', color: '#111111' }}>
                 {snapBusy ? '전송 중' : `스냅${evCounts.photo ? ` ${evCounts.photo}` : ''}`}
               </Text>
             </Pressable>
@@ -635,11 +647,12 @@ export default function ActiveRun() {
         <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
           {running && (
             <Pressable style={s.moreBtn} onPress={() => setEndSheet(true)}>
-              <Text style={{ fontSize: 16, color: '#8fa093', fontWeight: '900' }}>❙❙</Text>
+              <Text style={{ fontSize: 16, color: '#BBBBBB', fontWeight: '900' }}>❙❙</Text>
             </Pressable>
           )}
           <Pressable
-            style={[s.btn, { backgroundColor: colors.volt }, starting && { opacity: 0.6 }]}
+            // busy = label swap below ('위치 확인 중...') — the opacity paint retired (§2 button law)
+            style={({ pressed }) => [s.btn, { backgroundColor: pressed && !starting ? colors.voltDeep : colors.volt }]}
             disabled={starting}
             onPress={() => {
               if (running) { setEndSheet(true); return; }
@@ -659,16 +672,17 @@ export default function ActiveRun() {
         <Pressable style={s.sheetBackdrop} onPress={() => { setRationale(false); setTrackMode('denied'); }} />
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
-          <Text style={{ fontSize: 19.5, fontWeight: '900', color: colors.cream }}>러닝 거리는 위치로 재요</Text>
-          <Text style={{ fontSize: 15, color: '#8fa093', marginTop: 8, lineHeight: 21 }}>
+          <Text style={{ fontSize: 19.5, fontWeight: '900', color: '#FFFFFF' }}>러닝 거리는 위치로 재요</Text>
+          <Text style={{ fontSize: 15, color: '#BBBBBB', marginTop: 8, lineHeight: 21 }}>
             주머니에 넣거나 화면이 꺼져도 거리와 경로가 계속 기록돼요. 이 거리가 보호자에게 보이는 기록이자 정산 기준이에요.{'\n'}
             러닝을 종료하면 기록도 함께 멈춰요.
           </Text>
           <Pressable style={[s.btn, { backgroundColor: colors.volt, marginTop: 18 }]} onPress={() => { startRun(); }}>
-            <Text style={[{ fontSize: 17, fontWeight: '800', color: colors.ink }, df]}>위치 허용하기</Text>
+            {/* display font retired here — 1/screen budget is spent on the main CTA */}
+            <Text style={{ fontSize: 17, fontWeight: '800', color: colors.ink }}>위치 허용하기</Text>
           </Pressable>
           <Pressable style={s.sheetCancel} onPress={() => { setRationale(false); setTrackMode('denied'); }}>
-            <Text style={{ fontSize: 15, fontWeight: '700', color: '#8fa093' }}>나중에</Text>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: '#BBBBBB' }}>나중에</Text>
           </Pressable>
         </View>
       </Modal>
@@ -678,8 +692,8 @@ export default function ActiveRun() {
         <Pressable style={s.sheetBackdrop} onPress={() => setEndSheet(false)} />
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
-          <Text style={{ fontSize: 19.5, fontWeight: '900', color: colors.cream }}>어떤 이유로 종료하나요?</Text>
-          <Text style={{ fontSize: 15, color: '#8fa093', marginTop: 4 }}>
+          <Text style={{ fontSize: 19.5, fontWeight: '900', color: '#FFFFFF' }}>어떤 이유로 종료하나요?</Text>
+          <Text style={{ fontSize: 15, color: '#BBBBBB', marginTop: 4 }}>
             지금까지 {km.toFixed(2)}km · 이유에 따라 정산이 달라져요
           </Text>
 
@@ -706,7 +720,7 @@ export default function ActiveRun() {
           />
 
           <Pressable style={s.sheetCancel} onPress={() => setEndSheet(false)}>
-            <Text style={{ fontSize: 15, fontWeight: '700', color: '#8fa093' }}>계속 달릴게요</Text>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: '#BBBBBB' }}>계속 달릴게요</Text>
           </Pressable>
         </View>
       </Modal>
@@ -719,54 +733,60 @@ function EndOption({ title, desc, pay, accent, onPress }: { title: string; desc:
     <Pressable onPress={onPress} style={s.endOption}>
       <View style={[s.endRail, { backgroundColor: accent }]} />
       <View style={{ flex: 1 }}>
-        <Text style={{ fontSize: 16.5, fontWeight: '900', color: colors.cream }}>{title}</Text>
-        <Text style={{ fontSize: 14.5, color: '#8fa093', marginTop: 2 }}>{desc}</Text>
+        <Text style={{ fontSize: 16.5, fontWeight: '900', color: '#FFFFFF' }}>{title}</Text>
+        <Text style={{ fontSize: 14.5, color: '#BBBBBB', marginTop: 2 }}>{desc}</Text>
         <Text style={{ fontSize: 14, fontWeight: '800', color: accent, marginTop: 5 }}>{pay}</Text>
       </View>
-      <Text style={{ fontSize: 17, color: '#8fa093' }}>›</Text>
+      <Text style={{ fontSize: 17, color: '#BBBBBB' }}>›</Text>
     </Pressable>
   );
 }
 
 function MiniStat({ value, label, big }: { value: string; label: string; big?: boolean }) {
+  const nf = useNumFont(); // Oswald live stats — lineHeight 55/35 = 1.25× (BUG A)
   return (
     <View style={{ alignItems: 'center' }}>
-      <Text style={{ fontSize: big ? 44 : 28, fontWeight: '900', color: big ? colors.volt : colors.cream }}>
+      <Text style={[{ fontSize: big ? 44 : 28, lineHeight: big ? 55 : 35, fontWeight: '900', color: big ? colors.volt : '#FFFFFF', fontVariant: ['tabular-nums'] as const }, nf]}>
         {value}
       </Text>
-      <Text style={{ fontSize: 14.5, color: '#8fa093', marginTop: 2 }}>{label}</Text>
+      <Text style={{ fontSize: 14.5, color: '#BBBBBB', marginTop: 2 }}>{label}</Text>
     </View>
   );
 }
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#e7e9dc' },
+  // paper chrome — white map-world canvas; the sage placeholder ground retired
+  root: { flex: 1, backgroundColor: paper.canvas },
   mapArea: { flex: 1, paddingTop: 56 },
-  statusBadge: { backgroundColor: colors.ink, borderRadius: 99, paddingVertical: 8, paddingHorizontal: 14 },
-  camStatus: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#fff', borderRadius: 99, paddingVertical: 8, paddingHorizontal: 12 },
+  // small white/volt text sits on an ink plate (§3 plate law) — sharp
+  statusBadge: { backgroundColor: paper.ink, borderRadius: 0, paddingVertical: 8, paddingHorizontal: 14 },
+  camStatus: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE', borderRadius: 0, paddingVertical: 8, paddingHorizontal: 12 },
   recDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#ff3b30' },
-  camText: { fontSize: 14, fontWeight: '700', color: colors.ink },
+  camText: { fontSize: 14, fontWeight: '700', color: paper.ink },
   trackWrap: { position: 'absolute', left: 20, right: 20, bottom: 24 },
-  track: { height: 10, borderRadius: 99, backgroundColor: '#d5d8c6' },
-  trackFill: { height: 10, borderRadius: 99, backgroundColor: colors.tang },
+  // coral fill = LIVE (watch) semantic; bar sharp, position dot keeps its circle (marker exception)
+  track: { height: 10, backgroundColor: '#EEEEEE' },
+  trackFill: { height: 10, backgroundColor: colors.tang },
   trackDot: {
     position: 'absolute', top: -4, width: 18, height: 18, borderRadius: 9,
     backgroundColor: colors.tang, borderWidth: 3, borderColor: '#fff',
   },
-  panel: { backgroundColor: colors.ink, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 34 },
+  // dark run-panel artifact — sharp, seamed to the paper world by a coral hairline
+  panel: { backgroundColor: paper.ink, borderTopWidth: 1, borderTopColor: paper.line, padding: 20, paddingBottom: 34 },
   panelIsland: {
     position: 'absolute', left: 12, right: 12, bottom: 22,
-    borderRadius: 22, paddingBottom: 20,
+    paddingBottom: 20, borderWidth: 1, borderColor: paper.line,
+    // island genuinely floats over the map — the one sanctioned shadow on this screen
     shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 22, shadowOffset: { width: 0, height: 5 },
     elevation: 12,
   },
   layoutBtn: {
-    width: 32, height: 32, borderRadius: 16, backgroundColor: '#00000055',
+    width: 32, height: 32, borderRadius: 0, backgroundColor: paper.ink,
     alignItems: 'center', justifyContent: 'center', alignSelf: 'center',
   },
   chatPin: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: '#1c2b21', borderRadius: 16, padding: 12,
+    backgroundColor: '#222222', borderRadius: 0, padding: 12,
   },
   // Loud fail (F1.2 grammar): full-bleed strip, 1px hairline top and bottom, 14pt/700 ink,
   // underlined action. Palette is coral because this screen is still on the dark tokens —
@@ -778,16 +798,18 @@ const s = StyleSheet.create({
   },
   failTxt: { flex: 1, fontSize: 14, fontWeight: '700', color: colors.tang },
   failAction: { fontSize: 14, fontWeight: '800', color: colors.tang, textDecorationLine: 'underline' },
-  btn: { flex: 1, borderRadius: 16, padding: 16, alignItems: 'center' },
-  moreBtn: { width: 44, height: 52, borderRadius: 16, backgroundColor: '#1c2b21', alignItems: 'center', justifyContent: 'center' },
-  eventBtn: { flex: 1, flexDirection: 'row', gap: 5, borderRadius: 99, alignItems: 'center', justifyContent: 'center', paddingVertical: 12 },
+  btn: { flex: 1, borderRadius: 0, padding: 16, alignItems: 'center' },
+  moreBtn: { width: 44, height: 52, borderRadius: 0, backgroundColor: '#222222', alignItems: 'center', justifyContent: 'center' },
+  // event stamp chips — pastel stamp fills survive (stamp-culture semantics), corners sharp
+  eventBtn: { flex: 1, flexDirection: 'row', gap: 5, borderRadius: 0, alignItems: 'center', justifyContent: 'center', paddingVertical: 12 },
   sheetBackdrop: { flex: 1, backgroundColor: '#00000066' },
-  sheet: { backgroundColor: '#10160f', borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 16, paddingBottom: 40 },
-  sheetHandle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: '#2c3a2c', marginBottom: 14 },
+  // end-run sheets stay in the dark run world — sharp, coral hairline seam at the top edge
+  sheet: { backgroundColor: '#141414', borderTopWidth: 1, borderTopColor: paper.line, padding: 16, paddingBottom: 40 },
+  sheetHandle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: '#3A3A3A', marginBottom: 14 },
   endOption: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: '#1a231a', borderRadius: 16, padding: 14, marginTop: 10,
+    backgroundColor: '#222222', borderRadius: 0, padding: 14, marginTop: 10,
   },
-  endRail: { width: 4, height: 44, borderRadius: 2 },
+  endRail: { width: 4, height: 44 },
   sheetCancel: { alignItems: 'center', paddingVertical: 14, marginTop: 6 },
 });

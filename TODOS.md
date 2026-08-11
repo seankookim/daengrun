@@ -73,3 +73,28 @@ Deferred work, written down so it exists. Format: what / why / context / effort
   two role views can show different handoffs. Solo-test artifact today; matters
   if multi-booking runners become real at pilot scale. Fix shape: one shared
   resolver, or the runner card feed adopts pickCurrent ordering. Effort S → S. P3.
+
+## From the 2026-08-11 runner scrap + design review (honesty findings, not yet fixed)
+
+- [ ] **done.tsx dog name can be a stale mock** — `done.tsx:30` reads the dog name
+  from `runRequests[0]` (a store fallback) because `runResult` carries no
+  dogName; on a cold entry the completion screen can print a name that isn't the
+  settled booking's dog. Left untouched under the behavior freeze. Fix shape:
+  widen the settle/run result to carry dogName, or read it from the booking.
+  Effort S → S. **P1 — it is a false claim on a Peak moment.**
+- [ ] **rewards.tsx prints a raw English enum** — `rewards.tsx:168` renders
+  `g.status` untranslated for non-claimable gear rows. Honest but unreadable
+  Korean-side. Fix: a status→Korean map. Effort S → S. P2.
+- [ ] **earnings.tsx has two announcement-only buttons** — "빠른 정산 신청" and
+  "등록" fire an Alert ("연동 후 제공") and nothing else. Demoted to quiet
+  outlined doors in the 2026-08-11 pass, but they are still borderline dead
+  buttons under the honesty law. Decide: remove until the feature exists, or
+  keep as an explicit waitlist affordance. Effort S → S. P2. Sean's call.
+- [ ] **Momentum projection for the gear dial** — DESIGN.md §7c: `snapToInterval`
+  alone lands short on a fast flick; Apple's projection
+  (`current + (v/1000)·d/(1−d)`, d≈0.998) makes a flick land where the gesture
+  was going. Effort S → S. P2.
+- [ ] **Reduced motion is only wired into 2 loops** — `useReducedMotion`
+  (src/lib/reducedMotion.ts, 2026-08-11) is applied to the course-detail dot and
+  the GO breath. Remaining motion (radar sweep, pulse rings, seal stamps, ring
+  morph, Live Activity) still ignores the OS setting. Effort M → S. P2.

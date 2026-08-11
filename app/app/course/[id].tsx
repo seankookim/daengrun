@@ -6,6 +6,7 @@ import { HeatTrace } from '../../src/components/runcard';
 import { fetchMyRoutePhotos, fetchRoutes } from '../../src/lib/api';
 import { MediaImage } from '../../src/lib/media';
 import { useDisplayFont } from '../../src/lib/displayFont';
+import { useReducedMotion } from '../../src/lib/reducedMotion';
 import { RouteInfo, session } from '../../src/store';
 import { colors } from '../../src/theme';
 
@@ -22,13 +23,17 @@ const TRACE_H = 190;
 // 누적 거리 비율을 inputRange로 쓰는 순수 interpolate (네이티브 드라이버, setState 없음)
 function LiveDot({ points }: { points: { x: number; y: number }[] }) {
   const progress = useRef(new Animated.Value(0)).current;
+  // [2026-08-11 §7c] Reduced motion stops idle loops outright — a decorative dot
+  // that claims nothing is exactly the motion the setting exists to remove.
+  const reduce = useReducedMotion();
   useEffect(() => {
+    if (reduce) { progress.setValue(0); return; }
     const loop = Animated.loop(
       Animated.timing(progress, { toValue: 1, duration: 7000, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
     );
     loop.start();
     return () => loop.stop();
-  }, [progress]);
+  }, [progress, reduce]);
 
   const path = useMemo(() => {
     // 0길이 세그먼트 제거 — interpolate inputRange는 순증가여야 한다

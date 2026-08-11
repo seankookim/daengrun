@@ -56,7 +56,7 @@ export function CourseStrip({ title = '동네 코스', headerPad = 0, bleed = 0 
             {/* 월드 킥커 + km 대활자 */}
             <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' }}>
               <Text style={{ fontSize: 8.5, fontWeight: '700', letterSpacing: 2.5, color: w.dim }}>{w.label} · {r.terrain.toUpperCase?.() ?? r.terrain}</Text>
-              <Text style={[{ fontSize: 24, fontWeight: '900', color: w.tone }, nf]}>{r.km}<Text style={{ fontSize: 14 }}>K</Text></Text>
+              <Text style={[{ fontSize: 24, lineHeight: 30, fontWeight: '900', color: w.tone }, nf]}>{r.km}<Text style={{ fontSize: 14 }}>K</Text></Text>
             </View>
 
             {/* 트레이스 — 월드 톤으로 발광. [리뷰 F2] 빈 트레이스는 지도인 척하는 그리드+블롭을 그리지

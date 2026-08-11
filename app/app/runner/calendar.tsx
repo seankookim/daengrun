@@ -5,19 +5,25 @@ import { BottomNav } from '../../src/components/bottomnav';
 import { Row } from '../../src/components/ui';
 import { fetchRunnerJobs, RunnerJob } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
+import { useNumFont } from '../../src/lib/fonts';
 import { runnerJob } from '../../src/store';
-import { colors } from '../../src/theme';
+import { colors, layout, paper } from '../../src/theme';
 
 // 러너 캘린더 — C1(출발 보드) × C2(티켓 스택) 머지 (Sean 확정, 2026-07-29, hi-club-plan §1-B).
 // C1에서: 다크 출발 보드 톱 위젯 — 스플릿-플랩 예상 수익 카운터 + 확정 건수 + 상태 오벌.
 // C2에서: 작업 행 = 절취선 티켓 (우측 스터브에 실수령/예상 금액), 완료 티켓엔 FINISHER 도장.
 // 수익은 전부 실데이터 (fetchRunnerJobs — 완료 건은 ledger 실 net, 그 외 티어 요율 견적).
-
-const FOREST = '#0F1D13';
+//
+// [paper repaint 2026-08-11] forest/cream/volt chrome scrapped → paper. Kept as artifacts:
+// the dark departure board (split-flap counter = race-program object, now on paper.ink),
+// ticket perforation stubs + notches (circles are the perforation exception), FINISHER
+// stamp (latin stamp glyph class). Retired: 'PAYOUT' latin caption → 실수령 (14pt law),
+// completed-ticket 0.82 opacity (status chip + stamp already say it), display font on the
+// board title (budget = screen title once). All handlers/routes/data frozen.
 
 const JOB_STATUS: Record<RunnerJob['status'], { label: string; bg: string; fg: string }> = {
-  confirmed: { label: '확정', bg: '#e3f0c4', fg: '#3d5a2b' },
-  in_progress: { label: '진행 중', bg: '#eaf7c8', fg: '#4a6d1f' },
+  confirmed: { label: '확정', bg: '#E8F3D2', fg: '#3D6B1F' },
+  in_progress: { label: '진행 중', bg: '#EAF6C8', fg: '#3D6B1F' },
   completed: { label: '완료', bg: '#E3EEF8', fg: '#4A6E93' },
 };
 
@@ -28,7 +34,8 @@ const splitWhen = (when: string): { day: string; time: string } => {
 };
 
 export default function RunnerCalendar() {
-  const df = useDisplayFont();
+  const df = useDisplayFont(); // display font — screen title only (1/screen budget)
+  const nf = useNumFont();     // Oswald — flap digits, ticket times, payouts
   const [jobs, setJobs] = useState<RunnerJob[]>([]);
 
   const load = () => fetchRunnerJobs().then(setJobs).catch((e) => console.warn('[calendar] jobs:', e?.message ?? e));
@@ -51,33 +58,39 @@ export default function RunnerCalendar() {
   const flapChars = `+${expected.toLocaleString()}`.split('');
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.cream }}>
+    <View style={{ flex: 1, backgroundColor: paper.canvas }}>
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ padding: 16, paddingTop: 60, paddingBottom: 30 }}
+        contentContainerStyle={{ paddingHorizontal: layout.gutter, paddingTop: 60, paddingBottom: 30 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <Text style={[{ fontSize: 30, fontWeight: '900', color: FOREST }, df]}>캘린더</Text>
-          <Pressable onPress={() => router.push('/runner/availability')} style={s.availBtn}>
-            <Text style={{ fontSize: 14, fontWeight: '800', color: '#fff' }}>가용시간 설정</Text>
+          <Text style={[{ fontSize: 30, fontWeight: '900', color: paper.ink }, df]}>캘린더</Text>
+          {/* secondary chip — canvas + coral border + ink label (§3b secondary; chip may stay 14) */}
+          <Pressable
+            onPress={() => router.push('/runner/availability')}
+            style={({ pressed }) => [s.availBtn, pressed && { backgroundColor: paper.wash }]}
+          >
+            <Text style={{ fontSize: 14, fontWeight: '800', color: paper.ink }}>가용시간 설정</Text>
           </Pressable>
         </Row>
 
-        {/* ---------- 출발 보드 (C1) — 예상 수익 스플릿-플랩 ---------- */}
+        {/* ---------- 출발 보드 (C1) — 예상 수익 스플릿-플랩. Dark artifact on paper.ink (the
+            board is a ceremony object, not chrome) — volt flap digits = personal money ---------- */}
         <View style={s.board}>
-          <Text style={[{ fontSize: 19, fontWeight: '900', color: '#fff' }, df]}>나의 출발</Text>
-          <Text style={{ fontSize: 14, color: '#8fa093', marginTop: 3 }}>
+          <Text style={{ fontSize: 17, fontWeight: '800', color: '#FFFFFF' }}>나의 출발</Text>
+          <Text style={{ fontSize: 14, lineHeight: 18, color: '#BBBBBB', marginTop: 3 }}>
             확정 {upcoming.length}건{upcoming.length > 0 ? ' · 다음 러닝까지 준비 완료' : ' — 요청 탭에서 수락해보세요'}
           </Text>
           {upcoming.length > 0 && (
             <Row style={{ gap: 4, marginTop: 12, alignItems: 'flex-end' }}>
               {flapChars.map((c, i) => (
                 <View key={i} style={[s.flap, (c === ',' || c === '+') && s.flapThin]}>
-                  <Text style={{ fontSize: 20, fontWeight: '900', color: colors.volt, fontVariant: ['tabular-nums'] }}>{c}</Text>
+                  {/* Oswald flap digit — lineHeight 25 = 1.25× (BUG A) */}
+                  <Text style={[{ fontSize: 20, lineHeight: 25, fontWeight: '900', color: colors.volt, fontVariant: ['tabular-nums'] as const }, nf]}>{c}</Text>
                 </View>
               ))}
-              <Text style={{ fontSize: 14, color: '#8fa093', paddingBottom: 5, marginLeft: 3 }}>원 예상</Text>
+              <Text style={{ fontSize: 14, color: '#BBBBBB', paddingBottom: 5, marginLeft: 3 }}>원 예상</Text>
             </Row>
           )}
         </View>
@@ -85,11 +98,14 @@ export default function RunnerCalendar() {
         {/* ---------- 티켓 스택 (C2) ---------- */}
         {jobs.length === 0 && (
           <View style={s.emptyJobs}>
-            <Text style={{ fontSize: 15, color: colors.dim, textAlign: 'center', lineHeight: 22 }}>
+            <Text style={{ fontSize: 14.5, color: paper.dim, textAlign: 'center', lineHeight: 22 }}>
               확정된 작업이 아직 없어요{'\n'}요청 탭에서 새 요청을 수락해보세요
             </Text>
-            <Pressable onPress={() => router.push('/runner/requests')} style={s.emptyBtn}>
-              <Text style={{ fontSize: 14.5, fontWeight: '800', color: FOREST }}>요청 보러 가기 ›</Text>
+            <Pressable
+              onPress={() => router.push('/runner/requests')}
+              style={({ pressed }) => [s.emptyBtn, pressed && { backgroundColor: paper.wash }, pressed && { transform: [{ scale: 0.96 }] }]}
+            >
+              <Text style={{ fontSize: 16, fontWeight: '800', color: paper.ink }}>요청 보러 가기 ›</Text>
             </Pressable>
           </View>
         )}
@@ -100,36 +116,40 @@ export default function RunnerCalendar() {
             const { day, time } = splitWhen(j.when);
             const done = j.status === 'completed';
             return (
-              <Pressable key={j.bookingId} onPress={() => openJob(j)} style={[s.ticket, done && { opacity: 0.82 }]}>
+              <Pressable key={j.bookingId} onPress={() => openJob(j)} style={({ pressed }) => [s.ticket, pressed && { transform: [{ scale: 0.98 }] }]}>
                 {/* 본문 */}
                 <View style={{ flex: 1, padding: 13, paddingRight: 10 }}>
                   <Row style={{ gap: 7, alignItems: 'baseline' }}>
-                    <Text style={{ fontSize: 21, fontWeight: '900', color: FOREST, fontVariant: ['tabular-nums'] }}>{time}</Text>
-                    <Text style={{ fontSize: 14, fontWeight: '800', color: '#75806f', flex: 1 }} numberOfLines={1}>{day}</Text>
-                    <View style={[s.oval, { backgroundColor: st.bg }]}>
-                      <Text style={{ fontSize: 14, fontWeight: '800', color: st.fg }}>{st.label}</Text>
+                    {/* Oswald ticket time — lineHeight 27 = 1.29× (BUG A) */}
+                    <Text style={[{ fontSize: 21, lineHeight: 27, fontWeight: '900', color: paper.ink, fontVariant: ['tabular-nums'] as const }, nf]}>{time}</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '800', color: paper.dim, flex: 1 }} numberOfLines={1}>{day}</Text>
+                    {/* §3b status chip — 16/800, tinted fill, no border, on the time's row */}
+                    <View style={[s.statusChip, { backgroundColor: st.bg }]}>
+                      <Text style={{ fontSize: 16, lineHeight: 20, fontWeight: '800', color: st.fg }}>{st.label}</Text>
                     </View>
                   </Row>
-                  <Text style={{ fontSize: 16.5, fontWeight: '900', color: FOREST, marginTop: 4 }}>
+                  <Text style={{ fontSize: 16.5, fontWeight: '800', color: paper.ink, marginTop: 4 }}>
                     {j.dogName} · {j.km}km 러닝
                   </Text>
-                  <Text style={{ fontSize: 14, color: colors.dim, marginTop: 2 }}>
+                  <Text style={{ fontSize: 14, color: paper.dim, marginTop: 2 }}>
                     {j.status === 'confirmed' ? '탭하여 픽업 진행 ›' : j.status === 'in_progress' ? '탭하여 러닝 화면 ›' : '정산 완료'}
                   </Text>
                 </View>
-                {/* FINISHER 도장 (완료) */}
+                {/* FINISHER 도장 (완료) — latin stamp glyph class (14pt floor exempt) */}
                 {done && (
                   <View style={s.finStamp}><Text style={{ fontSize: 10, fontWeight: '900', letterSpacing: 2, color: '#6E9BC5' }}>FINISHER</Text></View>
                 )}
-                {/* 절취선 스터브 — 실수령/예상 */}
+                {/* 절취선 스터브 — 실수령/예상 (perforation notches keep their circles) */}
                 <View style={s.stub}>
                   <View style={[s.notch, { top: -9 }]} />
                   <View style={[s.notch, { bottom: -9 }]} />
-                  <Text style={{ fontSize: 15.5, fontWeight: '900', color: done ? '#4A6E93' : '#5a7a3c', fontVariant: ['tabular-nums'] }}>
+                  {/* Oswald payout — lineHeight 20 = 1.29× (BUG A) */}
+                  <Text style={[{ fontSize: 15.5, lineHeight: 20, fontWeight: '900', color: done ? '#4A6E93' : '#3D6B1F', fontVariant: ['tabular-nums'] as const }, nf]}>
                     +{j.payout.toLocaleString()}
                   </Text>
-                  <Text style={{ fontSize: 9.5, fontWeight: '800', letterSpacing: 1.5, color: '#9a978a', marginTop: 2 }}>
-                    {done ? '정산됨' : 'PAYOUT'}
+                  {/* 'PAYOUT' latin caption retired — Korean data renders ≥14 (§3 kicker law) */}
+                  <Text style={{ fontSize: 14, lineHeight: 18, color: paper.dim, marginTop: 2 }}>
+                    {done ? '정산됨' : '실수령'}
                   </Text>
                 </View>
               </Pressable>
@@ -143,15 +163,24 @@ export default function RunnerCalendar() {
 }
 
 const s = StyleSheet.create({
-  availBtn: { backgroundColor: FOREST, borderRadius: 99, paddingVertical: 10, paddingHorizontal: 14 },
-  board: { backgroundColor: FOREST, borderRadius: 20, padding: 16, marginTop: 14 },
-  flap: { backgroundColor: '#0a140d', borderRadius: 7, paddingVertical: 6, paddingHorizontal: 8 },
+  availBtn: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line, paddingVertical: 10, paddingHorizontal: 14 },
+  board: { backgroundColor: paper.ink, padding: 16, marginTop: 14 },
+  flap: { backgroundColor: '#000000', paddingVertical: 6, paddingHorizontal: 8 },
   flapThin: { paddingHorizontal: 4, backgroundColor: 'transparent' },
-  ticket: { flexDirection: 'row', backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: '#DCD6C4', marginBottom: 10, overflow: 'hidden', position: 'relative' },
-  oval: { borderRadius: 99, paddingVertical: 3, paddingHorizontal: 9 },
-  stub: { width: 92, borderLeftWidth: 2, borderLeftColor: '#DCD6C4', borderStyle: 'dashed', backgroundColor: '#fbfaf5', alignItems: 'center', justifyContent: 'center', position: 'relative' },
-  notch: { position: 'absolute', left: -9, width: 16, height: 16, borderRadius: 8, backgroundColor: colors.cream, borderWidth: 1, borderColor: '#DCD6C4' },
-  finStamp: { position: 'absolute', right: 100, top: 9, borderWidth: 2.5, borderColor: '#6E9BC5', borderRadius: 8, paddingVertical: 3, paddingHorizontal: 8, transform: [{ rotate: '-9deg' }], opacity: 0.85, zIndex: 2 },
-  emptyJobs: { backgroundColor: '#f4f2ea', borderRadius: 16, padding: 20, alignItems: 'center', gap: 10, marginTop: 16 },
-  emptyBtn: { backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 9, paddingHorizontal: 16 },
+  ticket: {
+    flexDirection: 'row', backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE',
+    marginBottom: 10, overflow: 'hidden', position: 'relative',
+  },
+  statusChip: { borderRadius: 0, paddingVertical: 3, paddingHorizontal: 9 },
+  stub: {
+    width: 96, borderLeftWidth: 2, borderLeftColor: '#EEEEEE', borderStyle: 'dashed',
+    backgroundColor: '#FAFAFA', alignItems: 'center', justifyContent: 'center', position: 'relative',
+  },
+  notch: { position: 'absolute', left: -9, width: 16, height: 16, borderRadius: 8, backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE' },
+  finStamp: {
+    position: 'absolute', right: 104, top: 9, borderWidth: 2.5, borderColor: '#6E9BC5',
+    paddingVertical: 3, paddingHorizontal: 8, transform: [{ rotate: '-9deg' }], zIndex: 2,
+  },
+  emptyJobs: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE', padding: 20, alignItems: 'center', gap: 12, marginTop: 16 },
+  emptyBtn: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line, paddingVertical: 12, paddingHorizontal: 16 },
 });

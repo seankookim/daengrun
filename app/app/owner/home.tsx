@@ -10,6 +10,7 @@ import { Avatar, Icon } from '../../src/components/ui';
 import { MediaImage } from '../../src/lib/media';
 import { Addr, BeaconInfo, BoardRow, createBookingHold, DogProfile, fetchAddresses, fetchAvailableRunners, fetchCertifiedRunners, fetchDogBoardDelta, fetchFitness, fetchMyBookings, fetchMyDogs, fetchMyProfile, fetchRecentMoments, fetchRewardBeacon, fetchRoutes, fetchUnreadCount, Fitness, LiveRunner, Moment, MyProfile } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
+import { useReducedMotion } from '../../src/lib/reducedMotion';
 import { useNumFont } from '../../src/lib/fonts';
 import { haptic } from '../../src/lib/haptics';
 import { registerPushToken } from '../../src/lib/push';
@@ -504,9 +505,12 @@ export default function OwnerHome() {
   const goFont = goState === 'none' ? 38 : goState === 'active' ? 28 : goNum ? 33 : 22;
   // GO 호흡 — '매칭 중'(잔잔한 맥박)과 '● LIVE'(느린 숨)에서만 돈다. idle에 돌리면 거짓 모션
   // (스윕 회전과 같은 법). opacity 단일 값 · 네이티브 드라이버 — 레이아웃/스케일은 건드리지 않는다.
+  const reduceMotion = useReducedMotion();
   const goBreath = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    const dur = goState === 'searching' ? 950 : goState === 'active' ? 1700 : 0;
+    // [2026-08-11 §7c] Reduced motion: the breath is a status cue, but the STATIC cue
+    // (state color + label) already carries the meaning — so we stop the loop, not the state.
+    const dur = reduceMotion ? 0 : goState === 'searching' ? 950 : goState === 'active' ? 1700 : 0;
     if (dur === 0) { goBreath.setValue(0); return; }
     const loop = Animated.loop(Animated.sequence([
       Animated.timing(goBreath, { toValue: 1, duration: dur, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
@@ -514,7 +518,7 @@ export default function OwnerHome() {
     ]));
     loop.start();
     return () => loop.stop();
-  }, [goState, goBreath]);
+  }, [goState, goBreath, reduceMotion]);
   const goBreathOpacity = goBreath.interpolate({ inputRange: [0, 1], outputRange: [1, goState === 'searching' ? 0.72 : 0.85] });
 
   // 레이더 아크 브리딩 — 평상시 잔잔하게

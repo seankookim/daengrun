@@ -43,8 +43,8 @@ export function PaperBtn({ label, busyLabel, onPress, variant = 'primary', disab
       ]}
     >
       <Text style={{
-        // [2026-08-10 랩 Ⓒ] 버튼 라벨 플로어 16
-        fontSize: 16, fontWeight: '800',
+        // [2026-08-11 §3b] primary/door class = 17/800 (spec), secondary/destructive 16/800
+        fontSize: variant === 'primary' ? 17 : 16, fontWeight: '800',
         color: variant === 'primary'
           ? (disabled ? paper.faint : '#FFFFFF')
           : disabled ? paper.faint
