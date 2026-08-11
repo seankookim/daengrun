@@ -341,13 +341,17 @@ payments touches.
 
 ## ⑯ Next 1–3  *(rewritten 2026-08-11 — items 2 and 3 are done)*
 
-1. 🔴 **[needs-user, BLOCKING] D-A — the registration fork.** Sean's ruling at the
-   /autoplan gate: **no payments code until counsel answers.** Does pilot revenue
-   taken as an unregistered individual survive 예비창업패키지 2027 eligibility, and
-   is 초창패/청창사 (`marketing-fundraising.md:128`) live? If "register anyway,"
-   **delete `docs/plans/payments-bridge-plan.md`** and scope Toss directly. Also
-   D-B: 전자상거래법 requires 사업자 정보 on the payment screen, so legal is a
-   **build** gate, not a ship gate.
+1. **[needs-user] Payments = the filing chain.** D-A was **answered**: Sean
+   registers. The bridge is superseded (`payments-bridge-plan.md` is a tombstone,
+   do not build it); `docs/plans/payments-toss-plan.md` is the live scope.
+   Chain: 사업자등록 (홈택스, same-day, free) → 통신판매업 신고 (시/군/구, ~₩40k/yr)
+   → 토스페이먼츠 계약 (1–2wk review) → `supabase secrets set TOSS_SECRET_KEY`
+   (Sean only). ⚠ 예비창업패키지 2027 (~₩40M) closes on registration — decided,
+   recorded so it isn't rediscovered as a surprise.
+   **Buildable NOW without any of that** (toss-plan §5-1): the `payments` table +
+   RLS + pins, and two deletions that make the app more honest immediately —
+   `pay.tsx:334`'s free 예약 확정하기 button and `pay.tsx:299`'s
+   "실결제는 발생하지 않았어요".
 2. **[needs-user]** The rest of §⑨: NCP checkboxes, geocode secret, counsel
    flags, chip review. The two P1 decisions changed shape — **mid-run stop is no
    longer Sean-gated** (0024 push already exists; ~6 lines, see TODOS) and
