@@ -2,15 +2,25 @@
 # Plan — pilot payments bridge (`awaiting_transfer`)
 
 Branch `redesign-v4`. Written 2026-08-11, **revised after /autoplan review**.
-Status: **PAUSED at Sean's direction (2026-08-11), pending D-A. Not approved, not implemented.**
+# ⚰️ SUPERSEDED — NOT BUILT, DO NOT BUILD
 
-> **BUILD IS BLOCKED ON D-A.** Sean's ruling at the /autoplan gate: resolve the registration fork
-> with counsel **before** any code is written. If the answer is "register anyway," delete this plan
-> and scope the Toss integration instead. Do not start the sprint until D-A is answered.
->
-> **D-C (settled at the same gate):** if the bridge does proceed, **매주 반복 and runner nomination
-> are disabled when 계좌이체 is chosen** — the affordances grey out rather than persisting the
-> intent server-side (see R4). Simplest honest fix; revisit only if the pilot demands it.
+**D-A was answered 2026-08-11: Sean is registering (사업자등록). That removes the only reason this
+bridge existed.** Superseded by **`docs/plans/payments-toss-plan.md`**.
+
+Kept, not deleted, because the review that killed it produced findings that outlived it:
+- The harness blind spot (§3) — **fixed** in `17e1124`, and it was found here.
+- The client status-vocabulary leak (§4) — the 9 update sites apply to *any* future booking
+  status, and the Toss track inherits the discipline (though not the new status).
+- `pay.tsx:299` / `pay.tsx:334` — the "실결제는 발생하지 않았어요" line and the free
+  예약 확정하기 button must die on the Toss track too.
+- R5/R7 — no accounting artifact exists for money coming IN. Still true, still unsolved.
+
+Net: three review voices, ~3 CC sessions of work avoided, one real gate bug found and fixed.
+The plan below is the pre-supersession record. Nothing in it should be implemented.
+
+---
+
+Status: **SUPERSEDED (2026-08-11). Historical record only.**
 
 Sean's decisions this session (settled — do not re-litigate):
 1. Full payments sprint now, not a day-sized script.

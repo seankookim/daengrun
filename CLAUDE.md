@@ -84,6 +84,26 @@ Install: `git clone https://github.com/garrytan/gstack.git ~/.claude/skills/gsta
 Available gstack skills:
 /office-hours, /plan-ceo-review, /plan-eng-review, /plan-design-review, /design-consultation, /design-shotgun, /design-html, /review, /ship, /land-and-deploy, /canary, /benchmark, /browse, /connect-chrome, /qa, /qa-only, /design-review, /setup-browser-cookies, /setup-deploy, /setup-gbrain, /retro, /investigate, /document-release, /document-generate, /codex, /cso, /autoplan, /plan-devex-review, /devex-review, /careful, /freeze, /guard, /unfreeze, /gstack-upgrade, /learn
 
+## Skill routing
+
+When the user's request matches an available skill, invoke it via the Skill tool. When in doubt, invoke the skill.
+
+- Product ideas/brainstorming → /office-hours
+- Strategy/scope → /plan-ceo-review
+- Architecture → /plan-eng-review
+- Design system/plan review → /design-consultation or /plan-design-review
+- Full review pipeline → /autoplan
+- Bugs/errors → /investigate
+- QA/testing site behavior → /qa or /qa-only
+- Code review/diff check → /review
+- Visual polish → /design-review
+- Ship/deploy/PR → /ship or /land-and-deploy
+- Save progress → /context-save · Resume → /context-restore
+- Author a backlog-ready spec/issue → /spec
+
+Project-specific: `/autoplan` is the standing gate for **any migration or money-path change**
+(0059 doctrine). Its subagents are read-only reviewers — they do not replace the harness.
+
 ## Git hygiene (Cowork cloud sessions)
 
 The device mount cannot unlink files: stale `.git/index.lock` survives even `git status`. Before EVERY git command: `mv .git/*.lock _to_delete/git-locks/<unique-name>` (never `rm`, never in a `&&` chain that aborts on mv failure). Staged file transfers must be md5-verified against the device; recently-changed files travel via base64 through device_bash, not the staging cache (proven stale 4×).
