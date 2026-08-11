@@ -22,7 +22,7 @@ independently confirmed · **[from-history]** remembered, recheck · **[uncertai
 
 | System | State | Provenance |
 |---|---|---|
-| git | `41ab7f7` on redesign-v4, **0 dirty tracked files**, 16 commits this session | **[verified-now]** |
+| git | `8c392b8` on redesign-v4, **0 dirty tracked files**, 16 commits this session | **[verified-now]** |
 | Database | prod through **0072**, local == remote | **[verified-now]** (`migration list`) |
 | SQL harness | **336 / 0** (was 305 — 31 new pins across 106-110) | **[verified-now]** |
 | tsc | 0 errors | **[verified-now]** |
@@ -50,7 +50,7 @@ The single most important fact for planning: **no real person has ever used this
 metric built this session reports `—` and says so out loud. Every remaining backlog item is
 downstream of that.
 
-## ② What shipped — 14 commits, `488031d` → `3fb76b9`, 39 files
+## ② What shipped — 16 commits, `488031d` → `8c392b8`, 40 files
 
 **Server / money (all pushed to prod).**
 - `0067_incident_subject_gate.sql` — **P1 SECURITY.** `club_incident_open` never validated
