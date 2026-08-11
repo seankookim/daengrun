@@ -21,13 +21,33 @@ sleep 1
 psql -d postgres -qc "drop database if exists daengrun_test"
 psql -d postgres -qc "create database daengrun_test"
 psql -v ON_ERROR_STOP=1 -q -f 00_shim.sql || { echo "SHIM FAILED"; exit 1; }
+# Self-pin: the migration loop below MUST mirror `supabase db push` transaction semantics.
+# Deleting --single-transaction silently re-opens the enum-migration hole, and no suite can
+# detect that (the suites run after migrations have already applied). This is the only place
+# that regression is catchable, so it is checked here, loudly.
+grep -q -- '--single-transaction' "$0" || {
+  echo "❌ GATE REGRESSION: migrations must apply with --single-transaction (mirrors db push)."
+  echo "   Without it, 'alter type ... add value' + same-file use passes here and fails on push."
+  exit 1
+}
 for f in ../migrations/*.sql; do
   base=$(basename "$f"); src="$f"
   if [ "$base" = "0024_push.sql" ]; then
     sed 's/^create extension if not exists pg_net;/-- [harness] pg_net stubbed/' "$f" > ./.pgtest/_cur.sql
     src=./.pgtest/_cur.sql
   fi
-  out=$(psql -v ON_ERROR_STOP=1 -q -f "$src" 2>&1)
+  # [2026-08-11] --single-transaction is LOAD-BEARING, not tidiness.
+  # `supabase db push` applies each migration file inside ONE transaction. Without this flag psql
+  # ran statement-level autocommit, which is strictly MORE permissive than production — so a whole
+  # class of migration could pass here and fail on push. The proven case: `alter type ... add value`
+  # followed by same-transaction USE of that value raises `unsafe use of new value of enum type`.
+  # Under autocommit each statement commits first, so it passed; under db push it does not.
+  # (`language sql` bodies are parsed at CREATE and break; plpgsql bodies are not and survive —
+  #  so the old harness failed inconsistently, which is worse than failing always.)
+  # This is exactly the class line 4 says this harness exists to block, and it could not see it.
+  # No migration in the repo uses CONCURRENTLY / VACUUM / ALTER SYSTEM, so nothing legitimately
+  # needs autocommit; if one ever does, give it its own file and its own exception here.
+  out=$(psql -v ON_ERROR_STOP=1 --single-transaction -q -f "$src" 2>&1)
   if [ $? -ne 0 ]; then echo "❌ $base"; echo "$out" | grep -v NOTICE | head -8; exit 1; fi
   echo "✅ $base"
 done
