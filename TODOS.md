@@ -172,14 +172,30 @@ Ordered by the auditor's recommended fix order. **C2 is DONE** (`0d79b4f`). The 
   the owner.** Both say "호스트와 러너 전원에게 즉시 알림". Owner SOS (`club_sos`, 0050:59-73) passes
   `p_dog => null` ⇒ **no payout hold** — the runner gets paid on the dog the owner just raised an
   emergency about. Runner SOS (`club_incident_open`) holds payout but has **no runner fan-out**.
-  Both notify only host + backup host — **the dog's owner is never notified**. Fix: one code path.
-  P1.
+  Both notify only host + backup host — **the dog's owner is never notified**.
+  **PANEL VERDICT — unify on `club_incident_open` with an OPTIONAL dog.** Not "always attach a
+  dog": an owner's SOS often has no dog subject (loose dog, a fight, a collapsed person) and
+  attaching one would drop a payout hold on an uninvolved runner. So: dog attached ⇒ payout hold
+  (already there, 0050:29) · always ⇒ runner fan-out (lift 0050:64-72 in, gate to S1/S2) · always
+  ⇒ notify the affected owner. Owner copy states what is true and what to do, and diagnoses
+  nothing — the runner who pressed SOS may not know what happened:
+  `긴급 — {개이름} 러닝 중 SOS` / `담당 러너가 긴급 SOS를 눌렀어요. 호스트가 대응 중이에요 — 케이스를
+  열어 상황을 확인하세요.` Owner already passes the party gate (0050:110). Ship this one FIRST.
 
 - [ ] 🔴 **C4 — a picked-up dog whose run never ends locks the session and payouts forever.**
   `_club_dogs_unresolved` (0045:328-336) blocks finish; the console's only override renders solely
   for `return_pending` (console:201,483-508). Runner confirms handoff then never presses 시작/종료
   (phone dies) ⇒ permanent block, no row, no button, and the blocker says '반환 미완' for a dog that
-  was never returned because the run never started. Same trap class as H5. P1.
+  was never returned because the run never started. Same trap class as H5.
+  **PANEL VERDICT — the schema already answers this; NO transition-map change needed.**
+  Verified: `picked_up → incident_review` and `active → incident_review` are ALREADY legal
+  (0066:53-54), and `_club_dogs_unresolved` counts only picked_up/active/completed (0045:328) —
+  so moving a stuck dog to `incident_review` clears the session blocker for free, and
+  `club_release_payouts` still can't leak (needs no open incident, 0045:427). New RPC: host-only,
+  self-override banned, artifact required, opens an S2 incident with the dog attached, records
+  `return_override` (column exists). `club_finish_session` already refuses to close with an
+  unowned open incident (0048:398), so the host cannot force-resolve and walk away. Also fix the
+  blocker label: '반환 미완' → '러닝 미종료'. Cheapest of the three.
 
 - [ ] **H1 — club/run/[sid] is the only club screen without LoadGate.** `:92` silent catch, `:315`
   renders eternal '불러오는 중...' with no back and no retry — on the screen holding a running dog.
