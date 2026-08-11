@@ -4,11 +4,11 @@ import { Alert, Animated, Easing, Pressable, ScrollView, StyleSheet, Text, View 
 import { PaperBtn } from '../../src/components/paper-btn';
 import { PickupMap } from '../../src/components/PickupMap';
 import { Monogram, Row } from '../../src/components/ui';
-import { confirmHandoff, fetchBookingSync, fetchCurrentOwnerBookingId, fetchMeetupInfo, fetchOwnerPickupCoords, MeetupInfo, OwnerPickup, subscribeBooking } from '../../src/lib/api';
+import { cancelBooking, confirmHandoff, fetchBookingSync, fetchCurrentOwnerBookingId, fetchMeetupInfo, fetchOwnerPickupCoords, MeetupInfo, OwnerPickup, subscribeBooking } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { startOwnerActivity } from '../../src/lib/ownerActivity';
 import { haptic } from '../../src/lib/haptics';
-import { draft } from '../../src/store';
+import { cancelPolicy, draft } from '../../src/store';
 import { paper } from '../../src/theme';
 
 // 보호자 인계 화면 — 실신원만 (김민준·초코 목업 은퇴, ui-audit P0).
@@ -74,6 +74,16 @@ export default function OwnerMeetup() {
   // Appended at the end of the bundle per the freeze law above.
   const [pin, setPin] = useState<{ s: 'loading' | 'ok' | 'err'; c: OwnerPickup | null }>({ s: 'loading', c: null });
   const [pinTry, setPinTry] = useState(0);
+  // [2026-08-11 owner cancel] Cancel affordance for the pre-departure window only.
+  // The DB transition map (0047 enforce_booking_transition) has no runner_enroute/picked_up
+  // → cancelled_owner edge, so cancel is legal solely at status 'confirmed' = stage 'enroute'
+  // here (IN_FLIGHT resolution guarantees the mapping). Appended at the END of the bundle
+  // per the hook-placement freeze above.
+  const [cancelling, setCancelling] = useState(false);
+  // Mutes refresh()'s terminal-state handler while our own cancel exit runs — realtime can
+  // observe cancelled_owner before cancelBooking() resolves, and without this both paths
+  // would Alert + router.back() (double pop).
+  const closingRef = useRef(false);
 
   // id 복원 — 리로드로 draft가 비어도 서버가 진실을 안다 (데모 전락 사고 방지, 2026-07-23)
   useEffect(() => {
@@ -122,6 +132,7 @@ export default function OwnerMeetup() {
   // 모든 단계가 서버 진실을 따른다 — 가짜 도착 없음
   const refresh = useCallback(async () => {
     if (!bookingId) return;
+    if (closingRef.current) return; // cancel exit in flight — it owns the alert + navigation
     try {
       const sync = await fetchBookingSync(bookingId);
       // 종말 상태 — 화면에 좌초하지 않고 정직하게 이탈 (감사 ③)
@@ -171,6 +182,42 @@ export default function OwnerMeetup() {
     } catch {
       Alert.alert('인계 확인이 전송되지 않았어요', '다시 시도해주세요');
     }
+  };
+
+  // [2026-08-11 owner cancel] Design (a): state the policy in words BEFORE committing —
+  // the fee is computed server-side (cancel_owner: free >=24h out, else 10% of total_price)
+  // and MeetupInfo carries no price, so no client number is guessed. The success alert then
+  // shows the server's returned cancel_fee/refund (schedule.tsx cancel vocabulary, verbatim).
+  const cancel = () => {
+    if (!bookingId || cancelling) return;
+    Alert.alert(
+      '일정을 취소할까요?',
+      `${info ? `${info.when} · ` : ''}${runnerName} 러너\n\n시작 24시간 전까지는 수수료가 없어요.\n이후에는 결제 금액의 ${cancelPolicy.feeRate * 100}%가 취소 수수료로 차감돼요.`,
+      [
+        { text: '돌아가기', style: 'cancel' },
+        {
+          text: '취소하기', style: 'destructive',
+          onPress: async () => {
+            setCancelling(true);
+            try {
+              const r = await cancelBooking(bookingId);
+              closingRef.current = true; // this exit owns navigation — see refresh() guard
+              // Alert-then-back mirrors the terminal-state handler in refresh() above.
+              Alert.alert(
+                '취소 완료',
+                `환불 ${r.refund.toLocaleString()}원${r.cancel_fee > 0 ? ` (수수료 ${r.cancel_fee.toLocaleString()}원 차감)` : ' (수수료 없음)'}\n결제 실연동 후엔 3일 내 환불 처리돼요`,
+              );
+              router.back();
+            } catch (e) {
+              // Loud fail — the booking is still live, the button stays for retry.
+              Alert.alert('취소 실패', (e as Error).message ?? '잠시 후 다시 시도해주세요');
+            } finally {
+              setCancelling(false);
+            }
+          },
+        },
+      ],
+    );
   };
 
   // ── 이중 봉인 = 서버 진실의 파생값 (아래 Step의 done 식과 문자 그대로 동일) ──
@@ -398,6 +445,14 @@ export default function OwnerMeetup() {
                 이 카드는 출발 전에만 뜨므로 arrivedAt 분기는 사실상 안 닿지만, 상태가 앞서 도착해도
                 화면이 거짓말하지 않도록 조건을 남겨둔다. */}
             <Text style={s.statusSub}>러너가 출발하면 알림을 보내드려요 · 도착하면 다시 알려드려요</Text>
+            {/* [2026-08-11 owner cancel] Secondary destructive affordance — paper destructive
+                grammar (canvas + 1px critical border + critical ink, criticalWash pressed) via
+                PaperBtn. Pre-departure only: the transition map closes cancel once the runner
+                is en route, so this button never appears past this stage. */}
+            <PaperBtn
+              label="예약 취소" busyLabel="취소 처리 중..." variant="destructive"
+              onPress={cancel} busy={cancelling} style={{ alignSelf: 'stretch', marginTop: 14 }}
+            />
           </View>
         )}
         {stage === 'arrived' && (
@@ -405,6 +460,10 @@ export default function OwnerMeetup() {
             {/* 화면당 잉크-필 CTA 1개 — 이 화면의 계약 행동은 인계 확인 하나뿐 */}
             <PaperBtn label={`${dogName}를 인계했어요`} onPress={handoff} />
             <Text style={s.ctaHint}>러너도 확인하면 러닝이 시작돼요</Text>
+            {/* [2026-08-11 owner cancel] Honest closure — no runner_enroute → cancelled_owner
+                edge exists in the transition map, so no dead cancel button here; the same
+                sentence schedule.tsx's management sheet uses for this state. */}
+            <Text style={[s.ctaHint, { marginTop: 4 }]}>러너가 픽업으로 이동 중이에요 — 지금은 변경·취소가 마감됐어요</Text>
           </View>
         )}
         {stage === 'waiting' && (

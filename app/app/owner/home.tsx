@@ -1255,7 +1255,8 @@ export default function OwnerHome() {
           <Pressable onPress={goBook} style={s.cta}>
             <View pointerEvents="none" style={s.ctaSheen} />
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Text style={[{ fontSize: 27, lineHeight: 33, color: '#fff' }, df]}>다음 하이 미리 예약</Text>
+              {/* [Sean 2026-08-11] '다음 하이 미리 예약' → '미리 예약' — 짧은 쪽이 더 크게 읽힌다 */}
+              <Text style={[{ fontSize: 31, lineHeight: 38, color: '#fff' }, df]}>미리 예약</Text>
               <Text style={[{ fontSize: 19, lineHeight: 23, letterSpacing: 2, color: '#fff' }, nf]}>›››</Text>
             </View>
             {/* a11y: 작은 글씨는 코랄 위 직접 얹지 않고 잉크 플레이트(≥4.5:1) 위에 */}
@@ -1363,6 +1364,16 @@ export default function OwnerHome() {
               ))}
             </ScrollView>
           </View>
+        )}
+
+        {/* ---------- 피드 직행 — 완료 러닝이 있을 때만 (compose.tsx가 전제조건·중복 공유를 정직하게 처리) ---------- */}
+        {lastDone && (
+          <Pressable onPress={() => router.push('/compose')} style={[s.nudge, { backgroundColor: p.card }]}>
+            <Text style={{ flex: 1, fontSize: 14, fontWeight: '800', color: p.textStrong }}>
+              🐾 {lastDone.dogName}의 완주, 동네 피드에 자랑해볼까요?
+            </Text>
+            <Text style={{ fontSize: 14, color: lilac.accent, fontWeight: '900' }}>자랑하기 ›</Text>
+          </Pressable>
         )}
 
         {/* ---------- 동네 러너 = 스타디움 로스터 (V2) — 러너는 서비스의 얼굴, PR 표면 ---------- */}
@@ -1695,14 +1706,15 @@ const s = StyleSheet.create({
   beaconCell: { flex: 1, paddingVertical: 13, paddingHorizontal: layout.gutter }, // horizontal only → gutter 15 (vertical rhythm untouched)
   beaconDiv: { width: 1, marginVertical: 11 },
   // 한글 정보 라벨 — 라틴 키커가 아니므로 14pt 플로어를 그대로 받는다 (트래킹만 0.5로 절제)
-  beaconKick: { fontSize: 14, lineHeight: 18, fontWeight: '600', letterSpacing: 0.5 },
+  // [Sean 2026-08-11] 이 두 카드는 '훨씬 크게' — 킥 14→16, 값 19→30(Oswald), 서브 14→16, 링크 14→16.
+  beaconKick: { fontSize: 16, lineHeight: 21, fontWeight: '700', letterSpacing: 0.5 },
   // [BUG A] lineHeight 24 = 내부 Oswald 19pt의 1.26× — 작은 줄박스에 큰 숫자를 중첩하면 어센더가 잘린다
-  beaconLine: { fontSize: 14, lineHeight: 24, fontWeight: '700', marginTop: 3 },
-  beaconNum: { fontSize: 19, lineHeight: 24, fontWeight: '900' },
-  beaconSub: { fontSize: 14, lineHeight: 18, fontWeight: '600', marginTop: 1 },
+  beaconLine: { fontSize: 16, lineHeight: 38, fontWeight: '700', marginTop: 4 },
+  beaconNum: { fontSize: 30, lineHeight: 38, fontWeight: '900' },  // BUG A: 1.27x
+  beaconSub: { fontSize: 16, lineHeight: 21, fontWeight: '600', marginTop: 3 },
   // [리뷰 P2-5c] 색은 인라인 테마 — 모듈의 유일한 어포던스라 나이트 카드(#241F42)에서
   // lilac.accent가 3.20:1로 떨어지면 안 된다. 다크는 라이트 바이올렛으로 올린다.
-  beaconGo: { fontSize: 14, lineHeight: 18, fontWeight: '800', marginTop: 4 },
+  beaconGo: { fontSize: 16, lineHeight: 21, fontWeight: '800', marginTop: 6 },
   // 예약하기 = 돈 버튼 — 딥 코랄 (종단 ≥#C6472C, 흰 라벨 4.5:1)
   book: { backgroundColor: lilac.card, borderWidth: 1, borderLeftWidth: 0, borderRightWidth: 0, borderColor: '#EEEEEE', borderRadius: 0, padding: 12, marginTop: 14 }, // [풀블리드] [페이퍼 크롬] 뉴트럴 보더 · 카드 섀도 은퇴 (무게는 안의 딥 코랄 CTA가 진다)
   bookFacts: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', paddingHorizontal: 2, paddingBottom: 11 },

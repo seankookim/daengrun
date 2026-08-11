@@ -2904,6 +2904,21 @@ export async function deleteFeedPost(postId: string): Promise<void> {
   if (error) throw error;
 }
 
+// Booking ids I already shared to the feed (feed_posts.booking_id is unique per run).
+// The composer uses this to mark runs "공유 완료" honestly instead of offering a share
+// that can only fail with 23505.
+export async function fetchMySharedBookingIds(): Promise<string[]> {
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) return [];
+  const { data, error } = await supabase
+    .from('feed_posts')
+    .select('booking_id')
+    .eq('author_id', user.user.id)
+    .not('booking_id', 'is', null);
+  if (error) throw error;
+  return (data ?? []).map((r: any) => r.booking_id as string);
+}
+
 // ---------- 하이 포인트 + 리더보드 (통합 인센티브 경제) ----------
 export interface MilesInfo { balance: number; recent: { delta: number; reason: string; when: string }[] }
 

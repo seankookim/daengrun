@@ -1,5 +1,26 @@
 # TODOS
 
+## Sean decision needed — cancel window at the handoff moment (2026-08-11)
+
+Sean asked for a cancel button "during the confirmation stage". Implemented as far
+as the server allows, and the gap is a **product + money decision only Sean can
+make**:
+
+- `enforce_booking_transition()` (0047_assignment_loop.sql:25-48) permits
+  `confirmed → cancelled_owner` but **blocks** `runner_enroute → cancelled_owner`
+  and `picked_up → cancelled_owner`.
+- So the cancel button lives in the pre-departure window (stage `enroute` =
+  server `confirmed`). At the literal handoff moment (러너 이동 중 / 인계 확인)
+  the UI states honestly that cancellation is closed — matching schedule.tsx,
+  which already hides its cancel link for the same reason.
+- **To allow cancelling once the runner is en route** (what Sean may have meant)
+  needs a migration widening the transition map + a fee decision: the runner has
+  already traveled, so a 10% fee is arguably wrong — it likely needs a
+  runner-compensation split (the existing comment in transition-booking mentions
+  "50%는 러너 보상 — 정산에서 처리" but no such path exists). Money change ⇒ its
+  own migration + adversarial cycle (0059 doctrine). Effort M → S once the fee
+  policy is decided. P2.
+
 Deferred work, written down so it exists. Format: what / why / context / effort
 (human → CC) / priority / depends-on.
 

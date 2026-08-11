@@ -6,8 +6,8 @@ import { HeatTrace } from '../src/components/runcard';
 import { Avatar, Row } from '../src/components/ui';
 import { MediaImage } from '../src/lib/media';
 import {
-  addComment, deleteFeedPost, fetchComments, fetchFeed, fetchRecentReviews,
-  FeedComment, FeedPost, PublicReview, toggleFeedLike,
+  addComment, deleteFeedPost, fetchComments, fetchFeed, fetchMyProfile, fetchRecentReviews,
+  FeedComment, FeedPost, MyProfile, PublicReview, toggleFeedLike,
 } from '../src/lib/api';
 import { useClubOverview } from '../src/components/clubcard';
 import { useDisplayFont } from '../src/lib/displayFont';
@@ -15,18 +15,20 @@ import { useNumFont } from '../src/lib/fonts';
 import { haptic } from '../src/lib/haptics';
 import { CollarKey, collarColors, lilac, paper } from '../src/theme';
 
-// 동네 피드 — "동네 신문 (LOCAL PAPER)" 리페인트 (라일락 정본, delegation-premium-refresh2).
-// 편집 문법: 마스트헤드(판권 라인 + Black Han Sans 워드마크 1회) → 홀로 엣지 클럽 배너 →
-// 기사 카드(바이라인 행 · 사진=본문 · 하이라인 스탯 표 · 조용한 액션 행) → 독자 편지(댓글).
-// 액센트 예산: 바이올렛 = 구조/룰/링크 · 코랄 = 단일 신호(LIVE 도트 · 누른 발자국 · 보내기).
+// 동네 피드 — IG 카드 해부학 개편 (Sean 2026-08-11: "인스타 UI에서 영감 — 쉽게 올리고 스크롤하고
+// 반응하고 공유하게"). 인스타에서 가져온 건 비주얼이 아니라 카드의 스캔 리듬:
+//   ① 아이덴티티 헤더(아바타·이름·강아지 + 내 포스트면 ⋯ 오버플로) → ② 콘텐츠 블록 엣지-투-엣지
+//   (사진 풀블리드 / 기록 조판 / 클럽 리캡) → ③ 액션 행(발자국·댓글, 44pt 타깃, 낙관적 갱신+롤백)
+//   → ④ 캡션 → ⑤ 타임스탬프. 포스트 사이 = 풀블리드 코랄 헤어라인 (카드-인-카드 은퇴).
+// 미이식 IG 어포던스(백엔드 부재 — 죽은 버튼 금지): 공유/DM · 북마크 · 팔로우 · 스토리 · 캐러셀.
+// 직행 포스트: 상단 컴포즈 바 → /compose (실제 전제조건 = 완료된 러닝, shareRunToFeed).
+// 삭제는 ⋯ → Alert 확정으로 이동 — '길게 눌러 삭제' 상시 힌트 은퇴.
+// 액센트 예산: 코랄 = 포스트 구분선 · 누른 발자국 · 컴포즈 버튼 보더 · 보내기.
 // 포일 예산: 홀로 = 클럽 배너 상하 엣지 + 마스트헤드 모노그램만 · 골드 = 기록 소인 화면당 1개.
-// 로직 동결: 모든 핸들러/라우팅/데이터 흐름은 원본 그대로, 프레젠테이션만 재도색.
-// FIX3: 디테일 텍스트 플로어 — ≤10.5pt 전부 12–15 밴드로 승급(최저 11.5), 본문 11–13 → 13–15.
-//       히어로/헤딩 크기 불변 · 큰 Oswald 숫자는 lineHeight ≥ 1.2×로 상단 클리핑 방지 (BUG A).
+// 로딩 ≠ 빈 피드 ≠ 에러 — 3상태 분리 (에러는 criticalWash 라우드-페일 스트립 + 재시도).
 
 const W = Dimensions.get('window').width;
 const GUTTER = 13;
-const CARDW = W - GUTTER * 2;
 
 // 홀로 포일 스톱 (그라디언트 라이브러리 부재 — 세그먼트 View로 근사)
 const HOLO = ['#CFC4FF', '#FFD9CB', '#F3E9C6', '#CDEBDD', '#CFE0FF', '#CFC4FF'];
@@ -94,20 +96,29 @@ export default function Community() {
   }, [tab, reviews]);
   const [loaded, setLoaded] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [feedError, setFeedError] = useState<string | null>(null);
+  // 컴포즈 바의 내 아바타 — 실프로필 (없으면 모노그램 폴백)
+  const [me, setMe] = useState<MyProfile | null>(null);
+  useEffect(() => { fetchMyProfile().then(setMe).catch(() => {}); }, []);
 
   const load = () => fetchFeed()
-    .then((p) => { setPosts(p); setLoaded(true); })
-    .catch((e) => { console.warn('[feed]:', e?.message ?? e); setLoaded(true); });
+    .then((p) => { setPosts(p); setFeedError(null); setLoaded(true); })
+    .catch((e) => { setFeedError(e?.message ?? '피드를 불러오지 못했어요'); setLoaded(true); });
   useFocusEffect(useCallback(() => { load(); }, []));
   const onRefresh = () => { setRefreshing(true); load().finally(() => setRefreshing(false)); };
 
   const setLiked = (p: FeedPost, liked: boolean) => {
     if (p.likedByMe === liked) return;
-    haptic('light');
+    haptic('light'); // 즉시 촉각 피드백 — 낙관적 카운트 갱신과 동시 (<100ms)
     setPosts((cur) => cur.map((x) => (x.id === p.id
       ? { ...x, likedByMe: liked, likes: p.likes + (liked ? 1 : -1) }
       : x)));
-    toggleFeedLike(p.id, p.likedByMe).catch(() => load()); // 낙관적 반영 — 실패 시 리로드로 정합
+    // 낙관적 반영 — 실패 시 해당 포스트만 원상 롤백 (전체 리로드로 화면을 흔들지 않는다)
+    toggleFeedLike(p.id, p.likedByMe).catch(() => {
+      setPosts((cur) => cur.map((x) => (x.id === p.id
+        ? { ...x, likedByMe: p.likedByMe, likes: p.likes }
+        : x)));
+    });
   };
 
   // 더블탭 — IG 문법: 더블탭은 항상 '좋아요' (해제는 액션 버튼으로만)
@@ -276,40 +287,72 @@ export default function Community() {
           </View>
         )}
 
-        {/* ───────── 피드 ───────── */}
-        {tab === 'feed' && loaded && posts.length === 0 && (
+        {/* ───────── 컴포즈 바 — 피드 직행 포스트 진입 (IG 문법: 아바타 + 플레이스홀더 + 버튼).
+            탭하면 /compose — 실제 공유 플로우(완료 러닝 픽커 + 캡션 + shareRunToFeed) ───────── */}
+        {tab === 'feed' && (
+          <Pressable
+            onPress={() => router.push('/compose')}
+            style={({ pressed }) => [s.composeBar, pressed && { backgroundColor: paper.wash }]}
+            accessibilityRole="button"
+            accessibilityLabel="피드에 자랑하기"
+          >
+            <Avatar url={me?.avatarUrl} char={(me?.name ?? '나')[0]} bg={lilac.accent} size={34} />
+            <Text style={s.composePh} numberOfLines={1}>오늘 러닝 자랑하기...</Text>
+            <View style={s.composeGo}><Text style={s.composeGoTxt}>🐾 올리기</Text></View>
+          </Pressable>
+        )}
+
+        {/* ───────── 피드 — 로딩 ≠ 에러 ≠ 빈 피드 (3상태 정직 분리) ───────── */}
+        {tab === 'feed' && !loaded && (
+          <Text style={{ fontSize: 14, color: lilac.dim, textAlign: 'center', marginTop: 30 }}>피드 불러오는 중...</Text>
+        )}
+        {tab === 'feed' && loaded && feedError != null && (
+          <View style={s.failStrip}>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: paper.critical }}>피드를 불러오지 못했어요</Text>
+            <Text style={{ fontSize: 14, color: paper.critical, marginTop: 3 }} numberOfLines={2}>{feedError}</Text>
+            <Pressable onPress={load} style={s.retryBtn} accessibilityRole="button">
+              <Text style={{ fontSize: 14, fontWeight: '800', color: paper.ink }}>다시 시도</Text>
+            </Pressable>
+          </View>
+        )}
+        {tab === 'feed' && loaded && feedError == null && posts.length === 0 && (
           <View style={s.emptyBox}>
             <Text style={{ fontSize: 15, fontWeight: '700', color: lilac.head, textAlign: 'center' }}>아직 포스트가 없어요</Text>
             <Text style={{ fontSize: 14, color: lilac.dim, textAlign: 'center', marginTop: 6, lineHeight: 22 }}>
-              러닝을 완료하고 리포트에서 '동네 피드에 자랑하기'를 눌러보세요{'\n'}첫 포스트의 주인공이 되어주세요 🐕
+              러닝을 완료하고 위의 '올리기'로 자랑해보세요{'\n'}첫 포스트의 주인공이 되어주세요 🐕
             </Text>
           </View>
         )}
 
-        {tab === 'feed' && posts.map((p, i) => (
+        {tab === 'feed' && posts.map((p) => (
           <View key={p.id} style={s.post}>
-            {/* ── 바이라인 행 */}
-            <Pressable onLongPress={() => remove(p)}>
-              <Row style={{ gap: 9, paddingHorizontal: 11, paddingTop: 10, paddingBottom: 9, alignItems: 'flex-start' }}>
-                <Avatar url={p.authorAvatar} char={p.authorName[0]} bg={lilac.accent} size={32} />
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 14, fontWeight: '700', color: lilac.head }}>{p.authorName}</Text>
-                  {p.meta.dogName && (
-                    <Row style={{ gap: 5, marginTop: 2, alignItems: 'center' }}>
-                      {p.meta.collar && collarColors[p.meta.collar as CollarKey] && (
-                        <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: collarColors[p.meta.collar as CollarKey] }} />
-                      )}
-                      <Text style={{ fontSize: 14, color: lilac.text }}>{p.meta.dogName}와 함께</Text>
-                    </Row>
-                  )}
-                </View>
-                <View style={{ alignItems: 'flex-end' }}>
-                  <Text style={[s.stamp, nf]}>{p.when}</Text>
-                  {p.mine && <Text style={{ fontSize: 14, color: lilac.dim, marginTop: 3 }}>길게 눌러 삭제</Text>}
-                </View>
-                <Text style={[s.idx, nf]}>{String(i + 1).padStart(2, '0')}</Text>
-              </Row>
-            </Pressable>
+            {/* ── ① 아이덴티티 헤더 (IG 문법) — 아바타 + 이름·강아지 + 내 포스트면 ⋯ 오버플로.
+                타임스탬프는 카드 바닥(⑤)으로 — 상시 '길게 눌러 삭제' 힌트는 은퇴, 삭제는 ⋯ → Alert */}
+            <Row style={{ gap: 9, paddingHorizontal: GUTTER + 2, paddingTop: 11, paddingBottom: 9, alignItems: 'center' }}>
+              <Avatar url={p.authorAvatar} char={p.authorName[0]} bg={lilac.accent} size={34} />
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: lilac.head }} numberOfLines={1}>{p.authorName}</Text>
+                {p.meta.dogName && (
+                  <Row style={{ gap: 5, marginTop: 2, alignItems: 'center' }}>
+                    {p.meta.collar && collarColors[p.meta.collar as CollarKey] && (
+                      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: collarColors[p.meta.collar as CollarKey] }} />
+                    )}
+                    <Text style={{ fontSize: 14, color: lilac.text }} numberOfLines={1}>{p.meta.dogName}와 함께</Text>
+                  </Row>
+                )}
+              </View>
+              {p.mine && (
+                <Pressable
+                  onPress={() => remove(p)}
+                  style={s.more}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel="내 포스트 관리"
+                >
+                  <Text style={{ fontSize: 17, fontWeight: '700', color: lilac.dim, letterSpacing: 1, lineHeight: 21 }}>⋯</Text>
+                </Pressable>
+              )}
+            </Row>
 
             {/* ── 클럽 리캡 자동 포스트 = 밤의 창 (나이트 라일락 #1C1837) */}
             {p.meta.club ? (
@@ -332,8 +375,9 @@ export default function Community() {
                 {/* 사진 = 본문 (콘텐츠 유지) */}
                 <Pressable onPress={() => onPhotoTap(p)}>
                   <View style={s.photoWrap}>
-                    {/* [0064] 피드 사진 = 공유된 러닝 사진 — 새 포스트는 media 경로라 서명이 필요 */}
-                    <MediaImage source={p.photoUrl} style={{ width: CARDW, height: CARDW * 1.1, backgroundColor: lilac.inset }} resizeMode="cover" />
+                    {/* [0064] 피드 사진 = 공유된 러닝 사진 — 새 포스트는 media 경로라 서명이 필요.
+                        [IG 개편] 엣지-투-엣지 풀블리드 — 카드 인셋 은퇴, 사진이 화면 폭 전체 */}
+                    <MediaImage source={p.photoUrl} style={{ width: W, height: W, backgroundColor: lilac.inset }} resizeMode="cover" />
                     {(p.meta.badges ?? []).length > 0 && (
                       <View pointerEvents="none" style={s.badgeCol}>
                         {(p.meta.badges ?? []).map((b) => (
@@ -412,22 +456,34 @@ export default function Community() {
               </Pressable>
             )}
 
-            {/* ── 조용한 액션 행 (누른 발자국 = 코랄 단일 신호) */}
-            <Row style={{ paddingHorizontal: 11, paddingTop: 9, gap: 6 }}>
-              <Pressable onPress={() => setLiked(p, !p.likedByMe)} style={[s.act, p.likedByMe && s.actOn]} hitSlop={6}>
-                <Text style={{ fontSize: 14, opacity: p.likedByMe ? 1 : 0.5 }}>🐾</Text>
+            {/* ── ③ 액션 행 — 콘텐츠 직하, 좌측 정렬, 44pt 타깃 · scale 0.96 프레스 ·
+                낙관적 카운트 (누른 발자국 = 코랄 단일 신호) */}
+            <Row style={{ paddingHorizontal: GUTTER + 2 - 8, alignItems: 'center' }}>
+              <Pressable
+                onPress={() => setLiked(p, !p.likedByMe)}
+                style={({ pressed }) => [s.act, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
+                accessibilityRole="button"
+                accessibilityLabel="발자국"
+                accessibilityState={{ selected: p.likedByMe }}
+              >
+                <Text style={{ fontSize: 17, opacity: p.likedByMe ? 1 : 0.45 }}>🐾</Text>
+                <Text style={[s.actNum, p.likedByMe && s.actNumOn, nf]}>{p.likes}</Text>
                 <Text style={[s.actLabel, p.likedByMe && s.actLabelOn]}>발자국</Text>
-                <Text style={[s.actNum, p.likedByMe && s.actLabelOn, nf]}>{p.likes}</Text>
               </Pressable>
-              <Pressable onPress={() => toggleComments(p)} style={s.act} hitSlop={6}>
-                <Text style={{ fontSize: 14, opacity: 0.5 }}>💬</Text>
-                <Text style={s.actLabel}>댓글</Text>
+              <Pressable
+                onPress={() => toggleComments(p)}
+                style={({ pressed }) => [s.act, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
+                accessibilityRole="button"
+                accessibilityLabel="댓글"
+              >
+                <Text style={{ fontSize: 16, opacity: 0.45 }}>💬</Text>
                 <Text style={[s.actNum, nf]}>{p.commentCount}</Text>
+                <Text style={s.actLabel}>댓글</Text>
               </Pressable>
             </Row>
 
-            {/* ── 캡션 본문 (볼드 작성자 + 본문) */}
-            <View style={{ paddingHorizontal: 11, paddingTop: 8 }}>
+            {/* ── ④ 캡션 (볼드 작성자 + 본문) → ⑤ 타임스탬프 */}
+            <View style={{ paddingHorizontal: GUTTER + 2 }}>
               {p.body && (
                 <Text style={{ fontSize: 14, color: lilac.text, lineHeight: 21, marginTop: 1 }}>
                   <Text style={{ fontWeight: '700', color: lilac.head }}>{p.authorName}</Text>
@@ -537,10 +593,21 @@ const s = StyleSheet.create({
 
   emptyBox: { marginHorizontal: GUTTER, marginTop: 20, backgroundColor: lilac.inset, borderRadius: 0, borderWidth: 1, borderColor: '#EEEEEE', padding: 26 },
 
-  // 기사 카드 — [FIX3] 스탬프·인덱스 12pt 승급 · [페이퍼 크롬] 피드 카드 = 샤프 1px #EEE, 섀도 은퇴
-  post: { backgroundColor: lilac.card, marginHorizontal: GUTTER, marginTop: 11, borderWidth: 1, borderColor: '#EEEEEE', borderRadius: 0, overflow: 'hidden' },
+  // 피드 포스트 — [IG 개편] 카드-인-카드 은퇴: 풀블리드 + 포스트 사이 코랄 헤어라인 (스크롤 리듬)
+  post: { backgroundColor: paper.canvas, marginTop: 12, borderTopWidth: 1, borderTopColor: paper.line, borderRadius: 0, overflow: 'hidden' },
+  // ⋯ 오버플로 (내 포스트만) — 44pt 타깃 (36 + hitSlop 8)
+  more: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
   stamp: { fontSize: 12, fontWeight: '600', letterSpacing: 1, color: lilac.head, textTransform: 'uppercase' },
-  idx: { fontSize: 12, fontWeight: '600', letterSpacing: 1, color: lilac.head, borderWidth: 1, borderColor: '#EEEEEE', borderRadius: 0, paddingVertical: 3, paddingHorizontal: 5, marginLeft: 2, alignSelf: 'flex-start' },
+
+  // 컴포즈 바 — 아바타 + 플레이스홀더 + 샤프 코랄 보더 버튼 (전체가 /compose 프레스 타깃)
+  composeBar: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: GUTTER + 2, paddingVertical: 11, minHeight: 56, backgroundColor: paper.canvas },
+  composePh: { flex: 1, fontSize: 14, color: lilac.dim },
+  composeGo: { borderWidth: 1, borderColor: paper.line, backgroundColor: paper.canvas, borderRadius: 0, paddingVertical: 9, paddingHorizontal: 13 },
+  composeGoTxt: { fontSize: 16, fontWeight: '800', color: paper.ink },
+
+  // 라우드-페일 스트립 — criticalWash 바닥 + critical 잉크 (line과 절대 공유 금지) + 재시도
+  failStrip: { marginHorizontal: GUTTER, marginTop: 14, backgroundColor: paper.criticalWash, padding: 13 },
+  retryBtn: { alignSelf: 'flex-start', marginTop: 10, minHeight: 40, justifyContent: 'center', paddingHorizontal: 14, borderWidth: 1, borderColor: paper.ink, backgroundColor: paper.canvas },
 
   // 사진 (콘텐츠 불가침 — 크롬 엣지만 뉴트럴)
   photoWrap: { position: 'relative', borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#EEEEEE', backgroundColor: lilac.inset },
@@ -553,14 +620,14 @@ const s = StyleSheet.create({
   sealS: { fontSize: 11.5, fontWeight: '600', letterSpacing: 1, color: lilac.head, textTransform: 'uppercase', marginTop: 2 },
 
   // 하이라인 스탯 표 — [FIX3] 키 12pt · [BUG A] 값 lineHeight 명시 · [페이퍼 크롬] 카드 내부 룰 = 뉴트럴
-  statTable: { marginHorizontal: 11, marginTop: 9, borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#EEEEEE' },
+  statTable: { marginHorizontal: GUTTER + 2, marginTop: 9, borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#EEEEEE' },
   statCell: { flex: 1, paddingVertical: 9 },
   statDiv: { borderLeftWidth: 1, borderLeftColor: '#EEEEEE', paddingLeft: 11 },
   statK: { fontSize: 12, fontWeight: '600', letterSpacing: 1, color: lilac.dim, textTransform: 'uppercase', marginBottom: 4 },
   statV: { fontSize: 17, fontWeight: '600', color: lilac.head, fontVariant: ['tabular-nums'], lineHeight: 21 },
 
   // 기록 조판 블록 (사진 없음) — [BUG A] 큰 Oswald 숫자 lineHeight 46 (≥1.2×38)
-  record: { flexDirection: 'row', gap: 10, alignItems: 'stretch', backgroundColor: lilac.inset, borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#EEEEEE', paddingHorizontal: 11, paddingVertical: 12 },
+  record: { flexDirection: 'row', gap: 10, alignItems: 'stretch', backgroundColor: lilac.inset, borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#EEEEEE', paddingHorizontal: GUTTER + 2, paddingVertical: 12 },
   recordKm: { fontSize: 38, fontWeight: '600', color: lilac.head, letterSpacing: -0.5, lineHeight: 46, fontVariant: ['tabular-nums'] },
   recordPace: { fontSize: 14, lineHeight: 18, fontWeight: '600', letterSpacing: 0.6, color: lilac.accent, marginTop: 3 },
   traceBox: { alignItems: 'center', justifyContent: 'center', backgroundColor: lilac.card, borderWidth: 1, borderColor: '#EEEEEE', borderRadius: 0 },
@@ -574,16 +641,16 @@ const s = StyleSheet.create({
   recapNum: { fontSize: 19, fontWeight: '600', color: '#fff', fontVariant: ['tabular-nums'], lineHeight: 23 },
   recapK: { fontSize: 12, fontWeight: '600', letterSpacing: 1.2, color: lilac.dim, textTransform: 'uppercase', marginTop: 4 },
 
-  // 조용한 액션 행 — [FIX3] 라벨·숫자 승급, 칩 패딩 성장 · [페이퍼 크롬] 샤프 (actOn 코랄 = 단일 신호 생존)
-  act: { flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderColor: '#EEEEEE', backgroundColor: lilac.card, borderRadius: 0, paddingVertical: 6, paddingHorizontal: 10 },
-  actOn: { borderColor: '#F6C3B4', backgroundColor: '#FFF7F4', borderLeftWidth: 2.5, borderLeftColor: lilac.coral },
-  actLabel: { fontSize: 12, fontWeight: '600', letterSpacing: 1, color: lilac.dim, textTransform: 'uppercase' },
-  actLabelOn: { color: lilac.head },
-  actNum: { fontSize: 14, lineHeight: 18, fontWeight: '600', color: lilac.head, letterSpacing: 0.4 },
+  // 액션 행 — [IG 개편] 칩 보더 은퇴, 좌측 정렬 조용한 타깃 (minHeight 44 · 누른 발자국 = 코랄)
+  act: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44, paddingHorizontal: 8 },
+  actLabel: { fontSize: 14, fontWeight: '700', color: lilac.dim },
+  actLabelOn: { color: CORAL_INK },
+  actNum: { fontSize: 15, lineHeight: 19, fontWeight: '600', color: lilac.head, letterSpacing: 0.4 },
+  actNumOn: { color: CORAL_INK },
   when: { fontSize: 12, fontWeight: '600', letterSpacing: 1, color: lilac.dim, textTransform: 'uppercase', marginTop: 7, marginBottom: 11 },
 
   // 독자 편지 (댓글) — [FIX3] 키커 12pt · 입력 14pt · 보내기 버튼 36
-  letters: { borderTopWidth: 1, borderTopColor: '#EEEEEE', backgroundColor: lilac.card, paddingHorizontal: 11, paddingTop: 10, paddingBottom: 11 },
+  letters: { borderTopWidth: 1, borderTopColor: '#EEEEEE', backgroundColor: lilac.card, paddingHorizontal: GUTTER + 2, paddingTop: 10, paddingBottom: 11 },
   lettersKick: { fontSize: 12, fontWeight: '600', letterSpacing: 1.5, color: lilac.dim, textTransform: 'uppercase' },
   commentInput: {
     flex: 1, backgroundColor: lilac.inset, borderRadius: 0, borderWidth: 1, borderColor: '#EEEEEE', // [페이퍼 크롬]

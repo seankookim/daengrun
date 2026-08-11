@@ -843,6 +843,15 @@ export default function RunnerHome() {
                 </Row>
               ))}
             </View>
+            {/* 피드 직행 — 완료 러닝이 있는 러너만 본다 (compose.tsx가 중복 공유·전제조건을 정직하게 말한다) */}
+            <Pressable
+              onPress={() => router.push('/compose')}
+              style={({ pressed }) => [styles.feedShare, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
+              accessibilityRole="button"
+              accessibilityLabel="동네 피드에 자랑하기"
+            >
+              <Text style={styles.feedShareTxt}>🐾 완주 기록을 동네 피드에 자랑하기 ›</Text>
+            </Pressable>
           </>
         )}
 
@@ -912,6 +921,12 @@ const styles = StyleSheet.create({
     paddingVertical: 12, paddingHorizontal: 13, marginTop: 10,
   },
   rule: { flex: 1, height: 1, backgroundColor: '#EEEEEE' }, // 인라인 룰은 뉴트럴 — 코랄은 풀블리드 섹션 룰(secWrap)이 전담
+  // 피드 직행 버튼 — 최근 완료 카드 직하, 뉴트럴 보더 (코랄 예산은 섹션 룰·빕이 소진) · 44pt 타깃
+  feedShare: {
+    marginTop: 8, minHeight: 44, alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: '#EEEEEE', backgroundColor: lilac.card, borderRadius: 0,
+  },
+  feedShareTxt: { fontSize: 16, fontWeight: '800', color: lilac.head },
   // [페이퍼 크롬] 섹션 헤더 래퍼 — 거터를 음수 마진으로 뚫은 풀블리드 코랄 1px 상단 룰
   secWrap: { marginHorizontal: -layout.gutter, paddingHorizontal: layout.gutter, borderTopWidth: 1, borderTopColor: paper.line, paddingTop: 10 },
   holo: { flexDirection: 'row', height: 3, position: 'absolute', top: 0, left: 0, right: 0, zIndex: 3 },
