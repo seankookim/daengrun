@@ -274,6 +274,18 @@ completion, done screen) — these are exempt from decluttering by §7b.
   under a constant-NULL body. Value assertions are required (see 100 W6).
 - **CHECK passes when its expression is NULL** — `(a is null) = (b is null)` is
   the NULL-proof pair form; the naive `OR` version admits half-pairs (proven red).
+- 🔴 **The SQL harness cannot detect enum-migration transaction failures**
+  (found 2026-08-11). `harness.sh` runs `psql -f` per suite with **no
+  `--single-transaction`** → statement-level autocommit. `supabase db push`
+  applies each migration file **inside a transaction**. `alter type … add value`
+  followed by *same-transaction use* of that value raises `unsafe use of new
+  value of enum type`. So a single-file enum migration goes **green on the gate
+  and fails on push**. `language sql` bodies are parsed at CREATE (they break);
+  `plpgsql` bodies are not (they survive) — so the failure is also inconsistent.
+  **Law: any migration adding an enum value gets its own file, containing only
+  the `add value`.** No gate we own catches a regression here. `bookings.status`
+  is an enum (`0001_init.sql:9`), and zero migrations had ever added a value —
+  there was no precedent to copy. **[verified-now]**
 
 ## ⑫ Environment & test data on prod
 
@@ -327,18 +339,31 @@ ui.tsx sweep first** (it's one file and clears the most findings per hour), then
 payments — and let reduced motion and the dial ride along with whatever screens
 payments touches.
 
-## ⑯ Next 1–3
+## ⑯ Next 1–3  *(rewritten 2026-08-11 — items 2 and 3 are done)*
 
-1. **[needs-user]** Sean clears §⑨: NCP checkboxes, geocode secret, counsel
-   flags, chip review — then the two P1 decisions (mid-run stop delivery, prod
-   `identity_verified` cleanup).
-2. **[local-edit]** Component-layer sweep: `ui.tsx` still exports the pre-§3b kit;
-   `ClubTag` ships 9.5pt Korean chips on six screens; `club/delegate/[sid].tsx:176`
-   puts consent-form labels at **8.5pt**. Highest findings-cleared per hour.
-   **Verify first:** re-check the `[CIF]` runner findings before trusting them.
-3. **[needs-deploy]** Payments bridge — scope with `/autoplan`, money path ⇒ its
-   own migration + adversarial cycle. Pressure-test the premise with Sean before
-   committing a sprint.
+1. 🔴 **[needs-user, BLOCKING] D-A — the registration fork.** Sean's ruling at the
+   /autoplan gate: **no payments code until counsel answers.** Does pilot revenue
+   taken as an unregistered individual survive 예비창업패키지 2027 eligibility, and
+   is 초창패/청창사 (`marketing-fundraising.md:128`) live? If "register anyway,"
+   **delete `docs/plans/payments-bridge-plan.md`** and scope Toss directly. Also
+   D-B: 전자상거래법 requires 사업자 정보 on the payment screen, so legal is a
+   **build** gate, not a ship gate.
+2. **[needs-user]** The rest of §⑨: NCP checkboxes, geocode secret, counsel
+   flags, chip review. The two P1 decisions changed shape — **mid-run stop is no
+   longer Sean-gated** (0024 push already exists; ~6 lines, see TODOS) and
+   **`identity_verified` is 9/9 fabricated including `s4kim2025`**, so the cleanup
+   empties the marketplace. Both re-measured against prod.
+3. **[local-edit]** The P2 tier the sweep didn't reach: reduced motion across the
+   ~8 remaining loops · gear-dial momentum projection · the surviving CIF items
+   (`rewards.tsx:181` raw English enum, `rewards.tsx:38/42/43` swallowed catches,
+   `requests.tsx` accept-without-confirm, `calendar.tsx:92` filler claim) · and
+   **`apply.tsx:964,:985`, which the design review missed** — opacity state paints
+   survived the purge there.
+
+**Done this session (2026-08-11 pm):** §⑯-2 component sweep shipped (`3001c5f`);
+`[CIF]` findings re-verified (every CIF P1 genuinely fixed by the conversion);
+§⑮ pressure-tested and overruled by Sean; payments plan drafted, reviewed by three
+independent voices, and **paused at D-A**.
 
 ## ⑰ Verification commands
 

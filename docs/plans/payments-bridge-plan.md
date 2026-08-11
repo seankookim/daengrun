@@ -2,7 +2,15 @@
 # Plan — pilot payments bridge (`awaiting_transfer`)
 
 Branch `redesign-v4`. Written 2026-08-11, **revised after /autoplan review**.
-Status: **REVISED DRAFT — two decisions open (§0.5), not approved, not implemented.**
+Status: **PAUSED at Sean's direction (2026-08-11), pending D-A. Not approved, not implemented.**
+
+> **BUILD IS BLOCKED ON D-A.** Sean's ruling at the /autoplan gate: resolve the registration fork
+> with counsel **before** any code is written. If the answer is "register anyway," delete this plan
+> and scope the Toss integration instead. Do not start the sprint until D-A is answered.
+>
+> **D-C (settled at the same gate):** if the bridge does proceed, **매주 반복 and runner nomination
+> are disabled when 계좌이체 is chosen** — the affordances grey out rather than persisting the
+> intent server-side (see R4). Simplest honest fix; revisit only if the pilot demands it.
 
 Sean's decisions this session (settled — do not re-litigate):
 1. Full payments sprint now, not a day-sized script.
