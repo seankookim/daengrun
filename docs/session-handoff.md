@@ -1,12 +1,12 @@
-# SESSION HANDOFF — 2026-08-10 (coordinates/geocoding slice shipped end to end)
+# SESSION HANDOFF — 2026-08-10/11 (coordinates shipped · design system rebuilt · en-route cancel)
 
 English everywhere except in-app user-facing copy (CLAUDE.md §Language).
 **Opener for next session: "read docs/session-handoff.md fully, then continue."**
-CLAUDE.md is the permanent law book. Prior handoffs: `docs/session-handoff-archive-20260805.md`
-and this file's git history (the previous version of this file covers the A-wave close).
+CLAUDE.md is the permanent law book. **`DESIGN.md` is now the design law book** —
+read it before any UI work. Prior handoffs live in this file's git history.
 
-**Build in the MAIN checkout `/Users/sean/dev/daengrun` (branch redesign-v4).** Worktrees under
-`.claude/worktrees/` are stale snapshots — never build or gate there.
+**Build in the MAIN checkout `/Users/sean/dev/daengrun` (branch redesign-v4).**
+Worktrees under `.claude/worktrees/` are stale — never build or gate there.
 
 ---
 
@@ -14,136 +14,115 @@ and this file's git history (the previous version of this file covers the A-wave
 
 | | |
 |---|---|
-| git | this session's slice committed on redesign-v4 and pushed |
-| database | **0065** applied + verified on prod (`migration list` local=remote; anon-definer probe DENIED) |
-| edge functions | `geocode-address` deployed — honest no-op (`available:false`) until secret exists |
-| harness | **298 / 0** (was 296; +W12 constraint, +W13 NULL-coords) |
-| commit gates | tsc 0 · check-rpc 75/108 green · **geo runner 38/0 — NOW PART OF THE GATE** |
-| simulator | every changed screen visually verified this session (list below) |
+| git | pushed through `bc0102f` (+ the design-review doc commit if it landed after) |
+| database | **0066** applied + verified on prod (`marketplace_cancel_fee` returns 12,450 on a 24,900 booking = exactly 50%) |
+| edge functions | `geocode-address` + `transition-booking` deployed (0066 coupling: DB first, always) |
+| harness | **305 / 0** (298 + 7 new en-route-cancel pins), independently re-run |
+| gates | tsc 0 · check-rpc 75/109 · **geo runner 38/0 — now part of the commit gate** |
+| simulator | owner home, request stepper + gear dial, runner home, earnings, community, compose all walked this session |
 
-### What shipped — the coordinates slice (plan: `docs/plans/coordinates-geocoding-plan.md`)
+## ① What shipped (in order)
 
-Ran through /autoplan (CEO → Design → Eng, all voices [subagent-only] on fable; premise +
-final gates answered by Sean). 44 review findings absorbed as binding specs DS-1..9 + ES-1..10.
+1. **0065 coordinates/geocoding** — pin-first capture (`owner/address-pin.tsx`),
+   real pickup maps on both meetup screens, 길찾기, `geocode-address` edge fn as
+   an honest no-op until the NCP secret exists, backfill script.
+2. **DESIGN.md created, then hardened three times** — it is now the single design
+   source of truth: §2 token worlds + paper migration grammar, §3 typography,
+   **§3b COMPONENT SPEC** (the fix for Sean's "thought you were using it"
+   critique — section headers, four button kinds, status chips, cards, GO ladder,
+   energy green), §7 honesty, §7b decluttering doctrine (Laws of UX / HIG / Maze),
+   **§7c Apple fluid-interface doctrine**, §8 budgets, §9 frozen zones.
+3. **Paper chrome on every main tab** — white canvas everywhere, sharp cards,
+   full-bleed coral rules, white dock with coral hairline.
+4. **Type/density consistency wave** — gutter 15 actually enforced (it had ZERO
+   importers before), 14pt floor completed, Oswald on all money, ~24 filler
+   strings culled.
+5. **GO premium (lab pick Ⓐ④ Keyline Orbit)** + redder coral + press-scale 0.96
+   app-wide + the brand lockup masthead.
+6. **Emoji purge** — ~160 pictorial marks across 33 files; ink glyphs kept.
+7. **Community/compose** — Instagram *anatomy* on paper grammar, `compose.tsx`
+   (completed-run picker), entry points on both homes. Post→delete verified
+   against prod.
+8. **0066 en-route cancel at 50%** (Sean's decision) — see §③.
+9. **Owner home / runner home Ⓑ① / request Ⓒ①** rebuilt against §3b, incl. the
+   **gear distance dial** (1km min, 0.5 steps, snap detents, live price, haptic).
+10. **Seven legacy-green runner screens scrapped** and rebuilt on paper.
 
-- **0065**: `addresses_latlng_shape` CHECK (NULL-proof pair form — the naive OR admits
-  half-pairs; mutation-verified 297/1) + `booking_pickup_address` widened to 5 fields
-  (drop + create-or-replace; grants/comment re-issued; W6 value pin kills constant-NULL
-  substitution, mutation-verified 297/1).
-- **Capture UX**: `owner/address-pin.tsx` picker (pin-is-truth; center chain existing-pin →
-  geocode → one-shot GPS → 반포 constant; 8 Banpo spot chips; AD-7 pan-wins; safe-area
-  confirm; haptic; addrFailStrip failure state). `addresses.tsx` repainted to paper (DS-1)
-  with 위치 지정됨/필요 row strips (edit path = same strip). `request.tsx` +14 lines:
-  coral "픽업 위치 지정 필요 ›" sub-line only when the default address lacks coords.
-- **Surfaces**: shared memoized `PickupMap` (ready-event crossfade + 1.5s force-reveal);
-  runner/meetup real map + captioned 픽업 marker + 길찾기 overlay chip (nmap:// scheme,
-  web fallback, Alert on failure) + ES-4 three-way dark state; owner/meetup map +
-  위치 지정하기 dark-state fix path + fetch-error retry. Course surfaces untouched (P3 —
-  routes.trace is still schematic {x,y}).
-- **§D enhancement**: `geocode-address` edge fn (NCP, auth + 100-char cap, any failure ⇒
-  available:false), `scripts/geocode-backfill.mjs` (dry-run default, single-match-only,
-  per-row CHECK catch, prints scoped undo), diag.mjs coordinate-coverage %, sean-commands
-  §9, privacy-policy coordinates rider (counsel-flagged).
-- api.ts: `Addr`/`PickupAddress` carry lat/lng; `addAddress` returns new id;
-  `setAddressPin`; `fetchOwnerPickupCoords`. geo.ts: `getOneShotPosition` (never prompts).
-- TODOS.md created (9 deferrals: distance-on-job-cards privacy call, course geo-traces,
-  club picker reuse, schedule-sheet map, reverse-geocode, Daum-postcode story, PostGIS
-  note, mid-booking staleness fix, geocode rate limit).
+## ② The design system — read DESIGN.md, but know these
 
-### Simulator verification (all seen with my own eyes this session)
+- Section header = **one grammar**: coral rule + 20/800 ink title + optional
+  16/800 link. **No latin kickers, no section subtitles** — this single rule is
+  what killed ROSTER / VERIFIED COURSES / NEXT RUN·BOARDING PASS / 동네에서 함께.
+- **Four button kinds only**; primary 17/800 ink, money = coral 31-display
+  full-bleed with no price plate, secondary, destructive. All sharp, scale 0.96.
+- Status chip 16/800 **on the same baseline row as its datum**.
+- Radius 0 everywhere. Club widget keeps side margins (Sean's veto) but not
+  rounded corners.
+- **No emoji.** Ink glyphs (✓ ✎ ★ ➤ ›) are fine; Lucide icons where an
+  affordance is genuinely needed.
+- Peak-End protection: GO press, handoff seal, run completion, done screen —
+  polish these, never minimize them. "Simplicity is not minimalism."
+- Decluttering never becomes hiding: honest states are content.
 
-addresses empty/repaint/form · add→picker auto-route · picker resolving banner →
-GPS-centered AND 반포-fallback states · chip select + deselect-on-pan · pan → confirm →
-haptic → row flips 지정됨 · edit-mode reentry pre-centered on pin · request CTA present
-(no coords) / absent (coords) / routes to picker · runner meetup dark (honest copy) and
-LIT (map + 픽업 marker + 길찾기 → Safari web fallback) · owner meetup dark (위치 지정하기 →
-addresses) and LIT · course cards unchanged. Prod round trip confirmed: pin written under
-the CHECK, coords returned through the widened RPC.
+## 🔴 ③ WHAT ONLY SEAN CAN DO
 
----
+1. **NCP console — TWO checkboxes**: Mobile Dynamic Map **and** Geocoding API on
+   the app registered for `com.seankookim.daengrun`. Device maps + geocode
+   pre-centering are blocked until this is done.
+2. **`supabase secrets set NAVER_GEOCODE_SECRET=...`** — until then the picker is
+   pin-only by design and backfill refuses to run.
+3. **Counsel**: the privacy policy carries a coordinates rider (HTML-comment
+   marked); also flag that §1 never listed the pickup **address itself** as
+   collected data.
+4. **Spot-chip review** (5 min): 세빛섬 was map-calibrated; the other 7 chips in
+   `address-pin.tsx` CHIPS are my map reading — swap any by name.
+5. **Device smoke**: 길찾기 with the Naver Map app installed (the sim only proved
+   the web fallback); the pocket-walk GPS test; APNs.
+6. Standing: seed-runner decision, owner LA relay + config row, media purge,
+   변호사 / 위치기반 신고 / interviews / TestFlight.
 
-## 🔴 WHAT ONLY SEAN CAN DO (new items first; full commands in `docs/sean-commands.md` §9)
+### Decisions awaiting Sean (in TODOS.md)
+- **P1 — `done.tsx` can print a stale mock dog name** on a Peak moment
+  (`done.tsx:30` reads `runRequests[0]` because `runResult` carries no dogName).
+- `earnings.tsx` has two announcement-only buttons (빠른 정산 신청 / 등록) —
+  remove until real, or keep as an explicit waitlist affordance?
+- `rewards.tsx:168` prints a raw English enum.
+- The 안심 결제 chip was removed from request per the lab mock — restore?
+- Declutter lab (`docs/labs/declutter-lab.html`) variants Ⓐ①/Ⓐ② were never
+  picked (Sean gave an explicit home list instead); the **5 "free surgeries"**
+  in it still apply — chiefly merging the find-now radar island, which
+  duplicates the GO disc's own handler for zero information loss.
 
-1. **NCP console — TWO checkboxes** (blocks device maps + geocoding): Mobile Dynamic Map
-   AND Geocoding API enabled on the application registered for `com.seankookim.daengrun`
-   (launch-checklist §5 was still open; sim rendering ≠ device evidence).
-2. **`supabase secrets set NAVER_GEOCODE_SECRET=...`** — until then the picker works
-   pin-only (by design) and backfill refuses. Note: prod `addresses` had **0 rows** at
-   ship time, so backfill is moot until real users add addresses.
-3. **Counsel flag**: privacy-policy coordinates rider added (marked with HTML comment) —
-   AND the §D agent noticed the policy never listed the pickup **address itself** as
-   collected data. Flag both in the same review cycle.
-4. **Spot-chip review** (5 min): 세빛섬 앞 was calibrated on the real map this session
-   (37.5122, 126.9961 — measured by confirming a pin there and reading the row back).
-   The other 7 chips are my map-reading; swap any by name in `address-pin.tsx` CHIPS.
-5. **Device smoke** (additions to the standing list): tap 길찾기 with the Naver Map app
-   installed (nmap:// scheme path — sim only proved the web fallback); verify the
-   map.naver.com directions URL format renders on device Safari.
-6. Standing items from last session remain: seed-runner decision, owner LA relay +
-   `owner_la_push_config` row, media backfill/purge, background-GPS pocket walk,
-   변호사/신고/interviews/TestFlight.
+## ④ Infrastructure notes
 
-### Test-data note (deliberate, harmless, yours to keep or clean)
+- **Skills installed** at `~/.claude/skills/`: `apple-design`, `prototype`
+  (both apply), `pick-ui-library`, `ask-sonner` (**web-only** — Sonner/base-ui/
+  cmdk/Framer Motion cannot install in RN; use them for taste, never for
+  dependencies). The app's missing toast primitive still needs an RN-native
+  answer.
+- gstack labs are the house ritual: numbered variants, Sean picks by number.
+  New this session: `docs/labs/go-premium-lab.html`,
+  `docs/labs/declutter-lab.html`, `docs/design/design-review-20260811.md`.
+- Harness: `pkill -f "bin/postgres"` first; UTF-8 locale required.
+- CocoaPods/Expo need `LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8`; verify installs by
+  bundle container path, never exit code.
+- The dev-client "Open debugger to view warnings" banner is RN LogBox in dev
+  builds — not a product bug (resolved mystery from the prior handoff).
 
-Your solo-test account s4kim2025 now has one address ("Home", garbled test addr text,
-pin at 세빛섬) attached to both 8/4 runner_enroute bookings — staged so the meetup
-surfaces could be verified live. Long-press deletes the address; the bookings' address_id
-survives it (RPC then returns 0 rows → honest dark state).
+## ⑤ Test data on prod (deliberate)
 
----
+s4kim2025 has one address ("Home", pin at 세빛섬) attached to two 8/4
+`runner_enroute` bookings, used to verify the map and cancel surfaces. One
+belongs to a recurring series. Cancelling them is the honest in-app path; I did
+NOT execute the destructive cancel against prod.
 
-## Lessons carried / resolved this session
+## ⑥ Next 1–3
 
-- **The dev-warnings toast mystery from last session is SOLVED**: it's the RN dev-client
-  "Open debugger to view warnings." LogBox banner — dev builds only, not a product bug.
-- **The geo test runner is now a commit gate** (`bash app/test/run-geo-tests.sh` alongside
-  tsc + check-rpc). It existed since 12027d1 but was wired into NO gate — the exact
-  silent-not-running failure shape that commit fixed once already. 38/0.
-- Mutation-proofing paid for itself again: the naive CHECK formulation really does accept
-  half-pairs (W12 red showed `lat-only:accepted lng-only:accepted` verbatim), and a
-  key-only contract pin really does stay green under constant-NULL substitution (W6).
-- CHECK constraints bind service-role writes — treat that as a feature (backfill catches
-  per-row violations instead of trusting NCP output).
-
-## Standing laws (CLAUDE.md is authoritative)
-
-- **Never `git add -A`** — stage explicitly.
-- Honesty: no mock data, failures shown as failures, loading ≠ empty, no dead buttons,
-  gate on `rawStatus` not display vocabulary.
-- Commit gate: tsc + check-rpc + **geo runner**. Migrations: PG16 harness with
-  mutation-proof pins; money changes get their own adversarial cycle (0059).
-- New definer functions: `set search_path = public, pg_temp` in the body; revoke
-  public/anon; party gate before state gate; identical errors absent vs not-yours.
-  Return-type changes need drop + **create-or-replace** (check-rpc parses only the
-  latter) + re-issued grants/comment.
-- DO-NOT-REFACTOR: owner-home collapsing hero · meetup stage machines + once-law
-  hydration ordering (0065 additions used pure-JSX plate swaps + end-of-bundle state,
-  per the freeze) · 2-layer matching compositor.
-- CocoaPods/harness need UTF-8 locale; verify installs by bundle container path, never
-  exit code; `pkill -f "bin/postgres -D .pgtest/data"` before harness runs.
-
-## Key artifacts
-
-`docs/plans/coordinates-geocoding-plan.md` (plan + full 3-phase review + audit trail +
-GSTACK REVIEW REPORT) · `docs/sean-commands.md` §9 · TODOS.md ·
-`~/.gstack/projects/seankookim-daengrun/sean-redesign-v4-eng-review-test-plan-20260810.md`
-
-## Open / unresolved
-
-- 7 of 8 spot-chip coordinates unverified against the map (item 4 above).
-- Owner-meetup fetch-error retry state implemented but not fault-injected in the sim.
-- Naver web directions URL format assumed from the v5 URL scheme — device check pending.
-- Riders carried from last session: GEAR_META.bodycam hint · 3 opacity-disabled tricks ·
-  store.runners dead mock · signed-URL 1h TTL · owner/live done-km drift · harness.sh
-  never stops its cluster.
-- Product gaps behind honest labels: payments (the big one), shop, incident reporting,
-  course geo-traces (now a TODOS item with a shape: promote runs.trace).
-
-## Next 1-3
-
-1. **[Sean]** NCP checkboxes + secret (unblocks device maps + geocode pre-centering),
-   counsel flag, chip review.
-2. **[me]** Next product gap: the CEO voice made a strong case this session that the
-   **manual payment bridge** (payments.md §파일럿 브리지 — buildable, not Sean-gated)
-   and **incident reporting** outrank everything else left. Pick one.
-3. **[Sean]** Interviews + 사업자등록 fork — still the timeline-setters.
+1. **[me]** Land the design-review findings (`docs/design/design-review-20260811.md`)
+   — reduced motion is wired into only 2 loops so far; momentum projection for
+   the gear dial; the P1 done.tsx name bug.
+2. **[Sean]** NCP checkboxes + geocode secret + counsel flags + chip review.
+3. **[Sean]** The strategic call the CEO voice made twice: **payments (manual
+   bank-transfer bridge) and incident reporting** are what actually stand between
+   here and a paying customer. The design system is now strong enough that this
+   should be the next slice.
