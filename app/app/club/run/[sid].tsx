@@ -91,10 +91,17 @@ export default function ClubRun() {
   // '불러오는 중...'을 영원히 그렸다. 뒤로도, 재시도도 없이. **달리고 있는 개를 들고 있는 화면**에서
   // 진입 시 네트워크 한 번 튀면 영영 갇힌다. 나머지 5개 딥링크 화면은 전부 LoadGate로 이관됐다.
   const [boardErr, setBoardErr] = useState(false);
+  // [기기에서 발견 2026-08-11] LoadGate를 달고 실제로 열어보니 '불러오는 중...'에서 안 넘어갔다.
+  // 이유: fetchDelegationBoard는 없는/권한 없는 세션에 **throw가 아니라 null을 resolve**한다
+  // (api.ts:2511). 그래서 catch가 영영 안 돌고 board는 null인 채 '로딩'으로 읽혔다.
+  // null-resolve를 '아직 로딩 중'과 같은 것으로 취급한 게 버그다 — 셋을 구분한다.
+  const [boardLoaded, setBoardLoaded] = useState(false);
   const load = useCallback(() => {
     if (!sid) return;
     setBoardErr(false);
-    fetchDelegationBoard(sid).then(setBoard).catch(() => setBoardErr(true));
+    fetchDelegationBoard(sid)
+      .then((b) => { setBoard(b); setBoardLoaded(true); })
+      .catch(() => { setBoardErr(true); setBoardLoaded(true); });
     setRosterErr(false);
     fetchSessionRoster(sid).then(setRoster).catch(() => setRosterErr(true));
   }, [sid]);
@@ -320,8 +327,9 @@ export default function ClubRun() {
   if (!board) {
     return (
       <LoadGate
-        mode={boardErr ? 'error' : 'loading'}
+        mode={boardErr ? 'error' : boardLoaded ? 'denied' : 'loading'}
         errorLabel="러닝 정보를 불러오지 못했어요"
+        deniedLabel="이 세션을 볼 수 없어요 — 없어졌거나 참가자가 아니에요"
         onRetry={load}
         onBack={() => router.back()}
       />
