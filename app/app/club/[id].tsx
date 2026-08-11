@@ -547,7 +547,7 @@ export default function ClubPage() {
           {club?.isHost && (
             <View style={s.hostTool}>
               <Text style={{ fontSize: 14, color: paper.dim, lineHeight: 19 }}>호스트 전용 · 다음 회차를 미리 열 수 있어요</Text>
-              <Pressable onPress={openSheet} style={({ pressed }) => [s.hostBtn, pressed && { backgroundColor: paper.inkPressed }]}>
+              <Pressable onPress={openSheet} style={({ pressed }) => [s.hostBtn, pressed && { backgroundColor: paper.actionPressed }]}>
                 <Text style={{ fontSize: 17, lineHeight: 22, fontWeight: '800', color: '#fff' }}>＋ 세션 열기</Text>
               </Pressable>
             </View>
@@ -728,7 +728,7 @@ const s = StyleSheet.create({
     paddingVertical: 13, paddingHorizontal: 13, backgroundColor: paper.canvas,
   },
   hostBtn: {
-    backgroundColor: paper.ink, borderRadius: 0, paddingVertical: 15, alignItems: 'center',
+    backgroundColor: paper.action, borderRadius: 0, paddingVertical: 16, alignItems: 'center',
   },
   // 콜로폰
   colophon: { justifyContent: 'space-between', marginTop: 18, paddingTop: 11, borderTopWidth: 1, borderTopColor: L.hair },

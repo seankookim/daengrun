@@ -12,11 +12,17 @@ import { paper } from '../theme';
 
 const ASPECT = 1619 / 971; // source asset
 
-export function BrandMark({ height = 40 }: { height?: number }) {
+// [2026-08-11] `logo-alpha.png` — the same art with the baked white background keyed out.
+// The original ships as RGB with NO alpha channel (verified: hasAlpha=no, colorType=2), so on any
+// non-white surface it rendered as a white rectangle. That made it unusable on a coloured button
+// or a dark artifact. The alpha version is correct on every background, so it is now the only
+// source; `tint` recolours the opaque pixels (the streak goes mono under tint — accepted for
+// small in-button marks, where a two-colour mark would not read anyway).
+export function BrandMark({ height = 40, tint }: { height?: number; tint?: string }) {
   return (
     <Image
-      source={require('../../assets/logo.png')}
-      style={{ width: height * ASPECT, height }}
+      source={require('../../assets/logo-alpha.png')}
+      style={{ width: height * ASPECT, height, ...(tint ? { tintColor: tint } : null) }}
       resizeMode="contain"
       accessibilityRole="image"
       accessibilityLabel="도그스하이"

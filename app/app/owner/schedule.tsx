@@ -404,7 +404,7 @@ export default function Schedule() {
                   ) : selected.status === 'completed' ? (
                     <>
                       <Pressable
-                        style={({ pressed }) => [s.primaryAction, pressed && { backgroundColor: paper.inkPressed }, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
+                        style={({ pressed }) => [s.primaryAction, pressed && { backgroundColor: paper.actionPressed }, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
                         onPress={() => { const bid = selected.id; close(); router.push({ pathname: '/owner/report', params: { bid } }); }}
                       >
                         <Text style={s.primaryActionTxt}>러닝 리포트 보기</Text>
@@ -464,7 +464,7 @@ export default function Schedule() {
                           runner_enroute를 '확정'으로 뭉개므로 그걸 믿으면 이동 중 죽은 버튼이 생긴다. */}
                       {selected.rawStatus === 'confirmed' && (
                         <Pressable
-                          style={({ pressed }) => [s.primaryAction, pressed && { backgroundColor: paper.inkPressed }, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
+                          style={({ pressed }) => [s.primaryAction, pressed && { backgroundColor: paper.actionPressed }, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
                           onPress={() => {
                             // 제안 화면 직행 (0016) — 취소·재예약이 아니라 러너 동의 기반 시간 변경
                             const bid = selected.id;
@@ -637,10 +637,10 @@ const s = StyleSheet.create({
   // 앱 전체에서 '나란한 보조 액션 두 개'가 한 가지로만 읽힌다.
   // 라벨도 함께 교정: 14/900 → 16/800 (무게 법: 900은 숫자와 화면 제목만).
   shareBtn: {
-    flex: 1, alignItems: 'center', backgroundColor: paper.canvas,
+    flex: 1, alignItems: 'center', backgroundColor: paper.wash,
     borderWidth: 1, borderColor: paper.line, paddingVertical: 11,
   },
-  shareTxt: { fontSize: 16, fontWeight: '800', color: paper.ink },
+  shareTxt: { fontSize: 16, fontWeight: '800', color: paper.actionInk },
   // T3 원형 소인 — 콘텐츠가 여유 있게 들어가는 84 지름 (랩의 64는 작았음, Sean 피드백)
   seal: { width: 84, height: 84, borderRadius: 42, borderWidth: 2.5, borderColor: '#6E9BC5', alignItems: 'center', justifyContent: 'center', alignSelf: 'center', transform: [{ rotate: '8deg' }], opacity: 0.88 },
   sealRing: { position: 'absolute', top: 5, left: 5, right: 5, bottom: 5, borderRadius: 37, borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(110,155,197,.55)' },
@@ -669,7 +669,7 @@ const s = StyleSheet.create({
   // [Sean 2026-08-11] 볼트 그린 은퇴 — §3b 프라이머리는 잉크 면 + 화이트 17/800이다.
   // 볼트는 버튼 매트릭스에 아예 없는 색이었다 (그린은 이제 '준비됨' 상태 시맨틱에만 남는다).
   // '실시간 보기'만 예외로 자기 색을 유지한다 — 라이브는 상태색이지 버튼 스타일이 아니다.
-  primaryAction: { backgroundColor: paper.ink, alignItems: 'center', paddingVertical: 15, marginTop: 16 },
+  primaryAction: { backgroundColor: paper.action, alignItems: 'center', paddingVertical: 16, marginTop: 16 },
   primaryActionTxt: { fontSize: 17, fontWeight: '800', color: '#fff' },
   ghostAction: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#EEE', alignItems: 'center', paddingVertical: 13, marginTop: 8 },
   cancelLink: { alignItems: 'center', paddingVertical: 14, marginTop: 4 },

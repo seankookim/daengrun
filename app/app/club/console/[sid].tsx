@@ -20,7 +20,9 @@ import { collarColors, CollarKey, lilac, lilacRadius } from '../../../src/theme'
 const L = lilac;
 
 const CHARGE_LABEL: Record<string, string> = {
-  paid: '결제 완료', pending_payment: '결제 대기', refunded: '환불', refund_pending: '환불 진행',
+  // [정직 2026-08-11] '결제 완료'는 청구가 일어났다는 주장이다. 모의 결제 시대엔 거짓 —
+  // 리포에 PG 연동이 없고 서버도 '모의 시대: 청구 없음'이라 적는다 (0057:250).
+  paid: '자리 확정', pending_payment: '결제 대기', refunded: '환불', refund_pending: '환불 진행',
 };
 
 const mmss = (ms: number): string => {

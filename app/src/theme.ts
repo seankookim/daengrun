@@ -171,8 +171,28 @@ export const paper = {
   disabledFill: '#F2F2F2',  // disabled 버튼 명시 fill — 불투명도 트릭 금지 법의 물화
   inkPressed: '#333333',    // primary pressed fill — text와 값은 같아도 역할 토큰 분리 (F5 #10, 웨이브 2 리뷰 M3)
   pending: '#C77414',       // 시맨틱 대기 상태(앰버) — 라일락 L.amber의 순백 세계 승계 (웨이브 2 리뷰 L3)
-  // 버튼 매트릭스 법(F2.1): primary ink面/#333 pressed/disabledFill+faint · secondary canvas面+line 보더/wash pressed ·
-  // destructive canvas面+critical 잉크/criticalWash pressed · busy = 라벨 스왑(저장 중...), disabled로 칠하지 않는다
+  // ── 액션 시스템 (Sean 2026-08-11: "검정은 제일 지루하다. 버튼은 동기를 일으켜야 한다") ──
+  // 잉크 프라이머리 은퇴. §5의 코랄 법을 '면'으로 확장한다 — 검정은 누구 차례인지 말하지 않는 색이었다.
+  //
+  // [디자인 보이스 교정] 첫 안은 #C7401F라는 **새 헥스**를 만들었다. 팔레트에 이미
+  // #C6472C(= home.tsx MONEY_DEEP · GO_SKIN.deep · community CORAL_INK)가 있고, 둘의 분리도는
+  // 1.04 — 눈으로 구분 불가다. 새 색을 만드는 것은 스타일 프리즈 위반이므로 **기존 값을 승격**한다.
+  // 실측 흰 라벨: #C6472C = 4.84 (전 크기 AA 통과). 보너스로 프라이머리 버튼과 GO 디스크의
+  // 눌린 코랄이 **같은 토큰**이 되어 두 개의 비슷한 색이 아니라 하나의 시스템으로 읽힌다.
+  action: '#C6472C',        // 프라이머리/클라이맥스 면 — 흰 라벨 4.84:1. 신규 색 0개.
+  actionPressed: '#A83315', // press 면 (불투명 — 알파 금지). 흰 라벨 6.67:1
+  actionInk: '#A83315',     // 세컨더리 라벨 잉크 — wash 위 5.99:1
+  // [교정] actionWash 신설 취소 — 기존 paper.wash(#FFF6F4)가 그 역할이다. 세컨더리 면 = wash.
+  //
+  // ── 준비됨(그린) — 상태 전용, 절대 누르는 면이 아니다 ──
+  // [교정] DESIGN.md §3b는 아직 #12A05C를 적고 있는데, 그 값은 같은 문단의 ≥3.5 게이트를
+  // 3.38로 하회한다. 실제 출하값은 owner/home.tsx의 화면 지역 const(GO_SAGE)였다 — 법전이
+  // 존재하지 않는 색을 지정하고 있었다. 토큰으로 승격한다.
+  ready: '#119B58',         // 확정·준비됨 (흰 라벨 3.59 — 큰 활자 전용, 누르는 면 금지)
+  readyDeep: '#0E7F49',     // 그 위의 텍스트/딥 (5.06:1)
+  // 버튼 매트릭스 법(F2.1 개정): primary action面/actionPressed · secondary wash面+line 보더+actionInk ·
+  // quiet canvas面+#EEE (드물게) · destructive canvas面+critical · disabled = disabledFill+faint (알파 금지) ·
+  // busy = 라벨 스왑. **잉크는 상태(선택칩·완료 스텝·라이브 필·다크 아티팩트)로 남는다 — 액션이 아니다.**
 } as const;
 
 // Pricing (placeholder — validate against competitor research)

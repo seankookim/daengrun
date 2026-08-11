@@ -42,7 +42,9 @@ const ROLE_LINE: Record<string, string> = {
 };
 
 const CHARGE_LABEL: Record<string, string> = {
-  paid: '결제 완료', pending_payment: '결제 대기', refunded: '환불', refund_pending: '환불 진행',
+  // [정직 2026-08-11] '결제 완료'는 청구가 일어났다는 주장이다. 모의 결제 시대엔 거짓 —
+  // 리포에 PG 연동이 없고 서버도 '모의 시대: 청구 없음'이라 적는다 (0057:250).
+  paid: '자리 확정', pending_payment: '결제 대기', refunded: '환불', refund_pending: '환불 진행',
 };
 
 const WAIVER =
@@ -593,7 +595,8 @@ export default function ClubSessionShell() {
       setPayTarget(null);
       setMethodOk(false);
       load();
-      Alert.alert('결제 완료', `${d.dogName}의 자리가 확정됐어요 — 담당 러너가 정해지면 알려드려요`);
+      // '결제 완료'는 돈이 움직였다는 주장이다. 움직이지 않았다.
+      Alert.alert('자리 확정', `${d.dogName}의 자리가 확정됐어요 — 담당 러너가 정해지면 알려드려요`);
     } catch (e) {
       const m = (e as Error).message;
       // [감사 P1] hold_expired는 서버가 던지지 않는 죽은 매핑이었고, 실제 코드들이 원문 노출됐다
@@ -1289,9 +1292,20 @@ export default function ClubSessionShell() {
             </View>
             <Text style={s.legalTxt}>
               시작 <Text style={{ fontWeight: '800', color: L.head }}>24시간 전까지 무료 취소</Text> · 이후 10% · 배정 수락 후 20%
+              {'\n'}<Text style={{ color: L.dim }}>실결제 연동 후 적용돼요 — 파일럿 기간에는 청구되지 않아요</Text>
             </Text>
           </View>
-          <ClubCta label="동의하고 결제 →" onPress={doPay} disabled={!methodOk} busy={busy} />
+          {/* [정직 2026-08-11] 1:1 결제 화면(owner/pay.tsx:284)은 '실결제가 발생하지 않는다'를 세 번
+              고지하는데 클럽 시트는 한 번도 하지 않았다 — 같은 앱, 같은 사용자, 두 개의 진실.
+              게다가 거짓말하는 쪽에 취소 수수료표가 붙어 있었다. 리포지토리 어디에도 PG 연동이 없고
+              (toss/portone/iamport/stripe 전무), 서버조차 스스로 '모의 시대: 청구 없음'이라고 적는다
+              (0057:250). 1:1과 같은 플레이트를 여기에도 세운다. */}
+          <View style={s.payPlate}>
+            <Text style={s.payPlateTxt}>
+              결제 수단 연동 준비 중 — 파일럿 기간에는 자리 확정 시 실결제가 발생하지 않아요
+            </Text>
+          </View>
+          <ClubCta label="동의하고 자리 확정 →" onPress={doPay} disabled={!methodOk} busy={busy} />
         </View>
       </Modal>
 
@@ -1358,6 +1372,9 @@ export default function ClubSessionShell() {
 }
 
 const s = StyleSheet.create({
+  // 정직 고지 플레이트 — owner/pay.tsx의 plate 문법을 클럽 시트로 이식
+  payPlate: { backgroundColor: L.inset, borderLeftWidth: 3, borderLeftColor: L.amber, padding: 11, marginTop: 10 },
+  payPlateTxt: { fontSize: 14, lineHeight: 19, fontWeight: '700', color: L.text },
   shell: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: L.hair2, marginTop: 8 },
   shellTab: { flex: 1, alignItems: 'center', paddingVertical: 9 },
   shellTxt: { fontSize: 14, fontWeight: '800', color: L.dim },
