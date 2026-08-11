@@ -89,7 +89,9 @@ export default function Earnings() {
             <View style={[s.notch, { right: -32 }]} />
           </View>
           <Row style={{ justifyContent: 'space-between' }}>
-            <Text style={{ fontSize: 14, lineHeight: 18, color: '#BBBBBB' }}>다음 정산일 {nextWednesday()}</Text>
+            {/* [2026-08-11] '다음 정산일 <수요일>'은 존재하지 않는 지급 운영의 날짜를 못박았다.
+                실결제도 러너 지급 코드도 아직 없다 — 원천징수 추정치는 계산이라 남기고, 날짜는 지운다. */}
+            <Text style={{ fontSize: 14, lineHeight: 18, color: '#BBBBBB' }}>지급 일정 미정</Text>
             <Text style={{ fontSize: 14, lineHeight: 18, color: '#BBBBBB' }}>원천징수 3.3% 약 −{sumKnown ? tax.toLocaleString() : '—'}원</Text>
           </Row>
         </View>
@@ -162,7 +164,8 @@ export default function Earnings() {
         ))}
 
         <Text style={{ fontSize: 14, color: paper.dim, textAlign: 'center', marginTop: 12, lineHeight: 19 }}>
-          정산은 매주 수요일 · 사업소득 3.3% 원천징수 후 지급
+          {/* 같은 이유: 주기·지급을 약속하지 않는다. 세율은 제도이고, 일정은 아직 우리가 못 지킨다. */}
+          기록된 금액이에요 — 지급 일정은 결제 연동 후 안내드려요 (사업소득 3.3% 원천징수 예정)
         </Text>
       </ScrollView>
       <BottomNav />

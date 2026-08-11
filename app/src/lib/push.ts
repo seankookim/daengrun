@@ -33,7 +33,11 @@ export function routeForNotification(kind: string | null | undefined, refId: str
   if (kind !== 'booking' || !refId) return;
   try {
     if (session.role === 'runner') {
-      if (title === RUN_STOP_TITLE) { router.push('/runner/run'); return; }
+      // [적대 리뷰 2026-08-11] 처음엔 /runner/run으로 보냈는데, 콜드 스타트에서 그 화면은 refId를
+      // 버리고 running=false로 마운트한다 — 이미 진행 중인 러닝을 두고 '러닝 시작' 버튼을 내미는
+      // 화면이 뜬다. 게다가 **중단 사유는 채팅에 있다**. 채팅은 bid로 스코프되므로 정확한 예약의
+      // 정확한 내용으로 착지한다 — 러너가 알아야 할 것이 실제로 있는 곳.
+      if (title === RUN_STOP_TITLE) { router.push({ pathname: '/chat', params: { bid: refId } }); return; }
       router.push(title.includes('요청') ? '/runner/requests' : '/runner/calendar');
     } else if (LIVE_TITLES.includes(title)) {
       // /owner/meetup takes no bid — it self-restores to whatever booking is CURRENTLY in

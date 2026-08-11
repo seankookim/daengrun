@@ -94,6 +94,12 @@ Three rules the script enforces and the reason for each:
 - **Test accounts are excluded and the exclusion is itemised by account.** A silent filter is
   indistinguishable from manipulation.
 
+A second adversarial pass tightened it: it paginates (PostgREST silently truncates at 1000 rows,
+and a truncated cohort produces a confident wrong percentage), it **exits** rather than continuing
+with a half-disabled test-account filter, `expired` is deliberately excluded because that status
+also arrives from `draft`/`quoted` and cannot evidence a second attempt, and a first run later moved
+to `incident_review` still counts — the run happened.
+
 **As of 2026-08-11 it reports `—`, and the reason is the honest one:** all 23 bookings in
 production belong to `s4kim2025`, which is registered in `club_test_accounts`. 8 completed runs,
 zero from a real customer. What this gauge needs next is not code.

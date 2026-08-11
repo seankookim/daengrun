@@ -2169,16 +2169,22 @@ export async function sendSOS(role: 'owner' | 'runner'): Promise<string | null> 
 // 예약 당사자의 상대방 앞 booking 알림을 허용하고, sendSOS가 그 경로를 프로덕션에서 쓰고 있다.
 // 제목은 상수다: push.ts의 라우팅이 완전 일치로 판정한다 (부분 일치는 '도착' 사고의 원인).
 export const RUN_STOP_TITLE = '러닝 중단 요청';
-export async function notifyRunStop(bookingId: string, reason: string): Promise<void> {
-  const { data: bk } = await supabase.from('bookings').select('owner_id, runner_id').eq('id', bookingId).single();
+// 반환값: 알림 행을 **넣었는지**. 도달했는지가 아니다 — 0024의 트리거는 푸시 오류를 의도적으로
+// 삼키므로(0024:19,39) 앱은 배달을 알 방법이 없다. 호출부 카피는 이 구분을 지켜야 한다.
+export async function notifyRunStop(bookingId: string, reason: string): Promise<boolean> {
+  // [적대 리뷰 2026-08-11] 조회 에러를 버리고 있었다 — 조회가 실패해도 '보냈다'로 읽혔다.
+  const { data: bk, error: lookupErr } = await supabase
+    .from('bookings').select('owner_id, runner_id').eq('id', bookingId).single();
+  if (lookupErr) throw lookupErr;
   const target = (bk as any)?.runner_id;
-  if (!target) return;   // 아직 담당 러너가 없으면 보낼 상대가 없다 (조용한 무동작, 거짓 주장 없음)
+  if (!target) return false;   // 담당 러너가 없으면 보낼 상대가 없다 — 성공이 아니라 '못 보냄'이다
   const { error } = await supabase.from('notifications').insert({
     profile_id: target, kind: 'booking',
     title: RUN_STOP_TITLE, body: `보호자가 러닝 중단을 요청했어요 — 사유: ${reason}`,
     ref_id: bookingId,
   });
   if (error) throw error;
+  return true;
 }
 
 // ---------- 리워드 (드랍·기어) ----------

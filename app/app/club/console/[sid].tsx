@@ -603,8 +603,12 @@ export default function HostConsole() {
           onPress={blockers.length > 0 ? undefined : doFinish}
           busy={busy}
         />
-        {/* 취소는 종료와 다른 일이다 — 종료는 '끝났다', 취소는 '열지 않는다'. 진행 전에만 보인다. */}
-        {!isDone && (
+        {/* 취소는 종료와 다른 일이다 — 종료는 '끝났다', 취소는 '열지 않는다'.
+            [적대 리뷰 2026-08-11] 처음엔 `!isDone`만 봤는데, 그러면 **취소된 뒤에도**(cancelled ≠ done)
+            그리고 **이미 인계된 개가 있을 때도** 버튼이 남았다 — 둘 다 서버가 반드시 거절하는 상태다.
+            서버 조건(0038:235,238)을 그대로 클라에도 적는다: open/full일 때만, 그리고 나간 개가 없을 때만.
+            주석이 '진행 전에만'이라고 말하면 코드도 그래야 한다. */}
+        {['open', 'full'].includes(sess.status) && runStuck.length === 0 && (
           <ClubCta label="세션 취소 — 전액 환불" tone="destructive" onPress={doCancelSession} busy={busy} />
         )}
         <Text style={[clubText.dim, { textAlign: 'center', marginTop: 10 }]}>결제는 서버가 관리해요 — 호스트는 돈을 만지지 않아요</Text>

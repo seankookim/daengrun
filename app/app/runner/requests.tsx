@@ -41,6 +41,10 @@ export default function Requests() {
   // 일정 변경 요청 (0016) — 확정 예약의 새 시간 제안, 수락해야만 시간이 바뀐다
   const [resched, setResched] = useState<RescheduleRequest[]>([]);
   const [reschedBusy, setReschedBusy] = useState<string | null>(null);
+  // [적대 리뷰] busy는 확인 콜백 안에서야 켜진다 — 그 전 구간에 연타가 확인창을 쌓을 수 있었다.
+  // 서버 CAS가 이중 커밋은 막지만, 중복 내비게이션과 '성공 뒤 실패' UI는 막지 못한다.
+  const [asking, setAsking] = useState(false);
+  const [reschedAsking, setReschedAsking] = useState(false);
   // [honesty 2026-08-11] warn-only catch + no loading state rendered "새 요청 0건 /
   // 지금은 열린 요청이 없어요" while loading AND on failure. Three states now.
   const [loaded, setLoaded] = useState(false);
@@ -64,12 +68,14 @@ export default function Requests() {
   // 보호자를 길에 세우거나 노쇼가 된다. 러너 홈의 티켓(home.tsx:182)은 이미 개·시각·실수령을
   // 보여주고 확인을 받는데, 정작 요청이 잔뜩 쌓이는 이 화면만 즉시 커밋이었다. 같은 계약으로 맞춘다.
   const accept = (req: OpenRequest) => {
-    if (accepting) return;
+    if (accepting || asking) return;
+    setAsking(true);
     Alert.alert('요청 수락',
-      `${req.dogName} · ${req.when}\n${req.payout.toLocaleString()}원 실수령 — 수락할까요?\n수락하면 이 시간에 갈 사람은 나예요.`,
+      // '실수령'은 확정 금액을 뜻한다 — 이 값은 api.ts:427의 **추정치**다 (실거리·수수료율로 서버가 확정).
+      `${req.dogName} · ${req.when}\n예상 ${req.payout.toLocaleString()}원 (실거리로 확정) — 수락할까요?\n수락하면 이 시간에 갈 사람은 나예요.`,
       [
-        { text: '아직', style: 'cancel' },
-        { text: '수락', style: 'default', onPress: () => void commitAccept(req) },
+        { text: '아직', style: 'cancel', onPress: () => setAsking(false) },
+        { text: '수락', style: 'default', onPress: () => { setAsking(false); void commitAccept(req); } },
       ]);
   };
   const commitAccept = async (req: OpenRequest) => {
@@ -163,12 +169,14 @@ export default function Requests() {
                 /* 같은 법: 이건 **이미 확정된 약속의 시간을 바꾸는** 커밋이다. 한 번의 탭으로
                    내 캘린더가 조용히 옮겨가면 안 된다 — 옛 시간과 새 시간을 다시 보여주고 묻는다. */
                 onPress={() => {
-                  if (reschedBusy) return;
+                  if (reschedBusy || reschedAsking) return;   // 확인창이 겹쳐 쌓이는 것도 막는다
+                  setReschedAsking(true);
                   Alert.alert('새 시간 수락',
                     `${rq.dogName} · ${rq.km}km\n${rq.curDate} ${rq.curTime} → ${rq.newDate} ${rq.newTime}\n이 시간으로 바꿀까요?`,
                     [
-                      { text: '아직', style: 'cancel' },
+                      { text: '아직', style: 'cancel', onPress: () => setReschedAsking(false) },
                       { text: '수락', style: 'default', onPress: async () => {
+                        setReschedAsking(false);
                         setReschedBusy(rq.bookingId);
                         try {
                           await acceptReschedule(rq.bookingId);

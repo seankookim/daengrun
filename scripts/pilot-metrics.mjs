@@ -43,17 +43,30 @@ if (!URL_ || !SERVICE) {
   process.exit(1);
 }
 
-const q = async (path) => {
-  const res = await fetch(`${URL_}/rest/v1/${path}`, {
-    headers: { apikey: SERVICE, Authorization: `Bearer ${SERVICE}` },
-  });
-  if (!res.ok) { console.error(`query failed: ${path} → ${res.status} ${await res.text()}`); process.exit(1); }
-  return res.json();
+// PostgREST는 기본 1000행에서 조용히 자른다 — 잘린 채로 계산하면 **틀린 퍼센트를 자신 있게** 찍는다.
+// 페이지를 끝까지 돈다 (적대 리뷰 2026-08-11).
+const q = async (path, page = 1000) => {
+  const out = [];
+  for (let from = 0; ; from += page) {
+    const sep = path.includes('?') ? '&' : '?';
+    const res = await fetch(`${URL_}/rest/v1/${path}${sep}limit=${page}&offset=${from}`, {
+      headers: { apikey: SERVICE, Authorization: `Bearer ${SERVICE}` },
+    });
+    if (!res.ok) { console.error(`query failed: ${path} → ${res.status} ${await res.text()}`); process.exit(1); }
+    const rows = await res.json();
+    out.push(...rows);
+    if (rows.length < page) return out;
+  }
 };
 
 // ---------- 무엇이 '진짜 예약'인가 ----------
 // draft/quoted는 아직 의사가 아니다 (장바구니). payment_hold부터가 '이 사람이 실제로 잡으려 했다'.
 // 취소·만료도 재예약 의사로는 센다 — 두 번째로 시도했다는 사실 자체가 M1이 묻는 것이기 때문이다.
+// [적대 리뷰 교정] 이전 주석은 '취소·만료도 센다'고 적어놓고 `expired`를 빼먹었다 — 그리고 넣는 것도
+// 틀렸을 것이다: expired는 draft/quoted에서도 오므로(0001:200) '두 번째로 시도했다'의 증거가 못 된다.
+// 현재 상태만으로는 '결제 홀드까지 갔다가 만료된 건'을 구분할 수 없다. 그래서 expired는 **뺀다**,
+// 그리고 그 사실을 여기 적는다 (재예약율을 과소 추정하는 쪽 = 안전한 쪽).
+// 취소·노쇼·환불은 센다: M1이 묻는 것은 '다시 오려 했는가'이지 '두 번째가 성공했는가'가 아니다.
 const INTENT = new Set([
   'payment_hold', 'matching', 'runner_pending', 'confirmed', 'runner_enroute',
   'picked_up', 'active', 'completed', 'cancelled_owner', 'cancelled_runner',
@@ -68,11 +81,16 @@ const main = async () => {
     q('runners?select=profile_id'),
   ]);
   // auth.users로 이메일 확인 (테스트 계정 규약: @daengrun.test)
+  // 이메일 규약 필터가 **조용히 꺼지면** 테스트 예약이 실적으로 섞인다 — 실패하면 멈춘다.
   const users = await (async () => {
     const res = await fetch(`${URL_}/auth/v1/admin/users?per_page=1000`, {
       headers: { apikey: SERVICE, Authorization: `Bearer ${SERVICE}` },
     });
-    if (!res.ok) return [];
+    if (!res.ok) {
+      console.error(`auth admin 조회 실패 (${res.status}) — 이메일 기반 테스트 계정 필터를 쓸 수 없어요.`);
+      console.error('필터가 반쯤 켜진 채로 계산하면 테스트 예약이 실적에 섞여요. 중단합니다.');
+      process.exit(1);
+    }
     const j = await res.json();
     return j.users ?? j ?? [];
   })();
@@ -110,7 +128,9 @@ const main = async () => {
   let eligible = 0, rebooked = 0, sameRunner = 0, stillOpen = 0, noCompleted = 0;
   const detail = [];
   for (const [owner, list] of byOwner) {
-    const firstDone = list.find((b) => b.status === 'completed');
+    // [적대 리뷰] `completed`만 보면, 나중에 분쟁으로 incident_review로 옮겨간 예약은 '완료된 첫
+    // 러닝'에서 사라진다 — 러닝은 실제로 일어났는데 코호트에서 빠진다. 둘 다 첫 러닝으로 센다.
+    const firstDone = list.find((b) => b.status === 'completed' || b.status === 'incident_review');
     if (!firstDone) { noCompleted += 1; continue; }
     const t0 = new Date(firstDone.created_at).getTime();
     const closed = now - t0 >= windowMs;
@@ -170,7 +190,8 @@ const main = async () => {
     console.log('  판정: 측정 불가 — 관찰 창이 닫힌 보호자가 아직 없어요.');
     console.log('        이건 0%가 아니에요. 숫자가 생기려면 첫 러닝 후 ' + WINDOW_DAYS + '일이 지나야 해요.');
     if (byOwner.size === 0 && excluded > 0) {
-      console.log('        지금 프로덕션의 예약은 **전부 테스트 계정**이에요 — 실사용자 예약이 0건입니다.');
+      // 정확히: '집계 대상 상태의 비-테스트 예약이 0건'. 모든 원시 행이 테스트라는 뜻은 아니다.
+      console.log(`        집계 대상 상태의 예약 중 테스트 계정이 아닌 것이 0건이에요 (전체 ${bookings.length}행 중 ${excluded}건이 테스트).`);
       console.log('        이 게이지가 숫자를 내려면 필요한 건 코드가 아니라 사람이에요.');
     }
   } else {

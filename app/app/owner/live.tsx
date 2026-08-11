@@ -150,12 +150,14 @@ export default function Live() {
       // 중단 요청이 보이지 않았다. 이제 알림도 함께 넣는다 (기록은 채팅, 도달은 알림).
       // 알림 실패가 이미 전송된 채팅을 되돌릴 수는 없으므로 여기서 던지지 않는다 — 다만
       // 뒤따르는 카피가 '푸시가 갔다'고 주장하지 않도록 성공 여부를 들고 간다.
-      let pushed = true;
-      try { await notifyRunStop(bookingId, stopReason); } catch { pushed = false; }
+      // `sent`는 '알림 행을 넣었다'는 뜻이지 '러너 폰에 떴다'가 아니다 — 0024 트리거가 푸시 오류를
+      // 삼키므로 앱은 배달을 알 수 없다. 그래서 성공 경로는 배달을 주장하지 않는다.
+      let sent = false;
+      try { sent = await notifyRunStop(bookingId, stopReason); } catch { sent = false; }
       setStopSheet(false);
-      if (!pushed) {
-        Alert.alert('요청은 전달됐어요',
-          '채팅으로 전달했지만 알림은 보내지 못했어요 — 러너가 채팅을 열어야 볼 수 있어요. 급하면 직접 연락해주세요.');
+      if (!sent) {
+        Alert.alert('요청은 채팅으로 전달됐어요',
+          '알림은 보내지 못했어요 — 러너가 채팅을 열어야 볼 수 있어요. 급하면 직접 연락해주세요.');
       }
       // 어느 쪽이든 채팅 스레드로 — 보낸 요청이 눈에 보이는 곳이다 (주장이 아니라 증거).
       router.push({ pathname: '/chat', params: { bid: bookingId } });
@@ -380,7 +382,7 @@ export default function Live() {
           {/* 정직 카피 — 실제로 일어나는 것만: 채팅(기록) + 알림(도달) → 러너가 확인 → 정지·복귀.
               2026-08-11까지는 채팅뿐이었고 그건 러너가 채팅을 열어야만 보였다. 이제 알림도 간다. */}
           <Text style={s.sheetBody}>
-            종료 요청과 사유가 러너에게 알림과 채팅으로 함께 전달돼요.{'\n'}러너가 확인하면 안전하게 정지한 뒤 {dogName}를 데리고 픽업 장소로 복귀해요.
+            종료 요청과 사유를 러너에게 알림으로 보내고 채팅에도 남겨요.{'\n'}러너가 확인하면 안전하게 정지한 뒤 {dogName}를 데리고 픽업 장소로 복귀해요.
           </Text>
 
           <Text style={s.sheetLabel}>종료 사유</Text>
