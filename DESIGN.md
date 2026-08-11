@@ -69,6 +69,15 @@ addresses):
 - **Numerals**: Oswald everywhere (done in the consistency wave).
 - **Dark artifacts stay dark**: passport record face + stamps, handoff seal
   band, club night world, course photo cards — chrome around them goes paper.
+- **Club widget exception (Sean 2026-08-10, VETO of the paper-wave
+  supersession)**: 하이클럽 keeps its side margins + card radius on owner home.
+  It is a night artifact island, not a paper card — full-bleed sharp was wrong.
+  It is the ONE standing exception to the sharp/full-bleed card law.
+- **Masthead lockup (owner home)**: the brandmark (`src/components/brandmark.tsx`
+  — running-dog mark + stacked wordmark) sits at the top of the header, greeting
+  BELOW it and below the ticker, so the greeting is always flush with the hero.
+  The header box height follows the ticker's real presence — never reserve space
+  for a conditional element (that dead space was the 2026-08-10 gap bug).
 
 ### Paper laws (the target world — memorize these)
 

@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Animated, Dimensions, Easing, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BottomNav } from '../../src/components/bottomnav';
+import { BrandLockup } from '../../src/components/brandmark';
 import { CourseStrip } from '../../src/components/CourseStrip';
 import { ClubHomeCard } from '../../src/components/clubcard';
 import { Avatar, Icon } from '../../src/components/ui';
@@ -254,7 +255,20 @@ const PAD_TOP = 56;
 // [FLOOR14 2026-08-05] 122 → 123. 브랜드 행(28+4)·그리팅(44+8)은 고정 높이라 불변이고,
 // 랭킹 티커만 커진다: 티커 줄 박스 = 중첩 스팬의 lineHeight 최댓값 17 → 18 (12.5/13.5 → 14, lineHeight 17 → 18).
 // 티커 합 = marginTop 8 + paddingVertical 5×2 + 줄 18 = 36 (구 35). 32 + 52 + 36 = 120 ≤ 123 (여유 3px 유지).
-const HEADER_H = 123; // [4차] 브랜드 행(28) + 그리팅(44+8) + 랭킹 티커(~36) — 실측 합에 맞춰 히어로 위 갭 봉합
+// [2026-08-10 Sean] Header rebuilt: the fixed 123 assumed the ranking ticker ALWAYS
+// rendered, but it is conditional (ticker.length > 0). With no leaderboard data the
+// bottom ~36px sat empty — the visible gap between greeting and the morph card.
+// New order (greeting last = always flush against the hero): lockup → ticker? → greeting.
+// The box height now follows the ticker's real presence; the collapse MECHANISM is
+// untouched (pinned overlay + paddingTop reservation + transform/opacity only) — only
+// the reserved constant became data-dependent, and every derived value recomputes with it.
+const HEADER_LOCKUP = 52;  // brand lockup row (40 mark + breathing room)
+const HEADER_GREET = 44;   // greeting line (unchanged)
+const HEADER_TICKER = 36;  // ranking ticker, only when it has rows
+const HEADER_GAPS = 10;    // lockup marginBottom 6 + greeting marginBottom 4
+const headerHFor = (hasTicker: boolean) =>
+  HEADER_LOCKUP + HEADER_GREET + HEADER_GAPS + (hasTicker ? HEADER_TICKER : 0);
+const HEADER_H = headerHFor(true); // worst case — kept for the module-level overlay consts
 
 // 로테이팅 그리팅 — 5초마다 수직 플립으로 순환. 이름 라인('우리 {이름}')은 고정 앵커.
 const GREETINGS = [
@@ -614,14 +628,17 @@ export default function OwnerHome() {
 
   // transform/opacity only → 스크롤 이벤트 전체가 네이티브 드라이버 (구: height 보간 = JS 드라이버)
   const t = scrollY.interpolate({ inputRange: [0, SCROLL_RANGE], outputRange: [0, 1], extrapolate: 'clamp' });
-  // 헤더: 박스는 HEADER_H 고정(overflow:hidden), 내용만 위로 밀려 잘려 나간다 — 구 headerH와 동일 타이밍
-  const headerSlide = t.interpolate({ inputRange: [0, HEADER_T_END], outputRange: [0, -HEADER_H], extrapolate: 'clamp' });
+  // [2026-08-10] 헤더 박스 높이는 티커 유무를 따른다 (없는 티커 자리를 빈 칸으로 예약하지 않는다).
+  // 값은 렌더당 정적이다 — 높이를 애니메이트하지 않는다(모프 법 유지). 파생값 전부 같은 값에서 나온다.
+  const headerH = headerHFor(ticker.length > 0);
+  // 헤더: 박스는 headerH 고정(overflow:hidden), 내용만 위로 밀려 잘려 나간다 — 구 headerH와 동일 타이밍
+  const headerSlide = t.interpolate({ inputRange: [0, HEADER_T_END], outputRange: [0, -headerH], extrapolate: 'clamp' });
   const headerOpacity = t.interpolate({ inputRange: [0, 0.45], outputRange: [1, 0], extrapolate: 'clamp' });
-  // 히어로 이동 = 헤더가 비운 자리(HEADER_H, t≤0.6에서 소진) + 상단 고정 축소 보정(HERO_LIFT·t).
+  // 히어로 이동 = 헤더가 비운 자리(headerH, t≤0.6에서 소진) + 상단 고정 축소 보정(HERO_LIFT·t).
   // 두 구간 모두 선형이라 3-스톱 보간이 정확히 일치한다 (근사 아님).
   const heroSlide = t.interpolate({
     inputRange: [0, HEADER_T_END, 1],
-    outputRange: [0, -(HEADER_H + HERO_LIFT * HEADER_T_END), -(HEADER_H + HERO_LIFT)],
+    outputRange: [0, -(headerH + HERO_LIFT * HEADER_T_END), -(headerH + HERO_LIFT)],
   });
   const heroScale = t.interpolate({ inputRange: [0, 1], outputRange: [1, HERO_SCALE_MIN] });
   // 카드 내용 역보정 (스쿼시 방지)
@@ -661,13 +678,12 @@ export default function OwnerHome() {
         <Animated.View
           style={[StyleSheet.absoluteFill, { backgroundColor: paper.canvas, transform: [{ translateY: bgSlide }, { scaleY: bgScale }] }]}
         />
-        <View style={{ height: HEADER_H, overflow: 'hidden' }}>
+        <View style={{ height: headerH, overflow: 'hidden' }}>
           <Animated.View style={{ opacity: headerOpacity, transform: [{ translateY: headerSlide }] }}>
-          {/* [4차] 브랜드 행 — 맨 위 도그스하이 로고 + 유틸(테마·알림). 벨 = lucide Bell (이모지 은퇴) */}
+          {/* [2026-08-10 Sean] 브랜드 락업 — 달리는 개 마크(좌) + 워드마크(우), 유틸은 그대로 우측.
+              그리팅이 아래로 내려가며 비운 자리를 이 락업이 채운다 (죽은 여백 → 브랜드). */}
           <View style={s.brandRow}>
-            <Text style={[s.brandmark, df]}>도그스하이</Text>
-            <View style={s.brandDot} />
-            <Text style={s.brandKick}>DOGS HIGH</Text>
+            <BrandLockup height={40} />
             <View style={{ flex: 1 }} />
             {/* 나이트 라일락 테마 토글 — 라일락 전 화면 정합 후 복귀 (toggle 역학 유지) */}
             <Pressable onPress={toggle} style={[s.themeBtn, { borderColor: p.line, backgroundColor: p.card }]}>
@@ -678,30 +694,6 @@ export default function OwnerHome() {
               {unread > 0 && <View style={s.bellDot} />}
               <Icon name="Bell" glyph="◔" size={15} color={lilac.head} />
             </Pressable>
-          </View>
-          {/* 그리팅 — 브랜드 행 아래로 내려앉아 히어로와의 갭을 봉합. 유틸 버튼이 위로 가며 전폭 확보 */}
-          <View style={s.headerRow}>
-            {/* pfp — 보호자 프로필 사진 (profiles.avatar_url), 없으면 모노그램. 홈 상단의 '나' 자리 */}
-            <Avatar url={me?.avatarUrl} char={(me?.name ?? dogName ?? '나')[0]} bg={lilac.accent} size={34} />
-            <View style={{ flex: 1, marginLeft: 9 }}>
-              {/* 원라인 모토 — 전폭. 문구별 폭 차이는 adjustsFontSizeToFit이 흡수 */}
-              <Animated.Text
-                style={[{
-                  fontSize: 34, fontWeight: '900', color: lilac.head,
-                  opacity: gFlip.interpolate({ inputRange: [0, 1], outputRange: [1, 0.1] }),
-                  transform: [
-                    { perspective: 600 },
-                    { rotateX: gFlip.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '86deg'] }) },
-                  ],
-                }, df]}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.55}
-              >
-                {/* 이름을 아직(또는 끝내) 모르면 이름 조각을 붙이지 않는다 — 목업 '초코'는 퇴역 */}
-                {GREETINGS[gIdx]}{dogName ? <Text style={{ color: lilac.accent }}>, 우리 {dogName}</Text> : ''}
-              </Animated.Text>
-            </View>
           </View>
           {/* 동네 랭킹 티커 — 주식 시세줄처럼 흐르는 실집계 (탭 → 리더보드).
               ▲▼ 등락 화살표는 지난주 대비 델타 RPC가 생기기 전까지 금지 — 없는 데이터는 그리지 않는다 */}
@@ -737,6 +729,31 @@ export default function OwnerHome() {
               </Animated.View>
             </Pressable>
           )}
+          {/* 그리팅 — [2026-08-10 재배치] 헤더의 마지막 요소. 티커가 있든 없든 히어로 바로 위에
+              앉으므로 모프 카드와의 갭이 항상 봉합된다 (구조: 락업 → 티커? → 그리팅). */}
+          <View style={s.headerRow}>
+            {/* pfp — 보호자 프로필 사진 (profiles.avatar_url), 없으면 모노그램. 홈 상단의 '나' 자리 */}
+            <Avatar url={me?.avatarUrl} char={(me?.name ?? dogName ?? '나')[0]} bg={lilac.accent} size={34} />
+            <View style={{ flex: 1, marginLeft: 9 }}>
+              {/* 원라인 모토 — 전폭. 문구별 폭 차이는 adjustsFontSizeToFit이 흡수 */}
+              <Animated.Text
+                style={[{
+                  fontSize: 34, fontWeight: '900', color: lilac.head,
+                  opacity: gFlip.interpolate({ inputRange: [0, 1], outputRange: [1, 0.1] }),
+                  transform: [
+                    { perspective: 600 },
+                    { rotateX: gFlip.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '86deg'] }) },
+                  ],
+                }, df]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.55}
+              >
+                {/* 이름을 아직(또는 끝내) 모르면 이름 조각을 붙이지 않는다 — 목업 '초코'는 퇴역 */}
+                {GREETINGS[gIdx]}{dogName ? <Text style={{ color: lilac.accent }}>, 우리 {dogName}</Text> : ''}
+              </Animated.Text>
+            </View>
+          </View>
           </Animated.View>
         </View>
 
@@ -1572,9 +1589,11 @@ const s = StyleSheet.create({
     position: 'absolute', top: 0, left: 0, right: 0, zIndex: 20,
     paddingTop: PAD_TOP, paddingHorizontal: 0, paddingBottom: 10, // [풀블리드] 히어로 거터 은퇴 (CARD_W = SCREEN_W와 짝)
   },
-  headerRow: { flexDirection: 'row', alignItems: 'center', height: 44, marginBottom: 8, paddingHorizontal: layout.gutter }, // 그리팅 줄 — [풀블리드] 내부 거터로 이동 (fixed height 44: HEADER_H math untouched by the gutter change)
+  // 그리팅 줄 — 헤더의 마지막 요소라 히어로와 항상 맞닿는다 (marginBottom 4 = HEADER_GAPS의 절반)
+  headerRow: { flexDirection: 'row', alignItems: 'center', height: HEADER_GREET, marginBottom: 4, paddingHorizontal: layout.gutter },
   // [4차] 브랜드 행 — 도그스하이 워드마크(로고 자격으로 df 허용) + 우측 유틸
-  brandRow: { flexDirection: 'row', alignItems: 'center', height: 28, marginBottom: 4, paddingHorizontal: layout.gutter }, // [풀블리드] 내부 거터 (fixed height 28: HEADER_H math untouched)
+  // [2026-08-10] 락업 행 — 높이 52 = HEADER_LOCKUP (마크 40 + 여유). 파일 상단 headerHFor와 한 쌍.
+  brandRow: { flexDirection: 'row', alignItems: 'center', height: HEADER_LOCKUP, marginBottom: 6, paddingHorizontal: layout.gutter },
   brandmark: { fontSize: 16, color: lilac.head, letterSpacing: 0.4 },
   brandDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: lilac.coral, marginHorizontal: 7 },
   brandKick: { fontSize: 11.5, fontWeight: '700', letterSpacing: 2, color: lilac.dim },
@@ -1702,8 +1721,11 @@ const s = StyleSheet.create({
   // ★★★ [SUPERSEDED 2026-08-10 페이퍼 크롬 웨이브] Sean 2026-08-06의 "클럽 위젯만 측면 마진+라운드 유지"
   // 예외는 이 웨이브로 은퇴 — 메인 탭의 모든 카드가 샤프/풀블리드가 되면서 예외 근거가 소멸했다.
   // 나이트 카드(내부 다크 월드)는 아티팩트로 그대로 산다; 셸의 크롬(마진·라운드·바이올렛 섀도)만 페이퍼로. ★★★
+  // [Sean 2026-08-10 — VETO of the paper-wave supersession] 하이클럽은 측면 마진을 되찾는다.
+  // 클럽은 나이트 아티팩트 섬이라 풀블리드 종이 문법의 예외로 남는다 (원 예외 2026-08-06 복원).
   clubShell: {
-    marginTop: 14, marginHorizontal: 0, borderRadius: 0,
+    marginTop: 14, marginHorizontal: layout.gutter, borderRadius: lilacRadius.card,
+    shadowColor: lilac.accent, shadowOpacity: 0.14, shadowRadius: 30, shadowOffset: { width: 0, height: 12 }, elevation: 3,
   },
   // [Sean 2026-08-10] 티켓 주 버튼은 GO 상태색을 입는다 (같은 상태 기계 = 같은 색 목소리) —
   // bg/shadowColor는 JSX에서 goSkin 주입, 여기 값은 폴백. 라벨 14→16 · 패딩 13→15 (랩 Ⓒ 채택분).
