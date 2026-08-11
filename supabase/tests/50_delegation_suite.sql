@@ -10,6 +10,7 @@ declare
   v_sd uuid; v_sd2 uuid; v_sd_arr uuid[] := '{}';
   v_bid uuid; v_bid_old uuid; v_bid_norm uuid;
   v_cnt int; v_cap int; v_exp int; v_txt text; v_km numeric; i int;
+  v_msg text;   -- [하네스 법] _fail 인자에 서브쿼리 금지 — 먼저 여기에 담는다
 begin
   -- ---------- 시드 ----------
   host := t_user('del_host', 'runner');                       -- certified → 캡 1
@@ -95,7 +96,8 @@ begin
        and (select role from session_people where session_id = v_sid and profile_id = host) = 'host_runner'
        and (select role from session_people where session_id = v_sid and profile_id = vet) = 'handling_runner'
       then call _pass('del','D3 커밋 — 정원 = committed 캡 합 (' || v_exp || '), 호스트 역할 보존');
-    else call _fail('del','D3 커밋','cap=' || (select delegated_dog_capacity from club_sessions where id = v_sid) || ' exp=' || v_exp); end if;
+    else v_msg := 'cap=' || (select delegated_dog_capacity from club_sessions where id = v_sid) || ' exp=' || v_exp;
+      call _fail('del', 'D3 커밋', v_msg); end if;
   exception when others then call _fail('del','D3 커밋', sqlerrm);
   end;
 
@@ -298,7 +300,8 @@ begin
        and (select status from bookings where id = v_bid) = 'refund_pending'
        and (select cancel_reason from bookings where id = v_bid) = 'club_not_picked_up'
       then call _pass('del','D12 종료 정리 — 미인계 위탁 부킹 환불');
-    else call _fail('del','D12 종료','status=' || (select status from bookings where id = v_bid)); end if;
+    else v_msg := 'status=' || (select status from bookings where id = v_bid);
+      call _fail('del', 'D12 종료', v_msg); end if;
   exception when others then call _fail('del','D12 종료', sqlerrm);
   end;
 
@@ -322,8 +325,9 @@ begin
     if (select status from bookings where id = v_bid) = 'matching'
        and (select status from bookings where id = v_bid_norm) = 'expired'
       then call _pass('del','D13 만료 크론 — 클럽 부킹 스킵·일반 부킹 만료');
-    else call _fail('del','D13 만료','club=' || (select status from bookings where id = v_bid)
-                    || ' norm=' || (select status from bookings where id = v_bid_norm)); end if;
+    else v_msg := 'club=' || (select status from bookings where id = v_bid)
+                    || ' norm=' || (select status from bookings where id = v_bid_norm);
+      call _fail('del', 'D13 만료', v_msg); end if;
     update bookings set scheduled_at = now() + interval '40 hours' where id = v_bid;  -- 원복 (후속 케이스 오염 방지)
   exception when others then call _fail('del','D13 만료', sqlerrm);
   end;
@@ -362,7 +366,8 @@ begin
          and _club_delegated_reserved(v_sid3) = 1
         then call _pass('del','D15 홀드 만료 — 정원 해방·알림·재결제(재홀드) 성공');
       else call _fail('del','D15 재결제','부킹 실패'); end if;
-    else call _fail('del','D15 만료','expired=' || (select hold_status from session_dogs where id = v_sd2)); end if;
+    else v_msg := 'expired=' || (select hold_status from session_dogs where id = v_sd2);
+      call _fail('del', 'D15 만료', v_msg); end if;
   exception when others then call _fail('del','D15 만료', sqlerrm);
   end;
 

@@ -12,6 +12,7 @@ declare
   v_club uuid; v_s uuid; v_s2 uuid; sdo uuid; sdq uuid; sdp uuid; v_bo uuid; v_inc uuid; v_inc2 uuid;
   v_js jsonb; v_js2 jsonb; v_err boolean; v_cnt int; v_all int;
   v_sd_cnt int; v_consent_cnt int;
+  v_msg text;   -- [하네스 법] _fail 인자에 서브쿼리 금지 — 먼저 여기에 담는다
 begin
   -- ---------- 시드 ----------
   -- 호스트 hh · 커밋 러너 rr(veteran) · 승인+결제 보호자 oo(full) · 신청만 보호자 qq(limited)
@@ -233,9 +234,10 @@ begin
        and (select completion_outcome from session_dogs where id = sdo) = 'partial'
        and (v_js->'secondaryBadges') ? '조기 반환'
       then call _pass('audit','G8 partial 배지 — ended·completion_outcome=partial → secondaryBadges 조기 반환');
-    else call _fail('audit','G8 배지','ss=' || coalesce((select service_state from session_dogs where id = sdo),'∅')
+    else v_msg := 'ss=' || coalesce((select service_state from session_dogs where id = sdo),'∅')
                     || ' co=' || coalesce((select completion_outcome from session_dogs where id = sdo),'∅')
-                    || ' badges=' || coalesce((v_js->'secondaryBadges')::text,'∅')); end if;
+                    || ' badges=' || coalesce((v_js->'secondaryBadges')::text,'∅');
+      call _fail('audit', 'G8 배지', v_msg); end if;
   exception when others then call _fail('audit','G8', sqlerrm);
   end;
 
@@ -316,9 +318,10 @@ begin
             where (d->>'sdId')::uuid = sdq) is null                            -- 이 세션 보드엔 null
        and not ((v_js2->'secondaryBadges') ? '인시던트 확인 중')                -- 배지도 억제
       then call _pass('audit','G12 교차 세션 억제 — 타 세션 미해소건은 이 세션 openIncidentId null·인시던트 배지 억제');
-    else call _fail('audit','G12 교차세션','oid=' || coalesce((select d->>'openIncidentId'
+    else v_msg := 'oid=' || coalesce((select d->>'openIncidentId'
                     from jsonb_array_elements(v_js->'dogs') d where (d->>'sdId')::uuid = sdq),'∅')
-                    || ' badges=' || coalesce((v_js2->'secondaryBadges')::text,'∅')); end if;
+                    || ' badges=' || coalesce((v_js2->'secondaryBadges')::text,'∅');
+      call _fail('audit', 'G12 교차세션', v_msg); end if;
   exception when others then call _fail('audit','G12', sqlerrm);
   end;
 
@@ -335,7 +338,8 @@ begin
        and (select host_profile_id from club_sessions where id = v_s) <> rr    -- rr은 호스트가 아니다
        and (select case_owner from club_incidents where id = v_inc) is distinct from rr  -- case_owner도 아니다
       then call _pass('audit','G13 백업 호스트 해소 — backup_host_profile_id도 케이스 해소 허용 (죽은 버튼 제거)');
-    else call _fail('audit','G13 백업 해소','state=' || coalesce((select state from club_incidents where id = v_inc),'∅')); end if;
+    else v_msg := 'state=' || coalesce((select state from club_incidents where id = v_inc),'∅');
+      call _fail('audit', 'G13 백업 해소', v_msg); end if;
   exception when others then call _fail('audit','G13', sqlerrm);
   end;
 

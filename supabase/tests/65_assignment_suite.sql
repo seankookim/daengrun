@@ -7,6 +7,7 @@ declare
   dx uuid; dy uuid; dz uuid; dw uuid; rt uuid; v_club uuid; v_s uuid; v_s2 uuid; v_s3 uuid;
   sdx uuid; sdy uuid; sdz uuid; sdw uuid; bx uuid; v_by uuid; bz uuid; bw uuid;
   v_km numeric; v_js jsonb; v_n int; v_cnt int;
+  v_msg text;   -- [하네스 법] _fail 인자에 서브쿼리 금지 — 먼저 여기에 담는다
 begin
   -- ---------- 시드: 호스트(캡1) + 베테랑 rb(캡2) + 서티파이드 rc(캡1), 위탁견 3 결제까지 ----------
   ha := t_user('asg_host', 'runner');
@@ -248,8 +249,9 @@ begin
        and not exists (select 1 from notifications where profile_id = ha and ref_id = v_s
                        and title = '배정 불발 자동 환불')
       then call _pass('asg','A8 T-10 자동환불 폐지 — 집결지 배정을 약속하는 동안 크론은 환불하지 않는다');
-    else call _fail('asg','A8 T-10 폐지','b=' || (select status from bookings where id = bz)
-                    || ' reason=' || coalesce((select cancel_reason from bookings where id = bz),'∅')); end if;
+    else v_msg := 'b=' || (select status from bookings where id = bz)
+                    || ' reason=' || coalesce((select cancel_reason from bookings where id = bz),'∅');
+      call _fail('asg', 'A8 T-10 폐지', v_msg); end if;
   exception when others then call _fail('asg','A8', sqlerrm);
   end;
 

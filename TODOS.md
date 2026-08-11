@@ -180,9 +180,13 @@ mutation map unreadable until it was found.
 
 **Law: pre-compute the message into a variable, then call.** All 14 sites across 106-110 are fixed.
 
-- [ ] **`95_audit_gates_suite.sql` (×3) and `60_custody_suite.sql` (×1) still carry the pattern.**
-  Same latent defect, in the audit-gate and custody suites. Left alone here only to keep this
-  slice's diff honest; they are one-line fixes each. Effort S → S. P2.
+- [x] ~~**`95` and `60` still carry the pattern.**~~ **FIXED 2026-08-11 — and the count was wrong.**
+  A single-line grep found 4; a paren-aware scan found **12 executable sites across five suites**
+  (50 ×4, 60 ×3, 65 ×1, 66 ×1, 95 ×3). All rewritten mechanically: `v_msg := <expr>;` then
+  `call _fail(a, b, v_msg)` — plpgsql assignment MAY contain a subquery, only CALL arguments may
+  not, so the expression is preserved byte-for-byte. Verified the way this defect demands: one
+  pin's assertion was forced false against a fresh harness, and its failure path rendered
+  `responsible=f9c88435-…` instead of raising. Repo-wide executable sites: **0**.
 
 ## From the 0067-0070 adversarial cycle — what the two voices found and I did NOT fix
 

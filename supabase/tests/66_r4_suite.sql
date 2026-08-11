@@ -6,6 +6,7 @@ declare
   ho uuid; ru uuid; ow uuid; ow2 uuid; dg uuid; dg2 uuid; rt uuid;
   v_club uuid; v_s uuid; v_sd uuid; v_sd2 uuid; v_b uuid; v_b2 uuid;
   v_km numeric; v_js jsonb; v_cnt int; v_fee int;
+  v_msg text;   -- [하네스 법] _fail 인자에 서브쿼리 금지 — 먼저 여기에 담는다
 begin
   -- ---------- 시드 ----------
   ho := t_user('r4_host', 'runner');
@@ -103,7 +104,8 @@ begin
        and (select cancel_reason from bookings where id = v_b) = 'club_review_rejected'
        and (select refund_state from session_dogs where id = v_sd) = 'pending'
       then call _pass('r4','F4 재심사 거절 — 자동 전액 환불 (보호자 무과실)');
-    else call _fail('r4','F4 거절','b=' || (select status from bookings where id = v_b)); end if;
+    else v_msg := 'b=' || (select status from bookings where id = v_b);
+      call _fail('r4', 'F4 거절', v_msg); end if;
   exception when others then call _fail('r4','F4', sqlerrm);
   end;
 

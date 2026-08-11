@@ -8,6 +8,7 @@ declare
   rt uuid; v_club uuid; v_sid uuid; v_sid2 uuid;
   v_sd1 uuid; v_sd2 uuid; v_b1 uuid; v_b2 uuid;
   v_cnt int; v_txt text; v_js jsonb; v_km numeric; v_run uuid; v_rel int;
+  v_msg text;   -- [하네스 법] _fail 인자에 서브쿼리 금지 — 먼저 여기에 담는다
 begin
   -- ---------- 시드: 클럽 + 임박 세션(+90m) + 커밋 러너 2 + 승인 위탁견 2 ----------
   host := t_user('cus_host', 'runner');                        -- certified 캡 1
@@ -96,8 +97,9 @@ begin
        and exists (select 1 from dog_custody_events where session_dog_id = v_sd1
                    and event_type = 'outbound' and to_type = 'runner' and to_profile_id = r2)
       then call _pass('cus','E3 인계 → 커스터디 플립 (러너 커스터디·아웃바운드 이벤트·체크인)');
-    else call _fail('cus','E3 플립','responsible=' ||
-      (select responsible_profile_id from session_dogs where id = v_sd1)::text); end if;
+    else v_msg := 'responsible=' ||
+      (select responsible_profile_id from session_dogs where id = v_sd1)::text;
+      call _fail('cus', 'E3 플립', v_msg); end if;
   exception when others then call _fail('cus','E3 플립', sqlerrm);
   end;
 
@@ -169,10 +171,11 @@ begin
         if v_rel >= 1
            and (select payout_state from session_dogs where id = v_sd1) = 'released'
           then call _pass('cus','E6b 반환 확인 — 단측 대기·양측 resolved/payable·릴리스 released');
-        else call _fail('cus','E6b 릴리스','n=' || v_rel || ' payout=' ||
+        else v_msg := 'n=' || v_rel || ' payout=' ||
           (select payout_state from session_dogs where id = v_sd1) || ' hold=' ||
           coalesce((select payout_hold from session_dogs where id = v_sd1),'∅') || ' phase=' ||
-          (select custody_phase from session_dogs where id = v_sd1)); end if;
+          (select custody_phase from session_dogs where id = v_sd1);
+      call _fail('cus', 'E6b 릴리스', v_msg); end if;
       else call _fail('cus','E6b 양측','상태 불일치'); end if;
     end if;
   exception when others then call _fail('cus','E6b 반환', sqlerrm);
@@ -248,7 +251,8 @@ begin
        and (select cancel_reason from bookings where id = v_b1) = 'club_not_picked_up'
        and (select status from bookings where id = v_b2) = 'completed'
       then call _pass('cus','E10 종료 정리 — 미인계 confirmed 2단 환불·완료 부킹 불변');
-    else call _fail('cus','E10 정리','b1=' || (select status from bookings where id = v_b1)); end if;
+    else v_msg := 'b1=' || (select status from bookings where id = v_b1);
+      call _fail('cus', 'E10 정리', v_msg); end if;
   exception when others then call _fail('cus','E10 정리', sqlerrm);
   end;
 
