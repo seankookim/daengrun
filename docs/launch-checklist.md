@@ -70,6 +70,34 @@ bridge → 위치정보 신고 + privacy policy → TestFlight.
       copy honest about manual pilot vetting — one or the other, before real owners read it.
 - [ ] Recruit and certify ~22 runners `[doc: runner-recruitment.md:11 — the math for 50 dogs]` `[Sean]`
 
+## 3b. The PMF gate, now measurable `[build: 2026-08-11]`
+
+The gate governed expansion but nothing computed it — a gate with no gauge. It has one now:
+
+```bash
+node scripts/pilot-metrics.mjs            # 30-day window (default)
+node scripts/pilot-metrics.mjs --json     # machine-readable
+```
+
+**Definition, so it cannot drift.** An owner is *eligible* once their first **completed** run is
+older than the observation window (default 30 days). They *rebooked* if they created another
+booking that reached `payment_hold` or beyond within that window of the first completed run.
+M1 = rebooked / eligible. Same-runner rebooking is reported alongside, because for this product
+trust in a specific runner is the stronger signal.
+
+Three rules the script enforces and the reason for each:
+- **An empty cohort prints `—`, never `0%`.** Nobody eligible yet is *not measurable*; printing 0%
+  reads as failure and would be a lie about our own product.
+- **Owners still inside the window are excluded from the denominator** and counted separately.
+  Counting them as "did not rebook" makes a young cohort look bad and manufactures a fake upward
+  trend as it ages.
+- **Test accounts are excluded and the exclusion is itemised by account.** A silent filter is
+  indistinguishable from manipulation.
+
+**As of 2026-08-11 it reports `—`, and the reason is the honest one:** all 23 bookings in
+production belong to `s4kim2025`, which is registered in `club_test_accounts`. 8 completed runs,
+zero from a real customer. What this gauge needs next is not code.
+
 ## 4. Demand validation — our own bar, still unmet
 
 - [ ] **15-20 interviews.** `docs/interviews/` does not exist. validation-interviews.md says
