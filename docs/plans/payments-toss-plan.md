@@ -103,10 +103,19 @@ constant no pin can protect"). Pin what SQL can hold:
 
 ## 5. Sequencing
 
-1. **Now, unblocked:** the `payments` table + RLS + pins, and the pay.tsx deletions above. None of
-   it needs the Toss contract, and the deletions make the app *more* honest immediately.
+1. **Now, unblocked:** the `payments` table + RLS + pins. Nothing else.
 2. **On contract:** `confirm-payment`, widget SDK, native rebuild, 사업자 정보 copy.
-3. **After the charge path is live and verified:** the refund/cancel path, as its own cycle.
+3. **Only once `confirm-payment` is live and verified:** the pay.tsx deletions in §3.
+4. **After the charge path is verified:** the refund/cancel path, as its own cycle.
+
+> ⚠ **Correction to an earlier draft of this file, which said the pay.tsx deletions could land
+> immediately. They cannot, and doing so would brick the app.**
+> `pay.tsx:334` → `api.ts:230` `payment_ok` is **the only path a booking has into `matching`
+> today**. Deleting it before `confirm-payment` exists means no booking can ever be confirmed.
+> And `pay.tsx:299`'s "파일럿 기간이라 실결제는 발생하지 않았어요" is **currently true** — it only
+> becomes a lie the day real charges start. Both are correct *today* and become wrong at the
+> same instant: the moment `confirm-payment` goes live. They are step 3, not step 1.
+> The honesty law cuts both ways — removing an accurate statement is not a fix.
 
 ## 6. Carried over from the bridge review — still unsolved
 

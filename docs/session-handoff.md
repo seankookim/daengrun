@@ -349,9 +349,13 @@ payments touches.
    (Sean only). ⚠ 예비창업패키지 2027 (~₩40M) closes on registration — decided,
    recorded so it isn't rediscovered as a surprise.
    **Buildable NOW without any of that** (toss-plan §5-1): the `payments` table +
-   RLS + pins, and two deletions that make the app more honest immediately —
-   `pay.tsx:334`'s free 예약 확정하기 button and `pay.tsx:299`'s
-   "실결제는 발생하지 않았어요".
+   RLS + pins. That is the whole unblocked list.
+   ⚠ **Do NOT pre-delete `pay.tsx:334` (the 예약 확정하기 button) or `pay.tsx:299`
+   ("실결제는 발생하지 않았어요").** `:334` → `api.ts:230` `payment_ok` is the only
+   path a booking has into `matching` today — removing it before `confirm-payment`
+   exists bricks confirmation entirely. And `:299` is **currently true**. Both are
+   correct today and become wrong at the same instant, when `confirm-payment` goes
+   live. They are toss-plan step 3, not step 1.
 2. **[needs-user]** The rest of §⑨: NCP checkboxes, geocode secret, counsel
    flags, chip review. The two P1 decisions changed shape — **mid-run stop is no
    longer Sean-gated** (0024 push already exists; ~6 lines, see TODOS) and
