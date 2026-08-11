@@ -120,7 +120,8 @@ export default function Alerts() {
           <View style={{ padding: 14 }}>
             <Text style={[s.boardKick, nf]}>ARRIVALS · 도착한 소식</Text>
             <Row style={{ justifyContent: 'space-between', alignItems: 'flex-end' }}>
-              <Text style={[{ fontSize: 30, color: '#fff', lineHeight: 36 }, df]}>알림</Text>
+              {/* [§3c 화면 타이틀 2026-08-11] 30/900 · lineHeight 37. 색은 이 화면의 다크 마스트헤드 월드(#fff) */}
+              <Text style={[{ fontSize: 30, lineHeight: 37, fontWeight: '900', color: '#fff' }, df]}>알림</Text>
               {unreadCount > 0 && (
                 <Row style={{ alignItems: 'baseline', gap: 6 }}>
                   <Text style={{ fontSize: 14, color: 'rgba(255,255,255,0.72)', fontWeight: '600' }}>안 읽음</Text>

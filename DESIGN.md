@@ -144,6 +144,25 @@ exact values. New code MUST use them; when you touch a screen, convert it.
 All: radius 0, `paddingVertical` ≥15, `scale(0.96)` press, busy = label swap.
 No opacity tricks. Icon-only controls: 40×40 square, canvas, 1px coral.
 
+### Screen title (2026-08-11 — the gap that let them diverge)
+
+```
+<title 30/900 · lineHeight 37 (1.23×) · Black Han Sans (useDisplayFont)>
+```
+
+`3b` specified *section* headers and left **screen** titles unspecified, so each screen invented
+one. Measured 2026-08-11: **30 / 38 / 40**, five of the seven text-titled tab screens at 30, and
+several with no explicit `lineHeight` at all (BUG A applies to Black Han Sans too — `community.tsx`
+had already discovered this locally and fixed only itself).
+
+- **Size, weight and lineHeight are universal.** No screen is more important because someone typed
+  a bigger number — the same argument §3b already makes for section headers.
+- **Color follows the screen's world** (§2), not a single token: `paper.ink` in the paper world,
+  `lilac.head` in the lilac world, the masthead's own ink on a dark artifact header (`alerts`).
+  This is the one axis where a screen title may legitimately differ.
+- Screens whose identity is a *lockup* rather than a word (owner home's `BrandLockup`, runner
+  home's bib strap) have no text title and are outside this spec.
+
 ### Status chip (확정됨 · 확인 대기 · LIVE …)
 16/800, radius 0, tinted fill + no border, and it sits on the **same baseline row
 as the datum it qualifies** (a booking's status belongs beside its date, not

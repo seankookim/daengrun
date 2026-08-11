@@ -103,7 +103,8 @@ export default function Requests() {
       >
         <Row style={{ justifyContent: 'space-between' }}>
           <View>
-            <Text style={[{ fontSize: 30, fontWeight: '900', color: paper.ink }, df]}>요청</Text>
+            {/* [§3c 화면 타이틀 2026-08-11] 30/900 · lineHeight 37 (1.23× — BUG A) */}
+            <Text style={[{ fontSize: 30, lineHeight: 37, fontWeight: '900', color: paper.ink }, df]}>요청</Text>
             <Text style={{ fontSize: 14, color: paper.dim, marginTop: 3 }}>
               {/* count only after a real load — never "0건" in flight or on failure */}
               {!loaded

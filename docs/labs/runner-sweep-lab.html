@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Runner Sweep Lab — 진행 중 · 가용시간 · 수익 (2026-08-11)</title>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Oswald:wght@500;600;700&family=IBM+Plex+Sans+KR:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'IBM Plex Sans KR',sans-serif; background:#FFFFFF; color:#111; padding:34px 22px 90px; }
+  .wrap { max-width:1180px; margin:0 auto; }
+  h1 { font-family:'Black Han Sans'; font-size:34px; font-weight:400; letter-spacing:.5px; }
+  .sub { font-size:14px; color:#666; margin:6px 0 8px; line-height:1.6; }
+  .law { font-size:13px; letter-spacing:2.5px; color:#999; text-transform:uppercase; margin-bottom:26px; }
+  h2 { font-size:21px; font-weight:800; margin:46px 0 4px; padding-top:26px; border-top:1px solid #E8552F; }
+  .thesis { font-size:14px; color:#666; margin-bottom:6px; line-height:1.65; }
+  .quote { font-size:14px; color:#111; font-weight:700; margin:8px 0 2px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(310px,1fr)); gap:26px; margin-top:20px; }
+  .cell { border:1px solid #EEE; display:flex; flex-direction:column; }
+  h3 { font-size:16.5px; font-weight:800; margin:0 0 2px; padding:13px 14px 0; }
+  h3 b { color:#E8552F; margin-right:6px; }
+  .stage { padding:16px 14px 20px; background:#FFFFFF; flex:1; }
+  .stage.dark { background:#FBFAF7; }
+  .meta { padding:12px 14px 15px; border-top:1px solid #EEE; background:#FCFCFC; }
+  .note { font-size:13px; color:#666; line-height:1.65; }
+  .note + .note { margin-top:6px; }
+  .flag { display:inline-block; font-size:11.5px; font-weight:800; letter-spacing:1.4px; color:#B3261E; border:1px solid #B3261E; padding:2px 7px; margin-bottom:7px; }
+  .ok { color:#0E7F49; border-color:#0E7F49; }
+  .warn { color:#C77414; border-color:#C77414; }
+  .pick { color:#E8552F; border-color:#E8552F; }
+
+  /* ── 앱 프리미티브 (실토큰) ── */
+  .card { border:1px solid #EEE; padding:13px 14px; background:#fff; }
+  .sec { border-top:1px solid #E8552F; padding-top:12px; margin-bottom:9px; display:flex; align-items:baseline; }
+  .sec h4 { font-size:20px; line-height:26px; font-weight:800; color:#111; letter-spacing:-.2px; }
+  .sec a { margin-left:auto; font-size:16px; font-weight:800; color:#C6472C; text-decoration:none; }
+  .num { font-family:Oswald; font-weight:700; font-variant-numeric:tabular-nums; }
+  .dim { color:#666; } .faint { color:#999; }
+  .lbl { font-size:14px; line-height:18px; font-weight:700; color:#221E3D; }
+
+  /* Ⓐ 진행 중 */
+  .now { position:relative; border:1px solid #EEE; padding:11px 12px 12px 14px; background:#fff; }
+  .now::before { content:''; position:absolute; left:0; top:0; bottom:0; width:3px; background:#F0765A; }
+  .nowrow { display:flex; align-items:center; justify-content:space-between; }
+  .stg { font-size:16px; line-height:20px; font-weight:800; color:#C6472C; }
+  .when { font-size:14px; color:#666; }
+  .ttl { font-size:17px; font-weight:800; color:#111; margin-top:6px; }
+  .sb { font-size:14px; line-height:19px; color:#666; margin-top:3px; }
+  .golink { font-size:16px; font-weight:800; color:#111; margin-top:9px; display:block; }
+  .bar { display:block; width:100%; border:0; margin-top:11px; padding:15px 0; background:#C6472C; color:#fff;
+         font-family:inherit; font-size:17px; font-weight:800; text-align:center; cursor:pointer; }
+  .bar:active { background:#A83315; }
+  .nowInk { background:#111; border-color:#111; }
+  .nowInk .ttl, .nowInk .golink { color:#fff; }
+  .nowInk .when, .nowInk .sb { color:#BBB; }
+  .nowInk .stg { color:#F0765A; }
+  .dot { width:7px; height:7px; border-radius:50%; background:#F0765A; display:inline-block; margin-right:7px;
+         box-shadow:0 0 0 0 rgba(240,118,90,.6); animation:p 1.6s infinite; }
+  @keyframes p { 70% { box-shadow:0 0 0 9px rgba(240,118,90,0) } 100% { box-shadow:0 0 0 0 rgba(240,118,90,0) } }
+
+  /* Ⓑ 가용시간 */
+  .days { display:flex; gap:4px; }
+  .day { flex:1; border:1px solid #E6E2F4; padding:7px 0; text-align:center; background:#fff; }
+  .day.on { border-color:#6C5CE7; background:#F6F4FE; }
+  .dayD { font-size:13px; font-weight:800; color:#666; }
+  .day.on .dayD { color:#221E3D; }
+  .dayH { font-size:11.5px; font-weight:700; color:#999; margin-top:2px; }
+  .day.on .dayH { color:#6C5CE7; }
+  .sumrow { display:flex; align-items:center; justify-content:space-between; cursor:pointer; }
+  .chev { font-size:19px; color:#666; transition:transform .2s; }
+  .open .chev { transform:rotate(90deg); }
+  .body { display:none; margin-top:11px; padding-top:11px; border-top:1px solid #EEE; }
+  .open .body { display:block; }
+  .pill { display:inline-block; font-size:14px; font-weight:800; color:#6C5CE7; background:#F0EDFD; padding:3px 9px; }
+  .strip { display:flex; gap:3px; margin-top:8px; }
+  .sq { flex:1; height:26px; border:1px solid #E6E2F4; background:#fff; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; color:#BBB; }
+  .sq.on { background:#6C5CE7; border-color:#6C5CE7; color:#fff; }
+
+  /* Ⓒ 수익 */
+  .tk { background:#111; padding:15px 16px; }
+  .tkK { font-size:14px; line-height:18px; color:#BBB; }
+  .tkV { font-family:Oswald; font-weight:700; font-size:43.5px; line-height:54px; font-variant-numeric:tabular-nums; margin-top:6px; }
+  .stub { border:1px solid #EEE; padding:11px 13px; display:flex; align-items:center; margin-top:9px; }
+  .stubL { flex:1; } .stubR { width:96px; text-align:center; }
+  .stubW { font-size:14px; font-weight:700; color:#666; }
+  .stubB { font-size:16.5px; font-weight:800; color:#111; margin-top:2px; }
+  .net { font-family:Oswald; font-weight:700; font-size:16.5px; line-height:21px; font-variant-numeric:tabular-nums; }
+  .netL { font-size:14px; color:#666; margin-top:2px; }
+  .chip { display:inline-block; font-size:16px; line-height:20px; font-weight:800; padding:2px 8px; }
+  table.cmp { border-collapse:collapse; margin-top:12px; font-size:13px; width:100%; }
+  table.cmp th, table.cmp td { border:1px solid #EEE; padding:7px 9px; text-align:left; }
+  table.cmp th { background:#FAFAFA; font-weight:800; }
+  code { font-family:ui-monospace,Menlo,monospace; font-size:12.5px; background:#F5F5F5; padding:1px 5px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>러너 스윕 랩</h1>
+<p class="sub">Sean 지시 목록 §E 중 <b>방향 결정이 필요한 세 건</b>. 나머지 §E 항목(로고·중복 타이틀·캘린더 숫자·내 기록 이전·알림 아이콘)은
+기계적이라 이미 구현됐다 — 여긴 <b>고르는 것</b>만 있다.</p>
+<p class="law">번호로 고르세요 · Ⓐ진행중 · Ⓑ가용시간 · Ⓒ수익 · 2026-08-11</p>
+
+<!-- ══════════════════ Ⓐ ══════════════════ -->
+<h2>Ⓐ 진행 중 위젯 — “너무 무심하다”</h2>
+<p class="quote">“Runner side make the current run info widget more action inviting (too nonchalant rn)”</p>
+<p class="thesis">
+  제약이 하나 있습니다. 오늘 아침 이 카드의 <b>코랄 면을 잉크 링크로 강등</b>했는데, 이유는 그 면이 버튼이 아니라
+  <code>&lt;View&gt;</code>였기 때문입니다 — 누를 수 없는 자리에 “누르세요”라고 칠해져 있었습니다. 그러니 다시 화려하게
+  칠하는 것은 답이 아니고, <b>진짜 타깃을 진짜로 눈에 띄게</b> 만드는 것이 답입니다.
+  마침 같은 날 액션 시스템이 <code>paper.action #C6472C</code>를 정했습니다 (Sean: “검정은 제일 지루하다”) — 셋 다 이 토큰을 씁니다.
+</p>
+
+<div class="grid">
+  <div class="cell">
+    <h3><b>Ⓐ①</b> 액션 바 — 카드 안의 진짜 버튼</h3>
+    <div class="stage">
+      <div class="sec"><h4>진행 중</h4></div>
+      <div class="now">
+        <div class="nowrow"><span><span class="dot"></span><span class="stg">픽업 대기</span></span><span class="when">오늘 14:30</span></div>
+        <div class="ttl">초코 · 5km 러닝</div>
+        <div class="sb">예상 수익 <b style="color:#333">+16,683원</b></div>
+        <div class="sb">반포 자이 · 서초구 신반포로</div>
+        <button class="bar">인계하러 가기</button>
+      </div>
+    </div>
+    <div class="meta">
+      <span class="flag pick">추천</span>
+      <p class="note">카드 전체는 지금처럼 눌리고, <b>바가 같은 Pressable 안</b>에 있습니다 — 코랄 면이 다시 오지만 이번엔
+        진짜 타깃 위입니다. 라벨은 <code>STAGE[rawStatus].action</code> 실값.</p>
+      <p class="note">§7b 강조 예산: 러닝이 진행 중일 때 화면의 유일한 강조가 이 카드로 옮겨갑니다 —
+        장부 히어로의 잉크 1.5px 보더를 그동안 1px로 낮춰야 두 개가 싸우지 않습니다. <b>같이 가야 하는 변경</b>.</p>
+    </div>
+  </div>
+
+  <div class="cell">
+    <h3><b>Ⓐ②</b> 다크 아티팩트 — 진행 중 = 나이트 페이스</h3>
+    <div class="stage">
+      <div class="sec"><h4>진행 중</h4></div>
+      <div class="now nowInk">
+        <div class="nowrow"><span><span class="dot"></span><span class="stg">픽업 대기</span></span><span class="when">오늘 14:30</span></div>
+        <div class="ttl">초코 · 5km 러닝</div>
+        <div class="sb">예상 수익 <b style="color:#fff">+16,683원</b></div>
+        <div class="sb">반포 자이 · 서초구 신반포로</div>
+        <button class="bar">인계하러 가기</button>
+      </div>
+    </div>
+    <div class="meta">
+      <span class="flag warn">법 충돌 검토됨</span>
+      <p class="note">가장 강하게 읽힙니다. 다만 §1 “<b>다크는 아티팩트, 라이트는 화면</b>” — 다크 면은 의식 오브젝트
+        (여권 기록면·인계 봉인·클럽 나이트)에만 허용됩니다.</p>
+      <p class="note">변호 가능한 논리는 있습니다: 진행 중인 러닝은 <b>인계 봉인의 앞 단계</b>이니 같은 세계라고 볼 수 있습니다.
+        하지만 그건 새 관할을 여는 일이고, 스타일 프리즈에 가장 가까이 붙는 안입니다.</p>
+    </div>
+  </div>
+
+  <div class="cell">
+    <h3><b>Ⓐ③</b> 현행 + 압력만 — 링크를 문장으로</h3>
+    <div class="stage">
+      <div class="sec"><h4>진행 중</h4></div>
+      <div class="now">
+        <div class="nowrow"><span><span class="dot"></span><span class="stg">픽업 대기</span></span><span class="when">오늘 14:30</span></div>
+        <div class="ttl">초코 · 5km 러닝</div>
+        <div class="sb">예상 수익 <b style="color:#333">+16,683원</b></div>
+        <div class="sb">반포 자이 · 서초구 신반포로</div>
+        <span class="golink" style="color:#C6472C">지금 인계하러 가기 ›</span>
+      </div>
+    </div>
+    <div class="meta">
+      <span class="flag ok">가장 안전</span>
+      <p class="note">잉크 링크 → 액션 잉크, 문구에 시간성(“지금”)을 넣는 것만. 강조 예산도 프리즈도 건드리지 않습니다.</p>
+      <p class="note">솔직한 평가: Sean이 “무심하다”고 한 것을 <b>고치지는 못할 가능성이 높습니다.</b> 링크는 링크로 읽힙니다.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════ Ⓑ ══════════════════ -->
+<h2>Ⓑ 러닝 가능 시간 — 접기</h2>
+<p class="quote">“Runner side, collapse the available time widget like u did in one of the earlier mockups”</p>
+<p class="thesis">
+  ⚠ <b>가용성의 3개 술어는 의도적으로 서로 다르고 DO-NOT-REFACTOR입니다</b> (DESIGN.md §9). 여기서 바꾸는 건
+  <b>표시</b>뿐 — <code>avail</code> 데이터도 <code>toggleDay</code> 핸들러도 그대로입니다. 접힌 상태가 무엇을 말하느냐가 전부입니다.
+</p>
+
+<div class="grid">
+  <div class="cell">
+    <h3><b>Ⓑ①</b> 요약 행 — 접히면 “며칠·시간대”</h3>
+    <div class="stage">
+      <div class="sec"><h4>러닝 가능 시간</h4><a href="#">시간 조정 ›</a></div>
+      <div class="card" id="b1">
+        <div class="sumrow" onclick="document.getElementById('b1').classList.toggle('open')">
+          <div><span class="lbl">주 5일 가능</span> <span class="pill">06–22시</span></div>
+          <span class="chev">›</span>
+        </div>
+        <div class="body">
+          <div class="days">
+            <div class="day on"><div class="dayD">월</div><div class="dayH">06–22</div></div>
+            <div class="day on"><div class="dayD">화</div><div class="dayH">06–22</div></div>
+            <div class="day on"><div class="dayD">수</div><div class="dayH">06–22</div></div>
+            <div class="day on"><div class="dayD">목</div><div class="dayH">06–22</div></div>
+            <div class="day on"><div class="dayD">금</div><div class="dayH">06–22</div></div>
+            <div class="day"><div class="dayD">토</div><div class="dayH">쉼</div></div>
+            <div class="day"><div class="dayD">일</div><div class="dayH">쉼</div></div>
+          </div>
+          <p class="note" style="margin-top:9px">기본 06–22시 · 보호자 예약 화면에 즉시 반영</p>
+        </div>
+      </div>
+    </div>
+    <div class="meta">
+      <span class="flag pick">추천</span>
+      <p class="note">접힌 한 줄이 <b>실제 상태를 말합니다</b> — “주 5일 · 06–22시”. 접힘이 숨김이 되지 않는 유일한 안입니다
+        (§7b: 디클러터링은 은닉이 아니다).</p>
+      <p class="note">시간대가 요일마다 다르면 <code>06–22시</code> 대신 <code>요일별 상이</code>. 없는 균일성을 주장하지 않습니다.</p>
+    </div>
+  </div>
+
+  <div class="cell">
+    <h3><b>Ⓑ②</b> 7칸 스트립 — 접힌 채로 요일까지</h3>
+    <div class="stage">
+      <div class="sec"><h4>러닝 가능 시간</h4><a href="#">시간 조정 ›</a></div>
+      <div class="card" id="b2">
+        <div class="sumrow" onclick="document.getElementById('b2').classList.toggle('open')">
+          <div style="flex:1">
+            <span class="lbl">이번 주 5일</span>
+            <div class="strip">
+              <div class="sq on">월</div><div class="sq on">화</div><div class="sq on">수</div>
+              <div class="sq on">목</div><div class="sq on">금</div><div class="sq">토</div><div class="sq">일</div>
+            </div>
+          </div>
+          <span class="chev" style="margin-left:12px">›</span>
+        </div>
+        <div class="body">
+          <div class="days">
+            <div class="day on"><div class="dayD">월</div><div class="dayH">06–22</div></div>
+            <div class="day on"><div class="dayD">화</div><div class="dayH">06–22</div></div>
+            <div class="day on"><div class="dayD">수</div><div class="dayH">06–22</div></div>
+            <div class="day on"><div class="dayD">목</div><div class="dayH">06–22</div></div>
+            <div class="day on"><div class="dayD">금</div><div class="dayH">06–22</div></div>
+            <div class="day"><div class="dayD">토</div><div class="dayH">쉼</div></div>
+            <div class="day"><div class="dayD">일</div><div class="dayH">쉼</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="meta">
+      <p class="note">접힌 상태가 정보량이 가장 많습니다 — 어느 요일인지까지 보입니다.</p>
+      <p class="note"><span class="flag warn">타입 플로어</span> 12pt 요일 글자는 <b>14pt 플로어 위반</b>입니다.
+        한글은 키커 예외를 못 탑니다 (§3 · 2026-08-10 감사법). 채택하려면 칸을 키워야 하고, 그러면 접기의 이득이 줄어듭니다.</p>
+    </div>
+  </div>
+
+  <div class="cell">
+    <h3><b>Ⓑ③</b> 완전 접기 — 섹션 헤더가 값을 든다</h3>
+    <div class="stage">
+      <div class="sec" style="cursor:pointer" onclick="document.getElementById('b3').classList.toggle('open')">
+        <h4>러닝 가능 시간</h4>
+        <a href="#" style="pointer-events:none">주 5일 · 06–22시 ›</a>
+      </div>
+      <div class="card" id="b3" style="border:0;padding:0">
+        <div class="body" style="margin:0;padding:11px 0 0;border:0">
+          <div class="days">
+            <div class="day on"><div class="dayD">월</div><div class="dayH">06–22</div></div>
+            <div class="day on"><div class="dayD">화</div><div class="dayH">06–22</div></div>
+            <div class="day on"><div class="dayD">수</div><div class="dayH">06–22</div></div>
+            <div class="day on"><div class="dayD">목</div><div class="dayH">06–22</div></div>
+            <div class="day on"><div class="dayD">금</div><div class="dayH">06–22</div></div>
+            <div class="day"><div class="dayD">토</div><div class="dayH">쉼</div></div>
+            <div class="day"><div class="dayD">일</div><div class="dayH">쉼</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="meta">
+      <p class="note">카드 자체가 사라지고 섹션 헤더의 우측 링크 슬롯이 값을 듭니다. 가장 조용하고 세로 공간을 가장 많이 벌어줍니다.</p>
+      <p class="note"><span class="flag">문법 충돌</span> §3b 섹션 헤더의 우측 슬롯은 <b>링크</b> 자리입니다 —
+        거기에 데이터를 넣으면 앱 전체에서 하나뿐인 섹션 문법이 갈라집니다. ‘시간 조정 ›’ 문도 잃습니다.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════ Ⓒ ══════════════════ -->
+<h2>Ⓒ 수익 탭 — 초록 제거</h2>
+<p class="quote">“Profit tab revamp / no green”</p>
+<p class="thesis">
+  지금 수익 화면에는 <b>초록이 세 개</b> 있고 서로 다른 출처입니다:
+  <code>MONEY_GREEN #3D6B1F</code>(이 파일만의 지역 상수 — LIVE 칩 + 실수령),
+  <code>colors.volt #C6F542</code>(정산 티켓의 43.5pt 합계),
+  그리고 캘린더 출발 보드의 같은 볼트.
+  <b>지역 상수 하나가 시스템을 둘로 만든 전형</b>이라, 색을 고르기 전에 이것부터 접어야 합니다.
+</p>
+<table class="cmp">
+  <tr><th>초록</th><th>어디</th><th>DESIGN.md 관할</th><th>제거 후</th></tr>
+  <tr><td><code>#3D6B1F</code></td><td>earnings LIVE 칩 · 건별 실수령</td><td><b>없음</b> — 파일 지역 상수</td><td>토큰으로 흡수</td></tr>
+  <tr><td><code>colors.volt</code></td><td>정산 티켓 합계 · 캘린더 플랩</td><td>§5 볼트 = <b>개인</b> (예약·러닝·인증샷)</td><td>돈에서 회수, 개인 표식으로 복귀</td></tr>
+  <tr><td><code>#12A05C / #0E7F49</code></td><td>GO 준비됨</td><td>§3b <b>상태 전용</b></td><td>손대지 않음 — 돈이 초록을 비우면 이쪽이 더 선명해짐</td></tr>
+</table>
+
+<div class="grid">
+  <div class="cell">
+    <h3><b>Ⓒ①</b> 돈은 잉크 — 부호만 색을 갖는다</h3>
+    <div class="stage dark">
+      <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:12px">
+        <span style="font-family:'Black Han Sans';font-size:30px">수익</span>
+        <span class="chip" style="background:#F3F3F3;color:#111">● LIVE</span>
+      </div>
+      <div class="tk">
+        <div class="tkK">정산 예정 (원장 합계)</div>
+        <div class="tkV" style="color:#fff">248,000원</div>
+      </div>
+      <div class="stub">
+        <div class="stubL"><div class="stubW">8월 9일 (토)</div><div class="stubB">초코 · 5km</div></div>
+        <div class="stubR"><div class="net" style="color:#111">+16,683</div><div class="netL">실수령</div></div>
+      </div>
+      <div class="stub">
+        <div class="stubL"><div class="stubW">8월 7일 (목)</div><div class="stubB">보리 · 3km</div></div>
+        <div class="stubR"><div class="net" style="color:#111">+11,323</div><div class="netL">실수령</div></div>
+      </div>
+    </div>
+    <div class="meta">
+      <span class="flag pick">추천</span>
+      <p class="note">“Athletic editorial × <b>honest paper</b>”의 직역입니다. 영수증의 금액은 잉크로 인쇄됩니다 —
+        은행 명세서도 초록으로 인쇄하지 않습니다. 다크 티켓 위에서는 흰 잉크(같은 결정의 반전).</p>
+      <p class="note">색은 <b>부호</b>에만 남습니다: 수수료 <span style="color:#C6472C;font-weight:800">−5,510</span>은 코랄,
+        입금은 잉크. 초록 3개 → 0개, 신규 색 0개.</p>
+      <p class="note">부수 효과: §5의 볼트가 ‘개인’ 관할로 온전히 돌아가고, GO 준비 그린이 앱에서 유일한 초록이 됩니다.</p>
+    </div>
+  </div>
+
+  <div class="cell">
+    <h3><b>Ⓒ②</b> 돈은 코랄 — 액션 토큰으로 통일</h3>
+    <div class="stage dark">
+      <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:12px">
+        <span style="font-family:'Black Han Sans';font-size:30px">수익</span>
+        <span class="chip" style="background:#FFF6F4;color:#C6472C">● LIVE</span>
+      </div>
+      <div class="tk">
+        <div class="tkK">정산 예정 (원장 합계)</div>
+        <div class="tkV" style="color:#F0765A">248,000원</div>
+      </div>
+      <div class="stub">
+        <div class="stubL"><div class="stubW">8월 9일 (토)</div><div class="stubB">초코 · 5km</div></div>
+        <div class="stubR"><div class="net" style="color:#C6472C">+16,683</div><div class="netL">실수령</div></div>
+      </div>
+      <div class="stub">
+        <div class="stubL"><div class="stubW">8월 7일 (목)</div><div class="stubB">보리 · 3km</div></div>
+        <div class="stubR"><div class="net" style="color:#C6472C">+11,323</div><div class="netL">실수령</div></div>
+      </div>
+    </div>
+    <div class="meta">
+      <span class="flag warn">부호 붕괴</span>
+      <p class="note">가장 브랜드답고 가장 따뜻합니다. 다크 티켓 위 <code>#F0765A</code>는 6.63:1로 통과.</p>
+      <p class="note">문제: <b>수수료 차감도 코랄</b>이라 같은 화면에서 코랄이 “받는 돈”과 “떼는 돈”을 동시에 뜻합니다.
+        부호를 색으로 못 읽게 됩니다. 그리고 §2 강조 예산(코랄 라인 + CTA 1개)을 목록 전체가 먹습니다.</p>
+    </div>
+  </div>
+
+  <div class="cell">
+    <h3><b>Ⓒ③</b> 초록 유지, 하나로 통일</h3>
+    <div class="stage dark">
+      <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:12px">
+        <span style="font-family:'Black Han Sans';font-size:30px">수익</span>
+        <span class="chip" style="background:#EAF4EE;color:#0E7F49">● LIVE</span>
+      </div>
+      <div class="tk">
+        <div class="tkK">정산 예정 (원장 합계)</div>
+        <div class="tkV" style="color:#12A05C">248,000원</div>
+      </div>
+      <div class="stub">
+        <div class="stubL"><div class="stubW">8월 9일 (토)</div><div class="stubB">초코 · 5km</div></div>
+        <div class="stubR"><div class="net" style="color:#0E7F49">+16,683</div><div class="netL">실수령</div></div>
+      </div>
+      <div class="stub">
+        <div class="stubL"><div class="stubW">8월 7일 (목)</div><div class="stubB">보리 · 3km</div></div>
+        <div class="stubR"><div class="net" style="color:#0E7F49">+11,323</div><div class="netL">실수령</div></div>
+      </div>
+    </div>
+    <div class="meta">
+      <span class="flag">지시 위반</span>
+      <p class="note">참고용으로만 둡니다 — Sean은 “no green”이라고 했습니다. 세 초록을 GO 그린 하나로 접는 안입니다.</p>
+      <p class="note">그리고 이건 <b>실제로 더 나빠집니다</b>: GO 그린은 §3b가 <b>상태 전용</b>으로 못박은 색입니다.
+        돈에 쓰면 “준비됨”이라는 유일한 신호가 화면마다 다른 뜻이 됩니다. 통일이 아니라 오염입니다.</p>
+    </div>
+  </div>
+</div>
+
+<h2 style="border-color:#111">고르고 나면</h2>
+<p class="thesis">
+  Ⓐ 채택 시: 장부 히어로 보더 1.5px → 1px 동반 변경 (강조 예산).
+  Ⓒ 채택 시: <code>MONEY_GREEN</code> 지역 상수 삭제 + 캘린더 출발 보드 플랩까지 같은 결정 적용 —
+  한 화면만 바꾸면 러너는 탭을 옮길 때마다 돈 색이 바뀌는 걸 봅니다.
+  Ⓑ는 독립이라 언제든 단독으로 들어갈 수 있습니다.
+</p>
+
+</div>
+</body>
+</html>

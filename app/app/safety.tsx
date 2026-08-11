@@ -198,7 +198,8 @@ function InfoRow({ icon, glyph, title, desc }: { icon?: string; glyph: string; t
 }
 
 const s = StyleSheet.create({
-  h1: { fontSize: 30, fontWeight: '900', color: FOREST },
+  // [§3c 화면 타이틀 2026-08-11] lineHeight 37 = 1.23× 명시 (BUG A). 크기는 이미 규격값이었다.
+  h1: { fontSize: 30, fontWeight: '900', color: FOREST, lineHeight: 37 },
   sub: { fontSize: 14, color: colors.dim, marginTop: 4 },
   bell: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DCD6C4' },
   shieldChip: { width: 24, height: 24, borderRadius: 12, backgroundColor: colors.volt, alignItems: 'center', justifyContent: 'center', alignSelf: 'center' },

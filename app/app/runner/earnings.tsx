@@ -24,12 +24,9 @@ import { colors, layout, paper } from '../../src/theme';
 
 const MONEY_GREEN = '#3D6B1F'; // reading green for money-positive text on paper (volt stays display-only)
 
-function nextWednesday(): string {
-  const d = new Date();
-  const add = (3 - d.getDay() + 7) % 7 || 7;
-  const w = new Date(d.getTime() + add * 86400_000);
-  return `${w.getMonth() + 1}월 ${w.getDate()}일 (수)`;
-}
+// [2026-08-11] nextWednesday() 삭제 — 오늘 아침 '다음 정산일 <수요일>'을 지웠을 때(존재하지 않는
+// 지급 운영의 날짜였다) 계산 함수만 남아 호출부 0으로 떠 있었다. 죽은 코드이자, 되살리기 쉬운
+// 형태로 남은 거짓 약속이다.
 
 export default function Earnings() {
   const df = useDisplayFont(); // display font — screen title (1/screen budget)
@@ -67,7 +64,8 @@ export default function Earnings() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         <Row style={{ gap: 8 }}>
-          <Text style={[{ fontSize: 30, fontWeight: '900', color: paper.ink }, df]}>수익</Text>
+          {/* [§3c 화면 타이틀 2026-08-11] 30/900 · lineHeight 37 (1.23× — BUG A) */}
+          <Text style={[{ fontSize: 30, lineHeight: 37, fontWeight: '900', color: paper.ink }, df]}>수익</Text>
           {/* live-ledger chip — §3b: 16/800, tinted fill, no border, beside its datum */}
           <View style={s.liveChip}>
             <Text style={{ fontSize: 16, lineHeight: 20, fontWeight: '800', color: MONEY_GREEN }}>● LIVE</Text>

@@ -581,7 +581,10 @@ const s = StyleSheet.create({
   monoTxt: { fontSize: 12, fontWeight: '600', color: lilac.head, letterSpacing: 0.5 },
   kickerLabel: { fontSize: 12, fontWeight: '600', letterSpacing: 2, color: lilac.dim, textTransform: 'uppercase' },
   kickerRule: { flex: 1, height: 1, backgroundColor: '#EEEEEE' }, // [페이퍼 크롬] 인라인 룰은 뉴트럴
-  h1: { fontSize: 38, fontWeight: '900', color: lilac.head, letterSpacing: -0.4, lineHeight: 46 }, // [BUG A] lineHeight ≥1.2× — 상단 클리핑 방지 (크기 불변)
+  // [§3c 화면 타이틀 2026-08-11] 38 → 30. 탭 화면 타이틀이 30/38/40 세 값으로 갈라져 있었고
+  // (Sean: "tab in screen titles font size difference"), 30이 7개 탭 중 5개가 이미 쓰던 값이다.
+  // 크기·굵기·행간은 앱 공통, 색은 화면의 월드를 따른다 (§2). lineHeight 37 = 1.23× (BUG A).
+  h1: { fontSize: 30, fontWeight: '900', color: lilac.head, letterSpacing: -0.4, lineHeight: 37 },
   lede: { fontSize: 14, color: lilac.text, marginTop: 8, lineHeight: 20, maxWidth: 265 },
   liveBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderColor: '#F6C3B4', borderRadius: 0, backgroundColor: lilac.card, paddingVertical: 4, paddingHorizontal: 8, alignSelf: 'center' }, // [페이퍼 크롬] 샤프 (코랄 틴트 보더 = LIVE 신호 생존)
   liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: lilac.coral },

@@ -233,7 +233,9 @@ const s = StyleSheet.create({
   kicker: { alignItems: 'center', gap: 8, marginTop: 4, marginBottom: 8 },
   kickerTxt: { fontSize: 12, letterSpacing: 2, color: lilac.dim, textTransform: 'uppercase' },
   rule: { flex: 1, height: 1, backgroundColor: lilac.hair },
-  h1: { fontSize: 40, fontWeight: '900', color: lilac.head, lineHeight: 48 },
+  // [§3c 화면 타이틀 2026-08-11] 40 → 30. 탭은 아니지만 마이에서 한 탭 거리라, 여기만 40으로
+  // 남기면 통일 직후에 같은 불일치가 다시 보인다. 색은 이 화면의 월드(라일락) 유지.
+  h1: { fontSize: 30, fontWeight: '900', color: lilac.head, lineHeight: 37 },
   official: {
     marginTop: 6, borderWidth: 1, borderColor: lilac.head, borderRadius: 2,
     paddingVertical: 5, paddingHorizontal: 8, backgroundColor: lilac.card,

@@ -177,28 +177,91 @@ blocked.
 - **"Subscription screen, free 5 km on us, onboarding + easily accessible refill button"**
 - **"Think about: Make km token system creative and prevalent, make unique token icon"**
 
-→ This is a **pricing-model change, not a feature**, and it should be thought through before any
-screen is drawn. Three things I'd want settled first: (1) does a km balance expire? (2) what happens
-when a run overruns the balance mid-run — the dog is already out, so it cannot hard-stop; (3) refunds
-against a balance instead of a card change what `marketplace_cancel_fee` (0066) and 0072's settlement
-quote are denominated in. **It also reshapes the Toss integration** (`docs/plans/payments-toss-plan.md`):
-prepay means fewer, larger charges instead of per-run ones, which is a simpler PG story, not a harder
-one. Worth telling Sean that before he files. The "free 5km on us" grant is the cheapest honest
-acquisition lever we have and needs a real ledger, not a client constant.
-→ Sequencing: **model decision → ledger table + pins → screens.** Do not start with the screen.
+→ **MODEL DECIDED 2026-08-11 (Sean). Written up in full: `docs/plans/km-token-model.md`.**
+All three open questions were settled before anything was drawn:
+1. **Expiry** — paid km never expires; granted km (welcome 5km / bundle bonus) does, 30d / 90d.
+   Two buckets, always rendered separately. Spend order: granted first, then oldest paid.
+2. **Mid-run overrun** — reserve `planned + 2km` at BOOKING (held, not spent); never interrupt the
+   run and never ping the owner mid-run; settle `min(actual, planned + 2)` floored at 3km; the
+   platform absorbs anything past the reserve. A run may still go out on a short balance, which is
+   what makes the free 5km grant buy a real 5km run.
+3. **Refunds** — service-side refunds return km to the bucket it came from; cash only on deliberate
+   close-out, paid km only, at face price. ⚠ **Every debit records its own `won_value`**, because
+   0066's 50% en-route fee is runner compensation paid in ₩ — that is the one place the two
+   currencies meet, and it is nearly free now / expensive to retrofit.
+
+→ Price: **₩5,000/km, 3km minimum per run, base fare retired.** Revenue-neutral at the modal 5km
+Banpo run (24,900 → 25,000); cheaper on short runs, more expensive on long ones — stated openly in
+the doc, revisit with real mix data. Bundle discounts land as **bonus km**, never a discounted ₩/km,
+so a cash refund stays `5,000 × unused paid km`.
+→ **It also reshapes the Toss integration** (`docs/plans/payments-toss-plan.md`): prepay means fewer,
+larger charges instead of per-run ones — a simpler PG story. But a prepaid balance is **deferred
+revenue, a liability**, and selling km is selling stored value, so the **paid** side cannot launch
+before 사업자등록 + 통신판매업. The **granted** side (welcome 5km) involves no money changing hands
+and ships now — the cheapest honest acquisition lever we have.
+→ ⚠ **This is the app's SECOND currency.** `miles_ledger` (댕마일) already exists. The "unique token
+icon" is not decoration — its job is to make km ≠ 마일 legible at 16px in one look. The two balances
+never share a row, card, or summary strip. Doc §5.
+→ Sequencing, not negotiable: **model (done) → ledger table + pins → screens.** Do not start with
+the screen; a subscription screen bound to a client constant is fabricated data.
 
 ### B. Navigation & information architecture
 
-- **"Reorganize tab to home being center"** → `src/components/bottomnav.tsx:18-30`. Owner order is
-  홈·내 일정·커뮤니티·샵·마이; runner 홈·캘린더·요청·수익·마이. Centring 홈 means a 5-tab reorder on
-  both roles; check `bottomnav`'s active-indicator math and every `router.push` that assumes order.
-- **"Make screens slidable between different tabs so screens can be navigated not just through the
-  tab bar at the bottom"** → needs a pager (react-native-pager-view or Reanimated) wrapping the tab
-  stack. ⚠ Interacts with the **frozen** collapsing heroes on owner-home/fitness (DESIGN.md §9) —
-  horizontal pan vs the vertical scroll/collapse gesture is the risk. Prototype the gesture conflict
-  before committing.
-- **"Tab in screen titles font size difference"** → screen titles are inconsistent across tabs;
-  §3b says one section-header grammar. Audit and normalise.
+- [x] ~~**"Reorganize tab to home being center"**~~ **DONE 2026-08-11.** `bottomnav.tsx`: 홈 moved to
+  index 2 on both roles, every other tab's relative order preserved. Owner 내 일정·커뮤니티·**홈**·샵·마이,
+  runner 캘린더·요청·**홈**·수익·마이. Verified safe before editing: the active indicator is drawn
+  `absolute` inside each tab's own `flex:1` box (no index arithmetic) and every transition is a path
+  string via `router.replace(t.path)` — grep found **zero** call sites that depend on tab order.
+
+- [ ] 🔴 **"Make screens slidable between different tabs"** — **SCOPED, NOT BUILT. It is not a
+  mechanical change, and the last session's one-line estimate ("needs a pager") was wrong by an
+  order of magnitude.** Four blockers, all measured 2026-08-11:
+
+  1. **No gesture stack exists.** `package.json` has **no** `react-native-gesture-handler`, **no**
+     `react-native-reanimated`, **no** `react-native-pager-view`. The whole app runs on RN's
+     built-in `Animated` + `PanResponder`. Any pager library ⇒ `expo prebuild` + **native rebuild**
+     (and therefore the UTF-8 locale trap, handoff §⑧).
+  2. **There is no tab container to wrap.** Every tab screen renders its own `<BottomNav />` and
+     navigation is `router.replace()` on a flat `Stack` (`app/_layout.tsx`). A pager needs a parent
+     that mounts adjacent tabs simultaneously — so this is a **router architecture migration**
+     across ~9 screens, not a wrapper.
+  3. **Four horizontal-gesture collision sites already live on tab screens**: `owner/home.tsx:1395`
+     and `:1463` (two horizontal `ScrollView` strips), `owner/schedule.tsx:156`, `shop.tsx:150` —
+     plus the **frozen** collapsing heroes (DESIGN.md §9).
+  4. 🔴 **This exact conflict already bit this app once and the resolution was to delete the
+     gesture.** `app/_layout.tsx:22` sets `gestureEnabled: false` with the comment *"back-swipe
+     conflicted with the slider"*. And `SealSlide` (`club-ui.tsx:288-296`) — the 인계 seal, a Peak
+     moment — claims horizontally on **capture** and **refuses termination**
+     (`onPanResponderTerminationRequest: () => false`). It is built to beat any outer gesture, on
+     purpose. A screen-level horizontal pager cannot coexist with it by negotiation.
+
+  **Recommendation, Sean's call.** (a) Full pager as its own slice with a native rebuild — right
+  long-term answer, ~multi-day, touches a frozen zone. (b) **Edge-swipe only**: a ~20pt left/right
+  edge gesture that steps one tab, built with plain `PanResponder` — **zero new deps, zero native
+  rebuild**, and it dodges every collision in ③ because none of those scrollers live at the screen
+  edge. The edge is genuinely free real estate precisely because ④ already vacated it. Less
+  discoverable than a real pager, and it spends the iOS back-swipe affordance. (c) Defer until
+  after the pilot. My pick is **(b) now, (a) after payments** — it delivers the ask at a fraction
+  of the risk and is reversible in one commit.
+- [x] ~~**"Tab in screen titles font size difference"**~~ **DONE 2026-08-11 — Sean was right and the
+  audit found the root cause.** Measured: **three sizes, 30 / 38 / 40**, and several titles with no
+  explicit `lineHeight` at all. The cause is that §3b specified *section* headers and left **screen**
+  titles unspecified, so every screen invented one (`community.tsx` had even found the BUG A
+  clipping locally and fixed only itself). 30 was already the value on 5 of the 7 text-titled tab
+  screens, so that is the norm: community 38→30, my 40→30, cards 40→30, and explicit
+  `lineHeight: 37` (1.23×) added to schedule · requests · calendar · earnings · shop · safety ·
+  alerts. **The spec is now written into DESIGN.md §3b "Screen title"** so it cannot diverge again —
+  size/weight/lineHeight universal, **color follows the screen's world** (§2), lockup screens
+  (owner home brandmark, runner home bib) exempt.
+
+- [ ] **`FOREST = '#0F1D13'` is copy-pasted as a local const in 12 files** — found while auditing
+  titles (shop, safety, leaderboard, settings, chat, course/[id], owner/review, owner/radar,
+  owner/report, owner/reschedule, runner-profile/[id], shot/[bid]). It is the **retired**
+  swamp/forest palette (CLAUDE.md §Design system, DESIGN.md §2) surviving as a private constant in
+  a third of the screens. Visually it is imperceptible from `paper.ink #111111`, which is exactly
+  why nobody noticed — but it means a retired palette still has 12 owners. Fold to `paper.ink` (or
+  one token) mechanically; zero visual delta. **Deliberately NOT bundled into the title work** — it
+  is a 12-file churn and Sean asked about title sizes. Effort S → S. P2.
 
 ### C. Community / feed — the Instagram direction
 
@@ -230,28 +293,89 @@ share-sheet path `shot/[bid]` already uses.
 
 ### E. Runner side
 
-- **"Runner home add logo at top like owner"** → ⚠ **conflicts with a decision I shipped today.**
-  The 다 glyph + RUNNER kicker were REMOVED from runner home this session on the rule
-  보호자=패스포트 / 러너=빕 (identity printed once per screen; the bib strap carries it). Sean may
-  be overruling that, or may not have seen it. **Ask before re-adding** — and if re-added, the bib
-  strap probably loses its name to avoid printing identity twice.
-- **"Runner side make the current run info widget more action inviting (too nonchalant rn)"** →
-  `runner/home.tsx` 진행 중 card. Note its coral face was demoted to an ink link today precisely
-  because it was a fake button (a `<View>`, not a target). Making it inviting must keep the tap
-  target honest — make the whole card visibly pressable rather than repainting a non-target.
-- **"Runner side there is a duplicate high club title"** → `runner/home.tsx:626` `SectionHead
-  title="하이클럽"` and `runner/requests.tsx:119` 하이클럽 호스트 수요 스트립. Verify on screen which
-  pair he means.
-- **"Runner side, collapse the available time widget like u did in one of the earlier mockups"** →
-  `runner/availability.tsx`. ⚠ availability's 3 predicates are deliberately distinct (DO-NOT-REFACTOR).
-- **"Runner Make profit number larger in calendar tab"** → `runner/calendar.tsx:66` `expected`.
-- **"Profit tab revamp / no green"** → `runner/earnings.tsx:25` `MONEY_GREEN #3D6B1F` + `colors.volt`
-  numerals at `:82`,`:157`. Removing green from money is a **token-level** change; check it does not
-  collide with the GO sage/ready green law (DESIGN.md §5).
-- **"Runner page, stuff like my records should be in home, not my page, and why am I seeing this?
-  Thus what?"** → `my.tsx:179` 내 러닝 기록 row → `/cards`. The second half reads as: the row does
-  not say why it matters or what to do next. Move to runner home AND give it a reason to exist.
-- **"Runner notification icon update (also do full design sweep)"** → the bell at `runner/home.tsx`.
+- [x] ~~**"Runner home add logo at top like owner"**~~ **RESOLVED 2026-08-11 — Sean adjudicated the
+  conflict: mark only, bib keeps the name.** `<BrandMark height={24} />` now sits left of the bell.
+  The rule survives intact rather than being overruled, and the reasoning is worth keeping: the
+  removed 다 glyph + RUNNER kicker said *"you are a runner"*, which the bib already says — a correct
+  deletion. A brandmark says *"도그스하이"*, a **different claim**, so it is not a second printing of
+  the same identity. Hence the **mark without the wordmark** (the owner's full `BrandLockup` stays
+  the owner's): brand identity once in chrome, runner identity once on the bib.
+- [ ] **"Runner side make the current run info widget more action inviting (too nonchalant rn)"** →
+  **LAB: `docs/labs/runner-sweep-lab.html` Ⓐ①②③ — Sean picks by number.** Not implemented, because
+  the fix is a direction, not a value. Constraint carried in: the coral face was demoted to an ink
+  link on 2026-08-11 because it was a `<View>`, not a target — so repainting is not the answer,
+  making the real target visible is. Ⓐ① (an action bar **inside** the same Pressable, on
+  `paper.action`) is my pick. ⚠ If Ⓐ① or Ⓐ②, the ledger hero's ink 1.5px border must drop to 1px in
+  the same commit — §7b allows exactly one isolated emphasis per screen and the two would fight.
+- [x] ~~**"Runner side there is a duplicate high club title"**~~ **FIXED 2026-08-11 — and it was
+  neither of the two candidates the last session guessed.** It is not `requests.tsx`. `ClubModule`
+  (`clubcard.tsx:401-419`) already draws its own §3b section header — coral 1px rule + 하이클럽
+  20/800 ink — and `runner/home.tsx:626` drew `<SectionHead title="하이클럽" />` directly above it,
+  **identical in text, size, weight and color, ~10px apart.** Owner home was correct from the start
+  (`owner/home.tsx:1181` renders `<ClubHomeCard />` alone); only runner home still carried the
+  wrapper from before the module owned its header. Outer `SectionHead` deleted — the header's owner
+  is the module.
+- [ ] **"Runner side, collapse the available time widget"** → **LAB: `runner-sweep-lab.html` Ⓑ①②③.**
+  Ⓑ① (summary row stating 주 N일 · 시간대) is my pick — it is the only one where collapsing does not
+  become hiding (§7b). Ⓑ② is prettier but its 12pt weekday glyphs break the **14pt floor** and Korean
+  cannot ride the kicker exemption; Ⓑ③ puts data in §3b's section-header *link* slot and forks the
+  one section grammar. ⚠ Display only — `avail`, `toggleDay` and the 3 deliberately distinct
+  predicates (DO-NOT-REFACTOR) are untouched in all three.
+- [x] ~~**"Runner Make profit number larger in calendar tab"**~~ **DONE 2026-08-11.** Split-flap
+  digits 20 → **30pt** (lineHeight 38 = 1.27×, BUG A). The width budget is the real work and it is
+  written into the code comment: at 320dp the usable width is 258px, and `+248,000` at 30pt needs
+  `flap` paddingHorizontal cut 8 → 5 to land at ~210. The inline `원 예상` tail was pulled out to a
+  caption — a 14pt tail beside a 30pt number made the number look small again, and "예상" now sits
+  where it belongs (확정 건 예상 정산 합계 — it is an estimate and still says so).
+- [ ] **"Profit tab revamp / no green"** → **LAB: `runner-sweep-lab.html` Ⓒ①②③.** The audit is worth
+  reading before picking: there are **three** greens from three sources — `MONEY_GREEN #3D6B1F`
+  (a **file-local constant** with no jurisdiction in DESIGN.md at all), `colors.volt` (§5 says volt
+  = **personal**, not money), and GO ready green (§3b **state-only**). Ⓒ① (money is ink; color
+  survives only on the *sign* — coral for the fee deduction) is my pick: it is the literal reading of
+  "honest paper", it retires the rogue constant, it returns volt to its own jurisdiction, and it
+  leaves GO green as the app's only green. Ⓒ③ is included only to be rejected — reusing GO green for
+  money would poison the one signal that means "ready".
+  ⚠ Whichever wins must also be applied to `runner/calendar.tsx`'s departure-board flaps in the same
+  commit, or the runner watches money change color when they change tabs.
+- [x] ~~**"Runner page, stuff like my records should be in home, not my page, and why am I seeing
+  this? Thus what?"**~~ **DONE 2026-08-11 — three problems stacked, and the third was the real one.**
+  ① The records door was *already* on runner home, as a mute `마이 카드 ›` quick-link chip that said
+  nothing. ② `my.tsx` had a second door to the same place. ③ 🔴 **Both doors named the destination
+  wrong**: `/cards` is **컬렉션 (ANNEX — 도장 + 코스 패치)**, not a running log. One screen, three
+  names (내 러닝 기록 / 마이 카드 / 컬렉션) — that mismatch *is* "그래서 뭐?". Fixed: runner's my.tsx
+  row removed, quick-link chip removed, and one 내 기록 section on runner home bound to
+  **`rs.totalKm`** — chosen because it is the only real runner datum not already printed on that
+  screen (누적 *회수* is the reward trail's line; one fact, one printing). Loading and failure render
+  `—`, never 0. Verified on device: it reads **18.2 km**, matching the passport's independent figure.
+  - [ ] ⚠ **Open for Sean — the literal directive is not fully honored, deliberately.** Walking the
+    screen showed `my.tsx` *also* carries a **나의 러닝 기록 / RECORD 기록면** card (총 거리 18.2km ·
+    총 횟수 4회 · 평균 페이스 · 상세 기록 보기). That, not the menu row, is the biggest "my records
+    on my page". I did **not** move it, because the passport 기록면 is a **protected dark artifact**
+    — handoff §⑦ lists it under "Known-good, do NOT fix", and 신분면 + 기록면 + 도장면 is the
+    passport metaphor; pulling one face out breaks the artifact. So the state today is: home has a
+    records section (new), the passport keeps its record face. **If you meant that card too, say so
+    and it moves** — but that is an artifact decision, not a cleanup, so it is not mine to make.
+- [x] 🔴 ~~**`my.tsx` 역할 전환 button had a white label on a white face — invisible.**~~ **FIXED
+  2026-08-11. Found on the simulator, not in review.** The same 2026-08-11 action sweep converted
+  this button from an ink face to **secondary** (canvas/`paper.wash` + coral border) and **did not
+  move the labels with it** — `#fff` title, `rgba(255,255,255,.7)` sub, and a white-bordered chip
+  were left sitting on `#FFF6F4`. Measured contrast ≈ **1.06:1**. The whole block rendered as a
+  ghost, on **the only door between the owner and runner roles**. Now §3b secondary spec: ink 16/800
+  title, `paper.dim` latin kicker, `paper.line` chip border, `paper.actionInk` chip label (5.99:1).
+  Worth noting how it survived: the handoff's device-verification list says "role switch walked on
+  sim" — it was walked, and an invisible control looks exactly like an absent one.
+- [x] ~~**`my.tsx` 예약 관리 was a dead button for runners.**~~ **FIXED 2026-08-11.** `path` was
+  `null` for runners, so it fired a `준비 중이에요` alert — but a runner's "다가오는 일정과 지난 예약"
+  is **not** pending: it is the 캘린더 tab, one tap away in the tab bar. It was not a lie about a
+  missing feature, it was a lie about an existing one. Row removed for runners, kept for owners.
+- [x] ~~**"Runner notification icon update"**~~ **DONE 2026-08-11 — it was a spec violation, not a
+  taste call.** §3b binds icon-only controls to **40×40, canvas, 1px coral**; this bell was the last
+  26×26 with a neutral `#EEEEEE` border (a survivor from before the spec existed), and 26 also missed
+  the 44pt target law (§7b Fitts). Now 40×40 / canvas / `paper.line`, glyph 16 → 20, unread dot
+  re-inset. Also folded in: the top chrome's `paddingHorizontal` 12 → `layout.gutter` (15) — the
+  bell's right edge had been 3px out of line with the scroll content's right edge.
+- [ ] **"(also do full design sweep)"** on the runner side — still open; do it after the three lab
+  picks land, so the sweep runs over the final shapes rather than the current ones.
 
 ### F. Cross-cutting
 
@@ -266,6 +390,22 @@ share-sheet path `shot/[bid]` already uses.
   `routes.trace` is schematic `{x,y}` by design (0001:147). This is the "Course geo-traces" P2 below.
   Real routes need actual GPS traces — likely promoted from a completed `runs.trace`.
 - **"(also do full design sweep)"** → after B/C/D/E land, not before.
+
+## ⚠ The geo runner produced 37/1 once — under concurrent load (2026-08-11)
+
+Recorded because a gate that flickers is worse than one that fails. The **first** `run-geo-tests.sh`
+invocation of the 2026-08-11 session returned **37 pass / 1 fail**; the next **four** consecutive
+runs all returned 38/0. Investigated rather than dismissed:
+
+- Not a cold-start artifact — deleting the script's generated files (`geo.build.cjs`, `geo.src.ts`,
+  `geo.src.ts.bak`, `supabase-stub.ts`) and re-running gave a clean 38/0.
+- The one distinguishing condition: that run was **concurrent with `expo run:ios`** building in the
+  background. Most likely contention while the script generates its artifacts into `app/test/`.
+
+Not blocking (the gate is green and reproducibly so), but the failing test's identity was lost —
+`tail` truncated it before it was read. **If it recurs, capture the `❌` line first.** Fix shape:
+have the script build into a unique temp dir instead of writing fixed filenames into `app/test/`,
+so a concurrent run cannot race it. Effort S → S. P2.
 
 ## 🔴 The emoji purge missed a whole class — font fallback, not authoring (found 2026-08-11 on device)
 

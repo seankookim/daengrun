@@ -14,18 +14,23 @@ import { Icon } from './ui';
 // home quick-card, and live screens.
 // 기록(/cards)은 탭에서 빠지고 홈 히어로/스탯에서 진입 — 예약 관리가 탭 자격 (사용자 피드백 2026-07)
 // lucide: 새 빌드에서 실아이콘, 구 빌드에선 글리프 폴백
+// [홈 센터 2026-08-11, Sean] 홈이 5탭의 한가운데(index 2)로 이동. 나머지 탭의 상대 순서는
+//   그대로 — 홈만 앞에서 가운데로 옮겼다 (엄지 사정거리 법: 가장 자주 누르는 목적지가 호의 중심).
+//   ⚠ 순서 재배치가 안전한 이유를 확인해두었다: 액티브 인디케이터는 각 탭의 flex:1 박스 안에
+//   absolute로 그려지므로 인덱스 산술이 없고, 탭 전환은 전부 경로 문자열(router.replace(t.path))이라
+//   순번에 기대는 호출부가 없다. 배열 순서 = 화면 순서, 그 이상의 계약은 없다.
 const OWNER_TABS = [
-  { icon: '⌂', lucide: 'House', label: '홈', path: '/owner/home' },
   { icon: '▦', lucide: 'CalendarDays', label: '내 일정', path: '/owner/schedule' },
   { icon: '◎', lucide: 'Users', label: '커뮤니티', path: '/community' },
+  { icon: '⌂', lucide: 'House', label: '홈', path: '/owner/home' },
   { icon: '◈', lucide: 'ShoppingBag', label: '샵', path: '/shop' },
   { icon: '☰', lucide: 'CircleUserRound', label: '마이', path: '/my' },
 ] as const;
 
 const RUNNER_TABS = [
-  { icon: '⌂', lucide: 'House', label: '홈', path: '/runner/home' },
   { icon: '▦', lucide: 'CalendarDays', label: '캘린더', path: '/runner/calendar' },
   { icon: '✉', lucide: 'Inbox', label: '요청', path: '/runner/requests' },
+  { icon: '⌂', lucide: 'House', label: '홈', path: '/runner/home' },
   { icon: '₩', lucide: 'Wallet', label: '수익', path: '/runner/earnings' },
   { icon: '☰', lucide: 'CircleUserRound', label: '마이', path: '/my' },
 ] as const;

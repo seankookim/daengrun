@@ -140,7 +140,8 @@ export default function Schedule() {
         {/* 표준 탭 헤더 — 탭 루트엔 뒤로가기 없음 (바텀 내비가 탈출구), 좌측 타이틀 + 그레이 서브 */}
         <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <View>
-            <Text style={[{ fontSize: 30, fontWeight: '900', color: paper.ink }, df]}>내 일정</Text>
+            {/* [§3c 화면 타이틀 2026-08-11] 30/900 · lineHeight 37 (1.23× — BUG A) */}
+            <Text style={[{ fontSize: 30, lineHeight: 37, fontWeight: '900', color: paper.ink }, df]}>내 일정</Text>
             {/* [2026-08-10 density audit] "실예약" was internal jargon — users only know 예약 */}
             <Text style={{ fontSize: 14.5, color: paper.dim, marginTop: 4 }}>예약 {liveBookings.length}건</Text>
           </View>

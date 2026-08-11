@@ -4,6 +4,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Animated, Easing, Pressable, ScrollView, StyleSheet, Text, TextStyle, View } from 'react-native';
 import { BottomNav } from '../../src/components/bottomnav';
+import { BrandMark } from '../../src/components/brandmark';
 import { CourseStrip } from '../../src/components/CourseStrip';
 import { RunnerClubCard } from '../../src/components/clubcard';
 import { Icon, Row } from '../../src/components/ui';
@@ -333,16 +334,20 @@ export default function RunnerHome() {
 
   return (
     <View style={{ flex: 1, backgroundColor: paper.canvas }}>{/* [페이퍼 크롬] 라일락 캔버스 은퇴 → 백지 */}
-      {/* ————— 상단 크롬 — 플레인 화이트 + 코랄 헤어라인 · 알림 벨만 (/alerts) —————
-           [정체성 2026-08-11] 보호자 홈은 **패스포트**(브랜드 마스트헤드)로 자기를 말하고,
-           러너 홈은 **빕**(아래 스트랩)으로 말한다. 여기 있던 '다' 글리프 칩 + 'RUNNER' 키커는
-           그 빕이 이미 하는 말을 한 번 더 한 것이었고, 라틴 레터스페이스 키커는 §3b가 앱 전체에서
-           은퇴시킨 장식이다. 정체성은 한 화면에 한 번만 인쇄된다. */}
+      {/* ————— 상단 크롬 — 플레인 화이트 + 코랄 헤어라인 · 브랜드 마크 + 알림 벨 —————
+           [정체성 2026-08-11 · Sean 재정] 보호자 홈은 **패스포트**(브랜드 마스트헤드), 러너 홈은
+           **빕**(아래 스트랩). 이 규칙으로 오늘 아침 '다' 글리프 칩 + 'RUNNER' 키커를 뺐는데 —
+           그 둘이 지운 말은 "너는 러너다"였고, 그건 빕이 이미 하는 말이라 옳은 삭제였다.
+           브랜드 마크가 하는 말은 "도그스하이"다. 다른 주장이므로 중복 인쇄가 아니다.
+           그래서 **마크만** 온다(워드마크 없음 — 보호자의 풀 락업은 보호자 것): 브랜드 정체성은
+           크롬이 한 번, 러너 정체성은 빕이 한 번. 한 화면 한 번 법은 그대로 산다. */}
       <View style={styles.top}>
+        <BrandMark height={24} />
+        <View style={{ flex: 1 }} />
         <Pressable onPress={() => router.push('/alerts')} style={styles.bell} accessibilityLabel="알림">
           {/* 도트는 실 미읽음 수가 있을 때만 — 무조건 점은 가짜 알림 신호다 */}
           {unread > 0 && <View style={styles.bellDot} />}
-          <Icon name="Bell" glyph="◔" size={16} color={lilac.head} />
+          <Icon name="Bell" glyph="◔" size={20} color={paper.ink} />
         </Pressable>
       </View>
 
@@ -411,7 +416,15 @@ export default function RunnerHome() {
           {/* 주간 스탯 — 화면 유일 인쇄 (빕 재인쇄 은퇴) */}
           <View style={{ marginTop: 11, borderTopWidth: 1, borderTopColor: '#EEEEEE' }}>
             <LedgerRow label="완료 러닝" value={stats === null ? '—' : String(stats.runs)} unit="회" nf={nf} />
-            <LedgerRow label="총 거리" value={stats === null ? '—' : String(stats.km)} unit="km" nf={nf} />
+            {/* [2026-08-11] '총 거리' → '이번 주 거리'. 이 행은 fetchRunnerWeekStats의 **주간** 값인데
+                '총'은 누계를 뜻한다 — 히어로 캡션('이번 주 실수령')이 문맥을 주긴 했지만 라벨 자체는
+                거짓이었다. 아래 '내 기록'이 진짜 누적(rs.totalKm)을 인쇄하면서 한 화면에
+                '총 거리 0km'와 '누적 거리 18.2km'가 같이 서게 됐고, 그 순간 이 라벨은 그냥 틀린 게 아니라
+                **모순으로 읽힌다**. 주간 값은 주간이라고 말한다.
+                라벨은 '이번 주 거리'가 아니라 '주간 거리' — 라벨 열은 72px 예산이고(LedgerRow 주석)
+                '이번 주 거리'는 5자+공백 ≈ 80px로 넘친다. '주간 거리'는 4자+공백 ≈ 65px로
+                기존 최장 라벨 '완료 러닝'과 같은 폭이라 케이지가 그대로 유지된다. */}
+            <LedgerRow label="주간 거리" value={stats === null ? '—' : String(stats.km)} unit="km" nf={nf} />
             <LedgerRow label="회당 평균" value={stats === null ? '—' : avg.toLocaleString()} unit="원" nf={nf} total />
           </View>
 
@@ -622,11 +635,14 @@ export default function RunnerHome() {
         )}
 
         {/* ————— CLUB ENGINE — 운영 코어(장부·대기열·루트) 아래로 이동 (Ⓑ① 머니 퍼스트 순서).
-             클럽+호스트 로직은 컴포넌트가 보유 ————— */}
-        <SectionHead title="하이클럽" />
-        <View style={{ marginTop: 10 }}>
-          <RunnerClubCard />
-        </View>
+             클럽+호스트 로직은 컴포넌트가 보유.
+             [중복 타이틀 수리 2026-08-11 · Sean "러너 쪽에 하이클럽 타이틀이 중복"] 여기 있던
+             <SectionHead title="하이클럽" />를 삭제한다. ClubModule(clubcard.tsx:401-419)이 이미
+             자기 §3b 섹션 헤더를 그린다 — 코랄 1px 룰 + '하이클럽' 20/800 잉크로, 이 SectionHead와
+             **글자·크기·굵기·색이 전부 같다**. 화면에는 같은 제목이 10px 간격으로 두 번 찍혀 있었다.
+             보호자 홈은 처음부터 <ClubHomeCard /> 하나만 넣어 옳았다(owner/home.tsx:1181) — 러너 홈만
+             모듈이 헤더를 갖기 전의 래퍼를 들고 있었다. 헤더의 주인은 모듈이다. ————— */}
+        <RunnerClubCard />
 
         {/* ————— 리워드 — 티어 사다리 + 보급 드랍 트레일 (실카운트).
              [Ⓑ① 예외, Sean 2026-08-11] 카드 레이아웃은 현행 동결 — 랩의 3중 진행계 통합안 미적용 ————— */}
@@ -810,6 +826,33 @@ export default function RunnerHome() {
           </>
         )}
 
+        {/* ————— 내 기록 — [Sean 2026-08-11] "러너 페이지의 내 기록 같은 건 마이가 아니라 홈에 있어야
+             한다. 그리고 이걸 왜 보고 있지? 그래서 뭐?"
+             세 가지가 겹쳐 있었다. ① 기록 문은 이미 홈에 있었다 — 다만 아래 퀵링크의 '마이 카드 ›'
+             칩이라 아무 말도 하지 않았다. ② 마이(my.tsx)에도 '내 러닝 기록' 행이 따로 있어 문이 둘.
+             ③ 🔴 두 문 다 목적지를 잘못 부르고 있었다: /cards는 **컬렉션(ANNEX — 도장 + 코스 패치)**
+             이지 러닝 기록부가 아니다. 한 화면을 세 이름으로 부르던 것이 "그래서 뭐?"의 실체다.
+             수리: 마이의 러너 행 삭제(문 하나) · 퀵링크 칩 삭제 · 여기 실수치를 든 섹션 하나.
+             수치는 rs.totalKm — settle_run_tx가 실주행마다 올리는 runners.total_km이고, 이 화면
+             어디에도 인쇄되지 않은 유일한 러너 실적이다 (누적 '회수'는 리워드 트레일이 이미 말한다 —
+             한 사실은 한 화면에 한 번). 로딩·실패는 0이 아니라 '—' (로딩≠0 법). ————— */}
+        <SectionHead title="내 기록" link="컬렉션 ›" onPress={() => router.push('/cards')} />
+        <Pressable
+          onPress={() => router.push('/cards')}
+          style={({ pressed }) => [styles.card, pressed && styles.pressed96]}
+          accessibilityRole="button"
+          accessibilityLabel="컬렉션 열기"
+        >
+          <Row style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
+            <Text style={{ fontSize: 14, lineHeight: 18, fontWeight: '700', color: lilac.head }}>누적 거리</Text>
+            {/* Oswald — lineHeight 33 = 1.27× (BUG A) */}
+            <Text style={[{ fontSize: 26, lineHeight: 33, fontWeight: '900', color: paper.ink, fontVariant: ['tabular-nums'] as const }, nf]}>
+              {rsLoaded && !rsErr ? rs.totalKm.toFixed(1) : '—'}
+              <Text style={{ fontSize: 15, fontWeight: '800', color: lilac.dim }}> km</Text>
+            </Text>
+          </Row>
+        </Pressable>
+
         {/* ————— 동네 코스 — 헤더는 컴포넌트가 §3b 그램마로 그린다 (bleed = 패딩 컨테이너에서 풀블리드 룰) ————— */}
         <View style={{ marginTop: 8 }}>
           <CourseStrip title="동네 코스" bleed={layout.gutter} />
@@ -826,9 +869,8 @@ export default function RunnerHome() {
           <Pressable onPress={() => router.push('/safety')} style={styles.qlink}>
             <Text style={styles.qlinkB}>안심 센터</Text><Text style={styles.qlinkChev}>›</Text>
           </Pressable>
-          <Pressable onPress={() => router.push('/cards')} style={styles.qlink}>
-            <Text style={styles.qlinkB}>마이 카드</Text><Text style={styles.qlinkChev}>›</Text>
-          </Pressable>
+          {/* [2026-08-11] '마이 카드 ›' 칩 은퇴 — 위 '내 기록' 섹션이 같은 목적지(/cards)로 가는
+              문이면서 실수치까지 말한다. 이름 없는 칩과 말하는 섹션이 둘 다 있을 이유가 없다. */}
         </Row>
 
         {/* [Ⓑ① 2026-08-11] 푸터 은퇴 — 누적·티어·온라인 전부 재인쇄였다 (티어·온라인 = 스트랩,
@@ -843,17 +885,23 @@ export default function RunnerHome() {
 const styles = StyleSheet.create({
   // 상단 크롬 — [페이퍼 크롬] 글래스 은퇴: 플레인 화이트 + 코랄 헤어라인 바텀 엣지 (마스트헤드 법)
   top: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end',
-    paddingTop: 48, paddingBottom: 9, paddingHorizontal: 12,
+    // [2026-08-11] justifyContent 'flex-end' 은퇴 — 좌측에 브랜드 마크가 왔고 간격은 flex 스페이서가 잡는다.
+    // paddingHorizontal 12 → layout.gutter(15): 벨의 우측 엣지가 스크롤 콘텐츠 우측 엣지와 3px
+    // 어긋나 있었다. 크롬과 본문은 같은 거터를 쓴다.
+    flexDirection: 'row', alignItems: 'center',
+    paddingTop: 48, paddingBottom: 9, paddingHorizontal: layout.gutter,
     backgroundColor: paper.canvas, borderBottomWidth: 1, borderBottomColor: paper.line,
   },
+  // [§3b 아이콘 컨트롤 2026-08-11] '아이콘 온리 컨트롤 = 40×40 정사각 · 캔버스 · 코랄 1px'은
+  // 바인딩 스펙인데 이 벨만 26×26 + 뉴트럴 #EEE 보더로 남아 있었다 (스펙 제정 이전의 잔재).
+  // 44pt 타깃 법(§7b Fitts)에도 26은 미달 — 규격으로 되돌린다. 글리프도 16 → 20.
   bell: {
-    width: 26, height: 26, borderRadius: 0, borderWidth: 1, borderColor: '#EEEEEE', // [페이퍼 크롬] 샤프·뉴트럴
-    backgroundColor: lilac.card, alignItems: 'center', justifyContent: 'center',
+    width: 40, height: 40, borderRadius: 0, borderWidth: 1, borderColor: paper.line,
+    backgroundColor: paper.canvas, alignItems: 'center', justifyContent: 'center',
   },
-  // 미읽음 도트 — 보호자 홈과 동일 어휘(코랄 6px 글로우), 26px 벨에 맞춘 인셋
+  // 미읽음 도트 — 보호자 홈과 동일 어휘(코랄 6px 글로우), 40px 벨에 맞춘 인셋
   bellDot: {
-    position: 'absolute', top: 4, right: 4, width: 6, height: 6, borderRadius: 3,
+    position: 'absolute', top: 6, right: 6, width: 6, height: 6, borderRadius: 3,
     backgroundColor: lilac.coral, zIndex: 2,
     shadowColor: lilac.coral, shadowOpacity: 1, shadowRadius: 4, shadowOffset: { width: 0, height: 0 },
   },

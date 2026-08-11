@@ -48,7 +48,8 @@ export default function Shop() {
       >
         <Row style={{ justifyContent: 'space-between', marginBottom: 16 }}>
           {/* 탭 루트 — 뒤로가기 없음 (표준 탭 헤더) */}
-          <Text style={[{ fontSize: 30, fontWeight: '900', color: FOREST }, df]}>도그스하이 샵</Text>
+          {/* [§3c 화면 타이틀 2026-08-11] 30/900 · lineHeight 37 (1.23× — BUG A). 색은 이 화면의 월드 유지 */}
+          <Text style={[{ fontSize: 30, lineHeight: 37, fontWeight: '900', color: FOREST }, df]}>도그스하이 샵</Text>
           <Pressable style={s.circleBtn} onPress={() => Alert.alert('준비 중', '스토어 오픈 시 장바구니가 열려요')}>
             <Text style={{ fontSize: 17, color: FOREST }}>◱</Text>
           </Pressable>

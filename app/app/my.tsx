@@ -167,18 +167,34 @@ export default function My() {
           : runnerApp.canReapply ? '내 러너 레코드 · 다시 지원하기'
             : '내 러너 레코드 · 지원 결과 확인';
 
-  const MENU = [
-    { glyph: '✚', label: '안심 센터', desc: 'SOS · 긴급 연락처 · 보험', path: '/safety' as const, ink: colors.tang, tint: '#FCE7E1' },
+  // [2026-08-11] 명시 타입 앵커. 러너/보호자 분기가 조건부 스프레드 3개로 늘면서 TS가 배열의
+  // 원소 타입을 `never`로 접었다 (`m.label` does not exist on type 'never'). 리터럴 라우트 유니온을
+  // 타입으로 못박으면 router.push의 타입 안전성은 그대로 두고 추론만 안정된다.
+  type MenuRow = {
+    glyph: string; label: string; desc: string; ink: string; tint: string;
+    path: '/safety' | '/runner/apply' | '/owner/addresses' | '/owner/dog'
+        | '/owner/schedule' | '/cards' | '/alerts' | '/settings';
+  };
+  const MENU: MenuRow[] = [
+    { glyph: '✚', label: '안심 센터', desc: 'SOS · 긴급 연락처 · 보험', path: '/safety', ink: colors.tang, tint: '#FCE7E1' },
     isRunner
       // [정직 수리 2026-08-05] 부제 교정 — 인증 센터에는 '등급 사다리'가 없다(목업 퍼널과 함께 퇴역).
       // [2026-08-08 / plan §6.4] 그 화면이 실퍼널이 되면서 부제가 상태를 말한다 (certDesc 참조).
-      ? { glyph: '✓', label: '러너 인증 센터', desc: certDesc, path: '/runner/apply' as const, ink: colors.voltDeep, tint: '#EDF5D8' }
-      : { glyph: '⌂', label: '주소 관리', desc: '픽업 장소 · 공동현관 정보', path: '/owner/addresses' as const, ink: colors.voltDeep, tint: '#EDF5D8' },
-    ...(!isRunner ? [{ glyph: '◉', label: '반려견 프로필', desc: '사진 · 성향 · 러너에게 전달되는 정보', path: '/owner/dog' as const, ink: colors.terra, tint: colors.terraTint }] : []),
-    { glyph: '▦', label: '예약 관리', desc: '다가오는 일정과 지난 예약', path: isRunner ? null : ('/owner/schedule' as const), ink: '#4A6E93', tint: '#E3EEF8' },
-    { glyph: '⌗', label: isRunner ? '내 러닝 기록' : (rec?.dogName ? `${rec.dogName}의 기록` : '러닝 기록'), desc: '마이 카드 · 러닝 히스토리', path: '/cards' as const, ink: colors.goldDeep, tint: colors.goldTint }, // [리뷰 F4] 목업 초코 은퇴
-    { glyph: '◔', label: '알림', desc: '알림 확인 및 설정', path: '/alerts' as const, ink: colors.clubInk, tint: colors.clubTint },
-    { glyph: '⚙', label: '설정', desc: '계정 · 로그아웃 · 문의', path: '/settings' as const, ink: '#586055', tint: '#EFF1EC' },
+      ? { glyph: '✓', label: '러너 인증 센터', desc: certDesc, path: '/runner/apply', ink: colors.voltDeep, tint: '#EDF5D8' }
+      : { glyph: '⌂', label: '주소 관리', desc: '픽업 장소 · 공동현관 정보', path: '/owner/addresses', ink: colors.voltDeep, tint: '#EDF5D8' },
+    ...(!isRunner ? ([{ glyph: '◉', label: '반려견 프로필', desc: '사진 · 성향 · 러너에게 전달되는 정보', path: '/owner/dog', ink: colors.terra, tint: colors.terraTint }] as MenuRow[]) : []),
+    // [죽은 버튼 2026-08-11] 러너에게 이 행은 path: null이라 '준비 중이에요' 얼럿만 띄웠다 — 그런데
+    // 러너의 '다가오는 일정과 지난 예약'은 **준비 중이 아니다**. 캘린더 탭이 바로 그 화면이고 탭 바에서
+    // 한 번에 간다. 없는 기능이라 거짓말한 게 아니라, 있는 기능을 없다고 말하던 행이다.
+    // 보호자에게만 남긴다 (보호자는 일정 탭이 있지만 이 허브에서도 들어오는 기존 경로를 유지).
+    ...(isRunner ? [] : ([{ glyph: '▦', label: '예약 관리', desc: '다가오는 일정과 지난 예약', path: '/owner/schedule', ink: '#4A6E93', tint: '#E3EEF8' }] as MenuRow[])),
+    // [Sean 2026-08-11] 러너의 '내 러닝 기록' 행은 러너 홈의 '내 기록' 섹션으로 옮겼다 —
+    // 같은 목적지(/cards)로 가는 문이 마이와 홈에 둘 있었고, 홈 쪽만 실수치(누적 거리)를 말한다.
+    // 보호자 행은 남는다 (보호자 홈에는 대응 섹션이 없다). ⚠ 두 행 모두 목적지 이름이 틀렸었다:
+    // /cards는 **컬렉션(ANNEX — 도장 + 코스 패치)**이지 '러닝 히스토리'가 아니다 (cards.tsx:89 '컬렉션').
+    ...(isRunner ? [] : ([{ glyph: '⌗', label: rec?.dogName ? `${rec.dogName}의 기록` : '러닝 기록', desc: '도장 · 코스 패치 컬렉션', path: '/cards', ink: colors.goldDeep, tint: colors.goldTint }] as MenuRow[])),
+    { glyph: '◔', label: '알림', desc: '알림 확인 및 설정', path: '/alerts', ink: colors.clubInk, tint: colors.clubTint },
+    { glyph: '⚙', label: '설정', desc: '계정 · 로그아웃 · 문의', path: '/settings', ink: '#586055', tint: '#EFF1EC' },
   ];
 
   // 신분면 필드 값 (원본 subtitle과 동일 바인딩 — 활동 동네 · 반려견)
@@ -496,7 +512,8 @@ const s = StyleSheet.create({
   kicker: { alignItems: 'center', gap: 8, marginTop: 6, marginBottom: 8 },
   kickerTxt: { fontSize: 12, letterSpacing: 2, color: paper.faint, textTransform: 'uppercase' },
   rule: { flex: 1, height: 1, backgroundColor: '#EEE' },
-  h1: { fontSize: 40, fontWeight: '900', color: paper.ink, lineHeight: 48 },
+  // [§3c 화면 타이틀 2026-08-11] 40 → 30 (탭 타이틀 통일 — 위 community.tsx 주석 참조)
+  h1: { fontSize: 30, fontWeight: '900', color: paper.ink, lineHeight: 37 },
   // PASSPORT 태그 — 1px 잉크 보더 샤프로 정규화
   official: {
     marginTop: 6, borderWidth: 1, borderColor: paper.ink,
@@ -621,10 +638,18 @@ const s = StyleSheet.create({
     backgroundColor: paper.wash, borderWidth: 1, borderColor: paper.line,
     paddingVertical: 16, paddingHorizontal: 15, marginTop: 20,
   },
-  btnRoleTitle: { fontSize: 15, fontWeight: '800', color: '#fff' },
-  btnRoleSub: { fontSize: 12, letterSpacing: 1.8, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', marginTop: 3 },
-  btnRoleSw: { borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)', paddingVertical: 6, paddingHorizontal: 10 },
-  btnRoleSwTxt: { fontSize: 14, lineHeight: 18, letterSpacing: 1, color: '#fff', fontWeight: '600' }, // '보호자 ↔ 러너' is the button label — 14pt floor
+  // 🔴 [2026-08-11 — 시뮬레이터에서 발견한 실배포 버그] 이 버튼은 같은 날 액션 스윕에서 잉크 면 →
+  // **세컨더리**(캔버스/워시 + 코랄 보더)로 바뀌었는데(위 btnRole 주석), **라벨 색이 따라오지 않았다.**
+  // 흰 글자가 그대로 남아 paper.wash(#FFF6F4) 위에 앉았다 = 대비 약 **1.06:1**. 사실상 안 보인다.
+  // 화면에서 확인: '역할 전환 / OWNER › RUNNER / 보호자 › 러너'가 전부 유령처럼 떠 있었다.
+  // 하필 보호자↔러너를 오가는 **유일한 문**이다. 면을 바꿀 때 라벨을 함께 옮기지 않으면 이렇게 된다 —
+  // 불투명도 트릭 금지법이 막으려던 바로 그 결과를, 색 하나 안 바꿔서 만들었다.
+  // §3b 세컨더리 규격으로 정정: 캔버스 + 코랄 1px + **잉크 16/800** 라벨.
+  btnRoleTitle: { fontSize: 16, fontWeight: '800', color: paper.ink },
+  // 라틴 레터스페이스 캡스 = 산증 키커 클래스(§3 예외)라 12pt 유지 가능하나, 색은 읽는 값으로.
+  btnRoleSub: { fontSize: 12, letterSpacing: 1.8, color: paper.dim, textTransform: 'uppercase', marginTop: 3 },
+  btnRoleSw: { borderWidth: 1, borderColor: paper.line, paddingVertical: 6, paddingHorizontal: 10 },
+  btnRoleSwTxt: { fontSize: 14, lineHeight: 18, letterSpacing: 1, color: paper.actionInk, fontWeight: '600' }, // '보호자 › 러너' is the button label — 14pt floor · wash 위 5.99:1
 
   signout: {
     flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: paper.canvas,

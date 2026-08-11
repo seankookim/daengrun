@@ -74,7 +74,8 @@ export default function RunnerCalendar() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <Text style={[{ fontSize: 30, fontWeight: '900', color: paper.ink }, df]}>캘린더</Text>
+          {/* [§3c 화면 타이틀 2026-08-11] 30/900 · lineHeight 37 (1.23× — BUG A) */}
+          <Text style={[{ fontSize: 30, lineHeight: 37, fontWeight: '900', color: paper.ink }, df]}>캘린더</Text>
           {/* secondary chip — canvas + coral border + ink label (§3b secondary; chip may stay 14) */}
           <Pressable
             onPress={() => router.push('/runner/availability')}
@@ -91,16 +92,29 @@ export default function RunnerCalendar() {
           <Text style={{ fontSize: 14, lineHeight: 18, color: '#BBBBBB', marginTop: 3 }}>
             확정 {upcoming.length}건{upcoming.length > 0 ? ' · 다음 러닝까지 준비 완료' : ' — 요청 탭에서 수락해보세요'}
           </Text>
+          {/* [Sean 2026-08-11 "캘린더 탭 수익 숫자 더 크게"] 플랩 20 → 30pt.
+              폭 예산 (320dp 기준, 넘치면 스플릿-플랩 행이 잘린다 — Row에 wrap 없음):
+                가용폭 = 320 − 30 거터 − 32 보드 패딩 = 258.
+                최악 현실값 '+248,000' = 굵은 셀 6(숫자) + 얇은 셀 2('+' ',').
+                30pt Oswald 숫자 글리프 ≈ 0.5em = 15 → 굵은 셀 15 + 패딩 10 = 25 · 6 = 150.
+                얇은 셀 ≈ 8 + 8 = 16 · 2 = 32. 갭 4 × 7 = 28. 합계 = 210 < 258 ✓
+              그래서 flap의 paddingHorizontal은 8 → 5로 함께 줄인다 (8이면 246 + '원' 열까지
+              얹혀 320dp에서 넘쳤다). '원 예상'은 인라인에서 빠져 아래 캡션이 가져간다 —
+              30pt 옆의 14pt 인라인 꼬리표는 숫자를 도로 작아 보이게 만들었다. */}
           {upcoming.length > 0 && (
-            <Row style={{ gap: 4, marginTop: 12, alignItems: 'flex-end' }}>
-              {flapChars.map((c, i) => (
-                <View key={i} style={[s.flap, (c === ',' || c === '+') && s.flapThin]}>
-                  {/* Oswald flap digit — lineHeight 25 = 1.25× (BUG A) */}
-                  <Text style={[{ fontSize: 20, lineHeight: 25, fontWeight: '900', color: colors.volt, fontVariant: ['tabular-nums'] as const }, nf]}>{c}</Text>
-                </View>
-              ))}
-              <Text style={{ fontSize: 14, color: '#BBBBBB', paddingBottom: 5, marginLeft: 3 }}>원 예상</Text>
-            </Row>
+            <>
+              <Row style={{ gap: 4, marginTop: 12, alignItems: 'flex-end' }}>
+                {flapChars.map((c, i) => (
+                  <View key={i} style={[s.flap, (c === ',' || c === '+') && s.flapThin]}>
+                    {/* Oswald flap digit — lineHeight 38 = 1.27× (BUG A) */}
+                    <Text style={[{ fontSize: 30, lineHeight: 38, fontWeight: '900', color: colors.volt, fontVariant: ['tabular-nums'] as const }, nf]}>{c}</Text>
+                  </View>
+                ))}
+                <Text style={{ fontSize: 17, fontWeight: '800', color: '#FFFFFF', paddingBottom: 5, marginLeft: 4 }}>원</Text>
+              </Row>
+              {/* 추정치라는 사실은 여기서 한 번 — 확정 건들의 예상 정산 합계이지 확정 지급액이 아니다 */}
+              <Text style={{ fontSize: 14, lineHeight: 18, color: '#BBBBBB', marginTop: 6 }}>확정 건 예상 정산 합계</Text>
+            </>
           )}
         </View>
 
@@ -188,8 +202,9 @@ export default function RunnerCalendar() {
 const s = StyleSheet.create({
   availBtn: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line, paddingVertical: 10, paddingHorizontal: 14 },
   board: { backgroundColor: paper.ink, padding: 16, marginTop: 14 },
-  flap: { backgroundColor: '#000000', paddingVertical: 6, paddingHorizontal: 8 },
-  flapThin: { paddingHorizontal: 4, backgroundColor: 'transparent' },
+  // paddingHorizontal 8 → 5: 30pt 승격의 폭 예산 (위 주석의 320dp 계산). 세로 패딩은 유지.
+  flap: { backgroundColor: '#000000', paddingVertical: 6, paddingHorizontal: 5 },
+  flapThin: { paddingHorizontal: 3, backgroundColor: 'transparent' },
   ticket: {
     flexDirection: 'row', backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE',
     marginBottom: 10, overflow: 'hidden', position: 'relative',
