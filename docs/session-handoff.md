@@ -22,7 +22,7 @@ independently confirmed · **[from-history]** remembered, recheck · **[uncertai
 
 | System | State | Provenance |
 |---|---|---|
-| git | `3fb76b9` on redesign-v4, **0 dirty tracked files**, 14 commits this session | **[verified-now]** |
+| git | `41ab7f7` on redesign-v4, **0 dirty tracked files**, 16 commits this session | **[verified-now]** |
 | Database | prod through **0072**, local == remote | **[verified-now]** (`migration list`) |
 | SQL harness | **336 / 0** (was 305 — 31 new pins across 106-110) | **[verified-now]** |
 | tsc | 0 errors | **[verified-now]** |
@@ -33,10 +33,8 @@ independently confirmed · **[from-history]** remembered, recheck · **[uncertai
 | Device verification | runner home · owner report · owner schedule + sheet · my/passport · role switch walked on sim | **[verified-now]** |
 | Club screens | code + gates only — **never seen on screen**: this account has no club, so that world is unreachable in the simulator | **[uncertain]** |
 
-⚠ **One open thread:** a second Codex adversarial review of the last 6 commits was still running
-when this handoff was written. It has found real defects in my work twice already this session
-(see §④). If its output is still in the session scratchpad, read it; otherwise re-run it — the
-prompt shape is in §⑨.
+**No open threads.** The second Codex adversarial review completed and its seven findings are
+fixed in `41ab7f7` — see §⑤. Nothing from this session is left half-done.
 
 ---
 
@@ -119,11 +117,12 @@ These cost real time and all three recurred. They are the most transferable thin
    and a stranger passes. That is 0058 F1's exact fail-open, and I reproduced it in 0072 two
    migrations after documenting it. Use the `exists (select 1 … where auth.uid() in (…))` form.
 
-## ⑤ The adversarial cycle, and what it changed
+## ⑤ The adversarial cycles — both of them, and what they changed
 
-Two independent voices (Codex CLI + a Claude engineer executing attacks against a live scratch DB)
-reviewed 12f5963. Neither could reopen the payout freeze. They found **four sentences written in
-my own migration headers that were false as shipped** — fixed in 0070. The one worth remembering:
+**Round 1, on the club security slice.** Two independent voices (Codex CLI + a Claude engineer
+executing attacks against a live scratch DB) reviewed 12f5963. Neither could reopen the payout
+freeze. They found **four sentences written in my own migration headers that were false as
+shipped** — fixed in 0070. The one worth remembering:
 
 > `session_host_force_resolve` was **unusable in exactly the shape the audit described.** Host-only
 > plus self-override-banned meant that in a small club, where the host runs the dogs, nobody could
@@ -131,6 +130,20 @@ my own migration headers that were false as shipped** — fixed in 0070. The one
 
 0070 §F opened it to the backup host and narrowed self-override to the dog's *owner*: a host
 reporting their own run stuck is self-incrimination, not self-dealing.
+
+**Round 2, on the client honesty work.** Codex confirmed the RLS authorization, the absence of any
+one-tap commit, that `settled=true` reliably implies a server response, the H3 state split, and
+that all 12 `_fail` rewrites preserved their expressions exactly. It then found seven defects,
+five of them mine — all fixed in `41ab7f7`. The two that matter most:
+
+- **A committed settlement could read as unsettled forever.** `settle_run_tx` commits; if the
+  HTTP response is lost the client throws, `settled` stays false, and retry gets "이미 정산" with
+  no way to recover the amount. My failure copy asserted *"아무것도 반영되지 않았어요"*, which is
+  false on exactly that path.
+- **An inserted notification is not a delivered push.** The 0024 trigger swallows every push error
+  (0024:19,39), so the app cannot know. `notifyRunStop` also discarded its lookup error. Nothing
+  now claims the runner was alerted — only that the notification was sent and the chat holds the
+  record.
 
 **Correction to a commit message:** `12f5963` claims *"Every pin mutation-proven."* That was an
 overclaim — 106's header omits S2 and S6, and 107 R3 could not go red at all. Both fixed.
@@ -228,10 +241,11 @@ honest) · seed-runner decision · TestFlight · **recruiting one real owner and
 > hardening. Existing rebooking UX is already sufficient to test; the company now needs people,
 > observation, and a trustworthy number."
 
-1. 🔴 **Read the pending Codex review** (§⓪) and fix whatever it found in the last 6 commits.
-2. 🔴 **사업자등록.** Free, same-day, and the whole payments chain waits on it.
-3. **One real run with one real owner and one real runner**, then `node scripts/pilot-metrics.mjs`.
+1. 🔴 **사업자등록.** Free, same-day, and the whole payments chain waits on it.
+2. **One real run with one real owner and one real runner**, then `node scripts/pilot-metrics.mjs`.
    The gauge exists now; it needs people, not code.
+3. **Then re-read TODOS** with real usage in hand — the priorities will have changed, and several
+   P2s exist only because nobody has ever hit them.
 
 **If you want code anyway**, in TODOS priority order: `rewards.tsx` swallowed catches (a failed
 load renders as an absence of rewards — the raw enum beside it is cosmetic, the catches are not) ·
