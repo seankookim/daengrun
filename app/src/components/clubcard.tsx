@@ -8,7 +8,7 @@ import {
 } from '../lib/api';
 import { useDisplayFont } from '../lib/displayFont';
 import { lilac, lilacRadius, lilacShadow } from '../theme';
-import { Row } from './ui';
+import { Icon, Row } from './ui';
 
 // 하이클럽 홈 모듈 v5 — 나이트 스텁 × 시트맵 (2026-08-05 Sean 확정: glowup-go-lab Ⓐ② 전반 + Ⓐ④ 시트맵).
 // 흰 틴트-헤더 카드 폐기 → 종이 피드 위의 다크 아일랜드로 교체 (가치 반전 = 가장 강한 강조):
@@ -108,7 +108,7 @@ function ClubSearchBar() {
   const requestDistrict = () => {
     const d = q.trim();
     requestDistrictClub(d)
-      .then((id) => closeAnd(() => { Alert.alert(`${d} 하이클럽 관심 등록 🐾`, '이웃과 호스트가 모이면 열려요'); router.push(`/club/${id}`); }))
+      .then((id) => closeAnd(() => { Alert.alert(`${d} 하이클럽 관심 등록`, '이웃과 호스트가 모이면 열려요'); router.push(`/club/${id}`); }))
       .catch((e) => Alert.alert('클럽 요청', (e as Error).message.includes('bad_district') ? '동네 이름을 2~12자로 입력해주세요' : (e as Error).message));
   };
 
@@ -135,7 +135,7 @@ function ClubSearchBar() {
               <View style={s.dropThumb}>
                 {h.photoUrl
                   ? <Image source={{ uri: h.photoUrl }} style={{ width: '100%', height: '100%' }} />
-                  : <Text style={{ fontSize: 20 }}>🏃</Text>}
+                  : <Icon name="Users" glyph="●" size={18} color={lilac.dim} />}
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: 15, fontWeight: '800', color: lilac.head }}>{h.name}</Text>
@@ -287,7 +287,7 @@ function DemandTicket({ board, reload }: { board: DemandBoard; reload: () => voi
     {
       text: '호스트 되기', style: 'default',
       onPress: () => claimClubHost(mine.clubId)
-        .then(() => { Alert.alert('호스트가 됐어요 🏁', '클럽 페이지에서 첫 세션을 열어보세요'); reload(); })
+        .then(() => { Alert.alert('호스트가 됐어요', '클럽 페이지에서 첫 세션을 열어보세요'); reload(); })
         .catch((e) => Alert.alert('호스트 클레임', (e as Error).message.includes('not_certified') ? '인증 러너만 호스트가 될 수 있어요' : (e as Error).message)),
     },
   ]);
@@ -302,7 +302,7 @@ function DemandTicket({ board, reload }: { board: DemandBoard; reload: () => voi
         <Text style={{ fontSize: 15, fontWeight: '800', color: lilac.head }}>{mine.district}에서 {mine.interestCount}팀이 기다려요</Text>
         <Text style={{ fontSize: 14, color: lilac.text, marginTop: 5, lineHeight: 19 }}>인증 러너가 호스트를 맡으면 클럽이 열려요.</Text>
         <Pressable onPress={claim} style={s.tktCta}>
-          <Text style={{ fontSize: 15, fontWeight: '800', color: '#fff' }}>🏁 호스트 되기</Text>
+          <Text style={{ fontSize: 15, fontWeight: '800', color: '#fff' }}>호스트 되기</Text>
         </Pressable>
       </View>
     </View>
@@ -347,7 +347,7 @@ function OwnerDemand({ board, reload }: { board: DemandBoard; reload: () => void
   const collecting = mine?.status === 'collecting';
   const invite = () => {
     Share.share({
-      message: `${board.district} 하이클럽이 열리는 중이에요 🐾 ${mine ? mine.interestCount : 0}팀이 모였어요 — 도그스하이에서 이웃 강아지들과 함께 달려요!`,
+      message: `${board.district} 하이클럽이 열리는 중이에요. ${mine ? mine.interestCount : 0}팀이 모였어요 — 도그스하이에서 이웃 강아지들과 함께 달려요!`,
     }).catch(() => {});
     if (mine && !mine.myInterest) {
       // 초대하는 사람 = 기다리는 사람 — 내 관심도 조용히 등록 (멱등, 실패 무해)
@@ -367,7 +367,7 @@ function OwnerDemand({ board, reload }: { board: DemandBoard; reload: () => void
               {mine.threshold}팀이 모이면 호스트 모집 시작 — 이웃을 초대할수록 빨리 열려요.
             </Text>
             <Pressable onPress={invite} style={s.inviteCta}>
-              <Text style={{ fontSize: 14, fontWeight: '800', color: '#fff' }}>🐾 이웃 초대하기</Text>
+              <Text style={{ fontSize: 14, fontWeight: '800', color: '#fff' }}>이웃 초대하기</Text>
             </Pressable>
           </View>
         </View>
@@ -377,7 +377,9 @@ function OwnerDemand({ board, reload }: { board: DemandBoard; reload: () => void
           <Text style={{ fontSize: 14, fontWeight: '800', letterSpacing: 1, color: READ_VIOLET, marginBottom: 8 }}>동네 리그 — 이번 달</Text>
           {league.map((l, i) => (
             <Pressable key={l.clubId} onPress={() => router.push(`/club/${l.clubId}`)} style={[s.lrow, l.mine && s.lrowMe]}>
-              <Text style={{ fontSize: 14 }}>{l.status === 'active' ? (i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '🏃') : '⏳'}</Text>
+              <Text style={{ fontSize: 14, fontWeight: '900', width: 18, color: l.status === 'active' ? READ_VIOLET : lilac.dim }}>
+                {l.status === 'active' ? String(i + 1) : '—'}
+              </Text>
               <Text style={{ flex: 1, fontSize: 14, fontWeight: '700', color: lilac.head }} numberOfLines={1}>
                 {l.name}{l.mine ? ' (우리 동네)' : ''}
               </Text>

@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { addDog, Addr, AvailRule, createBookingHold, DogProfile, fetchAddresses, fetchMyDogs, fetchRoutes, fetchRunnerAvailability } from '../../src/lib/api';
 import { HeatTrace } from '../../src/components/runcard';
-import { Avatar, Row, Skeleton } from '../../src/components/ui';
+import { Avatar, Icon, Row, Skeleton } from '../../src/components/ui';
 import { haptic } from '../../src/lib/haptics';
 import { AddonKey, draft, fmtWon, RouteInfo } from '../../src/store';
 import { colors, layout, paper, pricing } from '../../src/theme';
@@ -20,7 +20,8 @@ import { colors, layout, paper, pricing } from '../../src/theme';
 const CERT_BLUE = '#3d8fd4'; // 안심 코스 인증 블루 — certification only (semantic, survives repaint)
 const DISTANCES = [3, 5, 7];
 const PACES = ["가볍게 8'+", "보통 7'", "신나게 6'"];
-const ADDON_GLYPHS: Record<string, string> = { river: '♒', homecare: '⌂', snack: '≽', snap: '▣', livecam: '▶' };
+// Lucide icon per addon — pictorial glyphs retired (2026-08-11 emoji purge, "no emojis. no cheap.")
+const ADDON_ICONS: Record<string, string> = { river: 'WavesHorizontal', homecare: 'House', snack: 'Bone', snap: 'Camera', livecam: 'Video' };
 
 // 실제 오늘부터 7일 — 컴포넌트 안에서 생성 (모듈 로드 고정은 자정을 넘기면 '오늘'이 어제가 됐다)
 const buildDates = () => Array.from({ length: 7 }, (_, i) => {
@@ -535,7 +536,7 @@ export default function Request() {
             return (
               <Pressable key={k} onPress={() => toggleAddon(k)} style={[s.addon, sel && { borderColor: paper.line }]}>
                 <Row style={{ justifyContent: 'space-between' }}>
-                  <View style={s.addonIcon}><Text style={{ fontSize: 16, color: paper.dim }}>{ADDON_GLYPHS[k]}</Text></View>
+                  <View style={s.addonIcon}><Icon name={ADDON_ICONS[k] ?? 'Plus'} glyph="●" size={16} color={paper.dim} /></View>
                   <View style={[s.checkCircle, sel && { borderColor: paper.line }]}>
                     {sel && <Text style={{ fontSize: 11.5, fontWeight: '900', color: paper.line }}>✓</Text>}
                   </View>

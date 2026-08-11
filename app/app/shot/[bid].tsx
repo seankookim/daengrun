@@ -7,6 +7,7 @@ import { resolveMediaUrl } from '../../src/lib/media';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { haptic } from '../../src/lib/haptics';
 import { colors } from '../../src/theme';
+import { Icon } from '../../src/components/ui';
 
 // 인증샷 스튜디오 (2026-07-28 확정 스펙) — 공유가 곧 마케팅.
 // 스킨 5: A 트랜스페어런트(기본) · B 투명 대형 · B 포토 · G 폴라로이드 · I 볼트 블록.
@@ -210,8 +211,8 @@ export default function ShotStudio() {
     if (!standings) return null;
     const out: string[] = [];
     if (standings.total > 1) {
-      if (standings.kmRank === 1) out.push('🏆 역대 최장');
-      if (standings.paceRank === 1) out.push('⚡ 최고 페이스');
+      if (standings.kmRank === 1) out.push('역대 최장');
+      if (standings.paceRank === 1) out.push('최고 페이스');
     }
     return out.length > 0 ? out.join(' · ') : null;
   }, [standings]);
@@ -390,7 +391,7 @@ export default function ShotStudio() {
             <View style={{ height: PH - 62, overflow: 'hidden', backgroundColor: '#c9ccc0' }}>
               {photos.G
                 ? <PhotoLayer uri={photos.G} w={CARD_W - 84} h={PH - 62} resetKey={photos.G} />
-                : <View style={[s.photoEmpty, { backgroundColor: '#3b4d35' }]}><Text style={{ fontSize: 24 }}>🖼</Text></View>}
+                : <View style={[s.photoEmpty, { backgroundColor: '#3b4d35' }]}><Icon name="Image" glyph="○" size={24} color="#8fa093" /></View>}
               {/* 트레이스 = 폴라로이드의 주인공 (Sean 2026-07-29: 크게·중앙·선명한 네온).
                   다크 헤일로 언더스트로크가 어떤 사진 위에서도 볼트를 세운다 */}
               {pts && (() => {
@@ -482,11 +483,11 @@ export default function ShotStudio() {
   const onMain = needsPhotoNow ? () => openSheet('G') : t ? savePng : shareNow;
   const [ghostLabel, onGhost] =
     activeKey === 'A'
-      ? hasPhoto('A') ? ['🖼 사진', () => photoMenu('A')] as const : ['🖼 사진 위에 올리기', () => openSheet('A')] as const
+      ? hasPhoto('A') ? ['사진', () => photoMenu('A')] as const : ['사진 위에 올리기', () => openSheet('A')] as const
       : activeKey === 'Bp'
-        ? hasPhoto('Bp') ? ['🖼 사진', () => photoMenu('Bp')] as const : ['🖼 사진 넣기', () => openSheet('Bp')] as const
+        ? hasPhoto('Bp') ? ['사진', () => photoMenu('Bp')] as const : ['사진 넣기', () => openSheet('Bp')] as const
         : activeKey === 'G' && photos.G
-          ? ['🖼 사진 변경', () => openSheet('G')] as const
+          ? ['사진 변경', () => openSheet('G')] as const
           : ['이미지 저장', savePng] as const;
 
   return (
@@ -583,11 +584,11 @@ export default function ShotStudio() {
           {photoSignFails > 0 && (
             /* [0064] 서명 실패 = 명시적 실패 상태 — 조용히 장수를 줄이지 않는다 */
             <Text style={{ fontSize: 13, fontWeight: '700', color: '#b4552d', marginTop: 8 }}>
-              ⚠️ 사진 {photoSignFails}장을 못 불러왔어요 — 시트를 닫았다 다시 열면 재시도해요
+              사진 {photoSignFails}장을 못 불러왔어요 — 시트를 닫았다 다시 열면 재시도해요
             </Text>
           )}
           <Pressable onPress={pickFromGallery} style={s.galBtn}>
-            <Text style={{ fontSize: 14, fontWeight: '800', color: colors.dim }}>🖼 내 갤러리에서 선택</Text>
+            <Text style={{ fontSize: 14, fontWeight: '800', color: colors.dim }}>내 갤러리에서 선택</Text>
           </Pressable>
           <Pressable onPress={confirmPhoto} disabled={!photos[sheetKey]} style={[s.sheetCta, !photos[sheetKey] && { opacity: 0.4 }]}>
             <Text style={{ fontSize: 15, fontWeight: '900', color: colors.volt }}>이 사진으로 만들기 ›</Text>

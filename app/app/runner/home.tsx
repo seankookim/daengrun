@@ -194,7 +194,7 @@ export default function RunnerHome() {
           try {
             await acceptBooking(rq.bookingId);
             haptic('success');
-            Alert.alert('수락 완료 🏁', '보호자에게 알림이 갔어요 — 오늘의 루트에 올라갑니다');
+            Alert.alert('수락 완료', '보호자에게 알림이 갔어요 — 오늘의 루트에 올라갑니다');
             reloadQueue();
           } catch (e) {
             Alert.alert('수락 실패', (e as Error).message);
@@ -512,7 +512,7 @@ export default function RunnerHome() {
                 <HoloEdge />
                 <Row style={{ justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 13, paddingTop: 12, gap: 8 }}>
                   <Row style={{ alignItems: 'center', gap: 6 }}>
-                    <View style={styles.tGlyph}><Text style={{ color: '#fff', fontSize: 9 }}>✈</Text></View>
+                    <View style={styles.tGlyph}><Text style={{ color: '#fff', fontSize: 9 }}>➤</Text></View>
                     <Text style={styles.tBrand}>TODAY · FRONT REQUEST</Text>
                   </Row>
                   {inbox[0].directed && (
@@ -699,7 +699,7 @@ export default function RunnerHome() {
                 ? null
                 : { next: '베테랑', at: 30 };
             if (!t) {
-              return <Text style={{ fontSize: 14, lineHeight: 18, fontWeight: '700', color: lilac.head }}>🏅 마스터 러너</Text>;
+              return <Text style={{ fontSize: 14, lineHeight: 18, fontWeight: '700', color: lilac.head }}>★ 마스터 러너</Text>;
             }
             const left = Math.max(t.at - rs.totalRuns, 0);
             const pct = Math.min(rs.totalRuns / t.at, 1);
@@ -837,7 +837,7 @@ export default function RunnerHome() {
                   <View style={{ alignItems: 'flex-end', gap: 5 }}>
                     <Text style={[styles.drowPay, nf]}>+{j.payout.toLocaleString()}</Text>
                     <Pressable onPress={() => router.push(`/shot/${j.bookingId}`)} style={styles.shot}>
-                      <Text style={styles.shotTxt}>📸 인증샷</Text>
+                      <Text style={styles.shotTxt}>인증샷</Text>
                     </Pressable>
                   </View>
                 </Row>
@@ -850,7 +850,7 @@ export default function RunnerHome() {
               accessibilityRole="button"
               accessibilityLabel="동네 피드에 자랑하기"
             >
-              <Text style={styles.feedShareTxt}>🐾 완주 기록을 동네 피드에 자랑하기 ›</Text>
+              <Text style={styles.feedShareTxt}>완주 기록을 동네 피드에 자랑하기 ›</Text>
             </Pressable>
           </>
         )}
@@ -863,7 +863,7 @@ export default function RunnerHome() {
         {/* ————— 퀵 링크 ————— */}
         <Row style={{ flexWrap: 'wrap', gap: 6, marginTop: 14 }}>
           <Pressable onPress={() => router.push('/leaderboard')} style={styles.qlink}>
-            <Text style={styles.qlinkB}>🏆 랭킹</Text><Text style={styles.qlinkChev}>›</Text>
+            <Text style={styles.qlinkB}>랭킹</Text><Text style={styles.qlinkChev}>›</Text>
           </Pressable>
           <Pressable onPress={() => router.push('/community')} style={styles.qlink}>
             <Text style={styles.qlinkB}>커뮤니티</Text><Text style={styles.qlinkChev}>›</Text>

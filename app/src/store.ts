@@ -153,8 +153,10 @@ export const bookings: Booking[] = [
   { id: 'b4', dateLabel: '7월 21일 (화)', timeLabel: '오후 7:12', dogName: '초코', runnerId: 'minjun', runnerName: '김민준', routeId: 'seoulforest-loop', routeName: '서울숲 순환 코스', km: 5, paceLabel: "보통 7'", price: 24960, status: 'completed' },
 ];
 
-// Cancel policy (mock): 10% fee, split 50/50 runner·platform
-export const cancelPolicy = { feeRate: 0.1, runnerShare: 0.5 };
+// Cancel policy — display constants mirroring the server ladder (0066 marketplace_cancel_fee):
+// <24h confirmed → 10% (split 50/50 runner·platform); runner en route → 50%, ALL of it runner
+// compensation (Sean 2026-08-11). The server computes the real fee — these only word the copy.
+export const cancelPolicy = { feeRate: 0.1, runnerShare: 0.5, enrouteFeeRate: 0.5 };
 
 // ---------- Runner earnings ledger (schema seed: payouts/ledger tables) ----------
 export interface LedgerItem {

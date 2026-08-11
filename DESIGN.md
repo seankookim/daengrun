@@ -172,6 +172,29 @@ with coordinates) · gate logic/badges on `rawStatus`, never display vocabulary 
 dark/empty states name their real cause and carry a fix path when the viewer
 can fix it (owner sees 위치 지정하기; runner is routed to chat).
 
+## 7b. Decluttering doctrine (Sean 2026-08-11 — "no emojis, no cheap, declutter")
+
+External canon adopted: Laws of UX, Apple HIG (clarity · deference · depth),
+Maze UI principles. Binding consequences for this app:
+
+- **No decorative emoji.** Colored pictorial emoji (🐾 📸 ⚡ …) are banned from
+  shipped UI — they render as cheap color images against an ink-and-paper
+  system. Monochrome typographic glyphs (› ‹ ✓ ✎ ◐ ● § ★) are ink, not
+  pictures, and remain in the sanctioned glyph class. Never swap one emoji for
+  another; delete, or use a Lucide `Icon` when a real affordance is needed.
+- **Hick / Miller**: ≤5–9 competing elements per group; more means chunking or
+  progressive disclosure, not smaller type.
+- **Von Restorff + the emphasis budget**: exactly one isolated emphasis per
+  screen. Two ink CTAs cancel each other out.
+- **Cognitive load**: every element must serve the screen's ONE job; the rest
+  moves behind a tap.
+- **Peak-End protection**: the GO press, the handoff seal, and run completion
+  are peak moments — they are exempt from minimization; polish them instead.
+- **Decluttering never becomes hiding.** Honest states (loud-fail strips, dark
+  states, real empties) are content, not clutter — they always survive a cut.
+- **Fitts / HIG**: 44pt minimum targets, safe-area respect, hierarchy from size,
+  weight, and space rather than decoration.
+
 ## 8. Budgets (scarcity is the aesthetic)
 
 | Thing | Budget |

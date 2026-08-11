@@ -87,7 +87,7 @@ export function MediaImage({ source, style, resizeMode = 'cover' }: {
         onPress={() => { setDead(false); setAutoTried(false); retry(); }}
         style={[ms.fail, style]}
       >
-        <Text style={ms.failMark}>⚠️</Text>
+        <Text style={ms.failMark}>!</Text>
         <Text style={ms.failText} numberOfLines={2}>사진을 못 불러왔어요{'\n'}눌러서 다시 시도</Text>
       </Pressable>
     );

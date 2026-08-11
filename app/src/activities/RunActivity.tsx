@@ -14,7 +14,7 @@ export type RunActivityProps = {
   targetKm: string;  // '3'
   pace: string;      // "7'02\""
   elapsed: string;   // '23:41'
-  eventLine: string; // '💩1 · 💧2' ('' 가능)
+  eventLine: string; // '응가 1 · 물 2' ('' 가능)
 };
 
 const RunActivity = (props: RunActivityProps, env: LiveActivityEnvironment) => {
@@ -49,7 +49,7 @@ const RunActivity = (props: RunActivityProps, env: LiveActivityEnvironment) => {
             {props.dogName} 러닝 중
           </Text>
           <Text modifiers={[font({ size: 12 }), foregroundStyle(bannerDim), padding({ leading: 8 })]}>
-            ⏱ {props.elapsed}
+            {props.elapsed}
           </Text>
         </HStack>
         <HStack modifiers={[padding({ top: 8 })]}>
@@ -80,7 +80,7 @@ const RunActivity = (props: RunActivityProps, env: LiveActivityEnvironment) => {
           {props.km}km
         </Text>
         <Text modifiers={[font({ size: 11 }), foregroundStyle(bannerDim), padding({ leading: 6 })]}>
-          ⏱ {props.elapsed}
+          {props.elapsed}
         </Text>
       </HStack>
     ),
@@ -121,7 +121,7 @@ const RunActivity = (props: RunActivityProps, env: LiveActivityEnvironment) => {
           {props.pace}/km
         </Text>
         <Text modifiers={[font({ size: 13 }), foregroundStyle(CREAM), padding({ leading: 12 })]}>
-          ⏱ {props.elapsed}
+          {props.elapsed}
         </Text>
         <Text modifiers={[font({ size: 13 }), foregroundStyle(DIM), padding({ leading: 12 })]}>
           {props.eventLine}

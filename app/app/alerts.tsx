@@ -25,11 +25,11 @@ const inkFor = (kind: string | null | undefined, title: string): { bg: string; f
   return { bg: lilac.voltFill, fg: lilac.voltDeep }; // 완료·시작·적립 등 — 기능 볼트(성공 확인 전용)
 };
 const glyphFor = (title: string): string => {
-  if (/완료|시작|돌파/.test(title)) return '🏃';
+  if (/완료|시작|돌파/.test(title)) return '★';
   if (/반복/.test(title)) return '⟳';
   if (/변경|수락/.test(title)) return '✓';
   if (/만료|취소/.test(title)) return '✕';
-  if (/SOS/.test(title)) return '🚨';
+  if (/SOS/.test(title)) return '!';
   return '런';
 };
 // 정사각 모노 타입 태그 라벨 — inkFor와 동일 버킷에서 파생 (제목 실데이터 기반, 조작 아님)

@@ -17,7 +17,7 @@ import { lilac, lilacRadius, lilacShadow } from '../src/theme';
 // 두 재질은 억지로 하나로 합치지 않는다 — 종이에 찍은 잉크와 자수 배지는 다른 물건이다.
 
 const GRADE_LABEL: Record<string, string> = { basic: '획득', silver: '실버', gold: '골드', master: '마스터' };
-const nextGrade = (n: number) => (n < 5 ? `실버까지 ${5 - n}회` : n < 10 ? `골드까지 ${10 - n}회` : n < 25 ? `마스터까지 ${25 - n}회` : '코스 마스터 👑');
+const nextGrade = (n: number) => (n < 5 ? `실버까지 ${5 - n}회` : n < 10 ? `골드까지 ${10 - n}회` : n < 25 ? `마스터까지 ${25 - n}회` : '코스 마스터');
 
 // 도장 프리미티브·잉크 법·폭 예산 → src/components/stamp.tsx (2026-08-05 추출 — 정본 한 곳).
 const NIGHT = '#1C1837';                  // 패치 웰 바닥 (기록면과 같은 나이트 라일락)

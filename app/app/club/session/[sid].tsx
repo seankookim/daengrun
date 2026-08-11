@@ -1,7 +1,7 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Image, Linking, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { Avatar, Row } from '../../../src/components/ui';
+import { Avatar, Icon, Row } from '../../../src/components/ui';
 import { AckStack } from '../../../src/components/club-acks';
 import {
   BigNumRow, ClubCta, ClubMast, ClubTag, DawnCanvas, Flap, LilacCard, clubText,
@@ -911,8 +911,7 @@ export default function ClubSessionShell() {
         {isDone && tab === '개요' && (
           <>
             <LilacCard style={{ alignItems: 'center', paddingVertical: 22 }}>
-              <Text style={{ fontSize: 28 }}>🏁</Text>
-              <Text style={{ fontSize: 17, fontWeight: '800', color: L.head, marginTop: 6 }}>오늘의 하이클럽</Text>
+              <Text style={{ fontSize: 17, fontWeight: '800', color: L.head }}>오늘의 하이클럽</Text>
               <Text style={{ fontSize: 14, color: L.text, marginTop: 4 }}>
                 {checkedCount}팀{sess.dogCount > 0 ? ` · ${sess.dogCount}마리` : ''}가 함께 달렸어요
               </Text>
@@ -991,7 +990,7 @@ export default function ClubSessionShell() {
               <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
                 <View style={{ flex: 1 }}>
                   <Text style={clubText.vkDim}>MEET</Text>
-                  <Text style={{ fontSize: 14.5, fontWeight: '800', color: L.head, marginTop: 3 }}>📍 {sess.meetupPoint}</Text>
+                  <Text style={{ fontSize: 14.5, fontWeight: '800', color: L.head, marginTop: 3 }}>{sess.meetupPoint}</Text>
                   <Text style={{ fontSize: 14, color: L.dim, marginTop: 3 }}>
                     호스트 {sess.hostName ?? '—'} · {peopleCount}팀 / {sess.capacity}
                   </Text>
@@ -1133,14 +1132,14 @@ export default function ClubSessionShell() {
             )}
             {isOpenish && sess.myAttendance === 'checked_in' && (
               <View style={s.checkedCard}>
-                <Text style={{ fontSize: 14, fontWeight: '800', color: L.accent }}>체크인 완료 — 좋은 러닝 되세요 🐾</Text>
+                <Text style={{ fontSize: 14, fontWeight: '800', color: L.accent }}>체크인 완료 — 좋은 러닝 되세요</Text>
               </View>
             )}
 
             {/* 입장권 (기존 pass 화면 — 재도색은 후속) */}
             {sess.joined && !isDone && (
               <Pressable onPress={() => router.push({ pathname: `/club/pass/${sess.id}`, params: { clubName: clubName ?? '' } })}>
-                <Text style={s.detailLink}>🎟 내 입장권 — 집결지에서 보여주세요</Text>
+                <Text style={s.detailLink}>내 입장권 — 집결지에서 보여주세요</Text>
               </Pressable>
             )}
 
@@ -1183,7 +1182,7 @@ export default function ClubSessionShell() {
             </LilacCard>
             {writable ? (
               <Row style={s.inputbar}>
-                <Pressable onPress={() => doSendPhoto({ audience: 'host_channel' })} style={s.camChip}><Text style={{ fontSize: 16 }}>📷</Text></Pressable>
+                <Pressable onPress={() => doSendPhoto({ audience: 'host_channel' })} style={s.camChip}><Icon name="Camera" glyph="◉" size={17} color={L.head} /></Pressable>
                 <TextInput value={draft} onChangeText={setDraft} placeholder="호스트에게 문의..." placeholderTextColor={L.dim}
                   style={s.inputField} multiline />
                 <Pressable onPress={() => doSend(draft, { audience: 'host_channel' })} style={s.sendBtn}>
@@ -1243,7 +1242,7 @@ export default function ClubSessionShell() {
             </View>
             {writable ? (
               <Row style={s.inputbar}>
-                <Pressable onPress={() => doSendPhoto()} style={s.camChip}><Text style={{ fontSize: 16 }}>📷</Text></Pressable>
+                <Pressable onPress={() => doSendPhoto()} style={s.camChip}><Icon name="Camera" glyph="◉" size={17} color={L.head} /></Pressable>
                 <TextInput value={draft} onChangeText={setDraft} placeholder="메시지..." placeholderTextColor={L.dim}
                   style={s.inputField} multiline />
                 <Pressable onPress={() => doSend(draft)} style={s.sendBtn}>
@@ -1307,7 +1306,7 @@ export default function ClubSessionShell() {
             <Row style={s.inputbar}>
               <Pressable
                 onPress={() => doSendPhoto({ audience: 'host_channel', recipient: isHostView && hostThread !== 'me' ? hostThread : undefined })}
-                style={s.camChip}><Text style={{ fontSize: 16 }}>📷</Text></Pressable>
+                style={s.camChip}><Icon name="Camera" glyph="◉" size={17} color={L.head} /></Pressable>
               <TextInput value={threadDraft} onChangeText={setThreadDraft} placeholder="메시지..." placeholderTextColor={L.dim}
                 style={s.inputField} multiline />
               <Pressable

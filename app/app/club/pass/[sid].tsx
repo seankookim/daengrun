@@ -7,7 +7,7 @@ import { useDisplayFont } from '../../../src/lib/displayFont';
 import { haptic } from '../../../src/lib/haptics';
 import { colors } from '../../../src/theme';
 
-// 🎟 입장권 (D1×D2 하이브리드, Sean 확정) — 집결지에서 호스트에게 '보여주는' 화면.
+// 입장권 (D1×D2 하이브리드, Sean 확정) — 집결지에서 호스트에게 '보여주는' 화면.
 // 나이트 스텁 티켓: ADMIT 언어(책임 불변식의 입장권 버전) + 빕 넘버(D1 명부) + 바코드.
 // 체크인 버튼이 티켓 위에 산다 — 보여주면서 그 자리에서 찍는 게 자연스러운 동선.
 // 체크인 창(시작 −2h~+6h)은 서버(session_checkin)가 강제 — 화면은 안내만.
@@ -108,7 +108,7 @@ export default function ClubPass() {
             {checked ? (
               <View style={s.checkedStamp}>
                 <Text style={{ fontSize: 17, fontWeight: '900', letterSpacing: 3, color: colors.volt }}>CHECKED</Text>
-                <Text style={{ fontSize: 8.5, fontWeight: '700', letterSpacing: 2, color: 'rgba(198,245,66,.75)', marginTop: 2 }}>ARRIVED · GOOD RUN 🐾</Text>
+                <Text style={{ fontSize: 8.5, fontWeight: '700', letterSpacing: 2, color: 'rgba(198,245,66,.75)', marginTop: 2 }}>ARRIVED · GOOD RUN</Text>
               </View>
             ) : me ? (
               inWindow ? (

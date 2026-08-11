@@ -306,14 +306,37 @@ Deno.serve(handle(async (req) => {
 
     case "cancel_owner": {
       if (!isOwner) throw new HttpError(403, "owner only");
-      // 24시간 전 무료, 이후 10% (50%는 러너 보상 — 정산에서 처리)
-      const hrs = (new Date(bk.scheduled_at).getTime() - Date.now()) / 3_600_000;
-      // 매칭 전(러너 미배정/응답 대기)은 시점 무관 전액 환불 — find-now(+40분)가 24h 룰에 걸려
-      // '매칭 전 취소는 전액 환불' 약속을 어기고 10%를 물리던 버그
-      const unmatched = !bk.runner_id || ["matching", "runner_pending"].includes(bk.status);
-      const fee = (hrs >= 24 || unmatched) ? 0 : Math.round(bk.total_price * 0.1);
-      await set({ status: "cancelled_owner", cancel_fee: fee });
-      if (bk.runner_id) await notify(bk.runner_id, "예약 취소됨", "보호자가 예약을 취소했어요");
+      // [0066] Fee ladder = SQL single truth (marketplace_cancel_fee, harness-pinned):
+      //   unmatched → 0 (full refund any time — the old find-now +40min bug stays fixed)
+      //   runner_enroute → 50% (runner compensation — Sean 2026-08-11)
+      //   matched >=24h → 0 · confirmed <24h → 10%
+      // The TS tier arithmetic retired to SQL because the harness can only pin SQL.
+      const { data: q, error: qe } = await db
+        .rpc("marketplace_cancel_fee", { p_booking: booking_id }).single();
+      if (qe || !q) throw new HttpError(409, qe?.message ?? "booking not found");
+      const { fee, status: quoted } = q as { fee: number; status: string };
+      // CAS on the quoted status — after 0066 both confirmed AND runner_enroute may become
+      // cancelled_owner, so the trigger no longer catches a quote-then-depart race (a 0/10%
+      // fee landing on a runner who set out between quote and write). 0 rows = re-quote.
+      // cancel_reason marks the en-route tier for future settlement (0066: no new column —
+      // cancel_fee holds the money, this holds the why; the whole 50% is runner compensation).
+      const { data: done, error: ce } = await db.from("bookings")
+        .update({
+          status: "cancelled_owner", cancel_fee: fee,
+          ...(quoted === "runner_enroute" ? { cancel_reason: "owner_cancel_enroute" } : {}),
+        })
+        .eq("id", booking_id).eq("status", quoted).select("id");
+      if (ce) throw new HttpError(409, ce.message);
+      if (!done || done.length === 0) {
+        throw new HttpError(409, "예약 상태가 방금 바뀌었어요 — 화면을 새로고침한 뒤 다시 시도해주세요");
+      }
+      if (bk.runner_id) {
+        // En-route copy tells the runner compensation is owed — recorded fact only, no payout
+        // date (payments are mocked; a promised date would be a lie the app can't keep).
+        await notify(bk.runner_id, "예약 취소됨", quoted === "runner_enroute"
+          ? "보호자가 이동 중에 예약을 취소했어요 — 취소 수수료(결제 금액의 50%)가 러너 보상으로 기록됐어요"
+          : "보호자가 예약을 취소했어요");
+      }
       return { cancel_fee: fee, refund: bk.total_price - fee };
     }
 

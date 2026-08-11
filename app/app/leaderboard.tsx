@@ -10,8 +10,7 @@ import { colors } from '../src/theme';
 // 서버 집계 함수(0012) 기반 — 개인 데이터는 비공개, 이름·사진·주간 합계만.
 
 const FOREST = '#0F1D13';
-const MEDAL = ['🥇', '🥈', '🥉'];
-const BIB_BAND = ['#F2DA96', '#dfe3e8', '#f3cba8']; // 골드 · 실버 · 브론즈 파스텔 밴드
+const BIB_BAND = ['#F2DA96', '#dfe3e8', '#f3cba8']; // 골드 · 실버 · 브론즈 파스텔 밴드 — 메달 이모지 은퇴, 밴드 색이 순위를 말한다
 
 export default function Leaderboard() {
   const df = useDisplayFont(); // 디스플레이 서체 — 화면 타이틀
@@ -74,7 +73,7 @@ export default function Leaderboard() {
 
         {/* tabs */}
         <View style={s.tabWrap}>
-          {([['dogs', '🐕 강아지 (거리)'], ['runners', '🏃 러너 (러닝 수)']] as const).map(([k, label]) => (
+          {([['dogs', '강아지 (거리)'], ['runners', '러너 (러닝 수)']] as const).map(([k, label]) => (
             <Pressable key={k} onPress={() => setTab(k)} style={[s.tab, tab === k && { backgroundColor: FOREST }]}>
               <Text style={{ fontSize: 14.5, fontWeight: '800', color: tab === k ? '#fff' : '#49524a' }}>{label}</Text>
             </Pressable>
@@ -100,7 +99,6 @@ export default function Leaderboard() {
                 <View key={`${r.name}-${rank}`} style={[s.bib, first && s.bibFirst]}>
                   {/* 상단 밴드 + 펀치홀 — 레이스 빕 조형 (미니 빕 스탯과 같은 모티프) */}
                   <View style={[s.bibBand, { backgroundColor: BIB_BAND[rank] }]}>
-                    <Text style={{ fontSize: first ? 15 : 13 }}>{MEDAL[rank]}</Text>
                     <Text style={{ fontSize: 10, fontWeight: '900', color: FOREST, letterSpacing: 1.5 }}>NO.{rank + 1}</Text>
                   </View>
                   <Row style={{ justifyContent: 'space-between', paddingHorizontal: 14, marginTop: -5 }}>

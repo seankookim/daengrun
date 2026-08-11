@@ -74,11 +74,12 @@ export default function OwnerMeetup() {
   // Appended at the end of the bundle per the freeze law above.
   const [pin, setPin] = useState<{ s: 'loading' | 'ok' | 'err'; c: OwnerPickup | null }>({ s: 'loading', c: null });
   const [pinTry, setPinTry] = useState(0);
-  // [2026-08-11 owner cancel] Cancel affordance for the pre-departure window only.
-  // The DB transition map (0047 enforce_booking_transition) has no runner_enroute/picked_up
-  // → cancelled_owner edge, so cancel is legal solely at status 'confirmed' = stage 'enroute'
-  // here (IN_FLIGHT resolution guarantees the mapping). Appended at the END of the bundle
-  // per the hook-placement freeze above.
+  // [2026-08-11 owner cancel · 0066] Cancel affordance for both pre-departure ('enroute' =
+  // server confirmed: free >=24h out, else 10%) and en-route ('arrived' = server
+  // runner_enroute: 50%, runner compensation — 0066 widened the transition map). picked_up
+  // stays closed server-side (incident, not cancellation), and this screen stops offering
+  // cancel once the owner starts the handoff ceremony (stage 'waiting'). Appended at the
+  // END of the bundle per the hook-placement freeze above.
   const [cancelling, setCancelling] = useState(false);
   // Mutes refresh()'s terminal-state handler while our own cancel exit runs — realtime can
   // observe cancelled_owner before cancelBooking() resolves, and without this both paths
@@ -185,14 +186,19 @@ export default function OwnerMeetup() {
   };
 
   // [2026-08-11 owner cancel] Design (a): state the policy in words BEFORE committing —
-  // the fee is computed server-side (cancel_owner: free >=24h out, else 10% of total_price)
-  // and MeetupInfo carries no price, so no client number is guessed. The success alert then
-  // shows the server's returned cancel_fee/refund (schedule.tsx cancel vocabulary, verbatim).
+  // the fee is computed server-side (0066 marketplace_cancel_fee: unmatched/>=24h free,
+  // confirmed <24h 10%, runner_enroute 50% as runner compensation) and MeetupInfo carries no
+  // price, so no client number is guessed. The success alert then shows the server's returned
+  // cancel_fee/refund (schedule.tsx cancel vocabulary, verbatim). At stage 'arrived' the
+  // server status is runner_enroute — the confirm copy must say 50% plainly, and why.
   const cancel = () => {
     if (!bookingId || cancelling) return;
+    const enroute = stage === 'arrived'; // server runner_enroute — 50% tier (0066)
     Alert.alert(
       '일정을 취소할까요?',
-      `${info ? `${info.when} · ` : ''}${runnerName} 러너\n\n시작 24시간 전까지는 수수료가 없어요.\n이후에는 결제 금액의 ${cancelPolicy.feeRate * 100}%가 취소 수수료로 차감돼요.`,
+      `${info ? `${info.when} · ` : ''}${runnerName} 러너\n\n${enroute
+        ? `러너가 이미 픽업으로 출발했어요.\n지금 취소하면 결제 금액의 ${cancelPolicy.enrouteFeeRate * 100}%가 취소 수수료로 차감되고, 시간을 내어 출발한 러너의 보상으로 쓰여요.`
+        : `시작 24시간 전까지는 수수료가 없어요.\n이후에는 결제 금액의 ${cancelPolicy.feeRate * 100}%가 취소 수수료로 차감돼요.`}`,
       [
         { text: '돌아가기', style: 'cancel' },
         {
@@ -447,8 +453,8 @@ export default function OwnerMeetup() {
             <Text style={s.statusSub}>러너가 출발하면 알림을 보내드려요 · 도착하면 다시 알려드려요</Text>
             {/* [2026-08-11 owner cancel] Secondary destructive affordance — paper destructive
                 grammar (canvas + 1px critical border + critical ink, criticalWash pressed) via
-                PaperBtn. Pre-departure only: the transition map closes cancel once the runner
-                is en route, so this button never appears past this stage. */}
+                PaperBtn. Pre-departure tier: free >=24h out, else 10%. (0066: the en-route
+                stage below now carries its own cancel at the 50% tier.) */}
             <PaperBtn
               label="예약 취소" busyLabel="취소 처리 중..." variant="destructive"
               onPress={cancel} busy={cancelling} style={{ alignSelf: 'stretch', marginTop: 14 }}
@@ -460,10 +466,17 @@ export default function OwnerMeetup() {
             {/* 화면당 잉크-필 CTA 1개 — 이 화면의 계약 행동은 인계 확인 하나뿐 */}
             <PaperBtn label={`${dogName}를 인계했어요`} onPress={handoff} />
             <Text style={s.ctaHint}>러너도 확인하면 러닝이 시작돼요</Text>
-            {/* [2026-08-11 owner cancel] Honest closure — no runner_enroute → cancelled_owner
-                edge exists in the transition map, so no dead cancel button here; the same
-                sentence schedule.tsx's management sheet uses for this state. */}
-            <Text style={[s.ctaHint, { marginTop: 4 }]}>러너가 픽업으로 이동 중이에요 — 지금은 변경·취소가 마감됐어요</Text>
+            {/* [2026-08-11 owner cancel · 0066] The old "취소 마감" closure line retired — the
+                server now accepts runner_enroute → cancelled_owner at a 50% fee (runner
+                compensation), so the honest surface is a real destructive action whose
+                confirm dialog states that tier before committing (cancel() above). The
+                hint keeps the number visible before the tap, same 50% framing as
+                schedule.tsx's management sheet. */}
+            <PaperBtn
+              label="예약 취소" busyLabel="취소 처리 중..." variant="destructive"
+              onPress={cancel} busy={cancelling} style={{ alignSelf: 'stretch', marginTop: 14 }}
+            />
+            <Text style={[s.ctaHint, { marginTop: 8 }]}>이동 중 취소는 결제 금액의 50%가 수수료로 차감돼요 — 출발한 러너의 보상으로 쓰여요</Text>
           </View>
         )}
         {stage === 'waiting' && (

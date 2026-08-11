@@ -66,7 +66,7 @@ export default function Earnings() {
             <Text style={{ fontSize: 15, color: '#b8c4ae' }}>원천징수 3.3% 약 −{tax.toLocaleString()}원</Text>
           </Row>
           <Pressable style={s.settleBtn} onPress={() => Alert.alert('빠른 정산', '정산 자동화(오픈뱅킹) 연동 후 제공돼요')}>
-            <Text style={{ fontSize: 14.5, fontWeight: '900', color: FOREST }}>⚡ 빠른 정산 신청</Text>
+            <Text style={{ fontSize: 14.5, fontWeight: '900', color: FOREST }}>빠른 정산 신청</Text>
           </Pressable>
         </View>
 

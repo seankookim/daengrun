@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Animated, Dimensions, Image, Pressable, RefreshControl, ScrollView, StyleProp, StyleSheet, Text, TextInput, View, ViewStyle } from 'react-native';
 import { BottomNav } from '../src/components/bottomnav';
 import { HeatTrace } from '../src/components/runcard';
-import { Avatar, Row } from '../src/components/ui';
+import { Avatar, Icon, Row } from '../src/components/ui';
 import { MediaImage } from '../src/lib/media';
 import {
   addComment, deleteFeedPost, fetchComments, fetchFeed, fetchMyProfile, fetchRecentReviews,
@@ -76,7 +76,7 @@ function PawBurst({ trigger }: { trigger: number }) {
   if (trigger === 0) return null;
   return (
     <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', opacity, transform: [{ scale }] }]}>
-      <Text style={{ fontSize: 84, textShadowColor: 'rgba(0,0,0,.35)', textShadowRadius: 14, textShadowOffset: { width: 0, height: 3 } }}>🐾</Text>
+      <Icon name="PawPrint" glyph="●" size={84} color={CORAL_INK} />
     </Animated.View>
   );
 }
@@ -207,7 +207,6 @@ export default function Community() {
               <Text style={s.lede}>우리 동네 강아지들의 오늘 러닝. 완료된 러닝이 그대로 지면이 됩니다.</Text>
             </View>
             <Pressable onPress={() => router.push('/leaderboard')} style={s.rankBtn}>
-              <Text style={{ fontSize: 15 }}>🏆</Text>
               <Text style={[s.rankTxt, nf]}>랭킹</Text>
             </Pressable>
           </Row>
@@ -298,7 +297,7 @@ export default function Community() {
           >
             <Avatar url={me?.avatarUrl} char={(me?.name ?? '나')[0]} bg={lilac.accent} size={34} />
             <Text style={s.composePh} numberOfLines={1}>오늘 러닝 자랑하기...</Text>
-            <View style={s.composeGo}><Text style={s.composeGoTxt}>🐾 올리기</Text></View>
+            <View style={s.composeGo}><Text style={s.composeGoTxt}>올리기</Text></View>
           </Pressable>
         )}
 
@@ -319,7 +318,7 @@ export default function Community() {
           <View style={s.emptyBox}>
             <Text style={{ fontSize: 15, fontWeight: '700', color: lilac.head, textAlign: 'center' }}>아직 포스트가 없어요</Text>
             <Text style={{ fontSize: 14, color: lilac.dim, textAlign: 'center', marginTop: 6, lineHeight: 22 }}>
-              러닝을 완료하고 위의 '올리기'로 자랑해보세요{'\n'}첫 포스트의 주인공이 되어주세요 🐕
+              러닝을 완료하고 위의 '올리기'로 자랑해보세요{'\n'}첫 포스트의 주인공이 되어주세요
             </Text>
           </View>
         )}
@@ -364,7 +363,7 @@ export default function Community() {
                   <Row style={{ marginTop: 10, borderTopWidth: 1, borderTopColor: 'rgba(207,196,255,.22)', paddingTop: 9 }}>
                     <View style={s.recapNumCell}><Text style={[s.recapNum, nf]}>{p.meta.teams}</Text><Text style={s.recapK}>TEAMS</Text></View>
                     {(p.meta.dogs ?? 0) > 0 && <View style={[s.recapNumCell, s.recapDiv]}><Text style={[s.recapNum, nf]}>{p.meta.dogs}</Text><Text style={s.recapK}>DOGS</Text></View>}
-                    <View style={[s.recapNumCell, s.recapDiv]}><Text style={[s.recapNum, nf]}>🏁</Text><Text style={s.recapK}>FINISHED</Text></View>
+                    <View style={[s.recapNumCell, s.recapDiv]}><Text style={[s.recapNum, nf]}>✓</Text><Text style={s.recapK}>FINISHED</Text></View>
                   </Row>
                   <Text style={{ fontSize: 14, color: lilac.dim, marginTop: 10 }}>탭해서 세션 리캡 보기 <Text style={{ color: '#CFC4FF', fontWeight: '700' }}>›</Text></Text>
                   <PawBurst trigger={bursts[p.id] ?? 0} />
@@ -429,7 +428,7 @@ export default function Community() {
                       <Text style={{ fontSize: 14, fontWeight: '700', color: lilac.head, marginTop: 5 }}>{p.meta.dogName} 완주</Text>
                     )}
                     {fmtDur(p.meta.durationSec) && (
-                      <Text style={{ fontSize: 14, lineHeight: 18, color: lilac.text, marginTop: 4 }}>⏱ <Text style={[{ fontSize: 14, color: lilac.head }, nf]}>{fmtDur(p.meta.durationSec)}</Text></Text>
+                      <Text style={{ fontSize: 14, lineHeight: 18, color: lilac.text, marginTop: 4 }}><Text style={[{ fontSize: 14, color: lilac.head }, nf]}>{fmtDur(p.meta.durationSec)}</Text></Text>
                     )}
                     <Row style={{ gap: 4, marginTop: 8, flexWrap: 'wrap' }}>
                       {(p.meta.badges ?? []).map((b) => (
@@ -449,7 +448,7 @@ export default function Community() {
                       />
                     </View>
                   ) : (
-                    <Text style={{ fontSize: 38, alignSelf: 'center', opacity: 0.4 }}>🐾</Text>
+                    <View style={{ alignSelf: 'center', opacity: 0.4 }}><Icon name="PawPrint" glyph="●" size={38} color={lilac.dim} /></View>
                   )}
                   <PawBurst trigger={bursts[p.id] ?? 0} />
                 </View>
@@ -466,7 +465,7 @@ export default function Community() {
                 accessibilityLabel="발자국"
                 accessibilityState={{ selected: p.likedByMe }}
               >
-                <Text style={{ fontSize: 17, opacity: p.likedByMe ? 1 : 0.45 }}>🐾</Text>
+                <Icon name="PawPrint" glyph="●" size={17} color={p.likedByMe ? CORAL_INK : lilac.dim} />
                 <Text style={[s.actNum, p.likedByMe && s.actNumOn, nf]}>{p.likes}</Text>
                 <Text style={[s.actLabel, p.likedByMe && s.actLabelOn]}>발자국</Text>
               </Pressable>
@@ -476,7 +475,7 @@ export default function Community() {
                 accessibilityRole="button"
                 accessibilityLabel="댓글"
               >
-                <Text style={{ fontSize: 16, opacity: 0.45 }}>💬</Text>
+                <Icon name="MessageCircle" glyph="○" size={16} color={lilac.dim} />
                 <Text style={[s.actNum, nf]}>{p.commentCount}</Text>
                 <Text style={s.actLabel}>댓글</Text>
               </Pressable>

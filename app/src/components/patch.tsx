@@ -5,7 +5,7 @@ import { PatchGrade } from '../lib/api';
 // P2 배지 월드 (Sean 확정 컬러 리바이탈라이즈): 거리 등급 = 색 세계, 완주 횟수 등급 = 재질.
 //   월드: 3K TRAIL 테라 → 5K FOREST 볼트 → 7K RIVER 스카이 → 10K NIGHT 바이올렛 → 하프+ GOLD
 //   재질: basic(월드색 대시 스티치) → silver(×5 실버 솔리드) → gold(×10 골드 솔리드) →
-//         master(×25 월드색 글로우 + 👑)
+//         master(×25 월드색 글로우 + ★)
 //   수집욕 = 색을 모으는 욕구 — 패치 월이 진짜 배지 보드가 된다.
 
 export interface PatchWorld { label: string; bg: string; tone: string; dim: string }
@@ -48,7 +48,7 @@ export function PatchBadge({ km, name, grade, size = 40, style }: {
         borderColor: st.color, borderStyle: st.solid ? 'solid' : 'dashed',
       }} />
       {grade === 'master' && (
-        <Text style={{ position: 'absolute', top: -size * 0.13, fontSize: size * 0.2 }}>👑</Text>
+        <Text style={{ position: 'absolute', top: -size * 0.13, fontSize: size * 0.2, color: st.color }}>★</Text>
       )}
       <Text style={{ fontSize: kmSize, fontWeight: '900', color: w.tone, lineHeight: kmSize * 1.1 }}>
         {km}K

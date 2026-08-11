@@ -193,7 +193,7 @@ export default function Compose() {
                 사진은 러닝 리포트의 인증샷이 자동으로 실리고, 거리·시간 기록이 함께 표시돼요
               </Text>
               <PaperBtn
-                label="🐾 피드에 올리기"
+                label="피드에 올리기"
                 busyLabel="올리는 중..."
                 busy={busy}
                 disabled={!sel}

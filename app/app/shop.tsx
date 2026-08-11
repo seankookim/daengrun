@@ -96,7 +96,7 @@ export default function Shop() {
         {/* 활성 부스트 (픽 드랍 보상, 실데이터) — 활성일 때만 그린다 */}
         {isRunner && boostUntil && (
           <View style={s.boostStrip}>
-            <Text style={{ fontSize: 14, fontWeight: '900', color: '#4a6d1f' }}>⚡ 매칭 부스트 활성 · {boostUntil}까지</Text>
+            <Text style={{ fontSize: 14, fontWeight: '900', color: '#4a6d1f' }}>매칭 부스트 활성 · {boostUntil}까지</Text>
           </View>
         )}
 
@@ -104,7 +104,7 @@ export default function Shop() {
         {isRunner && unopened.length > 0 && (
           <Pressable onPress={() => router.push('/runner/rewards')} style={s.dropStrip}>
             <Text style={{ fontSize: 15, fontWeight: '900', color: FOREST }}>
-              🎁 도착한 드랍 {unopened.length}개 — 열어보세요 ›
+              도착한 드랍 {unopened.length}개 — 열어보세요 ›
             </Text>
           </Pressable>
         )}

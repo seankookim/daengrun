@@ -113,7 +113,12 @@ export default function Schedule() {
       }
     : undefined;
   const runMin = selected ? selected.km * paceMin(selected.paceLabel) : 0;
-  const fee = selected ? Math.round(selected.price * cancelPolicy.feeRate) : 0;
+  // [0066] En-route cancel is now legal at a 50% fee (runner compensation) — the preview
+  // rate follows the server ladder's tier for this booking's rawStatus. The server still
+  // computes the real fee; the success alert shows the returned numbers.
+  const enrouteCancel = selected?.rawStatus === 'runner_enroute';
+  const feeRate = enrouteCancel ? cancelPolicy.enrouteFeeRate : cancelPolicy.feeRate;
+  const fee = selected ? Math.round(selected.price * feeRate) : 0;
 
   return (
     <View style={{ flex: 1, backgroundColor: paper.canvas }}>
@@ -248,17 +253,17 @@ export default function Schedule() {
                       onPress={() => router.push(`/shot/${b.id}`)}
                       style={({ pressed }) => [s.shareBtn, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
                     >
-                      <Text style={{ fontSize: 14, fontWeight: '900', color: paper.ink }}>📸 공유 카드</Text>
+                      <Text style={{ fontSize: 14, fontWeight: '900', color: paper.ink }}>공유 카드</Text>
                     </Pressable>
                     <Pressable
                       onPress={() => {
                         shareRunToFeed(b.id)
-                          .then(() => Alert.alert('피드에 올렸어요 🐾', '동네 피드에서 확인해보세요'))
+                          .then(() => Alert.alert('피드에 올렸어요', '동네 피드에서 확인해보세요'))
                           .catch((err) => Alert.alert('피드 공유', (err as Error).message));
                       }}
                       style={({ pressed }) => [s.shareBtn, { backgroundColor: '#e7efd8', transform: [{ scale: pressed ? 0.96 : 1 }] }]}
                     >
-                      <Text style={{ fontSize: 14, fontWeight: '900', color: '#3d5a2b' }}>🐕 피드 자랑</Text>
+                      <Text style={{ fontSize: 14, fontWeight: '900', color: '#3d5a2b' }}>피드 자랑</Text>
                     </Pressable>
                   </View>
                 )}
@@ -387,7 +392,7 @@ export default function Schedule() {
                         style={({ pressed }) => [s.ghostAction, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
                         onPress={() => { const bid = selected.id; close(); router.push({ pathname: '/owner/report', params: { bid, shot: '1' } }); }}
                       >
-                        <Text style={{ fontSize: 15, fontWeight: '800', color: paper.ink }}>📸 인증샷 만들기</Text>
+                        <Text style={{ fontSize: 15, fontWeight: '800', color: paper.ink }}>인증샷 만들기</Text>
                       </Pressable>
                       <Pressable
                         style={({ pressed }) => [s.ghostAction, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
@@ -423,10 +428,12 @@ export default function Schedule() {
                   ) : (
                     <>
                       {/* 러너가 픽업 이동 중(runner_enroute) — 표시 어휘는 '확정'으로 뭉개지지만 서버는
-                          변경(confirmed 전용)도 취소(전이 없음)도 거부한다. 정직한 상태 한 줄만. */}
+                          변경은 여전히 거부한다(request_reschedule: confirmed 전용). 취소는 0066부터
+                          합법(50% 수수료 = 러너 보상) — 아래 취소 링크가 이 상태에서도 열리고, 확인
+                          시트가 50% 티어를 커밋 전에 명시한다. 여기는 변경 마감 사실만 말한다. */}
                       {selected.rawStatus === 'runner_enroute' && (
                         <Text style={{ fontSize: 14.5, color: paper.dim, textAlign: 'center', paddingVertical: 10 }}>
-                          러너가 픽업으로 이동 중이에요 — 지금은 변경·취소가 마감됐어요
+                          러너가 픽업으로 이동 중이에요 — 일정 변경은 마감됐어요
                         </Text>
                       )}
                       {/* 일정 변경 요청은 확정 예약에서만 — 서버 규칙(request_reschedule: confirmed 전용 409)과
@@ -462,12 +469,14 @@ export default function Schedule() {
                           <Text style={{ fontSize: 14, color: paper.dim, marginTop: 2 }}>이 예약 그대로 다른 러너에게 다시 요청해요</Text>
                         </Pressable>
                       )}
-                      {/* 취소도 이동 중엔 서버 전이가 없다(runner_enroute → cancelled_owner 부재) — 숨김 */}
-                      {selected.rawStatus !== 'runner_enroute' && (
-                        <Pressable style={s.cancelLink} onPress={() => setSheetMode('cancel')}>
-                          <Text style={{ fontSize: 14.5, fontWeight: '700', color: paper.critical }}>일정 취소하기</Text>
-                        </Pressable>
-                      )}
+                      {/* [0066] 이동 중 취소가 서버 전이로 열렸다(runner_enroute → cancelled_owner,
+                          50% 수수료 = 러너 보상) — 숨김 게이트 은퇴. 링크 라벨이 티어를 예고하고,
+                          확인 시트(fee/feeRate)가 정확한 % 와 배분을 커밋 전에 다시 명시한다. */}
+                      <Pressable style={s.cancelLink} onPress={() => setSheetMode('cancel')}>
+                        <Text style={{ fontSize: 14.5, fontWeight: '700', color: paper.critical }}>
+                          {enrouteCancel ? '일정 취소하기 (수수료 50%)' : '일정 취소하기'}
+                        </Text>
+                      </Pressable>
                     </>
                   )}
                   {/* 반복 해지 (0026) — 구독은 반드시 끌 수 있어야 한다. 상태 무관 노출 */}
@@ -487,18 +496,22 @@ export default function Schedule() {
 
                   <View style={s.feeCard}>
                     <FeeLine label="결제 금액" value={`${selected.price.toLocaleString()}원`} />
-                    <FeeLine label={`취소 수수료 (${cancelPolicy.feeRate * 100}%)`} value={`−${fee.toLocaleString()}원`} coral />
+                    <FeeLine label={`취소 수수료 (${feeRate * 100}%)`} value={`−${fee.toLocaleString()}원`} coral />
                     <View style={{ height: 1, backgroundColor: '#EEE', marginVertical: 10 }} />
                     <FeeLine label="환불 금액" value={`${(selected.price - fee).toLocaleString()}원`} bold />
+                    {/* [0066] 이동 중 티어는 배분 문장이 다르다 — 50% 전액이 이미 출발한 러너의 보상.
+                        일반 티어 카피(10%·50/50 배분·24h 무료)는 그대로 생존. */}
                     <Text style={{ fontSize: 14, color: paper.dim, marginTop: 10, lineHeight: 17 }}>
-                      취소 수수료는 시간을 비워둔 러너에게 {Math.round(cancelPolicy.runnerShare * 100)}%, 도그스하이에 {Math.round((1 - cancelPolicy.runnerShare) * 100)}% 배분돼요.{'\n'}시작 24시간 전까지는 수수료가 없어요.
+                      {enrouteCancel
+                        ? '러너가 이미 픽업으로 출발했어요 — 이동 중 취소 수수료는 전액 시간을 내어 출발한 러너의 보상으로 배분돼요.'
+                        : `취소 수수료는 시간을 비워둔 러너에게 ${Math.round(cancelPolicy.runnerShare * 100)}%, 도그스하이에 ${Math.round((1 - cancelPolicy.runnerShare) * 100)}% 배분돼요.\n시작 24시간 전까지는 수수료가 없어요.`}
                     </Text>
                   </View>
 
                   <Pressable
                     style={({ pressed }) => [s.cancelConfirm, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
                     onPress={async () => {
-                      // 🔴 실취소 — 서버 cancel_owner가 수수료 계산 + 상태 전이 (목업 알럿 은퇴, fake-inventory)
+                      // 실취소 — 서버 cancel_owner가 수수료 계산 + 상태 전이 (목업 알럿 은퇴, fake-inventory)
                       const bid = selected.id;
                       close();
                       try {

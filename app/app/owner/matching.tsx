@@ -30,7 +30,7 @@ const paceSecOf = (label?: string | null) => { const m = /(\d+)/.exec(label ?? '
 
 // 실러너 추천 점수 — 응답률·경험·페이스 적합의 가중합.
 // 데이터가 쌓이면 매칭 엔진(견종 경험·후기·거리)으로 교체. 병원 레지던트식 하이브리드 매칭의 v1.
-interface Match { total: number; reasons: { glyph: string; label: string; pct: number }[] }
+interface Match { total: number; reasons: { label: string; pct: number }[] }
 // gearVerified: 인증 장비 부스트 — 슬롯당 +1, 최대 +2 (가드레일: 핵심 점수 불변, 장비는 승부축이 아니다)
 function matchFor(r: LiveRunner, gearVerified = 0, targetPaceSec = 420): Match {
   const respond = r.respondRate ?? 88;
@@ -39,9 +39,9 @@ function matchFor(r: LiveRunner, gearVerified = 0, targetPaceSec = 420): Match {
   return {
     total: Math.min(99, Math.round(respond * 0.35 + exp * 0.3 + paceFit * 0.35) + Math.min(2, gearVerified)),
     reasons: [
-      { glyph: '⚡', label: '응답 신뢰도', pct: respond },
-      { glyph: '⛨', label: '러닝 경험', pct: exp },
-      { glyph: '➤', label: '페이스 적합', pct: paceFit },
+      { label: '응답 신뢰도', pct: respond },
+      { label: '러닝 경험', pct: exp },
+      { label: '페이스 적합', pct: paceFit },
     ],
   };
 }
@@ -478,7 +478,7 @@ export default function Matching() {
                 {selGear.map((g) => (
                   <View key={g.id} style={s.gearChip}>
                     <Text style={{ fontSize: 14, fontWeight: '600', color: lilac.text }}>
-                      {GEAR_META[g.kind].glyph} {GEAR_META[g.kind].name} <Text style={{ color: lilac.accent, fontWeight: '700' }}>✓</Text>
+                      {GEAR_META[g.kind].name} <Text style={{ color: lilac.accent, fontWeight: '700' }}>✓</Text>
                     </Text>
                   </View>
                 ))}

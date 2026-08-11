@@ -40,7 +40,7 @@ export default function Rewards() {
       if (applied.card) parts.push(`카드 「${applied.card}」`);
       if (applied.gear) parts.push(`기어: ${applied.gear}`);
       if (applied.boost_until) parts.push('부스트 24시간 활성');
-      Alert.alert('드랍 오픈! 🎉', parts.join('\n') || '보상이 적용됐어요');
+      Alert.alert('드랍 오픈!', parts.join('\n') || '보상이 적용됐어요');
       load();
     } catch (e) {
       Alert.alert('오픈 실패', (e as Error).message);
@@ -89,7 +89,7 @@ export default function Rewards() {
         <View key={d.id} style={s.dropCard}>
           <Row style={{ justifyContent: 'space-between' }}>
             <Text style={{ fontSize: 17, fontWeight: '900', color: colors.volt }}>
-              {d.kind === 'pick' ? '🎁 픽 드랍' : '▣ 보급 드랍'} · {d.runCountAt}회 달성
+              {d.kind === 'pick' ? '픽 드랍' : '보급 드랍'} · {d.runCountAt}회 달성
             </Text>
             <Text style={{ fontSize: 14, color: '#8fa093' }}>{d.when}</Text>
           </Row>
@@ -97,7 +97,7 @@ export default function Rewards() {
             <>
               <Text style={{ fontSize: 15, color: '#b8c4ae', marginTop: 8 }}>셋 중 하나를 선택하세요 — 되돌릴 수 없어요</Text>
               <Row style={{ gap: 8, marginTop: 10 }}>
-                {([['boost', '⚡ 부스트'], ['miles', '◈ 5,000포인트'], ['gear', '👕 기어']] as const).map(([k, label]) => (
+                {([['boost', '부스트'], ['miles', '5,000포인트'], ['gear', '기어']] as const).map(([k, label]) => (
                   <Pressable key={k} disabled={busy !== null} onPress={() => open(d, k)} style={[s.pickBtn, busy === d.id && { opacity: 0.5 }]}>
                     <Text style={{ fontSize: 14, fontWeight: '900', color: FOREST }}>{label}</Text>
                   </Pressable>
@@ -160,7 +160,7 @@ export default function Rewards() {
       )}
 
       <Pressable onPress={() => router.push('/leaderboard')} style={s.rankLink}>
-        <Text style={{ fontSize: 14.5, fontWeight: '800', color: colors.tang }}>🏆 동네 랭킹에서 주간 보너스 노려보기 ›</Text>
+        <Text style={{ fontSize: 14.5, fontWeight: '800', color: colors.tang }}>동네 랭킹에서 주간 보너스 노려보기 ›</Text>
       </Pressable>
     </ScrollView>
   );

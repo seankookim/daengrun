@@ -2,7 +2,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Image, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import Svg, { Defs, LinearGradient as SvgLinear, Rect, Stop } from 'react-native-svg';
-import { Row } from '../../src/components/ui';
+import { Icon, Row } from '../../src/components/ui';
 import {
   claimClubHost, ClubOverview, ClubSeries, createClubSession, DelegationBoard, fetchClubHostStats, fetchClubMyStats,
   fetchClubOverview, fetchClubSeries, fetchDelegationBoard, fetchRoutes, pauseClubSeries, registerClubInterest, startClubSeries, uploadClubPhoto,
@@ -146,7 +146,7 @@ export default function ClubPage() {
       setSheetOpen(false);
       setMeetup('');
       load();
-      Alert.alert('세션이 열렸어요 🏁',
+      Alert.alert('세션이 열렸어요',
         weekly
           ? seriesOk ? '다음 주부터는 매주 자동으로 열려요 ⟳' : '세션은 열렸지만 매주 반복 등록엔 실패했어요 — 다시 시도해주세요'
           : '멤버들에게 보이기 시작해요');
@@ -289,7 +289,7 @@ export default function ClubPage() {
                 <ClubCta label="나도 관심 있어요" onPress={interest} style={{ paddingVertical: 15 }} />
               )}
               <Pressable
-                onPress={() => claimClubHost(club.id).then(() => { Alert.alert('호스트가 됐어요 🏁', '첫 세션을 열어보세요'); load(); })
+                onPress={() => claimClubHost(club.id).then(() => { Alert.alert('호스트가 됐어요', '첫 세션을 열어보세요'); load(); })
                   .catch((e) => Alert.alert('호스트 클레임', (e as Error).message.includes('not_certified') ? '인증 러너만 호스트가 될 수 있어요' : (e as Error).message))}
                 style={s.ghostBtn}
               >
@@ -310,7 +310,7 @@ export default function ClubPage() {
                   <>
                     <Row style={{ alignItems: 'center', justifyContent: 'space-between' }}>
                       <Row style={{ alignItems: 'center', gap: 6 }}>
-                        <View style={s.brandGlyph}><Text style={{ fontSize: 8, color: '#fff' }}>✈</Text></View>
+                        <View style={s.brandGlyph}><Text style={{ fontSize: 8, color: '#fff' }}>➤</Text></View>
                         <Text style={s.brandTxt}>NEXT SESSION · BOARDING</Text>
                       </Row>
                       <Row style={{ gap: 5 }}>
@@ -325,7 +325,7 @@ export default function ClubPage() {
                     </Row>
                     {/* [CLUB15 가드] 15로 올리면 320~375dp에서 한 줄을 넘긴다 → 행을 랩 허용 + 집결지 shrink */}
                     <Row style={{ alignItems: 'center', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
-                      <Text style={{ fontSize: 11, color: L.coral }}>📍</Text>
+                      <Icon name="MapPin" glyph="●" size={12} color={L.coral} />
                       <Text style={{ fontSize: 15, lineHeight: 20, fontWeight: '700', color: L.head, flexShrink: 1 }} numberOfLines={1}>{/* CLUB15 */}{ns.meetupPoint}</Text>
                       <Text style={{ fontSize: 15, lineHeight: 20, color: L.dim }}>{/* CLUB15 */}· {ns.rsvpCount}팀 참여 중 / 정원 {ns.capacity}</Text>
                     </Row>
@@ -574,7 +574,7 @@ export default function ClubPage() {
             </View>
           </Pressable>
           {/* [Sean 규칙] 여백 화면 = 큰 버튼 */}
-          <ClubCta label={busy ? '여는 중...' : '세션 열기 🏁'} onPress={createSession} busy={busy} style={{ paddingVertical: 17 }} />
+          <ClubCta label={busy ? '여는 중...' : '세션 열기'} onPress={createSession} busy={busy} style={{ paddingVertical: 17 }} />
         </View>
       </Modal>
     </View>

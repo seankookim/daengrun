@@ -1,7 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { Monogram, Row } from '../src/components/ui';
+import { Icon, Monogram, Row } from '../src/components/ui';
 import { MediaImage } from '../src/lib/media';
 import {
   ChatContext, ChatMsg, fetchCurrentOwnerBookingId, fetchCurrentRunnerJobId,
@@ -111,7 +111,7 @@ export default function Chat() {
           </Text>
         </View>
         <Pressable style={s.circleBtn} onPress={() => Alert.alert('안심 통화', '번호 노출 없는 안심 통화로 연결돼요 (준비 중)')}>
-          <Text style={{ fontSize: 16, color: '#5a7a3c' }}>✆</Text>
+          <Icon name="Phone" glyph="●" size={16} color="#5a7a3c" />
         </Pressable>
       </Row>
 

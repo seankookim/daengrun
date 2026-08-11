@@ -3,7 +3,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { BottomNav } from '../src/components/bottomnav';
-import { Row } from '../src/components/ui';
+import { Icon, Row } from '../src/components/ui';
 import { addEmergencyContact, deleteEmergencyContact, EmContact, fetchEmergencyContacts, sendSOS } from '../src/lib/api';
 import { haptic } from '../src/lib/haptics';
 import { session } from '../src/store';
@@ -25,7 +25,7 @@ export default function Safety() {
   useFocusEffect(useCallback(() => { load(); }, []));
 
   const sos = () => {
-    Alert.alert('🚨 SOS', '진행 중인 러닝의 상대방에게 긴급 알림을 보낼까요?', [
+    Alert.alert('SOS', '진행 중인 러닝의 상대방에게 긴급 알림을 보낼까요?', [
       { text: '취소', style: 'cancel' },
       {
         text: 'SOS 전송', style: 'destructive',
@@ -77,7 +77,7 @@ export default function Safety() {
 
         {/* ---------- SOS (실동작) ---------- */}
         <Pressable style={s.sosCard} onPress={sos}>
-          <Text style={{ fontSize: 30 }}>🚨</Text>
+          <Icon name="Siren" glyph="✚" size={28} color="#fff" />
           <View style={{ flex: 1, marginLeft: 14 }}>
             <Text style={{ fontSize: 18.5, fontWeight: '900', color: '#fff' }}>SOS 긴급 알림</Text>
             <Text style={{ fontSize: 14, color: '#ffd9cf', marginTop: 3, lineHeight: 18.5 }}>
@@ -87,10 +87,12 @@ export default function Safety() {
         </Pressable>
         <Row style={{ gap: 10, marginTop: 10 }}>
           <Pressable style={s.callBtn} onPress={() => Linking.openURL('tel:112')}>
-            <Text style={{ fontSize: 15.5, fontWeight: '900', color: '#d84a2f' }}>📞 112</Text>
+            <Icon name="Phone" glyph="●" size={14} color="#d84a2f" />
+            <Text style={{ fontSize: 15.5, fontWeight: '900', color: '#d84a2f' }}>112</Text>
           </Pressable>
           <Pressable style={s.callBtn} onPress={() => Linking.openURL('tel:119')}>
-            <Text style={{ fontSize: 15.5, fontWeight: '900', color: '#d84a2f' }}>📞 119</Text>
+            <Icon name="Phone" glyph="●" size={14} color="#d84a2f" />
+            <Text style={{ fontSize: 15.5, fontWeight: '900', color: '#d84a2f' }}>119</Text>
           </Pressable>
         </Row>
 
@@ -143,9 +145,9 @@ export default function Safety() {
         <Text style={s.section}>안전 체계</Text>
         <View style={s.card}>
           {/* [정직 배치 2.5] 서명된 증권이 없다 — 적용 시점·범위 주장 은퇴, 협의 중이라는 사실만 남긴다 */}
-          <InfoRow glyph="🛡" title="펫보험" desc="파일럿 보험 파트너와 협의 중이에요" />
+          <InfoRow icon="Shield" glyph="✚" title="펫보험" desc="파일럿 보험 파트너와 협의 중이에요" />
           <View style={s.div} />
-          <InfoRow glyph="📍" title="실시간 위치" desc="러닝 중 보호자 라이브 지도에 러너 경로가 실시간 표시돼요" />
+          <InfoRow icon="MapPin" glyph="●" title="실시간 위치" desc="러닝 중 보호자 라이브 지도에 러너 경로가 실시간 표시돼요" />
           <View style={s.div} />
           {/* [honesty repair 2026-08-08 / plan §7.1-7.2] The previous copy ("모든 러너는 신원 확인을
               거쳐요 (본인인증 고도화 예정)") was the strongest false claim in the app: identity_verified
@@ -178,10 +180,10 @@ export default function Safety() {
   );
 }
 
-function InfoRow({ glyph, title, desc }: { glyph: string; title: string; desc: string }) {
+function InfoRow({ icon, glyph, title, desc }: { icon?: string; glyph: string; title: string; desc: string }) {
   return (
     <Row style={{ paddingVertical: 10, gap: 10 }}>
-      <Text style={{ fontSize: 18.5 }}>{glyph}</Text>
+      {icon ? <Icon name={icon} glyph={glyph} size={18} color={FOREST} /> : <Text style={{ fontSize: 18.5, color: FOREST }}>{glyph}</Text>}
       <View style={{ flex: 1 }}>
         <Text style={{ fontSize: 15.5, fontWeight: '800', color: FOREST }}>{title}</Text>
         <Text style={{ fontSize: 15, color: colors.dim, marginTop: 2, lineHeight: 18.5 }}>{desc}</Text>
@@ -199,7 +201,7 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', backgroundColor: '#e8492a',
     borderRadius: 20, padding: 18, marginTop: 18,
   },
-  callBtn: { flex: 1, backgroundColor: '#fff', borderRadius: 14, alignItems: 'center', paddingVertical: 12, borderWidth: 1.3, borderColor: '#f2d4ca' },
+  callBtn: { flex: 1, backgroundColor: '#fff', borderRadius: 14, flexDirection: 'row', gap: 6, justifyContent: 'center', alignItems: 'center', paddingVertical: 12, borderWidth: 1.3, borderColor: '#f2d4ca' },
   section: { fontSize: 17, fontWeight: '900', color: FOREST, marginTop: 20, marginBottom: 8 },
   card: { backgroundColor: '#fff', borderRadius: 18, padding: 14, borderWidth: 1, borderColor: '#DCD6C4' },
   div: { height: 1, backgroundColor: '#f0eee3' },

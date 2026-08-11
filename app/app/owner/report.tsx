@@ -63,9 +63,9 @@ function badges(st: RunStandings | null): string[] {
   if (!st) return [];
   const out: string[] = [`${st.nth}번째 러닝`];
   if (st.total > 1) {
-    if (st.kmRank === 1) out.push('🏆 역대 최장 거리');
+    if (st.kmRank === 1) out.push('★ 역대 최장 거리');
     else if (st.kmRank <= 3) out.push(`거리 TOP ${st.kmRank}`);
-    if (st.paceRank === 1) out.push('⚡ 역대 최고 페이스');
+    if (st.paceRank === 1) out.push('★ 역대 최고 페이스');
     else if (st.paceRank != null && st.paceRank <= 3) out.push(`페이스 TOP ${st.paceRank}`);
   }
   return out;
@@ -134,11 +134,11 @@ export default function Report() {
     try {
       await Share.share({
         message:
-          `🐕 ${report.dogName}의 ${run.actualKm}km 러닝 완주!\n` +
-          `⏱ ${fmtDur(run.durationSec)} · 페이스 ${fmtPace(run.paceSecPerKm)}/km\n` +
-          `📍 ${report.routeName}${report.runnerName ? ` · ${report.runnerName} 러너와 함께` : ''}` +
+          `${report.dogName}의 ${run.actualKm}km 러닝 완주!\n` +
+          `${fmtDur(run.durationSec)} · 페이스 ${fmtPace(run.paceSecPerKm)}/km\n` +
+          `${report.routeName}${report.runnerName ? ` · ${report.runnerName} 러너와 함께` : ''}` +
           (bLine ? `\n${bLine}` : '') +
-          `\n\n반려견 피트니스, 도그스하이 🏃`,
+          `\n\n반려견 피트니스, 도그스하이`,
       });
     } catch { /* 사용자 취소 */ }
   };
@@ -300,7 +300,7 @@ export default function Report() {
             {run.events.length > 0 && (
               <View style={[s.section, { flexDirection: 'row', gap: 8, flexWrap: 'wrap' }]}>
                 {(
-                  [['poop', '💩 응가'], ['snack', '🍖 간식'], ['water', '💧 물'], ['photo', '📷 사진']] as const
+                  [['poop', '응가'], ['snack', '간식'], ['water', '물'], ['photo', '사진']] as const
                 ).map(([kind, label]) => {
                   const n = run.events.filter((e) => e.kind === kind).length;
                   if (n === 0) return null;
@@ -390,7 +390,7 @@ export default function Report() {
             {/* ---------- CTA ---------- */}
             <View style={{ paddingHorizontal: 12 }}>
               <Pressable onPress={() => bid && router.push(`/shot/${bid}`)} style={s.cta}>
-                <Text style={{ fontSize: 17, fontWeight: '900', color: FOREST }}>📸 인증샷 만들기</Text>
+                <Text style={{ fontSize: 17, fontWeight: '900', color: FOREST }}>인증샷 만들기</Text>
                 <Text style={{ fontSize: 14, color: '#5d6b4a', marginTop: 2 }}>인스타그램용 브랜디드 카드로 자랑해요</Text>
               </Pressable>
               <Pressable
@@ -398,14 +398,14 @@ export default function Report() {
                   if (!bid) return;
                   shareRunToFeed(bid)
                     .then(() => {
-                      Alert.alert('피드에 올렸어요', '동네 이웃들이 응원할 거예요 🐕');
+                      Alert.alert('피드에 올렸어요', '동네 이웃들이 응원할 거예요');
                       router.push('/community');
                     })
                     .catch((e) => Alert.alert('공유 실패', (e as Error).message));
                 }}
                 style={s.ghostCta}
               >
-                <Text style={{ fontSize: 15, fontWeight: '800', color: '#3d5a2b' }}>🐕 동네 피드에 자랑하기</Text>
+                <Text style={{ fontSize: 15, fontWeight: '800', color: '#3d5a2b' }}>동네 피드에 자랑하기</Text>
               </Pressable>
               <Pressable onPress={share} style={s.ghostCta}>
                 <Text style={{ fontSize: 15, fontWeight: '800', color: '#3d453d' }}>↗ 텍스트로 공유</Text>

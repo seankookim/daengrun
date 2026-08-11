@@ -1,25 +1,25 @@
 # TODOS
 
-## Sean decision needed — cancel window at the handoff moment (2026-08-11)
+## ~~Sean decision needed — cancel window at the handoff moment~~ DECIDED + SHIPPED (2026-08-11)
 
-Sean asked for a cancel button "during the confirmation stage". Implemented as far
-as the server allows, and the gap is a **product + money decision only Sean can
-make**:
+Sean's decision (2026-08-11): owner MAY cancel while the runner is EN ROUTE, at a
+**50% fee that is runner compensation**. Implemented as migration
+`0066_enroute_cancel.sql` (money change ⇒ own migration + adversarial cycle, 0059
+doctrine):
 
-- `enforce_booking_transition()` (0047_assignment_loop.sql:25-48) permits
-  `confirmed → cancelled_owner` but **blocks** `runner_enroute → cancelled_owner`
-  and `picked_up → cancelled_owner`.
-- So the cancel button lives in the pre-departure window (stage `enroute` =
-  server `confirmed`). At the literal handoff moment (러너 이동 중 / 인계 확인)
-  the UI states honestly that cancellation is closed — matching schedule.tsx,
-  which already hides its cancel link for the same reason.
-- **To allow cancelling once the runner is en route** (what Sean may have meant)
-  needs a migration widening the transition map + a fee decision: the runner has
-  already traveled, so a 10% fee is arguably wrong — it likely needs a
-  runner-compensation split (the existing comment in transition-booking mentions
-  "50%는 러너 보상 — 정산에서 처리" but no such path exists). Money change ⇒ its
-  own migration + adversarial cycle (0059 doctrine). Effort M → S once the fee
-  policy is decided. P2.
+- `enforce_booking_transition()` now permits `runner_enroute → cancelled_owner`;
+  `picked_up → cancelled_owner` stays **blocked** (past the handoff it's an
+  incident, not a cancellation — pinned by 105 E6).
+- Fee ladder moved to SQL (`marketplace_cancel_fee`): unmatched 0 / en-route 50%
+  / matched >=24h 0 / confirmed <24h 10%. transition-booking cancel_owner calls
+  it and CASes the transition on the quoted status; the en-route tier is marked
+  with `cancel_reason = 'owner_cancel_enroute'` for future settlement (no new
+  column — cancel_fee already holds the money).
+- Client: meetup.tsx stage 'arrived' got a real destructive cancel (confirm copy
+  states the 50% tier before committing); schedule.tsx un-hides its cancel link
+  for runner_enroute with the same 50% framing.
+- Harness: `105_enroute_cancel_suite.sql` (7 pins, each with a single
+  red-making revert documented in its header; E1/E2 mutation-proven).
 
 Deferred work, written down so it exists. Format: what / why / context / effort
 (human → CC) / priority / depends-on.

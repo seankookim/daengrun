@@ -232,7 +232,7 @@ export default function DogProfileScreen() {
                     onPress={() => setVaccines((cur) => (on ? cur.filter((x) => x !== v) : [...cur, v]))}
                     style={[s.tagChip, on && { backgroundColor: '#e3eff9', borderColor: '#9fc3e8' }]}
                   >
-                    <Text style={{ fontSize: 14.5, fontWeight: '700', color: on ? '#2d6da8' : '#49524a' }}>{on ? '💉 ' : ''}{v}</Text>
+                    <Text style={{ fontSize: 14.5, fontWeight: '700', color: on ? '#2d6da8' : '#49524a' }}>{on ? '✓ ' : ''}{v}</Text>
                   </Pressable>
                 );
               })}

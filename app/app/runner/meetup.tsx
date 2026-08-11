@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Animated, Easing, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { PaperBtn } from '../../src/components/paper-btn';
 import { PickupMap } from '../../src/components/PickupMap';
-import { Avatar, Row } from '../../src/components/ui';
+import { Avatar, Icon, Row } from '../../src/components/ui';
 import { confirmHandoff, fetchBookingAddress, fetchBookingSync, fetchCurrentRunnerJobId, fetchMeetupInfo, MeetupInfo, PickupAddress, runnerArrived, runnerEnroute, startRunServer, subscribeBooking } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { haptic } from '../../src/lib/haptics';
@@ -431,9 +431,9 @@ export default function Meetup() {
               </View>
             </Row>
             <Text style={s.gearSub}>세 가지를 확인해야 {dogName} 인계를 받을 수 있어요</Text>
-            <CheckRow glyph="🦮" label="러닝 리드줄로 교체했어요" on={check.leash} onPress={() => { haptic('light'); setCheck((c) => ({ ...c, leash: !c.leash })); }} />
-            <CheckRow glyph="💧" label={`${dogName} 급수 준비 완료`} on={check.water} onPress={() => { haptic('light'); setCheck((c) => ({ ...c, water: !c.water })); }} />
-            <CheckRow glyph="🦴" label="간식 파우치 챙겼어요" on={check.treats} onPress={() => { haptic('light'); setCheck((c) => ({ ...c, treats: !c.treats })); }} />
+            <CheckRow icon="Cable" label="러닝 리드줄로 교체했어요" on={check.leash} onPress={() => { haptic('light'); setCheck((c) => ({ ...c, leash: !c.leash })); }} />
+            <CheckRow icon="Droplet" label={`${dogName} 급수 준비 완료`} on={check.water} onPress={() => { haptic('light'); setCheck((c) => ({ ...c, water: !c.water })); }} />
+            <CheckRow icon="Bone" label="간식 파우치 챙겼어요" on={check.treats} onPress={() => { haptic('light'); setCheck((c) => ({ ...c, treats: !c.treats })); }} />
           </View>
         )}
 
@@ -557,10 +557,10 @@ function SealSlot({ caps, name, state, sealed, tilt, anim, pulse }: {
 }
 
 // 인계 전 장비 체크 행 — 탭 토글, 완료 시 잉크 틱 (프리플라이트는 잉크, 의식은 골드)
-function CheckRow({ glyph, label, on, onPress }: { glyph: string; label: string; on: boolean; onPress: () => void }) {
+function CheckRow({ icon, label, on, onPress }: { icon: string; label: string; on: boolean; onPress: () => void }) {
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [s.checkRow, on && s.checkRowOn, pressed && { transform: [{ scale: 0.99 }] }]}>
-      <Text style={{ fontSize: 18, lineHeight: 22 }}>{glyph}</Text>
+      <Icon name={icon} glyph="●" size={17} color={on ? paper.ink : paper.text} />
       <Text style={[s.checkLabel, on && s.checkLabelOn]}>{label}</Text>
       <View style={[s.checkBox, on && s.checkBoxOn]}>
         {on && <Text style={s.checkTick}>✓</Text>}

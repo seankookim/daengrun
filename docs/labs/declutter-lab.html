@@ -1,0 +1,971 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Declutter Lab — 화면당 하나의 일 (2026-08-11)</title>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Oswald:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  /* ── 랩 크롬 — 페이퍼 문법 (canvas #FFF · ink #111 · coral hairline #E8552F · 샤프) ── */
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'IBM Plex Sans KR',sans-serif; background:#FFFFFF; color:#111; padding:34px 22px 90px; }
+  .wrap { max-width:1240px; margin:0 auto; }
+  h1 { font-family:'Black Han Sans'; font-size:34px; font-weight:400; letter-spacing:.5px; }
+  .sub { font-size:14px; color:#666; margin:6px 0 8px; line-height:1.6; max-width:860px; }
+  .law { font-size:13px; letter-spacing:2.5px; color:#999; text-transform:uppercase; margin-bottom:26px; }
+  h2 { font-size:21px; font-weight:800; margin:46px 0 4px; padding-top:26px; border-top:1px solid #E8552F; }
+  h3 { font-size:16.5px; font-weight:800; margin:26px 0 2px; }
+  h3 b { color:#E8552F; margin-right:6px; }
+  .thesis { font-size:14px; color:#666; margin-bottom:12px; line-height:1.6; max-width:860px; }
+  .num { font-family:Oswald; font-weight:600; }
+
+  /* ── 감사 블록 ── */
+  .audit { border:1px solid #EEE; margin-top:16px; }
+  .audit-head { display:flex; flex-wrap:wrap; align-items:baseline; gap:10px; padding:12px 14px; border-bottom:1px solid #E8552F; }
+  .audit-head .file { font-family:Oswald; font-size:14px; letter-spacing:.5px; color:#111; font-weight:600; }
+  .audit-head .job { font-size:14px; color:#666; }
+  .audit-head .job b { color:#111; }
+  .census { display:flex; flex-wrap:wrap; gap:0; border-bottom:1px solid #EEE; }
+  .census div { padding:10px 16px; border-right:1px solid #EEE; }
+  .census .cN { font-family:Oswald; font-size:26px; font-weight:600; line-height:1.15; color:#111; }
+  .census .cN.bad { color:#B3261E; }
+  .census .cK { font-size:13px; color:#666; margin-top:1px; }
+  table.cut { width:100%; border-collapse:collapse; font-size:14px; }
+  table.cut th { text-align:left; font-size:13px; letter-spacing:1px; color:#999; text-transform:uppercase; font-weight:700; padding:9px 14px 6px; border-bottom:1px solid #EEE; }
+  table.cut td { padding:8px 14px; border-bottom:1px solid #F4F4F4; vertical-align:top; line-height:1.55; }
+  table.cut tr:last-child td { border-bottom:0; }
+  td.el b { font-weight:800; }
+  td.loc { font-family:Oswald; font-size:13px; color:#999; white-space:nowrap; }
+  td.lawc { color:#666; }
+  .verdict { display:inline-block; font-size:12px; font-weight:800; letter-spacing:1px; padding:1px 7px; border:1px solid; margin-right:6px; white-space:nowrap; }
+  .v-cut { color:#B3261E; border-color:#B3261E; }
+  .v-merge { color:#C77414; border-color:#C77414; }
+  .v-defer { color:#4A6E93; border-color:#4A6E93; }
+  .v-keep { color:#3F9A75; border-color:#3F9A75; }
+  .keepnote { font-size:14px; color:#3F9A75; padding:10px 14px; border-top:1px solid #EEE; line-height:1.6; background:#FBFDFB; }
+  .keepnote b { font-weight:800; }
+
+  /* ── 폰 목업 프레임 (375 고정폭 · 페이퍼 토큰) ── */
+  .phones { display:flex; gap:26px; margin-top:16px; overflow-x:auto; padding-bottom:10px; align-items:flex-start; }
+  .phone { flex:0 0 375px; width:375px; border:1px solid #DDD; background:#fff; }
+  .phead { display:flex; align-items:center; gap:8px; padding:10px 14px; background:#fff; border-bottom:1px solid #EEE; }
+  .phead .pt { font-size:13px; letter-spacing:1.6px; color:#999; text-transform:uppercase; font-weight:700; flex:1; }
+  .cnt { font-family:Oswald; font-size:13px; font-weight:600; letter-spacing:.5px; padding:2px 8px; border:1px solid #111; color:#111; white-space:nowrap; }
+  .cnt.bad { border-color:#B3261E; color:#B3261E; }
+  .cnt.good { border-color:#3F9A75; color:#3F9A75; }
+  .screen { padding:0 0 20px; background:#fff; }
+  .meta { padding:12px 14px 14px; border-top:1px solid #EEE; }
+  .note { font-size:13px; color:#666; line-height:1.6; margin-top:5px; }
+  .flag { display:inline-block; font-size:12px; font-weight:800; letter-spacing:1.5px; padding:2px 7px; margin-top:8px; border:1px solid; }
+  .f-now { color:#B3261E; border-color:#B3261E; }
+  .f-ok { color:#3F9A75; border-color:#3F9A75; }
+
+  /* ── 목업 내부 공용 소자 — 실토큰 ── */
+  .g { padding-left:15px; padding-right:15px; }           /* gutter 15 */
+  .kick { font-size:12px; font-weight:700; letter-spacing:1.5px; color:#999; }
+  .coral-rule { height:1px; background:#E8552F; }
+  .hair { height:1px; background:#EEE; }
+  .secrow { display:flex; align-items:center; gap:8px; margin-top:16px; border-top:1px solid #E8552F; padding:12px 15px 4px; }
+  .secno { font-size:11.5px; font-weight:800; letter-spacing:.8px; color:#6C5CE7; border:1px solid #DCD6F8; background:#F4F1FE; padding:2px 5px; }
+  .sech { font-size:14px; font-weight:800; color:#111; }
+  .secr { flex:1; height:1px; background:#EEE; }
+  .seclink { font-size:14px; font-weight:800; color:#6C5CE7; }
+  .row { display:flex; align-items:center; }
+  .btn-ink { display:block; text-align:center; background:#111; color:#fff; font-weight:900; font-size:16px; padding:14px; }
+  .btn-ghost { display:block; text-align:center; background:#fff; border:1px solid #EEE; color:#333; font-weight:700; font-size:14px; padding:11px; }
+  .idx { border-top:1px solid #EEE; }
+  .idx .irow { display:flex; align-items:center; gap:8px; padding:13px 15px; border-bottom:1px solid #EEE; }
+  .idx .irow .it { font-size:16px; font-weight:800; color:#111; flex:1; }
+  .idx .irow .is { font-size:14px; color:#666; }
+  .idx .irow .ic { font-size:14px; color:#666; }
+
+  /* 브랜드 헤더 근사 */
+  .brandrow { display:flex; align-items:center; gap:8px; padding:14px 15px 6px; }
+  .brandmark { width:26px; height:26px; background:#111; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:13px; }
+  .brandword { font-family:'Black Han Sans'; font-size:17px; letter-spacing:.5px; }
+  .util { width:28px; height:28px; border:1px solid #EEE; display:flex; align-items:center; justify-content:center; font-size:12px; color:#111; position:relative; }
+  .belldot { position:absolute; top:5px; right:5px; width:6px; height:6px; border-radius:3px; background:#F0765A; }
+  .ticker { display:flex; gap:10px; overflow:hidden; white-space:nowrap; border-top:1px solid #EEE; border-bottom:1px solid #EEE; margin-top:6px; padding:5px 15px; font-size:12px; color:#666; }
+  .ticker b { color:#6C5CE7; font-family:Oswald; }
+  .ticker i { font-style:normal; color:#C6472C; font-family:Oswald; }
+  .greet { font-family:'Black Han Sans'; font-size:27px; padding:8px 15px 2px; color:#111; }
+  .greet span { color:#6C5CE7; }
+
+  /* GO 링 + 디스크 근사 */
+  .ringbox { position:relative; width:200px; height:200px; margin:14px auto 6px; }
+  .ringbox .rim { position:absolute; inset:0; border-radius:50%; border:8px dotted #E6E2F4; }
+  .ringbox .arc { position:absolute; inset:0; border-radius:50%; border:8px dotted transparent; border-top-color:#6C5CE7; border-right-color:#F0765A; transform:rotate(-45deg); }
+  .kmline { text-align:center; font-size:14px; color:#666; }
+  .kmline b { font-family:Oswald; font-size:20px; color:#111; font-weight:600; }
+  .go { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:118px; height:118px; border-radius:50%;
+        background:#E8552F; color:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px;
+        box-shadow:0 8px 20px rgba(28,24,55,.14); border:0; cursor:pointer; transition:transform .12s, background .12s; }
+  .go:active { transform:translate(-50%,-50%) scale(.96); background:#C6472C; }
+  .go .gw { font-family:Oswald; font-weight:600; font-size:30px; letter-spacing:2px; }
+  .go .gs { font-size:13.5px; font-weight:700; opacity:.92; }
+  .agechip { text-align:center; font-size:14px; color:#333; margin-top:2px; }
+  .agechip b { color:#6C5CE7; font-family:Oswald; font-weight:600; }
+  .reportchip { margin:10px 15px 0; border:1px solid #EEE; background:#FBFAF7; display:flex; justify-content:space-between; padding:8px 12px; font-size:14px; font-weight:800; color:#333; }
+  .weekchip { position:absolute; top:8px; left:15px; font-size:13px; font-weight:700; border:1px solid #EEE; background:#FBFAF7; padding:3px 8px; color:#111; }
+  .herobox { position:relative; border-top:1px solid #EEE; border-bottom:1px solid #EEE; background:#FEF6F3; padding:10px 0 14px; }
+  .holo { height:3px; display:flex; }
+  .holo i { flex:1; }
+  .holo i:nth-child(1){background:#CFC5F6}.holo i:nth-child(2){background:#FFDCD1}.holo i:nth-child(3){background:#F3E9C6}.holo i:nth-child(4){background:#EAF6C8}.holo i:nth-child(5){background:#CDEAF3}
+
+  /* 티켓 */
+  .tix { margin:10px 15px 0; border:1px solid #EEE; position:relative; background:#fff; }
+  .tixhead { display:flex; justify-content:space-between; align-items:center; padding:9px 12px; }
+  .tixbrand { font-size:12px; letter-spacing:1.2px; font-weight:700; color:#999; }
+  .pill { font-size:13px; font-weight:800; padding:2px 8px; }
+  .pill.dday { background:#111; color:#fff; font-family:Oswald; letter-spacing:1px; }
+  .pill.st { background:#F2E7FC; color:#6C5CE7; }
+  .tixbody { padding:0 12px 12px; }
+  .tixtime { font-family:Oswald; font-size:24px; font-weight:600; color:#111; }
+  .tixmeta { font-size:14px; color:#666; margin-top:2px; }
+  .perf { border-top:1px dashed #DDD; margin:11px -12px 11px; position:relative; }
+  .btn-coral { display:block; width:100%; text-align:center; background:#E8552F; color:#fff; border:0; font-family:inherit; font-weight:900; font-size:16px; padding:13px; cursor:pointer; transition:transform .12s, background .12s; }
+  .btn-coral:active { transform:scale(.96); background:#C6472C; }
+  .tix2 { display:flex; gap:8px; margin-top:8px; }
+  .tix2 .btn-ghost { flex:1; }
+
+  /* 다크 섬 (find-now / featured runner) */
+  .dark { margin:14px 15px 0; background:#1C1837; color:#fff; padding:15px; position:relative; overflow:hidden; }
+  .dark .dk { font-size:12px; letter-spacing:1.5px; font-weight:700; color:#B7ADE4; }
+  .dark .dt { font-size:20px; font-weight:900; margin-top:6px; }
+  .dark .ds { font-size:14px; color:#C6BEEB; margin-top:5px; }
+  .dark .radar { position:absolute; right:-40px; top:10px; width:150px; height:150px; }
+  .dark .radar i { position:absolute; border:1px solid rgba(240,118,90,.4); border-radius:50%; }
+  .dark .paperbtn { flex:1; background:#FFF; color:#111; text-align:center; font-weight:900; font-size:16px; padding:12px; }
+  .dark .ghost { border:1px solid rgba(255,255,255,.24); color:#EDE9FB; font-weight:800; font-size:14px; padding:12px; }
+
+  /* 머니 CTA */
+  .money { margin:14px 15px 0; }
+  .moneyfacts { display:flex; justify-content:space-between; align-items:flex-end; padding:0 2px 8px; font-size:14px; }
+  .moneyfacts .mv { font-family:Oswald; font-size:20px; font-weight:600; }
+  .btn-money { display:block; background:#C6472C; color:#fff; padding:14px 16px 12px; }
+  .btn-money .m1 { display:flex; justify-content:space-between; align-items:center; font-family:'Black Han Sans'; font-size:26px; }
+  .btn-money .m2 { margin-top:8px; background:rgba(17,17,17,.28); font-size:13px; padding:6px 9px; display:flex; gap:6px; }
+
+  /* 비컨/넛지/조용한 행 */
+  .beacon { margin:12px 15px 0; border:1px solid #EEE; display:flex; }
+  .beacon>div { flex:1; padding:10px 12px; }
+  .beacon .bk { font-size:12px; letter-spacing:1px; color:#999; font-weight:700; }
+  .beacon .bv { font-size:14px; font-weight:800; margin-top:3px; }
+  .beacon .bv b { font-family:Oswald; font-size:18px; font-weight:600; }
+  .beacon .bg { font-size:14px; font-weight:800; color:#6C5CE7; margin-top:4px; }
+  .nudge { margin:10px 15px 0; border:1px solid #EEE; background:#FBFAF7; display:flex; align-items:center; gap:8px; padding:11px 12px; font-size:14px; font-weight:800; }
+  .nudge .na { color:#6C5CE7; white-space:nowrap; }
+  .shelf { margin-top:14px; }
+  .shelfhead { display:flex; align-items:baseline; gap:7px; padding:12px 15px 8px; border-top:1px solid #E8552F; font-size:15px; font-weight:900; }
+  .shelfhead small { font-size:14px; color:#666; font-weight:400; }
+  .cards { display:flex; gap:9px; padding:0 15px; overflow:hidden; }
+  .mcard { flex:0 0 108px; height:80px; background:#EFEDF8; border:1px solid #EEE; position:relative; }
+  .mcard span { position:absolute; left:6px; bottom:6px; background:#111; color:#fff; font-size:11px; font-family:Oswald; padding:1px 5px; }
+  .rcard { flex:0 0 150px; border:1px solid #EEE; padding:10px; font-size:14px; }
+  .rcard b { display:block; font-weight:900; }
+  .rcard i { font-style:normal; color:#666; }
+  .safety { margin:14px 15px 0; border:1px solid #EEE; display:flex; align-items:center; gap:9px; padding:11px 12px; font-size:14px; font-weight:700; }
+  .safety em { font-style:normal; color:#C6472C; border:1px solid #F2D4CA; padding:1px 6px; font-size:12px; }
+
+  /* ── 러너 목업 소자 ── */
+  .rtop { display:flex; justify-content:space-between; align-items:center; padding:12px 12px 9px; border-bottom:1px solid #E8552F; }
+  .rcrumb { font-size:12px; letter-spacing:2px; font-weight:700; color:#666; }
+  .bib { margin:12px 15px 0; border:1.5px solid #111; position:relative; padding-bottom:0; }
+  .bib .pin { position:absolute; width:7px; height:7px; border-radius:4px; background:#EEE; border:1px solid #DDD; }
+  .biborg { font-size:12px; letter-spacing:1.5px; font-weight:700; color:#999; padding:14px 20px 0; }
+  .bibname { font-family:'Black Han Sans'; font-size:27px; padding:2px 20px 0; }
+  .bibname small { font-family:'IBM Plex Sans KR'; font-size:15px; color:#666; font-weight:700; }
+  .bibbody { display:flex; align-items:flex-end; gap:12px; padding:4px 20px 12px; }
+  .bibno { font-family:Oswald; font-size:64px; font-weight:600; line-height:1.05; letter-spacing:1px; }
+  .bibnocap { font-size:13px; color:#666; }
+  .bibside { flex:1; border-left:1px solid #EEE; padding-left:12px; font-size:13px; }
+  .bibside .r { display:flex; justify-content:space-between; padding:3px 0; border-top:1px solid #F4F4F4; }
+  .bibside .r:first-child { border-top:0; }
+  .bibside .k { letter-spacing:1px; color:#999; font-weight:700; font-size:11.5px; }
+  .bibfoot { display:flex; justify-content:space-between; align-items:center; border-top:1px solid #EEE; padding:8px 20px; }
+  .barcode { display:flex; align-items:stretch; height:14px; gap:1.5px; opacity:.82; }
+  .barcode i { width:2px; background:#111; }
+  .barcode i:nth-child(3n){ width:3px; } .barcode i:nth-child(4n){ width:1px; }
+  .swtrack { width:40px; height:22px; border-radius:11px; background:#E8552F; position:relative; }
+  .swtrack.off { background:#DDD; }
+  .swtrack i { position:absolute; top:2px; right:2px; width:18px; height:18px; border-radius:9px; background:#fff; }
+  .ledger { margin:12px 15px 0; border:1px solid #EEE; position:relative; padding:12px 13px; }
+  .ledger .lb { font-size:12px; letter-spacing:1.2px; font-weight:700; color:#999; }
+  .wonhero { font-family:Oswald; font-weight:600; font-size:34px; margin-top:8px; }
+  .wonhero small { font-size:18px; }
+  .lcap { font-size:13px; color:#666; margin-top:2px; }
+  .lwin { font-size:13px; color:#666; margin-top:6px; }
+  .lwin b { font-family:Oswald; color:#111; font-weight:600; }
+  .lrow { display:flex; align-items:baseline; font-size:14px; padding:7px 0; border-bottom:1px solid #F4F4F4; }
+  .lrow .ll { width:90px; font-weight:700; }
+  .lrow .lead { flex:1; border-bottom:1px dotted #CCC; margin:0 8px 4px; }
+  .lrow .lv { font-family:Oswald; font-weight:600; }
+  .stub { margin:9px 15px 0; border:1px solid #EEE; display:flex; }
+  .stub .sm { flex:1; padding:10px 11px; font-size:14px; }
+  .stub .sm b { font-weight:900; }
+  .stub .sa { width:110px; border-left:1px dashed #DDD; padding:9px 10px; text-align:center; }
+  .stub .fare { font-family:Oswald; font-weight:600; font-size:17px; }
+  .stub .farecap { font-size:11px; letter-spacing:1px; color:#999; }
+  .stub .acc { margin-top:6px; background:#111; color:#fff; font-weight:900; font-size:14px; padding:6px 0; }
+  .doors { display:flex; gap:8px; padding:10px 12px 12px; }
+  .door { flex:1; padding:11px 12px; }
+  .door.coral { background:#E8552F; color:#fff; }
+  .door.quiet { background:#fff; border:1px solid #EEE; color:#111; }
+  .door .dn { font-weight:900; font-size:16px; }
+  .door .dd { font-size:13px; margin-top:2px; opacity:.9; }
+  .stoprow { display:flex; gap:10px; align-items:center; padding:10px 15px; border-top:1px solid #F4F4F4; font-size:14px; }
+  .stoprow .pt2 { width:12px; height:12px; border-radius:6px; border:2px solid #DDD; }
+  .stoprow .pt2.on { border-color:#E8552F; background:#FDE4DB; }
+  .stoprow .tm { font-family:Oswald; font-weight:600; font-size:16px; width:56px; }
+  .stoprow .pay { margin-left:auto; font-family:Oswald; font-weight:600; }
+  .strap { margin:12px 15px 0; border:1px solid #EEE; display:flex; align-items:center; gap:10px; padding:10px 12px; }
+  .strap .sn { font-weight:900; font-size:16px; flex:1; }
+  .strap .sn small { font-weight:700; color:#666; font-size:13px; margin-left:6px; }
+
+  /* ── 요청 플로우 목업 소자 ── */
+  .qhead { display:flex; align-items:center; gap:10px; padding:14px 15px 4px; }
+  .qback { width:34px; height:34px; border:1px solid #E8552F; display:flex; align-items:center; justify-content:center; }
+  .qtitle { font-family:'Black Han Sans'; font-size:24px; flex:1; }
+  .qsec { border-top:1px solid #E8552F; margin-top:16px; padding:11px 15px 0; font-size:14px; font-weight:800; }
+  .factrow { display:flex; align-items:center; gap:10px; padding:11px 15px; font-size:15px; border-bottom:1px solid #F4F4F4; }
+  .factrow .fa { width:36px; height:36px; background:#111; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800; }
+  .factrow .fx { flex:1; font-weight:800; }
+  .factrow .fx small { font-weight:400; color:#666; }
+  .factrow .fc { font-size:14px; font-weight:800; color:#666; }
+  .dists { display:flex; justify-content:space-around; align-items:flex-end; padding:10px 15px 0; }
+  .dist { text-align:center; cursor:pointer; }
+  .dist .dnum { font-family:Oswald; font-weight:600; font-size:30px; color:#999; }
+  .dist.sel .dnum { font-size:40px; color:#111; }
+  .dist .bar { width:36px; height:5px; margin:3px auto 0; background:transparent; }
+  .dist.sel .bar { background:#E8552F; }
+  .dist .dp { font-size:13.5px; color:#666; margin-top:4px; font-family:Oswald; }
+  .dist.sel .dp { color:#111; font-weight:600; }
+  .chips { display:flex; gap:8px; padding:10px 15px 0; flex-wrap:wrap; }
+  .chip { border:1px solid #EEE; padding:9px 13px; font-size:14px; font-weight:800; background:#fff; }
+  .chip.sel { background:#111; border-color:#111; color:#fff; }
+  .routecard { margin:10px 15px 0; border:1px solid #EEE; padding:11px 12px; font-size:14px; }
+  .routecard.sel { border:2px solid #E8552F; }
+  .routecard .rn { font-weight:900; font-size:16px; }
+  .routemap { height:64px; background:#161616; margin-top:8px; display:flex; align-items:center; justify-content:center; color:#888; font-size:12px; letter-spacing:1px; }
+  .addongrid { display:flex; flex-wrap:wrap; gap:8px; padding:10px 15px 0; }
+  .addon { width:calc(50% - 4px); border:1px solid #EEE; padding:10px; font-size:14px; }
+  .addon b { display:block; font-weight:900; font-size:15px; }
+  .addon .ap { font-family:Oswald; font-weight:600; margin-top:5px; }
+  .tixfoot { background:#111; color:#fff; margin-top:16px; padding:13px 15px 15px; }
+  .tixfoot .tf1 { display:flex; align-items:center; gap:10px; font-size:15px; font-weight:900; }
+  .tixfoot .tf1 small { color:#B8B8B8; font-weight:400; }
+  .tixfoot .tf1 .coraltxt { color:#E8552F; }
+  .tixfoot .dash { border-top:1px dashed #444; margin:11px 0; }
+  .tixfoot .tf2 { display:flex; align-items:flex-end; }
+  .tixfoot .total { flex:1; }
+  .tixfoot .total .tk { font-size:13px; color:#999; }
+  .tixfoot .total .tv { font-family:Oswald; font-weight:600; font-size:26px; }
+  .tixfoot .paybtn { background:#E8552F; color:#fff; font-weight:900; font-size:16px; padding:12px 20px; border:0; font-family:inherit; cursor:pointer; }
+  .fold { border-top:1px solid #EEE; margin-top:12px; }
+  .fold .frow { display:flex; align-items:center; padding:12px 15px; border-bottom:1px solid #EEE; font-size:15px; }
+  .fold .frow .fk { font-weight:800; flex:1; }
+  .fold .frow .fv { color:#666; font-size:14px; }
+  .fold .frow .fo { margin-left:8px; color:#999; }
+  .stepbar { display:flex; gap:5px; padding:12px 15px 0; }
+  .stepbar i { flex:1; height:4px; background:#EEE; }
+  .stepbar i.on { background:#E8552F; }
+  .qbig { font-family:'Black Han Sans'; font-size:25px; padding:12px 15px 0; }
+  .qsub { font-size:14px; color:#666; padding:4px 15px 0; }
+  .slotgrid { display:flex; gap:8px; padding:12px 15px 0; flex-wrap:wrap; }
+  .slot { border:1px solid #EEE; padding:10px 0; width:calc(33.4% - 6px); text-align:center; font-size:16px; font-weight:800; cursor:pointer; }
+  .slot small { display:block; font-size:13px; color:#666; font-weight:400; }
+  .slot.dis { background:#F2F2F2; color:#999; }
+  .stepctl { display:flex; gap:8px; padding:16px 15px 0; }
+  .stepctl button { font-family:inherit; cursor:pointer; }
+  .stepctl .nextb { flex:1; background:#111; color:#fff; border:0; font-weight:900; font-size:16px; padding:13px; }
+  .stepctl .prevb { background:#fff; border:1px solid #EEE; color:#333; font-weight:700; font-size:14px; padding:13px 16px; }
+  .sumcard { margin:12px 15px 0; border:1px solid #EEE; }
+  .sumcard .sr { display:flex; justify-content:space-between; padding:9px 12px; border-bottom:1px solid #F4F4F4; font-size:14px; }
+  .sumcard .sr b { font-weight:800; }
+  .sumcard .sr:last-child { border-bottom:0; }
+
+  /* 결정 테이블 */
+  table.dec { width:100%; border-collapse:collapse; font-size:14px; margin-top:14px; }
+  table.dec th { text-align:left; font-size:13px; letter-spacing:1px; text-transform:uppercase; color:#999; padding:9px 12px 7px; border-bottom:1px solid #E8552F; }
+  table.dec td { padding:10px 12px; border-bottom:1px solid #EEE; vertical-align:top; line-height:1.6; }
+  table.dec td.vn { font-weight:800; white-space:nowrap; }
+  table.dec td.vn b { color:#E8552F; }
+  .strike { text-decoration:line-through; color:#B3261E; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>디클러터 랩</h1>
+  <p class="sub">2026-08-11 — Sean: "declutter the app… no cheap… mocks". 렌즈는 다섯: <b>Hick</b>(선택지가 늘면 결정이 느려진다) ·
+  <b>Miller</b>(그룹당 5–9) · <b>Von Restorff</b>(강조는 하나만 이긴다 — 하우스 법: 코랄 라인 + CTA 1개) ·
+  <b>Occam/Pareto</b>(가치의 80%는 요소의 20%에서) · <b>Peak-End</b>(GO 프레스·인계 실·완주는 절대 밋밋하게 깎지 않는다).
+  디클러터 ≠ 숨기기: 라우드 페일 스트립·정직한 빈 상태·실데이터는 전부 면책이다.</p>
+  <p class="law">ONE JOB PER SCREEN · CUT / MERGE / DEFER · 번호로 골라주세요</p>
+
+  <!-- ═══════════════════════ PART 1 · 감사 ═══════════════════════ -->
+  <h2>Ⅰ. 감사 — 화면별 요소 조사 (file:line 증거)</h2>
+  <p class="thesis">각 화면의 <b>하나의 일</b>을 먼저 정하고, 그 일에 복무하지 않는 요소를 CUT(삭제) / MERGE(합침) / DEFER(탭 뒤로) 셋 중 하나로 판정했다.
+  KEEP 줄은 "정직 상태라 디클러터 면책"인 것들 — 이건 건드리면 숨기기가 된다.</p>
+
+  <!-- 보호자 홈 -->
+  <div class="audit">
+    <div class="audit-head">
+      <span class="file">app/app/owner/home.tsx (1,792줄)</span>
+      <span class="job">하나의 일 — <b>다음 러닝의 상태를 보여주고, 다음 액션 하나로 보낸다</b></span>
+    </div>
+    <div class="census">
+      <div><div class="cN bad">17</div><div class="cK">첫 뷰포트 경쟁 요소<br>(락업·토글·벨 685–697 · 티커 700–731 · 그리팅 739–754 · 히어로 내부 9종 772–951)</div></div>
+      <div><div class="cN bad">14</div><div class="cK">스크롤 모듈 수 — Miller 7±2 초과<br>(티켓 994 · 클럽 1132 · 레이더섬 1138 · 머니CTA 1238 · 비컨 1282 · 넛지×3 1312/1320/1370 · 순간 1342 · 로스터 1380 · 코스 1445 · 안심 1448)</div></div>
+      <div><div class="cN bad">6</div><div class="cK">예약으로 가는 문 — Hick 최악<br>(GO 디스크 895 · 레이더섬 1139 · 직접 설정 1222 · 미리 예약 1255 · 주말 넛지 1313 · 재예약 넛지 1321)</div></div>
+      <div><div class="cN bad">3+</div><div class="cK">코랄 계열 CTA 필 동시 노출 — 강조 예산(1) 위반<br>(GO 906 · 티켓 meetBtn 1046/1071 · 머니CTA MONEY_DEEP 1255 · 레이더 코랄 아크/펄스 1157/1211)</div></div>
+    </div>
+    <table class="cut">
+      <tr><th style="width:42%">요소</th><th style="width:10%">위치</th><th style="width:26%">위반 법칙</th><th>판정 · 잃는 것</th></tr>
+      <tr><td class="el"><b>레이더 섬 '지금 러너 찾기'</b> — GO 디스크의 none 상태가 정확히 같은 openFindNow()를 연다(903–904). 같은 액션의 두 번째 대형 표면.</td><td class="loc">1138–1236</td><td class="lawc">Hick · Von Restorff (다크 앵커가 히어로와 경쟁)</td><td><span class="verdict v-merge">MERGE→GO</span>잃는 것: 없음 — 블립·가용 러너 수는 GO 서브라벨/시트로 흡수</td></tr>
+      <tr><td class="el"><b>로테이팅 그리팅</b> — 5초마다 3D 플립하는 10개 슬로건. 첫 뷰포트에서 유일하게 '항상 움직이는' 비데이터 모션.</td><td class="loc">274–277, 312–323</td><td class="lawc">Selective Attention (모션은 데이터가 아니면 소음)</td><td><span class="verdict v-cut">CUT 모션</span>정적 1문구로. 잃는 것: 장식 모션뿐</td></tr>
+      <tr><td class="el"><b>동네 랭킹 티커</b> — 헤더 최상단 마키. 화면의 일(다음 러닝)과 무관한 타인 데이터가 가장 비싼 자리를 점유.</td><td class="loc">700–731</td><td class="lawc">Pareto · Selective Attention</td><td><span class="verdict v-defer">DEFER</span>리더보드/커뮤니티 소유로. 잃는 것: 홈 재방문 훅 1개 (리더보드 진입률 관찰 후 결정)</td></tr>
+      <tr><td class="el"><b>넛지 3종</b> (주말 채우기 · 지난번처럼 · 피드 자랑) — 동시 최대 3행, 각각 코랄/액센트 링크 보유.</td><td class="loc">1312–1338, 1370–1377</td><td class="lawc">Hick · Choice Overload</td><td><span class="verdict v-merge">MERGE</span>넛지 슬롯 1개 법: 가장 가치 높은 1개만. 잃는 것: 없음(우선순위만 생김)</td></tr>
+      <tr><td class="el"><b>피처드 러너 다크 카드</b> — 레이더 섬과 같은 나이트 라일락 앵커가 한 화면에 2개.</td><td class="loc">1392–1418</td><td class="lawc">Von Restorff (다크 앵커 2개 = 상쇄)</td><td><span class="verdict v-defer">DEFER</span>로스터는 라이트 카드 셸프로 평준화, 다크는 화면당 1개</td></tr>
+      <tr><td class="el"><b>리워드 비컨</b> — 실데이터지만 머니 CTA 직하에서 액센트 2셀이 시선을 나눔.</td><td class="loc">1282–1308</td><td class="lawc">Occam · Proximity</td><td><span class="verdict v-defer">DEFER</span>조용한 인덱스 행 1줄로 강등 (마이/샵이 본가)</td></tr>
+      <tr><td class="el"><b>머니 CTA vs GO</b> — '미리 예약' MONEY_DEEP 필과 GO 코랄이 같은 뷰포트권에서 경쟁.</td><td class="loc">1255–1269</td><td class="lawc">Von Restorff · 강조 예산</td><td><span class="verdict v-merge">MERGE</span>CTA 필 1개 법: GO가 코랄이면 미리 예약은 잉크 면(Ⓐ① 참조)</td></tr>
+      <tr><td class="el"><b>히어로 크롬 3종</b> — 주간칩(773) · 리포트칩(946) · 홀로바(772)가 링·GO·정보블록 위에 추가로 얹힘.</td><td class="loc">772–775, 946–951</td><td class="lawc">Cognitive Load</td><td><span class="verdict v-cut">CUT 2/3</span>리포트 진입은 히어로 탭이 이미 담당(763) — 칩은 중복 표기</td></tr>
+    </table>
+    <div class="keepnote"><b>면책(KEEP)</b> — 체력 로드 라우드 페일 스트립(983–990) · '—' 로딩 표기(788–806) · 빈 티켓의 '예정된 러닝이 없어요'(1124–1128) ·
+    사진 0장 시 섹션 침묵(1342) · 실 미읽음 기반 벨 도트(694). 전부 정직 상태 — 디클러터 대상 아님.</div>
+  </div>
+
+  <!-- 러너 홈 -->
+  <div class="audit">
+    <div class="audit-head">
+      <span class="file">app/app/runner/home.tsx (1,139줄)</span>
+      <span class="job">하나의 일 — <b>다음 돈 되는 일(요청/진행 잡)을 잡게 한다</b></span>
+    </div>
+    <div class="census">
+      <div><div class="cN bad">12</div><div class="cK">스크롤 모듈 수<br>(빕 357 · 장부 412 · 클럽 464 · 진행중 470 · 대기열 505 · 루트 641 · 리워드 678 · 가능시간 789 · 최근완료 818 · 코스 858 · 퀵링크 864 · 푸터 880)</div></div>
+      <div><div class="cN bad">4×</div><div class="cK">tierLabel 반복 노출<br>(키커 354 · 빕 org 367 · 빕 TIER 396 · 푸터 883)</div></div>
+      <div><div class="cN bad">2×</div><div class="cK">주간 완료·거리 이중 표기<br>(빕 대형숫자 386 + 사이드 392/400 ↔ 장부 행 448–449 — 같은 stats 값)</div></div>
+      <div><div class="cN bad">3</div><div class="cK">리워드 카드 안 진행 시스템 수<br>(티어 사다리 706–731 · 보급 드랍 지그재그 736–778 · 픽 드랍 바 779–785)</div></div>
+    </div>
+    <table class="cut">
+      <tr><th style="width:42%">요소</th><th style="width:10%">위치</th><th style="width:26%">위반 법칙</th><th>판정 · 잃는 것</th></tr>
+      <tr><td class="el"><b>장부 통계 행 2줄</b> — '완료 러닝'·'총 거리'는 바로 위 빕이 방금 말한 값의 재인쇄.</td><td class="loc">448–449</td><td class="lawc">Occam (중복 데이터)</td><td><span class="verdict v-cut">CUT</span>'회당 평균'만 장부에 남긴다. 잃는 것: 없음</td></tr>
+      <tr><td class="el"><b>퀵 링크 4종</b> — 랭킹·커뮤니티·안심 센터·마이 카드. 바텀 내비·마이 화면과 목적지 중복.</td><td class="loc">864–877</td><td class="lawc">Hick · Pareto</td><td><span class="verdict v-cut">CUT</span>잃는 것: 없음 (모든 문이 다른 표면에 존재)</td></tr>
+      <tr><td class="el"><b>푸터 스트립</b> — 누적·티어·온라인의 3중 재표기 (빕이 전부 말함).</td><td class="loc">880–886</td><td class="lawc">Occam</td><td><span class="verdict v-cut">CUT</span>잃는 것: 없음</td></tr>
+      <tr><td class="el"><b>리워드 3중 진행계</b> — 사다리+지그재그 트레일+픽 드랍 바가 한 카드에. 그룹 내 인지 과부하.</td><td class="loc">678–786</td><td class="lawc">Miller · Cognitive Load</td><td><span class="verdict v-merge">MERGE</span>홈엔 '다음 이벤트 1줄'(베테랑까지 12회)만, 나머지는 리워드 센터로 DEFER</td></tr>
+      <tr><td class="el"><b>바코드 2벌 + 핀 4개</b> — 빕 바코드(405) + 티켓 스텁 바코드(570) + 장식 핀. 아티팩트 장식의 중복 사용.</td><td class="loc">360–363, 405, 570</td><td class="lawc">HIG: content over chrome</td><td><span class="verdict v-cut">CUT 1벌</span>바코드는 화면당 1개(빕)로. 잃는 것: 장식 1벌</td></tr>
+      <tr><td class="el"><b>스텁 행 '수락' 버튼</b> — 실은 요청함으로 가는 내비게이션(598)인데 프론트 티켓의 실수락 문과 같은 얼굴.</td><td class="loc">598–600</td><td class="lawc">일관성 (같은 라벨 = 같은 행동)</td><td><span class="verdict v-merge">MERGE</span>'보기 ›'로 정직화 — 수락 문은 프론트 티켓 1곳</td></tr>
+    </table>
+    <div class="keepnote"><b>면책(KEEP)</b> — preCert 빈 인박스의 이유+출구(623–631) · 로딩/실패/빈의 3분리(619–637) · '오늘 확보·예정' 라벨의 정산 정직성(438–445) ·
+    가용시간 요일칩의 즉시 저장(259–272). 진행 중 카드(470)는 이 화면의 심장 — 오히려 격상 대상.</div>
+  </div>
+
+  <!-- 요청 -->
+  <div class="audit">
+    <div class="audit-head">
+      <span class="file">app/app/owner/request.tsx (841줄)</span>
+      <span class="job">하나의 일 — <b>결제 한 번에 도달하게 한다</b> (프리필이 이미 80%를 해놨다)</span>
+    </div>
+    <div class="census">
+      <div><div class="cN bad">8</div><div class="cK">한 화면의 결정 그룹<br>(반려견 296 · 주소 348 · 거리 406 · 페이스 429 · 코스 449 · 옵션 529 · 반복 553 · 시간 591/628)</div></div>
+      <div><div class="cN bad">~24</div><div class="cK">노출된 탭 가능 선택지<br>(거리 3 + 페이스 3 + 코스 N×(선택+미리보기) + 옵션 5 + 반복 1 + 날짜 7 + 슬롯 9)</div></div>
+      <div><div class="cN">7+</div><div class="cK">코스 카드 1장의 내부 요소<br>(탭배지 480 · 인증배지 486 · 메타 488 · 불일치 경고 492 · 지도 500 · 미리보기칩 510 · 태그 515 · 설명 522)</div></div>
+      <div><div class="cN">1</div><div class="cK">가격을 바꾸는 결정은 사실상 거리+옵션뿐<br>(km이 코스를 자동 선택 74–79 — 나머지는 확인 사항)</div></div>
+    </div>
+    <table class="cut">
+      <tr><th style="width:42%">요소</th><th style="width:10%">위치</th><th style="width:26%">위반 법칙</th><th>판정 · 잃는 것</th></tr>
+      <tr><td class="el"><b>프리미엄 옵션 5카드 상시 노출</b> — 대다수 예약이 옵션 0개로 끝난다면 5카드는 Pareto의 80% 쪽.</td><td class="loc">529–550</td><td class="lawc">Hick · Pareto</td><td><span class="verdict v-defer">DEFER</span>접힌 행 '옵션 · 없음 ▸' 뒤로. 잃는 것: 옵션 발견성 일부 (부착률로 검증)</td></tr>
+      <tr><td class="el"><b>페이스 3카드(막대 그래픽 포함) 상시 노출</b> — 기본값 '보통 7''이 대부분의 답.</td><td class="loc">429–447</td><td class="lawc">Hick (합리적 기본값 + 진보적 공개)</td><td><span class="verdict v-defer">DEFER</span>접힌 행으로. 잃는 것: 없음</td></tr>
+      <tr><td class="el"><b>코스 캐러셀의 카드당 7요소</b> — 코스는 km에서 자동 배정된다(74–79). 결정이 아닌 것이 결정처럼 큼.</td><td class="loc">469–526</td><td class="lawc">Cognitive Load · Occam</td><td><span class="verdict v-merge">MERGE</span>'코스 · 서울숲 숲길 (자동) ▸' 1행 + 탭 시 캐러셀. 잃는 것: 없음</td></tr>
+      <tr><td class="el"><b>매주 반복 토글 상시 노출</b> — 구독 결정이 첫 예약 화면 한복판에.</td><td class="loc">553–566</td><td class="lawc">Choice Overload</td><td><span class="verdict v-defer">DEFER</span>접힌 행으로 (완전 고지 카피는 그대로 유지)</td></tr>
+      <tr><td class="el"><b>다견 칩 + 추가 칩 별도 행</b> — 카드 안 반려견 행과 이중 표면.</td><td class="loc">379–403</td><td class="lawc">Proximity</td><td><span class="verdict v-merge">MERGE</span>반려견 행 탭 안으로</td></tr>
+    </table>
+    <div class="keepnote"><b>면책(KEEP)</b> — 반려견/코스의 로딩≠실패≠0 3상태(296–331, 457–468) · km 불일치 경고(492–498) · 스마트 페이 버튼 라벨 스왑
+    '반려견부터 › → 시간부터 › → 결제하기 ›'(617–623: 이미 최고의 진보적 공개) · 지리 고지(453–455) · 홀드 카운트다운(692–711).</div>
+  </div>
+
+  <!-- 일정 · 커뮤니티 · 샵 · 마이 · 안심 — 컴팩트 -->
+  <div class="audit">
+    <div class="audit-head"><span class="file">app/app/owner/schedule.tsx (626줄)</span><span class="job">하나의 일 — <b>다가오는 계약(예약)을 관리한다</b></span></div>
+    <div class="census">
+      <div><div class="cN">5</div><div class="cK">필터 칩 (142–152) — 범례 겸용, Miller 안</div></div>
+      <div><div class="cN bad">11</div><div class="cK">카드 1장 최대 요소 (레일·천공·시간·매주필·LIVE필·상태필·인증도트·칼라도트·메타·소인/셰브런·라이브버튼 169–243)</div></div>
+      <div><div class="cN bad">2</div><div class="cK">새 예약 문 중복 (헤더 ＋ 134 · 하단 대시드 CTA 271)</div></div>
+    </div>
+    <table class="cut">
+      <tr><th style="width:42%">요소</th><th style="width:10%">위치</th><th style="width:26%">위반 법칙</th><th>판정 · 잃는 것</th></tr>
+      <tr><td class="el"><b>행 certDot ✓</b> — 시트는 checked_at 부재로 인증 도장을 은퇴시켰는데(307 주석) 행에는 같은 근거 없는 ✓가 남아 있다.</td><td class="loc">210, 592</td><td class="lawc">정직성 (근거 없는 검증 마크) + Occam</td><td><span class="verdict v-cut">CUT</span>시트와 같은 이유 — 데이터가 오면 복귀</td></tr>
+      <tr><td class="el"><b>완료 카드마다 볼트 공유 버튼 2개</b> — 완료가 N장이면 강조 필 2N개.</td><td class="loc">245–264</td><td class="lawc">Von Restorff (반복 강조 = 무강조)</td><td><span class="verdict v-merge">MERGE</span>고스트 1버튼 '공유 ›'로, 분기는 시트에서</td></tr>
+      <tr><td class="el"><b>매주필+LIVE필+상태필 동시 3필</b> — 한 행에 알약 3개.</td><td class="loc">193–202</td><td class="lawc">Miller (행 내 그룹)</td><td><span class="verdict v-merge">MERGE</span>상태필 1개에 '매주' 접미 통합</td></tr>
+    </table>
+    <div class="keepnote"><b>면책(KEEP)</b> — rawStatus 기반 정직 배지 불발/확인 중(39–42) · 상태별 액션 게이트(356–472) · 취소 수수료 완전 고지(488–496). 상태 레일 색은 시맨틱 — 유지.</div>
+  </div>
+
+  <div class="audit">
+    <div class="audit-head"><span class="file">app/app/community.tsx (666줄)</span><span class="job">하나의 일 — <b>동네 러닝을 스크롤하고 반응하게 한다</b></span></div>
+    <div class="census">
+      <div><div class="cN bad">8</div><div class="cK">콘텐츠 이전 마스트헤드 요소 (모노그램·'동네 신문' 키커·룰 189–196 + 타이틀·LIVE배지·리드문·랭킹버튼 198–213)</div></div>
+      <div><div class="cN good">6</div><div class="cK">포스트 해부학 — IG 개편으로 이미 규율됨 (327–538)</div></div>
+    </div>
+    <table class="cut">
+      <tr><th style="width:42%">요소</th><th style="width:10%">위치</th><th style="width:26%">위반 법칙</th><th>판정 · 잃는 것</th></tr>
+      <tr><td class="el"><b>이중 마스트헤드</b> — '동네 신문' 키커 행 위에 다시 '동네 피드' 타이틀. 지면명이 두 번.</td><td class="loc">189–196, 201</td><td class="lawc">Occam · HIG(콘텐츠 우선)</td><td><span class="verdict v-merge">MERGE</span>키커 행 삭제, 모노그램은 타이틀 옆으로</td></tr>
+      <tr><td class="el"><b>LIVE 배지</b> — 피드는 라이브 스트림이 아니다. 도트+배지가 근거 없는 실시간성 주장.</td><td class="loc">202–205</td><td class="lawc">정직성 · Von Restorff</td><td><span class="verdict v-cut">CUT</span>잃는 것: 없음</td></tr>
+      <tr><td class="el"><b>리드문</b> — "우리 동네 강아지들의 오늘 러닝…" 피드가 스스로 증명하는 내용의 내레이션.</td><td class="loc">207</td><td class="lawc">Occam (자명문)</td><td><span class="verdict v-cut">CUT</span>filler-cull 선례(2026-08-10)와 동일 법</td></tr>
+    </table>
+    <div class="keepnote"><b>면책(KEEP)</b> — 로딩≠에러≠빈 3상태(305–325) · 컴포즈 바(292) · 액션 행 44pt(459–483) · 골드 소인 화면당 1개 예산(176–177). 이 화면은 이미 모범생.</div>
+  </div>
+
+  <div class="audit">
+    <div class="audit-head"><span class="file">app/app/shop.tsx (209줄)</span><span class="job">하나의 일 — <b>포인트 잔액과 사용처를 보여준다</b></span></div>
+    <div class="census">
+      <div><div class="cN bad">4</div><div class="cK">죽은 인터랙션 표면 종류 (장바구니 52 · 검색 58 · 카테고리 150 — View라 탭도 안 됨 · 상품 ＋버튼 173)</div></div>
+      <div><div class="cN bad">~60%</div><div class="cK">화면에서 '오픈 준비 중' 프리뷰가 차지하는 비중 (142–179)</div></div>
+      <div><div class="cN good">4</div><div class="cK">실데이터 모듈 (포인트 히어로 62 · 부스트 97 · 드랍 104 · 교환권 113)</div></div>
+    </div>
+    <table class="cut">
+      <tr><th style="width:42%">요소</th><th style="width:10%">위치</th><th style="width:26%">위반 법칙</th><th>판정 · 잃는 것</th></tr>
+      <tr><td class="el"><b>검색바 · 장바구니 · 카테고리 칩 · 상품 ＋버튼</b> — 전부 Alert('준비 중') 또는 무반응. '죽은 버튼 금지' 하우스 법의 최대 위반 지대.</td><td class="loc">52–60, 150–156, 173–175</td><td class="lawc">Hick · 죽은 버튼 금지 (정직 라벨 ≠ 죽은 크롬)</td><td><span class="verdict v-cut">CUT</span>프리뷰는 '오픈 준비 중' 배너 + 비인터랙티브 그리드로 축소. 잃는 것: 가짜 어포던스뿐</td></tr>
+      <tr><td class="el"><b>레거시 포레스트/테라 크롬</b> — FOREST #0F1D13·크림·볼트가 페이퍼 문법 밖 (17, 194–209). 디클러터라기보다 문법 이관 잔무.</td><td class="loc">17, 194–209</td><td class="lawc">일관성 (paper repaint 미완)</td><td><span class="verdict v-defer">DEFER</span>별도 리페인트 세션</td></tr>
+    </table>
+    <div class="keepnote"><b>면책(KEEP)</b> — 잔액 '—' 로딩(68) · 조건부 부스트/드랍 스트립(97–110) · '오픈 준비 중' 정직 라벨 자체(146)는 유지 — 죽은 크롬만 걷는다.</div>
+  </div>
+
+  <div class="audit">
+    <div class="audit-head"><span class="file">app/app/my.tsx (629줄)</span><span class="job">하나의 일 — <b>내 신원·기록·서류(설정)로 가는 조용한 허브</b></span></div>
+    <div class="census">
+      <div><div class="cN">6</div><div class="cK">섹션 수 — Miller 안 (신분면 205 · 기록면 277 · 도장면 324 · 서류 362 · 역할전환 394 · 로그아웃 402)</div></div>
+      <div><div class="cN bad">12</div><div class="cK">신분면 카드 내부 요소 (홀로·스트랩·역할태그·사진·필드2·EDIT·TYPE/NO 그리드·MRZ 2줄 205–273)</div></div>
+      <div><div class="cN bad">7색</div><div class="cK">메뉴 행마다 다른 잉크/틴트 페어 (164–176) — 무지개 아이콘</div></div>
+    </div>
+    <table class="cut">
+      <tr><th style="width:42%">요소</th><th style="width:10%">위치</th><th style="width:26%">위반 법칙</th><th>판정 · 잃는 것</th></tr>
+      <tr><td class="el"><b>MRZ 스트립 + TYPE/NO 그리드</b> — 순수 장식(263 주석 'aria-safe, 실데이터 없음') + uuid 앞 8자 코스프레 문서번호(186).</td><td class="loc">249–272</td><td class="lawc">HIG: content over chrome · Occam</td><td><span class="verdict v-cut">CUT</span>여권 모티프는 이중 프레임+홀로만으로 충분. 잃는 것: 장식 2줄</td></tr>
+      <tr><td class="el"><b>메뉴 7행의 7색 틴트/틱</b> — 색이 7개면 아무 색도 강조가 아니다.</td><td class="loc">164–176, 379–382</td><td class="lawc">Von Restorff · Common Region</td><td><span class="verdict v-merge">MERGE</span>단색 잉크 글리프로 통일 — 안심 센터 1행만 코랄 틱 유지</td></tr>
+    </table>
+    <div class="keepnote"><b>면책(KEEP)</b> — 도장면 로딩 시 섹션 침묵(324) · 0개 상태의 나무라지 않는 카피(341–347) · certDesc 상태 부제(156–162) · 기록면 라우드 페일(311–319).</div>
+  </div>
+
+  <div class="audit">
+    <div class="audit-head"><span class="file">app/app/safety.tsx (210줄)</span><span class="job">하나의 일 — <b>위급 시 가장 빠른 문</b> (Peak — 디클러터 최소 대상)</span></div>
+    <div class="census">
+      <div><div class="cN good">5</div><div class="cK">모듈 수 (SOS 79 · 112/119 88 · 연락처 98 · 안전 체계 143 · 준비 중 165) — 이미 한 가지 일에 수렴</div></div>
+    </div>
+    <table class="cut">
+      <tr><th style="width:42%">요소</th><th style="width:10%">위치</th><th style="width:26%">위반 법칙</th><th>판정 · 잃는 것</th></tr>
+      <tr><td class="el"><b>'사고 신고 준비 중' 반투명 카드</b> — 정직 라벨이지만 SOS 화면에서 카드 1장 자리를 점유. 1줄 각주로 충분.</td><td class="loc">165–169</td><td class="lawc">Occam (위급 화면의 최소주의)</td><td><span class="verdict v-merge">MERGE</span>안전 체계 카드의 각주 행으로</td></tr>
+      <tr><td class="el"><b>레거시 크림/라운드 크롬</b> — borderRadius 20/18/14/99 (196–209) — 페이퍼 샤프 법 밖. 별도 리페인트 잔무.</td><td class="loc">196–209</td><td class="lawc">일관성</td><td><span class="verdict v-defer">DEFER</span></td></tr>
+    </table>
+    <div class="keepnote"><b>면책(KEEP)</b> — SOS 카드의 크기와 색은 Peak 보호 대상: 여기선 '큰 것'이 옳다. 112/119 우선 고지(84) · 러너 신원 정직 카피(157–161)는 그대로.</div>
+  </div>
+
+  <!-- ═══════════════════════ PART 2 · 목업 랩 ═══════════════════════ -->
+  <h2>Ⅱ. 목업 랩 — before / after (번호로 골라주세요)</h2>
+  <p class="thesis">모든 after는 공통 법 세 가지 위에서 갈라진다: <b>강조 예산 = 코랄 헤어라인 + CTA 필 1개</b> ·
+  <b>모듈 ≤ 7</b> · <b>정직 상태 무손실</b>. 각 프레임 우상단 = 첫 화면 경쟁 요소 수.</p>
+
+  <!-- ──────────── Ⓐ 보호자 홈 ──────────── -->
+  <h3><b>Ⓐ</b> 보호자 홈 — 가장 밀도 높은 화면</h3>
+  <p class="thesis">현재: 예약 문 6개 · 코랄 필 3+ · 모듈 14. 두 after 모두 레이더 섬을 GO에 합병한다(코드가 이미 같은 함수를 부른다 — home.tsx:903).</p>
+
+  <div class="phones">
+    <!-- 현재 -->
+    <div class="phone">
+      <div class="phead"><span class="pt">현재 — production</span><span class="cnt bad">17 요소 · 문 6</span></div>
+      <div class="screen">
+        <div class="brandrow"><span class="brandmark">다</span><span class="brandword">댕런</span><span style="flex:1"></span><span class="util">◐</span><span class="util"><span class="belldot"></span>◔</span></div>
+        <div class="ticker"><span>THIS WEEK · 동네 리그</span><span><b>1위</b> 콩이 <i>21km</i></span><span><b>2위</b> 보리 <i>18km</i></span></div>
+        <div class="greet">오늘도 달린다<span>, 우리 초코</span></div>
+        <div class="herobox">
+          <div class="holo" style="position:absolute;top:0;left:0;right:0"><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="weekchip">이번 주 ▾</div>
+          <div class="ringbox">
+            <div class="rim"></div><div class="arc"></div>
+            <div class="kmline" style="position:absolute;top:-2px;width:100%">오늘까지 <b>8</b> / 14 km</div>
+            <button class="go"><span class="gw">GO</span><span class="gs">러너 찾기</span></button>
+            <div class="agechip" style="position:absolute;bottom:-4px;width:100%">체력 나이 <b>2.1살</b> ▼0.9</div>
+          </div>
+          <div class="reportchip"><span>체력 리포트 · 주간 목표</span><span style="color:#6C5CE7">›</span></div>
+        </div>
+        <div class="secrow"><span class="secno">01</span><span class="sech">오늘의 티켓</span><span class="secr"></span><span class="seclink">전체 일정 ›</span></div>
+        <div class="tix">
+          <div class="holo"><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="tixhead"><span class="tixbrand">NEXT RUN · BOARDING PASS</span><span class="row" style="gap:6px"><span class="pill dday">D-1</span><span class="pill st">확정됨</span></span></div>
+          <div class="tixbody">
+            <div class="tixtime">8월 12일 오후 3:30</div>
+            <div class="tixmeta">초코 · 서울숲 숲길 3km</div>
+            <div class="perf"></div>
+            <button class="btn-coral">러너 만나기 · 인계 확인 ›</button>
+            <div class="tix2"><span class="btn-ghost">일정 변경</span><span class="btn-ghost">러너와 채팅</span></div>
+          </div>
+        </div>
+        <div class="dark">
+          <div class="radar"><i style="inset:20px"></i><i style="inset:42px"></i><i style="inset:64px"></i></div>
+          <div class="dk">LIVE RUNNERS</div>
+          <div class="dt">지금 러너 찾기</div>
+          <div class="ds">주변 러너 3명이 바로 받을 수 있어요</div>
+          <div class="row" style="gap:10px;margin-top:14px"><span class="paperbtn">주변 러너 검색 시작 ➤</span><span class="ghost">직접 설정 ›</span></div>
+        </div>
+        <div class="money">
+          <div class="moneyfacts"><span>초코 · 3km · 서울숲 숲길</span><span style="text-align:right"><span class="kick">예상 결제</span><br><span class="mv">18,900</span>원</span></div>
+          <div class="btn-money"><div class="m1"><span>미리 예약</span><span class="num" style="font-size:18px;letter-spacing:2px">›››</span></div>
+            <div class="m2"><span class="num">9,900</span><span>원부터 · km당 3,000원</span><span style="opacity:.6">|</span><span>코스·결제 자동</span></div></div>
+        </div>
+        <div class="beacon">
+          <div><div class="bk">하이 포인트</div><div class="bv"><b>1,250</b> 포인트</div><div class="bg">샵 보기 ›</div></div>
+          <div style="border-left:1px solid #EEE"><div class="bk">다음 승급</div><div class="bv">실버까지 <b>2</b>회</div><div class="bg">카드 보기 ›</div></div>
+        </div>
+        <div class="nudge"><span style="flex:1">주간 목표까지 <b style="color:#C6472C">6km</b> — 주말 러닝으로 채워볼까요?</span><span class="na">예약 ›</span></div>
+        <div class="nudge"><span style="flex:1">초코의 완주, 동네 피드에 자랑해볼까요?</span><span class="na">자랑하기 ›</span></div>
+        <div class="shelf"><div class="shelfhead">최근 순간 <small>러너가 담아온 초코의 러닝</small></div>
+          <div class="cards"><div class="mcard"><span>3km</span></div><div class="mcard"><span>5km</span></div><div class="mcard"><span>3km</span></div></div></div>
+        <div class="shelf"><div class="shelfhead">동네 러너 <small style="color:#6C5CE7;font-size:12px;letter-spacing:1px">ROSTER · 3 ONLINE</small><span style="flex:1"></span><small style="color:#C6472C;font-weight:800">동네 랭킹 ›</small></div>
+          <div class="dark" style="margin-top:0"><div class="dk">FEATURED RUNNER</div><div class="dt" style="font-size:17px">민준 <span style="font-size:12px;border:1px solid rgba(240,118,90,.7);padding:1px 6px;color:#FFCBBB">CERTIFIED</span></div><div class="ds">128 RUNS · 6'30" PACE · ONLINE</div></div>
+          <div class="cards" style="margin-top:9px"><div class="rcard"><b>지우</b><i>성수동 · 74 RUNS</i></div><div class="rcard"><b>하람</b><i>근처 · 41 RUNS</i></div></div></div>
+        <div class="shelf"><div class="shelfhead">동네 코스</div><div class="cards"><div class="rcard"><b>서울숲 숲길</b><i>3km · 흙길</i></div><div class="rcard"><b>한강 뚝섬</b><i>5km · 강변</i></div></div></div>
+        <div class="safety"><em>✚</em><span style="flex:1">안심 센터 <span style="color:#666;font-weight:400">· SOS · 실시간 위치 · 보험</span></span><span style="color:#666">›</span></div>
+      </div>
+      <div class="meta"><h3 style="margin-top:0"><b>Ⓐ⓪</b> 현재 — 기준선</h3>
+        <p class="note">모듈 14 · 예약 문 6 · 코랄 필 3(GO·티켓 CTA·머니 CTA) + 다크 앵커 2. 모든 요소가 각자 옳지만
+        합치면 서로를 지운다 — Von Restorff의 교과서적 상쇄.</p><span class="flag f-now">현행</span></div>
+    </div>
+
+    <!-- Ⓐ① one-job home -->
+    <div class="phone">
+      <div class="phead"><span class="pt">Ⓐ① one-job home</span><span class="cnt good">9 요소 · 문 2</span></div>
+      <div class="screen">
+        <div class="brandrow"><span class="brandmark">다</span><span class="brandword">댕런</span><span style="flex:1"></span><span class="util"><span class="belldot"></span>◔</span></div>
+        <div class="greet" style="padding-top:12px">오늘도 달린다<span>, 우리 초코</span></div>
+        <div class="herobox">
+          <div class="ringbox">
+            <div class="rim"></div><div class="arc"></div>
+            <div class="kmline" style="position:absolute;top:-2px;width:100%">오늘까지 <b>8</b> / 14 km</div>
+            <button class="go"><span class="gw">GO</span><span class="gs">러너 찾기 · 3명 대기</span></button>
+            <div class="agechip" style="position:absolute;bottom:-4px;width:100%">체력 나이 <b>2.1살</b> ▼0.9</div>
+          </div>
+        </div>
+        <div class="secrow"><span class="sech">오늘의 티켓</span><span class="secr"></span><span class="seclink" style="color:#666">전체 일정 ›</span></div>
+        <div class="tix">
+          <div class="tixhead"><span class="tixbrand">NEXT RUN</span><span class="row" style="gap:6px"><span class="pill dday">D-1</span><span class="pill st">확정됨</span></span></div>
+          <div class="tixbody">
+            <div class="tixtime">8월 12일 오후 3:30</div>
+            <div class="tixmeta">초코 · 서울숲 숲길 3km · 민준 러너</div>
+            <div class="perf"></div>
+            <span class="btn-ink">러너 만나기 · 인계 확인 ›</span>
+            <div style="text-align:center;font-size:14px;font-weight:700;color:#666;margin-top:9px">일정 변경 · 채팅 ›</div>
+          </div>
+        </div>
+        <div class="money">
+          <div class="moneyfacts"><span>초코 · 3km · 지난번 그대로</span><span style="text-align:right"><span class="kick">예상 결제</span><br><span class="mv">18,900</span>원</span></div>
+          <span class="btn-ink" style="font-size:18px;padding:15px">미리 예약 ›</span>
+        </div>
+        <div class="idx" style="margin-top:16px">
+          <div class="irow"><span class="it">최근 순간</span><span class="is">새 사진 3장</span><span class="ic">›</span></div>
+          <div class="irow"><span class="it">동네</span><span class="is">러너 3명 온라인 · 코스 · 랭킹</span><span class="ic">›</span></div>
+          <div class="irow"><span class="it">리워드</span><span class="is">1,250 포인트 · 실버까지 2회</span><span class="ic">›</span></div>
+          <div class="irow"><span class="it">안심 센터</span><span class="is">SOS · 실시간 위치</span><span class="ic">›</span></div>
+        </div>
+      </div>
+      <div class="meta"><h3 style="margin-top:0"><b>Ⓐ①</b> 원잡 홈 — 히어로 + 티켓 + 돈 버튼, 끝</h3>
+        <p class="note">코랄 필 = GO 하나. 티켓 CTA·미리 예약은 잉크로 강등, 보조 액션은 텍스트 1줄로.
+        레이더 섬·비컨·넛지·로스터·코스·안심은 헤어라인 인덱스 4행으로 접힘(Proximity — 상자가 아니라 선으로 그룹).
+        가용 러너 수는 GO 서브라벨이 흡수. 넛지 슬롯은 티켓 부재 시 그 자리에 1개만.</p>
+        <span class="flag f-ok">강조 예산 준수</span></div>
+    </div>
+
+    <!-- Ⓐ② editorial feed home -->
+    <div class="phone">
+      <div class="phead"><span class="pt">Ⓐ② editorial feed home</span><span class="cnt good">11 요소 · 문 2</span></div>
+      <div class="screen">
+        <div class="brandrow"><span class="brandmark">다</span><span class="brandword">댕런</span><span style="flex:1"></span><span class="util"><span class="belldot"></span>◔</span></div>
+        <div class="herobox" style="margin-top:8px">
+          <div class="ringbox">
+            <div class="rim"></div><div class="arc"></div>
+            <div class="kmline" style="position:absolute;top:-2px;width:100%">오늘까지 <b>8</b> / 14 km</div>
+            <button class="go"><span class="gw">GO</span><span class="gs">러너 찾기</span></button>
+            <div class="agechip" style="position:absolute;bottom:-4px;width:100%">체력 나이 <b>2.1살</b> ▼0.9</div>
+          </div>
+        </div>
+        <div class="secrow"><span class="secno" style="color:#111;border-color:#DDD;background:#fff">01</span><span class="sech">오늘의 티켓</span><span class="secr"></span></div>
+        <div class="g" style="padding-top:8px">
+          <div class="tixtime">8월 12일 오후 3:30 <span class="pill st" style="font-size:13px;vertical-align:middle">확정됨</span></div>
+          <div class="tixmeta">초코 · 서울숲 숲길 3km · 민준 러너</div>
+          <div style="font-size:16px;font-weight:800;margin-top:9px">러너 만나기 · 인계 확인 ›</div>
+        </div>
+        <div class="secrow"><span class="secno" style="color:#111;border-color:#DDD;background:#fff">02</span><span class="sech">다음 예약</span><span class="secr"></span></div>
+        <div class="g" style="padding-top:8px">
+          <div style="font-size:14px;color:#666">초코 · 3km · 예상 <span class="num" style="color:#111;font-size:17px">18,900</span>원 · 코스·결제 자동</div>
+          <div style="font-size:16px;font-weight:800;margin-top:8px">미리 예약 ›</div>
+        </div>
+        <div class="secrow"><span class="secno" style="color:#111;border-color:#DDD;background:#fff">03</span><span class="sech">최근 순간</span><span class="secr"></span></div>
+        <div class="cards" style="margin-top:8px"><div class="mcard"><span>3km</span></div><div class="mcard"><span>5km</span></div><div class="mcard"><span>3km</span></div></div>
+        <div class="secrow"><span class="secno" style="color:#111;border-color:#DDD;background:#fff">04</span><span class="sech">동네</span><span class="secr"></span><span class="seclink" style="color:#666">랭킹 ›</span></div>
+        <div class="cards" style="margin-top:8px"><div class="rcard"><b>민준</b><i>인증 러너 · 온라인</i></div><div class="rcard"><b>서울숲 숲길</b><i>3km · 흙길</i></div></div>
+        <div class="secrow"><span class="secno" style="color:#111;border-color:#DDD;background:#fff">05</span><span class="sech">리워드 · 안심</span><span class="secr"></span></div>
+        <div class="g" style="padding-top:8px;font-size:14px;color:#666">1,250 포인트 · 실버까지 2회 · 안심 센터 ›</div>
+      </div>
+      <div class="meta"><h3 style="margin-top:0"><b>Ⓐ②</b> 에디토리얼 피드 홈 — 등무게 칼럼</h3>
+        <p class="note">히어로 아래는 01→05 등무게 지면 — 카드도 필 버튼도 없고, 모든 액션이 잉크 텍스트 링크다.
+        코랄 필은 GO 하나, 나머지는 코랄 헤어라인이 지면을 나눈다(신문 문법의 끝). 모듈 수는 유지되지만
+        경쟁 강조가 0이라 스캔이 위→아래 단방향이 된다. 리스크: 머니 CTA의 전환 압력이 약해진다.</p>
+        <span class="flag f-ok">필 0 · 링크 문법</span></div>
+    </div>
+  </div>
+
+  <!-- ──────────── Ⓑ 러너 홈 ──────────── -->
+  <h3><b>Ⓑ</b> 러너 홈 — 빕 · 장부 · 스텁 스택</h3>
+  <p class="thesis">현재: 모듈 12, tier 4회·주간 스탯 2회 재인쇄, 리워드 카드 안 진행계 3개. 두 after의 차이는 딱 하나 — <b>맨 위에 무엇이 오는가</b>: 돈(장부)이냐, 다음 일(티켓)이냐.</p>
+
+  <div class="phones">
+    <!-- 현재 -->
+    <div class="phone">
+      <div class="phead"><span class="pt">현재 — production</span><span class="cnt bad">19 요소 · 모듈 12</span></div>
+      <div class="screen">
+        <div class="rtop"><span class="row" style="gap:6px"><span class="brandmark" style="width:22px;height:22px;font-size:11px">다</span><span class="rcrumb">RUNNER</span></span><span class="util">◔</span></div>
+        <div class="row g" style="gap:8px;padding-top:10px"><span class="kick">DAENGRUN RUNNER</span><span style="flex:1;height:1px;background:#EEE"></span><span style="font-size:14px;font-weight:700">인증 러너</span></div>
+        <div class="bib">
+          <div class="holo"><i></i><i></i><i></i><i></i><i></i></div>
+          <span class="pin" style="top:9px;left:9px"></span><span class="pin" style="top:9px;right:9px"></span><span class="pin" style="bottom:40px;left:9px"></span><span class="pin" style="bottom:40px;right:9px"></span>
+          <div class="row" style="justify-content:space-between;align-items:flex-start;padding-right:20px">
+            <div><div class="biborg">DAENGRUN · 인증 러너</div><div class="bibname">민준<small> 러너</small></div></div>
+            <div style="text-align:right;padding-top:14px"><div class="swtrack"><i></i></div><div style="font-size:13px;font-weight:700;color:#C6472C;margin-top:4px">온라인</div></div>
+          </div>
+          <div class="bibbody">
+            <div><div class="bibno num">07</div><div class="bibnocap">이번 주 완료 러닝</div></div>
+            <div class="bibside">
+              <div class="r"><span class="k">TOTAL</span><span><b class="num">128</b>회</span></div>
+              <div class="r"><span class="k">TIER</span><span>인증 러너</span></div>
+              <div class="r"><span class="k">DISTANCE</span><span><b class="num">412</b>km</span></div>
+            </div>
+          </div>
+          <div class="bibfoot"><span class="barcode"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="kick">DAENGRUN · RUNNER</span></div>
+        </div>
+        <div class="ledger">
+          <div class="holo" style="position:absolute;top:0;left:0;right:0"><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="row" style="justify-content:space-between"><span class="lb">EARNINGS LEDGER</span><span class="lb" style="border:1px solid #EEE;padding:1px 6px">THIS WEEK</span></div>
+          <div class="wonhero"><small>₩</small>216,000</div>
+          <div class="lcap">수수료 차감 후 기준</div>
+          <div class="lwin">이번 달 ₩<b>512,000</b> · 누적 ₩<b>3,120,000</b></div>
+          <div class="lwin">오늘 확보·예정 <b style="color:#C6472C">+37,800</b>원 · 확정 2건</div>
+          <div style="margin-top:10px;border-top:1px solid #EEE">
+            <div class="lrow"><span class="ll">완료 러닝</span><span class="lead"></span><span class="lv">7</span>회</div>
+            <div class="lrow"><span class="ll">총 거리</span><span class="lead"></span><span class="lv">21</span>km</div>
+            <div class="lrow" style="border-bottom:0"><span class="ll">회당 평균</span><span class="lead"></span><span class="lv">30,857</span>원</div>
+          </div>
+          <div class="row" style="justify-content:space-between;margin-top:8px;font-size:14px"><span style="color:#666">매주 정산</span><b>수익 상세 ›</b></div>
+        </div>
+        <div class="secrow" style="border-top-color:#EEE"><span class="sech">하이클럽</span><span class="secr"></span></div>
+        <div class="g" style="padding-top:6px;font-size:14px;color:#666">한강 새벽 클럽 · 다음 세션 토 06:00 ›</div>
+        <div class="secrow"><span class="secno" style="color:#111;background:#fff;border-color:#DDD">01</span><span class="sech">요청 대기열</span><span class="secr"></span><span class="seclink" style="color:#666">요청함 · 3건 ›</span></div>
+        <div class="tix" style="margin-top:8px">
+          <div class="holo"><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="tixhead"><span class="tixbrand">TODAY · FRONT REQUEST</span><span class="pill" style="border:1px solid #111;font-family:Oswald">★ 나를 지명</span></div>
+          <div class="tixbody">
+            <div class="tixtime">오늘 15:30</div>
+            <div class="tixmeta">초코 · 지명 요청 픽업 — COURSE <b class="num" style="color:#111">3</b>km · 정산 <b class="num" style="color:#111">12,663</b>원</div>
+          </div>
+          <div class="perf" style="margin:0 12px"></div>
+          <div class="doors">
+            <div class="door coral"><div class="dn">수락</div><div class="dd"><span class="num">12,663</span>원</div></div>
+            <div class="door quiet"><div class="dn">거절</div><div class="dd" style="color:#666">다른 러너에게 넘겨요</div></div>
+          </div>
+          <div class="row" style="justify-content:space-between;padding:0 12px 12px"><span class="barcode"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="kick">REQ · FRONT</span></div>
+        </div>
+        <div class="stub"><div class="sm"><b>보리</b> <span class="num">5</span>KM<br><span style="color:#666">내일 07:00</span></div><div class="sa"><div class="fare num">20,100</div><div class="farecap">KRW 실수령</div><div class="acc">수락</div></div></div>
+        <div class="secrow"><span class="secno" style="color:#111;background:#fff;border-color:#DDD">02</span><span class="sech">오늘의 루트</span><span class="secr"></span><span class="seclink" style="color:#666">캘린더 ›</span></div>
+        <div class="stoprow"><span class="pt2 on"></span><span class="tm">15:30</span><span style="flex:1"><b>초코 · 3km</b><br><span style="color:#666;font-size:13px">픽업 대기</span></span><span class="pay num">+12,663</span></div>
+        <div class="stoprow"><span class="pt2"></span><span class="tm">18:00</span><span style="flex:1"><b>콩이 · 5km</b><br><span style="color:#666;font-size:13px">지명 요청 · 예정</span></span><span class="pay num">+20,100</span></div>
+        <div class="secrow"><span class="secno" style="color:#111;background:#fff;border-color:#DDD">03</span><span class="sech">리워드</span><span class="secr"></span><span class="seclink" style="color:#666">리워드 센터 ›</span></div>
+        <div class="g" style="padding-top:8px;font-size:14px">
+          <div class="row" style="justify-content:space-between"><b>베테랑까지 러닝 <span style="color:#C6472C" class="num">12</span>회</b><span style="color:#666">수수료 일괄 33%</span></div>
+          <div class="row" style="gap:3px;margin-top:8px"><i style="flex:1;height:7px;background:#6C5CE7"></i><i style="flex:1;height:7px;background:#6C5CE7"></i><i style="flex:1;height:7px;background:#6C5CE7"></i><i style="flex:1;height:7px;background:#EEE"></i><i style="flex:1;height:7px;background:#EEE"></i></div>
+          <div style="margin-top:10px;border-top:1px solid #EEE;padding-top:8px"><b>보급 드랍 트레일</b> — 3번 더 달리면 보급 드랍</div>
+          <div class="row" style="gap:6px;margin-top:6px"><i style="width:14px;height:14px;background:#6C5CE7;transform:rotate(45deg)"></i><i style="width:14px;height:14px;background:#6C5CE7;transform:rotate(45deg)"></i><i style="width:14px;height:14px;border:1.5px solid #6C5CE7;transform:rotate(45deg)"></i><i style="width:14px;height:14px;border:1.5px solid #EEE;transform:rotate(45deg)"></i><i style="width:14px;height:14px;border:1.5px solid #EEE;transform:rotate(45deg)"></i><span style="flex:1"></span><span style="border:1.5px solid #C77414;width:22px;height:22px;display:flex;align-items:center;justify-content:center;color:#C77414;font-size:11px">▣</span></div>
+          <div class="row" style="gap:7px;margin-top:9px;border-top:1px solid #EEE;padding-top:8px"><span style="font-size:13px;color:#666">픽 드랍</span><i style="flex:1;height:6px;background:#EEE"><i style="display:block;width:30%;height:6px;background:#6C5CE7"></i></i><span class="num">3/10</span></div>
+        </div>
+        <div class="secrow"><span class="secno" style="color:#111;background:#fff;border-color:#DDD">04</span><span class="sech">러닝 가능 시간</span><span class="secr"></span><span class="seclink" style="color:#666">시간 조정 ›</span></div>
+        <div class="row g" style="gap:4px;padding-top:8px">
+          <span class="chip" style="flex:1;text-align:center;padding:7px 0;font-size:13px">월<br><span style="color:#6C5CE7;font-size:11px">06–22</span></span>
+          <span class="chip" style="flex:1;text-align:center;padding:7px 0;font-size:13px">화<br><span style="color:#999;font-size:11px">쉼</span></span>
+          <span class="chip" style="flex:1;text-align:center;padding:7px 0;font-size:13px">수<br><span style="color:#6C5CE7;font-size:11px">06–22</span></span>
+          <span class="chip" style="flex:1;text-align:center;padding:7px 0;font-size:13px">목<br><span style="color:#6C5CE7;font-size:11px">06–22</span></span>
+          <span class="chip" style="flex:1;text-align:center;padding:7px 0;font-size:13px">금<br><span style="color:#999;font-size:11px">쉼</span></span>
+          <span class="chip" style="flex:1;text-align:center;padding:7px 0;font-size:13px">토<br><span style="color:#6C5CE7;font-size:11px">06–22</span></span>
+          <span class="chip" style="flex:1;text-align:center;padding:7px 0;font-size:13px">일<br><span style="color:#6C5CE7;font-size:11px">06–22</span></span>
+        </div>
+        <div class="secrow"><span class="secno" style="color:#111;background:#fff;border-color:#DDD">05</span><span class="sech">최근 완료</span><span class="secr"></span></div>
+        <div class="g" style="padding-top:8px;font-size:14px;color:#666">보리 · 5km · 완료 · <b style="color:#3F9A75">정산 완료</b> <span class="num" style="color:#111;float:right">+20,100</span></div>
+        <div class="secrow"><span class="secno" style="color:#111;background:#fff;border-color:#DDD">06</span><span class="sech">동네 코스</span><span class="secr"></span></div>
+        <div class="row g" style="gap:6px;padding-top:10px;flex-wrap:wrap">
+          <span class="chip">랭킹 ›</span><span class="chip">커뮤니티 ›</span><span class="chip">안심 센터 ›</span><span class="chip">마이 카드 ›</span>
+        </div>
+        <div class="g" style="padding-top:12px;font-size:13px;color:#999;text-align:center">누적 128회 · 인증 러너 · 온라인</div>
+      </div>
+      <div class="meta"><h3 style="margin-top:0"><b>Ⓑ⓪</b> 현재 — 기준선</h3>
+        <p class="note">같은 숫자가 세 번 인쇄된다(빕→장부→푸터). 리워드 카드 하나에 진행계 3개.
+        퀵 링크 4개는 전부 다른 표면에 이미 있는 문. 아름다운 아티팩트들이 서로의 관객을 뺏는 상태.</p><span class="flag f-now">현행</span></div>
+    </div>
+
+    <!-- Ⓑ① money first -->
+    <div class="phone">
+      <div class="phead"><span class="pt">Ⓑ① money first</span><span class="cnt good">8 요소 · 모듈 6</span></div>
+      <div class="screen">
+        <div class="rtop"><span class="row" style="gap:6px"><span class="brandmark" style="width:22px;height:22px;font-size:11px">다</span><span class="rcrumb">RUNNER</span></span><span class="util">◔</span></div>
+        <div class="strap"><span class="sn">민준 러너<small>인증 러너 · 누적 128회</small></span><span class="swtrack"><i></i></span></div>
+        <div class="ledger" style="border:1.5px solid #111">
+          <div class="holo" style="position:absolute;top:0;left:0;right:0"><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="row" style="justify-content:space-between"><span class="lb">EARNINGS · THIS WEEK</span><span class="lb">매주 정산</span></div>
+          <div class="wonhero" style="font-size:40px"><small>₩</small>216,000</div>
+          <div class="lcap">수수료 차감 후 · 오늘 확보·예정 <b class="num" style="color:#C6472C">+37,800</b>원</div>
+          <div class="lwin">이번 달 ₩<b>512,000</b> · 누적 ₩<b>3,120,000</b> · 회당 평균 ₩<b>30,857</b> — 수익 상세 ›</div>
+        </div>
+        <div class="secrow"><span class="sech">요청 대기열</span><span class="secr"></span><span class="seclink" style="color:#666">요청함 · 3건 ›</span></div>
+        <div class="tix" style="margin-top:8px">
+          <div class="tixhead"><span class="tixbrand">TODAY · FRONT REQUEST</span><span class="pill" style="border:1px solid #111;font-family:Oswald">★ 나를 지명</span></div>
+          <div class="tixbody"><div class="tixtime">오늘 15:30</div><div class="tixmeta">초코 · 3km · 지명 요청 픽업</div></div>
+          <div class="perf" style="margin:0 12px"></div>
+          <div class="doors">
+            <div class="door coral"><div class="dn">수락</div><div class="dd"><span class="num">12,663</span>원</div></div>
+            <div class="door quiet"><div class="dn">거절</div><div class="dd" style="color:#666">다른 러너에게 넘겨요</div></div>
+          </div>
+        </div>
+        <div class="stub"><div class="sm"><b>보리</b> <span class="num">5</span>KM · 내일 07:00</div><div class="sa"><div class="fare num">20,100</div><div class="acc" style="background:#fff;color:#111;border:1px solid #EEE">보기 ›</div></div></div>
+        <div class="secrow"><span class="sech">오늘의 루트</span><span class="secr"></span><span class="seclink" style="color:#666">캘린더 ›</span></div>
+        <div class="stoprow"><span class="pt2 on"></span><span class="tm">15:30</span><span style="flex:1"><b>초코 · 3km</b></span><span class="pay num">+12,663</span></div>
+        <div class="stoprow"><span class="pt2"></span><span class="tm">18:00</span><span style="flex:1"><b>콩이 · 5km</b></span><span class="pay num">+20,100</span></div>
+        <div class="idx" style="margin-top:16px">
+          <div class="irow"><span class="it">리워드</span><span class="is">베테랑까지 12회 · 드랍 3회 남음</span><span class="ic">›</span></div>
+          <div class="irow"><span class="it">러닝 가능 시간</span><span class="is">주 5일 · 06–22시</span><span class="ic">›</span></div>
+          <div class="irow"><span class="it">최근 완료 · 클럽 · 코스</span><span class="is"></span><span class="ic">›</span></div>
+        </div>
+      </div>
+      <div class="meta"><h3 style="margin-top:0"><b>Ⓑ①</b> 머니 퍼스트 — 장부가 히어로</h3>
+        <p class="note">₩ 히어로가 40pt로 격상되고 빕은 한 줄 스트랩(이름·티어·토글)으로 접힌다 — 정체성은 잃지 않고
+        높이만 잃는다. 중복 스탯 행 삭제: 주간 완료·거리는 장부 밖으로, 회당 평균은 한 줄 요약에 흡수.
+        코랄 필 = 수락 문 하나. 리워드 3중 진행계는 인덱스 1줄. 러너의 동기가 돈이라는 가설의 물화.</p>
+        <span class="flag f-ok">중복 인쇄 0</span></div>
+    </div>
+
+    <!-- Ⓑ② next job first -->
+    <div class="phone">
+      <div class="phead"><span class="pt">Ⓑ② next job first</span><span class="cnt good">7 요소 · 모듈 6</span></div>
+      <div class="screen">
+        <div class="rtop"><span class="row" style="gap:6px"><span class="brandmark" style="width:22px;height:22px;font-size:11px">다</span><span class="rcrumb">RUNNER</span></span><span class="util">◔</span></div>
+        <div class="strap"><span class="sn">민준 러너<small>인증 러너</small></span><span class="swtrack"><i></i></span></div>
+        <div class="tix" style="border:1.5px solid #111">
+          <div class="holo"><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="tixhead"><span class="tixbrand">TODAY · FRONT REQUEST</span><span class="pill" style="border:1px solid #111;font-family:Oswald">★ 나를 지명</span></div>
+          <div class="tixbody">
+            <div class="tixtime" style="font-size:30px">오늘 15:30</div>
+            <div class="tixmeta">초코 · 3km · 지명 요청 픽업 · 정산 <b class="num" style="color:#111;font-size:16px">12,663</b>원</div>
+          </div>
+          <div class="perf" style="margin:0 12px"></div>
+          <div class="doors">
+            <div class="door coral" style="flex:1.6"><div class="dn">수락</div><div class="dd"><span class="num">12,663</span>원</div></div>
+            <div class="door quiet"><div class="dn">거절</div></div>
+          </div>
+        </div>
+        <div class="secrow"><span class="sech">오늘의 루트</span><span class="secr"></span><span class="seclink" style="color:#666">요청함 3건 · 캘린더 ›</span></div>
+        <div class="stoprow"><span class="pt2 on"></span><span class="tm">15:30</span><span style="flex:1"><b>초코 · 3km</b><br><span style="color:#666;font-size:13px">픽업 대기</span></span><span class="pay num">+12,663</span></div>
+        <div class="stoprow"><span class="pt2"></span><span class="tm">18:00</span><span style="flex:1"><b>콩이 · 5km</b><br><span style="color:#666;font-size:13px">예정</span></span><span class="pay num">+20,100</span></div>
+        <div class="stoprow"><span class="pt2"></span><span class="tm">내일</span><span style="flex:1"><b>보리 · 5km</b><br><span style="color:#666;font-size:13px">요청 대기</span></span><span class="pay num">+20,100</span></div>
+        <div class="secrow"><span class="sech">정산</span><span class="secr"></span><span class="seclink" style="color:#666">수익 상세 ›</span></div>
+        <div class="g" style="padding-top:8px;font-size:14px;color:#666">이번 주 <b class="num" style="color:#111;font-size:20px">₩216,000</b> · 이번 달 ₩<b class="num">512,000</b> · 오늘 <b class="num" style="color:#C6472C">+37,800</b></div>
+        <div class="idx" style="margin-top:16px">
+          <div class="irow"><span class="it">리워드</span><span class="is">베테랑까지 12회</span><span class="ic">›</span></div>
+          <div class="irow"><span class="it">러닝 가능 시간</span><span class="is">주 5일 · 06–22시</span><span class="ic">›</span></div>
+          <div class="irow"><span class="it">최근 완료 · 클럽 · 코스</span><span class="is"></span><span class="ic">›</span></div>
+        </div>
+      </div>
+      <div class="meta"><h3 style="margin-top:0"><b>Ⓑ②</b> 넥스트 잡 퍼스트 — 티켓이 히어로</h3>
+        <p class="note">화면의 첫 객체 = 지금 응답해야 할 요청(또는 진행 중 잡). 시간이 30pt로 커지고 수락 문이
+        유일한 코랄 필. 돈은 3번째 모듈의 조용한 한 줄 — 밀리지만 사라지진 않는다. 요청이 0건이면 이 자리에
+        정직한 빈 상태(preCert 사유 포함)가 그대로 온다. '요청 도착 → 3초 안에 수락' 시나리오 최적.</p>
+        <span class="flag f-ok">응답 시간 최적</span></div>
+    </div>
+  </div>
+
+  <!-- ──────────── Ⓒ 요청 플로우 ──────────── -->
+  <h3><b>Ⓒ</b> 요청(예약) 플로우 — 8개 결정의 다이어트</h3>
+  <p class="thesis">현재 한 화면에 결정 그룹 8개·선택지 ~24개. 가격을 실제로 바꾸는 결정은 <b>거리(+옵션)</b>뿐이고 코스는 km이 자동 배정한다(request.tsx:74–79).
+  스마트 페이 버튼(617–623)은 이미 훌륭한 순차 안내 — 두 after는 그 정신을 화면 구조로 승격시킨다.</p>
+
+  <div class="phones">
+    <!-- 현재 -->
+    <div class="phone">
+      <div class="phead"><span class="pt">현재 — production</span><span class="cnt bad">8 결정 · 24 선택지</span></div>
+      <div class="screen">
+        <div class="qhead"><span class="qback">‹</span><span class="qtitle">러닝 요청</span><span class="chip" style="border-color:#E8552F"><span style="color:#E8552F">●</span> 안심 결제</span></div>
+        <div class="qsec">◉ 누가 · 어디서</div>
+        <div class="factrow"><span class="fa">초</span><span class="fx">초코 <small>· 푸들 · 4.2kg</small></span><span class="fc">프로필 ›</span></div>
+        <div class="factrow"><span class="fa" style="background:#fff;color:#666;border:1px solid #EEE">➤</span><span class="fx">우리집 <small>· 성동구 왕십리로 …</small></span><span class="fc">변경 ›</span></div>
+        <div class="chips"><span class="chip sel">초코</span><span class="chip">보리</span><span class="chip">＋ 반려견 추가</span></div>
+        <div class="qsec">⌖ 거리</div>
+        <div class="dists">
+          <span class="dist"><span class="dnum">3<small style="font-size:14px">km</small></span><span class="bar"></span><span class="dp">18,900원</span></span>
+          <span class="dist sel"><span class="dnum">5<small style="font-size:17px">km</small></span><span class="bar"></span><span class="dp">24,900원</span></span>
+          <span class="dist"><span class="dnum">7<small style="font-size:14px">km</small></span><span class="bar"></span><span class="dp">30,900원</span></span>
+        </div>
+        <div class="qsec">⇢ 페이스</div>
+        <div class="chips"><span class="chip">가볍게 8'+</span><span class="chip sel">보통 7'</span><span class="chip">신나게 6'</span></div>
+        <div class="qsec">✓ 코스 선택 <small style="color:#666;font-weight:400">· 실시간 코스 정보</small></div>
+        <div class="qsub">픽업 후 코스까지는 러너가 아이와 함께 이동해요</div>
+        <div class="routecard sel">
+          <span class="pill" style="background:#111;color:#fff;font-size:13px">안심 코스</span>
+          <div class="rn" style="margin-top:8px">서울숲 숲길 <span style="background:#3d8fd4;color:#fff;font-size:10px;padding:1px 4px;vertical-align:middle">✓</span></div>
+          <div style="color:#666;margin-top:2px">성동 · 3km · 흙길 · 7.15 점검</div>
+          <div style="color:#C77414;font-weight:800;margin-top:4px;font-size:13.5px">선택 거리와 달라요 — 요금·기록은 5km 기준</div>
+          <div class="routemap">코스 지도 <span style="border:1px solid #666;padding:1px 6px;margin-left:8px;color:#fff">미리보기 ›</span></div>
+          <div class="chips" style="padding:8px 0 0"><span class="chip" style="padding:4px 8px;font-size:13px">그늘 많음</span><span class="chip" style="padding:4px 8px;font-size:13px">식수대</span></div>
+        </div>
+        <div class="qsec">✦ 프리미엄 옵션</div>
+        <div class="addongrid">
+          <span class="addon"><b>리버뷰 코스</b>한강을 따라 더 시원하게<span class="ap">+3,000원</span></span>
+          <span class="addon"><b>홈길 온리</b>집까지 안전하게 케어<span class="ap">+2,000원</span></span>
+          <span class="addon"><b>간식 타임</b>러닝 후 맛있는 보상<span class="ap">+2,000원</span></span>
+          <span class="addon"><b>댕댕 스냅</b>러닝 사진 기록<span class="ap">+4,000원</span></span>
+          <span class="addon"><b>라이브캠</b>러닝을 실시간 영상으로<span class="ap">+3,900원</span></span>
+        </div>
+        <div class="factrow" style="border:1px solid #EEE;margin:12px 15px 0"><span class="fx">매주 반복<br><small>매주 같은 요일·시간 자동 예약 · 회당 24,900원 · 언제든 해지</small></span><span class="fc" style="width:22px;height:22px;border:1px solid #DDD;border-radius:11px"></span></div>
+        <div style="text-align:center;font-size:13.5px;color:#666;padding:16px 15px 0">기본 9,900원 · 거리 15,000원 · 취소 수수료 없음</div>
+        <div class="tixfoot">
+          <div class="tf1"><span class="fa" style="width:34px;height:34px;background:#333;display:inline-flex;align-items:center;justify-content:center">초</span><span style="flex:1">초코 · <span class="coraltxt">5km</span> · 보통 7'<br><small>서울숲 숲길</small></span><span class="chip" style="background:#fff;color:#111;border:0">시간 선택 ›</span></div>
+          <div class="dash"></div>
+          <div class="tf2"><span class="total"><span class="tk">총 결제 금액</span><br><span class="tv">24,900<small style="font-size:14px;color:#B8B8B8"> 원</small></span></span><button class="paybtn">시간부터 ›</button></div>
+        </div>
+      </div>
+      <div class="meta"><h3 style="margin-top:0"><b>Ⓒ⓪</b> 현재 — 기준선</h3>
+        <p class="note">8 결정 그룹이 한 스크롤에. 자동 배정되는 코스가 카드당 7요소로 가장 크고,
+        대부분 기본값으로 끝나는 페이스·옵션·반복이 상시 펼쳐져 있다. 프리필의 힘을 화면 구조가 못 따라간다.</p>
+        <span class="flag f-now">현행</span></div>
+    </div>
+
+    <!-- Ⓒ① one question per screen (인터랙티브 스텝퍼) -->
+    <div class="phone">
+      <div class="phead"><span class="pt">Ⓒ① one question per screen</span><span class="cnt good">화면당 1 결정</span></div>
+      <div class="screen" id="stepper">
+        <!-- STEP 1 -->
+        <div class="step" data-step="1">
+          <div class="qhead"><span class="qback">‹</span><span class="qtitle">러닝 요청</span></div>
+          <div class="stepbar"><i class="on"></i><i></i><i></i></div>
+          <div class="qbig">언제 달릴까요?</div>
+          <div class="qsub">초코 · 우리집 픽업 — 지난번 그대로 채워뒀어요</div>
+          <div class="chips"><span class="chip sel">오늘</span><span class="chip">내일</span><span class="chip">수 13</span><span class="chip">목 14</span></div>
+          <div class="slotgrid">
+            <span class="slot dis">13:00<small>마감</small></span><span class="slot">15:30<small>가능</small></span><span class="slot">17:00<small>가능</small></span>
+            <span class="slot">18:30<small>가능</small></span><span class="slot">19:30<small>가능</small></span><span class="slot">21:00<small>가능</small></span>
+          </div>
+          <div class="stepctl"><button class="nextb" onclick="goStep(2)">15:30 — 다음 ›</button></div>
+          <div style="text-align:center;font-size:14px;font-weight:700;color:#666;padding-top:10px">가장 빠른 시간으로 ›</div>
+        </div>
+        <!-- STEP 2 -->
+        <div class="step" data-step="2" hidden>
+          <div class="qhead"><span class="qback" onclick="goStep(1)">‹</span><span class="qtitle">러닝 요청</span></div>
+          <div class="stepbar"><i class="on"></i><i class="on"></i><i></i></div>
+          <div class="qbig">몇 km 달릴까요?</div>
+          <div class="qsub">코스는 거리에 맞는 안심 코스로 자동 배정돼요</div>
+          <div class="dists" style="padding-top:18px">
+            <span class="dist"><span class="dnum">3<small style="font-size:14px">km</small></span><span class="bar"></span><span class="dp">18,900원</span></span>
+            <span class="dist sel"><span class="dnum">5<small style="font-size:17px">km</small></span><span class="bar"></span><span class="dp">24,900원</span></span>
+            <span class="dist"><span class="dnum">7<small style="font-size:14px">km</small></span><span class="bar"></span><span class="dp">30,900원</span></span>
+          </div>
+          <div style="padding:14px 15px 0;font-size:14px;color:#666">배정 코스 — <b style="color:#111">한강 뚝섬 5km</b> · 강변 · 7.15 점검 · 변경 ›</div>
+          <div class="stepctl"><button class="prevb" onclick="goStep(1)">‹</button><button class="nextb" onclick="goStep(3)">5km — 다음 ›</button></div>
+        </div>
+        <!-- STEP 3 -->
+        <div class="step" data-step="3" hidden>
+          <div class="qhead"><span class="qback" onclick="goStep(2)">‹</span><span class="qtitle">러닝 요청</span></div>
+          <div class="stepbar"><i class="on"></i><i class="on"></i><i class="on"></i></div>
+          <div class="qbig">이대로 예약할까요?</div>
+          <div class="sumcard">
+            <div class="sr"><span>누가 · 어디서</span><b>초코 · 우리집</b></div>
+            <div class="sr"><span>언제</span><b>오늘 15:30</b></div>
+            <div class="sr"><span>거리 · 코스</span><b>5km · 한강 뚝섬 (자동)</b></div>
+            <div class="sr"><span>페이스</span><b>보통 7' <span style="color:#999;font-weight:400">변경 ›</span></b></div>
+            <div class="sr"><span>옵션 · 매주 반복</span><b>없음 · 꺼짐 <span style="color:#999;font-weight:400">▸</span></b></div>
+          </div>
+          <div class="tixfoot" style="margin-top:14px">
+            <div class="tf2"><span class="total"><span class="tk">총 결제 금액 · 취소 수수료 없음</span><br><span class="tv">24,900<small style="font-size:14px;color:#B8B8B8"> 원</small></span></span><button class="paybtn">결제하기 ›</button></div>
+          </div>
+          <div class="stepctl" style="padding-top:10px"><button class="prevb" style="flex:1" onclick="goStep(1)">처음부터</button></div>
+        </div>
+      </div>
+      <div class="meta"><h3 style="margin-top:0"><b>Ⓒ①</b> 화면당 한 질문 — 언제 → 몇 km → 확인</h3>
+        <p class="note">진짜 결정 둘(시간·거리)만 각자 화면을 갖는다 — Hick를 화면 단위로 자른다.
+        페이스·코스·옵션·반복은 3단계 확인표의 접힌 행(진보적 공개). 프리필 사실은 서브 카피 한 줄이 증언.
+        위 목업은 실제로 넘어간다 — 눌러보세요. 비용: 결제까지 탭 2회 추가, 전체 옵션의 한눈 조망 상실.</p>
+        <span class="flag f-ok">화면당 결정 1</span></div>
+    </div>
+
+    <!-- Ⓒ② single scroll, collapsed -->
+    <div class="phone">
+      <div class="phead"><span class="pt">Ⓒ② single scroll · collapsed</span><span class="cnt good">표면 1 결정 + 접힘 4</span></div>
+      <div class="screen">
+        <div class="qhead"><span class="qback">‹</span><span class="qtitle">러닝 요청</span><span class="chip" style="border-color:#E8552F"><span style="color:#E8552F">●</span> 안심 결제</span></div>
+        <div class="factrow" style="margin-top:10px"><span class="fa">초</span><span class="fx">초코 · 우리집 픽업 <small>· 지난번 그대로</small></span><span class="fc">변경 ›</span></div>
+        <div class="qsec" style="border-top:none;margin-top:6px">거리 — 가격을 정하는 유일한 선택</div>
+        <div class="dists">
+          <span class="dist"><span class="dnum">3<small style="font-size:14px">km</small></span><span class="bar"></span><span class="dp">18,900원</span></span>
+          <span class="dist sel"><span class="dnum">5<small style="font-size:17px">km</small></span><span class="bar"></span><span class="dp">24,900원</span></span>
+          <span class="dist"><span class="dnum">7<small style="font-size:14px">km</small></span><span class="bar"></span><span class="dp">30,900원</span></span>
+        </div>
+        <div class="fold">
+          <div class="frow"><span class="fk">코스</span><span class="fv">한강 뚝섬 5km · 자동 배정</span><span class="fo">▸</span></div>
+          <div class="frow"><span class="fk">페이스</span><span class="fv">보통 7'</span><span class="fo">▸</span></div>
+          <div class="frow"><span class="fk">프리미엄 옵션</span><span class="fv">없음</span><span class="fo">▸</span></div>
+          <div class="frow"><span class="fk">매주 반복</span><span class="fv">꺼짐 · 언제든 해지</span><span class="fo">▸</span></div>
+        </div>
+        <div style="text-align:center;font-size:13.5px;color:#666;padding:14px 15px 0">기본 9,900원 · 거리 15,000원 · 취소 수수료 없음</div>
+        <div class="tixfoot" style="margin-top:14px">
+          <div class="tf1"><span style="flex:1">초코 · <span class="coraltxt">5km</span> · 보통 7'<br><small>한강 뚝섬 · 자동 배정</small></span><span class="chip" style="background:#fff;color:#111;border:0">시간 선택 ›</span></div>
+          <div class="dash"></div>
+          <div class="tf2"><span class="total"><span class="tk">총 결제 금액</span><br><span class="tv">24,900<small style="font-size:14px;color:#B8B8B8"> 원</small></span></span><button class="paybtn">시간부터 ›</button></div>
+        </div>
+      </div>
+      <div class="meta"><h3 style="margin-top:0"><b>Ⓒ②</b> 싱글 스크롤 · 접힌 섹션 — 현행 구조의 최소 수술</h3>
+        <p class="note">플로우도 스티키 티켓도 스마트 버튼도 그대로 — 표면에 남는 결정은 거리 하나, 나머지 4그룹은
+        요약값을 단 접힌 행이다(탭하면 지금의 캐러셀·카드가 그 자리에 펼쳐짐). 한눈 조망과 프리필 신뢰를
+        유지하면서 노출 선택지 24 → 표면 5. 구현 비용도 세 안 중 최소.</p>
+        <span class="flag f-ok">최소 수술 · 무손실</span></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════ 결정 테이블 ═══════════════════════ -->
+  <h2>Ⅲ. 결정 테이블 — 각 번호의 값과 비용</h2>
+  <table class="dec">
+    <tr><th style="width:14%">변형</th><th style="width:43%">표면에서 나가는 것 (비용)</th><th>얻는 것</th></tr>
+    <tr><td class="vn"><b>Ⓐ①</b> 원잡 홈</td>
+      <td>레이더 섬·비컨·넛지 2/3·로스터 카드·코스 셸프가 인덱스 행 뒤로 <span class="strike">(즉시 노출 상실)</span> · 미리 예약이 코랄→잉크로 강등</td>
+      <td>17→9 요소 · 예약 문 6→2 · 코랄 필 1 (GO) · 스크롤 1.5화면 안에 홈이 끝남 — 강조 예산 완전 준수</td></tr>
+    <tr><td class="vn"><b>Ⓐ②</b> 에디토리얼 피드 홈</td>
+      <td>모든 CTA 필이 텍스트 링크로 <span class="strike">(머니 CTA의 전환 압력)</span> · 카드/다크 섬 아티팩트 감각 약화</td>
+      <td>경쟁 강조 0 · 등무게 지면이라 모듈 추가·삭제가 앞으로도 안전 (편집만 하면 됨) · 신문 정체성 극대화</td></tr>
+    <tr><td class="vn"><b>Ⓑ①</b> 머니 퍼스트</td>
+      <td>빕이 한 줄 스트랩으로 <span class="strike">(레이스 빕 아티팩트의 감정가)</span> · 리워드 3중 진행계가 1줄로</td>
+      <td>주간 스탯 중복 인쇄 0 · ₩가 화면의 유일한 대형 숫자 · 모듈 12→6 · '내가 얼마 벌었나'가 0스크롤</td></tr>
+    <tr><td class="vn"><b>Ⓑ②</b> 넥스트 잡 퍼스트</td>
+      <td>Ⓑ①과 동일 + 장부 히어로 상실 <span class="strike">(₩ 대형 숫자)</span> — 돈은 3번째 모듈의 한 줄</td>
+      <td>요청 도착 → 수락까지 시선 이동 최소 (티켓이 첫 객체) · 진행 중 잡이 자동으로 그 자리 승계 · 7 요소</td></tr>
+    <tr><td class="vn"><b>Ⓒ①</b> 한 질문 한 화면</td>
+      <td>전체 옵션 한눈 조망 <span class="strike">(파워유저의 자유 탐색)</span> · 결제까지 탭 +2 · 라우팅 구현 비용 최대</td>
+      <td>화면당 결정 1 (Hick 최적) · 첫 예약 사용자 완주율 가설 최대 · 각 화면이 44pt 대형 타깃</td></tr>
+    <tr><td class="vn"><b>Ⓒ②</b> 접힌 싱글 스크롤</td>
+      <td>페이스·코스·옵션·반복이 탭 1회 뒤로 <span class="strike">(옵션 부착률 일부)</span></td>
+      <td>노출 선택지 24→5 · 기존 플로우·홀드·스마트 버튼 100% 보존 — 구현 최소 · 한눈 조망 유지</td></tr>
+  </table>
+
+  <p class="thesis" style="margin-top:26px"><b>권고 조합</b> — Ⓐ① × Ⓑ① × Ⓒ② (충격 대비 손실 최소). Ⓐ 어느 쪽이든
+  선행 0단계는 동일: <b>레이더 섬을 GO에 합병</b>(owner/home.tsx:903이 이미 같은 함수를 부른다),
+  넛지 슬롯 1개 법, schedule.tsx:210 certDot 제거, shop 죽은 크롬 4종 철거, my.tsx MRZ/TYPE·NO 은퇴.
+  이 다섯은 어떤 변형을 골라도 공짜 선행 수술이다.</p>
+</div>
+
+<script>
+  // Ⓒ① 스텝퍼 — 화면당 한 질문 데모
+  function goStep(n) {
+    document.querySelectorAll('#stepper .step').forEach(el => {
+      el.hidden = el.dataset.step !== String(n);
+    });
+  }
+</script>
+</body>
+</html>

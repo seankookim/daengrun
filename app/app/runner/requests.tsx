@@ -82,7 +82,7 @@ export default function Requests() {
         {resched.map((rq) => (
           <View key={`rs-${rq.bookingId}`} style={[s.reqCard, { borderColor: '#F59A43', borderWidth: 2 }]}>
             <View style={[s.deadline, { backgroundColor: '#FDE8D0', alignSelf: 'flex-start' }]}>
-              <Text style={{ fontSize: 14, fontWeight: '900', color: '#9D580A' }}>⏱ 일정 변경 요청</Text>
+              <Text style={{ fontSize: 14, fontWeight: '900', color: '#9D580A' }}>일정 변경 요청</Text>
             </View>
             <Text style={{ fontSize: 17, fontWeight: '900', color: FOREST, marginTop: 10 }}>
               {rq.dogName} · {rq.km}km
@@ -185,7 +185,7 @@ export default function Requests() {
               <Row style={{ gap: 5, marginTop: 9, flexWrap: 'wrap' }}>
                 {req.vaccines.length > 0 && (
                   <View style={{ backgroundColor: '#e3eff9', borderRadius: 99, paddingVertical: 3, paddingHorizontal: 8 }}>
-                    <Text style={{ fontSize: 14, fontWeight: '700', color: '#2d6da8' }}>💉 백신 {req.vaccines.length}종</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '700', color: '#2d6da8' }}>백신 {req.vaccines.length}종</Text>
                   </View>
                 )}
                 {req.prefTags.map((t) => (
@@ -203,7 +203,7 @@ export default function Requests() {
             {/* 코스 미리보기 — 수락 전에 코스를 알고 결정한다 (트레이스·지형·점검일) */}
             {req.routeId && req.routeName && (
               <Pressable onPress={() => router.push(`/course/${req.routeId}`)} style={s.courseLink}>
-                <Text style={{ fontSize: 14, fontWeight: '800', color: '#3d5a2b' }}>⛳ {req.routeName}</Text>
+                <Text style={{ fontSize: 14, fontWeight: '800', color: '#3d5a2b' }}>{req.routeName}</Text>
                 <Text style={{ fontSize: 14, fontWeight: '900', color: '#5a7a3c' }}>코스 미리보기 ›</Text>
               </Pressable>
             )}

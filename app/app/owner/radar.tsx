@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Animated, Easing, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Avatar, Row } from '../../src/components/ui';
+import { Avatar, Icon, Row } from '../../src/components/ui';
 import {
   cancelBooking, fetchAvailableRunners, fetchBookingBrief, LiveRunner, subscribeBooking,
 } from '../../src/lib/api';
@@ -161,7 +161,7 @@ export default function Radar() {
               { transform: [{ translateY: bob.interpolate({ inputRange: [0, 1], outputRange: [0, -6] }) }] },
             ]}
           >
-            <Text style={{ fontSize: 48.5 }}>{matchedName ? '🎉' : '🐕'}</Text>
+            <Icon name={matchedName ? 'PartyPopper' : 'Dog'} glyph="●" size={44} color={matchedName ? colors.voltDeep : colors.dim} />
           </Animated.View>
         </View>
 

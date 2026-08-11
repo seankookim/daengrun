@@ -2,7 +2,7 @@ import { useDisplayFont } from '../../src/lib/displayFont';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, AppState, Linking, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Monogram, Row } from '../../src/components/ui';
+import { Icon, Monogram, Row } from '../../src/components/ui';
 import { addRunEvent, ensureThread, fetchCurrentRunnerJobId, fetchMeetupInfo, fetchRunStartedAt, fetchRunTrace, MeetupInfo, notifyKmMilestone, RunEventKind, saveRunTrace, sendChatMessage, sendChatPhoto, settleRun, startRunServer, uploadRunPhoto } from '../../src/lib/api';
 import { GeoPoint, getNaverMap, getTraceSnapshot, getTrackPermission, publishPos, resetTrace, seedTrace, smoothTrace, startTracking, stopPublishing, TrackHandle, TrackMode, TrackSnapshot } from '../../src/lib/geo';
 import { haptic } from '../../src/lib/haptics';
@@ -34,7 +34,7 @@ export default function ActiveRun() {
   const req = runRequests[0]; // 시각 폴백 전용 — 실값은 info가 우선
   const [info, setInfo] = useState<MeetupInfo | null>(null);
   const dogName = info?.dogName ?? req.dogName;
-  // 🔴 목표 거리 실화 — mock 5km가 진행/자동완주 임계로 쓰이던 버그 수정 (fake-inventory)
+  // 목표 거리 실화 — mock 5km가 진행/자동완주 임계로 쓰이던 버그 수정 (fake-inventory)
   const targetKm = info?.km ?? req.km;
   const [running, setRunning] = useState(false);
   const [sec, setSec] = useState(0);
@@ -74,7 +74,7 @@ export default function ActiveRun() {
     addRunEvent(runnerJob.bookingId, kind).catch((e) => console.warn('[run] event:', e?.message ?? e));
   };
 
-  // 📷 러닝 스냅 — 카메라 우선 (현장의 순간), 촬영 즉시 보호자 채팅으로 사진+재미 메시지 직송.
+  // 러닝 스냅 — 카메라 우선 (현장의 순간), 촬영 즉시 보호자 채팅으로 사진+재미 메시지 직송.
   // 앨범은 카메라 거부/취소 시 폴백. base64 인코딩 동안 '전송 중' 표시 (멈춘 것처럼 보이던 문제).
   const [snapBusy, setSnapBusy] = useState(false);
 
@@ -82,10 +82,10 @@ export default function ActiveRun() {
     const k = km.toFixed(2);
     const t = fmt(sec);
     const lines = [
-      `📸 ${dogName}, ${k}km 지점에서 한 컷! ⏱${t} · 오늘도 체력 적금 +1 🐕`,
-      `📸 ${k}km 통과 중인 ${dogName} — 꼬리 텐션 최상입니다 ⏱${t}`,
-      `📸 지금 ${dogName} 표정 보세요! ${k}km 달리고 이 컨디션 · 체력 나이 -0.01살 적립 중`,
-      `📸 ${dogName} 현장 소식: ${k}km · ⏱${t} · 산소 가득 마시는 중 🌳`,
+      `${dogName}, ${k}km 지점에서 한 컷! ${t} · 오늘도 체력 적금 +1`,
+      `${k}km 통과 중인 ${dogName} — 꼬리 텐션 최상입니다 (${t})`,
+      `지금 ${dogName} 표정 보세요! ${k}km 달리고 이 컨디션 · 체력 나이 -0.01살 적립 중`,
+      `${dogName} 현장 소식: ${k}km · ${t} · 산소 가득 마시는 중`,
     ];
     return lines[Math.floor(Math.random() * lines.length)];
   };
@@ -114,7 +114,7 @@ export default function ActiveRun() {
       setSnapBusy(true);
       haptic('light');
       await uploadRunPhoto(bid, b64);
-      await addRunEvent(bid, 'photo'); // 알림: '새 사진 도착 📷'
+      await addRunEvent(bid, 'photo'); // 알림: '새 사진 도착'
       // 보호자 채팅으로 직송 — 사진 + 위치/거리/재미 한 줄
       const threadId = await ensureThread(bid);
       await sendChatPhoto(threadId, b64);
@@ -234,10 +234,10 @@ export default function ActiveRun() {
     pace: paceStr(sec, km),
     elapsed: fmt(sec),
     eventLine: [
-      evCounts.poop ? `💩${evCounts.poop}` : '',
-      evCounts.snack ? `🍖${evCounts.snack}` : '',
-      evCounts.water ? `💧${evCounts.water}` : '',
-      evCounts.photo ? `📷${evCounts.photo}` : '',
+      evCounts.poop ? `응가 ${evCounts.poop}` : '',
+      evCounts.snack ? `간식 ${evCounts.snack}` : '',
+      evCounts.water ? `물 ${evCounts.water}` : '',
+      evCounts.photo ? `사진 ${evCounts.photo}` : '',
     ].filter(Boolean).join(' · '),
   });
   const laStarted = useRef(false);
@@ -616,16 +616,15 @@ export default function ActiveRun() {
             리프레시: 다크 타일 → 파스텔 스탬프 필 (다크 위에서 팝, 도장 문화의 색) */}
         {running && (
           <View style={{ flexDirection: 'row', gap: 7, marginBottom: 14 }}>
-            {([['poop', '💩', '응가', '#FFCDB6'], ['snack', '🍖', '간식', '#F2DA96'], ['water', '💧', '물', '#C3D9AE']] as const).map(([k, g, label, bg]) => (
+            {([['poop', '응가', '#FFCDB6'], ['snack', '간식', '#F2DA96'], ['water', '물', '#C3D9AE']] as const).map(([k, label, bg]) => (
               <Pressable key={k} onPress={() => fireEvent(k)} style={[s.eventBtn, { backgroundColor: bg }]}>
-                <Text style={{ fontSize: 17 }}>{g}</Text>
                 <Text style={{ fontSize: 14, fontWeight: '800', color: colors.forest }}>
                   {label}{evCounts[k] ? ` ${evCounts[k]}` : ''}
                 </Text>
               </Pressable>
             ))}
             <Pressable onPress={firePhoto} disabled={snapBusy} style={[s.eventBtn, { backgroundColor: '#DDF0A6' }, snapBusy && { opacity: 0.5 }]}>
-              <Text style={{ fontSize: 17 }}>📷</Text>
+              <Icon name="Camera" glyph="◉" size={15} color={colors.forest} />
               <Text style={{ fontSize: 14, fontWeight: '800', color: colors.forest }}>
                 {snapBusy ? '전송 중' : `스냅${evCounts.photo ? ` ${evCounts.photo}` : ''}`}
               </Text>

@@ -1488,10 +1488,10 @@ export async function uploadRunPhoto(bookingId: string, base64: string): Promise
 export type RunEventKind = 'poop' | 'snack' | 'water' | 'photo';
 
 const EVENT_NOTI: Record<RunEventKind, (dog: string) => [string, string]> = {
-  poop: (d) => ['응가 완료 💩', `${d} 응가 성공! 러너가 응가 도장을 찍었어요`],
-  snack: (d) => ['간식 타임 🍖', `${d}가 간식을 맛있게 먹었어요`],
-  water: (d) => ['수분 보충 💧', `${d}가 물을 마시고 있어요`],
-  photo: (d) => ['새 사진 도착 📷', `${d}의 러닝 사진이 추가됐어요 — 리포트에서 확인하세요`],
+  poop: (d) => ['응가 완료', `${d} 응가 성공! 러너가 응가 도장을 찍었어요`],
+  snack: (d) => ['간식 타임', `${d}가 간식을 맛있게 먹었어요`],
+  water: (d) => ['수분 보충', `${d}가 물을 마시고 있어요`],
+  photo: (d) => ['새 사진 도착', `${d}의 러닝 사진이 추가됐어요 — 리포트에서 확인하세요`],
 };
 
 export async function addRunEvent(bookingId: string, kind: RunEventKind): Promise<void> {
@@ -1516,7 +1516,7 @@ export async function notifyKmMilestone(bookingId: string, km: number): Promise<
   const dog = (bk as any).dogs?.name ?? '반려견';
   await supabase.from('notifications').insert({
     profile_id: (bk as any).owner_id, kind: 'booking',
-    title: `${km}km 돌파 🏃`, body: `${dog}가 ${km}km를 달렸어요 — 실시간 지도에서 확인하세요`,
+    title: `${km}km 돌파`, body: `${dog}가 ${km}km를 달렸어요 — 실시간 지도에서 확인하세요`,
     ref_id: bookingId,
   });
 }
@@ -1645,12 +1645,13 @@ export interface GearItem {
   verified: boolean;
 }
 export const GEAR_KINDS: GearKind[] = ['leash', 'apparel', 'water', 'treats', 'bodycam'];
-export const GEAR_META: Record<GearKind, { glyph: string; name: string; hint: string }> = {
-  leash: { glyph: '🦮', name: '리드줄', hint: '러닝 전용 리드줄' },
-  apparel: { glyph: '🎽', name: '러닝 장비', hint: '러닝복 · 러닝화' },
-  water: { glyph: '💧', name: '급수', hint: '아이용 물병 · 급수기' },
-  treats: { glyph: '🦴', name: '간식', hint: '보상용 간식 파우치' },
-  bodycam: { glyph: '📹', name: '바디캠', hint: '러닝 중 영상 기록' },
+// icon = lucide name (emoji glyphs retired 2026-08-11 — "no emojis. no cheap.")
+export const GEAR_META: Record<GearKind, { icon: string; name: string; hint: string }> = {
+  leash: { icon: 'Cable', name: '리드줄', hint: '러닝 전용 리드줄' },
+  apparel: { icon: 'Shirt', name: '러닝 장비', hint: '러닝복 · 러닝화' },
+  water: { icon: 'Droplet', name: '급수', hint: '아이용 물병 · 급수기' },
+  treats: { icon: 'Bone', name: '간식', hint: '보상용 간식 파우치' },
+  bodycam: { icon: 'Video', name: '바디캠', hint: '러닝 중 영상 기록' },
 };
 
 const mapGear = (g: any): GearItem => ({
@@ -2149,7 +2150,7 @@ export async function sendSOS(role: 'owner' | 'runner'): Promise<string | null> 
   if (!target) return null;
   const { error } = await supabase.from('notifications').insert({
     profile_id: target, kind: 'booking',
-    title: '🚨 SOS', body: '상대방이 긴급 도움을 요청했어요 — 즉시 연락해주세요',
+    title: 'SOS', body: '상대방이 긴급 도움을 요청했어요 — 즉시 연락해주세요',
     ref_id: bookingId,
   });
   if (error) throw error;
@@ -2828,8 +2829,8 @@ export async function shareRunToFeed(bookingId: string, body?: string): Promise<
   const collar: string | null = (bkDog as any)?.dogs?.collar ?? null;
   const badges: string[] = [];
   if (standings && standings.total > 1) {
-    if (standings.kmRank === 1) badges.push('🏆 역대 최장 거리');
-    if (standings.paceRank === 1) badges.push('⚡ 역대 최고 페이스');
+    if (standings.kmRank === 1) badges.push('★ 역대 최장 거리');
+    if (standings.paceRank === 1) badges.push('★ 역대 최고 페이스');
   }
   // 트레이스 동봉 (2026-07-29) — 사진 없는 포스트가 '밋밋한 텍스트'가 아니라 런 카드가 되게.
   // 정규화 0..1 + ≤40포인트 서브샘플 (meta jsonb 소형 유지)

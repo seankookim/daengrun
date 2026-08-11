@@ -1,7 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Animated, Dimensions, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { Avatar, Row } from '../../src/components/ui';
+import { Avatar, Icon, Row } from '../../src/components/ui';
 import { checkSlot, CoursePatch, deleteGear, deleteRunnerPhoto, fetchGear, fetchRunnerCourseHistory, fetchRunnerProfile, GEAR_KINDS, GEAR_META, GearItem, GearKind, RunnerPublicProfile, updateMyProfile, updateRunnerBio, uploadRunnerPhoto, upsertGear } from '../../src/lib/api';
 import { PatchBadge } from '../../src/components/patch';
 import { haptic } from '../../src/lib/haptics';
@@ -192,7 +192,7 @@ export default function RunnerProfileScreen() {
   const onGearSlot = (kind: GearKind) => {
     const existing = gear.find((g) => g.kind === kind);
     if (!existing) { registerGear(kind); return; }
-    Alert.alert(`${GEAR_META[kind].glyph} ${GEAR_META[kind].name}`, '이 장비 슬롯을 어떻게 할까요?', [
+    Alert.alert(GEAR_META[kind].name, '이 장비 슬롯을 어떻게 할까요?', [
       { text: '사진 교체', onPress: () => registerGear(kind) },
       {
         text: '삭제', style: 'destructive',
@@ -342,11 +342,13 @@ export default function RunnerProfileScreen() {
                           <Image source={{ uri: item.photoUrl }} style={s.gearPhoto} />
                         ) : (
                           <View style={[s.gearPhoto, { alignItems: 'center', justifyContent: 'center', backgroundColor: '#f1eee3' }]}>
-                            <Text style={{ fontSize: 27 }}>{gearBusy === kind ? '…' : item ? meta.glyph : '＋'}</Text>
+                            {gearBusy === kind || !item
+                              ? <Text style={{ fontSize: 27 }}>{gearBusy === kind ? '…' : '＋'}</Text>
+                              : <Icon name={meta.icon} glyph="●" size={24} color="#8a8672" />}
                           </View>
                         )}
                         <Text style={{ fontSize: 14.5, fontWeight: '800', color: item ? FOREST : colors.dim, marginTop: 6 }}>
-                          {meta.glyph} {meta.name}
+                          {meta.name}
                         </Text>
                         {item?.verified ? (
                           <View style={s.gearBadge}><Text style={{ fontSize: 14, fontWeight: '900', color: '#3d5a2b' }}>✓ 인증</Text></View>

@@ -1,7 +1,7 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Linking, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Row } from '../../../src/components/ui';
+import { Icon, Row } from '../../../src/components/ui';
 import { BigNumRow, ClubCta, ClubMast, ClubTag, DawnCanvas, LiveDot } from '../../../src/components/club-ui';
 import {
   addRunEvent, DelegationBoard, DelegationDog, fetchDelegationBoard, fetchRunStartedAt,
@@ -419,13 +419,13 @@ export default function ClubRun() {
 
         <View style={{ flex: 1 }} />
 
-        {/* ---------- SOS(좌하단 엄지) · 📷 · 종료 ---------- */}
+        {/* ---------- SOS(좌하단 엄지) · 카메라 · 종료 ---------- */}
         <Row style={{ gap: 12, alignItems: 'center', marginBottom: 10 }}>
           <Pressable onPress={doSosPress} style={s.sos}>
             <Text style={{ fontSize: 14, fontWeight: '900', color: '#fff' }}>SOS</Text>
           </Pressable>
           <Pressable onPress={doPhoto} style={s.camBtn}>
-            <Text style={{ fontSize: 20 }}>📷</Text>
+            <Icon name="Camera" glyph="◉" size={20} color={L.head} />
           </Pressable>
           <View style={{ flex: 1 }}>
             {/* [Sean 규칙] 하단 여백이 넓은 화면 — 주 버튼을 키운다 */}

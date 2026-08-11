@@ -945,7 +945,7 @@ export default function OwnerHome() {
                 카드 높이가 상수가 된 지금 bottom:11은 애니메이션 의존이 아니라 1회 확정 레이아웃이다. */}
             <Animated.View style={[s.reportChip, { opacity: bigMsgOpacity, backgroundColor: hp.chip, borderColor: '#EEEEEE' }]}>
               <Text style={{ fontSize: 14, fontWeight: '800', color: hp.textSoft }}>
-                {goalHit ? '🎉 목표 달성 — 체력 리포트' : '체력 리포트 · 주간 목표'}
+                {goalHit ? '목표 달성 — 체력 리포트' : '체력 리포트 · 주간 목표'}
               </Text>
               <Text style={{ fontSize: 14, fontWeight: '900', color: lilac.accent }}>›</Text>
             </Animated.View>
@@ -1370,7 +1370,7 @@ export default function OwnerHome() {
         {lastDone && (
           <Pressable onPress={() => router.push('/compose')} style={[s.nudge, { backgroundColor: p.card }]}>
             <Text style={{ flex: 1, fontSize: 14, fontWeight: '800', color: p.textStrong }}>
-              🐾 {lastDone.dogName}의 완주, 동네 피드에 자랑해볼까요?
+              {lastDone.dogName}의 완주, 동네 피드에 자랑해볼까요?
             </Text>
             <Text style={{ fontSize: 14, color: lilac.accent, fontWeight: '900' }}>자랑하기 ›</Text>
           </Pressable>
@@ -1384,7 +1384,7 @@ export default function OwnerHome() {
               <Text style={{ fontSize: 12, fontWeight: '700', letterSpacing: 1.2, color: lilac.accent }}>ROSTER · {localRunners.length} ONLINE</Text>
               <View style={{ flex: 1 }} />
               <Pressable onPress={() => router.push('/leaderboard')}>
-                <Text style={{ fontSize: 14, fontWeight: '800', color: lilac.coralDeep }}>🏆 동네 랭킹 ›</Text>
+                <Text style={{ fontSize: 14, fontWeight: '800', color: lilac.coralDeep }}>동네 랭킹 ›</Text>
               </Pressable>
             </View>
 
@@ -1470,7 +1470,8 @@ export default function OwnerHome() {
               onPress={() => fnDogs.length > 1 && setFnDogIdx((i) => (i + 1) % fnDogs.length)}
               style={s.fnChip}
             >
-              <Text style={s.fnChipText}>🐕 {fnDogs[fnDogIdx]?.name ?? '—'}{fnDogs.length > 1 ? ' ▾' : ''}</Text>
+              <Icon name="Dog" glyph="•" size={14} color={lilac.head} />
+              <Text style={s.fnChipText}>{fnDogs[fnDogIdx]?.name ?? '—'}{fnDogs.length > 1 ? ' ▾' : ''}</Text>
             </Pressable>
             {/* 주소 — 기본 주소, 탭으로 순환 */}
             <Pressable
@@ -1480,8 +1481,9 @@ export default function OwnerHome() {
               }}
               style={s.fnChip}
             >
+              <Icon name="House" glyph="•" size={14} color={lilac.head} />
               <Text style={s.fnChipText}>
-                ⌂ {fnAddrs[fnAddrIdx] ? fnAddrs[fnAddrIdx].label : '주소 등록'}{fnAddrs.length > 1 ? ' ▾' : ''}
+                {fnAddrs[fnAddrIdx] ? fnAddrs[fnAddrIdx].label : '주소 등록'}{fnAddrs.length > 1 ? ' ▾' : ''}
               </Text>
             </Pressable>
             {/* 코스 — km 최적 코스 자동, 탭으로 순환 */}
@@ -1490,14 +1492,16 @@ export default function OwnerHome() {
                 onPress={() => fnRoutes.length > 1 && setFnRouteIdx((i) => (i + 1) % fnRoutes.length)}
                 style={s.fnChip}
               >
+                <Icon name="Flag" glyph="•" size={14} color={lilac.head} />
                 <Text style={s.fnChipText}>
-                  ⛳ {fnRoutes[fnRouteIdx]?.name}{fnRoutes.length > 1 ? ' ▾' : ''}
+                  {fnRoutes[fnRouteIdx]?.name}{fnRoutes.length > 1 ? ' ▾' : ''}
                 </Text>
               </Pressable>
             )}
             {/* 시간 — ASAP 고정 (예약은 기존 플로우). 볼트는 여기 '지금 바로' 확인 신호 한 곳에서만 기능색 */}
             <View style={[s.fnChip, { backgroundColor: lilac.voltFill, borderColor: '#D9EBAA' }]}>
-              <Text style={[s.fnChipText, { color: lilac.voltDeep }]}>⚡ 지금 바로 · 약 40분 내</Text>
+              <Icon name="Zap" glyph="•" size={14} color={lilac.voltDeep} />
+              <Text style={[s.fnChipText, { color: lilac.voltDeep }]}>지금 바로 · 약 40분 내</Text>
             </View>
           </View>
 
@@ -1580,6 +1584,7 @@ const s = StyleSheet.create({
   fnChip: {
     backgroundColor: lilac.inset, borderRadius: lilacRadius.tag, paddingVertical: 8, paddingHorizontal: 12,
     borderWidth: 1, borderColor: lilac.hair,
+    flexDirection: 'row', alignItems: 'center', gap: 5,
   },
   fnChipText: { fontSize: 14, fontWeight: '800', color: lilac.head },
   fnKmRow: {

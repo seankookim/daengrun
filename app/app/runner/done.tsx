@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, Image, Pressable, ScrollView, Text, View } from 'react-native';
-import { Btn, Card, Row, text } from '../../src/components/ui';
+import { Btn, Card, Icon, Row, text } from '../../src/components/ui';
 import { DropRow, fetchDrops, uploadRunPhoto } from '../../src/lib/api';
 import { MediaImage } from '../../src/lib/media';
 import { runRequests, runResult } from '../../src/store';
@@ -113,7 +113,7 @@ export default function RunDone() {
             shadowColor: colors.volt, shadowOpacity: 0.35, shadowRadius: 7, shadowOffset: { width: 0, height: 3 },
           }}
         >
-          <Text style={{ fontSize: 25.5 }}>{pendingDrop.kind === 'pick' ? '🎁' : '▣'}</Text>
+          <Icon name={pendingDrop.kind === 'pick' ? 'Gift' : 'Package'} glyph="●" size={24} color={colors.volt} />
           <Text style={{ fontSize: 16, fontWeight: '900', color: colors.volt, marginTop: 5 }}>
             {pendingDrop.runCountAt}회 달성 — {pendingDrop.kind === 'pick' ? '픽 드랍' : '보급 상자'} 도착!
           </Text>
