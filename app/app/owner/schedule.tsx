@@ -274,9 +274,9 @@ export default function Schedule() {
                   <View style={s.shareRow}>
                     <Pressable
                       onPress={() => router.push(`/shot/${b.id}`)}
-                      style={({ pressed }) => [s.shareBtn, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
+                      style={({ pressed }) => [s.shareBtn, pressed && { backgroundColor: paper.wash }, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
                     >
-                      <Text style={{ fontSize: 14, fontWeight: '900', color: paper.ink }}>공유 카드</Text>
+                      <Text style={s.shareTxt}>공유 카드</Text>
                     </Pressable>
                     <Pressable
                       onPress={() => {
@@ -284,9 +284,9 @@ export default function Schedule() {
                           .then(() => Alert.alert('피드에 올렸어요', '동네 피드에서 확인해보세요'))
                           .catch((err) => Alert.alert('피드 공유', (err as Error).message));
                       }}
-                      style={({ pressed }) => [s.shareBtn, { backgroundColor: '#e7efd8', transform: [{ scale: pressed ? 0.96 : 1 }] }]}
+                      style={({ pressed }) => [s.shareBtn, pressed && { backgroundColor: paper.wash }, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
                     >
-                      <Text style={{ fontSize: 14, fontWeight: '900', color: '#3d5a2b' }}>피드 자랑</Text>
+                      <Text style={s.shareTxt}>피드 자랑</Text>
                     </Pressable>
                   </View>
                 )}
@@ -404,10 +404,10 @@ export default function Schedule() {
                   ) : selected.status === 'completed' ? (
                     <>
                       <Pressable
-                        style={({ pressed }) => [s.primaryAction, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
+                        style={({ pressed }) => [s.primaryAction, pressed && { backgroundColor: paper.inkPressed }, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
                         onPress={() => { const bid = selected.id; close(); router.push({ pathname: '/owner/report', params: { bid } }); }}
                       >
-                        <Text style={{ fontSize: 16.5, fontWeight: '900', color: paper.ink }}>러닝 리포트 보기</Text>
+                        <Text style={s.primaryActionTxt}>러닝 리포트 보기</Text>
                         {/* [2026-08-10 density audit] sub-line cut — it narrated the button above it */}
                       </Pressable>
                       {/* 인증샷 바로가기 — 완료 러닝의 자랑 동선 한 탭 단축 (공유가 곧 마케팅) */}
@@ -464,7 +464,7 @@ export default function Schedule() {
                           runner_enroute를 '확정'으로 뭉개므로 그걸 믿으면 이동 중 죽은 버튼이 생긴다. */}
                       {selected.rawStatus === 'confirmed' && (
                         <Pressable
-                          style={({ pressed }) => [s.primaryAction, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
+                          style={({ pressed }) => [s.primaryAction, pressed && { backgroundColor: paper.inkPressed }, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
                           onPress={() => {
                             // 제안 화면 직행 (0016) — 취소·재예약이 아니라 러너 동의 기반 시간 변경
                             const bid = selected.id;
@@ -472,7 +472,7 @@ export default function Schedule() {
                             router.push({ pathname: '/owner/reschedule', params: { bid } });
                           }}
                         >
-                          <Text style={{ fontSize: 16.5, fontWeight: '900', color: paper.ink }}>일정 변경 요청</Text>
+                          <Text style={s.primaryActionTxt}>일정 변경 요청</Text>
                           <Text style={{ fontSize: 14, color: paper.text, marginTop: 2 }}>{runner.name} 러너의 가능 시간에서 새 시간을 제안해요</Text>
                         </Pressable>
                       )}
@@ -631,8 +631,16 @@ const s = StyleSheet.create({
   certDot: { width: 13, height: 13, borderRadius: 7, backgroundColor: '#3d8fd4', alignItems: 'center', justifyContent: 'center', alignSelf: 'center' },
   // 완료 카드 공유 행 — 카드 하단에 부착된 풀와이드 밴드 (도장을 가리지 않는 위치, Sean 2026-07-29)
   shareRow: { flexDirection: 'row', gap: 8, backgroundColor: paper.canvas, borderBottomWidth: 1, borderColor: '#EEE', marginTop: -1, paddingVertical: 9, paddingHorizontal: 14 },
-  // 볼트 = 퍼스널(내 러닝 자랑) 시맨틱 — 면은 남고 섀도만 은퇴 (라운드와 함께)
-  shareBtn: { flex: 1, alignItems: 'center', backgroundColor: colors.volt, paddingVertical: 9 },
+  // [Sean 2026-08-11] 볼트 그린 은퇴. 이 둘은 완료 카드에 붙는 **동급 보조 액션 한 쌍**이지
+  // 화면의 유일한 CTA가 아니다 (§8 강조 예산 = 코랄 선 + CTA 1). 그래서 §3b 보조 버튼 문법으로:
+  // 캔버스 면 · 1px 코랄 · 잉크 16/800 · 누르면 wash. 홈의 '일정 변경 / 러너와 채팅' 쌍과 같은 옷이라
+  // 앱 전체에서 '나란한 보조 액션 두 개'가 한 가지로만 읽힌다.
+  // 라벨도 함께 교정: 14/900 → 16/800 (무게 법: 900은 숫자와 화면 제목만).
+  shareBtn: {
+    flex: 1, alignItems: 'center', backgroundColor: paper.canvas,
+    borderWidth: 1, borderColor: paper.line, paddingVertical: 11,
+  },
+  shareTxt: { fontSize: 16, fontWeight: '800', color: paper.ink },
   // T3 원형 소인 — 콘텐츠가 여유 있게 들어가는 84 지름 (랩의 64는 작았음, Sean 피드백)
   seal: { width: 84, height: 84, borderRadius: 42, borderWidth: 2.5, borderColor: '#6E9BC5', alignItems: 'center', justifyContent: 'center', alignSelf: 'center', transform: [{ rotate: '8deg' }], opacity: 0.88 },
   sealRing: { position: 'absolute', top: 5, left: 5, right: 5, bottom: 5, borderRadius: 37, borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(110,155,197,.55)' },
@@ -658,7 +666,11 @@ const s = StyleSheet.create({
   vDiv: { width: 1, backgroundColor: '#EEE' },
   badgePill: { backgroundColor: '#e3f0c4', paddingVertical: 2, paddingHorizontal: 7, alignSelf: 'center' }, // 목업 러너 전용 배지 — 확정 틴트 시맨틱 유지, 스퀘어만
   chatChip: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line, paddingVertical: 8, paddingHorizontal: 13, alignSelf: 'center' }, // meetup chatChip 문법
-  primaryAction: { backgroundColor: colors.volt, alignItems: 'center', paddingVertical: 14, marginTop: 16 }, // 볼트 = 퍼스널(예약 액션) 시맨틱 유지
+  // [Sean 2026-08-11] 볼트 그린 은퇴 — §3b 프라이머리는 잉크 면 + 화이트 17/800이다.
+  // 볼트는 버튼 매트릭스에 아예 없는 색이었다 (그린은 이제 '준비됨' 상태 시맨틱에만 남는다).
+  // '실시간 보기'만 예외로 자기 색을 유지한다 — 라이브는 상태색이지 버튼 스타일이 아니다.
+  primaryAction: { backgroundColor: paper.ink, alignItems: 'center', paddingVertical: 15, marginTop: 16 },
+  primaryActionTxt: { fontSize: 17, fontWeight: '800', color: '#fff' },
   ghostAction: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#EEE', alignItems: 'center', paddingVertical: 13, marginTop: 8 },
   cancelLink: { alignItems: 'center', paddingVertical: 14, marginTop: 4 },
   cancelConfirm: { backgroundColor: paper.critical, alignItems: 'center', paddingVertical: 15, marginTop: 16 }, // 크리티컬 잉크 — 구 #e8492a는 line과 근친이라 분리 법 위반

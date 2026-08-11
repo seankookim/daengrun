@@ -1762,7 +1762,13 @@ export async function fetchFitness(): Promise<Fitness> {
   const { data: user } = await supabase.auth.getUser();
   if (!user.user) throw new Error('not signed in');
   const [dogRes, runRes] = await Promise.all([
-    supabase.from('dogs').select('id, name, weekly_goal_km, fitness_age, birth_date, photo_url').eq('owner_id', user.user.id).limit(1),
+    // [Sean 2026-08-11] `.limit(1)` 무순서 = 앱과 다른 개를 골랐다. fetchMyDogs는 created_at 오름차순이고
+    // 앱 전체의 '내 아이'는 그 첫 행(fetchMyDog)이다. 여기만 정렬 없이 한 행을 집었으므로, 다견 가구에서
+    // 홈은 A를 말하고 체력 카드는 B를 계산했다. 실제 증상: 초코에 생일이 있는데도 '체력 나이 측정 전' —
+    // 생일 없는 둘째(dd)가 뽑혀 fitnessGate='birth'로 떨어졌다. 정렬을 fetchMyDogs와 일치시켜 봉함한다.
+    // (다견 가구의 '어느 아이를 볼지' 선택 자체는 별개 기능 — 여기서는 두 리졸버의 불일치만 없앤다.)
+    supabase.from('dogs').select('id, name, weekly_goal_km, fitness_age, birth_date, photo_url')
+      .eq('owner_id', user.user.id).order('created_at', { ascending: true }).limit(1),
     supabase.from('bookings')
       .select('id, scheduled_at, runs(actual_km, duration_sec)')
       .eq('owner_id', user.user.id).eq('status', 'completed')

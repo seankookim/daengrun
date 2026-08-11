@@ -3,6 +3,7 @@ import { useNumFont } from '../../src/lib/fonts';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { addDog, Addr, AvailRule, createBookingHold, DogProfile, fetchAddresses, fetchMyDogs, fetchRoutes, fetchRunnerAvailability } from '../../src/lib/api';
 import { HeatTrace } from '../../src/components/runcard';
 import { Avatar, Icon, Row, Skeleton } from '../../src/components/ui';
@@ -62,6 +63,7 @@ const toDate = (dateIdx: number, t: string): Date => {
 type Step = 0 | 1 | 2; // 언제 → 몇 km → 확인 (Ⓒ①)
 
 export default function Request() {
+  const insets = useSafeAreaInsets();
   const df = useDisplayFont(); // display face budget (1/screen) — spent on the step question
   const nf = useNumFont(); // [V4] numerals = Oswald — total, distance, countdown, prices
   // 날짜 스트립 갱신 — 마운트 시점 기준 (자정 넘김 스테일 방지)
@@ -356,7 +358,9 @@ export default function Request() {
 
   return (
     <View style={{ flex: 1, backgroundColor: paper.canvas }}>
-      <ScrollView ref={pageRef} style={{ flex: 1 }} contentContainerStyle={{ padding: layout.gutter, paddingTop: 56, paddingBottom: step === 2 ? 190 : 48 }}>
+      <ScrollView ref={pageRef} style={{ flex: 1 }} contentContainerStyle={{ padding: layout.gutter, paddingTop: 56, paddingBottom: step === 2 ? 210 : 48 }}>
+        {/* 190 → 210: 티켓이 세이프에어리어만큼(=20) 올라갔으므로 마지막 행이 그만큼 더 가려진다.
+            티켓은 absolute라 레이아웃을 밀지 않는다 — 이 예약분이 유일한 확보 수단이다. */}
         {/* header — ‹ walks the stepper back before it leaves the screen */}
         <Row style={{ gap: 12 }}>
           <Pressable onPress={() => (step === 0 ? router.back() : goStep((step - 1) as Step))} style={s.circleBtn} accessibilityRole="button" accessibilityLabel={step === 0 ? '뒤로' : '이전 단계'}>
@@ -782,8 +786,12 @@ export default function Request() {
       </ScrollView>
 
       {/* 티켓 푸터 — 확인 단계에만 (Ⓒ①: 최종 화면이 가격과 단 하나의 CTA를 진다) */}
+      {/* [Sean 2026-08-11] 티켓이 기기 하단 베젤에 붙어 보이던 문제 — bottom이 고정 26이었다.
+          홈 인디케이터 인셋만 34라서 26은 인디케이터보다 아래로 깔렸고, '떠 있는 티켓'이 아니라
+          '바닥에 낀 바'로 읽혔다. 인셋 + 12로 띄운다 (인디케이터 없는 기기에서는 12+0 → 종전보다
+          낮지 않게 최소 18을 깐다). 이 화면의 유일한 CTA라 Fitts상으로도 바닥에 붙일 이유가 없다. */}
       {step === 2 && (
-        <View style={s.ticket}>
+        <View style={[s.ticket, { bottom: Math.max(18, insets.bottom + 12) }]}>
           <Row style={{ gap: 11, alignItems: 'center' }}>
             {/* 아이가 확인되기 전엔 아바타도 이름도 없다 — 목업 초코 얼굴이 티켓에 앉아 있던 자리 */}
             {myDog && <Avatar url={myDog.photoUrl} char={myDog.name.slice(0, 1)} bg={colors.ink} size={40} />}
@@ -1096,7 +1104,8 @@ const s = StyleSheet.create({
   ticket: {
     // 세미 투명 (86%) — 뒤로 스크롤 콘텐츠가 은은히 비치는 플로팅 티켓 (Sean, 2026-07-28).
     // 다크 티켓 = 아티팩트 (섀도 생존 — 진짜 떠 있다) · 포레스트 → 잉크 패밀리 · 스퀘어 + 코랄 탑 헤어라인
-    position: 'absolute', left: 10, right: 10, bottom: 26, backgroundColor: '#111111DC',
+    // bottom은 JSX에서 세이프에어리어로 주입한다 (아래 주석) — 여기 고정값을 두면 그 값이 이긴다.
+    position: 'absolute', left: 10, right: 10, backgroundColor: '#111111DC',
     padding: 17, overflow: 'hidden', borderTopWidth: 1, borderTopColor: paper.line,
     shadowColor: '#111111', shadowOpacity: 0.35, shadowRadius: 10, shadowOffset: { width: 0, height: 5 },
   },

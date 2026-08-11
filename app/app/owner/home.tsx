@@ -17,7 +17,6 @@ import { registerPushToken } from '../../src/lib/push';
 // [정직 배치 2026-08-06 · item 5] 목업 dog(초코 상수)·runners 임포트 퇴역 — 홈은 실데이터만 읽는다
 import { Booking, draft, RouteInfo } from '../../src/store';
 import { layout, lilac, lilacRadius, paper, pricing } from '../../src/theme';
-import { useTheme } from '../../src/theme-context';
 
 // Owner home — 라일락 리페인트 (2026-08 "EDITORIAL SPORT × DAWN-DOT MORPH").
 // 스크롤 컬랩스 히어로 역학은 그대로. 표면만 포레스트/볼트 → 라일락(라이트 라일락 · 나이트 라일락 #1C1837)으로 전환.
@@ -234,9 +233,12 @@ function HoloBar() {
 
 // 섹션 헤더 — 단일 문법 (§3b 2026-08-11): 풀블리드 코랄 1px 룰 + 20/800 잉크 타이틀 + 우측 16/800 액센트 링크.
 // 넘버 칩(01)·라틴 키커·인라인 룰·서브타이틀은 전부 은퇴 — 모든 섹션이 같은 헤더를 쓴다.
-function SectionHead({ title, link, onLink }: { title: string; link?: string; onLink?: () => void }) {
+// `flush` = this head butts directly against the element above it (the collapsing hero), so it
+// drops the top margin and the coral rule lands on the hero's bottom edge with zero gap
+// (Sean 2026-08-11). Only the FIRST section is flush — the rest keep their breathing room.
+function SectionHead({ title, link, onLink, flush }: { title: string; link?: string; onLink?: () => void; flush?: boolean }) {
   return (
-    <View style={s.sec}>
+    <View style={[s.sec, flush && { marginTop: 0 }]}>
       <Text style={s.secH}>{title}</Text>
       {link ? (
         <Pressable onPress={onLink} hitSlop={8}><Text style={s.secLink}>{link}</Text></Pressable>
@@ -311,8 +313,8 @@ const OVERLAY_SHRINK_MID = HEADER_H + (HERO_BIG - HERO_SMALL) * HEADER_T_END; //
 const OVERLAY_SHRINK_END = HEADER_H + (HERO_BIG - HERO_SMALL); // t = 1 시점
 
 export default function OwnerHome() {
-  const { mode, toggle } = useTheme();
-  const p = LILAC_SURF[mode]; // 라일락 팔레트 (포레스트/크림 서피스 은퇴)
+  // [Sean 2026-08-11] 테마 토글 은퇴 — mode는 영구 light. useTheme의 유일한 소비처였다.
+  const p = LILAC_SURF.light; // 라일락 팔레트 (포레스트/크림 서피스 은퇴)
   const df = useDisplayFont(); // 디스플레이 서체 — 그리팅·find-now 히어로 타이틀
   const nf = useNumFont(); // [V4] 숫자 = Oswald
 
@@ -681,7 +683,7 @@ export default function OwnerHome() {
 
   return (
     <View style={{ flex: 1, backgroundColor: paper.canvas }}>
-      <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
+      <StatusBar style="dark" />
 
       {/* ---------- pinned overlay: greeting + collapsing hero ---------- */}
       {/* 컨테이너는 이제 높이 고정 = 순수 레이아웃 박스(box-none). 칠·터치 차단은 아래 배경판이 전담하고,
@@ -697,16 +699,15 @@ export default function OwnerHome() {
           <View style={s.brandRow}>
             <BrandLockup height={40} />
             <View style={{ flex: 1 }} />
-            {/* 나이트 라일락 테마 토글 — 라일락 전 화면 정합 후 복귀 (toggle 역학 유지)
-                [§3b] 아이콘 전용 컨트롤 = 40×40 스퀘어 · 캔버스 면 · 1px 코랄 (30×30 뉴트럴 은퇴).
-                brandRow 높이 52 = HEADER_LOCKUP — 40 버튼이 그대로 들어간다 (헤더 예산 무접촉). */}
-            <Pressable onPress={toggle} style={({ pressed }) => [s.themeBtn, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}>
-              <Text style={{ fontSize: 16, color: lilac.accent }}>◐</Text>
-            </Pressable>
-            <Pressable onPress={() => router.push('/alerts')} style={({ pressed }) => [s.themeBtn, { marginLeft: 8, transform: [{ scale: pressed ? 0.96 : 1 }] }]}>
+            {/* [Sean 2026-08-11] 나이트 라일락 토글 제거. 이 버튼이 useTheme의 유일한 진입점이었고,
+                실제로 바꾸는 것은 탭바 색·비컨 링크 색·StatusBar 뿐이었다 — 화면 본문은 그대로 라이트다.
+                "다크 모드"라고 부를 수 없는 것을 다크 모드처럼 보이는 컨트롤로 제공하는 것은 §7 위반이다
+                (시스템이 못 하는 것을 주장한다). mode는 이제 영구 light — 분기도 함께 접었다.
+                벨은 테두리 없이 아이콘 + 미읽음 도트만 (Sean): 40×40 타깃은 유지해 Fitts를 지킨다. */}
+            <Pressable onPress={() => router.push('/alerts')} style={({ pressed }) => [s.bellBtn, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}>
               {/* 도트는 실 미읽음 수가 있을 때만 — 무조건 점은 가짜 알림 신호였다 */}
               {unread > 0 && <View style={s.bellDot} />}
-              <Icon name="Bell" glyph="◔" size={18} color={lilac.head} />
+              <Icon name="Bell" glyph="◔" size={20} color={lilac.head} />
             </Pressable>
           </View>
           {/* 동네 랭킹 티커 — 주식 시세줄처럼 흐르는 실집계 (탭 → 리더보드).
@@ -974,7 +975,10 @@ export default function OwnerHome() {
         style={{ flex: 1 }}
         contentContainerStyle={{
           paddingHorizontal: 0, // [풀블리드 2026-08-06] 거터는 각 요소 내부 패딩으로 이동
-          paddingTop: PAD_TOP + HEADER_H + HERO_BIG + 14,
+          // [Sean 2026-08-11] 모프 카드와 아래 카드 사이 간격 = 0. `+14`는 히어로 예약분이 아니라
+          // 그 위에 얹힌 여백이었다 — 예약(PAD_TOP + HEADER_H + HERO_BIG)은 모프 계약이라 불가침이고,
+          // 여백만 걷어낸다. 첫 SectionHead는 flush로 marginTop까지 0 → 코랄 룰이 히어로 밑변에 붙는다.
+          paddingTop: PAD_TOP + HEADER_H + HERO_BIG,
           paddingBottom: 30,
         }}
         onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
@@ -1006,7 +1010,7 @@ export default function OwnerHome() {
 
         {/* ═══ 오늘의 티켓 (owner-4 보딩패스) — 임박 예약(가장 액션 가능한 실예약)을 보딩패스로.
              상단=사실, 스텁=액션. 상태 태그는 실상태 텍스트. 예약 없으면 부재 안내. ═══ */}
-        <SectionHead title="오늘의 티켓" link="전체 일정 ›" onLink={() => router.push('/owner/schedule')} />
+        <SectionHead title="오늘의 티켓" link="전체 일정 ›" onLink={() => router.push('/owner/schedule')} flush={!fitErr} />
         {/* whole card taps through to 내 일정 — buttons stop propagation */}
         {/* [§3b item 5] 'NEXT RUN · BOARDING PASS' 키커 + ✦ 브랜드 글리프 칩 은퇴 — 티켓 헤더 행 자체가
             사라지고 상태·D-day 칩은 아래 날짜 행(수식하는 데이터 옆)으로 내려앉는다. 홀로 엣지는 티켓
@@ -1329,7 +1333,7 @@ export default function OwnerHome() {
               <Text style={[s.beaconLine, { color: p.textStrong }]} numberOfLines={1}>
                 <Text style={[s.beaconNum, nf]}>{beacon.balance.toLocaleString()}</Text> 포인트
               </Text>
-              <Text style={[s.beaconGo, { color: mode === 'dark' ? '#B7A9FF' : lilac.accent }]}>샵 보기 ›</Text>
+              <Text style={[s.beaconGo, { color: lilac.accent }]}>샵 보기 ›</Text>
             </Pressable>
             {beacon.next !== null && nextGradeName !== null && (
               <>
@@ -1341,7 +1345,7 @@ export default function OwnerHome() {
                   </Text>
                   {/* 어느 코스의 승급인지 — half-cell content ≈ 129px at 320dp (full-bleed (320−1)/2 − gutter 15×2), one line only */}
                   <Text style={[s.beaconSub, { color: p.dim }]} numberOfLines={1}>{beacon.next.name}</Text>
-                  <Text style={[s.beaconGo, { color: mode === 'dark' ? '#B7A9FF' : lilac.accent }]}>카드 보기 ›</Text>
+                  <Text style={[s.beaconGo, { color: lilac.accent }]}>카드 보기 ›</Text>
                 </Pressable>
               </>
             )}
@@ -1577,7 +1581,7 @@ export default function OwnerHome() {
         </View>
       </Modal>
 
-      <BottomNav dark={mode === 'dark'} />
+      <BottomNav />
       {/* 마일스톤 사다리 시트 은퇴 (2026-08-05) — 유일한 오프너가 죽은 비컨 안에 있어 도달 불가였고,
           내용물(ownerGearLadder)은 누적 86.2km 하드코딩 위에 선 목업이었다. 실 진도는 위 비컨의
           '다음 패치'가, 실 수집물은 /cards 의 코스 패치 월이 담당한다. */}
@@ -1662,9 +1666,10 @@ const s = StyleSheet.create({
   // (중첩 스팬 최댓값 18 유지 → HEADER_TICKER 36 예산 무접촉).
   tickerLead: { fontSize: 14, lineHeight: 18, fontWeight: '600', color: lilac.dim, marginRight: 2 },
   // [§3b] 아이콘 전용 컨트롤 — 40×40 스퀘어 · 캔버스 · 1px 코랄 (구 30×30 · 테마 주입 뉴트럴 은퇴)
-  themeBtn: {
-    width: 40, height: 40, borderRadius: 0, borderWidth: 1, borderColor: paper.line,
-    backgroundColor: paper.canvas, alignItems: 'center', justifyContent: 'center',
+  // 벨 — 테두리 없음 (Sean 2026-08-11). 40×40 히트 타깃은 남긴다: 보이는 상자를 지운 것이지
+  // 누를 곳을 줄인 것이 아니다 (§7b Fitts, 44pt 최소는 hitSlop 없이 40+주변 여백으로 확보).
+  bellBtn: {
+    width: 40, height: 40, alignItems: 'center', justifyContent: 'center',
   },
   bellDot: {
     position: 'absolute', top: 6, right: 6, width: 6, height: 6, borderRadius: 3,

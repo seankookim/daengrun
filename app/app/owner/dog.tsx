@@ -3,12 +3,10 @@ import { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Avatar, Row } from '../../src/components/ui';
 import { addDog, DogProfile, fetchMyDogs, updateMyDog, uploadDogPhoto } from '../../src/lib/api';
-import { CollarKey, collarColors, collarLabels, colors, paper } from '../../src/theme';
+import { CollarKey, collarColors, collarLabels, layout, paper } from '../../src/theme';
 
 // 반려견 프로필 — 실초코. 사진·정보·성향 메모·선호 태그가 러너에게 전달된다.
 // 진입: 예약 화면 강아지 카드 · 마이 메뉴. 저장은 섹션 하단 버튼 1개.
-
-const FOREST = '#0F1D13';
 
 // 선호/성향 태그 카탈로그 — dogs.preferences.tags 로 저장, 러너 요청 카드에 표시
 const PREF_CATALOG = [
@@ -130,50 +128,53 @@ export default function DogProfileScreen() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.cream }}>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 120 }}>
-        {/* hero band + photo */}
-        <View style={{ height: 150, backgroundColor: colors.volt }}>
-          <Pressable onPress={() => router.back()} style={s.backBtn}><Text style={{ fontSize: 20.5 }}>‹</Text></Pressable>
+    <View style={{ flex: 1, backgroundColor: paper.canvas }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 130 }}>
+        {/* [Sean 2026-08-11] 리밴프 — 라임 히어로 밴드 + 크림 캔버스 은퇴 (구 팔레트).
+            페이퍼 크롬: 흰 캔버스 · 40×40 스퀘어 백 버튼 · 풀블리드 코랄 헤어라인.
+            칼라 컬러 링도 제거: 아바타는 사각인데 링만 radius 22라 뒤에서 삐져나와 겹쳐 보였다.
+            링은 컬러 프리뷰였을 뿐이고, 아래 칼라 피커 자체가 이미 그 색을 보여준다 (정보 손실 0). */}
+        <View style={s.topBar}>
+          <Pressable onPress={() => router.back()} style={s.backBtn}>
+            <Text style={{ fontSize: 20.5, color: paper.ink }}>‹</Text>
+          </Pressable>
+          <Text style={s.topTitle}>반려견 프로필</Text>
         </View>
-        <View style={{ paddingHorizontal: 12, marginTop: -44 }}>
+        <View style={{ paddingHorizontal: layout.gutter, paddingTop: 16 }}>
           <Pressable onPress={pickPhoto} disabled={uploading} style={{ alignSelf: 'flex-start' }}>
-            {/* 칼라 컬러가 곧 아바타 링 (P1) — 고르는 즉시 여기서 보인다 */}
-            <View style={{ borderWidth: 4, borderColor: collar ? collarColors[collar] : colors.cream, borderRadius: 22 }}>
-              <Avatar url={dog?.photoUrl} char={(name || '멍')[0]} bg={FOREST} size={88} />
-            </View>
+            <Avatar url={dog?.photoUrl} char={(name || '멍')[0]} bg={paper.ink} size={88} />
             <View style={s.camBadge}><Text style={{ fontSize: 14, color: '#fff' }}>{uploading ? '…' : '✎'}</Text></View>
           </Pressable>
-          <Text style={{ fontSize: 14.5, color: colors.dim, marginTop: 6 }}>사진을 탭해서 변경 — 러너가 픽업 때 알아봐요</Text>
+          <Text style={{ fontSize: 14, lineHeight: 18, color: paper.dim, marginTop: 8 }}>사진을 탭해서 변경 — 러너가 픽업 때 알아봐요</Text>
         </View>
 
-        {!loaded && !loadErr && <Text style={{ padding: 16, fontSize: 14.5, color: colors.dim }}>불러오는 중...</Text>}
+        {!loaded && !loadErr && <Text style={{ padding: 16, fontSize: 14, color: paper.dim }}>불러오는 중...</Text>}
         {/* loud-fail strip — failure is never dressed as the empty state */}
         {!loaded && loadErr && (
           <View style={s.failStrip}>
             <Text style={{ fontSize: 14, fontWeight: '700', color: paper.critical }}>반려견 정보를 불러오지 못했어요</Text>
             <Pressable onPress={() => load()} style={s.retryBtn} accessibilityRole="button">
-              <Text style={{ fontSize: 16, fontWeight: '800', color: FOREST }}>다시 시도</Text>
+              <Text style={{ fontSize: 16, fontWeight: '800', color: paper.ink }}>다시 시도</Text>
             </Pressable>
           </View>
         )}
         {loaded && !dog && (
-          <Text style={{ padding: 16, fontSize: 14.5, color: colors.dim }}>
+          <Text style={{ padding: 16, fontSize: 14, lineHeight: 19, color: paper.dim }}>
             아직 반려견이 없어요 — 첫 예약 때 자동으로 만들어져요
           </Text>
         )}
 
         {dog && (
-          <View style={{ paddingHorizontal: 12, marginTop: 14 }}>
+          <View style={{ paddingHorizontal: layout.gutter, marginTop: 18 }}>
             {/* 다견 스위처 */}
             <Row style={{ gap: 8, flexWrap: 'wrap' }}>
               {dogs.map((d) => (
-                <Pressable key={d.id} onPress={() => selectDog(d)} style={[s.dogChip, dog.id === d.id && { backgroundColor: FOREST }]}>
-                  <Text style={{ fontSize: 14.5, fontWeight: '800', color: dog.id === d.id ? '#fff' : '#3d453d' }}>{d.name}</Text>
+                <Pressable key={d.id} onPress={() => selectDog(d)} style={[s.dogChip, dog.id === d.id && { backgroundColor: paper.ink, borderColor: paper.ink }]}>
+                  <Text style={{ fontSize: 14, fontWeight: '800', color: dog.id === d.id ? '#fff' : paper.ink }}>{d.name}</Text>
                 </Pressable>
               ))}
               <Pressable onPress={onAddDog} style={[s.dogChip, { borderStyle: 'dashed' }]}>
-                <Text style={{ fontSize: 14.5, fontWeight: '800', color: '#5a7a3c' }}>＋ 추가</Text>
+                <Text style={{ fontSize: 14, fontWeight: '800', color: paper.ink }}>＋ 추가</Text>
               </Pressable>
             </Row>
 
@@ -190,8 +191,8 @@ export default function DogProfileScreen() {
                 </Pressable>
               ))}
             </Row>
-            <Text style={{ fontSize: 14, color: colors.dim, marginTop: 6 }}>
-              {collar ? `${collarLabels[collar]} — ${name || '아이'}의 시그니처 컬러예요` : '고르면 앱 곳곳에서 이 색으로 보여요 (선택)'}
+            <Text style={{ fontSize: 14, lineHeight: 18, color: paper.dim, marginTop: 8 }}>
+              {collar ? `${collarLabels[collar]} — ${name || '아이'}의 시그니처 컬러예요` : '고르면 일정·카드에서 이 색으로 보여요 (선택)'}
             </Text>
 
             {/* 기본 정보 */}
@@ -216,8 +217,8 @@ export default function DogProfileScreen() {
                 <Text style={s.label}>중성화</Text>
                 <Row style={{ gap: 8 }}>
                   {([[true, '했어요'], [false, '안 했어요']] as const).map(([v, label]) => (
-                    <Pressable key={label} onPress={() => setNeutered(v)} style={[s.neuterChip, neutered === v && { backgroundColor: FOREST }]}>
-                      <Text style={{ fontSize: 14.5, fontWeight: '700', color: neutered === v ? '#fff' : '#3d453d' }}>{label}</Text>
+                    <Pressable key={label} onPress={() => setNeutered(v)} style={[s.neuterChip, neutered === v && { backgroundColor: paper.ink, borderColor: paper.ink }]}>
+                      <Text style={{ fontSize: 14, fontWeight: '800', color: neutered === v ? '#fff' : paper.ink }}>{label}</Text>
                     </Pressable>
                   ))}
                 </Row>
@@ -245,9 +246,9 @@ export default function DogProfileScreen() {
                   <Pressable
                     key={v}
                     onPress={() => setVaccines((cur) => (on ? cur.filter((x) => x !== v) : [...cur, v]))}
-                    style={[s.tagChip, on && { backgroundColor: '#e3eff9', borderColor: '#9fc3e8' }]}
+                    style={[s.tagChip, on && s.tagChipOn]}
                   >
-                    <Text style={{ fontSize: 14.5, fontWeight: '700', color: on ? '#2d6da8' : '#49524a' }}>{on ? '✓ ' : ''}{v}</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '800', color: on ? paper.ink : paper.text }}>{on ? '✓ ' : ''}{v}</Text>
                   </Pressable>
                 );
               })}
@@ -259,13 +260,13 @@ export default function DogProfileScreen() {
               {PREF_CATALOG.map((t) => {
                 const on = tags.includes(t);
                 return (
-                  <Pressable key={t} onPress={() => toggleTag(t)} style={[s.tagChip, on && { backgroundColor: '#eaf7c8', borderColor: '#a9c47e' }]}>
-                    <Text style={{ fontSize: 14.5, fontWeight: '700', color: on ? '#3d5a2b' : '#49524a' }}>{on ? '✓ ' : ''}{t}</Text>
+                  <Pressable key={t} onPress={() => toggleTag(t)} style={[s.tagChip, on && s.tagChipOn]}>
+                    <Text style={{ fontSize: 14, fontWeight: '800', color: on ? paper.ink : paper.text }}>{on ? '✓ ' : ''}{t}</Text>
                   </Pressable>
                 );
               })}
             </Row>
-            <Text style={{ fontSize: 14, color: colors.dim, marginTop: 8, lineHeight: 17 }}>
+            <Text style={{ fontSize: 14, color: paper.dim, marginTop: 12, lineHeight: 19 }}>
               태그와 메모는 러너의 요청 카드에 그대로 표시돼요{'\n'}주간 목표 거리는 체력 리포트에서 조정해요
             </Text>
           </View>
@@ -274,8 +275,9 @@ export default function DogProfileScreen() {
 
       {dog && (
         <View style={s.saveBar}>
-          <Pressable onPress={save} disabled={saving} style={[s.saveBtn, saving && { opacity: 0.5 }]}>
-            <Text style={{ fontSize: 16.5, fontWeight: '900', color: FOREST }}>{saving ? '저장 중...' : '저장하기'}</Text>
+          {/* §3b 프라이머리: 잉크 면 · 화이트 17/800 · radius 0. busy = 라벨 스왑 (opacity 0.5 트릭 폐기, F2.1). */}
+          <Pressable onPress={save} disabled={saving} style={({ pressed }) => [s.saveBtn, pressed && { backgroundColor: paper.inkPressed }]}>
+            <Text style={{ fontSize: 17, fontWeight: '800', color: '#fff' }}>{saving ? '저장 중...' : '저장하기'}</Text>
           </Pressable>
         </View>
       )}
@@ -284,28 +286,41 @@ export default function DogProfileScreen() {
 }
 
 const s = StyleSheet.create({
-  backBtn: { position: 'absolute', top: 56, left: 16, width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
+  // 페이퍼 크롬 상단 — 풀블리드 코랄 헤어라인 + 40×40 스퀘어 백 (runner/meetup circleBtn 문법)
+  topBar: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingTop: 56, paddingBottom: 12, paddingHorizontal: layout.gutter,
+    borderBottomWidth: 1, borderBottomColor: paper.line,
+  },
+  topTitle: { fontSize: 20, fontWeight: '800', color: paper.ink },
+  backBtn: {
+    width: 40, height: 40, borderWidth: 1, borderColor: paper.line,
+    backgroundColor: paper.canvas, alignItems: 'center', justifyContent: 'center',
+  },
   // loud-fail strip — criticalWash bg + critical ink + retry (community.tsx grammar)
-  failStrip: { marginHorizontal: 12, marginTop: 14, backgroundColor: paper.criticalWash, padding: 13 },
-  retryBtn: { alignSelf: 'flex-start', marginTop: 10, minHeight: 40, justifyContent: 'center', paddingHorizontal: 14, borderWidth: 1, borderColor: FOREST, backgroundColor: '#fff' },
+  failStrip: { marginHorizontal: layout.gutter, marginTop: 14, backgroundColor: paper.criticalWash, padding: 13 },
+  retryBtn: { alignSelf: 'flex-start', marginTop: 10, minHeight: 40, justifyContent: 'center', paddingHorizontal: 14, borderWidth: 1, borderColor: paper.line, backgroundColor: paper.canvas },
   camBadge: {
-    position: 'absolute', right: -2, bottom: -2, width: 22, height: 22, borderRadius: 11,
-    backgroundColor: '#5a7a3c', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.cream,
+    position: 'absolute', right: -1, bottom: -1, width: 24, height: 24,
+    backgroundColor: paper.ink, alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, borderColor: paper.canvas,
   },
-  label: { fontSize: 14, fontWeight: '800', color: '#3d453d', marginTop: 16, marginBottom: 6 },
+  label: { fontSize: 14, fontWeight: '800', color: paper.ink, marginTop: 18, marginBottom: 7 },
+  // 입력 = 뉴트럴 카드 (radius 0 · 1px #EEE). 강조는 코랄 선과 CTA 하나에만 (§8 예산).
   input: {
-    backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: '#DCD6C4',
-    paddingVertical: 12, paddingHorizontal: 14, fontSize: 16.5, color: FOREST,
+    backgroundColor: paper.canvas, borderRadius: 0, borderWidth: 1, borderColor: '#EEEEEE',
+    paddingVertical: 12, paddingHorizontal: 13, fontSize: 16, color: paper.ink,
   },
-  neuterChip: { flex: 1, backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: '#DCD6C4', alignItems: 'center', paddingVertical: 13 },
-  dogChip: { backgroundColor: '#fff', borderRadius: 99, borderWidth: 1.3, borderColor: '#dcd9cc', paddingVertical: 9, paddingHorizontal: 16 },
-  // 칼라 컬러 도트 (P1) — 선택 = 포레스트 링 + 체크
-  collarDot: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', borderWidth: 2.5, borderColor: 'rgba(255,255,255,.7)' },
-  collarDotOn: { borderWidth: 3, borderColor: FOREST, transform: [{ scale: 1.08 }] },
-  tagChip: { backgroundColor: '#fff', borderRadius: 99, borderWidth: 1.3, borderColor: '#DCD6C4', paddingVertical: 9, paddingHorizontal: 14 },
+  neuterChip: { flex: 1, backgroundColor: paper.canvas, borderRadius: 0, borderWidth: 1, borderColor: '#EEEEEE', alignItems: 'center', paddingVertical: 13 },
+  dogChip: { backgroundColor: paper.canvas, borderRadius: 0, borderWidth: 1, borderColor: '#EEEEEE', paddingVertical: 10, paddingHorizontal: 15 },
+  // 칼라 스와치 — 사각(샤프 코너 법). 선택 = 잉크 링 + 체크. 페인트 칩처럼 읽힌다.
+  collarDot: { width: 38, height: 38, borderRadius: 0, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#EEEEEE' },
+  collarDotOn: { borderWidth: 2.5, borderColor: paper.ink },
+  tagChip: { backgroundColor: paper.canvas, borderRadius: 0, borderWidth: 1, borderColor: '#EEEEEE', paddingVertical: 10, paddingHorizontal: 13 },
+  tagChipOn: { backgroundColor: paper.wash, borderColor: paper.line },
   saveBar: {
-    position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: colors.cream,
-    paddingHorizontal: 12, paddingTop: 10, paddingBottom: 30, borderTopWidth: 1, borderTopColor: '#DCD6C4',
+    position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: paper.canvas,
+    paddingHorizontal: layout.gutter, paddingTop: 10, paddingBottom: 30, borderTopWidth: 1, borderTopColor: paper.line,
   },
-  saveBtn: { backgroundColor: colors.volt, borderRadius: 16, alignItems: 'center', paddingVertical: 15 },
+  saveBtn: { backgroundColor: paper.ink, borderRadius: 0, alignItems: 'center', paddingVertical: 15 },
 });
