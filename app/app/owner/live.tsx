@@ -459,7 +459,9 @@ const s = StyleSheet.create({
   progressTrack: { height: 5, backgroundColor: paper.disabledFill, marginTop: 12, overflow: 'hidden' },
   progressFill: { height: 5, backgroundColor: paper.line },
   // 버튼 매트릭스 — primary(잉크 면) 하나 + destructive(캔버스 면 + 크리티컬 잉크·보더)
-  chatBtn: { flex: 1, backgroundColor: paper.ink, alignItems: 'center', paddingVertical: 14 },
+  // [액션] 채팅은 이동이지 커밋이 아니다 -> 세컨더리. 이 화면은 코랄 필이 0개인 게 맞다:
+  // 예산은 상한이지 할당량이 아니고, 강조는 livePill(잉크=상태)이 지고 있다.
+  chatBtn: { flex: 1, backgroundColor: paper.wash, borderWidth: 1, borderColor: paper.line, alignItems: 'center', paddingVertical: 14 },
   chatBtnPressed: { backgroundColor: '#333333' }, // F2.1 매트릭스가 지정한 primary pressed 면색 (토큰 미보유)
   chatBtnTxt: { fontSize: 16.5, fontWeight: '900', color: '#ffffff' },
   stopBtn: {

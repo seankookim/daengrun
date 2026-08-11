@@ -255,7 +255,8 @@ const s = StyleSheet.create({
 
   // ── 버튼 매트릭스 (불투명도 트릭 금지 — disabled는 명시 fill) ──
   actions: { paddingHorizontal: 18, paddingTop: 20 },
-  cta: { backgroundColor: paper.ink, alignItems: 'center', paddingVertical: 17 },
+  // [액션] 후기 전송 = 커밋 -> 프라이머리 코랄. mono/tagSel은 잉크(아티팩트/상태)로 남는다.
+  cta: { backgroundColor: paper.action, alignItems: 'center', paddingVertical: 17 },
   ctaPressed: { backgroundColor: paper.text }, // 매트릭스 pressed = #333 (paper.text와 동값)
   ctaOff: { backgroundColor: paper.disabledFill },
   ctaText: { fontSize: 17, lineHeight: 23, fontWeight: '800', color: '#fff' },

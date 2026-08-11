@@ -178,7 +178,7 @@ export default function Schedule() {
           <View style={s.failStrip}>
             <Text style={{ fontSize: 14, fontWeight: '700', color: paper.critical }}>일정을 불러오지 못했어요</Text>
             <Pressable onPress={load} style={s.retryBtn} accessibilityRole="button">
-              <Text style={{ fontSize: 16, fontWeight: '800', color: paper.ink }}>다시 시도</Text>
+              <Text style={{ fontSize: 16, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' }}>다시 시도</Text>
             </Pressable>
           </View>
         )}
@@ -612,7 +612,10 @@ const s = StyleSheet.create({
   emptyBox: { marginTop: 24, marginHorizontal: 12, padding: 18, backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEE' },
   // loud-fail strip — community.tsx failStrip grammar (criticalWash + critical, retry ≥40pt)
   failStrip: { marginTop: 24, marginHorizontal: 12, backgroundColor: paper.criticalWash, padding: 13 },
-  retryBtn: { alignSelf: 'flex-start', marginTop: 10, minHeight: 40, justifyContent: 'center', paddingHorizontal: 14, borderWidth: 1, borderColor: paper.ink, backgroundColor: paper.canvas },
+  // [액션 시스템 2026-08-11] 잉크 테두리 박스 은퇴. 이 버튼은 criticalWash 라우드-페일 스트립
+  // 안에 있는데, 잉크 테두리가 크리티컬 잉크와 싸웠다. 실패 스트립은 박스 버튼이 필요 없다 —
+  // runner/run.tsx failAction의 밑줄 텍스트 문법으로 통일 (박스 9개 삭제, 결정 1개).
+  retryBtn: { alignSelf: 'flex-start', marginTop: 10, minHeight: 44, justifyContent: 'center' },
   bookingCard: { flexDirection: 'row', backgroundColor: '#fff', borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#EEE', marginTop: -1, overflow: 'hidden' },
   rail: { width: 8 }, // 상태 컬러 레일 1.6배 (5→8) — 시맨틱, 페이퍼 이관에서 생존
   // 확정 카드 절취선 — 레일 경계 x=8 중심 (노치 지름 10, 도트 2.5)

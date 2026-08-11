@@ -534,7 +534,7 @@ export default function Request() {
 
             {/* next renders ONLY once a real time exists — no dead forward button (§7) */}
             {draft.scheduledAtIso ? (
-              <Pressable onPress={() => goStep(1)} style={({ pressed }) => [s.nextBtn, pressed && { backgroundColor: paper.inkPressed }]} accessibilityRole="button" accessibilityLabel="다음 단계">
+              <Pressable onPress={() => goStep(1)} style={({ pressed }) => [s.nextBtn, pressed && { backgroundColor: paper.actionPressed }]} accessibilityRole="button" accessibilityLabel="다음 단계">
                 <Text style={{ fontSize: 17, fontWeight: '800', color: '#FFFFFF' }}>{timeLabel} — 다음 ›</Text>
               </Pressable>
             ) : null}
@@ -663,7 +663,7 @@ export default function Request() {
               </>
             )}
 
-            <Pressable onPress={() => goStep(2)} style={({ pressed }) => [s.nextBtn, pressed && { backgroundColor: paper.inkPressed }]} accessibilityRole="button" accessibilityLabel="다음 단계">
+            <Pressable onPress={() => goStep(2)} style={({ pressed }) => [s.nextBtn, pressed && { backgroundColor: paper.actionPressed }]} accessibilityRole="button" accessibilityLabel="다음 단계">
               <Text style={{ fontSize: 17, fontWeight: '800', color: '#FFFFFF' }}>{fmtKm(km)}km — 다음 ›</Text>
             </Pressable>
           </>
@@ -1036,7 +1036,8 @@ const s = StyleSheet.create({
   // collapsed summary/fold row — the off-surface home of every non-question decision
   foldRow: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE', paddingVertical: 13, paddingHorizontal: 14, marginTop: 14 },
   // step primary — §3b primary button (ink face · white 17/800 · padding ≥15 · radius 0)
-  nextBtn: { backgroundColor: paper.ink, paddingVertical: 15, alignItems: 'center', marginTop: 20 },
+  // [액션] 스텝 진행 = 이 화면이 원하는 단 하나 -> 프라이머리 코랄.
+  nextBtn: { backgroundColor: paper.action, paddingVertical: 16, alignItems: 'center', marginTop: 20 },
   // §3b secondary — canvas + coral 1px, ink 16/800, wash pressed
   earliestBtn: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line, paddingVertical: 15, alignItems: 'center', marginTop: 10 },
   // 확인 summary card — the one emphasis card (coral 1px); rows split by neutral hairlines

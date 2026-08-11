@@ -612,7 +612,9 @@ const s = StyleSheet.create({
   // ⑤ 큰 버튼 — 역할 전환 = 잉크 면 프라이머리 (15/14 라벨 유지, 섀도 은퇴)
   btnRole: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: paper.ink, paddingVertical: 16, paddingHorizontal: 15, marginTop: 20,
+    // [액션] 역할 전환은 내비게이션이지 커밋이 아니다 -> 세컨더리 (허브 화면에 코랄 바 2개 금지)
+    backgroundColor: paper.wash, borderWidth: 1, borderColor: paper.line,
+    paddingVertical: 16, paddingHorizontal: 15, marginTop: 20,
   },
   btnRoleTitle: { fontSize: 15, fontWeight: '800', color: '#fff' },
   btnRoleSub: { fontSize: 12, letterSpacing: 1.8, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', marginTop: 3 },
@@ -640,5 +642,6 @@ const s = StyleSheet.create({
     backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line,
     paddingVertical: 12, paddingHorizontal: 14, fontSize: 16, color: paper.ink,
   },
-  saveBtn: { backgroundColor: paper.ink, alignItems: 'center', paddingVertical: 15, marginTop: 18 },
+  // [액션] 시트의 유일한 커밋 = 프라이머리 코랄.
+  saveBtn: { backgroundColor: paper.action, alignItems: 'center', paddingVertical: 16, marginTop: 18 },
 });

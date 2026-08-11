@@ -100,7 +100,10 @@ const GO_TINT: Record<GoState, string> = {
 const NIGHT = '#1C1837';
 const NIGHT_DIM = '#C6BEEB';
 // [§3b] NIGHT_KICK 은퇴 — 유일 사용처였던 'LIVE RUNNERS' 라틴 키커가 사라졌다
-const MONEY_DEEP = '#C6472C'; // 예약 CTA 종단 스톱 — 흰 라벨 대비 확보
+// [액션 2026-08-11] MONEY_DEEP는 paper.action과 **같은 헥스**였다 (#C6472C). 토큰을 가리키게 해서
+// 로컬 상수가 시스템과 갈라지는 경로를 닫는다. 머니 버튼이 프라이머리와 구분되는 근거는 색이
+// 아니라 **타이포와 풀블리드**다 (31 디스플레이 · 사이드 마진 0) — 색으로 구분하려 들지 말 것.
+const MONEY_DEEP = paper.action;
 const HOLO = ['#CFC5F6', '#FFDCD1', '#F3E9C6', '#EAF6C8', '#CDEAF3']; // 홀로 3px 엣지 근사
 
 // 테마 팔레트를 포레스트/크림 → 라일락으로 전면 전환 (theme.surfaces 은퇴, 토글 역학은 유지).
@@ -1061,7 +1064,7 @@ export default function OwnerHome() {
                 <View style={{ flexDirection: 'row', gap: 8, marginTop: 13 }}>
                   <Pressable
                     style={({ pressed }) => [s.primaryBtn, {
-                      backgroundColor: pressed ? paper.inkPressed : paper.ink,
+                      backgroundColor: pressed ? paper.actionPressed : paper.action,
                       transform: [{ scale: pressed ? 0.96 : 1 }],
                     }]}
                     onPress={(e) => { e.stopPropagation(); if (liveNext) draft.bookingId = liveNext.id; router.push('/owner/live'); }}
@@ -1090,7 +1093,7 @@ export default function OwnerHome() {
                   {/* 3버튼 한 줄은 과밀 — 주 액션 전폭 + 보조 2개 반반 (2단) */}
                   <Pressable
                     style={({ pressed }) => [s.primaryBtn, {
-                      backgroundColor: pressed ? paper.inkPressed : paper.ink,
+                      backgroundColor: pressed ? paper.actionPressed : paper.action,
                       transform: [{ scale: pressed ? 0.96 : 1 }],
                     }]}
                     onPress={(e) => {
@@ -1566,7 +1569,7 @@ export default function OwnerHome() {
             onPress={findNowPay}
             disabled={fnBusy}
             style={({ pressed }) => [s.fnPay, {
-              backgroundColor: pressed ? paper.inkPressed : paper.ink,
+              backgroundColor: pressed ? paper.actionPressed : paper.action,
               transform: [{ scale: pressed ? 0.96 : 1 }],
             }]}
           >

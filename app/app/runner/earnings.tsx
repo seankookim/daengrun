@@ -116,7 +116,7 @@ export default function Earnings() {
           <View style={s.failStrip}>
             <Text style={{ fontSize: 14, fontWeight: '700', color: paper.critical }}>정산 내역을 불러오지 못했어요</Text>
             <Pressable onPress={load} style={s.retryBtn} accessibilityRole="button">
-              <Text style={{ fontSize: 16, fontWeight: '800', color: paper.ink }}>다시 시도</Text>
+              <Text style={{ fontSize: 16, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' }}>다시 시도</Text>
             </Pressable>
           </View>
         )}
@@ -191,7 +191,10 @@ const s = StyleSheet.create({
   emptyBox: { backgroundColor: paper.canvas, padding: 18, alignItems: 'center', borderWidth: 1, borderColor: '#EEEEEE' },
   // loud-fail strip — community.tsx failStrip grammar (criticalWash + critical, retry ≥40pt)
   failStrip: { backgroundColor: paper.criticalWash, padding: 13 },
-  retryBtn: { alignSelf: 'flex-start', marginTop: 10, minHeight: 40, justifyContent: 'center', paddingHorizontal: 14, borderWidth: 1, borderColor: paper.ink, backgroundColor: paper.canvas },
+  // [액션 시스템 2026-08-11] 잉크 테두리 박스 은퇴. 이 버튼은 criticalWash 라우드-페일 스트립
+  // 안에 있는데, 잉크 테두리가 크리티컬 잉크와 싸웠다. 실패 스트립은 박스 버튼이 필요 없다 —
+  // runner/run.tsx failAction의 밑줄 텍스트 문법으로 통일 (박스 9개 삭제, 결정 1개).
+  retryBtn: { alignSelf: 'flex-start', marginTop: 10, minHeight: 44, justifyContent: 'center' },
   // §3b section header — full-bleed coral rule via negative gutter margins
   secWrap: {
     marginHorizontal: -layout.gutter, paddingHorizontal: layout.gutter,
