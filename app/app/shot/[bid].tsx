@@ -7,6 +7,9 @@ import { resolveMediaUrl } from '../../src/lib/media';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { haptic } from '../../src/lib/haptics';
 import { colors, paper } from '../../src/theme';
+import { pathFrom, RunShareCard } from '../../src/components/run-share-card';
+import Constants from 'expo-constants';
+import { instagramAvailable, shareToInstagramStories } from '../../modules/instagram-share';
 import { Icon } from '../../src/components/ui';
 
 // 인증샷 스튜디오 (2026-07-28 확정 스펙) — 공유가 곧 마케팅.
@@ -39,9 +42,8 @@ function normalizeTrace(trace: { lat: number; lng: number }[]): { x: number; y: 
   return trace.map((p) => ({ x: (p.lng - minLo) / dLo, y: 1 - (p.lat - minLa) / dLa }));
 }
 
-function pathFrom(pts: { x: number; y: number }[], w: number, h: number, pad = 10): string {
-  return pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${(pad + p.x * (w - 2 * pad)).toFixed(1)} ${(pad + p.y * (h - 2 * pad)).toFixed(1)}`).join(' ');
-}
+// [2026-08-12] pathFrom는 run-share-card.tsx가 export하는 것을 쓴다 — 같은 산식이 두 벌이 되면
+// 공유 카드와 스튜디오 스킨의 궤적이 조용히 어긋난다. 정본 하나.
 
 // ── 브랜드 디바이스 ──────────────────────────────────────────
 function IconChip({ size, df }: { size: number; df: any }) {
@@ -237,6 +239,31 @@ export default function ShotStudio() {
     } catch {
       Alert.alert('개발 빌드 업데이트 필요', '카드 캡처(view-shot)는 새 빌드에 포함돼요');
       return null;
+    }
+  };
+
+  // 인스타 설치 여부는 **렌더 시점에 한 번** 묻는다 (네이티브 왕복). 없으면 버튼을 아예 안 그린다 —
+  // 설치 안 된 앱으로 가는 버튼은 죽은 버튼이다 (§7 정직법).
+  const igOk = useMemo(() => instagramAvailable(), []);
+
+  // 인스타 스토리 1탭 — 캡처한 PNG를 배경 스티커로 넘긴다.
+  // base64가 필요하다: 페이스트보드에 들어가는 건 파일 경로가 아니라 **바이트**다.
+  const shareToInstagram = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const VS = require('react-native-view-shot');
+      const ref = cardRefs.current[activeKey];
+      if (!ref) throw new Error('카드를 캡처하지 못했어요');
+      const b64 = await VS.captureRef(ref, { format: 'png', quality: 1, result: 'base64' });
+      const appId = (Constants.expoConfig?.extra as any)?.instagramAppId ?? '';
+      await shareToInstagramStories(b64, appId);
+      haptic('success');
+    } catch (e) {
+      // 실패를 삼키지 않는다 — 사용자는 공유가 됐다고 믿고 앱을 나간다.
+      Alert.alert('인스타 공유 실패', (e as Error).message);
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -439,41 +466,28 @@ export default function ShotStudio() {
       );
     }
 
-    // I — 볼트 블록
+    // I — 볼트 블록. [2026-08-12] 인라인 조판이 `RunShareCard`로 이사했다 (코덱스 §C 지적:
+    // 컴포저 미리보기와 인스타 export가 같은 카드를 각자 다시 그리려 하고 있었다).
+    // 이 스킨은 **사진을 요구하지 않는 유일한 스킨**이라 공유 아티팩트의 정본이 됐다 —
+    // 완주 사진은 선택이고, 사진을 요구하면 사진 없는 러너는 공유 자체를 못 한다.
+    // 나머지 3종(A 투명·Bp 포토·G 폴라로이드)은 여기 인라인으로 남는다: 사진 레이어·크롭 제스처와
+    // 얽혀 있어 순수 컴포넌트로 뽑으면 그 상호작용까지 끌고 가야 한다. 공유되는 한 장만 정본화한다.
     return (
-      <View style={{ width: CARD_W, height: h, backgroundColor: colors.volt, padding: 18, overflow: 'hidden' }}>
-        <Text style={s.iTiny}>{report.when} · {report.routeName}</Text>
-        <Text style={s.iGiant}>{km}<Text style={{ fontSize: 26, letterSpacing: -1 }}>KM</Text></Text>
-        <Text style={[{ fontSize: 24, fontWeight: '900', color: paper.ink, marginTop: 2 }, df]}>{dog} 완주</Text>
-        {/* GPS 트레이스 — 숫자 위를 '의도적으로' 가로지른다 (Sean 2026-07-29: 겹침을 전경화).
-            포레스트 선은 숫자와 한 색이라 사고처럼 보였다 → 화이트 케이싱 + 탱 라인 =
-            스티커처럼 확실히 앞层. 도착점은 탱 선 위에서 읽히게 포레스트로 반전 */}
-        {pts && (
-          <Svg pointerEvents="none" width={150} height={150} viewBox="0 0 150 150" style={{ position: 'absolute', right: 30, top: h * 0.16 }}>
-            <Path d={pathFrom(pts, 150, 150, 12)} stroke="#fff" strokeWidth={8} strokeLinecap="round" strokeLinejoin="round" fill="none" />
-            <Path d={pathFrom(pts, 150, 150, 12)} stroke={colors.tang} strokeWidth={4} strokeLinecap="round" strokeLinejoin="round" fill="none" />
-            <Circle cx={12 + pts[0].x * 126} cy={12 + pts[0].y * 126} r={5.5} fill="#fff" />
-            <Circle cx={12 + pts[pts.length - 1].x * 126} cy={12 + pts[pts.length - 1].y * 126} r={5.5} fill={paper.ink} />
-          </Svg>
-        )}
-        <View style={{ position: 'absolute', right: 8, top: 14 }}>
-          {['도', '그', '스', '하', '이'].map((c) => (
-            <Text key={c} style={[{ fontSize: 22, color: paper.ink, fontWeight: '900', lineHeight: 24, textAlign: 'center' }, df]}>{c}</Text>
-          ))}
-        </View>
-        <View style={{ position: 'absolute', bottom: 56, left: 18, right: 18, borderTopWidth: 2.5, borderTopColor: paper.ink }}>
-          {[['TIME', statLine.time], ['PACE', `${statLine.pace} /KM`], ...(recordLine ? [['RECORD', recordLine]] : [])].map(([l, v]) => (
-            <View key={l} style={s.iRow}>
-              <Text style={{ fontSize: 14, fontWeight: '800', color: paper.ink }}>{l}</Text>
-              <Text style={{ fontSize: 14, fontWeight: '900', color: paper.ink }}>{v}</Text>
-            </View>
-          ))}
-        </View>
-        <View style={{ position: 'absolute', bottom: 16, left: 18, flexDirection: 'row', alignItems: 'center', gap: 7 }}>
-          <IconChip size={26} df={df} />
-          <Text style={[{ fontSize: 12.5, color: paper.ink, fontWeight: '900', letterSpacing: 2.5 }, df]}>DOGS HIGH</Text>
-        </View>
-      </View>
+      <RunShareCard
+        width={CARD_W}
+        height={h}
+        df={df}
+        data={{
+          dogName: dog,
+          km,
+          durationSec: run.durationSec ?? null,
+          paceSecPerKm: run.paceSecPerKm ?? null,
+          when: report.when,
+          routeName: report.routeName ?? null,
+          trace: pts,
+          recordLine,
+        }}
+      />
     );
   };
 
@@ -569,6 +583,22 @@ export default function ShotStudio() {
               <Text style={{ fontSize: 15, fontWeight: '900', color: paper.ink }}>{mainLabel}</Text>
             </Pressable>
           </View>
+
+          {/* 인스타 스토리 1탭 — **설치돼 있을 때만 그린다**.
+              시스템 공유 시트(위 '공유하기')는 탭 두 번이고 늘 있다. 이 버튼은 한 번이고,
+              인스타가 없으면 갈 곳이 없으므로 아예 존재하지 않는다 (죽은 버튼 금지법).
+              igOk가 false인 경우는 둘 다 포함한다: 앱 미설치 · 이 빌드에 네이티브 모듈 없음. */}
+          {igOk && (
+            <Pressable
+              onPress={shareToInstagram}
+              disabled={busy}
+              style={[s.igBtn, busy && { opacity: 0.6 }]}
+              accessibilityRole="button"
+              accessibilityLabel="인스타그램 스토리로 공유"
+            >
+              <Text style={{ fontSize: 15, fontWeight: '900', color: '#fff' }}>인스타 스토리로 ›</Text>
+            </Pressable>
+          )}
         </>
       )}
 
@@ -611,6 +641,13 @@ export default function ShotStudio() {
 }
 
 const s = StyleSheet.create({
+  // 인스타 버튼 — 인스타의 그라디언트를 흉내내지 않는다 (남의 브랜드 색을 우리 화면에 칠하지 않는다).
+  // 우리 코랄 액션 면 + 흰 라벨 (4.84:1). 폭은 액션 바와 같게, 아래에 한 줄로 앉는다.
+  igBtn: {
+    marginTop: 10, marginHorizontal: 18, paddingVertical: 15, alignItems: 'center',
+    backgroundColor: paper.action, borderRadius: 0,
+  },
+  // [2026-08-12] iTiny/iGiant/iRow 삭제 — 볼트 블록 조판이 RunShareCard로 이사하며 사용처 0이 됐다.
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 58, paddingHorizontal: 16, paddingBottom: 6 },
   x: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#1d3023', alignItems: 'center', justifyContent: 'center' },
   errBox: { margin: 20, backgroundColor: '#121b14', borderRadius: 16, padding: 24 },
@@ -624,9 +661,6 @@ const s = StyleSheet.create({
   photoEmpty: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: '#1d3023' },
   // [D13 FLOOR14 2026-08-12] 10 → 14. {report.when} · {report.routeName} — 한글 날짜와 한글 코스명이다
   // (인스타 내보내기 카드 상단). 로고 아트워크가 아니라 데이터다.
-  iTiny: { fontSize: 14, lineHeight: 18, fontWeight: '900', letterSpacing: 0.6, color: paper.ink },
-  iGiant: { fontSize: 104, fontWeight: '900', color: paper.ink, letterSpacing: -6, lineHeight: 106, marginTop: 8 },
-  iRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: 'rgba(15,29,19,.35)' },
   dots: { flexDirection: 'row', gap: 5, justifyContent: 'center', marginTop: 12 },
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#2c4034' },
   dotOn: { backgroundColor: colors.volt, width: 16 },

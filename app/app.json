@@ -10,7 +10,9 @@
       "supportsTablet": true,
       "infoPlist": {
         "LSApplicationQueriesSchemes": [
-          "nmap"
+          "nmap",
+          "instagram-stories",
+          "instagram"
         ],
         "NSLocationWhenInUseUsageDescription": "러닝 거리 측정과 보호자 실시간 지도를 위해 위치를 사용해요.",
         "NSCameraUsageDescription": "러닝 중 반려견의 순간을 촬영해 보호자에게 보내기 위해 카메라를 사용해요.",
@@ -104,7 +106,8 @@
           }
         },
         "projectId": "0436bc27-2933-4627-a0bf-9527e65c1ad9"
-      }
+      },
+      "instagramAppId": "com.seankookim.daengrun"
     },
     "owner": "seankookim"
   }

@@ -327,13 +327,60 @@ further directives. Migration `0074_handles_and_feed_claims.sql` (prod). Harness
   dog's collar colour with a white stats pill (KM · PACE · TIME), per Sean's attached references.
   This also closes codex's finding that photo posts dropped the trace entirely. The old below-photo
   stat table retired — one fact, one printing.
-- [ ] **"share to insta instant button"** — NOT built. `Share.share` already exists at
-  `shot/[bid].tsx:248` (system sheet, two taps). The real one-tap deep link needs
-  `LSApplicationQueriesSchemes`, a keyed pasteboard dict RN's `Share` cannot build, a native bridge
-  (no candidate in package.json), a Meta app id and a separate Android path — native slice, own commit.
-- [ ] **Extract one `RunShareCard`** — codex's largest finding, still open. `shot/[bid].tsx` already
-  has `SKIN_META` (4 skins, 9:16 + 4:5, capture, share). The feed card, composer preview and IG export
-  should all render the same component instead of three lookalikes.
+- [x] ~~**"share to insta instant button"**~~ **BUILT 2026-08-12 — local native module.**
+  `modules/instagram-share/` (Expo local module, Swift). It exists for exactly one reason: opening
+  `instagram-stories://share` **carries no image** — Instagram reads the picture from a *keyed*
+  iOS pasteboard dictionary (`com.instagram.sharedSticker.backgroundImage`), and RN's `Share` cannot
+  build one (`setItems(_:options:)` is native-only). The module does two things: answer honestly
+  whether Instagram is installed, and hand over the bytes.
+  · `LSApplicationQueriesSchemes` += `instagram-stories`, `instagram` in **`app.json`**, which is the
+    only tracked source — `/ios` is gitignored (`app/.gitignore:44`), so the native plist regenerates
+    from app.json on prebuild. ⚠ Both codex and I earlier called `ios/` "committed"; it is not.
+    Without this key `canOpenURL` returns false *silently*, forever — not an error, just nothing.
+  · 🔴 **A local Expo module needs a `.podspec`, not just `expo-module.config.json`.** Cost an hour:
+    `expo-modules-autolinking search` **listed the module** while `pod install` created no target, so
+    the app built happily with the module absent and `requireOptionalNativeModule` returning null —
+    no crash, no button, no error. "Autolinking found it" is not "it is linked"; check
+    `Podfile.lock`.
+  · 🔴 **`.runOnQueue` exists only on `AsyncFunction`, not the sync `Function`** (the Swift compiler
+    taught us). `isAvailable` crosses to the main thread itself, guarded by `Thread.isMainThread` —
+    calling `DispatchQueue.main.sync` when already on main deadlocks.
+  · The button renders **only when `isAvailable()`** — not installed, or a build without the native
+    module, means no button at all rather than one that goes nowhere.
+  · Pasteboard entry expires after 5 minutes; we do not leave a user's run image on the clipboard.
+  · Failures surface as distinct sentences (not installed / bad image / open failed) — a share that
+    did not happen never reports success.
+  · Uses the extracted `RunShareCard` as the raster source via `captureRef({ result: 'base64' })` —
+    base64 because what goes on the pasteboard is **bytes**, not a file path.
+  - [ ] 🔴 **Sean-only: a real Meta App ID.** `source_application` is currently defaulted to the
+    bundle id via `expo.extra.instagramAppId`. Meta's documented contract wants a registered
+    Facebook App ID. It may work as-is; if Instagram rejects the payload, that is the reason.
+    Same class as the Toss contract — registration, not code.
+  - [ ] **Android not implemented.** The module is `platforms: ["apple"]`. Android needs its own
+    Intent + `<queries>` package visibility. The system share sheet remains the Android path.
+  - [ ] 🔴 **Not verified end-to-end, and cannot be here: Instagram will not install on the iOS
+    Simulator.** What IS verified: the pod links (`InstagramShare (1.0.0)` in `Podfile.lock`), the
+    Swift compiles (`Build Succeeded, 0 errors`), and the button correctly does **not** render when
+    `isAvailable()` is false. The actual hand-off — pasteboard → Instagram opening with the image as
+    a story background — needs **a physical device with Instagram installed**. Sean's smoke test:
+    open a completed run's 인증샷, swipe to 볼트 블록, confirm the coral 인스타 스토리로 button appears
+    at all (it only renders when Instagram is present), tap it, and check the card arrives as the
+    story background rather than an empty editor. An empty editor means the Meta App ID above.
+- [x] ~~**Extract one `RunShareCard`**~~ **DONE 2026-08-12 — partially, and deliberately so.**
+  `src/components/run-share-card.tsx` is now the single source for the **share artifact**, used by
+  the shot studio and the Instagram export. Pure (props only, no fetching, no state) because
+  `view-shot` captures a frame — anything async still in flight captures as blank.
+  · Chose the **volt block** as the canonical card because it is the only skin that **does not
+    require a photo**. Completion photos are optional, so a photo-requiring export would lock out
+    every runner without one.
+  · `pathFrom` de-duplicated — the studio now imports the component's copy. Two copies of the same
+    maths would let the studio's trace and the shared card's trace drift apart silently.
+  · ⚠ **Skins A/Bp/G stay inline** in `shot/[bid].tsx`: they are entangled with `PhotoLayer`'s crop
+    and pinch gestures, so extracting them means dragging that interaction into a "pure" component.
+    Only the thing that gets **shared** is centralised.
+  · ⚠ **I did not follow codex all the way.** It wanted the feed card in the same component. That is
+    over-unification: the feed card is a horizontal post row, the share card is a 9:16 poster. Same
+    data, different objects — merging them makes both awkward.
 - [ ] **"동네" is still not a neighbourhood** — see the P1 HONESTY entry. `fetchFeed` remains global;
   the rail deliberately does not claim locality because of it.
 
