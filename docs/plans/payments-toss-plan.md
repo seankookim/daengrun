@@ -60,9 +60,17 @@ actuals-based charging was disclosed at card link, and the receipt is one tap aw
 Honest ≠ loud. **This achieves what the token model's psychology was FOR** — recorded
 plainly: it weakens the un-park case further.
 
-**Way 2 — bundles/tokens: DEMOTED to optional (Sean: "not sure tokens and bundles are
-necessary... keep them as an option").** Not designed-for-build anymore; a later option
-behind the same filings + G1–G4, revisited only if per-run data asks for it.
+**Way 2 — bundles/tokens: ABANDONED (Sean, same night: "abandon the token and whatever").**
+The token design doc survives as a reasoning archive only. **FINAL SCREEN INVENTORY
+(Sean's "we already have all the screens" check, verified): the ONLY new screens are the
+card-register set (Ⓐ). Everything else is existing surfaces:** request.tsx UNCHANGED
+(its price display IS the once-at-selection moment — the D-1/D-2 lab questions are dead);
+card-linked bookings skip the pay ceremony (pay.tsx = fallback only); 귀가 = a live.tsx
+state; post-run = the existing report screen (record-card restyle later); receipts = one
+설정 row + a 결제 내역 section in the EXISTING booking detail (extension, not a screen —
+required, or invisibility becomes concealment); decline/debt/lock = banners on existing
+surfaces. The onboarding level question dies with the tokens — the km dial stays, and
+premade routes filter by the dialed km.
 
 Pay screen implication: pay.tsx keeps its EXISTING design (Sean, rejecting the Ⓟ lab
 drift) — the work is a mechanism swap: card-link flow, a no-ceremony booking confirmation,

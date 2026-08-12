@@ -77,22 +77,17 @@ Deferred work, written down so it exists. Format: what / why / context / effort
   Effort XL → L. P3. Depends on: billing key, live screen rails.
 
 - [ ] **Premade route catalog, per launch town (Sean 2026-08-12)** — a bunch of curated
-  routes per 동네 (반포 first), level-sized (2/3/5km loops), anchored at common points
-  (park gates, 한강 진입로) near residential clusters. Request screen filters by the
-  dog's level + town. Route model = three segments: 접근 (custody, un-charged) →
+  routes per 동네 (반포 first), km-sized (2/3/5km loops — filtered by the request screen's dialed km; the level system was abandoned), anchored at common points
+  (park gates, 한강 진입로) near residential clusters. Request screen filters by dialed km + town. Route model = three segments: 접근 (custody, un-charged) →
   premade loop (THE run — its distance is what's charged) → 귀가 (custody, frozen).
   Per-route metadata: anchor, level, real GPS trace, surface (paw safety), shade
   (여름 폭염), lighting (새벽/야간 슬롯). Sourcing: Sean walks/runs the Banpo seeds with
   GPS on (founder task + QA), then promote good completed runs' traces (couples to the
   existing "Course geo-traces" TODO below — routes.trace is still schematic, 0001:147).
   Effort L → M. P2 (P1 for Banpo seeds before external owners book).
-- [ ] **Request↔preferences screen merge (design lab after picks)** — split standing vs
-  per-run: level replaces KmDial as the distance default (dial survives demoted in an
-  "이번만 다르게" exception expander — couples to the D-2 dial-fare pick); suggested
-  pace moves to preferences; per-run keeps date/runner/route/간식/반복 + the single D-1
-  price line. Note: the parked model's addon Open Q5 DISSOLVES on the active track
-  (post-pay charges 9,900+3,000×actual+addon_fare — ₩+₩ just works). Effort M → S. P2.
-  Depends on: Sean's lab picks (D-1, D-2, Ⓛ③ plate).
+- [x] ~~Request↔preferences screen merge~~ — OBSOLETE same night (Sean: current
+  preference/scheduling scheme stays unchanged; tokens + levels abandoned; km dial
+  stays). Kept for the one durable note: addons just work under post-pay (₩+₩).
 
 ## From coordinates-geocoding slice (2026-08-10, /autoplan)
 
