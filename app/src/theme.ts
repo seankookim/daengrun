@@ -195,9 +195,12 @@ export const paper = {
   // busy = 라벨 스왑. **잉크는 상태(선택칩·완료 스텝·라이브 필·다크 아티팩트)로 남는다 — 액션이 아니다.**
 } as const;
 
-// Pricing (placeholder — validate against competitor research)
+// Pricing — ⚠ 두 기본요금은 서로 다른 돈 (Sean 2026-08-12 D2 디커플링; 서버 정본 _shared/ctx.ts):
+//   ownerBaseFare 7,900 = 보호자 가격 · runnerCompBase 9,900 = 러너 정산 기준 (피치의 바닥).
+//   하나를 다른 하나에 맞추는 수정은 사고다.
 export const pricing = {
-  baseFare: 9900,
+  ownerBaseFare: 7900,
+  runnerCompBase: 9900,
   perKm: 3000,
   commission: 0.33,  // 0059 — 일괄 33% (2026-08-05 Sean 결정). 서버 정본은 runners.commission_rate
   addons: {

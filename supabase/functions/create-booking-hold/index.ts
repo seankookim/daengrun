@@ -70,7 +70,7 @@ Deno.serve(handle(async (req) => {
     return s + PRICING.addons[k];
   }, 0);
   const distanceFare = Math.round(b.km * PRICING.perKm);
-  const total = PRICING.baseFare + distanceFare + addonFare;
+  const total = PRICING.ownerBaseFare + distanceFare + addonFare;
 
   // booking(draft→quoted→payment_hold) + hold, 한 흐름으로
   const { data: booking, error: bErr } = await db.from("bookings").insert({
@@ -79,7 +79,7 @@ Deno.serve(handle(async (req) => {
     status: "draft", scheduled_at: start.toISOString(), km: b.km,
     pace_label: b.pace_label ?? null,
     addons: addons.map((k) => ({ key: k, price: PRICING.addons[k] })),
-    base_fare: PRICING.baseFare, distance_fare: distanceFare,
+    base_fare: PRICING.ownerBaseFare, distance_fare: distanceFare,
     addon_fare: addonFare, total_price: total, min_fare: PRICING.minFare,
   }).select("id").single();
   if (bErr) throw new HttpError(500, bErr.message);

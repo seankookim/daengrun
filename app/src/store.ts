@@ -23,9 +23,9 @@ export const runResult = { km: 0, sec: 0, payout: 0, settled: false, completed: 
 // Demo flag: shows the home widget in "imminent" (곧 시작) state
 export const demoImminent = true;
 
-// Prorated payout: actual distance, minus platform commission.
+// Prorated payout: actual distance, minus platform commission. (러너 측 → runnerCompBase)
 export function payoutFor(km: number): number {
-  return Math.round((pricing.baseFare + km * pricing.perKm) * (1 - pricing.commission));
+  return Math.round((pricing.runnerCompBase + km * pricing.perKm) * (1 - pricing.commission));
 }
 
 export type AddonKey = keyof typeof pricing.addons;
@@ -242,7 +242,7 @@ export const draft = {
 
 export function draftTotal(): number {
   const addonSum = draft.addons.reduce((sum, k) => sum + pricing.addons[k].price, 0);
-  return pricing.baseFare + draft.km * pricing.perKm + addonSum;
+  return pricing.ownerBaseFare + draft.km * pricing.perKm + addonSum; // 보호자 측 → 7,900
 }
 
 export function fmtWon(n: number): string {

@@ -613,7 +613,7 @@ export default function OwnerHome() {
       setFnBusy(false);
     }
   };
-  const fnPrice = pricing.baseFare + fnKm * pricing.perKm;
+  const fnPrice = pricing.ownerBaseFare + fnKm * pricing.perKm;
 
   // 예약하기 머니 CTA — 슬라이드 예약과 동일 목적지(제네릭 오픈 예약). 지난 러닝 값으로 프리필 표기.
   const bookKm = lastDone?.km ?? draft.km;

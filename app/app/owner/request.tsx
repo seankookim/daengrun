@@ -195,7 +195,7 @@ export default function Request() {
   };
 
   const addonSum = addons.reduce((s2, k) => s2 + pricing.addons[k].price, 0);
-  const total = pricing.baseFare + km * pricing.perKm + addonSum;
+  const total = pricing.ownerBaseFare + km * pricing.perKm + addonSum;
   // [정직 배치 2026-08-06 · item 6] bestRoute(적합도 최대값) 선택자 퇴역 — 근거가 목업 fit 하나였다.
   // 실 스코어러가 생기기 전까진 추천 코스라는 말을 하지 않는다. 모든 코스는 '안심 코스'다.
 
@@ -776,7 +776,7 @@ export default function Request() {
 
             {/* price breakdown — the 확인 step carries the money truth; total lives on the ticket */}
             <View style={s.feeCard}>
-              <FeeRow label="기본 요금" value={fmtWon(pricing.baseFare)} />
+              <FeeRow label="기본 요금" value={fmtWon(pricing.ownerBaseFare)} />
               <FeeRow label={`거리 (${fmtKm(km)}km)`} value={fmtWon(km * pricing.perKm)} />
               {addonSum > 0 && <FeeRow label="프리미엄 옵션" value={fmtWon(addonSum)} />}
               <Text style={{ fontSize: 14, color: paper.dim, marginTop: 8 }}>취소 수수료 없음</Text>
@@ -948,7 +948,7 @@ function KmDial({ km, onChange }: { km: number; onChange: (v: number) => void })
     onChange(KM_VALUES[i]);
   };
 
-  const price = pricing.baseFare + km * pricing.perKm;
+  const price = pricing.ownerBaseFare + km * pricing.perKm;
   const pad = Math.max(0, vw / 2 - TICK_W / 2); // first/last detents can reach the needle
 
   return (

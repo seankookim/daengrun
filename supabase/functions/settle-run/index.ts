@@ -39,7 +39,7 @@ Deno.serve(handle(async (req) => {
     throw new HttpError(400, `완주 정산은 계획 거리의 50% 이상 실측이 필요해요 (${km}/${plannedKm}km) — 조기 종료 사유로 정산해주세요`);
   }
   const distancePay = Math.round(km * PRICING.perKm);
-  const base = PRICING.baseFare;
+  const base = PRICING.runnerCompBase; // 러너 정산은 9,900 기준 유지 (D2 디커플링 — 보호자 7,900과 다른 돈)
   const addonPay = (bk.addons as { price: number }[]).reduce((s, a) => s + a.price, 0);
   let gross = Math.max(base + distancePay + addonPay, bk.min_fare);
   let guarantee = 0;

@@ -60,6 +60,17 @@ actuals-based charging was disclosed at card link, and the receipt is one tap aw
 Honest ≠ loud. **This achieves what the token model's psychology was FOR** — recorded
 plainly: it weakens the un-park case further.
 
+**PRICING (Sean D2, 2026-08-12 night — DECOUPLED, implemented + tsc/deno-checked):**
+owner pays `7,900 + 3,000×km` (2km = 13,900 "1만원대"); runner comp stays on the 9,900
+base (0059 doc remains TRUE — the runner side did not move). Constants split with loud
+comments: `PRICING.ownerBaseFare / runnerCompBase` (ctx.ts) mirrored in app theme.ts;
+margin 23.4% (2km) → 29.5% (10km), verified integer-exact. **Charge-basis rule for the
+settle eng pass (D2, decided): owner-caused early ends (`owner_request`/`owner_forced`)
+are charged on PLANNED distance** — the actuals-charge otherwise goes margin-negative
+against settle-run's 50% guarantee clause AND invites cut-the-run-short gaming; runner-
+and incident-caused ends charge on actuals (G1's territory). En-route cancel fee keys
+off `total_price`, so it follows the owner price by design (~₩1,000 lower at 2km).
+
 **Way 2 — bundles/tokens: ABANDONED (Sean, same night: "abandon the token and whatever").**
 The token design doc survives as a reasoning archive only. **FINAL SCREEN INVENTORY
 (Sean's "we already have all the screens" check, verified): the ONLY new screens are the
