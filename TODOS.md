@@ -614,16 +614,28 @@ Not blocking (the gate is green and reproducibly so), but the failing test's ide
 have the script build into a unique temp dir instead of writing fixed filenames into `app/test/`,
 so a concurrent run cannot race it. Effort S → S. P2.
 
-## 🔴🔴 P1 HONESTY — the community colophon makes two promises the system does not keep
+## 🔴 P1 HONESTY — the feed is not a neighbourhood *(half closed 2026-08-12 — read the status line)*
 
-Found by the Codex review of the §C lab on 2026-08-12, then verified in the migrations and api.ts.
-`community.tsx:564` prints, as the screen's closing statement:
+**STATUS 2026-08-12, end of session:**
+- **① fabricated run claims — CLOSED.** `0074`'s `feed_claim_gate` now enforces it server-side, and
+  112 F1–F7 pin it. The colophon was rewritten to say only what is kept, and no longer promises
+  "완료된 러닝만".
+- **② "남의 동네 소식도 없습니다" — STILL OPEN, and this is the remaining P1.** `fetchFeed` has no
+  district filter; `fetchClubOverview` hard-codes 반포동. The colophon no longer *claims* scoping,
+  so it is a product gap rather than a lie — but it **blocks the story rail from ever meaning
+  "our neighbourhood's dogs"**, which is exactly what Sean's Ⓑ① pick wants it to mean.
+- Also fixed in passing: the footer said **"오늘 N건"** while `fetchFeed` returns the latest 30 of
+  all time (no date filter). Now "최근 N건".
+
+The original finding, kept because §① records how the hole existed and why the fix took the shape
+it did. Found by the Codex review of the §C lab on 2026-08-12, then verified in the migrations and
+api.ts. `community.tsx:564` printed, as the screen's closing statement:
 
 > **"동네 피드는 이웃들이 채웁니다. 완료된 러닝만 실려요 — 광고도, 남의 동네 소식도 없습니다."**
 
-**Both testable clauses are false as shipped.**
+**Both testable clauses were false as shipped.**
 
-**① "완료된 러닝만 실려요" is a UI convention, not a database invariant.** `0013_feed.sql`:
+**① "완료된 러닝만 실려요" was a UI convention, not a database invariant** *(closed by 0074)*. `0013_feed.sql`:
 - `booking_id uuid references bookings unique` — **nullable**. A post need not reference any booking.
 - `meta jsonb not null default '{}'` — **whatever the client sends**. No shape check, no cross-check
   against `runs`.

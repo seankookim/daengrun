@@ -672,7 +672,10 @@ export default function Community() {
                 기록이 진짜라는 건 이제 서버가 강제한다 (0074 feed_claim_gate). */}
             <Text style={s.coloBody}>이웃들이 채우는 피드예요 — 광고는 없습니다. 거리·시간 기록이 붙은 글은 실제로 달린 러닝만 올릴 수 있어요.</Text>
             <Row style={{ alignItems: 'center', gap: 6, marginTop: 8 }}>
-              <Text style={s.coloFoot}>오늘 <Text style={[{ color: lilac.text }, nf]}>{posts.length}</Text>건</Text>
+              {/* 🔴 [2026-08-12] "오늘 N건"이었다 (afd4dcd, 08-03). fetchFeed는 날짜 필터가 없다 —
+                  `.order(created_at).limit(30)`, 전체 기간에서 최신 30건. 바로 위 문장을 정직하게
+                  고쳐 쓰면서 두 줄 아래 거짓말을 남겨둘 뻔했다. 쿼리가 말하는 그대로 "최근". */}
+              <Text style={s.coloFoot}>최근 <Text style={[{ color: lilac.text }, nf]}>{posts.length}</Text>건</Text>
               <View style={s.coloDot} />
               <Text style={s.coloFoot}>당겨서 새로고침</Text>
             </Row>
