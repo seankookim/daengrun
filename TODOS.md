@@ -205,6 +205,29 @@ never share a row, card, or summary strip. Doc §5.
 → Sequencing, not negotiable: **model (done) → ledger table + pins → screens.** Do not start with
 the screen; a subscription screen bound to a client constant is fabricated data.
 
+→ **PROGRESS 2026-08-12 (CEO review + build session, Sean's D1/D2 + codex adjudication):**
+  - [x] **CEO review ran** (`/plan-ceo-review`, EXPANSION mode) — report at the end of
+    `docs/plans/km-token-model.md`. Sean decided **D1 = full cathedral**, **D2 = best-effort
+    buffer** (the review caught the §2-② self-contradiction: a strict `planned+2` gate makes the
+    welcome 5km unable to book the 5km run it advertises).
+  - [x] **`0075_km_ledger.sql` + `113_km_ledger_suite.sql` built** — lots/ledger, welcome grant
+    (500-cap campaign), reserve/settle/release/expiry, column grants sealed from birth
+    (`addresses`' lesson applied at creation). K1–K18; the suite caught two real bugs before any
+    commit (hold-netting after cancel; consumption-order loss under same-tx timestamps → `seq`).
+  - [x] **codex outside voice: 12 findings** — 8 absorbed pre-commit, ranked list + rulings in
+    the plan doc's review report. Its E-ceremony rulings (Sean's seat): E2/E4/E5/E6/E10 build now;
+    E1/E3 defer (⚠ tension with Sean's C pick — labs exist, Sean picks by number); E7/E8/E9 skip.
+  - [x] **`docs/labs/km-token-lab.html`** — Ⓐ token mark ×3 · Ⓑ balance surface ×3 (Ⓑ③
+    deliberately shows why merged totals are disqualified) · Ⓒ booking re-denomination ×2 ·
+    Ⓓ refill store ×2 · Ⓔ welcome/under-run moments ×3. **Sean picks by number.**
+  - [ ] 🔴 **UNRESOLVED (Sean, from the review):** add-ons at cutover (disable vs km-snapshot) ·
+    bundle bonus sizes vs the 15.6%-floor/~2%-diluted short-run margin · E1/E3 timing ·
+    welcome-cap level (500 ≈ ₩8.4M max exposure once payouts are real).
+  - [ ] **Next slice (cutover, own adversarial cycle):** E2/E4/E5/E6/E10 screens + edge-fn wiring
+    behind a server config flag, honoring 0075 §0's two contracts (booking+reserve atomicity;
+    hold-expiry sweep must call `km_release`). The purchase side additionally needs the
+    `payments.booking_id` schema slice (codex #2) and stays dark until 사업자등록+토스.
+
 ### B. Navigation & information architecture
 
 - [x] ~~**"Reorganize tab to home being center"**~~ **DONE 2026-08-11.** `bottomnav.tsx`: 홈 moved to
@@ -214,7 +237,15 @@ the screen; a subscription screen bound to a client constant is fabricated data.
   string via `router.replace(t.path)` — grep found **zero** call sites that depend on tab order.
 
 - [x] ~~🔴 **"Make screens slidable between different tabs"**~~ **BUILT 2026-08-12 —
-  `src/components/tabswipe.tsx`.** Sean: *"I dont see the slide to switch tab functionality motion
+  `src/components/tabswipe.tsx`.** → **FLUIDITY PASS same day (Sean: "add the swipe between
+  screens fluidity", 35368de):** the two-motion commit (slide out → blank → spring in) became one
+  continuous motion — `captureRef` snapshots the outgoing screen at release (react-native-view-shot,
+  already installed, zero new deps), `router.replace` fires immediately, and the incoming screen
+  drives ONE animated value with the snapshot riding at `x − from·W`. Capture failure falls back to
+  the old choreography. Verified both directions 홈↔샵 on sim. **Also same commit: icon-only dock**
+  (labels removed, icons 19→26, a11y labels carry the names, indicator 34) — the 샵 ShoppingBag
+  was already lucide-live since 9abb1dd; at 26pt without a label it finally reads.
+  Sean: *"I dont see the slide to switch tab functionality motion
   working"* — correct; it had been scoped and deliberately left unbuilt. Now shipped as the
   **edge-swipe** variant (option (b) below), which needs **zero new dependencies and zero native
   rebuild**, so none of the four blockers had to be paid for.

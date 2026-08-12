@@ -155,6 +155,42 @@ const main = async () => {
   const m1 = pct(rebooked, eligible);
   const m1Same = pct(sameRunner, eligible);
 
+  // ---------- km 원장 게이지 (0075 · CEO 리뷰 E10, codex 채택) ----------
+  // 셋 다 원장에서 직접 유도 — 캐시 없음. 테이블이 아직 없으면(0075 미푸시) 정직하게 '—'.
+  // · grantedOutstandingKm: 살아 있는 증여 잔량 = **프로모션 노출**이다. 회계 부채가 아니다
+  //   (codex E10 조건: 부채로 라벨하지 말 것 — 부채는 paid 쪽이다).
+  // · paidOutstandingKm: 유상 잔량 = 환불 가능 부채. ₩ = × 5,000 (액면).
+  // · absorbedOverrunKm: 러닝별 러너 실측(runs.actual_km 유효분)과 오너 차감의 차이 중 플랫폼이
+  //   먹은 부분… 은 runs 조인이 필요해 이 슬라이스에선 **차감·홀드 원장만으로 셀 수 있는 것**만
+  //   센다: 청구 = run_debit 합. 흡수분 게이지는 컷오버(정산 배선) 슬라이스에서 runs.actual_km이
+  //   원장 곁에 서야 정직하게 계산된다 — 지어내지 않고 자리를 비워 둔다.
+  // · welcomeConversion: 환영 증여를 받은 계정 중 INTENT 예약까지 간 비율 (테스트 계정 제외).
+  const km = await (async () => {
+    const probe = await fetch(`${URL_}/rest/v1/km_lots?select=id&limit=1`, {
+      headers: { apikey: SERVICE, Authorization: `Bearer ${SERVICE}` },
+    });
+    if (!probe.ok) return null;   // 0075가 아직 프로드에 없다 — 게이지 없음, 0 아님
+    const [lots, debits] = await Promise.all([
+      q('km_lots?select=profile_id,bucket,source,km_remaining,expires_at'),
+      q('km_ledger?select=profile_id,delta,reason&reason=eq.run_debit'),
+    ]);
+    const live = (l) => !l.expires_at || new Date(l.expires_at).getTime() > now;
+    const sum = (xs, f) => Math.round(xs.reduce((a, x) => a + f(x), 0) * 100) / 100;
+    const real = (l) => !isTest(l.profile_id);
+    const grantedOut = sum(lots.filter((l) => real(l) && l.bucket === 'granted' && live(l)), (l) => +l.km_remaining);
+    const paidOut = sum(lots.filter((l) => real(l) && l.bucket === 'paid'), (l) => +l.km_remaining);
+    const welcomed = new Set(lots.filter((l) => real(l) && l.source === 'welcome').map((l) => l.profile_id));
+    const converted = [...welcomed].filter((p) => byOwner.has(p)).length;
+    return {
+      grantedOutstandingKm: grantedOut,                    // 프로모션 노출 (부채 아님)
+      paidOutstandingKm: paidOut,
+      paidLiabilityWon: Math.round(paidOut * 5000),        // 액면 환불 부채
+      runDebitKmTotal: sum(debits.filter((d) => real(d)), (d) => -d.delta),
+      welcomeClaimed: welcomed.size,
+      welcomeToBookingPct: pct(converted, welcomed.size),
+    };
+  })();
+
   const out = {
     generatedAt: new Date(now).toISOString(),
     windowDays: WINDOW_DAYS,
@@ -166,6 +202,7 @@ const main = async () => {
       testBookingsExcludedBy: Object.fromEntries(excludedBy),
     },
     m1RebookPct: m1, m1SameRunnerPct: m1Same,
+    km,   // null = 0075 미푸시 (게이지 부재 ≠ 0)
     verdict: m1 === null ? 'NOT_MEASURABLE' : m1 >= 60 ? 'PASS' : 'BELOW_GATE',
   };
 
@@ -186,6 +223,18 @@ const main = async () => {
   console.log(`  배제한 테스트 예약                   ${excluded}`);
   for (const [who, n] of excludedBy) console.log(`      └ ${who}: ${n}건`);
   console.log('');
+  if (km) {
+    console.log('═══ km 원장 게이지 (0075) ═══');
+    console.log(`  증여 잔량 (프로모션 노출)            ${km.grantedOutstandingKm}km`);
+    console.log(`  유상 잔량 (환불 가능 부채)           ${km.paidOutstandingKm}km · ₩${km.paidLiabilityWon.toLocaleString('ko-KR')}`);
+    console.log(`  누적 차감                            ${km.runDebitKmTotal}km`);
+    console.log(`  환영 수령 계정                       ${km.welcomeClaimed}`);
+    console.log(`  환영 → 예약 전환                     ${show(km.welcomeToBookingPct)}`);
+    console.log('');
+  } else {
+    console.log('  (km 게이지: 0075가 아직 프로드에 없어요 — 부재는 0이 아니라 —)');
+    console.log('');
+  }
   if (m1 === null) {
     console.log('  판정: 측정 불가 — 관찰 창이 닫힌 보호자가 아직 없어요.');
     console.log('        이건 0%가 아니에요. 숫자가 생기려면 첫 러닝 후 ' + WINDOW_DAYS + '일이 지나야 해요.');

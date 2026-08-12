@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>km 토큰 랩 — §A 캐시드럴 (Sean 픽: 영역별 번호)</title>
+<style>
+  /* DESIGN.md 페이퍼 세계 토큰 — 랩은 화면의 예언이므로 실제 토큰을 쓴다 */
+  :root{
+    --canvas:#FFFFFF; --ink:#111111; --dim:#8A8A93; --line:#ECECEF;
+    --action:#C6472C; --wash:#F7F7F9; --lilac:#6C5CE7; --gold:#B8912A;
+    --volt:#D8FF3E; --tang:#FF6B35;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#E9E9EC;font-family:-apple-system,'Apple SD Gothic Neo',sans-serif;color:var(--ink);padding:34px 26px 80px}
+  h1{font-size:26px;font-weight:900;margin-bottom:6px}
+  .sub{font-size:14px;color:#555;max-width:920px;line-height:1.55;margin-bottom:8px}
+  .law{font-size:13px;color:#777;max-width:920px;line-height:1.5;margin-bottom:30px}
+  h2{font-size:19px;font-weight:900;margin:44px 0 4px}
+  .areaNote{font-size:13.5px;color:#555;max-width:920px;line-height:1.55;margin-bottom:16px}
+  .row{display:flex;gap:26px;flex-wrap:wrap;align-items:flex-start}
+  .cell{width:300px}
+  .tag{display:inline-block;font-weight:900;font-size:15px;margin-bottom:8px}
+  .why{font-size:12.5px;color:#666;line-height:1.5;margin-top:8px;width:300px}
+  .phone{width:300px;background:var(--canvas);border:1px solid #D5D5DA;box-shadow:0 10px 26px rgba(0,0,0,.09)}
+  .pad{padding:14px 15px}
+  .num{font-family:'Oswald','Arial Narrow',sans-serif;font-weight:700}
+  .hair{height:1px;background:var(--line)}
+  .coralRule{height:1px;background:var(--action)}
+  .kicker{font-size:11px;letter-spacing:1.6px;color:var(--dim);font-weight:700}
+  .btn{display:block;text-align:center;background:var(--action);color:#fff;font-weight:900;font-size:15px;padding:13px 0}
+  .btnGhost{display:block;text-align:center;border:1px solid var(--ink);color:var(--ink);font-weight:800;font-size:14px;padding:11px 0}
+  .btnDead{display:block;text-align:center;background:var(--wash);color:var(--dim);font-weight:800;font-size:14px;padding:12px 0;border:1px dashed #CFCFD6}
+  .small{font-size:14px;color:var(--dim)} /* 14pt 플로어 — 한글 디테일 최소 */
+  .markbox{width:64px;height:64px;border:1.5px solid var(--ink);display:flex;align-items:center;justify-content:center;margin-bottom:8px}
+</style>
+</head>
+<body>
+
+<h1>km 토큰 랩 — 캐시드럴 §A</h1>
+<p class="sub">Sean 결정 반영: <b>D1 = 풀 캐시드럴</b>(소비측 컷오버 지금, 충전측은 토스 이후) ·
+<b>D2 = 베스트-에포트 버퍼</b>(환영 5km가 5km 러닝을 예약한다). 이 랩은 그 결정의 화면들이다.
+영역(Ⓐ~Ⓔ)별로 번호 하나씩 골라 주세요.</p>
+<p class="law">지키는 법: km은 <b>마일이 아니다</b> — 마일은 금색·적립·정수, km은 잉크·구매·소수 한 자리. 두 잔액은 같은 행/카드/스트립에 절대 함께 서지 않는다.
+km 마크는 단색 타이포그래피 (금색 금지, 컬러 픽토리얼 금지). 돈 숫자는 Oswald. 한글 디테일 14pt 플로어. 강조 예산: 화면당 고립 강조 1개.</p>
+
+<!-- ═══════════ Ⓐ 토큰 마크 ═══════════ -->
+<h2>Ⓐ 토큰 마크 — km이 마일과 다르게 생겨야 하는 이유가 곧 스펙</h2>
+<p class="areaNote">16px에서 한눈에 "이건 거리 화폐"로 읽혀야 한다. 세 후보 모두 단색 잉크, 필요 시 코랄 1색만 허용.</p>
+<div class="row">
+  <div class="cell">
+    <span class="tag">Ⓐ① 각인 ㎞ — 단위 자체가 마크</span>
+    <div class="markbox"><span class="num" style="font-size:26px">㎞</span></div>
+    <div style="font-size:15px"><span class="num" style="font-size:19px">12.5</span><span class="num" style="font-size:13px;border:1.2px solid var(--ink);padding:1px 4px;margin-left:5px">㎞</span></div>
+    <p class="why">유니코드 단일 글리프 ㎞(U+339E)를 1.2px 잉크 박스에 각인. 폰트가 이미 갖고 있어 아이콘 에셋이 0개다. 마일의 금색 원형과 기하부터 다르다(사각 vs 원).
+    <b>리스크:</b> Oswald에 U+339E가 없으면 폰트 폴백 — 컬러 이모지 폴백 클래스는 아니지만 실기기 확인 필요(§7b 렌더링 법).</p>
+  </div>
+  <div class="cell">
+    <span class="tag">Ⓐ② 트랙 칩 — 거리의 모양</span>
+    <div class="markbox">
+      <svg width="38" height="38" viewBox="0 0 38 38"><rect x="4" y="9" width="30" height="20" rx="10" fill="none" stroke="#111" stroke-width="2.6"/><circle cx="12" cy="19" r="2.6" fill="#C6472C"/></svg>
+    </div>
+    <div style="font-size:15px"><svg width="22" height="15" viewBox="0 0 38 26" style="vertical-align:-2px"><rect x="3" y="3" width="32" height="20" rx="10" fill="none" stroke="#111" stroke-width="3.4"/><circle cx="12" cy="13" r="3.4" fill="#C6472C"/></svg> <span class="num" style="font-size:19px">12.5</span><span style="font-size:12px;font-weight:800"> km</span></div>
+    <p class="why">육상 트랙 루프 + 출발점 도트(코랄). 거리·달리기를 도상으로 말하고, 도트가 유일한 색 강조. SVG 한 조각, Lucide 톤과 같은 스트로크 문법.
+    <b>리스크:</b> 16px 축소에서 도트가 뭉개지는지 — 랩이 아니라 실기기가 판정.</p>
+  </div>
+  <div class="cell">
+    <span class="tag">Ⓐ③ 잉크 티켓 — 지불 수단의 모양</span>
+    <div class="markbox">
+      <svg width="40" height="30" viewBox="0 0 40 30"><path d="M3 4h34v8a4 4 0 0 0 0 8v6H3v-6a4 4 0 0 0 0-8z" fill="none" stroke="#111" stroke-width="2.4"/><text x="20" y="20" text-anchor="middle" font-family="Oswald,Arial Narrow" font-weight="700" font-size="11" fill="#111">KM</text></svg>
+    </div>
+    <div style="font-size:15px"><svg width="24" height="18" viewBox="0 0 40 30" style="vertical-align:-3px"><path d="M3 4h34v8a4 4 0 0 0 0 8v6H3v-6a4 4 0 0 0 0-8z" fill="none" stroke="#111" stroke-width="3"/></svg> <span class="num" style="font-size:19px">12.5</span><span style="font-size:12px;font-weight:800"> km</span></div>
+    <p class="why">티켓 노치 실루엣 — 이 앱의 티켓 모티프(예약 티켓·절취선)와 같은 계보라 "결제 수단"으로 읽힌다.
+    <b>리스크:</b> 티켓은 이미 예약 카드의 언어다. 화폐에도 쓰면 두 의미가 섞인다 — Ⓐ①/②보다 의미 충돌 가능성.</p>
+  </div>
+</div>
+
+<!-- ═══════════ Ⓑ 잔액 표면 (오너 홈) ═══════════ -->
+<h2>Ⓑ 잔액 표면 — 오너 홈, 두 버킷은 절대 합산하지 않는다</h2>
+<p class="areaNote">잔액은 연료계다. 증여(만료 있음)와 유상(만료 없음)을 한 숫자로 합치면 거짓말 — 정직법이 두 숫자를 요구한다.</p>
+<div class="row">
+  <div class="cell">
+    <span class="tag">Ⓑ① 연료 스트립 — 위클리 링 아래 한 줄</span>
+    <div class="phone"><div class="pad">
+      <div class="kicker">초코의 연료</div>
+      <div style="display:flex;align-items:baseline;gap:6px;margin-top:6px">
+        <span class="num" style="font-size:34px;line-height:1.1">12.5</span><span style="font-size:13px;font-weight:800">km</span>
+        <span class="small" style="margin-left:auto">+ 웰컴 <span class="num" style="font-size:15px;color:var(--ink)">5</span>km · <span style="color:var(--action);font-weight:800">D-23</span></span>
+      </div>
+      <div class="hair" style="margin:10px 0"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span class="small">반포천 왕복 두 번이면 충분해요</span>
+        <span style="font-weight:900;font-size:14px">충전 ›</span>
+      </div>
+    </div></div>
+    <p class="why">유상은 큰 숫자, 증여는 만료일 붙은 보조 라인 — 위계가 곧 회계다(유상=내 돈, 증여=선물). 거리 은유 한 줄이 km을 체감 단위로 번역. 만료 D-3부터 코랄(강조 예산 1).</p>
+  </div>
+  <div class="cell">
+    <span class="tag">Ⓑ② 두 칸 원장 — 회계를 그대로 보여준다</span>
+    <div class="phone"><div class="pad">
+      <div class="kicker">KM 잔액</div>
+      <div style="display:flex;gap:0;margin-top:8px;border:1.5px solid var(--ink)">
+        <div style="flex:1;padding:10px 12px">
+          <div class="small">내 km</div>
+          <div><span class="num" style="font-size:26px">12.5</span></div>
+          <div class="small">만료 없음</div>
+        </div>
+        <div style="width:1.5px;background:var(--ink)"></div>
+        <div style="flex:1;padding:10px 12px;background:var(--wash)">
+          <div class="small">선물 km</div>
+          <div><span class="num" style="font-size:26px">5.0</span></div>
+          <div class="small"><span style="color:var(--action);font-weight:800">9월 11일까지</span></div>
+        </div>
+      </div>
+      <div style="margin-top:10px"><span class="btnGhost">충전하기</span></div>
+    </div></div>
+    <p class="why">두 버킷을 문자 그대로 두 칸으로 — 원장의 정직한 초상. 선물 칸의 워시 배경이 "임시"를 조용히 말한다.
+    <b>대가:</b> 홈에서 카드 하나 몫의 자리를 차지한다 — Ⓑ①보다 무겁다.</p>
+  </div>
+  <div class="cell">
+    <span class="tag">Ⓑ③ 도크 칩 — 상시 노출 최소형</span>
+    <div class="phone"><div class="pad" style="display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <span class="kicker">오늘도 달린다, 우리 초코</span>
+        <div style="font-size:15px;font-weight:900;margin-top:3px">8월 4일 오후 3:30 확정</div>
+      </div>
+      <div style="border:1.5px solid var(--ink);padding:6px 10px;text-align:center">
+        <div class="num" style="font-size:17px;line-height:1.15">17.5</div>
+        <div style="font-size:11px;font-weight:800;letter-spacing:.5px">KM</div>
+      </div>
+    </div></div>
+    <p class="why">히어로 우측 상단 칩 — 늘 보이고 자리를 안 뺏는다.
+    <b>결격 후보:</b> 17.5는 <u>합산</u>이다. 5km가 3주 뒤 죽는데 한 숫자로 말하면 정직법 위반 — 이 안을 고르면 칩은 유상만 표시해야 하고, 그러면 증여가 안 보이는 다른 문제가 생긴다. 함께 제출하되 추천하지 않는 이유를 적어 둔다.</p>
+  </div>
+</div>
+
+<!-- ═══════════ Ⓒ 예약 재표기 ═══════════ -->
+<h2>Ⓒ 예약 플로우 재표기 — ₩가 km에게 자리를 내주는 순간</h2>
+<p class="areaNote">오너가 내는 것은 km, 러너가 받는 것은 ₩ — 화면은 오너의 것이므로 km이 주인공, ₩는 각주다. 컷오버 플래그 뒤에서만 켜진다.</p>
+<div class="row">
+  <div class="cell">
+    <span class="tag">Ⓒ① 각주형 — km 주인공, ₩ 한 줄 각주</span>
+    <div class="phone"><div class="pad">
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <span style="font-weight:900;font-size:15px">서울숲 숲길 · 5km</span>
+        <span class="num" style="font-size:24px">7<span style="font-size:13px">km 홀드</span></span>
+      </div>
+      <div class="small" style="text-align:right;margin-top:2px">완주 시 5km 차감 · 1km = 5,000원</div>
+      <div class="coralRule" style="margin:11px 0"></div>
+      <span class="btn">예약 확정</span>
+    </div></div>
+    <p class="why">홀드(7)와 차감 예정(5)을 처음부터 구분해 보여준다 — 정산에서 "왜 7이 잡혔다 5만 나갔지?"가 생기지 않는다. ₩는 환율 각주 딱 한 줄.</p>
+  </div>
+  <div class="cell">
+    <span class="tag">Ⓒ② 영수증형 — 차감 내역이 표다</span>
+    <div class="phone"><div class="pad">
+      <div class="kicker">이번 러닝</div>
+      <div style="margin-top:8px;border-top:2.5px solid var(--ink)">
+        <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--line)"><span style="font-size:14px;font-weight:800">계획 거리</span><span class="num" style="font-size:15px">5.0 km</span></div>
+        <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--line)"><span style="font-size:14px;font-weight:800">여유 홀드</span><span class="num" style="font-size:15px">+2.0 km</span></div>
+        <div style="display:flex;justify-content:space-between;padding:7px 0"><span style="font-size:14px;font-weight:800">완주 후 정산</span><span style="font-size:14px;color:var(--dim)">실제 달린 만큼만</span></div>
+      </div>
+      <span class="btn" style="margin-top:8px">예약 확정 · <span class="num">7</span>km 홀드</span>
+    </div></div>
+    <p class="why">"실제 달린 만큼만"이 이 모델의 약속이고, 영수증형은 그 약속을 표의 마지막 줄로 만든다. 언더런 환급(Ⓔ)과 같은 문법이라 처음-끝이 이어진다.
+    <b>대가:</b> Ⓒ①보다 화면을 더 쓴다.</p>
+  </div>
+</div>
+
+<!-- ═══════════ Ⓓ 충전 스토어 (구매 불가 정직 상태) ═══════════ -->
+<h2>Ⓓ 충전 스토어 — 문은 오늘 세우고, 계산대는 토스가 열어준다</h2>
+<p class="areaNote">번들 할인은 ₩/km를 깎지 않고 보너스 km로 — 환불이 영원히 `5,000 × 미사용 유상 km`로 남는 유일한 길. 구매 버튼은 정직하게 죽어 있다.</p>
+<div class="row">
+  <div class="cell">
+    <span class="tag">Ⓓ① 선반형 — 3개 번들 카드</span>
+    <div class="phone"><div class="pad">
+      <div class="kicker">KM 충전</div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <div style="flex:1;border:1.5px solid var(--ink);padding:9px 8px;text-align:center">
+          <div class="num" style="font-size:21px">5</div><div style="font-size:12px;font-weight:800">km</div>
+          <div class="small" style="margin-top:4px">25,000원</div>
+        </div>
+        <div style="flex:1;border:1.5px solid var(--ink);padding:9px 8px;text-align:center;position:relative">
+          <div style="position:absolute;top:-9px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;font-size:10px;font-weight:900;padding:2px 6px">+2km 보너스</div>
+          <div class="num" style="font-size:21px">20</div><div style="font-size:12px;font-weight:800">km</div>
+          <div class="small" style="margin-top:4px">100,000원</div>
+        </div>
+        <div style="flex:1;border:1.5px solid var(--ink);padding:9px 8px;text-align:center;position:relative">
+          <div style="position:absolute;top:-9px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;font-size:10px;font-weight:900;padding:2px 6px">+8km 보너스</div>
+          <div class="num" style="font-size:21px">50</div><div style="font-size:12px;font-weight:800">km</div>
+          <div class="small" style="margin-top:4px">250,000원</div>
+        </div>
+      </div>
+      <span class="btnDead" style="margin-top:10px">결제 준비 중 — 열리면 알려드릴게요</span>
+      <div class="small" style="margin-top:6px;text-align:center">내 km은 만료가 없고, 언제든 전액 환불돼요</div>
+    </div></div>
+    <p class="why">1km=5,000원이 모든 카드에서 동일 — 할인은 보너스 km 배지로만. 죽은 버튼이 이유를 말하고 알림 약속으로 끝난다(정직 상태가 곧 대기자 명단). 환불 문장은 스타벅스 60% 룰 역풍의 정반대 — 신뢰 카피로 인쇄한다.</p>
+  </div>
+  <div class="cell">
+    <span class="tag">Ⓓ② 게이지형 — 충전은 연료 주입</span>
+    <div class="phone"><div class="pad">
+      <div class="kicker">KM 충전</div>
+      <div style="margin-top:10px;display:flex;align-items:baseline;gap:6px">
+        <span class="num" style="font-size:30px">12.5</span><span style="font-size:13px;font-weight:800">km 보유</span>
+        <span class="small" style="margin-left:auto">+20km 선택 중</span>
+      </div>
+      <div style="height:10px;border:1.5px solid var(--ink);margin-top:8px;position:relative">
+        <div style="position:absolute;left:0;top:0;bottom:0;width:28%;background:var(--ink)"></div>
+        <div style="position:absolute;left:28%;top:0;bottom:0;width:44%;background:repeating-linear-gradient(45deg,#C6472C,#C6472C 4px,transparent 4px,transparent 8px)"></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <span style="flex:1;text-align:center;border:1px solid var(--ink);font-weight:900;padding:8px 0" class="num">+5</span>
+        <span style="flex:1;text-align:center;background:var(--ink);color:#fff;font-weight:900;padding:8px 0" class="num">+20</span>
+        <span style="flex:1;text-align:center;border:1px solid var(--ink);font-weight:900;padding:8px 0" class="num">+50</span>
+      </div>
+      <span class="btnDead" style="margin-top:10px">결제 준비 중</span>
+    </div></div>
+    <p class="why">지금 잔액(잉크) 위에 선택분(코랄 해치)이 쌓이는 프리뷰 — 충전이 "구매"가 아니라 "주입"으로 느껴진다.
+    <b>대가:</b> 게이지의 최대값이 임의적(무한 잔액에 눈금이란?) — 은유가 수학과 살짝 싸운다.</p>
+  </div>
+</div>
+
+<!-- ═══════════ Ⓔ 두 순간 — 웰컴과 언더런 ═══════════ -->
+<h2>Ⓔ 두 순간 — 증여가 도착할 때 · km이 돌아올 때</h2>
+<p class="areaNote">Ⓔ는 화면이 아니라 순간이다: 온보딩의 웰컴 5km, 완주 영수증의 언더런 환급. 하나만 고르는 게 아니라 각 순간의 결을 고른다 (Ⓔ①/② 중 웰컴 1개, Ⓔ③은 단독).</p>
+<div class="row">
+  <div class="cell">
+    <span class="tag">Ⓔ① 웰컴 — 티켓 수령</span>
+    <div class="phone"><div class="pad" style="text-align:center;padding:22px 15px">
+      <div class="kicker">웰컴 기프트</div>
+      <div style="border:1.5px solid var(--ink);margin:12px 18px;padding:16px 10px;position:relative">
+        <div class="num" style="font-size:44px;line-height:1.1">5<span style="font-size:16px">km</span></div>
+        <div style="font-size:14px;font-weight:800;margin-top:4px">첫 러닝은 저희가 살게요</div>
+        <div class="small" style="margin-top:6px">9월 11일까지 · 5km 러닝 1회</div>
+      </div>
+      <span class="btn" style="margin:0 18px">첫 러닝 예약하기</span>
+    </div></div>
+    <p class="why">증여를 티켓 실물로 — 만료일이 티켓 위에 인쇄돼 있어 D-7 푸시가 "약속의 리마인드"가 된다. CTA가 곧장 예약으로 — 증여의 목적(첫 경험)이 버튼 하나 거리다.</p>
+  </div>
+  <div class="cell">
+    <span class="tag">Ⓔ② 웰컴 — 잔액 탄생 모션</span>
+    <div class="phone"><div class="pad" style="text-align:center;padding:22px 15px">
+      <div class="kicker">계정 준비 완료</div>
+      <div style="margin:14px 0 4px"><span class="num" style="font-size:44px">0.0<span style="font-size:16px">km</span></span></div>
+      <div style="font-size:14px;font-weight:800;color:var(--action)">+5.0km 적재 중 ▲</div>
+      <div class="small" style="margin-top:10px">웰컴 5km — 첫 러닝 한 번이 공짜예요</div>
+      <span class="btnGhost" style="margin:14px 18px 0">홈으로</span>
+    </div></div>
+    <p class="why">0.0에서 5.0으로 카운트업 — 잔액이라는 개념 자체를 3초 모션으로 가르친다.
+    <b>대가:</b> Ⓔ①의 "티켓 실물감"이 없고, 모션이 끝나면 남는 오브젝트가 없다.</p>
+  </div>
+  <div class="cell">
+    <span class="tag">Ⓔ③ 언더런 환급 줄 (완주 영수증에 추가)</span>
+    <div class="phone"><div class="pad">
+      <div class="kicker">오늘의 정산</div>
+      <div style="margin-top:8px;border-top:2.5px solid var(--ink)">
+        <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--line)"><span style="font-size:14px;font-weight:800">홀드</span><span class="num" style="font-size:15px">7.0 km</span></div>
+        <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--line)"><span style="font-size:14px;font-weight:800">초코가 달린 거리</span><span class="num" style="font-size:15px">4.3 km</span></div>
+        <div style="display:flex;justify-content:space-between;padding:7px 0;background:var(--wash);margin:0 -15px;padding-left:15px;padding-right:15px"><span style="font-size:14px;font-weight:900">돌아온 km</span><span class="num" style="font-size:16px;font-weight:700">+2.7 km</span></div>
+      </div>
+      <div class="small" style="margin-top:8px">덜 달리면 그만큼 돌아와요 — 다음 러닝에 쓰세요</div>
+    </div></div>
+    <p class="why">모델의 감정적 핵심을 영수증 마지막 줄로. 워시 배경 한 줄이 유일한 강조 — "돌려받았다"가 이 화면의 사건이다. Ⓒ② 영수증형과 같은 표 문법.</p>
+  </div>
+</div>
+
+<p class="law" style="margin-top:44px">콜로폰 — 이 랩의 모든 숫자는 실제 규칙에서 파생: 홀드 = min(잔액, greatest(3, planned+2)) ·
+차감 = min(실측 clamp, 홀드) · 1km = 5,000원(km_face_price) · 번들 보너스는 granted 버킷 90일.
+구매 버튼이 죽어 있는 이유는 장식이 아니라 사실이다: 유상 km은 선불(stored value)이라 사업자등록 + 통신판매업 + 토스 이전에 팔 수 없다.</p>
+
+</body>
+</html>
