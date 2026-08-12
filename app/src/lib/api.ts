@@ -235,6 +235,62 @@ export async function confirmPayment(bookingId: string): Promise<void> {
   if (data?.error) throw new Error(data.error);
 }
 
+// ---------- 토스페이먼츠 실결제 (payments-toss-plan.md §2) ----------
+// CLIENT CONTRACT ONLY — both edge functions are built in a parallel lane. Nothing calls these
+// while TOSS_ENABLED is false (src/lib/toss.ts). Written here so the widget scaffold compiles
+// against a fixed shape and the server lane has one place to check its request/response against.
+//
+// The law both functions enforce and this file must never work around: 클라 금액 불신 원칙.
+// The client's word is never evidence — amount/paymentKey/orderId are re-verified server-side
+// against the intent row and against Toss's own confirm response. These wrappers pass data,
+// they do not assert facts.
+
+// STEP 1 — intent, created BEFORE money can move (§2-7). The server mints order_id and binds
+// owner + booking + amount to it, so a crash between capture and our INSERT still has a local
+// trace. The client never mints an order id.
+export interface PaymentIntent {
+  orderId: string;      // server-minted, unique per attempt
+  amount: number;       // = bookings.total_price, server truth
+  customerKey: string;  // profiles.toss_customer_key (random uuid — never the profile id)
+  orderName: string;    // server-composed display string for the widget
+}
+
+export async function createPaymentIntent(bookingId: string): Promise<PaymentIntent> {
+  const { data, error } = await supabase.functions.invoke('create-payment-intent', {
+    body: { booking_id: bookingId },
+  });
+  if (error || data?.error) throw await fnError(error, data);
+  return data as PaymentIntent;
+}
+
+// STEP 2 — confirm. Called only from the widget's success callback, with the values Toss handed
+// the client. meta carries the post-capture side effects the server now owns (§2-5b): runner
+// nomination and the weekly series are performed server-side, non-fatally, so an app killed
+// right after capture cannot silently lose a paying user's chosen runner or repeat.
+export interface ConfirmTossMeta {
+  preferred_runner_id?: string | null;
+  recurring?: boolean;
+}
+
+// POST confirm-payment
+//   body { order_id, payment_key, amount, meta: { preferred_runner_id, recurring } }
+//   200  { ok: true, booking_status: 'matching' }  — includes the idempotent re-call
+//   4xx  { error: '<honest sentence, shown verbatim>' }
+// Any post-capture failure (amount mismatch / hold expired / non-DONE) is auto-cancelled at
+// Toss by the server inside the same request, and the error sentence says so — the screen
+// prints it as-is (pay.tsx renders failReason verbatim; do not re-word it here).
+export async function confirmToss(
+  orderId: string,
+  paymentKey: string,
+  amount: number,
+  meta: ConfirmTossMeta = {},
+): Promise<void> {
+  const { data, error } = await supabase.functions.invoke('confirm-payment', {
+    body: { order_id: orderId, payment_key: paymentKey, amount, meta },
+  });
+  if (error || data?.error) throw await fnError(error, data);
+}
+
 // ---------- 결제 표면 (owner/pay) ----------
 // 한 예약의 청구 진실. 클라이언트 재계산 금지 — 요금은 서버가 만든 숫자다(create-booking-hold).
 // [M5] RLS는 러너에게도 자기 잡 예약을 보여준다 → owner_id가 내가 아니면 '부재'로 접는다:
