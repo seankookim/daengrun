@@ -1,5 +1,5 @@
 import { router, usePathname } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { session } from '../store';
 import { paper } from '../theme';
 import { Icon } from './ui';
@@ -19,6 +19,17 @@ import { Icon } from './ui';
 //   ⚠ 순서 재배치가 안전한 이유를 확인해두었다: 액티브 인디케이터는 각 탭의 flex:1 박스 안에
 //   absolute로 그려지므로 인덱스 산술이 없고, 탭 전환은 전부 경로 문자열(router.replace(t.path))이라
 //   순번에 기대는 호출부가 없다. 배열 순서 = 화면 순서, 그 이상의 계약은 없다.
+// [아이콘 도크 2026-08-12, Sean] "탭 아이콘 밑 글자 빼고 아이콘 키워라" → 라벨 <Text> 제거, 아이콘 19 → 26.
+//   라벨이 사라진 만큼 액티브는 아이콘 색 + 코랄 스퀘어 인디케이터 둘로만 말한다 (배경 알약·필 금지 —
+//   도크의 유일한 장식은 §3b 섹션 법과 같은 톱 헤어라인이다). 인디케이터 26 → 34: 커진 아이콘보다 살짝
+//   넓어야 '밑줄'이 아니라 헤어라인으로 읽힌다.
+//   보이는 라벨이 없어져도 배열의 label 필드는 남는다 — 스크린리더가 그걸 읽는다. Pressable이
+//   accessibilityRole="tab" + accessibilityLabel + selected 상태를 반드시 들고 있어야 하는 이유.
+//   높이 보존: 라벨(14) + 간격(3)이 빠진 만큼 탭 paddingVertical 12 → 18 (탭 높이 ≈63 → 62, 도크 총높이
+//   거의 그대로, 터치 타깃 44pt 법은 여유 통과).
+//   ⚠ 샵 아이콘은 건드리지 않았다 — 이미 lucide ShoppingBag이고 시뮬레이터 실빌드에서 렌더 확인했다.
+//   "쇼핑백으로 바꿔라"는 지시는 19pt에 라벨까지 붙어 백이 안 읽혔던 문제지 아이콘 이름이 틀린 게
+//   아니었다. 다음 세션이 이름을 다시 갈아엎지 않도록 적어둔다.
 const OWNER_TABS = [
   { icon: '▦', lucide: 'CalendarDays', label: '내 일정', path: '/owner/schedule' },
   { icon: '◎', lucide: 'Users', label: '커뮤니티', path: '/community' },
@@ -66,15 +77,14 @@ export function BottomNav({ dark }: { dark?: boolean }) {
             key={t.label}
             style={s.tab}
             onPress={() => { if (t.path && !active) router.replace(t.path); }}
+            // 라벨이 화면에서 사라졌으니 접근성 이름은 여기서만 나온다 — 지우지 말 것.
+            accessibilityRole="tab"
+            accessibilityLabel={t.label}
+            accessibilityState={{ selected: active }}
           >
             {/* 액티브 인디케이터 룰 — 스퀘어 (라이트 = 코랄, 다크 = 기존 바이올렛) */}
             <View style={[s.ind, active && { backgroundColor: indColor }]} />
-            <View style={{ marginBottom: 3 }}>
-              <Icon name={t.lucide} glyph={t.icon} size={19} color={active ? activeColor : idleColor} />
-            </View>
-            <Text style={[s.label, { color: active ? activeColor : idleColor }, active && { fontWeight: '700' }]}>
-              {t.label}
-            </Text>
+            <Icon name={t.lucide} glyph={t.icon} size={26} color={active ? activeColor : idleColor} />
           </Pressable>
         );
       })}
@@ -89,8 +99,6 @@ const s = StyleSheet.create({
     backgroundColor: paper.canvas, paddingBottom: 22,
   },
   barDark: { backgroundColor: '#1C1837', borderTopColor: '#2A2350' },
-  tab: { flex: 1, alignItems: 'center', paddingVertical: 12 },
-  ind: { position: 'absolute', top: 0, width: 26, height: 2.5, backgroundColor: 'transparent' },
-  icon: { fontSize: 20.5, marginBottom: 3 },
-  label: { fontSize: 14, fontWeight: '500' },
+  tab: { flex: 1, alignItems: 'center', paddingVertical: 18 },
+  ind: { position: 'absolute', top: 0, width: 34, height: 2.5, backgroundColor: 'transparent' },
 });
