@@ -18,9 +18,22 @@
 //  7. bookings CAS payment_hold → matching (transition-booking:42-46과 같은 문장)
 //  8. 캡처 이후의 어떤 실패든 → §2-7 자동 취소 기계
 //  9. CAS 성공 뒤에만 §2-5b 후처리 (반복·지명) — **비치명적**
-import { SupabaseClient } from "jsr:@supabase/supabase-js@2";
+import { createClient, SupabaseClient } from "jsr:@supabase/supabase-js@2";
 import { caller, HttpError } from "../_shared/ctx.ts";
 import { tossCancel, tossConfirm } from "../_shared/toss.ts";
+
+// 0077 호출자 독트린: 소유자 게이트를 가진 클라이언트 RPC(create_recurring_series)는
+// service_role이 아니라 **호출자의 JWT로** 호출한다 — RPC의 not_signed_in/is-distinct
+// 게이트가 실제로 발화하도록. (0077_recurring_guard.sql 헤더가 이 법의 정본.)
+export function callerBoundClient(req: Request): SupabaseClient {
+  const authz = req.headers.get("Authorization");
+  if (!authz) throw new HttpError(401, "no caller token"); // caller()가 먼저 401을 냈어야 정상
+  return createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_ANON_KEY")!,
+    { global: { headers: { Authorization: authz } } },
+  );
+}
 
 // 계획 §2-7이 지정한 문장 그대로. 만료와 자동취소를 한 문장에 담는 이유: 보호자가 알아야 할
 // 사실이 둘이고(예약이 죽었다 / 돈은 돌아온다), 둘 중 하나만 말하면 나머지는 상상하게 된다.
@@ -42,7 +55,11 @@ interface Intent {
   payment_key: string | null;
 }
 
-export async function confirmPayment(req: Request, db: SupabaseClient) {
+export async function confirmPayment(
+  req: Request,
+  db: SupabaseClient,
+  mkUserDb: (req: Request) => SupabaseClient = callerBoundClient,
+) {
   // ── 1. 호출자 (익명 401) ──────────────────────────────────────────────────────────────
   const uid = await caller(req, db);
   const body = await req.json();
@@ -164,7 +181,7 @@ export async function confirmPayment(req: Request, db: SupabaseClient) {
   }
 
   // ── 9. §2-5b 후처리 — 서버에서, 비치명적으로 ──────────────────────────────────────────
-  const post = await postConfirm(req, db, {
+  const post = await postConfirm(req, db, mkUserDb, {
     bookingId: intent.booking_id, ownerId: bk.owner_id,
     preferredRunnerId: meta.preferred_runner_id ?? null,
     recurring: meta.recurring === true || meta.recurring === "1",
@@ -274,21 +291,24 @@ async function notifyOps(db: SupabaseClient, intent: Intent, why: string, lastEr
 // ⚠ 지명은 transition-booking을 **HTTP로 다시 부른다.** 클라 JWT를 그대로 전달한다.
 //   대안은 request_runner의 충돌 가드·CAS·양측 알림(~50줄)을 여기에 복제하는 것이었고,
 //   돈 인접 게이트의 두 번째 사본은 언젠가 반드시 갈라진다. 왕복 한 번의 대가로 단일 진실을 산다.
-//   (create_recurring_series는 RPC 한 줄이라 복제 문제가 없어 직접 부른다.)
+//   (create_recurring_series는 RPC 한 줄이지만 **호출자 JWT로** 부른다 — 0077 독트린.)
 async function postConfirm(
   req: Request,
   db: SupabaseClient,
+  mkUserDb: (req: Request) => SupabaseClient,
   p: { bookingId: string; ownerId: string; preferredRunnerId: string | null; recurring: boolean },
 ) {
   const out = { recurring: "skipped", nomination: "skipped" };
 
   if (p.recurring) {
     try {
-      // create_recurring_series(0026:30)는 definer이고 `b.owner_id <> auth.uid()`로 막는다.
-      // service_role 세션에서 auth.uid()는 NULL이라 그 비교는 NULL = if문이 안 탄다 → 통과한다.
-      // 통과해도 되는 이유: 이 함수는 §2에서 이미 파티 게이트를 통과했다. 그 게이트가 여기서의
-      // 권한 근거다 — RPC가 우리를 막아주기를 기대하는 게 아니다.
-      const { error } = await db.rpc("create_recurring_series", { p_booking: p.bookingId });
+      // create_recurring_series(0077 정본)는 not_signed_in 선두 가드 + is-distinct 게이트를
+      // 지녔다 — service_role(auth.uid()=NULL) 호출은 not_signed_in으로 거부된다. 그래서
+      // 호출자 JWT 바인딩 클라이언트로 부른다: RPC 안의 auth.uid()가 소유자가 되어 게이트가
+      // 제 역할을 하고, §2의 파티 게이트는 벨트로 남는다. (이전 판은 NULL 통과에 기대는
+      // 사고였다 — 0077 헤더의 호출자 독트린이 정본.)
+      const userDb = mkUserDb(req);
+      const { error } = await userDb.rpc("create_recurring_series", { p_booking: p.bookingId });
       if (error) throw new Error(error.message);
       out.recurring = "ok";
     } catch (e) {

@@ -41,8 +41,16 @@ function scene(over: { intent?: Row; booking?: Row } = {}) {
     id: BOOKING, owner_id: OWNER, status: "payment_hold", total_price: AMOUNT, ...over.booking,
   }]);
   db.seed("notifications", []);
-  db.rpcs["create_recurring_series"] = () => ({ data: "series-1" });
+  // 0077 독트린: create_recurring_series는 서비스 클라이언트에 절대 등록하지 않는다 —
+  // 코드가 잘못 서비스 db로 부르면 `no rpc` 에러가 나 테스트가 그 실수를 즉시 드러낸다.
   return db;
+}
+
+/** 0077: 호출자 JWT 바인딩 클라이언트의 페이크 — recurring RPC는 이쪽으로만 온다. */
+function userScene() {
+  const udb = new FakeDb();
+  udb.rpcs["create_recurring_series"] = () => ({ data: "series-1" });
+  return udb;
 }
 
 const doneBody = (over: Record<string, unknown> = {}) => ({
@@ -383,15 +391,20 @@ Deno.test("no OPS_PROFILE_ID → loud log instead of a notification, and no cras
 // ═══ §2-5b post-confirm — server-side and NON-FATAL ════════════════════════════════════════
 Deno.test("postConfirm — recurring + nomination both run server-side after a successful CAS", async () => {
   const db = scene();
+  const udb = userScene();
   const net = tossOk();
   try {
     const out = await confirmPayment(
       req({ order_id: ORDER, payment_key: KEY, meta: { recurring: true, preferred_runner_id: RUNNER } }, "owner_jwt"),
       db as never,
+      () => udb as never,
     ) as Row;
     assertEquals(out.ok, true);
     assertEquals(out.post, { recurring: "ok", nomination: "ok" });
-    assert(db.log.includes("rpc:create_recurring_series"));
+    // 0077 호출자 독트린: recurring RPC는 호출자 JWT 클라이언트로만 나간다 — 서비스
+    // 클라이언트 로그에 있으면 not_signed_in 게이트를 우회하려던 옛 사고의 재발이다.
+    assert(udb.log.includes("rpc:create_recurring_series"));
+    assert(!db.log.includes("rpc:create_recurring_series"), "recurring went through the SERVICE client");
     const t = net.calls.find((c) => isTransition(c.url))!;
     assertEquals(t.body.action, "request_runner");
     assertEquals(t.body.meta.runner_id, RUNNER);
@@ -405,12 +418,14 @@ Deno.test("postConfirm — recurring + nomination both run server-side after a s
 
 Deno.test("postConfirm recurring failure is NON-FATAL — the payment still succeeds, the owner is told", async () => {
   const db = scene();
-  db.rpcs["create_recurring_series"] = () => ({ error: { message: "series exploded" } });
+  const udb = userScene();
+  udb.rpcs["create_recurring_series"] = () => ({ error: { message: "series exploded" } });
   const net = tossOk();
   try {
     const out = await confirmPayment(
       req({ order_id: ORDER, payment_key: KEY, meta: { recurring: "1" } }, "owner_jwt"),
       db as never,
+      () => udb as never,
     ) as Row;
     assertEquals(out.ok, true); // <- the whole point of "non-fatal"
     assertEquals((out.post as Row).recurring, "failed");
