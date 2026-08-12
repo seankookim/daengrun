@@ -1,6 +1,13 @@
 <!-- /autoplan restore point: ~/.gstack/projects/seankookim-daengrun/redesign-v4-autoplan-restore-20260812-120105.md -->
 # Plan — the km prepay / token model
 
+> ⚠⚠ **SUPERSEDED on the owner side (2026-08-12).** The flat ₩5,000/km km-wallet below was
+> replaced by the LEVEL-TOKEN 회수권 design (`~/.gstack/projects/seankookim-daengrun/
+> sean-claude-token-payments-model-891c11-design-20260812-134138.md`), which is itself
+> **APPROVED — PARKED** behind real conversion data. **The ACTIVE money track is
+> `payments-toss-plan.md` (per-run Toss).** Do NOT build from this doc; 0075's ledger
+> doctrine/invariants still port, the pricing model does not. Decision log has the chain.
+
 Branch `redesign-v4`. Written 2026-08-11. Sean's directive list §A.
 Status: **MODEL DECIDED (Sean, 2026-08-11) → REVIEWED + LEDGER BUILT (2026-08-12).** D1=full
 cathedral, D2=best-effort buffer (Sean, in-session). 0075+113 written, CEO review report at the

@@ -1,0 +1,675 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>온보딩 랩 — 리듬 × 레벨 (Ⓠ③ 확정 · Ⓛ 레벨 칩 재설계 4방향, Sean 픽 1개)</title>
+<style>
+  /* ─────────────────────────────────────────────────────────────────────────
+     랩은 화면의 예언이므로 theme.ts의 실제 페이퍼 토큰을 그대로 쓴다.
+     (구 랩들이 --line:#ECECEF / --action:#C6472C 를 각자 적어 두었는데, 진짜
+      페이퍼 헤어라인은 #E8552F 솔리드 코랄이고 액션 면은 #C6472C다 — 두 색은
+      역할이 다르다: 선은 브랜드, 면은 동기. 이 랩은 둘을 섞지 않는다.)
+     ───────────────────────────────────────────────────────────────────────── */
+  :root{
+    --canvas:#FFFFFF; --ink:#111111; --text:#333333; --dim:#666666; --faint:#999999;
+    --line:#E8552F;          /* 풀블리드 코랄 헤어라인 — 이 선이 곧 브랜드 */
+    --wash:#FFF6F4;          /* 코랄 95% 워시 */
+    --action:#C6472C;        /* 프라이머리 면 (theme.ts 액션 시스템, 2026-08-11) */
+    --actionInk:#A83315;
+    --critical:#B3261E; --criticalWash:#FBEAE7;
+    --ready:#119B58; --readyDeep:#0E7F49;
+    --neutral:#EEEEEE;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#E4E4E8;font-family:-apple-system,'Apple SD Gothic Neo','IBM Plex Sans KR',sans-serif;color:var(--ink);padding:34px 26px 90px}
+  h1{font-size:26px;font-weight:900;margin-bottom:8px}
+  .sub{font-size:14px;color:#4A4A4A;max-width:960px;line-height:1.65;margin-bottom:10px}
+  .law{font-size:13.5px;color:#666;max-width:960px;line-height:1.6;margin-bottom:6px}
+  h2{font-size:20px;font-weight:900;margin:54px 0 4px}
+  .areaNote{font-size:13.5px;color:#555;max-width:960px;line-height:1.6;margin-bottom:18px}
+  .row{display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start}
+  .cell{width:310px}
+  .tag{display:block;font-weight:900;font-size:15px;margin-bottom:9px}
+  .why{font-size:12.5px;color:#666;line-height:1.6;margin-top:10px;width:310px}
+  .why b{color:#333}
+  .phone{width:310px;background:var(--canvas);border:1px solid #D2D2D8;box-shadow:0 12px 30px rgba(0,0,0,.10)}
+  .pad{padding:16px 15px}
+  .num{font-family:'Oswald','Arial Narrow',sans-serif;font-weight:700;font-variant-numeric:tabular-nums}
+  .coral{height:1px;background:var(--line)}            /* 풀블리드 코랄 — 마진 없음 */
+  .hair{height:1px;background:var(--neutral)}          /* 카드 내부 중립선 */
+  .kicker{font-size:11px;letter-spacing:2.4px;color:var(--faint);font-weight:800} /* 라틴 캡스 = 장식 클래스 */
+  .title{font-size:24px;line-height:1.24;font-weight:900}
+  .body{font-size:15px;line-height:1.45;color:var(--text);font-weight:600}
+  .small{font-size:14px;line-height:1.45;color:var(--dim);font-weight:600} /* 한글 14pt 플로어 */
+  .btn{display:block;text-align:center;background:var(--action);color:#fff;font-weight:900;font-size:17px;padding:15px 0}
+  .btn.off{background:#F2F2F2;color:var(--faint)}      /* disabled = 명시 fill, 불투명도 트릭 금지 */
+  .btn2{display:block;text-align:center;background:var(--wash);border:1px solid var(--line);color:var(--actionInk);font-weight:800;font-size:16px;padding:13px 0}
+  /* 선택 칩 — 잉크는 '상태'로 남는다(액션 아님): 선택된 칩이 잉크 면 */
+  .chip{border:1px solid var(--neutral);padding:13px 14px;display:block}
+  .chip.sel{border-color:var(--ink);background:var(--ink);color:#fff}
+  .chip.sel .small,.chip.sel .num{color:#DDD}
+  .chip.selL{border:1.5px solid var(--ink)}
+  .note{background:var(--wash);padding:11px 13px;font-size:14px;line-height:1.45;color:var(--text);font-weight:700}
+  .step{display:flex;gap:6px;align-items:center;font-size:14px;font-weight:800;letter-spacing:.4px}
+  .dotOn{width:22px;height:3px;background:var(--ink)}
+  .dotOff{width:22px;height:3px;background:var(--neutral)}
+  .ledger{display:flex;justify-content:space-between;align-items:baseline;padding:9px 0}
+  .cmp{border-collapse:collapse;font-size:13px;background:#fff;margin-top:16px}
+  .cmp th,.cmp td{border:1px solid #D5D5DA;padding:9px 12px;text-align:left;vertical-align:top;line-height:1.5}
+  .cmp th{background:#F7F7F9;font-size:12.5px}
+  .ban{border-left:3px solid var(--critical);background:var(--criticalWash);padding:12px 14px;font-size:13.5px;line-height:1.6;color:#5A1B16;max-width:960px;margin-top:14px}
+  /* ── 랩 크롬(앱 아님): 확정 픽 배지 ── */
+  .pick{display:inline-block;background:var(--ink);color:#fff;font-size:11px;letter-spacing:2px;font-weight:800;padding:3px 8px;vertical-align:middle;margin-left:9px}
+  .open{display:inline-block;background:#fff;border:1px solid var(--line);color:var(--actionInk);font-size:11px;letter-spacing:2px;font-weight:800;padding:2px 7px;vertical-align:middle;margin-left:9px}
+  /* ── 스펙 플레이트 — 자간 넣은 Oswald(데이터를 싣기 때문에 14pt 바닥 준수) ── */
+  .plate{font-family:'Oswald','Arial Narrow',sans-serif;font-weight:600;font-variant-numeric:tabular-nums;font-size:14px;letter-spacing:1.5px;color:var(--dim)}
+  .trace{display:block}                                 /* 잉크 트레이스 — 색 없음 */
+  .tick{width:1px;background:#AAAAB0;margin:0 auto}     /* 자 눈금(비선택) */
+  .tickOn{width:2px;background:var(--ink);margin:0 auto}/* 자 눈금(선택) */
+</style>
+</head>
+<body>
+
+<h1>온보딩 랩 — 두 질문 (리듬 × 레벨)</h1>
+<p class="sub">온보딩은 딱 <b>두 가지</b>를 묻는다. ① <b>주 며칠 뛰게 하고 싶으세요</b>(주 2/3/4+회 — 목표이고 언제든 바뀌며 <u>요금이 아니라 추천·알림 리듬</u>을 움직인다)
+② <b>우리 개 레벨</b>(가볍게 2km / 기본 3km / 제대로 5km — 첫 러닝들이 보정한다).</p>
+<p class="sub"><b>이번 판의 상태:</b> Ⓠ 방향은 <b>Ⓠ③ 대화형</b>으로 확정(Sean). 남은 결정은 <b>Ⓛ 레벨 칩 1개</b> — 이전 Ⓛ①②③은 “가격 붙은 텍스트 줄”이라 폐기했고,
+Ⓛ①~④를 새로 번호 매겨 <u>전부 Ⓠ③ 대화 화면 안에서</u> 렌더했다(칩만 따로 떼어 보면 항상 그럴듯해 보이기 때문).</p>
+<p class="law"><b>가격 표기의 진실(중요):</b> 15,900 / 18,900 / 24,900은 <u>오늘의 per-run 공식</u>에서 그대로 나온다 — <span class="num">9,900</span>원 + <span class="num">3,000</span>원/km × 목표 거리.
+회수권·토큰 모델은 <b>파킹</b>이므로 이 랩은 그 어휘를 한 글자도 쓰지 않는다. 칩의 숫자는 <b>“회당 예상 요금”</b>이다 — 지금 per-run으로 출시해도 참이고, 나중에 회수권이 켜져도 같은 액면이라 다시 안 거짓말이 된다.</p>
+<p class="law"><b>완주 정의가 바뀌었다(2026-08-12):</b> 완주 = <b>최소 거리 달성</b>, 그것 하나뿐이다. “2km <u>또는</u> 20분” 이중 임계는 <b>철회</b>됐으므로 이 랩 어디에도 시간 임계가 없다.
+시간은 <b>예상치</b>로만 등장한다 — “보통 15~20분쯤”, 언제나 추정임이 보이게. 약속이 아니고 기준도 아니다.
+권장 최소 페이스(기본 8분/km, 밴드 7~9)는 <b>환경설정</b>에 산다 — 온보딩 칩은 <u>러너가 아니라 개</u>에 대한 질문이므로 페이스가 등장하지 않는다.</p>
+
+<div class="ban"><b>이 랩이 의도적으로 안 그린 것</b> — “보호자 78%가 주 3회를 골라요” 같은 인기 배지(우린 그 수를 모른다) ·
+“초코 같은 말티즈는 보통 3km” 같은 품종 추론(데이터 없음) · 진행률 바 “3단계 중 1단계”(질문은 두 개다) ·
+레벨 칩의 별점/난이도 게이지(레벨은 난이도가 아니라 <b>개의 속성</b>이다) ·
+<b>연료·배터리·게이지 은유</b>(“초코의 에너지 잔량” 류 — 토큰 모델 어휘라 파킹, 그리고 우린 개의 체력을 모른다) ·
+시간 임계(“또는 20분”) · 페이스(8분/km) · 컬러 픽토그램 이모지.</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     Ⓠ① 한 질문 한 화면 — 질문이 화면을 통째로 갖는다
+     설계 논거: 온보딩은 결정 표면이고(밀도 ↓), Hick's law상 한 화면에 선택지 3개면
+     결정이 즉발한다. 칩이 커져서 44pt 타깃을 넘기고도 남는다(Fitts).
+     대가: 화면 3장(질문2 + 약속1) — 탭이 두 번 더 필요하다.
+     ══════════════════════════════════════════════════════════════════════════ -->
+<h2>Ⓠ① 한 질문 한 화면 — 큰 칩, 스텝 두 칸</h2>
+<p class="areaNote">질문 하나가 화면 하나를 통째로 갖는다. 스텝 인디케이터는 <b>두 칸뿐</b>(질문이 두 개니까) — “3단계 중 1단계” 같은 지어낸 여정 길이는 없다.
+정직 노트는 질문 바로 아래, 칩 위에 온다: <b>답하기 전에</b> 읽혀야 의미가 있다.</p>
+<div class="row">
+
+  <div class="cell">
+    <span class="tag">Ⓠ①-A · 질문 1 — 리듬</span>
+    <div class="phone">
+      <div class="pad" style="padding-bottom:10px">
+        <div class="step"><span class="dotOn"></span><span class="dotOff"></span><span style="margin-left:6px;color:var(--dim)">01 / 02</span></div>
+        <div class="title" style="margin-top:14px">초코, 주 며칠<br>뛰게 하고 싶으세요?</div>
+        <div class="note" style="margin-top:12px">요금과 상관없는 <b>목표</b>예요 — 추천과 알림 리듬에만 쓰고, 언제든 바꿀 수 있어요.</div>
+      </div>
+      <div class="coral"></div>
+      <div class="pad" style="display:flex;flex-direction:column;gap:9px">
+        <span class="chip"><span style="font-size:17px;font-weight:900">주 2회</span><div class="small" style="margin-top:3px">주말 중심으로</div></span>
+        <span class="chip sel"><span style="font-size:17px;font-weight:900">주 3회</span><div class="small" style="margin-top:3px">하루 걸러 하루</div></span>
+        <span class="chip"><span style="font-size:17px;font-weight:900">주 4회 이상</span><div class="small" style="margin-top:3px">거의 매일</div></span>
+      </div>
+      <div class="coral"></div>
+      <div class="pad"><span class="btn">다음</span></div>
+    </div>
+    <p class="why">칩 서브라인은 <b>사실만</b> 말한다 — “하루 걸러 하루”는 주 3회의 정의이지 남들의 선택이 아니다(인기 배지 금지).
+    선택 칩은 <b>잉크 면</b>: 액션 시스템에서 잉크는 상태(선택·완료)로 남고 코랄이 동기를 갖는다 — 그래서 화면의 코랄 면은 CTA 하나뿐이다(강조 예산 준수).</p>
+  </div>
+
+  <div class="cell">
+    <span class="tag">Ⓠ①-B · 질문 2 — 레벨</span>
+    <div class="phone">
+      <div class="pad" style="padding-bottom:10px">
+        <div class="step"><span class="dotOn"></span><span class="dotOn"></span><span style="margin-left:6px;color:var(--dim)">02 / 02</span></div>
+        <div class="title" style="margin-top:14px">초코는 얼마나<br>달릴 수 있나요?</div>
+        <div class="note" style="margin-top:12px">잘 모르겠으면 <b>가볍게</b>로 시작하세요 — 첫 러닝들이 초코의 레벨을 잡아드려요.</div>
+        <!-- 시간 임계 철회(2026-08-12): 칩 서브라인은 거리 목표 + 예상 소요시간(추정 표기) -->
+
+      </div>
+      <div class="coral"></div>
+      <div class="pad" style="display:flex;flex-direction:column;gap:9px">
+        <span class="chip selL">
+          <div style="display:flex;align-items:baseline;justify-content:space-between">
+            <span style="font-size:17px;font-weight:900">가볍게</span>
+            <span class="small" style="color:var(--text)">회당 예상 <span class="num" style="font-size:17px;color:var(--ink)">15,900</span>원</span>
+          </div>
+          <div class="small" style="margin-top:4px"><span class="num" style="color:var(--text);font-size:15px">2</span>km 목표 · 보통 <span class="num" style="color:var(--text);font-size:15px">15~20</span>분쯤</div>
+        </span>
+        <span class="chip">
+          <div style="display:flex;align-items:baseline;justify-content:space-between">
+            <span style="font-size:17px;font-weight:900">기본</span>
+            <span class="small" style="color:var(--text)">회당 예상 <span class="num" style="font-size:17px;color:var(--ink)">18,900</span>원</span>
+          </div>
+          <div class="small" style="margin-top:4px"><span class="num" style="color:var(--text);font-size:15px">3</span>km 목표 · 보통 <span class="num" style="color:var(--text);font-size:15px">20~30</span>분쯤</div>
+        </span>
+        <span class="chip">
+          <div style="display:flex;align-items:baseline;justify-content:space-between">
+            <span style="font-size:17px;font-weight:900">제대로</span>
+            <span class="small" style="color:var(--text)">회당 예상 <span class="num" style="font-size:17px;color:var(--ink)">24,900</span>원</span>
+          </div>
+          <div class="small" style="margin-top:4px"><span class="num" style="color:var(--text);font-size:15px">5</span>km 목표 · 보통 <span class="num" style="color:var(--text);font-size:15px">35~45</span>분쯤</div>
+        </span>
+        <div class="small" style="margin-top:2px">기본요금 <span class="num" style="color:var(--dim)">9,900</span>원 + 거리요금 <span class="num" style="color:var(--dim)">3,000</span>원/km · 프리미엄 옵션은 별도예요</div>
+      </div>
+      <div class="coral"></div>
+      <div class="pad"><span class="btn">다음</span></div>
+    </div>
+    <p class="why">가격이 칩 안에 있는 이유: 레벨은 개의 속성이지만 <b>값이 따라온다</b> — 나중에 결제 화면에서 처음 알게 되는 쪽이 훨씬 나쁜 거짓말이다.
+    공식 한 줄(9,900 + 3,000/km)을 칩 아래 적어 숫자의 출처를 밝힌다. 선택 표시는 여기선 <b>보더 1.5px</b>: 세 칩 모두 숫자를 싣고 있어 잉크 면으로 덮으면 가격이 회색으로 죽는다.</p>
+  </div>
+
+  <div class="cell">
+    <span class="tag">Ⓠ①-C · 약속 카드 (두 답의 결과)</span>
+    <div class="phone">
+      <div class="pad">
+        <div class="kicker">초코의 러닝</div>
+        <div class="title" style="margin-top:10px">한 번에 <span class="num" style="font-size:30px">2</span>km</div>
+        <div class="body" style="margin-top:8px"><b>2km를 채우면 완주</b>예요 — 시간 제한은 없어요.</div>
+        <div class="small" style="margin-top:6px">보통 <span class="num" style="color:var(--text);font-size:15px">15~20</span>분쯤 걸려요(예상). 초코가 그날 천천히 가서 더 걸려도 2km를 채웠으면 완주예요.</div>
+      </div>
+      <div class="coral"></div>
+      <div class="pad">
+        <div class="ledger"><span class="body">목표 리듬</span><span class="body" style="font-weight:800">주 <span class="num" style="font-size:17px">3</span>회</span></div>
+        <div class="hair"></div>
+        <div class="ledger"><span class="body">레벨</span><span class="body" style="font-weight:800">가볍게</span></div>
+        <div class="hair"></div>
+        <div class="ledger"><span class="body">회당 예상 요금</span><span><span class="num" style="font-size:21px">15,900</span><span class="small" style="color:var(--text)">원</span></span></div>
+      </div>
+      <div class="coral"></div>
+      <div class="pad">
+        <div class="small" style="margin-bottom:12px">둘 다 나중에 바꿀 수 있어요 — 마이 › 초코 프로필</div>
+        <span class="btn">첫 러닝 예약하기</span>
+        <span class="btn2" style="margin-top:10px">나중에 할게요</span>
+      </div>
+    </div>
+    <p class="why">약속 카드는 온보딩의 <b>피크 모먼트</b>(Peak-End) — 여기서만 완주 정의를 문장으로 완전히 편다.
+    “시간 제한은 없어요”는 나중에 실제로 벌어질 일을 <b>미리</b> 말해 두는 문장이다: 그날 러닝이 28분 걸렸을 때 이 문장이 없으면 사용자가 초과 요금을 의심한다.
+    예상 시간은 <u>따로 한 줄</u>로 내려 “(예상)”을 달았다 — 같은 줄에 붙이면 임계처럼 읽힌다(철회된 규칙의 잔상).
+    원장 3줄은 결제 화면의 청구표와 같은 문법(헤어라인 구분·우측 Oswald) — 온보딩과 결제가 같은 앱처럼 보인다.</p>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     Ⓠ② 한 화면 스택 — 두 질문이 한 스크롤에
+     설계 논거: 온보딩 이탈은 화면 수에 비례한다. 두 질문 총 6개 선택지는
+     Miller 한도(5~9) 안이라 한 화면에 세워도 인지 과부하가 아니다.
+     대가: 정직 노트 2개가 같은 화면에 서면서 톤이 수다스러워진다 — 그래서 노트를
+     칩 옆 한 줄로 압축했고, 대신 하단 약속 스트립이 실시간으로 바뀐다.
+     ══════════════════════════════════════════════════════════════════════════ -->
+<h2>Ⓠ② 한 화면 스택 — 두 질문, 스크롤 하나, CTA 하나</h2>
+<p class="areaNote">두 질문을 한 화면에 쌓고, 하단에 <b>약속 스트립</b>이 고정돼 답에 따라 즉시 바뀐다(“주 3회 · 한 번에 2km · 회당 예상 15,900원”).
+답을 고르는 즉시 결과가 보이므로 별도 확인 화면이 필요 없다 — 화면 3장이 1장이 된다.</p>
+<div class="row">
+  <div class="cell">
+    <span class="tag">Ⓠ②-A · 스택 (미완 상태 — CTA 정직하게 꺼짐)</span>
+    <div class="phone">
+      <div class="pad">
+        <div class="kicker">STEP · 마지막</div>
+        <div class="title" style="margin-top:9px">초코에 대해<br>두 가지만 알려주세요</div>
+      </div>
+      <div class="coral"></div>
+      <div class="pad">
+        <div style="display:flex;justify-content:space-between;align-items:baseline">
+          <span style="font-size:17px;font-weight:900">주 며칠 뛸까요</span>
+          <span class="small">요금과 무관 · 언제든 변경</span>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <span class="chip" style="flex:1;text-align:center;padding:12px 4px"><span style="font-size:16px;font-weight:900">주 2회</span></span>
+          <span class="chip sel" style="flex:1;text-align:center;padding:12px 4px"><span style="font-size:16px;font-weight:900">주 3회</span></span>
+          <span class="chip" style="flex:1;text-align:center;padding:12px 4px"><span style="font-size:16px;font-weight:900">주 4회+</span></span>
+        </div>
+      </div>
+      <div class="coral"></div>
+      <div class="pad">
+        <div style="display:flex;justify-content:space-between;align-items:baseline">
+          <span style="font-size:17px;font-weight:900">얼마나 달릴까요</span>
+          <span class="small">첫 러닝들이 보정해요</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">
+          <span class="chip" style="display:flex;justify-content:space-between;align-items:baseline">
+            <span><span style="font-size:16px;font-weight:900">가볍게</span> <span class="small" style="color:var(--text)">2km · 보통 15~20분쯤</span></span>
+            <span class="num" style="font-size:16px">15,900</span></span>
+          <span class="chip" style="display:flex;justify-content:space-between;align-items:baseline">
+            <span><span style="font-size:16px;font-weight:900">기본</span> <span class="small" style="color:var(--text)">3km · 보통 20~30분쯤</span></span>
+            <span class="num" style="font-size:16px">18,900</span></span>
+          <span class="chip" style="display:flex;justify-content:space-between;align-items:baseline">
+            <span><span style="font-size:16px;font-weight:900">제대로</span> <span class="small" style="color:var(--text)">5km · 보통 35~45분쯤</span></span>
+            <span class="num" style="font-size:16px">24,900</span></span>
+        </div>
+        <div class="small" style="margin-top:9px">잘 모르겠으면 <b style="color:var(--text)">가볍게</b>로 시작하세요 — 잘 뛰면 다음 러닝부터 올려드려요.</div>
+      </div>
+      <div class="coral"></div>
+      <div class="pad">
+        <div class="small" style="margin-bottom:11px">레벨을 고르면 약속이 여기 적혀요</div>
+        <span class="btn off">레벨을 골라주세요</span>
+      </div>
+    </div>
+    <p class="why"><b>죽은 버튼 금지법의 정직한 형태</b>: 비활성 CTA가 회색으로 앉아 침묵하는 대신 <u>무엇이 없어서 못 가는지</u>를 라벨로 말한다(disabledFill #F2F2F2 명시 fill, 불투명도 트릭 없음).
+    약속 자리는 비어 있되 <b>자리 자체는 예약</b>돼 있다 — 답하면 무엇이 채워지는지 보인다.</p>
+  </div>
+
+  <div class="cell">
+    <span class="tag">Ⓠ②-B · 스택 (완성 상태 — 약속 스트립 점등)</span>
+    <div class="phone">
+      <div class="pad">
+        <div class="kicker">STEP · 마지막</div>
+        <div class="title" style="margin-top:9px">초코에 대해<br>두 가지만 알려주세요</div>
+      </div>
+      <div class="coral"></div>
+      <div class="pad">
+        <div style="display:flex;justify-content:space-between;align-items:baseline">
+          <span style="font-size:17px;font-weight:900">주 며칠 뛸까요</span>
+          <span class="small">요금과 무관 · 언제든 변경</span>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <span class="chip" style="flex:1;text-align:center;padding:12px 4px"><span style="font-size:16px;font-weight:900">주 2회</span></span>
+          <span class="chip sel" style="flex:1;text-align:center;padding:12px 4px"><span style="font-size:16px;font-weight:900">주 3회</span></span>
+          <span class="chip" style="flex:1;text-align:center;padding:12px 4px"><span style="font-size:16px;font-weight:900">주 4회+</span></span>
+        </div>
+      </div>
+      <div class="coral"></div>
+      <div class="pad">
+        <div style="display:flex;justify-content:space-between;align-items:baseline">
+          <span style="font-size:17px;font-weight:900">얼마나 달릴까요</span>
+          <span class="small">첫 러닝들이 보정해요</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">
+          <span class="chip selL" style="display:flex;justify-content:space-between;align-items:baseline">
+            <span><span style="font-size:16px;font-weight:900">가볍게</span> <span class="small" style="color:var(--text)">2km · 보통 15~20분쯤</span></span>
+            <span class="num" style="font-size:16px">15,900</span></span>
+          <span class="chip" style="display:flex;justify-content:space-between;align-items:baseline">
+            <span><span style="font-size:16px;font-weight:900">기본</span> <span class="small" style="color:var(--text)">3km · 보통 20~30분쯤</span></span>
+            <span class="num" style="font-size:16px">18,900</span></span>
+          <span class="chip" style="display:flex;justify-content:space-between;align-items:baseline">
+            <span><span style="font-size:16px;font-weight:900">제대로</span> <span class="small" style="color:var(--text)">5km · 보통 35~45분쯤</span></span>
+            <span class="num" style="font-size:16px">24,900</span></span>
+        </div>
+        <div class="small" style="margin-top:9px">기본 <span class="num" style="color:var(--dim)">9,900</span>원 + <span class="num" style="color:var(--dim)">3,000</span>원/km</div>
+      </div>
+      <div class="coral"></div>
+      <div class="pad" style="background:var(--wash)">
+        <div style="font-size:16px;font-weight:900">주 <span class="num" style="font-size:19px">3</span>회 · 한 번에 <span class="num" style="font-size:19px">2</span>km</div>
+        <div class="small" style="color:var(--text);margin-top:3px"><b>2km를 채우면 완주</b> · 보통 15~20분쯤 (예상)</div>
+      </div>
+      <div class="pad" style="padding-top:12px"><span class="btn">첫 러닝 예약하기</span></div>
+    </div>
+    <p class="why">약속 스트립이 <b>워시 면</b>(코랄 95% 화이트)이라 코랄 면 CTA와 위계가 겹치지 않는다 — 강조는 여전히 하나다.
+    <b>대가:</b> 스크롤이 길어 약속 스트립이 접힘 아래로 갈 수 있다. 실장 시 스트립은 하단 고정(스티키)이어야 이 안이 성립한다 — 안 그러면 Ⓠ①의 약속 카드보다 약해진다.</p>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     Ⓠ③ 대화형 — 답이 문장이 되어 쌓인다
+     설계 논거: 개 이름이 문장 안에 들어가면 온보딩이 '설정'이 아니라 '소개'가 된다.
+     답한 질문은 접혀서 ✓ 한 줄로 남는다 — 진행감이 스텝 인디케이터 없이 생긴다.
+     리스크: 채팅 UI는 이 앱의 문법이 아니다(말풍선·아바타 없음). 그래서 말풍선을
+     쓰지 않고 '편지지' 처럼 좌측 정렬 문장 + 헤어라인으로만 만든다.
+     ══════════════════════════════════════════════════════════════════════════ -->
+<h2>Ⓠ③ 대화형 — 답이 쌓여 문장이 된다 (말풍선 없는 대화)<span class="pick">SEAN 확정</span></h2>
+<p class="areaNote">질문이 문장으로 오고, 답하면 그 줄이 <b>✓ 확정 문장</b>으로 접히며 다음 질문이 내려온다. 말풍선·아바타·이모지는 쓰지 않는다 — 이 앱은 종이지 메신저가 아니다.
+<b>이 방향이 확정</b>이므로 아래 Ⓠ③-B의 레벨 칩 자리가 곧 Ⓛ 결정의 무대다 — Ⓛ①~④는 전부 이 화면의 같은 자리에 끼워 그렸다.</p>
+<div class="row">
+  <div class="cell">
+    <span class="tag">Ⓠ③-A · 첫 질문</span>
+    <div class="phone">
+      <div class="pad" style="padding-top:22px">
+        <div class="kicker">초코의 프로필</div>
+        <div class="title" style="margin-top:12px">초코는 일주일에<br>며칠 뛰면 좋을까요?</div>
+        <div class="small" style="margin-top:9px">요금이 아니라 <b style="color:var(--text)">추천과 알림</b>에만 쓰는 목표예요. 언제든 바꿔도 돼요.</div>
+      </div>
+      <div class="coral" style="margin-top:16px"></div>
+      <div class="pad" style="display:flex;flex-direction:column;gap:9px">
+        <span class="chip" style="text-align:left"><span style="font-size:16px;font-weight:900">주 2회 — 주말 중심으로</span></span>
+        <span class="chip" style="text-align:left"><span style="font-size:16px;font-weight:900">주 3회 — 하루 걸러 하루</span></span>
+        <span class="chip" style="text-align:left"><span style="font-size:16px;font-weight:900">주 4회 이상 — 거의 매일</span></span>
+      </div>
+    </div>
+    <p class="why">CTA가 <b>없다</b> — 칩이 곧 커밋이라 “다음” 버튼이 죽은 중복이 된다(탭 1회 절약, 화면당 코랄 면 0개).
+    되돌리기는 접힌 ✓ 줄을 탭.</p>
+  </div>
+
+  <div class="cell">
+    <span class="tag">Ⓠ③-B · 두 번째 질문 (첫 답은 접힘) — <span style="color:var(--critical)">칩은 구버전 = 기준선</span></span>
+    <div class="phone">
+      <div class="pad" style="padding-top:18px;padding-bottom:12px">
+        <div style="display:flex;justify-content:space-between;align-items:baseline">
+          <span class="body" style="font-weight:800">✓ 주 <span class="num" style="font-size:16px">3</span>회 목표</span>
+          <span class="small" style="color:var(--actionInk);font-weight:800">수정</span>
+        </div>
+      </div>
+      <div class="hair"></div>
+      <div class="pad">
+        <div class="title" style="margin-top:6px">초코는 한 번에<br>얼마나 달릴 수 있나요?</div>
+        <div class="small" style="margin-top:9px">잘 모르겠으면 <b style="color:var(--text)">가볍게</b>요. 첫 러닝 두세 번이면 초코의 레벨이 데이터로 잡혀요.</div>
+      </div>
+      <div class="coral"></div>
+      <div class="pad" style="display:flex;flex-direction:column;gap:9px">
+        <span class="chip" style="display:flex;justify-content:space-between;align-items:baseline">
+          <span><span style="font-size:16px;font-weight:900">가볍게</span><div class="small" style="margin-top:2px">2km 목표 · 보통 15~20분쯤</div></span>
+          <span><span class="num" style="font-size:17px">15,900</span><span class="small" style="color:var(--text)">원</span></span></span>
+        <span class="chip" style="display:flex;justify-content:space-between;align-items:baseline">
+          <span><span style="font-size:16px;font-weight:900">기본</span><div class="small" style="margin-top:2px">3km 목표 · 보통 20~30분쯤</div></span>
+          <span><span class="num" style="font-size:17px">18,900</span><span class="small" style="color:var(--text)">원</span></span></span>
+        <span class="chip" style="display:flex;justify-content:space-between;align-items:baseline">
+          <span><span style="font-size:16px;font-weight:900">제대로</span><div class="small" style="margin-top:2px">5km 목표 · 보통 35~45분쯤</div></span>
+          <span><span class="num" style="font-size:17px">24,900</span><span class="small" style="color:var(--text)">원</span></span></span>
+        <div class="small">회당 예상 요금 · 기본 <span class="num" style="color:var(--dim)">9,900</span>원 + <span class="num" style="color:var(--dim)">3,000</span>원/km</div>
+      </div>
+    </div>
+    <p class="why">접힌 답이 화면 맨 위에 <b>✓ 한 줄</b>로 남아 진행률 바를 대체한다 — 지어낸 단계 수 없이 “하나 끝, 하나 남음”이 보인다.
+    “수정”은 링크 잉크(actionInk), 면이 아니다.
+    <b style="color:var(--critical)">단, 이 칩 세 개가 Sean이 “심심하다”고 한 바로 그것</b> — 이름·거리·가격이 한 줄씩 반복되는 표(表)다. 아래 Ⓛ①~④는 이 자리를 통째로 교체한다.</p>
+  </div>
+
+  <div class="cell">
+    <span class="tag">Ⓠ③-C · 마무리 — 소개장</span>
+    <div class="phone">
+      <div class="pad" style="padding-top:20px">
+        <div class="kicker">초코 · 프로필 완성</div>
+        <div class="title" style="margin-top:11px">초코는 주 <span class="num" style="font-size:28px">3</span>회,<br>한 번에 <span class="num" style="font-size:28px">2</span>km씩 달려요</div>
+        <div class="body" style="margin-top:10px"><b>2km를 채우면 완주</b>예요 — 시간 제한은 없어요.</div>
+        <div class="small" style="margin-top:6px">보통 <span class="num" style="color:var(--text);font-size:15px">15~20</span>분쯤 걸려요 (예상)</div>
+      </div>
+      <div class="coral"></div>
+      <div class="pad">
+        <div class="ledger"><span class="body">회당 예상 요금</span><span><span class="num" style="font-size:21px">15,900</span><span class="small" style="color:var(--text)">원</span></span></div>
+        <div class="small">기본 9,900원 + 거리 3,000원/km · 프리미엄 옵션 별도</div>
+      </div>
+      <div class="coral"></div>
+      <div class="pad">
+        <span class="btn">첫 러닝 예약하기</span>
+        <div class="small" style="margin-top:11px;text-align:center">레벨과 리듬은 마이 › 초코에서 언제든 바꿔요</div>
+      </div>
+    </div>
+    <p class="why">두 답이 <b>한 문장</b>으로 합쳐진다 — 설정값 나열이 아니라 개의 소개다. Black Han Sans는 이 문장 한 번만(화면당 1회 예산).
+    <b>대가:</b> 문장형이라 다견 가구·이름 긴 개에서 줄바꿈이 흔들린다 — 실장 시 2줄 고정 높이 필요.</p>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     Ⓛ 레벨 칩 재설계 (2026-08-12) — 구 Ⓛ①②③ 폐기, 번호 새로 매김
+     폐기 사유(Sean): "심심하다 / 더 창의적일 수 있다". 구안 셋은 전부
+     [이름][거리·시간][가격]을 순서만 바꿔 배치한 텍스트 행이었다 — 순서 논쟁이지
+     디자인이 아니었다. 그리고 그 셋은 철회된 이중 임계 위에 서 있었다.
+     새 넷은 전부 Ⓠ③-B(확정 방향)의 실제 화면 안에서, 같은 자리에 그렸다.
+     ══════════════════════════════════════════════════════════════════════════ -->
+<h2>Ⓛ 레벨 칩 — 새 4방향 (Ⓠ③ 대화 안에서 렌더)<span class="open">결정 필요</span></h2>
+<p class="areaNote">구 Ⓛ①②③은 폐기했다(텍스트 행의 순서 바꾸기였고, 철회된 “또는 20분” 위에 서 있었다). 새 넷은 각각 <b>다른 종류의 창의성</b>을 건다 —
+<b>Ⓛ①</b> 그림(잉크 트레이스) · <b>Ⓛ②</b> 조판(타이포 전압) · <b>Ⓛ③</b> 카피(산책의 반대말 · 우리 {강아지 이름} 치환 (Sean 확정: 문장의 "개"는 등록된 개 이름으로 — "우리 초코"는 샘플)) · <b>Ⓛ④</b> 계기(하나의 자).
+넷 모두 같은 사실만 싣는다: 거리 목표 · 회당 예상 요금 · 소요 시간은 <u>추정</u>. 그리고 넷 다 <b>여백</b>을 설계 재료로 쓴다(페이 랩 “너무 빽빽하다” 교정).</p>
+<div class="row">
+
+  <!-- ─────────────── Ⓛ① 잉크 트레이스 ─────────────── -->
+  <div class="cell">
+    <span class="tag">Ⓛ① 잉크 트레이스 — 거리를 그린다</span>
+    <div class="phone">
+      <div class="pad" style="padding-top:18px;padding-bottom:12px">
+        <div style="display:flex;justify-content:space-between;align-items:baseline">
+          <span class="body" style="font-weight:800">✓ 주 <span class="num" style="font-size:16px">3</span>회 목표</span>
+          <span class="small" style="color:var(--actionInk);font-weight:800">수정</span>
+        </div>
+      </div>
+      <div class="hair"></div>
+      <div class="pad">
+        <div class="title" style="margin-top:6px">초코는 한 번에<br>얼마나 달릴 수 있나요?</div>
+        <div class="small" style="margin-top:9px">잘 모르겠으면 <b style="color:var(--text)">가볍게</b>로 시작하세요 — 첫 러닝들이 초코의 레벨을 잡아드려요.</div>
+      </div>
+      <div class="coral"></div>
+      <div class="pad" style="display:flex;flex-direction:column;gap:12px;padding-top:20px;padding-bottom:22px">
+
+        <span class="chip selL" style="padding:14px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline">
+            <span style="font-size:17px;font-weight:800">가볍게</span>
+            <span class="small" style="color:var(--text)">회당 예상 <span class="num" style="font-size:17px;color:var(--ink)">15,900</span>원</span>
+          </div>
+          <div style="display:flex;align-items:flex-end;gap:8px;margin-top:10px">
+            <svg class="trace" width="68" height="22" viewBox="0 0 68 22" aria-hidden="true">
+              <polyline points="1,18 9,16.4 17,18 25,16.2 33,18 41,16.6 49,17.8 57,16.4 65,17.8 67,18"
+                        fill="none" stroke="#111111" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span class="num" style="font-size:17px;line-height:1.2;color:var(--ink)">2.0<span style="font-size:14px">km</span></span>
+          </div>
+          <div class="small" style="margin-top:10px"><b style="color:var(--text)">2km를 채우면 완주</b> · 보통 <span class="num" style="color:var(--text);font-size:15px">15~20</span>분쯤 (예상)</div>
+        </span>
+
+        <span class="chip" style="padding:14px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline">
+            <span style="font-size:17px;font-weight:800">기본</span>
+            <span class="small" style="color:var(--text)">회당 예상 <span class="num" style="font-size:17px;color:var(--ink)">18,900</span>원</span>
+          </div>
+          <div style="display:flex;align-items:flex-end;gap:8px;margin-top:10px">
+            <svg class="trace" width="102" height="22" viewBox="0 0 102 22" aria-hidden="true">
+              <polyline points="1,18 10,16.2 19,17.2 29,12 38,14 48,8 57,10.6 67,6.6 76,11.4 86,10.6 95,15 101,18"
+                        fill="none" stroke="#111111" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span class="num" style="font-size:17px;line-height:1.2;color:var(--ink)">3.0<span style="font-size:14px">km</span></span>
+          </div>
+        </span>
+
+        <span class="chip" style="padding:14px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline">
+            <span style="font-size:17px;font-weight:800">제대로</span>
+            <span class="small" style="color:var(--text)">회당 예상 <span class="num" style="font-size:17px;color:var(--ink)">24,900</span>원</span>
+          </div>
+          <div style="margin-top:10px">
+            <svg class="trace" width="248" height="28" viewBox="0 0 248 28" aria-hidden="true">
+              <polyline points="1,24 12,21.5 22,22.8 34,17.8 44,20.3 56,14.1 66,16.6 78,10.4 88,13.5 100,6.7 112,9.8 124,3 136,7.9 148,5.5 158,11.6 170,9.2 182,15.4 192,12.9 204,17.8 214,16 226,20.3 236,19.1 247,24"
+                        fill="none" stroke="#111111" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <div style="text-align:right;margin-top:2px"><span class="num" style="font-size:17px;line-height:1.2;color:var(--ink)">5.0<span style="font-size:14px">km</span></span></div>
+          </div>
+        </span>
+
+        <div class="small" style="margin-top:2px">회당 예상 요금 · 기본 <span class="num" style="color:var(--dim)">9,900</span>원 + <span class="num" style="color:var(--dim)">3,000</span>원/km</div>
+      </div>
+    </div>
+    <p class="why"><b>창의 지점:</b> 레벨을 글자가 아니라 <b>선의 길이와 거칢</b>으로 말한다 — 2km는 잔물결, 3km는 언덕 하나, 5km는 정상까지 올랐다 내려오는 능선. 선 길이가 거리에 비례하므로 그림이 곧 축척이다(장식이 아님).
+    5km만 선이 칩 폭을 다 먹고 줄바꿈해 <u>레이아웃 자체가 “길다”를 연기</u>한다.
+    <b>구속하는 법:</b> §7b 모노크롬 — 잉크 1.4px 스트로크, 화면의 유일한 색은 코랄 레일. §7 정직 — 이 선은 <u>레벨의 문장(紋章)</u>이지 초코의 데이터가 아니다(세 선은 모든 개에게 똑같이 그려진다).
+    §8 강조 예산 — 타입 점프는 km 숫자 하나뿐.
+    <b>대가/리스크:</b> 기록 카드의 <b>진짜</b> 페이스 그래프와 시각 문법이 겹친다 — 온보딩에서 “선=데이터”로 학습되면 나중에 진짜 그래프가 묽어진다. 실장 시 눈금·축·점을 절대 붙이지 말 것(붙는 순간 거짓 데이터).</p>
+  </div>
+
+  <!-- ─────────────── Ⓛ② 타이포 전압 ─────────────── -->
+  <div class="cell">
+    <span class="tag">Ⓛ② 타이포 전압 — 이름이 에너지다</span>
+    <div class="phone">
+      <div class="pad" style="padding-top:18px;padding-bottom:12px">
+        <div style="display:flex;justify-content:space-between;align-items:baseline">
+          <span class="body" style="font-weight:800">✓ 주 <span class="num" style="font-size:16px">3</span>회 목표</span>
+          <span class="small" style="color:var(--actionInk);font-weight:800">수정</span>
+        </div>
+      </div>
+      <div class="hair"></div>
+      <div class="pad">
+        <div class="title" style="margin-top:6px">초코는 한 번에<br>얼마나 달릴 수 있나요?</div>
+        <div class="small" style="margin-top:9px">잘 모르겠으면 <b style="color:var(--text)">가볍게</b>로 시작하세요 — 첫 러닝들이 초코의 레벨을 잡아드려요.</div>
+      </div>
+      <div class="coral"></div>
+      <div class="pad" style="display:flex;flex-direction:column;gap:12px;padding-top:22px;padding-bottom:24px">
+
+        <span class="chip selL" style="padding:15px 14px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline">
+            <span style="font-size:18px;font-weight:700;letter-spacing:2.2px">가볍게</span>
+            <span class="plate">2.0KM · ₩15,900</span>
+          </div>
+          <div class="small" style="margin-top:9px"><b style="color:var(--text)">2km를 채우면 완주</b> · 보통 15~20분쯤 (예상)</div>
+        </span>
+
+        <span class="chip" style="padding:15px 14px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline">
+            <span style="font-size:21px;font-weight:800;letter-spacing:0px">기본</span>
+            <span class="plate">3.0KM · ₩18,900</span>
+          </div>
+        </span>
+
+        <span class="chip" style="padding:15px 14px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline">
+            <span style="font-size:25px;font-weight:800;letter-spacing:-1.2px">제대로</span>
+            <span class="plate">5.0KM · ₩24,900</span>
+          </div>
+        </span>
+
+        <div class="small" style="margin-top:2px">회당 예상 요금 · 기본 <span class="num" style="color:var(--dim)">9,900</span>원 + <span class="num" style="color:var(--dim)">3,000</span>원/km</div>
+      </div>
+    </div>
+    <p class="why"><b>창의 지점:</b> 그림을 한 개도 안 그리고 <b>조판만으로</b> 에너지를 만든다 — 가볍게는 넓게 풀고(트래킹 +2.2), 제대로는 조여서(−1.2) 압축한다.
+    18 → 21 → 25pt로 <u>글자가 커지는 게 곧 개가 커지는 것</u>. 오른쪽은 부품 카탈로그 같은 <b>스펙 플레이트</b>(자간 Oswald) — 감정은 왼쪽, 사실은 오른쪽으로 완전히 분리된다.
+    <b>구속하는 법:</b> §3 무게법 — 900은 숫자와 화면 제목 전용이라 ‘제대로’를 900으로 못 올린다(그게 첫 본능이었다). 그래서 전압을 <u>크기·자간</u>이 진다.
+    §3 14pt 바닥 — 플레이트는 <b>데이터를 실으므로</b> 11pt 라틴 키커가 될 수 없다(14pt·#666 고정, 자간만 키커 문법).
+    <b>대가:</b> ₩ 기호는 앱의 ‘원’ 표기와 다른 레지스터다 — 이 플레이트 안에서만 허용할지 <b>Sean 결정 필요</b>(‘원’으로 내리면 플레이트의 기계 느낌이 절반 죽는다).
+    그리고 ‘제대로’가 시각적으로 가장 세서 <u>추천 기본값(가볍게)과 시선이 반대로 간다</u> — 보정 노트가 그걸 이길 만큼 세야 한다.</p>
+  </div>
+
+  <!-- ─────────────── Ⓛ③ 산책의 반대말 ─────────────── -->
+  <div class="cell">
+    <span class="tag">Ⓛ③ 산책의 반대말 — 개를 묘사한다</span>
+    <div class="phone">
+      <div class="pad" style="padding-top:18px;padding-bottom:12px">
+        <div style="display:flex;justify-content:space-between;align-items:baseline">
+          <span class="body" style="font-weight:800">✓ 주 <span class="num" style="font-size:16px">3</span>회 목표</span>
+          <span class="small" style="color:var(--actionInk);font-weight:800">수정</span>
+        </div>
+      </div>
+      <div class="hair"></div>
+      <div class="pad">
+        <div class="title" style="margin-top:6px">산책 말고,<br>초코는 어디까지 가요?</div>
+        <div class="small" style="margin-top:9px">산책은 이미 하고 계시죠. 잘 모르겠으면 <b style="color:var(--text)">가볍게</b>로 시작하세요 — 첫 러닝들이 초코의 레벨을 잡아드려요.</div>
+      </div>
+      <div class="coral"></div>
+      <div class="pad" style="display:flex;flex-direction:column;gap:12px;padding-top:20px;padding-bottom:22px">
+
+        <span class="chip selL" style="padding:14px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline">
+            <span style="font-size:14px;font-weight:800;letter-spacing:2.4px;color:var(--dim)">가볍게</span>
+            <span class="small" style="color:var(--text)"><span class="num" style="font-size:16px;color:var(--ink)">2.0</span>km · <span class="num" style="font-size:16px;color:var(--ink)">15,900</span>원</span>
+          </div>
+          <div style="font-size:17px;font-weight:700;line-height:1.42;margin-top:8px;color:var(--ink)">산책으론 조금 아쉬운 우리 초코</div>
+          <div class="small" style="margin-top:8px"><b style="color:var(--text)">2km를 채우면 완주</b> · 보통 15~20분쯤 (예상)</div>
+        </span>
+
+        <span class="chip" style="padding:14px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline">
+            <span style="font-size:14px;font-weight:800;letter-spacing:2.4px;color:var(--dim)">기본</span>
+            <span class="small" style="color:var(--text)"><span class="num" style="font-size:16px;color:var(--ink)">3.0</span>km · <span class="num" style="font-size:16px;color:var(--ink)">18,900</span>원</span>
+          </div>
+          <div style="font-size:17px;font-weight:700;line-height:1.42;margin-top:8px;color:var(--ink)">산책이 끝나도 계속 앞서 나가는 우리 초코</div>
+        </span>
+
+        <span class="chip" style="padding:14px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline">
+            <span style="font-size:14px;font-weight:800;letter-spacing:2.4px;color:var(--dim)">제대로</span>
+            <span class="small" style="color:var(--text)"><span class="num" style="font-size:16px;color:var(--ink)">5.0</span>km · <span class="num" style="font-size:16px;color:var(--ink)">24,900</span>원</span>
+          </div>
+          <div style="font-size:17px;font-weight:700;line-height:1.42;margin-top:8px;color:var(--ink)">동네 한 바퀴로는 어림도 없는 우리 초코</div>
+        </span>
+
+        <div class="small" style="margin-top:2px">회당 예상 요금 · 기본 <span class="num" style="color:var(--dim)">9,900</span>원 + <span class="num" style="color:var(--dim)">3,000</span>원/km</div>
+      </div>
+    </div>
+    <p class="why"><b>창의 지점:</b> 칩이 <b>상품이 아니라 개</b>를 묘사한다. 보호자는 “우리 개가 몇 km를 뛰는지”를 모른다 — 그건 우리가 물어선 안 되는 질문이다.
+    대신 <u>알아볼 수 있는 문장</u>을 준다: 자기 개를 알아보는 순간 답이 나온다. 동시에 “산책 ≠ 러닝”이라는 <b>제품의 정의</b>가 선택지 안에 박힌다(우리가 파는 게 무엇인지 카피가 대신 설명).
+    질문 제목까지 “산책 말고”로 바꿔 대화 자체가 포지셔닝을 한다.
+    <b>구속하는 법:</b> §7 정직 — 이건 시스템의 추론이 아니라 <u>보호자의 자기 선택 문장</u>이다(품종·나이 추론 금지 유지, 지어낸 인기·백분위 없음).
+    §3 무게법 — 문장은 17/700, 900은 숫자 몫. 그리고 가장 낮은 레벨의 문장도 <b>산책보다 위</b>에 두어야 보정 노트(“가볍게로 시작”)가 열등 선택으로 읽히지 않는다.
+    <b>대가:</b> 레벨 이름이 14pt 마이크로 라벨로 내려가 레벨업 세리머니(“이제 기본이에요”)와의 연결이 약해진다. 카피 3줄은 번역·다견 가구에서 톤이 흔들릴 수 있다.</p>
+  </div>
+
+  <!-- ─────────────── Ⓛ④ 하나의 자 ─────────────── -->
+  <div class="cell">
+    <span class="tag">Ⓛ④ 자(尺) — 칩을 없애고 계기 하나</span>
+    <div class="phone">
+      <div class="pad" style="padding-top:18px;padding-bottom:12px">
+        <div style="display:flex;justify-content:space-between;align-items:baseline">
+          <span class="body" style="font-weight:800">✓ 주 <span class="num" style="font-size:16px">3</span>회 목표</span>
+          <span class="small" style="color:var(--actionInk);font-weight:800">수정</span>
+        </div>
+      </div>
+      <div class="hair"></div>
+      <div class="pad">
+        <div class="title" style="margin-top:6px">초코는 한 번에<br>얼마나 달릴 수 있나요?</div>
+        <div class="small" style="margin-top:9px">잘 모르겠으면 <b style="color:var(--text)">가볍게</b>로 시작하세요 — 첫 러닝들이 초코의 레벨을 잡아드려요.</div>
+      </div>
+      <div class="coral"></div>
+
+      <div class="pad" style="padding-top:30px;padding-bottom:0">
+        <div style="display:flex;align-items:flex-end">
+          <div style="flex:1;text-align:center">
+            <div><span class="num" style="font-size:34px;line-height:1.2;color:var(--ink)">2.0</span><span style="font-size:14px;font-weight:700">km</span></div>
+            <div class="tickOn" style="height:26px;margin-top:9px"></div>
+          </div>
+          <div style="flex:1;text-align:center">
+            <div class="small" style="line-height:1.2"><span class="num" style="font-size:15px;color:var(--dim)">3.0</span>km</div>
+            <div class="tick" style="height:14px;margin-top:7px"></div>
+          </div>
+          <div style="flex:1;text-align:center">
+            <div class="small" style="line-height:1.2"><span class="num" style="font-size:15px;color:var(--dim)">5.0</span>km</div>
+            <div class="tick" style="height:14px;margin-top:7px"></div>
+          </div>
+        </div>
+        <!-- 자의 기준선: 인셋 잉크 1px — 풀블리드 코랄 섹션선과 문법이 겹치지 않게 -->
+        <div style="height:1px;background:var(--ink)"></div>
+        <div style="display:flex;margin-top:11px">
+          <div style="flex:1;text-align:center"><div style="font-size:16px;font-weight:800;color:var(--ink)">가볍게</div></div>
+          <div style="flex:1;text-align:center"><div class="body" style="color:var(--dim);font-weight:700">기본</div></div>
+          <div style="flex:1;text-align:center"><div class="body" style="color:var(--dim);font-weight:700">제대로</div></div>
+        </div>
+        <div style="display:flex;margin-top:3px">
+          <div style="flex:1;text-align:center"><span class="small" style="color:var(--text)"><span class="num" style="font-size:15px;color:var(--text)">15,900</span>원</span></div>
+          <div style="flex:1;text-align:center"><span class="small"><span class="num" style="font-size:15px;color:var(--dim)">18,900</span>원</span></div>
+          <div style="flex:1;text-align:center"><span class="small"><span class="num" style="font-size:15px;color:var(--dim)">24,900</span>원</span></div>
+        </div>
+      </div>
+
+      <div class="pad" style="padding-top:26px;padding-bottom:22px">
+        <div class="body"><b style="color:var(--ink)">2km를 채우면 완주</b>예요 — 시간 제한은 없어요.</div>
+        <div class="small" style="margin-top:5px">보통 <span class="num" style="color:var(--text);font-size:15px">15~20</span>분쯤 걸려요 (예상) · 회당 예상 요금 <span class="num" style="color:var(--text);font-size:15px">15,900</span>원</div>
+        <div class="small" style="margin-top:8px">기본 <span class="num" style="color:var(--dim)">9,900</span>원 + <span class="num" style="color:var(--dim)">3,000</span>원/km</div>
+      </div>
+    </div>
+    <p class="why"><b>창의 지점:</b> 칩을 <b>아예 없앤다</b>. 2·3·5는 세 개의 상품이 아니라 <u>같은 축 위의 눈금</u>이므로, 세 장의 카드가 아니라 <b>계기 하나</b>로 그린다 —
+    화면에 남는 건 큰 숫자 하나, 눈금 셋, 그리고 문장 한 줄. 넷 중 밀도가 압도적으로 가장 낮고, 육상 계측기/기록판이라는 브랜드 원형에 가장 가깝다.
+    선택을 바꾸면 큰 숫자가 그 눈금 위로 <b>옮겨간다</b>(모션 = 상태의 진실, §6).
+    <b>구속하는 법:</b> §4 카드 수프 금지 — “카드가 <u>되어야</u> 존재한다”는 법의 가장 순수한 형태. Fitts — 탭 타깃은 눈금이 아니라 <b>열 전체</b>(≈93×90pt).
+    §7 정직 — 세 눈금의 가격을 다 노출해 “선택해야 값을 아는” 구조를 피했다.
+    <b>대가:</b> 새 선 문법이 하나 생긴다 — 자의 기준선은 <b>인셋 잉크 1px</b>이라 풀블리드 코랄 섹션선과 구별되지만 <u>법전에 없는 선</u>이다(§2 승인 필요).
+    그리고 눈금 간격이 <u>등간격</u>이라 2→3→5의 실제 비율을 왜곡한다 — 비율대로 두면 5km 라벨이 오른쪽 끝에 박히고 3km가 붙어버려서, “자”처럼 보이지만 사실은 <b>서수 눈금</b>이다. 이 타협을 Sean이 받아야 성립한다.</p>
+  </div>
+</div>
+
+<h2>Ⓛ 결정표 — 네 방향의 실제 차이 (Sean 픽 1개)</h2>
+<table class="cmp">
+  <tr><th></th><th>Ⓛ① 잉크 트레이스</th><th>Ⓛ② 타이포 전압</th><th>Ⓛ③ 산책의 반대말</th><th>Ⓛ④ 자(尺)</th></tr>
+  <tr><th>창의성의 종류</th><td>그림 (드로잉)</td><td>조판 (타입)</td><td>카피 (언어)</td><td>구조 (계기)</td></tr>
+  <tr><th>보호자가 실제로 답할 수 있나</th><td>중 — km를 눈대중해야</td><td>중 — km 감각 필요</td><td><b>상 — 자기 개를 알아보면 끝</b></td><td>중 — km 감각 필요</td></tr>
+  <tr><th>밀도(여백)</th><td>중 (선이 자리 먹음)</td><td>상 (여백 많음)</td><td>중 (문장 3줄)</td><td><b>최상 (가장 비어 있음)</b></td></tr>
+  <tr><th>브랜드 어휘(가볍게/기본/제대로)</th><td>유지 17pt</td><td><b>가장 강함</b> — 이름이 주인공</td><td>약함 (14pt 라벨로 강등)</td><td>유지 16pt</td></tr>
+  <tr><th>추천 기본값(가볍게)과 시선</th><td>일치</td><td><b>역행</b> — 제대로가 제일 셈</td><td>일치</td><td>일치</td></tr>
+  <tr><th>새로 만드는 문법</th><td>잉크 라인 드로잉</td><td>스펙 플레이트 · ₩ 표기</td><td>없음 (기존 칩 그대로)</td><td>인셋 잉크 기준선 (법전 밖)</td></tr>
+  <tr><th>정직 리스크</th><td>선이 데이터로 오독될 수 있음</td><td>낮음</td><td>카피가 개를 규정하는 톤이 되면 위험</td><td>등간격이 2:3:5 비율을 왜곡</td></tr>
+  <tr><th>레벨업 세리머니 연결</th><td>가능 (선이 길어진다)</td><td>가능 (글자가 커진다)</td><td>약함</td><td><b>가장 좋음</b> — 눈금이 옮겨간다</td></tr>
+  <tr><th>구현 난이도</th><td>중 (SVG 3개)</td><td>하</td><td>하</td><td>중 (탭 열 + 숫자 이동 모션)</td></tr>
+</table>
+<p class="law" style="margin-top:12px"><b>합성 가능:</b> Ⓛ③의 문장 + Ⓛ②의 스펙 플레이트는 서로 안 싸운다(왼쪽 감정 / 오른쪽 사실). Ⓛ①의 트레이스는 Ⓛ④의 자와 <u>양립 불가</u>(둘 다 거리를 그리는 그림이라 하나는 중복).</p>
+
+<h2>Ⓠ 결정표 — 기록용 (Ⓠ③ 확정됨)</h2>
+<table class="cmp">
+  <tr><th></th><th>Ⓠ① 한 질문 한 화면</th><th>Ⓠ② 한 화면 스택</th><th>Ⓠ③ 대화형 <span class="pick" style="margin-left:4px">확정</span></th></tr>
+  <tr><th>화면 수</th><td>3 (질문2 + 약속1)</td><td>1</td><td>1 스크롤 (내용 3단계)</td></tr>
+  <tr><th>탭 수</th><td>4 (칩·다음 ×2)</td><td>2 (칩 ×2) + CTA</td><td>2 (칩 ×2) + CTA</td></tr>
+  <tr><th>완주 정의 카피 자리</th><td>전용 화면 — 가장 강함</td><td>하단 스트립(스티키 필요)</td><td>마무리 문장에 흡수</td></tr>
+  <tr><th>정직 노트 위치</th><td>질문 아래·칩 위 (읽힐 확률 최고)</td><td>섹션 헤더 우측 한 줄 (압축)</td><td>질문 본문에 섞임 (가장 자연)</td></tr>
+  <tr><th>Ⓛ 수용력</th><td>Ⓛ①~④ 전부 가능</td><td>Ⓛ②만 편함 (높이 압박)</td><td><b>Ⓛ①~④ 전부 가능</b> — 칩 영역이 화면 하나를 통째로 씀</td></tr>
+  <tr><th>주요 리스크</th><td>화면 수 = 이탈 지점 2개</td><td>스트립이 접힘 아래로 가면 정의가 사라짐</td><td>이름 길이·다견 가구에서 문장 붕괴</td></tr>
+</table>
+
+<p class="law" style="margin-top:40px">콜로폰 — 숫자 출처: 회당 예상 요금 = <b>pricing.baseFare 9,900 + perKm 3,000 × 목표 km</b> (app/src/theme.ts). 2km 15,900 · 3km 18,900 · 5km 24,900.
+<b>완주 = 최소 거리 달성 단독</b>(시간 임계 철회, 2026-08-12). 소요 시간(15~20 / 20~30 / 35~45분)은 권장 최소 페이스 <b>8분/km</b>(밴드 7~9)에서 나온 <u>추정 범위</u>이고, 화면에서 항상 “보통 …쯤 (예상)”으로만 말한다 — 약속도 기준도 아니다.
+페이스 자체는 <b>환경설정</b>에 살고 온보딩 칩에는 오지 않는다(칩은 러너가 아니라 개에 대한 질문).
+이 랩에는 회수권·토큰·잔액·연료 게이지 어휘가 없다(그 모델은 파킹). 백분위·품종 추정치도 없다 — 온보딩 시점에 그 데이터는 존재하지 않는다.</p>
+
+</body>
+</html>

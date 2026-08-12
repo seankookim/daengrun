@@ -1,0 +1,495 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>첫 러닝 기록 카드 랩 — 3방향 + 그래프 티저 + 귀가 화면 (Sean 픽: Ⓡ 1개 + Ⓖ 1개)</title>
+<style>
+  /* theme.ts 페이퍼 토큰 그대로 — 랩은 화면의 예언이다 */
+  :root{
+    --canvas:#FFFFFF; --ink:#111111; --text:#333333; --dim:#666666; --faint:#999999;
+    --line:#E8552F; --wash:#FFF6F4;
+    --action:#C6472C; --actionInk:#A83315;
+    --critical:#B3261E; --criticalWash:#FBEAE7;
+    --ready:#119B58; --readyDeep:#0E7F49; --pending:#C77414;
+    --neutral:#EEEEEE;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#E4E4E8;font-family:-apple-system,'Apple SD Gothic Neo','IBM Plex Sans KR',sans-serif;color:var(--ink);padding:34px 26px 90px}
+  h1{font-size:26px;font-weight:900;margin-bottom:8px}
+  .sub{font-size:14px;color:#4A4A4A;max-width:960px;line-height:1.65;margin-bottom:10px}
+  .law{font-size:13.5px;color:#666;max-width:960px;line-height:1.6;margin-bottom:6px}
+  h2{font-size:20px;font-weight:900;margin:54px 0 4px}
+  .areaNote{font-size:13.5px;color:#555;max-width:960px;line-height:1.6;margin-bottom:18px}
+  .row{display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start}
+  .cell{width:310px}
+  .tag{display:block;font-weight:900;font-size:15px;margin-bottom:9px}
+  .why{font-size:12.5px;color:#666;line-height:1.6;margin-top:10px;width:310px}
+  .why b{color:#333}
+  .phone{width:310px;background:var(--canvas);border:1px solid #D2D2D8;box-shadow:0 12px 30px rgba(0,0,0,.10)}
+  .pad{padding:16px 15px}
+  .num{font-family:'Oswald','Arial Narrow',sans-serif;font-weight:700;font-variant-numeric:tabular-nums}
+  .coral{height:1px;background:var(--line)}
+  .hair{height:1px;background:var(--neutral)}
+  .kicker{font-size:11px;letter-spacing:2.4px;color:var(--faint);font-weight:800}
+  .title{font-size:24px;line-height:1.24;font-weight:900}
+  .body{font-size:15px;line-height:1.47;color:var(--text);font-weight:600}
+  .small{font-size:14px;line-height:1.45;color:var(--dim);font-weight:600}
+  .btn{display:block;text-align:center;background:var(--action);color:#fff;font-weight:900;font-size:17px;padding:15px 0}
+  .btn2{display:block;text-align:center;background:var(--wash);border:1px solid var(--line);color:var(--actionInk);font-weight:800;font-size:16px;padding:13px 0}
+  .statRow{display:flex;align-items:stretch}
+  .stat{flex:1;text-align:center;padding:2px 0}
+  .vdiv{width:1px;background:var(--neutral)}
+  /* 완주 칩 — 상태 칩 법(16/800, radius 0, 틴트 면, 보더 없음)
+     완주 방식이 하나(최소 거리)뿐이라 완주 칩도 하나뿐이다. 앰버 '시간 완주' 칩은
+     이중 임계와 함께 은퇴했고, 경고 칩(.chipWarn)은 애초에 이 표면에 올 수 없어 삭제했다 —
+     기록 카드는 느리다/오래 걸렸다를 렌더하지 않는다. */
+  .chipOk{display:inline-block;background:#E4F4EB;color:var(--readyDeep);font-size:16px;font-weight:800;padding:4px 9px}
+  .chipHold{display:inline-block;background:#EFEFF1;color:#4A4A4A;font-size:16px;font-weight:800;padding:4px 9px} /* 판정 보류 — 실패도 완주도 아님 */
+  /* 얼어붙은 기록 — '더는 안 오르는 숫자'. 옅게 만드는 게 아니라 잉크가 딤으로 내려가고 면이 회색이 된다(대비 바닥 준수) */
+  .frozen{background:#F7F7F8}
+  .frozenNum{font-family:'Oswald','Arial Narrow',sans-serif;font-weight:700;font-variant-numeric:tabular-nums;color:var(--dim)}
+  .cmp{border-collapse:collapse;font-size:13px;background:#fff;margin-top:16px}
+  .cmp th,.cmp td{border:1px solid #D5D5DA;padding:9px 12px;text-align:left;vertical-align:top;line-height:1.5}
+  .cmp th{background:#F7F7F9;font-size:12.5px}
+  .ban{border-left:3px solid var(--critical);background:var(--criticalWash);padding:12px 14px;font-size:13.5px;line-height:1.65;color:#5A1B16;max-width:960px;margin-top:14px}
+  .trace{display:block}
+</style>
+</head>
+<body>
+
+<h1>기록 카드 랩 — 첫 러닝의 완료 화면</h1>
+<p class="sub">첫 러닝이 끝난 직후의 화면. 이 앱에서 <b>가장 감정이 높은 한 장</b>(Peak-End)이고, 리텐션의 전부가 여기서 갈린다.
+쓸 수 있는 재료는 <b>실제 GPS와 서버 타임스탬프뿐</b>: 거리 · 시간 · 페이스 · 완주 방식 · 트레이스. 그 외엔 아무것도 없다 — 첫 러닝은 표본 1개다.
+<b>Ⓡ 방향 1개 + Ⓖ 반복 러닝 티저 1개</b>를 골라 주세요.</p>
+<p class="law"><b>이 화면의 세 가지 일</b>: ① 오늘 실제로 일어난 일을 정확히 말한다 · ② 이 숫자가 <u>우리 초코의 기준선</u>이 됐다고 알린다 · ③ 다음 러닝을 예약시킨다(“다음 러닝부터 그래프가 생겨요”가 리턴 훅).
+CTA는 <b>한 번 더</b> 하나 — 화면당 코랄 면 1개.</p>
+<p class="law"><b>완주 정의가 바뀌었다 (2026-08-12, Sean — 이 랩의 이전 판을 덮어쓴다):</b> 완주 = <b>최소 거리 달성, 그것 하나뿐</b>이다. “2km <u>또는</u> 20분” 이중 임계는 <b>철회</b>됐다.
+물리적 이유가 있다: 코스는 목표 거리에 맞춰 잡은 <b>루프</b>라서, 타이머가 먼저 울리면 개는 집에서 가장 먼 지점에 서 있게 된다 — <b>시간은 러닝을 멈출 수 없다.</b>
+시간이 하는 일은 <b>한 방향 격려</b> 하나다: 예상보다 빨리 끝난 날 “더 뛸 수 있어요”라고 말한다(Ⓔ①). 느리다·오래 걸렸다는 <b>기록 카드에 절대 렌더되지 않는다</b> — 이 격려는 반대 방향이 없다.
+시간은 판정에 안 쓰이고 <b>예상치</b>로만 등장한다: “보통 <span class="num">15~20</span>분쯤 (예상)”.</p>
+<p class="law"><b>개인화 법 (Sean, 오늘):</b> 사용자에게 보이는 문장에서 일반명사 <b>개</b>는 쓰지 않는다 — 언제나 <b>우리 {강아지 이름}</b>(이 랩의 표본: <b>우리 초코</b>). 랩 주석은 설계 문서라 예외.</p>
+
+<div class="ban"><b>표본 1개로는 못 하는 말 — 이 랩이 전부 삭제한 것</b>: “동네 상위 <span class="num">20</span>%” · “또래 말티즈 평균보다 빨라요” · “우리 초코의 체력 <span class="num">78</span>점” ·
+별 <span class="num">4</span>개 평가 · “지난번보다 <span class="num">12</span>% 향상”(지난번이 없다) · 목표 달성률 링(목표는 주 단위인데 오늘은 1회차다).
+<b>추가 삭제 (2026-08-12)</b>: 시간 임계 어휘 전부(“또는 <span class="num">20</span>분”, “시간 완주”, 앰버 시간 완주 칩, 히어로 숫자 교체 규칙) ·
+<b>느림 경고 일체</b>(“예상보다 오래 걸렸어요”, “페이스가 떨어졌어요”, 지연 배지) — 기록 카드는 보호자를 나무라지 않는다.
+<b>페이스는 정보이지 평가가 아니다</b> — 느리다 형용사를 붙이지 않는다. 우리가 아는 건 <span class="num">10</span>′<span class="num">02</span>″/km이라는 사실 하나뿐이다.
+(빠른 쪽으로만 한 문장 허용 — 그건 평가가 아니라 <u>초대</u>이고, 레벨업 탐지의 신호이기 때문이다.)</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     실데이터 계약 (세 방향 공통) — 화면에 나오는 모든 값의 출처
+       actualKm 2.1 · durationSec 1264(21분 04초) · paceSecPerKm 602(10′02″)
+       endReason = 최소 거리(2km) 달성 → '완주'. 완주 조건은 이것 하나뿐 — 시간 임계는 철회됐다(2026-08-12).
+       expectedRange = 레벨에서 파생된 '추정' 범위(가볍게 2km → 보통 15~20분쯤). 판정에 안 쓰이고
+         한 방향 격려(빨리 끝난 날)에만 쓰인다 — 반대 방향(느린 날)에는 아무 줄도 렌더하지 않는다.
+       trace[] = 실 GPS 폴리라인
+       이 카드에는 요금·정산·적립 줄이 없다(파킹된 토큰 모델 어휘 금지, 결제는 결제 표면의 일).
+       단 하나의 예외는 Ⓗ 귀가 화면 — 거긴 카드가 아니라 양육권 표면이고, 미터가 끊긴 지점을 말하는 게 그 화면의 일이다.
+     ══════════════════════════════════════════════════════════════════════════ -->
+
+<h2>Ⓡ① 오도미터 리드 — 거리가 화면을 갖는다</h2>
+<p class="areaNote">첫 러닝의 사건은 “<b>우리 초코가 달렸다</b>”이고, 그걸 한 글자로 말하는 건 거리다. 큰 Oswald 숫자 하나가 화면의 유일한 타입 점프 — 나머지는 전부 14~15pt 본문.</p>
+<div class="row">
+  <div class="cell">
+    <span class="tag">Ⓡ① 오도미터 리드</span>
+    <div class="phone">
+      <div class="pad" style="padding-top:22px;padding-bottom:12px">
+        <div class="kicker">FIRST RUN · 첫 러닝</div>
+        <div style="display:flex;align-items:baseline;gap:6px;margin-top:10px">
+          <span class="num" style="font-size:74px;line-height:1.18">2.1</span>
+          <span style="font-size:22px;font-weight:800">km</span>
+        </div>
+        <div style="margin-top:6px"><span class="chipOk">2km 도달 · 완주</span></div>
+      </div>
+      <div class="coral"></div>
+      <div class="pad statRow" style="padding-top:14px;padding-bottom:14px">
+        <div class="stat"><div class="num" style="font-size:26px;line-height:1.22">21:04</div><div class="small" style="margin-top:2px">시간</div></div>
+        <div class="vdiv"></div>
+        <div class="stat"><div class="num" style="font-size:26px;line-height:1.22">10′02″</div><div class="small" style="margin-top:2px">평균 페이스</div></div>
+        <div class="vdiv"></div>
+        <div class="stat"><div class="num" style="font-size:26px;line-height:1.22">18:12</div><div class="small" style="margin-top:2px">시작</div></div>
+      </div>
+      <div class="coral"></div>
+      <!-- 실 GPS 트레이스 — 지도 배경 없이 경로만. 있는 데이터만 그린다 -->
+      <div style="background:var(--ink);padding:14px 15px">
+        <svg class="trace" viewBox="0 0 280 92" width="100%" height="92">
+          <polyline points="8,74 26,66 44,70 62,52 84,46 104,52 126,36 150,30 172,38 196,24 220,28 244,14 268,18"
+            fill="none" stroke="#FFFFFF" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>
+          <circle cx="8" cy="74" r="4" fill="#E8552F"/><circle cx="268" cy="18" r="4" fill="#FFFFFF"/>
+        </svg>
+        <div style="font-size:14px;color:#B9B9C0;font-weight:600;margin-top:8px">실제 GPS 경로 · 반포천 코스</div>
+      </div>
+      <div class="coral"></div>
+      <div class="pad">
+        <div class="body"><b>오늘 기록이 우리 초코의 기준선이 됐어요.</b></div>
+        <div class="small" style="margin-top:5px">다음 러닝부터는 이 숫자와 나란히 놓여요 — <b style="color:var(--text)">두 번째 러닝부터 그래프가 생겨요.</b></div>
+      </div>
+      <div class="pad" style="padding-top:4px">
+        <span class="btn">한 번 더 예약하기</span>
+        <span class="btn2" style="margin-top:10px">러닝 리포트 보기</span>
+      </div>
+    </div>
+    <p class="why">거리 하나가 <span class="num">74</span>pt로 서고 나머지는 전부 조용하다 — 강조 예산이 <b>숫자 1 + 코랄 면 1</b>로 정확히 소진된다.
+    “<b>2km 도달 · 완주</b>” 칩이 온보딩 약속 카피(“2km를 채우면 완주”)를 <u>같은 단어로</u> 회수한다 — 완주 조건이 하나뿐이라 칩도 한 종류뿐이다. 트레이스는 다크 아티팩트 — “다크는 아티팩트, 라이트는 화면” 법 안쪽이다.
+    <b>거리 단독 완주가 이 방향에 준 선물:</b> 히어로 교체 규칙이 사라졌다 — 완주한 날의 큰 숫자는 <u>언제나 거리</u>다(구 Ⓔ①의 “<span class="num">1.4</span>가 초라해 보인다” 문제는 원인째 없어졌다).
+    <b>대가:</b> 그 대신 큰 숫자의 분산이 작아진다 — 완주 카드는 매번 <span class="num">2.x</span>로 열리므로 <span class="num">3</span>회차쯤부터 뉴스 가치가 떨어진다. Ⓖ 그래프가 예상보다 <u>빨리</u> 필요해진다.</p>
+  </div>
+
+  <div class="cell">
+    <span class="tag">Ⓡ② 페이스 리드 — 세 숫자가 동등하게</span>
+    <div class="phone">
+      <div class="pad" style="padding-top:22px">
+        <div class="kicker">FIRST RUN · 첫 러닝</div>
+        <div class="title" style="margin-top:9px">우리 초코의 첫 기록</div>
+        <div class="small" style="margin-top:5px">8월 12일 화 오후 6:12 · 반포천 코스 · 러너 민수</div>
+      </div>
+      <div class="coral"></div>
+      <div class="pad" style="padding-top:0;padding-bottom:0">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;padding:13px 0">
+          <span class="body" style="font-weight:800">달린 거리</span>
+          <span><span class="num" style="font-size:28px">2.1</span><span class="small" style="color:var(--text)"> km</span></span>
+        </div>
+        <div class="hair"></div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline;padding:13px 0">
+          <span class="body" style="font-weight:800">달린 시간</span>
+          <span><span class="num" style="font-size:28px">21:04</span></span>
+        </div>
+        <div class="hair"></div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline;padding:13px 0">
+          <span class="body" style="font-weight:800">평균 페이스</span>
+          <span><span class="num" style="font-size:28px">10′02″</span><span class="small" style="color:var(--text)"> /km</span></span>
+        </div>
+        <div class="hair"></div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline;padding:13px 0">
+          <span class="body" style="font-weight:800">구간</span>
+          <span class="small" style="color:var(--text)">1km <span class="num" style="color:var(--text);font-size:15px">9′48″</span> · 2km <span class="num" style="color:var(--text);font-size:15px">10′16″</span></span>
+        </div>
+      </div>
+      <div class="coral"></div>
+      <div class="pad">
+        <span class="chipOk">2km 도달 · 완주</span>
+        <div class="small" style="margin-top:9px">페이스는 <b style="color:var(--text)">기록일 뿐 평가가 아니에요</b> — 우리 초코가 오늘 어떻게 달렸는지의 사실이에요.</div>
+      </div>
+      <div class="coral"></div>
+      <div class="pad">
+        <div class="body"><b>이 세 숫자가 우리 초코의 기준선이에요.</b></div>
+        <div class="small" style="margin-top:5px">다음 러닝부터 그래프가 생겨요.</div>
+        <span class="btn" style="margin-top:13px">한 번 더 예약하기</span>
+      </div>
+    </div>
+    <p class="why">결제 표면의 청구표와 <b>같은 표 문법</b>(라벨 좌 · Oswald 우 · 중립 헤어라인) — 앱이 숫자를 다루는 방식이 하나로 읽힌다.
+    구간(스플릿)은 <u>실제로 1km를 두 번 넘었을 때만</u> 렌더한다 — <span class="num">0.9</span>km 러닝엔 이 줄 자체가 없다(있는 것만 그린다).
+    “페이스는 평가가 아니다” 문장이 형용사 금지법을 화면에서 <b>선언</b>한다. <b>대가:</b> 타입 점프가 4번 반복돼 오도미터의 “한 방”이 없다 — 정보는 가장 많고 감정은 가장 낮다.</p>
+  </div>
+
+  <div class="cell">
+    <span class="tag">Ⓡ③ 내러티브 리드 — 문장이 먼저, 숫자가 근거</span>
+    <div class="phone">
+      <div class="pad" style="padding-top:24px">
+        <div class="kicker">FIRST RUN · 첫 러닝</div>
+        <div class="title" style="margin-top:11px">우리 초코가 오늘<br><span class="num" style="font-size:30px">21</span>분 동안<br><span class="num" style="font-size:30px">2.1</span>km를 달렸어요</div>
+        <div class="small" style="margin-top:9px">8월 12일 화 오후 6:12 · 반포천 코스 · 러너 민수</div>
+      </div>
+      <div class="coral"></div>
+      <div class="pad statRow" style="padding-top:13px;padding-bottom:13px">
+        <div class="stat"><div class="num" style="font-size:22px;line-height:1.22">2.1</div><div class="small">km</div></div>
+        <div class="vdiv"></div>
+        <div class="stat"><div class="num" style="font-size:22px;line-height:1.22">21:04</div><div class="small">시간</div></div>
+        <div class="vdiv"></div>
+        <div class="stat"><div class="num" style="font-size:22px;line-height:1.22">10′02″</div><div class="small">/km</div></div>
+      </div>
+      <div class="coral"></div>
+      <div class="pad">
+        <span class="chipOk">2km 도달 · 완주</span>
+        <div class="body" style="margin-top:10px">약속은 <b>2km를 채우면 완주</b>였고, 오늘 우리 초코는 그걸 채웠어요.</div>
+      </div>
+      <div class="coral"></div>
+      <div class="pad">
+        <div class="body"><b>오늘이 우리 초코의 기준선이에요.</b></div>
+        <div class="small" style="margin-top:5px">비교할 지난 기록이 아직 없어요 — 두 번째 러닝부터 그래프로 이어드릴게요.</div>
+        <span class="btn" style="margin-top:13px">한 번 더 예약하기</span>
+        <div class="small" style="margin-top:11px;text-align:center">러너 민수의 노트와 사진은 리포트에 있어요 ›</div>
+      </div>
+    </div>
+    <p class="why">문장이 먼저라 <b>표본 1개의 정직함</b>이 자연스럽게 들어간다 — “비교할 지난 기록이 아직 없어요”는 사과가 아니라 다음 러닝의 이유가 된다.
+    온보딩 약속 카피(“<b>2km를 채우면 완주</b>”)를 <u>같은 문장으로</u> 회수해 온보딩–완료가 한 줄로 이어진다 — 이중 임계가 없어진 뒤로 이 회수 문장이 <u>짧아지고 더 세졌다</u>(“또는 20분, 먼저 닿는 쪽”은 원래 한 문장에 조건이 둘이라 삼켜 읽혔다). Black Han Sans 1회는 이 문장에.
+    <b>대가:</b> 숫자가 문장에 갇혀 스크린샷 공유가 약하다 — 자랑=전파인 이 앱에서 실제 비용이다.</p>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     Ⓖ 반복 러닝 — 그래프 티저의 회수
+     첫 카드가 “다음부터 그래프”라고 약속했으므로 2회차는 반드시 그래프를 보여준다.
+     n=2에서 선을 그리는 건 정직한가? 점 두 개를 잇는 선은 추세 주장이 아니라 '연결'이다.
+     추세 어휘("좋아지고 있어요")는 금지하고, 축·라벨만으로 사실을 말한다.
+     ══════════════════════════════════════════════════════════════════════════ -->
+<h2>Ⓖ 반복 러닝 변형 — 약속한 그래프가 도착하는 순간</h2>
+<p class="areaNote">2회차는 첫 카드가 한 약속의 <b>결제일</b>이다. 점 2개는 추세가 아니라 <b>연결</b>이므로 “향상됐어요” 같은 추세 어휘는 쓰지 않는다 — 눈금과 라벨만으로 말한다.</p>
+<div class="row">
+  <div class="cell">
+    <span class="tag">Ⓖ① 스파크라인 인라인 — 기록 카드 안에 한 줄</span>
+    <div class="phone">
+      <div class="pad" style="padding-top:20px">
+        <div class="kicker">RUN 02 · 두 번째 러닝</div>
+        <div style="display:flex;align-items:baseline;gap:6px;margin-top:9px">
+          <span class="num" style="font-size:60px;line-height:1.18">2.4</span><span style="font-size:20px;font-weight:800">km</span>
+        </div>
+        <div style="margin-top:5px"><span class="chipOk">2km 도달 · 완주</span></div>
+      </div>
+      <div class="coral"></div>
+      <div class="pad statRow" style="padding-top:13px;padding-bottom:13px">
+        <div class="stat"><div class="num" style="font-size:22px;line-height:1.22">23:40</div><div class="small">시간</div></div>
+        <div class="vdiv"></div>
+        <div class="stat"><div class="num" style="font-size:22px;line-height:1.22">9′52″</div><div class="small">/km</div></div>
+        <div class="vdiv"></div>
+        <div class="stat"><div class="num" style="font-size:22px;line-height:1.22">2</div><div class="small">번째 러닝</div></div>
+      </div>
+      <div class="coral"></div>
+      <div class="pad">
+        <div style="display:flex;justify-content:space-between;align-items:baseline">
+          <span class="body" style="font-weight:800">거리 기록</span>
+          <span class="small">2회</span>
+        </div>
+        <svg viewBox="0 0 280 70" width="100%" height="70" style="margin-top:10px">
+          <line x1="0" y1="60" x2="280" y2="60" stroke="#EEEEEE" stroke-width="1"/>
+          <line x1="94" y1="34" x2="220" y2="16" stroke="#111111" stroke-width="2"/>
+          <circle cx="94" cy="34" r="5" fill="#FFFFFF" stroke="#111111" stroke-width="2"/>
+          <circle cx="220" cy="16" r="5.5" fill="#C6472C"/>
+          <text x="94" y="52" text-anchor="middle" font-size="12" fill="#666" font-family="-apple-system">8/12</text>
+          <text x="220" y="52" text-anchor="middle" font-size="12" fill="#666" font-family="-apple-system">8/15</text>
+          <text x="94" y="26" text-anchor="middle" font-size="13" fill="#111" font-family="Oswald,Arial Narrow" font-weight="700">2.1</text>
+          <text x="220" y="8" text-anchor="middle" font-size="13" fill="#C6472C" font-family="Oswald,Arial Narrow" font-weight="700">2.4</text>
+        </svg>
+        <div class="small" style="margin-top:2px">점이 쌓일수록 우리 초코의 선이 길어져요 — 지금은 <b style="color:var(--text)">2개</b>예요.</div>
+      </div>
+      <div class="pad" style="padding-top:12px"><span class="btn">한 번 더 예약하기</span></div>
+    </div>
+    <p class="why">첫 카드와 <b>같은 레이아웃</b>에 그래프 섹션 하나가 추가될 뿐 — 사용자는 “약속했던 그게 왔다”를 구조로 인지한다.
+    n을 <b>숨기지 않고 인쇄</b>한다(“지금은 2개예요”) — 표본 수를 말하는 그래프는 절대 거짓말하지 않는다.
+    오늘 점만 코랄, 과거 점은 잉크 아웃라인 — 색이 “오늘”을 뜻한다(추세 색칠 금지).</p>
+  </div>
+
+  <div class="cell">
+    <span class="tag">Ⓖ② 그래프 카드 — 기록이 주인공을 넘겨받는다</span>
+    <div class="phone">
+      <div class="pad" style="padding-top:20px">
+        <div class="kicker">RUN 05 · 다섯 번째 러닝</div>
+        <div class="title" style="margin-top:9px">우리 초코의 <span class="num" style="font-size:26px">5</span>번째 러닝</div>
+        <div class="small" style="margin-top:5px">8월 26일 화 · 반포천 코스 · 러너 민수</div>
+      </div>
+      <div class="coral"></div>
+      <div class="pad" style="padding-bottom:6px">
+        <div style="display:flex;justify-content:space-between;align-items:baseline">
+          <span class="body" style="font-weight:800">거리 · 최근 5회</span>
+          <span class="small">2.1 → 2.4 → 2.2 → 2.6 → <b style="color:var(--action)">2.8</b> km</span>
+        </div>
+        <svg viewBox="0 0 280 96" width="100%" height="96" style="margin-top:10px">
+          <line x1="0" y1="86" x2="280" y2="86" stroke="#EEEEEE" stroke-width="1"/>
+          <line x1="0" y1="30" x2="280" y2="30" stroke="#F5F5F5" stroke-width="1" stroke-dasharray="3 4"/>
+          <text x="4" y="26" font-size="11.5" fill="#999" font-family="-apple-system">3km 레벨</text>
+          <polyline points="30,62 92,50 154,58 216,42 268,34" fill="none" stroke="#111111" stroke-width="2" stroke-linejoin="round"/>
+          <circle cx="30" cy="62" r="4" fill="#FFF" stroke="#111" stroke-width="2"/>
+          <circle cx="92" cy="50" r="4" fill="#FFF" stroke="#111" stroke-width="2"/>
+          <circle cx="154" cy="58" r="4" fill="#FFF" stroke="#111" stroke-width="2"/>
+          <circle cx="216" cy="42" r="4" fill="#FFF" stroke="#111" stroke-width="2"/>
+          <circle cx="268" cy="34" r="5.5" fill="#C6472C"/>
+          <text x="30" y="79" text-anchor="middle" font-size="11.5" fill="#666" font-family="-apple-system">8/12</text>
+          <text x="268" y="79" text-anchor="middle" font-size="11.5" fill="#666" font-family="-apple-system">8/26</text>
+        </svg>
+      </div>
+      <div class="pad statRow" style="padding-top:6px;padding-bottom:13px">
+        <div class="stat"><div class="num" style="font-size:24px;line-height:1.22">2.8</div><div class="small">km 오늘</div></div>
+        <div class="vdiv"></div>
+        <div class="stat"><div class="num" style="font-size:24px;line-height:1.22">26:31</div><div class="small">시간</div></div>
+        <div class="vdiv"></div>
+        <div class="stat"><div class="num" style="font-size:24px;line-height:1.22">9′28″</div><div class="small">/km</div></div>
+      </div>
+      <div class="coral"></div>
+      <div class="pad">
+        <div class="body"><b>우리 초코가 5회 중 4회에서 2km를 넘겼어요.</b></div>
+        <div class="small" style="margin-top:5px">기본 <b style="color:var(--text)">3km</b> 레벨로 올려볼까요? 다음 예약부터 적용돼요 — 언제든 되돌릴 수 있어요.</div>
+        <span class="btn" style="margin-top:13px">한 번 더 예약하기</span>
+        <span class="btn2" style="margin-top:10px">레벨 올리기 · 3km</span>
+      </div>
+    </div>
+    <p class="why">n이 쌓이면 그래프가 헤드라인을 넘겨받고, <b>레벨업 제안(CTA)</b>이 여기서 처음 등장한다 — 근거는 세는 문장 하나(“5회 중 4회에서 2km를 넘겼어요”)로, 형용사도 점수도 없다.
+    <b>Ⓔ①의 빠른 완주 문장은 이 제안의 예고편</b>이다: 거기선 조용한 한 줄(“이런 날이 이어지면…”)일 뿐이고 <u>버튼이 되지 않는다</u> — 표본이 쌓여 세는 문장이 가능해지는 이 카드에서만 버튼이 된다.
+    점선 “3km 레벨”은 <u>제안의 시각적 근거</u>지 목표 달성률이 아니다. 레벨업은 <b>세컨더리</b>: 화면의 일은 여전히 재예약이다(코랄 면 1개 유지).
+    <b>대가:</b> 이 카드가 성립하려면 러닝 5회가 필요하다 — Ⓖ①이 없으면 2~4회차가 빈다. <b>Ⓖ①과 Ⓖ②는 배타 선택이 아니라 임계값 문제일 수 있다</b>(2~4회 Ⓖ① · 5회부터 Ⓖ②).</p>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     Ⓗ 귀가 — 러닝 종료와 기록 카드 사이에 새로 생긴 화면 (2026-08-12)
+     플로우: 러너 종료 탭 → 종료 확인 → ★귀가('집으로 가는 중')★ → 복귀 인계 확인 → 기록 카드
+     계약: 기록은 종료 시점에 얼고(더는 안 오름), 지도는 계속 산다(양육권), 요금 미터는 종료 지점에서 끊긴다.
+     ══════════════════════════════════════════════════════════════════════════ -->
+<h2>Ⓗ 귀가 — 기록 카드 <u>앞에</u> 오는 화면</h2>
+<p class="areaNote">러닝 종료 ≠ 개가 집에 있음. 코스는 루프라서 종료 지점은 대개 <b>집이 아니다</b> — 러너가 종료를 누른 뒤에도 우리 초코는 아직 밖에 있고,
+그 사이 보호자에게는 <b>“집으로 가는 중”</b> 한 화면이 뜬다. <b>기록 카드는 이 화면 다음</b>이다(현관에서 인계가 끝나야 카드가 온다).
+이 화면의 계약 셋: ① <b>러닝 기록은 종료 시점에 얼어붙는다</b>(회색 = 더는 안 오름) · ② <b>지도만 계속 살아 있다</b>(양육권 — 개가 밖에 있는 동안 보호자는 항상 위치를 본다) ·
+③ <b>요금 미터도 종료 지점에서 끊긴다</b> — 귀가는 서비스가 아니라 <b>양육권</b>이라 과금되지 않는다. 화면은 거의 비어 있어야 한다: 개, 지도, 얼어붙은 숫자.</p>
+<div class="row">
+  <div class="cell">
+    <span class="tag">Ⓗ 집으로 가는 중 — 러닝 종료 후 · 인계 전</span>
+    <div class="phone">
+      <!-- 지도 = 이 화면의 본체. 라이브 화면(owner/live.tsx)의 문법 그대로: 실지도 위 코랄 경로 + 상단 필 -->
+      <div style="position:relative;background:#F1F1EF">
+        <svg viewBox="0 0 280 176" width="100%" height="176" style="display:block">
+          <!-- 지도 바탕: 길 — 실지도(네이버) 자리의 대역 -->
+          <rect x="0" y="0" width="280" height="176" fill="#F1F1EF"/>
+          <path d="M0 44 H280 M0 118 H280 M74 0 V176 M196 0 V176" stroke="#E4E4E0" stroke-width="7" fill="none"/>
+          <path d="M0 82 H280 M136 0 V176" stroke="#E9E9E5" stroke-width="4" fill="none"/>
+          <!-- ① 얼어붙은 러닝 경로 — 회색. 이미 끝난 2.1km 루프 -->
+          <polyline points="52,140 62,110 84,88 118,70 156,64 188,72 208,92 202,114 176,124"
+            fill="none" stroke="#B7B7BC" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>
+          <circle cx="52" cy="140" r="4" fill="#B7B7BC"/>
+          <!-- 종료 지점: 러닝이 끝난 곳 = 기록이 언 곳 -->
+          <circle cx="176" cy="124" r="5" fill="#FFFFFF" stroke="#6B6B72" stroke-width="2.5"/>
+          <!-- ② 종료 후 지금까지 — 코랄 실선. 이것도 실측 GPS다(예측 경로는 그리지 않는다) -->
+          <polyline points="176,124 152,132 128,136" fill="none" stroke="#E8552F" stroke-width="4"
+            stroke-linejoin="round" stroke-linecap="round"/>
+          <circle cx="128" cy="136" r="6.5" fill="#E8552F" stroke="#FFFFFF" stroke-width="2.5"/>
+          <!-- 집: 보호자 주소는 아는 값이라 점으로 찍는다. 남은 경로는 모르므로 선을 안 긋는다 -->
+          <rect x="47" y="135" width="10" height="10" fill="#111111"/>
+          <text x="63" y="145" font-size="14" font-weight="700" fill="#111111" font-family="-apple-system">집</text>
+        </svg>
+        <!-- 상단 필 — live.tsx의 LIVE 필과 같은 물건, 문구만 상태를 따라간다 -->
+        <div style="position:absolute;top:12px;left:15px;background:#FFFFFF;border:1px solid var(--line);padding:6px 10px;font-size:14px;font-weight:800;color:var(--ink)">
+          <span style="color:var(--line)">●</span> 우리 초코 · 집으로 가는 중
+        </div>
+      </div>
+      <div class="coral"></div>
+      <!-- 얼어붙은 기록 — 라이브의 통계 아일랜드가 그대로 얼어 있는 모습이다 -->
+      <div class="frozen" style="padding:13px 15px 14px">
+        <div class="small" style="color:var(--dim)">러닝 기록 · <b style="color:var(--dim)">여기서 멈췄어요</b></div>
+        <div class="statRow" style="margin-top:8px">
+          <div class="stat"><div class="frozenNum" style="font-size:26px;line-height:1.22">2.1</div><div class="small" style="margin-top:2px">km</div></div>
+          <div class="vdiv" style="background:#E2E2E4"></div>
+          <div class="stat"><div class="frozenNum" style="font-size:26px;line-height:1.22">21:04</div><div class="small" style="margin-top:2px">시간</div></div>
+          <div class="vdiv" style="background:#E2E2E4"></div>
+          <div class="stat"><div class="frozenNum" style="font-size:26px;line-height:1.22">10′02″</div><div class="small" style="margin-top:2px">/km</div></div>
+        </div>
+      </div>
+      <div class="coral"></div>
+      <div class="pad" style="padding-top:15px;padding-bottom:20px">
+        <div class="body"><b>우리 초코는 지금 집으로 가는 길이에요.</b></div>
+        <div class="small" style="margin-top:6px">러닝은 <b style="color:var(--text)">2.1km</b>에서 끝났고, 그 지점에서 기록도 요금도 멈췄어요 — <b style="color:var(--text)">가는 길은 요금이 올라가지 않아요.</b></div>
+        <div class="small" style="margin-top:8px">현관에서 인계가 끝나면 오늘의 기록 카드를 보내드릴게요.</div>
+      </div>
+    </div>
+    <p class="why"><b>이 화면은 기록 카드가 아니다</b> — 양육권 표면이다. 그래서 CTA가 <u>하나도 없다</u>: 보호자가 지금 할 수 있는 일이 없으므로 버튼을 그리면 죽은 버튼이다(§7 no dead buttons). 화면의 일은 “보고 있다”뿐.
+    <b>얼어붙음의 문법:</b> 옅게 만드는 게 아니라 <b>면이 회색(#F7F7F8)이 되고 잉크가 딤(#666)으로 내려간다</b> — 불투명도 트릭 금지, 대비 바닥(≥4.5:1) 준수. 회색은 “안 중요함”이 아니라 <u>“더는 안 오름”</u>을 뜻한다.
+    <b>지도의 두 색이 곧 계약이다:</b> 회색 선 = 끝난 러닝(과금 구간) · 코랄 선 = 종료 후 지금까지(무과금 구간). 둘 다 <u>실측 GPS</u>이고,
+    <b>집까지 남은 경로는 긋지 않는다</b> — 어느 길로 갈지 모르기 때문이다(모르는 걸 그리지 않는다). 집은 아는 값(보호자 주소)이라 점으로만 찍는다. 도착 예정 시각도 같은 이유로 없다.
+    <b>돈 경계가 화면에 있는 이유:</b> 미터가 종료 지점에서 끊긴다는 사실은 이 화면에서만 검증 가능하다(개는 아직 밖인데 숫자는 멈춰 있다). 기록 카드의 “요금 줄 금지” 법은 <u>카드</u>의 법이고, 여기서 한 줄은 신뢰의 본체다.
+    <b>미구현:</b> 이 상태와 복귀 인계는 아직 코드에 없다 — 마켓플레이스에는 픽업 인계(confirmHandoff)만 있고 <u>복귀 인계가 없다</u>(TODOS “Run-end flow”). 이 랩이 그 시퀀스를 그린 첫 문서다.</p>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     Ⓔ 엣지 — 카드가 거짓말하기 가장 쉬운 두 순간
+     ══════════════════════════════════════════════════════════════════════════ -->
+<h2>Ⓔ 엣지 케이스 — 같은 카드가 빨리 끝난 날·데이터 없는 날에 어떻게 서는가</h2>
+<p class="areaNote">Ⓡ 어느 방향을 고르든 이 두 상태를 통과해야 한다. 여기서 무너지는 안은 첫 러닝만 예쁜 안이다.
+<b>세 번째 후보였던 “느린 날”은 상태가 아니다</b> — 예상보다 오래 걸린 날의 카드는 <u>기본 카드 그대로</u>이고, 추가되는 줄이 하나도 없다. 격려는 한 방향뿐이라 그 방향의 부재가 곧 설계다.</p>
+<div class="row">
+  <div class="cell">
+    <span class="tag">Ⓔ① 빠른 완주 — 2.0km를 13분에 끝낸 날</span>
+    <div class="phone">
+      <div class="pad" style="padding-top:22px;padding-bottom:12px">
+        <div class="kicker">FIRST RUN · 첫 러닝</div>
+        <div style="display:flex;align-items:baseline;gap:6px;margin-top:10px">
+          <span class="num" style="font-size:60px;line-height:1.18">2.0</span>
+          <span style="font-size:20px;font-weight:800">km</span>
+        </div>
+        <div style="margin-top:5px"><span class="chipOk">2km 도달 · 완주</span></div>
+      </div>
+      <div class="coral"></div>
+      <div class="pad statRow" style="padding-top:13px;padding-bottom:13px">
+        <div class="stat"><div class="num" style="font-size:24px;line-height:1.22">13:07</div><div class="small">시간</div></div>
+        <div class="vdiv"></div>
+        <div class="stat"><div class="num" style="font-size:24px;line-height:1.22">6′34″</div><div class="small">/km</div></div>
+        <div class="vdiv"></div>
+        <div class="stat"><div class="num" style="font-size:24px;line-height:1.22">18:12</div><div class="small">시작</div></div>
+      </div>
+      <div class="coral"></div>
+      <div class="pad">
+        <div class="body"><b>끝나는 게 좀 빨랐네요 — 우리 초코는 더 뛸 수 있어요.</b></div>
+        <div class="small" style="margin-top:6px">2km는 보통 <span class="num" style="color:var(--text);font-size:15px">15~20</span>분쯤 걸려요 (예상) · 오늘은 <span class="num" style="color:var(--text);font-size:15px">13</span>분이었어요.</div>
+        <!-- 레벨업 빵부스러기 — 문장이지 CTA가 아니다. 조용함은 '색을 옅게'가 아니라
+             '위치를 뒤로 + 굵기를 안 올림'으로 낸다(faint #999는 장식 클래스 전용, 한글 본문 금지) -->
+        <div class="small" style="margin-top:8px">이런 날이 이어지면 다음 레벨을 제안드릴게요.</div>
+      </div>
+      <div class="coral"></div>
+      <div class="pad">
+        <div class="body"><b>오늘이 우리 초코의 기준선이에요.</b></div>
+        <div class="small" style="margin-top:5px">다음 러닝부터 그래프가 생겨요.</div>
+        <span class="btn" style="margin-top:13px">한 번 더 예약하기</span>
+      </div>
+    </div>
+    <p class="why"><b>히어로는 언제나 거리다</b> — 완주 조건이 거리 하나라서 “먼저 닿은 쪽이 주인공” 같은 교체 규칙이 없어졌다. 칩도 똑같은 <b>2km 도달 · 완주</b> 하나: 빨리 끝났다고 다른 종류의 완주가 되지는 않는다.
+    <b>이 상태가 존재하는 이유</b>는 시간이 완주를 못 멈추기 때문이다(코스는 루프다 — 타이머가 울리면 개가 집에서 제일 먼 데 서 있게 된다). 그래서 시간은 판정에서 빠지고 <u>한 방향 격려</u>로만 남는다.
+    <b>격려는 초대이지 평가가 아니다</b>: “더 뛸 수 있어요”는 초코를 칭찬하지도 나무라지도 않고 <u>다음 러닝</u>을 가리킨다. 반대 방향(“오래 걸렸어요”)은 존재하지 않는 상태다 — 느린 날 카드에는 이 블록 자체가 렌더되지 않는다.
+    <b>레벨업 빵부스러기</b>는 <span class="num">14</span>pt 딤 한 줄이고 <u>버튼이 아니다</u>: 표본 1개로는 레벨을 제안할 근거가 없다. 빠른 완주는 <b>탐지 신호</b>일 뿐이고, 신호가 쌓여 세는 문장이 되면 그때 Ⓖ②에서 버튼이 된다.
+    <b>대가:</b> 완주 카드에 블록이 하나 더 붙어 코랄 섹션선이 <span class="num">2</span>개에서 <span class="num">3</span>개로 늘어난다 — 이미 줄이 많은 Ⓡ②(표) 위에 얹으면 화면이 길어진다. 그리고 “빠르다”의 임계(예상 범위의 하한 대비 몇 %)는 <u>제품 결정</u>이라 아직 비어 있다.</p>
+  </div>
+
+  <div class="cell">
+    <span class="tag">Ⓔ② GPS 유실 — 거리를 모르는 날</span>
+    <div class="phone">
+      <div class="pad" style="padding-top:22px;padding-bottom:12px">
+        <div class="kicker">FIRST RUN · 첫 러닝</div>
+        <div style="display:flex;align-items:baseline;gap:7px;margin-top:10px">
+          <span class="num" style="font-size:60px;line-height:1.18">22:35</span>
+          <span style="font-size:16px;font-weight:800;color:var(--dim)">달린 시간</span>
+        </div>
+        <div style="margin-top:5px"><span class="chipHold">거리 미기록 · 완주 판정 보류</span></div>
+      </div>
+      <div class="coral"></div>
+      <div class="pad">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;padding:11px 0">
+          <span class="body" style="font-weight:800">달린 거리</span><span class="num" style="font-size:24px;color:var(--dim)">—</span>
+        </div>
+        <div class="hair"></div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline;padding:11px 0">
+          <span class="body" style="font-weight:800">평균 페이스</span><span class="num" style="font-size:24px;color:var(--dim)">—</span>
+        </div>
+      </div>
+      <div style="background:var(--criticalWash);border-top:1px solid var(--critical);border-bottom:1px solid var(--critical);padding:12px 15px">
+        <div style="font-size:14px;line-height:1.5;font-weight:700;color:var(--critical)">러닝 중 위치 신호가 끊겨 거리를 기록하지 못했어요.<br>완주는 거리로만 판정해서, 오늘은 판정을 남기지 않았어요 — 시간은 서버 기록이라 정확해요.</div>
+      </div>
+      <div class="pad">
+        <div class="small">우리 초코의 기준선은 다음 러닝에서 잡아드릴게요.</div>
+        <span class="btn" style="margin-top:12px">한 번 더 예약하기</span>
+      </div>
+    </div>
+    <p class="why">거리 <b>0.0km를 그리지 않는다</b> — 모르는 값은 <span class="num">—</span>이고, 이유는 라우드 스트립이 말한다(로딩 ≠ 0 ≠ 없음 법).
+    <b>거리 단독 완주가 만든 새 사실:</b> 거리를 모르는 날은 <u>완주라고 말할 수 없다</u>. 예전엔 시간이 완주를 대신 성립시켜 줬는데 그 사다리가 없어졌으므로, 카드는 <b>판정을 보류</b>한다 — 시간을 완주로 승격시켜 메꾸는 건 거짓말이다.
+    보류 칩은 <b>중립 회색</b>: 실패도 완주도 아니고, 크리티컬은 라우드 스트립 한 곳에서만 쓴다(강조 예산). 기준선은 미루되 재예약 문은 열어 둔다 — 사용자가 고칠 수 없는 실패에 대가를 물리지 않는다.
+    <b>열린 질문(결정 필요):</b> “판정 보류”가 <u>정산</u>에서 뭘 뜻하는지는 이 카드가 말하지 않는다(카드엔 요금 줄이 없다) — 결제 표면의 결정이고, 응급 종료 환불 경로(TODOS G1)와 같은 서랍에 있다.</p>
+  </div>
+</div>
+
+<h2>결정표</h2>
+<table class="cmp">
+  <tr><th></th><th>Ⓡ① 오도미터</th><th>Ⓡ② 페이스(표)</th><th>Ⓡ③ 내러티브</th></tr>
+  <tr><th>감정 피크</th><td>가장 높음 — 숫자 한 방</td><td>가장 낮음 — 정보지</td><td>높음 — 문장이 우리 초코를 말함</td></tr>
+  <tr><th>공유 스크린샷</th><td>강함</td><td>약함</td><td>중간</td></tr>
+  <tr><th>표본 1개 정직함</th><td>칩·본문으로 처리</td><td>선언 문장으로 처리</td><td>문장에 내장 — 가장 자연</td></tr>
+  <tr><th>빠른 완주 날 (Ⓔ①)</th><td>격려 블록 하나 추가 — <b>히어로 교체 없음</b>(거리가 늘 히어로)</td><td>표 아래 블록 하나 — 영향 최소</td><td>문장에 흡수되어 가장 자연 (“오늘은 13분이었어요”가 같은 목소리)</td></tr>
+  <tr><th>느린 날</th><td colspan="3"><b>상태가 아니다 — 세 방향 모두 기본 카드 그대로, 추가되는 줄 없음</b> (경고·지연 배지 금지)</td></tr>
+  <tr><th>Ⓗ 귀가 화면과의 연결</th><td>얼어붙은 <span class="num">2.1</span>이 다음 화면에서 큰 숫자로 되살아남 — 연결 가장 극적</td><td>얼어붙은 세 숫자 = 표의 세 줄, <b>같은 문법으로 이어짐</b></td><td>숫자에서 문장으로 갈아타 연결이 약함</td></tr>
+  <tr><th>Ⓖ 그래프 접속</th><td>섹션 추가로 자연스러움</td><td>표 아래 섹션</td><td>문장 뒤 섹션 — 다소 늘어짐</td></tr>
+</table>
+<p class="law" style="margin-top:12px"><b>Ⓗ 귀가는 방향 선택지가 아니다</b> — Ⓡ 어느 쪽을 고르든 그 앞에 놓이는 <u>필수 화면</u>이다. 이 표에 넣은 건 방향마다 이어짐의 질이 다르기 때문이다.</p>
+
+<p class="law" style="margin-top:40px">콜로폰 — 이 랩의 모든 필드는 실재한다: <b>RunReport.run</b>의 actualKm · durationSec · paceSecPerKm · endReason · trace · photos (app/src/lib/api.ts:3206~).
+스플릿은 trace에서 파생 가능하고, <b>완주 = actualKm ≥ 레벨 최소 거리</b>라는 서버 파생 판정 하나다 — 러너의 종료 탭은 이벤트일 뿐 판정이 아니다. 화면이 지어내는 숫자는 0개.
+<b>2026-08-12 개정:</b> 시간 임계(“또는 20분”)는 철회 — 코스가 루프라 타이머는 개를 코스 한복판에 세운다. 이 랩에서 시간 임계 어휘와 앰버 시간 완주 칩, 히어로 교체 규칙, 구 Ⓔ①(1.4km/20분)은 전부 삭제됐다.
+예상 소요(2km → 보통 15~20분쯤)는 권장 최소 페이스 <b>8분/km</b>(밴드 7~9, 환경설정 소관)에서 나온 <u>추정</u>이고, 판정이 아니라 <b>한 방향 격려</b>에만 쓰인다.
+<b>Ⓗ 귀가는 아직 미구현</b> — TODOS.md “Run-end flow: stop confirmation + 귀가 intermediary + return handoff”(러너 종료 → 종료 확인 → 귀가 → 복귀 인계 → 기록 카드)의 화면 예언이다.
+지도는 owner/live.tsx의 실지도 레이어(네이버 · paper.line 경로 · 상단 필)를 그대로 쓰고, 얼어붙은 통계는 같은 화면의 통계 아일랜드가 멈춘 모습이다. 미터 절단 지점은 settle-run의 actuals = <u>러닝 구간</u>이라는 사실과 일치한다.</p>
+
+</body>
+</html>

@@ -1,6 +1,12 @@
 <!-- /autoplan restore point: /Users/sean/.gstack/projects/seankookim-daengrun/redesign-v4-autoplan-restore-20260806-130208.md -->
 # 0059 — Take-rate 33% (Sean decision 2026-08-05)
 
+> ⚠ **AMENDED AT THE TOKEN CUTOVER (decided 2026-08-12, not yet live):** the parked
+> level-token design moves runner pay to SESSION-BASED (0.75 × token face per completed
+> session, take 33% → 25%) and deletes the actual-km formula. This doc remains PRE-CUTOVER
+> truth — the formula below still governs until that design un-parks. See the decision log
+> + `payments-toss-plan.md` (the ACTIVE money track).
+
 Status: PLANNED · Sprint phase: Plan · Prereq: 0057 K-1 (commission_rate server-only) SHIPPED ✅
 
 ## Decision being implemented

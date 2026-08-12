@@ -1,0 +1,1041 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>결제 표면 v3 — 가격 비가시 원칙 (카카오T 규칙)</title>
+<style>
+  /* ─────────────────────────────────────────────────────────────────────────
+     v3의 규칙: 새 화면도, 새 미학도 없다. 두 개의 실화면 문법만 쓴다.
+       · pay.tsx 문법(.phone)  — 카드 연결 · 예약 확정 · 영수증 · 예외
+         (kicker 11.5/2.6 · chip 14/18/0.8 · head 25.5/32 · meta 14.5/19 · body 15/21 ·
+          row 13/18 · rowAmt 17/21 · total 38/46 · plate 14.5/20 · fail 14/19 ·
+          footer 14/34 · gutter 18 · 이중 룰 1px+3px+1px)
+       · request.tsx 문법(.rphone) — 가격의 순간(요청 확인 스텝)
+         (gutter 15 · paddingTop 56 · paddingBottom 210 · circleBtn 40 · title 20/800 ·
+          stepSeg h4 gap5 · 질문 25/34 Black Han Sans · sumCard 코랄1px ·
+          sumRow 14/12 pad + #F4F4F4 hairline · sumLabel 14 dim w104 · sumValue 15/800 ink 우측 ·
+          feeCard #EEE 1px · FeeRow 15 dim / 15/600 text · 티켓 #111111DC pad17 코랄 탑 1px ·
+          절취선 dashed #3A3A3A + 노치 16 · payBtn 잉크면 코랄1px 15pad 17/800)
+     ───────────────────────────────────────────────────────────────────────── */
+  :root{
+    --canvas:#FFFFFF; --ink:#111111; --text:#333333; --dim:#666666; --faint:#999999;
+    --line:#E8552F; --wash:#FFF6F4;
+    --action:#C6472C; --actionPressed:#A83315; --actionInk:#A83315;
+    --critical:#B3261E; --criticalWash:#FBEAE7;
+    --pending:#C77414; --neutral:#EEEEEE; --disabled:#F2F2F2;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#E4E4E8;font-family:-apple-system,'Apple SD Gothic Neo','IBM Plex Sans KR',sans-serif;color:var(--ink);padding:34px 26px 100px}
+  h1{font-size:26px;font-weight:900;margin-bottom:10px}
+  .sub{font-size:14px;color:#3E3E44;max-width:1060px;line-height:1.7;margin-bottom:12px}
+  .law{font-size:13.5px;color:#5A5A62;max-width:1060px;line-height:1.7;margin-bottom:8px}
+  h2{font-size:20px;font-weight:900;margin:62px 0 6px}
+  h3{font-size:15.5px;font-weight:900;margin:26px 0 10px;color:#333}
+  .areaNote{font-size:13.5px;color:#55555C;max-width:1060px;line-height:1.7;margin-bottom:22px}
+  .row3{display:flex;gap:26px;flex-wrap:wrap;align-items:flex-start}
+  .cell{width:340px}
+  .tag{display:block;font-weight:900;font-size:14.5px;margin-bottom:9px}
+  .tag em{font-style:normal;color:#8A8A92;font-weight:600}
+  .why{font-size:12.5px;color:#5A5A62;line-height:1.65;margin-top:11px;width:340px}
+  .why b{color:#2E2E34}
+  .ban{border-left:3px solid var(--critical);background:var(--criticalWash);padding:13px 15px;font-size:13.5px;line-height:1.7;color:#5A1B16;max-width:1060px;margin-top:16px}
+  .note{border-left:3px solid var(--line);background:var(--wash);padding:13px 15px;font-size:13.5px;line-height:1.7;color:#4A2A22;max-width:1060px;margin-top:16px}
+  .exc{display:inline-block;background:#2E2E34;color:#fff;font-size:11.5px;font-weight:900;letter-spacing:1.4px;padding:4px 9px;vertical-align:3px;margin-left:8px}
+  table.t{border-collapse:collapse;font-size:12.5px;background:#fff;margin-top:18px;max-width:1400px}
+  table.t th,table.t td{border:1px solid #D5D5DA;padding:8px 11px;text-align:left;vertical-align:top;line-height:1.55}
+  table.t th{background:#F7F7F9;font-size:12px}
+  table.t td code{font-size:11.5px}
+  .era{font-weight:900;color:#A83315}
+
+  /* ── 폰 목업 A = pay.tsx 골격 ───────────────────────────────────────────── */
+  .phone{width:340px;background:var(--canvas);border:1px solid #D2D2D8;box-shadow:0 12px 28px rgba(0,0,0,.10);display:flex;flex-direction:column;min-height:600px}
+  .scroll{flex:1;padding-top:60px;padding-bottom:28px}   /* pay.tsx contentContainerStyle */
+  .headRow{display:flex;align-items:flex-start;padding:0 18px}
+  .headRow .l{flex:1}
+  .back{font-size:26px;line-height:30px;color:var(--ink);margin-bottom:6px}
+  .kicker{font-size:11.5px;font-weight:800;letter-spacing:2.6px;color:var(--faint)}
+  .chip{font-size:14px;line-height:18px;font-weight:800;letter-spacing:.8px;color:var(--dim);margin-top:2px;white-space:nowrap}
+  .chip.loud{color:var(--critical)}
+  .head{font-size:25.5px;line-height:32px;font-weight:900;color:var(--ink);padding:0 18px;margin-top:10px}
+  .meta{font-size:14.5px;line-height:19px;color:var(--dim);padding:0 18px;margin-top:6px}
+  .body{font-size:15px;line-height:21px;color:var(--text);padding:0 18px;margin-top:16px}
+  .num{font-family:'Oswald','Arial Narrow',sans-serif;font-weight:600;font-variant-numeric:tabular-nums}
+  .disp{font-family:'Black Han Sans','Apple SD Gothic Neo',sans-serif;font-weight:900}
+  .table{margin-top:22px}
+  .rowL{display:flex;align-items:center;padding:13px 18px;border-top:1px solid var(--line)}
+  .rowL .l{flex:1}
+  .rowLabel{font-size:14.5px;font-weight:600;color:var(--text)}
+  .rowSub{font-size:14px;line-height:18px;color:var(--dim);margin-top:2px}
+  .amt{display:flex;align-items:baseline}
+  .rowAmt{font-size:17px;line-height:21px;font-weight:600;color:var(--text)}
+  .rowUnit{font-size:14px;font-weight:600;color:var(--dim);margin-left:2px}
+  .rule{border-top:1px solid var(--line)}
+  .gap3{height:3px}
+  .totalRow{display:flex;align-items:baseline;padding:15px 18px}
+  .totalLabel{flex:1;font-size:14.5px;font-weight:800;color:var(--ink)}
+  .totalAmt{font-size:38px;line-height:46px;font-weight:900;color:var(--ink)}
+  .totalUnit{font-size:15px;font-weight:700;color:var(--dim);margin-left:3px}
+  .plate{background:var(--wash);margin-top:18px;padding:14px 18px}
+  .plateTxt{font-size:14.5px;line-height:20px;font-weight:700;color:var(--text)}
+  .plateTxt+.plateTxt{margin-top:6px}
+  .fail{margin-top:18px;background:var(--criticalWash);border-top:1px solid var(--critical);border-bottom:1px solid var(--critical);padding:12px 18px}
+  .failTxt{font-size:14px;line-height:19px;font-weight:700;color:var(--critical)}
+  .grow{flex:1}
+  .footer{padding:14px 18px 34px;border-top:1px solid var(--line)}
+  .btn{display:block;text-align:center;background:var(--action);color:#fff;font-weight:800;font-size:17px;padding:16px 0}
+  .btn2{display:block;text-align:center;background:var(--wash);border:1px solid var(--line);color:var(--actionInk);font-weight:800;font-size:16px;padding:15px 0;margin-top:10px}
+  .footNote{font-size:14px;line-height:19px;color:var(--dim);padding:0 18px;margin-top:14px}
+  /* 법정 고지 — 한글 14pt 플로어를 지킨다(축소 예외 없음). 상시는 한 줄, 전문은 영수증에. */
+  .legal{font-size:14px;line-height:19px;color:var(--dim);padding:14px 18px 0;margin-top:18px;border-top:1px solid var(--neutral)}
+  .legalFull{font-size:14px;line-height:20px;color:var(--dim);padding:14px 18px 0;margin-top:18px;border-top:1px solid var(--neutral)}
+  /* 토스가 그리는 면 — 우리 그리드가 아님을 형태로 말한다 */
+  .toss{margin:18px 18px 0;border:1px dashed #B9B9C0;background:#FAFAFB;padding:18px 14px;text-align:center;font-size:14px;line-height:19px;color:#6E6E76;font-weight:700}
+  .tossRow{display:flex;justify-content:space-between;align-items:center;background:#fff;border:1px solid var(--neutral);padding:12px;margin-top:10px;font-size:14px;font-weight:700;color:var(--text)}
+  /* 목록 행 (설정 → 결제 관리) — pay.tsx rowL 문법을 중립 헤어라인으로만 바꿔 재사용 */
+  .listRow{display:flex;align-items:center;padding:13px 18px;border-top:1px solid var(--neutral)}
+  .listRow .l{flex:1}
+
+  /* ── 폰 목업 B = request.tsx 골격 (가격의 순간 전용) ─────────────────────── */
+  .rphone{width:340px;background:var(--canvas);border:1px solid #D2D2D8;box-shadow:0 12px 28px rgba(0,0,0,.10);position:relative;min-height:700px;overflow:hidden}
+  .rscroll{padding:56px 15px 210px}                       /* layout.gutter 15 */
+  .rtop{display:flex;align-items:center;gap:12px}
+  .rcircle{width:40px;height:40px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:20.5px;color:var(--ink)}
+  .rtitle{flex:1;font-size:20px;font-weight:800;color:var(--ink)}
+  .rsteps{display:flex;gap:5px;margin-top:14px}
+  .rseg{flex:1;height:4px;background:#EEEEEE}
+  .rseg.on{background:var(--line)}
+  .rq{font-size:25px;line-height:34px;color:var(--ink);margin-top:22px;font-family:'Black Han Sans','Apple SD Gothic Neo',sans-serif;font-weight:900}
+  .sumCard{border:1px solid var(--line);margin-top:16px}
+  .sumRow{display:flex;align-items:center;padding:14px 12px;border-bottom:1px solid #F4F4F4}
+  .sumRow.last{border-bottom:0}
+  .sumLabel{width:104px;font-size:14px;color:var(--dim)}
+  .sumValue{flex:1;font-size:15px;font-weight:800;color:var(--ink);text-align:right}
+  .sumRider{font-size:14px;color:var(--dim);text-align:right;margin-top:2px;line-height:18px}
+  .sumGlyph{font-size:14px;font-weight:800;color:var(--dim);margin-left:10px}
+  .feeCard{border:1px solid #EEEEEE;padding:12px;padding-top:6px;margin-top:14px}
+  .feeRow{display:flex;justify-content:space-between;margin-top:6px}
+  .feeLabel{font-size:15px;color:var(--dim)}
+  .feeValue{font-size:15px;font-weight:600;color:var(--text)}
+  .feeNote{font-size:14px;color:var(--dim);margin-top:8px}
+  .rlegal{font-size:14px;line-height:19px;color:var(--dim);margin-top:14px}
+  /* 티켓 — absolute, 세이프에어리어 위 18~46 (JSX가 인셋+12를 주입) */
+  /* overflow:hidden = RN 티켓과 동일 — 절취 노치가 티켓 가장자리에서 잘려 '펀치 홀'로 읽힌다 */
+  .ticket{position:absolute;left:10px;right:10px;bottom:18px;background:#111111DC;padding:17px;border-top:1px solid var(--line);overflow:hidden;box-shadow:0 5px 10px rgba(17,17,17,.35)}
+  .tkRow{display:flex;align-items:center;gap:11px}
+  .tkAv{width:40px;height:40px;background:#171A17;color:#fff;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:900}
+  .tkName{font-size:16px;font-weight:900;color:#fff}
+  .tkName .km{color:var(--line)}
+  .tkSub{font-size:14.5px;color:#B8B8B8;margin-top:2px}
+  .tkChip{background:var(--canvas);padding:9px 13px;font-size:16px;font-weight:900;color:var(--ink);max-width:144px;white-space:nowrap}
+  .tkTear{position:relative;height:1px;margin:13px 0;border-top:1px dashed #3A3A3A}
+  .tkNotch{position:absolute;top:-8px;width:16px;height:16px;border-radius:8px;background:var(--canvas)}
+  .payBtn{display:block;text-align:center;background:var(--ink);border:1px solid var(--line);padding:15px 12px;font-size:17px;font-weight:800;color:#fff}
+</style>
+</head>
+<body>
+
+<h1>결제 표면 v3 — 가격 비가시 원칙</h1>
+<p class="sub"><b>Sean의 판정(v2 → v3):</b> Ⓐ 카드 연결은 <u>그대로 좋다</u>(평생 한 번이니까). 그러나 <b>예약 확정 화면의 돈도, 해피패스의 영수증 화면도 보고 싶지 않다</b> — “그게 내 결제를 상기시킨다.”
+<b>카카오T 규칙</b>을 그대로 따른다: <u>가격은 선택 시점에 작은 글씨로 한 번만 보이고, 그 뒤로 승객은 숫자를 다시 보지 않는다.</u></p>
+
+<p class="sub"><b>플랜 §0-bis 가격 비가시 원칙(원문 요지):</b> 가격은 해피패스에서 정확히 <b>한 번</b> — 요청/옵션 화면에, 작은 글씨로, 옵션들 옆에 — 나타난다.
+그 뒤 예약 확정에는 <b>돈이 없고</b>, 러닝 후의 순간은 <b>기록 카드</b>(개, 청구서가 아니라)이며, <b>승인 알림은 카드사가 대신 한다</b>.
+돈 UI는 두 모드로만 존재한다 — <b>온디맨드</b>(예약 상세 → 결제 내역, 설정 → 결제 관리 · 전자상거래법 전문 포함)와 <b>예외</b>(거절·미수·계정 잠금 — 숨길 수 없고 크게 남는다). <b>정직 ≠ 시끄러움.</b></p>
+
+<p class="law"><b>이 랩의 헌법 5줄</b>
+① <b>가격은 요청 화면에서 한 번</b> — 그 뒤 해피패스의 어떤 화면도 숫자를 띄우지 않는다.
+② <b>영수증은 밀지 않는다(never pushed)</b> — 사용자가 찾아 들어오는 면이고, 알리는 일은 카드사 승인알림이 한다.
+③ <b>예외는 조용해질 수 없다</b> — 거절·미수·잠금은 크게 말한다(비가시는 해피패스의 규칙이다).
+④ <b>서버가 한 말 그대로</b> — 실패 사유는 각색하지 않는다(라우드 스트립 F1.2).
+⑤ <b>상태당 CTA 하나</b> · busy ≠ disabled · 죽은 버튼 금지.</p>
+
+<p class="law"><b>숫자 출처</b> — <code>theme.ts pricing</code>: 기본 <span class="num">9,900</span> · km당 <span class="num">3,000</span> · 간식 타임 <span class="num">2,000</span>.
+계획: 초코 · 반포천 코스 · <span class="num">3</span>km → <b><span class="num">20,900</span>원 예상</b>. 실측 <span class="num">2.6</span>km → <b><span class="num">19,700</span>원 청구</b>.
+전부 <code>bookings</code> 행 + <code>settle-run</code>의 계산이고 클라이언트는 재계산하지 않는다.</p>
+
+<div class="ban"><b>v2에서 삭제된 것</b> —
+① <b>Ⓑ 예약 확정 화면의 돈 전부</b>: 항목 테이블 · 38pt “예상 요금” 총액 · 총액 한 줄 접힘판 · “러닝 후 결제” 플레이트 문장의 금액 부분. 확정 화면에는 이제 숫자가 <u>0개</u>다.
+② <b>돈 타임라인 스트립(변형 ②)과 변형 축 전체</b>: 확정 화면에 돈이 없으므로 “돈을 어떻게 말할까”라는 질문 자체가 사라졌다. <code>.tl</code> 컴포넌트 CSS도 삭제했다.
+③ <b>해피패스 영수증 화면 Ⓒ1의 자동 노출</b>: 러닝 종료 후 이 화면으로 <u>보내지 않는다</u>. 같은 화면이 온디맨드 경로에만 남는다.
+④ 러닝 종료 직후 표면에 대한 이 랩의 소유권 — <b>기록 카드 랩</b>(<code>docs/labs/record-card-lab.html</code>)에 양도한다.
+<br>(v2에서 이미 삭제됐고 여전히 삭제 상태: 수락 시 결제 · <code>mock_pending</code> · 무료 확정 버튼 · Ⓟ랩 스텝레일/상태히어로 · 시간 임계 약속 · “러너에게 이미 지급됨” 고지 · 가상계좌/무통장.)</div>
+
+<div class="note"><b>비가시가 지워버리지 않는 세 가지 사실</b> — ⓐ <b>동의는 요청 화면에서 일어난다</b>(가격이 거기 있고, 그 아래 전자상거래법 고지가 붙는다). ⓑ <b>실측 기준 과금은 카드 연결 시점(Ⓐ1·Ⓐ3)에 고지된다</b>. ⓒ <b>영수증은 한 탭 거리에 항상 있다</b>(Ⓒ0 → Ⓒ1).
+이 셋이 살아 있어야 “보이지 않음”이 “숨김”이 되지 않는다 — DESIGN.md §7b의 <u>“디클러터링은 결코 은닉이 되지 않는다”</u>가 이 랩에 거는 유일한 제약이다.</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     Ⓐ 카드 연결 — v2 그대로. Sean 승인 완료.
+     ══════════════════════════════════════════════════════════════════════════ -->
+<h2>Ⓐ 카드 연결 — 한 번만, 그리고 다시는 <span style="font-size:14px;font-weight:700;color:#8A8A92">← v2 그대로 (Sean 승인)</span></h2>
+<p class="areaNote">빌링키 발급 흐름. 이 표면의 임무는 <b>“왜 지금 물어보는가”를 한 문장으로 해명하는 것</b> 하나다 — 그래서 청구 테이블이 없다(연결 시점에 청구할 금액이 존재하지 않는다. <u>없는 표를 그리지 않는다</u>).
+카드 정보 면은 토스가 그린다: 점선 박스는 <b>우리가 그리지 않는 면</b>이라는 뜻이고, 그 위에 우리 CTA를 얹지 않는다.
+<b>가격 비가시 원칙에서 이 섹션의 역할</b>: 실측 기준 자동 과금이라는 <u>사실을 고지하는 유일한 지점</u>이다(금액이 아니라 규칙을 말한다).</p>
+
+<div class="row3">
+
+  <!-- A1 -->
+  <div class="cell">
+    <span class="tag">Ⓐ1 · 연결 전 <em>billing_key 없음</em></span>
+    <div class="phone">
+      <div class="scroll">
+        <div class="headRow">
+          <div class="l"><div class="back">‹</div><div class="kicker">PAYMENT</div></div>
+          <div class="chip">CARD · 연결 전</div>
+        </div>
+        <div class="head">카드를 한 번만<br>연결해요</div>
+        <div class="meta">초코 · 반포천 코스 · 8월 12일 화 오후 6:10</div>
+        <div class="body">지금은 카드만 연결해요 — 결제는 러닝이 끝난 뒤, 실제 뛴 만큼만 자동으로 돼요.</div>
+        <div class="plate">
+          <div class="plateTxt">한 번 연결하면 다음 예약부터는 결제창이 뜨지 않아요.</div>
+          <div class="plateTxt">카드번호는 토스페이먼츠가 보관해요 — 도그스하이 서버에는 저장되지 않아요.</div>
+        </div>
+        <div class="legal">사업자 정보 · 통신판매업 신고번호 · 결제대행 토스페이먼츠 &nbsp;›</div>
+      </div>
+      <div class="footer">
+        <span class="btn">카드 연결하기</span>
+        <span class="btn2">이번만 결제창으로 진행하기</span>
+      </div>
+    </div>
+    <p class="why">헤드는 <b>25.5/32/900</b>, 본문 <b>15/21</b>, 플레이트 <b>14.5/20/700 on #FFF6F4</b> — 전부 pay.tsx 값 그대로.
+    <b>청구 테이블 없음</b>이 이 화면의 밀도 결정이다: 요소 5개로 끝난다.
+    세컨더리는 죽은 문이 아니다 — 누르면 <b>Ⓕ 폴백</b>으로 간다.
+    법적 고지는 <u>한 줄 14pt + 디스클로저</u>. 전문은 Ⓒ1 영수증에 있다.</p>
+  </div>
+
+  <!-- A2 -->
+  <div class="cell">
+    <span class="tag">Ⓐ2 · 토스 등록창 <em>토스가 그리는 면</em></span>
+    <div class="phone">
+      <div class="scroll">
+        <div class="headRow">
+          <div class="l"><div class="back">‹</div><div class="kicker">PAYMENT</div></div>
+          <div class="chip">TOSS · 카드 등록 중</div>
+        </div>
+        <div class="head">토스에서 카드를<br>등록해요</div>
+        <div class="body">여기부터는 토스페이먼츠 화면이에요 — 카드번호는 도그스하이가 받지 않아요.</div>
+        <div class="toss">
+          토스페이먼츠 빌링키 발급 위젯<br><span style="font-weight:600">(우리가 그리지 않는 면)</span>
+          <div class="tossRow"><span>카드 등록</span><span style="color:#9A9AA2">›</span></div>
+          <div class="tossRow"><span>간편결제로 등록</span><span style="color:#9A9AA2">›</span></div>
+        </div>
+      </div>
+      <div class="footer" style="border-top:1px solid var(--neutral)">
+        <div class="footNote" style="padding:0;margin:0">등록을 마치면 이 화면으로 돌아와요.</div>
+      </div>
+    </div>
+    <p class="why"><b>CTA 0개</b> — 남의 면 위에 우리 버튼을 얹으면 무엇이 커밋인지 거짓말이 된다.
+    푸터 경계선도 코랄이 아니라 중립 <b>#EEE</b>: 이 아래에 <u>액션이 없기 때문</u>이다. 뒤로가기는 살아 있다(취소 가능한 지점).</p>
+  </div>
+
+  <!-- A3 -->
+  <div class="cell">
+    <span class="tag">Ⓐ3 · 연결됨 <em>billing_key 발급 완료</em></span>
+    <div class="phone">
+      <div class="scroll">
+        <div class="headRow">
+          <div class="l"><div class="back">‹</div><div class="kicker">PAYMENT</div></div>
+          <div class="chip">CARD · 연결됨</div>
+        </div>
+        <div class="head">카드가<br>연결됐어요</div>
+        <div class="body">이제 예약할 때 결제창이 뜨지 않아요. 러닝이 끝나면 실제 뛴 거리로 계산해서 자동으로 결제돼요.</div>
+        <div class="table">
+          <div class="rowL">
+            <div class="l"><div class="rowLabel">연결된 카드</div><div class="rowSub">등록 8월 12일</div></div>
+            <div class="amt"><span class="rowAmt">신한 ****1234</span></div>
+          </div>
+        </div>
+        <div class="legal">사업자 정보 · 통신판매업 신고번호 · 결제대행 토스페이먼츠 &nbsp;›</div>
+      </div>
+      <div class="footer">
+        <span class="btn">예약 계속하기</span>
+      </div>
+    </div>
+    <p class="why">카드 표기는 <b>토스 발급 응답의 실데이터</b>(카드사 + 끝 4자리)다. 실데이터가 없으면 이 행을 <u>지운다</u>.
+    청구 테이블 문법(<b>코랄 1px 상단선 · 13/18 패딩</b>)을 한 행짜리로 재사용했다 — 새 컴포넌트가 아니다.
+    이 화면의 본문 한 줄이 <b>실측 과금 동의의 근거</b>로 남는다(비가시 원칙의 ⓑ 기둥).</p>
+  </div>
+
+  <!-- A4 -->
+  <div class="cell">
+    <span class="tag">Ⓐ4 · 연결 실패 <em>발급 거절</em></span>
+    <div class="phone">
+      <div class="scroll">
+        <div class="headRow">
+          <div class="l"><div class="back">‹</div><div class="kicker">PAYMENT</div></div>
+          <div class="chip loud">FAILED</div>
+        </div>
+        <div class="head">카드가 연결되지<br>않았어요</div>
+        <div class="fail">
+          <div class="failTxt">카드사에서 등록을 거절했어요<br>[REJECT_CARD_COMPANY] 카드사 응답: 해당 카드로 자동결제를 등록할 수 없습니다</div>
+        </div>
+        <div class="body">다른 카드로 다시 시도하거나, 이번 예약만 결제창으로 진행할 수 있어요.</div>
+      </div>
+      <div class="footer">
+        <span class="btn">다시 연결하기</span>
+        <span class="btn2">이번만 결제창으로 진행하기</span>
+      </div>
+    </div>
+    <p class="why">라우드 페일 <b>F1.2</b> 그대로: <code>criticalWash</code> 면 + 위아래 <code>critical</code> 1px + <b>14/19/700</b>, 그리고 <u>서버가 한 말 그대로</u>(토스 에러 코드 포함).
+    칩도 critical로 승격(≥14pt/700 플로어). 실패 화면에도 <b>출구가 두 개뿐</b>.</p>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     Ⓑ 가격의 순간 — 이미 존재하는 request.tsx 확인 스텝. 배치 결정이지 리디자인이 아니다.
+     ══════════════════════════════════════════════════════════════════════════ -->
+<h2>Ⓑ 가격의 순간 — <code>owner/request.tsx</code> 확인 스텝 (해피패스에서 가격이 보이는 <u>유일한</u> 화면)</h2>
+<p class="areaNote"><b>이건 리디자인이 아니라 배치 결정이다.</b> request.tsx는 <u>이미</u> 가격을 보여준다 — 이 랩이 정하는 것은 <b>그 한 줄이 어디에 서고 얼마나 작아지는가</b>뿐이다.
+아래 두 안은 골격·타입·간격·카피가 전부 같고, <b>“예상 요금 한 줄”의 위치와 법정 고지와의 관계</b>만 다르다.</p>
+
+<p class="areaNote"><b>두 안이 공유하는 결정(축이 아니라 전제 — 여기서 이견이 있으면 먼저 말해주세요)</b>
+① <b>티켓의 28.5pt Oswald 총액을 은퇴</b>시킨다 — 오늘 request.tsx 티켓은 <code>총 결제 금액 / 28.5pt</code>를 지고 있고, 그게 화면에서 가장 큰 숫자다. 후불에서는 그 라벨이 <u>거짓</u>이기도 하다(누르는 순간 아무 돈도 안 나간다). 티켓은 <b>정보 행 + 절취선 + 풀폭 CTA</b>가 된다.
+② CTA 라벨 <b>“결제하기 ›” → “예약 요청하기 ›”</b>.
+③ 총액 라벨 <b>“총 결제 금액” → “예상 요금”</b>, 그리고 <b>“러닝 후 실제 뛴 거리 기준”</b> 라이더 한 줄이 항상 그 옆에 붙는다.
+④ <b>전자상거래법 한 줄 + 디스클로저</b>가 이 화면에 새로 생긴다(오늘 request.tsx에는 없다). 전문은 Ⓒ1 영수증에만.</p>
+
+<div class="row3">
+
+  <!-- B1 ① -->
+  <div class="cell">
+    <span class="tag">Ⓑ1① · 옵션 행들 사이에 인라인 <em>sumCard 6번째 행</em></span>
+    <div class="rphone">
+      <div class="rscroll">
+        <div class="rtop">
+          <div class="rcircle">‹</div>
+          <div class="rtitle">러닝 요청</div>
+        </div>
+        <div class="rsteps"><div class="rseg on"></div><div class="rseg on"></div><div class="rseg on"></div></div>
+        <div class="rq">이대로 예약할까요?</div>
+        <div class="sumCard">
+          <div class="sumRow"><span class="sumLabel">누가 · 어디서</span><span class="sumValue">초코 · 우리집</span><span class="sumGlyph">›</span></div>
+          <div class="sumRow"><span class="sumLabel">언제</span><span class="sumValue">8월 12일 18:30</span><span class="sumGlyph">›</span></div>
+          <div class="sumRow"><span class="sumLabel">거리 · 코스</span><span class="sumValue">3km · 반포천 코스</span><span class="sumGlyph">›</span></div>
+          <div class="sumRow"><span class="sumLabel">페이스</span><span class="sumValue">보통 7'</span><span class="sumGlyph">▾</span></div>
+          <div class="sumRow"><span class="sumLabel">옵션 · 매주 반복</span><span class="sumValue">간식 타임 · 꺼짐</span><span class="sumGlyph">▾</span></div>
+          <div class="sumRow last">
+            <span class="sumLabel">예상 요금</span>
+            <span style="flex:1">
+              <span class="sumValue" style="display:block"><span class="num">20,900</span>원</span>
+              <span class="sumRider">러닝 후 실제 뛴 거리 기준</span>
+            </span>
+            <span class="sumGlyph">▾</span>
+          </div>
+        </div>
+        <div class="rlegal">사업자 정보 · 통신판매업 신고번호 · 결제대행 토스페이먼츠 &nbsp;›</div>
+      </div>
+      <div class="ticket">
+        <div class="tkRow">
+          <div class="tkAv">초</div>
+          <div style="flex:1">
+            <div class="tkName">초코 · <span class="km">3km</span> · 보통 7'</div>
+            <div class="tkSub">반포천 코스</div>
+          </div>
+          <div class="tkChip">8월 12일 18:30</div>
+        </div>
+        <div class="tkTear"><span class="tkNotch" style="left:-28px"></span><span class="tkNotch" style="right:-28px"></span></div>
+        <span class="payBtn">예약 요청하기 ›</span>
+      </div>
+    </div>
+    <p class="why">가격이 <b>다른 선택지들과 같은 행 문법</b>으로 앉는다 — <code>sumLabel 14 dim / sumValue 15/800 ink 우측정렬</code>. 페이스·옵션과 <u>시각적 계급이 같다</u>는 게 핵심이다: 요금은 선택의 결과이지 의식이 아니다.
+    라이더는 <code>거리·코스</code> 행이 이미 쓰는 <b>우측정렬 보조 줄</b> 자리(오늘은 km 불일치 앰버 줄이 거기 선다) — 새 문법이 아니다.
+    <b>▾ 글리프</b>는 페이스·옵션 폴드와 같은 약속: 누르면 <code>feeCard</code> 내역(기본/거리/옵션)이 그 자리에서 펼쳐진다 — 내역은 <u>삭제가 아니라 접힘</u>이다(§7b: 디클러터 ≠ 은닉).
+    <b>대가</b>: 법정 고지가 가격 행에서 한 블록 떨어져 있다(카드 밖 한 줄).</p>
+  </div>
+
+  <!-- B1 ② -->
+  <div class="cell">
+    <span class="tag">Ⓑ1② · 푸터 인접 · 법정 고지와 한 덩어리 <em>feeCard 유지</em></span>
+    <div class="rphone">
+      <div class="rscroll">
+        <div class="rtop">
+          <div class="rcircle">‹</div>
+          <div class="rtitle">러닝 요청</div>
+        </div>
+        <div class="rsteps"><div class="rseg on"></div><div class="rseg on"></div><div class="rseg on"></div></div>
+        <div class="rq">이대로 예약할까요?</div>
+        <div class="sumCard">
+          <div class="sumRow"><span class="sumLabel">누가 · 어디서</span><span class="sumValue">초코 · 우리집</span><span class="sumGlyph">›</span></div>
+          <div class="sumRow"><span class="sumLabel">언제</span><span class="sumValue">8월 12일 18:30</span><span class="sumGlyph">›</span></div>
+          <div class="sumRow"><span class="sumLabel">거리 · 코스</span><span class="sumValue">3km · 반포천 코스</span><span class="sumGlyph">›</span></div>
+          <div class="sumRow"><span class="sumLabel">페이스</span><span class="sumValue">보통 7'</span><span class="sumGlyph">▾</span></div>
+          <div class="sumRow last"><span class="sumLabel">옵션 · 매주 반복</span><span class="sumValue">간식 타임 · 꺼짐</span><span class="sumGlyph">▾</span></div>
+        </div>
+        <div class="feeCard">
+          <div class="feeRow"><span class="feeLabel">기본 요금</span><span class="feeValue"><span class="num">9,900</span>원</span></div>
+          <div class="feeRow"><span class="feeLabel">거리 (3km)</span><span class="feeValue"><span class="num">9,000</span>원</span></div>
+          <div class="feeRow"><span class="feeLabel">프리미엄 옵션</span><span class="feeValue"><span class="num">2,000</span>원</span></div>
+          <div class="feeRow" style="margin-top:10px"><span class="feeLabel" style="color:var(--text);font-weight:800">예상 요금</span><span class="feeValue" style="font-weight:800"><span class="num">20,900</span>원</span></div>
+          <div class="feeNote">러닝 후 실제 뛴 거리로 계산해서 결제돼요 · 출발 전 취소는 수수료 없음</div>
+        </div>
+        <div class="rlegal">사업자 정보 · 통신판매업 신고번호 · 결제대행 토스페이먼츠 &nbsp;›</div>
+      </div>
+      <div class="ticket">
+        <div class="tkRow">
+          <div class="tkAv">초</div>
+          <div style="flex:1">
+            <div class="tkName">초코 · <span class="km">3km</span> · 보통 7'</div>
+            <div class="tkSub">반포천 코스</div>
+          </div>
+          <div class="tkChip">8월 12일 18:30</div>
+        </div>
+        <div class="tkTear"><span class="tkNotch" style="left:-28px"></span><span class="tkNotch" style="right:-28px"></span></div>
+        <span class="payBtn">예약 요청하기 ›</span>
+      </div>
+    </div>
+    <p class="why"><b>오늘 request.tsx의 <code>feeCard</code>가 그대로 산다</b>(#EEE 1px · padding 12/6 · FeeRow 15 dim ↔ 15/600 text) — 바뀌는 것은 총액 줄의 라벨(<b>예상 요금</b>)과 <u>티켓에서 28.5pt가 사라진 것</u>뿐이다.
+    <b>요금 블록 → 라이더 → 법정 고지</b>가 세로로 붙어 <u>하나의 동의 덩어리</u>로 읽힌다. 전자상거래법이 요구하는 “가격 옆의 고지”를 위치로 만족시킨다.
+    오늘의 <code>취소 수수료 없음</code> 줄은 <b>0066 사다리의 실제 진실</b>로 교정했다(출발 전 0원 — “언제나 0원”이 아니다).
+    <b>대가</b>: 요금 블록이 4행이라 ①보다 세로 <b>+62px</b>, 그리고 가격이 <u>다른 선택지들과 다른 계급</u>으로 보인다(카드 밖 독립 블록).</p>
+  </div>
+
+  <!-- B2 -->
+  <div class="cell">
+    <span class="tag">Ⓑ2 · 예약 확정 <em>돈이 0개인 화면</em></span>
+    <div class="phone">
+      <div class="scroll">
+        <div class="headRow">
+          <div class="l"><div class="back">‹</div><div class="kicker">BOOKING</div></div>
+          <div class="chip">확정됨</div>
+        </div>
+        <div class="head">예약이<br>확정됐어요</div>
+        <div class="meta">8월 12일 화 오후 6:30</div>
+        <div class="table">
+          <div class="rowL">
+            <div class="l"><div class="rowLabel">러너</div><div class="rowSub">러닝 148회 · ★ 4.9</div></div>
+            <div class="amt"><span class="rowAmt">김서연</span></div>
+          </div>
+          <div class="rowL">
+            <div class="l"><div class="rowLabel">아이 · 코스</div><div class="rowSub">반포천 코스 · 3km</div></div>
+            <div class="amt"><span class="rowAmt">초코</span></div>
+          </div>
+        </div>
+        <div class="plate">
+          <div class="plateTxt">출발 30분 전에 알려드려요 — 그때 러너 위치가 지도에 떠요.</div>
+        </div>
+      </div>
+      <div class="footer">
+        <span class="btn">일정에서 보기</span>
+        <span class="btn2">예약 취소하기</span>
+      </div>
+    </div>
+    <p class="why"><b>이 화면에 숫자는 요금이 아니라 사실만 있다</b> — 시각·거리·평점. 결제 의식이 있던 자리를 <u>아무것도</u> 대신하지 않는다(“0원”도 쓰지 않는다: 0원은 여전히 돈 이야기다).
+    v2의 <code>Ⓑ2 “아직 결제된 게 없어요”</code> 헤드는 <b>은퇴</b> — 그 문장은 결제를 상기시키는 문장이었다.
+    취소 수수료 문구도 여기서 빠진다: <u>취소를 누른 사람에게</u> 취소 시트에서 말하는 것이 정직하고 조용하다(요청 화면의 라이더가 사전 고지를 이미 했다).
+    <span style="color:#8A3A2A"><b>확인 필요</b></span> — 이 화면이 <code>owner/pay.tsx</code>의 후속인지 예약 상세(<code>schedule</code>)인지는 라우팅 결정이다. 후불에서는 “pay” 화면이라는 이름 자체가 유물이다.</p>
+  </div>
+</div>
+
+<div class="note"><b>러닝 후 = 이 랩의 관할이 아니다.</b> 완주 직후의 표면은 <b>기록 카드</b>(<code>docs/labs/record-card-lab.html</code>)다 — 개, 거리, 사진, 코스. 그 화면에 <u>금액도 영수증 링크도 넣지 않는다</u>(Peak-End 보호, DESIGN.md §7b).
+결제 사실을 알리는 일은 <b>카드사 승인알림</b>이 한다. 우리는 그 순간에 아무 푸시도 보내지 않는다.
+<b>예외 하나</b>: 청구가 <u>실패</u>했을 때만 우리가 말한다(아래 Ⓧ).</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     Ⓒ 온디맨드 — 밀지 않는다. 찾아오면 전부 보여준다.
+     ══════════════════════════════════════════════════════════════════════════ -->
+<h2>Ⓒ 온디맨드 영수증 — 밀지 않는 화면 (never pushed)</h2>
+<p class="areaNote">진입 경로는 둘뿐이다: <b>예약 상세 → 결제 내역</b>, <b>설정 → 결제 관리</b>. 알림도, 배지도, 홈 카드도 없다.
+대신 <b>들어오면 전부 있다</b> — 계획 대비 실측, 금액, 결제수단, 주문번호, 그리고 <b>전자상거래법 전문</b>. 법정 고지가 사는 곳은 이 화면이고, 다른 화면들의 한 줄 디스클로저가 전부 여기로 온다.</p>
+
+<div class="row3">
+
+  <!-- C0 -->
+  <div class="cell">
+    <span class="tag">Ⓒ0 · 설정 → 결제 관리 <em>진입 지점 · 신규 화면</em></span>
+    <div class="phone">
+      <div class="scroll">
+        <div class="headRow">
+          <div class="l"><div class="back">‹</div><div class="kicker">SETTINGS</div></div>
+          <div class="chip">결제 관리</div>
+        </div>
+        <div class="head">결제 관리</div>
+        <div class="table">
+          <div class="rowL">
+            <div class="l"><div class="rowLabel">연결된 카드</div><div class="rowSub">등록 8월 12일</div></div>
+            <div class="amt"><span class="rowAmt">신한 ****1234</span></div>
+          </div>
+        </div>
+        <div class="body" style="margin-top:22px;font-weight:700;color:var(--ink)">결제 내역</div>
+        <div style="margin-top:8px">
+          <div class="listRow">
+            <div class="l"><div class="rowLabel">8월 12일 · 초코 · 반포천 코스</div><div class="rowSub">실측 2.6km</div></div>
+            <div class="amt"><span class="rowAmt num">19,700</span><span class="rowUnit">원</span></div>
+          </div>
+          <div class="listRow">
+            <div class="l"><div class="rowLabel">8월 5일 · 초코 · 양재천 코스</div><div class="rowSub">실측 3.1km</div></div>
+            <div class="amt"><span class="rowAmt num">21,200</span><span class="rowUnit">원</span></div>
+          </div>
+        </div>
+        <div class="legal">사업자 정보 · 통신판매업 신고번호 · 결제대행 토스페이먼츠 &nbsp;›</div>
+      </div>
+      <div class="footer" style="border-top:1px solid var(--neutral)">
+        <div class="footNote" style="padding:0;margin:0">카드를 바꾸려면 위 카드 행을 누르세요.</div>
+      </div>
+    </div>
+    <p class="why"><b>존재 자체가 정직성 장치다</b> — 비가시 원칙이 “숨김”이 아니라는 것을 증명하는 화면. <code>app/app/settings.tsx</code>에 <b>없는 항목</b>이라 신규 라우트가 필요하다(그 화면의 법: “가짜 하위메뉴 없음” — 이건 진짜 동작이므로 통과).
+    목록 행은 <b>중립 헤어라인 #EEE</b>(코랄 아님): 이 목록은 강조가 아니라 <u>대장(ledger)</u>이다. 금액은 <code>rowAmt 17/600</code>, 38pt 타입 점프는 <b>여기 없다</b>.
+    빈 목록은 <u>진짜 0건일 때만</u> “아직 결제 내역이 없어요”라고 말한다(로딩 ≠ 0 ≠ 실패, §7).</p>
+  </div>
+
+  <!-- C1 -->
+  <div class="cell">
+    <span class="tag">Ⓒ1 · 영수증 상세 <em>payments.confirmed · 온디맨드</em></span>
+    <div class="phone">
+      <div class="scroll">
+        <div class="headRow">
+          <div class="l"><div class="back">‹</div><div class="kicker">RECEIPT</div></div>
+          <div class="chip">결제 완료</div>
+        </div>
+        <div class="head">8월 12일<br>결제 내역</div>
+        <div class="meta">초코 · 반포천 코스 · 8월 12일 화 오후 6:10</div>
+        <div class="table">
+          <div class="rowL"><div class="l"><div class="rowLabel">기본요금</div></div>
+            <div class="amt"><span class="rowAmt num">9,900</span><span class="rowUnit">원</span></div></div>
+          <div class="rowL"><div class="l"><div class="rowLabel">거리요금 · 실측 2.6km</div><div class="rowSub">계획 3km · 뛴 만큼만 계산했어요</div></div>
+            <div class="amt"><span class="rowAmt num">7,800</span><span class="rowUnit">원</span></div></div>
+          <div class="rowL"><div class="l"><div class="rowLabel">프리미엄 옵션</div><div class="rowSub">간식 타임</div></div>
+            <div class="amt"><span class="rowAmt num">2,000</span><span class="rowUnit">원</span></div></div>
+          <div class="rule"></div><div class="gap3"></div><div class="rule"></div>
+          <div class="totalRow"><span class="totalLabel">결제 금액</span>
+            <span class="amt"><span class="totalAmt num">19,700</span><span class="totalUnit">원</span></span></div>
+          <div class="rowL"><div class="l"><div class="rowLabel">결제수단</div></div>
+            <div class="amt"><span class="rowAmt">신한 ****1234</span></div></div>
+          <div class="rowL"><div class="l"><div class="rowLabel">주문번호</div><div class="rowSub">8월 12일 오후 7:02 결제</div></div>
+            <div class="amt"><span class="rowAmt num">dh-20260812-3F9K</span></div></div>
+        </div>
+        <div class="plate">
+          <div class="plateTxt">러닝에 문제가 있었다면 7일 안에 문의해주세요 — 확인 후 환불해드려요.</div>
+        </div>
+        <div class="legalFull">
+          도그스하이 · 대표 ○○○ · 사업자등록번호 000-00-00000<br>
+          통신판매업신고 제0000-서울○○-0000호 · 서울특별시 ○○구 ○○로 00<br>
+          결제대행 토스페이먼츠(주) · 고객문의 000-0000-0000
+        </div>
+      </div>
+      <div class="footer">
+        <span class="btn2" style="margin-top:0">러닝 기록 보기</span>
+      </div>
+    </div>
+    <p class="why"><b>38pt 총액이 살아남는 유일한 화면</b> — 사용자가 <u>숫자를 보러 스스로 들어온</u> 면이기 때문이다. 비가시 원칙은 “작게”가 아니라 “초대받지 않은 곳에 두지 않는다”이다.
+    <b>계획 3km → 실측 2.6km</b> rowSub 한 줄이 후불의 약속을 검증한다.
+    v2 대비 바뀐 것: <b>헤드가 “러닝이 끝나서 결제됐어요”(사건 통보) → “8월 12일 결제 내역”(장부 항목)</b>, CTA가 <b>프라이머리 → 세컨더리</b>로 강등(이 화면의 임무는 확인이지 다음 행동이 아니다).
+    <span style="color:#8A3A2A"><b>미구현 주의</b></span>: <code>settle-run</code>의 <code>min_fare</code> 하한이 걸린 회차는 “최소 요금 적용” 행이 <u>반드시</u> 추가로 렌더돼야 한다.</p>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     Ⓧ 수금 예외 — 잠긴 계정은 조용할 수 없다.
+     ══════════════════════════════════════════════════════════════════════════ -->
+<h2>Ⓧ 수금 예외 <span class="exc">EXCEPTION-ONLY</span></h2>
+<p class="areaNote">Sean의 “보여주지 마”는 <b>해피패스</b>에 대한 것이다. <u>계정이 잠긴 사람에게 조용한 UI는 정직이 아니라 함정이다</u> — 이 셋은 크게, 즉시, 밀어서 말한다(푸시 포함).
+비가시 원칙과 충돌하지 않는 이유: 원칙이 지우는 것은 <b>이미 잘 끝난 일의 반복 통보</b>이고, 여기는 <b>사용자의 행동이 필요한 미해결 상태</b>다.</p>
+
+<div class="row3">
+
+  <!-- X1 -->
+  <div class="cell">
+    <span class="tag">Ⓧ1 · 결제 거절 · 정산 대기 <em>debt + 잠금</em></span>
+    <div class="phone">
+      <div class="scroll">
+        <div class="headRow">
+          <div class="l"><div class="back">‹</div><div class="kicker">PAYMENT</div></div>
+          <div class="chip loud">UNPAID · 정산 대기</div>
+        </div>
+        <div class="head">결제가 거절돼서<br>정산이 남았어요</div>
+        <div class="meta">초코 · 반포천 코스 · 8월 12일 화 오후 6:10</div>
+        <div class="fail">
+          <div class="failTxt">카드사에서 결제를 거절했어요<br>[INSUFFICIENT_FUNDS] 잔액이 부족합니다</div>
+        </div>
+        <div class="table">
+          <div class="rowL"><div class="l"><div class="rowLabel">정산할 금액</div><div class="rowSub">실측 2.6km · 8월 12일 러닝</div></div>
+            <div class="amt"><span class="rowAmt num">19,700</span><span class="rowUnit">원</span></div></div>
+        </div>
+        <div class="plate">
+          <div class="plateTxt">잠시 후 자동으로 다시 시도해요 — 1시간 뒤, 그다음 24시간 뒤까지 세 번이에요.</div>
+          <div class="plateTxt">정산이 끝날 때까지 새 예약이 잠겨요.</div>
+        </div>
+        <div class="legal">사업자 정보 · 통신판매업 신고번호 · 결제대행 토스페이먼츠 &nbsp;›</div>
+      </div>
+      <div class="footer">
+        <span class="btn">카드 바꾸기</span>
+        <span class="btn2">지금 다시 시도하기</span>
+      </div>
+    </div>
+    <p class="why">라우드 스트립이 <b>사유</b>를, 플레이트가 <b>앞으로 일어날 일</b>을, 푸터가 <b>사용자가 할 수 있는 일</b>을 맡는다 — 세 덩어리로 끝난다.
+    잠금은 <u>협박이 아니라 사실 통지</u>로 적는다. 러너 지급 사실은 없다(수금 리스크는 플랫폼의 것).
+    금액 행은 <b>한 줄</b>: 실패 화면에서 항목을 펼치면 읽어야 할 것(사유·다음 행동)이 묻힌다.</p>
+  </div>
+
+  <!-- X2 -->
+  <div class="cell">
+    <span class="tag">Ⓧ2 · 재시도 중 <em>payments.pending (재청구)</em></span>
+    <div class="phone">
+      <div class="scroll">
+        <div class="headRow">
+          <div class="l"><div class="kicker">PAYMENT</div></div>
+          <div class="chip">RETRYING · 다시 시도 중</div>
+        </div>
+        <div class="head">결제를 다시<br>시도하고 있어요…</div>
+        <div class="meta">초코 · 반포천 코스 · 8월 12일 화 오후 6:10</div>
+        <div class="table">
+          <div class="rowL"><div class="l"><div class="rowLabel">정산할 금액</div><div class="rowSub">신한 ****5678로 시도 중</div></div>
+            <div class="amt"><span class="rowAmt num">19,700</span><span class="rowUnit">원</span></div></div>
+        </div>
+        <div class="body">완료될 때까지 앱을 닫아도 괜찮아요 — 결과는 알림으로 알려드려요.</div>
+      </div>
+      <div class="footer" style="border-top:1px solid var(--neutral)">
+        <div class="footNote" style="padding:0;margin:0">결과가 나오면 이 화면이 바뀌어요.</div>
+      </div>
+    </div>
+    <p class="why">pay.tsx의 <code>authorizing</code>을 물려받은 상태 — <b>스피너 금지, 말줄임표만 움직인다</b>, <b>뒤로가기 어포던스도 CTA도 0개</b>.
+    카피는 뒤집힌다: 선결제에서는 “앱을 닫지 말아주세요”였지만 <u>후불 재청구는 서버 사다리가 돌리는 일</u>이라 붙잡아둘 이유가 없다.</p>
+  </div>
+
+  <!-- X3 -->
+  <div class="cell">
+    <span class="tag">Ⓧ3 · 정산 완료 <em>잠금 해제</em></span>
+    <div class="phone">
+      <div class="scroll">
+        <div class="headRow">
+          <div class="l"><div class="back">‹</div><div class="kicker">PAYMENT</div></div>
+          <div class="chip">정산 완료</div>
+        </div>
+        <div class="head">밀린 결제가<br>끝났어요</div>
+        <div class="meta">초코 · 반포천 코스 · 8월 12일 화 오후 6:10</div>
+        <div class="table">
+          <div class="rowL"><div class="l"><div class="rowLabel">결제 금액</div><div class="rowSub">신한 ****5678 · 8월 13일 오전 9:04</div></div>
+            <div class="amt"><span class="rowAmt num">19,700</span><span class="rowUnit">원</span></div></div>
+          <div class="rowL"><div class="l"><div class="rowLabel">주문번호</div></div>
+            <div class="amt"><span class="rowAmt num">dh-20260812-3F9K</span></div></div>
+        </div>
+        <div class="body">새 예약 잠금이 풀렸어요.</div>
+      </div>
+      <div class="footer">
+        <span class="btn">예약하러 가기</span>
+      </div>
+    </div>
+    <p class="why">잠금을 <b>건 화면이 푼 화면과 같아야</b> 사용자가 사이클을 닫았다고 느낀다(Ⓧ1 ↔ Ⓧ3). 축하 연출은 없다 — 밀린 돈을 낸 것은 정점이 아니라 정상 복귀다.
+    주문번호는 같은 <code>order_id</code>: 재시도가 새 주문을 만들지 않는다는 사실을 화면이 증언한다.
+    <b>이 화면이 예외 모드의 마지막 화면</b>이다 — 여기서 비가시 상태로 되돌아간다.</p>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     Ⓓ 취소 · 확인 · 환불 — 전부 예외
+     ══════════════════════════════════════════════════════════════════════════ -->
+<h2>Ⓓ 취소 · 확인 중 · 환불 <span class="exc">EXCEPTION-ONLY</span></h2>
+<p class="areaNote">후불에서 <b>환불은 예외</b>가 된다(선결제가 없으니 되돌릴 돈도 없다). 남는 것은 ①청구된 취소 수수료 ②사람이 확인 중인 건 ③확인 결과에 따른 환불 — 셋뿐이고, 셋 다 <u>사용자가 무언가를 했거나 사고가 났을 때만</u> 열린다.
+카피는 가능한 한 <b>오늘 pay.tsx 문장 그대로</b>.</p>
+
+<div class="row3">
+
+  <!-- D1 -->
+  <div class="cell">
+    <span class="tag">Ⓓ1 · 취소됨 · 청구 없음 <em>cancelled_owner · fee 0</em></span>
+    <div class="phone">
+      <div class="scroll">
+        <div class="headRow">
+          <div class="l"><div class="back">‹</div><div class="kicker">BOOKING</div></div>
+          <div class="chip">CANCELLED</div>
+        </div>
+        <div class="head">취소된<br>예약이에요</div>
+        <div class="meta">초코 · 반포천 코스 · 8월 12일 화 오후 6:10</div>
+        <div class="body">청구된 금액이 없어요 — 러너가 출발하기 전이라 취소 수수료도 없어요.</div>
+      </div>
+      <div class="footer"><span class="btn">홈으로</span></div>
+    </div>
+    <p class="why">오늘 문장 “이 예약은 취소된 상태예요 — 이 화면에서 진행할 결제가 없어요”의 후불판. <b>테이블도 플레이트도 없다</b> — 말할 숫자가 0개인 상태에서 표를 그리면 그게 곧 거짓 밀도다.</p>
+  </div>
+
+  <!-- D2 -->
+  <div class="cell">
+    <span class="tag">Ⓓ2 · 취소 수수료 청구 <em>출발 후 취소 · 50%</em></span>
+    <div class="phone">
+      <div class="scroll">
+        <div class="headRow">
+          <div class="l"><div class="back">‹</div><div class="kicker">PAYMENT</div></div>
+          <div class="chip loud">CANCELLED · 수수료 결제</div>
+        </div>
+        <div class="head">출발 후 취소라<br>절반이 결제됐어요</div>
+        <div class="meta">초코 · 반포천 코스 · 8월 12일 화 오후 6:10</div>
+        <div class="table">
+          <div class="rowL"><div class="l"><div class="rowLabel">예상 요금</div><div class="rowSub">계획 3km</div></div>
+            <div class="amt"><span class="rowAmt num">20,900</span><span class="rowUnit">원</span></div></div>
+          <div class="rowL"><div class="l"><div class="rowLabel">취소 수수료 · 50%</div><div class="rowSub">이미 출발한 러너에게 가요</div></div>
+            <div class="amt"><span class="rowAmt num">10,450</span><span class="rowUnit">원</span></div></div>
+          <div class="rule"></div><div class="gap3"></div><div class="rule"></div>
+          <div class="totalRow"><span class="totalLabel">결제 금액</span>
+            <span class="amt"><span class="totalAmt num">10,450</span><span class="totalUnit">원</span></span></div>
+        </div>
+        <div class="legal">사업자 정보 · 통신판매업 신고번호 · 결제대행 토스페이먼츠 &nbsp;›</div>
+      </div>
+      <div class="footer"><span class="btn">홈으로</span></div>
+    </div>
+    <p class="why">§0-bis: <b>취소 수수료는 환불이 아니라 청구</b>다. 사다리는 <code>marketplace_cancel_fee</code>(0066)의 SQL 진실 — 미매칭 0 / 확정·24h 전 0 / 확정·24h 내 10% / 출발 후 50%.
+    <b>비가시 예외인 이유</b>: 러닝이 없었는데 카드가 긁혔다. 그건 사용자가 <u>설명을 요구할 권리가 있는</u> 청구다 — 승인알림만으로 끝내면 그게 은닉이다.</p>
+  </div>
+
+  <!-- D3 -->
+  <div class="cell">
+    <span class="tag">Ⓓ3 · 확인 중 <em>no_show · incident_review</em></span>
+    <div class="phone">
+      <div class="scroll">
+        <div class="headRow">
+          <div class="l"><div class="back">‹</div><div class="kicker">PAYMENT</div></div>
+          <div class="chip">REVIEW · 확인 중</div>
+        </div>
+        <div class="head">러닝에 확인이<br>필요한 일이 있어요</div>
+        <div class="meta">초코 · 반포천 코스 · 8월 12일 화 오후 6:10</div>
+        <div class="body">도그스하이가 이 러닝을 확인하고 있어요 — 결제·환불은 확인이 끝난 뒤에 정리해서 알려드려요.</div>
+        <div class="plate">
+          <div class="plateTxt">확인이 끝날 때까지 이 러닝은 결제하지 않아요.</div>
+        </div>
+      </div>
+      <div class="footer">
+        <span class="btn">안심 센터 열기</span>
+        <span class="btn2">홈으로</span>
+      </div>
+    </div>
+    <p class="why">본문은 <b>오늘 pay.tsx 문장 그대로</b>. 후불이 한 줄을 더한다 — 확인 중에는 <u>청구를 보류</u>한다는 사실.
+    잉크 필은 안심 센터로 간다 — 이 상태에서 실행 가능한 유일한 출구이기 때문.</p>
+  </div>
+
+  <!-- D4 -->
+  <div class="cell">
+    <span class="tag">Ⓓ4 · 환불 진행 중 <em>확인 결과 환불</em></span>
+    <div class="phone">
+      <div class="scroll">
+        <div class="headRow">
+          <div class="l"><div class="back">‹</div><div class="kicker">PAYMENT</div></div>
+          <div class="chip">REFUND · 환불 중</div>
+        </div>
+        <div class="head">환불이<br>진행 중이에요</div>
+        <div class="meta">초코 · 반포천 코스 · 8월 12일 화 오후 6:10</div>
+        <div class="table">
+          <div class="rowL"><div class="l"><div class="rowLabel">결제한 금액</div></div>
+            <div class="amt"><span class="rowAmt num">19,700</span><span class="rowUnit">원</span></div></div>
+          <div class="rowL"><div class="l"><div class="rowLabel">환불 금액</div><div class="rowSub">확인 결과에 따른 전액 환불</div></div>
+            <div class="amt"><span class="rowAmt num">19,700</span><span class="rowUnit">원</span></div></div>
+        </div>
+        <div class="body">환불이 진행 중이에요 — 완료되면 알려드려요.</div>
+        <div class="legal">사업자 정보 · 통신판매업 신고번호 · 결제대행 토스페이먼츠 &nbsp;›</div>
+      </div>
+      <div class="footer"><span class="btn">홈으로</span></div>
+    </div>
+    <p class="why">본문 한 줄은 <b>오늘 문장 그대로</b>. 표가 두 행인 이유는 하나 — <u>부분 환불이 가능</u>하기 때문에 “얼마 냈고 얼마 돌아오는지”가 분리돼야 한다(<code>payments.refunded_amount</code>의 화면 얼굴).</p>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     Ⓔ 화면 자체의 상태 — 이제 영수증 화면(Ⓒ1)의 상태들이다
+     ══════════════════════════════════════════════════════════════════════════ -->
+<h2>Ⓔ 화면 자체의 상태 — 오늘 것 그대로 (이제 <u>영수증 화면</u>의 상태)</h2>
+<p class="areaNote">셋 다 오늘의 pay.tsx에서 <b>한 글자도 바꾸지 않고</b> 옮겼다. 바뀐 것은 <b>주소</b>뿐 — 후불에서는 이 세 상태가 결제 화면이 아니라 <b>온디맨드 영수증(Ⓒ1)</b>에서 일어난다.</p>
+
+<div class="row3">
+  <div class="cell">
+    <span class="tag">Ⓔ1 · 로딩 <em>loading</em></span>
+    <div class="phone">
+      <div class="scroll">
+        <div class="headRow">
+          <div class="l"><div class="back">‹</div><div class="kicker">RECEIPT</div></div>
+          <div class="chip">LOADING</div>
+        </div>
+        <div class="head">결제 내역을<br>불러오는 중</div>
+        <div class="table">
+          <div class="rowL"><div class="l"><div class="rowLabel">기본요금</div></div>
+            <div class="amt"><span class="rowAmt num">—</span><span class="rowUnit">원</span></div></div>
+          <div class="rowL"><div class="l"><div class="rowLabel">거리요금</div></div>
+            <div class="amt"><span class="rowAmt num">—</span><span class="rowUnit">원</span></div></div>
+          <div class="rule"></div><div class="gap3"></div><div class="rule"></div>
+          <div class="totalRow"><span class="totalLabel">금액</span>
+            <span class="amt"><span class="totalAmt num">—</span><span class="totalUnit">원</span></span></div>
+        </div>
+      </div>
+      <div class="footer" style="border-top:1px solid var(--neutral)"><div class="footNote" style="padding:0;margin:0">&nbsp;</div></div>
+    </div>
+    <p class="why"><b>로딩 ≠ 0 ≠ 비어 있음</b> — 숫자 자리는 <code>—</code>. 0원을 실측처럼 보이게 하지 않는다. CTA 0개.</p>
+  </div>
+
+  <div class="cell">
+    <span class="tag">Ⓔ2 · 없음 <em>not_found</em></span>
+    <div class="phone">
+      <div class="scroll">
+        <div class="headRow">
+          <div class="l"><div class="back">‹</div><div class="kicker">RECEIPT</div></div>
+          <div class="chip">NOT FOUND</div>
+        </div>
+        <div class="head">결제 내역을 찾을<br>수 없어요</div>
+        <div class="body">이 예약의 결제 정보를 볼 수 없어요 — 예약이 사라졌거나, 내 예약이 아니에요.</div>
+      </div>
+      <div class="footer"><span class="btn">홈으로</span></div>
+    </div>
+    <p class="why">재시도 문을 열지 않는다 — <b>없는 결제를 기다리게 하지 않는 쪽이 정직하다</b>(payphase.ts C5 확정 해석).</p>
+  </div>
+
+  <div class="cell">
+    <span class="tag">Ⓔ3 · 통신 실패 <em>error (페이즈 아님)</em></span>
+    <div class="phone">
+      <div class="scroll">
+        <div class="headRow">
+          <div class="l"><div class="back">‹</div><div class="kicker">RECEIPT</div></div>
+          <div class="chip loud">ERROR</div>
+        </div>
+        <div class="head">결제 내역을<br>불러오지 못했어요</div>
+        <div class="table">
+          <div class="rowL"><div class="l"><div class="rowLabel">기본요금</div></div>
+            <div class="amt"><span class="rowAmt num">9,900</span><span class="rowUnit">원</span></div></div>
+          <div class="rowL"><div class="l"><div class="rowLabel">거리요금 · 실측 2.6km</div></div>
+            <div class="amt"><span class="rowAmt num">7,800</span><span class="rowUnit">원</span></div></div>
+          <div class="rule"></div><div class="gap3"></div><div class="rule"></div>
+          <div class="totalRow"><span class="totalLabel">결제 금액</span>
+            <span class="amt"><span class="totalAmt num">19,700</span><span class="totalUnit">원</span></span></div>
+        </div>
+        <div class="fail"><div class="failTxt">서버에서 결제 정보를 받지 못했어요<br>network request failed</div></div>
+      </div>
+      <div class="footer">
+        <span class="btn">다시 불러오기</span>
+        <span class="btn2">홈으로</span>
+      </div>
+    </div>
+    <p class="why">직전에 받아둔 숫자는 <b>지우지 않는다</b> — 지웠다 다시 그리는 쪽이 더 거짓말이고, 라우드 스트립이 함께 서서 “이 숫자는 방금 것이 아니다”를 말한다(오늘 pay.tsx 주석 그대로).</p>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     Ⓕ 폴백 — 카드 미연결 위젯 선결제. 성격상 선결제라 가격이 보인다.
+     ══════════════════════════════════════════════════════════════════════════ -->
+<h2>Ⓕ 폴백 — 카드 미연결 선결제 (위젯 1회 결제)</h2>
+<p class="areaNote">빌링 심사가 늦거나 보호자가 카드 연결을 건너뛴 경우. <b>성격이 반대다</b> — 여기서는 돈이 <u>서비스 전에</u> 움직이므로 매칭 실패 시 환불 약속이 되살아나고, §2-7 <b>포착 후 자동취소</b> 머신이 필요하다.
+<b>가격 비가시 원칙의 예외</b>이기도 하다: 지금 이 금액이 실제로 나가므로 <u>보여주지 않는 것이 불법이자 거짓말</u>이다. 그래도 <b>같은 문법</b>으로 그린다 — 별도 디자인 세계를 만들지 않는다.</p>
+
+<div class="row3">
+
+  <div class="cell">
+    <span class="tag">Ⓕ1 · 결제창 전 <em>payments.pending (intent)</em></span>
+    <div class="phone">
+      <div class="scroll">
+        <div class="headRow">
+          <div class="l"><div class="back">‹</div><div class="kicker">PAYMENT</div></div>
+          <div class="chip">PREPAY · 결제 전</div>
+        </div>
+        <div class="head">이번 예약은<br>먼저 결제해요</div>
+        <div class="meta">초코 · 반포천 코스 · 8월 12일 화 오후 6:10</div>
+        <div class="table">
+          <div class="rowL"><div class="l"><div class="rowLabel">기본요금</div></div>
+            <div class="amt"><span class="rowAmt num">9,900</span><span class="rowUnit">원</span></div></div>
+          <div class="rowL"><div class="l"><div class="rowLabel">거리요금 · 3km</div></div>
+            <div class="amt"><span class="rowAmt num">9,000</span><span class="rowUnit">원</span></div></div>
+          <div class="rowL"><div class="l"><div class="rowLabel">프리미엄 옵션</div><div class="rowSub">간식 타임</div></div>
+            <div class="amt"><span class="rowAmt num">2,000</span><span class="rowUnit">원</span></div></div>
+          <div class="rule"></div><div class="gap3"></div><div class="rule"></div>
+          <div class="totalRow"><span class="totalLabel">결제 금액</span>
+            <span class="amt"><span class="totalAmt num">20,900</span><span class="totalUnit">원</span></span></div>
+        </div>
+        <div class="plate">
+          <div class="plateTxt">카드를 연결하지 않아서 이번에는 먼저 결제하고 러너를 찾아요 — 러너를 못 찾으면 전액 환불돼요.</div>
+          <div class="plateTxt">이 슬롯은 <span class="num" style="font-weight:700">18:45</span>까지 홀드돼요 — 그 뒤엔 다른 보호자에게 다시 열려요.</div>
+        </div>
+        <div class="legal">사업자 정보 · 통신판매업 신고번호 · 결제대행 토스페이먼츠 &nbsp;›</div>
+      </div>
+      <div class="footer">
+        <span class="btn">결제하기</span>
+        <span class="btn2">카드 연결하고 후불로 하기</span>
+      </div>
+    </div>
+    <p class="why">여기서만 총액 라벨이 <b>“결제 금액”</b>이다 — 실제로 지금 그 금액이 나가기 때문(Ⓑ의 “예상 요금”과 라벨이 다른 것은 실수가 아니라 <u>사실이 달라서</u>다).
+    홀드 고지 플레이트는 오늘 화면의 <code>holdLabel</code> 문장 그대로. 세컨더리가 Ⓐ로 되돌아가는 문을 열어둔다 — <b>비가시 세계로 이주하는 문</b>이다.</p>
+  </div>
+
+  <div class="cell">
+    <span class="tag">Ⓕ2 · 승인 중 <em>authorizing</em></span>
+    <div class="phone">
+      <div class="scroll">
+        <div class="headRow">
+          <div class="l"><div class="kicker">PAYMENT</div></div>
+          <div class="chip">AUTHORIZING</div>
+        </div>
+        <div class="head">승인 요청 중…</div>
+        <div class="meta">초코 · 반포천 코스 · 8월 12일 화 오후 6:10</div>
+        <div class="body">승인 요청을 보냈어요…<br>완료될 때까지 앱을 닫지 말아주세요.</div>
+      </div>
+      <div class="footer" style="border-top:1px solid var(--neutral)"><div class="footNote" style="padding:0;margin:0">&nbsp;</div></div>
+    </div>
+    <p class="why">오늘 것 그대로 — <b>뒤로가기 어포던스 없음</b>, CTA 없음, 말줄임표만 움직인다. Ⓧ2(후불 재시도)와 문구가 반대인 이유: 여기서는 <u>이 앱 세션이 승인 흐름의 일부</u>라 진짜로 닫으면 안 된다.</p>
+  </div>
+
+  <div class="cell">
+    <span class="tag">Ⓕ3 · 결제 실패 <em>failed</em></span>
+    <div class="phone">
+      <div class="scroll">
+        <div class="headRow">
+          <div class="l"><div class="back">‹</div><div class="kicker">PAYMENT</div></div>
+          <div class="chip loud">FAILED</div>
+        </div>
+        <div class="head">결제가 완료되지<br>않았어요</div>
+        <div class="meta">초코 · 반포천 코스 · 8월 12일 화 오후 6:10</div>
+        <div class="fail"><div class="failTxt">결제가 승인되지 않았어요<br>[PAY_PROCESS_CANCELED] 사용자가 결제를 취소했습니다</div></div>
+        <div class="body">아직 아무 금액도 나가지 않았어요.</div>
+      </div>
+      <div class="footer">
+        <span class="btn">다시 시도</span>
+        <span class="btn2">홈으로</span>
+      </div>
+    </div>
+    <p class="why">오늘의 규칙 유지 — <b>취소 CTA 없음</b>(<code>payment_hold → cancelled_owner</code>는 전이표상 불허라 죽은 버튼이 된다). 정직한 출구는 재시도와 홈뿐.</p>
+  </div>
+
+  <div class="cell">
+    <span class="tag">Ⓕ4 · 자동 취소 <em>§2-7 보상 머신</em></span>
+    <div class="phone">
+      <div class="scroll">
+        <div class="headRow">
+          <div class="l"><div class="back">‹</div><div class="kicker">PAYMENT</div></div>
+          <div class="chip loud">CANCELED · 자동 취소</div>
+        </div>
+        <div class="head">결제가 자동으로<br>취소됐어요</div>
+        <div class="meta">초코 · 반포천 코스 · 8월 12일 화 오후 6:10</div>
+        <div class="fail">
+          <div class="failTxt">결제 시간이 만료됐어요 — 결제는 자동 취소됐어요. 예약을 다시 만들어주세요.</div>
+        </div>
+        <div class="table">
+          <div class="rowL"><div class="l"><div class="rowLabel">자동 취소 금액</div><div class="rowSub">주문번호 dh-20260812-7C1M</div></div>
+            <div class="amt"><span class="rowAmt num">20,900</span><span class="rowUnit">원</span></div></div>
+        </div>
+        <div class="body">카드사 처리에 따라 명세서 반영은 며칠 걸릴 수 있어요.</div>
+        <div class="legal">사업자 정보 · 통신판매업 신고번호 · 결제대행 토스페이먼츠 &nbsp;›</div>
+      </div>
+      <div class="footer">
+        <span class="btn">다시 예약하기</span>
+        <span class="btn2">홈으로</span>
+      </div>
+    </div>
+    <p class="why">스트립 문장은 <b>플랜 §2-7의 확정 카피 그대로</b>. 금액 행이 붙는 이유: “취소됐다”는 말만으로는 <u>얼마가 되돌아가는지</u>를 알 수 없다.
+    <span style="color:#8A3A2A"><b>지어낸 카피 1줄</b></span> — “명세서 반영은 며칠 걸릴 수 있어요”는 토스 승인취소/매입취소 동작을 확인한 뒤 <u>확정하거나 삭제</u>해야 한다.</p>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<h2>상태 원장 — 서버 진실 → 돈의 위치 → 어디서 확인 가능한가 → 카피 → CTA</h2>
+<p class="areaNote">v3의 핵심 변화는 <b>돈의 위치 칸에 <span class="era">보이지 않음 (요청 화면에서 1회 고지)</span> 시대가 생겼다</b>는 것과,
+<b>“어디서 확인 가능한가” 칸이 새로 생겼다</b>는 것이다 — 화면에서 지운 사실마다 <u>합법적·정직한 열람 경로</u>가 하나씩 대응돼야 한다. 대응이 비어 있는 행이 하나라도 있으면 그건 비가시가 아니라 은닉이다.
+<b>MODE</b>: 해피 = 해피패스에 렌더됨 · <b>온디맨드</b> = 사용자가 찾아와야 보임 · <b>예외</b> = 밀어서 알림(푸시 포함).</p>
+
+<table class="t">
+<tr>
+  <th style="width:52px">화면</th><th style="width:56px">MODE</th><th style="width:190px">서버 진실</th>
+  <th style="width:180px">돈의 위치</th><th style="width:205px">이 사실을 어디서 확인하나</th>
+  <th>화면이 말하는 한 줄</th><th style="width:180px">CTA</th>
+</tr>
+
+<tr><td>Ⓐ1</td><td>해피</td><td><code>profiles.billing_key</code> 없음</td><td>어디에도 없음 (카드도 없음)</td><td>이 화면 (본문 + 법정 한 줄)</td><td>지금은 카드만 연결해요 — 결제는 러닝이 끝난 뒤, 실제 뛴 만큼만 자동으로 돼요</td><td>카드 연결하기 / <span style="color:#777">이번만 결제창으로</span></td></tr>
+<tr><td>Ⓐ2</td><td>해피</td><td>빌링 인증 진행 중 (토스 면)</td><td>움직이지 않음 — 등록만</td><td>토스 위젯 자체</td><td>여기부터는 토스페이먼츠 화면이에요</td><td><b>없음</b></td></tr>
+<tr><td>Ⓐ3</td><td>해피</td><td><code>billing_key</code> 발급됨</td><td>움직이지 않음</td><td>이 화면 · 설정 → 결제 관리(Ⓒ0)</td><td>카드가 연결됐어요 — 러닝이 끝나면 실제 뛴 거리로 자동 결제돼요</td><td>예약 계속하기</td></tr>
+<tr><td>Ⓐ4</td><td>예외</td><td>발급 거절 (토스 코드)</td><td>움직이지 않음</td><td>이 화면 (서버 원문)</td><td>카드사에서 등록을 거절했어요 <i>+ 서버 원문</i></td><td>다시 연결하기 / <span style="color:#777">결제창으로</span></td></tr>
+
+<tr><td><b>Ⓑ1</b></td><td>해피</td><td><code>draft</code> (아직 예약 없음)</td><td class="era">아직 아무 데도 — <b>가격이 보이는 유일한 순간</b></td><td><b>이 화면 (예상 요금 + 라이더 + 법정 한 줄) = 동의 지점</b></td><td>예상 요금 20,900원 · 러닝 후 실제 뛴 거리 기준</td><td>예약 요청하기</td></tr>
+<tr><td><b>Ⓑ2</b></td><td>해피</td><td><code>matching · confirmed · runner_enroute · picked_up · active</code></td><td class="era">보이지 않음 (요청 화면에서 1회 고지)</td><td>예약 상세 → 결제 내역(Ⓒ1) · 설정 → 결제 관리(Ⓒ0)</td><td>예약이 확정됐어요 — 출발 30분 전에 알려드려요 <i>(숫자 0개)</i></td><td>일정에서 보기 / <span style="color:#777">예약 취소</span></td></tr>
+<tr><td><b>—</b></td><td>해피</td><td><code>completed</code> + <code>payments.confirmed</code> (청구 성공)</td><td class="era">보이지 않음 — 청구는 조용히 끝났다</td><td><b>카드사 승인알림</b> + Ⓒ0/Ⓒ1 · 완주 표면은 <b>기록 카드 랩</b></td><td><i>이 랩은 이 순간에 아무 화면도 그리지 않는다</i></td><td><b>없음 (푸시 없음)</b></td></tr>
+
+<tr><td>Ⓒ0</td><td>온디맨드</td><td><code>payments</code> 목록 + <code>billing_key</code></td><td>과거 청구들 (완료)</td><td>설정 → 결제 관리 <i>(신규 라우트 필요)</i></td><td>연결된 카드 · 결제 내역 목록</td><td>카드 바꾸기(행 탭)</td></tr>
+<tr><td>Ⓒ1</td><td>온디맨드</td><td><code>completed</code> + <code>payments.confirmed</code></td><td>보호자 카드 → 우리 (완료)</td><td>이 화면 = <b>전자상거래법 전문의 법적 자리</b></td><td>8월 12일 결제 내역 · 계획 3km → 실측 2.6km · 19,700원</td><td><span style="color:#777">러닝 기록 보기</span></td></tr>
+
+<tr><td>Ⓧ1</td><td>예외</td><td><code>payments.failed</code> + 계정 잠금</td><td><b>미수 — 아직 보호자 카드에</b></td><td>푸시 + 홈 배너 + 이 화면 (숨기지 않는다)</td><td>결제가 거절돼서 정산이 남았어요 · 정산이 끝날 때까지 새 예약이 잠겨요</td><td>카드 바꾸기 / <span style="color:#777">지금 재시도</span></td></tr>
+<tr><td>Ⓧ2</td><td>예외</td><td><code>payments.pending</code> (재청구 시도)</td><td>이동 중 (승인 대기)</td><td>이 화면 + 결과 알림</td><td>결제를 다시 시도하고 있어요…</td><td><b>없음</b></td></tr>
+<tr><td>Ⓧ3</td><td>예외</td><td><code>payments.confirmed</code> (지연 성공) · 잠금 해제</td><td>보호자 카드 → 우리 (완료)</td><td>이 화면 → 이후 Ⓒ1로 영구 보관</td><td>밀린 결제가 끝났어요 — 새 예약 잠금이 풀렸어요</td><td>예약하러 가기</td></tr>
+
+<tr><td>Ⓓ1</td><td>예외</td><td><code>cancelled_owner/runner · expired</code> · fee 0</td><td>움직인 돈 없음</td><td>이 화면 (예약 상세)</td><td>청구된 금액이 없어요</td><td>홈으로</td></tr>
+<tr><td>Ⓓ2</td><td>예외</td><td><code>cancel_reason=owner_cancel_enroute</code> · fee 50%</td><td>보호자 카드 → 우리 (수수료만)</td><td>이 화면 + Ⓒ1 · 사전 고지는 Ⓑ1 라이더/취소 시트</td><td>출발 후 취소라 절반이 결제됐어요 · 10,450원</td><td>홈으로</td></tr>
+<tr><td>Ⓓ3</td><td>예외</td><td><code>no_show · incident_review</code></td><td>보류 — 청구하지 않음</td><td>이 화면 + 안심 센터</td><td>확인이 끝날 때까지 이 러닝은 결제하지 않아요</td><td>안심 센터 / <span style="color:#777">홈</span></td></tr>
+<tr><td>Ⓓ4</td><td>예외</td><td><code>refund_pending</code> + <code>refunded_amount</code></td><td>우리 → 보호자 카드 (되돌아가는 중)</td><td>이 화면 + Ⓒ1</td><td>환불이 진행 중이에요 — 완료되면 알려드려요</td><td>홈으로</td></tr>
+
+<tr><td>Ⓔ1</td><td>온디맨드</td><td>fetch 진행 중</td><td>모름 — 숫자는 <code>—</code></td><td>해당 없음 (아직 모른다)</td><td>결제 내역을 불러오는 중</td><td><b>없음</b></td></tr>
+<tr><td>Ⓔ2</td><td>온디맨드</td><td>0행 · 남의 예약</td><td>해당 없음</td><td>해당 없음</td><td>예약이 사라졌거나, 내 예약이 아니에요</td><td>홈으로</td></tr>
+<tr><td>Ⓔ3</td><td>온디맨드</td><td>통신 실패 (페이즈 아님)</td><td>모름 — 직전 숫자 유지</td><td>재시도 / 고객문의(법정 블록의 번호)</td><td>서버에서 결제 정보를 받지 못했어요 <i>+ 원문</i></td><td>다시 불러오기 / <span style="color:#777">홈</span></td></tr>
+
+<tr><td>Ⓕ1</td><td>해피(폴백)</td><td><code>payment_hold</code> + <code>payments.pending</code></td><td>아직 보호자 카드에 (곧 나감)</td><td>이 화면 — <b>선결제라 가격 노출이 필수</b></td><td>먼저 결제하고 러너를 찾아요 — 못 찾으면 전액 환불돼요</td><td>결제하기 / <span style="color:#777">카드 연결하고 후불로</span></td></tr>
+<tr><td>Ⓕ2</td><td>해피(폴백)</td><td>토스 승인 요청 중</td><td>이동 중</td><td>토스 위젯 + 이 화면</td><td>승인 요청을 보냈어요… 앱을 닫지 말아주세요</td><td><b>없음</b></td></tr>
+<tr><td>Ⓕ3</td><td>예외</td><td>승인 거절 · 사용자 취소</td><td>움직인 돈 없음</td><td>이 화면 (서버 원문)</td><td>결제가 승인되지 않았어요 · 아직 아무 금액도 나가지 않았어요</td><td>다시 시도 / <span style="color:#777">홈</span></td></tr>
+<tr><td>Ⓕ4</td><td>예외</td><td>포착 후 실패 → §2-7 자동취소</td><td>나갔다가 전액 되돌아감</td><td>이 화면 + 카드사 취소 알림</td><td>결제 시간이 만료됐어요 — 결제는 자동 취소됐어요</td><td>다시 예약하기 / <span style="color:#777">홈</span></td></tr>
+</table>
+
+<h2>request.tsx에서 그대로 들어올린 값 — 이 랩이 새로 만든 값은 0개</h2>
+<table class="t">
+<tr><th style="width:210px">요소</th><th style="width:330px">실코드 값 (<code>app/app/owner/request.tsx</code>)</th><th>Ⓑ1에서 한 일</th></tr>
+<tr><td>페이지 거터 · 패딩</td><td><code>layout.gutter = 15</code> · paddingTop 56 · paddingBottom 210(step 2)</td><td>그대로</td></tr>
+<tr><td>백 버튼</td><td><code>circleBtn</code> 40×40 · canvas · 코랄 1px · ‹ 20.5</td><td>그대로</td></tr>
+<tr><td>화면 제목</td><td>20 / 800 / ink</td><td>그대로</td></tr>
+<tr><td>스텝 바</td><td><code>stepSeg</code> flex1 · h4 · #EEEEEE → 완료 <code>paper.line</code> · gap 5 · marginTop 14</td><td>3/3 완료 상태</td></tr>
+<tr><td>스텝 질문</td><td>25 / lineHeight 34 / marginTop 22 / <b>Black Han Sans</b>(displayFont, 화면당 1회)</td><td>“이대로 예약할까요?” 그대로</td></tr>
+<tr><td>확인 카드</td><td><code>sumCard</code> canvas + <b>코랄 1px</b> · marginTop 16 (화면의 단 하나 강조 카드)</td><td>①은 여기에 요금 행 추가 · ②는 손대지 않음</td></tr>
+<tr><td>확인 행</td><td><code>sumRow</code> padding 14/12 · borderBottom 1px <b>#F4F4F4</b>; <code>sumLabel</code> 14 dim w104; <code>sumValue</code> 15/800 ink 우측; <code>sumGlyph</code> 14/800 dim</td><td>①의 요금 행이 이 문법을 그대로 씀</td></tr>
+<tr><td>보조 우측 줄</td><td>km 불일치 줄 = 14/800 <code>paper.pending</code> 우측정렬 marginTop 2</td><td>①의 라이더가 같은 자리·같은 크기(색은 dim — 경고가 아니므로 앰버 금지)</td></tr>
+<tr><td>요금 카드</td><td><code>feeCard</code> #EEEEEE 1px · padding 12 · paddingTop 6 · marginTop 14</td><td>②가 그대로 유지 · ①은 요금 행 폴드 안으로 이동</td></tr>
+<tr><td>요금 행</td><td><code>FeeRow</code>: 라벨 15 dim ↔ 값 15/600 text · marginTop 6 · space-between; 라벨 문자열 <code>기본 요금</code>/<code>거리 (3km)</code>/<code>프리미엄 옵션</code></td><td>그대로 (<code>fmtKm(3.0)="3"</code>)</td></tr>
+<tr><td>요금 하단 줄</td><td>오늘: <code>취소 수수료 없음</code> 14 dim marginTop 8</td><td><b>교정</b> → “출발 전 취소는 수수료 없음” (0066 사다리의 진실)</td></tr>
+<tr><td>티켓</td><td><code>#111111DC</code> · left/right 10 · padding 17 · 코랄 탑 1px · shadow(0,5,10,.35) · bottom = max(18, inset+12)</td><td>그대로</td></tr>
+<tr><td>티켓 정보 행</td><td>아바타 40 · 이름 16/900 #fff (km은 <code>paper.line</code> 코랄) · 서브 14.5 #B8B8B8 · timeChip 16/900 ink maxWidth 144</td><td>그대로</td></tr>
+<tr><td>절취선</td><td>marginVertical 13 · dashed <b>#3A3A3A</b> 0.7 · 노치 16×16 radius 8 canvas @ ±28</td><td>그대로</td></tr>
+<tr><td><b>티켓 총액</b></td><td>오늘: 라벨 <code>총 결제 금액</code> 14 #999999 + <b>Oswald 28.5/900 lineHeight 36</b> + 단위 15 #B8B8B8</td><td><b>은퇴</b> — 후불에서 라벨이 거짓이고, 이게 화면에서 가장 큰 숫자였다</td></tr>
+<tr><td>CTA</td><td><code>payBtn</code> 잉크면 + 코랄 1px · padding 15/12 · 17/800 #fff · pressed scale 0.96</td><td>풀폭으로 확장 · 라벨 <b>“결제하기 ›” → “예약 요청하기 ›”</b></td></tr>
+<tr><td>숫자 서체</td><td><code>useNumFont</code> = Oswald 600 (금액·거리·카운트다운)</td><td>그대로 (<code>.num</code>)</td></tr>
+<tr><td>가격 산식</td><td><code>pricing.baseFare 9900 + km × perKm 3000 + addonSum</code> · 간식 타임 2000</td><td>재계산 없음 — 값만 표기</td></tr>
+</table>
+
+<h2>카피 출처 — 무엇이 옮겨온 문장이고 무엇이 새로 쓴 문장인가</h2>
+<table class="t">
+<tr><th style="width:340px">문장</th><th style="width:150px">출처</th><th>비고</th></tr>
+<tr><td>이대로 예약할까요?</td><td>request.tsx step 2</td><td>한 글자도 안 바꿈</td></tr>
+<tr><td>기본 요금 / 거리 (3km) / 프리미엄 옵션</td><td>request.tsx <code>FeeRow</code></td><td>동일</td></tr>
+<tr><td>도그스하이가 이 러닝을 확인하고 있어요 — 결제·환불은 확인이 끝난 뒤에 정리해서 알려드려요</td><td>pay.tsx <code>disputed</code></td><td>동일</td></tr>
+<tr><td>환불이 진행 중이에요 — 완료되면 알려드려요</td><td>pay.tsx <code>refund_pending</code></td><td>동일</td></tr>
+<tr><td>이 예약의 결제 정보를 볼 수 없어요 — 예약이 사라졌거나, 내 예약이 아니에요</td><td>pay.tsx <code>not_found</code></td><td>동일</td></tr>
+<tr><td>승인 요청을 보냈어요… 완료될 때까지 앱을 닫지 말아주세요</td><td>pay.tsx <code>authorizing</code></td><td>Ⓕ에만</td></tr>
+<tr><td>이 슬롯은 18:45까지 홀드돼요 — 그 뒤엔 다른 보호자에게 다시 열려요</td><td>pay.tsx <code>holdLabel</code></td><td>Ⓕ1에만</td></tr>
+<tr><td>결제 시간이 만료됐어요 — 결제는 자동 취소됐어요. 예약을 다시 만들어주세요.</td><td>플랜 §2-7</td><td>확정 카피 그대로</td></tr>
+<tr><td>지금은 카드만 연결해요 — 결제는 러닝이 끝난 뒤, 실제 뛴 만큼만 자동으로 돼요</td><td>Sean 지시</td><td>Ⓐ1 본문 (실측 과금 고지의 근거)</td></tr>
+<tr><td><b>러닝 후 실제 뛴 거리 기준</b></td><td><b>새로 씀 · 이 랩의 핵심 한 줄</b></td><td>가격 옆에 <u>항상</u> 붙는 라이더. 이 줄이 없으면 “예상 요금”이 확정가로 읽힌다.</td></tr>
+<tr><td>출발 전 취소는 수수료 없음</td><td>0066 <code>marketplace_cancel_fee</code></td><td>오늘의 <code>취소 수수료 없음</code>을 교정한 것 — 오늘 줄은 24h 내 10%·출발 후 50% 구간을 숨긴다</td></tr>
+<tr><td>예약이 확정됐어요 / 출발 30분 전에 알려드려요</td><td><b>새로 씀 · 라우팅 미정</b></td><td>“30분 전”은 <u>실제 알림 구현이 없다</u>. 스케줄러 없으면 이 줄은 삭제.</td></tr>
+<tr><td>계획 3km · 뛴 만큼만 계산했어요</td><td>새로 씀</td><td><code>settle-run</code>의 <code>actual_km</code> vs <code>bookings.km</code> — 실데이터 있음</td></tr>
+<tr><td>러닝에 문제가 있었다면 7일 안에 문의해주세요</td><td><b>새로 씀 · 정책 미확정</b></td><td>7일은 자리표시</td></tr>
+<tr><td>카드사 처리에 따라 명세서 반영은 며칠 걸릴 수 있어요</td><td><b>새로 씀 · 사실 확인 필요</b></td><td>토스 승인취소(당일)면 명세서에 남지 않는다</td></tr>
+<tr><td>보통 30~45분 걸려요 (예상)</td><td><b>삭제됨</b></td><td>v2의 지어낸 줄 — 산출식이 없어 이번에 뺐다. Ⓑ에 시간 약속은 없다.</td></tr>
+</table>
+
+<h2>정직성 긴장 — DESIGN.md §7 / §7b에 걸리는 지점</h2>
+<table class="t">
+<tr><th style="width:56px">#</th><th style="width:300px">긴장</th><th style="width:330px">이 랩의 답</th><th>남는 위험 · Sean 결정 필요</th></tr>
+<tr><td>T1</td><td><b>§7b “디클러터링은 결코 은닉이 되지 않는다.”</b> 해피패스에서 금액을 전부 지우는 것이 은닉인가?</td><td>지운 <u>모든</u> 사실에 열람 경로를 하나씩 붙였다(원장의 새 칸이 그 증명서다). 사전 동의는 Ⓑ1에서, 규칙 고지는 Ⓐ에서, 사후 열람은 Ⓒ0/Ⓒ1에서.</td><td><b>낮음</b> — 단, 원장의 “어디서 확인하나” 칸이 비는 행이 생기는 순간 무너진다. 구현 시 이 표를 회귀 체크리스트로 쓸 것.</td></tr>
+<tr><td>T2</td><td><b>가격이 정말 “한 번”인가?</b> <code>KmDial</code>(step 1)이 거리 다이얼 아래 <b>17/800 Oswald로 요금을 실시간 표시</b>한다 — Ⓑ1의 노출과 합치면 해피패스에 <u>두 번</u>이다.</td><td>이 랩은 “한 번”을 <b>글자 수가 아니라 한 순간</b>으로 해석했다 — 선택 순간(step 1 다이얼 ↔ step 2 확인)은 연속된 하나의 순간이고, <b>요청 버튼 이후로는 0회</b>다. 다이얼 옆 숫자는 <u>선택의 결과를 즉시 보여주는 것</u>이라 카카오T 규칙과 같은 성격이다.</td><td><b>Sean 결정 D-2</b>: 다이얼 요금 readout을 (a) 유지 (b) 삭제해 거리 전용으로 (c) 14pt로 강등. 삭제하면 사용자가 가격을 <u>확인 스텝에서 처음</u> 보게 된다 — 더 조용하지만 놀람이 크다.</td></tr>
+<tr><td>T3</td><td><b>매주 반복 토글</b>이 “회당 20,900원”을 포함한다(구독 동의 문구, 다크패턴 금지 조항).</td><td><b>건드리지 않는다.</b> 정기결제 가격 고지는 법적 요구이자 다크패턴 방지선이다 — 비가시 원칙의 예외로 명시.</td><td>없음. 다만 이 줄은 Ⓑ1 ①/② 어디서도 접힘 뒤에 있다(옵션 폴드) — <u>토글을 켜는 사람은 반드시 그 줄을 본다</u>는 사실은 확인됨.</td></tr>
+<tr><td>T4</td><td><b>“0원”도 쓰지 않기</b>로 한 Ⓑ2 — v2의 “아직 결제된 게 없어요”가 사라지면서, <u>지금 돈이 안 나갔다는 안심</u>도 같이 사라진다.</td><td>그 안심은 Ⓑ1의 라이더가 <b>사전에</b> 준다(“러닝 후 실제 뛴 거리 기준”). 확정 화면에서 반복하면 그게 곧 결제 상기다.</td><td><b>중간</b>. 첫 사용자에게는 “돈이 언제 나가지?”가 남을 수 있다. 파일럿 인터뷰에서 이 질문이 나오면 Ⓑ2에 <u>숫자 없는</u> 한 줄을 되살리는 것이 최소 수정.</td></tr>
+<tr><td>T5</td><td><b>완주 알림을 카드사에 위임</b> — 우리가 아무 푸시도 보내지 않으면, 승인알림을 꺼둔 사용자는 <u>청구를 전혀 모른 채</u> 지나간다.</td><td>Ⓒ0/Ⓒ1이 항상 열려 있고, 기록 카드가 러닝 종료 자체는 알린다(금액 없이).</td><td><b>Sean 결정 D-3</b>: 월 1회 <b>이용 내역 요약</b>(이메일 또는 앱 내)을 둘 것인가. 전자상거래법상 거래 기록 제공 의무와 맞물린다 — 법률 확인 항목.</td></tr>
+<tr><td>T6</td><td><b>Ⓒ0가 존재하지 않는 화면</b>이다. <code>app/app/settings.tsx</code>에 결제 관련 항목이 하나도 없다.</td><td>신규 라우트로 명시(원장에 <i>신규 라우트 필요</i> 표기).</td><td><b>이 랩의 유일한 신규 화면</b>이고, <u>비가시 원칙이 성립하기 위한 필수 조건</u>이다. Ⓒ0 없이 Ⓑ2만 배포하면 그건 은닉이다 — 같은 릴리스로 묶을 것.</td></tr>
+</table>
+
+<h2>밀도 — 무엇을 뺐는지</h2>
+<table class="t">
+<tr><th style="width:250px">뺀 것</th><th>이유</th></tr>
+<tr><td>Ⓑ 확정 화면의 청구 테이블 · 38pt 총액</td><td>Sean: “그게 내 결제를 상기시킨다.” 확정 화면의 임무는 <b>확정됐다는 사실</b> 하나다.</td></tr>
+<tr><td>돈 타임라인 스트립(v2 변형 ②)</td><td>말할 돈이 없는 화면에 돈의 시간축을 그릴 이유가 없다. CSS까지 삭제.</td></tr>
+<tr><td>요청 화면 티켓의 28.5pt 총액</td><td>화면에서 가장 큰 숫자였고, 라벨(“총 결제 금액”)이 후불에서 거짓이었다.</td></tr>
+<tr><td>완주 직후의 결제 화면 · 결제 완료 푸시</td><td>승인알림이 카드사의 일이다. 완주의 얼굴은 기록 카드.</td></tr>
+<tr><td>“보통 30~45분 걸려요 (예상)”</td><td>산출식이 없다. 근거 없는 시간 약속 금지.</td></tr>
+<tr><td>법정 고지 전문의 상시 노출</td><td>상시는 <b>한 줄 + 디스클로저</b>, 전문은 Ⓒ1 영수증(법적 자리).</td></tr>
+<tr><td>진행률·타이머 연출</td><td>후불에는 만료 시계가 없다(Ⓕ 폴백의 슬롯 홀드만 예외).</td></tr>
+</table>
+
+<div class="note"><b>Sean이 고를 것 (v3에서 남은 결정)</b><br>
+<b>D-1 (유일한 변형 축)</b> — 요청 화면의 가격 한 줄: <b>① 옵션 행들 사이 인라인</b>(sumCard 6번째 행, 내역은 ▾로 접힘) vs <b>② 푸터 인접</b>(feeCard 유지, 법정 고지와 한 덩어리). 나머지 화면 18개는 두 안이 완전히 동일하다.<br>
+<b>D-2</b> — 거리 다이얼(step 1)의 실시간 요금 readout: 유지 / 삭제 / 14pt 강등 (T2).<br>
+<b>D-3</b> — 월 1회 이용 내역 요약을 둘 것인가 (T5, 법률 확인 동반).</div>
+
+<div class="ban"><b>구현 전 막힌 것들</b> — ① <b>NEEDS-ENG-PASS</b>: 정산 시점 청구 + 미수/잠금 상태 머신(§0-bis)이 아직 리뷰 전이다. Ⓧ1·Ⓧ2·Ⓧ3은 <u>그 머신이 만들어질 상태들</u>이지 존재하는 상태가 아니다.
+② <b>Ⓒ0 신규 라우트</b>(설정 → 결제 관리) — 비가시 원칙의 필수 조건이므로 같은 릴리스.
+③ Ⓑ2의 소속 화면 결정(<code>owner/pay.tsx</code> 후속인가 예약 상세인가 — 후불에서 “pay” 화면 이름 자체가 유물).
+④ <code>min_fare</code> 하한이 걸린 회차의 영수증 행(Ⓒ1 미구현).
+⑤ 분쟁 창 일수 · “출발 30분 전 알림” 실구현.
+⑥ 사업자등록번호 · 통신판매업 신고번호 실값(현재 ○ 자리표시) — <b>없으면 Ⓒ1의 법정 블록이 거짓말</b>이라 라이브 전 필수.</div>
+
+</body>
+</html>

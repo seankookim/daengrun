@@ -24,6 +24,58 @@ doctrine):
 Deferred work, written down so it exists. Format: what / why / context / effort
 (human → CC) / priority / depends-on.
 
+## From money-model v2 CEO review (2026-08-12, /plan-ceo-review)
+
+- [x] **Supersession banners on the old money docs** — DONE 2026-08-12 (all three banners
+  placed: km-token-model.md, 0059-take-rate doc, payments-toss-plan.md ACTIVE header). Original scope:
+  `docs/plans/km-token-model.md` (owner-side model SUPERSEDED by the level-token
+  design, PARKED — see `~/.gstack/projects/seankookim-daengrun/sean-claude-token-
+  payments-model-891c11-design-20260812-134138.md` and the decision log),
+  `docs/plans/0059-take-rate-33-plan.md` (take rate 33%→25% + session-based pay
+  decided at the token cutover; 0059 remains pre-cutover truth), and
+  `docs/plans/payments-toss-plan.md` (now the ACTIVE money track per the T3
+  parking verdict). Why: without banners the next money session builds the
+  superseded flat-₩5,000 model straight from the old doc. Context: the level-token
+  model is APPROVED DESIGN — PARKED behind per-run Toss conversion data + 4 blocking
+  gaps (G1 abort/compensation state machine, G2 cancellation under whole tokens,
+  G3 threshold versioning, G4 per-dog re-keying). Effort S → S (three one-line
+  edits). P1. Depends on: nothing.
+
+## From money-model late amendments (2026-08-12 evening, Sean)
+
+- [ ] **Pace-state UI (owner + runner + Live Activities)** — live pace vs suggested
+  minimum: green = at/faster than suggestion, yellow = deviating slower. Suggested
+  minimum pace 8 min/km, strong-suggestion band 7~9 min/km, owner-adjustable in
+  preferences. Why: quality signal that polices the slow-stroll incentive without
+  ranking pace publicly (runner stats stay volume-led) and without money-bearing
+  thresholds. Context: completion is now minimum-DISTANCE only (dual time threshold
+  reversed — a time floor pays for walking the clock). Touches: live.tsx (owner),
+  runner live screen, owner-la Live Activity payloads (0053/owner_la rails), prefs
+  screen (pace suggestion field). Effort M → S. P2. Depends on: prefs field, LA
+  payload extension.
+- [ ] **Run-end flow: stop confirmation + 귀가 intermediary + return handoff** — run-end
+  ≠ dog-home. Sequence: runner taps stop → confirmation dialog (early-end consequences
+  named if under minimum distance) → 귀가 state ("집으로 가는 중", owner-visible on live,
+  run stats FROZEN at stop, GPS continues for custody, un-charged/un-paid) → return
+  handoff confirm (the missing mirror of confirm_handoff — marketplace has pickup
+  handoff only) → record card. Money meter cuts at run-stop, not the doorstep: 귀가 is
+  custody, not service. Time is NEVER a stopper (routes loop home — a timer would strand
+  the dog mid-route); time encourages in ONE direction only: fast finish → "더 뛰어도
+  좋아요" nudge + level-up detection signal. Touches: runner live screen, owner live.tsx,
+  transition map (return-handoff state), settle-run (actuals = run segment). Effort L → M.
+  P2 (P1 with real charges — the charge boundary depends on it).
+- [ ] **Emergency-stop refund path (G1) — backend + frontend** — Sean confirmed the
+  runner emergency-stop's return-money/return-tokens flow is UNBUILT on both ends.
+  Under distance-only completion this is the unfit-dog exit, and under real payments
+  it's a money path (own adversarial cycle). Coordinates with the X2 refund go-live
+  gate in payments-toss-plan §5-4. Effort M → S. **P1 once charges are real.**
+- [ ] **Live-cam subscription package (concept)** — dog-mounted camera shipped as a
+  thank-you on subscribe; live widget in the owner's running screen. 라이브 신뢰 스택
+  (positioning moat #3) productized as recurring revenue. Open questions: hardware
+  sourcing + dog-harness safety, streaming infra (WebRTC/RTSP → widget), subscription
+  billing (needs the same Toss 빌링키 as invisible per-run pay), package pricing.
+  Effort XL → L. P3. Depends on: billing key, live screen rails.
+
 ## From coordinates-geocoding slice (2026-08-10, /autoplan)
 
 - [ ] **Distance-to-pickup on runner job cards** — show km-to-address on
