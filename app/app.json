@@ -83,7 +83,8 @@
           "enablePushNotifications": true
         }
       ],
-      "expo-font"
+      "expo-font",
+      "./plugins/withKoreanPayApps"
     ],
     "extra": {
       "router": {},
