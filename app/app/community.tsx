@@ -1,5 +1,5 @@
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Animated, Dimensions, Image, Pressable, RefreshControl, ScrollView, StyleProp, StyleSheet, Text, TextInput, View, ViewStyle } from 'react-native';
 import { BottomNav } from '../src/components/bottomnav';
 import { TabSwipe } from '../src/components/tabswipe';
@@ -19,12 +19,12 @@ import { CollarKey, collarColors, lilac, paper } from '../src/theme';
 // 동네 피드 — IG 카드 해부학 개편 (Sean 2026-08-11: "인스타 UI에서 영감 — 쉽게 올리고 스크롤하고
 // 반응하고 공유하게"). 인스타에서 가져온 건 비주얼이 아니라 카드의 스캔 리듬:
 //   ① 아이덴티티 헤더(아바타·이름·강아지 + 내 포스트면 ⋯ 오버플로) → ② 콘텐츠 블록 엣지-투-엣지
-//   (사진 풀블리드 / 기록 조판 / 클럽 리캡) → ③ 액션 행(발자국·댓글, 44pt 타깃, 낙관적 갱신+롤백)
+//   (사진 풀블리드 / 기록 조판 / 클럽 리캡) → ③ 액션 행(좋아요·댓글, 44pt 타깃, 낙관적 갱신+롤백)
 //   → ④ 캡션 → ⑤ 타임스탬프. 포스트 사이 = 풀블리드 코랄 헤어라인 (카드-인-카드 은퇴).
 // 미이식 IG 어포던스(백엔드 부재 — 죽은 버튼 금지): 공유/DM · 북마크 · 팔로우 · 스토리 · 캐러셀.
 // 직행 포스트: 상단 컴포즈 바 → /compose (실제 전제조건 = 완료된 러닝, shareRunToFeed).
 // 삭제는 ⋯ → Alert 확정으로 이동 — '길게 눌러 삭제' 상시 힌트 은퇴.
-// 액센트 예산: 코랄 = 포스트 구분선 · 누른 발자국 · 컴포즈 버튼 보더 · 보내기.
+// 액센트 예산: 코랄 = 포스트 구분선 · 누른 하트 · 컴포즈 버튼 보더 · 보내기.
 // 포일 예산: 홀로 = 클럽 배너 상하 엣지 + 마스트헤드 모노그램만 · 골드 = 기록 소인 화면당 1개.
 // 로딩 ≠ 빈 피드 ≠ 에러 — 3상태 분리 (에러는 criticalWash 라우드-페일 스트립 + 재시도).
 
@@ -56,7 +56,10 @@ function HoloEdge({ vertical, style }: { vertical?: boolean; style?: StyleProp<V
   );
 }
 
-// 더블탭 발자국 버스트 — 원샷 오버레이 (IG 하트 문법의 도그스하이 번역)
+// 더블탭 하트 버스트 — 원샷 오버레이.
+// [Sean 2026-08-12] 발자국 → **하트**. 도그스하이식 번역(발자국)을 시도했었지만, 좋아요는 이 앱이
+// 새로 가르칠 어휘가 아니다 — 인스타를 쓰는 사람은 하트를 이미 안다. 배울 게 없는 자리에서
+// 독창성을 쓰면 그건 개성이 아니라 마찰이다.
 function PawBurst({ trigger }: { trigger: number }) {
   const scale = useRef(new Animated.Value(0)).current;
   const opacity = useRef(new Animated.Value(0)).current;
@@ -77,7 +80,7 @@ function PawBurst({ trigger }: { trigger: number }) {
   if (trigger === 0) return null;
   return (
     <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', opacity, transform: [{ scale }] }]}>
-      <Icon name="PawPrint" glyph="●" size={84} color={CORAL_INK} />
+      <Icon name="Heart" glyph="♥" size={84} color={CORAL_INK} />
     </Animated.View>
   );
 }
@@ -101,6 +104,28 @@ export default function Community() {
   // 컴포즈 바의 내 아바타 — 실프로필 (없으면 모노그램 폴백)
   const [me, setMe] = useState<MyProfile | null>(null);
   useEffect(() => { fetchMyProfile().then(setMe).catch(() => {}); }, []);
+
+  // 레일 데이터 — 지금 로드된 피드에서 파생. 작성자당 1개(최신 포스트), 최대 12개.
+  // 라벨은 @아이디, 없으면 표시 이름 (아이디를 지어내지 않는다). 얼굴은 강아지 이니셜 + 칼라 컬러,
+  // 강아지가 없는 자유 포스트면 작성자 이니셜 + 바이올렛.
+  const railPeople = useMemo(() => {
+    const seen = new Set<string>();
+    const out: { postId: string; label: string; face: string; tint: string }[] = [];
+    for (const p of posts) {
+      const key = p.authorHandle ?? p.authorName;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const collar = p.meta.collar ? collarColors[p.meta.collar as CollarKey] : undefined;
+      out.push({
+        postId: p.id,
+        label: p.authorHandle ? `@${p.authorHandle}` : p.authorName,
+        face: (p.meta.dogName ?? p.authorName ?? '·').slice(0, 1),
+        tint: collar ?? lilac.accent,
+      });
+      if (out.length >= 12) break;
+    }
+    return out;
+  }, [posts]);
 
   const load = () => fetchFeed()
     .then((p) => { setPosts(p); setFeedError(null); setLoaded(true); })
@@ -137,6 +162,11 @@ export default function Community() {
   };
 
   // 댓글 — 포스트당 인라인 펼침
+  // [스토리 레일 2026-08-12] 레일 원을 누르면 그 포스트로 스크롤한다. 이게 없으면 IG 스토리처럼
+  // 생긴 원이 아무 데도 안 가는 **가짜 어포던스**가 된다 (죽은 버튼 금지법).
+  const scrollRef = useRef<ScrollView>(null);
+  const postY = useRef<Record<string, number>>({});
+
   const [openComments, setOpenComments] = useState<string | null>(null);
   const [comments, setComments] = useState<FeedComment[]>([]);
   const [commentInput, setCommentInput] = useState('');
@@ -192,6 +222,7 @@ export default function Community() {
     <View style={{ flex: 1, backgroundColor: paper.canvas }}>{/* [페이퍼 크롬 2026-08-10] 라일락 캔버스 은퇴 → 백지 */}
       <TabSwipe>
       <ScrollView
+        ref={scrollRef}
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingTop: 56, paddingBottom: 30 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={lilac.accent} />}
@@ -225,31 +256,59 @@ export default function Community() {
           </Row>
         </View>
 
-        {/* ───────── 하이클럽 스트립 (P-A S1) — 홀로 엣지 배너, 탭 = 클럽 홈 ───────── */}
-        {club && (
-          <Pressable onPress={() => router.push(`/club/${club.id}`)} style={s.clubStrip}>
-            {club.photoUrl && <Image source={{ uri: club.photoUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />}
-            <View style={s.clubScrim} />
-            <Row style={{ justifyContent: 'space-between', alignItems: 'flex-end', flex: 1, padding: 10, zIndex: 2 }}>
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={s.clubKick}>HIGH CLUB</Text>
-                <Text style={s.clubName} numberOfLines={1}>{club.name}</Text>
-              </View>
-              <View style={s.clubPill}>
-                <Text style={s.clubPillN}>
-                  {club.status === 'active'
-                    ? club.nextSession
-                      ? `${club.nextSession.when.split(' ').slice(-2).join(' ')} · ${Math.max(0, club.nextSession.capacity - club.nextSession.rsvpCount)}자리`
-                      : `멤버 ${club.memberCount}`
-                    : `관심 ${club.interestCount}명 — 나도 관심 ›`}
-                </Text>
-                <Text style={s.clubGo}>클럽 홈 ›</Text>
-              </View>
-            </Row>
-            <HoloEdge style={s.holoTop} />
-            <HoloEdge style={s.holoBottom} />
-          </Pressable>
+        {/* ───────── 스토리 레일 (Sean 2026-08-12: "instagram story-circlify … clubs and the dogs,
+             same purple circle, gold for clubs") ─────────
+             🔴 무엇이 레일을 채우는가가 이 컴포넌트의 유일한 정직 문제다. 랩에서 "오늘 달린 개들"을
+             제안했다가 접었다: FeedPost에 기계가 읽을 createdAt이 없고(when은 표시용 문자열),
+             fetchFeed는 전역 최신 30건이라 '오늘'도 '우리 동네'도 주장할 수 없다.
+             그래서 레일은 **지금 이 피드에 실제로 떠 있는 사람들**로 만든다 — 새 페치 0, 새 주장 0.
+             "오늘"이라고 부르지 않으면 거짓이 아니다.
+             원 = 사람(계정), 얼굴 = 그 사람 강아지의 이니셜을 칼라 컬러로, 라벨 = @아이디.
+             클럽은 첫 자리 골드 링 (아티팩트 어휘), 사람은 바이올렛 링. */}
+        {(club || railPeople.length > 0) && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={{ marginTop: 4 }}
+            contentContainerStyle={{ paddingHorizontal: GUTTER, gap: 14, paddingVertical: 10 }}
+          >
+            {club && (
+              <Pressable onPress={() => router.push(`/club/${club.id}`)} style={s.stItem} accessibilityRole="button" accessibilityLabel={`${club.name} 클럽 홈`}>
+                <View style={[s.stRing, s.stRingClub]}>
+                  <View style={s.stRingIn}>
+                    <View style={[s.stFace, { backgroundColor: '#1C1837' }]}>
+                      <Text style={s.stFaceTxt}>{club.name.slice(0, 1)}</Text>
+                    </View>
+                  </View>
+                </View>
+                <Text style={s.stName} numberOfLines={1}>{club.name.replace('하이클럽', '').trim() || '클럽'}</Text>
+              </Pressable>
+            )}
+            {railPeople.map((r) => (
+              <Pressable
+                key={r.postId}
+                onPress={() => scrollRef.current?.scrollTo({ y: Math.max(0, (postY.current[r.postId] ?? 0) - 8), animated: true })}
+                style={s.stItem}
+                accessibilityRole="button"
+                accessibilityLabel={`${r.label} 포스트로 이동`}
+              >
+                <View style={[s.stRing, s.stRingUser]}>
+                  <View style={s.stRingIn}>
+                    <View style={[s.stFace, { backgroundColor: r.tint }]}>
+                      <Text style={s.stFaceTxt}>{r.face}</Text>
+                    </View>
+                  </View>
+                </View>
+                <Text style={s.stName} numberOfLines={1}>{r.label}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
         )}
+
+        {/* [2026-08-12] 하이클럽 사진 배너 은퇴 — Sean의 "story-circlify the club widget"은
+             위젯을 **원으로 바꾸라**는 뜻이지 원을 하나 더 얹으라는 뜻이 아니었다. 배너를 남겨두니
+             화면에 클럽이 두 번(골드 원 + 풀블리드 배너) 있었다. 세션 정보는 원을 눌러 들어가는
+             클럽 홈이 이미 말한다 — 같은 것을 두 번 인쇄하지 않는다. */}
 
         {/* ───────── 섹션 탭 — 피드 | 러너 후기 ───────── */}
         <Row style={{ marginTop: 14, paddingHorizontal: GUTTER + 2, gap: 20, borderBottomWidth: 1, borderBottomColor: paper.line }}>{/* [페이퍼 크롬] 섹션 분리 = 풀블리드 코랄 1px */}
@@ -337,13 +396,18 @@ export default function Community() {
         )}
 
         {tab === 'feed' && posts.map((p) => (
-          <View key={p.id} style={s.post}>
+          <View key={p.id} style={s.post} onLayout={(e) => { postY.current[p.id] = e.nativeEvent.layout.y; }}>
             {/* ── ① 아이덴티티 헤더 (IG 문법) — 아바타 + 이름·강아지 + 내 포스트면 ⋯ 오버플로.
                 타임스탬프는 카드 바닥(⑤)으로 — 상시 '길게 눌러 삭제' 힌트는 은퇴, 삭제는 ⋯ → Alert */}
             <Row style={{ gap: 9, paddingHorizontal: GUTTER + 2, paddingTop: 11, paddingBottom: 9, alignItems: 'center' }}>
               <Avatar url={p.authorAvatar} char={p.authorName[0]} bg={lilac.accent} size={34} />
               <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={{ fontSize: 14, fontWeight: '700', color: lilac.head }} numberOfLines={1}>{p.authorName}</Text>
+                {/* [0074 · Sean 2026-08-12] 인스타처럼 **아이디가 1급 신원**이다.
+                    아이디가 있으면 @아이디를, 아직 안 만든 사람은 표시 이름으로 폴백한다 —
+                    없는 아이디를 이름에서 지어내지 않는다 (핸들은 사람이 고르는 것이다). */}
+                <Text style={{ fontSize: 14, fontWeight: '700', color: lilac.head }} numberOfLines={1}>
+                  {p.authorHandle ? `@${p.authorHandle}` : p.authorName}
+                </Text>
                 {p.meta.dogName && (
                   <Row style={{ gap: 5, marginTop: 2, alignItems: 'center' }}>
                     {p.meta.collar && collarColors[p.meta.collar as CollarKey] && (
@@ -390,6 +454,44 @@ export default function Community() {
                     {/* [0064] 피드 사진 = 공유된 러닝 사진 — 새 포스트는 media 경로라 서명이 필요.
                         [IG 개편] 엣지-투-엣지 풀블리드 — 카드 인셋 은퇴, 사진이 화면 폭 전체 */}
                     <MediaImage source={p.photoUrl} style={{ width: W, height: W, backgroundColor: lilac.inset }} resizeMode="cover" />
+                    {/* [Strava 문법 2026-08-12 · Sean이 첨부한 레퍼런스] 궤적을 사진 **위에** 겹친다.
+                        지금까지 사진 포스트는 트레이스를 아예 안 그렸다 — 이 앱에서 가장 독보적인 그림이
+                        사진이 있다는 이유로 사라지고 있었다. 스트라바가 하는 건 정확히 이것이다:
+                        길이 사진을 가로지른다.
+                        선 색은 강아지의 칼라 컬러 (0033) — 스트라바의 오렌지 자리에 우리 개인화가 들어간다.
+                        pointerEvents none: 더블탭 좋아요는 사진의 것이지 선의 것이 아니다. */}
+                    {(p.meta.trace ?? []).length > 1 && (
+                      <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+                        <HeatTrace
+                          points={(p.meta.trace ?? []).map((pt) => ({ ...pt, v: 0.65 }))}
+                          width={W} height={W}
+                          tint={p.meta.collar ? collarColors[p.meta.collar as CollarKey] : CORAL_INK}
+                        />
+                      </View>
+                    )}
+                    {/* 스탯 알약 — 스트라바 레퍼런스의 흰 알약. 사진 위에서 읽혀야 하므로 흰 면 + 잉크 */}
+                    {(p.meta.km != null || fmtDur(p.meta.durationSec)) && (
+                      <View pointerEvents="none" style={s.statPill}>
+                        {p.meta.km != null && (
+                          <View style={s.pillCell}>
+                            <Text style={s.pillK}>KM</Text>
+                            <Text style={[s.pillV, nf]}>{p.meta.km}</Text>
+                          </View>
+                        )}
+                        {fmtPace(p.meta.km, p.meta.durationSec) && (
+                          <View style={s.pillCell}>
+                            <Text style={s.pillK}>PACE</Text>
+                            <Text style={[s.pillV, nf]}>{fmtPace(p.meta.km, p.meta.durationSec)}</Text>
+                          </View>
+                        )}
+                        {fmtDur(p.meta.durationSec) && (
+                          <View style={s.pillCell}>
+                            <Text style={s.pillK}>TIME</Text>
+                            <Text style={[s.pillV, nf]}>{fmtDur(p.meta.durationSec)}</Text>
+                          </View>
+                        )}
+                      </View>
+                    )}
                     {(p.meta.badges ?? []).length > 0 && (
                       <View pointerEvents="none" style={s.badgeCol}>
                         {(p.meta.badges ?? []).map((b) => (
@@ -407,8 +509,9 @@ export default function Community() {
                     <PawBurst trigger={bursts[p.id] ?? 0} />
                   </View>
                 </Pressable>
-                {/* 하이라인 스탯 표 (스크림 오버레이 → 편집 조판으로 이동) */}
-                {(p.meta.km != null || fmtDur(p.meta.durationSec)) && (
+                {/* [2026-08-12] 사진 아래 스탯 표는 은퇴 — 같은 수치를 사진 위 알약이 말한다.
+                    한 사실은 한 번만. 사진이 없는 포스트에서는 아래 기록 조판이 계속 그 일을 한다. */}
+                {false && (p.meta.km != null || fmtDur(p.meta.durationSec)) && (
                   <Row style={s.statTable}>
                     <View style={s.statCell}>
                       <Text style={s.statK}>KM</Text><Text style={[s.statV, nf]}>{p.meta.km ?? '—'}</Text>
@@ -469,18 +572,18 @@ export default function Community() {
             )}
 
             {/* ── ③ 액션 행 — 콘텐츠 직하, 좌측 정렬, 44pt 타깃 · scale 0.96 프레스 ·
-                낙관적 카운트 (누른 발자국 = 코랄 단일 신호) */}
+                낙관적 카운트 (누른 하트 = 코랄 단일 신호) */}
             <Row style={{ paddingHorizontal: GUTTER + 2 - 8, alignItems: 'center' }}>
               <Pressable
                 onPress={() => setLiked(p, !p.likedByMe)}
                 style={({ pressed }) => [s.act, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
                 accessibilityRole="button"
-                accessibilityLabel="발자국"
+                accessibilityLabel="좋아요"
                 accessibilityState={{ selected: p.likedByMe }}
               >
-                <Icon name="PawPrint" glyph="●" size={17} color={p.likedByMe ? CORAL_INK : lilac.dim} />
+                <Icon name="Heart" glyph="♥" size={17} color={p.likedByMe ? CORAL_INK : lilac.dim} />
                 <Text style={[s.actNum, p.likedByMe && s.actNumOn, nf]}>{p.likes}</Text>
-                <Text style={[s.actLabel, p.likedByMe && s.actLabelOn]}>발자국</Text>
+                <Text style={[s.actLabel, p.likedByMe && s.actLabelOn]}>좋아요</Text>
               </Pressable>
               <Pressable
                 onPress={() => toggleComments(p)}
@@ -561,7 +664,13 @@ export default function Community() {
         {/* ───────── 콜로폰 ───────── */}
         {tab === 'feed' && (
           <View style={s.colophon}>
-            <Text style={s.coloBody}>동네 피드는 이웃들이 채웁니다. 완료된 러닝만 실려요 — 광고도, 남의 동네 소식도 없습니다.</Text>
+            {/* 🔴 [정직 수리 2026-08-12] 이 문장은 두 가지를 약속했고 둘 다 사실이 아니었다.
+                ① "완료된 러닝만 실려요" — feed_posts.booking_id는 nullable이고 meta는 클라가 준다.
+                   그리고 이제는 **의도적으로** 거짓이다: Sean이 자유 업로드를 켰다.
+                ② "남의 동네 소식도 없습니다" — fetchFeed에는 지역 필터가 한 줄도 없다 (전역 30건).
+                남은 문장은 지킬 수 있는 것만 말한다. 광고가 없다는 건 참이고(광고 시스템 자체가 없다),
+                기록이 진짜라는 건 이제 서버가 강제한다 (0074 feed_claim_gate). */}
+            <Text style={s.coloBody}>이웃들이 채우는 피드예요 — 광고는 없습니다. 거리·시간 기록이 붙은 글은 실제로 달린 러닝만 올릴 수 있어요.</Text>
             <Row style={{ alignItems: 'center', gap: 6, marginTop: 8 }}>
               <Text style={s.coloFoot}>오늘 <Text style={[{ color: lilac.text }, nf]}>{posts.length}</Text>건</Text>
               <View style={s.coloDot} />
@@ -577,7 +686,7 @@ export default function Community() {
 }
 
 // [페이퍼 크롬 2026-08-10] 크롬 페이퍼 이행 — 카드 샤프 1px #EEE · 소프트 섀도 은퇴 · 섹션 룰 = 코랄.
-// 생존: 칼라 팔레트·사진 콘텐츠·클럽 나이트 리캡·골드 소인(원형 아티팩트)·코랄 발자국 신호·홀로 예산.
+// 생존: 칼라 팔레트·사진 콘텐츠·클럽 나이트 리캡·골드 소인(원형 아티팩트)·코랄 하트 신호·홀로 예산.
 const s = StyleSheet.create({
   // 마스트헤드 — [FIX3] 키커·모노그램 12pt 밴드 승급, 박스 22로 성장 (모노그램 = 홀로 아티팩트, 라운드 유지)
   mono: { width: 22, height: 22, borderRadius: 6, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
@@ -618,6 +727,26 @@ const s = StyleSheet.create({
   voltTagTxt: { fontSize: 14, lineHeight: 18, fontWeight: '600', letterSpacing: 0.4, color: lilac.voltDeep },
 
   emptyBox: { marginHorizontal: GUTTER, marginTop: 20, backgroundColor: lilac.inset, borderRadius: 0, borderWidth: 1, borderColor: '#EEEEEE', padding: 26 },
+
+  // 스트라바식 스탯 알약 — 사진 위에 뜬다. 흰 면이라 어떤 사진 위에서도 읽힌다.
+  statPill: {
+    position: 'absolute', left: 14, right: 14, bottom: 14, flexDirection: 'row',
+    backgroundColor: 'rgba(255,255,255,0.94)', borderRadius: 0, paddingVertical: 9, paddingHorizontal: 6,
+  },
+  pillCell: { flex: 1, alignItems: 'center' },
+  pillK: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: lilac.dim, letterSpacing: 0.6 },
+  pillV: { fontSize: 19, lineHeight: 24, fontWeight: '800', color: lilac.head },
+
+  // 스토리 레일 — IG 문법 그대로 (Sean: "feel free to copy"). 링 3px · 흰 갭 2px · 얼굴 원.
+  stItem: { width: 68, alignItems: 'center' },
+  stRing: { width: 64, height: 64, borderRadius: 32, padding: 3, alignItems: 'center', justifyContent: 'center' },
+  stRingUser: { backgroundColor: lilac.accent },   // 바이올렛 = 사람 (Sean)
+  stRingClub: { backgroundColor: lilac.gold },     // 골드 = 클럽 (아티팩트 어휘)
+  stRingIn: { width: '100%', height: '100%', borderRadius: 29, backgroundColor: paper.canvas, padding: 2 },
+  stFace: { width: '100%', height: '100%', borderRadius: 27, alignItems: 'center', justifyContent: 'center' },
+  stFaceTxt: { fontSize: 19, fontWeight: '800', color: '#FFFFFF' },
+  // 라벨 14pt — 한글 아이디도 표시 이름도 데이터다 (플로어 예외 아님, §3)
+  stName: { fontSize: 14, lineHeight: 18, color: lilac.text, marginTop: 5, maxWidth: 68, textAlign: 'center' },
 
   // 피드 포스트 — [IG 개편] 카드-인-카드 은퇴: 풀블리드 + 포스트 사이 코랄 헤어라인 (스크롤 리듬)
   post: { backgroundColor: paper.canvas, marginTop: 12, borderTopWidth: 1, borderTopColor: paper.line, borderRadius: 0, overflow: 'hidden' },

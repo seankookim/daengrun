@@ -294,47 +294,48 @@ the screen; a subscription screen bound to a client constant is fabricated data.
 
 ### C. Community / feed — the Instagram direction
 
-- **"Community rewire ui to copy instagram"**
-- **"In community, instagram story-circlify the club widget"**
-- **"Feed upload should be more intuitive like insta, show route traces, premade cards, also have
-  share to insta instant button option"**
-- **"Community post too boring, make mock ups."**
+**BUILT 2026-08-12** after Sean picked from `docs/labs/community-instagram-lab.html` and gave four
+further directives. Migration `0074_handles_and_feed_claims.sql` (prod). Harness 343 → **356/0**.
 
-→ **LAB SHIPPED 2026-08-12: `docs/labs/community-instagram-lab.html`** — 3 areas × 3 options
-(Ⓐ post card · Ⓑ club story circles · Ⓒ upload + IG share). Codex reviewed it as Sean's proxy and
-corrected it in five places; the corrections are marked inline in the lab.
-
-→ ⚠ **This entry's own warning was WRONG.** "Route traces on feed cards are blocked" is false:
-`shareRunToFeed` (`api.ts:2926-2940`) already normalises the **real GPS** `runs.trace` to `{x,y}`
-at ≤40 points, and `community.tsx:454` already renders it via `HeatTrace`. Shipped since
-2026-07-29. So "show route traces" is already half-done — the problem is that it renders at
-**92×104px in a corner**, which is the actual "too boring".
-
-→ Other measured corrections, so the next session does not rediscover them:
-- **community.tsx already had an IG rewire** (`:19`, 2026-08-11). The card anatomy is already
-  avatar → media → actions → caption → timestamp. "Too boring" is density, not structure.
-- **compose.tsx is a run picker by design** (`shareRunToFeed` needs a completed run;
-  `feed_posts.booking_id` is unique). "Premade cards" fits that constraint rather than fighting it.
-- 🔴 **The app already HAS a premade-card studio** — `shot/[bid].tsx` has `SKIN_META` (4 skins),
-  real trace, photo, 9:16 + 4:5, capture, save, share. Ⓒ nearly reinvented it. **The first job of
-  the next lab is extracting one `RunShareCard` used by the feed, the composer preview and the IG
-  export.**
-- **Ⓐ③'s bib number has a real source after all**: `RunStandings.nth` (`api.ts:1538`), already
-  rendered as "N번째 러닝" on `owner/report.tsx:65`, and `shareRunToFeed` **already fetches
-  standings** (`:2917`). One line: `meta.runNo = standings?.nth`. ⚠ Owner-scoped — runner-authored
-  posts get no ordinal, so the bib number must not render for those.
-- **Ⓑ① (story rail of today's dogs) is dead**: `FeedPost` exposes no machine-readable `createdAt`,
-  `fetchFeed` is global + capped at 30, one dog can run twice, and there is no viewed-state model
-  for the rings to mean anything. Recommendation moved to Ⓑ③ (one honest circle).
-- **Ⓒ① is not free**: `compose.tsx`'s `Cand` (`:21`) carries only *planned* km, dog, date, collar,
-  shared — no actual km, trace, photo, duration or badges. A true WYSIWYG grid needs extra fetches.
-- **IG deep link is bigger than one plist key**: `instagram-stories://share` alone carries no image;
-  it needs a keyed iOS pasteboard dictionary (`com.instagram.sharedSticker.backgroundImage`) that
-  RN's `Share.share` cannot build, a native bridge (no candidate in package.json), a Meta app id,
-  pasteboard lifecycle, and a separate Android Intent path. The repo has a committed `ios/` tree, so
-  the requirement is native config sync + rebuild, not `expo prebuild` specifically.
-- 🔴 See the **P1 HONESTY** entry below — the colophon's two promises are unenforced, and that
-  blocks any "our neighbourhood" framing in Ⓑ.
+- [x] ~~**"Community rewire ui to copy instagram"**~~ — heart replaces 발자국 (action row + double-tap
+  burst), `@handle` is the author line, story rail on top. Sean: *"feel free to copy as imitation is
+  the highest form of flattery."*
+- [x] ~~**"story-circlify the club widget"**~~ — Sean picked Ⓑ① (clubs **and** dogs) over my Ⓑ③.
+  Clubs = **gold** ring, people = **violet** ring, IG ring/gap/face geometry.
+  🔴 The lab's objection to Ⓑ① was real and is resolved rather than ignored: the rail is derived from
+  **the feed already loaded on screen**, not from "today" (`FeedPost` has no machine-readable
+  `createdAt`, `fetchFeed` is global and capped at 30). It never claims "today" or "your
+  neighbourhood", so it is not lying. Tapping a circle **scrolls to that post** via `onLayout`-captured
+  offsets — an IG-shaped circle that went nowhere would be a fake affordance.
+- [x] ~~**"users should make account ids like instagram, shown like insta"**~~ — `profiles.handle`
+  (0074): lowercase-normalised, 3–20, `[a-z0-9_.]`, no leading/trailing/double dots, reserved words
+  blocked, case-insensitive unique via `lower(handle)` partial index. Set through `set_my_handle`
+  only. Claim UI is the first field of the profile sheet (**above** the display name — in IG the unit
+  people call you by is the @id). `null` = not chosen yet, and the feed falls back to the display
+  name rather than inventing one.
+- [x] ~~**"let's not restrict what the users will be uploading"**~~ — `compose.tsx` flipped from a
+  **run picker** to a **free composer**: text + photo post with no booking, run card an optional
+  attach. `createFreePost` writes `booking_id: null`.
+  🔴 **The line moved from the upload to the CLAIM, deliberately.** `feed_posts.meta` is
+  client-supplied, so "post anything" taken literally means anyone can post
+  `meta:{km:42.2, badges:['★ 역대 최장 거리']}` without running. 0074's `feed_claim_gate` trigger:
+  free posts unrestricted; a post carrying **km / durationSec / trace** must reference the author's
+  own booking with a real `runs` row. **Bragging is for everyone, records are for whoever ran.**
+  Pin **F1 encodes Sean's decision** so a later session cannot quietly re-restrict uploads.
+- [x] ~~**"show route traces"**~~ — was never blocked (the backlog was wrong); the fix was that it
+  rendered at 92×104 in a corner. Now **Strava grammar**: the trace is drawn **over the photo** in the
+  dog's collar colour with a white stats pill (KM · PACE · TIME), per Sean's attached references.
+  This also closes codex's finding that photo posts dropped the trace entirely. The old below-photo
+  stat table retired — one fact, one printing.
+- [ ] **"share to insta instant button"** — NOT built. `Share.share` already exists at
+  `shot/[bid].tsx:248` (system sheet, two taps). The real one-tap deep link needs
+  `LSApplicationQueriesSchemes`, a keyed pasteboard dict RN's `Share` cannot build, a native bridge
+  (no candidate in package.json), a Meta app id and a separate Android path — native slice, own commit.
+- [ ] **Extract one `RunShareCard`** — codex's largest finding, still open. `shot/[bid].tsx` already
+  has `SKIN_META` (4 skins, 9:16 + 4:5, capture, share). The feed card, composer preview and IG export
+  should all render the same component instead of three lookalikes.
+- [ ] **"동네" is still not a neighbourhood** — see the P1 HONESTY entry. `fetchFeed` remains global;
+  the rail deliberately does not claim locality because of it.
 
 ### D. Owner side
 

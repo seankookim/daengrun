@@ -10,7 +10,7 @@ import { TabSwipe } from '../src/components/tabswipe';
 import { STAMP_GAP, STAMP_INK, StampCell } from '../src/components/stamp';
 import { Avatar, Row } from '../src/components/ui';
 import { deriveStamps, fetchFitness, fetchMyRunnerApplication, fetchMyRunnerStatus, fetchStampStats, RunnerApplication, StampStats } from '../src/lib/api';
-import { fetchMyProfile, fetchMyRunnerBio, MyProfile, updateMyProfile, updateRunnerBio, uploadAvatar } from '../src/lib/api';
+import { fetchMyProfile, fetchMyRunnerBio, MyProfile, setMyHandle, updateMyProfile, updateRunnerBio, uploadAvatar } from '../src/lib/api';
 import { session } from '../src/store';
 import { colors, layout, lilac, lilacRadius, paper } from '../src/theme';
 
@@ -83,6 +83,8 @@ export default function My() {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState('');
   const [district, setDistrict] = useState('');
+  // [0074 · Sean 2026-08-12] 인스타식 계정 아이디. 서버가 유일한 검증자라 클라는 형식을 흉내내지 않는다.
+  const [handle, setHandle] = useState('');
   const [bio, setBio] = useState('');
   const [savedBio, setSavedBio] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -111,6 +113,7 @@ export default function My() {
   const openEdit = () => {
     setName(profile?.name ?? '');
     setDistrict(profile?.district ?? '');
+    setHandle(profile?.handle ?? '');
     setBio(savedBio ?? '');
     setEditing(true);
   };
@@ -146,6 +149,11 @@ export default function My() {
     setSaving(true);
     try {
       await updateMyProfile({ name: name.trim() || undefined, district: district.trim() || undefined });
+      // 아이디는 별도 RPC — profiles 직접 UPDATE로는 못 쓴다 (0074: 컬럼 화이트리스트가 없는 테이블).
+      // 바뀐 경우에만 부른다. 서버가 멱등이라 안 불러도 되지만, 실패 메시지를 아이디 탓으로만 돌리려면
+      // 호출 자체가 아이디를 바꿀 때만 일어나는 편이 명확하다.
+      const h = handle.trim();
+      if (h && h.toLowerCase() !== (profile?.handle ?? '')) await setMyHandle(h);
       if (isRunner) {
         await updateRunnerBio(bio.trim());
         setSavedBio(bio.trim());
@@ -474,6 +482,27 @@ export default function My() {
         <View style={s.sheet}>
           <View style={s.handle} />
           <Text style={{ fontSize: 22, fontWeight: '900', color: paper.ink }}>프로필 설정</Text>
+
+          {/* [0074 · Sean 2026-08-12] 아이디가 이름보다 위에 온다 — 인스타에서 사람을 부르는 단위는
+              표시 이름이 아니라 @아이디다. 서버 규칙(3~20자·소문자·[a-z0-9_.])을 라벨이 미리 말해주되
+              **검증은 하지 않는다**: 두 곳에서 자르면 두 규칙이 갈라진다 (0073의 교훈). */}
+          <Text style={s.fieldLabel}>아이디</Text>
+          <Row style={{ alignItems: 'center', gap: 6 }}>
+            <Text style={{ fontSize: 17, fontWeight: '800', color: paper.dim }}>@</Text>
+            <TextInput
+              value={handle}
+              onChangeText={(t) => setHandle(t.toLowerCase().replace(/\s/g, ''))}
+              placeholder="choco.runner"
+              placeholderTextColor={paper.faint}
+              style={[s.input, { flex: 1 }]}
+              maxLength={20}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+          </Row>
+          <Text style={{ fontSize: 14, lineHeight: 18, color: paper.dim, marginTop: 5 }}>
+            영문 소문자·숫자·밑줄(_)·점(.) · 3~20자 · 피드에서 이 이름으로 보여요
+          </Text>
 
           <Text style={s.fieldLabel}>이름</Text>
           <TextInput

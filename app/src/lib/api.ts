@@ -1158,15 +1158,17 @@ export async function runnerArrived(id: string): Promise<{ unchanged?: boolean }
 }
 
 // ---------- profile (identity layer) ----------
-export interface MyProfile { id: string; name: string | null; district: string | null; avatarUrl: string | null; email: string | null }
+export interface MyProfile { id: string; name: string | null; handle: string | null; district: string | null; avatarUrl: string | null; email: string | null }
 
 export async function fetchMyProfile(): Promise<MyProfile | null> {
   const { data: user } = await supabase.auth.getUser();
   if (!user.user) return null;
-  const { data } = await supabase.from('profiles').select('name, district, avatar_url').eq('id', user.user.id).maybeSingle();
+  const { data } = await supabase.from('profiles').select('name, handle, district, avatar_url').eq('id', user.user.id).maybeSingle();
   return {
     id: user.user.id,
     name: data?.name ?? user.user.email?.split('@')[0] ?? null,
+    // [0074] null = 아직 아이디를 안 만들었다. 이름으로 대신 채우지 않는다 — 없는 값은 없는 값이다.
+    handle: data?.handle ?? null,
     district: data?.district ?? null,
     avatarUrl: data?.avatar_url ?? null,
     email: user.user.email ?? null,
@@ -2341,10 +2343,30 @@ export async function updateAddressDetail(id: string, detail: string): Promise<v
   }
 }
 
+// 계정 아이디(@handle) 설정 — 0074. 인스타 문법: 소문자·3~20자·[a-z0-9_.].
+// 서버가 유일한 검증자다 (set_my_handle) — 클라는 형식을 흉내내지 않고 서버 문장을 사람 말로 옮긴다.
+// 두 곳에서 자르면 두 규칙이 갈라진다는 0073의 교훈 그대로.
+export async function setMyHandle(handle: string): Promise<string> {
+  const { data, error } = await supabase.rpc('set_my_handle', { p_handle: handle });
+  if (error) {
+    const m = error.message;
+    if (m.includes('handle_taken')) throw new Error('이미 사용 중인 아이디예요');
+    if (m.includes('handle_length')) throw new Error('아이디는 3~20자로 만들어주세요');
+    if (m.includes('handle_charset')) throw new Error('영문 소문자·숫자·밑줄(_)·점(.)만 쓸 수 있어요');
+    if (m.includes('handle_dots')) throw new Error('점(.)으로 시작하거나 끝날 수 없고, 연달아 쓸 수 없어요');
+    if (m.includes('handle_reserved')) throw new Error('사용할 수 없는 아이디예요');
+    if (m.includes('handle_required')) throw new Error('아이디를 입력해주세요');
+    throw error;
+  }
+  return data as string;
+}
+
 // ---------- 동네 피드 (옵트인 러닝 자랑) ----------
 export interface FeedPost {
   id: string;
   authorName: string;
+  // [0074] 인스타처럼 **아이디**가 1급 신원이다. null = 아직 안 만든 사람 → 화면이 이름으로 폴백한다.
+  authorHandle: string | null;
   authorAvatar: string | null;
   body: string | null;
   photoUrl: string | null;
@@ -2909,6 +2931,36 @@ export async function uploadClubPhoto(clubId: string, base64: string): Promise<s
   return url;
 }
 
+// 자유 포스트 — 완료된 러닝을 요구하지 않는다 (Sean 2026-08-12: "let's not restrict what the users
+// will be uploading"). booking_id 없이 글·사진만 올라간다. 서버(0074 feed_claim_gate)가 이걸 허용하고,
+// 하네스 F1이 그 허용을 핀으로 박아 다음 세션이 조용히 되돌리지 못하게 막는다.
+// ⚠ meta는 비운다: km/durationSec/trace 중 하나라도 실으면 게이트가 예약을 요구한다. 그게 정확히
+// 의도한 선이다 — 자랑은 누구나, 기록은 달린 사람만.
+export async function createFreePost(body: string, photoBase64?: string | null): Promise<void> {
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) throw new Error('로그인이 필요해요');
+  const text = body.trim();
+  if (!text && !photoBase64) throw new Error('사진이나 글 중 하나는 있어야 해요');
+
+  let photoPath: string | null = null;
+  if (photoBase64) {
+    // 채팅 사진과 같은 PRIVATE 버킷 경로 관례 (0064) — DB엔 경로만, 화면이 서명 URL로 푼다.
+    photoPath = `${user.user.id}/feed/${Date.now()}.jpg`;
+    const { error } = await supabase.storage.from(MEDIA_BUCKET)
+      .upload(photoPath, b64ToBytes(photoBase64), { contentType: 'image/jpeg' });
+    if (error) throw error;
+  }
+
+  const { error } = await supabase.from('feed_posts').insert({
+    author_id: user.user.id,
+    booking_id: null,
+    body: text || null,
+    photo_url: photoPath,
+    meta: {},
+  });
+  if (error) throw error;
+}
+
 export async function shareRunToFeed(bookingId: string, body?: string): Promise<void> {
   const { data: user } = await supabase.auth.getUser();
   if (!user.user) throw new Error('not signed in');
@@ -2956,7 +3008,7 @@ export async function fetchFeed(): Promise<FeedPost[]> {
   const uid = user.user?.id;
   const { data, error } = await supabase
     .from('feed_posts')
-    .select('id, author_id, body, photo_url, meta, created_at, profiles!feed_posts_author_id_fkey(name, avatar_url), feed_likes(profile_id), feed_comments(count)')
+    .select('id, author_id, body, photo_url, meta, created_at, profiles!feed_posts_author_id_fkey(name, handle, avatar_url), feed_likes(profile_id), feed_comments(count)')
     .order('created_at', { ascending: false })
     .limit(30);
   if (error) throw error;
@@ -2966,6 +3018,7 @@ export async function fetchFeed(): Promise<FeedPost[]> {
     return {
       id: p.id,
       authorName: p.profiles?.name ?? '이웃',
+      authorHandle: p.profiles?.handle ?? null,
       authorAvatar: p.profiles?.avatar_url ?? null,
       body: p.body,
       photoUrl: p.photo_url,

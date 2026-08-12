@@ -81,6 +81,7 @@ psql -q -f 108_incident_accountability_suite.sql >/dev/null 2>&1            # 00
 psql -q -f 109_payments_suite.sql >/dev/null 2>&1            # 0071 payments table (the accounting artifact for money coming IN — R7)
 psql -q -f 110_incident_settlement_suite.sql >/dev/null 2>&1            # 0072 the commercial exit from incident_review (money path)
 psql -q -f 111_address_note_suite.sql >/dev/null 2>&1            # 0073 owner-editable pickup note — column whitelist is the point (N6)
+psql -q -f 112_handles_feed_claims_suite.sql >/dev/null 2>&1            # 0074 @handle + feed claim gate (F1 pins Sean's "do not restrict uploads")
 psql -c "select case when ok then '✅' else '❌' end || ' [' || suite || '] ' || name || case when ok then '' else ' — ' || detail end from _t order by at"
 psql -qt -c "select count(*) filter (where ok) || ' pass / ' || count(*) filter (where not ok) || ' fail' from _t"
 psql -qt -c "select case when count(*) filter (where not ok) > 0 then 'FAIL' else 'OK' end from _t" | grep -q OK
