@@ -300,11 +300,41 @@ the screen; a subscription screen bound to a client constant is fabricated data.
   share to insta instant button option"**
 - **"Community post too boring, make mock ups."**
 
-→ Labs first (CLAUDE.md: HTML labs in `docs/labs/` are the sanctioned mockup arena, Sean picks by
-number). ⚠ **Route traces on feed cards are blocked**: `routes.trace` is normalised `{x,y}`
-schematic, not geo (see the P2 entry below) — a completed **run** has a real trace (`runs.trace`),
-so the honest version shows the RUN's trace, not the route's. Share-to-Instagram needs the
-share-sheet path `shot/[bid]` already uses.
+→ **LAB SHIPPED 2026-08-12: `docs/labs/community-instagram-lab.html`** — 3 areas × 3 options
+(Ⓐ post card · Ⓑ club story circles · Ⓒ upload + IG share). Codex reviewed it as Sean's proxy and
+corrected it in five places; the corrections are marked inline in the lab.
+
+→ ⚠ **This entry's own warning was WRONG.** "Route traces on feed cards are blocked" is false:
+`shareRunToFeed` (`api.ts:2926-2940`) already normalises the **real GPS** `runs.trace` to `{x,y}`
+at ≤40 points, and `community.tsx:454` already renders it via `HeatTrace`. Shipped since
+2026-07-29. So "show route traces" is already half-done — the problem is that it renders at
+**92×104px in a corner**, which is the actual "too boring".
+
+→ Other measured corrections, so the next session does not rediscover them:
+- **community.tsx already had an IG rewire** (`:19`, 2026-08-11). The card anatomy is already
+  avatar → media → actions → caption → timestamp. "Too boring" is density, not structure.
+- **compose.tsx is a run picker by design** (`shareRunToFeed` needs a completed run;
+  `feed_posts.booking_id` is unique). "Premade cards" fits that constraint rather than fighting it.
+- 🔴 **The app already HAS a premade-card studio** — `shot/[bid].tsx` has `SKIN_META` (4 skins),
+  real trace, photo, 9:16 + 4:5, capture, save, share. Ⓒ nearly reinvented it. **The first job of
+  the next lab is extracting one `RunShareCard` used by the feed, the composer preview and the IG
+  export.**
+- **Ⓐ③'s bib number has a real source after all**: `RunStandings.nth` (`api.ts:1538`), already
+  rendered as "N번째 러닝" on `owner/report.tsx:65`, and `shareRunToFeed` **already fetches
+  standings** (`:2917`). One line: `meta.runNo = standings?.nth`. ⚠ Owner-scoped — runner-authored
+  posts get no ordinal, so the bib number must not render for those.
+- **Ⓑ① (story rail of today's dogs) is dead**: `FeedPost` exposes no machine-readable `createdAt`,
+  `fetchFeed` is global + capped at 30, one dog can run twice, and there is no viewed-state model
+  for the rings to mean anything. Recommendation moved to Ⓑ③ (one honest circle).
+- **Ⓒ① is not free**: `compose.tsx`'s `Cand` (`:21`) carries only *planned* km, dog, date, collar,
+  shared — no actual km, trace, photo, duration or badges. A true WYSIWYG grid needs extra fetches.
+- **IG deep link is bigger than one plist key**: `instagram-stories://share` alone carries no image;
+  it needs a keyed iOS pasteboard dictionary (`com.instagram.sharedSticker.backgroundImage`) that
+  RN's `Share.share` cannot build, a native bridge (no candidate in package.json), a Meta app id,
+  pasteboard lifecycle, and a separate Android Intent path. The repo has a committed `ios/` tree, so
+  the requirement is native config sync + rebuild, not `expo prebuild` specifically.
+- 🔴 See the **P1 HONESTY** entry below — the colophon's two promises are unenforced, and that
+  blocks any "our neighbourhood" framing in Ⓑ.
 
 ### D. Owner side
 
@@ -535,6 +565,44 @@ Not blocking (the gate is green and reproducibly so), but the failing test's ide
 `tail` truncated it before it was read. **If it recurs, capture the `❌` line first.** Fix shape:
 have the script build into a unique temp dir instead of writing fixed filenames into `app/test/`,
 so a concurrent run cannot race it. Effort S → S. P2.
+
+## 🔴🔴 P1 HONESTY — the community colophon makes two promises the system does not keep
+
+Found by the Codex review of the §C lab on 2026-08-12, then verified in the migrations and api.ts.
+`community.tsx:564` prints, as the screen's closing statement:
+
+> **"동네 피드는 이웃들이 채웁니다. 완료된 러닝만 실려요 — 광고도, 남의 동네 소식도 없습니다."**
+
+**Both testable clauses are false as shipped.**
+
+**① "완료된 러닝만 실려요" is a UI convention, not a database invariant.** `0013_feed.sql`:
+- `booking_id uuid references bookings unique` — **nullable**. A post need not reference any booking.
+- `meta jsonb not null default '{}'` — **whatever the client sends**. No shape check, no cross-check
+  against `runs`.
+- The only write policy is `for insert with check (author_id = auth.uid())` — it checks **who is
+  posting and nothing else**. Not that the run completed, not that the booking is theirs, not that
+  `meta.km` matches `runs.actual_km`.
+
+So a client with a session can insert `booking_id: null` + `meta: {km: 42.2, badges:['★ 역대 최장 거리']}`
+and it renders as a legitimate run card, PB badge and all. Nothing in `shareRunToFeed`'s carefulness
+is enforced — it is all client-side.
+
+**② "남의 동네 소식도 없습니다" — the feed is global.** `fetchFeed()` (`api.ts:2954`) has **no
+district filter of any kind**: `.order('created_at').limit(30)` over the whole table. And
+`fetchClubOverview(district = '반포동')` (`:2414`) has the neighbourhood **hard-coded**. A screen
+titled 동네 피드 is showing every post in the system.
+
+**Why this is P1 and not cosmetic:** the honesty law says bind real fields or omit the element. This
+is stronger than a missing binding — it is an explicit written promise, in the most trust-seeking
+sentence on the screen, that the system does not keep.
+
+**Two fixes, and they are different sizes:**
+- **Cheap and immediate:** shrink the colophon to what is true today. Costs nothing, restores honesty.
+- **Real:** server-enforce the feed (make `booking_id` NOT NULL, add an insert policy that proves the
+  booking is the author's and completed, and derive `meta` server-side rather than trusting it), plus
+  district-scope the feed and the club lookup. That is a migration + its own adversarial cycle.
+  ⚠ It also **blocks §C's Ⓑ① story rail**, which wanted to derive "our neighbourhood's dogs" from a
+  feed that is not neighbourhood-scoped.
 
 ## 🔴 P1 SECURITY — `addresses` has no column grants; broad UPDATE is open to `authenticated`
 

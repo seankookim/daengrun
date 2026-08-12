@@ -1,0 +1,497 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Community Lab — 인스타 방향 3영역 × 3안 (2026-08-12)</title>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Oswald:wght@500;600;700&family=IBM+Plex+Sans+KR:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'IBM Plex Sans KR',sans-serif; background:#fff; color:#111; padding:34px 22px 90px; }
+  .wrap { max-width:1280px; margin:0 auto; }
+  h1 { font-family:'Black Han Sans'; font-size:34px; font-weight:400; letter-spacing:.5px; }
+  .law { font-size:13px; letter-spacing:2.5px; color:#999; text-transform:uppercase; margin:8px 0 0; }
+  .mea { border-left:3px solid #E8552F; padding:10px 0 10px 14px; margin:20px 0 8px; font-size:14px; line-height:1.75; color:#333; }
+  h2 { font-size:21px; font-weight:800; margin:46px 0 4px; padding-top:26px; border-top:1px solid #E8552F; }
+  .quote { font-size:14px; font-weight:700; margin:8px 0 2px; }
+  .thesis { font-size:13.5px; color:#666; line-height:1.7; margin-bottom:6px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:26px; margin-top:22px; }
+  .cell { border:1px solid #EEE; display:flex; flex-direction:column; }
+  h3 { font-size:16.5px; font-weight:800; margin:0; padding:13px 14px 2px; }
+  h3 b { color:#E8552F; margin-right:6px; }
+  .sub { font-size:13px; color:#666; padding:0 14px 12px; line-height:1.6; }
+  .stage { padding:16px 14px 20px; background:#FBFAF7; flex:1; display:flex; justify-content:center; }
+  .meta { padding:12px 14px 15px; border-top:1px solid #EEE; background:#FCFCFC; }
+  .note { font-size:13px; color:#666; line-height:1.65; }
+  .note + .note { margin-top:6px; }
+  .flag { display:inline-block; font-size:11.5px; font-weight:800; letter-spacing:1.4px; padding:2px 7px; margin-bottom:7px; color:#E8552F; border:1px solid #E8552F; }
+  .ok { color:#0E7F49; border-color:#0E7F49; } .warn { color:#C77414; border-color:#C77414; }
+  .bad { color:#B3261E; border-color:#B3261E; }
+  .num { font-family:Oswald; font-weight:600; font-variant-numeric:tabular-nums; }
+
+  /* phone frame */
+  .ph { width:280px; background:#fff; border:1px solid #E4E4E4; }
+  .phHd { display:flex; align-items:center; gap:8px; padding:9px 11px; }
+  .av { width:32px; height:32px; border-radius:50%; background:#6C5CE7; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; }
+  .nm { font-size:14px; font-weight:700; line-height:1.3; }
+  .dg { font-size:14px; color:#555; display:flex; align-items:center; gap:5px; }
+  .dot { width:8px; height:8px; border-radius:50%; background:#C25E7F; }
+  .acts { display:flex; gap:16px; padding:9px 11px; align-items:center; font-size:14px; color:#666; }
+  .acts b { font-family:Oswald; font-weight:600; color:#111; }
+  .cap { padding:0 11px 10px; font-size:14px; line-height:1.55; color:#333; }
+  .ts { padding:0 11px 12px; font-size:14px; color:#999; }
+
+  /* Ⓐ① trace-as-media */
+  .media { position:relative; width:100%; aspect-ratio:4/5; background:#1C1837; overflow:hidden; }
+  .media svg { position:absolute; inset:0; width:100%; height:100%; }
+  .hud { position:absolute; left:12px; bottom:12px; right:12px; display:flex; justify-content:space-between; align-items:flex-end; }
+  .hudBig { font-family:Oswald; font-weight:700; font-size:44px; line-height:1; color:#fff; }
+  .hudBig i { font-size:17px; font-style:normal; }
+  .hudR { text-align:right; color:rgba(255,255,255,.82); font-size:14px; line-height:1.5; }
+  .hudR b { font-family:Oswald; color:#fff; font-weight:600; }
+  .pb { position:absolute; top:12px; left:12px; background:#C6F542; color:#111; font-size:14px; font-weight:800; padding:3px 9px; }
+
+  /* Ⓐ② polaroid */
+  .pol { position:relative; width:100%; aspect-ratio:4/5; background:#EFEBE4; display:flex; align-items:center; justify-content:center; }
+  .polPhoto { position:absolute; inset:14px 14px 46px; background:linear-gradient(150deg,#8a7f6a,#4a4238); }
+  .polCard { position:absolute; right:16px; bottom:16px; width:118px; height:132px; background:#fff; border:1px solid #ddd; transform:rotate(-4deg); box-shadow:0 6px 16px rgba(0,0,0,.22); padding:8px; }
+  .polCard svg { width:100%; height:88px; }
+  .polCap { font-size:14px; font-weight:800; text-align:center; margin-top:4px; }
+
+  /* Ⓐ③ race bib */
+  .bib { width:100%; aspect-ratio:4/5; background:#fff; border:2px solid #111; padding:14px; display:flex; flex-direction:column; }
+  .bibTop { display:flex; justify-content:space-between; font-size:14px; letter-spacing:1.4px; color:#999; font-weight:800; }
+  .bibNo { font-family:Oswald; font-weight:700; font-size:66px; line-height:.95; text-align:center; margin-top:2px; }
+  .bibNm { text-align:center; font-size:17px; font-weight:800; margin-top:-2px; }
+  .bibTrace { flex:1; display:flex; align-items:center; justify-content:center; }
+  .bibTrace svg { width:100%; height:100%; }
+  .bibBot { display:flex; justify-content:space-between; border-top:1px solid #111; padding-top:7px; font-size:14px; }
+  .bibBot b { font-family:Oswald; font-weight:700; font-size:17px; display:block; }
+  .bibBot span { color:#888; }
+
+  /* Ⓑ story rail */
+  .rail { display:flex; gap:12px; padding:12px 11px; overflow:hidden; }
+  .st { text-align:center; width:66px; flex:none; }
+  .ring { width:62px; height:62px; border-radius:50%; padding:3px; background:conic-gradient(#E8552F,#6C5CE7,#C6F542,#E8552F); }
+  .ring.off { background:#E4E4E4; }
+  .ring.club { background:conic-gradient(#B99A4F,#F4EBD3,#B99A4F); }
+  .ringIn { width:100%; height:100%; border-radius:50%; background:#fff; padding:2px; }
+  .face { width:100%; height:100%; border-radius:50%; background:#1C1837; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:16px; }
+  .stN { font-size:14px; margin-top:5px; line-height:1.25; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .bigClub { display:flex; align-items:center; gap:13px; padding:13px 11px; }
+  .bigRing { width:76px; height:76px; border-radius:50%; padding:3px; background:conic-gradient(#B99A4F,#F4EBD3,#B99A4F); flex:none; }
+
+  /* Ⓒ upload */
+  .pick { display:grid; grid-template-columns:1fr 1fr; gap:8px; padding:11px; }
+  .pcard { border:1px solid #E4E4E4; background:#fff; }
+  .pcard.sel { border-color:#E8552F; border-width:2px; }
+  .pcMedia { aspect-ratio:1; background:#1C1837; position:relative; }
+  .pcMedia svg { position:absolute; inset:0; width:100%; height:100%; }
+  .pcFoot { padding:6px 7px; font-size:14px; }
+  .pcFoot b { font-family:Oswald; font-weight:600; }
+  .shareRow { display:flex; gap:8px; padding:0 11px 12px; }
+  .btn { flex:1; text-align:center; padding:13px 0; font-size:14px; font-weight:800; }
+  .btnInk { background:#111; color:#fff; }
+  .btnIg { background:linear-gradient(45deg,#F0765A,#C6472C); color:#fff; }
+  .btnSec { border:1px solid #E8552F; color:#111; }
+  code { font-family:ui-monospace,Menlo,monospace; font-size:12.5px; background:#F5F5F5; padding:1px 5px; }
+  table { border-collapse:collapse; width:100%; font-size:13px; margin-top:10px; }
+  th,td { border:1px solid #EEE; padding:7px 9px; text-align:left; } th { background:#FAFAFA; font-weight:800; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>커뮤니티 — 인스타 방향</h1>
+<p class="law">2026-08-12 · 영역별로 번호 하나씩 골라주세요 (Ⓐ 포스트 · Ⓑ 클럽 서클 · Ⓒ 업로드)</p>
+
+<div class="mea">
+  <b>먼저 실측한 것 — 백로그가 두 군데 틀렸습니다.</b><br><br>
+  ① <b>“루트 트레이스는 막혀 있다”가 아닙니다.</b> <code>shareRunToFeed</code>(api.ts:2926-2940)는 이미
+  <code>runs.trace</code>의 <b>실 GPS</b>를 0..1로 정규화해 ≤40포인트로 포스트에 싣고, community.tsx:454가
+  <code>HeatTrace</code>로 그립니다. 2026-07-29부터 살아 있습니다. 즉 “show route traces”는 이미 절반 done —
+  문제는 데이터가 없는 게 아니라 <b>92×104px 구석에 그려진다</b>는 겁니다.<br><br>
+  ② <b>커뮤니티는 이미 한 번 IG 개편을 했습니다</b> (community.tsx:19, 2026-08-11). 지금 구조가 이미
+  아바타 헤더 → 미디어 → 액션 행 → 캡션 → 타임스탬프입니다. 그래서 “too boring”은 <b>구조가 아니라 밀도</b>의
+  문제입니다 — IG 해부학은 맞는데, 그 안에 들어갈 그림이 작습니다.<br><br>
+  ③ <b>업로드는 자유 작성기가 아니라 러닝 피커입니다</b>, 그리고 그건 옳습니다: <code>shareRunToFeed</code>는
+  완료된 러닝을 요구하고 <code>feed_posts.booking_id</code>가 unique입니다. 아무거나 못 올립니다.
+  “premade cards”는 이 제약과 <b>정확히 맞물립니다</b> — Ⓒ 참조.
+</div>
+
+<h2 style="border-color:#B3261E">🔴 먼저 — 목업보다 중요한 것 두 가지 (코덱스 발견, 제가 코드로 확인함)</h2>
+<p class="thesis">이 둘은 어느 안을 고르든 상관없이 참입니다. 그리고 지금 화면이 <b>글자로 하고 있는 약속</b>을 깹니다.</p>
+
+<div class="mea" style="border-left-color:#B3261E">
+  <b>① 피드의 정직성은 서버가 강제하지 않습니다.</b><br>
+  <code>community.tsx:564</code> 콜로폰이 이렇게 말합니다:
+  <b>“완료된 러닝만 실려요 — 광고도, 남의 동네 소식도 없습니다.”</b><br>
+  그런데 <code>0013_feed.sql</code>을 보면 <code>booking_id</code>는 <b>nullable</b>이고,
+  <code>meta jsonb</code>는 <b>클라가 주는 대로</b> 들어가며, INSERT 정책은
+  <code>with check (author_id = auth.uid())</code> — <b>작성자만</b> 봅니다.
+  완료 여부도, 그 예약이 내 것인지도, meta의 km이 실제 러닝과 맞는지도 아무도 검사하지 않습니다.
+  즉 세션을 가진 클라이언트는 <code>booking_id: null</code> + <code>meta:{km:42.2, badges:['★ 역대 최장 거리']}</code>로
+  <b>달린 적 없는 러닝 카드를 올릴 수 있습니다.</b> “완료된 러닝만”은 UI 관례지 DB 불변식이 아닙니다.<br><br>
+
+  <b>② “동네” 피드는 동네 피드가 아닙니다.</b><br>
+  <code>fetchFeed()</code>(api.ts:2954)에는 <b>지역 필터가 한 줄도 없습니다</b> — 전역 최신 30건입니다.
+  그리고 <code>fetchClubOverview(district = '반포동')</code>은 동네가 <b>하드코딩</b>돼 있습니다.
+  화면 제목은 <b>동네 피드</b>이고 콜로폰은 <b>“남의 동네 소식도 없습니다”</b>라고 적혀 있는데,
+  그 문장은 <b>출하 상태에서 거짓</b>입니다.<br><br>
+
+  <b>왜 지금 말하느냐:</b> Ⓑ①(오늘 달린 개들 레일)이 정확히 이 위에 서려던 안이었습니다.
+  전역 피드에서 “우리 동네 개들”을 만들면 거짓말이 한 겹 더 쌓입니다. 그래서 아래 Ⓑ 결론이 바뀌었습니다.
+</div>
+
+<!-- ══════════ Ⓐ ══════════ -->
+<h2>Ⓐ 피드 포스트 — “too boring”</h2>
+<p class="quote">“Community post too boring, make mock ups.”</p>
+<p class="thesis">
+  이 앱이 가진 가장 독보적인 그림은 <b>강아지가 달린 궤적</b>입니다. 사진은 누구나 있지만 트레이스는 우리만
+  있습니다. 지금은 그게 카드 오른쪽 92×104 상자에 들어 있고, 왼쪽엔 텍스트가 쌓여 있습니다.
+  세 안 모두 <b>트레이스를 미디어로 승격</b>합니다 — 데이터는 이미 있으니 새로 만들 게 없습니다.
+</p>
+
+<div class="grid">
+  <div class="cell">
+    <h3><b>Ⓐ①</b> 트레이스가 미디어다</h3>
+    <p class="sub">IG의 4:5 미디어 블록 자리에 궤적을 풀블리드로. 스탯은 HUD로 얹습니다.</p>
+    <div class="stage">
+      <div class="ph">
+        <div class="phHd"><div class="av">지</div><div><div class="nm">지수</div><div class="dg"><span class="dot"></span>초코와 함께</div></div></div>
+        <div class="media">
+          <svg viewBox="0 0 100 125" preserveAspectRatio="none">
+            <polyline points="14,104 20,86 33,79 41,62 34,48 42,33 58,27 71,35 76,52 68,66 74,84 88,92"
+              fill="none" stroke="#C25E7F" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="14" cy="104" r="3.6" fill="#fff"/><circle cx="88" cy="92" r="3.6" fill="#C6F542"/>
+          </svg>
+          <div class="pb">★ 역대 최장 거리</div>
+          <div class="hud">
+            <div class="hudBig">5.2<i> km</i></div>
+            <div class="hudR">30:14<br><b>5′49″</b> /km</div>
+          </div>
+        </div>
+        <div class="acts"><span>◍ <b>12</b> 발자국</span><span>○ <b>3</b> 댓글</span></div>
+        <div class="cap"><b>지수</b> 오늘 반포 한 바퀴, 초코가 끝까지 잘 뛰었어요</div>
+        <div class="ts">2시간 전</div>
+      </div>
+    </div>
+    <div class="meta">
+      <span class="flag">추천</span>
+      <p class="note">기존 92×104 트레이스를 <b>4:5로 키운 것</b>이 전부입니다 — 새 데이터 0, 새 컴포넌트 0
+        (<code>HeatTrace</code>에 width/height만 다르게 줍니다). 가장 싼 안이면서 가장 크게 바뀝니다.</p>
+      <p class="note">칼라 컬러 틴트(0033)가 그대로 살아 강아지마다 궤적 색이 다릅니다 — 스크롤하면
+        <b>색이 다른 길들이 흐릅니다.</b> 이게 우리만 가질 수 있는 피드 리듬입니다.</p>
+      <p class="note"><span class="flag warn">확인 필요</span> 사진이 <b>있는</b> 포스트는 어떻게 하나요?
+        제 제안: 사진이 있으면 사진이 미디어, 트레이스는 우측 하단 작은 배지로. 둘 다 크게 하면 카드가 두 배가 됩니다.</p>
+    </div>
+  </div>
+
+  <div class="cell">
+    <h3><b>Ⓐ②</b> 폴라로이드 — 사진 위에 얹힌 기록 카드</h3>
+    <p class="sub">사진이 지면, 트레이스가 그 위에 놓인 인화지 한 장.</p>
+    <div class="stage">
+      <div class="ph">
+        <div class="phHd"><div class="av">지</div><div><div class="nm">지수</div><div class="dg"><span class="dot"></span>초코와 함께</div></div></div>
+        <div class="pol">
+          <div class="polPhoto"></div>
+          <div class="polCard">
+            <svg viewBox="0 0 100 88" preserveAspectRatio="none">
+              <polyline points="12,74 18,60 30,55 38,43 32,33 40,22 55,18 67,25 71,37 64,47 70,60 84,66"
+                fill="none" stroke="#C25E7F" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <div class="polCap">5.2km · 30:14</div>
+          </div>
+        </div>
+        <div class="acts"><span>◍ <b>12</b> 발자국</span><span>○ <b>3</b> 댓글</span></div>
+        <div class="cap"><b>지수</b> 오늘 반포 한 바퀴</div>
+        <div class="ts">2시간 전</div>
+      </div>
+    </div>
+    <div class="meta">
+      <p class="note">사진과 기록을 <b>둘 다</b> 크게 쓰는 유일한 안. 브랜드의 “아티팩트” 문법(§1)과 가장 잘 맞고
+        인화지 은유가 캡처해서 공유하기에도 좋습니다.</p>
+      <p class="note"><span class="flag warn">주의</span> 사진 없는 포스트에선 이 안이 성립하지 않습니다 —
+        지금 완료 러닝의 사진은 <b>선택</b>이라 상당수가 사진이 없습니다. 그럼 Ⓐ①로 폴백해야 하고,
+        결국 <b>카드가 두 종류</b>가 됩니다. 회전 그림자도 §7b의 “값싼 장식” 경계에 가깝습니다.</p>
+    </div>
+  </div>
+
+  <div class="cell">
+    <h3><b>Ⓐ③</b> 레이스 빕 — 포스트가 곧 배번표</h3>
+    <p class="sub">브랜드 모티프를 카드로. 완주 기록이 경기 결과지처럼 인쇄됩니다.</p>
+    <div class="stage">
+      <div class="ph">
+        <div class="phHd"><div class="av">지</div><div><div class="nm">지수</div><div class="dg"><span class="dot"></span>초코와 함께</div></div></div>
+        <div style="padding:11px">
+          <div class="bib">
+            <div class="bibTop"><span>DOGS HIGH</span><span>반포동</span></div>
+            <div class="bibNo">52</div>
+            <div class="bibNm">초코</div>
+            <div class="bibTrace">
+              <svg viewBox="0 0 100 60" preserveAspectRatio="none">
+                <polyline points="10,50 17,38 29,34 37,25 31,17 41,10 56,8 68,14 72,24 65,32 71,42 86,47"
+                  fill="none" stroke="#111" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <div class="bibBot">
+              <div><span>DIST</span><b>5.2km</b></div>
+              <div><span>TIME</span><b>30:14</b></div>
+              <div><span>PACE</span><b>5′49″</b></div>
+            </div>
+          </div>
+        </div>
+        <div class="acts"><span>◍ <b>12</b> 발자국</span><span>○ <b>3</b> 댓글</span></div>
+        <div class="cap"><b>지수</b> 오늘 반포 한 바퀴</div>
+        <div class="ts">2시간 전</div>
+      </div>
+    </div>
+    <div class="meta">
+      <p class="note">가장 “도그스하이”답습니다 — 빕·패치·FINISHER 도장과 같은 세계고, 캡처하면 그대로 굿즈입니다.</p>
+      <p class="note"><span class="flag ok">출처 찾음 — 코덱스</span> 제가 “배번호는 소스가 없다”고 썼는데
+        <b>틀렸습니다.</b> <code>RunStandings.nth</code>(api.ts:1538)가 이 예약이 보호자의 완료 러닝 중 <b>몇 번째인지</b>를
+        이미 계산하고, <code>owner/report.tsx:65</code>가 “N번째 러닝”으로 이미 렌더하며, 결정적으로
+        <b><code>shareRunToFeed</code>가 이미 <code>fetchRunStandings</code>를 부릅니다</b>(:2917).
+        그러니 <code>meta.runNo = standings?.nth</code> 한 줄이면 됩니다 — 지어내는 게 아니라 스냅샷.</p>
+      <p class="note">단, 라벨은 “52”가 아니라 <b>“52번째 러닝”</b>이어야 합니다. 설명 없는 배번호는 경기 참가번호처럼
+        읽히고 그건 우리가 가진 사실이 아닙니다.</p>
+      <p class="note"><span class="flag warn">한계</span> <code>fetchRunStandings</code>는 <b>보호자 스코프</b>입니다.
+        <code>compose.tsx</code>는 러너 포스트도 허용하므로 러너가 올린 글엔 서수가 없습니다 → 그 경우 빕 숫자를
+        <b>그리지 않습니다</b>(없는 값을 0으로 채우지 않는다).</p>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ Ⓑ ══════════ -->
+<h2>Ⓑ 클럽 위젯 → 스토리 서클</h2>
+<p class="quote">“In community, instagram story-circlify the club widget”</p>
+<p class="thesis">
+  🔴 <b>먼저 정직 문제 하나를 꺼내야 합니다.</b> 인스타 스토리 레일은 <b>여러 개</b>의 원입니다.
+  그런데 <code>useClubOverview</code>는 <b>클럽 하나</b>를 돌려줍니다 (한 동네 = 한 클럽). 원 하나짜리 레일은
+  스토리로 안 읽히고, 원 N개를 만들려면 없는 걸 지어내야 합니다.
+  그래서 Ⓑ①②는 <b>레일을 무엇이 채우냐</b>를 각각 다르게 답하고, Ⓑ③은 레일 자체를 거절합니다.
+</p>
+
+<div class="grid">
+  <div class="cell">
+    <h3><b>Ⓑ①</b> 오늘 달린 개들 — 클럽은 첫 원</h3>
+    <p class="sub">레일을 채우는 것: 오늘 완주한 강아지들 (피드 포스트에서 실파생).</p>
+    <div class="stage">
+      <div class="ph">
+        <div class="rail">
+          <div class="st"><div class="ring club"><div class="ringIn"><div class="face" style="background:#B99A4F">반</div></div></div><div class="stN">반포 클럽</div></div>
+          <div class="st"><div class="ring"><div class="ringIn"><div class="face" style="background:#C25E7F">초</div></div></div><div class="stN">초코</div></div>
+          <div class="st"><div class="ring"><div class="ringIn"><div class="face" style="background:#3EC6A8">보</div></div></div><div class="stN">보리</div></div>
+          <div class="st"><div class="ring off"><div class="ringIn"><div class="face" style="background:#8AA84E">콩</div></div></div><div class="stN">콩이</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="meta">
+      <span class="flag bad">철회 — 위 ②를 읽고 나면 성립하지 않습니다</span>
+      <p class="note">처음엔 이걸 추천했습니다. 코덱스가 네 가지를 짚었고 전부 확인됐습니다:
+        <b>(1)</b> <code>FeedPost</code>에 기계가 읽을 <code>createdAt</code>이 없습니다(<code>when</code>은 표시용 문자열) —
+        “오늘”을 안정적으로 못 가릅니다. <b>(2)</b> <code>fetchFeed</code>는 <b>전역 30건</b>이라 “우리 동네 개들”이 아닙니다.
+        <b>(3)</b> 한 개가 여러 번 달리면 원이 중복됩니다. <b>(4)</b> 스토리 링은 “안 본 것”을 뜻하는데
+        <b>본/안 본 상태 모델이 없습니다</b> — 링이 아무 의미 없이 늘 켜져 있게 됩니다.</p>
+      <p class="note">클럽은 <b>첫 번째 고정 원</b>(골드 링 = 아티팩트 어휘)으로 살아남습니다 — 지금의 큰 배너보다
+        작아지지만, 스토리 레일의 첫 자리는 IG에서 가장 강한 자리입니다.</p>
+      <p class="note"><span class="flag warn">빈 상태</span> 오늘 아무도 안 달렸으면? 클럽 원 하나만 남습니다 —
+        그건 정직한 빈 상태지 실패가 아닙니다. 가짜 원으로 채우지 않습니다.</p>
+    </div>
+  </div>
+
+  <div class="cell">
+    <h3><b>Ⓑ②</b> 다가오는 세션 레일</h3>
+    <p class="sub">레일을 채우는 것: 이 클럽의 예정 세션들.</p>
+    <div class="stage">
+      <div class="ph">
+        <div class="rail">
+          <div class="st"><div class="ring club"><div class="ringIn"><div class="face" style="background:#B99A4F">반</div></div></div><div class="stN">클럽 홈</div></div>
+          <div class="st"><div class="ring"><div class="ringIn"><div class="face">토<br></div></div></div><div class="stN">토 07:00</div></div>
+          <div class="st"><div class="ring"><div class="ringIn"><div class="face">일</div></div></div><div class="stN">일 08:00</div></div>
+          <div class="st"><div class="ring off"><div class="ringIn"><div class="face" style="background:#EEE;color:#999">＋</div></div></div><div class="stN">세션 열기</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="meta">
+      <p class="note">액션 지향입니다 — 원 하나가 “참가 가능한 세션 하나”라 탭이 곧 RSVP로 이어집니다.</p>
+      <p class="note"><span class="flag warn">현실</span> 지금 세션은 보통 <b>0~1개</b>입니다. 레일이 대부분
+        원 1~2개로 서고, 그럼 Ⓑ③과 실질적으로 같아집니다. 클럽이 활발해진 뒤에 다시 볼 안입니다.</p>
+    </div>
+  </div>
+
+  <div class="cell">
+    <h3><b>Ⓑ③</b> 레일 거절 — 원 하나를 크게</h3>
+    <p class="sub">N=1이라는 사실을 그대로 인정하는 안.</p>
+    <div class="stage">
+      <div class="ph">
+        <div class="bigClub">
+          <div class="bigRing"><div class="ringIn"><div class="face" style="background:#1C1837;font-size:19px">반</div></div></div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:14px;letter-spacing:1.4px;color:#999;font-weight:800">HIGH CLUB</div>
+            <div style="font-size:17px;font-weight:800;margin-top:1px">반포동 하이클럽</div>
+            <div style="font-size:14px;color:#666;margin-top:3px">토 07:00 · 2자리 남음</div>
+          </div>
+          <div style="font-size:14px;font-weight:800;color:#C6472C">클럽 홈 ›</div>
+        </div>
+      </div>
+    </div>
+    <div class="meta">
+      <span class="flag">추천 (코덱스도 같은 결론)</span>
+      <p class="note">가장 정직하고 가장 안 화려합니다. 지금의 사진 배너보다 <b>가볍고</b>, 원 하나가 스토리
+        어휘를 빌려오되 레일인 척은 안 합니다.</p>
+      <p class="note">Sean이 원한 “story-circlify”를 <b>문자 그대로는 아니게</b> 만족시킵니다 — 원은 생기는데
+        레일이 아닙니다. 이걸 고르시면 그건 “지금 데이터로 레일은 거짓말이다”에 동의하시는 겁니다.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ Ⓒ ══════════ -->
+<h2>Ⓒ 업로드 + 인스타 공유</h2>
+<p class="quote">“Feed upload should be more intuitive like insta, show route traces, premade cards, also have share to insta instant button option”</p>
+<p class="thesis">
+  업로드는 <b>이미 러닝 피커</b>이고 그건 제약이 아니라 기회입니다: 올릴 수 있는 게 완료된 러닝뿐이라면,
+  <b>고르는 화면에서 이미 완성된 카드를 보여줄 수 있습니다</b>. 그게 “premade cards”의 정직한 해석입니다 —
+  템플릿을 고르는 게 아니라 <b>결과물을 미리 보고 고르는 것</b>.
+</p>
+
+<div class="grid">
+  <div class="cell">
+    <h3><b>Ⓒ①</b> 피커 = 완성 카드 그리드</h3>
+    <p class="sub">고르는 순간 이미 올라갈 모습 그대로 (WYSIWYG).</p>
+    <div class="stage">
+      <div class="ph">
+        <div style="padding:11px 11px 0;font-size:17px;font-weight:800">어떤 러닝을 올릴까요</div>
+        <div class="pick">
+          <div class="pcard sel"><div class="pcMedia">
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none"><polyline points="14,84 20,68 33,62 41,48 34,36 42,24 58,20 71,27 76,41 68,52 74,66 88,72" fill="none" stroke="#C25E7F" stroke-width="4" stroke-linecap="round"/></svg>
+          </div><div class="pcFoot">초코 · <b>5.2km</b><br><span style="color:#888">8월 11일</span></div></div>
+          <div class="pcard"><div class="pcMedia" style="background:#2a2233">
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none"><polyline points="18,80 26,64 40,70 52,52 46,38 60,30 74,38 80,56" fill="none" stroke="#3EC6A8" stroke-width="4" stroke-linecap="round"/></svg>
+          </div><div class="pcFoot">보리 · <b>3.0km</b><br><span style="color:#888">8월 8일</span></div></div>
+          <div class="pcard" style="opacity:.45"><div class="pcMedia" style="background:#3a3340"></div>
+            <div class="pcFoot">초코 · <b>5.0km</b><br><span style="color:#888">공유 완료</span></div></div>
+        </div>
+        <div style="padding:0 11px 10px"><input placeholder="한 줄 덧붙이기 (선택)" style="width:100%;border:1px solid #E4E4E4;padding:11px;font-size:14px;font-family:inherit"></div>
+        <div class="shareRow"><div class="btn btnInk">피드에 올리기</div></div>
+      </div>
+    </div>
+    <div class="meta">
+      <span class="flag">추천</span>
+      <p class="note">지금 피커는 텍스트 목록입니다. 같은 데이터로 <b>정사각 카드 그리드</b>를 그리면 IG의
+        갤러리 선택 감각이 그대로 나옵니다 — 그리고 미리보기가 곧 결과물이라 거짓이 없습니다.</p>
+      <p class="note">이미 올린 러닝은 흐리게 + “공유 완료” (지금도 그렇습니다 — <code>feed_posts.booking_id</code>
+        unique). 죽은 버튼이 아니라 상태 표시입니다.</p>
+      <p class="note"><span class="flag warn">제가 과장했습니다 — 코덱스 교정</span> “같은 데이터로 그린다”는
+        <b>틀렸습니다.</b> <code>compose.tsx</code>의 <code>Cand</code>(:21)는 <b>계획</b> km·강아지·날짜·칼라·공유여부뿐입니다 —
+        <b>실측 km도, 트레이스도, 사진도, 시간도, 배지도 없습니다.</b> 그래서 진짜 WYSIWYG를 하려면
+        피커가 러닝 리포트를 <b>추가로 불러와야</b> 합니다 (N건 × fetchRunReport, 또는 목록 RPC 하나).
+        그 비용을 인정하고 고르셔야 합니다 — 아니면 “미리보기”가 아니라 “요약 카드”로 정직하게 축소해야 합니다.</p>
+    </div>
+  </div>
+
+  <div class="cell">
+    <h3><b>Ⓒ②</b> 완료 화면에서 한 탭 — 이중 공유</h3>
+    <p class="sub">러닝이 끝난 그 순간이 공유 의지가 가장 높은 순간입니다.</p>
+    <div class="stage">
+      <div class="ph">
+        <div style="padding:14px 11px 6px;text-align:center">
+          <div style="font-size:14px;letter-spacing:1.6px;color:#999;font-weight:800">RUN COMPLETE</div>
+          <div style="font-family:Oswald;font-weight:700;font-size:52px;line-height:1.1">5.2<span style="font-size:19px">km</span></div>
+          <div style="font-size:14px;color:#666">초코 · 30:14 · 5′49″/km</div>
+        </div>
+        <div style="padding:0 11px"><div class="pcMedia" style="aspect-ratio:16/10;border:1px solid #E4E4E4">
+          <svg viewBox="0 0 100 62" preserveAspectRatio="none"><polyline points="12,52 19,40 31,35 39,26 33,18 42,11 57,9 69,15 74,26 66,34 72,44 87,49" fill="none" stroke="#C25E7F" stroke-width="3.4" stroke-linecap="round"/></svg>
+        </div></div>
+        <div class="shareRow" style="margin-top:11px"><div class="btn btnInk">동네 피드</div><div class="btn btnIg">인스타 스토리</div></div>
+        <div style="padding:0 11px 14px;font-size:14px;color:#888;text-align:center">나중에 피드 탭에서도 올릴 수 있어요</div>
+      </div>
+    </div>
+    <div class="meta">
+      <p class="note">피크-엔드(§7b)를 그대로 씁니다 — 완주 직후가 자랑 의지의 정점입니다. 지금은 여기서
+        피드로 가는 문이 약합니다.</p>
+      <p class="note"><span class="flag warn">전제</span> 인스타 버튼은 아래 Ⓒ③의 제약을 그대로 물려받습니다.
+        피드 버튼만 먼저 붙이고 인스타는 나중에 붙일 수 있습니다 — 두 버튼은 독립입니다.</p>
+    </div>
+  </div>
+
+  <div class="cell">
+    <h3><b>Ⓒ③</b> 인스타 “즉시” 버튼 — 실제로 가능한 범위</h3>
+    <p class="sub">두 가지가 있고, 하나만 진짜 “즉시”입니다.</p>
+    <div class="stage">
+      <div class="ph">
+        <div style="padding:13px 11px"><div style="font-size:15px;font-weight:800;margin-bottom:9px">공유</div>
+          <div class="btn btnSec" style="margin-bottom:8px">시스템 공유 시트 (지금 있는 것)</div>
+          <div style="font-size:14px;color:#666;line-height:1.6;margin-bottom:12px">
+            <code>Share.share({url})</code> — shot/[bid]:248이 이미 씁니다. 인스타가 설치돼 있으면 목록에 뜹니다.
+            탭이 두 번(공유 → 인스타).
+          </div>
+          <div class="btn btnIg">인스타 스토리로 바로</div>
+          <div style="font-size:14px;color:#666;line-height:1.6;margin-top:9px">
+            <code>instagram-stories://share</code> 딥링크. 탭 한 번에 스토리 편집기가 열립니다.
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="meta">
+      <span class="flag warn">비용 정직하게</span>
+      <p class="note">진짜 “즉시”(딥링크)는 <b>네이티브 작업입니다</b>. 제 첫 견적은 방향은 맞고 <b>양이 적었습니다</b>
+        (코덱스 교정, 확인함):
+        <code>LSApplicationQueriesSchemes</code>에 <code>instagram-stories</code> 추가(없으면 <code>canOpenURL</code>이 늘 false —
+        <code>app.json</code>과 커밋된 <code>ios/</code>에 <b>둘 다 없습니다</b>) ·
+        <code>instagram-stories://share</code>를 <b>그냥 열면 이미지가 안 실립니다</b> — iOS 페이스트보드에
+        <code>com.instagram.sharedSticker.backgroundImage</code> 딕셔너리를 <b>키로</b> 넣어야 하고,
+        RN의 <code>Share.share</code>로는 그 딕셔너리를 만들 수 없습니다(네이티브 브리지 필요, package.json에 후보 0개) ·
+        Meta 앱 ID(<code>source_application</code>) 필요 · 페이스트보드 만료·정리 정책 필요 ·
+        <b>안드로이드는 별도</b>(Intent + package visibility).
+        그리고 <b>“expo prebuild”가 요건은 아닙니다</b> — 이 저장소엔 이미 <code>ios/</code>가 커밋돼 있으니
+        정확히는 <b>네이티브 설정 동기화 + 재빌드</b>입니다.</p>
+      <p class="note">래스터 소스는 새로 만들 필요 없습니다 — <code>shot/[bid].tsx:230</code>이 이미
+        <code>react-native-view-shot</code>으로 9:16/4:5를 캡처합니다.</p>
+      <p class="note">그래서 제 제안은 <b>둘 다</b>: 시스템 시트는 오늘 붙이고(0원), 딥링크는 다음 네이티브
+        빌드에 얹습니다. 인스타 미설치 사용자에겐 딥링크 버튼을 <b>그리지 않습니다</b> — 죽은 버튼 금지법.</p>
+    </div>
+  </div>
+</div>
+
+<h2 style="border-color:#C77414">이 랩에 빠진 것 (코덱스가 짚음 — 다음 랩 목록)</h2>
+<p class="thesis">
+  <b>가장 큰 누락: 이 앱엔 이미 “프리메이드 카드 스튜디오”가 있습니다.</b>
+  <code>shot/[bid].tsx</code>는 <code>SKIN_META</code>로 <b>스킨 4종</b> · 실 트레이스 · 사진 · 9:16과 4:5 ·
+  캡처 · 저장 · 공유를 이미 다 합니다. 저는 그 파일의 공유 한 줄만 인용하고 나머지를 무시했고,
+  Ⓒ의 “premade cards”는 사실상 <b>그 스튜디오를 재발명</b>할 뻔했습니다.
+  다음 랩의 1번은 <b><code>RunShareCard</code> 하나를 뽑아 피드·컴포저 미리보기·인스타 export가 전부 같은 컴포넌트를 쓰게</b> 하는 것입니다.
+</p>
+<table>
+  <tr><th>빠진 목업</th><th>왜 필요한가</th></tr>
+  <tr><td><b>섞인 피드</b> — 사진 러닝 / 트레이스만 / 클럽 리캡 / 트레이스 없는 옛 포스트 / 마일스톤 / 긴 캡션</td><td>제 목업은 전부 “좋은 카드” 한 종류였습니다. 실제 스크롤 리듬은 섞였을 때 드러납니다 — 특히 <b>사진 포스트는 지금 트레이스를 아예 안 그립니다</b>.</td></tr>
+  <tr><td><b>완료 직후 진입점 3곳</b> — <code>runner/done.tsx:70</code> · <code>owner/report.tsx:405</code> · <code>owner/schedule.tsx:275</code></td><td>Ⓒ②를 “완료 화면”이라고만 그렸는데 실제로는 세 화면입니다. 어디에 붙일지가 결정 사항입니다.</td></tr>
+  <tr><td><b>인스타 상태들</b> — 미설치 / 실패 / 시스템 시트 폴백 / 권한</td><td>죽은 버튼 금지법이 여기에도 걸립니다.</td></tr>
+  <tr><td><b>클럽 0개 / 1개 / N개</b> + 올바른 동네 스코프</td><td>위 ②가 풀리기 전엔 Ⓑ 어느 안도 “동네”라고 말하면 안 됩니다.</td></tr>
+</table>
+
+<h2 style="border-color:#111">제 추천 조합</h2>
+<p class="thesis">
+  <b>Ⓐ① + Ⓑ③ + Ⓒ①(축소판)</b>. 코덱스 리뷰 뒤 Ⓑ가 ①에서 ③으로 바뀌었습니다 — 전역 피드 위에
+  “우리 동네 개들” 레일을 세우면 이미 거짓인 콜로폰에 거짓을 한 겹 더 얹습니다.<br><br>
+  <b>Ⓐ①</b>만 정말로 싸고 확실합니다 (<code>HeatTrace</code> 치수 변경, 새 데이터 0).
+  <b>Ⓐ③(빕)은 이제 살아 있습니다</b> — <code>standings.nth</code>라는 진짜 출처가 있고 라벨을 “N번째 러닝”으로
+  쓰면 정직합니다. Ⓐ①과 Ⓐ③ 중에 고르시면 됩니다 (①=매일의 리듬, ③=아티팩트).<br><br>
+  <b>Ⓒ①은 공짜가 아닙니다</b> — 진짜 미리보기를 하려면 피커가 리포트를 더 불러와야 합니다. 그 비용이 싫으시면
+  “요약 카드”로 축소하고 WYSIWYG라고 부르지 않으면 됩니다.<br><br>
+  🔴 <b>그리고 무엇을 고르시든, 위의 두 정직 문제(콜로폰이 거짓)는 별도로 고쳐야 합니다.</b>
+  가장 싼 정직 수리는 <b>콜로폰 문장을 사실로 줄이는 것</b>이고, 진짜 수리는 서버 강제 + 동네 스코프입니다.
+</p>
+
+<table>
+  <tr><th>고르면</th><th>실제로 바뀌는 코드</th><th>새 서버</th></tr>
+  <tr><td>Ⓐ①</td><td><code>community.tsx</code> 미디어 블록 + <code>HeatTrace</code> 치수</td><td>없음</td></tr>
+  <tr><td>Ⓑ①</td><td><code>community.tsx</code> 클럽 스트립 → 레일, 오늘 포스트에서 파생</td><td>없음</td></tr>
+  <tr><td>Ⓒ①</td><td><code>compose.tsx</code> 목록 → 그리드</td><td>없음</td></tr>
+  <tr><td>Ⓐ③</td><td>위 + <b>배번호 소스 결정</b></td><td>미정 — 결정 필요</td></tr>
+  <tr><td>Ⓒ③ 딥링크</td><td>Info.plist + 페이스트보드 + <b>expo prebuild</b></td><td>없음 (네이티브 재빌드)</td></tr>
+</table>
+
+</div>
+</body>
+</html>
