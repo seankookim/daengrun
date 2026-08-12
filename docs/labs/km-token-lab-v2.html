@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>토큰 랩 v2 — 이름 4방향 × 프리미엄 아티팩트 (Sean 픽: Ⓝ 번호)</title>
+<style>
+  :root{
+    --canvas:#FFFFFF; --ink:#111111; --dim:#8A8A93; --line:#ECECEF;
+    --action:#C6472C; --wash:#F7F7F9; --lilac:#6C5CE7; --gold:#B8912A;
+    --night:#14121F; --nightcard:#1C1837; --volt:#D8FF3E;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#E4E4E8;font-family:-apple-system,'Apple SD Gothic Neo',sans-serif;color:var(--ink);padding:34px 26px 90px}
+  h1{font-size:26px;font-weight:900;margin-bottom:6px}
+  .sub{font-size:14px;color:#555;max-width:940px;line-height:1.6;margin-bottom:26px}
+  h2{font-size:20px;font-weight:900;margin:52px 0 4px}
+  .areaNote{font-size:13.5px;color:#555;max-width:940px;line-height:1.55;margin-bottom:18px}
+  .row{display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start}
+  .why{font-size:12.5px;color:#666;line-height:1.55;margin-top:10px;width:310px}
+  .phone{width:310px;background:var(--canvas);border:1px solid #D2D2D8;box-shadow:0 14px 34px rgba(0,0,0,.10)}
+  .pad{padding:16px}
+  .num{font-family:'Oswald','Arial Narrow',sans-serif;font-weight:700}
+  .kicker{font-size:11px;letter-spacing:1.8px;color:var(--dim);font-weight:800}
+  .btn{display:block;text-align:center;background:var(--action);color:#fff;font-weight:900;font-size:15px;padding:13px 0}
+  .small{font-size:14px;color:var(--dim)}
+  /* ── 프리미엄 부품 ── */
+  .perf{height:0;border-top:2px dashed #C9C9D2;position:relative;margin:0 -16px}
+  .perf::before,.perf::after{content:'';position:absolute;top:-8px;width:16px;height:16px;border-radius:50%;background:#E4E4E8}
+  .perf::before{left:-8px}.perf::after{right:-8px}
+  .barcode{height:34px;background:repeating-linear-gradient(90deg,var(--ink) 0 2px,transparent 2px 5px,var(--ink) 5px 6px,transparent 6px 11px)}
+  .flap{display:inline-flex;gap:3px}
+  .flap span{background:var(--ink);color:#fff;font-family:'Oswald','Arial Narrow',sans-serif;font-weight:700;font-size:30px;line-height:1;padding:8px 7px 7px;position:relative}
+  .flap span::after{content:'';position:absolute;left:0;right:0;top:50%;height:1px;background:rgba(255,255,255,.25)}
+  .foil{background:linear-gradient(115deg,#8a6a14 0%,#e8c96a 25%,#b8912a 48%,#f4e3a1 62%,#8a6a14 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .sealRing{width:74px;height:74px;border-radius:50%;border:2.5px solid var(--gold);display:flex;flex-direction:column;align-items:center;justify-content:center;transform:rotate(-8deg)}
+  .stamp{display:inline-block;border:2.5px solid var(--action);color:var(--action);font-weight:900;padding:3px 10px;transform:rotate(-6deg);letter-spacing:1px}
+  .night{background:var(--night);color:#EDEAF7}
+  .nameTag{display:inline-block;background:var(--ink);color:#fff;font-weight:900;font-size:14px;padding:4px 12px;letter-spacing:.5px;margin-bottom:10px}
+  table.cmp{border-collapse:collapse;font-size:13px;margin-top:14px;background:#fff}
+  table.cmp th,table.cmp td{border:1px solid #D5D5DA;padding:8px 12px;text-align:left;vertical-align:top}
+  table.cmp th{background:var(--wash);font-size:12.5px}
+  .good{color:#1B7F4C;font-weight:800}.bad{color:var(--action);font-weight:800}.meh{color:#8A6D1A;font-weight:800}
+</style>
+</head>
+<body>
+
+<h1>토큰 랩 v2 — 이름이 먼저다</h1>
+<p class="sub"><b>Sean 피드백 반영:</b> ① v1 목업이 밋밋했다 — 이 앱의 프리미엄 언어(보딩패스·절취선·스플릿플랩·골드 실·여권 도장)로 다시 지었다.
+② <b>"km"이 실제 km 옆에서 헷갈린다</b> — 화면 하나에 "서울숲 5km 코스"와 "7km 홀드"가 같이 서면 두 km이 다른 뜻이다. 그래서 화폐의 <b>이름</b>을 먼저 정한다.
+원장(0075)은 그대로 km을 센다 — 이름은 표시 레이어라 지금 정해도 싸고 나중에 바꿔도 싸다. 환불 산식 `5,000 × 남은 km`은 어떤 이름 아래서도 살아남아야 한다.
+<b>Ⓝ 번호 하나 골라 주세요.</b> 고르면 v1의 Ⓑ/Ⓒ/Ⓔ 구조 픽들을 그 이름으로 재단해 실장합니다.</p>
+
+<!-- ═══════════ Ⓝ① 런웨이 ═══════════ -->
+<h2>Ⓝ① 런웨이 RUNWAY — "얼마나 더 달릴 수 있는가"라는 뜻 그 자체</h2>
+<p class="areaNote">비행기의 런웨이 = 남은 활주 거리. 스타트업의 런웨이 = 버틸 수 있는 시간. 개의 런웨이 = <b>달릴 수 있는 거리</b>.
+이 앱의 티켓·보딩패스 문법과 한 계보이고, "런"이 이미 이름 안에 있다. 단위는 km을 유지하되 화폐엔 항상 이름이 앞선다: <b>런웨이 12.5km</b> vs 코스 5km — 충돌 소멸.</p>
+<div class="row">
+  <div>
+    <div class="phone"><div class="pad">
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <span class="kicker">CHOCO'S RUNWAY</span>
+        <span class="small">초코의 런웨이</span>
+      </div>
+      <div style="margin:12px 0 4px" class="flap"><span>1</span><span>2</span><span style="background:transparent;color:var(--ink);padding:8px 2px">.</span><span>5</span></div>
+      <span class="num" style="font-size:15px;font-weight:800">km</span>
+      <div class="small" style="margin-top:6px">+ 웰컴 런웨이 <b style="color:var(--ink)">5km</b> · <span style="color:var(--action);font-weight:800">9월 11일까지</span></div>
+      <div class="perf" style="margin-top:14px"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding-top:12px">
+        <span class="small">반포천 왕복 두 번 남았어요</span>
+        <span style="font-weight:900;font-size:14px">연장하기 ›</span>
+      </div>
+    </div></div>
+    <p class="why"><b>잔액 = 스플릿플랩 출발 전광판.</b> 러너 캘린더의 수익 플랩과 같은 부품 — 공항 전광판의 프리미엄과 "출발 준비"의 설렘.
+    충전 버튼이 "충전"이 아니라 <b>"연장하기"</b>가 되는 것이 이 이름의 공짜 선물이다. CTA 카피가 은유에서 저절로 나온다.</p>
+  </div>
+  <div>
+    <div class="phone"><div class="pad" style="padding-bottom:0">
+      <div style="display:flex;justify-content:space-between">
+        <div><div class="kicker">BOARDING PASS</div><div style="font-size:16px;font-weight:900;margin-top:2px">웰컴 런웨이</div></div>
+        <div style="text-align:right"><div class="kicker">GATE</div><div class="num" style="font-size:16px">BANPO-1</div></div>
+      </div>
+      <div style="display:flex;align-items:baseline;gap:8px;margin:10px 0 2px">
+        <span class="num" style="font-size:46px;line-height:1.05">5<span style="font-size:17px">km</span></span>
+        <span style="font-size:14px;font-weight:800">첫 러닝은 저희가 살게요</span>
+      </div>
+      <div class="small">CHOCO 님 탑승 · 9월 11일까지 유효</div>
+      <div class="perf" style="margin-top:14px"></div>
+      <div style="padding:12px 0 14px">
+        <div class="barcode"></div>
+        <span class="btn" style="margin-top:12px">첫 러닝 예약하기</span>
+      </div>
+    </div></div>
+    <p class="why"><b>웰컴 = 보딩패스 실물.</b> 절취선과 바코드는 이 앱이 이미 쓰는 티켓 문법 — 증여가 쿠폰이 아니라 <b>탑승권</b>으로 도착한다.
+    GATE BANPO-1이 파일럿 동네를 윙크로 싣는다.</p>
+  </div>
+  <div>
+    <div class="phone night"><div class="pad">
+      <div class="kicker" style="color:#8F86C2">RUN COMPLETE · 오늘의 정산</div>
+      <div style="margin-top:10px;display:flex;justify-content:space-between;border-bottom:1px solid #2A2350;padding-bottom:8px">
+        <span style="font-size:14px;font-weight:800">홀드했던 런웨이</span><span class="num" style="font-size:15px">7.0 km</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;border-bottom:1px solid #2A2350;padding:8px 0">
+        <span style="font-size:14px;font-weight:800">초코가 달린 거리</span><span class="num" style="font-size:15px">4.3 km</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0 2px">
+        <span class="stamp" style="border-color:var(--volt);color:var(--volt)">RUNWAY +2.7</span>
+        <span style="font-size:14px;font-weight:800;color:#EDEAF7">돌아왔어요</span>
+      </div>
+      <div class="small" style="color:#8F86C2;margin-top:8px">덜 달리면 런웨이가 돌아옵니다 — 다음 러닝에 쓰세요</div>
+    </div></div>
+    <p class="why"><b>언더런 = 다크 아티팩트 위 볼트 스탬프.</b> 완주 영수증은 이 앱의 '피크 모먼트' 세계(다크 허용) —
+    돌아온 런웨이가 도장으로 쾅. 실제 달린 거리는 "km"로, 화폐는 "런웨이"로 — 한 화면에서 두 단위가 각자 이름을 갖는다.</p>
+  </div>
+</div>
+
+<!-- ═══════════ Ⓝ② 하이웨이 ═══════════ -->
+<h2>Ⓝ② 하이웨이 HIGHWAY — 브랜드가 이름 안에 산다</h2>
+<p class="areaNote">도그스<b>하이</b> + way. "초코의 하이웨이가 12.5km 남았어요" — 개들의 전용 고속도로라는 농담이 브랜드 자산이 된다.
+하이클럽·HIGH POINT와 같은 '하이' 패밀리 — 단, 마일(HIGH POINT·골드)과 혈통이 가까워서 <b>구분은 색·서체가 다 해야 한다</b>.</p>
+<div class="row">
+  <div>
+    <div class="phone"><div class="pad">
+      <div class="kicker">CHOCO'S HIGHWAY</div>
+      <div style="display:flex;align-items:baseline;gap:8px;margin-top:8px">
+        <span class="num" style="font-size:44px;line-height:1.05">12.5</span>
+        <span style="font-size:14px;font-weight:900">km 하이웨이</span>
+      </div>
+      <!-- 차선 게이지: 잉크 도로 + 볼트 차선 -->
+      <div style="height:14px;background:var(--ink);position:relative;margin-top:10px">
+        <div style="position:absolute;left:0;top:0;bottom:0;width:62%;background:var(--ink)"></div>
+        <div style="position:absolute;left:0;top:6px;width:62%;height:2px;background:repeating-linear-gradient(90deg,var(--volt) 0 8px,transparent 8px 16px)"></div>
+        <div style="position:absolute;left:62%;top:0;bottom:0;right:0;background:#E9E9EC"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:6px">
+        <span class="small">이번 주 5km 달리면 <b style="color:var(--ink)">7.5km</b> 남아요</span>
+        <span style="font-weight:900;font-size:14px">넓히기 ›</span>
+      </div>
+    </div></div>
+    <p class="why"><b>잔액 = 도로 게이지.</b> 잉크 아스팔트 위 볼트 차선 — 남은 길이 실제 '길'로 그려진다.
+    은유의 위험: 게이지엔 최대값이 필요하다(무한 잔액에 눈금?) — 여기선 "구매 총량 대비"로 눈금을 잡았고, 그 임의성이 이 안의 세금이다.</p>
+  </div>
+  <div>
+    <div class="phone"><div class="pad" style="text-align:center;padding:22px 16px">
+      <div class="kicker">WELCOME TO THE HIGHWAY</div>
+      <div style="margin:14px auto 8px;width:120px;height:120px;border:3px solid var(--ink);border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center">
+        <span class="num" style="font-size:36px;line-height:1">5</span>
+        <span style="font-size:12px;font-weight:900;letter-spacing:1px">KM 개통</span>
+      </div>
+      <div style="font-size:15px;font-weight:900">초코 전용 하이웨이 개통!</div>
+      <div class="small" style="margin-top:4px">첫 5km는 도그스하이가 깔았어요 · 9월 11일까지</div>
+      <span class="btn" style="margin-top:14px">개통 기념 첫 러닝 ›</span>
+    </div></div>
+    <p class="why"><b>웰컴 = 도로 개통식.</b> 표지판 모양의 원형 마크에 "5KM 개통" — 증여가 선물이 아니라 <b>준공식</b>이 된다.
+    "첫 5km는 도그스하이가 깔았어요"는 이 이름 아래서만 성립하는 카피다.</p>
+  </div>
+  <div>
+    <div class="phone"><div class="pad">
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <span style="font-weight:900;font-size:15px">서울숲 숲길 · <span class="num">5km</span> 코스</span>
+      </div>
+      <div style="background:var(--wash);padding:10px 12px;margin-top:10px">
+        <div style="display:flex;justify-content:space-between">
+          <span style="font-size:14px;font-weight:800">하이웨이 홀드</span>
+          <span class="num" style="font-size:16px">7.0<span style="font-size:12px"> km</span></span>
+        </div>
+        <div class="small" style="margin-top:3px">완주 시 5km만 차감 · 남으면 돌아와요</div>
+      </div>
+      <span class="btn" style="margin-top:12px">예약 확정</span>
+    </div></div>
+    <p class="why"><b>예약 화면의 공존 시험.</b> "5km 코스"(진짜 거리)와 "하이웨이 7.0km"(화폐)가 한 화면에 —
+    이름이 앞서니 두 숫자가 싸우지 않는다. 이 화면이 모든 후보의 리트머스다.</p>
+  </div>
+</div>
+
+<!-- ═══════════ Ⓝ③ 런권 ═══════════ -->
+<h2>Ⓝ③ 런권 — 회수권의 손맛, 절취선의 나라</h2>
+<p class="areaNote">버스 회수권·목욕탕 회수권의 물성 — 한국형 프리미엄 노스탤지어. 화폐가 디지털 숫자가 아니라 <b>철해 놓은 표 묶음</b>이 된다.
+이 앱의 절취선·스탬프 모티프와 가장 깊게 맞물린다. 표기: <b>런권 12.5km분</b> (권이 km을 감싼다 — 낱장 세기는 하지 않는다, 0.5장이 없으므로).</p>
+<div class="row">
+  <div>
+    <div class="phone"><div class="pad">
+      <div class="kicker">내 런권</div>
+      <!-- 표 묶음: 겹친 티켓 3장 -->
+      <div style="position:relative;height:120px;margin-top:12px">
+        <div style="position:absolute;top:16px;left:14px;right:-2px;height:92px;background:var(--wash);border:1px solid var(--line);transform:rotate(2deg)"></div>
+        <div style="position:absolute;top:8px;left:7px;right:5px;height:96px;background:#fff;border:1px solid var(--line);transform:rotate(-1deg)"></div>
+        <div style="position:absolute;top:0;left:0;right:12px;height:104px;background:#fff;border:1.5px solid var(--ink);padding:12px 14px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline">
+            <span style="font-weight:900;font-size:13px;letter-spacing:1px">도그스하이 런권</span>
+            <span class="stamp" style="font-size:11px;padding:2px 7px">유효</span>
+          </div>
+          <div style="display:flex;align-items:baseline;gap:6px;margin-top:8px">
+            <span class="num" style="font-size:34px;line-height:1">12.5</span>
+            <span style="font-size:13px;font-weight:900">km분</span>
+          </div>
+          <div class="small" style="font-size:12px;margin-top:2px">내 런권 10km분 · 웰컴 2.5km분 (D-23)</div>
+        </div>
+      </div>
+      <span class="btn" style="margin-top:8px">런권 채우기</span>
+    </div></div>
+    <p class="why"><b>잔액 = 철한 표 묶음.</b> 뒤 장들이 살짝 비뚤게 겹친다 — 물성은 여기서 나온다.
+    두 버킷이 "내 런권 / 웰컴 런권"으로 자연 분리 — 정직법(두 숫자)이 은유 안에서 공짜로 해결된다.</p>
+  </div>
+  <div>
+    <div class="phone"><div class="pad">
+      <div class="kicker">런권 정산 — 오늘의 한 장</div>
+      <div style="border:1.5px solid var(--ink);margin-top:10px;padding:12px 14px;position:relative">
+        <div style="display:flex;justify-content:space-between;align-items:baseline">
+          <span style="font-weight:900;font-size:14px">서울숲 숲길</span>
+          <span class="num" style="font-size:22px">5.0<span style="font-size:12px">km</span></span>
+        </div>
+        <div class="perf" style="margin:10px -14px"></div>
+        <div style="display:flex;justify-content:space-between;padding-top:9px">
+          <span style="font-size:14px;font-weight:800">실제 달린 거리</span>
+          <span class="num" style="font-size:15px">4.3km</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding-top:5px">
+          <span style="font-size:14px;font-weight:900">런권으로 돌아감</span>
+          <span class="num" style="font-size:15px;color:var(--action)">+0.7km분</span>
+        </div>
+        <div class="sealRing" style="position:absolute;right:10px;top:6px;width:58px;height:58px;border-color:var(--action);opacity:.85">
+          <span style="font-size:9px;font-weight:900;color:var(--action)">DOGS HIGH</span>
+          <span style="font-size:8px;color:var(--action)">정산필</span>
+        </div>
+      </div>
+    </div></div>
+    <p class="why"><b>정산 = 한 장 찢고 도장.</b> 절취선 위가 계획, 아래가 실측 — 그리고 <b>정산필</b> 도장.
+    영수증 실 세리머니(O11)의 혈통. "돌아감"이 회수권 세계에서 자연스럽다: 덜 쓴 표는 도로 철해 둔다.</p>
+  </div>
+  <div>
+    <div class="phone"><div class="pad">
+      <div class="kicker">런권 책 — 채우기</div>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <div style="flex:1;border:1.5px solid var(--ink);padding:10px 8px;text-align:center">
+          <div class="num" style="font-size:20px">5<span style="font-size:11px">km분</span></div>
+          <div class="small" style="margin-top:3px">25,000원</div>
+        </div>
+        <div style="flex:1;border:1.5px solid var(--ink);padding:10px 8px;text-align:center;position:relative">
+          <div style="position:absolute;top:-9px;left:50%;transform:translateX(-50%) rotate(-3deg)" class="stamp"><span style="font-size:10px">+2km 덤</span></div>
+          <div class="num" style="font-size:20px">20<span style="font-size:11px">km분</span></div>
+          <div class="small" style="margin-top:3px">100,000원</div>
+        </div>
+        <div style="flex:1;border:1.5px solid var(--ink);padding:10px 8px;text-align:center;position:relative">
+          <div style="position:absolute;top:-9px;left:50%;transform:translateX(-50%) rotate(2deg)" class="stamp"><span style="font-size:10px">+8km 덤</span></div>
+          <div class="num" style="font-size:20px">50<span style="font-size:11px">km분</span></div>
+          <div class="small" style="margin-top:3px">250,000원</div>
+        </div>
+      </div>
+      <div class="small" style="margin-top:10px;text-align:center">보너스는 <b>덤</b>이에요 — 값은 언제나 1km = 5,000원, 안 쓰면 전액 환불</div>
+      <span class="btn" style="margin-top:10px;background:var(--wash);color:var(--dim);border:1px dashed #CFCFD6">결제 준비 중 — 열리면 알려드릴게요</span>
+    </div></div>
+    <p class="why"><b>번들 보너스 = "덤".</b> 시장 좌판의 덤 문화 — 보너스 km의 법적 실체(증여·만료)와 정서가 정확히 일치하는 유일한 한국어.
+    기울어진 도장 배지가 재미를, 고정 단가 문장이 신뢰를 싣는다.</p>
+  </div>
+</div>
+
+<!-- ═══════════ Ⓝ④ 무명 게이지 ═══════════ -->
+<h2>Ⓝ④ 이름 없음 — "달릴 거리"라는 프레임이 이름을 대신한다</h2>
+<p class="areaNote">화폐 이름을 발명하지 않는 안. 단위는 km 그대로, 대신 <b>절대 맨몸으로 등장하지 않는다</b> — 항상 "달릴 거리" 프레임과 전용 마크(잉크 박스) 안에서만.
+가장 정직하고 가장 배우기 쉽다; 대신 재미와 브랜드 자산은 포기한다. v1의 방향이 사실 이것이었다 — 공정 비교를 위해 남긴다.</p>
+<div class="row">
+  <div>
+    <div class="phone"><div class="pad">
+      <div class="kicker">초코가 달릴 수 있는 거리</div>
+      <div style="display:flex;align-items:baseline;gap:8px;margin-top:8px">
+        <span style="border:2px solid var(--ink);padding:2px 10px" class="num"><span style="font-size:38px">12.5</span><span style="font-size:14px"> km</span></span>
+      </div>
+      <div class="small" style="margin-top:8px">+ 웰컴 5km · <span style="color:var(--action);font-weight:800">9월 11일까지</span></div>
+      <div style="display:flex;justify-content:space-between;margin-top:12px;border-top:1px solid var(--line);padding-top:10px">
+        <span class="small">코스 거리와 다른 숫자예요 — 지갑이에요</span>
+        <span style="font-weight:900;font-size:14px">충전 ›</span>
+      </div>
+    </div></div>
+    <p class="why"><b>전용 마크 = 잉크 박스.</b> 박스 안 km은 화폐, 박스 밖 km은 거리 — 규칙 하나로 구분.
+    각주가 그 규칙을 사람 말로 실토한다("지갑이에요"). 규칙이 안 지켜진 화면 하나가 나오는 순간 무너지는 게 이 안의 약점.</p>
+  </div>
+</div>
+
+<!-- ═══════════ 비교표 ═══════════ -->
+<h2>비교 — 다섯 개의 리트머스</h2>
+<table class="cmp">
+  <tr><th></th><th>Ⓝ① 런웨이</th><th>Ⓝ② 하이웨이</th><th>Ⓝ③ 런권</th><th>Ⓝ④ 무명</th></tr>
+  <tr><th>코스 km과 충돌</th><td class="good">소멸 (이름이 앞섬)</td><td class="good">소멸</td><td class="good">소멸 ("km분")</td><td class="meh">마크 규칙에 의존</td></tr>
+  <tr><th>댕마일(HIGH POINT)과 거리</th><td class="good">멀다</td><td class="bad">가깝다 — '하이' 패밀리 공유, 색·서체가 전부 감당</td><td class="good">멀다</td><td class="good">멀다</td></tr>
+  <tr><th>환불 산식 카피</th><td class="good">"남은 런웨이 × 5,000원"</td><td class="good">"남은 하이웨이 × 5,000원"</td><td class="good">"안 쓴 런권 전액"— 가장 자연</td><td class="good">"남은 km × 5,000원"</td></tr>
+  <tr><th>공짜로 얻는 카피</th><td class="good">연장하기 · 런웨이가 얼마 안 남았어요</td><td class="good">개통 · 넓히기 · 하이웨이를 깔았어요</td><td class="good">덤 · 정산필 · 한 장 · 채우기</td><td class="bad">없음</td></tr>
+  <tr><th>재미/프리미엄 자산</th><td class="good">보딩패스·전광판 세계와 직결</td><td class="good">브랜드 말장난이 자산</td><td class="good">한국형 물성 — 가장 독창적</td><td class="bad">기능적</td></tr>
+  <tr><th>리스크</th><td class="meh">스타트업 은어 '런웨이'와 동음 (투자자 눈)</td><td class="meh">마일과의 혈통 + 게이지 최대값 임의성</td><td class="meh">'권'의 낱장 직관 vs 소수점 (km분 표기가 방어)</td><td class="meh">규칙 이탈 화면 하나면 붕괴</td></tr>
+</table>
+<p class="areaNote" style="margin-top:14px"><b>추천: Ⓝ③ 런권</b> — 절취선·도장·실 세리머니라는 이 앱의 기존 프리미엄 자산과 가장 깊게 맞물리고, "덤"과 "정산필"처럼
+다른 이름 아래서는 존재할 수 없는 카피가 공짜로 따라온다. 차점 Ⓝ①. 어느 쪽이든 원장·환불 산식·0075는 그대로다.</p>
+
+<p class="areaNote" style="margin-top:30px;font-size:12.5px;color:#777">콜로폰 — 모든 숫자는 실규칙 파생 (홀드 = min(잔액, greatest(3, planned+2)) · 차감 = min(clamp, 홀드) · 1km = 5,000원).
+골드는 마일스톤 전용 규칙에 따라 화폐 마크에 쓰지 않았다 (정산필 실은 기존 영수증 세리머니의 골드 계보, 화폐 자체는 잉크·코랄·볼트).
+다크 카드는 피크 모먼트(완주)에만 — "다크는 아티팩트, 라이트는 화면" 법 준수. v1(km-token-lab.html)은 구조 비교용으로 보존.</p>
+
+</body>
+</html>
