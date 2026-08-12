@@ -78,7 +78,7 @@ psql -q -f 105_enroute_cancel_suite.sql >/dev/null 2>&1            # 0066 en-rou
 psql -q -f 106_incident_subject_suite.sql >/dev/null 2>&1            # 0067 P1 SECURITY: incident subject gate + SOS unification
 psql -q -f 107_recovery_force_resolve_suite.sql >/dev/null 2>&1            # 0068/0069 C1 T-10 retire · C4/H5 host force resolve · two-sided override
 psql -q -f 108_incident_accountability_suite.sql >/dev/null 2>&1            # 0070 adversarial-review follow-ups (case ownership · hold recompute · stale sweep)
-psql -q -f 109_payments_suite.sql >/dev/null 2>&1            # 0071 payments table (the accounting artifact for money coming IN — R7)
+psql -q -f 109_payments_suite.sql >/dev/null 2>&1            # 0071 payments table + 0076 payment intent (money coming IN — R7 / toss-plan §2-7)
 psql -q -f 110_incident_settlement_suite.sql >/dev/null 2>&1            # 0072 the commercial exit from incident_review (money path)
 psql -q -f 111_address_note_suite.sql >/dev/null 2>&1            # 0073 owner-editable pickup note — column whitelist is the point (N6)
 psql -q -f 112_handles_feed_claims_suite.sql >/dev/null 2>&1            # 0074 @handle + feed claim gate (F1 pins Sean's "do not restrict uploads")
