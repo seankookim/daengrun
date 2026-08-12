@@ -88,6 +88,118 @@ drift) — the work is a mechanism swap: card-link flow, a no-ceremony booking c
 the fix-card state, receipts. 최소 pace/threshold copy per the A-17 amendment
 (distance-only completion, suggested pace 8 min/km).
 
+## 0-ter. SETTLE-TIME CHARGE MACHINE (eng pass, 2026-08-12 night — resolves §0-bis's NEEDS-ENG-PASS)
+
+**Booking flow, card-linked (NO transition-map change needed):** create-booking-hold
+already runs draft→quoted→payment_hold; for an owner with a valid billing key it then
+immediately CASes payment_hold→matching **server-side in the same request** — reusing the
+existing pinned edge (105 E7 intact), with `payment_hold` becoming a transient instant
+state. The fallback (no card) stops at payment_hold and takes §2's widget flow. Zero new
+edges, zero repinning.
+
+**Charge basis table (settle-run):**
+| end_reason | basis | why |
+|---|---|---|
+| completed / runner-caused early end | ACTUAL | pay what happened |
+| owner_request / owner_forced | **PLANNED** (D2 rule) | guarantee clause + anti-cut-short gaming |
+| dog_condition / incident-class | 🔴 Sean's product call (G1): actual vs waive | the abort-charge composition question |
+
+`owner_charge = ownerBaseFare(7,900) + 3,000 × basis + addon_fare`.
+
+**Ordering law — settlement NEVER waits on collection:** `settle_run_tx` (runner ledger,
+run row, miles, stats) commits FIRST, exactly as today; the billing charge happens AFTER,
+outside any DB transaction (never hold a tx over HTTP). A failed charge never unwinds a
+settlement — the runner is paid, the platform floats, collection is the platform's
+problem (§0-bis). PIN: settlement rows exist even when the charge attempt fails.
+
+**Charge execution (X1 rails, ported):** mint `payments` intent row (`status='pending'`,
+server-minted order_id, amount = owner_charge, booking_id) → billing-key API charge with
+an Idempotency-Key → row → `confirmed` (payment_key recorded) or `failed`. Retries reuse
+the SAME order_id + idempotency key — a retry can never double-charge by construction.
+
+**Collection state is DERIVED, never cached (repo law — no collection_status column):**
+`owner_has_unsettled_charge(owner)` = exists a `failed` (or >1h stale `pending`) payments
+row for a settled booking with no later `confirmed` row. Consumers: ① create-booking-hold
+refuses new bookings on it (the account lock, honest copy: "정산이 끝날 때까지 새 예약이
+잠겨요"); ② the exception UI (pay-lab v3 Ⓧ states); ③ the reconciliation query (pin).
+
+**Retry ladder:** immediate → +1h → +24h (cron sweep, 0060 `expire_unmatched` idiom;
+attempt count in `payments.raw`), then stop + notify; owner fixing the card triggers an
+immediate manual retry (the one CTA in the debt state). Card unlink while bookings are
+live is ALLOWED (blocking it is hostile) — the debt flow is the catch-all.
+
+**Error map:** billing timeout → retry same key (no double-charge) · billing key
+invalid/expired → distinct state: 카드 재연결 required (not the generic decline copy) ·
+declined → ladder · amount dispute → impossible by construction (server-computed, no
+client input). **Test rail:** extend the Deno `_test` infra (charge branch of settle
+flow, every row above); SQL pins for the derivation fn + intent shape + the
+settlement-without-collection invariant.
+
+**Prerequisites:** 자동결제(빌링) 심사 · billing TEST keys · the 설정 결제 관리 +
+booking-detail 결제 내역 extension ships in the same release (§0-bis T6).
+
+### §0-ter ADVERSARIAL ROUND 1 — 15 findings absorbed (2026-08-12 night; the section above
+is amended by ALL of the following; a second adversarial round belongs to the build slice):
+
+1. **The missing invariant is bookings-anchored (#1, P1):** every SETTLED booking has a
+   payments row — pinned via a bookings-anchored sweep (`completed`-class booking with
+   `runs.ended_at` and NO payments row → mint intent + charge). The payments-anchored
+   reconciliation arms cannot see this crash class; settle-run's own 409 retry-block
+   (`이미 정산됐거나`) means no client retry ever reaches the charge code.
+2. **Billing intents are NEVER auto-failed while stale (#2, P1):** 0076's stale-pending
+   sweep predicate (`payment_key is null` = no capture) was a WIDGET-flow argument. For
+   server-initiated charges, write a `raw.dispatched_at` marker BEFORE the HTTP call;
+   stale dispatched pendings route to reconciliation (query Toss by orderId / manual),
+   only never-dispatched pendings may auto-fail.
+3. **`generate_recurring_bookings()` gains the debt gate + billing-instrument check
+   (#3, P1):** the hourly cron inserts bookings directly at matching, bypassing
+   create-booking-hold's lock, and never checks a billing key exists. Locked or
+   card-less owners: skip generation + notify ("반복 예약이 결제 문제로 쉬어가요").
+   Without this the ≤1-fare exposure bound is false.
+4. **Owner basis ceiling = PLANNED (#4, P1):** the ×2+2 validity band bounds runner
+   payout fraud, not the owner's card. Owner charge basis = `min(actual, planned)`
+   (owner-caused ends: exactly planned, D2). The owner can never be charged more than
+   the quoted price — consent; runner still paid on actual within band; the delta is the
+   existing platform-absorb doctrine.
+5. **Cancel-fee machine specified (#5, P1):** the 0066 fee charges through the SAME
+   intent rails at cancel time; the debt derivation's scope = settled OR
+   cancelled-with-fee bookings; `transition-booking`'s `refund: total_price - fee`
+   return is RETIRED under post-pay (money never captured — return the fee only, honest
+   copy); en-route runner compensation needs its own `ledger_items` write path
+   (settle_run_tx never runs for cancelled_owner) — named build-scope item.
+6. **Charge from the booking's FROZEN numbers (#6):** `owner_charge = bk.base_fare +
+   round(bk.distance_fare / bk.km × basis) + bk.addon_fare` — never live constants; a
+   constant change must not reprice consented bookings (recurring rows carry old
+   snapshots by design).
+7. **Card-linked create failure is compensated, never stranded (#7/#15):** order inside
+   create-booking-hold = slot_holds insert → CAS last; on CAS failure → compensating
+   DELETE of the booking + honest error. No card-linked booking may ever sit in
+   payment_hold for e_hold's deliberately-silent 30-min death (W7 pins that silence for
+   the widget flow only). Fallback one-way door acknowledged: a matching-state booking
+   collects via billing retry only, never the widget.
+8. **Error map gains the already-processed arm (#8/#12):** duplicate orderId /
+   already-processed → treat as SUCCESS (fetch status, flip the row confirmed).
+   Retry = in-place UPDATE of the ONE row (order_id is unique — there is no
+   "later confirmed row"), and the failed→confirmed flip sets payment_key in the SAME
+   statement (payments_settled_has_key). Verify-at-build: Toss idempotency-key
+   retention window vs the +24h outer rung.
+9. **Basis for `dog_condition`/`incident` stays 🔴 Sean's (G1) — implementation must not
+   silently pick (#9).** Provisional pilot default recorded for his override: charge
+   NOTHING pending review (trust-first, bounded pilot cost, exception UI already exists).
+10. **`runner_personal` waives the base (#10):** owner pays `3,000 × actual` only — a
+    runner-caused end doesn't bill the owner 7,900 for undelivered service. Platform
+    absorbs the runner's min_fare floor at tiny actuals (rare, bounded, gauge it).
+11. **"Settled" anchors on `runs.ended_at`/`ledger_items` existence, never
+    `bookings.status` (#11)** — incident_review/refund_pending transitions must not
+    drop a failed charge out of the lock. Pin.
+12. **Index (#14):** `payments (booking_id) where status = 'failed'` partial, matching
+    0076's predicate-shaped-index idiom.
+13. **§5-4's refund gate is REWRITTEN under post-pay (#13):** matching expiry charges
+    nothing, so the old gate is vacuous. The NEW go-live gate: 0060's e_match copy
+    ("전액 환불 처리돼요") and 0072's "N원이 환불돼요" notification are FIXED at cutover
+    (they promise refunds of money never taken — shipped falsehoods the moment charges
+    are real), + the cancel-fee machine (#5) wired.
+
 ## 0. Why this is dramatically smaller than the bridge was
 
 The bridge needed a new booking status because a human had to sit in the middle for hours. Toss
