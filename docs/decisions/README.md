@@ -55,3 +55,6 @@ trade-off honestly, and his call stands over both.
   (`settle-run` whitelisted all six `end_reason` values on a public endpoint); and the
   **fabricated `condition_note`** (`run.tsx:444` sent a hardcoded string on every abort,
   making G1's anti-gaming control inert) — fixed in `611f014`.
+
+| ⑩ | [cancel-fee-runner-share.md](cancel-fee-runner-share.md) | The 10% cancel tier pays the runner | **RULED** — pay them their half and notify it as a reward | unbuilt |
+| ⑪ | [incident-verification.md](incident-verification.md) | Who verifies an `incident` | **RULED** — both runner and owner confirm | unbuilt |

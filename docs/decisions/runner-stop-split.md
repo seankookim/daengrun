@@ -1,6 +1,11 @@
 # ⑨ `runner_personal` splits — pass-through pay + a new `runner_incapacity`
 
-**Status: 🟠 RECORDED, NOT YET CONFIRMED. Do not build either half.**
+**Status: ✅ CONFIRMED BY SEAN 2026-08-13 — buildable, unbuilt.**
+Confirmed directly in the charge-slice session: he was shown the full scenario table (every
+`end_reason`, both ledgers, platform line) plus this recommendation — pass-through for
+`runner_personal` and a `runner_incapacity` split — and answered **"okay"**, then instructed
+that it be announced to every conversation. The 🟠 above was correct when written (the author
+had only a relay); it is superseded by his own words, not by a session's inference.
 
 This supersedes G1's `runner_personal` row (runner paid 9,900 base only). It reached this
 directory the wrong way — via a memory file, not from the human in a session that could
