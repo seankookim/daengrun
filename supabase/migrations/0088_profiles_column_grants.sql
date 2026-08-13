@@ -192,6 +192,29 @@ id에서 유도하면 그 목적이 사라진다. 프로필당 하나로 고정(
 --      `notifications` row. So the state gate below can never be satisfied yet. That is correct
 --      behaviour for an unbuilt feature (zero rows, no error), not a bug in this function.
 --
+-- ⚠⚠ DO NOT WIDEN THIS FUNCTION. THE INCIDENT SCOPE **IS** THE RULING.
+-- Sean said two things about ⑪'s phone numbers, and a future reader will find the broader one
+-- first, because it is the quotable one:
+--
+--     "b1, and show each other's phone numbers on the screen at all times."
+--       — 2026-08-13, picking B1 (docs/decisions/incident-verification.md:31)
+--     "yes i did, phone numbers should be present during those emergency situations."
+--       — 2026-08-13, answering a question specifically about SCOPE
+--
+-- Both are his. The narrow one governs — **not because it came second** (resolution-by-recency
+-- is the reasoning that was explicitly refused on G1), but because it is the answer he gave when
+-- the question asked was about scope. A broad phrase said while choosing a layout and a scoped
+-- answer given when asked about scope are not a contradiction to resolve by date; they are a
+-- general statement and its specification.
+--
+-- So: if you are here holding the "at all times" quote and about to relax the state gate — that
+-- quote is already accounted for. This function is not a conservative implementation of a wider
+-- mandate awaiting completion. Widening it also re-opens a privacy question that is currently
+-- closed at its smallest size: `docs/appstore-privacy-answers.md:27` declares phone collection
+-- for "contact during handoff", an incident is not a handoff, and the amendment being filed is
+-- the narrow "handoff and during incidents". "At all times" would demand an open-ended purpose
+-- row instead. Whoever widens this owes the filing a matching edit, in the same breath.
+--
 -- ⚠ SCOPE: this is the READ DOOR ONLY. It does not build ⑪ — no two-sided stamp, no `incidents`
 -- writer, no state machine, no screen. `docs/decisions/incident-verification.md` owns that, and
 -- its build notes say to model it on 0083's return-handoff machine WITHOUT re-creating 0083's

@@ -24,14 +24,49 @@ BIN=$(dirname "$(ls /usr/lib/postgresql/*/bin/initdb 2>/dev/null | head -1)")
 # time the answer was to make the identifier unique AT THE SOURCE rather than to ask people to
 # be careful with it. (Two sessions also fixed this same line simultaneously — the comments
 # differed, the code was identical. Reasonable evidence it was the right one token to change.)
-export PGDATA=$(pwd)/.pgtest/data PGHOST=$(pwd)/.pgtest PGUSER=postgres PGDATABASE=daengrun_test
+export PGDATA=$(pwd)/.pgtest/data PGUSER=postgres PGDATABASE=daengrun_test
 mkdir -p .pgtest
+# The SOCKET directory cannot simply be $(pwd)/.pgtest (2026-08-13). A unix socket path is capped
+# at 103 bytes by the OS, and postgres appends `/.s.PGSQL.5432` (14). Every session works in
+# `~/dev/daengrun/.claude/worktrees/<name>/supabase/tests`, which is already ~85 and blows the cap
+# with the socket name on the end. The failure is silent and lies about its cause: psql prints
+# "connection refused / no such file", the shim dies, and it reads as a broken cluster rather than
+# as a path-length limit — which is why this got recorded as "the harness only runs in the main
+# checkout" instead of as a bug. It is not a property of worktrees. It is 103 bytes.
+# So: keep the long per-worktree path when it fits, and fall back to a SHORT BUT STILL UNIQUE
+# /tmp dir when it doesn't. Unique matters as much as short — /tmp/dr85 collided between two
+# sessions earlier today for exactly the reason the comment above describes, so the fallback is
+# keyed on a hash of the worktree path rather than on anything anyone might pick twice.
+# PGDATA stays absolute and per-worktree, so `ps` still distinguishes postmasters and the
+# kill-only-your-own-postmaster.pid rule is untouched.
+PGHOST=$(pwd)/.pgtest
+if [ ${#PGHOST} -gt 88 ]; then
+  PGHOST=/tmp/dr-pg-$(printf '%s' "$(pwd)" | md5 -q 2>/dev/null || printf '%s' "$(pwd)" | md5sum | cut -c1-32)
+  PGHOST=${PGHOST:0:20}
+  mkdir -p "$PGHOST"
+fi
+export PGHOST
 if [ ! -d "$PGDATA" ]; then
   "$BIN/initdb" -D "$PGDATA" -U postgres --auth=trust -E UTF8 >/dev/null
-  echo "unix_socket_directories = '$(pwd)/.pgtest'" >> "$PGDATA/postgresql.conf"
   echo "listen_addresses = ''" >> "$PGDATA/postgresql.conf"
 fi
-"$BIN/pg_ctl" -D "$PGDATA" -l ./.pgtest/pg.log start >/dev/null 2>&1 || true
+# Written on EVERY run, not only at initdb: a cluster created before this fix (or moved between
+# checkouts) carries the old long path in its conf and would keep failing after the fix landed.
+# Rewrite-in-place rather than append, so the file does not grow a line per run.
+if [ -f "$PGDATA/postgresql.conf" ]; then
+  grep -v '^unix_socket_directories' "$PGDATA/postgresql.conf" > "$PGDATA/postgresql.conf.tmp"
+  echo "unix_socket_directories = '$PGHOST'" >> "$PGDATA/postgresql.conf.tmp"
+  mv "$PGDATA/postgresql.conf.tmp" "$PGDATA/postgresql.conf"
+fi
+# `start` is a no-op on an already-running postmaster, which would leave a cluster that came up
+# under the OLD socket dir serving on a path we no longer connect to — the fix would then look
+# like it hadn't worked. So: if it is running but our socket is absent, restart it. `-D $PGDATA`
+# scopes this to THIS worktree's own cluster; it is not the `pkill -f` that killed seven.
+if "$BIN/pg_ctl" -D "$PGDATA" status >/dev/null 2>&1 && [ ! -S "$PGHOST/.s.PGSQL.5432" ]; then
+  "$BIN/pg_ctl" -D "$PGDATA" -l ./.pgtest/pg.log restart >/dev/null 2>&1 || true
+else
+  "$BIN/pg_ctl" -D "$PGDATA" -l ./.pgtest/pg.log start >/dev/null 2>&1 || true
+fi
 sleep 1
 psql -d postgres -qc "drop database if exists daengrun_test"
 psql -d postgres -qc "create database daengrun_test"

@@ -95,6 +95,49 @@ than an empty row — and `docs/feature-audit.md` already discusses **안심번�
 the Kakao T pattern), so shipping real numbers is a *re-decision* of something previously
 considered, not a new trade-off.
 
+## Can `0088` be applied WITHOUT deploying the payment system? — measured, and yes
+
+The announcer's finding is that `0088`'s revoke + column grants depend on nothing after `0074`,
+which makes closing the anon hole separable from the `0076`–`0088` payment deploy. The gating
+unknown was the one the harness cannot answer: **does the live client read any column outside
+`(id, name, handle, avatar_url, district)`?** If it does, a standalone revoke breaks production.
+
+**It does not — and the stronger form of the answer is that it never has.** Rather than identify
+which build is live (there is no local EAS/OTA record to identify it from), enumerate every
+`profiles` SELECT in every commit that has ever touched `app/`:
+
+    from('profiles').select('district')
+    from('profiles').select('id, name')
+    from('profiles').select('name')
+    from('profiles').select('name, district, avatar_url')
+    from('profiles').select('name, handle, district, avatar_url')
+
+Five distinct projections across the entire history. **The union is a strict subset of the
+whitelist.** No `select('*')`, no `select()` (which would mean `*`), no read of `phone`,
+`toss_customer_key`, or `role` — ever. So the question "which build is live" stops mattering:
+every build that has ever existed is compatible. That is a better answer than pinning the
+build, because it also covers a user on a months-old binary who never updated.
+
+Three surfaces checked alongside it, since a column grant is not the only way to reach a column:
+
+- **Writes are unaffected.** `api.ts:1459` (`update(p)`), `api.ts:2029` (`avatar_url`) and
+  `index.tsx:27` (`upsert`) chain no `.select()`, so supabase-js v2 requests no returning rows
+  and the SELECT grant is never consulted. `0088` touches SELECT only; UPDATE/INSERT privileges
+  are untouched (which is exactly why follow-up 1 below still stands open).
+- **Filters stay legal.** Every read filters on `id`, and `id` is IN the whitelist. Postgres
+  checks column privileges on columns referenced in `WHERE`, not only in the select list — had
+  `id` been omitted from the grant, every one of these queries would have failed. It wasn't.
+- **`role` is never read from `profiles` at all**, in any commit. Worth stating explicitly
+  because `index.tsx:27` *writes* it, and "we write it so we must read it" is the assumption
+  that would have made this audit look riskier than it is.
+
+**Conclusion: applying `0088` alone is safe for the client as it exists and as it has ever
+existed.** What that does NOT settle is whether `0088` applies cleanly on a DB at `0074` — the
+file is numbered above `0076`–`0087` and `supabase db push` applies every pending local file, so
+"standalone" means someone deliberately applying this one migration's SQL, not a plain push.
+That is a Sean call and an ops mechanic, not a code-compatibility question, and the code
+compatibility question is now closed.
+
 ## What needs Sean
 
 1. **Does this change deploy timing?** The fix cannot ship without `db push`, which is held on
