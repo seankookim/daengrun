@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Animated, Dimensions, Easing, Image, Pressable, ScrollView, Share, StyleSheet, Text, TextStyle, View } from 'react-native';
 import { PatchBadge } from '../../src/components/patch';
 import { HeatTrace } from '../../src/components/runcard';
+import { traceToBox } from '../../src/lib/trace';
 import { PaperBtn } from '../../src/components/paper-btn';
 import { Monogram, Row, Skeleton } from '../../src/components/ui';
 import { MediaImage } from '../../src/lib/media';
@@ -43,20 +44,9 @@ const STATUS_LABEL: Record<string, string> = {
   runner_enroute: '러너 이동 중', picked_up: '인계 완료 — 시작 대기', active: '러닝 진행 중',
 };
 
-// 실트레이스 → HeatTrace 정규화 (지도 모듈 없는 빌드 폴백)
-function normalizeTrace(trace: { lat: number; lng: number }[]): TracePoint[] {
-  const lats = trace.map((p) => p.lat);
-  const lngs = trace.map((p) => p.lng);
-  const [minLa, maxLa] = [Math.min(...lats), Math.max(...lats)];
-  const [minLo, maxLo] = [Math.min(...lngs), Math.max(...lngs)];
-  const dLa = Math.max(maxLa - minLa, 1e-6);
-  const dLo = Math.max(maxLo - minLo, 1e-6);
-  return trace.map((p, i) => ({
-    x: (p.lng - minLo) / dLo,
-    y: 1 - (p.lat - minLa) / dLa,
-    v: i / Math.max(trace.length - 1, 1),
-  }));
-}
+// 실트레이스 → 박스 좌표: src/lib/trace.ts의 traceToBox로 이전 (0082 K1).
+// 여기 있던 normalizeTrace는 축별 min-max라 종횡비를 늘렸다 — 동서로 긴 경로가
+// 세로로 부푼 실루엣이 되던 버그. 이제 코스·러닝이 같은 투영을 쓴다.
 
 const fmtDur = (sec: number) => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
 const fmtPace = (sec: number | null) => (sec ? `${Math.floor(sec / 60)}'${String(sec % 60).padStart(2, '0')}"` : '—');
@@ -275,7 +265,7 @@ export default function Report() {
               }
               return (
                 <View style={{ backgroundColor: '#0e150f', alignItems: 'center', paddingVertical: 12 }}>
-                  <HeatTrace points={normalizeTrace(run.trace)} width={W - 60} height={140} />
+                  <HeatTrace points={traceToBox(run.trace)} width={W - 60} height={140} />
                   <Text style={{ fontSize: 14, color: '#8fa093', marginTop: 6 }}>실제 GPS 경로 · 지도 배경은 새 빌드에서</Text>
                 </View>
               );

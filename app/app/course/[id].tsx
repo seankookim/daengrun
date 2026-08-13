@@ -3,7 +3,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Dimensions, Easing, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Row } from '../../src/components/ui';
 import { HeatTrace } from '../../src/components/runcard';
-import { fetchMyRoutePhotos, fetchRoutes } from '../../src/lib/api';
+import { traceToBox } from '../../src/lib/trace';
+import { fetchMyRoutePhotos, fetchRouteById } from '../../src/lib/api';
 import { MediaImage } from '../../src/lib/media';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useReducedMotion } from '../../src/lib/reducedMotion';
@@ -80,14 +81,18 @@ export default function CourseScreen() {
 
   useEffect(() => {
     if (!id) { setErr('코스 정보가 없어요'); return; }
-    fetchRoutes()
-      .then((rs) => {
-        const r = rs.find((x) => x.id === id);
-        if (r) setRoute(r); else setErr('코스를 찾을 수 없어요');
-      })
+    // fetchRouteById — 디스커버리 목록에서 find하지 않는다. 그러면 예약된 candidate가 다른
+    // 코스의 활성화와 동시에 브리핑 페이지를 잃고, 정지된 코스는 어제 예약해 놓고도 '찾을 수
+    // 없음'으로 뜬다. 없는 코스(null)와 불러오기 실패(throw)는 다른 사실이라 분기도 다르다.
+    fetchRouteById(id)
+      .then((r) => { if (r) setRoute(r); else setErr('코스를 찾을 수 없어요'); })
       .catch((e) => setErr(e?.message ?? '불러오기 실패'));
     fetchMyRoutePhotos(id).then(setPhotos).catch(() => {}); // 사진은 실패해도 코스는 뜬다
   }, [id]);
+
+  // 실좌표 → 박스 좌표 한 번만. 세 소비처(HeatTrace·시작 핀·LiveDot)가 같은 투영을 공유해야
+  // 점이 선 위에 앉는다. 예전엔 route.trace가 이미 {x,y}라 그냥 읽었지만 이제 실좌표다.
+  const boxTrace = useMemo(() => traceToBox(route?.trace), [route]);
 
   const isOwner = session.role === 'owner';
 
@@ -105,14 +110,14 @@ export default function CourseScreen() {
         {route && (
           <View style={{ paddingHorizontal: 12 }}>
             {/* ---------- 히어로: 살아있는 트레이스 ---------- */}
-            {route.trace.length > 1 && (
+            {boxTrace.length > 1 && (
               <View style={s.hero}>
                 <View style={{ width: TRACE_W, height: TRACE_H, alignSelf: 'center' }}>
-                  <HeatTrace points={route.trace} width={TRACE_W} height={TRACE_H} />
+                  <HeatTrace points={boxTrace} width={TRACE_W} height={TRACE_H} />
                   {/* 출발·도착 핀 */}
-                  <View style={[s.pin, { left: route.trace[0].x * TRACE_W - 5, top: route.trace[0].y * TRACE_H - 5, backgroundColor: colors.volt }]} />
-                  <View style={[s.pin, { left: route.trace[route.trace.length - 1].x * TRACE_W - 5, top: route.trace[route.trace.length - 1].y * TRACE_H - 5, backgroundColor: colors.tang }]} />
-                  <LiveDot points={route.trace} />
+                  <View style={[s.pin, { left: boxTrace[0].x * TRACE_W - 5, top: boxTrace[0].y * TRACE_H - 5, backgroundColor: colors.volt }]} />
+                  <View style={[s.pin, { left: boxTrace[boxTrace.length - 1].x * TRACE_W - 5, top: boxTrace[boxTrace.length - 1].y * TRACE_H - 5, backgroundColor: colors.tang }]} />
+                  <LiveDot points={boxTrace} />
                 </View>
                 <Row style={{ justifyContent: 'space-between', marginTop: 10 }}>
                   <Text style={{ fontSize: 14, color: '#8fa093' }}>● 출발 <Text style={{ color: '#FF5C3D' }}>● 도착</Text> — 스키마틱 코스도예요</Text>
@@ -125,7 +130,7 @@ export default function CourseScreen() {
 
             {/* ---------- 이름 + 핵심 정보 ---------- */}
             {/* [리뷰 F5] 트레이스 없으면 히어로가 말없이 증발했다 — 정직한 준비 중 슬롯 */}
-            {route.trace.length <= 1 && (
+            {boxTrace.length <= 1 && (
               <View style={[s.hero, { alignItems: 'center', justifyContent: 'center', minHeight: 120 }]}>
                 <Text style={{ fontSize: 14, fontWeight: '700', color: '#75806f' }}>코스 지도 준비 중</Text>
               </View>
