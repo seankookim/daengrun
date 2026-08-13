@@ -51,6 +51,13 @@ Before every commit: `cd app && ./node_modules/.bin/tsc --noEmit` and `node scri
 - New security-definer functions MUST have `set search_path = public, pg_temp` in the function body — ALTER-applied config is reset by `create or replace` (measured). Test 98 H1 watches the whole schema and fails the harness on any omission.
 - Views change via `create or replace` only (grant preservation) — never DROP.
 - Party gate before state gate in RPCs; flat whitelisted returns.
+- **Migration and suite numbers come from the REMOTE tip, never from a doc.** Several sessions
+  work this repo at once and each one claims numbers. Resolve immediately before you write the
+  file: `git fetch && git ls-tree --name-only origin/redesign-v4 supabase/migrations/ | tail -3`
+  (same for `supabase/tests/`). Never trust a number written in a plan, TODO or handoff — on
+  2026-08-13 the 0078 and 0081 slots were each claimed twice, and one rename cost ~40 reference
+  edits across migrations, suites, edge functions and docs. ⚠ `ls supabase/tests | sort` is
+  LEXICAL, so `117_` sorts before `97_`; use `grep -oE '^[0-9]+' | sort -n | tail -1`.
 
 ## Design system (client)
 

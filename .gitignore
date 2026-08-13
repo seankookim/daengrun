@@ -21,3 +21,15 @@ app/.claude/
 app/agent/
 app/skills-lock.json
 AGENTS.md
+
+# Per-machine agent tooling — installed by Claude Code / Codex, not project source.
+# Untracked-but-unignored is the dangerous middle: it shows up in every `git status`,
+# which is how a `git add -A` sweeps it in (and why memory says never to run one here).
+.agents/
+.claude/
+.codex/
+AGENTS.md
+app/.agents/
+app/.claude/
+app/agent/
+app/skills-lock.json
