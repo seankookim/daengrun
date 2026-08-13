@@ -125,6 +125,18 @@ booking** (Sean's ruling ⑥ — never `now()`; `longest_inflight_booking_end()`
     presence (0081 writes a ledger row for a CANCELLED booking, which is not a run).
     **Note the window: the hole opens when 0083 merges and closes when that migration lands.
     Charging is off throughout, which is why this is a cutover gate and not an incident.**
+    ⚠ **AND THE PIN MUST GO RED WITHOUT THE PREDICATE.** 0083's adversarial round demonstrated
+    scenario B *inside a green harness*: `116_charge_suite.sql:209` sets
+    `payments_live_since = now() - interval '7 days'`, so the suite deliberately switches the
+    cutover flag ON in order to test anything at all — which disables the exact production
+    bound (`0080:579-580`, null flag → return 0) that makes this safe today. A suite that turns
+    off the guard cannot notice a missing predicate behind it. So the fix ships with a pin that
+    is RED without `and rn.settled_at is not null` and green with it; adding the predicate
+    without that pin leaves the same blind spot one migration later.
+    The general form, from the same round and worth more than the specific fix: **a green suite
+    proves the pins pass, not that the path is covered.** Both 0083 blockers had green pins —
+    one tested a helper instead of the shipping path, the other asserted an escalation happened
+    without asking whether money could still move afterwards.
 
 ## 4. Pending on Sean
 
