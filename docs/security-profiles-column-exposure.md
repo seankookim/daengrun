@@ -115,7 +115,15 @@ than an empty row — and `docs/feature-audit.md` already discusses **안심번�
 the Kakao T pattern), so shipping real numbers is a *re-decision* of something previously
 considered, not a new trade-off.
 
-## Can `0088` be applied WITHOUT deploying the payment system? — measured, and yes
+## Can `0088` be applied WITHOUT deploying the payment system? — I answered YES, and I was wrong
+
+⚠ **Read the correction at the end of this section before using anything in it.** The audit below
+is sound and its method is worth keeping — it is the reason the read side was safe — but the
+conclusion it was used to support was false, and the way it was false is the useful part.
+`0088` applied alone returns **403 to every user at the role picker**. It shipped together with
+`0091`, so no user ever saw it.
+
+## The audit itself (still valid, for reads)
 
 The announcer's finding is that `0088`'s revoke + column grants depend on nothing after `0074`,
 which makes closing the anon hole separable from the `0076`–`0088` payment deploy. The gating
@@ -157,6 +165,45 @@ file is numbered above `0076`–`0087` and `supabase db push` applies every pend
 "standalone" means someone deliberately applying this one migration's SQL, not a plain push.
 That is a Sean call and an ops mechanic, not a code-compatibility question, and the code
 compatibility question is now closed.
+
+### ⚠ THE CORRECTION — what the audit above missed, and why the method still stands
+
+**The claim "code compatibility is closed" was wrong.** `0088` alone denies the role picker's
+write, so every user gets a 403 on the first screen — new signups included.
+
+`app/app/index.tsx:27` is `supabase.from('profiles').upsert({id, role, name})`. PostgREST renders
+that as:
+
+    insert into profiles(id, name, role) select …
+    on conflict (id) do update set id = excluded.id, name = excluded.name, role = excluded.role
+
+Postgres requires SELECT on every column read in that SET list — `excluded.role` included — and
+`0088`'s grant has no `role`. The privilege check is per-*statement*, so even a non-conflicting
+first insert fails. Measured twice: real PostgREST 12.2.3 + PG16 with `log_statement=all` against
+a mirror of the post-`0088`/pre-`0091` grants, then by hand on the harness cluster with the grant
+state reconstructed. Both: `permission denied for table profiles`.
+
+**The error, named:** I audited **the client's intent** (`upsert({...})`, which chains no
+`.select()` and therefore requests no returning rows — both true) instead of **the SQL the client
+causes**. Those two descriptions agree everywhere except the ON CONFLICT arm, which is exactly
+where this lived.
+
+**Why no pin could have caught it:** 124 G3 tests `update … set district`, and the harness has no
+PostgREST — so the statement PostgREST actually emits had never been in front of any test. The
+join between client library and database was the untested seam, not either side.
+
+**What survives, and it is most of it.** The enumeration method — answer "which build is live" by
+enumerating every projection in every commit, so the question dissolves rather than gets answered
+— was right, and the read-side conclusion it produced is correct and now confirmed in production.
+What was wrong was the scope I claimed for it: **an audit of reads licenses a conclusion about
+reads.** The three adjacent checks in it (writes chain no `.select()`; every read filters on `id`,
+which is granted; `role` is written and never read) are each individually true. The third one is
+the tell in hindsight — I noticed `role` is written and never read, and treated "never read by
+the client" as "never needs SELECT", when the database needed SELECT on it for a write.
+
+`0091` adds `grant select (role) on profiles to authenticated`, and `124:132`'s whitelist array
+gained `'role'` in the same slice, with a ⚠ against "fixing" a future red by shortening the list
+instead of restoring the grant — that would re-ship the 403 with a green harness.
 
 ## What needs Sean
 
