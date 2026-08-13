@@ -70,15 +70,13 @@ closes.
   slice freezes `end_reason` EARLIER than that gate, the same whitelist must apply at the
   freeze — otherwise a runner freezes `incident` at run-stop and hands their owner a free
   run. Do not re-widen it.
-- ⚠ **Do not hardcode what `dog_condition` charges — RECONCILED 2026-08-13.** Both sessions
-  were right about different things: **shipped on origin today = ₩0** for `dog_condition`
-  and `incident` (`g1_waive`, 0080), while **Sean has DECIDED** `dog_condition` charges the
-  booking's own frozen `base_fare`, flat (base only — no distance, no addons). The payments
-  session's 0084 lands that code; this slice must not. Read every G1 value through
-  `compute_owner_charge`. A pin hardcoding 0 or 7,900 goes red under their migration **for a
-  correct reason**, which is the most expensive kind of red.
-  Consequence to hold: after 0084 a *club* `dog_condition` abort charges **9,900**, not
-  7,900 — the charge is the booking's own frozen base and the club premium was kept.
+- ⚠ **Never hardcode a G1 amount — it has now been answered THREE different ways in one
+  day.** ₩0 both arms (what was shipped) → base-flat 7,900 (an intermediate ruling) →
+  **FINAL: `ac0c294`, Sean ruled option C — `dog_condition` charges FULL ACTUALS (base +
+  distance), same as a completed run; `incident` stays ₩0 at settle.** The memo records
+  that C was recommended by *neither* session; he overrode both. `club_fare = A` (9,900
+  kept as a stated premium). Every G1 value in this slice reads through
+  `compute_owner_charge` — which is precisely why the third ruling cost this slice nothing.
 - Custody GPS rides an explicitly **non-billable path**: broadcast for the map, plus a
   `custody_last_seen_at` heartbeat (§4d). It is structurally unable to touch the run row.
 
