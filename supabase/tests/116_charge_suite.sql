@@ -167,10 +167,15 @@ returns uuid language sql as $$
 $$;
 
 -- "This booking was settled" in the only way §F recognises: a runs row with ended_at.
+-- [0083 amendment] …and, since 0083, a `settled_at`. `runs.ended_at` now means the SERVICE STOP
+-- (0083 §1/§6), so on its own it no longer says money moved: a row with only `ended_at` describes
+-- a run that stopped and was never returned. This helper has always claimed to build a SETTLED
+-- booking, so it stamps both — which is also what lets this sweep's predicate move onto
+-- `settled_at` (0083 §0f's handoff) as a one-line change rather than a fixture rewrite.
 create or replace function t_chg_settled(p_booking uuid, p_reason text, p_km numeric)
 returns void language sql as $$
-  insert into runs (booking_id, started_at, ended_at, actual_km, end_reason)
-  values (p_booking, now() - interval '40 minutes', now(), p_km, p_reason::end_reason)
+  insert into runs (booking_id, started_at, ended_at, settled_at, actual_km, end_reason)
+  values (p_booking, now() - interval '40 minutes', now(), now(), p_km, p_reason::end_reason)
 $$;
 
 do $$
@@ -1098,9 +1103,11 @@ begin
     values (b_dbr, 'tviva_chg_sweep_dbr', 'ord_chg_sweep_widget_cancel', 26900, 'canceled');
 
     -- ⓑ settled run with no measured distance
+    -- [0083 amendment] settled_at joins the fixture for the same reason it joined
+    -- t_chg_settled: since 0083, "the run stopped" and "money happened" are two columns.
     b_nokm := t_chg_bk(oo, dg, rt, rr, 'completed', now() - interval '6 hours', 5.0, 9900, 15000, 2000);
-    insert into runs (booking_id, started_at, ended_at, actual_km, end_reason)
-    values (b_nokm, now() - interval '40 minutes', now(), null, 'completed');
+    insert into runs (booking_id, started_at, ended_at, settled_at, actual_km, end_reason)
+    values (b_nokm, now() - interval '40 minutes', now(), now(), null, 'completed');
 
     perform sweep_settled_without_payments();
 
