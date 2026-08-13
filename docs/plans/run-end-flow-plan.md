@@ -72,7 +72,28 @@ closes.
   run. Do not re-widen it.
 - ⚠ **Never hardcode a G1 amount — it has now been answered THREE different ways in one
   day.** ₩0 both arms (what was shipped) → base-flat 7,900 (an intermediate ruling) →
-  🔴 **STILL CONFLICTED as of `a186eb6` — do not build any arm.** Sean answered TWICE,
+  ✅ **FULLY RULED `912c6b2` — fault-based, BOTH ledgers mirrored.** Sean reframed it off
+  "what does an abort charge" onto **who is at fault decides who absorbs the shortfall**,
+  which is a better frame than either memo proposed:
+
+  | end_reason | RUNNER paid | OWNER charged |
+  |---|---|---|
+  | `dog_condition` | 9,900 + 3,000 × distance actually run | 7,900 + 3,000 × same (mirrored) |
+  | `owner_request` / `owner_forced` | 9,900 + 3,000 × run | PLANNED (D2, anti-cut-short) |
+  | `runner_personal` | **9,900 base ONLY, no distance** | distance only, base waived |
+  | `incident` | normal settle | ₩0, verify first |
+
+  🔴 **This governs the RUNNER's basis too, which invalidated an assumption in this slice:**
+  `end_run_tx` froze a computed payout quote built from today's single formula. Under the
+  fault rule `runner_personal` has **no distance component**, so a frozen quote carrying
+  `distance_pay > 0` would pay a runner for distance the ruling says they don't get — money
+  moving on a stale formula that we froze. **Resolution: freeze the MEASUREMENT, not the
+  money** (`actual_km`, `duration_sec`, `end_reason`, `condition_note`, `ended_at`). That is
+  the entire boundary §1 defends — no metre walked after the stop reaches the money —
+  and freezing a formula's *output* defends nothing extra while rotting the moment pricing
+  moves. It moved four times today.
+
+  *(superseded: earlier this slice recorded CONFLICTED as of `a186eb6`)* Sean answered TWICE,
   differently, in two sessions: base-flat 7,900 in the payments session (on an unpushed
   branch, so invisible), then full actuals via `ac0c294` in the club session — from an
   AskUserQuestion menu that could not contain the first answer *because it was unpushed*.
