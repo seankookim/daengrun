@@ -26,8 +26,21 @@ not evidence.
 
 ## Build notes
 
-- Model it on the two-sided handoff (`transition-booking` `confirm_handoff`, 0047 rails), not on
-  a new bespoke flow.
+- Model it on the two-sided handoff — and prefer **`0083`'s return-handoff machine over
+  `0047`'s** (0047 is the original rails; 0083, in build on the run-end-flow branch, ships the
+  fuller version of the same shape). What to take from it, with `incident` in place of `return`:
+  two independent party stamps on a booking, server-written only, forgery-guarded on both
+  UPDATE **and** INSERT · one locked primitive that fires only when both stamps are present,
+  never re-implemented per call site · a durable `settlement_ready_at`-style fact plus a
+  recovery sweep, so a crash between stamp and effect self-heals · a force path recording
+  actor, eligibility time, reason and evidence immutably · a 2h escalation so nothing strands ·
+  idempotence on both stamps, with the concurrent loser returning success after verifying the
+  same outcome rather than raising.
+  ⚠ **Extract the SHAPE; do not copy the functions.** Re-creating an object another slice owns
+  is the silent-collision class `supabase/migrations/REGISTRY.md` exists to catch — it reverts
+  their work quietly and the harness still passes, because each slice's pins live in its own
+  suite. Build your own objects on 0083's pattern and name whose version you built on in the
+  file header.
 - Until both confirmations exist the waive stays in its pending-review state — which already has
   a reconciliation arm and therefore an operator queue.
 - Consider what happens when the two sides disagree: that is 0072's incident-settlement

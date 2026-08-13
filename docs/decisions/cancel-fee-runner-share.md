@@ -36,3 +36,14 @@ the product uses for good news, not as a silent ledger line they might find late
 - This does NOT change the owner's side — the fee and its ladder (0066) are unchanged.
 - Pin it: a <24h cancel produces exactly one runner ledger row of the right amount, and the
   en-route tier still produces exactly one at the full fee.
+
+**While you are in there, fix the CLASS, not just this instance.** This defect —
+`store.ts:183` promising the owner a 50/50 split that no ledger row backs — is the same class
+as the fabricated `condition_note` found the same day (`run.tsx:444` sent a hardcoded
+`'러너 판단: 컨디션 저하 관찰'` to every owner as the runner's own account of their dog):
+**UI asserting a fact the system does not produce.** Both survived a long time for the same
+reason — the copy was entirely plausible, so nobody read it against the code that would have
+to make it true. Grep for other promises of that shape while the context is loaded: split
+percentages, "정산됐어요"/"기록됐어요"-style confirmations, any sentence naming money or an
+action whose backing write you cannot point to. A sentence the ledger cannot honour is a
+honesty-doctrine violation regardless of whether anyone has complained about it yet.
