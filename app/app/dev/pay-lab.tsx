@@ -42,12 +42,12 @@ const FIXTURE: BookingCharge = {
   routeName: '서울숲 루프(픽스처)',
 };
 
-// payments 행 픽스처 — 6종 status 전수 + raw에서 꺼내는 두 조각(재연결·거절 사유).
+// payments 행 픽스처 — 6종 status 전수 + raw에서 꺼내는 세 조각(재연결·거절 사유·검토 표식).
 const day = (d: number) => new Date(Date.now() - d * 86400_000).toISOString();
 const payFixture = (over: Partial<PaymentRecord>): PaymentRecord => ({
   bookingId: 'fixture-0000', orderId: `dr_fixture_${Math.random().toString(36).slice(2, 8)}`,
   amount: 22900, status: 'confirmed', refundedAmount: 0, createdAt: day(1),
-  needsCardRelink: false, lastError: null, dogName: '초코(픽스처)', scheduledAt: day(1),
+  needsCardRelink: false, underReview: false, lastError: null, dogName: '초코(픽스처)', scheduledAt: day(1),
   ...over,
 });
 const PAY_ROWS: PaymentRecord[] = [
@@ -56,6 +56,9 @@ const PAY_ROWS: PaymentRecord[] = [
   payFixture({ status: 'failed', amount: 25900, createdAt: day(2), scheduledAt: day(2), lastError: 'REJECT_CARD_COMPANY · 카드사 승인 거절 (픽스처)' }),
   payFixture({ status: 'failed', amount: 13900, createdAt: day(3), scheduledAt: day(3), needsCardRelink: true, lastError: 'INVALID_BILL_KEY_REQUEST (픽스처)' }),
   payFixture({ status: 'waived', amount: 0, createdAt: day(5), scheduledAt: day(5) }),
+  // 검토 중인 0원 — 확정된 무청구와 **같은 말이면 안 된다**. 0084 §B의 raw.review 표식이
+  // 없으면 화면이 열린 사건을 종결된 것처럼 말한다.
+  payFixture({ status: 'waived', amount: 0, underReview: true, createdAt: day(1) }),
   payFixture({ status: 'partial_canceled', amount: 27900, refundedAmount: 9000, createdAt: day(8), scheduledAt: day(8) }),
   payFixture({ status: 'canceled', amount: 15900, createdAt: day(11), scheduledAt: day(11) }),
 ];

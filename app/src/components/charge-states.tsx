@@ -28,7 +28,13 @@ const STATUS_LABEL: Record<string, string> = {
   waived: '청구 없음',
 };
 
-export const paymentStatusLabel = (status: string): string => STATUS_LABEL[status] ?? status;
+// ⚠ 검토 중인 무청구는 확정된 무청구와 **다른 말**이어야 한다. 0084 §B는 `incident` 종료에
+// 0원 waived 행을 쓰면서 raw.review 표식을 남기고, 그 사건의 돈 판단은 0072의 케이스 정산이
+// 소유한다 — 즉 아직 끝나지 않았다. 둘을 같은 '청구 없음'으로 그리면 화면이 열린 사건을
+// 종결된 것처럼 말한다(정직법). 상태 어휘가 서버 상태를 뭉갤 때는 rawStatus로 게이트한다는
+// CLAUDE.md의 규칙과 같은 문제, 같은 답.
+export const paymentStatusLabel = (status: string, underReview = false): string =>
+  underReview && status === 'waived' ? '확인 중 — 지금은 청구된 금액이 없어요' : (STATUS_LABEL[status] ?? status);
 
 // 날짜 — Asia/Seoul 고정 (기기 타임존 금지, api.ts kstParts와 같은 이유)
 function dayLabel(iso: string | null): string {
@@ -65,7 +71,7 @@ export function PaymentRow({ p, showDog = true }: { p: PaymentRecord; showDog?: 
         <Text style={[s.amt, nf]}>
           {p.amount.toLocaleString('ko-KR')}<Text style={s.amtUnit}> 원</Text>
         </Text>
-        <Text style={[s.status, failed && { color: paper.critical }]}>{paymentStatusLabel(p.status)}</Text>
+        <Text style={[s.status, failed && { color: paper.critical }]}>{paymentStatusLabel(p.status, p.underReview)}</Text>
       </View>
     </View>
   );

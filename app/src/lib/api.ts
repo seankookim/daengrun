@@ -473,6 +473,11 @@ export interface PaymentRecord {
   refundedAmount: number;
   createdAt: string;
   needsCardRelink: boolean; // raw.needs_card_relink — 일반 거절과 다른 상태 (§0-ter 에러 맵)
+  // raw.review — 0084 §B가 `incident` 무청구에 찍는 검토 표식. 세 번째 조각을 꺼내는 이유:
+  // 이게 없으면 **검토 중인 0원과 확정된 0원이 화면에서 같은 말**이 된다('청구 없음'). 사건이
+  // 열려 있는데 보호자는 '없던 일'로 읽는다. raw를 통째로 열지 않고 불리언 하나만 꺼내는 것이
+  // 이 투영의 규율(두 조각→세 조각)을 깨지 않는 유일한 방법이다.
+  underReview: boolean;
   lastError: string | null; // raw.last_error — 거절을 이름으로 말하기 위한 한 줄
   dogName: string | null;
   scheduledAt: string | null;
@@ -499,6 +504,9 @@ function toPaymentRecord(r: any): PaymentRecord {
     refundedAmount: Number(r.refunded_amount ?? 0),
     createdAt: r.created_at,
     needsCardRelink: r.raw?.needs_card_relink === true,
+    // 해소는 `review_resolved_at`의 부재로 판정한다 (0084 §C와 같은 문장). 오늘 그 키를 쓰는
+    // 코드는 없으므로 — 0072의 케이스 정산이 쓰게 될 자리다 — 표식이 있으면 곧 검토 중이다.
+    underReview: r.raw?.review === 'incident_pending' && !r.raw?.review_resolved_at,
     lastError: rawError(r.raw),
     dogName: r.bookings?.dogs?.name ?? null,
     scheduledAt: r.bookings?.scheduled_at ?? null,
