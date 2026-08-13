@@ -31,14 +31,16 @@ interface RouteRow {
   trace: GeoRoutePoint[] | null;
   trace_thumb: GeoRoutePoint[] | null;
   checked_at: string | null;
+  shade: RouteInfo['shade'];
+  lighting: RouteInfo['lighting'];
   status: RouteInfo['status'];
   town: string | null;
 }
 
 // 목록 셀렉트는 전체 trace를 절대 싣지 않는다 — 승격된 코스 하나가 수백 점이고, T1 임계(15-20 코스)에서
 // 마운트마다 MB급이 된다. 상세만 fetchRouteById로 전체를 받는다.
-const ROUTE_LIST_COLS = 'id,name,area,km,terrain,tags,features,trace_thumb,checked_at,status,town';
-const ROUTE_FULL_COLS = 'id,name,area,km,terrain,tags,features,trace,trace_thumb,checked_at,status,town';
+const ROUTE_LIST_COLS = 'id,name,area,km,terrain,tags,features,trace_thumb,checked_at,status,town,shade,lighting';
+const ROUTE_FULL_COLS = 'id,name,area,km,terrain,tags,features,trace,trace_thumb,checked_at,status,town,shade,lighting';
 
 function toRouteInfo(r: RouteRow, geo: GeoRoutePoint[] | null): RouteInfo {
   return {
@@ -52,6 +54,8 @@ function toRouteInfo(r: RouteRow, geo: GeoRoutePoint[] | null): RouteInfo {
     checkedAt: fmtChecked(r.checked_at),
     desc: composeDesc(r),
     status: r.status,
+    shade: r.shade ?? null,
+    lighting: r.lighting ?? null,
     trace: geo && geo.length > 0 ? geo : [],
   };
 }
@@ -282,6 +286,9 @@ export async function createBookingHold(p: {
   selection_origin?: 'auto' | 'carousel' | 'detail_cta' | 'quick_book';
   // 점검 전(candidate) 코스를 알고 골랐다는 확인. 서버가 이것 없이는 candidate를 거절한다.
   candidate_ack?: boolean;
+  // 켜져 있던 제약 칩. 자동 배정이 '걸러진 집합 안에서' 골랐다면 origin은 auto지만 보호자는
+  // 선호를 표현한 것이므로, 오버라이드율과 따로 읽혀야 한다.
+  route_chips?: Record<string, boolean>;
 }): Promise<HoldResult> {
   const { data, error } = await supabase.functions.invoke('create-booking-hold', { body: p });
   if (error || data?.error) throw await fnError(error, data);

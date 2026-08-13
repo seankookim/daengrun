@@ -130,6 +130,10 @@ export interface RouteInfo {
   // 0082 라이프사이클. 'candidate' = 매핑만 됐고 개가 달린 적 없다 — 자동 선택 금지, '점검 예정'
   // 포스처로 렌더. auto-pick 경로 3곳(로드 기본값·km 다이얼·딥링크)이 이 값으로 필터한다.
   status: 'candidate' | 'active' | 'suspended' | 'retired';
+  // 0078의 안전 축 2종. terrain(노면)은 이미 문자열로 있고, 이 둘은 enum이라 칩 술어가 정확하다.
+  // null = 아직 기록되지 않음 — '해당 없음'이 아니라 '모른다'이므로 칩 필터에서 통과시키지 않는다.
+  shade: 'low' | 'mid' | 'high' | null;
+  lighting: 'none' | 'partial' | 'lit' | null;
   // ⚠ 실좌표 [{lat,lng}] (0082 K1). 예전 정규화 {x,y}가 아니다 — 그리기 전에 traceToBox()를 통과시킬 것.
   // **해상도는 어느 fetch로 왔느냐에 달렸다:** fetchRoutes(목록)는 trace_thumb(≤50점)를 여기 담고,
   // fetchRouteById(상세)는 전체 trace(≤200점)를 담는다. 소비처는 실루엣만 그리므로 구분할 필요가
