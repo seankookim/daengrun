@@ -50,3 +50,33 @@ touched it and name whose version you build on in your file header.
 - **Count is five, not four** (0078 ×3, 0081 ×2, 0082 ×2, 0083 ×2 including the double-yield).
 - The `payments_live_since` cutover slice (D-3 statement, per-runner abort telemetry,
   reconciliation heartbeat) has no number yet — claim at build time.
+
+
+## Which shared objects each slice re-creates — the SILENT collision class
+
+Numbering collisions are loud: you find out at merge. This one ships. Several slices
+`create or replace` the SAME objects, and **re-creating one that another slice just changed
+silently reverts it while the harness still passes** — because each slice's pins live in
+its own suite, so nothing exercises the reverted behaviour.
+
+**Before re-creating any object below, read the newest migration that touched it and name
+whose version you build on in your file header.** Fill in your own row; do not guess for
+others.
+
+| # | Shared objects it re-creates |
+|---|---|
+| 0079 | `_guard_run_cols` · LA trace trigger · `owner_la_sweep_stale` |
+| 0080 | `compute_owner_charge` · `sweep_settled_without_payments` · `mint_settle_charge_intent` |
+| 0081 | `record_enroute_cancel_comp` ⚠ writes a ledger row for *cancelled* bookings — which is why ledger-presence is NOT a settlement anchor |
+| 0082 | *(owner to fill)* |
+| 0083 | `_guard_run_cols` · `append_run_event` / `append_run_photo` · `owner_la_sweep_stale` · LA trace trigger · `sweep_settled_without_payments` · plus `116_charge_suite`'s `t_chg_settled` fixture |
+| 0084 | *(owner to fill)* |
+
+### Settlement anchors — learned the hard way 2026-08-13
+
+- **Never anchor on `bookings.status`** (§0-ter #11, `0080:487`, pinned by 116 C8): an
+  `incident_review` / `refund_pending` transition drops a settled booking out of the sweep's
+  view — hiding exactly the crash the sweep exists to catch.
+- **`ledger_items` presence is not an anchor either** (see 0081 above).
+- **`runs.settled_at`** = "did money happen?" → the sweep anchor.
+  **`runs.ended_at`** = "when did the service happen?" → cutover eligibility.
