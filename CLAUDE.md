@@ -52,9 +52,16 @@ Before every commit: `cd app && ./node_modules/.bin/tsc --noEmit` and `node scri
   sat 286 commits behind with migrations topping out at `0036`, and every stale worktree on
   2026-08-13 traced back to sessions landing there by default.
 - **Cut new worktrees from `origin/redesign-v4` explicitly.**
-- **In an existing clone, run `git remote set-head origin -a` once.** `refs/remotes/origin/HEAD`
-  is cached locally and does NOT follow a remote default-branch change, so until you run it
-  anything resolving `origin/HEAD` silently means the dead branch.
+- **Run `git remote set-head origin -a` ONCE PER CLONE — not per worktree.**
+  `refs/remotes/origin/HEAD` is cached locally and does NOT follow a remote default-branch
+  change, so until it is repointed anything resolving `origin/HEAD` silently means the dead
+  branch. But remote-tracking refs live in the **common** git dir (`git rev-parse
+  --git-common-dir`), so every worktree of a clone inherits the fix — running it repeatedly is
+  a no-op that just makes each session wonder whether it took. This clone: already done.
+- ⚠ **`main` still exists on GitHub and is drifting** (8 commits behind the trunk and growing).
+  A dead ref that looks alive is the hazard: someone branches from it *because* it is called
+  `main`. Deleting it so the name 404s loudly is Sean's call — nothing is lost either way,
+  since `main`'s tip is an ancestor of the trunk.
 - This was true in practice for weeks while written down nowhere, so every new session
   rediscovered it by getting bitten — the same class of failure as a ruling that lives only in
   an unpushed file.
