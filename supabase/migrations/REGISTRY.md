@@ -38,7 +38,27 @@ touched it and name whose version you build on in your file header.
 | 0083 | `0083_run_end_flow.sql` | 119 | run-end-flow (`claude/run-end-flow-1a67e0`) | **SETTLED 2026-08-13** — on disk, in build |
 | 0084 | `0084_g1_ops_cutover.sql` | 120 | payments (`claude/g1-ops-club-decisions`) | **SETTLED 2026-08-13** — on disk, in build |
 | 0085 | `0085_cancel_share.sql` | 121 | ⑩ cancel-fee runner share (`claude/club-delegation-money-gaps-b59eb8`) | **BUILT 2026-08-13** — harness 467/0, deno 161/0, 5 mutations verified |
-| 0086 | *(next free)* | 122 | — | available |
+| 0086 | `0086_runner_stop_passthrough.sql` | 122 | ⑨a pass-through runner pay (`claude/g1-ops-club-decisions`) | **TAKEN** — file pushed on that branch 2026-08-13; row added by a third session that spotted it |
+| 0087 | *(next free)* | 123 | — | available |
+
+## A pushed FILE is a claim even when the row is missing — check both
+
+2026-08-13, the sixth collision and a new variant: `0086_runner_stop_passthrough.sql` was
+pushed on a feature branch while this file still read `0086 | *(next free)*`, and a
+newly-started session was told 0086 was available. Nobody was careless — the rule says "a
+number is claimed when it is on origin", and the FILE was on origin; only the ROW was not.
+
+**So the check is two-sided, and takes one command:**
+
+```
+git fetch --all -q && git branch -r --list 'origin/*' \
+  | xargs -I{} git ls-tree {} --name-only supabase/migrations/ 2>/dev/null \
+  | grep -oE '[0-9]{4}_' | sort -u | tail -3
+```
+
+Read the row, then look at every remote branch — not just trunk. And when you push a
+migration, push its row in the same breath; a row that trails its file by even an hour is
+the window this collision walked through.
 
 ## Claim the SLICE, not just the number
 
