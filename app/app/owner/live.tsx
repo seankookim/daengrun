@@ -3,10 +3,11 @@ import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Avatar, Row } from '../../src/components/ui';
-import { ensureThread, fetchBookingStatus, fetchCurrentOwnerBookingId, fetchMeetupInfo, MeetupInfo, notifyRunStop, sendChatMessage, subscribeBooking } from '../../src/lib/api';
+import { ensureThread, fetchBookingStatus, fetchCurrentOwnerBookingId, fetchMeetupInfo, fetchRunMeta, MeetupInfo, notifyRunStop, sendChatMessage, subscribeBooking } from '../../src/lib/api';
 import { useNumFont } from '../../src/lib/fonts';
 import { getNaverMap, LivePos, smoothTrace, subscribePos } from '../../src/lib/geo';
 import { endOwnerActivity, OwnerLAProps, startOwnerActivity, updateOwnerActivity } from '../../src/lib/ownerActivity';
+import { clampSuggest, PACE_WINDOW_MS, PaceState, paceState, windowPaceSec } from '../../src/lib/pace';
 import { draft } from '../../src/store';
 import { paper } from '../../src/theme';
 
@@ -37,6 +38,13 @@ const paceStr = (sec: number, km: number) => {
   if (km < 0.05) return "-'--\"";
   const p = sec / km;
   return `${Math.floor(p / 60)}'${String(Math.round(p % 60)).padStart(2, '0')}"`;
+};
+// The 권장 caption's value is already sec/km, so it needs no division — same M'SS" grammar.
+const suggestStr = (sec: number) => `${Math.floor(sec / 60)}'${String(sec % 60).padStart(2, '0')}"`;
+const PACE_CHIP_LABEL: Record<'good' | 'slow', string> = { good: '페이스 양호', slow: '권장보다 느려요' };
+const PACE_CHIP_A11Y: Record<'good' | 'slow', string> = {
+  good: '페이스 상태: 양호',
+  slow: '페이스 상태: 권장보다 느림',
 };
 
 const STOP_REASONS = ['아이 컨디션이 걱정돼요', '급한 일정이 생겼어요', '기타 사유'];
@@ -75,6 +83,24 @@ export default function Live() {
   const [staleSec, setStaleSec] = useState(0);
   const maps = getNaverMap(); // 네이버 지도 (2026-07-29) — 미탑재 빌드는 대기 화면 폴백
 
+  // ---------- pace-state (pace-state-ui-plan §1) ----------
+  // ⚠ Elapsed precondition. `startAt.current` above clocks from the FIRST FIX AFTER MOUNT, so an
+  // owner opening this screen at km 2.3 used to be shown a count starting at 0 — and a pace
+  // derived from it (0'52", a lying verdict). Elapsed now comes from `runs.started_at` ONLY;
+  // the first-fix clock survives as the 1s heartbeat and as the pre-run absence marker, and
+  // while started_at is unknown the 시간/페이스 stats render the existing '—' placeholder
+  // rather than a fabricated count. No number here is ever recomputed from mount time again.
+  const runStartedAt = useRef<number | null>(null);
+  const [elapsedSec, setElapsedSec] = useState<number | null>(null);
+  // The run-start SNAPSHOT of the owner's suggestion (frozen: a mid-run pref edit cannot move
+  // the goalpost). null = not known from the run row — pre-run, or pre-0078 schema.
+  const [runSuggestSec, setRunSuggestSec] = useState<number | null>(null);
+  // LivePos carries no timestamp (geo.ts), so local ARRIVAL stamps are the honest window
+  // source (plan §5) — cumulative km as broadcast, paired with when it reached this screen.
+  const pacePairs = useRef<{ t: number; km: number }[]>([]);
+  const prevPace = useRef<PaceState>(''); // the hysteresis LATCH — survives staleness
+  const [pace, setPace] = useState<PaceState>('');
+
   // id 복원 — 리로드로 draft가 비어도 서버가 진실을 안다. 실패(네트워크)는 '진행 중 없음'과 다르다:
   // 조용히 back 하지 않고 재시도 문을 연다.
   const resolveBooking = useCallback(() => {
@@ -99,12 +125,18 @@ export default function Live() {
     const bid = bookingId;
     fetchMeetupInfo(bid).then(setInfo).catch(() => {});
     const unsubPos = subscribePos(bid, (p) => {
-      if (!startAt.current) startAt.current = Date.now();
-      lastFixAt.current = Date.now();
+      const now = Date.now();
+      if (!startAt.current) startAt.current = now;
+      lastFixAt.current = now;
       setStaleSec(0);
       path.current.push({ latitude: p.lat, longitude: p.lng });
       setPathLen(path.current.length);
       setPos(p);
+      // Rolling-window feed. Kept to twice the window so the buffer cannot grow with the run.
+      pacePairs.current.push({ t: now, km: p.km });
+      if (pacePairs.current.length > 120) {
+        pacePairs.current = pacePairs.current.filter((q) => q.t >= now - PACE_WINDOW_MS * 2);
+      }
     });
     const done = async () => {
       try {
@@ -123,10 +155,41 @@ export default function Live() {
     const unsubBk = subscribeBooking(bid, done);
     const poll = setInterval(done, 10000);
     const tick = setInterval(() => {
+      // Heartbeat only — the first-fix clock no longer feeds a displayed number (§1 precondition).
       if (startAt.current) setLiveSec(Math.floor((Date.now() - startAt.current) / 1000));
+      if (runStartedAt.current) setElapsedSec(Math.max(0, Math.floor((Date.now() - runStartedAt.current) / 1000)));
       if (lastFixAt.current) setStaleSec(Math.floor((Date.now() - lastFixAt.current) / 1000));
     }, 1000);
     return () => { unsubPos(); unsubBk(); clearInterval(poll); clearInterval(tick); };
+  }, [bookingId]);
+
+  // runs.started_at + the frozen pace suggestion, in one round trip. The run may not have begun
+  // when this screen opens (a booking is "진행 중" from confirmed onward), so this retries until
+  // the row exists — and stops the moment it does. Failure stays silent-but-honest: no
+  // started_at means the stats keep their '—', never a count invented on the client.
+  useEffect(() => {
+    if (!bookingId) return;
+    const bid = bookingId;
+    let alive = true;
+    const pull = () => {
+      fetchRunMeta(bid)
+        .then((m) => {
+          if (!alive) return;
+          if (m.paceSuggestSec != null) setRunSuggestSec(m.paceSuggestSec);
+          const ms = m.startedAt ? new Date(m.startedAt).getTime() : NaN;
+          if (Number.isFinite(ms)) {
+            runStartedAt.current = ms;
+            setElapsedSec(Math.max(0, Math.floor((Date.now() - ms) / 1000)));
+          }
+        })
+        .catch(() => { /* the retry below owns recovery */ });
+    };
+    pull();
+    const id = setInterval(() => {
+      if (runStartedAt.current != null) { clearInterval(id); return; }
+      pull();
+    }, 10000);
+    return () => { alive = false; clearInterval(id); };
   }, [bookingId]);
 
   // [honesty audit 2026-08-11 · P1 #3] Before this fix confirmStop made no server call: it closed
@@ -178,8 +241,34 @@ export default function Live() {
   const stale = hasFix && staleSec >= 90;
   const staleMin = Math.max(1, Math.floor(staleSec / 60));
   const km = pos?.km ?? 0;
-  const sec = liveSec;
+  // 경과는 runs.started_at에서만 온다 — 모르면 모른다고 말한다 (숫자를 지어내지 않는다).
+  const hasElapsed = elapsedSec != null;
+  const sec = elapsedSec ?? 0;
   const progressT = hasFix && targetKm != null ? Math.min(km / Math.max(targetKm, 0.1), 1) : 0;
+
+  // The suggestion the caption prints. Priority: the run-start snapshot (frozen truth) → the
+  // dog's current pref from a SUCCESSFUL MeetupInfo fetch (pre-run, and pre-0078 the only
+  // source there is; its null means the owner never set one = confirmed absent = default 480).
+  // Both unknown (info never loaded / fetch failed) → null: no caption, no chip. §6's
+  // fetch-fail row — defaulting to 480 against an owner who set 9'00" claims what we lack.
+  const suggestSec = runSuggestSec != null ? clampSuggest(runSuggestSec)
+    : info != null ? clampSuggest(info.paceSuggestSec)
+    : null;
+
+  // §1 machine, recomputed on the 1s tick. Stale returns '' inside paceState (stale ≠ slow),
+  // and the latch keeps its memory across it so recovery restores the prior state.
+  useEffect(() => {
+    if (suggestSec == null) { setPace(''); return; }
+    const next = paceState(prevPace.current, {
+      windowSec: windowPaceSec(pacePairs.current, Date.now()),
+      suggestSec,
+      km,
+      elapsedSec: sec,
+      stale,
+    });
+    if (next !== '') prevPace.current = next;
+    setPace(next);
+  }, [suggestSec, km, sec, stale]);
 
   // ---------- [0063] owner Live Activity — this screen's lock-screen mirror ----------
   // While the app is awake this screen refreshes the LA locally from the same broadcast that draws
@@ -194,9 +283,11 @@ export default function Live() {
     runnerName,
     km: hasFix ? km.toFixed(2) : '',
     targetKm: targetKm != null ? String(targetKm) : '',
-    pace: hasFix && !stale ? paceStr(sec, km) : '',
-    elapsed: hasFix && !stale ? fmt(sec) : '',
+    pace: hasFix && hasElapsed && !stale ? paceStr(sec, km) : '',
+    elapsed: hasFix && hasElapsed && !stale ? fmt(sec) : '',
     statusLine: !hasFix ? '' : stale ? `${staleMin}분째 위치가 갱신되지 않았어요` : '방금 업데이트',
+    // Local-update nicety only — the server (0078) computes the state that rides real pushes.
+    paceState: pace,
   };
   // Adopt-or-start (re-entry safe) + per-activity push token registration — needs real identities,
   // so it waits for info. This screen only opens for a live booking, so the state gate holds.
@@ -341,11 +432,14 @@ export default function Live() {
             </Text>
           </View>
           <View style={{ alignItems: 'center' }}>
-            <Text style={[s.statNum, nf]}>{hasFix ? fmt(sec) : '—'}</Text>
+            {/* 시간은 runs.started_at을 알 때만 — 마운트 기준 카운트는 이 화면에서 퇴역했다 */}
+            <Text style={[s.statNum, nf]}>{hasFix && hasElapsed ? fmt(sec) : '—'}</Text>
             <Text style={s.statLabel}>시간</Text>
           </View>
           <View style={{ alignItems: 'flex-end' }}>
-            <Text style={[s.statNum, nf]}>{hasFix ? paceStr(sec, km) : '—'}</Text>
+            {/* 신호가 끊기면 마지막 페이스는 더 이상 '지금'이 아니다 — 숫자를 비운다 ('없음'≠'느림').
+                설명은 위의 신선도 스트립이 진다. */}
+            <Text style={[s.statNum, nf]}>{hasFix && hasElapsed && !stale ? paceStr(sec, km) : '—'}</Text>
             <Text style={s.statLabel}>페이스</Text>
           </View>
         </Row>
@@ -353,6 +447,25 @@ export default function Live() {
         <View style={s.progressTrack}>
           <View style={[s.progressFill, { width: `${progressT * 100}%` }]} />
         </View>
+
+        {/* 페이스 상태 (plan §3a Ⓐ②) — 기준이 판정을 앞선다: 권장 캡션은 아는 순간부터 혼자 서 있고,
+            칩은 상태가 생길 때만 끼어든다 (애니메이션 없는 이산 삽입 · 모프 법). 신선도 스트립이
+            뜨면 칩은 같은 줄에서 빠지고 캡션만 남는다 — 두 번의 리플로를 쌓지 않는다. */}
+        {(suggestSec != null || pace !== '') && (
+          <Row style={s.paceRow}>
+            {pace !== '' && (
+              <View
+                style={[s.paceChip, pace === 'good' ? s.paceChipGood : s.paceChipSlow]}
+                accessibilityLabel={PACE_CHIP_A11Y[pace]}
+              >
+                <Text style={[s.paceChipTxt, pace === 'good' ? s.paceChipInkGood : s.paceChipInkSlow]}>
+                  {PACE_CHIP_LABEL[pace]}
+                </Text>
+              </View>
+            )}
+            {suggestSec != null && <Text style={s.paceTarget}>권장 {suggestStr(suggestSec)}</Text>}
+          </Row>
+        )}
 
         {/* actions — 채팅이 이 화면의 유일한 잉크 CTA, 종료는 destructive */}
         <Row style={{ gap: 10, marginTop: 14 }}>
@@ -471,6 +584,16 @@ const s = StyleSheet.create({
   statLabel: { fontSize: 14, color: paper.dim, marginTop: 1 },
   progressTrack: { height: 5, backgroundColor: paper.disabledFill, marginTop: 12, overflow: 'hidden' },
   progressFill: { height: 5, backgroundColor: paper.line },
+  // 페이스 상태 줄 — 칩(§3b: 16/800 · radius 0 · 틴트 면 · 보더 없음) 왼쪽, 권장 캡션 오른쪽.
+  // 상태 칩이지 CTA가 아니다 — 코랄 라인+CTA 예산을 쓰지 않는다. 숫자는 어느 쪽도 물들이지 않는다.
+  paceRow: { marginTop: 12 },
+  paceChip: { paddingVertical: 6, paddingHorizontal: 10 },
+  paceChipGood: { backgroundColor: paper.paceGoodWash },
+  paceChipSlow: { backgroundColor: paper.paceSlowWash },
+  paceChipTxt: { fontSize: 16, lineHeight: 20, fontWeight: '800' },
+  paceChipInkGood: { color: paper.paceGoodInk },
+  paceChipInkSlow: { color: paper.paceSlowInk },
+  paceTarget: { marginLeft: 'auto', fontSize: 14, lineHeight: 18, color: paper.dim },
   // 버튼 매트릭스 — primary(잉크 면) 하나 + destructive(캔버스 면 + 크리티컬 잉크·보더)
   // [액션] 채팅은 이동이지 커밋이 아니다 -> 세컨더리. 이 화면은 코랄 필이 0개인 게 맞다:
   // 예산은 상한이지 할당량이 아니고, 강조는 livePill(잉크=상태)이 지고 있다.
