@@ -108,12 +108,25 @@ the custody/return machinery. They are **one slice, not two**: ⑫'s exit condit
 confirming the dog — **is** ⑪'s two-stamp machine, so building ⑫ without ⑪ means building a gate
 with no way to clear it. That is a dependency, not a sequencing preference.
 
-## 6. 🟡 `profiles.phone` may be null in practice — verify before ⑪ designs against it
+## 6. ✅ `profiles.phone` — ESTABLISHED 2026-08-13, and the hopeful half was wrong
 
-Nullable, annotated *"PASS 본인인증 후 확정"*, PASS apparently unintegrated. But
-`0062_runner_applications.sql:380` declares `phone text not null`, so the real data may live on
-the **application** rather than the profile. Not a decision so much as a fact to establish —
-but it changes ⑪'s screen, so it belongs before the build rather than during it.
+Not a decision, a fact, and it is now measured rather than guessed. **`profiles.phone` is NULL
+for every user** — PASS is unintegrated and nothing else writes the column.
+
+**The "real data may live on the application" hope does not survive checking.** This item cited
+`0062_runner_applications.sql:380` as declaring `phone text not null`; line 380 is inside the
+approval RPC's `update` block, not a column definition. The actual column is `0062:79`
+`contact_phone text check (contact_phone is null or contact_phone ~ '^01[0-9]{8,9}$')` —
+**nullable** — and `0062:97`'s `runner_app_contact_present` requires **kakao OR phone**, so a
+runner can be fully approved having given only a KakaoTalk ID. The approval RPC also does not
+copy it to `profiles.phone`.
+
+**Consequence for ⑪, and it inverts the design:** a number-present incident screen is the
+exception and a number-absent one is what actually renders today. `incident_contact` returns a
+row with a NULL `phone` rather than zero rows — the join succeeds — so the UI knows WHO the
+counterparty is and lacks only the number, which is why the empty state can still name the
+person and offer 채팅. Both states are drawn in
+[run-end-incident-lab-v2.html](../labs/run-end-incident-lab-v2.html) (⑪-P1 / ⑪-P2).
 
 ## 7. 🟡 Deploy go-ahead — `db push`
 
