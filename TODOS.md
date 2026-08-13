@@ -85,6 +85,19 @@ Deferred work, written down so it exists. Format: what / why / context / effort
   GPS on (founder task + QA), then promote good completed runs' traces (couples to the
   existing "Course geo-traces" TODO below — routes.trace is still schematic, 0001:147).
   Effort L → M. P2 (P1 for Banpo seeds before external owners book).
+  **PROGRESS (2026-08-13, /design-consultation):** schema + seeds + design lab SHIPPED
+  (0078_route_catalog.sql) — routes gains town/anchor(name·detail·lat·lng)/shade/lighting
+  + unique(town,name); 9 Banpo seeds (2×3, 3×3, 5×2, 7×1) across 5 anchors, all
+  checked_at null ('점검 예정') and trace '[]' (honesty batch: no mock polylines — founder
+  walk is the only promotion path). Note: "level" in the metadata list above was stale
+  (level system abandoned; km is the filter key — KmDial is 1–10 continuous, so catalog
+  coverage + nearest-match + mismatch badge, not exact chips). Lab:
+  docs/design/banpo-route-catalog-lab.html (card grammar pre/post-walk, request filter,
+  3-segment diagram, slot-fit matrix, founder-walk checklist, decisions D1–D4 for Sean).
+  REMAINING: ① fetchRoutes(town) + request carousel town filter ② anchor/meta/slot-fit
+  blocks on course cards + course/[id] ③ walk-promotion SQL snippet (couples with Course
+  geo-traces) ④ Sean founder-walks the 9 (checked_at + trace + anchor coords) — still
+  the gate before external owners book.
 - [x] ~~Request↔preferences screen merge~~ — OBSOLETE same night (Sean: current
   preference/scheduling scheme stays unchanged; tokens + levels abandoned; km dial
   stays). Kept for the one durable note: addons just work under post-pay (₩+₩).
