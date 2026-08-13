@@ -62,6 +62,27 @@ like "the sheet is broken." Three smoke items looked like failures until the sca
 | 흙길 + 그늘 많음 | `그늘 많은 흙길 코스가 아직 없어요` | `그늘 많은 코스가 아직 없어요` — dropped 흙길 |
 | none | `표시할 코스가 없어요` | `흙길 코스가 아직 없어요` — named a filter that was off |
 
+### RE-RUN after the schema deploy (0076–0091 applied, same day)
+
+Every ⛔ row above was blocked on the deploy. Re-run once it landed:
+
+| # | Result |
+|---|---|
+| A7 | ✅ still correct with 13 real routes; chip counts are live (조명 6 · 그늘 많음 3 · 흙길 5) |
+| A8 | ✅ **the headline one** — the shared `CourseDetailBody` renders in the sheet: lifecycle rail, meta 3-axis band (SURFACE 흙길 60% / SHADE ▮▮▮ / LIGHT 부분), desc, **코스 특징 cards + tags**, 점검 copy, amber `점검 전 코스로 예약` CTA. The features/tags block existed only on `course/[id]` before the dedup — this is the closed gap, on screen |
+| A11 | ✅ all 13 seeds are `candidate` with no trace: amber `점검 예정` tags in the list, no mini silhouettes invented, '아직 실측된 코스가 없어요' card |
+| A1 | ⬜ still unreachable — anchors derive from `trace[0]` and **zero routes have a trace**, so there is no anchor to tap. Needs a founder walk, not a deploy |
+| A6, A9, A10, A4 | ⬜ unchanged |
+| B (all) | ⬜ unchanged — still needs one promoted route with a trace |
+
+**🔴 The re-run found a live bug the deploy exposed — fixed in the same pass.** With the schema applied, a signed-in owner saw **0개 코스** while the database held 13. `profiles.district` and `routes.town` are different vocabularies:
+
+    district = {null, 반포동, 성수, 뚝섬, 서울숲}
+    town     = {반포동, 성수동}
+    overlap  = {반포동} only
+
+So three of five district values filtered every course away, and the empty screen then rendered '**0개** 코스의 만남 장소는 정해져 있고…' — a sentence asserting something about zero things. The plan's "Town vocabulary" section had specified the missing arm ("falling back to unfiltered + log"); it was never built. Now built, plus a separate honest state for "no courses at all" so a count never gets interpolated into copy that assumes it is non-zero. **Deliberately NOT normalized** — deciding 뚝섬/서울숲 are 성수동 is a geography call, not a code call.
+
 **Also observed (not on the original list, worth keeping):**
 - The NAVER map SDK **does render on the simulator** — it ships `ios-arm64_x86_64-simulator`
   slices. So the B-series map rendering is simulator-checkable once data exists; only B5, B8,
