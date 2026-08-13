@@ -37,11 +37,22 @@ returned to `anon`, including `phone` and `toss_customer_key`.**
   `not null default gen_random_uuid()`, and 0076's own header argues that identifier must never
   leave our tables.
 
-**UPDATE 2026-08-13: the P0 is DECOUPLED from the cutover.** `0088` is on trunk and its
-`revoke` + column grants depend on nothing after `0074`, so **the anon exposure can be closed
-without deploying the payment system** — which was the sharpest tension in this queue. The one
-thing the harness cannot verify: **which client build is actually live and what columns it
-reads**. Establish that, then the fix ships on its own.
+**UPDATE 2026-08-13: the P0 is DECOUPLED from the cutover, and its last unknown is DISSOLVED.**
+`0088` is on trunk and its `revoke` + column grants depend on nothing after `0074`, so **the anon
+exposure can be closed without deploying the payment system** — which was this queue's sharpest
+tension.
+
+The remaining worry was *"which client build is live, and what columns does it read?"* — which
+has no local answer (there is no EAS/OTA record here). The payments session replaced it with a
+question that does: they enumerated every `profiles` SELECT in **every commit that ever touched
+`app/`**. Five distinct projections, all a strict subset of `0088`'s whitelist. **So it no longer
+matters which build is live — every build that has ever existed is compatible**, including a user
+on a months-old binary. Independently verified: the only `toss_customer_key` hit in `app/`
+history is a comment on an interface field, not a read; writes chain no `.select()` so the grant
+is never consulted; every read filters on `id`, which is in the grant; and `role` is written but
+never read.
+
+**So this is now purely your go-ahead** — nothing left to establish first.
 
 **The decision was deploy timing, not whether to fix.** The fix is built and verified on the
 payments branch (harness 477/0) and cannot ship until `db push` is cleared — which is held while
@@ -113,6 +124,18 @@ Everything money-related built today (0080, 0081, 0084, 0085, 0086…) is **iner
 same application) regardless, plus billing TEST keys and the §4-2 sandbox matrix.
 
 ---
+
+## 8. 🟡 ⑩'s "reward them" is currently paid in sentences only
+
+Your ruling was *"pay the runner and let them know, **reward them** ykwim"*. The pay half shipped
+(0085) and the telling half shipped (the notification reads as good news). **The reward half did
+not.** The 하이 포인트 ledger exists, but nothing awards points for holding a slot that got
+cancelled — and the payments session deliberately did not invent a number you had not set, which
+was the right call.
+
+So: **what is the reward, concretely?** Points, and how many? Something else? Or is being paid
+the half-fee itself the reward, and the word was about tone rather than a second currency? A
+one-line answer closes it; it is a real gap between the ruling and the build either way.
 
 **Also standing, from ⑩ and ④:** the club-premium disclosure line (④ requires it before
 cutover — his wording), and the counsel question on 빌링키 charge-notice obligations (②'s

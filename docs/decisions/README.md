@@ -57,6 +57,13 @@ intended and stopped one question short"*: one pinned a helper rather than the p
 ships, the other pinned that an escalation fires but never asked whether money could still
 move afterwards. Green proves the pins pass, not that the path is covered. Ask what your
 suite does **not** prove, and write that down next to it.
+**Corollary — when a question is unanswerable, look for the stronger one that is answerable.**
+Asked *"which client build is live?"* (unanswerable: no local EAS/OTA record), the payments
+session instead enumerated every `profiles` SELECT in **every commit that ever touched `app/`* *
+— five distinct projections, all a strict subset of `0088`'s whitelist. The answer stopped
+depending on which build is live: **every build that has ever existed is compatible**, including
+a user on a months-old binary. That is the same move as replacing "remember the rule" with "the
+tool enforces it" — reshape the question until the answer cannot rot.
 **And a commit message that asserts a property is a third such artifact** — one claimed that a
 user-facing string was quoted from a migration's own error detail "so the two can't drift", and
 nothing checked it. A claim in a commit message is exactly as enforceable as a comment: not at

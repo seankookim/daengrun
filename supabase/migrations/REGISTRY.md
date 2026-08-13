@@ -83,11 +83,25 @@ pushed version stood, and it was the better one), but it cost an hour twice.
 no hook can enforce this — but it is a five-second write and a five-second check, and it only
 has to work once to pay for itself.
 
-| Surface / file | Session (branch) | Started | Intent (one line) |
-|---|---|---|---|
-| `supabase/migrations/REGISTRY.md` · `docs/decisions/README.md` · `docs/decisions/awaiting-sean.md` | club-delegation (`claude/club-delegation-money-gaps-b59eb8`) | shared | 2026-08-13 | Refine this table (path-keyed + exclusive/shared); record the 0088 audit result in the queue. |
+**Key the match on FILE PATHS, not on what you call the work.** "Charge states" and "payment
+projection" are the same two files described two ways — two sessions can both write a truthful
+claim that never collides. `app/src/lib/api.ts` collides with `app/src/lib/api.ts` regardless of
+vocabulary. Keep the intent line for humans; let the *matching* be on paths. (Same lesson as the
+class table below, one turn later: a claim only works when the identifier is the thing that
+actually collides — and we first specified the human-readable name, which is exactly the
+identifier that doesn't.)
 
-Conventions: name the **file or surface**, not the ticket · one line of intent, so a reader can
+**And say whether the claim is EXCLUSIVE or SHARED.** Some files — `api.ts` above all — are
+touched by nearly every slice; nobody can hold one for a day, and a blanket lock would teach
+everyone to skip claiming, which is worse than no table. **`shared` means "tell me before you
+edit the same FUNCTION", not "stay out".** Two sessions in one file is usually fine; the same
+function is the problem.
+
+| Path(s) | Session (branch) | Mode | Started | Intent (one line) |
+|---|---|---|---|---|
+| *(none in flight)* | | | | |
+
+Conventions: give **paths**, not a ticket name · one line of intent, so a reader can
 tell whether their change collides or merely neighbours · stale rows are worse than none, so
 delete yours when you merge · if you find a row older than a day, ask before assuming it is
 abandoned.
