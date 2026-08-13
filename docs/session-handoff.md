@@ -97,9 +97,21 @@ path still JWT-validated via caller())
 ④ `functions deploy settle-run transition-booking confirm-payment` (order-safe, errors caught)
 ⑤ app build
 ⑥ vault secret (`charge_dispatch`: {url, cron_key}) + edge env `CRON_COLLECT_KEY` + `OPS_PROFILE_ID`
-⑦ `payments_live_since` flip — LAST, and only after: 자동결제 심사 + billing TEST keys +
-§4-2 sandbox matrix + **club delegation gaps closed (TODOS.md 2026-08-13 §1 — hardcoded
-9,900 base becomes real money at flip)**.
+⑦ `payments_live_since` flip — LAST, set to a **FUTURE timestamp past the longest in-flight
+booking** (Sean's ruling ⑥ — never `now()`; `longest_inflight_booking_end()` computes it and
+`set_payments_live_since()` refuses a past value). BLOCKING preconditions, all of them:
+  · 자동결제 심사 + billing TEST keys + §4-2 sandbox matrix
+  · card-register slice shipped (Ⓐ is already approved in `docs/labs/pay-rebuild-lab.html` —
+    post-pay cannot function without linked cards, and a card-less owner is refused from club
+    and recurring entirely)
+  · **the `dog_condition` report copy shipped** — the runner's own `condition_note` surfaced
+    and "stopping was the right call" stated. Under Sean's G1 = full actuals, a dog that limps
+    at 200m bills the owner ~₩8,500, so the record card is both the welfare mitigation AND the
+    dispute surface. A bill with no account of why the runner stopped is the exact incentive we
+    are trying to avoid — an owner who pressures the next runner to keep going. Owned by the
+    run-end-flow session; mirrored in their plan so it sits in two documents that get read.
+  · club price disclosure live (ruling ④ keeps 9,900 as a *stated* premium — the single
+    disclosure is on the 승낙서, `app/app/club/delegate/[sid].tsx`)
 
 ## 4. Pending on Sean
 
