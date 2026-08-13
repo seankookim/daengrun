@@ -977,7 +977,7 @@ const HANDLER = new URL("../settle-run/handler.ts", import.meta.url);
 
 /** `settle_run_tx`'s body — the ONLY error surface this handler can receive. Sliced rather than
  * grepped whole-file, because the migration also defines `end_run_tx`, `confirm_return_tx` and
- * `force_return_tx`, whose codes (`bad_side`, `force_too_early`, `quote_from_client`…) this
+ * `force_return_tx`, whose codes (`bad_side`, `force_party_forbidden`, `quote_from_client`…) this
  * handler never sees and must not be asked to map. */
 async function settleTxBody(): Promise<string> {
   const sql = await Deno.readTextFile(MIGRATION);

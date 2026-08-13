@@ -41,9 +41,10 @@ touched it and name whose version you build on in your file header.
 | 0086 | `0086_runner_stop_passthrough.sql` | 122 | ⑨a pass-through runner pay (`claude/g1-ops-club-decisions`) | **TAKEN** — file pushed on that branch 2026-08-13; row added by a third session that spotted it |
 | 0087 | `0087_run_insert_seal.sql` | 123 | **runs INSERT seal** — revoke client INSERT on `runs` + atomic `start_run_tx` (`claude/run-end-flow-1a67e0`) | **BUILT 2026-08-13** — harness 487/0 (baseline 478/0), deno 173/0, 4 mutations verified |
 | 0088 | `0088_profiles_column_grants.sql` | 124 | profiles column grants — P0 PII/PG-key leak (`claude/g1-ops-club-decisions`) | **CLAIMED 2026-08-13** — `profiles public runner read` has no column grant, so `phone` and `toss_customer_key` are returned to any authenticated user |
-| 0089 | `0089_profiles_write_grants.sql` | 125 | profiles WRITE column whitelist — the other half of 0088 (`claude/g1-ops-club-decisions`) | **CLAIMED 2026-08-13** — Sean asked for the write side deployed in the same window as 0088. `profiles self write` (0002:59) has no column guard, so a client can UPDATE its own `toss_customer_key` (0076 §B) and `phone`. 0088 §0b is the gap this closes. |
 | 0089 | `0089_return_force_ops_only.sql` | 125 | return force → OPS ONLY (`claude/run-end-flow-1a67e0`) | **CLAIMED 2026-08-13** — Sean: *"the confirmation must happen with both parties and never just the runner. also handoff."* Removes `runner`/`owner` from the force actor set |
-| 0090 | *(next free)* | 126 | — | available |
+| 0090 | `0090_chat_notify.sql` | 126 | ⑬ chat→notification trigger (`claude/club-delegation-money-gaps-b59eb8`) | **BUILT 2026-08-13** — harness 510/0, deno 185/0, 5 mutations verified |
+| 0091 | `0091_profiles_write_grants.sql` | 127 | profiles WRITE column whitelist — the other half of 0088 (`claude/g1-ops-club-decisions`) | **BUILT 2026-08-13** — harness 515/0, 8 mutations verified. Was claimed as 0089; `claude/run-end-flow-1a67e0` pushed its 0089 FILE first, so this moved (whoever has no file moves). ⚠ **0088 CANNOT DEPLOY WITHOUT THIS** — 0088's grant omits `role`, and PostgREST's role-picker upsert reads `excluded.role`, so every signup 403s until this lands. |
+| 0092 | *(next free)* | 128 | — | available |
 
 ## Where a number comes from: THIS FILE, never a message
 
@@ -97,8 +98,42 @@ everyone to skip claiming, which is worse than no table. **`shared` means "tell 
 edit the same FUNCTION", not "stay out".** Two sessions in one file is usually fine; the same
 function is the problem.
 
-| Path(s) | Session (branch) | Mode | Started | Intent (one line) |
-|---|---|---|---|---|
+**And name the TREE the work actually lives in.** A claim that says who and what but not *where*
+lets one session hold the same uncommitted change in two working trees at once — which happened
+on 2026-08-13: a `0089` slice sat byte-identical and uncommitted in both its own worktree and the
+shared main checkout. Whichever is committed first, the other becomes a stale copy that someone
+can still commit later, and the two are indistinguishable by reading either one.
+
+⚠ **The shared main checkout `/Users/sean/dev/daengrun` needs naming out loud when you work there,
+because it is the one tree nobody owns.** Three consequences, all observed the same day:
+- **Nobody watches its ahead-count.** It sat 32 commits ahead of origin with no one responsible
+  for noticing. Worth a standing check: `git -C /Users/sean/dev/daengrun rev-list --count origin/redesign-v4..HEAD`.
+- **It accumulates several sessions' work at once**, so `git add -A` there sweeps up other
+  people's files. Stage by explicit path, or work in your own worktree.
+- 🔴 **An uncommitted migration there blocks `supabase db push` for everyone**, because `db push`
+  applies every pending local file — CLAUDE.md's "never push from a worktree carrying an
+  unfinished migration", pointed at the tree that isn't anyone's.
+
+If you must edit there, the pattern that works: commit **only your own paths**, then cherry-pick
+onto `origin/redesign-v4` from your own worktree and push from there. The shared tree is never
+rebased under anyone, and the duplicate commit drops itself on their next `pull --rebase`
+(identical patch-id).
+
+🔴 **Author name proves nothing about who made a commit.** Every session on this machine commits
+as `Sean Kim <seankookim@uchicago.edu>` — it is the repo's configured git user, not evidence.
+A session's commit, another agent's commit and Sean's own are indistinguishable by `%an`. **The
+only reliable attribution is the commit message and the touched paths.** This matters most
+exactly when it is most tempting to skip: deciding whether a commit is safe to rebase away.
+Before telling anyone their commit will vanish in a rebase, verify rather than assert:
+
+    git show <sha> | git patch-id --stable
+
+Same id on both sides ⇒ the rebase drops it and nothing is lost. Different ⇒ it does **not**,
+and someone is about to lose work. (2026-08-13: a commit was read as Sean's from its author
+field and was in fact a session's — the patch-id check settled it in seconds.)
+
+| Path(s) | Session (branch) | Tree | Mode | Started | Intent (one line) |
+|---|---|---|---|---|---|
 | *(none in flight)* | | | | |
 
 Conventions: give **paths**, not a ticket name · one line of intent, so a reader can
@@ -174,6 +209,17 @@ briefly described one slice's grant under another slice's seal.
 
 ## Standing conflicts to resolve
 
+- 🔴 **0089/125 is DOUBLE-CLAIMED RIGHT NOW** (spotted 2026-08-13 while claiming 0090):
+  `0089_profiles_write_grants.sql` (payments) and `0089_return_force_ops_only.sql`
+  (run-end-flow) hold the same row. **Both rows kept and marked, per this file's own rule —
+  not deduped.** ⚠ The pre-push hook cannot help here: it refuses a push that *introduces* a
+  colliding number, and **neither file is pushed on any branch yet** (verified across all
+  remotes), so there is nothing for it to see. This is the gap between a claim and a file,
+  which is the same gap collision six walked through in the other direction.
+  **Resolution per the named-decider rule: the PAYMENTS session decides and pushes the
+  corrected rows; run-end-flow accepts without countering.** I have taken 0090 to stay clear
+  of it rather than to win it.
+
 - **⑩ was BUILT TWICE on 2026-08-13, in parallel, by two sessions given the same unit** — and the
   duplicate was caught by a temp-directory collision, not by this file. The
   `claude/g1-ops-club-decisions` (payments) session was briefed to build ⑩ + ⑨a; it took 0085/121
@@ -247,7 +293,7 @@ else about. Applying it to yourself when it is inconvenient is the whole point.
 | 0086 | **NONE — adds one new function** (`compute_runner_personal_payout`). It READS `compute_owner_charge` (←0084 §A) and re-creates nothing. ⚠ **It deliberately does NOT re-create `settle_run_tx`, which the brief expected it to**: 0028:18 is that function's current definition, 0083 EXTENDS it and is not on origin yet, and 0083 < 0086 — so a 0086 built from 0028's body would apply AFTER 0083 and silently revert it while the harness stayed green (0083's pins live in 0083's suite). ⑨a needed no change there anyway: the ledger write inserts the five money parameters it is handed, and `settle-run/handler.ts` composes them. See 0086 §B, which also records that 0028:30's body says `set search_path = public` (no `pg_temp`) — it passes 98 H1 only because 0055's ALTER retro-sealed it, so ANY faithful reproduction of 0028 must add `pg_temp` or turn H1 red. |
 | 0085 | EXTENDS nothing — adds ONE new function (`record_late_cancel_share`). Deliberately shares 0080's `comp:` advisory-lock key so the two comp writers are mutually exclusive; re-creates no existing object. `marketplace_cancel_fee` stays 0066's, `record_enroute_cancel_comp`/`mint_cancel_fee_intent` stay 0080's. |
 | 0088 | **NONE — creates no object at all.** It is `revoke select` + `grant select (…)` on `profiles`, plus two `comment on column`. It does NOT re-create the 0002 `profiles` policies (row visibility is deliberately unchanged), does NOT touch INSERT/UPDATE/DELETE grants (the write whitelist is a separate, unbuilt slice — 0088 §0b), and does NOT touch `available_runners` (0015), which it only PINS as a subset of the granted columns. ⚠ Anyone adding a column to `profiles` after this must decide whether it is public: the grant is a whitelist, and 124 G1's fourth arm reddens on any column outside it. ⚠ **Disjoint from 0087 (`runs` INSERT seal) by construction** — different table, and 0088 touches no INSERT privilege anywhere; the two seals can land in either order. |
-| 0089 | **NONE — creates no object at all.** `revoke insert, update, delete` + `grant insert (…)`/`grant update (…)` on `profiles`, plus `grant select (role)` (see below) and two `comment on column` (`role`, and `handle` — 0074's text, amended to say the whitelist it asked for now exists). No policy, no trigger, no function; in particular NOT a `_guard_profile_cols` trigger (0057's shape) — a grant is right because the rule is per-column and unconditional. Does not touch the 0002 `profiles` policies. ⚠⚠ **IT AMENDS 0088'S READ GRANT AND THAT IS NOT OPTIONAL.** 0088 revoked `select (role)`; PostgREST turns the role picker's `.upsert({id,role,name})` into `ON CONFLICT("id") DO UPDATE SET "id"=EXCLUDED."id", "name"=…, "role"=…`, which requires UPDATE on `id` **and SELECT on `role`**. Measured against real PostgREST v12.2.3 + PG16: **0088 without 0089 returns 403 on every signup AND every role switch** (the check is per-statement, so even a non-conflicting insert fails). 0089 §E has the captured SQL. **These two must ship together; if they are ever split, 0089 is the half that cannot be dropped.** Consequence: `124_profiles_column_grant_suite.sql:132`'s `v_public` must gain `'role'` — mutation ⓑ in suite 125's header proves that red and a working role picker are the same one line. ⚠ Also note for anyone adding a `profiles` column: the write surface is a whitelist too now (125 W9), so a new column is client-UNWRITABLE by default, the same way 0088 made it unreadable. |
+| 0091 | **NONE — creates no object at all.** `revoke insert, update, delete` + `grant insert (…)`/`grant update (…)` on `profiles`, plus `grant select (role)` (see below) and two `comment on column` (`role`, and `handle` — 0074's text, amended to say the whitelist it asked for now exists). No policy, no trigger, no function; in particular NOT a `_guard_profile_cols` trigger (0057's shape) — a grant is right because the rule is per-column and unconditional. Does not touch the 0002 `profiles` policies. ⚠⚠ **IT AMENDS 0088'S READ GRANT AND THAT IS NOT OPTIONAL.** 0088 revoked `select (role)`; PostgREST turns the role picker's `.upsert({id,role,name})` into `ON CONFLICT("id") DO UPDATE SET "id"=EXCLUDED."id", "name"=…, "role"=…`, which requires UPDATE on `id` **and SELECT on `role`**. Measured against real PostgREST v12.2.3 + PG16: **0088 without 0091 returns 403 on every signup AND every role switch** (the check is per-statement, so even a non-conflicting insert fails). 0091 §E has the captured SQL. **These two must ship together; if they are ever split, 0091 is the half that cannot be dropped.** Consequence: `124_profiles_column_grant_suite.sql:132`'s `v_public` must gain `'role'` — mutation ⓑ in suite 127's header proves that red and a working role picker are the same one line. ⚠ Also note for anyone adding a `profiles` column: the write surface is a whitelist too now (125 W9), so a new column is client-UNWRITABLE by default, the same way 0088 made it unreadable. |
 | 0087 | **DROPS one policy, re-creates NOTHING.** `"runs runner write"` ←0002:107 — dropped, not replaced (nothing else in the repo re-creates it; verified). ⚠ Deliberately does NOT touch `_guard_run_cols` (←0083), `settle_run_tx`, `end_run_tx`, `owner_la_*`, the append RPCs, or `sweep_settled_without_payments` — 0083 §0f's handoff to the payments session stands **unchanged and still owed**. NEW: `start_run_tx`, `_guard_run_insert_cols` + its trigger. Also edits `transition-booking/index.ts` (the `start_run` case moves to `start_run.ts`, cancel_owner's precedent) — no other edge function. |
 
 ### Settlement anchors — learned the hard way 2026-08-13

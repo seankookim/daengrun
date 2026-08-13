@@ -31,10 +31,18 @@
 --   R4  ← §6: delete either arm of settle_run_tx's seal gate — the `return_not_sealed`
 --         raise (settlement mid-귀가, codex's verified bypass) or the `run_not_ended`
 --         raise (an old client settling a run it never ended, plan §2)                    → RED
---   R5  ← §6: drop force_return_tx's `force_too_early` eligibility check, or its
---         `evidence_required` refusal, or its party gate                                  → RED
---   R6  ← §6: stop recording the force (actor/eligible_at/reason/evidence), or let a second
---         force overwrite the first (the first resolution is what a dispute reads)        → RED
+--   R5  ← 0089 §2: let `force_return_tx` accept `runner` or `owner` again (delete the
+--         `force_party_forbidden` raise) — from the phone OR from the server class, which is
+--         the same hole one caller-class away                                             → RED
+--         · or drop its `evidence_required` / `reason_required` refusals, or its ops gate  → RED
+--         · or re-introduce a grace period before an ops force is permitted (ⓓ's positive
+--           control forces seconds after the stop and would go red)                       → RED
+--   R6  ← 0089 §2: stop recording the ops force (actor/eligible_at/reason/evidence), or let a
+--         second force overwrite the first (the first resolution is what a dispute reads) → RED
+--         · 🔴 or restore 0083's `runner_confirmed_return_at = case when p_side = 'runner'…`
+--           — write ANY party confirmation stamp from a force. That inference ("implied by the
+--           act") is precisely what Sean's 2026-08-13 ruling denies, and this is the pin that
+--           stops it coming back                                                          → RED
 --   R7  ← §8: delete the `owner_la_run_end` trigger — the owner's lock screen keeps saying
 --         러닝 중 for the whole walk home (plan §4d)                                       → RED
 --   R8  ← §8: drop `b.run_ended_at is null` from owner_la_sweep_stale's arm ① (every 귀가
@@ -64,6 +72,10 @@
 --         · or make the sweep invent a settlement for a sealed row (it has no price — §0g)  → RED
 --   R13 ← §3/§6: grant execute on end_run_tx to authenticated (a client that freezes its own
 --         basis without crossing the edge function), or drop any revoke in the array      → RED
+--         · 0089 §6: re-grant `force_return_tx` to `authenticated`. It moved out of the
+--           client-facing control group and into the service_role-only array in this file for
+--           the same reason it lost the party path: a phone has no business adjudicating a
+--           return, so it must not even hold the privilege                                 → RED
 --         · its sibling, pinned by R3: drop the `quote_from_client` refusal so a client-role
 --           caller may hand confirm_return_tx / force_return_tx a PRICE                    → RED
 --   R14 ← §3/§6: widen end_run_tx's end_reason whitelist to the full enum — a runner freezes
@@ -84,8 +96,11 @@
 --         · or move the sealed row's alarm from a notification to a status change          → RED
 --   R17 ← §6's force_return_tx: restore `return {'forced':false,'settled':true,'unchanged':true}`
 --         on its re-entry branch — it claims a settlement on a row it left `active`,
---         and the server retry carrying the price (the only caller allowed to carry one)
+--         and the ops retry carrying the price (the only caller allowed to carry one)
 --         never settles                                                                    → RED
+--         · 0089 §2: the whole sequence is now ops→ops (an ops seal, then an ops retry with
+--           the price). A revert that let a PARTY drive either leg reddens R5, not this pin;
+--           what R17 owns is that the re-entry branch tells the truth about settlement.
 --
 --   ─── the CONCURRENCY half is pinned outside this file ───
 --   One connection cannot race itself, so R9 pins the SEQUENTIAL idempotence (a second stop,
@@ -137,6 +152,23 @@
 --     The remaining pins are NOT machine-proven; each is named above with the single revert that
 --     would redden it, and their probe shapes are clones of already-proven siblings (103 L7-L13
 --     for the LA arms, 116 C21 for the grant matrix, 100 W7 for the batch-delta idiom).
+--     ─── 0089 round (2026-08-13, Sean's both-parties ruling) ───
+--     R5/R6/R13/R17 were REWRITTEN, not repaired: their subject (a party may force a return) was
+--     ruled out of existence, so they now pin its absence. Green with 0089 and its sibling suite
+--     125 present is **511/0** (this suite's own count is unchanged at 17 pins). Pristine 0089
+--     md5 `d2be2fc506d18d816de64be37df188ab`. Two reverts were executed against a COPY at a
+--     short path, then restored byte-for-byte by md5 and re-run green:
+--       0089 §6's ops-only door collapsed to `if p_side not in ('runner','owner','ops') then
+--           raise exception 'bad_side'` (the party path back, recording `ops`) → 508/3,
+--           red = [R5, R6, 125 F2]. R5's detail `러너 강제 거부 사유=not_party … 서버가 러너 대신
+--           강제:통과 거부된 시도가 강제를 기록했다 거부된 시도가 씰을 찍었다` — the SERVER-class
+--           arm is the one that goes through, which is precisely the caller class ⓐ added.
+--       0089 §6's stamp comment replaced by 0083's inference (`runner_confirmed_return_at =
+--           coalesce(b.runner_confirmed_return_at, v_now)` + the owner twin) → 507/4,
+--           red = [R6, R17, 125 F3, 125 F4]. R6's detail is the reverted sentence, named:
+--           `강제가 러너 확인 스탬프를 찍었다 (0083의 "행위에 내포됨" 부활) 강제가 보호자 확인
+--           스탬프를 찍었다 …`. R17 reddens on BOTH its legs (the unsettled seal and the settled
+--           retry), which is the point of asserting the stamps twice there.
 set client_min_messages = warning;
 
 -- ---------- suite-local helpers ----------
@@ -487,41 +519,61 @@ begin
   end;
 
   -- ══════════════════════════════════════════════════════════════════════════════════════
-  -- [R5] the force is a RELEASE VALVE, not a shortcut
+  -- [R5] the force is an OPS ADJUDICATION — a party can never reach it (0089 §0, Sean's ruling)
   -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- Sean, 2026-08-13, verbatim: "no, the confirmation must happen with both parties and never
+  -- just the runner. also handoff." 0083 let a party force 20 minutes after the stop and release
+  -- its own money; 0089 removes that path, so what this pin measures is now its ABSENCE — refused
+  -- by name, from the phone AND from the server class, because the edge function calling on a
+  -- runner's behalf is the same hole one caller-class away.
+  -- ⚠ `force_too_early` is not asserted here because IT NO LONGER EXISTS. The grace existed only
+  -- to make a party wait, and ops has always bypassed it (0089 §2). The only honest way to pin
+  -- the absence of an error is a call that must succeed, which is ⓓ.
   begin
     v_bad := '';
-    -- ⓐ too early (the stop was seconds ago)
+    -- ⓐ a party force is refused BY NAME — as the runner, as the owner…
     perform set_config('request.jwt.claim.sub', rr::text, false);
     begin
       perform force_return_tx(bk, 'runner', '보호자가 문 앞에 없어요',
                               jsonb_build_object('kind','pickup_radius','m',12));
-      v_bad := v_bad || ' 종료 직후 강제:통과';
+      v_bad := v_bad || ' 러너 강제:통과';
     exception when others then
-      if sqlerrm <> 'force_too_early' then v_bad := v_bad || ' 조기 강제 거부 사유=' || sqlerrm; end if;
+      if sqlerrm <> 'force_party_forbidden' then v_bad := v_bad || ' 러너 강제 거부 사유=' || sqlerrm; end if;
     end;
-    -- ⓑ no evidence, ever
-    update bookings set run_ended_at = now() - interval '90 minutes' where id = bk;
+    perform set_config('request.jwt.claim.sub', oo::text, false);
     begin
-      perform force_return_tx(bk, 'runner', '이유만 있음', null);
+      perform force_return_tx(bk, 'owner', '내가 이미 받았어요', jsonb_build_object('kind','owner_tap'));
+      v_bad := v_bad || ' 보호자 강제:통과';
+    exception when others then
+      if sqlerrm <> 'force_party_forbidden' then v_bad := v_bad || ' 보호자 강제 거부 사유=' || sqlerrm; end if;
+    end;
+    -- …and from the SERVER class too. An edge function that authenticates the runner and then
+    -- dials as service_role is exactly how the removed path would come back; the refusal is
+    -- about the SIDE, never about who is holding the phone.
+    perform set_config('request.jwt.claim.sub', '', false);
+    begin
+      perform force_return_tx(bk, 'runner', '엣지가 러너 대신 부른다', jsonb_build_object('kind','ops'));
+      v_bad := v_bad || ' 서버가 러너 대신 강제:통과';
+    exception when others then
+      if sqlerrm <> 'force_party_forbidden' then v_bad := v_bad || ' 서버 대리 강제 거부 사유=' || sqlerrm; end if;
+    end;
+
+    -- ⓑ the ops path keeps its own two requirements — an adjudication with no evidence is an
+    --    assertion wearing a uniform, and one with no reason is unreadable in a dispute
+    begin
+      perform force_return_tx(bk, 'ops', '이유만 있음', null);
       v_bad := v_bad || ' 증거 없는 강제:통과';
     exception when others then
       if sqlerrm <> 'evidence_required' then v_bad := v_bad || ' 증거 거부 사유=' || sqlerrm; end if;
     end;
     begin
-      perform force_return_tx(bk, 'runner', '', jsonb_build_object('kind','pickup_radius'));
+      perform force_return_tx(bk, 'ops', '', jsonb_build_object('kind','ops_review'));
       v_bad := v_bad || ' 사유 없는 강제:통과';
     exception when others then
       if sqlerrm <> 'reason_required' then v_bad := v_bad || ' 사유 거부=' || sqlerrm; end if;
     end;
-    -- ⓒ a stranger, and a phone claiming to be ops
+    -- ⓒ a phone claiming to be ops is still not ops (0083's gate, unchanged)
     perform set_config('request.jwt.claim.sub', rz::text, false);
-    begin
-      perform force_return_tx(bk, 'runner', '남의 러닝', jsonb_build_object('kind','ops'));
-      v_bad := v_bad || ' 남의 러닝 강제:통과';
-    exception when others then
-      if sqlerrm <> 'not_party' then v_bad := v_bad || ' 타인 거부 사유=' || sqlerrm; end if;
-    end;
     begin
       perform force_return_tx(bk, 'ops', '내가 운영이다', jsonb_build_object('kind','ops'));
       v_bad := v_bad || ' 폰이 ops를 자칭:통과';
@@ -531,61 +583,118 @@ begin
     perform set_config('request.jwt.claim.sub', '', false);
     if (select b.return_forced_by from bookings b where b.id = bk) is not null
       then v_bad := v_bad || ' 거부된 시도가 강제를 기록했다'; end if;
+    if (select b.settlement_ready_at from bookings b where b.id = bk) is not null
+      then v_bad := v_bad || ' 거부된 시도가 씰을 찍었다'; end if;
     if (select b.status::text from bookings b where b.id = bk) <> 'active'
       then v_bad := v_bad || ' 거부된 시도가 정산했다'; end if;
 
+    -- ⓓ THE GRACE IS GONE. 0083 made a party wait 20 minutes before forcing; with nobody left to
+    --    make wait, an ops force seconds after the stop must simply work — and it must record
+    --    return_eligible_at = the stop itself rather than inventing a waiting period that no
+    --    longer exists for anyone (0089 §6).
+    b_a := t_ren_live(oz, dg, rt, rz);
+    perform set_config('request.jwt.claim.sub', rz::text, false);
+    perform end_run_tx(b_a, 4.2, 1900, 'completed', null, null);
+    perform set_config('request.jwt.claim.sub', '', false);
+    begin
+      v_js := force_return_tx(b_a, 'ops', '정지 직후 운영 판정',
+                              jsonb_build_object('kind','ops_review'), t_ren_quote(4.2));
+      if not coalesce((v_js->>'forced')::boolean, false)
+        then v_bad := v_bad || ' 정지 직후 ops 강제가 기록되지 않았다'; end if;
+    exception when others then v_bad := v_bad || ' 정지 직후 ops 강제 거부=' || sqlerrm;
+    end;
+    -- [0089, review fix] return_eligible_at must be NULL: with the party path gone there is no
+    -- waiting period for anyone, so writing it would always equal run_ended_at — a cache of a
+    -- derivable value, which 0083 §1 forbids of this schema. NULL is what makes "no grace exists"
+    -- readable in the data rather than inferable from a rule.
+    select b.return_eligible_at, b.run_ended_at into v_ts, v_ts2 from bookings b where b.id = b_a;
+    if v_ts is not null
+      then v_bad := v_bad || ' 자격 시각이 기록됐다 (파생값 캐시 — 0083 §1 금지)'; end if;
+    if v_ts2 is null then v_bad := v_bad || ' 정지 시각 미기록'; end if;
+    if (select b.status::text from bookings b where b.id = b_a) <> 'completed'
+      then v_bad := v_bad || ' 정지 직후 ops 강제가 정산하지 않았다'; end if;
+
     if v_bad = ''
-      then call _pass('ren','R5 강제 규칙 — 종료 20분 전은 force_too_early, 증거/사유 없으면 거부, 남의 러닝과 폰이 자칭한 ops는 not_party (거부는 아무것도 기록하지 않는다)');
-    else v_msg := v_bad; call _fail('ren','R5 강제 규칙', v_msg); end if;
+      then call _pass('ren','R5 강제는 운영 판정이다 — 러너·보호자의 강제는 폰에서도 서버 대리 호출에서도 force_party_forbidden(Sean: "확인은 양측이 함께, 러너 혼자서는 절대"), ops 경로는 증거·사유가 없으면 거부, 폰이 자칭한 ops는 not_party, 거부는 강제도 씰도 남기지 않는다 — 그리고 유예는 사라졌다: 정지 직후 ops 강제가 성사되고 자격 시각은 기록되지 않는다(유예가 없으니 파생 캐시를 두지 않는다)');
+    else v_msg := v_bad; call _fail('ren','R5 강제는 운영 판정', v_msg); end if;
   exception when others then perform set_config('request.jwt.claim.sub', '', false);
-    v_msg := sqlerrm; call _fail('ren','R5 강제 규칙', v_msg);
+    v_msg := sqlerrm; call _fail('ren','R5 강제는 운영 판정', v_msg);
   end;
 
   -- ══════════════════════════════════════════════════════════════════════════════════════
-  -- [R6] a valid force settles, and RECORDS what a dispute will be read from (plan §7)
+  -- [R6] the ops force RECORDS an adjudication — and CONFIRMS NOTHING (0089 §2)
   -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- 🔴 THE PIN THAT STOPS 0083's INFERENCE COMING BACK. 0083 wrote the forcing side's own
+  -- confirmation stamp (`runner_confirmed_return_at = case when p_side = 'runner' then …`) and
+  -- called it "implied by the act". Sean's ruling denies exactly that inference: an adjudication
+  -- RESOLVES a return, it does not CONFIRM one. So the fixture here is a booking on which nobody
+  -- has stamped anything, and after the force BOTH stamps must still be NULL while
+  -- settlement_ready_at exists — the shape a dispute reads as "nobody confirmed, ops resolved",
+  -- which a design that stamps a side cannot express at all.
+  -- (`bk`, which R3 already runner-stamped, would have made that assertion unreadable; the fresh
+  -- booking is the whole reason this pin no longer reuses it.)
   begin
     v_bad := '';
-    -- run as the SERVER class (no auth.uid()) — that is the edge function, which has already
-    -- authenticated the runner (R5 owns the party gate) and is the only caller allowed to carry a
-    -- price. p_side still records WHO forced it.
+    b_a := t_ren_live(oo, dg, rt, rr);
+    perform set_config('request.jwt.claim.sub', rr::text, false);
+    perform end_run_tx(b_a, 3.2, 2100, 'completed', null, null);
+    -- run as the SERVER class (no auth.uid()) — ops is a server-side override that a phone cannot
+    -- claim (R5 ⓒ), and it is the only caller allowed to carry a price.
     perform set_config('request.jwt.claim.sub', '', false);
-    v_js := force_return_tx(bk, 'runner', '20분 대기 후 문 앞 인계',
-                            jsonb_build_object('kind','pickup_radius','m',12,'src','custody'),
+    v_js := force_return_tx(b_a, 'ops', '보호자 연락 두절 — 운영이 인계를 판정',
+                            jsonb_build_object('kind','ops_review','m',12,'src','custody'),
                             t_ren_quote(3.2));
 
     if not coalesce((v_js->>'forced')::boolean, false) then v_bad := v_bad || ' forced=false'; end if;
+    if coalesce(v_js->>'forced_by','') <> 'ops' then v_bad := v_bad || ' 응답 행위자=' || coalesce(v_js->>'forced_by','∅'); end if;
     if not coalesce((v_js->>'settled')::boolean, false) then v_bad := v_bad || ' 강제인데 정산 안 됨'; end if;
-    if (select b.status::text from bookings b where b.id = bk) <> 'completed'
+    if (select b.status::text from bookings b where b.id = b_a) <> 'completed'
       then v_bad := v_bad || ' 강제 후에도 completed 아님'; end if;
     select b.return_forced_by, b.return_forced_at, b.return_eligible_at, b.return_force_reason
-      into v_txt, v_ts, v_ts2, v_msg from bookings b where b.id = bk;
-    if v_txt <> 'runner' then v_bad := v_bad || ' 행위자=' || coalesce(v_txt,'∅'); end if;
-    if v_ts is null or v_ts2 is null then v_bad := v_bad || ' 강제 시각/자격 시각 미기록'; end if;
+      into v_txt, v_ts, v_ts2, v_msg from bookings b where b.id = b_a;
+    if v_txt is distinct from 'ops' then v_bad := v_bad || ' 행위자=' || coalesce(v_txt,'∅'); end if;
+    if v_ts is null then v_bad := v_bad || ' 강제 시각 미기록'; end if;
+    if v_ts2 is not null then v_bad := v_bad || ' 자격 시각이 기록됐다 (파생값 캐시)'; end if;
     if coalesce(v_msg,'') = '' then v_bad := v_bad || ' 사유 미기록'; end if;
-    if (select b.return_force_evidence->>'kind' from bookings b where b.id = bk) is distinct from 'pickup_radius'
+    if (select b.return_force_evidence->>'kind' from bookings b where b.id = b_a) is distinct from 'ops_review'
       then v_bad := v_bad || ' 증거 미기록'; end if;
-    -- eligibility is the SERVER's clock on the stop stamp, not the app's
-    if v_ts2 is distinct from (select b.run_ended_at + interval '20 minutes' from bookings b where b.id = bk)
-      then v_bad := v_bad || ' 자격 시각이 서버 계산이 아니다'; end if;
+
+    -- 🔴 THE RULING ITSELF: the force wrote NEITHER party's confirmation.
+    if (select b.runner_confirmed_return_at from bookings b where b.id = b_a) is not null
+      then v_bad := v_bad || ' 강제가 러너 확인 스탬프를 찍었다 (0083의 "행위에 내포됨" 부활)'; end if;
+    if (select b.owner_confirmed_return_at from bookings b where b.id = b_a) is not null
+      then v_bad := v_bad || ' 강제가 보호자 확인 스탬프를 찍었다 (0083의 "행위에 내포됨" 부활)'; end if;
+    -- …and the seal it DID write is what released the money, so the two facts are distinguishable
+    if (select b.settlement_ready_at from bookings b where b.id = b_a) is null
+      then v_bad := v_bad || ' 강제가 씰을 찍지 않았다'; end if;
+
     -- the settlement itself used the FROZEN numbers, not the caller's
-    if (select li.base from ledger_items li where li.booking_id = bk) <> 9900
+    if (select li.base from ledger_items li where li.booking_id = b_a) <> 9900
       then v_bad := v_bad || ' 원장 base가 동결 견적과 다르다'; end if;
-    if (select r.actual_km from runs r where r.booking_id = bk) <> 3.2
+    if (select r.actual_km from runs r where r.booking_id = b_a) <> 3.2
       then v_bad := v_bad || ' 정산이 동결 거리를 바꿨다'; end if;
-    if (select r.settled_at from runs r where r.booking_id = bk) is null
+    if (select r.settled_at from runs r where r.booking_id = b_a) is null
       then v_bad := v_bad || ' settled_at 미기록'; end if;
     -- and the force is IMMUTABLE — the first resolution is the one that stands
-    perform set_config('request.jwt.claim.sub', oo::text, false);
-    v_js := force_return_tx(bk, 'owner', '내가 다시 쓴다', jsonb_build_object('kind','owner_tap'));
+    v_js := force_return_tx(b_a, 'ops', '내가 다시 쓴다', jsonb_build_object('kind','ops_rewrite'));
+    select b.return_force_reason into v_msg from bookings b where b.id = b_a;
+    if v_msg <> '보호자 연락 두절 — 운영이 인계를 판정'
+      then v_bad := v_bad || ' 두 번째 강제가 첫 기록을 덮어썼다=' || coalesce(v_msg,'∅'); end if;
+    -- …and the party refusal comes BEFORE the completed early-return: a runner cannot even reach
+    -- a settled row's idempotent success by claiming a side.
+    perform set_config('request.jwt.claim.sub', rr::text, false);
+    begin
+      perform force_return_tx(b_a, 'runner', '정산된 예약에 편승', jsonb_build_object('kind','ops'));
+      v_bad := v_bad || ' 정산 뒤 러너 강제:통과';
+    exception when others then
+      if sqlerrm <> 'force_party_forbidden' then v_bad := v_bad || ' 정산 뒤 러너 강제 거부 사유=' || sqlerrm; end if;
+    end;
     perform set_config('request.jwt.claim.sub', '', false);
-    if (select b.return_forced_by from bookings b where b.id = bk) <> 'runner'
-      then v_bad := v_bad || ' 두 번째 강제가 첫 기록을 덮어썼다'; end if;
-    select count(*) into v_n from ledger_items where booking_id = bk;
+    select count(*) into v_n from ledger_items where booking_id = b_a;
     if v_n <> 1 then v_bad := v_bad || ' 원장 행수=' || v_n; end if;
 
     if v_bad = ''
-      then call _pass('ren','R6 강제 기록 — 자격 시각(서버 계산)·행위자·사유·증거를 남기고 같은 트랜잭션에서 정산, 정산은 동결값만 읽고, 두 번째 강제는 첫 결론을 덮어쓰지 않는다 (원장 1행)');
+      then call _pass('ren','R6 강제 기록 — ops 강제는 행위자=ops·강제 시각·사유·증거를 남기되 자격 시각은 남기지 않고(파생 캐시 금지) 같은 트랜잭션에서 동결값으로 정산하되, 🔴 어느 쪽의 확인 스탬프도 찍지 않는다(씰만 찍힌다 — "아무도 확인 안 함, 운영이 판정함"이 읽히는 모양), 두 번째 강제는 첫 결론을 덮지 않고, 정산된 뒤에도 당사자 강제는 force_party_forbidden (원장 1행)');
     else v_msg := v_bad; call _fail('ren','R6 강제 기록', v_msg); end if;
   exception when others then perform set_config('request.jwt.claim.sub', '', false);
     v_msg := sqlerrm; call _fail('ren','R6 강제 기록', v_msg);
@@ -595,24 +704,24 @@ begin
   -- [R17] a force that has not settled must never SAY it settled — and must still be able to
   -- ══════════════════════════════════════════════════════════════════════════════════════
   -- R6's second-force probe runs against a booking that is ALREADY `completed`, so it lands on
-  -- the completed early-return and never reaches the re-entry branch. That branch is the one the
-  -- real flow uses: a client cannot carry a price (`quote_from_client`), so the intended sequence
-  -- is force-from-the-phone (seals, settles nothing) → a server retry WITH the price. It used to
-  -- answer `settled: true` to a booking it had left `active` — a false claim AND a dead end, since
-  -- the retry it lied to was the call that would have paid the runner.
+  -- the completed early-return and never reaches the re-entry branch. That branch is the one a
+  -- real ops resolution uses, because sealing and pricing are two steps: an ops force with no
+  -- price (seals, settles nothing) → an ops retry WITH the price, once the payout has been
+  -- computed from the frozen measurement. It used to answer `settled: true` to a booking it had
+  -- left `active` — a false claim AND a dead end, since the retry it lied to was the call that
+  -- would have paid the runner.
+  -- ⚠ Both legs are `ops` since 0089: the party leg does not exist any more (R5 owns that), and
+  -- no aging is needed either — the 20-minute grace retired with it.
   begin
     v_bad := '';
     b_a := t_ren_live(oo, dg, rt, rr);
     perform set_config('request.jwt.claim.sub', rr::text, false);
     perform end_run_tx(b_a, 4.0, 1800, 'completed', null, null);
     perform set_config('request.jwt.claim.sub', '', false);
-    update bookings set run_ended_at = now() - interval '90 minutes' where id = b_a;
 
-    -- ① the phone forces. Sealed, recorded — and NOTHING settled, which it must say out loud.
-    perform set_config('request.jwt.claim.sub', rr::text, false);
-    v_js := force_return_tx(b_a, 'runner', '보호자가 문 앞에 없어요',
-                            jsonb_build_object('kind','pickup_radius','m',9));
-    perform set_config('request.jwt.claim.sub', '', false);
+    -- ① ops seals. Recorded — and NOTHING settled, which it must say out loud.
+    v_js := force_return_tx(b_a, 'ops', '보호자 연락 두절 — 운영 판정',
+                            jsonb_build_object('kind','ops_review','m',9));
     if not coalesce((v_js->>'forced')::boolean, false) then v_bad := v_bad || ' 강제가 기록되지 않았다'; end if;
     if coalesce((v_js->>'settled')::boolean, false)
       then v_bad := v_bad || ' 정산 없이 settled=true'; end if;
@@ -622,9 +731,14 @@ begin
       then v_bad := v_bad || ' 가격 없이 정산됐다'; end if;
     if exists (select 1 from ledger_items li where li.booking_id = b_a)
       then v_bad := v_bad || ' 가격 없이 원장이 생겼다'; end if;
+    -- …and the unsettled half of the seal is just as stamp-free as the settled one (R6's law,
+    -- re-measured on the branch where the force STOPS instead of settling)
+    if (select b.runner_confirmed_return_at from bookings b where b.id = b_a) is not null
+       or (select b.owner_confirmed_return_at from bookings b where b.id = b_a) is not null
+      then v_bad := v_bad || ' 가격 없는 강제가 확인 스탬프를 찍었다'; end if;
 
-    -- ② the server retry, WITH the price — the branch that used to return settled:true and stop
-    v_js := force_return_tx(b_a, 'runner', '서버 재시도', jsonb_build_object('kind','retry'),
+    -- ② the ops retry, WITH the price — the branch that used to return settled:true and stop
+    v_js := force_return_tx(b_a, 'ops', '서버 재시도', jsonb_build_object('kind','retry'),
                             t_ren_quote(4.0));
     if coalesce((v_js->>'forced')::boolean, true) then v_bad := v_bad || ' 재진입이 강제를 다시 기록했다'; end if;
     if not coalesce((v_js->>'settled')::boolean, false)
@@ -636,17 +750,21 @@ begin
     if v_n <> 1 then v_bad := v_bad || ' 원장 행수=' || v_n; end if;
     -- 첫 결론은 그대로다 (기록 불변 — R6의 법이 재진입에서도 유지된다)
     select b.return_forced_by, b.return_force_reason into v_txt, v_msg from bookings b where b.id = b_a;
-    if v_txt <> 'runner' or v_msg <> '보호자가 문 앞에 없어요'
+    if v_txt <> 'ops' or v_msg <> '보호자 연락 두절 — 운영 판정'
       then v_bad := v_bad || ' 재진입이 첫 강제 기록을 덮었다=' || coalesce(v_txt,'∅') || '/' || coalesce(v_msg,'∅'); end if;
+    -- 정산이 일어난 뒤에도 확인 스탬프는 여전히 양쪽 다 비어 있다
+    if (select b.runner_confirmed_return_at from bookings b where b.id = b_a) is not null
+       or (select b.owner_confirmed_return_at from bookings b where b.id = b_a) is not null
+      then v_bad := v_bad || ' 재진입 정산이 확인 스탬프를 찍었다'; end if;
     -- ③ …그리고 이제야 settled=true·unchanged=true가 참이다 (completed 조기 반환)
-    v_js := force_return_tx(b_a, 'runner', '또 재시도', jsonb_build_object('kind','retry'), t_ren_quote(4.0));
+    v_js := force_return_tx(b_a, 'ops', '또 재시도', jsonb_build_object('kind','retry'), t_ren_quote(4.0));
     if not coalesce((v_js->>'settled')::boolean, false) or not coalesce((v_js->>'unchanged')::boolean, false)
       then v_bad := v_bad || ' 정산 뒤 재호출 응답=' || coalesce(v_js::text,'∅'); end if;
     select count(*) into v_n from ledger_items where booking_id = b_a;
     if v_n <> 1 then v_bad := v_bad || ' 3회차 뒤 원장 행수=' || v_n; end if;
 
     if v_bad = ''
-      then call _pass('ren','R17 강제 재진입 — 가격 없는 강제는 씰만 찍고 settled=false를 정직하게 답하며, 같은 예약에 가격을 들고 재진입하면 첫 강제 기록은 그대로 둔 채 그때 정산된다(원장 1행), 정산이 끝난 뒤에야 settled·unchanged가 참이 된다');
+      then call _pass('ren','R17 강제 재진입 — 가격 없는 ops 강제는 씰만 찍고 settled=false를 정직하게 답하며(확인 스탬프는 양쪽 다 비어 있다), 같은 예약에 가격을 들고 재진입하면 첫 강제 기록은 그대로 둔 채 그때 정산된다(원장 1행·스탬프는 여전히 비어 있다), 정산이 끝난 뒤에야 settled·unchanged가 참이 된다');
     else v_msg := v_bad; call _fail('ren','R17 강제 재진입', v_msg); end if;
   exception when others then perform set_config('request.jwt.claim.sub', '', false);
     v_msg := sqlerrm; call _fail('ren','R17 강제 재진입', v_msg);
@@ -1076,13 +1194,19 @@ begin
   -- ══════════════════════════════════════════════════════════════════════════════════════
   -- `end_run_tx` takes the runner's PAYOUT as an argument. A client that can execute it is a
   -- client that sets its own wage — so this is a money seal, not hygiene.
+  -- 🔴 0089 MOVED ONE ROW. `force_return_tx` was in the client-facing group here because a party
+  -- could force from their phone; with the party path gone it is an ops adjudication, so it is
+  -- service_role-only and `authenticated` must be REFUSED. The grant is the second belt behind
+  -- `force_party_forbidden` (R5): even a caller who found a way to name a side never gets to
+  -- execute the function at all.
   declare
     fns text[] := array[
       'end_run_tx(uuid,numeric,int,text,text,jsonb)',
       '_settle_sealed_run(uuid,jsonb)',
       'sweep_run_end_recovery()',
       'settle_run_tx(uuid,numeric,int,text,text,int,int,int,int,int)',
-      'sweep_settled_without_payments()'];
+      'sweep_settled_without_payments()',
+      'force_return_tx(uuid,text,text,jsonb,jsonb)'];
     f text;
   begin
     v_bad := '';
@@ -1092,8 +1216,10 @@ begin
       if has_function_privilege('anon', f, 'execute') then v_bad := v_bad || ' ' || f || ':anon'; end if;
       if not has_function_privilege('service_role', f, 'execute') then v_bad := v_bad || ' ' || f || ':service_role 불가'; end if;
     end loop;
-    -- positive control: the three client-facing RPCs ARE callable (else the pin proves nothing)
-    foreach f in array array['confirm_return_tx(uuid,text,jsonb)', 'force_return_tx(uuid,text,text,jsonb,jsonb)',
+    -- positive control: the three client-facing RPCs ARE callable (else the pin proves nothing —
+    -- and in particular, `force_return_tx` above is not passing because the whole §6 family got
+    -- revoked by accident)
+    foreach f in array array['confirm_return_tx(uuid,text,jsonb)',
                              'custody_ping(uuid)', 'append_run_event(uuid,jsonb)'] loop
       if not has_function_privilege('authenticated', f, 'execute')
         then v_bad := v_bad || ' ' || f || ':authenticated 불가'; end if;
@@ -1101,7 +1227,7 @@ begin
     end loop;
 
     if v_bad = ''
-      then call _pass('ren','R13 권한 매트릭스 — 동결·정산·스윕은 service_role 전용(end_run_tx는 양쪽 원장의 기준 거리를 얼린다), 인계 확인·강제·하트비트·append만 authenticated (양성 대조 포함)');
+      then call _pass('ren','R13 권한 매트릭스 — 동결·정산·스윕에 더해 강제까지 service_role 전용(0089: 강제는 운영 판정이므로 폰은 실행 권한 자체를 갖지 않는다), 인계 확인·하트비트·append만 authenticated (양성 대조 포함)');
     else v_msg := v_bad; call _fail('ren','R13 권한 매트릭스', v_msg); end if;
   exception when others then v_msg := sqlerrm; call _fail('ren','R13 권한 매트릭스', v_msg);
   end;

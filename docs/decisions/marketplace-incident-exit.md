@@ -1,7 +1,8 @@
 # ⑫ A marketplace `incident_review` has no commercial exit — the runner is unpayable
 
-**Status: 🟡 OPEN — needs Sean's ruling. Not built, not owned, deliberately NOT folded into
-another slice.** Recorded here as a stub so it does not live only in a migration header.
+**Status: ✅ RULED BY SEAN 2026-08-13 — *"pay the runner but dont let them make new runs until
+the dog is confirmed by both sides."* NOT BUILT, NOT OWNED**, and deliberately not folded into
+another slice.
 
 ## The finding
 
@@ -63,6 +64,55 @@ appearance of resolution.
 
 ---
 
+# ✅ RULED IN FULL — Sean, 2026-08-13
+
+> *"for 12, pay the runner but dont let them make new runs until the dog is confirmed by both
+> sides."*
+
+**One sentence, and it answers all four questions by changing what the counterweight is.**
+Every proposal on the table — both sessions' and codex's — made the *payment* conditional and
+then argued about the condition. His answer doesn't touch the payment at all. **The runner is
+paid. The counterweight is a gate on future work.**
+
+| the question | his answer |
+|---|---|
+| Does a marketplace incident get its own settle path, or go through 0072? | **Pay the runner.** No club-only tool needed; no adjudication required to release pay. |
+| Is the runner paid while the incident is open? | **Yes, immediately.** |
+| What ends the state? | **Both sides confirming the dog.** |
+| Codex's refused question — does the platform absorb a measured payout at owner ₩0 after an SLA? | **Dissolved, not answered.** There is no SLA deciding a payout, so there is no new financial outcome to define. |
+
+**Why this is better than what it replaced, recorded because the reasoning generalises.** Codex
+identified a real hazard — a runner can trigger the 2h escalation by withholding confirmation,
+so an unconditional timeout payment becomes an indirect self-serve payout — and its fix was to
+make payment conditional, which forced a fourth outcome (`platform_measured`) because 0072
+couples runner pay to an owner charge. Sean's gate answers the same hazard **without touching
+money**: a runner who withholds confirmation gets paid for this run and **cannot take another
+one**, which is a far stronger deterrent than withholding a single fee, and it costs no new
+policy. The abuse case closes and the ledger stays exactly as it is.
+
+**It also satisfies his earlier custody rulings without conflict.** *"The runner is paid only
+once the dog is returned"* survives in substance — the money is released, but the runner's
+standing stays open until confirmation, which is the part that was actually load-bearing. And
+*"we dont want the runner stranded in the middle of town"* is served directly: they are paid
+rather than held hostage to an ops queue that has no tool for them.
+
+## Build notes (still unowned as a build)
+
+- **The gate belongs on the RUNNER, not on the booking.** A runner-level flag (on `runners` or
+  the availability path) rather than another `bookings` transition — which keeps this off the
+  `incident_review → refund_pending` dead-end that was ⑫'s original finding entirely.
+- **It needs an exit, and the exit is the ruling:** both-sides confirmation of the dog clears
+  it. That is ⑪'s machine (two independent stamps, neither party alone), so ⑪ and ⑫ now share
+  a mechanism rather than merely being adjacent.
+- **Where it must be enforced:** the same place every other "can this runner take work" answer
+  is decided — the accept/nomination path — not in the client, which can only be a courtesy.
+- **What the runner is told matters** (his ⑫ custody rulings): the gate has to be legible and
+  name its exit, or it reads as an unexplained suspension. A runner who does not know why they
+  cannot accept work, or what clears it, is the same defect class as an ops alert whose remedy
+  does not apply.
+
+---
+
 # ✅ SEAN'S RULINGS — the custody and communication half (2026-08-13)
 
 **His words:**
@@ -100,7 +150,13 @@ SLA with fault unresolved, does the platform absorb a measured runner payout at 
 
 ---
 
-# 🔵 CODEX RECOMMENDATION (2026-08-13, stand-in while Sean is away)
+# 🔵 CODEX RECOMMENDATION — SUPERSEDED on the money question (kept for its code findings)
+
+> ⚠ Sean's ruling above **dissolves** this section's central proposal (conditional payment + a
+> 24h SLA + a fourth `platform_measured` outcome). Kept in full because its **code hazards are
+> unaffected and still true** — the `waived`-row mint block, the missing `review_resolved_at`
+> writer, the `incident_review → refund_pending` dead-end, and the UI finding that has since
+> been fixed. Read it for those, not for the policy.
 
 **This is codex's analysis, not a ruling. Status stays 🟡** — per README's governance rule, a
 stand-in never produces a ✅, and ✅ means only that the human's own words are on origin.

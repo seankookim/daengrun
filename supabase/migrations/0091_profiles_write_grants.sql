@@ -1,4 +1,4 @@
--- ═══ 0089: profiles WRITE column whitelist — the other half of 0088 ═══
+-- ═══ 0091: profiles WRITE column whitelist — the other half of 0088 ═══
 --
 -- 0088 §0b names this gap in its own words: "It does not touch INSERT/UPDATE/DELETE grants on
 -- `profiles`, and that gap is real." This file closes it. Same table, same law (0075 §D: RLS는
@@ -6,9 +6,9 @@
 --
 -- ⚠⚠ READ §E FIRST IF YOU ARE ABOUT TO DEPLOY 0088. This file is not only additive hardening —
 --    it also carries a ONE-LINE REPAIR for a P0 regression that 0088 introduces and that no pin
---    in 124 can see. **0088 without 0089 returns HTTP 403 on every signup and every role
+--    in 124 can see. **0088 without 0091 returns HTTP 403 on every signup and every role
 --    switch.** Measured against real PostgREST, not inferred. If these two ever get separated,
---    0089 is the half that must not be dropped.
+--    0091 is the half that must not be dropped.
 --
 -- ═══ §A THE COMPLETE CLIENT WRITE SET — enumerated, not sampled ═══
 -- Every write to `profiles` from a client, across the whole repo (grep `from('profiles')` +
@@ -58,7 +58,7 @@
 -- `handle` is written by exactly one thing: `set_my_handle` (0074:63), and it is
 -- `language plpgsql security definer` — **`prosecdef = true`, confirmed in the catalog**. A
 -- definer runs as its owner (postgres), so removing the caller's UPDATE privilege on the column
--- does not touch it. 124 G5 already proves this class end-to-end for the READ direction; 125 W3
+-- does not touch it. 124 G5 already proves this class end-to-end for the READ direction; 127 W3
 -- proves it here for the WRITE direction, in both arms (direct UPDATE denied AND the RPC still
 -- works) — because "handle is sealed" and "handle can still be set" are one claim, not two.
 --
@@ -136,7 +136,7 @@
 -- check (auth.uid() = id)` for safety. That would be a no-op with a real blast radius (it moves a
 -- 0002 policy), and this file does not do it. ⚠ It is a no-op ONLY while `profiles self write`
 -- stays USING-only. **Anyone adding an explicit `with check` to that policy must include
--- `auth.uid() = id` in it**, or this grant stops being safe. 125 W6 pins the denial, so that
+-- `auth.uid() = id` in it**, or this grant stops being safe. 127 W6 pins the denial, so that
 -- mistake turns the harness red rather than shipping.
 --
 -- ═══ §G WHAT THIS FILE DOES NOT DO ═══
@@ -154,14 +154,14 @@
 --   0088 §C's reason: narrowing it is a product decision about the storefront.
 -- - **It does not audit `service_role`.** Edge functions write `profiles` (billing keys, PASS),
 --   and breaking them breaks money. §H re-states their grants explicitly so a future blanket
---   revoke reddens 125 W8 instead of turning billing off in production. 124's ⓓ mutation already
+--   revoke reddens 127 W8 instead of turning billing off in production. 124's ⓓ mutation already
 --   showed service_role's `profiles` access reaches further than billing (`70_axes` X2 also went
 --   red) — anyone narrowing it starts from that pin, not from this file.
 -- - It changes no app code. Nothing above requires a client change; the app's three call sites
 --   work unmodified, which is the point of §E's measurement.
 --
 -- ═══ §0d DOCTRINE ═══
--- Mutation-proven pins in `125_profiles_write_grant_suite.sql` (W1-W9). Pins this file must not
+-- Mutation-proven pins in `127_profiles_write_grant_suite.sql` (W1-W9). Pins this file must not
 -- break: 124 G1-G8 (0088's read wall — ⚠ except G1's fourth arm, see §E⑤), 112 (set_my_handle's
 -- own rules), 99 S2-S5 (the column-guard trigger family), and every `set local role authenticated`
 -- write in 95-124.
@@ -194,7 +194,7 @@ grant insert (id, role, name) on profiles to authenticated;
 -- OUT, on purpose: phone · toss_customer_key (§B) · handle (§D) · created_at · updated_at.
 -- `updated_at` needs no grant despite being written on every update: `t_profiles_touch`
 -- (0002:9) sets it in a BEFORE trigger, and privilege is checked against the STATEMENT's SET
--- list, not against what a trigger assigns to NEW. Pinned by 125 W2's third arm.
+-- list, not against what a trigger assigns to NEW. Pinned by 127 W2's third arm.
 grant update (name, district, avatar_url, role, id) on profiles to authenticated;
 
 -- DELETE: granted to nobody. No client and no edge function deletes a profile row (grep: zero),
@@ -205,18 +205,18 @@ grant update (name, district, avatar_url, role, id) on profiles to authenticated
 -- sites read `auth.getUser()` first. Same reasoning as 0088 §D's read side.
 
 -- Explicit, not redundant (0088 §D's precedent): edge functions write `profiles` through the
--- service_role client, so stating it here means a future blanket revoke turns 125 W8 red instead
+-- service_role client, so stating it here means a future blanket revoke turns 127 W8 red instead
 -- of turning billing off in production.
 grant insert, update, delete on profiles to service_role;
 
 comment on column profiles.role is
   '0001: owner|runner. admin 등급은 존재하지 않는다 — 그래서 본인이 직접 바꿔도 권한 상승이 아니고,
-`/` 역할 선택 화면(app/index.tsx:27)이 실제로 upsert로 쓴다. [0089] 클라 쓰기 허용 컬럼.
+`/` 역할 선택 화면(app/index.tsx:27)이 실제로 upsert로 쓴다. [0091] 클라 쓰기 허용 컬럼.
 ⚠ profiles.role에 권한을 거는 SQL은 하나도 없다(2026-08-13 전수). 그런 게 생기거나 user_role에
 값이 추가되면 이 그랜트를 다시 판단할 것. (club_members.role은 다른 컬럼이다.)';
 
 comment on column profiles.handle is
   '0074: 인스타식 계정 아이디. 소문자 정규화 저장, 3~20자 [a-z0-9_.], 대소문자 무시 유니크.
-NULL = 아직 안 만듦 (기존 사용자). 설정은 set_my_handle()만 — [0089]가 컬럼 UPDATE 그랜트에서
+NULL = 아직 안 만듦 (기존 사용자). 설정은 set_my_handle()만 — [0091]가 컬럼 UPDATE 그랜트에서
 빼면서 이 문장이 규칙에서 강제로 바뀌었다. 클라 직접 UPDATE는 permission denied이고,
 set_my_handle은 security definer라 그대로 동작한다 (예약어·글자수·charset 검사를 우회할 길이 없다).';

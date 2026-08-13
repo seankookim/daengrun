@@ -304,6 +304,19 @@ model this (`session_custody_transfer`, `0045:170-245`).
   Also the new stamps need **INSERT-side** protection — `_guard_booking_cols` is an update
   trigger while owners may insert drafts (`0002_rls.sql:91`).
 
+## §7-bis 🔴 THE GATE ON SLICE 3 (moved here from `0089`'s header, where nobody would hit it)
+
+Sean's both-parties ruling (`0089`) removed the party force. An owner-silent return therefore has
+exactly two exits left: **ops resolves it**, or the 2h janitor escalates it to `incident_review`
+— **which still has no marketplace commercial exit** (⑫, unowned). And nothing in
+`supabase/functions` or `app/` calls `force_return_tx` at all, so "ops resolves it" today means a
+human at a psql prompt. A real path, but a person and a shell, not a product.
+
+**Slice 3 is what starts routing real runs through the seal.** So ⑫ must be built BEFORE it
+ships, or the first owner who forgets to tap confirm strands their runner's pay with no
+product-level way out. This was stated only in a migration header, which is the wrong place for a
+constraint on a different slice — a reviewer of slice 3 would never read it.
+
 ## §8 Slices
 
 1. **Condition note** (§8-bis) — independent of everything above. **Built.**

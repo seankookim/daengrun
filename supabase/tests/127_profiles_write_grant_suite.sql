@@ -1,13 +1,13 @@
--- ═══ 125 profiles WRITE column-grant suite — 0089 pins (the other half of 0088's wall) ═══
+-- ═══ 125 profiles WRITE column-grant suite — 0091 pins (the other half of 0088's wall) ═══
 -- W1-W3 = the wall (what a client must never write). W4-W5 = the door (what the app actually
 -- writes, including the ONE statement nobody had ever executed). W6-W7 = DELETE and anon.
 -- W8 = the legitimate bypass (service_role). W9 = the schema tripwire.
 --
 -- Purpose: `profiles self write` (0002:59) is a ROW predicate with no column guard, and the
 --   Supabase default privileges hand `authenticated` table-wide INSERT/UPDATE/DELETE. So before
---   0089 a client could `PATCH /profiles?id=eq.<self>` with `{"toss_customer_key": …}` and
---   desynchronise itself from Toss AFTER `settle_run_tx` had already paid the runner (0089 §B),
---   or with `{"handle":"admin"}` and walk around every rule in `set_my_handle` (0089 §D).
+--   0091 a client could `PATCH /profiles?id=eq.<self>` with `{"toss_customer_key": …}` and
+--   desynchronise itself from Toss AFTER `settle_run_tx` had already paid the runner (0091 §B),
+--   or with `{"handle":"admin"}` and walk around every rule in `set_my_handle` (0091 §D).
 --
 -- Style: sibling of 124 — `_pass('pwg',…)`/`_fail('pwg',…)`, one begin…exception per case,
 --   `set local role` + `request.jwt.claim.sub` for every client path, ALWAYS `reset role`.
@@ -15,7 +15,7 @@
 --   ⚠ Denials asserted by CATCHING, so every attack goes through `execute` (privilege is checked
 --     at execution; `execute` keeps the failure in our handler and the plan out of the cache).
 --
--- ⚠⚠ W5 IS THE REASON THIS SUITE EXISTS IN THIS SHAPE. 0089 §E records a P0 that 0088 introduces
+-- ⚠⚠ W5 IS THE REASON THIS SUITE EXISTS IN THIS SHAPE. 0091 §E records a P0 that 0088 introduces
 --   and that 124 structurally cannot see: PostgREST turns `.upsert({id,role,name})` into
 --   `INSERT … ON CONFLICT("id") DO UPDATE SET "id"=EXCLUDED."id", "name"=…, "role"=…`, which needs
 --   UPDATE on `id` and — the killer — **SELECT on `role`**, which 0088 revoked. Measured against a
@@ -25,13 +25,13 @@
 --
 -- ⚠ ONE SHIPPED PIN LEGITIMATELY MOVES, and it is not this suite's to move:
 --   `124:132`'s `v_public constant text[] := array['id','name','handle','avatar_url','district']`
---   must gain `'role'`. 0089 §H grants `select (role)` because §E② requires it. 124 G1's fourth
+--   must gain `'role'`. 0091 §H grants `select (role)` because §E② requires it. 124 G1's fourth
 --   arm asserts set EQUALITY against `v_public`, so it goes RED until that array is updated —
 --   correctly: it is the tripwire noticing that the read surface changed, which is its job.
 --   125 W9 owns the WRITE sets; the READ set stays 124 G1's property, one owner per pin.
 --
 -- ─── MUTATION map — OBSERVED, not predicted (full-harness runs, 2026-08-13, this worktree) ───
---   With 0089 + this suite = **515 pins, 514/1** — the one red is `[pcg] G1`, predicted in the note
+--   With 0091 + this suite = **515 pins, 514/1** — the one red is `[pcg] G1`, predicted in the note
 --   above and explained by ⓑ below. Restore after every mutation → 514/1.
 --   The **506/0** baseline is not quoted from a doc, it is what run ⓑ shows: with `select (role)`
 --   removed the only red among 515 is W5, so all 506 pre-existing pins are green there, and
@@ -51,7 +51,7 @@
 --   ⓒ drop `id` from the UPDATE list → **511/4, red = [pcg G1, W5, W6, W9]**.
 --        W6 is not noise: without `update (id)` the id-rewrite dies at the GRANT instead of at the
 --        POLICY, and W6 asserts the message says `row-level security`. A pin that accepts "denied,
---        somehow" would let 0089 §F's claim rot silently.
+--        somehow" would let 0091 §F's claim rot silently.
 --   ⓓ add `handle` to the UPDATE list → **512/3, red = [pcg G1, W3, W9]** — W3's conjunction
 --        catches it even though arm ② (the RPC) is unaffected, which is why it is one pin.
 --   ⓔ drop `district`,`avatar_url` from the UPDATE list (over-tightening) →
@@ -77,10 +77,10 @@ declare
   v_e1 boolean; v_e2 boolean; v_e3 boolean; v_e4 boolean;
   v_txt text; v_txt2 text; v_txt3 text; v_msg text; v_err text;
   v_uuid uuid; v_n int; v_ts timestamptz;
-  v_tck constant uuid := '0089cafe-0000-4000-8000-000000000089';
-  v_phone constant text := '010-8900-0089';
+  v_tck constant uuid := '0091cafe-0000-4000-8000-000000000091';
+  v_phone constant text := '010-8900-0091';
   -- The write whitelists, stated once. Every arm below derives from THESE, so widening a grant
-  -- without widening the deliberate list cannot pass. (0089 §H is the only place they are set.)
+  -- without widening the deliberate list cannot pass. (0091 §H is the only place they are set.)
   v_upd constant text[] := array['avatar_url','district','id','name','role'];
   v_ins constant text[] := array['id','name','role'];
   v_got text[]; v_got2 text[];
@@ -99,7 +99,7 @@ begin
   insert into auth.users (id, email) values (bare, 'pwg_bare@test.local');
 
   -- ---------- [W1] the money column: toss_customer_key is unwritable, even on your own row ----
-  -- 0089 §B: this is not an orphan-row nit. `billing_keys` keys on `profile_id`, so rewriting the
+  -- 0091 §B: this is not an orphan-row nit. `billing_keys` keys on `profile_id`, so rewriting the
   -- customerKey does not orphan OUR storage — it desynchronises us from TOSS, where the billingKey
   -- was issued against the old key and `_shared/charge.ts:232` sends both. Mismatch → decline
   -- ladder → debt, AFTER `settle_run_tx` committed and the runner was paid. A self-service
@@ -136,7 +136,7 @@ begin
   -- `updated_at` on every UPDATE, yet `updated_at` is NOT in the grant. That is correct and worth
   -- pinning — privilege is checked against the STATEMENT's SET list, not against what a BEFORE
   -- trigger assigns to NEW. If someone "fixes" the omission by granting `updated_at`, this arm
-  -- still passes, but 0089 §H's comment and W9 both say why it is not needed.
+  -- still passes, but 0091 §H's comment and W9 both say why it is not needed.
   -- `now()` is fixed for the whole transaction, so the past-stamp trick is how the trigger's
   -- effect is made observable at all.
   begin
@@ -169,7 +169,7 @@ begin
   --   ② `set_my_handle` (0074:63, `security definer`, prosecdef=true) → still sets it, as the
   --      SAME authenticated caller that was just refused. A definer runs as its owner.
   --   ③ the tightening this buys: `admin` is on `_handle_reserved`'s list, so the RPC refuses it.
-  --      Before 0089 a direct UPDATE walked around the reserved list, the charset rule and the
+  --      Before 0091 a direct UPDATE walked around the reserved list, the charset rule and the
   --      length rule entirely — 0074's column comment asked for a whitelist and never got one.
   --   ④ prosecdef itself, read from the catalog: if someone converts `set_my_handle` to INVOKER,
   --      arm ② dies with it, and this arm names the cause instead of leaving a mystery.
@@ -207,7 +207,7 @@ begin
   --   ① updateMyProfile   (api.ts:1459) — `update({name, district}).eq('id', uid)`
   --   ② avatar upload     (api.ts:2029) — `update({avatar_url}).eq('id', uid)`
   --   ③ the read-back the screen does right after (fetchMyProfile, api.ts:1436) — proving 0088's
-  --      SELECT grant and 0089's UPDATE grant agree with each other on the same columns.
+  --      SELECT grant and 0091's UPDATE grant agree with each other on the same columns.
   begin
     v_txt := null;
     begin
@@ -235,13 +235,13 @@ begin
   -- The role picker (`app/app/index.tsx:27`) is `supabase.from('profiles').upsert({id, role, name})`
   -- and `/` is reachable AFTER signup, so tapping 러너/보호자 again re-runs it on an EXISTING row.
   -- The SQL below is PostgREST v12.2.3's actual output, captured from `log_statement=all` on
-  -- 2026-08-13 (0089 §E①) — including `"id" = EXCLUDED."id"`, which is why `update (id)` is in the
+  -- 2026-08-13 (0091 §E①) — including `"id" = EXCLUDED."id"`, which is why `update (id)` is in the
   -- grant, and `"role" = EXCLUDED."role"`, which is why `select (role)` had to be added back.
   -- Two arms, and BOTH must pass:
   --   ① CONFLICT path — an existing row, role owner → runner. This is the one 124 could not see.
   --   ② FRESH path — a signed-up user with no profile row yet (first-ever role pick). ⚠ It is NOT
   --      redundant with ①: the privilege check is made once for the STATEMENT, so the ON CONFLICT
-  --      arm is checked even when nothing conflicts. Post-0088/pre-0089 BOTH arms were 403, which
+  --      arm is checked even when nothing conflicts. Post-0088/pre-0091 BOTH arms were 403, which
   --      is the measured claim that "every user, first screen" rests on.
   begin
     v_txt := null; v_txt2 := null; v_n := 0;
@@ -272,12 +272,12 @@ begin
   end;
 
   -- ---------- [W6] DELETE is nobody's, and the id-rewrite is refused BY THE POLICY -------------
-  --   ① DELETE own row → permission denied. Before 0089 the table-wide grant was there and the
+  --   ① DELETE own row → permission denied. Before 0091 the table-wide grant was there and the
   --      absence of a DELETE policy made it a silent ZERO ROWS — so the mutation flips this pin
   --      from "error" to "0 rows", not from error to success. Account deletion arrives through
   --      `id … references auth.users on delete cascade` (0001:27) and needs no privilege here.
   --   ② `update profiles set id = <another auth user>` → refused, and the pin checks the message
-  --      says ROW-LEVEL SECURITY. That is 0089 §F's whole argument: `profiles self write` is
+  --      says ROW-LEVEL SECURITY. That is 0091 §F's whole argument: `profiles self write` is
   --      USING-only, and Postgres uses the USING expression AS the WITH CHECK when none is given,
   --      so the proposed row is tested too. `update (id)` is therefore safe to grant.
   --      ⚠ If anyone adds an explicit `with check` to that policy WITHOUT `auth.uid() = id`, this
@@ -346,7 +346,7 @@ begin
 
   -- ---------- [W8] service_role still writes everything — breaking this breaks money ----------
   -- Edge functions write `profiles` through `admin()` (`_shared/ctx.ts:23`, the SERVICE_ROLE_KEY
-  -- client): `create-payment-intent/handler.ts` mints and stores `toss_customer_key`. 0089 §H
+  -- client): `create-payment-intent/handler.ts` mints and stores `toss_customer_key`. 0091 §H
   -- re-grants service_role explicitly so a future blanket revoke reddens HERE instead of turning
   -- billing off in production. Arm ④ is DELETE on a throwaway profile, the one privilege no client
   -- has at all — 124's ⓓ mutation showed service_role's `profiles` access reaches past billing
@@ -357,7 +357,7 @@ begin
     begin
       set local role service_role;
       execute 'update profiles set toss_customer_key = $1, phone = $2, handle = $3 where id = $4'
-        using '0089beef-0000-4000-8000-000000000089'::uuid, '010-9999-9999', 'pwg_svc', w;
+        using '0091beef-0000-4000-8000-000000000091'::uuid, '010-9999-9999', 'pwg_svc', w;
       execute 'select toss_customer_key::text || ''|'' || phone || ''|'' || handle
                  from profiles where id = $1' into v_txt using w;
       execute 'delete from profiles where id = $1' using killme;                            -- ④
@@ -366,7 +366,7 @@ begin
     end;
     select count(*) into v_n from profiles where id = killme;
     v_msg := 'service_role 쓰기=' || coalesce(v_txt, '<null>') || ' · 삭제 후 남은 행=' || v_n;
-    if v_txt = '0089beef-0000-4000-8000-000000000089|010-9999-9999|pwg_svc' and v_n = 0
+    if v_txt = '0091beef-0000-4000-8000-000000000091|010-9999-9999|pwg_svc' and v_n = 0
       then call _pass('pwg','W8 service_role은 전 컬럼 쓰기 + DELETE 유지 — 엣지 함수가 '
                             'toss_customer_key를 심고 PASS 번호를 확정하는 경로 (이게 빨개지면 결제가 멈춘다)');
     else call _fail('pwg','W8 service_role 쓰기 보존', v_msg); end if;

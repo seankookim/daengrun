@@ -1,6 +1,22 @@
 # ⑬ Runner↔owner chat does not reach a phone — and ⑪/⑫ both depend on it
 
-**Status: 🔴 BUILD ITEM, not a ruling. Blocks ⑪ and ⑫.** No decision needed to start; it is a
+**Status: ✅ BUILT 2026-08-13 — `0090_chat_notify.sql` + suite `126`. Harness 510/0, deno 185/0,
+five mutations verified.** ⑪ and ⑫ are unblocked on this axis.
+
+**What shipped:** a trigger on `chat_messages` writes the other party a `notifications` row,
+which 0024's existing trigger turns into a push.
+· **No message text in the push** (who + which run only) — 0024 pushes bodies verbatim to a
+  lock screen, and during an incident that phone is the one most likely to be handed around.
+· **One nudge per unread state** — while the first is unread, further messages write nothing;
+  reading it re-arms. A back-and-forth is one push; nobody-is-reading keeps its one signal.
+· The title is a **routing key** (a tap opens `/chat`), pinned both directions by
+  `_test/chat_notify_contract_test.ts`, which reads the migration at test time.
+· **An existing pin caught a real defect in the first draft:** the trigger function was left
+  `anon`-executable and 99's S1 definer sweep went red. Revoked.
+
+**Two product calls remain Sean's** (bottom of this memo) — neither blocks anything.
+
+*Original writeup:* No decision needed to start; it is a
 gap between what the product implies and what the code does.
 
 ## The gap, verified on trunk

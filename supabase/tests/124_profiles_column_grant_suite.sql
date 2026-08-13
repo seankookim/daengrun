@@ -129,7 +129,7 @@ declare
   v_phone constant text := '010-8800-0088';
   -- The whitelist, stated once. Every arm below derives from THIS array, so widening the grant
   -- without widening the deliberate list cannot pass.
-  -- [0089, 2026-08-13] `role` added — a pin whose asserted property legitimately changed, updated
+  -- [0091, 2026-08-13] `role` added — a pin whose asserted property legitimately changed, updated
   -- in the slice that changed it (CLAUDE.md). NOT a relaxation for convenience: `role` MUST be
   -- readable by `authenticated` or the app cannot sign anyone in. PostgREST renders
   -- `.upsert({id, role, name})` as `insert … on conflict (id) do update set role = excluded.role,
@@ -137,7 +137,7 @@ declare
   -- included. With 0088's grant and no `role`, the role picker returns 403 for EVERY user on the
   -- first screen, first signup included (the privilege check is per-statement, so the ON CONFLICT
   -- arm is checked even when nothing conflicts). Measured against real PostgREST 12.2.3, and
-  -- re-measured here by hand against the reconstructed post-0088/pre-0089 grant state.
+  -- re-measured here by hand against the reconstructed post-0088/pre-0091 grant state.
   -- ⚠ So this array and a working signup are the same fact. If this arm ever reddens because
   -- someone dropped `grant select (role)`, the fix is to restore the grant — NOT to shorten this
   -- list. Doing the latter re-ships the 403 with a green harness, which is the worst of both.

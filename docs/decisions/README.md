@@ -125,6 +125,19 @@ eleven real ones. Codex is a good reviewer. It is not the person whose money it 
 Corollary from rule 4: while he is away **nobody holds his word**, so no irreversible action on
 shared state — no branch deletions, no force-pushes, no `db push`.
 
+## The status line IS the interface — keep it true
+
+A reader is told to read the status line rather than the body, so **a status line that lags its
+own memo is the worst artifact in this set**: it is the one thing everybody trusts without
+checking. On 2026-08-13 ⑫'s body carried Sean's ruling in three places while line 3 still read
+*"🟡 OPEN — needs Sean's ruling"* — so anyone following the rule concluded he owed an answer he
+had already given. Caught by another session reading it, not by anything failing.
+
+A sweep of all thirteen then found a second, quieter instance: two memos said *"Buildable"* long
+after the code had shipped. **When a memo changes, change line 3 first** — and when you record a
+build, say so there, because "ruled" and "built" are different facts and only one of them tells
+a builder what to do next.
+
 ## How to read a ruling here
 
 Every memo keeps the superseded recommendation below the ruling, so the reasoning survives
@@ -148,5 +161,5 @@ trade-off honestly, and his call stands over both.
 
 | ⑩ | [cancel-fee-runner-share.md](cancel-fee-runner-share.md) | The 10% cancel tier pays the runner | **RULED** — pay them their half and notify it as a reward | unbuilt |
 | ⑪ | [incident-verification.md](incident-verification.md) | Who verifies an `incident` | **RULED** — both runner and owner confirm | unbuilt |
-| ⑫ | [marketplace-incident-exit.md](marketplace-incident-exit.md) | 🟡 **Custody half RULED 2026-08-13** (pay gates on RETURN · the runner must be told · custody is start→end and legible · the owner is told the relief point · *"we dont want the runner stranded in the middle of town"*). **Money half still open.** A marketplace `incident_review` has no commercial exit: an unsealed row escalates there, the only resolution tool is club-only, so the operator closes an alert they cannot act on and the runner is never paid. ⑩'s defect one layer up. Its own slice by design — a money path needs its own cycle. |
+| ⑫ | [marketplace-incident-exit.md](marketplace-incident-exit.md) | ✅ **RULED IN FULL 2026-08-13.** *"pay the runner but dont let them make new runs until the dog is confirmed by both sides."* The runner is paid; the counterweight is a work gate, not a payment condition — which dissolves the question codex refused rather than answering it. **Build unowned.** |
 | ⑬ | [chat-notifications.md](chat-notifications.md) | 🔴 **BUILD ITEM, blocks ⑪ and ⑫.** Runner↔owner chat never reaches a phone — push fires only on `notifications` inserts and nothing writes one when a chat is sent. Every ⑫ ruling is *tell someone something*, and the channel they'd reach for is the one that doesn't ring. |

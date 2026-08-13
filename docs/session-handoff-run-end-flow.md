@@ -17,9 +17,8 @@ Companion docs, in reading order:
 `origin/redesign-v4`**; migrations are contiguous `0080–0089`. Harness **506/0**, deno **184/0**,
 tsc clean at merge. **Nothing is deployed** — no `db push`. The whole run-end machine is
 **dormant**: `ops_flags.return_seal_since` and `ops_flags.payments_live_since` are both NULL and
-no client calls `end_run_tx` yet, so no real run routes through the seal. `0089`
-(force → ops-only) is **written but NOT committed** — an agent was mid-flight rewriting the four
-pins it invalidates when this session ended (§4).
+no client calls `end_run_tx` yet, so no real run routes through the seal. `0089` (force → ops-only) **is now merged and pushed** with suite `125`, its four
+invalidated pins in `119` rewritten, and five review defects in my own file corrected (§4).
 
 ## §1 What the feature is, and the one sentence that defines it
 
@@ -73,7 +72,7 @@ Recorded because the plan is only trustworthy if its errors are visible:
 Plus one I never considered: **`runs.ended_at` meant SETTLEMENT time**, so delaying settlement
 would have charged a pre-cutover run. Now `ended_at` = service stop, `settled_at` = money moved.
 
-## §4 🔴 IMMEDIATE — the uncommitted thing
+## §4 ~~IMMEDIATE~~ DONE — `0089` landed after the handoff was first written
 
 `supabase/migrations/0089_return_force_ops_only.sql` exists in the **main checkout working tree,
 untracked**. It implements Sean's both-parties ruling: force becomes ops-only, refuses
@@ -84,10 +83,15 @@ Running the harness with it gives **502 pass / 4 fail**, all four failing *corre
 `R17`, `R13` in `119_run_end_suite.sql` pin the party-force rules the ruling removed. An agent
 was rewriting them + writing `125_return_force_ops_suite.sql` when the session ended.
 
-**Next session: check whether that agent committed.** If not, the work is: update those four pins
-to assert the new law (R6's critical new assertion: neither party stamp is written by a force),
-write suite 125 (F1-F5 in the brief inside `0089`'s header §2), register it in `harness.sh`, get
-green, commit. `0089`/`125` are already CLAIMED in REGISTRY on origin.
+**✅ DONE.** The agent committed; the four pins now assert the new law (R6 pins that a force
+writes NEITHER party stamp), suite `125` covers F1-F5, and it mutation-verified F2 and F3. It
+then found **five defects in `0089` — my file** — all valid and all fixed: §2 contradicted §6 on
+the refusal code; `return_eligible_at = run_ended_at` was a cache of a derivable value (0083 §1
+forbids exactly that, so it is now left NULL and R5/R6 pin the absence); the re-entry response had
+silently dropped `eligible_at`; the edge-side error catalogue still listed the retired
+`force_too_early`; and the ⑫-before-slice-3 gate lived only in a migration header, so it moved to
+plan §7-bis where a slice-3 reviewer will actually meet it.
+**Harness 515/0 · deno 185/0 on origin.** Nothing here is outstanding.
 
 ## §5 What is OPEN, and why it is not urgent *yet*
 
