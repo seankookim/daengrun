@@ -15,6 +15,7 @@ this directory said the questions were open — are ported in below from `0fbaa6
 | ⑥ | [cutover-straddle.md](cutover-straddle.md) | ✅ **B — a FUTURE `payments_live_since`**, never `now()`. Straddlers free by construction; the flip procedure carries the query. |
 | ⑦ | [host-incentives.md](host-incentives.md) | ✅ Agreed direction, not built. Host cut from **platform margin, never runner pay** — the ④ premium is the budget. |
 | ⑧ | [card-registration-placement.md](card-registration-placement.md) | ✅ Agreed. **Inline at first booking**, not onboarding — under price invisibility the card-link screen is the consent moment for actuals-based charging. |
+| ⑨ | [runner-stop-split.md](runner-stop-split.md) | 🟠 **RECORDED, NOT CONFIRMED — do not build.** Supersedes G1's `runner_personal` runner-side row: pass-through pay (runner gets their commission share of what the owner paid) + a new `runner_incapacity` enum for ill/injured, platform absorbs. Reached this set via memory, not a quotable session — needs Sean's words to promote. |
 
 ## Two rules this set paid for
 

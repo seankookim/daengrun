@@ -11,7 +11,7 @@ and mirrors both ledgers — Sean's own frame, better than either memo's proposa
 | `completed` | — | base + actual distance | base + actual distance |
 | `dog_condition` | nobody / the dog | `runnerCompBase` 9,900 + 3,000 × **distance actually run** | `ownerBaseFare` 7,900 + 3,000 × **distance actually run** (mirrored) |
 | `owner_request` / `owner_forced` | owner | 9,900 + 3,000 × **distance actually run** | **PLANNED** distance (D2, unchanged — anti-cut-short) |
-| `runner_personal` | runner | **9,900 base ONLY, no distance** | **distance only, base waived** (#10 UNCHANGED) |
+| `runner_personal` | runner | ⚠ **SUPERSEDED — see [⑨](runner-stop-split.md)** (was: 9,900 base only) | **distance only, base waived** (#10 UNCHANGED) |
 | `incident` | under review | normal settle | **₩0**, gated on VERIFICATION |
 
 **Sean's words:** *"if it's the runner's own condition, the runner gets paid only base 7900
@@ -31,7 +31,9 @@ platform's exposure stops being an accident of which end_reason fired:
   platform's margin stays proportional instead of growing with how late the dog stopped.
   This is what the earlier "base flat, platform absorbs the distance" answer would have
   cost us, and Sean chose against it once the asymmetry was visible.
-- **`runner_personal` is the one deliberate asymmetry**, and it points the right way: the
+- **`runner_personal` is the one deliberate asymmetry** (⚠ its runner-side pay is now
+  superseded by [⑨](runner-stop-split.md), which splits it from `runner_incapacity` — the
+  asymmetry's *direction* survives, the flat base does not), and it points the right way: the
   runner loses their distance component (they ended it), the owner is spared the base
   (they didn't get the service), and **the platform absorbs that gap on purpose** — the
   incentive lands on the party who chose to stop.
