@@ -22,6 +22,12 @@ const LIVE_TITLES = ['러너 도착', '러너 이동 중'];
 // 그건 도달이 아니다. 이 제목만 러닝 화면으로 보낸다.
 const RUN_STOP_TITLE = '러닝 중단 요청';
 
+// [0090 ⑬] 채팅 알림의 제목이자 라우팅 키. RUN_STOP_TITLE과 같은 종류의 문자열 계약이고,
+// 같은 위험(한쪽만 바뀌면 조용히 어긋난다)을 가진다 — 그래서 이 리터럴은 0090 마이그레이션을
+// 테스트 시점에 읽어 양방향으로 대조한다(_test/chat_notify_contract_test.ts).
+// 채팅은 양쪽 역할 모두 채팅 화면으로 간다: 메시지가 도착한 곳이 곧 목적지다.
+const CHAT_TITLE = '새 메시지';
+
 // 알림 탭 도착지 — alerts.tsx 인박스와 단일 소스 (kind/ref_id는 0024 data 페이로드).
 // 역할별: 러너는 요청/캘린더, 보호자는 라이브 미트업(도착·이동 중) 또는 리포트.
 export function routeForNotification(kind: string | null | undefined, refId: string | null | undefined, title: string): void {
@@ -32,6 +38,8 @@ export function routeForNotification(kind: string | null | undefined, refId: str
   }
   if (kind !== 'booking' || !refId) return;
   try {
+    // [0090 ⑬] 역할과 무관하게 채팅으로 — 러너든 보호자든 온 메시지는 같은 스레드에 있다.
+    if (title === CHAT_TITLE) { router.push({ pathname: '/chat', params: { bid: refId } }); return; }
     if (session.role === 'runner') {
       // [적대 리뷰 2026-08-11] 처음엔 /runner/run으로 보냈는데, 콜드 스타트에서 그 화면은 refId를
       // 버리고 running=false로 마운트한다 — 이미 진행 중인 러닝을 두고 '러닝 시작' 버튼을 내미는

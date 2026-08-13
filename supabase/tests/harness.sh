@@ -162,6 +162,7 @@ suite 121_cancel_share_suite.sql   # 0085 ⑩ 취소 수수료 러너 배분 (10
 suite 122_runner_stop_pay_suite.sql            # 0086 ⑨a runner_personal 중단 지급 = 보호자 청구액 × 러너 몫 (패스스루 — 정액 base 은퇴·커미션 실패 폐쇄 — P1~P4)
 suite 123_run_insert_seal_suite.sql            # 0087 runs INSERT seal (0002:107 정책 철거·start_run_tx 원자 시작·INSERT 가드 — 원격 악용 3종: 컷오버 무력화·정산 앵커 위조·유령 청구 — S1~S9)
 suite 124_profiles_column_grant_suite.sql   # 0088 P0: profiles 컬럼 그랜트 (RLS는 행만 막는다 — phone·toss_customer_key 봉인·앱 질의 형상 생존·service_role/definer/뷰 우회 — G1~G6)
+suite 126_chat_notify_suite.sql   # 0090 ⑬ 채팅 알림 (수신자·폭주 방지·본문 무유출·매칭 전 무기록 — N1~N4)
 psql -c "select case when ok then '✅' else '❌' end || ' [' || suite || '] ' || name || case when ok then '' else ' — ' || detail end from _t order by at"
 psql -qt -c "select count(*) filter (where ok) || ' pass / ' || count(*) filter (where not ok) || ' fail' from _t"
 psql -qt -c "select case when count(*) filter (where not ok) > 0 then 'FAIL' else 'OK' end from _t" | grep -q OK
