@@ -72,9 +72,13 @@ closes.
   run. Do not re-widen it.
 - ⚠ **Never hardcode a G1 amount — it has now been answered THREE different ways in one
   day.** ₩0 both arms (what was shipped) → base-flat 7,900 (an intermediate ruling) →
-  **FINAL: `ac0c294`, Sean ruled option C — `dog_condition` charges FULL ACTUALS (base +
-  distance), same as a completed run; `incident` stays ₩0 at settle.** The memo records
-  that C was recommended by *neither* session; he overrode both. `club_fare = A` (9,900
+  🔴 **STILL CONFLICTED as of `a186eb6` — do not build any arm.** Sean answered TWICE,
+  differently, in two sessions: base-flat 7,900 in the payments session (on an unpushed
+  branch, so invisible), then full actuals via `ac0c294` in the club session — from an
+  AskUserQuestion menu that could not contain the first answer *because it was unpushed*.
+  That is the unpushed-decision defect biting a second time, now costing a ruling rather
+  than a migration number. It is back with Sean. **The shipped code still waives both
+  arms.** `club_fare = A` (9,900
   kept as a stated premium). Every G1 value in this slice reads through
   `compute_owner_charge` — which is precisely why the third ruling cost this slice nothing.
   Exact shape under C: `base_fare + round(distance_fare/km × basis) + addon_fare`, ceilinged
