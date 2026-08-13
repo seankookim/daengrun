@@ -63,6 +63,43 @@ appearance of resolution.
 
 ---
 
+# ✅ SEAN'S RULINGS — the custody and communication half (2026-08-13)
+
+**His words:**
+
+> *"the runner is paid only once the dog is returned and the runner should know that and be told
+> of that, and it should be clear that custody responsbility is from start to end, and the owner
+> should told of that relief point as well."*
+>
+> *"we dont want the runner stranded in the middle of town."*
+
+**Four rulings, and none of them are money mechanics:**
+
+1. **Runner pay is gated on RETURN, not on run-end.** The meter and the obligation end at
+   different moments, and the later one governs payment.
+2. **The runner must be TOLD that, explicitly.** Not left to infer it from a screen that pays
+   later than they expected. A payment rule nobody stated is a payment rule nobody consented to.
+3. **Custody runs start → end, and that must be legible** — stated in the product, not merely
+   implicit in the state machine.
+4. **The owner must be told where their responsibility resumes** — his word: the **relief
+   point**. The owner needs to know the moment the dog is theirs again, not infer it.
+
+**And a design gate over the whole slice: *"we dont want the runner stranded in the middle of
+town."*** That is exactly what the 2h escalation does today — it moves the booking into a state
+with no exit and no operator tool while a person is standing outdoors holding a dog. Any ⑫
+design that leaves a runner waiting on an adjudication with no path forward fails this test
+regardless of how correct its ledger is.
+
+⚠ **All four rulings are about telling someone something — so the notification path is the
+load-bearing part of this memo, and it is currently broken.** See
+[chat-notifications.md](chat-notifications.md) ⑬: runner↔owner chat never reaches a phone. That
+is a **prerequisite of ⑫**, not a nice-to-have.
+
+**Still open (the money half):** codex's three questions below, and its refused one — after the
+SLA with fault unresolved, does the platform absorb a measured runner payout at owner ₩0?
+
+---
+
 # 🔵 CODEX RECOMMENDATION (2026-08-13, stand-in while Sean is away)
 
 **This is codex's analysis, not a ruling. Status stays 🟡** — per README's governance rule, a
