@@ -24,6 +24,25 @@ alone can establish it — the same shape as `confirm_handoff`, where the transi
 when both sides have stamped it, for the same reason: a one-sided claim about a shared event is
 not evidence.
 
+**And the parties see each other's phone numbers — scoped to the emergency.** Sean said this
+twice, and the second time NARROWED it himself. Both quotes, because the difference is the
+whole scope:
+
+> *"b1, and show each other's phone numbers on the screen at all times."*
+> — 2026-08-13, charge-slice session, immediately after picking B1
+
+> *"yes i did, phone numbers should be present during those emergency situations."*
+> — 2026-08-13, asked again on his return
+
+**The second is operative.** Not because it is later, but because it is the one he gave when
+asked specifically what the scope was — and it matches what 0088 already built
+(`incident_contact`, party-gated, rows only while an incident is open).
+
+⚠ **The incident-scoped door IS the ruling — it is not a conservative implementation of a
+broader one.** Recorded explicitly because the failure mode here is a future reader
+"unblocking" ⑪ by widening the door to match the older, broader quote. If the scope ever needs
+to grow, that is a new question for him, not a correction of an under-implementation.
+
 ## Build notes
 
 - Model it on the two-sided handoff — and prefer **`0083`'s return-handoff machine over
@@ -107,15 +126,18 @@ Both surfaced from the ⑪ / `0088` interaction (announcer + payments sessions, 
 0. 🔴 **⑪ CONFLICTS WITH A WRITTEN COMMITMENT — resolve that before building, not after.**
    `docs/appstore-privacy-answers.md:27` declares the phone number's purpose as
    **"App functionality — contact during handoff."** ⑪ as ruled exposes a counterparty's real
-   number **during an incident** (the payments session reads the ruling as *"at all times"*).
-   Either reading is **broader than handoff-contact**, so shipping ⑪ against that row makes a
+   number **during an incident** (scoped by his second quote; an earlier, broader *"at all
+   times"* quote is superseded — see the ruling section). An incident is **not** a handoff, so
+   even the narrow scope is **broader than handoff-contact**, so shipping ⑪ against that row makes a
    written answer inaccurate — a different and worse problem than an undisclosed feature.
    Two things to establish first, in order:
    · **Has that questionnaire been filed with Apple yet?** The file's header says it exists "to
      fill the App Store Connect privacy questionnaire", and nothing marks it as submitted — the
      app appears to be pre-submission (TestFlight) — so this is probably *amend before filing*
      rather than *correct a filed answer*. Probably is not good enough; check.
-   · Either way **the declared purpose must move before ⑪ ships.** That file states its own
+   · Either way **the declared purpose must move before ⑪ ships** — but the amendment is now
+     small and specific ("contact during handoff **and during incidents**") rather than the
+     open-ended one *"at all times"* would have forced. That file states its own
      rule: *"Re-audit this file whenever a new table, bucket, or third-party SDK lands. A privacy
      label that does not match behavior is a rejection risk on review and a compliance problem
      after launch."* ⑪ trips exactly that rule.
@@ -126,7 +148,9 @@ Both surfaced from the ⑪ / `0088` interaction (announcer + payments sessions, 
    a counterparty may see the other party's real phone number, and that needs disclosing. The
    Korean norm we would be departing from is **안심번호** — a masked relay, the pattern Kakao T
    uses. Not following it is defensible for a pilot, but it is a trade-off Sean should confirm
-   **knowingly rather than inherit** from a build decision. 🟡 his call, queued.
+   **knowingly rather than inherit** from a build decision. 🟡 his call — and now a much
+   cleaner question, since the scope is incident-only: **a masked relay during incidents
+   specifically**, not a blanket policy.
    📎 `docs/feature-audit.md` already discusses 안심번호 — the masked-relay alternative has prior
    consideration in this repo, so whoever writes ⑪'s privacy line reads that first rather than
    re-deriving the trade-off.
@@ -147,7 +171,8 @@ Recorded here because 0088's builder correctly refused to treat a relayed versio
 and flagged that the requirement appeared nowhere in the repo — right by the rule this set
 runs on. This entry is the human's own words on origin, so it is now buildable.
 
-**Scope as built, which is NARROWER than "at all times" and deliberately so.** 0088 ships
+**Scope as built — and as of his 2026-08-13 clarification, this IS the ruling rather than a
+narrower reading of it.** 0088 ships
 `incident_contact(p_booking)` — a definer, party-gated, returning the two parties' numbers
 **only while an incident is open** (`incidents.resolved_at is null`), zero rows otherwise, and
 zero rows (never an error) for a non-party, since distinguishing the two is an oracle over
