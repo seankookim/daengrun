@@ -55,7 +55,9 @@ Before every commit: `cd app && ./node_modules/.bin/tsc --noEmit` and `node scri
 - **Run `git remote set-head origin -a` ONCE PER CLONE — not per worktree.**
   `refs/remotes/origin/HEAD` is cached locally and does NOT follow a remote default-branch
   change, so until it is repointed anything resolving `origin/HEAD` silently means the dead
-  branch. But remote-tracking refs live in the **common** git dir (`git rev-parse
+  branch. **A `git fetch` does NOT do it** — the ref is written at clone time and by
+  `set-head`, and by nothing else (measured 2026-08-13: repeated fetches after the default
+  flipped still returned `refs/remotes/origin/main`). Never soften this to "or after a fetch". But remote-tracking refs live in the **common** git dir (`git rev-parse
   --git-common-dir`), so every worktree of a clone inherits the fix — running it repeatedly is
   a no-op that just makes each session wonder whether it took. This clone: already done.
 - ⚠ **`main` still exists on GitHub and is drifting** (8 commits behind the trunk and growing).
