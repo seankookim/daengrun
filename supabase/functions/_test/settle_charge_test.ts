@@ -583,3 +583,128 @@ Deno.test("the km validity band still rejects a 999km claim before any of this",
     net.restore();
   }
 });
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════
+// 0083 §6-ⓔ — the FROZEN path: after `end_run_tx`, the body is not a financial input
+// ═══════════════════════════════════════════════════════════════════════════════════════════
+// These exist because the migration's gate alone was not enough. The gate refuses a mismatch;
+// this half makes a mismatch impossible from the shipping caller by reading the frozen row. The
+// distinction matters: a refusal leaves the runner unpaid, a read pays them the right amount.
+
+/** A booking that went through `end_run_tx`: stop stamped, run row frozen. */
+function frozenScene(frozen: Row = {}) {
+  const db = scene({ booking: { run_ended_at: "2026-08-13T10:00:00Z" } });
+  db.seed("runs", [{
+    booking_id: BOOKING, actual_km: 3.25, end_reason: "completed",
+    duration_sec: 1800, condition_note: null, ...frozen,
+  }]);
+  return db;
+}
+
+Deno.test("frozen: an inflated body is IGNORED — tx and mint both get the frozen numbers", async () => {
+  const db = frozenScene();
+  const mint = installMint(db);
+  let txArgs: Row = {};
+  db.rpcs["settle_run_tx"] = (a: Row) => { txArgs = a; return { data: { total_runs: 5, drop: null } }; };
+  const net = tossOk();
+  try {
+    // The attack from the adversarial review: stop at 3.25km, then claim 9.9km + owner_request
+    // (which would also add the 50% guarantee and bill the owner the full planned distance).
+    await settleRun(req(body({ actual_km: 9.9, end_reason: "owner_request" }), "runner_jwt"), db as never);
+    assertEquals(txArgs.p_actual_km, 3.25, "settlement used the body's km, not the frozen one");
+    assertEquals(txArgs.p_end_reason, "completed", "settlement used the body's reason");
+    assertEquals(mint[0].p_actual_km, 3.25, "the CHARGE used the body's km");
+    assertEquals(mint[0].p_end_reason, "completed", "the CHARGE used the body's reason");
+  } finally {
+    net.restore();
+  }
+});
+
+Deno.test("frozen: no guarantee is paid for a body-claimed owner_request the freeze never recorded", async () => {
+  const db = frozenScene();
+  installMint(db);
+  const net = tossOk();
+  try {
+    const out = await settleRun(
+      req(body({ actual_km: 9.9, end_reason: "owner_request" }), "runner_jwt"), db as never,
+    ) as { guarantee: number };
+    assertEquals(out.guarantee, 0, "the body bought itself the owner_request guarantee");
+  } finally {
+    net.restore();
+  }
+});
+
+Deno.test("frozen: a body reason this endpoint would normally REFUSE is simply ignored", async () => {
+  // Not a refusal: on a frozen run the whitelist is irrelevant, because `end_run_tx` already
+  // whitelisted at the freeze. Refusing here would strand a runner over a stale client build.
+  const db = frozenScene();
+  installMint(db);
+  const net = tossOk();
+  try {
+    const out = await settleRun(
+      req(body({ end_reason: "incident" }), "runner_jwt"), db as never,
+    ) as { total_runs: number };
+    assertEquals(out.total_runs, 5, "a frozen run was refused because the BODY said 'incident'");
+  } finally {
+    net.restore();
+  }
+});
+
+Deno.test("frozen: a stamped booking with no runs row fails LOUDLY, never falls back to the body", async () => {
+  const db = scene({ booking: { run_ended_at: "2026-08-13T10:00:00Z" } });
+  db.seed("runs", []);
+  installMint(db);
+  const net = tossOk();
+  try {
+    const e = await expectHttpError(() => settleRun(req(body({ actual_km: 9.9 }), "runner_jwt"), db as never));
+    assertEquals(e.status, 500);
+    assert(!db.log.includes("rpc:settle_run_tx"), "settled from the body when the frozen row was missing");
+  } finally {
+    net.restore();
+  }
+});
+
+// ── the three refusals get their own status and sentence, not a generic 500 ────────────────
+Deno.test("return_not_sealed → 409 and the dog-is-not-home sentence, not a retry prompt", async () => {
+  const db = frozenScene();
+  installMint(db);
+  db.rpcs["settle_run_tx"] = () => ({ error: { message: 'return_not_sealed' } });
+  const net = tossOk();
+  try {
+    const e = await expectHttpError(() => settleRun(req(body(), "runner_jwt"), db as never));
+    assertEquals(e.status, 409);
+    assert(e.message.includes("인계가 확인되지 않았어요"), `wrong sentence: ${e.message}`);
+    assert(!e.message.includes("재시도"), "told the runner to retry a state only a PERSON can change");
+    assert(!db.log.includes("rpc:mint_settle_charge_intent"), "an unsealed run reached the charge machine");
+  } finally {
+    net.restore();
+  }
+});
+
+Deno.test("run_not_ended → 400 telling an old build to update, never a 500 that reads as our bug", async () => {
+  const db = scene();
+  installMint(db);
+  db.rpcs["settle_run_tx"] = () => ({ error: { message: 'run_not_ended' } });
+  const net = tossOk();
+  try {
+    const e = await expectHttpError(() => settleRun(req(body(), "runner_jwt"), db as never));
+    assertEquals(e.status, 400);
+    assert(e.message.includes("업데이트"), `wrong sentence: ${e.message}`);
+  } finally {
+    net.restore();
+  }
+});
+
+Deno.test("frozen_measurement_mismatch → 409 with the migration's sentence (server-bug path)", async () => {
+  const db = frozenScene();
+  installMint(db);
+  db.rpcs["settle_run_tx"] = () => ({ error: { message: 'frozen_measurement_mismatch' } });
+  const net = tossOk();
+  try {
+    const e = await expectHttpError(() => settleRun(req(body(), "runner_jwt"), db as never));
+    assertEquals(e.status, 409);
+    assert(e.message.includes("동결") || e.message.includes("기록된 거리"), `wrong sentence: ${e.message}`);
+  } finally {
+    net.restore();
+  }
+});
