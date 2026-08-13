@@ -1592,9 +1592,12 @@ export default function OwnerHome() {
               {fnBusy ? '요청 보내는 중...' : '결제하고 바로 찾기 ➤'}
             </Text>
           </Pressable>
-          {/* [2026-08-10 filler cull] broadcast mechanics clause removed — only the refund promise earns the line */}
+          {/* [2026-08-10 filler cull] broadcast mechanics clause removed — only the cancel promise earns the line.
+              [charge slice R3 P2-6] "전액 환불" retired: post-pay captures nothing at booking, so there is
+              nothing to refund — the honest promise is fee-free cancellation (fee ladder: unmatched → 0),
+              matching radar.tsx's corrected copy. */}
           <Text style={{ fontSize: 14, color: lilac.dim, textAlign: 'center', marginTop: 10 }}>
-            매칭 전 취소는 전액 환불
+            매칭 전 취소는 수수료 없이 취소돼요
           </Text>
         </View>
       </Modal>

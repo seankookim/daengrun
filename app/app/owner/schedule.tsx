@@ -1,13 +1,14 @@
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Alert, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { cancelBooking, fetchMyBookings, pauseRecurringSeries, shareRunToFeed } from '../../src/lib/api';
+import { PaymentRecord, cancelBooking, fetchBookingPayments, fetchMyBookings, pauseRecurringSeries, shareRunToFeed } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { BottomNav } from '../../src/components/bottomnav';
+import { PaymentRow } from '../../src/components/charge-states';
 import { TabSwipe } from '../../src/components/tabswipe';
 import { Monogram, Row } from '../../src/components/ui';
-import { Booking, BookingStatus, cancelPolicy, draft, runners } from '../../src/store';
+import { Booking, BookingStatus, cancelFeeRateFor, cancelPolicy, draft, runners } from '../../src/store';
 import { CollarKey, collarColors, colors, paper } from '../../src/theme';
 
 // 내 일정 — agenda view. Tapping a booking opens a management sheet
@@ -126,9 +127,31 @@ export default function Schedule() {
   // [0066] En-route cancel is now legal at a 50% fee (runner compensation) — the preview
   // rate follows the server ladder's tier for this booking's rawStatus. The server still
   // computes the real fee; the success alert shows the returned numbers.
+  // [2026-08-13] The tier now comes from cancelFeeRateFor (store.ts), the full four-arm mirror
+  // of 0066: the old two-arm version quoted 10% on bookings the server cancels for free.
   const enrouteCancel = selected?.rawStatus === 'runner_enroute';
-  const feeRate = enrouteCancel ? cancelPolicy.enrouteFeeRate : cancelPolicy.feeRate;
+  const feeRate = selected ? cancelFeeRateFor(selected) : 0;
   const fee = selected ? Math.round(selected.price * feeRate) : 0;
+
+  // 결제 내역 (charge slice §0-bis) — 예약 하나의 payments 행. 정산 전에는 행이 없는 것이
+  // 정직한 상태(가격 비가시성)라, 없는 동안에는 섹션 자체가 렌더되지 않는다.
+  const [payRows, setPayRows] = useState<PaymentRecord[]>([]);
+  const [payErr, setPayErr] = useState(false);
+  const loadPayments = useCallback((bid: string) => {
+    setPayErr(false);
+    fetchBookingPayments(bid)
+      .then(setPayRows)
+      .catch((e) => { console.warn('[schedule] payments:', e?.message ?? e); setPayErr(true); });
+  }, []);
+  useEffect(() => {
+    if (!selected) { setPayRows([]); setPayErr(false); return; }
+    setPayRows([]);
+    loadPayments(selected.id);
+  }, [selected, loadPayments]);
+  // 완료 = 정산이 끝났어야 하는 예약. 그때는 행이 0건이어도 '아직 없다'고 말해야 한다
+  // (침묵하면 청구가 없었던 것처럼 읽힌다). 그 전에는 부재가 곧 사실이다.
+  const settled = selected?.status === 'completed';
+  const showPayments = payRows.length > 0 || settled;
 
   return (
     <View style={{ flex: 1, backgroundColor: paper.canvas }}>
@@ -385,6 +408,30 @@ export default function Schedule() {
                     )}
                   </View>
 
+                  {/* 결제 내역 (charge slice) — 청구는 러닝이 끝난 뒤에 생긴다. 행이 있거나 정산이
+                      끝난 예약에서만 렌더한다: 정산 전 '결제 내역 없음'은 알림이 아니라 소음이고,
+                      §0-bis의 비가시성은 청구가 생긴 뒤에는 반드시 보여주는 것으로만 정직해진다. */}
+                  {showPayments && (
+                    <View style={s.sheetCard}>
+                      <Text style={{ fontSize: 17, fontWeight: '900', color: paper.ink }}>결제 내역</Text>
+                      {payErr ? (
+                        // 실패는 실패로 — 다만 정산된 예약에서만 말한다 (그 전에는 섹션 자체가 없다)
+                        <View style={{ marginTop: 8 }}>
+                          <Text style={{ fontSize: 14, fontWeight: '700', color: paper.critical }}>결제 내역을 불러오지 못했어요</Text>
+                          <Pressable onPress={() => loadPayments(selected.id)} style={s.payRetry} accessibilityRole="button">
+                            <Text style={{ fontSize: 16, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' }}>다시 시도</Text>
+                          </Pressable>
+                        </View>
+                      ) : payRows.length === 0 ? (
+                        <Text style={{ fontSize: 14.5, lineHeight: 20, color: paper.dim, marginTop: 6 }}>
+                          아직 청구 내역이 없어요 — 정산이 끝나면 여기에 표시돼요
+                        </Text>
+                      ) : (
+                        payRows.map((p) => <PaymentRow key={p.orderId} p={p} showDog={false} />)
+                      )}
+                    </View>
+                  )}
+
                   {/* actions — 상태별: 진행 중엔 라이브만, 완료엔 기록만, 시작 전에만 변경·취소 */}
                   {selected.status === 'active' ? (
                     <>
@@ -501,7 +548,9 @@ export default function Schedule() {
                           확인 시트(fee/feeRate)가 정확한 % 와 배분을 커밋 전에 다시 명시한다. */}
                       <Pressable style={s.cancelLink} onPress={() => setSheetMode('cancel')}>
                         <Text style={{ fontSize: 14.5, fontWeight: '700', color: paper.critical }}>
-                          {enrouteCancel ? '일정 취소하기 (수수료 50%)' : '일정 취소하기'}
+                          {/* 티어는 네 팔 미러가 말한다 — 수수료가 0인 예약에 '(수수료 50%)'를
+                              달던 자리(이동 중만 표기하던 이분법)의 교정 */}
+                          {fee > 0 ? `일정 취소하기 (수수료 ${Math.round(feeRate * 100)}%)` : '일정 취소하기'}
                         </Text>
                       </Pressable>
                     </>
@@ -521,17 +570,31 @@ export default function Schedule() {
                     {selected.dateLabel} {selected.timeLabel} · {runner.name} 러너
                   </Text>
 
+                  {/* [post-pay 2026-08-13] 이 카드는 환불 명세가 아니라 **청구 명세**다.
+                      예약 시점에 잡아둔 돈이 없으므로 (§0-bis: 러닝이 끝난 뒤에 청구) 돌려받을
+                      금액이라는 개념 자체가 없다 — 취소가 만드는 유일한 돈은 수수료 청구다. */}
                   <View style={s.feeCard}>
-                    <FeeLine label="결제 금액" value={`${selected.price.toLocaleString()}원`} />
-                    <FeeLine label={`취소 수수료 (${feeRate * 100}%)`} value={`−${fee.toLocaleString()}원`} coral />
+                    <FeeLine label="예약 금액" value={`${selected.price.toLocaleString()}원`} />
+                    <FeeLine label={`취소 수수료 (${Math.round(feeRate * 100)}%)`} value={`${fee.toLocaleString()}원`} coral />
                     <View style={{ height: 1, backgroundColor: '#EEE', marginVertical: 10 }} />
-                    <FeeLine label="환불 금액" value={`${(selected.price - fee).toLocaleString()}원`} bold />
+                    <FeeLine label="청구 금액" value={`${fee.toLocaleString()}원`} bold />
                     {/* [0066] 이동 중 티어는 배분 문장이 다르다 — 50% 전액이 이미 출발한 러너의 보상.
                         일반 티어 카피(10%·50/50 배분·24h 무료)는 그대로 생존. */}
                     <Text style={{ fontSize: 14, color: paper.dim, marginTop: 10, lineHeight: 17 }}>
                       {enrouteCancel
                         ? '러너가 이미 픽업으로 출발했어요 — 이동 중 취소 수수료는 전액 시간을 내어 출발한 러너의 보상으로 배분돼요.'
                         : `취소 수수료는 시간을 비워둔 러너에게 ${Math.round(cancelPolicy.runnerShare * 100)}%, 도그스하이에 ${Math.round((1 - cancelPolicy.runnerShare) * 100)}% 배분돼요.\n시작 24시간 전까지는 수수료가 없어요.`}
+                    </Text>
+                    {/* TODO(widget slice, R3 P3-8): both sentences assume no captured payment —
+                        true today (TOSS_ENABLED=false, payment_ok writes no payments row, so no
+                        confirmed row can exist), FALSE for a widget-prepaid booking the day that
+                        slice ships. The server already branches on payments.status='confirmed'
+                        (cancel_owner.ts isPrepaid); this sheet must branch the same way
+                        (fetchBookingPayments) before widget payments go live. */}
+                    <Text style={{ fontSize: 14, color: paper.dim, marginTop: 6, lineHeight: 17 }}>
+                      {fee > 0
+                        ? '지금까지 결제된 금액이 없어서 환불은 없어요 — 취소 수수료만 청구돼요.'
+                        : '지금까지 결제된 금액도, 이번 취소로 청구되는 금액도 없어요.'}
                     </Text>
                   </View>
 
@@ -543,9 +606,13 @@ export default function Schedule() {
                       close();
                       try {
                         const r = await cancelBooking(bid);
+                        // [post-pay 2026-08-13] 서버가 돌려주는 사실은 수수료 하나뿐이다 (refund 은퇴).
+                        // 잡아둔 돈이 없으니 환불 약속을 할 자리도 없다 — 청구 여부만 말한다.
                         Alert.alert(
                           '취소 완료',
-                          `환불 ${r.refund.toLocaleString()}원${r.cancel_fee > 0 ? ` (수수료 ${r.cancel_fee.toLocaleString()}원 차감)` : ' (수수료 없음)'}\n결제 실연동 후엔 3일 내 환불 처리돼요`,
+                          r.cancel_fee > 0
+                            ? `취소 수수료 ${r.cancel_fee.toLocaleString()}원이 청구돼요\n설정 › 결제 관리에서 결제 내역을 볼 수 있어요`
+                            : '청구되는 금액은 없어요',
                         );
                         load();
                       } catch (e) {
@@ -553,7 +620,9 @@ export default function Schedule() {
                       }
                     }}
                   >
-                    <Text style={{ fontSize: 16.5, fontWeight: '900', color: '#fff' }}>취소하고 {(selected.price - fee).toLocaleString()}원 환불받기</Text>
+                    <Text style={{ fontSize: 16.5, fontWeight: '900', color: '#fff' }}>
+                      {fee > 0 ? `수수료 ${fee.toLocaleString()}원 내고 취소하기` : '수수료 없이 취소하기'}
+                    </Text>
                   </Pressable>
                   <Pressable style={s.cancelLink} onPress={() => setSheetMode('detail')}>
                     <Text style={{ fontSize: 14.5, fontWeight: '700', color: paper.text }}>돌아가기</Text>
@@ -671,6 +740,8 @@ const s = StyleSheet.create({
   },
   sheetMapPendingTxt: { fontSize: 14, fontWeight: '700', color: paper.dim },
   vDiv: { width: 1, backgroundColor: '#EEE' },
+  // 결제 내역 실패 스트립의 재시도 — schedule의 밑줄 텍스트 문법 (박스 없음, ≥44pt 타깃)
+  payRetry: { alignSelf: 'flex-start', marginTop: 8, minHeight: 44, justifyContent: 'center' },
   badgePill: { backgroundColor: '#e3f0c4', paddingVertical: 2, paddingHorizontal: 7, alignSelf: 'center' }, // 목업 러너 전용 배지 — 확정 틴트 시맨틱 유지, 스퀘어만
   chatChip: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line, paddingVertical: 8, paddingHorizontal: 13, alignSelf: 'center' }, // meetup chatChip 문법
   // [Sean 2026-08-11] 볼트 그린 은퇴 — §3b 프라이머리는 잉크 면 + 화이트 17/800이다.

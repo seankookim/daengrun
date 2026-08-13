@@ -1,9 +1,14 @@
 #!/bin/bash
 # ═══ 2커넥션 레이스 검사 (R6) — 실 위탁 파일럿 전 필수 차단기 ═══
 # 하네스 말미에 같은 DB로 실행 (harness.sh가 호출 — env 상속). 진짜 두 psql 프로세스가
-# 동시에 경합한다: RA 마지막 슬롯 pay · RB 취소 vs 결제 정합 · RC 릴리스 vs 인시던트.
-# RC는 타이밍 기반이지만 결정적으로 설계: 인시던트 tx가 세션 락+행 락을 2초 점유 → 릴리스는
-# 행 락 대기 → 커밋 후 WHERE 재평가로 held를 보고 스킵해야 한다.
+# 동시에 경합한다: RA 마지막 슬롯 pay · RB 취소 vs 결제 정합 · RC 릴리스 vs 인시던트 ·
+# [0078] RD 동시 민팅 · RE 동시 인루트 보상.
+# RC/RD/RE는 타이밍 기반이지만 결정적으로 설계: 선행 tx가 락을 2초 점유 → 후행은 대기 →
+# 커밋 후 재평가로 이미 쓰인 행을 보고 물러서야 한다.
+#
+# ⚠ RD/RE의 뮤테이션(115 헤더에도 적힌다): 0078에서 해당 pg_advisory_xact_lock 한 줄을 지우면
+#   후행 tx가 대기하지 않고 선행의 미커밋 상태를 못 본 채 각자 쓴다 → 행 2개 → RED. 115는
+#   단일 커넥션이라 이 두 주장을 볼 수 없다 — 그래서 여기에 있다.
 set -u
 cd "$(dirname "$0")"
 
@@ -62,4 +67,86 @@ if [ "$STATE" = "payable/held" ]; then
   psql -qc "call _pass('race','RC 릴리스 vs 인시던트 — 인시던트 선행 시 미릴리스·보류 (행 락 재평가)')"
 else
   psql -qc "call _fail('race','RC 릴리스 vs 인시던트','state=$STATE (payable/held 기대)')"
+fi
+
+# ---------- [0078] RD/RE 월드 빌더 ----------
+# 90_race_setup.sql이 아니라 여기에 두는 이유: 이 두 레이스는 청구 슬라이스(0078)의 것이고,
+# 픽스처가 검사와 같은 파일에 있어야 락을 지운 사람이 무엇이 왜 빨개졌는지 한 번에 읽는다.
+psql -v ON_ERROR_STOP=1 -q <<'SQL' || { psql -qc "call _fail('race','RD/RE 셋업','world builder 실패')"; exit 0; }
+create or replace function race_setup_d() returns text
+language plpgsql as $$
+declare od uuid; rd uuid; dd uuid; rt uuid; bd uuid;
+begin
+  -- 청구 기계는 컷오버 이후에만 민팅한다 (0078 §0c) — 레이스를 보려면 스위치를 켜야 한다.
+  update ops_flags set payments_live_since = now() - interval '7 days', updated_at = now();
+  od := t_user('race_d_owner', 'owner'); rd := t_user('race_d_runner', 'runner');
+  dd := t_dog(od, '레이스D'); rt := t_route('레이스D 코스');
+  insert into bookings (owner_id, dog_id, runner_id, route_id, status, scheduled_at, km,
+                        base_fare, distance_fare, addon_fare, total_price, min_fare)
+  values (od, dd, rd, rt, 'completed', now() - interval '2 hours', 5.0,
+          9900, 15000, 0, 24900, 9900)
+  returning id into bd;
+  -- 정산됨 = runs.ended_at (0078 §F의 유일한 앵커). settle-run 직후의 상태를 그대로 만든다.
+  insert into runs (booking_id, started_at, ended_at, actual_km, end_reason)
+  values (bd, now() - interval '40 minutes', now(), 5.0, 'completed');
+  return bd::text;
+end $$;
+
+create or replace function race_setup_e() returns text
+language plpgsql as $$
+declare oe uuid; re uuid; de uuid; rt uuid; be uuid;
+begin
+  oe := t_user('race_e_owner', 'owner'); re := t_user('race_e_runner', 'runner');
+  de := t_dog(oe, '레이스E'); rt := t_route('레이스E 코스');
+  insert into bookings (owner_id, dog_id, runner_id, route_id, status, scheduled_at, km,
+                        base_fare, distance_fare, addon_fare, total_price, min_fare,
+                        cancel_fee, cancel_reason)
+  values (oe, de, re, rt, 'cancelled_owner', now() + interval '1 hour', 5.0,
+          9900, 15000, 0, 24900, 9900, 12450, 'owner_cancel_enroute')
+  returning id into be;
+  return be::text;
+end $$;
+SQL
+
+# ---------- RD: 동시 민팅 — 한 예약에 청구 인텐트는 정확히 1행 ----------
+# 두 번째 order_id는 곧 두 번째 청구 가능 인텐트다. exists 검사만으로는 못 막는다(read-then-insert,
+# 민팅마다 새 order_id라 유니크 인덱스도 걸리지 않는다) — 막는 것은 부킹별 advisory 락이다.
+BD=$(psql -qt -c "select race_setup_d()" | xargs)
+psql -q > .pgtest/race_d1.out 2>&1 <<SQL &
+begin;
+select * from mint_settle_charge_intent('$BD', 'completed', 5.0);
+select pg_sleep(2);
+commit;
+SQL
+sleep 0.6
+psql -qt -c "select * from mint_settle_charge_intent('$BD', 'completed', 5.0);" > .pgtest/race_d2.out 2>&1
+wait
+ROWS=$(psql -qt -c "select count(*) from payments where booking_id = '$BD'" | xargs)
+ORDS=$(psql -qt -c "select count(distinct order_id) from payments where booking_id = '$BD'" | xargs)
+psql -qc "update ops_flags set payments_live_since = null, updated_at = now()"   # 출하 기본값 복원
+if [ "$ROWS" = "1" ] && [ "$ORDS" = "1" ]; then
+  psql -qc "call _pass('race','RD 동시 민팅 — 정산 부킹 하나에 결제행 1개·order_id 1개 (부킹별 advisory 락이 후행을 직렬화)')"
+else
+  psql -qc "call _fail('race','RD 동시 민팅','rows=$ROWS order_ids=$ORDS (1/1 기대 — 두 번째 행 = 두 번째 청구)')"
+fi
+
+# ---------- RE: 동시 인루트 보상 — 러너 원장 행은 정확히 1개 ----------
+# ledger_items에는 booking_id 유니크가 없다(0001:264). 멱등 검사가 read-then-insert이므로
+# 직렬화가 없으면 두 호출이 각각 12,450원을 쓴다 = 플랫폼 주머니에서 두 번 지급.
+BE=$(psql -qt -c "select race_setup_e()" | xargs)
+psql -q > .pgtest/race_e1.out 2>&1 <<SQL &
+begin;
+select * from record_enroute_cancel_comp('$BE');
+select pg_sleep(2);
+commit;
+SQL
+sleep 0.6
+psql -qt -c "select * from record_enroute_cancel_comp('$BE');" > .pgtest/race_e2.out 2>&1
+wait
+LROWS=$(psql -qt -c "select count(*) from ledger_items where booking_id = '$BE'" | xargs)
+LSUM=$(psql -qt -c "select coalesce(sum(remaining_guarantee),0) from ledger_items where booking_id = '$BE'" | xargs)
+if [ "$LROWS" = "1" ] && [ "$LSUM" = "12450" ]; then
+  psql -qc "call _pass('race','RE 동시 인루트 보상 — 원장 행 1개·보상 총액 12450 (부킹별 advisory 락; ledger_items에 유니크 키는 없다)')"
+else
+  psql -qc "call _fail('race','RE 동시 인루트 보상','rows=$LROWS sum=$LSUM (1/12450 기대 — 두 번째 행 = 이중 지급)')"
 fi

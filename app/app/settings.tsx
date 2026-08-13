@@ -48,6 +48,13 @@ export default function Settings() {
           <Text style={{ fontSize: 16, color: colors.dim }}>›</Text>
         </Pressable>
         <View style={s.div} />
+        {/* [charge slice 2026-08-13] 준비 중 카드의 '결제 수단 — PG 연동 후' InfoRow가 여기로 승격.
+            실화면이 생겼다: 등록된 카드·청구 내역·실패한 청구의 재시도가 전부 서버 진실이다. */}
+        <Pressable onPress={() => router.push('/payments')} style={s.actionRow}>
+          <Text style={s.actionText}>결제 관리</Text>
+          <Text style={{ fontSize: 16, color: colors.dim }}>›</Text>
+        </Pressable>
+        <View style={s.div} />
         <Pressable
           onPress={() => Linking.openURL('mailto:seankookim@uchicago.edu?subject=도그스하이 문의')}
           style={s.actionRow}
@@ -77,8 +84,6 @@ export default function Settings() {
       {/* 준비 중 — 정직 라벨 */}
       <Text style={s.section}>준비 중</Text>
       <View style={[s.card, { opacity: 0.55 }]}>
-        <InfoRow label="결제 수단" value="PG 연동 후" />
-        <View style={s.div} />
         <InfoRow label="알림 설정" value="푸시 도입 후" />
         <View style={s.div} />
         <InfoRow label="계정 삭제" value="문의로 처리" />

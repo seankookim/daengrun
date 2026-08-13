@@ -121,9 +121,11 @@ export default function Radar() {
           try {
             const r = await cancelBooking(bookingId);
             draft.bookingId = null;
+            // [post-pay 2026-08-13] 러너를 찾는 동안에는 결제된 금액이 없다 — 환불이 아니라
+            // 청구 여부만 말한다 (0066 래더에서 미매칭 취소는 수수료 0).
             Alert.alert('취소 완료', r.cancel_fee > 0
-              ? `취소 수수료 ${r.cancel_fee.toLocaleString()}원 · 환불 ${r.refund.toLocaleString()}원`
-              : `전액 ${r.refund.toLocaleString()}원 환불돼요`);
+              ? `취소 수수료 ${r.cancel_fee.toLocaleString()}원이 청구돼요`
+              : '청구되는 금액은 없어요');
             router.replace('/owner/home');
           } catch (e) {
             Alert.alert('취소 실패', (e as Error).message);

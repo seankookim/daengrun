@@ -89,6 +89,39 @@ Deferred work, written down so it exists. Format: what / why / context / effort
   preference/scheduling scheme stays unchanged; tokens + levels abandoned; km dial
   stays). Kept for the one durable note: addons just work under post-pay (₩+₩).
 
+## From charge-slice adversarial round 2 (2026-08-13)
+
+- [ ] **Club delegation money gaps — MUST land before the payments_live_since flip** —
+  `session_pay_delegation` (0037:242-249) inserts bookings directly at `matching` with
+  NO debt gate, NO billing-instrument check, and a **hardcoded `base_fare: 9900`** (the
+  retired owner base). Why: under 0078's frozen-numbers rule the flip converts that stale
+  constant into a real ₩9,900 base charge while request.tsx quotes ₩7,900, and a locked
+  owner whose host keeps approving them accrues unbounded uncollectable fares — 0078 §H's
+  exposure-bound comment explicitly names this exclusion. Context: R6 (club money is a
+  separate simulated path, toss-plan §6); found by charge-slice reviewer R1 (P2-3).
+  Effort M → S (own migration 0079 + club suite pins). **P1 at cutover, P2 until.**
+  Depends on: 0078 landed.
+- [ ] **Card-path postConfirm parity (card-register slice scope)** — create-booking-hold's
+  card path CASes straight to `matching`, never passing confirm-payment, so §2-5b's
+  server-side preferred-runner nomination + recurring-series creation silently never run
+  for card-linked bookings; request.tsx:321 would also route an already-matching booking
+  to /owner/pay. Why: a paying user's chosen runner and weekly repeat must not vanish —
+  the exact X3 crash class, reopened on the new path. Context: unreachable today (nothing
+  writes billing_keys — verified by R3); becomes real the day card-register ships.
+  Effort S → S. P1 within the card-register slice. Depends on: Ⓐ card-register screens.
+- [ ] **Widget-slice copy conditionals** — pay.tsx `refund_pending` ("환불이 진행 중")
+  and schedule.tsx's cancel sentences ("지금까지 결제된 금액이 없어서…") assume no captured
+  payment; true today (no confirmed payments row can exist), false for widget-prepaid
+  bookings the day the widget ships. In-file TODO comments name the predicate
+  (fetchBookingPayments / confirmed-row branch, mirroring cancel_owner.ts isPrepaid).
+  Effort S → S. P1 within the widget go-live gate (§5-4). Depends on: TOSS_ENABLED flip.
+- [ ] **Sandbox §4-2 additions from the adversarial round** — ① probe what Toss actually
+  does with two SIMULTANEOUS captures on one orderId (the residual crux of R2's P1-1;
+  our claim-CAS makes it near-impossible to reach, but the platform behavior is unmeasured);
+  ② verify the ₩100 card minimum backing `compute_owner_charge`'s `below_pg_minimum` arm;
+  ③ billing(자동결제) TEST-key matrix once dashboard keys exist (docs demo keys are
+  widget-only). Effort S → S. P2, rides the A3 device session.
+
 ## From coordinates-geocoding slice (2026-08-10, /autoplan)
 
 - [ ] **Distance-to-pickup on runner job cards** — show km-to-address on

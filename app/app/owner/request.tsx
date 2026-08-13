@@ -4,7 +4,8 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { addDog, Addr, AvailRule, createBookingHold, DogProfile, fetchAddresses, fetchMyDogs, fetchRoutes, fetchRunnerAvailability } from '../../src/lib/api';
+import { addDog, Addr, AvailRule, createBookingHold, DogProfile, fetchAddresses, fetchMyDogs, fetchRoutes, fetchRunnerAvailability, fetchUnsettledCharge } from '../../src/lib/api';
+import { ChargeBanner } from '../../src/components/charge-states';
 import { HeatTrace } from '../../src/components/runcard';
 import { Avatar, Icon, Row, Skeleton } from '../../src/components/ui';
 import { haptic } from '../../src/lib/haptics';
@@ -166,6 +167,17 @@ export default function Request() {
       .catch((e) => { console.warn('[request] dogs:', e?.message ?? e); setDogsState('error'); });
   }, [applyDogs]);
   useFocusEffect(useCallback(() => { loadDogs(); }, [loadDogs]));
+
+  // 청구 잠금 (charge slice §0-ter) — 미해결 청구가 있으면 create-booking-hold가 409로 거절한다.
+  // 그 사실을 서버에 부딪히기 전에 여기서 먼저 말한다: 잠긴 보호자는 '왜'를 알아야 한다.
+  // 읽기 실패는 '잠기지 않음'이 아니다 → false로 접지 않고 그대로 두고, 진짜 게이트는 서버가 쥔다.
+  const [chargeLocked, setChargeLocked] = useState(false);
+  useFocusEffect(useCallback(() => {
+    fetchUnsettledCharge()
+      .then(setChargeLocked)
+      .catch((e) => console.warn('[request] unsettled:', e?.message ?? e));
+  }, []));
+
   const [slotSheet, setSlotSheet] = useState(false);
   const [recurringOn, setRecurringOn] = useState(false); // 매주 반복 (0026)
   const [holdVisible, setHoldVisible] = useState(false);
@@ -231,6 +243,9 @@ export default function Request() {
   };
 
   const pay = async () => {
+    // 청구 잠금이 반려견 게이트보다 앞선다 — 서버가 어차피 409로 막을 요청을 만들지 않는다.
+    // 버튼은 죽지 않고 '해야 할 다음 일'(결제 관리)로 데려간다 (이 화면의 라벨 스왑 문법).
+    if (chargeLocked) { router.push('/payments'); return; }
     // [정직 웨이브 2.5 · 감사 #27/#34] 반려견 게이트가 맨 앞. ensureDog(목업 아이 자동 생성) 은퇴 —
     // 아이가 없으면 예약을 만들지 않고 등록 화면으로 보낸다. 여기서 아이를 만드는 일은 영원히 없다.
     // myDogs=[]는 '없음'일 수도, 아직 못 읽었을 수도 있다 → ready가 아니면 먼저 사실을 확인한다.
@@ -385,6 +400,17 @@ export default function Request() {
             <Pressable key={i} disabled={i >= step} onPress={() => goStep(i)} hitSlop={12} style={[s.stepSeg, i <= step && { backgroundColor: paper.line }]} />
           ))}
         </View>
+
+        {/* 청구 잠금 배너 — 접힘 밖, 모든 스텝에서 보인다 (§7b: 정직한 상태는 클러터가 아니다).
+            예약을 만들 수 없다는 사실은 마지막 CTA에서가 아니라 화면에 들어온 순간 알아야 한다. */}
+        {chargeLocked && (
+          <ChargeBanner
+            kind="debt"
+            cta="결제 관리 열기 ›"
+            onPress={() => router.push('/payments')}
+            style={{ marginHorizontal: -layout.gutter, marginTop: 14 }}
+          />
+        )}
 
         {/* ════════ STEP 0 — 언제 ════════ */}
         {step === 0 && (
@@ -837,7 +863,7 @@ export default function Request() {
               {/* 라벨 스왑 = 이 화면의 문법 ('시간부터 ›' 선례). 버튼을 disabled로 죽이지 않는다 —
                   누르면 다음에 해야 할 일로 데려간다 (등록 → 시간 → 결제) */}
               <Text style={{ fontSize: 17, fontWeight: '800', color: '#FFFFFF' }}>
-                {dogsState === 'error' ? '반려견 확인 다시 ›' : dogsState === 'loading' && !myDog ? '반려견 확인 중 ›' : !myDog ? '반려견부터 ›' : !draft.scheduledAtIso ? '시간부터 ›' : '결제하기 ›'}
+                {chargeLocked ? '결제 문제부터 ›' : dogsState === 'error' ? '반려견 확인 다시 ›' : dogsState === 'loading' && !myDog ? '반려견 확인 중 ›' : !myDog ? '반려견부터 ›' : !draft.scheduledAtIso ? '시간부터 ›' : '결제하기 ›'}
               </Text>
             </Pressable>
           </Row>

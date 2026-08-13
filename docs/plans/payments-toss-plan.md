@@ -90,6 +90,14 @@ the fix-card state, receipts. 최소 pace/threshold copy per the A-17 amendment
 
 ## 0-ter. SETTLE-TIME CHARGE MACHINE (eng pass, 2026-08-12 night — resolves §0-bis's NEEDS-ENG-PASS)
 
+> **BUILT 2026-08-13** as the charge slice (0078 + charge.ts + collect-charges + client
+> money surfaces; harness 415/0 · deno 131/0 · adversarial round 2 executed: 3 reviewers,
+> 3 P1s found and absorbed — see `docs/session-handoff.md` §2 for the decisions layered on
+> top of this section, and §3 for the mandatory deploy order). The section below remains
+> the design of record; round-2 amendments (per-attempt idempotency keys, payments_live_since
+> cutover scoping, kind-scoped debt derivation, outage-vs-decline separation, confirm-payment
+> kind gate) are recorded in the handoff and in 0078's own header.
+
 **Booking flow, card-linked (NO transition-map change needed):** create-booking-hold
 already runs draft→quoted→payment_hold; for an owner with a valid billing key it then
 immediately CASes payment_hold→matching **server-side in the same request** — reusing the
@@ -388,6 +396,19 @@ Pin what SQL can hold:
 
 1. ~~**Now, unblocked:** the `payments` table + RLS + pins. Nothing else.~~ **DONE 2026-08-11**
    (`0071` + `109`).
+> **Docs demo TEST keys (Toss-published, public — Sean relayed 2026-08-13):** widget pair
+> `test_gck_docs_Ovk5rk1EwkEbP0W43n07xlzm` / `test_gsk_docs_OaPz8L5KdmQXkzRz3y47BMw6`.
+> Test mode authorizes virtually — nothing is charged. These unblock the §3 A3 device spike
+> and the §4-2 widget sandbox matrix TODAY (variantKey `DEFAULT`; the 카드+간편결제-only
+> variant needs our own dashboard). They are WIDGET keys (`gck`/`gsk`) — the §0-ter billing
+> (자동결제/빌링키) sandbox still needs our own dashboard keys + 자동결제 심사. Client key is
+> in `app/.env.example`; the secret goes to the server env only
+> (`supabase secrets set TOSS_SECRET_KEY=…` or a local `functions serve` env), never the app.
+> Verified at build (2026-08-13, Toss docs): Idempotency-Key retention 15 days with
+> first-response replay ⇒ the §0-ter retry ladder uses PER-ATTEMPT keys
+> (`{order_id}_a{attempt}`); double-charge safety = constant orderId
+> (DUPLICATED_ORDER_ID / ALREADY_PROCESSED_PAYMENT) + the already-processed arm.
+
 1b. **BUILDABLE NOW, before the contract (eng review #11 — TEST keys don't need filings):**
    the intent migration (+ pins), `confirm-payment` with Deno unit tests (mocked Toss),
    the A3 SDK spike against TEST keys, client wiring behind the existing phases, the

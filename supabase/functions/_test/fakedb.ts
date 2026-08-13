@@ -51,12 +51,37 @@ export class FakeDb {
     },
   };
 
+  // The real rpc builder is thenable AND carries `.single()`/`.maybeSingle()`, which handlers use
+  // on `returns table(...)` functions (transition-booking's `marketplace_cancel_fee(...).single()`).
+  // Awaiting it directly still yields `{ data, error }` exactly as before; the row-shaping mirrors
+  // PostgREST's: `.single()` is an ERROR unless there is exactly one row.
   rpc(name: string, args: any) {
     this.log.push(`rpc:${name}`);
-    const fn = this.rpcs[name];
-    if (!fn) return Promise.resolve({ data: null, error: { message: `no rpc ${name}` } });
-    const r = fn(args);
-    return Promise.resolve({ data: r.data ?? null, error: r.error ?? null });
+    const run = () => {
+      const fn = this.rpcs[name];
+      if (!fn) return { data: null, error: { message: `no rpc ${name}` } };
+      const r = fn(args);
+      return { data: r.data ?? null, error: r.error ?? null };
+    };
+    const shaped = (shape: "many" | "single" | "maybe") => {
+      const r = run();
+      if (r.error || shape === "many") return r;
+      const list = Array.isArray(r.data) ? r.data : r.data === null ? [] : [r.data];
+      if (shape === "single") {
+        return list.length === 1
+          ? { data: { ...list[0] }, error: null }
+          : { data: null, error: { message: `expected 1 row, got ${list.length}` } };
+      }
+      return { data: list.length ? { ...list[0] } : null, error: null };
+    };
+    return {
+      then: <T1 = any, T2 = never>(
+        ok?: ((v: any) => T1 | PromiseLike<T1>) | null,
+        err?: ((r: any) => T2 | PromiseLike<T2>) | null,
+      ) => Promise.resolve(shaped("many")).then(ok, err),
+      single: () => Promise.resolve(shaped("single")),
+      maybeSingle: () => Promise.resolve(shaped("maybe")),
+    };
   }
 
   from(table: string) {
@@ -67,6 +92,30 @@ export class FakeDb {
       delete: () => new Q(this, table, "delete"),
     };
   }
+}
+
+/**
+ * Resolve a PostgREST column reference, including jsonb paths: `raw->kind` (json value) and
+ * `raw->>attempts` (TEXT — the `->>` operator's whole point). A plain column name is returned as is.
+ *
+ * This exists because the charge core CASes on `raw->>attempts` — the dispatch claim — and
+ * collect-charges filters on `raw->kind`. A fake that could not see those filters would let a
+ * missing CAS pass its own tests, which is the exact bug class this file was written to catch.
+ * Missing keys resolve to `undefined`, matching SQL NULL for `is`/`not.is` purposes.
+ */
+function jsonPath(r: Row, col: string): any {
+  if (!col.includes("->")) return r[col];
+  const parts = col.split("->");
+  let cur: any = r[parts[0]];
+  for (let i = 1; i < parts.length; i++) {
+    let key = parts[i];
+    const asText = key.startsWith(">"); // `->>` split leaves the second `>` on the key
+    if (asText) key = key.slice(1);
+    key = key.replace(/^'|'$/g, "");
+    cur = cur !== null && typeof cur === "object" ? cur[key] : undefined;
+    if (asText) return cur === null || cur === undefined ? undefined : String(cur);
+  }
+  return cur;
 }
 
 class Q implements PromiseLike<any> {
@@ -101,8 +150,25 @@ class Q implements PromiseLike<any> {
     this.filters.push(["is", col, val]);
     return this;
   }
+  // PostgREST's negation: `.not(col, 'is', null)` → `col=not.is.null`. Used by collect-charges to
+  // push "this is a server-minted charge intent" (`raw->kind` present) into the QUERY, so
+  // BATCH_LIMIT bounds the candidates instead of the whole table.
+  not(col: string, op: string, val: any) {
+    this.filters.push([`not:${op}`, col, val]);
+    return this;
+  }
   in(col: string, vals: any[]) {
     this.filters.push(["in", col, vals]);
+    return this;
+  }
+  // Range filters — create-booking-hold's same-dog clash window. ISO timestamp strings compare
+  // in chronological order lexicographically, which is exactly what PostgREST does with them.
+  gte(col: string, val: any) {
+    this.filters.push(["gte", col, val]);
+    return this;
+  }
+  lte(col: string, val: any) {
+    this.filters.push(["lte", col, val]);
     return this;
   }
   order(col: string, opts?: { ascending?: boolean }) {
@@ -131,15 +197,24 @@ class Q implements PromiseLike<any> {
 
   private matches(r: Row): boolean {
     return this.filters.every(([op, col, val]) => {
+      const cell = jsonPath(r, col);
       switch (op) {
         case "eq":
-          return r[col] === val;
+          return cell === val;
         case "neq":
-          return r[col] !== val;
+          return cell !== val;
         case "is":
-          return val === null ? (r[col] === null || r[col] === undefined) : r[col] === val;
+          return val === null ? (cell === null || cell === undefined) : cell === val;
+        case "not:is":
+          return val === null ? !(cell === null || cell === undefined) : cell !== val;
+        case "not:eq":
+          return cell !== val;
         case "in":
-          return (val as any[]).includes(r[col]);
+          return (val as any[]).includes(cell);
+        case "gte":
+          return cell >= val;
+        case "lte":
+          return cell <= val;
         default:
           return false;
       }
@@ -205,6 +280,8 @@ export interface FetchCall {
   method: string;
   headers: Record<string, string>;
   body: any;
+  /** The abort signal the caller attached, if any — how "this call has a timeout" is checkable. */
+  signal: AbortSignal | null;
 }
 
 export class FetchMock {
@@ -230,6 +307,7 @@ export class FetchMock {
         method: init?.method ?? "GET",
         headers: (init?.headers as Record<string, string>) ?? {},
         body: init?.body ? JSON.parse(String(init.body)) : null,
+        signal: init?.signal ?? null,
       };
       this.calls.push(call);
       const route = this.routes.find((r) => r.match(url));

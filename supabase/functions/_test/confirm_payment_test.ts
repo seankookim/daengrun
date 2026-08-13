@@ -261,6 +261,86 @@ Deno.test("Toss refuses the confirm → 402, intent failed, and NO cancel call i
   }
 });
 
+Deno.test("Toss refuses → the failure write MERGES into the existing raw, never replaces it", async () => {
+  // The row's `raw` is a ledger of facts about this order. Overwriting it with just the error
+  // erases whatever was already recorded there (a mint marker, a reconciliation note, an earlier
+  // attempt) — and an erased fact has no recovery path.
+  const db = scene({ intent: { raw: { mint_note: "keep me", attempts: 0 } } });
+  const net = tossOk({ confirm: () => FetchMock.json({ code: "REJECT_CARD_COMPANY", message: "카드사에서 거절했어요" }, 400) });
+  try {
+    await expectHttpError(() =>
+      confirmPayment(req({ order_id: ORDER, payment_key: KEY }, "owner_jwt"), db as never)
+    );
+    assertEquals(pay(db).status, "failed");
+    assertEquals(pay(db).raw.mint_note, "keep me");
+    assertEquals(pay(db).raw.attempts, 0);
+    assertEquals(pay(db).raw.http_status, 400);
+    assertEquals((pay(db).raw.confirm_error as Row).code, "REJECT_CARD_COMPANY");
+  } finally {
+    net.restore();
+  }
+});
+
+// ═══ the post-pay era — a server-minted charge intent is not the widget's to confirm ═══════
+Deno.test("a server charge intent (raw.kind) → 409, and NOTHING is written or captured", async () => {
+  // `raw.kind` marks an intent the server mints for a billing-key charge (§0-ter). It has no
+  // widget session, no payment_hold booking, and its own retry ladder keyed on the order_id. A
+  // confirm here would bind a client-supplied paymentKey to that order and leave the charge
+  // machine facing an already-processed order it never made.
+  for (const kind of ["settle_charge", "cancel_fee"]) {
+    const db = scene({
+      intent: { raw: { kind, attempts: 1 } },
+      booking: { status: "completed" },
+    });
+    const net = tossOk();
+    try {
+      const e = await expectHttpError(() =>
+        confirmPayment(req({ order_id: ORDER, payment_key: KEY }, "owner_jwt"), db as never)
+      );
+      assertEquals(e.status, 409);
+      assertStringIncludes(e.message, "위젯 결제 대상이 아니에요");
+      assertEquals(net.calls.length, 0); // Toss is never asked
+      // Nothing written: same status, same key, same raw, no booking transition.
+      assertEquals(pay(db).status, "pending");
+      assertEquals(pay(db).payment_key, null);
+      assertEquals(pay(db).raw.kind, kind);
+      assertEquals(pay(db).raw.attempts, 1);
+      assertEquals(db.log.filter((l) => l.startsWith("update:") || l.startsWith("insert:")).length, 0);
+      assertEquals(db.rows("bookings")[0].status, "completed");
+    } finally {
+      net.restore();
+    }
+  }
+});
+
+Deno.test("the kind gate runs AFTER the party gate — a stranger still gets 403, not a hint", async () => {
+  const db = scene({ intent: { raw: { kind: "settle_charge" } } });
+  const net = tossOk();
+  try {
+    const e = await expectHttpError(() =>
+      confirmPayment(req({ order_id: ORDER, payment_key: KEY }, "stranger_jwt"), db as never)
+    );
+    assertEquals(e.status, 403);
+    assertEquals(net.calls.length, 0);
+  } finally {
+    net.restore();
+  }
+});
+
+Deno.test("the widget confirm is NOT given a timeout — the billing pair's ceiling is not this path's", async () => {
+  // toss.ts applies AbortSignal.timeout to the unattended billing calls only. Abandoning a capture
+  // that a human is waiting on (while Toss may complete it anyway) is the one trade never worth
+  // making here: §2-7's machine assumes it knows whether the money moved.
+  const db = scene();
+  const net = tossOk();
+  try {
+    await confirmPayment(req({ order_id: ORDER, payment_key: KEY }, "owner_jwt"), db as never);
+    assertEquals(net.calls.find((c) => isConfirm(c.url))!.signal, null);
+  } finally {
+    net.restore();
+  }
+});
+
 // ═══ post-capture failures — the §2-7 auto-cancel machine ══════════════════════════════════
 Deno.test("amount mismatch → auto-cancel, row canceled, honest copy", async () => {
   const db = scene();

@@ -3,6 +3,7 @@
 // actions: payment_ok | runner_accept | runner_decline | enroute | arrived | confirm_handoff | start_run | cancel_owner
 //        | request_reschedule | accept_reschedule | decline_reschedule | withdraw_reschedule (0016)
 import { admin, caller, handle, HttpError } from "../_shared/ctx.ts";
+import { cancelOwner } from "./cancel_owner.ts";
 
 Deno.serve(handle(async (req) => {
   const db = admin();
@@ -304,41 +305,12 @@ Deno.serve(handle(async (req) => {
       await notify(bk.owner_id, "러닝 시작", `${bk.km}km 러닝이 시작됐어요 — 실시간으로 지켜보세요`);
       break;
 
-    case "cancel_owner": {
-      if (!isOwner) throw new HttpError(403, "owner only");
-      // [0066] Fee ladder = SQL single truth (marketplace_cancel_fee, harness-pinned):
-      //   unmatched → 0 (full refund any time — the old find-now +40min bug stays fixed)
-      //   runner_enroute → 50% (runner compensation — Sean 2026-08-11)
-      //   matched >=24h → 0 · confirmed <24h → 10%
-      // The TS tier arithmetic retired to SQL because the harness can only pin SQL.
-      const { data: q, error: qe } = await db
-        .rpc("marketplace_cancel_fee", { p_booking: booking_id }).single();
-      if (qe || !q) throw new HttpError(409, qe?.message ?? "booking not found");
-      const { fee, status: quoted } = q as { fee: number; status: string };
-      // CAS on the quoted status — after 0066 both confirmed AND runner_enroute may become
-      // cancelled_owner, so the trigger no longer catches a quote-then-depart race (a 0/10%
-      // fee landing on a runner who set out between quote and write). 0 rows = re-quote.
-      // cancel_reason marks the en-route tier for future settlement (0066: no new column —
-      // cancel_fee holds the money, this holds the why; the whole 50% is runner compensation).
-      const { data: done, error: ce } = await db.from("bookings")
-        .update({
-          status: "cancelled_owner", cancel_fee: fee,
-          ...(quoted === "runner_enroute" ? { cancel_reason: "owner_cancel_enroute" } : {}),
-        })
-        .eq("id", booking_id).eq("status", quoted).select("id");
-      if (ce) throw new HttpError(409, ce.message);
-      if (!done || done.length === 0) {
-        throw new HttpError(409, "예약 상태가 방금 바뀌었어요 — 화면을 새로고침한 뒤 다시 시도해주세요");
-      }
-      if (bk.runner_id) {
-        // En-route copy tells the runner compensation is owed — recorded fact only, no payout
-        // date (payments are mocked; a promised date would be a lie the app can't keep).
-        await notify(bk.runner_id, "예약 취소됨", quoted === "runner_enroute"
-          ? "보호자가 이동 중에 예약을 취소했어요 — 취소 수수료(결제 금액의 50%)가 러너 보상으로 기록됐어요"
-          : "보호자가 예약을 취소했어요");
-      }
-      return { cancel_fee: fee, refund: bk.total_price - fee };
-    }
+    // 0066's fee ladder + the charge slice's collection half (§0-ter #5) — see cancel_owner.ts.
+    // This one case lives in its own file because `Deno.serve` at this module's top level makes
+    // the module unimportable, and the cancel fee's charge + the runner's compensation ledger row
+    // are money paths that must be pinned by tests. The party gate is that function's first line.
+    case "cancel_owner":
+      return await cancelOwner(db, { bookingId: booking_id, uid, bk, notify });
 
     // ── 일정 변경 = 제안 (0016) — 확정 예약은 계약: 러너가 수락해야만 시간이 바뀐다 ──
     case "request_reschedule": {

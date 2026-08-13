@@ -53,7 +53,13 @@ interface Intent {
   amount: number;
   status: string;
   payment_key: string | null;
+  raw: Record<string, unknown> | null;
 }
+
+// 후불(빌링키) 인텐트의 표식 — `raw.kind`('settle_charge' | 'cancel_fee'). 위젯 인텐트에는 없다.
+// (toss-plan §0-ter. 정본은 _shared/charge.ts의 헤더.)
+const NOT_A_WIDGET_ORDER =
+  "이 주문은 위젯 결제 대상이 아니에요 — 결제 내역에서 확인해주세요";
 
 export async function confirmPayment(
   req: Request,
@@ -71,7 +77,7 @@ export async function confirmPayment(
 
   // ── 2. 인텐트 조회 + 파티 게이트 (상태 게이트보다 먼저) ────────────────────────────────
   const { data: intentRow, error: iErr } = await db.from("payments")
-    .select("id, booking_id, order_id, amount, status, payment_key")
+    .select("id, booking_id, order_id, amount, status, payment_key, raw")
     .eq("order_id", orderId).maybeSingle();
   if (iErr) throw new HttpError(500, iErr.message);
   // 인텐트가 없으면 이 confirm은 우리가 만든 주문이 아니다. 승인하지 않는다 — 승인하면
@@ -84,6 +90,14 @@ export async function confirmPayment(
   if (bErr) throw new HttpError(500, bErr.message);
   if (!bk) throw new HttpError(404, "booking not found");
   if (bk.owner_id !== uid) throw new HttpError(403, "owner only");
+
+  // ── 2-bis. 이 주문은 위젯의 것인가? (파티 게이트 **다음**, 상태 게이트보다 먼저) ────────
+  // 후불 슬라이스(§0-ter)가 서버에서 민팅하는 청구 인텐트는 `raw.kind`를 달고 있다. 그 행은
+  // 빌링키로 청구되며 payment_key도 orderId도 위젯을 거치지 않는다. 그런 order_id로 여기에
+  // 들어오면 — 소유자 본인이라도 — 승인해선 안 된다: 클라가 들고 온 paymentKey가 그 주문에
+  // 붙어버리고, 자동 청구 기계는 같은 orderId로 이미 처리된 결제를 만나 자기 사다리를 잃는다.
+  // 무엇보다 이 함수의 §2-7 자동취소 기계는 '위젯 홀드'를 전제로 쓰였다. 사실을 말하고 멈춘다.
+  if ((intent.raw ?? {}).kind) throw new HttpError(409, NOT_A_WIDGET_ORDER);
 
   // ── 3. 멱등 — Toss를 때리기 **전에** ──────────────────────────────────────────────────
   // 네트워크 재시도·유저 더블탭·앱 재진입이 두 번째 청구가 되어선 안 된다. 이미 완결된 주문에
@@ -119,9 +133,11 @@ export async function confirmPayment(
     // 승인 자체가 거절됐다 = **아무 돈도 움직이지 않았다.** 여기서 취소 API를 부르면 존재하지
     // 않는 결제를 취소하려 드는 것이고, 그 실패가 needs_manual_cancel 노이즈가 된다.
     // 인텐트는 failed로 닫는다 (payment_key는 붙이지 않는다 — 0076의 settled_has_key 참고).
+    // raw는 **병합**한다. 통째로 덮으면 그 행이 이미 들고 있던 사실(민팅 표식, 조정 마커,
+    // 이전 시도의 기록)이 실패 한 번에 사라진다 — 장부에서 지워진 사실은 복구할 방법이 없다.
     await db.from("payments").update({
       status: "failed",
-      raw: { confirm_error: confirmed.body, http_status: confirmed.httpStatus },
+      raw: { ...(intent.raw ?? {}), confirm_error: confirmed.body, http_status: confirmed.httpStatus },
       updated_at: new Date().toISOString(),
     }).eq("id", intent.id).eq("status", "pending");
     const msg = typeof confirmed.body?.message === "string"

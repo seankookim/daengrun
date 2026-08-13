@@ -84,6 +84,7 @@ psql -q -f 111_address_note_suite.sql >/dev/null 2>&1            # 0073 owner-ed
 psql -q -f 112_handles_feed_claims_suite.sql >/dev/null 2>&1            # 0074 @handle + feed claim gate (F1 pins Sean's "do not restrict uploads")
 psql -q -f 113_km_ledger_suite.sql >/dev/null 2>&1            # 0075 km ledger (K15 pins Sean's D2 best-effort buffer; K14 pins the column-grant law)
 psql -q -f 114_recurring_guard_suite.sql >/dev/null 2>&1            # 0077 create_recurring_series 이중 벨트 (service_role 호출자 계급 — not_signed_in + is distinct from)
+psql -q -f 115_charge_suite.sql >/dev/null 2>&1            # 0078 settle-time charge machine (basis table · mints · derived debt · cutover moment · honesty copy)
 psql -c "select case when ok then '✅' else '❌' end || ' [' || suite || '] ' || name || case when ok then '' else ' — ' || detail end from _t order by at"
 psql -qt -c "select count(*) filter (where ok) || ' pass / ' || count(*) filter (where not ok) || ' fail' from _t"
 psql -qt -c "select case when count(*) filter (where not ok) > 0 then 'FAIL' else 'OK' end from _t" | grep -q OK

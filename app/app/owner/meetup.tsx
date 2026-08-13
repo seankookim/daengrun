@@ -196,9 +196,11 @@ export default function OwnerMeetup() {
     const enroute = stage === 'arrived'; // server runner_enroute — 50% tier (0066)
     Alert.alert(
       '일정을 취소할까요?',
+      // [post-pay 2026-08-13] '차감'은 잡아둔 돈이 있을 때만 참인 말이다 — 러닝 전에는
+      // 결제된 금액이 없으므로 수수료는 차감이 아니라 **청구**다 (§0-bis).
       `${info ? `${info.when} · ` : ''}${runnerName} 러너\n\n${enroute
-        ? `러너가 이미 픽업으로 출발했어요.\n지금 취소하면 결제 금액의 ${cancelPolicy.enrouteFeeRate * 100}%가 취소 수수료로 차감되고, 시간을 내어 출발한 러너의 보상으로 쓰여요.`
-        : `시작 24시간 전까지는 수수료가 없어요.\n이후에는 결제 금액의 ${cancelPolicy.feeRate * 100}%가 취소 수수료로 차감돼요.`}`,
+        ? `러너가 이미 픽업으로 출발했어요.\n지금 취소하면 예약 금액의 ${cancelPolicy.enrouteFeeRate * 100}%가 취소 수수료로 청구되고, 시간을 내어 출발한 러너의 보상으로 쓰여요.`
+        : `시작 24시간 전까지는 수수료가 없어요.\n이후에는 예약 금액의 ${cancelPolicy.feeRate * 100}%가 취소 수수료로 청구돼요.`}`,
       [
         { text: '돌아가기', style: 'cancel' },
         {
@@ -211,7 +213,9 @@ export default function OwnerMeetup() {
               // Alert-then-back mirrors the terminal-state handler in refresh() above.
               Alert.alert(
                 '취소 완료',
-                `환불 ${r.refund.toLocaleString()}원${r.cancel_fee > 0 ? ` (수수료 ${r.cancel_fee.toLocaleString()}원 차감)` : ' (수수료 없음)'}\n결제 실연동 후엔 3일 내 환불 처리돼요`,
+                r.cancel_fee > 0
+                  ? `취소 수수료 ${r.cancel_fee.toLocaleString()}원이 청구돼요\n설정 › 결제 관리에서 결제 내역을 볼 수 있어요`
+                  : '청구되는 금액은 없어요',
               );
               router.back();
             } catch (e) {

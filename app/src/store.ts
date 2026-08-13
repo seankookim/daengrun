@@ -165,7 +165,28 @@ export const bookings: Booking[] = [
 // Cancel policy — display constants mirroring the server ladder (0066 marketplace_cancel_fee):
 // <24h confirmed → 10% (split 50/50 runner·platform); runner en route → 50%, ALL of it runner
 // compensation (Sean 2026-08-11). The server computes the real fee — these only word the copy.
-export const cancelPolicy = { feeRate: 0.1, runnerShare: 0.5, enrouteFeeRate: 0.5 };
+// [2026-08-13] The two zero-fee arms the mirror was missing are now here. Without them the
+// cancel sheet quoted 10% to owners the server charges nothing (unmatched bookings and every
+// cancel made 24h+ ahead) — a fee shown before commit must be the fee the server will take.
+export const cancelPolicy = {
+  unmatchedFeeRate: 0, // runner_id null · matching · runner_pending — nobody has committed time yet
+  earlyFeeRate: 0,     // confirmed, 시작 24시간 전까지
+  feeRate: 0.1,        // confirmed, 시작 24시간 이내
+  enrouteFeeRate: 0.5, // runner_enroute — 전액 러너 보상
+  runnerShare: 0.5,    // 10% 티어의 러너 배분 (이동 중 티어는 100% 러너)
+};
+
+// Display mirror of 0066's four arms, evaluated in the SERVER'S ORDER (unmatched → en route →
+// ≥24h → else). Display only: transition-booking re-quotes server-side and the post-cancel
+// alert prints ITS number. A booking with no scheduled_at (mock rows) can't answer the 24h
+// question, so it falls to the charged arm rather than promising a free cancel we can't back.
+export function cancelFeeRateFor(b: { rawStatus?: string; matched?: boolean; scheduledAt?: string }): number {
+  if (b.matched === false || b.rawStatus === 'matching' || b.rawStatus === 'runner_pending') return cancelPolicy.unmatchedFeeRate;
+  if (b.rawStatus === 'runner_enroute') return cancelPolicy.enrouteFeeRate;
+  const t = b.scheduledAt ? new Date(b.scheduledAt).getTime() : NaN;
+  if (!isNaN(t) && t - Date.now() >= 24 * 3_600_000) return cancelPolicy.earlyFeeRate;
+  return cancelPolicy.feeRate;
+}
 
 // ---------- Runner earnings ledger (schema seed: payouts/ledger tables) ----------
 export interface LedgerItem {

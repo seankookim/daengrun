@@ -341,6 +341,127 @@ export async function fetchBookingCharge(bookingId: string): Promise<BookingChar
   };
 }
 
+// ---------- 청구·영수증 (post-pay charge slice · payments-toss-plan §0-bis/§0-ter) ----------
+// The read face of 클라 금액 불신 원칙: every number below is a server-committed fact read back
+// verbatim. The client never computes a charge, never derives a payment state, and never writes
+// to `payments` (0071 ships exactly one policy — the owner reads their own rows; every write is
+// refused by RLS). The one action here (retryCollect) asks an edge function to re-dispatch a
+// charge the SERVER already minted — it carries no amount.
+//
+// 가격 비가시성(§0-bis): these are the "on demand" surfaces (설정 → 결제 관리, 예약 상세 →
+// 결제 내역). Absence before settlement is the honest state — callers must not invent a row.
+
+// my_billing_card() — 0-or-1 row, auth.uid()-scoped. The billing key itself never leaves the
+// server; the client only ever learns brand/last4/linked_at.
+export interface BillingCard {
+  brand: string | null;
+  last4: string | null;
+  linkedAt: string | null;
+}
+
+export async function fetchMyBillingCard(): Promise<BillingCard | null> {
+  const { data, error } = await supabase.rpc('my_billing_card');
+  if (error) throw error; // 실패는 '카드 없음'이 아니다 — 화면이 두 사실을 갈라 말한다
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) return null; // 0행 = 등록된 카드 없음
+  return {
+    brand: (row as any).brand ?? null,
+    last4: (row as any).last4 ?? null,
+    linkedAt: (row as any).linked_at ?? null,
+  };
+}
+
+// my_unsettled_charge() — DERIVED server-side (no cached collection_status column, repo law).
+// True = 새 예약 잠김. The server's create-booking-hold gate is the real fence; this read only
+// lets the screen say WHY before the user hits a 409.
+export async function fetchUnsettledCharge(): Promise<boolean> {
+  const { data, error } = await supabase.rpc('my_unsettled_charge');
+  if (error) throw error;
+  return data === true;
+}
+
+// payments 행 — 표시용 투영. `raw`는 통째로 노출하지 않는다: 화면이 실제로 말해야 하는 두 조각
+// (카드 재연결 필요 여부, 거절 사유)만 꺼낸다.
+export interface PaymentRecord {
+  bookingId: string;
+  orderId: string;
+  amount: number;
+  status: string;          // pending | confirmed | canceled | partial_canceled | failed | waived
+  refundedAmount: number;
+  createdAt: string;
+  needsCardRelink: boolean; // raw.needs_card_relink — 일반 거절과 다른 상태 (§0-ter 에러 맵)
+  lastError: string | null; // raw.last_error — 거절을 이름으로 말하기 위한 한 줄
+  dogName: string | null;
+  scheduledAt: string | null;
+}
+
+const PAYMENT_COLS =
+  'booking_id, order_id, amount, status, refunded_amount, raw, created_at, bookings!inner(owner_id, scheduled_at, dogs(name))';
+
+// raw.last_error는 서버가 넣는 압축 에러 본문이다 — 문자열일 수도, 객체일 수도 있다.
+// 모양을 모르면 지어내지 않고 한 줄로 접거나 null로 둔다 (없는 사유를 만들지 않는다).
+function rawError(raw: any): string | null {
+  const e = raw?.last_error;
+  if (typeof e === 'string') return e.trim() || null;
+  if (e && typeof e === 'object' && typeof e.message === 'string') return e.message.trim() || null;
+  return null;
+}
+
+function toPaymentRecord(r: any): PaymentRecord {
+  return {
+    bookingId: r.booking_id,
+    orderId: r.order_id,
+    amount: Number(r.amount ?? 0),
+    status: String(r.status),
+    refundedAmount: Number(r.refunded_amount ?? 0),
+    createdAt: r.created_at,
+    needsCardRelink: r.raw?.needs_card_relink === true,
+    lastError: rawError(r.raw),
+    dogName: r.bookings?.dogs?.name ?? null,
+    scheduledAt: r.bookings?.scheduled_at ?? null,
+  };
+}
+
+// 설정 → 결제 관리의 영수증 목록. RLS가 이미 내 예약으로 좁히지만, owner_id 필터를 한 번 더
+// 건다 — 듀얼 롤 계정에서 러너로 받은 예약의 청구서는 내 영수증이 아니다 (fetchBookingCharge M5와 같은 법).
+export async function fetchMyPayments(limit = 30): Promise<PaymentRecord[]> {
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) return [];
+  const { data, error } = await supabase.from('payments')
+    .select(PAYMENT_COLS)
+    .eq('bookings.owner_id', user.user.id)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return (data ?? []).map(toPaymentRecord);
+}
+
+// 예약 상세의 결제 내역 — 한 예약의 행만. 0행은 '아직 청구가 없다'는 사실이지 실패가 아니다.
+export async function fetchBookingPayments(bookingId: string): Promise<PaymentRecord[]> {
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) return [];
+  const { data, error } = await supabase.from('payments')
+    .select(PAYMENT_COLS)
+    .eq('booking_id', bookingId)
+    .eq('bookings.owner_id', user.user.id)
+    .order('created_at', { ascending: false });
+  // 비정형 bid(uuid 아님)는 22P02 — 통신 실패가 아니라 '부재' (fetchBookingCharge 리뷰 #3과 같은 법)
+  if (error && (error as any).code === '22P02') return [];
+  if (error) throw error;
+  return (data ?? []).map(toPaymentRecord);
+}
+
+// 수동 재청구 — 실패한 청구를 다시 쏘는 단 하나의 사용자 동작. 금액은 보내지 않는다:
+// 서버가 이미 만든 payments 행(같은 order_id · 같은 멱등 키)을 다시 집행할 뿐이라
+// 이 호출이 두 번 나가도 이중 청구가 될 수 없다 (§0-ter 재시도 래더).
+// 성공 응답이 '수금 완료'를 뜻하지는 않는다 — 결과는 payments 행을 다시 읽어서 말한다.
+export async function retryCollect(bookingId: string): Promise<void> {
+  const { data, error } = await supabase.functions.invoke('collect-charges', {
+    body: { booking_id: bookingId },
+  });
+  if (error || data?.error) throw await fnError(error, data);
+}
+
 // ---------- my bookings → UI Booking ----------
 const DAYS = ['일', '월', '화', '수', '목', '금', '토'];
 
@@ -754,8 +875,10 @@ export async function fetchCurrentRunnerJobId(): Promise<string | null> {
 export const acceptBooking = (id: string) => invokeTransition(id, 'runner_accept');
 // 지명 거절 — runner_decline: runner_pending → matching (러너 홈 티켓의 실거절 문)
 export const declineBooking = (id: string) => invokeTransition(id, 'runner_decline');
-// 취소 — 서버가 수수료(24h 전 무료/이후 10%) 계산·상태 전이. { cancel_fee, refund } 반환
-export const cancelBooking = (id: string): Promise<{ cancel_fee: number; refund: number }> =>
+// 취소 — 서버가 수수료(미매칭 0 / 24h 전 0 / 이후 10% / 이동 중 50%) 계산·상태 전이.
+// [post-pay 2026-08-13] 반환에서 `refund`가 은퇴했다: 예약 시점에 잡아둔 돈이 없으므로
+// 환불이라는 사건 자체가 없다 (§0-ter #5). 서버가 돌려주는 사실은 '이번에 청구될 수수료' 하나뿐.
+export const cancelBooking = (id: string): Promise<{ cancel_fee: number }> =>
   invokeTransition(id, 'cancel_owner');
 // side 필수 — 한 계정이 양측인 솔로 테스트에서 서버가 역할을 추측할 수 없음
 export const confirmHandoff = (id: string, side: 'owner' | 'runner') =>
@@ -1969,13 +2092,21 @@ export async function fetchRunnerWeekStats(): Promise<RunnerWeekStats> {
   if (error) throw error;
   const rows = data ?? [];
   const net = rows.reduce((s, l: any) => s + l.base + l.distance_pay + l.addon_pay + l.tip + (l.remaining_guarantee ?? 0) - l.platform_fee, 0);
+  // runs = ledger rows that have an actual runs row. En-route cancel compensation (0078
+  // record_enroute_cancel_comp) writes a ledger row for a run that never happened — its money
+  // belongs in net, but counting it as a run would show "N runs" including a 0km phantom.
   let km = 0;
+  let runCount = rows.length;
   const ids = rows.map((l: any) => l.booking_id);
   if (ids.length > 0) {
-    const { data: runsD } = await supabase.from('runs').select('actual_km').in('booking_id', ids);
+    const { data: runsD } = await supabase.from('runs').select('booking_id, actual_km').in('booking_id', ids);
     km = (runsD ?? []).reduce((s, r: any) => s + Number(r.actual_km ?? 0), 0);
+    if (runsD) {
+      const ran = new Set(runsD.map((r: any) => r.booking_id));
+      runCount = rows.filter((l: any) => ran.has(l.booking_id)).length;
+    }
   }
-  return { net, runs: rows.length, km: Math.round(km * 10) / 10 };
+  return { net, runs: runCount, km: Math.round(km * 10) / 10 };
 }
 
 // 이번 달 실수령 — 주간(fetchRunnerWeekStats)과 동일한 net 식, 창만 KST 월 1일 00:00.
