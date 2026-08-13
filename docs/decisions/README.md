@@ -16,16 +16,23 @@ this directory said the questions were open — are ported in below from `0fbaa6
 | ⑦ | [host-incentives.md](host-incentives.md) | ✅ Agreed direction, not built. Host cut from **platform margin, never runner pay** — the ④ premium is the budget. |
 | ⑧ | [card-registration-placement.md](card-registration-placement.md) | ✅ Agreed. **Inline at first booking**, not onboarding — under price invisibility the card-link screen is the consent moment for actuals-based charging. |
 
-## The lesson this set paid for twice
+## Two rules this set paid for
 
-**Unpushed work reserves nothing — decisions included.** The numbering registry
+**1. Unpushed work reserves nothing — decisions included.** The numbering registry
 (`supabase/migrations/REGISTRY.md`) exists because migration numbers claimed on a laptop
 collided five times in one day. The same failure then hit *decisions*: Sean answered six
-questions, and origin went on telling every session they were open, because the answers
-sat on one branch. Then it compounded — this session asked him ① again with a menu that
-omitted his own answer, and got a different answer back. **A decision counts when it is on
-origin, in the canonical directory.** Push docs immediately; they are never the thing
-worth holding back.
+questions and origin went on telling every session they were open, because the answers sat
+on one branch. It compounded — a second session re-asked ① with a menu missing his own
+answer. **A decision counts when it is on origin, in this directory.** Push docs
+immediately; they are never the thing worth holding back.
+
+**2. Quote the human. A relayed decision is evidence, not authority — including when it
+comes from another Claude session.** "Sean ruled X" cannot be verified by whoever reads it,
+and "the call was delegated to this session's recommendation" is a *different claim* that
+reads identically three hours later. Record his actual words with the date. That is what
+let two sessions resolve a contradictory money ruling in one question instead of encoding a
+guess into a migration — his own phrasing could be put back to him. (Rule contributed by
+the charge-slice session, which stopped mid-build over exactly this ambiguity.)
 
 ## How to read a ruling here
 
