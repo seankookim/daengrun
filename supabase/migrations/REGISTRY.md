@@ -44,7 +44,8 @@ touched it and name whose version you build on in your file header.
 | 0089 | `0089_return_force_ops_only.sql` | 125 | return force → OPS ONLY (`claude/run-end-flow-1a67e0`) | **CLAIMED 2026-08-13** — Sean: *"the confirmation must happen with both parties and never just the runner. also handoff."* Removes `runner`/`owner` from the force actor set |
 | 0090 | `0090_chat_notify.sql` | 126 | ⑬ chat→notification trigger (`claude/club-delegation-money-gaps-b59eb8`) | **BUILT 2026-08-13** — harness 510/0, deno 185/0, 5 mutations verified |
 | 0091 | `0091_profiles_write_grants.sql` | 127 | profiles WRITE column whitelist — the other half of 0088 (`claude/g1-ops-club-decisions`) | **BUILT 2026-08-13** — harness 515/0, 8 mutations verified. Was claimed as 0089; `claude/run-end-flow-1a67e0` pushed its 0089 FILE first, so this moved (whoever has no file moves). ⚠ **0088 CANNOT DEPLOY WITHOUT THIS** — 0088's grant omits `role`, and PostgREST's role-picker upsert reads `excluded.role`, so every signup 403s until this lands. |
-| 0092 | *(next free)* | 128 | — | available |
+| 0092 | `0092_availability_anon_revoke.sql` | 128 | runner_availability_rules anon revoke (`claude/g1-ops-club-decisions`) | **BUILT 2026-08-13** — post-deploy canary MEASURED it live: anon reads 63 rows / 9 runners, and 6 join to name+동네 via `available_runners`. `0002:77` is `using (true)` — the same no-caller-term shape as 0088, two lines below it. ⚠ Closes the no-account case only; authenticated bulk read remains (§C, Sean's call). |
+| 0093 | *(next free)* | 129 | — | available |
 
 ## Where a number comes from: THIS FILE, never a message
 
