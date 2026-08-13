@@ -84,7 +84,7 @@ has to work once to pay for itself.
 
 | Surface / file | Session (branch) | Started | Intent (one line) |
 |---|---|---|---|
-| *(none in flight)* | | | |
+| `supabase/migrations/REGISTRY.md` · `docs/decisions/README.md` · `docs/decisions/awaiting-sean.md` | club-delegation (`claude/club-delegation-money-gaps-b59eb8`) | shared | 2026-08-13 | Refine this table (path-keyed + exclusive/shared); record the 0088 audit result in the queue. |
 
 Conventions: name the **file or surface**, not the ticket · one line of intent, so a reader can
 tell whether their change collides or merely neighbours · stale rows are worse than none, so
