@@ -112,6 +112,19 @@ booking** (Sean's ruling ⑥ — never `now()`; `longest_inflight_booking_end()`
     run-end-flow session; mirrored in their plan so it sits in two documents that get read.
   · club price disclosure live (ruling ④ keeps 9,900 as a *stated* premium — the single
     disclosure is on the 승낙서, `app/app/club/delegate/[sid].tsx`)
+  · **the sweep is re-anchored on `runs.settled_at`** — run-end-flow's 0083 redefines
+    `runs.ended_at` as service-STOP time, which opens a hole in MY
+    `sweep_settled_without_payments`: it would see a run that stopped, not yet returned, and
+    mint a charge for a dog still on the leash. One predicate closes it, in my file, after
+    their column exists: `and rn.settled_at is not null`. Deliberately NOT in 0084 — the
+    column does not exist until 0083 applies, and coupling my gate to their unmerged branch
+    buys nothing. It lands as its own small migration once 0083 is on redesign-v4, and the
+    same substitution is the honest form of `owner_has_unsettled_charge`'s `ended_at` scope
+    arm. Two anchors are wrong and 0083 §0f records why: `bookings.status` (§0-ter #11 /
+    116 C8 — a settled booking legitimately moves to incident_review) and `ledger_items`
+    presence (0081 writes a ledger row for a CANCELLED booking, which is not a run).
+    **Note the window: the hole opens when 0083 merges and closes when that migration lands.
+    Charging is off throughout, which is why this is a cutover gate and not an incident.**
 
 ## 4. Pending on Sean
 
