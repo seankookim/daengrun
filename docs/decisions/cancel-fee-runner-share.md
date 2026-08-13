@@ -1,7 +1,24 @@
 # ⑩ The 10% cancel tier — pay the runner, and tell them
 
 **Status: ✅ RULED BY SEAN 2026-08-13 — "pay the runner and let them know, reward them ykwim."**
-**Unbuilt.**
+**BUILT 2026-08-13 — `0085_cancel_share.sql` + `121_cancel_share_suite.sql` + the
+`transition-booking/cancel_owner.ts` half, by `claude/club-delegation-money-gaps-b59eb8`.**
+
+> ⚠ **This memo was handed to TWO sessions and built twice on the same afternoon.** The payments
+> session (`claude/g1-ops-club-decisions`) built a complete second implementation before finding
+> the first mid-flight, and yielded it whole; nothing of the duplicate ships. The reason it got
+> that far is written here, at the top, because this line is where the second session would have
+> looked: **the Status line of a decision memo is the only cross-session record of who is building
+> it.** Claiming a migration number protects the number, not the work. See
+> `supabase/migrations/REGISTRY.md`'s standing-conflicts section.
+
+**Two corrections to the text below**, recorded rather than rewritten (both were true-enough
+navigation aids that cost a reader time):
+- `record_enroute_cancel_comp` is **0080 §K (0080:1119)**, not 0081. The same misattribution is in
+  REGISTRY.md's shared-object table.
+- the shipped 50/50 sentence a runner never saw the other half of is
+  **`app/app/owner/schedule.tsx:604`** (the live cancel sheet). `app/src/store.ts:183` is a comment
+  above the mock booking array describing the same policy — real, but not the screen.
 
 ## The defect this fixes
 

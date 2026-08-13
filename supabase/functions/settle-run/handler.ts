@@ -1,5 +1,7 @@
 // 러닝 종료 정산 — 사유별 금액 (product-notes 정책):
-// 모두 실제 km 지급 · owner_request는 잔여 50% 보장 · runner_personal만 완주율 반영.
+// 실제 km 지급 · owner_request는 잔여 50% 보장 · runner_personal만 완주율 반영.
+// [⑨a, Sean 2026-08-13] runner_personal은 실제 km 지급이 아니라 **보호자 청구액의 러너 몫**이다
+// (pass-through — 아래 payout 분기 참조). 나머지 사유는 그대로.
 // 드랍 판정 (5회=보급, 10회=픽)도 정산의 일부. input: { booking_id, end_reason, actual_km, duration_sec, condition_note? }
 //
 // 0020 구조: 이 함수는 인증·검증·금액 계산만, 모든 쓰기는 settle_run_tx RPC가 단일
@@ -94,20 +96,62 @@ export async function settleRun(req: Request, db: SupabaseClient) {
     // 완주 인센티브(마일·드랍·total_runs·패치)는 계획 거리의 50% 이상 실측에서만 (Sean 2026-07-29 — 90%→50%)
     throw new HttpError(400, `완주 정산은 계획 거리의 50% 이상 실측이 필요해요 (${km}/${plannedKm}km) — 조기 종료 사유로 정산해주세요`);
   }
-  const distancePay = Math.round(km * PRICING.perKm);
-  const base = PRICING.runnerCompBase; // 러너 정산은 9,900 기준 유지 (D2 디커플링 — 보호자 7,900과 다른 돈)
-  const addonPay = (bk.addons as { price: number }[]).reduce((s, a) => s + a.price, 0);
-  let gross = Math.max(base + distancePay + addonPay, bk.min_fare);
+  // The five money values `settle_run_tx` writes into `ledger_items`, column by column, plus the
+  // gross/fee pair the runner sees. Everything except the `runner_personal` arm below is 0028's
+  // arithmetic unchanged.
+  let base = PRICING.runnerCompBase; // 러너 정산은 9,900 기준 유지 (D2 디커플링 — 보호자 7,900과 다른 돈)
+  let distancePay = Math.round(km * PRICING.perKm);
+  let addonPay = (bk.addons as { price: number }[]).reduce((s, a) => s + a.price, 0);
   let guarantee = 0;
-  // `owner_forced` can no longer reach here (it is server-only above); the arm stays because this
-  // is the runner-side mirror of the SQL basis table, where both owner-caused ends pay the same.
-  if (p.end_reason === "owner_request" || p.end_reason === "owner_forced") {
-    const fullDistance = Math.round(bk.km * PRICING.perKm);
-    // 클램프 — 실거리가 계획을 넘어선 조기종료에서 보장이 음수가 되어 오히려 감봉되던 버그
-    guarantee = Math.max(0, Math.round((fullDistance - distancePay) * 0.5));
-    gross += guarantee;
+  let gross: number;
+  let fee: number;
+
+  if (p.end_reason === "runner_personal") {
+    // ═══ ⑨a PASS-THROUGH (Sean 2026-08-13, docs/decisions/runner-stop-split.md) ═══
+    // A runner who stops for their own reasons is paid their commission share of WHAT THE OWNER
+    // WAS CHARGED, not `base + distance + addons`. The rule is the ruling; the memo's 2,010/8,643
+    // are one kilometre of a three-kilometre booking, so no figure from it appears in this file.
+    //
+    // The number comes from SQL for the same reason the owner's does (0066 §2 — "a money constant
+    // that lives solely in a Deno function is a money constant no pin can protect"), and from the
+    // SAME basis table the owner is billed from, so the two sides cannot drift.
+    //
+    // THIS RUNS BEFORE `settle_run_tx`, and it FAILS CLOSED. Everything else in the collection
+    // half of this file is best-effort because settlement has already committed; this is the
+    // opposite case — nothing is written yet, so a 500 here costs a retry, while carrying on with
+    // the pre-⑨a number would pay a stopped run the full base for good.
+    const { data: po, error: poErr } = await db.rpc("compute_runner_personal_payout", {
+      p_booking: p.booking_id,
+      p_actual_km: km,
+      p_commission: commission,
+    });
+    if (poErr) {
+      throw new HttpError(500, `정산 금액을 계산하지 못했어요 — 아무것도 반영되지 않았어요 (재시도 가능): ${poErr.message}`);
+    }
+    const row = (Array.isArray(po) ? po[0] : po) as { gross: number; fee: number } | null | undefined;
+    if (!row) throw new HttpError(500, "정산 금액을 계산하지 못했어요 — 아무것도 반영되지 않았어요 (재시도 가능)");
+    gross = Number(row.gross);
+    fee = Number(row.fee);
+    // The ledger decomposition follows the owner's: `runner_personal` charges the DISTANCE
+    // component only (0084 §A, #10 — base waived, addons dropped), so the whole pass-through is
+    // distance pay and the base line is 0. Writing 9,900 into `base` here would put a fee the
+    // owner never paid, and this run never earned, into every earnings breakdown that reads it.
+    // The `min_fare` floor is deliberately absent — that floor IS the flat base ⑨a retires.
+    base = 0;
+    addonPay = 0;
+    distancePay = gross;
+  } else {
+    gross = Math.max(base + distancePay + addonPay, bk.min_fare);
+    // `owner_forced` can no longer reach here (it is server-only above); the arm stays because this
+    // is the runner-side mirror of the SQL basis table, where both owner-caused ends pay the same.
+    if (p.end_reason === "owner_request" || p.end_reason === "owner_forced") {
+      const fullDistance = Math.round(bk.km * PRICING.perKm);
+      // 클램프 — 실거리가 계획을 넘어선 조기종료에서 보장이 음수가 되어 오히려 감봉되던 버그
+      guarantee = Math.max(0, Math.round((fullDistance - distancePay) * 0.5));
+      gross += guarantee;
+    }
+    fee = Math.round(gross * commission);
   }
-  const fee = Math.round(gross * commission);
 
   // ---------- 단일 트랜잭션 쓰기 (0020) — 클레임·run·원장·마일·스탯·드랍·알림 전부 성공 or 전부 롤백 ----------
   const { data: tx, error: txErr } = await db.rpc("settle_run_tx", {

@@ -1,6 +1,16 @@
 # ⑨ `runner_personal` splits — pass-through pay + a new `runner_incapacity`
 
 **Status: ✅ RULED BY SEAN 2026-08-13 — both halves confirmed. Buildable.**
+**⑨a (pass-through pay) BUILT 2026-08-13 — `0086_runner_stop_passthrough.sql` +
+`122_runner_stop_pay_suite.sql` + `settle-run/handler.ts`'s payout arm
+(`claude/g1-ops-club-decisions`). ⑨b (`runner_incapacity`) IS STILL UNBUILT AND STILL BLOCKED**
+— on 0083's freeze list (trap ③: the enum value must enter `end_run_tx`'s freeze set and
+`CLIENT_END_REASONS` in ONE commit, and 0083 is not on origin yet) and on its abuse story.
+`0086_runner_stop_passthrough.sql` knows nothing about the new enum value, by design, and says so.
+⚠ If you are picking up ⑨b: the pass-through function is `runner_personal`-only ON PURPOSE
+(`compute_runner_personal_payout` — the name is the scope). `runner_incapacity` keeps TODAY's
+formula (`base + distance + addons` less commission, the ~8,643 row in the table below), so it
+must NOT be routed through that function; it is the arm that does not change.
 **Confirmed twice, independently, in two sessions** — worth recording given the day this
 decision had. The club-delegation session put both halves back to him with the figures and
 got *"Yes — both halves, as recorded."* The charge-slice session, separately and without

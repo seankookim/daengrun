@@ -38,10 +38,27 @@ touched it and name whose version you build on in your file header.
 | 0083 | `0083_run_end_flow.sql` | 119 | run-end-flow (`claude/run-end-flow-1a67e0`) | **SETTLED 2026-08-13** — on disk, in build |
 | 0084 | `0084_g1_ops_cutover.sql` | 120 | payments (`claude/g1-ops-club-decisions`) | **SETTLED 2026-08-13** — on disk, in build |
 | 0085 | `0085_cancel_share.sql` | 121 | ⑩ cancel-fee runner share (`claude/club-delegation-money-gaps-b59eb8`) | **CLAIMED 2026-08-13** — in build |
-| 0086 | *(next free)* | 122 | — | available |
+| 0086 | `0086_runner_stop_passthrough.sql` | 122 | ⑨a runner_personal pass-through pay (`claude/g1-ops-club-decisions`) | **CLAIMED 2026-08-13** — in build (harness 471/0 measured against origin's 0085) |
+| 0087 | *(next free)* | 123 | — | available |
 
 ## Standing conflicts to resolve
 
+- **⑩ was BUILT TWICE on 2026-08-13, in parallel, by two sessions given the same unit** — and the
+  duplicate was caught by a temp-directory collision, not by this file. The
+  `claude/g1-ops-club-decisions` (payments) session was briefed to build ⑩ + ⑨a; it took 0085/121
+  against a fetch made at ~14:50, wrote the migration, the suite, the edge-function half and the
+  race pin — and then found `claude/club-delegation-money-gaps-b59eb8` mid-build on the same
+  decision, having pushed its claim at 14:52. **Payments YIELDED ⑩ whole** (their claim was on
+  origin, and origin beats a fetch that was true a minute ago) and moved its remaining unit, ⑨a,
+  to 0086/122. Nothing of the duplicate ships; the yielded diff is kept out of the tree.
+  Two lessons, and the second is the new one:
+  ① a temp-dir name derived from the migration number (`/tmp/dr85`) is itself a collision detector —
+     it is how this was found, ~40 minutes before either side would have hit it at merge;
+  ② **numbering discipline does not detect DUPLICATED WORK, only duplicated numbers.** Both
+     sessions obeyed every rule in this file. What collided was the assignment, which lives in
+     nobody's registry — so when a decision memo is handed to a session, the memo's Status line is
+     the only place a second session would look. See the note added to
+     `docs/decisions/cancel-fee-runner-share.md`.
 - ~~0082 double-claimed~~ **RESOLVED:** route-ladder pushed first (`a95aa34`).
 - ✅ **0083/0084 SETTLED 2026-08-13 by the payments session** (named decider in the previous
   revision of this file; run-end-flow accepts without countering, as agreed). The dispute was
@@ -96,6 +113,7 @@ else about. Applying it to yourself when it is inconvenient is the whole point.
 | 0082 | **NONE — disjoint surface.** ⚠ **Enum-independent by construction:** `promote_route_from_run` gates on `end_reason = 'completed'` and nothing else, so ADDING an `end_reason` value (⑨'s `runner_incapacity`, or any future one) cannot reach route promotion — no arm to update, no pin to move. This is the property that let two money slices and a route slice touch the same enum in one afternoon without interacting; state it before you assume otherwise.  Owner-verified + independently re-verified: creates only `_route_dist_m`, `promote_route_from_run`, `_routes_guard_activation` + its trigger (zero hits elsewhere); replaces only 0002:89's `routes public read` policy, which nothing else re-creates. Its one `settle_run_tx` mention is a comment. Nothing to build on top of or over. |
 | 0083 | EXTENDS (builds on the named version, does not replace): `settle_run_tx` ←0028 · `_guard_run_cols` ←0079 · `owner_la_sweep_stale` ←0079 · `_owner_la_trace_tg` ←0079 · `append_run_event`/`append_run_photo` ←0018. NEW: `end_run_tx`, `confirm_return_tx`, `force_return_tx`, `_settle_sealed_run`, `custody_ping`, `sweep_run_end_recovery`, `_guard_booking_insert_cols`, `_owner_la_run_end_tg`. Also updates `116_charge_suite`'s `t_chg_settled` fixture. ⚠ **Deliberately does NOT touch `sweep_settled_without_payments`** — 0080 owns it; see 0083 §0f for the one-line predicate it needs and why re-creating it here would silently revert 0084. |
 | 0084 | *(owner to fill)* |
+| 0086 | **NONE — adds one new function** (`compute_runner_personal_payout`). It READS `compute_owner_charge` (←0084 §A) and re-creates nothing. ⚠ **It deliberately does NOT re-create `settle_run_tx`, which the brief expected it to**: 0028:18 is that function's current definition, 0083 EXTENDS it and is not on origin yet, and 0083 < 0086 — so a 0086 built from 0028's body would apply AFTER 0083 and silently revert it while the harness stayed green (0083's pins live in 0083's suite). ⑨a needed no change there anyway: the ledger write inserts the five money parameters it is handed, and `settle-run/handler.ts` composes them. See 0086 §B, which also records that 0028:30's body says `set search_path = public` (no `pg_temp`) — it passes 98 H1 only because 0055's ALTER retro-sealed it, so ANY faithful reproduction of 0028 must add `pg_temp` or turn H1 red. |
 
 ### Settlement anchors — learned the hard way 2026-08-13
 
