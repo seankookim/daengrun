@@ -81,9 +81,13 @@ still the critical path; ② dashboard TEST keys + variantKey 카드/간편결�
 WIDGET keys are recorded in app/.env.example + plan §5 — they unblock the A3 device spike
 NOW, but not billing); ③ review this branch → merge to redesign-v4 → push (gates green,
 nothing deployed).
-**Decisions:** G1 abort basis · D-3 silent-charge counsel · OPS_PROFILE_ID env vs admin
-role · lab picks Ⓡ①②③ + Ⓖ rule · Ⓛ③ spec-plate graft + ₩/원 (all carried from the
-2026-08-12 handoff §9).
+**Decisions:** **`docs/decisions-open-money.md` — three briefs written 2026-08-13, pick by
+number**: ① G1 abort-charge basis (recommendation: D — `incident` charges nothing at settle
+because the 0072 case owns that money; `dog_condition` charges distance-only) · ② D-3
+silent-charge question for counsel (recommendation: ask with three options; if ambiguous
+ship the monthly summary, not a per-charge push) · ③ OPS_PROFILE_ID (recommendation: keep
+the env var for the pilot). Also still open: lab picks Ⓡ①②③ + Ⓖ rule · Ⓛ③ spec-plate
+graft + ₩/원 (carried from the 2026-08-12 handoff §9).
 
 ## 5. Next prompts (exact openers)
 
