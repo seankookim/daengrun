@@ -1,8 +1,28 @@
 # P0 — `profiles` returns `phone` and `toss_customer_key` to anyone (2026-08-13)
 
-**Status: FIXED on branch (`0088_profiles_column_grants.sql`, suite 124), NOT DEPLOYED.
-The hole is open in production right now and closes only at the next `db push`, which is
-held.** Open since `0002` (2026-07), so it is not a regression — but it is live.
+**Status: CLOSED IN PRODUCTION, 2026-08-13.** `0088` (read grants) and `0091` (write grants)
+are applied — `supabase migration list` shows `0001`…`0091` with local == remote, no gaps.
+Open since `0002` (2026-07); it was never a regression, just never asked about.
+
+**Verified from outside, as a genuine stranger** — no account, anon key only, against the
+production REST API, which is the same shape as the original attack:
+
+    GET /rest/v1/profiles?select=phone,toss_customer_key   → 401  42501 permission denied
+    GET /rest/v1/profiles?select=*                         → 401  42501 permission denied
+    GET /rest/v1/profiles?select=name                      → 401  42501 permission denied
+    GET /rest/v1/available_runners?select=*                → 200  name/district/avatar_url/bio, no phone
+
+The last two lines are the ones worth keeping. The third proves the revoke is total for `anon`
+rather than column-shaped — `anon` now gets nothing from `profiles` at all. The fourth proves
+the logged-out storefront still works, through `available_runners`, the definer view 124 G6 pins
+as the one narrow bypass. A fix that closed the leak by deleting the policy would have passed
+the first three checks and broken the fourth, which is why the fourth is here.
+
+⚠ **What is NOT verified by the above:** a real signup / role-switch round trip in production.
+That needs an actual account, so it is Sean's smoke, not a claim I can make. The grant that
+makes it work (`0091`'s `grant select (role)`) is in an applied migration and the anon result
+proves the same file's revokes took effect — but "the grant is applied" and "a human can sign
+up" are different sentences and only the first is measured. Smoke list at the end of this file.
 
 ## What is exposed
 
@@ -188,3 +208,31 @@ Two lessons, both earned the hard way in one afternoon:
   nothing beyond `profiles` because no fixture rows existed yet to match the policies. Reading
   DDL missed it; executing on an empty DB missed it; only executing against a populated one, as
   a genuine stranger, gave the true answer.
+
+## Smoke list for Sean — the part no harness and no curl can answer
+
+Everything below needs a real account on a real device. Each line says what a FAILURE looks like,
+because the failure modes here are quiet ones that read as ordinary app trouble.
+
+1. **Sign up as a brand-new user, pick 보호자.** This is the exact statement that would have
+   returned 403 without `0091`. Failure looks like: the role tap spins, then `프로필 저장 실패`
+   with a permission message. If this works, the `role` grant is live and the 403 class is dead.
+2. **On an existing account, go back to `/` and tap the other role.** Same statement, the ON
+   CONFLICT arm — this is the half that fails even when a fresh signup would succeed, so tapping
+   it is not redundant.
+3. **Edit 이름 and 동네 in 설정, then reopen the screen.** Confirms `update (name, district)`
+   survived the whitelist. Failure: save appears to work but the value reverts on reload.
+4. **Change the profile photo.** Separate write path (`avatar_url`), separate grant.
+5. **Set a handle.** Goes through `set_my_handle`, not a column write. It must still work, and a
+   reserved word like `admin` must still be REFUSED — if `admin` is accepted, the definer path
+   has been bypassed and that is worse than the original squatting risk.
+6. **Log out and browse runners.** The logged-out storefront reads `available_runners`. Verified
+   green by curl above, but worth one human look — an empty runner list is what a too-aggressive
+   revoke looks like from the user's side.
+7. **Open 설정 › 결제 관리.** Should show an honest empty state, not an error: charging is off
+   (`payments_live_since` is NULL) and no card is linked.
+
+⚠ **Do not** smoke the charge machine by ending a real run yet. `payments_live_since` is NULL and
+both charge paths early-return on it (`0080:361`, `0080:439`), so the machine is deployed and
+inert on purpose. Turning it on is `set_payments_live_since(p_when)`, deliberately a separate,
+explicit act that refuses a past timestamp.
