@@ -2,18 +2,25 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Dimensions, Easing, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Row } from '../../src/components/ui';
+import { CourseDetailBody } from '../../src/components/course-detail';
+import { PaperBtn } from '../../src/components/paper-btn';
 import { HeatTrace } from '../../src/components/runcard';
 import { traceToBox } from '../../src/lib/trace';
-import { fetchMyRoutePhotos, fetchRouteById } from '../../src/lib/api';
-import { MediaImage } from '../../src/lib/media';
+import { fetchRouteById } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useReducedMotion } from '../../src/lib/reducedMotion';
 import { RouteInfo, session } from '../../src/store';
 import { colors, paper } from '../../src/theme';
 
 // 코스 미리보기 — 보호자·러너 공용 (코스는 공개 콘텐츠).
-// 히어로: 스키마틱 트레이스 + 볼트 러너 도트 애니메이션 (실좌표 지도는 v2 — 네이티브 지도 SDK 없이).
-// '우리 기록': 이 코스에서 내가 당사자였던 러닝의 실사진만 (타인 사진 공개는 v2 동의 UI와 함께).
+// 히어로: 스키마틱 트레이스 + 볼트 러너 도트 애니메이션 (실좌표 지도 히어로는 K4의 남은 항목).
+//
+// [2026-08-13 dedup] 본문(메타 3축·설명·특징·점검·우리 기록)은 `components/course-detail`로
+// 나갔다 — 코스 지도 시트의 DETAIL 단이 같은 본문을 각자 그리고 있었고, 이미 갈라져 있었다
+// (여기엔 그늘/조명이 없었고, 시트엔 특징·태그·사진이 없었다). 이 화면이 소유하는 것은
+// 히어로와 CTA뿐이다.
+// 크롬도 함께 페이퍼 문법으로 옮긴다: 공용 본문만 페이퍼로 두고 크림·r22 잔재 위에 얹으면
+// 한 화면 안에 세계가 둘이 된다.
 
 // [2026-08-12 · Sean "remove forest"] 이 파일의 로컬 상수 FOREST = '#0F1D13' 은퇴. 은퇴된 스왈프/포레스트 팔레트의
 // 마지막 잔재였고, 12개 파일에 각자 로컬 상수로 복사돼 있었다 (한 값에 주인 12명).
@@ -77,7 +84,6 @@ export default function CourseScreen() {
   const df = useDisplayFont();
   const [route, setRoute] = useState<RouteInfo | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  const [photos, setPhotos] = useState<string[]>([]);
 
   useEffect(() => {
     if (!id) { setErr('코스 정보가 없어요'); return; }
@@ -87,7 +93,7 @@ export default function CourseScreen() {
     fetchRouteById(id)
       .then((r) => { if (r) setRoute(r); else setErr('코스를 찾을 수 없어요'); })
       .catch((e) => setErr(e?.message ?? '불러오기 실패'));
-    fetchMyRoutePhotos(id).then(setPhotos).catch(() => {}); // 사진은 실패해도 코스는 뜬다
+    // 사진은 CourseDetailBody가 소유한다 (실패해도 코스는 뜬다)
   }, [id]);
 
   // 실좌표 → 박스 좌표 한 번만. 세 소비처(HeatTrace·시작 핀·LiveDot)가 같은 투영을 공유해야
@@ -97,15 +103,15 @@ export default function CourseScreen() {
   const isOwner = session.role === 'owner';
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.cream }}>
+    <View style={{ flex: 1, backgroundColor: paper.canvasSoft }}>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: isOwner ? 120 : 40 }}>
         <Row style={{ justifyContent: 'space-between', paddingHorizontal: 12, paddingTop: 56 }}>
-          <Pressable onPress={() => router.back()} style={s.backBtn}><Text style={{ fontSize: 20.5 }}>‹</Text></Pressable>
+          <Pressable onPress={() => router.back()} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로"><Text style={{ fontSize: 20.5, color: paper.ink }}>‹</Text></Pressable>
           <Text style={[{ fontSize: 23, fontWeight: '900', color: paper.ink }, df]}>코스 미리보기</Text>
           <View style={{ width: 40 }} />
         </Row>
 
-        {err && <View style={s.emptyBox}><Text style={{ fontSize: 14.5, color: colors.dim }}>{err}</Text></View>}
+        {err && <View style={s.emptyBox}><Text style={{ fontSize: 14.5, color: paper.dim }}>{err}</Text></View>}
 
         {route && (
           <View style={{ paddingHorizontal: 12 }}>
@@ -120,67 +126,27 @@ export default function CourseScreen() {
                   <LiveDot points={boxTrace} />
                 </View>
                 <Row style={{ justifyContent: 'space-between', marginTop: 10 }}>
-                  <Text style={{ fontSize: 14, color: '#8fa093' }}>● 출발 <Text style={{ color: '#FF5C3D' }}>● 도착</Text> — 스키마틱 코스도예요</Text>
-                  <View style={{ backgroundColor: '#2c4034', borderRadius: 99, paddingVertical: 3, paddingHorizontal: 9 }}>
+                  <Text style={{ fontSize: 14, color: '#B9BCB6' }}>● 출발 <Text style={{ color: colors.tang }}>● 도착</Text> — 스키마틱 코스도예요</Text>
+                  <View style={s.kmPlate}>
                     <Text style={{ fontSize: 14, fontWeight: '900', color: colors.volt }}>{route.km}km</Text>
                   </View>
                 </Row>
               </View>
             )}
 
-            {/* ---------- 이름 + 핵심 정보 ---------- */}
             {/* [리뷰 F5] 트레이스 없으면 히어로가 말없이 증발했다 — 정직한 준비 중 슬롯 */}
             {boxTrace.length <= 1 && (
               <View style={[s.hero, { alignItems: 'center', justifyContent: 'center', minHeight: 120 }]}>
-                <Text style={{ fontSize: 14, fontWeight: '700', color: '#75806f' }}>코스 지도 준비 중</Text>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: '#B9BCB6' }}>코스 지도 준비 중</Text>
               </View>
             )}
+
+            {/* ---------- 이름 + 지역 ---------- */}
             <Text style={[{ fontSize: 27, color: paper.ink, marginTop: 16, fontWeight: '900' }, df]}>{route.name}</Text>
-            <Row style={{ gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
-              <View style={s.infoChip}><Text style={s.infoChipText}>{route.area}</Text></View>
-              <View style={s.infoChip}><Text style={s.infoChipText}>{route.terrain}</Text></View>
-              <View style={[s.infoChip, { backgroundColor: '#DDF0A6' }]}>
-                <Text style={[s.infoChipText, { color: '#3d5a2b' }]}>✓ {route.checkedAt}</Text>
-              </View>
-            </Row>
+            <Text style={{ fontSize: 14, color: paper.dim, fontWeight: '700', marginTop: 4 }}>{route.area}</Text>
 
-            {/* ---------- 설명 ---------- */}
-            <Text style={{ fontSize: 15.5, color: '#3d453d', lineHeight: 24, marginTop: 14 }}>{route.desc}</Text>
-
-            {/* ---------- 코스 특징 (발바닥 체크) ---------- */}
-            {route.features.length > 0 && (
-              <View style={s.section}>
-                <Text style={s.sectionTitle}>코스 특징</Text>
-                <Row style={{ gap: 7, flexWrap: 'wrap' }}>
-                  {route.features.map((f) => (
-                    <View key={f.label} style={s.featCard}>
-                      <Text style={{ fontSize: 17 }}>{f.g}</Text>
-                      <Text style={{ fontSize: 14, fontWeight: '800', color: paper.ink, marginTop: 3 }}>{f.label}</Text>
-                    </View>
-                  ))}
-                </Row>
-                {route.tags.length > 0 && (
-                  <Row style={{ gap: 5, marginTop: 9, flexWrap: 'wrap' }}>
-                    {route.tags.map((t) => (
-                      <View key={t} style={s.tagChip}><Text style={{ fontSize: 14, fontWeight: '700', color: '#49524a' }}>#{t}</Text></View>
-                    ))}
-                  </Row>
-                )}
-              </View>
-            )}
-
-            {/* ---------- 우리 기록 — 내가 당사자였던 러닝의 실사진만 ---------- */}
-            {photos.length > 0 && (
-              <View style={s.section}>
-                <Text style={s.sectionTitle}>이 코스에서의 우리 기록</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
-                  {photos.map((url) => (
-                    /* [0064] 내 러닝 사진은 media 경로 — 서명 URL로 렌더 */
-                    <MediaImage key={url} source={url} style={{ width: 108, height: 108, borderRadius: 12, backgroundColor: '#DCD6C4' }} />
-                  ))}
-                </ScrollView>
-              </View>
-            )}
+            {/* ---------- 본문 — 시트 DETAIL 단과 같은 컴포넌트 ---------- */}
+            <CourseDetailBody route={route} style={{ marginTop: 6 }} />
           </View>
         )}
       </ScrollView>
@@ -188,12 +154,10 @@ export default function CourseScreen() {
       {/* ---------- CTA (보호자만) — 코스에서 바로 예약으로 ---------- */}
       {route && isOwner && (
         <View style={s.ctaBar}>
-          <Pressable
+          <PaperBtn
+            label={route.status === 'candidate' ? '점검 전 코스로 예약' : '이 코스로 예약하기'}
             onPress={() => router.push({ pathname: '/owner/request', params: { routeId: route.id } })}
-            style={s.ctaBtn}
-          >
-            <Text style={[{ fontSize: 17, fontWeight: '900', color: paper.ink }, df]}>이 코스로 예약하기 ›</Text>
-          </Pressable>
+          />
         </View>
       )}
     </View>
@@ -201,19 +165,12 @@ export default function CourseScreen() {
 }
 
 const s = StyleSheet.create({
-  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DCD6C4' },
-  emptyBox: { margin: 16, backgroundColor: '#fff', borderRadius: 16, padding: 20, alignItems: 'center', borderWidth: 1, borderColor: '#DCD6C4' },
-  hero: { backgroundColor: paper.ink, borderRadius: 22, padding: 15, marginTop: 14, overflow: 'hidden' },
+  backBtn: { width: 40, height: 40, backgroundColor: paper.canvas, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: paper.line },
+  emptyBox: { margin: 16, backgroundColor: paper.canvas, padding: 20, alignItems: 'center', borderWidth: 1, borderColor: '#EDEBE6' },
+  // 다크 히어로는 남는다 — 코스 실루엣은 이 앱의 다크 아티팩트 계열(정산 티켓·캘린더 보드)이다.
+  // 바뀐 것은 라운드뿐: 샤프 코너 + 잉크 프레임.
+  hero: { backgroundColor: paper.ink, padding: 15, marginTop: 14, overflow: 'hidden' },
+  kmPlate: { backgroundColor: '#2A2A2A', paddingVertical: 3, paddingHorizontal: 9 },
   pin: { position: 'absolute', width: 10, height: 10, borderRadius: 5, borderWidth: 1.5, borderColor: '#fff' },
-  infoChip: { backgroundColor: '#fff', borderRadius: 99, paddingVertical: 5, paddingHorizontal: 11, borderWidth: 1, borderColor: '#DCD6C4' },
-  infoChipText: { fontSize: 14.5, fontWeight: '800', color: '#49524a' },
-  section: { marginTop: 22 },
-  sectionTitle: { fontSize: 16.5, fontWeight: '900', color: paper.ink, marginBottom: 10 },
-  featCard: { backgroundColor: '#fff', borderRadius: 14, paddingVertical: 10, paddingHorizontal: 13, alignItems: 'center', borderWidth: 1, borderColor: '#DCD6C4', minWidth: 76 },
-  tagChip: { backgroundColor: '#EDE8DA', borderRadius: 99, paddingVertical: 4, paddingHorizontal: 10 },
-  ctaBar: { position: 'absolute', left: 10, right: 10, bottom: 26 },
-  ctaBtn: {
-    backgroundColor: colors.volt, borderRadius: 18, alignItems: 'center', paddingVertical: 16,
-    shadowColor: paper.ink, shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 5 },
-  },
+  ctaBar: { position: 'absolute', left: 12, right: 12, bottom: 26 },
 });
