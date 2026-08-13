@@ -32,6 +32,21 @@ export async function cancelOwner(
 ): Promise<{ cancel_fee: number }> {
   const { bookingId, uid, bk, notify } = args;
   if (bk.owner_id !== uid) throw new HttpError(403, "owner only");
+
+  // ── Club bookings do not belong to this ladder (2026-08-13) ───────────────────────────────
+  // Mirrors the club exclusion `runner_accept` already carries (index.ts:105). A club-delegated
+  // booking reaches /owner/schedule (fetchMyBookings filters by status only, no club filter),
+  // and its cancel button lands here — where marketplace_cancel_fee (0066: 0 / 50% en-route /
+  // 0 ≥24h / 10% <24h) would quote a ladder the club side never agreed to. The club has its own
+  // ladder in club_config (free_hours 24 / late 10% / post-accept 20%, 0048:15-17) and its own
+  // exit, session_cancel_delegation, which also writes club_fee_items, notifies the host, and
+  // revokes the assignment. Letting this path run wrote bookings.cancel_fee at the wrong rate
+  // and left session_dogs pointing at a cancelled_owner row the club never heard about — and
+  // post-cutover that wrong number becomes a real charge via mint_cancel_fee_intent.
+  // Refusing is the honest move, but only because the club exit exists — the copy names it.
+  if (bk.club_session_id !== null && bk.club_session_id !== undefined) {
+    throw new HttpError(409, "클럽 위탁 예약은 여기서 취소할 수 없어요 — 클럽 세션 화면에서 취소해주세요");
+  }
   // [0066] Fee ladder = SQL single truth (marketplace_cancel_fee, harness-pinned):
   //   unmatched → 0 (full refund any time — the old find-now +40min bug stays fixed)
   //   runner_enroute → 50% (runner compensation — Sean 2026-08-11)
@@ -185,11 +200,15 @@ async function compensateRunner(db: SupabaseClient, bookingId: string): Promise<
       console.error(`${line} — OPS_PROFILE_ID unset, no notification sent`);
       return false;
     }
+    // Body carries no ids, no amounts, no error text — same reason as confirm-payment's
+    // notifyOps (2026-08-13): OPS_PROFILE_ID is an env-held uuid, a valid-but-wrong value
+    // delivers this to a real user, and 0024 pushes the body verbatim to their lock screen.
+    // The detail is already in console.error above and in the ledger; this is the ping.
     const { error: nErr } = await db.from("notifications").insert({
       profile_id: ops,
       kind: "system",
       title: "이동 중 취소 보상 기록 실패 — 수동 확인 필요",
-      body: `예약 ${bookingId}의 러너 보상(취소 수수료 50%)이 원장에 기록되지 않았어요. record_enroute_cancel_comp를 다시 실행해주세요. 사유: ${msg}`,
+      body: "러너 보상이 원장에 기록되지 않은 취소 건이 있어요 — 서버 로그에서 booking 을 확인하고 record_enroute_cancel_comp 를 다시 실행해주세요",
       ref_id: bookingId,
     });
     if (nErr) console.error(`${line} — ops notify failed: ${nErr.message}`);

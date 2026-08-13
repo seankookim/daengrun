@@ -449,6 +449,31 @@ Deno.test("cancel throws (network down) twice → same marker path", async () =>
   }
 });
 
+// 2026-08-13 hardening pin. OPS_PROFILE_ID is a raw uuid in an env var: a typo that still
+// parses as a valid profile id delivers this row to a real user, and 0024's insert trigger
+// pushes `body` verbatim to their lock screen. So the body must never carry the order
+// number, the amount, or any booking identifier — those live in console.error and in
+// payments_reconciliation(). Reverting the body to the old interpolated string reddens this.
+Deno.test("ops notification carries no financial detail (misdelivery must not disclose)", async () => {
+  const db = scene({ booking: { status: "expired" } });
+  const net = tossOk({ cancel: () => FetchMock.json({}, 500) });
+  try {
+    await expectHttpError(() => confirmPayment(req({ order_id: ORDER, payment_key: KEY }, "owner_jwt"), db as never));
+    const notes = db.rows("notifications");
+    assertEquals(notes.length, 1);
+    const n = notes[0];
+    assertEquals(n.profile_id, OPS);
+    const text = `${n.title} ${n.body}`;
+    for (const secret of [ORDER, String(AMOUNT), "24,900", KEY, BOOKING]) {
+      assert(!text.includes(secret), `ops body leaked ${secret}: ${text}`);
+    }
+    // It still has to be actionable — name where the detail lives.
+    assert(n.body.includes("payments_reconciliation"), `ops body not actionable: ${n.body}`);
+  } finally {
+    net.restore();
+  }
+});
+
 Deno.test("no OPS_PROFILE_ID → loud log instead of a notification, and no crash", async () => {
   const db = scene({ booking: { status: "expired" } });
   const net = tossOk({ cancel: () => FetchMock.json({}, 500) });

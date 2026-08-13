@@ -155,6 +155,39 @@ function assertCancelShape(out: Row) {
   assertEquals(out.refund, undefined);
 }
 
+// ═══ club bookings are not on this ladder ══════════════════════════════════════════════════
+// A club-delegated booking reaches /owner/schedule and its cancel button lands in cancelOwner,
+// where 0066's marketplace ladder would quote a rate the club never agreed to, write
+// bookings.cancel_fee, mint a fee intent post-cutover, and leave the club side (club_fee_items,
+// host notification, assignment revocation) untouched. The club has its own exit. Deleting the
+// guard reddens this: the fee quote runs and a booking update lands.
+Deno.test("club booking → refused before any money is quoted or written", async () => {
+  const db = scene();
+  db.rows("bookings")[0].club_session_id = "cccccccc-cccc-cccc-cccc-cccccccccccc";
+  const seen = installMint(db);
+  const net = tossOk();
+  const cap = captureLogs();
+  try {
+    const err = await cancelOwner(db as never, {
+      bookingId: BOOKING, uid: OWNER, bk: db.rows("bookings")[0], notify: notifier(db),
+    }).then(() => null, (e) => e);
+    assert(err, "club cancel should have been refused");
+    assertEquals((err as { status?: number }).status, 409);
+    assert(String((err as Error).message).includes("클럽 세션 화면"),
+      `refusal must name the club exit: ${(err as Error).message}`);
+    // Nothing quoted, nothing written, nothing charged, nobody notified.
+    assertEquals(db.log.filter((l) => l === "rpc:marketplace_cancel_fee").length, 0);
+    assertEquals(updatesToBookings(db).length, 0);
+    assertEquals(db.rows("bookings")[0].cancel_fee, null);
+    assertEquals(seen.length, 0);
+    assertEquals(net.countTo("api.tosspayments.com"), 0);
+    assertEquals(db.rows("notifications").length, 0);
+  } finally {
+    cap.restore();
+    net.restore();
+  }
+});
+
 // ═══ prepaid (widget era) — recorded, never re-minted ══════════════════════════════════════
 Deno.test("prepaid booking → fee recorded, NO mint, and the retired `refund` field is gone", async () => {
   const db = scene({ prepaid: true });

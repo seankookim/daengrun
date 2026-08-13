@@ -546,13 +546,31 @@ export default function Schedule() {
                       {/* [0066] 이동 중 취소가 서버 전이로 열렸다(runner_enroute → cancelled_owner,
                           50% 수수료 = 러너 보상) — 숨김 게이트 은퇴. 링크 라벨이 티어를 예고하고,
                           확인 시트(fee/feeRate)가 정확한 % 와 배분을 커밋 전에 다시 명시한다. */}
-                      <Pressable style={s.cancelLink} onPress={() => setSheetMode('cancel')}>
-                        <Text style={{ fontSize: 14.5, fontWeight: '700', color: paper.critical }}>
-                          {/* 티어는 네 팔 미러가 말한다 — 수수료가 0인 예약에 '(수수료 50%)'를
-                              달던 자리(이동 중만 표기하던 이분법)의 교정 */}
-                          {fee > 0 ? `일정 취소하기 (수수료 ${Math.round(feeRate * 100)}%)` : '일정 취소하기'}
-                        </Text>
-                      </Pressable>
+                      {/* 클럽 위탁 예약은 이 사다리(0066)의 대상이 아니다 — 클럽은 자체 수수료
+                          규정(club_config)과 자체 출구(session_cancel_delegation: 호스트 알림·
+                          배정 회수·club_fee_items 기록)를 갖는다. 서버 cancel_owner도 거부하므로
+                          여기서 취소 버튼을 그리면 죽은 버튼이 된다 — 대신 그 출구로 보낸다. */}
+                      {selected.clubSessionId ? (
+                        <Pressable
+                          style={s.cancelLink}
+                          onPress={() => { setSelected(null); router.push(`/club/session/${selected.clubSessionId}`); }}
+                        >
+                          <Text style={{ fontSize: 14.5, fontWeight: '700', color: paper.ink }}>
+                            클럽 세션에서 취소하기 ›
+                          </Text>
+                          <Text style={{ fontSize: 14, color: paper.dim, marginTop: 2 }}>
+                            위탁 예약은 클럽 세션 화면에서 취소해요 — 취소 규정도 그곳에 있어요
+                          </Text>
+                        </Pressable>
+                      ) : (
+                        <Pressable style={s.cancelLink} onPress={() => setSheetMode('cancel')}>
+                          <Text style={{ fontSize: 14.5, fontWeight: '700', color: paper.critical }}>
+                            {/* 티어는 네 팔 미러가 말한다 — 수수료가 0인 예약에 '(수수료 50%)'를
+                                달던 자리(이동 중만 표기하던 이분법)의 교정 */}
+                            {fee > 0 ? `일정 취소하기 (수수료 ${Math.round(feeRate * 100)}%)` : '일정 취소하기'}
+                          </Text>
+                        </Pressable>
+                      )}
                     </>
                   )}
                   {/* 반복 해지 (0026) — 구독은 반드시 끌 수 있어야 한다. 상태 무관 노출 */}
