@@ -75,7 +75,7 @@ others.
 | 0080 | `compute_owner_charge` · `sweep_settled_without_payments` · `mint_settle_charge_intent` |
 | 0081 | `record_enroute_cancel_comp` ⚠ writes a ledger row for *cancelled* bookings — which is why ledger-presence is NOT a settlement anchor |
 | 0082 | *(owner to fill)* |
-| 0083 | `_guard_run_cols` · `append_run_event` / `append_run_photo` · `owner_la_sweep_stale` · LA trace trigger · `sweep_settled_without_payments` · plus `116_charge_suite`'s `t_chg_settled` fixture |
+| 0083 | EXTENDS (builds on the named version, does not replace): `settle_run_tx` ←0028 · `_guard_run_cols` ←0079 · `owner_la_sweep_stale` ←0079 · `_owner_la_trace_tg` ←0079 · `append_run_event`/`append_run_photo` ←0018. NEW: `end_run_tx`, `confirm_return_tx`, `force_return_tx`, `_settle_sealed_run`, `custody_ping`, `sweep_run_end_recovery`, `_guard_booking_insert_cols`, `_owner_la_run_end_tg`. Also updates `116_charge_suite`'s `t_chg_settled` fixture. ⚠ **Deliberately does NOT touch `sweep_settled_without_payments`** — 0080 owns it; see 0083 §0f for the one-line predicate it needs and why re-creating it here would silently revert 0084. |
 | 0084 | *(owner to fill)* |
 
 ### Settlement anchors — learned the hard way 2026-08-13
