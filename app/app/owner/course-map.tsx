@@ -303,6 +303,29 @@ export default function CourseMap() {
         )}
 
         {/* DETAIL — 앵커·시간대·메타. 지도는 위에 남아 맥락을 잃지 않는다 */}
+        {/* DETAIL을 열었는데 고른 코스가 없을 때. 예전엔 88% 시트가 통째로 흰 판이었다 —
+            아무것도 주장하지 않으니 정직하긴 했지만, 화면이 말을 안 하는 것과 정직한 것은 다르다.
+            그리고 **고를 코스가 없을 때 '고르세요'라고 하면 그건 또 다른 거짓말**이라, 세 경우를
+            갈라서 말한다: 못 불러왔다 / 조건에 맞는 게 없다 / 아직 안 골랐다. */}
+        {detent === 'detail' && !sel && (
+          <View style={{ paddingHorizontal: 14, paddingTop: 4 }}>
+            <Text style={s.emptyTxt}>
+              {state === 'error' ? '코스를 불러오지 못해서 상세를 열 수 없어요'
+                : state === 'loading' ? '코스를 불러오는 중이에요'
+                : shown.length === 0 ? emptyChipCopy(chips)
+                : '아직 고른 코스가 없어요'}
+            </Text>
+            {state === 'ready' && shown.length > 0 && (
+              <Text style={s.detailHint}>지도의 앵커를 탭하거나 목록에서 고르면 여기에 상세가 열려요</Text>
+            )}
+            {state === 'error' && (
+              <Pressable onPress={load} style={s.clearBtn} accessibilityRole="button">
+                <Text style={s.clearTxt}>다시 시도</Text>
+              </Pressable>
+            )}
+          </View>
+        )}
+
         {detent === 'detail' && sel && (
           <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 14, paddingBottom: 28 }}>
             {/* 본문은 `course/[id]`와 **같은 컴포넌트**다 — 두 화면이 같은 코스에 대해 다른
@@ -366,6 +389,7 @@ const s = StyleSheet.create({
   candTag: { fontSize: 14, color: paper.pending, fontWeight: '800', marginLeft: 6 },
 
   emptyTxt: { fontSize: 14, color: paper.text, fontWeight: '700' },
+  detailHint: { fontSize: 14, color: paper.dim, marginTop: 6, lineHeight: 20 },
   clearBtn: { marginTop: 10, borderWidth: 1.5, borderColor: paper.line, paddingVertical: 10, paddingHorizontal: 14, alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center' },
   clearTxt: { fontSize: 14, fontWeight: '800', color: paper.ink },
 
