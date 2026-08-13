@@ -42,6 +42,7 @@ const FALLBACK_CAM = { latitude: 37.5069, longitude: 126.9954, zoom: 13.4 };
 
 // 예정 경로용 잉크 대시 — K7 러너 지도와 **같은 에셋**이다. 두 화면이 같은 뜻에 같은 획을 쓴다.
 const ROUTE_DASH = require('../../assets/route-dash.png');
+const ROUTE_ANCHOR = require('../../assets/route-anchor.png');
 
 // 칩 술어·개수·조명 자동켜짐은 `components/route-chips`가 소유한다 (K5와 **같은 정의** —
 // 복제돼 있던 시절 라벨이 이미 갈라졌었다: 여기는 '그늘', 요청 화면은 '그늘 많음').
@@ -191,8 +192,11 @@ export default function CourseMap() {
           latitude={r.trace[0].lat}
           longitude={r.trace[0].lng}
           anchor={{ x: 0.5, y: 0.5 }}
-          width={r.id === selId ? 18 : 12}
-          height={r.id === selId ? 18 : 12}
+          width={r.id === selId ? 26 : 18}
+          height={r.id === selId ? 26 : 18}
+          // 회전 사각형(다이아몬드) — 기본 네이버 핀은 '검색 결과'를 뜻해서 만남 장소로 읽히지
+          // 않는다. K7 러너 지도와 **같은 에셋**이라 두 화면에서 앵커가 같은 모양이다.
+          image={ROUTE_ANCHOR}
           caption={r.id === selId ? { text: r.name } : undefined}
           onTap={() => pick(r)}
         />
