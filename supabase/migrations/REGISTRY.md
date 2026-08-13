@@ -39,8 +39,8 @@ touched it and name whose version you build on in your file header.
 | 0084 | `0084_g1_ops_cutover.sql` | 120 | payments (`claude/g1-ops-club-decisions`) | **SETTLED 2026-08-13** — on disk, in build |
 | 0085 | `0085_cancel_share.sql` | 121 | ⑩ cancel-fee runner share (`claude/club-delegation-money-gaps-b59eb8`) | **BUILT 2026-08-13** — harness 467/0, deno 161/0, 5 mutations verified |
 | 0086 | `0086_runner_stop_passthrough.sql` | 122 | ⑨a pass-through runner pay (`claude/g1-ops-club-decisions`) | **TAKEN** — file pushed on that branch 2026-08-13; row added by a third session that spotted it |
-| 0087 | *(next free)* | 123 | — | available |
-## A pushed FILE is a claim even when the row is missing — check both
+| 0087 | `0087_run_insert_seal.sql` | 123 | **runs INSERT seal** — revoke client INSERT on `runs` + atomic `start_run_tx` (`claude/run-end-flow-1a67e0`) | **CLAIMED 2026-08-13** — closing a remotely exploitable hole (`0002_rls.sql:107` lets an assigned runner INSERT a fully client-controlled `runs` row) |
+| 0088 | *(next free)* | 124 | — | available |## A pushed FILE is a claim even when the row is missing — check both
 2026-08-13, the sixth collision and a new variant: `0086_runner_stop_passthrough.sql` was
 pushed on a feature branch while this file still read `0086 | *(next free)*`, and a
 newly-started session was told 0086 was available. Nobody was careless — the rule says "a
