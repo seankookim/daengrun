@@ -1,7 +1,7 @@
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, AppState, Linking, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, AppState, KeyboardAvoidingView, Linking, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Avatar, Icon, Row } from '../../src/components/ui';
 import { addRunEvent, ensureThread, fetchCurrentRunnerJobId, fetchMeetupInfo, fetchRouteById, fetchRunMeta, fetchRunStartedAt, fetchRunTrace, MeetupInfo, notifyKmMilestone, RunEventKind, saveRunTrace, sendChatMessage, sendChatPhoto, settleRun, startRunServer, uploadRunPhoto } from '../../src/lib/api';
 import { GeoPoint, getNaverMap, getTraceSnapshot, getTrackPermission, mergeFixes, publishPos, resetTrace, seedTrace, smoothTrace, startTracking, stopPublishing, TrackHandle, TrackMode, TrackSnapshot } from '../../src/lib/geo';
@@ -589,7 +589,13 @@ export default function ActiveRun() {
             end_reason: completed ? 'completed' : REASON_MAP[reason as keyof typeof REASON_MAP],
             actual_km: Number(km.toFixed(2)),
             duration_sec: sec,
-            condition_note: reason === 'dog' ? '러너 판단: 컨디션 저하 관찰' : undefined,
+            // The runner's OWN sentence, typed in the end sheet's 기록 step — never a canned
+            // fallback. The old constant ('러너 판단: 컨디션 저하 관찰') shipped the same
+            // fabricated observation to every owner's report card and propped up the
+            // dog_condition charge waiver with a value no human ever wrote. If it is empty the
+            // server's 400 must surface (settle retry alert) — an invented sentence is worse
+            // than a visible failure.
+            condition_note: reason === 'dog' ? conditionNote.trim() : undefined,
           });
           runResult.payout = res.net; // 서버가 계산한 실지급액
           runResult.settled = true;  // 이제서야 '수익'이라고 부를 수 있다
@@ -618,14 +624,38 @@ export default function ActiveRun() {
     router.replace('/runner/done');
   };
 
-  const endWith = (reason: EndReason) => {
+  // The end sheet owns the whole decision (§7b — one surface). 이유 선택은 그대로 즉시 정산으로
+  // 가고, 컨디션만 같은 시트 안에서 기록 스텝으로 넘어간다 (모달 위에 모달을 쌓지 않는다).
+  const openEndSheet = () => { setEndStep('reason'); setEndSheet(true); };
+  const closeEndSheet = () => {
+    if (endBusy) return; // 정산 중에는 시트를 걷지 않는다
     setEndSheet(false);
+    setEndStep('reason'); // 다음에 열 땐 언제나 이유 목록부터 (초안 텍스트는 러너의 것이라 남긴다)
+  };
+
+  const endWith = (reason: EndReason) => {
     if (reason === 'dog') {
-      // The fabricated "nearby vet" line is gone — there is no vet data source, and invented
-      // safety copy is worse than none (fake-inventory 2026-08-11).
-      Alert.alert('컨디션 종료', '보호자에게 알림 전송됨 · 상태 사진과 메모를 남겨주세요');
+      // 컨디션 종료는 보호자가 읽을 문장이 있어야 성립한다 — 여기서 정산하지 않고 기록 스텝으로.
+      // (The fabricated "nearby vet" line was already retired; the fabricated condition_note
+      // and the "상태 사진과 메모를 남겨주세요" alert — a promise with no field — go here.)
+      setEndStep('note');
+      return;
     }
+    setEndSheet(false);
     settle(reason, false);
+  };
+
+  // 기록 스텝의 확정 — 시트를 먼저 걷고 정산한다. 정산 실패 알림(서버 400 포함)은 모달 위가
+  // 아니라 화면 위에 떠야 보인다. 슬라이드 아웃이 도는 동안 라벨은 '기록 중...'으로 바뀐다.
+  const submitConditionEnd = async () => {
+    if (!canSubmitNote || endBusy) return;
+    setEndBusy(true);
+    setEndSheet(false);
+    try {
+      await settle('dog', false);
+    } finally {
+      setEndBusy(false);
+    }
   };
 
   const finish = (_completed: boolean) => {
@@ -707,6 +737,17 @@ export default function ActiveRun() {
     setPace(next);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [running, sec, gpsKm, suggestSec]);
+
+  // ---------- 컨디션 종료 기록 (run-end-flow-plan §4a-bis · UI 스텝 — 맨 뒤에 붙인다) ----------
+  // Nothing here touches tracking, the settle retry loop, the overrun ceiling or the Live
+  // Activity: it is one extra step in front of settle() and one real string in its payload.
+  // The field is required by the schema (0001:244 '컨디션 종료 시 필수') and by the server
+  // (settle-run/handler.ts:53-54), and it is the ONLY thing the owner ever gets as the
+  // runner's account of why their dog stopped (owner/report.tsx:380-388).
+  const [endStep, setEndStep] = useState<'reason' | 'note'>('reason');
+  const [conditionNote, setConditionNote] = useState('');
+  const [endBusy, setEndBusy] = useState(false);
+  const canSubmitNote = conditionNote.trim().length > 0;
 
   // ---------- 러닝 시작 — 연속 기록이 안 되면 시작하지 않는다 (Sean 2026-08-08) ----------
   const startRun = async () => {
@@ -1027,7 +1068,7 @@ export default function ActiveRun() {
 
         <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
           {running && (
-            <Pressable style={s.moreBtn} onPress={() => setEndSheet(true)}>
+            <Pressable style={s.moreBtn} onPress={openEndSheet}>
               <Text style={{ fontSize: 16, color: '#BBBBBB', fontWeight: '900' }}>❙❙</Text>
             </Pressable>
           )}
@@ -1036,7 +1077,7 @@ export default function ActiveRun() {
             style={({ pressed }) => [s.btn, { backgroundColor: pressed && !starting ? colors.voltDeep : colors.volt }]}
             disabled={starting}
             onPress={() => {
-              if (running) { setEndSheet(true); return; }
+              if (running) { openEndSheet(); return; }
               beginRun();
             }}
           >
@@ -1068,44 +1109,96 @@ export default function ActiveRun() {
         </View>
       </Modal>
 
-      {/* ---------- end-run options sheet ---------- */}
-      <Modal visible={endSheet} transparent animationType="slide" onRequestClose={() => setEndSheet(false)}>
-        <Pressable style={s.sheetBackdrop} onPress={() => setEndSheet(false)} />
-        <View style={s.sheet}>
-          <View style={s.sheetHandle} />
-          <Text style={{ fontSize: 19.5, fontWeight: '900', color: '#FFFFFF' }}>어떤 이유로 종료하나요?</Text>
-          <Text style={{ fontSize: 15, color: '#BBBBBB', marginTop: 4 }}>
-            지금까지 {km.toFixed(2)}km · 이유에 따라 정산이 달라져요
-          </Text>
+      {/* ---------- end-run sheet — 한 시트, 두 스텝 (이유 → 컨디션이면 기록) ---------- */}
+      <Modal visible={endSheet} transparent animationType="slide" onRequestClose={closeEndSheet}>
+        <Pressable style={s.sheetBackdrop} onPress={closeEndSheet} />
+        {endStep === 'reason' ? (
+          <View style={s.sheet}>
+            <View style={s.sheetHandle} />
+            <Text style={{ fontSize: 19.5, fontWeight: '900', color: '#FFFFFF' }}>어떤 이유로 종료하나요?</Text>
+            <Text style={{ fontSize: 15, color: '#BBBBBB', marginTop: 4 }}>
+              지금까지 {km.toFixed(2)}km · 이유에 따라 정산이 달라져요
+            </Text>
 
-          <EndOption
-            title="강아지 컨디션"
-            desc="지친 기색·이상 징후 등. 사진과 메모를 남겨요"
-            pay={`${payoutByReason('dog').toLocaleString()}원 · 완주율 무영향`}
-            accent="#C6F542"
-            onPress={() => endWith('dog')}
-          />
-          <EndOption
-            title="보호자 요청"
-            desc="보호자가 조기 종료를 요청했어요"
-            pay={targetKm != null
-              ? `${payoutByReason('owner').toLocaleString()}원 · 잔여 거리 50% 보장 포함`
-              : `${payoutByReason('owner').toLocaleString()}원 + 잔여 거리 50% 보장 · 정산 시 확정`}
-            accent="#9fc3e8"
-            onPress={() => endWith('owner')}
-          />
-          <EndOption
-            title="러너 개인 사유"
-            desc="부상·일정 등 러너 사정으로 종료해요"
-            pay={`${payoutByReason('runner').toLocaleString()}원 · 완주율에 반영`}
-            accent="#e2c56b"
-            onPress={() => endWith('runner')}
-          />
+            <EndOption
+              title="강아지 컨디션"
+              // 사진 약속은 내렸다 — 이 스텝이 받는 것은 메모다. 없는 것을 약속하지 않는다.
+              desc="지친 기색·이상 징후 등. 종료 전에 메모를 남겨요"
+              pay={`${payoutByReason('dog').toLocaleString()}원 · 완주율 무영향`}
+              accent="#C6F542"
+              onPress={() => endWith('dog')}
+            />
+            <EndOption
+              title="보호자 요청"
+              desc="보호자가 조기 종료를 요청했어요"
+              pay={targetKm != null
+                ? `${payoutByReason('owner').toLocaleString()}원 · 잔여 거리 50% 보장 포함`
+                : `${payoutByReason('owner').toLocaleString()}원 + 잔여 거리 50% 보장 · 정산 시 확정`}
+              accent="#9fc3e8"
+              onPress={() => endWith('owner')}
+            />
+            <EndOption
+              title="러너 개인 사유"
+              desc="부상·일정 등 러너 사정으로 종료해요"
+              pay={`${payoutByReason('runner').toLocaleString()}원 · 완주율에 반영`}
+              accent="#e2c56b"
+              onPress={() => endWith('runner')}
+            />
 
-          <Pressable style={s.sheetCancel} onPress={() => setEndSheet(false)}>
-            <Text style={{ fontSize: 15, fontWeight: '700', color: '#BBBBBB' }}>계속 달릴게요</Text>
-          </Pressable>
-        </View>
+            <Pressable style={s.sheetCancel} onPress={closeEndSheet}>
+              <Text style={{ fontSize: 15, fontWeight: '700', color: '#BBBBBB' }}>계속 달릴게요</Text>
+            </Pressable>
+          </View>
+        ) : (
+          // 키보드가 입력칸을 덮으면 러너는 자기가 쓴 문장을 못 본다 — 시트를 밀어 올린다
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <View style={s.sheet}>
+              <View style={s.sheetHandle} />
+              <Text style={{ fontSize: 19.5, fontWeight: '900', color: '#FFFFFF' }}>무엇을 보고 멈췄나요?</Text>
+              <Text style={{ fontSize: 15, color: '#BBBBBB', marginTop: 6, lineHeight: 21 }}>
+                여기 적은 내용이 보호자의 기록 카드에 그대로 실려요. 본 것만 적어주세요 — 판단은 보호자와 수의사가 해요.
+              </Text>
+
+              {/* 플레이스홀더는 라벨이 아니다 — 보이는 라벨을 따로 세운다 */}
+              <Text style={s.noteLabel}>관찰한 내용</Text>
+              <TextInput
+                style={s.noteInput}
+                value={conditionNote}
+                onChangeText={setConditionNote}
+                multiline
+                textAlignVertical="top"
+                editable={!endBusy}
+                placeholder="예: 3km 지점부터 헐떡임이 심해지고 걸음을 멈춰서 그늘에서 쉬었어요"
+                placeholderTextColor={paper.dim}
+                accessibilityLabel="관찰한 내용"
+                autoFocus
+              />
+              <Text style={s.noteHint}>지금까지 {km.toFixed(2)}km · 컨디션 종료는 완주율에 반영되지 않아요</Text>
+
+              <Pressable
+                // busy = 라벨 스왑, disabled = 명시 fill (§3b 버튼 매트릭스 — 불투명도 트릭 없음)
+                style={({ pressed }) => [
+                  s.btn,
+                  { marginTop: 18 },
+                  !canSubmitNote
+                    ? { backgroundColor: paper.disabledFill }
+                    : { backgroundColor: pressed && !endBusy ? colors.voltDeep : colors.volt },
+                ]}
+                disabled={!canSubmitNote || endBusy}
+                onPress={submitConditionEnd}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: !canSubmitNote || endBusy }}
+              >
+                <Text style={{ fontSize: 17, fontWeight: '800', color: canSubmitNote ? colors.ink : paper.faint }}>
+                  {endBusy ? '기록 중...' : '종료하고 기록 남기기'}
+                </Text>
+              </Pressable>
+              <Pressable style={s.sheetCancel} onPress={() => setEndStep('reason')} disabled={endBusy}>
+                <Text style={{ fontSize: 15, fontWeight: '700', color: '#BBBBBB' }}>이유 다시 고르기</Text>
+              </Pressable>
+            </View>
+          </KeyboardAvoidingView>
+        )}
       </Modal>
     </View>
   );
@@ -1214,5 +1307,14 @@ const s = StyleSheet.create({
     backgroundColor: '#222222', borderRadius: 0, padding: 14, marginTop: 10,
   },
   endRail: { width: 4, height: 44 },
+  // 컨디션 종료 기록 스텝 — 다크 시트 안의 종이 필드. 보호자가 읽게 될 문장을 쓰는 자리라
+  // 캔버스 면 + 코랄 헤어라인 1px로 시트에서 떼어 놓는다 (모서리는 여기도 샤프).
+  noteLabel: { fontSize: 15, fontWeight: '800', color: '#FFFFFF', marginTop: 18, marginBottom: 7 },
+  noteInput: {
+    minHeight: 108, borderRadius: 0, borderWidth: 1, borderColor: paper.line,
+    backgroundColor: paper.canvas, color: paper.ink,
+    fontSize: 15.5, lineHeight: 21, padding: 12,
+  },
+  noteHint: { fontSize: 14, lineHeight: 19, color: '#BBBBBB', marginTop: 8 },
   sheetCancel: { alignItems: 'center', paddingVertical: 14, marginTop: 6 },
 });
