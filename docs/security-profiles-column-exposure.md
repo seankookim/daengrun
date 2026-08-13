@@ -1,8 +1,28 @@
 # P0 — `profiles` returns `phone` and `toss_customer_key` to anyone (2026-08-13)
 
-**Status: FIXED on branch (`0088_profiles_column_grants.sql`, suite 124), NOT DEPLOYED.
-The hole is open in production right now and closes only at the next `db push`, which is
-held.** Open since `0002` (2026-07), so it is not a regression — but it is live.
+**Status: CLOSED IN PRODUCTION, 2026-08-13.** `0088` (read grants) and `0091` (write grants)
+are applied — `supabase migration list` shows `0001`…`0091` with local == remote, no gaps.
+Open since `0002` (2026-07); it was never a regression, just never asked about.
+
+**Verified from outside, as a genuine stranger** — no account, anon key only, against the
+production REST API, which is the same shape as the original attack:
+
+    GET /rest/v1/profiles?select=phone,toss_customer_key   → 401  42501 permission denied
+    GET /rest/v1/profiles?select=*                         → 401  42501 permission denied
+    GET /rest/v1/profiles?select=name                      → 401  42501 permission denied
+    GET /rest/v1/available_runners?select=*                → 200  name/district/avatar_url/bio, no phone
+
+The last two lines are the ones worth keeping. The third proves the revoke is total for `anon`
+rather than column-shaped — `anon` now gets nothing from `profiles` at all. The fourth proves
+the logged-out storefront still works, through `available_runners`, the definer view 124 G6 pins
+as the one narrow bypass. A fix that closed the leak by deleting the policy would have passed
+the first three checks and broken the fourth, which is why the fourth is here.
+
+⚠ **What is NOT verified by the above:** a real signup / role-switch round trip in production.
+That needs an actual account, so it is Sean's smoke, not a claim I can make. The grant that
+makes it work (`0091`'s `grant select (role)`) is in an applied migration and the anon result
+proves the same file's revokes took effect — but "the grant is applied" and "a human can sign
+up" are different sentences and only the first is measured. Smoke list at the end of this file.
 
 ## What is exposed
 
@@ -95,7 +115,15 @@ than an empty row — and `docs/feature-audit.md` already discusses **안심번�
 the Kakao T pattern), so shipping real numbers is a *re-decision* of something previously
 considered, not a new trade-off.
 
-## Can `0088` be applied WITHOUT deploying the payment system? — measured, and yes
+## Can `0088` be applied WITHOUT deploying the payment system? — I answered YES, and I was wrong
+
+⚠ **Read the correction at the end of this section before using anything in it.** The audit below
+is sound and its method is worth keeping — it is the reason the read side was safe — but the
+conclusion it was used to support was false, and the way it was false is the useful part.
+`0088` applied alone returns **403 to every user at the role picker**. It shipped together with
+`0091`, so no user ever saw it.
+
+## The audit itself (still valid, for reads)
 
 The announcer's finding is that `0088`'s revoke + column grants depend on nothing after `0074`,
 which makes closing the anon hole separable from the `0076`–`0088` payment deploy. The gating
@@ -137,6 +165,45 @@ file is numbered above `0076`–`0087` and `supabase db push` applies every pend
 "standalone" means someone deliberately applying this one migration's SQL, not a plain push.
 That is a Sean call and an ops mechanic, not a code-compatibility question, and the code
 compatibility question is now closed.
+
+### ⚠ THE CORRECTION — what the audit above missed, and why the method still stands
+
+**The claim "code compatibility is closed" was wrong.** `0088` alone denies the role picker's
+write, so every user gets a 403 on the first screen — new signups included.
+
+`app/app/index.tsx:27` is `supabase.from('profiles').upsert({id, role, name})`. PostgREST renders
+that as:
+
+    insert into profiles(id, name, role) select …
+    on conflict (id) do update set id = excluded.id, name = excluded.name, role = excluded.role
+
+Postgres requires SELECT on every column read in that SET list — `excluded.role` included — and
+`0088`'s grant has no `role`. The privilege check is per-*statement*, so even a non-conflicting
+first insert fails. Measured twice: real PostgREST 12.2.3 + PG16 with `log_statement=all` against
+a mirror of the post-`0088`/pre-`0091` grants, then by hand on the harness cluster with the grant
+state reconstructed. Both: `permission denied for table profiles`.
+
+**The error, named:** I audited **the client's intent** (`upsert({...})`, which chains no
+`.select()` and therefore requests no returning rows — both true) instead of **the SQL the client
+causes**. Those two descriptions agree everywhere except the ON CONFLICT arm, which is exactly
+where this lived.
+
+**Why no pin could have caught it:** 124 G3 tests `update … set district`, and the harness has no
+PostgREST — so the statement PostgREST actually emits had never been in front of any test. The
+join between client library and database was the untested seam, not either side.
+
+**What survives, and it is most of it.** The enumeration method — answer "which build is live" by
+enumerating every projection in every commit, so the question dissolves rather than gets answered
+— was right, and the read-side conclusion it produced is correct and now confirmed in production.
+What was wrong was the scope I claimed for it: **an audit of reads licenses a conclusion about
+reads.** The three adjacent checks in it (writes chain no `.select()`; every read filters on `id`,
+which is granted; `role` is written and never read) are each individually true. The third one is
+the tell in hindsight — I noticed `role` is written and never read, and treated "never read by
+the client" as "never needs SELECT", when the database needed SELECT on it for a write.
+
+`0091` adds `grant select (role) on profiles to authenticated`, and `124:132`'s whitelist array
+gained `'role'` in the same slice, with a ⚠ against "fixing" a future red by shortening the list
+instead of restoring the grant — that would re-ship the 403 with a green harness.
 
 ## What needs Sean
 
@@ -188,3 +255,31 @@ Two lessons, both earned the hard way in one afternoon:
   nothing beyond `profiles` because no fixture rows existed yet to match the policies. Reading
   DDL missed it; executing on an empty DB missed it; only executing against a populated one, as
   a genuine stranger, gave the true answer.
+
+## Smoke list for Sean — the part no harness and no curl can answer
+
+Everything below needs a real account on a real device. Each line says what a FAILURE looks like,
+because the failure modes here are quiet ones that read as ordinary app trouble.
+
+1. **Sign up as a brand-new user, pick 보호자.** This is the exact statement that would have
+   returned 403 without `0091`. Failure looks like: the role tap spins, then `프로필 저장 실패`
+   with a permission message. If this works, the `role` grant is live and the 403 class is dead.
+2. **On an existing account, go back to `/` and tap the other role.** Same statement, the ON
+   CONFLICT arm — this is the half that fails even when a fresh signup would succeed, so tapping
+   it is not redundant.
+3. **Edit 이름 and 동네 in 설정, then reopen the screen.** Confirms `update (name, district)`
+   survived the whitelist. Failure: save appears to work but the value reverts on reload.
+4. **Change the profile photo.** Separate write path (`avatar_url`), separate grant.
+5. **Set a handle.** Goes through `set_my_handle`, not a column write. It must still work, and a
+   reserved word like `admin` must still be REFUSED — if `admin` is accepted, the definer path
+   has been bypassed and that is worse than the original squatting risk.
+6. **Log out and browse runners.** The logged-out storefront reads `available_runners`. Verified
+   green by curl above, but worth one human look — an empty runner list is what a too-aggressive
+   revoke looks like from the user's side.
+7. **Open 설정 › 결제 관리.** Should show an honest empty state, not an error: charging is off
+   (`payments_live_since` is NULL) and no card is linked.
+
+⚠ **Do not** smoke the charge machine by ending a real run yet. `payments_live_since` is NULL and
+both charge paths early-return on it (`0080:361`, `0080:439`), so the machine is deployed and
+inert on purpose. Turning it on is `set_payments_live_since(p_when)`, deliberately a separate,
+explicit act that refuses a past timestamp.

@@ -81,15 +81,14 @@ pattern) is defensible for a pilot, but it should be **confirmed, not inherited 
 decision**. `docs/feature-audit.md` already
 discusses 안심번호 — prior art to read rather than re-derive.
 
-## 3-bis. 🔴 ⑬ chat never reaches a phone — blocks ⑪ AND ⑫, needs no ruling to start
+## 3-bis. ✅ ⑬ chat now reaches a phone — BUILT 2026-08-13 (0090, harness 510/0)
 
-Push fires only on a `notifications` insert; nothing writes one when a chat is sent, so
-runner↔owner chat is in-app-only. Sean's ⑫ rulings are all *tell someone something*, and his
-design gate is *"we dont want the runner stranded in the middle of town"* — today that runner
-can message the owner and the owner's phone stays silent. **A build item, not a decision**;
-[chat-notifications.md](chat-notifications.md) has the wiring. Two small product calls inside it
-are his: whether the push carries the message text (0024 pushes bodies verbatim to a lock
-screen), and how to collapse repeats.
+Shipped: a trigger on `chat_messages` writes the other party a notification, which the existing
+0024 trigger turns into a push. **Both small product calls were made deliberately and are his to
+overrule in a sentence**, not open questions: the push carries **no message text** (who + which
+run only — 0024 puts bodies verbatim on a lock screen, and in an incident that phone gets handed
+around), and it sends **one nudge per unread state** (reading it re-arms, so a back-and-forth is
+one push). Details in [chat-notifications.md](chat-notifications.md).
 
 ## 4. ✅ ⑫ — RULED IN FULL 2026-08-13 (no longer waiting on him)
 
@@ -102,12 +101,12 @@ should the platform absorb a normal measured runner payout at owner ₩0?* Codex
 and declines to encode it, because it is a deliberate platform loss outside 0072's model. This is the same class as G1, where he overrode both sessions'
 recommendations with a third option neither had proposed.
 
-## 5. 🟡 ⑪ ownership, and ⑪-before-⑫ sequencing
+## 5. ✅ ⑪ + ⑫ ASSIGNED 2026-08-13 — one slice, to the run-end-flow session
 
-⑪ is ruled, specified, and **unowned** — both build sessions declined it rather than
-self-assign. Argument for ⑪ first: its two-sided gate makes ⑫'s adjudication cheaper by ensuring
-only verified incidents reach it. ⑪ is also blocked on `0083` landing (its test doctrine models
-on 0083's two-party machine).
+Assigned by the coordinating session (Sean delegated assignment) to **run-end-flow**, which owns
+the custody/return machinery. They are **one slice, not two**: ⑫'s exit condition — both sides
+confirming the dog — **is** ⑪'s two-stamp machine, so building ⑫ without ⑪ means building a gate
+with no way to clear it. That is a dependency, not a sequencing preference.
 
 ## 6. 🟡 `profiles.phone` may be null in practice — verify before ⑪ designs against it
 
@@ -125,17 +124,11 @@ same application) regardless, plus billing TEST keys and the §4-2 sandbox matri
 
 ---
 
-## 8. 🟡 ⑩'s "reward them" is currently paid in sentences only
+## 8. ✅ ⑩'s "reward them" — CLOSED 2026-08-13
 
-Your ruling was *"pay the runner and let them know, **reward them** ykwim"*. The pay half shipped
-(0085) and the telling half shipped (the notification reads as good news). **The reward half did
-not.** The 하이 포인트 ledger exists, but nothing awards points for holding a slot that got
-cancelled — and the payments session deliberately did not invent a number you had not set, which
-was the right call.
-
-So: **what is the reward, concretely?** Points, and how many? Something else? Or is being paid
-the half-fee itself the reward, and the word was about tone rather than a second currency? A
-one-line answer closes it; it is a real gap between the ruling and the build either way.
+*"reward was about tone."* No points, no ledger award, no currency to design — the half-fee is
+the reward and the notification's voice carries it. ⑩ is complete, not "built with a gap".
+Reasoning kept in the memo so nobody re-opens it as an unbuilt feature.
 
 **Also standing, from ⑩ and ④:** the club-premium disclosure line (④ requires it before
 cutover — his wording), and the counsel question on 빌링키 charge-notice obligations (②'s
