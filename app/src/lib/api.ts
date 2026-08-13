@@ -122,6 +122,10 @@ export interface DogProfile {
   photoUrl: string | null;
   weeklyGoalKm: number;
   collar: string | null; // 칼라 컬러 키 (0033) — theme.collarColors 매핑
+  // Owner's suggested MINIMUM pace, sec/km (pace-state-ui-plan §4). RAW and un-defaulted:
+  // null means the key is absent, and only a CONFIRMED-absent key may coalesce to 480.
+  // A failed fetch must stay unknown, so the defaulting lives in the UI, never here.
+  paceSuggestSec: number | null;
 }
 
 function mapDog(d: any): DogProfile {
@@ -138,7 +142,18 @@ function mapDog(d: any): DogProfile {
     photoUrl: d.photo_url,
     weeklyGoalKm: Number(d.weekly_goal_km ?? 15),
     collar: d.collar ?? null,
+    paceSuggestSec: readPaceSuggest((d.preferences as any)?.paceSuggestSec),
   };
+}
+
+// jsonb is client-writable, so a stored value can be a string, junk, or absent.
+// Non-numeric → null (unset), never a fabricated number. No clamping here: the band
+// clamp is a DISPLAY concern (src/lib/pace.ts clampSuggest) and the server clamps
+// again at run-start snapshot time — the client is not trusted on a signal path.
+function readPaceSuggest(raw: unknown): number | null {
+  if (raw == null) return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
 }
 
 const DOG_SELECT = 'id, name, breed, birth_date, weight_kg, neutered, memo, preferences, vaccinations, photo_url, weekly_goal_km, collar';
@@ -171,11 +186,25 @@ export async function updateMyDog(dogId: string, p: {
   name?: string; breed?: string; birth_date?: string | null; weight_kg?: number | null;
   neutered?: boolean; memo?: string; prefTags?: string[]; vaccines?: string[];
   collar?: string | null; // 칼라 컬러 (0033)
+  paceSuggestSec?: number; // 권장 최소 페이스 sec/km (pace-state-ui-plan §4)
 }): Promise<void> {
-  const { prefTags, vaccines, ...rest } = p;
+  const { prefTags, vaccines, paceSuggestSec, ...rest } = p;
   const patch: Record<string, unknown> = { ...rest };
-  if (prefTags) patch.preferences = { tags: prefTags };
   if (vaccines) patch.vaccinations = vaccines.map((type) => ({ type, at: null }));
+  // ⚠ `preferences` is a jsonb DOCUMENT, and this write used to REPLACE it with `{tags}`.
+  // The moment a second key lives in there (paceSuggestSec), every profile save would wipe
+  // it. Read-then-merge: unknown keys written by any other surface survive untouched.
+  // (Not an RMW race worth an RPC — a single owner editing their own dog's form.)
+  if (prefTags || paceSuggestSec != null) {
+    const { data: cur, error: readErr } = await supabase
+      .from('dogs').select('preferences').eq('id', dogId).maybeSingle();
+    if (readErr) throw readErr; // a swallowed read here silently truncates the document
+    const existing = ((cur as any)?.preferences ?? {}) as Record<string, unknown>;
+    const merged: Record<string, unknown> = { ...existing };
+    if (prefTags) merged.tags = prefTags;
+    if (paceSuggestSec != null) merged.paceSuggestSec = paceSuggestSec;
+    patch.preferences = merged;
+  }
   const { error } = await supabase.from('dogs').update(patch).eq('id', dogId);
   if (error) throw error;
 }
@@ -1456,12 +1485,20 @@ export interface MeetupInfo {
   km: number;
   paceLabel: string;
   when: string;
+  // PRE-RUN pace suggestion for the 권장 caption (pace-state-ui-plan §3). RAW/un-defaulted —
+  // null means unset. Distinct from `paceLabel`, which is the booking's MATCHING input
+  // ("가볍게 8'+"); this is the per-dog quality floor. They never render on the same surface.
+  // Once the run starts, `runs.pace_suggest_sec` (fetchRunMeta) supersedes this — the
+  // snapshot is frozen so a mid-run pref edit cannot move the goalpost.
+  paceSuggestSec: number | null;
 }
 
 export async function fetchMeetupInfo(bookingId: string): Promise<MeetupInfo> {
   const { data, error } = await supabase
     .from('bookings')
-    .select('scheduled_at, km, pace_label, routes(name), dogs(name, breed, weight_kg, memo, photo_url), runners(profiles(name))')
+    // `preferences` rides the EXISTING dogs embed (no new join, so no PostgREST FK
+    // ambiguity); the jsonb is unwrapped client-side rather than via `->>` in the select.
+    .select('scheduled_at, km, pace_label, routes(name), dogs(name, breed, weight_kg, memo, photo_url, preferences), runners(profiles(name))')
     .eq('id', bookingId)
     .single();
   if (error) throw error;
@@ -1478,6 +1515,7 @@ export async function fetchMeetupInfo(bookingId: string): Promise<MeetupInfo> {
     km: Number(d.km),
     paceLabel: d.pace_label ?? "보통 7'",
     when: `${dateLabel} ${timeLabel}`,
+    paceSuggestSec: readPaceSuggest(d.dogs?.preferences?.paceSuggestSec),
   };
 }
 
@@ -2965,6 +3003,34 @@ export const incidentSettle = (incidentId: string, bookingId: string, outcome: S
 export async function fetchRunStartedAt(bookingId: string): Promise<string | null> {
   const { data } = await supabase.from('runs').select('started_at').eq('booking_id', bookingId).maybeSingle();
   return (data as any)?.started_at ?? null;
+}
+
+// Marketplace live surfaces need BOTH facts in one round trip (pace-state-ui-plan §1/§3):
+// `started_at` is the only honest elapsed clock (a per-mount clock fabricates a 0'52" pace
+// for an owner who opens the screen at km 2.3), and `pace_suggest_sec` is the run-start
+// SNAPSHOT of the owner's suggestion — frozen so a mid-run pref edit cannot move the
+// goalpost. `fetchRunStartedAt` above stays for the club run screen, which has neither.
+export interface RunMeta { startedAt: string | null; paceSuggestSec: number | null }
+
+// ⚠ 0078 PRE-PUSH TOLERANCE — `runs.pace_suggest_sec` does not exist until the LA slice's
+// migration lands, and PostgREST hard-errors (42703) on an unknown column, which would take
+// the elapsed clock down with it. So an undefined-column error falls back to a started_at-only
+// retry with a null suggestion (caption absent — §6's "unset ≠ known", never a fabricated 480).
+// REMOVE this fallback once 0078 is pushed; keeping it would hide a real schema regression.
+const isUndefinedColumn = (e: any): boolean =>
+  e?.code === '42703' || /does not exist/i.test(String(e?.message ?? ''));
+
+export async function fetchRunMeta(bookingId: string): Promise<RunMeta> {
+  const { data, error } = await supabase.from('runs')
+    .select('started_at, pace_suggest_sec').eq('booking_id', bookingId).maybeSingle();
+  if (!error) {
+    return {
+      startedAt: (data as any)?.started_at ?? null,
+      paceSuggestSec: readPaceSuggest((data as any)?.pace_suggest_sec),
+    };
+  }
+  if (!isUndefinedColumn(error)) return { startedAt: null, paceSuggestSec: null };
+  return { startedAt: await fetchRunStartedAt(bookingId), paceSuggestSec: null };
 }
 
 // [R5] 크리티컬 ack (0049) — 제목 레지스트리 팬아웃, 확인 전까지 배너로 따라온다 (30분 뒤 호스트 에스컬레이션)

@@ -190,6 +190,18 @@ export const paper = {
   // 존재하지 않는 색을 지정하고 있었다. 토큰으로 승격한다.
   ready: '#119B58',         // 확정·준비됨 (흰 라벨 3.59 — 큰 활자 전용, 누르는 면 금지)
   readyDeep: '#0E7F49',     // 그 위의 텍스트/딥 (5.06:1)
+  // ── pace-state role tokens (pace-state-ui-plan §3) — live pace chip only ──
+  // ROLE names over EXISTING hues, not new colors: good inherits ready/readyDeep
+  // (#119B58's 95% white wash + readyDeep ink — the GO_TINT precedent), slow inherits
+  // lilac.amberSoft's wash with a deeper amber ink. `pending` (#C77414) is NOT usable
+  // as the slow ink: measured 3.09:1 on that wash, so the ink goes darker in the same hue.
+  // Style-freeze compliant: four new names, zero new hues.
+  // Measured contrast (WCAG 2.x relative luminance): paceGoodInk on paceGoodWash = 4.50:1,
+  // paceSlowInk on paceSlowWash = 4.78:1 — both ≥4.5. Re-measure if any value moves.
+  paceGoodWash: '#E7F5EE',
+  paceGoodInk: '#0E7F49',
+  paceSlowWash: '#FBEED9',
+  paceSlowInk: '#9D580A',
   // 버튼 매트릭스 법(F2.1 개정): primary action面/actionPressed · secondary wash面+line 보더+actionInk ·
   // quiet canvas面+#EEE (드물게) · destructive canvas面+critical · disabled = disabledFill+faint (알파 금지) ·
   // busy = 라벨 스왑. **잉크는 상태(선택칩·완료 스텝·라이브 필·다크 아티팩트)로 남는다 — 액션이 아니다.**
