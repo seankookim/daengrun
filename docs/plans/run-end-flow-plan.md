@@ -112,6 +112,36 @@ Dialog states the consequence in the two cases that differ:
 
 Copy is factual, never discouraging: the runner may be stopping because the dog needs to.
 
+### 4a-bis. 🔴 The condition note is FABRICATED today — this slice fixes it
+
+Found 2026-08-13 while scoping the stop dialog; escalated by the club-delegation session's
+G1 sync, whose adopted decision depends on this field being real.
+
+- `run.tsx:444` sends `condition_note: reason === 'dog' ? '러너 판단: 컨디션 저하 관찰' :
+  undefined` — **a hardcoded constant**, sent because the server *requires* a note for
+  dog-condition ends (`settle-run/handler.ts:53-54`).
+- `run.tsx:478` tells the runner *"상태 사진과 메모를 남겨주세요"* — **there is no field to
+  write one.** A dead promise in copy (§7 honesty law: no dead affordances).
+- `owner/report.tsx:384` renders `run.conditionNote` to the owner as the runner's account
+  of why their dog stopped. Every owner who has ever seen it read the same sentence.
+
+Three laws broken at once: fabricated data presented as observation (the repo's first
+law), a promise with no affordance, and — now — a money control resting on a constant.
+**G1's adopted anti-gaming mitigation is literally "the record card for a dog_condition end
+shows the runner's condition_note to the OWNER — the owner knows whether their dog was
+actually unwell."** A constant cannot carry that. The per-runner dog_condition-rate
+telemetry G1 also requires is measuring ends whose stated reason is unverifiable.
+
+**Fix, inside the stop-confirmation dialog (§4a):** when the reason is `dog_condition`,
+the dialog collects a REAL note — a required free-text field (the schema has said
+`컨디션 종료 시 필수` since `0001:244`), with the existing photo affordance surfaced beside
+it rather than merely mentioned. Empty/whitespace cannot proceed; the client stops sending
+any canned fallback, so a missing note becomes a visible failure instead of an invented
+sentence. The owner's report card keeps rendering the field — it just becomes true.
+
+This is small, independently shippable, and gates nothing else — so it ships as **Slice 1**,
+ahead of the state machine.
+
 ### 4b. Runner — 귀가 screen
 
 Same screen, new mode (the run screen already has `panel`/`island` layouts; 귀가 is a
