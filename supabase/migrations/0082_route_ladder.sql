@@ -142,7 +142,11 @@ alter table routes add constraint routes_active_is_earned check (
 alter table bookings
   add column recommended_route_id uuid references routes,
   add column selection_origin text check (selection_origin in ('auto','carousel','detail_cta','quick_book')),
+  add column route_status_at_booking text,
   add column route_chips jsonb not null default '{}';
+
+comment on column bookings.route_status_at_booking is
+  'The route lifecycle state the owner was actually exposed to, SNAPSHOT at hold creation and written by the server from routes.status — not by the client. A live join cannot answer this later: a candidate that gets promoted becomes ''active'' and the booking would retroactively look like a normal one, quietly moving bookings in and out of the PR-0 denominator.';
 
 comment on column bookings.recommended_route_id is
   'What the app would have picked on its own, stamped at hold creation. Override is DERIVED as route_id is distinct from recommended_route_id — never a client-asserted verdict.';

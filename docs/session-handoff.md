@@ -132,27 +132,38 @@ booking** (Sean's ruling ⑥ — never `now()`; `longest_inflight_booking_end()`
 still the critical path; ② dashboard TEST keys + variantKey 카드/간편결제-only (docs demo
 WIDGET keys are recorded in app/.env.example + plan §5 — they unblock the A3 device spike
 NOW, but not billing); ③ ~~review + merge + push~~ — DONE this session: both slices are on
-`origin/redesign-v4` @ 534d2aa (branch `claude/club-money-gates` also pushed). Local
+`origin/redesign-v4` (branch `claude/club-money-gates` also pushed). Local
 `redesign-v4` in the main checkout is BEHIND origin on purpose — another session had
 uncommitted work there, so the remote was advanced instead of fast-forwarding their tree.
 `git pull` with a clean tree.
-**Decisions:** **`docs/decisions-open-money.md` — three briefs written 2026-08-13, pick by
-number**: ① G1 abort-charge basis (recommendation: D — `incident` charges nothing at settle
-because the 0072 case owns that money; `dog_condition` charges distance-only) · ② D-3
-silent-charge question for counsel (recommendation: ask with three options; if ambiguous
-ship the monthly summary, not a per-charge push) · ③ OPS_PROFILE_ID (recommendation: keep
-the env var for the pilot) · ④ club_fare is the pre-D2 formula, so club owners pay ₩2,000 MORE
-than marketplace for the same km (recommendation: align to 7,900 before the flip; no price
-change shipped) · ⑤ en-route club cancels now have no owner path (recommendation: route them
-into the incident flow rather than a wall) · ⑥ the cutover straddle — a booking confirmed
-pre-flip is charged post-flip and can lock a card-less owner (recommendation: set
-`payments_live_since` to a FUTURE timestamp past the longest in-flight booking).
-⚠ A parallel session wrote memos ①–③ independently as `docs/decisions/` and reports the calls
-were delegated there; that set is canonical and ours retires after your merge — the banner at
-the top of `decisions-open-money.md` names what each has that the other lacks. **Nothing was
-built on that relayed adoption**: G1 keeps 🔴 and D-3 is unbuilt, because a confirmation gate
-that another session can perform is not a gate. Also still open: lab picks Ⓡ①②③ + Ⓖ rule · Ⓛ③ spec-plate
-graft + ₩/원 (carried from the 2026-08-12 handoff §9).
+
+**Decisions — EIGHT memos in `docs/decisions/` (one directory; `decisions-open-money.md`
+retired into it, Sean's rulings ported from `0fbaa64`). SEVEN are ruled, ONE is stuck:**
+- ✅ **① G1 FULLY RULED — fault-based, both ledgers mirrored.** `dog_condition`: owner
+  7,900 + 3,000×**distance actually run**, runner 9,900 + 3,000×same — nobody at fault, so
+  nobody eats a gap. `owner_request`/`owner_forced`: owner PLANNED (D2), runner actuals.
+  `runner_personal`: owner distance-only base-waived (#10 stands), **runner 9,900 base only,
+  no distance** — the one deliberate asymmetry, platform absorbs it. `incident`: **₩0, verify
+  first** (his instinct caught a free-run hole — `settle-run` whitelisted all six
+  `end_reason` values on a public endpoint; now four). ⚠ a CLUB abort charges 9,900 (frozen
+  base + ④). Required copy: report says stopping was right + shows the real `condition_note`.
+- ✅ **② D-3 = A, accept as-is — NOTHING TO BUILD.** No per-charge push, no monthly
+  summary. The statement-row slice is **CANCELLED, not deferred**. Counsel question
+  survives as validation; 전자상거래법 footer still mandatory at 사업자등록.
+- ✅ **③ OPS = `ops_recipients` table**, per-event-class routing ("build for full scale").
+  Env var readable one more release. Payload redaction stands.
+- ✅ **④ club_fare: keep ₩9,900** — premium stands, funds host comp (⑦) — **and club goes
+  price-invisible**, disclosed once at join. ⚠ a club `dog_condition` abort therefore
+  charges 9,900, since the charge reads the booking's frozen base.
+- ✅ **⑤ en-route club cancel = A, leave it**; card-less club state routes to card
+  registration. ✅ **⑥ cutover = FUTURE `payments_live_since`**, never `now()` (§3 ⑦ carries
+  the query). ✅ **⑦ host cut from platform margin, never runner pay.** ✅ **⑧ card
+  registration inline at first booking, not onboarding.**
+Also still open: lab picks Ⓡ①②③ + Ⓖ rule · Ⓛ③ spec-plate graft + ₩/원 (carried from the
+2026-08-12 handoff §9). **Migration/suite numbers: claim in `supabase/migrations/REGISTRY.md`
+on origin BEFORE writing** — 0083/0084 are disputed there, procedure named in the file. **Migration/suite numbers: claim in
+`supabase/migrations/REGISTRY.md` on origin BEFORE writing the file** (four collisions on
+2026-08-13); 0083/suite 119 is next free.
 
 ## 5. Next prompts (exact openers)
 

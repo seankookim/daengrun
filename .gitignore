@@ -9,3 +9,27 @@ supabase/tests/.pgtest/
 supabase/.temp/
 supabase/.branches/
 app/supabase/
+
+# 에이전트 툴링 산출물 (여러 세션이 각자 만든 것 — 저장소 내용이 아니다)
+.gstack/
+.claude/worktrees/
+.claude/settings.local.json
+.agents/
+.codex/
+app/.agents/
+app/.claude/
+app/agent/
+app/skills-lock.json
+AGENTS.md
+
+# Per-machine agent tooling — installed by Claude Code / Codex, not project source.
+# Untracked-but-unignored is the dangerous middle: it shows up in every `git status`,
+# which is how a `git add -A` sweeps it in (and why memory says never to run one here).
+.agents/
+.claude/
+.codex/
+AGENTS.md
+app/.agents/
+app/.claude/
+app/agent/
+app/skills-lock.json

@@ -87,6 +87,28 @@ use it; `fetchRoutes(town)` is for discovery only. A booked candidate must never
 briefing page when the fallback disappears, and suspended/retired routes must render their
 state honestly on historical surfaces.
 
+### K3-note. Interaction with run-end-flow (0083) — settlement timing moves
+Cross-session, 2026-08-13. Under 0083 `end_run_tx` commits the FINAL trace save at run-stop and
+then closes the run-mutation window; custody GPS during 귀가 is broadcast-only and is **never
+persisted to `runs.trace`**. Two consequences for `promote_route_from_run`, neither breaking:
+
+1. **The input gets cleaner.** A settled trace can currently include whatever the runner did
+   after they stopped; after 0083 it is exactly the run loop with no walk-home tail. Route
+   geometry derived from it is more honest by construction, and the anchor-tolerance guard
+   (§D-ⓖ) gets easier to satisfy rather than harder.
+2. **⚠ The `bookings.status='completed'` precondition fires LATER.** Settlement moves from
+   run-stop to the return handoff, so there is now a real window — minutes to tens of minutes —
+   where a run is finished and its trace is final and frozen, but the booking is still `active`
+   and promotion correctly refuses with `run_not_settled`. The guard stays right; only the wait
+   changes. Anything that assumed "trace stopped growing ⇒ settleable now" gets a longer tail.
+   Curation should promote from the booking status, never from trace quiescence.
+
+Also settled cross-session: run-end-flow is deliberately NOT persisting phase-tagged custody
+GPS (persisting a runner's position outside the run would declassify where they were when they
+were not working — the same argument as this file's `t`/`v` stripping). So K6's deadhead metric
+stays a straight-line proxy, and real 접근/귀가 segmentation remains its own decision with the
+consent/retention questions already filed in TODOS. It is not arriving as a side effect of 0083.
+
 ### K3. Promotion tooling (promote-from-real-runs) — invariant set from eng review
 SQL function `promote_route_from_run(p_run_id, p_route_id)` with HARD guards (locks both rows):
 - Eligibility: run `end_reason='completed'` AND settled (promotion consumes only the frozen

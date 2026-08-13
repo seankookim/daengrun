@@ -55,7 +55,10 @@ CARD (the dog, never the charge), and the card issuer's own 승인 알림 does t
 announcing. Money UI exists in exactly two modes: **on demand** (booking detail →
 결제 내역, 설정 → 결제 관리 — receipts must exist and be accurate there, 전자상거래법
 footer included) and **on exception** (decline/debt/account-lock states — those cannot
-be hidden and stay loud). This is honest: consent happened at request (price shown),
+be hidden and stay loud). **D-3 RULED 2026-08-13: option A, accept as-is — no per-charge
+push and NO monthly summary; the doctrine stands unamended and there is nothing to build**
+(`docs/decisions/d3-silent-charge-summary.md`). This is honest: consent happened
+at request (price shown),
 actuals-based charging was disclosed at card link, and the receipt is one tap away.
 Honest ≠ loud. **This achieves what the token model's psychology was FOR** — recorded
 plainly: it weakens the un-park case further.
@@ -110,7 +113,9 @@ edges, zero repinning.
 |---|---|---|
 | completed / runner-caused early end | ACTUAL | pay what happened |
 | owner_request / owner_forced | **PLANNED** (D2 rule) | guarantee clause + anti-cut-short gaming |
-| dog_condition / incident-class | 🔴 Sean's product call (G1): actual vs waive | the abort-charge composition question |
+| **dog_condition** | **ACTUAL — mirrored both ledgers** (owner 7,900 + 3,000×run; runner 9,900 + 3,000×run) — RULED 2026-08-13 | nobody at fault, so nobody eats a gap; platform margin stays proportional |
+| **runner_personal** | owner: distance only, base waived (#10) · **runner: 9,900 base ONLY, no distance** — RULED | the deliberate asymmetry: the party who chose to stop loses the distance; platform absorbs the gap |
+| **incident-class** | **₩0 at settle**, gated on VERIFICATION — RULED | 0072 adjudicates; `settle-run`'s six-value whitelist was a free-run hole, now four |
 
 `owner_charge = ownerBaseFare(7,900) + 3,000 × basis + addon_fare`.
 
@@ -144,7 +149,11 @@ flow, every row above); SQL pins for the derivation fn + intent shape + the
 settlement-without-collection invariant.
 
 **Prerequisites:** 자동결제(빌링) 심사 · billing TEST keys · the 설정 결제 관리 +
-booking-detail 결제 내역 extension ships in the same release (§0-bis T6).
+booking-detail 결제 내역 extension ships in the same release (§0-bis T6) · Toss
+심사's answer on 빌링키 charge notice obligations is a GO-LIVE requirement (if
+per-charge notice is demanded, the invisibility doctrine renegotiates —
+`docs/decisions/d3-silent-charge-summary.md`; the D-3 monthly statement itself
+was CANCELLED by the D-3 ruling — do not build it).
 
 ### §0-ter ADVERSARIAL ROUND 1 — 15 findings absorbed (2026-08-12 night; the section above
 is amended by ALL of the following; a second adversarial round belongs to the build slice):
@@ -191,9 +200,13 @@ is amended by ALL of the following; a second adversarial round belongs to the bu
    "later confirmed row"), and the failed→confirmed flip sets payment_key in the SAME
    statement (payments_settled_has_key). Verify-at-build: Toss idempotency-key
    retention window vs the +24h outer rung.
-9. **Basis for `dog_condition`/`incident` stays 🔴 Sean's (G1) — implementation must not
-   silently pick (#9).** Provisional pilot default recorded for his override: charge
-   NOTHING pending review (trust-first, bounded pilot cost, exception UI already exists).
+9. **G1 FULLY RULED 2026-08-13 (#9) — fault-based, both ledgers mirrored.**
+   `dog_condition`: owner AND runner both on distance-actually-run. `owner_request`/
+   `owner_forced`: owner PLANNED (D2), runner actuals. `runner_personal`: owner distance-
+   only with base waived (#10 unchanged), runner 9,900 base only. `incident`: ₩0, verify
+   first. Constants stay decoupled — a runner-fault stop pays `runnerCompBase` 9,900, not
+   the owner's 7,900. A CLUB abort charges 9,900 (frozen base + ruling ④). Full rule and
+   reasoning: `docs/decisions/g1-abort-charge-basis.md`. Flips forward-only.
 10. **`runner_personal` waives the base (#10):** owner pays `3,000 × actual` only — a
     runner-caused end doesn't bill the owner 7,900 for undelivered service. Platform
     absorbs the runner's min_fare floor at tiny actuals (rare, bounded, gauge it).
