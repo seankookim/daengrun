@@ -74,6 +74,18 @@ export default function Request() {
   const [pace, setPace] = useState(draft.pace);
   const [addons, setAddons] = useState<AddonKey[]>(draft.addons);
   const [routeId, setRouteId] = useState(draft.routeId);
+  // ═══ 선택 출처 (0082 K6 · PR-0 계측의 무결성) ═══
+  // 'auto'  = 앱이 골랐다 (거리 최근접). 'manual' = 보호자가 골랐다 — 캐러셀 탭이냐 코스 상세
+  // CTA냐까지 구분한다. 서버는 이 라벨을 믿되(분석용), 오버라이드 여부는 route_id ≠
+  // recommended_route_id로 **직접 파생**한다. 클라가 주장하는 판정 위에 킬 라인을 세우지 않는다.
+  // manual은 **끈적하다**: 예전엔 다이얼을 한 칸 움직이면 pickRouteForKm이 수동 선택을 조용히
+  // 되돌렸다 — 보호자에겐 거짓말이고, 지표엔 노이즈였다.
+  const [pickSource, setPickSource] = useState<
+    { mode: 'auto' } | { mode: 'manual'; origin: 'carousel' | 'detail_cta' }
+  >({ mode: 'auto' });
+  // 점검 전 코스를 '알고' 예약했다는 표시. 서버(create-booking-hold)가 이것 없이는 candidate를
+  // 거절한다 — 클라에만 있는 게이트는 게이트가 아니므로 양쪽에 있다.
+  const [candidateAck, setCandidateAck] = useState<string | null>(null);
   // 시간은 명시 선택 필수 — 라벨과 실예약 시각이 어긋나는 정직성 버그 방지 (ui-audit P0)
   const [timeLabel, setTimeLabel] = useState(draft.scheduledAtIso ? draft.timeLabel : '시간을 선택해주세요');
   // [정직 배치 2026-08-06 · item 6/P2-6] 목업 캐러셀 시드(sampleRoutes) 은퇴 — 예약 불가능한
@@ -104,11 +116,24 @@ export default function Request() {
 
   // 코스가 km을 따른다 (2026-07-28 결정) — 가격·정산의 진실은 km. km 변경 시 최근접 실코스 자동 선택,
   // 수동으로 다른 코스를 고르면 존중하되 불일치를 배지로 정직하게 표기 (find-now와 동일 원칙)
+  // 자동 배정은 **active 코스만** 본다. candidate(개가 달린 적 없는 코스)는 절대 자동으로
+  // 배정되지 않는다 — 보호자가 의도적으로 고르는 경우에만, 그것도 확인 후에.
+  const activeRoutes = useMemo(() => routes.filter((r) => r.status === 'active'), [routes]);
+  const autoPickFor = (target: number): string | null => {
+    if (activeRoutes.length === 0) return null;
+    let best = activeRoutes[0];
+    activeRoutes.forEach((r) => { if (Math.abs(r.km - target) < Math.abs(best.km - target)) best = r; });
+    return best.id;
+  };
+  // 이 거리에서 앱이 골랐을 코스 — 스냅샷의 recommended_route_id. 보호자가 무엇을 덮어썼는지
+  // 서버가 알 수 있어야 오버라이드율이 계산된다.
+  const recommendedRouteId = useMemo(() => autoPickFor(km), [activeRoutes, km]);
+
   const pickRouteForKm = (target: number) => {
-    if (!routesLive || routes.length === 0) return;
-    let best = routes[0];
-    routes.forEach((r) => { if (Math.abs(r.km - target) < Math.abs(best.km - target)) best = r; });
-    setRouteId(best.id);
+    if (!routesLive) return;
+    if (pickSource.mode === 'manual') return; // 끈적한 수동 선택 — 다이얼이 덮어쓰지 않는다
+    const id = autoPickFor(target);
+    if (id) setRouteId(id);
   };
   const myDog = myDogs[dogIdx] ?? null;
   // 진짜 0마리 — ready일 때만 참 (로딩·실패를 '등록 안 함'으로 읽지 않는다)
@@ -129,6 +154,10 @@ export default function Request() {
     if (!r) return; // 코스 목록 로드 전 — 다음 렌더에서 재시도
     paramApplied.current = true;
     setRouteId(r.id);
+    // 코스 상세에서 '이 코스로 예약하기'로 왔다 = 가장 강한 수동 의도 신호. 예전엔 이게
+    // 'auto'로 집계되고 첫 다이얼 조작에 덮어써졌다 — 오버라이드율을 체계적으로 과소 집계.
+    setPickSource({ mode: 'manual', origin: 'detail_cta' });
+    if (r.status === 'candidate') setCandidateAck(r.id);  // 상세 화면이 이미 상태를 보여줬다
     setKm(clampKm(r.km)); // snap the dial to the course distance (nearest 0.5 within range)
   }, [paramRouteId, routes]);
 
@@ -139,7 +168,16 @@ export default function Request() {
       .then((r) => {
         setRoutes(r);
         setRoutesState('ready');
-        if (r.length > 0 && !r.some((x) => x.id === draft.routeId)) setRouteId(r[0].id);
+        // r[0]을 집던 자리. D-VIS 폴백에서 r[0]은 candidate일 수 있고, 그러면 서버가
+        // candidate_ack_required로 거절한다 — 보호자는 자기가 고른 적 없는 코스 때문에 에러를
+        // 본다. active가 없으면 아무것도 고르지 않는다(코스 미정): 의도적 선택만이 문을 연다.
+        if (!r.some((x) => x.id === draft.routeId)) {
+          const auto = r.filter((x) => x.status === 'active');
+          let best: RouteInfo | null = auto[0] ?? null;
+          auto.forEach((x) => { if (best && Math.abs(x.km - km) < Math.abs(best.km - km)) best = x; });
+          setRouteId(best ? best.id : '');
+          setPickSource({ mode: 'auto' });
+        }
       })
       .catch((e) => { console.warn('[request] routes:', e?.message ?? e); setRoutesState('error'); });
   };
@@ -282,7 +320,13 @@ export default function Request() {
     try {
       const res = await createBookingHold({
         dog_id: chosen.id, // 선택한 아이로 예약 (다견 가구) — 위 게이트가 존재를 보증
-        route_id: routesLive ? routeId : undefined, // 목업 코스 id는 uuid가 아님
+        route_id: routesLive && routeId ? routeId : undefined, // 목업 코스 id는 uuid가 아님
+        // 선택 스냅샷 (0082 §C) — 분석 등급, 절대 금액에 닿지 않는다. 오버라이드는 서버가
+        // route_id ≠ recommended_route_id로 파생한다. 노출 등급(candidate 여부)은 서버가
+        // routes.status에서 직접 읽으므로 여기서 보내지 않는다.
+        recommended_route_id: recommendedRouteId ?? undefined,
+        selection_origin: pickSource.mode === 'auto' ? 'auto' : pickSource.origin,
+        candidate_ack: candidateAck != null && candidateAck === routeId ? true : undefined,
         address_id: pickupAddr?.id,
         scheduled_at: draft.scheduledAtIso!, // pay()에서 선택 강제됨 — +3h 폴백 은퇴
         km, // fractional-safe: bookings.km is numeric(4,1); the edge fn rounds the fare
@@ -633,18 +677,49 @@ export default function Request() {
                         return (
                           <Pressable
                             key={r.id}
-                            onPress={() => setRouteId(r.id)}
+                            onPress={() => {
+                              if (r.status === 'candidate' && candidateAck !== r.id) {
+                                // 점검 전 코스는 '알고 고르는' 행위여야 한다. 확인 없이는 선택도
+                                // 되지 않는다 — 서버도 candidate_ack 없이는 거절하므로, 여기서
+                                // 막지 않으면 보호자는 나중에 이유 없는 에러를 만난다.
+                                Alert.alert(
+                                  '아직 점검 전 코스예요',
+                                  `${r.name}은 지도에 그려두기만 했고, 아직 반려견과 함께 달려본 적이 없어요. 첫 러닝이 이 코스의 점검이 됩니다.`,
+                                  [
+                                    { text: '다른 코스 볼게요', style: 'cancel' },
+                                    {
+                                      text: '점검 전 코스로 예약',
+                                      onPress: () => {
+                                        setCandidateAck(r.id);
+                                        setRouteId(r.id);
+                                        setPickSource({ mode: 'manual', origin: 'carousel' });
+                                      },
+                                    },
+                                  ],
+                                );
+                                return;
+                              }
+                              setRouteId(r.id);
+                              setPickSource({ mode: 'manual', origin: 'carousel' });
+                            }}
                             style={[s.routeCard, sel && { borderColor: paper.line, borderWidth: 2 }]}
                           >
                             {/* 적합도·★추천 배지 퇴역 (item 6) — 실 스코어러 없음. 모든 코스는 동등한 '안심 코스' */}
                             {/* 선택 = 2px 코랄 보더 (볼트 글로우 은퇴) — 다크는 포토맵 안에만 남는다 */}
-                            <View style={s.routeTab}>
-                              <Text style={{ fontSize: 14, fontWeight: '900', color: '#fff' }}>안심 코스</Text>
+                            {/* candidate는 '안심 코스'라고 부르지 않는다 — 점검을 주장하지 않는 게
+                                이 배지의 유일한 일. (0082 D-VIS: 예약은 되지만 의도적으로만) */}
+                            <View style={[s.routeTab, r.status === 'candidate' && { backgroundColor: paper.pending }]}>
+                              <Text style={{ fontSize: 14, fontWeight: '900', color: '#fff' }}>
+                                {r.status === 'candidate' ? '점검 예정' : '안심 코스'}
+                              </Text>
                             </View>
 
                             <Row style={{ gap: 5, marginTop: 22 }}>
                               <Text style={{ fontSize: 17, fontWeight: '900', color: paper.ink }} numberOfLines={1}>{r.name}</Text>
-                              <View style={s.certBadge}><Text style={{ fontSize: 9, fontWeight: '900', color: '#fff' }}>✓</Text></View>
+                              {/* ✓는 실제로 점검된 코스에만. checkedAt이 null인데 ✓를 그리던 자리 = 하지 않은 점검의 주장 */}
+                              {r.status === 'active' && (
+                                <View style={s.certBadge}><Text style={{ fontSize: 9, fontWeight: '900', color: '#fff' }}>✓</Text></View>
+                              )}
                             </Row>
                             <Text style={{ fontSize: 14, color: paper.text, marginTop: 2 }}>
                               {/* checkedAt이 이미 '7.15 점검' 형태 — '점검' 재접미 금지 (점검 점검 버그) */}

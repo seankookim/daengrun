@@ -274,6 +274,14 @@ export async function createBookingHold(p: {
   km: number;
   pace_label?: string;
   addons: AddonKey[];
+  // ── 선택 스냅샷 (0082 §C) — 분석 등급. 금액 경로가 읽지 않는다 ──
+  // recommended_route_id = 앱이 스스로 골랐을 코스. 오버라이드는 나중에
+  // `route_id is distinct from recommended_route_id`로 **서버가 파생**한다 — 클라가
+  // '수동이었다'고 주장하는 라벨 위에 PR-0 킬 라인을 세우지 않기 위해서.
+  recommended_route_id?: string;
+  selection_origin?: 'auto' | 'carousel' | 'detail_cta' | 'quick_book';
+  // 점검 전(candidate) 코스를 알고 골랐다는 확인. 서버가 이것 없이는 candidate를 거절한다.
+  candidate_ack?: boolean;
 }): Promise<HoldResult> {
   const { data, error } = await supabase.functions.invoke('create-booking-hold', { body: p });
   if (error || data?.error) throw await fnError(error, data);
