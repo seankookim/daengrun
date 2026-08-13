@@ -69,7 +69,16 @@ Deferred work, written down so it exists. Format: what / why / context / effort
   age) we don't measure — building it now would be 측정처럼 보이는 비측정.
   Revisit when fitness data can carry it. Effort M → S. P3. Depends on: per-dog
   physiology data.
-- [ ] **Run-end flow: stop confirmation + 귀가 intermediary + return handoff** — run-end
+- [~] **Run-end flow: stop confirmation + 귀가 intermediary + return handoff** — **PLANNED
+  2026-08-13, build in progress** on `claude/run-end-flow-1a67e0`. Plan (v2, adversarially
+  reviewed — 19 findings absorbed): `docs/plans/run-end-flow-plan.md`. Migration slot
+  **0082** (0081 claimed by the club-gaps session). Design: timestamp idiom, not a new enum
+  (status stays `active` through 귀가); settle fires at RETURN, not at stop; money numbers
+  FROZEN SERVER-SIDE at `end_run` — the v1 claim that ceasing trace writes protected the
+  charge was WRONG (`actual_km` comes from the in-memory `gpsKm`, not the trace, so the
+  doorstep settle would have billed the walk home). Slice 1 (real condition note) in
+  progress; slices 2-5 = server 0082 · runner · owner · ceremony. Original spec below.
+- [ ] ~~**Run-end flow**~~ (original wording kept for provenance) — run-end
   ≠ dog-home. Sequence: runner taps stop → confirmation dialog (early-end consequences
   named if under minimum distance) → 귀가 state ("집으로 가는 중", owner-visible on live,
   run stats FROZEN at stop, GPS continues for custody, un-charged/un-paid) → return
