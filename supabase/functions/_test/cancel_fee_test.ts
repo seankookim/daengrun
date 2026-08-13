@@ -644,6 +644,49 @@ Deno.test("[0085 ⑩] the <24h tier marks the tier, pays the runner half, and sa
   }
 });
 
+Deno.test("[0085 ⑩] the tier markers are ONE contract, verified against the migrations", async () => {
+  // 121's header named this gap; this closes it. The marker string lived in THREE places —
+  // cancel_owner.ts writes it, 0085 gates on it, and this file asserted the TS value — so a
+  // rename in the SQL reddened nothing: TS would keep writing the old literal, the gate would
+  // stop matching, and the runner's share would silently never be recorded. That is the exact
+  // defect ⑩ exists to fix, reintroduced through its own contract surface.
+  //
+  // The lesson from the run-end-flow session, whose own hour-old code had the same class:
+  //   "A fake cannot be made to tell the truth about the thing it replaces."
+  // Every test here fakes the RPC, so no fake will ever catch a SQL-side rename. The answer is
+  // not a better fake — it is to stop duplicating the contract and VERIFY against it. The SQL
+  // is the single source; TypeScript is checked against it, in BOTH directions, with the fakes
+  // left exactly as they are.
+  const read = (rel: string) => Deno.readTextFile(new URL(rel, import.meta.url));
+  const [ts, sql85, sql80] = await Promise.all([
+    read("../transition-booking/cancel_owner.ts"),
+    read("../../migrations/0085_cancel_share.sql"),
+    read("../../migrations/0080_charge_machine.sql"),
+  ]);
+
+  // Which markers do the migrations actually gate on? (the contract, read from its one home)
+  const gated = new Set(
+    [...`${sql80}\n${sql85}`.matchAll(/cancel_reason is (?:not )?distinct from '([a-z_]+)'/g)]
+      .map((m) => m[1]),
+  );
+  assert(gated.has("owner_cancel_late"), "0085 no longer gates on owner_cancel_late — the contract moved");
+  assert(gated.has("owner_cancel_enroute"), "0080 no longer gates on owner_cancel_enroute");
+
+  // → forward: every gated marker must be written by the handler, or the gate is unreachable
+  //   and the comp it guards can never fire.
+  const written = new Set(
+    [...ts.matchAll(/cancel_reason: "([a-z_]+)"/g)].map((m) => m[1]),
+  );
+  for (const marker of gated) {
+    assert(written.has(marker), `0080/0085 gate on '${marker}' but cancel_owner.ts never writes it`);
+  }
+  // ← reverse: every marker the handler writes must be gated by a migration, or it is a
+  //   tier that pays nobody — the shape of the original ⑩ defect.
+  for (const marker of written) {
+    assert(gated.has(marker), `cancel_owner.ts writes '${marker}' but no migration gates on it`);
+  }
+});
+
 Deno.test("[0085 ⑩] a late-tier comp failure routes as late_comp_failed, NOT the en-route class", async () => {
   // Found reviewing the merged slice: both failure paths pinged `enroute_comp_failed`, whose
   // copy names `record_enroute_cancel_comp` — a function that REFUSES a late-tier booking by

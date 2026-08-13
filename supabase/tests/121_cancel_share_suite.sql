@@ -14,12 +14,16 @@
 --   "Both pins measured the symptom the design intended and stopped one question short."
 --   A green suite proves the pins pass, not that the path is covered. Stated plainly here so
 --   the next reader does not mistake 6/6 for coverage:
---   · These pins call `record_late_cancel_share` DIRECTLY. The shipping path is
---     transition-booking/cancel_owner.ts → db.rpc(...), and the deno side fakes the RPC. So the
---     TS↔SQL contract — TS writes `cancel_reason = 'owner_cancel_late'`, this function gates on
---     that exact string — is pinned as the SAME LITERAL on both sides INDEPENDENTLY, not as one
---     source. Changing the literal here and updating only this suite leaves deno green and the
---     shipping path dead. An integration probe (real SQL + real handler) is what would close it.
+--   · These pins call `record_late_cancel_share` DIRECTLY; the shipping path is
+--     transition-booking/cancel_owner.ts → db.rpc(...), and the deno side fakes the RPC. That
+--     fake can never catch a rename of the marker string in THIS file — "a fake cannot be made
+--     to tell the truth about the thing it replaces" (run-end-flow session, 2026-08-13).
+--     ✅ CLOSED, not by a better fake but by deleting the duplication: the deno pin
+--     "the tier markers are ONE contract, verified against the migrations" READS this file at
+--     test time, extracts the literal the gate actually uses, and checks cancel_owner.ts against
+--     it in BOTH directions. Rename it here → red; rename it there → red. The SQL is the single
+--     source and TypeScript is verified against it, with the fakes left in place. A full
+--     integration probe (real SQL + real handler) is still worth building; this stops the bleed.
 --   · Reachability is pinned ELSEWHERE, not here: `cancelled_owner` is reachable only from
 --     `confirmed` and `runner_enroute` (0066:49-52 enforce_booking_transition), so no
 --     picked_up/active booking can ever carry this marker. 105 E6 owns that pin. If that edge
