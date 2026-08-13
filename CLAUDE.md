@@ -47,24 +47,27 @@ Before every commit: `cd app && ./node_modules/.bin/tsc --noEmit` and `node scri
 
 ## Branches — the trunk is `redesign-v4`
 
-- **`redesign-v4` is the trunk and the GitHub default branch. `main` is RETIRED** (Sean,
-  2026-08-13). Do not branch from it, do not push to it, do not read it for current state — it
-  sat 286 commits behind with migrations topping out at `0036`, and every stale worktree on
-  2026-08-13 traced back to sessions landing there by default.
-- **Cut new worktrees from `origin/redesign-v4` explicitly.**
-- **Run `git remote set-head origin -a` ONCE PER CLONE — not per worktree.**
-  `refs/remotes/origin/HEAD` is cached locally and does NOT follow a remote default-branch
-  change, so until it is repointed anything resolving `origin/HEAD` silently means the dead
-  branch. **A `git fetch` does NOT do it** — the ref is written at clone time and by
-  `set-head`, and by nothing else (measured 2026-08-13: repeated fetches after the default
-  flipped still returned `refs/remotes/origin/main`). Never soften this to "or after a fetch". But remote-tracking refs live in the **common** git dir (`git rev-parse
-  --git-common-dir`), so every worktree of a clone inherits the fix — running it repeatedly is
-  a no-op that just makes each session wonder whether it took. This clone: already done.
-- ⚠ **`main` still exists on GitHub and is drifting** (8 commits behind the trunk and growing).
-  A dead ref that looks alive is the hazard: someone branches from it *because* it is called
-  `main`. Deleting it so the name 404s loudly is Sean's call — nothing is lost either way,
-  since `main`'s tip is an ancestor of the trunk.
-- This was true in practice for weeks while written down nowhere, so every new session
+- **`redesign-v4` is the trunk and the GitHub default branch. `main` is DELETED** (Sean,
+  2026-08-13: *"sure delete main if thats safe"*). It was 269 commits behind with migrations
+  ending at `0036`, and every stale worktree that day traced back to sessions landing there by
+  default. Deleting it converts a convention people had to remember into a constraint the tool
+  enforces: **cutting from `main` now fails loudly instead of silently producing a stale tree.**
+  Recoverable if ever wanted — its tip is an ancestor of the trunk:
+  `git push origin f50260edb5d5b84490942f39651169f3bb433e72:refs/heads/main`.
+- **Base every new worktree on `origin/redesign-v4`.** This is the one to get right *every
+  time* — it is what actually caused the stale worktrees, and it now fails loudly if you don't.
+- **`git remote set-head origin -a` — ONCE PER CLONE, not per worktree, and only in a clone
+  that predates the default change.** `refs/remotes/origin/HEAD` is cached locally and does NOT
+  follow a remote default-branch change, so until it is repointed anything resolving
+  `origin/HEAD` silently means the dead branch. **A `git fetch` does NOT do it** — the ref is
+  written at clone time and by `set-head`, and by nothing else (measured 2026-08-13: repeated
+  fetches after the default flipped still returned `refs/remotes/origin/main`). Never soften
+  this to "or after a fetch." Remote-tracking refs live in the **common** git dir
+  (`git rev-parse --git-common-dir`), so every worktree of a clone inherits one run. This clone:
+  already done and pruned.
+- **A separate clone also needs `git fetch --prune`** once, to drop its stale `origin/main`
+  remote-tracking ref.
+- This was all true in practice for weeks while written down nowhere, so every new session
   rediscovered it by getting bitten — the same class of failure as a ruling that lives only in
   an unpushed file.
 

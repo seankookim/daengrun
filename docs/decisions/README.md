@@ -42,6 +42,16 @@ because it was well-formed, not because it was true — the same shape as the fa
 `condition_note` and `store.ts`'s unbacked 50/50 promise. Read a claim against the code that
 would have to make it true before building on it.
 
+**4. For irreversible ACTIONS, the session holding the human's word does it — and quotes him.**
+The first three rules govern artifacts; this one governs doing. A destructive change to shared
+state (deleting a branch, force-pushing, dropping data) is not something a session should do on
+its own recommendation, however good the recommendation is — even when the analysis is right and
+already queued for him. Route it to whoever has him in-session, have them quote him, and check
+the reversibility gates first. Worked example: `main`'s deletion on 2026-08-13 — recommended by
+two sessions, executed by neither, done by the session Sean answered (*"sure delete main if
+thats safe"*) after verifying it was no longer the default, had 0 open PRs, was not checked out
+anywhere, and had a tip that was an ancestor of the trunk.
+
 *(Repo conventions live in `CLAUDE.md`, which is auto-loaded — including the trunk rule:
 `redesign-v4` is the trunk, `main` is retired, run `git remote set-head origin -a` once per
 clone.)*
