@@ -204,9 +204,23 @@ Deferred work, written down so it exists. Format: what / why / context / effort
   `harness.sh:25-29` self-pins `--single-transaction` to mirror `db push`, so
   `alter type ... add value` plus a USE of that value in the same file raises
   `unsafe use of new value of enum type` **on push while passing locally**. Give the enum
-  value its own migration, or defer its use to a later one. Also: `0084` predates ⑨
-  (`:168` carries the six-value list, `:188` still branches on `runner_personal`), so a
-  follow-up migration is required regardless.
+  value its own migration, or defer its use to a later one. ~~Also: `0084` predates ⑨ (`:168` … `:188` …)~~ **RETRACTED 2026-08-13 — I propagated a
+  wrong claim; verified the correction myself.** Both cited lines sit inside
+  `compute_owner_charge` (declared at `0084:145`), i.e. the **owner** ledger. ⑨ changes what
+  the **runner receives** and deliberately leaves the owner side alone — #10 stands, distance
+  only, base waived. `docs/decisions/runner-stop-split.md:85` says it outright: *"`compute_
+  owner_charge`'s `runner_personal_distance_only` arm is NOT stale — do not 'fix' it."*
+  🔴 That arm is correct as shipped; "fixing" it would be the silent-revert class.
+  What survives: ⑨ still needs its own migration for the enum value + the pass-through math
+  in `settle-run`'s payout path.
+  **Lesson worth keeping — grep proves a string exists, not that it is stale.** Verifying a
+  quote is not verifying a claim about what the quote means; check the enclosing scope before
+  repeating "X is outdated".
+- [x] ~~**Enum-independence note**~~ recorded (no action): `0082`'s `promote_route_from_run`
+  gates on `end_reason is distinct from 'completed'` (`0082:213`) — **only** `completed`
+  reaches route promotion. So adding an enum value cannot reach it, which is why three slices
+  touched this enum today without interacting. My freeze list and that gate read the same
+  column for different purposes and do not conflict: an aborted run is not route material.
 - [ ] **⑨'s seventh implementation item — the freeze list.** `0083:366`'s freeze set must be
   a strict SUBSET of `settle-run`'s `CLIENT_END_REASONS`; freezing a reason settle-run
   refuses strands the run permanently (runner never paid, booking never leaves `active`).
