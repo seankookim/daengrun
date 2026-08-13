@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, AppState, KeyboardAvoidingView, Linking, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Avatar, Icon, Row } from '../../src/components/ui';
+import { traceKind } from '../../src/components/course-detail';
 import { addRunEvent, ensureThread, fetchCurrentRunnerJobId, fetchMeetupInfo, fetchRouteById, fetchRunMeta, fetchRunStartedAt, fetchRunTrace, MeetupInfo, notifyKmMilestone, RunEventKind, saveRunTrace, sendChatMessage, sendChatPhoto, settleRun, startRunServer, uploadRunPhoto } from '../../src/lib/api';
 import { GeoPoint, getNaverMap, getTraceSnapshot, getTrackPermission, mergeFixes, publishPos, resetTrace, seedTrace, smoothTrace, startTracking, stopPublishing, TrackHandle, TrackMode, TrackSnapshot } from '../../src/lib/geo';
 import { haptic } from '../../src/lib/haptics';
@@ -412,6 +413,11 @@ export default function ActiveRun() {
     if (routeState === 'ready' && routeCoords.length < 2) {
       // 트레이스가 없으면 앵커도 없다 — '앵커만 표시돼요'라고 말하면 그게 거짓이 된다.
       return { text: '이 코스는 아직 실측 전이에요 — 코스 선 없이 내 기록만 그려져요', warn: false };
+    }
+    // 선은 그려지지만 아직 아무도 개와 함께 달려보지 않은 경우. 러너에게 이걸 말하지 않으면
+    // 점선을 실측 코스로 믿고 따라가게 된다 — 그건 우리가 만든 오해다 (0082 source='algo').
+    if (routeGeo && traceKind(routeGeo) === 'planned') {
+      return { text: '점선은 예정 경로예요 — 아직 실측 전이라 현장과 다를 수 있어요', warn: false };
     }
     return null;
   })();

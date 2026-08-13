@@ -22,7 +22,7 @@ import {
   Animated, Dimensions, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, View,
 } from 'react-native';
 import { fetchMyProfile, fetchRoutes } from '../../src/lib/api';
-import { CourseDetailBody } from '../../src/components/course-detail';
+import { CourseDetailBody, traceKind, TRACE_NOTE } from '../../src/components/course-detail';
 import { emptyChipCopy, matchesChips, RouteChipRow, useRouteChips } from '../../src/components/route-chips';
 import { getNaverMap } from '../../src/lib/geo';
 import { haptic } from '../../src/lib/haptics';
@@ -39,6 +39,9 @@ const HEIGHT: Record<Detent, number> = { peek: PEEK, list: LIST, detail: DETAIL 
 // 반포 중심 — 코스가 하나도 없을 때의 초기 카메라. 전부 candidate여도 앵커는 찍히므로
 // 지도가 빈 채로 열리는 경우는 '코스 0개'뿐이고, 그건 아래 emptyCard가 말한다.
 const FALLBACK_CAM = { latitude: 37.5069, longitude: 126.9954, zoom: 13.4 };
+
+// 예정 경로용 잉크 대시 — K7 러너 지도와 **같은 에셋**이다. 두 화면이 같은 뜻에 같은 획을 쓴다.
+const ROUTE_DASH = require('../../assets/route-dash.png');
 
 // 칩 술어·개수·조명 자동켜짐은 `components/route-chips`가 소유한다 (K5와 **같은 정의** —
 // 복제돼 있던 시절 라벨이 이미 갈라졌었다: 여기는 '그늘', 요청 화면은 '그늘 많음').
@@ -165,14 +168,20 @@ export default function CourseMap() {
           color={paper.faint}
         />
       ))}
-      {/* 선택 — 화면에서 유일하게 채도를 가진 획 */}
+      {/* 선택 — 화면에서 유일하게 채도를 가진 획.
+          ⚠ 실선 = 실측(승격된 코스), 점선 = 예정 경로. 카피만으로 "이건 예정입니다"라고 하고
+          선은 실측과 똑같이 자신 있게 그리면, 사람은 카피가 아니라 선을 믿는다. K7 러너 지도와
+          같은 어휘다: 점선 = 인쇄된 코스, 실선 = 지금 그어지고 있는 잉크. */}
       {sel && sel.trace.length > 1 && (
         <maps.NaverMapPathOverlay
           coords={sel.trace.map((p) => ({ latitude: p.lat, longitude: p.lng }))}
           width={6}
-          color={paper.line}
+          color={traceKind(sel) === 'verified' ? paper.line : '#FFFFFF'}
           outlineWidth={2}
-          outlineColor="#FFFFFF"
+          outlineColor={traceKind(sel) === 'verified' ? '#FFFFFF' : paper.line}
+          {...(traceKind(sel) === 'planned'
+            ? { patternImage: ROUTE_DASH, patternInterval: 20 }
+            : null)}
         />
       )}
       {/* 앵커 — 트레이스가 없어도 여긴 진짜다. 캡션은 선택된 것에만(라벨 충돌 방지) */}
@@ -226,6 +235,7 @@ export default function CourseMap() {
           </View>
         </View>
       )}
+      {/* 선이 하나도 없을 때 */}
       {state === 'ready' && routes.length > 0 && withTrace.length === 0 && (
         <View style={s.infoWrap} pointerEvents="none">
           <View style={s.infoCard}>
@@ -233,6 +243,16 @@ export default function CourseMap() {
             <Text style={s.infoBody}>
               {routes.length}개 코스의 만남 장소는 정해져 있고, 첫 반려견 동반 러닝이 그 코스의 지도를 만듭니다.
             </Text>
+          </View>
+        </View>
+      )}
+      {/* 선은 있는데 아직 아무도 달려보지 않았을 때 — 세 번째 상태다. 선이 그려졌다는 이유만으로
+          '실측'이라고 말하면 그게 곧 조작이 된다 (0082 source='algo' = 예정 경로). */}
+      {state === 'ready' && withTrace.length > 0 && withTrace.every((r) => traceKind(r) !== 'verified') && (
+        <View style={s.infoWrap} pointerEvents="none">
+          <View style={s.infoCard}>
+            <Text style={s.infoTitle}>예정 경로를 보고 있어요</Text>
+            <Text style={s.infoBody}>{TRACE_NOTE.planned}</Text>
           </View>
         </View>
       )}
