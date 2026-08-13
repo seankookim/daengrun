@@ -1146,3 +1146,30 @@ return that never happened). The correct terminal already exists byte-for-byte i
 `session_transfer_accept`'s external branch (0058:164-179); it is unreachable only because
 `session_transfer_initiate` is runner-only (0045:177). Add one host-only
 `session_host_force_resolve` RPC using that block. **That single RPC closes C4 AND H5.**
+
+## From route-discovery plan review (2026-08-13, /autoplan — CEO+Design+Eng dual voices)
+
+- [ ] **runs.trace server append RPC (unify 1:1 path with club_save_run_trace validation)** —
+  saveRunTrace is a raw client UPDATE with no server validation (api.ts:1743); the club path
+  validates shape/monotonic-time/speed (0053:124). Promotion guards (0082) close the
+  route-certification hole, but the write path itself stays forgeable and RMW-racy — this also
+  closes audit backlog ④ (runs.events/photos RMW race). Effort M → S. P2.
+- [ ] **create-booking-hold full transactionalization** — booking insert + status updates +
+  slot-hold are separate requests (partial-state windows, TOCTOU on route status). Route
+  validation lands in the kernel (K7); the single-transaction rewrite is its own slice,
+  coordinates with charge-slice work. Effort M → S. P2.
+- [ ] **towns table + pickup-geofence derivation** — canonical town constants suffice for
+  반포/성수; a real table with bboxes when town #2 commits. Effort S. P3.
+- [ ] **DESIGN.md distillation from 파이널 시스템 + catalog labs** — tokens, hard rules,
+  component anatomy; reviews keep re-deriving the system from HTML labs. Effort S. P3.
+- [ ] **Phase-tagged custody GPS from pickup (접근 segment truth)** — deadhead metric is a
+  straight-line proxy until custody GPS records from pickup with consent/retention decided.
+  Feeds anchor economics + '접근 is exercise' dose honesty. Effort M. P3.
+- [ ] **Suspension ops automation** — notify upcoming bookings + pre-run start gate on
+  suspended routes (K7 blocks new holds; existing bookings are manual at pilot scale).
+  Effort S. P3.
+- [ ] **RDP trace simplification replacing the every-Nth cap** in promote_route_from_run.
+  Effort S. P3.
+- [ ] **Summer heat ops blackout rules (BEFORE June)** — temperature/time blackout, weather
+  cancellation as operating rules; predates any weather-API integration. Both review voices
+  flag this as load-bearing safety, separate from the route plan. Effort S. P2 (seasonal gate).
