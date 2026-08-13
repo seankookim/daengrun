@@ -5,7 +5,8 @@ charges", and the charge machine landed 2026-08-13 (`0080`). Doctrine already wr
 `0078_route_catalog.sql:6-7`: *접근(커스터디, 무과금) → 루프(THE run, 과금 구간) → 귀가
 (커스터디, 동결)*.
 
-**Status: v4, 2026-08-13. §9 RULED BY SEAN — slice 2 unblocked.** Two adversarial reviews ran against
+**Status: v5, 2026-08-13. §9 ruled by Sean; money-anchor corrections absorbed from the
+payments session. Migration = 0083 / suite 119, claimed in `REGISTRY.md` on origin.** Two adversarial reviews ran against
 v1/v2 (a product/state-machine reviewer: 19 findings; codex on the money path: **"reject
 the plan as written"**). Both are absorbed here. v3 exists to meet codex's seven-item
 minimum bar (§10) — Sean reads §0-bis first and decides.
@@ -55,6 +56,15 @@ closes.
   can therefore stamp a 응가 event *after* stopping, which `settle_run_tx` rewards with
   miles (`0028:88`). Both functions must reject `run_ended_at is not null`.
 - **`settle-run` ignores every client-supplied financial input** and reads the frozen row.
+- **`end_run_tx` validates `end_reason` against the narrowed client-sendable set.**
+  `settle-run` now returns a named 400 for `incident` / `owner_forced` (a runner must not
+  self-declare `incident`, which under G1 means the owner is charged nothing). Because this
+  slice freezes `end_reason` EARLIER than that gate, the same whitelist must apply at the
+  freeze — otherwise a runner freezes `incident` at run-stop and hands their owner a free
+  run. Do not re-widen it.
+- ⚠ **Do not hardcode what `dog_condition` charges.** Two sessions currently hold different
+  beliefs (₩0 vs the booking's base fare, flat) and Sean has been asked to rule. Read the
+  value through `compute_owner_charge`; encode no number and no waive here.
 - Custody GPS rides an explicitly **non-billable path**: broadcast for the map, plus a
   `custody_last_seen_at` heartbeat (§4d). It is structurally unable to touch the run row.
 
@@ -89,9 +99,34 @@ transaction** → ceremony.
 
 0080's cutover eligibility reads **`ended_at` (stop)**, so a pre-cutover run stays free
 forever regardless of when its return is confirmed. And `sweep_settled_without_payments`
-must require a **settlement anchor** (`status='completed'` + the ledger row), not merely
-"a run row with an ended_at and no payment" — otherwise it mints a charge for a run that
-has stopped but not yet been returned (codex #3 scenario B).
+must require a **settlement anchor**, not merely "a run row with an ended_at and no
+payment" — otherwise it mints a charge for a run that has stopped but not yet been
+returned (codex #3 scenario B).
+
+⚠ **CORRECTED 2026-08-13 by the payments session (who owns that sweep).** v3 said to anchor
+on `status='completed'` + the ledger row. **Both halves are wrong:**
+- **Never anchor settlement on `bookings.status`** — §0-ter #11 (`0080:487`, pinned by
+  `116` C8). An `incident_review` / `refund_pending` transition drops a settled booking out
+  of the sweep's and the lock's view, and a settled booking missing its payments row is
+  precisely the crash the sweep exists to catch. A status anchor makes it invisible.
+- **`ledger_items` presence is not a substitute** — `record_enroute_cancel_comp` (0081)
+  writes a ledger row for a *cancelled* booking, so ledger-presence would make the sweep
+  try to mint a settle charge for a cancellation.
+
+**The anchor is `runs.settled_at`** (this slice adds it): status-independent, excludes
+cancels, and means exactly "settlement wrote money for this run".
+- sweep anchor → `runs.settled_at is not null` ("did money happen?")
+- cutover eligibility → `runs.ended_at` ("when did the service happen?")
+- debt-derivation scope → `settled_at` OR `ledger_items` OR `cancel_fee > 0` — never status.
+
+Two consequences this slice owns:
+- `end_run_tx` must guarantee `ended_at` is written at stop and make it structurally
+  impossible for settlement to run without it — 0080's mint reads
+  `coalesce(r.ended_at, now())`, which would otherwise silently reclassify a pre-cutover
+  run as post-cutover.
+- `116_charge_suite.sql`'s `t_chg_settled` helper writes `runs` rows directly, so any NOT
+  NULL / CHECK on `settled_at` reddens 116 as well as 119. Updating that fixture is part of
+  THIS slice.
 
 **Atomicity (codex #4).** "Both stamped → settle-eligible" is not an implementation. If
 the second stamp commits and the process dies, nothing repairs `active + both stamps + no
