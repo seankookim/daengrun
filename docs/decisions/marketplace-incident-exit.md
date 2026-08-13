@@ -126,6 +126,14 @@ while open (an exception disclosure, so price-invisibility-consistent): *"러닝
   `raw.review`. An incident waive must read *"확인 중 · 아직 청구되지 않음"*. (`pay.tsx:407`'s
   disputed copy is directionally right.) This one is a live honesty defect in the ⑩ class — a
   screen asserting finality the system has not decided — and it does not wait on ⑫.
+  ✅ **FIXED 2026-08-13**, independently of this memo's ruling. It was a **projection gap, not a
+  copy bug**: `api.ts`'s `PaymentRecord` deliberately exposes only two pieces of `raw`, and
+  `review` was not one — so the client could not distinguish a settled waive from an open case
+  *even in principle*. Fixed by adding one narrow field (`underReview: boolean`, keyed on
+  0084 §B's `raw.review === 'incident_pending'`) rather than exposing `raw`, keeping that
+  projection's stated discipline; `paymentStatusLabel` now renders the open case as
+  *"확인 중 · 아직 청구되지 않음"*. `pay-lab` carries both waived rows side by side, because two
+  rows that look identical and mean different things is the defect made visible.
 
 ## 🔴 The one question codex explicitly refused to answer for Sean
 
