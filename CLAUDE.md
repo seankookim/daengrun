@@ -88,6 +88,18 @@ Before every commit: `cd app && ./node_modules/.bin/tsc --noEmit` and `node scri
   2026-08-13 the 0078 and 0081 slots were each claimed twice, and one rename cost ~40 reference
   edits across migrations, suites, edge functions and docs. ⚠ `ls supabase/tests | sort` is
   LEXICAL, so `117_` sorts before `97_`; use `grep -oE '^[0-9]+' | sort -n | tail -1`.
+- **A number is taken when EITHER its row or its file reaches origin — the check is two-sided.**
+  Collision six (2026-08-13) happened with nobody being careless: the REGISTRY row on origin said
+  `0086` was free, and it was — but `0086_runner_stop_passthrough.sql` was already pushed on
+  another branch. Reading only the row is reading half the state. **Push a migration and its
+  REGISTRY row in the same breath**; a row trailing its file by an hour is the whole window.
+- **This is enforced, not remembered.** `.githooks/pre-push` refuses a push that introduces a
+  migration number already present on any other remote branch, or that introduces one without a
+  REGISTRY row. It only inspects numbers the push actually *introduces*, so trunk merges and
+  history are unaffected. Enable once per clone:
+  `git config core.hooksPath "$(git rev-parse --show-toplevel)/.githooks"`. Escape hatch, rarely
+  right: `git push --no-verify`. Five collisions were sessions racing; the sixth obeyed the rule
+  and still lost, which is what moved this from discipline to constraint.
 - **A suite whose pinned behaviour legitimately changes MUST be updated in the same slice.**
   "Don't touch shipped suites" protects against drive-by edits, not against a decision that
   moves what the pin asserts — leaving it stale just makes the harness red for a true reason.
