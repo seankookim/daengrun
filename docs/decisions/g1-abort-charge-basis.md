@@ -55,10 +55,13 @@ would pre-empt the case and manufacture the refund post-pay was built to delete.
   copy or it will be filed as a bug.
 - **Owner ceiling still applies**: never above `min(actual, planned)`, so a mirrored
   charge can never exceed the quote.
-- **Required copy, unchanged:** the report/record card must say stopping was the right
-  call and show the runner's real `condition_note` — meaningful only since `611f014`
-  (it was a hardcoded constant on every abort until 2026-08-13). Under a mirrored charge
-  the owner is now billed for a stop they need to be able to evaluate.
+- **Required copy — and under the mirrored charge it is also the DISPUTE surface.** The
+  report/record card must say stopping was the right call, show the runner's real
+  `condition_note`, and show the distance at which the stop happened. Meaningful only
+  since `611f014` (until 2026-08-13 every abort sent the hardcoded string
+  `'러너 판단: 컨디션 저하 관찰'`, so the control was inert). The run-end-flow session put
+  the requirement best: the paying owner is now the one auditing the abort, and *an owner
+  with a bill and no account of it is the person who calls it fraud.*
 - **Flips remain forward-only** — newly consented bookings only.
 - `runnerCompBase` (9,900) and `ownerBaseFare` (7,900) stay decoupled. A runner-fault stop
   pays the runner's own base, not the owner's.
