@@ -22,8 +22,13 @@ Source of truth for the model: `docs/plans/payments-toss-plan.md` (§0-bis, §0-
 BUILT banner). The D-3 adoption AMENDS §0-bis (third money-UI mode: one scheduled
 aggregate receipt/month) — amended in the same commit as this adoption.
 NOTE: the charge-slice session independently drafted `docs/decisions-open-money.md`
-(same three topics) on its branch — this set is canonical (Sean engaged with it);
-the other folds in and retires at consolidation.
+(same three topics + club-specific items ④/⑤) on its branch — this set is canonical
+(Sean engaged with it). **Consolidation sequencing (agreed 2026-08-13):** that file
+stays until this branch merges (retiring it first would leave mainline memo-less);
+after Sean's merge, its ①–③ retire and the club-specific ④/⑤ MOVE HERE as their own
+one-page memos — docs/decisions/ is the single decision-memo directory going
+forward. Neither session merges this branch: Sean's merge IS the confirmation the
+protocol reserves for him.
 
 ## Decision Audit Trail (/autoplan 2026-08-13)
 
