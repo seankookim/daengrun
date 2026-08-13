@@ -79,10 +79,32 @@ const COPY: Partial<Record<OpsEventClass, OpsCopy>> = {
  * The class name is an internal identifier, not a customer's data — safe on a stranger's lock
  * screen under the redaction rule, and the only handle that makes a generic ping actionable.
  */
+// ⚠ The event class is NOT the reconciliation arm's name, and telling an operator to search for
+// the wrong string is the same defect ⑩ shipped in miniature: an alert whose remedy cannot
+// deliver. Verified 2026-08-13 — `payments_reconciliation()` emits `orphan_capture`,
+// `stale_pending`, `stale_dispatched`, `ladder_exhausted`, `incident_waive_pending`; three of
+// our four generic classes named something else, and one named a row the query has no arm for.
+// So the copy names the ARM, and where there is no arm it says where to look instead. Keep this
+// map beside the vocabulary it translates: if you add an event class, decide here what an
+// operator is supposed to DO about it, or they will close a queue item having found nothing.
+const RECONCILIATION_ARM: Partial<Record<OpsEventClass, string>> = {
+  charge_ladder_exhausted: "ladder_exhausted",
+  charge_dispatch_stale: "stale_dispatched",
+  payment_manual_cancel: "orphan_capture",
+  incident_waive_pending: "incident_waive_pending",
+  // settled_without_payment has NO arm: `sweep_settled_without_payments` mints the missing row
+  // rather than leaving one to reconcile, so a firing here means the MINT failed. The evidence
+  // is the sweep's own `raise notice` in the postgres log, not a payments row.
+  // enroute_comp_failed / late_comp_failed carry bespoke copy above and never reach here.
+};
+
 function generic(eventClass: OpsEventClass): OpsCopy {
+  const arm = RECONCILIATION_ARM[eventClass];
   return {
     title: "운영 확인이 필요한 이벤트가 있어요",
-    body: `payments_reconciliation()에서 ${eventClass} 항목을 확인해주세요 (식별자·금액은 조정 질의와 서버 로그에 있어요)`,
+    body: arm
+      ? `payments_reconciliation()에서 ${arm} 항목을 확인해주세요 (식별자·금액은 조정 질의와 서버 로그에 있어요)`
+      : `${eventClass} — 조정 질의에는 남지 않는 이벤트예요. 서버 로그에서 해당 booking 을 확인해주세요`,
   };
 }
 

@@ -241,3 +241,24 @@ Deno.test("a class with no bespoke copy still says WHICH class it is", async () 
     cap.restore();
   }
 });
+
+// [2026-08-13] The generic alert must name a reconciliation arm that EXISTS, not the event
+// class. Three of four classes named a string `payments_reconciliation()` never emits, which is
+// ⑩'s shipped defect in miniature — an alert whose remedy cannot deliver, so the operator finds
+// nothing and closes the queue item. Reverting `generic()` to interpolate the class reddens this.
+Deno.test("generic ops copy names a real reconciliation arm (or says there isn't one)", async () => {
+  const ARMS = ["orphan_capture", "stale_pending", "stale_dispatched", "ladder_exhausted", "incident_waive_pending"];
+  for (const cls of ["charge_ladder_exhausted", "charge_dispatch_stale", "incident_waive_pending"] as const) {
+    const db = scene([{ profile_id: MONEY_OPS, event_class: cls, active: true }]);
+    await notifyOps(db as never, cls, { refId: BOOKING });
+    const body = String(notes(db)[0].body);
+    const named = ARMS.filter((a) => body.includes(a));
+    assert(named.length === 1, `${cls}: body must name exactly one real arm, named ${JSON.stringify(named)} — ${body}`);
+  }
+  // No arm exists for this one; the copy must not send the operator to the query at all.
+  const db = scene([{ profile_id: MONEY_OPS, event_class: "settled_without_payment", active: true }]);
+  await notifyOps(db as never, "settled_without_payment", { refId: BOOKING });
+  const body = String(notes(db)[0].body);
+  assert(!body.includes("payments_reconciliation"), `settled_without_payment must not point at the query: ${body}`);
+  assert(body.includes("로그"), `settled_without_payment must point at the log instead: ${body}`);
+});
