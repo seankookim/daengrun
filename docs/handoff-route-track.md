@@ -59,12 +59,30 @@ nobody sees zero any more — but that is a floor, not correctness. A 성수 own
 is a geography judgement and code must not invent it. The plan's real fix is a canonical town list
 (label + bbox as a code constant, booking town derived from pickup coordinates). Unowned.
 
-### ⓑ 몽마르뜨 언덕 루프 — anchor vs course (1 of 13 unseeded)
-Its generated geometry starts **1039 m** from the published anchor `(37.4997, 126.9932)`. The
-catalog's `area` says 서래마을; the routed path sits inside 몽마르뜨공원. Both agents flagged it
-independently. The seeder refused rather than relocating the anchor — **an anchor is where a person
-is told to stand, and 0082 §D-ⓖ reserves writing it for first promotion.** Either the anchor is
-wrong or the course is not what its name says.
+### ⓑ 몽마르뜨 언덕 루프 — probably NOT a product question. Read this before adjudicating.
+Its generated geometry starts **1039 m** from the published anchor `(37.4997, 126.9932)`, so the
+seeder refused it — **an anchor is where a person is told to stand, and 0082 §D-ⓖ reserves writing
+it for first promotion.** That refusal stands. But two facts found at the very end of the session
+suggest the anchor is not the interesting part:
+
+1. **The generator excluded `highway=steps`.** Seoul ridge parks connect via staircases, so without
+   them OSM's pedestrian graph is disconnected — measured: 서리풀공원's north-east section went
+   from **2/54 reachable nodes to 64/64** once steps were included. 몽마르뜨공원 is a *hill* park
+   with only 171 cached ways (second-smallest). It is very likely the router simply could not reach
+   the anchor, and landed 1039 m away because that was the nearest connected component.
+2. **A second anchor is also off:** 누에다리's DB anchor is ~850 m west of the real footbridge.
+   Two of nine 반포 anchors wrong by ~1 km is a pattern, and 0078 already said so about itself —
+   `anchor_lat/lng` is commented "근사값 — 소비 금지". First promotion is the designed fix (§D-ⓖ).
+
+**So the next step is code, not judgement:** add `steps` to the highway filter (weighted ~1.6× so a
+route uses stairs as a link but avoids them by preference — stairs with a dog are a hazard, not a
+shortcut), refetch the nine Overpass caches, regenerate all 13, re-seed. Then see whether 몽마르뜨
+still misses. Only if it *still* misses is there a geography question worth your time.
+
+⚠ The agent doing exactly this was stopped mid-sweep (credits). It had regenerated 8 of 13 GPX with
+the new filter but had **not** refetched the caches, so the tree was inconsistent with the seeded
+DB. **I reverted it** — `f2b818e` is the consistent, verified state the database matches. Start from
+there and do the full sweep, do not resume the partial one.
 
 ### ⓒ Unchanged and still blocking
 사업자등록 stays unfiled (one-way fork vs 예비창업패키지 2027). PR-0 reads zero until real bookings
