@@ -84,7 +84,7 @@ has to work once to pay for itself.
 
 | Surface / file | Session (branch) | Started | Intent (one line) |
 |---|---|---|---|
-| `docs/decisions/` — ⑫ memo + a new chat-notification memo | club-delegation (`claude/club-delegation-money-gaps-b59eb8`) | 2026-08-13 | Record Sean's four custody/return rulings in ⑫; split the chat-push gap into its own memo (it blocks ⑪ and ⑫ both). Docs only — no code. |
+| *(none in flight)* | | | |
 
 Conventions: name the **file or surface**, not the ticket · one line of intent, so a reader can
 tell whether their change collides or merely neighbours · stale rows are worse than none, so
