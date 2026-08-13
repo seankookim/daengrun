@@ -409,7 +409,9 @@ export default function ActiveRun() {
     await handle.current?.stop();
     handle.current = null;
     stopPublishing();
-    endRunActivity(laProps());
+    // 종말 프레임은 판정을 들고 죽지 않는다 (plan §6 — no posthumous verdict; 러너 LA엔
+    // phase가 없어 이 인자 하드셋이 보호자 쪽 SQL 하드셋의 미러다).
+    endRunActivity({ ...laProps(), paceState: '' });
     const localPayout = completed ? payoutFor(km) : payoutByReason(reason);
     // dogName rides along from the real booking context (null when it never loaded —
     // the done screen then re-reads the booking or uses generic wording, never a fake name).
