@@ -91,10 +91,10 @@ instances of the class survive, none of them fixed by this slice:
 
 | # | Claim | Verdict |
 |---|---|---|
-| A | `app/app/club/run/[sid].tsx:35` — hardcoded `note: '러너 판단: 컨디션 저하 관찰'`, rendered to the owner as **러너 노트** | **UNBACKED — this is literally the bug `611f014` fixed on `runner/run.tsx`, still live on the club surface.** The runner never types it; the owner reads a client constant as their runner's account of their dog. 0084:120-122 records a ruling that depends on this note being real. |
+| A | ~~`app/app/club/run/[sid].tsx:35`~~ **FIXED 2026-08-13** — hardcoded `note: '러너 판단: 컨디션 저하 관찰'`, rendered to the owner as **러너 노트** | **UNBACKED — this is literally the bug `611f014` fixed on `runner/run.tsx`, still live on the club surface.** The runner never types it; the owner reads a client constant as their runner's account of their dog. 0084:120-122 records a ruling that depends on this note being real. |
 | B | ~~`app/app/owner/report.tsx:387-391`~~ **FIXED 2026-08-13** — "결제 금액 {total_price}원" and "조기 종료 시 정산 조정은 고객센터를 통해 처리돼요" | **WAS UNBACKED ×2.** The figure is the FROZEN PLANNED total, not what was charged (`compute_owner_charge` caps at `least(actual, km)` and drops base+addons for `runner_personal`) — so an early-ended run prints a number the owner was never billed, on the one screen they open to check what a run cost. And there is no 고객센터 surface anywhere in the client. |
-| C | `app/app/owner/live.tsx:514` — "최소 기본요금 9,900원은 결제되며" | **UNBACKED.** 9,900 is `runnerCompBase`, the RUNNER's floor (ctx.ts:9-13 warns the two pots are different); the owner's base is 7,900 and `compute_owner_charge` never reads `min_fare`. Worse, `owner_request` charges **planned** distance (D2), so the sentence quotes a floor when only the ceiling will be billed. |
-| D | same line — "러너에게는 잔여 거리 보장이 적용돼요" | **CONDITIONAL.** The guarantee is real only for `owner_request`/`owner_forced`; the owner's stop request never sets the end reason (it is a chat message + notification), and the runner then picks freely — 컨디션/개인 사유 pay bare actuals with `guarantee = 0`. |
+| C | ~~`app/app/owner/live.tsx:514`~~ **FIXED 2026-08-13** — "최소 기본요금 9,900원은 결제되며" | **UNBACKED.** 9,900 is `runnerCompBase`, the RUNNER's floor (ctx.ts:9-13 warns the two pots are different); the owner's base is 7,900 and `compute_owner_charge` never reads `min_fare`. Worse, `owner_request` charges **planned** distance (D2), so the sentence quotes a floor when only the ceiling will be billed. |
+| D | ~~same line~~ **FIXED 2026-08-13** — "러너에게는 잔여 거리 보장이 적용돼요" | **CONDITIONAL.** The guarantee is real only for `owner_request`/`owner_forced`; the owner's stop request never sets the end reason (it is a chat message + notification), and the runner then picks freely — 컨디션/개인 사유 pay bare actuals with `guarantee = 0`. |
 
 **A is the finding that justifies the instruction.** The class-fix note existed because
 `store.ts`'s 50/50 and `run.tsx`'s fabricated note were the same defect; the sweep then
@@ -147,3 +147,26 @@ Remaining survivors: **C/D** (`owner/live.tsx:514`, one line — the ₩9,900 mi
 runner's floor quoted at the owner, and the guarantee beside it holds only for owner-caused
 ends) and **A** (`club/run/[sid].tsx:35`, the hardcoded condition note — mechanically the fix
 already shipped once on `runner/run.tsx`).
+
+### Survivors C/D and A — FIXED 2026-08-13 (client-only, tsc clean)
+
+**C/D — `owner/live.tsx`'s stop-request sheet said three things, and the sweep had only
+caught two.** The third was the sentence above them: *"지금까지 달린 거리 기준으로
+정산돼요"* is the **opposite** of the rule. An owner-caused end bills the PLANNED distance
+(0084 §A, `v_basis := b.km`, rule `owner_caused_planned`) — D2's anti-cut-short decision, so
+stopping early cannot be a way to pay less. The note now says the one thing that is true and
+load-bearing at that moment: **stopping does not reduce the fare.** No new number appears —
+it is the price already consented to at request. The runner-guarantee clause is gone: it is
+the runner's money on the owner's screen, and it holds only if the run is settled as
+`owner_request`/`owner_forced`, which this screen cannot pin (the request goes out as a chat
+message and a notification; the runner then picks the reason freely).
+
+**A — the fabricated `condition_note` is gone from the club surface**, mirroring `611f014`:
+the reason picker now leads to a note step with a real `TextInput`, gated on non-empty
+(which is also what the server requires, settle-run:74). `grep '러너 판단: 컨디션 저하 관찰'`
+over `app/` now returns nothing. This one mattered more than a copy bug: under Sean's ruling
+the owner is **billed** for a condition stop, so the note is the dispute surface as well as
+G1's anti-gaming control — and a constant cannot be evidence.
+
+**All four survivors closed.** The sweep's value was mostly in A: fixing the instance on
+`runner/run.tsx` did not fix the class, and only the sweep found the second copy.

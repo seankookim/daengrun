@@ -1,6 +1,6 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Linking, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Linking, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Icon, Row } from '../../../src/components/ui';
 import { BigNumRow, ClubCta, ClubMast, ClubTag, DawnCanvas, LiveDot, LoadGate } from '../../../src/components/club-ui';
 import {
@@ -31,10 +31,22 @@ const paceStr = (sec: number, km: number): string => {
   return `${Math.floor(p / 60)}'${String(Math.round(p % 60)).padStart(2, '0')}"`;
 };
 
+// [2026-08-13] The `note` field is GONE, and its absence is the fix. `dog_condition` carried
+// the constant '러너 판단: 컨디션 저하 관찰', which settle-run stored as `runs.condition_note`
+// and owner/report.tsx renders under the heading 러너 노트 — the runner's own written account
+// of someone's dog. The runner never typed it and was never shown a field. Every owner read the
+// same sentence about a different dog.
+// `611f014` fixed exactly this on the marketplace surface (runner/run.tsx); the club surface
+// was a second copy nobody had grepped, found by the ⑩ class sweep. It matters more than a
+// copy bug: G1's anti-gaming control is "the owner can see the runner's account and judge
+// whether it is true" (0084:120-122), and under Sean's ruling the owner is now BILLED for a
+// condition stop — so this note is the dispute surface too. A constant cannot be evidence.
+// Mirrors the marketplace flow: pick the reason, then write what you saw, and the submit is
+// gated on it being non-empty (the server requires a note on this reason: settle-run:74).
 const END_REASONS = [
-  { key: 'dog_condition', label: '아이 컨디션이 걱정돼요', note: '러너 판단: 컨디션 저하 관찰' },
-  { key: 'owner_request', label: '보호자 요청', note: undefined },
-  { key: 'runner_personal', label: '러너 개인 사정', note: undefined },
+  { key: 'dog_condition', label: '아이 컨디션이 걱정돼요', needsNote: true },
+  { key: 'owner_request', label: '보호자 요청', needsNote: false },
+  { key: 'runner_personal', label: '러너 개인 사정', needsNote: false },
 ] as const;
 
 export default function ClubRun() {
@@ -50,6 +62,10 @@ export default function ClubRun() {
   const [elapsed, setElapsed] = useState(0);
   const [pathLen, setPathLen] = useState(0);
   const [endTarget, setEndTarget] = useState<DelegationDog | null>(null);
+  // two-step end: 'reason' → 'note' (only for the reason the server requires one on)
+  const [endStep, setEndStep] = useState<'reason' | 'note'>('reason');
+  const [conditionNote, setConditionNote] = useState('');
+  const canSubmitNote = conditionNote.trim().length > 0;
   const [busy, setBusy] = useState(false);
 
   const [saveLag, setSaveLag] = useState(false); // [감사 P1] 트레이스 저장 실패를 침묵시키지 않는다
@@ -471,8 +487,8 @@ export default function ClubRun() {
       </View>
 
       {/* ---------- 종료 시트 — 완주가 기본, 조기 사유는 정직하게 ---------- */}
-      <Modal visible={!!endTarget} transparent animationType="slide" onRequestClose={() => setEndTarget(null)}>
-        <Pressable style={{ flex: 1, backgroundColor: 'rgba(28,24,55,.45)' }} onPress={() => setEndTarget(null)} />
+      <Modal visible={!!endTarget} transparent animationType="slide" onRequestClose={() => { setEndTarget(null); setEndStep('reason'); }}>
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(28,24,55,.45)' }} onPress={() => { setEndTarget(null); setEndStep('reason'); }} />
         <View style={s.sheet}>
           <View style={s.grab} />
           <Row style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
@@ -489,13 +505,46 @@ export default function ClubRun() {
           <ClubCta label="완주로 종료 →" onPress={() => endTarget && doSettle(endTarget, 'completed')} busy={busy} />
           {/* [D13 FLOOR14 2026-08-12] 9.5 → 14. '조기 종료'는 러닝 종료 화면의 한글 섹션 라벨이다. */}
           <Text style={{ fontSize: 14, lineHeight: 18, color: L.dim, marginTop: 14, marginBottom: 4, fontWeight: '700', letterSpacing: 0.4 }}>조기 종료</Text>
-          {END_REASONS.map((r) => (
-            <Pressable key={r.key} disabled={busy}
-              onPress={() => endTarget && doSettle(endTarget, r.key, r.note)}
-              style={s.reasonRow}>
-              <Text style={{ fontSize: 14, fontWeight: '700', color: L.text }}>{r.label}</Text>
-            </Pressable>
-          ))}
+          {endStep === 'reason'
+            ? END_REASONS.map((r) => (
+              <Pressable key={r.key} disabled={busy}
+                onPress={() => {
+                  if (!endTarget) return;
+                  // the note step exists only where the note is real evidence — and where the
+                  // server refuses without one (settle-run:74)
+                  if (r.needsNote) { setConditionNote(''); setEndStep('note'); return; }
+                  doSettle(endTarget, r.key);
+                }}
+                style={s.reasonRow}>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: L.text }}>{r.label}</Text>
+              </Pressable>
+            ))
+            : (
+              <View style={{ marginTop: 4 }}>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: L.text, marginBottom: 6 }}>관찰한 내용</Text>
+                <TextInput
+                  style={s.noteInput}
+                  value={conditionNote}
+                  onChangeText={setConditionNote}
+                  placeholder="예: 3km 지점부터 헐떡임이 심해지고 걸음을 멈춰서 그늘에서 쉬었어요"
+                  placeholderTextColor={L.dim}
+                  multiline
+                  editable={!busy}
+                />
+                <Text style={{ fontSize: 13, lineHeight: 18, color: L.dim, marginTop: 6 }}>
+                  보호자가 리포트에서 그대로 읽어요 — 보신 것을 적어주세요
+                </Text>
+                <ClubCta
+                  label={canSubmitNote ? '컨디션 종료로 기록 →' : '내용을 적어주세요'}
+                  onPress={() => { if (endTarget && canSubmitNote) doSettle(endTarget, 'dog_condition', conditionNote.trim()); }}
+                  busy={busy}
+                  disabled={!canSubmitNote || busy}
+                />
+                <Pressable disabled={busy} onPress={() => setEndStep('reason')} style={{ paddingVertical: 10 }}>
+                  <Text style={{ fontSize: 13, color: L.dim, textAlign: 'center' }}>← 사유 다시 고르기</Text>
+                </Pressable>
+              </View>
+            )}
         </View>
       </Modal>
     </DawnCanvas>
@@ -541,5 +590,12 @@ const s = StyleSheet.create({
   reasonRow: {
     backgroundColor: L.card, borderWidth: 1, borderColor: L.hair, borderRadius: lilacRadius.inner,
     paddingVertical: 11, paddingHorizontal: 13, marginTop: 7,
+  },
+  // the runner's own account of the dog — the field that had to exist before the note could
+  // stop being a constant (2026-08-13)
+  noteInput: {
+    backgroundColor: L.card, borderWidth: 1, borderColor: L.hair, borderRadius: lilacRadius.inner,
+    paddingVertical: 11, paddingHorizontal: 13, minHeight: 88, textAlignVertical: 'top',
+    fontSize: 14, lineHeight: 20, color: L.text,
   },
 });
