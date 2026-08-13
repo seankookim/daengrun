@@ -740,3 +740,51 @@ Deno.test("the km validity band still rejects a 999km claim before any of this",
     net.restore();
   }
 });
+
+// ═══ CONTRACT: the error codes settle-run maps must be the ones settle_run_tx actually raises ══
+//
+// Every test in this file FAKES `settle_run_tx`. So the assertions above prove that the string
+// `not_active` maps to a 409 — never that the migration emits that string. Rename the exception
+// in SQL, leave this file alone, and the whole suite stays green while the mapping is dead code
+// and a runner who double-settles gets an opaque 500 instead of the honest sentence.
+//
+// A fake cannot be made to tell the truth about the thing it replaces. So this reads the
+// MIGRATION at test time and verifies TypeScript against it, in both directions.
+//
+// ⚠ DO NOT "tidy" this by hoisting the codes into a shared TS constant. The test works ONLY
+// because the contract lives in exactly one place (the SQL) and TS is checked against it. A
+// shared constant makes the test pass on the copy and reopens the join — that refactor looks
+// correct in review and silently undoes this file's reason for existing.
+Deno.test("CONTRACT: settle-run's error map matches settle_run_tx's raises (both directions)", async () => {
+  const migDir = new URL("../../migrations/", import.meta.url);
+  const files: string[] = [];
+  for await (const e of Deno.readDir(migDir)) if (e.name.endsWith(".sql")) files.push(e.name);
+  // The LATEST definition wins — settle_run_tx has been re-created more than once (0020, 0025,
+  // 0028) and a later slice may extend it again. Reading the wrong one is the bug this prevents.
+  const defining = files.sort().filter((f) =>
+    Deno.readTextFileSync(new URL(f, migDir)).includes("create or replace function settle_run_tx")
+  );
+  assert(defining.length > 0, "no migration defines settle_run_tx — did it move?");
+  const sql = Deno.readTextFileSync(new URL(defining[defining.length - 1], migDir));
+  const body = sql.slice(sql.lastIndexOf("create or replace function settle_run_tx"));
+  const raised = new Set([...body.matchAll(/raise exception '([a-z_]+)'/g)].map((m) => m[1]));
+
+  const handler = Deno.readTextFileSync(new URL("../settle-run/handler.ts", import.meta.url));
+  const mapped = new Set([...handler.matchAll(/msg\.includes\("([a-z_]+)"\)/g)].map((m) => m[1]));
+
+  // ① every code TS maps must exist in SQL — otherwise the mapping is dead
+  for (const code of mapped) {
+    assert(raised.has(code), `settle-run maps '${code}' but ${defining.at(-1)} never raises it`);
+  }
+  // ② every code SQL raises must be mapped, or explicitly exempt WITH A REASON here
+  const UNMAPPED_ON_PURPOSE: Record<string, string> = {
+    invalid_km: "settle-run validates km against the ×2+2 band before calling; a raise here is a bug, not a user error",
+    invalid_duration: "same — duration is validated in the handler first",
+  };
+  for (const code of raised) {
+    assert(
+      mapped.has(code) || code in UNMAPPED_ON_PURPOSE,
+      `${defining.at(-1)} raises '${code}' and settle-run neither maps nor exempts it — a runner would get an opaque 500`,
+    );
+  }
+});
