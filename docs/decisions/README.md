@@ -79,6 +79,28 @@ anywhere, and had a tip that was an ancestor of the trunk.
 `redesign-v4` is the trunk, `main` is retired, run `git remote set-head origin -a` once per
 clone.)*
 
+## 🔵 When the founder is away: a stand-in decides, but never in his name
+
+Sean, 2026-08-13, going on break: *"tell others to run autonomous or ask codex in replacement
+of me. ill tell u when im back."* So work proceeds, and codex stands in for the judgement calls.
+**With one hard line: a codex decision is recorded as CODEX's, never as his.**
+
+- Status stays **🟡 OPEN** on anything he has not personally ruled, with codex's analysis
+  recorded beneath it as **🔵 CODEX RECOMMENDATION**.
+- **No memo becomes ✅ RULED BY SEAN on a stand-in's word.** Not "effectively ruled", not
+  "ruled pending confirmation".
+- The reader must be able to tell at a glance which of these came from the founder and which
+  from a stand-in while he was out.
+
+This is rule 2 applied to the instruction itself. *Quote the human* exists because ⑨ was asked
+twice and answered differently, and because a relayed decision read as authority. A codex
+answer promoted to "RULED BY SEAN" is that same failure with a longer fuse — and unlike the ⑨
+version, **nobody would ever catch it**, because the artifact would look exactly like the
+eleven real ones. Codex is a good reviewer. It is not the person whose money it is.
+
+Corollary from rule 4: while he is away **nobody holds his word**, so no irreversible action on
+shared state — no branch deletions, no force-pushes, no `db push`.
+
 ## How to read a ruling here
 
 Every memo keeps the superseded recommendation below the ruling, so the reasoning survives
