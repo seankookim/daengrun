@@ -47,6 +47,18 @@ intended and stopped one question short"*: one pinned a helper rather than the p
 ships, the other pinned that an escalation fires but never asked whether money could still
 move afterwards. Green proves the pins pass, not that the path is covered. Ask what your
 suite does **not** prove, and write that down next to it.
+**And a commit message that asserts a property is a third such artifact** — one claimed that a
+user-facing string was quoted from a migration's own error detail "so the two can't drift", and
+nothing checked it. A claim in a commit message is exactly as enforceable as a comment: not at
+all. Three artifacts now, all authoritative purely because they are well-formed — **a checklist
+that reads well · a suite that is green · a commit message that asserts a property.** None were
+vague. Precision without verification is indistinguishable from precision with it.
+
+The repair pattern that came out of it is worth more than the rule: when the same fact lives in
+two languages, **do not synchronise the copies — delete the duplication.** Let one side own the
+fact and have the other read it at test time and verify against it, in both directions. That
+works with existing fakes in place, needs no shared constant and no cross-language import, and
+it is what closed ⑩'s three-copy marker string.
 
 **4. For irreversible ACTIONS, the session holding the human's word does it — and quotes him.**
 The first three rules govern artifacts; this one governs doing. A destructive change to shared
