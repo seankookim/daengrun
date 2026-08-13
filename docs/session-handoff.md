@@ -101,7 +101,7 @@ dog_condition/incident (provisional charge-nothing recorded); ③ D-3 silent-cha
 
 - **Build the charge slice** (the main line, buildable NOW with TEST keys):
   "read docs/session-handoff.md fully, then build payments-toss-plan §0-ter as its own
-  slice: 0078 migration (sweep fn, debt derivation, failed-index, dispatched_at
+  slice: its own migration at the next free number (0078/0079 are taken — route catalog, pace-state) (sweep fn, debt derivation, failed-index, dispatched_at
   convention), settle-run charge branch, recurring-cron gates, cancel-fee machine,
   0060/0072 copy fixes, 설정 결제 관리 + booking-detail 결제 내역 screens, Deno tests for
   every §0-ter rule, adversarial round 2, harness green."

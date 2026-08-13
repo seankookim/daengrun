@@ -3012,11 +3012,11 @@ export async function fetchRunStartedAt(bookingId: string): Promise<string | nul
 // goalpost. `fetchRunStartedAt` above stays for the club run screen, which has neither.
 export interface RunMeta { startedAt: string | null; paceSuggestSec: number | null }
 
-// ⚠ 0078 PRE-PUSH TOLERANCE — `runs.pace_suggest_sec` does not exist until the LA slice's
+// ⚠ 0079 PRE-PUSH TOLERANCE — `runs.pace_suggest_sec` does not exist until the LA slice's
 // migration lands, and PostgREST hard-errors (42703) on an unknown column, which would take
 // the elapsed clock down with it. So an undefined-column error falls back to a started_at-only
 // retry with a null suggestion (caption absent — §6's "unset ≠ known", never a fabricated 480).
-// REMOVE this fallback once 0078 is pushed; keeping it would hide a real schema regression.
+// REMOVE this fallback once 0079 is pushed; keeping it would hide a real schema regression.
 const isUndefinedColumn = (e: any): boolean =>
   e?.code === '42703' || /does not exist/i.test(String(e?.message ?? ''));
 

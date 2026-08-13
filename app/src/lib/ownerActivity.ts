@@ -24,7 +24,7 @@ export interface OwnerLAProps {
   pace: string;
   elapsed: string;
   statusLine: string;
-  // '' = no claim; server (0078) computes for pushes, client mirrors for local updates.
+  // '' = no claim; server (0079) computes for pushes, client mirrors for local updates.
   paceState?: '' | 'good' | 'slow';
 }
 

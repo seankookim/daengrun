@@ -51,40 +51,58 @@ for f in ../migrations/*.sql; do
   if [ $? -ne 0 ]; then echo "❌ $base"; echo "$out" | grep -v NOTICE | head -8; exit 1; fi
   echo "✅ $base"
 done
-psql -q -f 10_settle_suite.sql >/dev/null 2>&1
-psql -q -f 20_recurring_suite.sql >/dev/null 2>&1
-psql -q -f 30_club_suite.sql >/dev/null 2>&1
-psql -q -f 40_records_suite.sql >/dev/null 2>&1
-psql -q -f 50_delegation_suite.sql >/dev/null 2>&1
-psql -q -f 60_custody_suite.sql >/dev/null 2>&1
-psql -q -f 65_assignment_suite.sql >/dev/null 2>&1
-psql -q -f 66_r4_suite.sql >/dev/null 2>&1
-psql -q -f 67_shell_suite.sql >/dev/null 2>&1
-psql -q -f 68_adversarial_suite.sql >/dev/null 2>&1
-psql -q -f 70_axes_suite.sql >/dev/null 2>&1
-psql -q -f 80_choke_suite.sql >/dev/null 2>&1
-bash 90_race_check.sh >/dev/null 2>&1                              # 2커넥션 레이스 (R6)
-psql -q -f 95_audit_gates_suite.sql >/dev/null 2>&1                # 0052 감사 게이트 핀
-psql -q -f 96_audit_followups_suite.sql >/dev/null 2>&1            # 0053 감사 잔여 후속 핀
-psql -q -f 97_availability_suite.sql >/dev/null 2>&1            # 0054 가용성 게이트 핀
-psql -q -f 98_hardening_suite.sql >/dev/null 2>&1            # 0055/0056 definer 봉인·거절 원장 핀
-psql -q -f 99_security_suite.sql >/dev/null 2>&1            # 0057 보안 경화 핀 (P0/K-급 원격 봉인)
-psql -q -f 100_wave3_suite.sql >/dev/null 2>&1            # wave3: 0060 픽업 주소 RPC·홀드 만료·도착 핀
-psql -q -f 101_runner_insert_seal_suite.sql >/dev/null 2>&1            # 0061 P0: 러너 자가 등록 권한 열 봉인
-psql -q -f 102_runner_funnel_suite.sql >/dev/null 2>&1            # 0062 러너 지원·인증 퍼널 (지원서 봉인·승인 RPC)
-psql -q -f 103_owner_la_suite.sql >/dev/null 2>&1            # 0063 owner Live Activity pins (token seal / push jobs / staleness)
-psql -q -f 104_private_media_suite.sql >/dev/null 2>&1            # 0064 프라이빗 미디어 버킷 (강아지·러닝·채팅 사진 봉인)
-psql -q -f 105_enroute_cancel_suite.sql >/dev/null 2>&1            # 0066 en-route owner cancel (transition widening + fee ladder)
-psql -q -f 106_incident_subject_suite.sql >/dev/null 2>&1            # 0067 P1 SECURITY: incident subject gate + SOS unification
-psql -q -f 107_recovery_force_resolve_suite.sql >/dev/null 2>&1            # 0068/0069 C1 T-10 retire · C4/H5 host force resolve · two-sided override
-psql -q -f 108_incident_accountability_suite.sql >/dev/null 2>&1            # 0070 adversarial-review follow-ups (case ownership · hold recompute · stale sweep)
-psql -q -f 109_payments_suite.sql >/dev/null 2>&1            # 0071 payments table + 0076 payment intent (money coming IN — R7 / toss-plan §2-7)
-psql -q -f 110_incident_settlement_suite.sql >/dev/null 2>&1            # 0072 the commercial exit from incident_review (money path)
-psql -q -f 111_address_note_suite.sql >/dev/null 2>&1            # 0073 owner-editable pickup note — column whitelist is the point (N6)
-psql -q -f 112_handles_feed_claims_suite.sql >/dev/null 2>&1            # 0074 @handle + feed claim gate (F1 pins Sean's "do not restrict uploads")
-psql -q -f 113_km_ledger_suite.sql >/dev/null 2>&1            # 0075 km ledger (K15 pins Sean's D2 best-effort buffer; K14 pins the column-grant law)
-psql -q -f 114_recurring_guard_suite.sql >/dev/null 2>&1            # 0077 create_recurring_series 이중 벨트 (service_role 호출자 계급 — not_signed_in + is distinct from)
-psql -q -f 115_pace_state_suite.sql >/dev/null 2>&1            # 0078 pace-state (런 시작 스냅샷·롤링 윈도우·래치·페이로드)
+# [2026-08-13] Suites run quiet, but MUST fail loudly on parse/exec errors.
+# The old `psql -q -f X >/dev/null 2>&1` let a suite that failed to even parse
+# contribute silently zero pins (a new suite's FK bug was invisible until run
+# manually). ON_ERROR_STOP is load-bearing here: without it psql exits 0 on SQL
+# errors, so a bare `|| exit 1` catches nothing. Expected failures are all
+# caught inside plpgsql exception blocks — a healthy suite has no top-level
+# errors, so stopping on the first one changes nothing for green runs.
+suite() {
+  local out
+  out=$(psql -v ON_ERROR_STOP=1 -q -f "$1" 2>&1)
+  if [ $? -ne 0 ]; then
+    echo "❌ SUITE PARSE/EXEC FAILED: $1"
+    echo "$out" | grep -v NOTICE | head -12
+    exit 1
+  fi
+}
+suite 10_settle_suite.sql
+suite 20_recurring_suite.sql
+suite 30_club_suite.sql
+suite 40_records_suite.sql
+suite 50_delegation_suite.sql
+suite 60_custody_suite.sql
+suite 65_assignment_suite.sql
+suite 66_r4_suite.sql
+suite 67_shell_suite.sql
+suite 68_adversarial_suite.sql
+suite 70_axes_suite.sql
+suite 80_choke_suite.sql
+# 2커넥션 레이스 (R6) — assertion failures self-report via _fail pins; this guard
+# is only for the script itself dying (setup parse error, psql unreachable).
+out=$(bash 90_race_check.sh 2>&1) || { echo "❌ SUITE PARSE/EXEC FAILED: 90_race_check.sh"; echo "$out" | tail -12; exit 1; }
+suite 95_audit_gates_suite.sql                # 0052 감사 게이트 핀
+suite 96_audit_followups_suite.sql            # 0053 감사 잔여 후속 핀
+suite 97_availability_suite.sql            # 0054 가용성 게이트 핀
+suite 98_hardening_suite.sql            # 0055/0056 definer 봉인·거절 원장 핀
+suite 99_security_suite.sql            # 0057 보안 경화 핀 (P0/K-급 원격 봉인)
+suite 100_wave3_suite.sql            # wave3: 0060 픽업 주소 RPC·홀드 만료·도착 핀
+suite 101_runner_insert_seal_suite.sql            # 0061 P0: 러너 자가 등록 권한 열 봉인
+suite 102_runner_funnel_suite.sql            # 0062 러너 지원·인증 퍼널 (지원서 봉인·승인 RPC)
+suite 103_owner_la_suite.sql            # 0063 owner Live Activity pins (token seal / push jobs / staleness)
+suite 104_private_media_suite.sql            # 0064 프라이빗 미디어 버킷 (강아지·러닝·채팅 사진 봉인)
+suite 105_enroute_cancel_suite.sql            # 0066 en-route owner cancel (transition widening + fee ladder)
+suite 106_incident_subject_suite.sql            # 0067 P1 SECURITY: incident subject gate + SOS unification
+suite 107_recovery_force_resolve_suite.sql            # 0068/0069 C1 T-10 retire · C4/H5 host force resolve · two-sided override
+suite 108_incident_accountability_suite.sql            # 0070 adversarial-review follow-ups (case ownership · hold recompute · stale sweep)
+suite 109_payments_suite.sql            # 0071 payments table + 0076 payment intent (money coming IN — R7 / toss-plan §2-7)
+suite 110_incident_settlement_suite.sql            # 0072 the commercial exit from incident_review (money path)
+suite 111_address_note_suite.sql            # 0073 owner-editable pickup note — column whitelist is the point (N6)
+suite 112_handles_feed_claims_suite.sql            # 0074 @handle + feed claim gate (F1 pins Sean's "do not restrict uploads")
+suite 113_km_ledger_suite.sql            # 0075 km ledger (K15 pins Sean's D2 best-effort buffer; K14 pins the column-grant law)
+suite 114_recurring_guard_suite.sql            # 0077 create_recurring_series 이중 벨트 (service_role 호출자 계급 — not_signed_in + is distinct from)
+suite 115_pace_state_suite.sql            # 0079 pace-state (런 시작 스냅샷·롤링 윈도우·래치·페이로드)
 psql -c "select case when ok then '✅' else '❌' end || ' [' || suite || '] ' || name || case when ok then '' else ' — ' || detail end from _t order by at"
 psql -qt -c "select count(*) filter (where ok) || ' pass / ' || count(*) filter (where not ok) || ' fail' from _t"
 psql -qt -c "select case when count(*) filter (where not ok) > 0 then 'FAIL' else 'OK' end from _t" | grep -q OK

@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>반포 코스 카탈로그 — 디자인 랩</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Oswald:wght@500;600;700&family=IBM+Plex+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#0E100D;--volt:#C6F542;--voltDeep:#7FA818;--tang:#FF5C3D;
+--blue:#6E9BC5;--amber:#F59A43;--paper:#FFFFFF;}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0A0C0A;color:#E8EBE4;font-family:'Pretendard Variable',Pretendard,sans-serif;padding:32px 26px 90px}
+.bhs{font-family:'Black Han Sans',sans-serif;font-weight:400}
+.osw{font-family:'Oswald',sans-serif}
+.mono{font-family:'IBM Plex Mono',monospace}
+h1{font-size:27px;color:var(--volt)}
+h2{font-size:17px;color:#E8EBE4;margin-top:44px;border-top:1px solid #232a22;padding-top:18px}
+.lede{color:#7d8878;margin:9px 0 4px;max-width:940px;line-height:1.65;font-size:13.5px}
+.legend{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}
+.lg{background:#151a14;border:1px solid #232a22;padding:8px 12px;font-size:11.5px;color:#c8d0c2;line-height:1.5;max-width:300px}
+.lg b{color:#fff}
+.row{display:flex;gap:18px;flex-wrap:wrap;margin-top:26px;align-items:flex-start}
+.shot{width:286px}
+.sl{font-size:10.5px;letter-spacing:2px;color:#7d8878;margin-bottom:7px;font-family:'IBM Plex Mono',monospace}
+.note{color:#8fa093;font-size:11.5px;line-height:1.6;margin:9px 2px 0}
+.ph{min-height:430px;padding:14px 12px;overflow:hidden;position:relative;background:var(--paper);color:var(--ink)}
+/* 공통 문법 (파이널 시스템) */
+.mast{display:flex;justify-content:space-between;align-items:baseline;padding-bottom:9px;border-bottom:2.5px solid var(--ink)}
+.mast h3{font-size:20px}
+.mast .mono{font-size:9px;letter-spacing:2px;color:#888}
+.k{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:2.5px;color:var(--voltDeep)}
+.cta3d{display:block;background:var(--tang);color:#fff;border:2px solid var(--ink);box-shadow:4px 4px 0 var(--ink);text-align:center;font-weight:900;font-size:15px;padding:14px 0;margin-top:14px;text-decoration:none}
+/* 코스 카드 */
+.rcard{border:2.5px solid var(--ink);margin-top:12px}
+.rcard .head{display:flex;justify-content:space-between;align-items:baseline;padding:9px 11px 7px;border-bottom:1px solid #D8DAD2}
+.rcard .head b{font-size:15px;font-weight:800}
+.rcard .head .osw{font-size:21px;font-weight:600}
+.rcard .head .osw em{font-style:normal;font-size:11px;color:#888}
+.tracebox{height:92px;position:relative;background:repeating-linear-gradient(0deg,transparent 0 15px,#F1F0E9 15px 16px),repeating-linear-gradient(90deg,transparent 0 15px,#F1F0E9 15px 16px)}
+.tracebox svg{position:absolute;inset:0;width:100%;height:100%}
+.tracebox .anchorpin{position:absolute;width:10px;height:10px;background:var(--ink);transform:rotate(45deg)}
+.tracepending{height:92px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;background:repeating-linear-gradient(135deg,#fff 0 6px,#F3F2EB 6px 12px)}
+.tracepending .mono{font-size:8.5px;letter-spacing:2px;color:#999}
+.metaband{display:flex;border-top:1px solid #D8DAD2;border-bottom:1px solid #D8DAD2}
+.metaband div{flex:1;padding:7px 4px 8px;border-right:1px solid #D8DAD2;text-align:center}
+.metaband div:last-child{border-right:0}
+.metaband span{display:block;font-family:'IBM Plex Mono',monospace;font-size:7.5px;letter-spacing:1.5px;color:#888}
+.metaband b{display:block;font-size:11px;font-weight:800;margin-top:3px}
+.pip{letter-spacing:1px;font-size:10px}
+.anchorline{display:flex;gap:7px;align-items:center;padding:8px 11px;font-size:11.5px;border-bottom:1px solid #D8DAD2}
+.anchorline .pin{width:9px;height:9px;background:var(--ink);transform:rotate(45deg);flex:none}
+.anchorline b{font-weight:800}
+.anchorline span{color:#666}
+.checkrow{display:flex;justify-content:space-between;align-items:center;padding:7px 11px}
+.checkrow .mono{font-size:8.5px;letter-spacing:1.5px;color:#888}
+.pending{font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:1.5px;color:var(--amber);border:1.5px solid var(--amber);padding:3px 7px}
+.walked{font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:1.5px;color:var(--blue);border:1.5px solid var(--blue);padding:3px 7px}
+/* km 룰러 (KmDial 1–10 × 0.5) */
+.ruler{border:2.5px solid var(--ink);margin-top:12px;position:relative;padding:14px 0 8px;overflow:hidden}
+.needle{position:absolute;left:50%;top:0;bottom:0;width:2.5px;background:var(--tang);transform:translateX(-50%)}
+.ticks{display:flex;align-items:flex-end;height:34px;justify-content:center;gap:12px}
+.ticks i{display:block;width:1.5px;background:#B9B6A8;height:12px}
+.ticks i.major{height:22px;background:var(--ink);width:2px}
+.klabels{display:flex;justify-content:center;gap:0;margin-top:4px}
+.klabels b{font-family:'Oswald',sans-serif;font-size:12px;font-weight:600;color:#999;width:54px;text-align:center}
+.klabels b.on{color:var(--ink);font-size:14px}
+.kmreadout{text-align:center;margin-top:6px}
+.kmreadout b{font-family:'Oswald',sans-serif;font-size:30px;font-weight:600}
+.kmreadout em{font-style:normal;font-size:13px;color:#888}
+/* 3구간 다이어그램 */
+.seg{margin-top:14px;border:2.5px solid var(--ink)}
+.seg .bar{display:flex;align-items:stretch;height:44px}
+.seg .bar div{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.seg .approach,.seg .return{flex:1;background:repeating-linear-gradient(135deg,#fff 0 5px,#EFEEE6 5px 10px)}
+.seg .loop{flex:2.2;background:var(--volt);border-left:2.5px solid var(--ink);border-right:2.5px solid var(--ink)}
+.seg .bar b{font-size:11px;font-weight:900}
+.seg .bar span{font-family:'IBM Plex Mono',monospace;font-size:7px;letter-spacing:1px;color:#666}
+.seg .caption{display:flex;border-top:2.5px solid var(--ink)}
+.seg .caption div{flex:1;padding:6px 4px 7px;text-align:center;font-family:'IBM Plex Mono',monospace;font-size:7.5px;letter-spacing:1px;color:#888;border-right:1px solid #D8DAD2}
+.seg .caption div:last-child{border-right:0}
+.seg .caption b{display:block;font-size:9.5px;color:var(--ink);letter-spacing:1.5px}
+/* 슬롯 매트릭스 */
+.slotmx{border:2.5px solid var(--ink);margin-top:12px}
+.slotmx .r{display:flex;border-bottom:1px solid #D8DAD2;align-items:center}
+.slotmx .r:last-child{border-bottom:0}
+.slotmx .t{width:76px;padding:8px 9px;font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:1px;color:#555;border-right:1px solid #D8DAD2}
+.slotmx .v{flex:1;padding:8px 10px;font-size:11.5px}
+.slotmx .v b{font-weight:900}
+.ok b{color:var(--voltDeep)} .warn b{color:var(--amber)} .no b{color:var(--tang)}
+/* 워크 체크리스트 테이블 */
+.walktable{margin-top:16px;border:2.5px solid var(--ink);background:var(--paper);color:var(--ink);max-width:940px}
+.walktable .hd,.walktable .tr{display:flex;align-items:center;border-bottom:1px solid #D8DAD2}
+.walktable .tr:last-child{border-bottom:0}
+.walktable .hd{background:var(--ink);color:#fff;border-bottom:2.5px solid var(--ink)}
+.walktable .hd div{font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:1.5px;color:var(--volt)}
+.walktable div{padding:8px 9px}
+.c-km{width:64px;flex:none;font-family:'Oswald',sans-serif;font-size:16px;font-weight:600}
+.c-km em{font-style:normal;font-size:9px;color:#888}
+.c-name{width:190px;flex:none;font-size:12.5px;font-weight:800}
+.c-name span{display:block;font-weight:400;font-size:10px;color:#777;margin-top:1px}
+.c-anchor{flex:1;font-size:11px;color:#333}
+.c-anchor b{font-weight:800}
+.c-meta{width:170px;flex:none;font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:.5px;color:#555;line-height:1.7}
+.c-walk{width:86px;flex:none;text-align:center}
+</style>
+</head>
+<body>
+<h1 class="bhs">반포 코스 카탈로그 — 동네 단위 프리메이드 루프</h1>
+<p class="lede">TODOS premade-route-catalog (Sean 2026-08-12) 실행분. 큐레이션 카탈로그의 데이터 모델·카드 문법·요청 필터·상세 화면을 파이널 시스템 문법(V1 잉크 룰 본체)으로 확정하고, <b style="color:#c8d0c2">반포 시드 9종을 마이그레이션 0078로 심었다</b> (2km ×3 · 3km ×3 · 5km ×2 · 7km ×1). 전부 checked_at null = '점검 예정', trace '[]' — Sean이 GPS 켜고 걷는 파운더 워크가 실좌표 승격 + 점검 도장의 유일한 경로다 (2026-08-06 정직성 배치: 목업 폴리라인을 코스 모양이라고 그리지 않는다).</p>
+<div class="legend">
+  <div class="lg"><b>① 3구간 모델</b> 접근(커스터디·무과금) → 루프(THE RUN·과금) → 귀가(커스터디·동결). 카탈로그 행 = 루프만. 앵커에서 출발해 앵커로 복귀 — 타이머가 개를 코스 중간에 버릴 수 없는 구조.</div>
+  <div class="lg"><b>② 메타 3축</b> 노면(발바닥 안전 — 기존 terrain 컬럼) · 그늘(여름 폭염 — low/mid/high) · 조명(새벽/야간 슬롯 — none/partial/lit). 레벨 시스템은 폐기 — <b>km이 필터 키</b>.</div>
+  <div class="lg"><b>③ 앵커 = 공통 만남점</b> 공원 정문·나들목·다리 입구. 이름+사람용 디테일이 진실, 좌표는 근사(워크로 확정 전 앱 소비 금지). 시드 9종이 앵커 5곳으로 수렴.</div>
+  <div class="lg"><b>④ 정직 게이트</b> 안 걸은 코스 = '점검 예정'(앰버) + 지도 준비 중. 파운더 워크 후 점검 도장(블루) + 실 trace 승격. 스키마틱은 그리지 않는다.</div>
+  <div class="lg"><b>⑤ 돈 없음</b> 가격 비가시 독트린 — 카탈로그·상세 어디에도 가격 없음. 과금 경계는 구조 라벨(THE RUN)로만 존재.</div>
+</div>
+
+<div class="row">
+
+<div class="shot"><div class="sl">01 — 카탈로그 카드 · 워크 전/후</div><div class="ph">
+  <div class="mast"><h3 class="bhs">안심 코스</h3><span class="mono">BANPO · 9 ROUTES</span></div>
+
+  <div style="padding:10px 0 0"><span class="k">워크 전 — 시드 상태 (지금)</span></div>
+  <div class="rcard" style="margin-top:7px">
+    <div class="head"><b>서리풀 숲길 3km</b><span class="osw">3.0<em>km</em></span></div>
+    <div class="tracepending"><span class="mono">코스 지도 준비 중</span><span class="mono" style="color:#bbb">파운더 워크 후 실좌표</span></div>
+    <div class="metaband">
+      <div><span>SURFACE</span><b>흙길 90%</b></div>
+      <div><span>SHADE</span><b class="pip">▮▮▮</b></div>
+      <div><span>LIGHT</span><b style="color:var(--tang)">없음</b></div>
+    </div>
+    <div class="anchorline"><div class="pin"></div><div><b>누에다리 남단</b> <span>· 몽마르뜨↔서리풀 연결 다리 아래</span></div></div>
+    <div class="checkrow"><span class="mono">서리풀공원 · 주간 전용</span><span class="pending">점검 예정</span></div>
+  </div>
+
+  <div style="padding:13px 0 0"><span class="k">워크 후 — 실 GPS 승격 상태</span></div>
+  <div class="rcard" style="margin-top:7px">
+    <div class="head"><b>서래섬 유채 루프</b><span class="osw">2.0<em>km</em></span></div>
+    <div class="tracebox">
+      <svg viewBox="0 0 100 70" preserveAspectRatio="none"><polyline points="50,62 47,50 44,41 38,32 28,27 20,21 18,14 24,8 36,6 50,7 62,10 68,17 66,25 58,29 48,32 44,41 47,50 50,62" fill="none" stroke="#0E100D" stroke-width="2.2" stroke-linejoin="round"/></svg>
+      <div class="anchorpin" style="left:47%;top:84%"></div>
+    </div>
+    <div class="metaband">
+      <div><span>SURFACE</span><b>포장 70%</b></div>
+      <div><span>SHADE</span><b class="pip">▮▯▯</b></div>
+      <div><span>LIGHT</span><b style="color:var(--voltDeep)">조명</b></div>
+    </div>
+    <div class="anchorline"><div class="pin"></div><div><b>서래섬 진입교</b> <span>· 세빛섬에서 서쪽 강변길 5분</span></div></div>
+    <div class="checkrow"><span class="mono">반포한강공원 · 평지</span><span class="walked">8.14 점검</span></div>
+  </div>
+</div>
+<p class="note">카드 위계: 코스명 + Oswald km 헤드 → 지도 슬롯(워크 전 = 사선 해칭 '준비 중', 워크 후 = 실 trace + 다이아 앵커 핀) → 메타 3축 밴드(그늘 픽 3단, 조명 '없음'은 코랄 = 야간 배제 경고) → 앵커 한 줄 → 점검 상태(앰버 예정 / 블루 도장). 가격·적합도 점수 없음 — 카탈로그는 사실만.</p></div>
+
+<div class="shot"><div class="sl">02 — 요청 화면 필터 (dialed km + town)</div><div class="ph">
+  <div class="mast"><h3 class="bhs">러닝 요청</h3><span class="mono">MY TOWN — 반포동</span></div>
+  <div style="padding:11px 0 3px"><span class="k">DISTANCE — 코스가 km을 따른다</span></div>
+  <div class="ruler">
+    <div class="needle"></div>
+    <div class="ticks"><i></i><i class="major"></i><i></i><i class="major"></i><i></i><i class="major"></i><i></i><i class="major"></i><i></i><i class="major"></i><i></i></div>
+    <div class="klabels"><b>1</b><b>2</b><b class="on">3</b><b>4</b><b>5</b></div>
+    <div class="kmreadout"><b>3.0</b><em>km</em></div>
+  </div>
+  <div style="padding:13px 0 3px"><span class="k">3.0KM IN BANPO — 최근접 3코스</span></div>
+
+  <div class="rcard" style="margin-top:8px">
+    <div class="head"><b>잠수교 강바람 3km</b><span class="osw">3.0<em>km</em></span></div>
+    <div class="metaband" style="border-top:0">
+      <div><span>SURFACE</span><b>포장 90%</b></div>
+      <div><span>SHADE</span><b class="pip">▮▯▯</b></div>
+      <div><span>LIGHT</span><b style="color:var(--voltDeep)">조명</b></div>
+    </div>
+    <div class="anchorline" style="border-bottom:0"><div class="pin"></div><div><b>세빛섬 앞 광장</b> <span>· 매표소 앞 계단 아래</span></div></div>
+  </div>
+  <div class="rcard" style="margin-top:8px">
+    <div class="head"><b>서리풀 숲길 3km</b><span class="osw">3.0<em>km</em></span></div>
+    <div class="metaband" style="border-top:0">
+      <div><span>SURFACE</span><b>흙길 90%</b></div>
+      <div><span>SHADE</span><b class="pip">▮▮▮</b></div>
+      <div><span>LIGHT</span><b style="color:var(--tang)">없음</b></div>
+    </div>
+    <div class="anchorline" style="border-bottom:0"><div class="pin"></div><div><b>누에다리 남단</b> <span>· 연결 다리 아래</span></div></div>
+  </div>
+  <div class="rcard" style="margin-top:8px">
+    <div class="head"><b>동작 노을 3km</b><span class="osw">3.0<em>km</em></span></div>
+    <div class="metaband" style="border-top:0">
+      <div><span>SURFACE</span><b>포장 100%</b></div>
+      <div><span>SHADE</span><b class="pip">▮▯▯</b></div>
+      <div><span>LIGHT</span><b style="color:var(--voltDeep)">조명</b></div>
+    </div>
+    <div class="anchorline" style="border-bottom:0"><div class="pin"></div><div><b>반포나들목</b> <span>· 지하보도 강변 출구</span></div></div>
+  </div>
+</div>
+<p class="note">KmDial(1–10 × 0.5, Sean 2026-08-11)은 그대로 — 필터가 바뀐다: <b>전체 코스 최근접 1개 자동 선택</b>(현행 pickRouteForKm) → <b>town 스코프 + 최근접 km 코스들 캐러셀</b>. 다이얼 4.0처럼 정확 일치가 없으면 최근접(3km) 코스에 '코스 3.0km' 불일치 배지 — 기존 정직 표기 독트린 그대로. town 소스는 profiles.district (클럽 스코프와 동일).</p></div>
+
+<div class="shot"><div class="sl">03 — 코스 상세 (3구간 + 슬롯 적합)</div><div class="ph">
+  <div class="mast"><h3 class="bhs">서리풀 숲길 3km</h3><span class="mono">BANPO</span></div>
+
+  <div style="padding:11px 0 0"><span class="k">RUN STRUCTURE — 기록은 루프만</span></div>
+  <div class="seg">
+    <div class="bar">
+      <div class="approach"><b>접근</b><span>CUSTODY</span></div>
+      <div class="loop"><b>루프 3.0km</b><span style="color:#3a4a10">THE RUN</span></div>
+      <div class="return"><b>귀가</b><span>FROZEN</span></div>
+    </div>
+    <div class="caption">
+      <div><b>집 → 앵커</b>기록 전 · GPS 커스터디</div>
+      <div><b>앵커 → 앵커</b>기록·미터 전 구간</div>
+      <div><b>앵커 → 집</b>스탯 동결 · GPS 지속</div>
+    </div>
+  </div>
+
+  <div style="padding:13px 0 0"><span class="k">ANCHOR — 공통 만남점</span></div>
+  <div class="anchorline" style="border:2.5px solid var(--ink);margin-top:8px">
+    <div class="pin"></div><div><b>누에다리 남단</b><br><span>몽마르뜨공원↔서리풀공원 연결 다리 아래에서 만나요</span></div>
+  </div>
+
+  <div style="padding:13px 0 0"><span class="k">SLOT FIT — 그늘 ▮▮▮ · 조명 없음</span></div>
+  <div class="slotmx">
+    <div class="r no"><div class="t">새벽 05–07</div><div class="v"><b>부적합</b> — 조명 없는 숲길</div></div>
+    <div class="r ok"><div class="t">한낮 12–15</div><div class="v"><b>추천</b> — 여름 폭염에 그늘 최상</div></div>
+    <div class="r warn"><div class="t">저녁 18–20</div><div class="v"><b>주의</b> — 일몰 전 완주 기준</div></div>
+    <div class="r no"><div class="t">밤 21–</div><div class="v"><b>부적합</b> — 조명 없음</div></div>
+  </div>
+
+  <a class="cta3d">이 코스로 예약하기 →</a>
+</div>
+<p class="note">3구간 다이어그램: 커스터디 구간은 사선 해칭(비어 있음), 루프만 볼트(브랜드 = 러닝 그 자체). 돈 문구는 없다 — 'THE RUN' 구조 라벨이 경계를 말없이 그린다. 슬롯 매트릭스는 그늘×조명에서 순수 파생(별도 컬럼 없음) — 예약 시간 선택과 자연 결합. 상세의 지도 히어로는 워크 전까지 '준비 중' 유지 (course/[id] 현행 그대로).</p></div>
+
+</div>
+
+<h2 class="bhs">파운더 워크 체크리스트 — 시드 9종 (마이그레이션 0078)</h2>
+<p class="lede">Sean이 GPS 켜고 걷는 순서 그대로. 워크 완료 = checked_at 기록 + 완주 trace를 routes.trace로 승격(실좌표) + 앵커 좌표 확정. 그 전까지 앱은 '점검 예정' + '지도 준비 중'을 정직하게 보여준다. 좌표는 전부 근사값 — 앵커 이름·디테일이 진실이고 좌표는 워크에서 확정.</p>
+<div class="walktable">
+  <div class="hd"><div class="c-km">KM</div><div class="c-name">코스</div><div class="c-anchor">앵커</div><div class="c-meta">노면 / 그늘 / 조명</div><div class="c-walk">WALK</div></div>
+  <div class="tr"><div class="c-km">2.0<em>km</em></div><div class="c-name">서래섬 유채 루프<span>반포한강공원 · 평지</span></div><div class="c-anchor"><b>서래섬 진입교</b> — 세빛섬에서 서쪽 강변길 5분</div><div class="c-meta">포장 70% / ▮▯▯ / 조명</div><div class="c-walk"><span class="pending">예정</span></div></div>
+  <div class="tr"><div class="c-km">2.0<em>km</em></div><div class="c-name">몽마르뜨 언덕 루프<span>서래마을 · 언덕</span></div><div class="c-anchor"><b>몽마르뜨공원 정문</b> — 언덕 위 안내판 앞</div><div class="c-meta">흙길 60% / ▮▮▮ / 부분</div><div class="c-walk"><span class="pending">예정</span></div></div>
+  <div class="tr"><div class="c-km">2.0<em>km</em></div><div class="c-name">반포천 새벽 코스<span>반포천 산책로 · 평지</span></div><div class="c-anchor"><b>반포천 산책로 입구</b> — 고속터미널 남측, 래미안퍼스티지 후문 건너</div><div class="c-meta">포장 100% / ▮▮▯ / 조명</div><div class="c-walk"><span class="pending">예정</span></div></div>
+  <div class="tr"><div class="c-km">3.0<em>km</em></div><div class="c-name">잠수교 강바람 3km<span>반포한강공원 · 분수 뷰</span></div><div class="c-anchor"><b>세빛섬 앞 광장</b> — 매표소 앞 계단 아래</div><div class="c-meta">포장 90% / ▮▯▯ / 조명</div><div class="c-walk"><span class="pending">예정</span></div></div>
+  <div class="tr"><div class="c-km">3.0<em>km</em></div><div class="c-name">서리풀 숲길 3km<span>서리풀공원 · 주간 전용</span></div><div class="c-anchor"><b>누에다리 남단</b> — 연결 다리 아래</div><div class="c-meta">흙길 90% / ▮▮▮ / 없음</div><div class="c-walk"><span class="pending">예정</span></div></div>
+  <div class="tr"><div class="c-km">3.0<em>km</em></div><div class="c-name">동작 노을 3km<span>반포한강공원 · 노을 명당</span></div><div class="c-anchor"><b>반포나들목</b> — 신반포로 지하보도 강변 출구</div><div class="c-meta">포장 100% / ▮▯▯ / 조명</div><div class="c-walk"><span class="pending">예정</span></div></div>
+  <div class="tr"><div class="c-km">5.0<em>km</em></div><div class="c-name">반포한강 그랜드 루프<span>반포한강공원 · 상·하단 순환</span></div><div class="c-anchor"><b>세빛섬 앞 광장</b> — 매표소 앞 계단 아래</div><div class="c-meta">포장 95% / ▮▯▯ / 조명</div><div class="c-walk"><span class="pending">예정</span></div></div>
+  <div class="tr"><div class="c-km">5.0<em>km</em></div><div class="c-name">서리풀–몽마르뜨 종주 5km<span>서리풀공원 · 능선</span></div><div class="c-anchor"><b>누에다리 남단</b> — 연결 다리 아래</div><div class="c-meta">흙길 80% / ▮▮▮ / 없음</div><div class="c-walk"><span class="pending">예정</span></div></div>
+  <div class="tr"><div class="c-km">7.0<em>km</em></div><div class="c-name">한강 반포–잠원 7km<span>한강 · 에픽</span></div><div class="c-anchor"><b>세빛섬 앞 광장</b> — 매표소 앞 계단 아래</div><div class="c-meta">포장 100% / ▮▯▯ / 조명</div><div class="c-walk"><span class="pending">예정</span></div></div>
+</div>
+<p class="note">축 커버리지 검산 — 새벽·야간 안전(조명) 6종 / 여름 그늘 최상 3종 / 흙길(발바닥) 3종 / 언덕 1종. 앵커는 5곳으로 수렴(세빛섬 광장·누에다리·서래섬 진입교·반포나들목·몽마르뜨 정문·반포천 입구) — 앵커가 적을수록 보호자 학습 비용과 러너 길찾기 비용이 준다. 워크 순서 추천: 세빛섬 앵커 3종을 한 번에(같은 출발점), 누에다리 2종을 한 번에.</p>
+
+<h2 class="bhs">결정 노트 — Sean 콜 4건</h2>
+<div class="legend" style="max-width:940px">
+  <div class="lg"><b>D1 · 미점검 코스 노출 자세</b> — 추천: active=true + '점검 예정' 라벨 (현행 렌더 그대로). 파일럿은 Sean 단독이라 정직 라벨로 충분하고, 외부 오너 온보딩 전 워크 완료가 진짜 게이트 (TODO 원문: "P1 for Banpo seeds before external owners book"). 반대안: active=false로 숨기고 걸을 때마다 켜기 — 워크 전까지 요청 화면이 빈다.</div>
+  <div class="lg"><b>D2 · 7km 포함</b> — 추천: 포함 (이미 시드). TODO는 2/3/5지만 다이얼이 1–10 연속인 한, 7km 코스가 없으면 6.5~10 구간이 전부 5km 코스로 최근접 매칭되어 오표기가 커진다. 빼려면 시드에서 비활성.</div>
+  <div class="lg"><b>D3 · town 필터 소스</b> — 추천: profiles.district (클럽과 동일 스코프, fetchClubOverview 전례). 구현: fetchRoutes(town) + request 캐러셀 town 필터 + 빈 결과 최근접 폴백. 별도 슬라이스 — 이 커밋은 스키마+시드+랩까지.</div>
+  <div class="lg"><b>D4 · 워크 승격 툴링 모양</b> — 파운더 워크 완주의 runs.trace를 routes.trace로 승격 + checked_at 기록 + 앵커 좌표 확정. 최소형은 SQL 스니펫 1개(runs → routes 복사), 도구형은 관리 화면. Course geo-traces TODO와 한 몸 — 추천: SQL 스니펫부터 (워크 9번이면 충분).</div>
+</div>
+
+<p class="lede" style="margin-top:36px;border-top:1px solid #232a22;padding-top:16px">
+구현 팔로업 (별도 슬라이스): ① fetchRoutes(town) + request 캐러셀 town 필터 (D3) ② 코스 카드·상세에 앵커 블록 + 메타 3축 밴드 + 슬롯 매트릭스 이식 ③ 워크 승격 SQL 스니펫 (D4) ④ 예약 시간 × 슬롯 적합 연동 (조명 없는 코스의 야간 슬롯 경고). 이 커밋에 포함된 것: 마이그레이션 0078 (스키마 7컬럼 + 유니크 키 + 반포 9종) · seed.sql town 백필 · 이 랩.
+</p>
+</body>
+</html>

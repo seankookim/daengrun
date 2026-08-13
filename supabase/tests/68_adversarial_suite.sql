@@ -37,12 +37,15 @@ declare
   ha uuid; ra uuid; ox uuid; dx uuid; rt uuid; v_club uuid; v_s uuid; sdx uuid; bx uuid;
   v_km numeric; v_js jsonb; v_err boolean;
 begin
-  ha := t_user('adv_host', 'runner');
+  -- [2026-08-13] 'adv2_host'/'적대2동' — 50_delegation_suite의 R1 블록이 'adv_host'로
+  -- '적대동' 클럽을 먼저 claim해 두므로, 같은 이름을 쓰면 club_claim_host가 not_collecting으로
+  -- 죽고 이 블록 전체(V2a~V6 6핀)가 0핀 롤백된다 (구 하네스가 그걸 조용히 삼켰던 사고 지점).
+  ha := t_user('adv2_host', 'runner');
   ra := t_user('adv_ra', 'runner'); update runners set tier = 'veteran' where profile_id = ra;
   ox := t_user('adv_ox', 'owner'); dx := t_dog(ox, '적대견');
   rt := t_route('적대 코스'); select km into v_km from routes where id = rt;
   perform set_config('request.jwt.claim.sub', ha::text, false);
-  v_club := club_request_district('적대동');
+  v_club := club_request_district('적대2동');
   perform club_claim_host(v_club);
   v_s := club_create_session(v_club, now() + interval '90 minutes', '적대 집결지', rt, 8, 'mixed');
   perform session_runner_commit(v_s);
@@ -143,9 +146,18 @@ begin
 
   -- [V6] 세그먼트 = 시작 시 생성 · 정산 시 폐쇄 + 트레이스 무결성 (순서 역전·불가능 속도 거부)
   begin
+    -- V3가 배정 철회 + 러너 이탈로 끝났으므로 재커밋·재제안·수락으로 confirmed까지 복원.
+    -- (matching → picked_up 직행은 전이 가드가 막는다 — 0066 §1 map: picked_up은 confirmed/runner_enroute에서만)
+    perform set_config('request.jwt.claim.sub', ra::text, false);
+    perform session_runner_commit(v_s); perform session_checkin(v_s);
+    -- V3의 스테일 제안이 캡 재검증 거부 후에도 캐시에 남는다 → 거절로 소거 후 재제안
+    begin perform session_proposal_respond(sdx, false); exception when others then null; end;
+    perform set_config('request.jwt.claim.sub', ha::text, false);
+    perform session_propose_dog(sdx, ra);
+    perform set_config('request.jwt.claim.sub', ra::text, false);
+    perform session_proposal_respond(sdx, true);                -- matching → confirmed
     update bookings set owner_confirmed_handoff_at = now(), runner_confirmed_handoff_at = now() where id = bx;
     update bookings set status = 'picked_up' where id = bx;
-    perform set_config('request.jwt.claim.sub', ra::text, false);
     perform club_start_delegated_runs(v_s);
     if not exists (select 1 from dog_run_segments where session_dog_id = sdx
                    and runner_profile_id = ra and left_at is null)
@@ -188,7 +200,7 @@ do $$
 declare
   ha uuid; v_club uuid; v_series uuid; v_n int; v_wd int; v_cnt int;
 begin
-  select id into ha from profiles where name = 'adv_host';
+  select id into ha from profiles where name = 'adv2_host';
   select id into v_club from clubs where host_profile_id = ha limit 1;
   perform set_config('request.jwt.claim.sub', ha::text, false);
   -- 3시간 뒤 발생하는 요일/시각 규칙 (2h 최소 통보·72h 창 안)

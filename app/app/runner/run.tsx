@@ -510,7 +510,7 @@ export default function ActiveRun() {
   const [paceStale, setPaceStale] = useState(false);
 
   // The run-start SNAPSHOT of the owner's suggestion — frozen, so a mid-run pref edit cannot
-  // move the goalpost under a runner. Pre-0078 the column does not exist and fetchRunMeta's
+  // move the goalpost under a runner. Pre-0079 the column does not exist and fetchRunMeta's
   // fallback returns null; the caption then rides the dog's current pref from the booking
   // context, and stays ABSENT if that never loaded (§6: a failed fetch is not a known 480).
   useEffect(() => {
@@ -527,7 +527,7 @@ export default function ActiveRun() {
     };
     pull();
     // The runs row is created by startRunServer, which may still be in flight — a few bounded
-    // retries, not a permanent poll (pre-0078 the answer is null forever).
+    // retries, not a permanent poll (pre-0079 the answer is null forever).
     const id = setInterval(() => {
       if (!alive || tries >= 5) { clearInterval(id); return; }
       pull();

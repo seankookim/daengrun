@@ -1,4 +1,4 @@
--- ═══ 0078 pace-state — 런 시작 스냅샷 · 롤링 윈도우 · 래치 · 페이로드 ═══
+-- ═══ 0079 pace-state — 런 시작 스냅샷 · 롤링 윈도우 · 래치 · 페이로드 ═══
 -- What this suite pins: the pace claim reaches the push job as a FIRST-CLASS prop (never folded
 -- into phase), the honesty gate refuses to claim below 0.30km/180s, the stale sweep drops the
 -- claim entirely ("무신호"와 "느림"은 절대 같아 보이면 안 된다), the run-start snapshot clamps a
@@ -16,16 +16,16 @@
 -- Every count is filtered by props' booking_id: sibling suites leave live tokens behind and
 -- owner_la_sweep_stale() sweeps the whole table.
 --
--- Trace arithmetic used below (equirectangular, the 0063/0078 shared rule: 111000 m/° lat):
+-- Trace arithmetic used below (equirectangular, the 0063/0079 shared rule: 111000 m/° lat):
 --   Δlat 0.0009   = 99.900m — 30s apart ⇒ window pace 300"/km (양호), 60s apart ⇒ 600"/km (느림)
 --   Δlat 0.000554 = 61.494m — 30s apart ⇒ window pace 488"/km (밴드 안: 480 < 488 ≤ 495)
 --   Δlat 0.00049  = 54.390m — 30s apart ⇒ window pace 552"/km (스냅샷 480이면 느림, 540이면 양호)
 --
 -- ─── MUTATION VERIFICATION (2026-08-13) ───
--- Baseline before this slice: 388/0. With 0078 + this suite: 397/0.
--- ✔ = ACTUALLY EXECUTED in this build: the revert was applied to an undamaged 0078 (file md5
+-- Baseline before this slice: 388/0. With 0079 + this suite: 397/0.
+-- ✔ = ACTUALLY EXECUTED in this build: the revert was applied to an undamaged 0079 (file md5
 --     checked before and after — an edit that matches nothing is a fake proof), the WHOLE harness
---     was re-run, the named pin went RED and nothing else moved, then 0078 was byte-restored
+--     was re-run, the named pin went RED and nothing else moved, then 0079 was byte-restored
 --     (md5 back to pristine) and 397/0 returned. Unmarked = identified revert, not executed.
 --   P1  ← delete `'paceState', v_state` from _owner_la_trace_tg's props object. NOT single-pin:
 --         it kills the payload field itself, so P2/P7/P8 (same field) go red with it.

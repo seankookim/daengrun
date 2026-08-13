@@ -93,7 +93,7 @@ export default function Live() {
   const runStartedAt = useRef<number | null>(null);
   const [elapsedSec, setElapsedSec] = useState<number | null>(null);
   // The run-start SNAPSHOT of the owner's suggestion (frozen: a mid-run pref edit cannot move
-  // the goalpost). null = not known from the run row — pre-run, or pre-0078 schema.
+  // the goalpost). null = not known from the run row — pre-run, or pre-0079 schema.
   const [runSuggestSec, setRunSuggestSec] = useState<number | null>(null);
   // LivePos carries no timestamp (geo.ts), so local ARRIVAL stamps are the honest window
   // source (plan §5) — cumulative km as broadcast, paired with when it reached this screen.
@@ -247,7 +247,7 @@ export default function Live() {
   const progressT = hasFix && targetKm != null ? Math.min(km / Math.max(targetKm, 0.1), 1) : 0;
 
   // The suggestion the caption prints. Priority: the run-start snapshot (frozen truth) → the
-  // dog's current pref from a SUCCESSFUL MeetupInfo fetch (pre-run, and pre-0078 the only
+  // dog's current pref from a SUCCESSFUL MeetupInfo fetch (pre-run, and pre-0079 the only
   // source there is; its null means the owner never set one = confirmed absent = default 480).
   // Both unknown (info never loaded / fetch failed) → null: no caption, no chip. §6's
   // fetch-fail row — defaulting to 480 against an owner who set 9'00" claims what we lack.
@@ -286,7 +286,7 @@ export default function Live() {
     pace: hasFix && hasElapsed && !stale ? paceStr(sec, km) : '',
     elapsed: hasFix && hasElapsed && !stale ? fmt(sec) : '',
     statusLine: !hasFix ? '' : stale ? `${staleMin}분째 위치가 갱신되지 않았어요` : '방금 업데이트',
-    // Local-update nicety only — the server (0078) computes the state that rides real pushes.
+    // Local-update nicety only — the server (0079) computes the state that rides real pushes.
     paceState: pace,
   };
   // Adopt-or-start (re-entry safe) + per-activity push token registration — needs real identities,

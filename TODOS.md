@@ -51,11 +51,11 @@ Deferred work, written down so it exists. Format: what / why / context / effort
   window (displayed 페이스 stays cumulative) · two states + honest absence
   (gate 0.3km+180s) · prev-latched hysteresis +15s · stale trumps pace AND
   blanks the datum · 권장-family copy (codex's 기준 overruled) · threshold
-  frozen at run start (`runs.pace_suggest_sec`, 0078; runner self-write sealed
+  frozen at run start (`runs.pace_suggest_sec`, 0079; runner self-write sealed
   via 0057 guard, pin P9) · ambient-only (no push/haptic) · live-only (never in
   runs stats/report). Prefs = dog.tsx 권장 최소 페이스 5-chip section
   (`dogs.preferences.paceSuggestSec`; updateMyDog now MERGES the jsonb).
-  ⚠ Sean-gated: `supabase db push` (0078) + device verify; `fetchRunMeta`'s
+  ⚠ Sean-gated: `supabase db push` (0079) + device verify; `fetchRunMeta`'s
   42703 fallback in api.ts comes out in the cleanup commit AFTER the push.
   Original spec kept below for provenance:
   live pace vs suggested minimum: green = at/faster than suggestion, yellow =
@@ -101,6 +101,19 @@ Deferred work, written down so it exists. Format: what / why / context / effort
   GPS on (founder task + QA), then promote good completed runs' traces (couples to the
   existing "Course geo-traces" TODO below — routes.trace is still schematic, 0001:147).
   Effort L → M. P2 (P1 for Banpo seeds before external owners book).
+  **PROGRESS (2026-08-13, /design-consultation):** schema + seeds + design lab SHIPPED
+  (0079_route_catalog.sql) — routes gains town/anchor(name·detail·lat·lng)/shade/lighting
+  + unique(town,name); 9 Banpo seeds (2×3, 3×3, 5×2, 7×1) across 5 anchors, all
+  checked_at null ('점검 예정') and trace '[]' (honesty batch: no mock polylines — founder
+  walk is the only promotion path). Note: "level" in the metadata list above was stale
+  (level system abandoned; km is the filter key — KmDial is 1–10 continuous, so catalog
+  coverage + nearest-match + mismatch badge, not exact chips). Lab:
+  docs/design/banpo-route-catalog-lab.html (card grammar pre/post-walk, request filter,
+  3-segment diagram, slot-fit matrix, founder-walk checklist, decisions D1–D4 for Sean).
+  REMAINING: ① fetchRoutes(town) + request carousel town filter ② anchor/meta/slot-fit
+  blocks on course cards + course/[id] ③ walk-promotion SQL snippet (couples with Course
+  geo-traces) ④ Sean founder-walks the 9 (checked_at + trace + anchor coords) — still
+  the gate before external owners book.
 - [x] ~~Request↔preferences screen merge~~ — OBSOLETE same night (Sean: current
   preference/scheduling scheme stays unchanged; tokens + levels abandoned; km dial
   stays). Kept for the one durable note: addons just work under post-pay (₩+₩).

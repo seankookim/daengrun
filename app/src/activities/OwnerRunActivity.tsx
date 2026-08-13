@@ -26,7 +26,7 @@ export type OwnerRunActivityProps = {
   pace: string;       // "7'02\"" or ''
   elapsed: string;    // '23:41' or ''
   statusLine: string; // '방금 업데이트' · 'N분째 위치가 갱신되지 않았어요' · '사진 4장' · ''
-  // Pace state (pace-state-ui-plan §3d) — PRECOMPUTED SERVER-SIDE by 0078's
+  // Pace state (pace-state-ui-plan §3d) — PRECOMPUTED SERVER-SIDE by 0079's
   // `_owner_la_pace_state` (the local foreground update mirrors it from src/lib/pace.ts).
   // '' = no claim: below the honesty gate, stale, done, ended. Optional so a payload written
   // by an older client (no such key) is read as '' rather than crashing the widget.

@@ -1,4 +1,4 @@
--- 0078 — pace-state rails: the run-start snapshot + the server mirror of the §1 state machine.
+-- 0079 — pace-state rails: the run-start snapshot + the server mirror of the §1 state machine.
 -- Plan: docs/plans/pace-state-ui-plan.md (§1 semantics · §4 snapshot · §5 LA payload extension).
 -- Client mirror: app/src/lib/pace.ts — ONE state machine, two implementations, exactly as
 -- `_owner_la_trace_km` (0063 §3) mirrors geo.ts's mergeFixes. If §1 changes, BOTH move.
@@ -38,7 +38,7 @@
 alter table runs add column pace_suggest_sec int;
 
 comment on column runs.pace_suggest_sec is
-  '0078 — 권장 최소 페이스 (sec/km) SNAPSHOTTED at run creation from dogs.preferences.'
+  '0079 — 권장 최소 페이스 (sec/km) SNAPSHOTTED at run creation from dogs.preferences.'
   'paceSuggestSec, clamped 420..540, default 480. Live-only quality signal: the LA rails and both '
   'live screens read THIS, never dogs.preferences, so a mid-run pref edit cannot move the '
   'goalpost. Never money-bearing, never aggregated into runner stats.';
@@ -70,7 +70,7 @@ begin
     or new.started_at         is distinct from old.started_at
     or new.ended_at           is distinct from old.ended_at
     or new.booking_id         is distinct from old.booking_id
-    or new.pace_suggest_sec   is distinct from old.pace_suggest_sec   -- [0078] 스냅샷 동결
+    or new.pace_suggest_sec   is distinct from old.pace_suggest_sec   -- [0079] 스냅샷 동결
     then
       raise exception 'run_protected_columns'
         using detail = '거리·시간·페이스·종료사유는 서버(정산)만 기록해요 — 클라는 events/photos/trace만';
@@ -126,7 +126,7 @@ create trigger runs_pace_snapshot before insert on runs
 revoke execute on function _runs_pace_snapshot_tg() from public, anon, authenticated;
 
 comment on function _runs_pace_snapshot_tg is
-  '0078 — before-insert on runs: snapshots dogs.preferences.paceSuggestSec into '
+  '0079 — before-insert on runs: snapshots dogs.preferences.paceSuggestSec into '
   'runs.pace_suggest_sec, server-clamped 420..540 (default 480). Catches all three runs writers '
   '(start_run edge fn · club_start_delegated_runs · settle_run_tx backstop) in one place.';
 
@@ -195,7 +195,7 @@ end $$;
 revoke execute on function _owner_la_window_pace(jsonb,int) from public, anon, authenticated;
 
 comment on function _owner_la_window_pace is
-  '0078 — rolling-window pace (sec/km) over runs.trace: last p_window_ms of trace, same billable '
+  '0079 — rolling-window pace (sec/km) over runs.trace: last p_window_ms of trace, same billable '
   'segment rule as _owner_la_trace_km. null when the window holds no billable distance. Server '
   'mirror of pace.ts windowPaceSec().';
 
@@ -234,7 +234,7 @@ $$;
 revoke execute on function _owner_la_pace_state(text,int,numeric,int,int) from public, anon, authenticated;
 
 comment on function _owner_la_pace_state is
-  '0078 — plan §1 state machine, server mirror of pace.ts paceState(): honesty gate (0.30km/180s), '
+  '0079 — plan §1 state machine, server mirror of pace.ts paceState(): honesty gate (0.30km/180s), '
   'null-window ⇒ '''', prev-aware hysteresis latch (good→slow at suggest+15, slow→good at suggest). '
   'Stale is not a parameter — the stale/done/ended paths hard-set '''' at the call site.';
 
@@ -262,7 +262,7 @@ language plpgsql security definer set search_path = public, pg_temp as $$
 declare
   v_status text; v_dog text; v_runner text; v_target numeric;
   v_km numeric; v_sec int; v_props jsonb;
-  v_prev text; v_suggest int; v_window int; v_state text;   -- [0078]
+  v_prev text; v_suggest int; v_window int; v_state text;   -- [0079]
 begin
   if not exists (select 1 from owner_la_tokens t where t.booking_id = new.booking_id) then
     return new;
@@ -282,7 +282,7 @@ begin
 
   v_sec := greatest(0, floor(extract(epoch from (now() - coalesce(new.started_at, now()))))::int);
 
-  -- [0078] the claim. Note what it reads: new.pace_suggest_sec (the SNAPSHOT on this run row),
+  -- [0079] the claim. Note what it reads: new.pace_suggest_sec (the SNAPSHOT on this run row),
   -- never dogs.preferences — the freeze law is enforced by where the number comes from.
   select t.last_state->>'paceState' into v_prev
     from owner_la_tokens t
@@ -302,7 +302,7 @@ begin
     'pace', _owner_la_fmt_pace(v_sec, v_km),
     'elapsed', _owner_la_fmt_elapsed(v_sec),
     'statusLine', '방금 업데이트',
-    'paceState', v_state);                                   -- [0078]
+    'paceState', v_state);                                   -- [0079]
   perform _owner_la_push(new.booking_id, 'update', v_props);
   return new;
 exception when others then
@@ -352,7 +352,7 @@ begin
       'pace', '',
       'elapsed', '',
       'statusLine', v_line,
-      'paceState', '');                                      -- [0078] stale never carries a claim
+      'paceState', '');                                      -- [0079] stale never carries a claim
     v_n := v_n + _owner_la_push(r.booking_id, 'update', v_props, null, 0);
   end loop;
   return v_n;
@@ -390,14 +390,14 @@ begin
       'pace', '',
       'elapsed', case when v_sec is null then '' else _owner_la_fmt_elapsed(v_sec) end,
       'statusLine', case when v_photos > 0 then '사진 ' || v_photos || '장' else '' end,
-      'paceState', '');                                      -- [0078]
+      'paceState', '');                                      -- [0079]
     perform _owner_la_push(new.id, 'end', v_props, 480, 0);
     delete from owner_la_tokens where booking_id = new.id;
   elsif new.status = 'incident_review' and old.status in ('picked_up', 'active') then
     v_props := jsonb_build_object(
       'phase', 'ended', 'dogName', v_dog, 'runnerName', v_runner,
       'km', '', 'targetKm', '', 'pace', '', 'elapsed', '', 'statusLine', '',
-      'paceState', '');                                      -- [0078]
+      'paceState', '');                                      -- [0079]
     perform _owner_la_push(new.id, 'end', v_props, 0, 0);
     delete from owner_la_tokens where booking_id = new.id;
   end if;

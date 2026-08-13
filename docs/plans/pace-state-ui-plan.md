@@ -279,8 +279,9 @@ never carries meaning alone (a11y): the chip always has its text label.
   same inputs (shared helper in `src/lib/pace.ts` — ONE implementation of §1 for
   all client surfaces; the SQL fn is its server mirror, like `_owner_la_trace_km`
   mirrors `mergeFixes`).
-- Migration number: next free at build time (0078 if the charge slice hasn't
-  landed; renumber if it has).
+- Migration number: **0079** — 0078 was taken by the Banpo route catalog (3723a34,
+  landed on redesign-v4 mid-slice). Renumbered at merge exactly as this line
+  anticipated; the collision would have broken `db push`.
 
 ## §6 Edge cases (each is a designed state, not an accident)
 
@@ -408,11 +409,11 @@ finding above. Checkbox as you ship.
   - Verify: tsc; §E truth table walked on sim
 - [ ] **T5 (P1, human: ~4h / CC: ~25min)** — LA + rails — paceState prop through
   both activities (Ⓒ② pill, footer Text split), laProps call sites, migration
-  0078 (`runs.pace_suggest_sec` snapshot + `_owner_la_window_pace` +
+  0079 (`runs.pace_suggest_sec` snapshot + `_owner_la_window_pace` +
   `_owner_la_pace_state` + trigger wiring) + suite pins P1–P8
   - Surfaced by: D12 pick + blind F8 + §5 design
   - Files: app/src/activities/*.tsx, app/src/lib/runActivity.ts,
-    app/src/lib/ownerActivity.ts, supabase/migrations/0078_pace_state.sql,
+    app/src/lib/ownerActivity.ts, supabase/migrations/0079_pace_state.sql,
     supabase/tests/115_pace_state_suite.sql
   - Verify: SQL harness green (388+/0)
 - [ ] **T6 (P3, human: ~10min / CC: ~2min)** — docs — TODOS.md: mark the

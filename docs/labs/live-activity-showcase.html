@@ -123,7 +123,7 @@
 <h1>Live Activity Showcase</h1>
 <p class="law">SHIPPED STATES · BOTH WIDGETS · 25034B1</p>
 <p class="sub">2026-08-13 · 소스: <code>app/src/activities/RunActivity.tsx</code> · <code>app/src/activities/OwnerRunActivity.tsx</code> ·
-  <code>supabase/migrations/0063_owner_live_activity.sql</code> · <code>0078_pace_state.sql</code> ·
+  <code>supabase/migrations/0063_owner_live_activity.sql</code> · <code>0079_pace_state.sql</code> ·
   <code>docs/plans/pace-state-ui-plan.md</code> §3c/§3d/§6.
   <b>상상한 게 아니라 지금 빌드에 들어 있는 뷰 전부</b>를 HTML로 옮긴 것.</p>
 
@@ -133,7 +133,7 @@
   백그라운드 위치 픽스가 JS를 깨워 계속 살아 있음 — 앱을 스와이프로 죽이면 배너도 같이 죽습니다).
   <b>보호자 LA</b>는 보호자 앱이 자고 있는 게 정상이라 <b>0063 레일</b>(runs.trace 저장 → 트리거 → 릴레이 → APNs)이 그립니다.
   <br><br>
-  <b>0078은 페이스 확장</b>입니다: <code>_owner_la_window_pace</code>(<span class="num">180</span>초 롤링 윈도우) +
+  <b>0079은 페이스 확장</b>입니다: <code>_owner_la_window_pace</code>(<span class="num">180</span>초 롤링 윈도우) +
   <code>_owner_la_pace_state</code>(게이트·히스테리시스 래치)가 <b>서버에서</b> 계산해 <code>paceState</code>를 페이로드에 태웁니다.
   위젯은 계산하지 않습니다 — <b>문자열이 비었는지만 봅니다.</b>
   <br><br>
@@ -522,7 +522,7 @@
   </div>
 </div>
 
-<h2>B. 보호자 LA — <code>OwnerRunActivity.tsx</code> + 0063/0078 레일</h2>
+<h2>B. 보호자 LA — <code>OwnerRunActivity.tsx</code> + 0063/0079 레일</h2>
 <p class="sub">위상 <span class="num">5</span>개(<code>pre · running · stale · done · ended</code>)가 <b>필 라벨 · 숫자 색 · 푸터 구조</b>를 전부 결정합니다.
   숫자가 없는 위상은 <code>km: ''</code>로 오고 위젯이 <b>제목/푸터 쌍</b>으로 갈아탑니다 — <b>0.00을 절대 그리지 않습니다</b>.</p>
 
@@ -630,7 +630,7 @@
       </div>
     </div>
     <div class="meta">
-      <span class="flag ok">0078 running 경로</span>
+      <span class="flag ok">0079 running 경로</span>
       <p class="note">조건 <span class="num">3</span>개가 전부 참이어야 그려집니다: <code>phase === 'running'</code> AND <code>pace !== ''</code> AND <code>paceState !== ''</code>.
         <b>경과는 dim을 유지</b>하고 페이스만 필 옆에 섭니다 — 필이 무엇을 수식하는지 화살표 없이 자명하게.</p>
       <p class="note"><code>'방금 업데이트'</code>는 <b>서버만 씁니다</b>(<code>_owner_la_trace_tg</code>). 푸시가 안 오면 이 문구도 안 옵니다 —
@@ -904,7 +904,7 @@
   <div class="hop">
     <div class="hopn">5</div>
     <div class="hopb">
-      <div class="hopt">0078 페이스 계산 <span class="mono">_owner_la_window_pace</span> + <span class="mono">_owner_la_pace_state</span></div>
+      <div class="hopt">0079 페이스 계산 <span class="mono">_owner_la_window_pace</span> + <span class="mono">_owner_la_pace_state</span></div>
       <p class="hopc">윈도우는 <b>마지막 <span class="num">180</span>초의 채택 trace</b>(화면의 누적 평균과 다른 숫자 — 두 숫자, 두 역할).
         임계값은 <code>runs.pace_suggest_sec</code> <b>스냅샷</b>이라 러닝 중 보호자가 설정을 바꿔도 골대가 안 움직입니다.
         래치의 기억(<code>prev</code>)은 <b>토큰 한 행에서 한 번</b> 읽어 전 토큰에 팬아웃 — 보호자의 폰과 아이패드가 같은 러닝을 두고 다르게 말하지 않게.</p>
