@@ -229,6 +229,23 @@ Deferred work, written down so it exists. Format: what / why / context / effort
   a strict SUBSET of `settle-run`'s `CLIENT_END_REASONS`; freezing a reason settle-run
   refuses strands the run permanently (runner never paid, booking never leaves `active`).
   The two must move in the SAME commit. ⑨'s memo lists six items and this is not among them.
+- [~] **OTA refresh (D-r4 part 2) — CONFIGURED 2026-08-13, needs Sean's rebuild.**
+  `expo-updates` installed, `app.json` gains `updates.url` + `runtimeVersion`, `eas.json` gains
+  one channel per profile. **Sean's step, and only his:** `npx expo prebuild -p ios --clean` +
+  a new build, then `eas update --branch <channel>` publishes JS-only fixes to installed apps.
+  Three decisions recorded here because they are safety-relevant, not taste:
+  · **`runtimeVersion.policy = "fingerprint"`, NOT `appVersion`.** This app ships a custom native
+    module (`modules/instagram-share`) and changes native deps often. Under `appVersion` an OTA
+    payload can reach a binary lacking a native module the JS now requires — a launch crash,
+    delivered by us, to phones we cannot reach. `fingerprint` invalidates automatically when
+    native code changes, so an incompatible update is never eligible.
+  · **`fallbackToCacheTimeout: 0` and NO forced reload.** The app starts on the cached bundle and
+    applies an update at the NEXT cold start. A reload-now flow would be able to restart the app
+    **mid-run**, during GPS tracking, which is the one moment this product cannot survive being
+    interrupted. Do not add `Updates.reloadAsync()` to a foreground handler.
+  · **One channel per build profile**, so a preview OTA can never reach a store build.
+  ⚠ It does NOT retroactively help binaries already installed — those lack the updates runtime —
+  so it must ship BEFORE a real user population exists. Today that is ~Sean's devices.
 - [ ] **Two switches ship NULL and are Sean's to flip**: `ops_flags.return_seal_since` (the
   seal gate cannot be enforced universally — it would redden ~60 existing pins and strand
   runs on phones already in pockets, so new-flow bookings are gated from day one and the
