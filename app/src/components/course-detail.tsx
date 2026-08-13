@@ -19,6 +19,26 @@ import { paper } from '../theme';
 const SHADE_BAR: Record<string, string> = { high: '▮▮▮', mid: '▮▮▯', low: '▮▯▯' };
 const LIGHT_TXT: Record<string, string> = { lit: '조명', partial: '부분', none: '없음' };
 
+/**
+ * 이 코스의 선이 **무엇을 주장할 수 있는지**. 화면마다 다시 유도하지 않도록 여기 한 곳에 둔다.
+ *
+ * 예전엔 모든 화면이 `trace.length > 1`을 '실측'과 같다고 봤다. 트레이스가 전부 비어 있던
+ * 동안에는 그 등식이 우연히 참이었지만, 시드 지오메트리(`source='algo'`)가 들어오는 순간
+ * **거짓말이 된다** — 아무도 달려보지 않은 선을 실측 지도로 그리게 되기 때문이다.
+ * 실측의 유일한 근거는 승격(status==='active')이다. 0082가 이 어휘를 미리 깔아 뒀다.
+ */
+export type TraceKind = 'verified' | 'planned' | 'none';
+export function traceKind(r: { status: RouteInfo['status']; source: RouteInfo['source']; trace: unknown[] }): TraceKind {
+  if (r.trace.length < 2) return 'none';
+  return r.status === 'active' ? 'verified' : 'planned';
+}
+/** 지도 위/옆에서 선이 무엇인지 한 줄로. verified면 아무 말도 하지 않는다 — 기본값이므로. */
+export const TRACE_NOTE: Record<TraceKind, string | null> = {
+  verified: null,
+  planned: '지도의 선은 예정 경로예요 — 첫 반려견 동반 러닝이 실측 지도를 만들어요',
+  none: null,
+};
+
 /** 라이프사이클 줄 — 색만으로 말하지 않는다(a11y 계약): 항상 문장이 함께 간다. */
 export function CourseLifecycleLine({ route }: { route: RouteInfo }) {
   if (route.status === 'suspended') {

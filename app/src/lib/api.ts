@@ -34,13 +34,14 @@ interface RouteRow {
   shade: RouteInfo['shade'];
   lighting: RouteInfo['lighting'];
   status: RouteInfo['status'];
+  source: RouteInfo['source'];
   town: string | null;
 }
 
 // 목록 셀렉트는 전체 trace를 절대 싣지 않는다 — 승격된 코스 하나가 수백 점이고, T1 임계(15-20 코스)에서
 // 마운트마다 MB급이 된다. 상세만 fetchRouteById로 전체를 받는다.
-const ROUTE_LIST_COLS = 'id,name,area,km,terrain,tags,features,trace_thumb,checked_at,status,town,shade,lighting';
-const ROUTE_FULL_COLS = 'id,name,area,km,terrain,tags,features,trace,trace_thumb,checked_at,status,town,shade,lighting';
+const ROUTE_LIST_COLS = 'id,name,area,km,terrain,tags,features,trace_thumb,checked_at,status,source,town,shade,lighting';
+const ROUTE_FULL_COLS = 'id,name,area,km,terrain,tags,features,trace,trace_thumb,checked_at,status,source,town,shade,lighting';
 
 function toRouteInfo(r: RouteRow, geo: GeoRoutePoint[] | null): RouteInfo {
   return {
@@ -54,6 +55,7 @@ function toRouteInfo(r: RouteRow, geo: GeoRoutePoint[] | null): RouteInfo {
     checkedAt: fmtChecked(r.checked_at),
     desc: composeDesc(r),
     status: r.status,
+    source: r.source ?? null,
     shade: r.shade ?? null,
     lighting: r.lighting ?? null,
     trace: geo && geo.length > 0 ? geo : [],
