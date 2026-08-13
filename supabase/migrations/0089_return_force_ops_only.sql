@@ -22,7 +22,10 @@
 --
 -- ═══ §2 WHAT THIS FILE DOES ══════════════════════════════════════════════════════════════
 --   · the CHECK on `bookings.return_forced_by` narrows to `('ops')`
---   · `force_return_tx` refuses `runner` and `owner` at the door (`bad_side`)
+--   · `force_return_tx` refuses `runner` and `owner` at the door with **`force_party_forbidden`**
+--     — a NAMED refusal, not `bad_side`. The caller is asking for something the product used to
+--     allow, so the honest answer names the rule rather than pretending the value was never
+--     understood. (`bad_side` survives for a genuinely unknown side.)
 --   · **no force writes any party's confirmation stamp, ever.** An ops resolution now leaves
 --     both stamps NULL and sets only `settlement_ready_at` — which is the honest shape: nobody
 --     confirmed, an adjudicator resolved. Reading that row later, you can tell those apart.
@@ -113,7 +116,12 @@ begin
       v_settled := _settle_sealed_run(p_booking, p_quote);
     end if;
     return jsonb_build_object(
-      'forced', false, 'forced_by', b.return_forced_by, 'sealed', true,
+      -- `eligible_at` is echoed for shape-compatibility with 0083's response and is NULL from
+      -- 0089 onward (see the update below). Dropping the key silently would have been an
+      -- undocumented change to a contract inside a file whose thesis is "the record is what a
+      -- dispute reads" — flagged on review, restored rather than removed.
+      'forced', false, 'forced_by', b.return_forced_by,
+      'eligible_at', b.return_eligible_at, 'sealed', true,
       'settled', coalesce((v_settled->>'settled')::boolean, false),
       'unchanged', coalesce((v_settled->>'unchanged')::boolean, true));
   end if;
@@ -123,9 +131,12 @@ begin
       return_forced_at      = v_now,
       return_force_reason   = p_reason,
       return_force_evidence = p_evidence,
-      -- ops is eligible from the stop — there is no waiting period to record, and inventing one
-      -- would imply a grace that no longer exists for anyone.
-      return_eligible_at    = b.run_ended_at,
+      -- [0089, corrected on review] `return_eligible_at` is NOT written. With the party path
+      -- gone there is no waiting period for anyone, so the column would always equal
+      -- `run_ended_at` — a cache of something derivable, which 0083 §1 explicitly forbids of
+      -- this schema ("never a cache of anything derivable"). The concept retired with the
+      -- grace; the column stays only because rows written before 0089 could carry it (there are
+      -- none — §5). Leaving it NULL is what makes "no grace exists" readable in the data.
       -- 🔴 [0089 §2] NO party stamp is written. 0083 wrote the forcing side's own confirmation
       -- and called it "implied by the act". Under the ruling it is implied by nothing: an
       -- adjudication resolves a return, it does not confirm one. Both stamps stay as they were.

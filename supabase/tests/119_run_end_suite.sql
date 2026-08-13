@@ -603,14 +603,19 @@ begin
         then v_bad := v_bad || ' 정지 직후 ops 강제가 기록되지 않았다'; end if;
     exception when others then v_bad := v_bad || ' 정지 직후 ops 강제 거부=' || sqlerrm;
     end;
+    -- [0089, review fix] return_eligible_at must be NULL: with the party path gone there is no
+    -- waiting period for anyone, so writing it would always equal run_ended_at — a cache of a
+    -- derivable value, which 0083 §1 forbids of this schema. NULL is what makes "no grace exists"
+    -- readable in the data rather than inferable from a rule.
     select b.return_eligible_at, b.run_ended_at into v_ts, v_ts2 from bookings b where b.id = b_a;
-    if v_ts is distinct from v_ts2
-      then v_bad := v_bad || ' 자격 시각이 정지 시각이 아니다 (유예가 살아 있다)'; end if;
+    if v_ts is not null
+      then v_bad := v_bad || ' 자격 시각이 기록됐다 (파생값 캐시 — 0083 §1 금지)'; end if;
+    if v_ts2 is null then v_bad := v_bad || ' 정지 시각 미기록'; end if;
     if (select b.status::text from bookings b where b.id = b_a) <> 'completed'
       then v_bad := v_bad || ' 정지 직후 ops 강제가 정산하지 않았다'; end if;
 
     if v_bad = ''
-      then call _pass('ren','R5 강제는 운영 판정이다 — 러너·보호자의 강제는 폰에서도 서버 대리 호출에서도 force_party_forbidden(Sean: "확인은 양측이 함께, 러너 혼자서는 절대"), ops 경로는 증거·사유가 없으면 거부, 폰이 자칭한 ops는 not_party, 거부는 강제도 씰도 남기지 않는다 — 그리고 유예는 사라졌다: 정지 직후 ops 강제가 성사되고 자격 시각은 정지 시각 그대로다');
+      then call _pass('ren','R5 강제는 운영 판정이다 — 러너·보호자의 강제는 폰에서도 서버 대리 호출에서도 force_party_forbidden(Sean: "확인은 양측이 함께, 러너 혼자서는 절대"), ops 경로는 증거·사유가 없으면 거부, 폰이 자칭한 ops는 not_party, 거부는 강제도 씰도 남기지 않는다 — 그리고 유예는 사라졌다: 정지 직후 ops 강제가 성사되고 자격 시각은 기록되지 않는다(유예가 없으니 파생 캐시를 두지 않는다)');
     else v_msg := v_bad; call _fail('ren','R5 강제는 운영 판정', v_msg); end if;
   exception when others then perform set_config('request.jwt.claim.sub', '', false);
     v_msg := sqlerrm; call _fail('ren','R5 강제는 운영 판정', v_msg);
@@ -648,14 +653,11 @@ begin
     select b.return_forced_by, b.return_forced_at, b.return_eligible_at, b.return_force_reason
       into v_txt, v_ts, v_ts2, v_msg from bookings b where b.id = b_a;
     if v_txt is distinct from 'ops' then v_bad := v_bad || ' 행위자=' || coalesce(v_txt,'∅'); end if;
-    if v_ts is null or v_ts2 is null then v_bad := v_bad || ' 강제 시각/자격 시각 미기록'; end if;
+    if v_ts is null then v_bad := v_bad || ' 강제 시각 미기록'; end if;
+    if v_ts2 is not null then v_bad := v_bad || ' 자격 시각이 기록됐다 (파생값 캐시)'; end if;
     if coalesce(v_msg,'') = '' then v_bad := v_bad || ' 사유 미기록'; end if;
     if (select b.return_force_evidence->>'kind' from bookings b where b.id = b_a) is distinct from 'ops_review'
       then v_bad := v_bad || ' 증거 미기록'; end if;
-    -- eligibility is the SERVER's clock on the stop stamp — and it is the stop ITSELF now, not a
-    -- stop-plus-grace: inventing a waiting period would imply a grace nobody is subject to.
-    if v_ts2 is distinct from (select b.run_ended_at from bookings b where b.id = b_a)
-      then v_bad := v_bad || ' 자격 시각이 정지 시각이 아니다'; end if;
 
     -- 🔴 THE RULING ITSELF: the force wrote NEITHER party's confirmation.
     if (select b.runner_confirmed_return_at from bookings b where b.id = b_a) is not null
@@ -692,7 +694,7 @@ begin
     if v_n <> 1 then v_bad := v_bad || ' 원장 행수=' || v_n; end if;
 
     if v_bad = ''
-      then call _pass('ren','R6 강제 기록 — ops 강제는 행위자=ops·자격 시각(=정지 시각)·사유·증거를 남기고 같은 트랜잭션에서 동결값으로 정산하되, 🔴 어느 쪽의 확인 스탬프도 찍지 않는다(씰만 찍힌다 — "아무도 확인 안 함, 운영이 판정함"이 읽히는 모양), 두 번째 강제는 첫 결론을 덮지 않고, 정산된 뒤에도 당사자 강제는 force_party_forbidden (원장 1행)');
+      then call _pass('ren','R6 강제 기록 — ops 강제는 행위자=ops·강제 시각·사유·증거를 남기되 자격 시각은 남기지 않고(파생 캐시 금지) 같은 트랜잭션에서 동결값으로 정산하되, 🔴 어느 쪽의 확인 스탬프도 찍지 않는다(씰만 찍힌다 — "아무도 확인 안 함, 운영이 판정함"이 읽히는 모양), 두 번째 강제는 첫 결론을 덮지 않고, 정산된 뒤에도 당사자 강제는 force_party_forbidden (원장 1행)');
     else v_msg := v_bad; call _fail('ren','R6 강제 기록', v_msg); end if;
   exception when others then perform set_config('request.jwt.claim.sub', '', false);
     v_msg := sqlerrm; call _fail('ren','R6 강제 기록', v_msg);
