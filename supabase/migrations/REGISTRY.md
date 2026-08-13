@@ -37,7 +37,8 @@ touched it and name whose version you build on in your file header.
 | 0082 | `0082_route_ladder.sql` | 118 | **route session** (반포 route catalog / route discovery; landed via the main checkout, `a95aa34`) | on origin/redesign-v4 — settled |
 | 0083 | `0083_run_end_flow.sql` | 119 | run-end-flow (`claude/run-end-flow-1a67e0`) | **SETTLED 2026-08-13** — on disk, in build |
 | 0084 | `0084_g1_ops_cutover.sql` | 120 | payments (`claude/g1-ops-club-decisions`) | **SETTLED 2026-08-13** — on disk, in build |
-| 0085 | *(next free)* | 121 | — | available |
+| 0085 | `0085_cancel_share.sql` | 121 | ⑩ cancel-fee runner share (`claude/club-delegation-money-gaps-b59eb8`) | **CLAIMED 2026-08-13** — in build |
+| 0086 | *(next free)* | 122 | — | available |
 
 ## Standing conflicts to resolve
 
