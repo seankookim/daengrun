@@ -61,9 +61,12 @@ discusses 안심번호 — prior art to read rather than re-derive.
 ## 4. 🟡 ⑫ — the three rulings
 
 Does a marketplace incident get its own settle path or become a second caller of 0072's
-adjudication · is the runner paid while it is open · what ends the state. Codex's analysis is
-attached to [marketplace-incident-exit.md](marketplace-incident-exit.md) as **🔵 CODEX** when it
-returns; status stays 🟡. This is the same class as G1, where he overrode both sessions'
+adjudication · is the runner paid while it is open · what ends the state. Codex's analysis is now
+attached to [marketplace-incident-exit.md](marketplace-incident-exit.md) as **🔵 CODEX** (status
+stays 🟡). It answers all three and then **explicitly refuses one**, which is the question to
+put to Sean first: *when both sides verify an incident but fault is unresolved after the SLA,
+should the platform absorb a normal measured runner payout at owner ₩0?* Codex recommends yes
+and declines to encode it, because it is a deliberate platform loss outside 0072's model. This is the same class as G1, where he overrode both sessions'
 recommendations with a third option neither had proposed.
 
 ## 5. 🟡 ⑪ ownership, and ⑪-before-⑫ sequencing

@@ -85,6 +85,22 @@ just a file name.
 derived `/tmp/dr<NN>` from `0085` and `rm -rf`'d each other's postmaster mid-run — which
 presents as a migration file vanishing halfway through an apply, a failure mode that looks
 like disk corruption and is actually a collision.
+## The class behind most of this: a shared machine + an identifier that is not unique
+
+Three instances on 2026-08-13, and naming the class is worth more than any of the fixes:
+
+| instance | the non-unique identifier | fix |
+|---|---|---|
+| migration numbers ×7 | "next free", derived independently per session | claim on origin + pre-push hook |
+| `/tmp/dr85` | temp harness dir derived from the **migration number** | name it after the SESSION |
+| `pkill -f postgres` | `harness.sh` handed postgres a **relative** `-D`, so every session's command line was byte-identical | absolute `PGDATA` |
+
+**Every time, the correct fix made the identifier unique AT THE SOURCE** rather than asking
+people to be careful with it. That is the same argument as the pre-push hook, and it predicts
+where the fourth comes from: **anywhere we derive a name from shared state instead of from the
+session.** Read it alongside collision seven's *"a guard on one step invites delegation of the
+next"* — together they cover most of this repo's observed failure modes.
+
 ## NEVER auto-resolve a conflict in THIS file by picking a winner
 
 **Collision seven (2026-08-13), and the hook cannot see it.** An automated merge resolver
