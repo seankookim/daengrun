@@ -1,4 +1,4 @@
--- ═══ 0078: the settle-time CHARGE MACHINE — post-pay, per-run, invisible ═══
+-- ═══ 0080: the settle-time CHARGE MACHINE — post-pay, per-run, invisible ═══
 --
 -- Source of truth: `docs/plans/payments-toss-plan.md` §0-bis (Sean, 2026-08-12 — two-way
 -- payments become one way: per-run, INVISIBLE, POST-PAY) and §0-ter (the engineering pass that
@@ -47,11 +47,11 @@
 -- ═══ §0d DEPLOY STEPS THAT ARE SEAN'S — IN THIS ORDER (a migration cannot do them) ═══
 -- The ordering is load-bearing, not tidiness: three edge functions in this slice call SQL that
 -- exists only after this file applies, and one of them FAILS CLOSED without it.
---   ① `supabase db push` — THIS MIGRATION FIRST. What each pre-0078 function deploy breaks,
+--   ① `supabase db push` — THIS MIGRATION FIRST. What each pre-0080 function deploy breaks,
 --      concretely (read before deciding to "just ship the functions"):
 --        · create-booking-hold — the debt gate (`owner_has_unsettled_charge`,
 --          create-booking-hold/handler.ts:53) turns an RPC error into a 500 deliberately (a money
---          gate that fails open is not a gate), so EVERY booking creation fails until 0078 lands.
+--          gate that fails open is not a gate), so EVERY booking creation fails until 0080 lands.
 --          This is the hard block, and the reason nothing else in the list may go first.
 --        · settle-run — `mint_settle_charge_intent` errors are caught (settle-run/handler.ts:187):
 --          settlement still succeeds and the runner is still paid, but every run reports
@@ -85,7 +85,7 @@
 -- self-contained migration · adversarial cycle · mutation-proven pins · every definer carries
 -- `set search_path = public, pg_temp` (98 H1 fails the harness otherwise — ALTER-applied config
 -- is reset by `create or replace`) · party gate before state gate · no derived cache columns.
--- Pins: `115_charge_suite.sql` (C1–C25) + `90_race_check.sh` RD/RE (the two concurrency claims:
+-- Pins: `116_charge_suite.sql` (C1–C25) + `90_race_check.sh` RD/RE (the two concurrency claims:
 -- one mint per booking, one compensation row per booking), plus the pins this file must NOT break:
 -- 109 P4-P11 (payments shape), 100 W7/W10 (hold expiry + ACL preservation), 20 G1-G9/A4
 -- (recurring), 110 S1-S6 (incident settlement).
@@ -110,10 +110,10 @@ create table if not exists billing_keys (
 alter table billing_keys enable row level security;
 
 comment on table billing_keys is
-  '0078 §A: 빌링키 storage. SEALED — RLS on, zero policies; server (service_role) only.
+  '0080 §A: 빌링키 storage. SEALED — RLS on, zero policies; server (service_role) only.
 The key is a bearer credential; clients see only my_billing_card() (brand/last4/linked_at)';
 comment on column billing_keys.billing_key is
-  '0078: Toss billingKey. NEVER exposed to any client surface — not in an RPC return, not in raw';
+  '0080: Toss billingKey. NEVER exposed to any client surface — not in an RPC return, not in raw';
 
 -- Card state for the owner's own settings screen. Zero rows = no card linked (an honest empty
 -- state, not an error). definer because the table is sealed; auth.uid()-scoped so the definer
@@ -131,7 +131,7 @@ revoke execute on function my_billing_card() from public, anon;
 grant execute on function my_billing_card() to authenticated;
 
 comment on function my_billing_card is
-  '0078 §A: the owner''s own card, display fields only (brand/last4/linked_at). auth.uid()-scoped;
+  '0080 §A: the owner''s own card, display fields only (brand/last4/linked_at). auth.uid()-scoped;
 zero rows = no card. billing_key itself has no place in this return shape and never will';
 
 -- ═══════════════════════════════════════════════════════════════════════════════════════
@@ -161,7 +161,7 @@ alter table payments add constraint payments_waived_is_zero
   check (status <> 'waived' or (amount = 0 and payment_key is null));
 
 comment on column payments.status is
-  '0078: pending(intent) → confirmed | failed | canceled; waived = deliberate zero-amount
+  '0080: pending(intent) → confirmed | failed | canceled; waived = deliberate zero-amount
 non-charge (G1 abort / ~0 runner_personal) that keeps invariant #1 exception-free.
 partial_canceled remains vocabulary nobody writes (toss-plan §5-4)';
 
@@ -187,12 +187,12 @@ insert into ops_flags (id) values (true) on conflict (id) do nothing;
 alter table ops_flags enable row level security;
 
 comment on table ops_flags is
-  '0078 §C: single-row ops switchboard. payments_live_since = THE post-pay cutover moment, NULL
+  '0080 §C: single-row ops switchboard. payments_live_since = THE post-pay cutover moment, NULL
 until Sean sets it (see the file header §0c). SEALED — RLS on, zero policies; nothing
 client-side reads or writes it. NULL = the mints write nothing and the invariant-#1 sweep does
 nothing; once set, only runs that ended AT OR AFTER it are ever charged (no retroactive billing)';
 comment on column ops_flags.payments_live_since is
-  '0078: NULL = charging off. A moment rather than a boolean so the flip cannot retroactively
+  '0080: NULL = charging off. A moment rather than a boolean so the flip cannot retroactively
 charge pilot-era runs, and so no pending intent exists pre-cutover for the stale sweep to turn
 into false debt (Unit B report, 2026-08-13)';
 
@@ -299,7 +299,7 @@ revoke execute on function compute_owner_charge(uuid, text, numeric) from public
 grant execute on function compute_owner_charge(uuid, text, numeric) to service_role;
 
 comment on function compute_owner_charge is
-  '0078 §D: THE owner charge basis table (toss-plan §0-ter). Frozen booking numbers only ·
+  '0080 §D: THE owner charge basis table (toss-plan §0-ter). Frozen booking numbers only ·
 basis = min(actual, planned) · owner_request/owner_forced = exactly planned (D2) ·
 runner_personal = distance component only (#10) · dog_condition/incident = 0 / g1_waive
 (🔴 Sean''s open G1 call, provisional) · 0 < amount < 100 = 0 / below_pg_minimum (the PG refuses
@@ -406,7 +406,7 @@ revoke execute on function mint_settle_charge_intent(uuid, text, numeric) from p
 grant execute on function mint_settle_charge_intent(uuid, text, numeric) to service_role;
 
 comment on function mint_settle_charge_intent is
-  '0078 §E: idempotent single-truth minting of the settle-time charge intent. Zero rows while
+  '0080 §E: idempotent single-truth minting of the settle-time charge intent. Zero rows while
 ops_flags.payments_live_since is null or the run ended before it (no pre-cutover intents, no
 retroactive billing — §0c). Otherwise returns the existing row with minted=false rather than
 ever writing a second one — which holds under CONCURRENCY only because of the per-booking
@@ -475,7 +475,7 @@ revoke execute on function mint_cancel_fee_intent(uuid) from public, anon, authe
 grant execute on function mint_cancel_fee_intent(uuid) to service_role;
 
 comment on function mint_cancel_fee_intent is
-  '0078 §E: the 0066 cancel fee as a charge intent on the same rails (§0-ter #5). Zero rows
+  '0080 §E: the 0066 cancel fee as a charge intent on the same rails (§0-ter #5). Zero rows
 pre-cutover (payments_live_since null → the fee stays recorded-only, today''s behavior).
 Mirrors the settle mint''s exists-check AND its per-booking advisory lock (both mints share the
 ''mint:'' key, so they serialize against each other too); fee 0 mints nothing at all (§0-ter #13 — matching
@@ -531,7 +531,7 @@ revoke execute on function owner_has_unsettled_charge(uuid) from public, anon, a
 grant execute on function owner_has_unsettled_charge(uuid) to service_role;
 
 comment on function owner_has_unsettled_charge is
-  '0078 §F: the account lock, DERIVED (repo law — no cached collection state). Settled anchors on
+  '0080 §F: the account lock, DERIVED (repo law — no cached collection state). Settled anchors on
 runs.ended_at / ledger_items, never bookings.status (§0-ter #11); cancelled-with-fee is the
 second scope arm (#5). failed, or dispatched-pending older than 1h — and only on rows this
 machine minted (raw.kind not null), so widget-era debris can never lock an owner. Server-only';
@@ -548,7 +548,7 @@ revoke execute on function my_unsettled_charge() from public, anon;
 grant execute on function my_unsettled_charge() to authenticated;
 
 comment on function my_unsettled_charge is
-  '0078 §F: my own debt state (auth.uid()) — the exception banners'' read. Zero-arg by contract
+  '0080 §F: my own debt state (auth.uid()) — the exception banners'' read. Zero-arg by contract
 (app/scripts/check-rpc-contracts.mjs). Signed-out = false, not an error';
 
 -- ═══════════════════════════════════════════════════════════════════════════════════════
@@ -627,7 +627,7 @@ revoke execute on function sweep_settled_without_payments() from public, anon, a
 grant execute on function sweep_settled_without_payments() to service_role;
 
 comment on function sweep_settled_without_payments is
-  '0078 §G: invariant #1 (§0-ter #1) — settled booking (runs.ended_at) with no payments row gets
+  '0080 §G: invariant #1 (§0-ter #1) — settled booking (runs.ended_at) with no payments row gets
 one, minted from the runs row''s own end_reason/actual_km (a run missing either is SKIPPED with a
 notice — a money sweep does not guess). "Has a row" is the mint''s definition, not any row:
 kind-bearing or confirmed/waived, so widget debris cannot blind it. Bookings-anchored on purpose:
@@ -690,9 +690,9 @@ declare
   v_start timestamptz; v_end timestamptz;
   v_runner uuid; v_avail boolean; v_clash boolean;
   v_bid uuid;
-  v_live boolean;              -- [0078] cutover switch, read once per sweep
-  v_block text;                -- [0078] null | 'debt' | 'no_card'
-  v_notified uuid[] := '{}';   -- [0078] owners already told this sweep (ⓓ)
+  v_live boolean;              -- [0080] cutover switch, read once per sweep
+  v_block text;                -- [0080] null | 'debt' | 'no_card'
+  v_notified uuid[] := '{}';   -- [0080] owners already told this sweep (ⓓ)
 begin
   select (select f.payments_live_since from ops_flags f where f.id) is not null into v_live;
 
@@ -745,7 +745,7 @@ begin
       if not coalesce(v_avail, false) then v_runner := null; end if;
     end if;
 
-    -- ⓑ/ⓒ [0078 §0-ter #3] money gates — the last thing before the insert.
+    -- ⓑ/ⓒ [0080 §0-ter #3] money gates — the last thing before the insert.
     v_block := null;
     if owner_has_unsettled_charge(s.owner_id) then
       v_block := 'debt';
@@ -790,8 +790,8 @@ begin
 end $$;
 
 comment on function generate_recurring_bookings is
-  '0078 §H (was 0026): 반복 예약 자동 생성 크론 — 72h 창, 같은 러너 우선(가용성 재검증), 겹침 가드
-+ [0078 §0-ter #3] 결제 게이트 둘: 미수금 보호자는 생성 중단(항상), payments_live_since가 설정된
+  '0080 §H (was 0026): 반복 예약 자동 생성 크론 — 72h 창, 같은 러너 우선(가용성 재검증), 겹침 가드
++ [0080 §0-ter #3] 결제 게이트 둘: 미수금 보호자는 생성 중단(항상), payments_live_since가 설정된
 뒤엔 카드 없는 보호자도 중단. 보호자당 스윕 1회만 통지. 그 둘이 없으면 ≤1건 노출 한도가 거짓이 된다';
 
 -- ═══════════════════════════════════════════════════════════════════════════════════════
@@ -825,7 +825,7 @@ begin
     update payments set status = 'failed', updated_at = now()
     where status = 'pending'
       and payment_key is null
-      and (raw->>'dispatched_at') is null          -- [0078 §0-ter #2]
+      and (raw->>'dispatched_at') is null          -- [0080 §0-ter #2]
       and created_at < now() - interval '1 hour'
     returning id, booking_id, raw
   ), noti as (
@@ -833,17 +833,17 @@ begin
     select b.owner_id, 'booking', '결제 처리 안내',
            '지난 러닝 이용료 결제를 시도하지 못했어요 — 설정 > 결제 관리에서 확인해주세요', b.id
     from s join bookings b on b.id = s.booking_id
-    where (s.raw->>'kind') is not null            -- [0078] server-minted rows only
+    where (s.raw->>'kind') is not null            -- [0080] server-minted rows only
   )
   select count(*)::int from s into n;
   return n;
 end $$;
 
 comment on function sweep_stale_payment_intents is
-  '0078 §I (was 0076 §C): 좌초 인텐트 스윕 (매시 3-58/5분). payment_key가 있는 pending은 그대로,
-그리고 [0078] dispatched_at이 찍힌 pending도 그대로 — 토스에 이미 요청한 행을 failed로 닫는 것은
+  '0080 §I (was 0076 §C): 좌초 인텐트 스윕 (매시 3-58/5분). payment_key가 있는 pending은 그대로,
+그리고 [0080] dispatched_at이 찍힌 pending도 그대로 — 토스에 이미 요청한 행을 failed로 닫는 것은
 돈이 나갔을 수 있다는 사실을 장부에서 지우는 것이다. 그 행들은 payments_reconciliation()으로 간다.
-[0078] kind 있는 행(서버 민팅)을 닫을 때는 보호자에게 "결제 처리 안내"를 보낸다 — 한 시간 뒤
+[0080] kind 있는 행(서버 민팅)을 닫을 때는 보호자에게 "결제 처리 안내"를 보낸다 — 한 시간 뒤
 §F가 그 행을 미수금으로 읽고 새 예약이 잠기기 때문이다. kind 없는 위젯 잔해는 침묵';
 
 -- Reconciliation gains two more arms. The four kinds are kept DISJOINT (`stale_pending` now
@@ -878,7 +878,7 @@ as $$
   where p.status = 'pending' and p.created_at < now() - interval '1 hour'
     and (p.raw->>'dispatched_at') is null
   union all
-  -- [0078 §0-ter #2] we told Toss to charge and never learned the outcome. Resolve by querying
+  -- [0080 §0-ter #2] we told Toss to charge and never learned the outcome. Resolve by querying
   -- Toss with our orderId (tossGetByOrderId) — never by guessing, and never by auto-failing.
   select 'stale_dispatched'::text, p.id, p.booking_id, p.amount, p.status, b.status::text,
          false, now() - (p.raw->>'dispatched_at')::timestamptz
@@ -901,10 +901,10 @@ as $$
 $$;
 
 comment on function payments_reconciliation is
-  '0078 §I (was 0076 §D): 결제 조정 질의 4종 — orphan_capture(돈은 받았는데 부킹이 못 감) ·
+  '0080 §I (was 0076 §D): 결제 조정 질의 4종 — orphan_capture(돈은 받았는데 부킹이 못 감) ·
 stale_pending(1시간+ 미발송 인텐트, 실전에선 payment_key 있는 캡처 크래시) ·
 stale_dispatched(토스에 보냈는데 결과를 모르는 행 — orderId로 조회해 사람이 닫는다) ·
-[0078] ladder_exhausted(3회 실패로 래더가 끝난 행 — 자동 재시도는 더 없고 사람/보호자 CTA만
+[0080] ladder_exhausted(3회 실패로 래더가 끝난 행 — 자동 재시도는 더 없고 사람/보호자 CTA만
 남았다). 상태로 서로소';
 
 -- ═══════════════════════════════════════════════════════════════════════════════════════
@@ -939,7 +939,7 @@ begin
   ), noti as (
     insert into notifications (profile_id, kind, title, body, ref_id)
     select e.owner_id, 'booking', '매칭 만료',
-           -- [0078] 위젯 선결제가 실제로 잡혀 있었던 예약만 환불을 약속한다. 후불 예약은
+           -- [0080] 위젯 선결제가 실제로 잡혀 있었던 예약만 환불을 약속한다. 후불 예약은
            -- 청구된 적이 없으므로 환불도 없다 — 그 사실을 그대로 말하는 것이 유일한 정직한 문장.
            case when exists (select 1 from payments p
                              where p.booking_id = e.id and p.status = 'confirmed')
@@ -959,8 +959,8 @@ begin
 end $$;
 
 comment on function expire_unmatched_bookings is
-  '0078 §J (was 0060 §3): 두 형제 CTE 계약 그대로(병합 금지 — e_hold는 의도적 침묵, 100 W7).
-[0078] e_match 알림 본문만 조건부: confirmed 결제가 있는 예약만 환불 약속, 후불 예약은
+  '0080 §J (was 0060 §3): 두 형제 CTE 계약 그대로(병합 금지 — e_hold는 의도적 침묵, 100 W7).
+[0080] e_match 알림 본문만 조건부: confirmed 결제가 있는 예약만 환불 약속, 후불 예약은
 "결제된 금액이 없어 청구되지 않아요"';
 
 -- ---------- ⓑ 0072's club_incident_settle step ⑥ ----------
@@ -980,7 +980,7 @@ create or replace function club_incident_settle(
 language plpgsql security definer set search_path = public, pg_temp as $$
 declare
   i record; s record; q record; sd record; b record; v_sess uuid;
-  v_prepaid boolean;   -- [0078] 이 부킹에 실제로 잡힌 돈이 있었나
+  v_prepaid boolean;   -- [0080] 이 부킹에 실제로 잡힌 돈이 있었나
 begin
   perform _club_require_v2();
   if auth.uid() is null then raise exception 'not_signed_in'; end if;
@@ -1058,7 +1058,7 @@ begin
   end if;
 
   -- ⑥ 양측에 알린다 — 돈이 움직였다는 사실은 통보 대상이다
-  -- [0078 §0-ter #13] 환불 문장은 **실제로 잡힌 돈이 있을 때만**. 후불 예약에는 환불할 돈이
+  -- [0080 §0-ter #13] 환불 문장은 **실제로 잡힌 돈이 있을 때만**. 후불 예약에는 환불할 돈이
   -- 애초에 없으므로 "환불돼요"는 배포된 거짓말이 된다.
   select exists (select 1 from payments p where p.booking_id = p_booking and p.status = 'confirmed')
     into v_prepaid;
@@ -1085,7 +1085,7 @@ revoke execute on function club_incident_settle(uuid, uuid, text, text) from pub
 grant execute on function club_incident_settle(uuid, uuid, text, text) to authenticated;
 
 comment on function club_incident_settle is
-  '0078 §J (was 0072 §B): 케이스 정산 — 로직 전부 0072 그대로(R6 범위 밖). [0078] 보호자 알림의
+  '0080 §J (was 0072 §B): 케이스 정산 — 로직 전부 0072 그대로(R6 범위 밖). [0080] 보호자 알림의
 환불 문장만 조건부: confirmed 결제가 있으면 "N원이 환불돼요", 없으면 "이번 건은 청구되지 않아요".
 러너 문장(정산에 반영)은 불변 — 원장 기록은 어느 쪽이든 진짜다';
 
@@ -1155,7 +1155,7 @@ revoke execute on function record_enroute_cancel_comp(uuid) from public, anon, a
 grant execute on function record_enroute_cancel_comp(uuid) to service_role;
 
 comment on function record_enroute_cancel_comp is
-  '0078 §K: en-route owner-cancel runner compensation (§0-ter #5). settle_run_tx never runs for
+  '0080 §K: en-route owner-cancel runner compensation (§0-ter #5). settle_run_tx never runs for
 cancelled_owner, so this is the only ledger path for 0066''s 50% fee — the whole fee to the
 runner (remaining_guarantee), platform_fee 0, idempotent per booking under a per-booking
 pg_advisory_xact_lock (ledger_items has no unique key to fall back on). Server-only';
@@ -1248,7 +1248,7 @@ revoke execute on function dispatch_due_charges() from public, anon, authenticat
 grant execute on function dispatch_due_charges() to service_role;
 
 comment on function dispatch_due_charges is
-  '0078 §K: wakes collect-charges for due rows — failed with next_retry_at reached, attempts<3 and
+  '0080 §K: wakes collect-charges for due rows — failed with next_retry_at reached, attempts<3 and
 no needs_card_relink · never-dispatched server intents · dispatched pendings older than 15분
 (그 행은 재청구가 아니라 검증 대상이다). 이 술어는 collect-charges/handler.ts:107 isDue()와
 **같은 규칙의 두 번째 사본**이므로 함께 바꿔야 한다. Reads the vault secret charge_dispatch

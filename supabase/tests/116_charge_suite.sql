@@ -1,5 +1,5 @@
--- ═══ 115 charge suite — 0078 pins (the settle-time charge machine) ═══
--- Purpose: 0078 is the first file in this repo that decides HOW MUCH an owner is charged. Every
+-- ═══ 115 charge suite — 0080 pins (the settle-time charge machine) ═══
+-- Purpose: 0080 is the first file in this repo that decides HOW MUCH an owner is charged. Every
 --   rule in it is somebody's argued decision (toss-plan §0-ter and its absorbed adversarial
 --   findings), and a money rule with no pin is a money rule the next refactor is free to
 --   improve. These pins hold the basis table, the ceiling, the frozen numbers, the mints'
@@ -76,7 +76,7 @@
 --   C20 ← §E: mint a zero-amount cancel-fee row instead of nothing (§0-ter #13)          → RED
 --   C21 ← §A-§K: `grant execute on function mint_settle_charge_intent(uuid,text,numeric)
 --         to authenticated` — a client that can mint its own charge intents              → RED
---         (the array also carries sweep_stale_payment_intents(): 0078 recreates it, and
+--         (the array also carries sweep_stale_payment_intents(): 0080 recreates it, and
 --         `create or replace` keeps whatever ACL the body inherits from 0076 — the one
 --         definer in this file whose seal is inherited rather than written)
 --   C23 ← §D: delete the `v_amount < PG_MIN_CHARGE` arm — a sub-₩100 charge becomes a
@@ -100,7 +100,7 @@
 --         callers both write the compensation row and the runner is paid twice           → RED
 --
 --   ✔ MUTATION-PROVEN by full-harness runs (clean cluster each time; restore → green every
---     time). Method, both rounds: edit 0078 → rm -rf .pgtest → full harness → restore.
+--     time). Method, both rounds: edit 0080 → rm -rf .pgtest → full harness → restore.
 --     ROUND 1, 2026-08-13, when the suite was C1-C22 and green was 410/0 — five clean reverts:
 --       C2   → 409/1, red = [C2]            C5   → 409/1, red = [C5]
 --       C19  → 409/1, red = [C19]
@@ -846,7 +846,7 @@ begin
     -- the GRANT is the seal, not the query's luck: a signed-out caller returns zero rows today
     -- only because auth.uid() is null, and that is a property of the body, not of the ACL.
     if has_function_privilege('anon', 'my_billing_card()', 'execute')
-      then v_bad := v_bad || ' anon 실행 가능 (0078의 revoke가 사라졌다)'; end if;
+      then v_bad := v_bad || ' anon 실행 가능 (0080의 revoke가 사라졌다)'; end if;
 
     if v_bad = ''
       then call _pass('chg','C16 my_billing_card — 본인 1행(brand/last4)·타인 0행·미인증 0행·anon 실행 불가·billing_key는 반환 형상에 자리 자체가 없음');
@@ -1009,7 +1009,7 @@ begin
       'mint_cancel_fee_intent(uuid)',
       'owner_has_unsettled_charge(uuid)',
       'sweep_settled_without_payments()',
-      -- recreated by 0078 (§I) rather than written fresh, so its seal is INHERITED through
+      -- recreated by 0080 (§I) rather than written fresh, so its seal is INHERITED through
       -- `create or replace` from 0076:102. An inherited ACL is exactly the kind that a later
       -- recreate drops without anybody noticing, which is why it belongs in this array.
       'sweep_stale_payment_intents()',
@@ -1215,7 +1215,7 @@ begin
     if not coalesce(m.minted, false) or m.amount <> 24900
       then v_bad := v_bad || ' 컷오버 이후 러닝이 청구되지 않는다=' || coalesce(m.amount::text,'∅'); end if;
 
-    -- restore the SHIPPED default (charging off) — this is the state 0078 leaves behind
+    -- restore the SHIPPED default (charging off) — this is the state 0080 leaves behind
     update ops_flags set payments_live_since = null, updated_at = now();
 
     if v_bad = ''

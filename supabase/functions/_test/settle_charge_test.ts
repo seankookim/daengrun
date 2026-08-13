@@ -50,7 +50,7 @@ function scene(over: { booking?: Row; card?: boolean } = {}) {
 }
 
 /**
- * Stand-in for 0078's `mint_settle_charge_intent` (Unit A). It writes the row the real function
+ * Stand-in for 0080's `mint_settle_charge_intent` (Unit A). It writes the row the real function
  * writes and returns the real function's shape — `returns table(...)`, so an ARRAY. The args it
  * was called with are handed back so tests can pin what settle-run passed it.
  */

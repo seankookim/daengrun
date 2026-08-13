@@ -8,6 +8,8 @@ export interface RunLAProps {
   pace: string;
   elapsed: string;
   eventLine: string;
+  // '' = no claim (gate/stale/unknown). Widget renders the labeled pill only when non-empty.
+  paceState?: '' | 'good' | 'slow';
 }
 
 let instance: any = null;

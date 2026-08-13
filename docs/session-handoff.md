@@ -6,18 +6,23 @@ Previous handoff: `docs/session-handoff-archive-20260812-final.md`. Plan of reco
 
 ## 1. What this session did
 
-The §0-ter settle-time charge machine, built as one slice on this branch (fast-forwarded
-from redesign-v4 @ 5117a45), via 4 parallel build agents + 3 attack-executing adversarial
-reviewers + 2 fix agents. **NOT pushed, NOT deployed — Sean reviews first.**
+The §0-ter settle-time charge machine, built as one slice, via 4 parallel build agents +
+3 attack-executing adversarial reviewers + 2 fix agents. Then **merged current redesign-v4
+back in** (route catalog + pace-state + harness loud-fail landed mid-build) and renumbered:
+the migration is **0080_charge_machine.sql** (0078/0079 were claimed by route-catalog and
+pace-state), the suite is **116_charge_suite.sql** (115 = pace-state). Lesson, learned twice
+in one day: parallel branches pick "next free number" against their fork point — check
+`ls supabase/migrations | tail` against CURRENT redesign-v4 at merge time.
+**NOT pushed, NOT deployed — Sean reviews first.**
 
-| Gate | Result |
+| Gate | Result (post-merge tree) |
 |---|---|
-| SQL harness | **415 / 0** (baseline 388 + 115_charge_suite C1–C25 + race RD/RE) |
-| Deno | **131 / 0** (baseline 35 → settle_charge 19 · collect_charges 47 · booking_card 12 · cancel_fee 18 approx; run `deno test -A supabase/functions/_test/`) |
-| Client | tsc clean · check-rpc 82/82 |
+| SQL harness | **430 / 0** (redesign-v4 baseline 403 + 116_charge_suite C1–C25 + race RD/RE) |
+| Deno | **131 / 0** (`deno test -A supabase/functions/_test/`) |
+| Client | tsc clean · check-rpc green |
 | Mutations | 38 executed across build+review+fix waves (each: apply → red → restore → green) |
 
-Inventory: `0078_charge_machine.sql` (billing_keys · ops_flags.payments_live_since ·
+Inventory: `0080_charge_machine.sql` (billing_keys · ops_flags.payments_live_since ·
 compute_owner_charge basis table · mint_settle_charge_intent / mint_cancel_fee_intent ·
 owner_has_unsettled_charge + my_unsettled_charge · my_billing_card · sweeps + reconciliation
 4-arm · recurring gates · 0060/0072 conditional copy · record_enroute_cancel_comp ·
@@ -57,7 +62,7 @@ refund-copy fixes · pay-lab 청구 예외 tab.
 
 ## 3. DEPLOY ORDER (verified per-function by R3 — violating it breaks bookings)
 
-① `supabase db push` (0078) **FIRST** — create-booking-hold hard-blocks on its fns/tables
+① `supabase db push` (0080) **FIRST** — create-booking-hold hard-blocks on its fns/tables
 (fail-closed by design). Inert while payments_live_since is NULL.
 ② `functions deploy create-booking-hold`
 ③ `functions deploy collect-charges --no-verify-jwt` (X-Cron-Key IS the credential; owner
@@ -72,17 +77,19 @@ path still JWT-validated via caller())
 ## 4. Pending on Sean
 
 **Ops:** ① 사업자등록 → 통신판매업 → Toss (일반 + 자동결제 심사 one application) — unchanged,
-still the critical path; ② dashboard TEST keys (docs demo WIDGET keys are recorded in
-app/.env.example + plan §5 — they unblock the A3 device spike NOW, but not billing);
-③ review this branch → merge to redesign-v4 → push (gates green, nothing deployed).
+still the critical path; ② dashboard TEST keys + variantKey 카드/간편결제-only (docs demo
+WIDGET keys are recorded in app/.env.example + plan §5 — they unblock the A3 device spike
+NOW, but not billing); ③ review this branch → merge to redesign-v4 → push (gates green,
+nothing deployed).
 **Decisions:** G1 abort basis · D-3 silent-charge counsel · OPS_PROFILE_ID env vs admin
-role · lab picks (all carried from previous handoff §9).
+role · lab picks Ⓡ①②③ + Ⓖ rule · Ⓛ③ spec-plate graft + ₩/원 (all carried from the
+2026-08-12 handoff §9).
 
 ## 5. Next prompts (exact openers)
 
 - **Club delegation money slice** (pre-cutover gate): "read docs/session-handoff.md, then
-  close the club delegation money gaps per TODOS.md 2026-08-13 §1 as migration 0079 with
-  its own adversarial cycle."
+  close the club delegation money gaps per TODOS.md 2026-08-13 §1 as its own migration at
+  the next free number, with its own adversarial cycle."
 - **Device-verify** (runnable NOW with docs demo keys, AFTER merge): "read
   docs/session-handoff.md; run the A3 device build with the docs demo keys in
   app/.env.example (variantKey DEFAULT), execute the §4-2 sandbox matrix through pay-lab
@@ -94,7 +101,7 @@ role · lab picks (all carried from previous handoff §9).
 
 - settle-run's runner-side guarantee recomputes from live PRICING.perKm — RUNNER money,
   0059 doc still true, deliberately out of this slice (0075 §0-⑤ tracks it).
-- The due rule is ONE rule written twice (0078 dispatch_due_charges ↔ collect-charges
+- The due rule is ONE rule written twice (0080 dispatch_due_charges ↔ collect-charges
   isDue, pairing comments both sides) — change together or not at all.
 - e_hold's 30-min silence (W7) is widget-flow law; the card path never strands there
   (compensating delete). The two-sibling-CTE shape in expire_unmatched_bookings is a
@@ -108,8 +115,9 @@ role · lab picks (all carried from previous handoff §9).
 
 - The SQL harness CANNOT run from a `.claude/worktrees/...` checkout (unix-socket path
   >103 bytes) — copy `supabase/tests` + `supabase/migrations` to /tmp and run there.
-- harness.sh silences suite PARSE errors (fix chip spawned) — a broken suite is a silent
-  zero; verify new suites appear in the printed row count.
+  (harness.sh now fails LOUDLY on suite parse errors — the loud-fail fix merged today.)
 - deno 2.9.5 lives in session scratchpads — reinstall if gone. app/ worktrees have no
   node_modules — symlink the main checkout's for tsc, remove after.
 - Toss docs demo keys + the 15-day idempotency facts are recorded in plan §5's banner.
+- Migration/suite numbers: verify against CURRENT redesign-v4 at merge time, not at
+  branch time (0078 was claimed three times today).

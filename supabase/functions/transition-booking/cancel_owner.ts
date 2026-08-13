@@ -157,7 +157,7 @@ async function isPrepaid(db: SupabaseClient, bookingId: string): Promise<boolean
 // the runner's side — the en-route compensation ledger row
 // ═══════════════════════════════════════════════════════════════════════════════════════════
 /**
- * `settle_run_tx` never runs for a cancelled_owner booking, so 0078's `record_enroute_cancel_comp`
+ * `settle_run_tx` never runs for a cancelled_owner booking, so 0080's `record_enroute_cancel_comp`
  * is the ONLY path by which 0066's 50% en-route fee reaches the runner's earnings. Idempotent in
  * SQL (one ledger row per booking), gated in SQL on the cancel_reason the CAS above just wrote.
  *

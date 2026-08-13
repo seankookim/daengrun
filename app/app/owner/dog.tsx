@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Avatar, Row } from '../../src/components/ui';
 import { addDog, DogProfile, fetchMyDogs, updateMyDog, uploadDogPhoto } from '../../src/lib/api';
+import { clampSuggest } from '../../src/lib/pace';
 import { CollarKey, collarColors, collarLabels, layout, paper } from '../../src/theme';
 
 // 반려견 프로필 — 실초코. 사진·정보·성향 메모·선호 태그가 러너에게 전달된다.
@@ -14,6 +15,28 @@ const PREF_CATALOG = [
   '강아지 좋아함', '소심해요', '간식 러버', '물 자주 필요', '천천히 워밍업',
 ];
 const VACCINE_CATALOG = ['종합백신', '광견병', '코로나 장염', '켄넬코프'];
+
+// 권장 최소 페이스 (pace-state-ui-plan §4 / D13) — the adjustable band, 7'00"~9'00", as five
+// chips: one tap, the whole band visible, and no inverted-scale trap (a stepper's "+" would
+// mean SLOWER). Stored in dogs.preferences.paceSuggestSec, snapshotted into the run at start.
+const PACE_OPTIONS = [
+  { sec: 420, label: `7'00"`, a11y: '킬로미터당 7분 00초' },
+  { sec: 450, label: `7'30"`, a11y: '킬로미터당 7분 30초' },
+  { sec: 480, label: `8'00"`, a11y: '킬로미터당 8분 00초' },
+  { sec: 510, label: `8'30"`, a11y: '킬로미터당 8분 30초' },
+  { sec: 540, label: `9'00"`, a11y: '킬로미터당 9분 00초' },
+] as const;
+
+// A radiogroup with nothing selected reads as broken. The five chips are the only writer,
+// so this only ever fires on a hand-edited jsonb — snap it onto the band instead of showing
+// an empty group. (clampSuggest also coalesces an absent key to the 480 default.)
+const nearestPaceOption = (sec: number | null): number => {
+  const v = clampSuggest(sec);
+  return PACE_OPTIONS.reduce<number>(
+    (best, o) => (Math.abs(o.sec - v) < Math.abs(best - v) ? o.sec : best),
+    PACE_OPTIONS[0].sec,
+  );
+};
 
 export default function DogProfileScreen() {
   const { dogId } = useLocalSearchParams<{ dogId?: string }>();
@@ -30,6 +53,7 @@ export default function DogProfileScreen() {
   const [tags, setTags] = useState<string[]>([]);
   const [vaccines, setVaccines] = useState<string[]>([]);
   const [collar, setCollar] = useState<CollarKey | null>(null); // 칼라 컬러 (0033)
+  const [paceSuggest, setPaceSuggest] = useState<number>(nearestPaceOption(null)); // 권장 최소 페이스 sec/km
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
 
@@ -44,6 +68,7 @@ export default function DogProfileScreen() {
     setTags(d.prefTags);
     setVaccines(d.vaccines);
     setCollar((d.collar as CollarKey) ?? null);
+    setPaceSuggest(nearestPaceOption(d.paceSuggestSec));
   };
 
   // [honesty 2026-08-11] a failed fetch used to setLoaded(true) and render the
@@ -118,6 +143,7 @@ export default function DogProfileScreen() {
         prefTags: tags,
         vaccines,
         collar,
+        paceSuggestSec: paceSuggest,
       });
       Alert.alert('저장 완료', '러너에게 전달되는 프로필이 업데이트됐어요');
     } catch (e) {
@@ -225,6 +251,33 @@ export default function DogProfileScreen() {
               </View>
             </Row>
 
+            {/* 권장 최소 페이스 (pace-state-ui-plan §4) — 러닝 중 페이스 신호의 기준.
+                §3b 섹션 헤더 문법(풀블리드 코랄 룰 + 20/800 잉크)으로 자기 섹션을 갖는다:
+                이름·견종 사이에 묻히면 안 되는 '행동 컨트롤'이다. 저장은 기존 버튼 하나. */}
+            <View style={s.secRule} />
+            <Text style={s.secH}>권장 최소 페이스</Text>
+            <View style={s.paceRow} accessibilityRole="radiogroup" accessibilityLabel="권장 최소 페이스">
+              {PACE_OPTIONS.map((o) => {
+                const on = paceSuggest === o.sec;
+                return (
+                  <Pressable
+                    key={o.sec}
+                    onPress={() => setPaceSuggest(o.sec)}
+                    style={[s.paceChip, on && s.paceChipOn]}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: on }}
+                    accessibilityLabel={o.a11y}
+                  >
+                    <Text style={{ fontSize: 16, fontWeight: '800', color: on ? '#fff' : paper.ink }}>{o.label}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            {/* 헬퍼는 색이 아니라 '행동'을 설명한다 — 화면의 색 규칙은 여기서 가르치지 않는다 */}
+            <Text style={{ fontSize: 14, lineHeight: 19, color: paper.dim, marginTop: 10 }}>
+              이 값보다 느려지면 러너에게 안내해요
+            </Text>
+
             {/* 성향 메모 */}
             <Text style={s.label}>러너에게 전달되는 성향 메모</Text>
             <TextInput
@@ -321,6 +374,18 @@ const s = StyleSheet.create({
   collarDotOn: { borderWidth: 2.5, borderColor: paper.ink },
   tagChip: { backgroundColor: paper.canvas, borderRadius: 0, borderWidth: 1, borderColor: '#EEEEEE', paddingVertical: 10, paddingHorizontal: 13 },
   tagChipOn: { backgroundColor: paper.wash, borderColor: paper.line },
+  // §3b 섹션 헤더 — 풀블리드 코랄 1px 룰 + 20/800 잉크 타이틀. 이 화면은 gutter 패딩 안이라
+  // 룰만 음수 마진으로 화면 끝까지 빼낸다 (사이드 마진 금지 법).
+  secRule: { height: 1, backgroundColor: paper.line, marginHorizontal: -layout.gutter, marginTop: 26 },
+  secH: { fontSize: 20, lineHeight: 25, fontWeight: '800', color: paper.ink, marginTop: 14, marginBottom: 11 },
+  // 페이스 밴드 칩 — 5개가 한 줄, 44pt 터치, 갭 10. 선택 = 잉크 면 + 흰 16/800 (선택칩은
+  // 액션이 아니라 상태라서 잉크가 남는다, §3b 버튼 매트릭스).
+  paceRow: { flexDirection: 'row', gap: 10 },
+  paceChip: {
+    flex: 1, minHeight: 44, borderRadius: 0, borderWidth: 1, borderColor: '#EEEEEE',
+    backgroundColor: paper.canvas, alignItems: 'center', justifyContent: 'center',
+  },
+  paceChipOn: { backgroundColor: paper.ink, borderColor: paper.ink },
   saveBar: {
     position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: paper.canvas,
     paddingHorizontal: layout.gutter, paddingTop: 10, paddingBottom: 30, borderTopWidth: 1, borderTopColor: paper.line,

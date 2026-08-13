@@ -13,7 +13,7 @@
 // key set is asserted EXACTLY, in both the prepaid and post-pay eras.
 //
 // As in settle_charge_test.ts, no amount is computed here: `marketplace_cancel_fee` (0066) and
-// `mint_cancel_fee_intent` (0078) own the money, and these tests pin that Deno passes the right
+// `mint_cancel_fee_intent` (0080) own the money, and these tests pin that Deno passes the right
 // booking id and charges whatever SQL returned.
 import { assert, assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
 import { HttpError } from "../_shared/ctx.ts";
@@ -77,7 +77,7 @@ const call = (db: FakeDb, over: { uid?: string } = {}) =>
   });
 
 /**
- * Stand-in for 0078's `mint_cancel_fee_intent` (Unit A): writes the row the real function writes,
+ * Stand-in for 0080's `mint_cancel_fee_intent` (Unit A): writes the row the real function writes,
  * returns its shape (`returns table(...)` → array), and records the args it was handed.
  * `notLive` is the cutover arm — `ops_flags.payments_live_since` null → ZERO ROWS, nothing minted.
  */
@@ -99,7 +99,7 @@ function installMint(db: FakeDb, over: { status?: string; amount?: number; notLi
   return seen;
 }
 
-/** Stand-in for 0078's `record_enroute_cancel_comp` — writes the runner's ledger row. */
+/** Stand-in for 0080's `record_enroute_cancel_comp` — writes the runner's ledger row. */
 function installComp(db: FakeDb, over: { fail?: string; written?: boolean } = {}) {
   const seen: Row[] = [];
   db.rpcs["record_enroute_cancel_comp"] = (args: Row) => {

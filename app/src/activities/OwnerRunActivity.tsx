@@ -1,5 +1,5 @@
 import { HStack, Image, Text, VStack } from '@expo/ui/swift-ui';
-import { background, font, foregroundStyle, padding } from '@expo/ui/swift-ui/modifiers';
+import { background, border, font, foregroundStyle, padding } from '@expo/ui/swift-ui/modifiers';
 import { createLiveActivity, type LiveActivityEnvironment } from 'expo-widgets';
 
 // Owner-side Live Activity — the lock screen an owner watches while someone else runs their dog.
@@ -26,6 +26,11 @@ export type OwnerRunActivityProps = {
   pace: string;       // "7'02\"" or ''
   elapsed: string;    // '23:41' or ''
   statusLine: string; // '방금 업데이트' · 'N분째 위치가 갱신되지 않았어요' · '사진 4장' · ''
+  // Pace state (pace-state-ui-plan §3d) — PRECOMPUTED SERVER-SIDE by 0079's
+  // `_owner_la_pace_state` (the local foreground update mirrors it from src/lib/pace.ts).
+  // '' = no claim: below the honesty gate, stale, done, ended. Optional so a payload written
+  // by an older client (no such key) is read as '' rather than crashing the widget.
+  paceState?: '' | 'good' | 'slow';
 };
 
 const OwnerRunActivity = (props: OwnerRunActivityProps, env: LiveActivityEnvironment) => {
@@ -42,11 +47,24 @@ const OwnerRunActivity = (props: OwnerRunActivityProps, env: LiveActivityEnviron
   const STALE_GREY = '#6b6478';   // lab: pill.stale
   const STALE_NUM = '#8b8496';    // the number "dies grey" — stated as a color, not an opacity trick
   const STALE_TEXT = '#FF8F76';   // lab: the 'N분째' line
+  // Pace-state pill (plan §3d, Sean D12 = Ⓒ② modified): the app's §3b paper chip grammar
+  // carried onto the OS surface — wash fill + deep ink, RADIUS 0 (deliberate: the same chip
+  // runs on all four surfaces). The wash carries its own background, so contrast is settled
+  // inside the pill on both light and dark lock-screen material.
+  const PACE_GOOD_WASH = '#E7F5EE';
+  const PACE_GOOD_INK = '#0E7F49';
+  const PACE_SLOW_WASH = '#FBEED9';
+  const PACE_SLOW_INK = '#9D580A';
 
   // The lock-screen banner background follows the system material (HIG) — ink adapts. The Dynamic
   // Island is always black — fixed light text there.
   const bannerText = env.colorScheme === 'dark' ? CREAM : '#1C1837';
   const bannerDim = env.colorScheme === 'dark' ? DIM : '#5B594A';
+  // [2026-08-13] The banner's coral must follow the material like its siblings do — CORAL on a
+  // light material is 3.07:1 where CORAL_DEEP is 3.64:1, and mixing the two in one banner was
+  // what made the bright version read as two different corals. Island views stay fixed CORAL
+  // (always-black background), which is why this is a banner-only variant of numColor below.
+  const bannerAccent = env.colorScheme === 'dark' ? CORAL : CORAL_DEEP;
 
   const phase = props.phase;
   const hasNum = props.km !== '';
@@ -59,6 +77,8 @@ const OwnerRunActivity = (props: OwnerRunActivityProps, env: LiveActivityEnviron
     : phase === 'done' ? 'DONE'
     : 'ENDED';
   const numColor = phase === 'done' ? SAGE : phase === 'stale' ? STALE_NUM : CORAL;
+  // Same value on the always-black island, material-aware on the banner/small surfaces.
+  const numColorBanner = phase === 'done' ? SAGE : phase === 'stale' ? STALE_NUM : bannerAccent;
   const meta = props.dogName + ' · ' + props.runnerName + ' 러너';
 
   // Title/foot pair for the numberless states (pre / ended / running-before-first-fix).
@@ -86,6 +106,38 @@ const OwnerRunActivity = (props: OwnerRunActivityProps, env: LiveActivityEnviron
     : props.statusLine;
   const footRightColor = phase === 'stale' ? STALE_TEXT : phase === 'done' ? bannerText : bannerDim;
 
+  // The widget computes nothing — it only checks strings for emptiness (contract, line 15-17).
+  // The pill exists ONLY in the running phase: stale blanks the pace datum, and done/ended
+  // render settled facts, never a live claim (plan §3d).
+  const paceState = props.paceState === 'good' || props.paceState === 'slow' ? props.paceState : '';
+  const showPacePill = phase === 'running' && props.pace !== '' && paceState !== '';
+  const paceWash = paceState === 'good' ? PACE_GOOD_WASH : PACE_SLOW_WASH;
+  const paceInk = paceState === 'good' ? PACE_GOOD_INK : PACE_SLOW_INK;
+  const paceLabel = paceState === 'good' ? '양호' : '느림';
+  // 'heavy' = SwiftUI's 800 (the API takes named weights only; 'bold' is 700).
+  //
+  // ⚠ STRUCTURAL NOTE (plan §3d — deliberate, not discovered): `footLeft` above is ONE
+  // concatenated string ("pace · elapsed") and a pill cannot live inside a Text node. Where the
+  // pill renders, the footer therefore splits into pace Text + pill + elapsed Text (elapsed keeps
+  // the dim ink). Every other phase — and running without a claim — falls to the untouched
+  // one-Text branch, byte-identical to 0063. Suite-103 pins the PROPS payload, not this JSX.
+  //
+  // [2026-08-13] 1px ink edge — plan §3c's authorized fallback, adopted after measuring: the
+  // wash carries its own background only until the material is BRIGHT (#E7F5EE vs a white
+  // material = 1.12:1, so the surface disappears and the chip reads as floating colored text
+  // even though its label stays legible at 5.06:1). The edge declares the surface with a line
+  // instead of a color. Drawn always, not per-scheme: lock screen, StandBy, watch smart stack
+  // and CarPlay are four different materials, and a chip that knows its own boundary reads as
+  // a chip on all of them — one code path, no scheme branch to get wrong. Mirrors RunActivity.
+  const paceMods = [
+    font({ weight: 'heavy' as const, size: 13 }),
+    foregroundStyle(paceInk),
+    padding({ horizontal: 6, vertical: 2 }),
+    background(paceWash),
+    border({ color: paceInk, width: 1 }),
+    padding({ leading: 8 }),
+  ];
+
   return {
     // ---------- lock-screen banner (also StandBy / watch smart stack on non-island devices) ----------
     banner: (
@@ -108,23 +160,40 @@ const OwnerRunActivity = (props: OwnerRunActivityProps, env: LiveActivityEnviron
         {hasNum ? (
           <VStack>
             <HStack modifiers={[padding({ top: 9 })]}>
-              <Text modifiers={[font({ weight: 'bold', size: 38 }), foregroundStyle(numColor)]}>
+              <Text modifiers={[font({ weight: 'bold', size: 38 }), foregroundStyle(numColorBanner)]}>
                 {props.km}
               </Text>
               <Text modifiers={[font({ size: 13 }), foregroundStyle(bannerDim), padding({ leading: 4 })]}>
                 {numUnit}
               </Text>
             </HStack>
-            <HStack modifiers={[padding({ top: 6 })]}>
-              <Text modifiers={[font({ size: 12 }), foregroundStyle(bannerDim)]}>
-                {footLeft}
-              </Text>
-              <Text
-                modifiers={[font({ size: 12 }), foregroundStyle(footRightColor), padding({ leading: 10 })]}
-              >
-                {footRight}
-              </Text>
-            </HStack>
+            {showPacePill ? (
+              <HStack modifiers={[padding({ top: 6 })]}>
+                <Text modifiers={[font({ size: 12 }), foregroundStyle(bannerDim)]}>
+                  {props.pace}
+                </Text>
+                <Text modifiers={paceMods}>{paceLabel}</Text>
+                <Text modifiers={[font({ size: 12 }), foregroundStyle(bannerDim), padding({ leading: 8 })]}>
+                  {'· ' + props.elapsed}
+                </Text>
+                <Text
+                  modifiers={[font({ size: 12 }), foregroundStyle(footRightColor), padding({ leading: 10 })]}
+                >
+                  {footRight}
+                </Text>
+              </HStack>
+            ) : (
+              <HStack modifiers={[padding({ top: 6 })]}>
+                <Text modifiers={[font({ size: 12 }), foregroundStyle(bannerDim)]}>
+                  {footLeft}
+                </Text>
+                <Text
+                  modifiers={[font({ size: 12 }), foregroundStyle(footRightColor), padding({ leading: 10 })]}
+                >
+                  {footRight}
+                </Text>
+              </HStack>
+            )}
           </VStack>
         ) : (
           <VStack modifiers={[padding({ top: 9 })]}>
@@ -146,7 +215,7 @@ const OwnerRunActivity = (props: OwnerRunActivityProps, env: LiveActivityEnviron
         <Text modifiers={[font({ weight: 'bold', size: 14 }), foregroundStyle(bannerText), padding({ leading: 5 })]}>
           {props.dogName}
         </Text>
-        <Text modifiers={[font({ weight: 'bold', size: 14 }), foregroundStyle(numColor), padding({ leading: 8 })]}>
+        <Text modifiers={[font({ weight: 'bold', size: 14 }), foregroundStyle(numColorBanner), padding({ leading: 8 })]}>
           {hasNum ? props.km + 'km' : noNumTitle}
         </Text>
       </HStack>
@@ -191,6 +260,7 @@ const OwnerRunActivity = (props: OwnerRunActivityProps, env: LiveActivityEnviron
             : hasNum ? (props.pace !== '' ? props.pace + '/km' : footRight)
             : noNumFoot}
         </Text>
+        {showPacePill && hasNum ? <Text modifiers={paceMods}>{paceLabel}</Text> : null}
         <Text modifiers={[font({ size: 13 }), foregroundStyle(DIM), padding({ leading: 12 })]}>
           {phase === 'running' || phase === 'done' ? props.elapsed : ''}
         </Text>

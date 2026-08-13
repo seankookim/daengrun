@@ -43,16 +43,32 @@ Deferred work, written down so it exists. Format: what / why / context / effort
 
 ## From money-model late amendments (2026-08-12 evening, Sean)
 
-- [ ] **Pace-state UI (owner + runner + Live Activities)** — live pace vs suggested
-  minimum: green = at/faster than suggestion, yellow = deviating slower. Suggested
-  minimum pace 8 min/km, strong-suggestion band 7~9 min/km, owner-adjustable in
-  preferences. Why: quality signal that polices the slow-stroll incentive without
-  ranking pace publicly (runner stats stay volume-led) and without money-bearing
-  thresholds. Context: completion is now minimum-DISTANCE only (dual time threshold
-  reversed — a time floor pays for walking the clock). Touches: live.tsx (owner),
-  runner live screen, owner-la Live Activity payloads (0053/owner_la rails), prefs
-  screen (pace suggestion field). Effort M → S. P2. Depends on: prefs field, LA
-  payload extension.
+- [x] **Pace-state UI (owner + runner + Live Activities)** — **BUILT 2026-08-13**
+  (plan + full /plan-design-review 3/10→9/10: `docs/plans/pace-state-ui-plan.md`;
+  lab picks Ⓐ②Ⓑ①Ⓒ②modⒹ② in `docs/labs/pace-state-lab.html`; commits
+  364ceb8→25034b1; harness 388→**397/0**, tsc clean, pace tests 52/0).
+  Shipped semantics (Sean's decisions D6-D13): state judges a ROLLING 3-MIN
+  window (displayed 페이스 stays cumulative) · two states + honest absence
+  (gate 0.3km+180s) · prev-latched hysteresis +15s · stale trumps pace AND
+  blanks the datum · 권장-family copy (codex's 기준 overruled) · threshold
+  frozen at run start (`runs.pace_suggest_sec`, 0079; runner self-write sealed
+  via 0057 guard, pin P9) · ambient-only (no push/haptic) · live-only (never in
+  runs stats/report). Prefs = dog.tsx 권장 최소 페이스 5-chip section
+  (`dogs.preferences.paceSuggestSec`; updateMyDog now MERGES the jsonb).
+  ⚠ Sean-gated: `supabase db push` (0079) + device verify; `fetchRunMeta`'s
+  42703 fallback in api.ts comes out in the cleanup commit AFTER the push.
+  Original spec kept below for provenance:
+  live pace vs suggested minimum: green = at/faster than suggestion, yellow =
+  deviating slower. Suggested minimum pace 8 min/km, strong-suggestion band
+  7~9 min/km, owner-adjustable in preferences. Why: quality signal that polices
+  the slow-stroll incentive without ranking pace publicly (runner stats stay
+  volume-led) and without money-bearing thresholds.
+- [ ] **Pace-state D-p2: fast-edge welfare question (logged 2026-08-13, not built)** —
+  the 7'00" band floor polices nothing: a 4'30" runner with a small dog shows
+  green. A "too fast for THIS dog" claim needs per-dog physiology (breed/weight/
+  age) we don't measure — building it now would be 측정처럼 보이는 비측정.
+  Revisit when fitness data can carry it. Effort M → S. P3. Depends on: per-dog
+  physiology data.
 - [ ] **Run-end flow: stop confirmation + 귀가 intermediary + return handoff** — run-end
   ≠ dog-home. Sequence: runner taps stop → confirmation dialog (early-end consequences
   named if under minimum distance) → 귀가 state ("집으로 가는 중", owner-visible on live,
@@ -85,6 +101,19 @@ Deferred work, written down so it exists. Format: what / why / context / effort
   GPS on (founder task + QA), then promote good completed runs' traces (couples to the
   existing "Course geo-traces" TODO below — routes.trace is still schematic, 0001:147).
   Effort L → M. P2 (P1 for Banpo seeds before external owners book).
+  **PROGRESS (2026-08-13, /design-consultation):** schema + seeds + design lab SHIPPED
+  (0078_route_catalog.sql) — routes gains town/anchor(name·detail·lat·lng)/shade/lighting
+  + unique(town,name); 9 Banpo seeds (2×3, 3×3, 5×2, 7×1) across 5 anchors, all
+  checked_at null ('점검 예정') and trace '[]' (honesty batch: no mock polylines — founder
+  walk is the only promotion path). Note: "level" in the metadata list above was stale
+  (level system abandoned; km is the filter key — KmDial is 1–10 continuous, so catalog
+  coverage + nearest-match + mismatch badge, not exact chips). Lab:
+  docs/design/banpo-route-catalog-lab.html (card grammar pre/post-walk, request filter,
+  3-segment diagram, slot-fit matrix, founder-walk checklist, decisions D1–D4 for Sean).
+  REMAINING: ① fetchRoutes(town) + request carousel town filter ② anchor/meta/slot-fit
+  blocks on course cards + course/[id] ③ walk-promotion SQL snippet (couples with Course
+  geo-traces) ④ Sean founder-walks the 9 (checked_at + trace + anchor coords) — still
+  the gate before external owners book.
 - [x] ~~Request↔preferences screen merge~~ — OBSOLETE same night (Sean: current
   preference/scheduling scheme stays unchanged; tokens + levels abandoned; km dial
   stays). Kept for the one durable note: addons just work under post-pay (₩+₩).
@@ -94,13 +123,13 @@ Deferred work, written down so it exists. Format: what / why / context / effort
 - [ ] **Club delegation money gaps — MUST land before the payments_live_since flip** —
   `session_pay_delegation` (0037:242-249) inserts bookings directly at `matching` with
   NO debt gate, NO billing-instrument check, and a **hardcoded `base_fare: 9900`** (the
-  retired owner base). Why: under 0078's frozen-numbers rule the flip converts that stale
+  retired owner base). Why: under 0080's frozen-numbers rule the flip converts that stale
   constant into a real ₩9,900 base charge while request.tsx quotes ₩7,900, and a locked
-  owner whose host keeps approving them accrues unbounded uncollectable fares — 0078 §H's
+  owner whose host keeps approving them accrues unbounded uncollectable fares — 0080 §H's
   exposure-bound comment explicitly names this exclusion. Context: R6 (club money is a
   separate simulated path, toss-plan §6); found by charge-slice reviewer R1 (P2-3).
-  Effort M → S (own migration 0079 + club suite pins). **P1 at cutover, P2 until.**
-  Depends on: 0078 landed.
+  Effort M → S (own migration at the next free number — 0081 as of 2026-08-13 — + club suite pins). **P1 at cutover, P2 until.**
+  Depends on: 0080 landed.
 - [ ] **Card-path postConfirm parity (card-register slice scope)** — create-booking-hold's
   card path CASes straight to `matching`, never passing confirm-payment, so §2-5b's
   server-side preferred-runner nomination + recurring-series creation silently never run

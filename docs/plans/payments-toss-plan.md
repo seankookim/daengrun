@@ -90,13 +90,13 @@ the fix-card state, receipts. 최소 pace/threshold copy per the A-17 amendment
 
 ## 0-ter. SETTLE-TIME CHARGE MACHINE (eng pass, 2026-08-12 night — resolves §0-bis's NEEDS-ENG-PASS)
 
-> **BUILT 2026-08-13** as the charge slice (0078 + charge.ts + collect-charges + client
+> **BUILT 2026-08-13** as the charge slice (0080 + charge.ts + collect-charges + client
 > money surfaces; harness 415/0 · deno 131/0 · adversarial round 2 executed: 3 reviewers,
 > 3 P1s found and absorbed — see `docs/session-handoff.md` §2 for the decisions layered on
 > top of this section, and §3 for the mandatory deploy order). The section below remains
 > the design of record; round-2 amendments (per-attempt idempotency keys, payments_live_since
 > cutover scoping, kind-scoped debt derivation, outage-vs-decline separation, confirm-payment
-> kind gate) are recorded in the handoff and in 0078's own header.
+> kind gate) are recorded in the handoff and in 0080's own header.
 
 **Booking flow, card-linked (NO transition-map change needed):** create-booking-hold
 already runs draft→quoted→payment_hold; for an owner with a valid billing key it then

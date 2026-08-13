@@ -16,7 +16,7 @@
 // output: { mode, scanned?, due?, processed, results: [{ payment_id, order_id, outcome, error? }],
 //           verified?: [{ payment_id, order_id, outcome, error? }] }
 //
-// ⚠ Deploy note: the cron calls this through `net.http_post` (0078's `dispatch_due_charges`), so
+// ⚠ Deploy note: the cron calls this through `net.http_post` (0080's `dispatch_due_charges`), so
 // the function is deployed with --no-verify-jwt and `X-Cron-Key` IS the authentication. The owner
 // path still authenticates through `caller()` — the platform gateway is not what is gating it here.
 import { SupabaseClient } from "jsr:@supabase/supabase-js@2";
@@ -160,7 +160,7 @@ function isDue(r: { amount: number; status: string; raw: Record<string, unknown>
     // arm's, below, which asks Toss first.
     return !raw.dispatched_at;
   }
-  // failed → the ladder decides. ⚠ This predicate is a TWIN of 0078's SQL due-rule; they are
+  // failed → the ladder decides. ⚠ This predicate is a TWIN of 0080's SQL due-rule; they are
   // changed together or they disagree, and a disagreement here means either a charge that two
   // paths both attempt or one that neither does.
   if (raw.needs_card_relink) return false; // a dead key on a timer is three identical notifications

@@ -415,7 +415,7 @@ export function PayView({ screen, charge, busy, failReason, holdLabel, onConfirm
         {screen === 'refund_pending' && (
           /* TODO(widget slice, R3 P3-7): "환불이 진행 중" is only true when money was captured
              (a confirmed payments row exists). club_incident_settle sets refund_pending
-             regardless of capture; 0078 §J-ⓑ already made the NOTIFICATION conditional —
+             regardless of capture; 0080 §J-ⓑ already made the NOTIFICATION conditional —
              this screen must gain the same predicate (fetchBookingPayments) before the
              widget slice makes uncaptured refund_pending reachable with real money. */
           <Text style={s.body}>환불이 진행 중이에요 — 완료되면 알려드려요</Text>

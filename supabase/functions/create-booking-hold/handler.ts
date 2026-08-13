@@ -41,14 +41,14 @@ export async function createBookingHold(req: Request, db: SupabaseClient) {
     if (!myAddr) throw new HttpError(403, "forbidden");
   }
 
-  // ── the account lock (§0-ter, 0078 §F) — asked FIRST, before anything is computed or written ──
+  // ── the account lock (§0-ter, 0080 §F) — asked FIRST, before anything is computed or written ──
   // Derived, never cached: a failed charge (or a dispatched pending we never heard back about) on
   // a settled or cancelled-with-fee booking of this owner. It applies to EVERY owner and is not
   // keyed on the cutover flag, because pre-cutover the derivation is false by construction —
   // nothing is ever minted while `ops_flags.payments_live_since` is null, so the pilot's card-less
   // owners cannot accrue the rows this query looks for.
   // An RPC error refuses the booking, the same fail-closed shape `is_slot_available` below uses:
-  // a money gate that fails open is not a gate. (Deploy order therefore matters — 0078 lands
+  // a money gate that fails open is not a gate. (Deploy order therefore matters — 0080 lands
   // before this function does.)
   const { data: locked, error: lockErr } = await db.rpc("owner_has_unsettled_charge", { p_owner: uid });
   if (lockErr) throw new HttpError(500, lockErr.message);

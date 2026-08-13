@@ -3,10 +3,11 @@ import { router } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, AppState, Linking, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Avatar, Icon, Row } from '../../src/components/ui';
-import { addRunEvent, ensureThread, fetchCurrentRunnerJobId, fetchMeetupInfo, fetchRunStartedAt, fetchRunTrace, MeetupInfo, notifyKmMilestone, RunEventKind, saveRunTrace, sendChatMessage, sendChatPhoto, settleRun, startRunServer, uploadRunPhoto } from '../../src/lib/api';
-import { GeoPoint, getNaverMap, getTraceSnapshot, getTrackPermission, publishPos, resetTrace, seedTrace, smoothTrace, startTracking, stopPublishing, TrackHandle, TrackMode, TrackSnapshot } from '../../src/lib/geo';
+import { addRunEvent, ensureThread, fetchCurrentRunnerJobId, fetchMeetupInfo, fetchRunMeta, fetchRunStartedAt, fetchRunTrace, MeetupInfo, notifyKmMilestone, RunEventKind, saveRunTrace, sendChatMessage, sendChatPhoto, settleRun, startRunServer, uploadRunPhoto } from '../../src/lib/api';
+import { GeoPoint, getNaverMap, getTraceSnapshot, getTrackPermission, mergeFixes, publishPos, resetTrace, seedTrace, smoothTrace, startTracking, stopPublishing, TrackHandle, TrackMode, TrackSnapshot } from '../../src/lib/geo';
 import { haptic } from '../../src/lib/haptics';
 import { notifyLocal } from '../../src/lib/push';
+import { clampSuggest, PACE_WINDOW_MS, PaceState, paceState, windowPaceSec } from '../../src/lib/pace';
 import { endRunActivity, RunLAProps, startRunActivity, updateRunActivity } from '../../src/lib/runActivity';
 import { useNumFont } from '../../src/lib/fonts';
 import { EndReason, payoutFor, runnerJob, runResult } from '../../src/store';
@@ -37,6 +38,27 @@ const paceStr = (sec: number, km: number) => {
   if (km < 0.05) return "-'--\"";
   const p = sec / km;
   return `${Math.floor(p / 60)}'${String(Math.round(p % 60)).padStart(2, '0')}"`;
+};
+// 권장 caption — the value is already sec/km, so no division. Same M'SS" grammar as paceStr.
+const suggestStr = (sec: number) => `${Math.floor(sec / 60)}'${String(sec % 60).padStart(2, '0')}"`;
+const PACE_CHIP_LABEL: Record<'good' | 'slow', string> = { good: '페이스 양호', slow: '권장보다 느려요' };
+const PACE_CHIP_A11Y: Record<'good' | 'slow', string> = {
+  good: '페이스 상태: 양호',
+  slow: '페이스 상태: 권장보다 느림',
+};
+
+// Rolling-window pairs for the pace state (plan §1/§5). The app's single trace buffer is the
+// source, and the window's DISTANCE is measured by mergeFixes — the same billable rule that
+// pays the runner. A second implementation here would be a second, drifting truth. Two pairs
+// describe the window: its first accepted point (0) and its last (km accumulated inside it).
+const paceWindowPairs = (nowMs: number): { t: number; km: number }[] => {
+  const { trace } = getTraceSnapshot();
+  if (trace.length < 2) return [];
+  const cutoff = nowMs - PACE_WINDOW_MS;
+  const win = trace.filter((p) => p.t >= cutoff);
+  if (win.length < 2) return [];
+  const { addedKm } = mergeFixes([], win);
+  return [{ t: win[0].t, km: 0 }, { t: win[win.length - 1].t, km: addedKm }];
 };
 
 export default function ActiveRun() {
@@ -226,6 +248,9 @@ export default function ActiveRun() {
 
   // 단일 싱크의 구독자 — 여기서 하는 일은 그리기·브로드캐스트·마일스톤뿐 (거리 산수 없음)
   const onTrack = useCallback((snap: TrackSnapshot) => {
+    // Runner-side stale clock (plan §1): the sink only calls back when something survived the
+    // gates, so this stamp is exactly "last ACCEPTED fix" — nothing else in here changes.
+    lastAcceptedAt.current = Date.now();
     trace.current = snap.trace;
     setLastPos(snap.last);
     setGpsKm(snap.km);
@@ -269,6 +294,8 @@ export default function ActiveRun() {
       evCounts.water ? `물 ${evCounts.water}` : '',
       evCounts.photo ? `사진 ${evCounts.photo}` : '',
     ].filter(Boolean).join(' · '),
+    // '' = no claim (gate/stale/unknown) — the banner then renders no pill at all.
+    paceState: pace,
   });
   const laStarted = useRef(false);
   const laLastUpdate = useRef(0);
@@ -382,7 +409,9 @@ export default function ActiveRun() {
     await handle.current?.stop();
     handle.current = null;
     stopPublishing();
-    endRunActivity(laProps());
+    // 종말 프레임은 판정을 들고 죽지 않는다 (plan §6 — no posthumous verdict; 러너 LA엔
+    // phase가 없어 이 인자 하드셋이 보호자 쪽 SQL 하드셋의 미러다).
+    endRunActivity({ ...laProps(), paceState: '' });
     const localPayout = completed ? payoutFor(km) : payoutByReason(reason);
     // dogName rides along from the real booking context (null when it never loaded —
     // the done screen then re-reads the booking or uses generic wording, never a fake name).
@@ -470,6 +499,66 @@ export default function ActiveRun() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reachedTarget, appActive, running]);
+
+  // ---------- pace-state (pace-state-ui-plan §1 · UI slot — appended last, nothing reordered) ----------
+  // Nothing below touches tracking, settlement, the overrun ceiling or the LA lifecycle: it reads
+  // the same buffer the panel already draws and produces one string for one chip.
+  const lastAcceptedAt = useRef<number | null>(null); // stamped in onTrack — accepted fixes only
+  const [runSuggestSec, setRunSuggestSec] = useState<number | null>(null);
+  const prevPace = useRef<PaceState>(''); // the hysteresis LATCH — survives staleness
+  const [pace, setPace] = useState<PaceState>('');
+  const [paceStale, setPaceStale] = useState(false);
+
+  // The run-start SNAPSHOT of the owner's suggestion — frozen, so a mid-run pref edit cannot
+  // move the goalpost under a runner. Pre-0079 the column does not exist and fetchRunMeta's
+  // fallback returns null; the caption then rides the dog's current pref from the booking
+  // context, and stays ABSENT if that never loaded (§6: a failed fetch is not a known 480).
+  useEffect(() => {
+    if (!running || runSuggestSec != null) return;
+    const bid = runnerJob.bookingId;
+    if (!bid) return;
+    let alive = true;
+    let tries = 0;
+    const pull = () => {
+      tries += 1;
+      fetchRunMeta(bid)
+        .then((m) => { if (alive && m.paceSuggestSec != null) setRunSuggestSec(m.paceSuggestSec); })
+        .catch(() => { /* bounded retry below; the caption simply stays on the booking value */ });
+    };
+    pull();
+    // The runs row is created by startRunServer, which may still be in flight — a few bounded
+    // retries, not a permanent poll (pre-0079 the answer is null forever).
+    const id = setInterval(() => {
+      if (!alive || tries >= 5) { clearInterval(id); return; }
+      pull();
+    }, 15000);
+    return () => { alive = false; clearInterval(id); };
+  }, [running, runSuggestSec]);
+
+  const suggestSec = runSuggestSec != null ? clampSuggest(runSuggestSec)
+    : infoStatus === 'ready' && info != null ? clampSuggest(info.paceSuggestSec)
+    : null;
+
+  // The §1 machine on the existing 1s tick (sec) and every km change. `stale` is defined here
+  // for the runner side: ≥90s since the last accepted fix while running — it drops the claim
+  // AND blanks the 페이스 datum, because "no signal" and "too slow" must never look alike.
+  useEffect(() => {
+    if (!running) { setPace(''); setPaceStale(false); return; }
+    const now = Date.now();
+    const st = lastAcceptedAt.current != null && now - lastAcceptedAt.current >= 90_000;
+    setPaceStale(st);
+    if (suggestSec == null) { setPace(''); return; }
+    const next = paceState(prevPace.current, {
+      windowSec: windowPaceSec(paceWindowPairs(now), now),
+      suggestSec,
+      km,
+      elapsedSec: sec,
+      stale: st,
+    });
+    if (next !== '') prevPace.current = next;
+    setPace(next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [running, sec, gpsKm, suggestSec]);
 
   // ---------- 러닝 시작 — 연속 기록이 안 되면 시작하지 않는다 (Sean 2026-08-08) ----------
   const startRun = async () => {
@@ -675,8 +764,34 @@ export default function ActiveRun() {
         <Row style={{ justifyContent: 'space-around', marginVertical: 22 }}>
           <MiniStat value={km.toFixed(2)} label="km" big />
           <MiniStat value={fmt(sec)} label="시간" />
-          <MiniStat value={paceStr(sec, km)} label="페이스" />
+          {/* 90초 넘게 새 픽스가 없으면 마지막 페이스는 더 이상 '지금'이 아니다 — 숫자를 비운다 */}
+          <MiniStat value={paceStale ? '—' : paceStr(sec, km)} label="페이스" />
         </Row>
+
+        {/* 페이스 상태 (plan §3b Ⓑ①) — 스탯 줄과 수익 줄 사이 한 줄. panel·island 두 레이아웃이
+            이 슬롯 하나를 공유한다. 워시 칩이 자기 배경을 들고 다녀서 다크 패널 위에서도 대비는
+            칩 안에서 완결된다. 기준(권장 캡션)이 판정(칩)을 앞선다 — 캡션은 아는 순간부터. */}
+        {(suggestSec != null || pace !== '') && (
+          <View style={{ marginBottom: 14 }}>
+            <Row>
+              {pace !== '' && (
+                <View
+                  style={[s.paceChip, pace === 'good' ? s.paceChipGood : s.paceChipSlow]}
+                  accessibilityLabel={PACE_CHIP_A11Y[pace]}
+                >
+                  <Text style={[s.paceChipTxt, pace === 'good' ? s.paceChipInkGood : s.paceChipInkSlow]}>
+                    {PACE_CHIP_LABEL[pace]}
+                  </Text>
+                </View>
+              )}
+              {suggestSec != null && <Text style={s.paceTarget}>권장 {suggestStr(suggestSec)}</Text>}
+            </Row>
+            {/* 케어 스톱은 정당하다 — 신호가 러너를 물·응가에서 밀어내면 안 된다. 필요한 상태에서만 */}
+            {pace === 'slow' && (
+              <Text style={s.paceCare}>물·응가 스톱도 평균에 들어가요 — 괜찮아요</Text>
+            )}
+          </View>
+        )}
 
         <Row style={{ justifyContent: 'center', marginBottom: 14 }}>
           <Text style={{ fontSize: 14, color: '#BBBBBB' }}>
@@ -863,6 +978,16 @@ const s = StyleSheet.create({
   failTxt: { flex: 1, fontSize: 14, fontWeight: '700', color: colors.tang },
   failAction: { fontSize: 14, fontWeight: '800', color: colors.tang, textDecorationLine: 'underline' },
   btn: { flex: 1, borderRadius: 0, padding: 16, alignItems: 'center' },
+  // 페이스 칩 (§3b) — 16/800 · radius 0 · 틴트 면 · 보더 없음. 페이퍼 월드와 같은 문법이고,
+  // 워시가 자기 배경을 들고 오므로 다크 패널 위에서도 잉크 대비가 유지된다. 숫자 리컬러는 없다.
+  paceChip: { paddingVertical: 6, paddingHorizontal: 10 },
+  paceChipGood: { backgroundColor: paper.paceGoodWash },
+  paceChipSlow: { backgroundColor: paper.paceSlowWash },
+  paceChipTxt: { fontSize: 16, lineHeight: 20, fontWeight: '800' },
+  paceChipInkGood: { color: paper.paceGoodInk },
+  paceChipInkSlow: { color: paper.paceSlowInk },
+  paceTarget: { marginLeft: 'auto', fontSize: 14, lineHeight: 18, color: '#BBBBBB' },
+  paceCare: { marginTop: 7, fontSize: 14, lineHeight: 18, color: '#BBBBBB' },
   moreBtn: { width: 44, height: 52, borderRadius: 0, backgroundColor: '#222222', alignItems: 'center', justifyContent: 'center' },
   // event stamp chips — pastel stamp fills survive (stamp-culture semantics), corners sharp
   eventBtn: { flex: 1, flexDirection: 'row', gap: 5, borderRadius: 0, alignItems: 'center', justifyContent: 'center', paddingVertical: 12 },
