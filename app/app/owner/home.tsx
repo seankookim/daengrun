@@ -478,6 +478,11 @@ export default function OwnerHome() {
   // (코스 미지정 예약 근절 — 탭으로 순환 변경 가능, km 바꾸면 다시 최적 코스로)
   const [fnRoutes, setFnRoutes] = useState<RouteInfo[]>([]);
   const [fnRouteIdx, setFnRouteIdx] = useState(0);
+  // fnRoutes에는 **active 코스만** 담는다 (아래 fetchRoutes에서 걸러 넣는다). D-VIS 폴백에서
+  // fetchRoutes는 candidate를 돌려줄 수 있는데, 이 화면엔 '점검 전 코스로 예약' 확인 절차가
+  // 없다 — 그건 요청 화면의 일이다. 자동 배정으로든 칩 순환 탭으로든 candidate에 닿으면
+  // 서버가 candidate_ack_required로 거절하고, 보호자는 고른 적 없는 코스 때문에 에러를 본다.
+  // 목록 단계에서 걸러 두면 순환·인덱싱·빈 이름 렌더가 전부 따라온다.
   const pickRouteFor = (km: number, routes: RouteInfo[]) => {
     if (routes.length === 0) return 0;
     let best = 0;
@@ -571,7 +576,8 @@ export default function OwnerHome() {
       setFnAddrs(addrs); setFnAddrIdx(Math.max(0, addrs.findIndex((a) => a.isDefault)));
       const km = lastDone?.km ?? draft.km;
       setFnKm(km); // 지난 러닝 거리로 프리필
-      fetchRoutes().then((rs) => { setFnRoutes(rs); setFnRouteIdx(pickRouteFor(km, rs)); }).catch(() => setFnRoutes([]));
+      fetchRoutes().then((all) => { const rs = all.filter((r) => r.status === 'active');
+        setFnRoutes(rs); setFnRouteIdx(pickRouteFor(km, rs)); }).catch(() => setFnRoutes([]));
       setFnOpen(true);
     } catch (e) {
       Alert.alert('불러오기 실패', (e as Error).message);
@@ -592,7 +598,12 @@ export default function OwnerHome() {
         address_id: fnAddrs[fnAddrIdx]?.id,
         scheduled_at: when.toISOString(),
         km: fnKm,
-        route_id: fnRoutes[fnRouteIdx]?.id, // 자동 배정 코스 — '코스 미지정' 근절
+        // fnRoutes가 비면(= active 코스 0개) 코스 없이 예약한다 — candidate를 몰래 태우지 않는다.
+        route_id: fnRoutes[fnRouteIdx]?.id,
+        // 선택 스냅샷 (0082 §C): 이 경로는 보호자가 코스를 고르는 UI가 없으므로 언제나 자동.
+        // recommended = 실제로 배정한 그 코스이므로 오버라이드 파생값은 항상 false가 된다 — 맞다.
+        recommended_route_id: fnRoutes[fnRouteIdx]?.id,
+        selection_origin: 'quick_book',
         pace_label: draft.pace,
         addons: [], // find-now는 스피드가 본질 — 옵션은 예약 플로우에서
       });

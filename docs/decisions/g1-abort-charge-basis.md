@@ -11,7 +11,7 @@ and mirrors both ledgers — Sean's own frame, better than either memo's proposa
 | `completed` | — | base + actual distance | base + actual distance |
 | `dog_condition` | nobody / the dog | `runnerCompBase` 9,900 + 3,000 × **distance actually run** | `ownerBaseFare` 7,900 + 3,000 × **distance actually run** (mirrored) |
 | `owner_request` / `owner_forced` | owner | 9,900 + 3,000 × **distance actually run** | **PLANNED** distance (D2, unchanged — anti-cut-short) |
-| `runner_personal` | runner | ⚠ **SUPERSEDED — see [⑨](runner-stop-split.md)** (was: 9,900 base only) | **distance only, base waived** (#10 UNCHANGED) |
+| `runner_personal` | runner | **SUPERSEDED by [⑨](runner-stop-split.md)** — pass-through + `runner_incapacity` split (was: 9,900 base only) | **distance only, base waived** (#10 UNCHANGED) |
 | `incident` | under review | normal settle | **₩0**, gated on VERIFICATION |
 
 **Sean's words:** *"if it's the runner's own condition, the runner gets paid only base 7900
