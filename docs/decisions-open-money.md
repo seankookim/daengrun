@@ -1,5 +1,21 @@
 # Open money decisions — briefs for Sean (2026-08-13)
 
+> ⚠ **CONSOLIDATION PENDING — read `docs/decisions/` first if it exists on your branch.**
+> A parallel session wrote the same three memos (①–③) as `docs/decisions/*.md` on branch
+> `claude/club-delegation-money-gaps-b59eb8`, and reports you delegated the calls there.
+> That set is agreed to be canonical; THIS file folds into it and retires once you confirm.
+> Both sets reach the same recommendation on all three. Differences worth knowing before
+> you read either: their G1 memo has the exact absorption formula and a sharper fraud
+> framing (a waived owner never disputes a fabricated abort — the waive removes the free
+> fraud detector); this file has the one thing theirs lacks — that `incident` must stay ₩0
+> **at settle** under every option, for an architectural reason and not a generous one
+> (0072's incident settlement owns that money question; charging at settle pre-empts the
+> case and manufactures the refund post-pay deleted). Memos ④/⑤ below are club-specific and
+> exist only here.
+> **Nothing has been built on the relayed adoption.** G1 keeps its 🔴 provisional marker and
+> D-3 is unbuilt; per the protocol both sessions agreed on, your review+merge is the
+> confirmation.
+
 Written after the charge slice landed (0080). Each memo: **what is shipped today**, the
 options, what each costs, and a recommendation. Sean picks by number; a one-line answer per
 memo is enough. Nothing here blocks the code that exists — every item has a recorded
