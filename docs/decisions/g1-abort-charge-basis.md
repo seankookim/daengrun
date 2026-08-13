@@ -1,6 +1,6 @@
 # ① G1 — What an aborted run charges, both sides of the ledger
 
-**Status: ✅ FULLY RULED BY SEAN 2026-08-13. Buildable.** The final rule is fault-based
+**Status: ✅ FULLY RULED BY SEAN 2026-08-13 · BUILT (0084, `actual_capped`).** The final rule is fault-based
 and mirrors both ledgers — Sean's own frame, better than either memo's proposal:
 **who is at fault decides who absorbs the shortfall.**
 

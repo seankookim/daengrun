@@ -125,6 +125,19 @@ eleven real ones. Codex is a good reviewer. It is not the person whose money it 
 Corollary from rule 4: while he is away **nobody holds his word**, so no irreversible action on
 shared state — no branch deletions, no force-pushes, no `db push`.
 
+## The status line IS the interface — keep it true
+
+A reader is told to read the status line rather than the body, so **a status line that lags its
+own memo is the worst artifact in this set**: it is the one thing everybody trusts without
+checking. On 2026-08-13 ⑫'s body carried Sean's ruling in three places while line 3 still read
+*"🟡 OPEN — needs Sean's ruling"* — so anyone following the rule concluded he owed an answer he
+had already given. Caught by another session reading it, not by anything failing.
+
+A sweep of all thirteen then found a second, quieter instance: two memos said *"Buildable"* long
+after the code had shipped. **When a memo changes, change line 3 first** — and when you record a
+build, say so there, because "ruled" and "built" are different facts and only one of them tells
+a builder what to do next.
+
 ## How to read a ruling here
 
 Every memo keeps the superseded recommendation below the ruling, so the reasoning survives

@@ -1,7 +1,8 @@
 # ⑫ A marketplace `incident_review` has no commercial exit — the runner is unpayable
 
-**Status: 🟡 OPEN — needs Sean's ruling. Not built, not owned, deliberately NOT folded into
-another slice.** Recorded here as a stub so it does not live only in a migration header.
+**Status: ✅ RULED BY SEAN 2026-08-13 — *"pay the runner but dont let them make new runs until
+the dog is confirmed by both sides."* NOT BUILT, NOT OWNED**, and deliberately not folded into
+another slice.
 
 ## The finding
 

@@ -1,6 +1,6 @@
 # ⑨ `runner_personal` splits — pass-through pay + a new `runner_incapacity`
 
-**Status: ✅ RULED BY SEAN 2026-08-13 — both halves confirmed. Buildable.**
+**Status: ✅ RULED BY SEAN 2026-08-13 — both halves confirmed · BUILT (0086, `compute_runner_personal_payout`).**
 **⑨a (pass-through pay) BUILT 2026-08-13 — `0086_runner_stop_passthrough.sql` +
 `122_runner_stop_pay_suite.sql` + `settle-run/handler.ts`'s payout arm
 (`claude/g1-ops-club-decisions`). ⑨b (`runner_incapacity`) IS STILL UNBUILT AND STILL BLOCKED**
