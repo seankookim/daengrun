@@ -9,3 +9,15 @@ supabase/tests/.pgtest/
 supabase/.temp/
 supabase/.branches/
 app/supabase/
+
+# 에이전트 툴링 산출물 (여러 세션이 각자 만든 것 — 저장소 내용이 아니다)
+.gstack/
+.claude/worktrees/
+.claude/settings.local.json
+.agents/
+.codex/
+app/.agents/
+app/.claude/
+app/agent/
+app/skills-lock.json
+AGENTS.md

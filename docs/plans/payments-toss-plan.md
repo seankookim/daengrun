@@ -437,9 +437,17 @@ Pin what SQL can hold:
 - **R5** — the PMF metric. Real payment friction is the honest version of this, so the bridge's
   24h dead-zone objection dies with it. No action.
 - **R7** — solved by §2's `payments` table.
-- **R6** — club delegation (`session_pay_delegation`) is a separate, still-simulated money path
-  that bypasses `payment_hold` entirely. **Explicitly out of scope**; say so rather than let the
-  next reader assume coverage.
+- **R6** — club delegation (`session_pay_delegation`, live definition **0053:37**, insert at
+  :86 — not 0037's `session_approve_dog` copy, which 0043:252 retired) is a separate,
+  still-simulated money path that bypasses `payment_hold` entirely. **Explicitly out of scope**
+  for §2; say so rather than let the next reader assume coverage.
+  **Amended 2026-08-13 (0081):** the CREATION half is no longer out of scope. Club bookings do
+  reach the settle-time charge (club run → settle-run → `mint_settle_charge_intent`), so 0081
+  put 0080's two gates — debt and billing instrument — in front of the club booking insert and
+  made the confirmation copy conditional (pins 117 K1-K8). What remains R6: the club refund
+  copy + `refund_pending` semantics under post-pay, `payment_attempts`' vocabulary, and club
+  cancel fees, which land in `club_fee_items` and never in `bookings.cancel_fee` and are
+  therefore uncollectable by design today (decisions-open-money memo ⑤).
 
 ## GSTACK REVIEW REPORT
 

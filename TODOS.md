@@ -129,16 +129,32 @@ Deferred work, written down so it exists. Format: what / why / context / effort
 
 ## From charge-slice adversarial round 2 (2026-08-13)
 
-- [ ] **Club delegation money gaps — MUST land before the payments_live_since flip** —
-  `session_pay_delegation` (0037:242-249) inserts bookings directly at `matching` with
-  NO debt gate, NO billing-instrument check, and a **hardcoded `base_fare: 9900`** (the
-  retired owner base). Why: under 0080's frozen-numbers rule the flip converts that stale
-  constant into a real ₩9,900 base charge while request.tsx quotes ₩7,900, and a locked
-  owner whose host keeps approving them accrues unbounded uncollectable fares — 0080 §H's
-  exposure-bound comment explicitly names this exclusion. Context: R6 (club money is a
-  separate simulated path, toss-plan §6); found by charge-slice reviewer R1 (P2-3).
-  Effort M → S (own migration at the next free number — 0081 as of 2026-08-13 — + club suite pins). **P1 at cutover, P2 until.**
-  Depends on: 0080 landed.
+- [x] **Club delegation money gaps — the two gates** — DONE in `0081_club_money_gates.sql`
+  (pins `117_club_money_suite.sql` K1-K8, harness 438/0). The debt gate
+  (`unsettled_charge`) and the switch-keyed instrument gate (`billing_key_required`) now sit
+  immediately before the club booking insert, and the confirmation copy stopped claiming
+  '결제 완료'. ⚠ Citation correction carried into 0081's header: the live insert is
+  `session_pay_delegation(uuid,text,boolean)` at **0053:37 (insert :86)**, NOT "0037:242-249"
+  as 0080:658 and this entry said — 0037's insert lives in `session_approve_dog`, which
+  0043:252 replaced with a hold-only version, so that citation pointed at dead code.
+- [ ] **Club owner base is still ₩9,900 (pricing, Sean's call — NOT a bug)** — `club_fare`
+  (0043:14) carries the pre-D2 owner base, so a club owner pays ₩2,000 more than a
+  marketplace owner for the same distance. The booking decomposition is internally
+  consistent (0080 §D charges exactly the quote), so this is a cross-product PRICE question,
+  written up as **memo ④ in `docs/decisions-open-money.md`** (recommendation: align to
+  7,900 before the cutover). No code moves until Sean rules; the change would be
+  `club_fare`'s literal plus the 24,900 literals in 117 K3/K7 and 50 D5.
+  Effort S. **Decide before the flip** (post-flip, two live prices exist in the wild).
+- [ ] **Club refund copy still promises 전액 환불 for money never taken** — the §0-ter #13
+  class 0080 §J fixed for `expire_unmatched_bookings` and `club_incident_settle`, left open
+  in six club functions (`club_cancel_session`, `club_finish_session`,
+  `club_assignment_recovery`, `club_stale_delegation_sweep`, `session_runner_withdraw`,
+  `session_cancel_delegation`). Deliberately out of 0081 (its §0d records the four reasons):
+  the lie is in the TITLES too and three shipped suites assert them verbatim (65:248,
+  95:212, 107:114), the shared helper `_club_refund_bookings` takes its copy from callers so
+  it cannot own the fix, all six also set `refund_pending` (the same false statement in a
+  status), and the honest post-cutover sentence for the cancel path depends on memo ⑤'s
+  open ruling. Effort M, own slice. **Before the flip.**
 - [ ] **Card-path postConfirm parity (card-register slice scope)** — create-booking-hold's
   card path CASes straight to `matching`, never passing confirm-payment, so §2-5b's
   server-side preferred-runner nomination + recurring-series creation silently never run
@@ -1139,3 +1155,30 @@ return that never happened). The correct terminal already exists byte-for-byte i
 `session_transfer_accept`'s external branch (0058:164-179); it is unreachable only because
 `session_transfer_initiate` is runner-only (0045:177). Add one host-only
 `session_host_force_resolve` RPC using that block. **That single RPC closes C4 AND H5.**
+
+## From route-discovery plan review (2026-08-13, /autoplan — CEO+Design+Eng dual voices)
+
+- [ ] **runs.trace server append RPC (unify 1:1 path with club_save_run_trace validation)** —
+  saveRunTrace is a raw client UPDATE with no server validation (api.ts:1743); the club path
+  validates shape/monotonic-time/speed (0053:124). Promotion guards (0082) close the
+  route-certification hole, but the write path itself stays forgeable and RMW-racy — this also
+  closes audit backlog ④ (runs.events/photos RMW race). Effort M → S. P2.
+- [ ] **create-booking-hold full transactionalization** — booking insert + status updates +
+  slot-hold are separate requests (partial-state windows, TOCTOU on route status). Route
+  validation lands in the kernel (K7); the single-transaction rewrite is its own slice,
+  coordinates with charge-slice work. Effort M → S. P2.
+- [ ] **towns table + pickup-geofence derivation** — canonical town constants suffice for
+  반포/성수; a real table with bboxes when town #2 commits. Effort S. P3.
+- [ ] **DESIGN.md distillation from 파이널 시스템 + catalog labs** — tokens, hard rules,
+  component anatomy; reviews keep re-deriving the system from HTML labs. Effort S. P3.
+- [ ] **Phase-tagged custody GPS from pickup (접근 segment truth)** — deadhead metric is a
+  straight-line proxy until custody GPS records from pickup with consent/retention decided.
+  Feeds anchor economics + '접근 is exercise' dose honesty. Effort M. P3.
+- [ ] **Suspension ops automation** — notify upcoming bookings + pre-run start gate on
+  suspended routes (K7 blocks new holds; existing bookings are manual at pilot scale).
+  Effort S. P3.
+- [ ] **RDP trace simplification replacing the every-Nth cap** in promote_route_from_run.
+  Effort S. P3.
+- [ ] **Summer heat ops blackout rules (BEFORE June)** — temperature/time blackout, weather
+  cancellation as operating rules; predates any weather-API integration. Both review voices
+  flag this as load-bearing safety, separate from the route plan. Effort S. P2 (seasonal gate).

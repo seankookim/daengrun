@@ -153,6 +153,9 @@ export interface Booking {
   matched?: boolean; // 러너 확정 여부 (live 전용)
   runnerProfileId?: string | null; // 실러너 uuid — 다시 예약 시 지명 프리필
   rawStatus?: string; // 서버 원상태(enum 원문) — 표시 어휘가 뭉갠 구분(runner_enroute 등)을 액션 게이트가 쓴다
+  clubSessionId?: string | null; // 클럽 위탁 예약 (0037 bookings.club_session_id). 마켓플레이스
+  // 취소 사다리가 적용되지 않는 예약 — 취소는 클럽 세션 화면의 전용 출구로 가야 한다
+  // (서버도 cancel_owner에서 거부한다; 이 필드는 화면이 죽은 버튼을 그리지 않기 위한 것)
 }
 
 export const bookings: Booking[] = [

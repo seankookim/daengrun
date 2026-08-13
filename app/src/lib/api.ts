@@ -3531,7 +3531,9 @@ export async function fetchMyBookings(): Promise<Booking[]> {  // [리뷰 F11] B
   const { data: user } = await supabase.auth.getUser();
   const { data, error } = await supabase
     .from('bookings')
-    .select('id, scheduled_at, km, pace_label, total_price, status, runner_id, owner_id, series_id, route_id, routes(name), dogs(name, collar), runners(profiles(name))')
+    // club_session_id: 클럽 위탁 예약을 화면이 구분하기 위한 것 — 마켓플레이스 취소 사다리
+    // (0066)가 적용되지 않는 예약이라 취소 버튼이 클럽 출구로 가야 한다 (cancel_owner가 거부)
+    .select('id, scheduled_at, km, pace_label, total_price, status, runner_id, owner_id, series_id, route_id, club_session_id, routes(name), dogs(name, collar), runners(profiles(name))')
     // 결제 미완 유령(draft/quoted/payment_hold)은 일정이 아니다 — '매칭 중'으로 위장 금지
     .not('status', 'in', '(draft,quoted,payment_hold)')
     // 듀얼 롤 계정에서 러너로 받은 예약이 '내 일정'에 섞이던 문제 — 보호자 소유만
@@ -3564,6 +3566,7 @@ export async function fetchMyBookings(): Promise<Booking[]> {  // [리뷰 F11] B
       live: true,
       matched: !!r.runner_id,
       runnerProfileId: r.runner_id ?? null,
+      clubSessionId: r.club_session_id ?? null,
     };
   });
 }
