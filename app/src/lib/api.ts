@@ -3523,7 +3523,14 @@ export interface RunReport {
   runnerName: string | null;
   runnerProfileId: string | null;
   routeId: string | null;
-  plannedKm: number; paceLabel: string; price: number; status: string;
+  plannedKm: number; paceLabel: string; status: string;
+  // NO `price`, deliberately. It carried `bookings.total_price` — the FROZEN PLANNED total —
+  // and report.tsx rendered it under the label 결제 금액, which is not what the owner was
+  // charged for any early-ended run (compute_owner_charge bills `least(actual, km)`, and
+  // `runner_personal` drops base + addons). Removed rather than corrected: §0-bis puts the
+  // post-run moment on the record card, never the charge, and the real amount lives in the
+  // `payments` rows that /payments reads. Do not re-add a price here to "complete" the type —
+  // a screen that has the number will eventually print it.
   run: null | {
     actualKm: number; durationSec: number; paceSecPerKm: number | null;
     endReason: string | null; conditionNote: string | null; photos: string[];
@@ -3535,7 +3542,7 @@ export interface RunReport {
 export async function fetchRunReport(bookingId: string): Promise<RunReport> {
   const { data, error } = await supabase
     .from('bookings')
-    .select('scheduled_at, km, pace_label, total_price, status, runner_id, route_id, routes(name, area), dogs(name), runners(profiles(name)), runs(actual_km, duration_sec, avg_pace_sec_per_km, end_reason, condition_note, photos, events, trace)')
+    .select('scheduled_at, km, pace_label, status, runner_id, route_id, routes(name, area), dogs(name), runners(profiles(name)), runs(actual_km, duration_sec, avg_pace_sec_per_km, end_reason, condition_note, photos, events, trace)')
     .eq('id', bookingId)
     .single();
   if (error) throw error;
@@ -3552,7 +3559,6 @@ export async function fetchRunReport(bookingId: string): Promise<RunReport> {
     routeId: d.route_id ?? null,
     plannedKm: Number(d.km),
     paceLabel: d.pace_label ?? "보통 7'",
-    price: d.total_price,
     status: d.status,
     run: raw
       ? {

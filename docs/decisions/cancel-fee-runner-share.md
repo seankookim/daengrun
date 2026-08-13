@@ -92,7 +92,7 @@ instances of the class survive, none of them fixed by this slice:
 | # | Claim | Verdict |
 |---|---|---|
 | A | `app/app/club/run/[sid].tsx:35` — hardcoded `note: '러너 판단: 컨디션 저하 관찰'`, rendered to the owner as **러너 노트** | **UNBACKED — this is literally the bug `611f014` fixed on `runner/run.tsx`, still live on the club surface.** The runner never types it; the owner reads a client constant as their runner's account of their dog. 0084:120-122 records a ruling that depends on this note being real. |
-| B | `app/app/owner/report.tsx:387-391` — "결제 금액 {total_price}원" and "조기 종료 시 정산 조정은 고객센터를 통해 처리돼요" | **UNBACKED ×2.** The figure is the FROZEN PLANNED total, not what was charged (`compute_owner_charge` caps at `least(actual, km)` and drops base+addons for `runner_personal`) — so an early-ended run prints a number the owner was never billed, on the one screen they open to check what a run cost. And there is no 고객센터 surface anywhere in the client. |
+| B | ~~`app/app/owner/report.tsx:387-391`~~ **FIXED 2026-08-13** — "결제 금액 {total_price}원" and "조기 종료 시 정산 조정은 고객센터를 통해 처리돼요" | **WAS UNBACKED ×2.** The figure is the FROZEN PLANNED total, not what was charged (`compute_owner_charge` caps at `least(actual, km)` and drops base+addons for `runner_personal`) — so an early-ended run prints a number the owner was never billed, on the one screen they open to check what a run cost. And there is no 고객센터 surface anywhere in the client. |
 | C | `app/app/owner/live.tsx:514` — "최소 기본요금 9,900원은 결제되며" | **UNBACKED.** 9,900 is `runnerCompBase`, the RUNNER's floor (ctx.ts:9-13 warns the two pots are different); the owner's base is 7,900 and `compute_owner_charge` never reads `min_fare`. Worse, `owner_request` charges **planned** distance (D2), so the sentence quotes a floor when only the ceiling will be billed. |
 | D | same line — "러너에게는 잔여 거리 보장이 적용돼요" | **CONDITIONAL.** The guarantee is real only for `owner_request`/`owner_forced`; the owner's stop request never sets the end reason (it is a chat message + notification), and the runner then picks freely — 컨디션/개인 사유 pay bare actuals with `guarantee = 0`. |
 
@@ -124,3 +124,26 @@ table comment); the TS half is functional and done, and the documentary half sho
 `late_comp_failed` the next time a migration touches that comment — an unregistered class
 routes to zero subscribers and correctly falls back to the env operator (0084 J6), so nothing
 is broken in the meantime.
+
+### Survivor B — FIXED 2026-08-13 (client-only, no migration)
+
+The fix is **not a corrected number.** §0-bis puts the post-run moment on the record card —
+the dog, never the charge — and confines money to two modes, on demand and on exception. So
+the charge left the report screen and the receipt stayed one tap away, which is what the
+doctrine asks for:
+
+- the `결제 금액` row and the `고객센터` sentence are gone (one printed the frozen planned
+  total, the other named a support process that does not exist — settle-time adjustment is
+  automatic under 0084 §A);
+- in their place, one quiet `결제 내역 보기` button into `/payments`, carrying the
+  `returnTo`/`returnLabel` convention Sean's ruling ⑤ established, plus the line
+  *"실제 청구된 금액과 영수증은 결제 내역에 있어요"*;
+- **`RunReport.price` was removed from the type, the select and the mapper**, not left unused.
+  A screen that still holds the number will eventually print it, so the field carries a
+  comment saying why it is absent — the same anti-"helpful-restore" reasoning as the contract
+  test's anti-hoist comment. tsc clean.
+
+Remaining survivors: **C/D** (`owner/live.tsx:514`, one line — the ₩9,900 minimum is the
+runner's floor quoted at the owner, and the guarantee beside it holds only for owner-caused
+ends) and **A** (`club/run/[sid].tsx:35`, the hardcoded condition note — mechanically the fix
+already shipped once on `runner/run.tsx`).

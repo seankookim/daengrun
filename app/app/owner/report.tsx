@@ -382,13 +382,33 @@ export default function Report() {
             )}
 
             {/* ---------- 결제 ---------- */}
+            {/* [2026-08-13] This block used to print `bookings.total_price` under the label
+                결제 금액 — the FROZEN PLANNED total minted at booking time, not what was
+                charged. compute_owner_charge (0084 §A) bills `least(actual, km)` for every
+                reason except owner-caused ends, and `runner_personal` drops the base and
+                addons entirely, so any early-ended run showed a number the owner was never
+                billed, on the one screen they open to check what a run cost. Beneath it sat
+                "조기 종료 시 정산 조정은 고객센터를 통해 처리돼요" — naming a support process
+                that does not exist anywhere in this app (settle-time adjustment is automatic).
+                Two assertions, neither backed; found by the ⑩ class sweep
+                (docs/decisions/cancel-fee-runner-share.md).
+                The fix is not a corrected number here. §0-bis is explicit that the post-run
+                moment is the RECORD CARD — the dog, never the charge — and that money lives in
+                exactly two modes, on demand and on exception. So the charge leaves this screen
+                and the receipt stays one tap away, which is what the doctrine actually asks
+                for. /payments is the on-demand half and reads the real `payments` rows. */}
             <View style={s.section}>
-              <Row style={{ justifyContent: 'space-between' }}>
-                <Text style={{ fontSize: 15, fontWeight: '800', color: paper.ink }}>결제 금액</Text>
-                <Text style={{ fontSize: 18.5, fontWeight: '900', color: paper.ink }}>{report.price.toLocaleString()}원</Text>
-              </Row>
-              <Text style={{ fontSize: 14, color: paper.dim, marginTop: 5 }}>
-                조기 종료 시 정산 조정은 고객센터를 통해 처리돼요
+              <PaperBtn
+                label="결제 내역 보기"
+                variant="secondary"
+                onPress={() =>
+                  router.push({
+                    pathname: '/payments',
+                    params: { returnTo: `/owner/report?bid=${bid ?? ''}`, returnLabel: '러닝 리포트로' },
+                  })}
+              />
+              <Text style={{ fontSize: 14, color: paper.dim, marginTop: 8, lineHeight: 19, textAlign: 'center' }}>
+                실제 청구된 금액과 영수증은 결제 내역에 있어요
               </Text>
             </View>
 
