@@ -98,9 +98,30 @@ everyone to skip claiming, which is worse than no table. **`shared` means "tell 
 edit the same FUNCTION", not "stay out".** Two sessions in one file is usually fine; the same
 function is the problem.
 
-| Path(s) | Session (branch) | Mode | Started | Intent (one line) |
-|---|---|---|---|---|
-| `supabase/migrations/0090_chat_notify.sql` · `supabase/tests/126_chat_notify_suite.sql` · `supabase/tests/harness.sh` | club-delegation (`claude/club-delegation-money-gaps-b59eb8`) | exclusive (new files) / shared (harness.sh) | 2026-08-13 | ⑬ — trigger so a chat message reaches the other party's phone |
+**And name the TREE the work actually lives in.** A claim that says who and what but not *where*
+lets one session hold the same uncommitted change in two working trees at once — which happened
+on 2026-08-13: a `0089` slice sat byte-identical and uncommitted in both its own worktree and the
+shared main checkout. Whichever is committed first, the other becomes a stale copy that someone
+can still commit later, and the two are indistinguishable by reading either one.
+
+⚠ **The shared main checkout `/Users/sean/dev/daengrun` needs naming out loud when you work there,
+because it is the one tree nobody owns.** Three consequences, all observed the same day:
+- **Nobody watches its ahead-count.** It sat 32 commits ahead of origin with no one responsible
+  for noticing. Worth a standing check: `git -C /Users/sean/dev/daengrun rev-list --count origin/redesign-v4..HEAD`.
+- **It accumulates several sessions' work at once**, so `git add -A` there sweeps up other
+  people's files. Stage by explicit path, or work in your own worktree.
+- 🔴 **An uncommitted migration there blocks `supabase db push` for everyone**, because `db push`
+  applies every pending local file — CLAUDE.md's "never push from a worktree carrying an
+  unfinished migration", pointed at the tree that isn't anyone's.
+
+If you must edit there, the pattern that works: commit **only your own paths**, then cherry-pick
+onto `origin/redesign-v4` from your own worktree and push from there. The shared tree is never
+rebased under anyone, and the duplicate commit drops itself on their next `pull --rebase`
+(identical patch-id).
+
+| Path(s) | Session (branch) | Tree | Mode | Started | Intent (one line) |
+|---|---|---|---|---|---|
+| `supabase/migrations/0090_chat_notify.sql` · `supabase/tests/126_chat_notify_suite.sql` · `supabase/tests/harness.sh` | club-delegation (`claude/club-delegation-money-gaps-b59eb8`) | own worktree | exclusive (new files) / shared (harness.sh) | 2026-08-13 | ⑬ — trigger so a chat message reaches the other party's phone |
 
 Conventions: give **paths**, not a ticket name · one line of intent, so a reader can
 tell whether their change collides or merely neighbours · stale rows are worse than none, so
