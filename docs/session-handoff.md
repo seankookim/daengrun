@@ -112,7 +112,34 @@ booking** (Sean's ruling ⑥ — never `now()`; `longest_inflight_booking_end()`
     run-end-flow session; mirrored in their plan so it sits in two documents that get read.
   · club price disclosure live (ruling ④ keeps 9,900 as a *stated* premium — the single
     disclosure is on the 승낙서, `app/app/club/delegate/[sid].tsx`)
-  · **the sweep is re-anchored on `runs.settled_at`** — run-end-flow's 0083 redefines
+  · **the sweep is re-anchored on `ledger_items`, and the setter REFUSES without it.**
+    ⚠ SUPERSEDES the `runs.settled_at` plan below — that column is client-forgeable and the
+    hole is bigger than "the sweep can't see a run". `0002_rls.sql:107` lets an assigned runner
+    INSERT a `runs` row with EVERY column pre-filled, and `_guard_run_cols` (0057:465) is
+    `before update` only. `sweep_settled_without_payments` selects on `runs.ended_at` and then
+    mints through `mint_settle_charge_intent` using `end_reason` and `actual_km` **read off
+    that same client-inserted row** — so post-cutover a runner could insert
+    `ended_at = now(), actual_km = 10, end_reason = 'completed'` for their own booking and the
+    sweep would charge the owner's card for a run that never happened. `settle_run_tx`'s atomic
+    claim protects the normal path; the sweep bypasses it by reading `runs` directly.
+    **The invariant sweep trusted client-writable data. That is ours, not the run-end slice's.**
+    Anchor on **`ledger_items`** instead: RLS on, exactly one policy (`self read`, 0002:124),
+    **no INSERT policy for any client role** — only `settle_run_tx` (definer) writes it. It is
+    the artifact of settlement having actually happened, in a table no client can reach.
+    Exclude the cancel-comp row by requiring a `runs` row and a non-cancel status; ledger
+    existence is not a status, so §0-ter #11 still holds. `runs.settled_at` remains the
+    semantic marker (money moved ≠ service stopped) but stops being load-bearing:
+    **an anchor in a client-insertable table is one policy change away from being forgeable
+    again, even after the guard lands.** Two independent facts beat one guarded one.
+    **And the checklist becomes code:** `set_payments_live_since` (0084:468) enforces only
+    `cutover_must_be_future`. It gains hard refusals — no flip while the sweep lacks its
+    predicate, none while a settled-but-uncharged booking exists in the shape it cannot see.
+    A checklist is advice; a refusal is a gate, and the 2am operator cannot skip a gate by
+    not reading a header.
+    SEQUENCING (forced, agreed with run-end-flow): their `runs` INSERT lockdown + atomic
+    `start_run_tx` + BEFORE INSERT guard land in 0083 FIRST; our re-anchor and the setter
+    refusals land after, because the harness must see their guard to pin ours.
+  · ~~the sweep is re-anchored on `runs.settled_at`~~ (superseded, kept for the reasoning) — run-end-flow's 0083 redefines
     `runs.ended_at` as service-STOP time, which opens a hole in MY
     `sweep_settled_without_payments`: it would see a run that stopped, not yet returned, and
     mint a charge for a dog still on the leash. One predicate closes it, in my file, after
