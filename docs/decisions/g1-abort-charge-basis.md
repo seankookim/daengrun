@@ -1,53 +1,84 @@
-# ① G1 — What does an aborted run charge the owner? (`dog_condition` / incident-class)
+# ① G1 — What an aborted run charges, both sides of the ledger
 
-**Status: 🔴 CONFLICTED — Sean answered this TWICE, differently, in two sessions. Do not
-build either answer until he picks one.** Nothing is being built on it; the shipped code
-still waives both.
+**Status: ✅ FULLY RULED BY SEAN 2026-08-13. Buildable.** The final rule is fault-based
+and mirrors both ledgers — Sean's own frame, better than either memo's proposal:
+**who is at fault decides who absorbs the shortfall.**
 
-| Where | When | `dog_condition` | `incident` |
+## The rule
+
+| `end_reason` | fault | RUNNER is paid | OWNER is charged |
 |---|---|---|---|
-| Charge-slice session (`0fbaa64`) | earlier | **base fare ONLY, flat** — no distance, no addons. Follow-up clarification: *"base as just 7900"* | ₩0, **verify first** |
-| This session (AskUserQuestion) | later | **full actuals** = base + distance (option C) | ₩0 |
+| `completed` | — | base + actual distance | base + actual distance |
+| `dog_condition` | nobody / the dog | `runnerCompBase` 9,900 + 3,000 × **distance actually run** | `ownerBaseFare` 7,900 + 3,000 × **distance actually run** (mirrored) |
+| `owner_request` / `owner_forced` | owner | 9,900 + 3,000 × **distance actually run** | **PLANNED** distance (D2, unchanged — anti-cut-short) |
+| `runner_personal` | runner | **9,900 base ONLY, no distance** | **distance only, base waived** (#10 UNCHANGED) |
+| `incident` | under review | normal settle | **₩0**, gated on VERIFICATION |
 
-**Why this happened, plainly: my menu did not contain his own answer.** His base-only
-ruling lived in a memo that sat unpushed on one laptop, so when I consolidated I couldn't
-see it and offered him A′ (waive) / D (distance-only) / C (full actuals). "Base only,
-flat" was not on the menu. He picked C — the only option that charges the base at all.
-That makes C a forced choice among three wrong options, not necessarily a reversal, which
-is exactly why this must go back to him instead of being resolved by recency.
+**Sean's words:** *"if it's the runner's own condition, the runner gets paid only base 7900
+without any extra. if it's an external circumstance like owner prompted or dog's issue,
+then runner get's paid until the distance ran."* Clarified in follow-up: the runner's base
+is **9,900** (`runnerCompBase`) — 7,900 was the owner's constant; the two stay decoupled
+and must never be unified. And rule **#10 stands unchanged** on the owner's side.
 
-**The two answers differ more than they look.** They converge on a very early abort and
-diverge as the run gets longer:
+## Why this is the better frame
 
-| abort point (3km booking) | base-only (earlier) | full actuals (later) |
-|---|---|---|
-| 0.2km | ₩7,900 | ₩8,500 |
-| 1.5km | ₩7,900 | ₩12,400 |
-| 2.8km | ₩7,900 | ₩16,300 |
+The two memo sets argued about the owner's bill in isolation (waive vs distance-only vs
+full actuals). Sean's rule sets both ledgers off the same fact — **fault** — so the
+platform's exposure stops being an accident of which end_reason fired:
 
-**His earlier reasoning, which is worth preserving whichever way he rules:** the base fee
-is what the runner's *showing up* costs — pickup, handoff, custody — and that labour
-happened; the distance is what didn't. Charging the base and waiving the distance says
-exactly that. Note the deliberate asymmetry it creates: the owner's charge is flat while
-the platform's absorption grows with distance, so a welfare stop late in a run is the
-expensive case for us — which is correct, or we'd be nudging runners to push on.
+- **`dog_condition` mirrors.** Nobody is at fault, so nobody eats a gap: the owner pays
+  for the distance that happened, the runner is paid for the distance they ran, and the
+  platform's margin stays proportional instead of growing with how late the dog stopped.
+  This is what the earlier "base flat, platform absorbs the distance" answer would have
+  cost us, and Sean chose against it once the asymmetry was visible.
+- **`runner_personal` is the one deliberate asymmetry**, and it points the right way: the
+  runner loses their distance component (they ended it), the owner is spared the base
+  (they didn't get the service), and **the platform absorbs that gap on purpose** — the
+  incentive lands on the party who chose to stop.
+- **`owner_request`/`owner_forced` keeps D2's planned-distance charge** on the owner while
+  the runner is paid actuals — the anti-cut-short rule survives untouched.
 
-**Club consequence, either way (name it or someone files it as a bug):** the charge reads
-the booking's own frozen `base_fare`, and ruling ④ kept the club premium — so a *club*
-condition-abort charges **₩9,900**, not 7,900.
+## `incident` — ₩0, verify first
 
-**`incident` is settled: ₩0, gated on verification.** Both answers agree. Sean's "verify
-incident first to avoid abuse of this feature" found a real P1: `settle-run` whitelisted
-all six `end_reason` values on a public HTTP endpoint, so once `incident` means "the owner
-pays nothing" an assigned runner could POST it and hand themselves a free run. The
-accepted set now narrows to the four a client can legitimately send. Fixed in the
-charge-slice session.
+Settled independently and already safe to build. Sean: *"verify incident first to avoid
+abuse of this feature."* That instinct caught a real P1: `settle-run` whitelisted all six
+`end_reason` values on a public HTTP endpoint, so once `incident` means "the owner pays
+nothing", an assigned runner could POST it and hand themselves a free run. The accepted
+set now narrows to the four a client can legitimately send. 0072 adjudication
+(`refund_full | settle_measured | pay_full`) owns the money question; charging at settle
+would pre-empt the case and manufacture the refund post-pay was built to delete.
 
-**Required accompaniment, unchanged by which answer wins:** under any charging rule the
-report/record card must say stopping was the right call and show the runner's own
-`condition_note` — real only since `611f014` (it was the hardcoded constant
-`'러너 판단: 컨디션 저하 관찰'` on every abort until 2026-08-13). Without it the owner is
-billed for a stop they can't evaluate.
+## Consequences to carry into the build
+
+- **The charge reads the booking's FROZEN `base_fare`**, and ruling ④ kept the club
+  premium — so a *club* `dog_condition` abort charges **₩9,900**, not 7,900. Name it in
+  copy or it will be filed as a bug.
+- **Owner ceiling still applies**: never above `min(actual, planned)`, so a mirrored
+  charge can never exceed the quote.
+- **Required copy, unchanged:** the report/record card must say stopping was the right
+  call and show the runner's real `condition_note` — meaningful only since `611f014`
+  (it was a hardcoded constant on every abort until 2026-08-13). Under a mirrored charge
+  the owner is now billed for a stop they need to be able to evaluate.
+- **Flips remain forward-only** — newly consented bookings only.
+- `runnerCompBase` (9,900) and `ownerBaseFare` (7,900) stay decoupled. A runner-fault stop
+  pays the runner's own base, not the owner's.
+
+## How this decision was reached (and what it cost)
+
+Asked three times, because the first two rounds were run on incomplete information:
+Sean ruled *base fare flat* in the charge-slice session, but that ruling sat unpushed on
+one laptop, so this session's consolidation could not see it and put G1 to him again with
+a menu that omitted his own answer — he picked *full actuals* from it. The third round
+surfaced the contradiction instead of resolving it by recency, and his answer reframed the
+question onto the fault axis, which neither memo had proposed. **Unpushed work reserves
+nothing — decisions included.**
+
+---
+
+*Everything below is the analysis that produced the question. Kept for provenance;
+superseded by the rule above.*
+
+uperseded by the rule above.*
 
 ## Sean's third answer (2026-08-13) — VERBATIM, needs one clarification before it is buildable
 

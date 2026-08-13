@@ -114,12 +114,14 @@ uncommitted work there, so the remote was advanced instead of fast-forwarding th
 
 **Decisions — EIGHT memos in `docs/decisions/` (one directory; `decisions-open-money.md`
 retired into it, Sean's rulings ported from `0fbaa64`). SEVEN are ruled, ONE is stuck:**
-- 🔴 **① G1 — CONFLICTED, needs one word from Sean.** He answered twice, differently:
-  `dog_condition` = **base fare only, flat** ("base as just 7900", charge-slice session)
-  vs **full actuals** (picked here from a menu that omitted his own answer). Nothing is
-  built on either; shipped code still waives. `incident` = **₩0 gated on VERIFICATION** is
-  settled — his "verify first" caught a free-run hole (`settle-run` whitelisted all six
-  `end_reason` values on a public endpoint; now four).
+- ✅ **① G1 FULLY RULED — fault-based, both ledgers mirrored.** `dog_condition`: owner
+  7,900 + 3,000×**distance actually run**, runner 9,900 + 3,000×same — nobody at fault, so
+  nobody eats a gap. `owner_request`/`owner_forced`: owner PLANNED (D2), runner actuals.
+  `runner_personal`: owner distance-only base-waived (#10 stands), **runner 9,900 base only,
+  no distance** — the one deliberate asymmetry, platform absorbs it. `incident`: **₩0, verify
+  first** (his instinct caught a free-run hole — `settle-run` whitelisted all six
+  `end_reason` values on a public endpoint; now four). ⚠ a CLUB abort charges 9,900 (frozen
+  base + ④). Required copy: report says stopping was right + shows the real `condition_note`.
 - ✅ **② D-3 = A, accept as-is — NOTHING TO BUILD.** No per-charge push, no monthly
   summary. The statement-row slice is **CANCELLED, not deferred**. Counsel question
   survives as validation; 전자상거래법 footer still mandatory at 사업자등록.

@@ -113,8 +113,9 @@ edges, zero repinning.
 |---|---|---|
 | completed / runner-caused early end | ACTUAL | pay what happened |
 | owner_request / owner_forced | **PLANNED** (D2 rule) | guarantee clause + anti-cut-short gaming |
-| **dog_condition** | 🔴 **CONFLICTED — Sean answered twice** (base-fare-flat vs full actuals); see `docs/decisions/g1-abort-charge-basis.md`. Shipped code still waives. | unresolved — do not build either |
-| **incident-class** | **₩0 at settle** (`waived`), gated on VERIFICATION — ruled 2026-08-13 | 0072 adjudicates; `settle-run`'s six-value whitelist was a free-run hole, now narrowed to the four a client can send |
+| **dog_condition** | **ACTUAL — mirrored both ledgers** (owner 7,900 + 3,000×run; runner 9,900 + 3,000×run) — RULED 2026-08-13 | nobody at fault, so nobody eats a gap; platform margin stays proportional |
+| **runner_personal** | owner: distance only, base waived (#10) · **runner: 9,900 base ONLY, no distance** — RULED | the deliberate asymmetry: the party who chose to stop loses the distance; platform absorbs the gap |
+| **incident-class** | **₩0 at settle**, gated on VERIFICATION — RULED | 0072 adjudicates; `settle-run`'s six-value whitelist was a free-run hole, now four |
 
 `owner_charge = ownerBaseFare(7,900) + 3,000 × basis + addon_fare`.
 
@@ -199,14 +200,13 @@ is amended by ALL of the following; a second adversarial round belongs to the bu
    "later confirmed row"), and the failed→confirmed flip sets payment_key in the SAME
    statement (payments_settled_has_key). Verify-at-build: Toss idempotency-key
    retention window vs the +24h outer rung.
-9. **Basis for `dog_condition`/`incident` (#9): `incident` = ₩0 with verification (RULED).
-   `dog_condition` is 🔴 CONFLICTED — Sean gave two different answers in two sessions
-   (base fare only, flat / full actuals); the second came from a menu that omitted the
-   first. Nothing is built on either. See `docs/decisions/g1-abort-charge-basis.md`.
-   Whichever wins: the charge reads the booking's FROZEN `base_fare`, so a CLUB abort
-   charges 9,900 (ruling ④ kept the club premium), and the report must show the runner's
-   real `condition_note` (`611f014`) — a bill for a stop the owner cannot evaluate is not
-   defensible. Flips forward-only.
+9. **G1 FULLY RULED 2026-08-13 (#9) — fault-based, both ledgers mirrored.**
+   `dog_condition`: owner AND runner both on distance-actually-run. `owner_request`/
+   `owner_forced`: owner PLANNED (D2), runner actuals. `runner_personal`: owner distance-
+   only with base waived (#10 unchanged), runner 9,900 base only. `incident`: ₩0, verify
+   first. Constants stay decoupled — a runner-fault stop pays `runnerCompBase` 9,900, not
+   the owner's 7,900. A CLUB abort charges 9,900 (frozen base + ruling ④). Full rule and
+   reasoning: `docs/decisions/g1-abort-charge-basis.md`. Flips forward-only.
 10. **`runner_personal` waives the base (#10):** owner pays `3,000 × actual` only — a
     runner-caused end doesn't bill the owner 7,900 for undelivered service. Platform
     absorbs the runner's min_fare floor at tiny actuals (rare, bounded, gauge it).
