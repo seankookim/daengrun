@@ -1,4 +1,4 @@
-# SESSION HANDOFF — 2026-08-13 · charge slice BUILT · branch `claude/payments-toss-plan-slice-8079f7`
+# SESSION HANDOFF — 2026-08-13 · charge slice + club money gates SHIPPED · `redesign-v4` @ 534d2aa
 
 **Opener for the next session: "read docs/session-handoff.md fully, then continue."**
 Previous handoff: `docs/session-handoff-archive-20260812-final.md`. Plan of record:
@@ -6,21 +6,34 @@ Previous handoff: `docs/session-handoff-archive-20260812-final.md`. Plan of reco
 
 ## 1. What this session did
 
-The §0-ter settle-time charge machine, built as one slice, via 4 parallel build agents +
+**Both slices are merged and pushed to `origin/redesign-v4` (534d2aa). Nothing is deployed** —
+no `db push`, no `functions deploy`; the deploy order in §3 has ops prerequisites only Sean
+can clear, and everything shipped is inert until `ops_flags.payments_live_since` is set.
+
+**① The §0-ter settle-time charge machine**, built via 4 parallel build agents +
 3 attack-executing adversarial reviewers + 2 fix agents. Then **merged current redesign-v4
 back in** (route catalog + pace-state + harness loud-fail landed mid-build) and renumbered:
 the migration is **0080_charge_machine.sql** (0078/0079 were claimed by route-catalog and
 pace-state), the suite is **116_charge_suite.sql** (115 = pace-state). Lesson, learned twice
 in one day: parallel branches pick "next free number" against their fork point — check
-`ls supabase/migrations | tail` against CURRENT redesign-v4 at merge time.
-**NOT pushed, NOT deployed — Sean reviews first.**
+`ls supabase/migrations | tail` against CURRENT redesign-v4 at merge time — and it happened a
+THIRD time after that (a route-discovery session planned its promotion guards as 0081 while
+0081 was being written here; they were told to take 0082/suite 118).
 
-| Gate | Result (post-merge tree) |
+**② Club money gates (0081)** — the third booking-creation path. 0080 §H had named its own
+exclusion: it gated create-booking-hold and generate_recurring_bookings and left
+`session_pay_delegation` open, while club runs DO reach the charge branch
+(club_start_delegated_runs → club/run/[sid].tsx:247 → settle-run → mint, no club exclusion
+anywhere). Now gated with 0080 §H's two predicates verbatim, plus the club confirmation
+stopped claiming '결제 완료' for a payment that never happens there, plus club_fare lost its
+PUBLIC execute. Independently reviewed (verdict: migration sound; one pin repaired — see §2).
+
+| Gate | Result (final tree) |
 |---|---|
-| SQL harness | **430 / 0** (redesign-v4 baseline 403 + 116_charge_suite C1–C25 + race RD/RE) |
-| Deno | **131 / 0** (`deno test -A supabase/functions/_test/`) |
+| SQL harness | **438 / 0** (redesign-v4 baseline 403 + 116 charge C1–C25 + races RD/RE + 117 club K1–K8) |
+| Deno | **133 / 0** (`deno test -A supabase/functions/_test/`) |
 | Client | tsc clean · check-rpc green |
-| Mutations | 38 executed across build+review+fix waves (each: apply → red → restore → green) |
+| Mutations | 44 executed across build+review+fix waves (each: apply → red → restore → green) |
 
 Inventory: `0080_charge_machine.sql` (billing_keys · ops_flags.payments_live_since ·
 compute_owner_charge basis table · mint_settle_charge_intent / mint_cancel_fee_intent ·
@@ -59,6 +72,20 @@ refund-copy fixes · pay-lab 청구 예외 tab.
   `below_pg_minimum` (<₩100) arm.
 - 🔴 G1 (dog_condition/incident basis) is STILL Sean's open call — provisional
   charge-nothing shipped, grep handle `g1_waive`.
+- **Ops alerts carry no financial detail** — OPS_PROFILE_ID is an env-held uuid and 0024
+  pushes notification bodies verbatim to a lock screen, so a valid-but-wrong value put another
+  customer's order number and ₩ amount on a stranger's phone. Payload removed (detail lives in
+  console.error + payments_reconciliation()); a second cross-check env var was rejected as
+  moving the question. Pinned.
+- **Club bookings are refused by the marketplace cancel ladder** — they reach /owner/schedule
+  and were being quoted 0066's rates into a club-blind state. Refused server-side; the client
+  routes to the club session screen. Copy says 진행, not 취소, because the club exit refuses
+  past handoff (memo ⑤).
+- **A pin can be mutation-proven and still be hollow** (club review P2-1): 117's K2 probed a
+  seat an earlier pin had consumed, so it died at the state gate before the money gates, and
+  it only went red under mutation because the earlier pin's failure rolled back and restored
+  its fixture. Repaired; the lesson is kept in the suite's mutation map. Worth remembering the
+  next time a mutation map reads as proof.
 
 ## 3. DEPLOY ORDER (verified per-function by R3 — violating it breaks bookings)
 
@@ -79,21 +106,36 @@ path still JWT-validated via caller())
 **Ops:** ① 사업자등록 → 통신판매업 → Toss (일반 + 자동결제 심사 one application) — unchanged,
 still the critical path; ② dashboard TEST keys + variantKey 카드/간편결제-only (docs demo
 WIDGET keys are recorded in app/.env.example + plan §5 — they unblock the A3 device spike
-NOW, but not billing); ③ review this branch → merge to redesign-v4 → push (gates green,
-nothing deployed).
+NOW, but not billing); ③ ~~review + merge + push~~ — DONE this session: both slices are on
+`origin/redesign-v4` @ 534d2aa (branch `claude/club-money-gates` also pushed). Local
+`redesign-v4` in the main checkout is BEHIND origin on purpose — another session had
+uncommitted work there, so the remote was advanced instead of fast-forwarding their tree.
+`git pull` with a clean tree.
 **Decisions:** **`docs/decisions-open-money.md` — three briefs written 2026-08-13, pick by
 number**: ① G1 abort-charge basis (recommendation: D — `incident` charges nothing at settle
 because the 0072 case owns that money; `dog_condition` charges distance-only) · ② D-3
 silent-charge question for counsel (recommendation: ask with three options; if ambiguous
 ship the monthly summary, not a per-charge push) · ③ OPS_PROFILE_ID (recommendation: keep
-the env var for the pilot). Also still open: lab picks Ⓡ①②③ + Ⓖ rule · Ⓛ③ spec-plate
+the env var for the pilot) · ④ club_fare is the pre-D2 formula, so club owners pay ₩2,000 MORE
+than marketplace for the same km (recommendation: align to 7,900 before the flip; no price
+change shipped) · ⑤ en-route club cancels now have no owner path (recommendation: route them
+into the incident flow rather than a wall) · ⑥ the cutover straddle — a booking confirmed
+pre-flip is charged post-flip and can lock a card-less owner (recommendation: set
+`payments_live_since` to a FUTURE timestamp past the longest in-flight booking).
+⚠ A parallel session wrote memos ①–③ independently as `docs/decisions/` and reports the calls
+were delegated there; that set is canonical and ours retires after your merge — the banner at
+the top of `decisions-open-money.md` names what each has that the other lacks. **Nothing was
+built on that relayed adoption**: G1 keeps 🔴 and D-3 is unbuilt, because a confirmation gate
+that another session can perform is not a gate. Also still open: lab picks Ⓡ①②③ + Ⓖ rule · Ⓛ③ spec-plate
 graft + ₩/원 (carried from the 2026-08-12 handoff §9).
 
 ## 5. Next prompts (exact openers)
 
-- **Club delegation money slice** (pre-cutover gate): "read docs/session-handoff.md, then
-  close the club delegation money gaps per TODOS.md 2026-08-13 §1 as its own migration at
-  the next free number, with its own adversarial cycle."
+- **Cutover-gate slice** (the last code before the flip): "read docs/session-handoff.md,
+  then build the cutover-gate items as migration 0082+: per-runner dog_condition-rate +
+  absorbed-KRW telemetry with the condition_note surfaced on the record card (the waive
+  removes the free fraud detector), the payments_reconciliation >0-rows heartbeat, and
+  D-3's monthly statement IF Sean has confirmed it."
 - **Device-verify** (runnable NOW with docs demo keys, AFTER merge): "read
   docs/session-handoff.md; run the A3 device build with the docs demo keys in
   app/.env.example (variantKey DEFAULT), execute the §4-2 sandbox matrix through pay-lab
