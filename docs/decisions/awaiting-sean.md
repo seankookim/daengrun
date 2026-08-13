@@ -91,7 +91,7 @@ can message the owner and the owner's phone stays silent. **A build item, not a 
 are his: whether the push carries the message text (0024 pushes bodies verbatim to a lock
 screen), and how to collapse repeats.
 
-## 4. 🟡 ⑫ — the MONEY half (the custody half is ruled)
+## 4. ✅ ⑫ — RULED IN FULL 2026-08-13 (no longer waiting on him)
 
 Does a marketplace incident get its own settle path or become a second caller of 0072's
 adjudication · is the runner paid while it is open · what ends the state. Codex's analysis is now

@@ -134,7 +134,7 @@ field and was in fact a session's — the patch-id check settled it in seconds.)
 
 | Path(s) | Session (branch) | Tree | Mode | Started | Intent (one line) |
 |---|---|---|---|---|---|
-| `docs/decisions/marketplace-incident-exit.md` · `docs/decisions/awaiting-sean.md` | club-delegation (`claude/club-delegation-money-gaps-b59eb8`) | exclusive | 2026-08-13 | Record Sean's ⑫ ruling (verbatim) and promote 🟡→✅. Docs only. |
+| *(none in flight)* | | | | |
 
 Conventions: give **paths**, not a ticket name · one line of intent, so a reader can
 tell whether their change collides or merely neighbours · stale rows are worse than none, so
