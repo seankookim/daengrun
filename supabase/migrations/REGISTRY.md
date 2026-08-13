@@ -39,7 +39,7 @@ touched it and name whose version you build on in your file header.
 | 0084 | `0084_g1_ops_cutover.sql` | 120 | payments (`claude/g1-ops-club-decisions`) | **SETTLED 2026-08-13** — on disk, in build |
 | 0085 | `0085_cancel_share.sql` | 121 | ⑩ cancel-fee runner share (`claude/club-delegation-money-gaps-b59eb8`) | **BUILT 2026-08-13** — harness 467/0, deno 161/0, 5 mutations verified |
 | 0086 | `0086_runner_stop_passthrough.sql` | 122 | ⑨a pass-through runner pay (`claude/g1-ops-club-decisions`) | **TAKEN** — file pushed on that branch 2026-08-13; row added by a third session that spotted it |
-| 0087 | `0087_run_insert_seal.sql` | 123 | **runs INSERT seal** — revoke client INSERT on `runs` + atomic `start_run_tx` (`claude/run-end-flow-1a67e0`) | **CLAIMED 2026-08-13** — closing a remotely exploitable hole (`0002_rls.sql:107` lets an assigned runner INSERT a fully client-controlled `runs` row) |
+| 0087 | `0087_run_insert_seal.sql` | 123 | **runs INSERT seal** — revoke client INSERT on `runs` + atomic `start_run_tx` (`claude/run-end-flow-1a67e0`) | **BUILT 2026-08-13** — harness 487/0 (baseline 478/0), deno 173/0, 4 mutations verified |
 | 0088 | `0088_profiles_column_grants.sql` | 124 | profiles column grants — P0 PII/PG-key leak (`claude/g1-ops-club-decisions`) | **CLAIMED 2026-08-13** — `profiles public runner read` has no column grant, so `phone` and `toss_customer_key` are returned to any authenticated user |
 | 0089 | *(next free)* | 125 | — | available |
 
@@ -70,6 +70,40 @@ git fetch --all -q && git branch -r --list 'origin/*' \
 Read the row, then look at every remote branch — not just trunk. And when you push a
 migration, push its row in the same breath; a row that trails its file by even an hour is
 the window this collision walked through.
+## In-flight claims for work with NO migration number
+
+Migrations have numbers, a ledger and a pre-push hook. **Client fixes, edge-function changes and
+copy work have none of that** — and on 2026-08-13 two sessions independently built the same
+`charge-states` fix within the same hour, for the second time that day. Nothing was lost (the
+pushed version stood, and it was the better one), but it cost an hour twice.
+
+**Claim a shared surface here before you edit it. Remove the row when it merges.** Advisory —
+no hook can enforce this — but it is a five-second write and a five-second check, and it only
+has to work once to pay for itself.
+
+| Surface / file | Session (branch) | Started | Intent (one line) |
+|---|---|---|---|
+| *(none in flight)* | | | |
+
+Conventions: name the **file or surface**, not the ticket · one line of intent, so a reader can
+tell whether their change collides or merely neighbours · stale rows are worse than none, so
+delete yours when you merge · if you find a row older than a day, ask before assuming it is
+abandoned.
+
+### Routing work between sessions (the other half of the same bug)
+
+The duplicate above was not caused by a missing ledger alone. The routing message named one
+owner and, in the same breath, offered the other party a chance to take part of it — so one
+session read *settled* and the other read *open invitation*. **A question that stays open while
+work proceeds is a race, not an option.** So, when routing:
+
+1. name **one** owner,
+2. say explicitly that the other party should **not** start,
+3. put any *"would you rather own this?"* question **before** the routing, never alongside it.
+
+(Protocol authored by the announcing session, recorded here because it belongs next to the
+claim table it complements.)
+
 ## Claim the SLICE, not just the number
 2026-08-13: two sessions built ⑩ in full, simultaneously. The registry did its job on numbers
 and was silent on units — ⑩ sat in one session's handoff as unclaimed next-work, and the other
@@ -94,6 +128,10 @@ Three instances on 2026-08-13, and naming the class is worth more than any of th
 | migration numbers ×7 | "next free", derived independently per session | claim on origin + pre-push hook |
 | `/tmp/dr85` | temp harness dir derived from the **migration number** | name it after the SESSION |
 | `pkill -f postgres` | `harness.sh` handed postgres a **relative** `-D`, so every session's command line was byte-identical | absolute `PGDATA` |
+
+A fourth instance is one layer up and the same shape: **work allocation with no claim at all**
+— two sessions building one unnumbered client fix, twice in a day, because only *numbered* work
+had a ledger. Fixed the same way: give it a claim (see the in-flight table above).
 
 **Every time, the correct fix made the identifier unique AT THE SOURCE** rather than asking
 people to be careful with it. That is the same argument as the pre-push hook, and it predicts
@@ -193,6 +231,7 @@ else about. Applying it to yourself when it is inconvenient is the whole point.
 | 0086 | **NONE — adds one new function** (`compute_runner_personal_payout`). It READS `compute_owner_charge` (←0084 §A) and re-creates nothing. ⚠ **It deliberately does NOT re-create `settle_run_tx`, which the brief expected it to**: 0028:18 is that function's current definition, 0083 EXTENDS it and is not on origin yet, and 0083 < 0086 — so a 0086 built from 0028's body would apply AFTER 0083 and silently revert it while the harness stayed green (0083's pins live in 0083's suite). ⑨a needed no change there anyway: the ledger write inserts the five money parameters it is handed, and `settle-run/handler.ts` composes them. See 0086 §B, which also records that 0028:30's body says `set search_path = public` (no `pg_temp`) — it passes 98 H1 only because 0055's ALTER retro-sealed it, so ANY faithful reproduction of 0028 must add `pg_temp` or turn H1 red. |
 | 0085 | EXTENDS nothing — adds ONE new function (`record_late_cancel_share`). Deliberately shares 0080's `comp:` advisory-lock key so the two comp writers are mutually exclusive; re-creates no existing object. `marketplace_cancel_fee` stays 0066's, `record_enroute_cancel_comp`/`mint_cancel_fee_intent` stay 0080's. |
 | 0088 | **NONE — creates no object at all.** It is `revoke select` + `grant select (…)` on `profiles`, plus two `comment on column`. It does NOT re-create the 0002 `profiles` policies (row visibility is deliberately unchanged), does NOT touch INSERT/UPDATE/DELETE grants (the write whitelist is a separate, unbuilt slice — 0088 §0b), and does NOT touch `available_runners` (0015), which it only PINS as a subset of the granted columns. ⚠ Anyone adding a column to `profiles` after this must decide whether it is public: the grant is a whitelist, and 124 G1's fourth arm reddens on any column outside it. ⚠ **Disjoint from 0087 (`runs` INSERT seal) by construction** — different table, and 0088 touches no INSERT privilege anywhere; the two seals can land in either order. |
+| 0087 | **DROPS one policy, re-creates NOTHING.** `"runs runner write"` ←0002:107 — dropped, not replaced (nothing else in the repo re-creates it; verified). ⚠ Deliberately does NOT touch `_guard_run_cols` (←0083), `settle_run_tx`, `end_run_tx`, `owner_la_*`, the append RPCs, or `sweep_settled_without_payments` — 0083 §0f's handoff to the payments session stands **unchanged and still owed**. NEW: `start_run_tx`, `_guard_run_insert_cols` + its trigger. Also edits `transition-booking/index.ts` (the `start_run` case moves to `start_run.ts`, cancel_owner's precedent) — no other edge function. |
 
 ### Settlement anchors — learned the hard way 2026-08-13
 

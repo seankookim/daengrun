@@ -37,7 +37,13 @@ returned to `anon`, including `phone` and `toss_customer_key`.**
   `not null default gen_random_uuid()`, and 0076's own header argues that identifier must never
   leave our tables.
 
-**The decision is deploy timing, not whether to fix.** The fix is built and verified on the
+**UPDATE 2026-08-13: the P0 is DECOUPLED from the cutover.** `0088` is on trunk and its
+`revoke` + column grants depend on nothing after `0074`, so **the anon exposure can be closed
+without deploying the payment system** — which was the sharpest tension in this queue. The one
+thing the harness cannot verify: **which client build is actually live and what columns it
+reads**. Establish that, then the fix ships on its own.
+
+**The decision was deploy timing, not whether to fix.** The fix is built and verified on the
 payments branch (harness 477/0) and cannot ship until `db push` is cleared — which is held while
 Sean is away, per rule 4. So: **open in production since `0002`, closed on a branch, blocked on
 his deploy call.** Explicitly his and not a stand-in's, since it trades a live exposure window
@@ -46,7 +52,11 @@ against deploying unreviewed-by-him migrations.
 ## 2. 🔴 ⑪ conflicts with a written privacy commitment — before ⑪ builds
 
 `docs/appstore-privacy-answers.md:27` declares the phone number's purpose as **"contact during
-handoff"**; ⑪ exposes a counterparty's number **during an incident**, which is broader. Two
+handoff"**; ⑪ exposes a counterparty's number **during an incident**, which is broader — an
+incident is not a handoff. **Scope settled 2026-08-13:** Sean narrowed it himself to *"during
+those emergency situations"*, so the amendment needed is small and specific ("handoff **and
+during incidents**") rather than the open-ended one an *"at all times"* reading would have
+forced. Two
 questions, in order: **has that questionnaire been filed with Apple yet** (it reads as
 pre-submission, but "reads as" is not a check), and **the declared purpose must move before ⑪
 ships** either way — that file states its own re-audit rule and ⑪ trips it. Detail in
@@ -54,8 +64,10 @@ ships** either way — that file states its own re-audit rule and ⑪ trips it. 
 
 ## 3. 🟡 The 안심번호 trade-off — his to confirm knowingly
 
-Departing from the Korean masked-relay norm (Kakao T's pattern) is defensible for a pilot, but
-it should be **confirmed, not inherited from a build decision**. `docs/feature-audit.md` already
+Now a narrower and much cleaner question, since the scope is incident-only: **a masked relay
+during incidents specifically**, not a blanket policy. Departing from the Korean norm (Kakao T's
+pattern) is defensible for a pilot, but it should be **confirmed, not inherited from a build
+decision**. `docs/feature-audit.md` already
 discusses 안심번호 — prior art to read rather than re-derive.
 
 ## 4. 🟡 ⑫ — the three rulings

@@ -28,12 +28,21 @@ on one branch. It compounded — a second session re-asked ① with a menu missi
 answer. **A decision counts when it is on origin, in this directory.** Push docs
 immediately; they are never the thing worth holding back.
 
-**2. Quote the human. A relayed decision is evidence, not authority — including when it
-comes from another Claude session.** "Sean ruled X" cannot be verified by whoever reads it,
+**2. Quote the human — and mark where the quote ends. A relayed decision is evidence, not
+authority — including when it comes from another Claude session.** "Sean ruled X" cannot be verified by whoever reads it,
 and "the call was delegated to this session's recommendation" is a *different claim* that
 reads identically three hours later. Record his actual words with the date. That is what
 let two sessions resolve a contradictory money ruling in one question instead of encoding a
-guess into a migration — his own phrasing could be put back to him. (Rule contributed by
+guess into a migration — his own phrasing could be put back to him.
+
+**The boundary half is the subtler one, and today produced the only case where the artifact was
+CORRECT and only its edge was wrong: an inference placed next to a ruling inherits the ruling's
+authority.** ⑪'s phone-number requirement was written up beside a ✅ heading, and by the time it
+had been relayed twice it was being built as *"show the numbers at all times"*. It was
+recoverable purely because the memo said *"the payments session reads the ruling as…"* rather
+than asserting it — so the premise stayed checkable, was checked, and Sean narrowed it himself
+to *"during those emergency situations."* A paragraph under a ✅ looks ruled. Say which sentence
+is his, and let the rest be visibly yours. (Rule contributed by
 the charge-slice session, which stopped mid-build over exactly this ambiguity.)
 
 **3. Verify, don't relay — including a well-formed artifact.** ⑪'s build checklist was
@@ -81,6 +90,9 @@ anywhere, and had a tip that was an ancestor of the trunk.
 clone.)*
 
 ## 🔵 When the founder is away: a stand-in decides, but never in his name
+> **Window closed 2026-08-13 — Sean is back; 🟡 items go to him directly.** Kept because the
+> rule holds for the next absence, and because ⑫ still carries a 🔵 that must not drift into a
+> ✅ now that he is reachable: it is answered when he answers it, not when he is available.
 
 Sean, 2026-08-13, going on break: *"tell others to run autonomous or ask codex in replacement
 of me. ill tell u when im back."* So work proceeds, and codex stands in for the judgement calls.
