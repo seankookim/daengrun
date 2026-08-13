@@ -44,7 +44,8 @@ touched it and name whose version you build on in your file header.
 | 0089 | `0089_return_force_ops_only.sql` | 125 | return force → OPS ONLY (`claude/run-end-flow-1a67e0`) | **CLAIMED 2026-08-13** — Sean: *"the confirmation must happen with both parties and never just the runner. also handoff."* Removes `runner`/`owner` from the force actor set |
 | 0090 | `0090_chat_notify.sql` | 126 | ⑬ chat→notification trigger (`claude/club-delegation-money-gaps-b59eb8`) | **BUILT 2026-08-13** — harness 510/0, deno 185/0, 5 mutations verified |
 | 0091 | `0091_profiles_write_grants.sql` | 127 | profiles WRITE column whitelist — the other half of 0088 (`claude/g1-ops-club-decisions`) | **BUILT 2026-08-13** — harness 515/0, 8 mutations verified. Was claimed as 0089; `claude/run-end-flow-1a67e0` pushed its 0089 FILE first, so this moved (whoever has no file moves). ⚠ **0088 CANNOT DEPLOY WITHOUT THIS** — 0088's grant omits `role`, and PostgREST's role-picker upsert reads `excluded.role`, so every signup 403s until this lands. |
-| 0092 | *(next free)* | 128 | — | available |
+| 0092 | `0092_incident_verify_work_gate.sql` | 128 | ⑪ two-sided incident verification + ⑫ runner work gate (`claude/run-end-flow-continuation-d9c485`) | **CLAIMED 2026-08-13** — Sean ⑪: *"incident verified by both runner and owner."* · Sean ⑫: *"pay the runner but dont let them make new runs until the dog is confirmed by both sides."* ONE slice, not two: ⑫'s exit condition IS ⑪'s two-stamp machine, so building ⑫ alone is a gate with no way to clear it. ⚠ Per 0089's ruling the force path here is **ops-only and writes NO party stamp** — a two-party machine born after 0089 must not reintroduce the one-sided confirmation 0089 removed. |
+| 0093 | *(next free)* | 129 | — | available |
 
 ## Where a number comes from: THIS FILE, never a message
 
@@ -134,7 +135,10 @@ field and was in fact a session's — the patch-id check settled it in seconds.)
 
 | Path(s) | Session (branch) | Tree | Mode | Started | Intent (one line) |
 |---|---|---|---|---|---|
-| `docs/decisions/cancel-fee-runner-share.md` · `docs/decisions/awaiting-sean.md` | club-delegation (`claude/club-delegation-money-gaps-b59eb8`) | exclusive | 2026-08-13 | Close ⑩'s reward question (Sean: tone, not currency); status → fully built. Docs only. |
+| `docs/decisions/cancel-fee-runner-share.md` · `docs/decisions/awaiting-sean.md` | club-delegation (`claude/club-delegation-money-gaps-b59eb8`) | *(tree not named)* | exclusive | 2026-08-13 | Close ⑩'s reward question (Sean: tone, not currency); status → fully built. Docs only. |
+| `supabase/migrations/0092_*` · `supabase/tests/128_*` | ⑪+⑫ (`claude/run-end-flow-continuation-d9c485`) | `.claude/worktrees/run-end-flow-continuation-d9c485` | exclusive | 2026-08-13 | ⑪ two-sided incident verification + ⑫ runner work gate — one slice (⑫'s exit IS ⑪'s machine) |
+| `supabase/functions/transition-booking/index.ts` | ⑪+⑫ (`claude/run-end-flow-continuation-d9c485`) | `.claude/worktrees/run-end-flow-continuation-d9c485` | **shared** | 2026-08-13 | ⑫'s gate is enforced on the ACCEPT path only (the `:58` conflict-guard region). Tell me before editing that handler; the rest of the file is free |
+| `supabase/tests/harness.sh` | ⑪+⑫ (`claude/run-end-flow-continuation-d9c485`) | `.claude/worktrees/run-end-flow-continuation-d9c485` | **shared** | 2026-08-13 | one `suite 128_…` registration line, nothing else |
 
 Conventions: give **paths**, not a ticket name · one line of intent, so a reader can
 tell whether their change collides or merely neighbours · stale rows are worse than none, so
