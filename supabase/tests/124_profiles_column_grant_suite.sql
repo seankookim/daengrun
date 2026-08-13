@@ -129,7 +129,22 @@ declare
   v_phone constant text := '010-8800-0088';
   -- The whitelist, stated once. Every arm below derives from THIS array, so widening the grant
   -- without widening the deliberate list cannot pass.
-  v_public constant text[] := array['id','name','handle','avatar_url','district'];
+  -- [0089, 2026-08-13] `role` added — a pin whose asserted property legitimately changed, updated
+  -- in the slice that changed it (CLAUDE.md). NOT a relaxation for convenience: `role` MUST be
+  -- readable by `authenticated` or the app cannot sign anyone in. PostgREST renders
+  -- `.upsert({id, role, name})` as `insert … on conflict (id) do update set role = excluded.role,
+  -- …`, and Postgres requires SELECT on every column read in that SET list — `excluded.role`
+  -- included. With 0088's grant and no `role`, the role picker returns 403 for EVERY user on the
+  -- first screen, first signup included (the privilege check is per-statement, so the ON CONFLICT
+  -- arm is checked even when nothing conflicts). Measured against real PostgREST 12.2.3, and
+  -- re-measured here by hand against the reconstructed post-0088/pre-0089 grant state.
+  -- ⚠ So this array and a working signup are the same fact. If this arm ever reddens because
+  -- someone dropped `grant select (role)`, the fix is to restore the grant — NOT to shorten this
+  -- list. Doing the latter re-ships the 403 with a green harness, which is the worst of both.
+  -- `role` is safe to expose: `user_role` is ('owner','runner'), there is no admin value, and no
+  -- SQL anywhere grants privilege on `profiles.role` (swept 2026-08-13; the only role-based gate
+  -- is `club_members.role`, a different column on a different table).
+  v_public constant text[] := array['id','name','handle','avatar_url','district','role'];
   v_txt text; v_txt2 text; v_txt3 text; v_txt4 text; v_msg text;
   v_uuid uuid; v_n int;
   v_e1 boolean; v_e2 boolean; v_e3 boolean; v_e4 boolean;
