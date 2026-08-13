@@ -741,6 +741,14 @@ Deno.test("the km validity band still rejects a 999km claim before any of this",
   }
 });
 
+
+// ⚠ OVERLAP, deliberately left in place (run-end-flow merge, 2026-08-13). The payments session
+// and I independently built the same contract check against the same function. Theirs is the
+// single both-directions test below; mine is the three `join:` pins further down, which also
+// force a decision on every newly-raised code and verify the Korean sentence. I did NOT delete
+// theirs while resolving my own merge — removing another session's test to tidy my conflict is
+// the silent-revert class this very mechanism exists to catch. Whoever consolidates should keep
+// the superset and say so; until then two greens beat one silent deletion.
 // ═══ CONTRACT: the error codes settle-run maps must be the ones settle_run_tx actually raises ══
 //
 // Every test in this file FAKES `settle_run_tx`. So the assertions above prove that the string
@@ -766,7 +774,17 @@ Deno.test("CONTRACT: settle-run's error map matches settle_run_tx's raises (both
   );
   assert(defining.length > 0, "no migration defines settle_run_tx — did it move?");
   const sql = Deno.readTextFileSync(new URL(defining[defining.length - 1], migDir));
-  const body = sql.slice(sql.lastIndexOf("create or replace function settle_run_tx"));
+  // ⚠ FIXED during the run-end-flow merge (2026-08-13): this sliced from the declaration to the
+  // END OF FILE. That was correct while `settle_run_tx` was the last function in its migration
+  // (0028), and silently wrong the moment it wasn't — 0083 defines `_settle_sealed_run`,
+  // `confirm_return_tx` and `force_return_tx` after it, so the slice swallowed their raises and
+  // demanded settle-run map codes it can never receive (`settle_quote_malformed` is raised only
+  // in `_settle_sealed_run`, which `settle_run_tx` does not call). Terminating at the body's own
+  // `$$;` scopes it to the function the handler actually invokes.
+  const declAt = sql.lastIndexOf("create or replace function settle_run_tx");
+  const endAt = sql.indexOf("$$;", declAt);
+  assert(endAt > declAt, "could not find the end of settle_run_tx's body");
+  const body = sql.slice(declAt, endAt);
   const raised = new Set([...body.matchAll(/raise exception '([a-z_]+)'/g)].map((m) => m[1]));
 
   const handler = Deno.readTextFileSync(new URL("../settle-run/handler.ts", import.meta.url));
@@ -787,4 +805,236 @@ Deno.test("CONTRACT: settle-run's error map matches settle_run_tx's raises (both
       `${defining.at(-1)} raises '${code}' and settle-run neither maps nor exempts it — a runner would get an opaque 500`,
     );
   }
+});
+// ═══════════════════════════════════════════════════════════════════════════════════════════
+// 0083 §6-ⓔ — the FROZEN path: after `end_run_tx`, the body is not a financial input
+// ═══════════════════════════════════════════════════════════════════════════════════════════
+// These exist because the migration's gate alone was not enough. The gate refuses a mismatch;
+// this half makes a mismatch impossible from the shipping caller by reading the frozen row. The
+// distinction matters: a refusal leaves the runner unpaid, a read pays them the right amount.
+
+/** A booking that went through `end_run_tx`: stop stamped, run row frozen. */
+function frozenScene(frozen: Row = {}) {
+  const db = scene({ booking: { run_ended_at: "2026-08-13T10:00:00Z" } });
+  db.seed("runs", [{
+    booking_id: BOOKING, actual_km: 3.25, end_reason: "completed",
+    duration_sec: 1800, condition_note: null, ...frozen,
+  }]);
+  return db;
+}
+
+Deno.test("frozen: an inflated body is IGNORED — tx and mint both get the frozen numbers", async () => {
+  const db = frozenScene();
+  const mint = installMint(db);
+  let txArgs: Row = {};
+  db.rpcs["settle_run_tx"] = (a: Row) => { txArgs = a; return { data: { total_runs: 5, drop: null } }; };
+  const net = tossOk();
+  try {
+    // The attack from the adversarial review: stop at 3.25km, then claim 9.9km + owner_request
+    // (which would also add the 50% guarantee and bill the owner the full planned distance).
+    await settleRun(req(body({ actual_km: 9.9, end_reason: "owner_request" }), "runner_jwt"), db as never);
+    assertEquals(txArgs.p_actual_km, 3.25, "settlement used the body's km, not the frozen one");
+    assertEquals(txArgs.p_end_reason, "completed", "settlement used the body's reason");
+    assertEquals(mint[0].p_actual_km, 3.25, "the CHARGE used the body's km");
+    assertEquals(mint[0].p_end_reason, "completed", "the CHARGE used the body's reason");
+  } finally {
+    net.restore();
+  }
+});
+
+Deno.test("frozen: no guarantee is paid for a body-claimed owner_request the freeze never recorded", async () => {
+  const db = frozenScene();
+  installMint(db);
+  const net = tossOk();
+  try {
+    const out = await settleRun(
+      req(body({ actual_km: 9.9, end_reason: "owner_request" }), "runner_jwt"), db as never,
+    ) as { guarantee: number };
+    assertEquals(out.guarantee, 0, "the body bought itself the owner_request guarantee");
+  } finally {
+    net.restore();
+  }
+});
+
+Deno.test("frozen: a body reason this endpoint would normally REFUSE is simply ignored", async () => {
+  // Not a refusal: on a frozen run the whitelist is irrelevant, because `end_run_tx` already
+  // whitelisted at the freeze. Refusing here would strand a runner over a stale client build.
+  const db = frozenScene();
+  installMint(db);
+  const net = tossOk();
+  try {
+    const out = await settleRun(
+      req(body({ end_reason: "incident" }), "runner_jwt"), db as never,
+    ) as { total_runs: number };
+    assertEquals(out.total_runs, 5, "a frozen run was refused because the BODY said 'incident'");
+  } finally {
+    net.restore();
+  }
+});
+
+Deno.test("frozen: a stamped booking with no runs row fails LOUDLY, never falls back to the body", async () => {
+  const db = scene({ booking: { run_ended_at: "2026-08-13T10:00:00Z" } });
+  db.seed("runs", []);
+  installMint(db);
+  const net = tossOk();
+  try {
+    const e = await expectHttpError(() => settleRun(req(body({ actual_km: 9.9 }), "runner_jwt"), db as never));
+    assertEquals(e.status, 500);
+    assert(!db.log.includes("rpc:settle_run_tx"), "settled from the body when the frozen row was missing");
+  } finally {
+    net.restore();
+  }
+});
+
+// ── the three refusals get their own status and sentence, not a generic 500 ────────────────
+Deno.test("return_not_sealed → 409 and the dog-is-not-home sentence, not a retry prompt", async () => {
+  const db = frozenScene();
+  installMint(db);
+  db.rpcs["settle_run_tx"] = () => ({ error: { message: 'return_not_sealed' } });
+  const net = tossOk();
+  try {
+    const e = await expectHttpError(() => settleRun(req(body(), "runner_jwt"), db as never));
+    assertEquals(e.status, 409);
+    assert(e.message.includes("인계가 확인되지 않았어요"), `wrong sentence: ${e.message}`);
+    assert(!e.message.includes("재시도"), "told the runner to retry a state only a PERSON can change");
+    assert(!db.log.includes("rpc:mint_settle_charge_intent"), "an unsealed run reached the charge machine");
+  } finally {
+    net.restore();
+  }
+});
+
+Deno.test("run_not_ended → 400 telling an old build to update, never a 500 that reads as our bug", async () => {
+  const db = scene();
+  installMint(db);
+  db.rpcs["settle_run_tx"] = () => ({ error: { message: 'run_not_ended' } });
+  const net = tossOk();
+  try {
+    const e = await expectHttpError(() => settleRun(req(body(), "runner_jwt"), db as never));
+    assertEquals(e.status, 400);
+    assert(e.message.includes("업데이트"), `wrong sentence: ${e.message}`);
+  } finally {
+    net.restore();
+  }
+});
+
+Deno.test("frozen_measurement_mismatch → 409 with the migration's sentence (server-bug path)", async () => {
+  const db = frozenScene();
+  installMint(db);
+  db.rpcs["settle_run_tx"] = () => ({ error: { message: 'frozen_measurement_mismatch' } });
+  const net = tossOk();
+  try {
+    const e = await expectHttpError(() => settleRun(req(body(), "runner_jwt"), db as never));
+    assertEquals(e.status, 409);
+    assert(e.message.includes("동결") || e.message.includes("기록된 거리"), `wrong sentence: ${e.message}`);
+  } finally {
+    net.restore();
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════
+// THE JOIN — the TS↔SQL error contract, single-sourced by verification
+// ═══════════════════════════════════════════════════════════════════════════════════════════
+// Every test above fakes `settle_run_tx`, so they assert that the STRING 'return_not_sealed'
+// maps to a 409 — never that the migration actually raises that string. Rename the exception in
+// SQL, update only `119`, and this whole file stays green while the mapping is dead code. That
+// is the same gap the ⑩ author found in `0085` on the same day (their pins call the SQL function
+// directly; the shipping path goes through an RPC their deno side fakes), which makes it a class
+// rather than an incident: **the suite pins the primitive, the product ships the path, and
+// nothing tests the join.**
+//
+// A fake cannot be made to tell the truth about the thing it replaces. So instead of pretending,
+// this reads the migration and checks the two halves against each other — the contract stays in
+// one place (the SQL) and TS is verified against it rather than duplicating it on trust.
+/**
+ * Resolve the LATEST migration that defines `settle_run_tx`, rather than naming a file.
+ *
+ * That function has now been re-created FOUR times (0020 → 0025 → 0028 → 0083), and the next
+ * slice to touch settlement will make it five. A hardcoded filename means this test reads a
+ * definition the database will never run: it goes green against a stale body while the live one
+ * has drifted — which is the exact failure this whole section exists to catch, committed inside
+ * the catcher. (Extension contributed by the payments session after they applied this technique
+ * to `0080`/`116`; their case was the same function, which is what makes the point.)
+ */
+async function latestSettleTxMigration(): Promise<URL> {
+  const dir = new URL("../../migrations/", import.meta.url);
+  const names: string[] = [];
+  for await (const e of Deno.readDir(dir)) {
+    if (e.isFile && e.name.endsWith(".sql")) names.push(e.name);
+  }
+  // Numeric order, not lexical — `117_` sorts before `97_` as a string (a trap the route session
+  // hit on the suite side the same day).
+  names.sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
+  let found: string | null = null;
+  for (const n of names) {
+    const body = await Deno.readTextFile(new URL(n, dir));
+    if (body.includes("create or replace function settle_run_tx")) found = n;
+  }
+  assert(found, "no migration defines settle_run_tx — this test's premise moved, not its subject");
+  return new URL(found, dir);
+}
+const MIGRATION = await latestSettleTxMigration();
+const HANDLER = new URL("../settle-run/handler.ts", import.meta.url);
+
+/** `settle_run_tx`'s body — the ONLY error surface this handler can receive. Sliced rather than
+ * grepped whole-file, because the migration also defines `end_run_tx`, `confirm_return_tx` and
+ * `force_return_tx`, whose codes (`bad_side`, `force_too_early`, `quote_from_client`…) this
+ * handler never sees and must not be asked to map. */
+async function settleTxBody(): Promise<string> {
+  const sql = await Deno.readTextFile(MIGRATION);
+  const i = sql.indexOf("create or replace function settle_run_tx");
+  assert(i >= 0, "settle_run_tx is gone from the migration — this test's whole premise moved");
+  const j = sql.indexOf("$$;", i);
+  assert(j > i, "could not find the end of settle_run_tx's body");
+  return sql.slice(i, j);
+}
+
+// Codes settle_run_tx raises that DELIBERATELY fall to the generic 500. Both are server-side
+// sanity failures on numbers this handler already validated (non-frozen path) or that
+// `end_run_tx` already validated (frozen path) — so reaching them means the two sides disagree,
+// which IS our bug and should read like one. Listing them here makes that a DECISION: a new
+// code added to the migration fails this test until someone chooses which bucket it belongs in.
+const DELIBERATELY_GENERIC = ["invalid_km", "invalid_duration"];
+
+Deno.test("join: every code settle_run_tx raises is mapped, or explicitly chosen to be generic", async () => {
+  const body = await settleTxBody();
+  const ts = await Deno.readTextFile(HANDLER);
+  const raised = [...new Set([...body.matchAll(/raise exception '([a-z_]+)'/g)].map((m) => m[1]))];
+  assert(raised.length > 0, "extracted no codes — the slice or the regex broke, not the code");
+  for (const code of raised) {
+    const mapped = ts.includes(`msg.includes("${code}")`);
+    assert(
+      mapped || DELIBERATELY_GENERIC.includes(code),
+      `settle_run_tx raises '${code}' and the handler neither maps it nor declares it generic.\n` +
+        `  Decide: give it a status + sentence, or add it to DELIBERATELY_GENERIC with a reason.`,
+    );
+  }
+});
+
+Deno.test("join: every code the handler maps is one settle_run_tx actually raises", async () => {
+  const body = await settleTxBody();
+  const ts = await Deno.readTextFile(HANDLER);
+  for (const [, code] of ts.matchAll(/msg\.includes\("([a-z_]+)"\)/g)) {
+    assert(
+      body.includes(`raise exception '${code}'`),
+      `handler maps '${code}' but settle_run_tx no longer raises it — the mapping is dead code`,
+    );
+  }
+});
+
+Deno.test("join: the Korean the runner sees is the migration's own `using detail`, not a copy", async () => {
+  const sql = await Deno.readTextFile(MIGRATION);
+  const ts = await Deno.readTextFile(HANDLER);
+  // `raise exception 'code'\n  using detail = '...'` — the sentence the migration authored.
+  const pairs = [...sql.matchAll(/raise exception '(\w+)'\s*\n\s*using detail = '([^']*)'/g)];
+  const seen: string[] = [];
+  for (const [, code, detail] of pairs) {
+    if (!["return_not_sealed", "run_not_ended", "frozen_measurement_mismatch"].includes(code)) continue;
+    seen.push(code);
+    assert(
+      ts.includes(detail),
+      `${code}: the handler's sentence has drifted from the migration's.\n  migration: ${detail}`,
+    );
+  }
+  // If the migration stops carrying details, this test must fail rather than vacuously pass.
+  assertEquals(seen.sort(), ["frozen_measurement_mismatch", "return_not_sealed", "run_not_ended"]);
 });

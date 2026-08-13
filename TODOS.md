@@ -69,7 +69,16 @@ Deferred work, written down so it exists. Format: what / why / context / effort
   age) we don't measure — building it now would be 측정처럼 보이는 비측정.
   Revisit when fitness data can carry it. Effort M → S. P3. Depends on: per-dog
   physiology data.
-- [ ] **Run-end flow: stop confirmation + 귀가 intermediary + return handoff** — run-end
+- [~] **Run-end flow: stop confirmation + 귀가 intermediary + return handoff** — **PLANNED
+  2026-08-13, build in progress** on `claude/run-end-flow-1a67e0`. Plan (v2, adversarially
+  reviewed — 19 findings absorbed): `docs/plans/run-end-flow-plan.md`. Migration slot
+  **0082** (0081 claimed by the club-gaps session). Design: timestamp idiom, not a new enum
+  (status stays `active` through 귀가); settle fires at RETURN, not at stop; money numbers
+  FROZEN SERVER-SIDE at `end_run` — the v1 claim that ceasing trace writes protected the
+  charge was WRONG (`actual_km` comes from the in-memory `gpsKm`, not the trace, so the
+  doorstep settle would have billed the walk home). Slice 1 (real condition note) in
+  progress; slices 2-5 = server 0082 · runner · owner · ceremony. Original spec below.
+- [ ] ~~**Run-end flow**~~ (original wording kept for provenance) — run-end
   ≠ dog-home. Sequence: runner taps stop → confirmation dialog (early-end consequences
   named if under minimum distance) → 귀가 state ("집으로 가는 중", owner-visible on live,
   run stats FROZEN at stop, GPS continues for custody, un-charged/un-paid) → return
@@ -166,6 +175,86 @@ Deferred work, written down so it exists. Format: what / why / context / effort
   ② verify the ₩100 card minimum backing `compute_owner_charge`'s `below_pg_minimum` arm;
   ③ billing(자동결제) TEST-key matrix once dashboard keys exist (docs demo keys are
   widget-only). Effort S → S. P2, rides the A3 device session.
+
+## From the run-end flow slice (0083, 2026-08-13) — opened by it, not closed
+
+- [ ] 🔴 **`compute_runner_payout` — the SQL sibling of `compute_owner_charge`.** The runner's
+  payout is still computed in `settle-run`'s TypeScript, so `_settle_sealed_run` takes the
+  price as an argument and the §9 recovery sweep can only REPORT a sealed-but-unsettled
+  booking, never re-drive it. That is a real weakening of the "durably recovered" property
+  the adversarial review demanded. With a SQL payout function, `p_quote` disappears and the
+  sweep becomes a true re-drive. Recorded as `0083 §0g`. Effort M → S. **P1 before the
+  return seal is enforced for real users.**
+- [ ] 🔴 **`sweep_settled_without_payments` needs one predicate — and the cutover is BLOCKED
+  until it lands.** `0083` changed `ended_at` to mean the service STOP, so 0080's sweep can
+  now see a run that stopped but has not been returned and mint a charge for a dog still on
+  the leash. The fix is one line in 0080's file, on the payments session's schedule:
+  `and rn.settled_at is not null`. Do NOT use `bookings.status` (§0-ter #11 / 116 C8) or
+  `ledger_items` presence (0080 §K writes one for a CANCELLED booking). Recorded as
+  `0083 §0f`. **`ops_flags.payments_live_since` must not be flipped before this.**
+- [ ] **`owner_forced` has no server entry point** — *narrowed 2026-08-13 by trunk `cf16a74`.*
+  `settle-run` now splits the vocabulary into `CLIENT_END_REASONS` (the four) and
+  `SERVER_ONLY_END_REASONS` (`owner_forced`, `incident`), refusing the latter **by name** —
+  a better shape than one list with values quietly missing, because moving a value between
+  them is now a deliberate edit rather than an accidental merge. So `owner_forced` is
+  *reachable in principle* by a server caller; what is still missing is **the caller** —
+  no transition-booking action produces an owner-forced end today. Same for `incident`
+  outside the club path. Effort S → S. P2.
+- [ ] ⚠ **Enum-transaction trap, for whoever builds ⑨ (`runner_incapacity`)** —
+  `harness.sh:25-29` self-pins `--single-transaction` to mirror `db push`, so
+  `alter type ... add value` plus a USE of that value in the same file raises
+  `unsafe use of new value of enum type` **on push while passing locally**. Give the enum
+  value its own migration, or defer its use to a later one. ~~Also: `0084` predates ⑨ (`:168` … `:188` …)~~ **RETRACTED 2026-08-13 — I propagated a
+  wrong claim; verified the correction myself.** Both cited lines sit inside
+  `compute_owner_charge` (declared at `0084:145`), i.e. the **owner** ledger. ⑨ changes what
+  the **runner receives** and deliberately leaves the owner side alone — #10 stands, distance
+  only, base waived. `docs/decisions/runner-stop-split.md:85` says it outright: *"`compute_
+  owner_charge`'s `runner_personal_distance_only` arm is NOT stale — do not 'fix' it."*
+  🔴 That arm is correct as shipped; "fixing" it would be the silent-revert class.
+  What survives: ⑨ still needs its own migration for the enum value + the pass-through math
+  in `settle-run`'s payout path.
+  **Lesson worth keeping — grep proves a string exists, not that it is stale.** Verifying a
+  quote is not verifying a claim about what the quote means; check the enclosing scope before
+  repeating "X is outdated".
+- [x] ~~**Enum-independence note**~~ recorded (no action): `0082`'s `promote_route_from_run`
+  gates on `end_reason is distinct from 'completed'` (`0082:213`) — **only** `completed`
+  reaches route promotion. So adding an enum value cannot reach it, which is why three slices
+  touched this enum today without interacting. My freeze list and that gate read the same
+  column for different purposes and do not conflict: an aborted run is not route material.
+  ⚠ **Invalidation condition (route session, `845c76e`)**: this note dies the moment ANY slice
+  widens that predicate, and REGISTRY must be updated in the same breath. Live risk: ⑨ adds
+  `runner_incapacity` to the same enum. A fact recorded without the condition that would falsify
+  it is a fact that quietly goes wrong — worth copying that habit.
+- [ ] **⑨'s seventh implementation item — the freeze list.** `0083:366`'s freeze set must be
+  a strict SUBSET of `settle-run`'s `CLIENT_END_REASONS`; freezing a reason settle-run
+  refuses strands the run permanently (runner never paid, booking never leaves `active`).
+  The two must move in the SAME commit. ⑨'s memo lists six items and this is not among them.
+- [~] **OTA refresh (D-r4 part 2) — CONFIGURED 2026-08-13, needs Sean's rebuild.**
+  `expo-updates` installed, `app.json` gains `updates.url` + `runtimeVersion`, `eas.json` gains
+  one channel per profile. **Sean's step, and only his:** `npx expo prebuild -p ios --clean` +
+  a new build, then `eas update --branch <channel>` publishes JS-only fixes to installed apps.
+  Three decisions recorded here because they are safety-relevant, not taste:
+  · **`runtimeVersion.policy = "fingerprint"`, NOT `appVersion`.** This app ships a custom native
+    module (`modules/instagram-share`) and changes native deps often. Under `appVersion` an OTA
+    payload can reach a binary lacking a native module the JS now requires — a launch crash,
+    delivered by us, to phones we cannot reach. `fingerprint` invalidates automatically when
+    native code changes, so an incompatible update is never eligible.
+  · **`fallbackToCacheTimeout: 0` and NO forced reload.** The app starts on the cached bundle and
+    applies an update at the NEXT cold start. A reload-now flow would be able to restart the app
+    **mid-run**, during GPS tracking, which is the one moment this product cannot survive being
+    interrupted. Do not add `Updates.reloadAsync()` to a foreground handler.
+  · **One channel per build profile**, so a preview OTA can never reach a store build.
+  ⚠ It does NOT retroactively help binaries already installed — those lack the updates runtime —
+  so it must ship BEFORE a real user population exists. Today that is ~Sean's devices.
+- [ ] **Two switches ship NULL and are Sean's to flip**: `ops_flags.return_seal_since` (the
+  seal gate cannot be enforced universally — it would redden ~60 existing pins and strand
+  runs on phones already in pockets, so new-flow bookings are gated from day one and the
+  old-client arm waits) and `payments_live_since` (above).
+- [ ] **`confirm_return_tx` two-connection race is named, not simulated** — belongs in
+  `90_race_check.sh` alongside the existing 2-connection race. Effort S → S. P2.
+- [ ] **Cron stagger doctrine (0060:145) could not be honoured literally** — every mod-5
+  minute offset is taken; `sweep_run_end_recovery` shares a tick with `sweep-payment-intents`,
+  chosen because it is the only 5-minute batch touching neither `bookings` nor `runs`. P3.
 
 ## From coordinates-geocoding slice (2026-08-10, /autoplan)
 

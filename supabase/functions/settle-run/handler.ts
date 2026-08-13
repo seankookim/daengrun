@@ -58,10 +58,37 @@ export async function settleRun(req: Request, db: SupabaseClient) {
   const { data: bk } = await db.from("bookings").select("*").eq("id", p.booking_id).single();
   if (!bk) throw new HttpError(404, "booking not found");
   if (bk.runner_id !== uid) throw new HttpError(403, "assigned runner only");
+
+  // ═══ [0083 §6-ⓔ] THE FROZEN PATH — the body stops being a financial input ═══════════════
+  // If the run went through `end_run_tx`, the money numbers were frozen at the STOP and the
+  // client's body is no longer evidence of anything. We read them back and compute the payout
+  // from those, so `settle_run_tx`'s `frozen_measurement_mismatch` gate is a tautology for THIS
+  // caller and stays a real guard for every other one.
+  //
+  // Why read rather than refuse-on-mismatch: a refusal would stand a run up in front of a runner
+  // who did nothing wrong (a stale client, a retry after a 귀가, a body assembled before the
+  // stop) and leave them unpaid — the deadlock class the migration exists to remove. The client
+  // being WRONG is not a reason to withhold money that the server already knows the size of.
+  //
+  // Every validation below (band, 50% floor, note requirement, reason whitelist) is deliberately
+  // SKIPPED on this path — not out of laziness, but because `end_run_tx` enforces all five at the
+  // freeze (0083 end_run_tx "input sanity at the boundary the numbers are frozen at"). Re-applying
+  // a client-input rule to server-owned data is precisely how a run becomes unsettleable.
+  const frozen = bk.run_ended_at
+    ? await readFrozenRun(db, p.booking_id, bk.run_ended_at as string)
+    : null;
+  if (frozen && (Number(p.actual_km) !== frozen.km || p.end_reason !== frozen.endReason)) {
+    // Not an error — the numbers simply do not come from here any more. Logged because a
+    // persistent disagreement means a stale client build or someone probing the endpoint.
+    console.log(
+      `[settle-run] body ignored (frozen) booking=${p.booking_id} ` +
+        `body=${p.actual_km}/${p.end_reason} frozen=${frozen.km}/${frozen.endReason}`,
+    );
+  }
   // Both refusals live AFTER the party gate above, on purpose: answering them to a stranger would
   // turn this endpoint into an oracle (which bookings exist, and which reasons the server treats
   // specially). A non-assigned caller gets 403 and learns nothing about either list.
-  if (!CLIENT_END_REASONS.includes(p.end_reason)) {
+  if (!frozen && !CLIENT_END_REASONS.includes(p.end_reason)) {
     if (SERVER_ONLY_END_REASONS.includes(p.end_reason)) {
       // Honest about WHY: the server knows this reason perfectly well and is refusing it, which is
       // a different sentence from "I have never heard of it". Telling the runner to update the app
@@ -73,7 +100,7 @@ export async function settleRun(req: Request, db: SupabaseClient) {
     // already been told the run ended.)
     throw new HttpError(400, "알 수 없는 종료 사유예요 — 앱을 최신 버전으로 업데이트한 뒤 다시 시도해주세요");
   }
-  if (p.end_reason === "dog_condition" && !p.condition_note) {
+  if (!frozen && p.end_reason === "dog_condition" && !p.condition_note) {
     throw new HttpError(400, "condition_note required"); // 컨디션 종료는 기록 필수
   }
 
@@ -84,17 +111,23 @@ export async function settleRun(req: Request, db: SupabaseClient) {
   // 이전엔 러너 자기 신고 actual_km를 무제한 신뢰 — 직접 API 호출로 999km 청구(급여 조작)
   // 또는 0.1km 'completed'(마일·드랍·total_runs 파밍)가 가능했다. GPS 게이트는 클라 전용이라
   // 서버 경계가 최종 방어선. (트레이스 대조 검증은 v2 — 지금은 계획 km 기반 타당성 밴드.)
-  const km = Number(p.actual_km);
+  // On the frozen path these four are the SERVER's numbers, already validated at the freeze.
+  const km = frozen ? frozen.km : Number(p.actual_km);
+  const endReason = frozen ? frozen.endReason : String(p.end_reason);
+  const durationSec = frozen ? frozen.durationSec : (p.duration_sec ?? null);
+  const conditionNote = frozen ? frozen.conditionNote : (p.condition_note ?? null);
   const plannedKm = Number(bk.km);
-  if (!Number.isFinite(km) || km < 0 || km > plannedKm * 2 + 2) {
-    throw new HttpError(400, `실측 거리가 타당 범위를 벗어났어요 (계획 ${plannedKm}km, 신고 ${km}km)`);
-  }
-  if (p.duration_sec != null && (!Number.isFinite(Number(p.duration_sec)) || Number(p.duration_sec) < 0)) {
-    throw new HttpError(400, "duration_sec invalid");
-  }
-  if (p.end_reason === "completed" && km < plannedKm * 0.5) {
-    // 완주 인센티브(마일·드랍·total_runs·패치)는 계획 거리의 50% 이상 실측에서만 (Sean 2026-07-29 — 90%→50%)
-    throw new HttpError(400, `완주 정산은 계획 거리의 50% 이상 실측이 필요해요 (${km}/${plannedKm}km) — 조기 종료 사유로 정산해주세요`);
+  if (!frozen) {
+    if (!Number.isFinite(km) || km < 0 || km > plannedKm * 2 + 2) {
+      throw new HttpError(400, `실측 거리가 타당 범위를 벗어났어요 (계획 ${plannedKm}km, 신고 ${km}km)`);
+    }
+    if (p.duration_sec != null && (!Number.isFinite(Number(p.duration_sec)) || Number(p.duration_sec) < 0)) {
+      throw new HttpError(400, "duration_sec invalid");
+    }
+    if (endReason === "completed" && km < plannedKm * 0.5) {
+      // 완주 인센티브(마일·드랍·total_runs·패치)는 계획 거리의 50% 이상 실측에서만 (Sean 2026-07-29 — 90%→50%)
+      throw new HttpError(400, `완주 정산은 계획 거리의 50% 이상 실측이 필요해요 (${km}/${plannedKm}km) — 조기 종료 사유로 정산해주세요`);
+    }
   }
   // The five money values `settle_run_tx` writes into `ledger_items`, column by column, plus the
   // gross/fee pair the runner sees. Everything except the `runner_personal` arm below is 0028's
@@ -106,7 +139,7 @@ export async function settleRun(req: Request, db: SupabaseClient) {
   let gross: number;
   let fee: number;
 
-  if (p.end_reason === "runner_personal") {
+  if (endReason === "runner_personal") {
     // ═══ ⑨a PASS-THROUGH (Sean 2026-08-13, docs/decisions/runner-stop-split.md) ═══
     // A runner who stops for their own reasons is paid their commission share of WHAT THE OWNER
     // WAS CHARGED, not `base + distance + addons`. The rule is the ruling; the memo's 2,010/8,643
@@ -144,7 +177,7 @@ export async function settleRun(req: Request, db: SupabaseClient) {
     gross = Math.max(base + distancePay + addonPay, bk.min_fare);
     // `owner_forced` can no longer reach here (it is server-only above); the arm stays because this
     // is the runner-side mirror of the SQL basis table, where both owner-caused ends pay the same.
-    if (p.end_reason === "owner_request" || p.end_reason === "owner_forced") {
+    if (endReason === "owner_request" || endReason === "owner_forced") {
       const fullDistance = Math.round(bk.km * PRICING.perKm);
       // 클램프 — 실거리가 계획을 넘어선 조기종료에서 보장이 음수가 되어 오히려 감봉되던 버그
       guarantee = Math.max(0, Math.round((fullDistance - distancePay) * 0.5));
@@ -157,9 +190,9 @@ export async function settleRun(req: Request, db: SupabaseClient) {
   const { data: tx, error: txErr } = await db.rpc("settle_run_tx", {
     p_booking: p.booking_id,
     p_actual_km: km,
-    p_duration_sec: p.duration_sec ?? null,
-    p_end_reason: p.end_reason,
-    p_condition_note: p.condition_note ?? null,
+    p_duration_sec: durationSec,
+    p_end_reason: endReason,
+    p_condition_note: conditionNote,
     p_base: base,
     p_distance_pay: distancePay,
     p_addon_pay: addonPay,
@@ -170,11 +203,39 @@ export async function settleRun(req: Request, db: SupabaseClient) {
     const msg = txErr.message ?? "";
     if (msg.includes("not_active")) throw new HttpError(409, "이미 정산됐거나 진행 중이 아닌 러닝이에요");
     if (msg.includes("not_found")) throw new HttpError(404, "booking not found");
+    // ── [0083 §6] The three refusals the migration raises, each with its own status and its own
+    // sentence. They fell through to the generic 500 below, which reads like OUR bug and invites a
+    // retry — and for all three, retrying is exactly the wrong instinct: two of them resolve when a
+    // PERSON acts, and one never resolves without an app update (plan §2 / §9 D-r4①: never a
+    // generic failure, never a silent no-op). The Korean text is the migration's own `using detail`,
+    // quoted rather than re-invented so the two can't drift.
+    if (msg.includes("return_not_sealed")) {
+      // 409, not 4xx-retryable: the state is legitimate, it is simply not settle-time yet. The dog
+      // is still with the runner and the owner has not confirmed the handover.
+      throw new HttpError(409, "아직 인계가 확인되지 않았어요 — 강아지가 집에 도착한 뒤 정산돼요");
+    }
+    if (msg.includes("run_not_ended")) {
+      // An old build settling a run it never ended. 400 rather than 5xx because retrying THIS
+      // binary will never work — the fix is a new app version, which the sentence names.
+      throw new HttpError(400, "러닝 종료 기록이 없어요 — 앱을 최신 버전으로 업데이트해주세요");
+    }
+    if (msg.includes("frozen_measurement_mismatch")) {
+      // Should be unreachable from THIS handler now that the frozen path reads the row rather than
+      // trusting the body — so if it ever fires here it means the read and the gate disagree, which
+      // is a server bug worth seeing loudly rather than a runner's problem. Still answered with the
+      // migration's sentence rather than a stack trace.
+      console.error(`[settle-run] frozen mismatch after frozen-path read booking=${p.booking_id}`);
+      throw new HttpError(409, "러닝 종료 때 기록된 거리·사유로만 정산할 수 있어요");
+    }
     throw new HttpError(500, `정산 트랜잭션 실패 — 아무것도 반영되지 않았어요 (재시도 가능): ${msg}`);
   }
 
   // ══ 정산은 여기서 끝났다. 아래는 수금이고, 수금은 정산을 되돌리지 않는다. ══
-  const collected = await collectAfterSettle(db, p.booking_id, p.end_reason, km);
+  // Same numbers the tx just committed — on the frozen path these are the server's, so the mint
+  // no longer receives a client value at all. (Before this, the charge side was protected only
+  // TRANSITIVELY: the tx would raise on a mismatch and we would never get here — but inside the
+  // ≤0.005km rounding band the body's number still reached the mint.)
+  const collected = await collectAfterSettle(db, p.booking_id, endReason, km);
   // The only place this outcome surfaces from this function. `detail` carries what the coarse
   // word cannot ("we do not know yet" is not a failure), and both stay server-side.
   console.log(
@@ -190,6 +251,36 @@ export async function settleRun(req: Request, db: SupabaseClient) {
     guarantee,
     total_runs: result.total_runs,
     drop: result.drop ?? null,
+  };
+}
+
+/**
+ * Read the numbers `end_run_tx` froze at the stop. Called only when `bookings.run_ended_at` is
+ * stamped, which is the same condition `settle_run_tx`'s §6-ⓔ gate keys on — so the two cannot
+ * disagree about WHICH runs are frozen, only (in a bug) about their contents.
+ *
+ * `actual_km` is `numeric(5,2)` (0001:239) and PostgREST may hand it back as a string; `Number()`
+ * here is what makes the tautology hold, because the SQL side compares at the stored scale.
+ *
+ * A stamped booking with no `runs` row is a genuine server inconsistency — 0028 ③ exists because
+ * runs rows have gone missing before — so it is refused loudly rather than silently falling back
+ * to the client's body, which would re-open the very hole this function closes.
+ */
+async function readFrozenRun(db: SupabaseClient, bookingId: string, endedAt: string) {
+  const { data, error } = await db
+    .from("runs")
+    .select("actual_km, end_reason, duration_sec, condition_note")
+    .eq("booking_id", bookingId)
+    .single();
+  if (error || !data) {
+    console.error(`[settle-run] frozen row missing booking=${bookingId} run_ended_at=${endedAt}`);
+    throw new HttpError(500, "정산 기록을 읽지 못했어요 — 잠시 후 다시 시도해주세요");
+  }
+  return {
+    km: Number(data.actual_km),
+    endReason: String(data.end_reason),
+    durationSec: data.duration_sec ?? null,
+    conditionNote: data.condition_note ?? null,
   };
 }
 
