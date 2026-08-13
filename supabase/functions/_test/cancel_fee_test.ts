@@ -657,6 +657,14 @@ Deno.test("[0085 ⑩] the tier markers are ONE contract, verified against the mi
   // not a better fake — it is to stop duplicating the contract and VERIFY against it. The SQL
   // is the single source; TypeScript is checked against it, in BOTH directions, with the fakes
   // left exactly as they are.
+  // ⚠ DO NOT "TIDY" THIS BY HOISTING THE LITERAL INTO A TS CONSTANT. Reading the migration
+  // text at test time is the entire mechanism: the contract lives in exactly ONE place (the
+  // SQL) and TypeScript is verified against it. The moment a named constant holds
+  // 'owner_cancel_late' on this side, the test starts passing against the copy and the join is
+  // open again — the exact defect this pin closes, reintroduced by an edit that reads as
+  // cleanup and would pass review, because hoisting a repeated string is normally correct.
+  // Here it is backwards. The technique's precondition is that the owning side stays the only
+  // copy; a cache on the reading side is synchronising copies with extra steps.
   const read = (rel: string) => Deno.readTextFile(new URL(rel, import.meta.url));
   const [ts, sql85, sql80] = await Promise.all([
     read("../transition-booking/cancel_owner.ts"),

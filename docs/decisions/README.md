@@ -59,6 +59,11 @@ two languages, **do not synchronise the copies — delete the duplication.** Let
 fact and have the other read it at test time and verify against it, in both directions. That
 works with existing fakes in place, needs no shared constant and no cross-language import, and
 it is what closed ⑩'s three-copy marker string.
+⚠ **Its precondition, which is easy to lose:** *delete the duplication* holds only while the
+owning side stays the ONLY copy. The moment the reading side caches the value in a constant —
+which looks like tidying, and would pass review, because hoisting a repeated string is normally
+right — the test passes against the copy and the join is open again. Say so in a comment at the
+read; the test cannot defend its own premise.
 
 **4. For irreversible ACTIONS, the session holding the human's word does it — and quotes him.**
 The first three rules govern artifacts; this one governs doing. A destructive change to shared
@@ -97,3 +102,4 @@ trade-off honestly, and his call stands over both.
 
 | ⑩ | [cancel-fee-runner-share.md](cancel-fee-runner-share.md) | The 10% cancel tier pays the runner | **RULED** — pay them their half and notify it as a reward | unbuilt |
 | ⑪ | [incident-verification.md](incident-verification.md) | Who verifies an `incident` | **RULED** — both runner and owner confirm | unbuilt |
+| ⑫ | [marketplace-incident-exit.md](marketplace-incident-exit.md) | 🟡 **OPEN — needs a ruling.** A marketplace `incident_review` has no commercial exit: an unsealed row escalates there, the only resolution tool is club-only, so the operator closes an alert they cannot act on and the runner is never paid. ⑩'s defect one layer up. Its own slice by design — a money path needs its own cycle. |
