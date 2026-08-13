@@ -1,4 +1,4 @@
--- ═══ 0092: runner_availability_rules — a stranger should not know when a runner is out alone ═══
+-- ═══ 0093: runner_availability_rules — a stranger should not know when a runner is out alone ═══
 --
 -- ═══ §0 WHAT WAS MEASURED, IN PRODUCTION, WITH NO ACCOUNT ═══
 -- Found by the post-deploy canary on 2026-08-13, minutes after 0076–0091 landed. This is not a
@@ -65,7 +65,7 @@
 --
 -- ═══ §D THE CHANGE ═══
 -- A grant, not a policy edit. Dropping `avail rules public read` would also cut off the
--- storefront's authenticated read, which is a real feature — 128 A3 pins that it survives, so
+-- storefront's authenticated read, which is a real feature — 129 A3 pins that it survives, so
 -- nobody "finishes the job" by deleting the policy and silently breaking 러너 프로필.
 revoke select on runner_availability_rules from anon;
 
@@ -75,7 +75,7 @@ revoke select on runner_availability_rules from anon;
 grant select on runner_availability_rules to authenticated;
 
 comment on table runner_availability_rules is
-  '0092: 러너 주간 가용시간. anon SELECT 취소됨 — 계정 없는 사람이 특정 러너의 이름·동네·야외
+  '0093: 러너 주간 가용시간. anon SELECT 취소됨 — 계정 없는 사람이 특정 러너의 이름·동네·야외
 활동 시간대를 함께 알 수 있었다 (2026-08-13 프로덕션 측정: 9명 중 6명 실명 조인 가능).
 ⚠ 로그인한 사용자는 여전히 전체 러너의 스케줄을 대량으로 읽을 수 있다 — 0002:77의
 `using (true)`가 그대로다. 그 절반은 스토어프런트를 definer 함수로 옮겨야 닫히고, 그건

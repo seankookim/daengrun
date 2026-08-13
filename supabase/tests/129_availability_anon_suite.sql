@@ -1,4 +1,4 @@
--- ═══ 128 availability anon suite — 0092 pins (the schedule half of the who/where/when join) ═══
+-- ═══ 129 availability anon suite — 0093 pins (the schedule half of the who/where/when join) ═══
 -- A1-A2 = the wall. A3 = the door that must stay open or 러너 프로필 dies. A4 = the honest
 -- statement of what is NOT closed. A5 = the join itself, which is the thing that made this a
 -- finding rather than a note.
@@ -11,10 +11,10 @@
 --     passes. That produced six false positives in 124 and nearly blinded that pin.
 --
 -- ─── MUTATION map — each pin goes RED under exactly one named revert ───
---   A1 ← 0092: delete `revoke select … from anon`                                        → RED
---   A2 ← 0092: as A1 (the join becomes reachable again)                                  → RED
---   A3 ← 0092: `revoke select … from authenticated` — over-tightening kills the storefront → RED
---   A5 ← 0092: as A1
+--   A1 ← 0093: delete `revoke select … from anon`                                        → RED
+--   A2 ← 0093: as A1 (the join becomes reachable again)                                  → RED
+--   A3 ← 0093: `revoke select … from authenticated` — over-tightening kills the storefront → RED
+--   A5 ← 0093: as A1
 --
 -- ⚠ A3 IS THE POINT OF THIS FILE AS MUCH AS A1. The obvious "real" fix is to drop
 --   `avail rules public read` (0002:77) since `using (true)` is the defect. That ALSO cuts the
@@ -85,7 +85,7 @@ begin
   exception when insufficient_privilege then
     reset role;
     call _fail('rav', 'A3 스토어프런트 생존',
-      'authenticated가 permission denied — 0092가 과잉 차단했거나 누군가 avail rules public read를 지웠다. 러너 프로필 화면이 죽는다');
+      'authenticated가 permission denied — 0093가 과잉 차단했거나 누군가 avail rules public read를 지웠다. 러너 프로필 화면이 죽는다');
   end;
 
   -- ══════════════════════════════════════════════════════════════════════════════════════════
@@ -107,15 +107,15 @@ begin
       execute 'select count(distinct runner_id) from runner_availability_rules' into v_n;
       reset role;
       if v_n >= 1 then
-        call _pass('rav', format('A4 남은 노출을 사실로 고정 — 로그인만 하면 러너 %s명의 스케줄을 대량 조회 가능 (0002:77 using(true)). 0092는 무계정 경우만 닫는다', v_n));
+        call _pass('rav', format('A4 남은 노출을 사실로 고정 — 로그인만 하면 러너 %s명의 스케줄을 대량 조회 가능 (0002:77 using(true)). 0093는 무계정 경우만 닫는다', v_n));
       else
         call _fail('rav', 'A4 남은 노출을 사실로 고정',
-          '대량 조회가 0명 — 누군가 벌크 경로를 닫았다면 좋은 일이다. 0092 §C와 이 핀을 함께 갱신하라');
+          '대량 조회가 0명 — 누군가 벌크 경로를 닫았다면 좋은 일이다. 0093 §C와 이 핀을 함께 갱신하라');
       end if;
     exception when insufficient_privilege then
       reset role;
       call _fail('rav', 'A4 남은 노출을 사실로 고정',
-        'authenticated가 permission denied — 벌크 노출이 닫혔거나(축하한다) grant가 과잉 회수됐다. 어느 쪽이든 0092 §C와 이 핀을 같이 갱신하라. A3도 함께 빨간지 확인할 것: 둘 다 빨강이면 과잉 회수, A4만 빨강이면 벌크만 닫힌 것이다');
+        'authenticated가 permission denied — 벌크 노출이 닫혔거나(축하한다) grant가 과잉 회수됐다. 어느 쪽이든 0093 §C와 이 핀을 같이 갱신하라. A3도 함께 빨간지 확인할 것: 둘 다 빨강이면 과잉 회수, A4만 빨강이면 벌크만 닫힌 것이다');
     end;
   end;
 

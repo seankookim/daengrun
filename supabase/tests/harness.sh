@@ -165,7 +165,7 @@ suite 124_profiles_column_grant_suite.sql   # 0088 P0: profiles 컬럼 그랜트
 suite 125_return_force_ops_suite.sql   # 0089 반환 강제 OPS 전용 (Sean: "확인은 양측이 함께, 러너 혼자서는 절대 — 인계도") — 컬럼 CHECK·한쪽 행동은 돈 무이동·판정≠확인(스탬프 양쪽 NULL)·양측 경로 무손상·픽업 인계 양면성 — F1~F5
 suite 126_chat_notify_suite.sql   # 0090 ⑬ 채팅 알림 (수신자·폭주 방지·본문 무유출·매칭 전 무기록 — N1~N4)
 suite 127_profiles_write_grant_suite.sql   # 0091: profiles 쓰기 컬럼 화이트리스트 (toss_customer_key 자가 청구불능·handle 우회 봉인·역할선택 upsert 실문장·service_role 보존 — W1~W9)
-suite 128_availability_anon_suite.sql   # 0092: 러너 주간 스케줄 anon 차단 (이름×동네×시간 조인 절단·스토어프런트 생존·남은 벌크 노출을 사실로 고정 — A1~A5)
+suite 129_availability_anon_suite.sql   # 0093: 러너 주간 스케줄 anon 차단 (이름×동네×시간 조인 절단·스토어프런트 생존·남은 벌크 노출을 사실로 고정 — A1~A5)
 psql -c "select case when ok then '✅' else '❌' end || ' [' || suite || '] ' || name || case when ok then '' else ' — ' || detail end from _t order by at"
 psql -qt -c "select count(*) filter (where ok) || ' pass / ' || count(*) filter (where not ok) || ' fail' from _t"
 psql -qt -c "select case when count(*) filter (where not ok) > 0 then 'FAIL' else 'OK' end from _t" | grep -q OK
