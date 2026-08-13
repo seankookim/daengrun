@@ -43,7 +43,8 @@ touched it and name whose version you build on in your file header.
 | 0088 | `0088_profiles_column_grants.sql` | 124 | profiles column grants — P0 PII/PG-key leak (`claude/g1-ops-club-decisions`) | **CLAIMED 2026-08-13** — `profiles public runner read` has no column grant, so `phone` and `toss_customer_key` are returned to any authenticated user |
 | 0089 | `0089_profiles_write_grants.sql` | 125 | profiles WRITE column whitelist — the other half of 0088 (`claude/g1-ops-club-decisions`) | **CLAIMED 2026-08-13** — Sean asked for the write side deployed in the same window as 0088. `profiles self write` (0002:59) has no column guard, so a client can UPDATE its own `toss_customer_key` (0076 §B) and `phone`. 0088 §0b is the gap this closes. |
 | 0089 | `0089_return_force_ops_only.sql` | 125 | return force → OPS ONLY (`claude/run-end-flow-1a67e0`) | **CLAIMED 2026-08-13** — Sean: *"the confirmation must happen with both parties and never just the runner. also handoff."* Removes `runner`/`owner` from the force actor set |
-| 0090 | *(next free)* | 126 | — | available |
+| 0090 | `0090_chat_notify.sql` | 126 | ⑬ chat→notification trigger (`claude/club-delegation-money-gaps-b59eb8`) | **CLAIMED 2026-08-13** — taken clear of the 0089 dispute below, not by winning it |
+| 0091 | *(next free)* | 127 | — | available |
 
 ## Where a number comes from: THIS FILE, never a message
 
@@ -99,7 +100,7 @@ function is the problem.
 
 | Path(s) | Session (branch) | Mode | Started | Intent (one line) |
 |---|---|---|---|---|
-| *(none in flight)* | | | | |
+| `supabase/migrations/0090_chat_notify.sql` · `supabase/tests/126_chat_notify_suite.sql` · `supabase/tests/harness.sh` | club-delegation (`claude/club-delegation-money-gaps-b59eb8`) | exclusive (new files) / shared (harness.sh) | 2026-08-13 | ⑬ — trigger so a chat message reaches the other party's phone |
 
 Conventions: give **paths**, not a ticket name · one line of intent, so a reader can
 tell whether their change collides or merely neighbours · stale rows are worse than none, so
@@ -173,6 +174,17 @@ shared-objects table below. One rename on 2026-08-13 left the second behind, so 
 briefly described one slice's grant under another slice's seal.
 
 ## Standing conflicts to resolve
+
+- 🔴 **0089/125 is DOUBLE-CLAIMED RIGHT NOW** (spotted 2026-08-13 while claiming 0090):
+  `0089_profiles_write_grants.sql` (payments) and `0089_return_force_ops_only.sql`
+  (run-end-flow) hold the same row. **Both rows kept and marked, per this file's own rule —
+  not deduped.** ⚠ The pre-push hook cannot help here: it refuses a push that *introduces* a
+  colliding number, and **neither file is pushed on any branch yet** (verified across all
+  remotes), so there is nothing for it to see. This is the gap between a claim and a file,
+  which is the same gap collision six walked through in the other direction.
+  **Resolution per the named-decider rule: the PAYMENTS session decides and pushes the
+  corrected rows; run-end-flow accepts without countering.** I have taken 0090 to stay clear
+  of it rather than to win it.
 
 - **⑩ was BUILT TWICE on 2026-08-13, in parallel, by two sessions given the same unit** — and the
   duplicate was caught by a temp-directory collision, not by this file. The
