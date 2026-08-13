@@ -43,7 +43,18 @@ HTML labs in `docs/labs/` are the sanctioned mockup arena: numbered variants, Se
 
 ## Commit gate
 
-Before every commit: `cd app && ./node_modules/.bin/tsc --noEmit` and `node scripts/check-rpc-contracts.mjs` — both must pass.
+Before every commit, from `app/`: `./node_modules/.bin/tsc --noEmit`, `node scripts/check-rpc-contracts.mjs`,
+and `node scripts/check-route-native-imports.mjs` — all three must pass.
+
+The third one (added 2026-08-13) refuses a module-scope import of a native-only package from
+anything a route can reach. Expo Router evaluates **every** route module at launch, so such an
+import crashes the app on the home screen before the feature is ever opened — which is exactly
+what happened: `toss-sheet.tsx` imported the Toss SDK at top level, the `react-native-webview`
+pod was missing, and every binary from that tree died with `RNCWebViewModule` missing. A feature
+flag cannot help (a flag gates behaviour; an import is evaluated at registration), an internal
+`if (…) return null` cannot help, and neither can a dev route's `if (!__DEV__) return <Redirect/>`
+— **a dev-only screen can crash a production launch.** The fix shape is `*-impl.tsx` plus a
+guarded `lazy()` wrapper; `src/components/toss-sheet.tsx` is the worked example.
 
 ## Branches — the trunk is `redesign-v4`
 

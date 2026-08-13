@@ -291,8 +291,12 @@ export default function Pay() {
         onReload={onReload}
         onBack={() => router.back()}
       />
-      {/* 위젯은 intent가 손에 있을 때만 존재한다 — TOSS_ENABLED가 false면 intent는 영원히 null이라
-          react-native-webview는 마운트되지 않는다 (네이티브 리빌드 전에도 오늘 앱은 그대로 돈다). */}
+      {/* 위젯은 intent가 손에 있을 때만 존재한다. TossSheet은 지연 로딩 래퍼이고, 이 조건이
+          false인 동안에는 네이티브 모듈이 **임포트조차 되지 않는다**.
+          ⚠ 이 자리에 원래 있던 말은 "마운트되지 않는다 (오늘 앱은 그대로 돈다)"였고, 그건
+          틀렸다. Expo Router는 모든 라우트 모듈을 앱 시작 시 평가하므로 마운트 여부와 무관하게
+          import가 실행됐다 — 그래서 이 트리로 빌드한 앱은 결제 근처도 가기 전에 홈 화면에서
+          RNCWebViewModule 없음으로 죽었다. 마운트를 근거로 임포트를 논증한 것이 오류였다. */}
       <TossSheet
         visible={intent != null}
         intent={intent}
