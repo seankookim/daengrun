@@ -56,15 +56,29 @@ closes.
   can therefore stamp a 응가 event *after* stopping, which `settle_run_tx` rewards with
   miles (`0028:88`). Both functions must reject `run_ended_at is not null`.
 - **`settle-run` ignores every client-supplied financial input** and reads the frozen row.
-- **`end_run_tx` validates `end_reason` against the narrowed client-sendable set.**
+- **`end_run_tx` validates `end_reason` against the exact four-value client-sendable set:**
+  `completed · dog_condition · owner_request · runner_personal`. Both `incident` and
+  `owner_forced` are refused (the first is ops/G1 territory — a runner declaring it hands
+  their owner a free run; the second is ops-written, not a runner's).
+  🔴 **Deadlock rule:** the freeze set must be a SUBSET of what `settle-run` accepts.
+  Freezing a value settle-run refuses produces a run that can never settle — runner never
+  paid, booking never leaves `active`. Reject by name; never silently coalesce to
+  `completed`.
+- *(superseded framing kept for provenance)* validates against the narrowed set:
   `settle-run` now returns a named 400 for `incident` / `owner_forced` (a runner must not
   self-declare `incident`, which under G1 means the owner is charged nothing). Because this
   slice freezes `end_reason` EARLIER than that gate, the same whitelist must apply at the
   freeze — otherwise a runner freezes `incident` at run-stop and hands their owner a free
   run. Do not re-widen it.
-- ⚠ **Do not hardcode what `dog_condition` charges.** Two sessions currently hold different
-  beliefs (₩0 vs the booking's base fare, flat) and Sean has been asked to rule. Read the
-  value through `compute_owner_charge`; encode no number and no waive here.
+- ⚠ **Do not hardcode what `dog_condition` charges — RECONCILED 2026-08-13.** Both sessions
+  were right about different things: **shipped on origin today = ₩0** for `dog_condition`
+  and `incident` (`g1_waive`, 0080), while **Sean has DECIDED** `dog_condition` charges the
+  booking's own frozen `base_fare`, flat (base only — no distance, no addons). The payments
+  session's 0084 lands that code; this slice must not. Read every G1 value through
+  `compute_owner_charge`. A pin hardcoding 0 or 7,900 goes red under their migration **for a
+  correct reason**, which is the most expensive kind of red.
+  Consequence to hold: after 0084 a *club* `dog_condition` abort charges **9,900**, not
+  7,900 — the charge is the booking's own frozen base and the club premium was kept.
 - Custody GPS rides an explicitly **non-billable path**: broadcast for the map, plus a
   `custody_last_seen_at` heartbeat (§4d). It is structurally unable to touch the run row.
 
