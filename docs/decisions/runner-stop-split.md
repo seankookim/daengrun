@@ -67,6 +67,21 @@ autocommit and fails on push, which is exactly the class that flag exists to cat
 harness self-pins it, `harness.sh:28-33`). So: one migration adds the value, a LATER one may
 reference it. Found by the route-catalog session reading this memo against the harness rules.
 
+**③ THE FREEZE SET MUST BE A STRICT SUBSET OF THE SETTLE SET — and this one ships silently.**
+`0083:366` (`end_run_tx`) freezes `end_reason` at run-STOP to
+`('completed','dog_condition','owner_request','runner_personal')` — identical to
+`CLIENT_END_REASONS` in `settle-run/handler.ts:40` today. The freeze happens **earlier** than
+the settle-time whitelist check. So if a reason can be frozen that `settle-run` later refuses,
+the run strands permanently: the runner is never paid and the booking never leaves `active`.
+No test catches it, because each side is individually correct.
+
+Therefore **`CLIENT_END_REASONS` and 0083's freeze list change in the SAME commit.** For
+`runner_incapacity` there are exactly two coherent end states — **in both sets** (which
+requires the abuse story first) or **in neither** (server/ops writes it; runners keep using
+`runner_personal`). The incoherent middle is the expensive one. That makes seven items on this
+memo's implementation list, not six; the freeze list is the seventh and the only one whose
+omission is invisible until a real run is stuck.
+
 **② `compute_owner_charge`'s `runner_personal_distance_only` arm is NOT stale — do not "fix"
 it.** ⑨ changes the RUNNER's pay to pass-through; the OWNER's side of `runner_personal` is
 explicitly unchanged (#10 stands — distance only, base waived). `compute_owner_charge` is the
