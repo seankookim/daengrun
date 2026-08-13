@@ -143,7 +143,18 @@ field and was in fact a session's — the patch-id check settled it in seconds.)
 =======
 | *(none in flight)* | | | | |
 >>>>>>> origin/redesign-v4
-| **DEPLOY SURFACE, not files**: the linked project `zjabnywjpvpgmtajygqy` — `supabase functions deploy` (all 5 money functions) + `supabase db push` of the one pending migration `0092_runner_work_gate.sql`. No repo file is edited except this row. | deploy-edge-functions (`claude/deploy-edge-functions-money-68e990`, worktree `deploy-edge-functions-money-68e990`) | worktree `deploy-edge-functions-money-68e990` | **exclusive** — nobody else run `functions deploy` or `db push` against this project until this row is removed | 2026-08-13 | Finish handoff P0 #1. ⚠ Its premise is already falsified: the five functions ARE deployed (16:57 / 17:18 KST today) and DO carry the 0085/0086 callers; what is actually missing is `0092` (local, **remote empty** in `migration list`) and the `transition-booking` build that calls it. No migration NUMBER is claimed — this session writes no migration. |
+| *(released — deploy-edge-functions, 2026-08-13. Held the deploy surface `zjabnywjpvpgmtajygqy` exclusively; all five money functions are now deployed from trunk and the row is retired per "delete yours when you merge".)* | | | | | |
+
+⚠ **The claim table cannot hold a DEPLOY, and this is the one row that proved it.** The claim
+above was written against `supabase functions list` + `migration list`, both correct when read.
+Twenty minutes later another session had applied `0092` and `0094` to the same project while
+this session's gates were still running — a claim on origin, in the file, in the right format,
+and it changed nothing, because **the surface being claimed was not in the repo.** Every other
+row here names paths, and paths are the thing that collides; a project ref is not a path and no
+reader of this table was editing a file. Nothing was lost (their apply is what unblocked the
+`transition-booking` deploy), so this is recorded as a limit rather than an incident: **the
+in-flight table coordinates edits, not effects on production.** A deploy needs an interlock the
+repo does not have. Until one exists, say in the handoff who is deploying, not only here.
 
 Conventions: give **paths**, not a ticket name · one line of intent, so a reader can
 tell whether their change collides or merely neighbours · stale rows are worse than none, so
