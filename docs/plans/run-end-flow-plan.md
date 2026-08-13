@@ -77,6 +77,13 @@ closes.
   that C was recommended by *neither* session; he overrode both. `club_fare = A` (9,900
   kept as a stated premium). Every G1 value in this slice reads through
   `compute_owner_charge` — which is precisely why the third ruling cost this slice nothing.
+  Exact shape under C: `base_fare + round(distance_fare/km × basis) + addon_fare`, ceilinged
+  at `min(actual, planned)` — identical arithmetic to a `completed` run. `incident` remains a
+  waived row at settle (0072's adjudication owns that money question).
+  **Provenance norm, learned twice today: a relayed decision is evidence, not authority.**
+  Both sessions relayed Sean's words in good faith and disagreed; the answer only settled
+  when it was read from origin (`ac0c294`). Do not encode a money rule from a relay —
+  including a confident one — without reading it at origin yourself.
 - Custody GPS rides an explicitly **non-billable path**: broadcast for the map, plus a
   `custody_last_seen_at` heartbeat (§4d). It is structurally unable to touch the run row.
 
