@@ -107,27 +107,30 @@ path still JWT-validated via caller())
 still the critical path; ② dashboard TEST keys + variantKey 카드/간편결제-only (docs demo
 WIDGET keys are recorded in app/.env.example + plan §5 — they unblock the A3 device spike
 NOW, but not billing); ③ ~~review + merge + push~~ — DONE this session: both slices are on
-`origin/redesign-v4` @ 534d2aa (branch `claude/club-money-gates` also pushed). Local
+`origin/redesign-v4` (branch `claude/club-money-gates` also pushed). Local
 `redesign-v4` in the main checkout is BEHIND origin on purpose — another session had
 uncommitted work there, so the remote was advanced instead of fast-forwarding their tree.
 `git pull` with a clean tree.
-**Decisions:** **`docs/decisions-open-money.md` — three briefs written 2026-08-13, pick by
-number**: ① G1 abort-charge basis (recommendation: D — `incident` charges nothing at settle
-because the 0072 case owns that money; `dog_condition` charges distance-only) · ② D-3
-silent-charge question for counsel (recommendation: ask with three options; if ambiguous
-ship the monthly summary, not a per-charge push) · ③ OPS_PROFILE_ID (recommendation: keep
-the env var for the pilot) · ④ club_fare is the pre-D2 formula, so club owners pay ₩2,000 MORE
-than marketplace for the same km (recommendation: align to 7,900 before the flip; no price
-change shipped) · ⑤ en-route club cancels now have no owner path (recommendation: route them
-into the incident flow rather than a wall) · ⑥ the cutover straddle — a booking confirmed
-pre-flip is charged post-flip and can lock a card-less owner (recommendation: set
-`payments_live_since` to a FUTURE timestamp past the longest in-flight booking).
-⚠ A parallel session wrote memos ①–③ independently as `docs/decisions/` and reports the calls
-were delegated there; that set is canonical and ours retires after your merge — the banner at
-the top of `decisions-open-money.md` names what each has that the other lacks. **Nothing was
-built on that relayed adoption**: G1 keeps 🔴 and D-3 is unbuilt, because a confirmation gate
-that another session can perform is not a gate. Also still open: lab picks Ⓡ①②③ + Ⓖ rule · Ⓛ③ spec-plate
-graft + ₩/원 (carried from the 2026-08-12 handoff §9).
+
+**Decisions — ALL SIX now live in `docs/decisions/` (single directory, consolidated
+2026-08-13; `decisions-open-money.md` retired into it).** Five are settled; ONE needs
+your answer:
+- 🟡 **① G1 abort-charge basis — THE ONE OPEN CALL.** Two sessions did independent
+  adversarial work and reached DIFFERENT answers, so nothing was auto-picked:
+  `dog_condition` = ₩0 (club-delegation session: welfare stop must cost nothing) vs
+  ₩3,000×actual, no base (charge-slice session: a chronically-unfit dog otherwise gets
+  free runs forever, invisibly). Both agree `incident` = ₩0 at settle (0072 owns it).
+  Shipped provisional = ₩0 for both, 🔴 marker intact. See
+  `docs/decisions/g1-abort-charge-basis.md` §"The open question".
+- ✅ ② D-3 = monthly amount-free summary (both sets agree; counsel question stands as a
+  go-live gate) · ✅ ③ OPS_PROFILE_ID = env var + redacted payloads (shipped) ·
+  🟡 ④ club_fare is the pre-D2 formula → club owners pay ₩2,000 MORE per km-equal run
+  (align before the flip) · 🟡 ⑤ en-route club cancels have no owner path ·
+  🟡 ⑥ cutover straddle — set `payments_live_since` to a FUTURE timestamp past the
+  longest in-flight booking.
+**Nothing was built on a relayed adoption**: G1 keeps 🔴 and D-3 is unbuilt, because a
+confirmation gate another session can perform is not a gate. Also still open: lab picks
+Ⓡ①②③ + Ⓖ rule · Ⓛ③ spec-plate graft + ₩/원 (carried from the 2026-08-12 handoff §9).
 
 ## 5. Next prompts (exact openers)
 

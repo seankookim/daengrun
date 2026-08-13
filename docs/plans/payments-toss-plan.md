@@ -52,10 +52,14 @@ appears exactly ONCE in the happy path: on the request/preference screen, small 
 alongside the options (that surface already exists). After that the owner never sees a
 number again: booking confirmation carries NO money, the post-run moment is the RECORD
 CARD (the dog, never the charge), and the card issuer's own 승인 알림 does the
-announcing. Money UI exists in exactly two modes: **on demand** (booking detail →
+announcing. Money UI exists in exactly three modes: **on demand** (booking detail →
 결제 내역, 설정 → 결제 관리 — receipts must exist and be accurate there, 전자상거래법
-footer included) and **on exception** (decline/debt/account-lock states — those cannot
-be hidden and stay loud). This is honest: consent happened at request (price shown),
+footer included), **on exception** (decline/debt/account-lock states — those cannot
+be hidden and stay loud), and **one scheduled aggregate receipt per month** (D-3
+adoption 2026-08-13, `docs/decisions/d3-silent-charge-summary.md` — amount-free push,
+amount on the in-app surface only; unbuilt until Sean's merge confirms; a ledger
+digest is a receipt surface, not a price ceremony). This is honest: consent happened
+at request (price shown),
 actuals-based charging was disclosed at card link, and the receipt is one tap away.
 Honest ≠ loud. **This achieves what the token model's psychology was FOR** — recorded
 plainly: it weakens the un-park case further.
@@ -110,7 +114,7 @@ edges, zero repinning.
 |---|---|---|
 | completed / runner-caused early end | ACTUAL | pay what happened |
 | owner_request / owner_forced | **PLANNED** (D2 rule) | guarantee clause + anti-cut-short gaming |
-| dog_condition / incident-class | 🔴 Sean's product call (G1): actual vs waive | the abort-charge composition question |
+| dog_condition / incident-class | **ADOPTED 2026-08-13 (G1): WAIVE** — shipped provisionally as `g1_waive` (0080:266); 🔴 marker stands until Sean's merge confirms; incident-class → 0072 adjudication at flip time; flips forward-only. Addenda: `docs/decisions/g1-abort-charge-basis.md` | the abort-charge composition question — decided, pending confirm |
 
 `owner_charge = ownerBaseFare(7,900) + 3,000 × basis + addon_fare`.
 
@@ -144,7 +148,11 @@ flow, every row above); SQL pins for the derivation fn + intent shape + the
 settlement-without-collection invariant.
 
 **Prerequisites:** 자동결제(빌링) 심사 · billing TEST keys · the 설정 결제 관리 +
-booking-detail 결제 내역 extension ships in the same release (§0-bis T6).
+booking-detail 결제 내역 extension ships in the same release (§0-bis T6) · Toss
+심사's answer on 빌링키 charge notice obligations is a GO-LIVE requirement (if
+per-charge notice is demanded, the invisibility doctrine renegotiates —
+`docs/decisions/d3-silent-charge-summary.md`; the D-3 monthly statement itself
+builds in the next money slice, migrations ≥0082).
 
 ### §0-ter ADVERSARIAL ROUND 1 — 15 findings absorbed (2026-08-12 night; the section above
 is amended by ALL of the following; a second adversarial round belongs to the build slice):
@@ -191,9 +199,11 @@ is amended by ALL of the following; a second adversarial round belongs to the bu
    "later confirmed row"), and the failed→confirmed flip sets payment_key in the SAME
    statement (payments_settled_has_key). Verify-at-build: Toss idempotency-key
    retention window vs the +24h outer rung.
-9. **Basis for `dog_condition`/`incident` stays 🔴 Sean's (G1) — implementation must not
-   silently pick (#9).** Provisional pilot default recorded for his override: charge
-   NOTHING pending review (trust-first, bounded pilot cost, exception UI already exists).
+9. **Basis for `dog_condition`/`incident`: ADOPTED 2026-08-13 — charge NOTHING (#9).**
+   Sean adopted the waive via delegation (club-delegation session); shipped
+   provisionally in 0080 with the 🔴 marker, which stands until Sean's merge of the
+   decision branch confirms. Incident-class defers to 0072 adjudication; flips
+   forward-only. Binding detail: `docs/decisions/g1-abort-charge-basis.md`.
 10. **`runner_personal` waives the base (#10):** owner pays `3,000 × actual` only — a
     runner-caused end doesn't bill the owner 7,900 for undelivered service. Platform
     absorbs the runner's min_fare floor at tiny actuals (rare, bounded, gauge it).
