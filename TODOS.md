@@ -221,6 +221,10 @@ Deferred work, written down so it exists. Format: what / why / context / effort
   reaches route promotion. So adding an enum value cannot reach it, which is why three slices
   touched this enum today without interacting. My freeze list and that gate read the same
   column for different purposes and do not conflict: an aborted run is not route material.
+  ⚠ **Invalidation condition (route session, `845c76e`)**: this note dies the moment ANY slice
+  widens that predicate, and REGISTRY must be updated in the same breath. Live risk: ⑨ adds
+  `runner_incapacity` to the same enum. A fact recorded without the condition that would falsify
+  it is a fact that quietly goes wrong — worth copying that habit.
 - [ ] **⑨'s seventh implementation item — the freeze list.** `0083:366`'s freeze set must be
   a strict SUBSET of `settle-run`'s `CLIENT_END_REASONS`; freezing a reason settle-run
   refuses strands the run permanently (runner never paid, booking never leaves `active`).
