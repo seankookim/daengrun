@@ -143,6 +143,7 @@ field and was in fact a session's — the patch-id check settled it in seconds.)
 =======
 | *(none in flight)* | | | | |
 >>>>>>> origin/redesign-v4
+| **DEPLOY SURFACE, not files**: the linked project `zjabnywjpvpgmtajygqy` — `supabase functions deploy` (all 5 money functions) + `supabase db push` of the one pending migration `0092_runner_work_gate.sql`. No repo file is edited except this row. | deploy-edge-functions (`claude/deploy-edge-functions-money-68e990`, worktree `deploy-edge-functions-money-68e990`) | worktree `deploy-edge-functions-money-68e990` | **exclusive** — nobody else run `functions deploy` or `db push` against this project until this row is removed | 2026-08-13 | Finish handoff P0 #1. ⚠ Its premise is already falsified: the five functions ARE deployed (16:57 / 17:18 KST today) and DO carry the 0085/0086 callers; what is actually missing is `0092` (local, **remote empty** in `migration list`) and the `transition-booking` build that calls it. No migration NUMBER is claimed — this session writes no migration. |
 
 Conventions: give **paths**, not a ticket name · one line of intent, so a reader can
 tell whether their change collides or merely neighbours · stale rows are worse than none, so
