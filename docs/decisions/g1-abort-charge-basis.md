@@ -202,11 +202,29 @@ Neither session recommended C. Sean's call stands over both model recommendation
 recorded that way deliberately, so nobody later "corrects" it back to a memo's advice.
 Flips remain forward-only.
 
-## Provenance
+## Provenance — Sean's own words, so this never needs re-confirming
 
-Original memo + adversarial round (Claude subagent + Codex, 12 + 16 findings) in the
-club-delegation session, 2026-08-13; Sean delegated the recommendation there. The
-charge-slice session independently wrote the same memo, reached a different
-`dog_condition` answer, and correctly refused to build on a relayed adoption. At
-consolidation (2026-08-13) both were merged here and the divergence surfaced rather than
-resolved by either model.
+The standard (contributed by the charge-slice session, which stopped mid-build over an
+ambiguous relay): **a ruling is settled when the human's phrasing is on origin**, not when
+a session reports that he ruled. His five answers, verbatim:
+
+- On the fault split — *"so if it's the runner's own condition, the runner gets paid only
+  base 7900 without any extra. if it's an external circumstance like owner prompted or
+  dog's issue, then runner get's paid until the distance ran."*
+- On `incident` — *"but verify incident first to avoid abuse of this feature."*
+- Asked whether the owner mirrors the runner on `dog_condition` — **"Mirror both sides."**
+- Asked which base a runner-fault stop pays, given 7,900 is the owner's constant —
+  **"₩9,900 — the runner's own base."**
+- Asked whether this reverses settled rule #10 — **"No — #10 stands."**
+
+Independently, the charge-slice session put its own two candidate answers to him
+(base-flat vs full actuals, amounts spelled out, with a "neither" escape hatch) and he
+chose **full actuals** — the same owner-side basis the mirror answer produces. Two
+sessions, two differently worded questions, one consistent answer. That agreement is what
+makes this settled rather than merely recorded.
+
+Route to the answer: this session's original memo + dual-voice adversarial round (Claude
+subagent 12 findings, Codex 16); the charge-slice session's independent memo reaching a
+different `dog_condition` answer; consolidation surfacing the divergence instead of
+resolving it by recency; and Sean reframing the question onto fault, which neither memo
+had proposed.
