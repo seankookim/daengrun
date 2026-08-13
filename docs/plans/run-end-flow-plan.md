@@ -213,6 +213,13 @@ each of which corrects something this plan had wrong:
 pin (the location varies by design) — just recorded, which is what would make the custody record
 useful in a dispute. Cost is one tap at the doorstep. Unanswered; do not build either way.
 
+### Naming — 귀가 is the wrong word for the state
+
+Kept throughout this document because the code and the other sessions already use it, but it is
+inaccurate by §3-bis: the state is *dog still with the runner, handover pending*, and the
+custody segment may be zero distance because the owner is standing at the finish. Any
+USER-FACING copy must not promise a walk home. Internal identifiers may stay.
+
 ## §4 Operational phase — the `active` audit
 
 One server-derived phase, then every consumer classified (codex #5):
@@ -256,9 +263,13 @@ homeward; stale heartbeat → homeward/no-signal.
 중 · 인계 확인하기 with a deep link (it has no phase field and is ended only from `settle`).
 
 **Owner** — live screen keeps the owner *on it* (`live.tsx:141-154` gains the earlier
-branch); pill 집으로 가는 중; frozen stats labelled as frozen; 남은 거리 to the pickup pin
-(**no ETA in minutes** — no walking-speed model, and a fabricated 도보 8분 was already
-retired at `runner/meetup.tsx:306`); anomaly strip at ~stop+25min routing to chat.
+branch); frozen stats labelled as frozen; anomaly strip at ~stop+25min routing to chat.
+🔴 **`남은 거리 to the pickup pin` is CUT (§3-bis)** — the handover happens wherever the two
+agree, so there is no fixed destination to measure against; a distance to the pickup pin would
+be a confident number about the wrong place. The no-ETA rule survives for the same reason it
+always applied (no walking-speed model; a fabricated 도보 8분 was retired at
+`runner/meetup.tsx:306`). What the owner gets instead is the live dot, the frozen stats, and
+the handover state — all of which are true regardless of where they agreed to meet.
 
 **Notifications** — distinct return titles + a `RETURN_TITLES` set routed to `/owner/live`
 and `/runner/run`. Today a new title falls through `push.ts:59-62` to `/owner/report` (a
@@ -323,7 +334,11 @@ their dog was actually unwell."**
   - *Residual (my proposal, not Sean's ruling — flag at build):* the release valves D-r2
     keeps still need parameters for the case where the owner never interacts at all.
     Proposed: runner force allowed 20min after the peer was notified, gated on the runner
-    being at the pickup pin (evidence, since the owner's interaction is absent), driven by
+    ~~being at the pickup pin~~ 🔴 **CUT (§3-bis)** — a runner who agreed to meet at the river
+    is never near the pickup pin, so this would block the legitimate handover it was meant to
+    evidence. Evidence has to be something that survives the location varying; the force records
+    an ASSERTION rather than a confirmation, which is what keeps the record honest without it.
+    Driven by
     a **durable server sweep** — never an app-local timer, so a runner who pockets the
     phone is still paid. Owner-side force symmetric. Sean confirms or amends at build.
 - **D-r2 — DECIDED: follow the recommendation.** Owner stamp required; the recipient
