@@ -20,6 +20,7 @@
 import { SupabaseClient } from "jsr:@supabase/supabase-js@2";
 import { HttpError } from "../_shared/ctx.ts";
 import { dispatchCharge } from "../_shared/charge.ts";
+import { notifyOps } from "../_shared/ops.ts";
 
 // deno-lint-ignore no-explicit-any
 type Booking = Record<string, any>;
@@ -201,26 +202,12 @@ async function compensateRunner(db: SupabaseClient, bookingId: string): Promise<
     );
     return true;
   } catch (e) {
-    const msg = msgOf(e);
-    const line = `[transition] enroute comp FAILED booking=${bookingId}: ${msg}`;
-    console.error(line);
-    const ops = Deno.env.get("OPS_PROFILE_ID");
-    if (!ops) {
-      console.error(`${line} — OPS_PROFILE_ID unset, no notification sent`);
-      return false;
-    }
-    // Body carries no ids, no amounts, no error text — same reason as confirm-payment's
-    // notifyOps (2026-08-13): OPS_PROFILE_ID is an env-held uuid, a valid-but-wrong value
-    // delivers this to a real user, and 0024 pushes the body verbatim to their lock screen.
-    // The detail is already in console.error above and in the ledger; this is the ping.
-    const { error: nErr } = await db.from("notifications").insert({
-      profile_id: ops,
-      kind: "system",
-      title: "이동 중 취소 보상 기록 실패 — 수동 확인 필요",
-      body: "러너 보상이 원장에 기록되지 않은 취소 건이 있어요 — 서버 로그에서 booking 을 확인하고 record_enroute_cancel_comp 를 다시 실행해주세요",
-      ref_id: bookingId,
-    });
-    if (nErr) console.error(`${line} — ops notify failed: ${nErr.message}`);
+    // The booking id and the error text stay HERE, in the log — the notification body carries
+    // neither (_shared/ops.ts's redaction rule), so this line is where a human finds the case.
+    console.error(`[transition] enroute comp FAILED booking=${bookingId}: ${msgOf(e)}`);
+    // Routing, the OPS_PROFILE_ID fallback and the loud log when neither exists all live in
+    // _shared/ops.ts (Sean's ruling ③) — this is the ping, not the safety net.
+    await notifyOps(db, "enroute_comp_failed", { refId: bookingId });
     return false;
   }
 }

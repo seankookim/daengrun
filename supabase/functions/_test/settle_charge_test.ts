@@ -472,6 +472,88 @@ Deno.test("the party gate still runs before the reason whitelist (a stranger lea
   }
 });
 
+// ═══ ruling ①: WHO may declare an end_reason ═══════════════════════════════════════════════
+// Sean's ruling ① (2026-08-13, docs/decisions-open-money.md — "verify incident first to avoid
+// abuse of this feature") makes `incident` mean the owner is charged NOTHING. settle-run is a
+// public HTTP endpoint whose caller is the assigned runner, so a whitelist that accepted the whole
+// enum would be a self-serve free-run button: POST `end_reason: 'incident'` and the run is free.
+// The accepted set is now the four the client type offers (api.ts:981); `incident` belongs to the
+// custody path (0045) and `owner_forced` to ops.
+//
+// ⚠ These two tests are the guard on that gap. Adding "incident"/"owner_forced" back to
+// settle-run's whitelist — the obvious "fix" for a reader who notices it does not match the enum —
+// reddens exactly here.
+for (const reason of ["incident", "owner_forced"]) {
+  Deno.test(`a runner declaring '${reason}' is refused 400 — nothing settled, nothing charged`, async () => {
+    const db = scene();
+    installMint(db);
+    const net = tossOk();
+    try {
+      const e = await expectHttpError(() =>
+        settleRun(req(body({ end_reason: reason, condition_note: "x" }), "runner_jwt"), db as never)
+      );
+      assertEquals(e.status, 400);
+      // Honest about WHY: the server knows this reason and refuses it. "Update your app" would be
+      // a lie that sends the runner chasing a version which will never accept it.
+      assertStringIncludes(e.message, "이 사유로는 정산할 수 없어요");
+      assert(!e.message.includes("최신 버전"), `refusal pretends the reason is unknown: ${e.message}`);
+      // The run is not settled, the runner is not paid on this reason, and no waived row exists.
+      assert(!db.log.includes("rpc:settle_run_tx"), `'${reason}' reached the settlement tx`);
+      assert(!db.log.includes("rpc:mint_settle_charge_intent"), `'${reason}' reached the mint`);
+      assertEquals(db.rows("payments").length, 0);
+      assertEquals(net.calls.length, 0);
+    } finally {
+      net.restore();
+    }
+  });
+
+  Deno.test(`'${reason}' refusal happens AFTER the party gate — never an oracle`, async () => {
+    // A stranger probing which reasons the server treats specially must get the same 403 they get
+    // for any other body. If this returned 400 it would confirm both that the booking exists and
+    // that this reason is special, from an unauthenticated-for-this-booking caller.
+    const db = scene();
+    installMint(db);
+    const net = tossOk();
+    try {
+      const e = await expectHttpError(() =>
+        settleRun(req(body({ end_reason: reason }), "stranger_jwt"), db as never)
+      );
+      assertEquals(e.status, 403);
+      assertEquals(e.message, "assigned runner only");
+      assertEquals(net.calls.length, 0);
+    } finally {
+      net.restore();
+    }
+  });
+}
+
+Deno.test("all four client reasons still settle — the fix narrows, it does not break the app", async () => {
+  // api.ts:981's union, exactly. If one of these ever 400s, every runner ending a run that way is
+  // stuck holding a dog with no way to close the job.
+  const cases = [
+    { end_reason: "completed" },
+    { end_reason: "dog_condition", condition_note: "다리를 절어요" },
+    { end_reason: "owner_request" },
+    { end_reason: "runner_personal" },
+  ];
+  for (const c of cases) {
+    const db = scene();
+    const seen = installMint(db);
+    const net = tossOk();
+    const cap = captureLogs();
+    try {
+      const out = await settleRun(req(body(c), "runner_jwt"), db as never) as Row;
+      assertRunnerShape(out);
+      assert(db.log.includes("rpc:settle_run_tx"), `${c.end_reason} never settled`);
+      assertEquals(seen.length, 1);
+      assertEquals(seen[0].p_end_reason, c.end_reason); // the reason reaches SQL unmodified
+    } finally {
+      cap.restore();
+      net.restore();
+    }
+  }
+});
+
 Deno.test("settle_run_tx refusing (not_active) → 409 and the charge machine never starts", async () => {
   const db = scene();
   installMint(db);

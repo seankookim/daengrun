@@ -420,10 +420,11 @@ export default function ClubPage() {
                           </Svg>
                           <Text style={[{ fontSize: 16, lineHeight: 21, color: '#fff' }, df]}>{/* CLUB15 */}위탁하기</Text>
                           {/* [opus a11y] 서브라인 = 흰 88% (coralSoft 2.3:1 금지) */}
+                          {/* [가격 비가시성 · 재정 ④ 2026-08-13] 여기 있던 요금(ns.fare)은 문에서 내렸다 —
+                              둘러보는 화면은 돈을 말하지 않는다. 클럽 요금은 승낙서(/club/delegate)에서
+                              단 한 번 고지된다. ns.fare는 서버가 계속 주지만 이 화면은 그리지 않는다. */}
                           <Text style={s.doorSubCoral} numberOfLines={2}>
-                            {ns.fare != null
-                              ? <>{/* CLUB15 */}<Text style={[{ fontSize: 15, lineHeight: 20, color: '#fff' }, nf]}>{ns.fare.toLocaleString()}</Text>원{ns.routeKm ? ` · ${ns.routeKm}km 완주 위탁` : ' · 완주 위탁'}</>
-                              : '오늘의 러닝을 맡겨요'}
+                            {ns.routeKm != null ? `${ns.routeKm}km 완주 위탁` : '오늘의 러닝을 맡겨요'}
                           </Text>
                         </Pressable>
                       )}

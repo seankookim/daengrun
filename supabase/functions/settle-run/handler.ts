@@ -24,10 +24,22 @@ import { SupabaseClient } from "jsr:@supabase/supabase-js@2";
 import { caller, HttpError, PRICING } from "../_shared/ctx.ts";
 import { type ChargeOutcome, dispatchCharge } from "../_shared/charge.ts";
 
-// The canonical `end_reason` enum (0001:18). Whitelisted HERE, before the tx, because
+// What a RUNNER may declare when they end a run. Whitelisted HERE, before the tx, because
 // `compute_owner_charge` fails closed on an unknown reason and a settlement must never reach a
 // charge computation that is going to raise.
-const END_REASONS = ["completed", "dog_condition", "owner_request", "runner_personal", "owner_forced", "incident"];
+//
+// ⚠ THIS IS DELIBERATELY NARROWER THAN THE `end_reason` ENUM (0001:18). Do NOT "restore" the two
+// missing values to make it match the enum — the gap IS the fix (Sean's ruling ① 2026-08-13,
+// docs/decisions-open-money.md: "verify incident first to avoid abuse of this feature").
+// Under that ruling `incident` charges the owner NOTHING, and this function is a public HTTP
+// endpoint: an assigned runner who POSTs `end_reason: 'incident'` straight at it would be pressing
+// a self-serve free-run button, one the client's own type (api.ts:981) never offers. The two
+// withheld values are written by someone else entirely — `incident` by the custody/emergency path
+// (0045, adjudicated by `club_incident_settle` 0072), `owner_forced` by ops — so neither is a
+// runner's to declare at settle. The enum stays six; what a runner may SAY stays four.
+const CLIENT_END_REASONS = ["completed", "dog_condition", "owner_request", "runner_personal"];
+/** In the enum, valid on a booking, but never accepted from this endpoint — refused by name. */
+const SERVER_ONLY_END_REASONS = ["owner_forced", "incident"];
 
 /**
  * The coarse collection verdict. NOT part of any response — this vocabulary exists only for the
@@ -44,7 +56,16 @@ export async function settleRun(req: Request, db: SupabaseClient) {
   const { data: bk } = await db.from("bookings").select("*").eq("id", p.booking_id).single();
   if (!bk) throw new HttpError(404, "booking not found");
   if (bk.runner_id !== uid) throw new HttpError(403, "assigned runner only");
-  if (!END_REASONS.includes(p.end_reason)) {
+  // Both refusals live AFTER the party gate above, on purpose: answering them to a stranger would
+  // turn this endpoint into an oracle (which bookings exist, and which reasons the server treats
+  // specially). A non-assigned caller gets 403 and learns nothing about either list.
+  if (!CLIENT_END_REASONS.includes(p.end_reason)) {
+    if (SERVER_ONLY_END_REASONS.includes(p.end_reason)) {
+      // Honest about WHY: the server knows this reason perfectly well and is refusing it, which is
+      // a different sentence from "I have never heard of it". Telling the runner to update the app
+      // here would send them chasing a version that will never accept it.
+      throw new HttpError(400, "이 사유로는 정산할 수 없어요 — 사고·응급 종료는 인계 절차로, 강제 종료는 운영자가 처리해요");
+    }
     // Fail closed, and say the true thing: the server does not know this reason. (The enum cast
     // inside the tx would also refuse it — as a 500 that reads like our bug, after the client has
     // already been told the run ended.)
@@ -78,6 +99,8 @@ export async function settleRun(req: Request, db: SupabaseClient) {
   const addonPay = (bk.addons as { price: number }[]).reduce((s, a) => s + a.price, 0);
   let gross = Math.max(base + distancePay + addonPay, bk.min_fare);
   let guarantee = 0;
+  // `owner_forced` can no longer reach here (it is server-only above); the arm stays because this
+  // is the runner-side mirror of the SQL basis table, where both owner-caused ends pay the same.
   if (p.end_reason === "owner_request" || p.end_reason === "owner_forced") {
     const fullDistance = Math.round(bk.km * PRICING.perKm);
     // 클램프 — 실거리가 계획을 넘어선 조기종료에서 보장이 음수가 되어 오히려 감봉되던 버그

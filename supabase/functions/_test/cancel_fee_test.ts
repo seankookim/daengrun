@@ -449,6 +449,35 @@ Deno.test("comp RPC failing is non-fatal but NEVER silent — loud log + ops not
   }
 });
 
+// Ruling ③ wiring pin — the mirror of confirm_payment_test's. `_shared/ops.ts` owns the recipient
+// ladder and the redaction; the one fact only this call site knows is the event class, and getting
+// it wrong would silently deliver a runner-safety event to money's operator (or to nobody).
+Deno.test("the comp failure routes as enroute_comp_failed, to that class's recipients", async () => {
+  const SAFETY_OPS = "cccccccc-cccc-cccc-cccc-cccccccccccc";
+  const db = scene({ status: "runner_enroute" });
+  installComp(db, { fail: "deadlock detected" });
+  installMint(db, { amount: FEE_50 });
+  const classes: string[] = [];
+  db.rpcs["ops_recipients_for"] = (args: Row) => {
+    classes.push(String(args.p_event_class));
+    return { data: args.p_event_class === "enroute_comp_failed" ? [SAFETY_OPS] : [] };
+  };
+  const net = tossOk({ billing: () => FetchMock.json(chargeDone({ totalAmount: FEE_50 })) });
+  const cap = captureLogs();
+  try {
+    await call(db);
+    assertEquals(classes, ["enroute_comp_failed"]);
+    const ops = db.rows("notifications").filter((n) => n.kind === "system");
+    assertEquals(ops.map((n) => n.profile_id), [SAFETY_OPS]);
+    assertEquals(ops[0].ref_id, BOOKING);
+    // The env-var operator is the fallback, not a second copy.
+    assert(!db.rows("notifications").some((n) => n.profile_id === OPS), "the env fallback fired too");
+  } finally {
+    cap.restore();
+    net.restore();
+  }
+});
+
 Deno.test("comp failed → the runner is told about the CANCEL, never that a missing record exists", async () => {
   const db = scene({ status: "runner_enroute" });
   installComp(db, { fail: "deadlock detected" });
