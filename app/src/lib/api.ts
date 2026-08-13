@@ -85,26 +85,43 @@ function composeDesc(r: RouteRow): string {
 //    반환 타입의 Omit은 store.ts RouteInfo에서 fit이 사라지면 그대로 지우면 된다.
 //  · trace — 실좌표가 없으면 빈 배열. 목업 폴리라인을 코스 모양이라고 그리지 않는다.
 export async function fetchRoutes(town?: string | null): Promise<RouteInfo[]> {
-  // 디스커버리 = active만. 0002의 `using (active)` 정책이 0082에서 `using (true)`로 열렸으므로
-  // 가시성은 이제 쿼리의 책임이다 (상세·이력은 fetchRouteById가 전 상태를 읽는다).
-  let q = supabase.from('routes').select(ROUTE_LIST_COLS).eq('status', 'active');
-  if (town) q = q.eq('town', town);
-  const { data, error } = await q.order('km');
-  if (error) throw error;
-
-  const active = (data ?? []) as RouteRow[];
-  if (active.length > 0) return active.map((r) => toRouteInfo(r, r.trace_thumb));
-
-  // ── D-VIS 폴백 (Sean 확정 A) ────────────────────────────────────────────────────────
-  // 이 동네에 active가 0개면 candidate를 돌려준다 — 파일럿이 예약을 만들 수 있어야 그 예약이
+  // 한 동네분을 읽는다: active 우선, 없으면 candidate (D-VIS 폴백, Sean 확정 A) —
+  // 이 동네에 active가 0개면 candidate를 돌려준다. 파일럿이 예약을 만들 수 있어야 그 예약이
   // 코스를 활성화하는 런을 낳는다. 단 호출부는 이들을 **자동 선택하면 안 된다**: status가
   // RouteInfo에 실려 오는 이유가 그것이고, 서버(create-booking-hold)도 candidate_ack 없이는
   // 거절한다. 첫 코스가 활성화되는 순간 이 분기는 스스로 사라진다.
-  let cq = supabase.from('routes').select(ROUTE_LIST_COLS).eq('status', 'candidate');
-  if (town) cq = cq.eq('town', town);
-  const { data: cand, error: cErr } = await cq.order('km');
-  if (cErr) throw cErr;
-  return ((cand ?? []) as RouteRow[]).map((r) => toRouteInfo(r, r.trace_thumb));
+  //
+  // 디스커버리 = active/candidate만. 0002의 `using (active)` 정책이 0082에서 `using (true)`로
+  // 열렸으므로 가시성은 이제 쿼리의 책임이다 (상세·이력은 fetchRouteById가 전 상태를 읽는다).
+  const forTown = async (t: string | null): Promise<RouteRow[]> => {
+    for (const status of ['active', 'candidate'] as const) {
+      let q = supabase.from('routes').select(ROUTE_LIST_COLS).eq('status', status);
+      if (t) q = q.eq('town', t);
+      const { data, error } = await q.order('km');
+      if (error) throw error;
+      const rows = (data ?? []) as RouteRow[];
+      if (rows.length > 0) return rows;
+    }
+    return [];
+  };
+
+  const rows = await forTown(town ?? null);
+  if (rows.length > 0 || !town) return rows.map((r) => toRouteInfo(r, r.trace_thumb));
+
+  // ── 동네 어휘 폴백 (플랜 "Town vocabulary" — 명세돼 있었지만 만들어지지 않았던 팔) ──
+  // `profiles.district`와 `routes.town`은 **서로 다른 어휘**다. 실측(2026-08-13):
+  // district = {null, 반포동, 성수, 뚝섬, 서울숲} · town = {반포동, 성수동} — 겹치는 값은
+  // 반포동 하나뿐이다. 즉 성수/뚝섬/서울숲에 사는 보호자는 성수동에 코스가 있는데도
+  // **코스를 하나도 못 본다**. 그리고 빈 목록은 조용하지 않다: 화면이 "0개 코스의 만남 장소는
+  // 정해져 있고…"라는, 0개에 대해 무언가를 주장하는 문장을 그린다.
+  //
+  // 여기서 동네 이름을 정규화하지 **않는다** — 뚝섬·서울숲이 성수동이라고 단정하는 것은 지리
+  // 판정이고, 그건 코드가 지어낼 값이 아니다(캐노니컬 목록은 별도 스코프). 대신 플랜이 이미
+  // 정한 팔을 그대로 판다: **필터를 풀고 전부 보여주되, 풀었다는 사실을 로그로 남긴다.**
+  // 아무것도 없는 것보다 전부가 낫고, 조용한 0보다 시끄러운 폴백이 낫다.
+  console.warn(`[routes] town '${town}' matched no routes — falling back to unfiltered (district/town vocabulary mismatch)`);
+  const all = await forTown(null);
+  return all.map((r) => toRouteInfo(r, r.trace_thumb));
 }
 
 // 상세·이력·러너 브리핑 전용 — **가시성과 무관하게 어떤 라이프사이클 상태든 읽는다.**

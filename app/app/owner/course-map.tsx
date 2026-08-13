@@ -215,7 +215,18 @@ export default function CourseMap() {
       </View>
 
       {/* 실측 코스가 하나도 없을 때 — 빈 판정이 아니라 사실과 다음 행동 */}
-      {state === 'ready' && withTrace.length === 0 && (
+      {/* 코스가 0개인 것과 '실측 전'인 것은 다른 사실이다. 예전엔 둘 다 같은 카드로 그려서
+          코스가 하나도 없을 때 "**0개** 코스의 만남 장소는 정해져 있고…"라고, 0개에 대해
+          무언가를 주장하는 문장이 나왔다. 개수를 본문에 끼워 넣으면 0이 들어올 수 있다. */}
+      {state === 'ready' && routes.length === 0 && (
+        <View style={s.infoWrap} pointerEvents="none">
+          <View style={s.infoCard}>
+            <Text style={s.infoTitle}>등록된 코스가 없어요</Text>
+            <Text style={s.infoBody}>아직 이 지역에 코스가 없어요. 코스 없이도 예약은 접수돼요.</Text>
+          </View>
+        </View>
+      )}
+      {state === 'ready' && routes.length > 0 && withTrace.length === 0 && (
         <View style={s.infoWrap} pointerEvents="none">
           <View style={s.infoCard}>
             <Text style={s.infoTitle}>아직 실측된 코스가 없어요</Text>
