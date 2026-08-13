@@ -49,13 +49,41 @@ report/record card must say stopping was the right call and show the runner's ow
 `'러너 판단: 컨디션 저하 관찰'` on every abort until 2026-08-13). Without it the owner is
 billed for a stop they can't evaluate.
 
-## Decision (Sean) — needs one answer
+## Sean's third answer (2026-08-13) — VERBATIM, needs one clarification before it is buildable
 
-- [ ] **Base only, flat** (`ownerBaseFare` + addons, no distance) — what you said first
-- [ ] **Full actuals** (base + distance) — what you picked from my incomplete menu
-- [ ] Something else
+> "so if it's the runner's own condition, the runner gets paid only base 7900 without any
+> extra. if it's an external circumstance like owner prompted or dog's issue, then runner
+> get's paid until the distance ran."
 
-`incident` = ₩0 with verification either way. Flips remain forward-only.
+**This answers a different side of the ledger than the question asked.** G1 as posed was
+about what the OWNER is charged; this describes what the RUNNER is paid. It is a coherent
+and arguably better frame — fault determines who absorbs the shortfall — but three things
+must be pinned before any code moves, because each changes a different number:
+
+1. **Whose ledger?** Runner pay, owner charge, or both mirrored on the same basis?
+2. **Which base is "7900"?** The constants are decoupled and must never be unified:
+   `ownerBaseFare` = 7,900, `runnerCompBase` = 9,900. "The runner gets paid base 7900"
+   names the owner's number on the runner's side.
+3. **Does it move settled rule #10?** Today `runner_personal` charges the OWNER distance
+   only with the base waived. "Runner's own condition → base only, no extra" may reverse
+   that, and #10 was previously decided.
+
+**Reading it against the fault axis it implies:**
+
+| end_reason | fault | runner paid | owner charged (if mirrored) |
+|---|---|---|---|
+| `runner_personal` | runner | base only, no distance | ? (today: distance only, base waived — #10) |
+| `dog_condition` | nobody / the dog | base + distance actually run | base + distance = full actuals |
+| `owner_request` / `owner_forced` | owner | base + distance actually run | PLANNED distance (D2, settled) |
+| `incident` | under review | — | ₩0, verify first (settled) |
+
+Note the `dog_condition` row is consistent with his earlier menu pick here (full actuals)
+and inconsistent with his earlier charge-slice ruling (base flat, no distance) — so this
+third answer effectively resolves the two-answer conflict **in favour of charging the
+distance that was actually run**, provided the mirror question above is answered yes.
+
+**Nothing is built until the clarification lands. `incident` = ₩0 with verification is
+settled and safe to build now.**
 
 ---
 
