@@ -109,6 +109,7 @@ suite 118_route_ladder_suite.sql            # 0082 route ladder (candidate→act
 suite 120_g1_ops_cutover_suite.sql            # 0084 Sean's rulings ①③⑥ (dog_condition = full actuals (Sean's ruling C)·reviewable incident waive + its ops arm·ops_recipients routing·cutover setter refuses the past·승인 알림에서 요금 제거 — J1~J10)
 suite 121_cancel_share_suite.sql   # 0085 ⑩ 취소 수수료 러너 배분 (10% 티어의 절반)
 suite 122_runner_stop_pay_suite.sql            # 0086 ⑨a runner_personal 중단 지급 = 보호자 청구액 × 러너 몫 (패스스루 — 정액 base 은퇴·커미션 실패 폐쇄 — P1~P4)
+suite 124_profiles_column_grant_suite.sql   # 0088 P0: profiles 컬럼 그랜트 (RLS는 행만 막는다 — phone·toss_customer_key 봉인·앱 질의 형상 생존·service_role/definer/뷰 우회 — G1~G6)
 psql -c "select case when ok then '✅' else '❌' end || ' [' || suite || '] ' || name || case when ok then '' else ' — ' || detail end from _t order by at"
 psql -qt -c "select count(*) filter (where ok) || ' pass / ' || count(*) filter (where not ok) || ' fail' from _t"
 psql -qt -c "select case when count(*) filter (where not ok) > 0 then 'FAIL' else 'OK' end from _t" | grep -q OK

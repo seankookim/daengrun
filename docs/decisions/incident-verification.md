@@ -137,3 +137,37 @@ Both surfaced from the ⑪ / `0088` interaction (announcer + payments sessions, 
    the application rather than the profile. Whoever builds ⑪ confirms which source is
    authoritative before the design assumes one; this is exactly the "verify, don't relay" check,
    and the answer changes the screen.
+
+## ⑪-bis Phone numbers on the incident screen (Sean, 2026-08-13, direct)
+
+**His words, in the charge-slice session, immediately after picking B1:**
+*"b1, and show each other's phone numbers on the screen at all times."*
+
+Recorded here because 0088's builder correctly refused to treat a relayed version as authority
+and flagged that the requirement appeared nowhere in the repo — right by the rule this set
+runs on. This entry is the human's own words on origin, so it is now buildable.
+
+**Scope as built, which is NARROWER than "at all times" and deliberately so.** 0088 ships
+`incident_contact(p_booking)` — a definer, party-gated, returning the two parties' numbers
+**only while an incident is open** (`incidents.resolved_at is null`), zero rows otherwise, and
+zero rows (never an error) for a non-party, since distinguishing the two is an oracle over
+which bookings have live incidents. Reasons the narrower scope is the right reading:
+- `docs/appstore-privacy-answers.md:27` declares phone collection as **"contact during
+  handoff."** "At all times" is broader than what has been filed; if that went to Apple,
+  shipping the literal reading makes a *filed answer* inaccurate. Open-incident-only is much
+  closer to the declared purpose, and a later widening then has to cross a documented line
+  rather than drift over it.
+- The ordinary `profiles` path refuses `phone` to everyone after 0088, so this function is the
+  only door — which is what stops the next person re-granting the column to unblock ⑪.
+
+**⚠ TWO PREREQUISITES, both verified absent — ⑪ renders nothing until they exist:**
+1. **`profiles.phone` is written by NOTHING** — no migration, no edge function, no client. PASS
+   is unintegrated. (`runner_applications.contact_phone` and `emergency_contacts.phone` are
+   different columns and are never copied across.)
+2. **`incidents` rows are written by NOTHING either** — `sendSOS` only inserts a notification.
+   So the open-incident gate has nothing to open on.
+
+**Before it ships:** the privacy policy and the App Store filing must be amended to say the
+counterparty sees a real number during an incident, and Sean should confirm knowingly that we
+are NOT doing 안심번호 (masked relay, the Kakao T pattern) — `docs/feature-audit.md` already
+discusses it, so this is a re-decision, not a new trade-off.

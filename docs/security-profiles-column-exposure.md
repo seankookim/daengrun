@@ -103,3 +103,45 @@ considered, not a new trade-off.
    not a stand-in's, and not mine.
 2. **The privacy policy and the App Store filing** must be amended before ⑪ ships, and he
    should confirm the 안심번호 trade-off knowingly rather than inherit it.
+
+## Follow-ups this fix surfaced but does NOT close
+
+1. **`profiles` WRITES are unguarded — a client can change their own `toss_customer_key`.**
+   `profiles self write` (`0002_rls.sql:59`) permits UPDATE with no column guard, so an
+   authenticated user can rewrite their own `role`, `handle`, and `toss_customer_key`. 0074:44
+   already named this gap. 0088 closes the READ side only; this needs its own slice (the 0073
+   `addresses` column-whitelist pattern, or a `_guard_profile_cols` trigger). **Rewriting your
+   own payment-provider customer key is the interesting one** — it is the identifier the billing
+   path keys on.
+2. **`runner_availability_rules` is anon-readable** — `(runner_id, weekday, start_min, end_min)`,
+   i.e. every runner's weekly free/busy schedule, with no account. Unlike `runners` (a directory
+   a marketplace must show), it is not obviously required pre-login. Grandfathered into 124's
+   whitelist with a 🔴 so the pin could land; sealing another team's table on the way past is how
+   a fix becomes an outage.
+3. **`available_runners` (0015) is a definer view over `profiles`** and tunnels through the
+   grant. Its columns are a safe subset today; 124 G6 pins that schema-wide via `pg_depend`, so
+   adding `phone` to it would redden rather than leak.
+4. **The policy is still wrong-shaped.** `profiles public runner read` has no `to authenticated`
+   and no caller term, so it still matches `anon` at the RLS layer — the column grant is what
+   makes that harmless now. Narrowing the policy is a product call about the logged-out
+   storefront. 124 G1 arm 3 pins that the row stays visible, so nobody "fixes" the leak by
+   deleting the policy and quietly breaking browse.
+
+## A method note, because it cost a near-miss
+
+The schema-wide pin (124 G) first reported **six** additional anon-readable tables — `bookings`,
+`dogs`, `session_dogs`, `session_people`, `session_runner_assignments`,
+`participant_activities`. All six were **false positives**: `set local role anon` changes the
+role but does not clear `request.jwt.claim.sub`, which earlier suites set, so `auth.uid()` kept
+returning a real user and every policy gated *inside* a function (`is_active_runner()`,
+`is_booking_party()`) still passed. Whitelisting them — which is what a green-at-any-cost fix
+would have done — would have blinded the pin to a future real exposure of the six tables holding
+dog memos, pickup addresses and club rosters.
+
+Two lessons, both earned the hard way in one afternoon:
+- **A test of "what can a stranger see" must first make itself a stranger.** Clearing the claim
+  is the test, not setup for it.
+- **Executing against an EMPTY database is also a false negative.** The first audit run found
+  nothing beyond `profiles` because no fixture rows existed yet to match the policies. Reading
+  DDL missed it; executing on an empty DB missed it; only executing against a populated one, as
+  a genuine stranger, gave the true answer.
