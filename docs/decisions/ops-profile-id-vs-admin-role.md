@@ -42,12 +42,13 @@ exists, the right shape is an `ops_events` queue (dedupe, severity, ack/resoluti
 — not a recipients table bolted onto customer notifications. Recorded so B doesn't
 get built as the wrong table later.
 
-## Still open for the next money slice
+## Still open — timed to the CUTOVER GATE (charge-slice session's call, agreed)
 
 - **Heartbeat on the pull-based net:** reconciliation is a manual daily query by one
   person; nothing alarms if the habit lapses. A cron that loud-LOGS (never notifies
   — no dependency on the same env var) when `payments_reconciliation()` returns
-  >0 rows. ~10 lines, rides any ≥0082 migration.
+  >0 rows. ~10 lines — but no consumer exists until an operator reads alerts daily,
+  so it builds in the slice that flips `payments_live_since`, not before.
 - Launch checklist §2 carries the env setup item (`supabase secrets set
   OPS_PROFILE_ID=...` per environment; also listed in handoff deploy order ⑥).
 

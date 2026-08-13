@@ -51,6 +51,13 @@ absorption.
 
 ## Consequences that don't change with the pick
 
+- **`incident`-class stays ₩0 at settle under EVERY option — the pick governs
+  `dog_condition` only.** This is architectural, not generosity: 0072
+  (`club_incident_settle`) quotes refund_full / settle_measured / pay_full and a
+  human adjudicates; charging at settle would pre-empt the case and manufacture
+  exactly the refund post-pay was designed to delete. If Sean ever re-checks this
+  box to O2/O3, the new basis applies to `dog_condition` alone. (Delta contributed
+  by the charge-slice session's fold-check.)
 - Owner basis ceiling: never above `min(actual, planned)` → never above quote (#4).
 - Charges compute from the booking's FROZEN numbers, not live constants (#6).
 - Club-side charges ride their own ladder (club-run-logic; the club delegation money
@@ -68,8 +75,10 @@ Status of each accompaniment after cross-checking 0080:
    kind-scoped debt derivation, and the sweep keys on ROW EXISTENCE including
    `waived` (0080:594-597, hardened R3 P3-9). No action needed; recorded so nobody
    "simplifies" it away.
-2. **The real gaming surface is a unilateral runner — STILL OPEN for the next money
-   slice.** `dog_condition` is completion_rate-exempt (0001:72, 0028:139), pays the
+2. **The real gaming surface is a unilateral runner — STILL OPEN, timed to the
+   CUTOVER GATE (charge-slice session's call, agreed): pre-cutover nothing is
+   charged, so the fraud incentive doesn't exist until `payments_live_since` is set;
+   the detector builds in the slice that flips the switch, alongside the club gaps.** `dog_condition` is completion_rate-exempt (0001:72, 0028:139), pays the
    runner the same as completion, and is gated only by the runner's own free-text
    `condition_note` — and a waived owner never disputes a fictional abort, so O1
    removes the free fraud detector. Required: per-RUNNER dog_condition-rate +
