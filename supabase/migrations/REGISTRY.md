@@ -69,6 +69,24 @@ its own suite, so nothing exercises the reverted behaviour.
 whose version you build on in your file header.** Fill in your own row; do not guess for
 others.
 
+### The rule, stated once
+
+> **Add columns and your own functions. Re-create nothing you did not create.**
+
+If you cannot get what you need by adding, then you are EXTENDING someone's object — say
+whose version you built on, in your file header, by migration number. "Re-creates" alone
+does not tell the next reader whether work is being continued or covered.
+
+If extending is impossible without replacing, **do not replace silently**: name the hole in
+your file, write out the exact fix the owner needs, and say what must not ship until it
+lands. `0083 §0f` is the worked example — it creates a hole in `sweep_settled_without_payments`
+(because `ended_at` changed meaning), refuses to fix it in 0080's territory, hands the owner
+the one-line predicate, and blocks the cutover until it is in.
+
+This rule was written after the run-end-flow session caught its OWN migration about to
+silently revert the charge machine's sweep — the same class it had been warning everyone
+else about. Applying it to yourself when it is inconvenient is the whole point.
+
 | # | Shared objects it re-creates |
 |---|---|
 | 0079 | `_guard_run_cols` · LA trace trigger · `owner_la_sweep_stale` |
