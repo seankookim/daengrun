@@ -134,7 +134,7 @@ field and was in fact a session's — the patch-id check settled it in seconds.)
 
 | Path(s) | Session (branch) | Tree | Mode | Started | Intent (one line) |
 |---|---|---|---|---|---|
-| *(none in flight)* | | | | |
+| `docs/retro-2026-08-13.md` | club-delegation (`claude/club-delegation-money-gaps-b59eb8`, worktree club-delegation-money-gaps-b59eb8) | exclusive | 2026-08-13 | CORRECTION: the arc's second leg is refuted by timestamp; add the spec-never-built class. |
 
 Conventions: give **paths**, not a ticket name · one line of intent, so a reader can
 tell whether their change collides or merely neighbours · stale rows are worse than none, so
