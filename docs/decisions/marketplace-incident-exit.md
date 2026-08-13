@@ -1,8 +1,19 @@
 # ⑫ A marketplace `incident_review` has no commercial exit — the runner is unpayable
 
 **Status: ✅ RULED BY SEAN 2026-08-13 — *"pay the runner but dont let them make new runs until
-the dog is confirmed by both sides."* NOT BUILT, NOT OWNED**, and deliberately not folded into
-another slice.
+the dog is confirmed by both sides."* · BUILT AND DEPLOYED — `0092_runner_work_gate.sql` +
+suite 128 (run-end-flow session; harness 529/0), schema live in production.**
+
+⚠ **The "confirmed by both sides" in his ruling is the DOG'S RETURN, not an incident
+verification.** `0092:22-24` states it: the gate asks *"is the dog back with its owner?"* →
+`runner_confirmed_return_at` + `owner_confirmed_return_at`, shipped in `0083` and hardened by
+`0089`. **This session claimed ⑫'s exit was ⑪'s machine and pushed that as "a dependency, not a
+preference"; it was wrong, and it drove an assignment.** The builder caught it and descoped
+rather than inheriting the framing. **⑪ is independent, still unbuilt, and does not gate ⑫.**
+
+Built as a DERIVED predicate, not a `runners` flag — a flag is a cache of a derivable and
+drifts. New objects only: `runner_work_gate`, `_runner_work_gate_blocking`,
+`bookings_runner_unreturned_idx`, plus the accept path in `transition-booking/index.ts`.
 
 ## The finding
 
