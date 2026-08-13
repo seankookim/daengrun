@@ -33,7 +33,10 @@ const REASON: Record<string, { label: string; color: string; bg: string; note?: 
   completed: { label: '완주 완료', color: '#3d5a2b', bg: '#e3f0c4' },
   dog_condition: {
     label: '반려견 컨디션으로 조기 종료', color: '#d84a2f', bg: '#fde8e3',
-    note: '러너 판단으로 안전하게 종료했어요. 아이 상태를 확인해주시고, 이상이 있으면 안심 센터로 연락주세요.',
+    // Trimmed: "러너 판단으로 안전하게 종료했어요" moved into the 왜 멈췄는지 block, which says it
+    // better and says it first. What survives here is the half that block does NOT carry — the
+    // owner's next action and the recourse path. One fact, one printing.
+    note: '아이 상태를 확인해주시고, 이상이 있으면 안심 센터로 연락주세요.',
   },
   owner_request: { label: '보호자 요청으로 종료', color: '#a97c12', bg: '#fbf0d4' },
   runner_personal: { label: '러너 사정으로 종료', color: '#75806f', bg: '#e9ebe2' },
@@ -366,8 +369,57 @@ export default function Report() {
               </Row>
             </View>
 
-            {/* ---------- 러너 노트 ---------- */}
-            {(run.conditionNote || reason?.note) && (
+            {/* ---------- 왜 멈췄는지 (컨디션 종료 전용) ----------
+                G1 (docs/decisions/g1-abort-charge-basis.md) makes a welfare stop a REAL BILL, and
+                both adversarial rounds flagged the same consequence: an owner who feels charged for
+                a stopped run leans on the next runner to keep going. The agreed mitigation is copy,
+                and this is it. Two jobs, and the second one is newer than the first:
+
+                ① Say plainly that stopping was right. Note the claim is about the DECISION, not
+                   about the dog — we do not know the dog was unwell, and asserting a diagnosis we
+                   cannot see would be the same fabrication this section exists to retire.
+                ② Carry enough for the owner to JUDGE the stop. Under G1 the owner pays, so the
+                   owner is now the auditor of an abort — the fraud posture inverted the day the
+                   waive ended. That means the runner's own words (real since 611f014; before it,
+                   every owner read one hardcoded sentence) plus where it happened.  */}
+            {run.endReason === 'dog_condition' && (
+              <View style={s.section}>
+                <Text style={s.sectionTitle}>왜 멈췄는지</Text>
+                <Text style={{ fontSize: 15, fontWeight: '800', color: paper.ink, lineHeight: 21 }}>
+                  아이가 힘들어 보이면 멈추는 게 맞아요.
+                </Text>
+                <Text style={{ fontSize: 14.5, color: paper.dim, marginTop: 5, lineHeight: 20.5 }}>
+                  러너는 그렇게 하도록 안내받아요. 끝까지 달리는 것보다 아이 상태가 먼저예요.
+                </Text>
+
+                {run.conditionNote ? (
+                  <View style={{ marginTop: 13, borderLeftWidth: 2, borderLeftColor: paper.line, paddingLeft: 11 }}>
+                    <Text style={{ fontSize: 14, fontWeight: '800', color: paper.dim, marginBottom: 4 }}>
+                      러너가 본 것
+                    </Text>
+                    <Text style={{ fontSize: 15, color: '#49524a', lineHeight: 21.5 }}>{run.conditionNote}</Text>
+                  </View>
+                ) : (
+                  /* Loading ≠ empty ≠ absent (§7): the note is required at the stop, so a missing
+                     one is a real gap in the record — say so rather than rendering nothing. */
+                  <Text style={{ fontSize: 14, color: paper.dim, marginTop: 13, lineHeight: 20 }}>
+                    러너 메모가 기록되지 않았어요 — 안심 센터로 문의해주세요.
+                  </Text>
+                )}
+
+                <Text style={{ fontSize: 14, color: paper.dim, marginTop: 13, lineHeight: 20 }}>
+                  {run.actualKm}km 지점 · {fmtDur(run.durationSec)} 지나 종료했어요
+                </Text>
+                {reason?.note && (
+                  <Text style={{ fontSize: 14, color: reason.color, marginTop: 9, lineHeight: 19.5 }}>
+                    {reason.note}
+                  </Text>
+                )}
+              </View>
+            )}
+
+            {/* ---------- 러너 노트 (그 외 사유) ---------- */}
+            {run.endReason !== 'dog_condition' && (run.conditionNote || reason?.note) && (
               <View style={s.section}>
                 <Text style={s.sectionTitle}>러너 노트</Text>
                 {run.conditionNote && (
