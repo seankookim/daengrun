@@ -50,40 +50,35 @@ service the runner ended). Two `end_reason` values were left to you:
 | C | **Full actuals** (base + distance) | ₩10,300 | "Pay what happened." Risks the thing we least want: an owner who feels charged for a stopped run pressures the runner to keep going next time. |
 | D | **Split by cause** — `dog_condition` = B, `incident` = A | ₩2,400 / ₩0 | Treats the two differently because they *are* different: one is a judgment call about the dog, the other is a case under review. |
 
-**Recommendation was D.** ✅ **SEAN'S RULING (2026-08-13): split by cause, but the OTHER way
-round on `dog_condition` — charge the BASE FEE, not the distance. `incident` charges nothing.
-"but verify incident first to avoid abuse of this feature."**
+🔴 **CORRECTED 2026-08-13 — THIS FILE'S EARLIER RECORD OF ① WAS WRONG.**
 
-So the rule is: `dog_condition` → `ownerBaseFare` only (7,900 + addons, no distance component);
-`incident` → 0, gated on verification. This inverts my recommendation and is the better read:
-the base fee is what the runner's *showing up* costs — pickup, handoff, custody — and that
-labour happened. The distance is what didn't. Charging the base and waiving the distance says
-exactly that, where my "distance only" said the opposite and would have charged more for a
-longer failure.
+**Sean's ruling is option C: `dog_condition` charges FULL ACTUALS** — base + distance,
+identical to a `completed` run (`base_fare + round(distance_fare/km × basis) + addon_fare`,
+ceilinged at `min(actual, planned)`). **`incident` stays ₩0 at settle** as a `waived` row,
+because 0072's adjudication owns that money question. Canonical memo:
+`docs/decisions/g1-abort-charge-basis.md` (pushed as `ac0c294`) — read that, not this.
 
-⚠ **The economic asymmetry this creates, for your awareness:** the owner's charge is flat while
-the platform's absorption grows with distance. A dog that stops at 0.2km costs us little; one
-that stops at 2.8km of a 3km run costs us the runner's full distance pay against a flat 7,900.
-Not an objection — a welfare stop late in a run *should* be the expensive case, or we'd be
-nudging runners to push on — but it is the number to watch if aborts cluster.
+What this file said before, and why it was wrong: I recorded "base fee, flat — base as just
+7,900" from an exchange in the charge-slice session. Another session recorded option C from
+an exchange in theirs. Rather than pick between two second-hand records of the same person's
+decision, I asked Sean directly and he confirmed **C**. Neither session's *recommendation*
+was chosen — the club-delegation session recommended waiving everything, this file
+recommended distance-only, and Sean picked the option neither of us put forward.
 
-⚠ **"Verify incident first" found a real hole, now the P1 of this decision.** `settle-run`
-whitelists all six `end_reason` values (handler.ts:30). The TS client type allows only four,
-but the function is a public HTTP endpoint — so an assigned runner can POST
-`end_reason: 'incident'` directly. Today that is harmless. The moment `incident` means "the
-owner is charged nothing", it is a **self-serve free-run button**. Fix, being built: settle-run
-accepts only the four the client can legitimately send; `incident` is written by the custody
-path (0045) and `owner_forced` by ops — neither is a runner's to declare at settle. On top of
-that, the incident waive is *reviewable rather than silent*: the `waived` row carries a
-pending-review marker, appears in its own reconciliation arm, and 0072's adjudication remains
-the thing that decides the money.
+Two consequences carried into the build:
+- **C restores the fraud detector both adversarial rounds worried about.** "dog_condition is
+  a stat-free early exit for a runner" and "a waived owner never disputes a fabricated abort"
+  both assumed the owner pays nothing. Under C the owner pays, so the owner disputes.
+  Per-runner abort telemetry becomes a backstop, not the only signal.
+- **A dog that limps at 200m is billed ~₩8,500** (the base is charged from the first metre;
+  only sub-₩100 auto-waives). Sean accepted that. The mitigation is copy, not money: the
+  report must say stopping was the right call and show the runner's own `condition_note`.
+  That copy is a REQUIRED accompaniment of the ruling, on the run-end-flow report surface.
 
-**⚠ Related gaming vector, independent of your answer (flagging, not fixing):**
-`completion_rate` counts only `completed` + `runner_personal`, so `dog_condition` is
-currently a stat-free early exit for a runner. Under option B or C the runner is also paid
-actuals with no completion-rate cost. If aborts cluster on particular runners, that's the
-signal to watch — a per-runner abort-rate metric is the cheap countermeasure, not a
-price change.
+**The process lesson, which is the reason this correction is written out rather than
+silently edited:** two sessions held contradictory records of one person's decision, both in
+good faith, and both were pushed as fact. A relayed decision is evidence, not authority —
+the only fix is to ask the human, which is what settled it in one message.
 
 ---
 
