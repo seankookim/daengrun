@@ -192,10 +192,25 @@ Deferred work, written down so it exists. Format: what / why / context / effort
   `and rn.settled_at is not null`. Do NOT use `bookings.status` (§0-ter #11 / 116 C8) or
   `ledger_items` presence (0080 §K writes one for a CANCELLED booking). Recorded as
   `0083 §0f`. **`ops_flags.payments_live_since` must not be flipped before this.**
-- [ ] **`owner_forced` has no server entry point.** It was correctly excluded from the freeze
-  whitelist (freezing a reason `settle-run` refuses would strand the run forever), which
-  means the owner-forced end now needs its own primitive in the transition-booking slice or
-  it has no path at all. Effort S → S. P2.
+- [ ] **`owner_forced` has no server entry point** — *narrowed 2026-08-13 by trunk `cf16a74`.*
+  `settle-run` now splits the vocabulary into `CLIENT_END_REASONS` (the four) and
+  `SERVER_ONLY_END_REASONS` (`owner_forced`, `incident`), refusing the latter **by name** —
+  a better shape than one list with values quietly missing, because moving a value between
+  them is now a deliberate edit rather than an accidental merge. So `owner_forced` is
+  *reachable in principle* by a server caller; what is still missing is **the caller** —
+  no transition-booking action produces an owner-forced end today. Same for `incident`
+  outside the club path. Effort S → S. P2.
+- [ ] ⚠ **Enum-transaction trap, for whoever builds ⑨ (`runner_incapacity`)** —
+  `harness.sh:25-29` self-pins `--single-transaction` to mirror `db push`, so
+  `alter type ... add value` plus a USE of that value in the same file raises
+  `unsafe use of new value of enum type` **on push while passing locally**. Give the enum
+  value its own migration, or defer its use to a later one. Also: `0084` predates ⑨
+  (`:168` carries the six-value list, `:188` still branches on `runner_personal`), so a
+  follow-up migration is required regardless.
+- [ ] **⑨'s seventh implementation item — the freeze list.** `0083:366`'s freeze set must be
+  a strict SUBSET of `settle-run`'s `CLIENT_END_REASONS`; freezing a reason settle-run
+  refuses strands the run permanently (runner never paid, booking never leaves `active`).
+  The two must move in the SAME commit. ⑨'s memo lists six items and this is not among them.
 - [ ] **Two switches ship NULL and are Sean's to flip**: `ops_flags.return_seal_since` (the
   seal gate cannot be enforced universally — it would redden ~60 existing pins and strand
   runs on phones already in pockets, so new-flow bookings are gated from day one and the
