@@ -173,8 +173,13 @@ Deno.test("club booking → refused before any money is quoted or written", asyn
     }).then(() => null, (e) => e);
     assert(err, "club cancel should have been refused");
     assertEquals((err as { status?: number }).status, 409);
-    assert(String((err as Error).message).includes("클럽 세션 화면"),
-      `refusal must name the club exit: ${(err as Error).message}`);
+    const msg = String((err as Error).message);
+    assert(msg.includes("클럽 세션 화면"), `refusal must name where to go: ${msg}`);
+    // It must NOT promise the cancel will succeed there: session_cancel_delegation
+    // (0057:190) refuses past `confirmed` with already_handed_off, so an en-route club
+    // booking has no cancel at all — past handoff it is a case. Promising 취소 would be
+    // a lie told one screen before it is discovered.
+    assert(!msg.includes("취소해주세요"), `refusal must not promise a cancel: ${msg}`);
     // Nothing quoted, nothing written, nothing charged, nobody notified.
     assertEquals(db.log.filter((l) => l === "rpc:marketplace_cancel_fee").length, 0);
     assertEquals(updatesToBookings(db).length, 0);

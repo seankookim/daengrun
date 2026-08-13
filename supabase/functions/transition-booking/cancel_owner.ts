@@ -43,9 +43,18 @@ export async function cancelOwner(
   // revokes the assignment. Letting this path run wrote bookings.cancel_fee at the wrong rate
   // and left session_dogs pointing at a cancelled_owner row the club never heard about — and
   // post-cutover that wrong number becomes a real charge via mint_cancel_fee_intent.
-  // Refusing is the honest move, but only because the club exit exists — the copy names it.
+  // ⚠ The club exit does NOT cover every state this path did. session_cancel_delegation
+  // (0057:190-258) accepts booking status `matching` and `confirmed` only and raises
+  // `already_handed_off` beyond that, while 0066 opened `runner_enroute → cancelled_owner`
+  // for the MARKETPLACE (Sean 2026-08-11, 50% = runner comp) — a decision never extended to
+  // club. So refusing here means an en-route club booking has no owner-initiated cancel at
+  // all; past handoff it is a case (the club's own designed answer), not a cancellation.
+  // That is a narrowing, and it is deliberate: the alternative was charging the wrong
+  // ladder into an inconsistent club state. Whether the club ladder should grow an en-route
+  // tier is a product call — recorded in docs/decisions-open-money.md, not decided here.
+  // The copy therefore says 진행 (handle it there), never promises 취소 will succeed.
   if (bk.club_session_id !== null && bk.club_session_id !== undefined) {
-    throw new HttpError(409, "클럽 위탁 예약은 여기서 취소할 수 없어요 — 클럽 세션 화면에서 취소해주세요");
+    throw new HttpError(409, "클럽 위탁 예약은 여기서 취소할 수 없어요 — 클럽 세션 화면에서 진행해주세요");
   }
   // [0066] Fee ladder = SQL single truth (marketplace_cancel_fee, harness-pinned):
   //   unmatched → 0 (full refund any time — the old find-now +40min bug stays fixed)

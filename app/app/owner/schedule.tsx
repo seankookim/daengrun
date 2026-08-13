@@ -556,10 +556,13 @@ export default function Schedule() {
                           onPress={() => { setSelected(null); router.push(`/club/session/${selected.clubSessionId}`); }}
                         >
                           <Text style={{ fontSize: 14.5, fontWeight: '700', color: paper.ink }}>
-                            클럽 세션에서 취소하기 ›
+                            클럽 세션 화면으로 ›
                           </Text>
+                          {/* '취소하기'라고 쓰지 않는다 — 인계 이후(runner_enroute~)의 위탁은
+                              클럽 규정상 취소가 아니라 케이스로 다뤄지고, 서버도 그렇게 답한다.
+                              여기서 '취소'를 약속하면 다음 화면이 거절할 때 그게 거짓말이 된다. */}
                           <Text style={{ fontSize: 14, color: paper.dim, marginTop: 2 }}>
-                            위탁 예약은 클럽 세션 화면에서 취소해요 — 취소 규정도 그곳에 있어요
+                            위탁 예약은 클럽 세션 화면에서 처리해요 — 취소 규정도 그곳에 있어요
                           </Text>
                         </Pressable>
                       ) : (
