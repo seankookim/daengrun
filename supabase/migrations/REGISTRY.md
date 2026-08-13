@@ -70,6 +70,40 @@ git fetch --all -q && git branch -r --list 'origin/*' \
 Read the row, then look at every remote branch — not just trunk. And when you push a
 migration, push its row in the same breath; a row that trails its file by even an hour is
 the window this collision walked through.
+## In-flight claims for work with NO migration number
+
+Migrations have numbers, a ledger and a pre-push hook. **Client fixes, edge-function changes and
+copy work have none of that** — and on 2026-08-13 two sessions independently built the same
+`charge-states` fix within the same hour, for the second time that day. Nothing was lost (the
+pushed version stood, and it was the better one), but it cost an hour twice.
+
+**Claim a shared surface here before you edit it. Remove the row when it merges.** Advisory —
+no hook can enforce this — but it is a five-second write and a five-second check, and it only
+has to work once to pay for itself.
+
+| Surface / file | Session (branch) | Started | Intent (one line) |
+|---|---|---|---|
+| *(none in flight)* | | | |
+
+Conventions: name the **file or surface**, not the ticket · one line of intent, so a reader can
+tell whether their change collides or merely neighbours · stale rows are worse than none, so
+delete yours when you merge · if you find a row older than a day, ask before assuming it is
+abandoned.
+
+### Routing work between sessions (the other half of the same bug)
+
+The duplicate above was not caused by a missing ledger alone. The routing message named one
+owner and, in the same breath, offered the other party a chance to take part of it — so one
+session read *settled* and the other read *open invitation*. **A question that stays open while
+work proceeds is a race, not an option.** So, when routing:
+
+1. name **one** owner,
+2. say explicitly that the other party should **not** start,
+3. put any *"would you rather own this?"* question **before** the routing, never alongside it.
+
+(Protocol authored by the announcing session, recorded here because it belongs next to the
+claim table it complements.)
+
 ## Claim the SLICE, not just the number
 2026-08-13: two sessions built ⑩ in full, simultaneously. The registry did its job on numbers
 and was silent on units — ⑩ sat in one session's handoff as unclaimed next-work, and the other
@@ -94,6 +128,10 @@ Three instances on 2026-08-13, and naming the class is worth more than any of th
 | migration numbers ×7 | "next free", derived independently per session | claim on origin + pre-push hook |
 | `/tmp/dr85` | temp harness dir derived from the **migration number** | name it after the SESSION |
 | `pkill -f postgres` | `harness.sh` handed postgres a **relative** `-D`, so every session's command line was byte-identical | absolute `PGDATA` |
+
+A fourth instance is one layer up and the same shape: **work allocation with no claim at all**
+— two sessions building one unnumbered client fix, twice in a day, because only *numbered* work
+had a ledger. Fixed the same way: give it a claim (see the in-flight table above).
 
 **Every time, the correct fix made the identifier unique AT THE SOURCE** rather than asking
 people to be careful with it. That is the same argument as the pre-push hook, and it predicts
