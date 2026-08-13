@@ -236,6 +236,14 @@ comment on function session_pay_delegation is
 거부는 예외 코드로 충분하다 — raise는 알림 insert를 롤백한다(0044 §①). [0081 §B] 확정 알림에서
 "결제 완료" 제거: 컷오버 전엔 청구가 없고, 뒤엔 러닝이 끝난 뒤에 청구된다';
 
+-- ⚠ [adversarial round 2026-08-13, P3-3] §C closes ONE instance of a class, not the class.
+-- 0057 §1's revoke walked `prosecdef` functions only, so plain pricing formulas kept their
+-- PUBLIC execute. `club_fare` was the one this slice touches; three siblings from the km
+-- ledger are still anon-executable and were left alone deliberately (out of scope, and 0075
+-- is applied):  km_face_price (0075:69) · km_overrun_allowance (0075:84) · km_run_floor
+-- (0075:92).  Naming them here so the next author does not read §C as "the class is swept".
+-- (my_ledger_total / my_miles_balance are also PUBLIC but invoker-rights, so RLS covers them.)
+
 -- ═══════════════════════════════════════════════════════════════════════════════════════
 -- §B the '결제 완료' sentences — honesty law, 0080 §J's conditional-copy technique
 -- ═══════════════════════════════════════════════════════════════════════════════════════

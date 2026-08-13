@@ -200,12 +200,46 @@ and you should know it happened.
 **Recommendation: C now, B only if it actually comes up.** The capability gap is real but
 the volume is probably zero in a Banpo pilot; a dead end is the part worth fixing today.
 
+**Also from the adversarial round, for your awareness:** after the flip a card-less owner
+can still book a MARKETPLACE run (create-booking-hold treats "no card" as routing — it sends
+them down the widget path) but is refused outright from club sessions and recurring
+generation, which are post-pay-only and have no widget fallback. That asymmetry is
+defensible and 0081 is accurate about it, but it means the first card-less owner after the
+flip experiences the club as broken rather than as "link a card first". If that reads wrong
+to you, the fix is a club-side empty state pointing at card registration, not a gate change.
+
 **Related, documented not fixed:** club cancel fees are structurally uncollectable
 post-cutover — `session_cancel_delegation` writes only `club_fee_items`, never
 `bookings.cancel_fee`, so `mint_cancel_fee_intent` sees zero and the debt derivation's
 cancel arm never fires for club. That may be exactly right (0048's mock-era doctrine is
 "record, don't charge"), which is why it is a decision: at cutover, club cancel fees either
 become real money or stay recorded-only forever.
+
+## ⑥ The cutover straddle — a booking confirmed before the flip, charged after it
+
+**Not a defect anyone introduced; a consequence of where the two clocks sit.** The
+instrument gate asks "does this owner have a card?" at *confirmation*
+(0081 §A, `create-booking-hold`, `generate_recurring_bookings`); the charge asks "was
+this run after the cutover?" at *run end* (0080 §E, `ended_at < payments_live_since →
+mint nothing`). A booking that straddles the flip therefore passes a gate that didn't
+require a card, and then gets charged. Executed by the adversarial round: a card-less
+owner confirmed a club seat pre-flip, the switch was set, the run settled — and a
+`24,900 pending settle_charge` was minted against an owner with zero cards. It dispatches,
+fails, and the debt derivation locks the account.
+
+All three booking paths have this window; the club's is the widest, because a session's
+`scheduled_at` is unbounded while recurring only reaches 72h ahead. The straddling
+bookings are also the one population that never sees the new post-pay sentence, since
+their confirmation copy was written pre-flip.
+
+| # | Mitigation | Cost |
+|---|---|---|
+| A | **Sequence the card-register slice before the flip** (already 0080 §0d ⑦) and flip when few bookings are in flight | Free; relies on the ordering being honoured, and doesn't cover a club session booked weeks out. |
+| B | Set `payments_live_since` to a FUTURE timestamp past the longest in-flight booking | Free, one value; makes the boundary explicit instead of "now". Straddlers stay free by construction. |
+| C | Charge only bookings whose *creation* was post-flip (add a booking-level marker) | A schema change and a second clock; the most precise, the most machinery. |
+
+**Recommendation: B.** It costs one deliberate value at flip time and turns the straddle
+from a class of surprise charges into a decision. A is not sufficient alone for club.
 
 ## Not decisions, just reminders of what the flip waits on
 

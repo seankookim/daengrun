@@ -42,6 +42,10 @@
 --   K7  ← §A: change one fare column without the others (e.g. base 7900 with total still
 --         club_fare) — base + distance + addon must equal total_price on a club booking,
 --         because 0080 §D charges from exactly those frozen columns                    → RED
+--       ⚠ [P3-1, 2026-08-13] This entry once also claimed a `total_price = club_fare(km)`
+--         arm. That arm was a tautology — total_price was written BY club_fare in the same run,
+--         so a club_fare value change (memo ④'s exact proposal) could never redden it. Retired;
+--         the value is anchored by the literal arm only, the decomposition by the sum arm.
 --   K8  ← §C: drop the `revoke execute on club_fare from public, anon` (the pricing formula
 --         is callable with the app's anon key), or revoke it from `authenticated` too
 --         (0057 §1's capture-and-restore rule silently broken)                         → RED
@@ -50,13 +54,22 @@
 --     stopped before `rm -rf .pgtest`, or the orphaned postgres holds a deleted socket path and
 --     the next run dies at the shim; restore → 438/0 every time). Green = 438/0 (430 baseline
 --     + K1-K8). Four reverts, measured:
---       ⓐ §A-ⓑ debt gate deleted → **435/3, red = [K1, K2, K5]**. Three probes of one rule, all
---         genuine: K1's refusal probe succeeds (detail `not_payable` — the unrefused call
---         consumed its own seat, so K1's positive control then hits the state gate), K2 measures
---         the leftovers of a refusal that never happened (`payment_attempts 행이 남았다`,
---         `호스트 알림 델타=2`), K5 measures the same hole from the post-cutover side
+--       ⓐ §A-ⓑ debt gate deleted → **435/3, red = [K1, K2, K5]** (re-measured 2026-08-13 after
+--         the P2-1 repair below). K1's refusal probe succeeds (detail `not_payable` — the
+--         unrefused call consumed its own seat, so K1's positive control then hits the state
+--         gate); K2 reports `두 번째 미수금 결제가 통과` + `거부 코드=∅`, i.e. it now observes the
+--         gate itself failing to fire; K5 measures the same hole from the post-cutover side
 --         (`카드 있는 미수금 보호자 통과`). K3/K4/K6/K7 stay GREEN — that separation is why
 --         K3 pays its own seat (see the seed comment).
+--         ⚠ WHAT THIS ENTRY USED TO SAY, and why the correction matters more than the fix:
+--         K2 previously probed `sd_a`, a seat K1's positive control had already paid, so the
+--         call died at the state gate 24 lines BEFORE the money gates and every K2 assertion
+--         was satisfied by that unrelated `not_payable`. It still went red under this very
+--         mutation — but only because K1's failure rolled back K1's own block and un-paid the
+--         seat, restoring the fixture K2 needed. **A pin can be mutation-proven and still be
+--         measuring another pin's failure mode.** Found by the 2026-08-13 adversarial round
+--         (P2-1) by instrumenting the gate with `raise warning` and counting evaluations:
+--         53 gate traversals across the harness, none of them K2's.
 --       ⓑ §A-ⓒ instrument gate deleted entirely → **437/1, red = [K4]** (detail `not_payable`:
 --         the card-less post-cutover call goes through and consumes the seat the ⓒ arm needed).
 --         K5/K6 stay green only because they provision their own switch and card — they did NOT
@@ -114,9 +127,9 @@ end $$;
 do $$
 declare
   hh uuid; r2 uuid; oa uuid; ob uuid; dbt_dog uuid;
-  da uuid; da2 uuid; db1 uuid; db2 uuid; db3 uuid; db4 uuid; rt uuid;
+  da uuid; da2 uuid; da3 uuid; db1 uuid; db2 uuid; db3 uuid; db4 uuid; rt uuid;
   v_club uuid; s1 uuid; s2 uuid;
-  sd_a uuid; sd_a2 uuid; sd_b1 uuid; sd_b2 uuid; sd_b3 uuid; sd_b4 uuid;
+  sd_a uuid; sd_a2 uuid; sd_a3 uuid; sd_b1 uuid; sd_b2 uuid; sd_b3 uuid; sd_b4 uuid;
   p_debt uuid; b_a uuid; b_card uuid; b_pre uuid; b_post uuid;
   v_bad text := ''; v_msg text; v_n int; v_pre int; v_err text;
 begin
@@ -128,7 +141,8 @@ begin
   hh := t_user('cmg_hh', 'runner'); update runners set tier = 'veteran' where profile_id = hh;
   r2 := t_user('cmg_r2', 'runner'); update runners set tier = 'veteran' where profile_id = r2;
   oa := t_user('cmg_oa', 'owner'); ob := t_user('cmg_ob', 'owner');
-  da := t_dog(oa, '미수금견'); da2 := t_dog(oa, '보존견'); dbt_dog := t_dog(oa, '지난러닝견');
+  da := t_dog(oa, '미수금견'); da2 := t_dog(oa, '보존견'); da3 := t_dog(oa, '흔적견');
+  dbt_dog := t_dog(oa, '지난러닝견');
   db1 := t_dog(ob, '카드견1'); db2 := t_dog(ob, '카드견2');
   db3 := t_dog(ob, '카드견3'); db4 := t_dog(ob, '카피견');
   rt := t_route('클럽머니 코스');                      -- 5.0km → club_fare = 24,900
@@ -152,6 +166,14 @@ begin
   -- that same seat it would go red as collateral and the mutation signature would stop naming
   -- the rule that actually broke (110's dead-pin lesson, inverted).
   sd_a2 := session_delegate_dog(s1, da2, t_consent());
+  -- [adversarial round 2026-08-13, P2-1] K2 needs its OWN unconsumed seat. It used to probe
+  -- sd_a, which K1's positive control had already paid — so K2's call died at the state gate
+  -- (`not_payable`, 0081:151) 24 lines before the money gates, and every assertion it makes
+  -- was satisfied by that unrelated refusal. It still went red under the debt-gate mutation,
+  -- but only as a subtransaction artifact: K1's own failure rolled its block back and
+  -- un-paid sd_a, restoring the fixture K2 depended on. A pin that measures another pin's
+  -- failure mode is not a pin.
+  sd_a3 := session_delegate_dog(s1, da3, t_consent());
   perform set_config('request.jwt.claim.sub', ob::text, false);
   sd_b1 := session_delegate_dog(s2, db1, t_consent());
   sd_b2 := session_delegate_dog(s2, db2, t_consent());
@@ -160,6 +182,7 @@ begin
   perform set_config('request.jwt.claim.sub', hh::text, false);
   perform session_approve_dog(sd_a, true);
   perform session_approve_dog(sd_a2, true);
+  perform session_approve_dog(sd_a3, true);
   perform session_approve_dog(sd_b1, true);
   perform session_approve_dog(sd_b2, true);
   perform session_approve_dog(sd_b3, true);
@@ -224,14 +247,14 @@ begin
     perform set_config('request.jwt.claim.sub', oa::text, false);
     v_err := '';
     begin
-      perform session_pay_delegation(sd_a, 'idem-cmg-k2', true);
+      perform session_pay_delegation(sd_a3, 'idem-cmg-k2', true);
       v_bad := v_bad || ' 두 번째 미수금 결제가 통과';
     exception when others then v_err := sqlerrm;
     end;
     perform set_config('request.jwt.claim.sub', '', false);
 
     -- ⓐ 거부의 흔적 없음 (전량 롤백)
-    if exists (select 1 from payment_attempts where session_dog_id = sd_a and idempotency_key = 'idem-cmg-k2')
+    if exists (select 1 from payment_attempts where session_dog_id = sd_a3 and idempotency_key = 'idem-cmg-k2')
       then v_bad := v_bad || ' 거부인데 payment_attempts 행이 남았다'; end if;
     -- ⓑ 호스트는 아무것도 듣지 않는다 (성공한 ob의 알림 1건만 늘었어야 한다)
     select count(*) into v_n from notifications where profile_id = hh;
@@ -240,6 +263,9 @@ begin
       then v_bad := v_bad || ' 호스트에게 돈 얘기가 갔다'; end if;
     -- ⓒ 거부는 예외다 — 코드에 한글이 없고(클라 매핑용), 돈 사정을 문장으로 흘리지 않는다
     if v_err !~ '^[a-z_]+$' then v_bad := v_bad || ' 거부 코드 형식=' || v_err; end if;
+    -- ⓓ 그리고 그 코드는 **미수금** 코드여야 한다. 이 줄이 없으면 어떤 이유의 거부든 이 핀을
+    -- 통과시킨다 — 실제로 그랬다 (P2-1: 소진된 좌석의 not_payable이 이 핀을 만족시켰다).
+    if v_err <> 'unsettled_charge' then v_bad := v_bad || ' 거부 코드=' || coalesce(nullif(v_err,''),'∅'); end if;
 
     delete from payments where id = p_debt;
     if v_bad = ''
@@ -436,9 +462,10 @@ begin
     where b.club_session_id in (s1, s2)
       and b.base_fare + b.distance_fare + b.addon_fare <> b.total_price;
     if v_n <> 0 then v_bad := v_bad || ' 분해 불일치 ' || v_n || '행'; end if;
-    select count(*) into v_n from bookings b
-    where b.club_session_id in (s1, s2) and b.total_price <> club_fare(b.km);
-    if v_n <> 0 then v_bad := v_bad || ' 총액 ≠ club_fare ' || v_n || '행'; end if;
+    -- [adversarial round 2026-08-13, P3-1] 여기 있던 `total_price <> club_fare(km)` 팔은
+    -- 동어반복이었다: total_price를 그 함수로 쓴 게 같은 실행의 같은 함수라, club_fare 값이
+    -- 바뀌어도(=메모 ④가 검토하는 바로 그 변경) 절대 발화하지 않는다. 값을 붙잡는 것은
+    -- 아래 리터럴 팔뿐이고, 분해 정합성은 위 팔이 본다. 뮤테이션 맵에서도 이 주장을 뺐다.
     -- and the club booking is a full-distance charge of exactly the quote (0080 §D, 'completed'
     -- at planned km) — the property that makes club/marketplace drift a PRICE question
     select count(*) into v_n from bookings b where b.id = b_pre and b.total_price = 24900;
@@ -469,6 +496,19 @@ begin
     else v_msg := v_bad; call _fail('cmg','K8 club_fare 권한', v_msg); end if;
   exception when others then v_msg := sqlerrm; call _fail('cmg','K8 club_fare 권한', v_msg);
   end;
+
+  -- [adversarial round 2026-08-13, P3-2] Teardown BEFORE the flag restore. t_cmg_debt built
+  -- settled bookings (completed + a runs row) whose payments rows the pins then deleted — the
+  -- exact shape `sweep_settled_without_payments` (0080 §G) exists to mint for. Harmless while
+  -- 117 runs last and the switch is off, but a suite 118 that flips the switch and calls the
+  -- sweep would inherit three surprise charges from OUR fixtures. A suite that leaves live
+  -- money-shaped debris is a trap for the next author, so it cleans up after itself.
+  delete from runs r using bookings b
+   where r.booking_id = b.id and b.owner_id in (oa, ob) and b.club_session_id is null;
+  delete from ledger_items li using bookings b
+   where li.booking_id = b.id and b.owner_id in (oa, ob) and b.club_session_id is null;
+  delete from bookings b where b.owner_id in (oa, ob) and b.club_session_id is null;
+  delete from billing_keys where profile_id in (oa, ob);
 
   -- restore the SHIPPED default (charging off) — the state 0080 leaves behind, and the state
   -- anyone reading this database after the harness should see.
