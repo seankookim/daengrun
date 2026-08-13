@@ -19,8 +19,10 @@ the remote, not from a success message: `migration list` shows every row `0001�
 with `search_path` pinned, `anon` denied, the three client-facing ones open to `authenticated`
 and the two server-only ones (`_runner_work_gate_blocking`, `force_verify_incident_tx`)
 `service_role`-only. **Neither has a client surface** — nothing in `app/` calls
-`open_incident_tx`, `verify_incident_tx`, or reads `runner_work_gate`. ⑫ IS enforced server-side
-the moment `transition-booking` is redeployed (its accept path calls the gate on trunk).
+`open_incident_tx`, `verify_incident_tx`, or reads `runner_work_gate`. 🔴 **⑫ IS ENFORCED LIVE** — `transition-booking` was redeployed (v33) from the deploy session's
+worktree AFTER the migration landed, so its accept path is calling `runner_work_gate` in
+production right now. The ordering held: the RPC existed before the caller shipped, so no
+accept 500'd. **This means §1's deadlock is armed as soon as any client calls `end_run_tx`.**
 Harness **539/0**, deno **185/0**, tsc + check-rpc clean.
 
 ---
@@ -211,7 +213,9 @@ stamp that was already there".
   `runner_accept` — a total supply outage. Landing the migration was the safe direction.
 - Verified after, from the remote: `migration list` all `local == remote` through `0094`, plus a
   direct `pg_proc` privilege/`proconfig` query on the linked project.
-- **`functions deploy` was NOT run** — that is the deploy session's claim and remains theirs.
+- **`functions deploy` was NOT run by me** — the deploy session ran it, correctly, after the
+  migration was applied. `transition-booking` is v33 and live, so ⑫ is enforced in production.
+  The ordering hazard that made the `db push` urgent is closed, and closed in the right order.
 
 ---
 

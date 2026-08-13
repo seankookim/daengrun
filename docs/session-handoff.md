@@ -179,6 +179,39 @@ booking** (Sean's ruling ⑥ — never `now()`; `longest_inflight_booking_end()`
     one tested a helper instead of the shipping path, the other asserted an escalation happened
     without asking whether money could still move afterwards.
 
+## 3-ter. HOW TO ASK PRODUCTION, instead of describing it from the repo
+
+Added 2026-08-13 by the deploy session, because on that day **three separate documents asserted
+the production state of the schema, the edge functions and the money flag, and two of the three
+were wrong** — not from carelessness, but because no runbook here ever said how to look. Every
+command below needs only the CLI login this machine already has. None needs a secret's value.
+
+```
+supabase migration list --linked          # applied vs local. An EMPTY "remote" = NOT applied.
+supabase db query --linked "select * from ops_flags"      # live rows, as a login role — no RLS
+supabase functions list                   # slug · version · verify_jwt · updated_at
+supabase functions download <slug> --project-ref <ref> --workdir /tmp/x   # the LIVE source
+```
+
+Four traps, each of which actually bit someone:
+
+- **`migration list` is not sorted-and-truncated — read every row.** `0092` sat with an empty
+  remote *below* an applied `0093`. Anything that eyeballs "the last row" concludes it is fine.
+- **A deploy leaves no trace in git**, so "no commit records a deploy" is not evidence of no
+  deploy. `functions list` is the only source. This exact inference produced the day's most
+  repeated false claim.
+- **`functions download` returns the TRANSPILED bundle** — types stripped, reformatted — so a
+  textual `diff` against the repo is meaningless. Compare *semantics*: grep the bundle for the
+  RPC names or literals the new code introduced (`grep -oE 'rpc\("[a-z_]+"'` is usually enough).
+- **`functions deploy` is its own parity oracle.** It prints `No change found in Function: X`
+  when the live bundle already matches your tree. Deploying five and getting four "no change"
+  lines is a stronger statement about what is live than any document — and it costs one command.
+
+⚠ **And check the ORDER before deploying a function that calls a new RPC.** Deploying
+`transition-booking` while `0092` was still unapplied would have 500'd every runner ACCEPT: the
+function calls `runner_work_gate` and throws `HttpError(500)` on any RPC error. Migration first,
+function second — the §3 order exists for this, and it applies per-RPC, not just at the top.
+
 ## 3-bis. 🔴 P0 OPEN IN PRODUCTION — `profiles` leaks `phone` + `toss_customer_key` to anon
 
 `docs/security-profiles-column-exposure.md`. `0002_rls.sql:56`'s read policy has no
