@@ -723,7 +723,34 @@ Deno.test("frozen_measurement_mismatch → 409 with the migration's sentence (se
 // A fake cannot be made to tell the truth about the thing it replaces. So instead of pretending,
 // this reads the migration and checks the two halves against each other — the contract stays in
 // one place (the SQL) and TS is verified against it rather than duplicating it on trust.
-const MIGRATION = new URL("../../migrations/0083_run_end_flow.sql", import.meta.url);
+/**
+ * Resolve the LATEST migration that defines `settle_run_tx`, rather than naming a file.
+ *
+ * That function has now been re-created FOUR times (0020 → 0025 → 0028 → 0083), and the next
+ * slice to touch settlement will make it five. A hardcoded filename means this test reads a
+ * definition the database will never run: it goes green against a stale body while the live one
+ * has drifted — which is the exact failure this whole section exists to catch, committed inside
+ * the catcher. (Extension contributed by the payments session after they applied this technique
+ * to `0080`/`116`; their case was the same function, which is what makes the point.)
+ */
+async function latestSettleTxMigration(): Promise<URL> {
+  const dir = new URL("../../migrations/", import.meta.url);
+  const names: string[] = [];
+  for await (const e of Deno.readDir(dir)) {
+    if (e.isFile && e.name.endsWith(".sql")) names.push(e.name);
+  }
+  // Numeric order, not lexical — `117_` sorts before `97_` as a string (a trap the route session
+  // hit on the suite side the same day).
+  names.sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
+  let found: string | null = null;
+  for (const n of names) {
+    const body = await Deno.readTextFile(new URL(n, dir));
+    if (body.includes("create or replace function settle_run_tx")) found = n;
+  }
+  assert(found, "no migration defines settle_run_tx — this test's premise moved, not its subject");
+  return new URL(found, dir);
+}
+const MIGRATION = await latestSettleTxMigration();
 const HANDLER = new URL("../settle-run/handler.ts", import.meta.url);
 
 /** `settle_run_tx`'s body — the ONLY error surface this handler can receive. Sliced rather than
