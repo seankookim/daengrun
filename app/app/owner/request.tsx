@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { addDog, Addr, AvailRule, createBookingHold, DogProfile, fetchAddresses, fetchMyDogs, fetchRoutes, fetchRunnerAvailability, fetchUnsettledCharge } from '../../src/lib/api';
 import { ChargeBanner } from '../../src/components/charge-states';
 import { HeatTrace } from '../../src/components/runcard';
+import { traceToBox } from '../../src/lib/trace';
 import { Avatar, Icon, Row, Skeleton } from '../../src/components/ui';
 import { haptic } from '../../src/lib/haptics';
 import { AddonKey, draft, fmtWon, RouteInfo } from '../../src/store';
@@ -660,7 +661,7 @@ export default function Request() {
                             <View style={s.routeMap}>
                               {/* 실좌표(routes.trace)가 없으면 코스 모양을 지어내지 않는다 — 빈 슬롯이 정직 */}
                               {r.trace.length > 1 ? (
-                                <HeatTrace points={r.trace} width={208} height={92} />
+                                <HeatTrace points={traceToBox(r.trace)} width={208} height={92} />
                               ) : (
                                 <View style={s.mapPending}>
                                   <Text style={s.mapPendingTxt}>코스 지도 준비 중</Text>

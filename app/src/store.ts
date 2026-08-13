@@ -62,8 +62,15 @@ export const dog = {
 };
 
 // ---------- Run cards ----------
-// Heat trace: route points in 0..1 coords, v = normalized speed (1 = fastest).
+// ═══ 두 좌표계를 타입으로 갈라 둔다 (0082 K1) ═══
+// 실좌표와 박스 좌표가 같은 이름을 쓰던 시절, `.x`를 실좌표 점에서 읽으면 undefined → NaN 지오메트리가
+// 되고 tsc는 잡지 못했다(RouteRow 경유로 any에 가까웠다). 이제 둘은 다른 타입이다.
+
+/** 화면 박스 좌표 0..1. HeatTrace가 먹는 유일한 형태. v = 경로 진행도(틴트 농도). */
 export interface TracePoint { x: number; y: number; v: number }
+
+/** 실 GPS 좌표. routes.trace / runs.trace 가 저장하는 형태. 그리려면 traceToBox()로 투영할 것. */
+export interface GeoRoutePoint { lat: number; lng: number }
 
 // [정직 배치 2026-08-06 · item 2/6] lastRunTrace 퇴역 — 소비처 0. 이 28점짜리 목업 폴리라인은
 // 라이브 화면의 데모 지도(가짜 러닝)와 sampleRoutes의 코스 모양 두 곳에서만 쓰였고, 둘 다 죽었다.
@@ -120,7 +127,14 @@ export interface RouteInfo {
   // 목업 96/88/82/74가 요청 화면에 '적합도'로 실측처럼 찍히던 P0-5. 실산식이 생기면 그때 되돌아온다.
   checkedAt: string; // 마지막 안전 점검일
   desc: string;
-  trace: TracePoint[];
+  // 0082 라이프사이클. 'candidate' = 매핑만 됐고 개가 달린 적 없다 — 자동 선택 금지, '점검 예정'
+  // 포스처로 렌더. auto-pick 경로 3곳(로드 기본값·km 다이얼·딥링크)이 이 값으로 필터한다.
+  status: 'candidate' | 'active' | 'suspended' | 'retired';
+  // ⚠ 실좌표 [{lat,lng}] (0082 K1). 예전 정규화 {x,y}가 아니다 — 그리기 전에 traceToBox()를 통과시킬 것.
+  // **해상도는 어느 fetch로 왔느냐에 달렸다:** fetchRoutes(목록)는 trace_thumb(≤50점)를 여기 담고,
+  // fetchRouteById(상세)는 전체 trace(≤200점)를 담는다. 소비처는 실루엣만 그리므로 구분할 필요가
+  // 없지만, 목록 셀렉트가 전체 트레이스를 실어 나르면 마운트마다 MB급 페이로드가 된다 — 그래서 나뉜다.
+  trace: GeoRoutePoint[];
 }
 
 // [정직 배치 2026-08-06 · item 6] sampleRoutes(+riverTrace/forestTrace/longTrace) 퇴역 — 소비처 0.
