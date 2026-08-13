@@ -726,19 +726,48 @@ Deno.test("frozen_measurement_mismatch → 409 with the migration's sentence (se
 const MIGRATION = new URL("../../migrations/0083_run_end_flow.sql", import.meta.url);
 const HANDLER = new URL("../settle-run/handler.ts", import.meta.url);
 
-Deno.test("join: every error code the handler maps is one the migration actually raises", async () => {
+/** `settle_run_tx`'s body — the ONLY error surface this handler can receive. Sliced rather than
+ * grepped whole-file, because the migration also defines `end_run_tx`, `confirm_return_tx` and
+ * `force_return_tx`, whose codes (`bad_side`, `force_too_early`, `quote_from_client`…) this
+ * handler never sees and must not be asked to map. */
+async function settleTxBody(): Promise<string> {
   const sql = await Deno.readTextFile(MIGRATION);
+  const i = sql.indexOf("create or replace function settle_run_tx");
+  assert(i >= 0, "settle_run_tx is gone from the migration — this test's whole premise moved");
+  const j = sql.indexOf("$$;", i);
+  assert(j > i, "could not find the end of settle_run_tx's body");
+  return sql.slice(i, j);
+}
+
+// Codes settle_run_tx raises that DELIBERATELY fall to the generic 500. Both are server-side
+// sanity failures on numbers this handler already validated (non-frozen path) or that
+// `end_run_tx` already validated (frozen path) — so reaching them means the two sides disagree,
+// which IS our bug and should read like one. Listing them here makes that a DECISION: a new
+// code added to the migration fails this test until someone chooses which bucket it belongs in.
+const DELIBERATELY_GENERIC = ["invalid_km", "invalid_duration"];
+
+Deno.test("join: every code settle_run_tx raises is mapped, or explicitly chosen to be generic", async () => {
+  const body = await settleTxBody();
   const ts = await Deno.readTextFile(HANDLER);
-  // The codes the handler gives their own status + sentence (not_active/not_found predate 0083
-  // and are raised by 0028's body, which this migration reproduces).
-  for (const code of ["return_not_sealed", "run_not_ended", "frozen_measurement_mismatch"]) {
+  const raised = [...new Set([...body.matchAll(/raise exception '([a-z_]+)'/g)].map((m) => m[1]))];
+  assert(raised.length > 0, "extracted no codes — the slice or the regex broke, not the code");
+  for (const code of raised) {
+    const mapped = ts.includes(`msg.includes("${code}")`);
     assert(
-      ts.includes(`msg.includes("${code}")`),
-      `handler stopped mapping ${code} — it now falls to the generic 500 that reads as our bug`,
+      mapped || DELIBERATELY_GENERIC.includes(code),
+      `settle_run_tx raises '${code}' and the handler neither maps it nor declares it generic.\n` +
+        `  Decide: give it a status + sentence, or add it to DELIBERATELY_GENERIC with a reason.`,
     );
+  }
+});
+
+Deno.test("join: every code the handler maps is one settle_run_tx actually raises", async () => {
+  const body = await settleTxBody();
+  const ts = await Deno.readTextFile(HANDLER);
+  for (const [, code] of ts.matchAll(/msg\.includes\("([a-z_]+)"\)/g)) {
     assert(
-      sql.includes(`raise exception '${code}'`),
-      `handler maps ${code} but the migration no longer raises it — the mapping is dead code`,
+      body.includes(`raise exception '${code}'`),
+      `handler maps '${code}' but settle_run_tx no longer raises it — the mapping is dead code`,
     );
   }
 });
