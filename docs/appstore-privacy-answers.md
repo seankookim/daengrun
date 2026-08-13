@@ -24,7 +24,7 @@ does not match behavior is a rejection risk on review and a compliance problem a
 |---|---|---|---|---|
 | Email address | Yes | Yes | Account auth | `auth.users` (Supabase OTP) |
 | Name | Yes | Yes | App functionality — shown to the other party | `profiles.name` (0001:29) |
-| Phone number | Optional | Yes | App functionality — contact during handoff | `profiles.phone` (0001:30, nullable) |
+| Phone number | Optional | Yes | App functionality — contact during handoff **and during an open incident** | `profiles.phone` (0001:30, nullable) · `incident_contact(booking)` (0088 §E) |
 | **Precise location** | **Yes** | **Yes** | **App functionality — the core product** | `geo.ts` watchPositionAsync → `runs.trace`, live sharing |
 | Photos | Yes | Yes | App functionality — dog profile, run photos, gear proof | `avatars` bucket via `api.ts` (see the warning below) |
 | Other user content | Yes | Yes | App functionality — chat, reviews, dog memos | `chat_messages`, `reviews`, `dogs.memo` |
