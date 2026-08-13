@@ -22,6 +22,8 @@ import {
   Animated, Dimensions, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, View,
 } from 'react-native';
 import { fetchMyProfile, fetchRoutes } from '../../src/lib/api';
+import { CourseDetailBody } from '../../src/components/course-detail';
+import { emptyChipCopy, matchesChips, RouteChipRow, useRouteChips } from '../../src/components/route-chips';
 import { getNaverMap } from '../../src/lib/geo';
 import { haptic } from '../../src/lib/haptics';
 import { RouteInfo, draft } from '../../src/store';
@@ -38,15 +40,8 @@ const HEIGHT: Record<Detent, number> = { peek: PEEK, list: LIST, detail: DETAIL 
 // 지도가 빈 채로 열리는 경우는 '코스 0개'뿐이고, 그건 아래 emptyCard가 말한다.
 const FALLBACK_CAM = { latitude: 37.5069, longitude: 126.9954, zoom: 13.4 };
 
-// 칩 술어 — request.tsx K5와 **같은 정의**여야 한다. 카피가 주장하는 것과 필터가 거르는 것이
-// 갈라지면 그게 곧 거짓말이 된다. (공용 컴포넌트 추출은 후속 — 지금은 정의를 복제하지 않고
-// 같은 규칙을 한 곳에 적어 둔다.)
-const dirtPct = (t: string) => (t.startsWith('흙길') ? Number(t.replace(/[^0-9]/g, '')) || 0 : 0);
-type Chips = { dirt: boolean; shade: boolean; lit: boolean };
-const matches = (r: RouteInfo, c: Chips) =>
-  (!c.dirt || dirtPct(r.terrain) >= 60) &&
-  (!c.shade || r.shade === 'high') &&
-  (!c.lit || r.lighting === 'lit');
+// 칩 술어·개수·조명 자동켜짐은 `components/route-chips`가 소유한다 (K5와 **같은 정의** —
+// 복제돼 있던 시절 라벨이 이미 갈라졌었다: 여기는 '그늘', 요청 화면은 '그늘 많음').
 
 /** 트레이스 → 카메라가 담을 수 있는 중심. 실좌표라 평균이면 충분하다(코스 하나는 수백 m 규모). */
 function centerOf(r: RouteInfo | null): { latitude: number; longitude: number } | null {
@@ -64,7 +59,10 @@ export default function CourseMap() {
   const [routes, setRoutes] = useState<RouteInfo[]>([]);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [selId, setSelId] = useState<string | null>(draft.routeId || null);
-  const [chips, setChips] = useState<Chips>({ dirt: false, shade: false, lit: false });
+  // 지도 화면은 **슬롯이 정해진 뒤** 들어오는 화면이다 — 훅을 쓰면서 조명 자동켜짐이
+  // 여기에도 생겼다(전에는 요청 화면에만 있었다). 안전 필터가 화면마다 다르게 켜지면
+  // 그건 필터가 아니라 우연이다.
+  const { chips, toggle: toggleChip, clear: clearChips, litAuto } = useRouteChips();
   const [detent, setDetent] = useState<Detent>('peek');
   const [mapReady, setMapReady] = useState(false);
 
@@ -91,9 +89,8 @@ export default function CourseMap() {
   }, []);
   useEffect(load, [load]);
 
-  const shown = useMemo(() => routes.filter((r) => matches(r, chips)), [routes, chips]);
+  const shown = useMemo(() => routes.filter((r) => matchesChips(r, chips)), [routes, chips]);
   const sel = useMemo(() => routes.find((r) => r.id === selId) ?? null, [routes, selId]);
-  const countWith = (k: keyof Chips) => routes.filter((r) => matches(r, { ...chips, [k]: true })).length;
 
   // ── 시트 ──────────────────────────────────────────────────────────────────
   const snap = useCallback((to: Detent) => {
@@ -211,28 +208,10 @@ export default function CourseMap() {
             {state === 'ready' ? `${shown.length}개 코스` : state === 'loading' ? '코스 불러오는 중' : '코스를 불러오지 못했어요'}
           </Text>
         </View>
-        <View style={s.chipRow}>
-          {([
-            { k: 'dirt' as const, label: '흙길', hint: '흙길 60% 이상' },
-            { k: 'shade' as const, label: '그늘', hint: '그늘 최상' },
-            { k: 'lit' as const, label: '조명', hint: '야간 조명 있음' },
-          ]).map((c) => {
-            const on = chips[c.k];
-            const n = countWith(c.k);
-            return (
-              <Pressable
-                key={c.k}
-                onPress={() => { haptic('light'); setChips((v) => ({ ...v, [c.k]: !v[c.k] })); }}
-                accessibilityRole="button"
-                accessibilityState={{ selected: on }}
-                accessibilityLabel={`${c.label} — ${c.hint}, ${n}개${on ? ', 적용됨' : ''}`}
-                style={[s.chip, on && { backgroundColor: paper.ink, borderColor: paper.ink }]}
-              >
-                <Text style={[s.chipTxt, on && { color: '#FFFFFF' }]}>{c.label} {n}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
+        <RouteChipRow
+          routes={routes} chips={chips} litAuto={litAuto}
+          onToggle={toggleChip} variant="floating" style={{ marginTop: 8 }}
+        />
       </View>
 
       {/* 실측 코스가 하나도 없을 때 — 빈 판정이 아니라 사실과 다음 행동 */}
@@ -295,12 +274,8 @@ export default function CourseMap() {
           <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 14, paddingBottom: 20 }}>
             {shown.length === 0 ? (
               <View style={{ paddingTop: 8 }}>
-                <Text style={s.emptyTxt}>
-                  {chips.lit && chips.dirt ? '조명 있는 흙길 코스가 아직 없어요'
-                    : chips.lit ? '조명 있는 코스가 아직 없어요'
-                    : chips.shade ? '그늘 많은 코스가 아직 없어요' : '흙길 코스가 아직 없어요'}
-                </Text>
-                <Pressable onPress={() => setChips({ dirt: false, shade: false, lit: false })} style={s.clearBtn} accessibilityRole="button">
+                <Text style={s.emptyTxt}>{emptyChipCopy(chips)}</Text>
+                <Pressable onPress={clearChips} style={s.clearBtn} accessibilityRole="button">
                   <Text style={s.clearTxt}>필터 해제</Text>
                 </Pressable>
               </View>
@@ -330,25 +305,9 @@ export default function CourseMap() {
         {/* DETAIL — 앵커·시간대·메타. 지도는 위에 남아 맥락을 잃지 않는다 */}
         {detent === 'detail' && sel && (
           <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 14, paddingBottom: 28 }}>
-            <Text style={s.sect}>노면 · 그늘 · 조명</Text>
-            <View style={s.metaBand}>
-              {[['SURFACE', sel.terrain || '—'],
-                ['SHADE', sel.shade === 'high' ? '▮▮▮' : sel.shade === 'mid' ? '▮▮▯' : sel.shade === 'low' ? '▮▯▯' : '—'],
-                ['LIGHT', sel.lighting === 'lit' ? '조명' : sel.lighting === 'partial' ? '부분' : sel.lighting === 'none' ? '없음' : '—'],
-              ].map(([k, v], i) => (
-                <View key={k} style={[s.metaCell, i < 2 && s.metaDiv]}>
-                  <Text style={s.metaK}>{k}</Text>
-                  <Text style={[s.metaV, k === 'LIGHT' && sel.lighting === 'none' && { color: paper.critical }]}>{v}</Text>
-                </View>
-              ))}
-            </View>
-            {sel.desc ? <><Text style={s.sect}>코스</Text><Text style={s.desc}>{sel.desc}</Text></> : null}
-            <Text style={s.sect}>점검</Text>
-            <Text style={s.desc}>
-              {sel.status === 'candidate'
-                ? '아직 반려견과 함께 달려본 적이 없는 코스예요. 첫 러닝이 이 코스의 점검이 됩니다.'
-                : sel.checkedAt}
-            </Text>
+            {/* 본문은 `course/[id]`와 **같은 컴포넌트**다 — 두 화면이 같은 코스에 대해 다른
+                말을 하지 않도록. 지도는 위에 남아 맥락을 잃지 않는다 */}
+            <CourseDetailBody route={sel} />
             <Pressable onPress={book} accessibilityRole="button"
               style={({ pressed }) => [s.cta, isCand && { backgroundColor: paper.pending }, pressed && { opacity: 0.92 }]}>
               <Text style={s.ctaTxt}>{isCand ? '점검 전 코스로 예약' : '이 코스로 예약하기'}</Text>
@@ -372,13 +331,6 @@ const s = StyleSheet.create({
   },
   backBtn: { width: 30, height: 30, alignItems: 'center', justifyContent: 'center' },
   searchTxt: { flex: 1, fontSize: 14, fontWeight: '700', color: paper.text },
-  chipRow: { flexDirection: 'row', gap: 6, marginTop: 8 },
-  chip: {
-    backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EDEBE6',
-    paddingHorizontal: 12, minHeight: 44, justifyContent: 'center',   // 44pt 터치 타깃
-    shadowColor: '#000', shadowOpacity: 0.07, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2,
-  },
-  chipTxt: { fontSize: 14, fontWeight: '800', color: paper.text },
 
   infoWrap: { position: 'absolute', left: 14, right: 14, top: Platform.OS === 'ios' ? 170 : 132, zIndex: 5 },
   infoCard: {
@@ -417,11 +369,4 @@ const s = StyleSheet.create({
   clearBtn: { marginTop: 10, borderWidth: 1.5, borderColor: paper.line, paddingVertical: 10, paddingHorizontal: 14, alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center' },
   clearTxt: { fontSize: 14, fontWeight: '800', color: paper.ink },
 
-  sect: { fontSize: 14, fontWeight: '800', color: paper.dim, marginTop: 16, marginBottom: 7 },
-  metaBand: { flexDirection: 'row', borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#F0EEE9' },
-  metaCell: { flex: 1, paddingVertical: 9, alignItems: 'center' },
-  metaDiv: { borderRightWidth: 1, borderRightColor: '#F0EEE9' },
-  metaK: { fontSize: 14, color: paper.faint, fontWeight: '700' },
-  metaV: { fontSize: 14.5, fontWeight: '800', color: paper.ink, marginTop: 3 },
-  desc: { fontSize: 14, color: paper.text, lineHeight: 21 },
 });

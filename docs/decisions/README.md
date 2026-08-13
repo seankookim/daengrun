@@ -7,6 +7,7 @@ this directory said the questions were open — are ported in below from `0fbaa6
 
 | # | Memo | Ruling |
 |---|---|---|
+| — | **[awaiting-sean.md](awaiting-sean.md)** | 📋 **THE RETURN QUEUE** — everything waiting on Sean, in one file rather than in a conversation. Read this first on his return. |
 | ① | [g1-abort-charge-basis.md](g1-abort-charge-basis.md) | ✅ **FULLY RULED — fault-based, both ledgers mirrored.** `dog_condition` = owner AND runner on distance-actually-run; `runner_personal` = runner 9,900 base only (owner side #10 unchanged); `incident` = ₩0 verify-first. Buildable. |
 | ② | [d3-silent-charge-summary.md](d3-silent-charge-summary.md) | ✅ **A — accept as-is. NOTHING TO BUILD.** No per-charge push, no monthly summary. ⚠ The statement-row slice is **CANCELLED, not deferred**. Counsel question survives as validation. |
 | ③ | [ops-profile-id-vs-admin-role.md](ops-profile-id-vs-admin-role.md) | ✅ **C — `ops_recipients` table** with per-event-class routing ("build for full scale, not just for pilot"). Env var readable as a one-release fallback. Being built. |
@@ -78,6 +79,32 @@ anywhere, and had a tip that was an ancestor of the trunk.
 *(Repo conventions live in `CLAUDE.md`, which is auto-loaded — including the trunk rule:
 `redesign-v4` is the trunk, `main` is retired, run `git remote set-head origin -a` once per
 clone.)*
+
+## 🔵 When the founder is away: a stand-in decides, but never in his name
+
+Sean, 2026-08-13, going on break: *"tell others to run autonomous or ask codex in replacement
+of me. ill tell u when im back."* So work proceeds, and codex stands in for the judgement calls.
+**With one hard line: a codex decision is recorded as CODEX's, never as his.**
+
+- **✅ is reserved. It has meant exactly one thing across all eleven memos — the human's own
+  words are on origin — and a codex-sourced decision does not get one AT ALL**, not even an
+  attributed one. Not "✅ RULED BY CODEX", not "✅ pending confirmation". A second kind of ✅
+  devalues the eleven retroactively, and it fails silently: nobody re-reads a memo to check
+  *which sort* of ✅ it carries. (Tightening from the payments session; it is sharper than the
+  first version of this rule, which only banned putting Sean's name on it.)
+- Status stays **🟡 OPEN** on anything he has not personally ruled, with the stand-in's analysis
+  recorded beneath it under its own marker, **🔵 CODEX**.
+- The reader must be able to tell at a glance which of these came from the founder and which
+  from a stand-in while he was out.
+
+This is rule 2 applied to the instruction itself. *Quote the human* exists because ⑨ was asked
+twice and answered differently, and because a relayed decision read as authority. A codex
+answer promoted to "RULED BY SEAN" is that same failure with a longer fuse — and unlike the ⑨
+version, **nobody would ever catch it**, because the artifact would look exactly like the
+eleven real ones. Codex is a good reviewer. It is not the person whose money it is.
+
+Corollary from rule 4: while he is away **nobody holds his word**, so no irreversible action on
+shared state — no branch deletions, no force-pushes, no `db push`.
 
 ## How to read a ruling here
 

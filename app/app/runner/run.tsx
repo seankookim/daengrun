@@ -1,19 +1,37 @@
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { router } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, AppState, Linking, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, AppState, KeyboardAvoidingView, Linking, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Avatar, Icon, Row } from '../../src/components/ui';
-import { addRunEvent, ensureThread, fetchCurrentRunnerJobId, fetchMeetupInfo, fetchRunMeta, fetchRunStartedAt, fetchRunTrace, MeetupInfo, notifyKmMilestone, RunEventKind, saveRunTrace, sendChatMessage, sendChatPhoto, settleRun, startRunServer, uploadRunPhoto } from '../../src/lib/api';
+import { addRunEvent, ensureThread, fetchCurrentRunnerJobId, fetchMeetupInfo, fetchRouteById, fetchRunMeta, fetchRunStartedAt, fetchRunTrace, MeetupInfo, notifyKmMilestone, RunEventKind, saveRunTrace, sendChatMessage, sendChatPhoto, settleRun, startRunServer, uploadRunPhoto } from '../../src/lib/api';
 import { GeoPoint, getNaverMap, getTraceSnapshot, getTrackPermission, mergeFixes, publishPos, resetTrace, seedTrace, smoothTrace, startTracking, stopPublishing, TrackHandle, TrackMode, TrackSnapshot } from '../../src/lib/geo';
 import { haptic } from '../../src/lib/haptics';
 import { notifyLocal } from '../../src/lib/push';
 import { clampSuggest, PACE_WINDOW_MS, PaceState, paceState, windowPaceSec } from '../../src/lib/pace';
 import { endRunActivity, RunLAProps, startRunActivity, updateRunActivity } from '../../src/lib/runActivity';
 import { useNumFont } from '../../src/lib/fonts';
-import { EndReason, payoutFor, runnerJob, runResult } from '../../src/store';
+import { EndReason, payoutFor, RouteInfo, runnerJob, runResult } from '../../src/store';
 import { colors, paper } from '../../src/theme';
 
 const REASON_MAP = { dog: 'dog_condition', owner: 'owner_request', runner: 'runner_personal' } as const;
+
+// ---------- K7 코스 지도 상수/타입 ----------
+// 대시 패턴 에셋. `patternImage`는 선 두께에 맞춰 축소되므로 24×8 잉크 사각형이 두께 4pt에서
+// 12×4 눈금이 되고, patternInterval이 그 사이 간격을 준다. 선 본체를 흰색으로 두면 눈금 사이가
+// 그대로 흰 케이싱이 되어 "인쇄된 코스도" 읽기가 성립한다. (색은 paper.ink #111111 — 신규 색 0개.)
+const ROUTE_DASH = require('../../assets/route-dash.png');
+// 앵커 = 회전 사각형(다이아몬드). 기본 네이버 핀은 '검색 결과'를 뜻해서 만남 장소로 읽히지 않는다.
+const ROUTE_ANCHOR = require('../../assets/route-anchor.png');
+
+type CamMode = 'approach' | 'fit' | 'follow' | 'free';
+type LatLng = { latitude: number; longitude: number };
+/** getNaverMap()이 동적 require라 컴포넌트가 any다 — ref로 쓰는 표면만 여기 좁게 적는다. */
+interface NaverMapHandle {
+  animateCameraTo: (p: LatLng & { zoom?: number; duration?: number }) => void;
+  animateCameraWithTwoCoords: (p: { coord1: LatLng; coord2: LatLng; duration?: number }) => void;
+  cancelAnimation: () => void;
+  setLocationTrackingMode: (m: 'None' | 'NoFollow' | 'Follow' | 'Face') => void;
+}
 
 // Runner-side live run: real GPS distance (background-capable since 2026-08-08), event
 // stamps, photo snaps, pinned owner chat.
@@ -268,6 +286,136 @@ export default function ActiveRun() {
     }
   }, []);
 
+  // ═══════════════ K7 · 코스 지도 카메라 계약 ═══════════════
+  // 스파이크: docs/design/k7-map-primitives-spike.md (측정본).
+  //
+  // 컨트롤드 `camera` 프롭 **은퇴**. 매 GPS 픽스마다 카메라를 다시 밀어 넣으면 러너의 손가락과
+  // 화면이 싸운다 — 팬을 하는 순간 다음 픽스가 되감는다. 라이브러리 문서도 같은 말을 한다:
+  // "initialCamera는 camera를 사용하지 않을 때만 사용해야합니다." 그래서 초기 카메라 1회 +
+  // ref 명령형 이동이고, 세 모드가 전부 네이티브 호출이다.
+  //
+  // ⚠ 오프루트 감지·진행 투영은 **여기 없다** (T5, 실제 이탈 사고 관측이 트리거).
+  // 이 지도는 코스를 보여줄 뿐 길을 안내하지 않는다 — 개를 다루는 손으로 화면을 보게 만드는
+  // 것이 이 제품이 피하려는 바로 그것이다.
+  //
+  // ⚠ 앵커는 `routes.anchor_lat/lng`를 읽지 않는다. 0078이 그 컬럼을 "근사값 — 소비 금지"로
+  // 못박았고, 0082의 승격이 첫 검증 런의 트레이스 시작점으로 그 값을 확정한다. 그러니 실측된
+  // 트레이스의 **첫 점**이 곧 확정된 앵커이고, 트레이스가 없으면 앵커도 없다 —
+  // 없는 좌표를 그리지 않는 것이 이 화면의 유일한 정직한 선택지다.
+  const [routeGeo, setRouteGeo] = useState<RouteInfo | null>(null);
+  const [routeState, setRouteState] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
+  useEffect(() => {
+    const rid = info?.routeId;
+    if (!rid) return;
+    let alive = true;
+    setRouteState('loading');
+    // fetchRouteById는 라이프사이클 무관으로 읽는다 — 정지된 코스를 예약해 둔 러너가
+    // 브리핑에서 '찾을 수 없음'을 만나지 않게 (K2). 실패해도 GPS·정산은 건드리지 않는다.
+    fetchRouteById(rid)
+      .then((r) => { if (alive) { setRouteGeo(r); setRouteState('ready'); } })
+      .catch((e) => { if (alive) { console.warn('[run] route:', e?.message ?? e); setRouteState('error'); } });
+    return () => { alive = false; };
+  }, [info?.routeId]);
+
+  const routeCoords = useMemo(
+    () => (routeGeo?.trace ?? []).map((p) => ({ latitude: p.lat, longitude: p.lng })),
+    [routeGeo],
+  );
+  /** 루프 전체를 담는 두 모서리 — animateCameraWithTwoCoords가 정확히 이 두 점을 받는다. */
+  const routeBox = useMemo(() => {
+    if (routeCoords.length < 2) return null;
+    let n = -90, s = 90, e = -180, w = 180;
+    routeCoords.forEach((c: LatLng) => {
+      n = Math.max(n, c.latitude); s = Math.min(s, c.latitude);
+      e = Math.max(e, c.longitude); w = Math.min(w, c.longitude);
+    });
+    return { nw: { latitude: n, longitude: w }, se: { latitude: s, longitude: e } };
+  }, [routeCoords]);
+  const anchor = routeCoords.length > 0 ? routeCoords[0] : null;
+
+  const mapRef = useRef<NaverMapHandle | null>(null);
+  const [mapReady, setMapReady] = useState(false);
+  const [camMode, setCamMode] = useState<CamMode>('approach'); // 렌더용 (내 위치로 버튼)
+  const camModeRef = useRef<CamMode>('approach');              // 로직용 (타임아웃 클로저가 낡지 않게)
+  const fitDone = useRef(false);
+  const setMode = useCallback((m: CamMode) => { camModeRef.current = m; setCamMode(m); }, []);
+
+  // 초기 카메라는 **한 번만** 결정된다 (프롭이 아니라 씨앗이다).
+  const initialCam = useRef<{ latitude: number; longitude: number; zoom: number } | null>(null);
+  if (!initialCam.current) {
+    if (lastPos) initialCam.current = { latitude: lastPos.lat, longitude: lastPos.lng, zoom: 16 };
+    else if (anchor) initialCam.current = { ...anchor, zoom: 15 };
+  }
+
+  const follow = useCallback(() => {
+    if (camModeRef.current === 'free') return; // 손가락이 먼저다 — 팬을 되감지 않는다
+    setMode('follow');
+    mapRef.current?.setLocationTrackingMode('Follow');
+  }, [setMode]);
+
+  // 접근 — 러너와 앵커가 한 화면에. 정확히 두 좌표라 두-좌표 fit이 이 일 자체다.
+  // 의존성이 `lastPos`가 아니라 `hasPos`(불리언)인 것은 **의도**다: 첫 픽스가 들어온
+  // 순간 한 번 다시 맞추고, 그 뒤 픽스마다 재적용하지 않는다 — 그게 곧 컨트롤드 카메라다.
+  const hasPos = lastPos != null;
+  useEffect(() => {
+    if (!mapReady || running || camModeRef.current === 'free') return;
+    setMode('approach');
+    if (lastPos && anchor) {
+      mapRef.current?.animateCameraWithTwoCoords({
+        coord1: { latitude: lastPos.lat, longitude: lastPos.lng }, coord2: anchor, duration: 700,
+      });
+    } else if (routeBox) {
+      mapRef.current?.animateCameraWithTwoCoords({ coord1: routeBox.nw, coord2: routeBox.se, duration: 700 });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mapReady, running, routeBox, hasPos]);
+
+  // 러닝 시작 = 루프 전체를 **한 번** 맞춰 보여주고, 그다음 카메라를 러너에게 돌려준다.
+  useEffect(() => {
+    if (!mapReady || !running || fitDone.current) return;
+    fitDone.current = true;
+    if (!routeBox) { follow(); return; }
+    setMode('fit');
+    mapRef.current?.animateCameraWithTwoCoords({ coord1: routeBox.nw, coord2: routeBox.se, duration: 900 });
+    const t = setTimeout(follow, 2400); // follow()가 free를 존중하므로 중간에 팬해도 안전하다
+    return () => clearTimeout(t);
+  }, [mapReady, running, routeBox, follow, setMode]);
+
+  const recenter = () => {
+    haptic('light');
+    // ⚠ 러닝 전에는 위치 추적 모드를 **켜지 않는다**. SDK의 Follow는 자기 위치 소스를 붙이고,
+    // 그건 OS 권한 시트를 띄운다 — 이 앱에서 그 시트는 단 한 번뿐이고, beginRun의 rationale이
+    // 그 앞에 서 있어야 한다(거부되면 설정에서만 되돌릴 수 있다). 그래서 여기선 접근 구도로만 되돌린다.
+    if (!running) {
+      setMode('approach');
+      if (lastPos && anchor) {
+        mapRef.current?.animateCameraWithTwoCoords({
+          coord1: { latitude: lastPos.lat, longitude: lastPos.lng }, coord2: anchor, duration: 500,
+        });
+      } else if (routeBox) {
+        mapRef.current?.animateCameraWithTwoCoords({ coord1: routeBox.nw, coord2: routeBox.se, duration: 500 });
+      } else if (lastPos) {
+        mapRef.current?.animateCameraTo({ latitude: lastPos.lat, longitude: lastPos.lng, zoom: 16, duration: 500 });
+      }
+      return;
+    }
+    setMode('follow');
+    mapRef.current?.setLocationTrackingMode('Follow');
+  };
+
+  // 코스 오버레이에 대한 정직 고지 — 어느 것도 GPS·정산을 막지 않는다 (자문일 뿐).
+  const routeNote = ((): { text: string; warn: boolean } | null => {
+    if (routeGeo?.status === 'suspended') return { text: '이 코스는 점검을 위해 일시 중단됐어요', warn: true };
+    if (routeState === 'error') return { text: '코스 선을 불러오지 못했어요 — 기록에는 영향 없어요', warn: false };
+    // 행이 없는 것과 선이 없는 것은 다른 사실이다 — 같은 문장으로 덮지 않는다
+    if (routeState === 'ready' && !routeGeo) return { text: '배정된 코스 정보를 찾을 수 없어요 — 기록에는 영향 없어요', warn: false };
+    if (routeState === 'ready' && routeCoords.length < 2) {
+      // 트레이스가 없으면 앵커도 없다 — '앵커만 표시돼요'라고 말하면 그게 거짓이 된다.
+      return { text: '이 코스는 아직 실측 전이에요 — 코스 선 없이 내 기록만 그려져요', warn: false };
+    }
+    return null;
+  })();
+
   // 언마운트 정리 — 추적 태스크는 화면이 사라져도 OS에 남는다
   useEffect(() => () => { handle.current?.stop(); handle.current = null; }, []);
 
@@ -441,7 +589,13 @@ export default function ActiveRun() {
             end_reason: completed ? 'completed' : REASON_MAP[reason as keyof typeof REASON_MAP],
             actual_km: Number(km.toFixed(2)),
             duration_sec: sec,
-            condition_note: reason === 'dog' ? '러너 판단: 컨디션 저하 관찰' : undefined,
+            // The runner's OWN sentence, typed in the end sheet's 기록 step — never a canned
+            // fallback. The old constant ('러너 판단: 컨디션 저하 관찰') shipped the same
+            // fabricated observation to every owner's report card and propped up the
+            // dog_condition charge waiver with a value no human ever wrote. If it is empty the
+            // server's 400 must surface (settle retry alert) — an invented sentence is worse
+            // than a visible failure.
+            condition_note: reason === 'dog' ? conditionNote.trim() : undefined,
           });
           runResult.payout = res.net; // 서버가 계산한 실지급액
           runResult.settled = true;  // 이제서야 '수익'이라고 부를 수 있다
@@ -470,14 +624,38 @@ export default function ActiveRun() {
     router.replace('/runner/done');
   };
 
-  const endWith = (reason: EndReason) => {
+  // The end sheet owns the whole decision (§7b — one surface). 이유 선택은 그대로 즉시 정산으로
+  // 가고, 컨디션만 같은 시트 안에서 기록 스텝으로 넘어간다 (모달 위에 모달을 쌓지 않는다).
+  const openEndSheet = () => { setEndStep('reason'); setEndSheet(true); };
+  const closeEndSheet = () => {
+    if (endBusy) return; // 정산 중에는 시트를 걷지 않는다
     setEndSheet(false);
+    setEndStep('reason'); // 다음에 열 땐 언제나 이유 목록부터 (초안 텍스트는 러너의 것이라 남긴다)
+  };
+
+  const endWith = (reason: EndReason) => {
     if (reason === 'dog') {
-      // The fabricated "nearby vet" line is gone — there is no vet data source, and invented
-      // safety copy is worse than none (fake-inventory 2026-08-11).
-      Alert.alert('컨디션 종료', '보호자에게 알림 전송됨 · 상태 사진과 메모를 남겨주세요');
+      // 컨디션 종료는 보호자가 읽을 문장이 있어야 성립한다 — 여기서 정산하지 않고 기록 스텝으로.
+      // (The fabricated "nearby vet" line was already retired; the fabricated condition_note
+      // and the "상태 사진과 메모를 남겨주세요" alert — a promise with no field — go here.)
+      setEndStep('note');
+      return;
     }
+    setEndSheet(false);
     settle(reason, false);
+  };
+
+  // 기록 스텝의 확정 — 시트를 먼저 걷고 정산한다. 정산 실패 알림(서버 400 포함)은 모달 위가
+  // 아니라 화면 위에 떠야 보인다. 슬라이드 아웃이 도는 동안 라벨은 '기록 중...'으로 바뀐다.
+  const submitConditionEnd = async () => {
+    if (!canSubmitNote || endBusy) return;
+    setEndBusy(true);
+    setEndSheet(false);
+    try {
+      await settle('dog', false);
+    } finally {
+      setEndBusy(false);
+    }
   };
 
   const finish = (_completed: boolean) => {
@@ -560,6 +738,17 @@ export default function ActiveRun() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [running, sec, gpsKm, suggestSec]);
 
+  // ---------- 컨디션 종료 기록 (run-end-flow-plan §4a-bis · UI 스텝 — 맨 뒤에 붙인다) ----------
+  // Nothing here touches tracking, the settle retry loop, the overrun ceiling or the Live
+  // Activity: it is one extra step in front of settle() and one real string in its payload.
+  // The field is required by the schema (0001:244 '컨디션 종료 시 필수') and by the server
+  // (settle-run/handler.ts:53-54), and it is the ONLY thing the owner ever gets as the
+  // runner's account of why their dog stopped (owner/report.tsx:380-388).
+  const [endStep, setEndStep] = useState<'reason' | 'note'>('reason');
+  const [conditionNote, setConditionNote] = useState('');
+  const [endBusy, setEndBusy] = useState(false);
+  const canSubmitNote = conditionNote.trim().length > 0;
+
   // ---------- 러닝 시작 — 연속 기록이 안 되면 시작하지 않는다 (Sean 2026-08-08) ----------
   const startRun = async () => {
     setRationale(false);
@@ -631,15 +820,43 @@ export default function ActiveRun() {
     <View style={s.root}>
       {/* 코스 맵 — 실지도 (GPS 픽스 수신 시), 아니면 대기 배경 */}
       <View style={s.mapArea}>
-        {maps && lastPos && (
+        {maps && initialCam.current && (
           <maps.NaverMapView
+            ref={mapRef}
             style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
-            camera={{ latitude: lastPos.lat, longitude: lastPos.lng, zoom: 16 }}
+            // 컨트롤드 camera 프롭 은퇴 (K7) — 씨앗 1회, 이후는 전부 ref 명령형
+            initialCamera={initialCam.current}
+            // 러너의 점은 **우리 마커 하나**다. SDK 자체 위치 오버레이까지 뜨면 같은 사람이
+            // 두 번 찍히고, 게다가 그건 우리 게이트가 거른 픽스까지 따라간다.
+            locationOverlay={{ isVisible: false }}
             isShowLocationButton={false}
             isShowCompass={false}
             isShowScaleBar={false}
             isShowZoomControls={false}
+            isTiltGesturesEnabled={false}
+            isRotateGesturesEnabled={false}
+            onInitialized={() => setMapReady(true)}
+            // 팬 오버라이드는 상태 기계가 아니라 술어 하나다 — 우리가 움직인 건 Developer,
+            // 팔로우가 움직인 건 Location, 손가락만 Gesture다.
+            onCameraChanged={(e: { reason?: string }) => {
+              if (e?.reason !== 'Gesture' || camModeRef.current === 'free') return;
+              setMode('free');
+              mapRef.current?.setLocationTrackingMode('NoFollow');
+            }}
           >
+            {/* 예정 코스 — '인쇄된 코스도'. 잉크 대시 + 흰 케이싱, 실측 트레이스 **아래** */}
+            {routeCoords.length > 1 && (
+              <maps.NaverMapPathOverlay
+                coords={routeCoords}
+                width={4}
+                color="#FFFFFF"
+                outlineWidth={1}
+                outlineColor="#FFFFFF"
+                patternImage={ROUTE_DASH}
+                patternInterval={22}
+                zIndex={0}
+              />
+            )}
             {trace.current.length > 1 && (
               <maps.NaverMapPathOverlay
                 coords={smoothTrace(trace.current.map((p) => ({ latitude: p.lat, longitude: p.lng })))}
@@ -647,12 +864,34 @@ export default function ActiveRun() {
                 width={6}
                 outlineWidth={2}
                 outlineColor="#ffffff"
+                zIndex={1}
               />
             )}
-            {/* 내 위치 — showsUserLocation 대체 (러너 자신의 최신 픽스) */}
-            <maps.NaverMapMarkerOverlay latitude={lastPos.lat} longitude={lastPos.lng} anchor={{ x: 0.5, y: 1 }} />
+            {/* 앵커 — 만남 장소. 러닝 시작을 누르는 순간 할 일을 다 했으므로 사라진다 */}
+            {!running && anchor && (
+              <maps.NaverMapMarkerOverlay
+                latitude={anchor.latitude}
+                longitude={anchor.longitude}
+                anchor={{ x: 0.5, y: 0.5 }}
+                width={26}
+                height={26}
+                image={ROUTE_ANCHOR}
+                zIndex={2}
+              />
+            )}
+            {/* 내 위치 — showsUserLocation 대체 (러너 자신의 최신 **채택된** 픽스) */}
+            {lastPos && (
+              <maps.NaverMapMarkerOverlay latitude={lastPos.lat} longitude={lastPos.lng} anchor={{ x: 0.5, y: 1 }} zIndex={3} />
+            )}
           </maps.NaverMapView>
         )}
+        {/* 내 위치로 — 팬으로 팔로우가 풀렸을 때만. 44×44 (a11y 계약) */}
+        {maps && initialCam.current && camMode === 'free' && (
+          <Pressable onPress={recenter} style={s.recenterBtn} accessibilityRole="button" accessibilityLabel="내 위치로">
+            <Text style={{ fontSize: 14, fontWeight: '800', color: paper.ink }}>내 위치로</Text>
+          </Pressable>
+        )}
+        {/* 지도가 코스를 먼저 띄우고 있어도, 내 점이 아직 없다는 사실은 따로 말한다 */}
         {maps && !lastPos && running && (
           <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
             {/* sits on the white map canvas, not the dark panel — dim ink for the ≥4.5:1 floor */}
@@ -743,6 +982,12 @@ export default function ActiveRun() {
             <Text style={s.failTxt}>기록 저장이 밀리고 있어요 — 신호가 잡히면 자동 재시도해요</Text>
           </View>
         )}
+        {/* 코스 오버레이 고지 — 자문이지 차단이 아니다. 코스 선이 없어도 러닝·기록·정산은 그대로 간다 */}
+        {routeNote && (
+          <View style={[s.failStrip, !routeNote.warn && s.noteStrip]}>
+            <Text style={[s.failTxt, !routeNote.warn && { color: '#BBBBBB' }]}>{routeNote.text}</Text>
+          </View>
+        )}
 
         {/* 고정된 고객 채팅 */}
         <Pressable
@@ -823,7 +1068,7 @@ export default function ActiveRun() {
 
         <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
           {running && (
-            <Pressable style={s.moreBtn} onPress={() => setEndSheet(true)}>
+            <Pressable style={s.moreBtn} onPress={openEndSheet}>
               <Text style={{ fontSize: 16, color: '#BBBBBB', fontWeight: '900' }}>❙❙</Text>
             </Pressable>
           )}
@@ -832,7 +1077,7 @@ export default function ActiveRun() {
             style={({ pressed }) => [s.btn, { backgroundColor: pressed && !starting ? colors.voltDeep : colors.volt }]}
             disabled={starting}
             onPress={() => {
-              if (running) { setEndSheet(true); return; }
+              if (running) { openEndSheet(); return; }
               beginRun();
             }}
           >
@@ -864,44 +1109,96 @@ export default function ActiveRun() {
         </View>
       </Modal>
 
-      {/* ---------- end-run options sheet ---------- */}
-      <Modal visible={endSheet} transparent animationType="slide" onRequestClose={() => setEndSheet(false)}>
-        <Pressable style={s.sheetBackdrop} onPress={() => setEndSheet(false)} />
-        <View style={s.sheet}>
-          <View style={s.sheetHandle} />
-          <Text style={{ fontSize: 19.5, fontWeight: '900', color: '#FFFFFF' }}>어떤 이유로 종료하나요?</Text>
-          <Text style={{ fontSize: 15, color: '#BBBBBB', marginTop: 4 }}>
-            지금까지 {km.toFixed(2)}km · 이유에 따라 정산이 달라져요
-          </Text>
+      {/* ---------- end-run sheet — 한 시트, 두 스텝 (이유 → 컨디션이면 기록) ---------- */}
+      <Modal visible={endSheet} transparent animationType="slide" onRequestClose={closeEndSheet}>
+        <Pressable style={s.sheetBackdrop} onPress={closeEndSheet} />
+        {endStep === 'reason' ? (
+          <View style={s.sheet}>
+            <View style={s.sheetHandle} />
+            <Text style={{ fontSize: 19.5, fontWeight: '900', color: '#FFFFFF' }}>어떤 이유로 종료하나요?</Text>
+            <Text style={{ fontSize: 15, color: '#BBBBBB', marginTop: 4 }}>
+              지금까지 {km.toFixed(2)}km · 이유에 따라 정산이 달라져요
+            </Text>
 
-          <EndOption
-            title="강아지 컨디션"
-            desc="지친 기색·이상 징후 등. 사진과 메모를 남겨요"
-            pay={`${payoutByReason('dog').toLocaleString()}원 · 완주율 무영향`}
-            accent="#C6F542"
-            onPress={() => endWith('dog')}
-          />
-          <EndOption
-            title="보호자 요청"
-            desc="보호자가 조기 종료를 요청했어요"
-            pay={targetKm != null
-              ? `${payoutByReason('owner').toLocaleString()}원 · 잔여 거리 50% 보장 포함`
-              : `${payoutByReason('owner').toLocaleString()}원 + 잔여 거리 50% 보장 · 정산 시 확정`}
-            accent="#9fc3e8"
-            onPress={() => endWith('owner')}
-          />
-          <EndOption
-            title="러너 개인 사유"
-            desc="부상·일정 등 러너 사정으로 종료해요"
-            pay={`${payoutByReason('runner').toLocaleString()}원 · 완주율에 반영`}
-            accent="#e2c56b"
-            onPress={() => endWith('runner')}
-          />
+            <EndOption
+              title="강아지 컨디션"
+              // 사진 약속은 내렸다 — 이 스텝이 받는 것은 메모다. 없는 것을 약속하지 않는다.
+              desc="지친 기색·이상 징후 등. 종료 전에 메모를 남겨요"
+              pay={`${payoutByReason('dog').toLocaleString()}원 · 완주율 무영향`}
+              accent="#C6F542"
+              onPress={() => endWith('dog')}
+            />
+            <EndOption
+              title="보호자 요청"
+              desc="보호자가 조기 종료를 요청했어요"
+              pay={targetKm != null
+                ? `${payoutByReason('owner').toLocaleString()}원 · 잔여 거리 50% 보장 포함`
+                : `${payoutByReason('owner').toLocaleString()}원 + 잔여 거리 50% 보장 · 정산 시 확정`}
+              accent="#9fc3e8"
+              onPress={() => endWith('owner')}
+            />
+            <EndOption
+              title="러너 개인 사유"
+              desc="부상·일정 등 러너 사정으로 종료해요"
+              pay={`${payoutByReason('runner').toLocaleString()}원 · 완주율에 반영`}
+              accent="#e2c56b"
+              onPress={() => endWith('runner')}
+            />
 
-          <Pressable style={s.sheetCancel} onPress={() => setEndSheet(false)}>
-            <Text style={{ fontSize: 15, fontWeight: '700', color: '#BBBBBB' }}>계속 달릴게요</Text>
-          </Pressable>
-        </View>
+            <Pressable style={s.sheetCancel} onPress={closeEndSheet}>
+              <Text style={{ fontSize: 15, fontWeight: '700', color: '#BBBBBB' }}>계속 달릴게요</Text>
+            </Pressable>
+          </View>
+        ) : (
+          // 키보드가 입력칸을 덮으면 러너는 자기가 쓴 문장을 못 본다 — 시트를 밀어 올린다
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <View style={s.sheet}>
+              <View style={s.sheetHandle} />
+              <Text style={{ fontSize: 19.5, fontWeight: '900', color: '#FFFFFF' }}>무엇을 보고 멈췄나요?</Text>
+              <Text style={{ fontSize: 15, color: '#BBBBBB', marginTop: 6, lineHeight: 21 }}>
+                여기 적은 내용이 보호자의 기록 카드에 그대로 실려요. 본 것만 적어주세요 — 판단은 보호자와 수의사가 해요.
+              </Text>
+
+              {/* 플레이스홀더는 라벨이 아니다 — 보이는 라벨을 따로 세운다 */}
+              <Text style={s.noteLabel}>관찰한 내용</Text>
+              <TextInput
+                style={s.noteInput}
+                value={conditionNote}
+                onChangeText={setConditionNote}
+                multiline
+                textAlignVertical="top"
+                editable={!endBusy}
+                placeholder="예: 3km 지점부터 헐떡임이 심해지고 걸음을 멈춰서 그늘에서 쉬었어요"
+                placeholderTextColor={paper.dim}
+                accessibilityLabel="관찰한 내용"
+                autoFocus
+              />
+              <Text style={s.noteHint}>지금까지 {km.toFixed(2)}km · 컨디션 종료는 완주율에 반영되지 않아요</Text>
+
+              <Pressable
+                // busy = 라벨 스왑, disabled = 명시 fill (§3b 버튼 매트릭스 — 불투명도 트릭 없음)
+                style={({ pressed }) => [
+                  s.btn,
+                  { marginTop: 18 },
+                  !canSubmitNote
+                    ? { backgroundColor: paper.disabledFill }
+                    : { backgroundColor: pressed && !endBusy ? colors.voltDeep : colors.volt },
+                ]}
+                disabled={!canSubmitNote || endBusy}
+                onPress={submitConditionEnd}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: !canSubmitNote || endBusy }}
+              >
+                <Text style={{ fontSize: 17, fontWeight: '800', color: canSubmitNote ? colors.ink : paper.faint }}>
+                  {endBusy ? '기록 중...' : '종료하고 기록 남기기'}
+                </Text>
+              </Pressable>
+              <Pressable style={s.sheetCancel} onPress={() => setEndStep('reason')} disabled={endBusy}>
+                <Text style={{ fontSize: 15, fontWeight: '700', color: '#BBBBBB' }}>이유 다시 고르기</Text>
+              </Pressable>
+            </View>
+          </KeyboardAvoidingView>
+        )}
       </Modal>
     </View>
   );
@@ -977,6 +1274,16 @@ const s = StyleSheet.create({
   },
   failTxt: { flex: 1, fontSize: 14, fontWeight: '700', color: colors.tang },
   failAction: { fontSize: 14, fontWeight: '800', color: colors.tang, textDecorationLine: 'underline' },
+  // 같은 스트립 문법의 **자문** 변형 — 코랄은 라우드 페일에만 쓴다 (색 역할 분리 법).
+  // 코스 선이 없는 것은 실패가 아니라 사실이므로 중립 헤어라인으로 말한다.
+  noteStrip: { borderColor: '#3A3A3A' },
+  // 내 위치로 — 팬 오버라이드를 되돌리는 유일한 컨트롤 (44pt 터치 타깃)
+  recenterBtn: {
+    // 진행바(trackWrap, bottom 24)를 피해 그 위에 앉는다
+    position: 'absolute', right: 20, bottom: 84, minHeight: 44, justifyContent: 'center',
+    paddingHorizontal: 14, backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE',
+    shadowColor: '#000', shadowOpacity: 0.14, shadowRadius: 10, shadowOffset: { width: 0, height: 3 }, elevation: 4,
+  },
   btn: { flex: 1, borderRadius: 0, padding: 16, alignItems: 'center' },
   // 페이스 칩 (§3b) — 16/800 · radius 0 · 틴트 면 · 보더 없음. 페이퍼 월드와 같은 문법이고,
   // 워시가 자기 배경을 들고 오므로 다크 패널 위에서도 잉크 대비가 유지된다. 숫자 리컬러는 없다.
@@ -1000,5 +1307,14 @@ const s = StyleSheet.create({
     backgroundColor: '#222222', borderRadius: 0, padding: 14, marginTop: 10,
   },
   endRail: { width: 4, height: 44 },
+  // 컨디션 종료 기록 스텝 — 다크 시트 안의 종이 필드. 보호자가 읽게 될 문장을 쓰는 자리라
+  // 캔버스 면 + 코랄 헤어라인 1px로 시트에서 떼어 놓는다 (모서리는 여기도 샤프).
+  noteLabel: { fontSize: 15, fontWeight: '800', color: '#FFFFFF', marginTop: 18, marginBottom: 7 },
+  noteInput: {
+    minHeight: 108, borderRadius: 0, borderWidth: 1, borderColor: paper.line,
+    backgroundColor: paper.canvas, color: paper.ink,
+    fontSize: 15.5, lineHeight: 21, padding: 12,
+  },
+  noteHint: { fontSize: 14, lineHeight: 19, color: '#BBBBBB', marginTop: 8 },
   sheetCancel: { alignItems: 'center', paddingVertical: 14, marginTop: 6 },
 });

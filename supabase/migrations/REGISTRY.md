@@ -43,11 +43,24 @@ touched it and name whose version you build on in your file header.
 | 0088 | `0088_profiles_column_grants.sql` | 124 | profiles column grants — P0 PII/PG-key leak (`claude/g1-ops-club-decisions`) | **CLAIMED 2026-08-13** — `profiles public runner read` has no column grant, so `phone` and `toss_customer_key` are returned to any authenticated user |
 | 0089 | *(next free)* | 125 | — | available |
 
+## Where a number comes from: THIS FILE, never a message
+
+Not from a handoff, not from a plan, not from a broadcast — **including a broadcast from the
+session whose job is announcing.** That session relayed "next free" three times on 2026-08-13
+(`0085`, `0086`, `0087`) and was wrong every time; each was accurate when read and stale when
+sent. Their own summary, worth keeping verbatim: *a number relayed by me is a stale cache
+carrying an announcer's authority, which is worse than no number, because it stops people
+checking.* A confident source suppresses the check that would have caught it.
+
 ## A pushed FILE is a claim even when the row is missing — check both
 2026-08-13, the sixth collision and a new variant: `0086_runner_stop_passthrough.sql` was
 pushed on a feature branch while this file still read `0086 | *(next free)*`, and a
 newly-started session was told 0086 was available. Nobody was careless — the rule says "a
 number is claimed when it is on origin", and the FILE was on origin; only the ROW was not.
+**A pre-push hook now ENFORCES this** (`3fcfeb8`): a push that introduces a number already
+present on another remote branch is refused, as is one that introduces a number without its
+row here. The instruction below stays because it explains *why*, and because a fresh clone
+needs the hook enabled before it protects anything — but the burden is no longer on memory.
 **So the check is two-sided, and takes one command:**
 ```
 git fetch --all -q && git branch -r --list 'origin/*' \
@@ -72,6 +85,23 @@ just a file name.
 derived `/tmp/dr<NN>` from `0085` and `rm -rf`'d each other's postmaster mid-run — which
 presents as a migration file vanishing halfway through an apply, a failure mode that looks
 like disk corruption and is actually a collision.
+## NEVER auto-resolve a conflict in THIS file by picking a winner
+
+**Collision seven (2026-08-13), and the hook cannot see it.** An automated merge resolver
+deduped the rows by migration number, silently discarded a live `0088` claim in favour of an
+`0087` row, and concatenated the survivor onto a section heading. The pre-push hook guards a
+push that *introduces* a number; it has no visibility into a claim **deleted during a merge**.
+
+**Keep BOTH rows and mark the collision.** A duplicate row is a visible problem that takes a
+minute; a deduped row is an invisible one that costs a day. And note the timing: six collisions
+came from sessions racing, and this one came from **automating the referee** — which became
+likelier, not less likely, once the hook made pushing feel safe. A guard on one step invites
+delegation of the next.
+
+⚠ **Renaming a migration moves TWO rows**, not one: the claim row *and* its entry in the
+shared-objects table below. One rename on 2026-08-13 left the second behind, so the table
+briefly described one slice's grant under another slice's seal.
+
 ## Standing conflicts to resolve
 
 - **⑩ was BUILT TWICE on 2026-08-13, in parallel, by two sessions given the same unit** — and the

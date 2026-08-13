@@ -1667,6 +1667,10 @@ export interface MeetupInfo {
   dogMemo: string | null;
   dogPhotoUrl: string | null;
   routeName: string;
+  // K7: 러너 지도가 코스 선을 그리려면 **어느 코스인지**를 알아야 한다. 트레이스 자체는 여기서
+  // 싣지 않는다 — 목록/컨텍스트 셀렉트에 수백 점을 태우지 않는 것이 0082 K1의 규약이고,
+  // 상세는 fetchRouteById(K2)가 라이프사이클 상태와 함께 돌려준다 (정지된 코스도 읽는다).
+  routeId: string | null;
   km: number;
   paceLabel: string;
   when: string;
@@ -1683,7 +1687,7 @@ export async function fetchMeetupInfo(bookingId: string): Promise<MeetupInfo> {
     .from('bookings')
     // `preferences` rides the EXISTING dogs embed (no new join, so no PostgREST FK
     // ambiguity); the jsonb is unwrapped client-side rather than via `->>` in the select.
-    .select('scheduled_at, km, pace_label, routes(name), dogs(name, breed, weight_kg, memo, photo_url, preferences), runners(profiles(name))')
+    .select('scheduled_at, km, pace_label, route_id, routes(name), dogs(name, breed, weight_kg, memo, photo_url, preferences), runners(profiles(name))')
     .eq('id', bookingId)
     .single();
   if (error) throw error;
@@ -1697,6 +1701,7 @@ export async function fetchMeetupInfo(bookingId: string): Promise<MeetupInfo> {
     dogMemo: d.dogs?.memo ?? null,
     dogPhotoUrl: d.dogs?.photo_url ?? null,
     routeName: d.routes?.name ?? '코스 미지정',
+    routeId: d.route_id ?? null,
     km: Number(d.km),
     paceLabel: d.pace_label ?? "보통 7'",
     when: `${dateLabel} ${timeLabel}`,
