@@ -134,7 +134,7 @@ field and was in fact a session's — the patch-id check settled it in seconds.)
 
 | Path(s) | Session (branch) | Tree | Mode | Started | Intent (one line) |
 |---|---|---|---|---|---|
-| `docs/decisions/*.md` (status lines) · `docs/retro-2026-08-13.md` (new) · `docs/session-handoff.md` | club-delegation (`claude/club-delegation-money-gaps-b59eb8`, worktree club-delegation-money-gaps-b59eb8) | exclusive on the new retro file; **shared** on the memo status lines and handoff | 2026-08-13 | /retro + built→deployed sweep + release notes. Docs only; sub-agents are READ-ONLY, only this session writes. |
+| *(none in flight)* | | | | |
 
 Conventions: give **paths**, not a ticket name · one line of intent, so a reader can
 tell whether their change collides or merely neighbours · stale rows are worse than none, so

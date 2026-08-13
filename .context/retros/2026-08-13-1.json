@@ -1,0 +1,17 @@
+{
+  "date": "2026-08-13",
+  "window": "24h",
+  "metrics": {
+    "commits": 193, "contributors": 1, "sessions_ai": 5,
+    "insertions": 28719, "deletions": 3361, "net_loc": 25358,
+    "files_changed": 435, "test_loc": 11493, "test_ratio": 0.40,
+    "active_days": 1, "sessions": 1, "active_minutes": 416,
+    "peak_hour": 15, "ai_assisted_commits": 168,
+    "migrations_landed": 14, "suites_landed": 13,
+    "collisions": 8, "decisions_ruled": 13
+  },
+  "authors": { "Sean Kim": { "commits": 193, "insertions": 28719, "deletions": 3361, "test_ratio": 0.40, "top_area": "supabase/migrations/" } },
+  "streak_days": 4,
+  "deployed": "0001-0091 local==remote; payments_live_since NULL (charging inert)",
+  "tweetable": "2026-08-13: 5 parallel AI sessions, 193 commits, +28.7k LOC, 40% tests, 14 migrations, 13 money decisions, 8 collisions — schema deployed, charging off | Streak: 4d"
+}
