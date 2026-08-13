@@ -29,12 +29,17 @@
 --   §6  the seal         — `settle_run_tx` gated + ONE settlement primitive + the two entries
 --   §8  LA               — 귀가 phase, and the two running-only consumers guarded (plan §4d/§5)
 --   §9  janitor          — durable recovery + the 2h stranding escalation (plan §3/§7)
---   (§7 is deliberately ABSENT — see §0f, the one thing this file hands to another owner)
+--   (§7 is deliberately ABSENT. Three things this file hands to another owner, each named in the
+--    header rather than left to be found in an incident: §0f the sweep anchor · §0g a runner
+--    payout price in SQL · §0h a marketplace incident-settlement exit)
 --
 -- ═══ §0c WHAT THIS FILE DOES **NOT** DO (0073/0075 lesson: an unstated scope reads as a seal) ═══
 -- - It does not touch any edge function. `settle-run`'s gate BEHAVIOUR (the "앱을 업데이트해
---   주세요" refusal, plan §2 / §9 D-r4①) is a TypeScript half that reads the two distinct error
---   codes this file raises (`return_not_sealed`, `run_not_ended`); the follow-on slice owns it.
+--   주세요" refusal, plan §2 / §9 D-r4①) is a TypeScript half that reads the three distinct error
+--   codes this file raises (`return_not_sealed`, `run_not_ended`, `frozen_measurement_mismatch`);
+--   the follow-on slice owns it. ⚠ But the LAW those messages express is enforced HERE and does
+--   not wait for that slice: §6-ⓔ refuses a settlement whose km/end_reason are not the frozen
+--   ones, so the client half can only change what the runner READS, never what is paid.
 -- - It does not price anything. `settle_run_tx`'s money arithmetic is reproduced byte-faithful and
 --   the runner payout is still computed by the pricing code, at settle, from the numbers §3 froze.
 --   No fare, rate or basis rule is written in this file — deliberately, because the fault-based
@@ -114,6 +119,32 @@
 -- Until one of them lands, a settlement that dies between the seal and the ledger is repaired by
 -- the 2h escalation and a human — visible, bounded, and slower than it should be. Said out loud
 -- here rather than left for somebody to discover in an incident.
+--
+-- ═══ §0h THE THIRD HANDOFF — `incident_review` has no marketplace money exit ═══
+-- §9's arm ⓑ moves a stranded 귀가 to `incident_review`, which is the state the product already
+-- uses for "a human has to look at this". For a CLUB booking that is a complete answer:
+-- `club_incident_settle` (`0072 §B`) adjudicates the three outcomes and moves real money. For a
+-- MARKETPLACE booking it is currently a one-way door:
+--   · every money entry point requires `status = 'active'` — `settle_run_tx`'s atomic claim,
+--     `_settle_sealed_run`, `confirm_return_tx`, `force_return_tx`;
+--   · the transition map allows `incident_review → refund_pending` and nothing else (`0066:56`);
+--   · `club_incident_settle` cannot be reached: it calls `_club_require_v2()` and requires a
+--     `club_incidents` row, a locked `club_sessions` row and a `club_incident_subjects` mapping
+--     naming the booking — none of which exists for a marketplace run.
+-- So today the only thing arm ⓑ can safely escalate is a booking where NOBODY said the dog is
+-- home: there is no settlement to protect, and a refund/ops decision is the honest end. That is
+-- the predicate the arm now carries (`settlement_ready_at is null`), and it is the whole reason
+-- a sealed row gets an alarm instead of a status change.
+-- What is still MISSING, named here rather than left to be discovered in an incident:
+--   **a marketplace incident-settlement exit** — the sibling of `club_incident_settle` for a
+--   booking with no club: an ops-called, party-gated, idempotent RPC that reads the frozen
+--   measurement, takes the same three outcomes (refund_full · settle_measured · pay_full), writes
+--   `ledger_items` for the runner and a payments adjustment for the owner, and moves the booking
+--   OUT of `incident_review`. It needs (a) the runner-payout price — the same thing §0g needs, so
+--   the two handoffs share a dependency; (b) an `incident_review → completed` edge in the
+--   transition map, or an explicit terminal of its own; (c) an ops actor model outside the club
+--   host/case-owner one. Until it exists, every marketplace `incident_review` booking is a manual
+--   database job, which is exactly why §9 escalates as few of them as it possibly can.
 --
 -- ═══ §0e DOCTRINE (0059 money-path list) ═══
 -- self-contained migration · byte-faithful reproduction of the latest definition (0057 §2) ·
@@ -366,7 +397,11 @@ begin
   if p_end_reason not in ('completed', 'dog_condition', 'owner_request', 'runner_personal') then
     raise exception 'end_reason_not_runner_declarable';
   end if;
-  v_km := p_actual_km;
+  -- ⚠ ROUNDED TO THE STORED SCALE FIRST (`runs.actual_km` is numeric(5,2) — 0001:239). The freeze
+  -- must operate on the number that will actually BE frozen, because §6-ⓔ refuses a settlement
+  -- whose km differs from the stored one: freezing 3.2473829 into a column that holds 3.25 and
+  -- then reporting 3.2473829 back to the caller would make the caller's honest echo a mismatch.
+  v_km := round(p_actual_km, 2);
   if v_km is null or v_km < 0 or v_km > 100 then raise exception 'invalid_km'; end if;
   if v_km > coalesce(b.km, 0) * 2 + 2 then raise exception 'km_out_of_band'; end if;
   if p_duration_sec is not null and p_duration_sec < 0 then raise exception 'invalid_duration'; end if;
@@ -554,7 +589,7 @@ the moment finish under the old rule. A moment rather than a boolean for the sam
 payments_live_since is one: a flip must not strand a run that is already on the leash';
 
 -- ── ⓑ settle_run_tx, recreated: gated, and honest about which timestamp means what ─────
--- 0028's body reproduced under 0057 §2 discipline. FOUR changes, and not one of them touches the
+-- 0028's body reproduced under 0057 §2 discipline. FIVE changes, and not one of them touches the
 -- money arithmetic (the ledger row, the miles gates, the patch bonus, the runner stats, the
 -- completion-rate formula, the drop roll and the notification are byte-faithful):
 --   ⓐ header `search_path = public` → `public, pg_temp` (98 H1 — 0055's ALTER put it there and
@@ -566,6 +601,30 @@ payments_live_since is one: a flip must not strand a run that is already on the 
 --      (codex #3). A run with no stop stamp still gets `now()`, which is today's behaviour for
 --      every legacy and club path.
 --   ⓓ `settled_at = now()` — the fact that used to be conflated with ⓒ, recorded separately.
+--   ⓔ **THE FREEZE IS ENFORCED HERE, ON THE PATH THAT SHIPS.** ⓑ only asks WHETHER the dog is
+--      home; it never asked whether the numbers the caller brought are the numbers the stop
+--      froze. And `settle-run/handler.ts:113-124` does not go through `_settle_sealed_run` (the
+--      one place that reads the frozen row) — it calls THIS function with `p.actual_km` /
+--      `p.end_reason` straight off the HTTP body. So the attack that survived every gate above
+--      was: freeze 3.2km/`completed`, seal both sides, then POST `actual_km: 9.9,
+--      end_reason: 'owner_request'`. The seal passes (the dog IS home), the runner is paid on
+--      9.9km plus the `owner_request` 50% guarantee, `runs` is rewritten to match, and
+--      `compute_owner_charge`'s D2 arm then bills the OWNER the full PLANNED distance. Every
+--      metre walked home and every reason swap reached both ledgers through the client's JSON.
+--      Two halves, because they defend different things:
+--        · a MISMATCH RAISES (`frozen_measurement_mismatch`). It has to raise rather than
+--          silently substitute: the money is computed OUTSIDE this function (handler.ts:97-110,
+--          from the very numbers being refused) and arrives as five already-computed ints, so
+--          accepting the row while quietly correcting the measurement would pay a 9.9km ledger
+--          onto a 3.2km run — a worse lie than the one being closed.
+--        · and the frozen columns are NOT REWRITTEN even so. Belt and braces on the two inputs
+--          that move no money (`duration_sec`, `condition_note`): refusing on those would risk
+--          the deadlock plan §1 names in red (a run that can never settle = a runner never
+--          paid), while preserving them costs nothing and keeps the row the stop's row.
+--      Scale note: `runs.actual_km` is `numeric(5,2)` (`0001:239`), so the comparison is made at
+--      the STORED scale — §3 rounds to that scale before freezing, and this rounds the caller's
+--      number the same way before comparing. Comparing raw would refuse a client that echoed
+--      back its own 3.2473829 and strand the run forever, which is the deadlock again.
 create or replace function settle_run_tx(
   p_booking uuid,
   p_actual_km numeric,
@@ -597,6 +656,8 @@ declare
   v_ready timestamptz;         -- [0083]
   v_seal_since timestamptz;    -- [0083]
   v_started timestamptz;       -- [0083]
+  v_fz_km numeric;             -- [0083 ⓔ]
+  v_fz_reason text;            -- [0083 ⓔ]
 begin
   -- [0028 ④] 입력 새니티 — 돈 계산 입력은 서버 경계에서 한 번 더
   if p_actual_km is null or p_actual_km < 0 or p_actual_km > 100 then
@@ -639,6 +700,22 @@ begin
     end if;
   end if;
 
+  -- ── [0083 §6-ⓔ] THE FREEZE, ENFORCED (plan §1/§2, codex minimum bar #3) ────────────────
+  -- Once the stop is stamped, the client's numbers cannot change what is paid or charged. The
+  -- shipping caller (`settle-run/handler.ts`) hands us its own `actual_km`/`end_reason`; if they
+  -- are not the frozen ones, the price it computed from them is not this run's price either, so
+  -- the only honest answer is a refusal. See ⓔ in the header for why this raises rather than
+  -- substitutes, and why the comparison is made at the stored scale.
+  if v_run_ended is not null then
+    select rn.actual_km, rn.end_reason::text into v_fz_km, v_fz_reason
+      from runs rn where rn.booking_id = p_booking;
+    if round(p_actual_km, 2) is distinct from v_fz_km
+       or p_end_reason is distinct from v_fz_reason then
+      raise exception 'frozen_measurement_mismatch'
+        using detail = '러닝 종료 때 기록된 거리·사유로만 정산할 수 있어요';
+    end if;
+  end if;
+
   -- 원자 클레임 — active에서만 completed로 (중복 정산 락, 기존 로직 그대로)
   update bookings set status = 'completed' where id = p_booking and status = 'active';
   get diagnostics v_claimed = row_count;
@@ -660,11 +737,17 @@ begin
   on conflict (booking_id) do update set
     ended_at = coalesce(runs.ended_at, excluded.ended_at),   -- [0083] 정지 시각 보존
     settled_at = now(),                                       -- [0083] 돈이 움직인 시각
-    actual_km = excluded.actual_km,
-    duration_sec = excluded.duration_sec,
-    avg_pace_sec_per_km = excluded.avg_pace_sec_per_km,
-    end_reason = excluded.end_reason,
-    condition_note = excluded.condition_note,
+    -- [0083 ⓔ] 동결된 러닝(정지 스탬프 있음)은 정산이 측정값을 **다시 쓰지 않는다**. 위 게이트가
+    -- 거리·사유 불일치를 이미 거부하므로 그 둘은 어차피 같은 값이고, 돈을 움직이지 않는
+    -- duration_sec·condition_note는 거부(=영구 미정산 위험) 대신 여기서 조용히 보존된다.
+    -- 정지 스탬프가 없는 행(레거시·클럽 경로)은 0028 그대로 excluded가 이긴다.
+    actual_km = case when v_run_ended is null then excluded.actual_km else runs.actual_km end,
+    duration_sec = case when v_run_ended is null then excluded.duration_sec else runs.duration_sec end,
+    avg_pace_sec_per_km = case when v_run_ended is null then excluded.avg_pace_sec_per_km
+                               else runs.avg_pace_sec_per_km end,
+    end_reason = case when v_run_ended is null then excluded.end_reason else runs.end_reason end,
+    condition_note = case when v_run_ended is null then excluded.condition_note
+                          else runs.condition_note end,
     started_at = coalesce(runs.started_at, excluded.started_at);
 
   -- 원장 (돈은 서버만 쓴다)
@@ -759,7 +842,11 @@ comment on function settle_run_tx is
 [0083] ⓑ 귀가 씰 게이트: 마켓플레이스 예약은 run_ended_at이 찍혔으면 settlement_ready_at 없이는
 return_not_sealed로 거부하고, ops_flags.return_seal_since 이후 시작된 러닝은 종료 기록 없이 부르면
 run_not_ended로 거부한다(구 클라 — "앱 업데이트가 필요해요"). ⓒ ended_at은 서비스 정지 시각이라
-덮어쓰지 않는다. ⓓ 돈이 움직인 시각은 settled_at';
+덮어쓰지 않는다. ⓓ 돈이 움직인 시각은 settled_at. ⓔ 동결 강제: 정지 스탬프가 있으면 호출자가 들고 온
+거리·사유가 동결값과 다를 때 frozen_measurement_mismatch로 거부하고(금액은 이 함수 바깥에서 그 숫자로
+계산돼 들어오므로 조용히 바꿔치기하면 9.9km 원장이 3.2km 러닝에 붙는다), on conflict도 동결된 측정값을
+덮어쓰지 않는다 — settle-run이 _settle_sealed_run을 거치지 않고 이 함수를 직접 부르기 때문에
+"클라 금융 입력 무시"는 여기서 지켜져야 한다';
 
 -- ── ⓒ THE settlement primitive — one implementation, three callers, zero copies ─────────
 -- codex #4: "both stamped → settle-eligible" is not an implementation. If the second stamp
@@ -981,7 +1068,8 @@ begin
 
   select bk.id, bk.owner_id, bk.runner_id, bk.status::text as status, bk.club_session_id,
          bk.run_ended_at, bk.runner_confirmed_return_at, bk.owner_confirmed_return_at,
-         bk.settlement_ready_at, bk.return_forced_by
+         bk.settlement_ready_at, bk.return_forced_by,
+         bk.return_eligible_at            -- [0083] re-entry reports the FIRST force's clock
     into b
   from bookings bk where bk.id = p_booking for update;
   if b.id is null then raise exception 'not_found'; end if;
@@ -1006,9 +1094,27 @@ begin
   if b.status <> 'active' then raise exception 'not_active'; end if;
   if b.run_ended_at is null then raise exception 'run_not_ended'; end if;
 
-  -- A force already recorded is IMMUTABLE — the first resolution is the one a dispute reads.
+  -- A force already recorded is IMMUTABLE — the first resolution is the one a dispute reads. But
+  -- the RECORD being immutable does not mean the money already moved, and this branch used to say
+  -- `settled: true` on the way out. Control only reaches here with `status = 'active'` (completed
+  -- returned above, everything else raised), so that claim was provably false — and it broke the
+  -- intended flow as well: a client cannot supply a quote (`quote_from_client`), so the real
+  -- sequence is force-without-price from the phone, then a server retry WITH the price, which
+  -- landed here and never settled. `confirm_return_tx` has always handled the same case correctly;
+  -- the asymmetry was an oversight, not a design. So: the force stays first-writer-wins, and a
+  -- caller that brought a price still settles through the one primitive.
   if b.return_forced_by is not null then
-    return jsonb_build_object('forced', false, 'settled', true, 'unchanged', true);
+    if p_quote is not null then
+      v_settled := _settle_sealed_run(p_booking, p_quote);
+    end if;
+    return jsonb_build_object(
+      'forced', false,
+      'forced_by', b.return_forced_by,
+      'eligible_at', b.return_eligible_at,
+      'sealed', true,
+      -- never claimed unless `_settle_sealed_run` actually ran and said so
+      'settled', coalesce((v_settled->>'settled')::boolean, false),
+      'unchanged', coalesce((v_settled->>'unchanged')::boolean, true));
   end if;
 
   -- eligibility, computed from the SERVER's stop stamp
@@ -1051,7 +1157,10 @@ comment on function force_return_tx is
   '0083 §6 (plan §7 / codex #10 / Sean §9 D-r1 잔여): 인계 강제 — 서버 시계, 잠긴 행, 종료 20분 뒤부터
 (ops 오버라이드는 즉시). 행위자·자격 시각·사유·증거를 기록하고, 이미 기록된 강제는 덮어쓰지 않는다
 (첫 결론이 분쟁의 근거). 증거 없는 강제는 evidence_required로 거부. 씰은 항상 내구적으로 찍히고,
-가격을 들고 온 서버 호출이면 같은 트랜잭션에서 _settle_sealed_run 하나로 정산한다';
+가격을 들고 온 서버 호출이면 같은 트랜잭션에서 _settle_sealed_run 하나로 정산한다 —
+**이미 강제가 기록된 예약에 재진입해도 마찬가지다**: 기록은 불변이되 가격을 들고 오면 그때 정산되고,
+settled는 _settle_sealed_run이 실제로 정산했을 때만 참이다 (클라는 가격을 못 넘기므로
+"폰이 강제 → 서버가 가격을 들고 재시도"가 정상 경로다)';
 
 -- ═══════════════════════════════════════════════════════════════════════════════════════
 -- §8 LIVE ACTIVITY — 귀가 is a phase, and the two running-only consumers are guarded
@@ -1287,61 +1396,89 @@ comment on function owner_la_sweep_stale is
 --      exists in this repo: 0080 §K's `dispatch_due_charges` (vault → pg_net → an edge function).
 --      §0f names it. What IS durable today is the fact — `settlement_ready_at` survives the crash,
 --      so nothing has to be reconstructed from a screen.
---   ⓑ STRANDING (plan §7). The run stopped and the booking never left `active` — because nobody
---      confirmed, or because ⓐ happened. `active` is not inert: it is LIVE to the runner-accept
---      conflict guard (`transition-booking/index.ts:58`), so the runner's future bookings are
---      blocked by a dog they returned two days ago. After 2 hours it escalates to
---      `incident_review`, an edge the transition map already allows (`0047:40`) and the state the
---      product already has a human path for. Deliberately NOT a settlement: this sweep never
+--   ⓑ STRANDING (plan §7). The run stopped and NOBODY EVER CONFIRMED the return, so the booking
+--      never left `active`. `active` is not inert: it is LIVE to the runner-accept conflict guard
+--      (`transition-booking/index.ts:58`), so the runner's future bookings are blocked by a dog
+--      they returned two days ago. After 2 hours it escalates to `incident_review`, an edge the
+--      transition map already allows (`0047:40`). Deliberately NOT a settlement: this sweep never
 --      decides that money moved.
--- Both parties are told. The titles avoid '요청' (which `push.ts:41` routes to /runner/requests)
--- and carry the booking id, so the owner lands on their bid-scoped report; the RETURN_TITLES
--- routing table the plan §6 describes belongs to the client slice.
+--      🔴 **AND IT MUST NEVER TOUCH A SEALED ROW** (`settlement_ready_at is not null`) — that
+--      predicate is the whole of this arm's safety. `incident_review` is a MONEY DEAD END:
+--      `settle_run_tx`, `_settle_sealed_run`, `confirm_return_tx` and `force_return_tx` all
+--      require `active`, and the transition map allows `incident_review → refund_pending` ONLY
+--      (`0066:56`). The single commercial exit that exists, `club_incident_settle` (`0072`), is
+--      structurally club-only — it needs a `club_incidents` row, a locked `club_sessions` row and
+--      a `club_incident_subjects` mapping, none of which a marketplace booking can have. So an
+--      earlier draft of this arm, which escalated sealed rows too, made an owner who simply did
+--      not tap confirm within 2 hours able to render the runner **permanently unpayable**, with
+--      no human path either. A sealed row is exactly the row whose money can still move; it gets
+--      arm ⓐ's alarm instead, which moves no state. See §0h.
+-- Both parties are told. Both titles ('귀가 확인이 필요해요' from ⓑ, '정산을 확인하고 있어요' from
+-- ⓐ) avoid '요청' (which `push.ts:41` routes to /runner/requests) and carry the booking id, so the
+-- runner lands on their calendar and the owner on their bid-scoped report; the RETURN_TITLES
+-- routing table the plan §6 describes belongs to the client slice and owns both of these.
 create or replace function sweep_run_end_recovery() returns int
 language plpgsql security definer set search_path = public, pg_temp as $$
 declare
   r record; n int := 0;
   STRAND_AFTER constant interval := interval '2 hours';
+  -- A sealed row is RECOVERABLE — the money can still move the moment the pricing path re-drives
+  -- it — so its alarm is longer than the stranding deadline and, crucially, moves no state.
+  SEAL_ALARM_AFTER constant interval := interval '6 hours';
 begin
   -- ⓐ report every sealed-but-unsettled row. The runner is owed money on a booking whose
   -- settlement died; SQL cannot price it (see the header), so the honest output is a visible
   -- notice per row and a count, not a silent zero.
   for r in
-    select b.id
+    select b.id, b.owner_id, b.runner_id, b.settlement_ready_at
     from bookings b
     where b.status = 'active'
       and b.club_session_id is null
       and b.settlement_ready_at is not null
   loop
     raise notice 'sweep_run_end_recovery: booking % is sealed but unsettled since % — settlement needs the pricing path (0083 §0f)',
-      r.id, (select bk.settlement_ready_at from bookings bk where bk.id = r.id);
+      r.id, r.settlement_ready_at;
     n := n + 1;
+    -- …and after SEAL_ALARM_AFTER, a notice in a cron log is not enough: tell both parties, once.
+    -- This alarm deliberately does NOT move the status. The row stays `active`, which is the only
+    -- state from which `_settle_sealed_run` can still pay the runner — escalating it to
+    -- `incident_review` would trade a slow settlement for an impossible one (see the header).
+    -- One-shot by construction: a title that exists for this booking is an alarm already raised.
+    if r.settlement_ready_at < now() - SEAL_ALARM_AFTER
+       and not exists (select 1 from notifications nt
+                       where nt.ref_id = r.id and nt.title = '정산을 확인하고 있어요') then
+      insert into notifications (profile_id, kind, title, body, ref_id)
+      values (r.owner_id, 'booking', '정산을 확인하고 있어요',
+              '인계는 확인됐는데 정산이 마무리되지 않았어요 — 담당자가 확인하고 있어요', r.id);
+      if r.runner_id is not null then
+        insert into notifications (profile_id, kind, title, body, ref_id)
+        values (r.runner_id, 'booking', '정산을 확인하고 있어요',
+                '인계는 확인됐는데 정산이 마무리되지 않았어요 — 지급은 취소되지 않아요, 담당자가 확인하고 있어요', r.id);
+      end if;
+    end if;
   end loop;
 
-  -- ⓑ escalate a stranded 귀가 — the booking must never be able to stay active forever. The
-  -- predicate covers BOTH classes on purpose: a sealed row whose settlement never happened is
-  -- just as stranded as one nobody confirmed, and the runner needs a human either way.
+  -- ⓑ escalate a stranded 귀가 — the booking must never be able to stay active forever. NOTE the
+  -- `settlement_ready_at is null` predicate: this arm is for the return NOBODY CONFIRMED, and
+  -- only for it. A sealed row is money that can still move and is handled by ⓐ (see the header).
   for r in
-    select b.id, b.owner_id, b.runner_id, b.settlement_ready_at
+    select b.id, b.owner_id, b.runner_id
     from bookings b
     where b.status = 'active'
       and b.club_session_id is null
       and b.run_ended_at is not null
       and b.run_ended_at < now() - STRAND_AFTER
+      and b.settlement_ready_at is null
   loop
     begin
       update bookings set status = 'incident_review' where id = r.id and status = 'active';
       insert into notifications (profile_id, kind, title, body, ref_id)
       values (r.owner_id, 'booking', '귀가 확인이 필요해요',
-              case when r.settlement_ready_at is null
-                   then '러닝은 끝났는데 인계 확인이 없어요 — 담당자가 확인을 도와드릴게요'
-                   else '인계는 확인됐는데 정산이 마무리되지 않았어요 — 담당자가 확인하고 있어요' end, r.id);
+              '러닝은 끝났는데 인계 확인이 없어요 — 담당자가 확인을 도와드릴게요', r.id);
       if r.runner_id is not null then
         insert into notifications (profile_id, kind, title, body, ref_id)
         values (r.runner_id, 'booking', '귀가 확인이 필요해요',
-                case when r.settlement_ready_at is null
-                     then '인계 확인이 되지 않아 담당자 확인으로 넘어갔어요 — 정산은 확인 뒤에 진행돼요'
-                     else '정산이 마무리되지 않아 담당자 확인으로 넘어갔어요 — 지급은 확인 뒤에 진행돼요' end, r.id);
+                '인계 확인이 되지 않아 담당자 확인으로 넘어갔어요 — 정산은 확인 뒤에 진행돼요', r.id);
       end if;
       n := n + 1;
     exception when others then
@@ -1356,10 +1493,13 @@ grant execute on function sweep_run_end_recovery() to service_role;
 
 comment on function sweep_run_end_recovery is
   '0083 §9: 귀가 청소부 두 팔 — ⓐ settlement_ready_at은 찍혔는데 정산이 안 된 행을 NOTICE로
-드러낸다(러너 지급 기준이 end_reason에 따라 달라져 가격 계산이 TS에 있으므로 크론이 정산할 수는
-없다 — 재구동은 0080 §K의 pg_net 디스패처 형태로 후속, §0f), ⓑ 종료 2시간이 지나도 active인
-예약을 incident_review로 승격(0047:40의 합법 간선) — 인계가 없어서든 정산이 죽어서든 부킹이
-영원히 active로 남으면 러너의 다음 예약이 막힌다. 승격은 정산이 아니다. 양측에 통지';
+드러내고, 6시간이 지나면 양측에 1회 알린다(상태는 절대 옮기지 않는다: active여야 아직 지급할 수
+있다. 러너 지급 기준이 end_reason에 따라 달라져 가격 계산이 TS에 있으므로 크론이 정산할 수는 없다
+— 재구동은 0080 §K의 pg_net 디스패처 형태로 후속, §0f). ⓑ 아무도 인계를 확인하지 않은
+채(settlement_ready_at is null) 종료 2시간이 지난 예약만 incident_review로 승격(0047:40의 합법
+간선) — 부킹이 영원히 active면 러너의 다음 예약이 막힌다. 씰이 찍힌 행은 절대 승격하지 않는다:
+incident_review는 돈의 막다른 길(→refund_pending만 허용, 상업적 출구인 club_incident_settle은
+클럽 전용)이라 승격하면 러너가 영구 미지급이 된다 — §0h. 승격은 정산이 아니다. 양측에 통지';
 
 -- Cron. Minute offsets: every mod-5 slot is already taken (*/5 expire-unmatched · 1-56/5
 -- purge-holds · 2-57/5 sweep-settled-charges · 3-58/5 sweep-payment-intents · 4-59/5

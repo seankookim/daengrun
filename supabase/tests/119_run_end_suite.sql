@@ -58,10 +58,9 @@
 --         is one predicate in their file (`and rn.settled_at is not null`); the migration's
 --         §0f states it, and `payments_live_since` must not be flipped before it lands.
 --         What R11 pins is the PROPERTY that fix depends on.
---   R12 ← §9: delete the 2h escalation from sweep_run_end_recovery — the booking stays
---         `active` forever and blocks the runner's FUTURE accepts
---         (transition-booking/index.ts:58), whether it stranded because nobody confirmed or
---         because a settlement died after the seal                                        → RED
+--   R12 ← §9: delete the 2h escalation from sweep_run_end_recovery — a return nobody confirmed
+--         stays `active` forever and blocks the runner's FUTURE accepts
+--         (transition-booking/index.ts:58)                                                 → RED
 --         · or make the sweep invent a settlement for a sealed row (it has no price — §0g)  → RED
 --   R13 ← §3/§6: grant execute on end_run_tx to authenticated (a client that freezes its own
 --         basis without crossing the edge function), or drop any revoke in the array      → RED
@@ -71,6 +70,22 @@
 --         `incident` (owner charged nothing, G1 pre-empted) or `owner_forced` (owner
 --         charged the full planned distance), and `settle-run` refuses both with a named
 --         400, so the run freezes into a state that can NEVER settle                      → RED
+--   R15 ← §6-ⓔ (settle_run_tx's freeze enforcement): delete the `frozen_measurement_mismatch`
+--         gate, or restore
+--         `actual_km/end_reason = excluded.…` in its on-conflict — the client's POST body
+--         then decides the runner's payout AND (through the mint) the owner's charge on a
+--         run whose numbers were frozen at the stop                                       → RED
+--         · or refuse a differing `duration_sec` instead of preserving it (a run that can
+--           never settle — plan §1's deadlock rule) → RED via R15's positive-control arm
+--   R16 ← §9-ⓑ: drop `settlement_ready_at is null` from the escalation predicate — a sealed
+--         booking whose settlement died is pushed into `incident_review`, which no money
+--         path can leave (0066:56 allows only → refund_pending, and club_incident_settle is
+--         club-only), so the runner becomes permanently unpayable                         → RED
+--         · or move the sealed row's alarm from a notification to a status change          → RED
+--   R17 ← §6's force_return_tx: restore `return {'forced':false,'settled':true,'unchanged':true}`
+--         on its re-entry branch — it claims a settlement on a row it left `active`,
+--         and the server retry carrying the price (the only caller allowed to carry one)
+--         never settles                                                                    → RED
 --
 --   ─── the CONCURRENCY half is pinned outside this file ───
 --   One connection cannot race itself, so R9 pins the SEQUENTIAL idempotence (a second stop,
@@ -83,8 +98,25 @@
 --     of the migration at a short path (the harness cannot run from a worktree — macOS's 103-byte
 --     Unix socket limit), the md5 of the mutated file was recorded, `rm -rf .pgtest` gave a clean
 --     cluster, the WHOLE harness ran, and the tree was then restored from the pristine source and
---     re-verified by md5 + a green run. Green with this suite is **465/0** (baseline 451/0).
---     Pristine 0083 md5 `9caa848aec3fa0cac0e1ac26bc90b63f`.
+--     re-verified by md5 + a green run. Green with this suite is **478/0** (baseline with 0084
+--     present, this suite absent from the count: 475/0).
+--     Pristine 0083 md5 `565f2d2c26b302a0e801b21aa9d0b3d1`. ⚠ The three runs below were executed
+--     against `9f6e0fad15fdaff2f04f363b3cc88712`, which differs from the shipped file by ONE
+--     COMMENT ONLY (the push-routing note in §9); that revision was re-run green afterwards, and
+--     the exact md5s are recorded rather than smoothed over so a later reader can check.
+--       R15 settle_run_tx's whole `frozen_measurement_mismatch` block deleted (§6-ⓔ, the freeze
+--           enforcement) → 477/1, red = [R15] alone,
+--           detail `동결 후 다른 숫자로 정산:통과 … 거부됐는데 상태가 움직였다 거부됐는데 원장이
+--           생겼다` — the attack end to end: a booking frozen at 3.2km/`completed`, sealed by both
+--           sides, settled on a POSTed 9.9km/`owner_request` with the ledger to match.
+--       R16 §9-ⓑ's `settlement_ready_at is null` predicate deleted → 477/1, red = [R16] alone,
+--           detail `씰 행을 승격시켰다(러너 영구 미지급)=incident_review … 스윕 뒤 정산 불가=
+--           not_active … 재구동 원장 행수=0` — the dead end, measured as the thing it actually
+--           costs: not a wrong status, an unpayable runner.
+--       R17 §6's force re-entry restored to `{'forced':false,'settled':true,'unchanged':true}`
+--           → 477/1, red = [R17] alone, detail `방금 정산해놓고 unchanged=true 재진입 정산 뒤에도
+--           completed 아님 원장 행수=0` — `settled: true` on a booking with no ledger row.
+--     ─── earlier rounds (against the pre-fix file, md5 `9caa848aec3fa0cac0e1ac26bc90b63f`) ───
 --       R4  §6's `return_not_sealed` raise deleted → 462/3, red = [R4, R5, R6].
 --           R4's own detail is the bypass reproducing verbatim: `귀가 중 직접 정산:통과 …
 --           거부됐는데 원장이 생겼다`. The two cascades are CORRECT, not noise: R5/R6 exercise the
@@ -377,6 +409,84 @@ begin
   end;
 
   -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- [R15] the seal is not enough — the FROZEN NUMBERS are enforced on the path that ships
+  -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- R4 proves settlement is impossible before the dog is home. It does NOT prove that the
+  -- settlement which then happens is the one that was frozen — and it could not, because its
+  -- probe hands `settle_run_tx` the numbers that already match the frozen row, so a mismatch is
+  -- never attempted. R6 does read the frozen row, but through `force_return_tx` →
+  -- `_settle_sealed_run`, i.e. the HELPER. The shipping caller is neither:
+  -- `settle-run/handler.ts:113-124` calls `settle_run_tx` DIRECTLY with `p.actual_km` /
+  -- `p.end_reason` off the HTTP body. This pin is that exact call, made after the seal.
+  -- The attack it measures: freeze 3.2km/`completed` on a 5km plan, seal both sides, then POST
+  -- 9.9km/`owner_request` — inside settle-run's own validity band (planned×2+2) — for a runner
+  -- paid on 9.9km plus the owner_request guarantee AND an owner billed the full planned distance.
+  begin
+    v_bad := '';
+    b_a := t_ren_live(oo, dg, rt, rr);                     -- 계획 5.0km
+    perform set_config('request.jwt.claim.sub', rr::text, false);
+    perform end_run_tx(b_a, 3.2, 2100, 'completed', null, null);
+    perform confirm_return_tx(b_a, 'runner');
+    perform set_config('request.jwt.claim.sub', oo::text, false);
+    perform confirm_return_tx(b_a, 'owner');               -- 씰만 (클라는 가격을 못 넘긴다)
+    perform set_config('request.jwt.claim.sub', '', false);
+    if (select b.settlement_ready_at from bookings b where b.id = b_a) is null
+      then v_bad := v_bad || ' 픽스처: 씰이 안 찍혔다'; end if;
+
+    -- ⓐ 거리와 사유를 함께 바꾼 정산 (그 공격 그대로)
+    begin
+      perform settle_run_tx(b_a, 9.9, 2100, 'owner_request', null, 9900, 29700, 0, 2550, 8000);
+      v_bad := v_bad || ' 동결 후 다른 숫자로 정산:통과';
+    exception when others then
+      if sqlerrm <> 'frozen_measurement_mismatch' then v_bad := v_bad || ' 불일치 거부 사유=' || sqlerrm; end if;
+    end;
+    -- ⓑ 각각 하나씩도 전부 공격이다 — 거리만, 사유만
+    begin
+      perform settle_run_tx(b_a, 9.9, 2100, 'completed', null, 9900, 29700, 0, 0, 9800);
+      v_bad := v_bad || ' 거리만 부풀린 정산:통과';
+    exception when others then
+      if sqlerrm <> 'frozen_measurement_mismatch' then v_bad := v_bad || ' 거리 불일치 거부 사유=' || sqlerrm; end if;
+    end;
+    begin
+      perform settle_run_tx(b_a, 3.2, 2100, 'owner_request', null, 9900, 9600, 0, 2700, 4400);
+      v_bad := v_bad || ' 사유만 바꾼 정산:통과';
+    exception when others then
+      if sqlerrm <> 'frozen_measurement_mismatch' then v_bad := v_bad || ' 사유 불일치 거부 사유=' || sqlerrm; end if;
+    end;
+    -- 거부는 아무것도 남기지 않는다 — 상태도, 원장도, 동결값도
+    if (select b.status::text from bookings b where b.id = b_a) <> 'active'
+      then v_bad := v_bad || ' 거부됐는데 상태가 움직였다'; end if;
+    if exists (select 1 from ledger_items li where li.booking_id = b_a)
+      then v_bad := v_bad || ' 거부됐는데 원장이 생겼다'; end if;
+    select r.actual_km, r.end_reason::text into v_km, v_txt from runs r where r.booking_id = b_a;
+    if v_km <> 3.2 or v_txt <> 'completed'
+      then v_bad := v_bad || ' 거부가 동결값을 바꿨다=' || v_km || '/' || v_txt; end if;
+
+    -- ⓒ 양성 대조 + 돈을 움직이지 않는 입력의 처리: 동결된 거리·사유로 부르면 정산되고,
+    --    같이 넘어온 duration_sec은 (거부가 아니라) 동결값이 보존된다 — 거부하면 영원히
+    --    정산 불가가 되는데 그 숫자는 돈을 한 푼도 움직이지 않기 때문 (마이그레이션 §6-ⓔ).
+    begin
+      perform settle_run_tx(b_a, 3.2, 60, 'completed', null, 9900, 9600, 0, 0, 3900);
+    exception when others then v_bad := v_bad || ' 동결값 그대로인 정산이 거부됨=' || sqlerrm;
+    end;
+    if (select b.status::text from bookings b where b.id = b_a) <> 'completed'
+      then v_bad := v_bad || ' 동결값 정산이 완료되지 않았다'; end if;
+    select count(*) into v_n from ledger_items where booking_id = b_a;
+    if v_n <> 1 then v_bad := v_bad || ' 원장 행수=' || v_n; end if;
+    select r.actual_km, r.duration_sec, r.avg_pace_sec_per_km into v_km, v_n, v_n2
+      from runs r where r.booking_id = b_a;
+    if v_km <> 3.2 then v_bad := v_bad || ' 정산이 동결 거리를 바꿨다=' || v_km; end if;
+    if v_n <> 2100 then v_bad := v_bad || ' 정산이 동결 시간을 덮어썼다=' || v_n; end if;
+    if v_n2 <> round(2100 / 3.2) then v_bad := v_bad || ' 정산이 동결 페이스를 덮어썼다=' || v_n2; end if;
+
+    if v_bad = ''
+      then call _pass('ren','R15 동결 강제 — 씰이 찍힌 뒤에도 settle-run이 부르는 그 경로(settle_run_tx 직접 호출)에서 동결값과 다른 거리·사유는 frozen_measurement_mismatch로 거부되고(상태·원장·동결값 무변화), 동결값 그대로면 정산되며 돈을 안 움직이는 duration은 거부 대신 보존된다');
+    else v_msg := v_bad; call _fail('ren','R15 동결 강제', v_msg); end if;
+  exception when others then perform set_config('request.jwt.claim.sub', '', false);
+    v_msg := sqlerrm; call _fail('ren','R15 동결 강제', v_msg);
+  end;
+
+  -- ══════════════════════════════════════════════════════════════════════════════════════
   -- [R5] the force is a RELEASE VALVE, not a shortcut
   -- ══════════════════════════════════════════════════════════════════════════════════════
   begin
@@ -479,6 +589,67 @@ begin
     else v_msg := v_bad; call _fail('ren','R6 강제 기록', v_msg); end if;
   exception when others then perform set_config('request.jwt.claim.sub', '', false);
     v_msg := sqlerrm; call _fail('ren','R6 강제 기록', v_msg);
+  end;
+
+  -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- [R17] a force that has not settled must never SAY it settled — and must still be able to
+  -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- R6's second-force probe runs against a booking that is ALREADY `completed`, so it lands on
+  -- the completed early-return and never reaches the re-entry branch. That branch is the one the
+  -- real flow uses: a client cannot carry a price (`quote_from_client`), so the intended sequence
+  -- is force-from-the-phone (seals, settles nothing) → a server retry WITH the price. It used to
+  -- answer `settled: true` to a booking it had left `active` — a false claim AND a dead end, since
+  -- the retry it lied to was the call that would have paid the runner.
+  begin
+    v_bad := '';
+    b_a := t_ren_live(oo, dg, rt, rr);
+    perform set_config('request.jwt.claim.sub', rr::text, false);
+    perform end_run_tx(b_a, 4.0, 1800, 'completed', null, null);
+    perform set_config('request.jwt.claim.sub', '', false);
+    update bookings set run_ended_at = now() - interval '90 minutes' where id = b_a;
+
+    -- ① the phone forces. Sealed, recorded — and NOTHING settled, which it must say out loud.
+    perform set_config('request.jwt.claim.sub', rr::text, false);
+    v_js := force_return_tx(b_a, 'runner', '보호자가 문 앞에 없어요',
+                            jsonb_build_object('kind','pickup_radius','m',9));
+    perform set_config('request.jwt.claim.sub', '', false);
+    if not coalesce((v_js->>'forced')::boolean, false) then v_bad := v_bad || ' 강제가 기록되지 않았다'; end if;
+    if coalesce((v_js->>'settled')::boolean, false)
+      then v_bad := v_bad || ' 정산 없이 settled=true'; end if;
+    if (select b.settlement_ready_at from bookings b where b.id = b_a) is null
+      then v_bad := v_bad || ' 강제가 씰을 찍지 않았다'; end if;
+    if (select b.status::text from bookings b where b.id = b_a) <> 'active'
+      then v_bad := v_bad || ' 가격 없이 정산됐다'; end if;
+    if exists (select 1 from ledger_items li where li.booking_id = b_a)
+      then v_bad := v_bad || ' 가격 없이 원장이 생겼다'; end if;
+
+    -- ② the server retry, WITH the price — the branch that used to return settled:true and stop
+    v_js := force_return_tx(b_a, 'runner', '서버 재시도', jsonb_build_object('kind','retry'),
+                            t_ren_quote(4.0));
+    if coalesce((v_js->>'forced')::boolean, true) then v_bad := v_bad || ' 재진입이 강제를 다시 기록했다'; end if;
+    if not coalesce((v_js->>'settled')::boolean, false)
+      then v_bad := v_bad || ' 가격을 들고 재진입했는데 정산되지 않았다 (러너가 영원히 미지급)'; end if;
+    if coalesce((v_js->>'unchanged')::boolean, true) then v_bad := v_bad || ' 방금 정산해놓고 unchanged=true'; end if;
+    if (select b.status::text from bookings b where b.id = b_a) <> 'completed'
+      then v_bad := v_bad || ' 재진입 정산 뒤에도 completed 아님'; end if;
+    select count(*) into v_n from ledger_items where booking_id = b_a;
+    if v_n <> 1 then v_bad := v_bad || ' 원장 행수=' || v_n; end if;
+    -- 첫 결론은 그대로다 (기록 불변 — R6의 법이 재진입에서도 유지된다)
+    select b.return_forced_by, b.return_force_reason into v_txt, v_msg from bookings b where b.id = b_a;
+    if v_txt <> 'runner' or v_msg <> '보호자가 문 앞에 없어요'
+      then v_bad := v_bad || ' 재진입이 첫 강제 기록을 덮었다=' || coalesce(v_txt,'∅') || '/' || coalesce(v_msg,'∅'); end if;
+    -- ③ …그리고 이제야 settled=true·unchanged=true가 참이다 (completed 조기 반환)
+    v_js := force_return_tx(b_a, 'runner', '또 재시도', jsonb_build_object('kind','retry'), t_ren_quote(4.0));
+    if not coalesce((v_js->>'settled')::boolean, false) or not coalesce((v_js->>'unchanged')::boolean, false)
+      then v_bad := v_bad || ' 정산 뒤 재호출 응답=' || coalesce(v_js::text,'∅'); end if;
+    select count(*) into v_n from ledger_items where booking_id = b_a;
+    if v_n <> 1 then v_bad := v_bad || ' 3회차 뒤 원장 행수=' || v_n; end if;
+
+    if v_bad = ''
+      then call _pass('ren','R17 강제 재진입 — 가격 없는 강제는 씰만 찍고 settled=false를 정직하게 답하며, 같은 예약에 가격을 들고 재진입하면 첫 강제 기록은 그대로 둔 채 그때 정산된다(원장 1행), 정산이 끝난 뒤에야 settled·unchanged가 참이 된다');
+    else v_msg := v_bad; call _fail('ren','R17 강제 재진입', v_msg); end if;
+  exception when others then perform set_config('request.jwt.claim.sub', '', false);
+    v_msg := sqlerrm; call _fail('ren','R17 강제 재진입', v_msg);
   end;
 
   -- ══════════════════════════════════════════════════════════════════════════════════════
@@ -750,7 +921,8 @@ begin
     -- fixture writes the durable fact directly, which is exactly what the process would have
     -- left behind if it died one statement later. ⚠ The sweep REPORTS this rather than settling
     -- it — pricing is end_reason-dependent and lives outside SQL (migration §0g) — so what is
-    -- pinned is that the row is still `active` afterwards and that the 2h deadline catches it.
+    -- pinned is that the row is still `active` afterwards and that no ledger appeared. Whether
+    -- it may later be ESCALATED is R16's question, and the answer there is never.
     b_a := t_ren_live(oo, dg, rt, rr);
     perform set_config('request.jwt.claim.sub', rr::text, false);
     perform end_run_tx(b_a, 4.0, 1800, 'completed', null, null);
@@ -776,20 +948,14 @@ begin
 
     perform sweep_run_end_recovery();
 
-    -- a FRESH sealed-but-unsettled row is reported, not touched: no invented settlement, and no
-    -- premature escalation either (the runner may still be paid by a retry seconds later).
+    -- a sealed-but-unsettled row is reported, not touched: no invented settlement, and no
+    -- escalation either — ever, at any age. R16 owns that claim and the reason for it (the
+    -- escalated state is a money dead end); what R12 pins here is that the sweep's ⓐ arm writes
+    -- no money of its own.
     if (select b.status::text from bookings b where b.id = b_a) <> 'active'
       then v_bad := v_bad || ' 스윕이 값을 지어내 정산했다=' || (select b.status::text from bookings b where b.id = b_a); end if;
     if exists (select 1 from ledger_items li where li.booking_id = b_a)
       then v_bad := v_bad || ' 스윕이 원장을 썼다 (가격은 SQL에 없다)'; end if;
-    -- …and once it is two hours old it stops being a wait and becomes a human's job
-    update bookings set run_ended_at = now() - interval '3 hours' where id = b_a;
-    perform sweep_run_end_recovery();
-    if (select b.status::text from bookings b where b.id = b_a) <> 'incident_review'
-      then v_bad := v_bad || ' 2시간 지난 미정산 씰이 승격되지 않았다'; end if;
-    select count(*) into v_n from notifications where ref_id = b_a and title = '귀가 확인이 필요해요'
-      and body like '정산이 마무리되지 않아%';
-    if v_n <> 1 then v_bad := v_bad || ' 미정산 좌초 러너 통지=' || v_n; end if;
     if (select b.status::text from bookings b where b.id = b_b) <> 'incident_review'
       then v_bad := v_bad || ' 2시간 좌초가 승격되지 않았다=' || (select b.status::text from bookings b where b.id = b_b); end if;
     if exists (select 1 from ledger_items li where li.booking_id = b_b)
@@ -808,10 +974,101 @@ begin
       then v_bad := v_bad || ' 승격된 예약에 원장이 생겼다'; end if;
 
     if v_bad = ''
-      then call _pass('ren','R12 청소부 — 씰만 남은 정산은 값을 지어내지 않고 보고만 하며(원장 없음), 종료 2시간이 지나면 인계가 없든 정산이 죽었든 incident_review로 승격되고(사유별 문구·양측 통지), 갓 끝난 귀가는 건드리지 않고, 2회차는 아무것도 더 하지 않는다');
+      then call _pass('ren','R12 청소부 — 씰만 남은 정산은 값을 지어내지 않고 보고만 하며(원장 없음·승격도 없음), 아무도 인계를 확인하지 않은 채 종료 2시간이 지난 예약만 incident_review로 승격되고(양측 통지·원장 없음), 갓 끝난 귀가는 건드리지 않고, 2회차는 아무것도 더 하지 않는다');
     else v_msg := v_bad; call _fail('ren','R12 청소부', v_msg); end if;
   exception when others then perform set_config('request.jwt.claim.sub', '', false);
     v_msg := sqlerrm; call _fail('ren','R12 청소부', v_msg);
+  end;
+
+  -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- [R16] the janitor may never make a settleable booking unsettleable
+  -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- R12 asks whether the escalation HAPPENS and whether a ledger row appears. It never asks the
+  -- question that matters afterwards: can money still move? It cannot. `incident_review` is a
+  -- money dead end — `settle_run_tx`, `_settle_sealed_run`, `confirm_return_tx` and
+  -- `force_return_tx` all require `active`, the transition map allows only
+  -- `incident_review → refund_pending` (0066:56), and the one commercial exit that exists
+  -- (`club_incident_settle`, 0072) is structurally club-only. So escalating a SEALED row — one
+  -- where both sides said the dog is home and only the payout is missing — would make an owner
+  -- who did not tap confirm within 2 hours able to leave the runner permanently unpayable.
+  -- This pin measures both halves: the sealed row is never escalated and is still settleable
+  -- afterwards, and the row that IS escalated is in the state we intend, dead end included.
+  begin
+    v_bad := '';
+    -- ⓐ sealed, unsettled, and OLD — past the stranding deadline and past the seal alarm
+    b_a := t_ren_live(oo, dg, rt, rr);
+    perform set_config('request.jwt.claim.sub', rr::text, false);
+    perform end_run_tx(b_a, 4.0, 1800, 'completed', null, null);
+    perform confirm_return_tx(b_a, 'runner');
+    perform set_config('request.jwt.claim.sub', oo::text, false);
+    perform confirm_return_tx(b_a, 'owner');                 -- 씰만, 가격 없이 (정산은 죽었다)
+    perform set_config('request.jwt.claim.sub', '', false);
+    update bookings set run_ended_at = now() - interval '9 hours',
+                        settlement_ready_at = now() - interval '8 hours' where id = b_a;
+    update runs set ended_at = now() - interval '9 hours' where booking_id = b_a;
+
+    -- ⓑ …and a 귀가 nobody ever confirmed, the same age (this one SHOULD escalate)
+    b_b := t_ren_live(oz, dg, rt, rz);
+    perform set_config('request.jwt.claim.sub', rz::text, false);
+    perform end_run_tx(b_b, 5.0, 2400, 'completed', null, null);
+    perform set_config('request.jwt.claim.sub', '', false);
+    update bookings set run_ended_at = now() - interval '9 hours' where id = b_b;
+    update runs set ended_at = now() - interval '9 hours' where booking_id = b_b;
+
+    perform sweep_run_end_recovery();
+
+    -- 씰이 찍힌 행은 나이가 아무리 들어도 승격되지 않는다 — 그 상태여야 아직 지급할 수 있다
+    if (select b.status::text from bookings b where b.id = b_a) <> 'active'
+      then v_bad := v_bad || ' 씰 행을 승격시켰다(러너 영구 미지급)=' || (select b.status::text from bookings b where b.id = b_a); end if;
+    -- 대신 알람이 양측에 1회 — 상태를 옮기지 않는 경보
+    select count(*) into v_n from notifications where ref_id = b_a and title = '정산을 확인하고 있어요';
+    if v_n <> 2 then v_bad := v_bad || ' 씰 알람 통지=' || v_n || ' (양측 1건씩)'; end if;
+    select count(*) into v_n from notifications where ref_id = b_a and title = '귀가 확인이 필요해요';
+    if v_n <> 0 then v_bad := v_bad || ' 씰 행에 좌초 통지가 갔다=' || v_n; end if;
+    -- 2회차는 알람을 반복하지 않는다 (1회성)
+    perform sweep_run_end_recovery();
+    select count(*) into v_n from notifications where ref_id = b_a and title = '정산을 확인하고 있어요';
+    if v_n <> 2 then v_bad := v_bad || ' 2회차 알람 누적=' || v_n; end if;
+
+    -- 그리고 핵심: 돈이 아직 움직인다. 정산 경로가 돌아오면 러너는 지급된다.
+    v_js := null;
+    begin
+      v_js := _settle_sealed_run(b_a, t_ren_quote(4.0));
+    exception when others then v_bad := v_bad || ' 스윕 뒤 정산 불가=' || sqlerrm;
+    end;
+    if not coalesce((v_js->>'settled')::boolean, false) then v_bad := v_bad || ' 스윕 뒤 재구동이 정산하지 않았다'; end if;
+    if (select b.status::text from bookings b where b.id = b_a) <> 'completed'
+      then v_bad := v_bad || ' 재구동 뒤에도 completed 아님'; end if;
+    select count(*) into v_n from ledger_items where booking_id = b_a;
+    if v_n <> 1 then v_bad := v_bad || ' 재구동 원장 행수=' || v_n; end if;
+
+    -- ⓒ 승격된 행의 상태는 의도한 그대로다 — incident_review, 원장 없음, 그리고 진짜 막다른 길
+    if (select b.status::text from bookings b where b.id = b_b) <> 'incident_review'
+      then v_bad := v_bad || ' 미확인 좌초가 승격되지 않았다=' || (select b.status::text from bookings b where b.id = b_b); end if;
+    if exists (select 1 from ledger_items li where li.booking_id = b_b)
+      then v_bad := v_bad || ' 승격이 원장을 썼다'; end if;
+    begin
+      perform _settle_sealed_run(b_b, t_ren_quote(5.0));
+      v_bad := v_bad || ' 승격된 행이 정산됐다';
+    exception when others then
+      if sqlerrm <> 'not_active' then v_bad := v_bad || ' 승격 행 정산 거부 사유=' || sqlerrm; end if;
+    end;
+    begin
+      perform confirm_return_tx(b_b, 'owner');
+      v_bad := v_bad || ' 승격된 행에 인계 확인이 통과했다';
+    exception when others then
+      if sqlerrm <> 'not_active' then v_bad := v_bad || ' 승격 행 인계 거부 사유=' || sqlerrm; end if;
+    end;
+    -- …이것이 §0h가 핸드오프로 이름 붙인 상태다: 마켓플레이스 incident_review에는 상업적 출구가
+    -- 없다(0066:56은 refund_pending만 허용). 그래서 씰이 찍힌 행은 절대 여기로 보내지 않는다.
+    if (select b.status::text from bookings b where b.id = b_b) <> 'incident_review'
+      then v_bad := v_bad || ' 거부된 시도가 승격 행의 상태를 움직였다'; end if;
+
+    if v_bad = ''
+      then call _pass('ren','R16 막다른 길 방지 — 씰이 찍힌 미정산 행은 몇 시간이 지나도 승격되지 않고(상태 무이동 알람만 양측 1회·2회차 반복 없음) 스윕 뒤에도 재구동으로 정산되며, 아무도 확인하지 않은 행만 incident_review로 가고 그 상태는 정산·인계가 모두 not_active로 막힌 진짜 막다른 길이다 (§0h)');
+    else v_msg := v_bad; call _fail('ren','R16 막다른 길 방지', v_msg); end if;
+  exception when others then perform set_config('request.jwt.claim.sub', '', false);
+    v_msg := sqlerrm; call _fail('ren','R16 막다른 길 방지', v_msg);
   end;
 
   -- ══════════════════════════════════════════════════════════════════════════════════════
