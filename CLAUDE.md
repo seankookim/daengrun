@@ -45,6 +45,20 @@ HTML labs in `docs/labs/` are the sanctioned mockup arena: numbered variants, Se
 
 Before every commit: `cd app && ./node_modules/.bin/tsc --noEmit` and `node scripts/check-rpc-contracts.mjs` — both must pass.
 
+## Branches — the trunk is `redesign-v4`
+
+- **`redesign-v4` is the trunk and the GitHub default branch. `main` is RETIRED** (Sean,
+  2026-08-13). Do not branch from it, do not push to it, do not read it for current state — it
+  sat 286 commits behind with migrations topping out at `0036`, and every stale worktree on
+  2026-08-13 traced back to sessions landing there by default.
+- **Cut new worktrees from `origin/redesign-v4` explicitly.**
+- **In an existing clone, run `git remote set-head origin -a` once.** `refs/remotes/origin/HEAD`
+  is cached locally and does NOT follow a remote default-branch change, so until you run it
+  anything resolving `origin/HEAD` silently means the dead branch.
+- This was true in practice for weeks while written down nowhere, so every new session
+  rediscovered it by getting bitten — the same class of failure as a ruling that lives only in
+  an unpushed file.
+
 ## Migrations & security (server)
 
 - Any migration or security-relevant change requires the adversarial cycle: scout → contract → implement → adversarial review where reviewers EXECUTE attacks → test pins → revise → verify. Harness: `supabase/tests/harness.sh` (container: PG16 at tests/.pgtest; pg_ctl must start in the same shell invocation). All pins must pass; new behavior gets mutation-verified pins.

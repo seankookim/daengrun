@@ -35,6 +35,17 @@ let two sessions resolve a contradictory money ruling in one question instead of
 guess into a migration — his own phrasing could be put back to him. (Rule contributed by
 the charge-slice session, which stopped mid-build over exactly this ambiguity.)
 
+**3. Verify, don't relay — including a well-formed artifact.** ⑪'s build checklist was
+written from a description rather than from the source and acquired a false property (that
+`0083` self-heals a crash between stamp and effect; it detects and escalates). It survived
+because it was well-formed, not because it was true — the same shape as the fabricated
+`condition_note` and `store.ts`'s unbacked 50/50 promise. Read a claim against the code that
+would have to make it true before building on it.
+
+*(Repo conventions live in `CLAUDE.md`, which is auto-loaded — including the trunk rule:
+`redesign-v4` is the trunk, `main` is retired, run `git remote set-head origin -a` once per
+clone.)*
+
 ## How to read a ruling here
 
 Every memo keeps the superseded recommendation below the ruling, so the reasoning survives
