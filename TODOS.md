@@ -1173,3 +1173,20 @@ return that never happened). The correct terminal already exists byte-for-byte i
 - [ ] **Summer heat ops blackout rules (BEFORE June)** — temperature/time blackout, weather
   cancellation as operating rules; predates any weather-API integration. Both review voices
   flag this as load-bearing safety, separate from the route plan. Effort S. P2 (seasonal gate).
+
+## From Sean's money rulings (2026-08-13)
+
+- [ ] **Host compensation slice (agreed direction, numbers pending)** — pay club hosts a
+  coordination cut per delegated dog OUT OF PLATFORM MARGIN, never out of runner pay; host's own
+  dog free at N dogs; verified 호스트 badge; recurring series earns the host on every recurrence.
+  Why: hosts do organiser labour with no compensation today, and club density is the pilot's
+  scarce input. Funded by ruling ④ — keeping the club base at 9,900 against marketplace 7,900
+  leaves ~₩2,000/dog, which IS the host budget. Full reasoning + the reshaped
+  initiation-fee-as-refundable-deposit idea: docs/decisions-open-money.md memo ⑦.
+  Effort M → M (money path ⇒ own migration + adversarial cycle). P2. Depends on: Sean's numbers.
+- [ ] **Card-register slice placement (agreed)** — inline one-step sheet at FIRST BOOKING (not
+  onboarding) + reachable from the club refusal and 설정 › 결제 관리; one skippable soft prompt at
+  the end of onboarding. It is a consent moment (the only place the owner agrees to actuals-based
+  charging under price invisibility), so it gets real copy, not boilerplate. memo ⑧.
+  Effort M → S. **P1 before the cutover** — post-pay cannot work without linked cards.
+  Depends on: Sean's Ⓐ lab pick.

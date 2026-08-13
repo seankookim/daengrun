@@ -12,9 +12,11 @@
 > (0072's incident settlement owns that money question; charging at settle pre-empts the
 > case and manufactures the refund post-pay deleted). Memos ④/⑤ below are club-specific and
 > exist only here.
-> **Nothing has been built on the relayed adoption.** G1 keeps its 🔴 provisional marker and
-> D-3 is unbuilt; per the protocol both sessions agreed on, your review+merge is the
-> confirmation.
+> **✅ ALL SIX DECIDED BY SEAN DIRECTLY, 2026-08-13 (in this session, in his own words).**
+> This supersedes the relayed adoption AND, where they differ, the parallel session's memos —
+> notably **D-3, where Sean chose A (accept as-is), not the monthly summary** that set had
+> recorded as adopted. Each memo below carries his ruling. Implementation status is tracked
+> per memo; nothing was built before these answers.
 
 Written after the charge slice landed (0080). Each memo: **what is shipped today**, the
 options, what each costs, and a recommendation. Sean picks by number; a one-line answer per
@@ -48,13 +50,33 @@ service the runner ended). Two `end_reason` values were left to you:
 | C | **Full actuals** (base + distance) | ₩10,300 | "Pay what happened." Risks the thing we least want: an owner who feels charged for a stopped run pressures the runner to keep going next time. |
 | D | **Split by cause** — `dog_condition` = B, `incident` = A | ₩2,400 / ₩0 | Treats the two differently because they *are* different: one is a judgment call about the dog, the other is a case under review. |
 
-**Recommendation: D.**
-- `incident` → charge nothing **at settle time**, because the charge decision belongs to the
-  incident review that already exists (0072). Charging at settle would pre-empt the case and
-  create a refund we'd then owe — exactly the refund machinery post-pay deleted.
-- `dog_condition` → distance-only (B). A welfare stop must never cost the owner a base fee,
-  or the incentive points the wrong way; but a completely free outcome puts unbounded,
-  invisible cost on the platform for a case that recurs with the same dogs.
+**Recommendation was D.** ✅ **SEAN'S RULING (2026-08-13): split by cause, but the OTHER way
+round on `dog_condition` — charge the BASE FEE, not the distance. `incident` charges nothing.
+"but verify incident first to avoid abuse of this feature."**
+
+So the rule is: `dog_condition` → `ownerBaseFare` only (7,900 + addons, no distance component);
+`incident` → 0, gated on verification. This inverts my recommendation and is the better read:
+the base fee is what the runner's *showing up* costs — pickup, handoff, custody — and that
+labour happened. The distance is what didn't. Charging the base and waiving the distance says
+exactly that, where my "distance only" said the opposite and would have charged more for a
+longer failure.
+
+⚠ **The economic asymmetry this creates, for your awareness:** the owner's charge is flat while
+the platform's absorption grows with distance. A dog that stops at 0.2km costs us little; one
+that stops at 2.8km of a 3km run costs us the runner's full distance pay against a flat 7,900.
+Not an objection — a welfare stop late in a run *should* be the expensive case, or we'd be
+nudging runners to push on — but it is the number to watch if aborts cluster.
+
+⚠ **"Verify incident first" found a real hole, now the P1 of this decision.** `settle-run`
+whitelists all six `end_reason` values (handler.ts:30). The TS client type allows only four,
+but the function is a public HTTP endpoint — so an assigned runner can POST
+`end_reason: 'incident'` directly. Today that is harmless. The moment `incident` means "the
+owner is charged nothing", it is a **self-serve free-run button**. Fix, being built: settle-run
+accepts only the four the client can legitimately send; `incident` is written by the custody
+path (0045) and `owner_forced` by ops — neither is a runner's to declare at settle. On top of
+that, the incident waive is *reviewable rather than silent*: the `waived` row carries a
+pending-review marker, appears in its own reconciliation arm, and 0072's adjudication remains
+the thing that decides the money.
 
 **⚠ Related gaming vector, independent of your answer (flagging, not fixing):**
 `completion_rate` counts only `completed` + `runner_personal`, so `dog_condition` is
@@ -88,10 +110,15 @@ required? Specifically worth asking: 전자상거래법 정보 제공 duties, �
 | B | Per-charge push ("러닝 이용료가 결제됐어요") | Small (one notification insert in the charge path). Costs the Kakao-T invisibility you deliberately chose. |
 | C | Monthly summary notification | Small-medium (a cron + a summary surface). Keeps invisibility per-run, satisfies a "the user must be told" reading. |
 
-**Recommendation:** ask counsel with the three options in hand; if the answer is ambiguous,
-ship **C** — it preserves the doctrine and is defensible, whereas B trades away the exact
-psychology the token model was abandoned in favor of. Do not ship B by default out of
-caution; that is the invisible-cost version of a legal decision.
+**Recommendation was: ask counsel, ship C if ambiguous.** ✅ **SEAN'S RULING: A — accept as-is.**
+No per-charge push, no monthly summary. Price shown once at request, card-link consent covers
+actuals-based charging, receipts on demand, exceptions loud. **Nothing to build.**
+
+⚠ This overrides the parallel session's memo, which recorded B (monthly summary) as adopted —
+that set must be corrected, and the D-3 statement slice it spec'd (immutable statement rows,
+KST bucketing, amount-free push, tap routing) is **cancelled, not deferred**.
+The counsel question is not cancelled: it is now a *validation* of a chosen direction rather
+than a fork, and the 전자상거래법 footer remains mandatory the day the 사업자 numbers exist.
 
 **Hard dependency either way:** the 전자상거래법 footer (사업자 정보 + 통신판매업 신고번호)
 must appear on the payment surfaces the day those numbers exist. That is a legal
@@ -115,11 +142,16 @@ slice, its new `ladder_exhausted` arm). The notification is speed, not the safet
 | B | `profiles.is_ops boolean`, notify every ops profile | DB-native, survives env drift, supports a second operator later. Requires care: the column must be sealed from client writes or it is a privilege-escalation path, and it needs a pin. |
 | C | Dedicated `ops_recipients` table | Cleanest for many operators + per-event routing. Overbuilt for a one-person pilot. |
 
-**Recommendation: A for the pilot, revisit at the second operator.** The failure mode the
-env var has (unset → no push) is already covered by the reconciliation query, which is the
-thing an operator is supposed to read daily. B's real cost isn't the column, it's another
-sealed-surface pin to maintain for zero present benefit. Revisit the moment someone other
-than you needs to see ops events — that's the trigger, not a date.
+**Recommendation was A (env var, pilot-sized).** ✅ **SEAN'S RULING: "build for full scale, not
+just for pilot" → C, the dedicated `ops_recipients` table.**
+
+Taking C over B because "full scale" is really about *routing*, not just plurality: the charge
+machine already emits four distinct marker classes (auto-cancel failure, retry exhaustion,
+dispatched-stale, settled-without-payments) and a comp-write failure, and at scale those do not
+all go to the same person. `ops_recipients (profile_id, event_class, active)` lets one operator
+subscribe to money and another to safety without a code change. The env var stays readable as a
+fallback for exactly one release so a mis-provisioned table cannot silence ops.
+**Being built.** Payload stays redacted regardless — that fix is orthogonal and already shipped.
 
 ---
 
@@ -152,7 +184,16 @@ decomposition, so whichever way you rule, the parts and the total can no longer 
 | B | **Align to 7,900** — one owner price everywhere | 22,900 | The simplest sentence a product can have ("보호자 요금은 하나"). ₩2,000 per club run off the top line; club runs are the ones with the *most* platform cost (host coordination, capacity, incidents). One-line change to `club_fare` + K7/50 D5's literals. |
 | C | **A separate published club price** (e.g. 8,900 base, or per-dog banding) | your call | Makes the premium a stated product fact instead of an artifact — but it needs a surface that explains it, and today no club screen has a "why is this more" line. |
 
-**Recommendation: B — align to 7,900, and do it before the cutover, not after.**
+✅ **SEAN'S RULING (2026-08-13): keep 9,900 for clubs — the premium stands — AND make the club
+price-invisible too, "although notifying the price once."** So the gap stops being drift and
+becomes a stated product fact: club costs more than a solo run, disclosed once at the join /
+consent moment and never again. No `club_fare` change. Two consequences worth naming: the
+club's wider margin is exactly what can FUND host compensation (see the host-incentive note at
+the end of this memo), and 117 K7's literal arm now pins an *intended* price. Club
+price-invisibility is being built — the session screen currently shows the fare at five points
+(big number, CTA, '승인 시 가격', status line, pay sheet); that collapses to one disclosure.
+
+**Superseded recommendation, kept for its reasoning:** B — align to 7,900 before cutover.
 Three reasons. ① The gap is not a decision anyone made; it is 0043 fossilising the pre-D2
 constant, and shipping an unintended premium into *real* charges is a worse first impression
 than the ₩2,000 is worth. ② Club is the acquisition surface (the pilot's growth loop is
@@ -197,8 +238,14 @@ and you should know it happened.
 | B | Extend the club ladder with an en-route tier mirroring the marketplace 50% | Restores the capability with club-correct bookkeeping (club_fee_items + host notify + revocation). Real work in club SQL, and it commits you to paying club runners the same comp the marketplace pays. |
 | C | Route en-route club cancels into the incident flow explicitly (a button, not a dead end) | Cheapest honest middle: no new money rule, but the owner gets a path instead of a wall. |
 
-**Recommendation: C now, B only if it actually comes up.** The capability gap is real but
-the volume is probably zero in a Banpo pilot; a dead end is the part worth fixing today.
+**Recommendation was C (give them a path, not a wall).** ✅ **SEAN'S RULING: A — leave it.**
+Club cancels stop at `confirmed`; past handoff it is a case, which is the club's own designed
+answer. No en-route club tier, no new money rule.
+
+✅ **Also ruled: the card-less club state points at card registration, and the flow must be
+seamless.** The post-cutover refusal becomes a route rather than a dead end — being built with
+the price-invisibility pass. (Note this is the one place a "wall" survives by decision: an
+en-route club cancel. The card-less case, which is far more common, gets the path.)
 
 **Also from the adversarial round, for your awareness:** after the flip a card-less owner
 can still book a MARKETPLACE run (create-booking-hold treats "no card" as routing — it sends
@@ -238,8 +285,62 @@ their confirmation copy was written pre-flip.
 | B | Set `payments_live_since` to a FUTURE timestamp past the longest in-flight booking | Free, one value; makes the boundary explicit instead of "now". Straddlers stay free by construction. |
 | C | Charge only bookings whose *creation* was post-flip (add a booking-level marker) | A schema change and a second clock; the most precise, the most machinery. |
 
-**Recommendation: B.** It costs one deliberate value at flip time and turns the straddle
-from a class of surprise charges into a decision. A is not sufficient alone for club.
+✅ **SEAN'S RULING: B.** `payments_live_since` is set to a FUTURE timestamp past the longest
+in-flight booking, not to `now()`. Straddlers stay free by construction. **The flip procedure in
+the handoff §3 ⑦ is being updated to say so, with the query that finds the right timestamp** —
+a decision that lives only in a memo is one `update ops_flags set … = now()` away from being
+undone.
+
+## ⑦ Host incentives — agreed direction (Sean asked for a CEO take; agreed 2026-08-13)
+
+**Not built. Recorded so the numbers can be filled in and shipped as its own slice.**
+
+The scarce thing at pilot stage is club density, so the door is the wrong place to charge.
+Priority order:
+
+1. **Host cut per delegated dog, paid from PLATFORM MARGIN — never from runner pay.**
+   ₩1,500–2,000/dog/session (5 dogs ≈ ₩7,500–10,000 for an hour of organising). The rule that
+   matters more than the number: it must not come out of the runner's side, or the host and the
+   runner are drawing from the same won and the crew dynamic that makes clubs work is gone.
+   **This is what ruling ④ funds.** Keeping the club base at 9,900 while marketplace is 7,900
+   leaves ~₩2,000/dog of extra margin — an hour ago that gap was 0043 fossilising a pre-D2
+   constant; it is now the host budget. Frame it internally as "the club premium IS the host's
+   pay", which also answers "why does club cost more" if a user ever asks (today no screen can).
+2. **The host's own dog runs free once the session hits N dogs.** Costs us marginal only, and
+   converts recruiting into a personal win with a visible threshold — a better growth loop than
+   any referral code we would build.
+3. **Status, which for a running crew is not soft.** Verified 호스트 badge, host's name on the
+   session card, hosts-only drops from the 장비 economy. Near-zero cost; it is why people run
+   crews in the real world.
+4. **Recurring compounds it** — a session that becomes a weekly series earns the host on every
+   recurrence, which is what turns a one-off group run into an asset somebody maintains.
+
+**On the initiation-fee idea:** reshaped, not rejected. A fee extracts; a **deposit that converts
+to credit** commits. ₩10,000 to join, returned in full as 하이 포인트 on first attendance — same
+cash at the door, but it fights the actual club killer (no-shows wrecking a session the host
+organised) instead of taxing signup. Worth testing at two or three clubs, not before.
+
+## ⑧ Card registration is NOT in onboarding (Sean asked; agreed 2026-08-13)
+
+**Placement: inline at first booking, plus one skippable soft prompt at the end of onboarding.**
+
+Three reasons, in increasing order of weight:
+1. A card ask before any delivered value is the most reliable drop-off point in consumer
+   onboarding, and we would pay it against users who may never book.
+2. Post-pay makes the ask *weaker* than normal — "카드를 연결해두면 러닝이 끝난 뒤 결제돼요" is
+   much easier to accept than a prepayment — but only if it is said where the user already wants
+   a run.
+3. **Under price invisibility, the card-link screen is the only place the owner consents to
+   actuals-based charging.** That makes it a consent moment, not a settings chore, and it must
+   not be buried between "add your dog" and "allow notifications" where nobody reads. This is
+   also what memo ② leans on: A (no per-charge notice) is defensible *because* consent happened
+   somewhere real.
+
+Consequence for the card-register slice (blocked on Sean's Ⓐ lab pick): it is a deliberate
+one-step sheet with real consent copy, reachable from first booking AND from the club refusal
+(ruling ⑤) AND from 설정 › 결제 관리 — not an onboarding step.
+
+---
 
 ## Not decisions, just reminders of what the flip waits on
 
@@ -247,3 +348,5 @@ The `payments_live_since` cutover is gated on, in order: 사업자등록 → 통
 Toss contract **with 자동결제 심사 in the same application** · billing TEST keys + the §4-2
 sandbox matrix · the club-delegation money gates (in progress as its own migration) ·
 ①/② above. Everything shipped is inert until that timestamp is set.
+
+---
