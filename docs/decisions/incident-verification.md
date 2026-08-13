@@ -99,3 +99,20 @@ it, and by which exit?**
 This is `README.md`'s rule 3 in a different medium. A passing suite is a well-formed artifact:
 475/0 read as coverage and was 475 pins each stopping one question short of the thing they
 appeared to prove.
+
+## Before ⑪ ships — two items for Sean, and one fact to verify first
+
+Both surfaced from the ⑪ / `0088` interaction (announcer + payments sessions, 2026-08-13):
+
+1. **The privacy-policy line must ship BEFORE ⑪ does.** A two-sided incident confirmation means
+   a counterparty may see the other party's real phone number, and that needs disclosing. The
+   Korean norm we would be departing from is **안심번호** — a masked relay, the pattern Kakao T
+   uses. Not following it is defensible for a pilot, but it is a trade-off Sean should confirm
+   **knowingly rather than inherit** from a build decision. 🟡 his call, queued.
+2. **`profiles.phone` may be null in practice — verify before designing against it.** It is
+   `phone text` (nullable), annotated *"PASS 본인인증 후 확정"*, and PASS looks unintegrated, so
+   ⑪ could render an empty row where it promises a contact. Note that
+   `0062_runner_applications.sql:380` declares `phone text not null` — the real data may live on
+   the application rather than the profile. Whoever builds ⑪ confirms which source is
+   authoritative before the design assumes one; this is exactly the "verify, don't relay" check,
+   and the answer changes the screen.

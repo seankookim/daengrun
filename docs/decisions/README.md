@@ -85,10 +85,14 @@ Sean, 2026-08-13, going on break: *"tell others to run autonomous or ask codex i
 of me. ill tell u when im back."* So work proceeds, and codex stands in for the judgement calls.
 **With one hard line: a codex decision is recorded as CODEX's, never as his.**
 
-- Status stays **🟡 OPEN** on anything he has not personally ruled, with codex's analysis
-  recorded beneath it as **🔵 CODEX RECOMMENDATION**.
-- **No memo becomes ✅ RULED BY SEAN on a stand-in's word.** Not "effectively ruled", not
-  "ruled pending confirmation".
+- **✅ is reserved. It has meant exactly one thing across all eleven memos — the human's own
+  words are on origin — and a codex-sourced decision does not get one AT ALL**, not even an
+  attributed one. Not "✅ RULED BY CODEX", not "✅ pending confirmation". A second kind of ✅
+  devalues the eleven retroactively, and it fails silently: nobody re-reads a memo to check
+  *which sort* of ✅ it carries. (Tightening from the payments session; it is sharper than the
+  first version of this rule, which only banned putting Sean's name on it.)
+- Status stays **🟡 OPEN** on anything he has not personally ruled, with the stand-in's analysis
+  recorded beneath it under its own marker, **🔵 CODEX**.
 - The reader must be able to tell at a glance which of these came from the founder and which
   from a stand-in while he was out.
 
