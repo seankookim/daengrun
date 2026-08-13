@@ -1,10 +1,42 @@
 # ① G1 — What does an aborted run charge the owner? (`dog_condition` / incident-class)
 
-**Status: 🟡 OPEN — the one money decision two independent sessions did NOT converge on.**
-Shipped provisional: both `dog_condition` and `incident` charge **nothing**
-(`compute_owner_charge` rule `g1_waive`, a `waived` payments row with amount 0; the runner
-is still paid normally by `settle_run_tx` — the platform absorbs it). The 🔴 marker in 0080
-stands until you rule. Nothing was built on any adoption.
+**Status: ✅ RULED BY SEAN 2026-08-13 — option C: `dog_condition` charges FULL ACTUALS
+(base + distance, same as a completed run); `incident` stays ₩0 at settle.**
+
+Sean picked C after both sessions' recommendations (₩0 waive and distance-only) were put
+to him side by side. Neither model recommended C — that is why it was asked rather than
+auto-decided. The 🔴 in 0080 is now resolved; the code change is specified below.
+
+**What changes in code** (charge-slice session owns 0080 + the 438-pin harness):
+- `compute_owner_charge`: remove `dog_condition` from the `g1_waive` branch so it falls
+  through to the ACTUAL-basis path (identical to `completed`:
+  `base_fare + round(distance_fare/km × actual) + addon_fare`). **`incident` stays in the
+  waive branch.** Owner ceiling `min(actual, planned)` still applies — never above quote.
+- 116-suite pins at :223/:226 split: one asserting `dog_condition` → actual-basis charge,
+  one asserting `incident` → `waived` row at ₩0.
+- The `waived` status stays exactly as built — `incident` and the `below_pg_minimum`
+  (<₩100) arm still use it, so none of the sweep/debt/constraint machinery changes.
+
+**The edge case C accepts, stated plainly:** a dog that limps at 200m produces a bill of
+₩7,900 + ₩600 ≈ **₩8,500**, because the base is charged in full from the first metre.
+Sub-₩100 aborts auto-waive; nothing between ₩100 and the full base does. If that lands
+wrong in the pilot, the forward-only flip to distance-only (D) or a low-actual floor is
+one branch — but it applies to newly consented bookings only.
+
+**One thing C fixes for free:** the gaming vector both sessions flagged (see below) needed
+an external detector precisely because a waived owner never disputes a fabricated abort.
+Under C the owner pays, so the owner disputes — the free fraud detector is restored, and
+the per-runner telemetry becomes a backstop rather than the only signal.
+
+**The risk C carries, which both sessions named:** an owner who feels charged for a
+stopped run may pressure the runner to keep going next time. Mitigation is copy, not
+money — the report/record card must state that stopping was the right call and show the
+runner's own `condition_note` (real since `611f014`; it was a hardcoded constant before).
+That copy is now a **required** accompaniment of this ruling, not a nice-to-have.
+
+---
+
+*Everything below is the analysis that produced the question. Kept for provenance.*
 
 ## The open question — where the two sessions split
 
@@ -78,14 +110,15 @@ actually unwell). Timed to the cutover gate — the incentive only exists once
 (`run.tsx:444`); the run-end-flow session shipped the runner-writes-it fix (`611f014`),
 which is a **precondition** of this mitigation meaning anything.
 
-## Decision (Sean) — pick one letter
+## Decision (Sean) — RULED 2026-08-13
 
-- [ ] **A′** — `dog_condition` ₩0, `incident` ₩0 (confirms the shipped provisional)
+- [ ] **A′** — `dog_condition` ₩0, `incident` ₩0 (was the shipped provisional)
 - [ ] **D** — `dog_condition` distance-only (₩3,000×actual, no base), `incident` ₩0
-- [ ] **C** — full actuals for `dog_condition`
+- [x] **C** — **full actuals for `dog_condition`; `incident` ₩0 at settle. SEAN'S RULING.**
 
-Either way `incident` stays ₩0 at settle, the flip is forward-only, and the code change is
-one branch in `compute_owner_charge` (grep `g1_waive`) plus its 116-suite pins.
+Neither session recommended C. Sean's call stands over both model recommendations —
+recorded that way deliberately, so nobody later "corrects" it back to a memo's advice.
+Flips remain forward-only.
 
 ## Provenance
 

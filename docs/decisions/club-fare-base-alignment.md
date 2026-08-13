@@ -1,6 +1,19 @@
 # ④ club_fare — should a club owner pay ₩9,900 base when a marketplace owner pays ₩7,900?
 
-**Status: OPEN — Sean's call. Recommendation: B (align to 7,900), before the cutover.**
+**Status: ✅ RULED BY SEAN 2026-08-13 — option A: KEEP ₩9,900 as a deliberate club
+premium.** The gap is now a decision, not an artifact: a club session includes host
+coordination, capacity management and a 집결지, and that is what the extra ₩2,000 buys.
+`club_fare` does not change; 0043 stays as-is; suite literals (117 K3/K7, 50 D5) stay.
+
+**REQUIRED accompaniment — the honest form of A.** The memo's own words: "an undisclosed
+premium is the version that costs trust." So a one-line disclosure ships on the club
+payment surface before the cutover, e.g. *"클럽 위탁은 기본요금이 달라요 (호스트 운영·집결지
+포함)"* — placed where the price is shown (the ticket cell / 승인 알림 / club payment sheet).
+Without it the ruling is A-in-name and undisclosed-premium in practice. Copy is Sean's to
+approve; the requirement is not optional.
+
+*Original recommendation was B (align to 7,900); Sean ruled A. Recorded so nobody
+"corrects" it back to the memo's advice. Analysis preserved below.*
 Authored by the charge-slice/club-gates session; folded into this directory 2026-08-13
 at consolidation (text preserved verbatim).
 

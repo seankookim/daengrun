@@ -114,7 +114,8 @@ edges, zero repinning.
 |---|---|---|
 | completed / runner-caused early end | ACTUAL | pay what happened |
 | owner_request / owner_forced | **PLANNED** (D2 rule) | guarantee clause + anti-cut-short gaming |
-| dog_condition / incident-class | **ADOPTED 2026-08-13 (G1): WAIVE** — shipped provisionally as `g1_waive` (0080:266); 🔴 marker stands until Sean's merge confirms; incident-class → 0072 adjudication at flip time; flips forward-only. Addenda: `docs/decisions/g1-abort-charge-basis.md` | the abort-charge composition question — decided, pending confirm |
+| **dog_condition** | **ACTUAL (full: base + distance)** — RULED BY SEAN 2026-08-13, option C | same basis as `completed`; owner ceiling min(actual, planned) still caps it at the quote |
+| **incident-class** | **₩0 at settle** (`waived` row) — RULED 2026-08-13 | 0072 adjudication owns the money question; charging at settle would pre-empt the case |
 
 `owner_charge = ownerBaseFare(7,900) + 3,000 × basis + addon_fare`.
 
@@ -200,11 +201,12 @@ is amended by ALL of the following; a second adversarial round belongs to the bu
    "later confirmed row"), and the failed→confirmed flip sets payment_key in the SAME
    statement (payments_settled_has_key). Verify-at-build: Toss idempotency-key
    retention window vs the +24h outer rung.
-9. **Basis for `dog_condition`/`incident`: ADOPTED 2026-08-13 — charge NOTHING (#9).**
-   Sean adopted the waive via delegation (club-delegation session); shipped
-   provisionally in 0080 with the 🔴 marker, which stands until Sean's merge of the
-   decision branch confirms. Incident-class defers to 0072 adjudication; flips
-   forward-only. Binding detail: `docs/decisions/g1-abort-charge-basis.md`.
+9. **Basis for `dog_condition`/`incident`: RULED BY SEAN 2026-08-13 (#9) — option C.**
+   `dog_condition` charges FULL ACTUALS (base + distance, identical to `completed`);
+   `incident` charges ₩0 at settle and stays a `waived` row. Neither session recommended
+   C — both were overruled after the trade-off was put to Sean, so do not "correct" this
+   toward a memo's advice. Code change + required report copy specified in
+   `docs/decisions/g1-abort-charge-basis.md`. Flips remain forward-only.
 10. **`runner_personal` waives the base (#10):** owner pays `3,000 × actual` only — a
     runner-caused end doesn't bill the owner 7,900 for undelivered service. Platform
     absorbs the runner's min_fare floor at tiny actuals (rare, bounded, gauge it).

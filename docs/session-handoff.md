@@ -112,25 +112,26 @@ NOW, but not billing); ③ ~~review + merge + push~~ — DONE this session: both
 uncommitted work there, so the remote was advanced instead of fast-forwarding their tree.
 `git pull` with a clean tree.
 
-**Decisions — ALL SIX now live in `docs/decisions/` (single directory, consolidated
-2026-08-13; `decisions-open-money.md` retired into it).** Five are settled; ONE needs
-your answer:
-- 🟡 **① G1 abort-charge basis — THE ONE OPEN CALL.** Two sessions did independent
-  adversarial work and reached DIFFERENT answers, so nothing was auto-picked:
-  `dog_condition` = ₩0 (club-delegation session: welfare stop must cost nothing) vs
-  ₩3,000×actual, no base (charge-slice session: a chronically-unfit dog otherwise gets
-  free runs forever, invisibly). Both agree `incident` = ₩0 at settle (0072 owns it).
-  Shipped provisional = ₩0 for both, 🔴 marker intact. See
-  `docs/decisions/g1-abort-charge-basis.md` §"The open question".
-- ✅ ② D-3 = monthly amount-free summary (both sets agree; counsel question stands as a
-  go-live gate) · ✅ ③ OPS_PROFILE_ID = env var + redacted payloads (shipped) ·
-  🟡 ④ club_fare is the pre-D2 formula → club owners pay ₩2,000 MORE per km-equal run
-  (align before the flip) · 🟡 ⑤ en-route club cancels have no owner path ·
+**Decisions — ALL SIX in `docs/decisions/` (one directory, consolidated 2026-08-13;
+`decisions-open-money.md` retired into it). SEAN RULED ①/④ on 2026-08-13:**
+- ✅ **① G1 = C.** `dog_condition` charges **FULL ACTUALS** (base + distance, same as
+  `completed`); `incident` = ₩0 at settle (`waived`, 0072 adjudicates). **Neither session
+  recommended C** — both were overruled after the trade-off was put to him. 🔴 resolved.
+  → CODE TODO: `compute_owner_charge` drops `dog_condition` from the `g1_waive` branch
+  (keep `incident`), split the 116 pins at :223/:226. → COPY TODO (required): the report
+  says stopping was the right call + shows the runner's `condition_note`.
+- ✅ **④ club_fare = A.** Keep ₩9,900 as a deliberate club premium (host coordination +
+  집결지). No formula change. → REQUIRED before cutover: a one-line disclosure on the club
+  payment surface; an undisclosed premium is the version that costs trust.
+- ✅ ② D-3 = monthly amount-free summary (both sets agree; counsel question is a go-live
+  gate) · ✅ ③ OPS_PROFILE_ID = env var + redacted payloads (shipped) ·
+  🟡 ⑤ en-route club cancels have no owner path (rec: route into the incident flow) ·
   🟡 ⑥ cutover straddle — set `payments_live_since` to a FUTURE timestamp past the
   longest in-flight booking.
-**Nothing was built on a relayed adoption**: G1 keeps 🔴 and D-3 is unbuilt, because a
-confirmation gate another session can perform is not a gate. Also still open: lab picks
-Ⓡ①②③ + Ⓖ rule · Ⓛ③ spec-plate graft + ₩/원 (carried from the 2026-08-12 handoff §9).
+Also still open: lab picks Ⓡ①②③ + Ⓖ rule · Ⓛ③ spec-plate graft + ₩/원 (carried from the
+2026-08-12 handoff §9). **Migration/suite numbers: claim in
+`supabase/migrations/REGISTRY.md` on origin BEFORE writing the file** (four collisions on
+2026-08-13); 0083/suite 119 is next free.
 
 ## 5. Next prompts (exact openers)
 
