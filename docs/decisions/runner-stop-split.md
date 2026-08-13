@@ -1,17 +1,12 @@
 # ⑨ `runner_personal` splits — pass-through pay + a new `runner_incapacity`
 
-**Status: 🟠 RECORDED, NOT YET CONFIRMED. Do not build either half.**
+**Status: ✅ RULED BY SEAN 2026-08-13 — both halves confirmed. Buildable.**
 
-This supersedes G1's `runner_personal` row (runner paid 9,900 base only). It reached this
-directory the wrong way — via a memory file, not from the human in a session that could
-quote him — so by this set's own second rule (**quote the human**) it is written down but
-not yet settled. It is authored here rather than left in memory because the first rule
-(**unpushed reserves nothing**) makes an unpushed ruling the weakest artifact in the
-system, and that failure has already cost this project a contradictory money answer once
-today.
-
-**What is needed to promote this to ✅:** Sean's own words on the two halves, on origin.
-See "Confirm" at the bottom.
+Supersedes G1's `runner_personal` runner-side row (was: 9,900 base only). Confirmed
+directly, after this memo was first written 🟠 unconfirmed: the ruling had reached the docs
+via a memory file rather than from a session that could quote him, and this set's second
+rule says a relayed decision is evidence, not authority. Put back to him with both halves
+and the recorded figures spelled out, he answered **"Yes — both halves, as recorded."**
 
 ## The substance as recorded
 
@@ -74,13 +69,26 @@ set unless a runner is meant to self-declare it. `runner_incapacity` is self-dec
 nature, so it needs its own abuse story before it ships — the same question Sean asked
 about `incident`.
 
-## Confirm
+## Confirmed
 
-- [ ] Pass-through pay (runner gets their commission share of what the owner paid) — as
-      recorded?
-- [ ] New enum `runner_incapacity`, note required, platform absorbs — as recorded?
-- [ ] The recorded figures (2,010 / 8,643 at 1km) are illustrative, not the rule — confirm
-      the rule is "commission share of owner payment", with those numbers following from it.
+- [x] **Pass-through pay** — the runner receives their commission share of what the owner
+      actually paid. The figures (2,010 / 8,643 at 1km) follow from the rule; the rule is
+      the pass-through, not the numbers.
+- [x] **New enum `runner_incapacity`** — ill/injured/emergency, note required, platform
+      absorbs.
 
-Once confirmed with his phrasing captured, promote to ✅ and this memo supersedes the
-`runner_personal` row in `g1-abort-charge-basis.md` (cross-linked there).
+Sean, 2026-08-13, asked whether both halves matched what he decided: **"Yes — both halves,
+as recorded."** This memo now supersedes the `runner_personal` runner-side row in
+[`g1-abort-charge-basis.md`](g1-abort-charge-basis.md), which links here.
+
+## Build gate before it ships
+
+`runner_incapacity` is **self-declared by nature** — the runner is the one saying they
+can't continue. `settle-run` on `redesign-v4` still accepts all six `end_reason` values
+from a public endpoint (`handler.ts:30`), and the four-value narrowing exists only on the
+unmerged 0084 branch, whose comment warns: *do not "restore" the missing values to match
+the enum — the gap IS the fix.* So: add the value to the DB enum, and give it its own
+abuse story before `settle-run` accepts it from a client. It is the same question Sean
+asked about `incident` ("verify incident first to avoid abuse of this feature"), one enum
+value later — and unlike `incident`, this one pays the runner rather than sparing the
+owner, so the incentive to misdeclare points at the person doing the declaring.
