@@ -4,6 +4,7 @@
 //        | request_reschedule | accept_reschedule | decline_reschedule | withdraw_reschedule (0016)
 import { admin, caller, handle, HttpError } from "../_shared/ctx.ts";
 import { cancelOwner } from "./cancel_owner.ts";
+import { startRun } from "./start_run.ts";
 
 Deno.serve(handle(async (req) => {
   const db = admin();
@@ -298,11 +299,13 @@ Deno.serve(handle(async (req) => {
       break;
     }
 
+    // 0087 §2 — the two-step start (status update + a separate `runs` insert whose error was
+    // discarded) is retired. It is one definer transaction now, with a SERVER `started_at`.
+    // Its own file for cancel_owner's reason: `Deno.serve` above makes this module unimportable,
+    // and a run's start time is a money input since 0083 §6 (the cutover grandfathering).
     case "start_run":
       if (!isRunner) throw new HttpError(403, "runner only");
-      await set({ status: "active" });
-      await db.from("runs").insert({ booking_id, started_at: new Date().toISOString() });
-      await notify(bk.owner_id, "러닝 시작", `${bk.km}km 러닝이 시작됐어요 — 실시간으로 지켜보세요`);
+      await startRun(db, { bookingId: booking_id, uid, bk, notify });
       break;
 
     // 0066's fee ladder + the charge slice's collection half (§0-ter #5) — see cancel_owner.ts.
