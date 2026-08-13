@@ -11,15 +11,37 @@ governance rule in [README.md](README.md) a stand-in's analysis never becomes a 
 
 ---
 
-## 1. 🔴 `0088` — PII / PG-key exposure on `profiles` (P0, security)
+## 1. 🔴 `0088` — `profiles` is readable by **anon**, not merely by logged-in users (P0)
 
-**Today every logged-in user can read every verified runner's phone number.** Being fixed by the
-payments session in `0088`; the fix is not yet on trunk.
+**Corrected upward 2026-08-13; my first version of this entry understated it.** I wrote "every
+logged-in user can read every verified runner's number." Authentication was never part of the
+gate. `0002_rls.sql`, verified on trunk:
 
-⚠ **Recorded here because it exists nowhere in `docs/`** — only as a REGISTRY row and on a
-feature branch. A P0 that lives in one branch and one conversation is the same failure this file
-exists to prevent. Sean's call is not *whether* to fix it (it is being fixed) but whether it
-changes the pilot timeline or needs disclosure once real users exist.
+```sql
+create policy "profiles public runner read" on profiles for select using (
+  exists (select 1 from runners r where r.profile_id = profiles.id and r.tier <> 'applicant')
+);
+```
+
+**No caller term at all** — it is a pure row predicate, so it matches for `anon`, the role the
+app's **public, shipped-in-the-client** key maps to. The anomaly is visible in its own file: the
+other three `profiles` policies (`self read`, `self write`, `self insert`) each carry
+`auth.uid()`. The payments session executed it against the real schema and got **101 runner rows
+returned to `anon`, including `phone` and `toss_customer_key`.**
+
+**Both halves, so the record is neither scarier nor softer than the truth:**
+- `phone` may be **null in practice today**, because PASS looks unintegrated. That is a **stay of
+  execution, not a defence** — the hole is open, and the day anyone backfills numbers it becomes
+  a live PII leak with no further change.
+- `toss_customer_key` is **populated on every row regardless**: `0076:65` adds it
+  `not null default gen_random_uuid()`, and 0076's own header argues that identifier must never
+  leave our tables.
+
+**The decision is deploy timing, not whether to fix.** The fix is built and verified on the
+payments branch (harness 477/0) and cannot ship until `db push` is cleared — which is held while
+Sean is away, per rule 4. So: **open in production since `0002`, closed on a branch, blocked on
+his deploy call.** Explicitly his and not a stand-in's, since it trades a live exposure window
+against deploying unreviewed-by-him migrations.
 
 ## 2. 🔴 ⑪ conflicts with a written privacy commitment — before ⑪ builds
 
@@ -73,3 +95,21 @@ go-live gate). Both are in their own memos; listed here so the return sweep is o
 
 **Maintenance:** whoever adds an item puts it here rather than in a message. Remove an item only
 when its memo carries the ruling — not when it has been discussed.
+
+---
+
+## Not queued, but adjacent — a class-wide RLS question worth its own memo
+
+Applying `0088`'s lesson across every migration turns up **~20 `for select` policies with no
+caller term in their `USING` clause**. Some are false positives — `runs`, `chat_threads`,
+`chat_messages` use `is_booking_party(...)`, which gates the caller *inside* the function. But
+roughly ten are literally `using (true)`: `feed_posts`, `feed_likes`, `feed_comments`, `clubs`,
+`club_members`, `club_series`, `club_sessions`, `runner_gear`, `runner_availability_rules`,
+`routes`. **Most are probably public by design and nobody has verified which**, because the
+answer requires executing `select *` as `anon` against the real schema rather than reading
+policy text — a static column check produced results its author explicitly did not trust.
+
+Routed to the payments session with the right suggestion attached: make it a **pinned harness
+test** rather than a one-time audit — every table's anon-visible column set asserted, so a new
+`using (true)` reddens instead of relying on someone repeating the audit. The same
+convention→constraint move as the pre-push hook.
