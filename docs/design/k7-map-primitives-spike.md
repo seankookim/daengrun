@@ -59,3 +59,39 @@ Down from the plan's figure. No exploratory work remains; the unknowns were the 
 **Still deliberately out:** off-route detection and progress projection stay T5, gated on an
 observed incident. Nothing here changes that — the spike says the camera is cheap, not that
 navigation is needed.
+
+---
+
+## Amendments found while BUILDING it (2026-08-13) — read these before trusting the table above
+
+The migration landed as specified. Three things the spike did not measure, all found by reading
+the installed library's own source rather than its types:
+
+1. **`NaverMapPolylineOverlay.pattern?: number[]` is DEAD.** The prop is declared in
+   `NaverMapPolylineOverlay.tsx:27` and exists in the native spec
+   (`RNCNaverMapPolylineNativeComponent.ts:34`), but the JS component **never forwards it** to
+   `<NativeNaverMapPolyline>`. A dash array passed there is silently dropped and the line renders
+   solid. `NaverMapPathOverlay`'s `patternImage` + `patternInterval` DO forward (verified on both
+   platforms: `RNCNaverMapPath.kt:48`, `RNCNaverMapPath.mm:82`), so the asset route is not a
+   preference — it is the only one. **A declared prop is not a wired prop; follow it to the
+   native call before costing a design decision on it.**
+
+2. **`setLocationTrackingMode('Follow')` attaches the SDK's OWN location source** — Android
+   `mapView.setupLocationSource()` → `FusedLocationSource` (`RNCNaverMapViewManager.kt:845`),
+   iOS `positionMode = NMFMyPositionDirection` (`RNCNaverMapView.mm:414`). Two consequences the
+   spike's one-liner hid:
+   - it **raises the OS location permission sheet**, which in this app is one-shot and must sit
+     behind `beginRun`'s rationale. So the `내 위치로` control must NOT use tracking mode before
+     the run starts; pre-run it re-runs the 접근 fit instead. (Built that way.)
+   - it follows the SDK's raw fixes, not the ones our gates accepted — camera and marker can
+     disagree by a rejected fix. Harmless for a camera, wrong for anything that counts.
+   Marginal battery cost should be ~0 *because our own background tracking already holds GPS at
+   full rate* — that is reasoning, not a measurement, and it is on the device smoke list.
+
+3. **The anchor column is still not consumable.** `routes.anchor_lat/lng` remains 0078's
+   "근사값 — 소비 금지", and 0082's promotion sets it FROM the verified trace start. So the
+   verified trace's first point *is* the confirmed anchor, and a route with no trace has no
+   anchor at all. K5's state copy ("앵커만 표시돼요") assumed otherwise and would have been false
+   as written; the shipped copy says the line is missing, not that an anchor is present.
+
+Device smoke list for all of the above: `docs/design/device-smoke-map-screens.md`.
