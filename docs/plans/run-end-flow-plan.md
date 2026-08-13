@@ -5,7 +5,7 @@ charges", and the charge machine landed 2026-08-13 (`0080`). Doctrine already wr
 `0078_route_catalog.sql:6-7`: *접근(커스터디, 무과금) → 루프(THE run, 과금 구간) → 귀가
 (커스터디, 동결)*.
 
-**Status: v3, 2026-08-13. NOT YET APPROVED TO BUILD.** Two adversarial reviews ran against
+**Status: v4, 2026-08-13. §9 RULED BY SEAN — slice 2 unblocked.** Two adversarial reviews ran against
 v1/v2 (a product/state-machine reviewer: 19 findings; codex on the money path: **"reject
 the plan as written"**). Both are absorbed here. v3 exists to meet codex's seven-item
 minimum bar (§10) — Sean reads §0-bis first and decides.
@@ -185,6 +185,10 @@ model this (`session_custody_transfer`, `0045:170-245`).
 ## §8 Slices
 
 1. **Condition note** (§8-bis) — independent of everything above. **Built.**
+1b. **OTA refresh capability** (D-r4 part 2) — `expo-updates` + EAS Update +
+   `runtimeVersion`. Needs `expo prebuild --clean` + a new build (Sean's gate). Ships
+   BEFORE the settle gate is enforced against real users; valuable far beyond this feature
+   (today any shipped JS bug needs an App Store round trip).
 2. **Server**: `0082` + `end_run_tx` + gated `settle-run` + phase gates on trace/appends +
    heartbeat + timestamp semantics + `117_run_end_suite`. Nothing client-side is
    trustworthy until this lands.
@@ -199,16 +203,38 @@ dog. Fabricated data as observation, a promise with no affordance — and a mone
 a constant, since **G1's adopted anti-gaming mitigation is exactly "the owner knows whether
 their dog was actually unwell."**
 
-## §9 Open for Sean
+## §9 Decisions — RULED BY SEAN 2026-08-13
 
-- **D-r1** force window + evidence standard (§7).
-- **D-r2** owner stamp required? Rec: required, with the recipient declaration making it
-  honest and the forces as release valves.
-- **D-r3** 한 줄 인계 메모 required or optional? Rec: **optional but prompted** — required
-  text at the door invites typing anything to escape the screen, which is precisely how the
-  condition note became a constant.
-- **D-r4 (new, codex #1)**: old-client behaviour when the settle gate ships — hard reject
-  with an update prompt (rec) vs a grace window keyed to app version.
+- **D-r1 — DECIDED. The owner's interaction on the intermediary screen IS the evidence,
+  and the runner is paid once the dog is returned.** Settlement's trigger is therefore the
+  owner's confirmation on the meetup/live intermediary surface, not a timer and not a
+  proximity computation. Payment follows the return, in that order.
+  - *Residual (my proposal, not Sean's ruling — flag at build):* the release valves D-r2
+    keeps still need parameters for the case where the owner never interacts at all.
+    Proposed: runner force allowed 20min after the peer was notified, gated on the runner
+    being at the pickup pin (evidence, since the owner's interaction is absent), driven by
+    a **durable server sweep** — never an app-local timer, so a runner who pockets the
+    phone is still paid. Owner-side force symmetric. Sean confirms or amends at build.
+- **D-r2 — DECIDED: follow the recommendation.** Owner stamp required; the recipient
+  declaration (§6, "다른 분이 받아요") is what keeps a remotely-tapped stamp honest; the
+  forces stay as release valves.
+- **D-r3 — DECIDED: optional but prompted.** Required text at the door invites typing
+  anything to escape the screen — precisely how the condition note became a constant.
+- **D-r4 — DECIDED: build the refresh capability.** Sean: *"we need a refresh feature
+  right? if that's the case add that."* Correct, and the audit confirms the gap is total:
+  **`expo-updates` is not installed, there is no EAS Update config, no `runtimeVersion`
+  policy, and no update-check code anywhere in the client.** Today a shipped JS bug can
+  only be fixed by an App Store round trip. Two parts, deliberately sequenced:
+  1. **In this slice (immediate, no rebuild):** the settle gate rejects an unreturned
+     settlement with a *distinct* error the client renders as "앱 업데이트가 필요해요",
+     never a generic failure and never a silent no-op.
+  2. **Its own slice (needs a native rebuild — Sean's gate):** install `expo-updates` +
+     EAS Update with a `runtimeVersion` policy, so future JS-only fixes reach installed
+     apps without a store release. ⚠ It does **not** retroactively help builds already on
+     phones — those lack the updates runtime — so it must ship BEFORE the settle gate is
+     enforced against a real user population. Today that population is ~Sean's devices
+     (`push_tokens` had 1 row), which is exactly why this is cheap to do now and expensive
+     to retrofit after TestFlight.
 
 ## §10 codex's minimum bar — status
 
