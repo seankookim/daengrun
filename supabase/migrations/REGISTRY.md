@@ -35,22 +35,24 @@ touched it and name whose version you build on in your file header.
 | 0080 | `0080_charge_machine.sql` | 116 | payments-toss-plan-slice | on origin/redesign-v4 |
 | 0081 | `0081_club_money_gates.sql` | 117 | club-money-gates | on origin/redesign-v4 |
 | 0082 | `0082_route_ladder.sql` | 118 | **route session** (반포 route catalog / route discovery; landed via the main checkout, `a95aa34`) | on origin/redesign-v4 — settled |
-| 0083 | ⚠ **DISPUTED** — see below | 119 | run-end-flow *or* payments | in build, unpushed |
-| 0084 | ⚠ **DISPUTED** — see below | 120 | the other of the two | in build, unpushed |
+| 0083 | `0083_run_end_flow.sql` | 119 | run-end-flow (`claude/run-end-flow-1a67e0`) | **SETTLED 2026-08-13** — on disk, in build |
+| 0084 | `0084_g1_ops_cutover.sql` | 120 | payments (`claude/g1-ops-club-decisions`) | **SETTLED 2026-08-13** — on disk, in build |
 | 0085 | *(next free)* | 121 | — | available |
 
 ## Standing conflicts to resolve
 
 - ~~0082 double-claimed~~ **RESOLVED:** route-ladder pushed first (`a95aa34`).
-- ⚠ **0083/0084 STILL DISPUTED — and the two sessions are reporting OPPOSITE settlements.**
-  This row previously said 0083=run-end-flow / 0084=payments; the payments session states
-  the reverse (0083=payments, 0084=run-end-flow) and says run-end-flow yielded to it. Verified
-  in git 2026-08-13: **neither 0083 nor 0084 exists on ANY pushed branch** — both are local
-  in-flight work, so no file-based tiebreak exists.
-  **Resolution procedure, to stop a third yield: the PAYMENTS session decides and pushes the
-  corrected row; run-end-flow accepts whatever that row says without countering.** A
-  double-yield happens because both parties are being polite; the fix is naming one decider,
-  not another round of deference. Whoever writes the row, write it as fact, not a proposal.
+- ✅ **0083/0084 SETTLED 2026-08-13 by the payments session** (named decider in the previous
+  revision of this file; run-end-flow accepts without countering, as agreed). The dispute was
+  two sessions each reporting the *other's* yield: they yielded 0083 to payments, payments
+  yielded it back to them, and both then moved to 0084. Nobody was wrong; two polite yields
+  made their own collision. **Resolution: this row's ORIGINAL assignment stands, because it was
+  the only claim ever pushed** — 0083/119 run-end-flow, 0084/120 payments. Verified on disk
+  2026-08-13 13:52: `0083_run_end_flow.sql` + `119_run_end_suite.sql` in the run-end-flow
+  worktree, `0084_g1_ops_cutover.sql` + `120_g1_ops_cutover_suite.sql` in the payments
+  worktree. **Both sessions already match this row; no file needs renaming.**
+  The rule that resolved it, and the one to reach for next time: *origin beats recollection —
+  including your own, and including a yield you are certain you made.*
 - **Count is five, not four** (0078 ×3, 0081 ×2, 0082 ×2, 0083 ×2 including the double-yield).
 - The `payments_live_since` cutover slice (D-3 statement, per-runner abort telemetry,
   reconciliation heartbeat) has no number yet — claim at build time.
