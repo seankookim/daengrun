@@ -119,6 +119,19 @@ onto `origin/redesign-v4` from your own worktree and push from there. The shared
 rebased under anyone, and the duplicate commit drops itself on their next `pull --rebase`
 (identical patch-id).
 
+🔴 **Author name proves nothing about who made a commit.** Every session on this machine commits
+as `Sean Kim <seankookim@uchicago.edu>` — it is the repo's configured git user, not evidence.
+A session's commit, another agent's commit and Sean's own are indistinguishable by `%an`. **The
+only reliable attribution is the commit message and the touched paths.** This matters most
+exactly when it is most tempting to skip: deciding whether a commit is safe to rebase away.
+Before telling anyone their commit will vanish in a rebase, verify rather than assert:
+
+    git show <sha> | git patch-id --stable
+
+Same id on both sides ⇒ the rebase drops it and nothing is lost. Different ⇒ it does **not**,
+and someone is about to lose work. (2026-08-13: a commit was read as Sean's from its author
+field and was in fact a session's — the patch-id check settled it in seconds.)
+
 | Path(s) | Session (branch) | Tree | Mode | Started | Intent (one line) |
 |---|---|---|---|---|---|
 | `supabase/migrations/0090_chat_notify.sql` · `supabase/tests/126_chat_notify_suite.sql` · `supabase/tests/harness.sh` | club-delegation (`claude/club-delegation-money-gaps-b59eb8`) | own worktree | exclusive (new files) / shared (harness.sh) | 2026-08-13 | ⑬ — trigger so a chat message reaches the other party's phone |
