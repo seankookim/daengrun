@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Animated, Dimensions, Image, Modal, PanResponder, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { fetchRunReport, fetchRunStandings, RunReport, RunStandings } from '../../src/lib/api';
+import { traceToBox } from '../../src/lib/trace';
 import { resolveMediaUrl } from '../../src/lib/media';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { haptic } from '../../src/lib/haptics';
@@ -31,16 +32,11 @@ const SNAP = CARD_W + GAP;
 const fmtDur = (sec: number) => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
 const fmtPace = (sec: number | null) => (sec ? `${Math.floor(sec / 60)}'${String(sec % 60).padStart(2, '0')}"` : '—');
 
-// 실 GPS → 정규화 (report와 동일 헬퍼)
-function normalizeTrace(trace: { lat: number; lng: number }[]): { x: number; y: number }[] {
-  const lats = trace.map((p) => p.lat);
-  const lngs = trace.map((p) => p.lng);
-  const [minLa, maxLa] = [Math.min(...lats), Math.max(...lats)];
-  const [minLo, maxLo] = [Math.min(...lngs), Math.max(...lngs)];
-  const dLa = Math.max(maxLa - minLa, 1e-6);
-  const dLo = Math.max(maxLo - minLo, 1e-6);
-  return trace.map((p) => ({ x: (p.lng - minLo) / dLo, y: 1 - (p.lat - minLa) / dLa }));
-}
+// 실 GPS → 박스 좌표: src/lib/trace.ts의 traceToBox 정본 (0082 K1).
+// 여기 있던 사본은 축별 min-max라 종횡비를 늘렸다 — 서울에서 경도 1도는 위도 1도의 0.79배
+// 거리이므로, 동서로 긴 한강 경로가 공유 카드 위에서 세로로 부푼 모양이 됐다. 공유 카드는
+// 이 제품에서 가장 공개적인 표면이라 실루엣이 사실인 게 특히 중요하다.
+// (traceToBox는 v(진행도)도 실어 주지만 여기 SVG 경로는 x/y만 쓴다 — 남는 필드는 무해.)
 
 // [2026-08-12] pathFrom는 run-share-card.tsx가 export하는 것을 쓴다 — 같은 산식이 두 벌이 되면
 // 공유 카드와 스튜디오 스킨의 궤적이 조용히 어긋난다. 정본 하나.
@@ -183,7 +179,7 @@ export default function ShotStudio() {
   }, [bid]);
 
   const run = report?.run ?? null;
-  const pts = useMemo(() => (run && run.trace.length > 1 ? normalizeTrace(run.trace) : null), [run]);
+  const pts = useMemo(() => (run && run.trace.length > 1 ? traceToBox(run.trace) : null), [run]);
   // [0064] runs.photos는 프라이빗 media 경로일 수 있다 — PhotoLayer/캡처가 실 URI를 요구하므로
   // 여기서 한 번 서명 URL로 풀어 상태에 담는다. 실패 장수는 시트에 정직하게 고지 (침묵 강등 금지).
   const [runPhotos, setRunPhotos] = useState<string[]>([]);

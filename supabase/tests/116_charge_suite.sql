@@ -9,6 +9,17 @@
 --   ⚠ `_fail` arguments are pre-computed into v_msg, never a subquery (the 110 header law).
 --   Money facts are asserted against LITERALS, never recomputed with the function's own
 --   expression (105's law) — otherwise the pin agrees with whatever the function does.
+-- ⚠ [0084, 2026-08-13] AMENDED BY A LATER MIGRATION — four pins, one ruling. 0080 §D shipped
+--   `dog_condition`/`incident` as a shared provisional (`amount 0, rule 'g1_waive'`) and said in
+--   its own comment that when Sean ruled, "the change is this one arm plus its pin". He ruled
+--   (confirmed directly, after two sessions recorded it differently): dog_condition charges FULL
+--   ACTUALS and therefore stops being a special case at all — same path, same value and same
+--   `actual_capped` rule as `completed`; incident stays ₩0 and becomes reviewable
+--   (`incident_pending_review`). So **C1's single G1 line split in two, and C6/C9/C23 re-point
+--   their waive fixtures from `dog_condition` to `incident`** — dog_condition no longer produces
+--   a waived row at all. Nothing else in this suite moved; every property the ruling ADDS (the
+--   completed/aborted identity, the accepted 200m cost, the review marker, the fifth
+--   reconciliation arm) is pinned in `120_g1_ops_cutover_suite.sql`, not here.
 -- ⚠ The cutover switch (`ops_flags.payments_live_since`) ships NULL = charging off, and while
 --   it is NULL the mints and the invariant-#1 sweep write nothing at all. So this suite sets it
 --   once in the seed (a week back) to get a running machine, C14 and C22 own the switch itself,
@@ -224,15 +235,21 @@ begin
     select * into c from compute_owner_charge(bk1, 'runner_personal', 3.0);
     if c.amount <> 9000 or c.rule <> 'runner_personal_distance_only'  -- distance ONLY (#10)
       then v_bad := v_bad || ' runner_personal@3.0=' || c.amount || '/' || c.rule; end if;
+    -- [0084 §A, Sean's ruling ① 2026-08-13] the shared `g1_waive` arm SPLIT IN TWO.
+    -- dog_condition stopped being a special case entirely: it takes the same actual-basis path as
+    -- `completed`, so at 3.0km on bk1 it is the SAME 20,900 the under-run arm above asserts, with
+    -- the same `actual_capped` rule. That identity is the ruling — an aborted run is billed for
+    -- what happened — and 120 J1 asserts it as an identity rather than as a coincidence of
+    -- literals. `incident` keeps the zero and gains a rule string that says why.
     select * into c from compute_owner_charge(bk1, 'dog_condition', 3.0);
-    if c.amount <> 0 or c.rule <> 'g1_waive'
+    if c.amount <> 20900 or c.basis_km <> 3.0 or c.rule <> 'actual_capped'
       then v_bad := v_bad || ' dog_condition=' || c.amount || '/' || c.rule; end if;
     select * into c from compute_owner_charge(bk1, 'incident', 3.0);
-    if c.amount <> 0 or c.rule <> 'g1_waive'
+    if c.amount <> 0 or c.basis_km <> 0 or c.rule <> 'incident_pending_review'
       then v_bad := v_bad || ' incident=' || c.amount || '/' || c.rule; end if;
 
     if v_bad = ''
-      then call _pass('chg','C1 기준표 — 완주 26900·언더런 20900·보호자사유 planned 26900·러너사유 거리만 9000·G1 0 (rule 문자열까지)');
+      then call _pass('chg','C1 기준표 — 완주 26900·언더런 20900·보호자사유 planned 26900·러너사유 거리만 9000·[0084] 컨디션 중단은 특별취급 없음(완주와 같은 20900/actual_capped)·사건은 0/incident_pending_review (rule 문자열까지)');
     else v_msg := v_bad; call _fail('chg','C1 기준표', v_msg); end if;
   exception when others then v_msg := sqlerrm; call _fail('chg','C1 기준표', v_msg);
   end;
@@ -354,14 +371,18 @@ begin
   -- ---------- [C6] waived — a deliberate zero, recorded as one ----------
   begin
     v_bad := '';
+    -- [0084 §A] the waive fixture moved from dog_condition to incident. Under Sean's ruling ①
+    -- dog_condition is a real charge (base fare, flat), so it no longer produces a waived row at
+    -- all; `incident` is the remaining deliberate zero. The row's review marker is 120 J3's pin —
+    -- this one is still only about the SHAPE of a waive (zero, keyless, rule recorded).
     b_d := t_chg_bk(oo, dg, rt, rr, 'completed', now() - interval '2 hours', 5.0, 9900, 15000, 2000);
-    perform t_chg_settled(b_d, 'dog_condition', 1.2);
-    select * into m from mint_settle_charge_intent(b_d, 'dog_condition', 1.2);
+    perform t_chg_settled(b_d, 'incident', 1.2);
+    select * into m from mint_settle_charge_intent(b_d, 'incident', 1.2);
     if not m.minted or m.status <> 'waived' or m.amount <> 0
-      then v_bad := v_bad || ' G1 민팅=' || m.status || '/' || m.amount; end if;
+      then v_bad := v_bad || ' 사건 민팅=' || m.status || '/' || m.amount; end if;
     if (select p.payment_key from payments p where p.id = m.payment_id) is not null
       then v_bad := v_bad || ' waived에 payment_key가 있다'; end if;
-    if (select p.raw->>'rule' from payments p where p.id = m.payment_id) is distinct from 'g1_waive'
+    if (select p.raw->>'rule' from payments p where p.id = m.payment_id) is distinct from 'incident_pending_review'
       then v_bad := v_bad || ' rule 미기록'; end if;
     -- and 'waived' cannot be used to hide a real amount
     begin
@@ -371,7 +392,7 @@ begin
     exception when check_violation then null;
     end;
     if v_bad = ''
-      then call _pass('chg','C6 waived 형상 — G1 종료는 0원 waived 한 줄(키 없음·rule 기록)·0이 아닌 waived는 거부');
+      then call _pass('chg','C6 waived 형상 — [0084] 사건 종료는 0원 waived 한 줄(키 없음·rule 기록)·0이 아닌 waived는 거부');
     else v_msg := v_bad; call _fail('chg','C6 waived 형상', v_msg); end if;
   exception when others then v_msg := sqlerrm; call _fail('chg','C6 waived 형상', v_msg);
   end;
@@ -504,7 +525,7 @@ begin
     b_a := t_chg_bk(oo, dg, rt, rr, 'completed', now() - interval '4 hours', 5.0, 9900, 15000, 2000);
     perform t_chg_settled(b_a, 'completed', 4.0);                 -- 9900 + 12000 + 2000 = 23900
     b_b := t_chg_bk(oo, dg, rt, rr, 'completed', now() - interval '4 hours', 5.0, 9900, 15000, 2000);
-    perform t_chg_settled(b_b, 'dog_condition', 0.9);             -- G1 → waived
+    perform t_chg_settled(b_b, 'incident', 0.9);                  -- [0084] 사건 → waived
     b_c := t_chg_bk(oo, dg, rt, rr, 'completed', now() - interval '4 hours', 5.0, 9900, 15000, 2000);
     perform t_chg_settled(b_c, 'completed', 5.0);
     insert into payments (booking_id, payment_key, order_id, amount, status)
@@ -517,7 +538,7 @@ begin
       then v_bad := v_bad || ' 미민팅 정산=' || coalesce(v_status,'∅') || '/' || coalesce(v_amount::text,'∅'); end if;
     select p.status, p.amount into v_status, v_amount from payments p where p.booking_id = b_b;
     if v_status is distinct from 'waived' or v_amount is distinct from 0
-      then v_bad := v_bad || ' G1 정산=' || coalesce(v_status,'∅') || '/' || coalesce(v_amount::text,'∅'); end if;
+      then v_bad := v_bad || ' 사건 정산=' || coalesce(v_status,'∅') || '/' || coalesce(v_amount::text,'∅'); end if;
 
     select count(*) into v_pre from payments;
     perform sweep_settled_without_payments();
@@ -539,7 +560,7 @@ begin
     if v_n <> 0 then v_bad := v_bad || ' 결제행 없는 정산 예약 ' || v_n || '건 잔존'; end if;
 
     if v_bad = ''
-      then call _pass('chg','C9 불변식 #1 스윕 — 정산됐는데 결제행 없는 예약을 민팅(23900)·G1은 waived·기존 행은 불가침·2회차는 0행 (§0-ter #1)');
+      then call _pass('chg','C9 불변식 #1 스윕 — 정산됐는데 결제행 없는 예약을 민팅(23900)·[0084] 사건은 waived·기존 행은 불가침·2회차는 0행 (§0-ter #1)');
     else v_msg := v_bad; call _fail('chg','C9 불변식 #1 스윕', v_msg); end if;
   exception when others then v_msg := sqlerrm; call _fail('chg','C9 불변식 #1 스윕', v_msg);
   end;
@@ -1060,9 +1081,12 @@ begin
     select * into c from compute_owner_charge(b_min, 'runner_personal', 0.05);
     if c.amount <> 100 or c.rule <> 'runner_personal_distance_only'
       then v_bad := v_bad || ' 정확히 100원=' || c.amount || '/' || c.rule; end if;
-    -- zero stays zero-with-its-own-rule: the floor arm must not swallow the G1 waive
-    select * into c from compute_owner_charge(b_min, 'dog_condition', 0.01);
-    if c.rule <> 'g1_waive' then v_bad := v_bad || ' G1이 최소금액 팔에 삼켜짐=' || c.rule; end if;
+    -- zero stays zero-with-its-own-rule: the floor arm must not swallow the deliberate zero.
+    -- [0084 §A] that zero is now `incident` alone — dog_condition became a real charge, and its
+    -- own relationship with the floor (a frozen base under ₩100 falls through to below_pg_minimum
+    -- rather than duplicating the rule) is pinned in 120 J1.
+    select * into c from compute_owner_charge(b_min, 'incident', 0.01);
+    if c.rule <> 'incident_pending_review' then v_bad := v_bad || ' 사건 0원이 최소금액 팔에 삼켜짐=' || c.rule; end if;
     -- and a 0km end is still 'actual_capped' 9,900 (base+addons keep it far above the floor)
     select * into c from compute_owner_charge(b_min, 'completed', 0);
     if c.amount <> 9900 or c.rule <> 'actual_capped'

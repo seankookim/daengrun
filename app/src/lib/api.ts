@@ -1,7 +1,7 @@
 // Live API layer — replaces store.ts mocks screen by screen.
 // Pattern: fetch → map to the app's existing types → screens show loading/error/empty honestly (목업 폴백 금지).
 import { FunctionsHttpError } from '@supabase/supabase-js';
-import { AddonKey, Booking, BookingStatus, RouteInfo, TracePoint } from '../store';
+import { AddonKey, Booking, BookingStatus, GeoRoutePoint, RouteInfo } from '../store';
 // bookings.status 원시 enum — store의 BookingStatus(목록 배지 어휘)와 다른 어휘라 별칭으로 받는다
 import type { BookingStatus as DbBookingStatus } from './payphase';
 import { MEDIA_BUCKET } from './media';
@@ -27,8 +27,37 @@ interface RouteRow {
   terrain: string | null;
   tags: string[] | null;
   features: { g: string; label: string }[] | null;
-  trace: TracePoint[] | null;
+  // 0082 K1: 실좌표 [{lat,lng}]. trace_thumb(≤50점)는 목록용, trace(≤200점)는 상세용.
+  trace: GeoRoutePoint[] | null;
+  trace_thumb: GeoRoutePoint[] | null;
   checked_at: string | null;
+  shade: RouteInfo['shade'];
+  lighting: RouteInfo['lighting'];
+  status: RouteInfo['status'];
+  town: string | null;
+}
+
+// 목록 셀렉트는 전체 trace를 절대 싣지 않는다 — 승격된 코스 하나가 수백 점이고, T1 임계(15-20 코스)에서
+// 마운트마다 MB급이 된다. 상세만 fetchRouteById로 전체를 받는다.
+const ROUTE_LIST_COLS = 'id,name,area,km,terrain,tags,features,trace_thumb,checked_at,status,town,shade,lighting';
+const ROUTE_FULL_COLS = 'id,name,area,km,terrain,tags,features,trace,trace_thumb,checked_at,status,town,shade,lighting';
+
+function toRouteInfo(r: RouteRow, geo: GeoRoutePoint[] | null): RouteInfo {
+  return {
+    id: r.id,
+    name: r.name,
+    area: r.area,
+    km: Number(r.km),
+    terrain: r.terrain ?? '',
+    tags: r.tags ?? [],
+    features: r.features ?? [],
+    checkedAt: fmtChecked(r.checked_at),
+    desc: composeDesc(r),
+    status: r.status,
+    shade: r.shade ?? null,
+    lighting: r.lighting ?? null,
+    trace: geo && geo.length > 0 ? geo : [],
+  };
 }
 
 function fmtChecked(dateStr: string | null): string {
@@ -55,26 +84,40 @@ function composeDesc(r: RouteRow): string {
 //  · fit(적합도) — 실 스코어러가 없다. 목업 96%를 실측처럼 보이지 않도록 필드째 뺀다.
 //    반환 타입의 Omit은 store.ts RouteInfo에서 fit이 사라지면 그대로 지우면 된다.
 //  · trace — 실좌표가 없으면 빈 배열. 목업 폴리라인을 코스 모양이라고 그리지 않는다.
-export async function fetchRoutes(): Promise<RouteInfo[]> {  // [리뷰 F11] fit은 store.ts에서도 죽었다 — Omit 잔재 정리
-  const { data, error } = await supabase
-    .from('routes')
-    .select('id,name,area,km,terrain,tags,features,trace,checked_at')
-    .eq('active', true)
-    .order('km');
+export async function fetchRoutes(town?: string | null): Promise<RouteInfo[]> {
+  // 디스커버리 = active만. 0002의 `using (active)` 정책이 0082에서 `using (true)`로 열렸으므로
+  // 가시성은 이제 쿼리의 책임이다 (상세·이력은 fetchRouteById가 전 상태를 읽는다).
+  let q = supabase.from('routes').select(ROUTE_LIST_COLS).eq('status', 'active');
+  if (town) q = q.eq('town', town);
+  const { data, error } = await q.order('km');
   if (error) throw error;
 
-  return (data as RouteRow[]).map((r) => ({
-    id: r.id,
-    name: r.name,
-    area: r.area,
-    km: Number(r.km),
-    terrain: r.terrain ?? '',
-    tags: r.tags ?? [],
-    features: r.features ?? [],
-    checkedAt: fmtChecked(r.checked_at),
-    desc: composeDesc(r),
-    trace: r.trace && r.trace.length > 0 ? r.trace : [],
-  }));
+  const active = (data ?? []) as RouteRow[];
+  if (active.length > 0) return active.map((r) => toRouteInfo(r, r.trace_thumb));
+
+  // ── D-VIS 폴백 (Sean 확정 A) ────────────────────────────────────────────────────────
+  // 이 동네에 active가 0개면 candidate를 돌려준다 — 파일럿이 예약을 만들 수 있어야 그 예약이
+  // 코스를 활성화하는 런을 낳는다. 단 호출부는 이들을 **자동 선택하면 안 된다**: status가
+  // RouteInfo에 실려 오는 이유가 그것이고, 서버(create-booking-hold)도 candidate_ack 없이는
+  // 거절한다. 첫 코스가 활성화되는 순간 이 분기는 스스로 사라진다.
+  let cq = supabase.from('routes').select(ROUTE_LIST_COLS).eq('status', 'candidate');
+  if (town) cq = cq.eq('town', town);
+  const { data: cand, error: cErr } = await cq.order('km');
+  if (cErr) throw cErr;
+  return ((cand ?? []) as RouteRow[]).map((r) => toRouteInfo(r, r.trace_thumb));
+}
+
+// 상세·이력·러너 브리핑 전용 — **가시성과 무관하게 어떤 라이프사이클 상태든 읽는다.**
+// 디스커버리 쿼리로 코스를 찾으면 예약된 candidate가 (다른 코스가 활성화되는 순간) 브리핑
+// 페이지를 잃고, 정지된 코스는 이력에서 '찾을 수 없음'으로 렌더된다 — 어제 예약한 코스인데.
+// 없는 행과 숨겨진 행은 다른 사실이므로 null과 예외를 구분해서 돌려준다.
+export async function fetchRouteById(id: string): Promise<RouteInfo | null> {
+  const { data, error } = await supabase
+    .from('routes').select(ROUTE_FULL_COLS).eq('id', id).maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  const r = data as RouteRow;
+  return toRouteInfo(r, r.trace ?? r.trace_thumb);
 }
 
 // 코스 페이지 '우리 기록' — 이 코스에서 내가 (보호자 또는 러너로) 완주한 러닝의 실사진.
@@ -235,6 +278,17 @@ export async function createBookingHold(p: {
   km: number;
   pace_label?: string;
   addons: AddonKey[];
+  // ── 선택 스냅샷 (0082 §C) — 분석 등급. 금액 경로가 읽지 않는다 ──
+  // recommended_route_id = 앱이 스스로 골랐을 코스. 오버라이드는 나중에
+  // `route_id is distinct from recommended_route_id`로 **서버가 파생**한다 — 클라가
+  // '수동이었다'고 주장하는 라벨 위에 PR-0 킬 라인을 세우지 않기 위해서.
+  recommended_route_id?: string;
+  selection_origin?: 'auto' | 'carousel' | 'detail_cta' | 'quick_book';
+  // 점검 전(candidate) 코스를 알고 골랐다는 확인. 서버가 이것 없이는 candidate를 거절한다.
+  candidate_ack?: boolean;
+  // 켜져 있던 제약 칩. 자동 배정이 '걸러진 집합 안에서' 골랐다면 origin은 auto지만 보호자는
+  // 선호를 표현한 것이므로, 오버라이드율과 따로 읽혀야 한다.
+  route_chips?: Record<string, boolean>;
 }): Promise<HoldResult> {
   const { data, error } = await supabase.functions.invoke('create-booking-hold', { body: p });
   if (error || data?.error) throw await fnError(error, data);
@@ -1066,7 +1120,14 @@ export async function fetchCoursePatches(): Promise<{ earned: CoursePatch[]; loc
       .not('route_id', 'is', null)
       .or(`owner_id.eq.${uid},runner_id.eq.${uid}`)
       .order('scheduled_at').limit(1000),
-    supabase.from('routes').select('id, name, km').eq('active', true),
+    // 0082 이후 상태 필터를 여기 두지 않는다. candidate는 active=false인데, 파일럿은 바로 그
+    // candidate를 예약해서 활성화 런을 만든다 — active만 읽으면 그 완주로 얻은 패치가 아래
+    // forEach에 영영 도달하지 못하고 조용히 사라진다(그리고 fetchRewardBeacon이 '다음 목표'를
+    // 거짓으로 그린다). 은퇴/정지 코스도 마찬가지: 달린 기록은 코스가 은퇴했다고 없던 일이
+    // 되지 않는다(기록 카드 원칙). 그래서 전 상태를 읽고 아래에서 갈라 쓴다 — earned는 상태
+    // 무관, locked는 지금 갈 수 있는 코스(active)만. routes는 수십 행이고 0082에서 공개 읽기가
+    // 열렸으므로 전량 조회가 싸다.
+    supabase.from('routes').select('id, name, km, status'),
   ]);
   if (bkRes.error) throw bkRes.error;
   // routes 실패도 실패로 — 조용히 넘기면 earned/locked가 통째로 빈 배열이 되고,
@@ -1081,6 +1142,7 @@ export async function fetchCoursePatches(): Promise<{ earned: CoursePatch[]; loc
   const locked: { routeId: string; name: string; km: number }[] = [];
   (rtRes.data ?? []).forEach((r: any) => {
     const c = counts[r.id];
+    if (!c && r.status !== 'active') return; // 못 달린 candidate/정지/은퇴는 '잠금'으로도 걸지 않는다
     if (c) {
       earned.push({
         routeId: r.id, name: r.name, km: Number(r.km), count: c.n,

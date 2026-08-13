@@ -7,6 +7,7 @@ import { paper } from '../theme';
 import { useNumFont } from '../lib/fonts';
 import { worldOf } from './patch';
 import { HeatTrace } from './runcard';
+import { traceToBox } from '../lib/trace';
 
 // 동네 코스 스트립 — 트레일 패치(스티커) 덱. 보호자 홈(동네 러너 아래)·러너 홈 공유.
 // 파스텔 로테이션 + 살짝 기운 스티커 + km 빕 + 점검 도장: 코스를 '수집하고 싶은 배지'처럼.
@@ -63,7 +64,7 @@ export function CourseStrip({ title = '동네 코스', headerPad = 0, bleed = 0 
                 않는다 — 정직한 준비 중 슬롯 (실 trace가 오면 그때 발광) */}
             <View style={{ marginTop: 6, marginHorizontal: -3 }}>
               {r.trace.length > 1 ? (
-                <HeatTrace points={r.trace} width={204} height={72} tint={w.tone} />
+                <HeatTrace points={traceToBox(r.trace)} width={204} height={72} tint={w.tone} />
               ) : (
                 <View style={{ width: 204, height: 72, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: w.tone }}>
                   <Text style={{ fontSize: 14, fontWeight: '700', color: w.dim }}>코스 지도 준비 중</Text>

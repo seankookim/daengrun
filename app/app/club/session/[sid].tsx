@@ -18,7 +18,8 @@ import {
 import { draft as liveDraft } from '../../../src/store'; // 라이브 화면 진입 키 (챗 draft 상태와 이름 충돌 주의)
 import { getTrackPermission, resetTrace, startTracking } from '../../../src/lib/geo';
 import { MediaImage } from '../../../src/lib/media';
-import { useNumFont } from '../../../src/lib/fonts';
+// useNumFont는 이 화면에서 은퇴했다 — 숫자 서체가 필요한 유일한 자리가 확정 시트의 요금이었고,
+// 그 요금은 승낙서로 옮겨갔다 (가격 비가시성, 재정 ④).
 import { haptic } from '../../../src/lib/haptics';
 import { collarColors, CollarKey, lilac, lilacRadius } from '../../../src/theme';
 
@@ -26,8 +27,15 @@ import { collarColors, CollarKey, lilac, lilacRadius } from '../../../src/theme'
 // 셸 = 마스트 + 개요/참가자/채팅 탭. 접근은 club_my_shell_access 단일 판정 (신청은 문이 아니다).
 // 개요 탭 = "몽이의 위탁" 상태 카드 하나가 상태 머신 (O3/O4/O6/O7 = 같은 카드의 다른 상태) —
 // 상태 문구는 ui.primaryStage를 낱말 그대로 렌더 (클라이언트는 상태 텍스트를 지어내지 않는다).
-// 이 빌드의 행동: 신청 취소(O3) · 결제 시트(O4→O5) · 이의 1회(O7) · 함께 뛰기 RSVP/체크인.
+// 이 빌드의 행동: 신청 취소(O3) · 확정 시트(O4→O5) · 이의 1회(O7) · 함께 뛰기 RSVP/체크인.
 // 인계/반환 확인(O8/O10)·호스트 콘솔은 빌드 3 — 카드는 상태를 정직하게 보여주되 버튼을 만들지 않는다.
+//
+// [클럽 가격 비가시성 · Sean 재정 ④ 2026-08-13] 이 화면에는 요금이 없다. 예전엔 다섯 곳에 있었다:
+// HOLDING 큰 숫자 · CTA('N원 결제하기') · PENDING '승인 시 가격' · CLEARED '결제 N원' · 확정 시트.
+// 전부 승낙서(/club/delegate/[sid])의 단 한 번 고지로 접혔다 — 마켓플레이스 §0-bis 교리 그대로
+// (요청 화면에서 한 번, 그 뒤로는 없음). 규칙: 해피 패스에서 숫자는 사라지고, **예외는 시끄럽다**
+// (청구 잠금·결제수단 미등록 알럿은 그대로 크게 말하고 해결 경로를 준다).
+// 요금을 다시 봐야 하는 보호자의 길 = 설정 › 결제 관리 (온디맨드 반쪽).
 
 const L = lilac;
 
@@ -71,8 +79,9 @@ function DogDot({ name, collar, size = 36 }: { name: string; collar: string | nu
 }
 
 export default function ClubSessionShell() {
-  const nf = useNumFont();
-  const { sid, clubName } = useLocalSearchParams<{ sid: string; clubName?: string }>();
+  // resumeSd = 카드 연결하러 /payments로 나갔다가 돌아온 보호자의 '하려던 일' (재정 ⑤).
+  // 이 값이 있으면 그 위탁의 확정 시트를 다시 열어준다 — 돌아와서 길을 잃지 않는다.
+  const { sid, clubName, resumeSd } = useLocalSearchParams<{ sid: string; clubName?: string; resumeSd?: string }>();
   const [sess, setSess] = useState<ClubSessionDetail | null>(null);
   const [board, setBoard] = useState<DelegationBoard | null>(null);
   const [access, setAccess] = useState<ShellAccess>('none');
@@ -165,6 +174,18 @@ export default function ClubSessionShell() {
     return () => clearInterval(t);
   }, [joinedWaiting, ticking]);
 
+  // [재정 ⑤] 카드 연결하러 결제 관리로 나갔다가 돌아온 보호자 — 하려던 자리 확정 시트를 다시 연다.
+  // 한 번만 연다(파라미터를 즉시 비운다): 포커스마다 시트가 튀어나오는 화면은 길잡이가 아니라 덫이다.
+  // 홀드가 이미 끝났으면 열지 않는다 — 그때는 카드의 서버 문구가 정직한 마지막 말이다.
+  const resumed = useRef(false);
+  useEffect(() => {
+    if (!resumeSd || resumed.current || !board) return;
+    resumed.current = true;
+    router.setParams({ resumeSd: '' });
+    const d = board.dogs.find((x) => x.sdId === resumeSd && x.isMine);
+    if (d && d.flap === 'HOLDING') { setMethodOk(false); setPayTarget(d); }
+  }, [resumeSd, board]);
+
   const onRefresh = () => { setRefreshing(true); Promise.resolve(load()).finally(() => setTimeout(() => setRefreshing(false), 400)); };
 
   if (!sess) {
@@ -188,7 +209,7 @@ export default function ClubSessionShell() {
   // [0052 §2] people는 당사자에게만 채워진다 — 인원수는 서버 peopleCount가 정본.
   // (db push 전 원격에선 undefined → 예전대로 명단 길이)
   const peopleCount = sess.peopleCount ?? sess.people.length;
-  const fare = board?.session.fare ?? null;
+  // board.session.fare는 서버가 계속 준다 — 이 화면이 그리지 않을 뿐이다 (가격 비가시성, 재정 ④).
 
   // ---------- 함께 뛰기 (동반 참가) 액션 ----------
   const rsvpWith = async (dogId: string | null) => {
@@ -274,7 +295,8 @@ export default function ClubSessionShell() {
     ]);
   };
   const doCancelPaid = (d: DelegationDog) => {
-    Alert.alert('취소 규정', '시작 24시간 전까지 무료 · 이후 10% · 배정 수락 후 20%\n수수료는 서버가 시점 기준으로 판정해요.', [
+    // 같은 규정 문장이 확정 시트에도 있다 — 두 곳의 낱말이 어긋나면 규정이 두 개로 읽힌다
+    Alert.alert('취소 규정', '시작 24시간 전까지 무료 · 이후 위탁 요금의 10% · 배정 수락 후 20%\n수수료는 서버가 시점 기준으로 판정해요.', [
       { text: '닫기', style: 'cancel' },
       {
         text: '취소하기', style: 'destructive',
@@ -587,6 +609,22 @@ export default function ClubSessionShell() {
       )}
     </Pressable>
   );
+  // [재정 ⑤] 카드 없는 클럽 상태는 벽이 아니라 문이다 — 결제 관리로 데려가고, 돌아올 길을 들려 보낸다.
+  // ⚠ TODO(card-register): 카드 등록 화면은 아직 없다 (Ⓐ 랩 선택 대기 — payments-toss-plan.md
+  // §0-bis FINAL SCREEN INVENTORY가 말하는 유일한 신규 화면 세트). 그래서 오늘의 정직한 목적지는
+  // /payments다: 그 화면의 빈 상태가 스스로 '카드 등록 화면은 준비 중이에요'라고 말한다.
+  // 등록 화면이 생기면 **여기 pathname만** 그 화면으로 바꾼다 — returnTo/returnLabel 계약은 그대로
+  // 쓰이고(등록 성공 → returnTo로 replace), 세션 쪽 resumeSd 재개는 손댈 필요가 없다.
+  const goLinkCard = (d: DelegationDog) => {
+    setPayTarget(null);
+    router.push({
+      pathname: '/payments',
+      params: {
+        returnTo: `/club/session/${sess.id}?clubName=${encodeURIComponent(clubName ?? '')}&resumeSd=${d.sdId}`,
+        returnLabel: `${d.dogName} 자리 확정하러 돌아가기 →`,
+      },
+    });
+  };
   const doPay = async () => {
     const d = payTarget;
     if (!d || busy) return;
@@ -602,21 +640,34 @@ export default function ClubSessionShell() {
       Alert.alert('자리 확정', `${d.dogName}의 자리가 확정됐어요 — 담당 러너가 정해지면 알려드려요`);
     } catch (e) {
       const m = (e as Error).message;
+      // [0081] 클럽도 마켓플레이스·반복 예약과 같은 두 게이트를 지난다. 두 문장 모두 돈 문제를
+      // 숨기지 않는다 — 잠금은 조용하면 안 되고(§0-bis 예외 모드), 해결 경로를 이름으로 준다.
+      // ⚠ 이 두 코드 문자열은 SQL과의 계약이다 (0081 §A의 raise exception). SQL 쪽 이름은
+      // 117_club_money_suite K1/K4가 리터럴로 박아두었지만 **이쪽은 핀이 없다** — 한쪽만
+      // 바꾸면 하네스는 초록인 채 보호자가 영문 코드를 보게 된다. 바꾸려면 양쪽을 같이.
+      // [재정 ⑤ 2026-08-13] 이 두 거절은 이제 문장이 아니라 문이다 — 이름만 부르던 '설정 › 결제
+      // 관리'로 실제로 데려간다. 예외는 여전히 시끄럽다 (가격 비가시성은 해피 패스의 규칙일 뿐).
+      const moneyBlock =
+        m.includes('unsettled_charge')
+          ? { title: '자리를 확정할 수 없어요', body: '지난 러닝의 결제가 아직 처리되지 않아 새 예약이 잠겼어요 — 결제 관리에서 해결하면 다시 확정할 수 있어요' }
+        : m.includes('billing_key_required')
+          ? { title: '카드를 먼저 연결해주세요', body: '결제 수단이 등록되어 있지 않아 자리를 확정할 수 없어요 — 연결하고 나면 이 자리로 다시 데려다드릴게요' }
+        : null;
+      if (moneyBlock) {
+        Alert.alert(moneyBlock.title, moneyBlock.body, [
+          { text: '나중에', style: 'cancel' },
+          { text: '결제 관리 열기', onPress: () => goLinkCard(d) },
+        ]);
+        return;
+      }
       // [감사 P1] hold_expired는 서버가 던지지 않는 죽은 매핑이었고, 실제 코드들이 원문 노출됐다
-      Alert.alert('결제 실패',
-        m.includes('no_capacity') ? '마지막 자리가 먼저 찼어요 — 결제되지 않았어요'
+      Alert.alert('자리 확정 실패',
+        m.includes('no_capacity') ? '마지막 자리가 먼저 찼어요 — 확정되지 않았어요'
         : m.includes('dog_slot_clash') ? '같은 시간대에 이 아이의 다른 러닝 예약이 있어요'
-        : m.includes('method_consent_required') ? '배정 방식에 동의해야 결제할 수 있어요' // [0053 §1] 서버 백스톱 (CTA는 이미 게이트)
+        : m.includes('method_consent_required') ? '배정 방식에 동의해야 자리를 확정할 수 있어요' // [0053 §1] 서버 백스톱 (CTA는 이미 게이트)
         : m.includes('not_payable') ? '승인 상태가 바뀌었어요 — 새로고침해 주세요'
         : m.includes('session_closed') ? '이미 시작됐거나 닫힌 세션이에요'
         : m.includes('route_required') ? '세션 코스가 아직 없어요 — 호스트에게 문의해주세요'
-        // [0081] 클럽도 마켓플레이스·반복 예약과 같은 두 게이트를 지난다. 두 문장 모두 돈 문제를
-        // 숨기지 않는다 — 잠금은 조용하면 안 되고(§0-bis 예외 모드), 해결 경로를 이름으로 준다.
-        // ⚠ 이 두 코드 문자열은 SQL과의 계약이다 (0081 §A의 raise exception). SQL 쪽 이름은
-        // 117_club_money_suite K1/K4가 리터럴로 박아두었지만 **이쪽은 핀이 없다** — 한쪽만
-        // 바꾸면 하네스는 초록인 채 보호자가 영문 코드를 보게 된다. 바꾸려면 양쪽을 같이.
-        : m.includes('unsettled_charge') ? '지난 러닝의 결제가 아직 처리되지 않아 새 예약이 잠겼어요 — 설정 › 결제 관리에서 해결하면 다시 신청할 수 있어요'
-        : m.includes('billing_key_required') ? '결제 수단이 등록되어 있지 않아요 — 설정 › 결제 관리에서 카드를 연결한 뒤 다시 시도해주세요'
         : m);
     } finally { setBusy(false); }
   };
@@ -665,18 +716,16 @@ export default function ClubSessionShell() {
                 {/* ④ 링 드레인 — 20분 홀드가 실제로 빠져나간다 (숫자·색 모두 서버 만료 시각 바인딩) */}
                 <DrainRing leftMs={holdLeft} totalMs={HOLD_MS} />
                 <Text style={s.deadlineCopy}>
-                  {holdLeft > 0 ? '안에 결제하면 자리 확정' : '홀드가 끝났어요 — 승인부터 다시 필요할 수 있어요'}
+                  {holdLeft > 0 ? '안에 확정하지 않으면 자리가 풀려요' : '홀드가 끝났어요 — 승인부터 다시 필요할 수 있어요'}
                 </Text>
               </View>
             )}
-            {fare != null && (
-              <BigNumRow items={[
-                { v: fare.toLocaleString(), label: '원' },
-                ...(board?.session.routeKm ? [{ v: String(board.session.routeKm), unit: 'km', label: board.session.routeName ?? '코스' }] : []),
-                { v: String(board?.session.viability?.presentRunners ?? board?.runners.length ?? 0), unit: '명', label: '확약 러너' },
-              ]} />
-            )}
-            <ClubCta label={`${fare != null ? fare.toLocaleString() + '원 ' : ''}결제하기 →`} onPress={() => { setMethodOk(false); setPayTarget(d); }} />
+            {/* 큰 숫자 칸에서 요금이 빠졌다 — 남은 건 돈이 아닌 사실(코스·확약 러너)뿐이다 */}
+            <BigNumRow items={[
+              ...(board?.session.routeKm ? [{ v: String(board.session.routeKm), unit: 'km', label: board.session.routeName ?? '코스' }] : []),
+              { v: String(board?.session.viability?.presentRunners ?? board?.runners.length ?? 0), unit: '명', label: '확약 러너' },
+            ]} />
+            <ClubCta label="자리 확정하기 →" onPress={() => { setMethodOk(false); setPayTarget(d); }} />
             <Pressable onPress={() => { setMethodOk(false); setPayTarget(d); }}>
               <Text style={s.detailLink}>취소 규정 · 배정 방식 →</Text>
             </Pressable>
@@ -690,10 +739,11 @@ export default function ClubSessionShell() {
         {/* O3 — 신청 대기: 무료 취소 (콰이엇) */}
         {d.flap === 'PENDING' && (
           <>
-            {fare != null && (
+            {/* '승인 시 가격'이 있던 자리 — 요금은 승낙서에서 이미 한 번 고지됐다 (재정 ④).
+                심사 중인 신청 화면에 가격을 다시 세우면 두 번째 고지가 된다. 코스만 남긴다. */}
+            {board?.session.routeKm != null && (
               <BigNumRow items={[
-                { v: fare.toLocaleString(), label: '승인 시 가격' },
-                ...(board?.session.routeKm ? [{ v: String(board.session.routeKm), unit: 'km', label: board.session.routeName ?? '코스' }] : []),
+                { v: String(board.session.routeKm), unit: 'km', label: board.session.routeName ?? '코스' },
               ]} />
             )}
             <ClubCta label="신청 취소 (무료)" tone="destructive" onPress={() => doWithdraw(d)} />
@@ -718,10 +768,12 @@ export default function ClubSessionShell() {
                 </View>
               </LilacCard>
             )}
-            {!assigned && fare != null && (
+            {/* 확정된 자리 — 예전엔 '결제 24,900원'이었다. 확정은 돈 사건이 아니라 자리 사건이고
+                (청구는 러닝이 끝난 뒤·§0-bis), 요금은 승낙서에서 이미 말했다. */}
+            {!assigned && (
               <View style={s.paidRow}>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 14, fontWeight: '800', color: L.head }}>결제 {fare.toLocaleString()}원</Text>
+                  <Text style={{ fontSize: 14, fontWeight: '800', color: L.head }}>자리 확정</Text>
                   <Text style={{ fontSize: 14, lineHeight: 18, color: L.dim, marginTop: 1 }}>{sess.when}{board?.session.routeName ? ` · ${board.session.routeName}` : ''}</Text>
                 </View>
                 <ClubTag label="완료" tone="volt" />
@@ -830,7 +882,7 @@ export default function ClubSessionShell() {
         <View style={{ alignItems: 'center', paddingVertical: 40 }}>
           <Text style={{ fontSize: 14, color: L.text }}>참가 {peopleCount}팀 · 정원 {sess.capacity}</Text>
           <Text style={{ fontSize: 14, color: L.dim, marginTop: 6 }}>
-            {access === 'limited' ? '결제하면 참가자 명단이 열려요' : access === 'none' ? '세션 참가자만 볼 수 있어요' : '명단을 불러오는 중...'}
+            {access === 'limited' ? '자리를 확정하면 참가자 명단이 열려요' : access === 'none' ? '세션 참가자만 볼 수 있어요' : '명단을 불러오는 중...'}
           </Text>
         </View>
       );
@@ -1210,7 +1262,7 @@ export default function ClubSessionShell() {
             ) : (
               <Text style={s.closedLine}>채팅이 닫혔어요</Text>
             )}
-            <Text style={[clubText.dim, { textAlign: 'center', marginTop: 9 }]}>결제하면 그룹 채팅이 열려요</Text>
+            <Text style={[clubText.dim, { textAlign: 'center', marginTop: 9 }]}>자리를 확정하면 그룹 채팅이 열려요</Text>
           </>
         )}
         {tab === '채팅' && (access === 'full' || access === 'host') && (
@@ -1279,13 +1331,10 @@ export default function ClubSessionShell() {
         <Pressable style={{ flex: 1, backgroundColor: 'rgba(28,24,55,.45)' }} onPress={() => setPayTarget(null)} />
         <View style={s.sheet}>
           <View style={s.grab} />
+          {/* 시트 머리에 있던 요금 숫자는 승낙서로 갔다 (재정 ④). 남는 것은 '무엇을 확정하는가'다 —
+              두 동의 문장과 파일럿 고지는 그대로: 법적으로 묶이는 순간의 문장은 줄이지 않는다. */}
           <Row style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
-            <Text style={{ fontSize: 15, fontWeight: '800', color: L.head }}>{payTarget?.dogName} 위탁 결제</Text>
-            {fare != null && (
-              <Text style={[{ fontSize: 22, fontWeight: '600', color: L.head, fontVariant: ['tabular-nums'] }, nf]}>
-                {fare.toLocaleString()}
-              </Text>
-            )}
+            <Text style={{ fontSize: 15, fontWeight: '800', color: L.head }}>{payTarget?.dogName} 자리 확정</Text>
           </Row>
           {/* 규칙 7이 카드에서 옮겨온 두 문장 — 법적으로 묶이는 순간에만 등장 */}
           <Pressable onPress={() => setMethodOk((v) => !v)} style={s.legal}>
@@ -1300,8 +1349,10 @@ export default function ClubSessionShell() {
             <View style={[s.chk, { backgroundColor: L.dim }]}>
               <Text style={{ fontSize: 10, fontWeight: '900', color: '#fff' }}>✓</Text>
             </View>
+            {/* 요금 숫자가 이 시트에서 사라졌으므로 퍼센트가 무엇의 퍼센트인지 문장이 직접 말한다 —
+                비가시성이 '무엇의 10%인지 모를 자유'가 되면 그건 은폐다 (숫자를 다시 세우진 않는다). */}
             <Text style={s.legalTxt}>
-              시작 <Text style={{ fontWeight: '800', color: L.head }}>24시간 전까지 무료 취소</Text> · 이후 10% · 배정 수락 후 20%
+              시작 <Text style={{ fontWeight: '800', color: L.head }}>24시간 전까지 무료 취소</Text> · 이후 위탁 요금의 10% · 배정 수락 후 20%
               {'\n'}<Text style={{ color: L.dim }}>실결제 연동 후 적용돼요 — 파일럿 기간에는 청구되지 않아요</Text>
             </Text>
           </View>

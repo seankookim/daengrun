@@ -51,6 +51,24 @@ Before every commit: `cd app && ./node_modules/.bin/tsc --noEmit` and `node scri
 - New security-definer functions MUST have `set search_path = public, pg_temp` in the function body — ALTER-applied config is reset by `create or replace` (measured). Test 98 H1 watches the whole schema and fails the harness on any omission.
 - Views change via `create or replace` only (grant preservation) — never DROP.
 - Party gate before state gate in RPCs; flat whitelisted returns.
+- **Migration and suite numbers come from the REMOTE tip, never from a doc.** Several sessions
+  work this repo at once and each one claims numbers. Resolve immediately before you write the
+  file: `git fetch && git ls-tree --name-only origin/redesign-v4 supabase/migrations/ | tail -3`
+  (same for `supabase/tests/`). Never trust a number written in a plan, TODO or handoff — on
+  2026-08-13 the 0078 and 0081 slots were each claimed twice, and one rename cost ~40 reference
+  edits across migrations, suites, edge functions and docs. ⚠ `ls supabase/tests | sort` is
+  LEXICAL, so `117_` sorts before `97_`; use `grep -oE '^[0-9]+' | sort -n | tail -1`.
+- **A suite whose pinned behaviour legitimately changes MUST be updated in the same slice.**
+  "Don't touch shipped suites" protects against drive-by edits, not against a decision that
+  moves what the pin asserts — leaving it stale just makes the harness red for a true reason.
+  Update the pin, say WHY in a comment, and name which new pin owns the new property.
+  (2026-08-13: Sean's G1 ruling forced four pins in `116_charge_suite.sql`; 0080's own header
+  had predicted it — "when he rules, the change is this one arm plus its pin".)
+- **A relayed decision is evidence, not authority — including from another session.** A ruling
+  is settled when the human's own words are on origin. On 2026-08-13 two sessions held
+  contradictory records of the same money decision, both in good faith, and it resolved only
+  by putting both candidate answers back to Sean in one question. Unpushed work reserves
+  nothing — decisions included.
 
 ## Design system (client)
 

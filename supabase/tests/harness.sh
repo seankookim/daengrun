@@ -107,6 +107,7 @@ suite 116_charge_suite.sql            # 0080 charge machine (basis table·mints�
 suite 117_club_money_suite.sql            # 0081 club money gates (the third booking path: debt + instrument gates·confirmation copy — K1~K8)
 suite 118_route_ladder_suite.sql            # 0082 route ladder (candidate→active only via a dog-accompanied run: generated active·public read·evidence check·process gate·promotion invariants — R1~R13)
 suite 119_run_end_suite.sql            # 0083 run-end flow (동결·귀가 씰·LA phase·청소부 — R1~R14)
+suite 120_g1_ops_cutover_suite.sql            # 0084 Sean's rulings ①③⑥ (dog_condition = full actuals (Sean's ruling C)·reviewable incident waive + its ops arm·ops_recipients routing·cutover setter refuses the past·승인 알림에서 요금 제거 — J1~J10)
 psql -c "select case when ok then '✅' else '❌' end || ' [' || suite || '] ' || name || case when ok then '' else ' — ' || detail end from _t order by at"
 psql -qt -c "select count(*) filter (where ok) || ' pass / ' || count(*) filter (where not ok) || ' fail' from _t"
 psql -qt -c "select case when count(*) filter (where not ok) > 0 then 'FAIL' else 'OK' end from _t" | grep -q OK

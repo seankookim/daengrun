@@ -24,6 +24,22 @@ export async function createBookingHold(req: Request, db: SupabaseClient) {
 
   if (!b.dog_id || !b.scheduled_at || !b.km) throw new HttpError(400, "missing fields");
 
+  // ── km bounds (0082 review) ───────────────────────────────────────────────────────────────────
+  // `km` was truthy-checked and then multiplied straight into money (`PRICING.perKm` below) and
+  // into the slot window. A string, a NaN, a negative or a 500 sailed through: `!b.km` only
+  // rejects 0/undefined. The dial the client actually offers is 1–10km in 0.5 steps
+  // (app/app/owner/request.tsx KM_MIN/KM_MAX/KM_STEP) and `bookings.km` is numeric(4,1), so
+  // anything else is either a broken client or someone poking the endpoint — 400 either way.
+  // Strict on TYPE, not just value. Coercing (`Number(b.km)`) would silently accept "5" — the
+  // arithmetic downstream happens to survive it, so the bug would be invisible until some path
+  // concatenates instead of adds. The endpoint's contract says number, the real client always
+  // sends one (KM_VALUES are numbers), and a string here means a broken caller worth telling.
+  const km = b.km;
+  if (typeof km !== "number" || !Number.isFinite(km) || km < 1 || km > 10 ||
+      Math.round(km * 2) !== km * 2) {
+    throw new HttpError(400, "km out of range");
+  }
+
   // ── 소유권 검증 (웨이브 3) — 이 함수는 서비스롤로 쓰므로 RLS가 대신 막아주지 않는다.
   // dog_id가 진짜 구멍이다: 0042 마켓플레이스 뷰가 dogs를 조인해 이름·견종·체중·메모·사진·성향·
   // 접종 이력을 '모든 활성 러너'에게 노출한다 → 검증 없는 dog_id는 남의 강아지 신상을 오픈 풀에
@@ -39,6 +55,50 @@ export async function createBookingHold(req: Request, db: SupabaseClient) {
     const { data: myAddr } = await db.from("addresses")
       .select("id").eq("id", b.address_id).eq("owner_id", uid).maybeSingle();
     if (!myAddr) throw new HttpError(403, "forbidden");
+  }
+
+  // ── the route gate (0082) ─────────────────────────────────────────────────────────────────────
+  // `route_id` was the last client-supplied FK this function inserted RAW, while its siblings above
+  // are all checked — and the comment at :27 already says why that matters here: service role, so
+  // RLS does not stand behind us. Three things were reachable: a nonexistent uuid became a 500 with
+  // a raw Postgres message, a SUSPENDED route stayed bookable (which is what made 0082's one-line
+  // 2am suspension advisory rather than real), and the candidate ceremony the plan specifies lived
+  // only in the client, where it is a suggestion.
+  //
+  // Placed with the ownership checks, i.e. long before the insert and the card CAS at the bottom:
+  // a route refusal must never be the thing that strands a card-linked booking in `payment_hold`
+  // (§0-ter #7 — the failure mode `compensate()` exists to clean up after).
+  let routeStatus: string | null = null;
+  if (b.route_id) {
+    const { data: route, error: rtErr } = await db.from("routes")
+      .select("id, status").eq("id", b.route_id).maybeSingle();
+    if (rtErr) throw new HttpError(500, rtErr.message);
+    if (!route) throw new HttpError(400, "unknown route");
+    routeStatus = route.status;
+
+    if (route.status === "suspended" || route.status === "retired") {
+      // The teeth behind `update routes set status='suspended'`. Without this the operator
+      // suspends a flooded course and bookings keep arriving on it.
+      throw new HttpError(
+        409,
+        "이 코스는 지금 예약할 수 없어요 — 점검을 위해 잠시 중단됐어요. 다른 코스를 골라주세요",
+      );
+    }
+    // A candidate is bookable, but only ON PURPOSE (plan D-VIS=A): the client shows the amber
+    // '점검 전 코스로 예약' confirm and sends the acknowledgement. Enforced here because a gate
+    // that only exists in the client is not a gate — and because an owner must never be
+    // auto-assigned a loop no dog has run.
+    if (route.status === "candidate" && b.candidate_ack !== true) {
+      throw new HttpError(409, "candidate_ack_required");
+    }
+  }
+
+  // Analytics-grade, never money-bearing (0082 §C). `selection_origin` is the client's account of
+  // HOW the owner got here, so it is range-checked but trusted; the exposure class is not — it is
+  // read off routes.status above, because that is the number the PR-0 kill line divides by.
+  const ORIGINS = ["auto", "carousel", "detail_cta", "quick_book"];
+  if (b.selection_origin && !ORIGINS.includes(b.selection_origin)) {
+    throw new HttpError(400, `unknown selection_origin ${b.selection_origin}`);
   }
 
   // ── the account lock (§0-ter, 0080 §F) — asked FIRST, before anything is computed or written ──
@@ -69,7 +129,10 @@ export async function createBookingHold(req: Request, db: SupabaseClient) {
   const paidPath: "card" | "widget" = card ? "card" : "widget";
 
   const start = new Date(b.scheduled_at);
-  const durMin = b.km * 8 + 25; // 러닝 + 픽업·인계 버퍼
+  // An unparseable date became `Invalid Date`, whose toISOString() throws a RangeError — a 500
+  // with a stack instead of a 400 with a reason. Same class as the km bounds above.
+  if (Number.isNaN(start.getTime())) throw new HttpError(400, "bad scheduled_at");
+  const durMin = km * 8 + 25; // 러닝 + 픽업·인계 버퍼 (validated km — b.km may be a string)
   const end = new Date(start.getTime() + durMin * 60_000);
 
   // 같은 강아지 중복 예약 가드 — 겹치는 시간대의 살아있는 예약이 있으면 거절.
@@ -110,18 +173,26 @@ export async function createBookingHold(req: Request, db: SupabaseClient) {
     if (!(k in PRICING.addons)) throw new HttpError(400, `unknown addon ${k}`);
     return s + PRICING.addons[k];
   }, 0);
-  const distanceFare = Math.round(b.km * PRICING.perKm);
+  const distanceFare = Math.round(km * PRICING.perKm);
   const total = PRICING.ownerBaseFare + distanceFare + addonFare;
 
   // booking(draft→quoted→payment_hold) + hold, 한 흐름으로
   const { data: booking, error: bErr } = await db.from("bookings").insert({
     owner_id: uid, dog_id: b.dog_id, runner_id: b.runner_id ?? null,
     route_id: b.route_id ?? null, address_id: b.address_id ?? null,
-    status: "draft", scheduled_at: start.toISOString(), km: b.km,
+    status: "draft", scheduled_at: start.toISOString(), km,
     pace_label: b.pace_label ?? null,
     addons: addons.map((k) => ({ key: k, price: PRICING.addons[k] })),
     base_fare: PRICING.ownerBaseFare, distance_fare: distanceFare,
     addon_fare: addonFare, total_price: total, min_fare: PRICING.minFare,
+    // selection snapshot (0082 §C) — recommended_route_id is what the app would have picked on
+    // its own, so override is DERIVED later as `route_id is distinct from recommended_route_id`
+    // rather than asserted by the client. route_status_at_booking is written from the row we
+    // just read, never from the body.
+    recommended_route_id: b.recommended_route_id ?? null,
+    selection_origin: b.selection_origin ?? null,
+    route_status_at_booking: routeStatus,
+    route_chips: b.route_chips ?? {},
   }).select("id").single();
   if (bErr) throw new HttpError(500, bErr.message);
 

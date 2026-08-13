@@ -1,7 +1,8 @@
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ChargeBanner, PaymentRow } from '../src/components/charge-states';
+import { PaperBtn } from '../src/components/paper-btn';
 import { Row } from '../src/components/ui';
 import {
   BillingCard, PaymentRecord, fetchMyBillingCard, fetchMyPayments, fetchUnsettledCharge, retryCollect,
@@ -12,6 +13,14 @@ import { paper } from '../src/theme';
 // The happy path shows the price ONCE (요청 화면) and never again; this screen is where the
 // owner can always come back and see what was actually charged. It must therefore be complete
 // and accurate, and it must never soften a failure.
+//
+// RETURN INTENT (Sean 재정 ⑤, 2026-08-13). Screens that hit a money refusal send the owner here
+// instead of dead-ending, and they carry where to go back to:
+//   router.push({ pathname: '/payments', params: { returnTo: '<href>', returnLabel: '<button copy>' } })
+// `returnTo` is a complete href (query string included) so this screen stays ignorant of the
+// caller's world — it only knows "there is somewhere to go back to". The door is drawn ONLY when
+// a card actually exists: offering "돌아가서 마저 하기" to a card-less owner would just walk them
+// into the same refusal again. The caller (club session) re-opens what they were doing.
 //
 // What this screen deliberately does NOT have:
 //  · 카드 등록 CTA — the 빌링키 register flow is a separate slice. A button that opens nothing
@@ -38,6 +47,7 @@ const linkedLabel = (iso: string | null): string => {
 type LoadState = 'loading' | 'ready' | 'error';
 
 export default function Payments() {
+  const { returnTo, returnLabel } = useLocalSearchParams<{ returnTo?: string; returnLabel?: string }>();
   const [card, setCard] = useState<BillingCard | null>(null);
   const [cardState, setCardState] = useState<LoadState>('loading');
   const [rows, setRows] = useState<PaymentRecord[]>([]);
@@ -162,13 +172,30 @@ export default function Payments() {
               {card.brand ?? '카드'} ···· {card.last4 ?? '····'}
             </Text>
             {card.linkedAt && <Text style={s.note}>{linkedLabel(card.linkedAt)} 연결됨</Text>}
+            {/* 돌아갈 곳을 들고 온 방문 = 하려던 일이 있는 방문. 카드가 있는 지금은 그 일이 통한다.
+                replace = 결제 관리가 스택에 남지 않는다 (돌아간 화면에서 뒤로 = 원래 있던 곳). */}
+            {returnTo && (
+              <PaperBtn
+                label={returnLabel || '하던 일로 돌아가기 ›'}
+                variant="secondary"
+                onPress={() => router.replace(returnTo)}
+                style={{ marginTop: 12 }}
+              />
+            )}
           </>
         )}
         {cardState === 'ready' && !card && (
           <>
             <Text style={{ fontSize: 16, fontWeight: '800', color: paper.ink }}>등록된 카드가 없어요</Text>
-            {/* 카드 등록은 다음 슬라이스 — 없는 문을 그리는 대신 준비 중이라고 말한다 */}
-            <Text style={s.note}>카드 등록 화면은 준비 중이에요 — 준비되면 여기서 연결할 수 있어요</Text>
+            {/* ⚠ TODO(card-register): 카드 등록 화면(Ⓐ 랩 선택 대기)이 꽂히는 자리는 정확히 여기다.
+                화면이 생기면 이 준비 중 문구를 '카드 연결하기' CTA로 바꾸고, 연결 성공 시
+                returnTo가 있으면 router.replace(returnTo) — 없으면 이 화면에 남는다.
+                그때까지는 없는 문을 그리지 않는다 (CLAUDE.md 정직 법). */}
+            <Text style={s.note}>
+              {returnTo
+                ? '카드 등록 화면은 준비 중이에요 — 준비되면 여기서 연결하고 하던 일로 바로 돌아가요'
+                : '카드 등록 화면은 준비 중이에요 — 준비되면 여기서 연결할 수 있어요'}
+            </Text>
           </>
         )}
       </View>

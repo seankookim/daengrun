@@ -20,6 +20,7 @@
 //  9. CAS 성공 뒤에만 §2-5b 후처리 (반복·지명) — **비치명적**
 import { createClient, SupabaseClient } from "jsr:@supabase/supabase-js@2";
 import { caller, HttpError } from "../_shared/ctx.ts";
+import { notifyOps } from "../_shared/ops.ts";
 import { tossCancel, tossConfirm } from "../_shared/toss.ts";
 
 // 0077 호출자 독트린: 소유자 게이트를 가진 클라이언트 RPC(create_recurring_series)는
@@ -267,44 +268,18 @@ async function autoCancel(
     updated_at: new Date().toISOString(),
   }).eq("id", intent.id);
 
-  await notifyOps(db, intent, why, lastError);
+  // 운영(Sean)에게 알린다 — **보호자에게가 아니다.** 보호자가 할 수 있는 일이 없는 사건을
+  // 보호자의 알림함에 넣으면 불안만 배달된다. 처리 주체는 사람이고, 그 사람은 운영자다.
+  // 라우팅·폴백·리댁션 규칙은 전부 _shared/ops.ts 헤더에 있다 (Sean 룰링 ③).
+  //
+  // 식별자는 알림이 아니라 **이 로그 줄**에 산다 — 알림 본문은 잘못 배달돼도 아무것도 누설하지
+  // 않아야 하므로(ops.ts 헤더), 주문번호·금액·사유는 여기서만 남는다. 알림이 성공했든 아니든
+  // 항상 남긴다: 조정 질의(0076 §D)와 함께 이 줄이 사람이 읽는 실제 증거다.
+  console.error(
+    `[payments] auto-cancel FAILED order=${intent.order_id} payment=${intent.id} amount=${intent.amount} why=${why} err=${lastError}`,
+  );
+  await notifyOps(db, "payment_manual_cancel", { refId: intent.booking_id });
   throw new HttpError(409, honestNeedsManual(intent.order_id));
-}
-
-// 운영(Sean)에게 알린다 — **보호자에게가 아니다.** 보호자가 할 수 있는 일이 없는 사건을
-// 보호자의 알림함에 넣으면 불안만 배달된다. 처리 주체는 사람이고, 그 사람은 운영자다.
-// OPS_PROFILE_ID가 없으면 조용히 넘기지 않고 크게 로그한다 — 조정 질의(0076 §D)가 진짜
-// 소비자이므로 알림이 없어도 이 행은 발견된다. 알림은 속도지 유일한 안전망이 아니다.
-//
-// ⚠ THE NOTIFICATION BODY CARRIES NO FINANCIAL DETAIL — deliberately (2026-08-13 hardening).
-// OPS_PROFILE_ID is an env var holding a raw uuid. A typo that still parses as a valid
-// profile id delivers this row to a REAL USER, and 0024's insert trigger pushes the body
-// verbatim to their lock screen — i.e. one bad env value turns an ops alert into another
-// customer's order number and amount on a stranger's phone. Adding a second env var to
-// cross-check the first only moves the question (now two values must be right). Removing
-// the payload removes the class: the alert says WHAT happened and WHERE to look, the
-// identifiers live in console.error (ops-only) and in payments_reconciliation(), which is
-// the actual consumer. A misdelivered alert is then merely confusing, never disclosing.
-async function notifyOps(db: SupabaseClient, intent: Intent, why: string, lastError: string) {
-  const ops = Deno.env.get("OPS_PROFILE_ID");
-  const line =
-    `[payments] auto-cancel FAILED order=${intent.order_id} payment=${intent.id} amount=${intent.amount} why=${why} err=${lastError}`;
-  if (!ops) {
-    console.error(`${line} — OPS_PROFILE_ID unset, no notification sent`);
-    return;
-  }
-  const { error } = await db.from("notifications").insert({
-    profile_id: ops,
-    kind: "system",
-    title: "결제 자동 취소 실패 — 수동 취소 필요",
-    body: "payments_reconciliation()에서 orphan_capture 행을 확인해주세요 (주문번호·금액은 조정 질의에 있어요)",
-    // ref_id stays: it is a bare uuid with no meaning outside our own tables, and the ops
-    // surface needs a handle. It is not rendered in the push body.
-    ref_id: intent.booking_id,
-  });
-  // 알림 실패도 삼키지 않는다. 다만 여기서 throw하면 이미 확정된 실패 응답을 500으로 바꿔
-  // 보호자에게 잘못된 문장을 준다 — 로그가 옳은 자리다.
-  if (error) console.error(`${line} — ops notify failed: ${error.message}`);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════

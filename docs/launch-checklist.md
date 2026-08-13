@@ -61,6 +61,12 @@ bridge → 위치정보 신고 + privacy policy → TestFlight.
       as working hypotheses, not commitments. Own decision pass after the owner interviews.
 - [ ] **Or skip all of it:** the manual bank-transfer bridge in payments.md:26-28 runs the pilot
       with no PG and no 사업자등록.
+- [ ] **자동결제(빌링) 심사: ask Toss what notice obligations attach to 빌링키 charges** —
+      go-live gate for invisible post-pay; if per-charge notice is demanded, the invisibility
+      doctrine renegotiates `[Sean]` `[doc: decisions/d3-silent-charge-summary.md]`
+- [ ] **Env setup per environment: `OPS_PROFILE_ID`** (`supabase secrets set`, deploy-order
+      step ⑥ in session-handoff §3) — ops alerts for payment exceptions; unset = loud log
+      only; payloads are identifier-free by design `[Sean]` `[doc: decisions/ops-profile-id-vs-admin-role.md]`
 
 ## 3. Supply — currently zero runners are possible
 

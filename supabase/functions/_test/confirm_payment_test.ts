@@ -474,6 +474,30 @@ Deno.test("ops notification carries no financial detail (misdelivery must not di
   }
 });
 
+// Ruling ③ wiring pin. The refactor into `_shared/ops.ts` moved the recipient decision out of this
+// file, so what is left to pin HERE is the one thing only this call site knows: which event class
+// this event is. A copy-paste that emitted `enroute_comp_failed` from the auto-cancel path would
+// route captured money to whoever subscribed to runner safety, and every other test would pass.
+Deno.test("the auto-cancel failure routes as payment_manual_cancel, to the class's recipients", async () => {
+  const ROUTED = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+  const db = scene({ booking: { status: "expired" } });
+  const classes: string[] = [];
+  db.rpcs["ops_recipients_for"] = (args: Row) => {
+    classes.push(String(args.p_event_class));
+    return { data: args.p_event_class === "payment_manual_cancel" ? [ROUTED] : [] };
+  };
+  const net = tossOk({ cancel: () => FetchMock.json({}, 500) });
+  try {
+    await expectHttpError(() => confirmPayment(req({ order_id: ORDER, payment_key: KEY }, "owner_jwt"), db as never));
+    assertEquals(classes, ["payment_manual_cancel"]);
+    // The table won, so the env-var operator is not also pinged.
+    assertEquals(db.rows("notifications").map((n) => n.profile_id), [ROUTED]);
+    assertEquals(db.rows("notifications")[0].ref_id, BOOKING);
+  } finally {
+    net.restore();
+  }
+});
+
 Deno.test("no OPS_PROFILE_ID → loud log instead of a notification, and no crash", async () => {
   const db = scene({ booking: { status: "expired" } });
   const net = tossOk({ cancel: () => FetchMock.json({}, 500) });

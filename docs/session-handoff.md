@@ -97,9 +97,34 @@ path still JWT-validated via caller())
 ④ `functions deploy settle-run transition-booking confirm-payment` (order-safe, errors caught)
 ⑤ app build
 ⑥ vault secret (`charge_dispatch`: {url, cron_key}) + edge env `CRON_COLLECT_KEY` + `OPS_PROFILE_ID`
-⑦ `payments_live_since` flip — LAST, and only after: 자동결제 심사 + billing TEST keys +
-§4-2 sandbox matrix + **club delegation gaps closed (TODOS.md 2026-08-13 §1 — hardcoded
-9,900 base becomes real money at flip)**.
+⑦ `payments_live_since` flip — LAST, set to a **FUTURE timestamp past the longest in-flight
+booking** (Sean's ruling ⑥ — never `now()`; `longest_inflight_booking_end()` computes it and
+`set_payments_live_since()` refuses a past value). BLOCKING preconditions, all of them:
+  · 자동결제 심사 + billing TEST keys + §4-2 sandbox matrix
+  · card-register slice shipped (Ⓐ is already approved in `docs/labs/pay-rebuild-lab.html` —
+    post-pay cannot function without linked cards, and a card-less owner is refused from club
+    and recurring entirely)
+  · **the `dog_condition` report copy shipped** — the runner's own `condition_note` surfaced
+    and "stopping was the right call" stated. Under Sean's G1 = full actuals, a dog that limps
+    at 200m bills the owner ~₩8,500, so the record card is both the welfare mitigation AND the
+    dispute surface. A bill with no account of why the runner stopped is the exact incentive we
+    are trying to avoid — an owner who pressures the next runner to keep going. Owned by the
+    run-end-flow session; mirrored in their plan so it sits in two documents that get read.
+  · club price disclosure live (ruling ④ keeps 9,900 as a *stated* premium — the single
+    disclosure is on the 승낙서, `app/app/club/delegate/[sid].tsx`)
+  · **the sweep is re-anchored on `runs.settled_at`** — run-end-flow's 0083 redefines
+    `runs.ended_at` as service-STOP time, which opens a hole in MY
+    `sweep_settled_without_payments`: it would see a run that stopped, not yet returned, and
+    mint a charge for a dog still on the leash. One predicate closes it, in my file, after
+    their column exists: `and rn.settled_at is not null`. Deliberately NOT in 0084 — the
+    column does not exist until 0083 applies, and coupling my gate to their unmerged branch
+    buys nothing. It lands as its own small migration once 0083 is on redesign-v4, and the
+    same substitution is the honest form of `owner_has_unsettled_charge`'s `ended_at` scope
+    arm. Two anchors are wrong and 0083 §0f records why: `bookings.status` (§0-ter #11 /
+    116 C8 — a settled booking legitimately moves to incident_review) and `ledger_items`
+    presence (0081 writes a ledger row for a CANCELLED booking, which is not a run).
+    **Note the window: the hole opens when 0083 merges and closes when that migration lands.
+    Charging is off throughout, which is why this is a cutover gate and not an incident.**
 
 ## 4. Pending on Sean
 
@@ -107,29 +132,54 @@ path still JWT-validated via caller())
 still the critical path; ② dashboard TEST keys + variantKey 카드/간편결제-only (docs demo
 WIDGET keys are recorded in app/.env.example + plan §5 — they unblock the A3 device spike
 NOW, but not billing); ③ ~~review + merge + push~~ — DONE this session: both slices are on
-`origin/redesign-v4` @ 534d2aa (branch `claude/club-money-gates` also pushed). Local
+`origin/redesign-v4` (branch `claude/club-money-gates` also pushed). Local
 `redesign-v4` in the main checkout is BEHIND origin on purpose — another session had
 uncommitted work there, so the remote was advanced instead of fast-forwarding their tree.
 `git pull` with a clean tree.
-**Decisions:** **`docs/decisions-open-money.md` — three briefs written 2026-08-13, pick by
-number**: ① G1 abort-charge basis (recommendation: D — `incident` charges nothing at settle
-because the 0072 case owns that money; `dog_condition` charges distance-only) · ② D-3
-silent-charge question for counsel (recommendation: ask with three options; if ambiguous
-ship the monthly summary, not a per-charge push) · ③ OPS_PROFILE_ID (recommendation: keep
-the env var for the pilot) · ④ club_fare is the pre-D2 formula, so club owners pay ₩2,000 MORE
-than marketplace for the same km (recommendation: align to 7,900 before the flip; no price
-change shipped) · ⑤ en-route club cancels now have no owner path (recommendation: route them
-into the incident flow rather than a wall) · ⑥ the cutover straddle — a booking confirmed
-pre-flip is charged post-flip and can lock a card-less owner (recommendation: set
-`payments_live_since` to a FUTURE timestamp past the longest in-flight booking).
-⚠ A parallel session wrote memos ①–③ independently as `docs/decisions/` and reports the calls
-were delegated there; that set is canonical and ours retires after your merge — the banner at
-the top of `decisions-open-money.md` names what each has that the other lacks. **Nothing was
-built on that relayed adoption**: G1 keeps 🔴 and D-3 is unbuilt, because a confirmation gate
-that another session can perform is not a gate. Also still open: lab picks Ⓡ①②③ + Ⓖ rule · Ⓛ③ spec-plate
-graft + ₩/원 (carried from the 2026-08-12 handoff §9).
+
+**Decisions — EIGHT memos in `docs/decisions/` (one directory; `decisions-open-money.md`
+retired into it, Sean's rulings ported from `0fbaa64`). SEVEN are ruled, ONE is stuck:**
+- ✅ **① G1 FULLY RULED — fault-based, both ledgers mirrored.** `dog_condition`: owner
+  7,900 + 3,000×**distance actually run**, runner 9,900 + 3,000×same — nobody at fault, so
+  nobody eats a gap. `owner_request`/`owner_forced`: owner PLANNED (D2), runner actuals.
+  `runner_personal`: owner distance-only base-waived (#10 stands), **runner 9,900 base only,
+  no distance** — the one deliberate asymmetry, platform absorbs it. `incident`: **₩0, verify
+  first** (his instinct caught a free-run hole — `settle-run` whitelisted all six
+  `end_reason` values on a public endpoint; now four). ⚠ a CLUB abort charges 9,900 (frozen
+  base + ④). Required copy: report says stopping was right + shows the real `condition_note`.
+- ✅ **② D-3 = A, accept as-is — NOTHING TO BUILD.** No per-charge push, no monthly
+  summary. The statement-row slice is **CANCELLED, not deferred**. Counsel question
+  survives as validation; 전자상거래법 footer still mandatory at 사업자등록.
+- ✅ **③ OPS = `ops_recipients` table**, per-event-class routing ("build for full scale").
+  Env var readable one more release. Payload redaction stands.
+- ✅ **④ club_fare: keep ₩9,900** — premium stands, funds host comp (⑦) — **and club goes
+  price-invisible**, disclosed once at join. ⚠ a club `dog_condition` abort therefore
+  charges 9,900, since the charge reads the booking's frozen base.
+- ✅ **⑤ en-route club cancel = A, leave it**; card-less club state routes to card
+  registration. ✅ **⑥ cutover = FUTURE `payments_live_since`**, never `now()` (§3 ⑦ carries
+  the query). ✅ **⑦ host cut from platform margin, never runner pay.** ✅ **⑧ card
+  registration inline at first booking, not onboarding.**
+Also still open: lab picks Ⓡ①②③ + Ⓖ rule · Ⓛ③ spec-plate graft + ₩/원 (carried from the
+2026-08-12 handoff §9). **Migration/suite numbers: claim in `supabase/migrations/REGISTRY.md`
+on origin BEFORE writing** — 0083/0084 are disputed there, procedure named in the file. **Migration/suite numbers: claim in
+`supabase/migrations/REGISTRY.md` on origin BEFORE writing the file** (four collisions on
+2026-08-13); 0083/suite 119 is next free.
 
 ## 5. Next prompts (exact openers)
+
+- **⑩+⑪ money slice** (both RULED, both UNBUILT, unclaimed as of 2026-08-13): "read
+  docs/decisions/cancel-fee-runner-share.md and incident-verification.md, then build them as
+  one slice at the next free REGISTRY number." ⑩ = the 10% cancel tier pays the runner their
+  half and notifies it as a reward (mirror `record_enroute_cancel_comp`'s idempotent ledger
+  write, and write the row BEFORE the notification that claims it — 0081's lesson). ⑪ =
+  two-sided incident verification on the `confirm_handoff` shape; disagreement routes to
+  0072, and the runner is paid normally throughout.
+- **⑨ runner_personal pass-through + `runner_incapacity`** (RULED, UNBUILT): encode the
+  FORMULA — `(1 − commission) × the owner's actual charge` — never the illustrative figures.
+  Two traps in its build notes: the enum value needs its OWN migration file (`alter type ...
+  add value` used in the same transaction passes under autocommit and fails on `db push`),
+  and it must NOT enter `CLIENT_END_REASONS` until its abuse story exists — it is
+  self-declared AND pays the declarer more than the honest alternative.
 
 - **Cutover-gate slice** (the last code before the flip): "read docs/session-handoff.md,
   then build the cutover-gate items as migration 0082+: per-runner dog_condition-rate +

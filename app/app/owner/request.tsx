@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { addDog, Addr, AvailRule, createBookingHold, DogProfile, fetchAddresses, fetchMyDogs, fetchRoutes, fetchRunnerAvailability, fetchUnsettledCharge } from '../../src/lib/api';
 import { ChargeBanner } from '../../src/components/charge-states';
 import { HeatTrace } from '../../src/components/runcard';
+import { traceToBox } from '../../src/lib/trace';
 import { Avatar, Icon, Row, Skeleton } from '../../src/components/ui';
 import { haptic } from '../../src/lib/haptics';
 import { AddonKey, draft, fmtWon, RouteInfo } from '../../src/store';
@@ -73,6 +74,44 @@ export default function Request() {
   const [pace, setPace] = useState(draft.pace);
   const [addons, setAddons] = useState<AddonKey[]>(draft.addons);
   const [routeId, setRouteId] = useState(draft.routeId);
+  // ═══ 선택 출처 (0082 K6 · PR-0 계측의 무결성) ═══
+  // 'auto'  = 앱이 골랐다 (거리 최근접). 'manual' = 보호자가 골랐다 — 캐러셀 탭이냐 코스 상세
+  // CTA냐까지 구분한다. 서버는 이 라벨을 믿되(분석용), 오버라이드 여부는 route_id ≠
+  // recommended_route_id로 **직접 파생**한다. 클라가 주장하는 판정 위에 킬 라인을 세우지 않는다.
+  // manual은 **끈적하다**: 예전엔 다이얼을 한 칸 움직이면 pickRouteForKm이 수동 선택을 조용히
+  // 되돌렸다 — 보호자에겐 거짓말이고, 지표엔 노이즈였다.
+  const [pickSource, setPickSource] = useState<
+    { mode: 'auto' } | { mode: 'manual'; origin: 'carousel' | 'detail_cta' }
+  >({ mode: 'auto' });
+  // 점검 전 코스를 '알고' 예약했다는 표시. 서버(create-booking-hold)가 이것 없이는 candidate를
+  // 거절한다 — 클라에만 있는 게이트는 게이트가 아니므로 양쪽에 있다.
+  const [candidateAck, setCandidateAck] = useState<string | null>(null);
+
+  // ═══ 제약 칩 (0082 K5) ═══
+  // 점수 가중치가 아니라 **하드 필터**다 (AND). 가중 스코어링은 PR-0이 검증된 뒤의 일(T2)이고,
+  // 지금은 관측된 선호 데이터가 0이라 가중치가 곧 창업자의 직감이 된다.
+  // 칩이 **접힌 폴드 밖에** 사는 게 핵심: 코스 선택이 폴드 뒤에 묻히면 오버라이드율이 낮게
+  // 읽히고, PR-0 킬 라인이 '수요가 없다'가 아니라 '못 찾았다' 때문에 발화한다.
+  const [chips, setChips] = useState({ dirt: false, shade: false, lit: false });
+  const [litAuto, setLitAuto] = useState(false); // 슬롯 때문에 자동으로 켜졌다 (해제 가능)
+
+  // 예약 시각의 '어두운 슬롯' 판정 — 새벽(05시 이전 포함 ~07시) / 야간(21시~)
+  // memo를 걸지 않는다: timeLabel state가 이 블록보다 아래에서 선언되므로 의존성으로 쓸 수 없고,
+  // 시각이 바뀌면 그 state가 바뀌면서 어차피 리렌더가 온다. 매 렌더 재계산은 Date 하나 값이다.
+  const slotHour = draft.scheduledAtIso ? new Date(draft.scheduledAtIso).getHours() : null;
+  const darkSlot = slotHour != null && (slotHour < 7 || slotHour >= 21);
+
+  // 술어는 한 곳에 모아 둔다 — 카피가 주장하는 것과 코드가 거르는 것이 갈라지지 않도록.
+  // terrain은 '흙길 70%' / '포장 90%' 형태의 자유 문자열이라 숫자를 뽑아 60% 문턱을 건다.
+  const dirtPct = (t: string) => (t.startsWith('흙길') ? Number(t.replace(/[^0-9]/g, '')) || 0 : 0);
+  const matchesWith = (r: RouteInfo, c: { dirt: boolean; shade: boolean; lit: boolean }) =>
+    (!c.dirt || dirtPct(r.terrain) >= 60) &&
+    (!c.shade || r.shade === 'high') &&
+    (!c.lit || r.lighting === 'lit');
+  const matchesChips = useCallback((r: RouteInfo) => matchesWith(r, chips), [chips]);
+  // 이 칩을 켜면 몇 개가 남는지 — 0으로 만드는 칩을 누르기 전에 보이도록 라벨에 붙인다.
+  const countWith = (key: 'dirt' | 'shade' | 'lit') =>
+    routes.filter((r) => matchesWith(r, { ...chips, [key]: true })).length;
   // 시간은 명시 선택 필수 — 라벨과 실예약 시각이 어긋나는 정직성 버그 방지 (ui-audit P0)
   const [timeLabel, setTimeLabel] = useState(draft.scheduledAtIso ? draft.timeLabel : '시간을 선택해주세요');
   // [정직 배치 2026-08-06 · item 6/P2-6] 목업 캐러셀 시드(sampleRoutes) 은퇴 — 예약 불가능한
@@ -103,11 +142,36 @@ export default function Request() {
 
   // 코스가 km을 따른다 (2026-07-28 결정) — 가격·정산의 진실은 km. km 변경 시 최근접 실코스 자동 선택,
   // 수동으로 다른 코스를 고르면 존중하되 불일치를 배지로 정직하게 표기 (find-now와 동일 원칙)
+  // 자동 배정은 **active 코스만** 본다. candidate(개가 달린 적 없는 코스)는 절대 자동으로
+  // 배정되지 않는다 — 보호자가 의도적으로 고르는 경우에만, 그것도 확인 후에.
+  // 칩은 자동 배정과 **합성된다**: 필터가 배제한 코스를 자동 배정이 골라 버리면, 보호자는
+  // 자기가 끈 조건의 코스를 예약하게 된다. 그래서 최근접-km 탐색은 걸러진 집합 안에서만 돈다.
+  const activeRoutes = useMemo(
+    () => routes.filter((r) => r.status === 'active' && matchesChips(r)), [routes, matchesChips]);
+  // 캐러셀에 그릴 목록 — candidate도 보이지만(D-VIS) 칩은 동일하게 적용된다.
+  const shownRoutes = useMemo(() => routes.filter(matchesChips), [routes, matchesChips]);
+  const autoPickFor = (target: number): string | null => {
+    if (activeRoutes.length === 0) return null;
+    let best = activeRoutes[0];
+    activeRoutes.forEach((r) => { if (Math.abs(r.km - target) < Math.abs(best.km - target)) best = r; });
+    return best.id;
+  };
+  // 이 거리에서 앱이 골랐을 코스 — 스냅샷의 recommended_route_id. 보호자가 무엇을 덮어썼는지
+  // 서버가 알 수 있어야 오버라이드율이 계산된다.
+  const recommendedRouteId = useMemo(() => autoPickFor(km), [activeRoutes, km]);
+
+  // 어두운 슬롯을 고르면 조명 칩이 스스로 켜진다 (끌 수 있다). 안전에 관한 유일한 필터를
+  // opt-in으로 두면, 새벽 05시를 고른 보호자가 조명 없는 숲길을 배정받고도 아무 말을 듣지 못한다.
+  useEffect(() => {
+    if (darkSlot && !chips.lit) { setChips((c) => ({ ...c, lit: true })); setLitAuto(true); }
+    if (!darkSlot && litAuto) { setChips((c) => ({ ...c, lit: false })); setLitAuto(false); }
+  }, [darkSlot]);
+
   const pickRouteForKm = (target: number) => {
-    if (!routesLive || routes.length === 0) return;
-    let best = routes[0];
-    routes.forEach((r) => { if (Math.abs(r.km - target) < Math.abs(best.km - target)) best = r; });
-    setRouteId(best.id);
+    if (!routesLive) return;
+    if (pickSource.mode === 'manual') return; // 끈적한 수동 선택 — 다이얼이 덮어쓰지 않는다
+    const id = autoPickFor(target);
+    if (id) setRouteId(id);
   };
   const myDog = myDogs[dogIdx] ?? null;
   // 진짜 0마리 — ready일 때만 참 (로딩·실패를 '등록 안 함'으로 읽지 않는다)
@@ -128,6 +192,10 @@ export default function Request() {
     if (!r) return; // 코스 목록 로드 전 — 다음 렌더에서 재시도
     paramApplied.current = true;
     setRouteId(r.id);
+    // 코스 상세에서 '이 코스로 예약하기'로 왔다 = 가장 강한 수동 의도 신호. 예전엔 이게
+    // 'auto'로 집계되고 첫 다이얼 조작에 덮어써졌다 — 오버라이드율을 체계적으로 과소 집계.
+    setPickSource({ mode: 'manual', origin: 'detail_cta' });
+    if (r.status === 'candidate') setCandidateAck(r.id);  // 상세 화면이 이미 상태를 보여줬다
     setKm(clampKm(r.km)); // snap the dial to the course distance (nearest 0.5 within range)
   }, [paramRouteId, routes]);
 
@@ -138,7 +206,16 @@ export default function Request() {
       .then((r) => {
         setRoutes(r);
         setRoutesState('ready');
-        if (r.length > 0 && !r.some((x) => x.id === draft.routeId)) setRouteId(r[0].id);
+        // r[0]을 집던 자리. D-VIS 폴백에서 r[0]은 candidate일 수 있고, 그러면 서버가
+        // candidate_ack_required로 거절한다 — 보호자는 자기가 고른 적 없는 코스 때문에 에러를
+        // 본다. active가 없으면 아무것도 고르지 않는다(코스 미정): 의도적 선택만이 문을 연다.
+        if (!r.some((x) => x.id === draft.routeId)) {
+          const auto = r.filter((x) => x.status === 'active');
+          let best: RouteInfo | null = auto[0] ?? null;
+          auto.forEach((x) => { if (best && Math.abs(x.km - km) < Math.abs(best.km - km)) best = x; });
+          setRouteId(best ? best.id : '');
+          setPickSource({ mode: 'auto' });
+        }
       })
       .catch((e) => { console.warn('[request] routes:', e?.message ?? e); setRoutesState('error'); });
   };
@@ -281,7 +358,16 @@ export default function Request() {
     try {
       const res = await createBookingHold({
         dog_id: chosen.id, // 선택한 아이로 예약 (다견 가구) — 위 게이트가 존재를 보증
-        route_id: routesLive ? routeId : undefined, // 목업 코스 id는 uuid가 아님
+        route_id: routesLive && routeId ? routeId : undefined, // 목업 코스 id는 uuid가 아님
+        // 선택 스냅샷 (0082 §C) — 분석 등급, 절대 금액에 닿지 않는다. 오버라이드는 서버가
+        // route_id ≠ recommended_route_id로 파생한다. 노출 등급(candidate 여부)은 서버가
+        // routes.status에서 직접 읽으므로 여기서 보내지 않는다.
+        recommended_route_id: recommendedRouteId ?? undefined,
+        selection_origin: pickSource.mode === 'auto' ? 'auto' : pickSource.origin,
+        // 칩 상호작용은 그 자체로 PR-0 선호 신호다 — 자동 배정이 걸러진 집합 안에서 골랐다면
+        // origin은 'auto'지만 보호자는 분명히 선호를 표현했다. 둘을 따로 기록해야 구분된다.
+        route_chips: chips,
+        candidate_ack: candidateAck != null && candidateAck === routeId ? true : undefined,
         address_id: pickupAddr?.id,
         scheduled_at: draft.scheduledAtIso!, // pay()에서 선택 강제됨 — +3h 폴백 은퇴
         km, // fractional-safe: bookings.km is numeric(4,1); the edge fn rounds the fare
@@ -605,7 +691,38 @@ export default function Request() {
               <Text style={[s.routeNote, { marginTop: 20, marginBottom: 0 }]}>지금 예약할 수 있는 코스가 없어요 — 이대로 예약하면 코스 없이 접수돼요</Text>
             ) : (
               <>
-                <Pressable onPress={() => setCourseOpen((v) => !v)} style={[s.foldRow, { marginTop: 20 }]} accessibilityRole="button" accessibilityLabel="배정 코스 변경">
+                {/* ── 제약 칩: 폴드 **밖**. 코스 선택이 존재한다는 사실이 접기 상태와 무관하게 보여야
+                    오버라이드율이 수요를 재지, 발견 가능성을 재지 않는다 (PR-0 계측 무결성) ── */}
+                <Row style={{ gap: 7, marginTop: 20, flexWrap: 'wrap' }}>
+                  {([
+                    { key: 'dirt' as const, label: '흙길', hint: '흙길 60% 이상' },
+                    { key: 'shade' as const, label: '그늘 많음', hint: '그늘 최상' },
+                    { key: 'lit' as const, label: '조명', hint: '야간 조명 있음' },
+                  ]).map((c) => {
+                    const on = chips[c.key];
+                    // 칩마다 '이걸 켜면 몇 개 남는지'를 미리 센다 — 0으로 만드는 칩을 누르기 전에 보인다
+                    const n = countWith(c.key);
+                    return (
+                      <Pressable
+                        key={c.key}
+                        onPress={() => { setChips((v) => ({ ...v, [c.key]: !v[c.key] })); if (c.key === 'lit') setLitAuto(false); }}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: on }}
+                        accessibilityLabel={`${c.label} — ${c.hint}, ${n}개 코스${on ? ', 적용됨' : ''}`}
+                        style={[s.filterChip, on && { backgroundColor: paper.ink, borderColor: paper.ink }]}
+                      >
+                        <Text style={{ fontSize: 14, fontWeight: '800', color: on ? '#fff' : paper.text }}>
+                          {c.label} {n}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                  {chips.lit && litAuto && (
+                    <Text style={{ fontSize: 13, color: paper.dim, alignSelf: 'center' }}>어두운 시간대라 켰어요</Text>
+                  )}
+                </Row>
+
+                <Pressable onPress={() => setCourseOpen((v) => !v)} style={[s.foldRow, { marginTop: 12 }]} accessibilityRole="button" accessibilityLabel="배정 코스 변경">
                   <Row style={{ justifyContent: 'space-between' }}>
                     <Text style={{ flex: 1, fontSize: 14.5, color: paper.text }} numberOfLines={1}>
                       배정 코스 — <Text style={{ fontWeight: '800', color: paper.ink }}>{selRoute?.name ?? '미배정'}</Text>
@@ -613,6 +730,13 @@ export default function Request() {
                     </Text>
                     <Text style={{ fontSize: 14, fontWeight: '800', color: paper.dim }}>{courseOpen ? '접기 ▴' : '변경 ▾'}</Text>
                   </Row>
+                  {/* 어두운 슬롯 × 조명 없는 코스 = 칩과 무관하게 항상 말한다. 칩은 필터고,
+                      이건 배정 결과에 대한 안전 고지다 — 필터를 꺼도 사실은 변하지 않는다. */}
+                  {selRoute && darkSlot && selRoute.lighting === 'none' && (
+                    <Text style={{ fontSize: 14, fontWeight: '800', color: paper.pending, marginTop: 5 }}>
+                      이 시간대엔 조명이 없는 코스예요 — 다른 코스나 시간을 확인해주세요
+                    </Text>
+                  )}
                   {/* km 불일치는 접혀 있어도 정직하게 (find-now와 동일 원칙) */}
                   {selRoute && selRoute.km !== km && (
                     <Text style={{ fontSize: 14, fontWeight: '800', color: paper.pending, marginTop: 5 }}>
@@ -626,24 +750,74 @@ export default function Request() {
                     <Text style={{ fontSize: 14, color: paper.dim, marginTop: 10, marginBottom: 10 }}>
                       픽업 후 코스까지는 러너가 아이와 함께 이동해요
                     </Text>
+                    {shownRoutes.length === 0 && (
+                      // 막다른 길을 만들지 않는다: 어떤 조건이 0으로 만들었는지 이름을 대고,
+                      // 한 탭으로 풀 수 있게 한다. '조건에 맞는 코스가 없어요'로 끝내면 의도가
+                      // 가장 높은 순간에 화면이 멈춘다.
+                      <View style={{ marginBottom: 10 }}>
+                        <Text style={[s.routeNote, { marginTop: 0, marginBottom: 8 }]}>
+                          {chips.lit && chips.dirt ? '조명 있는 흙길 코스가 아직 없어요'
+                            : chips.lit ? '조명 있는 코스가 아직 없어요'
+                            : chips.shade ? '그늘 많은 코스가 아직 없어요'
+                            : '흙길 코스가 아직 없어요'}
+                        </Text>
+                        <Pressable
+                          onPress={() => { setChips({ dirt: false, shade: false, lit: false }); setLitAuto(false); }}
+                          style={s.filterChip} accessibilityRole="button" accessibilityLabel="필터 모두 해제"
+                        >
+                          <Text style={{ fontSize: 14, fontWeight: '800', color: paper.ink }}>필터 해제</Text>
+                        </Pressable>
+                      </View>
+                    )}
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingRight: 12 }}>
-                      {routes.map((r) => {
+                      {shownRoutes.map((r) => {
                         const sel = routeId === r.id;
                         return (
                           <Pressable
                             key={r.id}
-                            onPress={() => setRouteId(r.id)}
+                            onPress={() => {
+                              if (r.status === 'candidate' && candidateAck !== r.id) {
+                                // 점검 전 코스는 '알고 고르는' 행위여야 한다. 확인 없이는 선택도
+                                // 되지 않는다 — 서버도 candidate_ack 없이는 거절하므로, 여기서
+                                // 막지 않으면 보호자는 나중에 이유 없는 에러를 만난다.
+                                Alert.alert(
+                                  '아직 점검 전 코스예요',
+                                  `${r.name}은 지도에 그려두기만 했고, 아직 반려견과 함께 달려본 적이 없어요. 첫 러닝이 이 코스의 점검이 됩니다.`,
+                                  [
+                                    { text: '다른 코스 볼게요', style: 'cancel' },
+                                    {
+                                      text: '점검 전 코스로 예약',
+                                      onPress: () => {
+                                        setCandidateAck(r.id);
+                                        setRouteId(r.id);
+                                        setPickSource({ mode: 'manual', origin: 'carousel' });
+                                      },
+                                    },
+                                  ],
+                                );
+                                return;
+                              }
+                              setRouteId(r.id);
+                              setPickSource({ mode: 'manual', origin: 'carousel' });
+                            }}
                             style={[s.routeCard, sel && { borderColor: paper.line, borderWidth: 2 }]}
                           >
                             {/* 적합도·★추천 배지 퇴역 (item 6) — 실 스코어러 없음. 모든 코스는 동등한 '안심 코스' */}
                             {/* 선택 = 2px 코랄 보더 (볼트 글로우 은퇴) — 다크는 포토맵 안에만 남는다 */}
-                            <View style={s.routeTab}>
-                              <Text style={{ fontSize: 14, fontWeight: '900', color: '#fff' }}>안심 코스</Text>
+                            {/* candidate는 '안심 코스'라고 부르지 않는다 — 점검을 주장하지 않는 게
+                                이 배지의 유일한 일. (0082 D-VIS: 예약은 되지만 의도적으로만) */}
+                            <View style={[s.routeTab, r.status === 'candidate' && { backgroundColor: paper.pending }]}>
+                              <Text style={{ fontSize: 14, fontWeight: '900', color: '#fff' }}>
+                                {r.status === 'candidate' ? '점검 예정' : '안심 코스'}
+                              </Text>
                             </View>
 
                             <Row style={{ gap: 5, marginTop: 22 }}>
                               <Text style={{ fontSize: 17, fontWeight: '900', color: paper.ink }} numberOfLines={1}>{r.name}</Text>
-                              <View style={s.certBadge}><Text style={{ fontSize: 9, fontWeight: '900', color: '#fff' }}>✓</Text></View>
+                              {/* ✓는 실제로 점검된 코스에만. checkedAt이 null인데 ✓를 그리던 자리 = 하지 않은 점검의 주장 */}
+                              {r.status === 'active' && (
+                                <View style={s.certBadge}><Text style={{ fontSize: 9, fontWeight: '900', color: '#fff' }}>✓</Text></View>
+                              )}
                             </Row>
                             <Text style={{ fontSize: 14, color: paper.text, marginTop: 2 }}>
                               {/* checkedAt이 이미 '7.15 점검' 형태 — '점검' 재접미 금지 (점검 점검 버그) */}
@@ -660,7 +834,7 @@ export default function Request() {
                             <View style={s.routeMap}>
                               {/* 실좌표(routes.trace)가 없으면 코스 모양을 지어내지 않는다 — 빈 슬롯이 정직 */}
                               {r.trace.length > 1 ? (
-                                <HeatTrace points={r.trace} width={208} height={92} />
+                                <HeatTrace points={traceToBox(r.trace)} width={208} height={92} />
                               ) : (
                                 <View style={s.mapPending}>
                                   <Text style={s.mapPendingTxt}>코스 지도 준비 중</Text>
@@ -1050,6 +1224,11 @@ const s = StyleSheet.create({
   // ── 페이퍼 크롬 (2026-08-10 리페인트) — 샤프 코너 · 코랄 1px · 잉크 선택 문법 ──
   // [2026-08-11 Ⓒ①] SectionHead(글리프 키커·서브) 은퇴 — §3b: 섹션 장식 없이 스텝 질문이 헤더다
   // km 불일치 고지 — 앰버는 시맨틱(대기/주의)이라 생존, 크롬만 샤프 (pending 잉크 + 1px 보더)
+  filterChip: {
+    backgroundColor: '#FFFFFF', borderWidth: 1.5, borderColor: paper.line,
+    paddingVertical: 7, paddingHorizontal: 12, alignSelf: 'flex-start',
+    minHeight: 44, justifyContent: 'center',   // 44pt 터치 타깃 (a11y 계약)
+  },
   kmMismatch: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.pending, paddingVertical: 4, paddingHorizontal: 8, marginTop: 6, alignSelf: 'flex-start' },
   // 미리보기 칩 — meetup naviChip 문법 (다크 포토맵 위 캔버스 칩)
   previewChip: { position: 'absolute', right: 7, bottom: 7, backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line, paddingVertical: 5, paddingHorizontal: 10 },
