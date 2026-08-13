@@ -10,6 +10,21 @@
 --   Money facts are asserted against LITERALS, never recomputed with the function's own
 --   expression (105's law) — otherwise the pin agrees with whatever the function does.
 --
+-- ─── WHAT THIS SUITE DOES NOT PROVE (0083's adversarial round, 2026-08-13) ───
+--   "Both pins measured the symptom the design intended and stopped one question short."
+--   A green suite proves the pins pass, not that the path is covered. Stated plainly here so
+--   the next reader does not mistake 6/6 for coverage:
+--   · These pins call `record_late_cancel_share` DIRECTLY. The shipping path is
+--     transition-booking/cancel_owner.ts → db.rpc(...), and the deno side fakes the RPC. So the
+--     TS↔SQL contract — TS writes `cancel_reason = 'owner_cancel_late'`, this function gates on
+--     that exact string — is pinned as the SAME LITERAL on both sides INDEPENDENTLY, not as one
+--     source. Changing the literal here and updating only this suite leaves deno green and the
+--     shipping path dead. An integration probe (real SQL + real handler) is what would close it.
+--   · Reachability is pinned ELSEWHERE, not here: `cancelled_owner` is reachable only from
+--     `confirmed` and `runner_enroute` (0066:49-52 enforce_booking_transition), so no
+--     picked_up/active booking can ever carry this marker. 105 E6 owns that pin. If that edge
+--     list ever grows, this suite will not notice.
+--
 -- ─── MUTATION map — each pin goes RED under exactly one named revert (house law) ───
 --   S1 ← 0085: change the 0.5 literal (the owner was shown 50% before they confirmed), or
 --        drop the `round(...)::int`                                                      → RED

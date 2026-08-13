@@ -41,6 +41,12 @@ written from a description rather than from the source and acquired a false prop
 because it was well-formed, not because it was true — the same shape as the fabricated
 `condition_note` and `store.ts`'s unbacked 50/50 promise. Read a claim against the code that
 would have to make it true before building on it.
+**A passing test suite is exactly such an artifact.** `0083`'s adversarial round found two
+blockers in code carrying 475 green pins — *"both pins measured the symptom the design
+intended and stopped one question short"*: one pinned a helper rather than the path that
+ships, the other pinned that an escalation fires but never asked whether money could still
+move afterwards. Green proves the pins pass, not that the path is covered. Ask what your
+suite does **not** prove, and write that down next to it.
 
 **4. For irreversible ACTIONS, the session holding the human's word does it — and quotes him.**
 The first three rules govern artifacts; this one governs doing. A destructive change to shared
