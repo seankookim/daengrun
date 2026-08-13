@@ -299,9 +299,12 @@ on origin BEFORE writing** — 0083/0084 are disputed there, procedure named in 
 
 ## 4. 다음 세션이 바로 할 일
 
-1. **[빌드] 지도 브라우즈 A안** — 스펙은 플랜 §K6/T1에 완성돼 있다. 새 화면 `app/app/owner/course-map.tsx`,
-   진입점은 request.tsx 코스 폴드. K5 칩을 공용 컴포넌트로 들어올리고, 시트 DETAIL 단과 `course/[id]`가
-   같은 상세 본문 컴포넌트를 쓰게 할 것(중복 방지).
+1. ~~[빌드] 지도 브라우즈 A안~~ **완료 (`07731ae`)** — `app/app/owner/course-map.tsx` + request.tsx 진입점.
+   게이트: tsc 클린 · rpc-contracts 82/144 · deno 161/0. **남은 후속 2건(둘 다 중복 방지용):**
+   ① K5 칩(술어·개수 배지·조명 자동켜짐)이 request.tsx와 course-map.tsx **두 곳에 정의**돼 있다 —
+   공용 컴포넌트로 들어올릴 것. 지금은 규칙이 같도록 주석으로 묶어 뒀지만 갈라지면 카피가 거짓이 된다.
+   ② 시트 DETAIL 단과 `course/[id]`가 상세 본문을 각자 그린다 — 공용 컴포넌트로 합칠 것.
+   ③ 실기기 스모크: 앵커 탭 선택, 시트 3단 드래그/플릭, 지도 위 칩 44pt 터치, SDK 없는 빌드 폴백.
 2. **[빌드] K7 러너 지도** — 스파이크 완료로 **불확실성 0**: `docs/design/k7-map-primitives-spike.md`.
    컨트롤드 `camera` 프롭 → `initialCamera` + `NaverMapViewRef`; fit/follow/pan-override 전부 네이티브
    (`animateCameraWithTwoCoords` · `setLocationTrackingMode('Follow')` · `onCameraChanged.reason==='Gesture'`).
