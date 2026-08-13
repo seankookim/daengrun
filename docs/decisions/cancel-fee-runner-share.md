@@ -22,11 +22,13 @@ navigation aids that cost a reader time):
 
 ## The defect this fixes
 
-`app/src/store.ts:183` tells the owner, in the cancel sheet:
+`app/app/owner/schedule.tsx:604` tells the owner, in the live cancel sheet (the
+`store.ts:183` comment carrying the same words sits above the MOCK booking array — same
+sentence, only one of them on a screen a user sees):
 
 > `<24h confirmed → 10% (split 50/50 runner·platform); runner en route → 50%, ALL of it runner`
 
-Only the **en-route 50%** tier writes a ledger row (`record_enroute_cancel_comp`, 0081). The
+Only the **en-route 50%** tier writes a ledger row (`record_enroute_cancel_comp`, **0080 §K (0080:1119)**). The
 **<24h 10%** tier writes nothing. So today a cancel twelve hours out charges the owner ₩1,690
 on a 3km booking, the platform keeps all of it, and the runner who held that slot — and who
 the app has just told the owner is being compensated — receives nothing, and is never told the
@@ -45,7 +47,7 @@ the product uses for good news, not as a silent ledger line they might find late
 
 ## Build notes
 
-- Mirror `record_enroute_cancel_comp` (0081): a `ledger_items` row for the runner, idempotent,
+- Mirror `record_enroute_cancel_comp` (**0080 §K**, 0080:1119): a `ledger_items` row for the runner, idempotent,
   written before the notification that claims it exists (0081's own lesson — never tell a runner
   compensation "was recorded" when the write failed).
 - Split is 50/50 runner·platform, matching the copy that already ships.
@@ -55,7 +57,7 @@ the product uses for good news, not as a silent ledger line they might find late
   en-route tier still produces exactly one at the full fee.
 
 **While you are in there, fix the CLASS, not just this instance.** This defect —
-`store.ts:183` promising the owner a 50/50 split that no ledger row backs — is the same class
+`schedule.tsx:604` promising the owner a 50/50 split that no ledger row backs — is the same class
 as the fabricated `condition_note` found the same day (`run.tsx:444` sent a hardcoded
 `'러너 판단: 컨디션 저하 관찰'` to every owner as the runner's own account of their dog):
 **UI asserting a fact the system does not produce.** Both survived a long time for the same
@@ -103,3 +105,22 @@ Recommended order: **B** (wrong money figure + phantom process, most visible) �
 (one line, delete the min-fare clause and condition the guarantee) → **A** (mechanically
 identical to a fix already shipped once — mirror `run.tsx`'s runner-typed field).
 Each needs its own slice; none is in 0085.
+
+### Post-merge review — one defect found and fixed (2026-08-13)
+
+The charge-slice session reviewed the merged slice and found a real one: **both comp-failure
+paths pinged `enroute_comp_failed`**, whose ops copy names `record_enroute_cancel_comp` — a
+function that **refuses a late-tier booking by design** (0080:1137 gates on
+`owner_cancel_enroute`). An operator following that remedy would run a no-op, mark the alert
+handled, and the runner would never be paid: silent non-payment behind a green ops queue,
+which is precisely the failure ⑩ exists to prevent. **A remedy that refuses by design is
+worse than no remedy, because it closes the queue item.**
+
+Fixed: a distinct `late_comp_failed` class naming `record_late_cancel_share`, plus a routing
+pin that goes RED under the exact shipped defect (verified by reverting it). deno 162/0.
+
+The class list lives in two places by design (`_shared/ops.ts` and 0084's `ops_recipients`
+table comment); the TS half is functional and done, and the documentary half should pick up
+`late_comp_failed` the next time a migration touches that comment — an unregistered class
+routes to zero subscribers and correctly falls back to the env operator (0084 J6), so nothing
+is broken in the meantime.

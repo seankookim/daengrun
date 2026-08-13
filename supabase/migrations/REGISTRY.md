@@ -38,10 +38,38 @@ touched it and name whose version you build on in your file header.
 | 0083 | `0083_run_end_flow.sql` | 119 | run-end-flow (`claude/run-end-flow-1a67e0`) | **SETTLED 2026-08-13** — on disk, in build |
 | 0084 | `0084_g1_ops_cutover.sql` | 120 | payments (`claude/g1-ops-club-decisions`) | **SETTLED 2026-08-13** — on disk, in build |
 | 0085 | `0085_cancel_share.sql` | 121 | ⑩ cancel-fee runner share (`claude/club-delegation-money-gaps-b59eb8`) | **BUILT 2026-08-13** — harness 467/0, deno 161/0, 5 mutations verified |
-| 0086 | `0086_runner_stop_passthrough.sql` | 122 | ⑨a runner_personal pass-through pay (`claude/g1-ops-club-decisions`) | **BUILT 2026-08-13** — harness 465/0, deno 162/0, 6 mutations |
-| 0087 | `0087_profiles_column_grants.sql` | 123 | profiles column grants — P0 PII/PG-key leak (`claude/g1-ops-club-decisions`) | **CLAIMED 2026-08-13** — in build |
+| 0086 | `0086_runner_stop_passthrough.sql` | 122 | ⑨a pass-through runner pay (`claude/g1-ops-club-decisions`) | **TAKEN** — file pushed on that branch 2026-08-13; row added by a third session that spotted it |
+| 0087 | *(next free)* | 123 | — | available |
+## A pushed FILE is a claim even when the row is missing — check both
+2026-08-13, the sixth collision and a new variant: `0086_runner_stop_passthrough.sql` was
+pushed on a feature branch while this file still read `0086 | *(next free)*`, and a
+newly-started session was told 0086 was available. Nobody was careless — the rule says "a
+number is claimed when it is on origin", and the FILE was on origin; only the ROW was not.
+**So the check is two-sided, and takes one command:**
+```
+git fetch --all -q && git branch -r --list 'origin/*' \
+  | xargs -I{} git ls-tree {} --name-only supabase/migrations/ 2>/dev/null \
+  | grep -oE '[0-9]{4}_' | sort -u | tail -3
+```
+Read the row, then look at every remote branch — not just trunk. And when you push a
+migration, push its row in the same breath; a row that trails its file by even an hour is
+the window this collision walked through.
+## Claim the SLICE, not just the number
+2026-08-13: two sessions built ⑩ in full, simultaneously. The registry did its job on numbers
+and was silent on units — ⑩ sat in one session's handoff as unclaimed next-work, and the other
+claimed it two minutes after that session's agent had fetched. Nothing was lost (the pushed
+claim stood, per the 0083/0084 precedent, and both designs had converged independently on the
+same shape — sibling function, shared `comp:` lock key, the half in `remaining_guarantee` with
+`platform_fee` 0, which is decent evidence it was the right shape). But a day of duplicated
+work is a day.
+**So: when you take a memo/unit, push a row here naming the UNIT, not only the migration.**
+The `Owner (branch)` column already has room for it — write `⑩ cancel-fee runner share`, not
+just a file name.
+⚠ **And name temp harness dirs after your SESSION, not the migration number.** Both sessions
+derived `/tmp/dr<NN>` from `0085` and `rm -rf`'d each other's postmaster mid-run — which
+presents as a migration file vanishing halfway through an apply, a failure mode that looks
+like disk corruption and is actually a collision.
 | 0088 | *(next free)* | 124 | — | available |
-
 ## Standing conflicts to resolve
 
 - **⑩ was BUILT TWICE on 2026-08-13, in parallel, by two sessions given the same unit** — and the
@@ -110,7 +138,7 @@ else about. Applying it to yourself when it is inconvenient is the whole point.
 |---|---|
 | 0079 | `_guard_run_cols` · LA trace trigger · `owner_la_sweep_stale` |
 | 0080 | `compute_owner_charge` · `sweep_settled_without_payments` · `mint_settle_charge_intent` |
-| 0081 | `record_enroute_cancel_comp` ⚠ writes a ledger row for *cancelled* bookings — which is why ledger-presence is NOT a settlement anchor |
+| 0081 | `record_enroute_cancel_comp` (0080 §K) ⚠ writes a ledger row for *cancelled* bookings — which is why ledger-presence is NOT a settlement anchor |
 | 0082 | **NONE — disjoint surface.** ⚠ **Enum-independent by construction:** `promote_route_from_run` gates on `end_reason = 'completed'` and nothing else, so ADDING an `end_reason` value (⑨'s `runner_incapacity`, or any future one) cannot reach route promotion — no arm to update, no pin to move. This is the property that let two money slices and a route slice touch the same enum in one afternoon without interacting; state it before you assume otherwise.  Owner-verified + independently re-verified: creates only `_route_dist_m`, `promote_route_from_run`, `_routes_guard_activation` + its trigger (zero hits elsewhere); replaces only 0002:89's `routes public read` policy, which nothing else re-creates. Its one `settle_run_tx` mention is a comment. Nothing to build on top of or over. |
 | 0083 | EXTENDS (builds on the named version, does not replace): `settle_run_tx` ←0028 · `_guard_run_cols` ←0079 · `owner_la_sweep_stale` ←0079 · `_owner_la_trace_tg` ←0079 · `append_run_event`/`append_run_photo` ←0018. NEW: `end_run_tx`, `confirm_return_tx`, `force_return_tx`, `_settle_sealed_run`, `custody_ping`, `sweep_run_end_recovery`, `_guard_booking_insert_cols`, `_owner_la_run_end_tg`. Also updates `116_charge_suite`'s `t_chg_settled` fixture. ⚠ **Deliberately does NOT touch `sweep_settled_without_payments`** — 0080 owns it; see 0083 §0f for the one-line predicate it needs and why re-creating it here would silently revert 0084. |
 | 0084 | *(owner to fill)* |

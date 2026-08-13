@@ -238,7 +238,11 @@ async function shareLateCancelFee(db: SupabaseClient, bookingId: string): Promis
     // Identical reasoning to the en-route arm: no sweep looks for a missing comp row, so this is
     // money a runner is owed that nobody would otherwise notice. Identifiers stay in the log.
     console.error(`[transition] late cancel share FAILED booking=${bookingId}: ${msgOf(e)}`);
-    await notifyOps(db, "enroute_comp_failed", { refId: bookingId });
+    // NOT enroute_comp_failed — that class's copy names record_enroute_cancel_comp, which
+    // refuses a late-tier booking by design (0080:1137 gates on 'owner_cancel_enroute'). An
+    // operator following it would run a no-op, mark the alert handled, and leave the runner
+    // unpaid. The class carries the remedy, so the class has to match the writer that failed.
+    await notifyOps(db, "late_comp_failed", { refId: bookingId });
     return 0;
   }
 }

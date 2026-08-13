@@ -67,6 +67,10 @@ Before every commit: `cd app && ./node_modules/.bin/tsc --noEmit` and `node scri
   already done and pruned.
 - **A separate clone also needs `git fetch --prune`** once, to drop its stale `origin/main`
   remote-tracking ref.
+- **Evidence the constraint works** (2026-08-13): a worktree cut AFTER `main` was deleted came
+  up at trunk, 0 behind, seeing migration `0085`. Its own predecessor's two worktrees — same
+  track, same day — were **269 behind at `0036`**, because they had been cut from `main`.
+  Nobody had to remember a rule; the deletion made the wrong move impossible.
 - This was all true in practice for weeks while written down nowhere, so every new session
   rediscovered it by getting bitten — the same class of failure as a ruling that lives only in
   an unpushed file.
