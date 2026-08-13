@@ -1,6 +1,7 @@
 # ⑩ The 10% cancel tier — pay the runner, and tell them
 
-**Status: ✅ RULED BY SEAN 2026-08-13 — "pay the runner and let them know, reward them ykwim."**
+**Status: ✅ RULED BY SEAN 2026-08-13 — *"pay the runner and let them know, reward them ykwim."*
+· BUILT AND COMPLETE (0085 / suite 121). No open items.**
 **BUILT 2026-08-13 — `0085_cancel_share.sql` + `121_cancel_share_suite.sql` + the
 `transition-booking/cancel_owner.ts` half, by `claude/club-delegation-money-gaps-b59eb8`.**
 
@@ -187,3 +188,22 @@ slice; flagged to that session rather than duplicated here, per ⑩'s double-bui
 The sweep's value was mostly in A regardless: fixing one instance did not fix the class, and
 only a sweep found the second copy — and only *checking* found that the first fix was not
 actually on trunk.
+
+## The "reward them" question — CLOSED, not deferred (Sean, 2026-08-13)
+
+For a while this memo carried a real gap: the pay half and the telling half had shipped, but
+nothing awarded 하이 포인트 for a cancelled slot, so *"reward them"* was arguably unimplemented.
+The payments session was right not to invent a number he had not set.
+
+Asked whether the reward was points, something else, or whether being paid the half-fee **was**
+the reward and the word was about tone — **his answer: *"reward was about tone."***
+
+**So there is no currency to design, and this is closed rather than deferred.** No ledger award,
+no points, no new balance to keep honest. **The ruling is satisfied by the notification's copy
+and voice** — a runner who kept an evening free hears it as good news (title: 시간을 비워둔
+보상이 기록됐어요) rather than discovering a silent ledger line later. That copy already shipped
+with 0085, which is why ⑩ is now **complete**, not "built with a gap".
+
+⚠ Recorded with the reasoning rather than as a one-liner, because *"reward them"* reads like an
+unbuilt feature to anyone arriving fresh, and the next reader would otherwise re-open it and
+design a points slice nobody wants. **The absence of a currency here is the decision.**

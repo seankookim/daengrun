@@ -125,17 +125,11 @@ same application) regardless, plus billing TEST keys and the §4-2 sandbox matri
 
 ---
 
-## 8. 🟡 ⑩'s "reward them" is currently paid in sentences only
+## 8. ✅ ⑩'s "reward them" — CLOSED 2026-08-13
 
-Your ruling was *"pay the runner and let them know, **reward them** ykwim"*. The pay half shipped
-(0085) and the telling half shipped (the notification reads as good news). **The reward half did
-not.** The 하이 포인트 ledger exists, but nothing awards points for holding a slot that got
-cancelled — and the payments session deliberately did not invent a number you had not set, which
-was the right call.
-
-So: **what is the reward, concretely?** Points, and how many? Something else? Or is being paid
-the half-fee itself the reward, and the word was about tone rather than a second currency? A
-one-line answer closes it; it is a real gap between the ruling and the build either way.
+*"reward was about tone."* No points, no ledger award, no currency to design — the half-fee is
+the reward and the notification's voice carries it. ⑩ is complete, not "built with a gap".
+Reasoning kept in the memo so nobody re-opens it as an unbuilt feature.
 
 **Also standing, from ⑩ and ④:** the club-premium disclosure line (④ requires it before
 cutover — his wording), and the counsel question on 빌링키 charge-notice obligations (②'s
