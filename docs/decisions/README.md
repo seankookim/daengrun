@@ -1,56 +1,49 @@
-# Money decision memos — the single index (consolidated 2026-08-13)
+# Money decision memos — the single index
 
-Six memos, one directory. Two sessions wrote overlapping sets in parallel
-(`docs/decisions/` here + `docs/decisions-open-money.md` on mainline); at consolidation
-the duplicate was retired INTO this directory with its text preserved, and the one place
-the two sets genuinely disagreed was surfaced rather than merged away.
+Eight memos, one directory. Two sessions wrote overlapping sets in parallel;
+`docs/decisions-open-money.md` was retired INTO this directory, and Sean's rulings —
+which he gave in the charge-slice session and which sat unpushed on one laptop while
+this directory said the questions were open — are ported in below from `0fbaa64`.
 
-**Sean picks by letter. One line per memo is enough.**
-
-| # | Memo | Status | Recommendation |
-|---|---|---|---|
-| ① | [g1-abort-charge-basis.md](g1-abort-charge-basis.md) | ✅ **RULED — C** | `dog_condition` = **FULL ACTUALS** (base + distance, like `completed`); `incident` = ₩0 at settle. Sean overrode both sessions' recommendations. Code change spec'd in the memo; required copy: the report must say stopping was right + show the runner's `condition_note`. |
-| ② | [d3-silent-charge-summary.md](d3-silent-charge-summary.md) | ✅ agreed, needs counsel | Monthly summary, never a per-charge push. Ask counsel; 전자상거래법 footer is a hard dependency at 사업자등록. |
-| ③ | [ops-profile-id-vs-admin-role.md](ops-profile-id-vs-admin-role.md) | ✅ agreed, shipped | Env var for the pilot; payloads already redacted (`f9f7be7`). |
-| ④ | [club-fare-base-alignment.md](club-fare-base-alignment.md) | ✅ **RULED — A** | **Keep ₩9,900 as a deliberate club premium** (host coordination + 집결지). No code change. REQUIRED: a one-line disclosure on the club payment surface before the cutover — an undisclosed premium is the version that costs trust. |
-| ⑤ | [club-enroute-cancel.md](club-enroute-cancel.md) | 🟡 OPEN | **C — route en-route club cancels into the incident flow** (a button, not a wall). |
-| ⑥ | [cutover-straddle.md](cutover-straddle.md) | 🟡 OPEN (at flip time) | **B — set `payments_live_since` to a FUTURE timestamp** past the longest in-flight booking. |
-
-② gates the `payments_live_since` flip (counsel). ⑤/⑥ are pre-cutover: nothing is charged
-until the flip, so both are cheap now and expensive after.
-
-## Open work created by the rulings
-
-| From | Work | Owner |
+| # | Memo | Ruling |
 |---|---|---|
-| ① C | `compute_owner_charge`: `dog_condition` → actual basis, `incident` stays waived; split the 116 pins at :223/:226 | charge-slice session (owns 0080 + harness) |
-| ① C | Report/record-card copy: stopping was the right call + show the runner's `condition_note` — required, not optional | run-end-flow session (owns the report surface) |
-| ④ A | One-line club-premium disclosure on the club payment surface, before the cutover | club/next money slice |
+| ① | [g1-abort-charge-basis.md](g1-abort-charge-basis.md) | 🔴 **CONFLICTED — needs one more word from Sean.** He answered twice, differently: *base fare only, flat* (earlier, charge-slice session) vs *full actuals* (later, from a menu here that didn't contain his own answer). `incident` = ₩0 with verification, settled either way. **Nothing is being built on it.** |
+| ② | [d3-silent-charge-summary.md](d3-silent-charge-summary.md) | ✅ **A — accept as-is. NOTHING TO BUILD.** No per-charge push, no monthly summary. ⚠ The statement-row slice is **CANCELLED, not deferred**. Counsel question survives as validation. |
+| ③ | [ops-profile-id-vs-admin-role.md](ops-profile-id-vs-admin-role.md) | ✅ **C — `ops_recipients` table** with per-event-class routing ("build for full scale, not just for pilot"). Env var readable as a one-release fallback. Being built. |
+| ④ | [club-fare-base-alignment.md](club-fare-base-alignment.md) | ✅ **Keep ₩9,900** — the club premium stands and funds host compensation (⑦) — **and make club price-invisible**, disclosed once at join/consent. No `club_fare` change. |
+| ⑤ | [club-enroute-cancel.md](club-enroute-cancel.md) | ✅ **A — leave it.** Past handoff it's a case. Plus: the card-less club state routes to card registration, seamlessly. |
+| ⑥ | [cutover-straddle.md](cutover-straddle.md) | ✅ **B — a FUTURE `payments_live_since`**, never `now()`. Straddlers free by construction; the flip procedure carries the query. |
+| ⑦ | [host-incentives.md](host-incentives.md) | ✅ Agreed direction, not built. Host cut from **platform margin, never runner pay** — the ④ premium is the budget. |
+| ⑧ | [card-registration-placement.md](card-registration-placement.md) | ✅ Agreed. **Inline at first booking**, not onboarding — under price invisibility the card-link screen is the consent moment for actuals-based charging. |
 
-## How ① was decided (read before "correcting" it)
+## The lesson this set paid for twice
 
-Sean delegated the original three calls to this session's recommendations. The
-charge-slice session — which owns the built code — refused to treat a *relayed* adoption
-as authorization, correctly: a confirmation gate another session can perform is not a
-gate. That refusal held the 🔴 in place. Consolidation then revealed the two sessions had
-reached **different answers on `dog_condition`** (₩0 waive vs distance-only), each from
-its own adversarial round — a founder's risk preference, not a resolvable engineering
-question. Put to Sean, he chose **C, which neither session recommended**. That is the
-system working: the models surfaced the trade-off honestly and the human made the call.
-**Do not "fix" ① back toward a memo's recommendation.**
+**Unpushed work reserves nothing — decisions included.** The numbering registry
+(`supabase/migrations/REGISTRY.md`) exists because migration numbers claimed on a laptop
+collided five times in one day. The same failure then hit *decisions*: Sean answered six
+questions, and origin went on telling every session they were open, because the answers
+sat on one branch. Then it compounded — this session asked him ① again with a menu that
+omitted his own answer, and got a different answer back. **A decision counts when it is on
+origin, in the canonical directory.** Push docs immediately; they are never the thing
+worth holding back.
 
-## Provenance & method
+## How to read a ruling here
 
-- Original ①–③ memos + dual-voice adversarial round (Claude subagent 12 findings, Codex
-  gpt-5.6-sol 16): club-delegation session, 2026-08-13.
-- Independent ①–③ + club-specific ④–⑥: charge-slice/club-gates session, same day, written
-  against the BUILT code (0080/0081). Text preserved verbatim in ④–⑥.
-- Cross-session findings that changed shipped code: the club-delegation round found a
-  **financial-data disclosure** (a valid-but-wrong `OPS_PROFILE_ID` put another customer's
-  order number and ₩ amount on a stranger's lock screen via 0024's verbatim push) — fixed
-  by payload redaction in `f9f7be7`. The charge-slice round found the memo hole that
-  `incident` must stay ₩0 for an architectural reason, so a future re-pick can't
-  accidentally pre-empt 0072's adjudication. Neither was visible from inside the session
-  that wrote it.
-- Restore point for this session's drafts:
-  `~/.gstack/projects/seankookim-daengrun/claude-club-delegation-money-gaps-b59eb8-autoplan-restore-20260813-111952.md`
+Every memo keeps the superseded recommendation below the ruling, so the reasoning survives
+and nobody "corrects" a ruling back toward a model's advice. Where Sean overrode both
+sessions (①, ③, ④, ⑤), that is stated explicitly — the models' job was to surface the
+trade-off honestly, and his call stands over both.
+
+## Provenance
+
+- ①–③ memos + dual-voice adversarial round (Claude subagent 12 findings, Codex 16):
+  club-delegation session, 2026-08-13.
+- ①–⑧ + Sean's rulings: charge-slice/club-gates session, same day, against built code
+  (0080/0081); ported here from `0fbaa64` at consolidation with text preserved.
+- Cross-session findings that changed shipped code: a **financial-data disclosure** (a
+  valid-but-wrong `OPS_PROFILE_ID` put another customer's order number and ₩ amount on a
+  stranger's lock screen via 0024's verbatim push) — fixed by payload redaction
+  (`f9f7be7`); the **`incident` free-run hole** Sean's "verify first" instinct caught
+  (`settle-run` whitelisted all six `end_reason` values on a public endpoint); and the
+  **fabricated `condition_note`** (`run.tsx:444` sent a hardcoded string on every abort,
+  making G1's anti-gaming control inert) — fixed in `611f014`.

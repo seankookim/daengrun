@@ -1,8 +1,13 @@
 # ⑤ Should a club booking be cancellable once the runner is en route?
 
-**Status: OPEN — Sean's call. Recommendation: C now (route to the incident flow), B only if it comes up.**
-Authored by the charge-slice/club-gates session; folded into this directory 2026-08-13
-at consolidation (text preserved verbatim).
+**Status: ✅ RULED BY SEAN 2026-08-13 — option A: LEAVE IT.** Club cancels stop at
+`confirmed`; past handoff it is a case, which is the club's own designed answer. No
+en-route club tier, no new money rule. (The memo had recommended C.)
+
+✅ **Also ruled: the card-less club state points at card registration, and the flow must be
+seamless** — the post-cutover refusal becomes a route, not a dead end. Being built with the
+price-invisibility pass. Note the asymmetry Sean accepted deliberately: the one surviving
+"wall" is an en-route club cancel (rare); the card-less case (common) gets a path.
 
 **Shipped today (2026-08-13, this session).** The marketplace cancel path now REFUSES club
 bookings (`cancel_owner`, mirroring the club exclusion `runner_accept` already had). It had

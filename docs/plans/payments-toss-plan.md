@@ -52,13 +52,12 @@ appears exactly ONCE in the happy path: on the request/preference screen, small 
 alongside the options (that surface already exists). After that the owner never sees a
 number again: booking confirmation carries NO money, the post-run moment is the RECORD
 CARD (the dog, never the charge), and the card issuer's own 승인 알림 does the
-announcing. Money UI exists in exactly three modes: **on demand** (booking detail →
+announcing. Money UI exists in exactly two modes: **on demand** (booking detail →
 결제 내역, 설정 → 결제 관리 — receipts must exist and be accurate there, 전자상거래법
-footer included), **on exception** (decline/debt/account-lock states — those cannot
-be hidden and stay loud), and **one scheduled aggregate receipt per month** (D-3
-adoption 2026-08-13, `docs/decisions/d3-silent-charge-summary.md` — amount-free push,
-amount on the in-app surface only; unbuilt until Sean's merge confirms; a ledger
-digest is a receipt surface, not a price ceremony). This is honest: consent happened
+footer included) and **on exception** (decline/debt/account-lock states — those cannot
+be hidden and stay loud). **D-3 RULED 2026-08-13: option A, accept as-is — no per-charge
+push and NO monthly summary; the doctrine stands unamended and there is nothing to build**
+(`docs/decisions/d3-silent-charge-summary.md`). This is honest: consent happened
 at request (price shown),
 actuals-based charging was disclosed at card link, and the receipt is one tap away.
 Honest ≠ loud. **This achieves what the token model's psychology was FOR** — recorded
@@ -114,8 +113,8 @@ edges, zero repinning.
 |---|---|---|
 | completed / runner-caused early end | ACTUAL | pay what happened |
 | owner_request / owner_forced | **PLANNED** (D2 rule) | guarantee clause + anti-cut-short gaming |
-| **dog_condition** | **ACTUAL (full: base + distance)** — RULED BY SEAN 2026-08-13, option C | same basis as `completed`; owner ceiling min(actual, planned) still caps it at the quote |
-| **incident-class** | **₩0 at settle** (`waived` row) — RULED 2026-08-13 | 0072 adjudication owns the money question; charging at settle would pre-empt the case |
+| **dog_condition** | 🔴 **CONFLICTED — Sean answered twice** (base-fare-flat vs full actuals); see `docs/decisions/g1-abort-charge-basis.md`. Shipped code still waives. | unresolved — do not build either |
+| **incident-class** | **₩0 at settle** (`waived`), gated on VERIFICATION — ruled 2026-08-13 | 0072 adjudicates; `settle-run`'s six-value whitelist was a free-run hole, now narrowed to the four a client can send |
 
 `owner_charge = ownerBaseFare(7,900) + 3,000 × basis + addon_fare`.
 
@@ -153,8 +152,7 @@ booking-detail 결제 내역 extension ships in the same release (§0-bis T6) ·
 심사's answer on 빌링키 charge notice obligations is a GO-LIVE requirement (if
 per-charge notice is demanded, the invisibility doctrine renegotiates —
 `docs/decisions/d3-silent-charge-summary.md`; the D-3 monthly statement itself
-builds in the next money slice — claim its number in
-`supabase/migrations/REGISTRY.md` first).
+was CANCELLED by the D-3 ruling — do not build it).
 
 ### §0-ter ADVERSARIAL ROUND 1 — 15 findings absorbed (2026-08-12 night; the section above
 is amended by ALL of the following; a second adversarial round belongs to the build slice):
@@ -201,12 +199,14 @@ is amended by ALL of the following; a second adversarial round belongs to the bu
    "later confirmed row"), and the failed→confirmed flip sets payment_key in the SAME
    statement (payments_settled_has_key). Verify-at-build: Toss idempotency-key
    retention window vs the +24h outer rung.
-9. **Basis for `dog_condition`/`incident`: RULED BY SEAN 2026-08-13 (#9) — option C.**
-   `dog_condition` charges FULL ACTUALS (base + distance, identical to `completed`);
-   `incident` charges ₩0 at settle and stays a `waived` row. Neither session recommended
-   C — both were overruled after the trade-off was put to Sean, so do not "correct" this
-   toward a memo's advice. Code change + required report copy specified in
-   `docs/decisions/g1-abort-charge-basis.md`. Flips remain forward-only.
+9. **Basis for `dog_condition`/`incident` (#9): `incident` = ₩0 with verification (RULED).
+   `dog_condition` is 🔴 CONFLICTED — Sean gave two different answers in two sessions
+   (base fare only, flat / full actuals); the second came from a menu that omitted the
+   first. Nothing is built on either. See `docs/decisions/g1-abort-charge-basis.md`.
+   Whichever wins: the charge reads the booking's FROZEN `base_fare`, so a CLUB abort
+   charges 9,900 (ruling ④ kept the club premium), and the report must show the runner's
+   real `condition_note` (`611f014`) — a bill for a stop the owner cannot evaluate is not
+   defensible. Flips forward-only.
 10. **`runner_personal` waives the base (#10):** owner pays `3,000 × actual` only — a
     runner-caused end doesn't bill the owner 7,900 for undelivered service. Platform
     absorbs the runner's min_fare floor at tiny actuals (rare, bounded, gauge it).

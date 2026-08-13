@@ -1,16 +1,19 @@
 # ④ club_fare — should a club owner pay ₩9,900 base when a marketplace owner pays ₩7,900?
 
-**Status: ✅ RULED BY SEAN 2026-08-13 — option A: KEEP ₩9,900 as a deliberate club
-premium.** The gap is now a decision, not an artifact: a club session includes host
-coordination, capacity management and a 집결지, and that is what the extra ₩2,000 buys.
-`club_fare` does not change; 0043 stays as-is; suite literals (117 K3/K7, 50 D5) stay.
+**Status: ✅ RULED BY SEAN 2026-08-13 — KEEP ₩9,900 for clubs (the premium stands) AND
+make the club price-invisible too, "although notifying the price once."**
 
-**REQUIRED accompaniment — the honest form of A.** The memo's own words: "an undisclosed
-premium is the version that costs trust." So a one-line disclosure ships on the club
-payment surface before the cutover, e.g. *"클럽 위탁은 기본요금이 달라요 (호스트 운영·집결지
-포함)"* — placed where the price is shown (the ticket cell / 승인 알림 / club payment sheet).
-Without it the ruling is A-in-name and undisclosed-premium in practice. Copy is Sean's to
-approve; the requirement is not optional.
+The gap stops being drift and becomes a stated product fact: a club session costs more
+than a solo run, disclosed ONCE at the join/consent moment and never again. No `club_fare`
+change — 0043, 117 K3/K7 and 50 D5 all stay. Two consequences worth naming: ① the club's
+wider margin is exactly what FUNDS host compensation (see `host-incentives.md` ⑦), so the
+premium has a purpose now; ② 117 K7's literal arm pins an *intended* price rather than a
+fossil. Club price-invisibility is being built — the session screen shows the fare at five
+points today (big number, CTA, '승인 시 가격', status line, pay sheet) and collapses to one
+disclosure.
+
+⚠ **G1 interaction:** because the charge reads the booking's own frozen `base_fare`, a club
+`dog_condition` abort charges **₩9,900**, not 7,900. Flag it in copy or it reads as a bug.
 
 *Original recommendation was B (align to 7,900); Sean ruled A. Recorded so nobody
 "corrects" it back to the memo's advice. Analysis preserved below.*

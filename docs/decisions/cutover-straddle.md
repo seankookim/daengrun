@@ -1,8 +1,12 @@
 # ⑥ The cutover straddle — a booking confirmed before the flip, charged after it
 
-**Status: OPEN — Sean's call at flip time. Recommendation: B (set `payments_live_since` to a FUTURE timestamp past the longest in-flight booking).**
-Authored by the charge-slice/club-gates session; folded into this directory 2026-08-13
-at consolidation (text preserved verbatim).
+**Status: ✅ RULED BY SEAN 2026-08-13 — option B.** `payments_live_since` is set to a
+FUTURE timestamp past the longest in-flight booking, never to `now()`. Straddlers stay free
+by construction.
+
+**The flip procedure in session-handoff §3 ⑦ carries this, with the query that finds the
+right timestamp** — a decision that lives only in a memo is one
+`update ops_flags set … = now()` away from being undone.
 
 
 **Not a defect anyone introduced; a consequence of where the two clocks sit.** The

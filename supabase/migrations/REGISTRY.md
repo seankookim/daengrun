@@ -34,19 +34,23 @@ touched it and name whose version you build on in your file header.
 | 0079 | `0079_pace_state.sql` | 115 | pace-state-ui-build | on origin/redesign-v4 |
 | 0080 | `0080_charge_machine.sql` | 116 | payments-toss-plan-slice | on origin/redesign-v4 |
 | 0081 | `0081_club_money_gates.sql` | 117 | club-money-gates | on origin/redesign-v4 |
-| 0082 | `0082_route_ladder.sql` | 118 | route-discovery (`claude/g1-ops-club-decisions`) | on origin/redesign-v4 (`a95aa34`) — **settled: it won the race** |
-| 0083 | `0083_run_end_flow.sql` | 119 | run-end-flow (`claude/run-end-flow-1a67e0`) | **CLAIMED 2026-08-13, in build** |
-| 0084 | `0084_g1_ops_cutover.sql` | 120 | payments-toss-plan-slice | claimed (written, unmerged) |
+| 0082 | `0082_route_ladder.sql` | 118 | **route session** (반포 route catalog / route discovery; landed via the main checkout, `a95aa34`) | on origin/redesign-v4 — settled |
+| 0083 | ⚠ **DISPUTED** — see below | 119 | run-end-flow *or* payments | in build, unpushed |
+| 0084 | ⚠ **DISPUTED** — see below | 120 | the other of the two | in build, unpushed |
 | 0085 | *(next free)* | 121 | — | available |
 
 ## Standing conflicts to resolve
 
 - ~~0082 double-claimed~~ **RESOLVED:** route-ladder pushed first (`a95aa34`).
-- ~~0083 double-claimed~~ **RESOLVED 2026-08-13:** run-end-flow and payments-toss each
-  yielded 0083 to the other simultaneously and both landed on 0084 — a double-yield is its
-  own collision. Settled: **0083/119 run-end-flow, 0084/120 payments-toss**, per both
-  sessions' agreement. Run-end-flow's TODOS reference to "0082 슬롯" is stale and superseded
-  by this row.
+- ⚠ **0083/0084 STILL DISPUTED — and the two sessions are reporting OPPOSITE settlements.**
+  This row previously said 0083=run-end-flow / 0084=payments; the payments session states
+  the reverse (0083=payments, 0084=run-end-flow) and says run-end-flow yielded to it. Verified
+  in git 2026-08-13: **neither 0083 nor 0084 exists on ANY pushed branch** — both are local
+  in-flight work, so no file-based tiebreak exists.
+  **Resolution procedure, to stop a third yield: the PAYMENTS session decides and pushes the
+  corrected row; run-end-flow accepts whatever that row says without countering.** A
+  double-yield happens because both parties are being polite; the fix is naming one decider,
+  not another round of deference. Whoever writes the row, write it as fact, not a proposal.
 - **Count is five, not four** (0078 ×3, 0081 ×2, 0082 ×2, 0083 ×2 including the double-yield).
 - The `payments_live_since` cutover slice (D-3 statement, per-runner abort telemetry,
   reconciliation heartbeat) has no number yet — claim at build time.

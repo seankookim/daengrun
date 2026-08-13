@@ -1,71 +1,48 @@
-# ③ OPS_PROFILE_ID — env var vs an admin role in the DB
+# ③ OPS_PROFILE_ID — env var vs an admin role
 
-> ✅ **BOTH SESSIONS AGREE: keep the env var for the pilot; revisit at the second
-> operator.** The charge-slice session's option shapes, folded in: **B** =
-> `profiles.is_ops boolean` (DB-native, survives env drift — but the column must be
-> sealed from client writes or it is a privilege-escalation path, and it needs a pin);
-> **C** = a dedicated `ops_recipients` table (cleanest for many operators + per-event
-> routing, overbuilt for one person). B's real cost isn't the column, it's another
-> sealed-surface pin to maintain for zero present benefit. The trigger to revisit is a
-> second human needing to see ops events — not a date.
+**Status: ✅ RULED BY SEAN 2026-08-13 — "build for full scale, not just for pilot" →
+option C, a dedicated `ops_recipients` table.** Being built in the charge-slice session.
 
-**Status: ADOPTED — A (env var stays), 2026-08-13; the hardening question is
-RESOLVED by payload redaction.** Sean delegated the call to this memo's
-recommendation in the club-delegation session (/autoplan). The adversarial round
-confirmed the memo's honest weakness as a real vulnerability, and the charge-slice
-session fixed it (commit f9f7be7 on its branch) — differently and better than this
-memo's original C proposal. Recorded here as the resolution of record.
+> ⚠ Supersedes this memo's earlier resolution ("env var stays for the pilot"). That
+> recommendation was pilot-sized reasoning; Sean rejected the framing, not just the
+> option. Recorded so nobody restores the env-var-only answer by citing the analysis
+> below.
 
-## The question
+## The ruling
 
-Ops alerts (auto-cancel failure, and now the charge machine's exception classes) are
-delivered as a `notifications` insert to the profile id in the `OPS_PROFILE_ID` env
-var. Should the recipient instead be defined in the database (an admin role/flag)?
+`ops_recipients (profile_id, event_class, active)`. C beats B (`profiles.is_ops`) because
+"full scale" is really about **routing**, not plurality: the charge machine already emits
+four distinct marker classes (auto-cancel failure, retry exhaustion, dispatched-stale,
+settled-without-payments) plus a comp-write failure, and at scale those don't all go to
+the same person. The table lets one operator subscribe to money and another to safety
+with no code change. The env var stays readable as a fallback **for exactly one release**,
+so a mis-provisioned table cannot silence ops.
 
-## Resolution
+## What was already fixed and stays fixed, independent of this ruling
 
-**A — env var stays for the pilot.** Zero migration; per-environment by nature;
-matches reality (ops = Sean). Setup is a launch-checklist item (§2): unset = loud
-log only, and the reconciliation machinery — 4-arm in 0080, plus the 15-min
-verification arm in collect-charges — is the actual safety net, not the
-notification.
+**The payload redaction (`f9f7be7`) is orthogonal and shipped.** Ops alerts carry no
+financial detail: they say what happened and name `payments_reconciliation()` as where
+the detail lives; identifiers stay in `console.error`. This closed a real disclosure —
+`OPS_PROFILE_ID` is an env-held uuid and 0024 pushes notification bodies verbatim to a
+lock screen, so a valid-but-wrong value put another customer's order number and ₩ amount
+on a stranger's phone. Found by this session's adversarial round, fixed by the
+charge-slice session. **It stays true under `ops_recipients`** — a routing table changes
+who is notified, not what a wrong row would leak.
 
-**The wrong-uuid hole: CONFIRMED and FIXED by redaction, not recipient validation.**
-The adversarial round's finding was real: a valid-but-WRONG uuid delivered another
-customer's order number and ₩ amount to a stranger's lock screen (0024's trigger
-pushes the notification body verbatim, with sound). Fix shipped in the charge-slice
-session (f9f7be7): **ops alert payloads carry no identifiers** — they say what
-happened and name `payments_reconciliation()` as where the detail lives; order ids
-and amounts stay in `console.error`. Pinned so it can't creep back.
+## Options as they were put
 
-This supersedes the two validation shapes this memo previously floated:
-- *Existence validation* was a placebo — `notifications.profile_id` already has an
-  FK; a dangling uuid fails loudly today.
-- *OPS_EMAIL cross-check* was rejected by the charge-slice session with a reason
-  this memo accepts: a second env var that must ALSO be right just moves the
-  question. Removing the sensitive payload removes the harm class instead of
-  guarding its delivery.
+| # | Shape | Trade |
+|---|---|---|
+| A | Keep the env var (was shipped) | Simplest, one operator, no migration. A wrong/rotated id fails loudly but not visibly in-product. |
+| B | `profiles.is_ops boolean` | DB-native, survives env drift. The column must be sealed from client writes or it's a privilege-escalation path, and it needs a pin. |
+| **C** | **Dedicated `ops_recipients` table — RULED** | Cleanest for many operators + per-event-class routing. |
 
-**B (admin role / ops_recipients) trigger, unchanged:** when a second operator
-exists, the right shape is an `ops_events` queue (dedupe, severity, ack/resolution)
-— not a recipients table bolted onto customer notifications. Recorded so B doesn't
-get built as the wrong table later.
+## Still open, and now more relevant under C
 
-## Still open — timed to the CUTOVER GATE (charge-slice session's call, agreed)
-
-- **Heartbeat on the pull-based net:** reconciliation is a manual daily query by one
-  person; nothing alarms if the habit lapses. A cron that loud-LOGS (never notifies
-  — no dependency on the same env var) when `payments_reconciliation()` returns
-  >0 rows. ~10 lines — but no consumer exists until an operator reads alerts daily,
-  so it builds in the slice that flips `payments_live_since`, not before.
-- Launch checklist §2 carries the env setup item (`supabase secrets set
-  OPS_PROFILE_ID=...` per environment; also listed in handoff deploy order ⑥).
-
-## Decision (Sean)
-
-- [x] A — env var stays for the pilot, with redacted ops payloads (shipped) —
-      **ADOPTED 2026-08-13 via delegation**
-- [ ] B — `ops_events` queue when a second operator exists
-
-Why: solo operator; the safety net is reconciliation, not the notification — and
-with redacted payloads a misconfigured recipient can no longer leak money data.
+- **Reconciliation arm per marker class.** `payments_reconciliation()` had two arms
+  (orphan_capture, stale_pending); the charge machine's newer marker classes need their
+  own, each pinned to 0 rows on clean fixtures. Routing alerts to the right person is
+  worth little if the class has no query behind it.
+- **A heartbeat on the pull-based net.** Reconciliation is a manual query; nothing alarms
+  if the habit lapses. A cron that loud-LOGS (never notifies — no dependency on the
+  recipient table it would be reporting on) when the query returns >0 rows.

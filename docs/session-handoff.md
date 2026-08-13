@@ -112,24 +112,29 @@ NOW, but not billing); ③ ~~review + merge + push~~ — DONE this session: both
 uncommitted work there, so the remote was advanced instead of fast-forwarding their tree.
 `git pull` with a clean tree.
 
-**Decisions — ALL SIX in `docs/decisions/` (one directory, consolidated 2026-08-13;
-`decisions-open-money.md` retired into it). SEAN RULED ①/④ on 2026-08-13:**
-- ✅ **① G1 = C.** `dog_condition` charges **FULL ACTUALS** (base + distance, same as
-  `completed`); `incident` = ₩0 at settle (`waived`, 0072 adjudicates). **Neither session
-  recommended C** — both were overruled after the trade-off was put to him. 🔴 resolved.
-  → CODE TODO: `compute_owner_charge` drops `dog_condition` from the `g1_waive` branch
-  (keep `incident`), split the 116 pins at :223/:226. → COPY TODO (required): the report
-  says stopping was the right call + shows the runner's `condition_note`.
-- ✅ **④ club_fare = A.** Keep ₩9,900 as a deliberate club premium (host coordination +
-  집결지). No formula change. → REQUIRED before cutover: a one-line disclosure on the club
-  payment surface; an undisclosed premium is the version that costs trust.
-- ✅ ② D-3 = monthly amount-free summary (both sets agree; counsel question is a go-live
-  gate) · ✅ ③ OPS_PROFILE_ID = env var + redacted payloads (shipped) ·
-  🟡 ⑤ en-route club cancels have no owner path (rec: route into the incident flow) ·
-  🟡 ⑥ cutover straddle — set `payments_live_since` to a FUTURE timestamp past the
-  longest in-flight booking.
+**Decisions — EIGHT memos in `docs/decisions/` (one directory; `decisions-open-money.md`
+retired into it, Sean's rulings ported from `0fbaa64`). SEVEN are ruled, ONE is stuck:**
+- 🔴 **① G1 — CONFLICTED, needs one word from Sean.** He answered twice, differently:
+  `dog_condition` = **base fare only, flat** ("base as just 7900", charge-slice session)
+  vs **full actuals** (picked here from a menu that omitted his own answer). Nothing is
+  built on either; shipped code still waives. `incident` = **₩0 gated on VERIFICATION** is
+  settled — his "verify first" caught a free-run hole (`settle-run` whitelisted all six
+  `end_reason` values on a public endpoint; now four).
+- ✅ **② D-3 = A, accept as-is — NOTHING TO BUILD.** No per-charge push, no monthly
+  summary. The statement-row slice is **CANCELLED, not deferred**. Counsel question
+  survives as validation; 전자상거래법 footer still mandatory at 사업자등록.
+- ✅ **③ OPS = `ops_recipients` table**, per-event-class routing ("build for full scale").
+  Env var readable one more release. Payload redaction stands.
+- ✅ **④ club_fare: keep ₩9,900** — premium stands, funds host comp (⑦) — **and club goes
+  price-invisible**, disclosed once at join. ⚠ a club `dog_condition` abort therefore
+  charges 9,900, since the charge reads the booking's frozen base.
+- ✅ **⑤ en-route club cancel = A, leave it**; card-less club state routes to card
+  registration. ✅ **⑥ cutover = FUTURE `payments_live_since`**, never `now()` (§3 ⑦ carries
+  the query). ✅ **⑦ host cut from platform margin, never runner pay.** ✅ **⑧ card
+  registration inline at first booking, not onboarding.**
 Also still open: lab picks Ⓡ①②③ + Ⓖ rule · Ⓛ③ spec-plate graft + ₩/원 (carried from the
-2026-08-12 handoff §9). **Migration/suite numbers: claim in
+2026-08-12 handoff §9). **Migration/suite numbers: claim in `supabase/migrations/REGISTRY.md`
+on origin BEFORE writing** — 0083/0084 are disputed there, procedure named in the file. **Migration/suite numbers: claim in
 `supabase/migrations/REGISTRY.md` on origin BEFORE writing the file** (four collisions on
 2026-08-13); 0083/suite 119 is next free.
 

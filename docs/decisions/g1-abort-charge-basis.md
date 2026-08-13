@@ -1,38 +1,61 @@
 # ① G1 — What does an aborted run charge the owner? (`dog_condition` / incident-class)
 
-**Status: ✅ RULED BY SEAN 2026-08-13 — option C: `dog_condition` charges FULL ACTUALS
-(base + distance, same as a completed run); `incident` stays ₩0 at settle.**
+**Status: 🔴 CONFLICTED — Sean answered this TWICE, differently, in two sessions. Do not
+build either answer until he picks one.** Nothing is being built on it; the shipped code
+still waives both.
 
-Sean picked C after both sessions' recommendations (₩0 waive and distance-only) were put
-to him side by side. Neither model recommended C — that is why it was asked rather than
-auto-decided. The 🔴 in 0080 is now resolved; the code change is specified below.
+| Where | When | `dog_condition` | `incident` |
+|---|---|---|---|
+| Charge-slice session (`0fbaa64`) | earlier | **base fare ONLY, flat** — no distance, no addons. Follow-up clarification: *"base as just 7900"* | ₩0, **verify first** |
+| This session (AskUserQuestion) | later | **full actuals** = base + distance (option C) | ₩0 |
 
-**What changes in code** (charge-slice session owns 0080 + the 438-pin harness):
-- `compute_owner_charge`: remove `dog_condition` from the `g1_waive` branch so it falls
-  through to the ACTUAL-basis path (identical to `completed`:
-  `base_fare + round(distance_fare/km × actual) + addon_fare`). **`incident` stays in the
-  waive branch.** Owner ceiling `min(actual, planned)` still applies — never above quote.
-- 116-suite pins at :223/:226 split: one asserting `dog_condition` → actual-basis charge,
-  one asserting `incident` → `waived` row at ₩0.
-- The `waived` status stays exactly as built — `incident` and the `below_pg_minimum`
-  (<₩100) arm still use it, so none of the sweep/debt/constraint machinery changes.
+**Why this happened, plainly: my menu did not contain his own answer.** His base-only
+ruling lived in a memo that sat unpushed on one laptop, so when I consolidated I couldn't
+see it and offered him A′ (waive) / D (distance-only) / C (full actuals). "Base only,
+flat" was not on the menu. He picked C — the only option that charges the base at all.
+That makes C a forced choice among three wrong options, not necessarily a reversal, which
+is exactly why this must go back to him instead of being resolved by recency.
 
-**The edge case C accepts, stated plainly:** a dog that limps at 200m produces a bill of
-₩7,900 + ₩600 ≈ **₩8,500**, because the base is charged in full from the first metre.
-Sub-₩100 aborts auto-waive; nothing between ₩100 and the full base does. If that lands
-wrong in the pilot, the forward-only flip to distance-only (D) or a low-actual floor is
-one branch — but it applies to newly consented bookings only.
+**The two answers differ more than they look.** They converge on a very early abort and
+diverge as the run gets longer:
 
-**One thing C fixes for free:** the gaming vector both sessions flagged (see below) needed
-an external detector precisely because a waived owner never disputes a fabricated abort.
-Under C the owner pays, so the owner disputes — the free fraud detector is restored, and
-the per-runner telemetry becomes a backstop rather than the only signal.
+| abort point (3km booking) | base-only (earlier) | full actuals (later) |
+|---|---|---|
+| 0.2km | ₩7,900 | ₩8,500 |
+| 1.5km | ₩7,900 | ₩12,400 |
+| 2.8km | ₩7,900 | ₩16,300 |
 
-**The risk C carries, which both sessions named:** an owner who feels charged for a
-stopped run may pressure the runner to keep going next time. Mitigation is copy, not
-money — the report/record card must state that stopping was the right call and show the
-runner's own `condition_note` (real since `611f014`; it was a hardcoded constant before).
-That copy is now a **required** accompaniment of this ruling, not a nice-to-have.
+**His earlier reasoning, which is worth preserving whichever way he rules:** the base fee
+is what the runner's *showing up* costs — pickup, handoff, custody — and that labour
+happened; the distance is what didn't. Charging the base and waiving the distance says
+exactly that. Note the deliberate asymmetry it creates: the owner's charge is flat while
+the platform's absorption grows with distance, so a welfare stop late in a run is the
+expensive case for us — which is correct, or we'd be nudging runners to push on.
+
+**Club consequence, either way (name it or someone files it as a bug):** the charge reads
+the booking's own frozen `base_fare`, and ruling ④ kept the club premium — so a *club*
+condition-abort charges **₩9,900**, not 7,900.
+
+**`incident` is settled: ₩0, gated on verification.** Both answers agree. Sean's "verify
+incident first to avoid abuse of this feature" found a real P1: `settle-run` whitelisted
+all six `end_reason` values on a public HTTP endpoint, so once `incident` means "the owner
+pays nothing" an assigned runner could POST it and hand themselves a free run. The
+accepted set now narrows to the four a client can legitimately send. Fixed in the
+charge-slice session.
+
+**Required accompaniment, unchanged by which answer wins:** under any charging rule the
+report/record card must say stopping was the right call and show the runner's own
+`condition_note` — real only since `611f014` (it was the hardcoded constant
+`'러너 판단: 컨디션 저하 관찰'` on every abort until 2026-08-13). Without it the owner is
+billed for a stop they can't evaluate.
+
+## Decision (Sean) — needs one answer
+
+- [ ] **Base only, flat** (`ownerBaseFare` + addons, no distance) — what you said first
+- [ ] **Full actuals** (base + distance) — what you picked from my incomplete menu
+- [ ] Something else
+
+`incident` = ₩0 with verification either way. Flips remain forward-only.
 
 ---
 
