@@ -1,5 +1,5 @@
 import { HStack, Image, Text, VStack } from '@expo/ui/swift-ui';
-import { background, font, foregroundStyle, padding } from '@expo/ui/swift-ui/modifiers';
+import { background, border, font, foregroundStyle, padding } from '@expo/ui/swift-ui/modifiers';
 import { createLiveActivity, type LiveActivityEnvironment } from 'expo-widgets';
 
 // Owner-side Live Activity — the lock screen an owner watches while someone else runs their dog.
@@ -60,6 +60,11 @@ const OwnerRunActivity = (props: OwnerRunActivityProps, env: LiveActivityEnviron
   // Island is always black — fixed light text there.
   const bannerText = env.colorScheme === 'dark' ? CREAM : '#1C1837';
   const bannerDim = env.colorScheme === 'dark' ? DIM : '#5B594A';
+  // [2026-08-13] The banner's coral must follow the material like its siblings do — CORAL on a
+  // light material is 3.07:1 where CORAL_DEEP is 3.64:1, and mixing the two in one banner was
+  // what made the bright version read as two different corals. Island views stay fixed CORAL
+  // (always-black background), which is why this is a banner-only variant of numColor below.
+  const bannerAccent = env.colorScheme === 'dark' ? CORAL : CORAL_DEEP;
 
   const phase = props.phase;
   const hasNum = props.km !== '';
@@ -72,6 +77,8 @@ const OwnerRunActivity = (props: OwnerRunActivityProps, env: LiveActivityEnviron
     : phase === 'done' ? 'DONE'
     : 'ENDED';
   const numColor = phase === 'done' ? SAGE : phase === 'stale' ? STALE_NUM : CORAL;
+  // Same value on the always-black island, material-aware on the banner/small surfaces.
+  const numColorBanner = phase === 'done' ? SAGE : phase === 'stale' ? STALE_NUM : bannerAccent;
   const meta = props.dogName + ' · ' + props.runnerName + ' 러너';
 
   // Title/foot pair for the numberless states (pre / ended / running-before-first-fix).
@@ -114,11 +121,20 @@ const OwnerRunActivity = (props: OwnerRunActivityProps, env: LiveActivityEnviron
   // pill renders, the footer therefore splits into pace Text + pill + elapsed Text (elapsed keeps
   // the dim ink). Every other phase — and running without a claim — falls to the untouched
   // one-Text branch, byte-identical to 0063. Suite-103 pins the PROPS payload, not this JSX.
+  //
+  // [2026-08-13] 1px ink edge — plan §3c's authorized fallback, adopted after measuring: the
+  // wash carries its own background only until the material is BRIGHT (#E7F5EE vs a white
+  // material = 1.12:1, so the surface disappears and the chip reads as floating colored text
+  // even though its label stays legible at 5.06:1). The edge declares the surface with a line
+  // instead of a color. Drawn always, not per-scheme: lock screen, StandBy, watch smart stack
+  // and CarPlay are four different materials, and a chip that knows its own boundary reads as
+  // a chip on all of them — one code path, no scheme branch to get wrong. Mirrors RunActivity.
   const paceMods = [
     font({ weight: 'heavy' as const, size: 13 }),
     foregroundStyle(paceInk),
     padding({ horizontal: 6, vertical: 2 }),
     background(paceWash),
+    border({ color: paceInk, width: 1 }),
     padding({ leading: 8 }),
   ];
 
@@ -144,7 +160,7 @@ const OwnerRunActivity = (props: OwnerRunActivityProps, env: LiveActivityEnviron
         {hasNum ? (
           <VStack>
             <HStack modifiers={[padding({ top: 9 })]}>
-              <Text modifiers={[font({ weight: 'bold', size: 38 }), foregroundStyle(numColor)]}>
+              <Text modifiers={[font({ weight: 'bold', size: 38 }), foregroundStyle(numColorBanner)]}>
                 {props.km}
               </Text>
               <Text modifiers={[font({ size: 13 }), foregroundStyle(bannerDim), padding({ leading: 4 })]}>
@@ -199,7 +215,7 @@ const OwnerRunActivity = (props: OwnerRunActivityProps, env: LiveActivityEnviron
         <Text modifiers={[font({ weight: 'bold', size: 14 }), foregroundStyle(bannerText), padding({ leading: 5 })]}>
           {props.dogName}
         </Text>
-        <Text modifiers={[font({ weight: 'bold', size: 14 }), foregroundStyle(numColor), padding({ leading: 8 })]}>
+        <Text modifiers={[font({ weight: 'bold', size: 14 }), foregroundStyle(numColorBanner), padding({ leading: 8 })]}>
           {hasNum ? props.km + 'km' : noNumTitle}
         </Text>
       </HStack>

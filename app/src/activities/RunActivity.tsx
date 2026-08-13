@@ -1,5 +1,5 @@
 import { HStack, Image, Text, VStack } from '@expo/ui/swift-ui';
-import { background, font, foregroundStyle, padding } from '@expo/ui/swift-ui/modifiers';
+import { background, border, font, foregroundStyle, padding } from '@expo/ui/swift-ui/modifiers';
 import { createLiveActivity, type LiveActivityEnvironment } from 'expo-widgets';
 
 // 러닝 라이브 액티비티 — 잠금화면 배너 + 다이내믹 아일랜드.
@@ -58,6 +58,23 @@ const RunActivity = (props: RunActivityProps, env: LiveActivityEnvironment) => {
   const paceLabel = paceState === 'good' ? '양호' : '느림';
   // 색만으로 뜻을 나르지 않는다 (a11y §7): 필에는 언제나 텍스트 라벨이 붙어 있다.
   // 'heavy' = SwiftUI 800 (이 API엔 숫자 weight가 없다; 'bold'는 700).
+  //
+  // [2026-08-13] 잉크 엣지 1px — plan §3c가 허가한 폴백을 실측 후 채택했다.
+  // 워시는 자기 배경을 들고 다니지만 '밝은 소재' 위에선 그 배경이 사라진다:
+  // #E7F5EE vs 흰 소재 = 1.12:1 (사실상 무지). 글자는 여전히 읽히지만(5.06:1)
+  // 칩이 '면'이 아니라 떠 있는 색 글자로 읽힌다 — §3b 칩 문법이 깨지는 지점.
+  // 그래서 면의 경계를 색이 아니라 선으로 선언한다. 스킴 분기 대신 항상 그린다:
+  // 잠금화면만 있는 게 아니라 StandBy·워치 스마트 스택·CarPlay 소재가 전부 다르고,
+  // 자기 경계를 아는 칩은 그 전부에서 칩으로 읽힌다. (다크에선 이미 워시가 뜨므로
+  // 선은 스탬프된 라벨의 테두리로 얹힌다 — 해가 없고, 코드 경로는 하나로 남는다.)
+  const paceMods = [
+    font({ weight: 'heavy' as const, size: 13 }),
+    foregroundStyle(paceInk),
+    padding({ horizontal: 6, vertical: 2 }),
+    background(paceWash),
+    border({ color: paceInk, width: 1 }),
+    padding({ leading: 8 }),
+  ];
 
   return {
     // ---------- 잠금화면 배너 (비-아일랜드 기기·StandBy·워치 스마트 스택도 이 뷰) ----------
@@ -73,7 +90,11 @@ const RunActivity = (props: RunActivityProps, env: LiveActivityEnvironment) => {
           </Text>
         </HStack>
         <HStack modifiers={[padding({ top: 8 })]}>
-          <Text modifiers={[font({ weight: 'bold', size: 30 }), foregroundStyle(CORAL)]}>
+          {/* [2026-08-13] 히어로 숫자도 bannerAccent를 따른다. 밝은 소재에서 발·페이스는
+              CORAL_DEEP로 내려가는데 숫자만 CORAL로 남아 있었다 — 한 줄에 두 개의 코랄이
+              생겨 '밝은 버전'이 흐트러졌다(3.07:1 → 3.64:1로 덤). 아일랜드 3종은 항상 검정
+              배경이라 아래에서 CORAL 고정을 유지한다. */}
+          <Text modifiers={[font({ weight: 'bold', size: 30 }), foregroundStyle(bannerAccent)]}>
             {props.km}
           </Text>
           <Text modifiers={[font({ size: 14 }), foregroundStyle(bannerDim), padding({ leading: 3 })]}>
@@ -82,19 +103,7 @@ const RunActivity = (props: RunActivityProps, env: LiveActivityEnvironment) => {
           <Text modifiers={[font({ size: 13 }), foregroundStyle(bannerAccent), padding({ leading: 12 })]}>
             {props.pace}/km
           </Text>
-          {paceState !== '' ? (
-            <Text
-              modifiers={[
-                font({ weight: 'heavy', size: 13 }),
-                foregroundStyle(paceInk),
-                padding({ horizontal: 6, vertical: 2 }),
-                background(paceWash),
-                padding({ leading: 8 }),
-              ]}
-            >
-              {paceLabel}
-            </Text>
-          ) : null}
+          {paceState !== '' ? <Text modifiers={paceMods}>{paceLabel}</Text> : null}
         </HStack>
         <Text modifiers={[font({ size: 12 }), foregroundStyle(bannerDim), padding({ top: 5 })]}>
           {props.eventLine !== '' ? props.eventLine : '도그스하이 · 반려견 피트니스'}
@@ -109,7 +118,7 @@ const RunActivity = (props: RunActivityProps, env: LiveActivityEnvironment) => {
         <Text modifiers={[font({ weight: 'bold', size: 14 }), foregroundStyle(bannerText), padding({ leading: 5 })]}>
           {props.dogName}
         </Text>
-        <Text modifiers={[font({ weight: 'bold', size: 14 }), foregroundStyle(CORAL), padding({ leading: 8 })]}>
+        <Text modifiers={[font({ weight: 'bold', size: 14 }), foregroundStyle(bannerAccent), padding({ leading: 8 })]}>
           {props.km}km
         </Text>
         <Text modifiers={[font({ size: 11 }), foregroundStyle(bannerDim), padding({ leading: 6 })]}>
@@ -153,19 +162,7 @@ const RunActivity = (props: RunActivityProps, env: LiveActivityEnvironment) => {
         <Text modifiers={[font({ size: 13 }), foregroundStyle(CORAL)]}>
           {props.pace}/km
         </Text>
-        {paceState !== '' ? (
-          <Text
-            modifiers={[
-              font({ weight: 'heavy', size: 13 }),
-              foregroundStyle(paceInk),
-              padding({ horizontal: 6, vertical: 2 }),
-              background(paceWash),
-              padding({ leading: 8 }),
-            ]}
-          >
-            {paceLabel}
-          </Text>
-        ) : null}
+        {paceState !== '' ? <Text modifiers={paceMods}>{paceLabel}</Text> : null}
         <Text modifiers={[font({ size: 13 }), foregroundStyle(CREAM), padding({ leading: 12 })]}>
           {props.elapsed}
         </Text>
