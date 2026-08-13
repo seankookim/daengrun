@@ -181,6 +181,38 @@ implemented separately in `confirm_return`, `force_return`, and the runner scree
 concurrent loser returns idempotent success after verifying the same frozen outcome, not a
 raw `not_active`.
 
+## §3-bis Sean's custody ruling (2026-08-13) — what the confirmation IS
+
+> *"the dog got transferred to owner, wherever the runner decides to meet the owner after the
+> run, whether that by the river where the run ended or the home, the transfer confirmation must
+> be done as to enforce responsibility and safety of dog"*
+
+**The confirmation is a chain-of-custody record, not a billing step.** Its purpose is that a
+clear moment exists where the dog stops being the runner's responsibility. Three consequences,
+each of which corrects something this plan had wrong:
+
+1. **It is UNIVERSAL — clubs included.** This resolves the club question without reordering club
+   money: *money ordering* and *custody confirmation* are separate concerns. Clubs may keep
+   settling when they settle; what they may not skip is the transfer confirmation. That is a far
+   smaller change than inverting club settlement, and it is the half that protects the dog.
+2. **The handover happens wherever the two parties agree** — the riverbank where the run ended,
+   the door, anywhere. 귀가 ("going home") was MY assumption, not the requirement, and the
+   custody segment may be **zero distance** because the owner is already standing there.
+   🔴 Two things this kills: the **proximity gate** on force-return (a runner who agreed to meet
+   at the river is never near the pickup pin, so gating on it blocks legitimate handovers), and
+   the owner-side **"남은 거리 to the pickup pin"** display (there is no fixed destination to
+   measure against).
+3. **A force must not falsify the record.** If the confirmation is a safety artifact, then a
+   one-sided force that writes "confirmed" corrupts the very thing it exists to preserve. So a
+   force **releases the money without asserting the handover**: it records *"runner asserted
+   handover at T; owner never confirmed"* — true, and permanently legible as unconfirmed. It
+   never writes "confirmed". The money can move while the custody record stays honest about what
+   it actually knows.
+
+**Open with Sean:** should the runner record WHERE the handover happened? Not enforced against a
+pin (the location varies by design) — just recorded, which is what would make the custody record
+useful in a dispute. Cost is one tap at the doorstep. Unanswered; do not build either way.
+
 ## §4 Operational phase — the `active` audit
 
 One server-derived phase, then every consumer classified (codex #5):
