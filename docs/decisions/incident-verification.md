@@ -104,11 +104,32 @@ appeared to prove.
 
 Both surfaced from the ⑪ / `0088` interaction (announcer + payments sessions, 2026-08-13):
 
+0. 🔴 **⑪ CONFLICTS WITH A WRITTEN COMMITMENT — resolve that before building, not after.**
+   `docs/appstore-privacy-answers.md:27` declares the phone number's purpose as
+   **"App functionality — contact during handoff."** ⑪ as ruled exposes a counterparty's real
+   number **during an incident** (the payments session reads the ruling as *"at all times"*).
+   Either reading is **broader than handoff-contact**, so shipping ⑪ against that row makes a
+   written answer inaccurate — a different and worse problem than an undisclosed feature.
+   Two things to establish first, in order:
+   · **Has that questionnaire been filed with Apple yet?** The file's header says it exists "to
+     fill the App Store Connect privacy questionnaire", and nothing marks it as submitted — the
+     app appears to be pre-submission (TestFlight) — so this is probably *amend before filing*
+     rather than *correct a filed answer*. Probably is not good enough; check.
+   · Either way **the declared purpose must move before ⑪ ships.** That file states its own
+     rule: *"Re-audit this file whenever a new table, bucket, or third-party SDK lands. A privacy
+     label that does not match behavior is a rejection risk on review and a compliance problem
+     after launch."* ⑪ trips exactly that rule.
+   ⚠ A builder reading ⑪ has no reason to open an App Store answers doc — which is why this is
+   here rather than in a queue.
+
 1. **The privacy-policy line must ship BEFORE ⑪ does.** A two-sided incident confirmation means
    a counterparty may see the other party's real phone number, and that needs disclosing. The
    Korean norm we would be departing from is **안심번호** — a masked relay, the pattern Kakao T
    uses. Not following it is defensible for a pilot, but it is a trade-off Sean should confirm
    **knowingly rather than inherit** from a build decision. 🟡 his call, queued.
+   📎 `docs/feature-audit.md` already discusses 안심번호 — the masked-relay alternative has prior
+   consideration in this repo, so whoever writes ⑪'s privacy line reads that first rather than
+   re-deriving the trade-off.
 2. **`profiles.phone` may be null in practice — verify before designing against it.** It is
    `phone text` (nullable), annotated *"PASS 본인인증 후 확정"*, and PASS looks unintegrated, so
    ⑪ could render an empty row where it promises a contact. Note that

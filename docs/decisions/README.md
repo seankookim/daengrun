@@ -7,6 +7,7 @@ this directory said the questions were open — are ported in below from `0fbaa6
 
 | # | Memo | Ruling |
 |---|---|---|
+| — | **[awaiting-sean.md](awaiting-sean.md)** | 📋 **THE RETURN QUEUE** — everything waiting on Sean, in one file rather than in a conversation. Read this first on his return. |
 | ① | [g1-abort-charge-basis.md](g1-abort-charge-basis.md) | ✅ **FULLY RULED — fault-based, both ledgers mirrored.** `dog_condition` = owner AND runner on distance-actually-run; `runner_personal` = runner 9,900 base only (owner side #10 unchanged); `incident` = ₩0 verify-first. Buildable. |
 | ② | [d3-silent-charge-summary.md](d3-silent-charge-summary.md) | ✅ **A — accept as-is. NOTHING TO BUILD.** No per-charge push, no monthly summary. ⚠ The statement-row slice is **CANCELLED, not deferred**. Counsel question survives as validation. |
 | ③ | [ops-profile-id-vs-admin-role.md](ops-profile-id-vs-admin-role.md) | ✅ **C — `ops_recipients` table** with per-event-class routing ("build for full scale, not just for pilot"). Env var readable as a one-release fallback. Being built. |
