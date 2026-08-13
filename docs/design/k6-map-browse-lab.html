@@ -1,0 +1,498 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>코스 지도 브라우즈 — 3안</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Oswald:wght@500;600;700&family=IBM+Plex+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+/* 페이퍼 월드 토큰만 사용 — 스타일 프리즈(새 색 금지) 준수 */
+:root{
+  --canvas:#FFFFFF;--canvasSoft:#FBFAF7;--ink:#111111;--text:#333333;--dim:#666666;--faint:#999999;
+  --line:#E8552F;--wash:#FFF6F4;--pending:#C77414;--critical:#B3261E;--action:#C6472C;
+  --volt:#C6F542;--voltDeep:#7FA818;--blue:#6E9BC5;
+  --tileGreen:#E4EDE0;--tileWater:#CFE0EA;--tileRoad:#FFFFFF;--tileBlock:#F0F0EC;--tileBase:#F6F5F1;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0A0C0A;color:#E8EBE4;font-family:'Pretendard Variable',Pretendard,sans-serif;padding:32px 26px 90px}
+.bhs{font-family:'Black Han Sans',sans-serif;font-weight:400}.osw{font-family:'Oswald',sans-serif}.mono{font-family:'IBM Plex Mono',monospace}
+h1{font-size:26px;color:var(--volt)}h2{font-size:17px;margin-top:46px;border-top:1px solid #232a22;padding-top:18px}
+h3{font-size:13.5px;color:#c8d0c2;margin-top:22px}
+.lede{color:#7d8878;margin:9px 0 4px;max-width:1000px;line-height:1.68;font-size:13.5px}
+.lede b{color:#c8d0c2}
+.legend{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}
+.lg{background:#151a14;border:1px solid #232a22;padding:9px 12px;font-size:11.5px;color:#c8d0c2;line-height:1.55;max-width:305px}
+.lg b{color:#fff}
+.row{display:flex;gap:22px;flex-wrap:wrap;margin-top:24px;align-items:flex-start}
+.shot{width:300px}
+.sl{font-size:10.5px;letter-spacing:2px;color:#7d8878;margin-bottom:8px;font-family:'IBM Plex Mono',monospace}
+.pill{display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:1.5px;padding:2px 6px;border:1px solid #2c3a2a;color:#8fa093;margin-left:5px}
+.note{color:#8fa093;font-size:11.5px;line-height:1.62;margin:10px 2px 0}
+
+/* ══ 폰 프레임 ══ */
+.ph{width:300px;height:640px;position:relative;overflow:hidden;background:var(--canvas);color:var(--ink)}
+.map{position:absolute;inset:0;background:var(--tileBase)}
+.blocks{position:absolute;inset:0}
+.blocks i{position:absolute;background:var(--tileBlock)}
+.park{position:absolute;background:var(--tileGreen);border-radius:44%}
+.water{position:absolute;background:var(--tileWater)}
+.road{position:absolute;background:var(--tileRoad)}
+
+/* ══ 상단 크롬 ══ */
+.top{position:absolute;left:0;right:0;top:0;padding:12px 12px 0;z-index:6}
+.search{display:flex;align-items:center;gap:9px;background:#fff;border:1px solid #EDEBE6;padding:11px 13px;box-shadow:0 3px 14px rgba(0,0,0,.09)}
+.search .q{flex:1;font-size:13.5px;color:var(--dim)}
+.search .n{width:19px;height:19px;background:var(--line);display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:900}
+.chips{display:flex;gap:6px;margin-top:8px;overflow:hidden}
+.chip{background:#fff;border:1px solid #EDEBE6;padding:7px 11px;font-size:12px;font-weight:700;color:var(--text);white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.chip.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.chip .n{font-family:'IBM Plex Mono',monospace;font-size:10px;opacity:.75;margin-left:3px}
+
+/* ══ 지도 컨트롤 ══ */
+.ctl{position:absolute;right:12px;z-index:5;display:flex;flex-direction:column;gap:7px}
+.ctl div{width:36px;height:36px;background:#fff;border:1px solid #EDEBE6;display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--text);box-shadow:0 2px 8px rgba(0,0,0,.07)}
+
+/* ══ 트레이스 ══ */
+.tr{position:absolute;inset:0;pointer-events:none}
+.anch{position:absolute;width:9px;height:9px;background:var(--faint);transform:rotate(45deg);border:1.5px solid #fff}
+.anch.sel{width:14px;height:14px;background:var(--line);border:2.5px solid #fff;box-shadow:0 2px 7px rgba(232,85,47,.5)}
+.anch.cand{background:#fff;border:2px solid var(--pending)}
+.lbl{position:absolute;font-size:10.5px;font-weight:800;color:var(--dim);text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 3px #fff;white-space:nowrap}
+.lbl.sel{color:var(--ink);font-size:12px}
+
+/* ══ 바텀시트 ══ */
+.sheet{position:absolute;left:0;right:0;bottom:0;background:#fff;box-shadow:0 -6px 26px rgba(0,0,0,.13);z-index:7}
+.grab{width:38px;height:4px;background:#E2E0DA;border-radius:99px;margin:9px auto 0}
+.shpad{padding:12px 14px 16px}
+.rule{height:2px;background:var(--line)}
+.kick{font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:2.2px;color:var(--dim)}
+.name{font-size:19px;font-weight:800;margin-top:4px;line-height:1.25}
+.km{font-family:'Oswald',sans-serif;font-size:26px;font-weight:600;line-height:1}
+.km em{font-style:normal;font-size:11px;color:var(--faint)}
+.sub{font-size:12.5px;color:var(--dim);margin-top:5px}
+.cta{display:block;background:var(--action);color:#fff;text-align:center;font-weight:800;font-size:15px;padding:14px 0;margin-top:12px}
+.ghostbtn{display:block;text-align:center;font-weight:800;font-size:14px;padding:12px 0;border:1.5px solid #E2E0DA;color:var(--text);margin-top:8px}
+
+/* 시트 안 목록 */
+.li{display:flex;gap:11px;align-items:center;padding:11px 0;border-bottom:1px solid #F0EEE9}
+.li:last-child{border-bottom:0}
+.li .mini{width:44px;height:34px;background:var(--tileBase);border:1px solid #EDEBE6;flex:none;position:relative;overflow:hidden}
+.li .t{flex:1;min-width:0}
+.li .t b{display:block;font-size:13.5px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.li .t span{display:block;font-size:11.5px;color:var(--dim);margin-top:1px}
+.li .d{font-family:'Oswald',sans-serif;font-size:15px;font-weight:600;color:var(--text)}
+.li.sel{background:var(--wash);margin:0 -14px;padding-left:14px;padding-right:14px;border-left:3px solid var(--line)}
+.tagcand{font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:1px;color:var(--pending);border:1px solid var(--pending);padding:1px 4px;margin-left:5px}
+
+/* B안 칩 레일 */
+.rail{position:absolute;left:0;right:0;z-index:6;display:flex;gap:7px;padding:0 12px;overflow:hidden}
+.rcard{background:#fff;border:1px solid #EDEBE6;padding:9px 11px;box-shadow:0 3px 12px rgba(0,0,0,.1);white-space:nowrap;flex:none}
+.rcard b{font-size:12.5px;font-weight:800;display:block}
+.rcard span{font-family:'Oswald',sans-serif;font-size:12px;color:var(--dim)}
+.rcard.on{border:2px solid var(--line)}
+
+/* C안 사이드 레일 */
+.side{position:absolute;left:12px;z-index:6;background:#fff;border:1px solid #EDEBE6;box-shadow:0 3px 14px rgba(0,0,0,.1);width:38px}
+.side div{height:38px;display:flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;font-size:14px;font-weight:600;color:var(--dim);border-bottom:1px solid #F0EEE9}
+.side div:last-child{border-bottom:0}
+.side div.on{background:var(--line);color:#fff}
+
+.empty{position:absolute;left:14px;right:14px;background:#fff;border:1px solid #EDEBE6;padding:12px;box-shadow:0 3px 14px rgba(0,0,0,.1)}
+</style>
+</head>
+<body>
+
+<h1 class="bhs">코스 지도 브라우즈 — 3안</h1>
+<p class="lede"><b>브리프의 충돌부터.</b> "스트라바 히트맵 같은 경로의 무리"는 <b>n=9에서 성립하지 않는다.</b> 히트맵이 밀도장으로 읽히는 이유는 수천 개가 겹쳐서다 — 아홉 개를 반투명으로 깔면 밀도장이 아니라 <b>회색 지렁이 뭉치</b>가 된다. 그리고 더 급한 사실: <b>반포 시드 9개는 오늘 전부 <code>trace='[]'</code></b>다. 트레이스를 1차 레이어로 삼으면 출시 시점의 지도는 <b>비어 있다</b>.<br><br>
+그래서 이 화면의 관점: <b>앵커 지도가 트레이스를 길러 나간다.</b> '길로 가득한 동네'라는 느낌은 지금은 앵커가, 파운더 워크가 쌓이면 트레이스가 만든다. 밀도를 흉내 내지 않고 <b>벌어서</b> 얻는다 — 그래야 첫날에도 맞고, 3개월 뒤엔 더 좋아진다.</p>
+
+<div class="legend">
+  <div class="lg"><b>모드 = Operate</b> 방문자가 과제를 끝내는 화면(코스 하나 고르기). 표현보다 스캔 가능성·일관성·실사용 장면이 앞선다. 브랜드는 정밀한 디테일에 산다.</div>
+  <div class="lg"><b>강조 예산 = 코랄 선 1 + CTA 1</b> (DESIGN.md §8). <b>선택된 코스가 그 코랄 선이다.</b> 나머지 경로는 전부 페인트 회색 — 문맥이지 내용이 아니다. Von Restorff: 화면당 고립된 강조는 정확히 하나.</div>
+  <div class="lg"><b>스타일 프리즈 준수</b> 새 색·새 폰트·새 모티프 없음. 페이퍼 월드 토큰만(canvas/ink/text/dim/faint/line/wash/pending/action). 지도는 라이트 — "어두움은 아티팩트, 밝음은 화면".</div>
+  <div class="lg"><b>정직</b> 트레이스 없는 코스는 선을 지어내지 않는다 — 앵커만 찍고 '점검 예정'으로 말한다. 빈 상태는 숨길 클러터가 아니라 <b>내용</b>이다(§7b).</div>
+</div>
+
+<h2 class="bhs">A안 — 3단 시트 <span class="pill">추천</span></h2>
+<p class="lede">시트 하나가 세 가지 일을 순서대로 한다. <b>목록은 별도 부유물이 아니라 시트의 중간 단</b>이다 — 화면에 경쟁하는 요소를 하나 더 얹지 않고도 "목록이 있다"를 드래그 한 번으로 알 수 있다. 네이버·구글·애플 지도가 전부 이 문법이라 학습 비용이 0이다.</p>
+<div class="row">
+
+<!-- A1 peek -->
+<div class="shot"><div class="sl">A① PEEK — 지도가 최대</div><div class="ph">
+  <div class="map">
+    <div class="park" style="left:-40px;top:120px;width:190px;height:230px"></div>
+    <div class="park" style="right:-50px;top:300px;width:200px;height:250px"></div>
+    <div class="water" style="left:96px;top:-20px;width:26px;height:700px;transform:rotate(6deg)"></div>
+    <div class="blocks">
+      <i style="left:150px;top:90px;width:52px;height:38px"></i><i style="left:212px;top:96px;width:44px;height:30px"></i>
+      <i style="left:158px;top:140px;width:40px;height:44px"></i><i style="left:206px;top:150px;width:56px;height:36px"></i>
+      <i style="left:20px;top:400px;width:46px;height:40px"></i><i style="left:74px;top:420px;width:40px;height:34px"></i>
+      <i style="left:190px;top:250px;width:48px;height:34px"></i>
+    </div>
+    <div class="road" style="left:0;top:236px;width:300px;height:7px"></div>
+    <div class="road" style="left:140px;top:0;width:6px;height:640px"></div>
+    <svg class="tr" viewBox="0 0 300 640">
+      <!-- 고스트 경로 (문맥) -->
+      <g stroke="#999999" stroke-opacity=".42" fill="none" stroke-width="2.2" stroke-linejoin="round">
+        <polyline points="72,300 50,272 56,238 84,222 112,236 116,268 96,292 72,300"/>
+        <polyline points="196,180 172,156 178,124 208,112 236,128 238,160 218,182 196,180"/>
+        <polyline points="238,420 214,398 216,366 246,352 272,368 274,400 256,420 238,420"/>
+        <polyline points="106,470 84,448 88,418 118,404 144,420 146,452 128,472 106,470"/>
+        <polyline points="182,536 160,516 164,488 192,476 216,492 218,520 200,538 182,536"/>
+      </g>
+      <!-- 선택된 경로 = 코랄 선 (브랜드 선) -->
+      <polyline points="158,352 128,330 118,292 138,258 176,246 214,258 232,292 222,330 192,352 158,352"
+        fill="none" stroke="#FFFFFF" stroke-width="7.5" stroke-linejoin="round"/>
+      <polyline points="158,352 128,330 118,292 138,258 176,246 214,258 232,292 222,330 192,352 158,352"
+        fill="none" stroke="#E8552F" stroke-width="3.4" stroke-linejoin="round"/>
+    </svg>
+    <div class="anch" style="left:68px;top:296px"></div><div class="anch" style="left:192px;top:176px"></div>
+    <div class="anch" style="left:234px;top:416px"></div><div class="anch" style="left:102px;top:466px"></div>
+    <div class="anch" style="left:178px;top:532px"></div>
+    <div class="anch sel" style="left:151px;top:345px"></div>
+    <div class="lbl sel" style="left:170px;top:342px">서리풀 숲길</div>
+  </div>
+  <div class="top">
+    <div class="search"><div class="n">N</div><div class="q">코스 검색</div><div style="color:var(--faint)">◎</div></div>
+    <div class="chips"><div class="chip on">흙길 <span class="n">4</span></div><div class="chip">그늘 <span class="n">3</span></div><div class="chip">조명 <span class="n">6</span></div></div>
+  </div>
+  <div class="ctl" style="top:150px"><div>◈</div><div>＋</div><div>−</div></div>
+  <div class="sheet">
+    <div class="rule"></div>
+    <div class="grab"></div>
+    <div class="shpad">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div style="flex:1">
+          <div class="kick">서리풀공원 · 흙길 90%</div>
+          <div class="name">서리풀 숲길 3km</div>
+        </div>
+        <div class="km">3.0<em>km</em></div>
+      </div>
+      <a class="cta">이 코스로 예약하기</a>
+    </div>
+  </div>
+</div>
+<p class="note"><b>기본 상태.</b> 지도가 화면의 3/4. 시트는 <b>이름·거리·CTA</b> 세 가지만 — 밀도가 가장 낮은 지점. 다른 다섯 경로는 회색으로 깔려 "여기 길이 더 있다"만 말하고 물러난다. 코랄 선은 화면에서 유일하게 채도가 있는 획.</p></div>
+
+<!-- A2 list -->
+<div class="shot"><div class="sl">A② LIST — 한 번 끌어올리면 목록</div><div class="ph">
+  <div class="map">
+    <div class="park" style="left:-40px;top:60px;width:190px;height:200px"></div>
+    <div class="water" style="left:96px;top:-20px;width:26px;height:400px;transform:rotate(6deg)"></div>
+    <div class="road" style="left:0;top:176px;width:300px;height:7px"></div>
+    <div class="road" style="left:140px;top:0;width:6px;height:340px"></div>
+    <svg class="tr" viewBox="0 0 300 340">
+      <g stroke="#999999" stroke-opacity=".42" fill="none" stroke-width="2.2" stroke-linejoin="round">
+        <polyline points="72,240 50,212 56,178 84,162 112,176 116,208 96,232 72,240"/>
+        <polyline points="196,120 172,96 178,64 208,52 236,68 238,100 218,122 196,120"/>
+      </g>
+      <polyline points="158,292 128,270 118,232 138,198 176,186 214,198 232,232 222,270 192,292 158,292" fill="none" stroke="#FFFFFF" stroke-width="7.5" stroke-linejoin="round"/>
+      <polyline points="158,292 128,270 118,232 138,198 176,186 214,198 232,232 222,270 192,292 158,292" fill="none" stroke="#E8552F" stroke-width="3.4" stroke-linejoin="round"/>
+    </svg>
+    <div class="anch" style="left:68px;top:236px"></div><div class="anch" style="left:192px;top:116px"></div>
+    <div class="anch sel" style="left:151px;top:285px"></div>
+  </div>
+  <div class="top">
+    <div class="search"><div class="n">N</div><div class="q">코스 검색</div><div style="color:var(--faint)">◎</div></div>
+    <div class="chips"><div class="chip on">흙길 <span class="n">4</span></div><div class="chip">그늘 <span class="n">3</span></div><div class="chip">조명 <span class="n">6</span></div></div>
+  </div>
+  <div class="sheet" style="top:340px">
+    <div class="rule"></div><div class="grab"></div>
+    <div class="shpad" style="padding-top:10px">
+      <div class="kick">반포동 · 9개 코스 · 흙길 필터</div>
+      <div style="margin-top:8px">
+        <div class="li sel">
+          <div class="mini"><svg viewBox="0 0 44 34"><polyline points="22,29 12,23 9,15 15,8 26,6 35,12 33,22 22,29" fill="none" stroke="#E8552F" stroke-width="2"/></svg></div>
+          <div class="t"><b>서리풀 숲길 3km</b><span>흙길 90% · 그늘 최상 · 조명 없음</span></div>
+          <div class="d">3.0</div>
+        </div>
+        <div class="li">
+          <div class="mini"><svg viewBox="0 0 44 34"><polyline points="20,28 10,20 12,11 22,6 33,10 34,20 20,28" fill="none" stroke="#999" stroke-width="2"/></svg></div>
+          <div class="t"><b>서리풀–몽마르뜨 종주<span class="tagcand">점검 예정</span></b><span>흙길 80% · 그늘 최상</span></div>
+          <div class="d">5.0</div>
+        </div>
+        <div class="li">
+          <div class="mini"></div>
+          <div class="t"><b>몽마르뜨 언덕 루프<span class="tagcand">점검 예정</span></b><span>흙길 60% · 언덕</span></div>
+          <div class="d">2.0</div>
+        </div>
+        <div class="li">
+          <div class="mini"></div>
+          <div class="t"><b>반포천 새벽 코스<span class="tagcand">점검 예정</span></b><span>포장 100% · 조명 있음</span></div>
+          <div class="d">2.0</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<p class="note"><b>중간 단 = 목록.</b> 미니 실루엣은 <b>트레이스가 있는 코스만</b> 그린다 — 없는 칸은 빈 채로 두고 '점검 예정' 태그가 이유를 말한다(선을 지어내지 않는다). 탭하면 지도가 그 코스로 팬하고 시트는 PEEK으로 돌아간다. 선택 행은 코랄 좌측 룰 + 워시 — 목록 안의 강조도 같은 브랜드 선.</p></div>
+
+<!-- A3 detail -->
+<div class="shot"><div class="sl">A③ DETAIL — 끝까지 올리면 상세</div><div class="ph">
+  <div class="map" style="height:180px">
+    <div class="park" style="left:-40px;top:20px;width:190px;height:160px"></div>
+    <svg class="tr" viewBox="0 0 300 180">
+      <polyline points="158,150 128,128 118,96 138,66 176,54 214,66 232,96 222,128 192,150 158,150" fill="none" stroke="#FFFFFF" stroke-width="7.5" stroke-linejoin="round"/>
+      <polyline points="158,150 128,128 118,96 138,66 176,54 214,66 232,96 222,128 192,150 158,150" fill="none" stroke="#E8552F" stroke-width="3.4" stroke-linejoin="round"/>
+    </svg>
+    <div class="anch sel" style="left:151px;top:143px"></div>
+  </div>
+  <div class="sheet" style="top:180px;bottom:0;overflow:hidden">
+    <div class="rule"></div><div class="grab"></div>
+    <div class="shpad" style="padding-top:10px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div style="flex:1"><div class="kick">서리풀공원 · <span style="color:var(--blue)">✓ 8.14 점검</span></div>
+        <div class="name">서리풀 숲길 3km</div></div>
+        <div class="km">3.0<em>km</em></div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:flex-start;margin-top:12px;padding-top:11px;border-top:1px solid #F0EEE9">
+        <div style="width:8px;height:8px;background:var(--ink);transform:rotate(45deg);margin-top:4px;flex:none"></div>
+        <div style="flex:1"><b style="font-size:13px">누에다리 남단</b>
+        <span style="display:block;font-size:11.5px;color:var(--dim);margin-top:2px;line-height:1.45">몽마르뜨공원↔서리풀공원 연결 다리 아래</span></div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:1px;border:1.5px solid var(--ink);padding:6px 7px">지도 ↗</div>
+      </div>
+      <div class="kick" style="margin-top:14px">시간대 적합</div>
+      <div style="border:1.5px solid var(--ink);margin-top:6px">
+        <div style="display:flex;border-bottom:1px solid #F0EEE9"><div style="width:72px;padding:7px 8px;font-family:'IBM Plex Mono',monospace;font-size:8.5px;color:var(--dim);border-right:1px solid #F0EEE9">새벽 05–07</div><div style="flex:1;padding:7px 8px;font-size:11.5px"><b style="color:var(--critical)">부적합</b> 조명 없음</div></div>
+        <div style="display:flex;border-bottom:1px solid #F0EEE9"><div style="width:72px;padding:7px 8px;font-family:'IBM Plex Mono',monospace;font-size:8.5px;color:var(--dim);border-right:1px solid #F0EEE9">한낮 12–15</div><div style="flex:1;padding:7px 8px;font-size:11.5px"><b style="color:var(--voltDeep)">추천</b> 그늘 최상</div></div>
+        <div style="display:flex"><div style="width:72px;padding:7px 8px;font-family:'IBM Plex Mono',monospace;font-size:8.5px;color:var(--dim);border-right:1px solid #F0EEE9">저녁 18–20</div><div style="flex:1;padding:7px 8px;font-size:11.5px"><b style="color:var(--pending)">주의</b> 일몰 전 완주</div></div>
+      </div>
+      <div style="display:flex;border-top:1px solid #F0EEE9;border-bottom:1px solid #F0EEE9;margin-top:13px">
+        <div style="flex:1;padding:8px 4px;text-align:center;border-right:1px solid #F0EEE9"><span style="display:block;font-family:'IBM Plex Mono',monospace;font-size:7.5px;letter-spacing:1.4px;color:var(--faint)">SURFACE</span><b style="font-size:11.5px">흙길 90%</b></div>
+        <div style="flex:1;padding:8px 4px;text-align:center;border-right:1px solid #F0EEE9"><span style="display:block;font-family:'IBM Plex Mono',monospace;font-size:7.5px;letter-spacing:1.4px;color:var(--faint)">SHADE</span><b style="font-size:11.5px">▮▮▮</b></div>
+        <div style="flex:1;padding:8px 4px;text-align:center"><span style="display:block;font-family:'IBM Plex Mono',monospace;font-size:7.5px;letter-spacing:1.4px;color:var(--faint)">LIGHT</span><b style="font-size:11.5px;color:var(--critical)">없음</b></div>
+      </div>
+      <a class="cta">이 코스로 예약하기</a>
+    </div>
+  </div>
+</div>
+<p class="note"><b>상세는 시트의 끝 단.</b> 지도는 위에 얇게 남아 맥락을 유지한다 — 화면이 완전히 바뀌지 않으니 "어디에 있었는지"를 잃지 않는다. CTA는 여전히 하나. 앵커 딥링크, 슬롯 적합, 메타 밴드가 여기서만 등장한다(점진적 공개).</p></div>
+
+</div>
+
+<h2 class="bhs">B안 — 부유 카드 레일</h2>
+<div class="row">
+<div class="shot"><div class="sl">B — 목록이 항상 보인다</div><div class="ph">
+  <div class="map">
+    <div class="park" style="left:-40px;top:120px;width:190px;height:230px"></div>
+    <div class="park" style="right:-50px;top:320px;width:200px;height:240px"></div>
+    <div class="water" style="left:96px;top:-20px;width:26px;height:700px;transform:rotate(6deg)"></div>
+    <div class="road" style="left:0;top:236px;width:300px;height:7px"></div>
+    <div class="road" style="left:140px;top:0;width:6px;height:640px"></div>
+    <svg class="tr" viewBox="0 0 300 640">
+      <g stroke="#999999" stroke-opacity=".42" fill="none" stroke-width="2.2" stroke-linejoin="round">
+        <polyline points="72,300 50,272 56,238 84,222 112,236 116,268 96,292 72,300"/>
+        <polyline points="196,180 172,156 178,124 208,112 236,128 238,160 218,182 196,180"/>
+        <polyline points="238,420 214,398 216,366 246,352 272,368 274,400 256,420 238,420"/>
+        <polyline points="106,470 84,448 88,418 118,404 144,420 146,452 128,472 106,470"/>
+      </g>
+      <polyline points="158,352 128,330 118,292 138,258 176,246 214,258 232,292 222,330 192,352 158,352" fill="none" stroke="#FFFFFF" stroke-width="7.5" stroke-linejoin="round"/>
+      <polyline points="158,352 128,330 118,292 138,258 176,246 214,258 232,292 222,330 192,352 158,352" fill="none" stroke="#E8552F" stroke-width="3.4" stroke-linejoin="round"/>
+    </svg>
+    <div class="anch" style="left:68px;top:296px"></div><div class="anch" style="left:192px;top:176px"></div>
+    <div class="anch" style="left:234px;top:416px"></div><div class="anch" style="left:102px;top:466px"></div>
+    <div class="anch sel" style="left:151px;top:345px"></div>
+  </div>
+  <div class="top">
+    <div class="search"><div class="n">N</div><div class="q">코스 검색</div><div style="color:var(--faint)">◎</div></div>
+    <div class="chips"><div class="chip on">흙길 <span class="n">4</span></div><div class="chip">그늘 <span class="n">3</span></div><div class="chip">조명 <span class="n">6</span></div></div>
+  </div>
+  <div class="ctl" style="top:150px"><div>◈</div><div>＋</div><div>−</div></div>
+  <div class="rail" style="bottom:132px">
+    <div class="rcard on"><b>서리풀 숲길</b><span>3.0km · 흙길</span></div>
+    <div class="rcard"><b>종주 5km</b><span>5.0km · 흙길</span></div>
+    <div class="rcard"><b>언덕</b><span>2.0km</span></div>
+  </div>
+  <div class="sheet">
+    <div class="rule"></div><div class="grab"></div>
+    <div class="shpad">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div style="flex:1"><div class="kick">서리풀공원 · 흙길 90%</div><div class="name">서리풀 숲길 3km</div></div>
+        <div class="km">3.0<em>km</em></div>
+      </div>
+      <a class="cta">이 코스로 예약하기</a>
+    </div>
+  </div>
+</div>
+<p class="note"><b>목록이 늘 보인다 — 그게 장점이자 비용.</b> "코스가 여럿"이라는 사실을 드래그 없이 알 수 있고 전환이 한 탭이다. 대신 화면에 <b>경쟁하는 층이 하나 더</b> 생긴다: 검색 → 칩 → 카드 레일 → 시트, 네 개의 부유 요소가 지도를 위아래로 조인다. Hick 관점에서 A안보다 무겁고, 지도 가시 영역이 실질적으로 줄어든다.</p></div>
+
+<div class="shot"><div class="sl">C — 좌측 숫자 레일</div><div class="ph">
+  <div class="map">
+    <div class="park" style="left:-40px;top:120px;width:190px;height:230px"></div>
+    <div class="park" style="right:-50px;top:320px;width:200px;height:240px"></div>
+    <div class="water" style="left:110px;top:-20px;width:26px;height:700px;transform:rotate(6deg)"></div>
+    <div class="road" style="left:0;top:236px;width:300px;height:7px"></div>
+    <svg class="tr" viewBox="0 0 300 640">
+      <g stroke="#999999" stroke-opacity=".42" fill="none" stroke-width="2.2" stroke-linejoin="round">
+        <polyline points="88,300 66,272 72,238 100,222 128,236 132,268 112,292 88,300"/>
+        <polyline points="206,180 182,156 188,124 218,112 246,128 248,160 228,182 206,180"/>
+        <polyline points="240,430 216,408 218,376 248,362 274,378 276,410 258,430 240,430"/>
+      </g>
+      <polyline points="168,352 138,330 128,292 148,258 186,246 224,258 242,292 232,330 202,352 168,352" fill="none" stroke="#FFFFFF" stroke-width="7.5" stroke-linejoin="round"/>
+      <polyline points="168,352 138,330 128,292 148,258 186,246 224,258 242,292 232,330 202,352 168,352" fill="none" stroke="#E8552F" stroke-width="3.4" stroke-linejoin="round"/>
+    </svg>
+    <div class="anch" style="left:84px;top:296px"></div><div class="anch" style="left:202px;top:176px"></div>
+    <div class="anch" style="left:236px;top:426px"></div>
+    <div class="anch sel" style="left:161px;top:345px"></div>
+  </div>
+  <div class="top">
+    <div class="search"><div class="n">N</div><div class="q">코스 검색</div><div style="color:var(--faint)">◎</div></div>
+    <div class="chips"><div class="chip on">흙길 <span class="n">4</span></div><div class="chip">그늘 <span class="n">3</span></div><div class="chip">조명 <span class="n">6</span></div></div>
+  </div>
+  <div class="side" style="top:150px"><div class="on">1</div><div>2</div><div>3</div><div>4</div><div>5</div></div>
+  <div class="ctl" style="top:150px"><div>◈</div><div>＋</div><div>−</div></div>
+  <div class="sheet">
+    <div class="rule"></div><div class="grab"></div>
+    <div class="shpad">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div style="flex:1"><div class="kick">서리풀공원 · 흙길 90%</div><div class="name">서리풀 숲길 3km</div></div>
+        <div class="km">3.0<em>km</em></div>
+      </div>
+      <a class="cta">이 코스로 예약하기</a>
+    </div>
+  </div>
+</div>
+<p class="note"><b>가장 조밀하지만 가장 낯설다.</b> 숫자만으로는 무엇을 고르는지 알 수 없어 <b>탐색이 곧 시행착오</b>가 된다(코스 이름이 사라진다). 좌측이 비어 보이지만 지도는 좌우로 끌려다니는 표면이라 손이 자주 지나는 자리다. 한국 지도 앱에 선례가 없어 학습 비용도 붙는다 — <b>비추천</b>, 다만 밀도만 놓고 보면 최소다.</p></div>
+
+</div>
+
+<h2 class="bhs">밀도는 벌어서 얻는다 — 오늘 · 3개월 · 성숙</h2>
+<p class="lede">A안 기준. <b>왼쪽이 오늘 실제로 렌더되는 화면이다</b> — 시드 9개 전부 트레이스가 없다. 이걸 '깨진 화면'으로 두지 않는 것이 이 설계의 핵심이고, 히트맵을 1차 레이어로 삼으면 정확히 그 실패가 난다.</p>
+<div class="row">
+
+<div class="shot"><div class="sl">n=0 트레이스 — 오늘</div><div class="ph">
+  <div class="map">
+    <div class="park" style="left:-40px;top:120px;width:190px;height:230px"></div>
+    <div class="park" style="right:-50px;top:320px;width:200px;height:240px"></div>
+    <div class="water" style="left:96px;top:-20px;width:26px;height:700px;transform:rotate(6deg)"></div>
+    <div class="road" style="left:0;top:236px;width:300px;height:7px"></div>
+    <div class="road" style="left:140px;top:0;width:6px;height:640px"></div>
+    <div class="anch cand" style="left:68px;top:296px"></div><div class="anch cand" style="left:192px;top:176px"></div>
+    <div class="anch cand" style="left:234px;top:416px"></div><div class="anch cand" style="left:102px;top:466px"></div>
+    <div class="anch cand" style="left:178px;top:532px"></div><div class="anch cand" style="left:151px;top:345px"></div>
+    <div class="lbl" style="left:88px;top:292px">서래섬</div>
+    <div class="lbl" style="left:170px;top:341px">누에다리</div>
+  </div>
+  <div class="top">
+    <div class="search"><div class="n">N</div><div class="q">코스 검색</div><div style="color:var(--faint)">◎</div></div>
+    <div class="chips"><div class="chip">흙길 <span class="n">3</span></div><div class="chip">그늘 <span class="n">3</span></div><div class="chip">조명 <span class="n">6</span></div></div>
+  </div>
+  <div class="empty" style="top:150px">
+    <div style="font-size:13px;font-weight:800">아직 실측된 코스가 없어요</div>
+    <div style="font-size:11.5px;color:var(--dim);margin-top:4px;line-height:1.5">9개 코스의 만남 장소는 확정돼 있고, 첫 반려견 동반 러닝이 코스의 지도를 만듭니다.</div>
+  </div>
+  <div class="sheet">
+    <div class="rule"></div><div class="grab"></div>
+    <div class="shpad">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div style="flex:1"><div class="kick" style="color:var(--pending)">점검 예정 · 누에다리 남단</div><div class="name">서리풀 숲길 3km</div></div>
+        <div class="km">3.0<em>km</em></div>
+      </div>
+      <a class="cta" style="background:var(--pending)">점검 전 코스로 예약</a>
+    </div>
+  </div>
+</div>
+<p class="note"><b>앵커가 1차 레이어.</b> 선이 하나도 없어도 화면은 완성돼 있다 — 만남 장소는 진짜로 정해져 있으니까. 빈 판정 대신 <b>사실과 다음 행동</b>을 말한다. 앵커는 속 빈 앰버 다이아(= 미점검), CTA도 앰버로 다른 약속을 한다.</p></div>
+
+<div class="shot"><div class="sl">n=3 — 파운더 워크 3회 후</div><div class="ph">
+  <div class="map">
+    <div class="park" style="left:-40px;top:120px;width:190px;height:230px"></div>
+    <div class="park" style="right:-50px;top:320px;width:200px;height:240px"></div>
+    <div class="water" style="left:96px;top:-20px;width:26px;height:700px;transform:rotate(6deg)"></div>
+    <div class="road" style="left:0;top:236px;width:300px;height:7px"></div>
+    <div class="road" style="left:140px;top:0;width:6px;height:640px"></div>
+    <svg class="tr" viewBox="0 0 300 640">
+      <g stroke="#999999" stroke-opacity=".42" fill="none" stroke-width="2.2" stroke-linejoin="round">
+        <polyline points="72,300 50,272 56,238 84,222 112,236 116,268 96,292 72,300"/>
+        <polyline points="196,180 172,156 178,124 208,112 236,128 238,160 218,182 196,180"/>
+      </g>
+      <polyline points="158,352 128,330 118,292 138,258 176,246 214,258 232,292 222,330 192,352 158,352" fill="none" stroke="#FFFFFF" stroke-width="7.5" stroke-linejoin="round"/>
+      <polyline points="158,352 128,330 118,292 138,258 176,246 214,258 232,292 222,330 192,352 158,352" fill="none" stroke="#E8552F" stroke-width="3.4" stroke-linejoin="round"/>
+    </svg>
+    <div class="anch" style="left:68px;top:296px"></div><div class="anch" style="left:192px;top:176px"></div>
+    <div class="anch cand" style="left:234px;top:416px"></div><div class="anch cand" style="left:102px;top:466px"></div>
+    <div class="anch cand" style="left:178px;top:532px"></div>
+    <div class="anch sel" style="left:151px;top:345px"></div>
+  </div>
+  <div class="top">
+    <div class="search"><div class="n">N</div><div class="q">코스 검색</div><div style="color:var(--faint)">◎</div></div>
+    <div class="chips"><div class="chip on">흙길 <span class="n">2</span></div><div class="chip">그늘 <span class="n">2</span></div><div class="chip">조명 <span class="n">4</span></div></div>
+  </div>
+  <div class="ctl" style="top:150px"><div>◈</div><div>＋</div><div>−</div></div>
+  <div class="sheet">
+    <div class="rule"></div><div class="grab"></div>
+    <div class="shpad">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div style="flex:1"><div class="kick">서리풀공원 · <span style="color:var(--blue)">✓ 8.14 점검</span></div><div class="name">서리풀 숲길 3km</div></div>
+        <div class="km">3.0<em>km</em></div>
+      </div>
+      <a class="cta">이 코스로 예약하기</a>
+    </div>
+  </div>
+</div>
+<p class="note"><b>혼재가 정상 상태다.</b> 실선 3개 + 속 빈 앵커 6개. 지도가 "여긴 확인됐고, 여긴 아직"을 한눈에 말한다 — 이 대비 자체가 파운더 워크의 진척 게이지가 된다. 사용자에게도 정직하고 Sean에게도 계기판이다.</p></div>
+
+<div class="shot"><div class="sl">n=9 — 성숙</div><div class="ph">
+  <div class="map">
+    <div class="park" style="left:-40px;top:120px;width:190px;height:230px"></div>
+    <div class="park" style="right:-50px;top:320px;width:200px;height:240px"></div>
+    <div class="water" style="left:96px;top:-20px;width:26px;height:700px;transform:rotate(6deg)"></div>
+    <div class="road" style="left:0;top:236px;width:300px;height:7px"></div>
+    <div class="road" style="left:140px;top:0;width:6px;height:640px"></div>
+    <svg class="tr" viewBox="0 0 300 640">
+      <g stroke="#999999" stroke-opacity=".42" fill="none" stroke-width="2.2" stroke-linejoin="round">
+        <polyline points="72,300 50,272 56,238 84,222 112,236 116,268 96,292 72,300"/>
+        <polyline points="196,180 172,156 178,124 208,112 236,128 238,160 218,182 196,180"/>
+        <polyline points="238,420 214,398 216,366 246,352 272,368 274,400 256,420 238,420"/>
+        <polyline points="106,470 84,448 88,418 118,404 144,420 146,452 128,472 106,470"/>
+        <polyline points="182,536 160,516 164,488 192,476 216,492 218,520 200,538 182,536"/>
+        <polyline points="60,150 40,128 46,98 74,86 100,100 102,130 84,150 60,150"/>
+        <polyline points="252,268 232,248 236,220 262,210 284,224 286,250 270,268 252,268"/>
+        <polyline points="128,600 108,582 112,556 138,546 160,560 162,584 146,602 128,600"/>
+      </g>
+      <polyline points="158,352 128,330 118,292 138,258 176,246 214,258 232,292 222,330 192,352 158,352" fill="none" stroke="#FFFFFF" stroke-width="8" stroke-linejoin="round"/>
+      <polyline points="158,352 128,330 118,292 138,258 176,246 214,258 232,292 222,330 192,352 158,352" fill="none" stroke="#E8552F" stroke-width="3.6" stroke-linejoin="round"/>
+    </svg>
+    <div class="anch" style="left:68px;top:296px"></div><div class="anch" style="left:192px;top:176px"></div>
+    <div class="anch" style="left:234px;top:416px"></div><div class="anch" style="left:102px;top:466px"></div>
+    <div class="anch" style="left:178px;top:532px"></div><div class="anch" style="left:56px;top:146px"></div>
+    <div class="anch" style="left:248px;top:264px"></div><div class="anch" style="left:124px;top:596px"></div>
+    <div class="anch sel" style="left:151px;top:345px"></div>
+  </div>
+  <div class="top">
+    <div class="search"><div class="n">N</div><div class="q">코스 검색</div><div style="color:var(--faint)">◎</div></div>
+    <div class="chips"><div class="chip on">흙길 <span class="n">4</span></div><div class="chip">그늘 <span class="n">3</span></div><div class="chip">조명 <span class="n">6</span></div></div>
+  </div>
+  <div class="ctl" style="top:150px"><div>◈</div><div>＋</div><div>−</div></div>
+  <div class="sheet">
+    <div class="rule"></div><div class="grab"></div>
+    <div class="shpad">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div style="flex:1"><div class="kick">서리풀공원 · <span style="color:var(--blue)">✓ 8.14 점검</span></div><div class="name">서리풀 숲길 3km</div></div>
+        <div class="km">3.0<em>km</em></div>
+      </div>
+      <a class="cta">이 코스로 예약하기</a>
+    </div>
+  </div>
+</div>
+<p class="note"><b>여기서 처음으로 '무리'가 된다.</b> 9개가 깔려야 동네가 길로 덮인 느낌이 나오고, 그때도 코랄 선 하나만 채도를 갖는다. 브리프의 히트맵 감각은 <b>이 시점에 도착하는 것</b>이지 1일차에 흉내 낼 것이 아니다.</p></div>
+
+</div>
+
+<h2 class="bhs">설계 원칙 — 왜 이렇게 했나</h2>
+<div class="legend" style="max-width:1000px">
+  <div class="lg"><b>① 색이 곧 위계</b> 화면에서 채도를 가진 획은 <b>코랄 선 하나</b>. 나머지 경로는 #999 페인트. 선택을 찾는 데 눈이 0.2초도 쓰지 않는다 — 이게 Von Restorff이자 §8 강조 예산이다.</div>
+  <div class="lg"><b>② 밀도는 시간이 만든다</b> 트레이스를 지어내지 않으므로 지도는 벌어서 채워진다. 부수 효과가 좋다: 지도 자체가 파운더 워크 진척 계기판이 된다.</div>
+  <div class="lg"><b>③ 한 표면이 세 일을</b> 시트가 peek/list/detail을 순서대로 맡아 부유 요소를 늘리지 않는다. 지도 앱 3사 공통 문법이라 학습 비용 0(Jakob의 법칙).</div>
+  <div class="lg"><b>④ 필터는 이미 있다</b> 흙길/그늘/조명은 K5에서 구현·검증됐다. 새로 만들지 않고 그대로 올린다 — 개수 배지·AND 의미·조명 자동 켜짐까지 동일.</div>
+  <div class="lg"><b>⑤ 44pt · 색 단독 금지</b> 칩·시트 행·컨트롤 전부 44pt. candidate는 색만이 아니라 <b>속 빈 다이아 + '점검 예정' 텍스트</b>로도 구분된다.</div>
+  <div class="lg"><b>⑥ 지도는 밝다</b> "어두움은 아티팩트, 밝음은 화면"(§1). 지도는 크롬이므로 라이트 고정 — 다크 지도는 이 시스템에서 의식용 표면의 언어다.</div>
+</div>
+
+<p class="lede" style="margin-top:26px;border-top:1px solid #232a22;padding-top:16px">
+<b>추천: A안.</b> 요청하신 "부유 목록"은 <b>시트의 중간 단</b>으로 만족된다 — 별도 레일을 띄우면 검색·칩·레일·시트 네 층이 지도를 조이고, 요청의 다른 절반인 '낮은 정보 밀도'와 정면으로 충돌한다. B안은 목록 상시 노출이 정말로 중요할 때, C안은 권하지 않는다(이름 없는 숫자는 탐색이 아니라 시행착오다).<br>
+번호를 주시면 그대로 구현한다. 지도 프리미티브는 K7 스파이크에서 이미 검증 완료 — 고스트/선택 2레이어, 앵커 마커, fit-bounds 전부 네이티브로 가능하다.
+</p>
+</body>
+</html>

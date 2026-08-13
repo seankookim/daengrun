@@ -79,10 +79,16 @@ export async function cancelOwner(
   // fee landing on a runner who set out between quote and write). 0 rows = re-quote.
   // cancel_reason marks the en-route tier for future settlement (0066: no new column —
   // cancel_fee holds the money, this holds the why; the whole 50% is runner compensation).
+  // [0085 ⑩] The SAME marker mechanism now names the other paying tier. `owner_cancel_late` =
+  // a confirmed booking cancelled inside 24h, fee 10%, HALF of it the runner's (0085). Written
+  // only when there is a fee to split — a ≥24h or unmatched cancel is free, has no runner
+  // share, and must not carry a marker that would make 0085 look at it.
+  const lateShareTier = quoted !== "runner_enroute" && fee > 0;
   const { data: done, error: ce } = await db.from("bookings")
     .update({
       status: "cancelled_owner", cancel_fee: fee,
       ...(quoted === "runner_enroute" ? { cancel_reason: "owner_cancel_enroute" } : {}),
+      ...(lateShareTier ? { cancel_reason: "owner_cancel_late" } : {}),
     })
     .eq("id", bookingId).eq("status", quoted).select("id");
   if (ce) throw new HttpError(409, ce.message);
@@ -95,6 +101,9 @@ export async function cancelOwner(
   // call that hangs must not delay the runner's push, and the en-route sentence below claims the
   // compensation is recorded — so the record is written before the sentence is spoken.
   const compRecorded = quoted === "runner_enroute" ? await compensateRunner(db, bookingId) : false;
+  // [0085 ⑩] The 10% tier's half. Same contract as compensateRunner: never throws, never
+  // unwinds the cancel, and returns the amount only when a row exists to back the sentence.
+  const lateShare = lateShareTier ? await shareLateCancelFee(db, bookingId) : 0;
 
   if (bk.runner_id) {
     // En-route copy tells the runner compensation is owed — recorded fact only, no payout
@@ -103,9 +112,23 @@ export async function cancelOwner(
     // about a ledger row that is not there; ops has been told and a human will write it, but the
     // runner must not be shown a receipt for it in the meantime (honesty law). They still hear
     // about the cancel — the generic sentence is true in every case.
-    await notify(bk.runner_id, "예약 취소됨", quoted === "runner_enroute" && compRecorded
-      ? "보호자가 이동 중에 예약을 취소했어요 — 취소 수수료(결제 금액의 50%)가 러너 보상으로 기록됐어요"
-      : "보호자가 예약을 취소했어요");
+    // [0085 ⑩] Sean's instruction was "reward them ykwim" — the design instruction, not only
+    // the payment one. A runner who kept an evening free and lost it hears that holding it was
+    // worth something, in the voice the product uses for good news. Title carries the reward,
+    // not the cancellation, because 0024's trigger pushes title+body verbatim to a lock screen
+    // and the first three words are all most people read.
+    // Same honesty gate as the en-route arm: the amount is spoken only when the ledger row
+    // exists (lateShare > 0 means written-or-already-there). If the write failed, ops has been
+    // told and the runner still hears the true generic sentence.
+    await notify(
+      bk.runner_id,
+      lateShare > 0 ? "시간을 비워둔 보상이 기록됐어요" : "예약 취소됨",
+      quoted === "runner_enroute" && compRecorded
+        ? "보호자가 이동 중에 예약을 취소했어요 — 취소 수수료(결제 금액의 50%)가 러너 보상으로 기록됐어요"
+        : lateShare > 0
+        ? `보호자가 예약을 취소했어요. 비워두신 시간에 대해 취소 수수료의 절반인 ${lateShare.toLocaleString("ko-KR")}원이 보상으로 기록됐어요`
+        : "보호자가 예약을 취소했어요",
+    );
   }
 
   await collectCancelFee(db, bookingId, fee);
@@ -192,6 +215,34 @@ async function isPrepaid(db: SupabaseClient, bookingId: string): Promise<boolean
  * Returns whether the ledger row is KNOWN TO EXIST — the caller's copy depends on it. `written:
  * false` from the RPC still counts as true: that is its idempotency arm answering "already there".
  */
+/**
+ * [0085 ⑩] The 10% tier's half. Same contract as `compensateRunner` in every respect that
+ * matters — non-fatal, ops-pinged on failure, idempotent in SQL under the SAME `comp:` advisory
+ * lock — with one difference in the return: this one returns the AMOUNT, because the runner's
+ * notification names it and must not name a number no ledger row backs.
+ *
+ * `written: false` with a positive `comp` is the idempotency arm ("already there"), which is
+ * still a row that exists, so the sentence is still true. Only a thrown error returns 0.
+ */
+async function shareLateCancelFee(db: SupabaseClient, bookingId: string): Promise<number> {
+  try {
+    const { data, error } = await db.rpc("record_late_cancel_share", { p_booking: bookingId });
+    if (error) throw new Error(error.message);
+    const row = (Array.isArray(data) ? data[0] : data) as { comp: number; written: boolean } | null | undefined;
+    const comp = Number(row?.comp ?? 0);
+    console.log(
+      `[transition] late cancel share booking=${bookingId} comp=${comp} written=${row?.written ?? false}`,
+    );
+    return comp;
+  } catch (e) {
+    // Identical reasoning to the en-route arm: no sweep looks for a missing comp row, so this is
+    // money a runner is owed that nobody would otherwise notice. Identifiers stay in the log.
+    console.error(`[transition] late cancel share FAILED booking=${bookingId}: ${msgOf(e)}`);
+    await notifyOps(db, "enroute_comp_failed", { refId: bookingId });
+    return 0;
+  }
+}
+
 async function compensateRunner(db: SupabaseClient, bookingId: string): Promise<boolean> {
   try {
     const { data, error } = await db.rpc("record_enroute_cancel_comp", { p_booking: bookingId });

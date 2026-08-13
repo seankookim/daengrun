@@ -100,6 +100,28 @@ function installMint(db: FakeDb, over: { status?: string; amount?: number; notLi
 }
 
 /** Stand-in for 0080's `record_enroute_cancel_comp` — writes the runner's ledger row. */
+/**
+ * [0085 ⑩] The 10% tier's half. Mirrors installComp: records the call, writes the ledger row the
+ * real SQL would write, and can be made to fail so the caller's honesty gate is testable.
+ */
+function installShare(db: FakeDb, over: { fail?: string; written?: boolean } = {}) {
+  const seen: Row[] = [];
+  db.rpcs["record_late_cancel_share"] = (args: Row) => {
+    seen.push(args);
+    if (over.fail) return { error: { message: over.fail } };
+    const written = over.written ?? true;
+    const share = Math.round(FEE_10 * 0.5);
+    if (written) {
+      db.rows("ledger_items").push({
+        runner_id: RUNNER, booking_id: args.p_booking, base: 0, distance_pay: 0,
+        addon_pay: 0, tip: 0, remaining_guarantee: share, platform_fee: 0,
+      });
+    }
+    return { data: [{ comp: share, written }] };
+  };
+  return seen;
+}
+
 function installComp(db: FakeDb, over: { fail?: string; written?: boolean } = {}) {
   const seen: Row[] = [];
   db.rpcs["record_enroute_cancel_comp"] = (args: Row) => {
@@ -548,23 +570,101 @@ Deno.test("a cancelled booking that never recorded a fee answers 0, not null", a
   }
 });
 
-Deno.test("non-en-route tiers never call the comp RPC", async () => {
+Deno.test("the en-route comp RPC is never called off its own tier", async () => {
+  // [0085 ⑩] AMENDED. This case used to assert that a non-en-route cancel wrote NO ledger row
+  // and NO cancel_reason. That was the defect, not the contract: the <24h tier charges the owner
+  // 10% and the cancel sheet promises the runner half of it. Sean ruled "pay the runner and let
+  // them know" (docs/decisions/cancel-fee-runner-share.md), so the confirmed tier now DOES write
+  // a reason and a ledger row — through record_late_cancel_share, never through the en-route one.
+  // What survives unchanged is the property this case actually guards: 0080's comp is en-route-only.
   for (const status of ["confirmed", "matching"]) {
     const db = scene({ status });
     db.rpcs["marketplace_cancel_fee"] = () => ({ data: [{ fee: status === "matching" ? 0 : FEE_10, status }] });
     installComp(db);
+    installShare(db);
     installMint(db);
     const net = tossOk();
     const cap = captureLogs();
     try {
       await call(db);
       assert(!db.log.includes("rpc:record_enroute_cancel_comp"), `${status} paid an en-route comp`);
-      assertEquals(db.rows("ledger_items").length, 0);
-      assertEquals(bk(db).cancel_reason, null);
     } finally {
       cap.restore();
       net.restore();
     }
+  }
+});
+
+Deno.test("[0085 ⑩] a free cancel pays nobody and marks nothing", async () => {
+  // The unmatched/≥24h arm: fee 0, so there is no half to share. No marker (0085's gate would
+  // otherwise look at the row), no ledger row, neither comp RPC called.
+  const db = scene({ status: "matching" });
+  db.rpcs["marketplace_cancel_fee"] = () => ({ data: [{ fee: 0, status: "matching" }] });
+  installComp(db);
+  installShare(db);
+  installMint(db);
+  const net = tossOk();
+  const cap = captureLogs();
+  try {
+    await call(db);
+    assert(!db.log.includes("rpc:record_late_cancel_share"), "a free cancel called the share RPC");
+    assertEquals(db.rows("ledger_items").length, 0);
+    assertEquals(bk(db).cancel_reason, null);
+  } finally {
+    cap.restore();
+    net.restore();
+  }
+});
+
+Deno.test("[0085 ⑩] the <24h tier marks the tier, pays the runner half, and says so as a reward", async () => {
+  const db = scene({ status: "confirmed" });
+  db.rpcs["marketplace_cancel_fee"] = () => ({ data: [{ fee: FEE_10, status: "confirmed" }] });
+  installComp(db);
+  const seen = installShare(db);
+  installMint(db);
+  const net = tossOk();
+  const cap = captureLogs();
+  try {
+    await call(db);
+    // the tier marker the SQL gate reads — the sibling of owner_cancel_enroute
+    assertEquals(bk(db).cancel_reason, "owner_cancel_late");
+    assertEquals(seen.length, 1);
+    // exactly one ledger row, the runner's half, shaped so my_ledger_total actually pays it
+    assertEquals(db.rows("ledger_items").length, 1);
+    const li = db.rows("ledger_items")[0] as Row;
+    assertEquals(li.remaining_guarantee, Math.round(FEE_10 * 0.5));
+    assertEquals(li.platform_fee, 0); // platform_fee SUBTRACTS in my_ledger_total (0027:13)
+    // and the runner is told, in the voice of good news, with the amount that is backed
+    const noti = db.rows("notifications").at(-1) as Row;
+    assertStringIncludes(String(noti.title), "보상");
+    assertStringIncludes(String(noti.body), String(Math.round(FEE_10 * 0.5)));
+  } finally {
+    cap.restore();
+    net.restore();
+  }
+});
+
+Deno.test("[0085 ⑩] a failed share write never names a number the ledger cannot back", async () => {
+  // Same honesty gate the en-route arm has: ops is told, the cancel still succeeds, and the
+  // runner hears the true generic sentence rather than a receipt for a row that is not there.
+  const db = scene({ status: "confirmed" });
+  db.rpcs["marketplace_cancel_fee"] = () => ({ data: [{ fee: FEE_10, status: "confirmed" }] });
+  installComp(db);
+  installShare(db, { fail: "deadlock detected" });
+  installMint(db);
+  const net = tossOk();
+  const cap = captureLogs();
+  try {
+    const out = await call(db) as Row;
+    assertCancelShape(out);
+    assertEquals(out.cancel_fee, FEE_10);
+    assertEquals(db.rows("ledger_items").length, 0);
+    const noti = db.rows("notifications").at(-1) as Row;
+    assertEquals(noti.title, "예약 취소됨");
+    assert(!String(noti.body).includes("보상"), "promised a compensation that was not recorded");
+  } finally {
+    cap.restore();
+    net.restore();
   }
 });
 

@@ -73,3 +73,29 @@ not evidence.
   runner's settlement. Settlement never waits on collection (§0-ter ordering law).
 - Pin: a single-sided confirmation does not resolve the waive; both do; the runner's ledger is
   untouched in every branch.
+
+## How to TEST it (0083's adversarial round, 2026-08-13 — read before writing pins)
+
+`0083` was held off the trunk by two blockers found in code carrying **475 green pins**. The
+session's own summary: *"Both pins measured the symptom the design intended and stopped one
+question short."*
+
+- **F1** pinned the *helper* (`_settle_sealed_run`) rather than the path that ships
+  (`settle-run/handler.ts:113` calls `settle_run_tx` directly with the client's `actual_km`
+  and `end_reason`). The one direct probe passed numbers that already matched the frozen row,
+  so **a mismatch was never attempted anywhere in the suite** — the seal checked whether the
+  dog was home, never whether the numbers matched what was frozen.
+- **F2** pinned that the 2h escalation *fires* and that no ledger row appeared — never whether
+  money could still move afterwards. It cannot: the state's only commercial exit is club-only,
+  so a marketplace runner becomes permanently unpayable.
+
+**Therefore, for ⑪ specifically:** pin the **shipping entry point**, not the primitive. And
+⑪ is a two-sided gate whose entire value is *refusing* — so a suite that only ever exercises
+both parties agreeing proves nothing about the refusal. Attempt the mismatch: one side only,
+the wrong party, a stamp after the window, a forged stamp on INSERT, the same side twice.
+Then ask F2's question about every terminal state you create: **can money still move out of
+it, and by which exit?**
+
+This is `README.md`'s rule 3 in a different medium. A passing suite is a well-formed artifact:
+475/0 read as coverage and was 475 pins each stopping one question short of the thing they
+appeared to prove.

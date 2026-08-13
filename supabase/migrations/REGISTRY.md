@@ -37,9 +37,10 @@ touched it and name whose version you build on in your file header.
 | 0082 | `0082_route_ladder.sql` | 118 | **route session** (반포 route catalog / route discovery; landed via the main checkout, `a95aa34`) | on origin/redesign-v4 — settled |
 | 0083 | `0083_run_end_flow.sql` | 119 | run-end-flow (`claude/run-end-flow-1a67e0`) | **SETTLED 2026-08-13** — on disk, in build |
 | 0084 | `0084_g1_ops_cutover.sql` | 120 | payments (`claude/g1-ops-club-decisions`) | **SETTLED 2026-08-13** — on disk, in build |
-| 0085 | `0085_cancel_share.sql` | 121 | ⑩ cancel-fee runner share (`claude/club-delegation-money-gaps-b59eb8`) | **CLAIMED 2026-08-13** — in build |
-| 0086 | `0086_runner_stop_passthrough.sql` | 122 | ⑨a runner_personal pass-through pay (`claude/g1-ops-club-decisions`) | **CLAIMED 2026-08-13** — in build (harness 471/0 measured against origin's 0085) |
-| 0087 | *(next free)* | 123 | — | available |
+| 0085 | `0085_cancel_share.sql` | 121 | ⑩ cancel-fee runner share (`claude/club-delegation-money-gaps-b59eb8`) | **BUILT 2026-08-13** — harness 467/0, deno 161/0, 5 mutations verified |
+| 0086 | `0086_runner_stop_passthrough.sql` | 122 | ⑨a runner_personal pass-through pay (`claude/g1-ops-club-decisions`) | **BUILT 2026-08-13** — harness 465/0, deno 162/0, 6 mutations |
+| 0087 | `0087_profiles_column_grants.sql` | 123 | profiles column grants — P0 PII/PG-key leak (`claude/g1-ops-club-decisions`) | **CLAIMED 2026-08-13** — in build |
+| 0088 | *(next free)* | 124 | — | available |
 
 ## Standing conflicts to resolve
 
@@ -114,8 +115,7 @@ else about. Applying it to yourself when it is inconvenient is the whole point.
 | 0083 | EXTENDS (builds on the named version, does not replace): `settle_run_tx` ←0028 · `_guard_run_cols` ←0079 · `owner_la_sweep_stale` ←0079 · `_owner_la_trace_tg` ←0079 · `append_run_event`/`append_run_photo` ←0018. NEW: `end_run_tx`, `confirm_return_tx`, `force_return_tx`, `_settle_sealed_run`, `custody_ping`, `sweep_run_end_recovery`, `_guard_booking_insert_cols`, `_owner_la_run_end_tg`. Also updates `116_charge_suite`'s `t_chg_settled` fixture. ⚠ **Deliberately does NOT touch `sweep_settled_without_payments`** — 0080 owns it; see 0083 §0f for the one-line predicate it needs and why re-creating it here would silently revert 0084. |
 | 0084 | *(owner to fill)* |
 | 0086 | **NONE — adds one new function** (`compute_runner_personal_payout`). It READS `compute_owner_charge` (←0084 §A) and re-creates nothing. ⚠ **It deliberately does NOT re-create `settle_run_tx`, which the brief expected it to**: 0028:18 is that function's current definition, 0083 EXTENDS it and is not on origin yet, and 0083 < 0086 — so a 0086 built from 0028's body would apply AFTER 0083 and silently revert it while the harness stayed green (0083's pins live in 0083's suite). ⑨a needed no change there anyway: the ledger write inserts the five money parameters it is handed, and `settle-run/handler.ts` composes them. See 0086 §B, which also records that 0028:30's body says `set search_path = public` (no `pg_temp`) — it passes 98 H1 only because 0055's ALTER retro-sealed it, so ANY faithful reproduction of 0028 must add `pg_temp` or turn H1 red. |
-
-### Settlement anchors — learned the hard way 2026-08-13
+| 0085 | EXTENDS nothing — adds ONE new function (`record_late_cancel_share`). Deliberately shares 0080's `comp:` advisory-lock key so the two comp writers are mutually exclusive; re-creates no existing object. `marketplace_cancel_fee` stays 0066's, `record_enroute_cancel_comp`/`mint_cancel_fee_intent` stay 0080's. |### Settlement anchors — learned the hard way 2026-08-13
 
 - **Never anchor on `bookings.status`** (§0-ter #11, `0080:487`, pinned by 116 C8): an
   `incident_review` / `refund_pending` transition drops a settled booking out of the sweep's
