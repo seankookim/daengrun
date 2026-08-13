@@ -708,3 +708,55 @@ Deno.test("frozen_measurement_mismatch → 409 with the migration's sentence (se
     net.restore();
   }
 });
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════
+// THE JOIN — the TS↔SQL error contract, single-sourced by verification
+// ═══════════════════════════════════════════════════════════════════════════════════════════
+// Every test above fakes `settle_run_tx`, so they assert that the STRING 'return_not_sealed'
+// maps to a 409 — never that the migration actually raises that string. Rename the exception in
+// SQL, update only `119`, and this whole file stays green while the mapping is dead code. That
+// is the same gap the ⑩ author found in `0085` on the same day (their pins call the SQL function
+// directly; the shipping path goes through an RPC their deno side fakes), which makes it a class
+// rather than an incident: **the suite pins the primitive, the product ships the path, and
+// nothing tests the join.**
+//
+// A fake cannot be made to tell the truth about the thing it replaces. So instead of pretending,
+// this reads the migration and checks the two halves against each other — the contract stays in
+// one place (the SQL) and TS is verified against it rather than duplicating it on trust.
+const MIGRATION = new URL("../../migrations/0083_run_end_flow.sql", import.meta.url);
+const HANDLER = new URL("../settle-run/handler.ts", import.meta.url);
+
+Deno.test("join: every error code the handler maps is one the migration actually raises", async () => {
+  const sql = await Deno.readTextFile(MIGRATION);
+  const ts = await Deno.readTextFile(HANDLER);
+  // The codes the handler gives their own status + sentence (not_active/not_found predate 0083
+  // and are raised by 0028's body, which this migration reproduces).
+  for (const code of ["return_not_sealed", "run_not_ended", "frozen_measurement_mismatch"]) {
+    assert(
+      ts.includes(`msg.includes("${code}")`),
+      `handler stopped mapping ${code} — it now falls to the generic 500 that reads as our bug`,
+    );
+    assert(
+      sql.includes(`raise exception '${code}'`),
+      `handler maps ${code} but the migration no longer raises it — the mapping is dead code`,
+    );
+  }
+});
+
+Deno.test("join: the Korean the runner sees is the migration's own `using detail`, not a copy", async () => {
+  const sql = await Deno.readTextFile(MIGRATION);
+  const ts = await Deno.readTextFile(HANDLER);
+  // `raise exception 'code'\n  using detail = '...'` — the sentence the migration authored.
+  const pairs = [...sql.matchAll(/raise exception '(\w+)'\s*\n\s*using detail = '([^']*)'/g)];
+  const seen: string[] = [];
+  for (const [, code, detail] of pairs) {
+    if (!["return_not_sealed", "run_not_ended", "frozen_measurement_mismatch"].includes(code)) continue;
+    seen.push(code);
+    assert(
+      ts.includes(detail),
+      `${code}: the handler's sentence has drifted from the migration's.\n  migration: ${detail}`,
+    );
+  }
+  // If the migration stops carrying details, this test must fail rather than vacuously pass.
+  assertEquals(seen.sort(), ["frozen_measurement_mismatch", "return_not_sealed", "run_not_ended"]);
+});
