@@ -21,13 +21,13 @@ fork point, which is stale the moment another session lands.
 | 0079 | `0079_pace_state.sql` | 115 | pace-state-ui-build | on origin/redesign-v4 |
 | 0080 | `0080_charge_machine.sql` | 116 | payments-toss-plan-slice | on origin/redesign-v4 |
 | 0081 | `0081_club_money_gates.sql` | 117 | club-money-gates | on origin/redesign-v4 |
-| 0082 | `0082_route_ladder.sql` | 118 | g1-ops-club-decisions (route discovery) | ⚠ **UNPUSHED** — exists only in the main checkout's local `redesign-v4` + that branch. Push it or release the number. |
+| 0082 | `0082_route_ladder.sql` | 118 | route-discovery (`claude/g1-ops-club-decisions`) | on origin/redesign-v4 (`a95aa34`) — **settled: it won the race** |
 | 0083 | *(next free)* | 119 | — | available |
 
 ## Standing conflicts to resolve
 
-- **0082 is double-claimed.** The route-ladder slice holds it locally-unpushed; the
-  run-end-flow session's TODOS also names "0082 슬롯". Whoever pushes first keeps it; the
-  other moves to 0083. Run-end-flow: assume 0083/suite 119 unless you see 0082 on origin
-  with your file in it.
-- The `payments_live_since` cutover slice has no number yet — claim at build time.
+- ~~0082 double-claimed~~ **RESOLVED 2026-08-13:** route-ladder pushed first (`a95aa34`),
+  so 0082/suite 118 are theirs. **Run-end-flow: your TODOS still names "0082 슬롯" —
+  take 0083 / suite 119** and claim it here before writing.
+- The `payments_live_since` cutover slice (D-3 statement, per-runner abort telemetry,
+  reconciliation heartbeat) has no number yet — claim at build time.
