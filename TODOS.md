@@ -176,6 +176,36 @@ Deferred work, written down so it exists. Format: what / why / context / effort
   ③ billing(자동결제) TEST-key matrix once dashboard keys exist (docs demo keys are
   widget-only). Effort S → S. P2, rides the A3 device session.
 
+## From the run-end flow slice (0083, 2026-08-13) — opened by it, not closed
+
+- [ ] 🔴 **`compute_runner_payout` — the SQL sibling of `compute_owner_charge`.** The runner's
+  payout is still computed in `settle-run`'s TypeScript, so `_settle_sealed_run` takes the
+  price as an argument and the §9 recovery sweep can only REPORT a sealed-but-unsettled
+  booking, never re-drive it. That is a real weakening of the "durably recovered" property
+  the adversarial review demanded. With a SQL payout function, `p_quote` disappears and the
+  sweep becomes a true re-drive. Recorded as `0083 §0g`. Effort M → S. **P1 before the
+  return seal is enforced for real users.**
+- [ ] 🔴 **`sweep_settled_without_payments` needs one predicate — and the cutover is BLOCKED
+  until it lands.** `0083` changed `ended_at` to mean the service STOP, so 0080's sweep can
+  now see a run that stopped but has not been returned and mint a charge for a dog still on
+  the leash. The fix is one line in 0080's file, on the payments session's schedule:
+  `and rn.settled_at is not null`. Do NOT use `bookings.status` (§0-ter #11 / 116 C8) or
+  `ledger_items` presence (0080 §K writes one for a CANCELLED booking). Recorded as
+  `0083 §0f`. **`ops_flags.payments_live_since` must not be flipped before this.**
+- [ ] **`owner_forced` has no server entry point.** It was correctly excluded from the freeze
+  whitelist (freezing a reason `settle-run` refuses would strand the run forever), which
+  means the owner-forced end now needs its own primitive in the transition-booking slice or
+  it has no path at all. Effort S → S. P2.
+- [ ] **Two switches ship NULL and are Sean's to flip**: `ops_flags.return_seal_since` (the
+  seal gate cannot be enforced universally — it would redden ~60 existing pins and strand
+  runs on phones already in pockets, so new-flow bookings are gated from day one and the
+  old-client arm waits) and `payments_live_since` (above).
+- [ ] **`confirm_return_tx` two-connection race is named, not simulated** — belongs in
+  `90_race_check.sh` alongside the existing 2-connection race. Effort S → S. P2.
+- [ ] **Cron stagger doctrine (0060:145) could not be honoured literally** — every mod-5
+  minute offset is taken; `sweep_run_end_recovery` shares a tick with `sweep-payment-intents`,
+  chosen because it is the only 5-minute batch touching neither `bookings` nor `runs`. P3.
+
 ## From coordinates-geocoding slice (2026-08-10, /autoplan)
 
 - [ ] **Distance-to-pickup on runner job cards** — show km-to-address on
