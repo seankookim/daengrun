@@ -722,7 +722,20 @@ export default function Request() {
                   )}
                 </Row>
 
-                <Pressable onPress={() => setCourseOpen((v) => !v)} style={[s.foldRow, { marginTop: 12 }]} accessibilityRole="button" accessibilityLabel="배정 코스 변경">
+                {/* 지도로 보기 — 코스 선택을 폴드 밖으로 한 번 더 꺼내는 출구. 지도 화면은
+                    draft.routeId만 바꾸고 돌아오므로, candidate 확인 의식과 스냅샷 스탬프는
+                    이 화면이 계속 소유한다(게이트가 두 곳에 흩어지면 둘 다 반쪽이 된다). */}
+                <Pressable
+                  onPress={() => router.push('/owner/course-map')}
+                  style={[s.mapEntry, { marginTop: 12 }]}
+                  accessibilityRole="button"
+                  accessibilityLabel="코스를 지도로 보기"
+                >
+                  <Text style={{ fontSize: 14.5, fontWeight: '800', color: paper.ink }}>지도로 코스 보기</Text>
+                  <Text style={{ fontSize: 14, fontWeight: '800', color: paper.dim }}>›</Text>
+                </Pressable>
+
+                <Pressable onPress={() => setCourseOpen((v) => !v)} style={[s.foldRow, { marginTop: 8 }]} accessibilityRole="button" accessibilityLabel="배정 코스 변경">
                   <Row style={{ justifyContent: 'space-between' }}>
                     <Text style={{ flex: 1, fontSize: 14.5, color: paper.text }} numberOfLines={1}>
                       배정 코스 — <Text style={{ fontWeight: '800', color: paper.ink }}>{selRoute?.name ?? '미배정'}</Text>
@@ -1224,6 +1237,11 @@ const s = StyleSheet.create({
   // ── 페이퍼 크롬 (2026-08-10 리페인트) — 샤프 코너 · 코랄 1px · 잉크 선택 문법 ──
   // [2026-08-11 Ⓒ①] SectionHead(글리프 키커·서브) 은퇴 — §3b: 섹션 장식 없이 스텝 질문이 헤더다
   // km 불일치 고지 — 앰버는 시맨틱(대기/주의)이라 생존, 크롬만 샤프 (pending 잉크 + 1px 보더)
+  mapEntry: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    borderWidth: 1.5, borderColor: paper.line, paddingHorizontal: 13,
+    minHeight: 44,   // 44pt 터치 타깃
+  },
   filterChip: {
     backgroundColor: '#FFFFFF', borderWidth: 1.5, borderColor: paper.line,
     paddingVertical: 7, paddingHorizontal: 12, alignSelf: 'flex-start',
