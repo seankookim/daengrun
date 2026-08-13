@@ -56,6 +56,29 @@ Deno.serve(handle(async (req) => {
       // 이미 내가 수락한 예약 재탭(낡은 푸시·인박스 카드) = 무동작 — 자기충돌 제외(.neq) 도입 후
       // 이 경로가 CAS 0행으로 흘러 "보호자가 지명을 변경했어요"라는 거짓 409가 되는 것 방지.
       if (bk.runner_id === uid && ["confirmed", "runner_enroute", "picked_up", "active"].includes(bk.status)) return { unchanged: true };
+      // [0092 ⑫] 작업 게이트 — 아직 양측 확인으로 돌아오지 않은 개를 들고 있으면 새 러닝을 못 받는다.
+      // Sean 2026-08-13: "pay the runner but dont let them make new runs until the dog is
+      // confirmed by both sides." 돈은 이미 풀렸고(반환·정산 경로 그대로), 대가는 '다음 일'이다.
+      //
+      // ⚠ 아래 시간 충돌 가드보다 **먼저** 선다. 충돌 가드는 명목 예정 창(km*8+25분)으로 겹침을
+      // 계산하므로, 예정 시간을 넘겨 길어진 귀가는 그 창을 벗어나 통과해버린다 — run-end 계획 §4가
+      // 이름 붙인 용량 구멍이 정확히 이것이다. 이 게이트는 벽시계와 무관하게 '개가 안 돌아왔다'만
+      // 본다. 순서를 바꾸면 미반환 러너가 충돌 없는 시간대의 예약을 받아간다.
+      {
+        const { data: gate, error: gErr } = await db.rpc("runner_work_gate", { p_runner: uid });
+        if (gErr) throw new HttpError(500, gErr.message);
+        if (gate?.gated) {
+          // 사유를 이름 붙여 돌려준다 — ⑫ 메모: 왜 막혔는지도, 무엇이 푸는지도 모르는 게이트는
+          // 설명 없는 정지이고, 이미 확인을 마친 러너에게 '확인하세요'라고 말하면 자기 행동에
+          // 대한 거짓말이 된다. waiting_on이 그 구분을 서버에서 이미 해준다.
+          const msg = gate.waiting_on === "owner"
+            ? "이전 러닝의 인계를 보호자가 아직 확인하지 않았어요 — 확인되면 바로 새 러닝을 받을 수 있어요"
+            : gate.waiting_on === "runner"
+            ? "이전 러닝의 인계 확인이 남아 있어요 — 인계를 확인하면 새 러닝을 받을 수 있어요"
+            : "이전 러닝의 인계가 양측 확인으로 끝나지 않았어요 — 인계를 마치면 새 러닝을 받을 수 있어요";
+          throw new HttpError(409, msg);
+        }
+      }
       // 수락 시점 시간 충돌 가드 — 러너의 다른 라이브 예약과 겹치면 이중 계약 차단 (감사 ①).
       // is_slot_available을 안 쓰는 이유: 그 함수는 가용시간 '규칙'까지 검사하는데, find-now 오픈
       // 브로드캐스트는 규칙 밖 시간에도 '지금 온라인'이면 받을 수 있어야 한다 — 충돌만 검사.
