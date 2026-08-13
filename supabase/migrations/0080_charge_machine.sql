@@ -304,7 +304,7 @@ basis = min(actual, planned) · owner_request/owner_forced = exactly planned (D2
 runner_personal = distance component only (#10) · dog_condition/incident = 0 / g1_waive
 (🔴 Sean''s open G1 call, provisional) · 0 < amount < 100 = 0 / below_pg_minimum (the PG refuses
 sub-₩100 charges, so minting one would manufacture debt) · unknown end_reason raises.
-Pinned by 115 C1-C4, C23';
+Pinned by 116 C1-C4, C23';
 
 -- ═══════════════════════════════════════════════════════════════════════════════════════
 -- §E the mints — one row per collectable event, and never a second one

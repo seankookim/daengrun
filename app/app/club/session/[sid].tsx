@@ -610,6 +610,13 @@ export default function ClubSessionShell() {
         : m.includes('not_payable') ? '승인 상태가 바뀌었어요 — 새로고침해 주세요'
         : m.includes('session_closed') ? '이미 시작됐거나 닫힌 세션이에요'
         : m.includes('route_required') ? '세션 코스가 아직 없어요 — 호스트에게 문의해주세요'
+        // [0081] 클럽도 마켓플레이스·반복 예약과 같은 두 게이트를 지난다. 두 문장 모두 돈 문제를
+        // 숨기지 않는다 — 잠금은 조용하면 안 되고(§0-bis 예외 모드), 해결 경로를 이름으로 준다.
+        // ⚠ 이 두 코드 문자열은 SQL과의 계약이다 (0081 §A의 raise exception). SQL 쪽 이름은
+        // 117_club_money_suite K1/K4가 리터럴로 박아두었지만 **이쪽은 핀이 없다** — 한쪽만
+        // 바꾸면 하네스는 초록인 채 보호자가 영문 코드를 보게 된다. 바꾸려면 양쪽을 같이.
+        : m.includes('unsettled_charge') ? '지난 러닝의 결제가 아직 처리되지 않아 새 예약이 잠겼어요 — 설정 › 결제 관리에서 해결하면 다시 신청할 수 있어요'
+        : m.includes('billing_key_required') ? '결제 수단이 등록되어 있지 않아요 — 설정 › 결제 관리에서 카드를 연결한 뒤 다시 시도해주세요'
         : m);
     } finally { setBusy(false); }
   };
