@@ -1,5 +1,19 @@
 # SESSION HANDOFF — 2026-08-13 · charge slice + club money gates SHIPPED · `redesign-v4` @ 534d2aa
 
+> 🔴 **STALE AS OF 2026-08-13 17:05 — READ THIS FIRST.** The deploy happened; this document
+> describes the world before it.
+> · **`db push` HAPPENED.** `0001`–`0091` are on the remote, every row `local == remote`.
+> Wherever this file says "nothing is deployed", that half is false.
+> · **`functions deploy` did NOT.** Production runs pre-0078 edge functions against a post-0091
+> schema. That is the correct half of the runbook order, but the deploy is **stopped mid-runbook**
+> — a state this document does not describe.
+> · **The `profiles` P0 is CLOSED in production**, verified externally with the anon key. This
+> file still calls it open. And the fix is `0088` **+ `0091`** — `0088` alone 403s every signup.
+> · **`payments_live_since` is still NULL**, so the inertness clause here remains true and is now
+> the single most important sentence in it.
+> · Next free migration is **0094 / suite 130**, not what any line below says.
+> Full inventory and consequences: `docs/retro-2026-08-13.md`.
+
 **Opener for the next session: "read docs/session-handoff.md fully, then continue."**
 Previous handoff: `docs/session-handoff-archive-20260812-final.md`. Plan of record:
 `docs/plans/payments-toss-plan.md` §0-bis/§0-ter (unchanged as design; this session BUILT it).
