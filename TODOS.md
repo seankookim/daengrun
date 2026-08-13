@@ -43,16 +43,32 @@ Deferred work, written down so it exists. Format: what / why / context / effort
 
 ## From money-model late amendments (2026-08-12 evening, Sean)
 
-- [ ] **Pace-state UI (owner + runner + Live Activities)** — live pace vs suggested
-  minimum: green = at/faster than suggestion, yellow = deviating slower. Suggested
-  minimum pace 8 min/km, strong-suggestion band 7~9 min/km, owner-adjustable in
-  preferences. Why: quality signal that polices the slow-stroll incentive without
-  ranking pace publicly (runner stats stay volume-led) and without money-bearing
-  thresholds. Context: completion is now minimum-DISTANCE only (dual time threshold
-  reversed — a time floor pays for walking the clock). Touches: live.tsx (owner),
-  runner live screen, owner-la Live Activity payloads (0053/owner_la rails), prefs
-  screen (pace suggestion field). Effort M → S. P2. Depends on: prefs field, LA
-  payload extension.
+- [x] **Pace-state UI (owner + runner + Live Activities)** — **BUILT 2026-08-13**
+  (plan + full /plan-design-review 3/10→9/10: `docs/plans/pace-state-ui-plan.md`;
+  lab picks Ⓐ②Ⓑ①Ⓒ②modⒹ② in `docs/labs/pace-state-lab.html`; commits
+  364ceb8→25034b1; harness 388→**397/0**, tsc clean, pace tests 52/0).
+  Shipped semantics (Sean's decisions D6-D13): state judges a ROLLING 3-MIN
+  window (displayed 페이스 stays cumulative) · two states + honest absence
+  (gate 0.3km+180s) · prev-latched hysteresis +15s · stale trumps pace AND
+  blanks the datum · 권장-family copy (codex's 기준 overruled) · threshold
+  frozen at run start (`runs.pace_suggest_sec`, 0078; runner self-write sealed
+  via 0057 guard, pin P9) · ambient-only (no push/haptic) · live-only (never in
+  runs stats/report). Prefs = dog.tsx 권장 최소 페이스 5-chip section
+  (`dogs.preferences.paceSuggestSec`; updateMyDog now MERGES the jsonb).
+  ⚠ Sean-gated: `supabase db push` (0078) + device verify; `fetchRunMeta`'s
+  42703 fallback in api.ts comes out in the cleanup commit AFTER the push.
+  Original spec kept below for provenance:
+  live pace vs suggested minimum: green = at/faster than suggestion, yellow =
+  deviating slower. Suggested minimum pace 8 min/km, strong-suggestion band
+  7~9 min/km, owner-adjustable in preferences. Why: quality signal that polices
+  the slow-stroll incentive without ranking pace publicly (runner stats stay
+  volume-led) and without money-bearing thresholds.
+- [ ] **Pace-state D-p2: fast-edge welfare question (logged 2026-08-13, not built)** —
+  the 7'00" band floor polices nothing: a 4'30" runner with a small dog shows
+  green. A "too fast for THIS dog" claim needs per-dog physiology (breed/weight/
+  age) we don't measure — building it now would be 측정처럼 보이는 비측정.
+  Revisit when fitness data can carry it. Effort M → S. P3. Depends on: per-dog
+  physiology data.
 - [ ] **Run-end flow: stop confirmation + 귀가 intermediary + return handoff** — run-end
   ≠ dog-home. Sequence: runner taps stop → confirmation dialog (early-end consequences
   named if under minimum distance) → 귀가 state ("집으로 가는 중", owner-visible on live,
