@@ -112,7 +112,34 @@ booking** (Sean's ruling ⑥ — never `now()`; `longest_inflight_booking_end()`
     run-end-flow session; mirrored in their plan so it sits in two documents that get read.
   · club price disclosure live (ruling ④ keeps 9,900 as a *stated* premium — the single
     disclosure is on the 승낙서, `app/app/club/delegate/[sid].tsx`)
-  · **the sweep is re-anchored on `runs.settled_at`** — run-end-flow's 0083 redefines
+  · **the sweep is re-anchored on `ledger_items`, and the setter REFUSES without it.**
+    ⚠ SUPERSEDES the `runs.settled_at` plan below — that column is client-forgeable and the
+    hole is bigger than "the sweep can't see a run". `0002_rls.sql:107` lets an assigned runner
+    INSERT a `runs` row with EVERY column pre-filled, and `_guard_run_cols` (0057:465) is
+    `before update` only. `sweep_settled_without_payments` selects on `runs.ended_at` and then
+    mints through `mint_settle_charge_intent` using `end_reason` and `actual_km` **read off
+    that same client-inserted row** — so post-cutover a runner could insert
+    `ended_at = now(), actual_km = 10, end_reason = 'completed'` for their own booking and the
+    sweep would charge the owner's card for a run that never happened. `settle_run_tx`'s atomic
+    claim protects the normal path; the sweep bypasses it by reading `runs` directly.
+    **The invariant sweep trusted client-writable data. That is ours, not the run-end slice's.**
+    Anchor on **`ledger_items`** instead: RLS on, exactly one policy (`self read`, 0002:124),
+    **no INSERT policy for any client role** — only `settle_run_tx` (definer) writes it. It is
+    the artifact of settlement having actually happened, in a table no client can reach.
+    Exclude the cancel-comp row by requiring a `runs` row and a non-cancel status; ledger
+    existence is not a status, so §0-ter #11 still holds. `runs.settled_at` remains the
+    semantic marker (money moved ≠ service stopped) but stops being load-bearing:
+    **an anchor in a client-insertable table is one policy change away from being forgeable
+    again, even after the guard lands.** Two independent facts beat one guarded one.
+    **And the checklist becomes code:** `set_payments_live_since` (0084:468) enforces only
+    `cutover_must_be_future`. It gains hard refusals — no flip while the sweep lacks its
+    predicate, none while a settled-but-uncharged booking exists in the shape it cannot see.
+    A checklist is advice; a refusal is a gate, and the 2am operator cannot skip a gate by
+    not reading a header.
+    SEQUENCING (forced, agreed with run-end-flow): their `runs` INSERT lockdown + atomic
+    `start_run_tx` + BEFORE INSERT guard land in 0083 FIRST; our re-anchor and the setter
+    refusals land after, because the harness must see their guard to pin ours.
+  · ~~the sweep is re-anchored on `runs.settled_at`~~ (superseded, kept for the reasoning) — run-end-flow's 0083 redefines
     `runs.ended_at` as service-STOP time, which opens a hole in MY
     `sweep_settled_without_payments`: it would see a run that stopped, not yet returned, and
     mint a charge for a dog still on the leash. One predicate closes it, in my file, after
@@ -125,6 +152,28 @@ booking** (Sean's ruling ⑥ — never `now()`; `longest_inflight_booking_end()`
     presence (0081 writes a ledger row for a CANCELLED booking, which is not a run).
     **Note the window: the hole opens when 0083 merges and closes when that migration lands.
     Charging is off throughout, which is why this is a cutover gate and not an incident.**
+    ⚠ **AND THE PIN MUST GO RED WITHOUT THE PREDICATE.** 0083's adversarial round demonstrated
+    scenario B *inside a green harness*: `116_charge_suite.sql:209` sets
+    `payments_live_since = now() - interval '7 days'`, so the suite deliberately switches the
+    cutover flag ON in order to test anything at all — which disables the exact production
+    bound (`0080:579-580`, null flag → return 0) that makes this safe today. A suite that turns
+    off the guard cannot notice a missing predicate behind it. So the fix ships with a pin that
+    is RED without `and rn.settled_at is not null` and green with it; adding the predicate
+    without that pin leaves the same blind spot one migration later.
+    The general form, from the same round and worth more than the specific fix: **a green suite
+    proves the pins pass, not that the path is covered.** Both 0083 blockers had green pins —
+    one tested a helper instead of the shipping path, the other asserted an escalation happened
+    without asking whether money could still move afterwards.
+
+## 3-bis. 🔴 P0 OPEN IN PRODUCTION — `profiles` leaks `phone` + `toss_customer_key` to anon
+
+`docs/security-profiles-column-exposure.md`. `0002_rls.sql:56`'s read policy has no
+`auth.uid()` term, and no column grant exists — so anyone holding the app's public anon key
+reads every verified runner's row. Verified by execution, not inspection: `set local role
+anon; select phone, toss_customer_key from profiles` → 101 rows. Fixed in `0088` (verified
+both directions, harness 477/0) and **NOT DEPLOYED** — it closes at the next `db push`, which
+is held. Open since 0002, so not a regression, but live. **Sean's call: does this change
+deploy timing?** The alternative is shipping 0076–0088 onto a live DB at 0074 early.
 
 ## 4. Pending on Sean
 
@@ -217,3 +266,142 @@ on origin BEFORE writing** — 0083/0084 are disputed there, procedure named in 
 - Toss docs demo keys + the 15-day idempotency facts are recorded in plan §5's banner.
 - Migration/suite numbers: verify against CURRENT redesign-v4 at merge time, not at
   branch time (0078 was claimed three times today).
+
+---
+
+# 세션 핸드오프 — 2026-08-13 (오후) 루트 트랙: 0082 사다리 · K4/K5 · 지도 브라우즈 설계
+
+읽을 동반 문서: `docs/plans/route-discovery-recommendation-plan.md` (정본 — autoplan 리뷰 전문 + K6/T1 빌드 스펙) ·
+`docs/design/k6-map-browse-lab.html` (Sean이 A안 확정) · `supabase/migrations/REGISTRY.md` (번호 청구 원장) ·
+체크포인트 `~/.gstack/projects/seankookim-daengrun/checkpoints/route-track-20260813.md`
+
+## 1. 이 세션이 한 일 — 전부 push 완료, **배포 없음**
+
+| 커밋 | 내용 |
+|---|---|
+| `7133738` | 플랜 (autoplan: CEO+디자인+엔지니어링 각 2보이스). Sean 게이트에서 Kernel+Browse v0으로 재스코프 |
+| `a95aa34` | **0082_route_ladder** + 스위트 118 — 상태 사다리, `active` GENERATED, RLS `using(true)`, 승격 함수. 뮤테이션 검증 완료 |
+| `81c071b` | create-booking-hold 코스 게이트 (suspended/retired 409 · candidate는 ack 필요 · km 엄격 타입 · 날짜 검증) |
+| `dbff51b` | 레포 위생 — 미추적 비즈니스 문서 7종 백업, 에이전트 툴링 ignore, CLAUDE.md 번호 법 |
+| `a8a17aa` | **K4** 실좌표 트레이스 — `traceToBox`(종횡비 보존), 버그 사본 4개 은퇴, `fetchRouteById` |
+| `7c61837` | **K5 코어** — candidate 자동선택 금지(경로 3곳), 수동 선택 끈적임, 선택 스냅샷 |
+| `e34298a` | **K5 칩** — 흙길/그늘/조명, 폴드 **밖**, 자동배정과 합성, 어두운 슬롯에 조명 자동 켜짐 |
+| `845c76e` | REGISTRY: 0082 이넘 독립성 |
+| `fe09b5b`·`722ff40`·`dbf8114` | K7 스파이크 + K6 랩 3안 + 지도 브라우즈 랩 3안 |
+
+**게이트: 하네스 461/0 · tsc 클린 · deno 142/0** (0084 합류 트리 기준 재측정).
+
+## 2. Sean 결정 (이 세션)
+
+- **D1 = C** 커널+브라우즈 v0 (전체 스케일링 머신 대신)
+- **D-VIS = A** candidate는 **의도적으로만** 예약 가능 (자동선택 금지 · 앰버 포스처 · 서버 ack 게이트 · PR-0 분모 제외)
+- **T-KM = A** 의도적 코스 선택 시 **코스 km이 권위** — 인라인 가격 델타 동의 시트 (자동배정은 절대 km을 바꾸지 않는다)
+- **C+B 선택** (루트 표면 + 돈 흐르게) — 한강 이벤트 대신. **반증 조건: 어떤 경로로든 실예약 5건. 재검토일 2026-09-13**
+- **지도 브라우즈 = A안** (3단 시트: peek/list/detail). 빌드 스펙은 플랜 §K6/T1에 기록됨
+
+## 3. ⚠ Sean에게 걸린 것 (둘 다 미해결)
+
+1. **사업자등록을 아직 내지 마세요.** `launch-checklist.md:48-51` — 예비창업패키지 2027(~₩40M, 무등록 요구)과
+   **되돌릴 수 없는 갈림길**. 그리고 돈은 **등록 없이도 움직인다**: `:29`의 최단 유료 경로와 `:62-63`의
+   수동 계좌이체 브리지(`payments.md:26-28`)는 PG도 사업자등록도 요구하지 않는다. 사업자등록이 막는 건
+   **Toss PG**지 매출이 아니다. (이 세션에서 제가 "이번 주에 내세요"라고 잘못 조언했다가 철회했습니다.)
+2. **PR-0 계측은 코드에 존재하지만 값은 0.** 실예약이 흐르기 전까지 킬 라인은 발화할 수 없다.
+
+## 4. 다음 세션이 바로 할 일
+
+1. ~~[빌드] 지도 브라우즈 A안~~ **완료 (`07731ae`)** · ~~후속 중복 제거 2건~~ **완료 (`8389914`)**
+2. ~~[빌드] K7 러너 지도~~ **완료 (`59a55ec`)**
+3. **[Sean] 사업자등록 갈림길 판정** — 이게 결정될 때까지 돈 경로는 수동 브리지로 간다.
+4. **[Sean] 실기기 스모크** — `docs/design/device-smoke-map-screens.md` (A1-A11 보호자 지도 ·
+   B1-B14 러너 지도). Claude는 하드웨어를 돌리지 않았다 — **전부 미검증**이다.
+   특히 B2(대시가 실제로 대시로 그려지는가) · B5(러닝 전 '내 위치로'가 OS 권한 시트를 띄우지
+   않는가) · B8(팔로우에서 내 점이 두 개로 보이는가) 셋은 시뮬레이터로 답이 안 나온다.
+
+---
+
+# 세션 핸드오프 — 2026-08-13 (저녁) 루트 트랙: 중복 제거 + K7
+
+## 1. 이 세션이 한 일 — 커밋 완료, **푸시·배포 없음**, 마이그레이션 0건
+
+| 커밋 | 내용 |
+|---|---|
+| `8389914` | **중복 제거 2건** — K5 칩 → `src/components/route-chips.tsx` · 코스 상세 본문 → `src/components/course-detail.tsx` |
+| `59a55ec` | **K7 러너 지도** — 컨트롤드 `camera` 은퇴, `initialCamera`+ref, 대시 코스선, 팬 오버라이드 |
+
+**게이트: tsc 클린 · check-rpc 82/144 · deno 161/0.** 하네스는 돌리지 않았다 — **서버 변경이 0**이다
+(마이그레이션·엣지 함수·SQL 어느 것도 건드리지 않았다).
+
+## 2. 중복이 이미 갈라져 있었다 — 그게 이 작업의 요점
+
+두 중복 모두 "아직 안 갈라졌으니 나중에"가 아니라 **이미 갈라진 채로** 있었다:
+
+- **칩**: 같은 술어(`shade === 'high'`)에 라벨이 둘이었다 — 지도 '그늘', 요청 '그늘 많음'.
+  그리고 **조명 자동켜짐이 요청 화면에만** 있었다. 지도 화면은 슬롯이 정해진 **뒤** 들어오는
+  화면인데, 새벽 05시 예약으로 들어와도 유일한 안전 필터가 꺼져 있었다.
+  빈 결과 카피도 고쳤다: 켜진 칩을 하나만 이름 대고 있었고(흙길+그늘 → '그늘 많은 코스가…'),
+  칩이 **하나도 안 켜졌는데** 목록이 빈 경우에도 '흙길 코스가 아직 없어요'라고 거짓말했다.
+- **상세 본문**: 시트는 메타 3축이 있고 특징·태그·사진이 없었고, `course/[id]`는 특징·태그·사진이
+  있고 **그늘·조명을 아예 표시하지 않았다** — 칩이 거르는 두 축을 상세에서 볼 수 없었다는 뜻이다.
+  본문이 하나가 되면서 그 구멍이 구조적으로 닫혔다. `course/[id]` 크롬도 같은 커밋에서 페이퍼
+  문법으로 옮겼다(공용 본문만 페이퍼로 두면 한 화면에 세계가 둘이 된다). **실지도 히어로는
+  여전히 K4의 남은 항목이다.**
+
+## 3. K7에서 스파이크가 틀렸던 것 3가지 (스파이크 문서에 부록으로 반영함)
+
+측정은 **타입이 아니라 라이브러리 소스**를 따라가서 나왔다:
+
+1. **`NaverMapPolylineOverlay.pattern`은 죽은 프롭이다.** 타입에도 네이티브 스펙에도 있지만
+   JS 컴포넌트가 네이티브로 **전달하지 않는다** — 대시 배열을 넣으면 조용히 실선이 된다.
+   `PathOverlay.patternImage`만 양 플랫폼에서 실제로 전달된다. **선언된 프롭 ≠ 배선된 프롭.**
+2. **`setLocationTrackingMode('Follow')`는 SDK 자기 위치 소스를 붙인다** (Android
+   `FusedLocationSource`, iOS `NMFMyPositionDirection`). 그래서 **OS 권한 시트를 띄운다** —
+   이 앱에선 그 시트가 한 번뿐이고 `beginRun`의 rationale이 그 앞에 서야 한다. 그래서
+   **러닝 전 '내 위치로'는 추적 모드를 켜지 않는다** (접근 구도로만 되돌린다).
+3. **앵커 컬럼은 여전히 소비 금지다.** 0078의 "근사값 — 소비 금지"가 유효하고 0082 승격이
+   검증 트레이스 시작점으로 그 값을 확정하므로, **검증된 트레이스의 첫 점이 곧 확정 앵커**이고
+   트레이스가 없으면 앵커도 없다. K5의 '앵커만 표시돼요' 카피는 소비 가능한 앵커 컬럼을 전제로
+   쓰였고 그대로 두면 거짓이 된다 — 출하 카피는 "코스 선 없이 내 기록만 그려져요"다.
+
+## 4. 건드리지 않은 것 (의도)
+
+- **오프루트 감지·진행 투영 = T5.** 만들지도, 스텁도 두지 않았다.
+- **추적 싱글턴·정산 루프·오버런 상한·라이브 액티비티**: 한 줄도 안 건드렸다. K7은 렌더와
+  카메라만 바꾼다 (스모크 B9가 그 회귀 확인이다).
+- **하네스**: 서버 변경 0이라 돌리지 않았다. 마지막 알려진 값은 461/0 그대로다.
+
+## 5. Sean에게 걸린 것 (변동 없음, 묻히지 말 것)
+
+1. **사업자등록을 아직 내지 마세요** — 예비창업패키지 2027(~₩40M, 무등록 요구)과 되돌릴 수 없는
+   갈림길. 돈은 등록 없이도 수동 계좌이체 브리지(`payments.md:26-28`)로 움직인다.
+2. **PR-0은 코드에 있고 값은 0.** 실예약이 흐르기 전까지 지도/스코어링 킬 라인(30건 후 override
+   <20%)은 발화할 수 없다.
+3. **실기기 스모크가 미검증 상태로 남아 있다** (§4-4). 화면 결과를 제가 주장하지 않았다.
+
+## 5. 이 세션에서 배운 교차 세션 법칙 (전부 CLAUDE.md/REGISTRY에 반영됨)
+
+- **번호는 origin의 REGISTRY.md에서** 청구한다. `ls`는 목록이 아니다 — 그리고 렉시컬 정렬이라 `117_`이 `97_`보다 앞에 온다.
+  **시퀀스의 구멍은 공석이 아니라 청구된 자리다** (0083이 그 예).
+- **이넘 값 추가는 자기 파일에.** `alter type ... add value` + 같은 트랜잭션 사용은 하네스 `--single-transaction`에서
+  터진다(= `db push`와 동일). 오토커밋에서는 통과해서 더 위험하다.
+- **0082는 이넘 독립적이다** — `promote_route_from_run`이 `end_reason='completed'`만 보므로 이넘 값이 늘어도
+  코스 승격에 닿지 않는다. 이 성질이 깨지면 REGISTRY도 같이 고칠 것.
+- **잘못된 방송은 원본과 같은 도달범위로 철회한다.** (제가 `0084:188`을 "낡은 코드"라고 오독→방송→철회했습니다.
+  그 줄은 `compute_owner_charge`(보호자 원장) 안이고, ⑨는 **러너** 지급을 바꾼다. 줄이 낡았다고 말하기 전에
+  **감싸는 함수**를 먼저 확인할 것.)
+- **`git remote set-head`는 클론당 1회** (`refs/remotes`는 워크트리 공유). 워크트리마다 다른 건 **베이스**다.
+- `redesign-v4`가 GitHub 기본 브랜치가 됐고 **`main`은 삭제**됐다 — 새 워크트리가 낡은 채 태어나던 원인이 제거됨.
+
+## 6. 알려진 상태 — "고치지" 말 것
+
+- **반포 시드 9개는 전부 `candidate` + `trace='[]'`가 정상**이다. 파운더 워크(개 동반 완주)만이 활성화 경로다.
+- **`fetchCoursePatches`가 전 상태를 읽는 것은 의도**다 — earned 패치는 상태 무관(은퇴한 코스가 달린 기록을
+  지우지 않는다), locked만 active. 사다리 도입 때 candidate 완주 패치가 사라지던 버그를 고친 것.
+- **`compute_owner_charge`의 `runner_personal_distance_only` 팔은 낡지 않았다** (⑨는 러너 측만 바꾼다).
+- 워크트리 `keen-maxwell-add64d`는 `dacf789`에 269 커밋 뒤처져 있다 — 이 세션의 모든 작업은 **메인 체크아웃**에서 했다.
+
+## 7. 환경 (이전 핸드오프에 추가)
+
+- **deno는 이제 `brew install deno` (2.9.5)** — 예전 핸드오프가 가리키던 세션 스크래치패드 경로는 사라졌다.
+- 하네스는 워크트리에서 못 돈다(유닉스 소켓 경로 한계) — 메인 체크아웃에서 실행.
+- `git pull --rebase origin redesign-v4`처럼 브랜치를 명시하면 `origin/HEAD` 갱신 이후 "Cannot rebase onto
+  multiple branches"가 난다. 그냥 `git pull --rebase`를 쓸 것(트래킹 설정이 해결).

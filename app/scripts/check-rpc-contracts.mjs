@@ -3,13 +3,33 @@
 // 잡는 것: 없는 함수 호출 · 필수 인자 누락 · 미지의 인자 (ownerObjection p_kind 누락 사례의 부류)
 // 못 잡는 것: 인자 타입 불일치 · 서버 게이트(auth.uid() 조건 — 누구의 액션인지)는 함수 본문을 읽어야 한다
 // 실행: node scripts/check-rpc-contracts.mjs  (app/ 에서) — tsc와 함께 커밋 전 게이트
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const migDir = join(root, 'supabase', 'migrations');
 const apiPath = join(root, 'app', 'src', 'lib', 'api.ts');
+const fnDir = join(root, 'supabase', 'functions');
+
+// [2026-08-13] EDGE FUNCTIONS ARE CHECKED TOO, and this is the more important half.
+// This script used to read api.ts alone — so every rpc the CLIENT makes was contract-checked
+// while every rpc the MONEY PATH makes was checked by nothing: settle_run_tx,
+// mint_settle_charge_intent, mint_cancel_fee_intent, compute_runner_personal_payout,
+// record_enroute_cancel_comp, record_late_cancel_share, ops_recipients_for,
+// owner_has_unsettled_charge, marketplace_cancel_fee. The Deno suite FAKES all of them, so an
+// arg renamed in SQL leaves both gates green and only the deployed function fails.
+// That is the class three separate findings hit in one day (2026-08-13): the suite pins the
+// primitive, the product ships the path, and nothing tested the join.
+function tsFilesUnder(dir) {
+  const out = [];
+  for (const e of readdirSync(dir)) {
+    const full = join(dir, e);
+    if (statSync(full).isDirectory()) { if (e !== '_test') out.push(...tsFilesUnder(full)); }
+    else if (e.endsWith('.ts')) out.push(full);
+  }
+  return out;
+}
 
 // ---------- 시그니처 수집 (같은 이름 다른 인자 = 오버로드, 전부 유효) ----------
 const sigs = new Map(); // name -> [ [ {name, hasDefault} ] ]
@@ -39,25 +59,31 @@ for (const f of readdirSync(migDir).filter((x) => x.endsWith('.sql')).sort()) {
   }
 }
 
-// ---------- api.ts의 rpc 호출 수집 ----------
-const src = readFileSync(apiPath, 'utf8');
+// ---------- rpc 호출 수집: api.ts + 모든 엣지 함수 ----------
+// 따옴표 두 종류 모두 — 클라는 '작은', 엣지 함수는 "큰" 따옴표를 쓴다. 호출자도 두 종류
+// (`supabase.rpc` / `clubRpc` / 엣지의 `db.rpc`·`userDb.rpc`) 라 식별자 뒤 `.rpc(` 로 받는다.
 const calls = [];
-const RE_CALL = /(?:clubRpc|supabase\.rpc)\(\s*'(\w+)'\s*(?:,\s*\{([\s\S]*?)\})?\s*\)/g;
-let c;
-while ((c = RE_CALL.exec(src)) !== null) {
-  let body = c[2] ?? '';
-  let prev = null; // 중첩 객체 리터럴 제거 — 최상위 키만 계약 대상
-  while (prev !== body) { prev = body; body = body.replace(/\{[^{}]*\}/g, ''); }
-  const keys = [...body.matchAll(/(?:^|[,\s])([A-Za-z_]\w*)\s*:/g)].map((k) => k[1]);
-  const line = src.slice(0, c.index).split('\n').length;
-  calls.push({ name: c[1], keys, line });
+const RE_CALL = /(?:clubRpc|[A-Za-z_$][\w$]*\.rpc)\(\s*['"](\w+)['"]\s*(?:,\s*\{([\s\S]*?)\})?\s*\)/g;
+for (const file of [apiPath, ...tsFilesUnder(fnDir)]) {
+  const src = readFileSync(file, 'utf8');
+  const label = file === apiPath ? 'api.ts' : file.slice(root.length + 1);
+  let c;
+  RE_CALL.lastIndex = 0;
+  while ((c = RE_CALL.exec(src)) !== null) {
+    let body = c[2] ?? '';
+    let prev = null; // 중첩 객체 리터럴 제거 — 최상위 키만 계약 대상
+    while (prev !== body) { prev = body; body = body.replace(/\{[^{}]*\}/g, ''); }
+    const keys = [...body.matchAll(/(?:^|[,\s])([A-Za-z_]\w*)\s*:/g)].map((k) => k[1]);
+    const line = src.slice(0, c.index).split('\n').length;
+    calls.push({ name: c[1], keys, line, label });
+  }
 }
 
 // ---------- 대조 ----------
 const errors = [];
-for (const { name, keys, line } of calls) {
+for (const { name, keys, line, label } of calls) {
   const variants = sigs.get(name);
-  if (!variants) { errors.push(`api.ts L${line}: ${name} — 함수가 마이그레이션에 없음`); continue; }
+  if (!variants) { errors.push(`${label} L${line}: ${name} — 함수가 마이그레이션에 없음`); continue; }
   const fits = variants.some((v) => {
     const names = v.map((p) => p.name);
     const required = v.filter((p) => !p.hasDefault).map((p) => p.name);
@@ -67,7 +93,7 @@ for (const { name, keys, line } of calls) {
     const best = variants[variants.length - 1];
     const missing = best.filter((p) => !p.hasDefault && !keys.includes(p.name)).map((p) => p.name);
     const unknown = keys.filter((k) => !best.some((p) => p.name === k));
-    errors.push(`api.ts L${line}: ${name} — ${missing.length ? `필수 인자 누락 ${JSON.stringify(missing)}` : ''}${missing.length && unknown.length ? ' / ' : ''}${unknown.length ? `미지의 인자 ${JSON.stringify(unknown)}` : ''}`);
+    errors.push(`${label} L${line}: ${name} — ${missing.length ? `필수 인자 누락 ${JSON.stringify(missing)}` : ''}${missing.length && unknown.length ? ' / ' : ''}${unknown.length ? `미지의 인자 ${JSON.stringify(unknown)}` : ''}`);
   }
 }
 

@@ -73,3 +73,101 @@ not evidence.
   runner's settlement. Settlement never waits on collection (§0-ter ordering law).
 - Pin: a single-sided confirmation does not resolve the waive; both do; the runner's ledger is
   untouched in every branch.
+
+## How to TEST it (0083's adversarial round, 2026-08-13 — read before writing pins)
+
+`0083` was held off the trunk by two blockers found in code carrying **475 green pins**. The
+session's own summary: *"Both pins measured the symptom the design intended and stopped one
+question short."*
+
+- **F1** pinned the *helper* (`_settle_sealed_run`) rather than the path that ships
+  (`settle-run/handler.ts:113` calls `settle_run_tx` directly with the client's `actual_km`
+  and `end_reason`). The one direct probe passed numbers that already matched the frozen row,
+  so **a mismatch was never attempted anywhere in the suite** — the seal checked whether the
+  dog was home, never whether the numbers matched what was frozen.
+- **F2** pinned that the 2h escalation *fires* and that no ledger row appeared — never whether
+  money could still move afterwards. It cannot: the state's only commercial exit is club-only,
+  so a marketplace runner becomes permanently unpayable.
+
+**Therefore, for ⑪ specifically:** pin the **shipping entry point**, not the primitive. And
+⑪ is a two-sided gate whose entire value is *refusing* — so a suite that only ever exercises
+both parties agreeing proves nothing about the refusal. Attempt the mismatch: one side only,
+the wrong party, a stamp after the window, a forged stamp on INSERT, the same side twice.
+Then ask F2's question about every terminal state you create: **can money still move out of
+it, and by which exit?**
+
+This is `README.md`'s rule 3 in a different medium. A passing suite is a well-formed artifact:
+475/0 read as coverage and was 475 pins each stopping one question short of the thing they
+appeared to prove.
+
+## Before ⑪ ships — two items for Sean, and one fact to verify first
+
+Both surfaced from the ⑪ / `0088` interaction (announcer + payments sessions, 2026-08-13):
+
+0. 🔴 **⑪ CONFLICTS WITH A WRITTEN COMMITMENT — resolve that before building, not after.**
+   `docs/appstore-privacy-answers.md:27` declares the phone number's purpose as
+   **"App functionality — contact during handoff."** ⑪ as ruled exposes a counterparty's real
+   number **during an incident** (the payments session reads the ruling as *"at all times"*).
+   Either reading is **broader than handoff-contact**, so shipping ⑪ against that row makes a
+   written answer inaccurate — a different and worse problem than an undisclosed feature.
+   Two things to establish first, in order:
+   · **Has that questionnaire been filed with Apple yet?** The file's header says it exists "to
+     fill the App Store Connect privacy questionnaire", and nothing marks it as submitted — the
+     app appears to be pre-submission (TestFlight) — so this is probably *amend before filing*
+     rather than *correct a filed answer*. Probably is not good enough; check.
+   · Either way **the declared purpose must move before ⑪ ships.** That file states its own
+     rule: *"Re-audit this file whenever a new table, bucket, or third-party SDK lands. A privacy
+     label that does not match behavior is a rejection risk on review and a compliance problem
+     after launch."* ⑪ trips exactly that rule.
+   ⚠ A builder reading ⑪ has no reason to open an App Store answers doc — which is why this is
+   here rather than in a queue.
+
+1. **The privacy-policy line must ship BEFORE ⑪ does.** A two-sided incident confirmation means
+   a counterparty may see the other party's real phone number, and that needs disclosing. The
+   Korean norm we would be departing from is **안심번호** — a masked relay, the pattern Kakao T
+   uses. Not following it is defensible for a pilot, but it is a trade-off Sean should confirm
+   **knowingly rather than inherit** from a build decision. 🟡 his call, queued.
+   📎 `docs/feature-audit.md` already discusses 안심번호 — the masked-relay alternative has prior
+   consideration in this repo, so whoever writes ⑪'s privacy line reads that first rather than
+   re-deriving the trade-off.
+2. **`profiles.phone` may be null in practice — verify before designing against it.** It is
+   `phone text` (nullable), annotated *"PASS 본인인증 후 확정"*, and PASS looks unintegrated, so
+   ⑪ could render an empty row where it promises a contact. Note that
+   `0062_runner_applications.sql:380` declares `phone text not null` — the real data may live on
+   the application rather than the profile. Whoever builds ⑪ confirms which source is
+   authoritative before the design assumes one; this is exactly the "verify, don't relay" check,
+   and the answer changes the screen.
+
+## ⑪-bis Phone numbers on the incident screen (Sean, 2026-08-13, direct)
+
+**His words, in the charge-slice session, immediately after picking B1:**
+*"b1, and show each other's phone numbers on the screen at all times."*
+
+Recorded here because 0088's builder correctly refused to treat a relayed version as authority
+and flagged that the requirement appeared nowhere in the repo — right by the rule this set
+runs on. This entry is the human's own words on origin, so it is now buildable.
+
+**Scope as built, which is NARROWER than "at all times" and deliberately so.** 0088 ships
+`incident_contact(p_booking)` — a definer, party-gated, returning the two parties' numbers
+**only while an incident is open** (`incidents.resolved_at is null`), zero rows otherwise, and
+zero rows (never an error) for a non-party, since distinguishing the two is an oracle over
+which bookings have live incidents. Reasons the narrower scope is the right reading:
+- `docs/appstore-privacy-answers.md:27` declares phone collection as **"contact during
+  handoff."** "At all times" is broader than what has been filed; if that went to Apple,
+  shipping the literal reading makes a *filed answer* inaccurate. Open-incident-only is much
+  closer to the declared purpose, and a later widening then has to cross a documented line
+  rather than drift over it.
+- The ordinary `profiles` path refuses `phone` to everyone after 0088, so this function is the
+  only door — which is what stops the next person re-granting the column to unblock ⑪.
+
+**⚠ TWO PREREQUISITES, both verified absent — ⑪ renders nothing until they exist:**
+1. **`profiles.phone` is written by NOTHING** — no migration, no edge function, no client. PASS
+   is unintegrated. (`runner_applications.contact_phone` and `emergency_contacts.phone` are
+   different columns and are never copied across.)
+2. **`incidents` rows are written by NOTHING either** — `sendSOS` only inserts a notification.
+   So the open-incident gate has nothing to open on.
+
+**Before it ships:** the privacy policy and the App Store filing must be amended to say the
+counterparty sees a real number during an incident, and Sean should confirm knowingly that we
+are NOT doing 안심번호 (masked relay, the Kakao T pattern) — `docs/feature-audit.md` already
+discusses it, so this is a re-decision, not a new trade-off.

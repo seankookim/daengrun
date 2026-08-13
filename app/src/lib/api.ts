@@ -473,6 +473,11 @@ export interface PaymentRecord {
   refundedAmount: number;
   createdAt: string;
   needsCardRelink: boolean; // raw.needs_card_relink — 일반 거절과 다른 상태 (§0-ter 에러 맵)
+  // raw.review — 0084 §B가 `incident` 무청구에 찍는 검토 표식. 세 번째 조각을 꺼내는 이유:
+  // 이게 없으면 **검토 중인 0원과 확정된 0원이 화면에서 같은 말**이 된다('청구 없음'). 사건이
+  // 열려 있는데 보호자는 '없던 일'로 읽는다. raw를 통째로 열지 않고 불리언 하나만 꺼내는 것이
+  // 이 투영의 규율(두 조각→세 조각)을 깨지 않는 유일한 방법이다.
+  underReview: boolean;
   lastError: string | null; // raw.last_error — 거절을 이름으로 말하기 위한 한 줄
   dogName: string | null;
   scheduledAt: string | null;
@@ -499,6 +504,9 @@ function toPaymentRecord(r: any): PaymentRecord {
     refundedAmount: Number(r.refunded_amount ?? 0),
     createdAt: r.created_at,
     needsCardRelink: r.raw?.needs_card_relink === true,
+    // 해소는 `review_resolved_at`의 부재로 판정한다 (0084 §C와 같은 문장). 오늘 그 키를 쓰는
+    // 코드는 없으므로 — 0072의 케이스 정산이 쓰게 될 자리다 — 표식이 있으면 곧 검토 중이다.
+    underReview: r.raw?.review === 'incident_pending' && !r.raw?.review_resolved_at,
     lastError: rawError(r.raw),
     dogName: r.bookings?.dogs?.name ?? null,
     scheduledAt: r.bookings?.scheduled_at ?? null,
@@ -1667,6 +1675,10 @@ export interface MeetupInfo {
   dogMemo: string | null;
   dogPhotoUrl: string | null;
   routeName: string;
+  // K7: 러너 지도가 코스 선을 그리려면 **어느 코스인지**를 알아야 한다. 트레이스 자체는 여기서
+  // 싣지 않는다 — 목록/컨텍스트 셀렉트에 수백 점을 태우지 않는 것이 0082 K1의 규약이고,
+  // 상세는 fetchRouteById(K2)가 라이프사이클 상태와 함께 돌려준다 (정지된 코스도 읽는다).
+  routeId: string | null;
   km: number;
   paceLabel: string;
   when: string;
@@ -1683,7 +1695,7 @@ export async function fetchMeetupInfo(bookingId: string): Promise<MeetupInfo> {
     .from('bookings')
     // `preferences` rides the EXISTING dogs embed (no new join, so no PostgREST FK
     // ambiguity); the jsonb is unwrapped client-side rather than via `->>` in the select.
-    .select('scheduled_at, km, pace_label, routes(name), dogs(name, breed, weight_kg, memo, photo_url, preferences), runners(profiles(name))')
+    .select('scheduled_at, km, pace_label, route_id, routes(name), dogs(name, breed, weight_kg, memo, photo_url, preferences), runners(profiles(name))')
     .eq('id', bookingId)
     .single();
   if (error) throw error;
@@ -1697,6 +1709,7 @@ export async function fetchMeetupInfo(bookingId: string): Promise<MeetupInfo> {
     dogMemo: d.dogs?.memo ?? null,
     dogPhotoUrl: d.dogs?.photo_url ?? null,
     routeName: d.routes?.name ?? '코스 미지정',
+    routeId: d.route_id ?? null,
     km: Number(d.km),
     paceLabel: d.pace_label ?? "보통 7'",
     when: `${dateLabel} ${timeLabel}`,
@@ -3523,7 +3536,14 @@ export interface RunReport {
   runnerName: string | null;
   runnerProfileId: string | null;
   routeId: string | null;
-  plannedKm: number; paceLabel: string; price: number; status: string;
+  plannedKm: number; paceLabel: string; status: string;
+  // NO `price`, deliberately. It carried `bookings.total_price` — the FROZEN PLANNED total —
+  // and report.tsx rendered it under the label 결제 금액, which is not what the owner was
+  // charged for any early-ended run (compute_owner_charge bills `least(actual, km)`, and
+  // `runner_personal` drops base + addons). Removed rather than corrected: §0-bis puts the
+  // post-run moment on the record card, never the charge, and the real amount lives in the
+  // `payments` rows that /payments reads. Do not re-add a price here to "complete" the type —
+  // a screen that has the number will eventually print it.
   run: null | {
     actualKm: number; durationSec: number; paceSecPerKm: number | null;
     endReason: string | null; conditionNote: string | null; photos: string[];
@@ -3535,7 +3555,7 @@ export interface RunReport {
 export async function fetchRunReport(bookingId: string): Promise<RunReport> {
   const { data, error } = await supabase
     .from('bookings')
-    .select('scheduled_at, km, pace_label, total_price, status, runner_id, route_id, routes(name, area), dogs(name), runners(profiles(name)), runs(actual_km, duration_sec, avg_pace_sec_per_km, end_reason, condition_note, photos, events, trace)')
+    .select('scheduled_at, km, pace_label, status, runner_id, route_id, routes(name, area), dogs(name), runners(profiles(name)), runs(actual_km, duration_sec, avg_pace_sec_per_km, end_reason, condition_note, photos, events, trace)')
     .eq('id', bookingId)
     .single();
   if (error) throw error;
@@ -3552,7 +3572,6 @@ export async function fetchRunReport(bookingId: string): Promise<RunReport> {
     routeId: d.route_id ?? null,
     plannedKm: Number(d.km),
     paceLabel: d.pace_label ?? "보통 7'",
-    price: d.total_price,
     status: d.status,
     run: raw
       ? {

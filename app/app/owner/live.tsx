@@ -508,10 +508,28 @@ export default function Live() {
             </Pressable>
           ))}
 
+          {/* [2026-08-13] This note said three things and all three were false for the case
+              it appears in — the owner asking to stop. Found by the ⑩ class sweep.
+              ① "지금까지 달린 거리 기준으로 정산돼요" — the OPPOSITE of the rule. An
+                 owner-caused end bills the PLANNED distance (`0084 §A`: `v_basis := b.km`,
+                 rule `owner_caused_planned`), which is D2's anti-cut-short decision: stopping
+                 early must not be a way to pay less. The fare works out to exactly
+                 base_fare + distance_fare + addon_fare — the quote, unchanged.
+              ② "최소 기본요금 9,900원" — 9,900 is `runnerCompBase`, the RUNNER's floor
+                 (ctx.ts warns the two pots are different). The owner's base is 7,900, and
+                 `compute_owner_charge` never reads `min_fare` at all. There is no owner-side
+                 minimum; quoting one invented a floor under a bill that is actually fixed.
+              ③ "러너에게는 잔여 거리 보장이 적용돼요" — true only when the run is settled as
+                 `owner_request`/`owner_forced`, and this screen cannot pin that: the request
+                 goes out as a chat message and a notification, and the runner then chooses the
+                 reason freely. It is also the runner's money on the owner's screen.
+              So: say the one thing that is true and load-bearing for the decision being made —
+              stopping does not reduce the fare — and stop speaking for the runner's ledger. No
+              new number appears: it is the price they already consented to at request (§0-bis
+              shows the price exactly once). */}
           <View style={s.feeNote}>
             <Text style={s.feeTxt}>
-              {hasFix ? `러너가 종료하면 지금까지 달린 ${km.toFixed(1)}km 기준으로 정산돼요.` : '러너가 종료하면 지금까지 달린 거리 기준으로 정산돼요.'}{'\n'}
-              최소 기본요금 9,900원은 결제되며, 러너에게는 잔여 거리 보장이 적용돼요.
+              보호자 요청으로 종료되면 요금은 예약하신 그대로 청구돼요 — 남은 거리만큼 줄어들지 않아요.
             </Text>
           </View>
 

@@ -24,6 +24,10 @@ const BOOKING = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
 const PAY = "pay-mint-1";
 const ORDER = "dr_mint_1";
 const CHARGE = 13900; // 7,900 + 3,000×2 — the owner side (ctx.ts ownerBaseFare), computed in SQL
+// ⑨a: what the owner is charged for a `runner_personal` stop at 1.2km of the 2km fixture —
+// distance only, base waived (#10). 6,000/2 × 1.2 = 3,600. The RUNNER's pay is now derived from
+// exactly this number, which is why it has a name here.
+const STOP_CHARGE = 3600;
 
 Deno.env.set("TOSS_SECRET_KEY", "test_sk_do_not_use");
 Deno.env.set("SUPABASE_URL", "https://proj.supabase.co");
@@ -47,6 +51,34 @@ function scene(over: { booking?: Row; card?: boolean } = {}) {
   db.seed("notifications", []);
   db.rpcs["settle_run_tx"] = () => ({ data: { total_runs: 5, drop: null } });
   return db;
+}
+
+/** The args `settle_run_tx` was handed — the five money columns are what lands in `ledger_items`. */
+function recordTx(db: FakeDb): Row[] {
+  const seen: Row[] = [];
+  db.rpcs["settle_run_tx"] = (args: Row) => {
+    seen.push(args);
+    return { data: { total_runs: 5, drop: null } };
+  };
+  return seen;
+}
+
+/**
+ * Stand-in for 0086 §A's `compute_runner_personal_payout` (⑨a). It does what the SQL does —
+ * `gross` is the OWNER's charge for this stop and `fee` is the commission on it — from a charge
+ * this test hands it, because the charge itself is `compute_owner_charge`'s job and is pinned in
+ * 122/116, not here. Installed EXPLICITLY (never in `scene()`) so "the RPC is missing" stays a
+ * reachable state: settle-run must fail closed on it, which is its own test below.
+ */
+function installPayout(db: FakeDb, over: { charge?: number; fail?: string } = {}) {
+  const seen: Row[] = [];
+  db.rpcs["compute_runner_personal_payout"] = (args: Row) => {
+    seen.push(args);
+    if (over.fail) return { error: { message: over.fail } };
+    const gross = over.charge ?? STOP_CHARGE;
+    return { data: [{ gross, fee: Math.round(gross * Number(args.p_commission)) }] };
+  };
+  return seen;
 }
 
 /**
@@ -355,12 +387,17 @@ Deno.test("dog_condition (G1) — mint returns waived, so nothing is charged at 
   }
 });
 
+// ⚠ AMENDED BY ⑨a (0086). This test used to install only the mint, because the runner's pay for a
+// stop was arithmetic in this file. It is not any more: the runner is paid their commission share
+// of the OWNER's charge, so settle-run asks SQL for the payout too. The OWNER half of the test is
+// unchanged and still the point — settle-run charges exactly what the mint handed it.
 Deno.test("runner_personal — the reason and the actual km go to SQL; Deno computes no basis", async () => {
   const db = scene();
   // 3,000×1.2 = 3,600: distance ONLY, no 7,900 base, no addons (§0-ter #10). The number comes
   // from the mint; this test pins that settle-run charges exactly what it was handed.
-  const seen = installMint(db, { amount: 3600 });
-  const net = tossOk({ billing: () => FetchMock.json(chargeDone({ totalAmount: 3600 })) });
+  const seen = installMint(db, { amount: STOP_CHARGE });
+  installPayout(db);
+  const net = tossOk({ billing: () => FetchMock.json(chargeDone({ totalAmount: STOP_CHARGE })) });
   const cap = captureLogs();
   try {
     const out = await settleRun(
@@ -373,11 +410,126 @@ Deno.test("runner_personal — the reason and the actual km go to SQL; Deno comp
     assertEquals(seen[0].p_booking, BOOKING);
     assertEquals(seen[0].p_end_reason, "runner_personal");
     assertEquals(seen[0].p_actual_km, 1.2);
-    assertEquals(net.calls.find((c) => isBilling(c.url))!.body.amount, 3600);
-    assertEquals(pay(db).amount, 3600);
+    assertEquals(net.calls.find((c) => isBilling(c.url))!.body.amount, STOP_CHARGE);
+    assertEquals(pay(db).amount, STOP_CHARGE);
   } finally {
     cap.restore();
     net.restore();
+  }
+});
+
+// ═══ ⑨a — a stop pays the runner THROUGH the owner's charge ═══════════════════════════════════
+// Sean 2026-08-13, docs/decisions/runner-stop-split.md: "the runner receives their commission share
+// of what the owner actually paid", replacing `base + distance + addons`. The formula lives in SQL
+// (0086 §A); what these tests pin is that Deno ASKS for it, passes the right three arguments, and
+// composes the ledger row out of the answer instead of computing a number of its own.
+Deno.test("runner_personal is paid the PASS-THROUGH — the owner's charge less commission", async () => {
+  const db = scene();
+  const payout = installPayout(db);          // gross 3,600 (the owner's stop charge), fee 33% of it
+  installMint(db, { amount: STOP_CHARGE });
+  const net = tossOk({ billing: () => FetchMock.json(chargeDone({ totalAmount: STOP_CHARGE })) });
+  const cap = captureLogs();
+  try {
+    const out = await settleRun(
+      req(body({ end_reason: "runner_personal", actual_km: 1.2 }), "runner_jwt"),
+      db as never,
+    ) as Row;
+    assertRunnerShape(out);
+    // the three arguments SQL needs, and no fourth: the booking, the measured km, and the
+    // commission read from `runners` (never a constant in this file, never client input)
+    assertEquals(payout.length, 1);
+    assertEquals(payout[0].p_booking, BOOKING);
+    assertEquals(payout[0].p_actual_km, 1.2);
+    assertEquals(payout[0].p_commission, 0.33);
+    // gross is the owner's charge — NOT 9,900 + 3,000×1.2 (= 13,500, the pre-⑨a number)
+    assertEquals(out.gross, STOP_CHARGE);
+    assertEquals(out.fee, 1188); // round(3,600 × 0.33)
+    assertEquals(out.net, 2412); // gross − fee, a SUBTRACTION: the two shares sum to the charge
+    assertEquals(out.guarantee, 0);
+    assert(Number(out.gross) < 9900, "the min_fare floor came back — that floor IS the flat base");
+  } finally {
+    cap.restore();
+    net.restore();
+  }
+});
+
+Deno.test("the stop's LEDGER ROW is all distance and no base — the columns settle_run_tx writes", async () => {
+  // `settle_run_tx` inserts the five money parameters it is handed (0028:85), so these args ARE
+  // the runner's ledger row. The owner's base was waived (#10), so the runner's base is 0: writing
+  // 9,900 there would put a fee nobody paid into every earnings breakdown that reads the column.
+  const db = scene();
+  const tx = recordTx(db);
+  installPayout(db);
+  installMint(db, { amount: STOP_CHARGE });
+  const net = tossOk({ billing: () => FetchMock.json(chargeDone({ totalAmount: STOP_CHARGE })) });
+  const cap = captureLogs();
+  try {
+    await settleRun(req(body({ end_reason: "runner_personal", actual_km: 1.2 }), "runner_jwt"), db as never);
+    assertEquals(tx.length, 1);
+    assertEquals(tx[0].p_base, 0);
+    assertEquals(tx[0].p_distance_pay, STOP_CHARGE);
+    assertEquals(tx[0].p_addon_pay, 0);
+    assertEquals(tx[0].p_guarantee, 0);
+    assertEquals(tx[0].p_fee, 1188);
+    // the columns sum to the gross the runner was told — no floored gross above its own components
+    assertEquals(tx[0].p_base + tx[0].p_distance_pay + tx[0].p_addon_pay + tx[0].p_guarantee, STOP_CHARGE);
+  } finally {
+    cap.restore();
+    net.restore();
+  }
+});
+
+Deno.test("the payout RPC failing FAILS CLOSED — 500, nothing settled, nothing charged", async () => {
+  // The inverse of every other failure in this file. Collection failures are swallowed because
+  // settlement has already committed; this one happens BEFORE `settle_run_tx`, so nothing is
+  // written and a retry is free — while carrying on would pay the pre-⑨a number for good.
+  const db = scene();
+  installPayout(db, { fail: "invalid_commission" });
+  installMint(db);
+  const net = tossOk();
+  const cap = captureLogs();
+  try {
+    const e = await expectHttpError(() =>
+      settleRun(req(body({ end_reason: "runner_personal", actual_km: 1.2 }), "runner_jwt"), db as never)
+    );
+    assertEquals(e.status, 500);
+    assertStringIncludes(e.message, "재시도 가능");
+    assert(!db.log.includes("rpc:settle_run_tx"), "a run settled on an unknown payout");
+    assert(!db.log.includes("rpc:mint_settle_charge_intent"), "an owner was charged for it too");
+    assertEquals(net.calls.length, 0);
+  } finally {
+    cap.restore();
+    net.restore();
+  }
+});
+
+Deno.test("the other three reasons never ask for a pass-through — only the stop changed", async () => {
+  // ⑨a is one arm. `completed` keeps 9,900 + 3,000×km, `owner_request` keeps its 50% guarantee,
+  // and `dog_condition` keeps full actuals (0084 ruling ①). A payout RPC call from any of them
+  // would mean the pass-through leaked into a reason Sean did not rule on.
+  const cases = [
+    { c: { end_reason: "completed" }, gross: 15900, fee: 5247 },              // 9,900 + 3,000×2
+    { c: { end_reason: "dog_condition", condition_note: "다리를 절어요" }, gross: 15900, fee: 5247 },
+    { c: { end_reason: "owner_request" }, gross: 15900, fee: 5247 },          // full distance already
+  ];
+  for (const { c, gross, fee } of cases) {
+    const db = scene();
+    installPayout(db);
+    installMint(db);
+    const net = tossOk();
+    const cap = captureLogs();
+    try {
+      const out = await settleRun(req(body(c), "runner_jwt"), db as never) as Row;
+      assert(
+        !db.log.includes("rpc:compute_runner_personal_payout"),
+        `${c.end_reason} was paid the pass-through`,
+      );
+      assertEquals(out.gross, gross);
+      assertEquals(out.fee, fee);
+    } finally {
+      cap.restore();
+      net.restore();
+    }
   }
 });
 
@@ -539,6 +691,11 @@ Deno.test("all four client reasons still settle — the fix narrows, it does not
   for (const c of cases) {
     const db = scene();
     const seen = installMint(db);
+    // ⚠ AMENDED BY ⑨a (0086): `runner_personal` now needs the payout RPC to reach settlement at
+    // all (it fails closed without one — see the pass-through block above). Installing it for
+    // every case keeps this test measuring what it was written to measure: all four reasons
+    // still close a run. Which reason gets a pass-through is pinned there, not here.
+    installPayout(db);
     const net = tossOk();
     const cap = captureLogs();
     try {
@@ -584,6 +741,71 @@ Deno.test("the km validity band still rejects a 999km claim before any of this",
   }
 });
 
+
+// ⚠ OVERLAP, deliberately left in place (run-end-flow merge, 2026-08-13). The payments session
+// and I independently built the same contract check against the same function. Theirs is the
+// single both-directions test below; mine is the three `join:` pins further down, which also
+// force a decision on every newly-raised code and verify the Korean sentence. I did NOT delete
+// theirs while resolving my own merge — removing another session's test to tidy my conflict is
+// the silent-revert class this very mechanism exists to catch. Whoever consolidates should keep
+// the superset and say so; until then two greens beat one silent deletion.
+// ═══ CONTRACT: the error codes settle-run maps must be the ones settle_run_tx actually raises ══
+//
+// Every test in this file FAKES `settle_run_tx`. So the assertions above prove that the string
+// `not_active` maps to a 409 — never that the migration emits that string. Rename the exception
+// in SQL, leave this file alone, and the whole suite stays green while the mapping is dead code
+// and a runner who double-settles gets an opaque 500 instead of the honest sentence.
+//
+// A fake cannot be made to tell the truth about the thing it replaces. So this reads the
+// MIGRATION at test time and verifies TypeScript against it, in both directions.
+//
+// ⚠ DO NOT "tidy" this by hoisting the codes into a shared TS constant. The test works ONLY
+// because the contract lives in exactly one place (the SQL) and TS is checked against it. A
+// shared constant makes the test pass on the copy and reopens the join — that refactor looks
+// correct in review and silently undoes this file's reason for existing.
+Deno.test("CONTRACT: settle-run's error map matches settle_run_tx's raises (both directions)", async () => {
+  const migDir = new URL("../../migrations/", import.meta.url);
+  const files: string[] = [];
+  for await (const e of Deno.readDir(migDir)) if (e.name.endsWith(".sql")) files.push(e.name);
+  // The LATEST definition wins — settle_run_tx has been re-created more than once (0020, 0025,
+  // 0028) and a later slice may extend it again. Reading the wrong one is the bug this prevents.
+  const defining = files.sort().filter((f) =>
+    Deno.readTextFileSync(new URL(f, migDir)).includes("create or replace function settle_run_tx")
+  );
+  assert(defining.length > 0, "no migration defines settle_run_tx — did it move?");
+  const sql = Deno.readTextFileSync(new URL(defining[defining.length - 1], migDir));
+  // ⚠ FIXED during the run-end-flow merge (2026-08-13): this sliced from the declaration to the
+  // END OF FILE. That was correct while `settle_run_tx` was the last function in its migration
+  // (0028), and silently wrong the moment it wasn't — 0083 defines `_settle_sealed_run`,
+  // `confirm_return_tx` and `force_return_tx` after it, so the slice swallowed their raises and
+  // demanded settle-run map codes it can never receive (`settle_quote_malformed` is raised only
+  // in `_settle_sealed_run`, which `settle_run_tx` does not call). Terminating at the body's own
+  // `$$;` scopes it to the function the handler actually invokes.
+  const declAt = sql.lastIndexOf("create or replace function settle_run_tx");
+  const endAt = sql.indexOf("$$;", declAt);
+  assert(endAt > declAt, "could not find the end of settle_run_tx's body");
+  const body = sql.slice(declAt, endAt);
+  const raised = new Set([...body.matchAll(/raise exception '([a-z_]+)'/g)].map((m) => m[1]));
+
+  const handler = Deno.readTextFileSync(new URL("../settle-run/handler.ts", import.meta.url));
+  const mapped = new Set([...handler.matchAll(/msg\.includes\("([a-z_]+)"\)/g)].map((m) => m[1]));
+
+  // ① every code TS maps must exist in SQL — otherwise the mapping is dead
+  for (const code of mapped) {
+    assert(raised.has(code), `settle-run maps '${code}' but ${defining.at(-1)} never raises it`);
+  }
+  // ② every code SQL raises must be mapped, or explicitly exempt WITH A REASON here
+  const UNMAPPED_ON_PURPOSE: Record<string, string> = {
+    invalid_km: "settle-run validates km against the ×2+2 band before calling; a raise here is a bug, not a user error",
+    invalid_duration: "same — duration is validated in the handler first",
+  };
+  for (const code of raised) {
+    assert(
+      mapped.has(code) || code in UNMAPPED_ON_PURPOSE,
+      `${defining.at(-1)} raises '${code}' and settle-run neither maps nor exempts it — a runner would get an opaque 500`,
+    );
+  }
+});
 // ═══════════════════════════════════════════════════════════════════════════════════════════
 // 0083 §6-ⓔ — the FROZEN path: after `end_run_tx`, the body is not a financial input
 // ═══════════════════════════════════════════════════════════════════════════════════════════

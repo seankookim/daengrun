@@ -132,6 +132,52 @@ Curation = Sean eyeballs, then runs the function (SQL-snippet tier; screen is de
 Unifying the runs.trace write path itself onto a validated server append RPC (club_save_run_trace
 pattern) is adjacent scope → TODOS (it also closes the pre-existing RMW race backlog item).
 
+### K6/T1 — map browse, DECIDED: variant A (Sean, 2026-08-13). Build spec.
+
+Lab: `docs/design/k6-map-browse-lab.html`. Full-bleed NAVER map + three-detent sheet.
+⚠ This merges K6 with T1 (map browse), which the plan had gated behind a demand trigger.
+Sean pulled it forward deliberately; the T1 kill line (PR-0 override <20% after 30 real
+bookings) still applies to whether the SCORING half (T2) ever gets built.
+
+**POV that shaped it:** the "Strava heatmap" read does not survive n=9 (a heatmap is an
+aggregate density field; nine lines at low opacity is a tangle), and all nine 반포 seeds carry
+`trace='[]'` TODAY, so a trace-first map renders empty at launch. Therefore: **an anchor map
+that grows traces.** Anchors are the primary layer; density is earned as founder walks land.
+The hollow-vs-solid anchor contrast doubles as a founder-walk progress gauge.
+
+**Screen** — new `app/app/owner/course-map.tsx`, entered from request.tsx's course fold
+("지도로 보기"). `course/[id]` stays as the deep-link target (runner job cards link it);
+extract the detail body into a shared component so the sheet's DETAIL detent and `course/[id]`
+render the same thing rather than drifting.
+
+**Map layers (z-order):** tiles → ghost paths (every other route, `#999999` @ 42%, width ~2.2,
+no markers) → selected path (white casing ~7.5 under `paper.line` #E8552F ~3.4) → anchors
+(faint diamond; selected = coral, larger, white ring; candidate = HOLLOW with `paper.pending`
+border) → selected label. Gestures ON (this doubles as runner briefing). `mapPadding` bottom =
+sheet peek height so fit-bounds never lands under the sheet.
+
+**Sheet detents** (three, spring-driven, interruptible per DESIGN.md §7c):
+- PEEK ≈ 132pt — kicker, name, Oswald km, one CTA. Nothing else.
+- LIST ≈ 55% — filtered route list; mini silhouette drawn ONLY when a trace exists (blank cell
+  + '점검 예정' tag otherwise — never invent a line). Row tap selects + pans map + returns to PEEK.
+  Selected row = `paper.wash` fill + 3px `paper.line` left rule.
+- DETAIL ≈ 88% — anchor block + 네이버 딥링크, slot-fit matrix, meta 3-axis band, 우리 기록, CTA.
+  Map stays visible above so context is never lost.
+
+**Reuse, do not reinvent:** the 흙길/그늘/조명 chips (predicates, count badges, AND semantics,
+조명 auto-assert on dark slots) already exist in `request.tsx` from K5 — lift them into a shared
+component. `fetchRoutes(town)` already returns `status` + `trace` (thumb resolution) + shade +
+lighting. `traceToBox` is not needed here (real map, real coords).
+
+**Honesty states (all three are content, not clutter):** n=0 traces → anchors only + a card
+stating the meeting points are decided and the first dog-accompanied run makes the map; a
+candidate's CTA reads '점검 전 코스로 예약' in `paper.pending` and requires the K5 ceremony;
+suspended routes do not appear in discovery but their detail still opens via `fetchRouteById`.
+
+**Design law honored:** paper tokens only (style freeze — no new colors); emphasis budget spent
+on exactly one coral line = the selected route (§8); light map chrome ("dark is the artifact");
+44pt targets; candidate distinguished by shape + text, never color alone; BHS ≤1 use.
+
 ### K4. Owner surfaces — browse v0 (screen-level contracts, post design review)
 - **course/[id] — full repaint to paper grammar is an explicit line item** (the screen still
   carries retired chrome: cream canvas, r22 hero, pills, forest remnants — lab components must

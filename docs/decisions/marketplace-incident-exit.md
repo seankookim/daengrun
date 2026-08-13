@@ -1,0 +1,138 @@
+# ⑫ A marketplace `incident_review` has no commercial exit — the runner is unpayable
+
+**Status: 🟡 OPEN — needs Sean's ruling. Not built, not owned, deliberately NOT folded into
+another slice.** Recorded here as a stub so it does not live only in a migration header.
+
+## The finding
+
+Found by the run-end-flow session auditing its own `0083` F2 fix — and found by applying
+⑩'s lesson to itself rather than by a new review. **The remedy has to match the writer that
+failed.** ⑩'s instance: a comp failure pinged an ops class whose copy named a function that
+refuses that tier by design, so an operator ran a no-op, closed the alert, and the runner
+went unpaid. This is its exact twin, one layer up.
+
+`0083`'s F2 fix stops **sealed** rows escalating into `incident_review`. But an **unsealed**
+row — nobody confirmed the handover within 2h — still lands there, and **marketplace
+`incident_review` has no commercial exit at all**: the only resolution tool is
+`club_incident_settle` (0072), which is club-only. So:
+
+1. the escalation fires and routes to an ops class,
+2. the operator looks, and has **no tool that applies to a marketplace booking**,
+3. they close it, because nothing else can be done,
+4. **the runner is never paid**, and the queue looks handled.
+
+Silent non-payment behind a green ops queue — the failure ⑩ exists to prevent, reached by a
+different road.
+
+## Why it is its own slice
+
+`0087` is deliberately NOT being widened to cover it (run-end-flow's call, and the right
+one): a marketplace incident exit is a money path, so it needs its own adversarial cycle,
+its own pins, and its own decisions about who is owed what. Bolting it onto an unrelated
+slice to make a state reachable-and-resolvable in the same commit is how a settlement gate
+that doesn't gate ships.
+
+`0083 §0h` records the operational half — **whose alert routes there and which tool they
+lack** — rather than the vaguer "exit missing". That framing is the useful one: an ops class
+whose remedy does not apply is worse than an unmonitored state, because it manufactures the
+appearance of resolution.
+
+## What needs deciding (Sean)
+
+- **Does a marketplace incident get a settle path at all**, or does it route into the same
+  human adjudication the club uses (`refund_full | settle_measured | pay_full`) with the
+  marketplace as a second caller of 0072?
+- **Is the runner paid while it is open?** The ordering law says settlement never waits on
+  collection, and ⑨ says a runner who could not continue is not the party who should absorb
+  it — both point at paying the runner and leaving the owner's side to adjudication, but that
+  is a ruling, not an inference.
+- **What ends the state?** A timeout that pays, a human decision, or both — and what the
+  owner is told while it is open.
+
+## Build notes when it is picked up
+
+- The ops class must name a remedy that **works on a marketplace booking**. If the resolution
+  is 0072, then 0072 must accept marketplace callers before the alert can honestly point at
+  it. Match the remedy to the writer that failed (⑩'s lesson).
+- Pin the terminal state's **exits**, not just its entry: F2's lesson is that a pin can assert
+  an escalation fires and no ledger row appears, and still never ask whether money can move
+  out afterwards. Ask that question of every state this slice creates.
+- ⑪ (`incident-verification.md`) is adjacent but different: ⑪ decides *whether an incident is
+  real*, ⑫ decides *what money does once it is*. Neither substitutes for the other, and ⑪'s
+  two-sided gate makes ⑫'s adjudication cheaper by ensuring only verified incidents reach it.
+
+---
+
+# 🔵 CODEX RECOMMENDATION (2026-08-13, stand-in while Sean is away)
+
+**This is codex's analysis, not a ruling. Status stays 🟡** — per README's governance rule, a
+stand-in never produces a ✅, and ✅ means only that the human's own words are on origin.
+Codex was given the three questions, the fault-based G1 rule, ⑨, 0072, 0084 and the settle
+ordering law, and told its answer would be recorded as its own.
+
+## Its three answers
+
+**1. Its own decision record — do NOT widen 0072.** Share the *vocabulary* (the three outcome
+names), frozen booking/run facts, custody and measured-distance derivation, and truthful
+notification language. Nothing else. Two reasons, one of which is a real trap:
+0072's quote **equates the owner-side booking price with runner gross** (`0072:73`), so reusing
+it "would quietly reverse the fault-based two-ledger doctrine" — the 7,900/9,900 decoupling
+Sean deliberately kept. And club authorization would become "the accidental marketplace staff
+model". The marketplace path gets its own record: booking, outcome, evidence, deciding actor,
+source (`human` | `timeout`), timestamps — computing owner charge and runner pay **separately**.
+*More code than widening one RPC, much less conceptual debt.*
+
+**2. Do NOT pay merely because the incident opened.** Pay **atomically when adjudication or an
+eligible timeout fixes the amount**, then attempt owner collection. Its reading of the ordering
+law is worth keeping: *"settlement never waits on collection" means the runner's DECIDED payout
+survives a declined card — it does not mean settlement must precede deciding whether the runner
+caused the incident.* Why immediate provisional payment is dangerous here: `ledger_items` has no
+booking uniqueness constraint, there is **no clawback or adjustment model**, and **a runner can
+cause the 2h escalation by withholding confirmation** — so an unconditional timeout payment is
+an indirect self-serve payout. Guards it names: no client executes the settlement RPC · a named
+adjudicator allowlist checked **separately from alert routing** (`ops_recipients` routes, it does
+not authorize) · the decision record unique per booking under a lock · timeout eligibility
+requires **independent evidence** (⑪'s both-party verification or recorded ops evidence), never
+the runner's silence.
+
+**3. Both — human adjudication as the universal exit, plus a conditional 24h SLA.** If both
+parties verified the incident and safe return is established, a missed SLA auto-pays the runner
+the normal measured payout with the owner at ₩0 (platform absorbs). If custody or return is
+itself unverified, **do not auto-pay** — escalate to a safety adjudicator; no close without a
+recorded human outcome. It flags that this is effectively a fourth outcome, `platform_measured`,
+because 0072's `settle_measured` couples runner pay to an owner charge — and says it would not
+disguise the asymmetry under an existing name.
+**The commercial review gets its own `open → resolved` state; the booking must NOT move to
+`completed`** — that fabricates completion and pollutes stats, reviews and rewards. Owner copy
+while open (an exception disclosure, so price-invisibility-consistent): *"러닝 종료와 인계
+내용을 확인하고 있어요. 현재 청구된 금액은 없습니다. 확인이 끝나면 청구 여부와 근거를
+알려드릴게요."* No hypothetical amounts, no listing the possible outcomes.
+
+## Code hazards it found (verify before building; these are the valuable part)
+
+- **A `waived` row currently BLOCKS any later mint** for that booking — the mint treats `waived`
+  as final (`0084:274`). A later measured/full charge must transform that unsent row or use an
+  explicit adjustment mechanism.
+- **The review marker exists only when charging is live**, so pre-cutover incidents produce no
+  payments row at all → **`payments.raw` cannot be the sole case record.**
+- **Nothing writes `review_resolved_at`** (`0084:244`), so the reconciliation row can never
+  disappear once it appears.
+- **`incident_review` can currently transition only to `refund_pending`** (`0001:193`) — which
+  independently reinforces the separate-commercial-state design.
+- Legacy captured/partially-refunded bookings need a real Toss cancellation path;
+  `partial_canceled` is vocabulary with no writer.
+- **UI correction needed regardless of the ruling:** `charge-states.tsx:20` renders EVERY
+  `waived` row as the final-sounding *"청구 없음"* while the client projection hides
+  `raw.review`. An incident waive must read *"확인 중 · 아직 청구되지 않음"*. (`pay.tsx:407`'s
+  disputed copy is directionally right.) This one is a live honesty defect in the ⑩ class — a
+  screen asserting finality the system has not decided — and it does not wait on ⑫.
+
+## 🔴 The one question codex explicitly refused to answer for Sean
+
+> When both sides verify that an incident occurred but fault is still unresolved after the SLA,
+> should the platform absorb a normal measured runner payout while charging the owner ₩0?
+
+Its recommendation is **yes** — it protects supply without making a runner's one-sided silence
+sufficient — but it says plainly it would not encode that as policy, because it creates a
+deliberate platform loss and an outcome outside 0072's coupled model. **That is the ⑫ question
+for Sean.**

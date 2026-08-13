@@ -9,7 +9,22 @@ cd "$(dirname "$0")"
 # 종전 한 줄짜리는 head가 빈 입력에도 성공해 `|| which` 폴백이 절대 안 탔다 — macOS에서 BIN="." 사고.
 BIN=$(dirname "$(ls /usr/lib/postgresql/*/bin/initdb 2>/dev/null | head -1)")
 [ -x "$BIN/initdb" ] || BIN=$(dirname "$(command -v initdb)")
-export PGDATA=./.pgtest/data PGHOST=$(pwd)/.pgtest PGUSER=postgres PGDATABASE=daengrun_test
+# PGDATA is ABSOLUTE on purpose (2026-08-13). It was `./.pgtest/data`, which made every
+# session's postgres command line byte-identical (`postgres -D .pgtest/data`) on this shared
+# machine — so a `pkill -f` aimed at one stale postmaster matched SEVEN, killing every other
+# session's harness mid-run. It presents as disk corruption or a vanished migration, not as
+# someone else's kill. PGHOST on this line and unix_socket_directories below were already
+# absolute; this just finishes the job. Verified: cold (fresh initdb) and warm (existing
+# .pgtest) both 471/0, and `ps` now shows a per-worktree path a pattern can distinguish.
+# Rule that still applies: kill only the PID in your own .pgtest/data/postmaster.pid.
+# The class, which cost three separate incidents today and outlives this fix: on a shared
+# machine, an identifier that isn't actually unique. Migration numbers collided because
+# sessions derived them independently; /tmp/dr85 collided because two sessions derived the
+# same scratch dir from the same migration; pkill collided because of the line below. Every
+# time the answer was to make the identifier unique AT THE SOURCE rather than to ask people to
+# be careful with it. (Two sessions also fixed this same line simultaneously — the comments
+# differed, the code was identical. Reasonable evidence it was the right one token to change.)
+export PGDATA=$(pwd)/.pgtest/data PGHOST=$(pwd)/.pgtest PGUSER=postgres PGDATABASE=daengrun_test
 mkdir -p .pgtest
 if [ ! -d "$PGDATA" ]; then
   "$BIN/initdb" -D "$PGDATA" -U postgres --auth=trust -E UTF8 >/dev/null
@@ -108,7 +123,10 @@ suite 117_club_money_suite.sql            # 0081 club money gates (the third boo
 suite 118_route_ladder_suite.sql            # 0082 route ladder (candidate→active only via a dog-accompanied run: generated active·public read·evidence check·process gate·promotion invariants — R1~R13)
 suite 119_run_end_suite.sql            # 0083 run-end flow (동결·귀가 씰·LA phase·청소부 — R1~R14)
 suite 120_g1_ops_cutover_suite.sql            # 0084 Sean's rulings ①③⑥ (dog_condition = full actuals (Sean's ruling C)·reviewable incident waive + its ops arm·ops_recipients routing·cutover setter refuses the past·승인 알림에서 요금 제거 — J1~J10)
+suite 121_cancel_share_suite.sql   # 0085 ⑩ 취소 수수료 러너 배분 (10% 티어의 절반)
+suite 122_runner_stop_pay_suite.sql            # 0086 ⑨a runner_personal 중단 지급 = 보호자 청구액 × 러너 몫 (패스스루 — 정액 base 은퇴·커미션 실패 폐쇄 — P1~P4)
 suite 123_run_insert_seal_suite.sql            # 0087 runs INSERT seal (0002:107 정책 철거·start_run_tx 원자 시작·INSERT 가드 — 원격 악용 3종: 컷오버 무력화·정산 앵커 위조·유령 청구 — S1~S9)
+suite 124_profiles_column_grant_suite.sql   # 0088 P0: profiles 컬럼 그랜트 (RLS는 행만 막는다 — phone·toss_customer_key 봉인·앱 질의 형상 생존·service_role/definer/뷰 우회 — G1~G6)
 psql -c "select case when ok then '✅' else '❌' end || ' [' || suite || '] ' || name || case when ok then '' else ' — ' || detail end from _t order by at"
 psql -qt -c "select count(*) filter (where ok) || ' pass / ' || count(*) filter (where not ok) || ' fail' from _t"
 psql -qt -c "select case when count(*) filter (where not ok) > 0 then 'FAIL' else 'OK' end from _t" | grep -q OK
