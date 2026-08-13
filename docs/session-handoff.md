@@ -165,6 +165,16 @@ booking** (Sean's ruling ⑥ — never `now()`; `longest_inflight_booking_end()`
     one tested a helper instead of the shipping path, the other asserted an escalation happened
     without asking whether money could still move afterwards.
 
+## 3-bis. 🔴 P0 OPEN IN PRODUCTION — `profiles` leaks `phone` + `toss_customer_key` to anon
+
+`docs/security-profiles-column-exposure.md`. `0002_rls.sql:56`'s read policy has no
+`auth.uid()` term, and no column grant exists — so anyone holding the app's public anon key
+reads every verified runner's row. Verified by execution, not inspection: `set local role
+anon; select phone, toss_customer_key from profiles` → 101 rows. Fixed in `0088` (verified
+both directions, harness 477/0) and **NOT DEPLOYED** — it closes at the next `db push`, which
+is held. Open since 0002, so not a regression, but live. **Sean's call: does this change
+deploy timing?** The alternative is shipping 0076–0088 onto a live DB at 0074 early.
+
 ## 4. Pending on Sean
 
 **Ops:** ① 사업자등록 → 통신판매업 → Toss (일반 + 자동결제 심사 one application) — unchanged,
