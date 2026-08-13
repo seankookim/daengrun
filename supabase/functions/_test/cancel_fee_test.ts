@@ -644,6 +644,38 @@ Deno.test("[0085 ⑩] the <24h tier marks the tier, pays the runner half, and sa
   }
 });
 
+Deno.test("[0085 ⑩] a late-tier comp failure routes as late_comp_failed, NOT the en-route class", async () => {
+  // Found reviewing the merged slice: both failure paths pinged `enroute_comp_failed`, whose
+  // copy names `record_enroute_cancel_comp` — a function that REFUSES a late-tier booking by
+  // design (0080:1137 gates on 'owner_cancel_enroute'). The operator would run a no-op, mark
+  // the alert handled, and the runner would never be paid: silent non-payment behind a green
+  // ops queue, which is the exact failure ⑩ exists to prevent. A remedy that refuses by design
+  // is worse than none, because it closes the queue item.
+  const MONEY_OPS = "dddddddd-dddd-dddd-dddd-dddddddddddd";
+  const db = scene({ status: "confirmed" });
+  db.rpcs["marketplace_cancel_fee"] = () => ({ data: [{ fee: FEE_10, status: "confirmed" }] });
+  installComp(db);
+  installShare(db, { fail: "deadlock detected" });
+  installMint(db);
+  const classes: string[] = [];
+  db.rpcs["ops_recipients_for"] = (args: Row) => {
+    classes.push(String(args.p_event_class));
+    return { data: args.p_event_class === "late_comp_failed" ? [MONEY_OPS] : [] };
+  };
+  const net = tossOk();
+  const cap = captureLogs();
+  try {
+    await call(db);
+    assertEquals(classes, ["late_comp_failed"]);
+    const ops = db.rows("notifications").filter((n) => n.kind === "system");
+    assertEquals(ops.map((n) => n.profile_id), [MONEY_OPS]);
+    assertEquals(ops[0].ref_id, BOOKING);
+  } finally {
+    cap.restore();
+    net.restore();
+  }
+});
+
 Deno.test("[0085 ⑩] a failed share write never names a number the ledger cannot back", async () => {
   // Same honesty gate the en-route arm has: ops is told, the cancel still succeeds, and the
   // runner hears the true generic sentence rather than a receipt for a row that is not there.
@@ -662,6 +694,11 @@ Deno.test("[0085 ⑩] a failed share write never names a number the ledger canno
     const noti = db.rows("notifications").at(-1) as Row;
     assertEquals(noti.title, "예약 취소됨");
     assert(!String(noti.body).includes("보상"), "promised a compensation that was not recorded");
+    // …and ops is told with the class whose REMEDY actually works on this tier. Routing it as
+    // enroute_comp_failed would name record_enroute_cancel_comp, which refuses a late-tier
+    // booking by design — the operator runs a no-op, closes the alert, and the runner stays
+    // unpaid. Found in review of the merged slice, 2026-08-13.
+    assertStringIncludes(cap.lines.join("|"), "late cancel share FAILED");
   } finally {
     cap.restore();
     net.restore();

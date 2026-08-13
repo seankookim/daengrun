@@ -40,6 +40,7 @@ export type OpsEventClass =
   | "charge_dispatch_stale"
   | "settled_without_payment"
   | "enroute_comp_failed"
+  | "late_comp_failed"
   | "incident_waive_pending";
 
 interface OpsCopy {
@@ -61,6 +62,16 @@ const COPY: Partial<Record<OpsEventClass, OpsCopy>> = {
     title: "이동 중 취소 보상 기록 실패 — 수동 확인 필요",
     body:
       "러너 보상이 원장에 기록되지 않은 취소 건이 있어요 — 서버 로그에서 booking 을 확인하고 record_enroute_cancel_comp 를 다시 실행해주세요",
+  },
+  // [0085 ⑩] Its own class, and the reason is not tidiness. The two comp writers gate on
+  // DIFFERENT cancel_reason markers (0080:1137 refuses anything that is not
+  // 'owner_cancel_enroute'), so an operator told to re-run the en-route function against a
+  // LATE-tier booking runs a no-op, the alert reads as handled, and the runner is never paid.
+  // A remedy that refuses by design is worse than no remedy: it closes the queue item.
+  late_comp_failed: {
+    title: "취소 보상 기록 실패 (24시간 이내 취소) — 수동 확인 필요",
+    body:
+      "러너 배분이 원장에 기록되지 않은 취소 건이 있어요 — 서버 로그에서 booking 을 확인하고 record_late_cancel_share 를 다시 실행해주세요",
   },
 };
 
