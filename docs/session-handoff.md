@@ -167,6 +167,20 @@ on origin BEFORE writing** — 0083/0084 are disputed there, procedure named in 
 
 ## 5. Next prompts (exact openers)
 
+- **⑩+⑪ money slice** (both RULED, both UNBUILT, unclaimed as of 2026-08-13): "read
+  docs/decisions/cancel-fee-runner-share.md and incident-verification.md, then build them as
+  one slice at the next free REGISTRY number." ⑩ = the 10% cancel tier pays the runner their
+  half and notifies it as a reward (mirror `record_enroute_cancel_comp`'s idempotent ledger
+  write, and write the row BEFORE the notification that claims it — 0081's lesson). ⑪ =
+  two-sided incident verification on the `confirm_handoff` shape; disagreement routes to
+  0072, and the runner is paid normally throughout.
+- **⑨ runner_personal pass-through + `runner_incapacity`** (RULED, UNBUILT): encode the
+  FORMULA — `(1 − commission) × the owner's actual charge` — never the illustrative figures.
+  Two traps in its build notes: the enum value needs its OWN migration file (`alter type ...
+  add value` used in the same transaction passes under autocommit and fails on `db push`),
+  and it must NOT enter `CLIENT_END_REASONS` until its abuse story exists — it is
+  self-declared AND pays the declarer more than the honest alternative.
+
 - **Cutover-gate slice** (the last code before the flip): "read docs/session-handoff.md,
   then build the cutover-gate items as migration 0082+: per-runner dog_condition-rate +
   absorbed-KRW telemetry with the condition_note surfaced on the record card (the waive
