@@ -57,6 +57,23 @@ rule has to punish both or neither.
   exist, but **no human verifier is assigned** — the "verify first" half of ruling ① is
   currently a marker with nobody reading it.
 
+## ⚠ Two build traps, found before anyone hit them
+
+**① Adding `runner_incapacity` needs its OWN migration file.** It is an
+`alter type ... add value`, and `harness.sh` applies every migration with
+`--single-transaction` to mirror `supabase db push`. A new enum value USED in the same
+transaction raises `unsafe use of new value of enum type` — it passes under statement-level
+autocommit and fails on push, which is exactly the class that flag exists to catch (the
+harness self-pins it, `harness.sh:28-33`). So: one migration adds the value, a LATER one may
+reference it. Found by the route-catalog session reading this memo against the harness rules.
+
+**② `compute_owner_charge`'s `runner_personal_distance_only` arm is NOT stale — do not "fix"
+it.** ⑨ changes the RUNNER's pay to pass-through; the OWNER's side of `runner_personal` is
+explicitly unchanged (#10 stands — distance only, base waived). `compute_owner_charge` is the
+owner ledger, so 0084:188 is correct as shipped. The pass-through belongs in `settle-run`'s
+payout math, which is a different file and a different ledger. Two readers have now looked at
+that line and seen a bug; it isn't one, and the next reader deserves the sentence.
+
 ## Build state — nothing exists
 
 `runner_incapacity` appears on **no branch on origin** (checked `redesign-v4` and
