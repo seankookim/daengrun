@@ -9,7 +9,18 @@ cd "$(dirname "$0")"
 # 종전 한 줄짜리는 head가 빈 입력에도 성공해 `|| which` 폴백이 절대 안 탔다 — macOS에서 BIN="." 사고.
 BIN=$(dirname "$(ls /usr/lib/postgresql/*/bin/initdb 2>/dev/null | head -1)")
 [ -x "$BIN/initdb" ] || BIN=$(dirname "$(command -v initdb)")
-export PGDATA=./.pgtest/data PGHOST=$(pwd)/.pgtest PGUSER=postgres PGDATABASE=daengrun_test
+# PGDATA is ABSOLUTE, and that is a safety property rather than tidiness (2026-08-13).
+# It used to be `./.pgtest/data`, which made every session's postgres command line on this
+# machine byte-identical — `postgres -D ./.pgtest/data`. So `pkill -f` aimed at one session's
+# stale postmaster matched all seven, and the victims saw a harness dying mid-apply, a
+# migration seeming to vanish, or an inexplicable connection failure: it reads as disk
+# corruption or as your own migration being broken, and it is neither.
+# PGHOST and unix_socket_directories below were already absolute; PGDATA was the odd one out.
+# The rule this enforces: never pattern-kill postgres — kill the PID in your own
+# .pgtest/data/postmaster.pid. The deeper one, which cost three separate incidents today
+# (migration numbers, /tmp dirs derived from them, and this): on a shared machine, make the
+# identifier unique at the source instead of asking people to be careful with it.
+export PGDATA=$(pwd)/.pgtest/data PGHOST=$(pwd)/.pgtest PGUSER=postgres PGDATABASE=daengrun_test
 mkdir -p .pgtest
 if [ ! -d "$PGDATA" ]; then
   "$BIN/initdb" -D "$PGDATA" -U postgres --auth=trust -E UTF8 >/dev/null
