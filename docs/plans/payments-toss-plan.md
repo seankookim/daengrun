@@ -152,7 +152,8 @@ booking-detail 결제 내역 extension ships in the same release (§0-bis T6) ·
 심사's answer on 빌링키 charge notice obligations is a GO-LIVE requirement (if
 per-charge notice is demanded, the invisibility doctrine renegotiates —
 `docs/decisions/d3-silent-charge-summary.md`; the D-3 monthly statement itself
-builds in the next money slice, migrations ≥0082).
+builds in the next money slice — claim its number in
+`supabase/migrations/REGISTRY.md` first).
 
 ### §0-ter ADVERSARIAL ROUND 1 — 15 findings absorbed (2026-08-12 night; the section above
 is amended by ALL of the following; a second adversarial round belongs to the build slice):

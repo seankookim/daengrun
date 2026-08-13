@@ -1,103 +1,97 @@
-# G1 — What does the owner pay when a run aborts? (`dog_condition` / incident-class)
+# ① G1 — What does an aborted run charge the owner? (`dog_condition` / incident-class)
 
-**Status: ADOPTED — O1 (waive), 2026-08-13; shipped code stays 🔴 provisional until
-Sean's merge confirms.** Sean delegated the call to this memo's recommendation in the
-club-delegation session (/autoplan). Adopted form, refined by the adversarial round:
-**`dog_condition` ends waive the owner charge entirely; incident-class ends waive
-provisionally and defer to the existing 0072 incident-settlement adjudication**
-(refund_full / settle_measured / pay_full — machinery that already exists and is the
-right owner-outcome authority for incidents). Flips are FORWARD-ONLY: a policy change
-applies to newly consented bookings, never retroactively.
+**Status: 🟡 OPEN — the one money decision two independent sessions did NOT converge on.**
+Shipped provisional: both `dog_condition` and `incident` charge **nothing**
+(`compute_owner_charge` rule `g1_waive`, a `waived` payments row with amount 0; the runner
+is still paid normally by `settle_run_tx` — the platform absorbs it). The 🔴 marker in 0080
+stands until you rule. Nothing was built on any adoption.
 
-**Build state:** the charge slice is BUILT (0080_charge_machine.sql). The waive ships
-at `compute_owner_charge` — grep `g1_waive` (0080:266, pinned at 116_charge_suite
-:223/:226) — with the 🔴 open-call marker intact, which is correct until Sean's own
-confirmation (his review+merge of this branch).
+## The open question — where the two sessions split
 
-## The question
+Both sessions ran their own adversarial rounds and **agree on `incident`**; they disagree
+on `dog_condition`.
 
-Under per-run post-pay, the settle-run charge basis table is:
-
-| end_reason | owner charge basis | status |
+| | `dog_condition` | `incident` |
 |---|---|---|
-| completed | ACTUAL | decided |
-| owner_request / owner_forced | PLANNED (D2 — anti-cut-short, guarantee clause) | decided |
-| runner_personal | ACTUAL, base waived (₩0 + 3,000×actual) | decided (#10) |
-| **dog_condition / incident-class** | **WAIVE — this memo** | **adopted** |
+| **Club-delegation session** (this memo's original) | **₩0 — waive** | ₩0 at settle |
+| **Charge-slice session** (`decisions-open-money.md` ①, rec. D) | **₩3,000 × actual, no base** (≈₩2,400 on 0.8km of a 3km run) | ₩0 at settle |
 
-G1 used to be an emergency-stop *refund* problem. Post-pay reframes it: no money was
-taken, so it is purely a *charge-composition* question expressed at settle. Whatever
-is picked, the runner is paid on actuals within band regardless (settlement never
-waits on collection) — this decision only moves the owner's bill and the platform's
-absorption.
+**Agreed by both, for the same architectural reason:** `incident` charges **nothing at
+settle** because `club_incident_settle` (0072) already quotes
+`refund_full | settle_measured | pay_full` and a human adjudicates. Charging at settle
+would pre-empt the case and manufacture exactly the refund post-pay was designed to
+delete. This holds under every option below — the ruling governs `dog_condition` only.
 
-## Options (as evaluated)
+### The case for ₩0 (waive)
 
-**O1 — Waive everything (owner pays ₩0). ← ADOPTED**
-- Trust-first at the scariest moment the product has: the dog couldn't continue, or a
-  safety incident ended the run. No bill arrives after an emergency.
-- Cost: platform absorbs the runner's NET comp for that run —
-  (1−commission) × max(9,900 + 3,000×actual + addons, min_fare) — bounded by rarity
-  and pilot scale.
-- Copy is the cleanest possible: the record card and the incident flow carry no money;
-  receipts show the ₩0 waive line (the `waived` payments status renders it honestly).
+The scariest moment the product has is a dog that couldn't continue. A bill arriving after
+that moment is the wrong first experience of 안심, which is the whole pitch. Absorption is
+bounded at pilot scale — the platform eats the runner's NET comp,
+`(1−commission) × max(9,900 + 3,000×actual + addons, min_fare)` — and the copy is the
+cleanest possible: the record card and the incident flow carry no money at all.
 
-**O2 — Waive the base, charge actuals (₩0 + 3,000×actual) — the runner_personal mirror.**
-- Owner pays for distance delivered; halves absorption; but the bill lands *after a
-  dog-health emergency* — the single worst moment to charge.
+### The case for distance-only (the argument the waive analysis missed)
 
-**O3 — Full basis (7,900 + 3,000×actual), same as completed.**
-- Max recovery, worst optics: punishes the owner for the dog's bad day. Not adopted.
+A completely free outcome puts **unbounded, invisible cost on the platform for a case that
+recurs with the same dogs**. An owner with a chronically unfit dog gets free runs
+indefinitely and nothing in the system notices. Distance-only keeps the ₩7,900 base
+absorbed (a welfare stop must never cost a base fee, or the incentive points the wrong
+way) while making repeat aborts non-free. Tiny aborts auto-waive anyway via the
+`below_pg_minimum` (<₩100) arm.
+
+**Why the models couldn't settle this:** the waive case optimises for the first emergency;
+the distance-only case optimises for the tenth. Which risk you'd rather carry in a Banpo
+pilot is a founder call. Neither session would move, and neither should have — the
+disagreement is real, not a miscommunication.
+
+## Options
+
+| # | Rule | Owner pays (0.8km of a 3km run) | Consequence |
+|---|---|---|---|
+| **A′** | **`dog_condition` ₩0, `incident` ₩0** (= shipped provisional) | ₩0 / ₩0 | Club-delegation session's pick. Maximum trust; repeat aborts free and invisible. |
+| **D** | **`dog_condition` distance-only, `incident` ₩0** | ₩2,400 / ₩0 | Charge-slice session's pick. Never a base fee on a welfare stop; repeats not free. |
+| C | Full actuals for `dog_condition` (base + distance) | ₩10,300 | "Pay what happened." Risks an owner pressuring the runner to keep going. Recommended by neither. |
 
 ## Consequences that don't change with the pick
 
-- **`incident`-class stays ₩0 at settle under EVERY option — the pick governs
-  `dog_condition` only.** This is architectural, not generosity: 0072
-  (`club_incident_settle`) quotes refund_full / settle_measured / pay_full and a
-  human adjudicates; charging at settle would pre-empt the case and manufacture
-  exactly the refund post-pay was designed to delete. If Sean ever re-checks this
-  box to O2/O3, the new basis applies to `dog_condition` alone. (Delta contributed
-  by the charge-slice session's fold-check.)
+- **`incident` stays ₩0 at settle under EVERY option** — 0072 owns that money question.
 - Owner basis ceiling: never above `min(actual, planned)` → never above quote (#4).
 - Charges compute from the booking's FROZEN numbers, not live constants (#6).
-- Club-side charges ride their own ladder (club-run-logic; the club delegation money
-  gaps are a named pre-cutover gate) — this memo governs the marketplace branch.
+- **Flips are FORWARD-ONLY** — a later change applies to newly consented bookings, never
+  retroactively (frozen-numbers doctrine, extended to abort policy).
+- The waive representation is already correct in code: `waived` is a first-class payments
+  status (`payments_waived_is_zero`), excluded from the kind-scoped debt derivation, and
+  the settled-without-payments sweep keys on ROW EXISTENCE including `waived`
+  (0080:594-597). This was the club-delegation session's P0 finding; the charge-slice
+  session had independently closed it (R3 P3-9). Recorded so nobody "simplifies" it away.
 
-## Adversarial round — findings, reconciled against the BUILT slice (2026-08-13)
+## The gaming vector — flagged by both, fixed by neither (cutover-gate work)
 
-Both voices (Claude subagent + Codex) attacked the adoption; the pick survives.
-Status of each accompaniment after cross-checking 0080:
+`completion_rate` counts only `completed` + `runner_personal` (0001:72, 0028:139), so
+`dog_condition` is a **stat-free early exit for a runner**, gated only by their own
+free-text `condition_note`. Under A′ the owner never disputes a fabricated abort either —
+the waive also removes the free fraud detector. The countermeasure is a metric, not a
+price: **per-runner abort-rate + absorbed-KRW telemetry**, plus showing the runner's
+`condition_note` to the owner on the record card (the owner knows whether their dog was
+actually unwell). Timed to the cutover gate — the incentive only exists once
+`payments_live_since` is set. ⚠ That note was a hardcoded constant until 2026-08-13
+(`run.tsx:444`); the run-end-flow session shipped the runner-writes-it fix (`611f014`),
+which is a **precondition** of this mitigation meaning anything.
 
-1. **Waive representation (P0) — ALREADY SATISFIED.** The feared failure (a row-less
-   waive gets auto-charged by the settled-without-payments sweep; a ₩0 confirmed row
-   is blocked by the key constraint) was independently closed in 0080: `waived` is a
-   first-class payments status (`payments_waived_is_zero`), excluded from the
-   kind-scoped debt derivation, and the sweep keys on ROW EXISTENCE including
-   `waived` (0080:594-597, hardened R3 P3-9). No action needed; recorded so nobody
-   "simplifies" it away.
-2. **The real gaming surface is a unilateral runner — STILL OPEN, timed to the
-   CUTOVER GATE (charge-slice session's call, agreed): pre-cutover nothing is
-   charged, so the fraud incentive doesn't exist until `payments_live_since` is set;
-   the detector builds in the slice that flips the switch, alongside the club gaps.** `dog_condition` is completion_rate-exempt (0001:72, 0028:139), pays the
-   runner the same as completion, and is gated only by the runner's own free-text
-   `condition_note` — and a waived owner never disputes a fictional abort, so O1
-   removes the free fraud detector. Required: per-RUNNER dog_condition-rate +
-   absorbed-KRW telemetry (a count query is enough at pilot scale), and the record
-   card for a dog_condition end shows the runner's condition_note to the OWNER — the
-   owner knows whether their dog was actually struggling. Also reconcile settle-run's
-   header comment vs code (the promised 완주율 pay reflection for runner_personal is
-   not implemented).
-3. **Revisit trigger, concrete:** review-flip to O2 when a runner's dog_condition
-   rate exceeds ~5% over their trailing 20 runs, or weekly waived absorption exceeds
-   one average fare. Flips are forward-only (newly consented bookings).
+## Decision (Sean) — pick one letter
 
-## Decision (Sean)
+- [ ] **A′** — `dog_condition` ₩0, `incident` ₩0 (confirms the shipped provisional)
+- [ ] **D** — `dog_condition` distance-only (₩3,000×actual, no base), `incident` ₩0
+- [ ] **C** — full actuals for `dog_condition`
 
-- [x] O1 — waive everything — **ADOPTED 2026-08-13 via delegation**, incident-class
-      defers to 0072 adjudication. Confirmed in code the moment Sean merges this
-      branch (until then the 0080 🔴 marker stands, correctly).
-- [ ] O2 — waive base, charge actuals
-- [ ] O3 — full basis
+Either way `incident` stays ₩0 at settle, the flip is forward-only, and the code change is
+one branch in `compute_owner_charge` (grep `g1_waive`) plus its 116-suite pins.
 
-Why: trust at the emergency moment is the product's pitch (안심); absorption is
-bounded at pilot scale; the `g1_waive` handle keeps the flip a one-commit change.
+## Provenance
+
+Original memo + adversarial round (Claude subagent + Codex, 12 + 16 findings) in the
+club-delegation session, 2026-08-13; Sean delegated the recommendation there. The
+charge-slice session independently wrote the same memo, reached a different
+`dog_condition` answer, and correctly refused to build on a relayed adoption. At
+consolidation (2026-08-13) both were merged here and the divergence surfaced rather than
+resolved by either model.

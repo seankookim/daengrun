@@ -1,4 +1,13 @@
-# OPS_PROFILE_ID — env var vs an admin role in the DB
+# ③ OPS_PROFILE_ID — env var vs an admin role in the DB
+
+> ✅ **BOTH SESSIONS AGREE: keep the env var for the pilot; revisit at the second
+> operator.** The charge-slice session's option shapes, folded in: **B** =
+> `profiles.is_ops boolean` (DB-native, survives env drift — but the column must be
+> sealed from client writes or it is a privilege-escalation path, and it needs a pin);
+> **C** = a dedicated `ops_recipients` table (cleanest for many operators + per-event
+> routing, overbuilt for one person). B's real cost isn't the column, it's another
+> sealed-surface pin to maintain for zero present benefit. The trigger to revisit is a
+> second human needing to see ops events — not a date.
 
 **Status: ADOPTED — A (env var stays), 2026-08-13; the hardening question is
 RESOLVED by payload redaction.** Sean delegated the call to this memo's

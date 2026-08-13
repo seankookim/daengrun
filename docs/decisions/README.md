@@ -1,57 +1,50 @@
-# Decision memos — the three §4/§9 money calls (ADOPTED 2026-08-13, pending Sean's merge)
+# Money decision memos — the single index (consolidated 2026-08-13)
 
-One page per decision: the adopted option, the options that lost, and an
-adversarial-round addendum reconciled against the BUILT charge slice (0080).
+Six memos, one directory. Two sessions wrote overlapping sets in parallel
+(`docs/decisions/` here + `docs/decisions-open-money.md` on mainline); at consolidation
+the duplicate was retired INTO this directory with its text preserved, and the one place
+the two sets genuinely disagreed was surfaced rather than merged away.
 
-**Provenance & confirmation protocol:** Sean delegated all three calls to the memos'
-recommendations in the club-delegation session (/autoplan 2026-08-13, "go ahead with
-all things you think will help like u wrote in the mds"). The charge-slice session
-correctly refuses to treat a *relayed* adoption as authorization — so the shipped
-code keeps G1's 🔴 provisional marker and D-3 stays unbuilt until Sean confirms
-directly. **Sean's review+merge of this branch IS that written confirmation**; until
-it lands, downstream sessions treat these as provisional-adopted. Any box can still
-be re-checked; G1 flips apply forward-only.
+**Sean picks by letter. One line per memo is enough.**
 
-| # | Memo | Decision | ADOPTED | Build state (0080 tree) |
-|---|---|---|---|---|
-| 1 | [g1-abort-charge-basis.md](g1-abort-charge-basis.md) | G1 abort-charge basis | **O1 waive** (dog_condition waives; incident-class defers to 0072 adjudication) | `g1_waive` shipped at 0080:266 (provisional 🔴); `waived` status + row-existence sweep already satisfy the P0 |
-| 2 | [d3-silent-charge-summary.md](d3-silent-charge-summary.md) | D-3 silent-charge users | **B monthly in-app summary** (amount-free push, immutable KST statement row) | NOT built — next money slice, migrations ≥0082 |
-| 3 | [ops-profile-id-vs-admin-role.md](ops-profile-id-vs-admin-role.md) | OPS_PROFILE_ID | **A env var** + payload redaction (supersedes the OPS_EMAIL idea) | Redaction fixed in charge-slice session (f9f7be7); reconciliation is 4-arm in 0080 |
+| # | Memo | Status | Recommendation |
+|---|---|---|---|
+| ① | [g1-abort-charge-basis.md](g1-abort-charge-basis.md) | 🟡 **OPEN — the sessions split** | `dog_condition`: **A′ ₩0** (club-delegation) vs **D distance-only** (charge-slice). `incident` = ₩0 at settle either way. |
+| ② | [d3-silent-charge-summary.md](d3-silent-charge-summary.md) | ✅ agreed, needs counsel | Monthly summary, never a per-charge push. Ask counsel; 전자상거래법 footer is a hard dependency at 사업자등록. |
+| ③ | [ops-profile-id-vs-admin-role.md](ops-profile-id-vs-admin-role.md) | ✅ agreed, shipped | Env var for the pilot; payloads already redacted (`f9f7be7`). |
+| ④ | [club-fare-base-alignment.md](club-fare-base-alignment.md) | 🟡 OPEN | **B — align `club_fare` to 7,900 before the cutover.** Club owners currently pay ₩2,000 more than marketplace for the same km. |
+| ⑤ | [club-enroute-cancel.md](club-enroute-cancel.md) | 🟡 OPEN | **C — route en-route club cancels into the incident flow** (a button, not a wall). |
+| ⑥ | [cutover-straddle.md](cutover-straddle.md) | 🟡 OPEN (at flip time) | **B — set `payments_live_since` to a FUTURE timestamp** past the longest in-flight booking. |
 
-Source of truth for the model: `docs/plans/payments-toss-plan.md` (§0-bis, §0-ter +
-BUILT banner). The D-3 adoption AMENDS §0-bis (third money-UI mode: one scheduled
-aggregate receipt/month) — amended in the same commit as this adoption.
-NOTE: the charge-slice session independently drafted `docs/decisions-open-money.md`
-(same three topics + club-specific items ④/⑤) on its branch — this set is canonical
-(Sean engaged with it). **Consolidation sequencing (agreed 2026-08-13):** that file
-stays until this branch merges (retiring it first would leave mainline memo-less);
-after Sean's merge, its ①–③ retire and the club-specific ④/⑤ MOVE HERE as their own
-one-page memos — docs/decisions/ is the single decision-memo directory going
-forward. Neither session merges this branch: Sean's merge IS the confirmation the
-protocol reserves for him.
+①/② gate the `payments_live_since` flip. ④/⑤/⑥ are pre-cutover: nothing is charged until
+the flip, so all of them are cheap now and expensive after.
 
-## Decision Audit Trail (/autoplan 2026-08-13)
+## Why ① is still open (read this before assuming it was mishandled)
 
-Dual voices: Claude subagent (independent, 12 findings) + Codex gpt-5.6-sol (16).
-Both agreed all three PICKS survive. Cross-session reconciliation with the built
-charge slice then resolved which accompaniments were already satisfied.
+Sean delegated the three original calls to this session's recommendations. The
+charge-slice session — which owns the built code — refused to treat a *relayed* adoption
+as authorization, correctly: a confirmation gate another session can perform is not a
+gate. That refusal held the 🔴 marker in place. Then consolidation revealed the two
+sessions had reached **different answers on `dog_condition`** (₩0 vs distance-only), each
+from its own adversarial round. No model resolved it, because the disagreement is a
+founder's risk preference: waive optimises for the first emergency, distance-only for the
+tenth. It is the one thing genuinely waiting on Sean.
 
-| # | Decision | Classification | Principle | Outcome |
-|---|---|---|---|---|
-| 1 | G1 = O1 waive | Delegated by Sean | — | Shipped provisionally (0080:266); 🔴 until Sean's merge |
-| 2 | G1 incident-class defers to 0072 adjudication | Auto (both voices) | P4 reuse | Recorded; build slice honors at flip time |
-| 3 | Waive = first-class `waived` payments status | Auto (both voices, P0) | P5 explicit | ALREADY SATISFIED by 0080 (payments_waived_is_zero; sweep keys on row existence incl. waived — independently hardened R3 P3-9) |
-| 4 | G1 flips forward-only | Auto (Codex) | P1 | Recorded policy |
-| 5 | Per-runner G1 telemetry + owner-visible condition_note | Auto (both voices) | P1 | STILL REQUIRED — timed to the CUTOVER GATE (fraud incentive starts at payments_live_since; builds in the slice that flips it) |
-| 6 | D-3 = B monthly summary | Delegated by Sean | — | Unbuilt pending Sean's direct confirm; spec in memo |
-| 7 | §0-bis amended (third money-UI mode) | Auto (both voices) | P5 | Done in this commit |
-| 8 | Summary push amount-free | Auto (both voices, P0) | P3 | Spec'd (0024 trigger pushes body verbatim with sound) |
-| 9 | Statement = immutable (owner, period-KST) row | Auto (Codex) | P1 | Spec'd; needs migration ≥0082 |
-| 10 | Recurring pause after 8 runs w/o app open | Auto (Claude) | P1 | Spec'd; rides the D-3 slice |
-| 11 | OPS = A env var | Delegated by Sean | — | Stands |
-| 12 | Wrong-uuid financial-data leak | Auto (both voices, P0-class) | P1 | CONFIRMED REAL by charge-slice session; FIXED there via payload redaction (f9f7be7) — better than the OPS_EMAIL cross-check, which is retired (a second env var that must also be right just moves the question) |
-| 13 | Reconciliation arms per marker class + heartbeat | Auto (both voices) | P1 | LARGELY SATISFIED (0080 reconciliation 4-arm + 15-min verification arm); >0-rows loud-log heartbeat cron = cutover-gate item |
-| 14 | `incident`-class = ₩0 at settle under EVERY option (0072 owns the money question; pick governs dog_condition only) | Auto (charge-slice fold-check delta) | P5 explicit | Absorbed into the G1 memo's invariants — survives any future re-pick |
+**Nothing was built on the relayed adoption.** ① keeps its 🔴 provisional (both end
+reasons charge nothing today) and ② is unbuilt.
 
-No User Challenges. Restore point:
-`~/.gstack/projects/seankookim-daengrun/claude-club-delegation-money-gaps-b59eb8-autoplan-restore-20260813-111952.md`
+## Provenance & method
+
+- Original ①–③ memos + dual-voice adversarial round (Claude subagent 12 findings, Codex
+  gpt-5.6-sol 16): club-delegation session, 2026-08-13.
+- Independent ①–③ + club-specific ④–⑥: charge-slice/club-gates session, same day, written
+  against the BUILT code (0080/0081). Text preserved verbatim in ④–⑥.
+- Cross-session findings that changed shipped code: the club-delegation round found a
+  **financial-data disclosure** (a valid-but-wrong `OPS_PROFILE_ID` put another customer's
+  order number and ₩ amount on a stranger's lock screen via 0024's verbatim push) — fixed
+  by payload redaction in `f9f7be7`. The charge-slice round found the memo hole that
+  `incident` must stay ₩0 for an architectural reason, so a future re-pick can't
+  accidentally pre-empt 0072's adjudication. Neither was visible from inside the session
+  that wrote it.
+- Restore point for this session's drafts:
+  `~/.gstack/projects/seankookim-daengrun/claude-club-delegation-money-gaps-b59eb8-autoplan-restore-20260813-111952.md`

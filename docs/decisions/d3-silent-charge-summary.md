@@ -1,10 +1,23 @@
-# D-3 — Silent-charge users: accept the silence, or send a monthly summary?
+# ② D-3 — Silent-charge users: accept the silence, or send a monthly summary?
 
-**Status: ADOPTED — B (monthly in-app summary), 2026-08-13; UNBUILT pending Sean's
-direct confirmation.** Sean delegated the call to this memo's recommendation in the
-club-delegation session (/autoplan). The charge-slice session correctly declines to
-build a product surface on a relayed approval — so this ships in the NEXT money
-slice (migrations ≥0082) once Sean's merge of this branch confirms the adoption.
+**Status: ✅ BOTH SESSIONS AGREE — monthly summary (not a per-charge push), pending
+counsel. UNBUILT.** Sean delegated the call in the club-delegation session (/autoplan);
+the charge-slice session reached the same answer independently ("if the answer is
+ambiguous, ship C — the monthly summary; do NOT ship a per-charge push by default out
+of caution, that is the invisible-cost version of a legal decision"). It builds in the
+next money slice (migrations ≥0083) once confirmed.
+
+**The real gate is counsel, and the question is theirs, not ours:** in Korea, for a
+marketplace charging a saved card after service on server-computed actuals, is one-time
+consent at card link + price disclosure at booking + on-demand receipts sufficient, or
+is a per-charge notice required? Ask specifically about 전자상거래법 정보 제공 duties,
+여신전문금융업법 자동결제 disclosure, and whether the 자동결제 심사 itself imposes
+notification terms.
+
+**Hard dependency either way (not a design choice):** the 전자상거래법 footer
+(사업자 정보 + 통신판매업 신고번호) must appear on the payment surfaces the day those
+numbers exist. Deliberately omitted today rather than faked, because the numbers don't
+exist until 사업자등록 lands.
 Adoption AMENDS the price-invisibility doctrine: §0-bis's "money UI in exactly two
 modes" gains a third — **one scheduled aggregate receipt per month** (amended in
 payments-toss-plan §0-bis in this commit). B is a FLOOR, not a ceiling: if Toss 빌링
@@ -66,7 +79,8 @@ framing. Honest-≠-loud holds only while the user *can* notice.
    23:30 KST charge is 8월); semantics fixed up front: confirmed charges + cancel
    fees in-period by confirmation time, refunds as their own line in the NEXT
    statement, `waived` runs shown as ₩0 lines in the count. Needs a migration →
-   **number ≥0082** (0080 charge machine, 0081 claimed by club-money-gates).
+   **claim the number in `supabase/migrations/REGISTRY.md` first** (0082 is contested;
+   0083 is next free at time of writing).
 3. **Tap routing doesn't exist (Codex).** push.ts/alerts.tsx route only
    community/reward/booking kinds — a `system` summary dead-ends on tap. Add a typed
    target that opens `/payments` (or a statement view).
