@@ -29,13 +29,36 @@ not evidence.
 - Model it on the two-sided handoff — and prefer **`0083`'s return-handoff machine over
   `0047`'s** (0047 is the original rails; 0083, in build on the run-end-flow branch, ships the
   fuller version of the same shape). What to take from it, with `incident` in place of `return`:
-  two independent party stamps on a booking, server-written only, forgery-guarded on both
-  UPDATE **and** INSERT · one locked primitive that fires only when both stamps are present,
-  never re-implemented per call site · a durable `settlement_ready_at`-style fact plus a
-  recovery sweep, so a crash between stamp and effect self-heals · a force path recording
-  actor, eligibility time, reason and evidence immutably · a 2h escalation so nothing strands ·
-  idempotence on both stamps, with the concurrent loser returning success after verifying the
-  same outcome rather than raising.
+    1. **Two independent party stamps, server-written only — but the two guards are NOT
+     symmetric, and writing them symmetrically breaks draft creation.** UPDATE is already
+     closed by 0058 §3's deny-all (`0058_security_hardening_2.sql:242`); 0083 adds nothing
+     there. INSERT is 0083's own `_guard_booking_insert_cols`, and it is **deliberately a
+     blacklist, not a deny-all** — its comment says why: *"owners may INSERT drafts
+     (0002:95) — so a client could be born holding a return/handoff confirmation. Blacklist
+     rather than deny-all, because a draft legitimately carries most columns."*
+  2. One locked primitive that fires only when both stamps are present, never
+     re-implemented per call site.
+  3. A durable `settlement_ready_at`-style fact plus a recovery sweep that **detects and
+     reports** a crash between stamp and effect, escalating to a human at 2h — **it does NOT
+     self-heal.** 0083 §0g is explicit that the sweep can "report a sealed-but-unsettled
+     booking but cannot settle it": `_settle_sealed_run(p_booking uuid, p_quote jsonb)`
+     (line 783) takes the price as an argument, and SQL has none to re-drive with, because
+     Sean's G1 ruling made the payout basis depend on `end_reason` and that pricing lives in
+     TypeScript. Full self-healing needs `compute_runner_payout(booking, end_reason,
+     actual_km)` in SQL, sibling to 0080 §D's `compute_owner_charge` — §0g names it as the
+     missing piece.
+     **⑪ can likely do better than 0083 here.** If ⑪'s effect is a status change rather than
+     a payment, it has no price to re-drive and genuinely can self-heal. Do not inherit this
+     limitation by assuming the pattern implies it.
+  4. A force path recording actor, eligibility time, reason and evidence immutably.
+  5. A 2h escalation so nothing strands.
+  6. Idempotence on both stamps, with the concurrent loser returning success after verifying
+     the same outcome rather than raising.
+  7. **Distinct exception names for distinct facts.** 0083 raises
+     `run_frozen_after_settlement` and `run_frozen_after_end` separately (lines 248-265)
+     precisely so a client cannot collapse them into one sentence telling a runner the run
+     was settled when it wasn't. **Frozen and settled are different facts**; any two-party
+     machine inherits this hazard and needs an error vocabulary that keeps them apart.
   ⚠ **Extract the SHAPE; do not copy the functions.** Re-creating an object another slice owns
   is the silent-collision class `supabase/migrations/REGISTRY.md` exists to catch — it reverts
   their work quietly and the harness still passes, because each slice's pins live in its own
