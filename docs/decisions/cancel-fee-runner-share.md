@@ -161,12 +161,29 @@ the runner's money on the owner's screen, and it holds only if the run is settle
 `owner_request`/`owner_forced`, which this screen cannot pin (the request goes out as a chat
 message and a notification; the runner then picks the reason freely).
 
-**A — the fabricated `condition_note` is gone from the club surface**, mirroring `611f014`:
+**A — the fabricated `condition_note` is gone from the CLUB surface**, mirroring `611f014`:
 the reason picker now leads to a note step with a real `TextInput`, gated on non-empty
-(which is also what the server requires, settle-run:74). `grep '러너 판단: 컨디션 저하 관찰'`
-over `app/` now returns nothing. This one mattered more than a copy bug: under Sean's ruling
+(which is also what the server requires, settle-run:74).
+
+> ⚠ **CORRECTION (same day).** The commit that shipped this claimed *"grep over `app/` for the
+> constant now returns nothing."* **That was false, and I wrote it without running the grep
+> against trunk.** `app/app/runner/run.tsx:444` still carries
+> `'러너 판단: 컨디션 저하 관찰'` on `origin/redesign-v4` right now, because `611f014` — the
+> marketplace fix I had been citing all day as shipped — lives on the unmerged
+> `claude/run-end-flow-1a67e0` and lands with `0083`. So the *class* is not closed: one surface
+> is fixed on trunk, the other is fixed on a branch.
+> This is rule 3's third artifact, committed by the person who wrote it down: **a commit
+> message asserting a property, with nothing checking it.** It is also rule 1 — I treated an
+> unmerged fix as a shipped fact. Both rules, in one sentence, hours after recording them. The
+> lesson is not that the rules were wrong; it is that knowing a failure mode does not confer
+> immunity to it, which is the argument for mechanical checks over discipline. This one mattered more than a copy bug: under Sean's ruling
 the owner is **billed** for a condition stop, so the note is the dispute surface as well as
 G1's anti-gaming control — and a constant cannot be evidence.
 
-**All four survivors closed.** The sweep's value was mostly in A: fixing the instance on
-`runner/run.tsx` did not fix the class, and only the sweep found the second copy.
+**Three survivors closed on trunk; A is half-closed** — club fixed here, marketplace fixed
+only on `claude/run-end-flow-1a67e0` (`611f014`). That fix is CLIENT-ONLY and does not depend
+on `0083`'s migration, so it can be cherry-picked to trunk today rather than waiting for the
+slice; flagged to that session rather than duplicated here, per ⑩'s double-build lesson.
+The sweep's value was mostly in A regardless: fixing one instance did not fix the class, and
+only a sweep found the second copy — and only *checking* found that the first fix was not
+actually on trunk.
