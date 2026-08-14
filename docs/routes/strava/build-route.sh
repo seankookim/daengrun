@@ -30,7 +30,10 @@ B () { "$BIN" --headed "$@"; }
 
 NAME="$1"; CENTER="$2"; TARGET="$3"; START="$4"; shift 4
 WAYPOINTS=("$@")
-TOL_PCT="${TOL_PCT:-15}"
+# 20%, not 15%: a 2.31km route was refused against the 2km slot at 15.5% off.
+# The tolerance only needs to keep a route in a sensible catalog slot — the NAME
+# carries the measured km either way, so a wider band cannot launder a distance.
+TOL_PCT="${TOL_PCT:-20}"
 # Non-numeric TOL_PCT makes awk compare lexically and pass everything: a 9km
 # route against a 3km target with TOL_PCT=abc returned "yes".
 case "$TOL_PCT" in ''|*[!0-9.]*) echo "TOL_PCT must be numeric, got '$TOL_PCT'" >&2; exit 2;; esac

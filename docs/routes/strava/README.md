@@ -22,6 +22,14 @@ collapsing them would be the same mistake this directory exists to prevent.
 | `_existing-mongmareu.gpx` | 3523203570730615372 | 1.59 | 1.5 | +34 m | 34 m | 38 | OUT-AND-BACK (80% retrace) — superseded |
 | `몽마르뜨_언덕_루프_5.4km.gpx` | 3523215321827895562 | 5.40 | 5.4 | +51 m | 68 m | 119 | LOLLIPOP (53% retrace) |
 | `몽마르뜨_언덕_루프_4.79km.gpx` | 3523214683284986122 | 4.80 | 4.79 | +46 m | 63 m | 100 | LOLLIPOP (47% retrace) — best 몽마르뜨 geometry so far |
+| `이촌_박물관_루프_2.73km.gpx` | 3523224747186372978 | 2.74 | 2.73 | +13 m | 16 m | 47 | OUT-AND-BACK (81% retrace) · 70% PAVED |
+
+**Shape is a characteristic, not a grade** (Sean, 2026-08-14: *"who cares if it's a lollipop or a
+figure 8 or a curve"*). A dog walk that leaves a 단지 gate and comes back is a good route whatever
+its topology; owners pick on distance, surface, elevation and what the route passes. `check-shape`
+now fails only on `DEGENERATE` and `TOO-SHORT-TO-CLASSIFY`, which mean the file cannot be measured
+at all. Retrace % is kept because it says how much of the route you see twice — useful metadata,
+not a pass mark.
 
 **"Measured km" and "Gain (3 m deadband)" are recomputed from the trackpoints by
 `check-shape.mjs`. "Strava km" and "Strava gain" are the builder's own readout, and the filenames

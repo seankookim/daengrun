@@ -16,7 +16,12 @@
 //   closureM     distance from first point to last — a loop closes
 //   retracePct   share of points that lie within RETRACE_M of a NON-adjacent
 //                part of the route. High = the route doubles back on itself.
-//   verdict      LOOP | OUT-AND-BACK | LOLLIPOP | OPEN
+//   verdict      LOOP | OUT-AND-BACK | LOLLIPOP | OPEN — descriptive only.
+//                Retrace % is the useful number: it says how much of the route
+//                you see twice. Nobody books a route for being topologically a
+//                loop; they book on distance, surface, elevation and what it
+//                passes. Only DEGENERATE and TOO-SHORT-TO-CLASSIFY are failures,
+//                and both mean the file cannot be measured at all.
 
 import { readFileSync } from 'node:fs';
 
@@ -151,12 +156,17 @@ for (const f of files) {
     continue;
   }
   if (r.n < 2) { console.log(`${f}\n  NO TRACKPOINTS`); bad++; continue; }
-  const flag = r.verdict === 'LOOP' ? '' : '   <-- NOT A LOOP';
+  // Shape is a CHARACTERISTIC, not a grade. A lollipop, a figure-eight and an
+  // out-and-back are all fine routes to run a dog on; what an owner picks on is
+  // distance, surface, elevation and what the route passes. Only two verdicts
+  // are real failures, and both mean "this file cannot be measured at all".
+  const broken = r.verdict === 'DEGENERATE' || r.verdict === 'TOO-SHORT-TO-CLASSIFY';
+  const flag = broken ? '   <-- UNMEASURABLE' : '';
   console.log(
     `${f.split('/').pop()}\n` +
     `  ${r.km.toFixed(2)} km · ${r.n} pts · +${Math.round(r.gain)}m/-${Math.round(r.loss)}m · ` +
     `closure ${Math.round(r.closure)}m · retrace ${r.retracePct.toFixed(0)}% · ${r.verdict}${flag}`
   );
-  if (r.verdict !== 'LOOP') bad++;
+  if (broken) bad++;
 }
 process.exit(bad ? 1 : 0);
