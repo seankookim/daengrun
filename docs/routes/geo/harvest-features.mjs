@@ -262,10 +262,117 @@ function pointInGu(lat, lng, g) {
 }
 
 function makeGuLocator(admin) {
-  return (lat, lng) => {
-    for (const g of admin.gu) if (pointInGu(lat, lng, g)) return g.name;
-    return null;
+  // Ray casting over a whole 구 boundary is thousands of segments per point, and a Seoul-wide
+  // build asks the question hundreds of thousands of times. Two cheap fixes: bucket each 구's
+  // segments by latitude band (only segments spanning the query latitude can matter), and memoise
+  // on a ~22 m grid.
+  const BAND = 0.005;
+  const prepared = admin.gu.map((g) => {
+    const bands = new Map();
+    for (const w of g.ways) {
+      for (let i = 1; i < w.length; i++) {
+        const a = w[i - 1];
+        const b = w[i];
+        const lo = Math.floor(Math.min(a[1], b[1]) / BAND);
+        const hi = Math.floor(Math.max(a[1], b[1]) / BAND);
+        for (let k = lo; k <= hi; k++) {
+          let arr = bands.get(k);
+          if (!arr) bands.set(k, (arr = []));
+          arr.push([a[0], a[1], b[0], b[1]]);
+        }
+      }
+    }
+    return { name: g.name, bbox: g.bbox, bands };
+  });
+
+  const inside = (lat, lng, p) => {
+    if (lng < p.bbox[0] || lng > p.bbox[2] || lat < p.bbox[1] || lat > p.bbox[3]) return false;
+    const segs = p.bands.get(Math.floor(lat / BAND));
+    if (!segs) return false;
+    let hit = false;
+    for (const [x1, y1, x2, y2] of segs) {
+      if (y1 > lat !== y2 > lat) {
+        const xInt = x1 + ((lat - y1) / (y2 - y1)) * (x2 - x1);
+        if (xInt > lng) hit = !hit;
+      }
+    }
+    return hit;
   };
+
+  const CELL = 0.0002; // ~22 m
+  const memo = new Map();
+  return (lat, lng) => {
+    const key = `${Math.round(lat / CELL)}:${Math.round(lng / CELL)}`;
+    const cached = memo.get(key);
+    if (cached !== undefined) return cached;
+    let found = null;
+    for (const p of prepared) {
+      if (inside(lat, lng, p)) {
+        found = p.name;
+        break;
+      }
+    }
+    memo.set(key, found);
+    return found;
+  };
+}
+
+/**
+ * Split a polyline into the portions lying in each 구.
+ *
+ * Without this, a linear feature is filed under whichever 구 contains its single midpoint, so the
+ * 한강 lands in one 구 and 광진구 — which has kilometres of river frontage — reports ZERO streams.
+ * That is not a missing query, it is a lost fact, and it is the fact a river route is built from.
+ * Returns Map<구, {lengthM, longest: pts[]}>.
+ */
+function splitByGu(pts, locate) {
+  const out = new Map();
+  let run = [];
+  let runGu = null;
+  const flush = () => {
+    if (runGu && run.length > 1) {
+      let e = out.get(runGu);
+      if (!e) out.set(runGu, (e = { lengthM: 0, longest: [], longestM: 0 }));
+      const m = lineLength(run);
+      e.lengthM += m;
+      if (m > e.longestM) {
+        e.longestM = m;
+        e.longest = run;
+      }
+    }
+    run = [];
+  };
+  for (const p of pts) {
+    const gu = locate(p.lat, p.lon);
+    if (gu !== runGu) {
+      // carry the boundary vertex into both runs so neither side loses its edge segment
+      const carry = run.length ? run[run.length - 1] : null;
+      flush();
+      runGu = gu;
+      run = carry ? [carry] : [];
+    }
+    run.push(p);
+  }
+  flush();
+  return out;
+}
+
+/** splitByGu across every polyline of an element separately — members must never be joined end-to-end. */
+function splitAllByGu(geoms, locate) {
+  const out = new Map();
+  for (const g of geoms) {
+    if (g.length < 2) continue;
+    for (const [gu, p] of splitByGu(g, locate)) {
+      let e = out.get(gu);
+      if (!e) out.set(gu, (e = { lengthM: 0, longest: p.longest, longestM: p.longestM }));
+      else if (p.longestM > e.longestM) {
+        e.longestM = p.longestM;
+        e.longest = p.longest;
+      }
+      e.lengthM += p.lengthM;
+    }
+  }
+  return out;
 }
 
 // ---------------------------------------------------------------------------
@@ -365,11 +472,18 @@ const HILL_NAMES = new Set([
 
 const HILLISH = /(산|봉|고개|언덕)(공원|근린공원)?$/;
 
+// A stream is not always a `waterway`. 정릉천 and 한강 are mapped as `natural=water` +
+// `water=river` riverbank POLYGONS, with no waterway tag at all — so a waterway-only query files
+// them under `lake` and the highest-priority category silently loses its biggest members.
+// Measured: this is why 정릉천 read as 0 km on the first build.
+const WATER_LINEAR = new Set(['river', 'stream', 'canal', 'ditch', 'drain', 'moat', 'riverbank']);
+
 function classify(el) {
   const t = el.tags || {};
   const name = t.name || '';
   if (t.waterway) return 'stream';
   if (t.natural === 'peak' || t.natural === 'hill') return 'hill';
+  if (t.natural === 'water' && WATER_LINEAR.has(t.water)) return 'stream';
   if (t.natural === 'water' || t.landuse === 'reservoir') return 'lake';
   if (t.leisure === 'park' || t.leisure === 'garden' || t.leisure === 'nature_reserve' || t.boundary === 'national_park') {
     if (HILL_NAMES.has(name) || HILLISH.test(name)) return 'hill';
@@ -433,17 +547,29 @@ function shapeOf(el, category) {
     }
   }
   const closedRings = geoms.filter(isClosed);
-  const areal = !LINEAR.has(category) && closedRings.length > 0;
-  if (areal) {
+  if (closedRings.length > 0) {
     const areaM2 = closedRings.reduce((s, r) => s + ringAreaM2(r), 0);
     const biggest = closedRings.reduce((a, b) => (ringAreaM2(a) >= ringAreaM2(b) ? a : b));
     const c = ringCentroid(biggest);
-    return { lat: c.lat, lng: c.lng, lengthM: null, areaM2: Math.round(areaM2), bbox };
+    if (category !== 'stream') {
+      return { lat: c.lat, lng: c.lng, lengthM: null, areaM2: Math.round(areaM2), bbox, kind: 'area' };
+    }
+    // A riverbank polygon has no length, only a perimeter. Half the perimeter is the honest
+    // approximation of the run — labelled as an estimate in tags, never presented as measured.
+    const perim = closedRings.reduce((s, r) => s + lineLength(r), 0);
+    return {
+      lat: c.lat,
+      lng: c.lng,
+      lengthM: Math.round(perim / 2),
+      areaM2: Math.round(areaM2),
+      bbox,
+      kind: 'riverbank-polygon',
+    };
   }
   const longest = geoms.reduce((a, b) => (lineLength(a) >= lineLength(b) ? a : b));
   const lengthM = geoms.reduce((s, g) => s + lineLength(g), 0);
   const mid = lineMidpoint(longest);
-  return { lat: mid.lat, lng: mid.lng, lengthM: Math.round(lengthM), areaM2: null, bbox };
+  return { lat: mid.lat, lng: mid.lng, lengthM: Math.round(lengthM), areaM2: null, bbox, kind: 'line' };
 }
 
 const KEEP_TAGS = [
@@ -487,10 +613,15 @@ function makeStreamIndex(streamGeoms) {
   };
 }
 
+// The 도곡 riverside box referenced by GEOGRAPHY.md's stair warning: [minLat, minLng, maxLat, maxLng].
+// 타워팰리스/도곡렉슬 down to the 양재천 north bank.
+const DOGOK_BOX = [37.484, 127.038, 37.4975, 127.062];
+
 function build(admin) {
   const locate = makeGuLocator(admin);
   const raw = [];
   const stepsByGu = {};
+  const dogokSteps = [];
   const seen = new Set();
   const streamGeoms = [];
   const peaks = [];
@@ -503,6 +634,15 @@ function build(admin) {
       continue;
     }
     stepsByGu[g.name] = (cache.steps?.elements || []).length;
+    // Re-measure the exact box the earlier "OSM Korea is too step-sparse to route on" conclusion
+    // came from, so Seoul-wide coverage and that box can be compared instead of asserted.
+    for (const el of cache.steps?.elements || []) {
+      const p = (el.geometry || [])[0];
+      if (!p) continue;
+      if (p.lat >= DOGOK_BOX[0] && p.lat <= DOGOK_BOX[2] && p.lon >= DOGOK_BOX[1] && p.lon <= DOGOK_BOX[3]) {
+        dogokSteps.push(`${el.type}/${el.id}`);
+      }
+    }
 
     for (const grp of GROUP_NAMES) {
       if (grp === 'steps') continue; // counted, not emitted — steps are not a route feature
@@ -534,22 +674,33 @@ function build(admin) {
           peaks.push({ name: t.name, lat: shape.lat, lng: shape.lng, ele: t.ele ? Number(t.ele) : null });
         }
 
-        raw.push({
+        const base = {
           id: key,
           name: label,
           unnamed,
           nameEn: t['name:en'] || null,
           category,
-          gu,
-          lat: shape.lat,
-          lng: shape.lng,
           ele: t.ele != null && Number.isFinite(Number(t.ele)) ? Number(t.ele) : null,
-          lengthM: shape.lengthM,
-          areaM2: shape.areaM2,
           opening_hours: t.opening_hours || null,
           bbox: shape.bbox,
-          tags: trimTags(t),
-        });
+        };
+        if (shape.kind === 'riverbank-polygon') base.lengthEstimated = true;
+
+        // A line gets one entry per 구 it actually runs through; anything else gets one entry.
+        const parts =
+          LINEAR.has(category) && shape.kind === 'line'
+            ? [...splitAllByGu(geometriesOf(el), locate).entries()].map(([pgu, p]) => {
+                const mid = lineMidpoint(p.longest);
+                return { gu: pgu, lat: mid.lat, lng: mid.lng, lengthM: Math.round(p.lengthM), areaM2: null };
+              })
+            : [];
+        const entries = parts.length
+          ? parts
+          : [{ gu, lat: shape.lat, lng: shape.lng, lengthM: shape.lengthM, areaM2: shape.areaM2 }];
+
+        for (const e of entries) {
+          raw.push({ ...base, ...e, tags: trimTags(t) });
+        }
       }
     }
   }
@@ -582,6 +733,12 @@ function build(admin) {
 
   // "highway=elevator near the river" — Seoul is full of subway elevators, which are not river
   // crossings. Keep an unnamed elevator only when it is close enough to water to be one.
+  for (const f of raw) {
+    if (f.lengthEstimated) f.tags.lengthFrom = 'riverbank-polygon perimeter/2 (estimate, not a measured centreline)';
+  }
+
+  applyHandVerifiedOverlay(raw);
+
   const kept = raw.filter((f) => {
     if (!f.unnamed) return true;
     f.tags.unnamed = 'yes';
@@ -657,7 +814,42 @@ function build(admin) {
   );
 
   const stepsTotal = Object.values(stepsByGu).reduce((s, n) => s + n, 0);
-  return { features, stepsByGu, stepsTotal };
+  return { features, stepsByGu, stepsTotal, dogokStepsCount: dogokSteps.length, dogokBox: DOGOK_BOX };
+}
+
+/**
+ * Facts GEOGRAPHY.md verified by hand that OSM simply does not carry.
+ *
+ * MEASURED: way/1029229031 is the 서울숲 보행가교 — OSM has it as an unnamed `bridge=yes` footway
+ * with no name and no opening_hours. Its 05:30–21:30 window is the single most route-changing fact
+ * in the whole 성수 cluster (it makes an evening 서울숲↔한강 loop impossible), and a harvest that
+ * drops it silently hands a route generator a bridge that is shut when people actually walk dogs.
+ *
+ * Every value here is stamped with `source` so it can never be mistaken for an OSM tag. This
+ * overlay ADDS attributes to an element OSM already contains — it never invents a feature.
+ */
+const HAND_VERIFIED_OVERLAY = {
+  'way/1029229031': {
+    name: '서울숲 보행가교',
+    opening_hours: '05:30-21:30',
+    tags: {
+      source: 'docs/routes/strava/GEOGRAPHY.md (hand-verified; not an OSM tag)',
+      alternative: '성수대교 북단 엘리베이터 (24 h)',
+    },
+  },
+};
+
+function applyHandVerifiedOverlay(raw) {
+  for (const f of raw) {
+    const ov = HAND_VERIFIED_OVERLAY[f.id];
+    if (!ov) continue;
+    if (ov.name) {
+      f.name = ov.name;
+      f.unnamed = false;
+    }
+    if (ov.opening_hours) f.opening_hours = ov.opening_hours;
+    Object.assign(f.tags, ov.tags || {});
+  }
 }
 
 /** Single-link clustering by centroid distance; small n per name, so O(n²) is fine. */
@@ -739,9 +931,12 @@ function verify(payload) {
   for (const [name, lat, lng] of HAND_VERIFIED) {
     // OSM writes "반포안내센터 나들목" where the doc writes "반포안내센터나들목" — compare squashed.
     const target = squash(name);
-    let cands = crossings.filter(
-      (f) => squash(f.name).includes(target) || (squash(f.name).length >= 5 && target.includes(squash(f.name))),
-    );
+    // Name matching alone is a trap: "성수대교 북단 엘리베이터" happily matched a 서대문구 lift
+    // literally named "엘리베이터", 8.9 km away, and reported it as a hit. A name match only
+    // counts if it is also in the right place.
+    let cands = crossings
+      .filter((f) => squash(f.name).includes(target) || (squash(f.name).length >= 5 && target.includes(squash(f.name))))
+      .filter((f) => haversine(f.lat, f.lng, lat, lng) < 1500);
     if (!cands.length && /엘리베이터/.test(name)) {
       cands = F.filter((f) => f.tags?.highway === 'elevator' && haversine(f.lat, f.lng, lat, lng) < 400);
     }
@@ -797,6 +992,23 @@ function verify(payload) {
   const st = Object.entries(payload.meta.stepsByGu).sort((a, b) => b[1] - a[1]);
   for (const [gu, n] of st) line(`  ${gu.padEnd(8)} ${String(n).padStart(5)}`);
   line(`  TOTAL    ${String(payload.meta.stepsTotal).padStart(5)}`);
+  line(`  도곡 riverside box ${JSON.stringify(payload.meta.dogokBox)}: ${payload.meta.dogokStepsCount}`);
+  line('  (GEOGRAPHY.md recorded 2 for that box. Seoul-wide coverage is the number that decides');
+  line('   whether step-aware pedestrian routing is possible at all.)');
+
+  line('\n=== MEASURED ABSENCES — stated, not silently missing ===');
+  const tierRaw = F.filter((f) => /둑길|소단길|둔치길/.test(f.name));
+  line(`  양재천 tier names (둑길/소단길/둔치길): ${tierRaw.length} features Seoul-wide.`);
+  line('    OSM does not distinguish 양재천 tiers by name anywhere in Seoul — the out-on-one-tier,');
+  line('    back-on-another loop is real on the ground but is NOT derivable from this data.');
+  for (const seg of HANGANG_PARKS) {
+    if (!F.some((f) => f.name.includes(`${seg}한강공원`))) line(`  ${seg}한강공원: no OSM park polygon carries this name.`);
+  }
+  const ohCrossings = F.filter((f) => f.category === 'crossing' && f.opening_hours && f.opening_hours !== '24/7');
+  line(`  crossings with a RESTRICTIVE opening_hours (not 24/7): ${ohCrossings.length}`);
+  for (const f of ohCrossings) {
+    line(`    ${f.name} (${f.gu}) ${f.opening_hours}${f.tags.source ? `  [${f.tags.source}]` : ''}`);
+  }
 
   line('\n=== ele coverage ===');
   const hills = F.filter((f) => f.category === 'hill');
@@ -829,7 +1041,7 @@ async function main() {
     }
   }
 
-  const { features, stepsByGu, stepsTotal } = build(admin);
+  const { features, stepsByGu, stepsTotal, dogokStepsCount, dogokBox } = build(admin);
   const payload = {
     source: 'OpenStreetMap via Overpass API (ODbL). Derived index — coordinates are proximity evidence, not verified route anchors.',
     generatedAt: new Date().toISOString(),
@@ -840,6 +1052,8 @@ async function main() {
       byCategory: features.reduce((m, f) => ((m[f.category] = (m[f.category] || 0) + 1), m), {}),
       stepsByGu,
       stepsTotal,
+      dogokStepsCount,
+      dogokBox,
       note: 'highway=steps is counted, not emitted as a feature — stairs are a route hazard, not a destination.',
     },
     features,
