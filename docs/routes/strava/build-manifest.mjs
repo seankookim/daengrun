@@ -89,8 +89,15 @@ for (const f of readdirSync(DIR).filter(x => x.endsWith('.gpx'))) {
     elevationGainM: Math.round(gain),   // no column yet — carried for whoever adds one
     anchor_lat: pts[0].lat, anchor_lng: pts[0].lon,
     points: pts.length,
-    trace: decimate(pts, 200).map(p => [+p.lat.toFixed(6), +p.lon.toFixed(6)]),
-    trace_thumb: decimate(pts, 50).map(p => [+p.lat.toFixed(6), +p.lon.toFixed(6)]),
+    // {lat,lng} OBJECTS, not [lat,lng] arrays. GeoRoutePoint is {lat,lng} and
+    // every consumer reads p.lat / p.lng — on an array row those are undefined,
+    // so the line silently does not draw and routeStart() returns null, which
+    // drops the route out of proximity ranking with no error and no log. I
+    // emitted arrays and made 20 of 28 rows geometry-blind; client found it.
+    // The shape is a CONTRACT with existing rows, and I never checked mine
+    // against theirs before writing 20 of them.
+    trace: decimate(pts, 200).map(p => ({ lat: +p.lat.toFixed(6), lng: +p.lon.toFixed(6) })),
+    trace_thumb: decimate(pts, 50).map(p => ({ lat: +p.lat.toFixed(6), lng: +p.lon.toFixed(6) })),
     status: 'candidate',
     source: 'algo',
     shade: null, lighting: null,

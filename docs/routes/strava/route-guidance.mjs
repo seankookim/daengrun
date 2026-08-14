@@ -18,16 +18,25 @@
 
 const R = 6371000;
 const rad = (d) => (d * Math.PI) / 180;
+
+/** Accept either stored shape. `{lat,lng}` is the contract; `[lat,lng]` exists
+ *  because I emitted it for 20 rows before checking it against the 8 that came
+ *  first. Reading tolerantly here is not an excuse for writing it wrongly —
+ *  build-manifest.mjs emits objects now — but a reader that only handles one
+ *  shape fails silently, which is exactly how those rows went unnoticed. */
+export const pt = (p) => (Array.isArray(p) ? [p[0], p[1]] : [p.lat, p.lng ?? p.lon ?? p.longitude]);
 const deg = (r) => (r * 180) / Math.PI;
 
-export function haversine(a, b) {
+export function haversine(A, B) {
+  const a = pt(A), b = pt(B);
   const dLat = rad(b[0] - a[0]), dLon = rad(b[1] - a[1]);
   const s = Math.sin(dLat / 2) ** 2 +
     Math.cos(rad(a[0])) * Math.cos(rad(b[0])) * Math.sin(dLon / 2) ** 2;
   return 2 * R * Math.asin(Math.sqrt(s));
 }
 
-export function bearing(a, b) {
+export function bearing(A, B) {
+  const a = pt(A), b = pt(B);
   const dLon = rad(b[1] - a[1]);
   const y = Math.sin(dLon) * Math.cos(rad(b[0]));
   const x = Math.cos(rad(a[0])) * Math.sin(rad(b[0])) -
@@ -37,7 +46,8 @@ export function bearing(a, b) {
 
 /** Metres from point p to segment ab. Local planar projection: at Seoul's
  *  latitude the error over a 100 m segment is far below any tolerance we use. */
-export function pointToSeg(p, a, b) {
+export function pointToSeg(P, A, B) {
+  const p = pt(P), a = pt(A), b = pt(B);
   const mLat = 111320, mLon = 111320 * Math.cos(rad(p[0]));
   const px = (p[1] - a[1]) * mLon, py = (p[0] - a[0]) * mLat;
   const bx = (b[1] - a[1]) * mLon, by = (b[0] - a[0]) * mLat;
