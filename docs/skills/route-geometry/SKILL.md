@@ -115,9 +115,22 @@ Four mechanics it encodes, each learned by breaking:
    point` → `Start`, `Edit End` → `End`). The field to fill next is always the last textbox in the
    panel.
 
-**A single waypoint can only make an out-and-back.** Real loops need two or three. The distance
-readout reports a doubled-back line as perfectly fine — **screenshot every route and look at the
-shape.** The first route built this way was an out-and-back that read as correct in every number.
+**CHAIN 5–8 WAYPOINTS, NOT 2–3.** Measured, 2026-08-14: with few waypoints the router takes the
+shortest path in both directions, which is what produced 78–81% retrace on nearly everything.
+Waypoint count does more for variation than any anchor choice.
+
+**SHAPE IS NOT A GRADE.** Sean, 2026-08-14: *"who cares if it's a lolipop or a figure 8 or a
+curve."* Loop-purity was invented as a target and optimised for; it was never the spec. Retrace %
+is metadata about how much of a route you see twice — useful, not a pass/fail. A shape checker
+should fail only on files it cannot measure.
+
+**NEVER NAME A ROUTE FROM ITS INTENDED DISTANCE.** Measure first, then name from the measurement.
+A 3 km loop measured 5.4 km and was saved as "3km"; Sean caught it, the tooling did not, and the
+readout was on screen the whole time. `build-route.sh` now measures before saving and refuses
+outside tolerance.
+
+**Screenshot every route anyway** — the distance readout reports a doubled-back line as perfectly
+fine.
 
 ## 5. Anchors
 
@@ -176,6 +189,27 @@ District pairings that actually work:
 If a complex name returns no geocoder hit (`압구정현대아파트` and `이촌한가람아파트` both failed
 once), fall back to its 도로명주소, a gate, or a POI at the complex — all three resolve.
 
+
+⚠ **Purge list — six names used in good faith that geocode to nothing, or to somewhere a kilometre
+away. Indistinguishable from success until measured:**
+
+| Name | Reality |
+|---|---|
+| `압구정한강공원` | does not exist — that stretch is **잠원한강공원** |
+| `매봉로` | 양재동, not 도곡동 |
+| `도구머리공원` | unverifiable |
+| `반포대로` | does not reach 이촌동 |
+| `파크리오` | 신천동, not 잠실동 |
+| `뚝섬한강공원` | the 광진구 stretch, not 성수 |
+
+**A river route REQUIRES a 나들목** (river-crossing access point), and the gaps are structural, not
+cosmetic: 압구정 구현대 has no crossing for 2.2 km, middle 동부이촌동 none for 1.4 km, 반포자이 is
+1.17 km from its nearest. A naive riverside route that ignores these does not exist on the ground.
+
+**Streams are the highest-yield category**, and 양재천 shows why: it is three-tiered
+(둑길 / 소단길 / 둔치길), so out on one tier and back on another is a genuine loop rather than an
+out-and-back. That is a structural answer to retrace, not a waypoint trick.
+
 ## 6. Ingesting
 
 - `routes.source` enum is `founder | runner | algo`. A Sean-drawn Strava line is **`founder`**.
@@ -211,3 +245,18 @@ once), fall back to its 도로명주소, a gate, or a POI at the complex — all
 
 Run `/review` before pushing and `/qa` on the catalog surface. Write your own handoff, pushed.
 Report distances and shapes with a screenshot each — the numbers alone have already lied once.
+
+## 9. The standing rule this track keeps rediscovering
+
+**Do not record a tooling limit as a fact about the world.** Named by the money session; hit twice
+by this one. The instrument answers honestly, the answer is about the *instrument*, and it gets
+written down as a property of reality. Every instance so far:
+
+- a Vault secret reported unreachable — it was reachable, through a different door
+- a shape checker reporting a clean LOOP — it was comparing the wrong thing, twice
+- a geocoder "not knowing Korean apartment names" — the map was not rendering
+- a distance readout confirming a route — it measures length, not shape
+
+In every case the artifact looked right. **Precision without verification is indistinguishable
+from precision with it.** Before recording something as absent, broken or impossible, ask whether
+you asked the right way.
