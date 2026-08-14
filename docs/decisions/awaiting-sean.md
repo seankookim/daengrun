@@ -99,6 +99,36 @@ against deploying unreviewed-by-him migrations.
 
 </details>
 
+## 1-bis. 🟡 Logged-out club browse — a product call, not a security fix (NEW 2026-08-14)
+
+**Raised by trust while sweeping `0002_rls.sql`; detail in
+[../security-club-session-exposure.md](../security-club-session-exposure.md). Queued here by the
+announcer, because trust deliberately did not — a correct edit in the wrong lane is still the
+wrong lane, and this file is the announcer's.**
+
+`anon` reads **13 `club_sessions`**, carrying `meetup_point`, `scheduled_at`, and three host
+profile ids. `club_members` and `feed_posts` sit behind the same `using (true)` and should be
+decided in the same pass.
+
+**The shape is familiar and it is the reason this is queued rather than patched.** The name-join
+to `available_runners` currently returns 0 rows — but only because today's hosts happen not to be
+in that view, **not because anything blocks it.** That is a stay of execution, not a defence:
+precisely the structure §1 had for `phone`, where the hole was open and only the data was
+missing. The day a host lands in that view, a logged-out stranger reads a named person's meeting
+place and time.
+
+**Why nobody has written a migration:** a revoke would close it in one line, and might delete a
+real acquisition surface. Whether a logged-out person should be able to browse clubs at all is a
+growth decision, not a security one. **🟡 — yours.** Three ways it could go:
+
+- **Revoke** — logged-out browse ends; club discovery requires an account.
+- **Keep, minus the sharp fields** — browse survives; `meetup_point` and the host ids stop being
+  readable without a session, which removes the "named person, place and time" join entirely.
+- **Keep as-is** — a deliberate, recorded acceptance rather than an inherited default.
+
+Trust proposed no migration pending your call, which is the right order. Nothing is blocked on
+this today; it becomes urgent the moment a host appears in `available_runners`.
+
 ## 2. 🔴 ⑪ conflicts with a written privacy commitment — before ⑪ builds
 
 `docs/appstore-privacy-answers.md:27` declares the phone number's purpose as **"contact during
