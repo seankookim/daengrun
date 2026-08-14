@@ -1,11 +1,12 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Dimensions, Easing, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Row } from '../../src/components/ui';
-import { CourseDetailBody } from '../../src/components/course-detail';
+import { CourseDetailBody, traceKind } from '../../src/components/course-detail';
 import { PaperBtn } from '../../src/components/paper-btn';
 import { HeatTrace } from '../../src/components/runcard';
 import { traceToBox } from '../../src/lib/trace';
+import { getNaverMap } from '../../src/lib/geo';
 import { fetchRouteById } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useReducedMotion } from '../../src/lib/reducedMotion';
@@ -13,7 +14,9 @@ import { RouteInfo, session } from '../../src/store';
 import { colors, paper } from '../../src/theme';
 
 // 코스 미리보기 — 보호자·러너 공용 (코스는 공개 콘텐츠).
-// 히어로: 스키마틱 트레이스 + 볼트 러너 도트 애니메이션 (실좌표 지도 히어로는 K4의 남은 항목).
+// 히어로: **실지도**(K4 ③, 2026-08-14) — 시드 지오메트리가 들어오기 전까지는 그릴 코스가 없어서
+// 만들 수 없던 화면이다. 스키마틱 트레이스 + 볼트 도트는 은퇴가 아니라 **네이티브 지도 없는
+// 빌드의 폴백**으로 남는다 ('지도를 못 그린다'와 '그릴 코스가 없다'는 다른 사실이므로 3갈래).
 //
 // [2026-08-13 dedup] 본문(메타 3축·설명·특징·점검·우리 기록)은 `components/course-detail`로
 // 나갔다 — 코스 지도 시트의 DETAIL 단이 같은 본문을 각자 그리고 있었고, 이미 갈라져 있었다
@@ -79,6 +82,108 @@ function LiveDot({ points }: { points: { x: number; y: number }[] }) {
   );
 }
 
+const ROUTE_DASH = require('../../assets/route-dash.png');
+const ROUTE_ANCHOR = require('../../assets/route-anchor.png');
+const ROUTE_CHEVRON = require('../../assets/route-chevron.png');
+
+/** 두 점 사이 방위각(도, 북=0). 셰브론을 코스가 나아가는 쪽으로 돌린다. */
+function bearing(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
+  const r = Math.PI / 180, y = Math.sin((b.lng - a.lng) * r) * Math.cos(b.lat * r);
+  const x = Math.cos(a.lat * r) * Math.sin(b.lat * r) - Math.sin(a.lat * r) * Math.cos(b.lat * r) * Math.cos((b.lng - a.lng) * r);
+  return (Math.atan2(y, x) / r + 360) % 360;
+}
+
+/**
+ * 코스 지도 증거 (K4 ③). 스키마틱 실루엣이 아니라 **진짜 지도** — 브리핑은 "예쁜 모양"이 아니라
+ * "여기가 어디인지"를 알려줘야 하고, 그건 타일 없이는 불가능하다.
+ *
+ * 카메라는 bbox 두 모서리로 한 번 맞춘다 (K7 스파이크가 측정한 animateCameraWithTwoCoords —
+ * 컨트롤드 프롭이 아니라 명령형 1회). 제스처는 **켠다**: 브리핑은 들여다보는 화면이라
+ * 팬·줌이 필요하다. 기울기·회전은 끈다 (평면 지도가 코스 모양을 가장 정직하게 보여준다).
+ *
+ * 선의 문법은 course-map·run과 **같다**: 실측(승격)이면 실선, 예정이면 점선.
+ * 화면마다 다른 어휘를 쓰면 사용자는 매번 다시 배워야 한다.
+ */
+function CourseMapHero({ route, maps }: { route: RouteInfo; maps: NonNullable<ReturnType<typeof getNaverMap>> }) {
+  const ref = useRef<{ animateCameraWithTwoCoords: (p: any) => void } | null>(null);
+  const coords = useMemo(() => route.trace.map((p) => ({ latitude: p.lat, longitude: p.lng })), [route.trace]);
+  const box = useMemo(() => {
+    let n = -90, s = 90, e = -180, w = 180;
+    coords.forEach((c) => {
+      n = Math.max(n, c.latitude); s = Math.min(s, c.latitude);
+      e = Math.max(e, c.longitude); w = Math.min(w, c.longitude);
+    });
+    return { nw: { latitude: n, longitude: w }, se: { latitude: s, longitude: e } };
+  }, [coords]);
+  const start = route.trace[0];
+  const kind = traceKind(route);
+  const planned = kind === 'planned';
+  // 셰브론은 앵커 **위에** 두지 않는다 — 같은 점에 두 마커를 겹치면 다이아몬드와 삼각형이
+  // 한 덩어리로 뭉개져서 둘 다 못 읽는다 (시뮬레이터에서 확인). 경로를 조금 따라간 지점에
+  // 놓고 그 지점의 진행 방향으로 돌린다: "여기서 시작해서 이쪽으로 돈다"가 한눈에 읽힌다.
+  const chevron = useMemo(() => {
+    const t = route.trace;
+    if (t.length < 3) return null;
+    const i = Math.min(Math.max(2, Math.round(t.length * 0.06)), t.length - 2);
+    return { at: t[i], angle: bearing(t[i - 1], t[i + 1]) };
+  }, [route.trace]);
+
+  const fit = useCallback(() => {
+    ref.current?.animateCameraWithTwoCoords({ coord1: box.nw, coord2: box.se, duration: 500 });
+  }, [box]);
+
+  return (
+    <View style={s.mapHero}>
+      <maps.NaverMapView
+        ref={ref}
+        style={{ width: '100%', height: TRACE_H + 40 }}
+        initialCamera={{ latitude: (box.nw.latitude + box.se.latitude) / 2, longitude: (box.nw.longitude + box.se.longitude) / 2, zoom: 14 }}
+        mapPadding={{ top: 18, bottom: 18, left: 18, right: 18 }}
+        isShowLocationButton={false}
+        isShowCompass={false}
+        isShowScaleBar
+        isShowZoomControls={false}
+        isTiltGesturesEnabled={false}
+        isRotateGesturesEnabled={false}
+        onInitialized={fit}
+      >
+        <maps.NaverMapPathOverlay
+          coords={coords}
+          width={5}
+          color={planned ? '#FFFFFF' : paper.line}
+          outlineWidth={2}
+          outlineColor={planned ? paper.line : '#FFFFFF'}
+          {...(planned ? { patternImage: ROUTE_DASH, patternInterval: 20 } : null)}
+          zIndex={0}
+        />
+        {start && (
+          <maps.NaverMapMarkerOverlay
+            latitude={start.lat} longitude={start.lng}
+            anchor={{ x: 0.5, y: 0.5 }} width={26} height={26}
+            image={ROUTE_ANCHOR} zIndex={2}
+          />
+        )}
+        {/* 진행 방향 셰브론 — 같은 루프도 어느 쪽으로 도는지가 브리핑에선 다른 코스다 */}
+        {chevron && (
+          <maps.NaverMapMarkerOverlay
+            latitude={chevron.at.lat} longitude={chevron.at.lng}
+            anchor={{ x: 0.5, y: 0.5 }} width={20} height={20}
+            image={ROUTE_CHEVRON} angle={chevron.angle} zIndex={3}
+          />
+        )}
+      </maps.NaverMapView>
+      <Row style={{ justifyContent: 'space-between', alignItems: 'center', marginTop: 9 }}>
+        <Text style={{ fontSize: 14, color: paper.dim, flex: 1 }} numberOfLines={2}>
+          {planned ? '점선 = 예정 경로 · ◆ 만남 장소' : '◆ 만남 장소 · 실측 코스'}
+        </Text>
+        <Pressable onPress={fit} hitSlop={8} accessibilityRole="button" accessibilityLabel="코스 전체 보기" style={s.fitBtn}>
+          <Text style={{ fontSize: 14, fontWeight: '800', color: paper.ink }}>전체 보기</Text>
+        </Pressable>
+      </Row>
+    </View>
+  );
+}
+
 export default function CourseScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const df = useDisplayFont();
@@ -100,6 +205,8 @@ export default function CourseScreen() {
   // 점이 선 위에 앉는다. 예전엔 route.trace가 이미 {x,y}라 그냥 읽었지만 이제 실좌표다.
   const boxTrace = useMemo(() => traceToBox(route?.trace), [route]);
 
+  const maps = getNaverMap();            // 네이티브 지도 미탑재 빌드는 스키마틱으로 폴백
+  const hasTrace = (route?.trace.length ?? 0) > 1;
   const isOwner = session.role === 'owner';
 
   return (
@@ -115,12 +222,16 @@ export default function CourseScreen() {
 
         {route && (
           <View style={{ paddingHorizontal: 12 }}>
-            {/* ---------- 히어로: 살아있는 트레이스 ---------- */}
-            {boxTrace.length > 1 && (
+            {/* ---------- 히어로 ----------
+                실지도(K4 ③) → SDK 없으면 스키마틱 → 트레이스 없으면 정직한 준비 중.
+                세 갈래인 게 핵심이다: '지도를 못 그린다'와 '그릴 코스가 없다'는 다른 사실이고,
+                스키마틱은 버리는 게 아니라 **네이티브 없는 빌드의 폴백**으로 계속 일한다. */}
+            {hasTrace && maps ? (
+              <CourseMapHero route={route} maps={maps} />
+            ) : hasTrace ? (
               <View style={s.hero}>
                 <View style={{ width: TRACE_W, height: TRACE_H, alignSelf: 'center' }}>
                   <HeatTrace points={boxTrace} width={TRACE_W} height={TRACE_H} />
-                  {/* 출발·도착 핀 */}
                   <View style={[s.pin, { left: boxTrace[0].x * TRACE_W - 5, top: boxTrace[0].y * TRACE_H - 5, backgroundColor: colors.volt }]} />
                   <View style={[s.pin, { left: boxTrace[boxTrace.length - 1].x * TRACE_W - 5, top: boxTrace[boxTrace.length - 1].y * TRACE_H - 5, backgroundColor: colors.tang }]} />
                   <LiveDot points={boxTrace} />
@@ -132,10 +243,8 @@ export default function CourseScreen() {
                   </View>
                 </Row>
               </View>
-            )}
-
-            {/* [리뷰 F5] 트레이스 없으면 히어로가 말없이 증발했다 — 정직한 준비 중 슬롯 */}
-            {boxTrace.length <= 1 && (
+            ) : (
+              /* [리뷰 F5] 트레이스 없으면 히어로가 말없이 증발했다 — 정직한 준비 중 슬롯 */
               <View style={[s.hero, { alignItems: 'center', justifyContent: 'center', minHeight: 120 }]}>
                 <Text style={{ fontSize: 14, fontWeight: '700', color: '#B9BCB6' }}>코스 지도 준비 중</Text>
               </View>
@@ -172,5 +281,8 @@ const s = StyleSheet.create({
   hero: { backgroundColor: paper.ink, padding: 15, marginTop: 14, overflow: 'hidden' },
   kmPlate: { backgroundColor: '#2A2A2A', paddingVertical: 3, paddingHorizontal: 9 },
   pin: { position: 'absolute', width: 10, height: 10, borderRadius: 5, borderWidth: 1.5, borderColor: '#fff' },
+  // 실지도 히어로 — 라이트 크롬 + 2px 잉크 프레임 (DESIGN: '다크는 아티팩트'이므로 지도는 밝게)
+  mapHero: { marginTop: 14, borderWidth: 2, borderColor: paper.ink, padding: 0, overflow: 'hidden' },
+  fitBtn: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 12, borderWidth: 1.5, borderColor: paper.line, marginLeft: 8 },
   ctaBar: { position: 'absolute', left: 12, right: 12, bottom: 26 },
 });
