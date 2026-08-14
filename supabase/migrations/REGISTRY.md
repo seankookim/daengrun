@@ -17,6 +17,33 @@ fork point, which is stale the moment another session lands.
    explicitly — two polite simultaneous yields put both parties on the same next number,
    which happened on 0083.
 
+## Two security detectors, both earned by a miss (trust, 2026-08-14)
+
+**① Audit the tables with NO policies — not the policies.** `0088` and `0093` were both policies
+with no caller term, and every sweep that found them enumerated `pg_policies`. A table with RLS
+**off** contributes zero rows to that view, so it is invisible to exactly the query that catches
+its siblings — and in a listing it looks identical to the many tables here that are
+RLS-on-with-no-policies, which are fail-CLOSED and correct. `club_critical_titles` sat open from
+`0049` to `0095` for this reason: anon could `GET` (200) and `DELETE` (204) it over PostgREST with
+the shipped public key, which silently disables the 30-minute unacked→host alert escalation.
+
+    select c.relname, c.relrowsecurity from pg_class c join pg_namespace n on n.oid=c.relnamespace
+    where n.nspname='public' and c.relkind='r' and c.relrowsecurity = false;
+
+**② A `using (true)` policy is neither a finding nor a pass — the GRANT decides.** `0093`
+deliberately LEFT `using (true)` in place and closed its hole with a revoke; `profiles` still
+carries a no-caller-term policy and is shut. So a sweep that greps `0002_rls.sql` for a missing
+`auth.uid()` flags two closed holes and misses an open one. **Read grants and policies together,
+then execute as the role** — `set local role anon`, and over HTTP where you can, because that is
+the path an attacker actually has. ⚠ And clear `request.jwt.claim.sub` before `set local role
+anon`, or `auth.uid()` keeps returning an earlier user and the probe lies (six false positives in
+suite 124).
+
+⚠ **An empty result is not a control.** `club_sessions` currently exposes 13 real meetup points
+and times to anon; the name-join returns 0 only because today's hosts happen not to appear in
+`available_runners`. Recording that as "0 rows, fine" is the same error as reading `[]` through an
+anon key as "the table is empty" when it means "hidden". See `docs/security-club-session-exposure.md`.
+
 ## The silent collision class — worse than numbering
 
 Numbering collisions are loud (you find out at merge). Several slices `create or replace`

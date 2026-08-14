@@ -11,7 +11,44 @@ governance rule in [README.md](README.md) a stand-in's analysis never becomes a 
 
 ---
 
-## 1. 🔴 `0088` — `profiles` is readable by **anon**, not merely by logged-in users (P0)
+## 1. 🟢 CLOSED IN PRODUCTION 2026-08-14 — off your queue, nothing to decide
+
+> **🟢 is not ✅ and must never be read as one.** ✅ in this directory means *Sean's own words are
+> on origin*, and nothing else earns it. 🟢 means *a fact this entry asserted has changed, and the
+> change was verified by execution.* No ruling of yours is recorded here, because none was needed
+> in the end — the thing this entry was waiting on stopped being true.
+
+**What was checked, by whom, and when.** Three independent measurements against the live project,
+2026-08-14, all agreeing:
+
+| check | result |
+|---|---|
+| `set local role anon; select count(*) from profiles` | `ERROR 42501: permission denied for table profiles` |
+| `GET /rest/v1/profiles?select=phone` with the app's shipped public key | **HTTP 401** |
+| `authenticated` column grants on `profiles` | exactly `0088`'s whitelist — `avatar_url, district, handle, id, name, role`. No `phone`, no `toss_customer_key` |
+| `GET /rest/v1/available_runners` | **HTTP 200** — the storefront survived the revoke |
+
+Measured by the trust session over both SQL and HTTP; independently by the announcer session; and
+by the money session, which wrote it up in `docs/security-profiles-column-exposure.md`. The HTTP
+leg matters more than the SQL leg: it is the exact path an attacker has, and `profiles` refusing
+the same key that `available_runners` accepts is what makes it authorization rather than a broken
+probe.
+
+**Why it closed without you.** `0088`+`0091` were applied to production as part of the
+`0088`–`0094` batch; the deploy call this entry was blocked on was overtaken by the deploy
+happening. **This entry outlived the condition it described by about a day**, which is the exact
+failure the return queue exists to prevent — it is the first thing you are told to read, and until
+now it asked you for a go-ahead on an exposure that was already shut.
+
+⚠ **One claim inside the original is FALSE and is corrected here rather than deleted.** It argued
+*"every build that has ever existed is compatible"* because every historical `profiles` SELECT was
+a subset of `0088`'s whitelist. The reasoning was sound and the conclusion was wrong: `0088` omits
+`SELECT` on `role`, and PostgREST's role-picker upsert reads `excluded.role`, so `0088` alone
+**403s every signup**. `0091` grants it. The corollary was disproven the same afternoon it was
+written — see `README.md` rule 3, which still holds it up as an exemplar and should not.
+
+<details>
+<summary>Original entry, preserved — it was accurate when written</summary>
 
 **Corrected upward 2026-08-13; my first version of this entry understated it.** I wrote "every
 logged-in user can read every verified runner's number." Authentication was never part of the
@@ -59,6 +96,8 @@ payments branch (harness 477/0) and cannot ship until `db push` is cleared — w
 Sean is away, per rule 4. So: **open in production since `0002`, closed on a branch, blocked on
 his deploy call.** Explicitly his and not a stand-in's, since it trades a live exposure window
 against deploying unreviewed-by-him migrations.
+
+</details>
 
 ## 2. 🔴 ⑪ conflicts with a written privacy commitment — before ⑪ builds
 
