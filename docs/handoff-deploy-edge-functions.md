@@ -119,3 +119,40 @@ and correctly refused to count it as evidence; the answer was one flag away the 
 
 **The gap between "we can't check this" and "nobody checked this" is where this class lives.**
 Every session that day landed on the first phrasing.
+
+---
+
+## 7. P0 #2 — the signup path, VERIFIED 2026-08-14 (and what the check does NOT cover)
+
+Three documents call this open. The database half is now **verified working**, by execution.
+
+`0091` exists because `0088` alone 403'd every signup: PostgREST turns the client's
+`profiles.upsert({id, role, name})` (`app/app/index.tsx:27`) into
+`on conflict (id) do update set id = excluded.id, role = excluded.role, name = excluded.name`,
+so the *write* path consults **SELECT** grants on all three columns. Probe, as `authenticated`
+with `request.jwt.claim.sub` set to a real profile id, writing the row's own values back:
+
+    → succeeded. No 42501.
+    authenticated SELECT grants on profiles: avatar_url, district, handle, id, name, role
+
+`id`, `role` and `name` are all present, so the `excluded.*` reads resolve. **A human's role
+pick will not 403.**
+
+⚠ **What this does NOT verify, and nobody should read it as verifying:** GoTrue's half — OTP
+email delivery, `auth.users` row creation, Kakao OAuth. Those need an actual account creation,
+which this session cannot do. So the claim is precisely *"the grant chain that broke signup is
+sound"*, not *"a human can sign up"*. Someone with a phone still has to complete one.
+
+⚠ **I mutated production doing this, and it should not have happened.** The probe ran as a
+`do $$ … $$` block, which auto-commits — every earlier probe this session was wrapped in
+`begin … rollback` and this one was not, and I did not notice until I went looking for
+side-effects afterwards. `profiles` carries a `t_profiles_touch` trigger, so **`updated_at` on
+one row (`aa73ce8a…`, created 2026-07-23) now reads 2026-08-14** instead of its real value.
+Column values are otherwise identical — the upsert wrote the row's own data back. Nothing else
+changed. Recorded because a silent bump to a timestamp is exactly the kind of drift that later
+looks like evidence of something.
+
+**The lesson is the same one this session has been handing to everyone else all day:** a probe
+that is careful four times and careless once is a careless probe. `do $$ … $$` is not a
+transaction wrapper, and the honest form is `begin; … ; rollback;` every single time, including
+the time you are sure it is read-only.
