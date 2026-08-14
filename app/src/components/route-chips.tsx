@@ -37,7 +37,15 @@ const CHIPS: {
   key: ChipKey; label: string; hint: string; modifier: string;
   ok: (r: RouteInfo) => boolean; unknown: (r: RouteInfo) => boolean;
 }[] = [
-  { key: 'lit', label: '조명', hint: '야간 조명 있음', modifier: '조명 있는', ok: (r) => r.lighting === 'lit', unknown: (r) => r.lighting == null },
+  // 조명: **미기록(null)도 통과**시킨다 (Sean 2026-08-14: "korea has excellent lighting.
+  // it is fine and follow that"). 한국 시가지 보행로는 기본적으로 가로등이 있다는 도메인
+  // 판단이고, 그건 내가 아니라 그가 가진 지식이다. 그래서 이 축에서 null은 '모름'이 아니라
+  // '기본값 있음'으로 읽는다 — shade는 그런 기본값이 없으므로 여전히 null을 거른다.
+  //
+  // ⚠ 그가 받아들인 위험을 같이 적어 둔다: **미기록 ≠ 조명 있음**이다. 05-06시 예약이
+  // 실제로는 어두운 길로 배정될 수 있다. 알려진 'none'은 여전히 걸러지고, 어두운 슬롯 ×
+  // 조명 없는 코스 경고도 그대로다 — 바뀐 것은 **모르는 경우의 기본값**뿐이다.
+  { key: 'lit', label: '조명', hint: '야간 조명 있음', modifier: '조명 있는', ok: (r) => r.lighting === 'lit' || r.lighting == null, unknown: () => false },
   { key: 'shade', label: '그늘 많음', hint: '그늘 최상', modifier: '그늘 많은', ok: (r) => r.shade === 'high', unknown: (r) => r.shade == null },
   { key: 'dirt', label: '흙길', hint: '흙길 60% 이상', modifier: '흙길', ok: (r) => dirtPct(r.terrain) >= 60, unknown: (r) => !r.terrain },
 ];
