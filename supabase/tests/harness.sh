@@ -168,6 +168,7 @@ suite 127_profiles_write_grant_suite.sql   # 0091: profiles 쓰기 컬럼 화이
 suite 128_runner_work_gate_suite.sql   # 0092 ⑫ 러너 작업 게이트 (Sean: "돈은 지급하되 개가 양측 확인될 때까지 새 러닝 금지" — 출구는 0083의 두 반환 도장이지 ⑪이 아니다·플래그 아닌 파생·읽히는 사유·용량 구멍 — W1~W5)
 suite 129_availability_anon_suite.sql   # 0093: 러너 주간 스케줄 anon 차단 (이름×동네×시간 조인 절단·스토어프런트 생존·남은 벌크 노출을 사실로 고정 — A1~A5)
 suite 130_incident_verification_suite.sql   # 0094 ⑪ 인시던트 양측 확인 (Sean: "incident verified by both runner and owner" — 열기는 한쪽·확립은 양측·전화 문은 '열림'에 열린다·0002:154 원격 트리거 폐쇄·ops 판정은 도장을 안 찍는다 — V1~V5)
+suite 132_gated_runner_exit_suite.sql   # 0096 승격 뒤 인계 확인 (0083+0089+0092가 합성한 교착 — 러너가 영구히 못 버는 상태. 커스터디 스탬프만 통과·돈의 막다른 길 보존·합성 핀·탐지 — E1~E5)
 psql -c "select case when ok then '✅' else '❌' end || ' [' || suite || '] ' || name || case when ok then '' else ' — ' || detail end from _t order by at"
 psql -qt -c "select count(*) filter (where ok) || ' pass / ' || count(*) filter (where not ok) || ' fail' from _t"
 psql -qt -c "select case when count(*) filter (where not ok) > 0 then 'FAIL' else 'OK' end from _t" | grep -q OK

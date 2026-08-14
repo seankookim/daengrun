@@ -1171,19 +1171,44 @@ begin
     exception when others then
       if sqlerrm <> 'not_active' then v_bad := v_bad || ' 승격 행 정산 거부 사유=' || sqlerrm; end if;
     end;
+    -- ⓒ [REWRITTEN BY 0096 — this arm asserted the exact behaviour 0096 changes, and it was
+    --    RIGHT for the world before 0092 existed.] It used to require that
+    --    `confirm_return_tx` on an escalated row raises `not_active`, i.e. that
+    --    `incident_review` is a dead end for the CUSTODY stamp as well as for money.
+    --    0092's work gate turned that into a trap: the gate blocks a runner until both stamps
+    --    land, 0089 removed the party force, so a `not_active` here left the runner with NO
+    --    party-reachable exit at all — permanently unable to earn. 0096 admits the stamp and
+    --    keeps money out. What this arm now pins is that SPLIT, which is the load-bearing part:
+    --    the stamp lands, and the money dead end is completely undisturbed.
+    v_ts := (select b.settlement_ready_at from bookings b where b.id = b_b);
+    perform set_config('request.jwt.claim.sub', oz::text, false);
     begin
-      perform confirm_return_tx(b_b, 'owner');
-      v_bad := v_bad || ' 승격된 행에 인계 확인이 통과했다';
+      v_js := confirm_return_tx(b_b, 'owner');
+      if not coalesce((v_js->>'stamped')::boolean, false)
+        then v_bad := v_bad || ' 승격 행에서 인계 스탬프가 찍히지 않았다 (러너가 영구히 묶인다)'; end if;
+      if coalesce((v_js->>'sealed')::boolean, true)
+        then v_bad := v_bad || ' 승격 행에서 봉인됐다 (돈이 움직일 수 있다고 말한다)'; end if;
+      if not coalesce((v_js->>'case_open')::boolean, false)
+        then v_bad := v_bad || ' case_open이 참이 아니다'; end if;
     exception when others then
-      if sqlerrm <> 'not_active' then v_bad := v_bad || ' 승격 행 인계 거부 사유=' || sqlerrm; end if;
+      v_bad := v_bad || ' 승격 행 인계가 거부됐다=' || sqlerrm;
     end;
-    -- …이것이 §0h가 핸드오프로 이름 붙인 상태다: 마켓플레이스 incident_review에는 상업적 출구가
-    -- 없다(0066:56은 refund_pending만 허용). 그래서 씰이 찍힌 행은 절대 여기로 보내지 않는다.
+    perform set_config('request.jwt.claim.sub', '', false);
+    if (select b.owner_confirmed_return_at from bookings b where b.id = b_b) is null
+      then v_bad := v_bad || ' 보호자 도장이 실제로 남지 않았다'; end if;
+    -- 🔴 the money dead end is UNCHANGED — this is what 0096 refuses to cross
+    if (select b.settlement_ready_at from bookings b where b.id = b_b) is distinct from v_ts
+      then v_bad := v_bad || ' 승격 행에 씰이 찍혔다 (돈의 막다른 길이 뚫렸다)'; end if;
+    if exists (select 1 from ledger_items li where li.booking_id = b_b)
+      then v_bad := v_bad || ' 승격 행에 원장이 생겼다'; end if;
+    -- …그리고 나머지 세 함수의 active 전용 게이트는 그대로다 (위의 _settle_sealed_run 팔이 증명).
+    -- 0066:56은 여전히 refund_pending만 허용하므로 상업적 출구는 열리지 않았다 — 0096이 통과시킨
+    -- 것은 커스터디 스탬프 하나뿐이고, 그것이 러너를 푸는 데 필요한 전부다.
     if (select b.status::text from bookings b where b.id = b_b) <> 'incident_review'
-      then v_bad := v_bad || ' 거부된 시도가 승격 행의 상태를 움직였다'; end if;
+      then v_bad := v_bad || ' 인계 확인이 승격 행의 상태를 움직였다'; end if;
 
     if v_bad = ''
-      then call _pass('ren','R16 막다른 길 방지 — 씰이 찍힌 미정산 행은 몇 시간이 지나도 승격되지 않고(상태 무이동 알람만 양측 1회·2회차 반복 없음) 스윕 뒤에도 재구동으로 정산되며, 아무도 확인하지 않은 행만 incident_review로 가고 그 상태는 정산·인계가 모두 not_active로 막힌 진짜 막다른 길이다 (§0h)');
+      then call _pass('ren','R16 막다른 길 방지 — 씰이 찍힌 미정산 행은 몇 시간이 지나도 승격되지 않고(상태 무이동 알람만 양측 1회·2회차 반복 없음) 스윕 뒤에도 재구동으로 정산되며, 아무도 확인하지 않은 행만 incident_review로 간다. 🔴 [0096] 그 상태에서 정산은 여전히 not_active로 막히지만 커스터디 스탬프는 통과한다 — 씰도 원장도 상태 변화도 없이 (돈의 막다른 길은 보존, 러너만 풀린다)');
     else v_msg := v_bad; call _fail('ren','R16 막다른 길 방지', v_msg); end if;
   exception when others then perform set_config('request.jwt.claim.sub', '', false);
     v_msg := sqlerrm; call _fail('ren','R16 막다른 길 방지', v_msg);
