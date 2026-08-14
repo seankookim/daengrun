@@ -136,9 +136,45 @@ Prefer a **gate** where one exists — that is literally where a dog walk starts
 ⚠ **Nominatim is not a substitute**: 1 hit in 6, and `트리마제` matched a building in 양산시,
 경상남도 — 350 km wrong, silently.
 
-Sean's targeting: loops **centred on apartment complexes**, passing residential streets as well as
-a park or water touchpoint, across multiple districts (반포동 · 잠원동 · 압구정동 · 도곡동 ·
-잠실동 · 이촌동 · 성수동), at 2/3/5/7 km.
+Sean's targeting: loops **centred on apartment complexes**, across multiple districts, at
+2/3/5/7 km.
+
+**The touchpoint is optional and is NOT limited to parks.** Sean, 2026-08-14: *"there are a lot of
+other parks, and plus it doesn't have to be a park, it can be a river, or something else."* A 2 km
+walk from a 단지 gate through residential streets is a perfectly good dog route with no green space
+in it at all.
+
+**Never bend a route to reach a named feature.** If an anchor and a distance don't pair, change the
+anchor — do not stretch waypoints until the number comes out. That is how a 5.4 km route got saved
+as "3km". A feature that only fits at 5 km is a 5 km route, and the 2 km slot belongs to a
+different anchor entirely.
+
+Touchpoints worth reaching for, by kind:
+
+| Kind | Examples |
+|---|---|
+| **Streams** (often the best — linear, lit, residential) | 반포천 · 양재천 · 성내천 · 중랑천 · 홍제천 · 도림천 |
+| **River** | 한강 지구: 반포 · 잠원 · 이촌 · 압구정 · 뚝섬 · 망원 · 잠실 |
+| **Lake** | 석촌호수 |
+| **Parks** | 서리풀 · 몽마르뜨 · 올림픽 · 서울숲 · 도산 · 용산가족 · 매봉산 |
+| **Linear parks** | 경의선숲길 |
+| **Islands / landmarks** | 세빛섬 · 서래섬 · 노들섬 · 잠수교 · 누에다리 |
+| **None** | residential-only block loops — valid, and often the realistic 2 km |
+
+District pairings that actually work:
+
+| Town | Complexes | Nearby touchpoints |
+|---|---|---|
+| 반포동 · 잠원동 | 반포자이 · 래미안원베일리 · 아크로리버파크 · 래미안퍼스티지 · 반포리체 | 반포천 · 한강 반포/잠원 · 세빛섬 · 서래섬 · 서리풀 · 몽마르뜨(5 km+) |
+| 압구정동 · 청담동 | 압구정현대 · 한양 | 한강 압구정 · 도산공원 |
+| 도곡동 · 대치동 | 도곡렉슬 · 타워팰리스 | **양재천** · 매봉산 |
+| 잠실동 | 잠실엘스 · 리센츠 · 트리지움 · 파크리오 | **석촌호수** · 올림픽공원 · 성내천 · 한강 잠실 |
+| 이촌동 | 한가람 · 강촌 | 한강 이촌 · 용산가족공원 |
+| 성수동 | 트리마제 · 갤러리아포레 | 서울숲 · 뚝섬 · 중랑천 |
+| 망원동 · 상암동 | 망원한강 · 월드컵파크 | 한강 망원 · 경의선숲길 · 홍제천 |
+
+If a complex name returns no geocoder hit (`압구정현대아파트` and `이촌한가람아파트` both failed
+once), fall back to its 도로명주소, a gate, or a POI at the complex — all three resolve.
 
 ## 6. Ingesting
 
