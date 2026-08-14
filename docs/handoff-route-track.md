@@ -113,7 +113,14 @@ matching pod in `Podfile.lock` — in the same spirit as the import gate. Unowne
 
 ## 6. Do not "fix" these
 
-- **All 13 routes are `candidate` with `source='algo'` and that is correct.** They are seed geometry.
+> ⚠ **UPDATED after this file was first written.** Another session retired the 성수동 rows on Sean's
+> instruction. Live state now measured as: **9 반포동 `candidate`** (8 with seeded geometry, 몽마르뜨
+> still without) + **4 성수동 `retired`** (all 4 keep their geometry). They were retired, NOT deleted,
+> because 24 production bookings and 9 runs reference them. Discovery excludes `retired`, so the map
+> shows 9; `fetchRouteById` still opens them, which is why history and past bookings keep working.
+> Read "13 routes" below as the historical seed count, not today's catalog.
+
+- **The seeded routes are `candidate` with `source='algo'` and that is correct.** They are seed geometry.
   Promotion is `promote_route_from_run`'s job. Do not hand-set `status='active'` to make the map
   look better — it would claim a dog ran a course no dog has run.
 - **The seeder refuses to touch promoted rows, and refuses on `--revert` too.** 0082 §D leaves
