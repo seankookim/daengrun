@@ -12,7 +12,7 @@ because an early miss may have left no artifact or note.
 
 | Attempts | Saved | Rejected/aborted | Unique geocoder failures logged |
 |---:|---:|---:|---:|
-| ≥38 | 18 | ≥20 | 11 |
+| ≥39 | 19 | ≥20 | 11 |
 
 ## Current dog-route pass
 
@@ -25,11 +25,12 @@ because an early miss may have left no artifact or note.
 | 5 | 잠실동 | 잠실엘스 서문 coordinate | 2–3 km | Rejected before save | Draft used `아시아공원지하보도 (종합운동장역 연결)`. Rejected immediately because dog routes must not enter subway/station underground passages. |
 | 6 | 잠실동 | 아시아선수촌아파트 교차로 | 4 km | Saved privately as Strava route `3523231493904049628` | Dog-safe same-side route: Strava 3.89 km; independent GPX measurement 3.90 km; closure 1 m; +20 m recomputed / +33 m Strava; 88 points; 52.6% retrace; LOLLIPOP. Stays south of 올림픽로 and uses no subway/station underground passage. |
 | 7 | 잠실동 | 레이크팰리스 | 4 km | Saved privately as Strava route `3523231493906677212` | West-lake surface route: Strava 3.97 km; independent GPX measurement 3.98 km; closure 1 m; +8 m recomputed / +10 m Strava; 110 points; 37.0% retrace; LOLLIPOP. Uses no subway/station underground passage. |
+| 8 | 송파구 | 올림픽선수촌아파트 136동 앞 | 4.5 km | Saved privately by the owner as Strava route `3523240019688241628` | Characteristic Olympic Park route: Strava 4.58 km; independent GPX measurement 4.59 km; closure 0 m; +11 m recomputed / +24 m Strava; 131 points; 45.0% retrace; LOLLIPOP; 80% paved / 0% dirt / 20% unspecified. Exact mouse waypoints recovered from Strava route state. Held in review until the complete approach is visually proven surface-only for a dog. |
 
 ## Earlier saved geometry
 
 Thirteen additional private Strava routes predate the current dog-route pass. Together with the
-five rows above, the archive contains 18 unique saved route IDs. All 18 now have independently
+six saved rows above, the archive contains 19 unique saved route IDs. All 19 now have independently
 recomputed geometry in `manifest.psv` and an explicit decision in `candidate-status.psv`.
 Historical records that omitted the exact surface mix or query sequence are marked `NOT RECORDED`;
 they are not promoted by inference.
@@ -58,8 +59,8 @@ they are not promoted by inference.
 | 반포동 | 한강·세빛섬 draft | Refused at 11.9 km | Preserved builder transcript; too long for both the old slots and the owner's later cap. |
 
 These 18 earlier rejected/off-target attempts plus the two rejected/aborted rows in the current
-pass establish the `≥20` rejected minimum. Combined with 18 unique saved Strava IDs, the documented
-attempt minimum is `≥38`; there may have been additional early misses with no surviving record.
+pass establish the `≥20` rejected minimum. Combined with 19 unique saved Strava IDs, the documented
+attempt minimum is `≥39`; there may have been additional early misses with no surviving record.
 
 ## Geocoder misses
 

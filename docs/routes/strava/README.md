@@ -28,6 +28,7 @@ collapsing them would be the same mistake this directory exists to prevent.
 | `잠실엘스_외곽_생활권_루프_3.07km.gpx` | 3523234988764300754 | 3.07 | 3.06 | +0 m | 0 m | 66 | LOOP (15.0% retrace) · 90% PAVED — superseded: uncharacteristic pavement perimeter, crossings unaudited |
 | `잠실_아시아선수촌_아시아공원_루프_3.90km.gpx` | 3523231493904049628 | 3.90 | 3.89 | +20 m | 33 m | 88 | LOLLIPOP (52.6% retrace) · 41% PAVED · dog-safe same-side park route |
 | `잠실_레이크팰리스_석촌호수_서호_루프_3.98km.gpx` | 3523231493906677212 | 3.98 | 3.97 | +8 m | 10 m | 110 | LOLLIPOP (37.0% retrace) · 57% PAVED · dog-safe west-lake surface route |
+| `송파_올림픽선수촌_올림픽공원_루프_4.59km.gpx` | 3523240019688241628 | 4.59 | 4.58 | +11 m | 24 m | 131 | LOLLIPOP (45.0% retrace) · 80% PAVED · dog-access review pending |
 
 **Shape is a characteristic, not a grade** (Sean, 2026-08-14: *"who cares if it's a lollipop or a
 figure 8 or a curve"*). A dog walk that leaves a 단지 gate and comes back is a good route whatever
@@ -69,7 +70,7 @@ more, explicit underground-passage queries, and station-exit waypoints; it also 
 miss above `TOL_PCT` (default 20%), requires 5–8 waypoints spread around the residential anchor,
 and refuses to save unless Strava's complete three-part surface mix was captured.
 
-All 18 saved GPX routes have rows in `manifest.psv`; attempt counts, geocoder misses, and
+All 19 saved GPX routes have rows in `manifest.psv`; attempt counts, geocoder misses, and
 geometrically impossible anchor pairs are in `ATTEMPTS.md`. Some older sessions did not retain the
 exact Strava surface mix or full query sequence. Those fields say `NOT RECORDED` rather than
 inventing data, and `audit-candidates.mjs --strict` continues to fail until they are recovered.
