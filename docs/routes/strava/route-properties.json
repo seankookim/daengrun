@@ -1,0 +1,202 @@
+[
+ {
+  "routeId": "8002a5c1-04d3-4745-a61c-ae477e212aee",
+  "town": "도곡동",
+  "name": "도곡 매봉산 양재천 루프 7.66km",
+  "closureM": 1,
+  "elevationGainM": 63,
+  "measuredKm": 7.671,
+  "points": 157,
+  "terrain": "포장 72%"
+ },
+ {
+  "routeId": "9339666e-9119-4cb6-b4b9-44a2358d16d7",
+  "town": "반포동",
+  "name": "몽마르뜨 언덕 루프",
+  "closureM": 0,
+  "elevationGainM": 34,
+  "measuredKm": 1.587,
+  "points": 38,
+  "terrain": "흙길 60%"
+ },
+ {
+  "routeId": "b3816352-010a-46c8-ad41-d062cc0779bb",
+  "town": "반포동",
+  "name": "몽마르뜨 언덕 루프 4.79km",
+  "closureM": 0,
+  "elevationGainM": 46,
+  "measuredKm": 4.798,
+  "points": 100,
+  "terrain": "포장 68%"
+ },
+ {
+  "routeId": "c59043b8-027f-40b6-93de-5883768bbad8",
+  "town": "반포동",
+  "name": "몽마르뜨 언덕 루프 5.4km",
+  "closureM": 1,
+  "elevationGainM": 51,
+  "measuredKm": 5.399,
+  "points": 119,
+  "terrain": null
+ },
+ {
+  "routeId": "d1ca3066-3a7a-48a6-952f-f711c6920e6b",
+  "town": "반포동",
+  "name": "반포 서래섬 리버 루프 3.71km",
+  "closureM": 215,
+  "elevationGainM": 14,
+  "measuredKm": 3.715,
+  "points": 96,
+  "terrain": "포장 70%"
+ },
+ {
+  "routeId": "66b38be1-3ab0-4d76-afb1-1bdca52aa55e",
+  "town": "성수동",
+  "name": "성수 서울숲 루프 6.46km",
+  "closureM": 0,
+  "elevationGainM": 22,
+  "measuredKm": 6.472,
+  "points": 121,
+  "terrain": "포장 85%"
+ },
+ {
+  "routeId": "c52ff203-0aca-4676-8293-2e86a8a4f8ff",
+  "town": "송파동",
+  "name": "올림픽선수촌앞 올림픽 공원 4.58 km",
+  "closureM": 0,
+  "elevationGainM": 11,
+  "measuredKm": 4.585,
+  "points": 131,
+  "terrain": null
+ },
+ {
+  "routeId": "de0ed8e2-e27a-42b4-b173-9a39faa4578d",
+  "town": "압구정동",
+  "name": "압구정 은행공원 생활권 루프 5.82km",
+  "closureM": 0,
+  "elevationGainM": 25,
+  "measuredKm": 5.832,
+  "points": 104,
+  "terrain": "포장 89%"
+ },
+ {
+  "routeId": "91d469ba-f583-4607-804f-e4ec726942cd",
+  "town": "이촌동",
+  "name": "이촌 가족공원 루프 5.05km",
+  "closureM": 0,
+  "elevationGainM": 14,
+  "measuredKm": 5.063,
+  "points": 125,
+  "terrain": "포장 51%"
+ },
+ {
+  "routeId": "7bbe69b2-162d-46af-b336-49fbb1fc7d92",
+  "town": "이촌동",
+  "name": "이촌 박물관 루프 2.73km",
+  "closureM": 0,
+  "elevationGainM": 13,
+  "measuredKm": 2.738,
+  "points": 47,
+  "terrain": "포장 70%"
+ },
+ {
+  "routeId": "2cbc3aaf-1a25-474a-87a5-8bde01f35713",
+  "town": "이촌동",
+  "name": "이촌 한강 박물관 루프 7.63km",
+  "closureM": 0,
+  "elevationGainM": 26,
+  "measuredKm": 7.628,
+  "points": 138,
+  "terrain": "포장 87%"
+ },
+ {
+  "routeId": "82098086-d07c-44d9-9fcd-b80aa1938413",
+  "town": "잠실동",
+  "name": "잠실 레이크팰리스·석촌호수 서호 루프 3.97km",
+  "closureM": 1,
+  "elevationGainM": 8,
+  "measuredKm": 3.983,
+  "points": 110,
+  "terrain": null
+ },
+ {
+  "routeId": "0b677a1b-939c-47fc-9e17-706ae159df9e",
+  "town": "잠실동",
+  "name": "잠실 리센츠 한강 루프 2.75km",
+  "closureM": 0,
+  "elevationGainM": 7,
+  "measuredKm": 2.753,
+  "points": 64,
+  "terrain": "포장 94%"
+ },
+ {
+  "routeId": "e9c140ff-b8c7-4af2-8d0d-44d930f5b9f3",
+  "town": "잠실동",
+  "name": "잠실 석촌호수 루프 3.39km",
+  "closureM": 0,
+  "elevationGainM": 7,
+  "measuredKm": 3.409,
+  "points": 96,
+  "terrain": "포장 55%"
+ },
+ {
+  "routeId": "6fab8517-d2ed-48f4-940f-01d96b1e1ebb",
+  "town": "잠실동",
+  "name": "잠실 아시아선수촌·아시아공원 루프 3.89km",
+  "closureM": 1,
+  "elevationGainM": 20,
+  "measuredKm": 3.896,
+  "points": 88,
+  "terrain": null
+ },
+ {
+  "routeId": "bd9e1fa2-f1f5-4d05-b470-29672991c597",
+  "town": "잠실동",
+  "name": "잠실엘스 외곽 생활권 루프 3.06km",
+  "closureM": 1,
+  "elevationGainM": 0,
+  "measuredKm": 3.074,
+  "points": 66,
+  "terrain": null
+ },
+ {
+  "routeId": "3e831acc-b0f9-49d5-85ae-73780fb91617",
+  "town": "잠원동",
+  "name": "잠원 근린공원 루프 5.4km",
+  "closureM": 0,
+  "elevationGainM": 6,
+  "measuredKm": 5.406,
+  "points": 95,
+  "terrain": "포장 92%"
+ },
+ {
+  "routeId": "15d26ceb-abb0-40ac-9153-649a2b9190b0",
+  "town": "잠원동",
+  "name": "잠원 한신2차 공원·역세권 루프 4.97km",
+  "closureM": 0,
+  "elevationGainM": 13,
+  "measuredKm": 4.98,
+  "points": 96,
+  "terrain": null
+ },
+ {
+  "routeId": "8da1f51e-5f02-4bcb-94a0-4ffd67a0ba3b",
+  "town": "잠원동",
+  "name": "잠원 한신2차 리버 루프 2.78km",
+  "closureM": 0,
+  "elevationGainM": 0,
+  "measuredKm": 2.785,
+  "points": 44,
+  "terrain": "포장 96%"
+ },
+ {
+  "routeId": "4ace53b2-fc8c-4fa6-a84c-b7db5b9cd82b",
+  "town": "잠원동",
+  "name": "잠원 한신2차 생활권 루프 6.82km",
+  "closureM": 1,
+  "elevationGainM": 17,
+  "measuredKm": 6.825,
+  "points": 135,
+  "terrain": null
+ }
+]
