@@ -1,3 +1,74 @@
+# SESSION HANDOFF — 2026-08-14 · **money** · charge machine live-and-inert · pre-charging checklist
+
+**Role: money** (fleet roster §2). Owns ledgers, charge, settle, payouts, club fares;
+`settle-run` / `collect-charges` / `confirm-payment`; memos ①–⑨.
+**NOT mine any more:** RLS policies and grants are **trust's**; booking status and state-machine
+functions are **custody's**. 0088/0091/0093 landed on this branch because I was holding the
+thread, not because security was ever this role's.
+
+## What is true, measured today
+
+`0076`–`0094` are **applied in production** (Sean deployed). The charge machine is deployed,
+its cron jobs are running, and **charging is off at four INDEPENDENT layers** — no
+`TOSS_SECRET_KEY` (no charge call possible), no `CRON_COLLECT_KEY` (function refuses every
+batch), empty Vault (nothing dispatches), zero `payments` rows (the job exits first). Restoring
+any one leaves the other three holding. **No single mistake starts charging** — a much stronger
+statement than "the flag is off", which is one row and one `UPDATE` from being wrong.
+
+**→ `docs/pre-charging-checklist.md` is the live document.** Read it before touching the money
+path. It carries the four layers, the blocking items in the order they must land, the auth-model
+review, and the first-ten-minutes canary.
+
+## The one thing that will bite the next person
+
+**The cron key must exist in TWO places with the SAME value**, and nothing verifies they agree:
+the Vault secret `charge_dispatch` (`{"url":…,"cron_key":…}`, who calls) and the function env
+`CRON_COLLECT_KEY` (who answers). A mismatch is the quietest failure available — cron fires,
+function 401s, ladder is dead, every dashboard looks correctly configured. **Set both from one
+copied value in one sitting.** All four secrets are credential *values*, so all four are Sean's.
+
+## Verified, so nobody re-does it
+
+- **Deployed == trunk** for `collect-charges`: downloaded the deployed source and diffed all five
+  files (`index.ts`, `handler.ts`, `_shared/{ctx,toss,charge}.ts`) — byte-identical. It was
+  deployed from a worktree named for git cleanup; that is a process smell, not a content problem.
+- **Auth model sound**, probed against production rather than read: no-JWT → 401, bogus cron key
+  → 503, **empty** cron key → 503 (the `"" === ""` case the code comment warns about), and
+  `payments` still 0 after all three. `verify_jwt:false` is correct — pg_net has no JWT — and does
+  not expose the owner path, because `caller()` validates server-side via `getUser`.
+- **The cutover cannot back-bill.** `set_payments_live_since` refuses any non-future value and the
+  sweep scopes on `ended_at >= since`, so the 9 already-finished runs are permanently outside the
+  window. "Backdate to catch up" is refused on purpose. Say this out loud before someone flips it,
+  because "9 unbilled finished runs" is exactly the number that causes a wrong instinct.
+- **All 17 cron jobs are ON**, including both charge jobs, firing every 5 min and doing nothing by
+  gate rather than by absence. Seeing `active: true` there is not evidence anything started early.
+
+## money's open queue — none blocking, none started
+
+1. **`billing_keys` is empty → the first live run hits "no card registered", not a decline.** The
+   path is honest; nobody has decided what the owner *sees*. **Product call, Sean's** — surface,
+   do not decide.
+2. **Constant-time compare on the cron key** (`handler.ts:64`). Hygiene, one line, explicitly not
+   a blocker. ⚠ **Do it with the next `collect-charges` deploy, not before** — trunk and deployed
+   are currently byte-identical and that parity is a verified property worth keeping; changing
+   trunk alone silently breaks it and the next person re-runs the diff for nothing.
+3. **Post-flip canary** (checklist §5) — unrunnable until the flag moves.
+
+## Lesson worth carrying, from getting it wrong here
+
+**"I recorded a tooling limit as a fact about the world."** I wrote Vault down as *unverified, not
+reachable* when the truth was that I had asked through the wrong door — PostgREST cannot see the
+`vault` schema; `supabase db query --linked` connects as a login role and reads it fine, which is
+the same reason that path also sees past RLS. Generalises well past Vault: **an empty result
+through an anon key means hidden, not empty, and a 404 from one door is not absence.**
+
+Two siblings from the same day, same family: I audited what the client *asks for* (`upsert({...})`)
+and described what the database would *do* — they differ exactly at the ON CONFLICT arm, which is
+where the signup 403 lived. And an earlier read-side audit was sound but I claimed a scope it did
+not license: **an audit of reads licenses a conclusion about reads.**
+
+---
+
 # SESSION HANDOFF — 2026-08-13 · charge slice + club money gates SHIPPED · `redesign-v4` @ 534d2aa
 
 > 🔴 **STALE AS OF 2026-08-13 17:05 — READ THIS FIRST.** The deploy happened; this document
@@ -212,7 +283,26 @@ Four traps, each of which actually bit someone:
 function calls `runner_work_gate` and throws `HttpError(500)` on any RPC error. Migration first,
 function second — the §3 order exists for this, and it applies per-RPC, not just at the top.
 
-## 3-bis. 🔴 P0 OPEN IN PRODUCTION — `profiles` leaks `phone` + `toss_customer_key` to anon
+## 3-bis. ✅ CLOSED IN PRODUCTION 2026-08-14 — was: `profiles` leaks `phone` + `toss_customer_key` to anon
+
+> **STATUS CORRECTION, added 2026-08-14 by money.** Everything below this box was true when
+> written and is now **stale**. `0088` (read grants) and `0091` (write grants) are applied —
+> `supabase migration list` shows `0001`…`0094`, local == remote. Re-verified from outside as a
+> stranger, anon key, no account: `GET /rest/v1/profiles?select=phone,toss_customer_key` → **401
+> `permission denied`**, and so is `select=*` and even `select=name`. `available_runners` still
+> returns 200, so the logged-out storefront survives — the check a policy-deletion "fix" would
+> have failed. Full record, including the smoke list Sean still owes:
+> `docs/security-profiles-column-exposure.md`.
+>
+> ⚠ The deploy-timing question below is **answered and gone** — Sean deployed. And the answer to
+> "can 0088 ship alone" turned out to be **no**: without `0091`'s `grant select (role)`, PostgREST's
+> role-picker upsert 403s every signup. They shipped together, so no user saw it.
+>
+> Left in place rather than deleted, per house style — the reasoning is the useful part.
+> `docs/decisions/awaiting-sean.md` §1 carries the same staleness and is **trust's** to correct,
+> not mine; flagged here so the next reader is not misled by whichever file they open first.
+
+<details><summary>Original text (stale — kept for the reasoning)</summary>
 
 `docs/security-profiles-column-exposure.md`. `0002_rls.sql:56`'s read policy has no
 `auth.uid()` term, and no column grant exists — so anyone holding the app's public anon key
@@ -221,6 +311,8 @@ anon; select phone, toss_customer_key from profiles` → 101 rows. Fixed in `008
 both directions, harness 477/0) and **NOT DEPLOYED** — it closes at the next `db push`, which
 is held. Open since 0002, so not a regression, but live. **Sean's call: does this change
 deploy timing?** The alternative is shipping 0076–0088 onto a live DB at 0074 early.
+
+</details>
 
 ## 4. Pending on Sean
 
