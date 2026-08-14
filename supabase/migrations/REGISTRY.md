@@ -30,6 +30,24 @@ the shipped public key, which silently disables the 30-minute unacked→host ale
     select c.relname, c.relrowsecurity from pg_class c join pg_namespace n on n.oid=c.relnamespace
     where n.nspname='public' and c.relkind='r' and c.relrowsecurity = false;
 
+⚠ **CORRECTION 2026-08-14, same day, by the session that wrote detector ② — it has a
+false-negative class and the wrong version is kept below so nobody re-derives it.** The query I
+used was `qual NOT LIKE '%auth.uid()%'`. It misses `runners`, whose policy is
+`tier <> 'applicant' OR profile_id = auth.uid()` — a caller term in ONE ARM OF AN OR, which is
+not a caller *gate*: the first disjunct alone matches for anon, and 9 rows with 7 free-text
+`bio`s are readable without an account. **Presence of `auth.uid()` does not mean gated by
+`auth.uid()`.** A grep cannot tell a gate from a disjunct, so the enumerator must be
+privilege-based, not text-based:
+
+    -- what can anon ACTUALLY read? ask the engine, not the policy text
+    select c.relname, has_table_privilege('anon', c.oid, 'SELECT') as anon_select
+    from pg_class c join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = 'public' and c.relkind in ('r','v','m') and has_table_privilege('anon', c.oid, 'SELECT');
+
+then `set local role anon` and COUNT each one. Include `relkind in ('v','m')` — views were the
+other miss; `available_runners` and `marketplace_open_requests` are anon-readable definer views
+that no `pg_policies` query returns at all.
+
 **② A `using (true)` policy is neither a finding nor a pass — the GRANT decides.** `0093`
 deliberately LEFT `using (true)` in place and closed its hole with a revoke; `profiles` still
 carries a no-caller-term policy and is shut. So a sweep that greps `0002_rls.sql` for a missing
