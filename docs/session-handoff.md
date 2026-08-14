@@ -45,6 +45,31 @@ copied value in one sitting.** All four secrets are credential *values*, so all 
 
 ## money's open queue — none blocking, none started
 
+0. **🔴 The biggest one, and it is inherited rather than new: `incident_review` has no marketplace
+   money exit.** `0083 §0h` named it and handed it to money; it is still open. **A runner whose
+   booking escalates to `incident_review` is never paid for that run** — `settle_run_tx`,
+   `_settle_sealed_run`, `confirm_return_tx` and `force_return_tx` are all `active`-only, and
+   `0066:56` allows `incident_review → refund_pending` and nothing else. `club_incident_settle`
+   (0072) is the club-only sibling and is unreachable for a marketplace booking.
+
+   **`0096` changes its character and that is why it is listed now.** Before it, an escalated
+   runner was gated AND unpaid — loud. After it, the parties can stamp, so the runner is
+   **un-gated and still unpaid** — the acute harm is fixed and the chronic one goes quiet, because
+   a working runner surfaces nothing. 0096 is right to do this; the unpaid half was never its job.
+   **It is mine.**
+
+   Measured 2026-08-14: **1 booking in `incident_review`, and its run never ended** (`run_ended_at`
+   null), so **nobody is unpaid today**. It starts biting the first time a run ends and nobody
+   confirms return for 2h — `run-end-recovery` is ON, every 10 minutes — and it becomes real money
+   the moment charging is enabled. Until then, every escalated marketplace booking is a manual
+   database job.
+
+   Shape, from §0h: an ops-called, party-gated, idempotent RPC that reads the frozen measurement,
+   takes the same three outcomes as the club path (refund_full · settle_measured · pay_full),
+   writes `ledger_items` for the runner and a payments adjustment for the owner, and moves the
+   booking OUT of `incident_review`. Needs a runner-payout price in SQL (shared with §0g), an
+   `incident_review → completed` edge or its own terminal, and an ops actor model.
+
 1. **`billing_keys` is empty → the first live run hits "no card registered", not a decline.** The
    path is honest; nobody has decided what the owner *sees*. **Product call, Sean's** — surface,
    do not decide.
