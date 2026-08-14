@@ -23,9 +23,10 @@ collapsing them would be the same mistake this directory exists to prevent.
 | `몽마르뜨_언덕_루프_5.4km.gpx` | 3523215321827895562 | 5.40 | 5.4 | +51 m | 68 m | 119 | LOLLIPOP (53% retrace) |
 | `몽마르뜨_언덕_루프_4.79km.gpx` | 3523214683284986122 | 4.80 | 4.79 | +46 m | 63 m | 100 | LOLLIPOP (47% retrace) — best 몽마르뜨 geometry so far |
 | `이촌_박물관_루프_2.73km.gpx` | 3523224747186372978 | 2.74 | 2.73 | +13 m | 16 m | 47 | OUT-AND-BACK (81% retrace) · 70% PAVED |
-| `잠원_한신2차_생활권_루프_6.83km.gpx` | 3523229766951707090 | 6.83 | 6.82 | +17 m | 31 m | 135 | LOLLIPOP (44.1% retrace) · 79% PAVED |
+| `잠원_한신2차_생활권_루프_6.83km.gpx` | 3523229766951707090 | 6.83 | 6.82 | +17 m | 31 m | 135 | LOLLIPOP (44.1% retrace) · 79% PAVED — superseded: over 5 km cap |
 | `잠원_한신2차_공원_역세권_루프_4.98km.gpx` | 3523230401766453958 | 4.98 | 4.97 | +13 m | 18 m | 96 | OUT-AND-BACK (66.5% retrace) · 90% PAVED |
-| `잠실엘스_외곽_생활권_루프_3.07km.gpx` | 3523234988764300754 | 3.07 | 3.06 | +0 m | 0 m | 66 | LOOP (15.0% retrace) · 90% PAVED |
+| `잠실엘스_외곽_생활권_루프_3.07km.gpx` | 3523234988764300754 | 3.07 | 3.06 | +0 m | 0 m | 66 | LOOP (15.0% retrace) · 90% PAVED — superseded: uncharacteristic pavement perimeter, crossings unaudited |
+| `잠실_아시아선수촌_아시아공원_루프_3.90km.gpx` | 3523231493904049628 | 3.90 | 3.89 | +20 m | 33 m | 88 | LOLLIPOP (52.6% retrace) · 41% PAVED · dog-safe same-side park route |
 
 **Shape is a characteristic, not a grade** (Sean, 2026-08-14: *"who cares if it's a lollipop or a
 figure 8 or a curve"*). A dog walk that leaves a 단지 gate and comes back is a good route whatever
@@ -64,3 +65,6 @@ the residential anchor.
 
 The complete output rows required by the portable brief are in `manifest.psv`; attempt counts,
 geocoder misses, and geometrically impossible anchor pairs are in `ATTEMPTS.md`.
+
+`ROUTE_DESIGNS.md` is the compact route-level design record. It deliberately does not duplicate
+the district geography index.

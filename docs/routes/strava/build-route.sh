@@ -41,6 +41,23 @@ DIR="$(cd "$(dirname "$0")" && pwd)"
 OUT="${GPX_OUT:-$DIR/gpx}"
 mkdir -p "$OUT"
 
+# Product constraints: short dog runs only, and never through subway/station
+# underground passages. Route names and ordinary station-area POIs are not
+# enough to prove an underground leg, but an explicit underground query is a
+# definitive refusal.
+if ! awk -v t="$TARGET" 'BEGIN { exit !(t > 0 && t <= 5) }'; then
+  echo "    REFUSING: target ${TARGET}km is outside the dog-route range (0, 5]." >&2
+  exit 2
+fi
+for DOG_QUERY in "$START" "${WAYPOINTS[@]}"; do
+  case "$DOG_QUERY" in
+    *지하보도*|*지하통로*|*역\ 연결*)
+      echo "    REFUSING dog-inaccessible underground query: $DOG_QUERY" >&2
+      exit 2
+      ;;
+  esac
+done
+
 if [ "${#WAYPOINTS[@]}" -lt 5 ] || [ "${#WAYPOINTS[@]}" -gt 8 ]; then
   echo "    REFUSING: ${#WAYPOINTS[@]} waypoint(s). The validated route method"
   echo "    requires 5-8 waypoints spread by compass bearing around the anchor." >&2
@@ -143,6 +160,11 @@ fi
 OK=$(awk -v m="$KM" -v t="$TARGET" -v p="$TOL_PCT" 'BEGIN{d=(m-t)/t*100; if(d<0)d=-d; print (d<=p)?"yes":"no"}')
 if [ "$OK" != "yes" ]; then
   echo "    OFF TARGET (${KM}km vs ${TARGET}km) — NOT saved. Move the waypoints."
+  exit 3
+fi
+
+if ! awk -v m="$KM" 'BEGIN { exit !(m <= 5) }'; then
+  echo "    ${KM}km exceeds the 5km dog-route cap — NOT saved." >&2
   exit 3
 fi
 
