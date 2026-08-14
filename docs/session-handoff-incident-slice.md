@@ -29,8 +29,9 @@ Harness **539/0**, deno **185/0**, tsc + check-rpc clean.
 
 ## §1 🔴 THE BLOCKER — the work gate has a deadlock, and it is now shipped
 
-**Slice 3 must not ship until this is fixed.** Not "should" — the failure mode is a runner who
-can never work again without a human intervening, and nothing pages that human.
+**This is due now, not before slice 3** (see the corrected reachability note below — an earlier
+version of this file understated it). The failure mode is a runner who can never work again
+without a human intervening, and nothing pages that human.
 
 ### The chain, verified in code
 
@@ -50,12 +51,24 @@ can never work again without a human intervening, and nothing pages that human.
    as `service_role`, i.e. a human with a shell. `sweep_run_end_recovery` notifies the two
    PARTIES (`귀가 확인이 필요해요`) and **nobody notifies ops**.
 
-### Why it is not on fire right now
+### Why it is not on fire right now — CORRECTED 2026-08-13, measured against production
 
-The gate can only trigger if a marketplace booking has `run_ended_at` set, which only
-`end_run_tx` does, which **no client calls yet**. Club bookings are excluded by
-`club_session_id is null`. So it went live gating nobody, and it stays that way until slice 3
-ships `end_run_tx` to phones. That is exactly why it must be fixed *before* slice 3, not after.
+⚠ **An earlier version of this section was wrong and the error made the margin look wider than
+it is.** It said the gate can only trigger once `run_ended_at` is set (i.e. only after slice 3
+ships `end_run_tx`). That is true of the gate's FIRST arm only. **The `incident_review` arm has
+no `run_ended_at` requirement at all** — `0092` §6 gates on `status = 'incident_review'` on its
+own. So any marketplace booking that reaches `incident_review` by ANY route blocks its runner
+immediately, with no client change and no slice 3.
+
+What is actually holding the line today, measured on production rather than reasoned about:
+there is exactly **one** booking in `incident_review`, and it is a CLUB booking
+(`club_session_id is not null`), which `0092` excludes by predicate. Zero runners are blocked.
+**The club exclusion is the only thing standing between this and a live blocked runner** — not
+the absence of a client, which is what the old text claimed.
+
+`enforce_booking_transition` (`0001:206-209`) allows `runner_enroute`, `picked_up`, `active` and
+`completed` → `incident_review`, so the marketplace routes into that state exist independently
+of run-end. Treat the fix as due now, not as due before slice 3.
 
 ### The three candidate fixes, with the trade I would not make blind
 
