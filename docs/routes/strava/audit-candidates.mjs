@@ -110,7 +110,7 @@ for (const name of gpxFiles) {
       'measured_km', 'strava_km', 'gain_m_recomputed', 'gain_m_strava',
       'points', 'retrace_%',
     ]) {
-      if (!Number.isFinite(Number(manifest[field]))) {
+      if (!manifest[field].trim() || !Number.isFinite(Number(manifest[field]))) {
         failures.push(`${name}: manifest ${field} is not numeric: ${manifest[field]}`);
       }
     }
@@ -145,6 +145,13 @@ for (const name of gpxFiles) {
     }
   }
 
+  if (status.status === 'candidate' || strict) {
+    const fileKm = /_([0-9]+(?:\.[0-9]+)?)km\.gpx$/.exec(name)?.[1];
+    if (!fileKm || Math.abs(Number(fileKm) - geometry.measuredKm) > 0.01) {
+      failures.push(`${name}: filename is not derived from independent measured distance ${geometry.measuredKm} km`);
+    }
+  }
+
   if (status.status !== 'candidate') continue;
   if (status.dog_access !== 'surface-verified') {
     failures.push(`${name}: candidate dog access is ${status.dog_access}, not surface-verified`);
@@ -164,12 +171,6 @@ for (const name of gpxFiles) {
     const queries = `${manifest.start_query}; ${manifest.waypoint_queries}`;
     if (FORBIDDEN_QUERY.test(queries)) {
       failures.push(`${name}: candidate queries mention a subway/station underground risk`);
-    }
-  }
-  if (status.status === 'candidate' || strict) {
-    const fileKm = /_([0-9]+(?:\.[0-9]+)?)km\.gpx$/.exec(name)?.[1];
-    if (!fileKm || Math.abs(Number(fileKm) - geometry.measuredKm) > 0.01) {
-      failures.push(`${name}: filename is not derived from independent measured distance ${geometry.measuredKm} km`);
     }
   }
 }

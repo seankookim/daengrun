@@ -22,7 +22,7 @@ collapsing them would be the same mistake this directory exists to prevent.
 | `몽마르뜨_언덕_루프_1.59km.gpx` | 3523203570730615372 | 1.59 | 1.5 | +34 m | 34 m | 38 | OUT-AND-BACK (80% retrace) — superseded |
 | `몽마르뜨_언덕_루프_5.4km.gpx` | 3523215321827895562 | 5.40 | 5.4 | +51 m | 68 m | 119 | LOLLIPOP (53% retrace) |
 | `몽마르뜨_언덕_루프_4.79km.gpx` | 3523214683284986122 | 4.80 | 4.79 | +46 m | 63 m | 100 | LOLLIPOP (47% retrace) — best 몽마르뜨 geometry so far |
-| `이촌_박물관_루프_2.73km.gpx` | 3523224747186372978 | 2.74 | 2.73 | +13 m | 16 m | 47 | OUT-AND-BACK (81% retrace) · 70% PAVED |
+| `이촌_박물관_루프_2.74km.gpx` | 3523224747186372978 | 2.74 | 2.73 | +13 m | 16 m | 47 | OUT-AND-BACK (81% retrace) · 70% PAVED |
 | `잠원_한신2차_생활권_루프_6.83km.gpx` | 3523229766951707090 | 6.83 | 6.82 | +17 m | 31 m | 135 | LOLLIPOP (44.1% retrace) · 79% PAVED — superseded: over 5 km cap |
 | `잠원_한신2차_공원_역세권_루프_4.98km.gpx` | 3523230401766453958 | 4.98 | 4.97 | +13 m | 18 m | 96 | OUT-AND-BACK (66.5% retrace) · 90% PAVED |
 | `잠실엘스_외곽_생활권_루프_3.07km.gpx` | 3523234988764300754 | 3.07 | 3.06 | +0 m | 0 m | 66 | LOOP (15.0% retrace) · 90% PAVED — superseded: uncharacteristic pavement perimeter, crossings unaudited |
@@ -59,7 +59,7 @@ Strava counterpart.
     node check-shape.mjs <file.gpx> ...              # independent distance / elevation / shape
     node check-shape.mjs --json <file.gpx> ...       # machine-readable verification
     node audit-candidates.mjs                        # enforce current dog-route candidate gate
-    node audit-candidates.mjs --strict               # also require a manifest row for every GPX
+    node audit-candidates.mjs --strict               # complete source facts + measured filename for every GPX
     ./test-build-route-guards.sh                     # browser-free cap/access/input guard tests
 
 `build-route.sh` measures before saving and writes the **measured** distance into the route name,
