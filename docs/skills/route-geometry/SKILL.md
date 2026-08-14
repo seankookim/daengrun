@@ -66,12 +66,32 @@ browse screenshot /tmp/map-check.png    # read it — if the pane says
 Never diagnose a geocoder or panel problem before that check passes. The window staying visible is
 also how Sean watches the work, which he asked for.
 
-**The session cannot leave the browser.** curl with all 21 cookies still returns the login page —
-Strava binds the session beyond the cookie jar. Measured, not assumed. Do not spend time on it.
+⚠ **`--headed` is per-COMMAND, not per-session.** Put it on *every* browse invocation in this
+track. A bare `browse screenshot` errors with "existing daemon has different config" — and far
+worse, a bare `browse cookie-import-browser` **silently starts a second headless daemon and
+replaces your headed window.** That, not `handoff` alone, is what closed Sean's window twice.
+(Found by the route-geometry session, 2026-08-14.)
 
-To authenticate, use `browse cookie-import-browser` and have Sean pick Chrome → `strava.com` in
-the picker. Do **not** call `browse handoff` while he is mid-login — it replaces the window and
-closes the one he is typing in.
+### Authentication — there is no cookie shortcut
+
+**A Strava session cannot be transplanted.** Measured twice, two ways:
+
+- curl carrying all 21 exported cookies still returns the login page.
+- An exported cookie set captured while the browser was *verifiably* logged in still contained
+  only an anonymous session. Strava binds the session to browser state the cookie jar does not
+  hold.
+
+**The diagnostic, which takes one look:** a logged-out `_strava4_session` is ~21 chars and sits
+alone. A real session has a **`strava_remember_token` beside it**. No `strava_remember_token`
+means not logged in, whatever a page render suggests.
+
+So Sean must log in **interactively, in the headed window**. Park the window on
+`strava.com/login`, tell him, and touch nothing until he confirms — no navigation, no
+`handoff`, no bare browse commands (see the daemon-replacement trap above).
+
+Note `cookie-import-browser` defaults to Chrome's `Default` profile and takes an undocumented
+`--profile "Profile 2"` flag. Useful to know; it does not solve this, because the problem is that
+no profile holds a logged-in session, not that the wrong profile was read.
 
 ## 4. Building a route
 
