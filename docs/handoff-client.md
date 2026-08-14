@@ -69,6 +69,21 @@ problems", check that it actually evaluated the rows.
 | `app/ios` prebuilt-staleness check | unowned |
 | `shade` survey — no geometry source supplies it | unowned |
 
+## 4-bis. ⚠ The front door has never been opened
+
+**No booking has been created end to end. Not once, by anyone.** Every screen in the request flow
+is verified on the simulator up to the submit button, and I stopped there deliberately:
+`create-booking-hold` writes a real row, and Sean's falsifier is "≥5 real bookings, any channel", so
+a test booking corrupts the exact PR-0 signal he is measuring.
+
+That means the most important path in the product is the least proven one. Everything downstream of
+the hold — the hold itself, the payment path, matching, the runner's job card — is inference from
+code, not observation. **If one thing gets attention before the app build ships, it is this.**
+
+Whoever takes it should agree with Sean first how to exercise it without polluting the metric: a
+flagged test owner, a row deleted afterwards, or his explicit acceptance that the first real booking
+IS the test. That is a product call, not an engineering one.
+
 ## 5. Do not "fix" these
 
 - **Every route is `candidate` / `source='algo'` and that is correct.** Do not hand-set `active` to
