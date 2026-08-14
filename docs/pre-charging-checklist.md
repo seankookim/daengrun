@@ -11,9 +11,27 @@ fact that was inferred rather than read.
 
 ## 0. The one-line state
 
-**Charging is off, the machine is deployed, and it is inert at four independent layers.** Turning
-it on is not one switch — it is three secrets and then one switch, in that order, and the order
-is load-bearing.
+**Charging is off, the machine is deployed and running, and it is inert at four INDEPENDENT
+layers.** Turning it on is not one switch — it is three secrets and then one switch, in that
+order, and the order is load-bearing.
+
+The independence is the point, and it is a stronger claim than any single flag:
+
+| layer | measured state | what it alone prevents |
+|---|---|---|
+| `TOSS_SECRET_KEY` unset | absent from `secrets list` | no charge call can be made at all |
+| `CRON_COLLECT_KEY` unset | absent from `secrets list` | the function refuses every batch request (503) |
+| Vault `charge_dispatch` absent | `vault.decrypted_secrets` → **0 rows** | nothing ever calls the function |
+| `payments` empty | 0 rows | the dispatch job exits before it looks at anything |
+
+**No single mistake starts charging.** Restoring any one of these four leaves the other three
+holding. That is worth knowing precisely because the opposite reassurance — "the flag is off" —
+is one row in one table, and a single `update` away from being wrong.
+
+⚠ **The cron jobs are ON and running right now.** All 17 scheduled jobs are active in production,
+including `dispatch-due-charges` (`4-59/5 * * * *`) and `sweep-settled-charges` (`2-57/5 * * * *`).
+They fire every five minutes and do nothing, by gate rather than by absence. Seeing them in
+`cron.job` is not a sign that something was switched on early.
 
 ---
 
@@ -56,7 +74,7 @@ unset secret (`if (!expected) throw 503`) rather than letting `null === null` tu
 misconfigured deploy into an open batch-charging endpoint. Verified against production, not just
 read — see §4.
 
-### 2.3 🔴 Vault secret `charge_dispatch` — Sean · **UNVERIFIED, and the roster is wrong about this one**
+### 2.3 🔴 Vault secret `charge_dispatch` is absent — Sean · **MEASURED**
 
 `dispatch_due_charges` (`0080:1259`, cron `4-59/5 * * * *`) does **not** read an environment
 variable. It reads a Postgres **Vault** secret:
@@ -69,8 +87,20 @@ and the function's env (who answers). Nothing in the system checks that they agr
 the quietest failure mode available here: the cron fires, the function returns 401, and the ladder
 is dead while every dashboard looks configured. **Set them from one copied value, in one sitting.**
 
-I could not read Vault over PostgREST, so its presence is the one item on this page I have **not**
-measured. Sean or trust can settle it with the query above.
+**Measured empty:**
+
+    supabase db query --linked "select name, created_at from vault.decrypted_secrets"
+    → []      # zero secrets of any name, so charge_dispatch does not exist
+
+Names and timestamps only — never `decrypted_secret`. There is no reason to read a secret's value
+to know whether it exists, and every reason not to.
+
+📌 **The general lesson, which outlives this item.** I first recorded Vault as "unverified, not
+reachable" because I was probing through PostgREST, where the `vault` schema is invisible.
+`supabase db query --linked` connects as a **login role** instead of going through PostgREST — the
+same reason it also sees past RLS. **When a production question comes back "not reachable", check
+whether you were asking through the wrong door before writing it down as unknowable.** Found by
+the announcer session, who simply tried the other door.
 
 ### 2.4 🟡 `OPS_PROFILE_ID` is not set — Sean
 
@@ -105,9 +135,15 @@ feature.
 Listed because each one has already cost someone a second look.
 
 - **`dispatch-due-charges` fires every 5 minutes right now.** It is not erroring. It exits at the
-  *first* gate — `if v_due = 0 then return 0` — because `payments` is empty. It never reaches the
-  Vault read, and it makes **no HTTP call at all**. The roster's "collect-charges gets a 503 from
-  every sweep" describes a state we are not in; nothing is being called.
+  *first* gate — `0080:1214`, `if v_due = 0 then return 0`, which sits BEFORE the Vault read at
+  `0080:1218` — because `payments` is empty. It never reaches the Vault read and makes **no HTTP
+  call at all**. The roster's "collect-charges gets a 503 from every sweep" describes a state we
+  are not in; nothing is being called.
+- **Even when it does reach the Vault read, an absent secret is a NOTICE and a `0`,** not an
+  error, and the whole read is exception-guarded so the cron job cannot die from it. That is
+  deliberate: the function's own comment calls the absent case "the correct pre-cutover state". A
+  scheduled job that silently returns 0 is normally a smell; here it is the design, which is why
+  it is written down rather than left to be rediscovered as a bug.
 - **`collect-charges` runs with `verify_jwt:false`.** Correct, and necessary: pg_net calls it
   without a JWT. The owner path is not exposed by this — see §4.
 - **It was deployed from a worktree named for git cleanup.** Odd provenance, identical content:
