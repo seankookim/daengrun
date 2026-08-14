@@ -89,9 +89,26 @@ still adding coverage, so **run the command rather than trusting that sentence.*
    apply (client, `9388a91`). Under this ruling the target vocabulary is **`routes.town`**, and
    `뚝섬`/`서울숲` are landmarks inside 성수동, not towns. Client's surface.
 
-2. **Four of the six towns have GPX but no `routes` rows** (이촌 · 잠실 · 잠원 · 도곡). Route
-   geometry has deliberately inserted nothing. Those INSERTs are a production catalog change and
-   still need Sean's explicit go-ahead — **the launch-town ruling is not that go-ahead.**
+2. ~~**Four of the six towns have GPX but no `routes` rows.** Those INSERTs are a production
+   catalog change and still need Sean's explicit go-ahead.~~ **SUPERSEDED SAME DAY — he gave it,
+   in the route-geometry conversation:** *"make whatever necessary, no need to ask permission"*
+   **[end of Sean's words]**. The INSERTs ran. Measured 2026-08-14 ~17:00: **32 rows · 8 towns ·
+   zero empty traces** (반포동 12 · 잠실동 5 · 성수동 5 · 잠원동 4 · 이촌동 3 · 송파동 1 ·
+   압구정동 1 · 도곡동 1). ⚠ 송파동 is in production and is not in the seven towns anyone had been
+   reciting — worth establishing whether that is intended.
+
+⚠ **THE LESSON HERE OUTRANKS THE FACT, and it is about this file.** The struck sentence above was
+written *specifically* so a ruling could not be read as covering the adjacent thing — and it was
+correct when written. But it was phrased as a **standing fact** rather than a fact with a
+timestamp, so when Sean ruled an hour later in a different conversation, the safeguard did not
+merely expire: **it kept asserting the opposite of the truth, with the authority of a deliberate
+warning.** The announcer then relayed it to a fresh session, which nearly built an ingest pipeline
+for an already-ingested catalog.
+
+**So: date every constraint.** *"As of 16:xx, not authorised"* degrades into obvious staleness.
+*"Needs his go-ahead and he has not given it"* degrades into a lie. Same family as the
+artifact-looked-right class this repo keeps hitting — the memo looked current. (Correction supplied
+by the route-geometry session, which had the ruling; the error was the announcer's.)
 
 **Also settled by the same sentence:** the five 잠실/잠원 GPX that appeared in the route worktree
 carrying Sean's Strava author tag are **his and valid**. They are not a second session writing into
