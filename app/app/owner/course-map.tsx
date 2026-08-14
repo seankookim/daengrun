@@ -212,7 +212,9 @@ export default function CourseMap() {
       {mapNode}
 
       {/* 상단 크롬 — 검색 자리(뒤로)와 필터 칩. 지도 위 떠 있는 층은 이 하나뿐 */}
-      <View style={s.top}>
+      {/* 상단 크롬 = 하나의 흐르는 컬럼(검색줄 → 칩 → 고지 카드). box-none 이라 컨테이너 자체는
+          터치를 통과시키고, 자식(칩·재시도 버튼)만 받는다 — 지도 제스처를 죽이지 않는다. */}
+      <View style={s.top} pointerEvents="box-none">
         <View style={s.search}>
           <Pressable onPress={() => router.back()} hitSlop={10} accessibilityRole="button" accessibilityLabel="뒤로" style={s.backBtn}>
             <Text style={{ fontSize: 19, fontWeight: '900', color: paper.ink }}>‹</Text>
@@ -225,49 +227,48 @@ export default function CourseMap() {
           routes={routes} chips={chips} litAuto={litAuto}
           onToggle={toggleChip} variant="floating" style={{ marginTop: 8 }}
         />
+        {/* 실측 코스가 하나도 없을 때 — 빈 판정이 아니라 사실과 다음 행동 */}
+        {/* 코스가 0개인 것과 '실측 전'인 것은 다른 사실이다. 예전엔 둘 다 같은 카드로 그려서
+            코스가 하나도 없을 때 "**0개** 코스의 만남 장소는 정해져 있고…"라고, 0개에 대해
+            무언가를 주장하는 문장이 나왔다. 개수를 본문에 끼워 넣으면 0이 들어올 수 있다. */}
+        {state === 'ready' && routes.length === 0 && (
+          <View style={s.infoWrap} pointerEvents="none">
+            <View style={s.infoCard}>
+              <Text style={s.infoTitle}>등록된 코스가 없어요</Text>
+              <Text style={s.infoBody}>아직 이 지역에 코스가 없어요. 코스 없이도 예약은 접수돼요.</Text>
+            </View>
+          </View>
+        )}
+        {/* 선이 하나도 없을 때 */}
+        {state === 'ready' && routes.length > 0 && withTrace.length === 0 && (
+          <View style={s.infoWrap} pointerEvents="none">
+            <View style={s.infoCard}>
+              <Text style={s.infoTitle}>아직 실측된 코스가 없어요</Text>
+              <Text style={s.infoBody}>
+                {routes.length}개 코스의 만남 장소는 정해져 있고, 첫 반려견 동반 러닝이 그 코스의 지도를 만듭니다.
+              </Text>
+            </View>
+          </View>
+        )}
+        {/* 선은 있는데 아직 아무도 달려보지 않았을 때 — 세 번째 상태다. 선이 그려졌다는 이유만으로
+            '실측'이라고 말하면 그게 곧 조작이 된다 (0082 source='algo' = 예정 경로). */}
+        {state === 'ready' && withTrace.length > 0 && withTrace.every((r) => traceKind(r) !== 'verified') && (
+          <View style={s.infoWrap} pointerEvents="none">
+            <View style={s.infoCard}>
+              <Text style={s.infoTitle}>예정 경로를 보고 있어요</Text>
+              <Text style={s.infoBody}>{TRACE_NOTE.planned}</Text>
+            </View>
+          </View>
+        )}
+        {state === 'error' && (
+          <View style={s.infoWrap}>
+            <View style={[s.infoCard, { borderColor: paper.critical }]}>
+              <Text style={[s.infoTitle, { color: paper.critical }]}>코스를 불러오지 못했어요</Text>
+              <Pressable onPress={load} style={s.retry} accessibilityRole="button"><Text style={s.retryTxt}>다시 시도</Text></Pressable>
+            </View>
+          </View>
+        )}
       </View>
-
-      {/* 실측 코스가 하나도 없을 때 — 빈 판정이 아니라 사실과 다음 행동 */}
-      {/* 코스가 0개인 것과 '실측 전'인 것은 다른 사실이다. 예전엔 둘 다 같은 카드로 그려서
-          코스가 하나도 없을 때 "**0개** 코스의 만남 장소는 정해져 있고…"라고, 0개에 대해
-          무언가를 주장하는 문장이 나왔다. 개수를 본문에 끼워 넣으면 0이 들어올 수 있다. */}
-      {state === 'ready' && routes.length === 0 && (
-        <View style={s.infoWrap} pointerEvents="none">
-          <View style={s.infoCard}>
-            <Text style={s.infoTitle}>등록된 코스가 없어요</Text>
-            <Text style={s.infoBody}>아직 이 지역에 코스가 없어요. 코스 없이도 예약은 접수돼요.</Text>
-          </View>
-        </View>
-      )}
-      {/* 선이 하나도 없을 때 */}
-      {state === 'ready' && routes.length > 0 && withTrace.length === 0 && (
-        <View style={s.infoWrap} pointerEvents="none">
-          <View style={s.infoCard}>
-            <Text style={s.infoTitle}>아직 실측된 코스가 없어요</Text>
-            <Text style={s.infoBody}>
-              {routes.length}개 코스의 만남 장소는 정해져 있고, 첫 반려견 동반 러닝이 그 코스의 지도를 만듭니다.
-            </Text>
-          </View>
-        </View>
-      )}
-      {/* 선은 있는데 아직 아무도 달려보지 않았을 때 — 세 번째 상태다. 선이 그려졌다는 이유만으로
-          '실측'이라고 말하면 그게 곧 조작이 된다 (0082 source='algo' = 예정 경로). */}
-      {state === 'ready' && withTrace.length > 0 && withTrace.every((r) => traceKind(r) !== 'verified') && (
-        <View style={s.infoWrap} pointerEvents="none">
-          <View style={s.infoCard}>
-            <Text style={s.infoTitle}>예정 경로를 보고 있어요</Text>
-            <Text style={s.infoBody}>{TRACE_NOTE.planned}</Text>
-          </View>
-        </View>
-      )}
-      {state === 'error' && (
-        <View style={s.infoWrap}>
-          <View style={[s.infoCard, { borderColor: paper.critical }]}>
-            <Text style={[s.infoTitle, { color: paper.critical }]}>코스를 불러오지 못했어요</Text>
-            <Pressable onPress={load} style={s.retry} accessibilityRole="button"><Text style={s.retryTxt}>다시 시도</Text></Pressable>
-          </View>
-        </View>
-      )}
 
       {/* ── 3단 시트 ── */}
       <Animated.View style={[s.sheet, { height: h }]}>
@@ -390,7 +391,11 @@ const s = StyleSheet.create({
   backBtn: { width: 30, height: 30, alignItems: 'center', justifyContent: 'center' },
   searchTxt: { flex: 1, fontSize: 14, fontWeight: '700', color: paper.text },
 
-  infoWrap: { position: 'absolute', left: 14, right: 14, top: Platform.OS === 'ios' ? 170 : 132, zIndex: 5 },
+  // ⚠ 고정 top 금지. 예전엔 `top: 170`이었는데, 칩 행이 두 줄로 감기면(조명 자동켜짐 문구가
+  // 붙는 어두운 슬롯이 정확히 그 경우다) 위 크롬이 자라서 이 카드를 덮어썼다 — 시뮬레이터에서
+  // 실제로 제목이 가려졌다. 이제 상단 크롬 컬럼 **안에서 흐른다**: 칩이 몇 줄이든 카드는 항상
+  // 그 아래다. 매직 넘버를 키우는 건 다음 줄바꿈까지만 사는 수정이다.
+  infoWrap: { marginTop: 8 },
   infoCard: {
     backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EDEBE6', padding: 13,
     shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 14, shadowOffset: { width: 0, height: 3 }, elevation: 3,
