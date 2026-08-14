@@ -1,0 +1,494 @@
+[
+  {
+    "slug": "banpocheon-dawn-2k",
+    "routeId": "ff0ecb43-8292-4338-aaf6-600c9d6ccd36",
+    "routeName": "반포천 새벽 코스",
+    "km": 2,
+    "measuredKm": 2.024,
+    "points": 95,
+    "shape": "out-and-back",
+    "intendedShape": "out-and-back",
+    "source": "osm",
+    "osmWayCount": 11,
+    "attribution": "© OpenStreetMap contributors (ODbL)",
+    "anchor": [
+      37.503396,
+      127.001108
+    ],
+    "anchorStatus": "db-snapped",
+    "dbAnchor": [
+      37.503,
+      127.001
+    ],
+    "dbAnchorDeltaM": 45,
+    "closed": true,
+    "terrain": "포장 100%",
+    "unpavedPctTarget": 0,
+    "surfaceOsmTagged": {
+      "unpavedPct": 0,
+      "pavedPct": 31,
+      "untaggedPct": 69
+    },
+    "inParkPct": 4,
+    "onPreferredCorridorPct": 4,
+    "litTaggedPct": 0,
+    "retracedPct": 50,
+    "note": "반포천 walkway, out-and-back upstream. Paved stream-side footway, lit."
+  },
+  {
+    "slug": "seoraeseom-canola-loop-2k",
+    "routeId": "74499c6e-e4de-4da0-b66b-c2fe7c69ddc9",
+    "routeName": "서래섬 유채 루프",
+    "km": 2,
+    "measuredKm": 2.001,
+    "points": 99,
+    "shape": "lollipop",
+    "intendedShape": "lollipop",
+    "source": "osm",
+    "osmWayCount": 29,
+    "attribution": "© OpenStreetMap contributors (ODbL)",
+    "anchor": [
+      37.507073,
+      126.989352
+    ],
+    "anchorStatus": "corrected",
+    "dbAnchor": [
+      37.5106,
+      126.9875
+    ],
+    "dbAnchorDeltaM": 424.9,
+    "closed": true,
+    "terrain": "포장 70%",
+    "unpavedPctTarget": 30,
+    "surfaceOsmTagged": {
+      "unpavedPct": 0,
+      "pavedPct": 27,
+      "untaggedPct": 73
+    },
+    "inParkPct": 29,
+    "onPreferredCorridorPct": 29,
+    "litTaggedPct": 1,
+    "retracedPct": 23,
+    "note": "DB anchor sits ~320 m north of the island, in the Han. Routed on the real 서래섬 island paths via 서래2교.",
+    "suggestedAnchorFix": [
+      37.507073,
+      126.989352
+    ]
+  },
+  {
+    "slug": "montmartre-hill-loop-2k",
+    "routeId": "9339666e-9119-4cb6-b4b9-44a2358d16d7",
+    "routeName": "몽마르뜨 언덕 루프",
+    "km": 2,
+    "measuredKm": 2.014,
+    "points": 97,
+    "shape": "loop",
+    "intendedShape": "loop",
+    "source": "osm",
+    "osmWayCount": 16,
+    "attribution": "© OpenStreetMap contributors (ODbL)",
+    "anchor": [
+      37.495447,
+      127.003681
+    ],
+    "anchorStatus": "corrected",
+    "dbAnchor": [
+      37.4997,
+      126.9932
+    ],
+    "dbAnchorDeltaM": 1038.5,
+    "closed": true,
+    "terrain": "흙길 60%",
+    "unpavedPctTarget": 60,
+    "surfaceOsmTagged": {
+      "unpavedPct": 19,
+      "pavedPct": 0,
+      "untaggedPct": 81
+    },
+    "inParkPct": 79,
+    "onPreferredCorridorPct": 26,
+    "litTaggedPct": 0,
+    "retracedPct": 23,
+    "note": "DB anchor is ~1.0 km west of the real 몽마르뜨공원. Routed inside the actual park.",
+    "suggestedAnchorFix": [
+      37.495447,
+      127.003681
+    ]
+  },
+  {
+    "slug": "jamsugyo-riverwind-3k",
+    "routeId": "720f99bc-1578-455c-a4a7-473cc290c31d",
+    "routeName": "잠수교 강바람 3km",
+    "km": 3,
+    "measuredKm": 2.985,
+    "points": 141,
+    "shape": "lollipop",
+    "intendedShape": "lollipop",
+    "source": "osm",
+    "osmWayCount": 37,
+    "attribution": "© OpenStreetMap contributors (ODbL)",
+    "anchor": [
+      37.511774,
+      126.995294
+    ],
+    "anchorStatus": "db",
+    "dbAnchor": [
+      37.5118,
+      126.995
+    ],
+    "dbAnchorDeltaM": 26.1,
+    "closed": true,
+    "terrain": "포장 90%",
+    "unpavedPctTarget": 10,
+    "surfaceOsmTagged": {
+      "unpavedPct": 0,
+      "pavedPct": 87,
+      "untaggedPct": 13
+    },
+    "inParkPct": 28,
+    "onPreferredCorridorPct": 33,
+    "litTaggedPct": 0,
+    "retracedPct": 24,
+    "note": "Stem east past 잠수교 남단, loop on the 반포한강공원 riverside decks."
+  },
+  {
+    "slug": "dongjak-sunset-3k",
+    "routeId": "2fafc3f0-a6b6-488f-b662-e49394c9078e",
+    "routeName": "동작 노을 3km",
+    "km": 3,
+    "measuredKm": 3.017,
+    "points": 140,
+    "shape": "out-and-back",
+    "intendedShape": "out-and-back",
+    "source": "osm",
+    "osmWayCount": 9,
+    "attribution": "© OpenStreetMap contributors (ODbL)",
+    "anchor": [
+      37.505406,
+      126.988545
+    ],
+    "anchorStatus": "corrected",
+    "dbAnchor": [
+      37.5093,
+      126.9887
+    ],
+    "dbAnchorDeltaM": 433.3,
+    "closed": true,
+    "terrain": "포장 100%",
+    "unpavedPctTarget": 0,
+    "surfaceOsmTagged": {
+      "unpavedPct": 0,
+      "pavedPct": 93,
+      "untaggedPct": 7
+    },
+    "inParkPct": 93,
+    "onPreferredCorridorPct": 93,
+    "litTaggedPct": 0,
+    "retracedPct": 50,
+    "note": "DB 반포나들목 anchor is ~150 m from any mapped path; routed from 서래섬나들목, west toward 동작대교.",
+    "suggestedAnchorFix": [
+      37.505406,
+      126.988545
+    ]
+  },
+  {
+    "slug": "seoripul-forest-3k",
+    "routeId": "21da1ac6-a925-4eed-ac28-f42f6da3a285",
+    "routeName": "서리풀 숲길 3km",
+    "km": 3,
+    "measuredKm": 2.998,
+    "points": 144,
+    "shape": "loop",
+    "intendedShape": "loop",
+    "source": "osm",
+    "osmWayCount": 20,
+    "attribution": "© OpenStreetMap contributors (ODbL)",
+    "anchor": [
+      37.496427,
+      127.005053
+    ],
+    "anchorStatus": "corrected",
+    "dbAnchor": [
+      37.4991,
+      126.9968
+    ],
+    "dbAnchorDeltaM": 786.4,
+    "closed": true,
+    "terrain": "흙길 90%",
+    "unpavedPctTarget": 90,
+    "surfaceOsmTagged": {
+      "unpavedPct": 23,
+      "pavedPct": 0,
+      "untaggedPct": 77
+    },
+    "inParkPct": 71,
+    "onPreferredCorridorPct": 52,
+    "litTaggedPct": 0,
+    "retracedPct": 29,
+    "note": "DB 누에다리 anchor is ~850 m west of the real 누에다리; routed from the actual footbridge.",
+    "suggestedAnchorFix": [
+      37.496427,
+      127.005053
+    ]
+  },
+  {
+    "slug": "seoripul-montmartre-traverse-5k",
+    "routeId": "436ee1d2-5794-4e7f-a917-1c3d9d873122",
+    "routeName": "서리풀–몽마르뜨 종주 5km",
+    "km": 5,
+    "measuredKm": 4.959,
+    "points": 200,
+    "shape": "figure-8",
+    "intendedShape": "figure-8",
+    "source": "osm",
+    "osmWayCount": 25,
+    "attribution": "© OpenStreetMap contributors (ODbL)",
+    "anchor": [
+      37.496427,
+      127.005053
+    ],
+    "anchorStatus": "corrected",
+    "dbAnchor": [
+      37.4991,
+      126.9968
+    ],
+    "dbAnchorDeltaM": 786.4,
+    "closed": true,
+    "terrain": "흙길 80%",
+    "unpavedPctTarget": 80,
+    "surfaceOsmTagged": {
+      "unpavedPct": 22,
+      "pavedPct": 0,
+      "untaggedPct": 78
+    },
+    "inParkPct": 65,
+    "onPreferredCorridorPct": 38,
+    "litTaggedPct": 0,
+    "retracedPct": 52,
+    "note": "Figure-8 crossing at 누에다리: one lobe through 서리풀공원, the other through 몽마르뜨공원 — the 종주 the name promises.",
+    "suggestedAnchorFix": [
+      37.496427,
+      127.005053
+    ]
+  },
+  {
+    "slug": "banpo-hangang-grand-loop-5k",
+    "routeId": "d6cc545f-2f58-47c2-923a-e42ef5e9e043",
+    "routeName": "반포한강 그랜드 루프",
+    "km": 5,
+    "measuredKm": 4.96,
+    "points": 200,
+    "shape": "loop",
+    "intendedShape": "loop",
+    "source": "osm",
+    "osmWayCount": 53,
+    "attribution": "© OpenStreetMap contributors (ODbL)",
+    "anchor": [
+      37.511774,
+      126.995294
+    ],
+    "anchorStatus": "db",
+    "dbAnchor": [
+      37.5118,
+      126.995
+    ],
+    "dbAnchorDeltaM": 26.1,
+    "closed": true,
+    "terrain": "포장 95%",
+    "unpavedPctTarget": 5,
+    "surfaceOsmTagged": {
+      "unpavedPct": 0,
+      "pavedPct": 28,
+      "untaggedPct": 72
+    },
+    "inParkPct": 33,
+    "onPreferredCorridorPct": 33,
+    "litTaggedPct": 6,
+    "retracedPct": 12,
+    "note": "상·하단 순환: out on one riverside path, back on the other."
+  },
+  {
+    "slug": "hangang-banpo-jamwon-7k",
+    "routeId": "1d035857-af49-4f0e-a076-79339243e6b4",
+    "routeName": "한강 반포–잠원 7km",
+    "km": 7,
+    "measuredKm": 7.065,
+    "points": 200,
+    "shape": "out-and-back",
+    "intendedShape": "out-and-back",
+    "source": "osm",
+    "osmWayCount": 20,
+    "attribution": "© OpenStreetMap contributors (ODbL)",
+    "anchor": [
+      37.511774,
+      126.995294
+    ],
+    "anchorStatus": "db",
+    "dbAnchor": [
+      37.5118,
+      126.995
+    ],
+    "dbAnchorDeltaM": 26.1,
+    "closed": true,
+    "terrain": "포장 100%",
+    "unpavedPctTarget": 0,
+    "surfaceOsmTagged": {
+      "unpavedPct": 0,
+      "pavedPct": 95,
+      "untaggedPct": 5
+    },
+    "inParkPct": 98,
+    "onPreferredCorridorPct": 98,
+    "litTaggedPct": 77,
+    "retracedPct": 50,
+    "note": "Long riverside out-and-back, 세빛섬 → 잠원 and back."
+  },
+  {
+    "slug": "seoulforest-forest-3k",
+    "routeId": "dd8bc2e2-70dc-4955-bad3-17c0ac6a360c",
+    "routeName": "서울숲 숲길 3km",
+    "km": 3,
+    "measuredKm": 2.968,
+    "points": 140,
+    "shape": "lollipop",
+    "intendedShape": "lollipop",
+    "source": "osm",
+    "osmWayCount": 23,
+    "attribution": "© OpenStreetMap contributors (ODbL)",
+    "anchor": [
+      37.544431,
+      127.037473
+    ],
+    "anchorStatus": "chosen",
+    "dbAnchor": null,
+    "dbAnchorDeltaM": null,
+    "closed": true,
+    "terrain": "흙길 90%",
+    "unpavedPctTarget": 90,
+    "surfaceOsmTagged": {
+      "unpavedPct": 30,
+      "pavedPct": 0,
+      "untaggedPct": 70
+    },
+    "inParkPct": 0,
+    "onPreferredCorridorPct": 100,
+    "litTaggedPct": 0,
+    "retracedPct": 21,
+    "note": "No DB anchor. Trailhead chosen on the 서울숲 main path network.",
+    "suggestedAnchor": [
+      37.544431,
+      127.037473
+    ]
+  },
+  {
+    "slug": "seoulforest-circuit-5k",
+    "routeId": "55eaae1f-fb8d-463a-9138-ae3b77181f0f",
+    "routeName": "서울숲 순환 코스",
+    "km": 5,
+    "measuredKm": 5.037,
+    "points": 200,
+    "shape": "figure-8",
+    "intendedShape": "figure-8",
+    "source": "osm",
+    "osmWayCount": 62,
+    "attribution": "© OpenStreetMap contributors (ODbL)",
+    "anchor": [
+      37.544431,
+      127.037473
+    ],
+    "anchorStatus": "chosen",
+    "dbAnchor": null,
+    "dbAnchorDeltaM": null,
+    "closed": true,
+    "terrain": "흙길 70%",
+    "unpavedPctTarget": 70,
+    "surfaceOsmTagged": {
+      "unpavedPct": 17,
+      "pavedPct": 24,
+      "untaggedPct": 59
+    },
+    "inParkPct": 0,
+    "onPreferredCorridorPct": 83,
+    "litTaggedPct": 22,
+    "retracedPct": 9,
+    "note": "No DB anchor. Same trailhead as the 3km, but a two-lobe figure-8 over different ground.",
+    "suggestedAnchor": [
+      37.544431,
+      127.037473
+    ]
+  },
+  {
+    "slug": "ttukseom-riverview-5k",
+    "routeId": "74ec26da-efbc-422e-949c-45fcfab85c0e",
+    "routeName": "뚝섬 리버뷰 코스",
+    "km": 5,
+    "measuredKm": 4.943,
+    "points": 200,
+    "shape": "loop",
+    "intendedShape": "loop",
+    "source": "osm",
+    "osmWayCount": 10,
+    "attribution": "© OpenStreetMap contributors (ODbL)",
+    "anchor": [
+      37.529769,
+      127.066185
+    ],
+    "anchorStatus": "chosen",
+    "dbAnchor": null,
+    "dbAnchorDeltaM": null,
+    "closed": true,
+    "terrain": "포장 60%",
+    "unpavedPctTarget": 40,
+    "surfaceOsmTagged": {
+      "unpavedPct": 0,
+      "pavedPct": 56,
+      "untaggedPct": 44
+    },
+    "inParkPct": 34,
+    "onPreferredCorridorPct": 65,
+    "litTaggedPct": 47,
+    "retracedPct": 8,
+    "note": "No DB anchor. Closed circuit inside 뚝섬한강공원.",
+    "suggestedAnchor": [
+      37.529769,
+      127.066185
+    ]
+  },
+  {
+    "slug": "ttukseom-jamwon-7k",
+    "routeId": "ecb4ac90-fd8b-46c1-97e5-b3dfab064fbb",
+    "routeName": "뚝섬–잠원 7km",
+    "km": 7,
+    "measuredKm": 6.921,
+    "points": 200,
+    "shape": "out-and-back",
+    "intendedShape": "out-and-back",
+    "source": "osm",
+    "osmWayCount": 11,
+    "attribution": "© OpenStreetMap contributors (ODbL)",
+    "anchor": [
+      37.529769,
+      127.066185
+    ],
+    "anchorStatus": "chosen",
+    "dbAnchor": null,
+    "dbAnchorDeltaM": null,
+    "closed": true,
+    "terrain": "포장 80%",
+    "unpavedPctTarget": 20,
+    "surfaceOsmTagged": {
+      "unpavedPct": 4,
+      "pavedPct": 78,
+      "untaggedPct": 18
+    },
+    "inParkPct": 19,
+    "onPreferredCorridorPct": 99,
+    "litTaggedPct": 66,
+    "retracedPct": 50,
+    "note": "No DB anchor. North-bank out-and-back heading toward 잠원; 잠원 itself is across the river and is not reachable in 3.5 km without a road bridge, so the trace turns around on the north bank.",
+    "suggestedAnchor": [
+      37.529769,
+      127.066185
+    ]
+  }
+]

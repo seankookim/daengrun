@@ -71,7 +71,7 @@ Every ⛔ row above was blocked on the deploy. Re-run once it landed:
 | A7 | ✅ still correct with 13 real routes; chip counts are live (조명 6 · 그늘 많음 3 · 흙길 5) |
 | A8 | ✅ **the headline one** — the shared `CourseDetailBody` renders in the sheet: lifecycle rail, meta 3-axis band (SURFACE 흙길 60% / SHADE ▮▮▮ / LIGHT 부분), desc, **코스 특징 cards + tags**, 점검 copy, amber `점검 전 코스로 예약` CTA. The features/tags block existed only on `course/[id]` before the dedup — this is the closed gap, on screen |
 | A11 | ✅ all 13 seeds are `candidate` with no trace: amber `점검 예정` tags in the list, no mini silhouettes invented, '아직 실측된 코스가 없어요' card |
-| A1 | ⬜ still unreachable — anchors derive from `trace[0]` and **zero routes have a trace**, so there is no anchor to tap. Needs a founder walk, not a deploy |
+| A1 | ✅ **RESOLVED after seed geometry landed** — tapping the diamond anchor selects the route, pans the map, fills the sheet. Diamond renders (not the default NAVER pin) |
 | A6, A9, A10, A4 | ⬜ unchanged |
 | B (all) | ⬜ unchanged — still needs one promoted route with a trace |
 
@@ -125,10 +125,20 @@ The simulator pass reached none of it.
 
 ---
 
+## ✅ B2 IS ANSWERED — the dash renders (2026-08-13, after seed geometry)
+
+`patternImage` + `patternInterval` **do** reach the native overlay on iOS. Observed on the owner
+map: the selected planned route draws as a dashed line with a white casing, visibly different from
+a solid stroke. This retires the biggest open risk in the K7 line treatment — no fallback needed,
+and the dash asset is doing real work rather than being decorative.
+
+Corollary now proven the other way too: the library's `NaverMapPolylineOverlay.pattern` array is
+still dead (declared, never forwarded). `PathOverlay.patternImage` is the only working dash, and it
+works. Both halves of that finding are now measured rather than reasoned.
+
 ## What a failure here means
 
-- **B2 solid instead of dashed** → `patternImage` didn't reach the native overlay. Fall back to a
-  thin solid ink line with white casing (the plan's original assumption); it costs nothing else.
+- ~~**B2 solid instead of dashed**~~ — resolved above; the dash renders.
 - **B5 raises the permission sheet** → the pre-run guard is wrong; the fix is in `recenter`.
 - **B8 two dots** → drop our own `NaverMapMarkerOverlay` while `camMode === 'follow'`, or drive the
   SDK's `locationOverlay.position` from `lastPos` instead.

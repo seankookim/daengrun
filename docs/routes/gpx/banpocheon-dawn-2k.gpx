@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="daengrun gen-route-gpx.mjs" xmlns="http://www.topografix.com/GPX/1/1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
+  <metadata>
+    <name>반포천 새벽 코스</name>
+    <desc>Seed course geometry (source=algo) for daengrun route ff0ecb43-8292-4338-aaf6-600c9d6ccd36. Not a measured GPS trace: the course is synthesised, but every point lies on a mapped OpenStreetMap footpath. Shape: out-and-back. Target 2 km, measured 2.024 km.</desc>
+    <copyright author="OpenStreetMap contributors"><license>https://opendatacommons.org/licenses/odbl/1-0/</license></copyright>
+    <keywords>daengrun,seed,algo,candidate,osm</keywords>
+  </metadata>
+  <trk>
+    <name>반포천 새벽 코스</name>
+    <trkseg>
+      <trkpt lat="37.503396" lon="127.001108"/>
+      <trkpt lat="37.503330" lon="127.000873"/>
+      <trkpt lat="37.503264" lon="127.000638"/>
+      <trkpt lat="37.503198" lon="127.000402"/>
+      <trkpt lat="37.503132" lon="127.000167"/>
+      <trkpt lat="37.503066" lon="126.999932"/>
+      <trkpt lat="37.502892" lon="126.999893"/>
+      <trkpt lat="37.502772" lon="126.999710"/>
+      <trkpt lat="37.502819" lon="126.999478"/>
+      <trkpt lat="37.502821" lon="126.999257"/>
+      <trkpt lat="37.502841" lon="126.999009"/>
+      <trkpt lat="37.502954" lon="126.998820"/>
+      <trkpt lat="37.503031" lon="126.998643"/>
+      <trkpt lat="37.503223" lon="126.998578"/>
+      <trkpt lat="37.503414" lon="126.998513"/>
+      <trkpt lat="37.503605" lon="126.998448"/>
+      <trkpt lat="37.503796" lon="126.998383"/>
+      <trkpt lat="37.503982" lon="126.998330"/>
+      <trkpt lat="37.504050" lon="126.998564"/>
+      <trkpt lat="37.504118" lon="126.998799"/>
+      <trkpt lat="37.504186" lon="126.999033"/>
+      <trkpt lat="37.504254" lon="126.999267"/>
+      <trkpt lat="37.504322" lon="126.999502"/>
+      <trkpt lat="37.504390" lon="126.999736"/>
+      <trkpt lat="37.504456" lon="126.999971"/>
+      <trkpt lat="37.504517" lon="127.000209"/>
+      <trkpt lat="37.504577" lon="127.000446"/>
+      <trkpt lat="37.504638" lon="127.000684"/>
+      <trkpt lat="37.504639" lon="127.000930"/>
+      <trkpt lat="37.504551" lon="127.001151"/>
+      <trkpt lat="37.504397" lon="127.001301"/>
+      <trkpt lat="37.504232" lon="127.001440"/>
+      <trkpt lat="37.504067" lon="127.001578"/>
+      <trkpt lat="37.503901" lon="127.001714"/>
+      <trkpt lat="37.503734" lon="127.001849"/>
+      <trkpt lat="37.503568" lon="127.001983"/>
+      <trkpt lat="37.503401" lon="127.002118"/>
+      <trkpt lat="37.503235" lon="127.002253"/>
+      <trkpt lat="37.503068" lon="127.002387"/>
+      <trkpt lat="37.502901" lon="127.002522"/>
+      <trkpt lat="37.502735" lon="127.002657"/>
+      <trkpt lat="37.502568" lon="127.002792"/>
+      <trkpt lat="37.502390" lon="127.002854"/>
+      <trkpt lat="37.502210" lon="127.002881"/>
+      <trkpt lat="37.502030" lon="127.002984"/>
+      <trkpt lat="37.501850" lon="127.003088"/>
+      <trkpt lat="37.501724" lon="127.003259"/>
+      <trkpt lat="37.501763" lon="127.003459"/>
+      <trkpt lat="37.501724" lon="127.003259"/>
+      <trkpt lat="37.501850" lon="127.003088"/>
+      <trkpt lat="37.502030" lon="127.002984"/>
+      <trkpt lat="37.502210" lon="127.002881"/>
+      <trkpt lat="37.502390" lon="127.002854"/>
+      <trkpt lat="37.502568" lon="127.002792"/>
+      <trkpt lat="37.502735" lon="127.002657"/>
+      <trkpt lat="37.502901" lon="127.002522"/>
+      <trkpt lat="37.503068" lon="127.002387"/>
+      <trkpt lat="37.503235" lon="127.002253"/>
+      <trkpt lat="37.503401" lon="127.002118"/>
+      <trkpt lat="37.503568" lon="127.001983"/>
+      <trkpt lat="37.503734" lon="127.001849"/>
+      <trkpt lat="37.503901" lon="127.001714"/>
+      <trkpt lat="37.504067" lon="127.001578"/>
+      <trkpt lat="37.504232" lon="127.001440"/>
+      <trkpt lat="37.504397" lon="127.001301"/>
+      <trkpt lat="37.504551" lon="127.001151"/>
+      <trkpt lat="37.504639" lon="127.000930"/>
+      <trkpt lat="37.504638" lon="127.000684"/>
+      <trkpt lat="37.504577" lon="127.000446"/>
+      <trkpt lat="37.504517" lon="127.000209"/>
+      <trkpt lat="37.504456" lon="126.999971"/>
+      <trkpt lat="37.504390" lon="126.999736"/>
+      <trkpt lat="37.504322" lon="126.999502"/>
+      <trkpt lat="37.504254" lon="126.999267"/>
+      <trkpt lat="37.504186" lon="126.999033"/>
+      <trkpt lat="37.504118" lon="126.998799"/>
+      <trkpt lat="37.504050" lon="126.998564"/>
+      <trkpt lat="37.503982" lon="126.998330"/>
+      <trkpt lat="37.503796" lon="126.998383"/>
+      <trkpt lat="37.503605" lon="126.998448"/>
+      <trkpt lat="37.503414" lon="126.998513"/>
+      <trkpt lat="37.503223" lon="126.998578"/>
+      <trkpt lat="37.503031" lon="126.998643"/>
+      <trkpt lat="37.502954" lon="126.998820"/>
+      <trkpt lat="37.502841" lon="126.999009"/>
+      <trkpt lat="37.502821" lon="126.999257"/>
+      <trkpt lat="37.502819" lon="126.999478"/>
+      <trkpt lat="37.502772" lon="126.999710"/>
+      <trkpt lat="37.502892" lon="126.999893"/>
+      <trkpt lat="37.503066" lon="126.999932"/>
+      <trkpt lat="37.503132" lon="127.000167"/>
+      <trkpt lat="37.503198" lon="127.000402"/>
+      <trkpt lat="37.503264" lon="127.000638"/>
+      <trkpt lat="37.503330" lon="127.000873"/>
+      <trkpt lat="37.503396" lon="127.001108"/>
+    </trkseg>
+  </trk>
+</gpx>

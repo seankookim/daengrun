@@ -159,6 +159,28 @@ Available gstack skills:
 
 When the user's request matches an available skill, invoke it via the Skill tool. When in doubt, invoke the skill.
 
+🔴 **If this session's job is coordination rather than building — announcing, routing between
+chats, allocating work, holding Sean's decision queue — invoke `/announcer` FIRST, before
+anything else.** It carries the verification discipline that five parallel sessions cost a day to
+learn, and a coordinating session that skips it repeats them. Any session titled "announcer",
+opened to replace one, or asked to "tell the others" is that session.
+
+**Every session should reach for skills proactively, without being asked** — from gstack
+(`/autoplan` before a substantial slice · `/review` before pushing · `/qa` and `/canary` after
+anything reaches an environment · `/investigate` on a live defect · `/retro` and
+`/document-release` when a phase closes) and from **addyosmani's agent-skills**
+(`agent-skills@addy-agent-skills`, 24 skills: `test-driven-development`,
+`spec-driven-development`, `incremental-implementation`, `planning-and-task-breakdown`,
+`code-review-and-quality`, `debugging-and-error-recovery`, `security-and-hardening`,
+`observability-and-instrumentation`, `performance-optimization`, `git-workflow-and-versioning`,
+`ci-cd-and-automation`, `documentation-and-adrs`, `context-engineering`,
+`doubt-driven-development`, `frontend-ui-engineering`, `browser-testing-with-devtools`,
+`api-and-interface-design`, `code-simplification`, `deprecation-and-migration`,
+`shipping-and-launch`, `source-driven-development`, `interview-me`, `idea-refine`,
+`using-agent-skills`). Spawn Opus 5 subagents and let them delegate further — but a subagent's
+finding is a snapshot, so re-read before acting on it, and claim shared surfaces in REGISTRY's
+in-flight table (path-keyed, tree named) before a subagent edits one.
+
 - Product ideas/brainstorming → /office-hours
 - Strategy/scope → /plan-ceo-review
 - Architecture → /plan-eng-review

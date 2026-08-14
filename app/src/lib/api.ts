@@ -52,7 +52,11 @@ function toRouteInfo(r: RouteRow, geo: GeoRoutePoint[] | null): RouteInfo {
     terrain: r.terrain ?? '',
     tags: r.tags ?? [],
     features: r.features ?? [],
-    checkedAt: fmtChecked(r.checked_at),
+    // ⚠ candidate 에는 점검일을 **보여주지 않는다**. 시드 데이터의 성수 4행은 런도 큐레이터도
+    // 없이 checked_at 만 들고 있어서 '7.20 점검'으로 렌더됐고, 이제 그 행들에 선까지 그려지면서
+    // (날짜 + 지도) 조합이 사용자에겐 '검증된 코스'로 읽힌다. 점검의 유일한 근거는 승격이므로,
+    // 승격 전에는 날짜가 있어도 '점검 예정'이 정직한 값이다. (시더 리뷰 #3)
+    checkedAt: r.status === 'candidate' ? '점검 예정' : fmtChecked(r.checked_at),
     desc: composeDesc(r),
     status: r.status,
     source: r.source ?? null,
