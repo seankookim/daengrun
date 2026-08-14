@@ -68,21 +68,17 @@ This closes the open call the previous handoff carried as *"the canonical launch
 not hand over a list. He handed over a **derivation**, which is the better artifact: a list goes
 stale the moment coverage moves, and this cannot.
 
-**Current value of the rule, 2026-08-14** — 18 Strava GPX on `claude/strava-route-loops-74c5d2`,
-covering **six** towns:
+**Do not maintain a list here — derive it.** A table of today's answer is exactly the stale
+artifact this ruling avoids, so the durable form is the command:
 
-| Town | 자치구 | GPX |
-|---|---|---|
-| 반포동 | 서초구 | 4 (몽마르뜨 ×3, 서래섬) |
-| 잠원동 | 서초구 | 4 (한신2차 ×3, 근린공원) |
-| 잠실동 | 송파구 | 5 (석촌호수 ×2, 리센츠, 아시아선수촌, 엘스 외곽) |
-| 이촌동 | 용산구 | 3 (박물관 ×2, 가족공원) |
-| 성수동 | 성동구 | 1 (서울숲) |
-| 도곡동 | 강남구 | 1 (매봉산·양재천) |
+```bash
+git ls-tree -r --name-only origin/claude/strava-route-loops-74c5d2 docs/routes/strava/ \
+  | grep '\.gpx$' | sed 's|.*/||' | cut -d_ -f1 | sort -u
+```
 
-⚠ **Re-derive this table before trusting it — the rule outranks the snapshot.** Coverage was
-growing hourly when this was written, and a table of today's answer is exactly the stale artifact
-the ruling avoids.
+**As of 2026-08-14 that returns seven towns from 19 GPX** — 반포 · 잠원 · 잠실 · 이촌 · 성수 ·
+도곡 · 압구정 — which completes the seven districts the original brief named. Route geometry is
+still adding coverage, so **run the command rather than trusting that sentence.**
 
 **Two consequences that are now implementation, not decision:**
 

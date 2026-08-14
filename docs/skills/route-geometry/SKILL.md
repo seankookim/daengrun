@@ -66,11 +66,33 @@ browse screenshot /tmp/map-check.png    # read it — if the pane says
 Never diagnose a geocoder or panel problem before that check passes. The window staying visible is
 also how Sean watches the work, which he asked for.
 
-⚠ **`--headed` is per-COMMAND, not per-session.** Put it on *every* browse invocation in this
-track. A bare `browse screenshot` errors with "existing daemon has different config" — and far
-worse, a bare `browse cookie-import-browser` **silently starts a second headless daemon and
-replaces your headed window.** That, not `handoff` alone, is what closed Sean's window twice.
-(Found by the route-geometry session, 2026-08-14.)
+⚠ **`--headed` is per-COMMAND, not per-session — and this is the failure that costs the most time
+in this track. Recognise it by symptom, because both people who wrote this rule down broke it
+within the hour.**
+
+> **Symptom:** the window opens and closes — or, worse and quieter, the builder panel never mounts
+> and `browse url` says **"No active page"** immediately after a *successful* `goto`.
+>
+> **Cause:** two daemons. `--headed` is per-COMMAND, so **any** bare `browse` call — including
+> `status` and `disconnect` — spawns a second *headless* daemon beside the headed one instead of
+> attaching to it. Headless has no WebGL, so its Chromium cannot render the map at all.
+>
+> **Confirm:** `ps aux | grep "bun run.*server.ts"` — more than one means two daemons. You may also
+> see both `chromium-*/Google Chrome for Testing` (headed) and `chromium_headless_shell-*` running.
+> A `disconnect` that prints *"Not in headed/custom-config mode — nothing to disconnect"* is the
+> same tell: it is talking to the wrong daemon.
+>
+> **Recover:** `browse disconnect`, wait, then `browse --headed goto <url>` **twice**. The first
+> lands on the local welcome page because the tab is empty — **that is not a lost login.** The
+> second loads the real page with the session intact.
+
+**Why the symptom line exists and the rule alone does not suffice:** the "no panel" version is
+invisible as a browser problem. Navigation reports 200, the URL reads back correctly, and the panel
+is simply never there — indistinguishable from a geocoder failure or a slow page. One session lost
+a full probe cycle to it. The flicker is what a human notices; "no panel" is what the script sees.
+
+⚠ **Never kill a daemon while another session or Sean is mid-flow.** `disconnect` takes the working
+window down with the stray one. Say so first.
 
 ### Authentication — there is no cookie shortcut
 
@@ -186,8 +208,14 @@ District pairings that actually work:
 | 성수동 | 트리마제 · 갤러리아포레 | 서울숲 · 뚝섬 · 중랑천 |
 | 망원동 · 상암동 | 망원한강 · 월드컵파크 | 한강 망원 · 경의선숲길 · 홍제천 |
 
-If a complex name returns no geocoder hit (`압구정현대아파트` and `이촌한가람아파트` both failed
-once), fall back to its 도로명주소, a gate, or a POI at the complex — all three resolve.
+**THE DISTRICT QUALIFIER HURTS.** Measured in 압구정동, which has the worst anchors found anywhere:
+`압구정현대아파트`, `압구정 신현대아파트` and `압구정한양아파트` all return **NO HIT**, while bare
+**`신현대아파트`** resolves fine. `미성아파트` resolved somewhere distant and produced a 52.4 km
+route that the measure-before-save gate refused — which is the gate earning its place.
+
+Strip the district first, then fall back in this order: **bare complex name → 도로명주소
+(`113 압구정로`) → a named park or landmark (`압구정은행공원`, `압구정로데오`) → a POI at the
+complex.** `이촌한가람아파트` failed the same way and yields to the same treatment.
 
 
 ⚠ **Purge list — six names used in good faith that geocode to nothing, or to somewhere a kilometre
