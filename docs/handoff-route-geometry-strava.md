@@ -324,3 +324,67 @@ predicate should carry that sentence with it rather than let it become "lighting
 
 Client owns the predicate (`matchesChips` / `unknownExcluded()` in
 `app/src/components/route-chips.tsx`); this track does not touch `app/`.
+
+## 13. Two shapes in one column — and the check that passed because it never ran
+
+**I wrote `trace` points as `[lat,lng]` arrays. The contract is `{lat,lng}` objects.** The 8
+original OSM rows had it right; all 20 rows I ingested had it wrong. `GeoRoutePoint` is `{lat,lng}`
+and every consumer reads `p.lat`/`p.lng`, so on my rows both were `undefined`: **20 of 28 courses
+drew no line on any of the three map surfaces, and `routeStart()` returned null, which dropped them
+out of proximity ranking entirely.** No error, no empty state, no log.
+
+Nothing told me, because `trace` is `jsonb` and the shape was never constrained. That is the point:
+**I treated a contract as a formatting choice**, and the schema had no opinion.
+
+Fixed in the DATA, not only in the readers — converted in place in Postgres under the seeder's
+guards. Verified 32/32 rows `jsonb_typeof(trace->0)='object'`, zero `trace_thumb` still array,
+point counts unchanged. `build-manifest.mjs` emits objects now.
+
+### The bigger finding, and the reason this section exists
+
+Client's closure scan had reported **zero** routes over 50 m. That scan was broken by this same
+defect: `haversine` over array-shaped points returns `NaN`, and `NaN > 50` is **false**, so every
+Strava row silently passed a check it was never subjected to. "0 bad routes" meant "20 routes not
+measured."
+
+So one defect broke the geometry *and* the check that would have caught it, and the check returned
+the reassuring answer.
+
+**Re-confirmed after the fix, in SQL, against the canonical shape** — deliberately not sharing a
+code path with the JS that produced the original figure, because the announcer's challenge was that
+a lat/lng transposition is exactly the error that survives a sanity check:
+
+| Route | closure |
+|---|---|
+| 반포 서래섬 리버 루프 3.71km | **215 m** |
+| everything else (31 rows) | 0–1 m |
+
+Same answer as the GPX-derived one. Anchors read `lat 37.50…, lng 127.0…`, so no transposition —
+a transposed row would carry `lat 127`, which is not a latitude.
+
+### The class, now with three instances in one day
+
+- a GPX whose filename, Strava page and every external indicator said "fixed" while the file itself
+  still said `3km`
+- a harness reading 515/0 green while booking was dead
+- a closure check passing because its inputs were `NaN`
+
+**Measure the thing itself, never its label. And when a check returns the comfortable answer,
+verify the check ran.**
+
+### Durable fix belongs to catalog
+
+A normaliser on every consumer is the shape-drift version of "synchronise the copies". The durable
+fix is **one canonical shape plus a CHECK constraint** so a third cannot land. That is schema and
+therefore catalog's, not mine.
+
+## 14. Sean's lighting ruling, final form
+
+Superseding §12. His words, in the client conversation:
+
+**"korea has excellent lighting. it is fine and follow that."**
+
+Scoped narrowly and correctly: `lit` passes, **`null` now PASSES**, `none` still drops, `partial`
+still drops. So Strava rows are visible in dark slots, and the safety case is untouched — an
+explicitly unlit route is still excluded. That is domain knowledge Sean has and none of the
+sessions did. The trap in §6/§11 is closed; `shade`/`lighting` still go in NULL.
