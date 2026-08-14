@@ -43,6 +43,57 @@ interface RouteRow {
 const ROUTE_LIST_COLS = 'id,name,area,km,terrain,tags,features,trace_thumb,checked_at,status,source,town,shade,lighting';
 const ROUTE_FULL_COLS = 'id,name,area,km,terrain,tags,features,trace,trace_thumb,checked_at,status,source,town,shade,lighting';
 
+/**
+ * 트레이스 좌표를 `{lat,lng}` 한 모양으로 정규화한다.
+ *
+ * ⚠ 2026-08-14 프로덕션에서 **두 모양이 공존**하는 걸 측정했다: 원래 시드 8행은 계약대로
+ * `{lat,lng}` 객체, Strava 인제스트로 들어온 20행은 `[lat,lng]` **배열**이었다.
+ * `GeoRoutePoint`는 `{lat,lng}`이고 모든 소비처가 `p.lat`/`p.lng`를 읽으므로, 배열 행에서는
+ * 전부 `undefined`가 된다 — 선이 안 그려지고, `routeStart()`가 null을 돌려줘서 그 20개는
+ * **거리 랭킹에서 조용히 빠진다.** 에러도 안 나고 로그도 안 남는, 정확히 제일 나쁜 종류.
+ *
+ * 그래서 읽는 쪽에서 두 모양을 다 받는다: 데이터를 고치는 것과 별개로, 클라이언트가 한
+ * 모양만 안다는 이유로 코스가 사라지면 안 된다. 좌표 위생(유한·한국 경계)은 route-pick의
+ * `usable()`이 따로 본다 — 여기서는 **모양만** 맞춘다.
+ */
+function normalizeTrace(geo: unknown): GeoRoutePoint[] {
+  if (!Array.isArray(geo) || geo.length === 0) return [];
+  const out: GeoRoutePoint[] = [];
+  for (const p of geo) {
+    if (Array.isArray(p)) {
+      // [lat, lng] — Strava 인제스트가 쓰는 모양
+      if (p.length >= 2 && typeof p[0] === 'number' && typeof p[1] === 'number') out.push({ lat: p[0], lng: p[1] });
+    } else if (p && typeof p === 'object') {
+      const o = p as Record<string, unknown>;
+      const lat = typeof o.lat === 'number' ? o.lat : typeof o.latitude === 'number' ? o.latitude : null;
+      const lng = typeof o.lng === 'number' ? o.lng : typeof o.longitude === 'number' ? o.longitude : null;
+      if (lat != null && lng != null) out.push({ lat, lng });
+    }
+  }
+  return out;
+}
+
+
+/** 루프가 출발점으로 돌아오는가. Sean의 명시 요구(start=end)이고, 트레이스만으로 계산되므로
+ *  컬럼도 마이그레이션도 필요 없다 — 코스가 재빌드되면 이 판정은 **스스로 풀린다**.
+ *  실측: 28개 중 27개가 0m, `반포 서래섬 리버 루프`만 215m (빌더가 같은 질의의 2회차에서
+ *  다른 GATE로 해석해 연 지점과 다른 곳에서 루프를 닫았다). 50m는 GPS 잡음과 실제 미폐합을
+ *  가르는 선. */
+const CLOSURE_MAX_M = 50;
+function closureM(t: GeoRoutePoint[]): number | null {
+  if (t.length < 2) return null;
+  const R = 6371000, rad = Math.PI / 180, a = t[0], b = t[t.length - 1];
+  const dLat = (b.lat - a.lat) * rad, dLng = (b.lng - a.lng) * rad;
+  const s = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(s)));
+}
+/** 디스커버리에 내놓을 수 있는가. 상세/이력(fetchRouteById)은 이 게이트를 지나지 않는다 —
+ *  이미 예약된 코스가 브리핑을 잃으면 안 되기 때문. status 게이트와 같은 자리, 같은 이유. */
+export function isOfferable(r: RouteInfo): boolean {
+  const c = closureM(r.trace);
+  return c == null || c <= CLOSURE_MAX_M;
+}
+
 function toRouteInfo(r: RouteRow, geo: GeoRoutePoint[] | null): RouteInfo {
   return {
     id: r.id,
@@ -62,7 +113,7 @@ function toRouteInfo(r: RouteRow, geo: GeoRoutePoint[] | null): RouteInfo {
     source: r.source ?? null,
     shade: r.shade ?? null,
     lighting: r.lighting ?? null,
-    trace: geo && geo.length > 0 ? geo : [],
+    trace: normalizeTrace(geo),
   };
 }
 
@@ -111,8 +162,10 @@ export async function fetchRoutes(town?: string | null): Promise<RouteInfo[]> {
     return [];
   };
 
+  // 미폐합 코스는 디스커버리에서 뺀다 — 출발점으로 돌아오지 않는 루프는 Sean의 요구를
+  // 만족하지 않으므로 '아직 내놓을 코스'가 아니다. 재빌드되면 자동으로 다시 들어온다.
   const rows = await forTown(town ?? null);
-  if (rows.length > 0 || !town) return rows.map((r) => toRouteInfo(r, r.trace_thumb));
+  if (rows.length > 0 || !town) return rows.map((r) => toRouteInfo(r, r.trace_thumb)).filter(isOfferable);
 
   // ── 동네 어휘 폴백 (플랜 "Town vocabulary" — 명세돼 있었지만 만들어지지 않았던 팔) ──
   // `profiles.district`와 `routes.town`은 **서로 다른 어휘**다. 실측(2026-08-13):
@@ -127,7 +180,7 @@ export async function fetchRoutes(town?: string | null): Promise<RouteInfo[]> {
   // 아무것도 없는 것보다 전부가 낫고, 조용한 0보다 시끄러운 폴백이 낫다.
   console.warn(`[routes] town '${town}' matched no routes — falling back to unfiltered (district/town vocabulary mismatch)`);
   const all = await forTown(null);
-  return all.map((r) => toRouteInfo(r, r.trace_thumb));
+  return all.map((r) => toRouteInfo(r, r.trace_thumb)).filter(isOfferable);
 }
 
 // 상세·이력·러너 브리핑 전용 — **가시성과 무관하게 어떤 라이프사이클 상태든 읽는다.**
