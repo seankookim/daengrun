@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <gpx creator="StravaGPX" version="1.1" xmlns="http://www.topografix.com/GPX/1/1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
  <metadata>
-  <name>몽마르뜨 언덕 루프 3km</name>
-  <desc>daengrun candidate geometry</desc>
+  <name>몽마르뜨 언덕 루프 5.4km</name>
+  <desc>daengrun candidate geometry — measured 5.4km, gain 68m, LOLLIPOP shape (46% retrace) — shape needs rework</desc>
   <author>
    <name>S Kim</name>
    <link href="https://www.strava.com/athletes/558867461"/>
@@ -14,8 +14,8 @@
   <link href="https://www.strava.com/routes/3523215321827895562"/>
  </metadata>
  <trk>
-  <name>몽마르뜨 언덕 루프 3km</name>
-  <desc>daengrun candidate geometry</desc>
+  <name>몽마르뜨 언덕 루프 5.4km</name>
+  <desc>daengrun candidate geometry — measured 5.4km, gain 68m, LOLLIPOP shape (46% retrace) — shape needs rework</desc>
   <link href="https://www.strava.com/routes/3523215321827895562"/>
   <type>running</type>
   <trkseg>

@@ -61,6 +61,7 @@ Strava counterpart.
     node audit-candidates.mjs                        # enforce current dog-route candidate gate
     node audit-candidates.mjs --strict               # complete source facts + measured filename for every GPX
     ./test-build-route-guards.sh                     # browser-free cap/access/input guard tests
+    node test-check-shape.mjs                        # real/synthetic geometry regression tests
 
 `build-route.sh` measures before saving and writes the **measured** distance into the route name,
 so a route's name can never disagree with its geometry. It refuses measurements of 5.00 km or
