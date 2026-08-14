@@ -302,3 +302,25 @@ Client's agent measured that **서리풀공원's north-east section goes from 2/
 falls back to OSM routing for a town Strava does not cover, that is the first change to make —
 weight steps ~1.6×, since they are often the only link between ridge sections but are a hazard with
 a dog rather than a shortcut.
+
+## 12. Sean's ruling on lighting — 2026-08-14
+
+Asked: *should a route with UNKNOWN lighting be offered at 6am at all?*
+
+**Sean, verbatim: "lighitng is fine."**
+
+Read as: do not block ingest or offering on `lighting` being NULL. Strava-sourced routes may be
+served in dark slots without the field populated.
+
+What this does NOT change, because a ruling settles the thing asked and not the thing adjacent:
+- **`shade` and `lighting` still go in as NULL.** The ruling permits offering rows that lack the
+  data; it does not license inventing it. No geometry source supplies either field, and writing a
+  guessed value would break the honesty law.
+- **Catalog INSERTs still need his explicit go-ahead.** Separate decision, still open.
+
+The stated risk he is accepting: unknown lighting is not the same as lit, so a 05–06시 booking may
+route onto an unlit path. Flagged once, at the time, in his own words above. Whoever changes the
+predicate should carry that sentence with it rather than let it become "lighting was fine."
+
+Client owns the predicate (`matchesChips` / `unknownExcluded()` in
+`app/src/components/route-chips.tsx`); this track does not touch `app/`.
