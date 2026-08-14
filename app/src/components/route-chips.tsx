@@ -30,11 +30,30 @@ export const dirtPct = (t: string) => (t.startsWith('흙길') ? Number(t.replace
 
 // 칩 정의 — 라벨·힌트·술어·빈 결과 수식어가 한 행에 붙어 있다. 라벨을 고치면서 술어를
 // 안 고치는 일이 물리적으로 불가능하도록.
-const CHIPS: { key: ChipKey; label: string; hint: string; modifier: string; ok: (r: RouteInfo) => boolean }[] = [
-  { key: 'lit', label: '조명', hint: '야간 조명 있음', modifier: '조명 있는', ok: (r) => r.lighting === 'lit' },
-  { key: 'shade', label: '그늘 많음', hint: '그늘 최상', modifier: '그늘 많은', ok: (r) => r.shade === 'high' },
-  { key: 'dirt', label: '흙길', hint: '흙길 60% 이상', modifier: '흙길', ok: (r) => dirtPct(r.terrain) >= 60 },
+// `unknown`은 "이 축의 값이 기록되지 않았다" — **'해당 없음'과 다르다.** 값이 없는 코스는
+// 필터를 통과시키지 않는다(조명은 안전 축이라 특히), 하지만 그건 "조건에 안 맞음"이 아니라
+// "모름"이므로 사용자에게 그렇게 말해야 한다. 아래 unknownExcluded()가 그 수를 센다.
+const CHIPS: {
+  key: ChipKey; label: string; hint: string; modifier: string;
+  ok: (r: RouteInfo) => boolean; unknown: (r: RouteInfo) => boolean;
+}[] = [
+  { key: 'lit', label: '조명', hint: '야간 조명 있음', modifier: '조명 있는', ok: (r) => r.lighting === 'lit', unknown: (r) => r.lighting == null },
+  { key: 'shade', label: '그늘 많음', hint: '그늘 최상', modifier: '그늘 많은', ok: (r) => r.shade === 'high', unknown: (r) => r.shade == null },
+  { key: 'dirt', label: '흙길', hint: '흙길 60% 이상', modifier: '흙길', ok: (r) => dirtPct(r.terrain) >= 60, unknown: (r) => !r.terrain },
 ];
+
+/**
+ * 켜진 칩 때문에 빠졌는데 그 이유가 **값이 없어서**인 코스의 수.
+ *
+ * 왜 세는가: `matchesChips`는 null을 '통과 안 함'으로 다룬다(맞다 — 특히 조명은 안전 축이라
+ * 모르는 걸 있다고 칠 수 없다). 문제는 그게 **조용하다**는 것이다. 사용자는 "조건에 맞는 게
+ * 없네"라고 읽지만 실제로는 "아직 안 재봤을 뿐"인 코스가 사라진 것이고, 둘은 다른 사실이다.
+ * 곧 Strava에서 오는 행들이 shade·lighting 없이 들어오므로, 말하지 않으면 코스가 통째로
+ * 소리 없이 증발한다.
+ */
+export function unknownExcluded(routes: RouteInfo[], c: RouteChips): number {
+  return routes.filter((r) => !matchesChips(r, c) && CHIPS.some((x) => c[x.key] && x.unknown(r))).length;
+}
 
 /** AND. null(shade/lighting 미기록)은 '해당 없음'이 아니라 '모른다'이므로 통과시키지 않는다. */
 export function matchesChips(r: RouteInfo, c: RouteChips): boolean {
@@ -108,6 +127,7 @@ export function RouteChipRow({
   style?: ViewStyle;
 }) {
   const floating = variant === 'floating';
+  const unknownN = unknownExcluded(routes, chips);
   return (
     <View style={[s.row, style]}>
       {CHIPS.map((c) => {
@@ -129,6 +149,13 @@ export function RouteChipRow({
       {chips.lit && litAuto && (
         <View style={floating ? s.autoPlate : undefined}>
           <Text style={s.autoTxt}>어두운 시간대라 켰어요</Text>
+        </View>
+      )}
+      {/* 값이 없어서 빠진 코스를 이름 대서 말한다 — 조용히 사라지는 것과 '조건에 안 맞음'은
+          다른 사실이고, 사용자는 후자로 읽는다. 0이면 아무 말도 하지 않는다. */}
+      {unknownN > 0 && (
+        <View style={floating ? s.autoPlate : undefined}>
+          <Text style={s.autoTxt}>정보가 아직 없는 코스 {unknownN}개는 빠졌어요</Text>
         </View>
       )}
     </View>
