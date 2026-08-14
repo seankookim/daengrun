@@ -280,6 +280,10 @@ were caught that way; the second survived the first fix.
 
 ## 8. Boundaries — do not cross these
 
+- **Do not label drawn geometry as founder-authored.** A route drawn in a route builder was not
+  walked by anyone. If the schema distinguishes generated geometry from walked geometry, drawn
+  routes belong in the *generated* category, and the field's meaning should be written down in the
+  schema rather than living in a plan document.
 - **Do not publish routes.** Geometry from any source lands as a **candidate**. In this product a
   route only becomes active from a verified, settled run with a dog — a drawn line is not a
   measured line. No GPX can shortcut that.

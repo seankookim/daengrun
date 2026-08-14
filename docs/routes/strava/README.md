@@ -19,7 +19,7 @@ collapsing them would be the same mistake this directory exists to prevent.
 
 | File | Strava ID | Measured km | Strava km | Gain (3 m deadband) | Strava gain | Pts | Shape |
 |---|---|---|---|---|---|---|---|
-| `_existing-mongmareu.gpx` | 3523203570730615372 | 1.59 | 1.5 | +34 m | 34 m | 38 | OUT-AND-BACK (80% retrace) — superseded |
+| `몽마르뜨_언덕_루프_1.59km.gpx` | 3523203570730615372 | 1.59 | 1.5 | +34 m | 34 m | 38 | OUT-AND-BACK (80% retrace) — superseded |
 | `몽마르뜨_언덕_루프_5.4km.gpx` | 3523215321827895562 | 5.40 | 5.4 | +51 m | 68 m | 119 | LOLLIPOP (53% retrace) |
 | `몽마르뜨_언덕_루프_4.79km.gpx` | 3523214683284986122 | 4.80 | 4.79 | +46 m | 63 m | 100 | LOLLIPOP (47% retrace) — best 몽마르뜨 geometry so far |
 | `이촌_박물관_루프_2.73km.gpx` | 3523224747186372978 | 2.74 | 2.73 | +13 m | 16 m | 47 | OUT-AND-BACK (81% retrace) · 70% PAVED |
@@ -58,14 +58,27 @@ Strava counterpart.
     ./build-route.sh "<base name>" "<lat/lng>" "<target km>" "<start>" "<wp1>" ... "<wp5>" [wp6] [wp7] [wp8]
     node check-shape.mjs <file.gpx> ...              # independent distance / elevation / shape
     node check-shape.mjs --json <file.gpx> ...       # machine-readable verification
+    node audit-candidates.mjs                        # enforce current dog-route candidate gate
+    node audit-candidates.mjs --strict               # also require a manifest row for every GPX
+    ./test-build-route-guards.sh                     # browser-free cap/access/input guard tests
 
 `build-route.sh` measures before saving and writes the **measured** distance into the route name,
-so a route's name can never disagree with its geometry. It refuses to save when the measurement
-misses the target by more than `TOL_PCT` (default 20%), and requires 5–8 waypoints spread around
-the residential anchor.
+so a route's name can never disagree with its geometry. It refuses measurements of 5.00 km or
+more, explicit underground-passage queries, and station-exit waypoints; it also refuses a target
+miss above `TOL_PCT` (default 20%), requires 5–8 waypoints spread around the residential anchor,
+and refuses to save unless Strava's complete three-part surface mix was captured.
 
-The complete output rows required by the portable brief are in `manifest.psv`; attempt counts,
-geocoder misses, and geometrically impossible anchor pairs are in `ATTEMPTS.md`.
+All 18 saved GPX routes have rows in `manifest.psv`; attempt counts, geocoder misses, and
+geometrically impossible anchor pairs are in `ATTEMPTS.md`. Some older sessions did not retain the
+exact Strava surface mix or full query sequence. Those fields say `NOT RECORDED` rather than
+inventing data, and `audit-candidates.mjs --strict` continues to fail until they are recovered.
+
+`candidate-status.psv` is the explicit catalog boundary. Historical GPX files remain in this
+directory as useful evidence, but only `candidate` rows are current candidates. A candidate must
+be 2–under-5 km, close within 25 m, retain OSM attribution, have a complete manifest row, and be
+marked `surface-verified`. A station exit or underground-passage query is refused. `review` means
+the geometry may be useful but the complete dog-access path has not been proven; `superseded`
+means a measured constraint already disqualifies it.
 
 `ROUTE_DESIGNS.md` is the compact route-level design record. It deliberately does not duplicate
 the district geography index.

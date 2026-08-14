@@ -36,23 +36,28 @@ WAYPOINTS=("$@")
 TOL_PCT="${TOL_PCT:-20}"
 # Non-numeric TOL_PCT makes awk compare lexically and pass everything: a 9km
 # route against a 3km target with TOL_PCT=abc returned "yes".
-case "$TOL_PCT" in ''|*[!0-9.]*) echo "TOL_PCT must be numeric, got '$TOL_PCT'" >&2; exit 2;; esac
+if ! awk -v p="$TOL_PCT" 'BEGIN { exit !(p ~ /^[0-9]+([.][0-9]+)?$/ && p > 0) }'; then
+  echo "TOL_PCT must be a positive number, got '$TOL_PCT'" >&2
+  exit 2
+fi
 DIR="$(cd "$(dirname "$0")" && pwd)"
 OUT="${GPX_OUT:-$DIR/gpx}"
 mkdir -p "$OUT"
 
 # Product constraints: short dog runs only, and never through subway/station
-# underground passages. Route names and ordinary station-area POIs are not
-# enough to prove an underground leg, but an explicit underground query is a
-# definitive refusal.
-if ! awk -v t="$TARGET" 'BEGIN { exit !(t > 0 && t <= 5) }'; then
-  echo "    REFUSING: target ${TARGET}km is outside the dog-route range (0, 5]." >&2
-  exit 2
+# underground passages. The owner said "under 5", so 5.00 is not accepted.
+# Station exits are also refused: a surface marker at an exit does not prove
+# that the routed leg stays outside the station complex.
+if [ "$TARGET" != "auto" ]; then
+  if ! awk -v t="$TARGET" 'BEGIN { exit !(t ~ /^[0-9]+([.][0-9]+)?$/ && t > 0 && t < 5) }'; then
+    echo "    REFUSING: target ${TARGET}km is outside the dog-route range (0, 5), or is not numeric." >&2
+    exit 2
+  fi
 fi
 for DOG_QUERY in "$START" "${WAYPOINTS[@]}"; do
   case "$DOG_QUERY" in
-    *지하보도*|*지하통로*|*역\ 연결*)
-      echo "    REFUSING dog-inaccessible underground query: $DOG_QUERY" >&2
+    *지하보도*|*지하통로*|*지하철*|*역\ 연결*|*역*출구*|*Station*Exit*|*station*exit*)
+      echo "    REFUSING subway/station-risk query for a dog route: $DOG_QUERY" >&2
       exit 2
       ;;
   esac
@@ -129,13 +134,23 @@ fill_last "$START" || exit 1                       # close the loop
 
 DIST=$(stat "Distance")
 GAIN=$(stat "Elevation Gain")
-SURF=$(B js "(document.body.innerText.match(/Surface Type\s*\n?\s*([^\n]{0,60})/)||[])[1]||''" 2>&1 | tail -2 | head -1 | tr -d '"')
+SURF=$(B js "(()=>{const t=document.body.innerText,i=t.indexOf('Surface Type');if(i<0)return '';const ls=t.slice(i).split('\\n').map(x=>x.trim()).filter(Boolean).slice(1,12);return ls.filter(x=>/^[0-9]+%\\s+/.test(x)).slice(0,3).join(' · ')})()" 2>&1 | tail -2 | head -1 | tr -d '"')
 # "5,4 km" previously became 5, which passed the tolerance gate against a
 # 5.4 km target and named the route 5km. Refuse rather than guess.
 case "$DIST" in
   *,*) echo "    distance '$DIST' uses a comma decimal separator — refusing to guess"; exit 1;;
 esac
 KM=$(echo "$DIST" | grep -oE '[0-9.]+' | head -1)
+
+# Surface is a three-part Strava readout (paved / dirt / not specified). An
+# earlier reader stopped at the first newline and logged only "68% PAVED",
+# silently discarding the unknown share. Refuse an incomplete or malformed mix.
+SURF_COUNT=$(printf '%s' "$SURF" | grep -oE '[0-9]+%' | wc -l | tr -d ' ')
+SURF_TOTAL=$(printf '%s' "$SURF" | grep -oE '[0-9]+%' | tr -d '%' | awk '{s+=$1} END{print s+0}')
+if [ "$SURF_COUNT" -ne 3 ] || [ "$SURF_TOTAL" -ne 100 ]; then
+  echo "    incomplete Surface Type '$SURF' — refusing to invent the missing share" >&2
+  exit 1
+fi
 
 SLUG_BASE=$(echo "$NAME" | tr ' /' '__')
 B screenshot --viewport "$DIR/shape-$SLUG_BASE.png" >/dev/null 2>&1
@@ -144,15 +159,11 @@ echo "    measured: $DIST · gain $GAIN · surface: $SURF"
 echo "    shape screenshot: shape-$SLUG_BASE.png  <-- LOOK AT IT"
 
 if [ -z "$KM" ]; then echo "    could not read distance — NOT saving"; exit 1; fi
-# awk divides by TARGET; a non-numeric one produced 'division by zero' and an
-# OFF TARGET line reading "9.28km vs autokm". Fail loudly instead.
-case "$TARGET" in auto) ;; ''|*[!0-9.]*) echo "    TARGET must be a number or 'auto', got '$TARGET'"; exit 2;; esac
-
 # TARGET may be a single number, or "auto" to snap to the nearest catalog slot.
 # Snapping does not launder the distance: the name still carries the MEASURED km,
 # so a 4.79km route saved into the 5km slot is still named 4.79km.
 if [ "$TARGET" = "auto" ]; then
-  TARGET=$(awk -v m="$KM" 'BEGIN{split("2 3 5 7",s," "); b=s[1]; bd=1e9;
+  TARGET=$(awk -v m="$KM" 'BEGIN{split("2 3 4.5",s," "); b=s[1]; bd=1e9;
     for(i in s){d=(m-s[i]); if(d<0)d=-d; if(d<bd){bd=d; b=s[i]}} print b}')
   echo "    nearest catalog slot: ${TARGET}km"
 fi
@@ -163,8 +174,8 @@ if [ "$OK" != "yes" ]; then
   exit 3
 fi
 
-if ! awk -v m="$KM" 'BEGIN { exit !(m <= 5) }'; then
-  echo "    ${KM}km exceeds the 5km dog-route cap — NOT saved." >&2
+if ! awk -v m="$KM" 'BEGIN { exit !(m < 5) }'; then
+  echo "    ${KM}km is not under the 5km dog-route cap — NOT saved." >&2
   exit 3
 fi
 

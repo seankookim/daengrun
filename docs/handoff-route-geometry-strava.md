@@ -139,8 +139,8 @@ carry the unspecified share.
 
 No GPX from any source publishes a route. `routes_active_is_earned` requires `verified_run_id`,
 set only by `promote_route_from_run` from a settled run, and promotion *derives* geometry from a
-post-settlement trace rather than copying an imported one. Rows land and stay `status='candidate'`,
-`source='founder'` for a Sean-drawn Strava line. A drawn line is not a measured line.
+post-settlement trace rather than copying an imported one. Rows land and stay `status='candidate'`. **`source` must NOT be `founder`** — see below.
+A drawn line is not a measured line.
 
 Strava route GPX self-declares `<copyright author="OpenStreetMap contributors">` under ODbL — same
 licence as the existing corpus, already covered by `docs/routes/gpx/ATTRIBUTION.md`. Do **not**
@@ -259,3 +259,46 @@ every one of those gaps; the 몽마르뜨 ridge is literally disconnected withou
 the same OSM base but its heatmap covers the holes with where people actually ran. The
 feature-harvester was told to independently recount Seoul-wide steps and report whether this
 conclusion survives at Seoul scale — check its answer before anyone relitigates this.
+
+## 11. `source` — correction from client, accepted
+
+My §8 said a Sean-drawn Strava line lands as `source='founder'`. **That is wrong and I am
+retracting it.** Client caught it, and the reasoning is right:
+
+`source` has **no column comment in 0082** — only the check constraint `('founder','runner','algo')`.
+Its meaning therefore lives in a plan document, where `founder` means a founder *walk*, performed
+as a self-booked run on the same rail. **A loop drawn in Strava's route builder was not walked by
+anyone.** Labelling it `founder` asserts a walk that did not happen.
+
+This is a data-truth problem rather than a user-facing one — `traceKind()` reads `status`, so
+everything `candidate` renders dashed-and-planned regardless — but it misleads the next reader and
+makes the seeder's revert guard reason about a false premise.
+
+**Use `algo`** (generated-not-walked is exactly what it already means), or add a fourth value.
+Either way, **write the column comment.** An enum whose meaning exists only in a plan is precisely
+how this drifts, and whoever ingests Strava geometry is the first to touch `source` since it was
+created.
+
+Related sharp edge from client, do not soften it: **`--revert` scoped only by `source='algo'` would
+destroy certified geometry**, because 0082 §D leaves `source='algo'` on a route that was seeded and
+*later promoted*. The founder/runner/active refusals apply to revert too.
+
+### And the chip exclusion is worse than §6 says
+
+Client measured it on the simulator: `matchesChips` treats NULL as **unknown, do not pass** — not
+*no opinion*. So a Strava row with `lighting` NULL is not merely unfiltered by the 조명 chip, it is
+**excluded** whenever that chip is on, and 조명 **auto-asserts** for 새벽/야간 slots by design,
+because it is the one safety filter. **A 21:00 booking filters the catalog from 9 courses to 6.**
+
+Net: Strava-sourced rows silently vanish for every dark-slot booking until `lighting` is populated
+by hand, and no geometry source provides it. Client shipped `da59933` so the drop is at least
+stated ("정보가 아직 없는 코스 N개는 빠졌어요") rather than silent. Populating the field is still
+unowned.
+
+### One OSM finding worth keeping even though the router was rejected
+
+Client's agent measured that **서리풀공원's north-east section goes from 2/54 reachable nodes to
+64/64 once `highway=steps` is included.** Seoul ridge parks connect via staircases. If anyone ever
+falls back to OSM routing for a town Strava does not cover, that is the first change to make —
+weight steps ~1.6×, since they are often the only link between ridge sections but are a hazard with
+a dog rather than a shortcut.

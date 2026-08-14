@@ -10,6 +10,10 @@ anchor into a distinctive, dog-accessible route candidate.
   worth choosing. A technically clean pavement perimeter is not enough.
 - Dogs must not be routed through subway/station underground passages. Any waypoint or routed leg
   using a station-connected `지하보도` is rejected.
+- Do not use a subway-station exit as a waypoint. An exit marker can sit on the surface while the
+  router still chooses a station-connected leg; the whole path, not the marker, must be safe.
+- A pedestrian 나들목 under an expressway is a different category from a subway passage. It is
+  allowed only after its complete approach and surface continuity are checked for a dog.
 - Prefer a residential anchor on the same side of a major road as the feature. This removes the
   temptation to force an inaccessible underground crossing.
 
@@ -19,7 +23,7 @@ anchor into a distinctive, dog-accessible route candidate.
 |---|---|---|---|---|
 | Candidate | 잠실 아시아선수촌·아시아공원 3.90 km | 아시아선수촌아파트 교차로 | Apartment interior paths, 아시아공원, school edge, community center, 잠실근린공원 | Same side of 올림픽로; no subway/station underground passage. |
 | Candidate | 잠실 레이크팰리스·석촌호수 서호 3.98 km | 레이크팰리스 | West-lake park circuit and shoreline | Surface route; no subway/station underground passage; amusement-park/museum results rejected. |
-| Candidate | 잠원 한신2차 공원·역세권 4.98 km | 한신2차정문 | 잠원스포츠파크 and residential streets | Requires a crossing audit before catalog use because the geometry approaches a station area. |
+| Review | 잠원 한신2차 공원·역세권 4.98 km | 한신2차정문 | 잠원스포츠파크 and residential streets | Not a current candidate: it uses `신반포역 2번출구`; rebuild without a station waypoint or prove every leg surface-only. |
 | Superseded | 잠실엘스 외곽 생활권 3.07 km | 잠실엘스 서문 coordinate | Mostly pavement perimeter | Distinctive experience is too weak; major-road crossings are unaudited. |
 | Superseded | 잠원 한신2차 생활권 6.83 km | 한신2차정문 | Broad residential loop | Exceeds the revised 5 km cap. |
 

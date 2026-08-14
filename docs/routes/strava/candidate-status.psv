@@ -1,0 +1,19 @@
+strava_id|status|dog_access|reason
+3523203570730615372|superseded|unverified|1.59 km known-bad out-and-back; below the revised useful range
+3523214683284986122|review|unverified|Characteristic hill route under 5 km, but no surface-only dog-access audit is recorded
+3523215321827895562|superseded|unverified|5.40 km exceeds the cap and the saved Strava name incorrectly says 3 km
+3523224747186372978|review|unverified|Characteristic museum route under 5 km, but no surface-only dog-access audit is recorded
+3523229766951707090|superseded|unverified|6.83 km exceeds the revised cap
+3523230401766453958|review|blocked|Uses 신반포역 2번출구 as a waypoint; keep out of the dog catalog until the complete leg is proven surface-only
+3523230401769556678|superseded|unverified|7.67 km exceeds the revised cap
+3523231493898586588|review|unverified|Characteristic Hangang route under 5 km, but the 나들목 and all approach legs need a dog-access audit
+3523231493904049628|candidate|surface-verified|Same side of 올림픽로; no subway station or station-connected underground passage
+3523231493906443740|review|unverified|Characteristic lake route under 5 km, but no residential-anchor and surface-only audit is recorded
+3523231493906677212|candidate|surface-verified|West-lake public surface route; no subway station or station-connected underground passage
+3523231623618492682|review|unverified|Characteristic river route under 5 km, but the 나들목 and all approach legs need a dog-access audit
+3523234096773528028|superseded|unverified|6.47 km exceeds the revised cap
+3523234096777450972|superseded|unverified|5.05 km is not under the 5 km cap
+3523234988764300754|superseded|unverified|Uncharacteristic pavement perimeter; major-road crossings are unaudited
+3523234988767503826|superseded|unverified|7.63 km exceeds the revised cap
+3523243924101927622|superseded|unverified|Track finishes 215 m from its start, so it is not a same-anchor route
+3523245380672931292|superseded|unverified|5.40 km exceeds the revised cap
