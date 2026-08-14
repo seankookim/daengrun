@@ -1,6 +1,26 @@
-# club_sessions: where a named person will be, and when — readable without an account
+# club_sessions: one club's PAST meetups, readable without an account
 
-**Status: MEASURED 2026-08-14, NOT FIXED. Needs a product decision, not a patch.**
+> 🔴 **CORRECTED 2026-08-14, same day, by its author. The original title was "where a named
+> person will be, and when" and that is FALSE.** An `/autoplan` CEO review challenged the
+> severity claim and I ran the query I should have run first:
+>
+>     13 sessions · 1 host · 1 club · 6 distinct places
+>     scheduled_at: 2026-07-30 → 2026-08-08 · rows still in the future: 0
+>
+> **Every exposed session is in the past.** There is no future gathering. I wrote a scenario
+> about where someone *will be*, published it, and it propagated into Sean's return queue as
+> §1-bis before anyone priced it. The disclosure is real but it is *"where this one club met
+> last week"* — historical, one host, one club.
+>
+> **One thing the correction makes WORSE, not better:** I wrote that the name-join fails.
+> It fails against `available_runners` — but the host joins to **`runners`** today (1 host,
+> 13 join rows), and `runners` is anon-readable with 9 rows and 7 free-text `bio`s. I never
+> checked it, because my own detector grepped for policies lacking `auth.uid()` and `runners`
+> has one in an OR arm. So the id→runner link exists now; only a name does not.
+>
+> Both halves are kept below, uncorrected, so the reasoning survives.
+
+**Status: MEASURED 2026-08-14, NOT FIXED. Severity much smaller than first written (see above).**
 Found by the trust session while sweeping `0002_rls.sql` for the no-caller-term shape that
 produced `0088` and `0093`. Recorded here rather than in `awaiting-sean.md` because the queue is
 the announcer's lane — **ask them to queue it**; the measurement below is the part that is mine.
