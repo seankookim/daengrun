@@ -11,7 +11,7 @@ import { fetchRouteById } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useReducedMotion } from '../../src/lib/reducedMotion';
 import { RouteInfo, session } from '../../src/store';
-import { colors, paper } from '../../src/theme';
+import { colors, lilac, paper } from '../../src/theme';
 
 // 코스 미리보기 — 보호자·러너 공용 (코스는 공개 콘텐츠).
 // 히어로: **실지도**(K4 ③, 2026-08-14) — 시드 지오메트리가 들어오기 전까지는 그릴 코스가 없어서
@@ -82,7 +82,8 @@ function LiveDot({ points }: { points: { x: number; y: number }[] }) {
   );
 }
 
-const ROUTE_DASH = require('../../assets/route-dash.png');
+// 보라 = GPX 트레이스 (Sean 2026-08-14) — lilac.accent, 기존 토큰
+const ROUTE_DASH = require('../../assets/route-dash-purple.png');
 const ROUTE_ANCHOR = require('../../assets/route-anchor.png');
 const ROUTE_CHEVRON = require('../../assets/route-chevron.png');
 
@@ -150,9 +151,9 @@ function CourseMapHero({ route, maps }: { route: RouteInfo; maps: NonNullable<Re
         <maps.NaverMapPathOverlay
           coords={coords}
           width={5}
-          color={planned ? '#FFFFFF' : paper.line}
+          color={planned ? '#FFFFFF' : lilac.accent}
           outlineWidth={2}
-          outlineColor={planned ? paper.line : '#FFFFFF'}
+          outlineColor={planned ? lilac.accent : '#FFFFFF'}
           {...(planned ? { patternImage: ROUTE_DASH, patternInterval: 20 } : null)}
           zIndex={0}
         />

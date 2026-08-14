@@ -21,13 +21,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated, Dimensions, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, View,
 } from 'react-native';
-import { fetchMyProfile, fetchRoutes } from '../../src/lib/api';
+import { fetchAddresses, fetchMyProfile, fetchRoutes } from '../../src/lib/api';
 import { CourseDetailBody, traceKind, TRACE_NOTE } from '../../src/components/course-detail';
 import { emptyChipCopy, matchesChips, RouteChipRow, useRouteChips } from '../../src/components/route-chips';
 import { getNaverMap } from '../../src/lib/geo';
+import { orderByProximity } from '../../src/lib/route-pick';
 import { haptic } from '../../src/lib/haptics';
 import { RouteInfo, draft } from '../../src/store';
-import { paper } from '../../src/theme';
+import { lilac, paper } from '../../src/theme';
 
 const { height: SCREEN_H } = Dimensions.get('window');
 const PEEK = 148;                          // 이름 + km + CTA 만
@@ -41,7 +42,9 @@ const HEIGHT: Record<Detent, number> = { peek: PEEK, list: LIST, detail: DETAIL 
 const FALLBACK_CAM = { latitude: 37.5069, longitude: 126.9954, zoom: 13.4 };
 
 // 예정 경로용 잉크 대시 — K7 러너 지도와 **같은 에셋**이다. 두 화면이 같은 뜻에 같은 획을 쓴다.
-const ROUTE_DASH = require('../../assets/route-dash.png');
+// 보라 = GPX 트레이스 (Sean 2026-08-14). lilac.accent(#6C5CE7) — 기존 토큰이라 신규 색 0개.
+const ROUTE_DASH = require('../../assets/route-dash-purple.png');
+const PICKUP_HOUSE = require('../../assets/pickup-house.png');
 const ROUTE_ANCHOR = require('../../assets/route-anchor.png');
 
 // 칩 술어·개수·조명 자동켜짐은 `components/route-chips`가 소유한다 (K5와 **같은 정의** —
@@ -68,6 +71,17 @@ export default function CourseMap() {
   // 그건 필터가 아니라 우연이다.
   const { chips, toggle: toggleChip, clear: clearChips, litAuto } = useRouteChips();
   const [detent, setDetent] = useState<Detent>('peek');
+  // 픽업지(집) — 거리 정렬의 기준점이자 지도 위의 기준 마커. 실패는 조용히 넘긴다:
+  // 주소를 못 읽는 건 코스를 못 보여줄 이유가 아니고, 그때는 정렬이 예전 순서로 돌아갈 뿐이다.
+  const [pickup, setPickup] = useState<{ lat: number; lng: number } | null>(null);
+  useEffect(() => {
+    fetchAddresses()
+      .then((as) => {
+        const a = as.find((x) => x.isDefault && x.lat != null) ?? as.find((x) => x.lat != null);
+        if (a?.lat != null && a.lng != null) setPickup({ lat: a.lat, lng: a.lng });
+      })
+      .catch(() => {});
+  }, []);
   const [mapReady, setMapReady] = useState(false);
 
   const h = useRef(new Animated.Value(PEEK)).current;
@@ -93,7 +107,12 @@ export default function CourseMap() {
   }, []);
   useEffect(load, [load]);
 
-  const shown = useMemo(() => routes.filter((r) => matchesChips(r, chips)), [routes, chips]);
+  // 목록도 **픽업지에서 가까운 순**. 요청 화면 캐러셀과 같은 규칙을 쓴다 — 두 화면이 같은
+  // 카탈로그를 다른 순서로 보여주면 사용자는 어느 쪽을 믿어야 할지 알 수 없다.
+  const shown = useMemo(
+    () => orderByProximity(routes.filter((r) => matchesChips(r, chips)), pickup),
+    [routes, chips, pickup?.lat, pickup?.lng],
+  );
   const sel = useMemo(() => routes.find((r) => r.id === selId) ?? null, [routes, selId]);
 
   // ── 시트 ──────────────────────────────────────────────────────────────────
@@ -177,9 +196,9 @@ export default function CourseMap() {
         <maps.NaverMapPathOverlay
           coords={sel.trace.map((p) => ({ latitude: p.lat, longitude: p.lng }))}
           width={6}
-          color={traceKind(sel) === 'verified' ? paper.line : '#FFFFFF'}
+          color={traceKind(sel) === 'verified' ? lilac.accent : '#FFFFFF'}
           outlineWidth={2}
-          outlineColor={traceKind(sel) === 'verified' ? '#FFFFFF' : paper.line}
+          outlineColor={traceKind(sel) === 'verified' ? '#FFFFFF' : lilac.accent}
           {...(traceKind(sel) === 'planned'
             ? { patternImage: ROUTE_DASH, patternInterval: 20 }
             : null)}
@@ -201,6 +220,15 @@ export default function CourseMap() {
           onTap={() => pick(r)}
         />
       ))}
+      {/* 픽업지 = 집. "가까운 순"이 말이 되려면 기준점이 지도에 보여야 한다 —
+          보이지 않는 기준으로 매긴 순위는 사용자가 검증할 수 없다. (Sean 2026-08-14) */}
+      {pickup && (
+        <maps.NaverMapMarkerOverlay
+          latitude={pickup.lat} longitude={pickup.lng}
+          anchor={{ x: 0.5, y: 0.5 }} width={30} height={30}
+          image={PICKUP_HOUSE} caption={{ text: '픽업' }} zIndex={4}
+        />
+      )}
     </maps.NaverMapView>
   );
 
