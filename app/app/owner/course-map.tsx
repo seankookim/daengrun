@@ -41,9 +41,6 @@ const HEIGHT: Record<Detent, number> = { peek: PEEK, list: LIST, detail: DETAIL 
 // 지도가 빈 채로 열리는 경우는 '코스 0개'뿐이고, 그건 아래 emptyCard가 말한다.
 const FALLBACK_CAM = { latitude: 37.5069, longitude: 126.9954, zoom: 13.4 };
 
-// 예정 경로용 잉크 대시 — K7 러너 지도와 **같은 에셋**이다. 두 화면이 같은 뜻에 같은 획을 쓴다.
-// 보라 = GPX 트레이스 (Sean 2026-08-14). lilac.accent(#6C5CE7) — 기존 토큰이라 신규 색 0개.
-const ROUTE_DASH = require('../../assets/route-dash-purple.png');
 const PICKUP_HOUSE = require('../../assets/pickup-house.png');
 const ROUTE_ANCHOR = require('../../assets/route-anchor.png');
 
@@ -184,7 +181,7 @@ export default function CourseMap() {
         <maps.NaverMapPolylineOverlay
           key={`g-${r.id}`}
           coords={r.trace.map((p) => ({ latitude: p.lat, longitude: p.lng }))}
-          width={3}
+          width={2}
           color={paper.faint}
         />
       ))}
@@ -195,13 +192,10 @@ export default function CourseMap() {
       {sel && sel.trace.length > 1 && (
         <maps.NaverMapPathOverlay
           coords={sel.trace.map((p) => ({ latitude: p.lat, longitude: p.lng }))}
-          width={6}
-          color={traceKind(sel) === 'verified' ? lilac.accent : '#FFFFFF'}
-          outlineWidth={2}
-          outlineColor={traceKind(sel) === 'verified' ? '#FFFFFF' : lilac.accent}
-          {...(traceKind(sel) === 'planned'
-            ? { patternImage: ROUTE_DASH, patternInterval: 20 }
-            : null)}
+          width={3.5}
+          color={lilac.accent}
+          outlineWidth={1}
+          outlineColor="#FFFFFF"
         />
       )}
       {/* 앵커 — 트레이스가 없어도 여긴 진짜다. 캡션은 선택된 것에만(라벨 충돌 방지) */}

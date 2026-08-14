@@ -82,8 +82,6 @@ function LiveDot({ points }: { points: { x: number; y: number }[] }) {
   );
 }
 
-// 보라 = GPX 트레이스 (Sean 2026-08-14) — lilac.accent, 기존 토큰
-const ROUTE_DASH = require('../../assets/route-dash-purple.png');
 const ROUTE_ANCHOR = require('../../assets/route-anchor.png');
 const ROUTE_CHEVRON = require('../../assets/route-chevron.png');
 
@@ -150,11 +148,10 @@ function CourseMapHero({ route, maps }: { route: RouteInfo; maps: NonNullable<Re
       >
         <maps.NaverMapPathOverlay
           coords={coords}
-          width={5}
-          color={planned ? '#FFFFFF' : lilac.accent}
-          outlineWidth={2}
-          outlineColor={planned ? lilac.accent : '#FFFFFF'}
-          {...(planned ? { patternImage: ROUTE_DASH, patternInterval: 20 } : null)}
+          width={3.5}
+          color={lilac.accent}
+          outlineWidth={1}
+          outlineColor="#FFFFFF"
           zIndex={0}
         />
         {start && (
