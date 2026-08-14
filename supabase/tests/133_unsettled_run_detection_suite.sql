@@ -34,11 +34,15 @@
 --                                                                                 → RED
 --   U5 ← 0097: grant to authenticated (it lists every runner's unpaid work), or let the function
 --        write anything at all — it is `stable` and detection-only by contract     → RED
+--   U6 ← add ANY database routine outside `settle_run_tx` that moves a booking to `completed`
+--        (a bulk ops correction, a cancellation that "completes", a club bridge) — 0097's
+--        `status <> 'completed'` exclusion silently stops seeing real unpaid runners  → RED
+--        · or drop `settle_run_tx`'s `and status = 'active'` atomic claim              → RED
 --
 --   ✔ MUTATION-PROVEN by full-harness runs, 2026-08-14, from the worktree. Method: revert applied
 --     to `0097` in place, WHOLE harness run (the database is dropped and recreated each run),
 --     then restored from a pristine copy and re-verified by md5 + a green run.
---     Pristine `0097` md5 `9bf913b9b877be120274bed0a8961b6b`; green is **555/0**.
+--     Pristine `0097` md5 `9bf913b9b877be120274bed0a8961b6b`; green is **556/0** (555/0 before U6).
 --       R1 the predicate keyed on the stamps — i.e. **exactly the "column on
 --          `ops_gated_runners`" shape that was proposed** → 554/1, red = [U1] alone, detail
 --          `🔴 확인되자마자 조용해졌다 (게이트의 컬럼이었다면 이렇게 사라진다)`. The quiet case
@@ -47,6 +51,10 @@
 --       R2 `and not exists (select 1 from ledger_items …)` deleted → 554/1, red = [U2] alone,
 --          detail `원장으로 지급된 예약이 미지급으로 보고됐다` — a booking paid through 0081's
 --          comp path reported as unpaid, i.e. the alert crying wolf about a runner who was paid.
+--       R3 a FIFTH WRITER added (`ops_force_complete`, a plausible future bulk ops correction that
+--          completes a stuck booking without settling) → 555/1, red = [U6] alone, and the detail
+--          NAMES it: `settle_run_tx 밖에서 completed로 옮기는 루틴=ops_force_complete`. The
+--          tripwire reports which routine broke the premise, not merely that something did.
 --     U3/U4/U5 are not machine-proven as primaries. Each is named above with the single revert
 --     that would redden it; U3 and U4 both carry positive controls in-pin (strip the club link
 --     and the row returns; the two `why` values must differ from each other), and U5's grant
@@ -266,5 +274,85 @@ begin
       then call _pass('usr','U5 서버 전용·쓰기 없음 — service_role만 실행하고(anon·authenticated 거부), definer+search_path 고정이며, stable이라 애초에 쓸 수 없고 조회가 원장을 건드리지 않는다 (탐지 전용 계약: 지급 경로는 money의 슬라이스다)');
     else v_msg := v_bad; call _fail('usr','U5 서버 전용·쓰기 없음', v_msg); end if;
   exception when others then v_msg := sqlerrm; call _fail('usr','U5 서버 전용·쓰기 없음', v_msg);
+  end;
+
+  -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- [U6] 🔴 THE EXCLUSION'S PREMISE — `completed` implies settled, and stays that way
+  -- ══════════════════════════════════════════════════════════════════════════════════════
+  -- `ops_unsettled_runs` excludes `status = 'completed'`, and an EXCLUSION is where a detector's
+  -- blind spots live: if anything could ever reach `completed` without settling, this function
+  -- would silently miss an unpaid runner — the exact failure mode 0097 exists to prevent, hiding
+  -- inside 0097 itself.
+  --
+  -- Today it is safe BY CONSTRUCTION, and the construction is worth stating: every
+  -- `update bookings set status = 'completed'` in the repo lives inside a `settle_run_tx` version
+  -- (0020 → 0025 → 0028 → 0083, the same function re-created four times) and every one is
+  -- guarded `where id = p_booking and status = 'active'` — the atomic claim that settles. So
+  -- `completed` cannot be reached except by settling.
+  --
+  -- ⚠ THIS PIN EXISTS BECAUSE THAT IS A FACT ABOUT TODAY'S CODE, NOT A CONSTRAINT. Nothing in
+  -- the schema forbids a future migration from adding a fifth writer — a bulk ops correction, a
+  -- cancellation path that "completes" a booking, a club bridge — and the moment one does,
+  -- 0097 goes quiet about real unpaid runners while staying green. Found by money reviewing
+  -- 0097 and verified by them against production (0 such rows); recorded as a PIN rather than as
+  -- a verified-once fact in a review thread, because a fact in a thread protects nobody in a
+  -- month. A schema-wide tripwire is the only shape that survives the next migration.
+  --
+  -- ⚠ AND IT IS PINNED AS A RULE, NOT AS A ROW COUNT — measured, then corrected. My first draft
+  -- asserted the DB-wide row invariant ("no completed booking with an ended run and no ledger").
+  -- It went RED at 9 rows, and every one was a TEST FIXTURE: suites 103/109/118/128/132 and this
+  -- one fabricate `completed` bookings with a direct `update`, which is exactly what fixtures are
+  -- for. So that assertion is unrunnable here — permanently red for a true reason that is not
+  -- about the product, which this repo's own header law calls the worst kind of red.
+  -- The DATA is measured where it means something (production: 0 such rows, money 2026-08-14).
+  -- What the harness can own is the RULE, and it is the rule that actually breaks: a FIFTH
+  -- WRITER. So ⓐ sweeps the catalogue instead of the rows.
+  begin
+    v_bad := '';
+    -- ⓐ the catalogue sweep: no database routine other than `settle_run_tx` may move a booking
+    --    to `completed`. This is fixture-independent (a suite's anonymous DO block never enters
+    --    pg_proc) and it catches the thing that would actually silence 0097 —
+    --    someone adding a bulk ops correction, a cancellation that "completes", a club bridge.
+    select count(*) into v_n
+      from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public'
+       and p.proname <> 'settle_run_tx'
+       -- ⚠ `t_%` is the suite-fixture convention and is excluded DELIBERATELY, having verified
+       -- the boundary rather than assumed it: no migration anywhere defines a `t_`-prefixed
+       -- function (grepped), so the prefix cannot shadow a product routine. Without this the
+       -- sweep reports 118's `t_settled_run`, which fabricates a completed booking on purpose.
+       and p.proname not like 't\_%'
+       and p.prosrc ~* 'update\s+bookings\s+set\s+status\s*=\s*''completed''';
+    if v_n <> 0 then
+      select string_agg(p.proname, ', ') into v_txt
+        from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+       where n.nspname = 'public' and p.proname <> 'settle_run_tx'
+         and p.proname not like 't\_%'
+         and p.prosrc ~* 'update\s+bookings\s+set\s+status\s*=\s*''completed''';
+      v_bad := v_bad || ' settle_run_tx 밖에서 completed로 옮기는 루틴=' || coalesce(v_txt,'?')
+            || ' (0097의 제외가 구멍이 된다)';
+    end if;
+
+    -- ⓑ and the construction that makes ⓐ true is itself asserted: `settle_run_tx` must still
+    --    claim atomically from `active`. If a future version drops that guard, ⓐ can start
+    --    passing vacuously for a while before real rows appear — so the mechanism is pinned too,
+    --    not just its current effect.
+    if (select pg_get_functiondef(p.oid) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+         where n.nspname = 'public' and p.proname = 'settle_run_tx' order by p.oid desc limit 1)
+       not like '%status = ''active''%'
+      then v_bad := v_bad || ' settle_run_tx가 active에서만 completed로 claim하지 않는다 (제외의 전제가 무너졌다)'; end if;
+
+    -- ⓒ positive control on the sweep METHOD: the same regex must FIND `settle_run_tx` itself.
+    --    Without this, a typo'd pattern matches nothing, ⓐ counts zero, and the pin passes
+    --    vacuously forever — which is how a tripwire becomes decoration.
+    if not exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+                    where n.nspname = 'public' and p.proname = 'settle_run_tx'
+                      and p.prosrc ~* 'update\s+bookings\s+set\s+status\s*=\s*''completed''')
+      then v_bad := v_bad || ' 양성 대조 실패: 패턴이 settle_run_tx조차 못 찾는다 (ⓐ가 공허하게 통과한다)'; end if;
+
+    if v_bad = ''
+      then call _pass('usr','U6 제외의 전제 — completed는 정산을 함의한다. 카탈로그 전역에서 settle_run_tx 말고는 어떤 루틴도 예약을 completed로 옮기지 않고(다섯 번째 writer가 생기면 0097이 조용해진다), settle_run_tx는 여전히 active에서만 원자적으로 claim한다 (패턴 양성 대조 포함). ⚠ 행 수준 불변식은 여기서 잡을 수 없다 — 스위트들이 픽스처로 completed를 직접 만든다. 그 데이터는 프로덕션에서 측정한다');
+    else v_msg := v_bad; call _fail('usr','U6 제외의 전제', v_msg); end if;
+  exception when others then v_msg := sqlerrm; call _fail('usr','U6 제외의 전제', v_msg);
   end;
 end $$;
