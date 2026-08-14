@@ -56,6 +56,52 @@ than anything on the anon-read surface. It is also **anon-readable**: those 9 ro
 
 Fix direction is not a decision — clear the flag or gate the copy — but **who owns it is**.
 
+## 0-quater. ✅ LAUNCH TOWNS — RULED 2026-08-14. It is a rule, not a list.
+
+**Sean, 2026-08-14, verbatim:** *"launch towns are the towns with the gpxs. and yes those 잠실
+잠원 gpxs are valid"*
+
+**[end of Sean's words — everything below is the announcer's reading, not his.]**
+
+This closes the open call the previous handoff carried as *"the canonical launch-town list
+(district and town overlap on one value of five; 뚝섬/서울숲 are landmarks, not dongs)"*. He did
+not hand over a list. He handed over a **derivation**, which is the better artifact: a list goes
+stale the moment coverage moves, and this cannot.
+
+**Current value of the rule, 2026-08-14** — 18 Strava GPX on `claude/strava-route-loops-74c5d2`,
+covering **six** towns:
+
+| Town | 자치구 | GPX |
+|---|---|---|
+| 반포동 | 서초구 | 4 (몽마르뜨 ×3, 서래섬) |
+| 잠원동 | 서초구 | 4 (한신2차 ×3, 근린공원) |
+| 잠실동 | 송파구 | 5 (석촌호수 ×2, 리센츠, 아시아선수촌, 엘스 외곽) |
+| 이촌동 | 용산구 | 3 (박물관 ×2, 가족공원) |
+| 성수동 | 성동구 | 1 (서울숲) |
+| 도곡동 | 강남구 | 1 (매봉산·양재천) |
+
+⚠ **Re-derive this table before trusting it — the rule outranks the snapshot.** Coverage was
+growing hourly when this was written, and a table of today's answer is exactly the stale artifact
+the ruling avoids.
+
+**Two consequences that are now implementation, not decision:**
+
+1. **The vocabulary must be normalised, and the ruling settles which way.** `profiles.district`
+   holds `{null, 반포동, 성수, 뚝섬, 서울숲}`; `routes.town` holds `{반포동, 성수동}`. They
+   overlap on **one** value, which is why a signed-in 성수 owner saw zero courses even with the
+   candidate fallback working perfectly — the town filter emptied the set before the fallback could
+   apply (client, `9388a91`). Under this ruling the target vocabulary is **`routes.town`**, and
+   `뚝섬`/`서울숲` are landmarks inside 성수동, not towns. Client's surface.
+
+2. **Four of the six towns have GPX but no `routes` rows** (이촌 · 잠실 · 잠원 · 도곡). Route
+   geometry has deliberately inserted nothing. Those INSERTs are a production catalog change and
+   still need Sean's explicit go-ahead — **the launch-town ruling is not that go-ahead.**
+
+**Also settled by the same sentence:** the five 잠실/잠원 GPX that appeared in the route worktree
+carrying Sean's Strava author tag are **his and valid**. They are not a second session writing into
+the tree. Their names should still be checked against their measurements before ingest, because
+measure-then-name is a property that cannot be assumed of any file.
+
 ## 1. 🟢 CLOSED IN PRODUCTION 2026-08-14 — off your queue, nothing to decide
 
 > **🟢 is not ✅ and must never be read as one.** ✅ in this directory means *Sean's own words are
