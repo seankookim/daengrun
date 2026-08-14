@@ -11,6 +11,51 @@ governance rule in [README.md](README.md) a stand-in's analysis never becomes a 
 
 ---
 
+## 0. 🔴 NOBODY HAS VERIFIED A HUMAN CAN SIGN UP — the only total outage on this board
+
+**Raised independently by both voices of trust's `/autoplan` review, which called the security
+sweep the wrong slice while this sits unchecked. Queued 2026-08-14.**
+
+`0088` + `0091` are verified **applied**. That is a different claim from verified **usable**, and
+`0091` exists *precisely because* a grant change 403'd every signup: `0088`'s grant omitted `role`,
+and PostgREST's role-picker upsert reads `excluded.role`. The fix is applied. **Nobody has run a
+signup since.**
+
+Everything else here is a disclosure, a filing or a product call. This one is binary and it is the
+front door. It needs one human, one phone, five minutes. **Not a decision — an errand — but it
+outranks every decision below it.**
+
+## 0-bis. 🔴 위치정보법 — a filing that gates launch, and carries criminal rather than financial exposure
+
+**Surfaced by trust's review 2026-08-14. Needs Korean counsel; answerable in a day.**
+
+`app.json:74` enables background location and `app/src/lib/bgTrack.ts` streams a runner's
+coordinates to a watching owner. That is 개인위치정보 of an identified individual, which in Korea
+generally requires a **위치기반서비스사업자 신고 to the KCC BEFORE service**, a location consent
+**separate** from the PIPA consent, and a location-specific 약관.
+
+**Why this ranks above the PIPA items below it:** unlike PIPA's revenue-scaled 과징금, operating
+without the filing carries **criminal exposure, and it does not shrink because we are pre-revenue.**
+
+⚠ **And it makes §2's question the wrong one.** The App Store privacy sheet says background
+location is **not** declared, while `app.json` declares it. So that questionnaire is **stale, not
+merely unfiled** — asking "has it been filed yet" accepts a premise that is already false.
+
+## 0-ter. 🔴 Seeded runners claim `identity_verified` behind copy promising personal verification
+
+**Surfaced by trust's review 2026-08-14. Unowned. Measured by the announcer the same day.**
+
+All **9** `runners` rows carry `identity_verified = true`. PASS is unintegrated and
+`profiles.phone` is NULL for every user (§6), so **no identity verification has ever occurred** —
+the flag is seed data sitting behind copy that tells an owner a stranger was personally verified.
+
+For a service where a stranger takes physical custody of someone's dog, this is a live
+honesty-law breach (`CLAUDE.md`: *bind real fields or omit the element*) and a larger liability
+than anything on the anon-read surface. It is also **anon-readable**: those 9 rows are returned by
+`tier <> 'applicant'`, 7 of them carrying free-text `bio`.
+
+Fix direction is not a decision — clear the flag or gate the copy — but **who owns it is**.
+
 ## 1. 🟢 CLOSED IN PRODUCTION 2026-08-14 — off your queue, nothing to decide
 
 > **🟢 is not ✅ and must never be read as one.** ✅ in this directory means *Sean's own words are
@@ -99,35 +144,40 @@ against deploying unreviewed-by-him migrations.
 
 </details>
 
-## 1-bis. 🟡 Logged-out club browse — a product call, not a security fix (NEW 2026-08-14)
+## 1-bis. 🟡 What should a logged-out person see at all? — CORRECTED 2026-08-14, the severity was wrong
 
-**Raised by trust while sweeping `0002_rls.sql`; detail in
-[../security-club-session-exposure.md](../security-club-session-exposure.md). Queued here by the
-announcer, because trust deliberately did not — a correct edit in the wrong lane is still the
-wrong lane, and this file is the announcer's.**
+> **⚠ This entry originally claimed "the day a host lands in that view, a logged-out stranger reads
+> a named person's meeting place and time." THAT IS FALSE and the announcer published it.** Trust
+> wrote the memo, the announcer queued it faithfully, and neither ran the query first. Trust's own
+> `/autoplan` review challenged the severity claim, which is what finally produced the measurement.
+> Original reasoning preserved in [../security-club-session-exposure.md](../security-club-session-exposure.md) (corrected in place at `79a5b06`).
 
-`anon` reads **13 `club_sessions`**, carrying `meetup_point`, `scheduled_at`, and three host
-profile ids. `club_members` and `feed_posts` sit behind the same `using (true)` and should be
-decided in the same pass.
+**Measured on production, 2026-08-14:** `club_sessions` is 13 rows · **1** host · **1** club · 6
+places · `scheduled_at` spanning 2026-07-30 → 2026-08-08 · **0 rows in the future.**
 
-**The shape is familiar and it is the reason this is queued rather than patched.** The name-join
-to `available_runners` currently returns 0 rows — but only because today's hosts happen not to be
-in that view, **not because anything blocks it.** That is a stay of execution, not a defence:
-precisely the structure §1 had for `phone`, where the hole was open and only the data was
-missing. The day a host lands in that view, a logged-out stranger reads a named person's meeting
-place and time.
+Every exposed session is in the **past**. There is no gathering to intercept. The real disclosure
+is *"where this one club met last week"* — a listing, not a stalking vector.
 
-**Why nobody has written a migration:** a revoke would close it in one line, and might delete a
-real acquisition surface. Whether a logged-out person should be able to browse clubs at all is a
-growth decision, not a security one. **🟡 — yours.** Three ways it could go:
+**The other half cuts the opposite way and must stay, or this reads as falsely reassuring.** The
+name-join was said to fail; it fails against `available_runners`, but the host joins to `runners`
+**today** — and `runners` is anon-readable: **9 rows, 7 with free-text `bio`** (and see §0-ter).
+`club_members` and `feed_posts` sit behind the same `using (true)`.
 
-- **Revoke** — logged-out browse ends; club discovery requires an account.
-- **Keep, minus the sharp fields** — browse survives; `meetup_point` and the host ids stop being
-  readable without a session, which removes the "named person, place and time" join entirely.
-- **Keep as-is** — a deliberate, recorded acceptance rather than an inherited default.
+**So the question is narrower and still yours: should a logged-out person browse clubs at all?**
+A revoke closes it in one line and may delete a real acquisition surface, which makes it a growth
+call rather than a security one.
 
-Trust proposed no migration pending your call, which is the right order. Nothing is blocked on
-this today; it becomes urgent the moment a host appears in `available_runners`.
+- **Revoke** — club discovery requires an account.
+- **Keep, minus the sharp fields** — browse survives; `meetup_point` and host ids need a session.
+- **Keep as-is** — a recorded acceptance rather than an inherited default.
+
+**Not urgent on today's data.** It becomes urgent the moment a *future-dated* session exists.
+
+⚠ **The detector that missed this is fixed in REGISTRY:** trust grepped for policies lacking
+`auth.uid()`, and `runners` reads `tier <> 'applicant' OR profile_id = auth.uid()` — **a caller
+term in one arm of an OR is a disjunct, not a gate, and grep cannot tell them apart.** Replaced
+with a privilege-based enumerator (`has_table_privilege`) that also covers views, which
+`pg_policies` never returns at all.
 
 ## 2. 🔴 ⑪ conflicts with a written privacy commitment — before ⑪ builds
 
