@@ -31,6 +31,9 @@ B () { "$BIN" --headed "$@"; }
 NAME="$1"; CENTER="$2"; TARGET="$3"; START="$4"; shift 4
 WAYPOINTS=("$@")
 TOL_PCT="${TOL_PCT:-15}"
+# Non-numeric TOL_PCT makes awk compare lexically and pass everything: a 9km
+# route against a 3km target with TOL_PCT=abc returned "yes".
+case "$TOL_PCT" in ''|*[!0-9.]*) echo "TOL_PCT must be numeric, got '$TOL_PCT'" >&2; exit 2;; esac
 DIR="$(cd "$(dirname "$0")" && pwd)"
 OUT="${GPX_OUT:-$DIR/gpx}"
 mkdir -p "$OUT"
@@ -82,7 +85,10 @@ btn () { B snapshot -i 2>&1 | grep -E "\[button\] \"$1\"" | grep -v disabled | h
 
 # Read the stats bar by anchoring on its labels, not by scanning the page.
 stat () { # stat "Distance"  -> "5.4 km"
-  B js "(document.body.innerText.match(/$1\s*\n?\s*([0-9.,]+\s*(km|m|mi))/)||[])[1]||''" 2>&1 \
+  # The unit is REQUIRED and matched before the number is accepted. An earlier
+  # version accepted (km|m|mi): JS alternation is leftmost-first, so "3.2 mi"
+  # matched as "3.2 m" and a 5.15 km route read as 3.2, saving as "3.2km".
+  B js "(document.body.innerText.match(/$1\s*\n?\s*([0-9][0-9.,]*)\s*(km|m)(?![a-z])/)||[])[1]||''" 2>&1 \
     | tail -2 | head -1 | tr -d '"'
 }
 
@@ -93,13 +99,22 @@ wait_for_panel || { echo "    builder never mounted"; exit 1; }
 fill_last "$START" || exit 1
 for wp in "${WAYPOINTS[@]}"; do
   fill_last "$wp" || exit 1
-  AW=$(btn "Add waypoint"); [ -n "$AW" ] && { B click "$AW" >/dev/null 2>&1; sleep 3; }
+  AW=$(btn "Add waypoint")
+  # Without the promotion click each fill overwrites End, so start->wpN->start is
+  # built and saved: an out-and-back, while the argv guard reported 3 waypoints.
+  [ -z "$AW" ] && { echo "    'Add waypoint' not found — would silently build an out-and-back"; exit 1; }
+  B click "$AW" >/dev/null 2>&1; sleep 3
 done
 fill_last "$START" || exit 1                       # close the loop
 
 DIST=$(stat "Distance")
 GAIN=$(stat "Elevation Gain")
 SURF=$(B js "(document.body.innerText.match(/Surface Type\s*\n?\s*([^\n]{0,60})/)||[])[1]||''" 2>&1 | tail -2 | head -1 | tr -d '"')
+# "5,4 km" previously became 5, which passed the tolerance gate against a
+# 5.4 km target and named the route 5km. Refuse rather than guess.
+case "$DIST" in
+  *,*) echo "    distance '$DIST' uses a comma decimal separator — refusing to guess"; exit 1;;
+esac
 KM=$(echo "$DIST" | grep -oE '[0-9.]+' | head -1)
 
 SLUG_BASE=$(echo "$NAME" | tr ' /' '__')
@@ -120,7 +135,10 @@ FINAL="$NAME ${KM}km"
 SV=$(btn "Save Route"); [ -z "$SV" ] && { echo "    save disabled — route incomplete"; exit 1; }
 B click "$SV" >/dev/null 2>&1; sleep 4
 N=$(B snapshot -i 2>&1 | grep -E '\[textbox\] "Route name' | grep -oE "@e[0-9]+")
-[ -n "$N" ] && B fill "$N" "$FINAL" >/dev/null 2>&1
+# If the label shifts, $N is empty, the fill silently no-ops, and the route
+# persists under Strava's auto-generated name while stdout claims $FINAL.
+[ -z "$N" ] && { echo "    route-name field not found — ABORTING, do not trust the name"; exit 1; }
+B fill "$N" "$FINAL" >/dev/null 2>&1
 D=$(B snapshot -i 2>&1 | grep -E '\[textbox\] "Description' | grep -oE "@e[0-9]+")
 [ -n "$D" ] && B fill "$D" "daengrun candidate geometry — measured ${KM}km, gain ${GAIN}" >/dev/null 2>&1
 S2=$(btn "Save route"); B click "$S2" >/dev/null 2>&1; sleep 7
@@ -129,7 +147,11 @@ ID=$(B url 2>&1 | tail -1 | grep -oE "routes/[0-9]+" | cut -d/ -f2)
 [ -z "$ID" ] && { echo "    SAVE FAILED"; exit 1; }
 SLUG=$(echo "$FINAL" | tr ' /' '__')
 B download "https://www.strava.com/routes/$ID/export_gpx" "$OUT/$SLUG.gpx" --navigate >/dev/null 2>&1
-PTS=$(grep -c "<trkpt" "$OUT/$SLUG.gpx" 2>/dev/null || echo 0)
+PTS=$(grep -c "<trkpt" "$OUT/$SLUG.gpx" 2>/dev/null); PTS=${PTS:-0}
 echo "    saved as \"$FINAL\"  id=$ID  pts=$PTS"
 echo "$FINAL|$ID|$KM|$GAIN|$PTS|$SURF" >> "$OUT/manifest.psv"
-node "$DIR/check-shape.mjs" "$OUT/$SLUG.gpx"
+# check-shape exits 1 on any non-LOOP verdict. The route IS saved by this point,
+# so propagating that would make "saved, shape imperfect" indistinguishable from
+# "builder never mounted". Report the shape, exit 0.
+node "$DIR/check-shape.mjs" "$OUT/$SLUG.gpx" || true
+exit 0

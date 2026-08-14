@@ -20,7 +20,7 @@
 
 import { readFileSync } from 'node:fs';
 
-const RETRACE_M = 25;     // slop between the two directions of one street
+const RETRACE_M = 60;     // corridor width, not lane width — see note below
 const SKIP_M = 200;       // ignore neighbours closer than this ALONG THE PATH
 const ELE_NOISE_M = 3;    // below this a delta is noise, not elevation
 
@@ -28,6 +28,14 @@ const ELE_NOISE_M = 3;    // below this a delta is noise, not elevation
 // point per path vertex, so index distance is not proportional to ground
 // distance — a first version of this used indices and classified a known
 // out-and-back as a clean LOOP.
+//
+// RETRACE_M is a CORRIDOR width, not a lane width. At 25 m an out-and-back
+// whose two legs run on parallel paths more than 25 m apart scored 0% retrace
+// and returned LOOP — a hard cliff, not a gradient (20 m offset -> 81%,
+// 26 m -> 0%). That is the Banpo case exactly: opposite banks of 반포천, the
+// two sides of a dual carriageway, paired park paths. Comparing points to
+// SEGMENTS rather than to points removes vertex-alignment sensitivity; 60 m
+// then means "same corridor, other side" instead of "same line".
 
 const R = 6371000;
 const rad = (d) => (d * Math.PI) / 180;
@@ -53,6 +61,19 @@ function parse(gpx) {
     }
   }
   return pts;
+}
+
+// Distance from point p to segment ab, in metres. Local flat-earth projection:
+// at Seoul's latitude the error over a 100 m segment is far below RETRACE_M.
+function pointToSeg(p, a, b) {
+  const mLat = 111320, mLon = 111320 * Math.cos(rad(p.lat));
+  const px = (p.lon - a.lon) * mLon, py = (p.lat - a.lat) * mLat;
+  const bx = (b.lon - a.lon) * mLon, by = (b.lat - a.lat) * mLat;
+  const len2 = bx * bx + by * by;
+  let t = len2 === 0 ? 0 : (px * bx + py * by) / len2;
+  t = Math.max(0, Math.min(1, t));
+  const dx = px - t * bx, dy = py - t * by;
+  return Math.sqrt(dx * dx + dy * dy);
 }
 
 function analyse(pts) {
@@ -85,7 +106,8 @@ function analyse(pts) {
       if (along <= SKIP_M) continue;
       // a genuine loop legitimately rejoins itself near the start/finish
       if (total - along <= SKIP_M) continue;
-      if (haversine(pts[i], pts[j]) < RETRACE_M) {
+      if (j + 1 >= pts.length) continue;
+      if (pointToSeg(pts[i], pts[j], pts[j + 1]) < RETRACE_M) {
         const prev = i > 0 ? cum[i] - cum[i - 1] : 0;
         const next = i < pts.length - 1 ? cum[i + 1] - cum[i] : 0;
         retracedM += (prev + next) / 2;
@@ -95,8 +117,16 @@ function analyse(pts) {
   }
   const retracePct = total ? (100 * retracedM) / total : 0;
 
+  // Below these floors the classifier has no signal and must say so rather than
+  // defaulting to LOOP. Detection only exists in the band
+  // SKIP_M < |along| < total-SKIP_M, so under 4*SKIP_M both skip clauses jointly
+  // exempt nearly every pair — a pure 300 m out-and-back scored 0%. And a
+  // degenerate export (all points stacked) was the ONLY input that passed this
+  // tool's own gate cleanly. Both now fail loudly.
   let verdict;
-  if (retracePct > 60) verdict = 'OUT-AND-BACK';
+  if (total < 100) verdict = 'DEGENERATE';
+  else if (total < 4 * SKIP_M) verdict = 'TOO-SHORT-TO-CLASSIFY';
+  else if (retracePct > 60) verdict = 'OUT-AND-BACK';
   else if (retracePct > 20) verdict = 'LOLLIPOP';
   else if (closure > 150) verdict = 'OPEN';
   else verdict = 'LOOP';

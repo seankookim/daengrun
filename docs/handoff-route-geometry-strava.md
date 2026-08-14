@@ -29,10 +29,9 @@ from the owner's own 1–10 km dial in `create-booking-hold`. A wrong `km` misle
 cannot misprice a booking. This is an honesty fix, not a money-path change, so it does **not** drag
 the migration gate or trust review onto this track.
 
-## 2. Tooling — in the scratchpad, not yet promoted
+## 2. Tooling — committed at `docs/routes/strava/`
 
-Three scripts, all proven against real routes today. They live in this session's scratchpad; the
-next session should decide whether they belong in `app/scripts/` or in the skill directory.
+Three scripts, all proven against real routes today, and all reviewed adversarially (see §9).
 
 | Script | Does |
 |---|---|
@@ -50,18 +49,21 @@ can. The checker reports `measuredKm`, `gain/loss`, `closureM`, `retracePct` and
 against the existing out-and-back (route `3523203570730615372`), v1 confidently returned `LOOP`.
 The bug: it skipped "nearby" neighbours by *point index*, but Strava emits one point per path
 vertex, so index distance is not proportional to ground distance. Rewritten to measure separation
-**along the path in metres**, it returns `OUT-AND-BACK` at 75% retrace, which is correct.
+**along the path in metres**, it returns `OUT-AND-BACK` at 80% retrace, which is correct.
 
 Do not skip that validation step when changing the thresholds. A shape checker that says LOOP about
 everything is worse than no checker, because it launders a guess into a measurement.
 
 ## 3. Measured results
 
-| Route | Strava ID | Measured | Gain | Pts | Surface | Shape |
-|---|---|---|---|---|---|---|
-| 몽마르뜨 언덕 루프 (pre-existing) | 3523203570730615372 | 1.59 km | 34 m | 38 | — | **OUT-AND-BACK, 75% retrace** |
-| 몽마르뜨 언덕 루프 5.4km | 3523215321827895562 | 5.40 km | 68 m | 119 | — | LOLLIPOP, 46% retrace |
-| 몽마르뜨 언덕 루프 4.79km | 3523214683284986122 | 4.79 km | 63 m | 100 | 68% PAVED / 0% DIRT / 32% unspecified | LOLLIPOP, 30% retrace |
+Two gain columns, because they are two different measurements — see the note in
+`docs/routes/strava/README.md`. Collapsing them is how this table lied once already.
+
+| Route | Strava ID | Measured km | Gain (3m deadband) | Strava gain | Pts | Surface | Shape |
+|---|---|---|---|---|---|---|---|
+| 몽마르뜨 언덕 루프 (pre-existing) | 3523203570730615372 | 1.59 | +34 m | 34 m | 38 | — | **OUT-AND-BACK, 80% retrace** |
+| 몽마르뜨 언덕 루프 5.4km | 3523215321827895562 | 5.40 | +51 m | 68 m | 119 | — | LOLLIPOP, 53% retrace |
+| 몽마르뜨 언덕 루프 4.79km | 3523214683284986122 | 4.80 | +46 m | 63 m | 100 | 68% PAVED / 0% DIRT / 32% unspecified | LOLLIPOP, 47% retrace |
 
 GPX for all three is exported and verified. The 4.79 km is the best 몽마르뜨 geometry that exists
 so far — it is the honest replacement for the 0-trace-point row — but **it is not yet a clean
@@ -145,3 +147,39 @@ licence as the existing corpus, already covered by `docs/routes/gpx/ATTRIBUTION.
 wire the Strava API into the app: new API apps are capped at 1 athlete, and API data may only be
 displayed back to the athlete it came from, which a public catalog cannot satisfy. The browser
 export path avoids all of it.
+
+## 9. Adversarial review — what it caught, and the one it caught in the docs
+
+An Opus reviewer executed every finding rather than inferring it. The important ones, all fixed:
+
+- **The out-and-back-as-LOOP bug class was narrowed, not fixed.** With `RETRACE_M` at 25 m, an
+  out-and-back whose two legs run on parallel paths more than 25 m apart scored **0% retrace and
+  returned LOOP** — a cliff, not a gradient (20 m offset → 81%, 26 m → 0%). That is the Banpo case
+  exactly: opposite banks of 반포천, the two sides of a dual carriageway, paired park paths. Fixed
+  by comparing each point to the nearest **segment** rather than to the nearest point, with
+  `RETRACE_M` raised to 60 m — a corridor width, not a lane width. This made the real corpus read
+  *worse* and more honestly: 75→80%, 46→53%, 30→47%.
+- **Under ~400 m the two skip clauses jointly exempted every pair**, so a pure 300 m out-and-back
+  scored 0% and returned LOOP. And a degenerate export (all points stacked) was the only input that
+  passed the tool's own gate cleanly. Both now return `TOO-SHORT-TO-CLASSIFY` / `DEGENERATE`.
+- **Unit confusion.** The distance regex accepted `(km|m|mi)`; JS alternation is leftmost-first, so
+  `3.2 mi` matched as `3.2 m` and a 5.15 km route would have been read as 3.2 and saved as
+  `3.2km`. The unit is now required and `mi` is refused.
+- **Comma decimal separator.** `5,4 km` became `5`, which passed the tolerance gate against a
+  5.4 km target and would have named the route `5km` — the original bug, reintroduced through a
+  locale. Now refused rather than guessed.
+- **The name fill was best-effort.** If Strava's field label shifts, the ref is empty, the fill
+  no-ops, and the route persists under Strava's auto-generated name **while stdout claims the
+  intended one**. The one guarantee the tool advertises. Now aborts before saving.
+- **`build-route.sh` exited 1 after a fully successful save**, because `check-shape` exits non-zero
+  on any non-LOOP verdict — indistinguishable from "builder never mounted".
+
+And the one that matters most, because it is the failure this whole track is about, one layer up:
+**the README's own results table published Strava's gain figures under a sentence claiming they had
+been recomputed by `check-shape.mjs`.** The tool reports +51/+46 m; the table said 68/63 m. Intent
+presented as measurement, in the document written to stop exactly that. Both tables now carry both
+numbers with the definitional difference stated.
+
+Known and NOT fixed: a GPX mixing self-closing and full `<trkpt>` elements silently drops the
+points between them (the committed corpus is unaffected — every point carries `<ele>`), and
+`lon`-before-`lat` attribute order yields `NO TRACKPOINTS` (fails loud, not silent).
