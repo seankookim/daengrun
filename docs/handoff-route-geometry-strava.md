@@ -183,3 +183,79 @@ numbers with the definitional difference stated.
 Known and NOT fixed: a GPX mixing self-closing and full `<trkpt>` elements silently drops the
 points between them (the committed corpus is unaffected — every point carries `<ele>`), and
 `lon`-before-`lat` attribute order yields `NO TRACKPOINTS` (fails loud, not silent).
+
+## 10. The pivot — clusters first, Seoul-wide (Sean, 2026-08-14)
+
+Two rulings, both of which supersede how this track started.
+
+**ⓐ 몽마르뜨 is closed.** *"no need to be stuck on 몽마르트, there are a thousand parks and hills
+and river side routes and streets in korea. not sure of this irrational determination on 몽마르트.
+just connect a handful of 서래마을 resident routes with it."* It is a waypoint, not a subject. Both
+reasons it looked broken are recorded in `docs/routes/strava/GEOGRAPHY.md` so nobody reopens it.
+
+**ⓑ Organize the geography before drawing anything.** *"maybe we first need to organize
+geographical features with clustered residential area proximities per town and district and then
+use specific addresses of these parks and residential areas to create specific paths with more
+than a handful of way points to create large variations of routes."* Then: *"think big and wide.
+hundreds of data points for each residential and geographical all across seoul."*
+
+This names why the hit rate was one route per three attempts: routes were being generated from a
+**landmark** — pick one, guess a nearby complex, measure, discover the pairing is geometrically
+impossible. Generate from a **cluster** instead and the complexes come first, so only features
+genuinely reachable on foot are ever eligible.
+
+### Status
+
+- `docs/routes/strava/GEOGRAPHY.md` — the hand-built 7-district index. Complete and pushed.
+- `docs/routes/geo/` — the Seoul-wide automated version, IN FLIGHT as of this handoff. Two
+  harvesters were dispatched against all 25 자치구, chunked per-구 with resumable raw caches:
+  `harvest-residential.mjs` → `residential.json` (named complexes, gates, bbox widths) and
+  `harvest-features.mjs` → `features.json` (parks, water, hills, crossings, named streets/trails).
+  **Verify their output before building on it** — both were told to spot-check against the
+  hand-verified coordinates in GEOGRAPHY.md and to report per-구 counts, because a 구 returning
+  zero is a bug in the query, not a fact about Seoul.
+
+### Still to write: the join
+
+`docs/routes/geo/cluster.mjs` — for each residential record, find every feature within walking
+radii (500 m / 1 km / 2 km great-circle, and separately "reachable without an expressway
+crossing"), and emit `clusters.json`: one record per complex listing its proximate parks, water,
+hills, crossings and candidate return-leg streets. That file is the actual route generator input.
+
+Two things it must encode, both measured and both easy to lose:
+
+1. **A river route requires a 나들목.** GEOGRAPHY.md's crossing table is hand-verified; three
+   structural gaps already known — 압구정 구현대 has none for 2.2 km (so: inland routes only),
+   middle 동부이촌동 none for ~1.4 km, and 반포자이 is 1.17 km from its nearest, so river routes
+   from it only work at 5–7 km.
+2. **Time-restricted crossings are a route attribute, not a footnote.** 서울숲 보행가교 runs
+   05:30–21:30, which makes a 서울숲↔한강 route unwalkable at peak evening dog-walking time.
+
+### And the method note that changes output most
+
+**Chain 5–8 waypoints, not 2–3.** Measured: with few waypoints the router takes the shortest path
+in both directions, which is what produced 78–81% retrace on nearly everything built so far
+(이촌 박물관 루프 81%, the pre-existing 몽마르뜨 80%). Waypoints spread around the cluster are what
+force an outbound and a return leg that differ. `build-route.sh` already accepts an unbounded
+waypoint list — only its usage string suggested three.
+
+### Shape is not a grade
+
+*"route shape isnt so much more important than the actual properties and characteristics and
+variations of the routes. who cares if it's a lolipop or a figure 8 or a curve."* Correct, and it
+was an invented target. `check-shape.mjs` now fails only on `DEGENERATE` and
+`TOO-SHORT-TO-CLASSIFY` — files it cannot measure at all. Retrace % is kept as metadata (how much
+of the route you see twice), not as a pass mark. What an owner actually picks on is distance,
+surface, elevation and what the route passes.
+
+### One conclusion that got retracted, and should stay retracted
+
+I proposed replacing the browser path with a self-hosted router (GraphHopper over a Korea OSM
+extract). Sean pushed back — *"not sure if korea osm is as good as strava's auto run path finder"*
+— and he is right. Measured: **zero `highway=steps` across all nine of the project's OSM caches**,
+only 2 steps in the entire 도곡 riverside box where the true count is an order of magnitude higher,
+이촌 대림아파트 (638세대) absent from OSM entirely, 동호대교 남단 보도교 unnamed. A router inherits
+every one of those gaps; the 몽마르뜨 ridge is literally disconnected without steps. Strava rides
+the same OSM base but its heatmap covers the holes with where people actually ran. The
+feature-harvester was told to independently recount Seoul-wide steps and report whether this
+conclusion survives at Seoul scale — check its answer before anyone relitigates this.
