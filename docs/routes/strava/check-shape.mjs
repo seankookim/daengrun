@@ -139,9 +139,11 @@ function analyse(pts) {
   return { km, gain, loss, closure, retracePct, verdict, n: pts.length };
 }
 
-const files = process.argv.slice(2);
+const args = process.argv.slice(2);
+const json = args[0] === '--json';
+const files = json ? args.slice(1) : args;
 if (!files.length) {
-  console.error('usage: check-shape.mjs <file.gpx> [...]');
+  console.error('usage: check-shape.mjs [--json] <file.gpx> [...]');
   process.exit(2);
 }
 
@@ -155,18 +157,37 @@ for (const f of files) {
     bad++;
     continue;
   }
-  if (r.n < 2) { console.log(`${f}\n  NO TRACKPOINTS`); bad++; continue; }
+  if (r.n < 2) {
+    if (json) console.log(JSON.stringify({ file: f, error: 'NO TRACKPOINTS' }));
+    else console.log(`${f}\n  NO TRACKPOINTS`);
+    bad++;
+    continue;
+  }
   // Shape is a CHARACTERISTIC, not a grade. A lollipop, a figure-eight and an
   // out-and-back are all fine routes to run a dog on; what an owner picks on is
   // distance, surface, elevation and what the route passes. Only two verdicts
   // are real failures, and both mean "this file cannot be measured at all".
   const broken = r.verdict === 'DEGENERATE' || r.verdict === 'TOO-SHORT-TO-CLASSIFY';
   const flag = broken ? '   <-- UNMEASURABLE' : '';
-  console.log(
-    `${f.split('/').pop()}\n` +
-    `  ${r.km.toFixed(2)} km · ${r.n} pts · +${Math.round(r.gain)}m/-${Math.round(r.loss)}m · ` +
-    `closure ${Math.round(r.closure)}m · retrace ${r.retracePct.toFixed(0)}% · ${r.verdict}${flag}`
-  );
+  if (json) {
+    console.log(JSON.stringify({
+      file: f,
+      measuredKm: +r.km.toFixed(2),
+      gainM: Math.round(r.gain),
+      lossM: Math.round(r.loss),
+      points: r.n,
+      closureM: Math.round(r.closure),
+      retracePct: +r.retracePct.toFixed(1),
+      shape: r.verdict,
+      measurable: !broken,
+    }));
+  } else {
+    console.log(
+      `${f.split('/').pop()}\n` +
+      `  ${r.km.toFixed(2)} km · ${r.n} pts · +${Math.round(r.gain)}m/-${Math.round(r.loss)}m · ` +
+      `closure ${Math.round(r.closure)}m · retrace ${r.retracePct.toFixed(0)}% · ${r.verdict}${flag}`
+    );
+  }
   if (broken) bad++;
 }
 process.exit(bad ? 1 : 0);

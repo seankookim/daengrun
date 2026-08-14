@@ -1,12 +1,12 @@
 {
  "source": "OpenStreetMap via Overpass API (ODbL). Derived index — coordinates are proximity evidence, not verified route anchors.",
- "generatedAt": "2026-08-14T06:56:00.793Z",
+ "generatedAt": "2026-08-14T06:57:55.604Z",
  "generator": "docs/routes/geo/harvest-features.mjs",
  "meta": {
   "guCount": 25,
-  "featureCount": 872,
+  "featureCount": 943,
   "byCategory": {
-   "crossing": 104,
+   "crossing": 175,
    "lake": 8,
    "park": 76,
    "stream": 10,
@@ -37,6 +37,82 @@
     "name:ko": "구룡지하차도",
     "ref": "47",
     "layer": "-1"
+   }
+  },
+  {
+   "id": "way/724658649",
+   "name": "보행교 (무명)",
+   "category": "crossing",
+   "gu": "강남구",
+   "lat": 37.48506,
+   "lng": 127.0377,
+   "lengthM": 33,
+   "tags": {
+    "highway": "footway",
+    "bridge": "yes",
+    "width": "4",
+    "layer": "1",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/305806952",
+   "name": "보행터널 (무명)",
+   "category": "crossing",
+   "gu": "강남구",
+   "lat": 37.498579,
+   "lng": 127.027264,
+   "lengthM": 35,
+   "tags": {
+    "highway": "footway",
+    "tunnel": "yes",
+    "layer": "-1",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/305923845",
+   "name": "보행터널 (무명)",
+   "category": "crossing",
+   "gu": "강남구",
+   "lat": 37.497232,
+   "lng": 127.027875,
+   "lengthM": 37,
+   "tags": {
+    "highway": "footway",
+    "tunnel": "yes",
+    "layer": "-1",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/305932242",
+   "name": "보행터널 (무명)",
+   "category": "crossing",
+   "gu": "강남구",
+   "lat": 37.498162,
+   "lng": 127.027695,
+   "lengthM": 115,
+   "tags": {
+    "highway": "footway",
+    "tunnel": "yes",
+    "layer": "-1",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/305932244",
+   "name": "보행터널 (무명)",
+   "category": "crossing",
+   "gu": "강남구",
+   "lat": 37.497825,
+   "lng": 127.027849,
+   "lengthM": 115,
+   "tags": {
+    "highway": "footway",
+    "tunnel": "yes",
+    "layer": "-1",
+    "unnamed": "yes"
    }
   },
   {
@@ -1069,6 +1145,1016 @@
    }
   },
   {
+   "id": "way/248405786",
+   "name": "보행교 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.502168,
+   "lng": 126.990949,
+   "lengthM": 25,
+   "tags": {
+    "highway": "pedestrian",
+    "bridge": "yes",
+    "layer": "1",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/277548174",
+   "name": "보행교 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.46163,
+   "lng": 127.049394,
+   "lengthM": 44,
+   "tags": {
+    "highway": "footway",
+    "bridge": "yes",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/292711460",
+   "name": "보행교 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.479297,
+   "lng": 127.043664,
+   "lengthM": 46,
+   "tags": {
+    "highway": "cycleway",
+    "bridge": "yes",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/303912461",
+   "name": "보행교 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.474597,
+   "lng": 127.010428,
+   "lengthM": 15,
+   "tags": {
+    "highway": "path",
+    "bridge": "yes",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/342258405",
+   "name": "보행교 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.481703,
+   "lng": 127.016646,
+   "lengthM": 40,
+   "tags": {
+    "highway": "footway",
+    "bridge": "yes",
+    "layer": "1",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/369503547",
+   "name": "보행교 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.473676,
+   "lng": 127.036393,
+   "lengthM": 26,
+   "tags": {
+    "highway": "cycleway",
+    "bridge": "yes",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/369503551",
+   "name": "보행교 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.467566,
+   "lng": 127.038362,
+   "lengthM": 43,
+   "tags": {
+    "highway": "footway",
+    "bridge": "yes",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/375713500",
+   "name": "보행교 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.442442,
+   "lng": 127.053194,
+   "lengthM": 10,
+   "tags": {
+    "highway": "footway",
+    "bridge": "yes",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/478139617",
+   "name": "보행교 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.455431,
+   "lng": 127.014403,
+   "lengthM": 29,
+   "tags": {
+    "highway": "cycleway",
+    "bridge": "yes",
+    "layer": "1",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/505529599",
+   "name": "보행교 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.524516,
+   "lng": 127.015076,
+   "lengthM": 148,
+   "tags": {
+    "highway": "footway",
+    "bridge": "yes",
+    "surface": "asphalt",
+    "lit": "yes",
+    "bicycle": "yes",
+    "layer": "1",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/505529602",
+   "name": "보행교 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.523529,
+   "lng": 127.016016,
+   "lengthM": 127,
+   "tags": {
+    "highway": "footway",
+    "bridge": "yes",
+    "surface": "asphalt",
+    "lit": "yes",
+    "layer": "1",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/593858527",
+   "name": "보행교 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.500256,
+   "lng": 126.99795,
+   "lengthM": 32,
+   "tags": {
+    "highway": "pedestrian",
+    "bridge": "yes",
+    "layer": "1",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/696141845",
+   "name": "보행교 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.523729,
+   "lng": 127.015319,
+   "lengthM": 76,
+   "tags": {
+    "highway": "cycleway",
+    "bridge": "yes",
+    "surface": "asphalt",
+    "width": "3",
+    "layer": "1",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/701115062",
+   "name": "보행교 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.462463,
+   "lng": 127.02664,
+   "lengthM": 20,
+   "tags": {
+    "highway": "footway",
+    "bridge": "yes",
+    "layer": "1",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/706733121",
+   "name": "보행교 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.469366,
+   "lng": 127.038182,
+   "lengthM": 37,
+   "tags": {
+    "highway": "footway",
+    "bridge": "yes",
+    "surface": "paving_stones",
+    "lit": "yes",
+    "layer": "1",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/949348575",
+   "name": "보행교 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.519103,
+   "lng": 127.00803,
+   "lengthM": 25,
+   "tags": {
+    "highway": "path",
+    "bridge": "yes",
+    "surface": "paved",
+    "width": "2",
+    "layer": "1",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/996010890",
+   "name": "보행교 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.452194,
+   "lng": 127.053166,
+   "lengthM": 6,
+   "tags": {
+    "highway": "footway",
+    "bridge": "yes",
+    "layer": "1",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/996010892",
+   "name": "보행교 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.45186,
+   "lng": 127.052011,
+   "lengthM": 14,
+   "tags": {
+    "highway": "footway",
+    "bridge": "yes",
+    "layer": "1",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/1046181901",
+   "name": "보행교 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.493132,
+   "lng": 127.00229,
+   "lengthM": 24,
+   "tags": {
+    "highway": "footway",
+    "bridge": "yes",
+    "layer": "1",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/1064676098",
+   "name": "보행교 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.499823,
+   "lng": 126.997673,
+   "lengthM": 30,
+   "tags": {
+    "highway": "footway",
+    "bridge": "yes",
+    "layer": "1",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/1087669369",
+   "name": "보행교 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.472779,
+   "lng": 127.037719,
+   "lengthM": 38,
+   "tags": {
+    "highway": "cycleway",
+    "bridge": "yes",
+    "layer": "1",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/1124253500",
+   "name": "보행교 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.476272,
+   "lng": 127.04116,
+   "lengthM": 21,
+   "tags": {
+    "highway": "cycleway",
+    "bridge": "yes",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/1185035515",
+   "name": "보행교 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.505091,
+   "lng": 127.003193,
+   "lengthM": 61,
+   "tags": {
+    "highway": "footway",
+    "bridge": "yes",
+    "layer": "2",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/1206396070",
+   "name": "보행교 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.454373,
+   "lng": 127.052702,
+   "lengthM": 14,
+   "tags": {
+    "highway": "cycleway",
+    "bridge": "yes",
+    "foot": "yes",
+    "layer": "1",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/1206499149",
+   "name": "보행교 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.473367,
+   "lng": 127.037629,
+   "lengthM": 7,
+   "tags": {
+    "highway": "cycleway",
+    "bridge": "yes",
+    "layer": "1",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/1232132154",
+   "name": "보행교 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.499862,
+   "lng": 126.996824,
+   "lengthM": 35,
+   "tags": {
+    "highway": "footway",
+    "bridge": "yes",
+    "layer": "1",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/1232132187",
+   "name": "보행교 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.499778,
+   "lng": 126.996604,
+   "lengthM": 35,
+   "tags": {
+    "highway": "footway",
+    "bridge": "yes",
+    "layer": "1",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/1337296117",
+   "name": "보행교 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.440514,
+   "lng": 127.04996,
+   "lengthM": 7,
+   "tags": {
+    "highway": "path",
+    "bridge": "yes",
+    "layer": "1",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/1337296119",
+   "name": "보행교 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.440247,
+   "lng": 127.04942,
+   "lengthM": 8,
+   "tags": {
+    "highway": "path",
+    "bridge": "yes",
+    "layer": "1",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/1383093133",
+   "name": "보행교 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.477587,
+   "lng": 127.029723,
+   "lengthM": 4,
+   "tags": {
+    "highway": "footway",
+    "bridge": "yes",
+    "surface": "wood",
+    "layer": "1",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/1383093137",
+   "name": "보행교 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.4785,
+   "lng": 127.0292,
+   "lengthM": 4,
+   "tags": {
+    "highway": "path",
+    "bridge": "yes",
+    "surface": "wood",
+    "layer": "1",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/1383093138",
+   "name": "보행교 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.478047,
+   "lng": 127.029481,
+   "lengthM": 4,
+   "tags": {
+    "highway": "path",
+    "bridge": "yes",
+    "surface": "wood",
+    "layer": "1",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/1383093143",
+   "name": "보행교 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.479695,
+   "lng": 127.027851,
+   "lengthM": 5,
+   "tags": {
+    "highway": "path",
+    "bridge": "yes",
+    "surface": "wood",
+    "layer": "1",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/1383093146",
+   "name": "보행교 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.480242,
+   "lng": 127.028121,
+   "lengthM": 5,
+   "tags": {
+    "highway": "path",
+    "bridge": "yes",
+    "surface": "wood",
+    "layer": "1",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/1383093153",
+   "name": "보행교 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.478566,
+   "lng": 127.028964,
+   "lengthM": 4,
+   "tags": {
+    "highway": "path",
+    "bridge": "yes",
+    "surface": "wood",
+    "layer": "1",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/1422238685",
+   "name": "보행교 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.459095,
+   "lng": 127.05551,
+   "lengthM": 62,
+   "tags": {
+    "highway": "footway",
+    "bridge": "yes",
+    "layer": "1",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/1488612111",
+   "name": "보행교 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.509658,
+   "lng": 127.016112,
+   "lengthM": 44,
+   "tags": {
+    "highway": "footway",
+    "bridge": "yes",
+    "layer": "1",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/1492976970",
+   "name": "보행교 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.45601,
+   "lng": 127.059269,
+   "lengthM": 24,
+   "tags": {
+    "highway": "cycleway",
+    "bridge": "yes",
+    "foot": "designated",
+    "bicycle": "designated",
+    "layer": "1",
+    "segregated": "yes",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/1492976977",
+   "name": "보행교 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.455555,
+   "lng": 127.052001,
+   "lengthM": 8,
+   "tags": {
+    "highway": "cycleway",
+    "bridge": "yes",
+    "foot": "designated",
+    "bicycle": "designated",
+    "layer": "1",
+    "segregated": "yes",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/1492976978",
+   "name": "보행교 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.450068,
+   "lng": 127.058071,
+   "lengthM": 13,
+   "tags": {
+    "highway": "cycleway",
+    "bridge": "yes",
+    "foot": "designated",
+    "bicycle": "designated",
+    "layer": "1",
+    "segregated": "yes",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/1492976985",
+   "name": "보행교 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.454193,
+   "lng": 127.052691,
+   "lengthM": 9,
+   "tags": {
+    "highway": "path",
+    "bridge": "yes",
+    "layer": "1",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/1492977008",
+   "name": "보행교 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.450175,
+   "lng": 127.057603,
+   "lengthM": 25,
+   "tags": {
+    "highway": "cycleway",
+    "bridge": "yes",
+    "foot": "designated",
+    "bicycle": "designated",
+    "layer": "1",
+    "segregated": "yes",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/1492977013",
+   "name": "보행교 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.450158,
+   "lng": 127.057775,
+   "lengthM": 38,
+   "tags": {
+    "highway": "cycleway",
+    "bridge": "yes",
+    "foot": "designated",
+    "bicycle": "designated",
+    "layer": "1",
+    "segregated": "yes",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/1492977019",
+   "name": "보행교 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.455918,
+   "lng": 127.059137,
+   "lengthM": 21,
+   "tags": {
+    "highway": "cycleway",
+    "bridge": "yes",
+    "foot": "designated",
+    "bicycle": "designated",
+    "layer": "1",
+    "segregated": "yes",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/305923844",
+   "name": "보행터널 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.497816,
+   "lng": 127.02716,
+   "lengthM": 40,
+   "tags": {
+    "highway": "footway",
+    "tunnel": "yes",
+    "layer": "-1",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/305932240",
+   "name": "보행터널 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.497855,
+   "lng": 127.027368,
+   "lengthM": 161,
+   "tags": {
+    "highway": "footway",
+    "tunnel": "yes",
+    "layer": "-1",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/375713474",
+   "name": "보행터널 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.464778,
+   "lng": 127.039427,
+   "lengthM": 123,
+   "tags": {
+    "highway": "cycleway",
+    "tunnel": "yes",
+    "foot": "designated",
+    "bicycle": "designated",
+    "segregated": "yes",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/375713476",
+   "name": "보행터널 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.463716,
+   "lng": 127.040367,
+   "lengthM": 73,
+   "tags": {
+    "highway": "cycleway",
+    "tunnel": "yes",
+    "foot": "designated",
+    "bicycle": "designated",
+    "segregated": "yes",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/375713478",
+   "name": "보행터널 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.462406,
+   "lng": 127.041484,
+   "lengthM": 156,
+   "tags": {
+    "highway": "cycleway",
+    "tunnel": "yes",
+    "foot": "designated",
+    "bicycle": "designated",
+    "segregated": "yes",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/375713497",
+   "name": "보행터널 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.444637,
+   "lng": 127.057129,
+   "lengthM": 53,
+   "tags": {
+    "highway": "footway",
+    "tunnel": "yes",
+    "layer": "-1",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/379470557",
+   "name": "보행터널 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.507436,
+   "lng": 127.016548,
+   "lengthM": 135,
+   "tags": {
+    "highway": "footway",
+    "tunnel": "yes",
+    "layer": "-1",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/845497266",
+   "name": "보행터널 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.498463,
+   "lng": 127.003087,
+   "lengthM": 13,
+   "tags": {
+    "highway": "footway",
+    "tunnel": "yes",
+    "layer": "-1",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/1067157370",
+   "name": "보행터널 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.505034,
+   "lng": 127.009285,
+   "lengthM": 17,
+   "tags": {
+    "highway": "footway",
+    "tunnel": "building_passage",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/1067157376",
+   "name": "보행터널 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.503968,
+   "lng": 127.006521,
+   "lengthM": 17,
+   "tags": {
+    "highway": "footway",
+    "tunnel": "building_passage",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/1067157383",
+   "name": "보행터널 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.504406,
+   "lng": 127.007871,
+   "lengthM": 11,
+   "tags": {
+    "highway": "footway",
+    "tunnel": "building_passage",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/1354859698",
+   "name": "보행터널 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.506059,
+   "lng": 126.993189,
+   "lengthM": 58,
+   "tags": {
+    "highway": "footway",
+    "tunnel": "yes",
+    "layer": "-1",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/1354859704",
+   "name": "보행터널 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.506112,
+   "lng": 126.993322,
+   "lengthM": 58,
+   "tags": {
+    "highway": "footway",
+    "tunnel": "yes",
+    "layer": "-1",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/1481658416",
+   "name": "보행터널 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.509838,
+   "lng": 126.998818,
+   "lengthM": 142,
+   "tags": {
+    "highway": "cycleway",
+    "tunnel": "yes",
+    "foot": "designated",
+    "bicycle": "designated",
+    "layer": "-2",
+    "segregated": "no",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/1492976997",
+   "name": "보행터널 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.464911,
+   "lng": 127.03959,
+   "lengthM": 118,
+   "tags": {
+    "highway": "cycleway",
+    "tunnel": "yes",
+    "foot": "designated",
+    "bicycle": "designated",
+    "layer": "-1",
+    "segregated": "yes",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/1492976999",
+   "name": "보행터널 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.463839,
+   "lng": 127.040579,
+   "lengthM": 70,
+   "tags": {
+    "highway": "cycleway",
+    "tunnel": "yes",
+    "foot": "designated",
+    "bicycle": "designated",
+    "layer": "-1",
+    "segregated": "yes",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/1492977001",
+   "name": "보행터널 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.462522,
+   "lng": 127.041648,
+   "lengthM": 154,
+   "tags": {
+    "highway": "cycleway",
+    "tunnel": "yes",
+    "foot": "designated",
+    "bicycle": "designated",
+    "layer": "-1",
+    "segregated": "yes",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/1492977010",
+   "name": "보행터널 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.452635,
+   "lng": 127.058599,
+   "lengthM": 60,
+   "tags": {
+    "highway": "cycleway",
+    "tunnel": "yes",
+    "foot": "designated",
+    "bicycle": "designated",
+    "layer": "-1",
+    "segregated": "yes",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/1492977015",
+   "name": "보행터널 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.452638,
+   "lng": 127.05873,
+   "lengthM": 61,
+   "tags": {
+    "highway": "cycleway",
+    "tunnel": "yes",
+    "foot": "designated",
+    "bicycle": "designated",
+    "layer": "-1",
+    "segregated": "yes",
+    "unnamed": "yes"
+   }
+  },
+  {
+   "id": "way/1497710500",
+   "name": "보행터널 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.516757,
+   "lng": 127.008501,
+   "lengthM": 55,
+   "tags": {
+    "highway": "footway",
+    "tunnel": "yes",
+    "layer": "-1",
+    "unnamed": "yes"
+   }
+  },
+  {
    "id": "way/560609926",
    "name": "사당고가차도",
    "nameEn": "Nambusunhwan-ro",
@@ -1677,6 +2763,34 @@
     "layer": "1",
     "tunnel": "yes",
     "osmSegments": 6
+   }
+  },
+  {
+   "id": "node/5215341515",
+   "name": "엘리베이터 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.50583,
+   "lng": 126.981023,
+   "tags": {
+    "highway": "elevator",
+    "unnamed": "yes",
+    "alongStream": "반포천",
+    "alongStreamM": 217
+   }
+  },
+  {
+   "id": "node/5934039693",
+   "name": "엘리베이터 (무명)",
+   "category": "crossing",
+   "gu": "서초구",
+   "lat": 37.493591,
+   "lng": 127.014097,
+   "tags": {
+    "highway": "elevator",
+    "unnamed": "yes",
+    "alongStream": "반포천",
+    "alongStreamM": 108
    }
   },
   {

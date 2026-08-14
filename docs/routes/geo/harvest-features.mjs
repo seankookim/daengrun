@@ -735,9 +735,13 @@ function verify(payload) {
   line('\n=== 15 HAND-VERIFIED CROSSINGS (GEOGRAPHY.md) ===');
   const crossings = F.filter((f) => f.category === 'crossing');
   let missing = 0;
+  const squash = (s) => s.replace(/\s+/g, '');
   for (const [name, lat, lng] of HAND_VERIFIED) {
-    const bare = name.split(' ')[0];
-    let cands = crossings.filter((f) => f.name.includes(bare) || f.name.replace(/\s/g, '').includes(name.replace(/\s/g, '')));
+    // OSM writes "반포안내센터 나들목" where the doc writes "반포안내센터나들목" — compare squashed.
+    const target = squash(name);
+    let cands = crossings.filter(
+      (f) => squash(f.name).includes(target) || (squash(f.name).length >= 5 && target.includes(squash(f.name))),
+    );
     if (!cands.length && /엘리베이터/.test(name)) {
       cands = F.filter((f) => f.tags?.highway === 'elevator' && haversine(f.lat, f.lng, lat, lng) < 400);
     }

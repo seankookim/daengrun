@@ -23,6 +23,7 @@ collapsing them would be the same mistake this directory exists to prevent.
 | `몽마르뜨_언덕_루프_5.4km.gpx` | 3523215321827895562 | 5.40 | 5.4 | +51 m | 68 m | 119 | LOLLIPOP (53% retrace) |
 | `몽마르뜨_언덕_루프_4.79km.gpx` | 3523214683284986122 | 4.80 | 4.79 | +46 m | 63 m | 100 | LOLLIPOP (47% retrace) — best 몽마르뜨 geometry so far |
 | `이촌_박물관_루프_2.73km.gpx` | 3523224747186372978 | 2.74 | 2.73 | +13 m | 16 m | 47 | OUT-AND-BACK (81% retrace) · 70% PAVED |
+| `잠원_한신2차_생활권_루프_6.83km.gpx` | 3523229766951707090 | 6.83 | 6.82 | +17 m | 31 m | 135 | LOLLIPOP (44.1% retrace) · 79% PAVED |
 
 **Shape is a characteristic, not a grade** (Sean, 2026-08-14: *"who cares if it's a lollipop or a
 figure 8 or a curve"*). A dog walk that leaves a 단지 gate and comes back is a good route whatever
@@ -32,8 +33,10 @@ at all. Retrace % is kept because it says how much of the route you see twice �
 not a pass mark.
 
 **"Measured km" and "Gain (3 m deadband)" are recomputed from the trackpoints by
-`check-shape.mjs`. "Strava km" and "Strava gain" are the builder's own readout, and the filenames
-carry the Strava figure** because that is what the route is named on Strava.
+`check-shape.mjs`. "Strava km" and "Strava gain" are the builder's own readout. New GPX filenames
+carry the independently recomputed distance; the name inside the GPX is the Strava route name and
+therefore carries Strava's readout. The 0.01 km difference on the 잠원 route is expected rounding,
+not a disagreement about the geometry.
 
 The gain columns disagree by ~25% and that is definitional, not a bug: `check-shape.mjs` ignores
 elevation deltas under 3 m so GPS jitter is not counted as climbing, while Strava applies its own
@@ -48,10 +51,14 @@ Strava counterpart.
 ## Tools
 
     ./probe-anchors.sh "<lat/lng>" "<query>" ...      # what does the geocoder resolve this to?
-    ./build-route.sh "<base name>" "<lat/lng>" "<target km>" "<start>" "<wp1>" "<wp2>" [wp3]
+    ./build-route.sh "<base name>" "<lat/lng>" "<target km>" "<start>" "<wp1>" ... "<wp5>" [wp6] [wp7] [wp8]
     node check-shape.mjs <file.gpx> ...              # independent distance / elevation / shape
+    node check-shape.mjs --json <file.gpx> ...       # machine-readable verification
 
 `build-route.sh` measures before saving and writes the **measured** distance into the route name,
 so a route's name can never disagree with its geometry. It refuses to save when the measurement
-misses the target by more than `TOL_PCT` (default 15%), and refuses fewer than two waypoints —
-a single waypoint can only ever produce an out-and-back.
+misses the target by more than `TOL_PCT` (default 20%), and requires 5–8 waypoints spread around
+the residential anchor.
+
+The complete output rows required by the portable brief are in `manifest.psv`; attempt counts,
+geocoder misses, and geometrically impossible anchor pairs are in `ATTEMPTS.md`.

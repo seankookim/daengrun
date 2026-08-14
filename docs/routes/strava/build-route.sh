@@ -1,6 +1,6 @@
 #!/bin/bash
 # Build one Strava route loop, MEASURE IT, and only then decide whether to save.
-#   build-route.sh "<base name>" "<lat/lng>" "<target km>" "<start>" "<wp1>" [wp2] [wp3]
+#   build-route.sh "<base name>" "<lat/lng>" "<target km>" "<start>" "<wp1>" ... "<wp5>" [wp6] [wp7] [wp8]
 #
 # The route is saved as "<base name> <MEASURED>km" — the name can never
 # disagree with the geometry, because the name is written from the readout.
@@ -41,9 +41,9 @@ DIR="$(cd "$(dirname "$0")" && pwd)"
 OUT="${GPX_OUT:-$DIR/gpx}"
 mkdir -p "$OUT"
 
-if [ "${#WAYPOINTS[@]}" -lt 2 ]; then
-  echo "    REFUSING: ${#WAYPOINTS[@]} waypoint(s). One waypoint can only make an"
-  echo "    out-and-back; a real loop needs 2-3." >&2
+if [ "${#WAYPOINTS[@]}" -lt 5 ] || [ "${#WAYPOINTS[@]}" -gt 8 ]; then
+  echo "    REFUSING: ${#WAYPOINTS[@]} waypoint(s). The validated route method"
+  echo "    requires 5-8 waypoints spread by compass bearing around the anchor." >&2
   exit 2
 fi
 
@@ -127,6 +127,18 @@ echo "    measured: $DIST · gain $GAIN · surface: $SURF"
 echo "    shape screenshot: shape-$SLUG_BASE.png  <-- LOOK AT IT"
 
 if [ -z "$KM" ]; then echo "    could not read distance — NOT saving"; exit 1; fi
+# awk divides by TARGET; a non-numeric one produced 'division by zero' and an
+# OFF TARGET line reading "9.28km vs autokm". Fail loudly instead.
+case "$TARGET" in auto) ;; ''|*[!0-9.]*) echo "    TARGET must be a number or 'auto', got '$TARGET'"; exit 2;; esac
+
+# TARGET may be a single number, or "auto" to snap to the nearest catalog slot.
+# Snapping does not launder the distance: the name still carries the MEASURED km,
+# so a 4.79km route saved into the 5km slot is still named 4.79km.
+if [ "$TARGET" = "auto" ]; then
+  TARGET=$(awk -v m="$KM" 'BEGIN{split("2 3 5 7",s," "); b=s[1]; bd=1e9;
+    for(i in s){d=(m-s[i]); if(d<0)d=-d; if(d<bd){bd=d; b=s[i]}} print b}')
+  echo "    nearest catalog slot: ${TARGET}km"
+fi
 
 OK=$(awk -v m="$KM" -v t="$TARGET" -v p="$TOL_PCT" 'BEGIN{d=(m-t)/t*100; if(d<0)d=-d; print (d<=p)?"yes":"no"}')
 if [ "$OK" != "yes" ]; then
@@ -149,12 +161,28 @@ S2=$(btn "Save route"); B click "$S2" >/dev/null 2>&1; sleep 7
 ID=$(B url 2>&1 | tail -1 | grep -oE "routes/[0-9]+" | cut -d/ -f2)
 [ -z "$ID" ] && { echo "    SAVE FAILED"; exit 1; }
 SLUG=$(echo "$FINAL" | tr ' /' '__')
-B download "https://www.strava.com/routes/$ID/export_gpx" "$OUT/$SLUG.gpx" --navigate >/dev/null 2>&1
-PTS=$(grep -c "<trkpt" "$OUT/$SLUG.gpx" 2>/dev/null); PTS=${PTS:-0}
-echo "    saved as \"$FINAL\"  id=$ID  pts=$PTS"
-echo "$FINAL|$ID|$KM|$GAIN|$PTS|$SURF" >> "$OUT/manifest.psv"
-# check-shape exits 1 on any non-LOOP verdict. The route IS saved by this point,
-# so propagating that would make "saved, shape imperfect" indistinguishable from
-# "builder never mounted". Report the shape, exit 0.
-node "$DIR/check-shape.mjs" "$OUT/$SLUG.gpx" || true
+TMP="$OUT/.$SLUG.gpx"
+B download "https://www.strava.com/routes/$ID/export_gpx" "$TMP" --navigate >/dev/null 2>&1
+
+# The file name is derived from the independent trackpoint measurement, not the
+# target and not Strava's readout. Keep both measurements in the catalog row.
+VERIFY=$(node "$DIR/check-shape.mjs" --json "$TMP") || {
+  echo "    exported GPX is unmeasurable — kept at $TMP for diagnosis" >&2
+  exit 1
+}
+MEASURED=$(printf '%s' "$VERIFY" | sed -nE 's/.*"measuredKm":([0-9.]+).*/\1/p')
+GAIN_RE=$(printf '%s' "$VERIFY" | sed -nE 's/.*"gainM":([0-9]+).*/\1/p')
+PTS=$(printf '%s' "$VERIFY" | sed -nE 's/.*"points":([0-9]+).*/\1/p')
+RETRACE=$(printf '%s' "$VERIFY" | sed -nE 's/.*"retracePct":([0-9.]+).*/\1/p')
+SHAPE=$(printf '%s' "$VERIFY" | sed -nE 's/.*"shape":"([^"]+)".*/\1/p')
+[ -n "$MEASURED" ] || { echo "    could not parse independent measurement" >&2; exit 1; }
+FILE_SLUG=$(echo "$NAME ${MEASURED}km" | tr ' /' '__')
+mv "$TMP" "$OUT/$FILE_SLUG.gpx"
+
+WP_JOINED=$(IFS=';'; echo "${WAYPOINTS[*]}")
+MANIFEST="$OUT/manifest.psv"
+[ -e "$MANIFEST" ] || echo 'name|strava_id|measured_km|strava_km|gain_m_recomputed|gain_m_strava|points|surface_mix|retrace_%|shape|start_query|waypoint_queries' > "$MANIFEST"
+echo "$FINAL|$ID|$MEASURED|$KM|$GAIN_RE|${GAIN%% *}|$PTS|$SURF|$RETRACE|$SHAPE|$START|$WP_JOINED" >> "$MANIFEST"
+echo "    saved as \"$FINAL\"  id=$ID  measured=${MEASURED}km pts=$PTS"
+node "$DIR/check-shape.mjs" "$OUT/$FILE_SLUG.gpx"
 exit 0
