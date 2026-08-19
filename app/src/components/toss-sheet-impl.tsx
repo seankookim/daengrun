@@ -28,7 +28,12 @@
 // The reasoning error is worth naming because it is subtle and it reads as reassurance: it
 // argued about MOUNTING when the failure is at IMPORT.
 import { useCallback, useRef, useState } from 'react';
-import { Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+// SafeAreaView는 RN 코어에서 deprecated(0.86)이고 곧 제거된다 — 코어 것을 쓰면 다음 RN
+// 업그레이드가 이 파일을 다시 크래시시킨다 (react-doctor rn-no-deprecated-modules).
+// 대체 패키지는 이미 설치돼 있었다(react-native-safe-area-context 5.7.0). 앱에서 코어
+// SafeAreaView를 쓰던 곳은 이 파일 하나뿐이었다.
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   AgreementWidget,
   PaymentMethodWidget,

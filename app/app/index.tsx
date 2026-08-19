@@ -24,6 +24,15 @@ export default function RoleSelect() {
     if (busy || !auth) return;
     setBusy(role);
     // 프로필 실화: profiles 행 upsert (RLS self-insert)
+    //
+    // ⚠ react-doctor `supabase-client-owned-authz-field` 가 여기서 경고한다 — 클라이언트가
+    // `role`을 쓴다고. **의도된 것이고, 실측으로 확인했다 (2026-08-19):**
+    //   · RLS: profiles self write = `auth.uid() = id`, 컬럼 제한 없음 — 서버가 허용하는 쓰기다
+    //   · 어떤 RLS 정책도, 어떤 RPC도, 어떤 엣지 함수도 `profiles.role`을 인가에 쓰지 않는다
+    //   · 러너 **권한**은 `runners` 행과 그 `tier`가 결정한다 (public runner read 정책이 보는 것)
+    // 그래서 `role`은 인가 필드가 아니라 **표시·라우팅 선호**다. 사용자가 자기 것을 바꿔도 얻는
+    // 권한이 없다. 규칙은 이름이 `role`인 필드를 패턴으로 잡은 것이다. 만약 언젠가 서버가
+    // 이 컬럼으로 뭔가를 가로막기 시작하면 이 주석은 거짓이 되고, 그때는 진짜 결함이다.
     const { error } = await supabase.from('profiles').upsert({
       id: auth.user.id,
       role,
