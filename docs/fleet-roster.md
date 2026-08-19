@@ -153,6 +153,14 @@ two false "stranded work" alarms on day one.
   turns validation into an outage.** A broken extractor regex surfaced as failures in an unrelated
   suite (`70_axes`), because the cast raised instead of returning false. Pair with the line below:
   presence is not enforcement, and correctness is not local.
+- **Verify a control by making it REFUSE something — three statements that succeed while
+  changing nothing:** a CHECK predicate swapped for `select true` (still listed, `convalidated`,
+  enforcing nothing — 0099 M5) · a column REVOKE under a table-wide grant (succeeds, privilege
+  unchanged — 0098 M4; the fix is revoke-table-then-grant-columns, 0088's shape, and pins must
+  `set role` and ATTEMPT the read, because `column_privileges` shows 25 rows either way) · a
+  closure scan over the wrong point shape (`NaN > 50` is false, zero bad routes). Every one
+  reports success and produces the comfortable answer; none is visible to a check that reads
+  state instead of exercising it. (catalog)
 - **A constraint's presence is not evidence of enforcement — attempt the write.** A disarmed
   predicate (body swapped for `select true`) leaves `\d`, `pg_constraint` and `convalidated` all
   reading protected while the table enforces nothing. Pins must try to store a bad value and watch;
