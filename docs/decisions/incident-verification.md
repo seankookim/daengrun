@@ -1,7 +1,21 @@
 # ⑪ Who verifies an `incident` — both sides
 
 **Status: ✅ RULED BY SEAN 2026-08-13 — "incident verified by both runner and owner."**
-**Unbuilt.**
+**BUILT AND DEPLOYED — `0094_incident_verification.sql` + suite 130 (run-end-flow session;
+harness 539/0, 4 mutations verified), schema live in production.**
+
+⚠ **SERVER ONLY. No client surface yet** — nothing calls `open_incident_tx` / `verify_incident_tx`,
+so no user can reach this. Two things stand between here and shipping ⑪ to people:
+1. 🔴 **`appstore-privacy-answers.md:27` must move first.** It declares the phone purpose as
+   *"contact during handoff"*; ⑪ exposes a number during an **incident**. The questionnaire is
+   not filed, so this is an edit before submission — Sean's to approve, drafted and pending.
+2. The client screens (open an incident, the two-sided confirm, the contact sheet).
+
+⚠ **What the build found, which was not in these notes:** `incidents` had **no writer anywhere**
+in the repo, so `incident_contact()` (0088 §E) could never return a row for a marketplace
+booking — the door this ruling depends on was built, correct, and connected to nothing. 0094
+therefore had to build the OPEN path before it could build the verification. See 0094 §1.
+The build notes below are preserved as written; where they and 0094 disagree, 0094 §5-§6 says why.
 
 ## Why this needed a ruling
 

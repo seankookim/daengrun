@@ -26,9 +26,36 @@ drives it is not, and the money is switched off."*
 
 | Fact | State | How verified |
 |---|---|---|
-| Schema | **DEPLOYED, `0001`–`0091`, every row `local == remote`** | I ran `supabase migration list` |
-| Edge functions | **NOT deployed.** Production runs pre-`0078` functions against a post-`0091` schema | no commit, doc, or checklist records a deploy |
-| Charging | **OFF.** `payments_live_since` is NULL; both minters return early; crons find nothing | code-verified — ⚠ **nobody has read the live row** |
+| Schema | ~~**DEPLOYED, `0001`–`0091`**~~ → **DEPLOYED, `0001`–`0094`, every row `local == remote`** | `supabase migration list` |
+| Edge functions | ~~**NOT deployed.**~~ → **ALL FIVE DEPLOYED.** | `supabase functions list` + `functions download` + a redeploy from trunk |
+| Charging | **OFF.** `payments_live_since` is NULL | ✅ **NOW OBSERVED, not inferred** — see below |
+
+🔴 **Three of the four rows above were wrong, and the deploy session found it by running the
+commands rather than reading them.** Corrected in place, with the originals struck through,
+because the *shape* of the error is the reusable part:
+
+- **"Edge functions NOT deployed" was false when it was written.** All five were deployed
+  2026-08-13 at **16:57** (`collect-charges`, `--no-verify-jwt` intact) and **17:18** (the other
+  four) — i.e. between the last commit this document cites and the document itself. The evidence
+  it rests on is *"no commit, doc, or checklist records a deploy"*, which is an argument from
+  the repo's silence about an action that leaves no trace in the repo. **A deploy is not a
+  commit.** `supabase functions list` answers it in two seconds and was never run.
+- **So `0085` and `0086` were already reachable.** `supabase functions download` shows
+  `record_late_cancel_share` (0085's only caller) in the live `transition-booking` bundle and
+  `compute_runner_personal_payout` (0086's) in `settle-run`. The "still-live ₩0-to-runner bug"
+  in §3 ② and §4 P0 #1 had already been closed for hours. It is struck through below.
+- **`0092` was NOT applied, while `0093` WAS** — `migration list` returned `0092` with an empty
+  remote. So `0d143b8`'s *"⑫ status: BUILT AND DEPLOYED (0092)"* was true for `BUILT` only, and
+  the deployed `transition-booking` bundle called just `is_slot_available` — no `runner_work_gate`.
+  ⚠ **Deploying that bundle before `0092` applied would have 500'd every runner ACCEPT**, which
+  is why order was checked before anything was pushed.
+- **`payments_live_since` has now been read in the world.** P0 #3 is DONE:
+  `supabase db query --linked "select * from ops_flags"` →
+  `{"payments_live_since": null, "return_seal_since": null, "updated_at": "2026-08-13 07:57:02+00"}`.
+  One row, both flags null. **Charging is off in production as a fact, not as an inference from
+  the guards.** The retro's *"I verify the code and then describe the world"* is closed for this
+  claim — and the tool that closes it is `supabase db query --linked`, which nobody had used;
+  the session that got `[]` from an RLS-hidden table was reading through the anon key.
 | `profiles` P0 | **CLOSED in production** (`0088`+`0091`) | verified externally with the anon key |
 | Next free number | **0094 / suite 130** | `supabase/migrations/REGISTRY.md` on origin |
 | My branch | 0 ahead, 0 behind trunk, clean, claim released | `git status` |
@@ -48,10 +75,11 @@ Degradation, not an outage — the request screen handles empty honestly, so peo
 — and **today's client already fixes it** with an active→candidate fallback. **Fixed by shipping
 the app, not by touching the database.**
 
-**② `0085` and `0086` are deployed but unreachable.** Their only callers are edge functions, and
-none were deployed. So **a runner whose evening is cancelled inside 24h still gets ₩0 while the
-owner is told they got 50%** — the exact bug `0085` exists to fix, still live. Same for `0086`'s
-pass-through runner pay.
+**② ~~`0085` and `0086` are deployed but unreachable.~~ CLOSED — and it was already closed when
+this was written.** Both callers are in the live bundles (`functions download`, verified
+2026-08-13 evening). The runner-gets-₩0 bug is not live. Kept struck through rather than deleted
+because the reasoning was sound and only its premise was stale: *"their only callers are edge
+functions, and none were deployed"* — the second clause was never checked against the API.
 
 **③ The ops runbook silently changed.** `update routes set active = false` — the incident
 vocabulary for 81 migrations — now **errors**. Replacement: `set status = 'suspended'`.
@@ -65,16 +93,35 @@ vocabulary for 81 migrations — now **errors**. Replacement: `set status = 'sus
 
 ### 🔴 P0 — do these first
 
-1. **Deploy the edge functions**, in the runbook order (`session-handoff.md` §3 ②–④):
-   `create-booking-hold` → `collect-charges --no-verify-jwt` → `settle-run transition-booking
-   confirm-payment`. **This is what makes `0085`/`0086` reachable and stops the still-live
-   ₩0-to-runner bug.** The schema half is done; the deploy is stopped mid-runbook.
+1. ✅ **DONE 2026-08-13 (deploy session).** All five deployed from trunk in the runbook order
+   ②–④, gates green first (tsc 0 · check-rpc ✅ · check-route-native ✅ · harness **539/0** ·
+   deno **185/0**). **Exactly one function actually changed: `transition-booking`.** The CLI
+   reported *"No change found"* for the other four — an independent confirmation, from a hash it
+   computes rather than from a document, that the 16:57/17:18 deploy was already current. That
+   makes `functions deploy` its own parity oracle: **run it, and "no change" is evidence.**
+   Post-deploy verification, each observed rather than assumed:
+   · the live bundle now calls `runner_work_gate` (re-downloaded and grepped)
+   · the endpoint boots — `POST /transition-booking` with no auth → **401
+     `UNAUTHORIZED_NO_AUTH_HEADER`**, not a 500 import crash
+   · `runner_work_gate` on five real production runners → `{"gated": false}` ×5
+   ⚠ **The gate was measured against production BEFORE it could bite**: 0 bookings match its
+   predicate (`run_ended_at` set + `active`, or `incident_review`, with a return stamp missing,
+   non-club) and 0 distinct runners. ⑫ went live gating nobody, which is the only reason this
+   was a safe deploy rather than a decision for Sean.
+   🔴 **Standing hazard it introduces, worth watching now that it is live:** the exit requires
+   the OWNER's return stamp too, and `0089` made force ops-only. **An owner who simply never
+   taps confirm blocks that runner from all future work until ops intervenes.** That is Sean's
+   ruling working as written, not a defect — but it is the first gate in this system whose
+   release depends on a counterparty's attention, and nothing pages ops when it fires.
 2. **Smoke a real signup and role-switch against production.** `0088`+`0091` are verified
    *applied*; nobody has verified *a human can sign up*. Those are different claims, and this is
    the one that would be a hard outage if wrong.
-3. **Read the live `ops_flags.payments_live_since` row** with a credential that can see it. Every
-   "charging is off" statement in every document is inferred from code. The announcer named the
-   pattern precisely: *"I verify the code and then describe the world."*
+3. ✅ **DONE 2026-08-13 (deploy session).** `supabase db query --linked "select * from ops_flags"`
+   → one row, `payments_live_since` **null**, `return_seal_since` **null**, `updated_at`
+   `2026-08-13 07:57:02+00`. Charging is off in the world, not just in the code. **The blocker
+   was never permission — it was that nobody knew `db query --linked` exists**; it runs through
+   the Management API as a login role, so RLS is not in the way. Use it for every future
+   "what is actually true in production" question instead of reasoning from migrations.
 4. **Ship an app build** — it fixes the empty catalog (fallback already written), teaches clients
    the chat routing key, and carries the launch-crash fix. ⚠ `app/ios/` is gitignored, so a clean
    checkout needs `pod install`; and `expo-updates` is configured but needs a prebuild + new

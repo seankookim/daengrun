@@ -9,6 +9,7 @@
 - `app/` — the real app: Expo (React Native) + TypeScript + Supabase
 - `prototype/index.html` — clickable UI prototype (open in browser)
 - `docs/product-notes.md` — product decisions, open questions, roadmap
+- `docs/patent-constraints.md` — ADR-001: two design constraints from 비포펫's granted patent (read before touching runner scoring, matching, or the certification quiz)
 
 ## Run the app
 

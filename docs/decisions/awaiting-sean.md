@@ -11,7 +11,148 @@ governance rule in [README.md](README.md) a stand-in's analysis never becomes a 
 
 ---
 
-## 1. 🔴 `0088` — `profiles` is readable by **anon**, not merely by logged-in users (P0)
+## 0. 🔴 NOBODY HAS VERIFIED A HUMAN CAN SIGN UP — the only total outage on this board
+
+**Raised independently by both voices of trust's `/autoplan` review, which called the security
+sweep the wrong slice while this sits unchecked. Queued 2026-08-14.**
+
+`0088` + `0091` are verified **applied**. That is a different claim from verified **usable**, and
+`0091` exists *precisely because* a grant change 403'd every signup: `0088`'s grant omitted `role`,
+and PostgREST's role-picker upsert reads `excluded.role`. The fix is applied. **Nobody has run a
+signup since.**
+
+Everything else here is a disclosure, a filing or a product call. This one is binary and it is the
+front door. It needs one human, one phone, five minutes. **Not a decision — an errand — but it
+outranks every decision below it.**
+
+## 0-bis. 🔴 위치정보법 — a filing that gates launch, and carries criminal rather than financial exposure
+
+**Surfaced by trust's review 2026-08-14. Needs Korean counsel; answerable in a day.**
+
+`app.json:74` enables background location and `app/src/lib/bgTrack.ts` streams a runner's
+coordinates to a watching owner. That is 개인위치정보 of an identified individual, which in Korea
+generally requires a **위치기반서비스사업자 신고 to the KCC BEFORE service**, a location consent
+**separate** from the PIPA consent, and a location-specific 약관.
+
+**Why this ranks above the PIPA items below it:** unlike PIPA's revenue-scaled 과징금, operating
+without the filing carries **criminal exposure, and it does not shrink because we are pre-revenue.**
+
+⚠ **And it makes §2's question the wrong one.** The App Store privacy sheet says background
+location is **not** declared, while `app.json` declares it. So that questionnaire is **stale, not
+merely unfiled** — asking "has it been filed yet" accepts a premise that is already false.
+
+## 0-ter. 🔴 Seeded runners claim `identity_verified` behind copy promising personal verification
+
+**Surfaced by trust's review 2026-08-14. Unowned. Measured by the announcer the same day.**
+
+All **9** `runners` rows carry `identity_verified = true`. PASS is unintegrated and
+`profiles.phone` is NULL for every user (§6), so **no identity verification has ever occurred** —
+the flag is seed data sitting behind copy that tells an owner a stranger was personally verified.
+
+For a service where a stranger takes physical custody of someone's dog, this is a live
+honesty-law breach (`CLAUDE.md`: *bind real fields or omit the element*) and a larger liability
+than anything on the anon-read surface. It is also **anon-readable**: those 9 rows are returned by
+`tier <> 'applicant'`, 7 of them carrying free-text `bio`.
+
+Fix direction is not a decision — clear the flag or gate the copy — but **who owns it is**.
+
+## 0-quater. ✅ LAUNCH TOWNS — RULED 2026-08-14. It is a rule, not a list.
+
+**Sean, 2026-08-14, verbatim:** *"launch towns are the towns with the gpxs. and yes those 잠실
+잠원 gpxs are valid"*
+
+**[end of Sean's words — everything below is the announcer's reading, not his.]**
+
+This closes the open call the previous handoff carried as *"the canonical launch-town list
+(district and town overlap on one value of five; 뚝섬/서울숲 are landmarks, not dongs)"*. He did
+not hand over a list. He handed over a **derivation**, which is the better artifact: a list goes
+stale the moment coverage moves, and this cannot.
+
+**Do not maintain a list here — derive it.** A table of today's answer is exactly the stale
+artifact this ruling avoids, so the durable form is the command:
+
+```bash
+git ls-tree -r --name-only origin/claude/strava-route-loops-74c5d2 docs/routes/strava/ \
+  | grep '\.gpx$' | sed 's|.*/||' | cut -d_ -f1 | sort -u
+```
+
+**As of 2026-08-14 that returns seven towns from 19 GPX** — 반포 · 잠원 · 잠실 · 이촌 · 성수 ·
+도곡 · 압구정 — which completes the seven districts the original brief named. Route geometry is
+still adding coverage, so **run the command rather than trusting that sentence.**
+
+**Two consequences that are now implementation, not decision:**
+
+1. **The vocabulary must be normalised, and the ruling settles which way.** `profiles.district`
+   holds `{null, 반포동, 성수, 뚝섬, 서울숲}`; `routes.town` holds `{반포동, 성수동}`. They
+   overlap on **one** value, which is why a signed-in 성수 owner saw zero courses even with the
+   candidate fallback working perfectly — the town filter emptied the set before the fallback could
+   apply (client, `9388a91`). Under this ruling the target vocabulary is **`routes.town`**, and
+   `뚝섬`/`서울숲` are landmarks inside 성수동, not towns. Client's surface.
+
+2. ~~**Four of the six towns have GPX but no `routes` rows.** Those INSERTs are a production
+   catalog change and still need Sean's explicit go-ahead.~~ **SUPERSEDED SAME DAY — he gave it,
+   in the route-geometry conversation:** *"make whatever necessary, no need to ask permission"*
+   **[end of Sean's words]**. The INSERTs ran. Measured 2026-08-14 ~17:00: **32 rows · 8 towns ·
+   zero empty traces** (반포동 12 · 잠실동 5 · 성수동 5 · 잠원동 4 · 이촌동 3 · 송파동 1 ·
+   압구정동 1 · 도곡동 1). ⚠ 송파동 is in production and is not in the seven towns anyone had been
+   reciting — worth establishing whether that is intended.
+
+⚠ **THE LESSON HERE OUTRANKS THE FACT, and it is about this file.** The struck sentence above was
+written *specifically* so a ruling could not be read as covering the adjacent thing — and it was
+correct when written. But it was phrased as a **standing fact** rather than a fact with a
+timestamp, so when Sean ruled an hour later in a different conversation, the safeguard did not
+merely expire: **it kept asserting the opposite of the truth, with the authority of a deliberate
+warning.** The announcer then relayed it to a fresh session, which nearly built an ingest pipeline
+for an already-ingested catalog.
+
+**So: date every constraint.** *"As of 16:xx, not authorised"* degrades into obvious staleness.
+*"Needs his go-ahead and he has not given it"* degrades into a lie. Same family as the
+artifact-looked-right class this repo keeps hitting — the memo looked current. (Correction supplied
+by the route-geometry session, which had the ruling; the error was the announcer's.)
+
+**Also settled by the same sentence:** the five 잠실/잠원 GPX that appeared in the route worktree
+carrying Sean's Strava author tag are **his and valid**. They are not a second session writing into
+the tree. Their names should still be checked against their measurements before ingest, because
+measure-then-name is a property that cannot be assumed of any file.
+
+## 1. 🟢 CLOSED IN PRODUCTION 2026-08-14 — off your queue, nothing to decide
+
+> **🟢 is not ✅ and must never be read as one.** ✅ in this directory means *Sean's own words are
+> on origin*, and nothing else earns it. 🟢 means *a fact this entry asserted has changed, and the
+> change was verified by execution.* No ruling of yours is recorded here, because none was needed
+> in the end — the thing this entry was waiting on stopped being true.
+
+**What was checked, by whom, and when.** Three independent measurements against the live project,
+2026-08-14, all agreeing:
+
+| check | result |
+|---|---|
+| `set local role anon; select count(*) from profiles` | `ERROR 42501: permission denied for table profiles` |
+| `GET /rest/v1/profiles?select=phone` with the app's shipped public key | **HTTP 401** |
+| `authenticated` column grants on `profiles` | exactly `0088`'s whitelist — `avatar_url, district, handle, id, name, role`. No `phone`, no `toss_customer_key` |
+| `GET /rest/v1/available_runners` | **HTTP 200** — the storefront survived the revoke |
+
+Measured by the trust session over both SQL and HTTP; independently by the announcer session; and
+by the money session, which wrote it up in `docs/security-profiles-column-exposure.md`. The HTTP
+leg matters more than the SQL leg: it is the exact path an attacker has, and `profiles` refusing
+the same key that `available_runners` accepts is what makes it authorization rather than a broken
+probe.
+
+**Why it closed without you.** `0088`+`0091` were applied to production as part of the
+`0088`–`0094` batch; the deploy call this entry was blocked on was overtaken by the deploy
+happening. **This entry outlived the condition it described by about a day**, which is the exact
+failure the return queue exists to prevent — it is the first thing you are told to read, and until
+now it asked you for a go-ahead on an exposure that was already shut.
+
+⚠ **One claim inside the original is FALSE and is corrected here rather than deleted.** It argued
+*"every build that has ever existed is compatible"* because every historical `profiles` SELECT was
+a subset of `0088`'s whitelist. The reasoning was sound and the conclusion was wrong: `0088` omits
+`SELECT` on `role`, and PostgREST's role-picker upsert reads `excluded.role`, so `0088` alone
+**403s every signup**. `0091` grants it. The corollary was disproven the same afternoon it was
+written — see `README.md` rule 3, which still holds it up as an exemplar and should not.
+
+<details>
+<summary>Original entry, preserved — it was accurate when written</summary>
 
 **Corrected upward 2026-08-13; my first version of this entry understated it.** I wrote "every
 logged-in user can read every verified runner's number." Authentication was never part of the
@@ -59,6 +200,43 @@ payments branch (harness 477/0) and cannot ship until `db push` is cleared — w
 Sean is away, per rule 4. So: **open in production since `0002`, closed on a branch, blocked on
 his deploy call.** Explicitly his and not a stand-in's, since it trades a live exposure window
 against deploying unreviewed-by-him migrations.
+
+</details>
+
+## 1-bis. 🟡 What should a logged-out person see at all? — CORRECTED 2026-08-14, the severity was wrong
+
+> **⚠ This entry originally claimed "the day a host lands in that view, a logged-out stranger reads
+> a named person's meeting place and time." THAT IS FALSE and the announcer published it.** Trust
+> wrote the memo, the announcer queued it faithfully, and neither ran the query first. Trust's own
+> `/autoplan` review challenged the severity claim, which is what finally produced the measurement.
+> Original reasoning preserved in [../security-club-session-exposure.md](../security-club-session-exposure.md) (corrected in place at `79a5b06`).
+
+**Measured on production, 2026-08-14:** `club_sessions` is 13 rows · **1** host · **1** club · 6
+places · `scheduled_at` spanning 2026-07-30 → 2026-08-08 · **0 rows in the future.**
+
+Every exposed session is in the **past**. There is no gathering to intercept. The real disclosure
+is *"where this one club met last week"* — a listing, not a stalking vector.
+
+**The other half cuts the opposite way and must stay, or this reads as falsely reassuring.** The
+name-join was said to fail; it fails against `available_runners`, but the host joins to `runners`
+**today** — and `runners` is anon-readable: **9 rows, 7 with free-text `bio`** (and see §0-ter).
+`club_members` and `feed_posts` sit behind the same `using (true)`.
+
+**So the question is narrower and still yours: should a logged-out person browse clubs at all?**
+A revoke closes it in one line and may delete a real acquisition surface, which makes it a growth
+call rather than a security one.
+
+- **Revoke** — club discovery requires an account.
+- **Keep, minus the sharp fields** — browse survives; `meetup_point` and host ids need a session.
+- **Keep as-is** — a recorded acceptance rather than an inherited default.
+
+**Not urgent on today's data.** It becomes urgent the moment a *future-dated* session exists.
+
+⚠ **The detector that missed this is fixed in REGISTRY:** trust grepped for policies lacking
+`auth.uid()`, and `runners` reads `tier <> 'applicant' OR profile_id = auth.uid()` — **a caller
+term in one arm of an OR is a disjunct, not a gate, and grep cannot tell them apart.** Replaced
+with a privilege-based enumerator (`has_table_privilege`) that also covers views, which
+`pg_policies` never returns at all.
 
 ## 2. 🔴 ⑪ conflicts with a written privacy commitment — before ⑪ builds
 

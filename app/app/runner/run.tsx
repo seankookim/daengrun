@@ -12,7 +12,7 @@ import { clampSuggest, PACE_WINDOW_MS, PaceState, paceState, windowPaceSec } fro
 import { endRunActivity, RunLAProps, startRunActivity, updateRunActivity } from '../../src/lib/runActivity';
 import { useNumFont } from '../../src/lib/fonts';
 import { EndReason, payoutFor, RouteInfo, runnerJob, runResult } from '../../src/store';
-import { colors, paper } from '../../src/theme';
+import { colors, lilac, paper } from '../../src/theme';
 
 const REASON_MAP = { dog: 'dog_condition', owner: 'owner_request', runner: 'runner_personal' } as const;
 
@@ -20,7 +20,6 @@ const REASON_MAP = { dog: 'dog_condition', owner: 'owner_request', runner: 'runn
 // 대시 패턴 에셋. `patternImage`는 선 두께에 맞춰 축소되므로 24×8 잉크 사각형이 두께 4pt에서
 // 12×4 눈금이 되고, patternInterval이 그 사이 간격을 준다. 선 본체를 흰색으로 두면 눈금 사이가
 // 그대로 흰 케이싱이 되어 "인쇄된 코스도" 읽기가 성립한다. (색은 paper.ink #111111 — 신규 색 0개.)
-const ROUTE_DASH = require('../../assets/route-dash.png');
 // 앵커 = 회전 사각형(다이아몬드). 기본 네이버 핀은 '검색 결과'를 뜻해서 만남 장소로 읽히지 않는다.
 const ROUTE_ANCHOR = require('../../assets/route-anchor.png');
 
@@ -854,12 +853,10 @@ export default function ActiveRun() {
             {routeCoords.length > 1 && (
               <maps.NaverMapPathOverlay
                 coords={routeCoords}
-                width={4}
-                color="#FFFFFF"
+                width={3}
+                color={lilac.accent}
                 outlineWidth={1}
                 outlineColor="#FFFFFF"
-                patternImage={ROUTE_DASH}
-                patternInterval={22}
                 zIndex={0}
               />
             )}

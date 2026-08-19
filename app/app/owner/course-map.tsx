@@ -21,13 +21,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated, Dimensions, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, View,
 } from 'react-native';
-import { fetchMyProfile, fetchRoutes } from '../../src/lib/api';
+import { fetchAddresses, fetchMyProfile, fetchRoutes } from '../../src/lib/api';
 import { CourseDetailBody, traceKind, TRACE_NOTE } from '../../src/components/course-detail';
 import { emptyChipCopy, matchesChips, RouteChipRow, useRouteChips } from '../../src/components/route-chips';
 import { getNaverMap } from '../../src/lib/geo';
+import { boundsOfTraces, orderByProximity } from '../../src/lib/route-pick';
+import { routeDisplayName } from '../../src/lib/route-name';
 import { haptic } from '../../src/lib/haptics';
-import { RouteInfo, draft } from '../../src/store';
-import { paper } from '../../src/theme';
+import { GeoRoutePoint, RouteInfo, draft } from '../../src/store';
+import { lilac, paper } from '../../src/theme';
 
 const { height: SCREEN_H } = Dimensions.get('window');
 const PEEK = 148;                          // 이름 + km + CTA 만
@@ -40,22 +42,41 @@ const HEIGHT: Record<Detent, number> = { peek: PEEK, list: LIST, detail: DETAIL 
 // 지도가 빈 채로 열리는 경우는 '코스 0개'뿐이고, 그건 아래 emptyCard가 말한다.
 const FALLBACK_CAM = { latitude: 37.5069, longitude: 126.9954, zoom: 13.4 };
 
-// 예정 경로용 잉크 대시 — K7 러너 지도와 **같은 에셋**이다. 두 화면이 같은 뜻에 같은 획을 쓴다.
-const ROUTE_DASH = require('../../assets/route-dash.png');
+const PICKUP_HOUSE = require('../../assets/pickup-house.png');
 const ROUTE_ANCHOR = require('../../assets/route-anchor.png');
 
 // 칩 술어·개수·조명 자동켜짐은 `components/route-chips`가 소유한다 (K5와 **같은 정의** —
 // 복제돼 있던 시절 라벨이 이미 갈라졌었다: 여기는 '그늘', 요청 화면은 '그늘 많음').
 
-/** 트레이스 → 카메라가 담을 수 있는 중심. 실좌표라 평균이면 충분하다(코스 하나는 수백 m 규모). */
-function centerOf(r: RouteInfo | null): { latitude: number; longitude: number } | null {
-  if (!r) return null;
-  if (r.trace.length > 0) {
-    const la = r.trace.reduce((s, p) => s + p.lat, 0) / r.trace.length;
-    const ln = r.trace.reduce((s, p) => s + p.lng, 0) / r.trace.length;
-    return { latitude: la, longitude: ln };
-  }
-  return null; // 앵커 좌표는 RouteInfo에 없다 — 없는 값을 지어내지 않는다
+// 네이버 지도의 Region — south-west 모서리 + 위/경도 스팬. 네이티브 패키지에서 타입을
+// 가져오지 않고 여기 적는다: 라우트가 모듈 스코프에서 네이티브 전용 패키지를 건드리면
+// check-route-native-imports가 (정당하게) 거절한다.
+interface MapRegion { latitude: number; longitude: number; latitudeDelta: number; longitudeDelta: number }
+
+// 아주 짧은 코스에서 건물 단위까지 파고드는 것을 막는 하한 (~400m).
+const MIN_SPAN = 0.0035;
+// 가장자리 여백. 선이 화면 테두리에 닿으면 '잘렸다'로 읽힌다.
+const PAD = 1.35;
+
+/**
+ * 트레이스 전체를 담는 지도 영역.
+ *
+ * ⚠ 왜 `camera`(중심 + 고정 줌)를 버렸는가 — 시뮬레이터에서 측정한 고장이다. 줌 15가 박혀
+ * 있어서 3km 코스는 양옆이 잘리고 **7km 코스는 네 변을 모두 넘어갔다**: 보호자가 코스를
+ * 고르면 화면 밖으로 나가는 보라색 선만 보이고 코스의 모양을 볼 수 없었다. 길이가 2.78km에서
+ * 7km까지 흩어져 있는 카탈로그에서 고정 줌이 맞을 수 있는 코스는 없다.
+ *
+ * 사각형으로 맞추면 길이와 무관하게 전체가 들어온다. 담을 점이 하나도 없으면 **영역을
+ * 지어내지 않고** null을 준다 — 호출측이 폴백 카메라로 떨어진다.
+ */
+function regionOf(traces: GeoRoutePoint[][]): MapRegion | null {
+  const b = boundsOfTraces(traces);
+  if (!b) return null;
+  const cLat = (b.minLat + b.maxLat) / 2;
+  const cLng = (b.minLng + b.maxLng) / 2;
+  const dLat = Math.max((b.maxLat - b.minLat) * PAD, MIN_SPAN);
+  const dLng = Math.max((b.maxLng - b.minLng) * PAD, MIN_SPAN);
+  return { latitude: cLat - dLat / 2, longitude: cLng - dLng / 2, latitudeDelta: dLat, longitudeDelta: dLng };
 }
 
 export default function CourseMap() {
@@ -68,7 +89,21 @@ export default function CourseMap() {
   // 그건 필터가 아니라 우연이다.
   const { chips, toggle: toggleChip, clear: clearChips, litAuto } = useRouteChips();
   const [detent, setDetent] = useState<Detent>('peek');
+  // 픽업지(집) — 거리 정렬의 기준점이자 지도 위의 기준 마커. 실패는 조용히 넘긴다:
+  // 주소를 못 읽는 건 코스를 못 보여줄 이유가 아니고, 그때는 정렬이 예전 순서로 돌아갈 뿐이다.
+  const [pickup, setPickup] = useState<{ lat: number; lng: number } | null>(null);
+  useEffect(() => {
+    fetchAddresses()
+      .then((as) => {
+        const a = as.find((x) => x.isDefault && x.lat != null) ?? as.find((x) => x.lat != null);
+        if (a?.lat != null && a.lng != null) setPickup({ lat: a.lat, lng: a.lng });
+      })
+      .catch(() => {});
+  }, []);
   const [mapReady, setMapReady] = useState(false);
+  // 상단 크롬의 실측 높이 → mapPadding. 초기값은 칩 한 줄 기준의 종전 값이라, 첫 프레임에도
+  // 지도가 말이 되는 상태로 뜬다. (top 오프셋 54를 포함한 화면 상단부터의 높이)
+  const [chromeH, setChromeH] = useState(116);
 
   const h = useRef(new Animated.Value(PEEK)).current;
   const hFrom = useRef(PEEK);
@@ -93,11 +128,26 @@ export default function CourseMap() {
   }, []);
   useEffect(load, [load]);
 
-  const shown = useMemo(() => routes.filter((r) => matchesChips(r, chips)), [routes, chips]);
+  // 목록도 **픽업지에서 가까운 순**. 요청 화면 캐러셀과 같은 규칙을 쓴다 — 두 화면이 같은
+  // 카탈로그를 다른 순서로 보여주면 사용자는 어느 쪽을 믿어야 할지 알 수 없다.
+  const shown = useMemo(
+    () => orderByProximity(routes.filter((r) => matchesChips(r, chips)), pickup),
+    [routes, chips, pickup?.lat, pickup?.lng],
+  );
   const sel = useMemo(() => routes.find((r) => r.id === selId) ?? null, [routes, selId]);
 
   // ── 시트 ──────────────────────────────────────────────────────────────────
+  // 고른 코스가 있는가를 **ref로** 들고 있는 이유: 아래 `pan`은 useRef로 한 번만 만들어져서
+  // 첫 렌더의 `snap` 클로저를 영구히 붙잡는다. `snap`이 `sel`을 직접 읽으면 드래그는 세션
+  // 내내 "선택 없음"만 보게 된다 — 조용히 틀리는 종류의 고장이다.
+  const hasSel = useRef(false);
+  useEffect(() => { hasSel.current = !!sel; }, [sel]);
+
   const snap = useCallback((to: Detent) => {
+    // 고른 코스가 없을 때 detail은 **막다른 골목**이다: 88% 높이의 흰 판이 지도와 목록을
+    // 둘 다 덮은 채 "지도의 앵커를 탭하거나 목록에서 고르라"고 말한다 — 자기가 가린 것을
+    // 가리키는 안내다. 상세가 없는 대상의 상세는 없다. 목록에서 멈춘다.
+    if (to === 'detail' && !hasSel.current) to = 'list';
     setDetent(to);
     hFrom.current = HEIGHT[to];
     // 스프링 — 손가락이 언제든 가로챌 수 있어야 한다 (DESIGN.md §7c 상호작용 최고법).
@@ -139,8 +189,16 @@ export default function CourseMap() {
   };
 
   // ── 지도 ──────────────────────────────────────────────────────────────────
-  const cam = useMemo(() => centerOf(sel) ?? FALLBACK_CAM, [sel]);
   const withTrace = shown.filter((r) => r.trace.length > 1);
+
+  // 고른 코스가 있으면 그 코스에, 없으면 **보이는 코스 전부**에 맞춘다.
+  // 후자가 중요해진 이유: 카탈로그가 반포를 넘어 잠원·성수·압구정·이촌까지 늘었는데
+  // 폴백 카메라는 반포 고정이라, 반포 밖 코스는 목록에 있으면서 지도에는 한 번도 보이지
+  // 않았다 — 27개를 세어 놓고 8개만 보여주는 지도였다.
+  const region = useMemo(
+    () => (sel ? regionOf([sel.trace]) : regionOf(withTrace.map((r) => r.trace))),
+    [sel, withTrace.map((r) => r.id).join(',')],
+  );
 
   const mapNode = !maps ? (
     <View style={[StyleSheet.absoluteFill, s.center]}>
@@ -150,8 +208,13 @@ export default function CourseMap() {
   ) : (
     <maps.NaverMapView
       style={StyleSheet.absoluteFill}
-      camera={{ ...cam, zoom: sel?.trace.length ? 15 : FALLBACK_CAM.zoom }}
-      mapPadding={{ top: 116, bottom: PEEK, left: 0, right: 0 }}
+      // ⚠ `region`과 `camera`를 **함께** 주면 안 된다 — 패키지 문서: "region이 존재해도
+      // camera가 설정되면 동작하지 않습니다". 담을 지오메트리가 없을 때만 카메라로 떨어진다.
+      {...(region ? { region } : { camera: FALLBACK_CAM })}
+      // 상단 크롬은 칩이 몇 줄로 감기느냐에 따라 자란다(어두운 슬롯의 조명 자동켜짐 문구가
+      // 정확히 그 경우다). 높이를 **재서** 넣는다 — 116은 칩이 한 줄일 때만 맞는 숫자였고,
+      // 두 줄이 되는 순간 맞춘 코스의 윗부분이 고지 카드 밑으로 들어갔다.
+      mapPadding={{ top: chromeH, bottom: PEEK, left: 0, right: 0 }}
       isShowLocationButton={false}
       isShowCompass={false}
       isShowScaleBar
@@ -165,7 +228,7 @@ export default function CourseMap() {
         <maps.NaverMapPolylineOverlay
           key={`g-${r.id}`}
           coords={r.trace.map((p) => ({ latitude: p.lat, longitude: p.lng }))}
-          width={3}
+          width={2}
           color={paper.faint}
         />
       ))}
@@ -176,13 +239,10 @@ export default function CourseMap() {
       {sel && sel.trace.length > 1 && (
         <maps.NaverMapPathOverlay
           coords={sel.trace.map((p) => ({ latitude: p.lat, longitude: p.lng }))}
-          width={6}
-          color={traceKind(sel) === 'verified' ? paper.line : '#FFFFFF'}
-          outlineWidth={2}
-          outlineColor={traceKind(sel) === 'verified' ? '#FFFFFF' : paper.line}
-          {...(traceKind(sel) === 'planned'
-            ? { patternImage: ROUTE_DASH, patternInterval: 20 }
-            : null)}
+          width={3.5}
+          color={lilac.accent}
+          outlineWidth={1}
+          outlineColor="#FFFFFF"
         />
       )}
       {/* 앵커 — 트레이스가 없어도 여긴 진짜다. 캡션은 선택된 것에만(라벨 충돌 방지) */}
@@ -197,10 +257,19 @@ export default function CourseMap() {
           // 회전 사각형(다이아몬드) — 기본 네이버 핀은 '검색 결과'를 뜻해서 만남 장소로 읽히지
           // 않는다. K7 러너 지도와 **같은 에셋**이라 두 화면에서 앵커가 같은 모양이다.
           image={ROUTE_ANCHOR}
-          caption={r.id === selId ? { text: r.name } : undefined}
+          caption={r.id === selId ? { text: routeDisplayName(r.name) } : undefined}
           onTap={() => pick(r)}
         />
       ))}
+      {/* 픽업지 = 집. "가까운 순"이 말이 되려면 기준점이 지도에 보여야 한다 —
+          보이지 않는 기준으로 매긴 순위는 사용자가 검증할 수 없다. (Sean 2026-08-14) */}
+      {pickup && (
+        <maps.NaverMapMarkerOverlay
+          latitude={pickup.lat} longitude={pickup.lng}
+          anchor={{ x: 0.5, y: 0.5 }} width={30} height={30}
+          image={PICKUP_HOUSE} caption={{ text: '픽업' }} zIndex={4}
+        />
+      )}
     </maps.NaverMapView>
   );
 
@@ -212,7 +281,17 @@ export default function CourseMap() {
       {mapNode}
 
       {/* 상단 크롬 — 검색 자리(뒤로)와 필터 칩. 지도 위 떠 있는 층은 이 하나뿐 */}
-      <View style={s.top}>
+      {/* 상단 크롬 = 하나의 흐르는 컬럼(검색줄 → 칩 → 고지 카드). box-none 이라 컨테이너 자체는
+          터치를 통과시키고, 자식(칩·재시도 버튼)만 받는다 — 지도 제스처를 죽이지 않는다. */}
+      <View
+        style={s.top}
+        pointerEvents="box-none"
+        onLayout={(e) => {
+          const top = Platform.OS === 'ios' ? 54 : 16;
+          const next = Math.round(top + e.nativeEvent.layout.height + 8);
+          setChromeH((cur) => (Math.abs(cur - next) > 1 ? next : cur));   // 재렌더 루프 방지
+        }}
+      >
         <View style={s.search}>
           <Pressable onPress={() => router.back()} hitSlop={10} accessibilityRole="button" accessibilityLabel="뒤로" style={s.backBtn}>
             <Text style={{ fontSize: 19, fontWeight: '900', color: paper.ink }}>‹</Text>
@@ -225,49 +304,48 @@ export default function CourseMap() {
           routes={routes} chips={chips} litAuto={litAuto}
           onToggle={toggleChip} variant="floating" style={{ marginTop: 8 }}
         />
+        {/* 실측 코스가 하나도 없을 때 — 빈 판정이 아니라 사실과 다음 행동 */}
+        {/* 코스가 0개인 것과 '실측 전'인 것은 다른 사실이다. 예전엔 둘 다 같은 카드로 그려서
+            코스가 하나도 없을 때 "**0개** 코스의 만남 장소는 정해져 있고…"라고, 0개에 대해
+            무언가를 주장하는 문장이 나왔다. 개수를 본문에 끼워 넣으면 0이 들어올 수 있다. */}
+        {state === 'ready' && routes.length === 0 && (
+          <View style={s.infoWrap} pointerEvents="none">
+            <View style={s.infoCard}>
+              <Text style={s.infoTitle}>등록된 코스가 없어요</Text>
+              <Text style={s.infoBody}>아직 이 지역에 코스가 없어요. 코스 없이도 예약은 접수돼요.</Text>
+            </View>
+          </View>
+        )}
+        {/* 선이 하나도 없을 때 */}
+        {state === 'ready' && routes.length > 0 && withTrace.length === 0 && (
+          <View style={s.infoWrap} pointerEvents="none">
+            <View style={s.infoCard}>
+              <Text style={s.infoTitle}>아직 실측된 코스가 없어요</Text>
+              <Text style={s.infoBody}>
+                {routes.length}개 코스의 만남 장소는 정해져 있고, 첫 반려견 동반 러닝이 그 코스의 지도를 만듭니다.
+              </Text>
+            </View>
+          </View>
+        )}
+        {/* 선은 있는데 아직 아무도 달려보지 않았을 때 — 세 번째 상태다. 선이 그려졌다는 이유만으로
+            '실측'이라고 말하면 그게 곧 조작이 된다 (0082 source='algo' = 예정 경로). */}
+        {state === 'ready' && withTrace.length > 0 && withTrace.every((r) => traceKind(r) !== 'verified') && (
+          <View style={s.infoWrap} pointerEvents="none">
+            <View style={s.infoCard}>
+              <Text style={s.infoTitle}>예정 경로를 보고 있어요</Text>
+              <Text style={s.infoBody}>{TRACE_NOTE.planned}</Text>
+            </View>
+          </View>
+        )}
+        {state === 'error' && (
+          <View style={s.infoWrap}>
+            <View style={[s.infoCard, { borderColor: paper.critical }]}>
+              <Text style={[s.infoTitle, { color: paper.critical }]}>코스를 불러오지 못했어요</Text>
+              <Pressable onPress={load} style={s.retry} accessibilityRole="button"><Text style={s.retryTxt}>다시 시도</Text></Pressable>
+            </View>
+          </View>
+        )}
       </View>
-
-      {/* 실측 코스가 하나도 없을 때 — 빈 판정이 아니라 사실과 다음 행동 */}
-      {/* 코스가 0개인 것과 '실측 전'인 것은 다른 사실이다. 예전엔 둘 다 같은 카드로 그려서
-          코스가 하나도 없을 때 "**0개** 코스의 만남 장소는 정해져 있고…"라고, 0개에 대해
-          무언가를 주장하는 문장이 나왔다. 개수를 본문에 끼워 넣으면 0이 들어올 수 있다. */}
-      {state === 'ready' && routes.length === 0 && (
-        <View style={s.infoWrap} pointerEvents="none">
-          <View style={s.infoCard}>
-            <Text style={s.infoTitle}>등록된 코스가 없어요</Text>
-            <Text style={s.infoBody}>아직 이 지역에 코스가 없어요. 코스 없이도 예약은 접수돼요.</Text>
-          </View>
-        </View>
-      )}
-      {/* 선이 하나도 없을 때 */}
-      {state === 'ready' && routes.length > 0 && withTrace.length === 0 && (
-        <View style={s.infoWrap} pointerEvents="none">
-          <View style={s.infoCard}>
-            <Text style={s.infoTitle}>아직 실측된 코스가 없어요</Text>
-            <Text style={s.infoBody}>
-              {routes.length}개 코스의 만남 장소는 정해져 있고, 첫 반려견 동반 러닝이 그 코스의 지도를 만듭니다.
-            </Text>
-          </View>
-        </View>
-      )}
-      {/* 선은 있는데 아직 아무도 달려보지 않았을 때 — 세 번째 상태다. 선이 그려졌다는 이유만으로
-          '실측'이라고 말하면 그게 곧 조작이 된다 (0082 source='algo' = 예정 경로). */}
-      {state === 'ready' && withTrace.length > 0 && withTrace.every((r) => traceKind(r) !== 'verified') && (
-        <View style={s.infoWrap} pointerEvents="none">
-          <View style={s.infoCard}>
-            <Text style={s.infoTitle}>예정 경로를 보고 있어요</Text>
-            <Text style={s.infoBody}>{TRACE_NOTE.planned}</Text>
-          </View>
-        </View>
-      )}
-      {state === 'error' && (
-        <View style={s.infoWrap}>
-          <View style={[s.infoCard, { borderColor: paper.critical }]}>
-            <Text style={[s.infoTitle, { color: paper.critical }]}>코스를 불러오지 못했어요</Text>
-            <Pressable onPress={load} style={s.retry} accessibilityRole="button"><Text style={s.retryTxt}>다시 시도</Text></Pressable>
-          </View>
-        </View>
-      )}
 
       {/* ── 3단 시트 ── */}
       <Animated.View style={[s.sheet, { height: h }]}>
@@ -283,7 +361,9 @@ export default function CourseMap() {
             <Text style={[s.kick, isCand && { color: paper.pending }]} numberOfLines={1}>
               {sel ? (isCand ? `점검 예정 · ${sel.area}` : `${sel.area} · ${sel.terrain}`) : '코스 미정'}
             </Text>
-            <Text style={s.name} numberOfLines={1}>{sel?.name ?? '코스를 선택해주세요'}</Text>
+            {/* 이름 옆 칸이 km을 말한다 — 이름에 박힌 길이까지 그리면 같은 양의 숫자가 둘이 되고,
+                반올림 때문에 서로 다르다(`4.97km` 옆에 `5`). 요금의 권위는 km 컬럼이다(T-KM). */}
+            <Text style={s.name} numberOfLines={1}>{sel ? routeDisplayName(sel.name) : '코스를 선택해주세요'}</Text>
           </View>
           {sel && <Text style={s.km}>{sel.km}<Text style={s.kmUnit}>km</Text></Text>}
         </Pressable>
@@ -322,7 +402,7 @@ export default function CourseMap() {
                   style={[s.li, on && s.liOn]}>
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <Text style={s.liName} numberOfLines={1}>{r.name}</Text>
+                      <Text style={s.liName} numberOfLines={1}>{routeDisplayName(r.name)}</Text>
                       {r.status === 'candidate' && <Text style={s.candTag}>점검 예정</Text>}
                     </View>
                     <Text style={s.liSub} numberOfLines={1}>
@@ -390,7 +470,11 @@ const s = StyleSheet.create({
   backBtn: { width: 30, height: 30, alignItems: 'center', justifyContent: 'center' },
   searchTxt: { flex: 1, fontSize: 14, fontWeight: '700', color: paper.text },
 
-  infoWrap: { position: 'absolute', left: 14, right: 14, top: Platform.OS === 'ios' ? 170 : 132, zIndex: 5 },
+  // ⚠ 고정 top 금지. 예전엔 `top: 170`이었는데, 칩 행이 두 줄로 감기면(조명 자동켜짐 문구가
+  // 붙는 어두운 슬롯이 정확히 그 경우다) 위 크롬이 자라서 이 카드를 덮어썼다 — 시뮬레이터에서
+  // 실제로 제목이 가려졌다. 이제 상단 크롬 컬럼 **안에서 흐른다**: 칩이 몇 줄이든 카드는 항상
+  // 그 아래다. 매직 넘버를 키우는 건 다음 줄바꿈까지만 사는 수정이다.
+  infoWrap: { marginTop: 8 },
   infoCard: {
     backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EDEBE6', padding: 13,
     shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 14, shadowOffset: { width: 0, height: 3 }, elevation: 3,

@@ -17,6 +17,51 @@ fork point, which is stale the moment another session lands.
    explicitly — two polite simultaneous yields put both parties on the same next number,
    which happened on 0083.
 
+## Two security detectors, both earned by a miss (trust, 2026-08-14)
+
+**① Audit the tables with NO policies — not the policies.** `0088` and `0093` were both policies
+with no caller term, and every sweep that found them enumerated `pg_policies`. A table with RLS
+**off** contributes zero rows to that view, so it is invisible to exactly the query that catches
+its siblings — and in a listing it looks identical to the many tables here that are
+RLS-on-with-no-policies, which are fail-CLOSED and correct. `club_critical_titles` sat open from
+`0049` to `0095` for this reason: anon could `GET` (200) and `DELETE` (204) it over PostgREST with
+the shipped public key, which silently disables the 30-minute unacked→host alert escalation.
+
+    select c.relname, c.relrowsecurity from pg_class c join pg_namespace n on n.oid=c.relnamespace
+    where n.nspname='public' and c.relkind='r' and c.relrowsecurity = false;
+
+⚠ **CORRECTION 2026-08-14, same day, by the session that wrote detector ② — it has a
+false-negative class and the wrong version is kept below so nobody re-derives it.** The query I
+used was `qual NOT LIKE '%auth.uid()%'`. It misses `runners`, whose policy is
+`tier <> 'applicant' OR profile_id = auth.uid()` — a caller term in ONE ARM OF AN OR, which is
+not a caller *gate*: the first disjunct alone matches for anon, and 9 rows with 7 free-text
+`bio`s are readable without an account. **Presence of `auth.uid()` does not mean gated by
+`auth.uid()`.** A grep cannot tell a gate from a disjunct, so the enumerator must be
+privilege-based, not text-based:
+
+    -- what can anon ACTUALLY read? ask the engine, not the policy text
+    select c.relname, has_table_privilege('anon', c.oid, 'SELECT') as anon_select
+    from pg_class c join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = 'public' and c.relkind in ('r','v','m') and has_table_privilege('anon', c.oid, 'SELECT');
+
+then `set local role anon` and COUNT each one. Include `relkind in ('v','m')` — views were the
+other miss; `available_runners` and `marketplace_open_requests` are anon-readable definer views
+that no `pg_policies` query returns at all.
+
+**② A `using (true)` policy is neither a finding nor a pass — the GRANT decides.** `0093`
+deliberately LEFT `using (true)` in place and closed its hole with a revoke; `profiles` still
+carries a no-caller-term policy and is shut. So a sweep that greps `0002_rls.sql` for a missing
+`auth.uid()` flags two closed holes and misses an open one. **Read grants and policies together,
+then execute as the role** — `set local role anon`, and over HTTP where you can, because that is
+the path an attacker actually has. ⚠ And clear `request.jwt.claim.sub` before `set local role
+anon`, or `auth.uid()` keeps returning an earlier user and the probe lies (six false positives in
+suite 124).
+
+⚠ **An empty result is not a control.** `club_sessions` currently exposes 13 real meetup points
+and times to anon; the name-join returns 0 only because today's hosts happen not to appear in
+`available_runners`. Recording that as "0 rows, fine" is the same error as reading `[]` through an
+anon key as "the table is empty" when it means "hidden". See `docs/security-club-session-exposure.md`.
+
 ## The silent collision class — worse than numbering
 
 Numbering collisions are loud (you find out at merge). Several slices `create or replace`
@@ -46,8 +91,12 @@ touched it and name whose version you build on in your file header.
 | 0091 | `0091_profiles_write_grants.sql` | 127 | profiles WRITE column whitelist — the other half of 0088 (`claude/g1-ops-club-decisions`) | **BUILT 2026-08-13** — harness 515/0, 8 mutations verified. Was claimed as 0089; `claude/run-end-flow-1a67e0` pushed its 0089 FILE first, so this moved (whoever has no file moves). ⚠ **0088 CANNOT DEPLOY WITHOUT THIS** — 0088's grant omits `role`, and PostgREST's role-picker upsert reads `excluded.role`, so every signup 403s until this lands. |
 | 0092 | `0092_runner_work_gate.sql` | 128 | ⑫ runner work gate (`claude/run-end-flow-continuation-d9c485`) | **BUILT 2026-08-13** — harness 529/0, deno 185/0, 3 mutations verified. Sean: *"pay the runner but dont let them make new runs until the dog is confirmed by both sides."* ⚠ **RENAMED from `0092_incident_verify_work_gate` and DESCOPED to ⑫ alone.** The claim said ⑫'s exit IS ⑪'s machine; it is not — Sean said the **dog** is confirmed, which is 0083's two return stamps (shipped), not ⑪'s incident verification (unbuilt). ⑫ ships alone and ⑪ stays open. Also DERIVED, not a `runners` flag: a flag is a cache of a derivable and drifts, the shape 0089's review removed the same day. NEW objects only: `runner_work_gate`, `_runner_work_gate_blocking`, `bookings_runner_unreturned_idx`. Also edits `transition-booking/index.ts` (accept path, before the conflict guard). ⚠ **MY PROCESS MISS, kept because it is the useful part:** another session hit the pre-push hook on 0092 and recorded a row saying "taken by file, row was missing". They were right. I did claim before writing — but I pushed the claim to MY BRANCH, not to `origin/redesign-v4`, so trunk's copy of this table never showed it. Step 2 of the rule says *push that one-line commit to `origin/redesign-v4`*, and a claim that lands anywhere else is invisible to exactly the person it exists to warn. Their row is folded into this one rather than deleted. |
 | 0093 | `0093_availability_anon_revoke.sql` | 129 | runner_availability_rules anon revoke (`claude/g1-ops-club-decisions`) | **BUILT 2026-08-13** — post-deploy canary measured it live: anon reads 63 rows / 9 runners, and 6 of them join to name+동네 via `available_runners`. `0002:77` is `using (true)` — the same no-caller-term shape as 0088, two lines below it in the same file. ⚠ Closes the no-account case only; authenticated bulk read remains (§C, Sean's call). |
-| 0094 | `0094_incident_verification.sql` | 130 | ⑪ two-sided incident verification + the marketplace incident-open path (`claude/run-end-flow-continuation-d9c485`) | **CLAIMED 2026-08-13** — Sean: *"incident verified by both runner and owner."* ⚠ Bigger than two stamps: `incidents` has **NO WRITER anywhere** (0088's own comment says so), so `incident_contact()` returns 0 rows for every marketplace booking and 0083's 2h janitor reaches `incident_review` without creating an incident row. Also closes `0002:154`, whose INSERT policy checks only `reporter_id = auth.uid()` and not that the booking is the caller's — any authenticated user can open an incident on a stranger's booking and trip that booking's phone-number exchange. Force path ops-only, no party stamp (0089). |
-| 0095 | *(next free)* | 131 | — | available |
+| 0094 | `0094_incident_verification.sql` | 130 | ⑪ two-sided incident verification + the marketplace incident-open path (`claude/run-end-flow-continuation-d9c485`) | **BUILT 2026-08-13** — harness 539/0, deno 185/0, 4 mutations verified. Sean: *"incident verified by both runner and owner."* ⚠ Was bigger than two stamps: `incidents` had **NO WRITER anywhere**, so `incident_contact()` (0088 §E) returned 0 rows for every marketplace booking — the door Sean's phone ruling depends on was built, correct, and connected to nothing. Also DROPS `0002:154`'s `"incidents report"` INSERT policy, which checked only `reporter_id = auth.uid()` and not the booking — a remote privacy trigger the moment that door started working. 🔴 **The phone door opens on OPEN, not on verified** (an emergency cannot wait for the other party); mutation P3 proves the plausible 'hardening' reddens both V3 and 0088's own G7. NEW objects only: `open_incident_tx`, `verify_incident_tx`, `force_verify_incident_tx`; `incident_contact` UNTOUCHED. No money, no booking-status change (⑪ = is it real, ⑫ = what money does). |
+| 0095 | `0095_club_critical_titles_rls.sql` | 131 | 🔴 `club_critical_titles` has **RLS OFF** — anon can insert/delete/truncate the registry that drives critical-alert acks (`claude/deploy-edge-functions-money-68e990`, worktree deploy-edge-functions-money-68e990) | **BUILT + DEPLOYED + VERIFIED 2026-08-14** — applied to production and re-checked as anon after the deploy (`42501 permission denied`). Found by executing against production, not by reading policies: anon INSERT took the table 13→14 and anon DELETE took it 13→12, both rolled back. Open since `0049`. Deleting a title silently disables the 30-minute unacked→host escalation for that alert class, including `인시던트 발생`. |
+| 0096 | `0096_return_confirm_after_escalation.sql` | 132 | 🔴 ⑫ deadlock — a gated runner with no party-reachable exit (`claude/run-end-flow-continuation-d9c485`) | **BUILT 2026-08-14** — harness 544/0, deno 185/0, 3 mutations verified. Composition defect across three individually-correct migrations (`0092` gate · `0089` ops-only force · `0083` 2h escalation + `confirm_return_tx`'s `active`-only gate) that left a runner permanently unable to earn. Fix: a party may stamp the return from `incident_review` — a CUSTODY fact — but it does **NOT seal and does NOT settle**; money stays `active`-only and `incident_review` remains a money dead end for `settle_run_tx`/`_settle_sealed_run`/`force_return_tx`. EXTENDS `confirm_return_tx` ←0083 (only definition; 0084-0094 do not re-create it). NEW: `ops_gated_runners` (queryable detection, service_role). ⚠ 119 R16 arm ⓒ rewritten in the same slice — it asserted the `not_active` raise this removes. ⚠ **No pager built on purpose:** `ops_recipients` is 0 rows in production and `OPS_PROFILE_ID` is unset, so a pager today routes to nobody — ⑫'s memo says a signal whose remedy does not apply is worse than an unmonitored state. Recipient/ack/severity/response-time are Sean's. |
+| 0097 | `0097_unsettled_run_detection.sql` | 133 | the alarm `0096` removed — a runner unpaid for work already done (`claude/run-end-flow-continuation-d9c485`) | **BUILT 2026-08-14** — harness 555/0, deno 185/0, 2 mutations verified. Found by money reviewing `0096`: before it, an escalated booking left the runner gated AND unpaid (loud); after it, un-gated and still unpaid (quiet). `0096` fixed the acute half and removed the symptom that made the chronic half noticeable. ⚠ money's suggested shape — a column on `ops_gated_runners` — CANNOT work, and mutation R1 proves it: that function requires a MISSING stamp, so its row vanishes at the instant the quiet case begins. NEW object only: `ops_unsettled_runs()` (`stable`, service_role). Writes nothing. **The money exit (`0083 §0h`) is untouched and remains money's slice.** |
+| 0098 | `0098_route_elevation.sql` | 134 | `routes` has nowhere to store measured elevation gain (`claude/elevation-gain-migration-6e96a5`) | **CLAIMED 2026-08-14** — one nullable `integer`, no default, plus a `>= 0` check and the backfill for the 20 rows that have a measured value. 12 of the 32 rows stay NULL. **NULL means "not measured", NOT "flat"** — a `default 0` would silently assert every unmeasured route is level, the same class as the row that claimed `km` 2.0 and measured 1.6. Two of the 20 measured values are a genuine `0` (잠실엘스 외곽 3.06km, 잠원 한신2차 리버 2.78km), so 0-vs-NULL is a distinction the data actually makes. Adds NO function, NO view, NO policy, NO grant — `routes` carries no column grants and no view reads it, so the surface is genuinely additive. `elevation_loss_m` deliberately NOT added (§0c). |
+| 0099 | *(next free)* | 135 | — | available |
 
 ## Where a number comes from: THIS FILE, never a message
 
@@ -101,6 +150,15 @@ everyone to skip claiming, which is worse than no table. **`shared` means "tell 
 edit the same FUNCTION", not "stay out".** Two sessions in one file is usually fine; the same
 function is the problem.
 
+⚠ **A TREE NAME CAN GO STALE UNDER YOU — dated 2026-08-14, found by it happening.** The trust
+session's worktree was recycled mid-session from `deploy-edge-functions-money-68e990` to
+`lucid-neumann-580f5e`, same branch, same work. Both its claim rows on origin went on naming a
+directory that no longer exists — and a claim pointing at a dead tree is worse than no claim,
+because the next session reads it, goes looking, finds nothing, and cannot tell "finished and
+not released" from "abandoned" from "renamed". **The BRANCH is the durable identifier; the tree
+is a hint.** Write both, put the branch first, and when your tree changes, fix your rows in the
+same breath — nobody else can, because nobody else knows the two names are the same session.
+
 **And name the TREE the work actually lives in.** A claim that says who and what but not *where*
 lets one session hold the same uncommitted change in two working trees at once — which happened
 on 2026-08-13: a `0089` slice sat byte-identical and uncommitted in both its own worktree and the
@@ -137,12 +195,20 @@ field and was in fact a session's — the patch-id check settled it in seconds.)
 
 | Path(s) | Session (branch) | Tree | Mode | Started | Intent (one line) |
 |---|---|---|---|---|---|
-<<<<<<< HEAD
-| `docs/decisions/cancel-fee-runner-share.md` · `docs/decisions/awaiting-sean.md` | club-delegation (`claude/club-delegation-money-gaps-b59eb8`) | *(tree not named)* | exclusive | 2026-08-13 | Close ⑩'s reward question (Sean: tone, not currency); status → fully built. Docs only. ⚠ **Possibly superseded by the row below** — same session, overlapping paths. Kept rather than deleted: the house rule is never to auto-resolve a REGISTRY conflict by picking a winner, and only that session knows whether this one is finished. **Owner: delete this row if it is.** |
-| `docs/decisions/*.md` (status lines) · `docs/retro-2026-08-13.md` (new) · `docs/session-handoff.md` | club-delegation (`claude/club-delegation-money-gaps-b59eb8`, worktree club-delegation-money-gaps-b59eb8) | exclusive on the new retro file; **shared** on the memo status lines and handoff | 2026-08-13 | /retro + built→deployed sweep + release notes. Docs only; sub-agents are READ-ONLY, only this session writes. |
-=======
-| *(none in flight)* | | | | |
->>>>>>> origin/redesign-v4
+| `supabase/migrations/0098_route_elevation.sql` · `supabase/tests/134_route_elevation_suite.sql` | catalog (`claude/elevation-gain-migration-6e96a5`, worktree daengrun-redesign-v4-77ea99) | exclusive | 2026-08-14 | Add `routes.elevation_gain_m` + backfill the 20 GPX-measured rows. New files only; touches no existing object, no `app/`. ⚠ Does NOT touch `anchor_lat`/`anchor_lng` or their 0078 `소비 금지` comment — that contract flip is a separate, unclaimed slice. |
+| *(released — trust, 2026-08-14. `0095`+suite 131 are on trunk AND applied in production; re-verified as anon after deploy: `42501 permission denied for table club_critical_titles`. `awaiting-sean.md` §1 correction landed in `33e8a0f`.)* | | | | | |
+| *(released — deploy-edge-functions, 2026-08-13. Held the deploy surface `zjabnywjpvpgmtajygqy` exclusively; all five money functions are now deployed from trunk and the row is retired per "delete yours when you merge".)* | | | | | |
+
+⚠ **The claim table cannot hold a DEPLOY, and this is the one row that proved it.** The claim
+above was written against `supabase functions list` + `migration list`, both correct when read.
+Twenty minutes later another session had applied `0092` and `0094` to the same project while
+this session's gates were still running — a claim on origin, in the file, in the right format,
+and it changed nothing, because **the surface being claimed was not in the repo.** Every other
+row here names paths, and paths are the thing that collides; a project ref is not a path and no
+reader of this table was editing a file. Nothing was lost (their apply is what unblocked the
+`transition-booking` deploy), so this is recorded as a limit rather than an incident: **the
+in-flight table coordinates edits, not effects on production.** A deploy needs an interlock the
+repo does not have. Until one exists, say in the handoff who is deploying, not only here.
 
 Conventions: give **paths**, not a ticket name · one line of intent, so a reader can
 tell whether their change collides or merely neighbours · stale rows are worse than none, so

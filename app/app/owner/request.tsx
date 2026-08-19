@@ -10,6 +10,7 @@ import { HeatTrace } from '../../src/components/runcard';
 import { traceToBox } from '../../src/lib/trace';
 import { Avatar, Icon, Row, Skeleton } from '../../src/components/ui';
 import { emptyChipCopy, matchesChips, RouteChipRow, useRouteChips } from '../../src/components/route-chips';
+import { orderByProximity, PickResult, pickRoute } from '../../src/lib/route-pick';
 import { haptic } from '../../src/lib/haptics';
 import { AddonKey, draft, fmtWon, RouteInfo } from '../../src/store';
 import { colors, layout, paper, pricing } from '../../src/theme';
@@ -129,19 +130,30 @@ export default function Request() {
   // 배정되지 않는다 — 보호자가 의도적으로 고르는 경우에만, 그것도 확인 후에.
   // 칩은 자동 배정과 **합성된다**: 필터가 배제한 코스를 자동 배정이 골라 버리면, 보호자는
   // 자기가 끈 조건의 코스를 예약하게 된다. 그래서 최근접-km 탐색은 걸러진 집합 안에서만 돈다.
+  // 픽업지 좌표 — 거리 랭킹의 기준점. null이면(주소 미등록·좌표 없음) 랭킹은 km-only로 떨어진다.
+  const pickup = pickupAddr?.lat != null && pickupAddr?.lng != null
+    ? { lat: pickupAddr.lat, lng: pickupAddr.lng } : null;
+
   const activeRoutes = useMemo(
     () => routes.filter((r) => r.status === 'active' && matchesChipsFn(r)), [routes, matchesChipsFn]);
   // 캐러셀에 그릴 목록 — candidate도 보이지만(D-VIS) 칩은 동일하게 적용된다.
-  const shownRoutes = useMemo(() => routes.filter(matchesChipsFn), [routes, matchesChipsFn]);
-  const autoPickFor = (target: number): string | null => {
-    if (activeRoutes.length === 0) return null;
-    let best = activeRoutes[0];
-    activeRoutes.forEach((r) => { if (Math.abs(r.km - target) < Math.abs(best.km - target)) best = r; });
-    return best.id;
-  };
+  // **픽업지에서 가까운 순으로 정렬한다.** 자동 배정은 active만 보는데 지금 카탈로그는 전부
+  // candidate라(그리고 승격 전까지 계속 그렇다) 배정 경로만 고치면 랭킹이 한 번도 안 돈다.
+  // 순서는 D-VIS를 어기지 않는다: 고르는 건 여전히 보호자고, 우리는 맨 앞에 가까운 걸 둘 뿐이다.
+  const shownRoutes = useMemo(
+    () => orderByProximity(routes.filter(matchesChipsFn), pickup),
+    [routes, matchesChipsFn, pickup?.lat, pickup?.lng],
+  );
+  // 자동 배정 = 칩 → km 밴드 → **픽업지에서 가까운 순** (Sean 2026-08-14). 점수 규칙 자체는
+  // `lib/route-pick`이 소유한다 — 화면에 묻어 두면 읽을 수도 고칠 수도 없다.
+  // ⚠ 넘기는 집합은 반드시 `activeRoutes`(status 게이트 + 칩 적용) — 원본 목록을 넘기면
+  // 사용자가 끈 조건의 코스나 candidate가 배정된다.
+  const autoPick = (target: number): PickResult => pickRoute(activeRoutes, target, pickup);
+  const autoPickFor = (target: number): string | null => autoPick(target).id;
   // 이 거리에서 앱이 골랐을 코스 — 스냅샷의 recommended_route_id. 보호자가 무엇을 덮어썼는지
   // 서버가 알 수 있어야 오버라이드율이 계산된다.
-  const recommendedRouteId = useMemo(() => autoPickFor(km), [activeRoutes, km]);
+  const recommended = useMemo(() => autoPick(km), [activeRoutes, km, pickup?.lat, pickup?.lng]);
+  const recommendedRouteId = recommended.id;
 
   const pickRouteForKm = (target: number) => {
     if (!routesLive) return;
@@ -714,6 +726,10 @@ export default function Request() {
                     {/* 지리 고지 — 코스와 픽업지는 별개라는 걸 예약 전에 정직하게 (좌표 모델링 전 v1) */}
                     <Text style={{ fontSize: 14, color: paper.dim, marginTop: 10, marginBottom: 10 }}>
                       픽업 후 코스까지는 러너가 아이와 함께 이동해요
+                      {/* 정렬 근거를 말한다 — 그리고 **직선거리**라고 말한다. 하버사인은 이동
+                          거리가 아니라 두 점 사이 직선이라, 강·울타리·고가로 막힌 300m가
+                          돌아가면 1.5km일 수 있다. '가장 빠른'이라고 하면 그건 거짓말이다. */}
+                      {pickup ? '\n픽업지에서 가까운 순으로 보여드려요 (직선거리 기준)' : ''}
                     </Text>
                     {shownRoutes.length === 0 && (
                       // 막다른 길을 만들지 않는다: 어떤 조건이 0으로 만들었는지 이름을 대고,
