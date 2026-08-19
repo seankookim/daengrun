@@ -92,5 +92,10 @@ create table if not exists realtime.messages (
   binary_payload bytea
 );
 alter table realtime.messages enable row level security;
+-- Grants MEASURED from production: anon AND authenticated both hold INSERT/SELECT/UPDATE, so RLS
+-- is the only gate there. The shim must match, or a boundary test denies by PRIVILEGE and reads
+-- as if the policy worked — which is exactly the false pass this shim exists to prevent.
+grant usage on schema realtime to anon, authenticated;   -- schema USAGE, measured from production
+grant select, insert, update on realtime.messages to anon, authenticated;
 create or replace function realtime.topic() returns text
 language sql stable as $$ select current_setting('realtime.topic', true) $$;
