@@ -187,5 +187,15 @@ two false "stranded work" alarms on day one.
   up 104 behind holding 0098's row and no `0098_*.sql`; the pre-push hook refused it (correctly).
   After any worktree cut: `git rev-list --left-right --count origin/redesign-v4...HEAD`, then
   merge trunk — never `--no-verify` past that refusal.
+- **Every instrument that can only observe failure will report success when the system is
+  dead.** Three costumes in one day: a negative-only regression test (stranger receives nothing —
+  also true when the map is broken), a `private:true`-only test post-0103 (green while public
+  joins still worked), and a stranger-only flip gate (all-CHANNEL_ERROR is also what a dead
+  transport looks like). Every security gate is BOTH instruments in ONE run: the stranger refused
+  AND the real party still served — before the change on a real device, and again after it on
+  production. (Named by legal, three times, correctly each time.)
+- **A setting omitted from a GET is not a setting that does not exist.** `private_only` is absent
+  from `GET /config/realtime` when unset and present in the PATCH schema. Read the API spec's
+  update body, not only the response — the Vault lesson through a different door.
 - **Trust review is standing:** any slice touching RLS, policies, grants, or `search_path` goes
   to trust at PLAN time, not push time. And a reviewer never reviews their own build.

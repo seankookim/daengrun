@@ -5,7 +5,7 @@ import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Avatar, Row } from '../../src/components/ui';
 import { ensureThread, fetchBookingStatus, fetchCurrentOwnerBookingId, fetchMeetupInfo, fetchRunMeta, MeetupInfo, notifyRunStop, sendChatMessage, subscribeBooking } from '../../src/lib/api';
 import { useNumFont } from '../../src/lib/fonts';
-import { getNaverMap, LivePos, smoothTrace, subscribePos } from '../../src/lib/geo';
+import { getNaverMap, LiveLinkState, LivePos, smoothTrace, subscribePos } from '../../src/lib/geo';
 import { endOwnerActivity, OwnerLAProps, startOwnerActivity, updateOwnerActivity } from '../../src/lib/ownerActivity';
 import { clampSuggest, PACE_WINDOW_MS, PaceState, paceState, windowPaceSec } from '../../src/lib/pace';
 import { draft } from '../../src/store';
@@ -81,6 +81,10 @@ export default function Live() {
   // 러너가 백그라운드로 계속 기록하는 지금, '갱신 없음'은 '러닝 종료'가 아니라 신호 문제일 수 있다.
   const lastFixAt = useRef<number | null>(null);
   const [staleSec, setStaleSec] = useState(0);
+  // 위치 채널의 상태. '아직 안 옴'과 '받을 수 없음'은 지도에서 똑같이 생겼으므로
+  // (둘 다 빈 지도다) 화면이 구별해서 말해야 한다 — 그러지 않으면 거절이 정지한
+  // 개처럼 읽힌다. (P0-1)
+  const [link, setLink] = useState<LiveLinkState>('connecting');
   const maps = getNaverMap(); // 네이버 지도 (2026-07-29) — 미탑재 빌드는 대기 화면 폴백
 
   // ---------- pace-state (pace-state-ui-plan §1) ----------
@@ -137,7 +141,7 @@ export default function Live() {
       if (pacePairs.current.length > 120) {
         pacePairs.current = pacePairs.current.filter((q) => q.t >= now - PACE_WINDOW_MS * 2);
       }
-    });
+    }, setLink);
     const done = async () => {
       try {
         const st = await fetchBookingStatus(bid);
@@ -363,10 +367,32 @@ export default function Live() {
         </maps.NaverMapView>
       ) : (
         <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 }]}>
-          <Text style={s.waitTitle}>러너 위치 수신 대기 중...</Text>
-          <Text style={s.waitBody}>
-            러너가 달리기 시작하면 실시간 경로가 그려져요{'\n'}{!maps ? '(실지도는 새 개발 빌드에서)' : ''}
-          </Text>
+          {/* 빈 지도는 세 가지 서로 다른 사실을 똑같이 그린다: 아직 안 왔다 / 받을 권한이 없다 /
+              연결에 실패했다. 앞의 것만 말하면 나머지 둘은 '가만히 있는 개'로 읽힌다. */}
+          {link === 'denied' ? (
+            <>
+              <Text style={s.waitTitle}>위치 공유 권한이 없어요</Text>
+              <Text style={s.waitBody}>
+                이 러닝의 실시간 위치는 예약한 보호자와 배정된 러너만 볼 수 있어요.{'\n'}
+                러닝이 끝났거나 러너가 변경되면 연결이 끊겨요.
+              </Text>
+            </>
+          ) : link === 'error' ? (
+            <>
+              <Text style={s.waitTitle}>실시간 위치에 연결하지 못했어요</Text>
+              <Text style={s.waitBody}>
+                네트워크를 확인해주세요 — 러닝과 기록은 그대로 진행돼요.{'\n'}
+                화면을 나갔다 들어오면 다시 연결을 시도해요.
+              </Text>
+            </>
+          ) : (
+            <>
+              <Text style={s.waitTitle}>러너 위치 수신 대기 중...</Text>
+              <Text style={s.waitBody}>
+                러너가 달리기 시작하면 실시간 경로가 그려져요{'\n'}{!maps ? '(실지도는 새 개발 빌드에서)' : ''}
+              </Text>
+            </>
+          )}
         </View>
       )}
 

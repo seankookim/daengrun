@@ -195,6 +195,20 @@ in the background for weeks) or commit to manual and delete the charge machine.*
 Consequence either way: the no-card empty state **is** the pilot, and the current payment surface
 implies automation that does not exist — an honesty-law item, now client's to fix once you pick.
 
+## 0-septies-bis. ✅ RETRACTED BY SEAN — no per-migration approval; full speed governs (2026-08-19)
+
+**Sean, 2026-08-19, verbatim:** *"i never said 'work locally first, do not push migrations
+without my explicit approval.' dont ask me for permission. im gone for break. full speed on
+the app."* **[end of Sean's words]**
+
+The earlier "work locally / no db push / no dashboard without approval" line the announcer
+relayed as a constraint is **withdrawn by him and must not be cited.** Standing rule for every
+session: **gates, not permission.** Harness green + /autoplan on migrations + trust plan-time
+review + commit gates → deploy. Land on trunk BEFORE deploying (0098/0099 lesson). Trust's
+0103 deploy was correct under this rule. Dashboard toggles remain his by nature (his account),
+not by permission — they are in `docs/security-dashboard-checklist-2026-08-19.md` for whenever
+he is back.
+
 ## 0-octies. 🔴 TWO DASHBOARD TOGGLES, ONE VISIT — the only door into the app is wider than it should be
 
 **Written by trust, 2026-08-15, crossing a lane on purpose and saying so.** This file is the
@@ -297,9 +311,17 @@ flagged-test-owner policy, and then it gets written into the PR-0 doc.
 Full JSON at `.gstack/security-reports/2026-08-19-cso.json` (local). Owners already messaged;
 recorded here so nothing lives only in chat.
 
-- **CRIT — runner live GPS is a public broadcast channel** (`geo.ts:341`, no `private`, zero
-  `realtime.messages` policies; legal measured two anon clients read AND write). → **trust + ui.**
-  Ordering: `docs/legal/privacy-policy.md:81` cannot publish until private.
+- **CRIT — runner live GPS is a public broadcast channel.** STATUS 2026-08-19 evening, honest
+  line: **server half correct and live (0103/0104), client half shipped (`f106b2b`, all run
+  channels private + setAuth, 16/16 with mutation check) — but the channel is STILL publicly
+  joinable by any client that asks for `private:false`, on any topic name; measured post-0103 by
+  legal.** New-binary owner↔runner traffic is isolated from public subscribers (measured: public
+  subscriber receives nothing). Old binaries still publish publicly (forced-upgrade leak).
+  **Closure = project setting `private_only=true`** (management API `UpdateRealtimeConfigBody`;
+  omitted from GET when unset, which is why an earlier read missed it), sequenced AFTER
+  chat/bk/club-chat get realtime policies + private client joins, or those die. → **trust
+  (policies + flip) · ui (client) · TestFlight = Sean's 2FA (physical, cannot be delegated).**
+  Ordering: `docs/legal/privacy-policy.md:81` cannot publish until the flip lands.
 - **HIGH — `bookings owner insert` forges party status** (any dog, any runner) → push text to
   any runner, fake public review, chat, dog read. Executed, rolled back. → **trust.**
 - **HIGH — `drops` UPDATE unguarded; open-drop pays from it.** Executed on a staged row. → **trust.**

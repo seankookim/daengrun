@@ -328,6 +328,55 @@ export interface LivePos { lat: number; lng: number; km: number; paceSec: number
 // nothing from sub-3-second updates; the runner's battery and the Realtime quota lose.
 const PUB_MIN_MS = 3000;
 
+// ═══ 실시간 위치 채널은 PRIVATE 이다 (P0-1, 0103) ═══
+// 예전엔 `supabase.channel(`run-${bookingId}`)` — **공개 브로드캐스트**였다. 부킹 id만 알면
+// 아무나 구독해서 산책 중인 개의 실시간 위치를 따라볼 수 있었고, 같은 채널로 **가짜 좌표를
+// 보호자 지도에 밀어 넣을** 수도 있었다(legal 실측: 로그인조차 하지 않은 두 익명 클라이언트가
+// 서로 주고받는 데 성공). 토픽 이름은 비밀이 아니고 비밀로 취급해서도 안 된다 — 권한은
+// 서버(realtime.messages RLS, trust 소유)가 판정하고, 클라이언트는 **private으로 요청**한다.
+//
+// ⚠ private 채널은 PostgREST 토큰이 아니라 **realtime 소켓의 토큰**으로 인가된다. setAuth를
+// 빼먹으면 구독도 발행도 조용히 실패하고, 화면에는 '아직 안 옴'과 구별되지 않는다.
+const REALTIME_PRIVATE = { config: { private: true } } as const;
+
+// 토픽 네임스페이스는 **서버 정책과 글자 단위로 맞아야 한다** (0104: `^run2-`). 한 곳에만 둔다 —
+// 세 호출부에 문자열이 흩어져 있으면 다음 범프 때 하나가 남고, 그 증상은 '조용히 빈 지도'다.
+//
+// ⚠ 왜 `run2-`인가 (이유가 한 번 바뀌었다): 0104의 원래 근거는 "구버전(public 채널) 바이너리가
+// 0103을 우회할지도 모른다"였다. 그 질문은 이후 실측으로 **답이 났다 — 우회는 없다**(public
+// 구독자는 private 발행을 받지 못한다). 그래서 원래 근거는 사라졌고, 남은 근거는 더 약하지만
+// 여전히 참이다: 격리가 **우리가 통제하지 않는 realtime 동작**(한 버전에서 한 번 측정한 것)에
+// 기대는 대신 **다른 토픽이라는 구조**에 기대게 된다. 그 동작이 언젠가 회귀해도 `run-`에 있는
+// 구버전은 `run2-` 트래픽에 닿지 못한다.
+const RUN_TOPIC = (bookingId: string) => `run2-${bookingId}`;
+
+/** 구독/발행 직전에 realtime 소켓을 현재 세션으로 무장시킨다. 인자 없는 setAuth()는
+ *  supabase-js가 현재 세션 토큰을 집어 쓴다(2.109). 실패는 삼키지 않고 subscribe 상태로 드러난다. */
+async function armRealtime(): Promise<void> {
+  try { await supabase.realtime.setAuth(); } catch { /* subscribe 상태가 실패를 말한다 */ }
+}
+
+// JWT는 1시간이면 만료된다. 한 시간 넘는 러닝은 실제로 존재하므로, 갱신 때마다 소켓을 다시
+// 무장시키지 않으면 **달리는 도중에** 위치 공유가 끊긴다 — 그리고 그건 '신호 없음'처럼 보인다.
+let authHooked = false;
+function hookTokenRefresh(): void {
+  if (authHooked) return;
+  authHooked = true;
+  supabase.auth.onAuthStateChange((event) => {
+    if (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN') void supabase.realtime.setAuth();
+  });
+}
+
+/** 보호자 라이브 지도가 말해야 하는 링크 상태. 'denied'는 서버가 명시적으로 거절했을 때만 —
+ *  네트워크 문제를 '권한 없음'이라고 부르는 것도 지어낸 주장이다. */
+export type LiveLinkState = 'connecting' | 'live' | 'denied' | 'error';
+
+function deniedLike(err: unknown): boolean {
+  const m = String((err as Error)?.message ?? err ?? '').toLowerCase();
+  return m.includes('unauthorized') || m.includes('forbidden') || m.includes('policy')
+    || m.includes('permission') || m.includes('not authorized');
+}
+
 let pubCh: ReturnType<typeof supabase.channel> | null = null;
 let pubId: string | null = null;
 let pubJoined = false;
@@ -338,9 +387,16 @@ export function publishPos(bookingId: string, pos: LivePos): void {
     if (pubCh) supabase.removeChannel(pubCh);
     pubJoined = false;
     pubLastAt = 0;
-    pubCh = supabase.channel(`run-${bookingId}`);
+    pubCh = supabase.channel(RUN_TOPIC(bookingId), REALTIME_PRIVATE);
     pubId = bookingId;
-    pubCh.subscribe((status) => { pubJoined = status === 'SUBSCRIBED'; });
+    hookTokenRefresh();
+    // 무장 → 구독 순서를 지킨다. 그 사이 픽스는 아래 `!pubJoined` 가드가 흘려보내고,
+    // 2초 뒤 다음 픽스가 어차피 온다. **공개 채널로 떨어지는 폴백은 없다.**
+    const ch = pubCh;
+    void armRealtime().then(() => {
+      if (pubCh !== ch) return;   // 그 사이 부킹이 바뀌었다
+      ch.subscribe((status) => { pubJoined = status === 'SUBSCRIBED'; });
+    });
   }
   // 채널 조인 전 전송은 스킵 (REST 폴백 경고 방지 — 2초마다 다음 픽스가 어차피 온다)
   if (!pubJoined) return;
@@ -358,21 +414,40 @@ export function stopPublishing(): void {
 }
 
 // 러너 위치 구독 — 해제 함수 반환
-export function subscribePos(bookingId: string, onPos: (p: LivePos) => void): () => void {
+export function subscribePos(
+  bookingId: string,
+  onPos: (p: LivePos) => void,
+  onState?: (s: LiveLinkState) => void,
+): () => void {
   const ch = supabase
-    .channel(`run-${bookingId}`)
-    .on('broadcast', { event: 'pos' }, ({ payload }) => onPos(payload as LivePos))
-    .subscribe();
-  return () => { supabase.removeChannel(ch); };
+    .channel(RUN_TOPIC(bookingId), REALTIME_PRIVATE)
+    .on('broadcast', { event: 'pos' }, ({ payload }) => onPos(payload as LivePos));
+  let dropped = false;
+  hookTokenRefresh();
+  onState?.('connecting');
+  void armRealtime().then(() => {
+    if (dropped) return;
+    ch.subscribe((status, err) => {
+      if (status === 'SUBSCRIBED') onState?.('live');
+      // 거절과 장애를 합치지 않는다: 화면이 둘에 대해 다른 말을 해야 하기 때문이다.
+      else if (status === 'CHANNEL_ERROR') onState?.(deniedLike(err) ? 'denied' : 'error');
+      else if (status === 'TIMED_OUT') onState?.('error');
+    });
+  });
+  return () => { dropped = true; supabase.removeChannel(ch); };
 }
 
 // ---------- 클럽 러닝 멀티 브로드캐스트 (2026-08-02) ----------
 // 클럽 위탁 러닝은 개 여러 마리 = 부킹 여러 개 = 보호자 라이브 채널 여러 개.
 // 싱글톤 publishPos(1:1 전용)를 건드리지 않고, 수명은 호출측(클럽 런 화면)이 관리한다.
 export function createPosPublisher(bookingIds: string[]): { publish: (pos: LivePos) => void; stop: () => void } {
+  hookTokenRefresh();
   const chs = bookingIds.map((id) => {
-    const c = { joined: false, ch: supabase.channel(`run-${id}`) };
-    c.ch.subscribe((status: string) => { c.joined = status === 'SUBSCRIBED'; });
+    // 같은 결함의 세 번째 자리 — 클럽 러닝은 러너 하나가 보호자 채널 N개로 방송한다.
+    const c = { joined: false, ch: supabase.channel(RUN_TOPIC(id), REALTIME_PRIVATE) };
+    void armRealtime().then(() => {
+      c.ch.subscribe((status: string) => { c.joined = status === 'SUBSCRIBED'; });
+    });
     return c;
   });
   let lastAt = 0;
