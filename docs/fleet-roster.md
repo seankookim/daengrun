@@ -197,5 +197,12 @@ two false "stranded work" alarms on day one.
 - **A setting omitted from a GET is not a setting that does not exist.** `private_only` is absent
   from `GET /config/realtime` when unset and present in the PATCH schema. Read the API spec's
   update body, not only the response — the Vault lesson through a different door.
+- **`send() === 'ok'` means the socket accepted the frame, not that RLS authorized the write.**
+  Assert write-denial as NON-DELIVERY to an authorized listener, never from `send()`'s return.
+  Test smell that found it: a result that changes when you reorder the file is not measuring
+  what it claims. (ui, on their own owner-publish arm — trust's policy was right all along.)
+- **"Withdrawn" must say WHICH: the argument or the change.** The run2- topic bump's rationale
+  (a control against public joins) was withdrawn; the shipped change was live and load-bearing.
+  Saying "withdrawn" alone nearly caused a revert that would have broken production twice.
 - **Trust review is standing:** any slice touching RLS, policies, grants, or `search_path` goes
   to trust at PLAN time, not push time. And a reviewer never reviews their own build.

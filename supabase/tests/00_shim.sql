@@ -15,6 +15,10 @@ create or replace function auth.uid() returns uuid
 language sql stable as $$
   select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
 $$;
+-- Schema USAGE, measured from production: authenticated can call auth.uid().
+-- Without it a guard that calls auth.uid() raises 42501, and any test whose handler
+-- catches `others` reads that infrastructure failure as a security refusal.
+grant usage on schema auth to anon, authenticated;
 create or replace function auth.role() returns text
 language sql stable as $$
   select coalesce(nullif(current_setting('request.jwt.claim.role', true), ''), 'anon')
