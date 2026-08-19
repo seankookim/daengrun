@@ -171,6 +171,7 @@ suite 130_incident_verification_suite.sql   # 0094 ⑪ 인시던트 양측 확�
 suite 131_club_critical_titles_suite.sql   # 0095: club_critical_titles RLS (registry with no policy to read — anon GET 200/DELETE 204 measured live; ack fanout must survive; FORCE would silence the trigger — C1~C6)
 suite 132_gated_runner_exit_suite.sql   # 0096 승격 뒤 인계 확인 (0083+0089+0092가 합성한 교착 — 러너가 영구히 못 버는 상태. 커스터디 스탬프만 통과·돈의 막다른 길 보존·합성 핀·탐지 — E1~E5)
 suite 133_unsettled_run_detection_suite.sql   # 0097 미지급 러닝 탐지 (0096이 없앤 경보 — 게이트가 풀리는 순간 조용해지는 미지급. 게이트 컬럼이 될 수 없는 이유·지급 두 경로·클럽 제외·사유가 remedy를 가른다 — U1~U5)
+suite 134_route_elevation_suite.sql   # 0098 route elevation (elevation is a property of a GEOMETRY, not of a name — 0078 seeds a trace-less row with the same name as a measured one; NULL = no measurement for the current line, never flat; the value is cleared when trace changes — E1~E6)
 psql -c "select case when ok then '✅' else '❌' end || ' [' || suite || '] ' || name || case when ok then '' else ' — ' || detail end from _t order by at"
 psql -qt -c "select count(*) filter (where ok) || ' pass / ' || count(*) filter (where not ok) || ' fail' from _t"
 psql -qt -c "select case when count(*) filter (where not ok) > 0 then 'FAIL' else 'OK' end from _t" | grep -q OK
