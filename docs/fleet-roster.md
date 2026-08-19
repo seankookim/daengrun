@@ -145,6 +145,14 @@ two false "stranded work" alarms on day one.
   timestamp bump proves it).
 - **A green suite hides a defect only when a pin and a false environment assumption are wrong
   together** — pin the assumption too (harness routes table was asserted empty; 0078 seeds nine).
+- **A cherry-pick is a partial merge that looks like a complete one.** REGISTRY rows
+  cherry-picked to trunk while the migration files stayed on a branch left every ledger agreeing
+  with production and the source one branch away — trunk could not rebuild production for a day
+  and nothing complained. Land migrations by MERGE; never cherry-pick the row without the file.
+- **A table CHECK's blast radius is every writer of the table — and a predicate that can RAISE
+  turns validation into an outage.** A broken extractor regex surfaced as failures in an unrelated
+  suite (`70_axes`), because the cast raised instead of returning false. Pair with the line below:
+  presence is not enforcement, and correctness is not local.
 - **A constraint's presence is not evidence of enforcement — attempt the write.** A disarmed
   predicate (body swapped for `select true`) leaves `\d`, `pg_constraint` and `convalidated` all
   reading protected while the table enforces nothing. Pins must try to store a bad value and watch;
