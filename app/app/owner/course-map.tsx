@@ -16,10 +16,10 @@
 // 부유 목록을 따로 띄우지 않는다. 검색·칩·레일·시트 네 층이 지도를 조이면 '낮은 정보 밀도'라는
 // 요구와 정면으로 충돌한다. 시트가 peek→list→detail 세 일을 순서대로 맡는다 (지도 앱 3사 공통
 // 문법이라 학습 비용 0 — Jakob).
-import { router, useLocalSearchParams } from 'expo-router';
+import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Animated, Dimensions, Image, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, View,
+  Animated, Dimensions, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, View,
 } from 'react-native';
 import { fetchAddresses, fetchMyProfile, fetchRoutes } from '../../src/lib/api';
 import { CourseDetailBody, traceKind, TRACE_NOTE } from '../../src/components/course-detail';
@@ -57,28 +57,23 @@ const ROUTE_ANCHOR = require('../../assets/route-anchor.png');
 // check-route-native-imports가 (정당하게) 거절한다.
 interface MapRegion { latitude: number; longitude: number; latitudeDelta: number; longitudeDelta: number }
 
-// ── Anchor size — dev-only comparison knob (2026-08-19) ──────────────────────
-// Sean asked to SEE 18 pt anchors against the 44 pt HIG floor before ruling on it
-// (screen-functionality-spec.md ~line 104; the "44 pt floor" was an announcer's
-// inference, NOT a ruling). This knob exists only so the two can be photographed
-// side by side. It is a deep link, deliberately with no UI control, and the
-// default path renders exactly what shipped. Delete it once he picks.
-//
-//   daengrun://owner/course-map             → 18 pt glyph, 18 pt tap target (today)
-//   daengrun://owner/course-map?anchor=44   → 44 pt glyph, 44 pt tap target
-//   daengrun://owner/course-map?anchor=44h  → 18 pt glyph, 44 pt tap target (hit area only)
-//
-// ⚠ A Naver marker's tap area IS its icon box — the native SDK exposes no hitSlop
-// and RN's hitSlop does not reach a native overlay. So the hit-area-only variant
-// has to hand the marker a 44×44 transparent React view with the 18 pt glyph
-// centred inside it; that is the only way to grow the target without growing the
-// glyph. (That marker type is the package's "Custom React View" path — heavier
-// than an image marker, which is another reason this is a comparison knob and not
-// a shipping default.)
-type AnchorVariant = 'default' | '44' | '44h';
-const ANCHOR_BASE = 18;      // today's unselected anchor edge, in pt
-const ANCHOR_SEL_BUMP = 8;   // selected anchor is 8 pt larger (26 pt today)
+// ── Anchor size — scales with the camera zoom (decided 2026-08-19, overnight grant) ──
+// Sean asked to SEE 18 pt anchors against the 44 pt HIG floor before ruling
+// (docs/labs/anchor-tap-target-lab.html holds the frames). Measured on the simulator:
+// at the Banpo cluster (500 m scale) 44 pt glyphs overlap each other; 18 pt stays
+// readable but is 17 % of the HIG target area. The "18 pt glyph with an invisible
+// 44 pt hit box" option does NOT exist on this SDK — a Naver marker's tap area IS its
+// icon box (no hitSlop), and the only workaround (custom-React-View marker) dropped most
+// markers on iOS when photographed. So the anchor scales with zoom instead: small where
+// anchors are dense, the full 44 pt floor where they have room. Selected keeps +8.
+// Sean flips this with a word; record lives in RULINGS-2026-08-19-journey.md.
+const ANCHOR_SEL_BUMP = 8;   // selected anchor is 8 pt larger
 const ANCHOR_FLOOR = 44;     // the HIG/Fitts target floor (DESIGN.md §"Fitts / HIG")
+function anchorSizeForZoom(zoom: number): number {
+  if (zoom >= 16) return ANCHOR_FLOOR; // street level — anchors are metres apart on screen
+  if (zoom >= 14) return 30;           // neighbourhood — the Banpo cluster at 500 m scale
+  return 18;                           // city / fit-all — dozens of anchors, keep them glyphs
+}
 
 // 아주 짧은 코스에서 건물 단위까지 파고드는 것을 막는 하한 (~400m).
 const MIN_SPAN = 0.0035;
@@ -108,15 +103,10 @@ function regionOf(traces: GeoRoutePoint[][]): MapRegion | null {
 
 export default function CourseMap() {
   const maps = getNaverMap();
-  // Dev-only deep-link knob (see ANCHOR_* above). Anything other than the two known
-  // values falls through to today's behaviour — a typo must not change the screen.
-  const { anchor: anchorParam } = useLocalSearchParams<{ anchor?: string }>();
-  const anchorVariant: AnchorVariant =
-    anchorParam === '44' ? '44' : anchorParam === '44h' ? '44h' : 'default';
-  // Box = the marker's own width/height = the native tap area. Glyph = what is drawn.
-  // They differ only in '44h', which is the whole point of that variant.
-  const anchorBox = anchorVariant === 'default' ? ANCHOR_BASE : ANCHOR_FLOOR;
-  const anchorGlyph = anchorVariant === '44' ? ANCHOR_FLOOR : ANCHOR_BASE;
+  // Anchor size follows the camera (see anchorSizeForZoom). The initial zoom is whatever the
+  // region fit resolves to; until the first onCameraIdle we assume a city-level fit (18 pt).
+  const [camZoom, setCamZoom] = useState<number>(FALLBACK_CAM.zoom);
+  const anchorBox = anchorSizeForZoom(camZoom);
   const [routes, setRoutes] = useState<RouteInfo[]>([]);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [selId, setSelId] = useState<string | null>(draft.routeId || null);
@@ -264,6 +254,9 @@ export default function CourseMap() {
       isTiltGesturesEnabled={false}
       isRotateGesturesEnabled={false}
       onInitialized={() => setMapReady(true)}
+      // Anchor size follows zoom (anchorSizeForZoom). Idle, not Changed: one re-render per
+      // gesture instead of one per frame, and the size only matters once the camera rests.
+      onCameraIdle={(c: { zoom: number }) => { if (Number.isFinite(c.zoom)) setCamZoom(c.zoom); }}
     >
       {/* 고스트 — 선택 아닌 모든 실측 코스. 케이싱 없이 얇게: 문맥이지 내용이 아니다 */}
       {withTrace.filter((r) => r.id !== selId).map((r) => (
@@ -294,7 +287,6 @@ export default function CourseMap() {
         // question is about the base, and dropping the emphasis would change a
         // second thing at the same time.
         const box = anchorBox + (on ? ANCHOR_SEL_BUMP : 0);
-        const glyph = anchorGlyph + (on ? ANCHOR_SEL_BUMP : 0);
         return (
           <maps.NaverMapMarkerOverlay
             key={`a-${r.id}`}
@@ -305,24 +297,10 @@ export default function CourseMap() {
             height={box}
             // 회전 사각형(다이아몬드) — 기본 네이버 핀은 '검색 결과'를 뜻해서 만남 장소로 읽히지
             // 않는다. K7 러너 지도와 **같은 에셋**이라 두 화면에서 앵커가 같은 모양이다.
-            // '44h' swaps the image marker for a padded React view; the package treats
-            // `image` and a child view as two different marker types, so only one is given.
-            {...(anchorVariant === '44h' ? {} : { image: ROUTE_ANCHOR })}
+            image={ROUTE_ANCHOR}
             caption={on ? { text: r.name } : undefined}
             onTap={() => pick(r)}
-          >
-            {anchorVariant === '44h' ? (
-              // `collapsable={false}` + a key encoding the size are both required by the
-              // package for custom-view markers (iOS new arch renders the view to a bitmap).
-              <View
-                key={`${glyph}/${box}`}
-                collapsable={false}
-                style={{ width: box, height: box, alignItems: 'center', justifyContent: 'center' }}
-              >
-                <Image source={ROUTE_ANCHOR} style={{ width: glyph, height: glyph }} />
-              </View>
-            ) : undefined}
-          </maps.NaverMapMarkerOverlay>
+          />
         );
       })}
       {/* 픽업지 = 집. "가까운 순"이 말이 되려면 기준점이 지도에 보여야 한다 —

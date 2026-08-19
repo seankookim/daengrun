@@ -59,8 +59,12 @@ const totalSuffix = (r: RouteInfo, p: { lat: number; lng: number } | null) => {
   return t ? ` · 이동 포함 약 ${fmtKm(t.totalKm)}km` : '';
 };
 
-// 실제 오늘부터 7일 — 컴포넌트 안에서 생성 (모듈 로드 고정은 자정을 넘기면 '오늘'이 어제가 됐다)
-const buildDates = () => Array.from({ length: 7 }, (_, i) => {
+// 실제 오늘부터 8일 — 컴포넌트 안에서 생성 (모듈 로드 고정은 자정을 넘기면 '오늘'이 어제가 됐다)
+// 8, not 7: the report's "다음 주 같은 시간 예약" nudge (journey-v3 §E, ruling #11) targets run + 7 days,
+// which a 7-day strip (today..today+6) could never show — the screen would book one date while
+// highlighting another. today+7 is the last selectable day.
+const DATE_STRIP_DAYS = 8;
+const buildDates = () => Array.from({ length: DATE_STRIP_DAYS }, (_, i) => {
   const date = new Date(Date.now() + i * 86400_000);
   return {
     date,
@@ -490,7 +494,10 @@ export default function Request() {
       if (!bid) return;
       // 반복 여부는 draft가 아니라 파라미터로 넘긴다 — 이번 내비게이션의 의도이지 예약 초안의 속성이
       // 아니다 (draft에 남기면 다음 예약까지 따라붙는다). 지명은 draft.preferredRunnerId 그대로 승계.
-      router.push({ pathname: '/owner/pay', params: { bid, ...(recurringOn ? { recurring: '1' } : {}), ...(holdExp.current ? { exp: holdExp.current } : {}) } });
+      // after=radar (journey-v3 §A, ruling 7): once pay.tsx confirms the hold with NO nomination, land on
+      // the rebuilt radar (searching + nominate list), not /owner/matching. A nominated booking still goes
+      // to schedule — pay.tsx intercepts that case itself. pay routing is otherwise unchanged (server slice).
+      router.push({ pathname: '/owner/pay', params: { bid, after: 'radar', ...(recurringOn ? { recurring: '1' } : {}), ...(holdExp.current ? { exp: holdExp.current } : {}) } });
       // [리뷰 #10] 푸시 후 홀드 상태 초기화 — 일정에서 뒤로 온 사용자가 같은 폼으로 두 번째
       // payment_hold를 조용히 만들지 않는다 (다시 예약하려면 명시적으로 다시 밟는다)
       holdBid.current = null;

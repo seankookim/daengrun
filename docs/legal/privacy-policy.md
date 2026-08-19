@@ -13,6 +13,16 @@ TWO THINGS MUST BE DECIDED BEFORE THIS GOES LIVE:
      clause and the filing itself. §3 is written assuming the filing happens; do not publish
      before counsel confirms the wording and the filing status.
 
+  3. 위치정보 보유기간 (§5) — 현재 "필요한 기간"이라고 적혀 있으나 이는 기간이 아니며, 위치정보법
+     시행령 제26조의2는 개인위치정보를 **별도 동의가 있어도 최대 1년**으로 제한합니다. 2026-08-19
+     측정 결과 **`runs.trace`를 파기하는 크론·함수가 하나도 없습니다**(운영 크론 17개 중 위치
+     관련 없음). 문구를 고쳐서 해결되는 문제가 아니라 **파기 작업을 만들어야** 합니다.
+  4. 위치정보 이용·제공 사실 확인자료 (§3 마지막 줄) — 이 권리를 안내하고 있으나 2026-08-19 측정
+     결과 **해당 대장 테이블이 존재하지 않습니다.** 위치정보법 제16조상 자동 기록 의무이고
+     안전조치 기준은 6개월 이상 보관을 요구합니다. **약관 문구를 지워도 의무는 남습니다** —
+     `gate_code_access_log`(0001:130) / `club_phone_access_log`(0049:156)와 같은 형태로
+     구축해야 합니다.
+
 Publication target: a public URL (App Store review requires one). The in-app link belongs in
 settings and at signup consent.
 -->

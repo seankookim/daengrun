@@ -280,6 +280,30 @@ real owners. Relief: no vehicle pickup (동물운송업 not in play), shop is a 
 not exposed) — widening that read path is the moment §11 goes live, so it is a legal decision, not a UI fix; the community
 feed has no reports/moderation table (임시조치 will be needed there first).
 
+## 0-septendecies. 🔴 NO IN-APP ACCOUNT DELETION — an App Store REJECTION waiting (legal, 2026-08-19 night) — building it tonight
+
+`settings.tsx:89` says `계정 삭제 | 문의로 처리` — honest, and legally mild (PIPA 제37조 is satisfiable by a support path) — but **App Store
+Review Guideline 5.1.1(v)** requires an app that creates accounts to let the user INITIATE deletion in-app; a "contact us" path is
+the thing that guideline exists to reject. This app creates accounts (Kakao + email) and is headed for submission. Cheap now,
+expensive when the build comes back from review. **Decision under the grant (🔵 O-6): build it** — server: a definer
+`delete_my_account()` (party gate = auth.uid(); refuses while the user has an active booking/run/unsettled money; anonymises
+what must be kept for ledgers/legal retention, deletes the rest, then removes the auth user via the admin path) under the full
+cycle; client (ui2): the settings row becomes a real, confirmed, irreversible action per the honesty laws. Ranked ABOVE
+§0-sexdecies because it blocks a submission, not a user. Legal also scored §13.2 (3 green / 4 partial / 4 absent — all in
+`docs/legal/`); two reassuring corrections: runner consents ARE persisted and `not null` (0062:81-83), only the VERSION is missing
+— build the location-consent gate versioned; owner-side consent has no record at all.
+
+## 0-sexdecies. 📋 TWO SMALL BUILDS FROM LEGAL'S RETENTION ROW — statutory, not drafting (2026-08-19 night)
+
+Measured by legal (docs on trunk): **(a) nothing purges `runs.trace`** — 17 crons, `purge-chat` and `purge-holds` exist, no
+location TTL or job; the policy says "필요한 기간", and 시행령 제26조의2 caps 개인위치정보 at one year even with separate
+consent. **(b) the policy promises the 위치정보 이용·제공 사실 확인자료 열람권 and no ledger exists** — 위치정보법 제16조 requires
+automatic recording (≥ 6 months). Both are BUILD items, not wording fixes — softening §3/§5 deletes the evidence of the gap,
+not the gap. Shapes exist in-repo: copy `gate_code_access_log` (0001:130) / `club_phone_access_log` (0049:156) for the ledger;
+a cron for the purge with the pin on `cron.job` (0060:144 — a function sat unscheduled while a comment claimed it ran). Latent
+today (one run, Sean's own); ranks ABOVE the 맹견 gate — matters at the first real runner. Queued for a server session /
+announcer-directed build after O-4/O-5; nothing for Sean.
+
 ## 0-overnight. 🔵 DECISIONS TAKEN UNDER THE OVERNIGHT GRANT (2026-08-19 → 20) — each reversible in one word
 
 | # | Item | Decided by | Decision | Basis (one line; full reasoning in the linked record) |
