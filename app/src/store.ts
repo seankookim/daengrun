@@ -143,6 +143,11 @@ export interface RouteInfo {
   // null = 아직 기록되지 않음 — '해당 없음'이 아니라 '모른다'이므로 칩 필터에서 통과시키지 않는다.
   shade: 'low' | 'mid' | 'high' | null;
   lighting: 'none' | 'partial' | 'lit' | null;
+  // 0098 누적 오르막(m). **상세에서만** 그린다.
+  // ⚠ null 은 '평지'가 아니라 '이 지오메트리에 대해 재지 않았다'이다 — 카탈로그가 트레이스를
+  // 다시 자르면 트리거가 이 값을 NULL로 되돌리므로, null 을 0m 으로 렌더하면 다시 자를 때마다
+  // 모든 코스가 평지라고 주장하게 된다. 0m 은 실제 측정값으로 프로덕션에 존재한다.
+  elevationGainM: number | null;
   // ⚠ 실좌표 [{lat,lng}] (0082 K1). 예전 정규화 {x,y}가 아니다 — 그리기 전에 traceToBox()를 통과시킬 것.
   // **해상도는 어느 fetch로 왔느냐에 달렸다:** fetchRoutes(목록)는 trace_thumb(≤50점)를 여기 담고,
   // fetchRouteById(상세)는 전체 trace(≤200점)를 담는다. 소비처는 실루엣만 그리므로 구분할 필요가

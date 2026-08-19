@@ -36,12 +36,16 @@ interface RouteRow {
   status: RouteInfo['status'];
   source: RouteInfo['source'];
   town: string | null;
+  elevation_gain_m: number | null;
 }
 
 // 목록 셀렉트는 전체 trace를 절대 싣지 않는다 — 승격된 코스 하나가 수백 점이고, T1 임계(15-20 코스)에서
 // 마운트마다 MB급이 된다. 상세만 fetchRouteById로 전체를 받는다.
-const ROUTE_LIST_COLS = 'id,name,area,km,terrain,tags,features,trace_thumb,checked_at,status,source,town,shade,lighting';
-const ROUTE_FULL_COLS = 'id,name,area,km,terrain,tags,features,trace,trace_thumb,checked_at,status,source,town,shade,lighting';
+// ⚠ elevation_gain_m 은 **두 셀렉트 모두**에 있다. 상세에서만 *그리지만*, 지도 시트의 DETAIL 단은
+// fetchRoutes(목록)로 받은 행을 그대로 상세 본문에 넘긴다 — 목록에서 빼면 그 화면은 값을 못 받은 걸
+// '측정 안 됨(—)'으로 렌더하게 되고, 그건 데이터가 아니라 우리 셀렉트에 대한 거짓말이다.
+const ROUTE_LIST_COLS = 'id,name,area,km,terrain,tags,features,trace_thumb,checked_at,status,source,town,shade,lighting,elevation_gain_m';
+const ROUTE_FULL_COLS = 'id,name,area,km,terrain,tags,features,trace,trace_thumb,checked_at,status,source,town,shade,lighting,elevation_gain_m';
 
 /**
  * 트레이스 좌표를 `{lat,lng}` 한 모양으로 정규화한다.
@@ -113,6 +117,9 @@ function toRouteInfo(r: RouteRow, geo: GeoRoutePoint[] | null): RouteInfo {
     source: r.source ?? null,
     shade: r.shade ?? null,
     lighting: r.lighting ?? null,
+    // 0098. NULL과 0은 **다른 사실**이고 프로덕션에 둘 다 있다(측정 28행 중 20행, 0m~63m).
+    // NULL = 이 지오메트리에 대해 재지 않았다, 0 = 재봤더니 평지다. 합치면 평지가 사라진다.
+    elevationGainM: r.elevation_gain_m ?? null,
     trace: normalizeTrace(geo),
   };
 }

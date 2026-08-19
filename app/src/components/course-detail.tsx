@@ -80,15 +80,20 @@ export function CourseDetailBody({ route, style }: { route: RouteInfo; style?: V
     <View style={style}>
       <CourseLifecycleLine route={route} />
 
-      {/* 메타 3축 — 노면·그늘·조명. 칩이 거르는 축과 **같은 세 축**이라 필터와 상세가 같은 말을 한다 */}
-      <Text style={s.sect}>노면 · 그늘 · 조명</Text>
+      {/* 메타 축 — 노면·그늘·조명은 칩이 거르는 축과 **같은 세 축**이라 필터와 상세가 같은 말을 한다.
+          오르막(0098)은 네 번째이고 **여기에만** 산다: 목록·캐러셀·칩은 이 값을 쓰지 않는다.
+          ⚠ CLIMB 은 이 띠에서 유일하게 '—'가 두 가지를 뜻하지 않는 칸이다. 나머지 셀의 '—'는
+          '기록 없음'이고, 여기서는 '이 지오메트리에 대해 재지 않았다'이다 — 그리고 **0m 은 실제
+          측정값이라 '—'로 접으면 안 된다**(프로덕션에 0m 코스가 있다). */}
+      <Text style={s.sect}>노면 · 그늘 · 조명 · 오르막</Text>
       <View style={s.metaBand}>
         {([
           ['SURFACE', route.terrain || '—', false],
           ['SHADE', (route.shade && SHADE_BAR[route.shade]) || '—', false],
           ['LIGHT', (route.lighting && LIGHT_TXT[route.lighting]) || '—', route.lighting === 'none'],
-        ] as [string, string, boolean][]).map(([k, v, warn], i) => (
-          <View key={k} style={[s.metaCell, i < 2 && s.metaDiv]}>
+          ['CLIMB', route.elevationGainM != null ? `${Math.round(route.elevationGainM)}m` : '—', false],
+        ] as [string, string, boolean][]).map(([k, v, warn], i, arr) => (
+          <View key={k} style={[s.metaCell, i < arr.length - 1 && s.metaDiv]}>
             <Text style={s.metaK}>{k}</Text>
             <Text style={[s.metaV, warn && { color: paper.critical }]}>{v}</Text>
           </View>
