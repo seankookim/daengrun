@@ -278,6 +278,13 @@ begin
     --   construction from here on. The BEHAVIOURAL assertion is unchanged and still worth its
     --   line: a client cannot land a draft carrying a return stamp. The new property (why) is
     --   owned by suite 146 D-4·D-5·D-6 (executed refusals) and D-20 (the grant catalog).
+    --   ⚠ **And the cost, stated plainly so a future re-grant is not made blind:** whoever ever
+    --   re-grants client INSERT on `bookings` gets `_guard_booking_insert_cols`'s 12-column
+    --   return/handoff blacklist back **UNTESTED**. This arm used to be its test. After 0111 the
+    --   guard's `current_user in ('authenticated','anon')` branch is unreachable BY CONSTRUCTION,
+    --   so that property is now pinned by nothing here — and it cannot be, because no pin can
+    --   reach the branch. Restoring the grant means re-writing this arm's expectation back to
+    --   P0001 first, not merely observing that the harness is still green.
     perform set_config('request.jwt.claim.sub', oo::text, false);
     begin
       set local role authenticated;

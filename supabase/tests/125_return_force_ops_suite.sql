@@ -428,6 +428,13 @@ begin
     --   `_guard_booking_insert_cols`'s client branch is unreachable by construction. The
     --   behavioural assertion — a client cannot land a draft carrying a handoff stamp — is
     --   unchanged. The new property is owned by suite 146 D-4·D-5·D-6 and D-20.
+    --   ⚠ **And the cost, stated plainly so a future re-grant is not made blind:** whoever ever
+    --   re-grants client INSERT on `bookings` gets `_guard_booking_insert_cols`'s 12-column
+    --   return/handoff blacklist back **UNTESTED**. This arm used to be its test. After 0111 the
+    --   guard's `current_user in ('authenticated','anon')` branch is unreachable BY CONSTRUCTION,
+    --   so that property is now pinned by nothing — and cannot be, since no pin can reach the
+    --   branch. Restoring the grant means restoring this arm's P0001 expectation first, not
+    --   merely noting that the harness stayed green. (119 ren R2 carries the identical note.)
     perform set_config('request.jwt.claim.sub', oo::text, false);
     begin
       set local role authenticated;

@@ -1,4 +1,4 @@
--- ═══ 146 booking-entry rebuild — 0111 pins (D-1 … D-21) ═══
+-- ═══ 146 booking-entry rebuild — 0111 pins (D-1 … D-22) ═══
 -- What this suite pins: **a client cannot make a booking row exist, nor the series row a definer
 -- cron copies into one.** The row is what `is_booking_party()` reads (`0002:15-22`, no status
 -- filter), so a forged booking was a key — chat thread to the victim, a review naming them, an
@@ -29,6 +29,11 @@
 -- ⚠ Every client arm asserts `current_user = <role>` after the `set local role` (custom sqlstate
 --   `ZZ001`, 144's idiom): a SET ROLE that silently failed would run the attack as `postgres`, and
 --   a SET ROLE that ERRORED would land in the same handler and be recorded for the wrong reason.
+-- ⚠⚠ **ONE pin is green when the attack SUCCEEDS: D-1c, and that is deliberate.** It is a
+--   BOUNDARY-DOCUMENTING pin — it breaks §2's fence inside its own arm and records that §3's belt
+--   re-validates OWNERSHIP ONLY and lets the fare-mint through. Do not "fix" it to expect a
+--   refusal; that would delete the only record of §3's limit. It restores the acl state it found
+--   (snapshot, not hardcoded) so nothing downstream — D-21 especially — is masked by it.
 --
 -- ─── SCOPE: what is deliberately NOT here ───────────────────────────────────────────────────
 --   · **D-10 (HTTP over the wire)** — `POST /rest/v1/bookings`, `POST /rest/v1/recurring_series`,
@@ -49,8 +54,12 @@
 --
 -- ─── MUTATION map — EXECUTED, and two contract predictions came back FALSE ──────────────────
 --   Every figure below is a full-harness run on worktree `p0-booking-entry`, 2026-08-19.
---   Clean green = **655 / 0** (baseline before the slice 641/0: suite 140's 7 pins leave, 21
---   arrive). Restore after every mutation → 655/0.
+--   Clean green = **657 / 0** (baseline before the slice 641/0: suite 140's 7 pins leave, 23
+--   arrive — round 2 added D-1c and D-22).
+--   ⚠ **M1…M6 are ROUND-1 figures, measured against the then-baseline of 655/0, and were NOT
+--   re-run in round 2.** The load-bearing claim in each is the **red SET**, which is unchanged;
+--   the pass counts are stale by up to 2 and are left as measured rather than adjusted by
+--   arithmetic nobody executed. **M7 is round 2's own and WAS executed on this tree.**
 --
 --   M1   §1's `revoke insert on bookings` deleted, verify block KEPT
 --        → the MIGRATION refuses, fail closed, before any pin runs:
@@ -92,9 +101,16 @@
 --          D-21  `authenticated가 min_fare·dog_id·total_price·owner_id를 갱신할 수 있다`.
 --        ⚠ D-2's CRON half stayed green under this mutation, and that is §3's belt firing for
 --        real: the series was successfully repointed at the victim's dog, and the ownership
---        re-check refused to copy it. The belt is labelled "not load-bearing" in 0111 §3 because
---        §2's revoke is the fence — but under a broken fence it is measurably the thing that
---        stops the money mint.
+--        re-check refused to copy it. **But name the arm precisely — round 1 did not, and the
+--        round-2 reviewer executed the difference.** D-2 moves the DOG and the money together, and
+--        the belt refuses it *because of the dog*. The belt re-validates **OWNERSHIP ONLY and is
+--        FARE-BLIND by design** (0111 §3: the fares are a consented snapshot; re-deriving them
+--        changes what a recurring owner is charged and is Sean's call). A series that keeps its
+--        OWN dog and moves only `total_price`/`min_fare` walks straight past it — **D-1c executes
+--        exactly that under the same broken fence and pins the mint at `min_fare` 500,000.**
+--        So under a broken fence the belt stops the dog-forgery half of §0②/③ and NOT the
+--        fare-mint half; the fare columns are held by `grant update (paused)` and §2's revoke
+--        alone. Do not read "the belt is load-bearing" as coverage of the money.
 --   M4   §3's ⓔ ownership re-check deleted → **654 / 1, red = [D-1b] ALONE**:
 --          `위조 시리즈에서 크론이 1건을 발행했다 (벨트가 발화하지 않았다)` + the missing
 --          `raise warning …skipped` in the catalog arm.
@@ -103,6 +119,23 @@
 --          D-21 `클라 컬럼 그랜트가 정확히 1개가 아니다 — 2개: recurring_series.paused:…,
 --                recurring_series.min_fare:authenticated:UPDATE`
 --          D-9c `min_fare가 바뀌었다 (9900→500000)` — the widened grant is immediately money.
+--        ⚠ D-1c stays GREEN here and does not launder the mutation: it snapshots the column ACLs
+--        before breaking the fence and re-grants exactly what it found, so the extra `min_fare`
+--        grant survives its cleanup and D-21 — which runs later in the file — still reddens.
+--        (Measured separately: `revoke update on <table> from <role>` clears that role's COLUMN
+--        UPDATE aclitems too, which is why the restore cannot be a hardcoded `grant update
+--        (paused)`.)
+--   M7   [ROUND 2, executed] `grant update on recurring_series to authenticated` added to §2 —
+--        the TABLE-level re-grant → **the MIGRATION refuses**, before any pin runs:
+--          `ERROR: 0111: client roles hold EFFECTIVE INSERT/UPDATE on 16 column(s) they must not:
+--           authenticated UPDATE recurring_series.addon_fare, …dog_id, …min_fare, …owner_id,
+--           …total_price, …(16 in all)`
+--        ⚠⚠ **0111's first verify block AND its attacl sweep both PASSED under this mutation** —
+--        `pg_attribute.attacl` holds column-level grants ONLY, so a table-level grant leaves it
+--        byte-identical and the "exactly one column grant" claim stays true while every fare
+--        column becomes writable. D-21 would have caught it in the HARNESS; the point of the
+--        `has_column_privilege` arm added to 0111's second verify block is that it now fails the
+--        **DEPLOY**. Restore → 657/0.
 --
 --   D-9 is NOT mutation-proven against 0111 (it pins 0058's `_guard_booking_cols` deny-all, which
 --   this slice does not touch); its mutation is 0058's own — revert the deny-all to 0057's column
@@ -123,11 +156,12 @@ declare
   v_att       uuid; v_victim uuid; v_other uuid;
   v_mydog     uuid; v_mydog2 uuid; v_theirdog uuid;
   v_myaddr    uuid; v_theiraddr uuid;
-  v_ser_legit uuid; v_ser_d2 uuid; v_ser_forged uuid;
+  v_ser_legit uuid; v_ser_d2 uuid; v_ser_forged uuid; v_ser_d1c uuid;
   v_bk_upd    uuid; v_bk_cas uuid; v_bk_pay uuid;
-  v_target    timestamptz; v_target2 timestamptz; v_targetf timestamptz;
+  v_target    timestamptz; v_target2 timestamptz; v_targetf timestamptz; v_targetc timestamptz;
   v_hold_s    timestamptz; v_hold_e timestamptz;
   v_msg text; v_bad text; v_st text; v_n int; v_n2 int; v_id uuid;
+  v_acl_snap  text[]; v_fence_broken boolean; v_txt text;
   v_bool boolean; v_int int; v_int2 int;
   v_p1 int; v_p2 int; v_p3 int; v_p4 int; v_p5 int; v_p6 int;
   r record;
@@ -561,6 +595,105 @@ begin
   update recurring_series set paused = true where id = v_ser_forged;   -- 이후 스윕 소음 제거
 
   -- ══════════════════════════════════════════════════════════════════════════════════════════
+  -- [D-1c] **BOUNDARY-DOCUMENTING PIN — this one is green when the ATTACK SUCCEEDS.**
+  --        D-1b proves §3's belt refuses a series pointed at someone ELSE's dog. It is very easy
+  --        to read that as "the belt covers the re-grant case", and round 1's own mutation note
+  --        very nearly said so. It does not. **The belt re-validates OWNERSHIP ONLY and is
+  --        FARE-BLIND** — deliberately, because the fares are a consented snapshot and re-deriving
+  --        them changes what a recurring owner is charged (0111 §3; money canon → Sean). So the
+  --        MONEY half of §0② walks straight past it.
+  --        This pin breaks §2's fence on purpose INSIDE its own arm (`grant update on
+  --        recurring_series to authenticated` — the re-grant the belt is supposedly the answer
+  --        to), keeps the attacker's OWN dog so the belt has nothing to object to, moves only
+  --        `total_price → 0` and `min_fare → 500000`, and asserts the cron **MINTS** the booking
+  --        at a ₩500,000 runner payout floor. The fence is restored and every row this pin created
+  --        is deleted before the next pin runs, so nothing downstream sees it.
+  --        ⚠ Green = the mint happened. That is not a regression and must not be "fixed": it is
+  --          the recorded LIMIT of §3, so that nobody later cites D-1b as fare coverage, and
+  --          nobody deletes §2's `revoke update` believing the belt is behind it. `grant update
+  --          (paused)` + §2's revoke are the ONLY things between a client and the fare columns.
+  --        ⚠ The dog is `v_mydog2`, which has no live booking yet at this point in the file
+  --          (D-15/D-17 create theirs later), and the slot is +18h — clear of v_ser_legit (+24h)
+  --          and v_ser_d2 (+26h) — so the cron's clash guard cannot be the reason for a mint of 0.
+  -- ══════════════════════════════════════════════════════════════════════════════════════════
+  v_bad := ''; v_st := null;
+  v_targetc := now() + interval '18 hours';
+  insert into recurring_series(owner_id,dog_id,address_id,rule,km,pace_label,addons,
+                               base_fare,distance_fare,addon_fare,total_price,min_fare)
+    values (v_att, v_mydog2, v_myaddr,
+            jsonb_build_object(
+              'weekdays', jsonb_build_array(extract(dow from v_targetc at time zone 'Asia/Seoul')::int),
+              'time', to_char(v_targetc at time zone 'Asia/Seoul','HH24:MI'),
+              'tz','Asia/Seoul'),
+            3,'easy','[]'::jsonb, 7900,9000,0,16900,9900)
+    returning id into v_ser_d1c;
+  -- ⚠ Snapshot the EXACT prior write surface first, because the restore must reproduce what was
+  --   FOUND and not what 0111 is supposed to leave. Measured: `revoke update on <table> from
+  --   <role>` clears that role's COLUMN-level UPDATE aclitems as well as the table-level one. So a
+  --   hardcoded `grant update (paused)` restore would silently REPAIR mutation M6 (which adds
+  --   `grant update (min_fare)`) before D-21 — which runs later in this same file — ever looks,
+  --   and M6 would show D-21 green on a broken migration. A pin must never launder the state it
+  --   borrowed. If the table-level grant is ALREADY present when this pin starts (the M3u world,
+  --   where §2's `revoke update` is gone and the shim's default privileges still hold it), the
+  --   revoke is skipped entirely and the state is handed on exactly as found.
+  select coalesce(array_agg(pg_get_userbyid(x.grantee) || '|' || a.attname order by a.attname), '{}')
+    into v_acl_snap
+    from pg_attribute a
+    join pg_class c on c.oid = a.attrelid
+    join pg_namespace ns on ns.oid = c.relnamespace,
+         lateral aclexplode(a.attacl) x
+   where ns.nspname = 'public' and c.relname = 'recurring_series'
+     and x.privilege_type = 'UPDATE'
+     and pg_get_userbyid(x.grantee) in ('anon','authenticated');
+  select exists (
+    select 1 from pg_class c
+    join pg_namespace ns on ns.oid = c.relnamespace,
+         lateral aclexplode(c.relacl) x
+     where ns.nspname = 'public' and c.relname = 'recurring_series'
+       and x.privilege_type = 'UPDATE'
+       and pg_get_userbyid(x.grantee) = 'authenticated'
+  ) into v_fence_broken;
+  -- the fence, deliberately broken — this is the future re-grant §3 is advertised as surviving
+  grant update on recurring_series to authenticated;
+  begin
+    set local role authenticated;
+    if current_user <> 'authenticated' then
+      raise exception 'set role did not take: current_user=%', current_user using errcode = 'ZZ001';
+    end if;
+    update recurring_series set total_price = 0, min_fare = 500000 where id = v_ser_d1c;
+    v_st := 'SUCCEEDED';
+  exception when others then v_st := sqlstate;
+  end;
+  reset role;
+  -- …and restored IMMEDIATELY, before anything else can observe it, to the snapshot taken above.
+  -- D-21 (later in this file) is the independent check that the restore was exact.
+  if not v_fence_broken then
+    revoke update on recurring_series from authenticated;
+    foreach v_txt in array v_acl_snap loop
+      execute format('grant update (%I) on recurring_series to %I',
+                     split_part(v_txt, '|', 2), split_part(v_txt, '|', 1));
+    end loop;
+  end if;
+  if v_st <> 'SUCCEEDED' then
+    v_bad := ' 펜스를 깬 상태에서도 요금 UPDATE가 통과하지 않았다 [' || coalesce(v_st,'NULL')
+          || '] — 이 핀의 전제(§2 revoke가 유일한 방어)가 성립하지 않는다';
+  end if;
+  perform generate_recurring_bookings();
+  select count(*) into v_n from bookings b
+   where b.series_id = v_ser_d1c and b.min_fare = 500000 and b.total_price = 0;
+  if v_n <> 1 then
+    v_bad := v_bad || ' 크론이 min_fare 500,000짜리 예약을 ' || v_n || '건 발행했다 (기대 1건)'
+          || ' — 벨트가 요금까지 본다면 이 핀의 설명과 0111 §3 헤더를 함께 고쳐야 한다';
+  end if;
+  if v_bad = '' then call _pass('bep','D-1c 경계 핀 (성공이 초록이다) — 펜스를 깬 재그랜트 아래, 본인 개를 그대로 두고 돈만 옮기면 §3 벨트는 침묵하고 크론이 min_fare 500,000으로 1건을 발행한다: 벨트는 소유권만 재검증하고 요금은 보지 않는다 (D-1b를 요금 커버리지로 읽지 말 것 — 요금 컬럼을 쥐고 있는 것은 §2의 revoke와 grant update (paused)뿐이다)');
+  else v_msg := v_bad; call _fail('bep','D-1c belt is fare-blind', v_msg); end if;
+  -- full rollback of this pin's footprint: the minted booking is a ₩0 total_price row and D-3's
+  -- sweep (already run) plus any later count would otherwise see it.
+  delete from notifications where ref_id in (select id from bookings where series_id = v_ser_d1c);
+  delete from bookings where series_id = v_ser_d1c;
+  delete from recurring_series where id = v_ser_d1c;
+
+  -- ══════════════════════════════════════════════════════════════════════════════════════════
   -- [D-14] POSITIVE CONTROL — `pauseRecurringSeries` (`app/src/lib/api.ts:395`), the app's ONLY
   --        write to this table, in BOTH shapes: hand-written SQL, and the `json_to_record` form
   --        PostgREST actually emits for a PATCH (which additionally reads the row — the `0091 §E`
@@ -783,6 +916,33 @@ begin
   end loop;
   if v_bad = '' then call _pass('bep','D-21 카탈로그 — 세 테이블의 클라 컬럼 그랜트는 정확히 1개(recurring_series.paused UPDATE authenticated), min_fare·dog_id·total_price·owner_id는 실효 권한도 없음 (information_schema.column_privileges는 테이블 그랜트를 컬럼으로 펼쳐 396행 — 이 주장에는 못 쓴다)');
   else v_msg := v_bad; call _fail('bep','D-21 column grant fence', v_msg); end if;
+
+  -- ══════════════════════════════════════════════════════════════════════════════════════════
+  -- [D-22] CATALOG — the writable-VIEW bypass, pinned because 0111 is NOT what closes it.
+  --        A write through a view runs with the VIEW OWNER's privileges, so an INSERTABLE view
+  --        over `bookings` would route around §1's revoke completely. The grants for that are
+  --        already in place: `marketplace_open_requests` (`0056:43-75`) and `available_runners`
+  --        (`0015:14-36`) are both owned by `postgres` and carry INSERT/UPDATE/DELETE to `anon`
+  --        AND `authenticated`. What actually stops it is that **both view bodies are JOINs**, so
+  --        Postgres refuses to auto-update them (`is_insertable_into = NO`; an executed insert
+  --        returns 55000). That is a property of the view DEFINITIONS, not of this slice — which
+  --        is exactly why it needs a pin here: a future "simplify the view" that flattens either
+  --        one to a single-table projection re-opens the booking entry point with nothing in §1
+  --        going red. Named in 0111 §0c's residual list.
+  -- ══════════════════════════════════════════════════════════════════════════════════════════
+  v_bad := '';
+  for r in select unnest(array['marketplace_open_requests','available_runners']) as vw loop
+    select v.is_insertable_into::text into v_st from information_schema.views v
+     where v.table_schema = 'public' and v.table_name = r.vw;
+    if v_st is null then
+      v_bad := v_bad || ' ' || r.vw || ' 뷰를 찾을 수 없다';
+    elsif v_st <> 'NO' then
+      v_bad := v_bad || ' ' || r.vw || ' 가 자동 갱신 가능해졌다 (is_insertable_into=' || v_st
+            || ') — 뷰 소유자(postgres) 권한으로 bookings에 INSERT가 뚫린다';
+    end if;
+  end loop;
+  if v_bad = '' then call _pass('bep','D-22 카탈로그 — marketplace_open_requests·available_runners 둘 다 is_insertable_into=NO (둘 다 postgres 소유 + anon/authenticated에 I/U/D를 쥐고 있다: 조인이라서 막힌 것이지 0111이 막은 것이 아니다 — 뷰를 단일 테이블로 "단순화"하면 §1의 revoke를 우회한다)');
+  else v_msg := v_bad; call _fail('bep','D-22 writable view bypass', v_msg); end if;
 
 exception when others then
   reset role;

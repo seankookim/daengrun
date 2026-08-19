@@ -95,6 +95,17 @@
 --   pinned by suites 50 and 117; suite 146 regression-checks those rather than re-pinning them.
 -- · **CSO #13** (`request_runner` lacks a `club_session_id` check) — adjacent, same file,
 --   different finding.
+-- · **The writable-VIEW bypass — CHECKED, and closed by the VIEW DEFINITIONS, not by this file.**
+--   A write through a view executes with the VIEW OWNER's privileges, so an insertable view over
+--   `bookings` would route straight around §1's revoke. Both views over this data are owned by
+--   `postgres` and carry INSERT/UPDATE/DELETE to `anon` AND `authenticated`
+--   (`marketplace_open_requests`, `0056:43-75`; `available_runners`, `0015:14-36`) — i.e. the
+--   grants for it are already there. What stops it is that **both are JOINs**, so Postgres reports
+--   `information_schema.views.is_insertable_into = 'NO'` and an executed
+--   `insert into marketplace_open_requests …` returns **55000** (measured in round-2 review).
+--   Recorded here because that is a fact about the view BODIES: a future "simplify the view" that
+--   flattens either one to a single-table projection re-opens the entry point silently, with
+--   nothing in §1 going red. Suite 146 **D-22** pins both as non-insertable so it cannot.
 -- · **DO-NOT-REFACTOR (CLAUDE.md):** owner-home/fitness collapsing heroes; the meetup stage
 --   machine, polling and `confirmHandoff`; the three deliberately-distinct availability
 --   predicates. Nothing below touches any of them — `is_slot_available` is only ever *read*.
@@ -108,10 +119,13 @@
 -- is strictly narrower, so it works under the old grants. They close disjoint holes.
 --
 -- ═══ §0e MUTATION EVIDENCE (CLAUDE.md law — each fix broken in turn, on THIS tree) ═══════════
--- Harness green with this file + suite 146 applied: **655 pass / 0 fail** (baseline before the
--- slice: 641/0 — suite 140's 7 pins leave, suite 146's 21 arrive). Restore after each mutation
--- returns to 655/0. Full detail, including the two contract predictions that came back FALSE,
--- lives in suite 146's header; the summary:
+-- Harness green with this file + suite 146 applied: **657 pass / 0 fail** (baseline before the
+-- slice: 641/0 — suite 140's 7 pins leave, suite 146's 23 arrive; round 2 added D-1c and D-22).
+-- ⚠ **M1…M6 below are ROUND-1 figures, measured against the then-baseline of 655/0, and were NOT
+-- re-run in round 2.** The load-bearing claim in each is the **red SET**, which is unchanged; the
+-- pass counts are stale by up to 2 and are left exactly as measured rather than adjusted by
+-- arithmetic nobody executed. M7 is round 2's own, executed on this tree. Full detail, including
+-- the contract predictions that came back FALSE, lives in suite 146's header; the summary:
 --   M1   §1's revoke deleted, verify kept → the MIGRATION refuses: `0111: client roles still hold
 --        INSERT on 2 table-role pair(s): bookings:anon, bookings:authenticated`.
 --   M1b  §1's revoke + both verify blocks deleted → 654/1, **red = [D-20] alone.** The effects
@@ -125,10 +139,28 @@
 --        119 ren R2, 125 frc F5]: D-11 executes the outage, D-20 names its cause.
 --   M3u  §2's revoke narrowed to `insert, delete` (UPDATE verb dropped) → 652/3,
 --        red = [D-2, D-9c, D-21]. ⚠ D-2's cron half stayed GREEN — §3's belt caught the repointed
---        series and minted nothing. Under a broken fence the belt is measurably load-bearing.
+--        series and minted nothing. **Name the arm precisely, because round 1 did not:** D-2 moves
+--        the DOG and the money together and the belt refuses it *because of the dog*. The belt
+--        re-validates OWNERSHIP ONLY (§3 header). A series that keeps its OWN dog and moves only
+--        `total_price`/`min_fare` walks straight past it — **D-1c executes that under the same
+--        broken fence and pins the mint at `min_fare` 500,000.** So under a broken fence the belt
+--        is load-bearing for the dog-forgery half and NOT for the fare-mint half.
 --   M4   §3's ⓔ ownership re-check deleted → 654/1, red = [D-1b] alone.
 --   M6   `grant update (min_fare) on recurring_series to authenticated` added → 653/2,
 --        red = [D-21, D-9c] — the widened grant is immediately money (min_fare 9900 → 500000).
+--   M7   [ROUND 2, executed on this tree] `grant update on recurring_series to authenticated`
+--        added to §2 — the TABLE-level re-grant, the one shape `pg_attribute.attacl` cannot see
+--        → **the MIGRATION refuses**, fail closed, before any pin runs:
+--          `ERROR: 0111: client roles hold EFFECTIVE INSERT/UPDATE on 16 column(s) they must not:
+--           authenticated UPDATE recurring_series.addon_fare, …addons, …address_id, …base_fare,
+--           …created_at, …distance_fare, …dog_id, …id, …km, …min_fare, …owner_id, …pace_label,
+--           …route_id, …rule, …same_runner_pref, …total_price`
+--        ⚠⚠ **The first verify block AND the attacl sweep both PASSED under this mutation.** That
+--        is precisely the gap round-2 review executed: a table-level grant leaves every attacl
+--        byte untouched, so the "exactly one column grant" claim stayed true while every fare
+--        column became writable by `authenticated`. The `has_column_privilege` arm added to the
+--        second verify block is the only thing that sees it, and it turns a re-grant into a
+--        FAILED DEPLOY rather than a red harness. Restore → 657/0.
 
 -- ═══════════════════════════════════════════════════════════════════════════════════════════
 -- §1  bookings — own the entry point (closes §0 ①, and 0077's forged-draft seeding)
@@ -205,6 +237,20 @@ create policy "holds self read" on slot_holds for select
 -- re-grant.** §2's revoke is the fence; this is what still refuses if a later migration, a support
 -- script, or a definer re-opens a write path into `recurring_series`. It costs one `exists` per
 -- series row per hour. Keep it labelled that way — never as a fix for a reachable bug.
+--
+-- ⚠⚠ **AND THE BELT COVERS OWNERSHIP ONLY — it is FARE-BLIND, deliberately, and that is the
+-- HALF OF §0② IT DOES NOT STOP.** Round-2 adversarial review EXECUTED both arms with §2's fence
+-- deliberately broken (`grant update on recurring_series to authenticated`):
+--   · re-point a series at a VICTIM's dog  → the belt fires, `raise warning …skipped`, **0 minted**;
+--   · keep your OWN dog and move only the MONEY (`total_price = 0`, `min_fare = 500000`)
+--     → **the belt is silent and the cron mints 1 booking at `min_fare` 500,000.**
+-- The omission is intended — see the "fares are NOT re-derived" paragraph below: they are a
+-- consented snapshot and re-deriving them changes what a recurring owner is charged, which the
+-- money canon puts with Sean. But intended is not the same as covered, and this belt must never be
+-- cited as if it were: **under a re-granted write surface the fare-mint survives it entirely, and
+-- `grant update (paused)` plus §2's revoke are the ONLY things between a client and the fare
+-- columns.** Suite 146 D-1b pins what the belt DOES stop; **D-1c is a boundary-documenting pin
+-- that executes what it does NOT**, so nobody later reads D-1b as fare coverage.
 --
 -- ⚠ **`continue`, not `raise` — measured, and recorded so nobody "tightens" it back.** This
 -- function is ONE invocation over ONE loop, so an exception unwinds the entire statement: a
@@ -410,5 +456,48 @@ begin
     raise exception '0111: expected exactly one client column grant (recurring_series.paused:authenticated:UPDATE), found %: %', v_n, coalesce(v_cols, '(none)')
       using hint = 'a second column grant to a client role on these tables is a re-opened write surface. Suite 146 D-21 pins the same property.';
   end if;
-  raise notice '0111: client column grants on the three tables = 1 (recurring_series.paused UPDATE authenticated)';
+
+  -- ⚠⚠ **The attacl sweep above is NOT sufficient on its own, and that is measured, not feared.**
+  -- `pg_attribute.attacl` holds COLUMN-level grants and nothing else. A `grant update on
+  -- recurring_series to authenticated` — the table-wide form, i.e. exactly the re-grant §2 exists
+  -- to prevent — lands in `pg_class.relacl`, leaves every attacl byte untouched, and the block
+  -- above therefore still reports "exactly one column grant" and PASSES, while
+  -- `has_column_privilege` has flipped to TRUE on `min_fare`, `dog_id`, `total_price`, `owner_id`.
+  -- Round-2 adversarial review executed that and the DEPLOY went green. So ask the question a
+  -- STATEMENT actually gets — per column, per client role — and fail the deploy, not just the
+  -- harness. (`has_table_privilege(…,'UPDATE')` cannot be used on `recurring_series`: it returns
+  -- true when the privilege is held on ANY column, so the legitimate `paused` grant makes it true
+  -- forever. Hence per-column here, and table-level only for DELETE, which has no column form.)
+  select count(*), string_agg(g.r || ' ' || g.v || ' ' || g.tbl || '.' || g.col, ', ' order by g.r, g.v, g.tbl, g.col)
+    into v_n, v_cols
+    from (
+      select r::text as r, v::text as v, c.relname::text as tbl, a.attname::text as col
+        from unnest(array['anon', 'authenticated']) r,
+             unnest(array['INSERT', 'UPDATE']) v,
+             pg_attribute a
+             join pg_class c on c.oid = a.attrelid
+             join pg_namespace ns on ns.oid = c.relnamespace
+       where ns.nspname = 'public'
+         and c.relname in ('recurring_series', 'slot_holds')
+         and a.attnum > 0 and not a.attisdropped
+         and has_column_privilege(r, a.attrelid, a.attnum, v)
+         and not (c.relname = 'recurring_series' and r = 'authenticated'
+                  and v = 'UPDATE' and a.attname = 'paused')
+    ) g;
+  if v_n > 0 then
+    raise exception '0111: client roles hold EFFECTIVE INSERT/UPDATE on % column(s) they must not: %', v_n, v_cols
+      using hint = 'the only client write surface these two tables may have is recurring_series.paused UPDATE for authenticated. A table-level grant is invisible to pg_attribute.attacl and must be caught here.';
+  end if;
+
+  select count(*), string_agg(t || ':' || r, ', ' order by t, r)
+    into v_n, v_cols
+    from unnest(array['recurring_series', 'slot_holds']) t,
+         unnest(array['anon', 'authenticated']) r
+   where has_table_privilege(r, t, 'DELETE');
+  if v_n > 0 then
+    raise exception '0111: client roles still hold DELETE on % table-role pair(s): %', v_n, v_cols
+      using hint = 'DELETE has no column-level form, so it is asked at table level. §2 and §2b revoke it from anon and authenticated on both tables.';
+  end if;
+
+  raise notice '0111: client column grants on the three tables = 1 (recurring_series.paused UPDATE authenticated); effective client INSERT/UPDATE elsewhere on recurring_series/slot_holds = 0; client DELETE on both = 0';
 end $$;

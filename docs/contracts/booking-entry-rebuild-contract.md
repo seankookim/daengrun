@@ -39,9 +39,21 @@ bookings         | service_role  | (same)
 recurring_series | anon          | DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
 recurring_series | authenticated | DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
 recurring_series | service_role  | (same)
+slot_holds       | anon          | DELETE,INSERT,MAINTAIN,SELECT,UPDATE      ← CORRECTED, see below
 slot_holds       | authenticated | DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
 slot_holds       | service_role  | (same)
 ```
+
+⚠ **Two corrections to this table, from round-2 review (2026-08-19).** ① The `anon` row on
+`slot_holds` was MISSING here: production grants `anon` `DELETE,INSERT,MAINTAIN,SELECT,UPDATE` on
+that table too, so `anon` is a named grantee on all three tables and not just on `bookings` and
+`recurring_series` — the migration's §2b already revokes `insert, update, delete … from anon,
+authenticated`, so the fix is unaffected and only this table under-reported the state it was
+derived from. ② Production is **PG17 and therefore carries `MAINTAIN`** on all three tables, which
+this table's PG16-shaped rows do not show; the harness runs **PG16 and cannot reproduce it at all**,
+so no pin can assert its presence or absence. `MAINTAIN` (VACUUM/ANALYZE/REINDEX/CLUSTER/REFRESH) is
+not a row-write verb and is not part of this finding, so **0111 correctly leaves it alone** — it is
+recorded here only so a later reader does not mistake its survival for an incomplete revoke.
 
 (Matches CSO finding #12: "anon+authenticated hold SIUD on ~64/64 tables; RLS is the only layer".)
 
