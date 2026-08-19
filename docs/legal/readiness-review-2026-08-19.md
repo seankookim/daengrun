@@ -225,3 +225,32 @@ That claim was true when written. Facts verified from configuration go stale the
 probes behaviour instead — which is the same lesson this repo keeps relearning in
 `session-handoff.md` §3-ter, one layer up: **reading the config tells you what was asked for, not
 what the system does.**
+
+**Applied at `69cf67d`** (trunk), faithfully and with two improvements — the 제19조/제23조 split
+is now stated explicitly for counsel, and the remediation shape is named. Two items raised after
+reading the applied version: the footer still dates all facts to 08-15 and still describes them
+as config-derived, which undersells the one piece of execution evidence in the document; and
+**Question 4 was not updated**, so the brief now states the exposure without asking about it.
+
+## 7. The question with a clock, and it is not yet asked
+
+Everything above concerns what the product must do before launch. One question runs the other
+way, and it is the only item in this audit with a statutory deadline attached rather than a
+launch gate:
+
+**Does a live capability for unauthorized third parties to receive 개인위치정보 constitute a
+유출 carrying notification and reporting duties** (위치정보법 제16조 관련; 개인정보 보호법
+제34조 통지·신고), **or does the absence of any evidence of actual access mean it does not?**
+
+This audit does not answer that and should not. The honest statement of what is known:
+
+- There is a **demonstrated capability** — §2ⓒ, reproduced by execution against production.
+- There is **no evidence of actual access** by any third party. Nobody has examined realtime
+  access logs, and it is not established that logs of sufficient granularity exist.
+- The capability has existed since the live-map feature shipped, not since it was measured.
+
+The gap between "could" and "did" is precisely the lawyer's call, and it is the reason this
+belongs in the counsel brief as its own question rather than inside the consent-design question.
+Raised for addition as Q6. **If the answer is that a duty arose, the clock started at discovery,
+not at remediation** — which is why it is recorded here with a date: measured 2026-08-19,
+raised the same day.
