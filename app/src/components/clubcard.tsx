@@ -73,11 +73,23 @@ function HoloSquare({ id }: { id: string }) {
 
 // [3차 피드백] 헤더 Svg 그라디언트가 기기에서 잘린 어두운 밴드로 렌더 → 플랫 틴트로 교체 (clubTop bg).
 
-export function useClubOverview(): [ClubOverview | null, () => void] {
+// [정직 2026-08-19] 구현은 `.then(setClub).catch(() => {})` 였다 — 조용한 catch. 리페치가 실패하면
+// 모듈이 아무 말 없이 사라졌고(실측: 콜드 런치엔 보이고 리포커스 뒤 사라짐), 그건 CLAUDE.md의
+// "실패를 실패로 보여준다 · silent catch → happy UI 금지"를 정면으로 어긴다.
+// 이제 세 상태를 구분한다: 로딩(club null, failed false) · 실패(failed true) · 실데이터.
+// 직전 실값은 유지한다 — 리페치 한 번 실패했다고 화면에 있던 진짜 클럽을 지우는 건 과잉이다.
+// 그래서 실패 행은 '보여줄 데이터가 하나도 없을 때만' 뜬다 (club === null && failed).
+export function useClubOverview(): [ClubOverview | null, () => void, boolean] {
   const [club, setClub] = useState<ClubOverview | null>(null);
-  const load = useCallback(() => { fetchClubOverview().then(setClub).catch(() => {}); }, []);
+  const [failed, setFailed] = useState(false);
+  const load = useCallback(() => {
+    setFailed(false);
+    fetchClubOverview()
+      .then((c) => { setClub(c); setFailed(false); })
+      .catch((e) => { console.warn('[club] overview:', (e as Error)?.message ?? e); setFailed(true); });
+  }, []);
   useFocusEffect(useCallback(() => { load(); }, [load]));
-  return [club, load];
+  return [club, load, failed];
 }
 
 // 수요 보드 (0032) — 러너 티켓·스트립 + 보호자 진행 링·동네 리그의 단일 소스
@@ -397,18 +409,91 @@ function OwnerDemand({ board, reload }: { board: DemandBoard; reload: () => void
   );
 }
 
+// ---------- compact 행 (보호자 홈 전용, 2026-08-19 랩 ⑧) ----------
+// 나이트 스텁 카드는 홈의 두 번째 다크 아일랜드였다 (⑧ 법: 다크 섬은 화면에 하나, active 상태의
+// 라이브 위젯뿐). 홈에서는 같은 진실을 **라이트 modh 행 하나**로 말한다 — 새 데이터 0개:
+// 아래 분기는 ClubBanner의 분기를 그대로 옮긴 것이고, 목적지도 같은 문(`/club/{id}`) 하나다.
+function ClubCompactRow({ club }: { club: ClubOverview }) {
+  const ns = club.nextSession;
+  const active = club.status === 'active';
+  // 타이틀 — 실제 클럽명이 이미 '하이클럽'을 포함하면(예: '반포동 하이클럽') 접두를 붙이지 않는다:
+  // '하이클럽 · 반포동 하이클럽'은 같은 말을 두 번 하는 것이다.
+  const title = club.name.includes('하이클럽') ? club.name : `하이클럽 · ${club.name}`;
+  // 서브 — ClubBanner의 스텁/라인 분기와 같은 필드만 읽는다 (지어내는 값 0개).
+  const bits: string[] = [];
+  if (club.isHost) bits.push('호스트');
+  if (active && ns) {
+    bits.push(ns.when);                                    // kstParts 파생 — '8월 22일 (토) 07:30'
+    if (ns.joined) bits.push('참여 ✓');
+    const left = Math.max(0, ns.capacity - ns.rsvpCount);
+    bits.push(ns.status === 'open' ? (left > 0 ? `${left}자리 남음` : '마감 임박') : '마감');
+  } else if (club.status === 'collecting') {
+    bits.push(`관심 ${club.interestCount}팀 · 호스트를 기다려요`);
+  } else {
+    bits.push(`멤버 ${club.memberCount}명`);
+    bits.push(club.isHost ? '탭해서 세션을 열어보세요' : '다음 세션 준비 중');
+  }
+  return (
+    <Pressable
+      onPress={() => router.push(`/club/${club.id}`)}
+      style={({ pressed }) => [s.cRow, pressed && { backgroundColor: paper.wash }]}
+      accessibilityRole="button" accessibilityLabel={`${title} 클럽 홈`}
+    >
+      <View style={{ flex: 1 }}>
+        <Text style={s.cRowT} numberOfLines={1}>{title}</Text>
+        <Text style={s.cRowSub} numberOfLines={1}>{bits.join(' · ')}</Text>
+      </View>
+      <Text style={s.cRowAct}>클럽 홈 ›</Text>
+    </Pressable>
+  );
+}
+
 // ---------- 홈 모듈 (양쪽 공용) ----------
-export function ClubModule({ role }: { role: 'owner' | 'runner' }) {
-  const [club, reload] = useClubOverview();
+// compact = 보호자 홈의 라이트 행 문법. 러너 홈(RunnerClubCard)은 이 플래그를 넘기지 않으므로
+// 나이트 스텁 카드 + 검색창을 그대로 쓴다 — 이 변경의 사정거리는 보호자 홈 하나다.
+export function ClubModule({ role, compact }: { role: 'owner' | 'runner'; compact?: boolean }) {
+  const [club, reload, clubFailed] = useClubOverview();
   const [board, reloadBoard] = useDemandBoard();
   const reloadAll = () => { reload(); reloadBoard(); };
+  // 🔴 검색은 접되 지우지 않는다. `searchClubs`의 진입점은 앱 전체에서 이 ClubSearchBar 하나뿐이고
+  // (`/club/[id]`에도, 어떤 클럽 인덱스 라우트에도 검색이 없다 — grep으로 확인), 홈에서 그냥
+  // 삭제하면 클럽 탐색이 앱에서 사라진다. 그래서 조용한 행 뒤로 접는다: 기본 화면엔 상자가
+  // 없고(⑧의 '상자 0개'), 탭하면 그 자리에서 열린다. 갈 곳 없는 링크를 두는 것보다 정직하다.
+  const [findOpen, setFindOpen] = useState(false);
+  if (compact) {
+    return (
+      <View>
+        {/* 세 상태: 실데이터 → 행 · 실패(보여줄 값 0) → 라우드 페일 + 재시도 · 로딩 → 침묵 */}
+        {club ? (
+          <ClubCompactRow club={club} />
+        ) : clubFailed ? (
+          <View style={s.cFail}>
+            <Text style={s.cFailTxt}>클럽 정보를 불러오지 못했어요</Text>
+            <Pressable onPress={reload} hitSlop={8} accessibilityRole="button" accessibilityLabel="다시 시도">
+              <Text style={s.cFailRetry}>다시 시도</Text>
+            </Pressable>
+          </View>
+        ) : null}
+        <Pressable
+          onPress={() => setFindOpen((v) => !v)}
+          style={({ pressed }) => [s.cRow, pressed && { backgroundColor: paper.wash }]}
+          accessibilityRole="button" accessibilityLabel="동네 클럽 찾기"
+        >
+          <Text style={[s.cRowT, { flex: 1 }]}>동네 클럽 찾기</Text>
+          <Text style={s.cRowAct}>{findOpen ? '닫기' : '›'}</Text>
+        </Pressable>
+        {findOpen && <View style={{ paddingHorizontal: 15, paddingTop: 10 }}><ClubSearchBar /></View>}
+        {board && role === 'owner' && <OwnerDemand board={board} reload={reloadAll} />}
+      </View>
+    );
+  }
   return (
     <View style={{ marginTop: 14 }}>
-      {/* [§3b 2026-08-11] 섹션 헤더 단일 문법 — 'HIGH CLUB' 라틴 키커 칩 · '동네에서 함께 달려요'
-          서브타이틀 은퇴, 타이틀은 앱 공통 20/800 잉크. 코랄 1px 상단 룰은 모듈 폭 (클럽 섬은
-          측면 마진 예외라 풀블리드 대신 모듈 브레드스 — 문법은 동일). */}
-      <Row style={{ marginBottom: 9, alignItems: 'baseline', borderTopWidth: 1, borderTopColor: paper.line, paddingTop: 12 }}>
-        <Text style={{ fontSize: 20, lineHeight: 26, fontWeight: '800', color: paper.ink, letterSpacing: -0.2 }}>하이클럽</Text>
+      {/* [2026-08-19 랩 ⑧] 모듈 헤더 = modh 문법 — 15/800 잉크 타이틀 한 줄. 코랄 1px 상단 룰은
+          은퇴(홈의 덩어리 경계는 여백 + 킥커 하나가 만든다). 'HIGH CLUB' 라틴 키커 칩과
+          '동네에서 함께 달려요' 서브타이틀은 §3b에서 이미 은퇴. */}
+      <Row style={{ marginBottom: 8, alignItems: 'baseline' }}>
+        <Text style={{ fontSize: 15, lineHeight: 20, fontWeight: '800', color: paper.ink }}>하이클럽</Text>
       </Row>
       <ClubSearchBar />
       {club && <ClubBanner club={club} role={role} reload={reloadAll} />}
@@ -419,10 +504,29 @@ export function ClubModule({ role }: { role: 'owner' | 'runner' }) {
 }
 
 // 하위 호환 (기존 삽입 지점)
-export function ClubHomeCard() { return <ClubModule role="owner" />; }
+export function ClubHomeCard({ compact }: { compact?: boolean } = {}) { return <ClubModule role="owner" compact={compact} />; }
 export function RunnerClubCard() { return <ClubModule role="runner" />; }
 
 const s = StyleSheet.create({
+  // ── compact 행 (보호자 홈) — owner/home.tsx의 s.row와 같은 문법이다.
+  // 두 파일에 사는 이유: 홈의 행 스타일은 홈의 것이고, 여기 것은 이 모듈이 어디에 꽂히든
+  // 자기 모양을 갖기 위한 것이다. 값이 갈라지면 홈이 정본이다 (거터 15 = layout.gutter).
+  cRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 44,
+    paddingVertical: 13, paddingHorizontal: 15,
+    borderBottomWidth: 1, borderBottomColor: '#EEEEEE',
+  },
+  cRowT: { fontSize: 14, lineHeight: 19, fontWeight: '800', color: paper.ink },
+  cRowSub: { fontSize: 14, lineHeight: 19, fontWeight: '600', color: paper.dim, marginTop: 1 },
+  cRowAct: { fontSize: 14, lineHeight: 19, fontWeight: '800', color: paper.dim },
+  // 라우드 페일 — owner/home.tsx의 s.fitFail과 같은 문법 (14/700 critical 잉크 · 텍스트 재시도)
+  cFail: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 9,
+    backgroundColor: paper.canvas, borderTopWidth: 1, borderBottomWidth: 1, borderColor: paper.critical,
+    paddingVertical: 11, paddingHorizontal: 15,
+  },
+  cFailTxt: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: paper.critical, flex: 1 },
+  cFailRetry: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },
   // [§3b] 카드·필드 코너 샤프 (radius 0 everywhere) — 클럽 예외는 마진뿐
   searchWrap: { flexDirection: 'row', alignItems: 'center', gap: 9, backgroundColor: lilac.card, borderRadius: 0, borderWidth: 1, borderColor: lilac.hair, paddingHorizontal: 15, paddingVertical: 2, ...lilacShadow, shadowOpacity: 0.06 },
   searchInput: { flex: 1, fontSize: 16, color: lilac.head, paddingVertical: 13 },
