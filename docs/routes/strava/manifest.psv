@@ -15,7 +15,6 @@ name|strava_id|measured_km|strava_km|gain_m_recomputed|gain_m_strava|points|surf
 성수 서울숲 루프 6.46km|3523234096773528028|6.47|6.46|22|28|121|85% PAVED · 0% DIRT · 15% NOT SPECIFIED|14.1|LOOP|갤러리아포레|서울숲; 서울숲길; 성수동 왕십리로
 이촌 가족공원 루프 5.05km|3523234096777450972|5.06|5.05|14|19|125|51% PAVED · 0% DIRT · 49% NOT SPECIFIED|95.1|OUT-AND-BACK|한가람아파트|이촌한강공원; 용산가족공원; 거울못; 서빙고로
 이촌 한강 박물관 루프 7.63km|3523234988767503826|7.63|7.63|26|37|138|87% PAVED · 0% DIRT · 13% NOT SPECIFIED|34.5|LOLLIPOP|한가람아파트|이촌나들목; 이촌한강공원; 서빙고나들목; 서빙고로
-반포 서래섬 리버 루프 3.71km|3523243924101927622|3.72|3.71|14|24|96|70% PAVED · 0% DIRT · 30% NOT SPECIFIED|74.5|OUT-AND-BACK|아크로리버파크|서래섬; 반포한강공원; 세빛섬
 잠원 근린공원 루프 5.4km|3523245380672931292|5.41|5.4|6|16|95|92% PAVED · 0% DIRT · 8% NOT SPECIFIED|81.1|OUT-AND-BACK|한신2차정문|잠원근린공원; 잠원로; 신반포메이플자이; 신반포로
 올림픽선수촌앞 올림픽 공원 4.58 km|3523240019688241628|4.59|4.58|11|24|131|80% PAVED · 0% DIRT · 20% NOT SPECIFIED|45.0|LOLLIPOP|올림픽선수촌아파트 136동 앞|올림픽공원 남2문 앞; 37.51807,127.12261 (mouse); 37.51914,127.12628 (mouse); 37.51766,127.12842 (mouse); 37.51332,127.12756 (mouse)
 동작 노들나루 고구동산 루프 6.07km|3524937744652744182|6.08|6.07|143|170|196|52% PAVED · 0% DIRT · 48% NOT SPECIFIED|31.7|LOLLIPOP|경동아파트|용봉정근린공원;청룡연못;절고개공원;송학대공원;노들나루공원
@@ -44,3 +43,5 @@ name|strava_id|measured_km|strava_km|gain_m_recomputed|gain_m_strava|points|surf
 양천 지향천 신월 루프 3.89km|3525054044886262874|3.9|3.89|88|96|81|0% PAVED · 0% DIRT · 100% NOT SPECIFIED|87.2|OUT-AND-BACK|신월시영아파트|지향천;연의생태공원;양지근린공원
 강동 고덕천 강일 루프 6.41km|3525053699330380742|6.42|6.41|26|33|153|61% PAVED · 0% DIRT · 39% NOT SPECIFIED|43.9|LOLLIPOP|강일리버파크3단지|고덕천;게내수변공원;강일 운동공원
 은평 물푸레골천 박석 루프 6.8km|3525055224123590598|6.8|6.8|79|100|181|26% PAVED · 0% DIRT · 74% NOT SPECIFIED|78.3|OUT-AND-BACK|박석고개힐스테이트1단지아파트|물푸레골천;탑골생태공원;연서로43가길
+반포 서래섬 리버 루프 3.31km|3523262357366690348|3.311|3.31|14|24|87|NOT RECORDED|77|OUT-AND-BACK|NOT RECORDED|NOT RECORDED
+압구정 은행공원 생활권 루프 5.82km|3523243924142013126|5.832|5.82|25|37|104|NOT RECORDED|50|LOLLIPOP|NOT RECORDED|NOT RECORDED

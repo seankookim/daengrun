@@ -16,8 +16,19 @@ import { spawnSync } from 'node:child_process';
 
 const dir = dirname(fileURLToPath(import.meta.url));
 const strict = process.argv.includes('--strict');
-const MAX_KM = 5;
-const MIN_KM = 2;
+// RANGE IS 1.5-7.5 km. Sean, 2026-08-19, to the route-geometry session directly:
+// "the kms dont have to be integers. anywhere from around 1.5km+ ish ~ 7 km ish".
+//
+// This supersedes the [2, 5) gate that stood here. That gate encoded an earlier
+// reading — "the owner said under 5" — which was ALSO written into build-route.sh
+// in two separate places and corrected there on 2026-08-19 against the same
+// quote. This file was the third copy, and it is why the rule half-changed: with
+// the builder at 1.5-7.5 and the auditor at [2,5), 22 of 46 built routes were
+// simultaneously legal to build and illegal to keep.
+//
+// If this range changes again, grep for every copy before editing one.
+const MAX_KM = 7.5;
+const MIN_KM = 1.5;
 const MAX_CLOSURE_M = 25;
 const FORBIDDEN_QUERY = /지하(?:보도|통로|철)|역\s*연결|역\s*\d+\s*번?\s*출구|(?:subway\s*)?station\s*exit/iu;
 const INCOMPLETE = /NOT RECORDED|UNKNOWN|remaining quer(?:y|ies)/iu;
@@ -156,8 +167,8 @@ for (const name of gpxFiles) {
   if (status.dog_access !== 'surface-verified') {
     failures.push(`${name}: candidate dog access is ${status.dog_access}, not surface-verified`);
   }
-  if (!(geometry.measuredKm >= MIN_KM && geometry.measuredKm < MAX_KM)) {
-    failures.push(`${name}: candidate distance ${geometry.measuredKm} km is outside [${MIN_KM}, ${MAX_KM})`);
+  if (!(geometry.measuredKm >= MIN_KM && geometry.measuredKm <= MAX_KM)) {
+    failures.push(`${name}: candidate distance ${geometry.measuredKm} km is outside ${MIN_KM}-${MAX_KM} km`);
   }
   if (geometry.closureM > MAX_CLOSURE_M) {
     failures.push(`${name}: candidate closure ${geometry.closureM} m exceeds ${MAX_CLOSURE_M} m`);

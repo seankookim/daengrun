@@ -15,6 +15,34 @@ strava_id|status|dog_access|reason
 3523234096777450972|superseded|unverified|5.05 km is not under the 5 km cap
 3523234988764300754|superseded|unverified|Uncharacteristic pavement perimeter; major-road crossings are unaudited
 3523234988767503826|superseded|unverified|7.63 km exceeds the revised cap
-3523243924101927622|superseded|unverified|Track finishes 215 m from its start, so it is not a same-anchor route
 3523245380672931292|superseded|unverified|5.40 km exceeds the revised cap
 3523240019688241628|review|unverified|Characteristic Olympic Park route under 5 km, but the complete residential-to-park approach still needs a surface-only dog-access audit
+
+3525020800843551818|review|unverified|Built by route-geometry 2026-08-19; measured 4.673 km, within Sean's 1.5-7.5 range. No surface-only dog-access audit performed by this session.
+3525053699330380742|review|unverified|Built by route-geometry 2026-08-19; measured 6.417 km, within Sean's 1.5-7.5 range. No surface-only dog-access audit performed by this session.
+3525014064106677190|review|unverified|Built by route-geometry 2026-08-19; measured 3.815 km, within Sean's 1.5-7.5 range. No surface-only dog-access audit performed by this session.
+3525021244456183730|review|unverified|Built by route-geometry 2026-08-19; measured 5.092 km, within Sean's 1.5-7.5 range. No surface-only dog-access audit performed by this session.
+3524978352970353048|review|unverified|Built by route-geometry 2026-08-19; measured 3.783 km, within Sean's 1.5-7.5 range. No surface-only dog-access audit performed by this session.
+3524983539295066832|review|unverified|Built by route-geometry 2026-08-19; measured 4.185 km, within Sean's 1.5-7.5 range. No surface-only dog-access audit performed by this session.
+3524937744652744182|review|unverified|Built by route-geometry 2026-08-19; measured 6.08 km, within Sean's 1.5-7.5 range. No surface-only dog-access audit performed by this session.
+3524994474651349582|review|unverified|Built by route-geometry 2026-08-19; measured 6.438 km, within Sean's 1.5-7.5 range. No surface-only dog-access audit performed by this session.
+3525014064108068806|review|unverified|Built by route-geometry 2026-08-19; measured 3.539 km, within Sean's 1.5-7.5 range. No surface-only dog-access audit performed by this session.
+3525054044886262874|review|unverified|Built by route-geometry 2026-08-19; measured 3.9 km, within Sean's 1.5-7.5 range. No surface-only dog-access audit performed by this session.
+3525020800842008650|review|unverified|Built by route-geometry 2026-08-19; measured 5.442 km, within Sean's 1.5-7.5 range. No surface-only dog-access audit performed by this session.
+3524978352962523544|review|unverified|Built by route-geometry 2026-08-19; measured 5.698 km, within Sean's 1.5-7.5 range. No surface-only dog-access audit performed by this session.
+3524982565739193752|review|unverified|Built by route-geometry 2026-08-19; measured 5.364 km, within Sean's 1.5-7.5 range. No surface-only dog-access audit performed by this session.
+3524993786197813638|review|unverified|Built by route-geometry 2026-08-19; measured 4.485 km, within Sean's 1.5-7.5 range. No surface-only dog-access audit performed by this session.
+3524978352957171096|review|unverified|Built by route-geometry 2026-08-19; measured 5.248 km, within Sean's 1.5-7.5 range. No surface-only dog-access audit performed by this session.
+3525049921549277258|review|unverified|Built by route-geometry 2026-08-19; measured 2.417 km, within Sean's 1.5-7.5 range. No surface-only dog-access audit performed by this session.
+3524998876909961624|review|unverified|Built by route-geometry 2026-08-19; measured 3.082 km, within Sean's 1.5-7.5 range. No surface-only dog-access audit performed by this session.
+3524998876906613144|review|unverified|Built by route-geometry 2026-08-19; measured 3.935 km, within Sean's 1.5-7.5 range. No surface-only dog-access audit performed by this session.
+3525042173695682574|review|unverified|Built by route-geometry 2026-08-19; measured 4.926 km, within Sean's 1.5-7.5 range. No surface-only dog-access audit performed by this session.
+3524982565721803160|review|unverified|Built by route-geometry 2026-08-19; measured 7.056 km, within Sean's 1.5-7.5 range. No surface-only dog-access audit performed by this session.
+3524998909054872632|review|unverified|Built by route-geometry 2026-08-19; measured 6.466 km, within Sean's 1.5-7.5 range. No surface-only dog-access audit performed by this session.
+3525055224123590598|review|unverified|Built by route-geometry 2026-08-19; measured 6.804 km, within Sean's 1.5-7.5 range. No surface-only dog-access audit performed by this session.
+3524994474651174478|review|unverified|Built by route-geometry 2026-08-19; measured 5.744 km, within Sean's 1.5-7.5 range. No surface-only dog-access audit performed by this session.
+3525014064112666566|review|unverified|Built by route-geometry 2026-08-19; measured 3.206 km, within Sean's 1.5-7.5 range. No surface-only dog-access audit performed by this session.
+3525003528973545038|review|unverified|Built by route-geometry 2026-08-19; measured 3.233 km, within Sean's 1.5-7.5 range. No surface-only dog-access audit performed by this session.
+3524998909056541752|review|unverified|Built by route-geometry 2026-08-19; measured 5.096 km, within Sean's 1.5-7.5 range. No surface-only dog-access audit performed by this session.
+3523262357366690348|review|unverified|Built by route-geometry; measured 3.311 km. Surface mix and query sequence NOT RECORDED by the builder version used. No dog-access audit by this session.
+3523243924142013126|review|unverified|Built by route-geometry; measured 5.832 km. Surface mix and query sequence NOT RECORDED by the builder version used. No dog-access audit by this session.

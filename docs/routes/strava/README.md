@@ -65,9 +65,10 @@ Strava counterpart.
     node test-check-shape.mjs                        # real/synthetic geometry regression tests
 
 `build-route.sh` measures before saving and writes the **measured** distance into the route name,
-so a route's name can never disagree with its geometry. It refuses measurements of 5.00 km or
-more, explicit underground-passage queries, and station-exit waypoints; it also refuses a target
-miss above `TOL_PCT` (default 20%), requires 2–4 waypoints spread around the residential anchor,
+so a route's name can never disagree with its geometry. It refuses measurements outside **1.5–7.5 km**
+(Sean, 2026-08-19: *"anywhere from around 1.5km+ ish ~ 7 km ish"*), explicit underground-passage
+queries, and station-exit waypoints; it also refuses a target miss above `TOL_PCT` (default 45%),
+requires 2–4 waypoints, and prefers a destination-led shape — go to the river or park first,
 and refuses to save unless Strava's complete three-part surface mix was captured.
 
 All the GPX corpus (count it: `ls *.gpx | wc -l`) routes have rows in `manifest.psv`; attempt counts, geocoder misses, and
@@ -77,7 +78,7 @@ inventing data, and `audit-candidates.mjs --strict` continues to fail until they
 
 `candidate-status.psv` is the explicit catalog boundary. Historical GPX files remain in this
 directory as useful evidence, but only `candidate` rows are current candidates. A candidate must
-be 2–under-5 km, close within 25 m, retain OSM attribution, have a complete manifest row, and be
+be 1.5–7.5 km, close within 25 m, retain OSM attribution, have a complete manifest row, and be
 marked `surface-verified`. A station exit or underground-passage query is refused. `review` means
 the geometry may be useful but the complete dog-access path has not been proven; `superseded`
 means a measured constraint already disqualifies it.
