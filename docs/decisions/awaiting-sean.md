@@ -195,6 +195,30 @@ in the background for weeks) or commit to manual and delete the charge machine.*
 Consequence either way: the no-card empty state **is** the pilot, and the current payment surface
 implies automation that does not exist — an honesty-law item, now client's to fix once you pick.
 
+## 0-decies. 🟡 LOOKUP — trust is offline and nobody is rebuilding 0105, the last open P0 (announcer v3, 2026-08-19 evening)
+
+–––––REPORT–––––
+**Measured, not relayed:** trust's session has been off the roster for hours. The 0105 *file* is on
+trunk and six branches — all the same reviewer-rejected version (`0bb40ac`); **a replacement exists
+nowhere** (no origin branch, no local branch, no worktree, no stash). Production: 0106/0107/0108
+applied, **0105 not applied** (deliberate). The spec for the rebuild is already on trunk:
+`docs/security-booking-party-forgery.md` (F1 `recurring_series` money-mint via the hourly cron; F2
+`create-booking-hold` takes `runner_id` from the body; F3 revoke-INSERT has zero client blast radius).
+Side effect while it stays open: **every deploy in the fleet is serialized behind it** — see
+`docs/handoff-announcer.md` (v3 addendum) for the only safe recipe and the one CLI hint never to run.
+
+**Default I am applying under your "full speed" rule unless you say otherwise:** announcer-directed
+subagents rebuild it under the full adversarial cycle (scout → contract → /autoplan → implement →
+reviewer ≠ author executing attacks → pins → land on trunk → deploy with the recipe → verify live).
+It is a money path, so every gate runs. Catalog offers a scratch cluster reproducing production's
+exact schema for the reviewer.
+
+Your answer, one letter:
+- **A** — go (the default; nothing needed from you)
+- **B** — reopen trust and let the session that holds the RLS context do it; sessions wait
+- **C** — a session name of your choosing
+–––––[end of report; nothing above is your ruling until you answer]–––––
+
 ## 0-septies-bis. ✅ RETRACTED BY SEAN — no per-migration approval; full speed governs (2026-08-19)
 
 **Sean, 2026-08-19, verbatim:** *"i never said 'work locally first, do not push migrations
