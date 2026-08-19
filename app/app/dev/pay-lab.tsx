@@ -108,8 +108,8 @@ function PayLab() {
             charge={charge}
             busy={busy}
             failReason={failReason}
-            onConfirm={() => stub('예약 확정하기')}
-            onRetry={() => stub('다시 시도')}
+            /* [O-5 §E.5.1] onConfirm/onRetry는 PayView에서 사라졌다 — 결제 확정 경로가
+               삭제됐고(payment_ok 없음), 이 화면은 읽기 전용이다. 랩은 남은 두 액션만 흔든다. */
             onReload={() => stub('다시 불러오기')}
             onBack={() => stub('뒤로')}
           />
