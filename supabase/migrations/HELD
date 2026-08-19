@@ -1,0 +1,12 @@
+# HELD migrations — files that exist on trunk but MUST NOT be applied to production yet.
+# One filename per line. `scripts/deploy-migrations.sh` moves every file listed here aside before
+# it runs `supabase db push`, so a held file can never ship as cargo on someone else's deploy.
+#
+# A line here is a decision by the migration's owner, recorded in REGISTRY.md. Remove the line in the
+# same commit that lands the file (or supersedes it) — and say why in the REGISTRY row.
+#
+# History: 2026-08-19 — trunk's 0105 was reviewer-rejected (docs/security-booking-party-forgery.md)
+# and kept out of every deploy by hand ("mv 0105 aside"). The same day, catalog measured that
+# `db push --include-all` from any tree carrying it lists 0105 to push. Five hand-steps became this
+# file plus a script.
+0105_booking_insert_party_guard.sql
