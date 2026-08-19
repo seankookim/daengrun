@@ -38,14 +38,36 @@ const targetKm = Number(process.argv[3] || 3);
 const start = res.find((r) => r.name === wanted) || res.find((r) => (r.name || '').includes(wanted));
 if (!start) { console.error(`no complex matching "${wanted}"`); process.exit(1); }
 
-// A loop of L km drawn through points at radius r has L roughly 2*pi*r with
-// street detour, so aim the band near L/(2*pi) and allow a wide window.
-const ideal = (targetKm * 1000) / (2 * Math.PI);
-const lo = ideal * 0.45, hi = ideal * 2.0;
+// A loop through points at radius r is NOT 2*pi*r — streets do not run in
+// circles. MEASURED on three builds, all at ideal radius 477 m:
+//   동작 6.07 km · 마포 5.74 km · (성동 10.39 km, crossings forced detours)
+// so the real ratio is ~1.9-2.0x the circle. The first version used the bare
+// circumference and overshot every target by roughly double, which reads as
+// "the router is wrong" when it is the estimate that is wrong.
+const DETOUR = 1.95;
+const ideal = (targetKm * 1000) / (2 * Math.PI * DETOUR);
+// Wide SEARCH window, tight PREFERENCE. Narrowing the window with the radius
+// starved the sectors — at a 245 m ideal only 2 of 5 filled, and a 3-waypoint
+// plan is refused downstream. Candidates are still ranked by nearest-to-ideal,
+// so a wide window costs nothing when the map is dense and saves the anchor
+// when it is not.
+const lo = ideal * 0.40, hi = ideal * 3.2;
 
-const SKIP = /어린이공원|지하차도|지하보도|지하철|출구/;   // playgrounds are too small to route to; underpasses are not dog terrain
+// A waypoint must be something a person could TYPE INTO A SEARCH BOX, because
+// that is literally how it reaches the router. OSM names plenty of real objects
+// that are not searchable places: "보행교 (무명)" is an unnamed footbridge,
+// "급식실 연결다리" is a school canteen walkway, and one entry is a whole
+// sentence describing a road that was absorbed into a park. Feeding those to the
+// geocoder returns nothing, or worse returns a same-named thing far away.
+const SKIP = new RegExp([
+  '어린이공원','지하차도','지하보도','지하철','출구',   // too small, or not dog terrain
+  '무명','\\(무명\\)',                                 // explicitly unnamed
+  '연결다리','급식실','학교','교회','성당',              // private/institutional
+  '^다리$','^보행교$','^육교$','^계단$','^터널$',        // generic nouns, not names
+].join('|'));
+const UNSEARCHABLE = (n) => n.length > 18 || /되어|편입|폐쇄|예정|공사/.test(n);
 const cands = feats
-  .filter((f) => f.name && f.name !== '(unnamed crossing)' && !SKIP.test(f.name))
+  .filter((f) => f.name && f.name !== '(unnamed crossing)' && !SKIP.test(f.name) && !UNSEARCHABLE(f.name))
   .filter((f) => ['park', 'stream', 'lake', 'hill', 'trail', 'crossing'].includes(f.category))
   .map((f) => ({ ...f, d: hav(start, f), b: bearing(start, f) }))
   .filter((f) => f.d >= lo && f.d <= hi);

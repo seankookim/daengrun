@@ -27,8 +27,18 @@ const hav = (a, b) => {
 const WANT = new Set(['park', 'stream', 'lake', 'hill', 'crossing', 'trail']);
 const targets = feats.filter((f) => WANT.has(f.category) && f.name && f.name !== '(unnamed crossing)');
 
+// A name is only usable as a route anchor if a person would type it into a
+// search box. The raw OSM set is full of things that are technically tagged
+// residential but are not addressable places: bare building numbers ("113",
+// "1109동"), officetels, and businesses mis-tagged as apartments. Ranking by
+// feature variety surfaced exactly those first, because a mis-tagged restaurant
+// sits in the densest part of the map.
+const REAL_COMPLEX = /(아파트|마을|단지|자이|래미안|힐스테이트|푸르지오|e편한세상|롯데캐슬|아이파크|더샵|센트레빌|위브|리센츠|엘스|트리지움|팰리스|포레|타운)/;
+const JUNK = /^[0-9]+(동|호)?$|오피스텔|상가|빌딩|고시원|모텔|호텔|병원|학교|교회|성당|주민센터|경찰|소방/;
+
 const guFilter = process.argv.slice(2);
-const pool = res.filter((r) => (!guFilter.length || guFilter.includes(r.gu)));
+const pool = res.filter((r) => (!guFilter.length || guFilter.includes(r.gu)))
+  .filter((r) => REAL_COMPLEX.test(r.name) && !JUNK.test(r.name));
 
 const rows = [];
 for (const c of pool) {

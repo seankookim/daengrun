@@ -443,7 +443,7 @@ $('drop').addEventListener('drop',e=>{ const f=e.dataTransfer.files[0]; if(f) ha
 
 
 // ---- Naver map -------------------------------------------------------------
-let nmap=null, npoly=null, nstart=null;
+let nmap=null, npoly=null, nstart=null, nmapReady=false;
 function naverDraw(r){
   if(!nmap) return;
   const path=r.trace.map(p=>new naver.maps.LatLng(p[0],p[1]));
@@ -455,7 +455,12 @@ function naverDraw(r){
     icon:{content:'<div style="width:15px;height:15px;border-radius:50%;background:#5FAE8C;border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4)"></div>',anchor:new naver.maps.Point(7,7)}});
   const b=new naver.maps.LatLngBounds(path[0],path[0]);
   path.forEach(p=>b.extend(p));
-  nmap.fitBounds(b,{top:38,right:38,bottom:38,left:38});
+  // fitBounds before the map has finished initialising is silently discarded —
+  // the map keeps its constructor zoom and the route sits invisible at city
+  // scale. Wait for 'init' the first time, then it is safe to call directly.
+  const fit=()=>nmap.fitBounds(b,{top:38,right:38,bottom:38,left:38});
+  if(nmap.getZoom()===undefined||!nmapReady) naver.maps.Event.once(nmap,'init',()=>{nmapReady=true;fit();});
+  else fit();
 }
 function bootNaver(){
   const cfg=window.NAVER_MAP;

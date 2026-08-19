@@ -47,7 +47,9 @@ const TOWN = [
   // another session used. Verify the 법정동 before this row is served: 파크리오
   // is already a known case of a 잠실-looking name that is legally 신천동.
   [/^송파/, '송파동'],
-  [/^동작|^노량진/, '노량진동'],   // 동작구; 경동아파트 sits in 노량진 rather than 동작동
+  [/^동작|^노량진/, '노량진동'],
+  [/^성북/, '보문동'],      // 성북구; e편한세상보문1단지 sits in 보문동
+  [/^마포|^상암/, '상암동'],  // 마포구   // 동작구; 경동아파트 sits in 노량진 rather than 동작동
 ];
 
 const out = [];
