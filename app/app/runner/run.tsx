@@ -4,8 +4,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, AppState, KeyboardAvoidingView, Linking, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Avatar, Icon, Row } from '../../src/components/ui';
 import { traceKind } from '../../src/components/course-detail';
-import { addRunEvent, ensureThread, fetchCurrentRunnerJobId, fetchMeetupInfo, fetchRouteById, fetchRunMeta, fetchRunStartedAt, fetchRunTrace, MeetupInfo, notifyKmMilestone, RunEventKind, saveRunTrace, sendChatMessage, sendChatPhoto, settleRun, startRunServer, uploadRunPhoto } from '../../src/lib/api';
+import { addRunEvent, ensureThread, fetchBookingAddress, fetchCurrentRunnerJobId, fetchMeetupInfo, fetchRouteById, fetchRunMeta, fetchRunStartedAt, fetchRunTrace, MeetupInfo, notifyKmMilestone, PickupAddress, RunEventKind, saveRunTrace, sendChatMessage, sendChatPhoto, settleRun, startRunServer, uploadRunPhoto } from '../../src/lib/api';
 import { GeoPoint, getNaverMap, getTraceSnapshot, getTrackPermission, mergeFixes, publishPos, resetTrace, seedTrace, smoothTrace, startTracking, stopPublishing, TrackHandle, TrackMode, TrackSnapshot } from '../../src/lib/geo';
+import { haversineM, nearestOnTrace, rotateLoopAtEntry } from '../../src/lib/route-geom';
 import { haptic } from '../../src/lib/haptics';
 import { notifyLocal } from '../../src/lib/push';
 import { clampSuggest, PACE_WINDOW_MS, PaceState, paceState, windowPaceSec } from '../../src/lib/pace';
@@ -22,6 +23,13 @@ const REASON_MAP = { dog: 'dog_condition', owner: 'owner_request', runner: 'runn
 // 그대로 흰 케이싱이 되어 "인쇄된 코스도" 읽기가 성립한다. (색은 paper.ink #111111 — 신규 색 0개.)
 // 앵커 = 회전 사각형(다이아몬드). 기본 네이버 핀은 '검색 결과'를 뜻해서 만남 장소로 읽히지 않는다.
 const ROUTE_ANCHOR = require('../../assets/route-anchor.png');
+// 입구 도착 판정 반경(m). route-geom의 off-route 기본값과 같은 수다 — 지배적 오차는 GPS 지터가
+// 아니라 코너 컷(한 세그먼트가 굽이를 가로지름)이라, 더 좁히면 곡선마다 오판이 난다
+// (route-geom.ts:20-22). 이 값은 **표시**에만 쓰이고 거리·정산에는 닿지 않는다.
+const ENTRY_REACHED_M = 40;
+// '닫힌 루프' 임계값(m). api.ts의 CLOSURE_MAX_M(디스커버리 게이트)과 같은 수를 쓴다 — 한 화면만
+// 다른 '닫힘' 정의를 갖게 하지 않는다. route-geom의 기본값(25)보다 느슨하므로 명시적으로 넘긴다.
+const LOOP_CLOSURE_M = 50;
 
 type CamMode = 'approach' | 'fit' | 'follow' | 'free';
 type LatLng = { latitude: number; longitude: number };
@@ -333,6 +341,80 @@ export default function ActiveRun() {
   }, [routeCoords]);
   const anchor = routeCoords.length > 0 ? routeCoords[0] : null;
 
+  // ═══════════════ 픽업 → 입구 → 랩 (Sean 재정 #14, 2026-08-19) ═══════════════
+  // "픽업 지점은 보호자가 찍은 곳이고, 앱은 거기서 코스 **위**의 가장 가까운 점(= 입구)까지 러너를
+  //  인도한다. 랩은 그 입구에서 시작한다."
+  //
+  // ⚠ 이 슬라이스는 돈을 1mm도 움직이지 않는다. `actual_km`은 오늘과 똑같이 추적 버퍼 전체를
+  // 뜻하고, 자동완주·오버런 천장·정산은 손대지 않았다. 접근 구간이 예약 km에 포함되는지는
+  // Sean에게 따로 올라간 결정이다 — 지도가 먼저 정직해지는 것이 그 결정을 막지 않는다.
+  //
+  // ⚠ entryIdx는 **화면 로컬**이다. 목록 화면의 trace_thumb(≤50점)와 이 화면의 trace(≤200점)는
+  // 다른 배열이라 인덱스가 서로를 가리키지 못한다 (route-geom.ts:24-28). 그래서 다른 화면이 계산한
+  // 인덱스를 믿지 않고 여기서 다시 계산한다.
+  const [pickup, setPickup] = useState<{ s: 'loading' } | { s: 'ok'; a: PickupAddress | null } | { s: 'err' }>({ s: 'loading' });
+  const [pickupTry, setPickupTry] = useState(0);
+  useEffect(() => {
+    // infoStatus === 'ready'가 곧 "runnerJob.bookingId가 해소됐다"의 신호다 — loadInfo는 bid 없이는
+    // 불리지 않는다. bookingId 자체는 모듈 값이라 의존성에 걸 수 없다.
+    if (infoStatus !== 'ready') return;
+    const bid = runnerJob.bookingId;
+    if (!bid) return;
+    let alive = true;
+    setPickup({ s: 'loading' });
+    fetchBookingAddress(bid)
+      .then((a) => { if (alive) setPickup({ s: 'ok', a }); })
+      .catch((e) => {
+        // 실패를 '주소 없음'으로 접으면 러너는 재시도 버튼을 영영 못 본다 (meetup.tsx:109-121과 같은 규율)
+        console.warn('[run] pickup:', e?.message ?? e);
+        if (alive) setPickup({ s: 'err' });
+      });
+    return () => { alive = false; };
+  }, [infoStatus, pickupTry]);
+
+  /** 보호자가 찍은 핀. 행은 있는데 lat/lng가 NULL인 것은 '못 불러왔다'가 아니라 '핀이 없다'이다. */
+  const pickupLL = useMemo(() => {
+    const a = pickup.s === 'ok' ? pickup.a : null;
+    return a && a.lat != null && a.lng != null ? { lat: a.lat, lng: a.lng } : null;
+  }, [pickup]);
+  const traceLL = useMemo(() => routeGeo?.trace ?? [], [routeGeo]);
+  /** 입구 = 픽업에서 코스 **선 위**로 내린 수선의 발 (정점 최근접이 아니라 세그먼트 투영). */
+  const entry = useMemo(() => (pickupLL ? nearestOnTrace(pickupLL, traceLL) : null), [pickupLL, traceLL]);
+  const entryCoord = useMemo(
+    () => (entry ? { latitude: entry.point.lat, longitude: entry.point.lng } : null),
+    [entry],
+  );
+  // 루프 회전은 **닫힌 루프에만**. rotateLoopAtEntry는 열린 경로면 입력과 같은 참조를 돌려주므로
+  // 그 항등 비교가 곧 '이 코스는 닫혔는가'의 답이다 (route-geom.ts:176-180) — closureM을 한 번 더
+  // 돌리지 않고 같은 판정을 쓴다.
+  const lapLL = useMemo(
+    () => (entry ? rotateLoopAtEntry(traceLL, entry, LOOP_CLOSURE_M) : traceLL),
+    [entry, traceLL],
+  );
+  const rotated = entry != null && lapLL !== traceLL;
+  const lapCoords = useMemo(
+    () => (rotated ? lapLL.map((p) => ({ latitude: p.lat, longitude: p.lng })) : routeCoords),
+    [rotated, lapLL, routeCoords],
+  );
+
+  // 입구 도착 — 한 번 켜지면 다시 꺼지지 않는다. **새 구독자를 만들지 않는다**: onTrack이 이미
+  // 세팅하는 lastPos(마지막으로 게이트를 통과한 픽스)를 읽을 뿐이다. 추적 싱글턴은 동결이다.
+  const [atEntry, setAtEntry] = useState(false);
+  useEffect(() => {
+    if (atEntry || !entry || !lastPos) return;
+    if (haversineM({ lat: lastPos.lat, lng: lastPos.lng }, entry.point) <= ENTRY_REACHED_M) {
+      setAtEntry(true);
+      haptic('success');
+    }
+  }, [atEntry, entry, lastPos]);
+
+  /** 입구까지 남은 **직선** 거리(m). 픽스가 아직 없으면 픽업→입구 거리로 답한다 — 둘 다 실좌표
+   *  두 점 사이의 실측이고, 어느 쪽도 도로 경로 길이가 아니다 (문구가 그렇게 말한다). */
+  const entryDistM = useMemo(() => {
+    if (!entry) return null;
+    return lastPos ? haversineM({ lat: lastPos.lat, lng: lastPos.lng }, entry.point) : entry.distM;
+  }, [entry, lastPos]);
+
   const mapRef = useRef<NaverMapHandle | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const [camMode, setCamMode] = useState<CamMode>('approach'); // 렌더용 (내 위치로 버튼)
@@ -356,19 +438,24 @@ export default function ActiveRun() {
   // 접근 — 러너와 앵커가 한 화면에. 정확히 두 좌표라 두-좌표 fit이 이 일 자체다.
   // 의존성이 `lastPos`가 아니라 `hasPos`(불리언)인 것은 **의도**다: 첫 픽스가 들어온
   // 순간 한 번 다시 맞추고, 그 뒤 픽스마다 재적용하지 않는다 — 그게 곧 컨트롤드 카메라다.
+  //
+  // 재정 #14: 접근 구도가 맞춰야 할 상대는 이제 **입구**다 (없으면 오늘처럼 트레이스 첫 점).
+  // camTarget은 코스가 뜰 때와 픽업이 뜰 때 최대 두 번 바뀔 뿐이라, 의존성에 넣어도 "픽스마다
+  // 카메라를 다시 민다"는 은퇴한 패턴으로 돌아가지 않는다 — 이 계약은 그대로다.
   const hasPos = lastPos != null;
+  const camTarget = entryCoord ?? anchor;
   useEffect(() => {
     if (!mapReady || running || camModeRef.current === 'free') return;
     setMode('approach');
-    if (lastPos && anchor) {
+    if (lastPos && camTarget) {
       mapRef.current?.animateCameraWithTwoCoords({
-        coord1: { latitude: lastPos.lat, longitude: lastPos.lng }, coord2: anchor, duration: 700,
+        coord1: { latitude: lastPos.lat, longitude: lastPos.lng }, coord2: camTarget, duration: 700,
       });
     } else if (routeBox) {
       mapRef.current?.animateCameraWithTwoCoords({ coord1: routeBox.nw, coord2: routeBox.se, duration: 700 });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mapReady, running, routeBox, hasPos]);
+  }, [mapReady, running, routeBox, hasPos, camTarget]);
 
   // 러닝 시작 = 루프 전체를 **한 번** 맞춰 보여주고, 그다음 카메라를 러너에게 돌려준다.
   useEffect(() => {
@@ -388,9 +475,9 @@ export default function ActiveRun() {
     // 그 앞에 서 있어야 한다(거부되면 설정에서만 되돌릴 수 있다). 그래서 여기선 접근 구도로만 되돌린다.
     if (!running) {
       setMode('approach');
-      if (lastPos && anchor) {
+      if (lastPos && camTarget) {
         mapRef.current?.animateCameraWithTwoCoords({
-          coord1: { latitude: lastPos.lat, longitude: lastPos.lng }, coord2: anchor, duration: 500,
+          coord1: { latitude: lastPos.lat, longitude: lastPos.lng }, coord2: camTarget, duration: 500,
         });
       } else if (routeBox) {
         mapRef.current?.animateCameraWithTwoCoords({ coord1: routeBox.nw, coord2: routeBox.se, duration: 500 });
@@ -421,6 +508,44 @@ export default function ActiveRun() {
       return { text: '이 선은 예정 경로예요 — 아직 실측 전이라 현장과 다를 수 있어요', warn: false };
     }
     return null;
+  })();
+
+  // ── 픽업 → 입구 안내 (재정 #14). 조용하게·정직하게: ETA 없음, 도로 안내 주장 없음, 새 버튼 없음.
+  //    이 스트립은 어떤 상태에서도 GPS·기록·정산을 막지 않는다 (자문이다).
+  const guide = ((): { text: string; note?: string; action?: string; onAction?: () => void; warn?: boolean } | null => {
+    if (pickup.s === 'loading') return null; // 로딩은 아무 말도 하지 않는다 — 곧 답이 온다
+    if (pickup.s === 'err') {
+      // 통신 실패를 '핀 없음'으로 위장하지 않는다 — 실패는 실패로, 재시도와 함께
+      return { text: '픽업 위치를 불러오지 못했어요', action: '다시 시도', onAction: () => setPickupTry((t) => t + 1), warn: true };
+    }
+    if (!pickupLL) {
+      // 핀이 없으면 입구를 계산할 방법이 **없다**. trace[0]을 '입구'라고 부르는 순간 그건
+      // 정확해 보이면서 틀린 문장이 된다 — 코스 시작점이라고 그대로 말한다.
+      // 코스 선조차 없으면 routeNote가 이미 그 사실을 말하므로 여기선 침묵한다.
+      // 러닝을 시작하면 시작점 마커는 사라지므로(오늘 그대로) '안내해요'는 그때 거짓이 된다 —
+      // 그 뒤로는 사실만 남긴다.
+      if (routeCoords.length <= 1) return null;
+      return running
+        ? { text: '픽업 위치가 없어 입구를 계산할 수 없어요' }
+        : { text: '픽업 위치가 없어 입구를 계산할 수 없어요 — 코스 시작점으로 안내해요' };
+    }
+    if (!entry || entryDistM == null) return null; // 핀은 있으나 트레이스가 없다 → routeNote의 몫
+    // 회전하지 않았다 = 트레이스의 첫 점과 끝 점이 만나지 않는다 = 시작이 정해진 열린 코스다.
+    // 트레이스에서 그대로 읽히는 사실일 때만 말한다.
+    const openNote = rotated ? undefined : '시작점이 정해진 코스예요';
+    if (atEntry) {
+      const rkm = routeGeo?.km;
+      return {
+        text: rkm != null ? `입구 도착 — 여기서 랩 시작 · 코스 ${rkm}km` : '입구 도착 — 여기서 랩 시작',
+        note: openNote,
+      };
+    }
+    return {
+      text: `입구까지 직선 ${Math.round(entryDistM)}m`,
+      // 실도로 경로가 아니라는 사실을 한 번, 작게. docs/routes/strava/route-guidance.mjs는 라이브
+      // GPS 스트림에 대해 한 번도 돌아본 적이 없다 — '길 안내'라고 부르면 우리가 만든 오해가 된다.
+      note: ['직선 거리예요 · 길 안내는 실도로 검증 전', openNote].filter(Boolean).join(' · '),
+    };
   })();
 
   // 언마운트 정리 — 추적 태스크는 화면이 사라져도 OS에 남는다
@@ -851,12 +976,27 @@ export default function ActiveRun() {
               mapRef.current?.setLocationTrackingMode('NoFollow');
             }}
           >
-            {/* 예정 코스 — '인쇄된 코스도'. 잉크 대시 + 흰 케이싱, 실측 트레이스 **아래** */}
+            {/* 예정 코스(랩) — '인쇄된 코스도'. 흰 케이싱, 실측 트레이스 **아래**.
+                재정 #14: 닫힌 루프면 입구에서 시작하도록 회전된 좌표를 그린다. 색·굵기·zIndex는
+                그대로다 — 회전은 그리는 순서를 바꿀 뿐 이 선이 무엇인지를 바꾸지 않는다. */}
             {routeCoords.length > 1 && (
               <maps.NaverMapPathOverlay
-                coords={routeCoords}
+                coords={lapCoords}
                 width={3}
                 color={lilac.accent}
+                outlineWidth={1}
+                outlineColor="#FFFFFF"
+                zIndex={0}
+              />
+            )}
+            {/* 접근 구간 — 픽업에서 입구까지. **직선**이다: 우리에게 도로 라우팅이 없고, 안내 문구도
+                그렇게 말한다. 랩(라일락)과도 실측 트레이스(볼트)와도 다른 잉크·굵기라 세 선이 절대
+                한 가지로 읽히지 않는다. 입구에 닿으면 할 일을 다 했으므로 사라진다. */}
+            {!atEntry && pickupLL && entryCoord && (
+              <maps.NaverMapPathOverlay
+                coords={[{ latitude: pickupLL.lat, longitude: pickupLL.lng }, entryCoord]}
+                width={4}
+                color={paper.ink}
                 outlineWidth={1}
                 outlineColor="#FFFFFF"
                 zIndex={0}
@@ -872,8 +1012,24 @@ export default function ActiveRun() {
                 zIndex={1}
               />
             )}
-            {/* 앵커 — 만남 장소. 러닝 시작을 누르는 순간 할 일을 다 했으므로 사라진다 */}
-            {!running && anchor && (
+            {/* 입구 — 픽업에서 코스 위로 내린 가장 가까운 점. 러너가 인도되는 **대상**이므로
+                러닝을 시작한 뒤에도 남는다: 예전 앵커 마커는 running이 되는 순간 사라졌는데,
+                그러면 지금 향해 가고 있는 바로 그 점이 화면에서 없어진다. 도착하면 사라진다. */}
+            {entryCoord && !atEntry && (
+              <maps.NaverMapMarkerOverlay
+                latitude={entryCoord.latitude}
+                longitude={entryCoord.longitude}
+                anchor={{ x: 0.5, y: 0.5 }}
+                width={26}
+                height={26}
+                image={ROUTE_ANCHOR}
+                caption={{ text: '입구', textSize: 12, color: paper.ink, haloColor: '#FFFFFF' }}
+                zIndex={2}
+              />
+            )}
+            {/* 입구를 계산할 수 없을 때(핀 없음·트레이스 없음)는 오늘 그대로 — 트레이스 첫 점을
+                러닝 전에만 보여주고, 그것을 '입구'라고 부르지 않는다. 그건 선이 시작된 자리일 뿐이다. */}
+            {!entryCoord && !running && anchor && (
               <maps.NaverMapMarkerOverlay
                 latitude={anchor.latitude}
                 longitude={anchor.longitude}
@@ -985,6 +1141,20 @@ export default function ActiveRun() {
         {saveLag && (
           <View style={s.failStrip}>
             <Text style={s.failTxt}>기록 저장이 밀리고 있어요 — 신호가 잡히면 자동 재시도해요</Text>
+          </View>
+        )}
+        {/* 픽업 → 입구 안내 (재정 #14). 같은 스트립 문법: 통신 실패만 코랄, 나머지는 중립 헤어라인 */}
+        {guide && (
+          <View style={[s.failStrip, !guide.warn && s.noteStrip]}>
+            <View style={{ flex: 1 }}>
+              <Text style={[s.guideTxt, guide.warn && { color: colors.tang }]}>{guide.text}</Text>
+              {guide.note && <Text style={s.guideNote}>{guide.note}</Text>}
+            </View>
+            {guide.action && (
+              <Pressable onPress={guide.onAction} hitSlop={8} accessibilityRole="button" accessibilityLabel={guide.action}>
+                <Text style={s.failAction}>{guide.action}</Text>
+              </Pressable>
+            )}
           </View>
         )}
         {/* 코스 오버레이 고지 — 자문이지 차단이 아니다. 코스 선이 없어도 러닝·기록·정산은 그대로 간다 */}
@@ -1282,6 +1452,9 @@ const s = StyleSheet.create({
   // 같은 스트립 문법의 **자문** 변형 — 코랄은 라우드 페일에만 쓴다 (색 역할 분리 법).
   // 코스 선이 없는 것은 실패가 아니라 사실이므로 중립 헤어라인으로 말한다.
   noteStrip: { borderColor: '#3A3A3A' },
+  // 픽업→입구 안내 — 자문 스트립과 같은 문법, 두 줄(사실 / 그 사실의 한계). 디테일 플로어 14pt.
+  guideTxt: { fontSize: 14.5, lineHeight: 20, fontWeight: '700', color: '#FFFFFF' },
+  guideNote: { fontSize: 14, lineHeight: 19, color: '#BBBBBB', marginTop: 4 },
   // 내 위치로 — 팬 오버라이드를 되돌리는 유일한 컨트롤 (44pt 터치 타깃)
   recenterBtn: {
     // 진행바(trackWrap, bottom 24)를 피해 그 위에 앉는다

@@ -1,20 +1,38 @@
-// 코스 자동 배정 — 거리 랭킹 (Sean 2026-08-14: "픽업 지점에서 가장 가까운, 조건에 맞는 코스").
+// Route ranking by distance from the pickup (Sean 2026-08-14: "the closest course that matches the
+// conditions, measured from the pickup point").
 //
-// 이전 규칙은 **km 근접만** 봤다: 반포본동 보호자와 잠원 보호자가 5km를 고르면 같은 코스를
-// 받았다. 어디서 출발하는지를 아무도 보지 않았기 때문이다.
+// The rule before that looked at km proximity ONLY: a 반포본동 owner and a 잠원 owner who both dialled
+// 5 km got the same course, because nobody looked at where they were starting from.
 //
-// ═══ 무엇을 기준점으로 삼는가 (Sean 판정 D1, 2026-08-14) ═══
-// **`trace[0]` — 코스가 실제로 시작하는 점**이지 `routes.anchor_lat/lng` 컬럼이 아니다.
-// 0078이 그 컬럼을 "근사값 — 소비 금지"로 못박았고 그건 지금도 옳다: 측정해 보니 9개 중 2개가
-// 크게 틀렸다 (몽마르뜨 1039m, 누에다리 ~850m). 반포 규모에서 1km 오차는 랭킹 순서를 뒤집고
-// 강 건너로 보낼 수 있다. **틀린 좌표로 매긴 순위는 정확해 보이면서 틀린다** — 지금의 정직한
-// km-only 배정보다 나쁘다. `trace[0]`은 실제 지오메트리라 그 문제가 없다.
+// ═══ WHAT THE DISTANCE IS MEASURED TO (Sean, ruling #14, 2026-08-19) ═══
+// The NEAREST POINT ON THE TRACE — a perpendicular projection onto the polyline, computed by
+// `route-geom.nearestOnTrace`. This SUPERSEDES the earlier D1 rule of ranking from `trace[0]`.
 //
-// ═══ 합성 순서 (뒤집으면 조용한 버그가 된다) ═══
-// 칩(하드 필터) → km 밴드 → 거리. 거리가 **먼저** 오면 사용자가 끈 조건의 코스나 다이얼과
-// 동떨어진 km이 "가깝다"는 이유로 올라온다. 거리는 **동점을 가르는** 축이지 선호를 이기는
-// 축이 아니다. km 값이 이산적(2·3·5·7)이라 같은 밴드에 여러 개가 들어오고, 거기서 거리가 일한다.
+// `trace[0]` is only where the drawing started, not an entrance: on a 7 km loop a pin beside the
+// loop's midpoint is metres from the route yet ~2 km from `trace[0]`, so `trace[0]` ranked that
+// course as the far one. Nearest VERTEX is not enough either — the corpus stores 35-65 m mean point
+// spacing (100 m worst gap), so a point halfway along a straight segment measures as tens of metres
+// off a route it is standing on. Ruling #14 is explicit that the runner is led to "the nearest point
+// in the path", which is a point on the line, so that is what the ranking measures.
+//
+// Still true, and still the reason this file exists: `routes.anchor_lat/lng` is NOT the basis.
+// 0078 pinned those columns as "근사값 — 소비 금지" and measurement agreed — 2 of 9 were badly wrong
+// (몽마르뜨 1039 m, 누에다리 ~850 m). At Banpo scale a 1 km error flips the ranking order and can send
+// someone across the river. A ranking built on wrong coordinates looks precise and is wrong — worse
+// than the honest km-only assignment it replaces. The trace is real geometry and has no such problem.
+//
+// ═══ COMPOSITION ORDER (inverting it produces a silent bug) ═══
+// chips (hard filter) → exact km tier → distance. If distance came FIRST, a course the user filtered
+// out — or one far from the dial — would surface for being "close". Distance BREAKS TIES; it does not
+// beat a preference. km values are discrete (2·3·5·7) so several land in one tier, and that is where
+// distance does its work.
 import { GeoRoutePoint, RouteInfo } from '../store';
+import { nearestOnTrace, NearestOnTrace } from './route-geom';
+
+// The single haversine of record lives in `route-geom`. Re-exported (not reimplemented) so callers
+// that already import it from here keep working and there is exactly one copy of the formula.
+export { haversineM } from './route-geom';
+export type { NearestOnTrace } from './route-geom';
 
 export type RankedBy = 'proximity' | 'km' | 'none';
 export interface PickResult { id: string | null; rankedBy: RankedBy }
@@ -28,8 +46,11 @@ function usable(p: { lat: number; lng: number } | null | undefined): p is LatLng
     && p.lat >= 33 && p.lat <= 39 && p.lng >= 124 && p.lng <= 132;   // 한국 경계 (0082 §D-ⓔ와 동일)
 }
 
-/** 코스가 실제로 시작하는 점. 트레이스가 없거나 좌표가 성립하지 않으면 null —
- *  없는 좌표를 지어내지 않고, 못 믿을 좌표로 순위를 매기지도 않는다. */
+/** Where the course's drawing starts. Null when there is no trace or the coordinate does not hold —
+ *  we neither invent a coordinate nor rank by one we cannot trust.
+ *
+ *  NOTE (ruling #14): this is NO LONGER the ranking basis — see `nearestOnTraceFor`. It survives as
+ *  the honest "does this route have geometry at all" predicate and as the map's first vertex. */
 export function routeStart(r: RouteInfo): LatLng | null {
   const p: GeoRoutePoint | undefined = r.trace?.[0];
   return usable(p) ? { lat: p.lat, lng: p.lng } : null;
@@ -59,14 +80,53 @@ export function boundsOfTraces(traces: GeoRoutePoint[][]): Bounds | null {
   return n > 0 ? { minLat, maxLat, minLng, maxLng } : null;
 }
 
-/** 미터. 서울(위도 37.5)에서 경도 1도는 위도 1도의 약 0.79배라, 평면 근사는 동서 거리를
- *  20% 이상 부풀린다 — 반포에서 그건 코스 순서를 바꾸기 충분하다. 그래서 하버사인을 쓴다. */
-export function haversineM(a: LatLng, b: LatLng): number {
-  const R = 6371000, rad = Math.PI / 180;
-  const dLat = (b.lat - a.lat) * rad, dLng = (b.lng - a.lng) * rad;
-  const s = Math.sin(dLat / 2) ** 2
-    + Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(dLng / 2) ** 2;
-  return 2 * R * Math.asin(Math.min(1, Math.sqrt(s)));
+/**
+ * Nearest point ON this route's trace to `pickup` — the entry point of ruling #14, and the distance
+ * every ranking below is measured with. Null when the pickup or the trace cannot be used.
+ *
+ * Callers go through this wrapper rather than reaching into `r.trace` so that the shape of
+ * `RouteInfo.trace` stays this module's business.
+ *
+ * ⚠ `entryIdx` is an index INTO THE ARRAY THIS ROUTE OBJECT CARRIES and is meaningless anywhere
+ * else: `fetchRoutes` fills `trace` from `trace_thumb` (≤50 pts) while `fetchRouteById` fills it
+ * from `trace` (≤200 pts). Never persist or hand an index across screens — recompute, or pass the
+ * `point`.
+ */
+export function nearestOnTraceFor(r: RouteInfo, pickup: LatLng): NearestOnTrace | null {
+  return nearestOnTrace(pickup, r.trace);
+}
+
+/** The three numbers an owner needs to understand what they are booking (ruling #15). */
+export interface RouteTotals {
+  /** The measured lap, `routes.km`. The authority on fare (T-KM). NEVER replaced by `totalKm`. */
+  lapKm: number;
+  /** ONE-WAY straight-line metres from the pickup to the entry point. */
+  approachM: number;
+  /** Door-to-door estimate: `lapKm + 2 × approachM / 1000`. */
+  totalKm: number;
+}
+
+/**
+ * What the dog actually walks: the lap PLUS the approach (Sean, ruling #15, 2026-08-19 — "counts;
+ * the route selection should show kms with those included, which is why we need a large variety of
+ * routes made").
+ *
+ * The approach is counted TWICE — out to the entry point and back to the pickup for the return
+ * handoff. The runner meets the owner where the owner put the pin and hands the dog back there, so a
+ * one-way count would understate every booking by the approach.
+ *
+ * ⚠ THIS IS AN ESTIMATE AND MUST BE LABELLED AS ONE ("약"). `approachM` is a STRAIGHT LINE, not a
+ * walking route — there is no routing engine here, and a river or a fence can make the real walk far
+ * longer. It is also computed against whatever trace the caller holds (`trace_thumb`, ≤50 pts, on
+ * list screens). It is honest as an approximation and dishonest as a promise.
+ *
+ * ⚠ `totalKm` IS NOT A FARE INPUT. `routes.km`/the dial remain the money truth; nothing here feeds
+ * `create-booking-hold`. Null when the route has no measurable entry or no usable `km`.
+ */
+export function totalKmFor(r: RouteInfo, pickup: LatLng): RouteTotals | null {
+  const n = nearestOnTraceFor(r, pickup);
+  if (!n || !Number.isFinite(r.km)) return null;
+  return { lapKm: r.km, approachM: n.distM, totalKm: r.km + (2 * n.distM) / 1000 };
 }
 
 /**
@@ -81,23 +141,53 @@ export function haversineM(a: LatLng, b: LatLng): number {
  * 정렬은 그 규칙을 어기지 않으면서 오늘 값을 낸다: 보호자는 여전히 **직접** 고르고(확인 의식도
  * 그대로), 다만 캐러셀 맨 앞이 가장 가까운 코스가 된다. 선택은 사람의 것, 순서는 우리 몫이다.
  *
- * 시작점이 없는 코스는 **뒤로 밀되 사라지지 않는다** — 거리 미상은 '멀다'가 아니다.
+ * 거리를 잴 수 없는 코스는 **뒤로 밀되 사라지지 않는다** — 거리 미상은 '멀다'가 아니다.
  */
 export function orderByProximity(routes: RouteInfo[], pickup: LatLng | null): RouteInfo[] {
   if (!pickup) return routes;
-  const d = (r: RouteInfo) => {
-    const s = routeStart(r);
-    return s ? haversineM(pickup, s) : Number.POSITIVE_INFINITY;
-  };
-  return [...routes].sort((a, b) => d(a) - d(b));
+  // Measured once per route, not once per comparison: the projection walks every segment, and a
+  // sort comparator is called O(n log n) times. Decorate-sort keeps the same stable ordering.
+  return routes
+    .map((r) => ({ r, d: nearestOnTraceFor(r, pickup)?.distM ?? Number.POSITIVE_INFINITY }))
+    // `Infinity - Infinity` is NaN, and a NaN comparator silently degrades to "leave it alone".
+    // Compare for equality first so unmeasurable routes keep their incoming order explicitly.
+    .sort((x, y) => (x.d === y.d ? 0 : x.d - y.d))
+    .map((x) => x.r);
 }
+
+/** Tolerance, in km, for matching a door-to-door total against the dial (ruling #15). A band, not
+ *  an exact match: `totalKm` is continuous (it carries a metres-scale approach), so an exact-gap
+ *  tier would degenerate to "whichever route happens to sit closest" and pick a single arbitrary
+ *  winner every time. 1.0 km is one full dial notch either way. */
+export const TOTAL_KM_TOL = 1.0;
 
 /**
  * 자동 배정 1개를 고른다.
  *
  * @param routes  **이미 걸러진** 집합만 넣을 것 (status 게이트 + 칩). 이 함수는 필터링하지
  *                않는다 — 원본 목록을 넘기면 사용자가 배제한 코스나 candidate가 배정된다.
- * @param pickup  픽업지 좌표. null이면(주소 미등록·지오코딩 실패) km-only로 떨어진다.
+ * @param pickup  픽업지 좌표. null이면(주소 미등록·좌표 없음) 예전 규칙 그대로 km-only로 떨어진다.
+ *
+ * ═══ WHAT THE DIAL IS COMPARED AGAINST (Sean, ruling #15, 2026-08-19) ═══
+ * "counts; the route selection should show kms with those included, which is why we need a large
+ * variety of routes made." The approach leg COUNTS. So when the pickup is known, the dial is matched
+ * against the DOOR-TO-DOOR total (`totalKmFor`), not against `routes.km` — a 5 km loop whose entry is
+ * 600 m from the door is a 6.2 km outing for the dog, and pretending otherwise made a 5 km dial book
+ * a 6.2 km walk.
+ *
+ * The rule, in order:
+ *   1. pickup known and at least one route measurable → candidates are those within ±TOTAL_KM_TOL of
+ *      the dial on `totalKm`, ranked by `approachM` ascending (shortest walk to the line wins),
+ *      then by id. `rankedBy: 'proximity'`.
+ *   2. pickup known but nothing inside the band → the single nearest `|totalKm − target|`, still
+ *      measured from the pickup, so still `rankedBy: 'proximity'`.
+ *   3. no pickup, or no route with usable geometry → UNCHANGED legacy behaviour: the exact `routes.km`
+ *      tier, id-broken. `rankedBy: 'km'`, and the screen must not claim proximity.
+ *
+ * Why a band on the total but an EXACT tier on the fallback: `routes.km` is discrete (2·3·5·7) and is
+ * the authority on fare (T-KM), so widening it would let a 5.5 km course beat an exact 5.0 km one —
+ * a silent price change. `totalKm` is continuous and is a display/matching quantity only; the fare
+ * still follows the dial. Lap km is never replaced by the total anywhere.
  *
  * `rankedBy`를 함께 돌려주는 이유: 화면이 "가까운 순"이라고 **말하려면** 실제로 거리로 골랐어야
  * 한다. 폴백했는데 근접을 주장하면 그게 곧 거짓말이다.
@@ -105,29 +195,35 @@ export function orderByProximity(routes: RouteInfo[], pickup: LatLng | null): Ro
 export function pickRoute(routes: RouteInfo[], targetKm: number, pickup: LatLng | null): PickResult {
   if (routes.length === 0) return { id: null, rankedBy: 'none' };
 
-  // 1) km 계층 — 다이얼에 **정확히 가장 가까운** 차이를 가진 코스들만. 밴드(±0.5km)를 쓰지
-  //    않는다: 그러면 5.5km 코스가 가깝다는 이유로 정확한 5.0km를 이길 수 있고, 그건 조용한
-  //    가격 변경이다 (T-KM: km이 요금의 진실). 거리는 **동점을 가르는** 축이지 다이얼을
-  //    이기는 축이 아니다. (codex P1)
-  let bestGap = Infinity;
-  routes.forEach((r) => { bestGap = Math.min(bestGap, Math.abs(r.km - targetKm)); });
-  const tier = routes.filter((r) => Math.abs(r.km - targetKm) === bestGap);
-
   // 안정적인 동점 처리 — 세빛섬에 앵커가 겹치는 코스가 실제로 3개 있어서 완전 동점이 흔하다.
   // id로 마지막 tie-break를 하지 않으면 fetch 순서가 바뀔 때 추천이 흔들린다. (codex P2)
   const byId = (a: RouteInfo, b: RouteInfo) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
 
-  // 2) 계층 안에서 거리. 시작점이 성립하는 코스만 거리 경쟁에 참여한다.
-  const withStart = pickup ? tier.filter((r) => routeStart(r) !== null) : [];
-  if (withStart.length > 0) {
-    const best = withStart
-      .map((r) => ({ r, d: haversineM(pickup!, routeStart(r)!) }))
-      .sort((x, y) => (x.d - y.d) || byId(x.r, y.r))[0];
-    return { id: best.r.id, rankedBy: 'proximity' };
+  // 1) + 2) — door-to-door matching. Only routes whose total can actually be MEASURED compete; a
+  //    route with no usable geometry has an unknown total, and unknown is not "far".
+  if (pickup) {
+    const scored = routes
+      .map((r) => ({ r, t: totalKmFor(r, pickup) }))
+      .filter((x): x is { r: RouteInfo; t: RouteTotals } => x.t !== null);
+    if (scored.length > 0) {
+      const within = scored.filter((x) => Math.abs(x.t.totalKm - targetKm) <= TOTAL_KM_TOL);
+      if (within.length > 0) {
+        const best = [...within].sort((x, y) => (x.t.approachM - y.t.approachM) || byId(x.r, y.r))[0];
+        return { id: best.r.id, rankedBy: 'proximity' };
+      }
+      const best = [...scored].sort((x, y) =>
+        (Math.abs(x.t.totalKm - targetKm) - Math.abs(y.t.totalKm - targetKm))
+        || (x.t.approachM - y.t.approachM) || byId(x.r, y.r))[0];
+      return { id: best.r.id, rankedBy: 'proximity' };
+    }
   }
 
-  // 3) 폴백 — 픽업 좌표가 없거나 계층 안 어느 코스도 쓸 수 있는 시작점이 없다. 예전 규칙
-  //    그대로 km이 가장 가까운 것. 이때 화면은 근접을 **주장하지 않는다**.
+  // 3) 폴백 — 픽업 좌표가 없거나 어느 코스도 쓸 수 있는 진입점이 없다. 예전 규칙 그대로 km이
+  //    가장 가까운 것 (밴드가 아니라 **정확히 가장 가까운** 차이 — 5.5km가 정확한 5.0km를 이기면
+  //    그건 조용한 가격 변경이다, T-KM). 이때 화면은 근접을 **주장하지 않는다**.
+  let bestGap = Infinity;
+  routes.forEach((r) => { bestGap = Math.min(bestGap, Math.abs(r.km - targetKm)); });
+  const tier = routes.filter((r) => Math.abs(r.km - targetKm) === bestGap);
   const best = [...tier].sort((a, b) => (Math.abs(a.km - targetKm) - Math.abs(b.km - targetKm)) || byId(a, b))[0];
   return { id: best.id, rankedBy: 'km' };
 }

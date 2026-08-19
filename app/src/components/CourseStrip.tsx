@@ -39,11 +39,11 @@ export function CourseStrip({ title = '동네 코스', headerPad = 0, bleed = 0 
 
   return (
     <View style={{ marginTop: 18 }}>
-      {/* [§3b 2026-08-11] 단일 섹션 헤더 그램마 — 풀블리드 코랄 룰 위 + 타이틀 20/800 잉크.
-          'VERIFIED COURSES' 라틴 키커는 DESIGN.md §3b가 이름 불러 은퇴시킨 바로 그 사례. FOREST 2.5px
-          언더라인도 헤더 크롬에서 은퇴 (코스 카드 안 월드 컬러는 시맨틱으로 생존). */}
-      <View style={{ marginHorizontal: -bleed, paddingHorizontal: bleed + headerPad, borderTopWidth: 1, borderTopColor: paper.line, paddingTop: 10, marginBottom: 9 }}>
-        <Text style={{ fontSize: 20, lineHeight: 25, fontWeight: '800', color: paper.ink }}>{title}</Text>
+      {/* [2026-08-19 랩 ⑧] 모듈 헤더 = modh 문법 — 15/800 잉크 타이틀 한 줄. 구 문법의 풀블리드
+          코랄 룰 + 20/800 타이틀은 Sean이 첫날 clutter라 부른 그 선이라 은퇴했다 (홈의 덩어리
+          경계는 이제 여백 + 킥커 하나가 만든다). 'VERIFIED COURSES' 라틴 키커는 §3b에서 이미 은퇴. */}
+      <View style={{ marginHorizontal: -bleed, paddingHorizontal: bleed + headerPad, marginBottom: 8 }}>
+        <Text style={{ fontSize: 15, lineHeight: 20, fontWeight: '800', color: paper.ink }}>{title}</Text>
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingLeft: headerPad, paddingRight: 12 }}>
         {routes.map((r) => {

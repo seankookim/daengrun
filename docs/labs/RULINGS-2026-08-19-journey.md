@@ -55,7 +55,9 @@ Recorded the moment they arrived so nothing drops. Each line: what he said → w
     nearest-point metric supersedes it).
     → **Runner guidance = pickup → entry point → lap.** The runner leaves the pickup, is led to the
     nearest point of the route (the entry), and the lap starts there — the loop is rotated to begin
-    at the entry. Approach leg and lap are drawn as two things; the approach is not part of the km.
+    at the entry. Approach leg and lap are drawn as two things; the approach is not part of
+    `routes.km` (the measured lap). Whether it counts toward the BOOKED km was open here — settled
+    by #15 below: it counts.
 
 ## Approach leg counts · route km shown WITH it (Sean, 2026-08-19 evening, verbatim)
 15. Asked "does the approach leg (pickup → entry) count toward the booked km, or lap only?" —
