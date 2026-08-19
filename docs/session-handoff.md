@@ -87,11 +87,28 @@ copied value in one sitting.** All four secrets are credential *values*, so all 
    a working runner surfaces nothing. 0096 is right to do this; the unpaid half was never its job.
    **It is mine.**
 
-   Measured 2026-08-14: **1 booking in `incident_review`, and its run never ended** (`run_ended_at`
-   null), so **nobody is unpaid today**. It starts biting the first time a run ends and nobody
-   confirms return for 2h — `run-end-recovery` is ON, every 10 minutes — and it becomes real money
-   the moment charging is enabled. Until then, every escalated marketplace booking is a manual
-   database job.
+   Measured 2026-08-15, **correcting my own 08-14 measurement which read the wrong column**:
+   there is **1 booking in `incident_review`, its run DID end (2026-07-30), it has no ledger row —
+   and it is a CLUB booking.** Clubs settle through `club_release_payouts` (0045/0072), a
+   different path. So **no marketplace runner is unpaid today** — the same conclusion as before,
+   now resting on the right evidence rather than on a null I misread.
+
+   ⚠ **The error is worth more than the fact: `bookings.run_ended_at` and `runs.ended_at` are
+   different columns on different tables.** I queried the booking's, found null, and wrote "its run
+   never ended". The run's was set the whole time. Anything reasoning about whether work happened
+   must read `runs.ended_at`.
+
+   **This vindicates custody's `0097` detector, and the record belongs here as well as in their
+   wake-up brief.** I told them I might have found a gap — `ops_unsettled_runs()` returning 0 while
+   an `incident_review` booking sat there with an ended run and no ledger row. There is no gap:
+   their predicate excludes `club_session_id is not null` deliberately, and **they read
+   `runs.ended_at`, the correct column, while I read the booking's.** Called against production:
+   0 rows, correct. ⚠ Do not "fix" that club exclusion — it would report every club booking as an
+   unpaid marketplace run.
+
+   §0h starts biting the first time a **marketplace** run ends and nobody confirms return for 2h —
+   `run-end-recovery` is ON every 10 minutes — and it becomes real money the moment charging is
+   enabled. Until then, every escalated marketplace booking is a manual database job.
 
    Shape, from §0h: an ops-called, party-gated, idempotent RPC that reads the frozen measurement,
    takes the same three outcomes as the club path (refund_full · settle_measured · pay_full),
@@ -115,6 +132,12 @@ reachable* when the truth was that I had asked through the wrong door — PostgR
 `vault` schema; `supabase db query --linked` connects as a login role and reads it fine, which is
 the same reason that path also sees past RLS. Generalises well past Vault: **an empty result
 through an anon key means hidden, not empty, and a 404 from one door is not absence.**
+
+A third, from the next day and cheaper to make than either: **`bookings.run_ended_at` is not
+`runs.ended_at`.** I read the booking's column, got null, and reported that a run had never ended
+when it had. Same-sounding column, different table — and it produced a *false all-clear*, which is
+the direction that does not announce itself. It also had me doubting a correct detector built by
+someone else.
 
 Two siblings from the same day, same family: I audited what the client *asks for* (`upsert({...})`)
 and described what the database would *do* — they differ exactly at the ON CONFLICT arm, which is
