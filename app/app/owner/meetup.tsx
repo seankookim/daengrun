@@ -307,6 +307,13 @@ export default function OwnerMeetup() {
           <Text style={{ fontSize: 20.5, color: paper.ink }}>‹</Text>
         </Pressable>
         <Text style={s.headerTtl} numberOfLines={1}>인계</Text>
+        {/* [0114 · ui2-3, verify-only] 수락 전에는 이 문에 닿을 수 없다 — 확인된 게이트 사슬:
+            진입은 home-hero.tsx:68(goState 'handoff'|'confirmed')과 push.ts:61(직전에
+            fetchCurrentOwnerBookingId로 IN_FLIGHT 확인)뿐이고, bookingId가 비면 이 파일
+            :102-110이 fetchCurrentOwnerBookingId(IN_FLIGHT = confirmed/runner_enroute/
+            picked_up/active, api.ts:1036·1049-1056)로만 복원한 뒤 없으면 Alert + back 한다.
+            `: {}` 폴백도 bare /chat의 같은 IN_FLIGHT 리졸버로 떨어진다. 게이트 추가 불필요 —
+            수락 전 죽은 채팅 문은 owner/schedule.tsx의 예약 시트 칩 하나뿐이었다 (ui2-1). */}
         <Pressable
           onPress={() => router.push({ pathname: '/chat', params: bookingId ? { bid: bookingId } : {} })}
           hitSlop={10} accessibilityRole="button" accessibilityLabel="채팅 열기"
@@ -343,7 +350,7 @@ export default function OwnerMeetup() {
               // [정직 배치 2.5] 경로 점은 '아는 경로'가 아니라 지면 무늬 — 주장 강도를 낮춘다
               <View key={i} style={[s.pathDot, { right: 60 + i * 42, top: 80 + i * 26, opacity: stage === 'enroute' ? 0.35 : 0.2 }]} />
             ))}
-            <View style={[s.runnerPin, stage !== 'enroute' && { right: 260, top: 196 }]}>
+            <View style={[s.runnerPin, stage !== 'enroute' && { right: 260, top: 128 }]}>
               <Text style={s.pinText}>{runnerName[0]}</Text>
             </View>
             <View style={s.pickupPin}><Text style={s.pinText}>픽업</Text></View>

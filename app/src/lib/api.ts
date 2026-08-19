@@ -292,8 +292,13 @@ const DOG_SELECT = 'id, name, breed, birth_date, weight_kg, neutered, memo, pref
 
 // 다견 가구 지원 — 전체 목록
 export async function fetchMyDogs(): Promise<DogProfile[]> {
-  const { data: user } = await supabase.auth.getUser();
-  if (!user.user) return [];
+  // [review P1-10] getUser() does NOT throw on a transient failure — it resolves
+  // `{ user: null, error }`. Discarding that error turned "we could not identify you" into
+  // "you own zero dogs", which is what routed a returning owner into first-run onboarding.
+  // The PostgREST error below was already loud; this one has to be too.
+  const { data: user, error: authErr } = await supabase.auth.getUser();
+  if (authErr) throw authErr;
+  if (!user.user) return []; // genuinely signed out — the route guards own that case
   const { data, error } = await supabase.from('dogs').select(DOG_SELECT)
     .eq('owner_id', user.user.id).order('created_at', { ascending: true });
   if (error) throw error; // [적대 리뷰 P1] 실패를 삼키면 '개 없음'으로 둔갑 — 에러 브랜치가 죽는다
@@ -1932,6 +1937,18 @@ export async function fetchRunTrace(bookingId: string): Promise<{ lat: number; l
   return ((data as any)?.trace ?? []) as { lat: number; lng: number; t: number }[];
 }
 
+// 이 러닝의 실사진 — runs.photos, uploadRunPhoto(append_run_photo)가 돌려주는 것과 **같은 배열**.
+// [2026-08-19 · runner review P2] 추가 이유: run.tsx가 러닝 도중 올린 사진은 이미 같은 booking의
+// runs.photos에 원자 append 돼 있는데, done.tsx의 `photos` state는 [] 로 시작해 업로드 응답으로만
+// 채워졌다 — 4장을 찍고 온 러너가 '오늘의 순간'에서 썸네일 0개를 보고(사진이 사라졌다고 읽고)
+// 6장 캡도 0부터 다시 세었다. 읽기 창구는 fetchRunTrace와 같은 `runs party read` 정책이다.
+// 추가만 한다 (기존 함수·타입 무변경).
+export async function fetchRunPhotos(bookingId: string): Promise<string[]> {
+  const { data, error } = await supabase.from('runs').select('photos').eq('booking_id', bookingId).maybeSingle();
+  if (error) throw error;
+  return ((data as any)?.photos ?? []) as string[];
+}
+
 // 이 러닝의 개인 기록 순위 — 내 완료 러닝 안에서 (RLS상 타인 비교는 서버 집계 함수로, 추후 리더보드)
 export interface RunStandings { nth: number; total: number; kmRank: number; paceRank: number | null }
 
@@ -2468,13 +2485,16 @@ export function subscribeMessages(threadId: string, uid: string | null, onMsg: (
 }
 
 // 예약 상태 실시간 구독 — 폴링을 대체 (폴백 폴링은 화면이 유지)
-// 레이더(찾는 중) 화면용 — 상태 + 수락 러너 이름만 가볍게
-export async function fetchBookingBrief(id: string): Promise<{ status: string; runnerName: string | null }> {
+// 레이더(찾는 중) 화면용 — 상태 + 수락 러너 이름/id만 가볍게.
+// `runnerId`가 있는 이유 (review P1-9): 레이더의 '지명됨' 배지는 낙관적 로컬 상태였고, 러너가
+// 거절하면 서버는 runner_id를 NULL로 되돌리는데 배지는 그대로 남아 — 그 러너만 재지명할 수 없게
+// 됐다. 폴링이 매 틱 서버의 runner_id를 그대로 싣고 오면 배지가 서버 진실을 따라간다.
+export async function fetchBookingBrief(id: string): Promise<{ status: string; runnerName: string | null; runnerId: string | null }> {
   const { data, error } = await supabase.from('bookings')
-    .select('status, runners(profiles(name))').eq('id', id).single();
+    .select('status, runner_id, runners(profiles(name))').eq('id', id).single();
   if (error) throw error;
   const d = data as any;
-  return { status: d.status, runnerName: d.runners?.profiles?.name ?? null };
+  return { status: d.status, runnerName: d.runners?.profiles?.name ?? null, runnerId: d.runner_id ?? null };
 }
 
 // Radar's alert row — one booking, the five fields that row prints, nothing else.
@@ -2532,7 +2552,12 @@ export async function fetchRecentReviews(): Promise<PublicReview[]> {
 // error on owner/meetup). So: a registry keyed by booking id, fan-out to N listeners, the channel
 // is created on the first listener and removed when the last one leaves. Each screen keeps its
 // poll fallback; nothing here changes what a screen does on a change.
-const bookingWatchers = new Map<string, { listeners: Set<() => void>; ch: ReturnType<typeof supabase.channel>; dropped: boolean }>();
+// ⚠ supabase-js dedupes channels by topic and `removeChannel` AWAITS the leave before teardown,
+// so when the last listener leaves we must keep the registry entry until that teardown resolves;
+// a remount in that window would otherwise be handed the dying channel object. A listener that
+// arrives during the teardown waits for it and then opens a fresh channel.
+type BookingWatcher = { listeners: Set<() => void>; ch: ReturnType<typeof supabase.channel>; dropped: boolean; teardown: Promise<void> | null };
+const bookingWatchers = new Map<string, BookingWatcher>();
 
 export function subscribeBooking(bookingId: string, onChange: () => void): () => void {
   // P0-1 후속(0108): bk 채널은 postgres_changes 전용이라 브로드캐스트 노출은 없었지만,
@@ -2540,6 +2565,13 @@ export function subscribeBooking(bookingId: string, onChange: () => void): () =>
   // 이 토픽족을 인가하므로 private 으로 요청하고, 구독 전에 소켓을 무장시킨다.
   hookTokenRefresh();
   let w = bookingWatchers.get(bookingId);
+  if (w && w.teardown) {
+    // The previous channel is being torn down — wait for it, then subscribe for real.
+    let cancelled = false;
+    let inner: (() => void) | null = null;
+    void w.teardown.then(() => { if (!cancelled) inner = subscribeBooking(bookingId, onChange); });
+    return () => { cancelled = true; inner?.(); };
+  }
   if (!w) {
     const listeners = new Set<() => void>();
     const ch = supabase
@@ -2548,21 +2580,23 @@ export function subscribeBooking(bookingId: string, onChange: () => void): () =>
         { event: 'UPDATE', schema: 'public', table: 'bookings', filter: `id=eq.${bookingId}` },
         () => { for (const fn of Array.from(listeners)) fn(); })
       ;
-    w = { listeners, ch, dropped: false };
+    w = { listeners, ch, dropped: false, teardown: null };
     bookingWatchers.set(bookingId, w);
     // 무장 → 구독 순서. 그 사이 도착한 변경은 화면의 폴백 폴링이 잡는다(각 소비처가 폴링을 유지한다).
     const mine = w;
     void armRealtime().then(() => { if (!mine.dropped) mine.ch.subscribe(); });
   }
   w.listeners.add(onChange);
+  const mine = w;
   return () => {
     const cur = bookingWatchers.get(bookingId);
-    if (!cur) return;
+    if (cur !== mine) return;
     cur.listeners.delete(onChange);
-    if (cur.listeners.size === 0) {
+    if (cur.listeners.size === 0 && !cur.teardown) {
       cur.dropped = true;
-      bookingWatchers.delete(bookingId);
-      supabase.removeChannel(cur.ch);
+      cur.teardown = Promise.resolve(supabase.removeChannel(cur.ch))
+        .then(() => undefined, () => undefined)
+        .finally(() => { if (bookingWatchers.get(bookingId) === cur) bookingWatchers.delete(bookingId); });
     }
   };
 }

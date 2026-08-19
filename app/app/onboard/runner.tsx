@@ -81,7 +81,19 @@ export default function OnboardRunner() {
   return (
     <KeyboardAvoidingView style={s.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={s.body} keyboardShouldPersistTaps="handled">
-        {/* latin counter — the one detail-floor exemption on this screen (letterspaced kicker) */}
+        {/* Escape hatch. index.tsx pushes (never replaces) into onboarding precisely so this can
+            exist: the root stack has no header and no back-swipe, so an owner who mistapped
+            러너예요 previously had no in-app way out. Rendered only when there IS somewhere to go
+            back to — a deep link straight here must not show a dead control. */}
+        {router.canGoBack() && (
+          <Pressable onPress={() => router.back()} hitSlop={10} style={s.back}
+            accessibilityRole="button" accessibilityLabel="역할 다시 고르기">
+            <Text style={s.backTxt}>‹ 역할 다시 고르기</Text>
+          </Pressable>
+        )}
+        {/* The counter is DATA in a kicker slot, so it takes the 14pt detail floor — the
+            exemption covers letterspaced Latin kickers (labels), not the step number itself
+            (DESIGN.md §3, 14pt floor). */}
         <Text style={s.step} accessibilityLabel="1단계, 총 1단계">1 / 1</Text>
         <Text style={[s.title, df]}>이름과{'\n'}홈 베이스</Text>
 
@@ -172,7 +184,9 @@ export default function OnboardRunner() {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: paper.canvas },
   body: { paddingHorizontal: layout.gutter, paddingTop: 78, paddingBottom: 140 },
-  step: { fontSize: 12, letterSpacing: 2, fontWeight: '700', color: paper.faint },
+  back: { minHeight: 44, justifyContent: 'center', marginBottom: 2 },
+  backTxt: { fontSize: 14, lineHeight: 19, fontWeight: '700', color: paper.dim },
+  step: { fontSize: 14, lineHeight: 18, letterSpacing: 2, fontWeight: '700', color: paper.dim },
   title: { fontSize: 24, lineHeight: 30, fontWeight: '900', color: paper.ink, marginTop: 12 },
   fieldName: {
     marginTop: 20, paddingTop: 10, paddingBottom: 8, minHeight: 44,

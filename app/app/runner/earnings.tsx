@@ -52,13 +52,24 @@ export default function Earnings() {
   // 정산 내역이 없어요" in flight and on failure. Three states now.
   const [loaded, setLoaded] = useState(false);
   const [loadErr, setLoadErr] = useState(false);
+  // [honesty 2026-08-19 · runner review P2] 실패하면 **값을 버린다** (requests.tsx:99-106과 같은 법).
+  // 종전엔 loaded/total/ledger를 catch에서 건드리지 않아, 한 번 성공한 뒤의 실패한 당겨-새로고침이
+  // '정산 내역을 불러오지 못했어요' 스트립 **바로 아래**에 이전 합계와 이전 행들을 그대로 인쇄했고,
+  // 그 낡은 합계가 원천징수 추정치까지 몰았다. sumKnown 게이트는 0원 위장을 막는 장치이지,
+  // 옛 숫자를 지금 숫자로 파는 것을 막는 장치가 아니다.
   const load = () => {
     setLoadErr(false);
     return Promise.all([
       fetchLedger().then(setLedger),
       fetchLedgerTotal().then(setTotal),
     ]).then(() => setLoaded(true))
-      .catch((e) => { console.warn('[earnings] ledger:', e?.message ?? e); setLoadErr(true); });
+      .catch((e) => {
+        console.warn('[earnings] ledger:', e?.message ?? e);
+        setLoaded(false);
+        setTotal(null);
+        setLedger([]);
+        setLoadErr(true);
+      });
   };
   useFocusEffect(useCallback(() => { load(); }, []));
   const [refreshing, setRefreshing] = useState(false);

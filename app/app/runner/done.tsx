@@ -1,10 +1,10 @@
 import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Alert, Dimensions, Pressable, ScrollView, StyleSheet, Text, TextStyle, View } from 'react-native';
 import { PaperBtn } from '../../src/components/paper-btn';
 import { HeatTrace } from '../../src/components/runcard';
 import { Icon, Row } from '../../src/components/ui';
-import { DropRow, fetchDrops, fetchMeetupInfo, fetchRunTrace, uploadRunPhoto } from '../../src/lib/api';
+import { DropRow, fetchDrops, fetchMeetupInfo, fetchRunPhotos, fetchRunTrace, uploadRunPhoto } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { MediaImage } from '../../src/lib/media';
@@ -88,7 +88,22 @@ export default function RunDone() {
   useEffect(() => {
     fetchDrops().then((ds) => setPendingDrop(ds.find((d) => !d.openedAt) ?? null)).catch(() => {});
   }, []);
+  // 오늘의 순간 — [honesty 2026-08-19 · runner review P2] `photos`는 업로드 응답으로만 채워졌고
+  // 마운트에서 서버를 읽은 적이 없었다. 그런데 run.tsx:185가 **같은 booking**에 같은 uploadRunPhoto로
+  // 올린다(서버 원자 append) — 러닝 중 4장을 찍고 온 러너는 이 화면에서 썸네일 0개를 보고,
+  // '6장까지' 캡도 0부터 다시 셌다. 마운트에서 실제 배열을 읽고 3상태로 그린다:
+  // 로딩은 로딩이라 말하고, 실패는 재시도를 주고, 개수에 의존하는 분기는 실사진만 센다.
   const [photos, setPhotos] = useState<string[]>([]);
+  const [photoState, setPhotoState] = useState<'loading' | 'ready' | 'err'>(runResult.bookingId ? 'loading' : 'ready');
+  const loadPhotos = useCallback(() => {
+    const bid = runResult.bookingId;
+    if (!bid) return;
+    setPhotoState('loading');
+    fetchRunPhotos(bid)
+      .then((p) => { setPhotos(p); setPhotoState('ready'); })
+      .catch((e) => { console.warn('[done] photos:', (e as Error)?.message); setPhotoState('err'); });
+  }, []);
+  useEffect(() => { loadPhotos(); }, [loadPhotos]);
   const [uploading, setUploading] = useState(false);
 
   // 오늘의 순간 — 러닝 사진이 보호자 리포트(공유 페이지)에 실린다
@@ -104,8 +119,10 @@ export default function RunDone() {
       const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.7, base64: true });
       if (res.canceled || !res.assets?.[0]?.base64) return;
       setUploading(true);
+      // 서버가 append 후 최신 배열 전체를 돌려준다 — 읽기가 실패했던 경우도 여기서 정합된다
       const next = await uploadRunPhoto(runResult.bookingId, res.assets[0].base64);
       setPhotos(next);
+      setPhotoState('ready');
     } catch (e) {
       Alert.alert('업로드 실패', (e as Error).message);
     } finally {
@@ -205,7 +222,14 @@ export default function RunDone() {
           <View style={s.rule} />
           <Row style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
             <Text style={s.secTitle}>오늘의 순간</Text>
-            {photos.length < 6 ? (
+            {photoState === 'loading' ? (
+              /* 개수를 모르는 동안에는 개수에 달린 문(추가/상한)을 그리지 않는다 */
+              <Text style={s.secQuiet}>사진 불러오는 중…</Text>
+            ) : photoState === 'err' ? (
+              <Pressable onPress={loadPhotos} hitSlop={8} accessibilityRole="button" accessibilityLabel="사진 다시 불러오기">
+                <Text style={s.secFail}>불러오지 못했어요 · 다시 시도</Text>
+              </Pressable>
+            ) : photos.length < 6 ? (
               <Pressable
                 onPress={addPhoto}
                 disabled={uploading}
@@ -315,6 +339,8 @@ const s = StyleSheet.create({
   secTitle: { fontSize: 20, lineHeight: 25, fontWeight: '800', color: paper.ink },
   secAction: { fontSize: 14, lineHeight: 19, fontWeight: '800', color: paper.actionInk },
   secQuiet: { fontSize: 14, lineHeight: 19, color: paper.dim },
+  // 섹션 헤더 자리의 실패 + 재시도 — 라우드-페일 잉크, 밑줄 (스트립을 세우기엔 한 줄짜리 사실)
+  secFail: { fontSize: 14, lineHeight: 19, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },
   // ---------- ⑥ 드랍 ----------
   dropBanner: {
     marginTop: 18, padding: 18, alignItems: 'center',

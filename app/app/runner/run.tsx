@@ -400,13 +400,17 @@ export default function ActiveRun() {
   // 입구 도착 — 한 번 켜지면 다시 꺼지지 않는다. **새 구독자를 만들지 않는다**: onTrack이 이미
   // 세팅하는 lastPos(마지막으로 게이트를 통과한 픽스)를 읽을 뿐이다. 추적 싱글턴은 동결이다.
   const [atEntry, setAtEntry] = useState(false);
+  // km at the moment the entry was reached — the "입구 도착" line shows only for the next ~200 m,
+  // not for the whole lap (review 2026-08-19: it was pinned at km 4 of 5).
+  const entryKmRef = useRef<number | null>(null);
   useEffect(() => {
     if (atEntry || !entry || !lastPos) return;
     if (haversineM({ lat: lastPos.lat, lng: lastPos.lng }, entry.point) <= ENTRY_REACHED_M) {
+      entryKmRef.current = km;
       setAtEntry(true);
       haptic('success');
     }
-  }, [atEntry, entry, lastPos]);
+  }, [atEntry, entry, lastPos, km]);
 
   /** 입구까지 남은 **직선** 거리(m). 픽스가 아직 없으면 픽업→입구 거리로 답한다 — 둘 다 실좌표
    *  두 점 사이의 실측이고, 어느 쪽도 도로 경로 길이가 아니다 (문구가 그렇게 말한다). */
@@ -534,10 +538,22 @@ export default function ActiveRun() {
     // 트레이스에서 그대로 읽히는 사실일 때만 말한다.
     const openNote = rotated ? undefined : '시작점이 정해진 코스예요';
     if (atEntry) {
+      // Say it at the entry, then fall silent once the lap is under way (~200 m past the entry).
+      const past = entryKmRef.current != null ? km - entryKmRef.current : 0;
+      if (past > 0.2) return null;
       const rkm = routeGeo?.km;
       return {
         text: rkm != null ? `입구 도착 — 여기서 랩 시작 · 코스 ${rkm}km` : '입구 도착 — 여기서 랩 시작',
         note: openNote,
+      };
+    }
+    // Before the first fix (tracking starts at 시작) the only distance we have is pickup → entry,
+    // which is NOT the runner's remaining distance — label it as the pickup's, and count down only
+    // once fixes arrive.
+    if (!lastPos) {
+      return {
+        text: `픽업에서 입구까지 직선 ${Math.round(entryDistM)}m`,
+        note: ['직선 거리예요 · 길 안내는 실도로 검증 전', openNote].filter(Boolean).join(' · '),
       };
     }
     return {

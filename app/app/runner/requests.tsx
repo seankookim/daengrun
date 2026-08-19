@@ -57,8 +57,13 @@ const splitWhen = (w: string): [string, string] => {
 const hhmm = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
 
 // 가용시간 한 줄 요약 — 규칙 행이 정본이다. 요일마다 시간이 다르면 시간을 지어내지 않고 그렇다고 말한다.
+// [honesty 2026-08-19 · runner review P2] 빈 규칙 집합은 "설정한 적 없음"이 아니다:
+// availability.tsx:85-89가 저장 전에 enabled만 남기므로, 모든 요일을 '쉬는 날'로 돌린 러너는
+// **의도적으로** 빈 집합을 저장한다. 그 러너에게 '아직 설정 안 했어요'라고 말한 뒤 시간 조정 →을
+// 열어주면 자기 설정이 그대로 있고, 둘 중 무엇을 믿어야 할지 알 수 없게 된다. 이 함수가 구분할 수
+// 있는 사실은 '지금 켜진 요일이 없다' 하나뿐이므로 그것만 말한다 (로딩·실패는 호출부가 가른다).
 const availSummary = (rules: AvailRule[]): string => {
-  if (rules.length === 0) return '아직 설정 안 했어요';
+  if (rules.length === 0) return '설정된 요일이 없어요';
   const same = rules.every((r) => r.startMin === rules[0].startMin && r.endMin === rules[0].endMin);
   return same
     ? `주 ${rules.length}일 · ${hhmm(rules[0].startMin)}–${hhmm(rules[0].endMin)}`
@@ -73,6 +78,9 @@ export default function Requests() {
   // 일정 변경 요청 (0016) — 확정 예약의 새 시간 제안, 수락해야만 시간이 바뀐다
   const [resched, setResched] = useState<RescheduleRequest[]>([]);
   const [reschedBusy, setReschedBusy] = useState<string | null>(null);
+  // 어느 **문**이 지금 동작 중인가 — bookingId만으로는 한 카드의 두 문(거절/수락)을 가를 수 없고,
+  // 그러면 '동작 중이 아닌 문'을 정확히 비활성으로 그릴 수 없다 (아래 doorRow 참조).
+  const [reschedAct, setReschedAct] = useState<'accept' | 'decline' | null>(null);
   // [적대 리뷰] busy는 확인 콜백 안에서야 켜진다 — 그 전 구간에 연타가 확인창을 쌓을 수 있었다.
   // 서버 CAS가 이중 커밋은 막지만, 중복 내비게이션과 '성공 뒤 실패' UI는 막지 못한다.
   const [asking, setAsking] = useState(false);
@@ -160,6 +168,17 @@ export default function Requests() {
   const renderRequest = (req: OpenRequest) => {
     const [wd, wt] = splitWhen(req.when);
     const coral = req.bookingId === coralDirected;
+    // 다른 문이 동작 중이라 이 문은 눌러도 아무 일이 없다 — 그렇게 **보이게** 그린다
+    // (theme.ts:206 매트릭스: disabled = disabledFill + faint, 불투명도 트릭 금지).
+    const inert = accepting !== null && accepting !== req.bookingId;
+    // [0114 residual · docs/contracts/party-membership-status-filter-contract.md §C.6]
+    // `directed`는 곧 서버 상태 'runner_pending'이다 (api.ts fetchRunnerInbox의 지명 레그는
+    // .eq('status','runner_pending')로만 읽는다). 수락 **전**의 지명 카드에는 보호자가 작성한
+    // 자유 텍스트를 렌더하지 않는다: dogs.memo, dogs.preferences.tags[], bookings.pace_label은
+    // 전부 무검증 통과 값이고, 0114가 채팅·리뷰·알림을 닫은 뒤에도 지명 하나로 낯선 러너에게
+    // 닿는 잔여 경로다. 이름·견종·체중·백신은 남는다 — 러너가 수락 여부를 판단하는 정보이고,
+    // 케어 지시(메모)는 수락한 러너의 잡 화면에서 볼 것이다. 오픈 풀(matching) 카드는 그대로.
+    const preAccept = !!req.directed;
     return (
       <View key={req.bookingId} style={s.reqCard}>
         <View style={s.cardBody}>
@@ -195,7 +214,8 @@ export default function Requests() {
                   '예상'은 장식이 아니라 계약이다: 이 값은 견적이고 실거리·수수료율로 서버가 확정한다.
                   요율(33%)은 인쇄하지 않는다 — 실컬럼이지만 러너의 결정에 들어가는 수는 실수령이다. */}
               <Text style={{ fontSize: 14, color: paper.dim, marginTop: 3, lineHeight: 19 }}>
-                <Text style={{ fontWeight: '800', color: paper.ink }}>{req.km}km</Text> · {req.paceLabel} · 예상{' '}
+                <Text style={{ fontWeight: '800', color: paper.ink }}>{req.km}km</Text>
+                {preAccept ? '' : ` · ${req.paceLabel}`} · 예상{' '}
                 <Text style={[{ fontSize: 15, fontWeight: '800', color: paper.ink, lineHeight: 19, fontVariant: ['tabular-nums'] as const }, nf]}>
                   {req.payout.toLocaleString()}
                 </Text>
@@ -203,21 +223,21 @@ export default function Requests() {
               </Text>
             </View>
           </Row>
-          {(req.prefTags.length > 0 || req.vaccines.length > 0) && (
+          {(req.vaccines.length > 0 || (!preAccept && req.prefTags.length > 0)) && (
             <Row style={{ gap: 5, marginTop: 9, flexWrap: 'wrap' }}>
               {req.vaccines.length > 0 && (
                 <View style={[s.metaChip, { backgroundColor: '#E3EFF9' }]}>
                   <Text style={{ fontSize: 14, fontWeight: '700', color: '#2D6DA8' }}>백신 {req.vaccines.length}종</Text>
                 </View>
               )}
-              {req.prefTags.map((t) => (
+              {!preAccept && req.prefTags.map((t) => (
                 <View key={t} style={[s.metaChip, { backgroundColor: GREY_CHIP }]}>
                   <Text style={{ fontSize: 14, fontWeight: '700', color: paper.text }}>{t}</Text>
                 </View>
               ))}
             </Row>
           )}
-          {req.memo && (
+          {req.memo && !preAccept && (
             <View style={s.memo}>
               <Text style={{ fontSize: 14.5, color: paper.text, lineHeight: 20 }} numberOfLines={2}>메모: {req.memo}</Text>
             </View>
@@ -238,13 +258,15 @@ export default function Requests() {
           <Pressable
             style={({ pressed }) => [
               coral ? s.doorPrimary : s.doorGhost,
-              pressed && (coral ? { backgroundColor: CORAL_INK_DEEP } : { backgroundColor: paper.wash }),
-              pressed && { transform: [{ scale: 0.97 }] },
+              inert && s.doorOff,
+              !inert && pressed && (coral ? { backgroundColor: CORAL_INK_DEEP } : { backgroundColor: paper.wash }),
+              !inert && pressed && { transform: [{ scale: 0.97 }] },
             ]}
             disabled={accepting !== null}
+            accessibilityState={{ disabled: accepting !== null }}
             onPress={() => accept(req)}
           >
-            <Text style={{ fontSize: 17, fontWeight: '800', color: coral ? '#FFFFFF' : paper.ink }}>
+            <Text style={{ fontSize: 17, fontWeight: '800', color: inert ? paper.faint : coral ? '#FFFFFF' : paper.ink }}>
               {accepting === req.bookingId ? '수락 중...' : '수락하기 ›'}
             </Text>
           </Pressable>
@@ -286,6 +308,12 @@ export default function Requests() {
         {/* ---------- 일정 변경 요청 (0016) — 기존→새 시간, 수락/거절 ---------- */}
         {resched.map((rq) => {
           const coral = rq.bookingId === coralResched;
+          // 동작 중인 문은 정확히 하나다 (그 카드 × 그 액션). 나머지는 전부 눌러도 아무 일이
+          // 없으므로 disabled 필로 내려간다 — 다섯 장이 떠 있을 때 한 장을 누르면 나머지 여덟
+          // 개의 문이 온전한 무게로 남아 "눌리는 문"을 사칭하던 상태를 없앤다.
+          const busyHere = reschedBusy === rq.bookingId;
+          const declineOff = reschedBusy !== null && !(busyHere && reschedAct === 'decline');
+          const acceptOff = reschedBusy !== null && !(busyHere && reschedAct === 'accept');
           return (
             <View key={`rs-${rq.bookingId}`} style={s.reqCard}>
               <View style={s.cardBody}>
@@ -319,24 +347,34 @@ export default function Requests() {
                     거절(기존 유지)은 고스트지만 약한 문이 아니다 — 내 캘린더를 지키는 쪽이
                     눈에 안 띄면 그건 넛지가 아니라 함정이다. 둘 다 같은 크기·같은 테두리. */}
                 <Pressable
-                  style={({ pressed }) => [s.doorGhost, pressed && { backgroundColor: paper.wash, transform: [{ scale: 0.97 }] }]}
+                  style={({ pressed }) => [
+                    s.doorGhost,
+                    declineOff && s.doorOff,
+                    !declineOff && pressed && { backgroundColor: paper.wash, transform: [{ scale: 0.97 }] },
+                  ]}
                   disabled={reschedBusy !== null}
+                  accessibilityState={{ disabled: reschedBusy !== null }}
                   onPress={async () => {
                     setReschedBusy(rq.bookingId);
+                    setReschedAct('decline');
                     try { await declineReschedule(rq.bookingId); haptic('light'); load(); }
                     catch (e) { Alert.alert('처리 실패', (e as Error).message); }
-                    finally { setReschedBusy(null); }
+                    finally { setReschedBusy(null); setReschedAct(null); }
                   }}
                 >
-                  <Text style={{ fontSize: 17, fontWeight: '800', color: paper.ink }}>거절 (기존 유지)</Text>
+                  <Text style={{ fontSize: 17, fontWeight: '800', color: declineOff ? paper.faint : paper.ink }}>
+                    {busyHere && reschedAct === 'decline' ? '처리 중...' : '거절 (기존 유지)'}
+                  </Text>
                 </Pressable>
                 <Pressable
                   style={({ pressed }) => [
                     coral ? s.doorPrimary : s.doorGhost,
-                    pressed && (coral ? { backgroundColor: CORAL_INK_DEEP } : { backgroundColor: paper.wash }),
-                    pressed && { transform: [{ scale: 0.97 }] },
+                    acceptOff && s.doorOff,
+                    !acceptOff && pressed && (coral ? { backgroundColor: CORAL_INK_DEEP } : { backgroundColor: paper.wash }),
+                    !acceptOff && pressed && { transform: [{ scale: 0.97 }] },
                   ]}
                   disabled={reschedBusy !== null}
+                  accessibilityState={{ disabled: reschedBusy !== null }}
                   /* 같은 법: 이건 **이미 확정된 약속의 시간을 바꾸는** 커밋이다. 한 번의 탭으로
                      내 캘린더가 조용히 옮겨가면 안 된다 — 옛 시간과 새 시간을 다시 보여주고 묻는다. */
                   onPress={() => {
@@ -349,19 +387,20 @@ export default function Requests() {
                         { text: '수락', style: 'default', onPress: async () => {
                           setReschedAsking(false);
                           setReschedBusy(rq.bookingId);
+                          setReschedAct('accept');
                           try {
                             await acceptReschedule(rq.bookingId);
                             haptic('success');
                             Alert.alert('변경 수락', '일정이 새 시간으로 변경됐어요 — 캘린더에 반영됩니다');
                             load();
                           } catch (e) { Alert.alert('수락 실패', (e as Error).message); load(); }
-                          finally { setReschedBusy(null); }
+                          finally { setReschedBusy(null); setReschedAct(null); }
                         } },
                       ]);
                   }}
                 >
-                  <Text style={{ fontSize: 17, fontWeight: '800', color: coral ? '#FFFFFF' : paper.ink }}>
-                    {reschedBusy === rq.bookingId ? '처리 중...' : '새 시간 수락 ›'}
+                  <Text style={{ fontSize: 17, fontWeight: '800', color: acceptOff ? paper.faint : coral ? '#FFFFFF' : paper.ink }}>
+                    {busyHere && reschedAct === 'accept' ? '처리 중...' : '새 시간 수락 ›'}
                   </Text>
                 </Pressable>
               </View>
@@ -478,6 +517,9 @@ const s = StyleSheet.create({
     flex: 1, backgroundColor: paper.canvas, borderWidth: 1.5, borderColor: paper.ink,
     alignItems: 'center', justifyContent: 'center', paddingVertical: 14, minHeight: 48,
   },
+  // 비활성 문 — theme.ts:206 매트릭스의 disabled 항 (disabledFill + faint 라벨, 알파 금지).
+  // 코랄 문에도 그대로 얹힌다: 동작 중이 아닌 문은 그 프레임의 코랄 예산도 쓰지 않는다.
+  doorOff: { backgroundColor: paper.disabledFill, borderColor: '#EEEEEE' },
   // 로딩·빈 상태 — 상자 없이 활자만 (빈 인박스에 테두리를 그리면 없는 내용에 무게가 생긴다)
   stateBlock: { marginTop: 40, paddingHorizontal: 10, alignItems: 'center' },
   // ── R2c 요약 행 — owner/request.tsx의 prefRow 문법 (딤 라벨 왼쪽 · 굵은 값 오른쪽 · 잉크 액션) ──

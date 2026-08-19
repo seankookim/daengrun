@@ -245,12 +245,16 @@ export default function RunnerHome() {
   }, [loadInbox, reloadStatus]));
 
   // 온라인 토글 — 실저장 (오프라인이면 추천·동네 러너 셸프에서 빠짐). 빕 위 스위치가 이 상태를 쓴다.
+  // [honesty 2026-08-19 · runner review #7] 저장이 실패하면 낙관 플립을 되돌리는 것까지는 옳았지만,
+  // 되돌림이 console.warn 하나뿐이라 스위치가 **이유 없이 제자리로 튕겼다**. v4가 이 컨트롤을
+  // 56×32 자기 행으로 승격하면서 그 침묵이 더 눈에 띈다 — 되돌림은 유지하고, 왜 되돌렸는지 말한다.
   const toggleOnline = () => {
     const next = !rs.online;
     setRs((v) => ({ ...v, online: next }));
     setRunnerOnline(next).catch((e) => {
       setRs((v) => ({ ...v, online: !next }));
       console.warn('[rhome] online:', e?.message ?? e);
+      Alert.alert('온라인 상태를 바꾸지 못했어요', '다시 시도해주세요');
     });
   };
 
@@ -367,26 +371,48 @@ export default function RunnerHome() {
                 (이름 = 화면당 1회 디스플레이 서체), 스위치는 자기 행을 갖는다 — 한 개의 명확한 컨트롤.
              상태·핸들러(rs.online/toggleOnline)는 그대로다. 서브 문구는 오프라인일 때 **무엇이 멈추고
              무엇이 안 멈추는지**를 말한다: 확정된 러닝은 오프라인과 무관하게 남는다. 랩이 여기 얹은
-             "홈 베이스 반경 3km"는 뺐다 — 홈 베이스 좌표 컬럼이 없고 MyRunnerStatus에 반경도 없다. */}
-        <Pressable
-          onPress={toggleOnline}
-          accessibilityRole="switch"
-          accessibilityState={{ checked: rs.online }}
-          accessibilityLabel={rs.online ? '온라인 — 끄기' : '오프라인 — 켜기'}
-          style={styles.tog}
-        >
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={[styles.togLbl, { color: rs.online ? lilac.head : lilac.dim }]}>
-              {rs.online ? '온라인' : '오프라인'}
-            </Text>
-            <Text style={styles.togSub}>
-              {rs.online ? '요청을 받는 중' : '새 요청이 멈춰 있어요 · 확정된 러닝은 그대로'}
-            </Text>
+             "홈 베이스 반경 3km"는 뺐다 — 홈 베이스 좌표 컬럼이 없고 MyRunnerStatus에 반경도 없다.
+             🔴 [honesty 2026-08-19 · runner review P1] 세 번째 상태. `rs`의 시드는 {online:false}이고
+             reloadStatus의 catch는 그 시드를 지우지 않는다 — 즉 로딩 중과 실패 후에 이 행이 17pt
+             '오프라인' + "새 요청이 멈춰 있어요"를 **네트워크 오류에서 지어내** 인쇄하고 있었다.
+             fetchMyRunnerStatus가 굳이 throw하는 이유가 그것이고("실패한 읽기가 '오프라인, 0회'로
+             해석되면 안 된다"), 이 파일의 다른 다섯 자리는 이미 rsLoaded/rsErr로 게이트한다.
+             모르는 동안에는 라벨도 서브 문장도 주장하지 않고, 스위치 자체를 그리지 않는다 —
+             비활성 스위치는 여전히 '지금 상태는 OFF'라고 말하기 때문이다. */}
+        {!rsLoaded || rsErr ? (
+          <View style={styles.tog}>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={[styles.togLbl, { color: rsErr ? paper.critical : lilac.dim }]}>
+                {rsErr ? '상태를 불러오지 못했어요' : '상태 확인 중'}
+              </Text>
+            </View>
+            {rsErr && (
+              <Pressable onPress={reloadStatus} hitSlop={8} style={styles.togRetry} accessibilityRole="button" accessibilityLabel="온라인 상태 다시 불러오기">
+                <Text style={styles.togRetryTxt}>다시 시도</Text>
+              </Pressable>
+            )}
           </View>
-          <View style={[styles.swTrack, rs.online ? styles.swTrackOn : styles.swTrackOff]}>
-            <View style={styles.swKnob} />
-          </View>
-        </Pressable>
+        ) : (
+          <Pressable
+            onPress={toggleOnline}
+            accessibilityRole="switch"
+            accessibilityState={{ checked: rs.online }}
+            accessibilityLabel={rs.online ? '온라인 — 끄기' : '오프라인 — 켜기'}
+            style={styles.tog}
+          >
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={[styles.togLbl, { color: rs.online ? lilac.head : lilac.dim }]}>
+                {rs.online ? '온라인' : '오프라인'}
+              </Text>
+              <Text style={styles.togSub}>
+                {rs.online ? '요청을 받는 중' : '새 요청이 멈춰 있어요 · 확정된 러닝은 그대로'}
+              </Text>
+            </View>
+            <View style={[styles.swTrack, rs.online ? styles.swTrackOn : styles.swTrackOff]}>
+              <View style={styles.swKnob} />
+            </View>
+          </Pressable>
+        )}
 
         {/* ————— ③ 이번 주 — [v4] 장부 히어로가 한 줄이 됐다. 같은 fetchRunnerWeekStats, 같은 세 값,
              같은 '—' 가드. 히어로가 하던 말("내가 얼마 벌었나")은 이 줄이 그대로 하고, 히어로가 하던
@@ -457,7 +483,14 @@ export default function RunnerHome() {
         })()}
 
         {/* ————— QUEUE: 오늘 맨 앞 = 보딩패스 티켓 · 나머지 = 스텁 행. 수락/거절 = 소스 요청함 핸들러 ————— */}
-        <SectionHead title="요청 대기열" link={`요청함 · ${inbox.length}건 ›`} onPress={() => router.push('/runner/requests')} />
+        {/* [honesty 2026-08-19 · runner review #4] 'N건'은 로드가 성공한 뒤에만. 종전엔 로딩 중과
+            인박스 실패 후에 '요청함 · 0건 ›'을 인쇄했는데, 같은 프레임 아래 박스는 '요청을 불러오지
+            못했어요'라고 말하고 있었다 (한 화면이 스스로와 모순). 문 자체는 그대로 살아 있다. */}
+        <SectionHead
+          title="요청 대기열"
+          link={inboxLoaded && !inboxErr ? `요청함 · ${inbox.length}건 ›` : '요청함 ›'}
+          onPress={() => router.push('/runner/requests')}
+        />
 
         {inbox.length > 0 ? (
           <>
@@ -487,7 +520,12 @@ export default function RunnerHome() {
                     {inbox[0].breed ? ` · ${inbox[0].breed}` : ''}
                     {inbox[0].weightKg > 0 ? ` ${inbox[0].weightKg}kg` : ''}
                     {' · '}<Text style={[styles.objNum, nf]}>{inbox[0].km}</Text>km
-                    {inbox[0].paceLabel ? ` · ${inbox[0].paceLabel}` : ''}
+                    {/* [0114 residual · party-membership-status-filter-contract §C.6] 지명(directed =
+                        status 'runner_pending', api.ts fetchRunnerInbox의 directed 레그) 카드에는
+                        `bookings.pace_label`을 인쇄하지 않는다 — 수락 전 러너에게 닿는 보호자 작성
+                        자유 텍스트의 무검증 통과 경로다. 오픈 풀(matching) 카드는 그대로.
+                        견종·체중·이름은 남는다: 러너가 실제로 결정에 쓰는 정보다. */}
+                    {!inbox[0].directed && inbox[0].paceLabel ? ` · ${inbox[0].paceLabel}` : ''}
                   </Text>
                   <Text style={styles.objQuiet}>
                     실거리로 확정
@@ -606,6 +644,18 @@ export default function RunnerHome() {
                 {routeStops.map((st, i) => {
                   const { wd, wt } = parseWhen(st.job.when);
                   const on = st.kind === 'on';
+                  // [honesty 2026-08-19 · runner review #2/#3] 두 줄이 실필드로 바뀐다.
+                  // ① '지금'은 kind === 'on'에서 하드코딩돼 있었는데, `current`는 진행 중 잡이 없으면
+                  //    **다음 confirmed 잡**으로 폴백한다 — 사흘 뒤 예약에 '지금'이 찍혔다.
+                  //    실제로 시작된 단계(rawStatus ≠ confirmed)일 때만 '지금'이다.
+                  // ② 아래 줄은 모든 정차역에 '지명 요청 · 예정'을, 진행 중 정차역엔 '픽업 대기'를
+                  //    하드코딩했다. RunnerJob에는 `directed` 필드가 아예 없어(api.ts:1154-1163)
+                  //    지명 주장을 뒷받침할 값이 없고, '픽업 대기'는 러닝 중(active)에도 그대로
+                  //    찍혀 같은 화면의 'STAGE[rawStatus] = 러닝 중 · LIVE'와 정면으로 부딪혔다.
+                  //    진행 중 정차역은 STAGE 라벨(서버 상태 파생)을 쓰고, 예정 정차역은
+                  //    아무 줄도 그리지 않는다 (실필드를 붙이거나 요소를 생략한다 — 지어내지 않는다).
+                  const started = on && st.job.rawStatus !== 'confirmed';
+                  const stageLabel = on ? STAGE[st.job.rawStatus]?.label ?? null : null;
                   return (
                     <Pressable
                       key={st.job.bookingId}
@@ -621,11 +671,11 @@ export default function RunnerHome() {
                           × ~9px + tracking ≈ 48px, 60 leaves device-font-scale headroom (52 fit 14pt ≈ 42px) */}
                       <View style={{ width: 60 }}>
                         <Text style={[styles.stopTm, nf]}>{wt}</Text>
-                        <Text style={styles.stopTmSub}>{on ? '지금' : wd || '예정'}</Text>
+                        <Text style={styles.stopTmSub}>{started ? '지금' : wd || '예정'}</Text>
                       </View>
                       <View style={{ flex: 1, minWidth: 0 }}>
                         <Text style={styles.stopInfoB}>{st.job.dogName} · {st.job.km}km</Text>
-                        <Text style={styles.stopInfoS}>{on ? '픽업 대기' : '지명 요청 · 예정'}</Text>
+                        {stageLabel ? <Text style={styles.stopInfoS}>{stageLabel}</Text> : null}
                       </View>
                       <Text style={[styles.stopPay, nf]}>+{st.job.payout.toLocaleString()}</Text>
                     </Pressable>
@@ -707,6 +757,12 @@ export default function RunnerHome() {
             );
           })()}
 
+          {/* [honesty 2026-08-19 · runner review #6] 트레일 전체가 rsLoaded/rsErr 게이트 밖에 있었다:
+              rs의 시드는 totalRuns 0이고 실패해도 지워지지 않으므로, 로드 실패한 러너에게
+              '누적 0회' + 빈 체크포인트 다섯 개 + "첫 러닝을 완료하면 트레일이 시작돼요"가
+              찍혔다 — 100회 뛴 러너에게 0회라고 말하는 화면. 위 사다리는 이미 로딩/실패를
+              자기 문장으로 말하므로, 아래는 모르는 동안 아무것도 그리지 않는다 (구분선 포함). */}
+          {rsLoaded && !rsErr && (<>
           <View style={{ height: 1, backgroundColor: '#EEEEEE', marginTop: 11, marginBottom: 10 }} />
 
           {/* 보급 드랍 트레일 — 지그재그 체크포인트 (i<cycle5 지남=accent, i===cycle5 다음=accent 링, 끝=보급 상자) */}
@@ -760,6 +816,7 @@ export default function RunnerHome() {
             </View>
             <Text style={[styles.flagCnt, nf]}>{cycle10}/10</Text>
           </Row>
+          </>)}
         </Pressable>
 
         {/* ————— 러닝 가능 시간 — 요일 탭 (온라인 토글은 스트랩 위) ————— */}
@@ -852,8 +909,14 @@ export default function RunnerHome() {
                     )}
                   </View>
                   <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={styles.drowB}>{j.dogName} · {j.km}km · 완료</Text>
-                    <Text style={styles.drowS}>{j.when} · <Text style={{ color: lilac.voltDeep, fontWeight: '700' }}>✓ 정산 완료</Text></Text>
+                    {/* [honesty 2026-08-19 · runner review #1] '✓ 정산 완료'는 정산 사실이 아니라
+                        **표시 어휘**에서 파생돼 있었다: j.status는 STATUS_MAP이 뭉갠 'completed'이고
+                        (api.ts:1203), 정산 여부를 아는 필드는 이 화면에 없다 — done.tsx가 쓰는
+                        runResult.settled가 그 구분이 존재한다는 증거다. 러닝이 끝난 것은 참이고
+                        돈이 정산된 것은 이 데이터로 알 수 없으므로 '완료'만 말한다.
+                        위 줄의 중복 '완료'도 함께 접었다 (한 사실은 한 화면에 한 번). */}
+                    <Text style={styles.drowB}>{j.dogName} · {j.km}km</Text>
+                    <Text style={styles.drowS}>{j.when} · <Text style={{ color: lilac.voltDeep, fontWeight: '700' }}>✓ 완료</Text></Text>
                   </View>
                   <View style={{ alignItems: 'flex-end', gap: 5 }}>
                     <Text style={[styles.drowPay, nf]}>+{j.payout.toLocaleString()}</Text>
@@ -1030,8 +1093,11 @@ const styles = StyleSheet.create({
     paddingTop: 14, paddingBottom: 12,
     borderBottomWidth: 1, borderBottomColor: '#EEEEEE',
   },
-  togLbl: { fontSize: 17, lineHeight: 22, fontWeight: '800' }, // 색은 상태에 따라 인라인 (잉크/딤)
+  togLbl: { fontSize: 17, lineHeight: 22, fontWeight: '800' }, // 색은 상태에 따라 인라인 (잉크/딤/크리티컬)
   togSub: { fontSize: 14, lineHeight: 18, color: lilac.dim, marginTop: 2 },
+  // 상태 로드 실패의 재시도 — 아래 recFail과 같은 문법 (크리티컬 잉크 + 밑줄, ≥44pt 타깃)
+  togRetry: { minHeight: 44, justifyContent: 'center', flexShrink: 0 },
+  togRetryTxt: { fontSize: 16, lineHeight: 20, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },
   // 스위치 — 랩 치수 56×32. ON = 잉크(상태), OFF = 인셋. 코랄 없음: 코랄은 '누를 곳'이지 '켜진 상태'가 아니다.
   swTrack: { width: 56, height: 32, borderRadius: 16, padding: 3, flexDirection: 'row', borderWidth: 1, flexShrink: 0 },
   swTrackOn: { backgroundColor: lilac.head, borderColor: lilac.head, justifyContent: 'flex-end' },

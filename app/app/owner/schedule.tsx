@@ -27,6 +27,12 @@ const FILTERS: { label: string; match: (b: Booking) => boolean; tint: string; ti
   { label: '반복', match: (b) => !!b.recurring, tint: '#fff', tintFg: paper.text, sel: paper.ink, selFg: '#fff' },
 ];
 
+// 채팅이 아직 열리지 않는 서버 상태 — 0114가 chat_threads INSERT를 accepted 상태로 좁혔다
+// (is_booking_party_active; docs/contracts/party-membership-status-filter-contract.md §C.1/§E.5).
+// ⚠ rawStatus로만 판단한다: STATUS_MAP은 payment_hold·matching·runner_pending을 전부 'pending'
+// 하나로 뭉개므로(api.ts:690-706) 표시 어휘로 게이트하면 확정 예약까지 같이 잠긴다.
+const CHAT_PRE_ACCEPT = ['draft', 'quoted', 'payment_hold', 'matching', 'runner_pending'];
+
 const STATUS_STYLE: Record<BookingStatus, { label: string; bg: string; fg: string; rail: string }> = {
   confirmed: { label: '예약 확정', bg: '#e3f0c4', fg: '#3d5a2b', rail: '#5a7a3c' },
   pending: { label: '러너 응답 대기', bg: '#FDE8D0', fg: '#9D580A', rail: '#F59A43' }, // 앰버×탠저린 50:50 — 카운트다운의 색 (기대감, 코랄 불침범)
@@ -379,7 +385,19 @@ export default function Schedule() {
                     </Row>
                   </View>
 
-                  {/* runner */}
+                  {/* runner — before acceptance there IS no runner: a card with a "러" monogram
+                      and "러너를 찾고 있어요 러너" is a person who does not exist. Pre-accept the
+                      card becomes one quiet fact line (review 2026-08-19). */}
+                  {CHAT_PRE_ACCEPT.includes(selected.rawStatus ?? '') ? (
+                    <View style={s.sheetCard}>
+                      <Text style={{ fontSize: 15, fontWeight: '800', color: paper.ink }}>
+                        {selected.rawStatus === 'runner_pending' ? '지명한 러너의 응답을 기다리는 중' : '러너를 찾는 중'}
+                      </Text>
+                      <Text style={{ fontSize: 14, color: paper.dim, marginTop: 6, lineHeight: 19 }}>
+                        러너가 수락하면 여기에 러너 정보와 채팅이 열려요
+                      </Text>
+                    </View>
+                  ) : (
                   <View style={s.sheetCard}>
                     <Row style={{ gap: 12 }}>
                       <Monogram char={runner.char} bg={runner.color} size={46} />
@@ -396,17 +414,39 @@ export default function Schedule() {
                             : '실러너 · 상세 프로필 준비 중'}
                         </Text>
                       </View>
-                      <Pressable
-                        style={({ pressed }) => [s.chatChip, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
-                        onPress={() => { const bid = selected.id; close(); router.push({ pathname: '/chat', params: { bid } }); }}
-                      >
-                        <Text style={{ fontSize: 14, fontWeight: '800', color: paper.ink }}>채팅</Text>
-                      </Pressable>
+                      {/* [0114 · ui2-1] 이 카드는 **무조건** 그려지고 runner.name은 미매칭 예약에서
+                          "러너를 찾고 있어요"로 떨어지므로, 수락 전에도 이 칩이 떠 있었다. 0114 이후
+                          서버는 그 예약의 chat_threads INSERT를 거부한다 — 탭한 뒤 실패하는 문이다.
+                          숨기지 않고 **비활성 + 이유**로 그린다: 채팅이 언젠가 열린다는 사실 자체가
+                          보호자에게 필요한 정보이고, 사라진 칩은 그 말을 못 한다. */}
+                      {CHAT_PRE_ACCEPT.includes(selected.rawStatus ?? '') ? (
+                        <View
+                          style={[s.chatChip, s.chatChipOff]}
+                          accessible
+                          accessibilityLabel="채팅 — 러너가 수락하면 열려요"
+                          accessibilityState={{ disabled: true }}
+                        >
+                          <Text style={{ fontSize: 14, fontWeight: '800', color: paper.faint }}>채팅</Text>
+                        </View>
+                      ) : (
+                        <Pressable
+                          style={({ pressed }) => [s.chatChip, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
+                          onPress={() => { const bid = selected.id; close(); router.push({ pathname: '/chat', params: { bid } }); }}
+                        >
+                          <Text style={{ fontSize: 14, fontWeight: '800', color: paper.ink }}>채팅</Text>
+                        </Pressable>
+                      )}
                     </Row>
+                    {CHAT_PRE_ACCEPT.includes(selected.rawStatus ?? '') && (
+                      <Text style={{ fontSize: 14, color: paper.dim, marginTop: 8, lineHeight: 19 }}>
+                        러너가 수락하면 채팅을 열 수 있어요
+                      </Text>
+                    )}
                     {runner.desc && (
                       <Text style={{ fontSize: 15, color: paper.text, marginTop: 10, lineHeight: 19.5 }}>{runner.desc}</Text>
                     )}
                   </View>
+                  )}
 
                   {/* 결제 내역 (charge slice) — 청구는 러닝이 끝난 뒤에 생긴다. 행이 있거나 정산이
                       끝난 예약에서만 렌더한다: 정산 전 '결제 내역 없음'은 알림이 아니라 소음이고,
@@ -768,6 +808,8 @@ const s = StyleSheet.create({
   payRetry: { alignSelf: 'flex-start', marginTop: 8, minHeight: 44, justifyContent: 'center' },
   badgePill: { backgroundColor: '#e3f0c4', paddingVertical: 2, paddingHorizontal: 7, alignSelf: 'center' }, // 목업 러너 전용 배지 — 확정 틴트 시맨틱 유지, 스퀘어만
   chatChip: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line, paddingVertical: 8, paddingHorizontal: 13, alignSelf: 'center' }, // meetup chatChip 문법
+  // 비활성 칩 — theme.ts:206 매트릭스의 disabled 항 (disabledFill + faint, 불투명도 트릭 금지)
+  chatChipOff: { backgroundColor: paper.disabledFill, borderColor: '#EEEEEE' },
   // [Sean 2026-08-11] 볼트 그린 은퇴 — §3b 프라이머리는 잉크 면 + 화이트 17/800이다.
   // 볼트는 버튼 매트릭스에 아예 없는 색이었다 (그린은 이제 '준비됨' 상태 시맨틱에만 남는다).
   // '실시간 보기'만 예외로 자기 색을 유지한다 — 라이브는 상태색이지 버튼 스타일이 아니다.

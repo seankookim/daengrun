@@ -118,6 +118,9 @@ export default function Live() {
   // 세 선은 색·굵기·z가 전부 달라서 절대 한 가지로 읽히지 않는다 (CLAUDE.md 색 역할 법).
   const [routeGeo, setRouteGeo] = useState<RouteInfo | null>(null);
   const [routeState, setRouteState] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
+  // fetchMeetupInfo 실패 — routeState가 'idle'에 머무는 두 이유(예약에 코스가 없다 / 예약
+  // 컨텍스트를 못 읽었다)를 가르는 값이다. 둘을 뭉치면 '코스 없음'이라는 거짓말이 된다.
+  const [infoErr, setInfoErr] = useState(false);
   const [pickup, setPickup] = useState<{ s: 'loading' } | { s: 'ok'; a: OwnerPickup | null } | { s: 'err' }>({ s: 'loading' });
   // 두 fetch를 한 버튼으로 되돌리는 재시도 카운터 — 화면에 보이는 '다시 시도'가 실제로 무엇을
   // 다시 부르는지가 이 값이다 (죽은 버튼 금지).
@@ -165,10 +168,28 @@ export default function Live() {
     resolveBooking();
   }, [bookingId, resolveBooking]);
 
+  // 예약 컨텍스트 (코스 id · 코스 이름 · 아이 · 권장 페이스). 자기 effect를 갖는 이유 둘:
+  // ① 실패를 조용한 catch로 삼키던 것을 상태로 올린다 — 이 fetch가 실패하면 routeId를 못 얻고
+  //    routeState는 'idle'에 머물러 계획선·입구·마커가 통째로 빠지는데, 화면은 아무 말도 하지
+  //    않았다 (geoNote에 idle 분기가 없었다). ② geoTry를 받아 화면의 '다시 시도'가 이것도
+  //    되부른다 — 구독을 세우는 아래 effect에 섞어 두면 재시도가 구독을 통째로 다시 만든다.
   useEffect(() => {
     if (!bookingId) return;
     const bid = bookingId;
-    fetchMeetupInfo(bid).then(setInfo).catch(() => {});
+    let alive = true;
+    setInfoErr(false);
+    fetchMeetupInfo(bid)
+      .then((i) => { if (alive) { setInfo(i); setInfoErr(false); } })
+      .catch((e) => {
+        console.warn('[live] meetup info:', e?.message ?? e);
+        if (alive) setInfoErr(true);
+      });
+    return () => { alive = false; };
+  }, [bookingId, geoTry]);
+
+  useEffect(() => {
+    if (!bookingId) return;
+    const bid = bookingId;
     const unsubPos = subscribePos(bid, (p) => {
       const now = Date.now();
       if (!startAt.current) startAt.current = now;
@@ -238,9 +259,10 @@ export default function Live() {
   }, [bookingId]);
 
   // ---------- 코스 트레이스 ----------
-  // fetchMeetupInfo는 routeId만 싣고 트레이스는 싣지 않는다 (api.ts:1767-1769) — 선은 여기서
-  // 따로 온다. fetchRouteById는 라이프사이클 무관으로 읽으므로 정지된 코스로 예약한 러닝도
-  // 계획선을 잃지 않는다. 실패해도 위치·기록·정산에는 닿지 않는다.
+  // fetchMeetupInfo는 route_id와 코스 **이름**만 싣고 트레이스는 싣지 않는다 (api.ts의
+  // fetchMeetupInfo 참조 — 줄 번호로 쓰지 않는다: 종전의 `:1767-1769`는 이미 다른 함수를
+  // 가리키고 있었다). 선은 여기서 따로 온다. fetchRouteById는 라이프사이클 무관으로 읽으므로
+  // 정지된 코스로 예약한 러닝도 계획선을 잃지 않는다. 실패해도 위치·기록·정산에는 닿지 않는다.
   useEffect(() => {
     const rid = info?.routeId;
     if (!rid) return;
@@ -253,9 +275,10 @@ export default function Live() {
   }, [info?.routeId, geoTry]);
 
   // ---------- 픽업 핀 ----------
-  // 삼상 계약 (api.ts:2686-2689): null = 예약에 주소가 없다 · 행은 있는데 lat이 NULL = 주소는
-  // 있으나 핀이 없다 · throw = 못 불러왔다. 세 번째를 첫 번째로 접으면 '핀이 없어요'라는
-  // 거짓말이 되므로 실패는 실패로 남긴다.
+  // 삼상 계약 (api.ts의 fetchOwnerPickupCoords — 심볼로 인용한다, 종전의 `:2686-2689`는 이미
+  // 어긋나 있었다): null = 예약에 주소가 없다 · 행은 있는데 lat이 NULL = 주소는 있으나 핀이
+  // 없다 · throw = 못 불러왔다. 세 번째를 첫 번째로 접으면 '핀이 없어요'라는 거짓말이 되므로
+  // 실패는 실패로 남긴다.
   useEffect(() => {
     if (!bookingId) return;
     const bid = bookingId;
@@ -301,11 +324,15 @@ export default function Live() {
     [rotated, lapLL, routeCoords],
   );
 
-  // 입구 도착 — 러너 화면과 같은 술어(같은 반경, 같은 점)를 최신 라이브 픽스에 적용한다.
-  // 새 구독을 만들지 않는다: 이미 화면에 그려지는 pos를 읽을 뿐이다.
-  // Owner-side addition: the owner usually opens this screen MID-run, so the first fix is already
-  // somewhere on the lap — far from the entry. A fix ON the route (≤ 40 m, snapToRoute's tolerance)
-  // means the approach is over; that test is a strict superset of "within 40 m of the entry point".
+  // 입구 도착 — 러너 화면(runner/run.tsx)의 술어를 **포함하되 더 넓다**. 같다고 적으면 안 된다:
+  // 첫 줄(entry 점 ≤ ENTRY_REACHED_M)이 러너 쪽과 같은 테스트이고, 둘째 줄(트레이스 위 스냅)은
+  // 이 화면에만 있는 추가 조건이다.
+  // 왜 넓혀 두는가: 보호자는 보통 러닝 **중간에** 이 화면을 연다 — 첫 픽스가 이미 랩 위 어딘가,
+  // 입구에서 한참 떨어진 곳이다. 코스 선 위(≤ 40 m, snapToRoute의 허용치)에 있는 픽스는 접근이
+  // 끝났다는 뜻이므로 접근선을 그리지 않는다.
+  // ⚠ 대가는 알고 받아들인 것이다: 코스 선에서 40 m 안쪽에 픽업이 있는 강변 예약이라면 첫 픽스에
+  //   바로 atEntry가 걸려, 러너는 아직 입구로 안내받는 중인데 보호자 화면엔 '입구까지'가 없다.
+  //   러너 화면이 안내의 정본이고 이 화면은 관전이라 그쪽으로 기울여 둔다.
   useEffect(() => {
     if (atEntry || !entry || !pos) return;
     const fix = { lat: pos.lat, lng: pos.lng };
@@ -440,6 +467,16 @@ export default function Live() {
   // 계획선·접근선이 빠졌을 때의 정직 고지. 어느 것도 위치·기록·정산을 막지 않는다 (자문이다).
   // 실패(재시도 가능)와 부재(재시도해도 같은 답)는 다른 사실이므로 버튼도 다르게 붙는다.
   const geoNote = ((): { text: string; retry: boolean } | null => {
+    // routeState === 'idle'은 '아직 아무것도 시도하지 않았다'는 뜻이고, 그 자리에 머무는 경우가
+    // 셋이다: 예약 컨텍스트를 못 읽었다(infoErr) · 읽는 중이다(info == null) · 읽었는데 이
+    // 예약에 코스가 없다(routeId == null). 첫째와 셋째는 서로 다른 사실이라 다르게 말한다.
+    // 둘째(로딩)는 아무 말도 하지 않는다 — 모르는 것에 문장을 얹지 않는다.
+    if (routeState === 'idle' && infoErr) {
+      return { text: '예약 정보를 불러오지 못했어요 — 계획 경로와 입구 안내선이 빠져요', retry: true };
+    }
+    if (routeState === 'idle' && info != null && info.routeId == null) {
+      return { text: '이 러닝에는 코스가 지정되지 않았어요 — 실시간 경로만 그려져요', retry: false };
+    }
     if (routeState === 'error') return { text: '계획 경로를 불러오지 못했어요 — 러닝 기록에는 영향 없어요', retry: true };
     if (pickup.s === 'err') return { text: '픽업 위치를 불러오지 못했어요 — 입구까지의 안내선만 빠져요', retry: true };
     if (routeState === 'ready' && !routeGeo) return { text: '배정된 코스 정보를 찾을 수 없어요 — 러닝 기록에는 영향 없어요', retry: false };
@@ -723,7 +760,7 @@ export default function Live() {
           <Text style={s.modeNote}>러너 앱이 화면에 떠 있는 동안만 위치가 전송돼요 — 잠시 끊길 수 있어요</Text>
         )}
         {/* 계획선/접근선이 빠진 이유. 조용한 고지지 실패 스트립이 아니다 — 러닝 자체는 멀쩡하다.
-            '다시 시도'는 실제로 두 fetch를 다시 부른다 (geoTry). */}
+            '다시 시도'는 실제로 세 fetch를 다시 부른다 (geoTry: 예약 컨텍스트 · 코스 · 픽업). */}
         {geoNote && (
           <Row style={{ marginTop: 10, gap: 8, alignItems: 'center' }}>
             <Text style={[s.modeNote, { marginTop: 0, flex: 1 }]}>{geoNote.text}</Text>
@@ -791,6 +828,8 @@ export default function Live() {
           <Pressable
             onPress={() => router.push({ pathname: '/chat', params: { bid: bookingId! } })}
             style={({ pressed }) => [s.chatBtn, pressed && s.chatBtnPressed]}
+            accessibilityRole="button"
+            accessibilityLabel="러너와 채팅"
           >
             <Text style={s.chatBtnTxt}>러너와 채팅</Text>
           </Pressable>
@@ -948,12 +987,16 @@ const s = StyleSheet.create({
   paceChipInkGood: { color: paper.paceGoodInk },
   paceChipInkSlow: { color: paper.paceSlowInk },
   paceTarget: { marginLeft: 'auto', fontSize: 14, lineHeight: 18, color: paper.dim },
-  // 버튼 매트릭스 — primary(잉크 면) 하나 + destructive(캔버스 면 + 크리티컬 잉크·보더)
-  // [액션] 채팅은 이동이지 커밋이 아니다 -> 세컨더리. 이 화면은 코랄 필이 0개인 게 맞다:
-  // 예산은 상한이지 할당량이 아니고, 강조는 livePill(잉크=상태)이 지고 있다.
+  // 버튼 매트릭스 — secondary(wash 면 + 코랄 헤어라인 + actionInk 라벨) + destructive(캔버스 면
+  // + 크리티컬 잉크·보더). [액션] 채팅은 이동이지 커밋이 아니다 -> 세컨더리. 이 화면은 코랄
+  // **필**이 0개인 게 맞다: 예산은 상한이지 할당량이 아니고, 강조는 livePill(잉크=상태)이 진다.
+  //
+  // ⚠ 면은 세컨더리로 바뀌었는데 라벨과 pressed 면색이 프라이머리의 것으로 남아 있었다:
+  //   #FFFFFF on paper.wash(#FFF6F4) = 실측 1.05:1 — 이 화면의 유일한 CTA가 사실상 보이지 않았다.
+  //   PaperBtn의 secondary와 같은 값으로 맞춘다 (actionInk on wash = 5.99:1, pressed #FBE7E1).
   chatBtn: { flex: 1, backgroundColor: paper.wash, borderWidth: 1, borderColor: paper.line, alignItems: 'center', paddingVertical: 14 },
-  chatBtnPressed: { backgroundColor: '#333333' }, // F2.1 매트릭스가 지정한 primary pressed 면색 (토큰 미보유)
-  chatBtnTxt: { fontSize: 16.5, fontWeight: '900', color: '#ffffff' },
+  chatBtnPressed: { backgroundColor: '#FBE7E1' }, // PaperBtn secondary pressed 면색과 동일 (토큰 미보유)
+  chatBtnTxt: { fontSize: 16.5, fontWeight: '900', color: paper.actionInk },
   stopBtn: {
     width: 50, height: 50, backgroundColor: paper.canvas,
     borderWidth: 1, borderColor: paper.critical, alignItems: 'center', justifyContent: 'center',

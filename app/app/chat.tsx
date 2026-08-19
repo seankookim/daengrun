@@ -25,7 +25,10 @@ export default function Chat() {
   const { bid } = useLocalSearchParams<{ bid?: string }>();
   const isRunner = session.role === 'runner';
   const [ctx, setCtx] = useState<ChatContext | null>(null);
-  const [state, setState] = useState<'loading' | 'ready' | 'none' | 'error'>('loading');
+  // 'preaccept' = 서버가 **설계상** 거부한 상태 (0114): 러너가 수락하기 전 예약은
+  // chat_threads INSERT가 정책에서 막힌다. 'error'(일시적 실패)와 같은 문장을 쓰면 안 된다 —
+  // 기다려도 절대 열리지 않는데 "잠시 후 다시 시도"라고 말하는 건 시간에 대한 거짓말이다.
+  const [state, setState] = useState<'loading' | 'ready' | 'none' | 'error' | 'preaccept'>('loading');
   const [msgs, setMsgs] = useState<ChatMsg[]>([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
@@ -44,8 +47,15 @@ export default function Chat() {
         setMsgs(await fetchMessages(c.threadId));
         setState('ready');
       } catch (e) {
-        console.warn('[chat] open:', (e as Error)?.message);
-        if (alive) setState('error');
+        // [0114 · ui2-2] RLS 거부만 골라낸다. openChatForBooking → ensureThread의 INSERT가
+        // is_booking_party_active에 걸리면 PostgREST가 42501 / "row-level security" 를 올린다
+        // (docs/contracts/party-membership-status-filter-contract.md §C.3). 그 외의 실패
+        // (네트워크·타임아웃·5xx)는 진짜 일시적 실패이므로 종전 재시도 문구를 그대로 쓴다.
+        const err = e as { code?: string; message?: string };
+        const denied = err?.code === '42501'
+          || /row-level security|permission denied|not authorized/i.test(err?.message ?? '');
+        console.warn('[chat] open:', err?.message);
+        if (alive) setState(denied ? 'preaccept' : 'error');
       }
     })();
     return () => { alive = false; };
@@ -134,6 +144,14 @@ export default function Chat() {
           </Text>
         </View>
       )}
+      {state === 'preaccept' && (
+        <View style={s.emptyWrap}>
+          <Text style={{ fontSize: 16, fontWeight: '900', color: paper.ink, textAlign: 'center' }}>러너가 수락하면 채팅을 열 수 있어요</Text>
+          <Text style={{ fontSize: 14, color: colors.dim, textAlign: 'center', marginTop: 6, lineHeight: 20.5 }}>
+            요청을 수락한 러너와 바로 연결돼요
+          </Text>
+        </View>
+      )}
       {state === 'error' && (
         <View style={s.emptyWrap}>
           <Text style={{ fontSize: 14.5, color: colors.dim, textAlign: 'center' }}>채팅을 불러오지 못했어요 — 잠시 후 다시 시도해주세요</Text>
@@ -194,7 +212,9 @@ export default function Chat() {
           style={s.input}
           value={input}
           onChangeText={setInput}
-          placeholder={state === 'ready' ? '메시지 보내기' : '연결 중...'}
+          /* 플레이스홀더도 같은 법을 진다 — 수락 전 상태에서 '연결 중...'은 열릴 예정이 없는
+             연결을 기다리라는 말이 된다 */
+          placeholder={state === 'ready' ? '메시지 보내기' : state === 'preaccept' ? '수락 후 열려요' : '연결 중...'}
           placeholderTextColor="#a9a795"
           editable={state === 'ready'}
           onSubmitEditing={() => send(input)}

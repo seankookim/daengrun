@@ -421,6 +421,13 @@ export default function Meetup() {
                 <Text style={s.peerMeta} numberOfLines={2}>예약 정보 불러오는 중...</Text>
               )}
             </View>
+            {/* [0114 · ui2-3, verify-only] 수락 전에는 이 문에 닿을 수 없다 — 확인된 게이트 사슬:
+                이 화면의 유일한 진입은 requests.tsx:140(acceptBooking이 resolve한 뒤),
+                home.tsx:292 · calendar.tsx:63(둘 다 fetchRunnerJobs, api.ts:1173이
+                confirmed/runner_enroute/picked_up/active/completed로만 필터)이고, jobId가 비면
+                이 파일 :103-112가 fetchCurrentRunnerJobId(IN_FLIGHT, api.ts:1058-1064)로만
+                복원한 뒤 없으면 Alert + back 한다. `: {}` 폴백조차 bare /chat의
+                IN_FLIGHT 리졸버로 떨어진다. 게이트 추가 불필요 — 상태 게이트가 이미 상류에 있다. */}
             <Pressable style={s.chatChip} onPress={() => router.push({ pathname: '/chat', params: jobId ? { bid: jobId } : {} })}>
               <Text style={s.chatChipText}>보호자 채팅</Text>
             </Pressable>

@@ -7,7 +7,7 @@ import { traceToBox } from '../../src/lib/trace';
 import { PaperBtn } from '../../src/components/paper-btn';
 import { Monogram, Row, Skeleton } from '../../src/components/ui';
 import { MediaImage } from '../../src/lib/media';
-import { CoursePatch, fetchPatchPop, fetchRunEarning, fetchRunReport, fetchRunStandings, fetchStampPop, RunEarning, RunReport, RunStandings, StampInfo } from '../../src/lib/api';
+import { checkSlot, CoursePatch, fetchPatchPop, fetchRunEarning, fetchRunReport, fetchRunStandings, fetchStampPop, RunEarning, RunReport, RunStandings, StampInfo } from '../../src/lib/api';
 import { haptic } from '../../src/lib/haptics';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
@@ -97,6 +97,11 @@ function resolveNextWeek(iso: string | null): { iso: string; timeLabel: string; 
     if (new Date(Date.now() + i * 86400_000).toDateString() === target.toDateString()) { idx = i; break; }
   }
   if (idx < 0) return null;
+  // ④ RECENCY. ② only asks whether run+7d lands SOMEWHERE in the 8-day strip, which a run 1–7
+  // days old also satisfies — and then the panel titled 다음 주 같은 시간 prefilled TOMORROW (6d
+  // old) or TODAY (7d old). Nothing on the panel contradicted it: the subline carries a weekday
+  // only. run+7d is next week ONLY when the run was TODAY, which is exactly idx === last slot.
+  if (idx !== REQUEST_STRIP_DAYS - 1) return null;
   // request.tsx pickSlot()'s label format, verbatim: '오늘 19:30' · '내일 19:30' · '8월 26일 19:30'.
   // Matching it is what makes the focus-sync land on the right row instead of showing a stale label.
   const dayLabel = idx === 0 ? '오늘' : idx === 1 ? '내일' : `${target.getMonth() + 1}월 ${target.getDate()}일`;
@@ -181,9 +186,43 @@ export default function Report() {
     ? Math.min(100, Math.round((targetPaceSec(report.paceLabel) / run.paceSecPerKm) * 100))
     : null;
   const bList = badges(standings);
-  // Recomputed every render on purpose — the 2-hour floor and the date strip are both relative to
-  // NOW, and a report left open past a boundary must stop promising a slot it can no longer fill.
-  const nextWeek = report ? resolveNextWeek(report.scheduledAtIso) : null;
+  // Recomputed on EVERY RENDER — and that is all it is. The 2-hour floor and the date strip are
+  // relative to NOW, so a re-render after a boundary drops the offer; but this screen runs no
+  // interval, no useFocusEffect and holds no time-varying state, so a report left open simply
+  // keeps the value it last rendered with. (The old comment promised the stronger property —
+  // "must stop promising a slot it can no longer fill" — that nothing here implements. The
+  // backstop is real and lives one screen over: request.tsx's mount effect nulls any draft ISO
+  // inside the notice floor and re-picks.)
+  const nextWeekCand = report ? resolveNextWeek(report.scheduledAtIso) : null;
+
+  // ═══ The named runner has to be ABLE to take that slot ═══
+  // resolveNextWeek only mirrors request.tsx's DISPLAY rules (notice floor, strip, slot grid). It
+  // knows nothing about the runner this panel also prefills, and request.tsx never re-validates an
+  // externally supplied ISO against that runner's availability — so a runner who narrowed to
+  // weekends got a weekday hold and the booking parked in runner_pending for someone who
+  // structurally could not accept it. runner-profile/[id].tsx, the only other external writer of
+  // scheduledAtIso, calls checkSlot() first; so does this now.
+  //   null = not answered yet (or the check failed) — the panel falls back to the timeless copy
+  //   rather than promise a time we could not verify. Unknown is not yes.
+  const [slotOk, setSlotOk] = useState<boolean | null>(null);
+  const candIso = nextWeekCand?.iso ?? null;
+  const runnerId = report?.runnerProfileId ?? null;
+  const plannedKm = report?.plannedKm ?? null;
+  useEffect(() => {
+    setSlotOk(null);
+    if (!candIso || !runnerId || plannedKm == null) return;
+    let alive = true;
+    // Same duration the hold will ask for (request.tsx slotAllowed: km × 8 + 25 min buffer) —
+    // checking 60 minutes and booking 85 would pass a check the booking then fails.
+    const end = new Date(Date.parse(candIso) + (plannedKm * 8 + 25) * 60_000).toISOString();
+    checkSlot(runnerId, candIso, end)
+      .then((ok) => { if (alive) setSlotOk(ok); })
+      .catch(() => { if (alive) setSlotOk(null); }); // failure stays unknown, never a yes
+    return () => { alive = false; };
+  }, [candIso, runnerId, plannedKm]);
+
+  // What the panel is allowed to say. No runner → the display rules are the whole contract.
+  const nextWeek = nextWeekCand && (runnerId == null || slotOk === true) ? nextWeekCand : null;
 
   // 재예약 — same prefill as before, plus the resolved time when (and only when) we have one.
   const rebook = () => {

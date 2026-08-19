@@ -16,6 +16,7 @@ import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { haptic } from '../../src/lib/haptics';
 import { registerPushToken } from '../../src/lib/push';
+import { useReducedMotion } from '../../src/lib/reducedMotion';
 // [정직 배치 2026-08-06 · item 5] 목업 dog(초코 상수)·runners 임포트 퇴역 — 홈은 실데이터만 읽는다
 import { Booking, draft } from '../../src/store';
 import { layout, lilac, paper } from '../../src/theme';
@@ -110,11 +111,17 @@ export default function OwnerHome() {
   const insets = useSafeAreaInsets();
   const df = useDisplayFont(); // 디스플레이 서체 — 그리팅 (화면당 1회)
   const nf = useNumFont();     // [V4] 숫자 = Oswald
+  // 감소된 모션 — GO 디스크의 breath와 함께 이 화면에서 사라졌지만, 남은 두 루프(그리팅
+  // 수직 플립 rotateX 0→86deg, 랭킹 티커 마퀴)는 정확히 법이 "전부 멈추라"고 말한 종류다
+  // (DESIGN.md §7c · reducedMotion.ts: 루프/유휴 모션 → 완전 정지). 문구와 티커 자체는 남는다 —
+  // 모션이 유일한 채널인 곳이 아니다.
+  const reduceMotion = useReducedMotion();
 
   // 로테이팅 그리팅 — 5초마다 수직 플립 (접힘 → 문구 교체 → 펼침)
   const [gIdx, setGIdx] = useState(0);
   const gFlip = useRef(new Animated.Value(0)).current;
   useEffect(() => {
+    if (reduceMotion) { gFlip.setValue(0); return; } // 첫 문구에 정지 — 회전도 순환도 없다
     const id = setInterval(() => {
       Animated.timing(gFlip, { toValue: 1, duration: 240, easing: Easing.in(Easing.quad), useNativeDriver: true }).start(() => {
         setGIdx((i) => (i + 1) % GREETINGS.length);
@@ -122,7 +129,7 @@ export default function OwnerHome() {
       });
     }, 5000);
     return () => clearInterval(id);
-  }, [gFlip]);
+  }, [gFlip, reduceMotion]);
 
   // 체력 — [정직 배치 2026-08-06 · item 5] 세 상태를 절대 뭉개지 않는다:
   //   로딩(fit=null, fitErr=false) = 아무것도 안 그린다 (0% 주장 금지)
@@ -210,12 +217,13 @@ export default function OwnerHome() {
   useEffect(() => {
     if (tickerW <= 0) return;
     tickerX.setValue(0);
+    if (reduceMotion) return; // 마퀴 정지 — 줄은 그대로 읽히고 탭하면 리더보드로 간다
     const loop = Animated.loop(
       Animated.timing(tickerX, { toValue: -tickerW, duration: Math.max(9000, tickerW * 35), easing: Easing.linear, useNativeDriver: true }),
     );
     loop.start();
     return () => loop.stop();
-  }, [tickerW, tickerX]);
+  }, [tickerW, tickerX, reduceMotion]);
 
   // ── 히어로 상태 (home-hero.tsx의 유일한 입력) ──────────────────────────────
   // liveNext는 이미 active > handoff > confirmed > pending 로 랭크된 '가장 액션 가능한 실예약'이고,
@@ -367,9 +375,13 @@ export default function OwnerHome() {
               runnerName: liveNext.runnerName ?? null,
               timeLabel: liveNext.timeLabel,
               dateLabel: liveNext.dateLabel,
-              km: liveNext.km,
+              // 이 예약의 아이 (bookings.dogs.name). 아래 dogName은 첫 등록 아이라 다견 가구에서
+              // 어긋난다 — 히어로는 예약이 있으면 이 값을 쓴다 (review P1-6). 히어로가 읽지 않던
+              // `km`은 함께 빠졌다: 안 읽히는 필드는 계약이 아니다.
+              dogName: liveNext.dogName,
             } : null}
             dogName={dogName}
+            dialKm={draft.km}
             loadState={bookingsErr ? 'error' : bookingsLoaded ? 'ready' : 'loading'}
             onRetry={loadBookings}
             ddayLabel={ddayLabel}
@@ -382,7 +394,8 @@ export default function OwnerHome() {
                 {/* 킥커는 레터스페이스 라틴만 — 14pt 플로어의 유일한 면제 대상이다. 러너 이름(한글)은
                     면제가 아니므로 아래 14pt 줄로 내렸다 (구 코드는 '● LIVE · 민준 러너'를 통째로 11pt에 뒀다). */}
                 <Text style={{ fontSize: 11, letterSpacing: 2, fontWeight: '800', color: '#8F88B8' }}>● LIVE</Text>
-                <Text style={{ fontSize: 14, color: '#B9B3D9', marginTop: 8, lineHeight: 20 }}>{liveNext.runnerName ?? '러너'} 러너 · {dogName ?? '아이'}가 달리는 중이에요 — 지도 보기 ›</Text>
+                {/* 아이 이름도 이 **예약의** 아이다 — dogName(첫 등록 아이)이 아니라 (review P1-6) */}
+                <Text style={{ fontSize: 14, color: '#B9B3D9', marginTop: 8, lineHeight: 20 }}>{liveNext.runnerName ?? '러너'} 러너 · {liveNext.dogName ?? dogName ?? '아이'}가 달리는 중이에요 — 지도 보기 ›</Text>
               </Pressable>
             ) : null}
           />
@@ -541,7 +554,14 @@ export default function OwnerHome() {
             [2026-08-19] '지난번처럼'은 여기서 '오늘' 덩어리로 올라갔다 (화면에 한 번만 나온다). */}
         {fit != null && fit.weekKm > 0 && fit.weekKm < fit.goalKm && new Date().getDay() >= 4 && (
           <Pressable
-            onPress={() => { draft.autoEarliest = false; router.push('/owner/request'); }}
+            onPress={() => {
+              // 히어로의 두 문과 같은 규칙 — 새 예약을 시작하는 문은 지난 지명을 지운다.
+              // 안 지우면 실패했거나 중간에 그만둔 지명이 이 예약에 따라붙는다 (review P1-3).
+              draft.preferredRunnerId = null;
+              draft.preferredRunnerName = null;
+              draft.autoEarliest = false;
+              router.push('/owner/request');
+            }}
             style={({ pressed }) => [s.row, pressed && { backgroundColor: paper.wash }]}
             accessibilityRole="button" accessibilityLabel="주간 목표 채우기"
           >

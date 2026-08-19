@@ -508,7 +508,9 @@ export default function RunnerProfileScreen() {
                     }}
                   >
                     <Text style={{ fontSize: 17, fontWeight: '900', color: paper.ink }}>{p.name} 러너와 예약하기</Text>
-                    <Text style={{ fontSize: 14, color: '#5d6b4a', marginTop: 2 }}>결제 후 이 러너에게 지명 요청이 우선 안내돼요</Text>
+                    {/* [§E.5] 지명은 결제가 아니라 **홀드 직후** 나간다 (request.tsx의 pay()
+                        ③번 걸음). "결제 후"는 더 이상 존재하지 않는 단계를 가리켰다. */}
+                    <Text style={{ fontSize: 14, color: '#5d6b4a', marginTop: 2 }}>예약하면 이 러너에게 지명 요청이 먼저 전달돼요</Text>
                   </Pressable>
                   <Pressable
                     style={s.ghostCta}

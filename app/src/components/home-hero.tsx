@@ -36,13 +36,18 @@ export interface HomeHeroNext {
   runnerName?: string | null;
   timeLabel?: string;     // "19:30"
   dateLabel?: string;     // "오늘" · "내일" · "8월 20일"
-  km?: number;
+  /** 이 예약의 아이 (bookings.dogs.name). 아래 `dogName` prop(첫 등록 아이)보다 항상 우선한다. */
+  dogName?: string | null;
 }
 
 interface Props {
   state: HomeGoState;
   next: HomeHeroNext | null;
+  /** 계정의 첫 등록 아이 — 예약이 없을 때만 부르는 이름. 예약이 있으면 next.dogName이 이긴다. */
   dogName: string | null;
+  /** '지금 찾기'가 열 요청 화면의 km 다이얼 초기값 (draft.km). 하드코딩 금지 — 버튼이 약속한
+   *  거리와 다음 화면이 여는 거리는 같은 값이어야 한다. */
+  dialKm: number;
   loadState: 'loading' | 'ready' | 'error';
   onRetry: () => void;
   ddayLabel?: string | null;
@@ -53,14 +58,21 @@ interface Props {
 const GO_SAGE = '#119B58';   // home.tsx와 같은 값 — 확정·준비됨
 const WAIT_BLUE = '#6C5CE7'; // lilac.accent — 대기
 
-export function HomeHero({ state, next, dogName, loadState, onRetry, ddayLabel, liveWidget }: Props) {
-  const name = dogName ?? '우리 아이';
+export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, ddayLabel, liveWidget }: Props) {
+  // 이 예약의 아이가 먼저다. dogName prop은 fetchFitness의 `.order('created_at').limit(1)` —
+  // 즉 **첫 등록 아이**다. 다견 가구에서 몽이 예약 위에 "초코를 인계하고 확인해주세요"라고 쓰던
+  // 것이 그 차이였다 (review P1-6).
+  const name = next?.dogName ?? dogName ?? '우리 아이';
   // 디스플레이 서체는 지연 로드 — 하드코딩하면 로드 전엔 시스템 폰트로 뜬다 (실측). 집 규칙대로 훅을 쓴다.
   const df = useDisplayFont();
 
+  // 새 예약을 시작하는 두 문 — 지난 지명을 반드시 지운다. 은퇴한 goBook()이 하던 일이고
+  // (old-home.tsx의 "스테일 지명이 슬롯을 한 러너로 묶던 버그"), 지금은 지명이 **성공했을 때만**
+  // 지워지므로 실패하거나 중간에 그만둔 지명이 다음 예약에 그대로 따라붙었다 (review P1-3).
+  const clearNomination = () => { draft.preferredRunnerId = null; draft.preferredRunnerName = null; };
   // 지금 찾기 = 요청 화면의 pickEarliest 경로. 새 화면 없음 — 홈이 그걸 묻어 두던 걸 그만둘 뿐.
-  const findNow = () => { haptic('light'); draft.autoEarliest = true; router.push('/owner/request'); };
-  const schedule = () => { haptic('light'); draft.autoEarliest = false; router.push('/owner/request'); };
+  const findNow = () => { haptic('light'); clearNomination(); draft.autoEarliest = true; router.push('/owner/request'); };
+  const schedule = () => { haptic('light'); clearNomination(); draft.autoEarliest = false; router.push('/owner/request'); };
   const openNext = () => {
     if (!next) return;
     draft.bookingId = next.id;
@@ -78,23 +90,26 @@ export function HomeHero({ state, next, dogName, loadState, onRetry, ddayLabel, 
       </View>
     );
   }
-  if (loadState === 'error') {
-    return (
-      <View style={s.wrap}>
-        <View style={s.alertRow}>
-          <View style={[s.dot, { backgroundColor: paper.critical }]} />
-          <Text style={[s.alertMain, { color: paper.critical }]}>예약을 불러오지 못했어요</Text>
-          <Pressable onPress={onRetry} hitSlop={8} accessibilityRole="button">
-            <Text style={[s.alertAct, { color: paper.critical }]}>다시 시도</Text>
-          </Pressable>
-        </View>
-      </View>
-    );
+  // 실패 줄. home.tsx의 loadBookings는 실패해도 **직전 실값을 유지**하므로, 예약을 이미 아는
+  // 상태에서 새로고침 하나가 실패했다고 그 예약과 두 버튼을 통째로 지우면 안 된다 (review P1-2:
+  // 인계 중 백그라운드 → LTE 핸드오버 실패 → 홈에 '인계 확인'이 사라졌다). 아는 게 없을 때만
+  // 화면을 대신하고, 아는 게 있으면 그 위에 한 줄로 얹힌다 — clubcard.tsx의 compact 문법과 같다.
+  const errRow = loadState === 'error' ? (
+    <View style={s.alertRow}>
+      <View style={[s.dot, { backgroundColor: paper.critical }]} />
+      <Text style={[s.alertMain, { color: paper.critical, flex: 1 }]}>예약을 불러오지 못했어요</Text>
+      <Pressable onPress={onRetry} hitSlop={8} accessibilityRole="button">
+        <Text style={[s.alertAct, { color: paper.critical }]}>다시 시도</Text>
+      </Pressable>
+    </View>
+  ) : null;
+  if (loadState === 'error' && !next) {
+    return <View style={s.wrap}>{errRow}</View>;
   }
 
   // ── active: 라이브 위젯이 존을 대체 ───────────────────────────────────────
   if (state === 'active') {
-    return <View style={s.wrapTight}>{liveWidget}</View>;
+    return <View style={s.wrapTight}>{errRow}{liveWidget}</View>;
   }
 
   const when = next ? [next.dateLabel, next.timeLabel].filter(Boolean).join(' ') : '';
@@ -104,6 +119,7 @@ export function HomeHero({ state, next, dogName, loadState, onRetry, ddayLabel, 
   if (state === 'handoff') {
     return (
       <View style={s.wrapTight}>
+        {errRow}
         <Pressable onPress={openNext} style={[s.alertRow, s.alertHot]} accessibilityRole="button" accessibilityLabel="인계 확인">
           <View style={[s.dot, { backgroundColor: paper.action }]} />
           <View style={{ flex: 1 }}>
@@ -119,6 +135,7 @@ export function HomeHero({ state, next, dogName, loadState, onRetry, ddayLabel, 
   const inFlight = state === 'searching' || state === 'directed' || state === 'confirmed';
   return (
     <View style={s.wrap}>
+      {errRow}
       {inFlight && next && (
         <Pressable onPress={openNext} style={s.alertRow} accessibilityRole="button">
           <View style={[s.dot, { backgroundColor: state === 'confirmed' ? GO_SAGE : WAIT_BLUE }]} />
@@ -148,7 +165,9 @@ export function HomeHero({ state, next, dogName, loadState, onRetry, ddayLabel, 
             accessibilityRole="button" accessibilityLabel="지금 찾기">
             <View>
               <Text style={[s.optT, df, { color: '#fff' }]}>지금 찾기</Text>
-              <Text style={[s.optD, { color: '#FFD9CE' }]}>가장 빠른 시간 · 5km · {name}</Text>
+              {/* km은 하드코딩이 아니라 다음 화면의 다이얼 초기값(draft.km) 그대로다 —
+                  3km로 예약한 뒤에도 '5km'를 약속하던 것이 이 버튼의 거짓말이었다. */}
+              <Text style={[s.optD, { color: '#FFD9CE' }]}>가장 빠른 시간 · {dialKm}km · {name}</Text>
             </View>
             <Text style={[s.optArr, { color: '#FFD9CE' }]}>›</Text>
           </Pressable>

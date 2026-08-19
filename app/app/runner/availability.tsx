@@ -72,8 +72,14 @@ export default function Availability() {
     }
   };
 
+  // [honesty 2026-08-19 · runner review P2] 이 함수는 **켜져 있는 다른 요일**에만 값을 복사한다
+  // (요일을 켜지도, 끄지도 않는다). 바꿀 대상이 없으면 화면에서는 아무것도 움직이지 않는데도
+  // setDirty(true)가 저장 바를 '저장됨 ✓'(비활성)에서 '저장하기'로 뒤집어, 러너에게 있지도 않은
+  // 미저장 변경을 알리고 아무것도 바꾸지 않는 왕복을 팔았다. 실제 변화가 있을 때만 dirty다.
   const applyToAll = (srcWd: number) => {
     const src = days[srcWd];
+    const changes = days.some((d, i) => i !== srcWd && d.enabled && (d.startMin !== src.startMin || d.endMin !== src.endMin));
+    if (!changes) return;
     setDays((ds) => ds.map((d) => (d.enabled ? { ...d, startMin: src.startMin, endMin: src.endMin } : d)));
     setDirty(true);
   };
@@ -108,8 +114,12 @@ export default function Availability() {
           <Text style={{ fontSize: 22, fontWeight: '900', color: paper.ink }}>가용시간 설정</Text>
           <View style={{ width: 40 }} />
         </Row>
+        {/* [honesty 2026-08-19 · runner review P2] '주 N일 러닝'은 로드가 **성공한** 뒤에만.
+            days의 시드는 전부 쉬는 날이라, 로딩 중과 실패 후에 '주 0일 러닝'이 찍혔다 — 서버에
+            무엇이 저장돼 있는지 아직 모르는 화면이 0일이라고 단언하던 자리다. loaded는 성공한
+            로드에서만 true가 된다(실패는 loadErr만 세운다). */}
         <Text style={{ fontSize: 14, lineHeight: 19, color: paper.dim, textAlign: 'center', marginBottom: 16 }}>
-          설정한 시간에만 요청을 받아요 · 주 {activeCount}일 러닝
+          설정한 시간에만 요청을 받아요{loaded ? ` · 주 ${activeCount}일 러닝` : ''}
         </Text>
 
         {!loaded && !loadErr && (
@@ -174,7 +184,11 @@ export default function Availability() {
             자기가 무엇을 할지 미리 보여준다. 월요일이 쉬는 날이면 문을 그리지 않는다: 화면 어디에도
             보이지 않는 시간을 나머지 요일에 퍼뜨리는 버튼이 되기 때문이다 (죽은 버튼 금지법의 이웃 —
             누르면 무언가는 일어나지만 러너가 보지 못한 값이 움직인다). 대신 켜는 방법을 말한다. */}
-        {loaded && (days[SRC_WD].enabled ? (
+        {/* [honesty 2026-08-19 · runner review P2] 켜진 요일이 하나뿐이면 '나머지 가능한 요일'이
+            존재하지 않는다 — 캡션은 없는 요일들을 가리키고, 문은 0개 요일에 값을 복사한 뒤
+            (applyToAll의 no-op 가드 이전에는) 저장 바만 흔들었다. 켜진 요일이 둘 이상일 때만
+            이 블록 전체가 존재한다: 월요일이 꺼진 안내 문장도 마찬가지로 그때만 의미가 있다. */}
+        {loaded && activeCount > 1 && (days[SRC_WD].enabled ? (
           <Row style={s.applyRow}>
             <Text style={s.applyCaption} numberOfLines={2}>
               월요일 {fmtMin(days[SRC_WD].startMin)}–{fmtMin(days[SRC_WD].endMin)}을 나머지 가능한 요일에
