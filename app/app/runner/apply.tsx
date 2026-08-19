@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { PaperBtn } from '../../src/components/paper-btn';
 import { Row } from '../../src/components/ui';
 import {
   fetchMyRunnerApplication, fetchMyRunnerCert, fetchMyRunnerStatus,
@@ -8,7 +9,7 @@ import {
 } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
-import { lilac, lilacRadius, lilacShadow } from '../../src/theme';
+import { layout, paper } from '../../src/theme';
 
 // Runner certification center — the real funnel (0062 / plan §6.2).
 //
@@ -35,6 +36,22 @@ import { lilac, lilacRadius, lilacShadow } from '../../src/theme';
 //
 // funnel_step / identity_verified / education_modules_done are still not drawn: 0062 deprecates the
 // first and the approval RPC is the only writer of the second.
+//
+// [paper repaint 2026-08-19] This was the last runner screen still in the lilac world (rounded
+// cards, drop shadows, purple accent). Styling only — every fetch, every one of the nine
+// application renderings, every router exit and every honesty rule above is untouched:
+//   · chrome: paper.* tokens, sharp corners, coral hairlines, layout.gutter page margins.
+//   · CTAs that commit something are PaperBtn (the F2.1 button matrix owns their colour and their
+//     busy label swap). 문의하기 and 지원 취소(1st tap) stay description rows because they carry a
+//     second line a button matrix has no slot for.
+//   · state straps re-tone into the paper semantics: 접수됨 = pending(앰버), 검토 중 = ink,
+//     승인 = readyDeep, 미승인 = critical, 취소됨 = dim. No new hues.
+//   · the "chip is full" look stops being an opacity trick (paper law) — explicit disabledFill.
+//   · load failures move to the app-wide loud-fail grammar (criticalWash strip + underlined 다시
+//     시도) — the same 다시 시도 still calls the same loader.
+// Not converted on purpose: this screen has no fixed CTA, so it grows no ctaDock. The masthead
+// stays inside the ScrollView with a paddingTop reservation, which is what rewards/earnings/
+// availability do; adding a dock here would move the submit button out of the form it belongs to.
 
 const TIER_LABEL: Record<string, string> = {
   applicant: '지원자', certified: '인증 러너', veteran: '베테랑', master: '마스터',
@@ -248,13 +265,13 @@ export default function Apply() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: lilac.bg }}>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 14, paddingTop: 58, paddingBottom: 40 }}>
+    <View style={{ flex: 1, backgroundColor: paper.canvas }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: layout.gutter, paddingTop: 58, paddingBottom: 40 }}>
 
         {/* ————— 마스트헤드 ————— */}
         <Row style={{ gap: 10 }}>
           <Pressable onPress={() => router.back()} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로">
-            <Text style={{ fontSize: 19, fontWeight: '700', color: lilac.head, marginTop: -2 }}>‹</Text>
+            <Text style={{ fontSize: 20.5, color: paper.ink }}>‹</Text>
           </Pressable>
           <View style={s.rule} />
           <Text style={[s.kick, nf]}>RUNNER · CERTIFICATION</Text>
@@ -382,7 +399,7 @@ export default function Apply() {
         {appLoaded && appErr === null && app === null && !formOpen
           && certLoaded && certErr === null && cert !== null && cert.tier !== 'applicant' && (
           <View style={s.stateCard}>
-            <StateStrap tone={lilac.voltDeep} label="승인" />
+            <StateStrap tone={paper.readyDeep} label="승인" />
             <Text style={s.stateT}>이미 인증된 러너예요</Text>
             <Text style={s.stateD}>
               지금 등급은 {TIER_LABEL[cert.tier] ?? cert.tier}예요 — 지원서를 다시 낼 필요는 없어요.{'\n'}
@@ -400,17 +417,15 @@ export default function Apply() {
               지원서를 내면 운영자가 확인하고 화상 통화 일정을 알려드려요.{'\n'}
               통화에서는 신분증으로 신원을 확인하고, 러닝과 반려견 경험을 직접 물어봐요 — 10~15분이면 끝나요.
             </Text>
-            <Pressable onPress={openForm} style={s.ctaPrimary} accessibilityRole="button" accessibilityLabel="러너 지원서 작성 시작">
-              <Text style={s.ctaPrimaryT}>러너 지원서 작성</Text>
-              <Text style={s.ctaPrimaryGo}>›</Text>
-            </Pressable>
+            {/* 이 화면의 유일한 코랄 면 — 이 상태에서 다음 행동은 지원서 하나뿐이다 */}
+            <PaperBtn label="러너 지원서 작성" onPress={openForm} style={s.ctaBtn} />
           </View>
         )}
 
         {/* submitted — NO approval CTA: the next actor is the operator, and a disabled button is a dead button */}
         {appLoaded && appErr === null && app !== null && app.state === 'submitted' && !formOpen && (
           <View style={s.stateCard}>
-            <StateStrap tone={lilac.amber} label="접수됨" />
+            <StateStrap tone={paper.pending} label="접수됨" />
             <Text style={s.stateT}>지원서가 접수됐어요</Text>
             <Text style={s.stateD}>
               {kstDay(app.submittedAt) ? `${kstDay(app.submittedAt)}에 접수됐어요 · ` : ''}
@@ -426,7 +441,7 @@ export default function Apply() {
         {/* under_review */}
         {appLoaded && appErr === null && app !== null && app.state === 'under_review' && !formOpen && (
           <View style={s.stateCard}>
-            <StateStrap tone={lilac.accent} label="검토 중" />
+            <StateStrap tone={paper.ink} label="검토 중" />
             <Text style={s.stateT}>운영자가 확인하고 있어요</Text>
             <Text style={s.stateD}>
               {kstDay(app.reviewedAt ?? '') ? `${kstDay(app.reviewedAt ?? '')}부터 검토 중이에요 · ` : ''}
@@ -442,7 +457,7 @@ export default function Apply() {
         {/* approved — no CTA; one line bound to the REAL `online` value (approval never flips it) */}
         {appLoaded && appErr === null && app !== null && app.state === 'approved' && !formOpen && (
           <View style={s.stateCard}>
-            <StateStrap tone={lilac.voltDeep} label="승인" />
+            <StateStrap tone={paper.readyDeep} label="승인" />
             <Text style={s.stateT}>인증이 끝났어요</Text>
             <Text style={s.stateD}>운영자 확인을 마쳤어요 — 이제 요청을 받을 수 있어요</Text>
             {cert !== null && (
@@ -450,7 +465,7 @@ export default function Apply() {
             )}
             {online !== null && (
               <View style={s.onlineLine}>
-                <View style={[s.onlineDot, { backgroundColor: online ? lilac.voltDeep : lilac.dim }]} />
+                <View style={[s.onlineDot, { backgroundColor: online ? paper.readyDeep : paper.dim }]} />
                 <Text style={s.onlineTxt}>
                   {online
                     ? '지금 온라인 상태예요 · 요청이 오면 러너 홈에 떠요'
@@ -464,7 +479,7 @@ export default function Apply() {
         {/* rejected — reject_reason verbatim. Hard bar is terminal; the cap is a separate fact. */}
         {appLoaded && appErr === null && app !== null && app.state === 'rejected' && !formOpen && (
           <View style={s.stateCard}>
-            <StateStrap tone={lilac.coralDeep} label="미승인" />
+            <StateStrap tone={paper.critical} label="미승인" />
             <Text style={s.stateT}>이번엔 승인되지 않았어요</Text>
             {app.rejectReason !== null && app.rejectReason.trim() !== '' && (
               <View style={s.reasonBox}>
@@ -481,10 +496,7 @@ export default function Apply() {
             ) : app.canReapply ? (
               <>
                 <Text style={s.stateD}>보완해서 다시 지원할 수 있어요 · 지원은 3번까지 할 수 있어요 (지금 {app.attemptNo}번째)</Text>
-                <Pressable onPress={openForm} style={s.ctaPrimary} accessibilityRole="button" accessibilityLabel="러너 지원서 다시 작성">
-                  <Text style={s.ctaPrimaryT}>다시 지원하기</Text>
-                  <Text style={s.ctaPrimaryGo}>›</Text>
-                </Pressable>
+                <PaperBtn label="다시 지원하기" onPress={openForm} style={s.ctaBtn} />
               </>
             ) : (
               <>
@@ -498,15 +510,12 @@ export default function Apply() {
         {/* withdrawn */}
         {appLoaded && appErr === null && app !== null && app.state === 'withdrawn' && !formOpen && (
           <View style={s.stateCard}>
-            <StateStrap tone={lilac.dim} label="취소됨" />
+            <StateStrap tone={paper.dim} label="취소됨" />
             <Text style={s.stateT}>지원을 취소했어요</Text>
             {app.canReapply ? (
               <>
                 <Text style={s.stateD}>다시 지원할 수 있어요 · 지원은 3번까지 할 수 있어요 (지금 {app.attemptNo}번째)</Text>
-                <Pressable onPress={openForm} style={s.ctaPrimary} accessibilityRole="button" accessibilityLabel="러너 지원서 다시 작성">
-                  <Text style={s.ctaPrimaryT}>다시 지원하기</Text>
-                  <Text style={s.ctaPrimaryGo}>›</Text>
-                </Pressable>
+                <PaperBtn label="다시 지원하기" onPress={openForm} style={s.ctaBtn} />
               </>
             ) : (
               <>
@@ -526,7 +535,7 @@ export default function Apply() {
             <Field label="활동 지역" hint="주로 뛰는 동네를 적어주세요 (예: 성수동)">
               <TextInput
                 value={district} onChangeText={setDistrict} maxLength={40}
-                placeholder="성수동" placeholderTextColor={lilac.dim} style={s.input}
+                placeholder="성수동" placeholderTextColor={paper.faint} style={s.input}
               />
             </Field>
 
@@ -534,12 +543,12 @@ export default function Apply() {
               <Row style={{ gap: 8, alignItems: 'center' }}>
                 <TextInput
                   value={paceMin} onChangeText={setPaceMin} keyboardType="number-pad" maxLength={2}
-                  placeholder="6" placeholderTextColor={lilac.dim} style={[s.input, { flex: 1 }]}
+                  placeholder="6" placeholderTextColor={paper.faint} style={[s.input, { flex: 1 }]}
                 />
                 <Text style={s.unit}>분</Text>
                 <TextInput
                   value={paceSec} onChangeText={setPaceSec} keyboardType="number-pad" maxLength={2}
-                  placeholder="00" placeholderTextColor={lilac.dim} style={[s.input, { flex: 1 }]}
+                  placeholder="00" placeholderTextColor={paper.faint} style={[s.input, { flex: 1 }]}
                 />
                 <Text style={s.unit}>초</Text>
               </Row>
@@ -549,7 +558,7 @@ export default function Apply() {
               <Row style={{ gap: 8, alignItems: 'center' }}>
                 <TextInput
                   value={maxWeight} onChangeText={setMaxWeight} keyboardType="decimal-pad" maxLength={4}
-                  placeholder="20" placeholderTextColor={lilac.dim} style={[s.input, { flex: 1 }]}
+                  placeholder="20" placeholderTextColor={paper.faint} style={[s.input, { flex: 1 }]}
                 />
                 <Text style={s.unit}>kg</Text>
               </Row>
@@ -559,7 +568,7 @@ export default function Apply() {
               <Row style={{ gap: 8, alignItems: 'center' }}>
                 <TextInput
                   value={radius} onChangeText={setRadius} keyboardType="decimal-pad" maxLength={4}
-                  placeholder="3" placeholderTextColor={lilac.dim} style={[s.input, { flex: 1 }]}
+                  placeholder="3" placeholderTextColor={paper.faint} style={[s.input, { flex: 1 }]}
                 />
                 <Text style={s.unit}>km</Text>
               </Row>
@@ -578,7 +587,8 @@ export default function Apply() {
                       accessibilityState={{ selected: on }}
                       accessibilityLabel={`전문 분야 ${sp}${on ? ' 선택 해제' : ' 선택'}`}
                     >
-                      <Text style={[s.chipTxt, on && s.chipTxtOn]}>{sp}</Text>
+                      {/* full = 명시 fill/잉크로 (불투명도 트릭 금지 — F2.1) */}
+                      <Text style={[s.chipTxt, on && s.chipTxtOn, full && s.chipTxtFull]}>{sp}</Text>
                     </Pressable>
                   );
                 })}
@@ -592,7 +602,7 @@ export default function Apply() {
               <TextInput
                 value={bio} onChangeText={setBio} maxLength={500} multiline
                 placeholder="아침마다 한강을 뛰고, 대형견과 함께 뛰는 걸 좋아해요"
-                placeholderTextColor={lilac.dim} style={[s.input, s.inputMulti]}
+                placeholderTextColor={paper.faint} style={[s.input, s.inputMulti]}
               />
             </Field>
 
@@ -600,7 +610,7 @@ export default function Apply() {
               <TextInput
                 value={runExp} onChangeText={setRunExp} maxLength={1000} multiline
                 placeholder="3년째 주 4회 · 하프 2회 완주"
-                placeholderTextColor={lilac.dim} style={[s.input, s.inputMulti]}
+                placeholderTextColor={paper.faint} style={[s.input, s.inputMulti]}
               />
             </Field>
 
@@ -608,14 +618,14 @@ export default function Apply() {
               <TextInput
                 value={dogExp} onChangeText={setDogExp} maxLength={1000} multiline
                 placeholder="리트리버와 8년 살았고, 대형견 산책 대행 경험이 있어요"
-                placeholderTextColor={lilac.dim} style={[s.input, s.inputMulti]}
+                placeholderTextColor={paper.faint} style={[s.input, s.inputMulti]}
               />
             </Field>
 
             <Field label="카카오톡 ID" hint="운영자가 여기로 연락드려요">
               <TextInput
                 value={kakao} onChangeText={setKakao} maxLength={60} autoCapitalize="none"
-                placeholder="kakao_id" placeholderTextColor={lilac.dim} style={s.input}
+                placeholder="kakao_id" placeholderTextColor={paper.faint} style={s.input}
               />
             </Field>
 
@@ -623,7 +633,7 @@ export default function Apply() {
               <TextInput
                 value={contactWindow} onChangeText={setContactWindow} maxLength={200}
                 placeholder="평일 저녁 7시 이후 · 주말 아무 때나"
-                placeholderTextColor={lilac.dim} style={s.input}
+                placeholderTextColor={paper.faint} style={s.input}
               />
             </Field>
 
@@ -655,16 +665,16 @@ export default function Apply() {
             )}
 
             {/* Always pressable: an inert submit button would be a dead button, so validation runs on
-                press and names the first field that is not ready. In flight, the label says so. */}
-            <Pressable
+                press and names the first field that is not ready. In flight, the label says so.
+                `disabled` is deliberately never passed — busy is the only blocked state, and it
+                swaps the label instead of greying the button out. */}
+            <PaperBtn
+              label="지원서 접수하기"
+              busyLabel="접수 중이에요…"
+              busy={submitting}
               onPress={submit}
-              style={[s.submit, submitting && s.submitBusy]}
-              accessibilityRole="button"
-              accessibilityState={{ busy: submitting }}
-              accessibilityLabel="지원서 접수하기"
-            >
-              <Text style={s.submitTxt}>{submitting ? '접수 중이에요…' : '지원서 접수하기'}</Text>
-            </Pressable>
+              style={s.submit}
+            />
             <Pressable
               onPress={() => { if (!submitting) { setFormOpen(false); setFormErr(null); } }}
               style={s.formCancel}
@@ -684,16 +694,20 @@ export default function Apply() {
   );
 }
 
-// 섹션 룰 — § 글리프(12pt 면제) + 대문자 키커 + 헤어라인 + 한글 라벨
+// 섹션 룰 — §3b 앱 공통 문법: 풀블리드 코랄 헤어라인 + 20/800 잉크 한글 제목.
+// § 글리프(12pt 면제)와 라틴 키커는 이 화면의 목소리라 남는다 — 제목 오른쪽 장식 슬롯으로.
 function SecRule({ no, en, ko }: { no: string; en: string; ko: string }) {
   const nf = useNumFont();
   return (
-    <Row style={s.sec}>
-      <Text style={s.secNo}>{no}</Text>
-      <Text style={[s.secT, nf]}>{en}</Text>
-      <View style={s.rule} />
-      <Text style={s.secKo}>{ko}</Text>
-    </Row>
+    <View style={s.sec}>
+      <View style={s.secRule} />
+      <Row style={s.secRow}>
+        <Text style={s.secNo}>{no}</Text>
+        <Text style={s.secKo}>{ko}</Text>
+        <View style={{ flex: 1 }} />
+        <Text style={[s.secT, nf]}>{en}</Text>
+      </Row>
+    </View>
   );
 }
 
@@ -756,23 +770,22 @@ function WithdrawBlock({ confirm, setConfirm, busy, err, onWithdraw }: {
         <View>
           <Text style={s.confirmTxt}>지원을 취소할까요? 취소하면 운영자 대기 목록에서 빠져요</Text>
           <Row style={{ gap: 8, marginTop: 9 }}>
-            <Pressable
+            {/* destructive/quiet pair from the F2.1 matrix. `아니요`'s press guard stays the
+                original no-op-while-busy — it is never rendered as disabled. */}
+            <PaperBtn
+              label="네, 취소할게요"
+              busyLabel="취소 중이에요…"
+              busy={busy}
+              variant="destructive"
               onPress={onWithdraw}
-              style={[s.confirmYes, busy && s.submitBusy]}
-              accessibilityRole="button"
-              accessibilityState={{ busy }}
-              accessibilityLabel="지원 취소 확정"
-            >
-              <Text style={s.confirmYesTxt}>{busy ? '취소 중이에요…' : '네, 취소할게요'}</Text>
-            </Pressable>
-            <Pressable
+              style={s.confirmYes}
+            />
+            <PaperBtn
+              label="아니요"
+              variant="quiet"
               onPress={() => { if (!busy) setConfirm(false); }}
               style={s.confirmNo}
-              accessibilityRole="button"
-              accessibilityLabel="지원 취소 그만두기"
-            >
-              <Text style={s.confirmNoTxt}>아니요</Text>
-            </Pressable>
+            />
           </Row>
         </View>
       )}
@@ -808,186 +821,156 @@ function Check({ on, set, label }: { on: boolean; set: (v: boolean) => void; lab
 }
 
 const s = StyleSheet.create({
-  // ── 마스트헤드 ──
+  // ── 마스트헤드 ── (paper back button grammar: 40×40 스퀘어 · 캔버스 · 코랄 1px)
   backBtn: {
-    width: 34, height: 34, borderRadius: 10, backgroundColor: lilac.card,
-    alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: lilac.hair,
+    width: 40, height: 40, backgroundColor: paper.canvas,
+    alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: paper.line,
   },
-  rule: { flex: 1, height: 1, backgroundColor: lilac.hair },
-  kick: { fontSize: 12, lineHeight: 16, letterSpacing: 1.8, color: lilac.dim }, // Oswald 1.33× (BUG A)
-  h1: { fontSize: 36, lineHeight: 44, fontWeight: '900', color: lilac.head, marginTop: 10 },
-  lede: { fontSize: 14, lineHeight: 21, color: lilac.text, marginTop: 8 },
+  // 인라인 헤어라인 — 코랄 1px. 이 선이 곧 브랜드 (§2 종이 법)
+  rule: { flex: 1, height: 1, backgroundColor: paper.line },
+  kick: { fontSize: 12, lineHeight: 16, letterSpacing: 1.8, color: paper.faint }, // 장식 키커(플로어 면제) · Oswald 1.33×
+  h1: { fontSize: 30, lineHeight: 37, fontWeight: '900', color: paper.ink, marginTop: 10 }, // §3c 화면 타이틀 (1.23× — BUG A)
+  lede: { fontSize: 14, lineHeight: 21, color: paper.text, marginTop: 8 },
 
-  // ── 섹션 룰 ──
-  sec: { alignItems: 'center', gap: 8, marginTop: 20, marginBottom: 9 },
-  secNo: { fontSize: 12, fontWeight: '600', color: lilac.accent }, // 글리프 전용(§) — 14pt 플로어 면제
-  secT: { fontSize: 12, lineHeight: 16, letterSpacing: 1.8, color: lilac.dim }, // Oswald 1.33×
-  secKo: { fontSize: 14, fontWeight: '700', color: lilac.text },
+  // ── 섹션 룰 ── §3b: 풀블리드 코랄 1px + 20/800 잉크
+  sec: { marginTop: 20, marginBottom: 10 },
+  secRule: { marginHorizontal: -layout.gutter, height: 1, backgroundColor: paper.line, marginBottom: 10 },
+  secRow: { alignItems: 'baseline', gap: 7 },
+  secNo: { fontSize: 12, lineHeight: 25, fontWeight: '800', color: paper.line }, // 글리프 전용(§) — 14pt 플로어 면제
+  secKo: { fontSize: 20, lineHeight: 25, fontWeight: '800', color: paper.ink },
+  secT: { fontSize: 12, lineHeight: 16, letterSpacing: 1.8, color: paper.faint }, // 장식 키커 · Oswald 1.33×
 
-  // ── ① 러너 레코드 ──
-  rec: {
-    backgroundColor: lilac.card, borderWidth: 1, borderColor: lilac.hair,
-    borderRadius: lilacRadius.card, overflow: 'hidden', ...lilacShadow,
-  },
-  recInner: { margin: 9, borderWidth: 1, borderColor: lilac.hair2, borderRadius: lilacRadius.inner, padding: 13 },
+  // ── ① 러너 레코드 ── 중립 헤어라인 박스. 코랄은 섹션 룰이 이미 쓰고 있다
+  rec: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE' },
+  recInner: { paddingHorizontal: 14, paddingTop: 13, paddingBottom: 1 },
   recStrap: { justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  micro: { fontSize: 12, lineHeight: 16, letterSpacing: 1.6, color: lilac.dim }, // Oswald 1.33×
-  srcTag: {
-    borderWidth: 1, borderColor: '#DCD6F8', backgroundColor: '#F4F1FE',
-    borderRadius: lilacRadius.tag, paddingVertical: 3, paddingHorizontal: 8,
-  },
-  srcTagTxt: { fontSize: 12, lineHeight: 16, letterSpacing: 1, color: lilac.accent }, // Oswald 1.33×
-  recK: { fontSize: 14, color: lilac.dim },
-  recTier: { fontSize: 28, lineHeight: 34, fontWeight: '900', color: lilac.head, marginTop: 3 },
-  recNote: { fontSize: 14, lineHeight: 20, color: lilac.text, marginTop: 6 },
-  grid: { alignItems: 'stretch', marginTop: 13, marginHorizontal: -13, borderTopWidth: 1, borderTopColor: lilac.hair2 },
-  cell: { flex: 1, paddingTop: 10, paddingBottom: 2, paddingLeft: 13 },
-  cellDiv: { borderLeftWidth: 1, borderLeftColor: lilac.hair2 },
-  cellK: { fontSize: 14, lineHeight: 18, color: lilac.dim, marginBottom: 2 }, // 한글 라벨 — 14pt 플로어 준수
+  micro: { fontSize: 12, lineHeight: 16, letterSpacing: 1.6, color: paper.faint }, // 장식 키커 · Oswald 1.33×
+  // 출처 태그 — 워시 면, 샤프 코너. 이 값들이 서버에서 그대로 온다는 표시
+  srcTag: { backgroundColor: paper.wash, paddingVertical: 3, paddingHorizontal: 8 },
+  srcTagTxt: { fontSize: 12, lineHeight: 16, letterSpacing: 1, color: paper.actionInk }, // Oswald 1.33×
+  recK: { fontSize: 14, lineHeight: 19, color: paper.dim },
+  recTier: { fontSize: 28, lineHeight: 34, fontWeight: '900', color: paper.ink, marginTop: 3 },
+  recNote: { fontSize: 14, lineHeight: 20, color: paper.text, marginTop: 6 },
+  grid: { alignItems: 'stretch', marginTop: 13, marginHorizontal: -14, borderTopWidth: 1, borderTopColor: '#EEEEEE' },
+  cell: { flex: 1, paddingTop: 10, paddingBottom: 12, paddingLeft: 14 },
+  cellDiv: { borderLeftWidth: 1, borderLeftColor: '#EEEEEE' },
+  cellK: { fontSize: 14, lineHeight: 18, color: paper.dim, marginBottom: 2 }, // 한글 라벨 — 14pt 플로어 준수
   cellVal: { alignItems: 'baseline', gap: 3 },
-  cellV: { fontSize: 22, lineHeight: 28, color: lilac.head }, // Oswald 1.27× (BUG A)
-  cellU: { fontSize: 14, lineHeight: 18, color: lilac.dim },
-  recFoot: { fontSize: 14, lineHeight: 20, color: lilac.dim, paddingHorizontal: 13, paddingBottom: 12, paddingTop: 2 },
-
-  // ── 로딩 · 빈 상태 ──
-  plain: {
-    backgroundColor: lilac.inset, borderWidth: 1, borderColor: lilac.hair,
-    borderRadius: lilacRadius.card, padding: 14,
+  cellV: { fontSize: 22, lineHeight: 28, fontWeight: '900', color: paper.ink }, // Oswald 1.27× (BUG A)
+  cellU: { fontSize: 14, lineHeight: 18, color: paper.dim },
+  recFoot: {
+    fontSize: 14, lineHeight: 20, color: paper.dim,
+    borderTopWidth: 1, borderTopColor: '#EEEEEE',
+    paddingHorizontal: 14, paddingTop: 11, paddingBottom: 12,
   },
-  plainT: { fontSize: 14, lineHeight: 20, fontWeight: '700', color: lilac.head, marginBottom: 3 },
-  plainTxt: { fontSize: 14, lineHeight: 20, color: lilac.text },
 
-  // ── 실패는 실패로 ──
+  // ── 로딩 · 빈 상태 ── 로딩은 0이 아니다: 중립 박스 안의 문장
+  plain: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE', padding: 16 },
+  plainT: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: paper.ink, marginBottom: 3 },
+  plainTxt: { fontSize: 14, lineHeight: 20, color: paper.text },
+
+  // ── 실패는 실패로 ── 앱 공통 라우드-페일 문법 (criticalWash 면 + critical 잉크 + 밑줄 다시 시도)
   errBox: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 10,
-    backgroundColor: lilac.card, borderWidth: 1, borderColor: lilac.hair,
-    borderRadius: lilacRadius.card, padding: 13,
+    backgroundColor: paper.criticalWash, padding: 13,
   },
-  errTick: { width: 3, alignSelf: 'stretch', borderRadius: 2, backgroundColor: lilac.coralDeep },
-  errT: { fontSize: 14, lineHeight: 20, fontWeight: '700', color: lilac.head },
-  errD: { fontSize: 14, lineHeight: 20, color: lilac.dim, marginTop: 2 },
-  retry: {
-    alignSelf: 'flex-start', marginTop: 9, borderWidth: 1, borderColor: lilac.hair,
-    backgroundColor: lilac.inset, borderRadius: lilacRadius.btn, paddingVertical: 8, paddingHorizontal: 13,
-  },
-  retryTxt: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: lilac.head },
+  errTick: { width: 3, alignSelf: 'stretch', backgroundColor: paper.critical },
+  errT: { fontSize: 14, lineHeight: 20, fontWeight: '700', color: paper.critical },
+  errD: { fontSize: 14, lineHeight: 20, color: paper.text, marginTop: 2 },
+  // 박스 없는 밑줄 텍스트 — 실패 스트립 안에서 잉크 테두리가 크리티컬과 싸우지 않도록 (rewards/earnings와 동일)
+  retry: { alignSelf: 'flex-start', marginTop: 6, minHeight: 44, justifyContent: 'center' },
+  retryTxt: { fontSize: 16, lineHeight: 21, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },
 
-  // ── ② 절차 ──
-  stepCard: {
-    backgroundColor: lilac.card, borderWidth: 1, borderColor: lilac.hair,
-    borderRadius: lilacRadius.card, paddingHorizontal: 13, paddingBottom: 4, ...lilacShadow,
-  },
-  stepLede: { fontSize: 14, lineHeight: 20, color: lilac.dim, paddingTop: 13, paddingBottom: 3 },
+  // ── ② 절차 ── 개인 체크마크가 아니다: 번호는 구조(잉크)일 뿐 진행률이 아니다
+  stepCard: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE', paddingHorizontal: 14, paddingBottom: 4 },
+  stepLede: { fontSize: 14, lineHeight: 20, color: paper.dim, paddingTop: 13, paddingBottom: 3 },
   step: { flexDirection: 'row', alignItems: 'flex-start', gap: 11, paddingVertical: 12 },
-  stepDiv: { borderTopWidth: 1, borderTopColor: lilac.hair2 },
-  stepNo: { fontSize: 14, lineHeight: 20, letterSpacing: 0.8, color: lilac.accent, width: 22 }, // Oswald 1.43×
-  stepT: { fontSize: 15, fontWeight: '800', color: lilac.head },
-  stepD: { fontSize: 14, lineHeight: 20, color: lilac.text, marginTop: 2 },
+  stepDiv: { borderTopWidth: 1, borderTopColor: '#EEEEEE' },
+  stepNo: { fontSize: 14, lineHeight: 20, letterSpacing: 0.8, fontWeight: '800', color: paper.ink, width: 22 }, // Oswald 1.43×
+  stepT: { fontSize: 16, lineHeight: 21, fontWeight: '800', color: paper.ink },
+  stepD: { fontSize: 14, lineHeight: 20, color: paper.text, marginTop: 2 },
   stepFoot: {
-    fontSize: 14, lineHeight: 20, color: lilac.dim,
-    borderTopWidth: 1, borderTopColor: lilac.hair2, paddingTop: 11, paddingBottom: 12,
+    fontSize: 14, lineHeight: 20, color: paper.dim,
+    borderTopWidth: 1, borderTopColor: '#EEEEEE', paddingTop: 11, paddingBottom: 12,
   },
 
   // ── ③ 지원 현황 ──
-  stateCard: {
-    backgroundColor: lilac.card, borderWidth: 1, borderColor: lilac.hair,
-    borderRadius: lilacRadius.card, padding: 14, ...lilacShadow,
-  },
-  strapDot: { width: 7, height: 7, borderRadius: 4 },
+  stateCard: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE', padding: 14 },
+  strapDot: { width: 7, height: 7 }, // 샤프 — 종이 세계에 둥근 코너는 없다
   strapTxt: { fontSize: 14, lineHeight: 18, fontWeight: '800' },
-  stateT: { fontSize: 18, lineHeight: 24, fontWeight: '900', color: lilac.head },
-  stateD: { fontSize: 14, lineHeight: 21, color: lilac.text, marginTop: 7 },
-  stateMeta: { fontSize: 14, lineHeight: 20, color: lilac.dim, marginTop: 6 },
+  stateT: { fontSize: 19, lineHeight: 25, fontWeight: '900', color: paper.ink },
+  stateD: { fontSize: 14, lineHeight: 21, color: paper.text, marginTop: 7 },
+  stateMeta: { fontSize: 14, lineHeight: 20, color: paper.dim, marginTop: 6 },
   onlineLine: {
     flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12,
-    backgroundColor: lilac.inset, borderWidth: 1, borderColor: lilac.hair,
-    borderRadius: lilacRadius.inner, paddingVertical: 11, paddingHorizontal: 12,
+    backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE',
+    paddingVertical: 11, paddingHorizontal: 12,
   },
-  onlineDot: { width: 7, height: 7, borderRadius: 4 },
-  onlineTxt: { flex: 1, fontSize: 14, lineHeight: 20, color: lilac.text },
-  reasonBox: {
-    marginTop: 11, backgroundColor: lilac.inset, borderWidth: 1, borderColor: lilac.hair,
-    borderRadius: lilacRadius.inner, padding: 12,
-  },
-  reasonK: { fontSize: 14, lineHeight: 18, color: lilac.dim, marginBottom: 3 },
-  reasonV: { fontSize: 14, lineHeight: 21, color: lilac.head },
-  confirmTxt: { fontSize: 14, lineHeight: 20, color: lilac.text },
-  confirmYes: {
-    flex: 1.4, backgroundColor: lilac.coralDeep, borderRadius: lilacRadius.btn,
-    alignItems: 'center', paddingVertical: 12,
-  },
-  confirmYesTxt: { fontSize: 14, lineHeight: 20, fontWeight: '900', color: '#FFFFFF' },
-  confirmNo: {
-    flex: 1, backgroundColor: lilac.inset, borderWidth: 1, borderColor: lilac.hair,
-    borderRadius: lilacRadius.btn, alignItems: 'center', paddingVertical: 12,
-  },
-  confirmNoTxt: { fontSize: 14, lineHeight: 20, fontWeight: '800', color: lilac.head },
+  onlineDot: { width: 7, height: 7 },
+  onlineTxt: { flex: 1, fontSize: 14, lineHeight: 20, color: paper.text },
+  reasonBox: { marginTop: 11, backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE', padding: 12 },
+  reasonK: { fontSize: 14, lineHeight: 18, color: paper.dim, marginBottom: 3 },
+  reasonV: { fontSize: 14, lineHeight: 21, color: paper.ink },
+  confirmTxt: { fontSize: 14, lineHeight: 20, color: paper.text },
+  // PaperBtn이 색/패딩을 가진다 — 여기는 자리(폭)만
+  confirmYes: { flex: 1.4 },
+  confirmNo: { flex: 1 },
 
-  // ── CTA ──
+  // ── 설명 줄이 붙는 행-링크 ── 버튼 매트릭스에는 둘째 줄 슬롯이 없어서 PaperBtn이 아니다.
+  //    세컨더리 문법(워시 면 + 코랄 1px + actionInk 라벨)을 행으로 편 것.
   cta: {
     flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 13,
-    backgroundColor: lilac.inset, borderWidth: 1, borderColor: lilac.hair,
-    borderRadius: lilacRadius.btn, paddingVertical: 12, paddingHorizontal: 12,
+    backgroundColor: paper.wash, borderWidth: 1, borderColor: paper.line,
+    paddingVertical: 12, paddingHorizontal: 12, minHeight: 44,
   },
-  ctaT: { fontSize: 14, lineHeight: 20, fontWeight: '800', color: lilac.head },
-  ctaD: { fontSize: 14, lineHeight: 20, color: lilac.dim, marginTop: 1 },
-  ctaGo: { fontSize: 17, color: lilac.accent },
-  ctaPrimary: {
-    flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 13,
-    backgroundColor: lilac.head, borderRadius: lilacRadius.btn, paddingVertical: 13, paddingHorizontal: 14,
-  },
-  ctaPrimaryT: { flex: 1, fontSize: 15, lineHeight: 20, fontWeight: '900', color: '#FFFFFF' },
-  ctaPrimaryGo: { fontSize: 17, color: '#FFFFFF' },
+  ctaT: { fontSize: 16, lineHeight: 21, fontWeight: '800', color: paper.actionInk },
+  ctaD: { fontSize: 14, lineHeight: 20, color: paper.dim, marginTop: 1 },
+  ctaGo: { fontSize: 17, color: paper.actionInk },
+  // PaperBtn 자리 — 색은 매트릭스가 가진다
+  ctaBtn: { marginTop: 13 },
 
   // ── 지원서 폼 ──
-  formCard: {
-    backgroundColor: lilac.card, borderWidth: 1, borderColor: lilac.hair,
-    borderRadius: lilacRadius.card, padding: 14, ...lilacShadow,
-  },
-  formT: { fontSize: 18, lineHeight: 24, fontWeight: '900', color: lilac.head },
-  formD: { fontSize: 14, lineHeight: 20, color: lilac.dim, marginTop: 5 },
-  fieldL: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: lilac.head },
-  fieldH: { fontSize: 14, lineHeight: 19, color: lilac.dim, marginTop: 2 },
-  fieldNote: { fontSize: 14, lineHeight: 19, color: lilac.dim, marginTop: 6 },
+  formCard: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE', padding: 14 },
+  formT: { fontSize: 19, lineHeight: 25, fontWeight: '900', color: paper.ink },
+  formD: { fontSize: 14, lineHeight: 20, color: paper.dim, marginTop: 5 },
+  fieldL: { fontSize: 16, lineHeight: 21, fontWeight: '800', color: paper.ink },
+  fieldH: { fontSize: 14, lineHeight: 19, color: paper.dim, marginTop: 2 },
+  fieldNote: { fontSize: 14, lineHeight: 19, color: paper.dim, marginTop: 6 },
   input: {
-    backgroundColor: lilac.inset, borderWidth: 1, borderColor: lilac.hair,
-    borderRadius: lilacRadius.inner, paddingVertical: 11, paddingHorizontal: 12,
-    fontSize: 15, lineHeight: 20, color: lilac.head,
+    backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE',
+    paddingVertical: 11, paddingHorizontal: 12, minHeight: 44,
+    fontSize: 16, lineHeight: 21, color: paper.ink,
   },
   inputMulti: { minHeight: 78, textAlignVertical: 'top' },
-  unit: { fontSize: 14, lineHeight: 20, color: lilac.dim },
-  chip: {
-    borderWidth: 1, borderColor: lilac.hair, backgroundColor: lilac.inset,
-    borderRadius: lilacRadius.tag, paddingVertical: 8, paddingHorizontal: 11,
-  },
-  chipOn: { borderColor: lilac.accent, backgroundColor: '#F4F1FE' },
-  chipFull: { opacity: 0.5 },
-  chipTxt: { fontSize: 14, lineHeight: 18, color: lilac.text },
-  chipTxtOn: { color: lilac.accent, fontWeight: '800' },
-  notice: {
-    marginTop: 16, backgroundColor: lilac.inset, borderWidth: 1, borderColor: lilac.hair,
-    borderRadius: lilacRadius.inner, padding: 12,
-  },
-  noticeT: { fontSize: 14, lineHeight: 20, fontWeight: '800', color: lilac.head, marginBottom: 4 },
-  noticeD: { fontSize: 14, lineHeight: 21, color: lilac.text },
-  check: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginTop: 12 },
+  unit: { fontSize: 14, lineHeight: 20, color: paper.dim },
+  // 칩 — 캔버스/코랄 1px, 선택은 워시 면 + actionInk (owner·runner meetup의 gearChip 문법)
+  chip: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line, paddingVertical: 9, paddingHorizontal: 12 },
+  chipOn: { backgroundColor: paper.wash },
+  // 6개를 다 골랐을 때 남은 칩 — 명시 fill/잉크. 불투명도 트릭 금지(F2.1)
+  chipFull: { backgroundColor: paper.disabledFill, borderColor: '#EEEEEE' },
+  chipTxt: { fontSize: 14, lineHeight: 18, fontWeight: '600', color: paper.text },
+  chipTxtOn: { fontWeight: '800', color: paper.actionInk },
+  chipTxtFull: { fontWeight: '600', color: paper.faint },
+  notice: { marginTop: 16, backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE', padding: 12 },
+  noticeT: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: paper.ink, marginBottom: 4 },
+  noticeD: { fontSize: 14, lineHeight: 21, color: paper.text },
+  check: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginTop: 12, minHeight: 44 },
   checkBox: {
-    width: 22, height: 22, borderRadius: lilacRadius.tag, borderWidth: 1, borderColor: lilac.hair,
-    backgroundColor: lilac.inset, alignItems: 'center', justifyContent: 'center', marginTop: 1,
+    width: 22, height: 22, borderWidth: 1.5, borderColor: paper.faint,
+    backgroundColor: paper.canvas, alignItems: 'center', justifyContent: 'center', marginTop: 1,
   },
-  checkBoxOn: { borderColor: lilac.accent, backgroundColor: lilac.accent },
-  checkMark: { fontSize: 14, lineHeight: 18, fontWeight: '900', color: '#FFFFFF' },
-  checkTxt: { flex: 1, fontSize: 14, lineHeight: 20, color: lilac.text },
-  submit: {
-    marginTop: 16, backgroundColor: lilac.head, borderRadius: lilacRadius.btn,
-    alignItems: 'center', paddingVertical: 14,
-  },
-  submitBusy: { opacity: 0.72 },
-  submitTxt: { fontSize: 15, lineHeight: 20, fontWeight: '900', color: '#FFFFFF' },
-  formCancel: { marginTop: 9, alignItems: 'center', paddingVertical: 10 },
-  formCancelTxt: { fontSize: 14, lineHeight: 20, fontWeight: '700', color: lilac.dim },
+  // 체크 = 잉크 필 (잉크는 상태로 남는다 — 액션이 아니다)
+  checkBoxOn: { backgroundColor: paper.ink, borderColor: paper.ink },
+  checkMark: { fontSize: 12, lineHeight: 15, fontWeight: '900', color: '#FFFFFF' },
+  checkTxt: { flex: 1, fontSize: 14, lineHeight: 20, color: paper.text },
+  submit: { marginTop: 16 },
+  formCancel: { marginTop: 9, alignItems: 'center', minHeight: 44, justifyContent: 'center' },
+  formCancelTxt: { fontSize: 14, lineHeight: 20, fontWeight: '700', color: paper.dim },
 
   // ── 콜로폰 ──
-  colophon: { marginTop: 20, paddingTop: 12, borderTopWidth: 1, borderTopColor: lilac.hair, alignItems: 'center' },
-  colophonTxt: { fontSize: 12, lineHeight: 16, letterSpacing: 1.8, color: lilac.dim }, // Oswald 1.33×
+  colophon: {
+    marginTop: 22, marginHorizontal: -layout.gutter, paddingHorizontal: layout.gutter,
+    paddingTop: 12, borderTopWidth: 1, borderTopColor: paper.line, alignItems: 'center',
+  },
+  colophonTxt: { fontSize: 12, lineHeight: 16, letterSpacing: 1.8, color: paper.faint }, // 장식 키커 · Oswald 1.33×
 });
