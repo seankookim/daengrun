@@ -14,6 +14,19 @@
 #
 #   ① a number introduced here must not exist on ANY other remote branch
 #   ② a number introduced here must ship WITH its REGISTRY.md row
+#   ④ a row this push marks DEPLOYED must ship WITH its migration FILE
+#
+# ④ is ② turned around, and it was added on 2026-08-15 after the third member of
+# the family showed up: trunk's top migration file was 0097 while production had
+# 0098 and 0099 applied, because their REGISTRY rows were merged to trunk and
+# their FILES were only ever on a feature branch. The ledger said DEPLOYED, the
+# database agreed, and the source of the live schema was not on the trunk anyone
+# cuts from — so every harness run on trunk tested a schema that no longer
+# existed, and deleting that branch would have left production unreproducible.
+#
+# Scoped to rows this push INTRODUCES, exactly like ① and ②. A pre-existing gap
+# must not refuse the pushes of people who did not cause it — collective refusal
+# teaches everyone to reach for --no-verify, which costs more than the bug.
 #
 # Both checks apply only to migrations this push actually INTRODUCES, so history
 # and merges of the trunk are unaffected.
@@ -65,7 +78,7 @@ rowed=$(
 
 fail=0
 
-while read -r _local_ref local_sha remote_ref _remote_sha; do
+while read -r _local_ref local_sha remote_ref remote_sha; do
   [ -z "${local_sha:-}" ] && continue
   [ "$local_sha" = "$ZERO" ] && continue          # branch deletion
   pushed_br=${remote_ref#refs/heads/}
@@ -94,6 +107,44 @@ while read -r _local_ref local_sha remote_ref _remote_sha; do
       fi
     done <<EOF
 $myrows
+EOF
+  fi
+
+  # ④ a row this push newly marks DEPLOYED must carry its migration FILE.
+  #
+  # The inverse of ②. ② stops a file arriving without its claim; ④ stops a claim
+  # announcing a DEPLOYED migration whose source never reaches this branch. Both
+  # halves of "is this migration real?" are now mechanical.
+  if [ -n "$registry" ]; then
+    # Rows already marked DEPLOYED on the remote side of this same branch are not
+    # introduced by this push — pre-existing state is somebody else's problem to
+    # fix, not this push's to be blamed for.
+    # Compare against the sha git says the REMOTE is at for this push, not against
+    # the remote-tracking ref. They differ, and the difference is the whole check:
+    # the ref is "wherever origin is now", while remote_sha is "what this push is
+    # actually advancing past". Reading the ref made the check skip a row that the
+    # push itself introduced whenever the row had since landed by another route —
+    # measured, by replaying the real 0098 push and watching it stay silent.
+    prev_src=$remote_sha
+    [ "$prev_src" = "$ZERO" ] && prev_src=""
+    prev_dep=$([ -n "$prev_src" ] && git show "$prev_src:$MIGDIR/REGISTRY.md" 2>/dev/null |
+      awk -F'|' '/^\|/ && /DEPLOYED/ { n=$2; gsub(/[ `]/,"",n); if (n ~ /^[0-9][0-9][0-9][0-9]$/) print n }')
+    new_dep=$(printf '%s\n' "$registry" |
+      awk -F'|' '/^\|/ && /DEPLOYED/ { n=$2; gsub(/[ `]/,"",n); if (n ~ /^[0-9][0-9][0-9][0-9]$/) print n }')
+    while read -r dnum; do
+      [ -z "${dnum:-}" ] && continue
+      printf '%s\n' "$prev_dep" | grep -qx "$dnum" && continue      # already DEPLOYED upstream
+      if ! git ls-tree --name-only "$local_sha" "$MIGDIR/" 2>/dev/null |
+             grep -Eq "^$MIGDIR/${dnum}_.*\.sql$"; then
+        note "❌ REGISTRY marks $dnum DEPLOYED, but no ${dnum}_*.sql is in this push."
+        note "   A deployed migration whose file is not on this branch means the live"
+        note "   schema has no source here: the harness would test a database that no"
+        note "   longer exists, and losing the branch would lose the only copy."
+        note "   Merge the branch carrying ${dnum}_*.sql, or push the file with the row."
+        fail=1
+      fi
+    done <<EOF
+$new_dep
 EOF
   fi
 

@@ -108,7 +108,12 @@ guarded `lazy()` wrapper; `src/components/toss-sheet.tsx` is the worked example.
   migration number already present on any other remote branch, or that introduces one without a
   REGISTRY row. It only inspects numbers the push actually *introduces*, so trunk merges and
   history are unaffected. Enable once per clone:
-  `git config core.hooksPath "$(git rev-parse --show-toplevel)/.githooks"`. Escape hatch, rarely
+  `git config --local core.hooksPath /Users/sean/dev/daengrun/.githooks`
+  ⚠ NOT `$(git rev-parse --show-toplevel)` — inside a worktree that resolves to the WORKTREE,
+  and worktrees are disposable. Git runs no hooks and says NOTHING when hooksPath names a vanished
+  directory, so the old form silently disarmed the guard for every session whose anchor tree got
+  recycled (measured 2026-08-15: five worktrees pointed at one disposable tree). Point at the main
+  clone's stable path, once; every worktree inherits it. Escape hatch, rarely
   right: `git push --no-verify`. Five collisions were sessions racing; the sixth obeyed the rule
   and still lost, which is what moved this from discipline to constraint.
 - **A suite whose pinned behaviour legitimately changes MUST be updated in the same slice.**

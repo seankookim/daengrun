@@ -8,7 +8,6 @@ import { useNumFont } from '../lib/fonts';
 import { worldOf } from './patch';
 import { HeatTrace } from './runcard';
 import { traceToBox } from '../lib/trace';
-import { routeDisplayName } from '../lib/route-name';
 
 // 동네 코스 스트립 — 트레일 패치(스티커) 덱. 보호자 홈(동네 러너 아래)·러너 홈 공유.
 // 파스텔 로테이션 + 살짝 기운 스티커 + km 빕 + 점검 도장: 코스를 '수집하고 싶은 배지'처럼.
@@ -73,7 +72,7 @@ export function CourseStrip({ title = '동네 코스', headerPad = 0, bleed = 0 
               )}
             </View>
 
-            <Text style={{ fontSize: 16, fontWeight: '900', color: '#fff', marginTop: 8 }} numberOfLines={1}>{routeDisplayName(r.name)}</Text>
+            <Text style={{ fontSize: 16, fontWeight: '900', color: '#fff', marginTop: 8 }} numberOfLines={1}>{r.name}</Text>
             <Text style={{ fontSize: 14, color: w.dim, marginTop: 2 }} numberOfLines={1}>
               {r.area}{r.features.length > 0 ? ` · ${r.features.slice(0, 3).map((f) => f.g).join(' ')}` : ''}
             </Text>

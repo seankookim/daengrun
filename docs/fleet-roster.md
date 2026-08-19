@@ -145,9 +145,34 @@ two false "stranded work" alarms on day one.
   timestamp bump proves it).
 - **A green suite hides a defect only when a pin and a false environment assumption are wrong
   together** — pin the assumption too (harness routes table was asserted empty; 0078 seeds nine).
+- **A cherry-pick is a partial merge that looks like a complete one.** REGISTRY rows
+  cherry-picked to trunk while the migration files stayed on a branch left every ledger agreeing
+  with production and the source one branch away — trunk could not rebuild production for a day
+  and nothing complained. Land migrations by MERGE; never cherry-pick the row without the file.
+- **A table CHECK's blast radius is every writer of the table — and a predicate that can RAISE
+  turns validation into an outage.** A broken extractor regex surfaced as failures in an unrelated
+  suite (`70_axes`), because the cast raised instead of returning false. Pair with the line below:
+  presence is not enforcement, and correctness is not local.
 - **A constraint's presence is not evidence of enforcement — attempt the write.** A disarmed
   predicate (body swapped for `select true`) leaves `\d`, `pg_constraint` and `convalidated` all
   reading protected while the table enforces nothing. Pins must try to store a bad value and watch;
   counting constraints is the `NaN > 50` scan wearing SQL.
+- **A guard's own test must include a replay of the real incident.** Check ④ passed its
+  synthetic test and missed the actual push it was written for (wrong ref: remote-tracking
+  instead of the stdin sha). Green against synthetic cases is one more artifact that never met
+  its case.
+- **Verify a guard is ARMED by executing it, not by believing it was installed.** Git runs no
+  hooks and says nothing when `hooksPath` names a vanished directory; five worktrees pointed at
+  one disposable tree. A guard whose installation is a convention inherits every weakness of a
+  convention.
+- **Snapshot today's TRUE state, not the desired one — mark it `_known_bad`.** An expected-state
+  file written from the ruling instead of from reality stays green against a lie until someone
+  fixes the world. Trust's auth-surface check records `email: true` (wrong on purpose, annotated),
+  so the fix itself is what turns the check red — the loop notices instead of being told.
+- **"Unclaimed and cheap" and "unclaimed and unwritable with what we hold" are different board
+  states.** Name the information limit in the artifact itself so the next claimant hits the wall
+  in the header, not twenty minutes in. And before recording the limit, check the KEYCHAIN —
+  the macOS Supabase CLI token lives there, not in a dotfile, and it reads the full management
+  API. A limit recorded without hunting for the door is the house failure wearing armor.
 - **Trust review is standing:** any slice touching RLS, policies, grants, or `search_path` goes
   to trust at PLAN time, not push time. And a reviewer never reviews their own build.

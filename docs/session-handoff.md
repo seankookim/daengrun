@@ -1,3 +1,29 @@
+# CATALOG — a length in `routes.name` must agree with `km` (0100, 2026-08-15)
+
+**Live in production.** If a route name ends in a `<number>km` token, that token must round to the
+`km` column. Names without a token are unaffected and always valid.
+
+⚠ **Read this before "cleaning up" route names, because the obvious fix is wrong twice.**
+It was reported that names DISAGREE with `km`. They do not: 26 of 32 names carry a token and
+**all 26 already round to their `km`.** `2.78km` beside `km=2.8` is the name carrying more
+precision than `numeric(4,1)`, not a contradiction — ui handled that at display, correctly.
+And stripping the token from all names is **impossible**: `routes_town_name_key` (0078:36) is
+UNIQUE on `(town, name)`, and three 반포동 loops (1.6 / 4.8 / 5.4 km) share the base name
+`몽마르뜨 언덕 루프`. There the km token is doing IDENTIFICATION work. Renaming them is a product
+decision about what to call three loops, not a data cleanup.
+
+**What the constraint actually buys** is temporal. The names agree because someone kept them
+agreeing by hand every time geometry moved, and that bill was already paid once — upstream re-cut
+`반포 서래섬 리버 루프 3.71km` into a `3.31km` loop mid-sprint and had to remember to rename it.
+Nothing would have complained if they had not. **Now: change `km` without changing the name and
+the write is refused.** Change both in one statement and it passes.
+
+⚠ For anyone writing a table CHECK after this one: mutation M2 removed the `$` anchor from the
+extractor's regex, which made it match mid-name, which made the `::numeric` cast RAISE instead of
+returning false — and the failure surfaced in `70_axes_suite`, which has nothing to do with route
+names. **A table CHECK's blast radius is every writer of the table**, and a predicate that can
+raise instead of returning false turns a validation into an outage.
+
 # CATALOG — `routes.trace` has an element contract (0099, 2026-08-15)
 
 **`routes.trace` and `routes.trace_thumb` are now constrained: an array of `{lat, lng}` objects,
@@ -12,9 +38,16 @@ copied from `0082:251` verbatim — two definitions of "in Korea" will drift, on
 itself. Note the two are different in KIND on purpose: 0082 FILTERS a client-written run trace,
 0099 REFUSES a curated catalog row.
 
-**The three tolerant readers downstream can retire when their owners choose** — client's
-`normalizeTrace()`, ui's `routeDisplayName()`, route-geometry's shape-tolerant `route-guidance.mjs`.
-Nothing forces them to; the database simply no longer needs them. Coordinate before deleting.
+**CORRECTED 2026-08-15 (ui's measurement; the original framing was theirs and the announcer
+endorsed it unopened):** the "three tolerant readers" pattern was **one** reader and a
+miscount. `normalizeTrace()` (client) genuinely earned its place — array points could not be
+read — and is retirable now that 0099 guarantees shape (verified 34/34 objects). Route-geometry's
+`route-guidance.mjs` shape-tolerance likewise. But `routeDisplayName()` was **invented for a
+contradiction that did not exist** (all 26 name-km tokens round exactly to their `km`) and for
+five rows the token is IDENTIFICATION — three 몽마르뜨 loops and two 서래섬 cuts whose only
+distinguishing text it deleted, rendering five courses under two names. ui reverted it
+(`e881bae`). 0100 now refuses a `km` change that leaves the name stale, which is the real fix
+for the real (temporal) problem.
 
 ⚠ **`t` and `v` are now unstorable on this table**, which is a privacy boundary and not tidiness:
 `routes` is anon-readable (`using (true)`, 0082 §A-4), so a timed point publishes when a runner was
@@ -54,7 +87,7 @@ Two properties the schema now enforces, both worth knowing before you write to t
   re-derive it.
 
 Still open and still catalog's, none of them started: the `trace` shape + Korea lat/lng bounds
-CHECK (data is 32/32 objects today, but `jsonb` permits a third shape — three tolerant readers
+CHECK (data is 32/32 objects today, but `jsonb` permits a third shape — tolerant readers
 now exist downstream absorbing what ingest wrote); km embedded in `routes.name` disagreeing with
 the `km` column after rounding; and the `anchor_lat`/`anchor_lng` `소비 금지` contract, which
 cannot be scoped by `source` because all 32 rows read `algo`.
@@ -395,6 +428,7 @@ supabase migration list --linked          # applied vs local. An EMPTY "remote" 
 supabase db query --linked "select * from ops_flags"      # live rows, as a login role — no RLS
 supabase functions list                   # slug · version · verify_jwt · updated_at
 supabase functions download <slug> --project-ref <ref> --workdir /tmp/x   # the LIVE source
+curl -s "$URL/auth/v1/settings" -H "apikey: $ANON"       # which sign-in doors are OPEN
 ```
 
 Four traps, each of which actually bit someone:
@@ -407,6 +441,17 @@ Four traps, each of which actually bit someone:
 - **`functions download` returns the TRANSPILED bundle** — types stripped, reformatted — so a
   textual `diff` against the repo is meaningless. Compare *semantics*: grep the bundle for the
   RPC names or literals the new code introduced (`grep -oE 'rpc\("[a-z_]+"'` is usually enough).
+- **The AUTH surface is configured NOWHERE in this repo, so only the server knows it.**
+  `supabase/config.toml` here is 215 bytes with no `[auth]` section, so providers, `disable_signup`
+  and token lifetimes live only in the dashboard — **no pin, hook or gate can see them, and a
+  ruling about sign-in cannot be enforced from git.** Added 2026-08-15 after ui removed the email
+  door from the client and the server went on accepting email signups: `"email": true`,
+  `"disable_signup": false`. **A door removed from the client is not a door shut.** The anon key
+  this needs is the public one that ships in every build (`app/.env`), which is the point — it is
+  the credential an attacker already has.
+  ⚠ **Never "fix" auth with `supabase config push`.** It pushes the LOCAL config, and ours declares
+  nothing, so it would send CLI defaults for every setting the file omits — redirect URLs, JWT
+  expiry, SMTP, **and the Kakao provider itself.** It can shut the door that must stay open.
 - **`functions deploy` is its own parity oracle.** It prints `No change found in Function: X`
   when the live bundle already matches your tree. Deploying five and getting four "no change"
   lines is a stronger statement about what is live than any document — and it costs one command.

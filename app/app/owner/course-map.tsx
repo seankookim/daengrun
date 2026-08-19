@@ -26,7 +26,6 @@ import { CourseDetailBody, traceKind, TRACE_NOTE } from '../../src/components/co
 import { emptyChipCopy, matchesChips, RouteChipRow, useRouteChips } from '../../src/components/route-chips';
 import { getNaverMap } from '../../src/lib/geo';
 import { boundsOfTraces, orderByProximity } from '../../src/lib/route-pick';
-import { routeDisplayName } from '../../src/lib/route-name';
 import { haptic } from '../../src/lib/haptics';
 import { GeoRoutePoint, RouteInfo, draft } from '../../src/store';
 import { lilac, paper } from '../../src/theme';
@@ -257,7 +256,7 @@ export default function CourseMap() {
           // 회전 사각형(다이아몬드) — 기본 네이버 핀은 '검색 결과'를 뜻해서 만남 장소로 읽히지
           // 않는다. K7 러너 지도와 **같은 에셋**이라 두 화면에서 앵커가 같은 모양이다.
           image={ROUTE_ANCHOR}
-          caption={r.id === selId ? { text: routeDisplayName(r.name) } : undefined}
+          caption={r.id === selId ? { text: r.name } : undefined}
           onTap={() => pick(r)}
         />
       ))}
@@ -363,7 +362,7 @@ export default function CourseMap() {
             </Text>
             {/* 이름 옆 칸이 km을 말한다 — 이름에 박힌 길이까지 그리면 같은 양의 숫자가 둘이 되고,
                 반올림 때문에 서로 다르다(`4.97km` 옆에 `5`). 요금의 권위는 km 컬럼이다(T-KM). */}
-            <Text style={s.name} numberOfLines={1}>{sel ? routeDisplayName(sel.name) : '코스를 선택해주세요'}</Text>
+            <Text style={s.name} numberOfLines={1}>{sel?.name ?? '코스를 선택해주세요'}</Text>
           </View>
           {sel && <Text style={s.km}>{sel.km}<Text style={s.kmUnit}>km</Text></Text>}
         </Pressable>
@@ -402,7 +401,7 @@ export default function CourseMap() {
                   style={[s.li, on && s.liOn]}>
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <Text style={s.liName} numberOfLines={1}>{routeDisplayName(r.name)}</Text>
+                      <Text style={s.liName} numberOfLines={1}>{r.name}</Text>
                       {r.status === 'candidate' && <Text style={s.candTag}>점검 예정</Text>}
                     </View>
                     <Text style={s.liSub} numberOfLines={1}>
