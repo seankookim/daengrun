@@ -224,3 +224,12 @@ mutations, every one reddening its named set.
 **So the honest status line: CSO finding #2 / F2 / B-11 — CLOSED for chat, attacker-authored
 notification rows, reviews, and incident-opening on a never-accepted booking; the nomination
 remains open by decision, not by omission, and `payment_ok` still verifies nothing.**
+
+**Cross-layer dependency recorded 2026-08-20 (announcer v3, from ui2's f1c0c02):** the client's permanent-refusal copy in
+`app/app/chat.tsx` is keyed on the server refusing `chat_threads` INSERT with **sqlstate 42501** (RLS, `threads party insert`
+→ `is_booking_party_active`), and `api.ts`'s `ensureThread` race-recovery must RETHROW THE ORIGINAL ERROR so that 42501
+survives to the screen. Two consequences for whoever edits either side: (a) do not replace the RLS refusal with a custom
+exception or a silent no-row return — the client would read it as a transient failure; (b) do not swallow/replace the error in
+`ensureThread`'s recovery path. ui2 flags its detection as a heuristic until the live error shape is observed on device; the
+0114 live probe measured the shape over the wire: HTTP 403, `code: "42501"`, `message: "new row violates row-level security
+policy for table \"chat_threads\""`.
