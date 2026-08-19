@@ -59,7 +59,11 @@ end $$;
 -- 부여한다 — 따라서 '봉인'은 grant 부재가 아니라 RLS(정책 0 = 행 비가시·쓰기 거부)가 담당해야
 -- 하고, leak 테스트도 그 조건에서 돌아야 실환경과 같다.
 grant usage on schema public to anon, authenticated, service_role;
-alter default privileges in schema public grant select, insert, update, delete on tables to anon, authenticated;
+-- `all`, not `select, insert, update, delete` (2026-08-19, 0109): production's pg_default_acl for
+-- tables in public is `arwdDxtm` — the `D` is TRUNCATE, which RLS does not cover. The old DML-only
+-- line meant client roles never held TRUNCATE locally, so a suite could not tell 0109 present from
+-- absent (its pins were green with the migration deleted). Same grantor as production (postgres).
+alter default privileges in schema public grant all on tables to anon, authenticated;
 alter default privileges in schema public grant all on tables to service_role;
 alter default privileges in schema public grant usage, select on sequences to authenticated, service_role;
 -- service_role은 함수 EXECUTE를 PUBLIC이 아니라 Supabase 함수 default privileges로 받는다(운영). 심이
