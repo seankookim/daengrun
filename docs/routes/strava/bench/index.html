@@ -675,9 +675,16 @@ function naverDraw(r){
   // fitBounds before the map has finished initialising is silently discarded —
   // the map keeps its constructor zoom and the route sits invisible at city
   // scale. Wait for 'init' the first time, then it is safe to call directly.
-  const fit=()=>nmap.fitBounds(b,{top:38,right:38,bottom:38,left:38});
-  if(nmap.getZoom()===undefined||!nmapReady) naver.maps.Event.once(nmap,'init',()=>{nmapReady=true;fit();});
-  else fit();
+  // Fit now AND on init AND on the next tick. fitBounds before the map has
+  // finished laying out is silently discarded, and whether 'init' has already
+  // fired by the time we get here depends on load order — it went both ways
+  // across two page loads. Calling it from all three points is idempotent and
+  // costs nothing; relying on any one of them left the route at city zoom.
+  const fit=()=>{ try{ nmap.fitBounds(b,{top:38,right:38,bottom:38,left:38}); }catch(e){} };
+  fit();
+  naver.maps.Event.once(nmap,'init',fit);
+  setTimeout(fit,250);
+  setTimeout(fit,900);
 }
 function bootNaver(){
   const cfg=window.NAVER_MAP;
