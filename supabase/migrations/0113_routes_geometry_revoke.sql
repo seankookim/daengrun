@@ -1,0 +1,55 @@
+-- ═══ 0113: the projection becomes the ONLY path to route geometry (step 3 of 3) ═══
+--
+-- ═══ §0 WHAT THIS COMPLETES ═══
+-- 0110 §0b set out a three-step sequence and this is the last step:
+--   1. ✅ 0110 — `routes_public` exists: 16 columns, no evidence columns, geometry endpoint-trimmed
+--      (promoted routes only) and rounded 6dp → 4dp.
+--   2. ✅ ui — `fetchRoutes` / `fetchRouteById` read `routes_public` (trunk c73cea5). The six
+--      embedded `routes(name)` / `routes(name, area)` selects deliberately stayed on `routes`;
+--      they read name/area, which this file does not touch.
+--   3. ✅ this file — client roles lose `select (trace, trace_thumb)` on the BASE table.
+--
+-- Until now the projection was advisory: 0110 measured that anon could read `routes.trace`
+-- directly at 6 decimal places (~11 cm), so every trim and rounding in the view was **optional for
+-- the reader**. After this, the trimmed projection is the only path a client has.
+--
+-- ═══ §0b THIS IS ALSO WHAT UNBLOCKS PROMOTION, WHICH IS THE POINT ═══
+-- 0110 §C's `_routes_guard_geometry_public_tg` refuses to let any route become `active` while a
+-- client role still holds that grant. That gate has been the thing standing between the catalog
+-- and its first promoted route — deliberately, so the window between "0107's gate opened" and
+-- "geometry actually closed" could not be crossed by anybody forgetting the order. **This
+-- migration closes the geometry, and by closing it, opens promotion.** The two are one act.
+--
+-- ═══ §0c THE PRECONDITION, MEASURED RATHER THAN ASSUMED ═══
+-- Revoking a column that a shipped client still selects does NOT hide a field — PostgREST fails
+-- the whole request, so the catalog renders EMPTY. That is 0088/0091 exactly (0088 revoked
+-- `select (role)` on `profiles` and every signup 403'd until 0091 put it back), and it is 0082
+-- §A-3's stated worry about a non-atomic Expo rollout.
+--
+-- So, before landing, the question was: **is there any installed binary older than `c73cea5`
+-- still selecting `routes.trace`?** Not inferred from a simulator run — measured:
+--
+--     eas build:list --json   ->  []        (zero EAS builds have EVER been produced)
+--     TestFlight              ->  never uploaded
+--
+-- With zero builds there is no client anywhere that could hold old code, and an OTA update cannot
+-- reach a binary that does not exist. The only clients are dev builds served by Metro from a
+-- checkout at trunk. The revoke is therefore free TODAY and would not have been on any day after
+-- the first release — the ordering of this sequence was not ceremony.
+--
+-- ⚠ Smoke-test note for Sean: **a dev build compiled before `c73cea5` will show an EMPTY catalog
+-- until it is rebuilt.** That is this migration working, not a regression. Rebuild and it returns.
+--
+-- ═══ §0d SCOPE ═══
+-- ⓐ `service_role` keeps everything — `seed-route-traces.mjs` and every server path still read the
+--    untrimmed geometry, which is correct: the de-identification is for PUBLIC readers.
+-- ⓑ `name`, `area`, `km` and the rest of 0107's whitelist are untouched. Only the two geometry
+--    columns move, because only they carry a person's path.
+-- ⓒ No view is created, replaced or dropped. `routes_public` already exists and already reads the
+--    base table as its owner, so it keeps working unchanged — that is exactly why it had to be
+--    definer (0112 §0c), and exactly why its DML surface had to be emptied first.
+
+revoke select (trace, trace_thumb) on routes from anon, authenticated;
+
+comment on column routes.trace is
+  'Route geometry: a jsonb ARRAY of {lat, lng} OBJECTS, each inside Korea, no other keys — enforced by routes_trace_shape since 0099. NOT readable by client roles since 0113: for a promoted route this is a real person''s recorded GPS track with the pickup at one end, so anon/authenticated read it only through routes_public, endpoint-trimmed and rounded to 4dp. service_role keeps full access. Per-point timing (t) and speed (v) remain forbidden by the shape constraint.';
