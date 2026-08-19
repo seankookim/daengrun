@@ -170,6 +170,7 @@ export default function ShotStudio() {
   const [photoOn, setPhotoOn] = useState<{ A: boolean; Bp: boolean }>({ A: false, Bp: true });
   const [busy, setBusy] = useState(false);
   const [active, setActive] = useState(0);
+  const activeRef = useRef(0); // onScroll compares against this, not the closure's possibly-stale `active`; state stays for render
   const cardRefs = useRef<Record<SkinKey, View | null>>({ A: null, Bp: null, G: null, I: null });
 
   useEffect(() => {
@@ -535,7 +536,7 @@ export default function ShotStudio() {
             contentContainerStyle={{ paddingHorizontal: (W - CARD_W) / 2, gap: GAP, alignItems: 'center' }}
             onScroll={(e) => {
               const i = Math.min(order.length - 1, Math.max(0, Math.round(e.nativeEvent.contentOffset.x / SNAP)));
-              if (i !== active) { setActive(i); haptic('light'); }
+              if (i !== activeRef.current) { activeRef.current = i; setActive(i); haptic('light'); }
             }}
             scrollEventThrottle={32}
             style={{ flexGrow: 0, marginTop: 8 }}
