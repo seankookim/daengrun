@@ -30,18 +30,21 @@ import { Icon } from './ui';
 //   ⚠ 샵 아이콘은 건드리지 않았다 — 이미 lucide ShoppingBag이고 시뮬레이터 실빌드에서 렌더 확인했다.
 //   "쇼핑백으로 바꿔라"는 지시는 19pt에 라벨까지 붙어 백이 안 읽혔던 문제지 아이콘 이름이 틀린 게
 //   아니었다. 다음 세션이 이름을 다시 갈아엎지 않도록 적어둔다.
+// 홈은 **맨 왼쪽** (Sean 2026-08-19). 서열 위치 효과: 첫 탭이 사람들이 손을 뻗는 탭이고, 홈이
+// 두 개의 큰 선택(지금 찾기 / 예약하기)이 사는 곳이다. 가운데에 두면 '중심'처럼 보이지만
+// 엄지는 끝에서 시작한다.
 const OWNER_TABS = [
+  { icon: '⌂', lucide: 'House', label: '홈', path: '/owner/home' },
   { icon: '▦', lucide: 'CalendarDays', label: '내 일정', path: '/owner/schedule' },
   { icon: '◎', lucide: 'Users', label: '커뮤니티', path: '/community' },
-  { icon: '⌂', lucide: 'House', label: '홈', path: '/owner/home' },
   { icon: '◈', lucide: 'ShoppingBag', label: '샵', path: '/shop' },
   { icon: '☰', lucide: 'CircleUserRound', label: '마이', path: '/my' },
 ] as const;
 
 const RUNNER_TABS = [
-  { icon: '▦', lucide: 'CalendarDays', label: '캘린더', path: '/runner/calendar' },
-  { icon: '✉', lucide: 'Inbox', label: '요청', path: '/runner/requests' },
   { icon: '⌂', lucide: 'House', label: '홈', path: '/runner/home' },
+  { icon: '✉', lucide: 'Inbox', label: '요청', path: '/runner/requests' },
+  { icon: '▦', lucide: 'CalendarDays', label: '캘린더', path: '/runner/calendar' },
   { icon: '₩', lucide: 'Wallet', label: '수익', path: '/runner/earnings' },
   { icon: '☰', lucide: 'CircleUserRound', label: '마이', path: '/my' },
 ] as const;
