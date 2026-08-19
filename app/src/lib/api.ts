@@ -484,7 +484,10 @@ export async function fetchBookingCharge(bookingId: string): Promise<BookingChar
   const { data: user } = await supabase.auth.getUser();
   if (!user.user) return null;
   const { data, error } = await supabase.from('bookings')
-    .select('base_fare, distance_fare, addon_fare, total_price, km, addons, status, scheduled_at, owner_id, dogs(name), routes(name)')
+    // ⚠ routes 임베드는 FK 를 **이름으로** 지정한다. 0082 가 bookings.recommended_route_id (PR-0 계측) 를
+    // 추가한 뒤로 bookings→routes FK 가 둘이라 PostgREST 가 `routes(name)` 을 풀지 못한다 (PGRST201) —
+    // 프로덕션에서 6일간 모든 예약 목록이 '불러오지 못했어요' 였다. 실측 2026-08-19.
+    .select('base_fare, distance_fare, addon_fare, total_price, km, addons, status, scheduled_at, owner_id, dogs(name), routes!bookings_route_id_fkey(name)')
     .eq('id', bookingId).maybeSingle();
   // [리뷰 #3] 비정형 bid(uuid 아님)는 22P02로 온다 — 통신 실패가 아니라 '부재'다.
   // error로 던지면 영원히 실패할 재시도 버튼이 생긴다 (C1 죽은-버튼 법).
@@ -1781,7 +1784,7 @@ export async function fetchMeetupInfo(bookingId: string): Promise<MeetupInfo> {
     .from('bookings')
     // `preferences` rides the EXISTING dogs embed (no new join, so no PostgREST FK
     // ambiguity); the jsonb is unwrapped client-side rather than via `->>` in the select.
-    .select('scheduled_at, km, pace_label, route_id, routes(name), dogs(name, breed, weight_kg, memo, photo_url, preferences), runners(profiles(name))')
+    .select('scheduled_at, km, pace_label, route_id, routes!bookings_route_id_fkey(name), dogs(name, breed, weight_kg, memo, photo_url, preferences), runners(profiles(name))')
     .eq('id', bookingId)
     .single();
   if (error) throw error;
@@ -2506,7 +2509,7 @@ export async function openChatForBooking(bookingId: string): Promise<ChatContext
   const uid = user.user?.id;
   const { data: bk, error } = await supabase
     .from('bookings')
-    .select('owner_id, runner_id, scheduled_at, km, dogs(name), routes(name)')
+    .select('owner_id, runner_id, scheduled_at, km, dogs(name), routes!bookings_route_id_fkey(name)')
     .eq('id', bookingId)
     .single();
   if (error) throw error;
@@ -2523,7 +2526,10 @@ export async function openChatForBooking(bookingId: string): Promise<ChatContext
   return {
     threadId,
     peerName,
-    label: `${dateLabel} ${timeLabel} · ${b.dogs?.name ?? '반려견'} · ${b.routes?.name ?? '코스 미지정'} ${b.km}km`,
+    // ⚠ 코스 이름 뒤에 km 을 붙이지 않는다. routes.name 은 이미 자기 km 토큰을 갖고 있고 (0100 이
+    // 참을 보증), 그 뒤에 booking.km 을 또 붙이면 "잠수교 강바람 3km 5km" 가 된다 — 실측 렌더.
+    // 코스가 없을 때만 예약 km 이 유일한 길이 정보라 그때만 붙인다.
+    label: `${dateLabel} ${timeLabel} · ${b.dogs?.name ?? '반려견'} · ${b.routes?.name ?? `코스 미지정 · ${b.km}km`}`,
   };
 }
 
@@ -3662,7 +3668,7 @@ export interface RunReport {
 export async function fetchRunReport(bookingId: string): Promise<RunReport> {
   const { data, error } = await supabase
     .from('bookings')
-    .select('scheduled_at, km, pace_label, status, runner_id, route_id, routes(name, area), dogs(name), runners(profiles(name)), runs(actual_km, duration_sec, avg_pace_sec_per_km, end_reason, condition_note, photos, events, trace)')
+    .select('scheduled_at, km, pace_label, status, runner_id, route_id, routes!bookings_route_id_fkey(name, area), dogs(name), runners(profiles(name)), runs(actual_km, duration_sec, avg_pace_sec_per_km, end_reason, condition_note, photos, events, trace)')
     .eq('id', bookingId)
     .single();
   if (error) throw error;
@@ -3721,7 +3727,7 @@ export async function fetchMyBookings(): Promise<Booking[]> {  // [리뷰 F11] B
     .from('bookings')
     // club_session_id: 클럽 위탁 예약을 화면이 구분하기 위한 것 — 마켓플레이스 취소 사다리
     // (0066)가 적용되지 않는 예약이라 취소 버튼이 클럽 출구로 가야 한다 (cancel_owner가 거부)
-    .select('id, scheduled_at, km, pace_label, total_price, status, runner_id, owner_id, series_id, route_id, club_session_id, routes(name), dogs(name, collar), runners(profiles(name))')
+    .select('id, scheduled_at, km, pace_label, total_price, status, runner_id, owner_id, series_id, route_id, club_session_id, routes!bookings_route_id_fkey(name), dogs(name, collar), runners(profiles(name))')
     // 결제 미완 유령(draft/quoted/payment_hold)은 일정이 아니다 — '매칭 중'으로 위장 금지
     .not('status', 'in', '(draft,quoted,payment_hold)')
     // 듀얼 롤 계정에서 러너로 받은 예약이 '내 일정'에 섞이던 문제 — 보호자 소유만

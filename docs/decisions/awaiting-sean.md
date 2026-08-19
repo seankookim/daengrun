@@ -195,6 +195,62 @@ in the background for weeks) or commit to manual and delete the charge machine.*
 Consequence either way: the no-card empty state **is** the pilot, and the current payment surface
 implies automation that does not exist — an honesty-law item, now client's to fix once you pick.
 
+## 0-decies. 🟡 LOOKUP — trust is offline and nobody is rebuilding 0105, the last open P0 (announcer v3, 2026-08-19 evening)
+
+–––––REPORT–––––
+**Measured, not relayed:** trust's session has been off the roster for hours. The 0105 *file* is on
+trunk and six branches — all the same reviewer-rejected version (`0bb40ac`); **a replacement exists
+nowhere** (no origin branch, no local branch, no worktree, no stash). Production: 0106/0107/0108
+applied, **0105 not applied** (deliberate). The spec for the rebuild is already on trunk:
+`docs/security-booking-party-forgery.md` (F1 `recurring_series` money-mint via the hourly cron; F2
+`create-booking-hold` takes `runner_id` from the body; F3 revoke-INSERT has zero client blast radius).
+Side effect while it stays open: **every deploy in the fleet is serialized behind it** — see
+`docs/handoff-announcer.md` (v3 addendum) for the only safe recipe and the one CLI hint never to run.
+
+**Default I am applying under your "full speed" rule unless you say otherwise:** announcer-directed
+subagents rebuild it under the full adversarial cycle (scout → contract → /autoplan → implement →
+reviewer ≠ author executing attacks → pins → land on trunk → deploy with the recipe → verify live).
+It is a money path, so every gate runs. Catalog offers a scratch cluster reproducing production's
+exact schema for the reviewer.
+
+Your answer, one letter:
+- **A** — go (the default; nothing needed from you)
+- **B** — reopen trust and let the session that holds the RLS context do it; sessions wait
+- **C** — a session name of your choosing
+–––––[end of report; nothing above is your ruling until you answer]–––––
+
+## 0-duodecies. 📋 SMOKE-LIST LINE for your first hardware build (legal, 2026-08-19 evening) — not a decision
+
+`private_only=true` is live at the project level, and the client change that makes all four channel
+families request private (`REALTIME_PRIVATE`, `setAuth`, `geo.ts`) is on trunk — **but in no built
+app yet.** So a build predating that change has no working realtime at all: it joins public, the
+server refuses public, and live map + chat + booking-status die together. Shipped population is
+zero, so no user is harmed — but your hardware smoke test will hit exactly this if the build is old,
+and it presents as a mystery outage across three unrelated features. **Smoke list:** *realtime needs a
+build containing the private-channel change (f106b2b or later); on an older build, chat / live map /
+status all dead at once is the flip working, not a regression.*
+
+## 0-undecies. 🟡 Two calls inside catalog's `routes_public` slice — trim distance, and whether logged-in strangers are strangers (catalog, 2026-08-19 evening; recorded by announcer v3)
+
+–––––REPORT–––––
+**Catalog measured** (`has_column_privilege`): anon can still read `routes.trace` and `trace_thumb`
+directly at full 6-decimal precision (~11 cm). 0107 shut the identity columns correctly; geometry was
+never in its scope. So the de-identified `routes_public` view alone would satisfy 0107's promotion
+gate while every reader can still bypass it — the moment a route is promoted from a settled run,
+`routes.trace` becomes a recording of where one identifiable person walked one dog, endpoints at pickup
+and dropoff. Catalog's fix is three ordered steps (0110 view + a second fail-closed refusal in
+`promote_route_from_run` while anon holds select on trace → ui switches reads to the view and ships →
+0111 revokes trace/trace_thumb from anon+authenticated). That sequencing is engineering and is
+handled. **Two things inside it are yours:**
+
+1. **How far from each end of a public route to trim.** Precision (4 dp ≈ 11 m) is derivable and
+   catalog derived it. Trim distance is a judgement about how much of a route's start may be public.
+   Catalog will default it in one named constant and flag it; you confirm or set a number.
+2. **Should a logged-in user be treated like anon for route geometry?** A logged-in stranger is
+   still a stranger. **A** = yes, same de-identified view for everyone (catalog's lean, and the
+   safe default) · **B** = no, authenticated may read full geometry.
+–––––[end of report; catalog's analysis, not your ruling, until you answer]–––––
+
 ## 0-septies-bis. ✅ RETRACTED BY SEAN — no per-migration approval; full speed governs (2026-08-19)
 
 **Sean, 2026-08-19, verbatim:** *"i never said 'work locally first, do not push migrations

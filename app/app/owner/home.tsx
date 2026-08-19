@@ -6,6 +6,7 @@ import { BottomNav } from '../../src/components/bottomnav';
 import { TabSwipe } from '../../src/components/tabswipe';
 import { BrandLockup } from '../../src/components/brandmark';
 import { CourseStrip } from '../../src/components/CourseStrip';
+import { HomeHero } from '../../src/components/home-hero';
 import { ClubHomeCard } from '../../src/components/clubcard';
 import { Avatar, Icon } from '../../src/components/ui';
 import { MediaImage } from '../../src/lib/media';
@@ -393,6 +394,8 @@ export default function OwnerHome() {
   // 분장하던 것 교정. 로딩/실패/실빈을 위젯이 구분해 말한다.
   const [bookingsLoaded, setBookingsLoaded] = useState(false);
   const [bookingsErr, setBookingsErr] = useState(false);
+  // 히어로 실측 높이 → 아래 ScrollView 의 paddingTop. 고정 HERO_BIG 예약은 GO 디스크와 함께 은퇴했다.
+  const [heroH, setHeroH] = useState(HERO_BIG);
   const [unread, setUnread] = useState(0); // 미읽음 알림 실카운트 — 벨 도트의 유일한 근거
   const loadBookings = useCallback(() => {
     setBookingsErr(false);
@@ -796,200 +799,36 @@ export default function OwnerHome() {
 
         {/* 컬랩스 transform은 Pressable '바깥'에 건다 — 터치 영역이 축소된 시각 높이와 정확히 일치해야 하기 때문
             (구: heroH가 레이아웃 높이라 터치 영역도 같이 줄었다). scaleY 원점 = 래퍼 중심 = 카드 중심. */}
-        <Animated.View style={{ transform: [{ translateY: heroSlide }, { scaleY: heroScale }] }}>
-          <Pressable onPress={() => router.push('/owner/fitness')}>
-            {/* [GO_TINT] 카드 배경 = 디스크 상태색의 옅은 워시 (컴팩트 티켓도 같은 속삭임을 물려받는다) */}
-            {/* [페이퍼 크롬] GO_TINT 워시는 시맨틱이라 생존 — 보더만 뉴트럴 #EEE (샤프 코너는 이미 확보) */}
-            <Animated.View style={[s.hero, { height: HERO_BIG, backgroundColor: GO_TINT[goState], borderColor: '#EEEEEE' }]}>
-            {/* 인셋 더블 헤어라인은 역보정 밖 — 카드와 함께 축소돼 4면 인셋을 유지한다 (구 heroH 추종과 동일) */}
-            <View pointerEvents="none" style={s.heroDbl} />
-            {/* 역보정 레이어 — 카드 scaleY를 1/s로 되돌린다. 박스가 카드 안쪽 테두리에 정확히 겹치고
-                padding도 카드와 동일해서 절대·흐름 자식 좌표가 모두 그대로다 (onLayout 실측 상대차 불변). */}
-            <Animated.View style={[s.heroInner, { transform: [{ translateY: heroUnshift }, { scaleY: heroUnscale }] }]}>
-            <HoloBar />
-            <View style={[s.weekChip, { backgroundColor: hp.chip, borderColor: '#EEEEEE' }]}>
-              <Text style={{ fontSize: 14, fontWeight: '700', color: lilac.head }}>이번 주 ▾</Text>
-            </View>
-
-            {/* compact info block (left side, fades in) — bottom을 실측해 진행선 Y를 그 아래로 파생 */}
-            <Animated.View
-              onLayout={(e) => {
-                const b = Math.round(e.nativeEvent.layout.y + e.nativeEvent.layout.height);
-                if (Math.abs(b - infoBottomY) > 1) setInfoBottomY(b);
-              }}
-              style={[s.info, { opacity: infoOpacity, transform: [{ translateX: infoX }] }]}
-            >
-              <Text style={{ fontSize: 14, lineHeight: 18, fontWeight: '700', color: hp.textSoft }}>{dogName ? `${dogName}의 ` : ''}주간 목표</Text>
-              <Text style={{ marginTop: 1, lineHeight: 38 }}>
-                <Text style={[{ fontSize: 31, fontWeight: '900', color: lilac.head }, nf]}>
-                  {weekKm ?? '—'}
-                </Text>
-                <Text style={{ fontSize: 14, color: hp.dim }}> / {goalKm ?? '—'} km</Text>
-              </Text>
-              <Text style={{ fontSize: 14, lineHeight: 18, color: hp.textSoft, marginTop: 2 }}>
-                {fit == null
-                  ? '—' /* [리뷰 F6] 로딩·실패 중엔 측정 상태를 주장하지 않는다 */
-                  : fitnessAge != null
-                    ? `체력 나이 ${fitnessAge}살 · 실제보다 젊어요`
-                    : fit?.fitnessGate?.reason === 'runs'
-                      ? `${(fit.fitnessGate as any).left}번 더 달리면 체력 나이 측정`
-                      : fit?.fitnessGate?.reason === 'birth'
-                        ? '생일 등록하면 체력 나이 측정 시작'
-                        : '체력 나이 측정 준비 중'}
-              </Text>
-              {/* 미니바 은퇴 — 진행바는 링에서 풀려 내려온 도트 라인이 담당.
-                  로딩·실패 중엔 '0% 달성'을 주장하지 않는다 (줄 수는 유지 — 모프 진행선 Y 실측 안정) */}
-              <Text style={[{ fontSize: 14, lineHeight: 18, fontWeight: '800', color: lilac.coralDeep, marginTop: 2 }, nf]}>
-                {fit ? `${Math.round(pct * 100)}% 달성` : '진행률 —'}
-              </Text>
-            </Animated.View>
-
-            {/* 요일 스탬프 — 링이 떠난 자리: km는 '얼마나', 스탬프는 '얼마나 꾸준히' (bottom도 실측) */}
-            <Animated.View
-              onLayout={(e) => {
-                const b = Math.round(e.nativeEvent.layout.y + e.nativeEvent.layout.height);
-                if (Math.abs(b - stampBottomY) > 1) setStampBottomY(b);
-              }}
-              style={[s.stampBox, { opacity: infoOpacity }]}
-            >
-              <Text style={{ fontSize: 14, lineHeight: 18, fontWeight: '700', color: hp.textSoft }}>
-                이번 주 러닝{runDayCount > 0 ? ` ${runDayCount}일` : ''}
-              </Text>
-              {/* [FLOOR14] 칸·글리프 크기는 기기 폭에서 파생된다 — STAMP_CELL/STAMP_FONT 산술은 상수 정의부 참조 */}
-              <View style={{ flexDirection: 'row', gap: 1, marginTop: 5 }}>
-                {['월', '화', '수', '목', '금', '토', '일'].map((dLabel, i) => {
-                  const ran = runDays[i] === true;
-                  const isToday = i === todayIdx;
-                  return (
-                    <View
-                      key={dLabel}
-                      style={{
-                        width: STAMP_CELL, height: STAMP_CELL, borderRadius: 3, alignItems: 'center', justifyContent: 'center',
-                        backgroundColor: ran ? lilac.accent : 'transparent',
-                        borderWidth: isToday ? 1.5 : 1.2,
-                        borderColor: ran ? lilac.accent : isToday ? lilac.coral : lilac.hair,
-                      }}
-                    >
-                      <Text style={{ fontSize: STAMP_FONT, lineHeight: STAMP_FONT + 4, fontWeight: '900', color: ran ? '#fff' : isToday ? lilac.coralDeep : hp.dim }}>{dLabel}</Text>
-                    </View>
-                  );
-                })}
-              </View>
-            </Animated.View>
-
-            {/* 모프 도트 — 큰 상태: 원형 링 / 컬랩스: 하단 진행선. 점이 곧 데이터, 배열만 바뀐다 */}
-            <View
-              onLayout={(e) => {
-                const y = Math.round(e.nativeEvent.layout.y);
-                if (Math.abs(y - dotBoxY) > 1) setDotBoxY(y);
-              }}
-              style={{ alignSelf: 'center', marginTop: 6, width: RING_BIG, height: RING_BIG }}
-            >
-              {/* 36-dot 레이어는 하드웨어 텍스처로 승격 — 크로스페이드 프레임마다 그림자 달린 도트를 재합성하지 않는다.
-                  (shouldRasterizeIOS는 의도적으로 제외: 살아있는 상위 scaleY 아래에서 캐시 비트맵이 리샘플되며 헤드 글로우가 뭉갠다) */}
-              <Animated.View pointerEvents="none" renderToHardwareTextureAndroid style={[StyleSheet.absoluteFill, { opacity: ringOpacity }]}>
-                <RingDots pct={pct} track={hp.track} />
-              </Animated.View>
-              <Animated.View pointerEvents="none" renderToHardwareTextureAndroid style={[StyleSheet.absoluteFill, { opacity: lineOpacity, transform: [{ translateY: lineSlide }] }]}>
-                <LineDots pct={pct} lineYAbs={morphLineY} containerX={(CARD_W - RING_BIG) / 2} containerY={dotBoxY} track={hp.track} />
-              </Animated.View>
-              {/* 큰 상태 센터 콘텐츠 — 랩 Ⓑ① "Red Core": km 한 줄(위) · GO 코어 디스크(불스아이) · 체력 나이 칩(아래).
-                  구 스택(오늘까지 키커 + 54pt weekKm + '/ goal 주간 목표' 줄 + 칩)은 은퇴 — 링의 광학 중심을
-                  액션에 내주고 숫자는 위아래로 갈라진다(랩 문법 = split). 주간 목표 숫자는 km 한 줄에 그대로 남는다.
-                  [의도적] GO는 컴팩트 에코를 갖지 않는다 — 접힌 뒤의 상태·액션은 아래 '오늘의 티켓'과
-                  '지금 러너 찾기' 섬이 이미 전담하므로 에코를 두면 삼중 표기가 된다.
-                  [터치] 컬랩스에서 투명해진 뒤에도 RN 뷰는 터치를 먹는다 → heroCollapsed로 pointerEvents를 끊어
-                  보이지 않는 GO가 히어로(체력 리포트) 탭을 가로채지 않게 한다. box-none = 컨테이너는 통과, 디스크만 잡는다. */}
-              <Animated.View
-                pointerEvents={heroCollapsed ? 'none' : 'box-none'}
-                style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', opacity: centerOpacity }}
+        {/* ═══ 히어로 = 두 개의 큰 선택 (Sean 2026-08-19, 랩 ⑧ v2, 판정 "A") ═══
+            GO 디스크와 접힘 안무는 은퇴했다 (CLAUDE.md DO-NOT-REFACTOR 에서 owner-home 을 제외한 그 판정).
+            상태 판정은 아래 goState 그대로 — 바뀐 건 그 상태로 무엇을 그리느냐뿐이다.
+            높이는 고정 HERO_BIG 이 아니라 실측이라, 아래 ScrollView 의 paddingTop 도 실측을 따른다. */}
+        <View onLayout={(e) => setHeroH(Math.round(e.nativeEvent.layout.height))}>
+          <HomeHero
+            state={goState}
+            next={liveNext ? {
+              id: liveNext.id,
+              runnerName: liveNext.runnerName ?? null,
+              timeLabel: liveNext.timeLabel,
+              dateLabel: liveNext.dateLabel,
+              km: liveNext.km,
+            } : null}
+            dogName={dogName}
+            loadState={bookingsErr ? 'error' : bookingsLoaded ? 'ready' : 'loading'}
+            onRetry={loadBookings}
+            ddayLabel={ddayLabel}
+            liveWidget={liveNext?.status === 'active' ? (
+              <Pressable
+                onPress={() => { if (liveNext) draft.bookingId = liveNext.id; router.push('/owner/live'); }}
+                style={{ backgroundColor: lilac.head, padding: 18 }}
+                accessibilityRole="button" accessibilityLabel="실시간 보기"
               >
-                {/* km 한 줄 — 링 도트를 가로지르므로 4px 카드색 헤일로로 도트에서 떼어낸다 (랩 box-shadow 0 0 0 4px --card).
-                    숫자는 weekKm/goalKm 둘 뿐 — 목표는 여기서 계속 보인다 (로딩·실패는 '—', 0을 주장하지 않는다). */}
-                <View style={[s.goHalo, { marginBottom: 8, backgroundColor: GO_TINT[goState] }]}>
-                  <View style={s.goPill}>
-                    {/* 줄박스는 바깥 lineHeight 27(=22×1.23)이 지배 — Oswald 스팬에도 같은 값을 명시(숫자법) */}
-                    <Text style={{ lineHeight: 27 }} numberOfLines={1}>
-                      <Text style={{ fontSize: 14, fontWeight: '700', letterSpacing: 0.4, color: hp.dim }}>오늘까지 </Text>
-                      <Text style={[{ fontSize: 22, lineHeight: 27, fontWeight: '900', color: lilac.head }, nf]}>{weekKm ?? '—'}</Text>
-                      <Text style={{ fontSize: 14, fontWeight: '600', color: hp.dim }}> / {goalKm ?? '—'} km</Text>
-                    </Text>
-                  </View>
-                </View>
-
-                {/* GO 코어 — 히어로 Pressable 위에 얹힌 중첩 Pressable.
-                    e.stopPropagation()은 티켓 버튼과 동일 관용구 — 부모 히어로(/owner/fitness)로 버블링 금지.
-                    (히어로 Pressable은 style 콜백·android_ripple이 없어 press-in이 카드 opacity를 건드리지 않는다 —
-                     프레스 피드백은 디스크 자기 면색 교체 base→deep 하나뿐이다.)
-                    각 분기는 기존 핸들러를 그대로 미러한다: 티켓의 인계/라이브 버튼 + '지금 러너 찾기' 섬. */}
-                <Animated.View style={{ opacity: goBreathOpacity }}>
-                  {/* [Ⓐ④ Keyline Orbit] 1.5px 상태색 궤도 키라인 — 디스크와 5px 갭, 36도트 링과 한 가족.
-                      absolute라 레이아웃 불변(GO 스택 237≤240 예산 무접촉); 시각 돌출 5px는 헤일로 갭 8px 안. */}
-                  <View
-                    pointerEvents="none"
-                    style={[s.goKeyline, { borderColor: goSkin.base }]}
-                  />
-                  <Pressable
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      if (goState === 'active') { if (liveNext) draft.bookingId = liveNext.id; router.push('/owner/live'); return; }
-                      // 확정·인계 대기 → 미트업 (티켓의 '러너 만나기 · 인계 확인' / '인계 완료…'와 동일 목적지)
-                      if (goState === 'confirmed' || goState === 'handoff') { if (liveNext) draft.bookingId = liveNext.id; router.push('/owner/meetup'); return; }
-                      if (fnDirected) { router.push('/owner/schedule'); return; } // 지명 대기 — 레이더는 허위
-                      if (fnSearching && liveNext) { draft.bookingId = liveNext.id; router.push('/owner/radar'); return; }
-                      if (fnAvail.length === 0) { router.push('/owner/request'); return; }
-                      openFindNow();
-                    }}
-                    style={({ pressed }) => [s.goDisc, {
-                      backgroundColor: pressed ? goSkin.deep : goSkin.base,
-                      // [Ⓐ④] 상태색 섀도 은퇴 → 뉴트럴 잉크 섀도 (색은 면과 키라인 둘만 말한다)
-                      // [Ⓑ] scale 0.96 프레스 촉감 (compositor-only) — 색 스왑은 그대로 유지
-                      transform: [{ scale: pressed ? 0.96 : 1 }],
-                    }]}
-                  >
-                    <Text
-                      style={[s.goWord, goNum ? nf : null, { fontSize: goFont, lineHeight: Math.ceil(goFont * 1.24), letterSpacing: goNum ? 1.4 : 0 }]}
-                      numberOfLines={1}
-                    >
-                      {goMain}
-                    </Text>
-                    {/* [§3b] 서브 라벨 14 → 17/800 — 잉크 플레이트 유지 (플레이트 합성 대비는 s.goSub 주석) */}
-                    <Text style={s.goSub} numberOfLines={1}>{goSub}</Text>
-                  </Pressable>
-                </Animated.View>
-
-                {/* 체력 나이 — 우리 개념. 디스크 아래로 내려앉되 같은 헤일로 처리 (측정 전이면 '측정 전' 그대로) */}
-                <View style={[s.goHalo, { marginTop: 8, backgroundColor: GO_TINT[goState] }]}>
-                  <View style={s.goPill}>
-                    {/* 세 자식 모두 lineHeight 18 명시 — 라벨만 빠지면 안드로이드 기본 줄높이(≈20)가
-                        행을 지배해 센터 스택이 240을 넘는다 (세로 예산 정본은 파일 상단 GO_DISC 주석: 237 ≤ 240) */}
-                    <Text style={{ fontSize: 14, lineHeight: 18, fontWeight: '800', color: hp.textSoft }}>체력 나이</Text>
-                    <Text style={[{ fontSize: 14, lineHeight: 18, fontWeight: '900', color: lilac.accent }, nf]}>
-                      {fit == null ? '—' : fitnessAge != null ? `${fitnessAge}살` : '측정 전'}{/* [리뷰 F6] 로딩≠측정 전 */}
-                    </Text>
-                    {/* ▼ 델타는 실나이(생일 파생 ageYears)가 있을 때만 — 목업 상수 3살 퇴역 (item 5/P1-9) */}
-                    {fitnessAge != null && ageYears != null && (
-                      <Text style={[{ fontSize: 14, lineHeight: 18, fontWeight: '800', color: lilac.coralDeep }, nf]}>▼{Math.max(ageYears - fitnessAge, 0).toFixed(1)}</Text>
-                    )}
-                  </View>
-                </View>
-              </Animated.View>
-            </View>
-            </Animated.View>
-
-            {/* big-state goal message */}
-            {/* 체력 리포트 진입 칩 — 히어로가 탭 가능하다는 걸 매트한 칩이 말해준다.
-                역보정 밖에 둬서 구현과 동일하게 카드의 줄어드는 하단 엣지를 타고 올라온다 (t≈0.35에 소멸).
-                카드 높이가 상수가 된 지금 bottom:11은 애니메이션 의존이 아니라 1회 확정 레이아웃이다. */}
-            <Animated.View style={[s.reportChip, { opacity: bigMsgOpacity, backgroundColor: hp.chip, borderColor: '#EEEEEE' }]}>
-              <Text style={{ fontSize: 14, fontWeight: '800', color: hp.textSoft }}>
-                {goalHit ? '목표 달성 — 체력 리포트' : '체력 리포트 · 주간 목표'}
-              </Text>
-              <Text style={{ fontSize: 14, fontWeight: '900', color: lilac.accent }}>›</Text>
-            </Animated.View>
-            </Animated.View>
-          </Pressable>
-        </Animated.View>
+                <Text style={{ fontSize: 11, letterSpacing: 2, fontWeight: '800', color: '#8F88B8' }}>● LIVE · {liveNext.runnerName ?? '러너'} 러너</Text>
+                <Text style={{ fontSize: 14, color: '#B9B3D9', marginTop: 8, lineHeight: 20 }}>{dogName ?? '아이'}가 달리는 중이에요 — 지도 보기 ›</Text>
+              </Pressable>
+            ) : null}
+          />
+        </View>
       </View>
 
       {/* ---------- scroll content (starts below expanded hero) ---------- */}
@@ -1000,7 +839,7 @@ export default function OwnerHome() {
           // [Sean 2026-08-11] 모프 카드와 아래 카드 사이 간격 = 0. `+14`는 히어로 예약분이 아니라
           // 그 위에 얹힌 여백이었다 — 예약(PAD_TOP + HEADER_H + HERO_BIG)은 모프 계약이라 불가침이고,
           // 여백만 걷어낸다. 첫 SectionHead는 flush로 marginTop까지 0 → 코랄 룰이 히어로 밑변에 붙는다.
-          paddingTop: PAD_TOP + HEADER_H + HERO_BIG,
+          paddingTop: PAD_TOP + HEADER_H + heroH,
           paddingBottom: 30,
         }}
         onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
