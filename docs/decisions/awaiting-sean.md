@@ -17,6 +17,15 @@
 > delivered** at `docs/biz/location-law-counsel-brief.md` · **hill notes: yes, ~40 m** ("언덕
 > 많음"), ui builds.
 
+> **⚡ 2026-08-15, later: SIGN-IN RULED.** Context: the app's two doors were Kakao OAuth and a
+> 6-digit **email** code — no phone/SMS path ever existed. Sean: *"for sign up i always used kakao
+> and never the email thing. dont use an email, use phone number. also, we have a text code double
+> verification on the phone number pathway?"* — answered (no such pathway exists), options given,
+> and he ruled: *"b"* = **KAKAO ONLY for the pilot; the email path is removed; phone/SMS deferred.**
+> ui removes the email stages from `login.tsx`; trust verifies the server accepts only what the
+> client offers (an email door left open server-side is a signup path outside the app); the
+> TestFlight install-day check becomes "Kakao sign-in works on a real phone."
+
 **Purpose: this queue existed only inside one session's conversation.** The announcing session
 asked for it to be written down, applying the day's first rule to itself: *unpushed reserves
 nothing.* If that session runs out of context the way the 반포 route session did, an
