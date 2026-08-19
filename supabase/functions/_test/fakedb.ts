@@ -42,6 +42,16 @@ export class FakeDb {
     return this;
   }
 
+  /** bucket → object names. The Storage API's world; `storage.objects` is not reachable by PostgREST. */
+  objects: Record<string, string[]> = {};
+  /** Every path actually handed to `remove()`, in order — so "we did NOT sweep chat" is checkable. */
+  removed: string[] = [];
+
+  seedObjects(bucket: string, names: string[]) {
+    this.objects[bucket] = [...names];
+    return this;
+  }
+
   auth = {
     getUser: (jwt: string) => {
       const id = this.users[jwt];
@@ -49,6 +59,57 @@ export class FakeDb {
         id ? { data: { user: { id } }, error: null } : { data: { user: null }, error: { message: "bad jwt" } },
       );
     },
+    // The Auth admin API — the one thing no SQL path can do, which is why account deletion needs
+    // an edge function at all. Fails via `failures["auth:deleteUser"]`, the durable state the
+    // retry path exists for.
+    admin: {
+      deleteUser: (uid: string) => {
+        this.log.push(`auth:deleteUser:${uid}`);
+        const msg = this.failures["auth:deleteUser"];
+        if (msg) return Promise.resolve({ data: null, error: { message: msg } });
+        this.deletedUsers.push(uid);
+        return Promise.resolve({ data: { user: { id: uid } }, error: null });
+      },
+    },
+  };
+  deletedUsers: string[] = [];
+
+  // Storage API. `list(prefix)` mirrors the real one closely enough for the thing under test:
+  // it returns the entries DIRECTLY under `prefix`, with a null `id` for pseudo-folders — which
+  // is how a folder-scoped sweep stays folder-scoped instead of quietly recursing.
+  storage = {
+    from: (bucket: string) => ({
+      list: (prefix: string, opts?: { limit?: number; offset?: number }) => {
+        this.log.push(`storage:list:${bucket}:${prefix}`);
+        const msg = this.failures[`storage:${bucket}:list`];
+        if (msg) return Promise.resolve({ data: null, error: { message: msg } });
+        const base = prefix ? `${prefix}/` : "";
+        const seen = new Map<string, { name: string; id: string | null }>();
+        for (const name of this.objects[bucket] ?? []) {
+          if (!name.startsWith(base)) continue;
+          const rest = name.slice(base.length);
+          if (rest.length === 0) continue;
+          const slash = rest.indexOf("/");
+          if (slash === -1) seen.set(rest, { name: rest, id: crypto.randomUUID() });
+          else {
+            const folder = rest.slice(0, slash);
+            if (!seen.has(folder)) seen.set(folder, { name: folder, id: null });
+          }
+        }
+        const all = [...seen.values()];
+        const off = opts?.offset ?? 0;
+        const lim = opts?.limit ?? all.length;
+        return Promise.resolve({ data: all.slice(off, off + lim), error: null });
+      },
+      remove: (paths: string[]) => {
+        this.log.push(`storage:remove:${bucket}:${paths.length}`);
+        const msg = this.failures[`storage:${bucket}:remove`];
+        if (msg) return Promise.resolve({ data: null, error: { message: msg } });
+        this.removed.push(...paths);
+        this.objects[bucket] = (this.objects[bucket] ?? []).filter((n) => !paths.includes(n));
+        return Promise.resolve({ data: paths.map((n) => ({ name: n })), error: null });
+      },
+    }),
   };
 
   // The real rpc builder is thenable AND carries `.single()`/`.maybeSingle()`, which handlers use

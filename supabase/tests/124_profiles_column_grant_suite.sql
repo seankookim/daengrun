@@ -378,6 +378,20 @@ begin
      where src.relname = 'profiles' and src.relnamespace = 'public'::regnamespace
        and d.refobjsubid > 0
        and not (a.attname = any (v_public))
+       -- [0115, 2026-08-20] `deleted_at` is exempt, and the exemption is narrow and argued.
+       -- 0115 §E hides a tombstoned runner from the storefront by adding `and p.deleted_at is
+       -- null` to `available_runners` — in the VIEW, because a definer view never consults RLS
+       -- (0112 §0b), which is the same bypass class this very pin exists for. pg_depend cannot
+       -- distinguish a column a view PROJECTS from one it only FILTERS on, and this one is
+       -- filter-only: it appears in no view's select list, so it exposes nothing. It is also not
+       -- a secret — a tombstone announces itself as `name = '탈퇴한 사용자'`. The property this
+       -- exemption gives up (that no view may reference deleted_at at all) is owned from here on
+       -- by **150 N5(b)**, which asserts the storefront returns 0 rows for a tombstoned runner
+       -- and mutation-reddens when the clause is removed, and **150 N5(c)**, which asserts what
+       -- a counterparty may read of a tombstone and what it still may not (phone,
+       -- toss_customer_key). ⚠ Do NOT add `deleted_at` to `v_public` instead: G1 asserts the
+       -- client-readable set EQUALS that whitelist, and `deleted_at` carries no column grant.
+       and a.attname <> 'deleted_at'
        and (has_table_privilege('authenticated', v.oid, 'select')
             or has_table_privilege('anon', v.oid, 'select'));
     update runners set online = false where profile_id = rr;
