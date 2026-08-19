@@ -67,10 +67,10 @@ Strava counterpart.
 `build-route.sh` measures before saving and writes the **measured** distance into the route name,
 so a route's name can never disagree with its geometry. It refuses measurements of 5.00 km or
 more, explicit underground-passage queries, and station-exit waypoints; it also refuses a target
-miss above `TOL_PCT` (default 20%), requires 5–8 waypoints spread around the residential anchor,
+miss above `TOL_PCT` (default 20%), requires 2–4 waypoints spread around the residential anchor,
 and refuses to save unless Strava's complete three-part surface mix was captured.
 
-All 19 saved GPX routes have rows in `manifest.psv`; attempt counts, geocoder misses, and
+All the GPX corpus (count it: `ls *.gpx | wc -l`) routes have rows in `manifest.psv`; attempt counts, geocoder misses, and
 geometrically impossible anchor pairs are in `ATTEMPTS.md`. Some older sessions did not retain the
 exact Strava surface mix or full query sequence. Those fields say `NOT RECORDED` rather than
 inventing data, and `audit-candidates.mjs --strict` continues to fail until they are recovered.
@@ -84,3 +84,23 @@ means a measured constraint already disqualifies it.
 
 `ROUTE_DESIGNS.md` is the compact route-level design record. It deliberately does not duplicate
 the district geography index.
+
+## Counts live in the database, not in this file
+
+Any number written here rots the moment another route lands — this file has
+already carried "19 saved GPX" long past 46, and a waypoint rule that had been
+reversed. Derive instead:
+
+```bash
+ls docs/routes/strava/*.gpx | wc -l
+supabase db query --linked "select count(*) rows, count(distinct town) towns from routes;"
+```
+
+The method itself lives in `docs/skills/route-geometry/SKILL.md`, the vetted
+execution queue in `docs/routes/geo/BUILD-QUEUE.md`, and the running record in
+`docs/handoff-route-geometry-strava.md`.
+
+**A GPX file is named exactly what its route is named** — filename, embedded
+`<name>`, and the catalog row all carry the same string. They diverged once
+(filename from the recomputed haversine, route from Strava's readout, ~0.01 km
+apart) and a row→file match by name silently failed on half the corpus.

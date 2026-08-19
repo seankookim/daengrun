@@ -46,7 +46,12 @@ const TOWN = [
   // 올림픽선수촌/올림픽공원 sit in 오륜동, 송파구 — mapped by the filename prefix
   // another session used. Verify the 법정동 before this row is served: 파크리오
   // is already a known case of a 잠실-looking name that is legally 신천동.
-  [/^송파/, '송파동'],
+  // Match on the ROUTE NAME, which is stable, not on a filename prefix. Renaming
+  // the GPX files to match their own <name> silently dropped this route from the
+  // manifest — the file went from 송파_... to 올림픽선수촌앞_..., the /^송파/
+  // pattern stopped matching, and the row vanished with no error. A mapping keyed
+  // to a filename is a mapping keyed to something that is allowed to change.
+  [/^송파|올림픽선수촌|올림픽\s*공원/, '송파동'],
   [/^동작|^노량진/, '노량진동'],
   [/^성북/, '보문동'],      // 성북구; e편한세상보문1단지 sits in 보문동
   [/^마포|^상암/, '상암동'],  // 마포구
@@ -99,7 +104,10 @@ for (const f of readdirSync(DIR).filter(x => x.endsWith('.gpx'))) {
     continue;
   }
 
-  const town = (TOWN.find(([re]) => re.test(f)) || [null, null])[1];
+    // Test the ROUTE NAME first, then fall back to the filename. The name is what
+  // the catalog row carries and what every join uses; the filename is derived and
+  // may be renamed. Keying only on the filename dropped a route silently once.
+  const town = (TOWN.find(([re]) => re.test(name)) || TOWN.find(([re]) => re.test(f)) || [null, null])[1];
   if (!town) { console.error(`SKIP ${f}: no town mapping`); continue; }
 
   // km must round the way POSTGRES rounds, because routes_name_km_agrees (0100)
