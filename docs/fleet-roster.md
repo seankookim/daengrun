@@ -157,5 +157,13 @@ two false "stranded work" alarms on day one.
   predicate (body swapped for `select true`) leaves `\d`, `pg_constraint` and `convalidated` all
   reading protected while the table enforces nothing. Pins must try to store a bad value and watch;
   counting constraints is the `NaN > 50` scan wearing SQL.
+- **A guard's own test must include a replay of the real incident.** Check ④ passed its
+  synthetic test and missed the actual push it was written for (wrong ref: remote-tracking
+  instead of the stdin sha). Green against synthetic cases is one more artifact that never met
+  its case.
+- **Verify a guard is ARMED by executing it, not by believing it was installed.** Git runs no
+  hooks and says nothing when `hooksPath` names a vanished directory; five worktrees pointed at
+  one disposable tree. A guard whose installation is a convention inherits every weakness of a
+  convention.
 - **Trust review is standing:** any slice touching RLS, policies, grants, or `search_path` goes
   to trust at PLAN time, not push time. And a reviewer never reviews their own build.
