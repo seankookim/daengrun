@@ -11,7 +11,13 @@ governance rule in [README.md](README.md) a stand-in's analysis never becomes a 
 
 ---
 
-## 0. 🔴 NOBODY HAS VERIFIED A HUMAN CAN SIGN UP — the only total outage on this board
+## 0. 🔴 SIGNUP — narrowed 2026-08-15, half closed by execution, half still needs one human
+
+**UPDATE (audit, 2026-08-15):** the DATABASE half is closed — trust probed the exact grant chain
+that broke signup (`8c1d2fc`): the PostgREST role-picker upsert succeeds as `authenticated`, no
+42501. **The GoTrue half (OTP delivery, `auth.users` creation, Kakao OAuth) remains unverified**
+and needs a real account creation — one human, one phone, five minutes. Still the only
+total-outage risk on the board, but now scoped to the half no session can test.
 
 **Raised independently by both voices of trust's `/autoplan` review, which called the security
 sweep the wrong slice while this sits unchecked. Queued 2026-08-14.**
@@ -55,6 +61,14 @@ than anything on the anon-read surface. It is also **anon-readable**: those 9 ro
 `tier <> 'applicant'`, 7 of them carrying free-text `bio`.
 
 Fix direction is not a decision — clear the flag or gate the copy — but **who owns it is**.
+
+**AUDIT ADDENDUM 2026-08-15 — the user-facing copy this flag now stands behind:** `app/safety.tsx`
+was honesty-repaired on 2026-08-08 to claim only *"운영자가 화상 통화로 러너를 직접 만나 신분증을
+확인하고 한 명씩 승인해요"* — and its own code comment says this is true **only while no
+seeded/grandfathered certified runners exist in prod.** All 9 production runners carry
+`identity_verified = true`. **So the question is a fact only Sean holds: did you actually
+video-verify those 9 people?** If yes, the flag is true and this item closes. If no, the flag is
+seed data and must be cleared before any owner reads that screen next to a runner card.
 
 ## 0-quater. ✅ LAUNCH TOWNS — RULED 2026-08-14. It is a rule, not a list.
 
@@ -114,6 +128,36 @@ by the route-geometry session, which had the ruling; the error was the announcer
 carrying Sean's Strava author tag are **his and valid**. They are not a second session writing into
 the tree. Their names should still be checked against their measurements before ingest, because
 measure-then-name is a property that cannot be assumed of any file.
+
+
+## 0-quinquies. 🔴 The ops escalation chain fires into NOBODY — recipient decision needed (audit 2026-08-15)
+
+Measured: `ops_recipients` exists and has **0 rows**; `OPS_PROFILE_ID` is unset. So 0084's
+reconciliation arms, and custody's 0096/0097 unsettled-run detection, all currently resolve to an
+empty recipient set — detection works, delivery reaches no one. Custody documented this honestly in
+0096's own header ("이것은 PAGER가 아니라 질의 함수다").
+
+**Your half (the decision):** who receives ops events (a profile id — presumably yours for the
+pilot), and what acknowledgment/SLA means. **Custody's half (mechanical, after you answer):** insert
+the rows / set the env, wire the push. One sentence from you unblocks it.
+
+## 0-sexies. 🟡 Toss vs manual transfer — the pilot's payment reality (money, 2026-08-15)
+
+You asked money *"do i need toss for payments? can i just not ask them to upload credit card
+info?"* Their analysis, which I endorse: **you cannot charge today regardless** — the 사업자등록 →
+통신판매업 → 자동결제 심사 chain is the long pole — so **the pilot ships on manual transfer as a
+STATE, not a choice.** The narrow decision: **start the paperwork chain now (recommended: 심사 runs
+in the background for weeks) or commit to manual and delete the charge machine.**
+
+Consequence either way: the no-card empty state **is** the pilot, and the current payment surface
+implies automation that does not exist — an honesty-law item, now client's to fix once you pick.
+
+## 0-septies. 📋 RECORD — PR-0's test-owner exclusion exists in practice and is written nowhere
+
+Owner `aa73ce8a-0ee0-473f-af1c-ffa8030a09a9` holds **all 24 existing bookings** and PR-0 reads
+zero — so the exclusion is already applied by your judgement and is simply undocumented. Needs no
+migration: a recorded owner id + a documented count query. One line from you confirms this is the
+flagged-test-owner policy, and then it gets written into the PR-0 doc.
 
 ## 1. 🟢 CLOSED IN PRODUCTION 2026-08-14 — off your queue, nothing to decide
 
