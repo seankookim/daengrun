@@ -57,6 +57,15 @@ const SKIP = new RegExp([
   '연결다리','급식실','학교','교회','성당','^다리$','^보행교$','^육교$','^계단$','^터널$',
 ].join('|'));
 const UNSEARCHABLE = (n) => !n || n.length > 18 || /되어|편입|폐쇄|예정|공사/.test(n);
+
+// GENERIC NAMES RESOLVE SOMEWHERE ELSE. Measured: "어울림공원" in a 강서 route
+// produced 27.64 km — the name exists in many Korean cities and viewport bias
+// did not save it. Same class as a bare river name ("안양천" → 12.96 km twice,
+// fixed by naming a BRIDGE). A name that could be anywhere IS anywhere.
+// These are flagged, not dropped: with a nearby anchor they often resolve fine,
+// and the measure-before-save gate catches the ones that do not.
+const GENERIC = /^(어울림|중앙|근린|체육|생태|시민|평화|호수|가족|문화)\s*공원$|^(중앙|시민)공원$/;
+const flagGeneric = (f) => GENERIC.test(f.name);
 const ok = (f) => f.name && f.name !== '(unnamed crossing)' && !SKIP.test(f.name) && !UNSEARCHABLE(f.name);
 
 // A culverted stream is a ROAD with water underneath — 복개천. Routing to it
