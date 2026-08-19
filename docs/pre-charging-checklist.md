@@ -110,6 +110,16 @@ nothing, which is exactly the state you do not want during the first live week.
 
     verify:  supabase secrets list | grep OPS_PROFILE_ID      # currently: no match
 
+### 2.4-bis 🟡 `ops_recipients` has 0 rows — the other half of 2.4
+
+`OPS_PROFILE_ID` unset is one half; the recipients table being empty is the other, and either
+alone is enough to make every ops signal land nowhere. Today that means `0084`'s reconciliation
+arms **and** custody's `0096`/`0097` detection all fire into a `console.error`. Recipient choice is
+Sean's, wiring is custody's — it is on this list because "ops routing populated" is a pre-flip
+condition for money even though neither half is money's to build.
+
+    verify:  select count(*) from ops_recipients;      # currently: 0
+
 ### 2.5 🟡 `billing_keys` is empty — product decision, not config
 
 Zero owners have a registered card. The first live run will therefore hit "no billing key" rather
@@ -129,6 +139,32 @@ window. Do not try to "catch up" by backdating — the setter will refuse, and t
 feature.
 
 ---
+
+## 2-ter. The historical data state — read this before you diagnose anything
+
+Measured 2026-08-14. None of it is a defect; all of it will look like one to someone reading a
+single query.
+
+- **`ledger_items` has 8 rows, not 0** (2026-07-28 → 08-11, 8 distinct bookings). The money
+  surface is not an empty table. It matches the 8 `completed` bookings exactly.
+- **`runs.settled_at` is NULL for all 9 runs, including the 8 that are settled and have ledger
+  rows.** `settle_run_tx` writes `settled_at = now()` at `0083:112`, but these runs predate 0083 —
+  they were settled by an earlier version that did not have the column in its write list. **So
+  "settled_at is null" does NOT mean unpaid on historical rows; the ledger row is the evidence.**
+  This is exactly why `0097` checks ledger-absence *and* `settled_at is null` rather than either
+  alone, and why REGISTRY's shared-object note says ledger presence is not a settlement anchor.
+- **No cutover consequence.** `sweep_settled_without_payments` anchors on `settled_at` *and*
+  scopes on `ended_at >= payments_live_since`, and the setter refuses a past timestamp — so every
+  one of these rows is outside the window by construction, twice over.
+- **The one `incident_review` booking is a CLUB booking.** Its run ended 2026-07-30 with no ledger
+  row, which reads like §0h biting today. It is not: clubs settle through `club_release_payouts`
+  (0045/0072), a different path, and `0097` excludes `club_session_id is not null` deliberately.
+  **`ops_unsettled_runs()` returning 0 is correct**, verified by calling it against production.
+  ⚠ Do not "fix" that exclusion — it would report every club booking as an unpaid marketplace run.
+- **There is therefore no unpaid marketplace runner in production today**, which is the same
+  conclusion as before but now rests on the right evidence. My earlier version of this check read
+  `bookings.run_ended_at` where it should have read `runs.ended_at` — two different columns, and
+  the booking's was null while the run's was set.
 
 ## 3. Things that look alarming and are not
 
