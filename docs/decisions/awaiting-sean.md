@@ -280,6 +280,17 @@ real owners. Relief: no vehicle pickup (동물운송업 not in play), shop is a 
 not exposed) — widening that read path is the moment §11 goes live, so it is a legal decision, not a UI fix; the community
 feed has no reports/moderation table (임시조치 will be needed there first).
 
+## 0-sexdecies. 📋 TWO SMALL BUILDS FROM LEGAL'S RETENTION ROW — statutory, not drafting (2026-08-19 night)
+
+Measured by legal (docs on trunk): **(a) nothing purges `runs.trace`** — 17 crons, `purge-chat` and `purge-holds` exist, no
+location TTL or job; the policy says "필요한 기간", and 시행령 제26조의2 caps 개인위치정보 at one year even with separate
+consent. **(b) the policy promises the 위치정보 이용·제공 사실 확인자료 열람권 and no ledger exists** — 위치정보법 제16조 requires
+automatic recording (≥ 6 months). Both are BUILD items, not wording fixes — softening §3/§5 deletes the evidence of the gap,
+not the gap. Shapes exist in-repo: copy `gate_code_access_log` (0001:130) / `club_phone_access_log` (0049:156) for the ledger;
+a cron for the purge with the pin on `cron.job` (0060:144 — a function sat unscheduled while a comment claimed it ran). Latent
+today (one run, Sean's own); ranks ABOVE the 맹견 gate — matters at the first real runner. Queued for a server session /
+announcer-directed build after O-4/O-5; nothing for Sean.
+
 ## 0-overnight. 🔵 DECISIONS TAKEN UNDER THE OVERNIGHT GRANT (2026-08-19 → 20) — each reversible in one word
 
 | # | Item | Decided by | Decision | Basis (one line; full reasoning in the linked record) |
