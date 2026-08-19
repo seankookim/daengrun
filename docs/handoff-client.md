@@ -16,9 +16,10 @@ he flips any of them with a word.
 | `ae13416` | **owner/live** planned lap + approach + entry marker under the live trace (live trace → voltDeep, was paper.line), map before first fix, legend, geo-failure notes · **report §E** (map → title → numbers → photos · ☆ → rebook panel that names a slot only when true → share → pay row) · `review.tsx ?stars=` | **verified** (live: plan-only map with Sean's stale runner_enroute booking; report: 0 km run fallback) |
 | `d42d461` | **owner/meetup §D restyle** (styling only; 19 frozen ranges proven byte-identical) · **runner journey v4 pass** (home, requests, done, earnings, meetup, availability; R6 return seal + R1c work-gate NOT built — server slice, recorded in RULINGS) · api.ts: `subscribeBooking` per-booking registry (two mounted screens on one booking threw "cannot add postgres_changes callbacks after subscribe()" — measured), `fetchMyRunnerStatus` throws on read error | owner meetup, runner home/requests/earnings **verified**; done/availability/runner meetup unverified |
 | `5638037` | **pay-after-run client half (§E.5)** — request.tsx does the four post-hold moves (bookingId · recurring · nomination · route) and replaces → radar; `booking_status` branched; `/owner/pay` unreachable (file kept for dev/pay-lab); `confirmPayment` deleted; CTA "러너 찾기 ›" | **verified** (CTA not pressed — creates a real booking) |
+| `5f20aa4` · `2ddac83` | ensureThread cross-layer comment + chat predicate narrowed to the measured 42501 shape · **runner/apply.tsx lilac → paper** (nine states proven) · **run.tsx R4/R5 cosmetics** (planned line heavier under the live trace, "실측으로 확정", end-sheet accents retired, one-coral strip stack; 14 frozen ranges byte-identical) | apply seen on sim; run unverified |
 | `f1c0c02` | **two adversarial reviews → fix batch** (no P0; P1s: report "다음 주" panel booked TODAY for 1–7-day-old runs; radar had no `expired` branch; hero hid both CTAs on refetch error; pickEarliest before prefRules; subscribeBooking teardown race; pickRoute in-band tie-break; stale nomination leaking; wrong dog named in multi-dog homes; …) + **0114 party-membership client follow-up** (schedule chat chip disabled-with-why + runner card → fact line pre-accept; chat.tsx permanent-refusal copy; runner/requests hides memo/tags/pace_label on runner_pending) | home re-verified |
 
-**Not built (server slices, recorded in RULINGS):** runner R6 return-handoff seal + R1c work-gate (`end_run_tx` has no callers; `settle-run` flips active→completed directly). **Not built tonight (optional restyles):** `runner/apply.tsx` lilac→paper; `run.tsx` R4/R5 cosmetics (planned-line opacity, "실측으로 확정" tail); 커뮤니티/마이 tabs (Sean: "later"). **Waiting on server contracts:** O-6 account deletion (settings.tsx row — 5.1.1(v)).
+**Not built (server slices, recorded in RULINGS):** runner R6 return-handoff seal + R1c work-gate (`end_run_tx` has no callers; `settle-run` flips active→completed directly). **Not built (Sean's call):** 커뮤니티/마이 tabs in this style ("later"); run.tsx R4 coral count (progress bar + CTA volt vs the lab's coral CTA — needs a ruling); R5a auto-settle tail copy. **Waiting on server contracts:** O-6 account deletion (settings.tsx row — 5.1.1(v)); 맹견 field; versioned location-consent gate (legal).
 
 **Decided under the grant (🔵):** anchors A′; after=radar; ticket off home (alert line is the ticket);
 rebook row in 오늘; report hero retired; approach leg visible on both maps; `totalKm` shown as
@@ -326,7 +327,17 @@ cd app && npx eas-cli build --platform ios --profile testflight   # publishes un
 supabase db push --linked --include-all                           # ⚠ ships held 0105 as cargo
 ```
 
-## Opener for the next session
+## Opener for the next session (updated for the night of 2026-08-19)
+
+> Client domain (all of `app/`) on daengrun, main checkout `/Users/sean/dev/daengrun` @ `redesign-v4`.
+> Read `docs/handoff-client.md` §0 (the night block) first, then the evening sections; then
+> `docs/labs/RULINGS-2026-08-19-journey.md` (#14/#15 are Sean's; 🔵 items were decided under his overnight
+> grant and he flips them with a word). The journey v3/v4 labs are now BUILT end to end (home → onboarding →
+> prefs → radar → meetup → live → report; runner home → requests → meetup → run → done → earnings). Open:
+> O-6 account-deletion settings row (contract from announcer), the R4 coral/volt ruling, 커뮤니티/마이.
+> Smoke list in §0 is what needs Sean's hardware. Never create a booking on his account (PR-0 signal).
+
+## Opener for the previous (evening) session — kept for the record
 
 > Client domain (all of `app/`) on daengrun, main checkout `/Users/sean/dev/daengrun`.
 > Read `docs/handoff-client.md` fully, then `docs/design/screen-functionality-spec.md` and
