@@ -1,5 +1,20 @@
 # Awaiting Sean — the return queue
 
+> **⚡ 2026-08-15: SEAN ANSWERED SEVEN AT ONCE.** His words, verbatim: *"1: yes i tried it, but
+> no way to download on a real phone unless they have expo no? 2: A, give me a dashboard with
+> possible solutions and etc all things necessary. 3: b. 4: A. 5: not sure what that account is
+> but yes i do have a test account under user id s4kim2025. 6: give me a brief or short report i
+> can show to a lawyer. 7: A"* **[end of Sean's words]**
+>
+> Applied: **§0** signup tried by Sean (distribution question open — see body) · **§0-quinquies ✅
+> alerts go to Sean**, dashboard commissioned; his profile measured as `aa73ce8a…` (name
+> `s4kim2025`, handle `choco`) · **§0-ter ✅ all 9 runners are TEST DATA** — trust marks them in
+> `club_test_accounts` and the flag/copy gets fixed · **§0-sexies ✅ option A** — start the
+> paperwork chain, keep the charge machine; payment-surface honesty fix unblocked · **§0-septies ✅
+> confirmed** — `aa73ce8a…` IS `s4kim2025`, recorded as the PR-0 test owner · **위치정보법 brief
+> delivered** at `docs/biz/location-law-counsel-brief.md` · **hill notes: yes, ~40 m** ("언덕
+> 많음"), ui builds.
+
 **Purpose: this queue existed only inside one session's conversation.** The announcing session
 asked for it to be written down, applying the day's first rule to itself: *unpushed reserves
 nothing.* If that session runs out of context the way the 반포 route session did, an
