@@ -89,6 +89,7 @@ export default function Radar() {
   // 수락 감지 — realtime 구독 + 10초 폴링 (벨트+서스펜더)
   useEffect(() => {
     if (!bookingId) return;
+    let nav: ReturnType<typeof setTimeout> | null = null; // 1.8초 지연 이동 — 언마운트 시 취소
     const check = async () => {
       if (matchedRef.current) return;
       try {
@@ -97,7 +98,7 @@ export default function Radar() {
           matchedRef.current = true;
           haptic('success');
           setMatchedName(b.runnerName ?? '러너');
-          setTimeout(() => router.replace('/owner/schedule'), 1800);
+          nav = setTimeout(() => router.replace('/owner/schedule'), 1800);
         } else if (b.status.startsWith('cancelled')) {
           matchedRef.current = true;
           router.replace('/owner/home');
@@ -107,7 +108,7 @@ export default function Radar() {
     check();
     const unsub = subscribeBooking(bookingId, check);
     const poll = setInterval(check, 10_000);
-    return () => { unsub(); clearInterval(poll); };
+    return () => { unsub(); clearInterval(poll); if (nav) clearTimeout(nav); };
   }, [bookingId]);
 
   const cancel = () => {
