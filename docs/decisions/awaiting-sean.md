@@ -316,7 +316,13 @@ recorded here so nothing lives only in chat.
   production post-flip: stranger CHANNEL_ERROR on every cell, both modes, both topic shapes. Prereqs
   landed first: 0108 (chat/bk/club-chat realtime policies, adversarially reviewed) applied; ui client
   9012d7a makes all four families private+setAuth; forced-upgrade population = 0 (no build ever
-  shipped). GATE STILL OPEN on the positive instrument: ui must confirm on production that the real
+  shipped). Legal re-ran both scripts independently (same result) AND ran the control that
+  distinguishes shut from dead: same anon key, REST read → HTTP 200 — key valid, project up, the
+  refusals are real authorization decisions. **Exposure window bounded (measured, prod):** channel
+  public 2026-07-25 → 08-19 (25 days); 9 runs carried location, ALL with runner = owner = the same
+  account, and that account is `aa73ce8a…` = `s4kim2025` — Sean's confirmed test account. **No third
+  party's location was ever on the channel; real data did traverse it (say it that way, not
+  "population zero").** GATE STILL OPEN on the positive instrument: ui must confirm on production that the real
   owner/host still RECEIVES on chat, bk, club-chat and run2 — until then this reads "negative arm
   proven, positive arm pending"; revert = one PATCH `private_only=false`.** Earlier honest line kept
   for the record: **server half correct and live (0103/0104), client half shipped (`f106b2b`, all run
