@@ -26,6 +26,14 @@
 > client offers (an email door left open server-side is a signup path outside the app); the
 > TestFlight install-day check becomes "Kakao sign-in works on a real phone."
 
+> **⚡ 2026-08-15, later: OPS DASHBOARD LOCATION RULED.** Sean: *"B. a simple web build is fine."*
+> — the dashboard is a **standalone local web tool on his computer**, not an in-app screen. So:
+> no new party-gated read RPC, no migration number, trust's §6 question is answered, and the tool
+> reads the two service-role detection functions from a local server on his machine only (the
+> service key never ships in any client). ui builds the page against trust's read contract; trust
+> reviews the key handling. The in-app version and the push emitter (nothing emits today —
+> 0096/0097 are pull-only) both remain open items, deliberately unsmuggled into this slice.
+
 **Purpose: this queue existed only inside one session's conversation.** The announcing session
 asked for it to be written down, applying the day's first rule to itself: *unpushed reserves
 nothing.* If that session runs out of context the way the 반포 route session did, an
