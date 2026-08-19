@@ -292,6 +292,23 @@ zero — so the exclusion is already applied by your judgement and is simply und
 migration: a recorded owner id + a documented count query. One line from you confirms this is the
 flagged-test-owner policy, and then it gets written into the PR-0 doc.
 
+## 0-octies. 🔴 /cso AUDIT 2026-08-19 — three P0 fixes routed, none need Sean; one launch gate parked for catalog
+
+Full JSON at `.gstack/security-reports/2026-08-19-cso.json` (local). Owners already messaged;
+recorded here so nothing lives only in chat.
+
+- **CRIT — runner live GPS is a public broadcast channel** (`geo.ts:341`, no `private`, zero
+  `realtime.messages` policies; legal measured two anon clients read AND write). → **trust + ui.**
+  Ordering: `docs/legal/privacy-policy.md:81` cannot publish until private.
+- **HIGH — `bookings owner insert` forges party status** (any dog, any runner) → push text to
+  any runner, fake public review, chat, dog read. Executed, rolled back. → **trust.**
+- **HIGH — `drops` UPDATE unguarded; open-drop pays from it.** Executed on a staged row. → **trust.**
+- **Dashboard (Sean, minutes):** email provider OFF · redirect allowlist → `daengrun://login` only.
+- **LATENT launch gate → catalog (offline when routed; parked here):** four route evidence
+  columns are anon-readable (`verified_run_id`, `verified_runner_id` → profiles, `checked_at`,
+  `checked_by`) and LOAD-BEARING for `routes_active_is_earned` — **revoke/view, never drop.**
+  No route may be promoted until closed. Legal's find; every value NULL today.
+
 ## 1. 🟢 CLOSED IN PRODUCTION 2026-08-14 — off your queue, nothing to decide
 
 > **🟢 is not ✅ and must never be read as one.** ✅ in this directory means *Sean's own words are
