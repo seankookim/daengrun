@@ -247,3 +247,13 @@ two false "stranded work" alarms on day one.
 - **A metric optimised anywhere in a pipeline can outrank the goal it proxies (route geometry):** the planner sorted destinations by
   |distance − target| and walked past the near park to hit a number; Sean saw it three times from the map. Same failure as naming a
   5.4 km route "3km". And a rule that lives in two places disagrees eventually (5 km cap ×2, 1.5–7.5 km range ×3, surface-mix ×2).
+- **A fixture that establishes the property under test makes the suite an echo of itself (catalog, 0112):** suite 142 dropped and
+  RE-CREATED `routes_public` and re-applied its own revoke, so the new pin measured the fixture, not the migration — green with the
+  fix deleted. Rename the object aside and back (a rename carries the ACL); never recreate what the pin is about. Second order: **a
+  recreated view gets a fresh default ACL** — the 0112 watchdog (no client DML on any view) exists so that re-opening is red, not quiet.
+- **A definer view is born writable (catalog + announcer, 0112):** postgres's default ACL grants client DML; a single-table view is
+  auto-updatable; writes through it run as the owner and bypass RLS on the base table. Measured: anon UPDATEd `routes` through
+  `routes_public`. The rule is view-specific — tables have RLS behind their DML (60/62 correct), definer views have nothing — so do
+  NOT revoke default DML schema-wide; revoke on every view and keep the watchdog pin.
+- **"Is there an older binary in the field?" is a measurement, not a guess (catalog, trace revoke):** a simulator pass says nothing
+  about installed builds; `eas build:list` / `update:list` and the TestFlight state do. Tonight: zero builds ever → the revoke was free.
