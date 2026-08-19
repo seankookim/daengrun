@@ -1,5 +1,17 @@
 # Awaiting Sean — the return queue
 
+> **⚡ 2026-08-19 late evening: OVERNIGHT GRANT.** Sean, verbatim: *"i will be gone overnight, do not
+> stop until i come back. let the others know as well; continue advancing the app, no permissions
+> asked, do not ask me for input, decide independently."* **[end of Sean's words]**
+>
+> Applied by the announcer as: every open item below that was waiting on a *decision* gets decided by
+> the announcer tonight under this grant, marked **🔵 decided-under-overnight-grant** (never ✅ — a
+> stand-in's call is reversible and carries its reasoning so Sean can flip it in one word in the
+> morning). Physical/credential items (dashboard toggles, Apple 2FA, counsel forward) stay his by
+> nature. Gates stay in full: harness → contract → adversarial reviewer ≠ author → land → deploy via the
+> wrapper → verify live → record. Sessions keep building; the announcer keeps the console and this file
+> current through the night. Decisions taken tonight are listed at §0-overnight below.
+
 > **⚡ 2026-08-15: SEAN ANSWERED SEVEN AT ONCE.** His words, verbatim: *"1: yes i tried it, but
 > no way to download on a real phone unless they have expo no? 2: A, give me a dashboard with
 > possible solutions and etc all things necessary. 3: b. 4: A. 5: not sure what that account is
