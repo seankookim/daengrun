@@ -13,11 +13,20 @@ rather than measurement it says so.
 
 ⚠ **Two different trees, stated so no citation is ambiguous.** Server cites (`supabase/**`,
 migrations, suites) are from this worktree at **`8d33cde`**, which matches origin for those paths.
-**Client cites (`app/**`) are re-measured against `origin/redesign-v4` at `58c20c2`** — ui2 landed
-`68a4257` (request.tsx rebuild) mid-scout and trunk moved again to `58c20c2` (0110). Everything in
-§A.7 and §E.5 was re-read from origin, not from this worktree; the two client facts that **changed
-during the scout** are flagged inline (`⟳`) rather than silently corrected, because a reader
-comparing against an older handoff will otherwise think one of us is wrong.
+**Client cites (`app/**`) are re-measured against `origin/redesign-v4` at `cf162b1`** — ui2 landed
+`68a4257` (request.tsx rebuild) mid-scout, trunk moved to `58c20c2` (0110), and then `cf162b1`
+rebuilt the radar and made the pay screen route onward with `after: 'radar'`. Everything in §A.7
+and §E.5 was re-read from origin at `cf162b1`, not from this worktree; the client facts that
+**changed during the scout** are flagged inline (`⟳`) rather than silently corrected, because a
+reader comparing against an older handoff will otherwise think one of us is wrong.
+
+**Revision 2 (2026‑08‑19 night): this file has been through an adversarial review that executed
+its own measurements and returned FIX-CONTRACT-FIRST.** Every finding is applied below and the
+findings themselves are listed in **§H — Review log**, together with the two announcer decisions
+that closed the forks the reviewer opened. Read §H first if you are comparing this against an
+older copy: the two structural changes are that **`payment_ok` is removed in ONE move, not two**
+(§C.2), and that **the three non-payment side effects hiding in `pay.tsx` move into
+`request.tsx`** (§E.5.1) rather than quietly disappearing with the screen.
 
 ---
 
@@ -105,8 +114,10 @@ amount, no Toss anything.** Independently recorded as such by the 0111 reviewer
 verifies NOTHING about payment, zero money moved").
 
 Client callers, measured across the whole `app/` tree: exactly one —
-`app/src/lib/api.ts:399-405`, `body: { booking_id: bookingId, action: 'payment_ok' }`, called
-from `app/app/owner/pay.tsx:171` only. One more caller outside the app: `scripts/e2e.mjs:232-234`.
+`app/src/lib/api.ts:402-408`, `body: { booking_id: bookingId, action: 'payment_ok' }` (`:404`),
+called from `app/app/owner/pay.tsx:171` only. One more caller outside the app:
+`scripts/e2e.mjs:232-236` (a `step('payment_ok → matching')` that asserts the booking reaches
+`matching` — it is a **required** step of the script, not an optional probe).
 
 `confirm-payment` does **not** use `payment_ok`: it CASes the booking itself
 (`supabase/functions/confirm-payment/handler.ts:192-198`, same `.eq('status','payment_hold')`
@@ -190,33 +201,55 @@ disjoint sibling CTEs — merging them is a declared contract violation (`0080:9
 `slot_holds` rows carry a 5-minute `expires_at` (`create-booking-hold/handler.ts:233`) and are
 reaped by `purge-holds`. Since 0111 they name no runner, so they block nobody.
 
-### A.7 The client, today — re-measured against `origin/redesign-v4` @ `58c20c2`
+### A.7 The client, today — re-measured against `origin/redesign-v4` @ `cf162b1`
 
 - **`app/app/owner/request.tsx` is the ONE hold-creation entry point in the whole app.** Measured
   by enumerating every `.ts`/`.tsx` blob on origin: `createBookingHold` is called at
-  **`request.tsx:445`** and nowhere else (the only other hit is its own import at `:6`). The
-  response is narrowed at `:467-468` to `booking_id` + `hold_expires_at`, and the push is
-  **`request.tsx:493`**: `router.push({ pathname: '/owner/pay', params: { bid, …recurring, …exp } })`.
-  The file states the hand-off in its own words at `:465` (*"홀드까지가 요청 화면의 몫이고, 확정과
-  그 이후(리커링·지명·라우팅)는 /owner/pay가…"*) and again at `:562`.
+  **`request.tsx:449`** and nowhere else (the only other hit is its own import at `:6`). The
+  response is narrowed at `:471-472` to `booking_id` + `hold_expires_at`, and the push is
+  **`request.tsx:500`**:
+  `router.push({ pathname: '/owner/pay', params: { bid, after: 'radar', …recurring, …exp } })`.
+  **The push already carries `after: 'radar'`** (added by `cf162b1`, explained in its own comment
+  at `:495-497`: *"once pay.tsx confirms the hold with NO nomination, land on the rebuilt radar"*)
+  — so the destination after the hold is already decided and only the screen in between is being
+  deleted. The file states the hand-off in its own words at `:469-470` (*"홀드까지가 요청 화면의
+  몫이고, 확정과 그 이후(리커링·지명·라우팅)는 /owner/pay가…"*) and again at `:569`. **That
+  sentence is the law §E.5.1 has to repeal**, not a stray comment: the three things it names
+  (리커링 · 지명 · 라우팅) are the three things `pay.tsx` does that are not payment.
+- **`request.tsx` owns the 매주 반복 toggle and it is a real control.** `recurringOn` state at
+  `:262`, the toggle UI at `:942-955`, the fold summary that refuses to hide a live value at
+  `:565`, and the parameter handoff at `:500` (`...(recurringOn ? { recurring: '1' } : {})`).
+  **The screen that consumes that parameter is the screen being deleted** (§E.5.1 / F1).
 - ⟳ **The Find-Now second entry point is GONE, and this correction is load-bearing.** At this
   worktree's base (`8d33cde`) `app/app/owner/home.tsx:599/:623` created its own hold and pushed
-  `/owner/pay` — a second stranding path. On origin at `58c20c2` home.tsx (674 lines, rebuilt by
-  ui2) has **no** `createBookingHold` and **no** `/owner/pay` route; its only booking route is
-  `:261` / `:544` → `/owner/request`. So §E.5's client change is **one file, not two**. Recorded
-  rather than silently deleted: any handoff or lab doc written before `68a4257` still describes
-  two entry points and a push at `:395`/`:406`, and that is doc drift (§G.10) — cite `:493`.
-- `app/app/owner/pay.tsx`: loads `fetchBookingCharge` (`:95-108`), derives phase from server
-  status via `src/lib/payphase.ts:47` (`payment_hold: 'mock_pending'`), primary button reads
-  **`예약 확정하기`** with `TOSS_ENABLED=false` (`:447`), and calls `confirmPayment(bookingId)`
-  at `:171`. No timer; `exp` is a static string (`:80-83`). Copy at `:391-393`: *"결제 수단 연동
-  준비 중 — 파일럿 기간에는 확정 시 실결제가 발생하지 않아요"*. No cancel CTA, and the file says
-  why (`:455`): `payment_hold → cancelled_owner` is not in the map.
+  `/owner/pay` — a second stranding path. On origin at `cf162b1` home.tsx has **no**
+  `createBookingHold` and **no** `/owner/pay` route; its only booking route is → `/owner/request`.
+  So §E.5's client change is **one file, not two**. Recorded rather than silently deleted: any
+  handoff or lab doc written before `68a4257` still describes two entry points and a push at
+  `:395`/`:406`, and that is doc drift (§G.10) — cite `:500`.
+- **`app/app/owner/pay.tsx` is not only a payment screen, and this is the single most important
+  client fact in the file** (F1). It loads `fetchBookingCharge` (`:96-113`), derives phase from
+  server status via `src/lib/payphase.ts:47` (`payment_hold: 'mock_pending'`), its primary button
+  reads **`예약 확정하기`** with `TOSS_ENABLED=false` (`:447`), and it calls
+  `confirmPayment(bookingId)` at `:171`. No timer; `exp` is a static string (`:80-83`). Copy at
+  `:391-393`: *"결제 수단 연동 준비 중 — 파일럿 기간에는 확정 시 실결제가 발생하지 않아요"*. No
+  cancel CTA, and the file says why (`:455`): `payment_hold → cancelled_owner` is not in the map.
+  **But `postConfirm` (`:126-166`) runs three effects that have nothing to do with payment** —
+  enumerated in §E.5.1, all three of which die with the screen unless they are moved.
 - `app/src/lib/api.ts` is **unchanged by the rebuild** at every line this contract depends on:
-  `HoldResult` at `:357` (still no `paid_path`), `confirmPayment` at `:399-405` with
-  `action: 'payment_ok'` at `:401`, and `fetchMyBookings`'s
-  `.not('status','in','(draft,quoted,payment_hold)')` at **`:3732`** — **a booking sitting in
-  `payment_hold` is invisible in 내 일정.**
+  `HoldResult` at `:360` (still no `paid_path`), `createRecurringSeries` at `:390`, `confirmPayment`
+  at `:402-408` with `action: 'payment_ok'` at `:404`, and `fetchMyBookings`'s
+  `.not('status','in','(draft,quoted,payment_hold)')` at **`:3767`** (with the comment at `:3766`
+  saying why: *"결제 미완 유령(draft/quoted/payment_hold)은 일정이 아니다"*) — **a booking sitting
+  in `payment_hold` is invisible in 내 일정.**
+- **`app/app/owner/radar.tsx` requires `draft.bookingId`, and bounces to home without it.**
+  `:68` `const bookingId = (typeof bidParam === 'string' && bidParam) || draft.bookingId;` and
+  `:83-86` *"부킹 없이 진입하면 홈으로"* → `router.replace('/owner/home')`. `request.tsx` never sets
+  `draft.bookingId` on success (only clears it on failure, `:477`); `pay.tsx:127` is the only
+  writer. **So routing to the radar without first setting `draft.bookingId` is a bounce to home,
+  not a radar.** This is the hard requirement §E.5.1 is built around.
+- `app/app/owner/matching.tsx` gates its whole live mode on the same field: `:141`
+  `const live = !!draft.bookingId;` (and `:169`, `:172`, `:175`, `:211`).
 - ⟳ request.tsx also now carries route-pick nearest-point ranking and a `totalKm` including the
   approach leg (rulings #14/#15). **Irrelevant to payment mechanics** — noted only so a reader
   diffing the file does not mistake it for scope creep in this slice.
@@ -258,25 +291,60 @@ and the answer recorded in the same file (`:42-44`):
 
 **B.4 What strands if only the client reroutes.** `payment_ok`'s CAS is the *only* thing that
 moves a widget-path booking out of `payment_hold` (A.1, A.3). Delete the `/owner/pay` push at
-`request.tsx:493` and every pilot booking — every owner has no billing key (production
+`request.tsx:500` and every pilot booking — every owner has no billing key (production
 `billing_keys` = 0 rows), so every booking is widget path — sits at `payment_hold`, where:
 
 1. it is **not** in `marketplace_open_requests` (the view requires `status = 'matching'`,
-   `0056_decline_log.sql:64-65`), so no runner ever sees it;
-2. it is **invisible in the owner's 내 일정** (`api.ts:3732`);
+   `0056_decline_log.sql:63-64`), so no runner ever sees it;
+2. it is **invisible in the owner's 내 일정** (`api.ts:3767`);
 3. `e_hold` reaps it **silently** at 30 minutes (`0080:948-953`; the silence is pinned by 100 W7).
 
 The owner watches a radar for a run that no runner can see, and 30 minutes later it is gone
 without a word. **That is the strand, and it is why ui correctly declined to reroute alone**
 (`docs/handoff-announcer.md:80`, `:118-122`).
 
-**B.5 A transitional hazard the ordering must handle.** If the server starts landing bookings in
-`matching` while a build that still calls `confirmPayment` is on a phone, that call hits the CAS
-with the row already at `matching` → 0 rows → the existing 409 *"결제 시간이 만료됐어요 — 예약을
-다시 만들어주세요"* on a booking that is perfectly healthy. A false expiry message is exactly the
-class of lie the honesty laws forbid. Shipped population is zero today
-(`docs/decisions/awaiting-sean.md` §0-duodecies), which makes this cheap to get right now and
-expensive later.
+**B.5 What an OLD build actually does against the NEW server — corrected (F2).**
+
+Revision 1 of this file claimed the hazard was a **false expiry 409**: an old build calls
+`confirmPayment` on a row already at `matching`, the CAS returns 0 rows, and the owner is told
+*"결제 시간이 만료됐어요"* about a perfectly healthy booking. **That is wrong, and the reviewer
+executed the real path.** `payment_ok` is never called at all, because the old build never renders
+the button that calls it:
+
+1. `create-booking-hold` (post-C.1) lands the booking in `matching` inside the request.
+2. `pay.tsx:104` derives the phase **on load** from the server status — `const phase =
+   derivePayPhase({ status: c.status, attempt: attempt.current })`.
+3. `src/lib/payphase.ts:50` maps `matching → 'authorized'` (as do `runner_pending`, `confirmed`,
+   `runner_enroute`, `picked_up` at `:51-54`). The comment at `:49` already anticipated a booking
+   arriving past the hold — it was written for club bookings, which never pass through
+   `payment_hold` at all.
+4. The `'authorized'` footer is a single CTA: **`내 일정에서 확인하기`** (`pay.tsx:467-469`). The
+   `예약 확정하기` button only renders under `screen === 'mock_pending'` (`:445-452`), which
+   requires `status = 'payment_hold'`. **It is never drawn.**
+
+So the old build produces a **benign confirmation screen** — no 409, no false expiry, no error of
+any kind. What it produces instead is a **silent omission**, and that is the real hazard:
+`postConfirm` (`pay.tsx:126-166`) never runs, so that booking gets **no `draft.bookingId`, no
+recurring series, and no runner nomination** — the three effects of F1 — and the owner is told
+nothing, because from the screen's point of view everything succeeded. Tapping the CTA lands them
+in 내 일정 where the booking really is (it is `matching`, so `api.ts:3767` lets it through).
+
+🔵 **ANNOUNCER DECISION (a) — this is a smoke-list line, not a mitigation.** Shipped population is
+**zero**: `docs/decisions/awaiting-sean.md` §0-octies records *"forced-upgrade population = 0 (no
+build ever shipped)"* (`:502`) and the EAS build count was re-verified as 0 earlier tonight. There
+is no phone in the world running a pre-change build, so **no code is written to defend against
+one.** What is owed instead is one line on Sean's hardware smoke list, because his own device is
+the one place a stale binary can appear:
+
+> **Smoke list:** *a pre-change build shows 예약이 확정됐어요 with no recurring series and no
+> nomination — silently, with no error. That is the old binary meeting the new server, not a
+> regression. Update the build.*
+
+**Consequence for the ordering (§E) and for §C.2:** the entire justification for shipping
+`payment_ok` in two moves was to protect this population. There is no population, the failure mode
+is not the one that was feared, and the idempotent-success shim would not have helped anyway — the
+call it was meant to soften is never made. **Move 1 is deleted; `payment_ok` is removed in ONE
+move** (§C.2).
 
 ---
 
@@ -299,8 +367,25 @@ the instant CAS unconditional while the flag is NULL.
     // replacing handler.ts:246
     if (paidPath === "card" || !chargingLive) { …existing CAS + compensate()… }
 
-`service_role` holds SELECT on `ops_flags` (measured against production), so no grant change and
-no RPC is needed.
+`service_role` holds SELECT on `ops_flags` (**verified** against production), so no grant change
+and no RPC is needed.
+
+**This read is a NEW HARD DEPENDENCY, and that must be stated rather than buried in a diff (F6).**
+Today `create-booking-hold` does not touch `ops_flags` at all; after C.1 **every booking in the
+product depends on that one row being readable**. Fail-closed (500, no booking created) is the
+right answer for a money-adjacent gate — the same shape the debt lock already uses at
+`handler.ts:152-159` — but "right" is not the same as "obvious", so it is **pinned, not assumed**:
+
+> **Deno pin (D.10)** — with the `ops_flags` SELECT stubbed to return an error, the call returns
+> **500** and the `bookings` and `slot_holds` row counts are **unchanged**. A booking must never be
+> created by a request that could not read the flag, and a flag read failure must never be
+> swallowed into "assume charging is off".
+
+⚠ **`ops_flags` is not "sealed" in a privilege sense — do not describe it that way (F15).** RLS is
+enabled on it (`0080:187`) with **zero policies**, and that — not a revoke — is what closes it to
+`anon`/`authenticated`. The table-level DML grants are still held by those roles; RLS is the only
+thing standing there. It is the same shape as 0111's R5 finding on `slot_holds`. Nothing in this
+slice changes it, and nothing in this slice may claim credit for it.
 
 Everything else is untouched: the same `draft → quoted → payment_hold` ladder
 (`handler.ts:228-231`), the same `slot_holds` row, the same CAS statement, the same
@@ -316,25 +401,96 @@ client must never have to guess whether a further call is required.
 keeps the money session's post-flip surface theirs to design. See C.3 for the arm that must NOT
 be a silent revert.
 
-### C.2 [REC] `payment_ok` stops being a client step — in two moves, not one
+#### C.1a — 🔵 Accepted consequence: **abandonment stops being silent** (F9)
 
-**Move 1 (ships with C.1).** Make the arm idempotent-success when the booking is already at or
-past `matching`, using the repo's own established re-tap idiom (`enroute`,
-`transition-booking/index.ts:252-257`; `arrived`, `:281-286`; `runner_accept`, `:58`):
+C.1 does not only shorten a ladder; it **changes what a half-finished booking means**, and the
+reviewer was right that shipping this without naming the change would be shipping a surprise.
+Today a booking that dies at `payment_hold` is invisible to everyone and vanishes without a word.
+After C.1 the booking is **`matching` at hold-creation time**, which means it is in
+`marketplace_open_requests` **immediately** — and that view publishes the dog's name, breed,
+weight, memo, photo, preferences and vaccinations (`0056:44-58`, columns carried verbatim from
+0042) to **every active runner** (`is_active_runner()`, `0056:65`), and keeps publishing until
+`scheduled_at` passes and `e_match` expires it.
 
-- owner gate first, unchanged (`:30`);
-- CAS on `payment_hold`, unchanged;
-- 0 rows → **re-read** the row (never trust the stale `bk` snapshot — the `arrived` lesson at
-  `:281-282`): if the status is `matching` or later, `return { unchanged: true }`; otherwise keep
-  the existing honest 409 (`expired`, `draft`, cancelled … really are refusals).
+Concretely, the three things that change:
 
-This is honest — the caller asked for the booking to be at `matching` and it is — and it removes
-the B.5 hazard **in both deploy orders**.
+- **A force-quit during the hold modal can now get you a matched runner.** The owner who closed
+  the app mid-flow used to have nothing; now they have a live open request, and a runner may
+  accept it while they are not looking.
+- **`e_hold` becomes unreachable for the pilot** (`0080:948-955`). Nothing lands in `payment_hold`
+  and stays, so the 30-minute silent reaper has nothing to reap. Its pin (100 W7) stays green
+  because the suite inserts its fixtures directly in SQL (N5), but the *product* no longer
+  produces its input.
+- **The disappearance moves from silent to spoken.** An abandoned booking now expires via
+  `e_match` at `scheduled_at` **with a notification** whose post-pay arm already says the honest
+  thing — *"시작 시간까지 러너를 찾지 못했어요 — 결제된 금액이 없어 청구되지 않아요"*
+  (`0080:944-946`).
 
-**Move 2 (after ui2's build ships).** Delete the `case "payment_ok"` block entirely. It then
-falls to `index.ts:397-398` `unknown action payment_ok` → 400, and the action leaves the header
-list at `index.ts:3`. Delete `confirmPayment` from `app/src/lib/api.ts:399-405` in the same
-breath.
+🔵 **The announcer accepts this consequence under the overnight grant**, on three grounds: it is
+the *unavoidable* shape of "a booking is free to make" (there is no version of pay-after-run in
+which a booking waits for a payment that does not exist); the honesty laws prefer a spoken ending
+to a silent one; and **the owner is not trapped** — P6/P7 pin the exit that C.1 creates
+(`matching → cancelled_owner` is in the map at `0066:46`, `marketplace_cancel_fee` returns 0 on an
+unmatched booking at `0066:77`, and the booking is now visible in 내 일정 to cancel *from*). Under
+the old flow the owner had no cancel CTA at all (`pay.tsx:455`). **The mitigation is the exit, and
+the exit is pinned.**
+
+#### C.1b — a hole C.1 closes for free, which must be pinned as a positive (F11)
+
+The same-dog clash guard (`create-booking-hold/handler.ts:177-191`) checks a **LIVE list that
+deliberately excludes `payment_hold`**: `["matching","runner_pending","confirmed","runner_enroute",
+"picked_up","active"]` (`:179`), with the comment at `:177-178` saying why (*"draft/payment_hold
+잔재나 종결 상태는 차단 사유가 아니다"*). That is correct today — a stale hold must not block a
+retry — but it means **two overlapping holds for the same dog can both be created right now**, and
+the second only fails later, if at all. After C.1 the first booking is already `matching` when the
+second request runs its guard, so **the second is refused at `:191`** with the existing honest
+sentence *"이 시간대에 같은 아이의 예약이 이미 있어요"*. This is a real improvement, it was not
+designed for, and an undesigned improvement is exactly the kind that gets refactored away by
+someone who did not know it existed — so it gets a **positive pin (P8)**, not a footnote.
+
+### C.2 [REC] `payment_ok` is deleted — 🔵 in ONE move, with C.1 (revised, F2)
+
+**Revision 1 sequenced this as two moves: an idempotent-success shim first, the deletion later.
+That shim is deleted from the plan.** It existed solely to protect an old build from a false
+expiry 409, and §B.5 measured that the old build never makes the call at all — the button that
+would make it is never rendered, because `payphase.ts:50` maps `matching → 'authorized'`. A shim
+that softens a call nobody makes is dead code shipped on purpose, plus an extra deploy, plus a
+`payment_ok.ts` extraction and a `payment_ok_test.ts` that exist only to be deleted a week later.
+🔵 **ANNOUNCER DECISION: one move.**
+
+**The single move, shipped with C.1:**
+
+- delete the `case "payment_ok"` block, `transition-booking/index.ts:29-51`;
+- drop `payment_ok` from the action list in the file header, `index.ts:3`;
+- delete `confirmPayment` from `app/src/lib/api.ts:402-408`;
+- update `scripts/e2e.mjs:232-236` in the same slice (F14 — see §E.5.2). It calls `payment_ok` as
+  a **required** step, so it breaks at exactly one moment, and because there is now only one
+  moment there is only one thing to keep in sync.
+
+The action then falls through to the default at `index.ts:397-398` — `throw new HttpError(400,
+\`unknown action ${action}\`)` — which is the correct answer to a caller asking for a step that no
+longer exists.
+
+**No extraction is needed any more.** Revision 1 required moving the arm into
+`transition-booking/payment_ok.ts` because `index.ts` has `Deno.serve` at module top level and
+cannot be imported by a test (`index.ts:326-328`, `:334-337` — the stated reason `cancel_owner.ts`
+and `start_run.ts` are separate files). With no shim to pin, there is nothing to extract and
+`payment_ok.ts` / `payment_ok_test.ts` are **never created**.
+
+**What survives the deletion is one pin (F7/F13), and it matters more than it looks.** The
+reviewer established that **nothing in the repo asserts `payment_ok` today** — not one SQL suite,
+not one Deno test (`grep -rn payment_ok supabase/tests/ supabase/functions/_test/` returns only a
+prose mention inside `harness.sh:184`). In particular `146_booking_entry_suite.sql` **D-15**, which
+two contracts described as pinning the bare `payment_ok` CAS, actually pins **`request_runner`'s**
+CAS (`146:776`, `:797` — *"request_runner의 한 문장 CAS(service_role)는 그대로 1행"*). That claim
+is corrected in both files (§H/F13).
+
+So this deletion removes behaviour **that nothing asserts** — which is precisely why the slice must
+leave an assertion behind rather than a hole:
+
+> **New Deno pin (N9)** — `action: 'payment_ok'` on a real booking, as its real owner, returns
+> **400 `unknown action payment_ok`** (`index.ts:397-398`). Not 403, not 409, not 200. The step is
+> gone and the server says so.
 
 **Why removal and not "keep it, it's harmless":** an action named for a payment that verifies
 nothing about payment and takes no money is a costume, and this repo's honesty law is about
@@ -367,6 +523,53 @@ a Deno test with a faked flag (D.9). Whether *refusal* is the right product answ
 versus letting the owner book and catching them with the debt lock after one uncollected run — is
 **Sean's** call (§F.1); what is not negotiable is that it must not silently become `payment_hold`.
 
+#### C.3a — ⚠ the flip-day exposure is the IN-FLIGHT stock, and C.3 does not touch it (F4)
+
+Revision 1 framed the flip-day risk as *"card-less owners silently landing back in
+`payment_hold`."* **The reviewer measured the larger one, which is the bookings that already
+exist when the flag is set**, and it needs naming here even though the fix is not this slice's.
+
+**The mint keys on RUN END, not on booking creation.** `0084:265-266`:
+
+    select coalesce(r.ended_at, now()) into v_ended from runs r where r.booking_id = p_booking;
+    if coalesce(v_ended, now()) < v_since then return; end if;   -- pilot-era run: free, forever
+
+The comment says *"pilot-era run: free, forever"*, and for a run that **ended before** the flip
+that is exactly true. But a booking created before the flip whose run ends **after** it is not a
+pilot-era run by this predicate. So on flip day, every already-`matching`/`confirmed` booking held
+by a card-less owner walks this chain:
+
+1. run ends after `payments_live_since` → `mint_settle_charge_intent` mints a **pending** row;
+2. `dispatchCharge` finds no billing key → returns `skipped_no_card` and deliberately writes **no**
+   dispatch marker (`_shared/charge.ts:184-190`, and the comment says why: the never-dispatched
+   pending is the only shape the stale sweep may close);
+3. one hour later `sweep_stale_payment_intents` flips it to **`failed`** — and because the row is
+   server-minted (`raw->>'kind'` is non-null) it fires **an owner notification**:
+   *"지난 러닝 이용료 결제를 시도하지 못했어요 — 설정 > 결제 관리에서 확인해주세요"* (`0080:818-837`);
+4. `owner_has_unsettled_charge` now returns true for that owner (`0080:511-528`: `status='failed'`
+   + kind non-null + a `runs` row with `ended_at`), and **the debt lock locks them out** of
+   creating any new booking (`create-booking-hold/handler.ts:152-159`).
+
+**C.3 does not help with any of this, and §F.1(a) bounds NEW ENTRIES ONLY.** A refusal at
+booking-creation time cannot reach a booking that was created yesterday. The owners hit by this are
+precisely the ones who did nothing wrong: they booked while booking was free.
+
+**[REC] — the flip procedure must carry a cut-over rule for in-flight bookings.** This contract
+does not choose it; it refuses to let the flip ship without one. The candidate shapes:
+
+- **(i)** `payments_live_since` applies to bookings **CREATED** after it — i.e. the mint gains a
+  `bookings.created_at >= v_since` arm alongside the run-end arm. Cleanest semantics ("the deal you
+  booked under is the deal you get"), and it changes a definer function, so it is a migration.
+- **(ii)** the money session **drains** in-flight bookings before flipping — pick a flip moment
+  with no unfinished runs, which the pilot's volume makes realistic.
+- **(iii)** the money session **annotates** them — mark the pre-flip stock and have the mint skip
+  it, which is (i) with an explicit column instead of a derived predicate.
+
+⚠ **This is the money session's slice, not this one.** It is recorded here because this contract is
+where the flip's blast radius was measured, and a measured hazard that lives only in a review
+thread is a hazard nobody owns. Nothing in §C is blocked on it — the flag is NULL, `payments` and
+`billing_keys` are both 0 rows, and every one of these paths is unreachable until Sean flips it.
+
 ### C.4 What changes when charging flips — **the money session's slice, not this one**
 
 Named here so nobody re-derives it, and explicitly **out of scope**:
@@ -381,10 +584,49 @@ Named here so nobody re-derives it, and explicitly **out of scope**:
   deployed today (A.4).
 - C.3's `card_required` refusal is the seam between the two, and the money session may replace it
   with anything that is not a silent `payment_hold`.
+- **The in-flight cut-over rule (C.3a) is theirs, and it is a precondition of the flip, not a
+  follow-up to it.** `payments_live_since` currently keys the mint on **run end**, so flipping it
+  with unfinished card-less bookings on the books converts each of them into a failed charge, an
+  owner notification, and a debt lock. One of C.3a's three shapes must be chosen and pinned before
+  the flag is ever set. This contract does not choose; it refuses to let the choice go unmade.
 - The pre-flight order is unchanged and already written:
   `docs/biz/payments-paperwork-checklist.md` §5 and `docs/pre-charging-checklist.md` §2.1–2.6.
 
 ### C.5 What is NOT touched
+
+#### C.5.0 First, a premise this contract had wrong — **not every booking passed through a hold** (F10)
+
+Revision 1 argued C.1 as *"the hold ladder stops being a two-step for the pilot."* That framing
+implied every booking in the product is born at `payment_hold`. **It is not, and it has not been
+since 0026.** `generate_recurring_bookings` (`0111:272-386`, cron `recurring-gen` `7 * * * *`,
+active) inserts **directly** at `matching` or `runner_pending`:
+
+    0111:369-376   insert into bookings (…, status, …) values
+                     (…, (case when v_runner is null then 'matching' else 'runner_pending' end)::booking_status, …)
+
+— no `slot_holds` row, no hold window, no `payment_hold`, no `payment_ok`. 0026's own header said so
+at the time (`0026_recurring.sql:10`): *"결제: 현재 payment_ok 모의 단계라 크론 생성 예약은 결제
+단계 없이 matching/runner_pending 직행."*
+
+**So C.1 does not invent a shape; it makes `create-booking-hold` CONSISTENT with a shape the
+product has always had on its other entry.** That is a materially stronger argument than the one
+revision 1 made, and it retires Alt‑1's implied objection entirely.
+
+**The two surfaces do differ post-flip, and the difference is deliberate.** `generate_recurring_bookings`
+reads the same flag (`0111:288`) and applies the same money gates (0080 §0-ter #3 ⓑ/ⓒ,
+`0111:339-355`) — but a card-less owner post-flip is **BLOCKED WITH A NOTIFICATION**
+(*"반복 예약이 결제 문제로 쉬어가요 — 결제 문제를 해결하면 다시 시작돼요"*, `0111:347-351`) and
+the loop `continue`s, whereas C.3 **refuses at entry** with `card_required`. Both are honest; they
+differ because **a refusal can be shown on a screen and a background sweep has no screen** — an
+hourly cron cannot open a card-registration sheet, so its only honest move is to pause and say so.
+
+⚠ **Therefore §F.1's answer must be stated ONCE and applied to BOTH surfaces.** If Sean answers
+F.1 with (b) *"let them book, the debt lock handles it"*, then C.3 is deleted **and** `0111`'s ⓒ
+`no_card` arm becomes wrong in the same breath — it would be pausing recurring bookings for a
+condition the product has decided is not blocking. Answering for one surface and not the other is
+how the two drift apart.
+
+#### C.5.1 The boundary list
 
 Stated as a boundary, not as an aside — a reviewer should be able to check each one by grep:
 
@@ -456,19 +698,59 @@ migration row is claimed; the edge-function work **must** claim an in-flight row
   `booking_protected_columns` (`0058:264-278`), rolled back. Also assert the *grant* is still
   present (`has_column_privilege('authenticated','bookings','status','UPDATE') = true`) so the
   pin proves the **trigger** is load-bearing and not an accidentally-revoked grant.
-- **N2 — `payment_ok` by a non-owner is refused.** Runner on their own booking, and a stranger →
-  403 (`index.ts:19` party gate, `index.ts:30` owner gate). Deno.
-- **N3 — `payment_ok` on a booking that is neither in `payment_hold` nor at/past `matching` is
-  refused, not silently succeeded.** `expired`, `draft`, `cancelled_owner` → 409 with the existing
-  sentence. Deno. *(This is the pin that keeps Move 1 from becoming "always return unchanged".)*
+- **N2 — deleting the arm does not widen the door.** `payment_ok`'s own owner gate
+  (`index.ts:30`) disappears with it, so pin what is left: the **party gate runs before the
+  switch** (`index.ts:19`, `if (!isOwner && !isRunner && action !== "runner_accept") throw 403`),
+  and a stranger sending `payment_ok` still gets **403 `not a party`** — not 400 — because they
+  never reach the default arm. The booking's owner gets **400** (N9). Two different refusals for
+  two different reasons, and neither is a 200. Deno.
+- **N3 — no "at or past `matching`", ever: the set is ENUMERATED (F8).** `booking_status` is a
+  Postgres enum with **no ordering** — `matching < confirmed` is not a thing you may write, and
+  revision 1's phrase *"`matching` or later"* was an ordering assumption dressed as a fact. Wherever
+  this contract or the client needs "the booking is past the hold", the set is these **seven,
+  written out**, matching `payphase.ts:50-56` exactly:
+
+      matching · runner_pending · confirmed · runner_enroute · picked_up · active · completed
+
+  and the three that are emphatically **not** in it, each with its own behaviour, because the last
+  time they were lumped in it was a recorded incident (payphase.ts's own header, `:14` — *"웨이브 2
+  리뷰 C5 — 8종 미매핑 + no_show/incident_review가 '결제 완료'로 위장하던 사고"*):
+
+  | status | phase | why it is not in the set |
+  |---|---|---|
+  | `refund_pending` | `refund_pending` (`:64`) | a refund in progress is a terminal-but-waiting state, not a booking that proceeded |
+  | `no_show` | `disputed` (`:62`) | a human is reviewing it; rendering it as 완료 is the C5 lie |
+  | `incident_review` | `disputed` (`:63`) | same |
+
+  **The pin:** `STATUS_PHASE` covers all 16 enum values (it is a `Record<BookingStatus, PayPhase>`,
+  so `tsc` fails on a new value — `:41`), `derivePayPhase` drops an **unknown runtime** string to
+  `not_found` rather than to a success phase (`:70-71`), and the seven above are the exact set
+  mapping to `authorized`. Assert the map, not a comparison. *(This pin is why §B.5's "benign
+  confirmation screen" claim is checkable rather than a guess.)*
 - **N4 — no charge exists while charging is off.** After a full booking→run→settle cycle with
   `payments_live_since` NULL: `select count(*) from payments` = 0, and `settle-run` reports
   `collection: "skipped_not_live"` (`settle-run/handler.ts:308-310`). SQL + Deno.
 - **N5 — hold expiry still works, both arms, and `e_hold` is still silent.**
   `100_wave3_suite.sql` W7 must stay green unmodified. Add a new arm: a genuinely stuck
-  `payment_hold` row (club booking, or a lost card CAS) older than 30 minutes is still reaped by
-  `e_hold` (`0080:948-953`) with **zero notifications**, while a `matching` booking past its
-  `scheduled_at` is reaped by `e_match` with the post-pay sentence (`0080:944`).
+  `payment_hold` row older than 30 minutes is still reaped by `e_hold` (`0080:948-955`) with
+  **zero notifications**, while a `matching` booking past its `scheduled_at` is reaped by `e_match`
+  with the post-pay sentence (`0080:944-946`).
+
+  ⚠ **The stuck fixture must NOT be a club booking (F3).** Revision 1 offered *"club booking, or a
+  lost card CAS"* as interchangeable examples. They are opposites: `expire_unmatched_bookings`
+  carries `and club_session_id is null` in **both** CTEs (`0080:937` in `e_match`, `0080:954` in
+  `e_hold`; the production function definition confirms it), and `100_wave3_suite.sql` **pins a
+  club `payment_hold` booking as STAYING `payment_hold`** — fixture `bh_club`, `:349-381`, whose
+  own comment names the regression it catches: *"bh_club(31분 · 클럽 세션) → payment_hold 유지 ←
+  club_session_id is null 누락"*. A club booking is the one thing `e_hold` is guaranteed **not** to
+  reap, so using it as the "still gets reaped" fixture would assert the exact inverse of a pinned
+  law and fail the harness for a correct reason.
+
+  **Use instead:** a row stranded by a **lost card CAS / a `compensate()` failure** — a
+  `payment_hold` row with `club_session_id is null` that no longer has a live path forward. That is
+  a genuine post-C.1 residual (the card path's CAS can still lose to a concurrent sweep,
+  `handler.ts:250-267`), it is exactly what `e_hold` exists for, and it keeps the pin honest about
+  which rows the reaper owns.
 - **N6 — the post-flip card-less refusal writes nothing.** With `payments_live_since` set and no
   billing key: 409 `card_required`, and `bookings` / `slot_holds` row counts are **unchanged**.
   Deno (faked flag).
@@ -478,6 +760,19 @@ migration row is claimed; the edge-function work **must** claim an in-flight row
 - **N8 — the card path's compensating delete still fires.** Force the CAS to 0 rows; assert both
   the booking and the hold are gone and the error sentence is the "남은 예약도 없어요" variant
   (`handler.ts:261-266`). Existing Deno coverage; must stay green for the widget path too.
+- **N9 — `payment_ok` is gone and the server says so (F7/F13).** As the booking's real **owner**,
+  `{ action: 'payment_ok' }` → **400 `unknown action payment_ok`** (`index.ts:397-398`). Deno.
+  **This is the only assertion the deletion leaves behind, and it is load-bearing precisely because
+  the deletion removes behaviour that nothing currently asserts** — no SQL suite and no Deno test
+  references `payment_ok` today (measured: the only hit under `supabase/tests/` is prose inside
+  `harness.sh:184`; `146` D-15 pins `request_runner`, not this). Without N9 the removal is
+  invisible to every gate in the repo, and the next reader has no way to tell "deliberately
+  deleted" from "never existed".
+- **N10 — the `ops_flags` read fails closed (F6).** Stub the `ops_flags` SELECT to return an error:
+  the call returns **500**, and `bookings` / `slot_holds` row counts are **unchanged**. Mutation-
+  verify by flipping the handler to swallow the error (`chargingLive = false` on failure) — the pin
+  must go red. Deno. *(`service_role` SELECT on `ops_flags` is verified in production; this pin is
+  about the day it is not.)*
 
 ### Positive — the things that must start working
 
@@ -500,7 +795,17 @@ migration row is claimed; the edge-function work **must** claim an in-flight row
   `matching → cancelled_owner` is in the map (`0066:46`). Under the old flow the owner had *no*
   cancel CTA at all (`pay.tsx:455`), so this is a real improvement and must be pinned as one.
 - **P7 — the booking is now visible in 내 일정.** `fetchMyBookings` excludes `payment_hold`
-  (`api.ts:3731-3732`); a `matching` booking passes. Client-observable; assert at the query level.
+  (`api.ts:3766-3767`); a `matching` booking passes. Client-observable; assert at the query level.
+  Together with P6 this is the whole mitigation for C.1a's accepted consequence: the owner can see
+  the booking they abandoned, and can cancel it for free.
+- **P8 — the same-dog double-hold hole is closed (F11).** Create a hold for a dog at time T; create
+  a second overlapping one for the **same dog** in the same window. Today both succeed, because the
+  clash guard's LIVE list deliberately excludes `payment_hold` (`handler.ts:179`). After C.1 the
+  first booking is already `matching` when the second request runs its guard, so the second is
+  **refused at `handler.ts:191`** with *"이 시간대에 같은 아이의 예약이 이미 있어요"* — and the
+  second booking and its `slot_holds` row are **never created**. Deno. Pinned as a **positive**
+  because it is an unintended improvement, and an unintended improvement with no pin is the kind a
+  later refactor removes without anyone noticing it was there.
 
 ### Deno tests for the edge functions
 
@@ -518,14 +823,18 @@ Run: `deno test --allow-all supabase/functions/_test/`. Baseline to beat: **191 
 2. New `booking_postpay_test.ts` (or arms in the file above): flag NULL vs flag set × card vs
    no card = four cases; assert write counts, not just final status (the existing file's
    `updatesToBookings(db).length === 3` idiom at `:193`).
-3. New `payment_ok_test.ts` — **and this requires a small extraction.** The arm lives in
-   `transition-booking/index.ts`, which has `Deno.serve` at module top level and therefore
-   **cannot be imported by a test** (the stated reason `cancel_owner.ts` and `start_run.ts` are
-   separate files — `index.ts:326-328`, `:334-337`). Move the arm to
-   `transition-booking/payment_ok.ts` in Move 1, pin N2/N3 and the `{unchanged:true}` idiom, and
-   delete the module in Move 2.
+3. **No `payment_ok.ts` and no `payment_ok_test.ts` — revised (F2).** Revision 1 required
+   extracting the arm into `transition-booking/payment_ok.ts` so a test could import it, because
+   `index.ts` has `Deno.serve` at module top level and cannot be imported (`index.ts:326-328`,
+   `:334-337` — the stated reason `cancel_owner.ts` and `start_run.ts` are separate files). With
+   the shim deleted there is nothing to pin in isolation: **N9 and N2 are HTTP-level assertions**
+   (400 for the owner, 403 for a stranger) and need no extraction at all. **Do not create either
+   module.** Creating a file in one move to delete it in the next was the two-move plan's cost, and
+   the two-move plan is gone.
 4. `settle_charge_test.ts` — must stay green unmodified; it owns "settlement happens, collection
    is skipped" and this contract must not perturb it.
+5. New arm for **N10** (`ops_flags` read failure → 500, zero writes) and **P8** (same-dog
+   double-hold refused post-C.1) in the `create-booking-hold` test file.
 
 ### Existing suites: green, or moved, with the reason
 
@@ -538,6 +847,7 @@ Run: `deno test --allow-all supabase/functions/_test/`. Baseline to beat: **191 
 | `50_delegation_suite.sql` | **green.** Delegation/club path untouched. |
 | `119_run_end_suite.sql` (ren R2) · `125_return_force_ops_suite.sql` (frc F5) | **green.** Both were already moved to `service_role` by 0111; nothing here re-touches `bookings` grants. |
 | `146_booking_entry_suite.sql` D-11 (`:382-410`) | **green as an assertion, but its comment goes stale.** It performs the ladder as `service_role` and asserts the row is `payment_hold` — still true of the ladder, but the header calls this "the `create-booking-hold` shape". Update the comment in the same slice and point it at the new pin. |
+| `146_booking_entry_suite.sql` **D-15** (`:776-798`) | **green, unmodified — and it does NOT pin `payment_ok` (F13).** Two contracts claimed it did. It pins **`request_runner`'s** one-statement CAS (`:797`: *"request_runner의 한 문장 CAS(service_role)는 그대로 1행"*). Nothing in the repo pins `payment_ok` — which is why C.2's deletion must leave **N9** behind. Corrected in `party-membership-status-filter-contract.md` too. |
 | `120_g1_ops_cutover_suite.sql` | **green.** Cutover semantics unchanged. |
 
 ### The one measurement that would falsify the plan
@@ -555,10 +865,28 @@ involved** — but its precondition still holds: **deploy from trunk, after land
 (0098/0099 drift lesson, `docs/handoff-announcer.md:157-161`). Commit gate first, from `app/`:
 `tsc --noEmit`, `check-rpc-contracts.mjs`, `check-route-native-imports.mjs`.
 
-**E.1 — `transition-booking` FIRST (Move 1).** The idempotent `payment_ok`. Deploying this first
-means the C.1 change is safe in either order and cannot produce B.5's false-expiry message. Verify
-live afterwards by reading the function version (`supabase functions list` → v34) — **never by
-invoking it**; the behavioural check belongs to the Deno pins and to E.4's single controlled run.
+**E.0 — the ordering premise, restated (F2).** Revision 1's order existed to protect a shipped
+population from a false-expiry 409. **There is no shipped population** (§B.5; `awaiting-sean.md`
+§0-octies `:502` *"no build ever shipped"*, EAS builds re-verified at 0) **and there is no
+false-expiry 409** (an old build never renders the button that would send the call). So the order
+below is chosen for tidiness, not for safety, and **the whole sequence — both functions, the
+client, and `scripts/e2e.mjs` — lands in ONE session.**
+
+**E.1 — `transition-booking` FIRST (the C.2 deletion).** Still fine to go first, for the reason
+that is now measured rather than assumed: **no client calls it.** Today's build only reaches
+`payment_ok` from `pay.tsx:171`, and only under `screen === 'mock_pending'`, i.e. only for a
+booking sitting in `payment_hold` — which after E.2 nothing produces, and before E.2 is produced
+only by a build nobody is running. Verify live afterwards by reading the function version
+(`supabase functions list` → v34) — **never by invoking it**; the behavioural check belongs to the
+Deno pins (N2, N9) and to E.4's single controlled run.
+
+⚠ **Between E.1 and E.2 there is a real, narrow window** and it should be named rather than
+discovered: a widget-path hold created in that gap lands in `payment_hold` with `payment_ok`
+already deleted, so nothing can move it and `e_hold` reaps it silently at 30 minutes (B.4's exact
+strand). With zero installed builds nobody can enter it, but **keep the gap to minutes, not
+hours** — deploy E.2 immediately after E.1, and do not stop for review between them. If the two
+must be separated for any reason, invert the order: E.2 first is strictly safer, and E.1's only
+cost of going second is that `payment_ok` briefly still exists while nothing calls it.
 
 **E.2 — `create-booking-hold` SECOND (C.1 + C.3).** Deploy → `functions list` shows v10.
 `functions deploy` printing "No change found" is the parity oracle if you need to confirm what is
@@ -582,40 +910,143 @@ is invoked as the *product*, not as a probe of the charge machine. ⚠ **Never c
 Assert: booking reaches `matching`, appears in `marketplace_open_requests` for a runner claim, 0
 `payments` rows throughout.
 
-**E.5 — ui2's client follow-up, sequenced so nothing strands.** `app/app/owner/request.tsx` and
-`app/app/owner/home.tsx` are **ui2's exclusive** surfaces (REGISTRY in-flight table);
-`app/src/lib/api.ts` is shared at function level, tell-before-edit. **ui2 must not start before
-E.2 is verified live.** Named as a separate item, not part of this contract's build:
+### E.5 — ui2's client follow-up
 
-1. `request.tsx:493` (origin @ `58c20c2` — **not** `:395`/`:406`, which older docs still say) —
-   stop pushing `/owner/pay`; go straight to the radar. Its own comments at `:465` and `:562`
-   describe the hand-off being removed, so they move with it. The 예상 금액 is shown **once**,
-   earlier in the flow, per ruling #1 — it is `bookings.total_price`, a real frozen number, and it
-   must not be styled as a receipt.
+`app/app/owner/request.tsx`, `app/app/owner/pay.tsx` and `app/app/owner/home.tsx` are **ui2's
+exclusive** surfaces (REGISTRY in-flight table); `app/src/lib/api.ts` is shared at function level,
+tell-before-edit. **ui2 must not start before E.2 is verified live.**
+
+#### 🔴 E.5.1 — `/owner/pay` is the only place THREE non-payment effects run (F1)
+
+**This is the finding that made the reviewer return FIX-CONTRACT-FIRST, and revision 1 missed it
+entirely.** Revision 1 described the client change as *"stop pushing `/owner/pay`; go straight to
+the radar"* — one line. **It is not one line.** `postConfirm` (`pay.tsx:126-166`) is the only place
+in the app where three effects happen, none of which is a payment, and all three die with the
+screen unless they are deliberately moved.
+
+The block's own header says so (`pay.tsx:116-120`): *"request.tsx의 결제 직후 로직이 통째로 여기로
+옮겨왔다"* — the logic was moved **into** `pay.tsx` during the wave-2 review, to fix C3 and C4. It
+has to move back out, and the C3/C4 reasons no longer apply because after C.1 the booking is
+already `matching` when the hold returns.
+
+**(i) `draft.bookingId = bookingId` — `pay.tsx:127`.**
+`request.tsx` **never sets it on success.** It sets `holdBid.current` (`:471`) and clears
+`draft.bookingId = null` only on failure (`:477`). `pay.tsx:127` is the sole writer.
+**This is the hard requirement:** `radar.tsx:68` reads
+`(typeof bidParam === 'string' && bidParam) || draft.bookingId`, and `radar.tsx:83-86` bounces to
+`/owner/home` when it is empty (*"부킹 없이 진입하면 홈으로"*). **So a `request.tsx` that routes to
+the radar without setting `draft.bookingId` does not show a radar — it shows the home screen**,
+which is the most visible possible regression and the easiest to ship by accident.
+`matching.tsx:141` (`const live = !!draft.bookingId`) fails the same way.
+*(Passing `bid` as a route param also satisfies `radar.tsx:68` — but `matching.tsx` reads only the
+draft, so set the draft regardless. Do not rely on the param alone.)*
+
+**(ii) `createRecurringSeries(bookingId)` — `pay.tsx:139`. The ONLY call site in the app.**
+Measured: `grep -rn createRecurringSeries app/` returns the definition (`api.ts:390`), the import
+and this one call. Meanwhile **`request.tsx` renders the 매주 반복 toggle** (`:942-955`, state at
+`:262`) and passes `recurring: '1'` through the push at `:500`. **Delete the screen without moving
+this and the toggle becomes a DEAD CONTROL** — a visible switch the user turns on that has no
+effect anywhere in the product. That is a direct hit on the honesty law (*"No dead buttons — every
+visible action has a real route/effect in every state"*), and the repo has the regression on record:
+`pay.tsx:116-120` names it **C4** — *"createRecurringSeries가 확정 전에 돌아 미결제 주간 예약이
+생성됐고"*. Shipping the toggle with nothing behind it is a worse C4 than the original.
+
+**(iii) `requestRunner(bookingId, draft.preferredRunnerId)` — `pay.tsx:149`. The 「이 러너와
+예약하기」 promise.** `draft.preferredRunnerId` is set in four places —
+`app/app/runner-profile/[id].tsx:159` and `:505` (the leaderboard → profile → book path),
+`home.tsx:256` (rebook the last runner), `report.tsx:482` (book this runner again) — and
+`pay.tsx:149` is where that promise is **kept**. Drop it and every one of those four entry points
+silently becomes an ordinary open-pool booking: the owner picked a runner, was told nothing, and
+got the pool.
+
+⚠ **`matching.tsx`'s auto-nominate is NOT a safety net — do not rely on it.** It exists
+(`matching.tsx:208-223`: `autoRef`, `requestRunner(draft.bookingId, pref)`) and revision 1 would
+have let a reader assume it catches this. **It is not reached under trunk's flow**, because the
+push carries `after: 'radar'` (`request.tsx:500`, added by `cf162b1`) and the owner lands on
+`/owner/radar`, not `/owner/matching`. It also gates on `!!draft.bookingId` (`:141`, `:211`) —
+which (i) has just established is unset. Two independent reasons it does not fire.
+
+🔵 **ANNOUNCER DECISION — all three move into `request.tsx`, immediately after a successful hold.**
+Not into the radar, not into a new screen, and not left to the server. The hold response now means
+the booking is **already `matching`** (C.1), so every C3/C4 objection that justified moving them to
+`pay.tsx` is gone: there is no unpaid window to create a series in, and no `payment_hold` state for
+a nomination to 409 against. **The four moves, in this order, in `request.tsx` right after the
+`createBookingHold` await (`:449-472`):**
+
+1. **`draft.bookingId = res.booking_id`** — unconditional, first, before any await that could
+   throw. Everything downstream reads it.
+2. **if `recurringOn` → `await createRecurringSeries(bookingId)`** — keeping `pay.tsx:136-143`'s
+   error shape verbatim: a failure **must not** block the booking (it already exists) and **must
+   not** be swallowed. Reuse the existing Alert copy: *"이번 예약은 확정됐지만 매주 반복 설정에
+   실패했어요 — 다음 예약 때 다시 켜주세요"*.
+3. **if `draft.preferredRunnerId` → `await requestRunner(bookingId, draft.preferredRunnerId)`** —
+   keeping `pay.tsx:144-159`'s shape: clear `preferredRunnerId`/`preferredRunnerName` on success,
+   and on failure **tell the user** (*"…우선 요청을 보내지 못했어요 — 매칭 화면에서 다시
+   골라주세요"*) rather than warn-swallowing. That is the recorded **C3** regression.
+4. **Route per `after`** — default `'radar'`, exactly as `request.tsx:500` already decides. Keep
+   `pay.tsx:160-165`'s one branch that is not routing-by-`after`: a **successful nomination** goes
+   to `/owner/schedule` with the 지명 요청 전송 alert, because there is nothing to watch a radar for
+   when a specific runner has been asked.
+
+**Net:** `request.tsx` gains what `pay.tsx:126-166` already does, minus `confirmPayment`, minus the
+`owner === 'server'` Toss branch (`:128-135` — dead while `TOSS_ENABLED=false`, and it belongs to
+the money session's card-register slice if it is ever revived).
+
+**`pay.tsx`: `예약 확정하기` dies, and the screen becomes unreachable for the pilot.** Nothing
+routes to `/owner/pay` once `request.tsx:500` stops pushing it. Whether the file is deleted or kept
+as a post-run receipt is **not this contract's call and not ui2's alone** — see §F.3. Note for
+whoever retires it: `app/app/dev/pay-lab.tsx:12` imports `PayScreen, PayView` from it, and **a
+dev-only screen can crash a production launch** (CLAUDE.md; `check-route-native-imports.mjs`).
+
+#### E.5.2 — the rest of the client slice
+
+1. `request.tsx:500` (origin @ `cf162b1` — **not** `:395`/`:406`/`:493`, which older docs say) —
+   stop pushing `/owner/pay`. The 예상 금액 is shown **once**, earlier in the flow, per ruling #1 —
+   it is `bookings.total_price`, a real frozen number, and it must not be styled as a receipt.
 2. ⟳ **`home.tsx` needs nothing** — its Find-Now hold + `/owner/pay` push are already gone on
    origin (A.7). **Re-grep before building anyway** (`createBookingHold` across `app/`), because
    this is exactly the fact that changed under a scout mid-flight; a subagent's finding is a
-   snapshot. At `58c20c2` the answer is one call site, `request.tsx:445`.
-3. `api.ts:357` — add `booking_status` (and `paid_path`) to `HoldResult`, and **branch on it**:
-   if the server ever returns `payment_hold`, the client must say so rather than assume.
-4. Ship a build. **Only then** does Move 2 (delete the `payment_ok` case; delete
-   `confirmPayment`) become safe.
-5. `pay.tsx`'s role post-pilot is ui2's + Sean's design call, not this contract's (§F.3). Note
-   for whoever retires it: `app/app/dev/pay-lab.tsx:12` imports from it, and a dev route can crash
-   a production launch (CLAUDE.md, `check-route-native-imports.mjs`).
-6. `scripts/e2e.mjs:232-234` calls `payment_ok` as a required step and must be updated with
-   Move 2, or the e2e script starts failing for a correct reason.
+   snapshot. At `cf162b1` the answer is one call site, `request.tsx:449`.
+3. `api.ts:360` — add `booking_status` (and `paid_path`) to `HoldResult`, and **branch on it**: if
+   the server ever returns `payment_hold`, the client must say so rather than assume. This is what
+   makes E.5.1's four moves conditional on a real fact instead of an assumption about C.1.
+4. `api.ts:402-408` — delete `confirmPayment`, in the same slice as the server deletion (C.2).
+5. **`scripts/e2e.mjs:232-236` moves in this same slice (F14).** It calls `payment_ok` as a
+   **required** step and asserts the booking reaches `matching`. Under the one-move removal it
+   breaks at exactly one moment, so there is exactly one thing to keep in sync: delete the
+   `payment_ok` step and assert instead that the booking is **already `matching` when
+   `create-booking-hold` returns** — which is a strictly better assertion, because it tests C.1's
+   actual contract rather than a step that used to compensate for its absence.
 
 **E.6 — claim an in-flight row before any edit.** Path-keyed, tree named:
-`supabase/functions/transition-booking/index.ts` (+ the new `payment_ok.ts`),
+`supabase/functions/transition-booking/index.ts`,
 `supabase/functions/create-booking-hold/handler.ts`,
 `supabase/functions/_test/booking_card_path_test.ts`, `supabase/tests/147_*.sql`,
-`supabase/tests/146_booking_entry_suite.sql` (comment only). Edge-function work has no migration
-number and no hook — the in-flight table is the only interlock it has.
+`supabase/tests/146_booking_entry_suite.sql` (comment only), `scripts/e2e.mjs`. Client surfaces
+(`request.tsx`, `pay.tsx`, `api.ts`) are ui2's rows to claim. **No `payment_ok.ts` row** — that
+file is no longer created (C.2). Edge-function work has no migration number and no hook — the
+in-flight table is the only interlock it has.
+
+**E.6a — the comment fixes this slice owes (F12).** Six comments describe `payment_ok` as a live
+step and become false the moment C.2 lands. They are **comment fixes inside this slice**, not
+follow-up work, because a comment that names a deleted function is exactly the artifact this repo
+keeps getting bitten by:
+
+| file:line | what it says today |
+|---|---|
+| `app/src/lib/toss.ts:4` | *"the simulated path (transition-booking {action:'payment_ok'}), which is the ONLY route a booking has into `matching`"* — false twice over after C.1 |
+| `app/app/owner/schedule.tsx:610` | *"TOSS_ENABLED=false, payment_ok writes no payments row"* — the conclusion survives, the mechanism named does not |
+| `app/app/owner/pay.tsx:243` | *"오늘: 시뮬레이션 경로(transition-booking payment_ok) — 예약이 matching으로 가는 유일한 문"* — dies with the button |
+| `supabase/migrations/0026_recurring.sql:10` | *"현재 payment_ok 모의 단계라 크론 생성 예약은 결제 단계 없이 matching/runner_pending 직행"* — ⚠ **a shipped migration: do NOT edit the file.** Note it in 147's header instead (C.5.0 is where its fact now lives) |
+| `supabase/functions/create-booking-hold/handler.ts:35` | *"§2's Toss widget (today: the mock `payment_ok`) moves it"* — the §G.3 rewrite |
+| `supabase/functions/create-booking-hold/handler.ts:242` | *"The CAS is the statement `payment_ok` uses (transition-booking:42-46)"* — the statement outlives the caller; say that instead |
+| `supabase/functions/transition-booking/index.ts:3` | the action list in the file header (deleted by C.2 itself) |
 
 **E.7 — the gate sequence this slice owes** (money-adjacent state machine): contract →
 adversarial reviewer ≠ author who **executes** the attacks in D → fixes → harness (all suites,
-plus 147) → Deno ≥ 191 + the new pins → mutation-verify at least N4, N6 and N7 → land on trunk →
+plus 147) → Deno ≥ 191 + the new pins → mutation-verify at least N4, N6, N7, **N9, N10 and P8**
+(the three that exist only because the review found them, and are therefore the three most likely
+to be written green-by-default) → land on trunk →
 deploy E.1/E.2 → verify E.3/E.4 → record. `/autoplan` is the standing gate for money-path changes
 (0059 doctrine); this is money-adjacent rather than money-moving, and the cheap answer is to run
 it anyway.
@@ -633,17 +1064,48 @@ change (C.1, C.2) is fully determined by ruling #1 and can proceed.
 - **(b)** Let them book; the run happens; the settle charge fails on "no billing key" and
   `owner_has_unsettled_charge` locks the account until they fix it (Alt‑3). One run is given away
   per owner, bounded and recoverable.
+
 Both are defensible. It only needs answering before the flip, and it decides whether C.3 exists.
+
+⚠ **Two things the reviewer established that this question must be asked WITH, or the answer will
+be half an answer:**
+
+- **(a) bounds NEW ENTRIES ONLY (F4).** A refusal at booking-creation cannot reach the bookings
+  that already exist on flip day. The mint keys on **run end** (`0084:265-266`), so every in-flight
+  card-less booking whose run finishes after the flip becomes a failed charge → an owner
+  notification → a debt lock, no matter which way F.1 is answered. **That needs its own cut-over
+  rule** (C.3a's shapes (i)/(ii)/(iii)) and it is the **money session's** slice.
+- **The answer applies to TWO surfaces, not one (F10).** `generate_recurring_bookings` runs the
+  same money gate in the background (`0111:339-355`) and answers it differently **on purpose** —
+  it **pauses with a notification** rather than refusing, because a cron has no screen on which to
+  show a card sheet. If F.1 is answered **(b)**, C.3 is deleted **and** 0111's ⓒ `no_card` arm must
+  change with it. State the answer once, apply it to both, and say which surface expresses it how.
 
 **F.2 — is the pilot's manual transfer arranged before or after the run?** Ruling #1 places the
 *screen* after the run. The money is moved off-app by Sean, so only he knows whether the owner is
 asked to transfer before the first run or after each one. It changes copy, not code — but the
 copy is a money statement and the honesty laws bind it.
 
-**F.3 — does `pay.tsx` become the post-run receipt/notice screen, or is it deleted?** Ruling #1
-says *"the pay/notice screen moves to the END of the journey"* — a notice screen after the report
-is a design he may want, or the report card may absorb it. ui2 + Sean; named here only so the
-server side does not assume the route disappears.
+**F.3 — re-scoped (F1): where do 리커링 and 지명 live once the screen is gone?** Revision 1 asked
+this as *"does `pay.tsx` become a receipt or is it deleted?"* — which quietly left the screen's
+**three non-payment effects** unowned, as if deleting the file only deleted a payment step. It does
+not (§E.5.1).
+
+**The part that is NOT Sean's, and is answered here: 리커링 · 지명 · `draft.bookingId` · routing all
+move to `request.tsx`, immediately after a successful hold.** 🔵 Announcer decision, recorded in
+§E.5.1 with the exact order and the error shapes to preserve. Nobody needs to ask about this again,
+and nobody may ship the reroute without it — the 매주 반복 toggle becoming a dead control is a
+straight honesty-law violation, and a nomination silently degrading to open-pool matching is worse
+because the owner was told it worked.
+
+**The part that IS his — and it is now a smaller question:** with the side effects moved out and
+`예약 확정하기` dead, `/owner/pay` becomes **unreachable for the pilot**. Does the file get deleted,
+or kept as a **post-flip receipt** surface? Ruling #1 says *"the pay/notice screen moves to the END
+of the journey"* — a notice screen after the report is a design he may want, or the report card may
+absorb it. Nothing in this contract depends on the answer; it is safe to leave the file in place
+and unreachable until the money session's card-register slice needs a receipt surface, at which
+point the decision is theirs and Sean's together. **The money session's call, later** — the server
+side does not assume the route disappears either way.
 
 **Explicitly NOT for him:** §0-sexies is already answered (**option A**, 2026‑08‑15 — paperwork
 started, charge machine kept, `docs/biz/payments-paperwork-checklist.md:8`). The 빌링키
@@ -709,7 +1171,8 @@ pipeline's payment step. Documentation drift; fix opportunistically.
 
 **G.10 — every artifact naming a `/owner/pay` push line is now wrong, and one names a screen that
 no longer exists.** The labs and handoff docs cite `request.tsx:395` (and this scout's own first
-pass cited `:406`, from `8d33cde`); on origin at `58c20c2` it is **`:493`**. Worse for anyone
+pass cited `:406`, from `8d33cde`; revision 1 then cited `:493`, from `58c20c2`). On origin at
+`cf162b1` it is **`:500`**, and it now carries `after: 'radar'`. Worse for anyone
 planning the client slice: `app/app/owner/home.tsx`'s Find-Now hold + push, which every artifact
 written before `68a4257` lists as a second stranding path, **does not exist any more** (A.7).
 Cite the live line, and re-grep `createBookingHold` before editing — this is the one fact in this
@@ -723,3 +1186,61 @@ for `isDue` (actually `:152`); `0080:1202` cites `:110` (actually `:155`); `0080
 `0101:6`/`:41` cite arithmetic in `settle-run/handler.ts:135-187` that has since been deleted.
 The **predicates** still agree; only the pointers rotted. Not this slice's to fix — recorded so a
 future reader does not mistake a rotted pointer for a behavioural divergence.
+
+---
+
+## H. Review log — adversarial review, 2026‑08‑19 night
+
+**Verdict: FIX-CONTRACT-FIRST.** A reviewer that was not the author re-measured this contract's
+claims against the repo and production and returned 16 findings, two of them **BLOCK**. Every
+finding is applied above. The contract was **not** rejected — its server shape (C.1, C.3, the
+zero-migration boundary) survived intact; what failed was its account of the **client** and its
+account of what an **old build** does. Both were wrong in the same direction: they assumed
+`/owner/pay` was a payment screen, and it is a payment screen **plus three other things**.
+
+| # | finding | resolution |
+|---|---|---|
+| **F1** | 🔴 **BLOCK.** `/owner/pay`'s `postConfirm` (`pay.tsx:126-166`) is the ONLY place three non-payment effects run: `draft.bookingId` (radar/matching depend on it), `createRecurringSeries` (the app's only call site — the 매주 반복 toggle dies without it), `requestRunner` (the 「이 러너와 예약하기」 promise, four entry points). `matching.tsx` auto-nominate does not catch it. | §E.5.1 rewritten as the four moves into `request.tsx` post-hold; §A.7 and §F.3 rewritten to match. 🔵 decision below. |
+| **F2** | 🔴 **BLOCK.** B.5's stated mechanism was wrong. An old build never calls `payment_ok` — `payphase.ts:50` maps `matching → 'authorized'`, whose footer is `내 일정에서 확인하기` (`pay.tsx:467-469`); `예약 확정하기` is never rendered. The real failure is a **silent omission**, not a false 409. | §B.5 rewritten with the measured path; §C.2 collapsed to one move; §E.0/E.1 re-justified. 🔵 decision below. |
+| **F3** | N5's stuck fixture must not be a club booking — `expire_unmatched_bookings` excludes them in both CTEs (`0080:937`, `:954`) and `100_wave3_suite.sql:349-381` pins `bh_club` as **staying** `payment_hold`. | N5 rewritten; fixture is now a lost-CAS / `compensate()` failure row. |
+| **F4** | The flip-day exposure is the **in-flight stock**, not `payment_hold`: the mint keys on run end (`0084:265-266`) → `skipped_no_card` (`charge.ts:184-190`) → sweep to `failed` **with a notification** (`0080:818-837`) → debt lock (`0080:511-528`). F.1(a) bounds new entries only. | New §C.3a with three cut-over shapes, [REC] into §C.4 and §F.1. **Money session's slice.** |
+| **F5** | Client line cites stale (trunk moved to `cf162b1`). | `request.tsx:449`/`:500`, `api.ts:360`/`:402-408`/`:3767` throughout; §A.7 now records that `:500` already carries `after: 'radar'`. |
+| **F6** | The `ops_flags` read is a new hard dependency; fail-closed is right for money but must be **stated and pinned**. | Stated in §C.1; new pin **N10** (read error → 500, zero writes), mutation-verified in E.7. `service_role` SELECT verified. |
+| **F7** | The deletion needs a surviving assertion. | New pin **N9** — `payment_ok` → 400 `unknown action` (`index.ts:397-398`). Merged into §C.2. |
+| **F8** | No *"or later"* on an unordered enum. | N3 rewritten as an explicit seven-value allowlist matching `payphase.ts:50-56`, with `refund_pending` / `no_show` / `incident_review` handled by name. |
+| **F9** | Abandonment stops being silent: the booking is in `marketplace_open_requests` (dog name/breed/weight/memo/photo/preferences/vaccinations, `0056:44-58`) from hold-creation; a force-quit can get a matched runner; `e_hold` becomes unreachable. | New **§C.1a**, named as an accepted consequence; mitigation is the owner's exit (P6 + P7). 🔵 accepted under the grant. |
+| **F10** | *"Every booking passes through a hold"* was already false — `generate_recurring_bookings` (`0111:369-386`) inserts straight at `matching`/`runner_pending`. Post-flip it **pauses with a notification** (`0111:339-355`) rather than refusing. | New **§C.5.0**; the two surfaces differ deliberately (a cron has no screen); §F.1's answer must be stated once for both. |
+| **F11** | C.1 closes the same-dog double-hold hole (`handler.ts:179` LIVE list excludes `payment_hold`; after C.1 the second is refused at `:191`). | New positive pin **P8**. |
+| **F12** | Seven comments name `payment_ok` as live. | New **§E.6a** table — comment fixes **inside** this slice; `0026_recurring.sql:10` is a shipped migration and is noted in 147's header instead of edited. |
+| **F13** | `party-membership-status-filter-contract.md` claimed 146 D-15 pins the bare `payment_ok` CAS. **False** — D-15 pins `request_runner` (`146:776`, `:797`); **nothing** pins `payment_ok`. | Fixed in both contracts; the O-5 side now says the removal deletes something nothing asserts → hence N9. |
+| **F14** | `scripts/e2e.mjs:232-236` breaks at the removal. | Moves in the same slice (§E.5.2 item 5), and its replacement assertion is better: the booking is already `matching` when the hold returns. |
+| **F15** | Do not call `ops_flags` "sealed" in a privilege sense — `anon`/`authenticated` hold DML; RLS-with-zero-policies (`0080:187`) is what closes it, same shape as 0111's R5 on `slot_holds`. | Stated in §C.1. Not this slice's to change, and this slice claims no credit for it. |
+| **F16** | Contract-level: revision 1 read as finished when its client half was a sketch. | This log exists, and §E.5.1 is marked 🔴 so the next reader cannot skim past it. |
+
+### The two announcer decisions
+
+🔵 **Decision 1 — `payment_ok` is removed in ONE move, not two.** The two-move plan (idempotent
+shim, then delete) existed solely to protect installed builds from a false-expiry 409. F2 measured
+that **no such call is ever made** — the button is never rendered — and §B.5 establishes there are
+**zero installed builds** (`awaiting-sean.md` §0-octies `:502`; EAS builds re-verified at 0). The
+shim would have cost an extra deploy, a `payment_ok.ts` extraction, and a test file created to be
+deleted. One move: the arm, the header line, `confirmPayment`, and `scripts/e2e.mjs` together,
+with **N9** left behind as the assertion the deletion earns.
+
+🔵 **Decision 2 — the three side effects move to `request.tsx`, immediately after a successful
+hold.** Not to the radar, not to a new screen, not to the server. After C.1 the booking is already
+`matching` when the hold returns, so the C3/C4 reasons that put them in `pay.tsx` in the first
+place no longer hold. Four moves in order: set `draft.bookingId` → recurring if on → nomination if
+present → route per `after` (radar default, schedule on a successful nomination). Full text and
+error shapes in §E.5.1. **Consequence, accepted:** `pay.tsx`'s `예약 확정하기` dies and the screen
+becomes unreachable for the pilot; whether it returns as a post-flip receipt is the money
+session's call with Sean, not a blocker (§F.3).
+
+### 📋 Smoke-list line for Sean's first hardware build
+
+> **A pre-change build shows 예약이 확정됐어요 with no recurring series and no nomination —
+> silently, with no error message at all.** That is the old binary meeting the new server
+> (`payphase.ts` maps `matching → authorized`, so the confirm button is never drawn and
+> `postConfirm` never runs), **not a regression. Update the build.** Nothing is written to defend
+> against this in code, because the shipped population is zero and your device is the only place
+> a stale binary can exist.
