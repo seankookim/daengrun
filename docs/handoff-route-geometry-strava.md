@@ -1,10 +1,16 @@
-# Handoff — route geometry from Strava (session 2026-08-14, worktree `laughing-solomon-f4a2c6`)
+# Handoff — route geometry from Strava (sessions 2026-08-14 → 2026-08-19, worktree `laughing-solomon-f4a2c6`)
 
 Branch `claude/strava-route-loops-74c5d2`, cut from `origin/redesign-v4`. Read
 `CLAUDE.md`, then `docs/fleet-roster.md` §4, then the `/route-geometry` skill. This file is what
-that session learned on top of the skill.
+those sessions learned on top of the skill.
 
-Nothing under `supabase/` was touched. No catalog row was inserted. No migration was written.
+**§1–§14 are the 2026-08-14 record and are kept as written, with supersession markers where a
+later ruling reversed them. §15–§21 are the current state as of 2026-08-19 and win on any
+conflict.** In particular: the waypoint rule reversed, the catalog now has 40 live rows, and three
+migrations this track was told it must not write have since landed from catalog.
+
+Nothing under `supabase/` has been touched by this track and no migration has been written *here* —
+but the catalog track shipped 0098, 0099 and 0100 against this data, and all three are live.
 
 ---
 
@@ -125,15 +131,22 @@ carry the unspecified share.
 
 ## 7. Open, and blocked on Sean
 
+> ⚠ **Mostly resolved — see §20 for current status.** Sign-off was granted (*"make whatever
+> necessary, no need to ask permission"*) and 40 rows are live; the elevation column shipped as
+> 0098. The 성수동 item is unchanged.
+
 - **Sign-off before any catalog INSERT.** Building and exporting on Strava touches nothing of ours
-  and was done freely; new rows are a production catalog change and are not.
-- **The 2/3 km 몽마르뜨 question in §4.**
+  and was done freely; new rows are a production catalog change and are not. — **GRANTED.**
+- **The 2/3 km 몽마르뜨 question in §4.** — **MOOT**; 몽마르뜨 is closed (§10ⓐ) and the catalog
+  now spans 14 towns.
 - **성수동**: 4 rows are `retired`, not deleted, because all 24 production bookings and 9 runs
   reference them. Scope has widened past Banpo-only; whether they return is
-  `update routes set status='candidate' where town='성수동'` and is Sean's call.
+  `update routes set status='candidate' where town='성수동'` and is Sean's call. — **STILL OPEN.**
 - **Elevation has no column.** Strava supplies it and it is being measured and recorded here, but
   storing it needs a migration this track must not write — hand to custody or trust per
-  `docs/fleet-roster.md`.
+  `docs/fleet-roster.md`. — **DONE**: catalog shipped `0098_route_elevation.sql`. 28 of 40 rows
+  carry a measured gain. Read §18 before writing one: 0098 also installs a trigger that CLEARS the
+  column when `trace` changes.
 
 ## 8. Standing constraints (unchanged, restated because they are easy to erode)
 
@@ -232,6 +245,11 @@ Two things it must encode, both measured and both easy to lose:
    05:30–21:30, which makes a 서울숲↔한강 route unwalkable at peak evening dog-walking time.
 
 ### And the method note that changes output most
+
+> ⚠ **REVERSED on 2026-08-19 by Sean, on sight of the built routes on a map. The rule is now
+> 2–4 waypoints, 2–3 being the sweet spot, and the planner is destination-led. See §15.** The
+> measurement below was real; the cure was worse than the disease. Kept here because the *reason*
+> the retrace was high is still true, and the replacement fixes it a different way.
 
 **Chain 5–8 waypoints, not 2–3.** Measured: with few waypoints the router takes the shortest path
 in both directions, which is what produced 78–81% retrace on nearly everything built so far
@@ -378,6 +396,16 @@ A normaliser on every consumer is the shape-drift version of "synchronise the co
 fix is **one canonical shape plus a CHECK constraint** so a third cannot land. That is schema and
 therefore catalog's, not mine.
 
+> ✅ **DONE, and verified live on 2026-08-19** rather than assumed from the migration file. Catalog
+> shipped `0099_route_trace_shape.sql`; production carries `routes_trace_shape` and
+> `routes_trace_thumb_shape`, both `CHECK (_route_trace_is_coordinates(...))`. The contract is
+> shape **and position** — 0099's own §0b makes the point that `{lat:127.0, lng:37.5}` is a
+> perfectly well-formed object in the Yellow Sea, so the bounds (`lat 33–39`, `lng 124–132`) are
+> copied verbatim from `0082:251` so the two definitions of "in Korea" cannot drift apart.
+> `0100_route_name_km_agrees.sql` landed beside it and is also live: a trailing km token in
+> `routes.name` must round to `km`, which makes §1's rule a database property instead of an
+> ongoing human effort. Both were measured on production, not read off a file.
+
 ## 14. Sean's lighting ruling, final form
 
 Superseding §12. His words, in the client conversation:
@@ -388,3 +416,351 @@ Scoped narrowly and correctly: `lit` passes, **`null` now PASSES**, `none` still
 still drops. So Strava rows are visible in dark slots, and the safety case is untouched — an
 explicitly unlit route is still excluded. That is domain knowledge Sean has and none of the
 sessions did. The trap in §6/§11 is closed; `shade`/`lighting` still go in NULL.
+
+---
+
+# Current state — 2026-08-19
+
+Everything below is what a fresh session should act on. Where it disagrees with §1–§14, it wins.
+
+## 15. The METHOD as it stands now, and how it moved twice in five days
+
+The waypoint rule has been set three times. Each move was a real correction, not a wobble, and the
+record matters because the middle position is the one that reads most defensible on paper.
+
+**2–3 → 5–8 (2026-08-14, mine).** Measured: 2–3 waypoints let the router take the shortest path in
+both directions, which is what produced 78–81% retrace on nearly everything built up to then
+(이촌 박물관 81%, the pre-existing 몽마르뜨 80%). Spreading points around the cluster forces an
+outbound and a return leg that differ.
+
+**5–8 → 2–4 (2026-08-19, Sean, on sight).** He looked at the built routes on a map and the verdict
+was specific:
+
+> *"there are too many spiky points and seen-twice routes ... those are unnecessary ... all routes
+> should not have too many way points. maybe less than four or five max. two or three way points
+> excluding the start/end point should be the sweet spot."*
+
+The 5–8 rule was derived from a true measurement and still produced worse routes: forcing 5–8
+points around a tight anchor makes the router **zigzag between them**, and that zigzag is the
+spikiness. **I had optimised a number and degraded the thing the number was standing in for.**
+Retrace was the proxy; a route a person wants to run was the thing.
+
+He also gave the shape of the route, which is what actually replaced the ring of bearings:
+
+> *"if the resident area and the river/park area is near by, ... start from the residential area
+> and go first and foremost to these geographical areas, then make a route there before turning
+> back with either the same or a different route back. if there are no parks or rivers near by,
+> make a simple loop. all routes should not have too many way points."*
+
+`docs/routes/geo/plan-route.mjs` is rewritten to that, **destination-led**:
+
+1. find the best green/blue destination within reach — streams and rivers rank **first**, because a
+   route can run *along* a linear feature rather than merely touch it (`DEST_RANK`: stream 0,
+   lake 1, park 2, trail 3, hill 4);
+2. a second point at or along it, so the green section has length — this is what the route is *for*;
+3. one return point well off the outbound bearing, so the way home differs;
+4. and if nothing green or blue is in reach, **a plain loop, which is the correct answer** — not a
+   worse route bent toward a feature that is too far.
+
+`build-route.sh` now **refuses** anything outside 2–4 waypoints (guard at `build-route.sh:85`,
+carrying Sean's words in the comment above it).
+
+**Result, and it is the strongest evidence for the reversal:** 강서 한강 구암 루프 4.18km — 83 pts,
++17 m, closure 0 m, **4% retrace, genuine LOOP.** Best-shaped route in the catalog by a wide margin;
+the previous best was 14%. Screenshot-checked: it runs the 한강 riverside and comes back through the
+block, one minor hook, no zigzag.
+
+### The range: 1.5–7.5 km, and the numbers are not integers
+
+Sean, 2026-08-14, directly: *"the kms dont have to be integers. anywhere from around 1.5km+ ish ~
+7 km ish"*. Both the target guard (`build-route.sh:59`) and the measured-distance guard (`:210`)
+enforce 1.5–7.5. This **replaced** an earlier guard that read "the owner said under 5" and refused
+5.00 km and above — that reading was superseded, and the live catalog already held 7.63 and 7.66 km
+routes while the script was still refusing them. The bounds are deliberately loose ("ish"): the
+catalog's 2/3/5/7 slots are a convenience, not a contract, and **the name always carries the
+measured value**, so a wide band cannot launder a distance.
+
+`TOL_PCT` is 20, not 15: a 2.31 km route was refused against the 2 km slot at 15.5% off, which is
+a good route lost to a slot boundary. There is a guard on the guard — a non-numeric `TOL_PCT` made
+`awk` compare lexically and pass everything (`TOL_PCT=abc` returned "yes" for a 9 km route against
+a 3 km target), so it is now validated as a positive number.
+
+### The radius estimator is a hint, and it keeps overshooting
+
+`plan-route.mjs` estimates a target radius from the distance. It was calibrated from `2πr` to
+`2πr·1.95` using three measured builds — and the next two **still** overshot: a 3 km target
+produced 5.24 and 7.05 km. Part of the cause is that widening the candidate window to keep sectors
+filled pulls in fallback features that sit further out and inflate the effective radius, so the two
+fixes fight each other. One repeatable bug inside it was fixed rather than shrugged at: the "spend
+time there" point was capped at `reach*2.2` and sorted **furthest-first**, so it kept landing ~2 km
+out (강서 2013 m, 도봉 2004 m) and produced 8.32 km against a 3 km target, twice. Now capped at
+1.6× the destination distance and sorted nearest-first, which is what "along the river" means.
+
+**It is still wrong, and that is recorded rather than papered over.** What holds is unchanged and
+is the rule this whole track runs on: **build, MEASURE, then name from the measurement.** 마포 is
+`7.06km` and not "3km" because that is what it measured. 강서 aimed at 5 and measured 3.78 and was
+saved as 3.78. Nobody nudges a route until the number comes out; that is how the 3 km name got onto
+a 5.4 km route in the first place.
+
+## 16. The Seoul-wide geo index — `docs/routes/geo/`
+
+The §10ⓑ pivot ("organize geographical features with clustered residential area proximities per
+town and district", *"think big and wide. hundreds of data points"*) is **complete**, and measured
+today rather than quoted from a commit:
+
+| Artifact | Measured |
+|---|---|
+| `residential.json` | **12,582** complexes, **25 / 25 구** |
+| `features.json` | **18,210** records, **25 / 25 구** |
+| `_raw/` | **25** cached Overpass responses (the residential harvest; all 구 done) |
+
+Note this supersedes commit `0cdf417`, which recorded the residential harvest at 13 of 25 구. It
+has since been finished.
+
+**Pipeline, four stages, each separable on purpose:**
+
+- `fetch-gu.sh <residential|features>` — per-구 Overpass fetch **via curl**. Node's `fetch` produced
+  nothing in this environment (silent, no output, no cache) and the Node harvester was deleted
+  rather than left next to a working one. Resumable: a 구 whose cache file is non-empty is skipped,
+  and a zero-result file is deleted so a throttled 구 is retried rather than cached as "empty".
+  Paced 3 s.
+- `derive-residential.mjs` — builds `residential.json` from **every** cached 구. It is separate from
+  fetching for a specific reason worth keeping: `residential.json` used to be written by the
+  fetcher, so it froze at whatever 구 had arrived when it last ran — 4 of 13 cached. *A derived
+  dataset that silently reflects a partial input is the same trap as a check that passes because it
+  never ran.*
+- `cluster.mjs` — the join the index exists for: for each complex, what is walkable from it. Route
+  length is set by how far apart the anchors are, so pairing from measured proximity turns anchor
+  choice into arithmetic instead of one usable route per three attempts.
+- `plan-route.mjs` — §15's destination-led planner, emitting a ready-to-run `build-route.sh` line.
+
+### Anchor quality — two filters, both added because the output was junk
+
+1. **`cluster.mjs` ranked a restaurant first.** `서울찜닭&호성이골뱅이` is tagged
+   `building=apartments` in OSM, and ranking by feature variety surfaces exactly that, because a
+   mis-tagged business sits in the densest part of the map. Alongside it: bare building numbers
+   (`113`, `1109동`) and officetels. Now filtered to names that read as a complex, with a junk list.
+2. **`plan-route.mjs` proposed waypoints that cannot be typed into a search box.** `보행교 (무명)`
+   is an explicitly *unnamed* footbridge; `급식실 연결다리` is a school canteen walkway; one
+   candidate was a whole sentence describing a road absorbed into a park. The geocoder answers those
+   with silence, or worse with a same-named thing far away. **A waypoint must be a searchable
+   PLACE, not merely a named OSM object.** The `SKIP` regex and `UNSEARCHABLE()` in
+   `plan-route.mjs:48-56` encode it.
+
+### Overpass throttling behaves like data, not like an error
+
+This is the one operational fact to carry: the public endpoint, when it throttles, returns **empty
+results that look exactly like "this area has no streets."** `fetch-basemaps.sh` paces at 4 s,
+treats a response with fewer than 5 objects as throttled, and **leaves it uncached** so a rerun
+retries only that one query. Any harvester written against this endpoint must do the same, or it
+will record a throttle as a fact about Seoul.
+
+### `ROUTE-PLANS.md` — the build queue
+
+`docs/routes/geo/ROUTE-PLANS.md`, generated 2026-08-19 from `plan-route.mjs` over the completed
+index: **15 구 · 45 anchors · 135 build commands**, spread ~2 / ~3.2 / ~5 km. It covers the 구 that
+have no route yet. Two things it carries that are easy to lose:
+
+- **Anchors are cross-구 unique by exact name, and were checked for it.** `plan-route.mjs` resolves
+  by exact name then falls back to substring, so a shared name silently picks the alphabetically
+  first 구 — `다울아파트` resolves to 강서구, not 중랑구, and `극동아파트` exists in **seven** 구.
+- An **Edited plans** table at the end listing every waypoint removed from the planner's own output
+  for being unsearchable (`놀이터`, `근린공원`, `분수연못`, `물이 고여있는 연못(건물뒤편)`), with
+  the reason. The command shown is the edited one.
+
+⚠ It is **untracked in this worktree** as of writing — see §20.
+
+## 17. The bench — two surfaces, and neither pretends to be the other
+
+Sean asked for the routes on a Naver map. There are two review surfaces, and the split is a
+physical constraint, not a preference.
+
+**ⓐ The published artifact — embedded OSM basemap.** Inside a published Artifact a Naver map is
+*impossible*, not merely awkward: an Artifact runs under a CSP that blocks every external host, so
+`oapi.map.naver.com` never loads and the pane renders **nothing** — no error, no fallback, just
+blank. (The app's own dependency, `@mj-studio/react-native-naver-map`, is a native RN module and
+cannot run in a browser page either.) So the artifact carries real street geometry per route,
+fetched from Overpass and delta-encoded — 289 KB for 21 routes, down from 736 KB for *one* route
+raw. Basemaps live in `docs/routes/geo/_base/`, one JSON per route, built by `fetch-basemaps.sh`
++ `compact-basemap.mjs`.
+
+**ⓑ The local bench — real Naver.** `docs/routes/strava/bench/`, served over http, genuine Naver
+tiles, pan/zoom/satellite, the route drawn as a polyline on actual streets with a start marker and
+`fitBounds`. Sean approved going local.
+
+    cp config.example.js config.js     # put the Client ID in config.js
+    cd docs/routes/strava/bench && python3 -m http.server 5178
+
+Three gotchas, all of which cost time once:
+
+- **`config.js` is gitignored** (verified with `git check-ignore`); `config.example.js` carries a
+  placeholder. The page reads `window.NAVER_MAP` and builds the SDK URL itself. **The key never
+  touches the repo or the session.**
+- **The allowlist.** `http://localhost:5178` must be registered in the Naver console's service-URL
+  allowlist or the SDK refuses to load.
+- **`ncpKeyId` vs `ncpClientId`.** Naver renamed the parameter; an old key sent under the new name
+  fails with an auth error that reads like a *bad key* rather than a *wrong parameter name*. The
+  page supports both.
+
+Both surfaces recompute every measurement in the browser from the trace — distance, climb, closure,
+share of the route run twice. **Nothing is read from a route's name.** Dropping a replacement
+`.gpx` on the page remeasures from the file and emits the ingest payload.
+
+**The review layer** (accept / reject / comment, per-route marks, tally) is live in the local
+`bench/index.html`; `bench/VERDICT-PATCH.md` is the verbatim five-insert diff to mirror it into the
+artifact's `head.html` / `body.html` / `script.html`. State is **localStorage only — nothing leaves
+the browser.** The **Export review** button opens a read-only textarea of JSON (catalog order,
+comment-only rows included, empty review exports `[]`). That JSON is the handoff: Sean copies it out
+and the builder acts on it. There is no server and no file written.
+
+Measured today: `bench/routes.json` holds **26 routes across 13 towns**; `_base/` holds 26 basemap
+files, of which **25 match a live bench route**. See §20 for the two mismatches.
+
+## 18. The catalog — live counts, measured 2026-08-19
+
+Read back from production, not from a doc:
+
+```
+supabase db query --linked "select count(*) rows, count(distinct town) towns,
+  count(elevation_gain_m) elev,
+  count(*) filter (where jsonb_typeof(trace->0)<>'object') badshape,
+  count(*) filter (where status='retired') retired from routes;"
+```
+
+| rows | towns | with elevation | wrong trace shape | retired |
+|---|---|---|---|---|
+| **40** | **14** | **28** | **0** | **5** |
+
+Every row is `source='algo'`: 35 `candidate` + 5 `retired`, **zero `active`** — which is the ladder
+working, since no GPX can earn `active`. Towns:
+반포동 13 (1 retired) · 성수동 5 (4 retired) · 잠실동 5 · 잠원동 4 · 이촌동 3 · 구암동 2 ·
+노량진동 1 · 도곡동 1 · 문래동 1 · 방학동 1 · 보문동 1 · 상암동 1 · 송파동 1 · 압구정동 1.
+
+On disk: **27 GPX** in `docs/routes/strava/` (26 committed, one untracked — see §20).
+
+### The ingest pipeline
+
+`build-manifest.mjs` → `manifest.json` → `ingest.mjs`. Every field is derived from the GPX itself,
+so no field can disagree with the geometry: `km`/`measuredKm` by haversine over the trackpoints;
+`elevationGainM` as a 3 m-deadband sum; `anchor_lat/lng` as **the first trackpoint** (a real
+coordinate — `routes.anchor_lat/lng` are commented *근사값 — 소비 금지* in 0078 and nothing consumed
+them, so a GPX first point is the first anchor that can honestly support "closest route to the
+owner's entry point"); `trace`/`trace_thumb` decimated to 200/50 per 0082 with first and last always
+kept, so the anchor and the closure survive decimation.
+
+Rules baked in as code, because none of them is a permission question:
+
+- **`ingest.mjs` reads the existing `(town, name)` pairs FROM PRODUCTION** and takes them as an
+  argument, so a stale idea of live state cannot turn an update into a duplicate row. Its UPDATE arm
+  carries the seeder's own refusals — not `active`, no `verified_run_id`, `source` null-or-`algo` —
+  so it cannot overwrite certified geometry even if handed the wrong name list.
+- **`elevation_gain_m` MUST be written in the same statement as `trace`.** 0098 installs a trigger
+  that **clears** the column whenever `trace` changes unless the same statement supplies a new
+  value, so any re-cut or re-seed that writes only geometry silently NULLs that route's climb. The
+  trigger is right for a reason worth repeating: `promote_route_from_run` replaces `trace` and knows
+  nothing about the column, so without it a CANDIDATE's measured climb would silently become the
+  CERTIFIED route's — the same provenance error as a drawn line claiming to be a measured one, one
+  column over. `ingest.mjs` writes it in **both** arms (INSERT column list and UPDATE set clause).
+- **`source='algo'`, never `'founder'`** — a loop drawn in a route builder was not walked by anyone
+  (§11).
+- **`shade` and `lighting` go in NULL.** Sean's ruling permits *serving* rows with unknown lighting;
+  it does not license inventing values.
+- **`status='candidate'` always**, and `active` is GENERATED since 0082 — writing it is an error.
+- **A GPX whose embedded name disagrees with its own geometry by more than 2% is REFUSED**, not
+  ingested. That check exists because it caught a real case: a file whose `<name>` still said `3km`
+  for a 5.4 km route, surviving a rename that every *other* indicator showed as fixed.
+
+### The retired duplicate — retire, do not delete
+
+반포 서래섬 리버 루프 was rebuilt from 3.71 km to **3.31 km** when the non-closure was fixed (§20),
+and the superseded row was **retired, not deleted**. Two reasons, and they are different: 성수동's
+4 rows are retired because 24 production bookings and 9 runs reference them and a delete would
+orphan real history; the 서래섬 row is retired because a route id is an identity other artifacts key
+on — client's `route-properties.json` is id-keyed precisely so a rename cannot break it. Deleting
+would take the id with it. The rebuilt geometry was written to the **same** `routes.id` by UPDATE,
+so id-keyed consumers and client's `closureM>50` discovery filter released it automatically.
+
+`terrain` carries the **paved share only** — Strava reports `68% PAVED · 0% DIRT · 32% NOT
+SPECIFIED`, and NOT SPECIFIED is not dirt. Synthesising a 흙길 share from an unknown remainder
+would invent the exact field the 흙길 chip reads, and invent it in the flattering direction.
+
+## 19. The browser — one Chromium, and the rule a subagent must not break
+
+**There is exactly one shared headed Chromium per box.** `--headed` is *daemon-startup* config
+(browse `SKILL.md`, "Daemon discipline"), so it takes effect only on a fresh daemon: every browse
+call in `build-route.sh` and `probe-anchors.sh` goes through a `B ()` wrapper that adds `--headed`,
+because a bare call either errors with *"existing daemon has different config"* or — for
+`cookie-import-browser` — silently starts a second headless daemon and replaces the visible window.
+Headless has no WebGL, so the map dies and the geocoder goes viewport-blind **without saying so**.
+
+**The 2026-08-19 form of this, which is new and is the reason this section exists: ANY other browse
+invocation collides, including a subagent's.** A subagent that runs `browse` — even a plain
+headless one for something unrelated — spawns a competing daemon and breaks the builder mid-route.
+That happened today and **cost three failed builds** before it was diagnosed. The fix was to kill
+the orphan Chromiums and start exactly one.
+
+**So: subagents must never touch `browse`.** If a subagent needs the web, it does not get it — the
+parent session owns the single browser, serially. Put this in the subagent's prompt explicitly; it
+is not something a scoped agent can infer, and the failure is silent from its side.
+
+## 20. Open items — honest status
+
+- **The trace-shape CHECK constraint — DONE, and verified.** Not "unverified whether done":
+  `routes_trace_shape` and `routes_trace_thumb_shape` are live on production, as is
+  `routes_name_km_agrees` from 0100. Checked with `pg_get_constraintdef` against the live database
+  today. Nothing further is owed here.
+- **`route-guidance.mjs` has never been tested against a live GPS stream.** Its cues, `snapToRoute`
+  and km markers were verified against the stored corpus (성수 서울숲 6.46 km: 12 cues, 12 markers,
+  a fix 22 m off the line reads onRoute at 7% progress, a distant fix reads offRoute) and against
+  both point shapes byte-identically — but a real phone walking a real route has produced none of
+  it. The 40 m off-route default was reasoned from corner-cutting, not observed. Treat every
+  threshold as unvalidated until someone walks one.
+- **One route still has no basemap: 잠원 근린공원 루프 5.4km.** Overpass throttled on it and
+  `fetch-basemaps.sh` correctly left it uncached; a rerun costs exactly that one query. Measured
+  today: 26 bench routes, 25 with a basemap. There is also a **stale** basemap
+  `_base/반포_서래섬_리버_루프_3.71km.json` for the retired row, which should be removed so the
+  directory does not carry two versions of one route — the exact ambiguity the rebuild removed.
+- **The radius estimator still overshoots** (§15). Not fixed, not hidden. Measure-then-name is the
+  mitigation and it holds.
+- **The review round is pending.** Sean accepts/rejects and comments in the bench; the builder acts
+  on the exported JSON. Nothing has been rebuilt from a verdict yet.
+- **Uncommitted in this worktree** (deliberately, since this commit touches only the handoff):
+  `docs/routes/geo/ROUTE-PLANS.md` (untracked, 135 build commands),
+  `docs/routes/strava/도봉_방학천_루프_5.36km.gpx` (untracked — note the row **is already live**;
+  방학동 has 1 row), a shape screenshot, and modified `build-manifest.mjs` / `manifest.json` /
+  `manifest.psv`. A GPX whose row is in production but whose file is not on origin is a small
+  version of the thing this track keeps getting bitten by. Land them.
+- **`docs/routes/strava/README.md` is stale and contradicts the scripts.** It still says
+  `build-route.sh` "requires 5–8 waypoints", "refuses measurements of 5.00 km or more", and lists
+  "19 saved GPX". The script is 2–4 waypoints and 1.5–7.5 km, and there are 27 GPX. The scripts are
+  the truth; the README needs the same supersession treatment this file just got. Its table also
+  stops at 10 routes.
+- **성수동's 4 retired rows** — still Sean's call (§7).
+
+## 21. The lesson this day kept teaching, in the words already used above
+
+**Measure the thing itself, never its label. When a check returns the comfortable answer, verify
+the check ran. And when you fix a class of bug, search for the class, not the instance.**
+
+Instances, all real, all this sprint:
+
+- a GPX whose filename, Strava page and every external indicator said "fixed" while the file itself
+  still said `3km`;
+- a harness reading 515/0 green while booking was dead;
+- a closure check reporting **zero** bad routes because its inputs were `NaN` — "0 bad routes" meant
+  "20 routes not measured", and the same defect broke the geometry *and* the check that would have
+  caught it;
+- `route-guidance.mjs` emitting cues with `lat`/`lng` **undefined**, inside the very commit that
+  fixed the trace-shape bug, because I fixed the math and not the thing that emits — `JSON.stringify`
+  drops undefined keys, so the cue list looked well-formed: correct distances, correct turn text, no
+  coordinates, not one pin placeable;
+- 반포 서래섬 closing 215 m from its own start while every readout said the loop closed, because
+  `아크로리버파크` resolves to GATE 1/2/3 and the builder filled End by **re-running the start
+  query** — **the same query is not guaranteed to be the same place**;
+- and the softest one: a retrace percentage optimised until the routes got worse.
+
+The counterpart law from the money canon applies here too and was exercised twice this sprint: **a
+relayed claim is evidence, not authority.** `routes.km` was reported as moving price;
+`create-booking-hold/handler.ts:73-74` selects only `id, status` from routes and the price uses the
+owner's own 1–10 km dial. Verified in the code, not answered from memory, because it was a money
+path — and the answer came back the other way.
