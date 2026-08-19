@@ -406,6 +406,48 @@ ordinary way a ruling travels in this fleet and it is written down for the same 
 this file is — so a later reader can see which half was measured and which half was told. If the
 relay is wrong, this is the line to correct.
 
+## 6-quater. Two more places the policy promises what the system does not do
+
+Found 2026-08-19 overnight, auditing the retention row this file twice criticised without fixing.
+Both are the **same shape as §2ⓒ** — a true-sounding sentence in a document, unsupported by the
+architecture — and both are latent for the same reason (1 run carries a trace, and it is the
+operator's own).
+
+**ⓐ There is no retention or deletion mechanism for location data. At all.** MEASURED: 17 cron
+jobs run in production. `purge-chat` purges chat; `purge-holds` purges expired holds. **Nothing
+purges `runs.trace`.** No TTL, no job, no function — and `purge_expired_holds` carries its own
+warning (`0060:144`) that it sat unscheduled for ages while a comment claimed otherwise, so the
+absence of a job is worth checking rather than assuming from a comment.
+
+Against that, `privacy-policy.md:98` says 러닝 기록 및 위치정보 are kept for
+*"서비스 제공 및 분쟁 대응에 필요한 기간."* That is not a period, and for the location half it
+cannot become one by drafting: 위치정보법 시행령 제26조의2 caps 개인위치정보 at **one year even
+with separate retention consent**, and requires destruction once the purpose is achieved. Current
+practice is indefinite retention with no mechanism that could ever end it.
+
+**ⓑ The policy promises a statutory right the system cannot deliver.** `privacy-policy.md:85`:
+*"이용자는 언제든 자신의 위치정보 이용·제공 사실 확인자료를 열람·고지 요구할 수 있습니다."*
+
+MEASURED: **no such ledger exists.** There is no table recording location collection, use, or
+provision. If a runner exercised that right today there would be nothing to show them. Article 16
+requires those records to be recorded automatically, and the Standards for Administrative and
+Technical Safeguards require the ledger to be retained for at least six months.
+
+Constructively: **this codebase already has the idiom** — `gate_code_access_log` (`0001:130`) and
+`club_phone_access_log` (`0049:156`) do exactly this job for the gate code and for phone numbers.
+Location is the one sensitive surface that never got one. Whoever builds it should copy those.
+
+**Why neither is fixable by editing the policy, which is the point worth carrying.** The tempting
+repair is to soften §3 and §5 so the document matches the system. That would be wrong and it would
+not work: **both obligations are statutory, not contractual.** Article 16's confirmation records
+are owed whether or not the policy mentions them, and the one-year cap binds regardless of what
+the retention table says. Deleting the sentence removes the evidence of the gap, not the gap. The
+fix is a deletion job and an access ledger; the policy is already telling something close to the
+truth about what the law requires, and the system is what has to catch up.
+
+Recorded in `privacy-policy.md`'s own DECIDE-BEFORE-PUBLICATION header, which is where its drafters
+put items of exactly this kind.
+
 ## 7. The question with a clock, and it is not yet asked
 
 Everything above concerns what the product must do before launch. One question runs the other
