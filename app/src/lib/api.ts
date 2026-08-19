@@ -2420,6 +2420,12 @@ function mapMsg(m: any, uid?: string | null): ChatMsg {
 }
 
 // 예약당 스레드 1개 — 없으면 생성 (동시 생성 레이스 시 재조회)
+// ⚠ CROSS-LAYER DEPENDENCY (0114 party membership — docs/security-booking-party-forgery.md):
+// before the runner accepts, `threads party insert` refuses the owner with RLS. The measured live
+// shape is HTTP 403, code "42501", message 'new row violates row-level security policy for table
+// "chat_threads"'. app/chat.tsx keys its PERMANENT "러너가 수락하면 채팅을 열 수 있어요" state on that
+// code surviving this function — so the race-recovery below must RETHROW THE ORIGINAL ERROR, never a
+// generic one. Neither side may replace it without the other.
 export async function ensureThread(bookingId: string): Promise<string> {
   const { data: existing } = await supabase.from('chat_threads').select('id').eq('booking_id', bookingId).maybeSingle();
   if (existing) return existing.id;
@@ -2427,7 +2433,7 @@ export async function ensureThread(bookingId: string): Promise<string> {
   if (error) {
     const { data: again } = await supabase.from('chat_threads').select('id').eq('booking_id', bookingId).maybeSingle();
     if (again) return again.id;
-    throw error;
+    throw error; // original PostgREST error — chat.tsx reads `.code === '42501'` from it
   }
   return data.id;
 }

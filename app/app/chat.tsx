@@ -52,8 +52,11 @@ export default function Chat() {
         // (docs/contracts/party-membership-status-filter-contract.md §C.3). 그 외의 실패
         // (네트워크·타임아웃·5xx)는 진짜 일시적 실패이므로 종전 재시도 문구를 그대로 쓴다.
         const err = e as { code?: string; message?: string };
+        // Measured live shape (0114 probe, docs/security-booking-party-forgery.md): HTTP 403, code "42501",
+        // 'new row violates row-level security policy for table "chat_threads"'. The code is the contract;
+        // the message test is only a fallback for an SDK that drops the code.
         const denied = err?.code === '42501'
-          || /row-level security|permission denied|not authorized/i.test(err?.message ?? '');
+          || /row-level security policy for table "chat_threads"/i.test(err?.message ?? '');
         console.warn('[chat] open:', err?.message);
         if (alive) setState(denied ? 'preaccept' : 'error');
       }
