@@ -1,3 +1,32 @@
+# CATALOG — `routes.elevation_gain_m` is LIVE (0098, 2026-08-14)
+
+**`routes.elevation_gain_m` exists in production and is backfilled.** Measured after the push,
+not assumed: 32 rows · 20 carry a measured gain · 12 are NULL · range 0–63 m · zero rows with a
+gain but no geometry · zero on `active`.
+
+**NULL means "no measurement recorded for THIS row's current geometry". It does NOT mean flat.**
+Twelve routes have geometry but no GPX behind them, so nothing has measured them. `0` is a
+different statement: it is a real computed value (two riverside loops carry it) meaning no rise
+above the derivation's 3 m noise floor — which is not survey-grade flatness either. **Any surface
+that renders NULL as "0m" or "평지" re-introduces the lie at the last mile**; render it absent,
+the way `shade`/`lighting` already do.
+
+Two properties the schema now enforces, both worth knowing before you write to this table:
+- The backfill keys on `(town, name, km)` and requires real geometry. A name alone is not a
+  measurement — `0078:54` seeds `몽마르뜨 언덕 루프` with `trace '[]'` and `km 2.0`, and the
+  measured 34 m comes from a different 1.59 km line. Suite 134 E5 pins this.
+- **`elevation_gain_m` is cleared automatically whenever `trace` changes**, unless the same
+  statement supplies a new value (0098 §B-bis). `promote_route_from_run` replaces `trace` and
+  knows nothing about this column, so without the trigger a candidate's climb would silently
+  become the certified route's. If you re-seed or re-cut geometry, expect the gain to go NULL and
+  re-derive it.
+
+Still open and still catalog's, none of them started: the `trace` shape + Korea lat/lng bounds
+CHECK (data is 32/32 objects today, but `jsonb` permits a third shape — three tolerant readers
+now exist downstream absorbing what ingest wrote); km embedded in `routes.name` disagreeing with
+the `km` column after rounding; and the `anchor_lat`/`anchor_lng` `소비 금지` contract, which
+cannot be scoped by `source` because all 32 rows read `algo`.
+
 # SESSION HANDOFF — 2026-08-14 · **money** · charge machine live-and-inert · pre-charging checklist
 
 **Role: money** (fleet roster §2). Owns ledgers, charge, settle, payouts, club fares;
