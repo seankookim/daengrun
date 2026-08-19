@@ -1606,8 +1606,12 @@ export interface MyRunnerStatus { totalRuns: number; totalKm: number; online: bo
 export async function fetchMyRunnerStatus(): Promise<MyRunnerStatus> {
   const { data: user } = await supabase.auth.getUser();
   if (!user.user) return { totalRuns: 0, totalKm: 0, online: false, tier: null };
-  const { data } = await supabase.from('runners')
+  // A failed read must not resolve as "offline, 0 runs" — that is a happy UI on a failure.
+  // Throw so the screen's error state (rsErr / the 온라인 row's failure) can render. No row
+  // (maybeSingle → null) still means "not a runner yet" and keeps the zeros.
+  const { data, error } = await supabase.from('runners')
     .select('total_runs, total_km, online, tier').eq('profile_id', user.user.id).maybeSingle();
+  if (error) throw error;
   return {
     totalRuns: data?.total_runs ?? 0,
     totalKm: Number(data?.total_km ?? 0),
@@ -2511,21 +2515,48 @@ export async function fetchRecentReviews(): Promise<PublicReview[]> {
   }));
 }
 
+// One realtime channel per booking, shared by every screen that watches it.
+// supabase-js returns the SAME channel object for the same topic, and throws
+// "cannot add `postgres_changes` callbacks … after `subscribe()`" when a second screen
+// attaches a callback to an already-subscribed channel. That is exactly what happens when the
+// owner walks live → home → meetup (or meetup auto-transitions to live) for one booking, because
+// Expo Router keeps the previous screen mounted. Measured on the simulator 2026-08-19 (render
+// error on owner/meetup). So: a registry keyed by booking id, fan-out to N listeners, the channel
+// is created on the first listener and removed when the last one leaves. Each screen keeps its
+// poll fallback; nothing here changes what a screen does on a change.
+const bookingWatchers = new Map<string, { listeners: Set<() => void>; ch: ReturnType<typeof supabase.channel>; dropped: boolean }>();
+
 export function subscribeBooking(bookingId: string, onChange: () => void): () => void {
   // P0-1 후속(0108): bk 채널은 postgres_changes 전용이라 브로드캐스트 노출은 없었지만,
   // 프로젝트 전역 private_only 가 켜지는 순간 public 채널은 **전부** 죽는다. 서버 정책(0108)이
   // 이 토픽족을 인가하므로 private 으로 요청하고, 구독 전에 소켓을 무장시킨다.
   hookTokenRefresh();
-  const ch = supabase
-    .channel(`bk-${bookingId}`, REALTIME_PRIVATE)
-    .on('postgres_changes',
-      { event: 'UPDATE', schema: 'public', table: 'bookings', filter: `id=eq.${bookingId}` },
-      () => onChange())
-    ;
-  // 무장 → 구독 순서. 그 사이 도착한 변경은 화면의 폴백 폴링이 잡는다(각 소비처가 폴링을 유지한다).
-  let dropped = false;
-  void armRealtime().then(() => { if (!dropped) ch.subscribe(); });
-  return () => { dropped = true; supabase.removeChannel(ch); };
+  let w = bookingWatchers.get(bookingId);
+  if (!w) {
+    const listeners = new Set<() => void>();
+    const ch = supabase
+      .channel(`bk-${bookingId}`, REALTIME_PRIVATE)
+      .on('postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'bookings', filter: `id=eq.${bookingId}` },
+        () => { for (const fn of Array.from(listeners)) fn(); })
+      ;
+    w = { listeners, ch, dropped: false };
+    bookingWatchers.set(bookingId, w);
+    // 무장 → 구독 순서. 그 사이 도착한 변경은 화면의 폴백 폴링이 잡는다(각 소비처가 폴링을 유지한다).
+    const mine = w;
+    void armRealtime().then(() => { if (!mine.dropped) mine.ch.subscribe(); });
+  }
+  w.listeners.add(onChange);
+  return () => {
+    const cur = bookingWatchers.get(bookingId);
+    if (!cur) return;
+    cur.listeners.delete(onChange);
+    if (cur.listeners.size === 0) {
+      cur.dropped = true;
+      bookingWatchers.delete(bookingId);
+      supabase.removeChannel(cur.ch);
+    }
+  };
 }
 
 // 채팅 컨텍스트 — 상대 이름 + 예약 라벨

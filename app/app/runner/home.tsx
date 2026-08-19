@@ -2,7 +2,7 @@ import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Animated, Easing, Pressable, ScrollView, StyleSheet, Text, TextStyle, View } from 'react-native';
+import { Alert, Animated, Easing, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BottomNav } from '../../src/components/bottomnav';
 import { BrandMark } from '../../src/components/brandmark';
 import { TabSwipe } from '../../src/components/tabswipe';
@@ -10,7 +10,7 @@ import { CourseStrip } from '../../src/components/CourseStrip';
 import { RunnerClubCard } from '../../src/components/clubcard';
 import { Icon, Row } from '../../src/components/ui';
 import {
-  acceptBooking, AvailRule, CoursePatch, declineBooking, fetchBookingAddress, fetchCoursePatches, fetchLedgerMonth, fetchLedgerTotal, fetchMyAvailability, fetchMyName, fetchMyRunnerStatus, fetchRunnerInbox, fetchRunnerJobs,
+  acceptBooking, AvailRule, CoursePatch, declineBooking, fetchBookingAddress, fetchCoursePatches, fetchMyAvailability, fetchMyName, fetchMyRunnerStatus, fetchRunnerInbox, fetchRunnerJobs,
   fetchRunnerWeekStats, fetchUnreadCount, MyRunnerStatus, OpenRequest, PickupAddress, RunnerJob, RunnerWeekStats, saveMyAvailability, setRunnerOnline,
 } from '../../src/lib/api';
 import { PatchBadge } from '../../src/components/patch';
@@ -34,6 +34,23 @@ import { colors, layout, lilac, paper } from '../../src/theme';
 // 중복 인쇄 0: tierLabel 1회(스트랩), 주간 러닝/거리/평균 1회(장부), 온라인 1회(스트랩) — 푸터·마스트헤드
 // 키커 은퇴. §3b 그램마: 섹션 헤더 = 코랄 풀블리드 룰 + 타이틀 20/800 (라틴 키커·서브타이틀·01~06 넘버 전부 은퇴).
 // 리워드 카드는 Sean 지시로 현행 레이아웃 동결 (3중 진행계 포함 — 랩의 통합안 미적용).
+//
+// 2026-08-19 journey v4 (R1a/R1b, docs/labs/journey-v4-runner.html) — money is ONE line:
+//  · The ₩50 pt ledger hero is RETIRED (with it: 이번 달 / 누적 / 오늘 확보·예정 / the three ledger
+//    rows). What replaces it is a single factual week row bound to the same fetchRunnerWeekStats —
+//    "이번 주 N회 · Nkm · 정산 예정 N원", every `stats === null ? '—'` guard preserved.
+//    ⚠ fetchLedgerMonth now has NO caller anywhere in the client (earnings.tsx keeps 누적 only).
+//  · The online toggle leaves the bib strap and becomes one big INK switch on canvas. On = ink,
+//    never coral: being online is a STATE, not an action, and a coral switch reads as "turn me on".
+//    The strap keeps identity only (name in the display font — the screen's one display budget).
+//  · 진행 중 and the front request are both TICKET OBJECTS (1.5 px ink border + perforation).
+//    The 진행 중 card's coral action BAR is retired → an ink action line; the screen's single coral
+//    is the 수락 door. While a run is `active` the STAGE map already paints 러닝 중 · LIVE coral, so
+//    the 수락 door drops to an ink-outline ghost for that state — one coral, always the moment's own.
+//  · Section links go coral → ink (six coral chevrons was six climaxes).
+//  · Omitted deliberately: the lab's "홈 베이스 반경 3km" (no home-base coordinate column, and
+//    MyRunnerStatus carries no radius) and its "지명 요청도 오프라인이면 오지 않아요" (measured false —
+//    fetchRunnerInbox's directed leg has no online filter, api.ts:826-830).
 
 const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0]; // 월…일
 const DAY_NAME = '일월화수목금토';
@@ -92,17 +109,6 @@ function PulseRings({ color = colors.tang, size = 30 }: { color?: string; size?:
   return <>{ring(a1)}{ring(a2)}</>;
 }
 
-// 홀로 상단 엣지 — 3px 포일 트림 (빕·장부·티켓·스텁). 포일 예산: 모노그램 + 카드 엣지만.
-const HOLO = ['#CFC4FF', '#FFD9CB', '#F3E9C6', '#EAF6C8', '#CFE0FF'];
-function HoloEdge() {
-  // [페이퍼 크롬 2026-08-10] radius 프롭 은퇴 — 모든 카드가 샤프라 라운드 홀로 엣지 변형이 사라졌다
-  return (
-    <View style={styles.holo}>
-      {HOLO.map((c, i) => <View key={i} style={{ flex: 1, backgroundColor: c }} />)}
-    </View>
-  );
-}
-
 // 섹션 헤더 — §3b 단일 그램마 (2026-08-11): 풀블리드 코랄 룰 위 · 타이틀 20/800 잉크 · 우측 링크 16/800.
 // 라틴 키커·서브타이틀·01~06 순번 칩은 은퇴 — 대기열/루트/리워드는 순서 있는 시퀀스가 아니었다 (넘버 = 장식).
 function SectionHead({ title, link, onPress }: { title: string; link?: string; onPress?: () => void }) {
@@ -119,26 +125,6 @@ function SectionHead({ title, link, onPress }: { title: string; link?: string; o
   );
 }
 
-// 장부 점선 리더 행 — 좌 라벨 · 점선 리더 · 우 값. [§3b] 라틴 서브키커(THIS WEEK/DISTANCE/AVG/RUN) 은퇴 —
-// 주간 컨텍스트는 히어로 캡션이 한 번만 말한다.
-function LedgerRow({ label, value, unit, nf, total }: {
-  label: string; value: string; unit: string; nf: TextStyle | null; total?: boolean;
-}) {
-  return (
-    <Row style={[styles.lr, total && { borderBottomWidth: 0 }]}>
-      {/* 라벨 열 72 — 최장 라벨 '완료 러닝' = 한글 4자 + 공백 ≈ 4×14.5 + 7 = 65px < 72 (서브키커가 빠져
-          구 86 케이지의 존재 이유가 사라짐 — 리더 점선이 14px 더 벌어 숨쉰다) */}
-      <View style={{ width: 72 }}>
-        <Text style={styles.lrLabel}>{label}</Text>
-      </View>
-      <View style={styles.lead} />
-      <Text style={styles.lrVal}>
-        <Text style={[styles.lrValNum, nf, total && { fontSize: 15 }]}>{value}</Text>{unit}
-      </Text>
-    </Row>
-  );
-}
-
 export default function RunnerHome() {
   const df = useDisplayFont(); // 디스플레이 서체 — 화면당 1회 (빕 네임)
   const nf = useNumFont();     // 숫자 서체 — Oswald tabular
@@ -151,9 +137,6 @@ export default function RunnerHome() {
   // [honesty 2026-08-11] weekly stats used to seed {net: 0} → the money hero printed
   // ₩0 in flight and on failure. null = not known yet → '—' (0원 위장 금지).
   const [stats, setStats] = useState<RunnerWeekStats | null>(null);
-  // 장부 넓은 창 — 이번 달(KST 월 1일~) · 누적(정산 예정 총액). 로드 전엔 null → '—' (0원 위장 금지)
-  const [monthNet, setMonthNet] = useState<number | null>(null);
-  const [totalNet, setTotalNet] = useState<number | null>(null);
   const [unread, setUnread] = useState(0); // 미읽음 알림 실카운트 — 벨 도트의 유일한 근거
   const [jobs, setJobs] = useState<RunnerJob[]>([]);
   const [patchMap, setPatchMap] = useState<Record<string, CoursePatch>>({}); // 완료 카드 미니 패치
@@ -196,7 +179,9 @@ export default function RunnerHome() {
   const acceptFront = () => {
     const rq = inbox[0];
     if (!rq || busyReq) return;
-    Alert.alert('요청 수락', `${rq.dogName} · ${rq.when}\n${rq.payout.toLocaleString()}원 실수령 — 수락할까요?`, [
+    // [honesty 2026-08-19] '실수령'은 확정 금액을 뜻하는데 이 값은 추정치다 (서버가 실거리·수수료율로
+    // 확정 — api.ts:427). requests.tsx:76이 이미 교정한 문장을 같은 행동의 두 번째 문에도 맞춘다.
+    Alert.alert('요청 수락', `${rq.dogName} · ${rq.when}\n예상 ${rq.payout.toLocaleString()}원 (실거리로 확정) — 수락할까요?`, [
       { text: '아직', style: 'cancel' },
       {
         text: '수락', style: 'default',
@@ -250,8 +235,6 @@ export default function RunnerHome() {
     loadInbox();
     fetchMyName().then(setName).catch(() => {});
     fetchRunnerWeekStats().then(setStats).catch((e) => console.warn('[rhome] stats:', e?.message ?? e));
-    fetchLedgerMonth().then(setMonthNet).catch((e) => console.warn('[rhome] month:', e?.message ?? e));
-    fetchLedgerTotal().then(setTotalNet).catch((e) => console.warn('[rhome] total:', e?.message ?? e));
     fetchUnreadCount().then(setUnread).catch((e) => console.warn('[rhome] unread:', e?.message ?? e));
     fetchRunnerJobs().then(setJobs).catch((e) => console.warn('[rhome] jobs:', e?.message ?? e));
     fetchCoursePatches()
@@ -321,14 +304,10 @@ export default function RunnerHome() {
   // An applicant (and anyone without a runners row) cannot receive a request at all — the inbox and
   // the tier ladder both say so instead of pretending it is a quiet day / a rung away.
   const preCert = rsLoaded && !rsErr && (rs.tier === null || rs.tier === 'applicant');
-  const avg = stats != null && stats.runs > 0 ? Math.round(stats.net / stats.runs) : 0;
-  // 오늘 라벨 — 기기 시계가 아니라 KST 고정(UTC+9, DST 없음). j.when은 서버 api의 kstParts 산출물이라
-  // 기기가 UTC(에뮬레이터)·해외면 라벨이 하루 어긋나 오늘 잡이 통째로 안 잡혔다.
-  const _t = new Date(Date.now() + 9 * 3_600_000);
-  const todayLabel = `${_t.getUTCMonth() + 1}월 ${_t.getUTCDate()}일`;
-  const todayJobs = jobs.filter((j) => j.when.startsWith(todayLabel) && ['confirmed', 'runner_enroute', 'picked_up', 'active', 'completed'].includes(j.rawStatus));
-  const todaySum = todayJobs.reduce((a, j) => a + (j.payout ?? 0), 0);
-  const todayN = todayJobs.length;
+  // [v4] 회당 평균·오늘 확보 합·이번 달/누적은 히어로와 함께 은퇴했다 (돈은 한 줄). 파생값도 같이 간다 —
+  // 계산만 남아 아무도 읽지 않는 상태가 다음 세션에게는 "여기 있었는데 왜 안 그리지?"가 된다.
+  // 화면의 유일한 코랄 소유권: LIVE(active) 러닝이 있으면 그 카드가 가져가고, 수락 문은 고스트로 내려간다.
+  const liveOwnsCoral = current?.rawStatus === 'active';
 
   // when 문자열 파싱 — 마지막 토큰 = 시간, 앞 = 요일/날짜 (소스 다음예약 파싱과 동일)
   const parseWhen = (w: string) => {
@@ -366,175 +345,175 @@ export default function RunnerHome() {
       {/* [2026-08-10] screen gutter 14 → layout.gutter (15) — vertical paddings unchanged */}
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: layout.gutter, paddingTop: 12, paddingBottom: 28 }}>
 
-        {/* ————— ① BIB STRAP — 레이스 빕이 한 줄 스트랩으로 접혔다 (Ⓑ①). 정체성(이름·티어)과
-             온라인 토글만 남는다. 빕의 대형 주간 숫자·TOTAL/TIER/DISTANCE 스탯 블록·핀·이너 프레임은 은퇴 —
-             주간 스탯은 장부가 한 번만 인쇄하고 티어는 여기 한 번만. 홀로 엣지·바코드는 스트랩 높이(≈45px)에서
-             아티팩트로 안 읽혀 은퇴 (홀로 예산 '표면당 티켓 엣지 1'은 머니 히어로가 가져간다).
-             원라인 케이지: 320dp → 콘텐츠 264 (320 − 30 거터 − 24 패딩 − 2 보더). 토글 열 ≈ 44 트랙 +
-             58 라벨('오프라인' 4×14+ls) + gap 17 ≈ 119 → 텍스트 몫 145. '민준 러너 인증 러너' ≈
-             3×17(df) + 7×14 + 여백 ≈ 143 — 꼭 맞고, 긴 이름은 numberOfLines 1이 ellipsize. */}
+        {/* ————— ① BIB STRAP — 레이스 빕이 한 줄 스트랩으로 접혔다 (Ⓑ①). 빕의 대형 주간 숫자·
+             TOTAL/TIER/DISTANCE 스탯 블록·핀·이너 프레임은 은퇴 — 티어는 여기 한 번만.
+             [v4] 온라인 토글도 여기서 나갔다 (아래 자기 행) — 스트랩에 남는 것은 **정체성뿐**:
+             이름(디스플레이 서체, 화면당 1회) + 티어. 케이지가 넉넉해져 긴 이름의 ellipsize 여유가 늘었다
+             (구 산식은 토글 열 ≈119px를 빼고 텍스트 몫 145였다; 이제 콘텐츠 264 전부가 텍스트 몫). */}
         <Row style={styles.strap}>
           <Text style={{ flex: 1, minWidth: 0 }} numberOfLines={1}>
             <Text style={[styles.strapName, df]}>{name ?? '러너'}</Text>
             <Text style={styles.strapNameEm}> 러너</Text>
             <Text style={styles.strapTier}>  {tierLabel}</Text>
           </Text>
-          {/* 온라인 토글 — 러너의 유일한 스위치, 스트랩 우측에 산다. 같은 rs.online/toggleOnline 상태 */}
-          <Pressable onPress={toggleOnline} accessibilityRole="switch" accessibilityState={{ checked: rs.online }}>
-            <Row style={{ alignItems: 'center', gap: 7 }}>
-              {/* 잉크 위에서는 코랄의 **표시판**이 읽는 판이 된다 (2단 법의 반전): 실측
-                  #C6472C는 잉크 위 3.87:1로 미달하고, #F0765A는 6.63:1로 통과한다. */}
-              <Text style={[styles.swLabel, { color: rs.online ? lilac.coral : paper.faint }]}>
-                {rs.online ? '온라인' : '오프라인'}
-              </Text>
-              <View style={[styles.swTrack, rs.online ? styles.swTrackOn : styles.swTrackOff]}>
-                <View style={styles.swKnob} />
-              </View>
-            </Row>
-          </Pressable>
         </Row>
 
-        {/* ————— ② MONEY HERO — 정산 장부가 화면의 리드 모듈 (Ⓑ① "내가 얼마 벌었나 = 0스크롤").
-             실 정산 필드 바인딩 · 점선 리더 · 잉크 1.5px 보더 = 히어로 강조 ————— */}
-        <View style={styles.ledger}>
-          <HoloEdge />
-          {/* 정산 히어로 — ₩와 금액은 baseline 정렬 + gap 4로 절대 겹치지 않음 (오버랩 FIX #2)
-              [Ⓑ①] 46 → 50 승격 — 빕의 74pt가 은퇴해 ₩가 화면의 유일한 대형 숫자다. 폭: 최악 현실 주간
-              '9,999,999' = 9글리프 × ~25(0.5em) = 225 + ₩(22pt ≈ 24) + gap 4 ≈ 253 < 261 콘텐츠
-              (320 − 30 거터 − 24 패딩 − 3 보더). lineHeight 62 = 1.24× (BUG A). */}
-          <Row style={{ alignItems: 'baseline', gap: 4, marginTop: 6 }}>
-            <Text style={[styles.won, nf]}>₩</Text>
-            <Text style={[styles.lBig, nf]} numberOfLines={1}>{stats === null ? '—' : stats.net.toLocaleString()}</Text>
-          </Row>
-          {/* [§3b] 'THIS WEEK' 라틴 태그 은퇴 — 주간 컨텍스트는 캡션이 한국어로 한 번 말한다 */}
-          <Text style={styles.lCap}>이번 주 실수령 · 수수료 차감 후 기준</Text>
-          {/* 넓은 창 — 이번 달(KST 월 1일~ 원장 합) · 누적(my_ledger_total RPC). 실값만, 로드 전엔 '—' */}
-          <Row style={styles.lWin}>
-            <Text style={styles.lWinK}>이번 달</Text>
-            <Text style={styles.lWinV}>₩<Text style={[styles.lWinNum, nf]}>{monthNet === null ? '—' : monthNet.toLocaleString()}</Text></Text>
-            <Text style={styles.lWinSep}>·</Text>
-            <Text style={styles.lWinK}>누적</Text>
-            <Text style={styles.lWinV}>₩<Text style={[styles.lWinNum, nf]}>{totalNet === null ? '—' : totalNet.toLocaleString()}</Text></Text>
-          </Row>
-          {/* [Sean] 오늘의 가시 수익 = 러너의 인센티브 — 오늘 확정·진행·완료 잡의 실수령 합 (실필드만) */}
-          {/* 라벨 '·예정': 완료 건만 원장 실수령이고 확정~진행 건은 티어 수수료 견적(api fetchRunnerJobs)이다 —
-              섞인 합을 '확보'라 부르면 아직 안 들어온 돈을 확정으로 위장한다. 계산·필터는 그대로. */}
-          {todayN > 0 && (
-            <Text style={styles.lToday}>
-              오늘 확보·예정 <Text style={[styles.lTodayNum, nf]}>+{todaySum.toLocaleString()}</Text>원 · 확정 {todayN}건
+        {/* ————— ② 온라인 토글 — [v4 R1a/R1b] 빕 스트랩 안의 44×25 스위치에서 캔버스 위 56×32 잉크
+             스위치로 나왔다. 두 가지가 바뀐다.
+             ① 색: ON이 코랄이었다. 온라인은 **상태**지 행동이 아니고, 상태에 클라이맥스 색을 칠하면
+                화면이 "켜라"고 재촉한다 — 그리고 그 코랄은 바로 아래 수락 문과 예산을 두고 싸웠다.
+                ON = 잉크, OFF = 인셋. (랩의 법 그대로: "토글 ON = 잉크".)
+             ② 자리: 잉크 스트랩 위에서는 잉크 스위치가 보이지 않는다. 스트랩은 정체성만 지고
+                (이름 = 화면당 1회 디스플레이 서체), 스위치는 자기 행을 갖는다 — 한 개의 명확한 컨트롤.
+             상태·핸들러(rs.online/toggleOnline)는 그대로다. 서브 문구는 오프라인일 때 **무엇이 멈추고
+             무엇이 안 멈추는지**를 말한다: 확정된 러닝은 오프라인과 무관하게 남는다. 랩이 여기 얹은
+             "홈 베이스 반경 3km"는 뺐다 — 홈 베이스 좌표 컬럼이 없고 MyRunnerStatus에 반경도 없다. */}
+        <Pressable
+          onPress={toggleOnline}
+          accessibilityRole="switch"
+          accessibilityState={{ checked: rs.online }}
+          accessibilityLabel={rs.online ? '온라인 — 끄기' : '오프라인 — 켜기'}
+          style={styles.tog}
+        >
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={[styles.togLbl, { color: rs.online ? lilac.head : lilac.dim }]}>
+              {rs.online ? '온라인' : '오프라인'}
             </Text>
-          )}
-
-          {/* 주간 스탯 — 화면 유일 인쇄 (빕 재인쇄 은퇴) */}
-          <View style={{ marginTop: 11, borderTopWidth: 1, borderTopColor: '#EEEEEE' }}>
-            <LedgerRow label="완료 러닝" value={stats === null ? '—' : String(stats.runs)} unit="회" nf={nf} />
-            {/* [2026-08-11] '총 거리' → '이번 주 거리'. 이 행은 fetchRunnerWeekStats의 **주간** 값인데
-                '총'은 누계를 뜻한다 — 히어로 캡션('이번 주 실수령')이 문맥을 주긴 했지만 라벨 자체는
-                거짓이었다. 아래 '내 기록'이 진짜 누적(rs.totalKm)을 인쇄하면서 한 화면에
-                '총 거리 0km'와 '누적 거리 18.2km'가 같이 서게 됐고, 그 순간 이 라벨은 그냥 틀린 게 아니라
-                **모순으로 읽힌다**. 주간 값은 주간이라고 말한다.
-                라벨은 '이번 주 거리'가 아니라 '주간 거리' — 라벨 열은 72px 예산이고(LedgerRow 주석)
-                '이번 주 거리'는 5자+공백 ≈ 80px로 넘친다. '주간 거리'는 4자+공백 ≈ 65px로
-                기존 최장 라벨 '완료 러닝'과 같은 폭이라 케이지가 그대로 유지된다. */}
-            <LedgerRow label="주간 거리" value={stats === null ? '—' : String(stats.km)} unit="km" nf={nf} />
-            <LedgerRow label="회당 평균" value={stats === null ? '—' : avg.toLocaleString()} unit="원" nf={nf} total />
+            <Text style={styles.togSub}>
+              {rs.online ? '요청을 받는 중' : '새 요청이 멈춰 있어요 · 확정된 러닝은 그대로'}
+            </Text>
           </View>
+          <View style={[styles.swTrack, rs.online ? styles.swTrackOn : styles.swTrackOff]}>
+            <View style={styles.swKnob} />
+          </View>
+        </Pressable>
 
-          <Row style={styles.lFoot}>
-            {/* [2026-08-11] '매주 정산'은 존재하지 않는 지급 운영을 주장했다 — 실결제도, 러너
-                지급을 실행하는 코드도 아직 없다. 원장은 진짜고 일정은 진짜가 아니었다. 진짜만 남긴다.
-                (같은 주장을 done.tsx도 '매주 수요일'로 하고 있었고 함께 지웠다.) */}
-            <Text style={styles.lFootTxt}>정산 기록</Text>
-            <Pressable onPress={() => router.push('/runner/earnings')}>
-              <Text style={styles.lFootLink}>수익 상세 ›</Text>
-            </Pressable>
-          </Row>
-        </View>
+        {/* ————— ③ 이번 주 — [v4] 장부 히어로가 한 줄이 됐다. 같은 fetchRunnerWeekStats, 같은 세 값,
+             같은 '—' 가드. 히어로가 하던 말("내가 얼마 벌었나")은 이 줄이 그대로 하고, 히어로가 하던
+             **주장**("이 화면의 주인공은 돈이다")만 사라진다 — 러너 홈의 주인공은 지금 할 일이다.
+             '정산 예정'인 이유: fetchRunnerWeekStats는 ledger_items를 직접 읽으므로 금액 자체는 **실값**
+             (base+distance+addon+tip+remaining_guarantee − platform_fee, api.ts:2299)이다. 예정인 것은
+             금액이 아니라 **지급**이다 — 러너에게 돈을 실제로 보내는 코드 경로가 아직 없다 (수익 화면의
+             '지급 일정 미정'과 같은 사실). 그래서 '확보'도 '실수령 완료'도 아니고 '정산 예정'이다. ————— */}
+        <Row style={styles.week}>
+          <Text style={styles.weekK}>이번 주</Text>
+          <Text style={styles.weekV}>
+            <Text style={[styles.weekNum, nf]}>{stats === null ? '—' : String(stats.runs)}</Text>회 ·{' '}
+            <Text style={[styles.weekNum, nf]}>{stats === null ? '—' : String(stats.km)}</Text>km · 정산 예정{' '}
+            <Text style={[styles.weekNum, nf]}>{stats === null ? '—' : stats.net.toLocaleString()}</Text>원
+          </Text>
+        </Row>
 
-        {/* ————— 진행 중 작업 (관제탑의 심장) — 코랄 좌측 엣지 ————— */}
-        {current && (
-          <>
-            <SectionHead title="진행 중" />
-            <Pressable onPress={() => openJob(current)} style={({ pressed }) => [styles.now, pressed && styles.pressed96]}>
-              <View style={styles.nowEdge} />
-              <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-                <Row style={{ alignItems: 'center', gap: 6 }}>
-                  <View style={{ width: 14, height: 14, alignItems: 'center', justifyContent: 'center' }}>
-                    <PulseRings color={lilac.coral} size={14} />
-                    <View style={{ width: 7, height: 7, borderRadius: 3.5, backgroundColor: lilac.coral }} />
+
+        {/* ————— 진행 중 — [v4 R1a] 카드에서 **티켓 오브젝트**로. 랩의 법: 러너가 실제로 들고
+             가는 것(오늘의 확정 러닝, 수락/거절할 요청)만 박스를 받는다. 그래서 이 카드와 아래 요청
+             티켓이 같은 문법(잉크 1.5px + 퍼포레이션)을 쓰고, 나머지 섹션은 줄로 산다.
+             🔴 코랄 면(nowBar) 은퇴 — 화면의 코랄 하나는 수락 문이 가져간다. 액션은 잉크 한 줄이고,
+             카드 전체가 여전히 하나의 탭 타깃이라 "가리키는 자리 = 눌리는 자리"는 유지된다.
+             파동 링/코랄 좌측 엣지도 함께 내렸다: 상태는 STAGE 라벨이 말로 하고 있었고, 링은 같은
+             사실을 색으로 한 번 더 말하는 장식이었다 (LIVE일 때만 STAGE가 코랄 라벨을 든다).
+             '예상 수익' 줄도 뺐다 — 돈은 이 화면에서 한 줄(이번 주)이고, 이 잡의 금액은 바로 아래
+             '오늘의 루트'가 정차역마다 인쇄한다 (한 사실은 한 화면에 한 번). ————— */}
+        {current && (() => {
+          const { wd, wt } = parseWhen(current.when);
+          const st = STAGE[current.rawStatus];
+          return (
+            <>
+              <SectionHead title="진행 중" />
+              <Pressable onPress={() => openJob(current)} style={({ pressed }) => [styles.ticket, pressed && styles.pressed96]}>
+                <View style={styles.tMain}>
+                  <View style={{ paddingHorizontal: 13, paddingTop: 12, paddingBottom: 12 }}>
+                    <Row style={{ justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+                      {/* 시각이 첫 소자 — parseWhen이 마지막 토큰을 시간으로 가른다 (요일/날짜는 아래 조용한 줄) */}
+                      <Text style={[styles.tBig, nf]}>{wt}</Text>
+                      <Text style={[styles.objStage, { color: st?.color ?? CORAL_INK }]}>
+                        {st?.label ?? current.rawStatus}
+                      </Text>
+                    </Row>
+                    <Text style={styles.objMain}>
+                      <Text style={{ fontWeight: '800' }}>{current.dogName}</Text> · <Text style={[styles.objNum, nf]}>{current.km}</Text>km
+                    </Text>
+                    {wd ? <Text style={styles.objQuiet}>{wd}</Text> : null}
+                    {/* 주소는 서버가 준 행이 있을 때만 — 없으면 줄 자체가 없다 (죽은 줄·거짓 줄 금지) */}
+                    {jobAddr && (
+                      <Text style={styles.objQuiet} numberOfLines={1}>{jobAddr.label} · {jobAddr.addr}</Text>
+                    )}
                   </View>
-                  {/* [§3b status chip] 16/800, 자기 데이텀(current.when)과 같은 베이스라인 행 */}
-                  <Text style={{ fontSize: 16, lineHeight: 20, fontWeight: '800', color: STAGE[current.rawStatus]?.color ?? CORAL_INK }}>
-                    {STAGE[current.rawStatus]?.label ?? current.rawStatus}
-                  </Text>
-                </Row>
-                <Text style={styles.nowWhen}>{current.when}</Text>
-              </Row>
-              <Text style={styles.nowTitle}>{current.dogName} · {current.km}km 러닝</Text>
-              <Text style={styles.nowSub}>
-                예상 수익 <Text style={{ fontWeight: '700', color: lilac.text }}>+{current.payout.toLocaleString()}원</Text>
-              </Text>
-              {/* 주소는 서버가 준 행이 있을 때만 — 없으면 줄 자체가 없다 (죽은 줄·거짓 줄 금지) */}
-              {jobAddr && (
-                <Text style={styles.nowSub} numberOfLines={1}>{jobAddr.label} · {jobAddr.addr}</Text>
-              )}
-              {/* [Ⓐ① 2026-08-12 · Sean 랩 픽] 코랄 **면**이 돌아온다 — 이번엔 진짜 타깃 위에.
-                  경위: 8/11에 여기 있던 코랄 면은 버튼이 아니라 <View>였다. 누를 수 없는 자리에
-                  '누르세요'라고 칠해져 있었으므로 잉크 링크로 강등한 것이 옳았다. Sean의 지적은
-                  그 다음 문제였다 — 링크는 링크로 읽히고, 관제탑의 심장이 너무 무심했다.
-                  해법은 다시 칠하는 게 아니라 **진짜 타깃을 보이게** 하는 것: 이 바는 카드와 같은
-                  Pressable 안에 있다(별도 onPress 없음 — 카드 전체가 여전히 하나의 타깃이다).
-                  그래서 코랄 면이 가리키는 자리와 실제로 눌리는 자리가 처음으로 일치한다.
-                  라벨은 STAGE[rawStatus].action 실값 그대로 — 단계마다 다음 행동이 다르다.
-                  pointerEvents="none": 바는 그림이지 중첩 타깃이 아니다 (탭 타깃은 하나로 유지). */}
-              <View pointerEvents="none" style={styles.nowBar}>
-                <Text style={styles.nowBarTxt}>{STAGE[current.rawStatus]?.action ?? '이어서 진행 ›'}</Text>
-              </View>
-            </Pressable>
-          </>
-        )}
+                </View>
+
+                <View style={styles.perfWrap}>
+                  <View style={styles.perf} />
+                  <View style={[styles.perfNotch, { left: -8, borderLeftColor: 'transparent' }]} />
+                  <View style={[styles.perfNotch, { right: -8, borderRightColor: 'transparent' }]} />
+                </View>
+
+                {/* 라벨은 STAGE[rawStatus].action 실값 그대로 — 단계마다 다음 행동이 다르다 */}
+                <View style={styles.tStub}>
+                  <Text style={styles.objActTxt}>{st?.action ?? '이어서 진행 ›'}</Text>
+                </View>
+              </Pressable>
+            </>
+          );
+        })()}
 
         {/* ————— QUEUE: 오늘 맨 앞 = 보딩패스 티켓 · 나머지 = 스텁 행. 수락/거절 = 소스 요청함 핸들러 ————— */}
         <SectionHead title="요청 대기열" link={`요청함 · ${inbox.length}건 ›`} onPress={() => router.push('/runner/requests')} />
 
         {inbox.length > 0 ? (
           <>
-            {/* 오늘 맨 앞 예약 = 보딩패스 티켓 전문 (inbox[0]).
-                [§3b] 'TODAY · FRONT REQUEST' 헤더·'COURSE/정산' 팩트 행·바코드 푸터 은퇴 — 시각이 첫 소자,
-                km는 메타 한 줄에 흡수, 정산액은 수락 문이 한 번만 인쇄한다 (Ⓑ① 목업 그대로) */}
+            {/* 맨 앞 요청 = 티켓 오브젝트 (inbox[0]) — 진행 중 카드와 같은 문법.
+                [v4 R1a] 세 가지가 바뀐다.
+                🔴 ① '지명 요청 픽업'은 **오픈 풀 요청 위에서도** 인쇄되고 있었다 (조건 없는 문자열) —
+                   아무도 지명하지 않은 요청을 "당신을 지명했다"고 말하던 줄이다. ★ 태그가 이미
+                   directed일 때만 뜨므로 같은 사실이 두 번 필요하지도 않았다. 실필드로 갈아끼운다:
+                   견종·체중·페이스는 OpenRequest에 실제로 있는 값이다 (api.ts:740-758).
+                ② 조용한 줄에 '실거리로 확정' — 문에 찍힌 금액은 추정치다 (requests.tsx:76과 같은 문장).
+                   ⟳ N번째는 repeatPrior(완료 동반 러닝 수)+1, 있을 때만.
+                ③ 코랄 도트 은퇴 · 시각 31 → 24pt: 화면 위쪽 진행 중 티켓이 31pt 데이텀을 갖고,
+                   요청은 그 다음 오브젝트다 (같은 크기면 위계가 없다).
+                금액은 여전히 수락 문이 **한 번만** 인쇄한다. */}
             <View style={styles.ticket}>
               <View style={styles.tMain}>
                 <View style={{ paddingHorizontal: 13, paddingTop: 12, paddingBottom: 12 }}>
                   <Row style={{ justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                    <Text style={[styles.tBig, nf]}>{inbox[0].when}</Text>
+                    <Text style={[styles.tMid, nf]} numberOfLines={1}>{inbox[0].when}</Text>
                     {/* [§3b status chip] 16/800 · 보더 없는 틴트 필 · 데이텀(시각)과 같은 행 */}
                     {inbox[0].directed && (
                       <View style={styles.monoTagStar}><Text style={styles.monoTagStarTxt}>★ 나를 지명</Text></View>
                     )}
                   </Row>
-                  <Row style={{ alignItems: 'center', gap: 6, marginTop: 8 }}>
-                    <View style={{ width: 10, height: 12, borderRadius: 5, backgroundColor: lilac.coral }} />
-                    <Text style={styles.tWhere}>{inbox[0].dogName}</Text>
-                    <Text style={styles.tWhereSub}>· <Text style={[styles.tWhereSubNum, nf]}>{inbox[0].km}</Text>km · 지명 요청 픽업</Text>
-                  </Row>
+                  <Text style={styles.objMain}>
+                    <Text style={{ fontWeight: '800' }}>{inbox[0].dogName}</Text>
+                    {inbox[0].breed ? ` · ${inbox[0].breed}` : ''}
+                    {inbox[0].weightKg > 0 ? ` ${inbox[0].weightKg}kg` : ''}
+                    {' · '}<Text style={[styles.objNum, nf]}>{inbox[0].km}</Text>km
+                    {inbox[0].paceLabel ? ` · ${inbox[0].paceLabel}` : ''}
+                  </Text>
+                  <Text style={styles.objQuiet}>
+                    실거리로 확정
+                    {inbox[0].repeatPrior != null && inbox[0].repeatPrior > 0 ? ` · ⟳ ${inbox[0].repeatPrior + 1}번째 함께` : ''}
+                    {inbox[0].routeName ? ` · ${inbox[0].routeName}` : ''}
+                  </Text>
                 </View>
               </View>
 
               {/* 퍼포레이션 + 사이드 노치 */}
               <View style={styles.perfWrap}>
                 <View style={styles.perf} />
-                <View style={[styles.perfNotch, { left: -8 }]} />
-                <View style={[styles.perfNotch, { right: -8 }]} />
+                <View style={[styles.perfNotch, { left: -8, borderLeftColor: 'transparent' }]} />
+                <View style={[styles.perfNotch, { right: -8, borderRightColor: 'transparent' }]} />
               </View>
 
               <View style={styles.tStub}>
                 <Row style={{ gap: 8 }}>
                   {/* [실동작] 문이 곧 행동 — 수락은 여기서 끝난다. 상세(사진·메모)가 필요하면 콰이엇 문(오픈 요청)
-                      [§3b] busy = 라벨 스왑만 (opacity 트릭 은퇴) · pressed = scale 0.96 · 수락 라벨 17/800 */}
-                  <Pressable onPress={acceptFront} disabled={busyReq} style={({ pressed }) => [styles.door, styles.doorCoral, pressed && styles.pressed96]}>
-                    <Text style={[styles.doorName, { color: '#fff', fontSize: 17 }]}>{busyReq ? '전송 중...' : '수락'}</Text>
+                      [§3b] busy = 라벨 스왑만 (opacity 트릭 은퇴) · pressed = scale 0.96 · 수락 라벨 17/800
+                      [v4] liveOwnsCoral: 러닝이 LIVE인 동안 '지금 내 차례'는 러닝 화면이지 새 요청이 아니다 —
+                      그때만 이 문이 잉크 아웃라인 고스트로 내려간다 (화면당 코랄 1개 법). 동작은 동일. */}
+                  <Pressable onPress={acceptFront} disabled={busyReq} style={({ pressed }) => [styles.door, liveOwnsCoral ? styles.doorGhost : styles.doorCoral, pressed && styles.pressed96]}>
+                    <Text style={[styles.doorName, { color: liveOwnsCoral ? lilac.head : '#fff', fontSize: 17 }]}>{busyReq ? '전송 중...' : '수락 ›'}</Text>
                     {/* [2026-08-10 filler cull] ' · 바로 확정돼요' dropped — the confirm Alert states the consequence */}
-                    <Text style={[styles.doorSub, { color: '#fff' }]}>
+                    <Text style={[styles.doorSub, { color: liveOwnsCoral ? lilac.dim : '#fff' }]}>
                       <Text style={[styles.doorSubNum, nf]}>{inbox[0].payout.toLocaleString()}</Text>원
                     </Text>
                   </Pressable>
@@ -570,7 +549,9 @@ export default function RunnerHome() {
                     <View style={[styles.stubNotch, { bottom: -6 }]} />
                     <View style={{ alignItems: 'center' }}>
                       <Text style={[styles.stubFare, nf]}>{rq.payout.toLocaleString()}</Text>
-                      <Text style={styles.stubFareCap}>실수령</Text>
+                      {/* [honesty 2026-08-19] '실수령'은 확정 금액을 뜻한다 — 이 값은 추정치다
+                          (서버가 실거리·수수료율로 확정). 앞 티켓의 조용한 줄과 같은 어휘로 맞춘다. */}
+                      <Text style={styles.stubFareCap}>예상</Text>
                     </View>
                     <Pressable onPress={() => router.push('/runner/requests')} style={({ pressed }) => [styles.stubView, pressed && styles.pressed96]}>
                       <Text style={styles.stubViewTxt}>보기 ›</Text>
@@ -631,8 +612,10 @@ export default function RunnerHome() {
                       onPress={() => openJob(st.job)}
                       style={[styles.stop, i > 0 && { borderTopWidth: 1, borderTopColor: '#EEEEEE' }]}
                     >
+                      {/* [v4] '지금' 표식은 잉크 — 코랄은 화면당 하나이고 그 하나는 수락 문이다.
+                          이 점이 말하려던 사실은 바로 옆 'stopTmSub'가 이미 '지금'이라고 글자로 말한다. */}
                       <View style={[styles.stopPt, on && styles.stopPtOn]}>
-                        {on && <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: lilac.coral }} />}
+                        {on && <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: lilac.head }} />}
                       </View>
                       {/* [2026-08-10] time col 52 → 60: stopTm went 14 → 16pt Oswald — 'HH:MM' ≈ 5 glyphs
                           × ~9px + tracking ≈ 48px, 60 leaves device-font-scale headroom (52 fit 14pt ≈ 42px) */}
@@ -697,9 +680,13 @@ export default function RunnerHome() {
               <>
                 <Row style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
                   <Text style={{ fontSize: 14, lineHeight: 18, fontWeight: '700', color: lilac.head }}>
-                    {t.next}까지 러닝 <Text style={[{ fontSize: 14, color: CORAL_INK }, nf]}>{left}</Text>회
+                    {t.next}까지 러닝 <Text style={[{ fontSize: 14, color: lilac.head }, nf]}>{left}</Text>회
                   </Text>
-                  <Text style={[styles.fee, nf]}>수수료 일괄 <Text style={{ color: lilac.voltDeep }}>33%</Text></Text>
+                  {/* [v4] '수수료 일괄 33%' → 요율을 인쇄하지 않는다. 33%는 진짜 컬럼이지만
+                      (runners.commission_rate, 0059) 랩의 선택은 "러너에게 보이는 돈은 실수령"이다 —
+                      요율은 수익 화면의 내역 행이 실제 수수료 **금액**으로 말한다. 값을 지운 게 아니라
+                      이 자리에서 인쇄하지 않을 뿐이고, 화면 어디에도 계산은 없다. */}
+                  <Text style={styles.fee}>수수료 제외 실수령</Text>
                 </Row>
                 <Row style={{ alignItems: 'center', marginTop: 11, gap: 0 }}>
                   {[0, 1, 2, 3, 4].map((i) => {
@@ -1014,11 +1001,13 @@ const styles = StyleSheet.create({
   feedShareTxt: { fontSize: 16, fontWeight: '800', color: lilac.head },
   // [페이퍼 크롬] 섹션 헤더 래퍼 — 거터를 음수 마진으로 뚫은 풀블리드 코랄 1px 상단 룰
   secWrap: { marginHorizontal: -layout.gutter, paddingHorizontal: layout.gutter, borderTopWidth: 1, borderTopColor: paper.line, paddingTop: 10 },
-  holo: { flexDirection: 'row', height: 3, position: 'absolute', top: 0, left: 0, right: 0, zIndex: 3 },
 
   // [§3b 2026-08-11] 섹션 헤더 — 앱 전체 단일 그램마: 타이틀 20/800 잉크 · 우측 링크 16/800
   secTitle: { fontSize: 20, lineHeight: 25, fontWeight: '800', color: lilac.head },
-  secLink: { fontSize: 16, lineHeight: 20, fontWeight: '800', color: CORAL_INK },
+  // [v4] 섹션 링크가 코랄이었다 — 한 화면에 코랄 셰브런이 여섯 개(요청함·캘린더·리워드 센터·
+  // 시간 조정·수익 상세·컬렉션)면 클라이맥스가 여섯 개고, 그건 클라이맥스가 없다는 뜻이다.
+  // 랩의 R1a도 이 링크들을 굵은 잉크 + 셰브런으로 그린다. 코랄은 수락 문 하나가 가져간다.
+  secLink: { fontSize: 16, lineHeight: 20, fontWeight: '800', color: lilac.head },
   // [§3b] 승인된 촉감 패턴 — 컴포지터 전용 scale 프레스 (버튼 4킨드 공통)
   pressed96: { transform: [{ scale: 0.96 }] },
 
@@ -1034,92 +1023,69 @@ const styles = StyleSheet.create({
   // 잉크 위 실측: #999 = 6.57:1 (AA 통과). lilac.dim(#7C76A0)은 잉크 위에서 3.4:1로 미달한다.
   strapNameEm: { fontSize: 14, lineHeight: 18, color: paper.faint, fontWeight: '600' },
   strapTier: { fontSize: 14, lineHeight: 18, color: paper.faint, fontWeight: '700' },
-  swTrack: { width: 44, height: 25, borderRadius: 99, padding: 3, flexDirection: 'row' },
-  swTrackOn: {
-    backgroundColor: lilac.coral, justifyContent: 'flex-end',
-    shadowColor: lilac.coral, shadowOpacity: 0.32, shadowRadius: 9, shadowOffset: { width: 0, height: 3 },
-  },
-  swTrackOff: { backgroundColor: '#3A3A3A', justifyContent: 'flex-start', borderWidth: 1, borderColor: '#4A4A4A' }, // 잉크 빕 위 오프 상태 (흰 카드 위 inset은 안 보인다)
-  swKnob: { width: 19, height: 19, borderRadius: 9.5, backgroundColor: '#fff', shadowColor: '#1C1837', shadowOpacity: 0.3, shadowRadius: 2, shadowOffset: { width: 0, height: 1 } },
-  // [2026-08-10] 14 → 15 with tracking 1.2 → 1: '오프라인' width stays ≈ 63px (4×15 + 3×1 vs 4×14 + 3×1.2),
-  // so the toggle column footprint next to the strap name is unchanged — the switch layout still fits.
-  swLabel: { fontSize: 15, lineHeight: 19, letterSpacing: 1, fontWeight: '700' },
 
-  // ② 머니 히어로 장부 — [Ⓑ①] 잉크 1.5px 보더 = 히어로 강조 (구 이중 프레임 card+ledgerIn 은퇴 → 단일 박스)
-  // [Ⓐ① 동반 변경 2026-08-12] 보더 1.5 → 1px. §7b Von Restorff / 강조 예산은 화면당 고립된 강조
-  // **하나**다. 진행 중 카드가 코랄 액션 바를 얻는 순간, 장부의 1.5px 잉크 보더와 둘이 싸운다 —
-  // 그리고 러닝이 진행 중일 때 러너 홈의 강조는 장부가 아니라 그 카드여야 한다 (관제탑의 심장).
-  // 장부는 카드 중 가장 무거운 상태를 유지하되(잉크 1px + 홀로 엣지), 우승은 넘긴다.
-  ledger: {
-    marginTop: 12, backgroundColor: lilac.card, borderWidth: 1, borderColor: lilac.head, borderRadius: 0,
-    paddingHorizontal: 12, paddingTop: 11, paddingBottom: 10, overflow: 'hidden',
+  // ② 온라인 토글 행 — [v4] 캔버스 위 자기 행. 44pt 타깃 법: 56×32 스위치 + 14/18 서브줄로 행 높이 ≈ 62.
+  tog: {
+    flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 60,
+    paddingTop: 14, paddingBottom: 12,
+    borderBottomWidth: 1, borderBottomColor: '#EEEEEE',
   },
+  togLbl: { fontSize: 17, lineHeight: 22, fontWeight: '800' }, // 색은 상태에 따라 인라인 (잉크/딤)
+  togSub: { fontSize: 14, lineHeight: 18, color: lilac.dim, marginTop: 2 },
+  // 스위치 — 랩 치수 56×32. ON = 잉크(상태), OFF = 인셋. 코랄 없음: 코랄은 '누를 곳'이지 '켜진 상태'가 아니다.
+  swTrack: { width: 56, height: 32, borderRadius: 16, padding: 3, flexDirection: 'row', borderWidth: 1, flexShrink: 0 },
+  swTrackOn: { backgroundColor: lilac.head, borderColor: lilac.head, justifyContent: 'flex-end' },
+  swTrackOff: { backgroundColor: lilac.inset, borderColor: lilac.hair, justifyContent: 'flex-start' },
+  // 노브는 항상 흰색 + 헤어라인 — OFF의 인셋 트랙 위에서도 노브 경계가 보인다 (불투명도 트릭 금지)
+  swKnob: {
+    width: 24, height: 24, borderRadius: 12, backgroundColor: '#FFFFFF',
+    borderWidth: 1, borderColor: lilac.hair,
+    shadowColor: '#1C1837', shadowOpacity: 0.22, shadowRadius: 2, shadowOffset: { width: 0, height: 1 },
+  },
+
+  // ③ 이번 주 한 줄 — [v4] 머니 히어로(₩50pt·점선 리더 3행·월/누적 창·오늘 합)를 대체한다.
+  // 숫자만 Oswald, lineHeight 19 = 1.27× (BUG A 법). 320dp에서 값이 두 줄로 접히면 접힌다 —
+  // flex:1 + textAlign right라 오른쪽 정렬을 유지한 채로 흐른다.
+  week: { alignItems: 'baseline', gap: 8, paddingTop: 11, paddingBottom: 11, borderBottomWidth: 1, borderBottomColor: '#EEEEEE' },
+  weekK: { fontSize: 14, lineHeight: 18, color: lilac.dim, fontWeight: '600', flexShrink: 0 },
+  weekV: { flex: 1, textAlign: 'right', fontSize: 14, lineHeight: 20, color: lilac.head, fontWeight: '600' },
+  weekNum: { fontSize: 15, lineHeight: 19, color: lilac.head },
+
   // [§3b status chip] 16/800 · 보더 없는 틴트 필 · 샤프 (앰버 = 시맨틱 지명 신호)
   monoTagStar: { backgroundColor: lilac.amberSoft, borderRadius: 0, paddingHorizontal: 7, paddingVertical: 2 },
   monoTagStarTxt: { fontSize: 16, lineHeight: 20, letterSpacing: 0.5, color: lilac.amber, fontWeight: '800' },
-  // ₩와 금액은 baseline 정렬 · won은 flexShrink 0로 자기 폭 확보, 금액은 numberOfLines 1 (오버랩 FIX #2)
-  // BUG A: 둘 다 lineHeight ≥1.2×fontSize, includeFontPadding 제거 → "₩0"의 0이 온전한 타원으로
-  // [Ⓑ①] 46/58 → 50/62 승격 (폭 산식은 JSX 주석), won 20/25 → 22/28 비례
-  won: { fontSize: 22, color: CORAL_INK, lineHeight: 28, flexShrink: 0 },
-  lBig: { fontSize: 50, color: lilac.head, lineHeight: 62, letterSpacing: 0.2, flexShrink: 1 },
-  lToday: { fontSize: 14, fontWeight: '700', color: '#3D6B1F', marginTop: 7 },
-  lTodayNum: { fontSize: 16, fontWeight: '700' },
-  // 월·누적 행 — 히어로 아래 조용한 보조 창. Oswald 숫자는 lineHeight ≥1.2× (BUG A 법)
-  // [Ⓑ① re-derive] ledger content = 320 − 30 gutter − 24 pad − 3 borders(1.5×2) ≈ 263px (구 이중
-  // 프레임 252 산식 폐기); '이번 달 ₩9,999,999 · 누적 ₩9,999,999' ≈ 2×(46 + 10 + 9×8.8) + 18 ≈ 250px
-  // — worst case still one line, deeper sums wrap via flexWrap (by design). NOT the LedgerRow 72px
-  // label cage below.
-  lWin: { alignItems: 'baseline', gap: 5, marginTop: 8, flexWrap: 'wrap' },
-  lWinK: { fontSize: 14, lineHeight: 18, color: lilac.dim, fontWeight: '600' },
-  lWinV: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: lilac.head },
-  lWinNum: { fontSize: 16, lineHeight: 20, color: lilac.head },
-  lWinSep: { fontSize: 12, lineHeight: 16, color: lilac.dim }, // 글리프 전용(·) 구분자 — 플로어 면제
-  lCap: { marginTop: 6, fontSize: 14, color: lilac.dim, lineHeight: 18 },
-  lr: { alignItems: 'baseline', gap: 7, paddingTop: 7, paddingBottom: 6, borderBottomWidth: 1, borderBottomColor: '#EEEEEE' },
-  lrLabel: { fontSize: 14, lineHeight: 18, fontWeight: '600', color: lilac.head },
-  lead: { flex: 1, borderBottomWidth: 1, borderStyle: 'dotted', borderBottomColor: '#D5CFEC', transform: [{ translateY: -3 }] },
-  lrVal: { fontSize: 14, lineHeight: 18, fontWeight: '500', color: lilac.text },
-  lrValNum: { fontSize: 14, color: lilac.head },
-  lFoot: { justifyContent: 'space-between', alignItems: 'center', gap: 8, marginTop: 9, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#EEEEEE' },
-  lFootTxt: { fontSize: 14, lineHeight: 18, color: lilac.dim, flex: 1 },
-  // [액션 롤아웃] 액션 링크가 바이올렛이었다 — 바이올렛은 §5에서 클럽 정체성이지 '누를 곳'이
-  // 아니고, 흰 캔버스 위 실측 4.38:1로 AA도 못 넘는다. actionInk = 5.99:1.
-  lFootLink: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: paper.actionInk },
 
-  // 진행 중 — 목업 .now padding 11 12 12 14 · [페이퍼 크롬] 샤프·뉴트럴 (코랄 좌측 엣지 = DAWN DUAL 액센트 생존)
-  now: {
-    backgroundColor: lilac.card, borderWidth: 1, borderColor: '#EEEEEE', borderRadius: 0,
-    overflow: 'hidden', paddingTop: 11, paddingRight: 12, paddingBottom: 12, paddingLeft: 14, marginTop: 10,
-  },
-  nowEdge: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, backgroundColor: lilac.coral },
-  nowWhen: { fontSize: 14, lineHeight: 18, letterSpacing: 1.2, color: lilac.dim, fontWeight: '500' },
-  nowTitle: { marginTop: 8, fontSize: 16, lineHeight: 21, fontWeight: '700', color: lilac.head },
-  nowSub: { marginTop: 3, fontSize: 14, lineHeight: 18, color: lilac.dim },
-  // 액션 링크 — 면이 아니라 잉크. actionInk는 캔버스 위 5.99:1.
-  // [Ⓐ①] nowGo(잉크 링크) → nowBar(액션 면). §3b 버튼 매트릭스의 프라이머리 치수를 그대로 쓴다:
-  // paper.action 면 · radius 0 · paddingVertical ≥15 · 흰 라벨 17/800 (실측 4.84:1, 전 크기 AA).
-  // 카드 안쪽 패딩(좌 14 / 우 12)을 음수 마진으로 되받아 바가 카드 폭을 가득 채운다 — 머니 버튼의
-  // '풀블리드, 사이드 마진 없음' 문법. 아래쪽은 카드의 paddingBottom 12를 그대로 먹고 앉는다.
-  nowBar: {
-    marginTop: 12, marginLeft: -14, marginRight: -12, marginBottom: -12,
-    backgroundColor: paper.action, paddingVertical: 15, alignItems: 'center',
-  },
-  nowBarTxt: { fontSize: 17, lineHeight: 22, fontWeight: '800', color: '#FFFFFF' },
-
-  // ① 티켓 — [페이퍼 크롬] 샤프·뉴트럴, 섀도 은퇴 (퍼포레이션 아티팩트 생존 · [Ⓑ①] 홀로/바코드는 예산 은퇴)
+  // ④ 티켓 오브젝트 — [v4] 진행 중 카드와 맨 앞 요청이 **같은** 문법을 쓴다. 랩의 법: 러너가 실제로
+  // 들고 가는 것만 박스를 받는다. 그래서 보더가 뉴트럴 #EEE 1px에서 **잉크 1.5px**로 올라간다 —
+  // 은퇴한 장부 히어로가 들고 있던 '강조 하나'의 예산을 이 두 오브젝트가 물려받는다 (§7b Von Restorff:
+  // 강조는 화면당 하나의 **종류**이고, 여기서는 '오브젝트다'라는 한 종류가 두 번 나타난다).
   ticket: { marginTop: 9 },
-  tMain: { backgroundColor: lilac.card, borderTopLeftRadius: 0, borderTopRightRadius: 0, borderWidth: 1, borderBottomWidth: 0, borderColor: '#EEEEEE', overflow: 'hidden' },
+  tMain: { backgroundColor: lilac.card, borderRadius: 0, borderWidth: 1.5, borderBottomWidth: 0, borderColor: lilac.head, overflow: 'hidden' },
   // BUG A: 티켓 시각 31pt → lineHeight 39 (1.26×), includeFontPadding 제거 — "0" 상단 온전
   tBig: { fontSize: 31, color: lilac.head, lineHeight: 39 },
-  tWhere: { fontSize: 14, lineHeight: 18, fontWeight: '600', color: lilac.head },
-  tWhereSub: { fontSize: 14, lineHeight: 18, color: lilac.dim },
-  tWhereSubNum: { fontSize: 14, lineHeight: 18, color: lilac.head }, // km 숫자 = Oswald (메타 줄에 흡수된 구 COURSE 팩트)
-  perfWrap: { backgroundColor: lilac.card, borderLeftWidth: 1, borderRightWidth: 1, borderColor: '#EEEEEE', position: 'relative' },
+  // [v4] 요청 티켓의 시각 — 진행 중(31)보다 한 단 아래 (같은 크기면 위계가 없다). lineHeight 30 = 1.25×
+  tMid: { fontSize: 24, color: lilac.head, lineHeight: 30, flexShrink: 1 },
+  perfWrap: { backgroundColor: lilac.card, borderLeftWidth: 1.5, borderRightWidth: 1.5, borderColor: lilac.head, position: 'relative' },
   perf: { borderTopWidth: 1.5, borderTopColor: '#DCD7F0', borderStyle: 'dashed' },
-  perfNotch: { position: 'absolute', top: -8, width: 16, height: 16, borderRadius: 8, backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE' }, // 노치 = 캔버스 구멍 (원형은 퍼포 아티팩트 예외)
-  tStub: { backgroundColor: lilac.card, borderBottomLeftRadius: 0, borderBottomRightRadius: 0, borderWidth: 1, borderTopWidth: 0, borderColor: '#EEEEEE', paddingHorizontal: 13, paddingTop: 11, paddingBottom: 12 },
+  // 노치 = 캔버스 구멍 (원형은 퍼포 아티팩트 예외). [v4] 보더가 잉크 1.5px로 올라가면서 바깥쪽 호를
+  // 투명으로 끊는다 (랩 .perf:before/after의 border-*-color:transparent) — 안 그러면 티켓 옆에
+  // 온전한 원 두 개가 붙어 '구멍'이 아니라 '단추'로 읽힌다.
+  perfNotch: { position: 'absolute', top: -8, width: 16, height: 16, borderRadius: 8, backgroundColor: paper.canvas, borderWidth: 1.5, borderColor: lilac.head },
+  tStub: { backgroundColor: lilac.card, borderRadius: 0, borderWidth: 1.5, borderTopWidth: 0, borderColor: lilac.head, paddingHorizontal: 13, paddingTop: 11, paddingBottom: 12 },
+
+  // 오브젝트 본문 — 두 티켓이 공유하는 줄들
+  objStage: { fontSize: 14, lineHeight: 18, fontWeight: '800', flexShrink: 0 }, // 색 = STAGE[rawStatus].color (인라인)
+  objMain: { marginTop: 8, fontSize: 15, lineHeight: 20, fontWeight: '600', color: lilac.head },
+  objNum: { fontSize: 15, lineHeight: 20, color: lilac.head }, // Oswald 숫자 — lineHeight 1.33× (BUG A)
+  objQuiet: { marginTop: 3, fontSize: 14, lineHeight: 18, color: lilac.dim },
+  // 스텁의 액션 줄 — 코랄 면(nowBar) 은퇴 후의 자리. 카드 전체가 탭 타깃이라 이 줄은 라벨이지 버튼이 아니다.
+  objActTxt: { fontSize: 16, lineHeight: 20, fontWeight: '800', color: lilac.head, textAlign: 'right' },
+
   door: { flex: 1, borderRadius: 0, paddingVertical: 15, paddingHorizontal: 11, overflow: 'hidden' }, // [§3b] 샤프 · pv 12 → 15 (버튼 공통 플로어)
   doorCoral: { backgroundColor: CORAL_INK, borderWidth: 1, borderColor: CORAL_INK_DEEP }, // 코랄 글로우 섀도 은퇴
+  // [v4] LIVE 러닝이 코랄을 쥐고 있을 때의 수락 문 — 잉크 아웃라인 고스트 (랩 .doorB). 여전히 프라이머리
+  // 치수(pv 15 · 라벨 17/800)라 '내려간 것은 색이지 문이 아니다'가 읽힌다.
+  doorGhost: { backgroundColor: lilac.card, borderWidth: 1.5, borderColor: lilac.head },
   doorQuiet: { backgroundColor: lilac.inset, borderWidth: 1, borderColor: '#EEEEEE' },
   doorName: { fontSize: 16, lineHeight: 22, fontWeight: '800' }, // 수락 문은 인라인 17로 승격 (프라이머리급) · 거절/자세히 16/800
   doorSub: { marginTop: 4, fontSize: 14, lineHeight: 18 },
@@ -1129,7 +1095,7 @@ const styles = StyleSheet.create({
   stub: { flexDirection: 'row', backgroundColor: lilac.card, borderWidth: 1, borderColor: '#EEEEEE', borderRadius: 0, overflow: 'hidden' }, // [페이퍼 크롬] 샤프·뉴트럴, 섀도 은퇴
   stubNm: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: lilac.head },
   stubKm: { fontSize: 14, lineHeight: 18, fontWeight: '600', color: lilac.head },
-  stubKmUnit: { fontSize: 14, color: CORAL_INK, fontWeight: '600' },
+  stubKmUnit: { fontSize: 14, color: lilac.dim, fontWeight: '600' }, // [v4] 코랄 단위 은퇴 — 단위는 강조가 아니다
   stubWhen: { fontSize: 14, lineHeight: 18, color: lilac.dim, fontWeight: '500' },
   // [Ⓑ① re-derive] 112 케이지 유지. 캡션이 'KRW 실수령' → '실수령'(한글 3자 ≈ 3×14 + ls = 45px)으로 줄어
   // 최장 소자는 이제 요금 숫자('999,999' 7글리프 × ~8.5 ≈ 60px)와 '보기 ›' 라벨(2×16 + 12 ≈ 44px) —
@@ -1150,7 +1116,7 @@ const styles = StyleSheet.create({
   // ② 루트 — 목업 .stop padding 7 0 8, gap 11
   stop: { flexDirection: 'row', alignItems: 'flex-start', gap: 11, paddingTop: 7, paddingBottom: 8 },
   stopPt: { width: 14, height: 14, borderRadius: 7, marginTop: 2, backgroundColor: lilac.card, borderWidth: 1.5, borderColor: '#DCD6F8', alignItems: 'center', justifyContent: 'center' },
-  stopPtOn: { borderColor: lilac.coral },
+  stopPtOn: { borderColor: lilac.head }, // [v4] 링도 잉크 — 안쪽 점과 같은 이유 (코랄은 수락 문 하나)
   stopTm: { fontSize: 16, lineHeight: 20, fontWeight: '600', color: lilac.head }, // [2026-08-10] 14 → 16 Oswald · lineHeight 20 = 1.25× (BUG A); time col widened 52 → 60 in JSX
   stopTmSub: { fontSize: 14, lineHeight: 18, color: lilac.dim, fontWeight: '500', marginTop: 2 },
   stopInfoB: { fontSize: 14, lineHeight: 18, fontWeight: '600', color: lilac.head },

@@ -22,8 +22,21 @@ import { colors, layout, paper } from '../../src/theme';
 // honest waitlist conversion is impossible today — removed until the feature exists. The missing
 // account is stated as a non-pressable info sentence (the sanctioned settings.tsx 준비-중 pattern).
 // Behavior frozen: fetchLedger/fetchLedgerTotal, pendingSum fallback, tax calc.
+//
+// [journey v4 · R7b/R7c 2026-08-19] The dark settlement ticket (43.5pt volt sum, 절취선, notches)
+// and the per-run ticket stubs (vertical perforation + two notches each) are RETIRED for plain
+// rows. Every sentence on this screen already existed and none of them changed — what changed is
+// that the SUM stopped being a hero. The lab's law for the runner journey: the amount is a plain
+// row, never large, and this screen's amount is the one number a runner is most tempted to read as
+// money in hand. It is not: it is a ledger total with no payout run behind it, which is exactly
+// what 지급 일정 미정 says one line below. A 43.5pt volt numeral argued the opposite.
+// Also retired: the ● LIVE chip (a saturated, non-actionable badge — the row says 원장 합계) and
+// the per-run green net (one saturated number per ledger row × N rows). The Bd breakdown keeps its
+// colour coding, which is information: coral = the fee coming off, green = money added on.
+// 수수료율(33%) is a real column (runners.commission_rate) — the lab's choice not to print the RATE
+// is a design decision, not a correction; the per-run 수수료 AMOUNT is a real ledger column and stays.
 
-const MONEY_GREEN = '#3D6B1F'; // reading green for money-positive text on paper (volt stays display-only)
+const MONEY_GREEN = '#3D6B1F'; // reading green for the additive breakdown items (팁·잔여 보장)
 
 // [2026-08-11] nextWednesday() 삭제 — 오늘 아침 '다음 정산일 <수요일>'을 지웠을 때(존재하지 않는
 // 지급 운영의 날짜였다) 계산 함수만 남아 호출부 0으로 떠 있었다. 죽은 코드이자, 되살리기 쉬운
@@ -65,49 +78,39 @@ export default function Earnings() {
         contentContainerStyle={{ paddingHorizontal: layout.gutter, paddingTop: 60, paddingBottom: 30 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
-        <Row style={{ gap: 8 }}>
-          {/* [§3c 화면 타이틀 2026-08-11] 30/900 · lineHeight 37 (1.23× — BUG A) */}
-          <Text style={[{ fontSize: 30, lineHeight: 37, fontWeight: '900', color: paper.ink }, df]}>수익</Text>
-          {/* live-ledger chip — §3b: 16/800, tinted fill, no border, beside its datum */}
-          <View style={s.liveChip}>
-            <Text style={{ fontSize: 16, lineHeight: 20, fontWeight: '800', color: MONEY_GREEN }}>● LIVE</Text>
-          </View>
-        </Row>
+        {/* [§3c 화면 타이틀 2026-08-11] 30/900 · lineHeight 37 (1.23× — BUG A) */}
+        <Text style={[{ fontSize: 30, lineHeight: 37, fontWeight: '900', color: paper.ink }, df]}>수익</Text>
 
-        {/* settlement ticket — 결제 티켓(보호자)과 같은 오브젝트: 한 거래의 양면.
-            Dark artifact face (paper.ink), sharp; volt numeral = personal money */}
-        <View style={s.settleCard}>
-          <Text style={{ fontSize: 14, lineHeight: 18, color: '#BBBBBB' }}>정산 예정 (원장 합계)</Text>
-          {/* Oswald settlement sum — lineHeight 54 = 1.24× (BUG A) */}
-          <Text style={[{ fontSize: 43.5, lineHeight: 54, fontWeight: '900', color: colors.volt, marginTop: 6, fontVariant: ['tabular-nums'] as const }, nf]}>
-            {sumKnown ? `${pendingSum.toLocaleString()}원` : '—'}
-          </Text>
-          {/* 절취선 + 노치 — notches punch the real canvas (stale beige #F8F6F0 fixed) */}
-          <View style={{ marginVertical: 14, height: 1 }}>
-            <View style={s.tickDash} />
-            <View style={[s.notch, { left: -32 }]} />
-            <View style={[s.notch, { right: -32 }]} />
-          </View>
-          <Row style={{ justifyContent: 'space-between' }}>
-            {/* [2026-08-11] '다음 정산일 <수요일>'은 존재하지 않는 지급 운영의 날짜를 못박았다.
-                실결제도 러너 지급 코드도 아직 없다 — 원천징수 추정치는 계산이라 남기고, 날짜는 지운다. */}
-            <Text style={{ fontSize: 14, lineHeight: 18, color: '#BBBBBB' }}>지급 일정 미정</Text>
-            <Text style={{ fontSize: 14, lineHeight: 18, color: '#BBBBBB' }}>원천징수 3.3% 약 −{sumKnown ? tax.toLocaleString() : '—'}원</Text>
-          </Row>
-        </View>
+        {/* 합계 — 한 줄. sumKnown 게이트는 그대로: 로딩·실패를 0원으로 위장하지 않는다 ('—'). */}
+        <View style={[s.rule, { marginTop: 14 }]} />
+        <Row style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
+          <Text style={s.sumLabel}>정산 예정 · 원장 합계</Text>
+          {sumKnown ? (
+            <Row style={{ alignItems: 'baseline' }}>
+              {/* Oswald sum — lineHeight 24 = 1.26× (BUG A) */}
+              <Text style={[s.sumNum, nf]}>{pendingSum.toLocaleString()}</Text>
+              <Text style={s.sumUnit}>원</Text>
+            </Row>
+          ) : (
+            <Text style={s.sumUnknown}>—</Text>
+          )}
+        </Row>
+        {/* [2026-08-11] '다음 정산일 <수요일>'은 존재하지 않는 지급 운영의 날짜를 못박았다.
+            실결제도 러너 지급 코드도 아직 없다 — 원천징수 추정치는 계산이라 남기고, 날짜는 지운다. */}
+        <Text style={s.sumNote}>
+          지급 일정 미정 · 원천징수 3.3% 약 −{sumKnown ? tax.toLocaleString() : '—'}원 예정
+        </Text>
 
         {/* bank account — honest info row, not a door: registration ships with open banking */}
-        <View style={s.card}>
-          <Text style={{ fontSize: 15.5, fontWeight: '800', color: paper.ink }}>정산 계좌</Text>
-          <Text style={{ fontSize: 14, color: paper.dim, marginTop: 3, lineHeight: 19 }}>
-            아직 등록된 계좌가 없어요 — 계좌 등록은 오픈뱅킹 연동과 함께 제공돼요
-          </Text>
-        </View>
+        <View style={s.rule} />
+        <Text style={s.secTitle}>정산 계좌</Text>
+        <Text style={{ fontSize: 14, color: paper.dim, marginTop: 3, lineHeight: 19 }}>
+          아직 등록된 계좌가 없어요 — 계좌 등록은 오픈뱅킹 연동과 함께 제공돼요
+        </Text>
 
         {/* ledger — §3b section header: full-bleed coral rule + 20/800 ink */}
-        <Row style={s.secWrap}>
-          <Text style={s.secTitle}>러닝별 내역</Text>
-        </Row>
+        <View style={s.rule} />
+        <Text style={[s.secTitle, { marginBottom: 10 }]}>러닝별 내역</Text>
         {!loaded && !loadErr && (
           <View style={s.emptyBox}>
             <Text style={{ fontSize: 14.5, color: paper.dim, textAlign: 'center' }}>불러오는 중...</Text>
@@ -129,38 +132,35 @@ export default function Earnings() {
             </Text>
           </View>
         )}
-        {/* 러닝 하나 = 티켓 스텁 하나 — 세로 절취선 왼쪽은 러닝, 오른쪽은 실수령 */}
+        {/* 러닝 하나 = 한 줄. 왼쪽은 러닝과 그 내역, 오른쪽은 실수령.
+            '실수령' 낱말은 지킨다 — 랩의 '적립'과 달리 이 숫자가 무엇인지(수수료 뺀 뒤) 말한다. */}
         {ledger.map((l) => (
-          <View key={l.id} style={s.stub}>
-            <Row>
-              <View style={{ flex: 1, paddingRight: 11 }}>
-                <Text style={{ fontSize: 14, fontWeight: '700', color: paper.dim }}>{l.when}</Text>
-                <Text style={{ fontSize: 16.5, fontWeight: '800', color: paper.ink, marginTop: 2 }}>
+          <Row key={l.id} style={s.row}>
+            <View style={{ flex: 1, paddingRight: 12 }}>
+              <Row style={{ gap: 6, alignItems: 'baseline', flexWrap: 'wrap' }}>
+                <Text style={{ fontSize: 16.5, lineHeight: 22, fontWeight: '800', color: paper.ink }}>
                   {l.dogName} · {l.km}km
                 </Text>
-                <Row style={{ gap: 9, marginTop: 6, flexWrap: 'wrap' }}>
-                  <Bd label="기본" v={l.base} />
-                  <Bd label="거리" v={l.distancePay} />
-                  {l.addonPay > 0 && <Bd label="옵션" v={l.addonPay} />}
-                  {l.guarantee > 0 && <Bd label="잔여 보장" v={l.guarantee} accent />}
-                  {l.tip > 0 && <Bd label="팁" v={l.tip} accent />}
-                  <Bd label="수수료" v={-l.fee} coral />
-                </Row>
-              </View>
-              <View style={s.stubDivWrap}>
-                <View style={s.stubDash} />
-                <View style={[s.stubNotch, { top: -26 }]} />
-                <View style={[s.stubNotch, { bottom: -26 }]} />
-              </View>
-              <View style={{ width: 92, alignItems: 'center', justifyContent: 'center' }}>
-                {/* Oswald net — lineHeight 21 = 1.27× (BUG A) */}
-                <Text style={[{ fontSize: 16.5, lineHeight: 21, fontWeight: '900', color: MONEY_GREEN, fontVariant: ['tabular-nums'] as const }, nf]}>
-                  +{l.net.toLocaleString()}
-                </Text>
-                <Text style={{ fontSize: 14, color: paper.dim, marginTop: 2 }}>실수령</Text>
-              </View>
-            </Row>
-          </View>
+                <Text style={{ fontSize: 14, lineHeight: 19, color: paper.dim }}>{l.when}</Text>
+              </Row>
+              <Row style={{ gap: 9, marginTop: 5, flexWrap: 'wrap' }}>
+                <Bd label="기본" v={l.base} />
+                <Bd label="거리" v={l.distancePay} />
+                {l.addonPay > 0 && <Bd label="옵션" v={l.addonPay} />}
+                {l.guarantee > 0 && <Bd label="잔여 보장" v={l.guarantee} accent />}
+                {l.tip > 0 && <Bd label="팁" v={l.tip} accent />}
+                <Bd label="수수료" v={-l.fee} coral />
+              </Row>
+            </View>
+            <View style={{ alignItems: 'flex-end' }}>
+              <Row style={{ alignItems: 'baseline' }}>
+                {/* Oswald net — lineHeight 24 = 1.26× (BUG A) */}
+                <Text style={[s.netNum, nf]}>{l.net.toLocaleString()}</Text>
+                <Text style={s.netUnit}>원</Text>
+              </Row>
+              <Text style={{ fontSize: 14, lineHeight: 19, color: paper.dim }}>실수령</Text>
+            </View>
+          </Row>
         ))}
 
         <Text style={{ fontSize: 14, color: paper.dim, textAlign: 'center', marginTop: 12, lineHeight: 19 }}>
@@ -183,26 +183,30 @@ function Bd({ label, v, coral, accent }: { label: string; v: number; coral?: boo
 }
 
 const s = StyleSheet.create({
-  liveChip: { backgroundColor: '#E8F3D2', borderRadius: 0, paddingVertical: 2, paddingHorizontal: 8, alignSelf: 'center' },
-  settleCard: { backgroundColor: paper.ink, padding: 18, marginTop: 16, overflow: 'hidden' },
-  tickDash: { height: 1, borderWidth: 0.7, borderColor: '#444444', borderStyle: 'dashed' },
-  notch: { position: 'absolute', top: -14, width: 28, height: 28, borderRadius: 14, backgroundColor: paper.canvas },
-  stub: { backgroundColor: paper.canvas, padding: 13, borderWidth: 1, borderColor: '#EEEEEE', marginBottom: 8, overflow: 'hidden' },
-  stubDivWrap: { width: 1, alignSelf: 'stretch', marginRight: 11 },
-  stubDash: { flex: 1, width: 1, borderWidth: 0.7, borderColor: '#DDDDDD', borderStyle: 'dashed' },
-  stubNotch: { position: 'absolute', left: -12.5, width: 26, height: 26, borderRadius: 13, backgroundColor: paper.canvas },
-  card: { backgroundColor: paper.canvas, padding: 15, borderWidth: 1, borderColor: '#EEEEEE', marginTop: 12 },
-  emptyBox: { backgroundColor: paper.canvas, padding: 18, alignItems: 'center', borderWidth: 1, borderColor: '#EEEEEE' },
+  // 섹션 분할 = 풀블리드 솔리드 코랄 1px — 이 선이 곧 브랜드 (§2 종이 법).
+  // 반복되는 원장 행 사이는 중립 헤어라인이다: 코랄을 행마다 그으면 구조가 아니라 소음이 된다.
+  rule: {
+    marginHorizontal: -layout.gutter, height: 1, backgroundColor: paper.line,
+    marginTop: 20, marginBottom: 12,
+  },
+  // ---------- 합계 한 줄 ----------
+  sumLabel: { fontSize: 16, lineHeight: 21, fontWeight: '700', color: paper.text },
+  sumNum: { fontSize: 19, lineHeight: 24, fontWeight: '900', color: paper.ink, fontVariant: ['tabular-nums'] as const },
+  sumUnit: { fontSize: 15, lineHeight: 24, fontWeight: '800', color: paper.ink },
+  sumUnknown: { fontSize: 19, lineHeight: 24, fontWeight: '900', color: paper.ink },
+  sumNote: { fontSize: 14, lineHeight: 19, color: paper.dim, marginTop: 6 },
+  // ---------- 원장 행 ----------
+  row: { alignItems: 'flex-start', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#EEEEEE' },
+  netNum: { fontSize: 19, lineHeight: 24, fontWeight: '900', color: paper.ink, fontVariant: ['tabular-nums'] as const },
+  netUnit: { fontSize: 15, lineHeight: 24, fontWeight: '800', color: paper.ink },
+  emptyBox: { backgroundColor: paper.canvas, paddingVertical: 26, alignItems: 'center' },
   // loud-fail strip — community.tsx failStrip grammar (criticalWash + critical, retry ≥40pt)
   failStrip: { backgroundColor: paper.criticalWash, padding: 13 },
   // [액션 시스템 2026-08-11] 잉크 테두리 박스 은퇴. 이 버튼은 criticalWash 라우드-페일 스트립
   // 안에 있는데, 잉크 테두리가 크리티컬 잉크와 싸웠다. 실패 스트립은 박스 버튼이 필요 없다 —
   // runner/run.tsx failAction의 밑줄 텍스트 문법으로 통일 (박스 9개 삭제, 결정 1개).
   retryBtn: { alignSelf: 'flex-start', marginTop: 10, minHeight: 44, justifyContent: 'center' },
-  // §3b section header — full-bleed coral rule via negative gutter margins
-  secWrap: {
-    marginHorizontal: -layout.gutter, paddingHorizontal: layout.gutter,
-    borderTopWidth: 1, borderTopColor: paper.line, paddingTop: 10, marginTop: 20, marginBottom: 10,
-  },
+  // §3b 섹션 헤더는 앱 전체에서 하나의 문법: 20/800 잉크 (s.rule이 그 위의 코랄 선을 긋는다).
+  // 정산 계좌도 이제 같은 헤더다 — 종전 15.5/800 카드 제목은 이 화면만의 크기였다.
   secTitle: { fontSize: 20, lineHeight: 25, fontWeight: '800', color: paper.ink },
 });
