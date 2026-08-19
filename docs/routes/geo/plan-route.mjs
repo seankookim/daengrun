@@ -48,11 +48,24 @@ const angDiff = (a, b) => { const d = Math.abs(a - b) % 360; return d > 180 ? 36
 // list's history: OSM names plenty of real objects that are not searchable
 // places, and the geocoder answers those with silence or with something far away.
 const SKIP = new RegExp([
-  '어린이공원','지하차도','지하보도','지하철','출구','무명','\\(무명\\)',
+  '어린이\\s*공원','소공원','지하차도','지하보도','지하철','출구','무명','\\(무명\\)',
   '연결다리','급식실','학교','교회','성당','^다리$','^보행교$','^육교$','^계단$','^터널$',
 ].join('|'));
 const UNSEARCHABLE = (n) => !n || n.length > 18 || /되어|편입|폐쇄|예정|공사/.test(n);
 const ok = (f) => f.name && f.name !== '(unnamed crossing)' && !SKIP.test(f.name) && !UNSEARCHABLE(f.name);
+
+// A culverted stream is a ROAD with water underneath — 복개천. Routing to it
+// produces exactly the "stays in the city concrete area" route Sean rejected,
+// wearing a stream's name. 34 of 129 stream records carry tunnel=culvert/covered
+// or description 복개천 (신당천, 봉천천, 시흥천, 면목천, 구기천 ...). The tag is
+// PER SEGMENT though: 도림천 and 우이천 are covered near their heads and open
+// downstream, and 방학천 is culvert-tagged on one segment yet the built route
+// along it was fine. So covered segments are DEMOTED, not rejected — a stream's
+// open segment wins over its covered one, and any real park beats a 복개천.
+const covered = (f) => {
+  const t = f.tags || {};
+  return /culvert|covered|flooded/.test(t.tunnel || '') || /복개/.test((t.description || '') + (f.name || ''));
+};
 
 // What the route is FOR, best first. A stream or river beats a park: it is
 // linear, so the route can run ALONG it rather than just reaching it.
@@ -67,16 +80,17 @@ if (!start) { console.error(`no complex matching "${wanted}"`); process.exit(1);
 const reach = Math.max(400, (targetKm * 1000) / 3.2);
 const near = feats.filter(ok).map((f) => ({ ...f, d: hav(start, f), b: bearing(start, f) }));
 
+const rankOf = (f) => (DEST_RANK[f.category] ?? 9) + (covered(f) ? 2.5 : 0);   // a 복개천 ranks below a park
 const dests = near
   .filter((f) => f.d <= reach * 1.6 && DEST_RANK[f.category] !== undefined)
-  .sort((a, b) => (DEST_RANK[a.category] - DEST_RANK[b.category]) || Math.abs(a.d - reach) - Math.abs(b.d - reach));
+  .sort((a, b) => (rankOf(a) - rankOf(b)) || Math.abs(a.d - reach) - Math.abs(b.d - reach));
 
 const plan = [];
 let why = '';
 if (dests.length) {
   const dest = dests[0];
   plan.push(dest);
-  why = `${dest.category} at ${Math.round(dest.d)}m`;
+  why = `${dest.category} at ${Math.round(dest.d)}m` + (covered(dest) ? ' ⚠ COVERED SEGMENT (복개천) — nothing better in reach' : '');
   // Spend the route ON the destination: a second feature of the same kind, or
   // anything further along the same bearing, so the green section has length.
   // Cap the "spend time there" point close to the destination, not merely
@@ -109,5 +123,6 @@ console.error(`${start.name} (${start.gu})  target ${targetKm}km  →  ${why}`);
 for (const f of plan) console.error(`  ${String(Math.round(f.d)).padStart(4)}m  ${String(Math.round(f.b)).padStart(3)}°  ${f.category.padEnd(7)} ${f.name}`);
 
 const q = (s) => `"${s}"`;
-const label = `${start.gu.replace('구','')} ${plan[0].name} 루프`;
+// gu.replace('구','') strips the FIRST 구 — 구로구 became "로구". Strip the suffix only.
+const label = `${start.gu.replace(/구$/,'')} ${plan[0].name} 루프`;
 console.log(`./build-route.sh ${q(label)} ${q(start.lat.toFixed(4) + '/' + start.lng.toFixed(4))} ${targetKm} ${q(start.name)} ${plan.map((f) => q(f.name)).join(' ')}`);
