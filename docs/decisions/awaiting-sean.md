@@ -1,5 +1,48 @@
 # Awaiting Sean — the return queue
 
+> **⚡ 2026-08-15: SEAN ANSWERED SEVEN AT ONCE.** His words, verbatim: *"1: yes i tried it, but
+> no way to download on a real phone unless they have expo no? 2: A, give me a dashboard with
+> possible solutions and etc all things necessary. 3: b. 4: A. 5: not sure what that account is
+> but yes i do have a test account under user id s4kim2025. 6: give me a brief or short report i
+> can show to a lawyer. 7: A"* **[end of Sean's words]**
+>
+> Applied: **§0** signup tried by Sean (distribution question open — see body) · **§0-quinquies ✅
+> alerts go to Sean**, dashboard commissioned; his profile measured as `aa73ce8a…` (name
+> `s4kim2025`, handle `choco`) · **§0-ter ✅ all 9 runners are TEST DATA** — trust marks them in
+> `club_test_accounts` and the flag/copy gets fixed · **§0-sexies ✅ option A** — start the
+> paperwork chain, keep the charge machine; payment-surface honesty fix unblocked · **§0-septies ✅
+> confirmed** — Sean's word: the `s4kim2025` test account exists; the mapping `aa73ce8a…` =
+> `s4kim2025` (handle `choco`) is a *measurement* (trust verified it unique). Recorded as the
+> PR-0 test owner — two facts, two provenances · **위치정보법 brief
+> delivered** at `docs/biz/location-law-counsel-brief.md` · **hill notes: yes, ~40 m** ("언덕
+> 많음"), ui builds.
+
+> **⚡ 2026-08-15, later: SIGN-IN RULED.** Context: the app's two doors were Kakao OAuth and a
+> 6-digit **email** code — no phone/SMS path ever existed. Sean: *"for sign up i always used kakao
+> and never the email thing. dont use an email, use phone number. also, we have a text code double
+> verification on the phone number pathway?"* — answered (no such pathway exists), options given,
+> and he ruled: *"b"* = **KAKAO ONLY for the pilot; the email path is removed; phone/SMS deferred.**
+> ui removes the email stages from `login.tsx`; trust verifies the server accepts only what the
+> client offers (an email door left open server-side is a signup path outside the app); the
+> TestFlight install-day check becomes "Kakao sign-in works on a real phone."
+
+> **⚡ 2026-08-15, later: OPS DASHBOARD LOCATION RULED.** Sean: *"B. a simple web build is fine."*
+> — the dashboard is a **standalone local web tool on his computer**, not an in-app screen. So:
+> no new party-gated read RPC, no migration number, trust's §6 question is answered, and the tool
+> reads the two service-role detection functions from a local server on his machine only (the
+> service key never ships in any client). ui builds the page against trust's read contract; trust
+> reviews the key handling. The in-app version and the push emitter (nothing emits today —
+> 0096/0097 are pull-only) both remain open items, deliberately unsmuggled into this slice.
+
+> **⚡ 2026-08-15, later: STANDING AUTONOMY GRANT.** Sean, verbatim: *"tell the conversations they
+> dont have to ask me for permission on things they have fruitful as i want full speed on this app
+> production."* **[end of Sean's words]** Applied as: sessions build, gate, and ship fruitful work
+> on their owned surfaces WITHOUT asking first. What this does NOT waive (structural, not
+> ceremony): credential VALUES stay physically his · facts only he holds still require his answer ·
+> irreversible destruction of real production data still gets one confirmation · every quality gate
+> (harness, /autoplan on migrations and money paths, trust's plan-time review, the commit gates)
+> stays — those are how full speed stays speed instead of rework.
+
 **Purpose: this queue existed only inside one session's conversation.** The announcing session
 asked for it to be written down, applying the day's first rule to itself: *unpushed reserves
 nothing.* If that session runs out of context the way the 반포 route session did, an
@@ -151,6 +194,96 @@ in the background for weeks) or commit to manual and delete the charge machine.*
 
 Consequence either way: the no-card empty state **is** the pilot, and the current payment surface
 implies automation that does not exist — an honesty-law item, now client's to fix once you pick.
+
+## 0-octies. 🔴 TWO DASHBOARD TOGGLES, ONE VISIT — the only door into the app is wider than it should be
+
+**Written by trust, 2026-08-15, crossing a lane on purpose and saying so.** This file is the
+announcer's. That session **ended while holding both of these items**, having told me they were
+"in front of Sean now" — they never reached the file. That is verbatim the failure this queue's
+own header exists to prevent: *an in-conversation queue evaporates, and it evaporates silently,
+because nobody knows to look for a list they never saw.* So I am writing them in rather than
+being the second session to hold them in a conversation. Both are measured; neither needs a
+model's judgement; both are the same screen in the Supabase dashboard.
+
+**Both are ALSO pinned now**, so they cannot rot: `supabase/auth-surface.expected.json` records
+the current state and `node scripts/check-auth-surface.mjs` (from `app/`) reddens on any change.
+**When you flip either one the check goes RED, and that is how we find out — not by being told.**
+
+### ① Email signup is still open on the server (your `"b"` ruling is half-applied)
+
+`Auth → Providers → Email → disable`.
+
+You ruled Kakao-only for the pilot. ui removed the email door from the app and verified it. **The
+server never changed**, because nothing in this repo configures it — measured live:
+`external_email_enabled: true`, `disable_signup: false`. Anyone can create an account with one
+request using the public key that ships inside every build. **A door removed from the client is
+not a door shut.**
+
+**Risk of flipping it: none, measured.** 9 accounts use email — **8 are the marked test fixtures**
+and the 9th has no profile row, no dogs, no bookings, and has never signed in. **Your own account
+is Kakao** (`aa73ce8a…`, verified). Zero real users affected.
+
+⚠ **Do NOT let anyone "fix" this with `supabase config push`** — our `config.toml` declares no
+auth at all, so it would push CLI defaults for every setting it omits **and switch off Kakao.**
+
+### ② The OAuth redirect allowlist accepts any Expo host
+
+`Auth → URL Configuration → Redirect URLs`. Live right now:
+
+```
+daengrun://login          ← keep
+daengrun://**             ← wildcard on our own scheme
+exp://**                  ← 🔴 ANY Expo host
+exp://10.16.75.70:8081/--/login     ← a dev machine's LAN IP
+exp://172.30.1.44:8081/--/login     ← another
+```
+
+In an OAuth flow **the redirect URI is where the session lands**. `exp://**` means Kakao can be
+told to deliver a completed login to any `exp://` target: a crafted link, a real Kakao sign-in by
+the victim, and the session arrives at someone else's host. A textbook open redirect — **on what
+becomes the only door into the product once ① is done.**
+
+**Calibration, deliberately not inflated:** it needs a crafted link, Expo Go installed, and the
+pilot user set is tiny. **A launch item, not an incident.** But `exp://` entries have no business
+in a production auth config, it is free to fix now, and it is expensive to find later.
+
+**Fix:** delete `exp://**` and both LAN-IP entries, keep `daengrun://login`. Dev machines get
+re-added while developing and removed again — that is what makes them dev entries.
+
+## 0-nonies. 🟡 A price change would repay old work at the new rate but still charge the old — money policy, yours
+
+**Raised by money (`0101`'s author), written up by trust at their request so the person flagging
+it is not the author of the code it indicts.** Verified in source before writing, because this
+file is the one place a wrong claim does the most damage.
+
+**The two sides of a run are priced from different clocks.**
+
+- **What the OWNER is charged** comes from columns frozen onto the booking when they booked —
+  `b.base_fare`, `b.addon_fare` (`0080:285`). Change prices tomorrow and their bill does not move.
+- **What the RUNNER is paid** comes from constants written into the payout function —
+  `RUNNER_COMP_BASE := 9900`, `PER_KM := 3000` (`0101:92-93`). Change those and **every run not yet
+  settled is paid at the new rate**, including runs that happened before the change.
+
+**So a price revision retroactively repays completed-but-unsettled work at the new rate while
+leaving what the owner was charged for that same work frozen. The platform absorbs the
+difference, silently and in whichever direction the revision went.**
+
+**Deliberately not dramatised, because the mechanism makes it smaller than it sounds:** those are
+hardcoded SQL constants, so changing them takes a migration — through `/autoplan`, the harness and
+review — not a dashboard toggle or a config edit. Nobody changes runner pay by accident. And with
+charging off and 9 fixture runners, nothing is live today.
+
+**Why it is on your queue anyway, and why now rather than later:** this is not an engineering
+defect, it is a **policy question about work already done**, and it only has a cheap answer
+*before* the first price revision. Afterwards it presents as a reconciliation mystery — payouts
+that do not reconcile against charges for the same runs, discovered by whoever is closing the
+books.
+
+**The question, in one line: when we change prices, should a run that already happened but has
+not settled be paid at the old rate or the new one?** Either answer is defensible and neither is
+ours to pick. A third option exists — freeze the runner rate onto the booking the way the owner's
+is — which makes the two sides symmetric and answers the question permanently, and is a real slice
+rather than a toggle.
 
 ## 0-septies. 📋 RECORD — PR-0's test-owner exclusion exists in practice and is written nowhere
 
@@ -382,6 +515,40 @@ go-live gate). Both are in their own memos; listed here so the return sweep is o
 when its memo carries the ruling — not when it has been discussed.
 
 ---
+
+## 9. 🟡 What does an owner SEE when no card is registered — and it is now the pilot's default
+
+**Written in by money 2026-08-15, crossing the announcer's lane on purpose and saying so.** The
+announcer session told me it was surfacing this as a product call. It then ended, and the item was
+never in this file — it existed only inside that conversation. That is verbatim the failure this
+file's own header describes: *an in-conversation queue evaporates, and it evaporates silently,
+because nobody knows to look for a list they never saw.* Trust found the same thing with two of
+its own items and wrote them in as §0-octies; this is the third. **Not a criticism of a session
+that is gone — a demonstration that the rule it wrote for others applied to it.**
+
+**The decision.** `billing_keys` is empty: **zero owners have a card registered**, and under your
+`4: A` ruling the pilot runs on manual transfer while the paperwork chain proceeds. So the
+"no card registered" state is not an edge case to handle — **it is what every owner sees, every
+time, for the whole pilot.**
+
+The screen today says `준비 중` and stops there, which is honest but says nothing about how anyone
+actually pays. **What should it say?** That is copy and product, not engineering, which is why it
+is yours:
+
+- how a 보호자 is told what they owe, and when
+- whether the app shows an amount at all before there is a payment to point at (my constraint: if
+  it shows an amount it must say what happened to it — an amount next to a date on a screen called
+  결제 관리 reads as a receipt whether or not the word appears)
+- whether transfer details live in the app or stay in a message from you
+
+**What is already decided and does not need re-deciding:** the facts the screen may assert are
+written down in `docs/pre-charging-checklist.md` §4-bis, and the ui session is building against
+them. Nothing is charged by any path · no card is stored for anybody · **the runner genuinely is
+credited** (`ledger_items` has real rows) so no copy may imply the runner went unrecorded ·
+manual transfer is the pilot rather than a fallback.
+
+**Not blocking anything of money's.** It blocks the ui slice from being finishable, and it is the
+last honesty gap on the payment surface.
 
 ## Not queued, but adjacent — a class-wide RLS question worth its own memo
 

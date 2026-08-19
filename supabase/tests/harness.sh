@@ -171,6 +171,10 @@ suite 130_incident_verification_suite.sql   # 0094 ⑪ 인시던트 양측 확�
 suite 131_club_critical_titles_suite.sql   # 0095: club_critical_titles RLS (registry with no policy to read — anon GET 200/DELETE 204 measured live; ack fanout must survive; FORCE would silence the trigger — C1~C6)
 suite 132_gated_runner_exit_suite.sql   # 0096 승격 뒤 인계 확인 (0083+0089+0092가 합성한 교착 — 러너가 영구히 못 버는 상태. 커스터디 스탬프만 통과·돈의 막다른 길 보존·합성 핀·탐지 — E1~E5)
 suite 133_unsettled_run_detection_suite.sql   # 0097 미지급 러닝 탐지 (0096이 없앤 경보 — 게이트가 풀리는 순간 조용해지는 미지급. 게이트 컬럼이 될 수 없는 이유·지급 두 경로·클럽 제외·사유가 remedy를 가른다 — U1~U5)
+suite 134_route_elevation_suite.sql   # 0098 route elevation (elevation is a property of a GEOMETRY, not of a name — 0078 seeds a trace-less row with the same name as a measured one; NULL = no measurement for the current line, never flat; the value is cleared when trace changes — E1~E6)
+suite 135_route_trace_shape_suite.sql   # 0099 route trace shape (jsonb had no element contract — [lat,lng] arrays vs {lat,lng} objects rendered 20 of 28 courses as nothing; shape alone is theatre because a transposed point is well-formed and 4,800km wrong; t/v forbidden on an anon-readable table — T1~T4)
+suite 136_route_name_km_suite.sql   # 0100 name/km agreement (26/26 names already agree — the defect is TEMPORAL: nothing kept a length true when geometry was re-cut, and stripping the token is impossible because 3 반포동 loops differ only by it — K1~K3)
+suite 137_runner_payout_suite.sql   # 0101 §0g 러너 지급액 SQL 이전 (settle-run/handler.ts:135-187의 순수 추출 — 값 핀의 리터럴은 삭제 직전의 TS를 51케이스 돌려 캡처한 숫자다. 러너 base 9,900은 보호자 7,900이 아니다·min_fare는 바닥·보장은 0 클램프·runner_personal은 0086 §A 위임(바닥 없음)·수수료는 한 번만 반올림·그랜트가 보호의 전부 — R1~R6)
 psql -c "select case when ok then '✅' else '❌' end || ' [' || suite || '] ' || name || case when ok then '' else ' — ' || detail end from _t order by at"
 psql -qt -c "select count(*) filter (where ok) || ' pass / ' || count(*) filter (where not ok) || ' fail' from _t"
 psql -qt -c "select case when count(*) filter (where not ok) > 0 then 'FAIL' else 'OK' end from _t" | grep -q OK

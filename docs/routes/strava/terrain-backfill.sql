@@ -1,0 +1,14 @@
+begin;
+update routes set terrain = '포장 72%' where name = '도곡 매봉산 양재천 루프 7.66km' and terrain is null and status <> 'active' and verified_run_id is null;
+update routes set terrain = '포장 68%' where name = '몽마르뜨 언덕 루프 4.79km' and terrain is null and status <> 'active' and verified_run_id is null;
+update routes set terrain = '포장 70%' where name = '반포 서래섬 리버 루프 3.71km' and terrain is null and status <> 'active' and verified_run_id is null;
+update routes set terrain = '포장 85%' where name = '성수 서울숲 루프 6.46km' and terrain is null and status <> 'active' and verified_run_id is null;
+update routes set terrain = '포장 89%' where name = '압구정 은행공원 생활권 루프 5.82km' and terrain is null and status <> 'active' and verified_run_id is null;
+update routes set terrain = '포장 51%' where name = '이촌 가족공원 루프 5.05km' and terrain is null and status <> 'active' and verified_run_id is null;
+update routes set terrain = '포장 70%' where name = '이촌 박물관 루프 2.73km' and terrain is null and status <> 'active' and verified_run_id is null;
+update routes set terrain = '포장 87%' where name = '이촌 한강 박물관 루프 7.63km' and terrain is null and status <> 'active' and verified_run_id is null;
+update routes set terrain = '포장 94%' where name = '잠실 리센츠 한강 루프 2.75km' and terrain is null and status <> 'active' and verified_run_id is null;
+update routes set terrain = '포장 55%' where name = '잠실 석촌호수 루프 3.39km' and terrain is null and status <> 'active' and verified_run_id is null;
+update routes set terrain = '포장 92%' where name = '잠원 근린공원 루프 5.4km' and terrain is null and status <> 'active' and verified_run_id is null;
+update routes set terrain = '포장 96%' where name = '잠원 한신2차 리버 루프 2.78km' and terrain is null and status <> 'active' and verified_run_id is null;
+commit;

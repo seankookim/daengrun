@@ -100,7 +100,9 @@ function bearing(a: { lat: number; lng: number }, b: { lat: number; lng: number 
  * 컨트롤드 프롭이 아니라 명령형 1회). 제스처는 **켠다**: 브리핑은 들여다보는 화면이라
  * 팬·줌이 필요하다. 기울기·회전은 끈다 (평면 지도가 코스 모양을 가장 정직하게 보여준다).
  *
- * 선의 문법은 course-map·run과 **같다**: 실측(승격)이면 실선, 예정이면 점선.
+ * 선의 문법은 course-map·run과 **같다**. ⚠ 대시 인코딩은 f0ceed4에서 은퇴했다 —
+ * 예정도 실측도 **같은 실선**이고, 둘을 가르는 건 이제 오직 카피다. 그래서 카피가 선의
+ * 생김새를 주장하면 그 카피는 곧 거짓이 된다(범례가 '점선'이라 말하던 자리가 여기였다).
  * 화면마다 다른 어휘를 쓰면 사용자는 매번 다시 배워야 한다.
  */
 function CourseMapHero({ route, maps }: { route: RouteInfo; maps: NonNullable<ReturnType<typeof getNaverMap>> }) {
@@ -172,7 +174,7 @@ function CourseMapHero({ route, maps }: { route: RouteInfo; maps: NonNullable<Re
       </maps.NaverMapView>
       <Row style={{ justifyContent: 'space-between', alignItems: 'center', marginTop: 9 }}>
         <Text style={{ fontSize: 14, color: paper.dim, flex: 1 }} numberOfLines={2}>
-          {planned ? '점선 = 예정 경로 · ◆ 만남 장소' : '◆ 만남 장소 · 실측 코스'}
+          {planned ? '선 = 예정 경로 · ◆ 만남 장소' : '◆ 만남 장소 · 실측 코스'}
         </Text>
         <Pressable onPress={fit} hitSlop={8} accessibilityRole="button" accessibilityLabel="코스 전체 보기" style={s.fitBtn}>
           <Text style={{ fontSize: 14, fontWeight: '800', color: paper.ink }}>전체 보기</Text>

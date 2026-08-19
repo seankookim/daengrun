@@ -48,6 +48,48 @@ then `set local role anon` and COUNT each one. Include `relkind in ('v','m')` �
 other miss; `available_runners` and `marketplace_open_requests` are anon-readable definer views
 that no `pg_policies` query returns at all.
 
+**④ A FLOOR TESTED ONLY WHERE IT BINDS ASSERTS NOTHING ABOUT THE BASE UNDERNEATH IT.**
+Money's finding on `0101`, 2026-08-15, and it is detector ③ in a third costume. Mutating the
+runner base 9,900 → 7,900 reddened an unrelated pin **and left the `min_fare` floor pins GREEN** —
+because a 20,000 floor absorbs a 2,000 underpay. **The floor and the base are two parts of one
+control**, and a suite that exercises the floor only on rows where it binds proves nothing about
+the number underneath it: every runner could be quietly underpaid with the floor pins green.
+
+⚠ **And the production half is worse than the test half.** `min_fare` defaults to **9,900 —
+exactly the runner base** — so **on shipped data the floor is a tautology and never binds.** Every
+fixture that exercises it is invented (`0101`'s fixture C uses 20,000). So anyone reasoning about
+the floor from production rows concludes it is inert, and the only rows that would reveal an
+underpaid base do not exist yet.
+
+The general form, which is what to carry: **when a control has a clamp and a value, test the
+value where the clamp does NOT apply.** Testing where it does apply measures the clamp.
+
+**③ WHEN THE GRANT AND ITS PROTECTION LIVE IN DIFFERENT PLACES, NEITHER SWEEP TELLS THE TRUTH.**
+Found by money on `runs`, 2026-08-14, verified by me: `has_table_privilege` says **anon AND
+authenticated hold INSERT**, while `runs` carries exactly two policies — `runs party read`
+(SELECT) and `runs runner update` (UPDATE) — and **no INSERT policy at all**, so RLS default-deny
+is the only thing refusing the write. `0087` dropped the old `runs runner write` policy and left
+the grant standing.
+
+Harmless today. **The hazard is the shape:** the privilege says yes and the missing policy says
+no, so a later convenience feature that adds a permissive INSERT policy reopens `0087`'s forgery
+hole **with no grant change for a grants audit to see**. And it is exactly the blind spot detector
+① and the corrected ② each have on their own — a privilege enumerator reports INSERT granted and
+shrugs; a policy sweep finds nothing to flag. **Only the JOIN of the two is a control.**
+
+    -- tables where a role holds a write privilege that no policy grants
+    select c.relname, has_table_privilege('anon', c.oid, 'INSERT') as anon_ins,
+           (select count(*) from pg_policies p where p.tablename = c.relname and p.cmd = 'INSERT') as ins_policies
+    from pg_class c join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname='public' and c.relkind='r' and has_table_privilege('anon', c.oid, 'INSERT');
+
+⚠ **And this one has a money consequence, which is why it is written here rather than left tidy:**
+`0087` closing that path is the stated reason a **blocking cutover gate was downgraded** (the
+charge sweep re-anchoring off client-writable `runs` data). If the grant ever becomes live again,
+it silently re-arms a money-path risk that a cutover document now records as handled. **A
+downgrade that rests on a precondition must name the precondition, or the precondition can rot
+without the downgrade noticing.**
+
 **② A `using (true)` policy is neither a finding nor a pass — the GRANT decides.** `0093`
 deliberately LEFT `using (true)` in place and closed its hole with a revoke; `profiles` still
 carries a no-caller-term policy and is shut. So a sweep that greps `0002_rls.sql` for a missing
@@ -96,7 +138,11 @@ touched it and name whose version you build on in your file header.
 | 0096 | `0096_return_confirm_after_escalation.sql` | 132 | 🔴 ⑫ deadlock — a gated runner with no party-reachable exit (`claude/run-end-flow-continuation-d9c485`) | **BUILT 2026-08-14** — harness 544/0, deno 185/0, 3 mutations verified. Composition defect across three individually-correct migrations (`0092` gate · `0089` ops-only force · `0083` 2h escalation + `confirm_return_tx`'s `active`-only gate) that left a runner permanently unable to earn. Fix: a party may stamp the return from `incident_review` — a CUSTODY fact — but it does **NOT seal and does NOT settle**; money stays `active`-only and `incident_review` remains a money dead end for `settle_run_tx`/`_settle_sealed_run`/`force_return_tx`. EXTENDS `confirm_return_tx` ←0083 (only definition; 0084-0094 do not re-create it). NEW: `ops_gated_runners` (queryable detection, service_role). ⚠ 119 R16 arm ⓒ rewritten in the same slice — it asserted the `not_active` raise this removes. ⚠ **No pager built on purpose:** `ops_recipients` is 0 rows in production and `OPS_PROFILE_ID` is unset, so a pager today routes to nobody — ⑫'s memo says a signal whose remedy does not apply is worse than an unmonitored state. Recipient/ack/severity/response-time are Sean's. |
 | 0097 | `0097_unsettled_run_detection.sql` | 133 | the alarm `0096` removed — a runner unpaid for work already done (`claude/run-end-flow-continuation-d9c485`) | **BUILT 2026-08-14** — harness 555/0, deno 185/0, 2 mutations verified. Found by money reviewing `0096`: before it, an escalated booking left the runner gated AND unpaid (loud); after it, un-gated and still unpaid (quiet). `0096` fixed the acute half and removed the symptom that made the chronic half noticeable. ⚠ money's suggested shape — a column on `ops_gated_runners` — CANNOT work, and mutation R1 proves it: that function requires a MISSING stamp, so its row vanishes at the instant the quiet case begins. NEW object only: `ops_unsettled_runs()` (`stable`, service_role). Writes nothing. **The money exit (`0083 §0h`) is untouched and remains money's slice.** |
 | 0098 | `0098_route_elevation.sql` | 134 | `routes` has nowhere to store measured elevation gain (`claude/elevation-gain-migration-6e96a5`) | **BUILT + DEPLOYED + VERIFIED 2026-08-14** — applied to production and read back rather than assumed: 32 rows · 20 measured · 12 NULL · range 0–63 · 0 rows with a gain and no geometry · 0 on `active` · trigger and constraint both present. — harness 562/0 (baseline 556), 6 pins, 6 mutations verified. One nullable `integer`, no default, a `>= 0` floor, a geometry-follow trigger, and a backfill for the 20 rows with GPX behind them. **NULL means "no measurement for THIS row's current geometry", never "flat"** — a `default 0` would make every unmeasured route claim level ground. Two measured values are a genuine `0`, so 0-vs-NULL is a distinction the live data makes. NEW objects only: the column, `routes_elevation_gain_nonneg`, `_routes_elevation_follows_geometry` + its trigger. Re-creates nothing; no view, no policy, no grant, no definer function. `elevation_loss_m` deliberately NOT added (§0c-ⓐ: no producer, no reader). ⚠⚠ **ADVERSARIAL REVIEW CHANGED THE KEY AND THAT IS THE HEADLINE.** The draft keyed the backfill on `(town, name)` and shipped green. `0078:54` seeds `몽마르뜨 언덕 루프` (반포동) with `trace '[]'` and `km 2.0`, and the measured 34 m comes from a 1.59 km GPX — so on the harness and on any DB without the Strava ingest, the migration stamped "+34 m measured" onto a row with NO GEOMETRY, committing the exact lie it was written to prevent. The suite could not see it because its header asserted `routes` was empty here; it is not. Fixed by keying on `(town, name, km)` with a `jsonb_array_length(trace) >= 2` guard, and pinned by E5 — mutation M5 reproduces the original sentence. ⚠ Separately: my own payload was ALREADY stale within one session — upstream re-cut `반포 서래섬 리버 루프 3.71km` as `3.31km`, so a name-keyed row matched zero rows and reported success. §C-bis is a postcondition that raises on any payload/row disagreement, because a backfill that matches nothing must not look like one that worked. ⚠ `promote_route_from_run` (0082:136) replaces `trace` and knows nothing about this column, so §B-bis clears the gain whenever geometry changes unless a new measurement is supplied in the same statement — otherwise a candidate's climb silently becomes the certified route's. ⚠ Does NOT touch `anchor_lat`/`anchor_lng` or their 0078 `소비 금지` comment (needs a provenance discriminator that does not exist — all 32 rows are `source='algo'`); does NOT settle the `trace` shape/Korea-bounds CHECK or the km-in-`name` cleanup, both open and both catalog's. |
-| 0099 | *(next free)* | 135 | — | available |
+| 0099 | `0099_route_trace_shape.sql` | 135 | `routes.trace` is `jsonb` with NO element contract — the field that already shipped a silent outage (`claude/elevation-gain-migration-6e96a5`) | **BUILT + DEPLOYED + VERIFIED 2026-08-15** — applied to production; enforcement probed LIVE rather than inferred from `pg_constraint` (a bad write attempted in a self-rolling-back block: `array=refused transposed=refused valid_write=accepted`, catalog unchanged at 32 rows / 5,467 points). Harness 566/0 (baseline 562), 4 pins, 5 mutations verified. 20 of 28 courses rendered as nothing because ingest wrote `[lat,lng]` ARRAYS against the `{lat,lng}` OBJECT contract every consumer reads. No error, no empty state, just absent. Data is repaired (verified independently: 5,467 points across `trace` + `trace_thumb`, all objects, all numeric, all inside Korea), but **the schema still permits a third shape**, and three tolerant readers now exist downstream absorbing what ingest wrote — client's `normalizeTrace()`, ui's `routeDisplayName()`, route-geometry's shape-tolerant `route-guidance.mjs`. Synchronising copies is not the fix; the constraint is. ⚠ A shape check alone is NOT enough and that is the point: a TRANSPOSED point passes any shape test and is 4,800 km wrong (announcer produced exactly that error). So bounds too, reusing 0082:251's `lat between 33 and 39 and lng between 124 and 132` VERBATIM — one definition of "in Korea" cannot drift from itself. NEW objects only: `_route_trace_is_coordinates(jsonb)` (immutable, pure jsonb, `search_path` in the body), `routes_trace_shape`, `routes_trace_thumb_shape`; re-creates nothing, no view, no policy, no grant. Both validate WITHOUT `not valid` — every existing point was checked first. ⚠ **Also makes 0082's declassification a property of the TABLE**: points must carry EXACTLY `lat`+`lng`, so `t`/`v` are unstorable. `routes` is anon-readable (`using (true)`, 0082 §A-4), so a timed point publishes when a runner was where; today only `promote_route_from_run` strips them, and a writer that does not know cannot leak now. **trust: this narrows an anon-readable surface — flagging rather than assuming.** ⚠⚠ **Mutation M5 is the transferable one:** replacing the predicate body with `select true` leaves BOTH constraints listed in `\d routes` and `pg_constraint`, re-validates no existing row, and enforces nothing — so suite 135 asserts that bad values are REFUSED, never that a constraint is present. A constraint count would have been green against a disarmed table. ⚠ `runs.trace` deliberately untouched (it legitimately carries `t`/`v`; suites 60/68/96 own it). |
+| 0100 | `0100_route_name_km_agrees.sql` | 136 | a length embedded in `routes.name` can go stale against `km` when geometry is re-cut (`claude/elevation-gain-migration-6e96a5`) | **BUILT + DEPLOYED + VERIFIED 2026-08-15** — applied to production; enforcement probed LIVE in a self-rolling-back block (`stale_length=refused valid_write=accepted`). Harness 569/0 (baseline 566), 3 pins, 2 mutations verified. ⚠ **The reported defect does not exist and the fix that was proposed for it is impossible.** Reported: "name embeds course length and it DISAGREES with km after rounding". Measured: 26 of 32 names carry a km token and **all 26 round exactly to their `km`** — zero disagreements. What looks contradictory on screen (`2.78km` beside `km=2.8`) is the NAME carrying more precision than the column, which ui already handled correctly at display. And the proposed durable fix — strip the token from all 32 names — **violates `routes_town_name_key`** (0078:36, UNIQUE on `(town,name)`): three 반포동 rows collapse to `몽마르뜨 언덕 루프`. In those names the km token is doing IDENTIFICATION work, not measurement. The real class is temporal: nothing stops a token from going stale when geometry is re-cut, which HAPPENED — upstream re-cut `반포 서래섬 리버 루프 3.71km` as `3.31km` mid-sprint and had to rename by hand. So: a CHECK that any trailing km token must round to `km`. Zero data change, no collision, and a re-cut that forgets the name now fails loudly instead of publishing a length nothing measured. |
+| 0101 | `0101_compute_runner_payout.sql` | 137 | §0g runner-payout price in SQL (`claude/payments-toss-plan-slice-8079f7`) | **CLAIMED 2026-08-15** — pure extraction of `settle-run/handler.ts:135-187` into the sibling of `compute_owner_charge`. Unblocks §0h (marketplace incident-settlement exit). Contract + trust's plan review in `docs/decisions/g0-runner-payout-in-sql.md`. ⚠ Same slice deletes the TS arithmetic and converts the equivalence pin to value pins. |
+| 0102 | `0102_payout_commission_guard.sql` | (pins into 137) | invalid commission must RAISE, not silently pay ₩0 (`claude/payments-toss-plan-slice-8079f7`) | **CLAIMED 2026-08-15** — 0101's general arm computes `round(gross × commission)` with no range check, so a commission of 1.0 pays the runner **nothing, silently**. `compute_runner_personal_payout` (0086 §A) already raises on the same input, so the two arms of one function disagree. Raised by trust at diff review. |
+| 0103 | *(next free)* | 139 | — | available |
 
 ## Where a number comes from: THIS FILE, never a message
 
@@ -150,6 +196,42 @@ everyone to skip claiming, which is worse than no table. **`shared` means "tell 
 edit the same FUNCTION", not "stay out".** Two sessions in one file is usually fine; the same
 function is the problem.
 
+⚠ **THE HOOK ITSELF CAN BE SILENTLY OFF — trust, 2026-08-15, measured across every worktree.**
+`core.hooksPath` was set **per worktree** to an ABSOLUTE path inside one particular worktree
+(`daengrun-redesign-v4-77ea99/.githooks`). Five worktrees pointed there, including money,
+announcer, ui and session-handoff-docs. **A worktree is disposable — this session's own was
+recycled the same day** — and git does not warn when `hooksPath` names a directory that no longer
+exists. It just runs no hooks. So the single mechanism this repo built *because protocols fail
+under parallelism* was one `rm -rf` away from silently not running, for four active sessions,
+during heavy parallel migration work.
+
+Repaired by REMOVING the per-worktree override so every tree inherits the clone-level default,
+which was already correct:
+
+    git config --worktree --unset core.hooksPath     # drop the fragile override
+    git config --local core.hooksPath /path/to/clone/.githooks   # once per clone, stable
+
+⚠ **`CLAUDE.md` currently prescribes `git config core.hooksPath "$(git rev-parse --show-toplevel)/.githooks"`,
+and in a worktree `--show-toplevel` is THAT WORKTREE** — so the documented instruction is what
+produces the fragile config. It wants `--local` on the clone, not per worktree. Flagged rather
+than edited: `CLAUDE.md` is Sean's standing-instructions file.
+
+**The generalisation, and it is the sharpest one this file holds:** the repo's own argument for
+the hook is *mechanisms beat discipline, because nobody can violate a mechanism by being briefly
+confident.* That argument silently assumes the mechanism is running. **A guard whose installation
+is itself a convention inherits every weakness of a convention** — verify the guard is armed the
+same way you verify anything else: by executing it, not by believing it was set up.
+
+⚠ **A CLEAN-MERGE REPORT IS NOT THE MERGE YOU ARE ABOUT TO PERFORM — route geometry,
+2026-08-14.** They were told their branch merged clean into trunk: `git merge-tree`, 0 conflicts.
+Performing the merge produced **three real conflicts**, one in `app/src/lib/api.ts`, where trunk
+carried a `normalizeTrace()` fix for a bug THEY had introduced and their branch did not have it.
+Trusting the clean report would have silently reverted the fix for their own defect, in the exact
+file it lived in. **A `merge-tree` run against a different base answers a different question.**
+Re-run it against the base you will actually merge into, immediately before merging — or just
+perform the merge and read the conflicts. Same family as the tree-name hazard below and as
+`migration list`'s "up to date": a well-formed report about a *slightly different world*.
+
 ⚠ **A TREE NAME CAN GO STALE UNDER YOU — dated 2026-08-14, found by it happening.** The trust
 session's worktree was recycled mid-session from `deploy-edge-functions-money-68e990` to
 `lucid-neumann-580f5e`, same branch, same work. Both its claim rows on origin went on naming a
@@ -195,6 +277,8 @@ field and was in fact a session's — the patch-id check settled it in seconds.)
 
 | Path(s) | Session (branch) | Tree | Mode | Started | Intent (one line) |
 |---|---|---|---|---|---|
+| `supabase/tests/123_run_insert_seal_suite.sql` (S9 arm only) | trust (`claude/deploy-edge-functions-money-68e990`, worktree lucid-neumann-580f5e) | **shared** | 2026-08-14 | Close a false negative in S9: it counts policies with `cmd='INSERT'`, but a `FOR ALL` policy reports `cmd='ALL'` and permits INSERT — so a convenience `FOR ALL` policy on `runs` reopens 0087's forgery hole with S9 still GREEN. Verified: `pg_policies.cmd` = `ALL`. Test-only change, no migration, pinned behaviour unchanged. ⚠ Suite is custody's lineage (0087) and custody is dormant; grants/policy invariants are trust's per roster §1. S9 arm only — tell me before touching it.
+| `.githooks/pre-push` (check ④ only) | trust (`claude/deploy-edge-functions-money-68e990`, worktree lucid-neumann-580f5e) | **shared** | 2026-08-15 | Add check ④: a REGISTRY row marked DEPLOYED that this push INTRODUCES must ship with its migration file. Inverse of check ②; announcer approved. Scoped to introduced rows so the current 0098/0099 trunk gap does not refuse everyone's pushes. Additive — checks ①②③ untouched.
 | `supabase/migrations/0098_route_elevation.sql` · `supabase/tests/134_route_elevation_suite.sql` | catalog (`claude/elevation-gain-migration-6e96a5`, worktree daengrun-redesign-v4-77ea99) | exclusive | 2026-08-14 | Add `routes.elevation_gain_m` + backfill the 20 GPX-measured rows. New files only; touches no existing object, no `app/`. ⚠ Does NOT touch `anchor_lat`/`anchor_lng` or their 0078 `소비 금지` comment — that contract flip is a separate, unclaimed slice. |
 | *(released — trust, 2026-08-14. `0095`+suite 131 are on trunk AND applied in production; re-verified as anon after deploy: `42501 permission denied for table club_critical_titles`. `awaiting-sean.md` §1 correction landed in `33e8a0f`.)* | | | | | |
 | *(released — deploy-edge-functions, 2026-08-13. Held the deploy surface `zjabnywjpvpgmtajygqy` exclusively; all five money functions are now deployed from trunk and the row is retired per "delete yours when you merge".)* | | | | | |
@@ -369,6 +453,7 @@ else about. Applying it to yourself when it is inconvenient is the whole point.
 | 0088 | **NONE — creates no object at all.** It is `revoke select` + `grant select (…)` on `profiles`, plus two `comment on column`. It does NOT re-create the 0002 `profiles` policies (row visibility is deliberately unchanged), does NOT touch INSERT/UPDATE/DELETE grants (the write whitelist is a separate, unbuilt slice — 0088 §0b), and does NOT touch `available_runners` (0015), which it only PINS as a subset of the granted columns. ⚠ Anyone adding a column to `profiles` after this must decide whether it is public: the grant is a whitelist, and 124 G1's fourth arm reddens on any column outside it. ⚠ **Disjoint from 0087 (`runs` INSERT seal) by construction** — different table, and 0088 touches no INSERT privilege anywhere; the two seals can land in either order. |
 | 0091 | **NONE — creates no object at all.** `revoke insert, update, delete` + `grant insert (…)`/`grant update (…)` on `profiles`, plus `grant select (role)` (see below) and two `comment on column` (`role`, and `handle` — 0074's text, amended to say the whitelist it asked for now exists). No policy, no trigger, no function; in particular NOT a `_guard_profile_cols` trigger (0057's shape) — a grant is right because the rule is per-column and unconditional. Does not touch the 0002 `profiles` policies. ⚠⚠ **IT AMENDS 0088'S READ GRANT AND THAT IS NOT OPTIONAL.** 0088 revoked `select (role)`; PostgREST turns the role picker's `.upsert({id,role,name})` into `ON CONFLICT("id") DO UPDATE SET "id"=EXCLUDED."id", "name"=…, "role"=…`, which requires UPDATE on `id` **and SELECT on `role`**. Measured against real PostgREST v12.2.3 + PG16: **0088 without 0091 returns 403 on every signup AND every role switch** (the check is per-statement, so even a non-conflicting insert fails). 0091 §E has the captured SQL. **These two must ship together; if they are ever split, 0091 is the half that cannot be dropped.** Consequence: `124_profiles_column_grant_suite.sql:132`'s `v_public` must gain `'role'` — mutation ⓑ in suite 127's header proves that red and a working role picker are the same one line. ⚠ Also note for anyone adding a `profiles` column: the write surface is a whitelist too now (125 W9), so a new column is client-UNWRITABLE by default, the same way 0088 made it unreadable. |
 | 0087 | **DROPS one policy, re-creates NOTHING.** `"runs runner write"` ←0002:107 — dropped, not replaced (nothing else in the repo re-creates it; verified). ⚠ Deliberately does NOT touch `_guard_run_cols` (←0083), `settle_run_tx`, `end_run_tx`, `owner_la_*`, the append RPCs, or `sweep_settled_without_payments` — 0083 §0f's handoff to the payments session stands **unchanged and still owed**. NEW: `start_run_tx`, `_guard_run_insert_cols` + its trigger. Also edits `transition-booking/index.ts` (the `start_run` case moves to `start_run.ts`, cancel_owner's precedent) — no other edge function. |
+| 0101 | **NONE — adds one new function** (`compute_runner_payout`). It READS `bookings` (`km`, `min_fare`, `addons`) and CALLS `compute_runner_personal_payout` (←0086 §A) for the `runner_personal` arm rather than re-deriving it, so the two cannot drift; neither is re-created. ⚠ It deliberately does NOT re-create `settle_run_tx` (0028:18 extended by 0083 — the same trap 0086 §B records) and does NOT touch `_settle_sealed_run`, which KEEPS `p_quote`: dropping that argument is sequencing step 2 in `docs/decisions/g0-runner-payout-in-sql.md`, a separate slice. No policy, no trigger, no table grant. ⚠ The one grant it does write — `execute` to `service_role` only — is the ENTIRE protection: this is a `security definer` over `bookings` with no party gate (correct: no client can reach it), so granting `execute` to `authenticated` turns it into a pricing oracle over every booking. 137 R6 is the pin that watches it; 99 S1 is anon-only and 98 H1 watches `search_path`, so nothing else would redden. ⚠ It reads LIVE `PRICING` constants (9,900 / 3,000), not the booking's frozen fare columns, because a payout is not a consented price — that is the pre-existing rule transcribed, not a new one, and the consequence (a price revision reprices an unsettled run's PAYOUT while leaving its CHARGE alone) is a product decision with its own slice. |
 
 ### Settlement anchors — learned the hard way 2026-08-13
 

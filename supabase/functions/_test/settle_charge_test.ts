@@ -28,6 +28,11 @@ const CHARGE = 13900; // 7,900 + 3,000×2 — the owner side (ctx.ts ownerBaseFa
 // distance only, base waived (#10). 6,000/2 × 1.2 = 3,600. The RUNNER's pay is now derived from
 // exactly this number, which is why it has a name here.
 const STOP_CHARGE = 3600;
+// [0101] Neutral defaults for the payout fake. Deliberately NOT the real arithmetic for any
+// fixture — these tests pin wiring, and the numbers are pinned in 137 against captured literals.
+const PAYOUT_BASE = 9900;
+const PAYOUT_DISTANCE = 6000;
+const PAYOUT_GROSS = 15900;
 
 Deno.env.set("TOSS_SECRET_KEY", "test_sk_do_not_use");
 Deno.env.set("SUPABASE_URL", "https://proj.supabase.co");
@@ -50,6 +55,12 @@ function scene(over: { booking?: Row; card?: boolean } = {}) {
   db.seed("payments", []);
   db.seed("notifications", []);
   db.rpcs["settle_run_tx"] = () => ({ data: { total_runs: 5, drop: null } });
+  // [0101] `compute_runner_payout` is installed by DEFAULT, unlike its predecessor. 0086's
+  // pass-through RPC was asked for only on the `runner_personal` arm, so leaving it out of
+  // `scene()` kept "the RPC is missing" reachable. After 0101 EVERY end_reason prices through
+  // SQL, so its absence is not a normal state any more — it is the deploy-skew failure, and the
+  // fail-closed test below reaches it by overriding rather than by omission.
+  installPayout(db);
   return db;
 }
 
@@ -64,19 +75,34 @@ function recordTx(db: FakeDb): Row[] {
 }
 
 /**
- * Stand-in for 0086 §A's `compute_runner_personal_payout` (⑨a). It does what the SQL does —
- * `gross` is the OWNER's charge for this stop and `fee` is the commission on it — from a charge
- * this test hands it, because the charge itself is `compute_owner_charge`'s job and is pinned in
- * 122/116, not here. Installed EXPLICITLY (never in `scene()`) so "the RPC is missing" stays a
- * reachable state: settle-run must fail closed on it, which is its own test below.
+ * Stand-in for `0101 §A`'s `compute_runner_payout` — the ONE function every `end_reason` prices
+ * through since the arithmetic left TypeScript.
+ *
+ * ⚠ IT DELIBERATELY DOES NOT COMPUTE ANYTHING. It returns the six columns the test hands it. The
+ * arithmetic is pinned in `137_runner_payout_suite.sql` against literals captured from the real
+ * pre-port handler; re-implementing it here would build a fake that agrees with itself, which is
+ * the exact class 0101's own header warns about. What these tests own is the WIRING: that
+ * `settle-run` hands `settle_run_tx` precisely what the SQL returned, unmodified.
  */
-function installPayout(db: FakeDb, over: { charge?: number; fail?: string } = {}) {
+function installPayout(
+  db: FakeDb,
+  over: { base?: number; distance?: number; addon?: number; guarantee?: number; gross?: number; fee?: number; fail?: string } = {},
+) {
   const seen: Row[] = [];
-  db.rpcs["compute_runner_personal_payout"] = (args: Row) => {
+  db.rpcs["compute_runner_payout"] = (args: Row) => {
     seen.push(args);
     if (over.fail) return { error: { message: over.fail } };
-    const gross = over.charge ?? STOP_CHARGE;
-    return { data: [{ gross, fee: Math.round(gross * Number(args.p_commission)) }] };
+    const gross = over.gross ?? PAYOUT_GROSS;
+    return {
+      data: [{
+        base: over.base ?? PAYOUT_BASE,
+        distance: over.distance ?? PAYOUT_DISTANCE,
+        addon: over.addon ?? 0,
+        guarantee: over.guarantee ?? 0,
+        gross,
+        fee: over.fee ?? Math.round(gross * Number(args.p_commission)),
+      }],
+    };
   };
   return seen;
 }
@@ -425,7 +451,9 @@ Deno.test("runner_personal — the reason and the actual km go to SQL; Deno comp
 // composes the ledger row out of the answer instead of computing a number of its own.
 Deno.test("runner_personal is paid the PASS-THROUGH — the owner's charge less commission", async () => {
   const db = scene();
-  const payout = installPayout(db);          // gross 3,600 (the owner's stop charge), fee 33% of it
+  // [0101] The stop's numbers are now SQL's and are pinned in 137 R4; this fake states them so the
+  // test can prove settle-run RELAYS them. gross 3,600 = the owner's stop charge, fee 33% of it.
+  const payout = installPayout(db, { base: 0, distance: STOP_CHARGE, gross: STOP_CHARGE, fee: 1188 });
   installMint(db, { amount: STOP_CHARGE });
   const net = tossOk({ billing: () => FetchMock.json(chargeDone({ totalAmount: STOP_CHARGE })) });
   const cap = captureLogs();
@@ -435,10 +463,14 @@ Deno.test("runner_personal is paid the PASS-THROUGH — the owner's charge less 
       db as never,
     ) as Row;
     assertRunnerShape(out);
-    // the three arguments SQL needs, and no fourth: the booking, the measured km, and the
-    // commission read from `runners` (never a constant in this file, never client input)
+    // [0101] FOUR arguments now, and `p_end_reason` is the new one that matters most: it is what
+    // selects the pass-through arm inside SQL. Before the port the arm was chosen by a TypeScript
+    // `if`; now a wrong reason on the wire silently prices a stop as a completed run, and this is
+    // the only place that can catch it — 137 pins what SQL does with a reason, never which reason
+    // settle-run sent. The other three stay as they were: never a constant, never client input.
     assertEquals(payout.length, 1);
     assertEquals(payout[0].p_booking, BOOKING);
+    assertEquals(payout[0].p_end_reason, "runner_personal");
     assertEquals(payout[0].p_actual_km, 1.2);
     assertEquals(payout[0].p_commission, 0.33);
     // gross is the owner's charge — NOT 9,900 + 3,000×1.2 (= 13,500, the pre-⑨a number)
@@ -459,7 +491,11 @@ Deno.test("the stop's LEDGER ROW is all distance and no base — the columns set
   // 9,900 there would put a fee nobody paid into every earnings breakdown that reads the column.
   const db = scene();
   const tx = recordTx(db);
-  installPayout(db);
+  // [0101] The SHAPE is the assertion now, not the arithmetic. Before the port this test proved
+  // TypeScript computed base=0 / distance=gross for a stop; the arithmetic is SQL's since 0101 and
+  // is pinned in 137 R4 against captured literals. What is still this file's to protect — and what
+  // no SQL pin can see — is that settle-run passes those six columns through UNTOUCHED.
+  installPayout(db, { base: 0, distance: STOP_CHARGE, addon: 0, guarantee: 0, gross: STOP_CHARGE, fee: 1188 });
   installMint(db, { amount: STOP_CHARGE });
   const net = tossOk({ billing: () => FetchMock.json(chargeDone({ totalAmount: STOP_CHARGE })) });
   const cap = captureLogs();
@@ -473,6 +509,8 @@ Deno.test("the stop's LEDGER ROW is all distance and no base — the columns set
     assertEquals(tx[0].p_fee, 1188);
     // the columns sum to the gross the runner was told — no floored gross above its own components
     assertEquals(tx[0].p_base + tx[0].p_distance_pay + tx[0].p_addon_pay + tx[0].p_guarantee, STOP_CHARGE);
+    // …and settle-run invented none of it: every column above is what the RPC returned.
+    assert(db.log.includes("rpc:compute_runner_payout"), "settle-run priced the run without asking SQL");
   } finally {
     cap.restore();
     net.restore();
@@ -484,7 +522,7 @@ Deno.test("the payout RPC failing FAILS CLOSED — 500, nothing settled, nothing
   // settlement has already committed; this one happens BEFORE `settle_run_tx`, so nothing is
   // written and a retry is free — while carrying on would pay the pre-⑨a number for good.
   const db = scene();
-  installPayout(db, { fail: "invalid_commission" });
+  installPayout(db, { fail: "invalid_commission" });   // [0101] now the ONE payout RPC, every reason
   installMint(db);
   const net = tossOk();
   const cap = captureLogs();

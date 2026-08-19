@@ -1,3 +1,68 @@
+# CATALOG — a length in `routes.name` must agree with `km` (0100, 2026-08-15)
+
+**Live in production.** If a route name ends in a `<number>km` token, that token must round to the
+`km` column. Names without a token are unaffected and always valid.
+
+⚠ **Read this before "cleaning up" route names, because the obvious fix is wrong twice.**
+It was reported that names DISAGREE with `km`. They do not: 26 of 32 names carry a token and
+**all 26 already round to their `km`.** `2.78km` beside `km=2.8` is the name carrying more
+precision than `numeric(4,1)`, not a contradiction — ui handled that at display, correctly.
+And stripping the token from all names is **impossible**: `routes_town_name_key` (0078:36) is
+UNIQUE on `(town, name)`, and three 반포동 loops (1.6 / 4.8 / 5.4 km) share the base name
+`몽마르뜨 언덕 루프`. There the km token is doing IDENTIFICATION work. Renaming them is a product
+decision about what to call three loops, not a data cleanup.
+
+**What the constraint actually buys** is temporal. The names agree because someone kept them
+agreeing by hand every time geometry moved, and that bill was already paid once — upstream re-cut
+`반포 서래섬 리버 루프 3.71km` into a `3.31km` loop mid-sprint and had to remember to rename it.
+Nothing would have complained if they had not. **Now: change `km` without changing the name and
+the write is refused.** Change both in one statement and it passes.
+
+⚠ For anyone writing a table CHECK after this one: mutation M2 removed the `$` anchor from the
+extractor's regex, which made it match mid-name, which made the `::numeric` cast RAISE instead of
+returning false — and the failure surfaced in `70_axes_suite`, which has nothing to do with route
+names. **A table CHECK's blast radius is every writer of the table**, and a predicate that can
+raise instead of returning false turns a validation into an outage.
+
+# CATALOG — `routes.trace` has an element contract (0099, 2026-08-15)
+
+**`routes.trace` and `routes.trace_thumb` are now constrained: an array of `{lat, lng}` objects,
+exactly those two keys, every point inside Korea (lat 33-39, lng 124-132).** Live in production;
+both constraints validated WITHOUT `not valid`, so all 5,467 existing points are proven, not
+assumed. Enforcement probed live: an `[lat,lng]` write and a transposed point are both refused, a
+valid write is accepted.
+
+**Why bounds and not just shape:** a transposed point is a well-formed object with numeric lat and
+lng, and it is 4,800 km into the Yellow Sea. It passes every shape test. The bounds literals are
+copied from `0082:251` verbatim — two definitions of "in Korea" will drift, one cannot drift from
+itself. Note the two are different in KIND on purpose: 0082 FILTERS a client-written run trace,
+0099 REFUSES a curated catalog row.
+
+**CORRECTED 2026-08-15 (ui's measurement; the original framing was theirs and the announcer
+endorsed it unopened):** the "three tolerant readers" pattern was **one** reader and a
+miscount. `normalizeTrace()` (client) genuinely earned its place — array points could not be
+read — and is retirable now that 0099 guarantees shape (verified 34/34 objects). Route-geometry's
+`route-guidance.mjs` shape-tolerance likewise. But `routeDisplayName()` was **invented for a
+contradiction that did not exist** (all 26 name-km tokens round exactly to their `km`) and for
+five rows the token is IDENTIFICATION — three 몽마르뜨 loops and two 서래섬 cuts whose only
+distinguishing text it deleted, rendering five courses under two names. ui reverted it
+(`e881bae`). 0100 now refuses a `km` change that leaves the name stale, which is the real fix
+for the real (temporal) problem.
+
+⚠ **`t` and `v` are now unstorable on this table**, which is a privacy boundary and not tidiness:
+`routes` is anon-readable (`using (true)`, 0082 §A-4), so a timed point publishes when a runner was
+at a coordinate to anyone with the shipped public key. 0082's promotion already stripped them; this
+makes it a property of the TABLE so a writer that does not know cannot leak. **trust should review
+this** — it narrows an anon-readable surface. If a per-point field is ever wanted, relax the
+key-count arm of `_route_trace_is_coordinates` in a numbered migration and say why.
+
+⚠ **`runs.trace` is deliberately untouched** — it legitimately carries `t`/`v`, and suites 60/68/96
+exercise that. Constraining it is a different decision on a different threat model.
+
+Remaining catalog item, not started: km embedded in `routes.name` disagreeing with the `km` column
+after rounding (`잠원 한신2차 리버 루프 2.78km` beside `km=2.8`). ui patched it at display and
+flagged the patch as a patch.
+
 # CATALOG — `routes.elevation_gain_m` is LIVE (0098, 2026-08-14)
 
 **`routes.elevation_gain_m` exists in production and is backfilled.** Measured after the push,
@@ -22,7 +87,7 @@ Two properties the schema now enforces, both worth knowing before you write to t
   re-derive it.
 
 Still open and still catalog's, none of them started: the `trace` shape + Korea lat/lng bounds
-CHECK (data is 32/32 objects today, but `jsonb` permits a third shape — three tolerant readers
+CHECK (data is 32/32 objects today, but `jsonb` permits a third shape — tolerant readers
 now exist downstream absorbing what ingest wrote); km embedded in `routes.name` disagreeing with
 the `km` column after rounding; and the `anchor_lat`/`anchor_lng` `소비 금지` contract, which
 cannot be scoped by `source` because all 32 rows read `algo`.
@@ -87,11 +152,28 @@ copied value in one sitting.** All four secrets are credential *values*, so all 
    a working runner surfaces nothing. 0096 is right to do this; the unpaid half was never its job.
    **It is mine.**
 
-   Measured 2026-08-14: **1 booking in `incident_review`, and its run never ended** (`run_ended_at`
-   null), so **nobody is unpaid today**. It starts biting the first time a run ends and nobody
-   confirms return for 2h — `run-end-recovery` is ON, every 10 minutes — and it becomes real money
-   the moment charging is enabled. Until then, every escalated marketplace booking is a manual
-   database job.
+   Measured 2026-08-15, **correcting my own 08-14 measurement which read the wrong column**:
+   there is **1 booking in `incident_review`, its run DID end (2026-07-30), it has no ledger row —
+   and it is a CLUB booking.** Clubs settle through `club_release_payouts` (0045/0072), a
+   different path. So **no marketplace runner is unpaid today** — the same conclusion as before,
+   now resting on the right evidence rather than on a null I misread.
+
+   ⚠ **The error is worth more than the fact: `bookings.run_ended_at` and `runs.ended_at` are
+   different columns on different tables.** I queried the booking's, found null, and wrote "its run
+   never ended". The run's was set the whole time. Anything reasoning about whether work happened
+   must read `runs.ended_at`.
+
+   **This vindicates custody's `0097` detector, and the record belongs here as well as in their
+   wake-up brief.** I told them I might have found a gap — `ops_unsettled_runs()` returning 0 while
+   an `incident_review` booking sat there with an ended run and no ledger row. There is no gap:
+   their predicate excludes `club_session_id is not null` deliberately, and **they read
+   `runs.ended_at`, the correct column, while I read the booking's.** Called against production:
+   0 rows, correct. ⚠ Do not "fix" that club exclusion — it would report every club booking as an
+   unpaid marketplace run.
+
+   §0h starts biting the first time a **marketplace** run ends and nobody confirms return for 2h —
+   `run-end-recovery` is ON every 10 minutes — and it becomes real money the moment charging is
+   enabled. Until then, every escalated marketplace booking is a manual database job.
 
    Shape, from §0h: an ops-called, party-gated, idempotent RPC that reads the frozen measurement,
    takes the same three outcomes as the club path (refund_full · settle_measured · pay_full),
@@ -115,6 +197,30 @@ reachable* when the truth was that I had asked through the wrong door — PostgR
 `vault` schema; `supabase db query --linked` connects as a login role and reads it fine, which is
 the same reason that path also sees past RLS. Generalises well past Vault: **an empty result
 through an anon key means hidden, not empty, and a 404 from one door is not absence.**
+
+**THE UNIFIED FORM, and it is the day's most transferable finding — trust named it after five
+instances across three sessions.** Every one of my three failures below, and two of theirs, is the
+same move: **reading the ABSENCE of a negative signal as a positive one.**
+
+    mine    `bookings.run_ended_at` was null      → "the run never ended"  (wrong column)
+            Vault returned nothing through REST   → "unreachable, unknowable"  (wrong door)
+            `git show … && echo "✅"` printed no error → "it is on trunk"  (it had not pushed)
+    trust's no ~/.supabase/access-token file      → "no credential"  (it is in the keychain)
+            no commit recording a deploy          → "nothing was deployed"
+
+**A check that can only print on success cannot distinguish success from not-running.** That is
+the whole of it, and it is the default failure mode of every verification written quickly —
+including the ones written by someone actively being careful, which all five of these were.
+
+The fix is mechanical, not attitudinal: **make the failure branch print.** `if … then ON TRUNK;
+else ABSENT; fi`, never `cmd && echo ok`. Same reason a hook that refuses to run beats a hook that
+skips silently, and the same reason `ON_ERROR_STOP` is load-bearing in the harness.
+
+A third, from the next day and cheaper to make than either: **`bookings.run_ended_at` is not
+`runs.ended_at`.** I read the booking's column, got null, and reported that a run had never ended
+when it had. Same-sounding column, different table — and it produced a *false all-clear*, which is
+the direction that does not announce itself. It also had me doubting a correct detector built by
+someone else.
 
 Two siblings from the same day, same family: I audited what the client *asks for* (`upsert({...})`)
 and described what the database would *do* — they differ exactly at the ON CONFLICT arm, which is
@@ -251,6 +357,30 @@ booking** (Sean's ruling ⑥ — never `now()`; `longest_inflight_booking_end()`
     run-end-flow session; mirrored in their plan so it sits in two documents that get read.
   · club price disclosure live (ruling ④ keeps 9,900 as a *stated* premium — the single
     disclosure is on the 승낙서, `app/app/club/delegate/[sid].tsx`)
+  · ⚠⚠ **§3⑦ RE-ANCHOR — PREMISE RE-MEASURED 2026-08-15 (money). Read before building it.**
+    **The forgery hole this re-anchor was written to close is ALREADY CLOSED.** The justification
+    below says `0002_rls.sql:107` lets an assigned runner INSERT a `runs` row with every column
+    pre-filled. `0087_run_insert_seal.sql` **dropped that policy**. Measured in production:
+    `runs` has RLS on and exactly two policies — `runs party read` (SELECT) and
+    `runs runner update` (UPDATE). **There is no INSERT policy for any client role, so a client
+    INSERT is default-denied**, and `_guard_run_insert` is live as a second belt.
+    → The re-anchor is **no longer urgent**. It is still the better design, and the reason it
+      gives for `ledger_items` checks out: RLS on, exactly one policy (`ledger self read`,
+      SELECT), **no INSERT policy for any client role** — only `settle_run_tx` (definer) writes it.
+    → **Downgrade it from a BLOCKING precondition to a wanted improvement**, unless someone
+      re-argues it on its own merits rather than on the forgery path. A blocking gate whose
+      stated reason has been fixed elsewhere is how a cutover stalls on a solved problem.
+    ⚠ **RESIDUAL, and it is trust's not money's:** the *table-level* INSERT grant on `runs` is
+      still held by `authenticated` AND `anon`. That is harmless only because no INSERT policy
+      exists. Anyone adding a permissive INSERT policy for convenience reopens the original hole
+      instantly, with no grant change for a grants audit to notice. Reported to trust.
+    ⚠ **NOT falsified:** a relayed report said this section assumes `ledger_items` is empty. It
+      does not — there is no such sentence, and the 8 rows measured in production are exactly
+      what the design expects (8 ledger rows ↔ 8 `completed` bookings, each with a `runs` row, all
+      qualifying correctly under the "require a runs row and a non-cancel status" rule that
+      excludes 0081's cancel-comp entry). Checked rather than patched, because editing a doc to
+      fix a premise it never held would have made it worse.
+
   · **the sweep is re-anchored on `ledger_items`, and the setter REFUSES without it.**
     ⚠ SUPERSEDES the `runs.settled_at` plan below — that column is client-forgeable and the
     hole is bigger than "the sweep can't see a run". `0002_rls.sql:107` lets an assigned runner
@@ -316,6 +446,7 @@ supabase migration list --linked          # applied vs local. An EMPTY "remote" 
 supabase db query --linked "select * from ops_flags"      # live rows, as a login role — no RLS
 supabase functions list                   # slug · version · verify_jwt · updated_at
 supabase functions download <slug> --project-ref <ref> --workdir /tmp/x   # the LIVE source
+curl -s "$URL/auth/v1/settings" -H "apikey: $ANON"       # which sign-in doors are OPEN
 ```
 
 Four traps, each of which actually bit someone:
@@ -328,6 +459,17 @@ Four traps, each of which actually bit someone:
 - **`functions download` returns the TRANSPILED bundle** — types stripped, reformatted — so a
   textual `diff` against the repo is meaningless. Compare *semantics*: grep the bundle for the
   RPC names or literals the new code introduced (`grep -oE 'rpc\("[a-z_]+"'` is usually enough).
+- **The AUTH surface is configured NOWHERE in this repo, so only the server knows it.**
+  `supabase/config.toml` here is 215 bytes with no `[auth]` section, so providers, `disable_signup`
+  and token lifetimes live only in the dashboard — **no pin, hook or gate can see them, and a
+  ruling about sign-in cannot be enforced from git.** Added 2026-08-15 after ui removed the email
+  door from the client and the server went on accepting email signups: `"email": true`,
+  `"disable_signup": false`. **A door removed from the client is not a door shut.** The anon key
+  this needs is the public one that ships in every build (`app/.env`), which is the point — it is
+  the credential an attacker already has.
+  ⚠ **Never "fix" auth with `supabase config push`.** It pushes the LOCAL config, and ours declares
+  nothing, so it would send CLI defaults for every setting the file omits — redirect URLs, JWT
+  expiry, SMTP, **and the Kakao provider itself.** It can shut the door that must stay open.
 - **`functions deploy` is its own parity oracle.** It prints `No change found in Function: X`
   when the live bundle already matches your tree. Deploying five and getting four "no change"
   lines is a stronger statement about what is live than any document — and it costs one command.
