@@ -16,6 +16,15 @@ truncate → 42501; ledger 0109 remote, 0105 remote empty). REGISTRY row says DE
 recorded there: storage.objects/buckets TRUNCATE to client roles (grantor supabase_storage_admin — needs
 Supabase support), supabase_admin default rows (do not create tables in the Dashboard Table Editor).
 Post-upgrade re-check query in `docs/security-dashboard-checklist-2026-08-19.md`.
+**Roster change (later):** the client session handed off (`docs/handoff-client.md` @ 1b74d6a) and Sean
+opened **ui2** as its successor on the MAIN checkout (`/Users/sean/dev/daengrun` @ trunk). ui2 is named
+OWNER (exclusive) of `app/app/owner/home.tsx`, `owner/course-map.tsx`, `app/app/index.tsx`,
+`owner/request.tsx` + new onboarding routes / `home-*` components; SHARED on `app/src/store.ts` and
+`app/src/lib/api.ts` (function-level tell-before-edit); REGISTRY in-flight row rides its first commit.
+Verified before naming: main checkout otherwise clean; the old client tree (club-delegation-money-gaps,
+branch `claude/daengrun-client-domain-5588b2`) clean at 9012d7a, 75 behind, nothing in flight. A session
+in that old tree re-appeared as `…-81`; told it does not own those four paths. ui2 inherits the 18 vs 44 pt
+anchor screenshots owed to Sean. The iOS simulator is held by ui2's home agent (~1 h) — ask before using it.
 **Roster change:** catalog compacted mid-slice (0110 routes_public handoff on trunk at `149f2e3`; 0110
 claimed, designed, not built); announcer v2 and the unmapped session are gone. Live: ui, legal, route
 geometry, announcer v3. Trust and money still offline.
