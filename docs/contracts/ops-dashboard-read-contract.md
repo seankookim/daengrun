@@ -1,8 +1,12 @@
 # Ops dashboard — the read contract (trust ↔ ui)
 
 **Owner of this document:** trust (`claude/deploy-edge-functions-money-68e990`).
-**Status:** v1 — measured facts are final; the proposed RPC is NOT built and is gated on
-`/autoplan` + a migration number claimed on origin.
+**Status:** **v2 — RULED. Sean, 2026-08-15: _"B. a simple web build is fine."_** Standalone local
+web tool on his machine. **§3's party-gated RPC is CANCELLED, not deferred** — no migration, no
+number to claim, and `ops_gated_runners`/`ops_unsettled_runs` keep their service_role-only grants
+exactly as `133 U5` pins them. The superseded design is kept below the ruling, per this repo's
+convention that the reasoning must survive so nobody "corrects" a ruling back toward a model's
+advice.
 **Why it exists:** Sean commissioned a dashboard (2026-08-15, *"give me a dashboard with possible
 solutions and etc all things necessary"*). The split agreed with announcer: **trust owns what is
 true, ui owns what he sees.** This file is the seam. ui builds against THIS, never against the
@@ -10,7 +14,18 @@ tables — a contract in a chat message dies with the session.
 
 ---
 
-## 🔴 1. Read this before designing a screen: the app CANNOT call the detection functions
+## 🔴 0. WHAT THE RULING CHANGED — read this first
+
+A standalone tool holds the **service key**, so it can call both detection functions directly and
+needs none of the RPC machinery below. **§1 and §2 remain fully in force** — §1 explains *why*
+there is no in-app option without new work, and §2 is the exact shape of what you call. **§3 is
+dead** for this slice. **§4 (boundaries) and §5 (ui owns) stand unchanged.**
+
+**And the whole security question moved.** With no client involved there is no party gate to get
+right — instead there is a **service key on a laptop**, which bypasses every RLS policy in the
+database. That is now the entire attack surface of this slice, and §8 is the blocking review.
+
+## 1. Why there is no in-app version without new work: the app CANNOT call the detection functions
 
 Measured against production, 2026-08-15:
 
@@ -51,7 +66,16 @@ event_class)`, RLS on, no policies — server-only. **It is EMPTY today (0 rows)
 event class any shipped code passes is `owner_cancel_enroute` (`supabase/functions/_shared/ops.ts`);
 `0096`/`0097` are pull-only and emit nothing.
 
-## 3. What trust will provide (proposed — NOT built)
+## 3. ~~What trust will provide~~ — CANCELLED by the ruling, kept for the reasoning
+
+⚠ **Everything in this section is superseded.** It was the right answer to "an ops screen inside
+the app" and is the wrong answer to "a local web build". It is retained because if an in-app
+version is ever wanted, this is the design and its rationale — the party gate raising rather than
+returning empty is the part worth not re-deriving.
+
+<details><summary>Superseded design (in-app, party-gated RPC)</summary>
+
+### What trust would have provided (proposed — NOT built)
 
 One RPC, because one screen should be one round trip and because the party gate must be
 server-side:
@@ -84,6 +108,8 @@ Proposed shape, one key per panel:
 `generated_at` is not decoration: every panel is computed live at call time, so it is the only
 thing that lets ui say *"as of"* honestly instead of implying a freshness it cannot know.
 
+</details>
+
 ## 4. Boundaries — what trust will NOT do
 
 Agreed with announcer, and they are hard lines:
@@ -107,11 +133,10 @@ Everything visual, plus these product calls trust should not make:
 3. **Empty vs zero.** Repo honesty law: loading is not 0, and a failure renders as a failure.
    `gated_runners: []` means *measured, none* — it must not look like *not loaded*.
 
-## 6. Open questions for ui — answer before I write the migration
+## 6. Open questions for ui
 
-1. **Does the dashboard live in the app, or outside it?** The whole RPC design assumes in-app and
-   gated to Sean's account. A standalone ops tool with a service key needs none of this and is
-   less code. This is the one answer that changes the whole shape.
+1. ✅ **RULED — standalone local web build** (Sean, 2026-08-15: *"B. a simple web build is fine."*).
+   Was: *does the dashboard live in the app or outside it?*
 2. **Do you need history, or is "right now" enough?** Both functions are live-computed with no
    record. History means a table and a writer — a materially bigger slice, and it belongs to
    whoever owns retention, not to this one.
@@ -125,3 +150,40 @@ first (`0059` doctrine), number claimed in `REGISTRY.md` **on origin** before th
 suite with mutation-verified pins, harness green at its new baseline. **Reviewer is money or a
 fresh adversarial subagent — not me.** I normally hold blocking review on this surface, and a
 reviewer who also built the thing is not a reviewer.
+
+
+---
+
+## 8. 🔴 KEY HANDLING — trust's blocking review for the standalone tool
+
+**This is the whole of my review scope for this slice, and it is blocking.** Stated up front so
+ui builds against it rather than being vetoed late.
+
+**The stake, plainly:** the `service_role` key **bypasses every RLS policy in the database**. It
+is not "an admin key for ops tables" — it reads and writes `profiles`, `payments`, `billing_keys`,
+everything. A leak of it is total compromise of production data, and unlike a password it cannot
+be rotated without touching every server that uses it.
+
+Requirements, each of which fails the review on its own:
+
+1. **The key is NEVER in the page.** Not a JS constant, not inlined at build time, not a
+   `data-` attribute, not a comment. Anything in the page is readable by anyone who opens
+   devtools or the file — and the page is on a laptop that goes to cafés.
+2. **A local server process holds it, read from the environment at start** (`process.env.…`).
+   The browser talks to that process; only the process talks to Supabase.
+3. **Bind `127.0.0.1`, never `0.0.0.0`.** A service key behind a `0.0.0.0` bind is on every
+   network the laptop joins, including hotel wifi. This is the single most likely mistake.
+4. **The key is never logged, echoed in an error, or returned in a response.** Error handlers
+   included — a stack trace with a config dump is the classic leak.
+5. **No secret in the repo.** The key lives in an ignored env file; `git check-ignore` it before
+   the first commit, not after.
+6. **Fixed queries only — no user input reaches a query.** With a service-role key there is no
+   RLS backstop, so an injection is not "read someone else's row", it is the whole database.
+7. **Respond with the whitelisted panel keys only** (§3's shape is still the right *response*
+   shape even though its RPC is cancelled). Never raw passthrough of a query result.
+
+**How I will review it:** by reading the process boundary and by executing — `curl` the tool from
+a second device on the same network and confirm it refuses, and grep the served page for the key
+prefix. Not by reading a description of the design. **Bring it to me before it runs against
+production**, and note that requirement 3 is the one that is invisible in code review and obvious
+in one command.

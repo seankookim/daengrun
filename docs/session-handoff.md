@@ -428,6 +428,7 @@ supabase migration list --linked          # applied vs local. An EMPTY "remote" 
 supabase db query --linked "select * from ops_flags"      # live rows, as a login role — no RLS
 supabase functions list                   # slug · version · verify_jwt · updated_at
 supabase functions download <slug> --project-ref <ref> --workdir /tmp/x   # the LIVE source
+curl -s "$URL/auth/v1/settings" -H "apikey: $ANON"       # which sign-in doors are OPEN
 ```
 
 Four traps, each of which actually bit someone:
@@ -440,6 +441,17 @@ Four traps, each of which actually bit someone:
 - **`functions download` returns the TRANSPILED bundle** — types stripped, reformatted — so a
   textual `diff` against the repo is meaningless. Compare *semantics*: grep the bundle for the
   RPC names or literals the new code introduced (`grep -oE 'rpc\("[a-z_]+"'` is usually enough).
+- **The AUTH surface is configured NOWHERE in this repo, so only the server knows it.**
+  `supabase/config.toml` here is 215 bytes with no `[auth]` section, so providers, `disable_signup`
+  and token lifetimes live only in the dashboard — **no pin, hook or gate can see them, and a
+  ruling about sign-in cannot be enforced from git.** Added 2026-08-15 after ui removed the email
+  door from the client and the server went on accepting email signups: `"email": true`,
+  `"disable_signup": false`. **A door removed from the client is not a door shut.** The anon key
+  this needs is the public one that ships in every build (`app/.env`), which is the point — it is
+  the credential an attacker already has.
+  ⚠ **Never "fix" auth with `supabase config push`.** It pushes the LOCAL config, and ours declares
+  nothing, so it would send CLI defaults for every setting the file omits — redirect URLs, JWT
+  expiry, SMTP, **and the Kakao provider itself.** It can shut the door that must stay open.
 - **`functions deploy` is its own parity oracle.** It prints `No change found in Function: X`
   when the live bundle already matches your tree. Deploying five and getting four "no change"
   lines is a stronger statement about what is live than any document — and it costs one command.
