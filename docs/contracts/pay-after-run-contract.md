@@ -1244,3 +1244,16 @@ session's call with Sean, not a blocker (§F.3).
 > `postConfirm` never runs), **not a regression. Update the build.** Nothing is written to defend
 > against this in code, because the shipped population is zero and your device is the only place
 > a stale binary can exist.
+
+## §I. Deployed (announcer v3, 2026-08-20 ~05:30)
+
+Branch `claude/p0-pay-after-run` @ a87e0f3 → trunk `daf8614`. Reviewer ≠ author: catalog (live session), LAND-AND-DEPLOY with an
+independent Deno 203/0 and two notes: (a) pin the "redundant" money guard `paidPath === 'card' || !chargingLive` so a future reader
+cannot simplify it away (open — cheap follow-up); (b) the `ops_flags` read is fail-closed on error but fail-open on a MISSING row
+(`maybeSingle()` → charging treated as OFF) — executed as anon: RLS-on-zero-policies refuses delete/update/select, so not remotely
+reachable; bites only if an operator removes the row post-flip — harden later with `.single()` or treat absence as live.
+Deployed in order: `transition-booking` v33→34, then `create-booking-hold` v9→10. Verified live with the self-cleaning probe:
+body `runner_id` → 400 (0111 intact); explicit `runner_id: null` → 200 with `booking_status: "matching"` (O-5 in effect);
+second hold for the same dog/window → 409 「이 시간대에 같은 아이의 예약이 이미 있어요」 (P8 live — the probe's old
+two-holds sequence is the consequence, not a regression); direct PostgREST writes → 42501; cleanup verified empty.
+Client follow-up (§E.5) handed to ui2 with the four moves named.
