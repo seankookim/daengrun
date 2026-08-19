@@ -38,19 +38,25 @@ unfinished migration" applies to ALL of them at once:
 - `--include-all` from that same tree **succeeds and ships 0105 as cargo** — measured: dry-run lists
   `0105_booking_insert_party_guard.sql`. There is no per-file selection. Reaching for
   `--include-all` to "unblock yourself" deploys trust's held state-machine guard under your name.
-- **The only recipe:** detached tree cut from trunk → `mv` 0105 aside → `db push --linked
-  --include-all --dry-run` and **READ the list** (measured: with 0105 aside it lists nothing but
-  your files; at trunk today it lists `[]`) → push → restore. This is how 0106/0107/0108 shipped.
+- **The only recipe is now one command (v3, on trunk at `7d79373`):**
+  `bash scripts/deploy-migrations.sh` (dry-run; prints the exact pending set) then
+  `bash scripts/deploy-migrations.sh --push <exact filenames>`. It fetches and cuts a detached tree
+  at trunk (deploys come from trunk, structurally), moves every file in `supabase/migrations/HELD`
+  aside before the CLI sees the tree, dry-runs, and **refuses to push unless the pending set equals
+  exactly what you named** (exit 4) or if you name a held file (exit 3). Never runs `migration
+  repair`. Tested five ways on 2026-08-19; with HELD on trunk the pending set at trunk is empty.
+  The hand recipe it replaces (detached tree → mv 0105 aside → dry-run → read → push → restore) is
+  how 0106/0107/0108 shipped; do not do it by hand any more.
 - From a *stale* tree the CLI suggests `migration repair --status reverted 0106 0107 0108` — **NEVER
   run that**: it marks three APPLIED migrations reverted against a DB that really has them.
 - Catalog also measured that the rejected 0105 applies cleanly after 0108 (632/0 pins, disjoint
   objects). Mechanically safe — but landing it is **0105's owner's decision**, never cargo.
-- **Expiry (catalog's caveat, accepted):** this recipe is a WORKAROUND for an open gap, not a
-  procedure — five steps whose load-bearing one is a human reading output, and this repo has learned
-  six times that such steps get skipped by their own authors within a day. **The fix is resolving
-  0105** (landed by its owner, or superseded at the next free number). If it is still open tomorrow,
-  the cheap constraint is a wrapper that performs the aside step itself and refuses to push any file
-  on a HELD list — turning "remember step two" into "cannot skip step two".
+- **Expiry (catalog's caveat, accepted — and the wrapper it asked for is the line above):** the
+  hand recipe was a WORKAROUND, five steps whose load-bearing one was a human reading output, and this
+  repo has learned six times that such steps get skipped by their own authors within a day. The
+  wrapper turns "remember step two" into "cannot skip step two". It is still debt repayment, not
+  defence: **the fix is resolving 0105** (landed by its owner, or superseded at the next free number),
+  and the HELD line comes out in the same commit that does it.
 
 **Open routing item (no owner yet):** pay-after-run. Sean ruled payment moves after the run + return
 handoff. Client reroute alone strands every booking in `payment_hold` (nothing else moves it to
