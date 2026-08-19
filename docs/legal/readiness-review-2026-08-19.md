@@ -90,7 +90,36 @@ run, the runner, the curator and the date, published to anonymous readers. That 
 re-identification handle than the review's §5.6 anticipated — it does not require the spatial
 re-identification argument at all, because the identity is a foreign key rather than an inference.
 
-**It has not fired yet.** Every `verified_run_id` in production is currently NULL — no route has
+### ✅ CLOSED 2026-08-19 by 0107 — verified independently
+
+Column-level REVOKE of `verified_run_id`, `verified_runner_id` and `checked_by` from both `anon`
+and `authenticated`, plus a guard in `promote_route_from_run` that refuses to promote unless a
+de-identified `routes_public` view exists and a transitive `pg_depend` walk proves it reads none
+of the three. `checked_at` deliberately stays — it is rendered.
+
+**Verified over the wire as anon, by this session:**
+
+```
+verified_runner_id  -> 401 / 42501       verified_run_id -> 401 / 42501
+checked_by          -> 401 / 42501       checked_at      -> 200
+SELECT *            -> 401 / 42501   ← the attacker's actual move, also closed
+app-shaped read     -> 200
+```
+
+The `select=*` result is the one worth keeping: a named-column test passes while `*` still leaks,
+and `*` is what an attacker reaches for first.
+
+**And confirmed for the logged-in case too**, which the anon probe cannot reach —
+`information_schema.column_privileges` filtered to `privilege_type='SELECT'` returns **only
+`checked_at`, for both `anon` and `authenticated`**. The three identity columns carry no SELECT
+grant to either role. (Queried without that filter first, which lumps in UPDATE/REFERENCES and
+reads as though the columns were still granted — the same half-read this document keeps
+cataloguing, caught here before it became a claim.)
+
+So the gate is now enforced by the database rather than by a queue entry: the columns are off the
+public surface today, and a route cannot be promoted into a projection that leaks them.
+
+**It had not fired.** Every `verified_run_id` in production is currently NULL — no route has
 been promoted from a real run. And `promote_route_from_run` is deliberately **admin SQL only, not
 a client RPC** (`0082:174`), curated by Sean by hand. So this is a latent defect on a pipeline
 that has never run, not a live exposure: **it is a cheap column change today and an incident the
@@ -181,9 +210,9 @@ buildable, in this order:
 1. ~~**Private the `run-*` channel**~~ — **DONE 2026-08-19**, closed at the realtime boundary
    (§6-ter): `private_only=true`, both instruments green on production. Took three passes —
    server RLS alone was bypassable, and the namespace bump was obscurity.
-2. **Revoke `verified_run_id` / `verified_runner_id` / `checked_by` / `checked_at` from anon
-   route reads** (grant change, not a column drop — see ⓑ) before the first
-   course is ever promoted. Cheap now, incident later. — backend/catalog
+2. ~~**Revoke the identity columns from anon route reads**~~ — **DONE 2026-08-19 (0107)**,
+   verified independently including the `select=*` case and the `authenticated` role (§2ⓑ).
+   Enforced by grants plus a promotion-time dependency walk, not by a checklist.
 3. **Insert the statutory location-consent gate ahead of `geo.ts:199`**, and split a
    위치기반서비스 이용약관 out of the privacy policy draft. — client + legal
 
