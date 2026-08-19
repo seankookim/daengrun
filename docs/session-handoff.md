@@ -38,9 +38,16 @@ copied from `0082:251` verbatim — two definitions of "in Korea" will drift, on
 itself. Note the two are different in KIND on purpose: 0082 FILTERS a client-written run trace,
 0099 REFUSES a curated catalog row.
 
-**The three tolerant readers downstream can retire when their owners choose** — client's
-`normalizeTrace()`, ui's `routeDisplayName()`, route-geometry's shape-tolerant `route-guidance.mjs`.
-Nothing forces them to; the database simply no longer needs them. Coordinate before deleting.
+**CORRECTED 2026-08-15 (ui's measurement; the original framing was theirs and the announcer
+endorsed it unopened):** the "three tolerant readers" pattern was **one** reader and a
+miscount. `normalizeTrace()` (client) genuinely earned its place — array points could not be
+read — and is retirable now that 0099 guarantees shape (verified 34/34 objects). Route-geometry's
+`route-guidance.mjs` shape-tolerance likewise. But `routeDisplayName()` was **invented for a
+contradiction that did not exist** (all 26 name-km tokens round exactly to their `km`) and for
+five rows the token is IDENTIFICATION — three 몽마르뜨 loops and two 서래섬 cuts whose only
+distinguishing text it deleted, rendering five courses under two names. ui reverted it
+(`e881bae`). 0100 now refuses a `km` change that leaves the name stale, which is the real fix
+for the real (temporal) problem.
 
 ⚠ **`t` and `v` are now unstorable on this table**, which is a privacy boundary and not tidiness:
 `routes` is anon-readable (`using (true)`, 0082 §A-4), so a timed point publishes when a runner was
@@ -80,7 +87,7 @@ Two properties the schema now enforces, both worth knowing before you write to t
   re-derive it.
 
 Still open and still catalog's, none of them started: the `trace` shape + Korea lat/lng bounds
-CHECK (data is 32/32 objects today, but `jsonb` permits a third shape — three tolerant readers
+CHECK (data is 32/32 objects today, but `jsonb` permits a third shape — tolerant readers
 now exist downstream absorbing what ingest wrote); km embedded in `routes.name` disagreeing with
 the `km` column after rounding; and the `anchor_lat`/`anchor_lng` `소비 금지` contract, which
 cannot be scoped by `source` because all 32 rows read `algo`.
