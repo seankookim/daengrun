@@ -96,8 +96,17 @@ if (isLocal) {
     process.exit(2);
   }
 } else {
+  // Remote: service key comes ONLY from the shell env or ~/.config/daengrun/ops.env — never app/.env
+  // (cso 2026-08-19: nothing under app/ may hold a service-role credential).
   ANON = process.env.SUPABASE_ANON_KEY ?? null;
   SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY ?? null;
+  if (!SERVICE) {
+    try {
+      const opsPath = process.env.DAENGRUN_OPS_ENV ?? `${process.env.HOME}/.config/daengrun/ops.env`;
+      const txt = (await import('node:fs')).readFileSync(opsPath, 'utf8');
+      const m = txt.match(/^SUPABASE_SERVICE_ROLE_KEY=(.+)$/m); if (m) SERVICE = m[1].trim().replace(/^["']|["']$/g, '');
+    } catch { /* absent — fall through to the required-keys error below */ }
+  }
 }
 if (!ANON || !SERVICE) { console.error('SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY 필요'); process.exit(2); }
 

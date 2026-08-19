@@ -29,7 +29,8 @@
 //   optional: --skip <slug|routeId>[,…]            # hold entries back; NEVER relaxes a guard
 //
 // CREDENTIALS
-//   app/.env is parsed as plain text for EXPO_PUBLIC_SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY.
+//   ~/.config/daengrun/ops.env (or $DAENGRUN_OPS_ENV) is parsed as plain text for SUPABASE_URL +
+//   SUPABASE_SERVICE_ROLE_KEY. NEVER app/.env — see the boot section.
 //   The key value is NEVER printed, logged, echoed, or included in an error message. Errors from
 //   the network layer are re-rendered through `safeErr()` before they reach stdout.
 
@@ -251,12 +252,17 @@ function parseGpx(file) {
 // Boot
 // ─────────────────────────────────────────────────────────────────────────────
 const ROOT = repoRoot();
-const ENV_FILE = path.join(ROOT, 'app', '.env');
+// SECURITY (cso 2026-08-19): the service-role key must NEVER live under app/ — Expo tooling reads
+// app/.env, and one EXPO_PUBLIC_ rename would inline a full-RLS-bypass key into the client bundle.
+// Ops credentials come from ~/.config/daengrun/ops.env (outside the repo) or DAENGRUN_OPS_ENV.
+const ENV_FILE = process.env.DAENGRUN_OPS_ENV
+  ?? path.join(process.env.HOME ?? '', '.config', 'daengrun', 'ops.env');
+if (ENV_FILE.includes(`${path.sep}app${path.sep}`)) die(2, 'refusing: ops env file must not live under app/');
 const env = readEnvFile(ENV_FILE);
-const URL_ = (env.EXPO_PUBLIC_SUPABASE_URL ?? '').replace(/\/+$/, '');
+const URL_ = (env.SUPABASE_URL ?? env.EXPO_PUBLIC_SUPABASE_URL ?? '').replace(/\/+$/, '');
 const KEY = env.SUPABASE_SERVICE_ROLE_KEY ?? '';
-if (!URL_) die(2, `EXPO_PUBLIC_SUPABASE_URL missing from ${ENV_FILE}`);
-if (!KEY) die(2, `SUPABASE_SERVICE_ROLE_KEY missing from ${ENV_FILE}`);   // value never printed
+if (!URL_) die(2, `SUPABASE_URL missing from ${ENV_FILE}`);
+if (!KEY) die(2, `SUPABASE_SERVICE_ROLE_KEY missing from ${ENV_FILE} (create it: mkdir -p ~/.config/daengrun && chmod 600 ...)`);   // value never printed
 
 const GPX_DIR = path.resolve(valOf('--gpx-dir', path.join(ROOT, 'docs', 'routes', 'gpx')));
 const MANIFEST = path.resolve(valOf('--manifest', path.join(GPX_DIR, 'manifest.json')));
