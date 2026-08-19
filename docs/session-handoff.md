@@ -222,6 +222,30 @@ booking** (Sean's ruling ⑥ — never `now()`; `longest_inflight_booking_end()`
     run-end-flow session; mirrored in their plan so it sits in two documents that get read.
   · club price disclosure live (ruling ④ keeps 9,900 as a *stated* premium — the single
     disclosure is on the 승낙서, `app/app/club/delegate/[sid].tsx`)
+  · ⚠⚠ **§3⑦ RE-ANCHOR — PREMISE RE-MEASURED 2026-08-15 (money). Read before building it.**
+    **The forgery hole this re-anchor was written to close is ALREADY CLOSED.** The justification
+    below says `0002_rls.sql:107` lets an assigned runner INSERT a `runs` row with every column
+    pre-filled. `0087_run_insert_seal.sql` **dropped that policy**. Measured in production:
+    `runs` has RLS on and exactly two policies — `runs party read` (SELECT) and
+    `runs runner update` (UPDATE). **There is no INSERT policy for any client role, so a client
+    INSERT is default-denied**, and `_guard_run_insert` is live as a second belt.
+    → The re-anchor is **no longer urgent**. It is still the better design, and the reason it
+      gives for `ledger_items` checks out: RLS on, exactly one policy (`ledger self read`,
+      SELECT), **no INSERT policy for any client role** — only `settle_run_tx` (definer) writes it.
+    → **Downgrade it from a BLOCKING precondition to a wanted improvement**, unless someone
+      re-argues it on its own merits rather than on the forgery path. A blocking gate whose
+      stated reason has been fixed elsewhere is how a cutover stalls on a solved problem.
+    ⚠ **RESIDUAL, and it is trust's not money's:** the *table-level* INSERT grant on `runs` is
+      still held by `authenticated` AND `anon`. That is harmless only because no INSERT policy
+      exists. Anyone adding a permissive INSERT policy for convenience reopens the original hole
+      instantly, with no grant change for a grants audit to notice. Reported to trust.
+    ⚠ **NOT falsified:** a relayed report said this section assumes `ledger_items` is empty. It
+      does not — there is no such sentence, and the 8 rows measured in production are exactly
+      what the design expects (8 ledger rows ↔ 8 `completed` bookings, each with a `runs` row, all
+      qualifying correctly under the "require a runs row and a non-cancel status" rule that
+      excludes 0081's cancel-comp entry). Checked rather than patched, because editing a doc to
+      fix a premise it never held would have made it worse.
+
   · **the sweep is re-anchored on `ledger_items`, and the setter REFUSES without it.**
     ⚠ SUPERSEDES the `runs.settled_at` plan below — that column is client-forgeable and the
     hole is bigger than "the sweep can't see a run". `0002_rls.sql:107` lets an assigned runner
