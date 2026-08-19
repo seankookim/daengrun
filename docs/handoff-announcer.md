@@ -29,6 +29,16 @@ comments say why and name 146 D-4/5/6/11/20). `_guard_booking_insert_cols` is no
 construction and its blacklist property is unpinned — whoever ever re-grants client INSERT gets it back
 untested (recorded in 119/125). Trust, if you return: this is your surface; the contract, the reviewer's
 executed evidence and the row are the record — verify, don't relay.
+**Ruling #14 (Sean, in ui2's session, on origin at e13b579, verbatim in `docs/labs/RULINGS-2026-08-19-journey.md`):**
+pickup = wherever the owner pins; app recommends the nearest route; runner is led to the nearest point ON
+the route and the lap starts there. Route geometry's measured read (46 routes): rank by distance-to-TRACE
+via point-to-segment (worst vertex gap 100 m), lift `pointToSeg`/`snapToRoute` from
+`docs/routes/strava/route-guidance.mjs`, rotation safe (closure > 25 m = 0/46), the approach leg is NOT
+in `routes.km`, and `route-guidance.mjs` has never run against live GPS. ui2 took all four (TS module
+under `app/src/lib`, approach drawn separately, honesty state + a device-run item for Sean's smoke list).
+Anchor is demoted to a bounding-box prefilter — do not flip 0078's `근사값 — 소비 금지`; catalog settles it on
+return. Sean reviewed 31 routes tonight (21 accept / 4 reject / 6 rework); the rejects were one planner
+bug (walked past the near park), rewritten; catalog is 50 GPX.
 **Roster change (later):** the client session handed off (`docs/handoff-client.md` @ 1b74d6a) and Sean
 opened **ui2** as its successor on the MAIN checkout (`/Users/sean/dev/daengrun` @ trunk). ui2 is named
 OWNER (exclusive) of `app/app/owner/home.tsx`, `owner/course-map.tsx`, `app/app/index.tsx`,
