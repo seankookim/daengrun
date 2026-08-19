@@ -180,6 +180,15 @@ export async function fetchRoutes(town?: string | null): Promise<RouteInfo[]> {
   const rows = await forTown(town ?? null);
   if (rows.length > 0 || !town) return rows.map((r) => toRouteInfo(r, r.trace_thumb)).filter(isOfferable);
 
+  // Same token, administrative suffix only: district '성수' ↔ town '성수동'. This is NOT the geographic
+  // judgement the comment below refuses (뚝섬 → 성수동); it is the one normalisation that cannot be wrong,
+  // and it is what made Sean's own account (district '성수') fall through to the unfiltered list while a
+  // 반포동 owner saw only 반포동 — two owners, two rules. (2026-08-20)
+  if (!town.endsWith('동')) {
+    const suffixed = await forTown(`${town}동`);
+    if (suffixed.length > 0) return suffixed.map((r) => toRouteInfo(r, r.trace_thumb)).filter(isOfferable);
+  }
+
   // ── 동네 어휘 폴백 (플랜 "Town vocabulary" — 명세돼 있었지만 만들어지지 않았던 팔) ──
   // `profiles.district`와 `routes.town`은 **서로 다른 어휘**다. 실측(2026-08-13):
   // district = {null, 반포동, 성수, 뚝섬, 서울숲} · town = {반포동, 성수동} — 겹치는 값은
