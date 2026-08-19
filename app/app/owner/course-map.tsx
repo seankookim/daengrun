@@ -24,6 +24,7 @@ import {
 import { fetchAddresses, fetchMyProfile, fetchRoutes } from '../../src/lib/api';
 import { CourseDetailBody, traceKind, TRACE_NOTE } from '../../src/components/course-detail';
 import { emptyChipCopy, matchesChips, RouteChipRow, useRouteChips } from '../../src/components/route-chips';
+import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { getNaverMap } from '../../src/lib/geo';
 import { boundsOfTraces, orderByProximity, totalKmFor } from '../../src/lib/route-pick';
 import { haptic } from '../../src/lib/haptics';
@@ -328,6 +329,10 @@ export default function CourseMap() {
   return (
     <View style={s.root}>
       {mapNode}
+      {/* 시스템 바 스트립 — 지도가 시계·노치 뒤로 번지던 것 (실측). 지도 **위**,
+          상단 크롬 **아래**: 아래 검색줄 카드는 안전 영역보다 위에서 시작하므로 순서가 뒤집히면
+          카드 머리가 스트립에 먹힌다. */}
+      <StatusBarCover />
 
       {/* 상단 크롬 — 검색 자리(뒤로)와 필터 칩. 지도 위 떠 있는 층은 이 하나뿐 */}
       {/* 상단 크롬 = 하나의 흐르는 컬럼(검색줄 → 칩 → 고지 카드). box-none 이라 컨테이너 자체는

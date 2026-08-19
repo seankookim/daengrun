@@ -51,6 +51,10 @@ interface Props {
   loadState: 'loading' | 'ready' | 'error';
   onRetry: () => void;
   ddayLabel?: string | null;
+  /** 이 예약의 예정 시각이 이미 지났는가 (KST 날짜 칸 기준, home.tsx가 계산).
+   *  ddayLabel = null 은 "카운트다운을 그리지 않는다"는 뜻일 뿐 "아직 안 왔다"는 뜻이 아니다 —
+   *  그 둘을 한 채널에 뭉쳤던 것이 8월 4일 예약에 "시간에 맞춰 알려드려요"를 인쇄한 원인이다. */
+  nextIsPast?: boolean;
   /** active 상태에서 라이브 위젯을 렌더할 슬롯. home.tsx가 이미 가진 위젯을 그대로 넘긴다. */
   liveWidget?: React.ReactNode;
 }
@@ -58,7 +62,7 @@ interface Props {
 const GO_SAGE = '#119B58';   // home.tsx와 같은 값 — 확정·준비됨
 const WAIT_BLUE = '#6C5CE7'; // lilac.accent — 대기
 
-export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, ddayLabel, liveWidget }: Props) {
+export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, ddayLabel, nextIsPast, liveWidget }: Props) {
   // 이 예약의 아이가 먼저다. dogName prop은 fetchFitness의 `.order('created_at').limit(1)` —
   // 즉 **첫 등록 아이**다. 다견 가구에서 몽이 예약 위에 "초코를 인계하고 확인해주세요"라고 쓰던
   // 것이 그 차이였다 (review P1-6).
@@ -145,13 +149,19 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, dda
               {state === 'confirmed' ? `${runner} 확정` : state === 'directed' ? `${runner} 응답 대기` : '러너 찾는 중'}
             </Text>
             <Text style={s.alertSub}>
-              {state === 'confirmed'
-                ? (ddayLabel ? `${ddayLabel}` : '시간에 맞춰 알려드려요')
-                : state === 'directed' ? '지명 요청을 보냈어요' : '보통 몇 분 안에 응답이 와요'}
+              {/* 지난 예약이 먼저다 — 상태별 안내문은 전부 '앞으로 일어날 일'을 약속하므로
+                  이미 지난 건에서는 전부 거짓이 된다 (확정만이 아니라 대기·지명도 마찬가지). */}
+              {nextIsPast
+                ? '시간이 지났어요 · 일정에서 확인'
+                : state === 'confirmed'
+                  ? (ddayLabel ? `${ddayLabel}` : '시간에 맞춰 알려드려요')
+                  : state === 'directed' ? '지명 요청을 보냈어요' : '보통 몇 분 안에 응답이 와요'}
             </Text>
           </View>
           <Text style={[s.alertAct, { color: state === 'confirmed' ? GO_SAGE : WAIT_BLUE }]}>
-            {state === 'confirmed' ? '티켓 ›' : '보기 ›'}
+            {/* '티켓'은 앞으로 있을 인계를 약속하는 말이다 — 지난 건에서는 중립적인 '보기'.
+                목적지(단계 화면)는 그대로다: radar는 지난 건을 일정으로 정직하게 되돌린다. */}
+            {state === 'confirmed' && !nextIsPast ? '티켓 ›' : '보기 ›'}
           </Text>
         </Pressable>
       )}

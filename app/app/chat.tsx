@@ -1,7 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { Icon, Monogram, Row } from '../src/components/ui';
+import { Monogram, Row } from '../src/components/ui';
 import { MediaImage } from '../src/lib/media';
 import {
   ChatContext, ChatMsg, fetchCurrentOwnerBookingId, fetchCurrentRunnerJobId,
@@ -114,6 +114,9 @@ export default function Chat() {
     }
   };
 
+  // 보내기가 실제로 할 일이 없는 조건 — send()의 가드와 같은 술어를 버튼이 그대로 입는다.
+  const sendBlocked = sending || state !== 'ready' || input.trim().length === 0;
+
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.cream }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       {/* header */}
@@ -126,9 +129,9 @@ export default function Chat() {
             {state === 'ready' ? '● 실시간 연결됨' : state === 'loading' ? '연결 중...' : ''}
           </Text>
         </View>
-        <Pressable style={s.circleBtn} onPress={() => Alert.alert('안심 통화', '번호 노출 없는 안심 통화로 연결돼요 (준비 중)')}>
-          <Icon name="Phone" glyph="●" size={16} color="#5a7a3c" />
-        </Pressable>
+        {/* [dead button 2026-08-19] 안심 통화 버튼 은퇴. 유일한 효과가 "(준비 중)" 알럿이었다 —
+            없는 기능을 있는 것처럼 배치한 버튼이고, 그건 이 앱이 금지한 것이다. 번호 마스킹
+            연동(PG/통신)이 실제로 붙는 날 같은 자리로 돌아온다. */}
       </Row>
 
       {/* booking context strip */}
@@ -223,7 +226,18 @@ export default function Chat() {
           onSubmitEditing={() => send(input)}
           returnKeyType="send"
         />
-        <Pressable style={[s.sendBtn, (sending || state !== 'ready') && { opacity: 0.5 }]} onPress={() => send(input)}>
+        {/* [dead button 2026-08-19] 예전엔 opacity 0.5만 걸려 있었다 — 흐릿해 보이지만 여전히
+            눌렸고, 수락 전이나 빈 입력에서도 send()를 호출했다 (send가 안에서 return하므로
+            **아무 일도 안 일어나는 버튼**). 상태를 명시 disabled로 말한다: 불투명도는 표현이지
+            상태가 아니다 (theme.ts:206 매트릭스). */}
+        <Pressable
+          style={[s.sendBtn, sendBlocked && { opacity: 0.5 }]}
+          onPress={() => send(input)}
+          disabled={sendBlocked}
+          accessibilityRole="button"
+          accessibilityLabel="보내기"
+          accessibilityState={{ disabled: sendBlocked }}
+        >
           <Text style={{ fontSize: 17, fontWeight: '900', color: paper.ink }}>↑</Text>
         </Pressable>
       </Row>

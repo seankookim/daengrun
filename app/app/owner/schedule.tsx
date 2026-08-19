@@ -6,6 +6,7 @@ import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { BottomNav } from '../../src/components/bottomnav';
 import { PaymentRow } from '../../src/components/charge-states';
+import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { TabSwipe } from '../../src/components/tabswipe';
 import { Monogram, Row } from '../../src/components/ui';
 import { Booking, BookingStatus, cancelFeeRateFor, cancelPolicy, draft, runners } from '../../src/store';
@@ -32,6 +33,13 @@ const FILTERS: { label: string; match: (b: Booking) => boolean; tint: string; ti
 // ⚠ rawStatus로만 판단한다: STATUS_MAP은 payment_hold·matching·runner_pending을 전부 'pending'
 // 하나로 뭉개므로(api.ts:690-706) 표시 어휘로 게이트하면 확정 예약까지 같이 잠긴다.
 const CHAT_PRE_ACCEPT = ['draft', 'quoted', 'payment_hold', 'matching', 'runner_pending'];
+
+// '● LIVE' 필이 참인 서버 상태 — 러너가 이 예약을 위해 **지금 밖에 있는** 구간.
+// [honesty 2026-08-19] 이 필은 `b.live`로 렌더됐는데, 그 필드는 "실서버 예약"(데모 아님)이라는
+// 뜻이다 (:77·:122). 데모 예약이 은퇴한 지금 그 값은 모든 행에서 true라 취소됨·완료 행에도
+// 초록 LIVE 필이 붙었다 — 표시 어휘가 아니라 rawStatus로 배지를 게이트하라는 법의 정확한 위반.
+// runner_enroute·picked_up 는 STATUS_MAP이 '확정'·'인계'로 뭉개므로 이 필이 실제로 정보를 더한다.
+const LIVE_RAW = ['runner_enroute', 'picked_up', 'active'];
 
 const STATUS_STYLE: Record<BookingStatus, { label: string; bg: string; fg: string; rail: string }> = {
   confirmed: { label: '예약 확정', bg: '#e3f0c4', fg: '#3d5a2b', rail: '#5a7a3c' },
@@ -217,8 +225,10 @@ export default function Schedule() {
         {loaded && !loadErr && visible.length === 0 && (
           <View style={s.emptyBox}>
             <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center', lineHeight: 23 }}>
-              {/* [2026-08-10 감사] 슬라이드 예약은 은퇴한 제스처였다(owner/home.tsx:1222) — 죽은 안내 문구 교정 */}
-              {liveBookings.length === 0 ? '예정된 러닝이 없어요\n홈의 GO 버튼으로 러너를 찾아보세요' : '이 조건의 일정이 없어요'}
+              {/* [2026-08-10 감사] 슬라이드 예약은 은퇴한 제스처였다 — 죽은 안내 문구 교정.
+                  [2026-08-19] 'GO 버튼'도 같은 운명 — 랩 ⑧ v2가 GO 디스크를 은퇴시키고 홈 히어로를
+                  두 문(지금 찾기 / 예약하기)으로 바꿨다. 화면에 없는 버튼으로 안내하지 않는다. */}
+              {liveBookings.length === 0 ? '예정된 러닝이 없어요\n홈의 지금 찾기 / 예약하기로 러너를 찾아보세요' : '이 조건의 일정이 없어요'}
             </Text>
           </View>
         )}
@@ -253,7 +263,7 @@ export default function Schedule() {
                         {b.recurring && (
                           <View style={s.recurPill}><Text style={{ fontSize: 14, fontWeight: '800', color: '#4a6d1f' }}>⟳ 매주</Text></View>
                         )}
-                        {b.live && (
+                        {LIVE_RAW.includes(b.rawStatus ?? '') && (
                           <View style={s.livePillSm}><Text style={{ fontSize: 14, fontWeight: '900', color: '#fff' }}>● LIVE</Text></View>
                         )}
                       </Row>
@@ -332,6 +342,9 @@ export default function Schedule() {
           <Text style={{ fontSize: 16, fontWeight: '800', color: paper.ink }}>＋ 새 러닝 예약하기</Text>
         </Pressable>
       </ScrollView>
+      {/* 시스템 바 스트립 — 날짜 그룹 라벨과 카드 상단이 시계 뒤로 지나가던 것 (실측 2026-08-19).
+          ScrollView '뒤'가 아니라 '위'에 있어야 콘텐츠가 그 아래로 흐른다. */}
+      <StatusBarCover />
       </TabSwipe>
       <BottomNav />
 
@@ -782,7 +795,10 @@ const s = StyleSheet.create({
   },
   shareTxt: { fontSize: 16, fontWeight: '800', color: paper.actionInk },
   // T3 원형 소인 — 콘텐츠가 여유 있게 들어가는 84 지름 (랩의 64는 작았음, Sean 피드백)
-  seal: { width: 84, height: 84, borderRadius: 42, borderWidth: 2.5, borderColor: '#6E9BC5', alignItems: 'center', justifyContent: 'center', alignSelf: 'center', transform: [{ rotate: '8deg' }], opacity: 0.88 },
+  // marginTop 6 = 회전 여유. 소인은 인플로우라 겹칠 수 없지만, 8° 회전은 레이아웃 박스 밖으로
+  // 위아래 ~5.4pt를 더 그린다 — 그 여유 없이는 84 원의 어깨가 바로 위 상태 필의 4.6pt 아래에서
+  // 끝났다 (실측 2026-08-19). 6pt를 더해 어떤 필 라벨 길이에서도 어깨가 필을 물지 않게 한다.
+  seal: { width: 84, height: 84, borderRadius: 42, borderWidth: 2.5, borderColor: '#6E9BC5', alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginTop: 6, transform: [{ rotate: '8deg' }], opacity: 0.88 },
   sealRing: { position: 'absolute', top: 5, left: 5, right: 5, bottom: 5, borderRadius: 37, borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(110,155,197,.55)' },
   sealNick: { position: 'absolute', backgroundColor: '#fff', borderRadius: 3 },
   // 새 예약 CTA — 대시드 '추가 슬롯' 어포던스는 남고, 코랄 1px + 잉크 라벨로 이관

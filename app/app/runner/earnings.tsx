@@ -2,6 +2,7 @@ import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BottomNav } from '../../src/components/bottomnav';
+import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { TabSwipe } from '../../src/components/tabswipe';
 import { Row } from '../../src/components/ui';
 import { fetchLedger, fetchLedgerTotal, LiveLedgerItem } from '../../src/lib/api';
@@ -179,6 +180,8 @@ export default function Earnings() {
           기록된 금액이에요 — 지급 일정은 결제 연동 후 안내드려요 (사업소득 3.3% 원천징수 예정)
         </Text>
       </ScrollView>
+      {/* 시스템 바 스트립 — 정산 티켓과 주간 표가 시계 뒤로 지나가던 것 */}
+      <StatusBarCover />
       </TabSwipe>
       <BottomNav />
     </View>

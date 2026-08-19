@@ -1159,6 +1159,9 @@ export async function settleRun(p: {
 export interface RunnerJob {
   bookingId: string;
   when: string;
+  /** 예정 시각 원본 (bookings.scheduled_at, ISO). `when`은 이미 조판된 라벨이라 '오늘인가'를
+   *  물을 수 없다 — 문자열을 되파싱하는 대신 원본을 함께 싣는다. */
+  scheduledAt: string | null;
   dogName: string;
   km: number;
   payout: number;
@@ -1201,6 +1204,7 @@ export async function fetchRunnerJobs(): Promise<RunnerJob[]> {
     return {
       bookingId: r.id,
       when: `${dateLabel} ${timeLabel}`,
+      scheduledAt: r.scheduled_at ?? null,
       dogName: r.dogs?.name ?? '반려견',
       km: Number(r.km),
       // 완료 = 원장 실수령, 그 외 = 실수수료 견적 (일괄 33%, 0059)
@@ -1218,7 +1222,13 @@ export async function fetchRunnerJobs(): Promise<RunnerJob[]> {
 export type PatchGrade = 'basic' | 'silver' | 'gold' | 'master';
 export const patchGrade = (n: number): PatchGrade =>
   n >= 25 ? 'master' : n >= 10 ? 'gold' : n >= 5 ? 'silver' : 'basic';
-export interface CoursePatch { routeId: string; name: string; km: number; count: number; grade: PatchGrade; firstAt: string | null }
+export interface CoursePatch { routeId: string; name: string; km: number; count: number; grade: PatchGrade; firstAt: string | null;
+  /** 0082 라이프사이클 상태. 획득 패치는 상태와 무관하게 남는다 (기록 카드 원칙 — 코스가 은퇴해도
+   *  달린 기록은 없던 일이 되지 않는다). 이 값이 필요한 곳은 **목표**를 말하는 소비처뿐이다:
+   *  '다음 승급까지 N회'는 지금 달릴 수 있는 코스에서만 참이다. 이 필드를 채우지 않는 소비처
+   *  (러너 공개 이력·패치 팝)는 목표를 만들지 않으므로 optional 이다. */
+  status?: 'candidate' | 'active' | 'suspended' | 'retired';
+}
 
 // 내(보호자든 러너든 당사자) 완료 러닝을 코스별로 집계 — locked는 아직 못 달린 활성 코스
 export async function fetchCoursePatches(): Promise<{ earned: CoursePatch[]; locked: { routeId: string; name: string; km: number }[] }> {
@@ -1260,6 +1270,7 @@ export async function fetchCoursePatches(): Promise<{ earned: CoursePatch[]; loc
       earned.push({
         routeId: r.id, name: r.name, km: Number(r.km), count: c.n,
         grade: patchGrade(c.n), firstAt: kstParts(c.first).dateLabel,
+        status: r.status,
       });
     } else locked.push({ routeId: r.id, name: r.name, km: Number(r.km) });
   });
@@ -2883,6 +2894,9 @@ export interface FeedPost {
   body: string | null;
   photoUrl: string | null;
   meta: { dogName?: string; km?: number; durationSec?: number; badges?: string[]; trace?: { x: number; y: number }[];
+    // runs.end_reason (0028 ②). '완주'라고 말할 수 있는 유일한 근거다 — status='completed'는
+    // 조기 종료 정산도 포함한다. 옛 포스트에는 없다(undefined) → 피드는 완주를 주장하지 않는다.
+    endReason?: string;
     collar?: string; // 칼라 컬러 키 (0033) — 런 카드 트레이스가 강아지 색으로
     club?: string; sessionId?: string; teams?: number; dogs?: number; sessionAt?: string }; // 클럽 리캡 자동 포스트 (0031)
   when: string;
@@ -3542,7 +3556,9 @@ export async function shareRunToFeed(bookingId: string, body?: string): Promise<
     booking_id: bookingId,
     body: body ?? null,
     photo_url: report.run.photos[0] ?? null,
-    meta: { dogName: report.dogName, km: report.run.actualKm, durationSec: report.run.durationSec, badges, trace, ...(collar ? { collar } : {}) },
+    // endReason 동봉 — 피드 카드가 '완주'를 말해도 되는지의 유일한 근거 (0028 ②). 없으면
+    // 카드는 중립적인 '러닝 기록'으로 떨어진다: 0km 조기 종료가 '초코 완주'로 게시된 원인.
+    meta: { dogName: report.dogName, km: report.run.actualKm, durationSec: report.run.durationSec, endReason: report.run.endReason ?? undefined, badges, trace, ...(collar ? { collar } : {}) },
   });
   if (error) {
     if (error.code === '23505') throw new Error('이미 피드에 공유한 러닝이에요');
@@ -3687,7 +3703,12 @@ export async function fetchRewardBeacon(): Promise<BeaconInfo> {
   // [director] '다음 패치까지'의 정직한 해석 = 가장 가까운 승급 (최다 완주 코스가 아니라).
   // count 4(실버까지 1회)가 count 11(마스터까지 14회)을 이긴다 — 카피와 선택 기준이 일치해야 한다.
   // 동률이면 count 높은 쪽 (더 진행된 코스). 마스터(25) 도달 코스는 다음 목표가 없으므로 제외.
+  // [honesty 2026-08-19] 목표는 **지금 달릴 수 있는 코스**에서만 나온다. earned는 은퇴·정지
+  // 코스도 담는다 (기록 카드 원칙, fetchCoursePatches 참조) — 그래서 홈 비컨이 "실버까지 2회 ·
+  // 뚝섬 리버뷰 코스"라고, 예약조차 받지 않는 은퇴 코스를 다음 목표로 인쇄하고 있었다.
+  // 획득 패치는 그대로 남고, 승급 목표만 active로 좁힌다.
   const candidates = patches.earned
+    .filter((c) => c.status === 'active')
     .map((c) => {
       const tier = [5, 10, 25].find((t) => t > c.count);
       return tier === undefined ? null : { name: c.name, count: c.count, toNext: tier - c.count };

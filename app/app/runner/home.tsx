@@ -67,6 +67,17 @@ const CORAL_INK_DEEP = paper.actionPressed;
 
 const TIER_LABEL: Record<string, string> = { certified: '인증 러너', veteran: '베테랑', master: '마스터' };
 
+// 이 시각이 **오늘(KST)** 인가. 한국은 DST가 없어 고정 오프셋 산술로 충분하다 (서버 kstParts·
+// owner/home의 kstDayDiff와 같은 전제). 기기 로컬 타임존이 아니라 Asia/Seoul 고정 — 시뮬레이터가
+// UTC이거나 사용자가 해외면 로컬 날짜는 하루 어긋난다.
+const KST_MS = 9 * 3_600_000;
+const kstDay = (ms: number) => new Date(ms + KST_MS).toISOString().slice(0, 10);
+const isTodayKst = (iso: string | null) => {
+  if (!iso) return false;
+  const t = Date.parse(iso);
+  return !Number.isNaN(t) && kstDay(t) === kstDay(Date.now());
+};
+
 // 세션 동안 거절한 요청 id — 오픈 풀로 되돌아와도 내 큐에 재등장하지 않게 (모듈 레벨: 리마운트 생존)
 const declinedIds = new Set<string>();
 
@@ -654,7 +665,11 @@ export default function RunnerHome() {
                   //    찍혀 같은 화면의 'STAGE[rawStatus] = 러닝 중 · LIVE'와 정면으로 부딪혔다.
                   //    진행 중 정차역은 STAGE 라벨(서버 상태 파생)을 쓰고, 예정 정차역은
                   //    아무 줄도 그리지 않는다 (실필드를 붙이거나 요소를 생략한다 — 지어내지 않는다).
-                  const started = on && st.job.rawStatus !== 'confirmed';
+                  // ③ [2026-08-19] '지금'은 시작된 단계**이면서 오늘 것**일 때만이다. 8월 4일에
+                  //    시작돼 끝나지 않은 잡(rawStatus='active')이 8월 19일 홈에서 '지금'으로
+                  //    찍혔다 (실측). 진행 중이라는 사실은 바로 옆 stageLabel('러닝 중 · LIVE')이
+                  //    이미 말하므로, 이 칸은 **언제**를 말한다 — 오늘이 아니면 그 날짜를.
+                  const started = on && st.job.rawStatus !== 'confirmed' && isTodayKst(st.job.scheduledAt);
                   const stageLabel = on ? STAGE[st.job.rawStatus]?.label ?? null : null;
                   return (
                     <Pressable

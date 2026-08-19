@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Modal, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { Avatar, Row } from '../../src/components/ui';
 import { ensureThread, fetchBookingStatus, fetchCurrentOwnerBookingId, fetchMeetupInfo, fetchOwnerPickupCoords, fetchRouteById, fetchRunMeta, MeetupInfo, notifyRunStop, OwnerPickup, sendChatMessage, subscribeBooking } from '../../src/lib/api';
 import { useNumFont } from '../../src/lib/fonts';
@@ -708,6 +709,10 @@ export default function Live() {
           ))}
         </View>
       )}
+
+      {/* 시스템 바 스트립 — 지도가 시계·노치 뒤로 번지던 것. 지도·대기 스트립 **위**,
+          상단 오버레이 **아래**: 뒤로/LIVE/SOS 는 안전 영역 바로 아래에서 시작하므로 가려지지 않는다. */}
+      <StatusBarCover />
 
       {/* ---------- 상단 오버레이 ---------- */}
       <Row style={s.topBar}>

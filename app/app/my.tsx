@@ -6,6 +6,7 @@ import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View 
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { useAuth } from '../src/auth-context';
 import { BottomNav } from '../src/components/bottomnav';
+import { StatusBarCover } from '../src/components/status-bar-cover';
 import { TabSwipe } from '../src/components/tabswipe';
 import { STAMP_GAP, STAMP_INK, StampCell } from '../src/components/stamp';
 import { Avatar, Row } from '../src/components/ui';
@@ -473,6 +474,8 @@ export default function My() {
           <Text style={[s.colophonTxt, nf]}>도그스하이 · DOGS HIGH</Text>
         </View>
       </ScrollView>
+      {/* 시스템 바 스트립 — 마스트헤드가 시계 뒤로 지나가던 것 */}
+      <StatusBarCover />
       </TabSwipe>
       <BottomNav />
 

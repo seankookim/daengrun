@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { PaperBtn } from '../../src/components/paper-btn';
+import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { Row } from '../../src/components/ui';
 import {
   fetchMyRunnerApplication, fetchMyRunnerCert, fetchMyRunnerStatus,
@@ -348,7 +349,8 @@ export default function Apply() {
               </Row>
             </View>
             <Text style={s.recFoot}>
-              네 값 모두 서버 러너 레코드에서 그대로 읽어요 — 완주와 거리는 정산이 올리고, 수수료율은 정산에 그대로 쓰여요
+              {/* [2026-08-19] '네 값' → '세 값'. 위 그리드는 완주·누적 거리·정산 수수료 셋을 그린다 */}
+              세 값 모두 서버 러너 레코드에서 그대로 읽어요 — 완주와 거리는 정산이 올리고, 수수료율은 정산에 그대로 쓰여요
             </Text>
           </View>
         )}
@@ -690,6 +692,8 @@ export default function Apply() {
           <Text style={[s.colophonTxt, nf]}>DOGS HIGH · RUNNER CERTIFICATION</Text>
         </View>
       </ScrollView>
+      {/* 시스템 바 스트립 — 이 화면은 sticky 헤더가 없어 마스트헤드가 시계 뒤로 지나갔다 */}
+      <StatusBarCover />
     </View>
   );
 }

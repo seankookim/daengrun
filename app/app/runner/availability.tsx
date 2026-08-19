@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextStyle, View } from 'react-native';
 import { PaperBtn } from '../../src/components/paper-btn';
+import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { Row } from '../../src/components/ui';
 import { AvailRule, fetchMyAvailability, saveMyAvailability } from '../../src/lib/api';
 import { useNumFont } from '../../src/lib/fonts';
@@ -212,6 +213,8 @@ export default function Availability() {
           변경 사항은 내 공개 프로필과 보호자 예약 화면에 즉시 반영돼요
         </Text>
       </ScrollView>
+      {/* 시스템 바 스트립 — 요일 그리드가 시계 뒤로 지나가던 것 */}
+      <StatusBarCover />
 
       {/* sticky save — PaperBtn matrix: busy = label swap, saved = explicit disabledFill.
           Mounts ONLY after a real load: saving an unseeded grid would wipe server rules. */}
