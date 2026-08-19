@@ -26,21 +26,24 @@ Format: **must show** (real-bound) · **must do** (every visible action has a re
   6-column public profile — no phone), when, course name, status chip from `rawStatus`.
 - **Live strip when a run is live** → tap to `owner/live`. Only when status ∈ {runner_enroute, picked_up, active}.
 - **Last completed run** (`lastDone`): km, duration, "리포트 보기" → `owner/report`.
-- **Dog fitness hero** (`fetchFitness`): weekly km vs goal (`dogs.weekly_goal_km` — real column), streak.
-  ⚠ 체력나이 delta is still mock-derived (fake-inventory 🟡) — omit or bind to `dogs.birthdate`.
+- **Fitness on HOME** — under ⑧ v2 the fitness hero leaves home and becomes a quiet two-number row
+  in the 나 chunk (weekly km vs `dogs.weekly_goal_km` — real; streak). ⚠ 체력나이 delta is
+  mock-derived (fake-inventory 🟡) — the ⑧ mocks omit it. The DO-NOT-REFACTOR collapsing hero is
+  `owner/fitness`'s (the screen), NOT home's — do not block the ⑧ build on that freeze.
 - **Runners nearby** (`fetchAvailableRunners` / `fetchCertifiedRunners`): count + avatars. This view is
   anon-readable by design; show only the six public columns.
 - **Unread badge** (`fetchUnreadCount`), **moments** (`fetchRecentMoments` — real feed rows only),
   **dog-board ticker** (`fetchDogBoardDelta`) — each renders nothing when empty, never a placeholder.
 - **Reward beacon** (`fetchRewardBeacon`) — only if a real unopened drop exists (drops are sealed
   server-side now; the client reads, never writes).
-**Must do:** GO → `owner/request` · card → the right stage screen (`matching` / `meetup` / `live` /
-`report`) chosen by `rawStatus` · runners → `owner/radar` · fitness → `owner/fitness`.
+**Must do (⑧ arrows):** primary action → `owner/request` · 지금 찾기 → `request.pickEarliest()` →
+`radar` · card → the right stage screen (`matching` / `meetup` / `live` / `report`) chosen by
+`rawStatus` · 동네 러너 → `leaderboard` / `runner-profile` (as today) · fitness row → `owner/fitness`.
 **Must NOT:** show a payment amount anywhere as if collected (money §4-bis: nothing is charged, no card
 is stored — "your card" refers to nothing) · show 0 as a real count while loading · show a runner
 as "verified" (all 9 are fixtures — the copy is a launch gate).
-**State today:** hero + collapse choreography is FROZEN (DO-NOT-REFACTOR). Everything above already
-binds; the gaps are the 체력나이 chip and the payment surface.
+**State today:** everything above already binds; the gaps are the 체력나이 chip and the payment
+surface. (The frozen collapsing hero belongs to `owner/fitness`, not to home.)
 
 ### `owner/request` (booking) — the money-adjacent screen
 **Must show:** dog picker (own dogs only), address (own addresses only — 0105 will enforce ownership
@@ -65,8 +68,10 @@ handoff stamps (server), the exact `confirmHandoff` flow. FROZEN stage machine �
 Not: hardcoded pickup coordinates (fake-inventory 🟡 — 서울숲/뚝섬로 273 must go).
 
 ### `owner/live`
-Show: map with the runner's live position — **private channel only, `run2-<id>`**; three states told
-apart: receiving / 권한 없음 or 연결 실패 / waiting-for-first-fix. Show km, pace, elapsed from the
+Show: map with the runner's live position — **private channel only, `run2-<id>`**; **FOUR states told
+apart** (`LiveLinkState` in geo.ts, shipped 2026-08-19): `connecting` · `live` · `denied` · `error` —
+권한 없음 and 연결 실패 are separate, because a network blip renamed a permission problem is itself an
+invented claim; `denied` only when the server says unauthorized/forbidden/policy. Show km, pace, elapsed from the
 broadcast. Do: chat, "중단 요청" (real notification via a template — the free-text push path is being
 closed), SOS → `safety`. Not: fake positions when nothing arrives; the "사진 요청/휴식 요청" mock
 alerts (fake-inventory 🟡) — hide until the runner-side receiver exists.
@@ -95,9 +100,10 @@ placeholders for the 사업자정보 footer (wait for real numbers).
 
 ### `owner/review`, `owner/reschedule`, `course/[id]`, `owner/course-map`
 Review: only after `completed`, target bound to the booking's runner (0105 lineage). Course detail:
-real map (K4 ③), route name via `routeDisplayName`, km/elevation (`elevation_gain_m`, NULL = "—",
-never 0), 점검일 only when `checked_at` exists, chips. Course-map: fit-to-route, all catalog, 44 pt
-tap targets (Sean's ruling on the design calls: floor applies).
+real map (K4 ③), route name RAW (`route.name` — the km token in the name is TRUE by 0100's constraint and on five rows is the only thing that tells courses apart; `routeDisplayName` was deleted at `e881bae`), km/elevation (`elevation_gain_m`, NULL = "—",
+never 0), 점검일 only when `checked_at` exists, chips. Course-map: fit-to-route, all catalog. Tap targets: 18 pt anchors vs the 44 pt floor the
+codebase honours elsewhere — ⚠ this is the ANNOUNCER'S INFERENCE from the codebase floor, NOT a
+ruling Sean gave; ui flagged it as a design call and it stays flagged until he says.
 
 ## RUNNER
 
