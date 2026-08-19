@@ -95,9 +95,53 @@ replaces, per `end_reason`, across the boundaries — not a handful of happy num
 - **mutation-verified**: swapping 9,900→7,900, dropping the clamp, applying `min_fare` to
   `runner_personal`, and re-rounding the fee must each redden a distinct named pin
 
-⚠ **The equivalence pin has a shelf life.** Once `settle-run` calls the SQL, the TypeScript
-arithmetic is dead code and the comparison compares SQL to itself. Delete the TS arithmetic in the
-same slice, or the pin becomes a fake contract of exactly the class the repo has been bitten by.
+### 🔴 Trust's condition (plan review, 2026-08-15): PIN THE GRANT
+
+`security definer` + `service_role` only + **no party gate** — approved, and the precedent is
+stronger than I claimed: `compute_owner_charge` **and** `compute_runner_personal_payout` both
+measure `definer=true, anon=false, authenticated=false, service_role=true`. A party gate on a
+function no client can reach is dead code implying a threat model that does not exist, and it is
+actively harmful — the next reader sees "it's gated" and feels safe granting `execute` to
+`authenticated` for a convenience feature.
+
+**But the function is safe because of the GRANT, not because of anything inside it.** Grant
+`execute` to `authenticated` later and it becomes a **pricing oracle**: pass any booking id, get
+back addons, `min_fare`, `km` and a price for a booking you have nothing to do with. No RLS is
+consulted — it is a definer. And nothing would redden, because the privilege and the protection
+live in different places (trust's detector ③).
+
+**So the suite MUST pin the grant**, three lines:
+
+    has_function_privilege('anon', 'compute_runner_payout(…)', 'execute')          → false
+    has_function_privilege('authenticated', 'compute_runner_payout(…)', 'execute') → false
+
+That converts "safe because of a grant nobody watches" into "safe because a pin watches the grant."
+
+### `search_path` — covered by 98 H1, with one blind spot worth knowing
+
+Write `set search_path = public, pg_temp` in the body and H1 passes; forget and the harness says so
+in the same run — H1 sweeps every `public` definer and fails on a missing `pg_temp`. ⚠ **H1 is
+`prokind='f'` only: definer PROCEDURES are structurally invisible to it.** If this slice ever
+produces a procedure rather than a function, that safety net is not there.
+
+⚠ **The equivalence pin has a shelf life. Deleting the TS is necessary but NOT sufficient**
+(trust, plan review). Once the TypeScript is gone the pin has nothing left to compare against, and
+it does one of two things — breaks and gets "repaired" into comparing SQL to itself, or quietly
+degrades into a tautology that stays green forever. **A green suite is the third artifact class in
+the decisions README, and this repo has shipped it twice.**
+
+**An equivalence pin is scaffolding with a demolition date, and the date is the moment the thing
+it compares to stops existing.** So the same slice that deletes the TS must convert the
+equivalence pin into **value pins** — fixtures with expected numbers written as literals:
+
+1. build the SQL
+2. equivalence pin proves SQL == TS across the fixture matrix — **capture the numbers it produces**
+3. same slice: switch `settle-run` to the SQL, delete the TS arithmetic, **and replace the
+   equivalence pin with value pins carrying exactly those captured numbers**
+
+⚠ **Step 3's literals must come from the step-2 run, NOT be re-derived from the SQL.** Re-deriving
+is how you get a pin that agrees with whatever the code currently does. Mutation-verify each value
+pin by perturbing the SQL.
 
 ---
 
