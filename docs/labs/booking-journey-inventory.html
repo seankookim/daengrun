@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Booking Journey — 홈에서 완주까지, 화면 전수 (2026-08-19)</title>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Oswald:wght@400;600;700&family=IBM+Plex+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'IBM Plex Sans KR',sans-serif;background:#FAF9F7;color:#111;padding:40px 22px 100px;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1180px;margin:0 auto}
+  h1{font-family:'Black Han Sans';font-size:36px;font-weight:400;line-height:1.15}
+  .law{font-size:12.5px;letter-spacing:2.6px;color:#999;text-transform:uppercase;margin:10px 0 14px;font-weight:600}
+  .lede{font-size:15px;color:#666;line-height:1.8;max-width:900px}.lede b{color:#111;font-weight:700}
+  h2{font-size:22px;font-weight:800;margin:52px 0 8px;padding-top:24px;border-top:1px solid #E8552F}
+  h2 .n{font-family:Oswald;color:#E8552F;font-weight:700;margin-right:10px}
+  .sub{font-size:14.5px;color:#666;line-height:1.8;max-width:900px;margin-top:6px}.sub b{color:#111}
+  table{border-collapse:collapse;margin-top:16px;font-size:13.5px;width:100%}
+  th,td{border-bottom:1px solid #E4E2DD;padding:9px 11px;text-align:left;vertical-align:top}
+  th{font-size:11.5px;letter-spacing:1.3px;text-transform:uppercase;color:#666;font-weight:700}
+  td.n{font-family:Oswald;font-weight:700;color:#E8552F;font-size:15px;white-space:nowrap}
+  td code{font-size:12.5px;background:#F2F2F2;padding:1px 5px}
+  tr.stage td{background:#FFF6F4;font-weight:800;color:#111;font-size:12px;letter-spacing:1.5px;text-transform:uppercase}
+  tr.opt td:nth-child(2){color:#666}
+  .tag{display:inline-block;font-size:10.5px;letter-spacing:1.2px;font-weight:800;text-transform:uppercase;padding:2px 6px;margin-left:5px;vertical-align:middle}
+  .tag.branch{background:#F2F2F2;color:#666}.tag.state{background:#FFF6F4;color:#C6472C}.tag.new{background:#1C1837;color:#fff}
+  .foot{margin-top:56px;padding-top:20px;border-top:1px solid #E8552F;font-size:13.5px;color:#666;line-height:1.85;max-width:900px}.foot b{color:#111}
+</style></head><body><div class="wrap">
+
+<h1>홈에서 완주까지 — 화면 전수 조사</h1>
+<div class="law">2026-08-19 · 코드의 router.push 그래프에서 추출 · 보호자 여정</div>
+<p class="lede">Sean: <b>“홈에서 시작해 선호 → 중간 단계 → 완주까지, 그 사이 모든 화면을 나열하라. 몇 개 더 있다.”</b>
+맞습니다 — 기억으로 세면 빠집니다. 아래는 <b>실제 코드의 네비게이션 그래프</b>(<code>router.push</code>/<code>replace</code>)와 <b>예약 상태기계</b>에서 뽑은 것입니다.
+주 경로 <b>12개</b> + 분기 <b>6개</b> = <b>18개 화면</b>. 이 목록에 동의하시면 그다음이 목업입니다 — 목록 없이 목업부터 그리면 그게 화면을 빠뜨리는 방식입니다.</p>
+
+<h2><span class="n">A</span>주 경로 — 한 번의 러닝이 지나가는 순서</h2>
+<table>
+  <tr><th style="width:44px">#</th><th style="width:190px">화면</th><th style="width:170px">파일</th><th>이 화면이 하는 한 가지 일</th><th style="width:150px">여기서 어디로</th></tr>
+
+  <tr class="stage"><td colspan="5">1 · 시작</td></tr>
+  <tr><td class="n">01</td><td>홈</td><td><code>owner/home</code></td><td>두 개의 큰 선택 — 지금 찾기 / 예약하기. 히어로는 예약 상태의 함수(⑧ v2).</td><td>02 · 03</td></tr>
+
+  <tr class="stage"><td colspan="5">2 · 선호 (무엇을·언제·어디서)</td></tr>
+  <tr><td class="n">02</td><td>요청 1단계 — 언제</td><td><code>owner/request</code></td><td>날짜 스트립 + 시간 슬롯. “가장 빠른 시간으로”가 곧 <b>지금 찾기</b>의 실체.</td><td>03</td></tr>
+  <tr><td class="n">03</td><td>요청 2단계 — 몇 km · 코스</td><td><code>owner/request</code></td><td>km 다이얼(요금 즉시 표시) + 코스 칩·캐러셀. 코스는 선택 사항 — 안 골라도 예약된다.</td><td>04 · 05 · 06(분기)</td></tr>
+  <tr><td class="n">04</td><td>코스 지도 (선택)</td><td><code>owner/course-map</code></td><td>지도에서 코스 고르기. 3단 시트. 오늘 고친 화면.</td><td>← 03</td></tr>
+  <tr><td class="n">05</td><td>요청 3단계 — 확인</td><td><code>owner/request</code></td><td>요약(누가·언제·몇 km·코스) + 결제 진입. 반려견 없으면 여기서 06으로 보낸다.</td><td>07</td></tr>
+
+  <tr class="stage"><td colspan="5">3 · 확정 (돈 · 매칭)</td></tr>
+  <tr><td class="n">07</td><td>결제</td><td><code>owner/pay</code></td><td>토스 위젯(intent 있을 때만 마운트). ⚠ 파일럿은 수동 이체 — 이 화면의 정직성 슬라이스가 대기 중.</td><td>08</td></tr>
+  <tr><td class="n">08</td><td>레이더 — 러너 찾는 중</td><td><code>owner/radar</code></td><td>실시간 러너 탐색. 수락되면 자동으로 다음으로. <b>지금 찾기의 목적지.</b></td><td>09 · 10</td></tr>
+  <tr><td class="n">09</td><td>매칭 / 지명 (선택)</td><td><code>owner/matching</code></td><td>지명 러너 고르기 · 현재 지명 상태. 레이더에서 “직접 고르기”로 진입.</td><td>10</td></tr>
+
+  <tr class="stage"><td colspan="5">4 · 대기 → 만남</td></tr>
+  <tr><td class="n">10</td><td>일정 — 티켓</td><td><code>owner/schedule</code></td><td>확정된 예약이 티켓으로. 여기서 채팅·변경·인계로 간다. <b>홈의 “오늘” 덩어리가 가리키는 곳.</b></td><td>11 · 12(분기) · 채팅</td></tr>
+  <tr><td class="n">11</td><td>인계 — 만남</td><td><code>owner/meetup</code></td><td>러너 도착 · 봉인(seal) 확인 · 인계 완료. 스테이지 머신 동결(DO-NOT-REFACTOR).</td><td>13</td></tr>
+
+  <tr class="stage"><td colspan="5">5 · 러닝 중</td></tr>
+  <tr><td class="n">13</td><td>라이브</td><td><code>owner/live</code></td><td>실시간 지도 + 페이스 + Live Activity. 오늘 private 채널로 전환된 그 화면.</td><td>14 (러너가 종료하면)</td></tr>
+
+  <tr class="stage"><td colspan="5">6 · 완주 → 마무리</td></tr>
+  <tr><td class="n">14</td><td>러닝 리포트</td><td><code>owner/report</code></td><td>완주 기록 — 거리·페이스·경로·사진. 러너가 종료하면 여기가 열린다.</td><td>15 · 16 · 17</td></tr>
+  <tr><td class="n">15</td><td>후기</td><td><code>owner/review</code></td><td>러너 후기 등록. 재예약 신뢰의 원천.</td><td>← 14 · 10</td></tr>
+  <tr><td class="n">16</td><td>샷 스튜디오</td><td><code>shot/[bid]</code></td><td>러닝 트레이스를 스킨 카드로 — 공유용. Peak-End의 “End”.</td><td>← 14</td></tr>
+  <tr><td class="n">17</td><td>다시 예약 (프리필)</td><td><code>owner/request</code> + 프리필</td><td>리포트/홈에서 “지난번처럼” → 같은 러너·km으로 02가 미리 채워짐. <b>PMF 게이트(M1 재예약)가 여기.</b></td><td>02</td></tr>
+</table>
+
+<h2><span class="n">B</span>분기 — 주 경로에서 갈라졌다 돌아오는 것</h2>
+<p class="sub">이것들이 “몇 개 더”입니다. 주 경로에 없지만 <b>주 경로가 의존</b>합니다 — 반려견 없이 예약할 수 없고, 주소 없이 만날 수 없습니다.</p>
+<table>
+  <tr><th style="width:44px">#</th><th style="width:190px">화면</th><th style="width:170px">파일</th><th>언제 나타나는가</th><th style="width:150px">돌아가는 곳</th></tr>
+  <tr class="opt"><td class="n">06</td><td>반려견 등록 <span class="tag branch">분기</span></td><td><code>owner/dog</code></td><td>반려견이 0마리일 때 05(확인)가 여기로 보낸다. 첫 사용자는 <b>반드시</b> 지난다.</td><td>05</td></tr>
+  <tr class="opt"><td class="n">06b</td><td>주소 목록 <span class="tag branch">분기</span></td><td><code>owner/addresses</code></td><td>픽업 주소 선택/추가. 02·11에서 진입.</td><td>02 · 11</td></tr>
+  <tr class="opt"><td class="n">06c</td><td>주소 핀 <span class="tag branch">분기</span></td><td><code>owner/address-pin</code></td><td>지도에서 픽업 위치 핀 맞추기 — “어디서 만날까요”.</td><td>06b</td></tr>
+  <tr class="opt"><td class="n">04b</td><td>코스 상세 <span class="tag branch">분기</span></td><td><code>course/[id]</code></td><td>코스 브리핑 — 지도·CLIMB·점검 상태. 03·04에서 “자세히”.</td><td>03 · 04</td></tr>
+  <tr class="opt"><td class="n">12</td><td>일정 변경 <span class="tag branch">분기</span></td><td><code>owner/reschedule</code></td><td>확정 뒤 시간을 바꿔야 할 때. 10에서.</td><td>10</td></tr>
+  <tr class="opt"><td class="n">18</td><td>채팅 <span class="tag branch">분기</span></td><td><code>chat</code></td><td>10·11·13 어디서든 러너와. 오늘 private 채널로 전환.</td><td>온 곳으로</td></tr>
+</table>
+
+<h2><span class="n">C</span>같은 화면, 다른 상태 — 목업이 따로 필요한 것</h2>
+<p class="sub">화면 수는 18이지만 <b>그려야 할 상태는 더 많습니다</b>. 빈 상태·실패 상태를 그리지 않은 목업은 실제 앱 첫날부터 어긋납니다(오늘 홈 ⑩에서 배운 것).</p>
+<table>
+  <tr><th>화면</th><th>추가로 그려야 할 상태</th><th>왜</th></tr>
+  <tr><td>01 홈</td><td>none · searching · confirmed · handoff · active <span class="tag state">5</span></td><td>⑧ v2에서 이미 확정. 히어로 = 상태의 함수.</td></tr>
+  <tr><td>02 요청 1단계</td><td>슬롯 로딩 실패 · 오늘 슬롯 전부 마감</td><td>빈 슬롯 줄 = “가능한 시간 없음”으로 읽히고 그건 거짓일 수 있다.</td></tr>
+  <tr><td>03 요청 2단계</td><td>활성 코스 0개 (지금 프로덕션 상태)</td><td>“자동 배정돼요” 문장이 지금 거짓. 이 상태가 <b>기본</b>이다.</td></tr>
+  <tr><td>07 결제</td><td>파일럿 = 수동 이체 (카드 없음이 기본)</td><td>money §4-bis. 금액 옆에 날짜를 두면 영수증으로 읽힌다 — 무슨 일이 났는지 말해야.</td></tr>
+  <tr><td>08 레이더</td><td>러너 0명 · 응답 없음(타임아웃) · 수락됨</td><td>지금 파일럿에서 러너 0명이 흔하다. 빈 레이더 = 찾는 척.</td></tr>
+  <tr><td>10 일정</td><td>예약 0건 · 로딩 실패</td><td>스크린샷에서 관찰: 0건인데 필터 칩 5개.</td></tr>
+  <tr><td>13 라이브</td><td>수신 대기 · 권한 없음 · 연결 실패 · 신호 끊김(90초)</td><td>오늘 구현. 빈 지도가 세 가지 다른 사실을 똑같이 그린다.</td></tr>
+  <tr><td>14 리포트</td><td>트레이스 없음(“트레이스가 없는 러닝이에요”) · 정산 전</td><td>이미 코드에 있는 상태들. 그려야 한다.</td></tr>
+</table>
+
+<div class="foot">
+<b>확인 요청:</b> 이 18개 + 상태 목록에 <b>빠진 것</b>이 있으면 말씀해 주세요 — 목업은 그다음입니다.<br>
+<b>목업 계획 (동의하시면):</b> 주 경로 12개를 <b>순서대로 한 랩</b>에, 분기 6개를 두 번째 랩에. 각 화면은 ⑧ v2의 문법(카드 없음 · 코랄 하나 · 세 덩어리 · 알림 줄 부품 · GO 색 법)과 주신 원칙표를 그대로 씁니다. 상태가 여럿인 화면은 상태별로 나란히.<br>
+<b>이미 오늘 확정된 것은 다시 그리지 않습니다</b>: 01 홈(⑧ v2) · 04 코스 지도(빌드·검증 완료) · 04b 코스 상세(CLIMB 완료). 그 셋은 참조로만 들어갑니다.<br>
+<b>동결 구역:</b> 11 인계는 스테이지 머신이 DO-NOT-REFACTOR — 스타일만 바뀔 수 있고 흐름은 못 바꿉니다. 목업도 그 안에서.
+</div>
+</div></body></html>
