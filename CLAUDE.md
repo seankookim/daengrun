@@ -143,7 +143,8 @@ decision provenance). The bullets below are the load-bearing extract; on any con
 
 ## DO-NOT-REFACTOR
 
-- Owner-home + fitness collapsing heroes: pinned absolute overlay + ScrollView paddingTop reservation + transform/opacity native-driver only. No height/layout animation. No backgroundColor animation (non-native driver). 54-dot ring layers stay hardware-textured; center layer is separate and fades via centerOpacity.
+- **Fitness** collapsing hero (`owner/fitness.tsx`): pinned absolute overlay + ScrollView paddingTop reservation + transform/opacity native-driver only. No height/layout animation. No backgroundColor animation (non-native driver). 54-dot ring layers stay hardware-textured; center layer is separate and fades via centerOpacity.
+  ⚠ **Owner-home's hero was REMOVED from this freeze on 2026-08-19 (Sean: "A").** He chose home lab ⑧ v2, which retires the GO disc and its collapse; the state law the disc carried (coral = your turn · blue = waiting · sage = ready) now rides the number of buttons + an alert line. The freeze stays for fitness only.
 - Meetup screens: stage machine, polling, confirmHandoff flow are frozen; styling changes only. Seals fill on server truth only.
 - Availability definitions are deliberately 3 distinct predicates — do not unify.
 
