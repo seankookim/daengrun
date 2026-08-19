@@ -1,3 +1,74 @@
+# CATALOG — 0110 `routes_public` IS DESIGNED AND CLAIMED, NOT BUILT (2026-08-19)
+
+**Claimed: migration 0110, suite 145, row on trunk.** Nothing written yet. Read this before
+starting it — the design is settled and one finding in it is load-bearing.
+
+## 🔴 The finding that shapes the slice, measured 2026-08-19
+
+**Satisfying 0107's gate with a view alone would unblock the exact leak 0107 exists to prevent.**
+
+    has_column_privilege('anon','routes','trace','SELECT')       -> TRUE
+    has_column_privilege('anon','routes','trace_thumb','SELECT') -> TRUE
+    has_column_privilege('anon','routes','anchor_lat','SELECT')  -> false   (0107 shut these)
+    has_column_privilege('anon','routes','verified_run_id',...)  -> false
+
+0107 refuses promotion until `public.routes_public` exists. The moment it does, the gate opens and
+`promote_route_from_run` DERIVES an active route's geometry from a **settled run's trace** — at that
+instant `routes.trace` stops being a drawn line and becomes a recording of where one identifiable
+person walked one dog, endpoints at the pickup and dropoff. And anon reads `routes.trace` **directly
+at 6 decimal places (~11 cm)**, because 0107's whitelist grants it on the base table. Any trimming
+the view does is therefore optional for the reader.
+
+**This is not a defect in 0107** — its job was the identity columns and it did that correctly
+(anchors and all three evidence columns are genuinely shut; verified). The geometry half was never
+in its scope. It matters now because 0110 is the thing that opens the gate.
+
+## The design — three parts, two owners, ORDER IS LOAD-BEARING
+
+1. **catalog, 0110:** create `routes_public` — endpoint-trimmed, 4dp coordinates, no identity cols.
+2. **ui:** switch `ROUTE_LIST_COLS`/`ROUTE_FULL_COLS` (api.ts:47-48) and the six embedded
+   `routes(name)` / `routes(name, area)` selects to read geometry from the view. Ship a release.
+3. **catalog, 0111:** revoke `select (trace, trace_thumb)` on `routes` from anon + authenticated.
+
+⚠ **Revoke-first is an outage — 0088/0091 exactly.** Revoke before ui ships and the catalog 403s.
+⚠ **View-first has its own window:** after step 1 the gate is open while step 3 has not landed, so a
+promotion in that gap publishes a real track at 11 cm. **So 0110 must ALSO extend
+`promote_route_from_run` (EXTENDS 0107's version — name it in the header, per the REGISTRY law) with
+a second refusal: fail closed while anon still holds `select` on `routes.trace`.** Promotion then
+stays blocked across the whole sequence and unblocks only when the last step lands. No window, and
+the gate states its own precondition.
+
+## Decided by measurement — reuse the reasoning, do not re-derive
+
+- **Coordinate precision 6dp → 4dp.** Points average **42 m** apart (32 rows, 6,325 points,
+  avg 4.59 km / 117 pts). 4dp ≈ 11 m: below the sampling resolution, so the drawn line is
+  unchanged; above door resolution, so an address is not inferable. 5dp ≈ 1.1 m resolves a doorway;
+  3dp ≈ 110 m exceeds point spacing and visibly distorts. **4dp is the only value that is both.**
+- Identity columns excluded — required by 0107's transitive `pg_depend` gate, which catches
+  aliasing, `select *`, WHERE-only use, and chained views (three levels tested).
+
+## ⚠ TWO DECISIONS THAT ARE SEAN'S — do not silently pick them
+
+- **The endpoint trim DISTANCE.** Precision was derivable; this is not. It is a judgement about how
+  much of a route's start may be public. Default it, put it in ONE named constant, flag it.
+- **Whether `authenticated` is treated like `anon`.** A logged-in stranger is still a stranger.
+
+## Suggested shape
+
+An immutable helper `_route_trace_public(trace jsonb, trim_metres double precision)` that walks
+points with ordinality, drops from each end until cumulative distance exceeds the trim, and rounds
+survivors to 4dp — so the constant lives in one place and the suite can pin trim and precision
+separately. Then the view names its columns explicitly (**never `select *`** — 0107's header says
+why: the select list is the only control from the view's seat).
+
+## Deploy is BLOCKED fleet-wide until 0105 resolves
+
+`db push` fails closed naming 0105; `--include-all` would apply **0105 as well as yours**. The
+fleet recipe: detached tree at trunk -> `mv` 0105 aside -> `--dry-run` and READ the list (only your
+files) -> push -> restore. That is a workaround with a shelf life, not a procedure.
+🔴 **Never run the CLI's other hint, `migration repair --status reverted 0106 0107 0108`** — it marks
+three genuinely-applied migrations as reverted and corrupts the ledger.
+
 # Session handoff — announcer, 2026-08-19 (CSO audit → P0 remediation → three of four closed)
 
 **Read with this:** `docs/handoff-announcer.md` (roster + deploy discipline, written 2h ago) ·
