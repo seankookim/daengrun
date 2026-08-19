@@ -294,6 +294,9 @@ export const draft = {
   preferredRunnerId: null as string | null, // 프로필에서 '이 러너와 예약하기'로 진입한 경우
   preferredRunnerName: null as string | null,
   scheduledAtIso: null as string | null, // 슬롯 피커가 정한 실제 예약 시각
+  // 홈 '지금 찾기' → 요청 화면이 열리자마자 가장 빠른 슬롯을 스스로 고른다 (⑧ v2).
+  // 한 번 쓰고 끈다 — 다음 방문까지 따라붙으면 '예약하기'로 들어온 사람의 시간을 멋대로 정하게 된다.
+  autoEarliest: false,
 };
 
 export function draftTotal(): number {

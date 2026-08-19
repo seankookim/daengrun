@@ -3,7 +3,68 @@
 Read `/announcer` first (method). This is the live state at compaction. If they disagree, the skill
 is the method and this is the snapshot — and the snapshot is stale by the time you read it.
 
-## Roster (session names rotate on worktree recycle — the BRANCH is the identifier)
+## ⚡ v3 update, 2026-08-19 evening (announcer v3, branch `claude/announcer-v3-handoff-f0774a`)
+
+**Verified at takeover, not relayed:** no worktree holds anything unpushed (nothing stranded by v2 or
+anyone). ⚠ **Correction (legal caught it):** I first wrote "0 commits not on trunk in every worktree" —
+that was scope creep: I had verified *unpushed*, then described *unmerged*. Measured properly, origin
+branches ahead of trunk at 22949d0: legal **15** (docs-only: `readiness-review-2026-08-19.md` +
+both probe `.mjs` — merged to trunk by v3 right after), catalog 1 (handoff append), route geometry 2
+(bench fix), p0-truncate 1 (0109), trust 2 (both patch-ids already on trunk as 612345/300b3a — nothing
+lost). `migration list --linked`: 0106/0107/0108 applied, **0105 remote empty**.
+The 0105 *file* is on trunk and six branches, all the same reviewer-rejected blob `0bb40ac`; **a
+replacement exists nowhere** — no origin branch, no local branch, no worktree, no stash. Trust's
+tree (lucid-neumann, local branch `trust-sync`) is clean at 0105 and 56 behind. Console re-published
+at the same URL. Roll-call answers below.
+
+| Role | Branch | State at roll-call |
+|---|---|---|
+| **trust** | `claude/deploy-edge-functions-money-68e990` | **still offline**; owns 0105 (open P0) and the pay-after-run server transition. No rebuild started anywhere. |
+| **ui / client** | `claude/daengrun-client-domain-5588b2` (builds in the shared checkout at trunk) | building home ⑧ v2 hero (`home-hero.tsx`, uncommitted in the shared checkout at roll-call — told to commit within the hour); owes Sean the 18 vs 44 pt screenshots; found pay-after-run is a SERVER change (`payment_ok`→matching in transition-booking) and did NOT reroute — correct |
+| **catalog** | `claude/elevation-gain-migration-6e96a5` | live, synced, nothing stranded; next slice `routes_public` projection; **declined 0105** (not its surface); offers a scratch-cluster repro of prod's schema (0001–0108 minus 0105) to 0105's owner |
+| **money** | `claude/payments-toss-plan-slice-8079f7` | offline |
+| **legal** | `claude/daengrun-legal-review-fae7dc` | live; slice complete (both audit findings closed and independently re-verified: private_only matrix + shut-vs-dead control; 0107 over the wire incl. `select=*` and `authenticated`); read-only on code, never pushes; **merge direction: legal → trunk only** (their tree must not become another 0105-carrying tree). Open and counsel's: consent gate ahead of `geo.ts:199`, 위치기반서비스 약관 split, Q6; non-location sections unaudited |
+| **route geometry** | `claude/strava-route-loops-74c5d2` | live; breadth done (54 routes / 28 towns / 42 with elevation, measured at roll-call), depth next; writes zero migrations, uses `db query` only; nothing for Sean. Notes for others: JS `toFixed(1)` ≠ Postgres `round()` half-up under `routes_name_km_agrees`; 0098's trigger NULLs `elevation_gain_m` on a trace-only update |
+| **announcer v2** | (tree git-cleanup-team-e8ed66, branch `bpush`, disposable) | stood down; confirmed nothing unpushed |
+| **announcer v3** | `claude/announcer-v3-handoff-f0774a` | this; running an independent reviewer + harness over 0109 before landing it |
+| unmapped | tree session-handoff-docs-a2dbc5 (239 behind trunk) | roll-call sent, told to merge trunk first |
+
+**⚠ Deploy discipline addendum — the deploy queue is serialized behind 0105 (catalog found it,
+announcer v3 re-measured it, 2026-08-19 evening).** Every worktree in the fleet now carries an
+unfinished migration (trunk's held 0105), so CLAUDE.md's "never push from a worktree carrying an
+unfinished migration" applies to ALL of them at once:
+- Plain `db push` from a tree carrying 0105 **fails closed** (`LegacyDbPushMissingRemoteError`) —
+  expected, not your mistake.
+- `--include-all` from that same tree **succeeds and ships 0105 as cargo** — measured: dry-run lists
+  `0105_booking_insert_party_guard.sql`. There is no per-file selection. Reaching for
+  `--include-all` to "unblock yourself" deploys trust's held state-machine guard under your name.
+- **The only recipe is now one command (v3, on trunk at `7d79373`):**
+  `bash scripts/deploy-migrations.sh` (dry-run; prints the exact pending set) then
+  `bash scripts/deploy-migrations.sh --push <exact filenames>`. It fetches and cuts a detached tree
+  at trunk (deploys come from trunk, structurally), moves every file in `supabase/migrations/HELD`
+  aside before the CLI sees the tree, dry-runs, and **refuses to push unless the pending set equals
+  exactly what you named** (exit 4) or if you name a held file (exit 3). Never runs `migration
+  repair`. Tested five ways on 2026-08-19; with HELD on trunk the pending set at trunk is empty.
+  The hand recipe it replaces (detached tree → mv 0105 aside → dry-run → read → push → restore) is
+  how 0106/0107/0108 shipped; do not do it by hand any more.
+- From a *stale* tree the CLI suggests `migration repair --status reverted 0106 0107 0108` — **NEVER
+  run that**: it marks three APPLIED migrations reverted against a DB that really has them.
+- Catalog also measured that the rejected 0105 applies cleanly after 0108 (632/0 pins, disjoint
+  objects). Mechanically safe — but landing it is **0105's owner's decision**, never cargo.
+- **Expiry (catalog's caveat, accepted — and the wrapper it asked for is the line above):** the
+  hand recipe was a WORKAROUND, five steps whose load-bearing one was a human reading output, and this
+  repo has learned six times that such steps get skipped by their own authors within a day. The
+  wrapper turns "remember step two" into "cannot skip step two". It is still debt repayment, not
+  defence: **the fix is resolving 0105** (landed by its owner, or superseded at the next free number),
+  and the HELD line comes out in the same commit that does it.
+
+**Open routing item (no owner yet):** pay-after-run. Sean ruled payment moves after the run + return
+handoff. Client reroute alone strands every booking in `payment_hold` (nothing else moves it to
+`matching`). Server-side: either the hold lands in `matching` directly for the pilot, or `payment_ok`
+becomes post-run and something else gates matching. Owner = trust (state machine) + money
+(create-booking-hold). Both offline. Nobody reroutes until they rule.
+
+## Roster at v2's handoff (superseded by the table above; kept for provenance)
 | Role | Branch | State |
 |---|---|---|
 | **trust** | `claude/deploy-edge-functions-money-68e990` (tree lucid-neumann-*) | offline from ListAgents; owns 0105 rebuild |

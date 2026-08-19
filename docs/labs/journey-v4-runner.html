@@ -1,0 +1,483 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Journey v4 — 러너 여정 (2026-08-19) · v3의 짝</title>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Oswald:wght@400;600;700&family=IBM+Plex+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'IBM Plex Sans KR',sans-serif;background:#FAF9F7;color:#111;padding:40px 22px 100px;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1420px;margin:0 auto}
+  h1{font-family:'Black Han Sans';font-size:36px;font-weight:400;line-height:1.15}
+  .law{font-size:12.5px;letter-spacing:2.6px;color:#999;text-transform:uppercase;margin:10px 0 14px;font-weight:600}
+  .lede{font-size:15px;color:#666;line-height:1.8;max-width:920px}.lede b{color:#111;font-weight:700}
+  h2{font-size:22px;font-weight:800;margin:56px 0 8px;padding-top:24px;border-top:1px solid #E8552F}
+  h2 .n{font-family:Oswald;color:#E8552F;font-weight:700;margin-right:10px}
+  .sub{font-size:14.5px;color:#666;line-height:1.8;max-width:920px;margin-top:6px}.sub b{color:#111}
+  .rule{font-size:12px;color:#C6472C;font-weight:800;letter-spacing:.5px}
+  .rail{display:flex;gap:22px;flex-wrap:wrap;margin-top:22px;align-items:flex-start}
+  .col{width:300px}
+  .cap{font-size:15px;font-weight:800;margin:0 0 4px}.cap b{font-family:Oswald;color:#E8552F;margin-right:7px;font-weight:700}
+  .why{font-size:13px;color:#666;line-height:1.7;margin:0 0 12px;min-height:96px}.why b{color:#111}
+  .phone{width:300px;height:640px;background:#FFF;border:1px solid #DEDCD6;border-radius:32px;box-shadow:0 22px 50px rgba(0,0,0,.10);overflow:hidden;display:flex;flex-direction:column}
+  .notch{height:26px;flex:0 0 26px;display:flex;align-items:center;justify-content:space-between;padding:0 18px;font-size:10.5px;color:#999;font-weight:600}
+  .scr{flex:1;overflow:hidden;position:relative}
+  .pad{padding:0 16px}
+  .top{display:flex;align-items:center;gap:10px;padding:14px 16px 0}
+  .top .bk{width:34px;height:34px;border:1.5px solid #111;display:flex;align-items:center;justify-content:center;font-weight:900}
+  .top .ttl{font-size:16px;font-weight:800;flex:1}
+  .kick{font-size:10.5px;letter-spacing:2px;text-transform:uppercase;color:#999;font-weight:700}
+  .disp{font-family:'Black Han Sans';font-weight:400}
+  .num{font-family:Oswald;font-weight:600}
+  .quiet{font-size:13.5px;color:#666;line-height:1.6}
+  .cta{background:#C6472C;color:#fff;padding:15px 16px;text-align:center;font-size:15px;font-weight:800;position:absolute;left:16px;right:16px;bottom:16px}
+  .cta b{font-weight:900}
+  .ghost{border:1.5px solid #111;padding:12px;text-align:center;font-size:14px;font-weight:800}
+  .field{border-bottom:1.5px solid #111;padding:10px 0 8px;font-size:20px;font-weight:700}
+  .row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #EEE;font-size:14px}
+  .row b{font-weight:800}
+  .alert{padding:12px 0;border-bottom:1px solid #EEE;display:flex;align-items:center;gap:10px}
+  .alert .dot{width:8px;height:8px;border-radius:4px;flex:0 0 8px}
+  .alert .tx{flex:1;font-size:13.5px;font-weight:700;line-height:1.35}
+  .alert .tx small{display:block;font-size:12.5px;color:#666;font-weight:600;margin-top:1px}
+  .avat{width:44px;height:44px;border-radius:50%;background:#EDEBE6}
+  .opt{padding:19px 16px;min-height:104px;display:flex;flex-direction:column;justify-content:space-between}
+  .opt .t{font-family:'Black Han Sans';font-size:24px;line-height:1.1}.opt .d{font-size:13px;margin-top:5px}
+  .optA{background:#C6472C;color:#fff}.optA .d{color:#FFD9CE}
+  .optB{background:#FFF;color:#111;border:1.5px solid #111}.optB .d{color:#666}
+  .chip{display:inline-block;border:1px solid #DEDCD6;padding:7px 11px;font-size:13px;font-weight:700;margin:0 6px 6px 0}
+  .chip.on{background:#111;color:#fff;border-color:#111}
+  .seal{width:56px;height:56px;border-radius:50%;border:2px dashed #DEDCD6;display:flex;align-items:center;justify-content:center;font-size:10.5px;color:#999;font-weight:700}
+  .seal.on{border:2px solid #119B58;color:#119B58;background:#F3FAF7}
+  /* radar rings — the real animation, drawn static */
+  .radar{position:relative;width:180px;height:180px;margin:0 auto}
+  .radar i{position:absolute;inset:0;border-radius:50%;border:1.5px solid #C6472C}
+  .radar i:nth-child(1){opacity:.4;transform:scale(.55)}.radar i:nth-child(2){opacity:.22;transform:scale(.8)}.radar i:nth-child(3){opacity:.1;transform:scale(1)}
+  .radar .c{position:absolute;left:50%;top:50%;width:64px;height:64px;margin:-32px 0 0 -32px;border-radius:50%;background:#C6472C;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:800}
+  .thumb{flex:1;height:60px;background:#F2F2F2}
+  table{border-collapse:collapse;margin-top:16px;font-size:13.5px;width:100%;max-width:960px}
+  th,td{border-bottom:1px solid #E4E2DD;padding:9px 11px;text-align:left;vertical-align:top}
+  th{font-size:11.5px;letter-spacing:1.3px;text-transform:uppercase;color:#666;font-weight:700}
+  .foot{margin-top:66px;padding-top:20px;border-top:1px solid #E8552F;font-size:13.5px;color:#666;line-height:1.85;max-width:960px}.foot b{color:#111}
+  /* ── v4 runner-side additions (no new hex; objects only get boxes) ── */
+  .tog{display:flex;align-items:center;justify-content:space-between;padding:14px 0 12px;border-bottom:1px solid #EEE}
+  .tog .lbl{font-size:16px;font-weight:800}.tog .lbl small{display:block;font-size:12.5px;color:#666;font-weight:600;margin-top:2px}
+  .sw{width:56px;height:32px;border-radius:16px;background:#DEDCD6;position:relative;flex:0 0 56px}
+  .sw i{position:absolute;top:3px;left:3px;width:26px;height:26px;border-radius:13px;background:#FFF}
+  .sw.on{background:#111}.sw.on i{left:27px}
+  .obj{border:1.5px solid #111;background:#FFF}
+  .perf{border-top:1.5px dashed #DEDCD6;margin:0 -1.5px;position:relative}
+  .perf:before,.perf:after{content:'';position:absolute;top:-8px;width:14px;height:14px;border-radius:7px;background:#FFF;border:1.5px solid #111}
+  .perf:before{left:-8px;border-left-color:transparent}.perf:after{right:-8px;border-right-color:transparent}
+  .door{flex:1;padding:12px 8px;text-align:center;font-size:15px;font-weight:800}
+  .door small{display:block;font-size:12px;font-weight:600;margin-top:2px}
+  .doorA{background:#C6472C;color:#fff}.doorA small{color:#FFD9CE}
+  .doorB{border:1.5px solid #111;color:#111}.doorB small{color:#666}
+  .tag{display:inline-block;font-size:11px;font-weight:800;padding:3px 7px;letter-spacing:.3px}
+  .tagAmber{background:#FBEAE7;color:#C77414}.tagLilac{background:#F2F2F2;color:#6C5CE7}
+  .strip{background:#1C1837;color:#fff;padding:14px 16px}
+  .sheet{position:absolute;left:0;right:0;bottom:0;background:#FFF;padding:14px 16px 16px;border-top:1.5px solid #111}
+  .sheet .hd{width:36px;height:4px;border-radius:2px;background:#DEDCD6;margin:0 auto 12px}
+  .eo{border:1.5px solid #111;padding:11px 12px;margin-top:8px}
+  .eo .t{font-size:15px;font-weight:800}.eo .d{font-size:12.5px;color:#666;margin-top:2px;line-height:1.45}.eo .p{font-size:12.5px;font-weight:700;margin-top:4px}
+  .stepper{display:inline-flex;align-items:center;border:1px solid #DEDCD6}
+  .stepper span{width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-weight:800;color:#666}
+  .stepper b{font-family:Oswald;font-weight:600;font-size:14px;padding:0 4px;min-width:44px;text-align:center}
+</style></head><body><div class="wrap">
+
+<h1>여정 v4 — 러너 쪽</h1>
+<div class="law">2026-08-19 · v3의 짝 · 온보딩(v3 §B O3) 이후부터 · 코랄은 화면당 하나</div>
+<p class="lede"><b>모든 거래의 반대편.</b> 보호자 여정(v3)이 홈 → 레이더 → 티켓 → 인계 → 라이브 → 반환 → 리포트 → 결제로 갔다면, 러너는 <b>온라인 → 요청 → 수락 → 인계(받음) → 라이브(내가 긋는 선) → 종료 시트 → 반환(돌려줌) → 적립 → 다음 요청</b>으로 갑니다.
+돈은 이쪽에서도 한 줄입니다 — <b>적립 · 정산 예정</b>이라고만 쓰고, 지급은 아직 흐르지 않는다고 말합니다(수익 화면 문장 그대로). 탭 순서는 코드의 RUNNER_TABS: <b>홈 · 요청 · 캘린더 · 수익 · 마이</b>(홈이 맨 왼쪽) — 도크는 v3처럼 프레임에서 뺐습니다.</p>
+
+<!-- ══════ A 러너 홈 ══════ -->
+<h2 id="secA"><span class="n">A</span>러너 홈 — 토글 · 오늘 · 요청 (⑧의 거울)</h2>
+<p class="sub"><b>spec runner/home:</b> online toggle 실값(<code>runners.online</code>) · 지명 요청 먼저 · 오픈 풀은 <code>is_active_runner</code>일 때만 · 다음 잡 카드 → meetup · 주간 스탯 · 수익은 “적립/정산 예정” · 가용시간 요약 · <b>work-gate는 WHY + 액션</b>, 죽은 수락 버튼 금지 · 티어/인증 뱃지 금지. 코드의 머니 히어로(₩ 50pt)는 <b>은퇴</b> — 이 랩에선 한 줄입니다.</p>
+<div class="rail">
+  <div class="col"><div class="cap"><b>R1a</b>온라인 · 지명 요청 대기</div>
+    <p class="why">토글 ON = <b>잉크</b>(켜짐은 상태지 행동이 아니라 코랄이 아닙니다). 오늘의 확정 러닝은 <b>티켓 오브젝트</b>(home.tsx 보딩패스 문법 그대로, 홀로 엣지 없이). 요청은 <b>카드 오브젝트</b> — 개 · km · 시각 · 예상 실수령. 화면의 유일한 코랄 = <b>수락 ›</b>(수락 문이 금액을 한 번 인쇄, home.tsx:535). 거절은 고스트.</p>
+    <div class="phone"><div class="notch"><span>18:40</span><span>▮▮</span></div><div class="scr"><div class="pad" style="padding-top:14px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline"><div class="kick">8월 19일 수 · 반포동</div><div style="font-size:12.5px;font-weight:800">알림 <span class="num" style="color:#C77414">2</span></div></div>
+      <div class="tog"><div class="lbl"><span class="disp" style="font-size:22px">온라인</span><small>요청을 받는 중 · 홈 베이스 반경 3km</small></div><div class="sw on"><i></i></div></div>
+      <div class="row" style="font-size:13px"><span style="color:#666">이번 주</span><span><b class="num">3</b>회 · <b class="num">14.2</b>km · 정산 예정 <b class="num">48,700</b>원</span></div>
+      <div style="margin-top:14px" class="kick">오늘</div>
+      <div class="obj" style="margin-top:8px">
+        <div style="padding:10px 12px 9px;display:flex;justify-content:space-between;align-items:baseline"><span class="num" style="font-size:24px;line-height:1.2">19:30</span><span style="font-size:12px;font-weight:800;color:#C77414">픽업 대기</span></div>
+        <div style="padding:0 12px 10px;font-size:14px"><b>초코</b> · 5km · 잠수교 강바람 <div class="quiet" style="font-size:12.5px">반포한강공원 잠수교 남단 · 세빛섬 입구 계단 앞</div></div>
+        <div class="perf"></div>
+        <div style="padding:9px 12px;font-size:13.5px;font-weight:800;text-align:right">인계 화면으로 ›</div>
+      </div>
+      <div style="margin-top:14px;display:flex;justify-content:space-between;align-items:baseline"><div class="kick">요청 · 지명 1</div><div style="font-size:12.5px;font-weight:800">요청함 · 3건 ›</div></div>
+      <div class="obj" style="margin-top:8px">
+        <div style="padding:10px 12px 8px"><div style="display:flex;justify-content:space-between;align-items:center"><span class="num" style="font-size:20px;line-height:1.2">내일 07:00</span><span class="tag tagAmber">★ 나를 지명</span></div>
+          <div style="font-size:14px;margin-top:4px"><b>보리</b> · 비숑 5kg · 3km · 보통 7'</div>
+          <div class="quiet" style="font-size:12.5px">예상 <span class="num" style="color:#111">10,200</span>원 · 실거리로 확정 · ⟳ 2번째 함께</div></div>
+        <div style="display:flex;gap:6px;padding:0 10px 10px"><div class="door doorA">수락 ›</div><div class="door doorB">거절<small>다른 러너에게 넘겨요</small></div></div>
+      </div>
+      <div class="row" style="margin-top:12px;font-size:13px"><span style="color:#666">러닝 가능 시간</span><span><b>주 5일</b> · 06:00–09:00 <span style="font-weight:800;margin-left:6px">시간 조정 ›</span></span></div>
+      <div class="row" style="font-size:13px"><span style="color:#666">최근 완료</span><span><b>초코</b> · 5.1km · 8/17 <span style="font-weight:800;margin-left:6px">수익 상세 ›</span></span></div>
+    </div></div></div></div>
+
+  <div class="col"><div class="cap"><b>R1b</b>오프라인 — 요청이 멈춤</div>
+    <p class="why">토글 OFF = 회색. 카피는 코드의 빈 상태 문장 그대로: “<b>오프라인 상태 — 켜야 요청을 받아요</b>”. 확정된 오늘 러닝은 그대로 남습니다(오프라인은 새 요청만 멈춥니다). 코랄 <b>0</b> — 켜는 행동은 토글 자체이고, 토글에 색을 입히면 ‘켜라’는 재촉이 됩니다.</p>
+    <div class="phone"><div class="notch"><span>18:40</span><span>▮▮</span></div><div class="scr"><div class="pad" style="padding-top:14px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline"><div class="kick">8월 19일 수 · 반포동</div><div style="font-size:12.5px;font-weight:800">알림</div></div>
+      <div class="tog"><div class="lbl"><span class="disp" style="font-size:22px;color:#666">오프라인</span><small>새 요청이 멈춰 있어요 · 확정된 러닝은 그대로</small></div><div class="sw"><i></i></div></div>
+      <div class="row" style="font-size:13px"><span style="color:#666">이번 주</span><span><b class="num">3</b>회 · <b class="num">14.2</b>km · 정산 예정 <b class="num">48,700</b>원</span></div>
+      <div style="margin-top:14px" class="kick">오늘</div>
+      <div class="obj" style="margin-top:8px">
+        <div style="padding:10px 12px 9px;display:flex;justify-content:space-between;align-items:baseline"><span class="num" style="font-size:24px;line-height:1.2">19:30</span><span style="font-size:12px;font-weight:800;color:#C77414">픽업 대기</span></div>
+        <div style="padding:0 12px 10px;font-size:14px"><b>초코</b> · 5km · 잠수교 강바람 <div class="quiet" style="font-size:12.5px">반포한강공원 잠수교 남단 · 세빛섬 입구 계단 앞</div></div>
+        <div class="perf"></div>
+        <div style="padding:9px 12px;font-size:13.5px;font-weight:800;text-align:right">인계 화면으로 ›</div>
+      </div>
+      <div style="margin-top:14px" class="kick">요청</div>
+      <div class="quiet" style="margin-top:8px;font-size:14px;color:#111;font-weight:700">오프라인 상태 — 켜야 요청을 받아요</div>
+      <div class="quiet" style="font-size:12.5px;margin-top:2px">지명 요청도 오프라인이면 오지 않아요</div>
+      <div class="row" style="margin-top:14px;font-size:13px"><span style="color:#666">러닝 가능 시간</span><span><b>주 5일</b> · 06:00–09:00 <span style="font-weight:800;margin-left:6px">시간 조정 ›</span></span></div>
+      <div class="row" style="font-size:13px"><span style="color:#666">최근 완료</span><span><b>초코</b> · 5.1km · 8/17 <span style="font-weight:800;margin-left:6px">수익 상세 ›</span></span></div>
+    </div></div></div></div>
+
+  <div class="col"><div class="cap"><b>R1c</b>WORK-GATE — 이유 + 행동, 죽은 수락 없음</div>
+    <p class="why"><span class="rule">0092 runner_work_gate</span> 게이트의 실제 이유는 <b>지난 러닝의 반환 봉인이 아직</b>(<code>waiting_on: runner | owner | both</code>) 또는 <code>incident_review</code>입니다 — 가용시간이 아닙니다(브리프의 예시와 다름, 코드를 따랐습니다). 앰버 알림 줄이 WHY, 코랄은 <b>그 출구</b>(<code>exit: runner_confirm_return</code> → “반환 봉인 찍기 ›”). 요청 카드는 남되 수락 문 자리는 문장 한 줄 — 누를 수 없는 코랄을 그리지 않습니다. waiting_on=owner면 줄은 라일락 “보호자 확인 대기”, 출구 없음.</p>
+    <div class="phone"><div class="notch"><span>18:40</span><span>▮▮</span></div><div class="scr"><div class="pad" style="padding-top:14px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline"><div class="kick">8월 19일 수 · 반포동</div><div style="font-size:12.5px;font-weight:800">알림 <span class="num" style="color:#C77414">1</span></div></div>
+      <div class="tog"><div class="lbl"><span class="disp" style="font-size:22px">온라인</span><small>요청은 보이지만 지금은 수락할 수 없어요</small></div><div class="sw on"><i></i></div></div>
+      <div class="alert"><div class="dot" style="background:#C77414"></div><div class="tx">지난 러닝의 반환 확인이 아직이에요<small>8/17 초코 · 내 봉인 전 — 둘 다 찍혀야 새 요청을 받아요</small></div><div style="font-size:13px;font-weight:800;color:#C6472C;white-space:nowrap">반환 봉인 찍기 ›</div></div>
+      <div style="margin-top:14px;display:flex;justify-content:space-between;align-items:baseline"><div class="kick">요청 · 지명 1</div><div style="font-size:12.5px;font-weight:800">요청함 · 3건 ›</div></div>
+      <div class="obj" style="margin-top:8px">
+        <div style="padding:10px 12px 8px"><div style="display:flex;justify-content:space-between;align-items:center"><span class="num" style="font-size:20px;line-height:1.2">내일 07:00</span><span class="tag tagAmber">★ 나를 지명</span></div>
+          <div style="font-size:14px;margin-top:4px"><b>보리</b> · 비숑 5kg · 3km · 보통 7'</div>
+          <div class="quiet" style="font-size:12.5px">예상 <span class="num" style="color:#111">10,200</span>원 · 실거리로 확정</div></div>
+        <div class="perf"></div>
+        <div style="padding:9px 12px;font-size:13px;color:#666;font-weight:700">반환 확인이 끝나면 여기서 수락할 수 있어요 · 응답 기한 전까지 요청은 남아 있어요</div>
+      </div>
+      <div class="row" style="margin-top:14px;font-size:13px"><span style="color:#666">이번 주</span><span><b class="num">3</b>회 · <b class="num">14.2</b>km · 정산 예정 <b class="num">48,700</b>원</span></div>
+      <div class="row" style="font-size:13px"><span style="color:#666">러닝 가능 시간</span><span><b>주 5일</b> · 06:00–09:00 <span style="font-weight:800;margin-left:6px">시간 조정 ›</span></span></div>
+    </div></div></div></div>
+</div>
+
+<!-- ══════ B 요청함 ══════ -->
+<h2 id="secB"><span class="n">B</span>요청함 — 지명 위, 근처 아래, 빈 상태</h2>
+<p class="sub"><b>spec runner/requests:</b> 수락/거절은 <code>transition-booking</code>으로만 · 지명 먼저 · 오픈 풀은 온라인·active일 때만. 카드 = 러너가 수락하거나 거절하는 <b>오브젝트</b>라 박스를 받습니다. requests.tsx의 실제 필드: 시각 · 개 · 견종/kg · km · 페이스 · 예상 실수령(수수료 33% 제외) · ⟳ N번째 함께 · 백신/성향 칩 · 보호자 메모 · 코스 미리보기.</p>
+<div class="rail">
+  <div class="col"><div class="cap"><b>R2a</b>지명 요청 위 · 근처 요청 아래</div>
+    <p class="why">코랄은 <b>지명 요청의 수락 하나</b>. 근처(오픈) 요청의 수락은 고스트 — “지명 먼저”가 순서만이 아니라 색으로도 말합니다. 오픈 요청엔 ‘거절’ 개념이 없습니다(home.tsx:220 — 안 받으면 그만) → ‘자세히’. ⚠ <b>‘홈 베이스에서 1.2km’ 줄은 플레이스홀더</b>: OpenRequest에 픽업 주소/거리 필드가 없습니다(수락 후 0060 RPC로만 주소가 옵니다). 뷰에 필드가 붙기 전엔 이 줄을 빼야 합니다.</p>
+    <div class="phone"><div class="notch"><span>18:41</span><span>▮▮</span></div><div class="scr"><div class="pad" style="padding-top:18px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline"><div class="disp" style="font-size:24px">요청</div><div style="font-size:12.5px;font-weight:800">↻ 새로고침</div></div>
+      <div class="quiet" style="font-size:12.5px">새 요청 3건 · 응답 기한이 지나면 자동 만료</div>
+      <div style="margin-top:14px" class="kick">지명 요청</div>
+      <div class="obj" style="margin-top:8px">
+        <div style="padding:10px 12px 8px">
+          <div style="display:flex;justify-content:space-between;align-items:center"><span class="tag tagAmber">★ 나를 지명</span><span class="tag tagAmber">⟳ 2번째 함께</span></div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:6px"><span style="font-size:13.5px;font-weight:800">8월 20일 (목)</span><span class="num" style="font-size:22px;line-height:1.25">07:00</span></div>
+          <div style="display:flex;gap:9px;align-items:center;margin-top:6px"><div class="avat" style="width:36px;height:36px"></div><div style="flex:1"><div style="font-size:15px;font-weight:800">보리 · 비숑 5kg</div><div class="quiet" style="font-size:12.5px"><b style="color:#111">3km</b> · 보통 7' · 예상 <span class="num" style="color:#111">10,200</span>원 · 수수료 제외</div></div></div>
+          <div class="quiet" style="font-size:12.5px;margin-top:5px;border-left:2px solid #DEDCD6;padding-left:8px">메모: 낯선 사람에겐 처음엔 짖어요 — 간식이면 금방</div>
+          <div class="quiet" style="font-size:12px;margin-top:4px;color:#999">픽업 · 홈 베이스에서 1.2km <span style="font-size:10.5px">[뷰 필드 없음]</span></div>
+          <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:13px"><span style="font-weight:700">반포천 아침길 <span style="color:#666;font-weight:600">3km</span></span><span style="font-weight:800">코스 미리보기 ›</span></div>
+        </div>
+        <div style="display:flex;gap:6px;padding:0 10px 10px"><div class="door doorA">수락 ›</div><div class="door doorB">거절<small>다른 러너에게 넘겨요</small></div></div>
+      </div>
+      <div style="margin-top:14px" class="kick">근처 요청 · 온라인일 때만</div>
+      <div class="obj" style="margin-top:8px">
+        <div style="padding:10px 12px 8px">
+          <div style="display:flex;justify-content:space-between;align-items:center"><span class="tag tagLilac">● 요청 · 매칭 대기</span><span class="num" style="font-size:18px;line-height:1.25">오늘 19:30</span></div>
+          <div style="font-size:14px;margin-top:5px"><b>몽이</b> · 말티즈 3kg · 2km · 예상 <span class="num">7,400</span>원</div>
+        </div>
+        <div style="display:flex;gap:6px;padding:0 10px 10px"><div class="door doorB" style="padding:9px 8px">수락 ›</div><div class="door doorB" style="padding:9px 8px">자세히 →</div></div>
+      </div>
+    </div></div></div></div>
+
+  <div class="col"><div class="cap"><b>R2b</b>일정 변경 요청 (0016) — 같은 인박스</div>
+    <p class="why">requests.tsx가 이미 그리는 두 번째 오브젝트: 확정 예약의 <b>기존 → 제안</b> 시각. 수락해야만 시간이 바뀝니다(내 캘린더가 조용히 옮겨가지 않게 확인창을 한 번 더 — 코드 그대로). 코랄 = <b>새 시간 수락 ›</b>, 거절(기존 유지)은 고스트. 지명 요청 카드가 같은 화면에 있으면 그 수락은 고스트로 내려갑니다 — 화면당 코랄 하나.</p>
+    <div class="phone"><div class="notch"><span>18:41</span><span>▮▮</span></div><div class="scr"><div class="pad" style="padding-top:18px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline"><div class="disp" style="font-size:24px">요청</div><div style="font-size:12.5px;font-weight:800">↻ 새로고침</div></div>
+      <div class="quiet" style="font-size:12.5px">새 요청 1건 · 변경 요청 1건</div>
+      <div style="margin-top:14px" class="kick">일정 변경 요청</div>
+      <div class="obj" style="margin-top:8px">
+        <div style="padding:10px 12px 8px">
+          <span class="tag tagAmber">일정 변경 요청</span>
+          <div style="font-size:15px;font-weight:800;margin-top:6px">초코 · 5km</div>
+          <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+            <div style="flex:1;padding:8px 10px;background:#F2F2F2"><div class="quiet" style="font-size:12px">기존</div><div class="quiet" style="font-size:12.5px;text-decoration:line-through">8월 21일 (금)</div><div class="num" style="font-size:17px;color:#666;text-decoration:line-through;line-height:1.3">19:30</div></div>
+            <div style="font-size:17px;font-weight:900;color:#C77414">→</div>
+            <div style="flex:1;padding:8px 10px;background:#FBEAE7"><div style="font-size:12px;font-weight:700;color:#C77414">제안</div><div style="font-size:12.5px;font-weight:800;color:#C77414">8월 21일 (금)</div><div class="num" style="font-size:17px;color:#C77414;line-height:1.3">20:30</div></div>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;padding:0 10px 10px"><div class="door doorB">거절 (기존 유지)</div><div class="door doorA">새 시간 수락 ›</div></div>
+      </div>
+      <div style="margin-top:14px" class="kick">지명 요청</div>
+      <div class="obj" style="margin-top:8px">
+        <div style="padding:10px 12px 8px"><div style="display:flex;justify-content:space-between;align-items:center"><span class="tag tagAmber">★ 나를 지명</span><span class="num" style="font-size:18px;line-height:1.25">내일 07:00</span></div>
+          <div style="font-size:14px;margin-top:5px"><b>보리</b> · 비숑 5kg · 3km · 예상 <span class="num">10,200</span>원</div></div>
+        <div style="display:flex;gap:6px;padding:0 10px 10px"><div class="door doorB">수락 ›</div><div class="door doorB">거절</div></div>
+      </div>
+      <div class="quiet" style="text-align:center;font-size:12.5px;margin-top:14px">수락하면 캘린더에 확정 일정으로 추가돼요<br>응답 기한이 지나면 요청은 자동 만료됩니다</div>
+    </div></div></div></div>
+
+  <div class="col"><div class="cap"><b>R2c</b>빈 상태 — 조용한 날 (로딩·실패와 구분)</div>
+    <p class="why">코드의 세 상태 중 <b>정말 비어 있음</b>만 그렸습니다: “지금은 열린 요청이 없어요 / 새 요청이 오면 여기에 표시돼요”. 로딩은 “요청 확인 중...”, 실패는 크리티컬 워시 스트립 + “다시 시도” — 네트워크 오류를 조용한 날로 위장하지 않습니다(honesty 2026-08-11). 코랄 <b>0</b>: 빈 인박스에 할 일이 없는데 색을 칠하면 그건 장식입니다. 출구는 잉크: 가용시간 조정 ›.</p>
+    <div class="phone"><div class="notch"><span>18:41</span><span>▮▮</span></div><div class="scr"><div class="pad" style="padding-top:18px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline"><div class="disp" style="font-size:24px">요청</div><div style="font-size:12.5px;font-weight:800">↻ 새로고침</div></div>
+      <div class="quiet" style="font-size:12.5px">새 요청 0건</div>
+      <div style="margin-top:120px;text-align:center"><div style="font-size:15px;font-weight:800">지금은 열린 요청이 없어요</div><div class="quiet" style="font-size:13.5px;margin-top:4px">새 요청이 오면 여기에 표시돼요</div></div>
+      <div class="row" style="margin-top:110px;font-size:13px;border-top:1px solid #EEE"><span style="color:#666">온라인</span><b>켜짐 · 반경 3km</b></div>
+      <div class="row" style="font-size:13px"><span style="color:#666">러닝 가능 시간</span><span><b>주 5일</b> · 06:00–09:00 <span style="font-weight:800;margin-left:6px">시간 조정 ›</span></span></div>
+      <div class="quiet" style="text-align:center;font-size:12.5px;margin-top:16px">수락하면 캘린더에 확정 일정으로 추가돼요<br>응답 기한이 지나면 요청은 자동 만료됩니다</div>
+    </div></div></div></div>
+</div>
+
+<!-- ══════ C 인계 (받음) ══════ -->
+<h2 id="secC"><span class="n">C</span>수락 → 인계 (러너 쪽) — 11b′의 거울</h2>
+<p class="sub"><span class="rule">RULING 8</span> 현재 meetup.tsx의 밀도를 옷만 갈아입힙니다: 보호자+개 · 만남 장소(<code>anchor_name + anchor_detail</code> 텍스트 — 좌표는 근사값이라 소비 금지) · 보호자 메모 · <b>인계 전 장비 체크 3개</b>(코드 문장 그대로) · 봉인 두 개(RUNNER 나 / OWNER 보호자, 확인 N/2) · 스테이지 CTA 하나. <code>runner_enroute</code>는 화면 진입 시 자동 전송(meetup.tsx:155)이라 ‘출발했어요’ 버튼은 없습니다 — 그려야 할 것은 <b>도착</b>과 <b>받음</b>. 길찾기는 네이버 지도로 넘어가는 제3자 핸드오프 — 그렇게 말합니다.</p>
+<div class="rail">
+  <div class="col"><div class="cap"><b>R3a</b>enroute → 도착 확인</div>
+    <p class="why">상단 알림 줄 앰버(이동 중 = 주의). 지도는 나/픽업 두 핀. CTA 코랄 = 코드의 계약 행동 “<b>픽업 장소 도착 확인 ›</b>” — 탭이 <code>arrived_at</code>을 찍고 보호자에게 알림이 정확히 1회. 전송 실패는 CTA 위 한 줄 인라인(“도착 알림을 보내지 못했어요 · 다시 시도해주세요”). 장비 체크는 이미 눌러둘 수 있게 여기서부터.</p>
+    <div class="phone"><div class="notch"><span>19:12</span><span>▮▮</span></div><div class="scr">
+      <div class="top"><div class="bk">‹</div><div class="ttl">인계</div><div style="font-size:13px;font-weight:800">보호자 채팅 ›</div></div>
+      <div class="pad" style="padding-top:8px">
+        <div class="alert" style="border-bottom:none"><div class="dot" style="background:#C77414"></div><div class="tx">픽업 장소로 이동 중<small>19:30 · 초코 · 5km · 보통 7'</small></div><div style="font-size:12.5px;font-weight:800;border:1.5px solid #111;padding:6px 9px">길찾기 ›</div></div>
+        <div style="height:58px;background:#F2F2F2;position:relative;margin-top:4px"><div style="position:absolute;left:36px;top:40px;font-size:10px;font-weight:800;background:#111;color:#fff;padding:2px 5px">나</div><div style="position:absolute;right:52px;top:18px;font-size:10px;font-weight:800;background:#111;color:#fff;padding:2px 5px">픽업</div><div style="position:absolute;right:8px;bottom:6px;font-size:10px;color:#999">네이버 지도로 열려요</div></div>
+        <div style="margin-top:12px" class="kick">만남 장소</div>
+        <div style="margin-top:3px;font-size:15px;font-weight:800">반포한강공원 잠수교 남단</div>
+        <div class="quiet" style="font-size:12.5px">세빛섬 입구 계단 앞 · <span style="font-weight:800;color:#111">주소·메모 다시 확인 ›</span></div>
+        <div style="margin-top:12px;display:flex;align-items:center;gap:10px"><div class="avat" style="width:38px;height:38px"></div><div style="flex:1"><div style="font-size:14px;font-weight:800">초코 · 푸들 6kg <span style="color:#666;font-weight:600">· 보호자 지은</span></div><div class="quiet" style="font-size:12.5px">보호자 메모: 물은 자주, 큰 개 지나가면 안아주세요</div></div></div>
+        <div style="margin-top:12px" class="kick">인계 전 장비 체크</div>
+        <div style="margin-top:6px"><span class="chip on" style="padding:6px 9px">리드줄 교체 ✓</span><span class="chip" style="padding:6px 9px">초코 급수 준비</span><span class="chip" style="padding:6px 9px">간식 파우치</span></div>
+        <div style="margin-top:6px;display:flex;gap:12px;align-items:center"><div class="seal" style="width:48px;height:48px">나</div><div class="seal" style="width:48px;height:48px">보호자</div><div class="quiet" style="flex:1;font-size:12px">확인 0/2 · 양측 확인 없이는 러닝이 시작되지 않아요</div></div>
+      </div>
+      <div class="quiet" style="position:absolute;left:16px;right:16px;bottom:74px;font-size:12px;text-align:center">도착을 확인하면 보호자에게 알림이 가요</div>
+      <div class="cta"><b>픽업 장소 도착 확인</b> ›</div>
+    </div></div></div>
+
+  <div class="col"><div class="cap"><b>R3b</b>arrived → 초코 인계 받음 — 봉인</div>
+    <p class="why">도착이 서버에 찍히면 줄이 코랄로 — 내 차례. 세 체크가 끝나야 CTA가 열립니다(코드: <code>disabled={!allChecked}</code> — 열리기 전엔 잉크 고스트 + “장비 체크를 완료하면 인계할 수 있어요”, 여기선 열린 상태). CTA 코랄 = “<b>초코 인계 받았어요 — 봉인 ›</b>”(코드 라벨 “{dog} 인계 받았어요” + 봉인 어휘). 알림 줄 점은 앰버(도착 사실)로 두어 코랄은 CTA 하나.</p>
+    <div class="phone"><div class="notch"><span>19:29</span><span>▮▮</span></div><div class="scr">
+      <div class="top"><div class="bk">‹</div><div class="ttl">인계</div><div style="font-size:13px;font-weight:800">보호자 채팅 ›</div></div>
+      <div class="pad" style="padding-top:8px">
+        <div class="alert" style="border-bottom:none"><div class="dot" style="background:#C77414"></div><div class="tx">픽업 장소 도착 · 보호자에게 도착 알림이 갔어요<small>19:30 · 초코 · 5km · 보통 7'</small></div></div>
+        <div style="margin-top:6px" class="kick">만남 장소</div>
+        <div style="margin-top:3px;font-size:15px;font-weight:800">반포한강공원 잠수교 남단</div>
+        <div class="quiet" style="font-size:12.5px">세빛섬 입구 계단 앞</div>
+        <div style="margin-top:12px;display:flex;align-items:center;gap:10px"><div class="avat" style="width:38px;height:38px"></div><div style="flex:1"><div style="font-size:14px;font-weight:800">초코 · 푸들 6kg <span style="color:#666;font-weight:600">· 보호자 지은</span></div><div class="quiet" style="font-size:12.5px">보호자 메모: 물은 자주, 큰 개 지나가면 안아주세요</div></div></div>
+        <div style="margin-top:12px" class="kick">인계 전 장비 체크 · 3/3</div>
+        <div style="margin-top:6px"><span class="chip on" style="padding:6px 9px">리드줄 교체 ✓</span><span class="chip on" style="padding:6px 9px">초코 급수 준비 ✓</span><span class="chip on" style="padding:6px 9px">간식 파우치 ✓</span></div>
+        <div style="margin-top:12px" class="kick">인계 확인 · 0/2</div>
+        <div style="margin-top:8px;display:flex;gap:12px;align-items:center;justify-content:center"><div class="seal">RUNNER<br>나</div><div class="seal">OWNER<br>보호자</div></div>
+        <div class="quiet" style="text-align:center;margin-top:6px;font-size:12.5px">내 봉인을 찍으면 보호자 앱에 확인 요청이 가요</div>
+        <div class="row" style="font-size:13px;margin-top:8px;border-top:1px solid #EEE"><span style="color:#666">코스</span><b>잠수교 강바람 · 5km</b></div>
+      </div>
+      <div class="cta"><b>초코 인계 받았어요</b> — 봉인 ›</div>
+    </div></div></div>
+
+  <div class="col"><div class="cap"><b>R3c</b>양측 봉인 → 러닝 시작</div>
+    <p class="why">내 봉인만 찍힌 동안은 라일락(대기): “보호자 확인 대기 중... 보호자 앱에 확인 요청을 보냈어요” — 코랄 없음, 서버 진실로만 도장이 채워집니다(8초 폴). 둘 다 찍히면 세이지 줄 “인계 완료”, CTA 코랄 = 코드의 “<b>러닝 시작하기 ›</b>”(<code>start_run</code> 후 run 화면, GPS 기록 시작). 힌트: “인계 완료 · 러닝을 시작하면 GPS 기록이 켜져요”. 그린 것은 둘 다 찍힌 순간.</p>
+    <div class="phone"><div class="notch"><span>19:33</span><span>▮▮</span></div><div class="scr">
+      <div class="top"><div class="bk">‹</div><div class="ttl">인계</div><div style="font-size:13px;font-weight:800">보호자 채팅 ›</div></div>
+      <div class="pad" style="padding-top:8px">
+        <div class="alert" style="border-bottom:none"><div class="dot" style="background:#119B58"></div><div class="tx">인계 완료 — 초코가 내 손에<small>양측 확인 19:33 · 초코 · 5km · 잠수교 강바람</small></div></div>
+        <div style="margin-top:10px" class="kick">인계 확인 · 2/2</div>
+        <div style="margin-top:8px;display:flex;gap:12px;align-items:center;justify-content:center"><div class="seal on">RUNNER<br>확인 완료</div><div class="seal on">OWNER<br>확인 완료</div></div>
+        <div style="margin-top:14px" class="kick">이번 러닝</div>
+        <div class="row" style="font-size:13px"><span style="color:#666">목표</span><b>5km · 보통 7'</b></div>
+        <div class="row" style="font-size:13px"><span style="color:#666">권장 페이스</span><b>6'30" 안팎</b></div>
+        <div class="row" style="font-size:13px"><span style="color:#666">코스</span><span><b>잠수교 강바람</b> · 예정 경로 안내</span></div>
+        <div class="row" style="font-size:13px"><span style="color:#666">위치 공유</span><b>러닝 중 · 이 예약의 보호자에게만</b></div>
+        <div class="quiet" style="font-size:12.5px;margin-top:12px">양측 확인 없이는 러닝이 시작되지 않아요 · 펫보험 파트너십 협의 중 — 사고 시 <span style="color:#111;font-weight:800">안심 센터 ›</span></div>
+      </div>
+      <div class="quiet" style="position:absolute;left:16px;right:16px;bottom:74px;font-size:12px;text-align:center">인계 완료 · 러닝을 시작하면 GPS 기록이 켜져요</div>
+      <div class="cta"><b>러닝 시작하기</b> ›</div>
+    </div></div></div>
+</div>
+
+<!-- ══════ D 라이브 + E 종료 시트 ══════ -->
+<h2 id="secD"><span class="n">D</span>라이브 (러너 쪽) — 내가 긋는 볼트 선 · 종료 시트</h2>
+<p class="sub"><span class="rule">RULING 9</span> 같은 두 선, 반대 시점: 계획 경로 라일락(고스트보다 진하게) 위에 <b>내 실측 볼트</b>. 상단 띠는 km · 시간 · 페이스 — 사실이지 카운트다운이 아닙니다. run.tsx가 이미 가진 정직 문장이 지도 위에 그대로: “<b>이 선은 예정 경로예요 — 아직 실측 전이라 현장과 다를 수 있어요</b>”. 종료 시트는 <b>한 시트 두 스텝</b>(이유 → 컨디션이면 기록) — 코드 §7b 그대로.</p>
+<div class="rail">
+  <div class="col"><div class="cap"><b>R4</b>라이브 — 계획선 + 내 실측선</div>
+    <p class="why">띠(night): “● 초코와 러닝 중 · GPS” · “보호자에게 위치 공유 중”(<code>run2-&lt;id&gt;</code> private) · 2.41km · 13:12 · 5'30" + 권장 6'30" · 페이스 양호. 지도 위 정직 문장. 이벤트 칩 응가·간식·물·스냅(코드 그대로, 사진은 여기 — 종료 시트에 사진 약속 없음). 예상 수익은 <b>작은 사실 한 줄</b>. 코랄 하나 = <b>러닝 종료</b>(코드에선 볼트 필 — 이 랩의 법으론 코랄). 목표 도달 시 완주는 <b>자동 정산</b>(시트 없음).</p>
+    <div class="phone"><div class="notch" style="background:#1C1837;color:#8F88B8"><span>19:46</span><span>▮▮</span></div><div class="scr" style="background:#EDEBE6">
+      <div class="strip"><div style="display:flex;justify-content:space-between"><div class="kick" style="color:#8F88B8">● 초코와 러닝 중 · GPS</div><div style="font-size:12px;color:#B9B3D9;font-weight:700">보호자 채팅 ›</div></div>
+        <div style="display:flex;gap:16px;margin-top:8px;align-items:baseline"><div><div class="num" style="font-size:28px;line-height:1.2">2.41<span style="font-size:12px;color:#8F88B8">km</span></div></div><div><div class="num" style="font-size:28px;line-height:1.2">13:12</div><div class="kick" style="color:#8F88B8">시간</div></div><div><div class="num" style="font-size:28px;line-height:1.2">5'30"</div><div class="kick" style="color:#8F88B8">페이스</div></div></div>
+        <div style="display:flex;justify-content:space-between;margin-top:4px"><div style="font-size:12px;color:#B9B3D9;font-weight:700;white-space:nowrap">권장 6'30" · <span style="color:#7FA818">페이스 양호</span></div><div style="font-size:12px;color:#8F88B8;white-space:nowrap">남은 2.6km · 위치 공유 중</div></div></div>
+      <div style="position:relative;height:330px">
+        <svg viewBox="0 0 300 330" style="position:absolute;inset:0;width:100%;height:100%">
+          <path d="M40 290 C 80 230, 60 160, 120 130 S 220 90, 250 30" stroke="#6C5CE7" stroke-width="5" fill="none" opacity=".55" stroke-linecap="round"/>
+          <path d="M40 290 C 80 230, 62 165, 118 132 S 165 112, 172 108" stroke="#7FA818" stroke-width="7" fill="none" stroke-linecap="round"/>
+          <circle cx="172" cy="108" r="8" fill="#7FA818" stroke="#fff" stroke-width="2.5"/>
+          <rect x="34" y="284" width="12" height="12" transform="rotate(45 40 290)" fill="#111"/>
+        </svg>
+        <div style="position:absolute;left:12px;top:10px;right:12px;font-size:11.5px;color:#666;background:rgba(255,255,255,.92);padding:6px 8px;line-height:1.4">이 선은 예정 경로예요 — 아직 실측 전이라 현장과 다를 수 있어요</div>
+        <div style="position:absolute;left:12px;bottom:12px;font-size:11px;color:#666;background:rgba(255,255,255,.9);padding:5px 8px"><span style="color:#6C5CE7;font-weight:800">━</span> 계획 경로 &nbsp; <span style="color:#7FA818;font-weight:800">━</span> 내 실측</div>
+        <div style="position:absolute;right:12px;bottom:12px;font-size:11.5px;font-weight:800;background:#fff;padding:5px 8px;border:1px solid #DEDCD6">내 위치로</div>
+      </div>
+      <div style="position:absolute;left:0;right:0;bottom:0;background:#fff;padding:10px 16px 16px">
+        <div style="display:flex;gap:6px"><div class="ghost" style="flex:1;padding:8px 4px;font-size:12.5px">응가 1</div><div class="ghost" style="flex:1;padding:8px 4px;font-size:12.5px">간식</div><div class="ghost" style="flex:1;padding:8px 4px;font-size:12.5px">물 2</div><div class="ghost" style="flex:1;padding:8px 4px;font-size:12.5px">스냅 3</div></div>
+        <div class="quiet" style="font-size:12px;margin-top:8px;white-space:nowrap">현재 예상 <span class="num" style="color:#111">8,300</span>원 · 완주 시 <span class="num" style="color:#111">16,900</span>원 · 실측으로 확정</div>
+        <div style="display:flex;gap:8px;margin-top:8px;align-items:stretch"><div class="ghost" style="width:52px;display:flex;align-items:center;justify-content:center;font-size:16px">❙❙</div><div style="flex:1;background:#C6472C;color:#fff;padding:14px;text-align:center;font-size:17px" class="disp">러닝 종료</div></div>
+      </div>
+    </div></div></div>
+
+  <div class="col"><div class="cap"><b>R5a</b>종료 시트 — 이유 (스텝 1)</div>
+    <p class="why">run.tsx의 <b>실제 어휘</b>(브리프의 ‘완주/초코 컨디션/기타’가 아니라): “어떤 이유로 종료하나요? · 지금까지 2.41km · 이유에 따라 정산이 달라져요” → <b>강아지 컨디션</b> / <b>보호자 요청</b> / <b>러너 개인 사유</b>, 각 옵션에 정산 결과 한 줄. 취소 “계속 달릴게요”. 코랄 <b>0</b>: 세 선택은 동급이고 하나에 색을 주면 종료 이유를 유도합니다. 이유 선택이 곧 커밋(정산) — 컨디션만 스텝 2로.</p>
+    <div class="phone"><div class="notch" style="background:#1C1837;color:#8F88B8"><span>19:46</span><span>▮▮</span></div><div class="scr" style="background:#1C1837">
+      <div class="strip" style="opacity:.5"><div class="kick" style="color:#8F88B8">● 초코와 러닝 중 · GPS</div><div style="display:flex;gap:16px;margin-top:8px"><div class="num" style="font-size:28px;line-height:1.2">2.41<span style="font-size:12px;color:#8F88B8">km</span></div><div class="num" style="font-size:28px;line-height:1.2">13:12</div><div class="num" style="font-size:28px;line-height:1.2">5'30"</div></div></div>
+      <div class="sheet">
+        <div class="hd"></div>
+        <div style="font-size:18px;font-weight:900">어떤 이유로 종료하나요?</div>
+        <div class="quiet" style="font-size:13px;margin-top:2px">지금까지 <span class="num" style="color:#111">2.41</span>km · 이유에 따라 정산이 달라져요</div>
+        <div class="eo" style="margin-top:12px"><div class="t">강아지 컨디션</div><div class="d">지친 기색·이상 징후 등. 종료 전에 메모를 남겨요</div><div class="p"><span class="num">8,300</span>원 · 완주율 무영향</div></div>
+        <div class="eo"><div class="t">보호자 요청</div><div class="d">보호자가 조기 종료를 요청했어요</div><div class="p"><span class="num">12,600</span>원 · 잔여 거리 50% 보장 포함</div></div>
+        <div class="eo"><div class="t">러너 개인 사유</div><div class="d">부상·일정 등 러너 사정으로 종료해요</div><div class="p"><span class="num">8,300</span>원 · 완주율에 반영</div></div>
+        <div style="text-align:center;font-size:14px;font-weight:800;padding:14px 0 2px">계속 달릴게요</div>
+        <div class="quiet" style="text-align:center;font-size:11.5px">목표 5km에 닿으면 완주로 자동 정산돼요 — 이 시트는 그 전에 멈출 때만</div>
+      </div>
+    </div></div></div>
+
+  <div class="col"><div class="cap"><b>R5b</b>종료 시트 — 컨디션 기록 (스텝 2)</div>
+    <p class="why">“무엇을 보고 멈췄나요?” · “여기 적은 내용이 보호자의 기록 카드에 그대로 실려요. 본 것만 적어주세요 — 판단은 보호자와 수의사가 해요.” 보이는 라벨 <b>관찰한 내용</b> + 코드의 플레이스홀더. 코랄 하나 = 확정 “<b>종료하고 기록 남기기 ›</b>”(내용이 있어야 열림 — 비면 #EEE 필). ⚠ 브리프의 ‘사진’은 이 시트에 <b>없습니다</b>(코드 주석: “사진 약속은 내렸다”) — 사진은 러닝 중 스냅과 완료 화면의 오늘의 순간.</p>
+    <div class="phone"><div class="notch" style="background:#1C1837;color:#8F88B8"><span>19:47</span><span>▮▮</span></div><div class="scr" style="background:#1C1837">
+      <div class="strip" style="opacity:.5"><div class="kick" style="color:#8F88B8">● 초코와 러닝 중 · GPS</div><div style="display:flex;gap:16px;margin-top:8px"><div class="num" style="font-size:28px;line-height:1.2">2.41<span style="font-size:12px;color:#8F88B8">km</span></div><div class="num" style="font-size:28px;line-height:1.2">13:12</div></div></div>
+      <div class="sheet">
+        <div class="hd"></div>
+        <div style="font-size:18px;font-weight:900">무엇을 보고 멈췄나요?</div>
+        <div class="quiet" style="font-size:12.5px;margin-top:4px;line-height:1.5">여기 적은 내용이 보호자의 기록 카드에 그대로 실려요. 본 것만 적어주세요 — 판단은 보호자와 수의사가 해요.</div>
+        <div style="margin-top:12px" class="kick">관찰한 내용</div>
+        <div style="border:1.5px solid #111;min-height:88px;padding:9px 10px;margin-top:6px;font-size:14px;line-height:1.5">2km 지나면서 헐떡임이 심해지고 그늘에서 두 번 멈춰 앉았어요. 물은 마셨어요.<span style="color:#999">|</span></div>
+        <div class="quiet" style="font-size:12px;margin-top:6px">지금까지 <span class="num" style="color:#111">2.41</span>km · 컨디션 종료는 완주율에 반영되지 않아요 · <span class="num" style="color:#111">8,300</span>원 실거리 정산</div>
+        <div style="margin-top:14px;background:#C6472C;color:#fff;padding:14px;text-align:center;font-size:15px;font-weight:800">종료하고 기록 남기기 <b>›</b></div>
+        <div style="text-align:center;font-size:14px;font-weight:800;padding:12px 0 0">이유 다시 고르기</div>
+      </div>
+    </div></div></div>
+</div>
+
+<!-- ══════ F 반환 ══════ -->
+<h2 id="secF"><span class="n">F</span>인계 (반환, 러너 쪽) — v3 ⑥의 거울</h2>
+<p class="sub"><span class="rule">0083 · 0092</span> 서버엔 <code>confirm_return_tx(p_booking, 'runner')</code>가 있고 <b>두 번째 도장이 정산을 봉인</b>합니다. 클라이언트엔 러너 반환 화면이 <b>아직 없습니다</b> — done.tsx는 “초코를 보호자에게 안전하게 인계해 주세요”라고만 말하고 버튼이 없습니다. 이 화면이 그 빈자리이고, 0092의 work-gate(R1c)가 풀리는 지점입니다. 여기서도 돈은 한 줄.</p>
+<div class="rail">
+  <div class="col"><div class="cap"><b>R6a</b>돌려주는 중 — 내 봉인</div>
+    <p class="why">러닝이 끝난 직후 같은 인계 화면의 반환 모드. 세이지 줄 “러닝 종료 · 5.12km”는 사실(사실은 GO 법에서 세이지). 돌려줄 것 체크(리드줄 · 물통 · 간식 파우치 — 인계 체크의 반대 방향, 코드엔 아직 없음 → 플레이스홀더로 표시). CTA 코랄 = “<b>초코를 돌려줬어요 — 봉인 ›</b>”. 문장: “둘 다 찍히면 정산이 확정돼요 · 그 전엔 새 요청을 받을 수 없어요”(0092의 진실).</p>
+    <div class="phone"><div class="notch"><span>20:11</span><span>▮▮</span></div><div class="scr">
+      <div class="top"><div class="bk">‹</div><div class="ttl">인계 · 반환</div><div style="font-size:13px;font-weight:800">보호자 채팅 ›</div></div>
+      <div class="pad" style="padding-top:8px">
+        <div class="alert"><div class="dot" style="background:#119B58"></div><div class="tx">러닝 종료 · 초코를 돌려주세요<small>5.12km · 28:40 · 완주 · 만남 장소로</small></div></div>
+        <div style="margin-top:14px" class="kick">만남 장소</div>
+        <div style="margin-top:3px;font-size:15px;font-weight:800">반포한강공원 잠수교 남단</div>
+        <div class="quiet" style="font-size:12.5px">세빛섬 입구 계단 앞 · 보호자 지은</div>
+        <div style="margin-top:14px" class="kick">돌려줄 것 <span style="color:#999;letter-spacing:0;text-transform:none;font-size:10.5px">[체크 목록 — 코드 없음, 플레이스홀더]</span></div>
+        <div style="margin-top:6px"><span class="chip on">리드줄 원래대로 ✓</span><span class="chip on">물통 ✓</span><span class="chip">간식 파우치</span></div>
+        <div style="margin-top:14px" class="kick">반환 확인 · 0/2</div>
+        <div style="margin-top:8px;display:flex;gap:12px;align-items:center;justify-content:center"><div class="seal">RUNNER<br>나</div><div class="seal">OWNER<br>보호자</div></div>
+        <div class="quiet" style="text-align:center;margin-top:6px;font-size:12.5px">둘 다 찍히면 정산이 확정돼요<br>그 전엔 새 요청을 받을 수 없어요</div>
+      </div>
+      <div class="cta"><b>초코를 돌려줬어요</b> — 봉인 ›</div>
+    </div></div></div>
+
+  <div class="col"><div class="cap"><b>R6b</b>보호자 봉인 대기 (라일락)</div>
+    <p class="why">내 도장은 찍혔고 보호자 것을 기다립니다 — 라일락(대기), 코랄 <b>0</b>. 도장은 서버 진실로만 채워지고, 보호자가 안 찍으면 여기 머뭅니다(운영자 force는 0089 ops-only — 러너 화면엔 버튼 없음). 출구 두 개는 잉크: 보호자 채팅 · 기록 먼저 보기 ›(적립은 봉인 후 확정이라는 문장을 달고).</p>
+    <div class="phone"><div class="notch"><span>20:13</span><span>▮▮</span></div><div class="scr">
+      <div class="top"><div class="bk">‹</div><div class="ttl">인계 · 반환</div><div style="font-size:13px;font-weight:800">보호자 채팅 ›</div></div>
+      <div class="pad" style="padding-top:8px">
+        <div class="alert"><div class="dot" style="background:#6C5CE7"></div><div class="tx">보호자 확인 대기 중<small>보호자 앱에 확인 요청을 보냈어요 · 20:12</small></div></div>
+        <div style="margin-top:14px" class="kick">반환 확인 · 1/2</div>
+        <div style="margin-top:8px;display:flex;gap:12px;align-items:center;justify-content:center"><div class="seal on">RUNNER<br>확인 완료</div><div class="seal" style="border-color:#B9B3D9;color:#8F88B8">OWNER<br>확인 대기</div></div>
+        <div class="quiet" style="text-align:center;margin-top:6px;font-size:12.5px">보호자가 찍으면 정산이 확정되고 다음 요청을 받을 수 있어요</div>
+        <div style="margin-top:18px" class="kick">이번 러닝</div>
+        <div class="row" style="font-size:13px"><span style="color:#666">기록</span><b>5.12km · 28:40 · 5'37"</b></div>
+        <div class="row" style="font-size:13px"><span style="color:#666">적립 예정</span><b><span class="num">16,900</span>원 · 봉인 후 확정</b></div>
+        <div class="row" style="font-size:13px"><span style="color:#666">코스</span><b>잠수교 강바람 · 완주</b></div>
+        <div class="row" style="font-size:13px"><span style="color:#666">이벤트</span><b>응가 1 · 물 2 · 스냅 3</b></div>
+        <div class="quiet" style="font-size:12.5px;margin-top:12px">보호자가 오지 않거나 연락이 안 되면 <span style="color:#111;font-weight:800">안심 센터 ›</span> — 운영자가 함께 확인해요</div>
+      </div>
+      <div class="cta" style="background:#fff;color:#111;border:1.5px solid #111">기록 먼저 보기 ›</div>
+    </div></div></div>
+
+  <div class="col"><div class="cap"><b>R6c</b>양측 봉인 — 세이지</div>
+    <p class="why">둘 다 찍힘 = 개가 집에, 정산 봉인, 게이트 해제. 세이지 줄 + 두 도장. CTA는 <b>세이지</b>(v3 ⑥과 같은 문법 — 완료의 색), 코랄 <b>0</b>. 다음은 완료 화면(R7a)입니다.</p>
+    <div class="phone"><div class="notch"><span>20:14</span><span>▮▮</span></div><div class="scr">
+      <div class="top"><div class="bk">‹</div><div class="ttl">인계 · 반환</div></div>
+      <div class="pad" style="padding-top:8px">
+        <div class="alert"><div class="dot" style="background:#119B58"></div><div class="tx">초코가 집에 돌아갔어요<small>양측 확인 20:14 · 정산 기록됨 · 새 요청을 받을 수 있어요</small></div></div>
+        <div style="margin-top:14px" class="kick">반환 확인 · 2/2</div>
+        <div style="margin-top:8px;display:flex;gap:12px;align-items:center;justify-content:center"><div class="seal on">RUNNER<br>확인 완료</div><div class="seal on">OWNER<br>확인 완료</div></div>
+        <div style="margin-top:18px" class="kick">이번 러닝</div>
+        <div class="row" style="font-size:13px"><span style="color:#666">기록</span><b>5.12km · 28:40 · 5'37"</b></div>
+        <div class="row" style="font-size:13px"><span style="color:#666">적립</span><b><span class="num">16,900</span>원 · 원장에 기록</b></div>
+        <div class="row" style="font-size:13px"><span style="color:#666">코스</span><b>잠수교 강바람 · 완주</b></div>
+        <div class="row" style="font-size:13px"><span style="color:#666">이벤트</span><b>응가 1 · 물 2 · 스냅 3</b></div>
+        <div class="quiet" style="font-size:12.5px;margin-top:10px">지급 일정은 결제 연동 후 안내드려요 — 기록만 진짜예요</div>
+      </div>
+      <div class="cta" style="background:#119B58"><b>러닝 기록 보기</b> ›</div>
+    </div></div></div>
+</div>
+
+<!-- ══════ G 완료 + 수익 ══════ -->
+<h2 id="secG"><span class="n">G</span>완료 → 수익 — 숫자는 크게, 돈은 한 줄</h2>
+<p class="sub"><b>spec runner/done · earnings:</b> settle 결과 · 드랍 카드는 <b>settle 응답에 실드랍이 있을 때만</b>(여기 없음 → 안 그림) · 수익은 <code>ledger_items</code>, “적립/정산 예정”으로만 · 지급은 컷오버 후라고 말합니다. done.tsx의 볼트 50pt ‘오늘의 수익’ 히어로는 이 랩에서 <b>은퇴</b> — 브리프의 법: 금액은 평범한 한 줄, 절대 크게 아님. 크게 갈 것은 <b>km</b>입니다.</p>
+<div class="rail">
+  <div class="col"><div class="cap"><b>R7a</b>완료 — 14a 스타일 + 적립 한 줄</div>
+    <p class="why">작은 트레이스(볼트) → 디스플레이 “초코, 5.12km 완주” → 숫자 셋 → 이벤트 사실(응가 1 · 물 2 · 스냅 3) → <b>한 줄</b> “적립 예정 · 16,900원”(코드의 ‘오늘의 수익’ 대신 spec 라벨) + 정직 문장(코드 그대로: “정산 기록이 저장됐어요 — 수익 화면에서 누적을 볼 수 있어요”) → 오늘의 순간 사진(보호자 리포트에 실려요) → 코랄 = <b>다음 요청 보기 ›</b>(브리프), 리뷰는 고스트. 정산 실패 변형(‘예상 수익 (정산 미완료)’ + 재시도)은 앰버 줄로 — 안 그림.</p>
+    <div class="phone"><div class="notch"><span>20:15</span><span>▮▮</span></div><div class="scr"><div class="pad" style="padding-top:14px">
+      <div style="height:96px;background:#F2F2F2;position:relative"><svg viewBox="0 0 268 96" style="position:absolute;inset:0;width:100%;height:100%"><path d="M30 80 C 70 40, 110 70, 150 40 S 220 20, 245 14" stroke="#7FA818" stroke-width="4" fill="none" stroke-linecap="round"/><rect x="26" y="76" width="8" height="8" transform="rotate(45 30 80)" fill="#111"/></svg><div style="position:absolute;right:8px;bottom:6px;font-size:10.5px;color:#999">잠수교 강바람 · 내 실측</div></div>
+      <div class="disp" style="font-size:22px;margin-top:10px">초코, 5.12km 완주</div>
+      <div style="display:flex;gap:18px;margin-top:6px;align-items:baseline"><div class="num" style="font-size:22px;line-height:1.2">5.12<span style="font-size:11px;color:#999">km</span></div><div class="num" style="font-size:22px;line-height:1.2">28:40</div><div class="num" style="font-size:22px;line-height:1.2">5'37"</div></div>
+      <div class="quiet" style="font-size:12.5px;margin-top:2px">응가 1 · 물 2 · 스냅 3 · 권장 6'30" 대비 양호</div>
+      <div class="row" style="margin-top:10px;border-top:1px solid #EEE"><span style="color:#666">적립 예정</span><b><span class="num" style="font-size:15px">16,900</span>원</b></div>
+      <div class="quiet" style="font-size:12px;margin-top:4px">정산 기록이 저장됐어요 — 수익 화면에서 누적을 볼 수 있어요 · 지급 일정은 결제 연동 후</div>
+      <div style="margin-top:12px;display:flex;justify-content:space-between;align-items:baseline"><div class="kick">오늘의 순간 · 보호자 리포트에 실려요</div><div style="font-size:12.5px;font-weight:800">사진 추가 ›</div></div>
+      <div style="display:flex;gap:6px;margin-top:6px"><div class="thumb" style="height:48px"></div><div class="thumb" style="height:48px"></div><div class="thumb" style="height:48px"></div></div>
+      <div class="ghost" style="margin-top:12px">초코 리뷰 남기기 ›</div>
+      <div class="cta"><b>다음 요청 보기</b> ›</div>
+    </div></div></div></div>
+
+  <div class="col"><div class="cap"><b>R7b</b>수익 탭 — 원장 · 정산 예정</div>
+    <p class="why">earnings.tsx의 실제 문장들: “정산 예정 (원장 합계)” · “지급 일정 미정” · “원천징수 3.3% 약 −N원” · “아직 등록된 계좌가 없어요 — 계좌 등록은 오픈뱅킹 연동과 함께 제공돼요” · 러닝별 내역(기본 · 거리 · 수수료 → 실수령) · 하단 “기록된 금액이에요 — 지급 일정은 결제 연동 후 안내드려요”. 합계도 <b>한 줄</b>. 코랄 <b>0</b> — 원장에 1차 행동이 없습니다. 티어·수수료율은 인쇄하지 않음(픽스처).</p>
+    <div class="phone"><div class="notch"><span>20:16</span><span>▮▮</span></div><div class="scr"><div class="pad" style="padding-top:18px">
+      <div class="disp" style="font-size:24px">수익</div>
+      <div class="row" style="margin-top:8px;border-top:1px solid #EEE"><span style="color:#666">정산 예정 · 원장 합계</span><b><span class="num" style="font-size:15px">39,700</span>원</b></div>
+      <div class="quiet" style="font-size:12px;margin-top:4px">지급 일정 미정 · 원천징수 3.3% 약 −<span class="num">1,310</span>원 예정</div>
+      <div style="margin-top:12px" class="kick">정산 계좌</div>
+      <div class="quiet" style="font-size:12.5px;margin-top:3px">아직 등록된 계좌가 없어요 — 계좌 등록은 오픈뱅킹 연동과 함께 제공돼요</div>
+      <div style="margin-top:16px" class="kick">러닝별 내역 · 8월</div>
+      <div class="row"><div style="flex:1;min-width:0"><div><b>초코</b> · 5.12km <span class="quiet" style="font-size:12px">8월 19일</span></div><div class="quiet" style="font-size:11.5px">기본 12,000 · 거리 13,200 · 수수료 −8,300</div></div><div style="text-align:right;white-space:nowrap;padding-left:8px"><b><span class="num">16,900</span>원</b><div class="quiet" style="font-size:11.5px">적립</div></div></div>
+      <div class="row"><div style="flex:1;min-width:0"><div><b>보리</b> · 3km <span class="quiet" style="font-size:12px">8월 17일</span></div><div class="quiet" style="font-size:11.5px">기본 12,000 · 거리 3,200 · 수수료 −5,000</div></div><div style="text-align:right;white-space:nowrap;padding-left:8px"><b><span class="num">10,200</span>원</b><div class="quiet" style="font-size:11.5px">적립</div></div></div>
+      <div class="row"><div style="flex:1;min-width:0"><div><b>초코</b> · 2.4km <span class="quiet" style="font-size:12px">8월 15일 · 보호자 요청 종료</span></div><div class="quiet" style="font-size:11.5px">기본 12,000 · 거리 4,800 · 잔여 보장 2,100 · 수수료 −6,300</div></div><div style="text-align:right;white-space:nowrap;padding-left:8px"><b><span class="num">12,600</span>원</b><div class="quiet" style="font-size:11.5px">적립</div></div></div>
+      <div class="quiet" style="text-align:center;font-size:12px;margin-top:14px;line-height:1.55">기록된 금액이에요 — 지급 일정은 결제 연동 후 안내드려요<br>(사업소득 3.3% 원천징수 예정)</div>
+    </div></div></div></div>
+
+  <div class="col"><div class="cap"><b>R7c</b>수익 — 빈 상태</div>
+    <p class="why">첫 러닝 전: “아직 정산 내역이 없어요 / 러닝을 완료하면 여기에 기록돼요”. 합계는 <b>—</b>(0원 위장 금지 — 코드의 <code>sumKnown</code> 게이트). 로딩 “불러오는 중...”, 실패 “정산 내역을 불러오지 못했어요 · 다시 시도”는 크리티컬 워시 — 그리지 않고 명시. 코랄 0.</p>
+    <div class="phone"><div class="notch"><span>20:16</span><span>▮▮</span></div><div class="scr"><div class="pad" style="padding-top:18px">
+      <div class="disp" style="font-size:24px">수익</div>
+      <div class="row" style="margin-top:8px;border-top:1px solid #EEE"><span style="color:#666">정산 예정 · 원장 합계</span><b>—</b></div>
+      <div class="quiet" style="font-size:12px;margin-top:4px">지급 일정 미정 · 원천징수 3.3% 약 −—원</div>
+      <div style="margin-top:16px" class="kick">러닝별 내역</div>
+      <div style="margin-top:90px;text-align:center"><div style="font-size:15px;font-weight:800">아직 정산 내역이 없어요</div><div class="quiet" style="font-size:13.5px;margin-top:4px">러닝을 완료하면 여기에 기록돼요</div></div>
+      <div class="quiet" style="text-align:center;font-size:12px;margin-top:120px;line-height:1.55">기록된 금액이에요 — 지급 일정은 결제 연동 후 안내드려요<br>(사업소득 3.3% 원천징수 예정)</div>
+    </div></div></div></div>
+</div>
+
+<!-- ══════ H 가용시간 ══════ -->
+<h2 id="secH"><span class="n">H</span>가용시간 — 주간 그리드 (보호자 슬롯 스트립의 거울)</h2>
+<div class="rail">
+  <div class="col"><div class="cap"><b>R8</b>가용시간 설정 — 저장 전(dirty)</div>
+    <p class="why">availability.tsx 그대로: 월…일 순, 요일별 <b>가능 / 쉬는 날</b> 토글(잉크 온/오프) + 30분 스테퍼 시작—끝, “전체 적용”(코드는 요일마다 코랄 링크 — 여기선 그리드 아래 잉크 한 줄로 모았고, 코랄은 저장 하나), 안내 문장 두 줄(“30분 단위 · 요일당 1구간 (다구간·휴가 등 예외 일정은 준비 중) / 변경 사항은 내 공개 프로필과 보호자 예약 화면에 즉시 반영돼요”). 코랄 = <b>저장하기 ›</b>; 저장 후엔 “저장됨 ✓” 잉크. 3개 가용성 술어는 그대로 — 통합 금지(DO-NOT-REFACTOR). ‘예약 규칙 (준비 중)’ 섹션은 준비 중 플레이트라 안 그림.</p>
+    <div class="phone"><div class="notch"><span>18:50</span><span>▮▮</span></div><div class="scr">
+      <div class="top"><div class="bk">‹</div><div class="ttl">가용시간 설정</div></div>
+      <div class="pad" style="padding-top:10px">
+        <div class="quiet" style="font-size:12.5px">설정한 시간에만 요청을 받아요 · 주 <b style="color:#111">5</b>일 러닝</div>
+        <div style="margin-top:8px;border-top:1px solid #EEE"><div style="display:flex;align-items:center;gap:6px;padding:7px 0;border-bottom:1px solid #EEE"><b style="width:18px;font-size:15px">월</b><span class="chip on" style="margin:0;padding:4px 8px;font-size:12.5px">가능</span><span style="flex:1"></span><span class="stepper"><span style="width:20px;height:22px">−</span><b style="font-size:13px;min-width:38px;padding:0 2px">06:00</b><span style="width:20px;height:22px">+</span></span><span style="color:#999;font-size:12px">—</span><span class="stepper"><span style="width:20px;height:22px">−</span><b style="font-size:13px;min-width:38px;padding:0 2px">09:00</b><span style="width:20px;height:22px">+</span></span></div><div style="display:flex;align-items:center;gap:6px;padding:7px 0;border-bottom:1px solid #EEE"><b style="width:18px;font-size:15px">화</b><span class="chip on" style="margin:0;padding:4px 8px;font-size:12.5px">가능</span><span style="flex:1"></span><span class="stepper"><span style="width:20px;height:22px">−</span><b style="font-size:13px;min-width:38px;padding:0 2px">06:00</b><span style="width:20px;height:22px">+</span></span><span style="color:#999;font-size:12px">—</span><span class="stepper"><span style="width:20px;height:22px">−</span><b style="font-size:13px;min-width:38px;padding:0 2px">09:00</b><span style="width:20px;height:22px">+</span></span></div><div style="display:flex;align-items:center;gap:6px;padding:7px 0;border-bottom:1px solid #EEE"><b style="width:18px;font-size:15px">수</b><span class="chip on" style="margin:0;padding:4px 8px;font-size:12.5px">가능</span><span style="flex:1"></span><span class="stepper"><span style="width:20px;height:22px">−</span><b style="font-size:13px;min-width:38px;padding:0 2px">18:30</b><span style="width:20px;height:22px">+</span></span><span style="color:#999;font-size:12px">—</span><span class="stepper"><span style="width:20px;height:22px">−</span><b style="font-size:13px;min-width:38px;padding:0 2px">21:00</b><span style="width:20px;height:22px">+</span></span></div><div style="display:flex;align-items:center;gap:6px;padding:7px 0;border-bottom:1px solid #EEE"><b style="width:18px;font-size:15px">목</b><span class="chip on" style="margin:0;padding:4px 8px;font-size:12.5px">가능</span><span style="flex:1"></span><span class="stepper"><span style="width:20px;height:22px">−</span><b style="font-size:13px;min-width:38px;padding:0 2px">06:00</b><span style="width:20px;height:22px">+</span></span><span style="color:#999;font-size:12px">—</span><span class="stepper"><span style="width:20px;height:22px">−</span><b style="font-size:13px;min-width:38px;padding:0 2px">09:00</b><span style="width:20px;height:22px">+</span></span></div><div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid #EEE"><b style="width:18px;font-size:15px;color:#999">금</b><span class="chip" style="margin:0;padding:4px 8px;font-size:12.5px;color:#666">쉬는 날</span></div><div style="display:flex;align-items:center;gap:6px;padding:7px 0;border-bottom:1px solid #EEE"><b style="width:18px;font-size:15px">토</b><span class="chip on" style="margin:0;padding:4px 8px;font-size:12.5px">가능</span><span style="flex:1"></span><span class="stepper"><span style="width:20px;height:22px">−</span><b style="font-size:13px;min-width:38px;padding:0 2px">07:00</b><span style="width:20px;height:22px">+</span></span><span style="color:#999;font-size:12px">—</span><span class="stepper"><span style="width:20px;height:22px">−</span><b style="font-size:13px;min-width:38px;padding:0 2px">11:00</b><span style="width:20px;height:22px">+</span></span></div><div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid #EEE"><b style="width:18px;font-size:15px;color:#999">일</b><span class="chip" style="margin:0;padding:4px 8px;font-size:12.5px;color:#666">쉬는 날</span></div></div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:8px"><span class="quiet" style="font-size:12px">월요일 시간을 나머지 요일에</span><span style="font-size:12.5px;font-weight:800">전체 적용 ›</span></div>
+        <div class="quiet" style="text-align:center;font-size:11.5px;margin-top:8px;line-height:1.5">30분 단위 · 요일당 1구간 (다구간·휴가 등 예외 일정은 준비 중)<br>변경 사항은 내 공개 프로필과 보호자 예약 화면에 즉시 반영돼요</div>
+      </div>
+      <div class="cta"><b>저장하기</b> ›</div>
+    </div></div></div>
+</div>
+
+<div class="foot">
+<b>이 랩이 그린 것 (러너 8화면, 19프레임):</b> R1 홈 3상태(온라인·오프라인·work-gate) · R2 요청함 3(지명+근처 · 일정 변경 · 빈 상태) · R3 인계 3(도착 확인 · 인계 받음 봉인 · 양측 봉인→러닝 시작) · R4 라이브 1 · R5 종료 시트 2(이유 · 컨디션 기록) · R6 반환 3(내 봉인 · 보호자 대기 · 양측 봉인) · R7 완료 1 + 수익 2 · R8 가용시간 1.<br>
+<b>Spec 줄 대응:</b> runner/home — 토글 실값 · 지명 먼저 · 오픈 풀은 active만 · 다음 잡 카드→meetup · 주간 스탯 · 적립/정산 예정 라벨 · 가용시간 요약 · work-gate WHY+액션 · 티어/인증 뱃지 0 ✓ · runner/requests — transition-booking 수락/거절, 지명/오픈/일정변경 세 오브젝트 ✓ · runner/meetup — anchor_name+detail 텍스트, 봉인 둘, 네이버 길찾기 제3자 명시 ✓ · runner/run — 목표 km=예약 km, 개 이름=예약 컨텍스트, run2-&lt;id&gt; private, 페이스 권장, 스냅, 이벤트, 종료→settle-run ✓ · runner/done — settle 결과, 드랍 카드는 실드랍만(없어서 안 그림) ✓ · runner/earnings — ledger_items 월별, 지급은 컷오버 후 문장 ✓ · runner/availability — 실규칙 테이블 ✓.<br>
+<b>코랄 감사 (프레임당 #C6472C 요소 수):</b> R1a 1(수락) · R1b 0 · R1c 1(반환 봉인 찍기 — 알림 줄 점은 앰버) · R2a 1(지명 수락; 근처 수락은 고스트로 내렸음) · R2b 1(새 시간 수락; 지명 수락 고스트로 내렸음) · R2c 0 · R3a 1(도착 확인; 알림 점 앰버) · R3b 1(인계 받음 봉인; 알림 점 앰버로 유지 — 처음엔 코랄 점이었고 CTA와 겹쳐 고침) · R3c 1(러닝 시작; 줄은 세이지) · R4 1(러닝 종료; 페이스 양호는 볼트) · R5a 0(세 이유 동급) · R5b 1(종료하고 기록 남기기) · R6a 1(돌려줬어요 봉인) · R6b 0(라일락 대기, CTA 고스트) · R6c 0(세이지 CTA) · R7a 1(다음 요청 보기) · R7b 0 · R7c 0 · R8 1(저장하기; ‘전체 적용’은 코드의 코랄에서 잉크로 내렸음). 세이지 #119B58·앰버 #C77414·라일락 #6C5CE7은 GO 법의 상태색이고 코랄 예산에 들지 않습니다. 새 hex 0.<br>
+<b>코드가 말해주지 않아 플레이스홀더로 표시한 것:</b> ① R2a “홈 베이스에서 1.2km” — <code>OpenRequest</code>에 픽업 주소/거리 필드 없음(주소는 수락 후 0060 RPC). 뷰에 붙기 전엔 이 줄을 뺄 것. ② R6a “돌려줄 것” 체크 목록 — 반환 화면 자체가 클라이언트에 없음(서버 <code>confirm_return_tx</code>만 있음); 인계 체크의 반대 방향으로 가정. ③ R3c 권장 페이스 “6'30" 안팎” — <code>paceSuggestSec</code>는 실필드지만 표시 포맷은 가정. ④ R7b 내역 숫자는 요율 33%·기본 12,000 가정의 예시값 — 실제 행은 원장이 준다.<br>
+<b>브리프와 다르게 코드를 따른 것:</b> work-gate 이유 = 반환 봉인 미완/incident_review (가용시간 아님, 0092) · 종료 시트 이유 = 강아지 컨디션 / 보호자 요청 / 러너 개인 사유 (‘완주’는 자동 정산이라 시트에 없음; ‘기타’ 없음) · 종료 시트에 사진 없음(run.tsx “사진 약속은 내렸다”) · 인계 CTA 라벨은 코드의 “픽업 장소 도착 확인” / “{dog} 인계 받았어요”(+ 봉인) · ‘출발했어요’ 버튼 없음(runner_enroute 자동) · 완료 화면 코랄은 브리프의 ‘다음 요청 보기’로, 코드의 1차(리뷰 남기기)는 고스트로.<br>
+<b>은퇴시킨 것(랩에서만):</b> 홈 머니 히어로 ₩50pt · 완료 화면 볼트 50pt ‘오늘의 수익’ · 요청함의 초록 실수령 강조 · ‘전체 적용’ 코랄 — 모두 “돈은 한 줄, 코랄은 하나”에 밀렸습니다.
+</div>
+</div></body></html>
