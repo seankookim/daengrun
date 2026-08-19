@@ -281,7 +281,7 @@ export default function Live() {
   // this screen: no fix → no number, stale ≥90s → the number greys out and says how long.
   const laPropsRef = useRef<OwnerLAProps | null>(null);
   const laLast = useRef(0);
-  laPropsRef.current = {
+  const laProps: OwnerLAProps = {
     phase: !hasFix ? 'running' : stale ? 'stale' : 'running',
     dogName,
     runnerName,
@@ -293,6 +293,12 @@ export default function Live() {
     // Local-update nicety only — the server (0079) computes the state that rides real pushes.
     paceState: pace,
   };
+  // Mirror the drawn props into the ref after every commit (no deps) — refs are not written
+  // during render. Declared before the two LA effects below, so effect order guarantees they
+  // read this render's props; the `done` handler above reads it asynchronously and null-checks.
+  useEffect(() => {
+    laPropsRef.current = laProps;
+  });
   // Adopt-or-start (re-entry safe) + per-activity push token registration — needs real identities,
   // so it waits for info. This screen only opens for a live booking, so the state gate holds.
   useEffect(() => {

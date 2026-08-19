@@ -33,7 +33,15 @@ WAYPOINTS=("$@")
 # 20%, not 15%: a 2.31km route was refused against the 2km slot at 15.5% off.
 # The tolerance only needs to keep a route in a sensible catalog slot — the NAME
 # carries the measured km either way, so a wider band cannot launder a distance.
-TOL_PCT="${TOL_PCT:-20}"
+# 45%, not 20%. The target is an INTENT; the measurement is the fact and the NAME
+# carries the measurement whatever the target was — so tolerance cannot launder a
+# distance. What it CAN do is waste a 4-minute browser round trip: routes of 4.48
+# and 3.93 km were refused against 3.2 and 3 km targets, both perfectly good dog
+# routes inside Sean's 1.5-7.5 range, and each had to be rebuilt just to save
+# under its own measured value. The band now only rejects a route that has
+# genuinely run away (the 19 km and 52 km cases), which is the failure it exists
+# to catch. The 1.5-7.5 range check below is the real bound.
+TOL_PCT="${TOL_PCT:-45}"
 # Non-numeric TOL_PCT makes awk compare lexically and pass everything: a 9km
 # route against a 3km target with TOL_PCT=abc returned "yes".
 if ! awk -v p="$TOL_PCT" 'BEGIN { exit !(p ~ /^[0-9]+([.][0-9]+)?$/ && p > 0) }'; then

@@ -337,7 +337,7 @@ const PUB_MIN_MS = 3000;
 //
 // ⚠ private 채널은 PostgREST 토큰이 아니라 **realtime 소켓의 토큰**으로 인가된다. setAuth를
 // 빼먹으면 구독도 발행도 조용히 실패하고, 화면에는 '아직 안 옴'과 구별되지 않는다.
-const REALTIME_PRIVATE = { config: { private: true } } as const;
+export const REALTIME_PRIVATE = { config: { private: true } } as const;
 
 // 토픽 네임스페이스는 **서버 정책과 글자 단위로 맞아야 한다** (0104: `^run2-`). 한 곳에만 둔다 —
 // 세 호출부에 문자열이 흩어져 있으면 다음 범프 때 하나가 남고, 그 증상은 '조용히 빈 지도'다.
@@ -352,14 +352,14 @@ const RUN_TOPIC = (bookingId: string) => `run2-${bookingId}`;
 
 /** 구독/발행 직전에 realtime 소켓을 현재 세션으로 무장시킨다. 인자 없는 setAuth()는
  *  supabase-js가 현재 세션 토큰을 집어 쓴다(2.109). 실패는 삼키지 않고 subscribe 상태로 드러난다. */
-async function armRealtime(): Promise<void> {
+export async function armRealtime(): Promise<void> {
   try { await supabase.realtime.setAuth(); } catch { /* subscribe 상태가 실패를 말한다 */ }
 }
 
 // JWT는 1시간이면 만료된다. 한 시간 넘는 러닝은 실제로 존재하므로, 갱신 때마다 소켓을 다시
 // 무장시키지 않으면 **달리는 도중에** 위치 공유가 끊긴다 — 그리고 그건 '신호 없음'처럼 보인다.
 let authHooked = false;
-function hookTokenRefresh(): void {
+export function hookTokenRefresh(): void {
   if (authHooked) return;
   authHooked = true;
   supabase.auth.onAuthStateChange((event) => {
