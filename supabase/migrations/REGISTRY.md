@@ -150,6 +150,16 @@ everyone to skip claiming, which is worse than no table. **`shared` means "tell 
 edit the same FUNCTION", not "stay out".** Two sessions in one file is usually fine; the same
 function is the problem.
 
+⚠ **A CLEAN-MERGE REPORT IS NOT THE MERGE YOU ARE ABOUT TO PERFORM — route geometry,
+2026-08-14.** They were told their branch merged clean into trunk: `git merge-tree`, 0 conflicts.
+Performing the merge produced **three real conflicts**, one in `app/src/lib/api.ts`, where trunk
+carried a `normalizeTrace()` fix for a bug THEY had introduced and their branch did not have it.
+Trusting the clean report would have silently reverted the fix for their own defect, in the exact
+file it lived in. **A `merge-tree` run against a different base answers a different question.**
+Re-run it against the base you will actually merge into, immediately before merging — or just
+perform the merge and read the conflicts. Same family as the tree-name hazard below and as
+`migration list`'s "up to date": a well-formed report about a *slightly different world*.
+
 ⚠ **A TREE NAME CAN GO STALE UNDER YOU — dated 2026-08-14, found by it happening.** The trust
 session's worktree was recycled mid-session from `deploy-edge-functions-money-68e990` to
 `lucid-neumann-580f5e`, same branch, same work. Both its claim rows on origin went on naming a
