@@ -195,7 +195,22 @@ in the background for weeks) or commit to manual and delete the charge machine.*
 Consequence either way: the no-card empty state **is** the pilot, and the current payment surface
 implies automation that does not exist — an honesty-law item, now client's to fix once you pick.
 
-## 0-decies. 🟡 LOOKUP — trust is offline and nobody is rebuilding 0105, the last open P0 (announcer v3, 2026-08-19 evening)
+## 0-decies. ✅→📋 CLOSED AT THE BOUNDARY under your default — 0111 DEPLOYED late 2026-08-19; only D1/D2 remains yours
+
+**Outcome (measured, not relayed):** with no answer from you, default **A** ran: contract → attacked in a
+scratch cluster (21/21, B-3 reproduced) → F1–F12 folded → 0111 implemented (harness 655/0, Deno 191/0,
+eight mutations) → independent adversarial reviewer (FIX-FIRST on a fare-blind belt claim; fence
+unbreakable by direct / CTE / INSERT…SELECT / view / definer / role) → round 2 (657/0) → trunk →
+`create-booking-hold` v9 + 0111 applied via the wrapper → verified live: client INSERT on
+`bookings`/`recurring_series`/`slot_holds` = 0 grants, forged INSERT and forged series UPDATE as
+`authenticated` → 42501 (rolled back), `paused` is the only client-writable series column, cron +
+service_role untouched. 0105 file deleted, HELD empty, REGISTRY rows 0105 SUPERSEDED / 0111 DEPLOYED.
+**/cso #2 is PARTIALLY CLOSED:** F1/F3/F4 closed; **F2 stays open** — the legit nomination chain (own
+dog → `payment_ok` → `request_runner` = any runner, no acceptance) still opens chat/push/reviews/incidents
+because `is_booking_party` has no status filter. That is **your D1/D2 below**; it decides the shape of
+the adjacent slice, and nobody builds it until you answer. Original lookup text kept below for the record.
+
+## 0-decies (original). 🟡 LOOKUP — trust is offline and nobody is rebuilding 0105, the last open P0 (announcer v3, 2026-08-19 evening)
 
 –––––REPORT–––––
 **Measured, not relayed:** trust's session has been off the roster for hours. The 0105 *file* is on
