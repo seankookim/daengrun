@@ -145,5 +145,9 @@ two false "stranded work" alarms on day one.
   timestamp bump proves it).
 - **A green suite hides a defect only when a pin and a false environment assumption are wrong
   together** — pin the assumption too (harness routes table was asserted empty; 0078 seeds nine).
+- **A constraint's presence is not evidence of enforcement — attempt the write.** A disarmed
+  predicate (body swapped for `select true`) leaves `\d`, `pg_constraint` and `convalidated` all
+  reading protected while the table enforces nothing. Pins must try to store a bad value and watch;
+  counting constraints is the `NaN > 50` scan wearing SQL.
 - **Trust review is standing:** any slice touching RLS, policies, grants, or `search_path` goes
   to trust at PLAN time, not push time. And a reviewer never reviews their own build.

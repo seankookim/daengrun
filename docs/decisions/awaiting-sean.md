@@ -11,9 +11,37 @@
 > `s4kim2025`, handle `choco`) · **§0-ter ✅ all 9 runners are TEST DATA** — trust marks them in
 > `club_test_accounts` and the flag/copy gets fixed · **§0-sexies ✅ option A** — start the
 > paperwork chain, keep the charge machine; payment-surface honesty fix unblocked · **§0-septies ✅
-> confirmed** — `aa73ce8a…` IS `s4kim2025`, recorded as the PR-0 test owner · **위치정보법 brief
+> confirmed** — Sean's word: the `s4kim2025` test account exists; the mapping `aa73ce8a…` =
+> `s4kim2025` (handle `choco`) is a *measurement* (trust verified it unique). Recorded as the
+> PR-0 test owner — two facts, two provenances · **위치정보법 brief
 > delivered** at `docs/biz/location-law-counsel-brief.md` · **hill notes: yes, ~40 m** ("언덕
 > 많음"), ui builds.
+
+> **⚡ 2026-08-15, later: SIGN-IN RULED.** Context: the app's two doors were Kakao OAuth and a
+> 6-digit **email** code — no phone/SMS path ever existed. Sean: *"for sign up i always used kakao
+> and never the email thing. dont use an email, use phone number. also, we have a text code double
+> verification on the phone number pathway?"* — answered (no such pathway exists), options given,
+> and he ruled: *"b"* = **KAKAO ONLY for the pilot; the email path is removed; phone/SMS deferred.**
+> ui removes the email stages from `login.tsx`; trust verifies the server accepts only what the
+> client offers (an email door left open server-side is a signup path outside the app); the
+> TestFlight install-day check becomes "Kakao sign-in works on a real phone."
+
+> **⚡ 2026-08-15, later: OPS DASHBOARD LOCATION RULED.** Sean: *"B. a simple web build is fine."*
+> — the dashboard is a **standalone local web tool on his computer**, not an in-app screen. So:
+> no new party-gated read RPC, no migration number, trust's §6 question is answered, and the tool
+> reads the two service-role detection functions from a local server on his machine only (the
+> service key never ships in any client). ui builds the page against trust's read contract; trust
+> reviews the key handling. The in-app version and the push emitter (nothing emits today —
+> 0096/0097 are pull-only) both remain open items, deliberately unsmuggled into this slice.
+
+> **⚡ 2026-08-15, later: STANDING AUTONOMY GRANT.** Sean, verbatim: *"tell the conversations they
+> dont have to ask me for permission on things they have fruitful as i want full speed on this app
+> production."* **[end of Sean's words]** Applied as: sessions build, gate, and ship fruitful work
+> on their owned surfaces WITHOUT asking first. What this does NOT waive (structural, not
+> ceremony): credential VALUES stay physically his · facts only he holds still require his answer ·
+> irreversible destruction of real production data still gets one confirmation · every quality gate
+> (harness, /autoplan on migrations and money paths, trust's plan-time review, the commit gates)
+> stays — those are how full speed stays speed instead of rework.
 
 **Purpose: this queue existed only inside one session's conversation.** The announcing session
 asked for it to be written down, applying the day's first rule to itself: *unpushed reserves

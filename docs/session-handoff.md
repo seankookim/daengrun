@@ -1,3 +1,35 @@
+# CATALOG — `routes.trace` has an element contract (0099, 2026-08-15)
+
+**`routes.trace` and `routes.trace_thumb` are now constrained: an array of `{lat, lng}` objects,
+exactly those two keys, every point inside Korea (lat 33-39, lng 124-132).** Live in production;
+both constraints validated WITHOUT `not valid`, so all 5,467 existing points are proven, not
+assumed. Enforcement probed live: an `[lat,lng]` write and a transposed point are both refused, a
+valid write is accepted.
+
+**Why bounds and not just shape:** a transposed point is a well-formed object with numeric lat and
+lng, and it is 4,800 km into the Yellow Sea. It passes every shape test. The bounds literals are
+copied from `0082:251` verbatim — two definitions of "in Korea" will drift, one cannot drift from
+itself. Note the two are different in KIND on purpose: 0082 FILTERS a client-written run trace,
+0099 REFUSES a curated catalog row.
+
+**The three tolerant readers downstream can retire when their owners choose** — client's
+`normalizeTrace()`, ui's `routeDisplayName()`, route-geometry's shape-tolerant `route-guidance.mjs`.
+Nothing forces them to; the database simply no longer needs them. Coordinate before deleting.
+
+⚠ **`t` and `v` are now unstorable on this table**, which is a privacy boundary and not tidiness:
+`routes` is anon-readable (`using (true)`, 0082 §A-4), so a timed point publishes when a runner was
+at a coordinate to anyone with the shipped public key. 0082's promotion already stripped them; this
+makes it a property of the TABLE so a writer that does not know cannot leak. **trust should review
+this** — it narrows an anon-readable surface. If a per-point field is ever wanted, relax the
+key-count arm of `_route_trace_is_coordinates` in a numbered migration and say why.
+
+⚠ **`runs.trace` is deliberately untouched** — it legitimately carries `t`/`v`, and suites 60/68/96
+exercise that. Constraining it is a different decision on a different threat model.
+
+Remaining catalog item, not started: km embedded in `routes.name` disagreeing with the `km` column
+after rounding (`잠원 한신2차 리버 루프 2.78km` beside `km=2.8`). ui patched it at display and
+flagged the patch as a patch.
+
 # CATALOG — `routes.elevation_gain_m` is LIVE (0098, 2026-08-14)
 
 **`routes.elevation_gain_m` exists in production and is backfilled.** Measured after the push,
