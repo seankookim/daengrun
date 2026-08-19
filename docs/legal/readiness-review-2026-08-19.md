@@ -395,13 +395,16 @@ The account is `s4kim2025`, which Sean identified as his own test account in his
 the same day ("i do have a test account under user id s4kim2025"), relayed by the announcer
 session. So **"no third party's location was ever on the channel" is established, not inferred.**
 
-Two residual epistemics, small but worth stating because this is the sentence a lawyer will rely
-on. `profiles.name` is a user-settable field, so it is an identifier by convention rather than an
-authenticated identity; and Sean's confirmation reached this session relayed rather than directly.
-Neither is a realistic doubt — one account, one name, and the operator saying it is his — but the
-claim that does the legal work is *"the only affected data subject is the operator himself,"* and
-that half rests on Sean's statement rather than on anything measured here. **One word from Sean
-converts it from well-evidenced to settled**, and it costs nothing to get.
+**Settled 2026-08-19 in Sean's own words: "s4kim2025 is my account."** With the measurement above
+— one account, both roles, all 9 runs — the sentence counsel needs is now fact rather than
+convention: **the only data subject whose location was on the public channel during those 25 days
+was the operator himself.**
+
+Provenance, recorded rather than glossed: the measurement is this session's own; Sean's
+confirmation arrived relayed through the announcer session rather than typed here. That is the
+ordinary way a ruling travels in this fleet and it is written down for the same reason the rest of
+this file is — so a later reader can see which half was measured and which half was told. If the
+relay is wrong, this is the line to correct.
 
 ## 7. The question with a clock, and it is not yet asked
 
