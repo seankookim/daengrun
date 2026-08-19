@@ -39,3 +39,9 @@ app/.agents/
 app/.claude/
 app/agent/
 app/skills-lock.json
+
+# Raw Overpass responses for the FEATURES harvest (34MB). The derived
+# features.json is committed; these are regenerable by harvest-features.mjs and
+# that harvest is complete, so nothing depends on them. The residential caches in
+# _raw/ ARE kept: that harvest is 13/25 done and they make it resumable at zero cost.
+docs/routes/geo/_rawf/
