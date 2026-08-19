@@ -70,9 +70,19 @@ for DOG_QUERY in "$START" "${WAYPOINTS[@]}"; do
   esac
 done
 
-if [ "${#WAYPOINTS[@]}" -lt 5 ] || [ "${#WAYPOINTS[@]}" -gt 8 ]; then
-  echo "    REFUSING: ${#WAYPOINTS[@]} waypoint(s). The validated route method"
-  echo "    requires 5-8 waypoints spread by compass bearing around the anchor." >&2
+# 2-4 waypoints. Sean, 2026-08-19, looking at the built routes on a map:
+# "there are too many spiky points and seen-twice routes ... those are
+# unnecessary ... all routes should not have too many way points. maybe less
+# than four or five max. two or three way points excluding the start/end point
+# should be the sweet spot."
+#
+# This REPLACES the 5-8 rule. That rule came from a real measurement — 2-3
+# waypoints produced 78-81% retrace — but the cure was worse than the disease:
+# forcing 5-8 points around a tight anchor makes the router zigzag between them,
+# which is exactly the spikiness visible on the map. Retrace went down and the
+# route stopped looking like something a person would walk.
+if [ "${#WAYPOINTS[@]}" -lt 2 ] || [ "${#WAYPOINTS[@]}" -gt 4 ]; then
+  echo "    REFUSING: ${#WAYPOINTS[@]} waypoint(s). Use 2-4 (2-3 is the sweet spot)." >&2
   exit 2
 fi
 

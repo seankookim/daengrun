@@ -1,15 +1,25 @@
 #!/usr/bin/env node
 // plan-route.mjs "<complex name>" [targetKm] — emit a ready-to-run build command.
 //
-// THE POINT: waypoint ORDER, not waypoint choice. Six features inside a 350 m
-// cluster produced a 19.24 km route, because the router must visit them in the
-// order given and an order that zigzags makes it cross the cluster repeatedly.
-// Every anchor resolved correctly; the ORDER was the whole defect.
+// METHOD, per Sean's review of the built routes on a map (2026-08-19):
 //
-// Fix: sort candidates by COMPASS BEARING from the start anchor, so the route
-// sweeps once around the block instead of criss-crossing it. Then pick a radius
-// band that matches the target distance, because a loop's length is set by how
-// far out its waypoints sit, not by how many there are.
+//   "if the resident area and the river/park area is near by, ... start from the
+//    residential area and go first and foremost to these geographical areas,
+//    then make a route there before turning back with either the same or a
+//    different route back. if there are no parks or rivers near by, make a
+//    simple loop. all routes should not have too many way points."
+//
+// So the shape is DESTINATION-LED, not a ring of waypoints:
+//   1. find the best green/blue destination within reach — river, stream, lake,
+//      park, trail. This is what the route is FOR.
+//   2. spend the route there: a second point inside or along it, so the dog run
+//      happens on the green rather than merely touching it.
+//   3. come back, ideally by a different street.
+// and if there is no such destination, a plain 2-point loop through streets.
+//
+// 2-3 waypoints, never more. The previous version aimed for 5-8 spread by
+// bearing, which lowered retrace but made the router zigzag between points —
+// the visible spikiness Sean flagged. Fewer, better-chosen points beat more.
 
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -32,86 +42,72 @@ const bearing = (a, b) => {
   const x = Math.cos(rad(a.lat)) * Math.sin(rad(b.lat)) - Math.sin(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.cos(dLon);
   return (deg(Math.atan2(y, x)) + 360) % 360;
 };
+const angDiff = (a, b) => { const d = Math.abs(a - b) % 360; return d > 180 ? 360 - d : d; };
+
+// A waypoint must be a place you could type into a search box — see the SKIP
+// list's history: OSM names plenty of real objects that are not searchable
+// places, and the geocoder answers those with silence or with something far away.
+const SKIP = new RegExp([
+  '어린이공원','지하차도','지하보도','지하철','출구','무명','\\(무명\\)',
+  '연결다리','급식실','학교','교회','성당','^다리$','^보행교$','^육교$','^계단$','^터널$',
+].join('|'));
+const UNSEARCHABLE = (n) => !n || n.length > 18 || /되어|편입|폐쇄|예정|공사/.test(n);
+const ok = (f) => f.name && f.name !== '(unnamed crossing)' && !SKIP.test(f.name) && !UNSEARCHABLE(f.name);
+
+// What the route is FOR, best first. A stream or river beats a park: it is
+// linear, so the route can run ALONG it rather than just reaching it.
+const DEST_RANK = { stream: 0, lake: 1, park: 2, trail: 3, hill: 4 };
 
 const wanted = process.argv[2];
 const targetKm = Number(process.argv[3] || 3);
 const start = res.find((r) => r.name === wanted) || res.find((r) => (r.name || '').includes(wanted));
 if (!start) { console.error(`no complex matching "${wanted}"`); process.exit(1); }
 
-// A loop through points at radius r is NOT 2*pi*r — streets do not run in
-// circles. MEASURED on three builds, all at ideal radius 477 m:
-//   동작 6.07 km · 마포 5.74 km · (성동 10.39 km, crossings forced detours)
-// so the real ratio is ~1.9-2.0x the circle. The first version used the bare
-// circumference and overshot every target by roughly double, which reads as
-// "the router is wrong" when it is the estimate that is wrong.
-const DETOUR = 1.95;
-const ideal = (targetKm * 1000) / (2 * Math.PI * DETOUR);
-// Wide SEARCH window, tight PREFERENCE. Narrowing the window with the radius
-// starved the sectors — at a 245 m ideal only 2 of 5 filled, and a 3-waypoint
-// plan is refused downstream. Candidates are still ranked by nearest-to-ideal,
-// so a wide window costs nothing when the map is dense and saves the anchor
-// when it is not.
-const lo = ideal * 0.40, hi = ideal * 3.2;
+// Out-and-back-ish: the destination sits roughly a third of the route away.
+const reach = Math.max(400, (targetKm * 1000) / 3.2);
+const near = feats.filter(ok).map((f) => ({ ...f, d: hav(start, f), b: bearing(start, f) }));
 
-// A waypoint must be something a person could TYPE INTO A SEARCH BOX, because
-// that is literally how it reaches the router. OSM names plenty of real objects
-// that are not searchable places: "보행교 (무명)" is an unnamed footbridge,
-// "급식실 연결다리" is a school canteen walkway, and one entry is a whole
-// sentence describing a road that was absorbed into a park. Feeding those to the
-// geocoder returns nothing, or worse returns a same-named thing far away.
-const SKIP = new RegExp([
-  '어린이공원','지하차도','지하보도','지하철','출구',   // too small, or not dog terrain
-  '무명','\\(무명\\)',                                 // explicitly unnamed
-  '연결다리','급식실','학교','교회','성당',              // private/institutional
-  '^다리$','^보행교$','^육교$','^계단$','^터널$',        // generic nouns, not names
-].join('|'));
-const UNSEARCHABLE = (n) => n.length > 18 || /되어|편입|폐쇄|예정|공사/.test(n);
-const cands = feats
-  .filter((f) => f.name && f.name !== '(unnamed crossing)' && !SKIP.test(f.name) && !UNSEARCHABLE(f.name))
-  .filter((f) => ['park', 'stream', 'lake', 'hill', 'trail', 'crossing'].includes(f.category))
-  .map((f) => ({ ...f, d: hav(start, f), b: bearing(start, f) }))
-  .filter((f) => f.d >= lo && f.d <= hi);
+const dests = near
+  .filter((f) => f.d <= reach * 1.6 && DEST_RANK[f.category] !== undefined)
+  .sort((a, b) => (DEST_RANK[a.category] - DEST_RANK[b.category]) || Math.abs(a.d - reach) - Math.abs(b.d - reach));
 
-// One per bearing sector, nearest the ideal radius: this is what makes the sweep
-// even instead of clustering three waypoints on one side.
-const SECTORS = 5;
-const picked = [];
-for (let s = 0; s < SECTORS; s++) {
-  const a0 = (360 / SECTORS) * s, a1 = a0 + 360 / SECTORS;
-  const inSector = cands.filter((f) => f.b >= a0 && f.b < a1);
-  if (!inSector.length) continue;
-  inSector.sort((x, y) => Math.abs(x.d - ideal) - Math.abs(y.d - ideal));
-  picked.push(inSector[0]);
+const plan = [];
+let why = '';
+if (dests.length) {
+  const dest = dests[0];
+  plan.push(dest);
+  why = `${dest.category} at ${Math.round(dest.d)}m`;
+  // Spend the route ON the destination: a second feature of the same kind, or
+  // anything further along the same bearing, so the green section has length.
+  // Cap the "spend time there" point close to the destination, not merely
+  // beyond it. At reach*2.2 it kept landing ~2 km out (강서 2013 m, 도봉 2004 m)
+  // and doubled the route: an 8.32 km result against a 3 km target, twice.
+  // Sorting by FURTHEST within the window made it worse — it deliberately chose
+  // the far edge. Nearest-to-destination is what "along the river" means.
+  const along = near.filter((f) => f.name !== dest.name && f.d > dest.d * 0.8 && f.d <= dest.d * 1.6
+      && angDiff(f.b, dest.b) < 65)
+    .sort((a, b) => (DEST_RANK[a.category] ?? 9) - (DEST_RANK[b.category] ?? 9) || a.d - b.d);
+  if (along.length) { plan.push(along[0]); why += ` + ${along[0].category} beyond it`; }
+  // One return point, well off the outbound bearing, so the way home differs.
+  const back = near.filter((f) => !plan.some((p) => p.name === f.name)
+      && f.d >= dest.d * 0.5 && f.d <= reach * 1.5 && angDiff(f.b, dest.b) > 95)
+    .sort((a, b) => Math.abs(a.d - reach * 0.8) - Math.abs(b.d - reach * 0.8));
+  if (back.length && plan.length < 3) { plan.push(back[0]); why += ' + a different way back'; }
+} else {
+  // No green destination in reach — a plain loop through whatever is there.
+  const ring = near.filter((f) => f.d >= reach * 0.5 && f.d <= reach * 1.8)
+    .sort((a, b) => a.b - b.b);
+  const picks = [];
+  for (const f of ring) if (!picks.length || angDiff(f.b, picks[picks.length - 1].b) > 90) picks.push(f);
+  plan.push(...picks.slice(0, 3));
+  why = 'no park or water in reach — plain loop';
 }
-// Fill empty sectors from the widest remaining bearing gap rather than failing:
-// a missing sector means no feature lies that way, which is geography, not a
-// reason to abandon the anchor. The replacement goes where the sweep is thinnest
-// so the ring stays as even as the map allows.
-const chosen = new Set(picked.map((f) => f.id));
-while (picked.length < 5) {
-  picked.sort((a, b) => a.b - b.b);
-  let gapAt = 0, gapSize = -1;
-  for (let i = 0; i < picked.length; i++) {
-    const cur = picked[i].b, nxt = picked[(i + 1) % picked.length].b;
-    const g = (nxt - cur + 360) % 360;
-    if (g > gapSize) { gapSize = g; gapAt = (cur + g / 2) % 360; }
-  }
-  const rest = cands.filter((f) => !chosen.has(f.id));
-  if (!rest.length) break;
-  rest.sort((x, y) => {
-    const dx = Math.min(Math.abs(x.b - gapAt), 360 - Math.abs(x.b - gapAt));
-    const dy = Math.min(Math.abs(y.b - gapAt), 360 - Math.abs(y.b - gapAt));
-    return dx - dy;
-  });
-  picked.push(rest[0]); chosen.add(rest[0].id);
-}
-picked.sort((a, b) => a.b - b.b);          // sweep once around
 
-if (picked.length < 5) {
-  console.error(`only ${picked.length} usable features near this anchor at ${targetKm}km — pick another anchor`);
-}
-console.error(`${start.name} (${start.gu})  ideal radius ${Math.round(ideal)}m, band ${Math.round(lo)}-${Math.round(hi)}m`);
-for (const f of picked) console.error(`  ${String(Math.round(f.b)).padStart(3)}°  ${String(Math.round(f.d)).padStart(4)}m  ${f.category.padEnd(8)} ${f.name}`);
+if (plan.length < 2) { console.error(`only ${plan.length} usable feature(s) near ${start.name} — pick another anchor`); process.exit(1); }
+
+console.error(`${start.name} (${start.gu})  target ${targetKm}km  →  ${why}`);
+for (const f of plan) console.error(`  ${String(Math.round(f.d)).padStart(4)}m  ${String(Math.round(f.b)).padStart(3)}°  ${f.category.padEnd(7)} ${f.name}`);
 
 const q = (s) => `"${s}"`;
-console.log(`./build-route.sh ${q(start.gu.replace('구', '') + ' ' + (picked[0]?.name || '') + ' 루프')} ${q(start.lat.toFixed(4) + '/' + start.lng.toFixed(4))} ${targetKm} ${q(start.name)} ${picked.map((f) => q(f.name)).join(' ')}`);
+const label = `${start.gu.replace('구','')} ${plan[0].name} 루프`;
+console.log(`./build-route.sh ${q(label)} ${q(start.lat.toFixed(4) + '/' + start.lng.toFixed(4))} ${targetKm} ${q(start.name)} ${plan.map((f) => q(f.name)).join(' ')}`);

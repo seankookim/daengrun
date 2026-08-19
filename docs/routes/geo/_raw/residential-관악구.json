@@ -1,0 +1,7729 @@
+{
+  "version": 0.6,
+  "generator": "Overpass API 0.7.62.11 87bfad18",
+  "osm3s": {
+    "timestamp_osm_base": "2026-08-19T04:05:46Z",
+    "timestamp_areas_base": "2026-08-18T13:29:02Z",
+    "copyright": "The data included in this document is from www.openstreetmap.org. The data is made available under ODbL."
+  },
+  "elements": [
+
+{
+  "type": "node",
+  "id": 357842170,
+  "lat": 37.4945745,
+  "lon": 126.9273466,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "보라매삼성아파트.모자원고개",
+    "name:en": "Boramae Samsung Apartments.Mojawon Hill",
+    "name:ko": "보라매삼성아파트.모자원고개",
+    "public_transport": "platform",
+    "route_ref": "461;5516;5614;5612;6514;6513;5535;153;5011;504"
+  }
+},
+{
+  "type": "node",
+  "id": 357844597,
+  "lat": 37.4844556,
+  "lon": 126.9467071,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "은천동두산아파트3단지",
+    "name:en": "Euncheon-dong Doosan Apt. 3danji",
+    "name:ko": "은천동두산아파트3단지",
+    "public_transport": "platform",
+    "route_ref": "500"
+  }
+},
+{
+  "type": "node",
+  "id": 357844608,
+  "lat": 37.4893600,
+  "lon": 126.9458300,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "은천동벽산블루밍아파트105동",
+    "public_transport": "platform",
+    "route_ref": "500"
+  }
+},
+{
+  "type": "node",
+  "id": 357854169,
+  "lat": 37.4813558,
+  "lon": 126.9112483,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "관악구보훈회관.신림푸르지오",
+    "name:en": "Gwanak-gu Veterans Hall, Silim Purugio Apt.",
+    "name:ko": "관악구보훈회관.신림푸르지오",
+    "name:ko-Latn": "Gwanakgubohunhoegwan",
+    "public_transport": "platform",
+    "ref": "21112",
+    "route_ref": "651;5528;5615;500;5413;504;5535;5616;6512;5530"
+  }
+},
+{
+  "type": "node",
+  "id": 357855271,
+  "lat": 37.4882262,
+  "lon": 126.9577736,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "성현동동아아파트",
+    "public_transport": "platform",
+    "route_ref": "750;5517;5514;5511;5512;501;5513;641;650;506",
+    "wheelchair": "limited"
+  }
+},
+{
+  "type": "node",
+  "id": 357885011,
+  "lat": 37.4870608,
+  "lon": 126.9451248,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "벽산블루밍아파트서울관광고등학교",
+    "name:en": "Byeoksan Blue Ming Apt. Seoul Tourism High School",
+    "name:ko": "벽산블루밍아파트서울관광고등학교",
+    "name:ko-Latn": "Byeoksanbeullumingapateuseoulgwangwanggodeunghakgyo",
+    "public_transport": "platform",
+    "route_ref": "5011;5612;5526;5524;6511"
+  }
+},
+{
+  "type": "node",
+  "id": 357896215,
+  "lat": 37.4830526,
+  "lon": 126.9016142,
+  "tags": {
+    "bench": "yes",
+    "bin": "no",
+    "bus": "yes",
+    "highway": "bus_stop",
+    "lit": "yes",
+    "name": "구로디지털단지역",
+    "name:en": "Guro Digital Complex Station",
+    "name:ko": "구로디지털단지역",
+    "name:ko-Latn": "Gurodijiteoldanjiyeok",
+    "public_transport": "platform",
+    "public_transport:version": "2",
+    "ref": "17-013",
+    "route_ref": "5623;5620;5534;150;507;5625;6512;5531;5713;5616;5633;505",
+    "shelter": "yes",
+    "tactile_paving": "yes",
+    "wheelchair": "yes"
+  }
+},
+{
+  "type": "node",
+  "id": 357896347,
+  "lat": 37.4841252,
+  "lon": 126.9024807,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "구로디지털단지역",
+    "name:en": "Guro Digital Complex Station",
+    "name:ko": "구로디지털단지역",
+    "name:ko-Latn": "Gurodijiteoldanjiyeok",
+    "public_transport": "platform",
+    "public_transport:version": "2",
+    "route_ref": "5623;150;5531;5534;507;6512;5633;5713;5625;5616;505;5620;5536"
+  }
+},
+{
+  "type": "node",
+  "id": 357898533,
+  "lat": 37.4612294,
+  "lon": 126.9254144,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "삼성산주공아파트",
+    "name:en": "Samseongsanjugong Apt.",
+    "name:ko": "삼성산주공아파트",
+    "name:ko-Latn": "Samseongsanjugongapateu",
+    "public_transport": "platform",
+    "route_ref": "5412;152;5517;5522;5517"
+  }
+},
+{
+  "type": "node",
+  "id": 357899200,
+  "lat": 37.4910161,
+  "lon": 126.9572925,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "청림동현대아파트입구",
+    "public_transport": "platform",
+    "wheelchair": "limited"
+  }
+},
+{
+  "type": "node",
+  "id": 357899203,
+  "lat": 37.4877898,
+  "lon": 126.9581632,
+  "tags": {
+    "bench": "yes",
+    "bin": "no",
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "관악푸르지오아파트",
+    "name:en": "Gwanak Prugio Apt.",
+    "name:ko": "관악푸르지오아파트",
+    "name:ko-Latn": "Gwanak Prugio apateu",
+    "public_transport": "platform",
+    "route_ref": "5512;5511;501;5517;750;5514;5513;650;641;506",
+    "shelter": "yes",
+    "tactile_paving": "yes",
+    "wheelchair": "limited"
+  }
+},
+{
+  "type": "node",
+  "id": 357899352,
+  "lat": 37.4919193,
+  "lon": 126.9441439,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "벽산블루밍벽산아파트303동앞",
+    "name:en": "Byeoksan Blue Mingbyeoksan Apt. 303 Dong Front",
+    "name:ko": "벽산블루밍벽산아파트303동앞",
+    "name:ko-Latn": "Byeoksanbeullumingbyeoksanapateu 303 Dongap",
+    "public_transport": "platform",
+    "route_ref": "5513"
+  }
+},
+{
+  "type": "node",
+  "id": 357899851,
+  "lat": 37.4754747,
+  "lon": 126.9363358,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "서림동주민센터. 신화단지앞",
+    "name:en": "Seorim-dong Community Service Center. Sinhwadanji Front",
+    "name:ko": "서림동주민센터. 신화단지앞",
+    "name:ko-Latn": "seolimdongjuminsenteoSinhwadanjiap",
+    "public_transport": "platform",
+    "route_ref": "5516;6513;152;5528;5518;6514;5614;5517;5522;5519"
+  }
+},
+{
+  "type": "node",
+  "id": 357900131,
+  "lat": 37.4597587,
+  "lon": 126.9274193,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "산장아파트",
+    "name:en": "Sanjang Apt.",
+    "name:ko": "산장아파트",
+    "name:ko-Latn": "Sanjangapateu",
+    "public_transport": "platform",
+    "route_ref": "5517;5522;5517;152;5412"
+  }
+},
+{
+  "type": "node",
+  "id": 357900508,
+  "lat": 37.4892389,
+  "lon": 126.9192446,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "우방아파트",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 357900667,
+  "lat": 37.4611172,
+  "lon": 126.9251364,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "삼성산주공아파트",
+    "name:en": "Samseongsanjugong Apt.",
+    "name:ko": "삼성산주공아파트",
+    "name:ko-Latn": "Samseongsanjugongapateu",
+    "public_transport": "platform",
+    "route_ref": "5517;5517;5522;152;5412"
+  }
+},
+{
+  "type": "node",
+  "id": 357900862,
+  "lat": 37.4611105,
+  "lon": 126.9218474,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "관악산휴먼시아아파트1단지입구",
+    "name:en": "Gwanaksan Human Sia Apt. 1 Danji Entrance",
+    "name:ko": "관악산휴먼시아아파트1단지입구",
+    "name:ko-Latn": "Gwanaksanhyumeonsiaapateu 1 Danjiipgu",
+    "public_transport": "platform",
+    "route_ref": "5522"
+  }
+},
+{
+  "type": "node",
+  "id": 357900865,
+  "lat": 37.4609200,
+  "lon": 126.9219400,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "관악산휴먼시아아파트1단지입구",
+    "name:en": "Gwanaksan Human Sia Apt. 1 Danji Entrance",
+    "name:ko": "관악산휴먼시아아파트1단지입구",
+    "name:ko-Latn": "Gwanaksanhyumeonsiaapateu 1 Danjiipgu",
+    "public_transport": "platform",
+    "route_ref": "5522"
+  }
+},
+{
+  "type": "node",
+  "id": 357900884,
+  "lat": 37.4603411,
+  "lon": 126.9273927,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "산장아파트",
+    "name:en": "Sanjang Apt.",
+    "name:ko": "산장아파트",
+    "name:ko-Latn": "Sanjangapateu",
+    "public_transport": "platform",
+    "route_ref": "5522;5412;152;5517;5517"
+  }
+},
+{
+  "type": "node",
+  "id": 357901244,
+  "lat": 37.4862668,
+  "lon": 126.9519271,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "관악동부센트레빌아파트앞",
+    "name:en": "gwanakdongbusenteurebil Apt.",
+    "name:ko": "관악동부센트레빌아파트앞",
+    "name:ko-Latn": "gwanakdongbusenteurebirapateu",
+    "public_transport": "platform",
+    "route_ref": "5524;6511"
+  }
+},
+{
+  "type": "node",
+  "id": 357901409,
+  "lat": 37.4834442,
+  "lon": 126.9059015,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "조원힐스테이트뉴포레아파트",
+    "name:ko": "조원힐스테이트뉴포레아파트",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 357901414,
+  "lat": 37.4837194,
+  "lon": 126.9026948,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "구로디지털단지역",
+    "name:en": "Guro Digital Danji Station",
+    "name:ko": "구로디지털단지역",
+    "name:ko-Latn": "Gurodijiteoldanjiyeok",
+    "public_transport": "platform",
+    "route_ref": "5524"
+  }
+},
+{
+  "type": "node",
+  "id": 357901770,
+  "lat": 37.4864600,
+  "lon": 126.9512600,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "관악동부센트레빌아파트앞",
+    "name:en": "Gwanakdongbusenteurebil Apt. Front",
+    "name:ko": "관악동부센트레빌아파트앞",
+    "name:ko-Latn": "Gwanakdongbusenteurebirapateuap",
+    "public_transport": "platform",
+    "route_ref": "5524;6511"
+  }
+},
+{
+  "type": "node",
+  "id": 357901899,
+  "lat": 37.4897046,
+  "lon": 126.9220312,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "보라매파크뷰아파트",
+    "name:en": "Boramaegapeul Apt.",
+    "name:ko-Latn": "Boramaegapeurapateu",
+    "public_transport": "platform",
+    "route_ref": "5526;6511;5524"
+  }
+},
+{
+  "type": "node",
+  "id": 357901965,
+  "lat": 37.4868483,
+  "lon": 126.9452094,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "벽산블루밍아파트서울관광고교앞",
+    "name:en": "Byeoksan Blue Ming Apt. Seoul Gwangwang High School Front",
+    "name:ko": "벽산블루밍아파트서울관광고교앞",
+    "name:ko-Latn": "Byeoksanbeullumingapateuseoulgwangwanggogyoap",
+    "public_transport": "platform",
+    "route_ref": "5526;5011;5612;5524;6511"
+  }
+},
+{
+  "type": "node",
+  "id": 357902389,
+  "lat": 37.4759639,
+  "lon": 126.9738621,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "예술인마을사당초등학교",
+    "name:en": "Art In Village Sadang Elementary School",
+    "name:ko": "예술인마을사당초등학교",
+    "name:ko-Latn": "Yesulinmaeulsadangchodeunghakgyo",
+    "public_transport": "platform",
+    "ref": "21125",
+    "route_ref": "9-3;461;641;643;5413;5524;5528;5530"
+  }
+},
+{
+  "type": "node",
+  "id": 1793224802,
+  "lat": 37.4643590,
+  "lon": 126.9579711,
+  "tags": {
+    "barrier": "toll_booth",
+    "entrance": "yes",
+    "name": "서울대학교 후문",
+    "name:ko": "서울대학교 후문"
+  }
+},
+{
+  "type": "node",
+  "id": 4562088363,
+  "lat": 37.4593760,
+  "lon": 126.9502450,
+  "tags": {
+    "amenity": "cafe",
+    "brand": "공차",
+    "brand:en": "Gong Cha",
+    "brand:ko": "공차",
+    "brand:wikidata": "Q5581670",
+    "brand:zh": "貢茶",
+    "cuisine": "bubble_tea",
+    "entrance": "yes",
+    "name": "공차",
+    "name:en": "Gong Cha",
+    "name:ko": "공차",
+    "name:zh": "貢茶",
+    "takeaway": "yes",
+    "wheelchair": "yes"
+  }
+},
+{
+  "type": "node",
+  "id": 4564999893,
+  "lat": 37.4548112,
+  "lon": 126.9516007,
+  "tags": {
+    "amenity": "bank",
+    "brand": "NH농협은행",
+    "brand:en": "NH Bank",
+    "brand:ko": "NH농협은행",
+    "brand:wikidata": "Q15283673",
+    "entrance": "yes",
+    "name": "NH농협은행",
+    "name:en": "NH Bank",
+    "name:ko": "NH농협은행",
+    "wheelchair": "yes"
+  }
+},
+{
+  "type": "node",
+  "id": 4637260510,
+  "lat": 37.4797408,
+  "lon": 126.9638820,
+  "tags": {
+    "bench": "no",
+    "bin": "no",
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "현대홈타운아파트",
+    "public_transport": "platform",
+    "shelter": "no",
+    "tactile_paving": "yes"
+  }
+},
+{
+  "type": "node",
+  "id": 4656642679,
+  "lat": 37.4752372,
+  "lon": 126.9303104,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "현대아파트후문",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 4746859841,
+  "lat": 37.4680170,
+  "lon": 126.9615752,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "인헌아파트",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 4746859844,
+  "lat": 37.4749493,
+  "lon": 126.9591979,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "낙성대현대아파트",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 4746859848,
+  "lat": 37.4744709,
+  "lon": 126.9590261,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "낙성대현대아파트",
+    "name:ko": "낙성대현대아파트",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 5267480186,
+  "lat": 37.4855771,
+  "lon": 126.9606351,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "청림동 푸르지오아파트 121동앞",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 8082863817,
+  "lat": 37.4835167,
+  "lon": 126.9258068,
+  "tags": {
+    "entrance": "yes",
+    "name": "신원시장 입구",
+    "name:en": "Entrance to Shinwon Market"
+  }
+},
+{
+  "type": "node",
+  "id": 10069469090,
+  "lat": 37.4831940,
+  "lon": 126.9262840,
+  "tags": {
+    "entrance": "yes",
+    "name": "신원시장 입구A2",
+    "name:en": "Shinwon Market Entrance A2"
+  }
+},
+{
+  "type": "node",
+  "id": 10069469091,
+  "lat": 37.4823926,
+  "lon": 126.9273801,
+  "tags": {
+    "entrance": "yes",
+    "name": "신원시장 입구A3",
+    "name:en": "Shinwon Market Entrance A3"
+  }
+},
+{
+  "type": "node",
+  "id": 10069469092,
+  "lat": 37.4819614,
+  "lon": 126.9279698,
+  "tags": {
+    "entrance": "yes",
+    "name": "신원시장 입구A4",
+    "name:en": "Shinwon Market Entrance A4"
+  }
+},
+{
+  "type": "node",
+  "id": 10069469093,
+  "lat": 37.4815736,
+  "lon": 126.9284435,
+  "tags": {
+    "entrance": "yes",
+    "name": "신원시장 입구",
+    "name:en": "Entrance to Shinwon Market"
+  }
+},
+{
+  "type": "node",
+  "id": 10246927115,
+  "lat": 37.4642826,
+  "lon": 126.9401899,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "신동아아파트",
+    "name:ko": "신동아아파트",
+    "name:ko-Latn": "sindongaapateu",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 10248116050,
+  "lat": 37.4748326,
+  "lon": 126.9330759,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "현대아파트109동",
+    "name:en": "Hyundai Apartment 109",
+    "name:ko": "현대아파트109동",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 10248116051,
+  "lat": 37.4751828,
+  "lon": 126.9322512,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "현대아파트106동",
+    "name:en": "Hyundai Apartment 106",
+    "name:ko": "현대아파트109동",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 10600419549,
+  "lat": 37.4817494,
+  "lon": 126.9177992,
+  "tags": {
+    "entrance": "yes",
+    "name": "신림근린공원입구"
+  }
+},
+{
+  "type": "node",
+  "id": 11170799014,
+  "lat": 37.4658489,
+  "lon": 126.9377155,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "금호타운아파트",
+    "name:en": "Geumho Town Apt.",
+    "name:ko": "금호타운아파트",
+    "name:ko-Latn": "Geumhotaunapateu",
+    "public_transport": "platform",
+    "route_ref": "5515"
+  }
+},
+{
+  "type": "node",
+  "id": 11177542022,
+  "lat": 37.4918587,
+  "lon": 126.9592845,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "청림동현대아파트",
+    "public_transport": "platform",
+    "wheelchair": "limited"
+  }
+},
+{
+  "type": "node",
+  "id": 11177542026,
+  "lat": 37.4904695,
+  "lon": 126.9553182,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "동아아파트105동앞",
+    "public_transport": "platform",
+    "route_ref": "5513"
+  }
+},
+{
+  "type": "node",
+  "id": 11549139285,
+  "lat": 37.4659294,
+  "lon": 126.9375265,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "금호타운아파트",
+    "name:en": "Geumho Town Apt.",
+    "name:ko": "금호타운아파트",
+    "name:ko-Latn": "Geumhotaunapateu",
+    "public_transport": "platform",
+    "route_ref": "5515"
+  }
+},
+{
+  "type": "node",
+  "id": 11552941585,
+  "lat": 37.4848373,
+  "lon": 126.9467496,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "두산아파트",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 11552941586,
+  "lat": 37.4848299,
+  "lon": 126.9468290,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "두산아파트",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 11552941594,
+  "lat": 37.4918561,
+  "lon": 126.9469591,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "관악드림타운2단지",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 11552941595,
+  "lat": 37.4930492,
+  "lon": 126.9463605,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "벽산아파트.적십자남부봉사관",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 11552941596,
+  "lat": 37.4930202,
+  "lon": 126.9465031,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "벽산아파트501동.적십자센터",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 11552941597,
+  "lat": 37.4930883,
+  "lon": 126.9464226,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "벽산아파트.적십자남부봉사관",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 11552941599,
+  "lat": 37.4914590,
+  "lon": 126.9565442,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "봉천고개.관악현대아파트",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 11552941605,
+  "lat": 37.4910600,
+  "lon": 126.9417877,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "벽산아파트후문.만물슈퍼",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 11552941606,
+  "lat": 37.4907302,
+  "lon": 126.9420251,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "벽산아파트후문.만물슈퍼",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 11552941617,
+  "lat": 37.4866032,
+  "lon": 126.9393281,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "국회단지입구",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 11552941618,
+  "lat": 37.4865511,
+  "lon": 126.9394207,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "국회단지입구",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 11552941639,
+  "lat": 37.4696434,
+  "lon": 126.9660068,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "세진아파트",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 11552941640,
+  "lat": 37.4695724,
+  "lon": 126.9659742,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "세진아파트",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 11552941641,
+  "lat": 37.4693030,
+  "lon": 126.9651774,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "은천아파트",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 11552941642,
+  "lat": 37.4691690,
+  "lon": 126.9650128,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "은천아파트",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 11552941643,
+  "lat": 37.4682304,
+  "lon": 126.9617906,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "인헌아파트",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 11552941647,
+  "lat": 37.4687637,
+  "lon": 126.9689280,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "군인아파트",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 11552941649,
+  "lat": 37.4813628,
+  "lon": 126.9283431,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "동부아파트",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 11552941650,
+  "lat": 37.4813225,
+  "lon": 126.9282199,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "동부아파트",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 11552944983,
+  "lat": 37.4839324,
+  "lon": 126.9077974,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "조원아파트",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 11552944989,
+  "lat": 37.4841034,
+  "lon": 126.9025377,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "구로디지털단지역",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 11552944990,
+  "lat": 37.4836694,
+  "lon": 126.9028020,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "구로디지털단지역",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 11552944991,
+  "lat": 37.4843878,
+  "lon": 126.9060413,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "구로디지털단지역",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 11552944993,
+  "lat": 37.4842005,
+  "lon": 126.9109059,
+  "tags": {
+    "bench": "yes",
+    "bin": "yes",
+    "bus": "yes",
+    "highway": "bus_stop",
+    "lit": "yes",
+    "name": "신도브래뉴.구펭귄아파트",
+    "public_transport": "platform",
+    "shelter": "yes",
+    "tactile_paving": "yes"
+  }
+},
+{
+  "type": "node",
+  "id": 11552944995,
+  "lat": 37.4853045,
+  "lon": 126.9610723,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "행운동우성아파트109동앞",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 11552944996,
+  "lat": 37.4861130,
+  "lon": 126.9596268,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "푸르지오112동",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 11552944997,
+  "lat": 37.4862761,
+  "lon": 126.9591551,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "우성아파트103동",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 11552945000,
+  "lat": 37.4848618,
+  "lon": 126.9558328,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "봉원중학교.행운동우성아파트",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 11552945001,
+  "lat": 37.4848506,
+  "lon": 126.9552835,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "봉원중학교.행운동우성아파트",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 11552945009,
+  "lat": 37.4603707,
+  "lon": 126.9195939,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "관악산휴먼시아.신림푸르지오2차",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 11552945011,
+  "lat": 37.4611448,
+  "lon": 126.9256834,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "삼성산주공아파트정문",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 11552945012,
+  "lat": 37.4611438,
+  "lon": 126.9263098,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "삼성산주공아파트정문",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 11552945015,
+  "lat": 37.4633840,
+  "lon": 126.9264237,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "3단지종합상가",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 11552945016,
+  "lat": 37.4635841,
+  "lon": 126.9261233,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "2단지종합상가",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 11552945019,
+  "lat": 37.4655193,
+  "lon": 126.9268180,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "광신고등학교.주공1단지",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 11552945020,
+  "lat": 37.4659238,
+  "lon": 126.9270057,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "광신고등학교.주공1단지",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 11552945029,
+  "lat": 37.4719122,
+  "lon": 126.9109821,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "아카시아마을.민방위교육장",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 11552945030,
+  "lat": 37.4719049,
+  "lon": 126.9110484,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "아카시아마을.민방위교육장",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 11552945031,
+  "lat": 37.4714366,
+  "lon": 126.9110992,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "뉴서울아파트",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 11552945032,
+  "lat": 37.4714855,
+  "lon": 126.9111131,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "뉴서울아파트",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 11552945033,
+  "lat": 37.4731190,
+  "lon": 126.9121699,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "쌍용아파트후문",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 11552945034,
+  "lat": 37.4730860,
+  "lon": 126.9122007,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "쌍용아파트후문",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 11552945037,
+  "lat": 37.4741961,
+  "lon": 126.9135702,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "두영아파트",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 11552945038,
+  "lat": 37.4742144,
+  "lon": 126.9136642,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "두영아파트",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 11552945041,
+  "lat": 37.4772415,
+  "lon": 126.9136118,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "라이프아파트",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 11552945042,
+  "lat": 37.4772403,
+  "lon": 126.9136688,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "라이프아파트",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 11552945051,
+  "lat": 37.4902821,
+  "lon": 126.9343543,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "성원홈아파트",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 11552945052,
+  "lat": 37.4902902,
+  "lon": 126.9344031,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "성원홈아파트",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 11638246758,
+  "lat": 37.4944906,
+  "lon": 126.9273172,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "삼성아파트",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 11638246766,
+  "lat": 37.4897045,
+  "lon": 126.9221325,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "갑을아파트",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 11638258595,
+  "lat": 37.4791666,
+  "lon": 126.9634603,
+  "tags": {
+    "bench": "no",
+    "bin": "no",
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "현대홈타운아파트",
+    "public_transport": "platform",
+    "shelter": "no",
+    "tactile_paving": "yes"
+  }
+},
+{
+  "type": "node",
+  "id": 11638258598,
+  "lat": 37.4920244,
+  "lon": 126.9438281,
+  "tags": {
+    "bench": "no",
+    "bin": "no",
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "벽산아파트",
+    "public_transport": "platform",
+    "shelter": "no",
+    "tactile_paving": "yes"
+  }
+},
+{
+  "type": "node",
+  "id": 11638258599,
+  "lat": 37.4920075,
+  "lon": 126.9445589,
+  "tags": {
+    "bench": "no",
+    "bin": "no",
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "벽산블루밍아파트종점",
+    "public_transport": "platform",
+    "shelter": "no",
+    "tactile_paving": "yes"
+  }
+},
+{
+  "type": "node",
+  "id": 11638258600,
+  "lat": 37.4920061,
+  "lon": 126.9445029,
+  "tags": {
+    "bench": "no",
+    "bin": "no",
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "벽산아파트",
+    "public_transport": "platform",
+    "shelter": "no",
+    "tactile_paving": "yes"
+  }
+},
+{
+  "type": "way",
+  "id": 166189193,
+  "center": {
+    "lat": 37.4905082,
+    "lon": 126.9249610
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:street": "봉천로",
+    "building": "commercial",
+    "building:flats": "98",
+    "building:levels": "36",
+    "height": "137",
+    "name": "보라매롯데캐슬",
+    "start_date": "1997"
+  }
+},
+{
+  "type": "way",
+  "id": 166431169,
+  "center": {
+    "lat": 37.4923285,
+    "lon": 126.9252836
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "117",
+    "building:levels": "22",
+    "height": "74",
+    "name": "보라매우성아파트",
+    "start_date": "1995"
+  }
+},
+{
+  "type": "way",
+  "id": 172605566,
+  "center": {
+    "lat": 37.4783424,
+    "lon": 126.9449778
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "78",
+    "addr:postcode": "08831",
+    "addr:street": "청룡길",
+    "addr:subdistrict": "봉천동",
+    "landuse": "residential",
+    "name": "서울대입구 풍림아이원 1단지",
+    "name:en": "Seouldaeipgu Poonglim i-want I",
+    "name:ko": "서울대입구 풍림아이원 1단지",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 178158676,
+  "center": {
+    "lat": 37.4818300,
+    "lon": 126.9405225
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "청룡금강아미움아파트",
+    "name:en": "Geumgang Amium Apt.",
+    "name:ko": "금강아미움"
+  }
+},
+{
+  "type": "way",
+  "id": 178237240,
+  "center": {
+    "lat": 37.4836205,
+    "lon": 126.9372068
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "성우아파트",
+    "name:en": "Seongu Apt.",
+    "name:ko": "성우아파트"
+  }
+},
+{
+  "type": "way",
+  "id": 178238384,
+  "center": {
+    "lat": 37.4751225,
+    "lon": 126.9520511
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "갑을아파트",
+    "name:en": "Gabeul Apartments",
+    "name:ko": "갑을아파트"
+  }
+},
+{
+  "type": "way",
+  "id": 178238385,
+  "center": {
+    "lat": 37.4761460,
+    "lon": 126.9521045
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "서울대입구 삼성아파트",
+    "name:en": "Seouldaeipgu Samsung Apartments",
+    "name:ko": "서울대입구 삼성아파트"
+  }
+},
+{
+  "type": "way",
+  "id": 178238386,
+  "center": {
+    "lat": 37.4770317,
+    "lon": 126.9519273
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "건영아파트",
+    "name:en": "Kunyoung Apartments",
+    "name:ko": "건영아파트"
+  }
+},
+{
+  "type": "way",
+  "id": 180202314,
+  "center": {
+    "lat": 37.4820148,
+    "lon": 126.9402786
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "6",
+    "addr:postcode": "08784",
+    "addr:street": "장군봉1길",
+    "addr:subdistrict": "봉천동",
+    "addr:unit": "101",
+    "building": "apartments",
+    "building:flats": "17",
+    "building:levels": "10",
+    "height": "26",
+    "name": "101",
+    "start_date": "2010"
+  }
+},
+{
+  "type": "way",
+  "id": 180202315,
+  "center": {
+    "lat": 37.4816026,
+    "lon": 126.9407510
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "14",
+    "addr:postcode": "08784",
+    "addr:street": "장군봉1길",
+    "addr:subdistrict": "봉천동",
+    "addr:unit": "106",
+    "building": "apartments",
+    "building:flats": "19",
+    "building:levels": "10",
+    "height": "26",
+    "name": "106",
+    "start_date": "2010"
+  }
+},
+{
+  "type": "way",
+  "id": 180202317,
+  "center": {
+    "lat": 37.4819158,
+    "lon": 126.9405604
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "12",
+    "addr:postcode": "08784",
+    "addr:street": "장군봉1길",
+    "addr:subdistrict": "봉천동",
+    "addr:unit": "102",
+    "building": "apartments",
+    "building:flats": "16",
+    "building:levels": "9",
+    "height": "23",
+    "name": "102",
+    "start_date": "2010"
+  }
+},
+{
+  "type": "way",
+  "id": 180202318,
+  "center": {
+    "lat": 37.4818152,
+    "lon": 126.9408528
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "16",
+    "addr:postcode": "08784",
+    "addr:street": "장군봉1길",
+    "addr:subdistrict": "봉천동",
+    "addr:unit": "103",
+    "building": "apartments",
+    "building:flats": "17",
+    "building:levels": "10",
+    "height": "26",
+    "name": "103",
+    "start_date": "2010"
+  }
+},
+{
+  "type": "way",
+  "id": 180202319,
+  "center": {
+    "lat": 37.4818157,
+    "lon": 126.9401726
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "8",
+    "addr:postcode": "08784",
+    "addr:street": "장군봉1길",
+    "addr:subdistrict": "봉천동",
+    "addr:unit": "104",
+    "building": "apartments",
+    "building:flats": "19",
+    "building:levels": "10",
+    "height": "26",
+    "name": "104",
+    "start_date": "2010"
+  }
+},
+{
+  "type": "way",
+  "id": 180202322,
+  "center": {
+    "lat": 37.4817044,
+    "lon": 126.9404717
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "10",
+    "addr:postcode": "08784",
+    "addr:street": "장군봉1길",
+    "addr:subdistrict": "봉천동",
+    "addr:unit": "105",
+    "building": "apartments",
+    "building:flats": "19",
+    "building:levels": "10",
+    "height": "26",
+    "name": "105",
+    "start_date": "2010"
+  }
+},
+{
+  "type": "way",
+  "id": 196617391,
+  "center": {
+    "lat": 37.4810765,
+    "lon": 126.9464445
+  },
+  "tags": {
+    "amenity": "bank",
+    "brand": "MG새마을금고",
+    "brand:ko": "MG새마을금고",
+    "brand:wikidata": "Q12600614",
+    "building": "commercial",
+    "level": "7",
+    "name": "MG새마을금고",
+    "name:en": "Gwanak Jungang Community Credit Cooperative",
+    "name:ja": "冠岳中央セマウル金庫",
+    "name:ko": "MG새마을금고",
+    "name:zh": "冠岳中央新村金库",
+    "operator": "새마을금고"
+  }
+},
+{
+  "type": "way",
+  "id": 196622568,
+  "center": {
+    "lat": 37.4805183,
+    "lon": 126.9465577
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "7",
+    "addr:postcode": "08786",
+    "addr:street": "청룡5길",
+    "addr:subdistrict": "봉천동",
+    "building": "residential",
+    "building:levels": "10",
+    "name": "청옥팰리스",
+    "name:en": "Cheongok Palace",
+    "name:ko": "청옥팰리스"
+  }
+},
+{
+  "type": "way",
+  "id": 225750905,
+  "center": {
+    "lat": 37.4782316,
+    "lon": 126.9460168
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "77",
+    "addr:postcode": "08831",
+    "addr:street": "청룡길",
+    "addr:subdistrict": "봉천동",
+    "landuse": "residential",
+    "name": "서울대입구 풍림아이원 2단지",
+    "name:en": "Seouldaeipgu Poonglim i-want II",
+    "name:ko": "서울대입구 풍림아이원 2단지"
+  }
+},
+{
+  "type": "way",
+  "id": 239952169,
+  "center": {
+    "lat": 37.4894080,
+    "lon": 126.9569313
+  },
+  "tags": {
+    "amenity": "marketplace",
+    "building": "yes",
+    "level": "24",
+    "name": "동아아파트상가"
+  }
+},
+{
+  "type": "way",
+  "id": 278307026,
+  "center": {
+    "lat": 37.4925736,
+    "lon": 126.9460758
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "203",
+    "building:levels": "19",
+    "height": "54",
+    "name": "501",
+    "name:en": "Byucksan Town 2st Apartment",
+    "name:ko": "벽산타운2차아파트",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 278307030,
+  "center": {
+    "lat": 37.4919603,
+    "lon": 126.9424403
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "263",
+    "building:levels": "22",
+    "height": "60",
+    "name": "302",
+    "start_date": "2005"
+  }
+},
+{
+  "type": "way",
+  "id": 278307031,
+  "center": {
+    "lat": 37.4919622,
+    "lon": 126.9430718
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "285",
+    "building:levels": "22",
+    "height": "60",
+    "name": "303",
+    "start_date": "2005"
+  }
+},
+{
+  "type": "way",
+  "id": 278307032,
+  "center": {
+    "lat": 37.4914792,
+    "lon": 126.9426821
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "251",
+    "building:levels": "22",
+    "height": "60",
+    "name": "301",
+    "start_date": "2005"
+  }
+},
+{
+  "type": "way",
+  "id": 278307047,
+  "center": {
+    "lat": 37.4910519,
+    "lon": 126.9430701
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "44",
+    "building:levels": "22",
+    "height": "63",
+    "name": "209",
+    "start_date": "2005"
+  }
+},
+{
+  "type": "way",
+  "id": 278307048,
+  "center": {
+    "lat": 37.4902433,
+    "lon": 126.9437530
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "84",
+    "building:levels": "21",
+    "height": "60",
+    "name": "207",
+    "start_date": "2005"
+  }
+},
+{
+  "type": "way",
+  "id": 278307049,
+  "center": {
+    "lat": 37.4906615,
+    "lon": 126.9432911
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "150",
+    "building:levels": "25",
+    "height": "71",
+    "name": "208",
+    "start_date": "2005"
+  }
+},
+{
+  "type": "way",
+  "id": 278307050,
+  "center": {
+    "lat": 37.4896274,
+    "lon": 126.9496105
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "108",
+    "building:levels": "27",
+    "ele": "80",
+    "height": "76",
+    "name": "130",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 278307052,
+  "center": {
+    "lat": 37.4893769,
+    "lon": 126.9499844
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "108",
+    "building:levels": "27",
+    "ele": "80",
+    "height": "76",
+    "name": "118",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 278439058,
+  "center": {
+    "lat": 37.4910543,
+    "lon": 126.9494689
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "88",
+    "building:levels": "23",
+    "ele": "90",
+    "height": "65",
+    "name": "137",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 278439065,
+  "center": {
+    "lat": 37.4898599,
+    "lon": 126.9491390
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "92",
+    "building:levels": "24",
+    "ele": "80",
+    "height": "68",
+    "name": "131",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 278439066,
+  "center": {
+    "lat": 37.4891646,
+    "lon": 126.9504239
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "92",
+    "building:levels": "24",
+    "ele": "80",
+    "height": "69",
+    "name": "117",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 278439067,
+  "center": {
+    "lat": 37.4899774,
+    "lon": 126.9504941
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "108",
+    "building:levels": "27",
+    "ele": "90",
+    "height": "76",
+    "name": "121",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 278439068,
+  "center": {
+    "lat": 37.4904144,
+    "lon": 126.9508134
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "108",
+    "building:levels": "27",
+    "ele": "90",
+    "height": "76",
+    "name": "124",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 278439074,
+  "center": {
+    "lat": 37.4887342,
+    "lon": 126.9523708
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "44",
+    "building:levels": "22",
+    "ele": "100",
+    "height": "63",
+    "name": "111",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 278439078,
+  "center": {
+    "lat": 37.4897568,
+    "lon": 126.9508492
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "92",
+    "building:levels": "24",
+    "ele": "90",
+    "height": "69",
+    "name": "120",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 278439079,
+  "center": {
+    "lat": 37.4901972,
+    "lon": 126.9512197
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "88",
+    "building:levels": "22",
+    "ele": "100",
+    "height": "63",
+    "name": "123",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 278439080,
+  "center": {
+    "lat": 37.4898473,
+    "lon": 126.9516147
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "88",
+    "building:levels": "22",
+    "ele": "100",
+    "height": "63",
+    "name": "122",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 278439081,
+  "center": {
+    "lat": 37.4892534,
+    "lon": 126.9489198
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "84",
+    "building:levels": "22",
+    "ele": "70",
+    "height": "64",
+    "name": "129",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 278439082,
+  "center": {
+    "lat": 37.4887724,
+    "lon": 126.9498219
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "84",
+    "building:levels": "22",
+    "ele": "70",
+    "height": "64",
+    "name": "116",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 284355224,
+  "center": {
+    "lat": 37.4899260,
+    "lon": 126.9500632
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "관악드림타운",
+    "name:en": "Gwanak Dream Town",
+    "name:ko": "관악드림타운"
+  }
+},
+{
+  "type": "way",
+  "id": 284355225,
+  "center": {
+    "lat": 37.4889888,
+    "lon": 126.9550862
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "성현 동아아파트",
+    "name:en": "Seonghyeon Dongah Apartments",
+    "name:ko": "성현 동아아파트"
+  }
+},
+{
+  "type": "way",
+  "id": 284585427,
+  "center": {
+    "lat": 37.4896644,
+    "lon": 126.9441812
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "벽산블루밍1차아파트",
+    "name:en": "Byucksan Blooming 1st Apartments",
+    "name:ko": "벽산블루밍1차아파트",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 284793428,
+  "center": {
+    "lat": 37.4925279,
+    "lon": 126.9329564
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "연희빌라",
+    "name:ko": "연희빌라"
+  }
+},
+{
+  "type": "way",
+  "id": 294742307,
+  "center": {
+    "lat": 37.4923301,
+    "lon": 126.9453693
+  },
+  "tags": {
+    "building": "apartments",
+    "building:levels": "25",
+    "ele": "110",
+    "name": "하이캐슬아파트",
+    "name:ko": "하이캐슬아파트"
+  }
+},
+{
+  "type": "way",
+  "id": 298285472,
+  "center": {
+    "lat": 37.4881981,
+    "lon": 126.9458116
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "88",
+    "building:levels": "25",
+    "height": "71",
+    "name": "103",
+    "start_date": "2005"
+  }
+},
+{
+  "type": "way",
+  "id": 298285474,
+  "center": {
+    "lat": 37.4886590,
+    "lon": 126.9458083
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "184",
+    "building:levels": "25",
+    "height": "71",
+    "name": "104",
+    "start_date": "2005"
+  }
+},
+{
+  "type": "way",
+  "id": 298285485,
+  "center": {
+    "lat": 37.4891867,
+    "lon": 126.9448206
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "50",
+    "building:levels": "25",
+    "height": "71",
+    "name": "204",
+    "start_date": "2005"
+  }
+},
+{
+  "type": "way",
+  "id": 298285486,
+  "center": {
+    "lat": 37.4882614,
+    "lon": 126.9450451
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "50",
+    "building:levels": "25",
+    "height": "71",
+    "name": "202",
+    "start_date": "2005"
+  }
+},
+{
+  "type": "way",
+  "id": 298285487,
+  "center": {
+    "lat": 37.4877775,
+    "lon": 126.9443323
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "57",
+    "building:levels": "15",
+    "height": "40",
+    "name": "601",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 298285488,
+  "center": {
+    "lat": 37.4880927,
+    "lon": 126.9445425
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "38",
+    "building:levels": "19",
+    "height": "51",
+    "name": "602",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 298285489,
+  "center": {
+    "lat": 37.4886697,
+    "lon": 126.9446124
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "44",
+    "building:levels": "23",
+    "height": "62",
+    "name": "603",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 308339181,
+  "center": {
+    "lat": 37.4764385,
+    "lon": 126.9621173
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "19",
+    "addr:postcode": "08793",
+    "addr:street": "낙성대역길",
+    "addr:subdistrict": "봉천동",
+    "landuse": "residential",
+    "name": "동원낙성대아파트",
+    "name:en": "Dongwon Nakseongdae Apt.",
+    "name:ko": "동원낙성대아파트"
+  }
+},
+{
+  "type": "way",
+  "id": 308339185,
+  "center": {
+    "lat": 37.4750731,
+    "lon": 126.9594953
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "낙성대현대2차아파트",
+    "name:en": "Nakseongdae Hyundai 2nd Apt.",
+    "name:ko": "낙성대현대2차아파트"
+  }
+},
+{
+  "type": "way",
+  "id": 310022287,
+  "center": {
+    "lat": 37.4652557,
+    "lon": 126.9582358
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "1",
+    "addr:postcode": "08826",
+    "addr:street": "관악로",
+    "addr:subdistrict": "신림동",
+    "building": "apartments",
+    "building:levels": "4",
+    "ele": "100",
+    "name": "BK국제관",
+    "name:en": "BK International House",
+    "name:ja": "BK国際館"
+  }
+},
+{
+  "type": "way",
+  "id": 320674219,
+  "center": {
+    "lat": 37.4683940,
+    "lon": 126.9570225
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "1",
+    "addr:postcode": "08826",
+    "addr:street": "관악로",
+    "addr:subdistrict": "신림동",
+    "building": "apartments",
+    "building:levels": "5",
+    "name": "I",
+    "operator": "Seoul National University"
+  }
+},
+{
+  "type": "way",
+  "id": 347806730,
+  "center": {
+    "lat": 37.4670340,
+    "lon": 126.9571529
+  },
+  "tags": {
+    "building": "apartments",
+    "building:levels": "10",
+    "ele": "80",
+    "name": "A"
+  }
+},
+{
+  "type": "way",
+  "id": 347806732,
+  "center": {
+    "lat": 37.4672999,
+    "lon": 126.9575291
+  },
+  "tags": {
+    "building": "apartments",
+    "name": "B"
+  }
+},
+{
+  "type": "way",
+  "id": 347806733,
+  "center": {
+    "lat": 37.4672595,
+    "lon": 126.9569364
+  },
+  "tags": {
+    "building": "apartments",
+    "building:levels": "10",
+    "ele": "80",
+    "name": "C"
+  }
+},
+{
+  "type": "way",
+  "id": 374057326,
+  "center": {
+    "lat": 37.4905979,
+    "lon": 126.9442069
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "142",
+    "building:levels": "25",
+    "height": "71",
+    "name": "108",
+    "start_date": "2005"
+  }
+},
+{
+  "type": "way",
+  "id": 374057327,
+  "center": {
+    "lat": 37.4901675,
+    "lon": 126.9447013
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "114",
+    "building:levels": "19",
+    "height": "57",
+    "name": "107",
+    "start_date": "2005"
+  }
+},
+{
+  "type": "way",
+  "id": 374057328,
+  "center": {
+    "lat": 37.4896674,
+    "lon": 126.9451921
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "122",
+    "building:levels": "21",
+    "height": "60",
+    "name": "106",
+    "start_date": "2005"
+  }
+},
+{
+  "type": "way",
+  "id": 374057329,
+  "center": {
+    "lat": 37.4892246,
+    "lon": 126.9456211
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "70",
+    "building:levels": "18",
+    "height": "51",
+    "name": "105",
+    "start_date": "2005"
+  }
+},
+{
+  "type": "way",
+  "id": 374057330,
+  "center": {
+    "lat": 37.4887329,
+    "lon": 126.9451964
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "85",
+    "building:levels": "16",
+    "height": "41",
+    "name": "203",
+    "start_date": "2005"
+  }
+},
+{
+  "type": "way",
+  "id": 374057331,
+  "center": {
+    "lat": 37.4884319,
+    "lon": 126.9442954
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "70",
+    "building:levels": "18",
+    "height": "48",
+    "name": "604",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 395017674,
+  "center": {
+    "lat": 37.4914550,
+    "lon": 126.9498618
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "50",
+    "building:levels": "25",
+    "ele": "100",
+    "height": "71",
+    "name": "138",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 395017675,
+  "center": {
+    "lat": 37.4914394,
+    "lon": 126.9503437
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "100",
+    "building:levels": "25",
+    "ele": "100",
+    "height": "72",
+    "name": "140",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 395017949,
+  "center": {
+    "lat": 37.4903765,
+    "lon": 126.9519686
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "50",
+    "building:levels": "25",
+    "ele": "110",
+    "height": "71",
+    "level": "22",
+    "name": "125",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 395017950,
+  "center": {
+    "lat": 37.4903325,
+    "lon": 126.9524440
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "100",
+    "building:levels": "25",
+    "ele": "110",
+    "height": "72",
+    "name": "126",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 395017951,
+  "center": {
+    "lat": 37.4907719,
+    "lon": 126.9519312
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "100",
+    "building:levels": "25",
+    "height": "72",
+    "name": "127",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 395019261,
+  "center": {
+    "lat": 37.4907028,
+    "lon": 126.9483858
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "110",
+    "building:levels": "20",
+    "ele": "70",
+    "height": "57",
+    "name": "144",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 395019266,
+  "center": {
+    "lat": 37.4901938,
+    "lon": 126.9482959
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "34",
+    "building:levels": "17",
+    "ele": "70",
+    "height": "48",
+    "name": "142",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 395019268,
+  "center": {
+    "lat": 37.4902365,
+    "lon": 126.9486723
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "96",
+    "building:levels": "25",
+    "ele": "70",
+    "height": "71",
+    "name": "143",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 395021804,
+  "center": {
+    "lat": 37.4919781,
+    "lon": 126.9479180
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "403",
+    "building:levels": "23",
+    "ele": "90",
+    "height": "65",
+    "name": "148",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 395021805,
+  "center": {
+    "lat": 37.4917488,
+    "lon": 126.9487290
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "430",
+    "building:levels": "22",
+    "ele": "90",
+    "height": "62",
+    "name": "147",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 395021806,
+  "center": {
+    "lat": 37.4912290,
+    "lon": 126.9486064
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "384",
+    "building:levels": "21",
+    "ele": "90",
+    "height": "59",
+    "name": "145",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 395021807,
+  "center": {
+    "lat": 37.4913301,
+    "lon": 126.9477487
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "432",
+    "building:levels": "24",
+    "ele": "90",
+    "height": "68",
+    "name": "146",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 395021808,
+  "center": {
+    "lat": 37.4916924,
+    "lon": 126.9496612
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "100",
+    "building:levels": "25",
+    "ele": "100",
+    "height": "71",
+    "name": "141",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 395182438,
+  "center": {
+    "lat": 37.4881154,
+    "lon": 126.9514327
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "86",
+    "building:levels": "22",
+    "ele": "90",
+    "height": "63",
+    "name": "106",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 395182439,
+  "center": {
+    "lat": 37.4885430,
+    "lon": 126.9510330
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "88",
+    "building:levels": "22",
+    "ele": "90",
+    "height": "63",
+    "name": "107",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 395182440,
+  "center": {
+    "lat": 37.4889421,
+    "lon": 126.9510096
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "50",
+    "building:levels": "25",
+    "ele": "90",
+    "height": "71",
+    "name": "109",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 395182441,
+  "center": {
+    "lat": 37.4886124,
+    "lon": 126.9504415
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "88",
+    "building:levels": "23",
+    "ele": "80",
+    "height": "66",
+    "name": "105",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 395182442,
+  "center": {
+    "lat": 37.4881883,
+    "lon": 126.9504952
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "72",
+    "building:levels": "18",
+    "ele": "80",
+    "height": "52",
+    "name": "103",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 395182443,
+  "center": {
+    "lat": 37.4881443,
+    "lon": 126.9509752
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "46",
+    "building:levels": "23",
+    "ele": "80",
+    "height": "66",
+    "name": "104",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 395182445,
+  "center": {
+    "lat": 37.4879897,
+    "lon": 126.9499866
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "64",
+    "building:levels": "17",
+    "ele": "60",
+    "height": "49",
+    "name": "102",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 396334482,
+  "center": {
+    "lat": 37.4880285,
+    "lon": 126.9518369
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "36",
+    "building:levels": "18",
+    "ele": "90",
+    "height": "52",
+    "name": "108",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 409785627,
+  "center": {
+    "lat": 37.4593045,
+    "lon": 126.9197903
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "55",
+    "addr:postcode": "08862",
+    "addr:street": "난곡로",
+    "addr:subdistrict": "신림동",
+    "landuse": "residential",
+    "name": "관악산휴먼시아 2단지",
+    "name:en": "Gwanaksan Humansia Apartment 2",
+    "name:ko": "관악산휴먼시아 2단지",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 409785628,
+  "center": {
+    "lat": 37.4605929,
+    "lon": 126.9185625
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "63",
+    "addr:postcode": "08862",
+    "addr:street": "난곡로",
+    "addr:subdistrict": "신림동",
+    "landuse": "residential",
+    "name": "관악산휴먼시아 3단지",
+    "name:en": "Gwanaksan Humansia Apartment 3"
+  }
+},
+{
+  "type": "way",
+  "id": 409785629,
+  "center": {
+    "lat": 37.4615605,
+    "lon": 126.9199045
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "66",
+    "addr:postcode": "08861",
+    "addr:street": "난곡로",
+    "addr:subdistrict": "신림동",
+    "landuse": "residential",
+    "name": "신림푸르지오2차",
+    "name:en": "Sillim Purgio Apartment 2",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 409785630,
+  "center": {
+    "lat": 37.4616657,
+    "lon": 126.9212777
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "관악산휴먼시아 1단지",
+    "name:en": "Gwanaksan Humansia Apartment 1",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 410680541,
+  "center": {
+    "lat": 37.4708020,
+    "lon": 126.9167686
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "신림건영 2차아파트",
+    "name:en": "Sillim Kunyoung Apartment 2"
+  }
+},
+{
+  "type": "way",
+  "id": 410680542,
+  "center": {
+    "lat": 37.4698013,
+    "lon": 126.9190502
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "임광관악파크아파트",
+    "name:en": "Limkwang Gwanak Park Apartment"
+  }
+},
+{
+  "type": "way",
+  "id": 410683625,
+  "center": {
+    "lat": 37.4707955,
+    "lon": 126.9238492
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "61",
+    "addr:postcode": "08854",
+    "addr:street": "난곡로30길",
+    "addr:subdistrict": "신림동",
+    "landuse": "residential",
+    "name": "강원학사",
+    "name:en": "Gang-Won Dormitory",
+    "name:ko": "강원학사"
+  }
+},
+{
+  "type": "way",
+  "id": 410982777,
+  "center": {
+    "lat": 37.4730366,
+    "lon": 126.9149887
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "33",
+    "addr:postcode": "08865",
+    "addr:street": "미성5길",
+    "addr:subdistrict": "신림동",
+    "landuse": "residential",
+    "name": "신림 한양아파트",
+    "name:en": "Sillim Hanyang Apartment"
+  }
+},
+{
+  "type": "way",
+  "id": 410982778,
+  "center": {
+    "lat": 37.4731331,
+    "lon": 126.9162089
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "16",
+    "addr:postcode": "08865",
+    "addr:street": "미성3길",
+    "addr:subdistrict": "신림동",
+    "landuse": "residential",
+    "name": "신림 동부센트레빌아파트",
+    "name:en": "Sillim Dongbu Centreville Apartment"
+  }
+},
+{
+  "type": "way",
+  "id": 410982779,
+  "center": {
+    "lat": 37.4734641,
+    "lon": 126.9141671
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "40",
+    "addr:postcode": "08865",
+    "addr:street": "미성5길",
+    "addr:subdistrict": "신림동",
+    "landuse": "residential",
+    "name": "초원아파트",
+    "name:en": "Chowon Apartment"
+  }
+},
+{
+  "type": "way",
+  "id": 410982784,
+  "center": {
+    "lat": 37.4704167,
+    "lon": 126.9111187
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "64",
+    "addr:postcode": "08866",
+    "addr:street": "미성10길",
+    "addr:subdistrict": "신림동",
+    "landuse": "residential",
+    "name": "뉴서울아파트",
+    "name:en": "New Seoul Apartment",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 410982785,
+  "center": {
+    "lat": 37.4722733,
+    "lon": 126.9118301
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "122",
+    "addr:postcode": "08866",
+    "addr:street": "미성길",
+    "addr:subdistrict": "신림동",
+    "landuse": "residential",
+    "name": "신림동 쌍용아파트",
+    "name:en": "Sillim-dong Ssangyong Apartment",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 410982791,
+  "center": {
+    "lat": 37.4747669,
+    "lon": 126.9139171
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "25",
+    "addr:postcode": "08865",
+    "addr:street": "문성로16나길",
+    "addr:subdistrict": "신림동",
+    "landuse": "residential",
+    "name": "두영아파트",
+    "name:en": "Doo-young Apartment"
+  }
+},
+{
+  "type": "way",
+  "id": 410982804,
+  "center": {
+    "lat": 37.4763269,
+    "lon": 126.9123211
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "신림 건영1차아파트",
+    "name:en": "Sillim Kunyoung Apartment 1"
+  }
+},
+{
+  "type": "way",
+  "id": 410983419,
+  "center": {
+    "lat": 37.4791988,
+    "lon": 126.9106825
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "1430",
+    "addr:postcode": "08770",
+    "addr:street": "남부순환로",
+    "addr:subdistrict": "신림동",
+    "landuse": "residential",
+    "name": "신림 푸르지오",
+    "name:en": "Sillim Purgio",
+    "name:ko": "신림 푸르지오",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 412719650,
+  "center": {
+    "lat": 37.4894238,
+    "lon": 126.9444402
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "78",
+    "building:levels": "21",
+    "height": "60",
+    "name": "205",
+    "start_date": "2005"
+  }
+},
+{
+  "type": "way",
+  "id": 412719651,
+  "center": {
+    "lat": 37.4898206,
+    "lon": 126.9440813
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "153",
+    "building:levels": "22",
+    "height": "63",
+    "name": "206",
+    "start_date": "2005"
+  }
+},
+{
+  "type": "way",
+  "id": 412719652,
+  "center": {
+    "lat": 37.4878830,
+    "lon": 126.9450545
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "156",
+    "building:levels": "22",
+    "height": "63",
+    "name": "201",
+    "start_date": "2005"
+  }
+},
+{
+  "type": "way",
+  "id": 412719654,
+  "center": {
+    "lat": 37.4877392,
+    "lon": 126.9459479
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "110",
+    "building:levels": "19",
+    "height": "54",
+    "name": "102",
+    "start_date": "2005"
+  }
+},
+{
+  "type": "way",
+  "id": 412719655,
+  "center": {
+    "lat": 37.4873495,
+    "lon": 126.9451645
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "110",
+    "building:levels": "19",
+    "height": "54",
+    "name": "101",
+    "start_date": "2005"
+  }
+},
+{
+  "type": "way",
+  "id": 412719657,
+  "center": {
+    "lat": 37.4888540,
+    "lon": 126.9442860
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "72",
+    "building:levels": "20",
+    "height": "54",
+    "name": "605",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 412719658,
+  "center": {
+    "lat": 37.4883526,
+    "lon": 126.9444710
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "봉천벽산블루밍3차아파트"
+  }
+},
+{
+  "type": "way",
+  "id": 412719669,
+  "center": {
+    "lat": 37.4913838,
+    "lon": 126.9437148
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "190",
+    "building:levels": "25",
+    "height": "71",
+    "name": "109",
+    "start_date": "2005"
+  }
+},
+{
+  "type": "way",
+  "id": 419545971,
+  "center": {
+    "lat": 37.4676519,
+    "lon": 126.9571781
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "1",
+    "addr:postcode": "08826",
+    "addr:street": "관악로",
+    "addr:subdistrict": "신림동",
+    "landuse": "residential",
+    "name": "서울대 교수아파트",
+    "name:en": "SNU Faculty Apartments",
+    "name:ko": "서울대 교수아파트",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 439437703,
+  "center": {
+    "lat": 37.4805886,
+    "lon": 126.9292630
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "26",
+    "addr:postcode": "08775",
+    "addr:street": "신원로",
+    "addr:subdistrict": "신림동",
+    "landuse": "residential",
+    "name": "신림동부아파트",
+    "name:en": "Sillim Dongbu Apts.",
+    "name:ko": "신림동부아파트",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 439442302,
+  "center": {
+    "lat": 37.4749549,
+    "lon": 126.9321168
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "8",
+    "addr:postcode": "08845",
+    "addr:street": "신림로29길",
+    "addr:subdistrict": "신림동",
+    "landuse": "residential",
+    "name": "신림현대아파트",
+    "name:en": "Sillim Hyundai Apartment",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 439667320,
+  "center": {
+    "lat": 37.4658326,
+    "lon": 126.9343069
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "103",
+    "addr:postcode": "08820",
+    "addr:street": "신림로23길",
+    "addr:subdistrict": "신림동",
+    "landuse": "residential",
+    "name": "신림현대맨션",
+    "name:en": "Sillim Hyundai Mansion",
+    "name:ko": "신림현대맨션"
+  }
+},
+{
+  "type": "way",
+  "id": 439667325,
+  "center": {
+    "lat": 37.4642991,
+    "lon": 126.9307902
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "신림 동마아파트",
+    "name:en": "Sillim Dongma Apartments",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 439667326,
+  "center": {
+    "lat": 37.4637982,
+    "lon": 126.9310617
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "신림 벽산블루밍 아파트",
+    "name:en": "Sillim Byucksan Blooming Apartments",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 439667348,
+  "center": {
+    "lat": 37.4659010,
+    "lon": 126.9280232
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "160",
+    "addr:postcode": "08848",
+    "addr:street": "광신길",
+    "addr:subdistrict": "신림동",
+    "landuse": "residential",
+    "name": "신림 주공아파트 1단지",
+    "name:en": "Sillim Jugong Apartments 1danji",
+    "name:ko": "신림 주공아파트 1단지",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 439667365,
+  "center": {
+    "lat": 37.4607963,
+    "lon": 126.9278546
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "417",
+    "addr:postcode": "08848",
+    "addr:street": "호암로",
+    "addr:subdistrict": "신림동",
+    "landuse": "residential",
+    "name": "국제산장아파트",
+    "name:en": "Gukjesanjang Apartments",
+    "name:ko": "국제산장 아파트",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 439707872,
+  "center": {
+    "lat": 37.4614673,
+    "lon": 126.9579608
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "1",
+    "addr:postcode": "08826",
+    "addr:street": "관악로",
+    "addr:subdistrict": "신림동",
+    "landuse": "residential",
+    "name": "관악사 (대학원생활관)",
+    "name:en": "Gwanak-sa Graduate House"
+  }
+},
+{
+  "type": "way",
+  "id": 439707873,
+  "center": {
+    "lat": 37.4633862,
+    "lon": 126.9588742
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "1",
+    "addr:postcode": "08826",
+    "addr:street": "관악로",
+    "addr:subdistrict": "신림동",
+    "landuse": "residential",
+    "name": "관악사 (학부생활관)",
+    "name:en": "Gwanak-sa Undergraduate House"
+  }
+},
+{
+  "type": "way",
+  "id": 439707879,
+  "center": {
+    "lat": 37.4669662,
+    "lon": 126.9591245
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "1",
+    "addr:postcode": "08826",
+    "addr:street": "관악로",
+    "addr:subdistrict": "신림동",
+    "landuse": "residential",
+    "name": "관악사 (가족생활관)",
+    "name:en": "Gwanak-sa Family House"
+  }
+},
+{
+  "type": "way",
+  "id": 439707880,
+  "center": {
+    "lat": 37.4670301,
+    "lon": 126.9597677
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "1",
+    "addr:postcode": "08826",
+    "addr:street": "관악로",
+    "addr:subdistrict": "신림동",
+    "building": "apartments",
+    "name": "직원아파트",
+    "name:en": "Staff Apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 439707883,
+  "center": {
+    "lat": 37.4674192,
+    "lon": 126.9587958
+  },
+  "tags": {
+    "building": "apartments",
+    "name": "호암서관",
+    "name:en": "Guest House"
+  }
+},
+{
+  "type": "way",
+  "id": 439707884,
+  "center": {
+    "lat": 37.4675797,
+    "lon": 126.9593948
+  },
+  "tags": {
+    "building": "apartments",
+    "name": "호암동관",
+    "name:en": "Guest House"
+  }
+},
+{
+  "type": "way",
+  "id": 439707887,
+  "center": {
+    "lat": 37.4675690,
+    "lon": 126.9574266
+  },
+  "tags": {
+    "building": "apartments",
+    "name": "D"
+  }
+},
+{
+  "type": "way",
+  "id": 439707888,
+  "center": {
+    "lat": 37.4677684,
+    "lon": 126.9569838
+  },
+  "tags": {
+    "building": "apartments",
+    "name": "E"
+  }
+},
+{
+  "type": "way",
+  "id": 439707889,
+  "center": {
+    "lat": 37.4680354,
+    "lon": 126.9573829
+  },
+  "tags": {
+    "building": "apartments",
+    "name": "F"
+  }
+},
+{
+  "type": "way",
+  "id": 439707890,
+  "center": {
+    "lat": 37.4680084,
+    "lon": 126.9569306
+  },
+  "tags": {
+    "building": "apartments",
+    "name": "G"
+  }
+},
+{
+  "type": "way",
+  "id": 439707891,
+  "center": {
+    "lat": 37.4682347,
+    "lon": 126.9573286
+  },
+  "tags": {
+    "building": "apartments",
+    "name": "H"
+  }
+},
+{
+  "type": "way",
+  "id": 467294216,
+  "center": {
+    "lat": 37.4826843,
+    "lon": 126.9613457
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "관악 파크 푸르지오",
+    "name:en": "Gwanak Park Prugio",
+    "name:ko": "관악 파크 푸르지오"
+  }
+},
+{
+  "type": "way",
+  "id": 468588079,
+  "center": {
+    "lat": 37.4791701,
+    "lon": 126.9496927
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "117",
+    "addr:postcode": "08786",
+    "addr:street": "쑥고개로",
+    "addr:subdistrict": "봉천동",
+    "building": "apartments",
+    "building:levels": "8",
+    "name": "파워오피스텔",
+    "name:en": "Power Officetel",
+    "name:ko": "파워오피스텔"
+  }
+},
+{
+  "type": "way",
+  "id": 468588115,
+  "center": {
+    "lat": 37.4791537,
+    "lon": 126.9498597
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "119",
+    "addr:postcode": "08786",
+    "addr:street": "쑥고개로",
+    "addr:subdistrict": "봉천동",
+    "building": "apartments",
+    "building:levels": "8",
+    "name": "다산오피스텔",
+    "name:en": "Dasan Officetel",
+    "name:ko": "다산오피스텔"
+  }
+},
+{
+  "type": "way",
+  "id": 469356778,
+  "center": {
+    "lat": 37.4814064,
+    "lon": 126.9425421
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:street": "쑥고개로11길",
+    "addr:subdistrict": "봉천동",
+    "amenity": "bank",
+    "atm": "yes",
+    "building": "yes",
+    "level": "4",
+    "name": "관악중앙새마을금고 봉천역지점",
+    "name:en": "Gwanak Jungang Community Credit Cooperative Bongcheon Station Branch",
+    "name:ko": "관악중앙새마을금고 봉천역지점"
+  }
+},
+{
+  "type": "way",
+  "id": 469396096,
+  "center": {
+    "lat": 37.4768319,
+    "lon": 126.9612362
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "낙성대현대홈타운"
+  }
+},
+{
+  "type": "way",
+  "id": 469398592,
+  "center": {
+    "lat": 37.4793498,
+    "lon": 126.9636981
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "관악미래가아파트",
+    "name:ko": "관악미래가아파트",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 469927783,
+  "center": {
+    "lat": 37.4882255,
+    "lon": 126.9383826
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "복권아파트"
+  }
+},
+{
+  "type": "way",
+  "id": 469929928,
+  "center": {
+    "lat": 37.4933908,
+    "lon": 126.9286224
+  },
+  "tags": {
+    "building": "apartments",
+    "name": "5"
+  }
+},
+{
+  "type": "way",
+  "id": 469929929,
+  "center": {
+    "lat": 37.4932436,
+    "lon": 126.9288241
+  },
+  "tags": {
+    "building": "apartments",
+    "name": "3"
+  }
+},
+{
+  "type": "way",
+  "id": 469929930,
+  "center": {
+    "lat": 37.4930760,
+    "lon": 126.9289796
+  },
+  "tags": {
+    "building": "apartments",
+    "name": "2"
+  }
+},
+{
+  "type": "way",
+  "id": 469929931,
+  "center": {
+    "lat": 37.4928049,
+    "lon": 126.9290635
+  },
+  "tags": {
+    "building": "apartments",
+    "name": "1"
+  }
+},
+{
+  "type": "way",
+  "id": 469929932,
+  "center": {
+    "lat": 37.4931340,
+    "lon": 126.9288092
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "해바라기아파트"
+  }
+},
+{
+  "type": "way",
+  "id": 469957301,
+  "center": {
+    "lat": 37.4884116,
+    "lon": 126.9384344
+  },
+  "tags": {
+    "building": "apartments",
+    "name": "103"
+  }
+},
+{
+  "type": "way",
+  "id": 469957302,
+  "center": {
+    "lat": 37.4882235,
+    "lon": 126.9384076
+  },
+  "tags": {
+    "building": "apartments",
+    "name": "102"
+  }
+},
+{
+  "type": "way",
+  "id": 469957303,
+  "center": {
+    "lat": 37.4880119,
+    "lon": 126.9383054
+  },
+  "tags": {
+    "building": "apartments",
+    "name": "101"
+  }
+},
+{
+  "type": "way",
+  "id": 472044602,
+  "center": {
+    "lat": 37.4795438,
+    "lon": 126.9234312
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "52",
+    "building:levels": "14",
+    "height": "37",
+    "name": "에셀비전21아파트",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 473251373,
+  "center": {
+    "lat": 37.4946728,
+    "lon": 126.9280074
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "90",
+    "building:levels": "15",
+    "name": "101",
+    "start_date": "1996"
+  }
+},
+{
+  "type": "way",
+  "id": 473251374,
+  "center": {
+    "lat": 37.4943585,
+    "lon": 126.9278368
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "150",
+    "building:levels": "15",
+    "name": "102",
+    "start_date": "1996"
+  }
+},
+{
+  "type": "way",
+  "id": 473251375,
+  "center": {
+    "lat": 37.4938803,
+    "lon": 126.9283196
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "27",
+    "building:levels": "15",
+    "name": "106"
+  }
+},
+{
+  "type": "way",
+  "id": 486713527,
+  "center": {
+    "lat": 37.4935096,
+    "lon": 126.9279821
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "62",
+    "addr:postcode": "08709",
+    "addr:street": "보라매로",
+    "addr:subdistrict": "봉천동",
+    "building": "apartments",
+    "building:flats": "88",
+    "building:levels": "15",
+    "name": "105",
+    "start_date": "1996"
+  }
+},
+{
+  "type": "way",
+  "id": 544960023,
+  "center": {
+    "lat": 37.4877674,
+    "lon": 126.9608277
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "27",
+    "addr:postcode": "08734",
+    "addr:street": "관악로30길",
+    "addr:subdistrict": "봉천동",
+    "landuse": "residential",
+    "name": "관악푸르지오아파트",
+    "name:en": "Gwanak Prugio",
+    "name:ko": "관악푸르지오아파트"
+  }
+},
+{
+  "type": "way",
+  "id": 545366841,
+  "center": {
+    "lat": 37.4801257,
+    "lon": 126.9454145
+  },
+  "tags": {
+    "addr:housenumber": "10",
+    "addr:postcode": "08785",
+    "building": "apartments",
+    "building:levels": "10",
+    "name": "늘푸른아파트",
+    "name:en": "Neulpureun Apartments",
+    "name:ko": "늘푸른아파트"
+  }
+},
+{
+  "type": "way",
+  "id": 545375540,
+  "center": {
+    "lat": 37.4797974,
+    "lon": 126.9457043
+  },
+  "tags": {
+    "addr:housenumber": "5",
+    "building": "apartments",
+    "building:levels": "5",
+    "name": "장미아파트",
+    "name:en": "Jangmi Apartments",
+    "name:ko": "장미아파트"
+  }
+},
+{
+  "type": "way",
+  "id": 545398192,
+  "center": {
+    "lat": 37.4838819,
+    "lon": 126.9431574
+  },
+  "tags": {
+    "addr:unit": "109",
+    "building": "apartments",
+    "building:flats": "46",
+    "building:levels": "23",
+    "height": "64",
+    "name": "109",
+    "start_date": "2000"
+  }
+},
+{
+  "type": "way",
+  "id": 545398193,
+  "center": {
+    "lat": 37.4841641,
+    "lon": 126.9434725
+  },
+  "tags": {
+    "addr:unit": "110",
+    "building": "apartments",
+    "building:flats": "90",
+    "building:levels": "23",
+    "height": "64",
+    "name": "110",
+    "start_date": "2000"
+  }
+},
+{
+  "type": "way",
+  "id": 545398194,
+  "center": {
+    "lat": 37.4845184,
+    "lon": 126.9432357
+  },
+  "tags": {
+    "addr:unit": "111",
+    "building": "apartments",
+    "building:flats": "46",
+    "building:levels": "23",
+    "height": "64",
+    "name": "111",
+    "start_date": "2000"
+  }
+},
+{
+  "type": "way",
+  "id": 545398195,
+  "center": {
+    "lat": 37.4847628,
+    "lon": 126.9436309
+  },
+  "tags": {
+    "addr:unit": "112",
+    "building": "apartments",
+    "building:flats": "115",
+    "building:levels": "23",
+    "height": "64",
+    "name": "112",
+    "start_date": "2000"
+  }
+},
+{
+  "type": "way",
+  "id": 545398196,
+  "center": {
+    "lat": 37.4852512,
+    "lon": 126.9437719
+  },
+  "tags": {
+    "addr:unit": "114",
+    "building": "apartments",
+    "building:flats": "92",
+    "building:levels": "23",
+    "height": "64",
+    "name": "114",
+    "start_date": "2000"
+  }
+},
+{
+  "type": "way",
+  "id": 545398197,
+  "center": {
+    "lat": 37.4851533,
+    "lon": 126.9433205
+  },
+  "tags": {
+    "addr:unit": "113",
+    "building": "apartments",
+    "building:flats": "91",
+    "building:levels": "23",
+    "height": "64",
+    "name": "113",
+    "start_date": "2000"
+  }
+},
+{
+  "type": "way",
+  "id": 546707516,
+  "center": {
+    "lat": 37.4623313,
+    "lon": 126.9261489
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "399",
+    "addr:postcode": "08847",
+    "addr:street": "호암로",
+    "addr:subdistrict": "신림동",
+    "landuse": "residential",
+    "name": "삼성산주공아파트",
+    "name:en": "Samseongsan Tteuranchae Apartments",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 546707518,
+  "center": {
+    "lat": 37.4637679,
+    "lon": 126.9266149
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "86",
+    "addr:postcode": "08848",
+    "addr:street": "광신길",
+    "addr:subdistrict": "신림동",
+    "landuse": "residential",
+    "name": "신림 주공아파트 2단지",
+    "name:en": "Sillim Jugong Apartments 2danji",
+    "name:ko": "신림 주공아파트 2단지"
+  }
+},
+{
+  "type": "way",
+  "id": 567074996,
+  "center": {
+    "lat": 37.4746418,
+    "lon": 126.9331601
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "60",
+    "building:levels": "15",
+    "name": "109동",
+    "start_date": "1993"
+  }
+},
+{
+  "type": "way",
+  "id": 567074997,
+  "center": {
+    "lat": 37.4744475,
+    "lon": 126.9324883
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "279",
+    "building:levels": "15",
+    "name": "108동",
+    "start_date": "1993"
+  }
+},
+{
+  "type": "way",
+  "id": 567074998,
+  "center": {
+    "lat": 37.4750428,
+    "lon": 126.9339802
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "90",
+    "building:levels": "15",
+    "name": "112동",
+    "start_date": "1993"
+  }
+},
+{
+  "type": "way",
+  "id": 567074999,
+  "center": {
+    "lat": 37.4753560,
+    "lon": 126.9345317
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "120",
+    "building:levels": "15",
+    "name": "111동",
+    "start_date": "1993"
+  }
+},
+{
+  "type": "way",
+  "id": 567075000,
+  "center": {
+    "lat": 37.4756751,
+    "lon": 126.9340247
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "140",
+    "building:levels": "15",
+    "name": "110동",
+    "start_date": "1993"
+  }
+},
+{
+  "type": "way",
+  "id": 567075004,
+  "center": {
+    "lat": 37.4754602,
+    "lon": 126.9328797
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "195",
+    "building:levels": "15",
+    "name": "106동",
+    "start_date": "1993"
+  }
+},
+{
+  "type": "way",
+  "id": 567075008,
+  "center": {
+    "lat": 37.4750542,
+    "lon": 126.9308813
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "90",
+    "building:levels": "15",
+    "name": "103동",
+    "start_date": "1993"
+  }
+},
+{
+  "type": "way",
+  "id": 567075009,
+  "center": {
+    "lat": 37.4748727,
+    "lon": 126.9303192
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "75",
+    "building:levels": "15",
+    "name": "102동",
+    "start_date": "1993"
+  }
+},
+{
+  "type": "way",
+  "id": 567075015,
+  "center": {
+    "lat": 37.4704077,
+    "lon": 126.9344660
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "182",
+    "building:levels": "11",
+    "height": "42",
+    "name": "일성트루엘",
+    "start_date": "2013"
+  }
+},
+{
+  "type": "way",
+  "id": 577858168,
+  "center": {
+    "lat": 37.4675536,
+    "lon": 126.9419558
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "45-34",
+    "addr:postcode": "08816",
+    "addr:street": "신림로3가길",
+    "addr:subdistrict": "신림동",
+    "building": "apartments",
+    "building:flats": "86",
+    "building:levels": "12",
+    "height": "34",
+    "name": "청광아파트",
+    "start_date": "2000"
+  }
+},
+{
+  "type": "way",
+  "id": 586177634,
+  "center": {
+    "lat": 37.4784857,
+    "lon": 126.9430407
+  },
+  "tags": {
+    "building": "kindergarten",
+    "name": "구립e편한1단지어린이집",
+    "name:en": "Childcare Center"
+  }
+},
+{
+  "type": "way",
+  "id": 586969149,
+  "center": {
+    "lat": 37.4699687,
+    "lon": 126.9644827
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "46-1",
+    "addr:postcode": "08797",
+    "addr:street": "인헌12길",
+    "addr:subdistrict": "봉천동",
+    "landuse": "residential",
+    "name": "은천2단지아파트",
+    "name:en": "Euncheon Apartment",
+    "name:ko": "은천2단지아파트",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 586969150,
+  "center": {
+    "lat": 37.4712805,
+    "lon": 126.9648663
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "은천1단지아파트",
+    "name:en": "Euncheon Apartment",
+    "name:ko": "은천1단지아파트"
+  }
+},
+{
+  "type": "way",
+  "id": 603914694,
+  "center": {
+    "lat": 37.4803363,
+    "lon": 126.9487952
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "24",
+    "addr:postcode": "08786",
+    "addr:street": "남부순환로216길",
+    "addr:subdistrict": "봉천동",
+    "building": "apartments",
+    "building:flats": "128",
+    "building:levels": "9",
+    "height": "28",
+    "name": "리마크빌 관악",
+    "name:en": "Remark Vill Gwanak",
+    "name:ko": "리마크빌 관악",
+    "start_date": "2016",
+    "website": "http://www.remarkvill.com/"
+  }
+},
+{
+  "type": "way",
+  "id": 603914697,
+  "center": {
+    "lat": 37.4821414,
+    "lon": 126.9471936
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "1773",
+    "addr:postcode": "08758",
+    "addr:street": "남부순환로",
+    "addr:subdistrict": "봉천동",
+    "building": "apartments",
+    "building:flats": "117",
+    "building:levels": "15",
+    "height": "54",
+    "name": "마에스트로 캠퍼스타운 I",
+    "name:en": "MAESTRO CAMPUSTOWN I",
+    "name:ko": "마에스트로 캠퍼스타운 I",
+    "start_date": "2012"
+  }
+},
+{
+  "type": "way",
+  "id": 603914698,
+  "center": {
+    "lat": 37.4824127,
+    "lon": 126.9476471
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "1777-7",
+    "addr:postcode": "08758",
+    "addr:street": "남부순환로",
+    "addr:subdistrict": "봉천동",
+    "building": "apartments",
+    "building:flats": "114",
+    "building:levels": "20",
+    "height": "58",
+    "name": "프라비다 M",
+    "name:en": "PURAVIDA M",
+    "name:ko": "프라비다 M",
+    "start_date": "2014"
+  }
+},
+{
+  "type": "way",
+  "id": 604428769,
+  "center": {
+    "lat": 37.4791705,
+    "lon": 126.9503359
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "123",
+    "addr:postcode": "08787",
+    "addr:street": "쑥고개로",
+    "addr:subdistrict": "봉천동",
+    "building": "apartments",
+    "building:flats": "139",
+    "building:levels": "17",
+    "height": "60",
+    "name": "서울대입구 한양아이클래스",
+    "name:en": "Seouldaeipgu Hanyang i-Class",
+    "name:ko": "서울대입구 한양아이클래스",
+    "start_date": "2018"
+  }
+},
+{
+  "type": "way",
+  "id": 604428770,
+  "center": {
+    "lat": 37.4790230,
+    "lon": 126.9505521
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "125",
+    "addr:postcode": "08787",
+    "addr:street": "쑥고개로",
+    "addr:subdistrict": "봉천동",
+    "building": "apartments",
+    "building:flats": "162",
+    "building:levels": "19",
+    "height": "59",
+    "name": "프라비다 162",
+    "name:en": "PURAVIDA 162",
+    "name:ko": "프라비다 162",
+    "start_date": "2013"
+  }
+},
+{
+  "type": "way",
+  "id": 604428771,
+  "center": {
+    "lat": 37.4791762,
+    "lon": 126.9506431
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "25",
+    "addr:postcode": "08787",
+    "addr:street": "관악로13길",
+    "addr:subdistrict": "봉천동",
+    "building": "apartments",
+    "building:flats": "142",
+    "building:levels": "10",
+    "name": "세종오피스텔",
+    "name:en": "Sejong Officetel",
+    "name:ko": "세종오피스텔",
+    "start_date": "1990"
+  }
+},
+{
+  "type": "way",
+  "id": 604428780,
+  "center": {
+    "lat": 37.4791370,
+    "lon": 126.9500282
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "121",
+    "addr:postcode": "08786",
+    "addr:street": "쑥고개로",
+    "addr:subdistrict": "봉천동",
+    "building": "apartments",
+    "building:flats": "28",
+    "building:levels": "10",
+    "height": "34",
+    "name": "삼일빌딩",
+    "name:en": "Samil Building",
+    "name:ko": "삼일빌딩",
+    "start_date": "2015"
+  }
+},
+{
+  "type": "way",
+  "id": 604774221,
+  "center": {
+    "lat": 37.4805974,
+    "lon": 126.9635034
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "낙성대현대홈타운아파트",
+    "name:ko": "낙성대현대홈타운아파트",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 605887230,
+  "center": {
+    "lat": 37.4809810,
+    "lon": 126.9474277
+  },
+  "tags": {
+    "addr:housenumber": "14",
+    "building": "apartments",
+    "building:flats": "27",
+    "building:levels": "10",
+    "height": "35",
+    "name": "라온 3",
+    "name:en": "Raon 3",
+    "name:ko": "라온 3",
+    "start_date": "2018"
+  }
+},
+{
+  "type": "way",
+  "id": 605887233,
+  "center": {
+    "lat": 37.4808151,
+    "lon": 126.9472075
+  },
+  "tags": {
+    "addr:housenumber": "17",
+    "building": "apartments",
+    "building:flats": "24",
+    "building:levels": "12",
+    "height": "35",
+    "name": "고흥원룸",
+    "name:en": "Goheung Oneroom",
+    "name:ko": "고흥원룸",
+    "start_date": "2022"
+  }
+},
+{
+  "type": "way",
+  "id": 607205124,
+  "center": {
+    "lat": 37.4810716,
+    "lon": 126.9506617
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "1",
+    "addr:postcode": "08787",
+    "addr:street": "남부순환로218길",
+    "addr:subdistrict": "봉천동",
+    "building": "apartments",
+    "building:flats": "84",
+    "building:levels": "20",
+    "height": "70",
+    "name": "마에스트로",
+    "name:en": "MAESTRO",
+    "name:ko": "마에스트로",
+    "start_date": "2012"
+  }
+},
+{
+  "type": "way",
+  "id": 607843326,
+  "center": {
+    "lat": 37.4801755,
+    "lon": 126.9529624
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "168",
+    "addr:postcode": "08788",
+    "addr:street": "관악로",
+    "addr:subdistrict": "봉천동",
+    "building": "apartments",
+    "building:flats": "66",
+    "building:levels": "15",
+    "height": "57",
+    "name": "대우디오슈페리움 2단지",
+    "name:en": "Daewoo The O Superium II",
+    "name:ko": "대우디오슈페리움 2단지",
+    "start_date": "2007"
+  }
+},
+{
+  "type": "way",
+  "id": 607843328,
+  "center": {
+    "lat": 37.4798204,
+    "lon": 126.9529124
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "164",
+    "addr:postcode": "08788",
+    "addr:street": "관악로",
+    "addr:subdistrict": "봉천동",
+    "addr:unit": "B",
+    "building": "apartments",
+    "building:flats": "168",
+    "building:levels": "18",
+    "height": "72",
+    "name": "대우디오슈페리움 1단지",
+    "name:en": "Daewoo The O Superium I",
+    "name:ko": "대우디오슈페리움 1단지",
+    "start_date": "2007"
+  }
+},
+{
+  "type": "way",
+  "id": 607843329,
+  "center": {
+    "lat": 37.4795616,
+    "lon": 126.9527935
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "164",
+    "addr:postcode": "08788",
+    "addr:street": "관악로",
+    "addr:subdistrict": "봉천동",
+    "addr:unit": "A",
+    "building": "apartments",
+    "building:flats": "58",
+    "building:levels": "18",
+    "name": "대우디오슈페리움 1단지",
+    "name:en": "Daewoo The O Superium I",
+    "name:ko": "대우디오슈페리움 1단지",
+    "start_date": "2007"
+  }
+},
+{
+  "type": "way",
+  "id": 607843333,
+  "center": {
+    "lat": 37.4796734,
+    "lon": 126.9504352
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "37",
+    "addr:postcode": "08787",
+    "addr:street": "남부순환로218길",
+    "addr:subdistrict": "봉천동",
+    "building": "apartments",
+    "building:flats": "208",
+    "building:levels": "15",
+    "height": "48",
+    "name": "프라비다 2",
+    "name:en": "PURAVIDA 2",
+    "name:ko": "프라비다 2",
+    "start_date": "2013"
+  }
+},
+{
+  "type": "way",
+  "id": 607843339,
+  "center": {
+    "lat": 37.4798315,
+    "lon": 126.9491218
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "선경아파트",
+    "name:en": "Sunkyong Apartment",
+    "name:ko": "선경아파트",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 607843346,
+  "center": {
+    "lat": 37.4795790,
+    "lon": 126.9506828
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "23-16",
+    "addr:postcode": "08787",
+    "addr:street": "관악로15길",
+    "addr:subdistrict": "봉천동",
+    "building": "apartments",
+    "building:flats": "68",
+    "building:levels": "10",
+    "height": "30",
+    "name": "한울오피스텔",
+    "name:en": "Hanul Officetel",
+    "name:ko": "한울오피스텔",
+    "start_date": "2007"
+  }
+},
+{
+  "type": "way",
+  "id": 607843347,
+  "center": {
+    "lat": 37.4797635,
+    "lon": 126.9507135
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "23-12",
+    "addr:postcode": "08787",
+    "addr:street": "관악로15길",
+    "addr:subdistrict": "봉천동",
+    "building": "apartments",
+    "building:flats": "46",
+    "building:levels": "13",
+    "height": "38",
+    "name": "해담채",
+    "name:en": "Haedamchae",
+    "name:ko": "해담채",
+    "start_date": "2012"
+  }
+},
+{
+  "type": "way",
+  "id": 607843348,
+  "center": {
+    "lat": 37.4800127,
+    "lon": 126.9507187
+  },
+  "tags": {
+    "addr:housenumber": "23-6",
+    "building": "apartments",
+    "building:flats": "68",
+    "building:levels": "12",
+    "height": "33",
+    "name": "서울유니버스텔",
+    "name:en": "Seoul Universetel",
+    "name:ko": "서울유니버스텔",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 607843349,
+  "center": {
+    "lat": 37.4798949,
+    "lon": 126.9506993
+  },
+  "tags": {
+    "addr:housenumber": "23-10",
+    "building": "apartments",
+    "building:flats": "70",
+    "building:levels": "12",
+    "height": "33",
+    "name": "광서유니버스텔",
+    "name:en": "Gwangseo Universetel",
+    "name:ko": "광서유니버스텔",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 607843350,
+  "center": {
+    "lat": 37.4802075,
+    "lon": 126.9508199
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "25",
+    "addr:postcode": "08787",
+    "addr:street": "관악로15길",
+    "addr:subdistrict": "봉천동",
+    "building": "apartments",
+    "building:flats": "84",
+    "building:levels": "11",
+    "height": "32",
+    "name": "신우오피스텔",
+    "name:en": "Sinwoo Officieel",
+    "name:ko": "신우오피스텔",
+    "start_date": "2011"
+  }
+},
+{
+  "type": "way",
+  "id": 607843351,
+  "center": {
+    "lat": 37.4802580,
+    "lon": 126.9505182
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "23",
+    "addr:postcode": "08787",
+    "addr:street": "남부순환로218길",
+    "addr:subdistrict": "봉천동",
+    "building": "apartments",
+    "building:flats": "84",
+    "building:levels": "15",
+    "height": "43",
+    "name": "경진오피스텔",
+    "start_date": "2019"
+  }
+},
+{
+  "type": "way",
+  "id": 607843352,
+  "center": {
+    "lat": 37.4800307,
+    "lon": 126.9504557
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "117",
+    "building:levels": "18",
+    "height": "56",
+    "level": "6",
+    "name": "관전G타워오피스텔",
+    "start_date": "2019"
+  }
+},
+{
+  "type": "way",
+  "id": 607843355,
+  "center": {
+    "lat": 37.4794933,
+    "lon": 126.9510489
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "20",
+    "addr:postcode": "08787",
+    "addr:street": "관악로13길",
+    "addr:subdistrict": "봉천동",
+    "building": "apartments",
+    "building:flats": "29",
+    "building:levels": "16",
+    "height": "48",
+    "name": "카카오티",
+    "name:en": "Cacao T",
+    "name:ko": "카카오티",
+    "start_date": "2017"
+  }
+},
+{
+  "type": "way",
+  "id": 607843358,
+  "center": {
+    "lat": 37.4816625,
+    "lon": 126.9521587
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "1817",
+    "addr:postcode": "08758",
+    "addr:street": "남부순환로",
+    "addr:subdistrict": "봉천동",
+    "building": "apartments",
+    "building:flats": "79",
+    "building:levels": "20",
+    "height": "70",
+    "name": "Q타워",
+    "name:en": "Q Tower",
+    "name:ko": "Q타워",
+    "start_date": "2016"
+  }
+},
+{
+  "type": "way",
+  "id": 607843362,
+  "center": {
+    "lat": 37.4817439,
+    "lon": 126.9514288
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "1811",
+    "addr:postcode": "08758",
+    "addr:street": "남부순환로",
+    "addr:subdistrict": "봉천동",
+    "building": "apartments",
+    "building:flats": "162",
+    "building:levels": "15",
+    "height": "57",
+    "name": "신원메트로빌",
+    "name:en": "Sinwon Metro Vill",
+    "name:ko": "신원메트로빌",
+    "start_date": "2006"
+  }
+},
+{
+  "type": "way",
+  "id": 607843365,
+  "center": {
+    "lat": 37.4818903,
+    "lon": 126.9522472
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "472",
+    "addr:postcode": "08758",
+    "addr:street": "봉천로",
+    "addr:subdistrict": "봉천동",
+    "building": "apartments",
+    "building:flats": "350",
+    "building:levels": "15",
+    "height": "53",
+    "length": "40.6",
+    "name": "코업레지던스",
+    "name:en": "Co-Up Residence",
+    "name:ko": "코업레지던스",
+    "start_date": "2005",
+    "width": "20"
+  }
+},
+{
+  "type": "way",
+  "id": 607843368,
+  "center": {
+    "lat": 37.4809209,
+    "lon": 126.9512924
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:housenumber": "20",
+    "addr:street": "관악로17길",
+    "building": "apartments",
+    "building:flats": "49",
+    "building:levels": "20",
+    "height": "62",
+    "name": "프라비다 1",
+    "name:en": "PURAVIDA 1",
+    "name:ko": "프라비다 1",
+    "start_date": "2012"
+  }
+},
+{
+  "type": "way",
+  "id": 607843374,
+  "center": {
+    "lat": 37.4811351,
+    "lon": 126.9502597
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "1802",
+    "addr:postcode": "08786",
+    "addr:street": "남부순환로",
+    "addr:subdistrict": "봉천동",
+    "building": "apartments",
+    "building:flats": "129",
+    "building:levels": "18",
+    "height": "60",
+    "name": "관악캠퍼스타워",
+    "name:en": "Gwanak Campus Tower",
+    "name:ko": "관악캠퍼스타워",
+    "start_date": "1998"
+  }
+},
+{
+  "type": "way",
+  "id": 607844539,
+  "center": {
+    "lat": 37.4804414,
+    "lon": 126.9512076
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "22",
+    "addr:postcode": "08787",
+    "addr:street": "관악로15길",
+    "addr:subdistrict": "봉천동",
+    "building": "apartments",
+    "building:flats": "80",
+    "building:levels": "12",
+    "height": "37",
+    "name": "라온오피스텔",
+    "start_date": "2013"
+  }
+},
+{
+  "type": "way",
+  "id": 608062126,
+  "center": {
+    "lat": 37.4843015,
+    "lon": 126.9427848
+  },
+  "tags": {
+    "addr:unit": "102",
+    "building": "apartments",
+    "building:flats": "92",
+    "building:levels": "23",
+    "height": "64",
+    "name": "102",
+    "start_date": "2000"
+  }
+},
+{
+  "type": "way",
+  "id": 608062127,
+  "center": {
+    "lat": 37.4840163,
+    "lon": 126.9425223
+  },
+  "tags": {
+    "addr:unit": "103",
+    "building": "apartments",
+    "building:flats": "92",
+    "building:levels": "23",
+    "height": "64",
+    "name": "103",
+    "start_date": "2000"
+  }
+},
+{
+  "type": "way",
+  "id": 608062128,
+  "center": {
+    "lat": 37.4842372,
+    "lon": 126.9419955
+  },
+  "tags": {
+    "addr:unit": "104",
+    "building": "apartments",
+    "building:flats": "82",
+    "building:levels": "17",
+    "height": "48",
+    "name": "104",
+    "start_date": "2000"
+  }
+},
+{
+  "type": "way",
+  "id": 608062129,
+  "center": {
+    "lat": 37.4845227,
+    "lon": 126.9417300
+  },
+  "tags": {
+    "addr:unit": "105",
+    "building": "apartments",
+    "building:flats": "90",
+    "building:levels": "23",
+    "height": "64",
+    "name": "105",
+    "start_date": "2000"
+  }
+},
+{
+  "type": "way",
+  "id": 608062130,
+  "center": {
+    "lat": 37.4849407,
+    "lon": 126.9428403
+  },
+  "tags": {
+    "addr:unit": "108",
+    "building": "apartments",
+    "building:flats": "85",
+    "building:levels": "23",
+    "height": "64",
+    "name": "108",
+    "start_date": "2000"
+  }
+},
+{
+  "type": "way",
+  "id": 608062131,
+  "center": {
+    "lat": 37.4846802,
+    "lon": 126.9425061
+  },
+  "tags": {
+    "addr:unit": "107",
+    "building": "apartments",
+    "building:flats": "111",
+    "building:levels": "23",
+    "height": "64",
+    "name": "107",
+    "start_date": "2000"
+  }
+},
+{
+  "type": "way",
+  "id": 608062132,
+  "center": {
+    "lat": 37.4848300,
+    "lon": 126.9420932
+  },
+  "tags": {
+    "addr:unit": "106",
+    "building": "apartments",
+    "building:flats": "88",
+    "building:levels": "23",
+    "height": "64",
+    "name": "106",
+    "start_date": "2000"
+  }
+},
+{
+  "type": "way",
+  "id": 608063566,
+  "center": {
+    "lat": 37.4837413,
+    "lon": 126.9427068
+  },
+  "tags": {
+    "addr:unit": "101",
+    "building": "apartments",
+    "building:flats": "46",
+    "building:levels": "23",
+    "height": "64",
+    "name": "101",
+    "start_date": "2000"
+  }
+},
+{
+  "type": "way",
+  "id": 608063568,
+  "center": {
+    "lat": 37.4835225,
+    "lon": 126.9433142
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "391",
+    "addr:postcode": "08750",
+    "addr:street": "봉천로",
+    "addr:subdistrict": "봉천동",
+    "building": "retail",
+    "building:levels": "5",
+    "name": "두산아파트상가",
+    "name:en": "Doosan Apartments Shopping Center",
+    "name:ko": "두산아파트상가"
+  }
+},
+{
+  "type": "way",
+  "id": 612097308,
+  "center": {
+    "lat": 37.4869828,
+    "lon": 126.9300914
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "39",
+    "addr:postcode": "08753",
+    "addr:street": "봉천로12길",
+    "addr:subdistrict": "신림동",
+    "building": "apartments",
+    "building:flats": "165",
+    "building:levels": "10",
+    "height": "30",
+    "name": "가야위드안",
+    "start_date": "2020"
+  }
+},
+{
+  "type": "way",
+  "id": 616216428,
+  "center": {
+    "lat": 37.4788159,
+    "lon": 126.9403707
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "대원아파트",
+    "name:en": "Daewon Apt.",
+    "name:ko": "대원아파트"
+  }
+},
+{
+  "type": "way",
+  "id": 616808632,
+  "center": {
+    "lat": 37.4850158,
+    "lon": 126.9496798
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "신봉아파트",
+    "name:en": "Sinbong Apartments",
+    "name:ko": "신봉아파트",
+    "name:zh": "新峰公寓"
+  }
+},
+{
+  "type": "way",
+  "id": 624150583,
+  "center": {
+    "lat": 37.4848181,
+    "lon": 126.9597222
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "봉천 우성아파트",
+    "name:en": "Bongcheon Woosung Apartments",
+    "name:ko": "봉천 우성아파트"
+  }
+},
+{
+  "type": "way",
+  "id": 626118097,
+  "center": {
+    "lat": 37.4793663,
+    "lon": 126.9164795
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "태양빌라"
+  }
+},
+{
+  "type": "way",
+  "id": 628989152,
+  "center": {
+    "lat": 37.4839953,
+    "lon": 126.9053742
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "힐스테이트뉴포레아파트",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 641389093,
+  "center": {
+    "lat": 37.4851497,
+    "lon": 126.9299697
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "344",
+    "addr:postcode": "08754",
+    "addr:street": "신림로",
+    "addr:subdistrict": "신림동",
+    "building": "apartments",
+    "building:flats": "219",
+    "building:levels": "14",
+    "height": "51",
+    "name": "SK허브그린",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 676550906,
+  "center": {
+    "lat": 37.4599234,
+    "lon": 126.9188458
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "55",
+    "addr:postcode": "08862",
+    "addr:street": "난곡로",
+    "addr:subdistrict": "신림동",
+    "building": "apartments",
+    "building:flats": "78",
+    "building:levels": "20",
+    "height": "56",
+    "name": "201동",
+    "start_date": "2008"
+  }
+},
+{
+  "type": "way",
+  "id": 777489811,
+  "center": {
+    "lat": 37.4890738,
+    "lon": 126.9217733
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "보라매파크뷰아파트",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 778418064,
+  "center": {
+    "lat": 37.4769620,
+    "lon": 126.9612825
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "576",
+    "addr:postcode": "08792",
+    "addr:street": "봉천로",
+    "addr:subdistrict": "봉천동",
+    "building": "apartments",
+    "building:flats": "121",
+    "building:levels": "16",
+    "height": "46",
+    "name": "동아타운아파트",
+    "name:ko": "동아타운아파트",
+    "start_date": "1999"
+  }
+},
+{
+  "type": "way",
+  "id": 778418069,
+  "center": {
+    "lat": 37.4765107,
+    "lon": 126.9614514
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "24",
+    "addr:postcode": "08792",
+    "addr:street": "낙성대역길",
+    "addr:subdistrict": "봉천동",
+    "building": "apartments",
+    "name": "삼호맨숀"
+  }
+},
+{
+  "type": "way",
+  "id": 799279952,
+  "center": {
+    "lat": 37.4728432,
+    "lon": 126.9121904
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "44",
+    "building:levels": "8",
+    "name": "103동",
+    "start_date": "1998"
+  }
+},
+{
+  "type": "way",
+  "id": 799279953,
+  "center": {
+    "lat": 37.4723235,
+    "lon": 126.9118327
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "118",
+    "building:levels": "18",
+    "height": "50",
+    "name": "102동",
+    "start_date": "1998"
+  }
+},
+{
+  "type": "way",
+  "id": 799279954,
+  "center": {
+    "lat": 37.4718188,
+    "lon": 126.9115949
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "211",
+    "building:levels": "18",
+    "height": "50",
+    "name": "101동",
+    "start_date": "1998"
+  }
+},
+{
+  "type": "way",
+  "id": 814032371,
+  "center": {
+    "lat": 37.4874744,
+    "lon": 126.9514742
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "5",
+    "addr:postcode": "08729",
+    "addr:street": "은천로33길",
+    "addr:subdistrict": "봉천동",
+    "building": "apartments",
+    "building:flats": "80",
+    "building:levels": "20",
+    "height": "54",
+    "name": "103",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 814032373,
+  "center": {
+    "lat": 37.4870982,
+    "lon": 126.9517838
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "5",
+    "addr:postcode": "08729",
+    "addr:street": "은천로33길",
+    "addr:subdistrict": "봉천동",
+    "building": "apartments",
+    "building:flats": "109",
+    "building:levels": "19",
+    "height": "52",
+    "name": "102",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 814032374,
+  "center": {
+    "lat": 37.4872670,
+    "lon": 126.9511642
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "5",
+    "addr:postcode": "08729",
+    "addr:street": "은천로33길",
+    "addr:subdistrict": "봉천동",
+    "building": "apartments",
+    "building:flats": "33",
+    "building:levels": "18",
+    "height": "49",
+    "name": "104",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 814032375,
+  "center": {
+    "lat": 37.4873327,
+    "lon": 126.9502296
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "5",
+    "addr:postcode": "08729",
+    "addr:street": "은천로33길",
+    "addr:subdistrict": "봉천동",
+    "building": "apartments",
+    "building:flats": "70",
+    "building:levels": "12",
+    "height": "32",
+    "name": "106",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 814032376,
+  "center": {
+    "lat": 37.4868896,
+    "lon": 126.9505059
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "137",
+    "addr:postcode": "08729",
+    "addr:street": "은천로",
+    "addr:subdistrict": "봉천동",
+    "building": "apartments",
+    "building:flats": "74",
+    "building:levels": "12",
+    "height": "37",
+    "name": "101",
+    "start_date": "2009"
+  }
+},
+{
+  "type": "way",
+  "id": 814032378,
+  "center": {
+    "lat": 37.4875454,
+    "lon": 126.9508939
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "5",
+    "addr:postcode": "08729",
+    "addr:street": "은천로33길",
+    "addr:subdistrict": "봉천동",
+    "building": "apartments",
+    "building:flats": "73",
+    "building:levels": "19",
+    "height": "51",
+    "name": "105",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 814032379,
+  "center": {
+    "lat": 37.4869035,
+    "lon": 126.9497336
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "5",
+    "addr:postcode": "08729",
+    "addr:street": "은천로33길",
+    "addr:subdistrict": "봉천동",
+    "building": "apartments",
+    "building:flats": "51",
+    "building:levels": "13",
+    "height": "35",
+    "name": "107",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 814383846,
+  "center": {
+    "lat": 37.4874390,
+    "lon": 126.9507315
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "5",
+    "addr:postcode": "08729",
+    "addr:street": "은천로33길",
+    "addr:subdistrict": "봉천동",
+    "building": "apartments",
+    "name": "경로당"
+  }
+},
+{
+  "type": "way",
+  "id": 814383851,
+  "center": {
+    "lat": 37.4869172,
+    "lon": 126.9505406
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "한일유앤아이"
+  }
+},
+{
+  "type": "way",
+  "id": 827786685,
+  "center": {
+    "lat": 37.4725974,
+    "lon": 126.9754824
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "남현동우림루미아트아파트",
+    "name:ko": "남현동우림루미아트아파트",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 827786686,
+  "center": {
+    "lat": 37.4718142,
+    "lon": 126.9721095
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "49",
+    "building:levels": "10",
+    "height": "29",
+    "name": "201동",
+    "start_date": "2008"
+  }
+},
+{
+  "type": "way",
+  "id": 827786687,
+  "center": {
+    "lat": 37.4715271,
+    "lon": 126.9725013
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "49",
+    "building:levels": "10",
+    "height": "27",
+    "name": "101동",
+    "start_date": "2005"
+  }
+},
+{
+  "type": "way",
+  "id": 827786688,
+  "center": {
+    "lat": 37.4716693,
+    "lon": 126.9723710
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "남현동대창센시티아파트",
+    "name:ko": "남현동대창센시티아파트",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 827786690,
+  "center": {
+    "lat": 37.4712153,
+    "lon": 126.9739106
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "예성그린캐슬3차아파트",
+    "name:ko": "예성그린캐슬3차아파트"
+  }
+},
+{
+  "type": "way",
+  "id": 827786691,
+  "center": {
+    "lat": 37.4717023,
+    "lon": 126.9735907
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "남현한일유앤아이아파트",
+    "name:ko": "남현한일유앤아이아파트",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 827786692,
+  "center": {
+    "lat": 37.4716452,
+    "lon": 126.9737092
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "65",
+    "building:levels": "10",
+    "height": "27",
+    "name": "102동",
+    "start_date": "2005"
+  }
+},
+{
+  "type": "way",
+  "id": 827786693,
+  "center": {
+    "lat": 37.4717657,
+    "lon": 126.9733588
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "49",
+    "building:levels": "11",
+    "height": "29",
+    "name": "101동",
+    "start_date": "2005"
+  }
+},
+{
+  "type": "way",
+  "id": 827786694,
+  "center": {
+    "lat": 37.4710415,
+    "lon": 126.9733461
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "23",
+    "building:levels": "12",
+    "height": "32",
+    "name": "102동",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 827786695,
+  "center": {
+    "lat": 37.4712180,
+    "lon": 126.9729172
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "65",
+    "building:levels": "12",
+    "height": "32",
+    "name": "101동",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 827786696,
+  "center": {
+    "lat": 37.4712281,
+    "lon": 126.9730054
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "남현흥화브라운빌아파트",
+    "name:ko": "남현흥화브라운빌아파트",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 841077451,
+  "center": {
+    "lat": 37.4925124,
+    "lon": 126.9460506
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "벽산타운2차아파트"
+  }
+},
+{
+  "type": "way",
+  "id": 895452422,
+  "center": {
+    "lat": 37.4828667,
+    "lon": 126.9533718
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "54",
+    "building:levels": "20",
+    "height": "73",
+    "name": "관악위버폴리스 102동",
+    "name:ko": "관악위버폴리스 102동",
+    "start_date": "2020"
+  }
+},
+{
+  "type": "way",
+  "id": 895452423,
+  "center": {
+    "lat": 37.4825544,
+    "lon": 126.9530547
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "54",
+    "building:levels": "20",
+    "height": "73",
+    "name": "관악리버폴리스 101동",
+    "start_date": "2020"
+  }
+},
+{
+  "type": "way",
+  "id": 899293311,
+  "center": {
+    "lat": 37.4685827,
+    "lon": 126.9683609
+  },
+  "tags": {
+    "building": "apartments",
+    "name": "1동"
+  }
+},
+{
+  "type": "way",
+  "id": 899293362,
+  "center": {
+    "lat": 37.4682335,
+    "lon": 126.9662488
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "45",
+    "building:levels": "12",
+    "height": "32",
+    "name": "103동",
+    "start_date": "2006"
+  }
+},
+{
+  "type": "way",
+  "id": 899293364,
+  "center": {
+    "lat": 37.4685156,
+    "lon": 126.9658731
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "48",
+    "building:levels": "12",
+    "height": "32",
+    "name": "102동",
+    "start_date": "2006"
+  }
+},
+{
+  "type": "way",
+  "id": 899293365,
+  "center": {
+    "lat": 37.4689153,
+    "lon": 126.9654084
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "44",
+    "building:levels": "12",
+    "height": "32",
+    "name": "101동",
+    "start_date": "2006"
+  }
+},
+{
+  "type": "way",
+  "id": 901776482,
+  "center": {
+    "lat": 37.4723292,
+    "lon": 126.9654449
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "56",
+    "addr:postcode": "08797",
+    "addr:street": "남부순환로248길",
+    "addr:subdistrict": "봉천동",
+    "building": "apartments",
+    "building:flats": "90",
+    "building:levels": "15",
+    "name": "102",
+    "start_date": "1988"
+  }
+},
+{
+  "type": "way",
+  "id": 901776484,
+  "center": {
+    "lat": 37.4731239,
+    "lon": 126.9656573
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "56",
+    "addr:postcode": "08797",
+    "addr:street": "남부순환로248길",
+    "addr:subdistrict": "봉천동",
+    "building": "apartments",
+    "building:flats": "149",
+    "building:levels": "15",
+    "name": "101",
+    "start_date": "1988"
+  }
+},
+{
+  "type": "way",
+  "id": 902467801,
+  "center": {
+    "lat": 37.4744888,
+    "lon": 126.9613501
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "50-8",
+    "addr:postcode": "08799",
+    "addr:street": "낙성대역8길",
+    "addr:subdistrict": "봉천동",
+    "building": "residential",
+    "name": "탑 팰리스"
+  }
+},
+{
+  "type": "way",
+  "id": 954837498,
+  "center": {
+    "lat": 37.4785775,
+    "lon": 126.9637212
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "13",
+    "addr:postcode": "08801",
+    "addr:street": "솔밭로4길",
+    "addr:subdistrict": "봉천동",
+    "landuse": "residential",
+    "name": "더힐",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 973269291,
+  "center": {
+    "lat": 37.4797815,
+    "lon": 126.9096501
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "1430",
+    "addr:postcode": "08770",
+    "addr:street": "남부순환로",
+    "addr:subdistrict": "신림동",
+    "building": "apartments",
+    "building:flats": "47",
+    "building:levels": "24",
+    "height": "65",
+    "name": "101동",
+    "start_date": "2005"
+  }
+},
+{
+  "type": "way",
+  "id": 983077632,
+  "center": {
+    "lat": 37.4911093,
+    "lon": 126.9462351
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "힐스테이트관악센트씨엘",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 986087719,
+  "center": {
+    "lat": 37.4663699,
+    "lon": 126.9857541
+  },
+  "tags": {
+    "building": "apartments",
+    "name": "1동"
+  }
+},
+{
+  "type": "way",
+  "id": 986087720,
+  "center": {
+    "lat": 37.4663672,
+    "lon": 126.9861339
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "한울아파트",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 986087721,
+  "center": {
+    "lat": 37.4662334,
+    "lon": 126.9859061
+  },
+  "tags": {
+    "building": "apartments",
+    "name": "2동"
+  }
+},
+{
+  "type": "way",
+  "id": 986087722,
+  "center": {
+    "lat": 37.4660937,
+    "lon": 126.9860592
+  },
+  "tags": {
+    "building": "apartments",
+    "name": "3동"
+  }
+},
+{
+  "type": "way",
+  "id": 986087723,
+  "center": {
+    "lat": 37.4659742,
+    "lon": 126.9862506
+  },
+  "tags": {
+    "building": "apartments",
+    "name": "4동"
+  }
+},
+{
+  "type": "way",
+  "id": 986087724,
+  "center": {
+    "lat": 37.4658385,
+    "lon": 126.9863910
+  },
+  "tags": {
+    "building": "apartments",
+    "name": "5동"
+  }
+},
+{
+  "type": "way",
+  "id": 986087725,
+  "center": {
+    "lat": 37.4670456,
+    "lon": 126.9863297
+  },
+  "tags": {
+    "building": "apartments",
+    "name": "6동"
+  }
+},
+{
+  "type": "way",
+  "id": 986087726,
+  "center": {
+    "lat": 37.4669079,
+    "lon": 126.9864981
+  },
+  "tags": {
+    "building": "apartments",
+    "name": "7동"
+  }
+},
+{
+  "type": "way",
+  "id": 986087727,
+  "center": {
+    "lat": 37.4667762,
+    "lon": 126.9866435
+  },
+  "tags": {
+    "building": "apartments",
+    "name": "8동"
+  }
+},
+{
+  "type": "way",
+  "id": 986087728,
+  "center": {
+    "lat": 37.4666325,
+    "lon": 126.9867890
+  },
+  "tags": {
+    "building": "apartments",
+    "name": "9동"
+  }
+},
+{
+  "type": "way",
+  "id": 986087729,
+  "center": {
+    "lat": 37.4665068,
+    "lon": 126.9869715
+  },
+  "tags": {
+    "building": "apartments",
+    "name": "10동"
+  }
+},
+{
+  "type": "way",
+  "id": 1021892202,
+  "center": {
+    "lat": 37.4685714,
+    "lon": 126.9657410
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "14",
+    "addr:postcode": "08800",
+    "addr:street": "인헌16다길",
+    "addr:subdistrict": "봉천동",
+    "landuse": "residential",
+    "name": "봉천동반석푸른숲아파트",
+    "name:ko": "봉천동반석푸른숲아파트",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 1073235608,
+  "center": {
+    "lat": 37.4942994,
+    "lon": 126.9286765
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "117",
+    "building:levels": "15",
+    "name": "107",
+    "start_date": "1996"
+  }
+},
+{
+  "type": "way",
+  "id": 1073235609,
+  "center": {
+    "lat": 37.4940989,
+    "lon": 126.9292438
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "58",
+    "building:levels": "15",
+    "name": "108",
+    "start_date": "1996"
+  }
+},
+{
+  "type": "way",
+  "id": 1073235613,
+  "center": {
+    "lat": 37.4935323,
+    "lon": 126.9273094
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "60",
+    "building:levels": "15",
+    "name": "104",
+    "start_date": "1996"
+  }
+},
+{
+  "type": "way",
+  "id": 1073235614,
+  "center": {
+    "lat": 37.4939530,
+    "lon": 126.9275895
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "120",
+    "building:levels": "15",
+    "name": "103",
+    "start_date": "1996"
+  }
+},
+{
+  "type": "way",
+  "id": 1111667878,
+  "center": {
+    "lat": 37.4823872,
+    "lon": 126.9034475
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "미성아파트",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 1111667884,
+  "center": {
+    "lat": 37.4821800,
+    "lon": 126.9035965
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "140",
+    "building:levels": "10",
+    "name": "2",
+    "start_date": "1982"
+  }
+},
+{
+  "type": "way",
+  "id": 1111667885,
+  "center": {
+    "lat": 37.4826552,
+    "lon": 126.9032011
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "140",
+    "building:levels": "10",
+    "name": "1",
+    "start_date": "1982"
+  }
+},
+{
+  "type": "way",
+  "id": 1112228088,
+  "center": {
+    "lat": 37.4892303,
+    "lon": 126.9347776
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "금경빌라",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 1112838043,
+  "center": {
+    "lat": 37.4731713,
+    "lon": 126.9781270
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "66",
+    "addr:postcode": "08807",
+    "addr:street": "승방길",
+    "addr:subdistrict": "남현동",
+    "landuse": "residential",
+    "name": "관악예성그랑펠리체",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 1112838044,
+  "center": {
+    "lat": 37.4734069,
+    "lon": 126.9783167
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "54",
+    "building:levels": "12",
+    "height": "35",
+    "name": "103동",
+    "start_date": "2007"
+  }
+},
+{
+  "type": "way",
+  "id": 1112838045,
+  "center": {
+    "lat": 37.4731385,
+    "lon": 126.9780052
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "56",
+    "building:levels": "12",
+    "height": "35",
+    "name": "102동",
+    "start_date": "2007"
+  }
+},
+{
+  "type": "way",
+  "id": 1112838046,
+  "center": {
+    "lat": 37.4729148,
+    "lon": 126.9783483
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "19",
+    "building:levels": "12",
+    "height": "36",
+    "name": "101동",
+    "start_date": "2007"
+  }
+},
+{
+  "type": "way",
+  "id": 1113276958,
+  "center": {
+    "lat": 37.4672027,
+    "lon": 126.9427120
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "신림건영3차아파트",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 1113276959,
+  "center": {
+    "lat": 37.4679352,
+    "lon": 126.9395272
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "관악아파트",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 1117098882,
+  "center": {
+    "lat": 37.4727889,
+    "lon": 126.9655183
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "낙성대현대1차아파트",
+    "name:ko": "낙성대현대1차아파트",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 1117670434,
+  "center": {
+    "lat": 37.4888646,
+    "lon": 126.9545833
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "일두아파트",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 1117670435,
+  "center": {
+    "lat": 37.4886201,
+    "lon": 126.9595243
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "142",
+    "building:levels": "15",
+    "height": "48",
+    "name": "서울대입구역서희스타힐스아파트",
+    "start_date": "2015"
+  }
+},
+{
+  "type": "way",
+  "id": 1123126632,
+  "center": {
+    "lat": 37.4810930,
+    "lon": 126.9288228
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "245",
+    "building:levels": "17",
+    "name": "101",
+    "start_date": "1993"
+  }
+},
+{
+  "type": "way",
+  "id": 1128378978,
+  "center": {
+    "lat": 37.4908020,
+    "lon": 126.9324453
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "적성빌라",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 1133975016,
+  "center": {
+    "lat": 37.4873815,
+    "lon": 126.9444067
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "관악청광플러스원아파트",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 1133975025,
+  "center": {
+    "lat": 37.4866073,
+    "lon": 126.9454518
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "88",
+    "building:levels": "23",
+    "height": "64",
+    "name": "208",
+    "start_date": "2000"
+  }
+},
+{
+  "type": "way",
+  "id": 1133975026,
+  "center": {
+    "lat": 37.4859323,
+    "lon": 126.9455739
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "88",
+    "building:levels": "23",
+    "height": "64",
+    "name": "206",
+    "start_date": "2000"
+  }
+},
+{
+  "type": "way",
+  "id": 1133975027,
+  "center": {
+    "lat": 37.4863629,
+    "lon": 126.9446938
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "41",
+    "building:levels": "23",
+    "height": "64",
+    "name": "204",
+    "start_date": "2000"
+  }
+},
+{
+  "type": "way",
+  "id": 1133975028,
+  "center": {
+    "lat": 37.4857375,
+    "lon": 126.9452682
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "46",
+    "building:levels": "23",
+    "height": "64",
+    "name": "205",
+    "start_date": "2000"
+  }
+},
+{
+  "type": "way",
+  "id": 1133975029,
+  "center": {
+    "lat": 37.4867413,
+    "lon": 126.9459425
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "36",
+    "building:levels": "22",
+    "height": "64",
+    "name": "209",
+    "start_date": "2000"
+  }
+},
+{
+  "type": "way",
+  "id": 1133975030,
+  "center": {
+    "lat": 37.4860258,
+    "lon": 126.9444565
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "84",
+    "building:levels": "23",
+    "height": "64",
+    "name": "203",
+    "start_date": "2000"
+  }
+},
+{
+  "type": "way",
+  "id": 1133975031,
+  "center": {
+    "lat": 37.4862434,
+    "lon": 126.9451517
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "93",
+    "building:levels": "23",
+    "height": "64",
+    "name": "207",
+    "start_date": "2000"
+  }
+},
+{
+  "type": "way",
+  "id": 1134794228,
+  "center": {
+    "lat": 37.4864386,
+    "lon": 126.9460158
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "90",
+    "building:levels": "23",
+    "height": "64",
+    "name": "210",
+    "start_date": "2000"
+  }
+},
+{
+  "type": "way",
+  "id": 1134794229,
+  "center": {
+    "lat": 37.4861155,
+    "lon": 126.9459478
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "92",
+    "building:levels": "23",
+    "height": "64",
+    "name": "211",
+    "start_date": "2000"
+  }
+},
+{
+  "type": "way",
+  "id": 1134794230,
+  "center": {
+    "lat": 37.4856118,
+    "lon": 126.9448705
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "92",
+    "building:levels": "23",
+    "height": "64",
+    "name": "202",
+    "start_date": "2000"
+  }
+},
+{
+  "type": "way",
+  "id": 1134794231,
+  "center": {
+    "lat": 37.4855441,
+    "lon": 126.9443933
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "86",
+    "building:levels": "23",
+    "height": "64",
+    "name": "201",
+    "start_date": "2000"
+  }
+},
+{
+  "type": "way",
+  "id": 1135777161,
+  "center": {
+    "lat": 37.4806282,
+    "lon": 126.9512270
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "108",
+    "building:levels": "15",
+    "height": "53",
+    "name": "라온오피스텔2",
+    "start_date": "2019"
+  }
+},
+{
+  "type": "way",
+  "id": 1135777162,
+  "center": {
+    "lat": 37.4804226,
+    "lon": 126.9514876
+  },
+  "tags": {
+    "addr:district": "관악구",
+    "addr:housenumber": "20",
+    "addr:postcode": "08787",
+    "addr:street": "남부순환로220길",
+    "addr:subdistrict": "봉천동",
+    "building": "apartments",
+    "building:levels": "15",
+    "height": "40",
+    "name": "JK타워오피스텔",
+    "start_date": "2020"
+  }
+},
+{
+  "type": "way",
+  "id": 1135777171,
+  "center": {
+    "lat": 37.4800365,
+    "lon": 126.9514621
+  },
+  "tags": {
+    "addr:district": "관악구",
+    "addr:housenumber": "28",
+    "addr:postcode": "08787",
+    "addr:street": "남부순환로220길",
+    "addr:subdistrict": "봉천동",
+    "building": "apartments",
+    "building:flats": "20",
+    "building:levels": "15",
+    "height": "39",
+    "name": "덕산타워",
+    "start_date": "2019"
+  }
+},
+{
+  "type": "way",
+  "id": 1136146976,
+  "center": {
+    "lat": 37.4864689,
+    "lon": 126.9422715
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "은천누리에뜰아파트",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 1136146977,
+  "center": {
+    "lat": 37.4853499,
+    "lon": 126.9455765
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "129",
+    "building:levels": "17",
+    "height": "48",
+    "name": "301",
+    "start_date": "2000"
+  }
+},
+{
+  "type": "way",
+  "id": 1136146979,
+  "center": {
+    "lat": 37.4853769,
+    "lon": 126.9460727
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "335",
+    "building:levels": "23",
+    "height": "64",
+    "name": "302",
+    "start_date": "2000"
+  }
+},
+{
+  "type": "way",
+  "id": 1136146980,
+  "center": {
+    "lat": 37.4850002,
+    "lon": 126.9463675
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "96",
+    "building:levels": "17",
+    "height": "48",
+    "name": "303",
+    "start_date": "2000"
+  }
+},
+{
+  "type": "way",
+  "id": 1136929919,
+  "center": {
+    "lat": 37.4596261,
+    "lon": 126.9183686
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "55",
+    "addr:postcode": "08862",
+    "addr:street": "난곡로",
+    "addr:subdistrict": "신림동",
+    "building": "apartments",
+    "building:flats": "78",
+    "building:levels": "20",
+    "height": "56",
+    "name": "202동",
+    "start_date": "2008"
+  }
+},
+{
+  "type": "way",
+  "id": 1136929920,
+  "center": {
+    "lat": 37.4592701,
+    "lon": 126.9182994
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "55",
+    "addr:postcode": "08862",
+    "addr:street": "난곡로",
+    "addr:subdistrict": "신림동",
+    "building": "apartments",
+    "building:flats": "80",
+    "building:levels": "20",
+    "height": "56",
+    "name": "203동",
+    "start_date": "2008"
+  }
+},
+{
+  "type": "way",
+  "id": 1136929921,
+  "center": {
+    "lat": 37.4585263,
+    "lon": 126.9192812
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "55",
+    "addr:postcode": "08862",
+    "addr:street": "난곡로",
+    "addr:subdistrict": "신림동",
+    "building": "apartments",
+    "building:flats": "94",
+    "building:levels": "20",
+    "height": "56",
+    "name": "232동",
+    "start_date": "2008"
+  }
+},
+{
+  "type": "way",
+  "id": 1136929922,
+  "center": {
+    "lat": 37.4586867,
+    "lon": 126.9183521
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "55",
+    "addr:postcode": "08862",
+    "addr:street": "난곡로",
+    "addr:subdistrict": "신림동",
+    "building": "apartments",
+    "building:flats": "33",
+    "building:levels": "17",
+    "height": "48",
+    "name": "231동",
+    "start_date": "2008"
+  }
+},
+{
+  "type": "way",
+  "id": 1136929923,
+  "center": {
+    "lat": 37.4586996,
+    "lon": 126.9178391
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "55",
+    "addr:postcode": "08862",
+    "addr:street": "난곡로",
+    "addr:subdistrict": "신림동",
+    "building": "apartments",
+    "building:flats": "78",
+    "building:levels": "20",
+    "height": "56",
+    "name": "230동",
+    "start_date": "2008"
+  }
+},
+{
+  "type": "way",
+  "id": 1136932524,
+  "center": {
+    "lat": 37.4591135,
+    "lon": 126.9189536
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "55",
+    "addr:postcode": "08862",
+    "addr:street": "난곡로",
+    "addr:subdistrict": "신림동",
+    "building": "apartments",
+    "building:flats": "100",
+    "building:levels": "20",
+    "height": "56",
+    "name": "204동",
+    "start_date": "2008"
+  }
+},
+{
+  "type": "way",
+  "id": 1136932607,
+  "center": {
+    "lat": 37.4594450,
+    "lon": 126.9195412
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "55",
+    "addr:postcode": "08862",
+    "addr:street": "난곡로",
+    "addr:subdistrict": "신림동",
+    "building": "apartments",
+    "building:flats": "78",
+    "building:levels": "20",
+    "height": "56",
+    "name": "205동",
+    "start_date": "2008"
+  }
+},
+{
+  "type": "way",
+  "id": 1136933085,
+  "center": {
+    "lat": 37.4599356,
+    "lon": 126.9196572
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "55",
+    "addr:postcode": "08862",
+    "addr:street": "난곡로",
+    "addr:subdistrict": "신림동",
+    "building": "apartments",
+    "building:flats": "40",
+    "building:levels": "20",
+    "height": "56",
+    "name": "206동",
+    "start_date": "2008"
+  }
+},
+{
+  "type": "way",
+  "id": 1136933250,
+  "center": {
+    "lat": 37.4596677,
+    "lon": 126.9205993
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "55",
+    "addr:postcode": "08862",
+    "addr:street": "난곡로",
+    "addr:subdistrict": "신림동",
+    "building": "apartments",
+    "building:flats": "78",
+    "building:levels": "20",
+    "height": "56",
+    "name": "207동",
+    "start_date": "2008"
+  }
+},
+{
+  "type": "way",
+  "id": 1137123668,
+  "center": {
+    "lat": 37.4604293,
+    "lon": 126.9184214
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "101",
+    "building:levels": "19",
+    "height": "53",
+    "name": "303",
+    "start_date": "2008"
+  }
+},
+{
+  "type": "way",
+  "id": 1137123669,
+  "center": {
+    "lat": 37.4607310,
+    "lon": 126.9182088
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "178",
+    "building:levels": "20",
+    "height": "56",
+    "name": "302",
+    "start_date": "2008"
+  }
+},
+{
+  "type": "way",
+  "id": 1137123670,
+  "center": {
+    "lat": 37.4601735,
+    "lon": 126.9181747
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "103",
+    "building:levels": "19",
+    "height": "53",
+    "name": "304",
+    "start_date": "2008"
+  }
+},
+{
+  "type": "way",
+  "id": 1146539874,
+  "center": {
+    "lat": 37.4803575,
+    "lon": 126.9331556
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "건영4차아파트",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 1147913466,
+  "center": {
+    "lat": 37.4876602,
+    "lon": 126.9497391
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "44",
+    "building:levels": "12",
+    "ele": "60",
+    "height": "33",
+    "name": "101",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 1150102530,
+  "center": {
+    "lat": 37.4889622,
+    "lon": 126.9540572
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "36",
+    "building:levels": "6",
+    "name": "1",
+    "start_date": "1985"
+  }
+},
+{
+  "type": "way",
+  "id": 1150102531,
+  "center": {
+    "lat": 37.4891273,
+    "lon": 126.9544894
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "60",
+    "building:levels": "6",
+    "name": "2",
+    "start_date": "1985"
+  }
+},
+{
+  "type": "way",
+  "id": 1150102532,
+  "center": {
+    "lat": 37.4889254,
+    "lon": 126.9547902
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "60",
+    "building:levels": "6",
+    "name": "3",
+    "start_date": "1985"
+  }
+},
+{
+  "type": "way",
+  "id": 1150102534,
+  "center": {
+    "lat": 37.4889172,
+    "lon": 126.9551423
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "24",
+    "building:levels": "6",
+    "name": "4",
+    "start_date": "1985"
+  }
+},
+{
+  "type": "way",
+  "id": 1150102535,
+  "center": {
+    "lat": 37.4885678,
+    "lon": 126.9551666
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "24",
+    "building:levels": "6",
+    "name": "5",
+    "start_date": "1985"
+  }
+},
+{
+  "type": "way",
+  "id": 1150102537,
+  "center": {
+    "lat": 37.4877439,
+    "lon": 126.9572451
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "브라운스톤관악아파트",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 1150102544,
+  "center": {
+    "lat": 37.4851168,
+    "lon": 126.9498966
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "199",
+    "building:levels": "15",
+    "height": "37",
+    "name": "101",
+    "start_date": "1999"
+  }
+},
+{
+  "type": "way",
+  "id": 1150102545,
+  "center": {
+    "lat": 37.4847590,
+    "lon": 126.9493259
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "78",
+    "building:levels": "14",
+    "height": "35",
+    "name": "102",
+    "start_date": "1999"
+  }
+},
+{
+  "type": "way",
+  "id": 1150323591,
+  "center": {
+    "lat": 37.4605759,
+    "lon": 126.9326133
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "서울대벤처타운역푸르지오",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 1150323592,
+  "center": {
+    "lat": 37.4640263,
+    "lon": 126.9371136
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "신림동현대아파트",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 1150363010,
+  "center": {
+    "lat": 37.4873544,
+    "lon": 126.9571681
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "60",
+    "building:levels": "15",
+    "height": "48",
+    "name": "101",
+    "start_date": "2005"
+  }
+},
+{
+  "type": "way",
+  "id": 1150363011,
+  "center": {
+    "lat": 37.4876733,
+    "lon": 126.9571143
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "28",
+    "building:levels": "14",
+    "height": "44",
+    "name": "102",
+    "start_date": "2005"
+  }
+},
+{
+  "type": "way",
+  "id": 1150363012,
+  "center": {
+    "lat": 37.4877645,
+    "lon": 126.9574855
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "30",
+    "building:levels": "15",
+    "height": "47",
+    "name": "103",
+    "start_date": "2005"
+  }
+},
+{
+  "type": "way",
+  "id": 1150363013,
+  "center": {
+    "lat": 37.4881855,
+    "lon": 126.9572340
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "30",
+    "building:levels": "15",
+    "height": "47",
+    "name": "104",
+    "start_date": "2005"
+  }
+},
+{
+  "type": "way",
+  "id": 1150363020,
+  "center": {
+    "lat": 37.4889561,
+    "lon": 126.9571418
+  },
+  "tags": {
+    "building": "apartments",
+    "building:levels": "13",
+    "height": "39",
+    "name": "동아타운21아파트",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 1150917657,
+  "center": {
+    "lat": 37.4806176,
+    "lon": 126.9292827
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "151",
+    "building:levels": "19",
+    "name": "102",
+    "start_date": "1993"
+  }
+},
+{
+  "type": "way",
+  "id": 1150917658,
+  "center": {
+    "lat": 37.4802656,
+    "lon": 126.9294405
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "56",
+    "building:levels": "15",
+    "name": "103",
+    "start_date": "1993"
+  }
+},
+{
+  "type": "way",
+  "id": 1150917659,
+  "center": {
+    "lat": 37.4800860,
+    "lon": 126.9298845
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "140",
+    "building:levels": "19",
+    "name": "104"
+  }
+},
+{
+  "type": "way",
+  "id": 1150917660,
+  "center": {
+    "lat": 37.4825929,
+    "lon": 126.9302281
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:housenumber": "86-3",
+    "addr:street": "신림로",
+    "building": "apartments",
+    "building:flats": "84",
+    "building:levels": "22",
+    "height": "79",
+    "name": "청암두산위브센티움아파트",
+    "start_date": "2005"
+  }
+},
+{
+  "type": "way",
+  "id": 1152358574,
+  "center": {
+    "lat": 37.4859307,
+    "lon": 126.9572211
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "서울대입구역더하이브센트럴아파트",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 1172339701,
+  "center": {
+    "lat": 37.4722068,
+    "lon": 126.9739587
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "56",
+    "building:levels": "11",
+    "height": "30",
+    "name": "201동",
+    "start_date": "2005"
+  }
+},
+{
+  "type": "way",
+  "id": 1172339702,
+  "center": {
+    "lat": 37.4720948,
+    "lon": 126.9745924
+  },
+  "tags": {
+    "building": "apartments",
+    "name": "남현한일유앤아이2차아파트",
+    "name:ko": "남현한일유앤아이2차아파트"
+  }
+},
+{
+  "type": "way",
+  "id": 1172339704,
+  "center": {
+    "lat": 37.4722874,
+    "lon": 126.9753422
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "67",
+    "building:levels": "13",
+    "height": "40",
+    "name": "104동",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 1172339705,
+  "center": {
+    "lat": 37.4727087,
+    "lon": 126.9752773
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "27",
+    "building:levels": "9",
+    "height": "26",
+    "name": "103동",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 1172339706,
+  "center": {
+    "lat": 37.4726448,
+    "lon": 126.9757573
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "68",
+    "building:levels": "12",
+    "height": "37",
+    "name": "102동",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 1172339707,
+  "center": {
+    "lat": 37.4730388,
+    "lon": 126.9756556
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "12",
+    "building:levels": "6",
+    "height": "19",
+    "name": "101동",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 1172339715,
+  "center": {
+    "lat": 37.4699492,
+    "lon": 126.9649400
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "24",
+    "building:levels": "5",
+    "height": "13",
+    "name": "202동",
+    "start_date": "2000"
+  }
+},
+{
+  "type": "way",
+  "id": 1172339716,
+  "center": {
+    "lat": 37.4695277,
+    "lon": 126.9648452
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "24",
+    "building:levels": "4",
+    "height": "13",
+    "name": "201동",
+    "start_date": "2000"
+  }
+},
+{
+  "type": "way",
+  "id": 1172339717,
+  "center": {
+    "lat": 37.4695597,
+    "lon": 126.9645977
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "46",
+    "building:levels": "8",
+    "height": "26",
+    "name": "203동",
+    "start_date": "2000"
+  }
+},
+{
+  "type": "way",
+  "id": 1172339718,
+  "center": {
+    "lat": 37.4701014,
+    "lon": 126.9647167
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "72",
+    "building:levels": "9",
+    "height": "26",
+    "name": "204동",
+    "start_date": "2000"
+  }
+},
+{
+  "type": "way",
+  "id": 1172339719,
+  "center": {
+    "lat": 37.4696725,
+    "lon": 126.9642815
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "52",
+    "building:levels": "13",
+    "height": "36",
+    "name": "205동",
+    "start_date": "2000"
+  }
+},
+{
+  "type": "way",
+  "id": 1172339720,
+  "center": {
+    "lat": 37.4699375,
+    "lon": 126.9643298
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "52",
+    "building:levels": "13",
+    "height": "36",
+    "name": "206동",
+    "start_date": "2000"
+  }
+},
+{
+  "type": "way",
+  "id": 1172339721,
+  "center": {
+    "lat": 37.4702069,
+    "lon": 126.9643713
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "56",
+    "building:levels": "14",
+    "height": "39",
+    "name": "207동",
+    "start_date": "2000"
+  }
+},
+{
+  "type": "way",
+  "id": 1172339722,
+  "center": {
+    "lat": 37.4704794,
+    "lon": 126.9644260
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "58",
+    "building:levels": "15",
+    "height": "41",
+    "name": "208동",
+    "start_date": "2000"
+  }
+},
+{
+  "type": "way",
+  "id": 1172339723,
+  "center": {
+    "lat": 37.4716727,
+    "lon": 126.9652965
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "12",
+    "building:levels": "8",
+    "height": "22",
+    "name": "104동",
+    "start_date": "2001"
+  }
+},
+{
+  "type": "way",
+  "id": 1172339724,
+  "center": {
+    "lat": 37.4713192,
+    "lon": 126.9650781
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "44",
+    "building:levels": "9",
+    "height": "24",
+    "name": "103동",
+    "start_date": "2001"
+  }
+},
+{
+  "type": "way",
+  "id": 1172339725,
+  "center": {
+    "lat": 37.4711211,
+    "lon": 126.9645779
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "62",
+    "building:levels": "16",
+    "height": "43",
+    "name": "101동",
+    "start_date": "2001"
+  }
+},
+{
+  "type": "way",
+  "id": 1172339726,
+  "center": {
+    "lat": 37.4716851,
+    "lon": 126.9646962
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "62",
+    "building:levels": "16",
+    "height": "43",
+    "name": "102동",
+    "start_date": "2001"
+  }
+},
+{
+  "type": "way",
+  "id": 1172630506,
+  "center": {
+    "lat": 37.4686232,
+    "lon": 126.9683253
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "38",
+    "addr:postcode": "08800",
+    "addr:street": "인헌16가길",
+    "addr:subdistrict": "봉천동",
+    "landuse": "residential",
+    "name": "봉천동아파트",
+    "name:ko": "봉천동아파트",
+    "residential": "apartments",
+    "source": "도로명주소"
+  }
+},
+{
+  "type": "way",
+  "id": 1242747045,
+  "center": {
+    "lat": 37.4644450,
+    "lon": 126.9406056
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "신동아종건블루아아파트",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 1242747047,
+  "center": {
+    "lat": 37.4653811,
+    "lon": 126.9375438
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "신림동금호타운1차아파트",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 1281200010,
+  "center": {
+    "lat": 37.4840813,
+    "lon": 126.9364292
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "효림다온아파트",
+    "name:ko": "효림다온아파트",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 1290729583,
+  "center": {
+    "lat": 37.4940952,
+    "lon": 126.9284382
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "보라매삼성아파트",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 1442397923,
+  "center": {
+    "lat": 37.4659269,
+    "lon": 126.9309792
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "541",
+    "addr:postcode": "08848",
+    "addr:street": "호암로",
+    "addr:subdistrict": "신림동",
+    "landuse": "residential",
+    "name": "태흥아파트",
+    "name:en": "Taeheung Apartments",
+    "name:ko": "태흥아파트"
+  }
+},
+{
+  "type": "way",
+  "id": 1447988232,
+  "center": {
+    "lat": 37.4780937,
+    "lon": 126.9416584
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "e편한세상서울대입구2차아파트",
+    "name:en": "e-Pyeonhansesang Seouldaeipgu 2st Apartment",
+    "name:ko": "e편한세상서울대입구2차아파트",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 1452649878,
+  "center": {
+    "lat": 37.4941254,
+    "lon": 126.9593477
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:country": "KR",
+    "addr:district": "동작구",
+    "addr:subdistrict": "상도동",
+    "landuse": "residential",
+    "name": "상도현대아파트",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 1454670834,
+  "center": {
+    "lat": 37.4580060,
+    "lon": 126.9191869
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "55",
+    "addr:postcode": "08862",
+    "addr:street": "난곡로",
+    "addr:subdistrict": "신림동",
+    "building": "apartments",
+    "building:flats": "60",
+    "building:levels": "15",
+    "height": "42",
+    "name": "226동",
+    "start_date": "2008"
+  }
+},
+{
+  "type": "way",
+  "id": 1454670835,
+  "center": {
+    "lat": 37.4581903,
+    "lon": 126.9187546
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "관악구",
+    "addr:housenumber": "55",
+    "addr:postcode": "08862",
+    "addr:street": "난곡로",
+    "addr:subdistrict": "신림동",
+    "building": "apartments",
+    "building:flats": "57",
+    "building:levels": "20",
+    "height": "56",
+    "name": "227동",
+    "start_date": "2008"
+  }
+},
+{
+  "type": "way",
+  "id": 1458085732,
+  "center": {
+    "lat": 37.4876966,
+    "lon": 126.9364872
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "그린아파트",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 1486153809,
+  "center": {
+    "lat": 37.4905517,
+    "lon": 126.9462729
+  },
+  "tags": {
+    "building": "apartments",
+    "name": "101"
+  }
+},
+{
+  "type": "way",
+  "id": 1486153810,
+  "center": {
+    "lat": 37.4907639,
+    "lon": 126.9467649
+  },
+  "tags": {
+    "building": "apartments",
+    "name": "107"
+  }
+},
+{
+  "type": "way",
+  "id": 1486153811,
+  "center": {
+    "lat": 37.4909393,
+    "lon": 126.9471883
+  },
+  "tags": {
+    "building": "apartments",
+    "name": "108"
+  }
+},
+{
+  "type": "way",
+  "id": 1486153812,
+  "center": {
+    "lat": 37.4905032,
+    "lon": 126.9469959
+  },
+  "tags": {
+    "building": "apartments",
+    "name": "109"
+  }
+},
+{
+  "type": "way",
+  "id": 1486153813,
+  "center": {
+    "lat": 37.4910014,
+    "lon": 126.9459609
+  },
+  "tags": {
+    "building": "apartments",
+    "name": "102"
+  }
+},
+{
+  "type": "way",
+  "id": 1486153814,
+  "center": {
+    "lat": 37.4914610,
+    "lon": 126.9456538
+  },
+  "tags": {
+    "building": "apartments",
+    "name": "103"
+  }
+},
+{
+  "type": "way",
+  "id": 1486153815,
+  "center": {
+    "lat": 37.4916918,
+    "lon": 126.9464647
+  },
+  "tags": {
+    "building": "apartments",
+    "name": "105"
+  }
+},
+{
+  "type": "way",
+  "id": 1486153819,
+  "center": {
+    "lat": 37.4912764,
+    "lon": 126.9466314
+  },
+  "tags": {
+    "building": "apartments",
+    "name": "106"
+  }
+}
+
+  ]
+}

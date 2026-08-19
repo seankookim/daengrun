@@ -1,0 +1,3470 @@
+{
+  "version": 0.6,
+  "generator": "Overpass API 0.7.62.11 87bfad18",
+  "osm3s": {
+    "timestamp_osm_base": "2026-08-19T04:03:46Z",
+    "timestamp_areas_base": "2026-08-18T18:09:03Z",
+    "copyright": "The data included in this document is from www.openstreetmap.org. The data is made available under ODbL."
+  },
+  "elements": [
+
+{
+  "type": "node",
+  "id": 357826369,
+  "lat": 37.5615100,
+  "lon": 127.0751600,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "군자교(중곡아파트방면)",
+    "name:en": "Gunjagyo",
+    "name:ko": "군자교",
+    "name:ko-Latn": "Gunjagyo",
+    "network": "간선",
+    "operator": "TOPIS",
+    "public_transport": "platform",
+    "ref": "05101",
+    "route_ref": "146"
+  }
+},
+{
+  "type": "node",
+  "id": 357826371,
+  "lat": 37.5544986,
+  "lon": 127.0710903,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "송정동건영아파트",
+    "name:en": "Songjeongdonggeonyeong Apt.",
+    "name:ko": "송정동건영아파트",
+    "name:ko-Latn": "Songjeongdonggeonyeongapateu",
+    "public_transport": "platform",
+    "route_ref": "146;3220"
+  }
+},
+{
+  "type": "node",
+  "id": 357831977,
+  "lat": 37.5662500,
+  "lon": 127.0778100,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "중곡아파트",
+    "name:en": "Junggok Apt.",
+    "name:ko": "중곡아파트",
+    "name:ko-Latn": "Junggokapateu",
+    "public_transport": "platform",
+    "ref": "05122",
+    "route_ref": "240;146"
+  }
+},
+{
+  "type": "node",
+  "id": 357834561,
+  "lat": 37.5678868,
+  "lon": 127.0862664,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "중곡SK아파트.용암사입구",
+    "public_transport": "platform",
+    "route_ref": "320;2012"
+  }
+},
+{
+  "type": "node",
+  "id": 357834566,
+  "lat": 37.5612834,
+  "lon": 127.0874568,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "대순진리회앞.구.새마을금고",
+    "name:en": "Junggokdong Last stop",
+    "name:ko-Latn": "Junggokdongjongjeom",
+    "public_transport": "platform",
+    "route_ref": "320"
+  }
+},
+{
+  "type": "node",
+  "id": 357834642,
+  "lat": 37.5678830,
+  "lon": 127.0861006,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "중곡SK아파트.용암사입구",
+    "public_transport": "platform",
+    "route_ref": "320;2219;2012"
+  }
+},
+{
+  "type": "node",
+  "id": 357868262,
+  "lat": 37.5514910,
+  "lon": 127.0712868,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "군자새마을금고앞",
+    "name:en": "Gunja Community Credit Cooperative Front",
+    "name:ko": "군자새마을금고앞",
+    "name:ko-Latn": "Gunjasaemaeulgeumgoap",
+    "public_transport": "platform",
+    "route_ref": "2012;2013;240"
+  }
+},
+{
+  "type": "node",
+  "id": 357873605,
+  "lat": 37.5367687,
+  "lon": 127.0629329,
+  "tags": {
+    "bench": "yes",
+    "bin": "no",
+    "bus": "yes",
+    "highway": "bus_stop",
+    "lit": "no",
+    "name": "롯데캐슬리버파크시그니처아파트",
+    "public_transport": "platform",
+    "ref": "05-221",
+    "route_ref": "2224;2412;240;2014",
+    "shelter": "no",
+    "tactile_paving": "yes"
+  }
+},
+{
+  "type": "node",
+  "id": 357873827,
+  "lat": 37.5321460,
+  "lon": 127.0845600,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "자양하늘채베르아파트앞",
+    "public_transport": "platform",
+    "route_ref": "2223;2412;2415",
+    "wheelchair": "no"
+  }
+},
+{
+  "type": "node",
+  "id": 357874004,
+  "lat": 37.5336700,
+  "lon": 127.0734700,
+  "tags": {
+    "bench": "yes",
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "자양우성아파트앞",
+    "name:en": "Jayanguseong Apt. Front",
+    "name:ko": "자양우성아파트앞",
+    "name:ko-Latn": "Jayanguseongapateuap",
+    "public_transport": "platform",
+    "route_ref": "2223;2412;2222",
+    "shelter": "yes",
+    "wheelchair": "no"
+  }
+},
+{
+  "type": "node",
+  "id": 357874175,
+  "lat": 37.5364307,
+  "lon": 127.0687964,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "대동아파트앞",
+    "name:en": "Daedong Apt. Front",
+    "name:ko": "대동아파트앞",
+    "name:ko-Latn": "Daedongapateuap",
+    "public_transport": "platform",
+    "route_ref": "2222;240;2224;2223"
+  }
+},
+{
+  "type": "node",
+  "id": 357874783,
+  "lat": 37.5638700,
+  "lon": 127.0833100,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "종합의료복합단지",
+    "public_transport": "platform",
+    "route_ref": "2219"
+  }
+},
+{
+  "type": "node",
+  "id": 357877974,
+  "lat": 37.5394635,
+  "lon": 127.0942142,
+  "tags": {
+    "bin": "seperate",
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "현대아파트앞",
+    "name:en": "Hyeondae Apt. Front",
+    "name:ko": "현대아파트앞",
+    "name:ko-Latn": "Hyeondaeapateuap",
+    "public_transport": "platform",
+    "ref": "05157"
+  }
+},
+{
+  "type": "node",
+  "id": 357878211,
+  "lat": 37.5378694,
+  "lon": 127.0966769,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "구의현대2단지아파트",
+    "name:en": "Hyeondae 2 Complex",
+    "name:ko-Latn": "Hyeondae 2 Danji",
+    "public_transport": "platform",
+    "route_ref": "3214"
+  }
+},
+{
+  "type": "node",
+  "id": 357878749,
+  "lat": 37.5320053,
+  "lon": 127.0845932,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "자양하늘채배르아파트",
+    "public_transport": "platform",
+    "route_ref": "2415;2221;2412;2223",
+    "wheelchair": "no"
+  }
+},
+{
+  "type": "node",
+  "id": 357878839,
+  "lat": 37.5366755,
+  "lon": 127.0628873,
+  "tags": {
+    "bench": "yes",
+    "bin": "no",
+    "bus": "yes",
+    "highway": "bus_stop",
+    "lit": "no",
+    "name": "롯데캐슬리버파크시그니처아파트",
+    "public_transport": "platform",
+    "ref": "05-219",
+    "route_ref": "2412;2224;2014;240",
+    "shelter": "yes",
+    "tactile_paving": "yes"
+  }
+},
+{
+  "type": "node",
+  "id": 357879181,
+  "lat": 37.5339300,
+  "lon": 127.0733600,
+  "tags": {
+    "bench": "yes",
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "자양우성아파트앞",
+    "name:en": "Jayanguseong Apt. Front",
+    "name:ko": "자양우성아파트앞",
+    "name:ko-Latn": "Jayanguseongapateuap",
+    "public_transport": "platform",
+    "route_ref": "2412;2223;2222",
+    "shelter": "yes",
+    "wheelchair": "no"
+  }
+},
+{
+  "type": "node",
+  "id": 357886633,
+  "lat": 37.5517842,
+  "lon": 127.0695500,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "송정동서울숲아이파크",
+    "name:en": "Songjeongdong Overpass Front",
+    "name:ko-Latn": "Songjeongdongyukgyoap",
+    "public_transport": "platform",
+    "route_ref": "3220;146"
+  }
+},
+{
+  "type": "node",
+  "id": 9025776084,
+  "lat": 37.5421133,
+  "lon": 127.0990689,
+  "tags": {
+    "bin": "seperate",
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "광장동현대아파트앞",
+    "public_transport": "platform",
+    "ref": "05167"
+  }
+},
+{
+  "type": "node",
+  "id": 9025776090,
+  "lat": 37.5434542,
+  "lon": 127.1029063,
+  "tags": {
+    "bin": "seperate",
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "광나루역.극동아파트",
+    "public_transport": "platform",
+    "ref": "05168"
+  }
+},
+{
+  "type": "node",
+  "id": 13014849394,
+  "lat": 37.5663197,
+  "lon": 127.0778505,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "중곡아파트",
+    "name:en": "Junggok Apt.",
+    "name:ko": "중곡아파트",
+    "name:ko-Latn": "Junggokapateu",
+    "public_transport": "platform",
+    "ref": "05501",
+    "route_ref": "240;146"
+  }
+},
+{
+  "type": "node",
+  "id": 13014849395,
+  "lat": 37.5670135,
+  "lon": 127.0782269,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "중곡아파트",
+    "name:en": "Junggok Apt.",
+    "name:ko": "중곡아파트",
+    "name:ko-Latn": "Junggokapateu",
+    "public_transport": "platform",
+    "ref": "05511",
+    "route_ref": "240;146"
+  }
+},
+{
+  "type": "node",
+  "id": 13076502872,
+  "lat": 37.5386507,
+  "lon": 127.0938160,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "현대아파트앞",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 13076502873,
+  "lat": 37.5418408,
+  "lon": 127.0978229,
+  "tags": {
+    "bin": "seperate",
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "광장동현대아파트앞",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 13076502874,
+  "lat": 37.5442682,
+  "lon": 127.1032214,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "광나루역.극동아파트",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 13076502875,
+  "lat": 37.5477995,
+  "lon": 127.1066575,
+  "tags": {
+    "bin": "seperate",
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "워커힐아파트.광장동",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 13076502877,
+  "lat": 37.5480050,
+  "lon": 127.1065734,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "워커힐아파트입구",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 13076502878,
+  "lat": 37.5479105,
+  "lon": 127.1065944,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "워커힐아파트입구",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 13076502879,
+  "lat": 37.5495989,
+  "lon": 127.1083690,
+  "tags": {
+    "bin": "seperate",
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "워커힐아파트앞",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 13076502880,
+  "lat": 37.5500932,
+  "lon": 127.1077409,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "워커힐아파트",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 13132790355,
+  "lat": 37.5423889,
+  "lon": 127.0947095,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "광장자이아파트",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 13132790356,
+  "lat": 37.5422836,
+  "lon": 127.0948280,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "광장자이아파트",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 13133442475,
+  "lat": 37.5614601,
+  "lon": 127.0871839,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "구.새마을금고앞",
+    "name:en": "Junggokdong Last stop",
+    "name:ko-Latn": "Junggokdongjongjeom",
+    "public_transport": "platform",
+    "route_ref": "320"
+  }
+},
+{
+  "type": "way",
+  "id": 166189194,
+  "center": {
+    "lat": 37.5318666,
+    "lon": 127.0712098
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:housenumber": "16",
+    "addr:postcode": "05094",
+    "addr:street": "뚝섬로36가길",
+    "addr:subdistrict": "자양동",
+    "building": "apartments",
+    "building:flats": "31",
+    "building:levels": "7",
+    "height": "21",
+    "name": "104",
+    "name:ko": "104동",
+    "start_date": "1999"
+  }
+},
+{
+  "type": "way",
+  "id": 181974790,
+  "center": {
+    "lat": 37.5428781,
+    "lon": 127.0959970
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:subdistrict": "광장동",
+    "building": "apartments",
+    "building:flats": "294",
+    "building:levels": "23",
+    "height": "61",
+    "name": "104동",
+    "start_date": "1996"
+  }
+},
+{
+  "type": "way",
+  "id": 181974794,
+  "center": {
+    "lat": 37.5422798,
+    "lon": 127.0962313
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:subdistrict": "광장동",
+    "building": "apartments",
+    "building:flats": "226",
+    "building:levels": "21",
+    "height": "61",
+    "name": "103동",
+    "start_date": "1996"
+  }
+},
+{
+  "type": "way",
+  "id": 181974795,
+  "center": {
+    "lat": 37.5420450,
+    "lon": 127.0968959
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:subdistrict": "광장동",
+    "building": "apartments",
+    "building:flats": "46",
+    "building:levels": "23",
+    "height": "61",
+    "name": "102동",
+    "start_date": "1996"
+  }
+},
+{
+  "type": "way",
+  "id": 357575054,
+  "center": {
+    "lat": 37.5414702,
+    "lon": 127.0702802
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:subdistrict": "화양동",
+    "amenity": "restaurant",
+    "building": "yes",
+    "name": "새마을식당 (New Maul)",
+    "name:en": "New Maul Sik-Dang"
+  }
+},
+{
+  "type": "way",
+  "id": 357623753,
+  "center": {
+    "lat": 37.5409418,
+    "lon": 127.0669578
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:subdistrict": "자양동",
+    "amenity": "restaurant",
+    "building": "yes",
+    "name": "명동 찌개 마을"
+  }
+},
+{
+  "type": "way",
+  "id": 393356616,
+  "center": {
+    "lat": 37.5379112,
+    "lon": 127.0829924
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:housenumber": "113",
+    "addr:postcode": "05026",
+    "addr:street": "자양로",
+    "addr:subdistrict": "자양동",
+    "building": "apartments",
+    "building:flats": "98",
+    "building:levels": "18",
+    "height": "59",
+    "name": "구의현대하이엘",
+    "start_date": "2005"
+  }
+},
+{
+  "type": "way",
+  "id": 417325268,
+  "center": {
+    "lat": 37.5511725,
+    "lon": 127.1074981
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "워커힐아파트",
+    "name:en": "Walkerhill apt.",
+    "name:ko": "워커힐아파트",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 468753269,
+  "center": {
+    "lat": 37.5409541,
+    "lon": 127.0881387
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:housenumber": "71",
+    "addr:postcode": "05041",
+    "addr:street": "자양로26길",
+    "addr:subdistrict": "구의동",
+    "landuse": "residential",
+    "name": "새한아파트"
+  }
+},
+{
+  "type": "way",
+  "id": 471867156,
+  "center": {
+    "lat": 37.5360891,
+    "lon": 127.0927416
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:housenumber": "64",
+    "addr:postcode": "05116",
+    "addr:street": "구의강변로",
+    "addr:subdistrict": "구의동",
+    "building": "apartments",
+    "building:flats": "22-",
+    "building:levels": "37",
+    "height": "123",
+    "name": "구의아크로리버",
+    "name:ja": "九宜アクロリバー",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 473240149,
+  "center": {
+    "lat": 37.5318824,
+    "lon": 127.0724625
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:housenumber": "45",
+    "addr:postcode": "05094",
+    "addr:street": "뚝섬로40길",
+    "addr:subdistrict": "자양동",
+    "building": "apartments",
+    "building:flats": "108",
+    "building:levels": "14",
+    "description": "자양동 삼성아파트",
+    "height": "39",
+    "name": "103",
+    "start_date": "1999"
+  }
+},
+{
+  "type": "way",
+  "id": 473242815,
+  "center": {
+    "lat": 37.5324453,
+    "lon": 127.0711830
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:housenumber": "65",
+    "addr:postcode": "05094",
+    "addr:street": "자양번영로3길",
+    "addr:subdistrict": "자양동",
+    "building": "apartments",
+    "building:flats": "38",
+    "building:levels": "16",
+    "description": "자양동 삼성아파트 101동",
+    "height": "44",
+    "name": "101",
+    "name:ko": "101동",
+    "start_date": "1999"
+  }
+},
+{
+  "type": "way",
+  "id": 473242816,
+  "center": {
+    "lat": 37.5320421,
+    "lon": 127.0717750
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:housenumber": "65",
+    "addr:postcode": "05094",
+    "addr:street": "자양번영로3길",
+    "addr:subdistrict": "자양동",
+    "building": "apartments",
+    "building:flats": "198",
+    "building:levels": "25",
+    "description": "자양동 삼성아파트 102동",
+    "height": "69",
+    "name": "102",
+    "start_date": "1999"
+  }
+},
+{
+  "type": "way",
+  "id": 473260560,
+  "center": {
+    "lat": 37.5321416,
+    "lon": 127.0718429
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:housenumber": "65",
+    "addr:postcode": "05094",
+    "addr:street": "자양번영로3길",
+    "addr:subdistrict": "자양동",
+    "landuse": "residential",
+    "name": "삼성아파트",
+    "name:en": "Samsung Apt.",
+    "name:ko": "삼성아파트",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 473590806,
+  "center": {
+    "lat": 37.5289248,
+    "lon": 127.0789978
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "경남아파트",
+    "name:ko": "경남아파트",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 473590807,
+  "center": {
+    "lat": 37.5284365,
+    "lon": 127.0787615
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "자양5차현대아파트",
+    "name:ko": "자양5차현대아파트",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 549280310,
+  "center": {
+    "lat": 37.5503409,
+    "lon": 127.1093192
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:subdistrict": "광장동",
+    "building": "apartments",
+    "building:flats": "52",
+    "building:levels": "15",
+    "height": "62",
+    "name": "유진스웰",
+    "name:en": "Eugene Swell",
+    "start_date": "2011"
+  }
+},
+{
+  "type": "way",
+  "id": 629126221,
+  "center": {
+    "lat": 37.5484855,
+    "lon": 127.0832454
+  },
+  "tags": {
+    "building": "yes",
+    "name": "맹수마을",
+    "name:ja": "猛獣村",
+    "name:ko": "맹수마을"
+  }
+},
+{
+  "type": "way",
+  "id": 629126222,
+  "center": {
+    "lat": 37.5486485,
+    "lon": 127.0831820
+  },
+  "tags": {
+    "building": "yes",
+    "name": "맹수마을",
+    "name:ja": "猛獣村",
+    "name:ko": "맹수마을"
+  }
+},
+{
+  "type": "way",
+  "id": 629126223,
+  "center": {
+    "lat": 37.5488288,
+    "lon": 127.0831209
+  },
+  "tags": {
+    "building": "yes",
+    "name": "맹수마을",
+    "name:ja": "猛獣村",
+    "name:ko": "맹수마을"
+  }
+},
+{
+  "type": "way",
+  "id": 629126224,
+  "center": {
+    "lat": 37.5490172,
+    "lon": 127.0830207
+  },
+  "tags": {
+    "building": "yes",
+    "name": "맹수마을",
+    "name:ja": "猛獣村",
+    "name:ko": "맹수마을"
+  }
+},
+{
+  "type": "way",
+  "id": 755444545,
+  "center": {
+    "lat": 37.5517442,
+    "lon": 127.0727527
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:housenumber": "46",
+    "addr:postcode": "05004",
+    "addr:street": "군자로12길",
+    "addr:subdistrict": "군자동",
+    "building": "apartments",
+    "building:flats": "122",
+    "building:levels": "19",
+    "height": "51",
+    "name": "일성아파트 101동",
+    "start_date": "1996"
+  }
+},
+{
+  "type": "way",
+  "id": 755444784,
+  "center": {
+    "lat": 37.5507527,
+    "lon": 127.0722248
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:housenumber": "46",
+    "addr:postcode": "05004",
+    "addr:street": "군자로12길",
+    "addr:subdistrict": "군자동",
+    "building": "yes",
+    "name": "일성아파트 상가"
+  }
+},
+{
+  "type": "way",
+  "id": 755459456,
+  "center": {
+    "lat": 37.5509862,
+    "lon": 127.0726156
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:housenumber": "46",
+    "addr:postcode": "05004",
+    "addr:street": "군자로12길",
+    "addr:subdistrict": "군자동",
+    "building": "apartments",
+    "building:flats": "235",
+    "building:levels": "22",
+    "height": "60",
+    "name": "일성아파트 102동",
+    "start_date": "1996"
+  }
+},
+{
+  "type": "way",
+  "id": 789738606,
+  "center": {
+    "lat": 37.5432558,
+    "lon": 127.1044371
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "극동1차아파트",
+    "name:ko": "극동1차아파트"
+  }
+},
+{
+  "type": "way",
+  "id": 789738607,
+  "center": {
+    "lat": 37.5433271,
+    "lon": 127.1032611
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:subdistrict": "광장동",
+    "building": "apartments",
+    "building:flats": "140",
+    "building:levels": "14",
+    "name": "1동",
+    "start_date": "1985"
+  }
+},
+{
+  "type": "way",
+  "id": 789738608,
+  "center": {
+    "lat": 37.5439997,
+    "lon": 127.1039973
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:subdistrict": "광장동",
+    "building": "apartments",
+    "building:flats": "140",
+    "building:levels": "14",
+    "name": "6동",
+    "start_date": "1985"
+  }
+},
+{
+  "type": "way",
+  "id": 789738609,
+  "center": {
+    "lat": 37.5436437,
+    "lon": 127.1044172
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:subdistrict": "광장동",
+    "building": "apartments",
+    "building:flats": "140",
+    "building:levels": "14",
+    "name": "7동",
+    "start_date": "1985"
+  }
+},
+{
+  "type": "way",
+  "id": 789738610,
+  "center": {
+    "lat": 37.5445246,
+    "lon": 127.1044219
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:subdistrict": "광장동",
+    "building": "apartments",
+    "building:flats": "56",
+    "building:levels": "14",
+    "name": "11동",
+    "start_date": "1985"
+  }
+},
+{
+  "type": "way",
+  "id": 789738611,
+  "center": {
+    "lat": 37.5442810,
+    "lon": 127.1054548
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:subdistrict": "광장동",
+    "building": "apartments",
+    "building:flats": "56",
+    "building:levels": "14",
+    "name": "13동",
+    "start_date": "1985"
+  }
+},
+{
+  "type": "way",
+  "id": 789738612,
+  "center": {
+    "lat": 37.5442379,
+    "lon": 127.1049085
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:subdistrict": "광장동",
+    "building": "apartments",
+    "building:flats": "84",
+    "building:levels": "14",
+    "name": "12동",
+    "start_date": "1985"
+  }
+},
+{
+  "type": "way",
+  "id": 789738613,
+  "center": {
+    "lat": 37.5438522,
+    "lon": 127.1054468
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:subdistrict": "광장동",
+    "building": "apartments",
+    "building:flats": "84",
+    "building:levels": "14",
+    "name": "14동",
+    "start_date": "1985"
+  }
+},
+{
+  "type": "way",
+  "id": 789738614,
+  "center": {
+    "lat": 37.5438869,
+    "lon": 127.1059861
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:subdistrict": "광장동",
+    "building": "apartments",
+    "building:flats": "56",
+    "building:levels": "14",
+    "name": "15동",
+    "start_date": "1985"
+  }
+},
+{
+  "type": "way",
+  "id": 789738615,
+  "center": {
+    "lat": 37.5433896,
+    "lon": 127.1052853
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:subdistrict": "광장동",
+    "building": "apartments",
+    "building:flats": "56",
+    "building:levels": "14",
+    "name": "9동",
+    "start_date": "1985"
+  }
+},
+{
+  "type": "way",
+  "id": 789738616,
+  "center": {
+    "lat": 37.5421754,
+    "lon": 127.1037720
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:subdistrict": "광장동",
+    "building": "apartments",
+    "building:flats": "56",
+    "building:levels": "14",
+    "name": "4동",
+    "start_date": "1985"
+  }
+},
+{
+  "type": "way",
+  "id": 789738617,
+  "center": {
+    "lat": 37.5433851,
+    "lon": 127.1058754
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:subdistrict": "광장동",
+    "building": "apartments",
+    "building:flats": "56",
+    "building:levels": "14",
+    "name": "16동",
+    "start_date": "1985"
+  }
+},
+{
+  "type": "way",
+  "id": 789738618,
+  "center": {
+    "lat": 37.5433489,
+    "lon": 127.1047121
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:subdistrict": "광장동",
+    "building": "apartments",
+    "building:flats": "84",
+    "building:levels": "14",
+    "name": "8동",
+    "start_date": "1985"
+  }
+},
+{
+  "type": "way",
+  "id": 789738619,
+  "center": {
+    "lat": 37.5428735,
+    "lon": 127.1052797
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:subdistrict": "광장동",
+    "building": "apartments",
+    "building:flats": "84",
+    "building:levels": "14",
+    "name": "10동",
+    "start_date": "1985"
+  }
+},
+{
+  "type": "way",
+  "id": 789738620,
+  "center": {
+    "lat": 37.5423012,
+    "lon": 127.1045127
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:subdistrict": "광장동",
+    "building": "apartments",
+    "building:flats": "84",
+    "building:levels": "14",
+    "name": "5동",
+    "start_date": "1985"
+  }
+},
+{
+  "type": "way",
+  "id": 789738621,
+  "center": {
+    "lat": 37.5427706,
+    "lon": 127.1038874
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:subdistrict": "광장동",
+    "building": "apartments",
+    "building:flats": "84",
+    "building:levels": "14",
+    "name": "3동",
+    "start_date": "1985"
+  }
+},
+{
+  "type": "way",
+  "id": 789738622,
+  "center": {
+    "lat": 37.5425520,
+    "lon": 127.1030165
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:subdistrict": "광장동",
+    "building": "apartments",
+    "building:flats": "84",
+    "building:levels": "14",
+    "name": "2동",
+    "start_date": "1985"
+  }
+},
+{
+  "type": "way",
+  "id": 789738623,
+  "center": {
+    "lat": 37.5414050,
+    "lon": 127.1033321
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:subdistrict": "광장동",
+    "building": "apartments",
+    "building:flats": "165",
+    "building:levels": "15",
+    "name": "삼성1차아파트",
+    "name:ko": "삼성1차아파트",
+    "start_date": "1987"
+  }
+},
+{
+  "type": "way",
+  "id": 790201429,
+  "center": {
+    "lat": 37.5457714,
+    "lon": 127.0898142
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "래미안구의파크스위트아파트",
+    "name:ko": "래미안구의파크스위트아파트"
+  }
+},
+{
+  "type": "way",
+  "id": 790201430,
+  "center": {
+    "lat": 37.5460987,
+    "lon": 127.0890492
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:subdistrict": "구의동",
+    "building": "apartments",
+    "building:flats": "108",
+    "building:levels": "16",
+    "height": "47",
+    "name": "105",
+    "start_date": "2018"
+  }
+},
+{
+  "type": "way",
+  "id": 790201431,
+  "center": {
+    "lat": 37.5457903,
+    "lon": 127.0895081
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:subdistrict": "구의동",
+    "building": "apartments",
+    "building:flats": "44",
+    "building:levels": "22",
+    "height": "64",
+    "name": "106",
+    "start_date": "2018"
+  }
+},
+{
+  "type": "way",
+  "id": 790201432,
+  "center": {
+    "lat": 37.5461454,
+    "lon": 127.0907513
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:subdistrict": "구의동",
+    "building": "apartments",
+    "building:flats": "63",
+    "building:levels": "16",
+    "height": "47",
+    "name": "102",
+    "start_date": "2018"
+  }
+},
+{
+  "type": "way",
+  "id": 790201433,
+  "center": {
+    "lat": 37.5456667,
+    "lon": 127.0906634
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:subdistrict": "구의동",
+    "building": "apartments",
+    "building:flats": "91",
+    "building:levels": "23",
+    "height": "67",
+    "name": "108",
+    "start_date": "2018"
+  }
+},
+{
+  "type": "way",
+  "id": 790201434,
+  "center": {
+    "lat": 37.5456662,
+    "lon": 127.0899809
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:subdistrict": "구의동",
+    "building": "apartments",
+    "building:flats": "113",
+    "building:levels": "23",
+    "height": "67",
+    "name": "107",
+    "start_date": "2018"
+  }
+},
+{
+  "type": "way",
+  "id": 790201435,
+  "center": {
+    "lat": 37.5462591,
+    "lon": 127.0900479
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:subdistrict": "구의동",
+    "building": "apartments",
+    "building:flats": "84",
+    "building:levels": "17",
+    "height": "49",
+    "name": "103",
+    "start_date": "2018"
+  }
+},
+{
+  "type": "way",
+  "id": 790201436,
+  "center": {
+    "lat": 37.5464924,
+    "lon": 127.0893711
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:subdistrict": "구의동",
+    "building": "apartments",
+    "building:flats": "83",
+    "building:levels": "14",
+    "height": "41",
+    "name": "104",
+    "start_date": "2018"
+  }
+},
+{
+  "type": "way",
+  "id": 790201437,
+  "center": {
+    "lat": 37.5452496,
+    "lon": 127.0894550
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:subdistrict": "구의동",
+    "building": "apartments",
+    "building:flats": "34",
+    "building:levels": "17",
+    "height": "49",
+    "name": "112",
+    "start_date": "2018"
+  }
+},
+{
+  "type": "way",
+  "id": 790201438,
+  "center": {
+    "lat": 37.5451440,
+    "lon": 127.0898681
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:subdistrict": "구의동",
+    "building": "apartments",
+    "building:flats": "87",
+    "building:levels": "18",
+    "height": "52",
+    "name": "111",
+    "start_date": "2018"
+  }
+},
+{
+  "type": "way",
+  "id": 790201439,
+  "center": {
+    "lat": 37.5451334,
+    "lon": 127.0905480
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:subdistrict": "구의동",
+    "building": "apartments",
+    "building:flats": "90",
+    "building:levels": "19",
+    "height": "56",
+    "name": "110",
+    "start_date": "2018"
+  }
+},
+{
+  "type": "way",
+  "id": 790201440,
+  "center": {
+    "lat": 37.5457791,
+    "lon": 127.0911558
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:subdistrict": "구의동",
+    "building": "apartments",
+    "building:flats": "37",
+    "building:levels": "19",
+    "height": "55",
+    "name": "109",
+    "start_date": "2018"
+  }
+},
+{
+  "type": "way",
+  "id": 790201441,
+  "center": {
+    "lat": 37.5462715,
+    "lon": 127.0911194
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:subdistrict": "구의동",
+    "building": "apartments",
+    "building:flats": "20",
+    "building:levels": "10",
+    "height": "29",
+    "name": "101",
+    "start_date": "2018"
+  }
+},
+{
+  "type": "way",
+  "id": 817877113,
+  "center": {
+    "lat": 37.5479731,
+    "lon": 127.0930904
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:housenumber": "716",
+    "addr:postcode": "04981",
+    "addr:street": "천호대로",
+    "addr:subdistrict": "구의동",
+    "building:levels": "12",
+    "landuse": "residential",
+    "name": "아차산포레안아파트",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 817877114,
+  "center": {
+    "lat": 37.5482948,
+    "lon": 127.0936320
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:housenumber": "716",
+    "addr:postcode": "04981",
+    "addr:street": "천호대로",
+    "addr:subdistrict": "구의동",
+    "building": "apartments",
+    "building:flats": "32",
+    "building:levels": "10",
+    "height": "31",
+    "name": "101",
+    "start_date": "2010"
+  }
+},
+{
+  "type": "way",
+  "id": 817877115,
+  "center": {
+    "lat": 37.5479676,
+    "lon": 127.0933658
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:housenumber": "716",
+    "addr:postcode": "04981",
+    "addr:street": "천호대로",
+    "addr:subdistrict": "구의동",
+    "building": "apartments",
+    "building:flats": "39",
+    "building:levels": "12",
+    "height": "37",
+    "name": "102",
+    "start_date": "2010"
+  }
+},
+{
+  "type": "way",
+  "id": 817877116,
+  "center": {
+    "lat": 37.5476211,
+    "lon": 127.0928636
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:housenumber": "716",
+    "addr:postcode": "04981",
+    "addr:street": "천호대로",
+    "addr:subdistrict": "구의동",
+    "building": "apartments",
+    "building:flats": "54",
+    "building:levels": "11",
+    "height": "34",
+    "name": "103",
+    "start_date": "2010"
+  }
+},
+{
+  "type": "way",
+  "id": 843768580,
+  "center": {
+    "lat": 37.5441713,
+    "lon": 127.1005550
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:housenumber": "549",
+    "addr:postcode": "04983",
+    "addr:street": "아차산로",
+    "addr:subdistrict": "광장동",
+    "building": "apartments",
+    "building:flats": "94",
+    "building:levels": "25",
+    "height": "68",
+    "name": "1007동",
+    "start_date": "2000"
+  }
+},
+{
+  "type": "way",
+  "id": 843768581,
+  "center": {
+    "lat": 37.5436190,
+    "lon": 127.1008174
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:housenumber": "549",
+    "addr:postcode": "04983",
+    "addr:street": "아차산로",
+    "addr:subdistrict": "광장동",
+    "building": "apartments",
+    "building:flats": "44",
+    "building:levels": "22",
+    "height": "59",
+    "name": "1010동",
+    "start_date": "2000"
+  }
+},
+{
+  "type": "way",
+  "id": 843768582,
+  "center": {
+    "lat": 37.5439925,
+    "lon": 127.1009266
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:housenumber": "549",
+    "addr:postcode": "04983",
+    "addr:street": "아차산로",
+    "addr:subdistrict": "광장동",
+    "building": "apartments",
+    "building:flats": "100",
+    "building:levels": "25",
+    "height": "68",
+    "name": "1008동",
+    "start_date": "2000"
+  }
+},
+{
+  "type": "way",
+  "id": 843768583,
+  "center": {
+    "lat": 37.5444590,
+    "lon": 127.1010526
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:housenumber": "549",
+    "addr:postcode": "04983",
+    "addr:street": "아차산로",
+    "addr:subdistrict": "광장동",
+    "building": "apartments",
+    "building:flats": "92",
+    "building:levels": "23",
+    "height": "62",
+    "name": "1006동",
+    "start_date": "2000"
+  }
+},
+{
+  "type": "way",
+  "id": 844124238,
+  "center": {
+    "lat": 37.5441513,
+    "lon": 127.1014478
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "광장현대파크빌 10차아파트"
+  }
+},
+{
+  "type": "way",
+  "id": 844215288,
+  "center": {
+    "lat": 37.5431729,
+    "lon": 127.1012215
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:housenumber": "549",
+    "addr:postcode": "04983",
+    "addr:street": "아차산로",
+    "addr:subdistrict": "광장동",
+    "building": "apartments",
+    "building:flats": "94",
+    "building:levels": "25",
+    "height": "68",
+    "name": "1012동",
+    "start_date": "2000"
+  }
+},
+{
+  "type": "way",
+  "id": 844215289,
+  "center": {
+    "lat": 37.5435238,
+    "lon": 127.1012110
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:housenumber": "549",
+    "addr:postcode": "04983",
+    "addr:street": "아차산로",
+    "addr:subdistrict": "광장동",
+    "building": "apartments",
+    "building:flats": "100",
+    "building:levels": "25",
+    "height": "68",
+    "name": "1011동",
+    "start_date": "2000"
+  }
+},
+{
+  "type": "way",
+  "id": 844215290,
+  "center": {
+    "lat": 37.5439090,
+    "lon": 127.1013749
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:housenumber": "549",
+    "addr:postcode": "04983",
+    "addr:street": "아차산로",
+    "addr:subdistrict": "광장동",
+    "building": "apartments",
+    "building:flats": "92",
+    "building:levels": "24",
+    "height": "65",
+    "name": "1009동",
+    "start_date": "2000"
+  }
+},
+{
+  "type": "way",
+  "id": 844215291,
+  "center": {
+    "lat": 37.5433596,
+    "lon": 127.1017603
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:housenumber": "549",
+    "addr:postcode": "04983",
+    "addr:street": "아차산로",
+    "addr:subdistrict": "광장동",
+    "building": "apartments",
+    "building:flats": "96",
+    "building:levels": "24",
+    "height": "65",
+    "name": "1013동",
+    "start_date": "2000"
+  }
+},
+{
+  "type": "way",
+  "id": 844215293,
+  "center": {
+    "lat": 37.5438391,
+    "lon": 127.1019943
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:housenumber": "549",
+    "addr:postcode": "04983",
+    "addr:street": "아차산로",
+    "addr:subdistrict": "광장동",
+    "building": "apartments",
+    "building:flats": "100",
+    "building:levels": "25",
+    "height": "68",
+    "name": "1001동",
+    "start_date": "2000"
+  }
+},
+{
+  "type": "way",
+  "id": 844215294,
+  "center": {
+    "lat": 37.5441450,
+    "lon": 127.1021394
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:housenumber": "549",
+    "addr:postcode": "04983",
+    "addr:street": "아차산로",
+    "addr:subdistrict": "광장동",
+    "building": "apartments",
+    "building:flats": "86",
+    "building:levels": "25",
+    "height": "68",
+    "name": "1002동",
+    "start_date": "2000"
+  }
+},
+{
+  "type": "way",
+  "id": 844215295,
+  "center": {
+    "lat": 37.5445577,
+    "lon": 127.1022933
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:housenumber": "549",
+    "addr:postcode": "04983",
+    "addr:street": "아차산로",
+    "addr:subdistrict": "광장동",
+    "building": "apartments",
+    "building:flats": "89",
+    "building:levels": "25",
+    "height": "68",
+    "name": "1003동",
+    "start_date": "2000"
+  }
+},
+{
+  "type": "way",
+  "id": 844215296,
+  "center": {
+    "lat": 37.5447149,
+    "lon": 127.1019874
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:housenumber": "549",
+    "addr:postcode": "04983",
+    "addr:street": "아차산로",
+    "addr:subdistrict": "광장동",
+    "building": "apartments",
+    "building:flats": "83",
+    "building:levels": "25",
+    "height": "68",
+    "name": "1004동",
+    "start_date": "2000"
+  }
+},
+{
+  "type": "way",
+  "id": 844215297,
+  "center": {
+    "lat": 37.5447530,
+    "lon": 127.1015139
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:housenumber": "549",
+    "addr:postcode": "04983",
+    "addr:street": "아차산로",
+    "addr:subdistrict": "광장동",
+    "building": "apartments",
+    "building:flats": "100",
+    "building:levels": "25",
+    "height": "68",
+    "name": "1005동",
+    "start_date": "2000"
+  }
+},
+{
+  "type": "way",
+  "id": 844290716,
+  "center": {
+    "lat": 37.5450180,
+    "lon": 127.1029209
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "광장현대홈타운 12차아파트"
+  }
+},
+{
+  "type": "way",
+  "id": 844290717,
+  "center": {
+    "lat": 37.5450694,
+    "lon": 127.1027557
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:subdistrict": "광장동",
+    "building": "apartments",
+    "building:flats": "58",
+    "building:levels": "21",
+    "height": "57",
+    "name": "1201동",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 844290718,
+  "center": {
+    "lat": 37.5448324,
+    "lon": 127.1033964
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:subdistrict": "광장동",
+    "building": "apartments",
+    "building:flats": "61",
+    "building:levels": "21",
+    "height": "57",
+    "name": "1202동",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 844297049,
+  "center": {
+    "lat": 37.5431976,
+    "lon": 127.0996191
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "광장힐스테이트",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 894996347,
+  "center": {
+    "lat": 37.5444983,
+    "lon": 127.0658594
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "화양현대아파트",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 899719392,
+  "center": {
+    "lat": 37.5283767,
+    "lon": 127.0835499
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "자양현대3차아파트",
+    "name:ko": "자양현대3차아파트"
+  }
+},
+{
+  "type": "way",
+  "id": 903231083,
+  "center": {
+    "lat": 37.5387288,
+    "lon": 127.0966217
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "구의현대2단지아파트",
+    "name:ko": "현대2단지아파트"
+  }
+},
+{
+  "type": "way",
+  "id": 903231085,
+  "center": {
+    "lat": 37.5374334,
+    "lon": 127.0976314
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "현대프라임아파트",
+    "name:ko": "현대프라임아파트"
+  }
+},
+{
+  "type": "way",
+  "id": 903623357,
+  "center": {
+    "lat": 37.5281976,
+    "lon": 127.0812935
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "로얄동아아파트",
+    "name:ko": "로얄동아아파트"
+  }
+},
+{
+  "type": "way",
+  "id": 933325899,
+  "center": {
+    "lat": 37.5316867,
+    "lon": 127.0683563
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:housenumber": "67",
+    "addr:postcode": "05096",
+    "addr:street": "뚝섬로34길",
+    "addr:subdistrict": "자양동",
+    "building": "apartments",
+    "building:flats": "102",
+    "building:levels": "29",
+    "height": "90",
+    "name": "A동",
+    "start_date": "2006"
+  }
+},
+{
+  "type": "way",
+  "id": 933325900,
+  "center": {
+    "lat": 37.5321220,
+    "lon": 127.0676814
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:housenumber": "67",
+    "addr:postcode": "05096",
+    "addr:street": "뚝섬로34길",
+    "addr:subdistrict": "자양동",
+    "building": "apartments",
+    "building:flats": "102",
+    "building:levels": "29",
+    "height": "90",
+    "name": "B동",
+    "start_date": "2006"
+  }
+},
+{
+  "type": "way",
+  "id": 933325901,
+  "center": {
+    "lat": 37.5319175,
+    "lon": 127.0679196
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:housenumber": "67",
+    "addr:postcode": "05096",
+    "addr:street": "뚝섬로34길",
+    "addr:subdistrict": "자양동",
+    "landuse": "residential",
+    "name": "광진트라팰리스",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 966057050,
+  "center": {
+    "lat": 37.5513217,
+    "lon": 127.0727131
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:housenumber": "46",
+    "addr:postcode": "05004",
+    "addr:street": "군자로12길",
+    "addr:subdistrict": "군자동",
+    "landuse": "residential",
+    "name": "일성아파트",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 974497195,
+  "center": {
+    "lat": 37.5424148,
+    "lon": 127.1009748
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:subdistrict": "광장동",
+    "building": "apartments",
+    "building:flats": "200",
+    "building:levels": "24",
+    "height": "82",
+    "name": "상록타워아파트",
+    "start_date": "1997"
+  }
+},
+{
+  "type": "way",
+  "id": 976583554,
+  "center": {
+    "lat": 37.5355665,
+    "lon": 127.0700983
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:housenumber": "20",
+    "addr:postcode": "05070",
+    "addr:street": "뚝섬로33길",
+    "addr:subdistrict": "자양동",
+    "building": "apartments",
+    "building:flats": "237",
+    "building:levels": "22",
+    "height": "61",
+    "name": "한라아파트 101동",
+    "start_date": "1996"
+  }
+},
+{
+  "type": "way",
+  "id": 976906287,
+  "center": {
+    "lat": 37.5374897,
+    "lon": 127.0688359
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "자양호반써밋아파트",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 977845160,
+  "center": {
+    "lat": 37.5435620,
+    "lon": 127.0940829
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:housenumber": "579",
+    "addr:postcode": "04984",
+    "addr:street": "광나루로",
+    "addr:subdistrict": "광장동",
+    "landuse": "residential",
+    "name": "광장동금호베스트빌",
+    "name:ko": "광장동금호베스트빌",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 977845162,
+  "center": {
+    "lat": 37.5437749,
+    "lon": 127.0964519
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:subdistrict": "광장동",
+    "building": "apartments",
+    "building:levels": "3",
+    "name": "라"
+  }
+},
+{
+  "type": "way",
+  "id": 977845163,
+  "center": {
+    "lat": 37.5436808,
+    "lon": 127.0961004
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:housenumber": "13",
+    "addr:postcode": "04984",
+    "addr:street": "워커힐로",
+    "addr:subdistrict": "광장동",
+    "landuse": "residential",
+    "name": "서울아파트",
+    "name:ko": "서울아파트",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 977845164,
+  "center": {
+    "lat": 37.5435368,
+    "lon": 127.0958948
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:subdistrict": "광장동",
+    "building": "apartments",
+    "building:levels": "2",
+    "name": "다"
+  }
+},
+{
+  "type": "way",
+  "id": 977845165,
+  "center": {
+    "lat": 37.5436921,
+    "lon": 127.0959360
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:subdistrict": "광장동",
+    "building": "apartments",
+    "building:levels": "2",
+    "name": "나"
+  }
+},
+{
+  "type": "way",
+  "id": 977845166,
+  "center": {
+    "lat": 37.5438472,
+    "lon": 127.0959801
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:subdistrict": "광장동",
+    "building": "apartments",
+    "building:levels": "2",
+    "name": "가"
+  }
+},
+{
+  "type": "way",
+  "id": 981091457,
+  "center": {
+    "lat": 37.5406306,
+    "lon": 127.0990127
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "광장현대3단지아파트",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 981091458,
+  "center": {
+    "lat": 37.5397158,
+    "lon": 127.1001097
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "광장현대5단지아파트",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 981091477,
+  "center": {
+    "lat": 37.5418700,
+    "lon": 127.0992524
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "광장현대8단지아파트",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 990873902,
+  "center": {
+    "lat": 37.5553044,
+    "lon": 127.0862188
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:subdistrict": "중곡동",
+    "brand": "GS25",
+    "brand:wikidata": "Q624041",
+    "brand:wikipedia": "ko:GS25",
+    "building": "apartments",
+    "building:levels": "5",
+    "name": "GS25",
+    "roof:levels": "0",
+    "shop": "convenience"
+  }
+},
+{
+  "type": "way",
+  "id": 1046426574,
+  "center": {
+    "lat": 37.5512233,
+    "lon": 127.1104817
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:housenumber": "72",
+    "addr:postcode": "04969",
+    "addr:street": "아차산로78길",
+    "addr:subdistrict": "광장동",
+    "building": "apartments",
+    "building:flats": "53",
+    "building:levels": "11",
+    "name": "학산코스모스텔",
+    "start_date": "1991"
+  }
+},
+{
+  "type": "way",
+  "id": 1069181356,
+  "center": {
+    "lat": 37.5364185,
+    "lon": 127.0683313
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "대동아파트",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 1076255252,
+  "center": {
+    "lat": 37.5438084,
+    "lon": 127.0999402
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:subdistrict": "광장동",
+    "building": "apartments",
+    "building:flats": "11",
+    "building:levels": "4",
+    "height": "13",
+    "name": "1405동",
+    "start_date": "2012"
+  }
+},
+{
+  "type": "way",
+  "id": 1076255253,
+  "center": {
+    "lat": 37.5436249,
+    "lon": 127.0992901
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:subdistrict": "광장동",
+    "building": "apartments",
+    "building:flats": "14",
+    "building:levels": "4",
+    "height": "13",
+    "name": "1404동",
+    "start_date": "2012"
+  }
+},
+{
+  "type": "way",
+  "id": 1076255260,
+  "center": {
+    "lat": 37.5431366,
+    "lon": 127.1002153
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:subdistrict": "광장동",
+    "building": "apartments",
+    "building:flats": "139",
+    "building:levels": "25",
+    "height": "72",
+    "name": "1401동",
+    "start_date": "2012"
+  }
+},
+{
+  "type": "way",
+  "id": 1076255261,
+  "center": {
+    "lat": 37.5429684,
+    "lon": 127.0996661
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:subdistrict": "광장동",
+    "building": "apartments",
+    "building:flats": "148",
+    "building:levels": "25",
+    "height": "72",
+    "name": "1402동",
+    "start_date": "2012"
+  }
+},
+{
+  "type": "way",
+  "id": 1076255262,
+  "center": {
+    "lat": 37.5427762,
+    "lon": 127.0990467
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:subdistrict": "광장동",
+    "building": "apartments",
+    "building:flats": "141",
+    "building:levels": "25",
+    "height": "72",
+    "name": "1403동",
+    "start_date": "2012"
+  }
+},
+{
+  "type": "way",
+  "id": 1076255264,
+  "center": {
+    "lat": 37.5418195,
+    "lon": 127.0966082
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:subdistrict": "광장동",
+    "building": "apartments",
+    "building:flats": "88",
+    "building:levels": "23",
+    "height": "61",
+    "name": "101동",
+    "start_date": "1996"
+  }
+},
+{
+  "type": "way",
+  "id": 1076255265,
+  "center": {
+    "lat": 37.5424928,
+    "lon": 127.0963476
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "광장청구아파트",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 1076255266,
+  "center": {
+    "lat": 37.5431423,
+    "lon": 127.0975217
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "광장현대홈타운 11차",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 1076336360,
+  "center": {
+    "lat": 37.5425213,
+    "lon": 127.0977251
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "광장현대9단지아파트",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 1076336361,
+  "center": {
+    "lat": 37.5426151,
+    "lon": 127.0952750
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "광장자이아파트",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 1083079727,
+  "center": {
+    "lat": 37.5421963,
+    "lon": 127.1020944
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:housenumber": "544",
+    "addr:postcode": "04971",
+    "addr:street": "아차산로",
+    "addr:subdistrict": "광장동",
+    "building": "apartments",
+    "building:flats": "120",
+    "building:levels": "15",
+    "name": "삼성아파트 나동",
+    "start_date": "1989"
+  }
+},
+{
+  "type": "way",
+  "id": 1083079730,
+  "center": {
+    "lat": 37.5427230,
+    "lon": 127.1018318
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:housenumber": "544",
+    "addr:postcode": "04971",
+    "addr:street": "아차산로",
+    "addr:subdistrict": "광장동",
+    "building": "apartments",
+    "building:flats": "75",
+    "building:levels": "15",
+    "name": "삼성아파트 가동",
+    "start_date": "1989"
+  }
+},
+{
+  "type": "way",
+  "id": 1112871159,
+  "center": {
+    "lat": 37.5496285,
+    "lon": 127.1097125
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:subdistrict": "광장동",
+    "building": "apartments",
+    "building:flats": "18",
+    "building:levels": "10",
+    "height": "39",
+    "name": "광진워커힐리버빌",
+    "start_date": "1997"
+  }
+},
+{
+  "type": "way",
+  "id": 1113105745,
+  "center": {
+    "lat": 37.5601902,
+    "lon": 127.0746190
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:housenumber": "328",
+    "addr:postcode": "04920",
+    "addr:street": "동일로",
+    "addr:subdistrict": "중곡동",
+    "landuse": "residential",
+    "name": "샤인빌15차",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 1113380127,
+  "center": {
+    "lat": 37.5600782,
+    "lon": 127.0761572
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:housenumber": "32",
+    "addr:postcode": "04917",
+    "addr:street": "면목로7길",
+    "addr:subdistrict": "중곡동",
+    "landuse": "residential",
+    "name": "명성타운빌라",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 1113380139,
+  "center": {
+    "lat": 37.5603402,
+    "lon": 127.0768885
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:housenumber": "39",
+    "addr:postcode": "04917",
+    "addr:street": "동일로64길",
+    "addr:subdistrict": "중곡동",
+    "building": "apartments",
+    "name": "테라팰리스 중곡1차"
+  }
+},
+{
+  "type": "way",
+  "id": 1113380141,
+  "center": {
+    "lat": 37.5589042,
+    "lon": 127.0763127
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:subdistrict": "중곡동",
+    "building": "apartments",
+    "building:flats": "299",
+    "building:levels": "20",
+    "height": "68",
+    "name": "리마크빌군자",
+    "start_date": "2022"
+  }
+},
+{
+  "type": "way",
+  "id": 1125304911,
+  "center": {
+    "lat": 37.5439041,
+    "lon": 127.0681874
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "테라팰리스건대1차",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 1126759888,
+  "center": {
+    "lat": 37.5572052,
+    "lon": 127.0744221
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "진아빌리지"
+  }
+},
+{
+  "type": "way",
+  "id": 1146855886,
+  "center": {
+    "lat": 37.5457818,
+    "lon": 127.0686313
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:housenumber": "94",
+    "addr:postcode": "05012",
+    "addr:street": "능동로13길",
+    "landuse": "residential",
+    "name": "덕화맨숀",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 1221495332,
+  "center": {
+    "lat": 37.5456145,
+    "lon": 127.0739785
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:postcode": "<차이점>",
+    "addr:subdistrict": "화양동",
+    "building": "apartments",
+    "building:flats": "36",
+    "building:levels": "14",
+    "height": "45",
+    "name": "위너스힐",
+    "start_date": "2021"
+  }
+},
+{
+  "type": "way",
+  "id": 1221495334,
+  "center": {
+    "lat": 37.5465743,
+    "lon": 127.0750596
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:housenumber": "410",
+    "addr:postcode": "05021",
+    "addr:street": "광나루로",
+    "addr:street:en": "Gwangnaru-ro",
+    "addr:subdistrict": "화양동",
+    "building": "apartments",
+    "building:levels": "15",
+    "height": "54",
+    "name": "KCC park Town",
+    "start_date": "2005"
+  }
+},
+{
+  "type": "way",
+  "id": 1221495336,
+  "center": {
+    "lat": 37.5459834,
+    "lon": 127.0739971
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:housenumber": "172",
+    "addr:postcode": "<차이점>",
+    "addr:street:en": "Neungdong-ro",
+    "addr:subdistrict": "화양동",
+    "building": "apartments",
+    "building:flats": "491",
+    "building:levels": "20",
+    "height": "90",
+    "name": "Villiv",
+    "start_date": "2021"
+  }
+},
+{
+  "type": "way",
+  "id": 1225624932,
+  "center": {
+    "lat": 37.5407938,
+    "lon": 127.0841891
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:housenumber": "87-3",
+    "addr:postcode": "05039",
+    "addr:street": "아차산로49길",
+    "addr:subdistrict": "구의동",
+    "building": "apartments",
+    "building:flats": "12",
+    "building:levels": "9",
+    "height": "25",
+    "name": "명진 센트라임III",
+    "start_date": "2020"
+  }
+},
+{
+  "type": "way",
+  "id": 1225624994,
+  "center": {
+    "lat": 37.5405624,
+    "lon": 127.0836785
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:housenumber": "144-1",
+    "addr:postcode": "05039",
+    "addr:street": "자양로",
+    "addr:street:en": "Jayang-ro",
+    "addr:subdistrict": "구의동",
+    "building": "apartments",
+    "building:flats": "28",
+    "building:levels": "10",
+    "height": "38",
+    "name": "광진펠리스",
+    "start_date": "2019"
+  }
+},
+{
+  "type": "way",
+  "id": 1240382557,
+  "center": {
+    "lat": 37.5360123,
+    "lon": 127.0841978
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:housenumber": "92",
+    "addr:postcode": "05051",
+    "addr:street": "자양로",
+    "addr:subdistrict": "자양동",
+    "building": "apartments",
+    "building:flats": "21",
+    "building:levels": "11",
+    "height": "46",
+    "name": "안틸리아자양",
+    "start_date": "2022"
+  }
+},
+{
+  "type": "way",
+  "id": 1244540032,
+  "center": {
+    "lat": 37.5394162,
+    "lon": 127.0822023
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:housenumber": "17",
+    "addr:postcode": "05026",
+    "addr:street": "자양로21길",
+    "addr:subdistrict": "자양동",
+    "building": "yes",
+    "building:levels": "6",
+    "name": "스카이빌 아파트 2차"
+  }
+},
+{
+  "type": "way",
+  "id": 1350598668,
+  "center": {
+    "lat": 37.5661654,
+    "lon": 127.0875543
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:subdistrict": "중곡동",
+    "landuse": "residential",
+    "name": "신항빌라"
+  }
+},
+{
+  "type": "way",
+  "id": 1350598674,
+  "center": {
+    "lat": 37.5663162,
+    "lon": 127.0868202
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:subdistrict": "중곡동",
+    "landuse": "residential",
+    "name": "용마맨션"
+  }
+},
+{
+  "type": "way",
+  "id": 1376668283,
+  "center": {
+    "lat": 37.5299225,
+    "lon": 127.0896348
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:housenumber": "44",
+    "addr:postcode": "05114",
+    "addr:street": "구의강변로1길",
+    "addr:subdistrict": "자양동",
+    "building": "apartments",
+    "building:flats": "41",
+    "building:levels": "23",
+    "building:levels:underground": "2",
+    "check_date": "2025-04-11",
+    "description": "Except for the top floor penthouse , the rest are single-pyeong units of 53 pyeong and are divided into 4/3 rooms depending on the type. It is also famous for being an apartment where many celebrities live.",
+    "height": "70",
+    "name": "광진하우스토리아파트 101동",
+    "name:en": "Gwangjin Houstory Apartment 101",
+    "name:ko": "광진하우스토리아파트 101동",
+    "source": "https://en.namu.wiki/w/%EA%B4%91%EC%A7%84%ED%95%98%EC%9A%B0%EC%8A%A4%ED%86%A0%EB%A6%AC%20%ED%95%9C%EA%B0%95;aerial imagery;https://blog.naver.com/skyyou124578/223510168455",
+    "start_date": "2008"
+  }
+},
+{
+  "type": "way",
+  "id": 1376668284,
+  "center": {
+    "lat": 37.5299378,
+    "lon": 127.0901818
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:housenumber": "44",
+    "addr:postcode": "05114",
+    "addr:street": "구의강변로1길",
+    "addr:subdistrict": "자양동",
+    "building": "apartments",
+    "building:flats": "41",
+    "building:levels": "23",
+    "building:levels:underground": "2",
+    "check_date": "2025-04-11",
+    "description": "Except for the top floor penthouse , the rest are single-pyeong units of 53 pyeong and are divided into 4/3 rooms depending on the type. It is also famous for being an apartment where many celebrities live.",
+    "height": "70",
+    "name": "광진하우스토리아파트 102동",
+    "name:en": "Gwangjin Houstory Apartment 102",
+    "name:ko": "광진하우스토리아파트 102동",
+    "source": "https://en.namu.wiki/w/%EA%B4%91%EC%A7%84%ED%95%98%EC%9A%B0%EC%8A%A4%ED%86%A0%EB%A6%AC%20%ED%95%9C%EA%B0%95;aerial imagery;https://blog.naver.com/skyyou124578/223510168455",
+    "start_date": "2008"
+  }
+},
+{
+  "type": "way",
+  "id": 1380798773,
+  "center": {
+    "lat": 37.5342048,
+    "lon": 127.0746275
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:housenumber": "569",
+    "addr:postcode": "05069",
+    "addr:street": "뚝섬로",
+    "addr:subdistrict": "자양동",
+    "landuse": "residential",
+    "name": "자양우성1차아파트",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 1380798774,
+  "center": {
+    "lat": 37.5343208,
+    "lon": 127.0735532
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "60",
+    "building:levels": "15",
+    "name": "102",
+    "start_date": "1988"
+  }
+},
+{
+  "type": "way",
+  "id": 1380798775,
+  "center": {
+    "lat": 37.5339471,
+    "lon": 127.0740428
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "165",
+    "building:levels": "15",
+    "name": "104",
+    "start_date": "1988"
+  }
+},
+{
+  "type": "way",
+  "id": 1380798776,
+  "center": {
+    "lat": 37.5344968,
+    "lon": 127.0742666
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "150",
+    "building:levels": "15",
+    "name": "101",
+    "start_date": "1988"
+  }
+},
+{
+  "type": "way",
+  "id": 1380798777,
+  "center": {
+    "lat": 37.5340010,
+    "lon": 127.0746829
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "60",
+    "building:levels": "15",
+    "name": "103",
+    "start_date": "1988"
+  }
+},
+{
+  "type": "way",
+  "id": 1380799312,
+  "center": {
+    "lat": 37.5345632,
+    "lon": 127.0755937
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "104",
+    "building:levels": "13",
+    "name": "105",
+    "start_date": "1988"
+  }
+},
+{
+  "type": "way",
+  "id": 1380799313,
+  "center": {
+    "lat": 37.5341716,
+    "lon": 127.0754847
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "117",
+    "building:levels": "13",
+    "name": "106",
+    "start_date": "1988"
+  }
+},
+{
+  "type": "way",
+  "id": 1416232085,
+  "center": {
+    "lat": 37.5663434,
+    "lon": 127.0789918
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:housenumber": "17",
+    "addr:postcode": "04907",
+    "addr:street": "동일로72길",
+    "addr:subdistrict": "중곡동",
+    "building": "apartments",
+    "name": "1동"
+  }
+},
+{
+  "type": "way",
+  "id": 1416232086,
+  "center": {
+    "lat": 37.5661760,
+    "lon": 127.0785936
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:housenumber": "17",
+    "addr:postcode": "04907",
+    "addr:street": "동일로72길",
+    "addr:subdistrict": "중곡동",
+    "building": "apartments",
+    "name": "2동"
+  }
+},
+{
+  "type": "way",
+  "id": 1416232087,
+  "center": {
+    "lat": 37.5666430,
+    "lon": 127.0788603
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:housenumber": "17",
+    "addr:postcode": "04907",
+    "addr:street": "동일로72길",
+    "addr:subdistrict": "중곡동",
+    "building": "apartments",
+    "name": "3동"
+  }
+},
+{
+  "type": "way",
+  "id": 1416232088,
+  "center": {
+    "lat": 37.5667047,
+    "lon": 127.0786235
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:housenumber": "17",
+    "addr:postcode": "04907",
+    "addr:street": "동일로72길",
+    "addr:subdistrict": "중곡동",
+    "building": "apartments",
+    "name": "5동"
+  }
+},
+{
+  "type": "way",
+  "id": 1416232089,
+  "center": {
+    "lat": 37.5667757,
+    "lon": 127.0784138
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:housenumber": "17",
+    "addr:postcode": "04907",
+    "addr:street": "동일로72길",
+    "addr:subdistrict": "중곡동",
+    "building": "apartments",
+    "name": "6동"
+  }
+},
+{
+  "type": "way",
+  "id": 1416232090,
+  "center": {
+    "lat": 37.5668506,
+    "lon": 127.0782045
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:housenumber": "17",
+    "addr:postcode": "04907",
+    "addr:street": "동일로72길",
+    "addr:subdistrict": "중곡동",
+    "building": "apartments",
+    "name": "7동"
+  }
+},
+{
+  "type": "way",
+  "id": 1416232102,
+  "center": {
+    "lat": 37.5664993,
+    "lon": 127.0786966
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:housenumber": "17",
+    "addr:postcode": "04907",
+    "addr:street": "동일로72길",
+    "addr:subdistrict": "중곡동",
+    "landuse": "residential",
+    "name": "중곡아파트",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 1416232703,
+  "center": {
+    "lat": 37.5663995,
+    "lon": 127.0780109
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:housenumber": "404",
+    "addr:postcode": "04907",
+    "addr:street": "동일로",
+    "addr:subdistrict": "중곡동",
+    "building": "apartments",
+    "building:flats": "21",
+    "building:levels": "9",
+    "height": "28",
+    "name": "엘림퍼스트중곡",
+    "start_date": "2021"
+  }
+},
+{
+  "type": "way",
+  "id": 1418197917,
+  "center": {
+    "lat": 37.5374067,
+    "lon": 127.0726010
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "더샵스타시티",
+    "name:en": "The Sharp Star City",
+    "name:ja": "ザ・シャープ スターシティ",
+    "name:ko": "더샵스타시티",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 1419380179,
+  "center": {
+    "lat": 37.5437535,
+    "lon": 127.0981764
+  },
+  "tags": {
+    "building": "apartments",
+    "building:levels": "4",
+    "name": "1106동"
+  }
+},
+{
+  "type": "way",
+  "id": 1419380180,
+  "center": {
+    "lat": 37.5438104,
+    "lon": 127.0975830
+  },
+  "tags": {
+    "building": "apartments",
+    "building:levels": "4",
+    "name": "1105동"
+  }
+},
+{
+  "type": "way",
+  "id": 1419380181,
+  "center": {
+    "lat": 37.5435510,
+    "lon": 127.0979589
+  },
+  "tags": {
+    "building": "apartments",
+    "building:levels": "4",
+    "name": "1107동"
+  }
+},
+{
+  "type": "way",
+  "id": 1419380182,
+  "center": {
+    "lat": 37.5433013,
+    "lon": 127.0979171
+  },
+  "tags": {
+    "building": "apartments",
+    "building:levels": "4",
+    "name": "1108동"
+  }
+},
+{
+  "type": "way",
+  "id": 1419380183,
+  "center": {
+    "lat": 37.5427289,
+    "lon": 127.0971306
+  },
+  "tags": {
+    "building": "apartments",
+    "building:levels": "4",
+    "name": "1101동"
+  }
+},
+{
+  "type": "way",
+  "id": 1419380184,
+  "center": {
+    "lat": 37.5430017,
+    "lon": 127.0971131
+  },
+  "tags": {
+    "building": "apartments",
+    "building:levels": "4",
+    "name": "1102동"
+  }
+},
+{
+  "type": "way",
+  "id": 1419380185,
+  "center": {
+    "lat": 37.5431763,
+    "lon": 127.0969087
+  },
+  "tags": {
+    "building": "apartments",
+    "building:levels": "4",
+    "name": "1103동"
+  }
+},
+{
+  "type": "way",
+  "id": 1419380186,
+  "center": {
+    "lat": 37.5434686,
+    "lon": 127.0969348
+  },
+  "tags": {
+    "building": "apartments",
+    "building:levels": "4",
+    "name": "1104동"
+  }
+},
+{
+  "type": "way",
+  "id": 1419380192,
+  "center": {
+    "lat": 37.5423926,
+    "lon": 127.0979401
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "96",
+    "building:levels": "25",
+    "height": "70",
+    "name": "902동",
+    "start_date": "1999"
+  }
+},
+{
+  "type": "way",
+  "id": 1419380193,
+  "center": {
+    "lat": 37.5420675,
+    "lon": 127.0977914
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "84",
+    "building:levels": "24",
+    "height": "67",
+    "name": "901동",
+    "start_date": "1999"
+  }
+},
+{
+  "type": "way",
+  "id": 1419380194,
+  "center": {
+    "lat": 37.5421466,
+    "lon": 127.0973565
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "66",
+    "building:levels": "17",
+    "height": "47",
+    "name": "905",
+    "start_date": "1999"
+  }
+},
+{
+  "type": "way",
+  "id": 1419380195,
+  "center": {
+    "lat": 37.5427873,
+    "lon": 127.0977113
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "100",
+    "building:levels": "24",
+    "height": "67",
+    "name": "904",
+    "start_date": "1999"
+  }
+},
+{
+  "type": "way",
+  "id": 1419380196,
+  "center": {
+    "lat": 37.5427308,
+    "lon": 127.0980958
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "91",
+    "building:levels": "25",
+    "height": "70",
+    "name": "903동",
+    "start_date": "1999"
+  }
+},
+{
+  "type": "way",
+  "id": 1433303429,
+  "center": {
+    "lat": 37.5650337,
+    "lon": 127.0876603
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "광진구",
+    "addr:housenumber": "11-32",
+    "addr:postcode": "04941",
+    "addr:street": "용마산로22길",
+    "addr:subdistrict": "중곡동",
+    "building": "residential",
+    "name": "골드팰리스빌"
+  }
+},
+{
+  "type": "way",
+  "id": 1436896186,
+  "center": {
+    "lat": 37.5364014,
+    "lon": 127.0881117
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "롯데캐슬이스트폴아파트"
+  }
+},
+{
+  "type": "way",
+  "id": 1436896187,
+  "center": {
+    "lat": 37.5345055,
+    "lon": 127.0888405
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "롯데캐슬이스트폴아파트"
+  }
+},
+{
+  "type": "way",
+  "id": 1508766080,
+  "center": {
+    "lat": 37.5441216,
+    "lon": 127.0808894
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "e편한세상광진그랜드파",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 1529372801,
+  "center": {
+    "lat": 37.5454759,
+    "lon": 127.0888397
+  },
+  "tags": {
+    "addr:housenumber": "11",
+    "addr:street": "광나루로39길",
+    "building": "apartments",
+    "building:levels": "13",
+    "height": "42",
+    "name": "구의자이르네아파트",
+    "name:en": "Xiirene",
+    "name:ko": "구의자이르네아파트",
+    "start_date": "2021"
+  }
+}
+
+  ]
+}

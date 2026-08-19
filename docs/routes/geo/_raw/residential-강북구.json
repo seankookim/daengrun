@@ -1,0 +1,6581 @@
+{
+  "version": 0.6,
+  "generator": "Overpass API 0.7.62.11 87bfad18",
+  "osm3s": {
+    "timestamp_osm_base": "2026-08-19T04:04:48Z",
+    "timestamp_areas_base": "2026-08-18T13:29:02Z",
+    "copyright": "The data included in this document is from www.openstreetmap.org. The data is made available under ODbL."
+  },
+  "elements": [
+
+{
+  "type": "node",
+  "id": 357821224,
+  "lat": 37.6424323,
+  "lon": 127.0109856,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "인수초등학교.극동아파트",
+    "name:en": "Insu Middle School",
+    "name:ko": "인수초등학교.극동아파트",
+    "name:ko-Latn": "Insujunghakgyo",
+    "public_transport": "platform",
+    "route_ref": "101;151"
+  }
+},
+{
+  "type": "node",
+  "id": 357821357,
+  "lat": 37.6425271,
+  "lon": 127.0108912,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "인수초등학교.극동아파트",
+    "name:en": "Insu Middle School",
+    "name:ko": "인수초등학교.극동아파트",
+    "name:ko-Latn": "Insujunghakgyo",
+    "public_transport": "platform",
+    "route_ref": "101;151"
+  }
+},
+{
+  "type": "node",
+  "id": 357823412,
+  "lat": 37.6185359,
+  "lon": 127.0212723,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "삼양동사거리.래미안트리베라",
+    "public_transport": "platform",
+    "route_ref": "109;104;410;152"
+  }
+},
+{
+  "type": "node",
+  "id": 357825582,
+  "lat": 37.6552573,
+  "lon": 127.0130351,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "서라벌중학교.우이동대우아파트",
+    "public_transport": "platform",
+    "route_ref": "144;120;109;1161;151;153;1120;1144;1218;1166"
+  }
+},
+{
+  "type": "node",
+  "id": 357825905,
+  "lat": 37.6267300,
+  "lon": 127.0473900,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "번동주공1단지",
+    "name:en": "Beondongjugong 1 Complex",
+    "name:ko": "번동주공1단지",
+    "name:ko-Latn": "Beondongjugong 1 Danji",
+    "public_transport": "platform",
+    "route_ref": "145;148;1218;1125"
+  }
+},
+{
+  "type": "node",
+  "id": 357825912,
+  "lat": 37.6286648,
+  "lon": 127.0443575,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "벌리교.번동주공3단지",
+    "name:en": "Beondongjugong 3 Complex",
+    "name:ko": "벌리교.번동주공3단지",
+    "name:ko-Latn": "Beondongjugong 3 Danji",
+    "public_transport": "platform",
+    "route_ref": "145;1125;148;1218"
+  }
+},
+{
+  "type": "node",
+  "id": 357826116,
+  "lat": 37.6256400,
+  "lon": 127.0479400,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "번동주공1단지",
+    "name:en": "Beondongjugong 1 Complex",
+    "name:ko": "번동주공1단지",
+    "name:ko-Latn": "Beondongjugong 1 Danji",
+    "public_transport": "platform",
+    "route_ref": "145;148;1125;1218"
+  }
+},
+{
+  "type": "node",
+  "id": 357827645,
+  "lat": 37.6617935,
+  "lon": 127.0133958,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "우이동성원아파트",
+    "name:en": "Uidongseongwon Apt.",
+    "name:ko": "우이동성원아파트",
+    "name:ko-Latn": "Uidongseongwonapateu",
+    "public_transport": "platform",
+    "route_ref": "151;120;144;153;1161;1144;1218;1165;1166;109"
+  }
+},
+{
+  "type": "node",
+  "id": 357827662,
+  "lat": 37.6400500,
+  "lon": 127.0121200,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "서울영어마을수유캠프.국립재활원입구",
+    "name:en": "Seoul Yeongeo Village Suyukaempeu National Jaehwalwon Entrance",
+    "name:ko-Latn": "Seoulyeongeomaeulsuyukaempeugungnipjaehwalwonipgu",
+    "public_transport": "platform",
+    "route_ref": "151;101"
+  }
+},
+{
+  "type": "node",
+  "id": 357828069,
+  "lat": 37.6400187,
+  "lon": 127.0119314,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "서울영어마을수유캠프.국립재활원입구",
+    "name:en": "Seoul Yeongeo Village Suyukaempeu National Jaehwalwon Entrance",
+    "name:ko-Latn": "Seoulyeongeomaeulsuyukaempeugungnipjaehwalwonipgu",
+    "public_transport": "platform",
+    "route_ref": "151;101"
+  }
+},
+{
+  "type": "node",
+  "id": 357828677,
+  "lat": 37.6185030,
+  "lon": 127.0213932,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "삼양동사거리.래미안트리베라",
+    "public_transport": "platform",
+    "route_ref": "152;104;410;109"
+  }
+},
+{
+  "type": "node",
+  "id": 357839495,
+  "lat": 37.6252876,
+  "lon": 127.0182877,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "롯데마트삼양점.래미안1차아파트",
+    "public_transport": "platform",
+    "route_ref": "410;144;1128;109;104;1166"
+  }
+},
+{
+  "type": "node",
+  "id": 357842826,
+  "lat": 37.6254429,
+  "lon": 127.0183851,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "롯데마트삼양점.래미안1차아파트",
+    "public_transport": "platform",
+    "route_ref": "410;1128;144;104;1166;109"
+  }
+},
+{
+  "type": "node",
+  "id": 357862468,
+  "lat": 37.6163200,
+  "lon": 127.0187800,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "삼각산아이원아파트후문",
+    "name:en": "samgaksaniwonapartmentbackdoor",
+    "name:ko": "미아동삼각산아이원아파트",
+    "name:ko-Latn": "samgaksanapatuehumun",
+    "public_transport": "platform",
+    "route_ref": "1116"
+  }
+},
+{
+  "type": "node",
+  "id": 357862516,
+  "lat": 37.6161799,
+  "lon": 127.0167430,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "삼각산아이원아파트정문",
+    "name:en": "samgaksaniwon Apt. front gate",
+    "name:ko": "미아동삼각산아이원아파트후문",
+    "name:ko-Latn": "samgaksaniwonapatuejeongmun",
+    "public_transport": "platform",
+    "route_ref": "1116"
+  }
+},
+{
+  "type": "node",
+  "id": 357862533,
+  "lat": 37.6163300,
+  "lon": 127.0185000,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "미아동삼각산아이원아파트",
+    "name:en": "Miadongsamgaksanaiwon Apt.",
+    "name:ko": "미아동삼각산아이원아파트",
+    "name:ko-Latn": "Miadongsamgaksanaiwonapateu",
+    "public_transport": "platform",
+    "route_ref": "1116"
+  }
+},
+{
+  "type": "node",
+  "id": 357863090,
+  "lat": 37.6200022,
+  "lon": 127.0162790,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "두산위브아파트입구",
+    "name:en": "SK Apt. Entrance",
+    "name:ko-Latn": "SK Apateuipgu",
+    "public_transport": "platform",
+    "route_ref": "1115;1165;152;1166"
+  }
+},
+{
+  "type": "node",
+  "id": 357863525,
+  "lat": 37.6313900,
+  "lon": 127.0398600,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "번동주공4단지",
+    "name:en": "Beondongjugong 4 Complex",
+    "name:ko": "번동주공4단지",
+    "name:ko-Latn": "Beondongjugong 4 Danji",
+    "public_transport": "platform",
+    "route_ref": "1124;145;1125;1218;148"
+  }
+},
+{
+  "type": "node",
+  "id": 357863526,
+  "lat": 37.6294200,
+  "lon": 127.0400800,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "번동주공아파트3단지4단지",
+    "name:en": "Beondongjugong Apt. 3 Danji 4 Complex",
+    "name:ko": "번동주공아파트3단지4단지",
+    "name:ko-Latn": "Beondongjugongapateu 3 Danji 4 Danji",
+    "public_transport": "platform",
+    "route_ref": "1124"
+  }
+},
+{
+  "type": "node",
+  "id": 357863561,
+  "lat": 37.6234800,
+  "lon": 127.0377100,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "번동동문아파트",
+    "name:en": "Beondongdongmun Apt.",
+    "name:ko": "번동동문아파트",
+    "name:ko-Latn": "Beondongdongmunapateu",
+    "public_transport": "platform",
+    "route_ref": "1124"
+  }
+},
+{
+  "type": "node",
+  "id": 357863673,
+  "lat": 37.6269100,
+  "lon": 127.0370200,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "번동해모로아파트",
+    "name:en": "Beondonghaemoro Apt.",
+    "name:ko": "번동해모로아파트",
+    "name:ko-Latn": "Beondonghaemoroapateu",
+    "public_transport": "platform",
+    "route_ref": "1124"
+  }
+},
+{
+  "type": "node",
+  "id": 357863677,
+  "lat": 37.6236310,
+  "lon": 127.0375214,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "번동동문아파트",
+    "name:en": "Beondongdongmun Apt.",
+    "name:ko": "번동동문아파트",
+    "name:ko-Latn": "Beondongdongmunapateu",
+    "public_transport": "platform",
+    "route_ref": "1124"
+  }
+},
+{
+  "type": "node",
+  "id": 357863724,
+  "lat": 37.6266000,
+  "lon": 127.0369900,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "번동해모로아파트",
+    "name:en": "Beondonghaemoro Apt.",
+    "name:ko": "번동해모로아파트",
+    "name:ko-Latn": "Beondonghaemoroapateu",
+    "public_transport": "platform",
+    "route_ref": "1124"
+  }
+},
+{
+  "type": "node",
+  "id": 357863736,
+  "lat": 37.6298700,
+  "lon": 127.0410200,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "번동주공아파트3단지4단지",
+    "name:en": "Beondongjugong Apt. 3 Danji 4 Complex",
+    "name:ko": "번동주공아파트3단지4단지",
+    "name:ko-Latn": "Beondongjugongapateu 3 Danji 4 Danji",
+    "public_transport": "platform",
+    "route_ref": "1124"
+  }
+},
+{
+  "type": "node",
+  "id": 357863794,
+  "lat": 37.6290100,
+  "lon": 127.0433800,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "번동주공1단지.2단지",
+    "name:en": "Beondongjugong 3 Complex",
+    "name:ko": "번동주공1단지.2단지",
+    "name:ko-Latn": "Beondongjugong 3 Danji",
+    "public_transport": "platform",
+    "route_ref": "1125;148;1218;145"
+  }
+},
+{
+  "type": "node",
+  "id": 357864743,
+  "lat": 37.6604900,
+  "lon": 127.0135736,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "우이동성원아파트",
+    "name:en": "Uidongseongwon Apt.",
+    "name:ko": "우이동성원아파트",
+    "name:ko-Latn": "Uidongseongwonapateu",
+    "public_transport": "platform",
+    "route_ref": "1165;153;151;144;120;109;1166;1218;1144"
+  }
+},
+{
+  "type": "node",
+  "id": 357864830,
+  "lat": 37.6197100,
+  "lon": 127.0111500,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "SK아파트.벽산아파트상가",
+    "name:en": "SK Apt. Byeoksan Apt. Arcade",
+    "name:ko-Latn": "SK Apateubyeoksanapateusangga",
+    "public_transport": "platform",
+    "route_ref": "1165;1116;1166;1115"
+  }
+},
+{
+  "type": "node",
+  "id": 357871515,
+  "lat": 37.6200723,
+  "lon": 127.0162562,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "두산위브아파트입구",
+    "name:en": "SK Apt. Entrance",
+    "name:ko-Latn": "SK Apateuipgu",
+    "public_transport": "platform",
+    "route_ref": "1166;1115;1165;152"
+  }
+},
+{
+  "type": "node",
+  "id": 357871530,
+  "lat": 37.6196600,
+  "lon": 127.0110700,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "SK아파트벽산아파트상가",
+    "name:en": "SK Apt. Byeoksan Apt. Arcade",
+    "name:ko": "SK아파트벽산아파트상가",
+    "name:ko-Latn": "SK Apateubyeoksanapateusangga",
+    "public_transport": "platform",
+    "route_ref": "1165"
+  }
+},
+{
+  "type": "node",
+  "id": 11453853526,
+  "lat": 37.6609147,
+  "lon": 127.0134498,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "성원아파트",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 11453883539,
+  "lat": 37.6614571,
+  "lon": 127.0133745,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "성원아파트",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 12241199432,
+  "lat": 37.6196582,
+  "lon": 127.0107169,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "벽산아파트",
+    "public_transport": "platform"
+  }
+},
+{
+  "type": "node",
+  "id": 13153401941,
+  "lat": 37.6198326,
+  "lon": 127.0111456,
+  "tags": {
+    "bus": "yes",
+    "highway": "bus_stop",
+    "name": "SK아파트.벽산아파트상가",
+    "name:en": "SK Apt. Byeoksan Apt. Arcade",
+    "name:ko-Latn": "SK Apateubyeoksanapateusangga",
+    "public_transport": "platform",
+    "route_ref": "1165;1116;1166;1115"
+  }
+},
+{
+  "type": "node",
+  "id": 13801675095,
+  "lat": 37.6270087,
+  "lon": 127.0440222,
+  "tags": {
+    "entrance": "yes",
+    "name": "후문"
+  }
+},
+{
+  "type": "node",
+  "id": 13801675097,
+  "lat": 37.6279874,
+  "lon": 127.0438346,
+  "tags": {
+    "entrance": "yes",
+    "name": "정문"
+  }
+},
+{
+  "type": "way",
+  "id": 357582387,
+  "center": {
+    "lat": 37.6609306,
+    "lon": 127.0115160
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:country": "KR",
+    "addr:district": "강북구",
+    "addr:housenumber": "55",
+    "addr:postcode": "01002",
+    "addr:street": "삼양로163나길",
+    "addr:subdistrict": "우이동",
+    "building": "apartments",
+    "building:levels": "4",
+    "name": "금성빌라"
+  }
+},
+{
+  "type": "way",
+  "id": 380123852,
+  "center": {
+    "lat": 37.6329815,
+    "lon": 127.0358660
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "번동주공5단지아파트",
+    "residential": "임대아파트"
+  }
+},
+{
+  "type": "way",
+  "id": 380240664,
+  "center": {
+    "lat": 37.6308444,
+    "lon": 127.0393366
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "번동주공4단지",
+    "residential": "아파트"
+  }
+},
+{
+  "type": "way",
+  "id": 380249173,
+  "center": {
+    "lat": 37.6148366,
+    "lon": 127.0365402
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "한일유엔아이아파트"
+  }
+},
+{
+  "type": "way",
+  "id": 380249174,
+  "center": {
+    "lat": 37.6150594,
+    "lon": 127.0356965
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "미아경남아너스빌1차아파트"
+  }
+},
+{
+  "type": "way",
+  "id": 380250086,
+  "center": {
+    "lat": 37.6264874,
+    "lon": 127.0456608
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "24",
+    "addr:postcode": "01229",
+    "addr:street": "한천로105길",
+    "landuse": "residential",
+    "name": "번동주공2단지아파트",
+    "name:en": "Beondong Jugong Complex 2",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 380312419,
+  "center": {
+    "lat": 37.6140401,
+    "lon": 127.0205068
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "삼성 래미안 트리베라",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 380312420,
+  "center": {
+    "lat": 37.6149688,
+    "lon": 127.0180802
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "삼각산 풍림아이원",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 380782786,
+  "center": {
+    "lat": 37.6424949,
+    "lon": 127.0188249
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "벽산1차아파트"
+  }
+},
+{
+  "type": "way",
+  "id": 415390611,
+  "center": {
+    "lat": 37.6174512,
+    "lon": 127.0361690
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "꿈의숲롯데캐슬"
+  }
+},
+{
+  "type": "way",
+  "id": 468471917,
+  "center": {
+    "lat": 37.6187962,
+    "lon": 127.0126154
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "174",
+    "addr:postcode": "01192",
+    "addr:street": "솔샘로",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "84",
+    "building:levels": "21",
+    "height": "67",
+    "name": "109",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 468471919,
+  "center": {
+    "lat": 37.6184097,
+    "lon": 127.0119858
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "174",
+    "addr:postcode": "01192",
+    "addr:street": "솔샘로",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "38",
+    "building:levels": "21",
+    "height": "57",
+    "name": "111",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 468471921,
+  "center": {
+    "lat": 37.6186031,
+    "lon": 127.0123673
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "174",
+    "addr:postcode": "01192",
+    "addr:street": "솔샘로",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "38",
+    "building:levels": "18",
+    "height": "51",
+    "name": "110",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 468471922,
+  "center": {
+    "lat": 37.6182458,
+    "lon": 127.0116311
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "174",
+    "addr:postcode": "01192",
+    "addr:street": "솔샘로",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "50",
+    "building:levels": "25",
+    "height": "68",
+    "name": "112",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 468471923,
+  "center": {
+    "lat": 37.6188768,
+    "lon": 127.0117291
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "174",
+    "addr:postcode": "01192",
+    "addr:street": "솔샘로",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "44",
+    "building:levels": "24",
+    "height": "65",
+    "name": "106",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 468471925,
+  "center": {
+    "lat": 37.6190572,
+    "lon": 127.0120136
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "174",
+    "addr:postcode": "01192",
+    "addr:street": "솔샘로",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "38",
+    "building:levels": "19",
+    "height": "51",
+    "name": "107",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 468471927,
+  "center": {
+    "lat": 37.6186740,
+    "lon": 127.0113357
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "174",
+    "addr:postcode": "01192",
+    "addr:street": "솔샘로",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "50",
+    "building:levels": "25",
+    "height": "68",
+    "name": "105",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 468471929,
+  "center": {
+    "lat": 37.6195757,
+    "lon": 127.0120055
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "174",
+    "addr:postcode": "01192",
+    "addr:street": "솔샘로",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "100",
+    "building:levels": "25",
+    "height": "68",
+    "name": "101",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 468471931,
+  "center": {
+    "lat": 37.6193567,
+    "lon": 127.0113794
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "174",
+    "addr:postcode": "01192",
+    "addr:street": "솔샘로",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "50",
+    "building:levels": "25",
+    "height": "68",
+    "name": "103",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 468471934,
+  "center": {
+    "lat": 37.6192022,
+    "lon": 127.0109810
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "174",
+    "addr:postcode": "01192",
+    "addr:street": "솔샘로",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "50",
+    "building:levels": "25",
+    "height": "68",
+    "name": "104",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 468471936,
+  "center": {
+    "lat": 37.6195081,
+    "lon": 127.0116721
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "174",
+    "addr:postcode": "01192",
+    "addr:street": "솔샘로",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "50",
+    "building:levels": "25",
+    "height": "68",
+    "name": "102",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 468471939,
+  "center": {
+    "lat": 37.6186611,
+    "lon": 127.0097780
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "174",
+    "addr:postcode": "01192",
+    "addr:street": "솔샘로",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "100",
+    "building:levels": "25",
+    "height": "68",
+    "name": "145",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 468471941,
+  "center": {
+    "lat": 37.6171431,
+    "lon": 127.0108317
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "174",
+    "addr:postcode": "01192",
+    "addr:street": "솔샘로",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "100",
+    "building:levels": "25",
+    "height": "68",
+    "name": "139",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 468471943,
+  "center": {
+    "lat": 37.6169219,
+    "lon": 127.0111298
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "174",
+    "addr:postcode": "01192",
+    "addr:street": "솔샘로",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "100",
+    "building:levels": "25",
+    "height": "68",
+    "name": "138",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 468471945,
+  "center": {
+    "lat": 37.6180545,
+    "lon": 127.0133104
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "174",
+    "addr:postcode": "01192",
+    "addr:street": "솔샘로",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "100",
+    "building:levels": "25",
+    "height": "68",
+    "name": "116",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 468471947,
+  "center": {
+    "lat": 37.6192747,
+    "lon": 127.0123485
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "174",
+    "addr:postcode": "01192",
+    "addr:street": "솔샘로",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "100",
+    "building:levels": "25",
+    "height": "68",
+    "name": "108",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 468471949,
+  "center": {
+    "lat": 37.6174529,
+    "lon": 127.0136811
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "174",
+    "addr:postcode": "01192",
+    "addr:street": "솔샘로",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "90",
+    "building:levels": "24",
+    "height": "65",
+    "name": "119",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 468471951,
+  "center": {
+    "lat": 37.6173952,
+    "lon": 127.0146187
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "174",
+    "addr:postcode": "01192",
+    "addr:street": "솔샘로",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "92",
+    "building:levels": "25",
+    "height": "68",
+    "name": "125",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 468471953,
+  "center": {
+    "lat": 37.6177841,
+    "lon": 127.0120600
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "174",
+    "addr:postcode": "01192",
+    "addr:street": "솔샘로",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "50",
+    "building:levels": "25",
+    "height": "68",
+    "name": "113",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 468471955,
+  "center": {
+    "lat": 37.6177788,
+    "lon": 127.0142253
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "174",
+    "addr:postcode": "01192",
+    "addr:street": "솔샘로",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "100",
+    "building:levels": "25",
+    "height": "68",
+    "name": "120",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 468471957,
+  "center": {
+    "lat": 37.6178670,
+    "lon": 127.0125094
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "174",
+    "addr:postcode": "01192",
+    "addr:street": "솔샘로",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "100",
+    "building:levels": "25",
+    "height": "68",
+    "name": "114",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 468471959,
+  "center": {
+    "lat": 37.6175234,
+    "lon": 127.0127360
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "174",
+    "addr:postcode": "01192",
+    "addr:street": "솔샘로",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "100",
+    "building:levels": "25",
+    "height": "68",
+    "name": "115",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 468471961,
+  "center": {
+    "lat": 37.6163768,
+    "lon": 127.0137942
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "174",
+    "addr:postcode": "01192",
+    "addr:street": "솔샘로",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "96",
+    "building:levels": "25",
+    "height": "68",
+    "name": "131",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 468471964,
+  "center": {
+    "lat": 37.6165590,
+    "lon": 127.0125802
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "174",
+    "addr:postcode": "01192",
+    "addr:street": "솔샘로",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "100",
+    "building:levels": "25",
+    "height": "68",
+    "name": "135",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 468471968,
+  "center": {
+    "lat": 37.6169459,
+    "lon": 127.0128209
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "174",
+    "addr:postcode": "01192",
+    "addr:street": "솔샘로",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "81",
+    "building:levels": "22",
+    "height": "59",
+    "name": "135",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 468471972,
+  "center": {
+    "lat": 37.6167563,
+    "lon": 127.0115873
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "174",
+    "addr:postcode": "01192",
+    "addr:street": "솔샘로",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "64",
+    "building:levels": "16",
+    "height": "43",
+    "name": "137",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 468471975,
+  "center": {
+    "lat": 37.6171193,
+    "lon": 127.0121224
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "174",
+    "addr:postcode": "01192",
+    "addr:street": "솔샘로",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "80",
+    "building:levels": "23",
+    "height": "62",
+    "name": "136",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 468471978,
+  "center": {
+    "lat": 37.6174459,
+    "lon": 127.0114952
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "174",
+    "addr:postcode": "01192",
+    "addr:street": "솔샘로",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "74",
+    "building:levels": "20",
+    "height": "54",
+    "name": "140",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 468471982,
+  "center": {
+    "lat": 37.6176025,
+    "lon": 127.0105535
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "174",
+    "addr:postcode": "01192",
+    "addr:street": "솔샘로",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "100",
+    "building:levels": "25",
+    "height": "68",
+    "name": "142",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 468471985,
+  "center": {
+    "lat": 37.6179701,
+    "lon": 127.0110741
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "174",
+    "addr:postcode": "01192",
+    "addr:street": "솔샘로",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "77",
+    "building:levels": "20",
+    "height": "54",
+    "name": "141",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 468471987,
+  "center": {
+    "lat": 37.6184888,
+    "lon": 127.0106919
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "174",
+    "addr:postcode": "01192",
+    "addr:street": "솔샘로",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "80",
+    "building:levels": "20",
+    "height": "54",
+    "name": "144",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 468471991,
+  "center": {
+    "lat": 37.6181336,
+    "lon": 127.0102302
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "174",
+    "addr:postcode": "01192",
+    "addr:street": "솔샘로",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "100",
+    "building:levels": "25",
+    "height": "68",
+    "name": "143",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 468471995,
+  "center": {
+    "lat": 37.6190214,
+    "lon": 127.0102601
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "174",
+    "addr:postcode": "01192",
+    "addr:street": "솔샘로",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "80",
+    "building:levels": "20",
+    "height": "54",
+    "name": "146",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 468471999,
+  "center": {
+    "lat": 37.6163806,
+    "lon": 127.0131976
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "174",
+    "addr:postcode": "01192",
+    "addr:street": "솔샘로",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "100",
+    "building:levels": "25",
+    "height": "68",
+    "name": "132",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 468472003,
+  "center": {
+    "lat": 37.6170315,
+    "lon": 127.0141312
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "174",
+    "addr:postcode": "01192",
+    "addr:street": "솔샘로",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "100",
+    "building:levels": "25",
+    "height": "68",
+    "name": "129",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 468472007,
+  "center": {
+    "lat": 37.6166189,
+    "lon": 127.0144470
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "174",
+    "addr:postcode": "01192",
+    "addr:street": "솔샘로",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "84",
+    "building:levels": "21",
+    "height": "57",
+    "name": "128",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 468472009,
+  "center": {
+    "lat": 37.6168011,
+    "lon": 127.0137072
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "174",
+    "addr:postcode": "01192",
+    "addr:street": "솔샘로",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "88",
+    "building:levels": "25",
+    "height": "68",
+    "name": "130",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 468472010,
+  "center": {
+    "lat": 37.6165993,
+    "lon": 127.0150734
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "174",
+    "addr:postcode": "01192",
+    "addr:street": "솔샘로",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "84",
+    "building:levels": "21",
+    "height": "57",
+    "name": "127",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 468472012,
+  "center": {
+    "lat": 37.6178244,
+    "lon": 127.0150203
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "174",
+    "addr:postcode": "01192",
+    "addr:street": "솔샘로",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "name": "124",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 468472016,
+  "center": {
+    "lat": 37.6182702,
+    "lon": 127.0137603
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "174",
+    "addr:postcode": "01192",
+    "addr:street": "솔샘로",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "100",
+    "building:levels": "25",
+    "height": "68",
+    "name": "118",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 468472020,
+  "center": {
+    "lat": 37.6182078,
+    "lon": 127.0146115
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "174",
+    "addr:postcode": "01192",
+    "addr:street": "솔샘로",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "100",
+    "building:levels": "25",
+    "height": "68",
+    "name": "123",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 468472024,
+  "center": {
+    "lat": 37.6185164,
+    "lon": 127.0143014
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "174",
+    "addr:postcode": "01192",
+    "addr:street": "솔샘로",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "72",
+    "building:levels": "18",
+    "height": "48",
+    "name": "121",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 468472028,
+  "center": {
+    "lat": 37.6185369,
+    "lon": 127.0133154
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "174",
+    "addr:postcode": "01192",
+    "addr:street": "솔샘로",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "38",
+    "building:levels": "19",
+    "height": "51",
+    "name": "117",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 468472030,
+  "center": {
+    "lat": 37.6169665,
+    "lon": 127.0150096
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "174",
+    "addr:postcode": "01192",
+    "addr:street": "솔샘로",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "100",
+    "building:levels": "25",
+    "height": "68",
+    "name": "126",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 468472032,
+  "center": {
+    "lat": 37.6184088,
+    "lon": 127.0149696
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "72",
+    "building:levels": "18",
+    "height": "48",
+    "name": "122",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 468472034,
+  "center": {
+    "lat": 37.6195906,
+    "lon": 127.0127983
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "174",
+    "addr:postcode": "01192",
+    "addr:street": "솔샘로",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "136",
+    "building:levels": "25",
+    "height": "68",
+    "name": "147",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 468472036,
+  "center": {
+    "lat": 37.6193125,
+    "lon": 127.0145349
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "174",
+    "addr:postcode": "01192",
+    "addr:street": "솔샘로",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "240",
+    "building:levels": "20",
+    "height": "54",
+    "name": "151",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 468472037,
+  "center": {
+    "lat": 37.6190744,
+    "lon": 127.0141221
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "174",
+    "addr:postcode": "01192",
+    "addr:street": "솔샘로",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "180",
+    "building:levels": "20",
+    "height": "54",
+    "name": "152",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 468472039,
+  "center": {
+    "lat": 37.6191760,
+    "lon": 127.0150007
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "174",
+    "addr:postcode": "01192",
+    "addr:street": "솔샘로",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "120",
+    "building:levels": "20",
+    "height": "54",
+    "name": "150",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 468472041,
+  "center": {
+    "lat": 37.6197419,
+    "lon": 127.0148112
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "279",
+    "building:levels": "20",
+    "height": "54",
+    "name": "149",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 468472043,
+  "center": {
+    "lat": 37.6195723,
+    "lon": 127.0137560
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "174",
+    "addr:postcode": "01192",
+    "addr:street": "솔샘로",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "140",
+    "building:levels": "20",
+    "height": "54",
+    "name": "153",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 468472045,
+  "center": {
+    "lat": 37.6191248,
+    "lon": 127.0135543
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "279",
+    "building:levels": "20",
+    "height": "54",
+    "name": "154",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 468472047,
+  "center": {
+    "lat": 37.6197959,
+    "lon": 127.0141989
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "259",
+    "building:levels": "20",
+    "height": "54",
+    "name": "148",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 468472081,
+  "center": {
+    "lat": 37.6199436,
+    "lon": 127.0128085
+  },
+  "tags": {
+    "building": "commercial",
+    "name": "SK아파트 주상가"
+  }
+},
+{
+  "type": "way",
+  "id": 468472095,
+  "center": {
+    "lat": 37.6173843,
+    "lon": 127.0152241
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "157",
+    "addr:postcode": "01192",
+    "addr:street": "삼양로19길",
+    "addr:subdistrict": "미아동",
+    "building": "commercial",
+    "name": "SK아파트부상가"
+  }
+},
+{
+  "type": "way",
+  "id": 468472096,
+  "center": {
+    "lat": 37.6171243,
+    "lon": 127.0133452
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "174",
+    "addr:postcode": "01192",
+    "addr:street": "솔샘로",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "100",
+    "building:levels": "25",
+    "height": "68",
+    "name": "133",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 469634157,
+  "center": {
+    "lat": 37.6403705,
+    "lon": 127.0316378
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "도봉로 96가길"
+  }
+},
+{
+  "type": "way",
+  "id": 469634158,
+  "center": {
+    "lat": 37.6415471,
+    "lon": 127.0320364
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "번동삼성아파트"
+  }
+},
+{
+  "type": "way",
+  "id": 469634159,
+  "center": {
+    "lat": 37.6394920,
+    "lon": 127.0322725
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "도봉로 96다길"
+  }
+},
+{
+  "type": "way",
+  "id": 475332778,
+  "center": {
+    "lat": 37.6307613,
+    "lon": 127.0257995
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "현대아파트"
+  }
+},
+{
+  "type": "way",
+  "id": 475332780,
+  "center": {
+    "lat": 37.6307822,
+    "lon": 127.0254406
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "73",
+    "building:levels": "13",
+    "height": "35",
+    "name": "102동",
+    "start_date": "1992"
+  }
+},
+{
+  "type": "way",
+  "id": 475332782,
+  "center": {
+    "lat": 37.6304849,
+    "lon": 127.0259267
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "99",
+    "building:levels": "13",
+    "height": "35",
+    "name": "101동",
+    "start_date": "1992"
+  }
+},
+{
+  "type": "way",
+  "id": 475332784,
+  "center": {
+    "lat": 37.6309560,
+    "lon": 127.0261220
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "59",
+    "building:levels": "10",
+    "name": "103동",
+    "start_date": "1992"
+  }
+},
+{
+  "type": "way",
+  "id": 475465687,
+  "center": {
+    "lat": 37.6433994,
+    "lon": 127.0179555
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "벽산2차아파트"
+  }
+},
+{
+  "type": "way",
+  "id": 485048603,
+  "center": {
+    "lat": 37.6239001,
+    "lon": 127.0381306
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "번동동문아파트"
+  }
+},
+{
+  "type": "way",
+  "id": 750643850,
+  "center": {
+    "lat": 37.6189255,
+    "lon": 127.0345593
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "꿈의숲효성해링턴플레이스"
+  }
+},
+{
+  "type": "way",
+  "id": 768492986,
+  "center": {
+    "lat": 37.6197408,
+    "lon": 127.0330896
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "꿈의숲한신더휴아파트(공사중)",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 792088713,
+  "center": {
+    "lat": 37.6417960,
+    "lon": 127.0123225
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "97",
+    "building:levels": "13",
+    "name": "102",
+    "start_date": "1992"
+  }
+},
+{
+  "type": "way",
+  "id": 792088714,
+  "center": {
+    "lat": 37.6427998,
+    "lon": 127.0138899
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "극동아파트"
+  }
+},
+{
+  "type": "way",
+  "id": 792088715,
+  "center": {
+    "lat": 37.6419664,
+    "lon": 127.0121531
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "극동아파트"
+  }
+},
+{
+  "type": "way",
+  "id": 792088716,
+  "center": {
+    "lat": 37.6429967,
+    "lon": 127.0141833
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "85",
+    "building:levels": "15",
+    "name": "107",
+    "start_date": "1992"
+  }
+},
+{
+  "type": "way",
+  "id": 792088717,
+  "center": {
+    "lat": 37.6426505,
+    "lon": 127.0135875
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "87",
+    "building:levels": "15",
+    "name": "106",
+    "start_date": "1992"
+  }
+},
+{
+  "type": "way",
+  "id": 792088718,
+  "center": {
+    "lat": 37.6423445,
+    "lon": 127.0127509
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "63",
+    "building:levels": "11",
+    "name": "105",
+    "start_date": "1992"
+  }
+},
+{
+  "type": "way",
+  "id": 792088719,
+  "center": {
+    "lat": 37.6420234,
+    "lon": 127.0130149
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "35",
+    "building:levels": "10",
+    "name": "103",
+    "start_date": "1992"
+  }
+},
+{
+  "type": "way",
+  "id": 792088720,
+  "center": {
+    "lat": 37.6420835,
+    "lon": 127.0118765
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "123",
+    "building:levels": "13",
+    "name": "104",
+    "start_date": "1992"
+  }
+},
+{
+  "type": "way",
+  "id": 792088721,
+  "center": {
+    "lat": 37.6416428,
+    "lon": 127.0114761
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "84",
+    "building:levels": "14",
+    "name": "101",
+    "start_date": "1992"
+  }
+},
+{
+  "type": "way",
+  "id": 799089551,
+  "center": {
+    "lat": 37.6335414,
+    "lon": 127.0269182
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "52",
+    "addr:postcode": "01131",
+    "addr:street": "도봉로76길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "79",
+    "building:levels": "15",
+    "height": "41",
+    "name": "미아요진아파트101",
+    "start_date": "2005"
+  }
+},
+{
+  "type": "way",
+  "id": 799089552,
+  "center": {
+    "lat": 37.6333938,
+    "lon": 127.0273066
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "52",
+    "addr:postcode": "01131",
+    "addr:street": "도봉로76길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "44",
+    "building:levels": "14",
+    "height": "38",
+    "name": "미아요진아파트102",
+    "start_date": "2005"
+  }
+},
+{
+  "type": "way",
+  "id": 799095486,
+  "center": {
+    "lat": 37.6356732,
+    "lon": 127.0322440
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "12",
+    "addr:postcode": "01067",
+    "addr:street": "덕릉로41길",
+    "addr:subdistrict": "번동",
+    "building": "apartments",
+    "building:flats": "114",
+    "building:levels": "20",
+    "height": "60",
+    "name": "수유역두산위브1아파트",
+    "start_date": "2009"
+  }
+},
+{
+  "type": "way",
+  "id": 799095487,
+  "center": {
+    "lat": 37.6356950,
+    "lon": 127.0310396
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "15",
+    "addr:postcode": "01067",
+    "addr:street": "덕릉로41길",
+    "addr:subdistrict": "번동",
+    "building": "apartments",
+    "building:flats": "99",
+    "building:levels": "20",
+    "height": "60",
+    "name": "수유역두산위브2아파트",
+    "start_date": "2009"
+  }
+},
+{
+  "type": "way",
+  "id": 855887083,
+  "center": {
+    "lat": 37.6157964,
+    "lon": 127.0178032
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "113",
+    "addr:postcode": "01198",
+    "addr:street": "삼양로19길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "100",
+    "building:levels": "25",
+    "height": "68",
+    "name": "103",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 855887084,
+  "center": {
+    "lat": 37.6162425,
+    "lon": 127.0178651
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "113",
+    "addr:postcode": "01198",
+    "addr:street": "삼양로19길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "100",
+    "building:levels": "25",
+    "height": "68",
+    "name": "101",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 855887085,
+  "center": {
+    "lat": 37.6162916,
+    "lon": 127.0184243
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "113",
+    "addr:postcode": "01198",
+    "addr:street": "삼양로19길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "92",
+    "building:levels": "23",
+    "height": "62",
+    "name": "102",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 855887086,
+  "center": {
+    "lat": 37.6153708,
+    "lon": 127.0183266
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "113",
+    "addr:postcode": "01198",
+    "addr:street": "삼양로19길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "76",
+    "building:levels": "19",
+    "height": "51",
+    "name": "106",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 855887087,
+  "center": {
+    "lat": 37.6154547,
+    "lon": 127.0188563
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "113",
+    "addr:postcode": "01198",
+    "addr:street": "삼양로19길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "78",
+    "building:levels": "20",
+    "height": "54",
+    "name": "105",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 855887088,
+  "center": {
+    "lat": 37.6158166,
+    "lon": 127.0188851
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "113",
+    "addr:postcode": "01198",
+    "addr:street": "삼양로19길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "60",
+    "building:levels": "15",
+    "height": "40",
+    "name": "104",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 855932902,
+  "center": {
+    "lat": 37.6159474,
+    "lon": 127.0163041
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "113",
+    "addr:postcode": "01198",
+    "addr:street": "삼양로19길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "41",
+    "building:levels": "21",
+    "height": "57",
+    "name": "107",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 855932903,
+  "center": {
+    "lat": 37.6159971,
+    "lon": 127.0167184
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "113",
+    "addr:postcode": "01198",
+    "addr:street": "삼양로19길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "38",
+    "building:levels": "19",
+    "height": "51",
+    "name": "108",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 855932904,
+  "center": {
+    "lat": 37.6156248,
+    "lon": 127.0168041
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "113",
+    "addr:postcode": "01198",
+    "addr:street": "삼양로19길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "50",
+    "building:levels": "25",
+    "height": "68",
+    "name": "109",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 855932905,
+  "center": {
+    "lat": 37.6157078,
+    "lon": 127.0172362
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "113",
+    "addr:postcode": "01198",
+    "addr:street": "삼양로19길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "40",
+    "building:levels": "20",
+    "height": "54",
+    "name": "110",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 855932906,
+  "center": {
+    "lat": 37.6153238,
+    "lon": 127.0172058
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "113",
+    "addr:postcode": "01198",
+    "addr:street": "삼양로19길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "94",
+    "building:levels": "24",
+    "height": "65",
+    "name": "111",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 855932907,
+  "center": {
+    "lat": 37.6153737,
+    "lon": 127.0176996
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "113",
+    "addr:postcode": "01198",
+    "addr:street": "삼양로19길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "40",
+    "building:levels": "20",
+    "height": "54",
+    "name": "112",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 855932908,
+  "center": {
+    "lat": 37.6149347,
+    "lon": 127.0178236
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "113",
+    "addr:postcode": "01198",
+    "addr:street": "삼양로19길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "80",
+    "building:levels": "20",
+    "height": "54",
+    "name": "113",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 855932909,
+  "center": {
+    "lat": 37.6148732,
+    "lon": 127.0182846
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "113",
+    "addr:postcode": "01198",
+    "addr:street": "삼양로19길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "50",
+    "building:levels": "25",
+    "height": "68",
+    "name": "114",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 855932910,
+  "center": {
+    "lat": 37.6143129,
+    "lon": 127.0183728
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "113",
+    "addr:postcode": "01198",
+    "addr:street": "삼양로19길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "66",
+    "building:levels": "18",
+    "height": "48",
+    "name": "115",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 855932911,
+  "center": {
+    "lat": 37.6141760,
+    "lon": 127.0188187
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "113",
+    "addr:postcode": "01198",
+    "addr:street": "삼양로19길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "50",
+    "building:levels": "25",
+    "height": "68",
+    "name": "116",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 855932912,
+  "center": {
+    "lat": 37.6146889,
+    "lon": 127.0188896
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "113",
+    "addr:postcode": "01198",
+    "addr:street": "삼양로19길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "40",
+    "building:levels": "20",
+    "height": "54",
+    "name": "117",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 855932913,
+  "center": {
+    "lat": 37.6141875,
+    "lon": 127.0193322
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "113",
+    "addr:postcode": "01198",
+    "addr:street": "삼양로19길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "96",
+    "building:levels": "24",
+    "height": "65",
+    "name": "118",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 855932914,
+  "center": {
+    "lat": 37.6136893,
+    "lon": 127.0195836
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "113",
+    "addr:postcode": "01198",
+    "addr:street": "삼양로19길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "44",
+    "building:levels": "11",
+    "height": "29",
+    "name": "119",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 856167820,
+  "center": {
+    "lat": 37.6167653,
+    "lon": 127.0164855
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "95",
+    "addr:postcode": "01197",
+    "addr:street": "삼양로27길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "59",
+    "building:levels": "16",
+    "height": "47",
+    "name": "204",
+    "start_date": "2011"
+  }
+},
+{
+  "type": "way",
+  "id": 856167821,
+  "center": {
+    "lat": 37.6167436,
+    "lon": 127.0169964
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "95",
+    "addr:postcode": "01197",
+    "addr:street": "삼양로27길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "80",
+    "building:levels": "20",
+    "height": "58",
+    "name": "205",
+    "start_date": "2011"
+  }
+},
+{
+  "type": "way",
+  "id": 856167822,
+  "center": {
+    "lat": 37.6173103,
+    "lon": 127.0170180
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "95",
+    "addr:postcode": "01197",
+    "addr:street": "삼양로27길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "80",
+    "building:levels": "20",
+    "height": "58",
+    "name": "206",
+    "start_date": "2011"
+  }
+},
+{
+  "type": "way",
+  "id": 856167823,
+  "center": {
+    "lat": 37.6172967,
+    "lon": 127.0164812
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "95",
+    "addr:postcode": "01197",
+    "addr:street": "삼양로19길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "83",
+    "building:levels": "21",
+    "height": "61",
+    "name": "203",
+    "start_date": "2011"
+  }
+},
+{
+  "type": "way",
+  "id": 856167824,
+  "center": {
+    "lat": 37.6178588,
+    "lon": 127.0170395
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "95",
+    "addr:postcode": "01197",
+    "addr:street": "삼양로27길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "80",
+    "building:levels": "20",
+    "height": "58",
+    "name": "207",
+    "start_date": "2011"
+  }
+},
+{
+  "type": "way",
+  "id": 856167825,
+  "center": {
+    "lat": 37.6178707,
+    "lon": 127.0165310
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "95",
+    "addr:postcode": "01197",
+    "addr:street": "삼양로27길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "83",
+    "building:levels": "21",
+    "height": "61",
+    "name": "202",
+    "start_date": "2011"
+  }
+},
+{
+  "type": "way",
+  "id": 856167826,
+  "center": {
+    "lat": 37.6184188,
+    "lon": 127.0164966
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "95",
+    "addr:postcode": "01197",
+    "addr:street": "삼양로27길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "64",
+    "building:levels": "17",
+    "height": "50",
+    "name": "201",
+    "start_date": "2011"
+  }
+},
+{
+  "type": "way",
+  "id": 856167827,
+  "center": {
+    "lat": 37.6183483,
+    "lon": 127.0170025
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "95",
+    "addr:postcode": "01197",
+    "addr:street": "삼양로27길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "13",
+    "building:levels": "7",
+    "height": "21",
+    "name": "208",
+    "start_date": "2011"
+  }
+},
+{
+  "type": "way",
+  "id": 856167829,
+  "center": {
+    "lat": 37.6179774,
+    "lon": 127.0158117
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "95",
+    "addr:postcode": "01197",
+    "addr:street": "삼양로27길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "130",
+    "building:levels": "13",
+    "height": "38",
+    "name": "102",
+    "start_date": "2011"
+  }
+},
+{
+  "type": "way",
+  "id": 856167830,
+  "center": {
+    "lat": 37.6183624,
+    "lon": 127.0158257
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "95",
+    "addr:postcode": "01197",
+    "addr:street": "삼양로27길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "104",
+    "building:levels": "12",
+    "height": "35",
+    "name": "101",
+    "start_date": "2011"
+  }
+},
+{
+  "type": "way",
+  "id": 856167831,
+  "center": {
+    "lat": 37.6178248,
+    "lon": 127.0174893
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "95",
+    "addr:postcode": "01197",
+    "addr:street": "삼양로27길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "32",
+    "building:levels": "16",
+    "height": "47",
+    "name": "210",
+    "start_date": "2011"
+  }
+},
+{
+  "type": "way",
+  "id": 856167832,
+  "center": {
+    "lat": 37.6178983,
+    "lon": 127.0179356
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "95",
+    "addr:postcode": "01197",
+    "addr:street": "삼양로27길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "78",
+    "building:levels": "20",
+    "height": "58",
+    "name": "211",
+    "start_date": "2011"
+  }
+},
+{
+  "type": "way",
+  "id": 856167833,
+  "center": {
+    "lat": 37.6181554,
+    "lon": 127.0178947
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "95",
+    "addr:postcode": "01197",
+    "addr:street": "삼양로27길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "46",
+    "building:levels": "23",
+    "height": "67",
+    "name": "212",
+    "start_date": "2011"
+  }
+},
+{
+  "type": "way",
+  "id": 856167834,
+  "center": {
+    "lat": 37.6184001,
+    "lon": 127.0175244
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "95",
+    "addr:postcode": "01197",
+    "addr:street": "삼양로27길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "38",
+    "building:levels": "19",
+    "height": "55",
+    "name": "209",
+    "start_date": "2011"
+  }
+},
+{
+  "type": "way",
+  "id": 856167835,
+  "center": {
+    "lat": 37.6183941,
+    "lon": 127.0180104
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "95",
+    "addr:postcode": "01197",
+    "addr:street": "삼양로27길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "40",
+    "building:levels": "20",
+    "height": "58",
+    "name": "213",
+    "start_date": "2011"
+  }
+},
+{
+  "type": "way",
+  "id": 856167836,
+  "center": {
+    "lat": 37.6183003,
+    "lon": 127.0185927
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "95",
+    "addr:postcode": "01197",
+    "addr:street": "삼양로27길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "18",
+    "building:levels": "10",
+    "height": "30",
+    "name": "216",
+    "start_date": "2011"
+  }
+},
+{
+  "type": "way",
+  "id": 856167837,
+  "center": {
+    "lat": 37.6185006,
+    "lon": 127.0183940
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "95",
+    "addr:postcode": "01197",
+    "addr:street": "삼양로27길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "81",
+    "building:levels": "21",
+    "height": "61",
+    "name": "214",
+    "start_date": "2011"
+  }
+},
+{
+  "type": "way",
+  "id": 856167838,
+  "center": {
+    "lat": 37.6187112,
+    "lon": 127.0186098
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "95",
+    "addr:postcode": "01197",
+    "addr:street": "삼양로27길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "18",
+    "building:levels": "10",
+    "height": "30",
+    "name": "215",
+    "start_date": "2011"
+  }
+},
+{
+  "type": "way",
+  "id": 856167839,
+  "center": {
+    "lat": 37.6185191,
+    "lon": 127.0189455
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "43",
+    "addr:postcode": "01197",
+    "addr:street": "삼양로27길",
+    "addr:subdistrict": "미아동",
+    "building": "commercial",
+    "building:levels": "6",
+    "name": "위브 테라스파크"
+  }
+},
+{
+  "type": "way",
+  "id": 856169043,
+  "center": {
+    "lat": 37.6192476,
+    "lon": 127.0158354
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "80",
+    "addr:postcode": "01193",
+    "addr:street": "삼양로27길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "53",
+    "building:levels": "15",
+    "height": "44",
+    "name": "301",
+    "start_date": "2011"
+  }
+},
+{
+  "type": "way",
+  "id": 856169044,
+  "center": {
+    "lat": 37.6190446,
+    "lon": 127.0163687
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "80",
+    "addr:postcode": "01193",
+    "addr:street": "삼양로27길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "50",
+    "building:levels": "13",
+    "height": "38",
+    "name": "302",
+    "start_date": "2011"
+  }
+},
+{
+  "type": "way",
+  "id": 856169045,
+  "center": {
+    "lat": 37.6195535,
+    "lon": 127.0163542
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "80",
+    "addr:postcode": "01193",
+    "addr:street": "삼양로27길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "38",
+    "building:levels": "10",
+    "height": "30",
+    "name": "303",
+    "start_date": "2011"
+  }
+},
+{
+  "type": "way",
+  "id": 856169046,
+  "center": {
+    "lat": 37.6193420,
+    "lon": 127.0169334
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "80",
+    "addr:postcode": "01193",
+    "addr:street": "삼양로27길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "67",
+    "building:levels": "17",
+    "height": "50",
+    "name": "304",
+    "start_date": "2011"
+  }
+},
+{
+  "type": "way",
+  "id": 856169047,
+  "center": {
+    "lat": 37.6195556,
+    "lon": 127.0172708
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "80",
+    "addr:postcode": "01193",
+    "addr:street": "삼양로27길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "17",
+    "building:levels": "9",
+    "height": "27",
+    "name": "305",
+    "start_date": "2011"
+  }
+},
+{
+  "type": "way",
+  "id": 856169048,
+  "center": {
+    "lat": 37.6191726,
+    "lon": 127.0172663
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "80",
+    "addr:postcode": "01193",
+    "addr:street": "삼양로27길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "18",
+    "building:levels": "9",
+    "height": "27",
+    "name": "306",
+    "start_date": "2011"
+  }
+},
+{
+  "type": "way",
+  "id": 856169049,
+  "center": {
+    "lat": 37.6170700,
+    "lon": 127.0178368
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "113",
+    "addr:postcode": "01198",
+    "addr:street": "삼양로19길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "69",
+    "building:levels": "18",
+    "height": "48",
+    "name": "120",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 856169050,
+  "center": {
+    "lat": 37.6173266,
+    "lon": 127.0186182
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "113",
+    "addr:postcode": "01198",
+    "addr:street": "삼양로19길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "325",
+    "building:levels": "25",
+    "height": "68",
+    "name": "121",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 856169051,
+  "center": {
+    "lat": 37.6167454,
+    "lon": 127.0188249
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "113",
+    "addr:postcode": "01198",
+    "addr:street": "삼양로19길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "348",
+    "building:levels": "23",
+    "height": "62",
+    "name": "122",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 856179056,
+  "center": {
+    "lat": 37.6152067,
+    "lon": 127.0194589
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "25",
+    "addr:postcode": "01200",
+    "addr:street": "삼양로19길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "83",
+    "building:levels": "15",
+    "height": "43",
+    "name": "124",
+    "start_date": "2010"
+  }
+},
+{
+  "type": "way",
+  "id": 856179057,
+  "center": {
+    "lat": 37.6149213,
+    "lon": 127.0195620
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "25",
+    "addr:postcode": "01200",
+    "addr:street": "삼양로19길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "129",
+    "building:levels": "24",
+    "height": "68",
+    "name": "123",
+    "start_date": "2010"
+  }
+},
+{
+  "type": "way",
+  "id": 856179058,
+  "center": {
+    "lat": 37.6148678,
+    "lon": 127.0199133
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "25",
+    "addr:postcode": "01200",
+    "addr:street": "삼양로19길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "42",
+    "building:levels": "21",
+    "height": "60",
+    "name": "122",
+    "start_date": "2010"
+  }
+},
+{
+  "type": "way",
+  "id": 856179059,
+  "center": {
+    "lat": 37.6148442,
+    "lon": 127.0203409
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "25",
+    "addr:postcode": "01200",
+    "addr:street": "삼양로19길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "48",
+    "building:levels": "13",
+    "height": "37",
+    "name": "121",
+    "start_date": "2010"
+  }
+},
+{
+  "type": "way",
+  "id": 856179060,
+  "center": {
+    "lat": 37.6145176,
+    "lon": 127.0201505
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "25",
+    "addr:postcode": "01200",
+    "addr:street": "삼양로19길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "95",
+    "building:levels": "24",
+    "height": "68",
+    "name": "120",
+    "start_date": "2010"
+  }
+},
+{
+  "type": "way",
+  "id": 856179062,
+  "center": {
+    "lat": 37.6139735,
+    "lon": 127.0203768
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "25",
+    "addr:postcode": "01200",
+    "addr:street": "삼양로19길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "74",
+    "building:levels": "21",
+    "height": "60",
+    "name": "118",
+    "start_date": "2010"
+  }
+},
+{
+  "type": "way",
+  "id": 856179063,
+  "center": {
+    "lat": 37.6143007,
+    "lon": 127.0209122
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "25",
+    "addr:postcode": "01200",
+    "addr:street": "삼양로19길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "70",
+    "building:levels": "20",
+    "height": "57",
+    "name": "119",
+    "start_date": "2010"
+  }
+},
+{
+  "type": "way",
+  "id": 856179064,
+  "center": {
+    "lat": 37.6139149,
+    "lon": 127.0212255
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "25",
+    "addr:postcode": "01200",
+    "addr:street": "삼양로19길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "68",
+    "building:levels": "18",
+    "height": "51",
+    "name": "117",
+    "start_date": "2010"
+  }
+},
+{
+  "type": "way",
+  "id": 856179065,
+  "center": {
+    "lat": 37.6135775,
+    "lon": 127.0206064
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "25",
+    "addr:postcode": "01200",
+    "addr:street": "삼양로19길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "40",
+    "building:levels": "20",
+    "height": "57",
+    "name": "116",
+    "start_date": "2010"
+  }
+},
+{
+  "type": "way",
+  "id": 856179066,
+  "center": {
+    "lat": 37.6135273,
+    "lon": 127.0211707
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "25",
+    "addr:postcode": "01200",
+    "addr:street": "삼양로19길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "79",
+    "building:levels": "20",
+    "height": "57",
+    "name": "115",
+    "start_date": "2010"
+  }
+},
+{
+  "type": "way",
+  "id": 856179067,
+  "center": {
+    "lat": 37.6131381,
+    "lon": 127.0211203
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "25",
+    "addr:postcode": "01200",
+    "addr:street": "삼양로19길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "36",
+    "building:levels": "18",
+    "height": "51",
+    "name": "114",
+    "start_date": "2010"
+  }
+},
+{
+  "type": "way",
+  "id": 856179068,
+  "center": {
+    "lat": 37.6129222,
+    "lon": 127.0207245
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "25",
+    "addr:postcode": "01200",
+    "addr:street": "삼양로19길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "28",
+    "building:levels": "14",
+    "height": "40",
+    "name": "113",
+    "start_date": "2010"
+  }
+},
+{
+  "type": "way",
+  "id": 856179069,
+  "center": {
+    "lat": 37.6127871,
+    "lon": 127.0211106
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "25",
+    "addr:postcode": "01200",
+    "addr:street": "삼양로19길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "51",
+    "building:levels": "13",
+    "height": "37",
+    "name": "112",
+    "start_date": "2010"
+  }
+},
+{
+  "type": "way",
+  "id": 856179070,
+  "center": {
+    "lat": 37.6128432,
+    "lon": 127.0215066
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "25",
+    "addr:postcode": "01200",
+    "addr:street": "삼양로19길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "26",
+    "building:levels": "13",
+    "height": "37",
+    "name": "111",
+    "start_date": "2010"
+  }
+},
+{
+  "type": "way",
+  "id": 856179071,
+  "center": {
+    "lat": 37.6131610,
+    "lon": 127.0218177
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "25",
+    "addr:postcode": "01200",
+    "addr:street": "삼양로19길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "20",
+    "building:levels": "5",
+    "height": "15",
+    "name": "110",
+    "start_date": "2010"
+  }
+},
+{
+  "type": "way",
+  "id": 856179072,
+  "center": {
+    "lat": 37.6135614,
+    "lon": 127.0215881
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "25",
+    "addr:postcode": "01200",
+    "addr:street": "삼양로19길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "37",
+    "building:levels": "19",
+    "height": "54",
+    "name": "109",
+    "start_date": "2010"
+  }
+},
+{
+  "type": "way",
+  "id": 856179073,
+  "center": {
+    "lat": 37.6138903,
+    "lon": 127.0219107
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "25",
+    "addr:postcode": "01200",
+    "addr:street": "삼양로19길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "20",
+    "building:levels": "5",
+    "height": "15",
+    "name": "108",
+    "start_date": "2010"
+  }
+},
+{
+  "type": "way",
+  "id": 856179074,
+  "center": {
+    "lat": 37.6142115,
+    "lon": 127.0215999
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "25",
+    "addr:postcode": "01200",
+    "addr:street": "삼양로19길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "42",
+    "building:levels": "11",
+    "height": "32",
+    "name": "107",
+    "start_date": "2010"
+  }
+},
+{
+  "type": "way",
+  "id": 856184624,
+  "center": {
+    "lat": 37.6147927,
+    "lon": 127.0217818
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "25",
+    "addr:postcode": "01200",
+    "addr:street": "삼양로19길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "57",
+    "building:levels": "16",
+    "height": "46",
+    "name": "106",
+    "start_date": "2010"
+  }
+},
+{
+  "type": "way",
+  "id": 856184625,
+  "center": {
+    "lat": 37.6152307,
+    "lon": 127.0219896
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "25",
+    "addr:postcode": "01200",
+    "addr:street": "삼양로19길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "36",
+    "building:levels": "9",
+    "height": "27",
+    "name": "105",
+    "start_date": "2010"
+  }
+},
+{
+  "type": "way",
+  "id": 856184626,
+  "center": {
+    "lat": 37.6156946,
+    "lon": 127.0219596
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "25",
+    "addr:postcode": "01200",
+    "addr:street": "삼양로19길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "20",
+    "building:levels": "10",
+    "height": "29",
+    "name": "104",
+    "start_date": "2010"
+  }
+},
+{
+  "type": "way",
+  "id": 856184627,
+  "center": {
+    "lat": 37.6151252,
+    "lon": 127.0212805
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "25",
+    "addr:postcode": "01200",
+    "addr:street": "삼양로19길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "36",
+    "building:levels": "10",
+    "height": "29",
+    "name": "103",
+    "start_date": "2010"
+  }
+},
+{
+  "type": "way",
+  "id": 856184628,
+  "center": {
+    "lat": 37.6154872,
+    "lon": 127.0215680
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "25",
+    "addr:postcode": "01200",
+    "addr:street": "삼양로19길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "86",
+    "building:levels": "24",
+    "height": "68",
+    "name": "102",
+    "start_date": "2010"
+  }
+},
+{
+  "type": "way",
+  "id": 856184629,
+  "center": {
+    "lat": 37.6157064,
+    "lon": 127.0211999
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "25",
+    "addr:postcode": "01200",
+    "addr:street": "삼양로19길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "27",
+    "building:levels": "14",
+    "height": "40",
+    "name": "101",
+    "start_date": "2010"
+  }
+},
+{
+  "type": "way",
+  "id": 856184630,
+  "center": {
+    "lat": 37.6160929,
+    "lon": 127.0217905
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "19",
+    "addr:postcode": "01195",
+    "addr:street": "삼양로27길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "36",
+    "building:levels": "9",
+    "height": "26",
+    "name": "201",
+    "start_date": "2010"
+  }
+},
+{
+  "type": "way",
+  "id": 856184631,
+  "center": {
+    "lat": 37.6162977,
+    "lon": 127.0210792
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "19",
+    "addr:postcode": "01195",
+    "addr:street": "삼양로27길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "50",
+    "building:levels": "25",
+    "height": "71",
+    "name": "202",
+    "start_date": "2010"
+  }
+},
+{
+  "type": "way",
+  "id": 856184632,
+  "center": {
+    "lat": 37.6164209,
+    "lon": 127.0215341
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "19",
+    "addr:postcode": "01195",
+    "addr:street": "삼양로27길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "89",
+    "building:levels": "23",
+    "height": "66",
+    "name": "203",
+    "start_date": "2010"
+  }
+},
+{
+  "type": "way",
+  "id": 856184633,
+  "center": {
+    "lat": 37.6175537,
+    "lon": 127.0213732
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "19",
+    "addr:postcode": "01195",
+    "addr:street": "삼양로27길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "19",
+    "building:levels": "6",
+    "height": "18",
+    "name": "204",
+    "start_date": "2010"
+  }
+},
+{
+  "type": "way",
+  "id": 856184634,
+  "center": {
+    "lat": 37.6171543,
+    "lon": 127.0213506
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "19",
+    "addr:postcode": "01195",
+    "addr:street": "삼양로27길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "83",
+    "building:levels": "22",
+    "height": "63",
+    "name": "205",
+    "start_date": "2010"
+  }
+},
+{
+  "type": "way",
+  "id": 856184635,
+  "center": {
+    "lat": 37.6170498,
+    "lon": 127.0209258
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "19",
+    "addr:postcode": "01195",
+    "addr:street": "삼양로27길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "49",
+    "building:levels": "25",
+    "height": "71",
+    "name": "206",
+    "start_date": "2010"
+  }
+},
+{
+  "type": "way",
+  "id": 856184636,
+  "center": {
+    "lat": 37.6179796,
+    "lon": 127.0211746
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "19",
+    "addr:postcode": "01195",
+    "addr:street": "삼양로27길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "84",
+    "building:levels": "22",
+    "height": "63",
+    "name": "207",
+    "start_date": "2010"
+  }
+},
+{
+  "type": "way",
+  "id": 856184637,
+  "center": {
+    "lat": 37.6177976,
+    "lon": 127.0207369
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "19",
+    "addr:postcode": "01195",
+    "addr:street": "삼양로27길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "49",
+    "building:levels": "25",
+    "height": "71",
+    "name": "208",
+    "start_date": "2010"
+  }
+},
+{
+  "type": "way",
+  "id": 856184638,
+  "center": {
+    "lat": 37.6182058,
+    "lon": 127.0210350
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "19",
+    "addr:postcode": "01195",
+    "addr:street": "삼양로27길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "18",
+    "building:levels": "10",
+    "height": "32",
+    "name": "209",
+    "start_date": "2010"
+  }
+},
+{
+  "type": "way",
+  "id": 856184639,
+  "center": {
+    "lat": 37.6185373,
+    "lon": 127.0205729
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "19",
+    "addr:postcode": "01195",
+    "addr:street": "삼양로27길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "44",
+    "building:levels": "15",
+    "height": "42",
+    "name": "210",
+    "start_date": "2010"
+  }
+},
+{
+  "type": "way",
+  "id": 856184640,
+  "center": {
+    "lat": 37.6168985,
+    "lon": 127.0204272
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "19",
+    "addr:postcode": "01195",
+    "addr:street": "삼양로27길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "89",
+    "building:levels": "25",
+    "height": "71",
+    "name": "211",
+    "start_date": "2010"
+  }
+},
+{
+  "type": "way",
+  "id": 856184641,
+  "center": {
+    "lat": 37.6172861,
+    "lon": 127.0203611
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "19",
+    "addr:postcode": "01195",
+    "addr:street": "삼양로27길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "29",
+    "building:levels": "15",
+    "height": "42",
+    "name": "212",
+    "start_date": "2010"
+  }
+},
+{
+  "type": "way",
+  "id": 856184642,
+  "center": {
+    "lat": 37.6175853,
+    "lon": 127.0202601
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "19",
+    "addr:postcode": "01195",
+    "addr:street": "삼양로27길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "91",
+    "building:levels": "24",
+    "height": "68",
+    "name": "213",
+    "start_date": "2010"
+  }
+},
+{
+  "type": "way",
+  "id": 856184643,
+  "center": {
+    "lat": 37.6179844,
+    "lon": 127.0201980
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "19",
+    "addr:postcode": "01195",
+    "addr:street": "삼양로27길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "39",
+    "building:levels": "20",
+    "height": "57",
+    "name": "214",
+    "start_date": "2010"
+  }
+},
+{
+  "type": "way",
+  "id": 856184644,
+  "center": {
+    "lat": 37.6183245,
+    "lon": 127.0200842
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "19",
+    "addr:postcode": "01195",
+    "addr:street": "삼양로27길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "44",
+    "building:levels": "23",
+    "height": "66",
+    "name": "215",
+    "start_date": "2010"
+  }
+},
+{
+  "type": "way",
+  "id": 856184645,
+  "center": {
+    "lat": 37.6185222,
+    "lon": 127.0198225
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "19",
+    "addr:postcode": "01195",
+    "addr:street": "삼양로27길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "21",
+    "building:levels": "11",
+    "height": "32",
+    "name": "216",
+    "start_date": "2010"
+  }
+},
+{
+  "type": "way",
+  "id": 856184646,
+  "center": {
+    "lat": 37.6169385,
+    "lon": 127.0199090
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "19",
+    "addr:postcode": "01195",
+    "addr:street": "삼양로27길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "96",
+    "building:levels": "25",
+    "height": "71",
+    "name": "217",
+    "start_date": "2010"
+  }
+},
+{
+  "type": "way",
+  "id": 856184647,
+  "center": {
+    "lat": 37.6177038,
+    "lon": 127.0197034
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "19",
+    "addr:postcode": "01195",
+    "addr:street": "삼양로27길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "96",
+    "building:levels": "25",
+    "height": "71",
+    "name": "218",
+    "start_date": "2010"
+  }
+},
+{
+  "type": "way",
+  "id": 856184648,
+  "center": {
+    "lat": 37.6173506,
+    "lon": 127.0194413
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "19",
+    "addr:postcode": "01195",
+    "addr:street": "삼양로27길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "47",
+    "building:levels": "15",
+    "height": "43",
+    "name": "219",
+    "start_date": "2010"
+  }
+},
+{
+  "type": "way",
+  "id": 856184649,
+  "center": {
+    "lat": 37.6178182,
+    "lon": 127.0193477
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "19",
+    "addr:postcode": "01195",
+    "addr:street": "삼양로27길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "12",
+    "building:levels": "6",
+    "height": "18",
+    "name": "220",
+    "start_date": "2010"
+  }
+},
+{
+  "type": "way",
+  "id": 856184650,
+  "center": {
+    "lat": 37.6166674,
+    "lon": 127.0196282
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "19",
+    "addr:postcode": "01195",
+    "addr:street": "삼양로27길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "105",
+    "building:levels": "20",
+    "height": "57",
+    "name": "221",
+    "start_date": "2010"
+  }
+},
+{
+  "type": "way",
+  "id": 856184651,
+  "center": {
+    "lat": 37.6169742,
+    "lon": 127.0192943
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "19",
+    "addr:postcode": "01195",
+    "addr:street": "삼양로27길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "123",
+    "building:levels": "22",
+    "height": "63",
+    "name": "222",
+    "start_date": "2010"
+  }
+},
+{
+  "type": "way",
+  "id": 856292707,
+  "center": {
+    "lat": 37.6170038,
+    "lon": 127.0220532
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "19",
+    "addr:postcode": "01201",
+    "addr:street": "삼양로24길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "88",
+    "building:levels": "17",
+    "height": "48",
+    "name": "102",
+    "start_date": "1998"
+  }
+},
+{
+  "type": "way",
+  "id": 856292708,
+  "center": {
+    "lat": 37.6174740,
+    "lon": 127.0220792
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "19",
+    "addr:postcode": "01201",
+    "addr:street": "삼양로24길",
+    "addr:subdistrict": "미아동",
+    "building": "apartments",
+    "building:flats": "128",
+    "building:levels": "17",
+    "height": "48",
+    "name": "101",
+    "start_date": "1998"
+  }
+},
+{
+  "type": "way",
+  "id": 856292709,
+  "center": {
+    "lat": 37.6170388,
+    "lon": 127.0220876
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "19",
+    "addr:postcode": "01201",
+    "addr:street": "삼양로24길",
+    "addr:subdistrict": "미아동",
+    "landuse": "residential",
+    "name": "현대성우아파트",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 877699974,
+  "center": {
+    "lat": 37.6127710,
+    "lon": 127.0259087
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "미아송천센트레빌2차아파트",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 877701684,
+  "center": {
+    "lat": 37.6174285,
+    "lon": 127.0364718
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "55",
+    "building:levels": "14",
+    "height": "41",
+    "name": "106",
+    "start_date": "2017"
+  }
+},
+{
+  "type": "way",
+  "id": 877701685,
+  "center": {
+    "lat": 37.6176056,
+    "lon": 127.0360082
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "47",
+    "building:levels": "12",
+    "height": "36",
+    "name": "107",
+    "start_date": "2017"
+  }
+},
+{
+  "type": "way",
+  "id": 877701686,
+  "center": {
+    "lat": 37.6172449,
+    "lon": 127.0369137
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "59",
+    "building:levels": "15",
+    "height": "44",
+    "name": "105",
+    "start_date": "2017"
+  }
+},
+{
+  "type": "way",
+  "id": 877701687,
+  "center": {
+    "lat": 37.6168186,
+    "lon": 127.0366450
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "53",
+    "building:levels": "13",
+    "height": "39",
+    "name": "103",
+    "start_date": "2017"
+  }
+},
+{
+  "type": "way",
+  "id": 877701688,
+  "center": {
+    "lat": 37.6169924,
+    "lon": 127.0361966
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "55",
+    "building:levels": "14",
+    "height": "44",
+    "name": "102",
+    "start_date": "2017"
+  }
+},
+{
+  "type": "way",
+  "id": 877701689,
+  "center": {
+    "lat": 37.6171806,
+    "lon": 127.0357634
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "44",
+    "building:levels": "12",
+    "height": "39",
+    "name": "101",
+    "start_date": "2017"
+  }
+},
+{
+  "type": "way",
+  "id": 877701690,
+  "center": {
+    "lat": 37.6166135,
+    "lon": 127.0370207
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "48",
+    "building:levels": "12",
+    "height": "36",
+    "name": "104",
+    "start_date": "2017"
+  }
+},
+{
+  "type": "way",
+  "id": 877701691,
+  "center": {
+    "lat": 37.6179964,
+    "lon": 127.0362568
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "47",
+    "building:levels": "12",
+    "height": "36",
+    "name": "108",
+    "start_date": "2017"
+  }
+},
+{
+  "type": "way",
+  "id": 877701692,
+  "center": {
+    "lat": 37.6184466,
+    "lon": 127.0365359
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "104",
+    "building:levels": "13",
+    "height": "39",
+    "name": "111",
+    "start_date": "2017"
+  }
+},
+{
+  "type": "way",
+  "id": 877701693,
+  "center": {
+    "lat": 37.6182097,
+    "lon": 127.0370169
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "55",
+    "building:levels": "14",
+    "height": "41",
+    "name": "110",
+    "start_date": "2017"
+  }
+},
+{
+  "type": "way",
+  "id": 877701694,
+  "center": {
+    "lat": 37.6177732,
+    "lon": 127.0368023
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "48",
+    "building:levels": "12",
+    "height": "36",
+    "name": "109",
+    "start_date": "2017"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680590,
+  "center": {
+    "lat": 37.6242502,
+    "lon": 127.0485620
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "40",
+    "building:levels": "5",
+    "name": "102",
+    "start_date": "1991"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680591,
+  "center": {
+    "lat": 37.6244581,
+    "lon": 127.0483826
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "40",
+    "building:levels": "5",
+    "name": "103",
+    "start_date": "1991"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680592,
+  "center": {
+    "lat": 37.6246757,
+    "lon": 127.0481838
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "40",
+    "building:levels": "5",
+    "name": "104",
+    "start_date": "1991"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680593,
+  "center": {
+    "lat": 37.6248847,
+    "lon": 127.0480048
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "40",
+    "building:levels": "5",
+    "name": "105",
+    "start_date": "1991"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680594,
+  "center": {
+    "lat": 37.6240329,
+    "lon": 127.0487557
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "40",
+    "building:levels": "5",
+    "name": "101",
+    "start_date": "1991"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680595,
+  "center": {
+    "lat": 37.6253051,
+    "lon": 127.0476453
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "120",
+    "building:levels": "15",
+    "name": "108",
+    "start_date": "1991"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680596,
+  "center": {
+    "lat": 37.6257071,
+    "lon": 127.0472834
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "120",
+    "building:levels": "15",
+    "name": "109",
+    "start_date": "1991"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680597,
+  "center": {
+    "lat": 37.6249213,
+    "lon": 127.0456682
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "180",
+    "building:levels": "15",
+    "name": "111",
+    "start_date": "1991"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680598,
+  "center": {
+    "lat": 37.6245265,
+    "lon": 127.0460331
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "180",
+    "building:levels": "15",
+    "name": "112",
+    "start_date": "1991"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680599,
+  "center": {
+    "lat": 37.6243082,
+    "lon": 127.0474526
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "150",
+    "building:levels": "15",
+    "name": "107",
+    "start_date": "1991"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680600,
+  "center": {
+    "lat": 37.6239041,
+    "lon": 127.0478222
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "150",
+    "building:levels": "15",
+    "name": "106",
+    "start_date": "1991"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680601,
+  "center": {
+    "lat": 37.6241067,
+    "lon": 127.0463498
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "120",
+    "building:levels": "15",
+    "name": "114",
+    "start_date": "1991"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680602,
+  "center": {
+    "lat": 37.6248656,
+    "lon": 127.0467286
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "105",
+    "building:levels": "15",
+    "name": "113",
+    "start_date": "1991"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680603,
+  "center": {
+    "lat": 37.6252609,
+    "lon": 127.0463665
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "105",
+    "building:levels": "15",
+    "name": "110",
+    "start_date": "1991"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680604,
+  "center": {
+    "lat": 37.6262766,
+    "lon": 127.0463716
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "24",
+    "addr:postcode": "01229",
+    "addr:street": "한천로105길",
+    "building": "apartments",
+    "building:flats": "49",
+    "building:levels": "9",
+    "name": "202",
+    "start_date": "1991"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680605,
+  "center": {
+    "lat": 37.6265007,
+    "lon": 127.0467769
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "24",
+    "addr:postcode": "01229",
+    "addr:street": "한천로105길",
+    "building": "apartments",
+    "building:flats": "49",
+    "building:levels": "9",
+    "name": "201",
+    "start_date": "1991"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680608,
+  "center": {
+    "lat": 37.6267505,
+    "lon": 127.0461100
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "24",
+    "addr:postcode": "01229",
+    "addr:street": "한천로105길",
+    "building": "apartments",
+    "building:flats": "180",
+    "building:levels": "15",
+    "name": "203",
+    "start_date": "1991"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680609,
+  "center": {
+    "lat": 37.6271014,
+    "lon": 127.0456511
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "24",
+    "addr:postcode": "01229",
+    "addr:street": "한천로105길",
+    "building": "apartments",
+    "building:flats": "180",
+    "building:levels": "15",
+    "name": "204",
+    "start_date": "1991"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680610,
+  "center": {
+    "lat": 37.6274210,
+    "lon": 127.0451094
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "24",
+    "addr:postcode": "01229",
+    "addr:street": "한천로105길",
+    "building": "apartments",
+    "building:flats": "180",
+    "building:levels": "15",
+    "name": "205",
+    "start_date": "1991"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680611,
+  "center": {
+    "lat": 37.6269031,
+    "lon": 127.0446405
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "24",
+    "addr:postcode": "01229",
+    "addr:street": "한천로105길",
+    "building": "apartments",
+    "building:flats": "180",
+    "building:levels": "15",
+    "name": "206",
+    "start_date": "1991"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680612,
+  "center": {
+    "lat": 37.6264073,
+    "lon": 127.0444102
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "24",
+    "addr:postcode": "01229",
+    "addr:street": "한천로105길",
+    "building": "apartments",
+    "building:flats": "120",
+    "building:levels": "15",
+    "name": "207",
+    "start_date": "1991"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680613,
+  "center": {
+    "lat": 37.6263526,
+    "lon": 127.0454481
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "24",
+    "addr:postcode": "01229",
+    "addr:street": "한천로105길",
+    "building": "apartments",
+    "building:flats": "120",
+    "building:levels": "15",
+    "name": "209",
+    "start_date": "1991"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680614,
+  "center": {
+    "lat": 37.6259382,
+    "lon": 127.0458090
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "24",
+    "addr:postcode": "01229",
+    "addr:street": "한천로105길",
+    "building": "apartments",
+    "building:flats": "120",
+    "building:levels": "15",
+    "name": "210",
+    "start_date": "1991"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680615,
+  "center": {
+    "lat": 37.6255734,
+    "lon": 127.0452030
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "24",
+    "addr:postcode": "01229",
+    "addr:street": "한천로105길",
+    "building": "apartments",
+    "building:flats": "294",
+    "building:levels": "15",
+    "name": "211",
+    "start_date": "1991"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680616,
+  "center": {
+    "lat": 37.6259801,
+    "lon": 127.0448338
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "24",
+    "addr:postcode": "01229",
+    "addr:street": "한천로105길",
+    "building": "apartments",
+    "building:flats": "294",
+    "building:levels": "15",
+    "name": "208",
+    "start_date": "1991"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680617,
+  "center": {
+    "lat": 37.6276046,
+    "lon": 127.0435646
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "137",
+    "addr:postcode": "01226",
+    "addr:street": "월계로37길",
+    "building": "apartments",
+    "building:flats": "185",
+    "building:levels": "21",
+    "height": "65",
+    "name": "101",
+    "start_date": "2000"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680618,
+  "center": {
+    "lat": 37.6272210,
+    "lon": 127.0437348
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "137",
+    "addr:postcode": "01226",
+    "addr:street": "월계로37길",
+    "building": "apartments",
+    "building:flats": "78",
+    "building:levels": "20",
+    "height": "63",
+    "name": "102",
+    "start_date": "2000"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680619,
+  "center": {
+    "lat": 37.6247901,
+    "lon": 127.0444303
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "153",
+    "building:levels": "19",
+    "height": "51",
+    "name": "101",
+    "start_date": "2000"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680620,
+  "center": {
+    "lat": 37.6245600,
+    "lon": 127.0448894
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "49",
+    "building:levels": "19",
+    "height": "51",
+    "name": "102",
+    "start_date": "2000"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680621,
+  "center": {
+    "lat": 37.6257657,
+    "lon": 127.0434206
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "85",
+    "building:levels": "20",
+    "height": "54",
+    "name": "101",
+    "start_date": "2000"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680622,
+  "center": {
+    "lat": 37.6259402,
+    "lon": 127.0429783
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "80",
+    "building:levels": "20",
+    "height": "54",
+    "name": "102",
+    "start_date": "2000"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680623,
+  "center": {
+    "lat": 37.6291001,
+    "lon": 127.0419476
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "208",
+    "addr:postcode": "01224ㅂ",
+    "addr:street": "오현로",
+    "addr:subdistrict": "번동",
+    "landuse": "residential",
+    "name": "번동주공3단지아파트",
+    "name:en": "Beondong Jugong Complex 3",
+    "name:ko": "번동주공3단지",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680624,
+  "center": {
+    "lat": 37.6284421,
+    "lon": 127.0421700
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "208",
+    "addr:postcode": "01224ㅂ",
+    "addr:street": "오현로",
+    "building": "apartments",
+    "building:flats": "180",
+    "building:levels": "15",
+    "name": "308",
+    "start_date": "1990"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680625,
+  "center": {
+    "lat": 37.6287471,
+    "lon": 127.0416613
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "208",
+    "addr:postcode": "01224ㅂ",
+    "addr:street": "오현로",
+    "building": "apartments",
+    "building:flats": "180",
+    "building:levels": "15",
+    "name": "305",
+    "start_date": "1990"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680626,
+  "center": {
+    "lat": 37.6283460,
+    "lon": 127.0411807
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "208",
+    "addr:postcode": "01224ㅂ",
+    "addr:street": "오현로",
+    "building": "apartments",
+    "building:flats": "180",
+    "building:levels": "15",
+    "name": "306",
+    "start_date": "1990"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680627,
+  "center": {
+    "lat": 37.6279993,
+    "lon": 127.0416549
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "208",
+    "addr:postcode": "01224ㅂ",
+    "addr:street": "오현로",
+    "building": "apartments",
+    "building:flats": "180",
+    "building:levels": "15",
+    "name": "307",
+    "start_date": "1990"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680628,
+  "center": {
+    "lat": 37.6301584,
+    "lon": 127.0414038
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "208",
+    "addr:postcode": "01224ㅂ",
+    "addr:street": "오현로",
+    "building": "apartments",
+    "building:flats": "49",
+    "building:levels": "9",
+    "name": "301",
+    "start_date": "1990"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680630,
+  "center": {
+    "lat": 37.6298745,
+    "lon": 127.0410835
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "208",
+    "addr:postcode": "01224ㅂ",
+    "addr:street": "오현로",
+    "building": "apartments",
+    "building:flats": "49",
+    "building:levels": "9",
+    "name": "302",
+    "start_date": "1990"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680632,
+  "center": {
+    "lat": 37.6292432,
+    "lon": 127.0423124
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "208",
+    "addr:postcode": "01224ㅂ",
+    "addr:street": "오현로",
+    "building": "apartments",
+    "building:flats": "180",
+    "building:levels": "15",
+    "name": "304",
+    "start_date": "1990"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680633,
+  "center": {
+    "lat": 37.6296313,
+    "lon": 127.0418207
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "208",
+    "addr:postcode": "01224ㅂ",
+    "addr:street": "오현로",
+    "building": "apartments",
+    "building:flats": "294",
+    "building:levels": "15",
+    "name": "303",
+    "start_date": "1990"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680634,
+  "center": {
+    "lat": 37.6309592,
+    "lon": 127.0397083
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "90",
+    "building:levels": "15",
+    "name": "402",
+    "start_date": "1991"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680635,
+  "center": {
+    "lat": 37.6305793,
+    "lon": 127.0402017
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "120",
+    "building:levels": "15",
+    "name": "403",
+    "start_date": "1991"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680636,
+  "center": {
+    "lat": 37.6302478,
+    "lon": 127.0406816
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "120",
+    "building:levels": "15",
+    "name": "404",
+    "start_date": "1991"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680637,
+  "center": {
+    "lat": 37.6313767,
+    "lon": 127.0392219
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "90",
+    "building:levels": "15",
+    "name": "401",
+    "start_date": "1991"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680638,
+  "center": {
+    "lat": 37.6300959,
+    "lon": 127.0392422
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "180",
+    "building:levels": "15",
+    "name": "408",
+    "start_date": "1991"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680639,
+  "center": {
+    "lat": 37.6305551,
+    "lon": 127.0387907
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "90",
+    "building:levels": "15",
+    "name": "407",
+    "start_date": "1991"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680640,
+  "center": {
+    "lat": 37.6310123,
+    "lon": 127.0383485
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "90",
+    "building:levels": "15",
+    "name": "406",
+    "start_date": "1991"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680641,
+  "center": {
+    "lat": 37.6314682,
+    "lon": 127.0379895
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "120",
+    "building:levels": "15",
+    "name": "405",
+    "start_date": "1991"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680642,
+  "center": {
+    "lat": 37.6323823,
+    "lon": 127.0378621
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "49",
+    "building:levels": "9",
+    "name": "501",
+    "start_date": "1991"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680644,
+  "center": {
+    "lat": 37.6327186,
+    "lon": 127.0373706
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "120",
+    "building:levels": "15",
+    "name": "502",
+    "start_date": "1991"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680645,
+  "center": {
+    "lat": 37.6330203,
+    "lon": 127.0368998
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "120",
+    "building:levels": "15",
+    "name": "503",
+    "start_date": "1991"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680646,
+  "center": {
+    "lat": 37.6333143,
+    "lon": 127.0364213
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "120",
+    "building:levels": "15",
+    "name": "504",
+    "start_date": "1991"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680647,
+  "center": {
+    "lat": 37.6335921,
+    "lon": 127.0359235
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "120",
+    "building:levels": "15",
+    "name": "505",
+    "start_date": "1991"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680648,
+  "center": {
+    "lat": 37.6329596,
+    "lon": 127.0356278
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "294",
+    "building:levels": "15",
+    "name": "506",
+    "start_date": "1991"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680649,
+  "center": {
+    "lat": 37.6333995,
+    "lon": 127.0349999
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "180",
+    "building:levels": "15",
+    "name": "507",
+    "start_date": "1991"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680650,
+  "center": {
+    "lat": 37.6316742,
+    "lon": 127.0356453
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "97",
+    "building:levels": "18",
+    "height": "51",
+    "name": "101",
+    "start_date": "2001"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680651,
+  "center": {
+    "lat": 37.6314024,
+    "lon": 127.0357740
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "49",
+    "building:levels": "11",
+    "height": "32",
+    "name": "102",
+    "start_date": "2001"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680652,
+  "center": {
+    "lat": 37.6311858,
+    "lon": 127.0352159
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "99",
+    "building:levels": "19",
+    "height": "53",
+    "name": "103",
+    "start_date": "2001"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680653,
+  "center": {
+    "lat": 37.6305621,
+    "lon": 127.0353971
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "122",
+    "building:levels": "20",
+    "name": "101",
+    "start_date": "1998"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680654,
+  "center": {
+    "lat": 37.6308607,
+    "lon": 127.0361261
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "126",
+    "building:levels": "20",
+    "name": "102",
+    "start_date": "1998"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680655,
+  "center": {
+    "lat": 37.6311983,
+    "lon": 127.0364769
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "36",
+    "building:levels": "13",
+    "name": "103",
+    "start_date": "1998"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680656,
+  "center": {
+    "lat": 37.6331744,
+    "lon": 127.0339448
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "120",
+    "building:levels": "15",
+    "name": "508",
+    "start_date": "1991"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680657,
+  "center": {
+    "lat": 37.6269425,
+    "lon": 127.0403508
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "69",
+    "addr:postcode": "01227",
+    "addr:street": "한천로109길",
+    "building": "apartments",
+    "building:flats": "87",
+    "building:levels": "15",
+    "height": "44",
+    "name": "101",
+    "start_date": "1992"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680658,
+  "center": {
+    "lat": 37.6267840,
+    "lon": 127.0409720
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "69",
+    "addr:postcode": "01227",
+    "addr:street": "한천로109길",
+    "building": "apartments",
+    "building:flats": "85",
+    "building:levels": "15",
+    "height": "44",
+    "name": "102",
+    "start_date": "1992"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680659,
+  "center": {
+    "lat": 37.6265356,
+    "lon": 127.0417154
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "69",
+    "addr:postcode": "01227",
+    "addr:street": "한천로109길",
+    "building": "apartments",
+    "building:flats": "89",
+    "building:levels": "15",
+    "height": "44",
+    "name": "103",
+    "start_date": "1992"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680660,
+  "center": {
+    "lat": 37.6265664,
+    "lon": 127.0395974
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "80",
+    "building:levels": "18",
+    "height": "48",
+    "name": "101",
+    "start_date": "1999"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680661,
+  "center": {
+    "lat": 37.6262741,
+    "lon": 127.0393198
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "80",
+    "building:levels": "20",
+    "height": "54",
+    "name": "102",
+    "start_date": "1999"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680662,
+  "center": {
+    "lat": 37.6258916,
+    "lon": 127.0393670
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "80",
+    "building:levels": "20",
+    "height": "54",
+    "name": "103",
+    "start_date": "1999"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680663,
+  "center": {
+    "lat": 37.6255015,
+    "lon": 127.0390809
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "140",
+    "building:levels": "20",
+    "height": "54",
+    "name": "104",
+    "start_date": "1999"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680664,
+  "center": {
+    "lat": 37.6272182,
+    "lon": 127.0388184
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "60",
+    "building:levels": "15",
+    "height": "40",
+    "name": "102",
+    "start_date": "2005"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680665,
+  "center": {
+    "lat": 37.6268587,
+    "lon": 127.0387325
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "36",
+    "building:levels": "18",
+    "height": "49",
+    "name": "104",
+    "start_date": "2005"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680666,
+  "center": {
+    "lat": 37.6270528,
+    "lon": 127.0392661
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "60",
+    "building:levels": "15",
+    "height": "40",
+    "name": "101",
+    "start_date": "2005"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680667,
+  "center": {
+    "lat": 37.6276481,
+    "lon": 127.0388308
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "69",
+    "building:levels": "15",
+    "height": "40",
+    "name": "103",
+    "start_date": "2005"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680668,
+  "center": {
+    "lat": 37.6266065,
+    "lon": 127.0379838
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "158",
+    "building:levels": "20",
+    "height": "54",
+    "name": "105",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680669,
+  "center": {
+    "lat": 37.6262389,
+    "lon": 127.0376701
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "40",
+    "building:levels": "20",
+    "height": "54",
+    "name": "103",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680670,
+  "center": {
+    "lat": 37.6262102,
+    "lon": 127.0371762
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "78",
+    "building:levels": "20",
+    "height": "54",
+    "name": "101",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680671,
+  "center": {
+    "lat": 37.6266648,
+    "lon": 127.0372862
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "76",
+    "building:levels": "20",
+    "height": "54",
+    "name": "104",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680672,
+  "center": {
+    "lat": 37.6258014,
+    "lon": 127.0373633
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "78",
+    "building:levels": "20",
+    "height": "54",
+    "name": "102",
+    "start_date": "2003"
+  }
+},
+{
+  "type": "way",
+  "id": 1013680673,
+  "center": {
+    "lat": 37.6255825,
+    "lon": 127.0429309
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "120",
+    "building:levels": "20",
+    "height": "54",
+    "name": "103",
+    "start_date": "2000"
+  }
+},
+{
+  "type": "way",
+  "id": 1137552010,
+  "center": {
+    "lat": 37.6199684,
+    "lon": 127.0098677
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "71",
+    "building:levels": "18",
+    "height": "62",
+    "name": "119동",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 1137552011,
+  "center": {
+    "lat": 37.6200356,
+    "lon": 127.0094663
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "71",
+    "building:levels": "18",
+    "height": "62",
+    "name": "118동",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 1137552013,
+  "center": {
+    "lat": 37.6206078,
+    "lon": 127.0097812
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "34",
+    "building:levels": "17",
+    "height": "45",
+    "name": "111동",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 1137552014,
+  "center": {
+    "lat": 37.6206662,
+    "lon": 127.0108212
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "96",
+    "building:levels": "25",
+    "height": "68",
+    "name": "103동",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 1137552015,
+  "center": {
+    "lat": 37.6204108,
+    "lon": 127.0113499
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "110",
+    "building:levels": "19",
+    "height": "51",
+    "name": "104동",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 1137552016,
+  "center": {
+    "lat": 37.6204886,
+    "lon": 127.0104084
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "88",
+    "building:levels": "25",
+    "height": "68",
+    "name": "102동",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 1186165408,
+  "center": {
+    "lat": 37.6211857,
+    "lon": 127.0118188
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "96",
+    "building:levels": "25",
+    "height": "68",
+    "name": "109동",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 1186165409,
+  "center": {
+    "lat": 37.6212017,
+    "lon": 127.0098441
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "84",
+    "building:levels": "22",
+    "height": "59",
+    "name": "112동",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 1186165410,
+  "center": {
+    "lat": 37.6217324,
+    "lon": 127.0104393
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "84",
+    "building:levels": "22",
+    "height": "59",
+    "name": "113동",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 1186165411,
+  "center": {
+    "lat": 37.6221328,
+    "lon": 127.0111220
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "115",
+    "building:levels": "22",
+    "height": "59",
+    "name": "114동",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 1186165412,
+  "center": {
+    "lat": 37.6219043,
+    "lon": 127.0120748
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "100",
+    "building:levels": "25",
+    "height": "68",
+    "name": "115동",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 1186165413,
+  "center": {
+    "lat": 37.6220546,
+    "lon": 127.0124993
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "76",
+    "building:levels": "20",
+    "height": "54",
+    "name": "116동",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 1186165414,
+  "center": {
+    "lat": 37.6214211,
+    "lon": 127.0114124
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "88",
+    "building:levels": "25",
+    "height": "68",
+    "name": "108동",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 1186165415,
+  "center": {
+    "lat": 37.6199079,
+    "lon": 127.0106234
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "114",
+    "building:levels": "22",
+    "height": "54",
+    "name": "101동",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 1186165416,
+  "center": {
+    "lat": 37.6210777,
+    "lon": 127.0112316
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "96",
+    "building:levels": "25",
+    "height": "67",
+    "name": "107동",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 1186165417,
+  "center": {
+    "lat": 37.6210584,
+    "lon": 127.0107074
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "88",
+    "building:levels": "25",
+    "height": "68",
+    "name": "106동",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 1186165418,
+  "center": {
+    "lat": 37.6208410,
+    "lon": 127.0118974
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "68",
+    "building:levels": "17",
+    "height": "45",
+    "name": "105동",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 1186165419,
+  "center": {
+    "lat": 37.6213819,
+    "lon": 127.0121843
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "76",
+    "building:levels": "19",
+    "height": "51",
+    "name": "110동",
+    "start_date": "2004"
+  }
+},
+{
+  "type": "way",
+  "id": 1346554741,
+  "center": {
+    "lat": 37.6130395,
+    "lon": 127.0267085
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "114",
+    "building:levels": "15",
+    "height": "44",
+    "name": "205동",
+    "start_date": "2010"
+  }
+},
+{
+  "type": "way",
+  "id": 1346554742,
+  "center": {
+    "lat": 37.6128294,
+    "lon": 127.0260637
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "59",
+    "building:levels": "15",
+    "height": "44",
+    "name": "204동",
+    "start_date": "2010"
+  }
+},
+{
+  "type": "way",
+  "id": 1346554743,
+  "center": {
+    "lat": 37.6125267,
+    "lon": 127.0255998
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "58",
+    "building:levels": "15",
+    "height": "44",
+    "name": "203동",
+    "start_date": "2010"
+  }
+},
+{
+  "type": "way",
+  "id": 1346554744,
+  "center": {
+    "lat": 37.6125720,
+    "lon": 127.0251041
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "75",
+    "building:levels": "15",
+    "height": "44",
+    "name": "202동",
+    "start_date": "2010"
+  }
+},
+{
+  "type": "way",
+  "id": 1346554745,
+  "center": {
+    "lat": 37.6128696,
+    "lon": 127.0248840
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "70",
+    "building:levels": "11",
+    "height": "32",
+    "name": "201동",
+    "start_date": "2010"
+  }
+},
+{
+  "type": "way",
+  "id": 1346559661,
+  "center": {
+    "lat": 37.6135873,
+    "lon": 127.0265636
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "26",
+    "building:levels": "15",
+    "height": "40",
+    "name": "105동",
+    "start_date": "2006"
+  }
+},
+{
+  "type": "way",
+  "id": 1346559662,
+  "center": {
+    "lat": 37.6139158,
+    "lon": 127.0262600
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "75",
+    "building:levels": "15",
+    "height": "40",
+    "name": "104동",
+    "start_date": "2006"
+  }
+},
+{
+  "type": "way",
+  "id": 1346559663,
+  "center": {
+    "lat": 37.6142574,
+    "lon": 127.0259126
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "74",
+    "building:levels": "15",
+    "height": "40",
+    "name": "103동",
+    "start_date": "2006"
+  }
+},
+{
+  "type": "way",
+  "id": 1346559664,
+  "center": {
+    "lat": 37.6135673,
+    "lon": 127.0260314
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "38",
+    "building:levels": "15",
+    "height": "40",
+    "name": "106동",
+    "start_date": "2006"
+  }
+},
+{
+  "type": "way",
+  "id": 1346559665,
+  "center": {
+    "lat": 37.6133827,
+    "lon": 127.0256731
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "42",
+    "building:levels": "15",
+    "height": "40",
+    "name": "107동",
+    "start_date": "2006"
+  }
+},
+{
+  "type": "way",
+  "id": 1346559666,
+  "center": {
+    "lat": 37.6132137,
+    "lon": 127.0251921
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "87",
+    "building:levels": "15",
+    "height": "40",
+    "name": "108동",
+    "start_date": "2006"
+  }
+},
+{
+  "type": "way",
+  "id": 1346559669,
+  "center": {
+    "lat": 37.6135693,
+    "lon": 127.0249808
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "50",
+    "building:levels": "15",
+    "height": "40",
+    "name": "101동",
+    "start_date": "2006"
+  }
+},
+{
+  "type": "way",
+  "id": 1346559671,
+  "center": {
+    "lat": 37.6138936,
+    "lon": 127.0254316
+  },
+  "tags": {
+    "building": "apartments",
+    "building:flats": "79",
+    "building:levels": "15",
+    "height": "40",
+    "name": "102동",
+    "start_date": "2006"
+  }
+},
+{
+  "type": "way",
+  "id": 1346559673,
+  "center": {
+    "lat": 37.6137434,
+    "lon": 127.0257492
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "미아동부센트레빌아파트",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 1509796834,
+  "center": {
+    "lat": 37.6275204,
+    "lon": 127.0436128
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "137",
+    "addr:postcode": "01226",
+    "addr:street": "월계로37길",
+    "landuse": "residential",
+    "name": "기산그린아파트",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 1509796835,
+  "center": {
+    "lat": 37.6279003,
+    "lon": 127.0432383
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "137-8",
+    "addr:postcode": "01226",
+    "addr:street": "월계로37길",
+    "building": "apartments",
+    "name": "현대아파트"
+  }
+},
+{
+  "type": "way",
+  "id": 1509796843,
+  "center": {
+    "lat": 37.6281908,
+    "lon": 127.0427512
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "21-4",
+    "addr:postcode": "01226",
+    "addr:street": "한천로109길",
+    "building": "apartments",
+    "name": "어반스톤포레"
+  }
+},
+{
+  "type": "way",
+  "id": 1509796887,
+  "center": {
+    "lat": 37.6266680,
+    "lon": 127.0410458
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "69",
+    "addr:postcode": "01227",
+    "addr:street": "한천로109길",
+    "landuse": "residential",
+    "name": "한양아파트",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 1537504166,
+  "center": {
+    "lat": 37.6329866,
+    "lon": 127.0133628
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "149",
+    "addr:postcode": "01095",
+    "addr:street": "인수봉로",
+    "building": "residential",
+    "name": "더샵팰리스"
+  }
+},
+{
+  "type": "way",
+  "id": 1537504178,
+  "center": {
+    "lat": 37.6333766,
+    "lon": 127.0128960
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "송정지가"
+  }
+},
+{
+  "type": "way",
+  "id": 1539079795,
+  "center": {
+    "lat": 37.6313063,
+    "lon": 127.0143102
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "정은빌라"
+  }
+},
+{
+  "type": "way",
+  "id": 1540087455,
+  "center": {
+    "lat": 37.6346594,
+    "lon": 127.0168805
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "27-4",
+    "addr:postcode": "01094",
+    "addr:street": "덕릉로",
+    "building": "apartments",
+    "name": "가"
+  }
+},
+{
+  "type": "way",
+  "id": 1540087456,
+  "center": {
+    "lat": 37.6346129,
+    "lon": 127.0166042
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "27-4",
+    "addr:postcode": "01094",
+    "addr:street": "덕릉로",
+    "building": "apartments",
+    "name": "나"
+  }
+},
+{
+  "type": "way",
+  "id": 1540087459,
+  "center": {
+    "lat": 37.6346396,
+    "lon": 127.0167351
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "27-4",
+    "addr:postcode": "01094",
+    "addr:street": "덕릉로",
+    "landuse": "residential",
+    "name": "한신빌라",
+    "residential": "apartments"
+  }
+},
+{
+  "type": "way",
+  "id": 1540087523,
+  "center": {
+    "lat": 37.6355418,
+    "lon": 127.0148897
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "27",
+    "addr:postcode": "01094",
+    "addr:street": "인수봉로52길",
+    "landuse": "residential",
+    "name": "수유파크빌"
+  }
+},
+{
+  "type": "way",
+  "id": 1540087531,
+  "center": {
+    "lat": 37.6349842,
+    "lon": 127.0152659
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "중앙캐슬빌"
+  }
+},
+{
+  "type": "way",
+  "id": 1540182077,
+  "center": {
+    "lat": 37.6331313,
+    "lon": 127.0166775
+  },
+  "tags": {
+    "landuse": "residential",
+    "name": "남광하이빌"
+  }
+},
+{
+  "type": "way",
+  "id": 1540935115,
+  "center": {
+    "lat": 37.6327454,
+    "lon": 127.0163487
+  },
+  "tags": {
+    "addr:city": "서울특별시",
+    "addr:district": "강북구",
+    "addr:housenumber": "33-3",
+    "addr:postcode": "01098",
+    "addr:street": "삼양로85길",
+    "landuse": "residential",
+    "name": "충효하우스"
+  }
+}
+
+  ]
+}
