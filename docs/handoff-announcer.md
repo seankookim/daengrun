@@ -39,6 +39,7 @@ under `app/src/lib`, approach drawn separately, honesty state + a device-run ite
 Anchor is demoted to a bounding-box prefilter — do not flip 0078's `근사값 — 소비 금지`; catalog settles it on
 return. Sean reviewed 31 routes tonight (21 accept / 4 reject / 6 rework); the rejects were one planner
 bug (walked past the near park), rewritten; catalog is 50 GPX.
+**~04:00 roster:** catalog shipped 0110/0112/0113 (geometry sequence complete; promotion unblocked; the 0112 view-DML P0 found by the announcer and closed by catalog within the hour), declined the 맹견 gate (custody/trust surface — unowned; morning item), and is winding down to measurement/review/handoff quality at low context — clean, synced, nothing unpushed. ui2 landed home ⑧ v2, onboarding §B, request §C, radar §C-4, ruling 14/15 geometry, the routes_public switch (c73cea5) and the anchor decision; holds the sim. Legal finished every structured list in the source review (§§4–13) and produced the contract-status counsel brief; done. Route geometry: 50+ GPX, depth pass. Server surface (trust/money offline): announcer-directed — O-4 and O-5 contracts attacked and fixed, O-5 implementing, O-6 (account deletion) contract under attack.
 **Roster change (later):** the client session handed off (`docs/handoff-client.md` @ 1b74d6a) and Sean
 opened **ui2** as its successor on the MAIN checkout (`/Users/sean/dev/daengrun` @ trunk). ui2 is named
 OWNER (exclusive) of `app/app/owner/home.tsx`, `owner/course-map.tsx`, `app/app/index.tsx`,

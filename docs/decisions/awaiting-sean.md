@@ -280,6 +280,18 @@ real owners. Relief: no vehicle pickup (동물운송업 not in play), shop is a 
 not exposed) — widening that read path is the moment §11 goes live, so it is a legal decision, not a UI fix; the community
 feed has no reports/moderation table (임시조치 will be needed there first).
 
+## 0-octodecies. 🟡 THREE ROUTE NAMES ADVERTISE A LENGTH THE LINE DOES NOT HAVE — a naming call, yours (catalog, 2026-08-20 ~04:00)
+
+Measured across all 68 routes (handoff on trunk at 726838c): three original 0078 seeds carry a typed `km` the later-drawn geometry
+does not match — `서리풀–몽마르뜨 종주 5km` km=5.0 measured 4.84 · `한강 반포–잠원 7km` km=7.0 measured 6.72 · `반포한강 그랜드 루프`
+km=5.0 measured 4.78. **Not money** (catalog checked: `bookings.km` comes from the owner's dial, no server path copies `routes.km`)
+— an honesty defect: the catalog advertises 5.0 for a 4.78 km line. The fix is blocked by design: 0100's `routes_name_km_agrees`
+refuses `km` 5.0→4.8 unless the NAME changes in the same statement, so correcting two of the three means **renaming user-facing
+course names** — catalog declined to do that on its own authority at 4 am, correctly. Your call, one letter per route or for
+all: **A** rename the token to the measured length (e.g. `… 4.8km`) · **B** drop the km token from the name (must check the
+unique `(town, name)` index first — 0100's 몽마르뜨 trio trap) · **C** leave as is. `반포한강 그랜드 루프` has no token and can
+be corrected alone whenever. Not decided under the overnight grant: names are product copy you have ruled on by looking before.
+
 ## 0-septendecies. 🔴 NO IN-APP ACCOUNT DELETION — an App Store REJECTION waiting (legal, 2026-08-19 night) — building it tonight
 
 `settings.tsx:89` says `계정 삭제 | 문의로 처리` — honest, and legally mild (PIPA 제37조 is satisfiable by a support path) — but **App Store
