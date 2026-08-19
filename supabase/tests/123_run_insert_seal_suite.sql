@@ -49,6 +49,17 @@
 --         everybody), or widen it so `settle_run_tx`'s no-runs-row upsert backstop (0028 ③)
 --         can no longer create a row carrying measurements                              → RED
 --   S9  ← §1: any INSERT policy on `runs`, or a grant of start_run_tx to authenticated/anon → RED
+--   ⚠ S9's INSERT arm was `cmd = 'INSERT'` until 2026-08-14 and a `FOR ALL` policy reports
+--      `cmd = 'ALL'`, so the shape S9 exists to catch slipped past it. Mutation-verified both
+--      directions with `create policy "convenience all" on runs for all to authenticated`:
+--        · fixed arm  (`cmd in ('INSERT','ALL')`) → 553/3, red = [M7, S2, S9]
+--        · old arm    (`cmd = 'INSERT'`)          → 554/2, red = [M7, S2] — **S9 GREEN**
+--      HONEST SCOPE, because the tempting claim is bigger than the fact: the hole was NOT silent.
+--      **S2 already caught it behaviourally** — it plants a forged row and the row appears — so
+--      the harness went red either way. What the literal match defeated was S9's OWN stated
+--      purpose one line above: "assert the SHAPE, so that the next person who adds a convenience
+--      policy trips a pin instead of reopening §0." The fix restores that, and buys a failure
+--      message naming the policy rather than only reporting that a row got created.
 --
 --   ─── what is NOT pinned here, said out loud ───
 --   · The two-connection race on `start_run_tx`'s claim (two starts landing at once must produce
@@ -577,9 +588,18 @@ begin
     v_bad := '';
     if not (select c.relrowsecurity from pg_class c where c.oid = 'runs'::regclass)
       then v_bad := v_bad || ' runs에 RLS가 꺼졌다'; end if;
+    -- ⚠ `cmd in ('INSERT','ALL')`, NOT `cmd = 'INSERT'` — corrected 2026-08-14 (trust).
+    -- A policy created `FOR ALL` reports `cmd = 'ALL'` in pg_policies and PERMITS INSERT, so the
+    -- old literal match counted 0 and this pin stayed GREEN while 0087's forgery hole was open.
+    -- Measured before fixing: `create policy … for all to authenticated` → pg_policies.cmd = 'ALL'.
+    -- The convenience policy this pin exists to catch is the exact shape most likely to be written
+    -- `FOR ALL` — one policy instead of three is what makes it convenient. Same defect class as the
+    -- REGISTRY detector corrected the same day: enumerating a literal instead of asking what the
+    -- engine actually permits. 'ALL' is the complete additional case ('r'/'a'/'w'/'d'/'*' is the
+    -- whole polcmd domain, and only 'a' and '*' permit INSERT).
     select count(*) into v_n from pg_policies
-      where schemaname = 'public' and tablename = 'runs' and cmd = 'INSERT';
-    if v_n <> 0 then v_bad := v_bad || ' runs에 INSERT 정책이 있다=' || v_n; end if;
+      where schemaname = 'public' and tablename = 'runs' and cmd in ('INSERT','ALL');
+    if v_n <> 0 then v_bad := v_bad || ' runs에 INSERT를 허용하는 정책이 있다(INSERT 또는 ALL)=' || v_n; end if;
     select count(*) into v_n from pg_policies
       where schemaname = 'public' and tablename = 'runs' and cmd in ('SELECT','UPDATE');
     if v_n <> 2 then v_bad := v_bad || ' 읽기·수정 정책이 2개가 아니다=' || v_n; end if;
@@ -604,7 +624,7 @@ begin
       then v_bad := v_bad || ' payments_live_since가 켜진 채 남았다'; end if;
 
     if v_bad = ''
-      then call _pass('risl','S9 구조 인벤토리 — runs는 RLS on·INSERT 정책 0개·읽기/수정 2개, _guard_run_insert는 존재하고 INVOKER, start_run_tx는 service_role 전용, 그리고 이 스위트가 만진 컷오버 스위치 둘은 NULL로 반납됐다');
+      then call _pass('risl','S9 구조 인벤토리 — runs는 RLS on·INSERT 허용 정책 0개(ALL 포함)·읽기/수정 2개, _guard_run_insert는 존재하고 INVOKER, start_run_tx는 service_role 전용, 그리고 이 스위트가 만진 컷오버 스위치 둘은 NULL로 반납됐다');
     else v_msg := v_bad; call _fail('risl','S9 구조 인벤토리', v_msg); end if;
   exception when others then
     v_msg := sqlerrm; call _fail('risl','S9 구조 인벤토리', v_msg);
