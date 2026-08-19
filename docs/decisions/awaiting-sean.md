@@ -195,6 +195,28 @@ in the background for weeks) or commit to manual and delete the charge machine.*
 Consequence either way: the no-card empty state **is** the pilot, and the current payment surface
 implies automation that does not exist — an honesty-law item, now client's to fix once you pick.
 
+## 0-septies-bis. ✅ SEAN'S P0 REMEDIATION ORDER — VERBATIM (2026-08-19), recorded late by the announcer
+
+**Announcer's failure, named:** these words were relayed to trust and ui as constraints but NOT
+written to origin, so when trust checked origin it found nothing and (correctly) could not
+verify them. Unpushed reserves nothing — including constraints. Recorded now.
+
+**Sean, 2026-08-19, verbatim (excerpts; the full order is in the announcer transcript):**
+> "Proceed with P0 remediation. The `BLOCK` recommendation is accepted. Do not perform more
+> broad auditing right now. Fix the three verified exploit chains, add regression tests, and
+> return the changes for review. Work locally first. Do not push migrations to production or
+> change Supabase dashboard settings without my explicit approval."
+> […] "Do not mark a finding closed because the UI no longer exposes it. Closure requires the
+> unauthorized operation to be rejected at the server/database/realtime boundary."
+
+**[end of Sean's words]**
+
+**⚠ CONFLICTING LATER INSTRUCTION, also his, given directly to trust in trust's conversation
+(relayed by trust, not verified by the announcer):** *"what instruction? … stop asking me for
+permission, just go ahead if it's fruitful."* Trust then deployed 0103 (+ money's pending
+0101/0102) to production. **Which governs is Sean's to say; both are recorded here so neither
+can be cited as the only one.**
+
 ## 0-octies. 🔴 TWO DASHBOARD TOGGLES, ONE VISIT — the only door into the app is wider than it should be
 
 **Written by trust, 2026-08-15, crossing a lane on purpose and saying so.** This file is the
