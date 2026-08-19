@@ -18,7 +18,7 @@ consequential legal question in the entire product.
 
 ---
 
-## §4 — Contract structure. The terms claim a posture the code contradicts.
+## §4 — Contract structure. The runner decides *when*; the company decides *how much*.
 
 This is the important one. The source review says nearly every other conclusion depends on it, and
 it is right.
@@ -27,7 +27,7 @@ it is right.
 러닝 자체는 러너가 수행하며, **회사는 거래 당사자가 아닙니다.*** 제3조: *러너는 회사의 근로자가
 아니며, **독립적으로** 서비스를 수행합니다.*
 
-**What the code does.** READ, and the direction is one-way:
+**What the code does.** READ. The split is clean, and it is not one-way:
 
 | Control | Where it lives | Who holds it |
 |---|---|---|
@@ -38,6 +38,8 @@ it is right.
 | Cancellation penalties | fixed ladder, `round(total_price * 0.5)` / `* 0.1` (`0066:80-82`) | company |
 | Live GPS monitoring for the whole engagement | `geo.ts` | company |
 | Which booking to take | `marketplace_open_requests`, runner accepts freely | **runner** |
+| When they are available | `runner_availability_rules/_exceptions`, self-modifiable (`0002:76`) | **runner** |
+| Whether to work other platforms | no exclusivity or non-compete exists anywhere | **runner** |
 
 **There is no runner-set price field anywhere in the schema or the client.** Searched for one
 explicitly; nothing exists.
@@ -50,8 +52,8 @@ price revision reprices every unsettled run's PAYOUT while leaving its CHARGE al
 
 So the platform can unilaterally change what a runner earns for work already underway. Under
 [2024두32973](https://www.law.go.kr/LSW/precInfoP.do?precSeq=241221) the factor that speaks to is
-*독립적으로 이윤과 손실을 추구할 기회* — and on these facts the runner has none. Their entire
-autonomy is choosing which fixed-price job to accept.
+*독립적으로 이윤과 손실을 추구할 기회* — and on the pricing facts specifically, the runner has no
+such opportunity: they cannot set, negotiate, or even lock the rate they are paid.
 
 **⚠ Corrected 2026-08-19, later the same night: the first version of this section understated the
 runner's autonomy, and the correction is material because this goes to counsel.** Three further
