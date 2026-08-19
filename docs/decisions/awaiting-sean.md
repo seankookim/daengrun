@@ -209,6 +209,22 @@ review + commit gates → deploy. Land on trunk BEFORE deploying (0098/0099 less
 not by permission — they are in `docs/security-dashboard-checklist-2026-08-19.md` for whenever
 he is back.
 
+## 0-novies. 📋 LEGAL'S PRIVACY-POLICY BAR — RELEASED, NOT APPROVED (2026-08-19)
+
+Legal set one blocker: `privacy-policy.md:81` promised location goes to the booking's owner only,
+so the policy could not publish until the channel was private. **That sentence is now true; that
+specific bar is lifted — by legal, in its own words.** Nothing else is released, and this line
+exists so nobody reads "legal cleared the privacy policy" off a queue: the draft is unreviewed with
+no 시행일; there is still no separate 위치기반서비스 이용약관 (required as its own document); the 신고
+is not made; §5 retention still says "필요한 기간," which is not a period (위치정보 caps at one year
+even with separate consent). **A released blocker is not an approval.** Open, waiting on counsel:
+the statutory consent gate ahead of `geo.ts:199` and the 이용약관 split.
+
+**One word from Sean, when he is back, converts the reassuring sentence from well-evidenced to
+settled:** the only account on the public channel for 25 days was `s4kim2025` (measured, name is
+user-settable, his confirmation reached us relayed). *"That account is mine"* in his own words, and
+counsel can be told it as fact.
+
 ## 0-octies. 🔴 TWO DASHBOARD TOGGLES, ONE VISIT — the only door into the app is wider than it should be
 
 **Written by trust, 2026-08-15, crossing a lane on purpose and saying so.** This file is the
