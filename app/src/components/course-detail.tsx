@@ -17,6 +17,8 @@ import { RouteInfo } from '../store';
 import { paper } from '../theme';
 
 const SHADE_BAR: Record<string, string> = { high: '▮▮▮', mid: '▮▮▯', low: '▮▯▯' };
+/** 누적 오르막이 이 값 이상이면 '언덕 많음'. Sean 2026-08-19 판정(질문 7 = A, "~40 m"). */
+const HILL_MIN_M = 40;
 const LIGHT_TXT: Record<string, string> = { lit: '조명', partial: '부분', none: '없음' };
 
 /**
@@ -99,6 +101,16 @@ export function CourseDetailBody({ route, style }: { route: RouteInfo; style?: V
           </View>
         ))}
       </View>
+      {/* 언덕 표기 (Sean 2026-08-19, 질문 7 = A: "hill notes: yes, ~40 m").
+          ⚠ 문턱은 **절대 상승**이다 — 그게 Sean이 답한 질문이다. 다만 0098 데이터가 들어온 뒤
+          측정된 사실 하나를 함께 남긴다: 이 규칙은 카탈로그에서 가장 가파른 코스를 놓친다.
+          몽마르뜨 언덕 루프(1.6km)는 34m라 문턱 아래인데 km당 21.3m로 2위의 두 배 이상이고,
+          도곡 매봉산(63m)은 문턱을 넘지만 7.66km에 걸쳐 km당 8.2m로 완만하다. 경사로 바꾸려면
+          아래 한 줄(HILL_MIN_M → km당 임계)만 바꾸면 된다. 바꾸는 건 Sean의 판정이지 우리 것이 아니다.
+          NULL에는 절대 붙지 않는다: 재지 않은 것은 평지도 언덕도 아니다. */}
+      {route.elevationGainM != null && route.elevationGainM >= HILL_MIN_M && (
+        <Text style={s.hill}>언덕 많음</Text>
+      )}
 
       {route.desc ? (
         <>
@@ -164,6 +176,8 @@ const s = StyleSheet.create({
   metaDiv: { borderRightWidth: 1, borderRightColor: '#F0EEE9' },
   metaK: { fontSize: 14, color: paper.faint, fontWeight: '700' },
   metaV: { fontSize: 14.5, fontWeight: '800', color: paper.ink, marginTop: 3 },
+  // 앰버 = 대기/주의의 기존 시맨틱 토큰(candidate 포스처와 같은 색). 새 색을 만들지 않는다.
+  hill: { fontSize: 14, fontWeight: '800', color: paper.pending, marginTop: 8 },
 
   wrapRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
   feat: {
