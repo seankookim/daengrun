@@ -311,9 +311,17 @@ flagged-test-owner policy, and then it gets written into the PR-0 doc.
 Full JSON at `.gstack/security-reports/2026-08-19-cso.json` (local). Owners already messaged;
 recorded here so nothing lives only in chat.
 
-- **CRIT — runner live GPS is a public broadcast channel** (`geo.ts:341`, no `private`, zero
-  `realtime.messages` policies; legal measured two anon clients read AND write). → **trust + ui.**
-  Ordering: `docs/legal/privacy-policy.md:81` cannot publish until private.
+- **CRIT — runner live GPS is a public broadcast channel.** STATUS 2026-08-19 evening, honest
+  line: **server half correct and live (0103/0104), client half shipped (`f106b2b`, all run
+  channels private + setAuth, 16/16 with mutation check) — but the channel is STILL publicly
+  joinable by any client that asks for `private:false`, on any topic name; measured post-0103 by
+  legal.** New-binary owner↔runner traffic is isolated from public subscribers (measured: public
+  subscriber receives nothing). Old binaries still publish publicly (forced-upgrade leak).
+  **Closure = project setting `private_only=true`** (management API `UpdateRealtimeConfigBody`;
+  omitted from GET when unset, which is why an earlier read missed it), sequenced AFTER
+  chat/bk/club-chat get realtime policies + private client joins, or those die. → **trust
+  (policies + flip) · ui (client) · TestFlight = Sean's 2FA (physical, cannot be delegated).**
+  Ordering: `docs/legal/privacy-policy.md:81` cannot publish until the flip lands.
 - **HIGH — `bookings owner insert` forges party status** (any dog, any runner) → push text to
   any runner, fake public review, chat, dog read. Executed, rolled back. → **trust.**
 - **HIGH — `drops` UPDATE unguarded; open-drop pays from it.** Executed on a staged row. → **trust.**
