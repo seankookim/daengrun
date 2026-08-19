@@ -1,13 +1,19 @@
--- 0109 — TRUNCATE is not subject to RLS, and client roles held it on 65 of 68 public tables.
+-- 0109 — TRUNCATE is not subject to RLS, and client roles held it on 63 of 68 public tables
+--        (plus both public views).
 --
 -- ═══ §0 THE FINDING, MEASURED ON PRODUCTION (2026-08-19, `db query --linked`) ═══════════════
 --   · `pg_default_acl` for tables in `public`: TWO grantor rows, `postgres` and `supabase_admin`,
 --     both `arwdDxtm` (= ALL, and the `D` is TRUNCATE) to `anon`, `authenticated`, `service_role`.
 --   · Every table a migration creates therefore comes up with TRUNCATE granted to the client roles.
 --   · `has_table_privilege(<role>, oid, 'TRUNCATE')` over `relkind in ('r','p')` in `public`:
---       anon = 65/68 · authenticated = 65/68 · service_role = 68/68.
---     The three already sealed are the ones whose own migration said `revoke all`: 0075's
---     `km_lots`/`km_ledger` and 0095's `club_critical_titles`. 0095 §3 named this exact hazard
+--       anon = 63/68 (was 65/68 before 0106 deployed; the 130 information_schema pairs are 63
+--       tables + 2 views) · authenticated = 63/68 · service_role = 66/68.
+--     Re-measured on production 2026-08-19 after 0106 landed and sealed `drops`+`gear_claims`
+--     (that migration revoked TRUNCATE from service_role on those two as well, hence 66 not 68).
+--     The two views holding it are `available_runners` and `marketplace_open_requests` — see §2④.
+--     The five already sealed are the ones whose own migration said `revoke all`: 0075's
+--     `km_lots`/`km_ledger`, 0095's `club_critical_titles`, and 0106's `drops`/`gear_claims`.
+--     0095 §3 named this exact hazard
 --     ("TRUNCATE is not subject to row security … anon currently holds TRUNCATE") and sealed ONE
 --     table. This file finishes the sweep.
 --   · Owner: all 68 tables are owned by `postgres` — the role migrations run as. `PUBLIC` holds no
@@ -24,36 +30,56 @@
 --   this repo has ever shipped.
 --
 -- ═══ §2 THE FIX — two arms, and the arm this file cannot reach ═════════════════════════════
---   ① `revoke truncate on all tables in schema public` — the 65 tables that hold it now.
+--   ① `revoke truncate on all tables in schema public` — the 63 tables and 2 views that hold it
+--      now (`on all tables` is PostgreSQL's spelling for all relations: views included).
 --   ② `alter default privileges for role postgres … revoke truncate on tables` — so the next
 --      `create table` in a migration does not silently regain it. Without ② the sweep decays one
 --      table per migration; suite 144 T3 creates a probe table and truncates it as anon to catch
 --      exactly that (mutation-proven below).
+--      Checked the whole cluster for a global (`defaclnamespace=0`) pg_default_acl row — none
+--      exists; had one existed, this schema-scoped revoke would have been silently insufficient
+--      because PostgreSQL merges global and schema-scoped defaults.
 --   ③ The `supabase_admin` default-ACL row is the one this migration CANNOT edit: PG lets you
 --      change default privileges only for roles you are or are a member of, and `postgres` is not
 --      a member of `supabase_admin` (measured). It matters only for tables that `supabase_admin`
 --      itself creates in `public` — today that is zero of 68. The block below tries it when it can
 --      (harness: role absent; production: not a member) and says plainly when it could not, so
 --      the residual is written in the deploy log rather than assumed away.
+--   ④ relkind coverage of the POST-CONDITION: the verify block below and suite 144 T2 enumerate
+--      `relkind in ('r','p','v','m','f')`, not just `('r','p')`. Views hold TRUNCATE from the same
+--      default ACL (production: `available_runners`, `marketplace_open_requests`), and arm ①
+--      does sweep them — `revoke … on all tables` is PostgreSQL's spelling for all relations. A
+--      post-condition scoped to base tables would therefore have passed while saying nothing
+--      about a surface the fix already covers, and would have stayed silent if a later change
+--      re-granted it there.
 --   Nothing else moves. SELECT/INSERT/UPDATE/DELETE grants are a separate, riskier slice — a
 --   `revoke all` here would break every RLS-gated client read at once.
 --   Idempotent: every statement is a no-op the second time.
 --
 -- ═══ §3 MUTATION MAP (suite 144) ═══════════════════════════════════════════════════════════
---   T1/T2 ← delete arm ①                       → RED  (executed truncates succeed; enumeration ≠ 0)
---          (with the verify block still present the MIGRATION itself refuses first — measured:
---           "TRUNCATE still held by client roles on 130 table-role pairs" — so this mutation was
---           run twice, once to see the gate and once with the gate removed to see the pins)
+--   T1/T2 ← delete arm ①                       → RED  (executed truncates not refused; enumeration ≠ 0)
+--          (with the verify block still present the MIGRATION itself refuses first — re-measured
+--           2026-08-19 after the F3 relkind widening: "TRUNCATE still held by client roles on 130
+--           relation-role pairs", and the list now names `available_runners:anon` and
+--           `marketplace_open_requests:anon` among them — the two views the old ('r','p') filter
+--           could not see. So this mutation is run twice, once to see the gate and once with the
+--           gate removed to see the pins.)
 --   T3    ← delete arm ②                       → RED  (probe table born with TRUNCATE for anon)
 --          (T2 reddens with it: the harness's own `_t` results table is created after migrations
---           and is the first "future table" — measured `1 of 69`)
+--           and is the first "future table" — measured `1 of 69` on the pre-merge tree, i.e. before
+--           T2's relkind widened; the shape, not the literal, is the pin)
 --   T4    is the positive control (postgres and service_role can still truncate) — no mutation
 --         in this file reddens it; a future `revoke truncate … from service_role` would.
---   Observed 2026-08-19: baseline 592/0 → green 596/0 · M1 = migration refused · M1b = 594/2
---   [T1,T2] · M2 = 594/2 [T3,T2] · 0109 absent = 593/3 · restore = 596/0. Full detail in suite 144.
---   ⚠ Read T1's M1b detail: `anon→drops=SUCCEEDED`. In the pre-0109 world an anon TRUNCATE of
---     `drops` actually empties it in the harness; `bookings`/`routes` fail on 0A000 (FK-referenced),
---     which is not protection — `cascade` walks the FKs, and anon held TRUNCATE on those too.
+--   Observed 2026-08-19 on the post-merge tree (origin/redesign-v4 merged in, so 0106 is applied
+--   and the suite count is higher): green 641/0 · M1 (arm ① deleted, verify kept) = migration
+--   refuses on 130 relation-role pairs · M1b (arm ① + verify deleted) = 639/2, red = [T1, T2],
+--   T2 = `65 of 71` · restore = 641/0. M2 and "0109 absent" were measured on the PRE-merge tree
+--   (594/2 [T3,T2] and 593/3) and are not re-run here. Full detail in suite 144.
+--   ⚠ T1's M1b detail changed with 0106: `anon→bookings=0A000 · anon→routes=0A000` (same for
+--     authenticated), and `drops` now returns 42501 on its own because 0106 revoked client writes
+--     there. 0A000 is "cannot truncate a table referenced by a FK", NOT a privilege refusal —
+--     `cascade` walks the FKs and anon held TRUNCATE on the referencing tables too, which is
+--     exactly why T1 only counts 42501.
 --   ⚠ Harness shim mirrors production for this: `00_shim.sql` grants `all` (not just DML) on new
 --     tables to anon/authenticated, as `pg_default_acl` on production does. Before this slice the
 --     shim granted only `select, insert, update, delete`, so TRUNCATE was never held locally and
@@ -81,8 +107,9 @@ begin
   end if;
 end $$;
 
--- verify, do not assume: any table where a client role still holds TRUNCATE (owner mismatch,
+-- verify, do not assume: any relation where a client role still holds TRUNCATE (owner mismatch,
 -- or a grant via membership) fails the migration loudly instead of half-applying.
+-- relkind covers views/matviews/foreign tables too — see §2④.
 do $$
 declare v_left text; v_n int;
 begin
@@ -91,11 +118,11 @@ begin
     from pg_class c
     join pg_namespace n on n.oid = c.relnamespace,
          unnest(array['anon','authenticated']) r
-   where n.nspname = 'public' and c.relkind in ('r','p')
+   where n.nspname = 'public' and c.relkind in ('r','p','v','m','f')
      and has_table_privilege(r, c.oid, 'TRUNCATE');
   if v_n > 0 then
-    raise exception '0109: TRUNCATE still held by client roles on % table-role pairs: %', v_n, v_left
-      using hint = 'a table not owned by the migration role — revoke as its owner, then re-run';
+    raise exception '0109: TRUNCATE still held by client roles on % relation-role pairs: %', v_n, v_left
+      using hint = 'a relation not owned by the migration role — revoke as its owner, then re-run';
   end if;
-  raise notice '0109: TRUNCATE held by anon/authenticated on 0 public tables';
+  raise notice '0109: TRUNCATE held by anon/authenticated on 0 public relations (tables + views)';
 end $$;
