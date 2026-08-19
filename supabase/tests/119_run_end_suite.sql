@@ -268,7 +268,16 @@ begin
     end;
     reset role;
 
-    -- ⓑ …and cannot be smuggled in through an INSERT (plan §7 — owners may insert drafts)
+    -- ⓑ …and cannot be smuggled in through an INSERT.
+    -- ⚠ UPDATED 2026-08-19 by `0111_booking_entry_rebuild.sql`. This arm's PARENTHETICAL was
+    --   "(plan §7 — owners may insert drafts)" and that is no longer true: 0111 revokes client
+    --   INSERT on `bookings` outright and drops `bookings owner insert`, because a client-forged
+    --   draft could name another user's dog and an arbitrary victim as `runner_id` (measured
+    --   ACCEPTED against production). So this refusal is now a **42501 grant refusal**, not the
+    --   **P0001** raise of `_guard_booking_insert_cols` — whose client branch is unreachable by
+    --   construction from here on. The BEHAVIOURAL assertion is unchanged and still worth its
+    --   line: a client cannot land a draft carrying a return stamp. The new property (why) is
+    --   owned by suite 146 D-4·D-5·D-6 (executed refusals) and D-20 (the grant catalog).
     perform set_config('request.jwt.claim.sub', oo::text, false);
     begin
       set local role authenticated;
@@ -280,16 +289,24 @@ begin
     exception when others then reset role;
     end;
     reset role;
-    -- positive control: the same insert WITHOUT the stamp is legal, so ⓑ is not passing because
-    -- owners cannot insert at all.
+    -- positive control: the same insert WITHOUT the stamp is still legal — so ⓑ is not passing
+    -- because booking creation is dead.
+    -- ⚠ UPDATED 2026-08-19 by 0111: this ran as `authenticated` and asserted that an OWNER could
+    --   insert a clean draft. After 0111 no client can insert a booking at all, so that claim is
+    --   false and the control has to move to the role that legitimately writes this row —
+    --   `service_role`, which is what `create-booking-hold` uses. The control's PURPOSE is
+    --   unchanged and still load-bearing: ⓑ must not be green merely because the write path
+    --   itself is broken. Suite 146 D-11 owns the same property for the full hold path
+    --   (bookings + slot_holds), and D-20 pins that `service_role` keeps INSERT on all three
+    --   tables — the failure mode that turns a revoke into an outage.
     begin
-      set local role authenticated;
+      set local role service_role;
       insert into bookings (owner_id, dog_id, status, scheduled_at, km, base_fare, distance_fare,
                             addon_fare, total_price, min_fare)
       values (oo, dg, 'draft', now() + interval '1 day', 5.0, 9900, 15000, 0, 24900, 9900);
       reset role;
     exception when others then reset role;
-      v_bad := v_bad || ' 정상 초안 insert도 거부됨 (ⓑ가 우연히 통과)';
+      v_bad := v_bad || ' 서버(service_role) 초안 insert도 거부됨 (ⓑ가 우연히 통과 — 예약 생성이 죽었다)';
     end;
     reset role;
 

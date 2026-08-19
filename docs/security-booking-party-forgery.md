@@ -92,3 +92,59 @@ of asking what makes a booking row exist.** A blacklist on `INSERT … bookings`
 definer cron copying a different client-writable table, and cannot see an edge function that is
 supposed to be trusted. The specified fix — revoke the write, own the entry point — was right, and
 I talked myself out of it with a cost that a single grep would have shown was zero.
+
+---
+
+## §E.9 — what `0111_booking_entry_rebuild.sql` closes, and what it does NOT (2026-08-19)
+
+`0105` is **SUPERSEDED and deleted** (file, suite 140, and its `HELD` line, all in one commit).
+The rebuild is `supabase/migrations/0111_booking_entry_rebuild.sql` + `supabase/tests/146_booking_entry_suite.sql`
++ the `create-booking-hold` change; contract: `docs/contracts/booking-entry-rebuild-contract.md`.
+
+- **F1 CLOSED** — the `recurring_series` money-mint. Client INSERT/UPDATE/DELETE revoked,
+  `grant update (paused)` is the load-bearing half, `series owner all` split into read + pause
+  with an explicit `with_check`, and `generate_recurring_bookings` re-asks ownership at copy time
+  (`raise warning` + `continue`, never `raise`). Owned by pins **D-1, D-2, D-9c, D-21**, with
+  **D-12** as the positive control that legitimate series still generate. The slot_holds sibling
+  named in F1's closing paragraph is closed in the same file and owned by **D-7**.
+- **F3 CLOSED** — the false "client blast radius" premise. `grep "from('bookings')" app/src app/app`
+  → 31 hits, every one a `.select(...)`; zero client writes. Owned by that measurement and by
+  **D-11 / D-14 / D-19** staying green.
+- **F4 CLOSED** — the unconstrained `series_id` on INSERT. Owned by **D-5**. A grant revoke covers
+  it, and every column added in future, which a column blacklist could not.
+- **F2 — NOT CLOSED. Do not mark it closed, and do not let the REGISTRY row imply it.**
+  `create-booking-hold` no longer takes `runner_id` from the body (400 `runner_id_not_accepted_here`,
+  `runner_id: null` into both the booking and the hold row; pinned by **D-18/D-19** in
+  `supabase/functions/_test/booking_runner_body_test.ts`) — that is the half F2 names literally.
+  But F2's actual argument, that `is_booking_party` having no status filter is "the real gate",
+  **survives this slice fully intact.** The residual chain is **B-11**, executed against this
+  slice's own target state: `create-booking-hold` with the attacker's **own** dog (every ownership
+  check passes) → `transition-booking payment_ok` (a bare owner-gated CAS that verifies **nothing**
+  about payment — no PG receipt, no ledger row, no amount, **zero money moved**) → `transition-booking
+  request_runner` with `meta.runner_id = <any real runner>` ⇒ `bookings.runner_id = victim` at
+  `runner_pending`, **no acceptance**. From there: chat thread, attacker-authored messages →
+  `notifications` → **push on the victim's phone**, reviews naming them, `incidents` rows, and the
+  0108 realtime rooms. Every step is a sanctioned path behaving as designed, which is exactly why
+  nothing in 0111 intersects it. Suite 146 **D-15** pins that CAS green — that pin passing IS the
+  statement of the residual.
+  **Owner: the adjacent slice — `is_booking_party`'s status filter / narrowing party membership to
+  accepted+active** (9+ policies across `runs`, `reviews`, `chat_threads`, `chat_messages`,
+  `incidents`, 0108). Its SHAPE is Sean's D1/D2 call: whether pre-acceptance contact is a feature
+  (keep membership wide, gate the abuse elsewhere — rate-limit nominations, require accept before
+  **push**, suppress notifications until acceptance) or a leak (narrow membership). **That answer
+  decides how it closes, not whether it is open. It is open either way.**
+- **CSO finding #2 → PARTIALLY CLOSED, not CLOSED.** The forgery entry points are gone: after 0111
+  an attacker can no longer name a victim's **dog**, invent **fares**, or mint a row they do not
+  own. The party-inheritance consequence the finding describes is still reachable by **any owner**,
+  with only the entry point moved (from a forged `INSERT` to the owner-gated
+  `create-booking-hold` → `payment_ok` → `request_runner` walk). Anyone writing a status table must
+  carry that sentence, not "finding #2 closed".
+- **F5, F6, F8** (defects in suite 140) evaporate with the suite. **F7** — the "the UPDATE door is
+  already shut" claim, the one load-bearing statement in 0105's header that was TRUE and unpinned —
+  is now pinned by **D-9**, with each arm writing a value the row does not already hold
+  (`_guard_booking_cols` raises only `if new is distinct from old`, so a no-op UPDATE passes **by
+  design** and a pin reusing the current value would be a false green).
+- **Still open, unchanged by this slice:** CSO #13 (`request_runner` lacks a `club_session_id`
+  check) · the latent `reviews.target_kind`/`target_id` issue above · the `payment_ok` arm and the
+  whole pay-after-run reroute (`transition-booking/index.ts:29-51`, mirrored in
+  `confirm-payment/handler.ts:192-198`) · CSO #12 beyond these three tables.

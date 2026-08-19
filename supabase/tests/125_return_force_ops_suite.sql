@@ -420,7 +420,14 @@ begin
     if (select b.owner_confirmed_handoff_at from bookings b where b.id = b_1) is not null
        or (select b.runner_confirmed_handoff_at from bookings b where b.id = b_1) is not null
       then v_bad := v_bad || ' 클라 쓰기가 실제로 들어갔다'; end if;
-    -- …nor smuggle one in on a draft insert (0083 §2's blacklist covers both handoff stamps)
+    -- …nor smuggle one in on a draft insert.
+    -- ⚠ UPDATED 2026-08-19 by `0111_booking_entry_rebuild.sql`. The parenthetical was "(0083 §2's
+    --   blacklist covers both handoff stamps)". It still does, but the blacklist is no longer what
+    --   refuses HERE: 0111 revokes client INSERT on `bookings` outright, so this arm now sees a
+    --   **42501** grant refusal instead of the blacklist's **P0001**, and
+    --   `_guard_booking_insert_cols`'s client branch is unreachable by construction. The
+    --   behavioural assertion — a client cannot land a draft carrying a handoff stamp — is
+    --   unchanged. The new property is owned by suite 146 D-4·D-5·D-6 and D-20.
     perform set_config('request.jwt.claim.sub', oo::text, false);
     begin
       set local role authenticated;
@@ -432,15 +439,20 @@ begin
     exception when others then reset role;
     end;
     reset role;
-    -- positive control: the SAME draft without the stamp is legal (else ⓑ proves nothing)
+    -- positive control: the SAME draft without the stamp is still written (else ⓑ proves nothing)
+    -- ⚠ UPDATED 2026-08-19 by 0111 — same reason as 119's twin control. It ran as `authenticated`
+    --   and asserted an owner could insert a clean draft; after 0111 no client can insert a
+    --   booking at all, so the control moves to `service_role`, the role that legitimately writes
+    --   this row (`create-booking-hold`). Purpose unchanged: ⓑ must not be green merely because
+    --   booking creation is dead. Suite 146 D-11 / D-20 own that property directly.
     begin
-      set local role authenticated;
+      set local role service_role;
       insert into bookings (owner_id, dog_id, status, scheduled_at, km, base_fare, distance_fare,
                             addon_fare, total_price, min_fare)
       values (oo, dg, 'draft', now() + interval '1 day', 5.0, 9900, 15000, 0, 24900, 9900);
       reset role;
     exception when others then reset role;
-      v_bad := v_bad || ' 정상 초안 insert도 거부됨 (인계 스탬프 핀이 우연히 통과)';
+      v_bad := v_bad || ' 서버(service_role) 초안 insert도 거부됨 (인계 스탬프 핀이 우연히 통과 — 예약 생성이 죽었다)';
     end;
     reset role;
     perform set_config('request.jwt.claim.sub', '', false);
