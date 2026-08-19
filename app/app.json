@@ -16,7 +16,8 @@
         ],
         "NSLocationWhenInUseUsageDescription": "러닝 거리 측정과 보호자 실시간 지도를 위해 위치를 사용해요.",
         "NSCameraUsageDescription": "러닝 중 반려견의 순간을 촬영해 보호자에게 보내기 위해 카메라를 사용해요.",
-        "NSSupportsLiveActivities": true
+        "NSSupportsLiveActivities": true,
+        "ITSAppUsesNonExemptEncryption": false
       },
       "bundleIdentifier": "com.seankookim.daengrun"
     },
