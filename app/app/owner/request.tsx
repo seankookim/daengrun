@@ -298,6 +298,17 @@ export default function Request() {
     }
   };
 
+  // 홈 ⑧ '지금 찾기': 플래그가 켜져 들어왔으면 가장 빠른 슬롯을 스스로 고르고 플래그를 끈다.
+  // 슬롯 데이터가 아직 없을 때 pickEarliest 는 아무것도 못 고르므로, 슬롯이 실릴 때까지 기다린다
+  // (의존성에 slotsReady 계열이 없으면 첫 렌더에서 헛돌고 끝난다 — 그러면 버튼은 죽은 버튼이다).
+  useEffect(() => {
+    if (!draft.autoEarliest) return;
+    // 한 번만: 다음 방문까지 따라붙지 않게 먼저 끈다
+    draft.autoEarliest = false;
+    pickEarliest();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 마운트 1회 + 플래그 소비. pickEarliest 는 렌더마다 새 함수라 넣으면 매 렌더 재실행된다.
+  }, []);
+
   // Honest, reversible progress: forward past step 0 requires a REAL chosen time
   // (a step is never "done" until its value exists); backward is always free.
   const goStep = (n: Step) => {

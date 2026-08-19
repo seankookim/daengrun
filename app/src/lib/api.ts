@@ -2523,7 +2523,10 @@ export async function openChatForBooking(bookingId: string): Promise<ChatContext
   return {
     threadId,
     peerName,
-    label: `${dateLabel} ${timeLabel} · ${b.dogs?.name ?? '반려견'} · ${b.routes?.name ?? '코스 미지정'} ${b.km}km`,
+    // ⚠ 코스 이름 뒤에 km 을 붙이지 않는다. routes.name 은 이미 자기 km 토큰을 갖고 있고 (0100 이
+    // 참을 보증), 그 뒤에 booking.km 을 또 붙이면 "잠수교 강바람 3km 5km" 가 된다 — 실측 렌더.
+    // 코스가 없을 때만 예약 km 이 유일한 길이 정보라 그때만 붙인다.
+    label: `${dateLabel} ${timeLabel} · ${b.dogs?.name ?? '반려견'} · ${b.routes?.name ?? `코스 미지정 · ${b.km}km`}`,
   };
 }
 
