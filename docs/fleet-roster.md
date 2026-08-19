@@ -120,3 +120,30 @@ change · lead time from claim to merged-and-verified · deploys outside the pip
 trust reviews that blocked something, and what · ⑫ alerts fired vs acknowledged within SLA ·
 handoff cleanliness measured by **ancestry against trunk, not `@{u}`** — the naive sweep produced
 two false "stranded work" alarms on day one.
+
+## 7. Method — paid for during the 08-14/15 sprint, one line each
+
+- **The branch is the durable identifier; the tree is a hint.** Worktrees recycle mid-session;
+  three role misidentifications in one day came from reading the directory name.
+- **First command after ANY worktree change:** `git rev-list --left-right --count
+  origin/redesign-v4...HEAD` — fresh trees arrive silently stale (measured: 259 behind).
+- **Date every constraint, and every derived dataset.** "As of 16:xx, not authorised" degrades
+  into staleness; an undated standing fact degrades into a lie. A derived payload staled inside
+  one session (3.71→3.31 re-cut) and a name-keyed match reported success on zero rows.
+- **When routing a finding, "update either way" has a third branch: the report is wrong.**
+  Open the artifact before endorsing an inference about it.
+- **Stranded-work checks use ancestry/patch-id against trunk, never `@{u}`** — and compare
+  against enough history (a 40-commit window produced false positives).
+- **`stash pop` in a shared tree can graft one session's work into another's diff.** `git status`
+  says which files changed; only the diff says whose work it is. Read it before staging.
+- **When a visual encoding retires, the copy that taught it is a claim, not documentation** —
+  it goes stale the same day, on exactly the screens where guidance matters.
+- **Do not record a tooling limit as a fact about the world.** Six instances in two days, every
+  artifact well-formed: wrong door, wrong comparison, wrong renderer, wrong shape, wrong window,
+  wrong table. Before writing "absent/broken/impossible", ask whether you asked the right way.
+- **A probe is `begin … rollback` every time** — `do $$ … $$` auto-commits (one production
+  timestamp bump proves it).
+- **A green suite hides a defect only when a pin and a false environment assumption are wrong
+  together** — pin the assumption too (harness routes table was asserted empty; 0078 seeds nine).
+- **Trust review is standing:** any slice touching RLS, policies, grants, or `search_path` goes
+  to trust at PLAN time, not push time. And a reviewer never reviews their own build.
