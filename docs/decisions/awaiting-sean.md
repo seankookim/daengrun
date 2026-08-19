@@ -195,6 +195,61 @@ in the background for weeks) or commit to manual and delete the charge machine.*
 Consequence either way: the no-card empty state **is** the pilot, and the current payment surface
 implies automation that does not exist — an honesty-law item, now client's to fix once you pick.
 
+## 0-octies. 🔴 TWO DASHBOARD TOGGLES, ONE VISIT — the only door into the app is wider than it should be
+
+**Written by trust, 2026-08-15, crossing a lane on purpose and saying so.** This file is the
+announcer's. That session **ended while holding both of these items**, having told me they were
+"in front of Sean now" — they never reached the file. That is verbatim the failure this queue's
+own header exists to prevent: *an in-conversation queue evaporates, and it evaporates silently,
+because nobody knows to look for a list they never saw.* So I am writing them in rather than
+being the second session to hold them in a conversation. Both are measured; neither needs a
+model's judgement; both are the same screen in the Supabase dashboard.
+
+**Both are ALSO pinned now**, so they cannot rot: `supabase/auth-surface.expected.json` records
+the current state and `node scripts/check-auth-surface.mjs` (from `app/`) reddens on any change.
+**When you flip either one the check goes RED, and that is how we find out — not by being told.**
+
+### ① Email signup is still open on the server (your `"b"` ruling is half-applied)
+
+`Auth → Providers → Email → disable`.
+
+You ruled Kakao-only for the pilot. ui removed the email door from the app and verified it. **The
+server never changed**, because nothing in this repo configures it — measured live:
+`external_email_enabled: true`, `disable_signup: false`. Anyone can create an account with one
+request using the public key that ships inside every build. **A door removed from the client is
+not a door shut.**
+
+**Risk of flipping it: none, measured.** 9 accounts use email — **8 are the marked test fixtures**
+and the 9th has no profile row, no dogs, no bookings, and has never signed in. **Your own account
+is Kakao** (`aa73ce8a…`, verified). Zero real users affected.
+
+⚠ **Do NOT let anyone "fix" this with `supabase config push`** — our `config.toml` declares no
+auth at all, so it would push CLI defaults for every setting it omits **and switch off Kakao.**
+
+### ② The OAuth redirect allowlist accepts any Expo host
+
+`Auth → URL Configuration → Redirect URLs`. Live right now:
+
+```
+daengrun://login          ← keep
+daengrun://**             ← wildcard on our own scheme
+exp://**                  ← 🔴 ANY Expo host
+exp://10.16.75.70:8081/--/login     ← a dev machine's LAN IP
+exp://172.30.1.44:8081/--/login     ← another
+```
+
+In an OAuth flow **the redirect URI is where the session lands**. `exp://**` means Kakao can be
+told to deliver a completed login to any `exp://` target: a crafted link, a real Kakao sign-in by
+the victim, and the session arrives at someone else's host. A textbook open redirect — **on what
+becomes the only door into the product once ① is done.**
+
+**Calibration, deliberately not inflated:** it needs a crafted link, Expo Go installed, and the
+pilot user set is tiny. **A launch item, not an incident.** But `exp://` entries have no business
+in a production auth config, it is free to fix now, and it is expensive to find later.
+
+**Fix:** delete `exp://**` and both LAN-IP entries, keep `daengrun://login`. Dev machines get
+re-added while developing and removed again — that is what makes them dev entries.
+
 ## 0-septies. 📋 RECORD — PR-0's test-owner exclusion exists in practice and is written nowhere
 
 Owner `aa73ce8a-0ee0-473f-af1c-ffa8030a09a9` holds **all 24 existing bookings** and PR-0 reads
