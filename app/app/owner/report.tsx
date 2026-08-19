@@ -55,6 +55,58 @@ const fmtDur = (sec: number) => `${Math.floor(sec / 60)}:${String(sec % 60).padS
 const fmtPace = (sec: number | null) => (sec ? `${Math.floor(sec / 60)}'${String(sec % 60).padStart(2, '0')}"` : '—');
 const targetPaceSec = (label: string) => (label.includes('8') ? 480 : label.includes('6') ? 360 : 420);
 
+// ═══════ "다음 주 같은 시간 예약" — resolve it, or do not say it (RULING #11) ═══════
+// The coral panel is allowed to NAME a time only if that exact time is something owner/request.tsx
+// can actually receive and display. Three checks, each one a mirror of a rule that lives in
+// request.tsx, because request.tsx is the screen this panel hands off to:
+//
+//  ① target = scheduled_at + 7d, and target ≥ now + 2h.
+//     request.tsx's mount effect NULLS any draft ISO inside the 2-hour notice floor and silently
+//     calls pickEarliest() — so an unchecked prefill becomes "the earliest slot" under a button
+//     that said 다음 주 같은 시간. slotAllowed() enforces the same floor on every chip.
+//  ② target's calendar day is inside request's date strip (today .. today+7).
+//     request.tsx's focus-sync does DATES.findIndex(...); a miss leaves dateIdx at 0, so the strip
+//     highlights today while the label names next week — a screen lying about what it will book.
+//     Its DATE_STRIP_DAYS is 8 precisely so run+7d is reachable; we re-check rather than assume.
+//  ③ HH:MM is one of request's nine slots. The booking was made from one, but a run that was
+//     rescheduled off-slot has no chip to land on.
+//
+// Any check failing → the panel falls back to today's timeless "이대로 다시 예약" copy.
+// Everything here is device-local time, exactly as request.tsx computes it (toDate/buildDates use
+// the local Date constructor), so the HH:MM we test is the HH:MM the slot sheet prints.
+//
+// The two constants are a deliberate LOCAL COPY, not an import: request.tsx keeps both module-
+// private and this screen only needs to ASK whether a time is offerable. If they ever drift, this
+// check gets stricter or looser — never wrong — because a miss shows the no-time copy.
+const REQUEST_SLOTS = ['06:30', '07:30', '09:00', '13:00', '15:30', '17:00', '18:30', '19:30', '21:00'];
+const REQUEST_STRIP_DAYS = 8; // owner/request.tsx DATE_STRIP_DAYS — today .. today+7
+const NOTICE_MS = 2 * 3600_000;
+const WD = '일월화수목금토';
+
+function resolveNextWeek(iso: string | null): { iso: string; timeLabel: string; whenLabel: string } | null {
+  if (!iso) return null;
+  const src = new Date(iso);
+  if (Number.isNaN(src.getTime())) return null;
+  // +7d as 168h, the same arithmetic buildDates() uses to lay out the strip (KST has no DST)
+  const target = new Date(src.getTime() + 7 * 86400_000);
+  if (target.getTime() < Date.now() + NOTICE_MS) return null;                       // ①
+  const hhmm = `${String(target.getHours()).padStart(2, '0')}:${String(target.getMinutes()).padStart(2, '0')}`;
+  if (!REQUEST_SLOTS.includes(hhmm)) return null;                                   // ③
+  let idx = -1;                                                                     // ②
+  for (let i = 0; i < REQUEST_STRIP_DAYS; i++) {
+    if (new Date(Date.now() + i * 86400_000).toDateString() === target.toDateString()) { idx = i; break; }
+  }
+  if (idx < 0) return null;
+  // request.tsx pickSlot()'s label format, verbatim: '오늘 19:30' · '내일 19:30' · '8월 26일 19:30'.
+  // Matching it is what makes the focus-sync land on the right row instead of showing a stale label.
+  const dayLabel = idx === 0 ? '오늘' : idx === 1 ? '내일' : `${target.getMonth() + 1}월 ${target.getDate()}일`;
+  return {
+    iso: target.toISOString(),
+    timeLabel: `${dayLabel} ${hhmm}`,
+    whenLabel: `${WD[target.getDay()]} ${hhmm}`, // panel subcopy — the lab's '수 19:30'
+  };
+}
+
 // 개인 기록 배지 — 내 역사와의 경쟁 (동네 리더보드는 서버 집계 후)
 function badges(st: RunStandings | null): string[] {
   if (!st) return [];
@@ -69,7 +121,12 @@ function badges(st: RunStandings | null): string[] {
 }
 
 export default function Report() {
-  const df = useDisplayFont(); // 피니셔 증서 서체 — 타이틀·완주 도장 (숫자 금지)
+  // 디스플레이 서체 — 화면에 **한 번**. [2026-08-19] 그 한 번은 이제 헤더 크롬이 아니라 러닝
+  // 타이틀이다 (헤더는 request/review와 같은 평 900 잉크로 내렸다). 종전 주석의 '숫자 금지'는
+  // 여기서 완화된다: 랩 14a의 타이틀이 '초코, 5.1km 완주'로 숫자를 문장 안에 품고 있고, Sean이
+  // 그 안을 골랐다. 애슬레틱 숫자(Oswald)는 바로 아래 숫자 셋이 전부 가져간다 — 두 서체가
+  // 같은 값을 두 번 그리지 않는다.
+  const df = useDisplayFont();
   const nf = useNumFont();     // Oswald 숫자 — 적립 합계 (lineHeight 명시 필수, BUG A)
   const { bid, shot } = useLocalSearchParams<{ bid: string; shot?: string }>();
   const [report, setReport] = useState<RunReport | null>(null);
@@ -124,6 +181,43 @@ export default function Report() {
     ? Math.min(100, Math.round((targetPaceSec(report.paceLabel) / run.paceSecPerKm) * 100))
     : null;
   const bList = badges(standings);
+  // Recomputed every render on purpose — the 2-hour floor and the date strip are both relative to
+  // NOW, and a report left open past a boundary must stop promising a slot it can no longer fill.
+  const nextWeek = report ? resolveNextWeek(report.scheduledAtIso) : null;
+
+  // 재예약 — same prefill as before, plus the resolved time when (and only when) we have one.
+  const rebook = () => {
+    if (!report) return;
+    draft.km = report.plannedKm;
+    draft.pace = report.paceLabel;
+    if (report.routeId) draft.routeId = report.routeId;
+    draft.preferredRunnerId = report.runnerProfileId;
+    draft.preferredRunnerName = report.runnerName;
+    if (nextWeek) {
+      draft.scheduledAtIso = nextWeek.iso;
+      draft.timeLabel = nextWeek.timeLabel;
+      // request.tsx's mount effect calls pickEarliest() when this flag is set, which would replace
+      // the slot this panel just named. The panel promised a time; clear the flag that overrides it.
+      draft.autoEarliest = false;
+    } else {
+      draft.scheduledAtIso = null;
+      draft.timeLabel = '시간을 선택해주세요';
+    }
+    router.push('/owner/request');
+  };
+
+  // 별점 — the stars are the affordance, the review screen is where it is written. `n` is
+  // pre-selected there; 0 means "opened without picking one" and review.tsx still refuses submit.
+  const openReview = (n: number) => {
+    if (!report?.runnerProfileId || !bid) return;
+    router.push({
+      pathname: '/owner/review',
+      params: {
+        bid, rid: report.runnerProfileId, rname: report.runnerName ?? '러너',
+        ...(n > 0 ? { stars: String(n) } : {}),
+      },
+    });
+  };
 
   const share = async () => {
     if (!report || !run) return;
@@ -145,7 +239,9 @@ export default function Report() {
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 40 }}>
         <Row style={{ justifyContent: 'space-between', paddingHorizontal: 12, paddingTop: 56 }}>
           <Pressable onPress={() => router.back()} style={s.backBtn}><Text style={{ fontSize: 20.5 }}>‹</Text></Pressable>
-          <Text style={[{ fontSize: 23, fontWeight: '900', color: paper.ink }, df]}>러닝 리포트</Text>
+          {/* Chrome title, not the display moment — plain 900 ink, the grammar request.tsx and
+              review.tsx already use. The screen's ONE Black Han Sans is the run title below. */}
+          <Text style={{ fontSize: 23, fontWeight: '900', color: paper.ink }}>러닝 리포트</Text>
           {run ? (
             <Pressable onPress={share} style={s.backBtn}><Text style={{ fontSize: 17 }}>↗</Text></Pressable>
           ) : <View style={{ width: 40 }} />}
@@ -173,62 +269,14 @@ export default function Report() {
 
         {report && run && (
           <>
-            {/* ---------- hero: 풀블리드 + 사진 구조화 (사진이 디자인이다) ---------- */}
-            <View style={[s.hero, { overflow: 'hidden' }]}>
-              {run.photos[0] && (
-                /* [0064] 러닝 사진은 프라이빗 media 경로 — 서명 URL로 렌더 */
-                <MediaImage
-                  source={run.photos[0]}
-                  style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, opacity: 0.28 }}
-                  resizeMode="cover"
-                />
-              )}
-              {/* [시뮬 실측 2026-08-11] 두 자식 모두 폭 예산이 없어, 종료 사유 칩이 코스명 위로
-                  올라타 '서울숲 숲길 3km'가 잘렸다. 메타 줄은 남는 폭만 갖고 한 줄로 접고(넘치면
-                  ellipsize), 칩은 자기 크기를 지킨다 — 칩이 말하는 건 사유이고, 사유는 잘리면 안 된다. */}
-              <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-                <Text style={{ fontSize: 14, color: '#b8c4ae', flex: 1, minWidth: 0 }} numberOfLines={1}>
-                  {report.when} · {report.routeName}
-                </Text>
-                {reason && run.endReason !== 'completed' && (
-                  <View style={[s.heroReason, { backgroundColor: reason.bg, flexShrink: 0 }]}>
-                    <Text style={{ fontSize: 14, fontWeight: '900', color: reason.color }}>{reason.label}</Text>
-                  </View>
-                )}
-              </Row>
-              <Text style={[{ fontSize: 27.5, fontWeight: '900', color: '#fff', marginTop: 6 }, df]}>
-                {report.dogName}의 러닝
-              </Text>
-              {/* 완주 도장 — 피니셔 증서 (점검 도장과 같은 스탬프 언어) */}
-              {run.endReason === 'completed' && (
-                <View style={s.finStamp}>
-                  <Text style={[{ fontSize: 15, fontWeight: '900', color: colors.volt, letterSpacing: 1 }, df]}>완주</Text>
-                  <Text style={{ fontSize: 8.5, fontWeight: '900', color: colors.volt, letterSpacing: 2.5, marginTop: 1 }}>FINISHER</Text>
-                </View>
-              )}
-              <Text style={{ fontSize: 50.5, fontWeight: '900', color: colors.tang, marginTop: 8 }}>
-                {run.actualKm}<Text style={{ fontSize: 20.5, color: '#b8c4ae' }}> km</Text>
-              </Text>
-              {/* 개인 기록 배지 */}
-              {bList.length > 0 && (
-                <Row style={{ gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
-                  {bList.map((b) => (
-                    <View key={b} style={s.badgePill}>
-                      <Text style={{ fontSize: 14, fontWeight: '900', color: paper.ink }}>{b}</Text>
-                    </View>
-                  ))}
-                </Row>
-              )}
-              <Row style={{ marginTop: 14, backgroundColor: paper.inkPressed, borderRadius: 14, paddingVertical: 12, justifyContent: 'space-around' }}>
-                <HeroStat value={fmtDur(run.durationSec)} label="러닝 시간" />
-                <View style={s.heroDiv} />
-                <HeroStat value={fmtPace(run.paceSecPerKm)} label="평균 페이스 /km" />
-                <View style={s.heroDiv} />
-                <HeroStat value={`${report.plannedKm}km`} label="계획 거리" />
-              </Row>
-            </View>
-
-            {/* ---------- 러닝 경로 (실트레이스) ---------- */}
+            {/* ══════ ① 러닝 경로 (실트레이스) — §E frame 7 opens on the map ══════
+                [2026-08-19 · RULING #11·12·13, lab 14a/14b] The dark full-bleed hero that used to
+                sit above this is RETIRED. It carried the same run twice: 50.5pt actualKm here and
+                the 목표 달성 bar below, plus a 완주 FINISHER stamp saying what the title now says in
+                words. 14a puts the map first and the run's three numbers under a display title;
+                keeping both meant two heroes and two printings of one fact. Nothing real was
+                dropped — the photo backdrop is the photo grid, 계획 거리 is the 목표 달성 row, and
+                the PR badges moved down into the paper-world chip grammar. */}
             {run.trace.length > 1 && (() => {
               const maps = getNaverMap(); // 네이버 지도 (2026-07-29)
               if (maps) {
@@ -274,6 +322,169 @@ export default function Report() {
               );
             })()}
 
+            {/* ══════ ② 타이틀 + ③ 숫자 셋 (14a) ══════ */}
+            <View style={s.head}>
+              {/* [시뮬 실측 2026-08-11] 두 자식 모두 폭 예산이 없어, 종료 사유 칩이 코스명 위로
+                  올라타 '서울숲 숲길 3km'가 잘렸다. 메타 줄은 남는 폭만 갖고 한 줄로 접고(넘치면
+                  ellipsize), 칩은 자기 크기를 지킨다 — 칩이 말하는 건 사유이고, 사유는 잘리면 안 된다. */}
+              <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                <Text style={{ fontSize: 14, color: paper.dim, flex: 1, minWidth: 0 }} numberOfLines={1}>
+                  {report.when} · {report.routeName}
+                </Text>
+                {reason && run.endReason !== 'completed' && (
+                  <View style={[s.reasonChip, { backgroundColor: reason.bg, flexShrink: 0 }]}>
+                    <Text style={{ fontSize: 14, fontWeight: '900', color: reason.color }}>{reason.label}</Text>
+                  </View>
+                )}
+              </Row>
+              {/* The screen's ONE Black Han Sans. '완주' is a claim, so it is spoken only when the
+                  server says the run ended completed — an early-ended run gets the same title
+                  without it, and the chip above plus 왜 멈췄는지 below carry the reason. */}
+              <Text style={[s.headTitle, df]}>
+                {report.dogName}, {run.actualKm}km{run.endReason === 'completed' ? ' 완주' : ''}
+              </Text>
+              {/* 숫자 셋 — Oswald. [BUG A] 어센더가 잘리므로 lineHeight 명시: 27 × 1.22 = 33 */}
+              <Row style={{ gap: 22, marginTop: 12, alignItems: 'flex-start' }}>
+                <ReportStat nf={nf} value={String(run.actualKm)} unit="km" label="거리" />
+                <ReportStat nf={nf} value={fmtDur(run.durationSec)} label="러닝 시간" />
+                <ReportStat nf={nf} value={fmtPace(run.paceSecPerKm)} label="평균 페이스 /km" />
+              </Row>
+              {/* 개인 기록 배지 — real standings rows. On the white canvas they reuse the 도장 칩
+                  grammar (코랄 워시 · 샤프 코너) instead of the retired hero's volt pill: the
+                  frame's one saturated element is the 재예약 패널. */}
+              {bList.length > 0 && (
+                <Row style={{ gap: 6, marginTop: 12, flexWrap: 'wrap' }}>
+                  {bList.map((b) => (
+                    <View key={b} style={s.stampChip}>
+                      <Text style={{ fontSize: 14, fontWeight: '900', color: paper.actionInk }}>{b}</Text>
+                    </View>
+                  ))}
+                </Row>
+              )}
+            </View>
+
+            {/* ══════ ④ 사진 (14b) — 엣지-투-엣지 ══════ */}
+            {run.photos.length > 0 ? (
+              <View style={{ backgroundColor: '#fff', flexDirection: 'row', flexWrap: 'wrap', gap: 2 }}>
+                {run.photos.map((url) => (
+                  /* [0064] 러닝 사진은 프라이빗 media 경로 — 서명 URL로 렌더 */
+                  <MediaImage key={url} source={url} style={{ width: TILE, height: TILE, backgroundColor: '#DCD6C4' }} />
+                ))}
+              </View>
+            ) : (
+              /* [정직 배치 2.5 · 감사 #31] 유령 타일 3개 은퇴 — 채워질 자리인 척하는 빈 액자였다.
+                 바디캠 하이라이트도 파이프라인이 없으므로 약속에서 뺀다. 끝난 러닝의 사실은 과거형 한 줄. */
+              <View style={{ backgroundColor: '#fff', paddingHorizontal: 20, paddingTop: 4, paddingBottom: 14 }}>
+                <Text style={{ fontSize: 15, fontWeight: '700', color: paper.ink, textAlign: 'center' }}>
+                  이번 러닝은 사진이 없어요
+                </Text>
+                <Text style={{ fontSize: 14, color: colors.dim, textAlign: 'center', marginTop: 3 }}>
+                  러너가 러닝 중 남긴 사진이 있으면 여기에 표시돼요
+                </Text>
+              </View>
+            )}
+
+            {/* ══════ ④b 별점 (14b) — an AFFORDANCE, never a claim ══════
+                Drawn UNFILLED on purpose. This screen has no read that says whether a review
+                already exists for this booking (fetchRecentReviews is a community feed;
+                fetchRunnerProfile reads the runner's public page), so a filled row would be a
+                state we cannot know. Tapping star n opens /owner/review with n pre-selected —
+                the write still happens there, behind 후기 등록, and the unique index on
+                (booking_id) is what refuses a second one. Same gate the old button had. */}
+            {report.status === 'completed' && report.runnerProfileId && (
+              <View style={s.starsRow}>
+                <Row>
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <Pressable
+                      key={n}
+                      onPress={() => { haptic('light'); openReview(n); }}
+                      hitSlop={4}
+                      style={s.star}
+                      accessibilityRole="button"
+                      accessibilityLabel={`별점 ${n}점으로 후기 남기기`}
+                    >
+                      <Text style={s.starGlyph}>☆</Text>
+                    </Pressable>
+                  ))}
+                </Row>
+                <Pressable onPress={() => openReview(0)} hitSlop={8} accessibilityRole="button" accessibilityLabel="별점 남기기">
+                  <Text style={s.starLabel}>별점 남기기 ›</Text>
+                </Pressable>
+              </View>
+            )}
+
+            {/* ══════ ⑤ 재예약 넛지 (RULING #11) — the frame's ONE saturated element ══════
+                Two shapes, and which one you get is a fact, not a style choice. resolveNextWeek()
+                either produced a slot owner/request.tsx can receive and display — in which case
+                the panel names it and prefills it — or it did not, in which case the panel says
+                the timeless thing and hands off with 시간을 선택해주세요. It never promises a time
+                it did not resolve. White on paper.action is measured 4.84:1 at all sizes (theme.ts),
+                so the label sits directly on the fill; paper.wash is the tinted subline. */}
+            <Pressable
+              onPress={rebook}
+              style={({ pressed }) => [s.rebook, pressed && { backgroundColor: paper.actionPressed }]}
+              accessibilityRole="button"
+              accessibilityLabel={nextWeek ? `다음 주 같은 시간 예약 ${nextWeek.whenLabel}` : '이대로 다시 예약'}
+            >
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={s.rebookTitle}>{nextWeek ? '다음 주 같은 시간 예약' : '이대로 다시 예약'}</Text>
+                <Text style={s.rebookSub} numberOfLines={2}>
+                  {nextWeek
+                    ? `${report.runnerName ? `${report.runnerName} 러너 · ` : ''}${report.plannedKm}km · ${nextWeek.whenLabel}`
+                    : `같은 코스·거리${report.runnerName ? ` · ${report.runnerName} 러너 지명` : ''} — 시간만 고르면 돼요`}
+                </Text>
+              </View>
+              <Text style={s.rebookChev}>›</Text>
+            </Pressable>
+
+            {/* ══════ ⑥ 공유 넛지 (RULING #12) — 샷 스튜디오가 넛지의 얼굴 ══════
+                /shot/[bid] is the studio that renders the real card (4 skins) and hands it to the
+                OS share sheet / Instagram Stories / the photo library. The header ↗ stays as the
+                text-only share; this row is the image one. */}
+            <Pressable
+              onPress={() => bid && router.push(`/shot/${bid}`)}
+              style={({ pressed }) => [s.linkRow, pressed && { backgroundColor: paper.wash }]}
+              accessibilityRole="button"
+            >
+              <Text style={s.linkRowLabel}>이 러닝 카드 공유하기</Text>
+              <Text style={s.linkRowChev}>›</Text>
+            </Pressable>
+
+            {/* ══════ ⑦ 결제 — 한 줄 ══════
+                [2026-08-13] This block used to print `bookings.total_price` under the label
+                결제 금액 — the FROZEN PLANNED total minted at booking time, not what was
+                charged. compute_owner_charge (0084 §A) bills `least(actual, km)` for every
+                reason except owner-caused ends, and `runner_personal` drops the base and
+                addons entirely, so any early-ended run showed a number the owner was never
+                billed, on the one screen they open to check what a run cost. Beneath it sat
+                "조기 종료 시 정산 조정은 고객센터를 통해 처리돼요" — naming a support process
+                that does not exist anywhere in this app (settle-time adjustment is automatic).
+                Two assertions, neither backed; found by the ⑩ class sweep
+                (docs/decisions/cancel-fee-runner-share.md).
+                The fix is not a corrected number here. §0-bis is explicit that the post-run
+                moment is the RECORD CARD — the dog, never the charge — and that money lives in
+                exactly two modes, on demand and on exception. So the charge leaves this screen
+                and the receipt stays one tap away, which is what the doctrine actually asks
+                for. /payments is the on-demand half and reads the real `payments` rows.
+                [2026-08-19 §E] The lab's "계좌이체 안내 ›" is NOT buildable honestly: there is no
+                bank account anywhere in this codebase (the only 계좌 strings exclude 가상계좌 as a
+                Toss method or say a runner has none registered), and an account number is a
+                credential value — Sean-only per CLAUDE.md. The row keeps §E's shape and points
+                at the screen that has real rows. */}
+            <Pressable
+              onPress={() => router.push({
+                pathname: '/payments',
+                params: { returnTo: `/owner/report?bid=${bid ?? ''}`, returnLabel: '러닝 리포트로' },
+              })}
+              style={({ pressed }) => [s.linkRow, pressed && { backgroundColor: paper.wash }]}
+              accessibilityRole="button"
+            >
+              <Text style={s.linkRowQuiet}>결제</Text>
+              <Text style={s.linkRowAction}>결제 내역 보기 ›</Text>
+            </Pressable>
+            {/* Says WHY this screen carries no amount — without it the silence reads as a gap. */}
+            <Text style={s.payNote}>실제 청구된 금액과 영수증은 결제 내역에 있어요</Text>
+
             {/* ---------- 하이 포인트 적립 (리워드 ①) — 이 러닝이 벌어들인 것 ----------
                 영수증이지 팡파레가 아니다: 애니메이션 없음 (축하는 패치 팝 하나뿐).
                 원장 행이 0이면 fetchRunEarning 이 null 을 주고 섹션 자체가 사라진다 —
@@ -313,26 +524,6 @@ export default function Report() {
                 })}
                 <Text style={{ fontSize: 14, color: colors.dim, width: '100%', marginTop: 4 }}>
                   러너가 러닝 중 실시간으로 기록한 순간들이에요
-                </Text>
-              </View>
-            )}
-
-            {/* ---------- 사진: 엣지-투-엣지 ---------- */}
-            {run.photos.length > 0 ? (
-              <View style={{ backgroundColor: '#fff', flexDirection: 'row', flexWrap: 'wrap', gap: 2 }}>
-                {run.photos.map((url) => (
-                  <MediaImage key={url} source={url} style={{ width: TILE, height: TILE, backgroundColor: '#DCD6C4' }} />
-                ))}
-              </View>
-            ) : (
-              /* [정직 배치 2.5 · 감사 #31] 유령 타일 3개 은퇴 — 채워질 자리인 척하는 빈 액자였다.
-                 바디캠 하이라이트도 파이프라인이 없으므로 약속에서 뺀다. 끝난 러닝의 사실은 과거형 한 줄. */
-              <View style={{ backgroundColor: '#fff', paddingHorizontal: 20, paddingTop: 4, paddingBottom: 14 }}>
-                <Text style={{ fontSize: 15, fontWeight: '700', color: paper.ink, textAlign: 'center' }}>
-                  이번 러닝은 사진이 없어요
-                </Text>
-                <Text style={{ fontSize: 14, color: colors.dim, textAlign: 'center', marginTop: 3 }}>
-                  러너가 러닝 중 남긴 사진이 있으면 여기에 표시돼요
                 </Text>
               </View>
             )}
@@ -433,69 +624,11 @@ export default function Report() {
               </View>
             )}
 
-            {/* ---------- 결제 ---------- */}
-            {/* [2026-08-13] This block used to print `bookings.total_price` under the label
-                결제 금액 — the FROZEN PLANNED total minted at booking time, not what was
-                charged. compute_owner_charge (0084 §A) bills `least(actual, km)` for every
-                reason except owner-caused ends, and `runner_personal` drops the base and
-                addons entirely, so any early-ended run showed a number the owner was never
-                billed, on the one screen they open to check what a run cost. Beneath it sat
-                "조기 종료 시 정산 조정은 고객센터를 통해 처리돼요" — naming a support process
-                that does not exist anywhere in this app (settle-time adjustment is automatic).
-                Two assertions, neither backed; found by the ⑩ class sweep
-                (docs/decisions/cancel-fee-runner-share.md).
-                The fix is not a corrected number here. §0-bis is explicit that the post-run
-                moment is the RECORD CARD — the dog, never the charge — and that money lives in
-                exactly two modes, on demand and on exception. So the charge leaves this screen
-                and the receipt stays one tap away, which is what the doctrine actually asks
-                for. /payments is the on-demand half and reads the real `payments` rows. */}
-            <View style={s.section}>
-              <PaperBtn
-                label="결제 내역 보기"
-                variant="secondary"
-                onPress={() =>
-                  router.push({
-                    pathname: '/payments',
-                    params: { returnTo: `/owner/report?bid=${bid ?? ''}`, returnLabel: '러닝 리포트로' },
-                  })}
-              />
-              <Text style={{ fontSize: 14, color: paper.dim, marginTop: 8, lineHeight: 19, textAlign: 'center' }}>
-                실제 청구된 금액과 영수증은 결제 내역에 있어요
-              </Text>
-            </View>
-
-            {/* ---------- CTA ---------- */}
-            {/* [액션 롤아웃 2026-08-11] 여섯 개가 세로로 쌓여 있었고 셋은 중복이었다:
-                · '동네 피드에 자랑하기' — compose.tsx가 완주 러닝 피커로 이 일을 이미 한다
-                · '↗ 텍스트로 공유' — 인증샷 스튜디오가 끝나면서 여는 OS 공유 시트가 상위 호환이다
-                  (그건 실제 이미지를 나른다; 이건 글자만 나른다). 헤더의 ↗ 버튼도 남아 있다.
-                · '홈으로' — 뒤로가기 버튼과 탭바가 이미 하는 일
-                남은 셋은 서로 다른 일을 한다. 강조는 하나다 (§7b Von Restorff):
-                **이대로 다시 예약**이 프라이머리다 — 두 번째 예약이 이 제품의 PMF 지표다. */}
-            <View style={{ paddingHorizontal: 12, gap: 8, marginTop: 16 }}>
-              <PaperBtn
-                label="⟳ 이대로 다시 예약"
-                onPress={() => {
-                  draft.km = report.plannedKm;
-                  draft.pace = report.paceLabel;
-                  if (report.routeId) draft.routeId = report.routeId;
-                  draft.preferredRunnerId = report.runnerProfileId;
-                  draft.preferredRunnerName = report.runnerName;
-                  draft.scheduledAtIso = null;
-                  draft.timeLabel = '시간을 선택해주세요';
-                  router.push('/owner/request');
-                }}
-              />
-              <Text style={{ fontSize: 14, lineHeight: 19, color: paper.dim, textAlign: 'center', marginBottom: 4 }}>
-                같은 코스·거리{report.runnerName ? ` · ${report.runnerName} 러너 지명` : ''} — 시간만 고르면 돼요
-              </Text>
-              <PaperBtn label="인증샷 만들기" variant="secondary"
-                onPress={() => bid && router.push(`/shot/${bid}`)} />
-              {report.status === 'completed' && report.runnerProfileId && (
-                <PaperBtn label={`★ ${report.runnerName ?? ''} 러너 후기 남기기`} variant="secondary"
-                  onPress={() => router.push({ pathname: '/owner/review', params: { bid: bid!, rid: report.runnerProfileId!, rname: report.runnerName ?? '러너' } })} />
-              )}
-            </View>
+            {/* [2026-08-19 §E] The screen used to END here, with a 결제 block and three stacked
+                CTAs. All four moved UP into the nudge stack (⑤⑥⑦): 이대로 다시 예약 became the
+                coral 재예약 panel, 인증샷 만들기 became the 카드 공유 row (same /shot/[bid] route —
+                one entry, not two), 후기 남기기 became the ★ row, and 결제 내역 보기 became the
+                quiet 결제 row. No exit was removed; the 결제 provenance travelled with its row. */}
           </>
         )}
       </ScrollView>
@@ -653,11 +786,16 @@ function HaulOverlay({ patch, stamps, nf, onClose, onCollection }: {
   );
 }
 
-function HeroStat({ value, label }: { value: string; label: string }) {
+// 숫자 셋 (14a). Oswald via nf — [BUG A] lineHeight must be explicit or the ascenders clip.
+// The unit rides inside the value line so '5.1' and 'km' share one baseline, and the label under
+// it holds the 14pt detail floor (it is not a letterspaced kicker, so it gets no exemption).
+function ReportStat({ nf, value, unit, label }: { nf: TextStyle | null; value: string; unit?: string; label: string }) {
   return (
-    <View style={{ alignItems: 'center' }}>
-      <Text style={{ fontSize: 18.5, fontWeight: '900', color: '#fff' }}>{value}</Text>
-      <Text style={{ fontSize: 14, color: '#b8c4ae', marginTop: 3 }}>{label}</Text>
+    <View>
+      <Text style={[s.statValue, nf]}>
+        {value}{unit ? <Text style={s.statUnit}>{unit}</Text> : null}
+      </Text>
+      <Text style={s.statLabel}>{label}</Text>
     </View>
   );
 }
@@ -693,15 +831,36 @@ const s = StyleSheet.create({
   // §2 종이 크롬: 40×40 **정사각**, 캔버스 면, 1px 코랄 트림 (runner/meetup circleBtn 문법 —
   // 이름만 circle이고 모양은 사각이다). 종전 borderRadius 20 + 베이지 트림은 V4 잔재였다.
   backBtn: { width: 40, height: 40, borderRadius: 0, backgroundColor: paper.canvas, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: paper.line },
-  hero: { backgroundColor: paper.ink, padding: 20, marginTop: 14 },
-  heroReason: { borderRadius: 0, paddingVertical: 4, paddingHorizontal: 9 }, // §3b 상태 칩 = radius 0
-  finStamp: {
-    position: 'absolute', top: 52, right: 18, alignItems: 'center',
-    borderWidth: 2.5, borderColor: colors.volt, borderRadius: 10,
-    paddingVertical: 6, paddingHorizontal: 12, transform: [{ rotate: '-9deg' }], opacity: 0.92,
+  // ---------- ② 타이틀 + ③ 숫자 셋 (14a) — 흰 캔버스, 섹션 리듬은 s.section과 같다 ----------
+  head: { backgroundColor: paper.canvas, paddingHorizontal: 12, paddingTop: 14, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: paper.line },
+  headTitle: { fontSize: 27.5, fontWeight: '900', color: paper.ink, marginTop: 6 },
+  statValue: { fontSize: 27, lineHeight: 33, fontWeight: '900', color: paper.ink }, // [BUG A] 27 × 1.22
+  statUnit: { fontSize: 15, lineHeight: 33, fontWeight: '800', color: paper.dim },
+  statLabel: { fontSize: 14, lineHeight: 19, color: paper.dim, marginTop: 1 },
+  reasonChip: { borderRadius: 0, paddingVertical: 4, paddingHorizontal: 9 }, // §3b 상태 칩 = radius 0
+  // ---------- ④b 별점 행 — 빈 별(☆) + 라벨. 채워진 상태는 이 화면이 알 수 없다 ----------
+  starsRow: {
+    backgroundColor: paper.canvas, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 12, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: paper.line,
   },
-  heroDiv: { width: 1, backgroundColor: '#2c4034' },
-  badgePill: { backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 4, paddingHorizontal: 10 },
+  star: { paddingHorizontal: 4, paddingVertical: 7 }, // 32pt 글리프 + 패딩 ≈ 44pt 타깃
+  starGlyph: { fontSize: 32, lineHeight: 38, color: paper.dim },
+  starLabel: { fontSize: 15, fontWeight: '800', color: paper.ink },
+  // ---------- ⑤ 재예약 넛지 — 이 프레임의 유일한 채도 (흰 라벨 4.84:1, 잉크 플레이트 불필요) ----------
+  rebook: { backgroundColor: paper.action, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 15, paddingVertical: 14 },
+  rebookTitle: { fontSize: 19, lineHeight: 25, fontWeight: '900', color: '#fff' },
+  rebookSub: { fontSize: 14, lineHeight: 19, fontWeight: '600', color: paper.wash, marginTop: 3 },
+  rebookChev: { fontSize: 20, lineHeight: 25, color: paper.wash },
+  // ---------- ⑥⑦ 행 문법 — 풀블리드 캔버스 + 코랄 헤어라인 (s.section과 같은 리듬) ----------
+  linkRow: {
+    backgroundColor: paper.canvas, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 12, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: paper.line,
+  },
+  linkRowLabel: { fontSize: 16, fontWeight: '800', color: paper.ink },
+  linkRowChev: { fontSize: 18, color: paper.actionInk },
+  linkRowQuiet: { fontSize: 16, fontWeight: '600', color: paper.dim },
+  linkRowAction: { fontSize: 14, fontWeight: '800', color: paper.actionInk },
+  payNote: { fontSize: 14, lineHeight: 19, color: paper.dim, paddingHorizontal: 12, paddingTop: 8 },
   // 섹션 분할은 풀블리드 솔리드 코랄 1px — 이 선이 곧 브랜드 (§2 종이 법)
   section: { backgroundColor: paper.canvas, paddingHorizontal: 12, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: paper.line },
   // §3b 섹션 헤더는 앱 전체에서 하나의 문법: 20/800 잉크. 화면마다 크기를 달리 쓰지 않는다.
