@@ -25,9 +25,10 @@ import { fetchAddresses, fetchMyProfile, fetchRoutes } from '../../src/lib/api';
 import { CourseDetailBody, traceKind, TRACE_NOTE } from '../../src/components/course-detail';
 import { emptyChipCopy, matchesChips, RouteChipRow, useRouteChips } from '../../src/components/route-chips';
 import { getNaverMap } from '../../src/lib/geo';
-import { orderByProximity } from '../../src/lib/route-pick';
+import { boundsOfTraces, orderByProximity } from '../../src/lib/route-pick';
+import { routeDisplayName } from '../../src/lib/route-name';
 import { haptic } from '../../src/lib/haptics';
-import { RouteInfo, draft } from '../../src/store';
+import { GeoRoutePoint, RouteInfo, draft } from '../../src/store';
 import { lilac, paper } from '../../src/theme';
 
 const { height: SCREEN_H } = Dimensions.get('window');
@@ -47,15 +48,35 @@ const ROUTE_ANCHOR = require('../../assets/route-anchor.png');
 // 칩 술어·개수·조명 자동켜짐은 `components/route-chips`가 소유한다 (K5와 **같은 정의** —
 // 복제돼 있던 시절 라벨이 이미 갈라졌었다: 여기는 '그늘', 요청 화면은 '그늘 많음').
 
-/** 트레이스 → 카메라가 담을 수 있는 중심. 실좌표라 평균이면 충분하다(코스 하나는 수백 m 규모). */
-function centerOf(r: RouteInfo | null): { latitude: number; longitude: number } | null {
-  if (!r) return null;
-  if (r.trace.length > 0) {
-    const la = r.trace.reduce((s, p) => s + p.lat, 0) / r.trace.length;
-    const ln = r.trace.reduce((s, p) => s + p.lng, 0) / r.trace.length;
-    return { latitude: la, longitude: ln };
-  }
-  return null; // 앵커 좌표는 RouteInfo에 없다 — 없는 값을 지어내지 않는다
+// 네이버 지도의 Region — south-west 모서리 + 위/경도 스팬. 네이티브 패키지에서 타입을
+// 가져오지 않고 여기 적는다: 라우트가 모듈 스코프에서 네이티브 전용 패키지를 건드리면
+// check-route-native-imports가 (정당하게) 거절한다.
+interface MapRegion { latitude: number; longitude: number; latitudeDelta: number; longitudeDelta: number }
+
+// 아주 짧은 코스에서 건물 단위까지 파고드는 것을 막는 하한 (~400m).
+const MIN_SPAN = 0.0035;
+// 가장자리 여백. 선이 화면 테두리에 닿으면 '잘렸다'로 읽힌다.
+const PAD = 1.35;
+
+/**
+ * 트레이스 전체를 담는 지도 영역.
+ *
+ * ⚠ 왜 `camera`(중심 + 고정 줌)를 버렸는가 — 시뮬레이터에서 측정한 고장이다. 줌 15가 박혀
+ * 있어서 3km 코스는 양옆이 잘리고 **7km 코스는 네 변을 모두 넘어갔다**: 보호자가 코스를
+ * 고르면 화면 밖으로 나가는 보라색 선만 보이고 코스의 모양을 볼 수 없었다. 길이가 2.78km에서
+ * 7km까지 흩어져 있는 카탈로그에서 고정 줌이 맞을 수 있는 코스는 없다.
+ *
+ * 사각형으로 맞추면 길이와 무관하게 전체가 들어온다. 담을 점이 하나도 없으면 **영역을
+ * 지어내지 않고** null을 준다 — 호출측이 폴백 카메라로 떨어진다.
+ */
+function regionOf(traces: GeoRoutePoint[][]): MapRegion | null {
+  const b = boundsOfTraces(traces);
+  if (!b) return null;
+  const cLat = (b.minLat + b.maxLat) / 2;
+  const cLng = (b.minLng + b.maxLng) / 2;
+  const dLat = Math.max((b.maxLat - b.minLat) * PAD, MIN_SPAN);
+  const dLng = Math.max((b.maxLng - b.minLng) * PAD, MIN_SPAN);
+  return { latitude: cLat - dLat / 2, longitude: cLng - dLng / 2, latitudeDelta: dLat, longitudeDelta: dLng };
 }
 
 export default function CourseMap() {
@@ -80,6 +101,9 @@ export default function CourseMap() {
       .catch(() => {});
   }, []);
   const [mapReady, setMapReady] = useState(false);
+  // 상단 크롬의 실측 높이 → mapPadding. 초기값은 칩 한 줄 기준의 종전 값이라, 첫 프레임에도
+  // 지도가 말이 되는 상태로 뜬다. (top 오프셋 54를 포함한 화면 상단부터의 높이)
+  const [chromeH, setChromeH] = useState(116);
 
   const h = useRef(new Animated.Value(PEEK)).current;
   const hFrom = useRef(PEEK);
@@ -113,7 +137,17 @@ export default function CourseMap() {
   const sel = useMemo(() => routes.find((r) => r.id === selId) ?? null, [routes, selId]);
 
   // ── 시트 ──────────────────────────────────────────────────────────────────
+  // 고른 코스가 있는가를 **ref로** 들고 있는 이유: 아래 `pan`은 useRef로 한 번만 만들어져서
+  // 첫 렌더의 `snap` 클로저를 영구히 붙잡는다. `snap`이 `sel`을 직접 읽으면 드래그는 세션
+  // 내내 "선택 없음"만 보게 된다 — 조용히 틀리는 종류의 고장이다.
+  const hasSel = useRef(false);
+  useEffect(() => { hasSel.current = !!sel; }, [sel]);
+
   const snap = useCallback((to: Detent) => {
+    // 고른 코스가 없을 때 detail은 **막다른 골목**이다: 88% 높이의 흰 판이 지도와 목록을
+    // 둘 다 덮은 채 "지도의 앵커를 탭하거나 목록에서 고르라"고 말한다 — 자기가 가린 것을
+    // 가리키는 안내다. 상세가 없는 대상의 상세는 없다. 목록에서 멈춘다.
+    if (to === 'detail' && !hasSel.current) to = 'list';
     setDetent(to);
     hFrom.current = HEIGHT[to];
     // 스프링 — 손가락이 언제든 가로챌 수 있어야 한다 (DESIGN.md §7c 상호작용 최고법).
@@ -155,8 +189,16 @@ export default function CourseMap() {
   };
 
   // ── 지도 ──────────────────────────────────────────────────────────────────
-  const cam = useMemo(() => centerOf(sel) ?? FALLBACK_CAM, [sel]);
   const withTrace = shown.filter((r) => r.trace.length > 1);
+
+  // 고른 코스가 있으면 그 코스에, 없으면 **보이는 코스 전부**에 맞춘다.
+  // 후자가 중요해진 이유: 카탈로그가 반포를 넘어 잠원·성수·압구정·이촌까지 늘었는데
+  // 폴백 카메라는 반포 고정이라, 반포 밖 코스는 목록에 있으면서 지도에는 한 번도 보이지
+  // 않았다 — 27개를 세어 놓고 8개만 보여주는 지도였다.
+  const region = useMemo(
+    () => (sel ? regionOf([sel.trace]) : regionOf(withTrace.map((r) => r.trace))),
+    [sel, withTrace.map((r) => r.id).join(',')],
+  );
 
   const mapNode = !maps ? (
     <View style={[StyleSheet.absoluteFill, s.center]}>
@@ -166,8 +208,13 @@ export default function CourseMap() {
   ) : (
     <maps.NaverMapView
       style={StyleSheet.absoluteFill}
-      camera={{ ...cam, zoom: sel?.trace.length ? 15 : FALLBACK_CAM.zoom }}
-      mapPadding={{ top: 116, bottom: PEEK, left: 0, right: 0 }}
+      // ⚠ `region`과 `camera`를 **함께** 주면 안 된다 — 패키지 문서: "region이 존재해도
+      // camera가 설정되면 동작하지 않습니다". 담을 지오메트리가 없을 때만 카메라로 떨어진다.
+      {...(region ? { region } : { camera: FALLBACK_CAM })}
+      // 상단 크롬은 칩이 몇 줄로 감기느냐에 따라 자란다(어두운 슬롯의 조명 자동켜짐 문구가
+      // 정확히 그 경우다). 높이를 **재서** 넣는다 — 116은 칩이 한 줄일 때만 맞는 숫자였고,
+      // 두 줄이 되는 순간 맞춘 코스의 윗부분이 고지 카드 밑으로 들어갔다.
+      mapPadding={{ top: chromeH, bottom: PEEK, left: 0, right: 0 }}
       isShowLocationButton={false}
       isShowCompass={false}
       isShowScaleBar
@@ -210,7 +257,7 @@ export default function CourseMap() {
           // 회전 사각형(다이아몬드) — 기본 네이버 핀은 '검색 결과'를 뜻해서 만남 장소로 읽히지
           // 않는다. K7 러너 지도와 **같은 에셋**이라 두 화면에서 앵커가 같은 모양이다.
           image={ROUTE_ANCHOR}
-          caption={r.id === selId ? { text: r.name } : undefined}
+          caption={r.id === selId ? { text: routeDisplayName(r.name) } : undefined}
           onTap={() => pick(r)}
         />
       ))}
@@ -236,7 +283,15 @@ export default function CourseMap() {
       {/* 상단 크롬 — 검색 자리(뒤로)와 필터 칩. 지도 위 떠 있는 층은 이 하나뿐 */}
       {/* 상단 크롬 = 하나의 흐르는 컬럼(검색줄 → 칩 → 고지 카드). box-none 이라 컨테이너 자체는
           터치를 통과시키고, 자식(칩·재시도 버튼)만 받는다 — 지도 제스처를 죽이지 않는다. */}
-      <View style={s.top} pointerEvents="box-none">
+      <View
+        style={s.top}
+        pointerEvents="box-none"
+        onLayout={(e) => {
+          const top = Platform.OS === 'ios' ? 54 : 16;
+          const next = Math.round(top + e.nativeEvent.layout.height + 8);
+          setChromeH((cur) => (Math.abs(cur - next) > 1 ? next : cur));   // 재렌더 루프 방지
+        }}
+      >
         <View style={s.search}>
           <Pressable onPress={() => router.back()} hitSlop={10} accessibilityRole="button" accessibilityLabel="뒤로" style={s.backBtn}>
             <Text style={{ fontSize: 19, fontWeight: '900', color: paper.ink }}>‹</Text>
@@ -306,7 +361,9 @@ export default function CourseMap() {
             <Text style={[s.kick, isCand && { color: paper.pending }]} numberOfLines={1}>
               {sel ? (isCand ? `점검 예정 · ${sel.area}` : `${sel.area} · ${sel.terrain}`) : '코스 미정'}
             </Text>
-            <Text style={s.name} numberOfLines={1}>{sel?.name ?? '코스를 선택해주세요'}</Text>
+            {/* 이름 옆 칸이 km을 말한다 — 이름에 박힌 길이까지 그리면 같은 양의 숫자가 둘이 되고,
+                반올림 때문에 서로 다르다(`4.97km` 옆에 `5`). 요금의 권위는 km 컬럼이다(T-KM). */}
+            <Text style={s.name} numberOfLines={1}>{sel ? routeDisplayName(sel.name) : '코스를 선택해주세요'}</Text>
           </View>
           {sel && <Text style={s.km}>{sel.km}<Text style={s.kmUnit}>km</Text></Text>}
         </Pressable>
@@ -345,7 +402,7 @@ export default function CourseMap() {
                   style={[s.li, on && s.liOn]}>
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <Text style={s.liName} numberOfLines={1}>{r.name}</Text>
+                      <Text style={s.liName} numberOfLines={1}>{routeDisplayName(r.name)}</Text>
                       {r.status === 'candidate' && <Text style={s.candTag}>점검 예정</Text>}
                     </View>
                     <Text style={s.liSub} numberOfLines={1}>

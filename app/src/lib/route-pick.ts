@@ -35,6 +35,30 @@ export function routeStart(r: RouteInfo): LatLng | null {
   return usable(p) ? { lat: p.lat, lng: p.lng } : null;
 }
 
+export interface Bounds { minLat: number; maxLat: number; minLng: number; maxLng: number }
+
+/**
+ * 여러 트레이스를 한 번에 담는 최소 사각형. 카메라를 **코스에 맞추기** 위한 것이다.
+ *
+ * 왜 여기 사는가: `usable`이 여기 있기 때문이다. 좌표 유효성 판정이 두 벌이 되면 한쪽만
+ * 고쳐지는 날이 오고, 그때 지도는 조용히 태평양을 비춘다 — 랭킹이 NaN으로 무너졌던 것과
+ * 정확히 같은 고장이다. 걸러진 점이 하나도 없으면 사각형을 **지어내지 않고** null을 준다.
+ */
+export function boundsOfTraces(traces: GeoRoutePoint[][]): Bounds | null {
+  let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity, n = 0;
+  for (const t of traces) {
+    for (const p of t ?? []) {
+      if (!usable(p)) continue;          // 못 믿을 점 하나가 사각형을 대륙 크기로 만든다
+      n += 1;
+      if (p.lat < minLat) minLat = p.lat;
+      if (p.lat > maxLat) maxLat = p.lat;
+      if (p.lng < minLng) minLng = p.lng;
+      if (p.lng > maxLng) maxLng = p.lng;
+    }
+  }
+  return n > 0 ? { minLat, maxLat, minLng, maxLng } : null;
+}
+
 /** 미터. 서울(위도 37.5)에서 경도 1도는 위도 1도의 약 0.79배라, 평면 근사는 동서 거리를
  *  20% 이상 부풀린다 — 반포에서 그건 코스 순서를 바꾸기 충분하다. 그래서 하버사인을 쓴다. */
 export function haversineM(a: LatLng, b: LatLng): number {
