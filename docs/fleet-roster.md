@@ -174,5 +174,18 @@ two false "stranded work" alarms on day one.
   in the header, not twenty minutes in. And before recording the limit, check the KEYCHAIN —
   the macOS Supabase CLI token lives there, not in a dotfile, and it reads the full management
   API. A limit recorded without hunting for the door is the house failure wearing armor.
+- **"We audited realtime" must mean BOTH mechanisms or it means neither.** `postgres_changes`
+  consults RLS; `broadcast` never does and is public unless created `{config:{private:true}}`
+  with `realtime.messages` policies. An audit that enumerates publications will not see a
+  broadcast channel — the runner's live GPS was one (`geo.ts` `run-<bookingId>`), readable and
+  writable by any anon client holding a booking UUID. Grep `.channel(` and check every broadcast.
+- **Evidence columns can be load-bearing — revoke, don't drop.** `routes` evidence columns
+  (`verified_run_id`, `verified_runner_id`, `checked_at`, `checked_by`) are anon-readable AND
+  required by `routes_active_is_earned`. The obvious column-drop breaks the activation invariant;
+  the 0088 shape (column-level revoke or a whitelisted view) is the fix.
+- **A fresh worktree can carry a REGISTRY row without its file.** Legal's tree, cut today, came
+  up 104 behind holding 0098's row and no `0098_*.sql`; the pre-push hook refused it (correctly).
+  After any worktree cut: `git rev-list --left-right --count origin/redesign-v4...HEAD`, then
+  merge trunk — never `--no-verify` past that refusal.
 - **Trust review is standing:** any slice touching RLS, policies, grants, or `search_path` goes
   to trust at PLAN time, not push time. And a reviewer never reviews their own build.
