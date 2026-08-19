@@ -250,6 +250,41 @@ in a production auth config, it is free to fix now, and it is expensive to find 
 **Fix:** delete `exp://**` and both LAN-IP entries, keep `daengrun://login`. Dev machines get
 re-added while developing and removed again — that is what makes them dev entries.
 
+## 0-nonies. 🟡 A price change would repay old work at the new rate but still charge the old — money policy, yours
+
+**Raised by money (`0101`'s author), written up by trust at their request so the person flagging
+it is not the author of the code it indicts.** Verified in source before writing, because this
+file is the one place a wrong claim does the most damage.
+
+**The two sides of a run are priced from different clocks.**
+
+- **What the OWNER is charged** comes from columns frozen onto the booking when they booked —
+  `b.base_fare`, `b.addon_fare` (`0080:285`). Change prices tomorrow and their bill does not move.
+- **What the RUNNER is paid** comes from constants written into the payout function —
+  `RUNNER_COMP_BASE := 9900`, `PER_KM := 3000` (`0101:92-93`). Change those and **every run not yet
+  settled is paid at the new rate**, including runs that happened before the change.
+
+**So a price revision retroactively repays completed-but-unsettled work at the new rate while
+leaving what the owner was charged for that same work frozen. The platform absorbs the
+difference, silently and in whichever direction the revision went.**
+
+**Deliberately not dramatised, because the mechanism makes it smaller than it sounds:** those are
+hardcoded SQL constants, so changing them takes a migration — through `/autoplan`, the harness and
+review — not a dashboard toggle or a config edit. Nobody changes runner pay by accident. And with
+charging off and 9 fixture runners, nothing is live today.
+
+**Why it is on your queue anyway, and why now rather than later:** this is not an engineering
+defect, it is a **policy question about work already done**, and it only has a cheap answer
+*before* the first price revision. Afterwards it presents as a reconciliation mystery — payouts
+that do not reconcile against charges for the same runs, discovered by whoever is closing the
+books.
+
+**The question, in one line: when we change prices, should a run that already happened but has
+not settled be paid at the old rate or the new one?** Either answer is defensible and neither is
+ours to pick. A third option exists — freeze the runner rate onto the booking the way the owner's
+is — which makes the two sides symmetric and answers the question permanently, and is a real slice
+rather than a toggle.
+
 ## 0-septies. 📋 RECORD — PR-0's test-owner exclusion exists in practice and is written nowhere
 
 Owner `aa73ce8a-0ee0-473f-af1c-ffa8030a09a9` holds **all 24 existing bookings** and PR-0 reads

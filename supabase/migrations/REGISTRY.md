@@ -48,6 +48,22 @@ then `set local role anon` and COUNT each one. Include `relkind in ('v','m')` �
 other miss; `available_runners` and `marketplace_open_requests` are anon-readable definer views
 that no `pg_policies` query returns at all.
 
+**④ A FLOOR TESTED ONLY WHERE IT BINDS ASSERTS NOTHING ABOUT THE BASE UNDERNEATH IT.**
+Money's finding on `0101`, 2026-08-15, and it is detector ③ in a third costume. Mutating the
+runner base 9,900 → 7,900 reddened an unrelated pin **and left the `min_fare` floor pins GREEN** —
+because a 20,000 floor absorbs a 2,000 underpay. **The floor and the base are two parts of one
+control**, and a suite that exercises the floor only on rows where it binds proves nothing about
+the number underneath it: every runner could be quietly underpaid with the floor pins green.
+
+⚠ **And the production half is worse than the test half.** `min_fare` defaults to **9,900 —
+exactly the runner base** — so **on shipped data the floor is a tautology and never binds.** Every
+fixture that exercises it is invented (`0101`'s fixture C uses 20,000). So anyone reasoning about
+the floor from production rows concludes it is inert, and the only rows that would reveal an
+underpaid base do not exist yet.
+
+The general form, which is what to carry: **when a control has a clamp and a value, test the
+value where the clamp does NOT apply.** Testing where it does apply measures the clamp.
+
 **③ WHEN THE GRANT AND ITS PROTECTION LIVE IN DIFFERENT PLACES, NEITHER SWEEP TELLS THE TRUTH.**
 Found by money on `runs`, 2026-08-14, verified by me: `has_table_privilege` says **anon AND
 authenticated hold INSERT**, while `runs` carries exactly two policies — `runs party read`
