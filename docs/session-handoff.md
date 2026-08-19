@@ -1,3 +1,56 @@
+# CATALOG — 0110 `routes_public` IS LIVE; the revoke is NOT (2026-08-19, overnight)
+
+**Live in production and probed:** `candidate base=200 pub=200 | lat=37.5298 (4dp) | evidence=absent
+| activation=route_geometry_still_public`. Harness 640/0, 4 pins, 4 mutations.
+
+## ⚠ THE SEQUENCE IS NOT FINISHED. Step 2 of 3 is ui's and it has not shipped.
+
+1. ✅ **0110 (done):** `routes_public` exists — 16 app columns, no evidence columns, geometry
+   endpoint-trimmed and rounded to 4dp. 0107's promotion gate is satisfied.
+2. ⬜ **ui:** switch geometry reads to `routes_public`. **Exact change:** in `app/src/lib/api.ts`,
+   `ROUTE_LIST_COLS` (:47) and `ROUTE_FULL_COLS` (:48) keep their column lists **unchanged** but
+   read `.from('routes_public')` instead of `.from('routes')` at :162 and :199. The six embedded
+   `routes(name)` / `routes(name, area)` selects (:484, :773, :1781, :2492, :3641, :3700) **stay on
+   `routes`** — they read name/area only, which is not being revoked.
+3. ⬜ **catalog, next free number:** `revoke select (trace, trace_thumb) on routes from anon,
+   authenticated`. **MUST come after step 2** — revoke-first 403s the whole catalog (0088/0091).
+
+**Until step 3, no route can be promoted.** `_routes_guard_geometry_public_tg` refuses activation
+while anon can still read `routes.trace` from the base table. That is deliberate: it makes the
+window between "0107's gate opens" and "geometry actually closed" unrepresentable rather than
+something someone has to remember.
+
+## The finding that shaped 0110, worth keeping
+
+**A view alone would have satisfied 0107 while protecting nothing** — anon reads `routes.trace`
+directly at 6dp (~11 cm) from the base table, so every trim in the projection would have been
+optional for the reader. 0107 was correct about identity columns; nobody had joined that to the
+geometry half. Mutation M4 reproduces it: drop the trigger and promotion succeeds while the base
+table hands anon the full-precision track.
+
+## ⚠ Correction forced mid-build — read before touching the trim
+
+Sean's rulings **#14/#15** make the entry point **the nearest point ON the trace** to the owner's
+pin, and make the approach leg **count toward km**. The trace is therefore a **money input**.
+Trimming every route would have moved a real owner's entry point up to 200 m and **billed them for
+the difference** — to de-identify a line **nobody ever walked** (all 32 rows are `source='algo'`
+drawn geometry). So the trim is conditioned on `status='active'`: the only state whose geometry was
+derived from a settled run. The discriminator is `status`, **never `verified_run_id`** — 0107's gate
+refuses a view that so much as depends on that column, even inside a CASE.
+
+⚠ Live trade-off for money/ui: on a **promoted** route, an owner whose pin is nearest a trimmed end
+gets a displaced entry point and a longer billed approach. Correct side to err on (the alternative
+publishes a previous owner's home), but it is a real consequence, not a rounding artifact. Nothing
+is billed differently today — no route is active.
+
+## Decisions taken under Sean's overnight grant — one-line reversible
+
+- **4dp precision — DERIVED.** Points average 42 m apart, so 11 m is below sampling resolution
+  (shape unchanged) and above door resolution (no address inferable). Only value that is both.
+- **200 m trim — A JUDGEMENT, labelled as one.** `least(200 m, 20% of length)` per end. No
+  measurement yields 200; the 20% clamp keeps a 1.6 km route at ≥60% of itself.
+- **`authenticated` treated exactly like `anon`.** A logged-in stranger is still a stranger.
+
 # ANNOUNCER v3 — live state pointer (2026-08-19, late evening; branch `claude/announcer-v3-handoff-f0774a`)
 
 **If you are the next announcer, read in this order:** `/announcer` (method) → `docs/handoff-announcer.md`
@@ -5,16 +58,13 @@
 §0-undecies / §0-duodecies (Sean's open items, lettered) → the console
 (https://claude.ai/code/artifact/aad92054-9264-4431-9835-d03ef86b3f6b, update in place, never a new URL).
 
-**State at this write (verify, don't relay):** 0106–0109 applied in production; **0105 held** (line in
-`supabase/migrations/HELD`; deploy only via `bash scripts/deploy-migrations.sh --push <names>`); the
-0105 replacement is being BUILT as **0111** on `claude/p0-booking-entry` (tree `p0-booking-entry`) from
-`docs/contracts/booking-entry-rebuild-contract.md` v2 (attacked 21/21, reviewer's F1–F12 folded in) —
-announcer-directed under Sean's "full speed" default (§0-decies A) because trust is offline. Next gates
-after the implementer reports: independent adversarial reviewer executing §D pins in the harness →
-land on trunk → `deploy-migrations.sh --push 0111_booking_entry_rebuild.sql` → `supabase functions
-deploy create-booking-hold` (both orders safe; disjoint holes) → verify live (forged INSERT → 42501
-rolled back; anon/authenticated hold no INSERT on bookings/recurring_series/slot_holds; service_role
-does; cron still mints an honest series) → REGISTRY 0111 DEPLOYED, 0105 SUPERSEDED, HELD line gone.
+**State at this write (verify, don't relay):** 0106–0109 and **0111** applied in production; **0105 is GONE**
+(superseded by 0111, file deleted, HELD empty — the wrapper `bash scripts/deploy-migrations.sh --push <names>`
+is still the only deploy path). 0111 went contract → attacked (21/21) → implemented → independent
+adversarial review (FIX-FIRST, comment-class) → round 2 (657/0) → trunk → `create-booking-hold` v9 +
+0111 deployed → verified live at the DB boundary AND over the wire (self-cleaning probe: body runner_id →
+400; legit hold writes runner_id null; direct PostgREST writes → 42501). REGISTRY rows 0105 SUPERSEDED /
+0111 DEPLOYED carry the evidence. /cso #2 is PARTIALLY CLOSED: F2 (B-11 nomination chain) stays open.
 **Not closed by 0111:** the legit nomination chain (own dog → payment_ok → request_runner) — B-11 in the
 contract; `is_booking_party` status filter is the adjacent slice; Sean's D1/D2 decides its shape.
 Live sessions at this write: ui, legal, route geometry. Offline: trust, money, catalog (0110 designed

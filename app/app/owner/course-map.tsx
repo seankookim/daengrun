@@ -16,22 +16,27 @@
 // 부유 목록을 따로 띄우지 않는다. 검색·칩·레일·시트 네 층이 지도를 조이면 '낮은 정보 밀도'라는
 // 요구와 정면으로 충돌한다. 시트가 peek→list→detail 세 일을 순서대로 맡는다 (지도 앱 3사 공통
 // 문법이라 학습 비용 0 — Jakob).
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Animated, Dimensions, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, View,
+  Animated, Dimensions, Image, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, View,
 } from 'react-native';
 import { fetchAddresses, fetchMyProfile, fetchRoutes } from '../../src/lib/api';
 import { CourseDetailBody, traceKind, TRACE_NOTE } from '../../src/components/course-detail';
 import { emptyChipCopy, matchesChips, RouteChipRow, useRouteChips } from '../../src/components/route-chips';
 import { getNaverMap } from '../../src/lib/geo';
-import { boundsOfTraces, orderByProximity } from '../../src/lib/route-pick';
+import { boundsOfTraces, orderByProximity, totalKmFor } from '../../src/lib/route-pick';
 import { haptic } from '../../src/lib/haptics';
 import { GeoRoutePoint, RouteInfo, draft } from '../../src/store';
 import { lilac, paper } from '../../src/theme';
 
 const { height: SCREEN_H } = Dimensions.get('window');
-const PEEK = 148;                          // 이름 + km + CTA 만
+// Peek detent = kick + name + (optional 이동 포함 총거리 line) + CTA, nothing else. The height is
+// FIXED while the head is not: ruling #15 added a 14pt line that only appears once a pickup pin
+// exists, and at 148 it pushed the CTA past the bottom edge — a primary button clipped out of sight
+// on exactly the screens that had the most information. Budget: rule 2 + grab 22 + head ~72 + CTA
+// block ~62 + slack.
+const PEEK = 170;
 const LIST = Math.round(SCREEN_H * 0.55);
 const DETAIL = Math.round(SCREEN_H * 0.88);
 type Detent = 'peek' | 'list' | 'detail';
@@ -51,6 +56,29 @@ const ROUTE_ANCHOR = require('../../assets/route-anchor.png');
 // 가져오지 않고 여기 적는다: 라우트가 모듈 스코프에서 네이티브 전용 패키지를 건드리면
 // check-route-native-imports가 (정당하게) 거절한다.
 interface MapRegion { latitude: number; longitude: number; latitudeDelta: number; longitudeDelta: number }
+
+// ── Anchor size — dev-only comparison knob (2026-08-19) ──────────────────────
+// Sean asked to SEE 18 pt anchors against the 44 pt HIG floor before ruling on it
+// (screen-functionality-spec.md ~line 104; the "44 pt floor" was an announcer's
+// inference, NOT a ruling). This knob exists only so the two can be photographed
+// side by side. It is a deep link, deliberately with no UI control, and the
+// default path renders exactly what shipped. Delete it once he picks.
+//
+//   daengrun://owner/course-map             → 18 pt glyph, 18 pt tap target (today)
+//   daengrun://owner/course-map?anchor=44   → 44 pt glyph, 44 pt tap target
+//   daengrun://owner/course-map?anchor=44h  → 18 pt glyph, 44 pt tap target (hit area only)
+//
+// ⚠ A Naver marker's tap area IS its icon box — the native SDK exposes no hitSlop
+// and RN's hitSlop does not reach a native overlay. So the hit-area-only variant
+// has to hand the marker a 44×44 transparent React view with the 18 pt glyph
+// centred inside it; that is the only way to grow the target without growing the
+// glyph. (That marker type is the package's "Custom React View" path — heavier
+// than an image marker, which is another reason this is a comparison knob and not
+// a shipping default.)
+type AnchorVariant = 'default' | '44' | '44h';
+const ANCHOR_BASE = 18;      // today's unselected anchor edge, in pt
+const ANCHOR_SEL_BUMP = 8;   // selected anchor is 8 pt larger (26 pt today)
+const ANCHOR_FLOOR = 44;     // the HIG/Fitts target floor (DESIGN.md §"Fitts / HIG")
 
 // 아주 짧은 코스에서 건물 단위까지 파고드는 것을 막는 하한 (~400m).
 const MIN_SPAN = 0.0035;
@@ -80,6 +108,15 @@ function regionOf(traces: GeoRoutePoint[][]): MapRegion | null {
 
 export default function CourseMap() {
   const maps = getNaverMap();
+  // Dev-only deep-link knob (see ANCHOR_* above). Anything other than the two known
+  // values falls through to today's behaviour — a typo must not change the screen.
+  const { anchor: anchorParam } = useLocalSearchParams<{ anchor?: string }>();
+  const anchorVariant: AnchorVariant =
+    anchorParam === '44' ? '44' : anchorParam === '44h' ? '44h' : 'default';
+  // Box = the marker's own width/height = the native tap area. Glyph = what is drawn.
+  // They differ only in '44h', which is the whole point of that variant.
+  const anchorBox = anchorVariant === 'default' ? ANCHOR_BASE : ANCHOR_FLOOR;
+  const anchorGlyph = anchorVariant === '44' ? ANCHOR_FLOOR : ANCHOR_BASE;
   const [routes, setRoutes] = useState<RouteInfo[]>([]);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [selId, setSelId] = useState<string | null>(draft.routeId || null);
@@ -251,21 +288,43 @@ export default function CourseMap() {
         />
       )}
       {/* 앵커 — 트레이스가 없어도 여긴 진짜다. 캡션은 선택된 것에만(라벨 충돌 방지) */}
-      {withTrace.map((r) => (
-        <maps.NaverMapMarkerOverlay
-          key={`a-${r.id}`}
-          latitude={r.trace[0].lat}
-          longitude={r.trace[0].lng}
-          anchor={{ x: 0.5, y: 0.5 }}
-          width={r.id === selId ? 26 : 18}
-          height={r.id === selId ? 26 : 18}
-          // 회전 사각형(다이아몬드) — 기본 네이버 핀은 '검색 결과'를 뜻해서 만남 장소로 읽히지
-          // 않는다. K7 러너 지도와 **같은 에셋**이라 두 화면에서 앵커가 같은 모양이다.
-          image={ROUTE_ANCHOR}
-          caption={r.id === selId ? { text: r.name } : undefined}
-          onTap={() => pick(r)}
-        />
-      ))}
+      {withTrace.map((r) => {
+        const on = r.id === selId;
+        // The selected anchor keeps its +8 pt emphasis in every variant — the size
+        // question is about the base, and dropping the emphasis would change a
+        // second thing at the same time.
+        const box = anchorBox + (on ? ANCHOR_SEL_BUMP : 0);
+        const glyph = anchorGlyph + (on ? ANCHOR_SEL_BUMP : 0);
+        return (
+          <maps.NaverMapMarkerOverlay
+            key={`a-${r.id}`}
+            latitude={r.trace[0].lat}
+            longitude={r.trace[0].lng}
+            anchor={{ x: 0.5, y: 0.5 }}
+            width={box}
+            height={box}
+            // 회전 사각형(다이아몬드) — 기본 네이버 핀은 '검색 결과'를 뜻해서 만남 장소로 읽히지
+            // 않는다. K7 러너 지도와 **같은 에셋**이라 두 화면에서 앵커가 같은 모양이다.
+            // '44h' swaps the image marker for a padded React view; the package treats
+            // `image` and a child view as two different marker types, so only one is given.
+            {...(anchorVariant === '44h' ? {} : { image: ROUTE_ANCHOR })}
+            caption={on ? { text: r.name } : undefined}
+            onTap={() => pick(r)}
+          >
+            {anchorVariant === '44h' ? (
+              // `collapsable={false}` + a key encoding the size are both required by the
+              // package for custom-view markers (iOS new arch renders the view to a bitmap).
+              <View
+                key={`${glyph}/${box}`}
+                collapsable={false}
+                style={{ width: box, height: box, alignItems: 'center', justifyContent: 'center' }}
+              >
+                <Image source={ROUTE_ANCHOR} style={{ width: glyph, height: glyph }} />
+              </View>
+            ) : undefined}
+          </maps.NaverMapMarkerOverlay>
+        );
+      })}
       {/* 픽업지 = 집. "가까운 순"이 말이 되려면 기준점이 지도에 보여야 한다 —
           보이지 않는 기준으로 매긴 순위는 사용자가 검증할 수 없다. (Sean 2026-08-14) */}
       {pickup && (
@@ -280,6 +339,13 @@ export default function CourseMap() {
 
   // ── 시트 본문 ─────────────────────────────────────────────────────────────
   const isCand = sel?.status === 'candidate';
+
+  // 왕복 이동을 포함한 총거리 (Sean ruling #15) — 픽업 핀에서 트레이스 위 최근접점까지의
+  // **직선** 거리를 왕복으로 세어 코스 km에 더한 **추정치**. 그래서 '약'이고, 라우팅 엔진이
+  // 없으므로 약속이 아니다. 핀이 없으면(pickup null) 아무 주장도 하지 않는다.
+  const totalKm = sel && pickup ? totalKmFor(sel, pickup)?.totalKm ?? null : null;
+  const totalLine = totalKm == null ? null
+    : `이동 포함 약 ${Number.isInteger(totalKm) ? totalKm : totalKm.toFixed(1)}km`;
 
   return (
     <View style={s.root}>
@@ -369,6 +435,9 @@ export default function CourseMap() {
             {/* 이름 옆 칸이 km을 말한다 — 이름에 박힌 길이까지 그리면 같은 양의 숫자가 둘이 되고,
                 반올림 때문에 서로 다르다(`4.97km` 옆에 `5`). 요금의 권위는 km 컬럼이다(T-KM). */}
             <Text style={s.name} numberOfLines={1}>{sel?.name ?? '코스를 선택해주세요'}</Text>
+            {/* 왕복 이동을 포함한 총거리 (ruling #15) — 옆 칸의 코스 km을 **대체하지 않는다**.
+                핀이 없거나 진입점을 잴 수 없으면 아예 나오지 않는다: 못 재는 추정치를 0으로 그리지 않는다. */}
+            {totalLine && <Text style={s.total} numberOfLines={1}>{totalLine}</Text>}
           </View>
           {sel && <Text style={s.km}>{sel.km}<Text style={s.kmUnit}>km</Text></Text>}
         </Pressable>
@@ -499,6 +568,7 @@ const s = StyleSheet.create({
   head: { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 14, paddingBottom: 4, minHeight: 44 },
   kick: { fontSize: 14, color: paper.dim, fontWeight: '700' },
   name: { fontSize: 19, fontWeight: '800', color: paper.ink, marginTop: 3 },
+  total: { fontSize: 14, color: paper.faint, fontWeight: '700', marginTop: 2 },
   km: { fontSize: 26, fontWeight: '800', color: paper.ink, marginLeft: 10 },
   kmUnit: { fontSize: 12, color: paper.faint, fontWeight: '700' },
 

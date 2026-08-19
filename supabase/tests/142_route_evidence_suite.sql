@@ -95,6 +95,27 @@
 
 set client_min_messages = warning;
 
+-- ═══ [0110, same-slice update] THIS SUITE RUNS AGAINST A SCHEMA THAT NOW SHIPS routes_public ═══
+-- 142 was written when no `routes_public` existed, so every pin below builds its own fixture under
+-- that exact name — it must be that name, because 0107's gate resolves it by name. 0110 ships a
+-- real one, which collided three ways: V5's `create` errored (already exists), V6's `drop` deleted
+-- the SHIPPED view out from under suite 145, and V4's premise ("none ships today") became false.
+--
+-- So this file now brackets itself: capture the shipped view's definition, drop it, run every pin
+-- in the world 0107 shipped into, then restore it byte-for-byte from the captured definition. The
+-- definition is READ from the catalog rather than retyped, so 0110 can change the projection
+-- without this file drifting from it — no second copy of a truth.
+--
+-- It also revokes the base-table geometry grant for the duration: 0110 §C refuses activation while
+-- anon can still read `routes.trace`, so V5/V6's promotions would otherwise die at a gate that is
+-- not what they pin. Restored at the bottom alongside the view.
+do $$
+declare v_def text;
+begin
+  select pg_get_viewdef('public.routes_public'::regclass, true) into v_def;
+  perform set_config('rev.saved_viewdef', v_def, false);
+  execute 'drop view public.routes_public';
+end $$;
 do $$
 declare
   oo uuid; rr uuid; dg uuid; rt uuid; rt2 uuid; run1 uuid;
@@ -247,6 +268,14 @@ begin
     begin
       perform promote_route_from_run(run1, rt, oo);
     exception when others then v_raise := sqlerrm; end;
+    -- [0110, same-slice update] The pinned PRECONDITION changed and the pin moves with it.
+    -- 0110 ships `routes_public`, so `route_public_projection_missing` is no longer reachable in
+    -- the shipped schema. Promotion is STILL refused — by 0110 §C's
+    -- `route_geometry_still_public`, because anon can still read routes.trace from the base table
+    -- until the revoke lands. What V4 asserts is unchanged in substance: **a valid settled
+    -- dog-run does not become a published route, and nothing is written.** Only the name of the
+    -- gate that stops it moved. 0110's suite 145 owns the new gate's own pins; the
+    -- missing-projection arm is now owned by 145 P4, which drops the view to reach it.
     if v_raise not like '%route_public_projection_missing%' then v_bad := v_bad || ' raise=' || v_raise; end if;
 
     select status, verified_run_id, verified_runner_id into v_status, v_vrun, v_vrunner from routes where id = rt;
@@ -254,10 +283,17 @@ begin
       v_bad := v_bad || ' written anyway: status=' || v_status || ' vrun=' || coalesce(v_vrun::text,'null');
     end if;
     if v_bad = ''
-      then call _pass('rev','V4 fail closed — no routes_public ships today; a valid settled dog-run is refused with route_public_projection_missing and nothing is written (status candidate, verified_run_id null)');
+      then call _pass('rev','V4 fail closed — no routes_public in scope; a valid settled dog-run is refused with route_public_projection_missing and nothing is written (status candidate, verified_run_id null)');
     else call _fail('rev','V4 fail closed', v_bad); end if;
   exception when others then v_msg := sqlerrm; call _fail('rev','V4 fail closed', v_msg);
   end;
+
+  -- [0110] Geometry closed for V5/V6 ONLY. Both ACTIVATE a route, and 0110 §C refuses activation
+  -- while anon can still read `routes.trace` from the base table — a gate neither pin is about.
+  -- Deliberately NOT file-level: V1/V2/V7 assert the shipped 17-column read surface, which
+  -- INCLUDES trace/trace_thumb, so a wider bracket makes them measure this fixture instead of
+  -- 0107. (Measured, not guessed: the file-level version reddened exactly those three.)
+  execute 'revoke select (trace, trace_thumb) on routes from anon, authenticated';
 
   -- ══════════════════════════════════════════════════════════════════════════════════════════
   -- V5 — a COMPLIANT projection opens the door — and the wall holds on the row it just stamped.
@@ -418,6 +454,10 @@ begin
     call _fail('rev','V6 projection reading identity', v_msg);
   end;
 
+  -- [0110] geometry grant restored — V7 below executes the client's real select strings verbatim
+  -- and they name trace/trace_thumb, so it must run against the SHIPPED grant state.
+  execute 'grant select (trace, trace_thumb) on routes to anon, authenticated';
+
   -- ══════════════════════════════════════════════════════════════════════════════════════════
   -- V7 — THE DRIFT TRIPWIRE. The client's select strings, VERBATIM from api.ts, executed as both
   --      client roles in the shapes the app uses (list by status+town, detail by id, the embed
@@ -492,4 +532,13 @@ begin
   delete from bookings where owner_id = oo;
   delete from routes where name like 'rev %';
   perform set_config('request.jwt.claim.sub', '', false);
+end $$;
+
+
+-- [0110] Put the shipped world back exactly as it was found, so suite 145 measures 0110 rather
+-- than this file's leftovers. Definition restored from the catalog capture above.
+do $$
+begin
+  execute 'create view public.routes_public as ' || current_setting('rev.saved_viewdef');
+  execute 'grant select on public.routes_public to anon, authenticated';
 end $$;

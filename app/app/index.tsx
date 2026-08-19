@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useAuth } from '../src/auth-context';
-import { ensureRunner } from '../src/lib/api';
+import { ensureRunner, fetchMyDogs } from '../src/lib/api';
 import { supabase } from '../src/lib/supabase';
 import { session } from '../src/store';
 import { paper } from '../src/theme';
@@ -20,9 +20,21 @@ export default function RoleSelect() {
     if (!loading && !auth) router.replace('/login');
   }, [loading, auth]);
 
-  const start = async (role: Role) => {
+  // Return type is annotated because `fail`'s retry references `start` — an un-annotated
+  // self-referential const would make TS infer `any` (7022).
+  const start = async (role: Role): Promise<void> => {
     if (busy || !auth) return;
     setBusy(role);
+
+    // 실패는 실패로 — 시작 경로의 모든 단계가 재시도 가능한 알림으로 끝난다 (조용한 스킵 금지).
+    const fail = (title: string, msg: string) => {
+      setBusy(null);
+      Alert.alert(title, msg, [
+        { text: '다시 시도', onPress: () => { void start(role); } },
+        { text: '닫기', style: 'cancel' },
+      ]);
+    };
+
     // 프로필 실화: profiles 행 upsert (RLS self-insert)
     //
     // ⚠ react-doctor `supabase-client-owned-authz-field` 가 여기서 경고한다 — 클라이언트가
@@ -33,23 +45,46 @@ export default function RoleSelect() {
     // 그래서 `role`은 인가 필드가 아니라 **표시·라우팅 선호**다. 사용자가 자기 것을 바꿔도 얻는
     // 권한이 없다. 규칙은 이름이 `role`인 필드를 패턴으로 잡은 것이다. 만약 언젠가 서버가
     // 이 컬럼으로 뭔가를 가로막기 시작하면 이 주석은 거짓이 되고, 그때는 진짜 결함이다.
-    const { error } = await supabase.from('profiles').upsert({
-      id: auth.user.id,
-      role,
-      name: auth.user.email?.split('@')[0] ?? '사용자',
-    });
-    if (error) {
-      setBusy(null);
-      Alert.alert('프로필 저장 실패', error.message);
-      return;
-    }
+    //
+    // ⚠ Read before write. The old payload always carried `name`, so the upsert's conflict arm
+    // rewrote it on EVERY launch — clobbering whatever onboarding (or 마이) had saved with the
+    // email stem, or with '사용자' for a Kakao account that has no email. `name` is NOT NULL, so
+    // it must still be supplied on the INSERT; the fix is to send it only when there is no row.
+    // This read also feeds the first-run gate below (profiles select grants: 0088 §A + 0091 §E⑤).
+    const { data: existing, error: readErr } = await supabase
+      .from('profiles').select('name, district').eq('id', auth.user.id).maybeSingle();
+    if (readErr) { fail('프로필을 불러오지 못했어요', readErr.message); return; }
+
+    const { error } = await supabase.from('profiles').upsert(
+      existing
+        ? { id: auth.user.id, role }
+        : { id: auth.user.id, role, name: auth.user.email?.split('@')[0] ?? '사용자' },
+    );
+    if (error) { fail('프로필 저장 실패', error.message); return; }
+
     // 러너 선택 시 runners 행 + 기본 가용시간 확보 (0057 K-3: applicant 민팅)
     if (role === 'runner') {
       try { await ensureRunner(); } catch (e) { console.warn('ensureRunner:', e); }
     }
+
+    // First run is DERIVED — there is no `onboarded` flag (and none is needed): an owner with no
+    // dog cannot request a run, and a runner with no 동네 gets an unsorted course strip. Both
+    // reads must fail LOUDLY: skipping onboarding on a network blip would drop the owner on a
+    // home screen whose primary action immediately dead-ends.
+    let next: '/owner/home' | '/runner/home' | '/onboard/owner' | '/onboard/runner';
+    if (role === 'owner') {
+      try {
+        next = (await fetchMyDogs()).length === 0 ? '/onboard/owner' : '/owner/home';
+      } catch (e) { fail('시작하지 못했어요', (e as Error)?.message ?? '알 수 없는 오류'); return; }
+    } else {
+      // `existing` was read before ensureRunner, which never writes district — still current.
+      next = (existing?.district ?? '').trim() === '' ? '/onboard/runner' : '/runner/home';
+    }
+
     setBusy(null);
     session.role = role;
-    router.push(role === 'owner' ? '/owner/home' : '/runner/home');
+    if (next === '/onboard/owner' || next === '/onboard/runner') router.replace(next);
+    else router.push(next);
   };
 
   return (

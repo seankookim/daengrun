@@ -242,3 +242,8 @@ two false "stranded work" alarms on day one.
 - **The contract before the code, attacked before implemented.** 0111's contract was executed in a scratch cluster first;
   the reviewer found B-11 (the legit nomination chain) and that the slice would have recorded F2 as closed. That finding cost
   nothing to fix in a document and would have been a false "CLOSED" in production.
+- **Reading one layer and describing another — twice more tonight (legal):** the RLS policy vs the client's actual query; the
+  grant table before filtering to `privilege_type='SELECT'`. Same failure as the location half. The probe keeps beating the argument.
+- **A metric optimised anywhere in a pipeline can outrank the goal it proxies (route geometry):** the planner sorted destinations by
+  |distance − target| and walked past the near park to hit a number; Sean saw it three times from the map. Same failure as naming a
+  5.4 km route "3km". And a rule that lives in two places disagrees eventually (5 km cap ×2, 1.5–7.5 km range ×3, surface-mix ×2).

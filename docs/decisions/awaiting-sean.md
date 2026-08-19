@@ -1,5 +1,17 @@
 # Awaiting Sean — the return queue
 
+> **⚡ 2026-08-19 late evening: OVERNIGHT GRANT.** Sean, verbatim: *"i will be gone overnight, do not
+> stop until i come back. let the others know as well; continue advancing the app, no permissions
+> asked, do not ask me for input, decide independently."* **[end of Sean's words]**
+>
+> Applied by the announcer as: every open item below that was waiting on a *decision* gets decided by
+> the announcer tonight under this grant, marked **🔵 decided-under-overnight-grant** (never ✅ — a
+> stand-in's call is reversible and carries its reasoning so Sean can flip it in one word in the
+> morning). Physical/credential items (dashboard toggles, Apple 2FA, counsel forward) stay his by
+> nature. Gates stay in full: harness → contract → adversarial reviewer ≠ author → land → deploy via the
+> wrapper → verify live → record. Sessions keep building; the announcer keeps the console and this file
+> current through the night. Decisions taken tonight are listed at §0-overnight below.
+
 > **⚡ 2026-08-15: SEAN ANSWERED SEVEN AT ONCE.** His words, verbatim: *"1: yes i tried it, but
 > no way to download on a real phone unless they have expo no? 2: A, give me a dashboard with
 > possible solutions and etc all things necessary. 3: b. 4: A. 5: not sure what that account is
@@ -251,6 +263,34 @@ Your answer, one letter:
 - **C** — a session name of your choosing
 - plus **D1/D2** above when you have a view
 –––––[end of report; nothing above is your ruling until you answer]–––––
+
+## 0-quindecies. 📋 LEGAL'S NON-LOCATION REVIEW — on trunk; one counsel item for you, one small build gap (2026-08-19 night)
+
+`docs/legal/readiness-review-nonlocation-2026-08-19.md` (legal, docs-only, merged yours→trunk). Headline: the non-location
+surface is in better shape than the location half, largely because most of it is not built. **For you (errand, not
+decision): §4 goes to counsel WITH the control table** — the terms claim pure intermediation and runner independence while
+the code holds every economic control (prices, runner pay constants, commission server-side, who may see work, the
+cancellation ladder, GPS), no runner-set price exists anywhere, and `0101:63-71` lets a price revision reprice an unsettled
+run's PAYOUT while the CHARGE stays frozen — against 2024두32973 that is the worker-status question made factual; counsel
+decides, not us. Also to counsel as a question: §10.4 variable post-service charges on a stored key with no pre-charge amount
+notice (ruling ② cancelled per-charge notice) — not the fixed-amount subscription the source review answered. **Build gap
+(small, queued, not tonight's priority): `맹견` appears nowhere** — no dog-profile field, no booking-time refusal; real before
+real owners. Relief: no vehicle pickup (동물운송업 not in play), shop is a preview shell, points are non-transferable
+(마일리지 shape). Latent: reviews RLS is party-scoped while the client queries all public runner reviews (anon → 401, 1 row;
+not exposed) — widening that read path is the moment §11 goes live, so it is a legal decision, not a UI fix; the community
+feed has no reports/moderation table (임시조치 will be needed there first).
+
+## 0-overnight. 🔵 DECISIONS TAKEN UNDER THE OVERNIGHT GRANT (2026-08-19 → 20) — each reversible in one word
+
+| # | Item | Decided by | Decision | Basis (one line; full reasoning in the linked record) |
+|---|---|---|---|---|
+| O-1 | §0-undecies routes_public: logged-in = anon? | catalog | **A — authenticated treated exactly like anon** | a logged-in stranger is still a stranger; any Seoul owner can sign up |
+| O-2 | §0-undecies trim distance | catalog | **least(200 m, 20 % of route length) per end**, one named constant | 200 m exceeds building-entrance scale; ~5 points/end at 42 m spacing; 20 % clamp keeps a 1.6 km route ≥ 60 % of itself |
+| O-3 | §0-quaterdecies anchor 18 vs 44 pt | ui2 (surface owner) | **A′ as zoom-scaled VISIBLE anchors**: 18 pt zoomed out (clusters readable), 30 pt mid, 44 pt visible+tappable at street zoom; selected +8; dev knob removed; recorded in RULINGS 🔵 | measured on the sim: the Naver SDK's only invisible-hit-box path (custom React view marker) drops most markers on iOS (2 of ~10 rendered), so "44 hit area + 18 glyph" is not available; the lab frame shows it |
+| O-4 | §0-decies D1/D2 pre-acceptance contact | announcer | **D2-narrow**: the nomination itself still reaches the runner (system-authored notification — that IS the request flow), but free-text chat, reviews and incidents require the booking to be in an accepted/active state; party membership for those surfaces gets a status filter | closes /cso #2's F2 (B-11) without killing the request flow; attacker-authored push/chat to a stranger is the harm, a system "요청이 왔어요" is the product |
+| O-5 | pay-after-run server mechanism (Sean's ruling af02f12; ui found it is a state transition in a payment costume) | announcer | **contract first, tonight; build only after it is attacked** — candidate: while charging is off, the hold lands in `matching` directly and `payment_ok` is not a client step; when charging flips, payment moves post-run via settle | it touches the money state machine; no code before a reviewed contract |
+
+Owner for O-4/O-5: announcer-directed subagents under the full cycle (trust/money offline). Numbers: re-resolved from origin at write time (0112 is next free at this write; catalog's trace revoke also needs one — whoever writes the file first claims the row in the same breath).
 
 ## 0-terdecies. ✅ RULING #14 — on origin at e13b579 (`docs/labs/RULINGS-2026-08-19-journey.md` #14, verbatim; relayed first via ui2, verified by the announcer) — pickup point → nearest point on the route
 

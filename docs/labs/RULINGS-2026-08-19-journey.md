@@ -55,4 +55,18 @@ Recorded the moment they arrived so nothing drops. Each line: what he said → w
     nearest-point metric supersedes it).
     → **Runner guidance = pickup → entry point → lap.** The runner leaves the pickup, is led to the
     nearest point of the route (the entry), and the lap starts there — the loop is rotated to begin
-    at the entry. Approach leg and lap are drawn as two things; the approach is not part of the km.
+    at the entry. Approach leg and lap are drawn as two things; the approach is not part of
+    `routes.km` (the measured lap). Whether it counts toward the BOOKED km was open here — settled
+    by #15 below: it counts.
+
+## Approach leg counts · route km shown WITH it (Sean, 2026-08-19 evening, verbatim)
+15. Asked "does the approach leg (pickup → entry) count toward the booked km, or lap only?" —
+    *"counts; the route selection should show kms with those included, which is why we need a
+    large variety of routes made."* [end of his words]
+    → `actual_km` keeps its meaning (whole tracked buffer); no settle-path change.
+    → Route selection (request nudge/carousel, course-map sheet) shows the **total the dog will
+      run** = lap km + the approach (pickup → entry, and back to the pickup for the return
+      handoff), labelled as an estimate (straight-line approach), with the lap km still visible.
+      Km-tier matching in `pickRoute` uses that total, not `routes.km` alone.
+    → Catalog note (for route geometry): more routes per town, so some route's total lands on the
+      dial km for any pickup.

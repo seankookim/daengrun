@@ -164,6 +164,23 @@ export async function getTrackPermission(): Promise<'undetermined' | 'granted' |
   } catch { return 'unavailable'; }
 }
 
+// Ask for the foreground grant and NOTHING else — onboarding needs the OS sheet on its own.
+// startTracking() is not a substitute: it also registers the background task and raises the
+// foreground-service notification, which must not happen before a run exists. Same four-value
+// vocabulary as getTrackPermission so one caller state variable covers check and request.
+export async function requestTrackPermission(): Promise<'undetermined' | 'granted' | 'denied' | 'unavailable'> {
+  let Location: any;
+  try { Location = require('expo-location'); } catch { return 'unavailable'; }
+  try {
+    const perm = await Location.requestForegroundPermissionsAsync();
+    if (perm?.granted) return 'granted';
+    if (perm?.canAskAgain === false) return 'denied';
+    // The sheet was shown, so 'undetermined' here means the OS gave us no answer at all —
+    // report the weaker claim rather than inventing a denial.
+    return perm?.status === 'undetermined' ? 'undetermined' : 'denied';
+  } catch { return 'unavailable'; }
+}
+
 // One-shot current position for the address-pin picker's default center (0065 slice).
 // Deliberately NEVER prompts: it checks the existing grant via getTrackPermission and
 // returns null on anything but 'granted' — the picker must not escalate a permission
