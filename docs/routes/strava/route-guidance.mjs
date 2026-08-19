@@ -109,9 +109,15 @@ export function turnCues(trace, { minDeg = 50, look = 120, minGapM = 150 } = {})
       if (Math.abs(delta) > Math.abs(cues[cues.length - 1].deltaDeg)) cues.pop();
       else continue;
     }
+    const [clat, clng] = pt(trace[i]);
     cues.push({
       index: i,
-      lat: trace[i][0], lng: trace[i][1],
+      // pt(), not trace[i][0]. The math functions were made shape-tolerant and
+      // the OUTPUT was not, so on the canonical {lat,lng} shape every cue came
+      // out with lat/lng undefined — JSON.stringify drops them, so the cue list
+      // looked well-formed and no pin could be placed. Same class as the defect
+      // this file's header describes, surviving inside the fix for it.
+      lat: clat, lng: clng,
       distanceM: Math.round(cum[i]),
       remainingM: Math.round(total - cum[i]),
       deltaDeg: Math.round(delta),
@@ -157,7 +163,8 @@ export function kmMarkers(trace, everyM = 500) {
   for (let d = everyM; d < total; d += everyM) {
     let i = 0;
     while (i < cum.length - 1 && cum[i] < d) i++;
-    out.push({ distanceM: d, lat: trace[i][0], lng: trace[i][1] });
+    const [mlat, mlng] = pt(trace[i]);
+    out.push({ distanceM: d, lat: mlat, lng: mlng });
   }
   return out;
 }

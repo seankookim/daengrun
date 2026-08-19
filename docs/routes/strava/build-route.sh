@@ -122,6 +122,16 @@ B goto "https://www.strava.com/maps/create/global-heatmap?sport=Run&style=standa
 wait_for_panel || { echo "    builder never mounted"; exit 1; }
 
 fill_last "$START" || exit 1
+
+# Close the loop on the RESOLVED start, not on the query that produced it.
+# 반포 서래섬 measured closure 215m because 아크로리버파크 resolves to GATE 1/2/3
+# and the geocoder picked a DIFFERENT gate on the second pass of the same string.
+# Start and end are then 215m apart while every readout says the loop closed.
+# Sean's requirement is start = end, so re-running the query is not good enough:
+# the same query is not guaranteed to be the same place.
+RESOLVED_START=$(B snapshot -i 2>&1 | grep -E '\[textbox\] "Start"' | head -1 | sed -E 's/.*"Start": *//')
+[ -n "$RESOLVED_START" ] && echo "    start resolved to: $RESOLVED_START"
+
 for wp in "${WAYPOINTS[@]}"; do
   fill_last "$wp" || exit 1
   AW=$(btn "Add waypoint")
@@ -130,7 +140,7 @@ for wp in "${WAYPOINTS[@]}"; do
   [ -z "$AW" ] && { echo "    'Add waypoint' not found — would silently build an out-and-back"; exit 1; }
   B click "$AW" >/dev/null 2>&1; sleep 3
 done
-fill_last "$START" || exit 1                       # close the loop
+fill_last "${RESOLVED_START:-$START}" || exit 1     # close on the RESOLVED start
 
 DIST=$(stat "Distance")
 GAIN=$(stat "Elevation Gain")
