@@ -421,4 +421,43 @@ begin
     else v_msg := v_bad; call _fail('rpay','R6 봉인·실패 폐쇄', v_msg); end if;
   exception when others then v_msg := sqlerrm; call _fail('rpay','R6 봉인·실패 폐쇄', v_msg);
   end;
+
+  -- ══════════════════════════════════════════════════════════════════════════════════════════
+  -- R7 [0102] — an invalid commission RAISES on BOTH arms. The general arm used to compute
+  -- round(gross × 1.0) and hand the runner ₩0 with no error, while 0086 §A raised on the same
+  -- input: one function, two answers. `settle_run_tx` commits runner pay FIRST, so that zero
+  -- would be committed before anything could object. 0 stays legitimate — a promo runner keeps
+  -- everything — so the pin proves the boundary, not merely that something raises.
+  -- ══════════════════════════════════════════════════════════════════════════════════════════
+  begin
+    declare v_n int; v_raised int := 0; v_zero_ok boolean := false;
+    begin
+      -- 1.0 → must raise on the GENERAL arm (the one 0102 fixes)
+      begin
+        perform * from compute_runner_payout(f, 'completed', 1.5, 1.0);
+      exception when others then
+        if sqlerrm like '%invalid_commission%' then v_raised := v_raised + 1; end if;
+      end;
+      -- 1.0 → must still raise on the DELEGATED arm (0086 §A, unchanged — proves no regression)
+      begin
+        perform * from compute_runner_payout(f, 'runner_personal', 1.5, 1.0);
+      exception when others then
+        if sqlerrm like '%invalid_commission%' then v_raised := v_raised + 1; end if;
+      end;
+      -- 0 → must NOT raise. A promo runner keeping 100% is a real configuration.
+      begin
+        select count(*) into v_n from compute_runner_payout(f, 'completed', 1.5, 0);
+        v_zero_ok := (v_n = 1);
+      exception when others then v_zero_ok := false;
+      end;
+
+      if v_raised = 2 and v_zero_ok then
+        call _pass('rpay', 'R7 수수료율 경계 — 1.0은 두 팔 모두 invalid_commission으로 거부(러너에게 ₩0을 조용히 주지 않는다), 0은 정상 통과(프로모 러너)');
+      else
+        call _fail('rpay', 'R7 수수료율 경계',
+          format('raised=%s/2 · zero_ok=%s — 1.0이 통과하면 settle_run_tx가 러너 지급 0원을 먼저 커밋한다', v_raised, v_zero_ok));
+      end if;
+    end;
+  end;
+
 end $$;
