@@ -185,7 +185,16 @@ try {
     });
     expect(r.status === 200 && r.body?.booking_id, 'hold failed', r.body);
     bookingId = r.body.booking_id;
-    return `${r.body.total_price?.toLocaleString()}원`;
+    // [O-5 §C.1] 결제는 러닝 이후다 — 예약 생성 요청이 끝난 시점에 예약은 이미 `matching`이다.
+    // 예전에는 여기서 payment_hold로 멈춘 뒤 `payment_ok` 스텝이 밀어줬다. 그 스텝은 삭제됐고
+    // (§C.2), 이 단언이 그 자리를 대신한다 — 없어진 스텝을 흉내내는 대신 §C.1의 실제 계약을
+    // 검사하므로 더 강한 단언이다. 서버가 상태를 직접 말해준다(추론 금지).
+    expect(r.body?.booking_status === 'matching',
+      `홀드 직후 상태가 matching이 아님 (${r.body?.booking_status}) — 결제 전 단계가 되살아났거나 ops_flags.payments_live_since가 켜졌다`, r.body);
+    const after = await admin(`/rest/v1/bookings?id=eq.${bookingId}&select=status`);
+    expect(after.body?.[0]?.status === 'matching',
+      `응답은 matching인데 실제 행은 ${after.body?.[0]?.status} — 응답과 DB가 어긋난다`, after.body);
+    return `${r.body.total_price?.toLocaleString()}원 · ${r.body.booking_status}`;
   });
 
   // ⚠️ 웨이브 3 단계 (아래 '남의 강아지' · '★ arrived' 두 단계): **Sean이 웨이브 3을 배포한 뒤에만**
@@ -229,12 +238,10 @@ try {
     return '남의 개 · 없는 개 모두 403 forbidden';
   });
 
-  await step('payment_ok → matching', async () => {
-    const r = await fn('transition-booking', owner.token, { booking_id: bookingId, action: 'payment_ok' });
-    expect(r.status === 200, 'payment_ok failed', r.body);
-    const b = await admin(`/rest/v1/bookings?id=eq.${bookingId}&select=status`);
-    expect(b.body?.[0]?.status === 'matching', `expected matching, got ${b.body?.[0]?.status}`);
-  });
+  // [O-5 §C.2] `payment_ok → matching` 스텝이 여기 있었고 삭제됐다. 그 액션 자체가 없어졌다
+  // (러닝 전 결제 단계는 존재하지 않는다). 대체 단언은 위 'create-booking-hold' 스텝 안에 있다 —
+  // 예약은 홀드가 돌아온 순간 이미 matching이다. 삭제된 액션이 400을 받는다는 사실은
+  // `supabase/functions/_test/transition_booking_actions_test.ts`(N9)가 지킨다.
 
   // 결제 화면(api.ts fetchBookingCharge)의 셀렉트 계약 — check-rpc는 .from() 셀렉트를 못 덮는다 (웨이브 2 리뷰 M4)
   await step('결제 청구 셀렉트 (owner RLS)', async () => {

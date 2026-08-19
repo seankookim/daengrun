@@ -121,7 +121,15 @@ Deno.test("D-18 — a legitimate booking writes runner_id null into BOTH the boo
 
   const bk = db.rows("bookings")[0];
   assertEquals(bk.runner_id, null, "the booking must not name a runner");
-  assertEquals(bk.status, "payment_hold");
+  // [O-5 §C.1] was `payment_hold`. Payment moved AFTER the run (Sean's journey ruling #1), so with
+  // `ops_flags.payments_live_since` NULL a card-less booking now reaches `matching` inside this
+  // same request — the widget step it used to wait for is deleted. Incidental to THIS test, whose
+  // subject is 0111's runner_id removal; asserted anyway so the two facts stay welded (the booking
+  // is live AND it names nobody, which is precisely what makes it an open-pool request).
+  // The status property itself is owned by `booking_card_path_test.ts` [O-5 P1]/[O-5 N6].
+  // (`scene()` here seeds no `ops_flags` row, which the handler reads as charging-off — the
+  //  pilot's real state. The flag's own behaviour is pinned in that file, not this one.)
+  assertEquals(bk.status, "matching");
   // and the fares are still the server's, which is the half C.4 never needed to change
   assertEquals(bk.total_price, bk.base_fare + bk.distance_fare + bk.addon_fare);
 
