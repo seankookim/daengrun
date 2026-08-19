@@ -148,3 +148,79 @@ The rebuild is `supabase/migrations/0111_booking_entry_rebuild.sql` + `supabase/
   check) · the latent `reviews.target_kind`/`target_id` issue above · the `payment_ok` arm and the
   whole pay-after-run reroute (`transition-booking/index.ts:29-51`, mirrored in
   `confirm-payment/handler.ts:192-198`) · CSO #12 beyond these three tables.
+
+---
+
+## §E.10 — what `0114_party_membership_active.sql` closes, and what it does NOT (2026-08-20)
+
+**F2 / B-11 is CLOSED for the surfaces O-4 names**, and the sentence has to be that long. Contract:
+`docs/contracts/party-membership-status-filter-contract.md` (v2 — scouted, adversarially executed,
+F1–F13 folded in). Suite `149_party_active_suite.sql`, P-1 … P-34. Harness 666/0 → **694/0**, nine
+mutations, every one reddening its named set.
+
+- **CLOSED.** A new definer `is_booking_party_active(uuid)` — party membership AND the booking in
+  the accepted set (`confirmed·runner_enroute·picked_up·active·completed·no_show·incident_review·
+  cancelled_runner`) — now backs four WRITE policies: `threads party insert`, `messages party send`,
+  `reviews author insert`, `noti party insert`. So B-11.a (thread), B-11.b (free text at a
+  stranger), B-11.c (the push that rides it), **B-11.d (an attacker-TITLED notification row pushed
+  verbatim to a lock screen — the fastest path, and it needed no chat thread at all)** and B-11.e
+  (a review naming the victim) are refused `42501` at `runner_pending` and at `matching`.
+- **CLOSED, and it was not where the docs said it was.** §E.9 above spoke of an `incidents` INSERT
+  policy. There is none — `incidents report` was dropped by `0094:121`, and the real gate is the
+  definer `open_incident_tx`, whose party check is spelled out inline and does **not** call
+  `is_booking_party`. A grep-driven implementation would have narrowed four policies and left
+  B-11.f wide open. It now carries a state gate raising `booking_not_reportable`.
+- **CLOSED transitively — and this consequence is named here for the first time.** `incident_contact`
+  (`0088:238-270`) returns **both parties' `name` AND `phone`** while an incident is open. §E.9's
+  list stopped at "`incidents` rows" and never followed the row to the phone door. It is inert
+  **today only because `profiles.phone` is universally NULL** (PASS not integrated) — it arms itself
+  with no further code change the day PASS lands. 0114 does not edit that door (0094 §4 forbids it);
+  it shuts the opener, and mutation M2 measures the coupling: restore the opener and
+  `incident_contact` immediately returns 2 rows.
+- 🔵 **Two announcer decisions ride in this file and reverse independently.** O-4 (the narrowing
+  itself, `awaiting-sean.md:274`) and the wider **reportable set** for `open_incident_tx`
+  (`accepted + cancelled_owner + refund_pending`), taken in review because a filter designed to stop
+  an attacker talking to a stranger must not also stop a real party reporting a hurt dog at
+  0066's en-route cancel. Both are 🔵, not ✅ — **a relayed decision is evidence, not authority.**
+- ⚠ **Accepted residual of the second 🔵, stated rather than buried:** an attacker who nominates a
+  stranger and then cancels their own booking **can** open an incident on them. No push, no free
+  text — but it does open the phone door above. The line drawn is *a party who was in the accepted
+  set may still report; a party who never was, cannot.*
+- ⚠ **Accepted cost of the first:** `cancelled_owner` and post-incident `refund_pending` lose
+  **SEND** (chat, reviews) and keep **READ** — every SELECT policy stays wide, so history survives.
+  Recovering the send needs a `bookings.runner_accepted_at` witness (column + backfill + writes in
+  both `runner_accept` arms + a **clear** in `request_runner` and `runner_decline`, or a
+  reassignment hands the next nominee the previous runner's rights). Named successor, not a bug.
+
+**NOT closed by this slice — carry these, do not let "B-11 closed" absorb them:**
+
+- **B-11.2 / B-11.3, the nomination itself, remains open BY DECISION.** `request_runner` is
+  owner-gated and is the product; its push is written as `service_role`, which never consults a
+  policy, so nothing here could have touched it even had O-4 gone the other way. P-25 pins that it
+  still lands.
+- **The nomination push is NOT rate-limited.** `request_runner` no-ops only on the *same* target;
+  **alternating between two runners re-fires indefinitely**, pushing 「지명 러닝 요청」 at each new
+  target and 「지명이 변경됐어요」 at each displaced one. A push-spam channel at two strangers with
+  fixed system copy. The fix belongs in `request_runner` — adjacent slice, same file as O-5.
+- **Four owner-authored strings reach a nominated stranger pre-acceptance on the 요청 탭 card** (reviewer of 0114,
+  executed): `dogs.memo` (`app/runner/requests.tsx:264-266` ← `api.ts:768`, `numberOfLines={2}`), **`dogs.preferences.tags[]`**
+  (`:257`, each element a chip, UNBOUNDED array, no line cap — arguably the larger channel), `dogs.name` / `dogs.breed`
+  (`:235`, verbatim, uncapped — kept by §C.6 on "a dog's name is not a message", made knowing they are unbounded), and
+  🔴 **`bookings.pace_label`** (`:239`) — NOT a dogs column: an unvalidated passthrough from the `create-booking-hold` request
+  body (`handler.ts:213`, `pace_label: b.pace_label ?? null`, no whitelist anywhere). The attacker owns the dog and the
+  body, so this is attacker-controlled text arriving on a nomination alone, needing no thread and no accept. Quieter than a
+  lock-screen push, not nothing. Client fix is **ui2's** — do not render ANY free-text field on a `runner_pending` card
+  (memo, tags, pace_label); server fix for `pace_label` is a whitelist in `create-booking-hold` (adjacent, small).
+- **B-11.1 — `payment_ok` still verifies nothing.** A booking still reaches `matching` with zero
+  money moved. O-5 (pay-after-run) deletes the arm.
+- **CSO #13** (`request_runner` lacks a `club_session_id` check) and the latent
+  `reviews.target_kind`/`target_id` issue — untouched.
+- **Client, owner ui2, server-first by 0103 §0's law:** `app/owner/schedule.tsx`'s 「채팅」 chip is a
+  genuine **dead button** at `payment_hold`/`matching`/`runner_pending` between this landing and
+  that shipping — gate it on `rawStatus`, never on `STATUS_MAP`, which flattens all three to
+  `'pending'`. And `app/chat.tsx:139` tells the user 「잠시 후 다시 시도해주세요」 for a refusal that
+  is now **permanent by design** — correct outcome, false story about time.
+
+**So the honest status line: CSO finding #2 / F2 / B-11 — CLOSED for chat, attacker-authored
+notification rows, reviews, and incident-opening on a never-accepted booking; the nomination
+remains open by decision, not by omission, and `payment_ok` still verifies nothing.**
