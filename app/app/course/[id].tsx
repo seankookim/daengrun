@@ -8,7 +8,6 @@ import { HeatTrace } from '../../src/components/runcard';
 import { traceToBox } from '../../src/lib/trace';
 import { getNaverMap } from '../../src/lib/geo';
 import { fetchRouteById } from '../../src/lib/api';
-import { routeDisplayName } from '../../src/lib/route-name';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useReducedMotion } from '../../src/lib/reducedMotion';
 import { RouteInfo, session } from '../../src/store';
@@ -252,7 +251,7 @@ export default function CourseScreen() {
             )}
 
             {/* ---------- 이름 + 지역 ---------- */}
-            <Text style={[{ fontSize: 27, color: paper.ink, marginTop: 16, fontWeight: '900' }, df]}>{routeDisplayName(route.name)}</Text>
+            <Text style={[{ fontSize: 27, color: paper.ink, marginTop: 16, fontWeight: '900' }, df]}>{route.name}</Text>
             <Text style={{ fontSize: 14, color: paper.dim, fontWeight: '700', marginTop: 4 }}>{route.area}</Text>
 
             {/* ---------- 본문 — 시트 DETAIL 단과 같은 컴포넌트 ---------- */}
