@@ -162,7 +162,10 @@ export async function fetchRoutes(town?: string | null): Promise<RouteInfo[]> {
   // 열렸으므로 가시성은 이제 쿼리의 책임이다 (상세·이력은 fetchRouteById가 전 상태를 읽는다).
   const forTown = async (t: string | null): Promise<RouteRow[]> => {
     for (const status of ['active', 'candidate'] as const) {
-      let q = supabase.from('routes').select(ROUTE_LIST_COLS).eq('status', status);
+      // 0110: geometry reads go through the `routes_public` view (catalog-owned projection of the
+      // 16 columns ROUTE_LIST_COLS names); catalog revokes trace/trace_thumb on the base table after
+      // this lands. name/area/km embeds elsewhere stay on `routes` — those columns are not revoked.
+      let q = supabase.from('routes_public').select(ROUTE_LIST_COLS).eq('status', status);
       if (t) q = q.eq('town', t);
       const { data, error } = await q.order('km');
       if (error) throw error;
@@ -199,7 +202,7 @@ export async function fetchRoutes(town?: string | null): Promise<RouteInfo[]> {
 // 없는 행과 숨겨진 행은 다른 사실이므로 null과 예외를 구분해서 돌려준다.
 export async function fetchRouteById(id: string): Promise<RouteInfo | null> {
   const { data, error } = await supabase
-    .from('routes').select(ROUTE_FULL_COLS).eq('id', id).maybeSingle();
+    .from('routes_public').select(ROUTE_FULL_COLS).eq('id', id).maybeSingle(); // 0110 view, see fetchRoutes
   if (error) throw error;
   if (!data) return null;
   const r = data as RouteRow;
@@ -2462,6 +2465,30 @@ export async function fetchBookingBrief(id: string): Promise<{ status: string; r
   return { status: d.status, runnerName: d.runners?.profiles?.name ?? null };
 }
 
+// Radar's alert row — one booking, the five fields that row prints, nothing else.
+// Deliberately NOT fetchMyBookings(): that pulls 20 rows with five embeds and is capped at 20,
+// so a real booking can legitimately fall out of it. The alert row must never guess, so it reads
+// its own row. Any field the server does not have comes back null and the screen omits it.
+export async function fetchBookingCard(id: string): Promise<{
+  dateLabel: string; timeLabel: string; km: number | null; dogName: string | null;
+  status: string; runnerName: string | null; runnerId: string | null;
+}> {
+  const { data, error } = await supabase.from('bookings')
+    .select('scheduled_at, km, status, runner_id, dogs(name), runners(profiles(name))')
+    .eq('id', id).single();
+  if (error) throw error;
+  const d = data as any;
+  const { dateLabel, timeLabel } = kstParts(d.scheduled_at);
+  return {
+    dateLabel, timeLabel,
+    km: d.km == null ? null : Number(d.km),
+    dogName: d.dogs?.name ?? null,
+    status: d.status,
+    runnerName: d.runners?.profiles?.name ?? null,
+    runnerId: d.runner_id ?? null,
+  };
+}
+
 // 커뮤니티 '러너 후기' 탭 — 최근 공개 후기 + 러너 이름 (2-step, 임베드 FK명 의존 없음)
 export interface PublicReview { runnerName: string; rating: number | null; note: string | null; tags: string[]; when: string }
 export async function fetchRecentReviews(): Promise<PublicReview[]> {
@@ -3646,6 +3673,13 @@ export async function fetchNotifications(): Promise<LiveNoti[]> {
 // ---------- 러닝 리포트 (보호자) ----------
 export interface RunReport {
   dogName: string; routeName: string; routeArea: string; when: string;
+  // The raw `scheduled_at` behind `when`. `when` is a KST display label ("8월 19일 (화) 오후 7:30")
+  // and cannot be computed on. The report's "다음 주 같은 시간" nudge has to add 7 days to the
+  // instant this run was booked for and then check the result against owner/request.tsx's own
+  // rules (2h notice floor, 8-day strip, nine slots) before it is allowed to name a time.
+  // The select below already fetched this column; it was simply never surfaced.
+  // Additive only — this is a date, not a price. See the `price` note below.
+  scheduledAtIso: string | null;
   runnerName: string | null;
   runnerProfileId: string | null;
   routeId: string | null;
@@ -3680,6 +3714,7 @@ export async function fetchRunReport(bookingId: string): Promise<RunReport> {
     routeName: d.routes?.name ?? '코스 미지정',
     routeArea: d.routes?.area ?? '',
     when: `${dateLabel} ${timeLabel}`,
+    scheduledAtIso: d.scheduled_at ?? null,
     runnerName: d.runners?.profiles?.name ?? null,
     runnerProfileId: d.runner_id ?? null,
     routeId: d.route_id ?? null,

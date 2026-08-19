@@ -59,8 +59,12 @@ const totalSuffix = (r: RouteInfo, p: { lat: number; lng: number } | null) => {
   return t ? ` · 이동 포함 약 ${fmtKm(t.totalKm)}km` : '';
 };
 
-// 실제 오늘부터 7일 — 컴포넌트 안에서 생성 (모듈 로드 고정은 자정을 넘기면 '오늘'이 어제가 됐다)
-const buildDates = () => Array.from({ length: 7 }, (_, i) => {
+// 실제 오늘부터 8일 — 컴포넌트 안에서 생성 (모듈 로드 고정은 자정을 넘기면 '오늘'이 어제가 됐다)
+// 8, not 7: the report's "다음 주 같은 시간 예약" nudge (journey-v3 §E, ruling #11) targets run + 7 days,
+// which a 7-day strip (today..today+6) could never show — the screen would book one date while
+// highlighting another. today+7 is the last selectable day.
+const DATE_STRIP_DAYS = 8;
+const buildDates = () => Array.from({ length: DATE_STRIP_DAYS }, (_, i) => {
   const date = new Date(Date.now() + i * 86400_000);
   return {
     date,
