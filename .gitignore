@@ -45,3 +45,6 @@ app/skills-lock.json
 # that harvest is complete, so nothing depends on them. The residential caches in
 # _raw/ ARE kept: that harvest is 13/25 done and they make it resumable at zero cost.
 docs/routes/geo/_rawf/
+
+# Local Naver map key for the route bench — never commit a client ID.
+docs/routes/strava/bench/config.js

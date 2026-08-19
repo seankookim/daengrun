@@ -44,13 +44,20 @@ DIR="$(cd "$(dirname "$0")" && pwd)"
 OUT="${GPX_OUT:-$DIR/gpx}"
 mkdir -p "$OUT"
 
-# Product constraints: short dog runs only, and never through subway/station
-# underground passages. The owner said "under 5", so 5.00 is not accepted.
-# Station exits are also refused: a surface marker at an exit does not prove
-# that the routed leg stays outside the station complex.
+# Product constraints: dog-scale runs, and never through subway/station
+# underground passages.
+#
+# RANGE IS 1.5-7 km. Sean, 2026-08-14, directly: "the kms dont have to be
+# integers. anywhere from around 1.5km+ ish ~ 7 km ish". This REPLACES an earlier
+# guard here that read "the owner said under 5" and refused 5.00 and above — that
+# reading is superseded, and the live catalog already holds 7.63 and 7.66 km
+# routes. Bounds are deliberately loose ("ish"): the catalog slots are a
+# convenience, not a contract, and the NAME always carries the measured value.
+# Station exits stay refused: a surface marker at an exit does not prove the
+# routed leg stays outside the station complex.
 if [ "$TARGET" != "auto" ]; then
-  if ! awk -v t="$TARGET" 'BEGIN { exit !(t ~ /^[0-9]+([.][0-9]+)?$/ && t > 0 && t < 5) }'; then
-    echo "    REFUSING: target ${TARGET}km is outside the dog-route range (0, 5), or is not numeric." >&2
+  if ! awk -v t="$TARGET" 'BEGIN { exit !(t ~ /^[0-9]+([.][0-9]+)?$/ && t >= 1.5 && t <= 7.5) }'; then
+    echo "    REFUSING: target ${TARGET}km is outside the dog-route range 1.5-7.5, or is not numeric." >&2
     exit 2
   fi
 fi
@@ -184,8 +191,14 @@ if [ "$OK" != "yes" ]; then
   exit 3
 fi
 
-if ! awk -v m="$KM" 'BEGIN { exit !(m < 5) }'; then
-  echo "    ${KM}km is not under the 5km dog-route cap — NOT saved." >&2
+# Measured-distance bound, mirroring the target bound above. 1.5-7.5 km per
+# Sean's direct instruction (2026-08-14): "anywhere from around 1.5km+ ish ~
+# 7 km ish". The previous 5 km cap here was the same superseded reading as the
+# target guard — and it was a SECOND copy of the rule, so fixing one left the
+# other enforcing the old policy on measured values only. One rule, two places,
+# is how a policy half-changes.
+if ! awk -v m="$KM" 'BEGIN { exit !(m >= 1.5 && m <= 7.5) }'; then
+  echo "    ${KM}km is outside the 1.5-7.5km dog-route range — NOT saved." >&2
   exit 3
 fi
 
