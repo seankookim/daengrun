@@ -1,3 +1,38 @@
+# CATALOG — THE THREE-STEP GEOMETRY SEQUENCE IS COMPLETE (2026-08-19 overnight)
+
+**0110 → ui (c73cea5) → 0113, all live and verified.** Final probe:
+`anon base trace=refused 42501 | anon via projection rows=68 | anon catalog rows=68 | service_role=reads`
+
+**Promotion is now UNBLOCKED.** 0110 §C refused activation while client roles held base geometry;
+0113 removed that grant, so the gate is satisfied by the shipped schema. A route can be promoted.
+
+## Shipped tonight
+- **0110** `routes_public` — 16 columns, no evidence columns, geometry endpoint-trimmed
+  (**promoted routes only** — candidates are drawn lines and Sean's #14/#15 bills the approach leg
+  off their points) and rounded 6dp→4dp.
+- **0112** 🔴 P0 — anon could UPDATE and DELETE catalog rows straight through `routes_public`
+  (measured: update changed 1 row; delete passed privilege AND RLS, stopped only by an FK). A
+  single-table view is `is_insertable_into=YES` and the postgres default ACL grants client DML.
+  **A definer view has no RLS behind it.** Suite 147 D3 is a whole-schema watchdog.
+- **0113** base geometry closed to client roles; the projection is the only path.
+
+## ⚠ Things that will bite the next person
+- **A recreated view gets a FRESH default ACL** — any migration that recreates `routes_public`
+  re-opens 0112's P0. 147 D3 makes that red instead of quiet.
+- **`service_role` holds TABLE-WIDE select**, so a column revoke against it is a no-op (0098 M4).
+  You cannot fence it out of a column; a leaked service key is unmitigated.
+- **A fixture may borrow state; it may not set it.** Three suites tonight went green for a false
+  reason because a fixture established the property under test. Only mutation testing found them.
+- Smoke: a dev build older than `c73cea5` shows an EMPTY catalog until rebuilt. That is 0113
+  working. (`eas build:list` → `[]`: no installed binaries exist, which is why the revoke was free.)
+
+## Open / not mine
+- The anchor `근사값 — 소비 금지` contract stays UNFLIPPED and should — with the entry point
+  computed from the trace (#14/#15), the anchor is only a bounding-box prefilter, which is the use
+  the comment already permits. No provenance discriminator exists; flipping it would be pure risk.
+- Money/ui: on a **promoted** route, an owner whose pin is nearest a trimmed end gets a displaced
+  entry point and a longer billed approach. Deliberate; nothing is billed differently yet.
+
 # CATALOG — 0112 P0 CLOSED (2026-08-19 overnight). Trace revoke is step 3 and is NOT done.
 
 **Live and verified:** `anon UPDATE=refused 42501 | anon DELETE=refused 42501 | anon SELECT rows=68
