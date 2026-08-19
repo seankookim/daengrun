@@ -220,10 +220,9 @@ is not made; §5 retention still says "필요한 기간," which is not a period 
 even with separate consent). **A released blocker is not an approval.** Open, waiting on counsel:
 the statutory consent gate ahead of `geo.ts:199` and the 이용약관 split.
 
-**One word from Sean, when he is back, converts the reassuring sentence from well-evidenced to
-settled:** the only account on the public channel for 25 days was `s4kim2025` (measured, name is
-user-settable, his confirmation reached us relayed). *"That account is mine"* in his own words, and
-counsel can be told it as fact.
+**✅ SETTLED — Sean, 2026-08-19, verbatim: *"s4kim2025 is my account."*** [end of his words] So the
+only data subject on the public channel for those 25 days was the operator himself; counsel can be
+told it as fact. (Measured: 9 runs, one owner = one runner = `aa73ce8a…` = `s4kim2025`.)
 
 ## 0-octies. 🔴 TWO DASHBOARD TOGGLES, ONE VISIT — the only door into the app is wider than it should be
 

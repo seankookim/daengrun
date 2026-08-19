@@ -102,8 +102,9 @@ placeholders for the 사업자정보 footer (wait for real numbers).
 Review: only after `completed`, target bound to the booking's runner (0105 lineage). Course detail:
 real map (K4 ③), route name RAW (`route.name` — the km token in the name is TRUE by 0100's constraint and on five rows is the only thing that tells courses apart; `routeDisplayName` was deleted at `e881bae`), km/elevation (`elevation_gain_m`, NULL = "—",
 never 0), 점검일 only when `checked_at` exists, chips. Course-map: fit-to-route, all catalog. Tap targets: 18 pt anchors vs the 44 pt floor the
-codebase honours elsewhere — ⚠ this is the ANNOUNCER'S INFERENCE from the codebase floor, NOT a
-ruling Sean gave; ui flagged it as a design call and it stays flagged until he says.
+codebase honours elsewhere — ⚠ announcer's inference, not a ruling. Sean, 2026-08-19: *"on the floor thing, i want to see
+how it looks like before choosing anything."* → ui renders both (18 pt as-is vs 44 pt) side by
+side; he picks by looking.
 
 ## RUNNER
 
