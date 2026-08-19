@@ -1,6 +1,6 @@
 ---
 name: route-geometry
-description: Source real route geometry for the daengrun catalog by building loops in Strava's route builder and ingesting the exported GPX. Use when adding or repairing routes, sourcing traces for new towns or apartment complexes, fixing a route with no geometry, or working on routes.trace / routes.km / anchors. Covers the Strava builder mechanics, the licensing position, and the publish gate that no GPX can satisfy.
+description: Source real route geometry for the daengrun catalog by building dog-running routes in Strava's route builder and ingesting the exported GPX. Use when adding or repairing routes, covering a new town or apartment complex, fixing a route with no geometry, or touching routes.trace / routes.km / anchors / elevation. Covers the destination-led method (go to the river or park first, 2-3 waypoints), the bridge rule for long rivers, culverted streams, the Strava builder mechanics and its flaky geocoder, the DB constraints that enforce measure-then-name, the review bench, and the publish gate no GPX can satisfy.
 ---
 
 # Route geometry — Strava builder → GPX → catalog
@@ -137,9 +137,37 @@ Four mechanics it encodes, each learned by breaking:
    point` → `Start`, `Edit End` → `End`). The field to fill next is always the last textbox in the
    panel.
 
-**CHAIN 5–8 WAYPOINTS, NOT 2–3.** Measured, 2026-08-14: with few waypoints the router takes the
-shortest path in both directions, which is what produced 78–81% retrace on nearly everything.
-Waypoint count does more for variation than any anchor choice.
+**USE 2–4 WAYPOINTS. 2–3 IS THE SWEET SPOT.** Sean, 2026-08-19, looking at built routes on a map:
+*"there are too many spiky points and seen-twice routes ... those are unnecessary ... all routes
+should not have too many way points. maybe less than four or five max. two or three way points
+excluding the start/end point should be the sweet spot."*
+
+**THIS REVERSES THE 5–8 RULE THAT STOOD HERE, and the reversal is the lesson.** The 5–8 rule came
+from a true measurement — 2–3 waypoints did produce 78–81% retrace — but it optimised a NUMBER and
+degraded the THING THE NUMBER STOOD FOR. Forcing 5–8 points around a tight anchor makes the router
+zigzag between them, and that zigzag is the visible spikiness Sean rejected on sight. Retrace fell
+and the routes stopped looking like something a person would walk. `build-route.sh` enforces 2–4.
+
+**GO TO THE GREEN FIRST — the route is destination-led, not a ring of waypoints.** Sean:
+*"if the resident area and the river/park area is near by, ... start from the residential area and
+go first and foremost to these geographical areas, then make a route there before turning back
+with either the same or a different route back. if there are no parks or rivers near by, make a
+simple loop."* So: pick the best river/stream/lake/park in reach, add one point close to it so the
+green section has LENGTH, then one return point well off the outbound bearing. `plan-route.mjs`
+does this. Streams and rivers rank above parks because a route can run ALONG them.
+
+**ON A LONG RIVER, NAME A BRIDGE — NOT THE RIVER.** Measured 2026-08-19, twice: 양천 with
+`안양천` measured **12.96 km on two identical runs**; with `오목교` it measured 5.44 km and came
+out a genuine LOOP at 15% retrace. 중랑 with `중랑천` gave 8.37 km; with `겸재교`, 3.54 km. A bare
+river name on a 30 km waterway is a coin flip on WHICH point resolves, and viewport bias only
+sometimes saves it. A bridge is a point — and it hands the router a way across and back, which is
+why those loops closed instead of doubling back.
+
+**A CULVERTED STREAM (복개천) IS A ROAD WITH WATER UNDER IT.** 34 of 129 harvested stream records
+carry `tunnel=culvert/covered`; 봉천천 · 반포천 · 대방천 · 신당천 · 공대천 are **100% covered**,
+면목천 98%, 시흥천 97%. Routing to one produces exactly the "stays in the city concrete area" route
+Sean rejected, wearing a stream's name. `plan-route.mjs` DEMOTES them below parks rather than
+rejecting — the tag is per-segment, and 방학천 is culvert-tagged yet built fine.
 
 **SHAPE IS NOT A GRADE.** Sean, 2026-08-14: *"who cares if it's a lolipop or a figure 8 or a
 curve."* Loop-purity was invented as a target and optimised for; it was never the spec. Retrace %
@@ -153,6 +181,18 @@ outside tolerance.
 
 **Screenshot every route anyway** — the distance readout reports a doubled-back line as perfectly
 fine.
+
+## 4b. What ships with this skill
+
+| File | Does |
+|---|---|
+| `build-route.sh` | build → measure → gate → save → export GPX → verify. Enforces 2–4 waypoints, the 1.5–7.5 km range, and names from the measurement. |
+| `plan-route.mjs` | destination-led planner: nearest river/park in reach, a point along it, one different way back. Demotes 복개천. |
+| `cluster.mjs` | what is walkable from each residential complex; filters junk anchors. |
+| `check-shape.mjs` | independent verification of an exported GPX — distance, elevation, closure, retrace, shape — recomputed from trackpoints. |
+
+The repo copies under `docs/routes/` are canonical; these are synced from them. If they disagree,
+the repo wins — and say so, rather than quietly using the stale one.
 
 ## 5. Anchors
 
@@ -255,19 +295,27 @@ out-and-back. That is a structural answer to retrace, not a waypoint trick.
 - **New rows are a production catalog change.** Build and export freely — that touches nothing of
   ours — but get Sean's sign-off before INSERTing new routes.
 
-## 7. Current state (verified 2026-08-14 — re-check, do not trust)
+## 7. Current state — DERIVE IT, never trust this file
 
-- 9 `candidate` routes (반포동), 4 `retired` (성수동). The 성수동 rows were retired rather than
-  deleted because **all 24 production bookings and 9 runs reference them**. Scope has since widened
-  to multiple districts, so ask Sean whether they come back:
-  `update routes set status='candidate' where town='성수동'`.
-- `몽마르뜨 언덕 루프` has **0 trace points** and `source` NULL — alone on both axes, and the
-  clearest thing to fix first. One rebuilt version already exists at
-  [strava.com/routes/3523203570730615372](https://www.strava.com/routes/3523203570730615372)
-  (1.58 km, 38 pts) but it is an **out-and-back and should be redrawn as a loop**.
-- The catalog is **not empty in the app**: `api.ts:103` reads `['active','candidate']` — active
-  first, candidate fallback, marked `Sean 확정 A`. The empty catalog exists only on old binaries
-  filtering `.eq('active', true)`, since `active` is GENERATED from `status`.
+A count written here is stale the moment another route lands. Run these instead:
+
+```bash
+supabase db query --linked "select count(*) rows, count(distinct town) towns, \
+  count(elevation_gain_m) elev, count(terrain) terr, \
+  count(*) filter (where status='candidate') cand, \
+  count(*) filter (where status='retired') ret from routes;"
+ls docs/routes/strava/*.gpx | wc -l          # the GPX corpus
+node -e "console.log(JSON.parse(require('fs').readFileSync('docs/routes/strava/bench/routes.json','utf8')).length)"
+```
+
+For scale only, so you know whether you are early or late: on 2026-08-19 the catalog stood at
+**59 rows across 28 towns**, from 13 rows / 2 towns that morning. Every 자치구 in the vetted build
+queue has at least one route; the work in front of you is DEPTH — a town with one route offers an
+owner no choice, and the km dial is the main thing they actually vary.
+
+`docs/routes/geo/BUILD-QUEUE.md` is a vetted, ranked execution queue with a REJECTED section
+(junk anchors, unsearchable waypoints, poisoned names) and 21 waypoint names flagged as uncertain
+geocodes. Work it top-down. `docs/routes/geo/ROUTE-PLANS.md` is the raw generated set behind it.
 
 ## 8. Before you finish
 
@@ -288,3 +336,70 @@ written down as a property of reality. Every instance so far:
 In every case the artifact looked right. **Precision without verification is indistinguishable
 from precision with it.** Before recording something as absent, broken or impossible, ask whether
 you asked the right way.
+
+## 10. What the DATABASE enforces, and how it caught me
+
+`routes_name_km_agrees` (migration 0100, catalog's) is **measure-then-name as a CHECK constraint**:
+`round(km-in-name, 1) = km`. It rejected an INSERT because the name said `5.75km` while my `km`
+column said `5.7` — **JS `toFixed(1)` on a binary float rounds where Postgres `round(5.75,1)`
+rounds half-up.** Two roundings, one boundary, different answers.
+
+**I did not see the rejection**, because I had piped the ingest to `/dev/null`. The row count
+coming back two short is the only reason I looked.
+
+> **NEVER run generated SQL with its output suppressed.** A refused write must be seen. This is the
+> same failure shape as a held migration shipping as cargo because nobody read the dry-run list.
+
+Fix in `build-manifest.mjs`: `km` derives from the km **in the name**, half-up. One source, two
+fields, so they cannot disagree.
+
+`routes_trace_shape` / `routes_trace_thumb_shape` (0099/0100) pin the point shape to `{lat,lng}`
+objects. I once wrote `[lat,lng]` arrays and made **20 of 28 rows geometry-blind** — no line drew,
+`routeStart()` returned null, they fell out of ranking, and nothing errored. The constraint exists
+because of that.
+
+`elevation_gain_m` (0098) has a trigger that **CLEARS it whenever `trace` changes** unless the same
+statement supplies a new value. That is deliberate: `promote_route_from_run` replaces `trace` and
+would otherwise carry a candidate's climb onto the certified route. So **write elevation in the
+same statement as trace** — `ingest.mjs` does.
+
+## 11. Operational facts that cost real time
+
+**TOL_PCT is 45%, not 20%.** The target is an INTENT; the name carries the MEASUREMENT whatever the
+target was, so tolerance cannot launder a distance — it can only waste a 4-minute browser round
+trip refusing a perfectly good 4.48 km route against a 3.2 km target. The **1.5–7.5 km range check
+is the real bound** (Sean: *"anywhere from around 1.5km+ ish ~ 7 km ish"*, non-integer fine).
+
+**The router is not deterministic.** The same 금천 command measured 6.19 km on one run and 6.44 km
+on the next. The saved name carries whichever run was saved, so it stays honest — but "rebuild to
+re-save" is not a no-op.
+
+**The radius estimator overshoots and I never fixed it.** Calibrating `2πr` → `2πr × 1.95` from
+three builds did not stop 3 km targets producing 5.24 and 7.05. It is a hint, not a prediction.
+What holds is unchanged: build, measure, name from the measurement.
+
+**Geocode misses are often transient.** `fill_last` now RETYPES the query up to three times rather
+than re-polling a popover that never opened. A name that resolved minutes earlier returned NO HIT,
+and a probe immediately after showed every name resolving fine.
+
+**A mount failure is usually not a lost login.** Check `pgrep` for chromium and `bun run server.ts`
+counts first. A daemon that dropped its page to the local `/welcome` tab looks identical to a dead
+session and is fixed by one `goto`.
+
+## 12. The review bench
+
+`docs/routes/strava/bench/` — a dashboard for judging routes, in two surfaces that exist for one
+reason each:
+
+- **Published artifact**: embeds a compacted OSM street basemap (delta-encoded, ~30 KB/route from
+  736 KB raw) because an Artifact's CSP blocks **every** external host — the Naver SDK loads
+  nothing at all there, silently.
+- **Local page** (`python3 -m http.server 5178 --directory docs/routes/strava/bench`): the real
+  Naver map. Key lives in `config.js`, **gitignored**; register `http://localhost:5178` in the NCP
+  service-URL allowlist or you get a 401 that the SDK reports as a 500. Newer keys use `ncpKeyId`,
+  older ones `ncpClientId`.
+
+Both carry accept / reject / comment per route, persisted to `localStorage`, with an **Export
+review** button producing `{name, routeId, verdict, comment}` JSON. That export is the input to the
+next fix round. Every number on both pages is recomputed in the browser from the trace — the page
+displays nothing it did not derive.
