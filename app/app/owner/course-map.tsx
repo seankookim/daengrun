@@ -188,15 +188,21 @@ export default function CourseMap() {
   };
 
   // ── 지도 ──────────────────────────────────────────────────────────────────
-  const withTrace = shown.filter((r) => r.trace.length > 1);
+  // useMemo: `shown`이 이미 메모돼 있으므로 이것도 안정적이고, 아래 region의 의존성이
+  // **정적으로 검사 가능한 단순 식**이 된다 (eslint react-hooks/use-memo).
+  const withTrace = useMemo(() => shown.filter((r) => r.trace.length > 1), [shown]);
 
   // 고른 코스가 있으면 그 코스에, 없으면 **보이는 코스 전부**에 맞춘다.
   // 후자가 중요해진 이유: 카탈로그가 반포를 넘어 잠원·성수·압구정·이촌까지 늘었는데
   // 폴백 카메라는 반포 고정이라, 반포 밖 코스는 목록에 있으면서 지도에는 한 번도 보이지
   // 않았다 — 27개를 세어 놓고 8개만 보여주는 지도였다.
+  // ⚠ 이전 의존성은 `withTrace.map(r => r.id).join(',')` 였다 — id만 추적하는 키라,
+  // **id가 그대로인 채 트레이스 내용만 바뀌면 카메라가 다시 맞지 않는다**(카탈로그가 코스를
+  // 다시 자르고 재조회한 경우가 정확히 그 모양이다). 게다가 복합식이라 린터가 검사할 수도 없었다.
+  // eslint react-hooks/exhaustive-deps 가 잡아 준 실제 결함이다.
   const region = useMemo(
     () => (sel ? regionOf([sel.trace]) : regionOf(withTrace.map((r) => r.trace))),
-    [sel, withTrace.map((r) => r.id).join(',')],
+    [sel, withTrace],
   );
 
   const mapNode = !maps ? (
