@@ -311,8 +311,15 @@ flagged-test-owner policy, and then it gets written into the PR-0 doc.
 Full JSON at `.gstack/security-reports/2026-08-19-cso.json` (local). Owners already messaged;
 recorded here so nothing lives only in chat.
 
-- **CRIT — runner live GPS is a public broadcast channel.** STATUS 2026-08-19 evening, honest
-  line: **server half correct and live (0103/0104), client half shipped (`f106b2b`, all run
+- **CRIT — runner live GPS is a public broadcast channel.** STATUS 2026-08-19 late: **`private_only=true`
+  FLIPPED (management API, re-read confirms). Legal's 4-cell matrix + original probe re-run against
+  production post-flip: stranger CHANNEL_ERROR on every cell, both modes, both topic shapes. Prereqs
+  landed first: 0108 (chat/bk/club-chat realtime policies, adversarially reviewed) applied; ui client
+  9012d7a makes all four families private+setAuth; forced-upgrade population = 0 (no build ever
+  shipped). GATE STILL OPEN on the positive instrument: ui must confirm on production that the real
+  owner/host still RECEIVES on chat, bk, club-chat and run2 — until then this reads "negative arm
+  proven, positive arm pending"; revert = one PATCH `private_only=false`.** Earlier honest line kept
+  for the record: **server half correct and live (0103/0104), client half shipped (`f106b2b`, all run
   channels private + setAuth, 16/16 with mutation check) — but the channel is STILL publicly
   joinable by any client that asks for `private:false`, on any topic name; measured post-0103 by
   legal.** New-binary owner↔runner traffic is isolated from public subscribers (measured: public
