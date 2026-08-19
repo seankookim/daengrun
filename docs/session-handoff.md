@@ -5,16 +5,13 @@
 §0-undecies / §0-duodecies (Sean's open items, lettered) → the console
 (https://claude.ai/code/artifact/aad92054-9264-4431-9835-d03ef86b3f6b, update in place, never a new URL).
 
-**State at this write (verify, don't relay):** 0106–0109 applied in production; **0105 held** (line in
-`supabase/migrations/HELD`; deploy only via `bash scripts/deploy-migrations.sh --push <names>`); the
-0105 replacement is being BUILT as **0111** on `claude/p0-booking-entry` (tree `p0-booking-entry`) from
-`docs/contracts/booking-entry-rebuild-contract.md` v2 (attacked 21/21, reviewer's F1–F12 folded in) —
-announcer-directed under Sean's "full speed" default (§0-decies A) because trust is offline. Next gates
-after the implementer reports: independent adversarial reviewer executing §D pins in the harness →
-land on trunk → `deploy-migrations.sh --push 0111_booking_entry_rebuild.sql` → `supabase functions
-deploy create-booking-hold` (both orders safe; disjoint holes) → verify live (forged INSERT → 42501
-rolled back; anon/authenticated hold no INSERT on bookings/recurring_series/slot_holds; service_role
-does; cron still mints an honest series) → REGISTRY 0111 DEPLOYED, 0105 SUPERSEDED, HELD line gone.
+**State at this write (verify, don't relay):** 0106–0109 and **0111** applied in production; **0105 is GONE**
+(superseded by 0111, file deleted, HELD empty — the wrapper `bash scripts/deploy-migrations.sh --push <names>`
+is still the only deploy path). 0111 went contract → attacked (21/21) → implemented → independent
+adversarial review (FIX-FIRST, comment-class) → round 2 (657/0) → trunk → `create-booking-hold` v9 +
+0111 deployed → verified live at the DB boundary AND over the wire (self-cleaning probe: body runner_id →
+400; legit hold writes runner_id null; direct PostgREST writes → 42501). REGISTRY rows 0105 SUPERSEDED /
+0111 DEPLOYED carry the evidence. /cso #2 is PARTIALLY CLOSED: F2 (B-11 nomination chain) stays open.
 **Not closed by 0111:** the legit nomination chain (own dog → payment_ok → request_runner) — B-11 in the
 contract; `is_booking_party` status filter is the adjacent slice; Sean's D1/D2 decides its shape.
 Live sessions at this write: ui, legal, route geometry. Offline: trust, money, catalog (0110 designed
