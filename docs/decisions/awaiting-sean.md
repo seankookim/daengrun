@@ -11,7 +11,9 @@
 > `s4kim2025`, handle `choco`) · **§0-ter ✅ all 9 runners are TEST DATA** — trust marks them in
 > `club_test_accounts` and the flag/copy gets fixed · **§0-sexies ✅ option A** — start the
 > paperwork chain, keep the charge machine; payment-surface honesty fix unblocked · **§0-septies ✅
-> confirmed** — `aa73ce8a…` IS `s4kim2025`, recorded as the PR-0 test owner · **위치정보법 brief
+> confirmed** — Sean's word: the `s4kim2025` test account exists; the mapping `aa73ce8a…` =
+> `s4kim2025` (handle `choco`) is a *measurement* (trust verified it unique). Recorded as the
+> PR-0 test owner — two facts, two provenances · **위치정보법 brief
 > delivered** at `docs/biz/location-law-counsel-brief.md` · **hill notes: yes, ~40 m** ("언덕
 > 많음"), ui builds.
 
