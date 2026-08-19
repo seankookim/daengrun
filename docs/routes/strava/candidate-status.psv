@@ -1,8 +1,8 @@
 strava_id|status|dog_access|reason
-3523203570730615372|superseded|unverified|1.59 km known-bad out-and-back; below the revised useful range
+3523203570730615372|superseded|unverified|Sean 2026-08-19 REJECTED: "all concrete no park and somehow excluded all the actual park area". Superseded by 몽마르뜨 서리풀 공원 루프 3.95km.
 3523214683284986122|review|unverified|Characteristic hill route under 5 km, but no surface-only dog-access audit is recorded
 3523215321827895562|superseded|unverified|5.40 km exceeds the cap and the saved Strava name incorrectly says 3 km
-3523224747186372978|review|unverified|Characteristic museum route under 5 km, but no surface-only dog-access audit is recorded
+3523224747186372978|superseded|unverified|Sean 2026-08-19 REJECTED: "did not even go deep into the park". Superseded by 이촌 한강공원 루프 3.82km.
 3523229766951707090|superseded|unverified|6.83 km exceeds the revised cap
 3523230401766453958|review|blocked|Uses 신반포역 2번출구 as a waypoint; keep out of the dog catalog until the complete leg is proven surface-only
 3523230401769556678|superseded|unverified|7.67 km exceeds the revised cap
@@ -37,7 +37,7 @@ strava_id|status|dog_access|reason
 3524998876909961624|review|unverified|Built by route-geometry 2026-08-19; measured 3.082 km, within Sean's 1.5-7.5 range. No surface-only dog-access audit performed by this session.
 3524998876906613144|review|unverified|Built by route-geometry 2026-08-19; measured 3.935 km, within Sean's 1.5-7.5 range. No surface-only dog-access audit performed by this session.
 3525042173695682574|review|unverified|Built by route-geometry 2026-08-19; measured 4.926 km, within Sean's 1.5-7.5 range. No surface-only dog-access audit performed by this session.
-3524982565721803160|review|unverified|Built by route-geometry 2026-08-19; measured 7.056 km, within Sean's 1.5-7.5 range. No surface-only dog-access audit performed by this session.
+3524982565721803160|superseded|unverified|Sean 2026-08-19 REJECTED: flat park nearby, mountain is a big climb, path does not intersect residential. Superseded by 마포 상암 난지천 루프 7.1km.
 3524998909054872632|review|unverified|Built by route-geometry 2026-08-19; measured 6.466 km, within Sean's 1.5-7.5 range. No surface-only dog-access audit performed by this session.
 3525055224123590598|review|unverified|Built by route-geometry 2026-08-19; measured 6.804 km, within Sean's 1.5-7.5 range. No surface-only dog-access audit performed by this session.
 3524994474651174478|review|unverified|Built by route-geometry 2026-08-19; measured 5.744 km, within Sean's 1.5-7.5 range. No surface-only dog-access audit performed by this session.
@@ -45,4 +45,9 @@ strava_id|status|dog_access|reason
 3525003528973545038|review|unverified|Built by route-geometry 2026-08-19; measured 3.233 km, within Sean's 1.5-7.5 range. No surface-only dog-access audit performed by this session.
 3524998909056541752|review|unverified|Built by route-geometry 2026-08-19; measured 5.096 km, within Sean's 1.5-7.5 range. No surface-only dog-access audit performed by this session.
 3523262357366690348|review|unverified|Built by route-geometry; measured 3.311 km. Surface mix and query sequence NOT RECORDED by the builder version used. No dog-access audit by this session.
-3523243924142013126|review|unverified|Built by route-geometry; measured 5.832 km. Surface mix and query sequence NOT RECORDED by the builder version used. No dog-access audit by this session.
+3523243924142013126|superseded|unverified|Sean 2026-08-19 REJECTED: "could have just gone to the river park". Superseded by 압구정 잠원한강공원 루프 3.95km.
+
+3525062776642274394|review|unverified|Rebuilt 2026-08-19 after Sean rejected the prior version; measured 3.953 km. Destination is the nearest green with a lap through it. No dog-access audit by this session.
+3525062010743940042|review|unverified|Rebuilt 2026-08-19 after Sean rejected the prior version; measured 7.11 km. Destination is the nearest green with a lap through it. No dog-access audit by this session.
+3525062730870715406|review|unverified|Rebuilt 2026-08-19 after Sean rejected the prior version; measured 3.954 km. Destination is the nearest green with a lap through it. No dog-access audit by this session.
+3525065520181107726|review|unverified|Rebuilt 2026-08-19 after Sean rejected the prior version; measured 3.832 km. Destination is the nearest green with a lap through it. No dog-access audit by this session.

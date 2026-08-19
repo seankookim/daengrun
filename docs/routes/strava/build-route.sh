@@ -192,7 +192,12 @@ KM=$(echo "$DIST" | grep -oE '[0-9.]+' | head -1)
 # silently discarding the unknown share. Refuse an incomplete or malformed mix.
 SURF_COUNT=$(printf '%s' "$SURF" | grep -oE '[0-9]+%' | wc -l | tr -d ' ')
 SURF_TOTAL=$(printf '%s' "$SURF" | grep -oE '[0-9]+%' | tr -d '%' | awk '{s+=$1} END{print s+0}')
-if [ "$SURF_COUNT" -ne 3 ] || [ "$SURF_TOTAL" -ne 100 ]; then
+# Allow 98-102: Strava rounds each share independently, so a genuine complete
+# mix can sum to 101 ("75% PAVED · 9% DIRT · 17% NOT SPECIFIED" — a real reading
+# that this guard refused). Demanding exactly 100 rejects correct data for an
+# artifact of Strava's own rounding. Three parts present is the real test; the
+# sum is a sanity band, not an identity.
+if [ "$SURF_COUNT" -ne 3 ] || [ "$SURF_TOTAL" -lt 98 ] || [ "$SURF_TOTAL" -gt 102 ]; then
   echo "    incomplete Surface Type '$SURF' — refusing to invent the missing share" >&2
   exit 1
 fi

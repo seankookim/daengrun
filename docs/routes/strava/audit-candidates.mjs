@@ -143,8 +143,18 @@ for (const name of gpxFiles) {
     if (!INCOMPLETE.test(manifest.surface_mix)) {
       const surfacePcts = [...manifest.surface_mix.matchAll(/([0-9]+)%/g)]
         .map((match) => Number(match[1]));
-      if (surfacePcts.length !== 3 || surfacePcts.reduce((sum, value) => sum + value, 0) !== 100) {
-        failures.push(`${name}: surface_mix is not a complete three-part 100% mix: ${manifest.surface_mix}`);
+      // Band 98-102, not exactly 100. Strava rounds each share independently, so
+      // a genuine complete reading can sum to 101 — "75% PAVED · 9% DIRT · 17%
+      // NOT SPECIFIED" is real data this check rejected. THREE PARTS PRESENT is
+      // the actual test; the sum is a sanity band.
+      //
+      // Same fix as build-route.sh's guard, which is the point: this is the
+      // THIRD rule today found living in two places and disagreeing (after the
+      // 5 km cap in two spots, and the 1.5-7.5 range in three). When a rule is
+      // duplicated, fixing one copy just moves the failure.
+      const surfaceTotal = surfacePcts.reduce((sum, value) => sum + value, 0);
+      if (surfacePcts.length !== 3 || surfaceTotal < 98 || surfaceTotal > 102) {
+        failures.push(`${name}: surface_mix is not a complete three-part mix (98-102%): ${manifest.surface_mix}`);
       }
     }
     if (strict) {

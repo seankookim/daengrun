@@ -47,7 +47,12 @@ const angDiff = (a, b) => { const d = Math.abs(a - b) % 360; return d > 180 ? 36
 // A waypoint must be a place you could type into a search box — see the SKIP
 // list's history: OSM names plenty of real objects that are not searchable
 // places, and the geocoder answers those with silence or with something far away.
+// R4 — NOT A DESTINATION. Sean: "why are we stranding off into a random factory
+// parking lot", and "no need to go all the way up to the station". A dog route
+// ends at green, not at infrastructure.
 const SKIP = new RegExp([
+  '주차장','공영주차','차고지','공장','물류','창고','терминал','터미널','차량기지',
+  '역$','역앞','역사','환승','정류장','버스',
   '어린이\\s*공원','소공원','지하차도','지하보도','지하철','출구','무명','\\(무명\\)',
   '연결다리','급식실','학교','교회','성당','^다리$','^보행교$','^육교$','^계단$','^터널$',
 ].join('|'));
@@ -76,43 +81,86 @@ const targetKm = Number(process.argv[3] || 3);
 const start = res.find((r) => r.name === wanted) || res.find((r) => (r.name || '').includes(wanted));
 if (!start) { console.error(`no complex matching "${wanted}"`); process.exit(1); }
 
-// Out-and-back-ish: the destination sits roughly a third of the route away.
-const reach = Math.max(400, (targetKm * 1000) / 3.2);
+// HOW FAR TO LOOK for the destination — NOT how far to walk to it. Sean's review
+// of 31 built routes, 2026-08-19, rejected exactly the opposite behaviour:
+//   압구정: "could have just gone to the river park"
+//   강동:  "theres a park right above the left end of the route; why are we
+//           going everywhere but there?"
+//   마포:  "there's a flat park near by, a mountain is a big climb"
+// The old code sorted destinations by |d - reach|, i.e. it PREFERRED a green at
+// the radius that would make the target distance come out — deliberately walking
+// past the near park to reach a far one. That is the single worst thing in the
+// old planner and it produced three of the four rejections.
+//
+// New rule: take the NEAREST qualifying green. Distance comes from the LAP
+// inside it (below), not from the walk out.
+const reach = Math.max(700, (targetKm * 1000) / 2.0);
 const near = feats.filter(ok).map((f) => ({ ...f, d: hav(start, f), b: bearing(start, f) }));
 
-const rankOf = (f) => (DEST_RANK[f.category] ?? 9) + (covered(f) ? 2.5 : 0);   // a 복개천 ranks below a park
+// R1 — NEAREST green wins. R6 — a flat park beats a hill for a dog ("a mountain
+// is a big climb"). A covered stream (복개천) is a road with water under it and
+// ranks below a real park. Distance is NOT a factor in choosing WHICH green;
+// it is handled by the lap.
+// A DESTINATION is water or a park. A "trail" in this index is usually just a
+// named road (매봉산로, 성암로) and picking one as the destination is how a route
+// ends up "all concrete no park" — Sean's words rejecting 몽마르뜨. Trails stay
+// eligible as LAP points, where a path through the green is exactly right, but
+// they cannot be what the route is FOR. A hill is a destination only if nothing
+// flat is in reach: "a mountain is a big climb" for a dog.
+const KIND = { stream: 0, lake: 0, park: 1, hill: 5 };
+const rankOf = (f) => (KIND[f.category] ?? 9) + (covered(f) ? 3 : 0);
+
 const dests = near
-  .filter((f) => f.d <= reach * 1.6 && DEST_RANK[f.category] !== undefined)
-  .sort((a, b) => (rankOf(a) - rankOf(b)) || Math.abs(a.d - reach) - Math.abs(b.d - reach));
+  .filter((f) => f.d <= reach && KIND[f.category] !== undefined)
+  // nearest first, with kind as the tiebreak inside a 300 m band so a park
+  // 80 m further than a hill still wins
+  .sort((a, b) => (Math.round(a.d / 300) - Math.round(b.d / 300)) || (rankOf(a) - rankOf(b)) || (a.d - b.d));
 
 const plan = [];
 let why = '';
 if (dests.length) {
   const dest = dests[0];
   plan.push(dest);
-  why = `${dest.category} at ${Math.round(dest.d)}m` + (covered(dest) ? ' ⚠ COVERED SEGMENT (복개천) — nothing better in reach' : '');
-  // Spend the route ON the destination: a second feature of the same kind, or
-  // anything further along the same bearing, so the green section has length.
-  // Cap the "spend time there" point close to the destination, not merely
-  // beyond it. At reach*2.2 it kept landing ~2 km out (강서 2013 m, 도봉 2004 m)
-  // and doubled the route: an 8.32 km result against a 3 km target, twice.
-  // Sorting by FURTHEST within the window made it worse — it deliberately chose
-  // the far edge. Nearest-to-destination is what "along the river" means.
-  const along = near.filter((f) => f.name !== dest.name && f.d > dest.d * 0.8 && f.d <= dest.d * 1.6
-      && angDiff(f.b, dest.b) < 65)
-    .sort((a, b) => (DEST_RANK[a.category] ?? 9) - (DEST_RANK[b.category] ?? 9) || a.d - b.d);
-  if (along.length) { plan.push(along[0]); why += ` + ${along[0].category} beyond it`; }
-  // One return point, well off the outbound bearing, so the way home differs.
-  const back = near.filter((f) => !plan.some((p) => p.name === f.name)
-      && f.d >= dest.d * 0.5 && f.d <= reach * 1.5 && angDiff(f.b, dest.b) > 95)
-    .sort((a, b) => Math.abs(a.d - reach * 0.8) - Math.abs(b.d - reach * 0.8));
-  if (back.length && plan.length < 3) { plan.push(back[0]); why += ' + a different way back'; }
+  why = `${dest.category} "${dest.name}" at ${Math.round(dest.d)}m` + (covered(dest) ? ' ⚠복개' : '');
+
+  // R3 — DO A LAP IN THE GREEN. Sean, three separate times:
+  //   이촌 박물관 (rejected): "did not even go deep into the park"
+  //   중랑:  "go straight to the park, do a lap, then come back. pretty simple."
+  //   잠실:  "could have just also make another loop around the rightside lake"
+  // The length of the route should come from the lap, not from the walk out. So
+  // take one or two more points that are IN or ON the same green — same category
+  // or within ~500 m of the destination — on the far side of it, which is what
+  // makes the router go around rather than touch and turn.
+  // BOTH bounds are required. Matching on category alone pulled 망월천 — a stream
+  // 33 KM away — into a 2.7 km route's "lap", because same-category matched
+  // globally. A lap point must be near the DESTINATION *and* within reach of the
+  // START; either test alone is useless.
+  const lapPool = near.filter((f) => f.name !== dest.name
+    && f.d <= reach * 1.4
+    && hav(dest, f) < 900
+    && (f.category === dest.category || hav(dest, f) < 500)
+    && f.d > dest.d * 0.6);
+  // furthest-through-the-green first: that is the lap's diameter
+  lapPool.sort((a, b) => hav(dest, b) - hav(dest, a));
+  const lap = lapPool.filter((f) => hav(dest, f) > 150).slice(0, targetKm >= 4 ? 2 : 1);
+  plan.push(...lap);
+  if (lap.length) why += ` + lap through ${lap.map((f) => `"${f.name}"`).join(' → ')}`;
+
+  // R2 — NEVER a waypoint on the opposite bearing. Sean, 광진: "you start near
+  // the river bed and you go the opposite direction? no, go near the river and
+  // the park area." A return point is only allowed if the route is still short
+  // AND it does not send the runner away from the green first.
+  if (plan.length < 3) {
+    const back = near.filter((f) => !plan.some((p) => p.name === f.name)
+      && f.d <= dest.d * 1.3 && angDiff(f.b, dest.b) > 100 && angDiff(f.b, dest.b) < 170);
+    back.sort((a, b) => a.d - b.d);
+    if (back.length) { plan.push(back[0]); why += ' + a different way home'; }
+  }
 } else {
-  // No green destination in reach — a plain loop through whatever is there.
-  const ring = near.filter((f) => f.d >= reach * 0.5 && f.d <= reach * 1.8)
-    .sort((a, b) => a.b - b.b);
+  // R5/R7 — nothing green in reach: a plain simple loop, close in.
+  const ring = near.filter((f) => f.d >= reach * 0.25 && f.d <= reach * 0.8).sort((a, b) => a.b - b.b);
   const picks = [];
-  for (const f of ring) if (!picks.length || angDiff(f.b, picks[picks.length - 1].b) > 90) picks.push(f);
+  for (const f of ring) if (!picks.length || angDiff(f.b, picks[picks.length - 1].b) > 100) picks.push(f);
   plan.push(...picks.slice(0, 3));
   why = 'no park or water in reach — plain loop';
 }
