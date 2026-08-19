@@ -448,6 +448,47 @@ truth about what the law requires, and the system is what has to catch up.
 Recorded in `privacy-policy.md`'s own DECIDE-BEFORE-PUBLICATION header, which is where its drafters
 put items of exactly this kind.
 
+## 6-quinquies. The review's §13.2 product-control checklist, audited item by item
+
+The source review ends with eleven "required product controls." Several were checked incidentally
+above; this is the complete pass, so the list stops being a document nobody has scored.
+
+| # | Control | State | Evidence |
+|---|---|---|---|
+| ① | GPS only via explicit session start/end | ✅ | `geo.ts` starts/stops the task with the run; Android background **off** (`app.json:76`), foreground-service only |
+| ② | Access scoped to the booking's parties | ✅ *(as of today)* | the P0 fix — `private_only`, `realtime.messages` RLS, both arms green (§6-ter) |
+| ③ | Record consent version, time, text, device, withdrawal | 🟡 **partial** | runner consents **are** persisted, and `0062:81-83` makes them `not null check(...)` so an application cannot exist without all three. **No version, text, or device** — and the owner's consent is *implied* at login (`login.tsx:140`) with no record at all |
+| ④ | Location use/provision confirmation records, ≥6 months | ❌ | no ledger exists (§6-quater ⓑ) |
+| ⑤ | Auto-delete raw coordinates, max 1 year | ❌ | no purge job exists (§6-quater ⓐ) |
+| ⑥ | On account deletion, separate legal records from location | ❌ | **there is no account deletion** — see below |
+| ⑦ | Admin location access: dual approval, audit log, time limit | ❌ | none. `0082:174` records that **this repo has no admin role in RLS to lean on**; admin access is the service key and the SQL console, unlogged and unbounded |
+| ⑧ | Auto-verify overseas-transfer disclosures match infrastructure | ❌ | none — though largely defused: the region is `ap-northeast-2` (Seoul), not overseas |
+| ⑨ | UI for emergency stop, withdrawal of location provision, deletion, data requests | ❌ | none of the four exists as a user-facing control |
+| ⑩ | In-app cancellation, refund, subscription cancellation | 🟡 **partial** | cancellation/refund exist; account deletion does not |
+| ⑪ | Body camera, audio, vehicle pickup, dangerous dogs disabled by flag | 🟡 **better and worse** | the first three are **absent entirely**, which beats a flag. The **맹견 gate does not exist** (companion audit §8) |
+
+Three ✅, four 🟡, and the rest absent. For a pre-launch pilot that is not alarming — but the list
+is now scored, and ④⑤⑥⑦⑨ are the ones that must exist before a real runner does.
+
+### ⑥ deserves its own note, because it is a launch blocker for a reason outside Korean law
+
+**There is no account deletion.** `settings.tsx:89` states it honestly —
+`계정 삭제 | 문의로 처리` — which is consistent with this project's honesty policy and is *not* a
+false claim. The privacy policy's §7 (withdrawal via 회원 탈퇴) and §5 (`계정 정보 | 회원 탈퇴
+시까지`) are therefore describing a **manual, support-mediated** process rather than a fiction.
+PIPA 제37조 처리정지·동의철회 can be satisfied by a manual path, so the *legal* finding here is
+mild — genuinely milder than §6-quater's two.
+
+**The hard blocker is Apple's, not Korea's.** App Store Review Guideline **5.1.1(v)** requires an
+app that supports account creation to let the user **initiate deletion from inside the app**. A
+"contact us" path is the specific thing that guideline was written to reject. This app creates
+accounts (Kakao OAuth + email) and is being prepared for App Store submission, so **this is a
+rejection waiting to happen**, and it is cheap to fix now and expensive to discover in review.
+
+It is recorded here rather than in a product doc because it arrives through the same door as the
+rest of this audit — the privacy policy promises 탈퇴, and the honest answer to "does that exist?"
+turns out to matter to the launch more than to the law.
+
 ## 7. The question with a clock, and it is not yet asked
 
 Everything above concerns what the product must do before launch. One question runs the other
