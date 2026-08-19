@@ -5,6 +5,27 @@ is the method and this is the snapshot — and the snapshot is stale by the time
 
 ## ⚡ v3 update, 2026-08-19 evening (announcer v3, branch `claude/announcer-v3-handoff-f0774a`)
 
+**Later the same evening — 0109 DEPLOYED, the wrapper proven on a real deploy, 0105 rebuild contract
+reviewed.** 0109 (now TRUNCATE + TRIGGER + REFERENCES from anon/authenticated/authenticator on every
+public relation, plus postgres-creator default ACLs in public/storage/global) went: adversarial reviewer
+→ fixes → `/autoplan` eng dual voices (Claude subagent + Codex, both FIX-FIRST, converging on "grantor
+never measured" and "pins one-directional") → 11 audited fixes → harness 641/0 with six mutations →
+trunk (`bfd744f`) → `scripts/deploy-migrations.sh --push 0109_revoke_truncate.sql` (0105 held aside,
+pending set exactly one file) → verified live (0/0 post-conditions; service_role 66 unchanged; anon
+truncate → 42501; ledger 0109 remote, 0105 remote empty). REGISTRY row says DEPLOYED. Residuals
+recorded there: storage.objects/buckets TRUNCATE to client roles (grantor supabase_storage_admin — needs
+Supabase support), supabase_admin default rows (do not create tables in the Dashboard Table Editor).
+Post-upgrade re-check query in `docs/security-dashboard-checklist-2026-08-19.md`.
+**Roster change:** catalog compacted mid-slice (0110 routes_public handoff on trunk at `149f2e3`; 0110
+claimed, designed, not built); announcer v2 and the unmapped session are gone. Live: ui, legal, route
+geometry, announcer v3. Trust and money still offline.
+**0105 rebuild:** contract on trunk (`docs/contracts/booking-entry-rebuild-contract.md`), attacked in a
+scratch cluster by an independent reviewer: SQL half executes clean (21/21), B-3 reproduced live,
+FIX-CONTRACT-FIRST on four bookkeeping/coverage defects (the legit nomination chain is NOT closed by this
+slice → F2 stays open; create-booking-hold change unpinned; no over-revoke pin; deploy section predates
+the wrapper). Fixes being applied to the contract; implementation next under Sean's default A unless he
+answers B/C (§0-decies).
+
 **Verified at takeover, not relayed:** no worktree holds anything unpushed (nothing stranded by v2 or
 anyone). ⚠ **Correction (legal caught it):** I first wrote "0 commits not on trunk in every worktree" —
 that was scope creep: I had verified *unpushed*, then described *unmerged*. Measured properly, origin

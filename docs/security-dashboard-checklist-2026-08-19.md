@@ -40,3 +40,52 @@ exp://172.30.1.44:8081/--/login, exp://172.30.1.44:8081
 - Management API `uri_allow_list` → `daengrun://login` only.
 - `node app/scripts/check-auth-surface.mjs` → red on the `_known_bad` fields (expected), then
   trust re-snapshots and commits green.
+
+## E. Post-platform-upgrade check — migration 0109 (TRUNCATE / TRIGGER / REFERENCES)
+
+Added 2026-08-19 with migration `0109_revoke_truncate.sql`. Not a dashboard toggle — a **read-only
+query to re-run after any Supabase platform upgrade, project restore, or paused-project resume.**
+
+0109 removes TRUNCATE, TRIGGER and REFERENCES from `anon`/`authenticated` on every relation in
+`public`, and trims the `postgres`-creator default privileges (in `public`, in `storage`, and
+globally) so new tables do not regain them. None of those three verbs is covered by RLS. A one-shot
+migration cannot notice if the hosted platform later reinstates the default ACLs — so this is the
+control:
+
+```sql
+select 'relation grants (public)' as check_, count(*) as n
+  from pg_class c
+  join pg_namespace n on n.oid = c.relnamespace,
+       lateral aclexplode(c.relacl) a
+ where n.nspname = 'public'
+   and c.relkind in ('r','p','v','m','f')
+   and a.privilege_type in ('TRUNCATE','TRIGGER','REFERENCES')
+   and (a.grantee = 0 or pg_get_userbyid(a.grantee) in ('anon','authenticated','authenticator'))
+union all
+select 'postgres default-ACL rows', count(*)
+  from pg_default_acl d
+  join pg_roles cr on cr.oid = d.defaclrole,
+       lateral aclexplode(d.defaclacl) a
+ where d.defaclobjtype = 'r'
+   and cr.rolname = 'postgres'
+   and a.privilege_type in ('TRUNCATE','TRIGGER','REFERENCES')
+   and (a.grantee = 0 or pg_get_userbyid(a.grantee) in ('anon','authenticated','authenticator'));
+```
+
+**Expected after 0109 deploys: `0` for BOTH rows.** Anything above 0 means the platform re-granted
+the verbs; the fix is to re-run 0109's two arms (they are idempotent). The query is not vacuous:
+measured on production 2026-08-19 **before** 0109 was deployed it returned **390** and **12**.
+
+### Two residuals this migration cannot fix
+
+1. **`storage.objects`, `storage.buckets`, `storage.buckets_analytics`** grant TRUNCATE + TRIGGER +
+   REFERENCES to both `anon` and `authenticated`. Owner and grantor is `supabase_storage_admin`;
+   `postgres` is neither that role nor a member of it, so **no migration can revoke them.**
+   → **Escalate to Supabase support.** Until then, storage's own RLS on `storage.objects` is the
+   only control there, and RLS does not cover TRUNCATE.
+2. **`supabase_admin` default-privilege rows** (schemas `public`, `graphql`, `graphql_public`) —
+   also not alterable as `postgres`. A table created by `supabase_admin` is born holding all three
+   verbs for `anon`.
+   → **Operational rule: do not create tables through the Dashboard Table Editor.** postgres-meta
+   connects as `supabase_admin`, so a table made there takes the creator row we cannot trim. Create
+   tables with SQL as `postgres` — i.e. in a migration.

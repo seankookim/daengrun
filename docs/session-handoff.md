@@ -1,3 +1,27 @@
+# ANNOUNCER v3 — live state pointer (2026-08-19, late evening; branch `claude/announcer-v3-handoff-f0774a`)
+
+**If you are the next announcer, read in this order:** `/announcer` (method) → `docs/handoff-announcer.md`
+(roster + deploy discipline + the v3 addenda, all measured) → `docs/decisions/awaiting-sean.md` §0-decies /
+§0-undecies / §0-duodecies (Sean's open items, lettered) → the console
+(https://claude.ai/code/artifact/aad92054-9264-4431-9835-d03ef86b3f6b, update in place, never a new URL).
+
+**State at this write (verify, don't relay):** 0106–0109 applied in production; **0105 held** (line in
+`supabase/migrations/HELD`; deploy only via `bash scripts/deploy-migrations.sh --push <names>`); the
+0105 replacement is being BUILT as **0111** on `claude/p0-booking-entry` (tree `p0-booking-entry`) from
+`docs/contracts/booking-entry-rebuild-contract.md` v2 (attacked 21/21, reviewer's F1–F12 folded in) —
+announcer-directed under Sean's "full speed" default (§0-decies A) because trust is offline. Next gates
+after the implementer reports: independent adversarial reviewer executing §D pins in the harness →
+land on trunk → `deploy-migrations.sh --push 0111_booking_entry_rebuild.sql` → `supabase functions
+deploy create-booking-hold` (both orders safe; disjoint holes) → verify live (forged INSERT → 42501
+rolled back; anon/authenticated hold no INSERT on bookings/recurring_series/slot_holds; service_role
+does; cron still mints an honest series) → REGISTRY 0111 DEPLOYED, 0105 SUPERSEDED, HELD line gone.
+**Not closed by 0111:** the legit nomination chain (own dog → payment_ok → request_runner) — B-11 in the
+contract; `is_booking_party` status filter is the adjacent slice; Sean's D1/D2 decides its shape.
+Live sessions at this write: ui, legal, route geometry. Offline: trust, money, catalog (0110 designed
+below, not built). Nothing unpushed anywhere except the in-flight 0111 tree until it pushes.
+
+---
+
 # CATALOG — 0110 `routes_public` IS DESIGNED AND CLAIMED, NOT BUILT (2026-08-19)
 
 **Claimed: migration 0110, suite 145, row on trunk.** Nothing written yet. Read this before

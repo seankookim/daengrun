@@ -213,10 +213,28 @@ reviewer ≠ author executing attacks → pins → land on trunk → deploy with
 It is a money path, so every gate runs. Catalog offers a scratch cluster reproducing production's
 exact schema for the reviewer.
 
+**Update, later the same evening — the contract exists:** `docs/contracts/booking-entry-rebuild-contract.md`
+(scout, read-only, measured against production). Recommended shape: revoke client INSERT on `bookings`
++ drop the owner-insert policy (no RPC needed — 31 client `from('bookings')` calls are all `.select`);
+close `recurring_series` client writes; ownership re-check in the cron; delete `create-booking-hold`'s
+`runner_id` body arm (the client never sends it); supersede 0105 rather than apply it. **New finding
+no artifact had (B-3):** `authenticated` holds table-wide UPDATE on `recurring_series` and there is no
+trigger, so an owner of a *legitimate* series can re-point `dog_id` to a victim's dog and set
+`min_fare` to 500000 today, and the hourly cron mints the booking — an INSERT-only fix would not close
+it. Money half is inert while charging is off; the dog-exposure half is live. Next under default A:
+an adversarial reviewer executes attacks against the contract before anyone implements.
+
+**One product question inside it (yours, not engineering's):** after the rebuild, `runner_id` can only
+be set by `request_runner` (owner-gated). That is a legitimate nomination — and it still opens chat,
+reviews, incidents and push to a runner who has **not accepted yet**, because `is_booking_party` has
+no status filter. **Is pre-acceptance contact a feature or a leak?** — **D1** = feature, leave it ·
+**D2** = leak, narrow party membership to accepted/active states (adjacent slice, not this one).
+
 Your answer, one letter:
 - **A** — go (the default; nothing needed from you)
 - **B** — reopen trust and let the session that holds the RLS context do it; sessions wait
 - **C** — a session name of your choosing
+- plus **D1/D2** above when you have a view
 –––––[end of report; nothing above is your ruling until you answer]–––––
 
 ## 0-duodecies. 📋 SMOKE-LIST LINE for your first hardware build (legal, 2026-08-19 evening) — not a decision
