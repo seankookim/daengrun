@@ -70,3 +70,27 @@ create or replace function t_consent() returns jsonb
 language sql immutable as $$
   select '{"custodyAck": true, "emergencyContact": "010-0000-0000", "pickupName": "테스트 픽업", "vetLimitKrw": 150000}'::jsonb
 $$;
+
+-- ---------- realtime (2026-08-15, trust — for 0103's broadcast authorization) ----------
+-- The platform owns `realtime` in production; the harness has never had one, so 0103's policies
+-- could not be applied here at all and the RULE would be pinned while the WIRING went untested.
+-- That gap is this repo's signature defect (a pin that measures the helper, not the shipping
+-- path), so the shim exists to close it: with it, suite 139 attempts real SELECT/INSERT against
+-- `realtime.messages` as `authenticated` and observes RLS deciding.
+-- Shapes match production, measured: columns from information_schema, RLS on, and `topic()`
+-- reading a GUC so a test can set the topic the way realtime sets it per-connection.
+create schema if not exists realtime;
+create table if not exists realtime.messages (
+  topic          text not null,
+  extension      text not null,
+  payload        jsonb,
+  event          text,
+  private        boolean default false,
+  updated_at     timestamp not null default now(),
+  inserted_at    timestamp not null default now(),
+  id             uuid not null default gen_random_uuid(),
+  binary_payload bytea
+);
+alter table realtime.messages enable row level security;
+create or replace function realtime.topic() returns text
+language sql stable as $$ select current_setting('realtime.topic', true) $$;
