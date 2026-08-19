@@ -338,10 +338,25 @@ population here is one account that was its own recipient. That is a materially 
 from the one §7 poses in the abstract, and counsel should be asked it *with these numbers
 attached* rather than in general terms.
 
-**The honest limit of this finding:** this session established that one account occupied both
-roles in all 9 runs. It did **not** establish *whose* account it is. That it is the founder's own
-test account is overwhelmingly likely and is not verified here — and the difference matters
-precisely because the reassuring reading depends on it. Confirm before relying on it.
+**The limit named above is now closed, by measurement rather than by asking.** Re-queried
+independently by this session — one row, one distinct id, both roles, all 9 runs:
+
+```
+name        runs  first        last         same_acct  distinct_ids
+s4kim2025      9  2026-07-28   2026-08-11   true       1
+```
+
+The account is `s4kim2025`, which Sean identified as his own test account in his own words earlier
+the same day ("i do have a test account under user id s4kim2025"), relayed by the announcer
+session. So **"no third party's location was ever on the channel" is established, not inferred.**
+
+Two residual epistemics, small but worth stating because this is the sentence a lawyer will rely
+on. `profiles.name` is a user-settable field, so it is an identifier by convention rather than an
+authenticated identity; and Sean's confirmation reached this session relayed rather than directly.
+Neither is a realistic doubt — one account, one name, and the operator saying it is his — but the
+claim that does the legal work is *"the only affected data subject is the operator himself,"* and
+that half rests on Sean's statement rather than on anything measured here. **One word from Sean
+converts it from well-evidenced to settled**, and it costs nothing to get.
 
 ## 7. The question with a clock, and it is not yet asked
 
