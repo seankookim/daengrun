@@ -68,8 +68,17 @@ set client_min_messages = warning;
 
 -- [0107] test-only de-identified projection — see the header note. Owned by postgres, never
 -- granted, dropped at the end of this file. NOT the production view (that is a later slice).
-create view routes_public as
-  select id, name, area, km, town, status, trace_thumb from routes;
+-- [0110] The test-only projection is GONE from this file: 0110 ships a real `routes_public`, so
+-- creating one here would error (already exists) and the old `drop` at the end would DELETE the
+-- shipped view out from under every later suite. This file now just relies on it.
+--
+-- [0110] What it DOES need is the other half of 0110's gate. `_routes_guard_geometry_public_tg`
+-- refuses activation while anon/authenticated can still read `routes.trace` from the BASE table,
+-- so R6/R11/R12's promotions would die at a gate unrelated to what they pin. Revoking here is not
+-- a workaround — it states the precondition those pins have always silently assumed: **a route
+-- may only be published once its geometry is not already public.** Restored after the do block so
+-- 145 measures the SHIPPED grant state rather than this fixture.
+revoke select (trace, trace_thumb) on routes from anon, authenticated;
 
 -- Synthetic GPS trace: p_n points stepping north from (p_lat,p_lng). Carries `t`/`v` exactly
 -- like a real runs.trace (0001:243) so R6 can prove promotion strips them.
@@ -361,4 +370,6 @@ end $$;
 
 -- [0107] the test-only projection leaves with this file — 142 must see the SHIPPED schema
 -- (no routes_public), or its fail-closed pin would be measuring this fixture instead of 0107.
-drop view routes_public;
+-- [0110] hand the base-table geometry grant back exactly as 0107 shipped it — suite 145 pins the
+-- shipped state, and a fixture that leaks its own setup would make that pin measure this file.
+grant select (trace, trace_thumb) on routes to anon, authenticated;
