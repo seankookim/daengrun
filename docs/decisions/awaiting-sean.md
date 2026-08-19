@@ -252,6 +252,23 @@ Your answer, one letter:
 - plus **D1/D2** above when you have a view
 –––––[end of report; nothing above is your ruling until you answer]–––––
 
+## 0-terdecies. 🔵 RELAYED RULING #14 (via ui2, late 2026-08-19) — pickup point → nearest point on the route
+
+ui2 reports Sean ruled in its session, verbatim as ui2 recorded it: *"pick up point should be wherever
+the home owner puts, and the app should recommend the nearest path. the runner should start at the put
+starting point and should be led by the app to the nearest point in the path from that starting point,
+from which then on the runner will start the lap."* **[end of his words as relayed]** — becomes ✅ when
+ui2's `docs/labs/RULINGS-2026-08-19-journey.md` #14 commit is on origin. ui2 takes the client side
+(route ranking by nearest point ON the trace; approach leg pickup→entry; lap rotated at the entry;
+onboarding leads to the address pin); no server change claimed; route geometry asked for the routes-side
+read (catalog offline). Nothing for Sean unless a server angle appears.
+
+## 0-quaterdecies. 👀 THE 18 vs 44 pt ANCHOR LAB IS PUBLISHED — pick by looking (ui2, late 2026-08-19)
+
+https://claude.ai/code/artifact/baed214a-80ff-4741-9ca9-d197d76755b0 · `docs/labs/anchor-tap-target-lab.html`.
+Options as drawn: **A** / **B** / **A′**. The 44-pt line was the previous announcer's inference, not your
+ruling — you asked to see both; this is both.
+
 ## 0-duodecies. 📋 SMOKE-LIST LINE for your first hardware build (legal, 2026-08-19 evening) — not a decision
 
 `private_only=true` is live at the project level, and the client change that makes all four channel
