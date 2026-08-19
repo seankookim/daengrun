@@ -188,3 +188,40 @@ buildable, in this order:
 
 Items 1 and 2 are engineering with a legal cause and do not wait on counsel. Item 3 and the 신고
 itself do.
+
+---
+
+## 6. The counsel brief needs two corrections before it is sent
+
+`docs/biz/location-law-counsel-brief.md` (2026-08-15) is the document that reaches an actual
+lawyer. Its region paragraph is better than this file's first framing — it separates 저장 위치
+from 처리자의 국적 and declines to conclude 국외이전 either way, which is the right posture. Two
+of its facts predate the measurements above and are now contradicted. Raised with the brief's
+owner 2026-08-19; not edited here, `docs/biz/` is not this session's surface.
+
+**ⓐ §2 describes the recipient as 보호자, and the storage as covering the live feed.** Both are
+wrong in ways that matter differently:
+
+- The live position is channel-only and never reaches the database (`geo.ts:319` — "DB 기록 없음
+  — 채널만"). What is stored is the post-run `runs.trace`. 제19조 (제공) and 제23조 (보유) are
+  separately regulated, and merging the two flows muddies both analyses.
+- The recipient is not the owner. Per §2ⓒ above it is, today, any holder of the public anon key
+  who has a booking UUID.
+
+This is the consequential one because **the brief's own Question 4 asks what notice and consent
+the 러너 ↔ 보호자 relationship requires.** Answered against "recipient = the booking's owner,"
+counsel's advice would be built on a premise the architecture does not satisfy — and the shape of
+the 제공 consent design is exactly what turns on it.
+
+**ⓑ §4 states "누가 언제 어디 있었는지는 공개 안 됨."** Per-point timestamps are indeed dropped,
+but per §2ⓑ the published row carries the run, the runner (an FK to a named person), the curator
+and the run date, all anon-readable. 누가 and 언제 are precisely what publication would expose.
+Latent — nothing has been promoted — but §4 asserts it as a present property of the design, and
+counsel would rely on it.
+
+The general point, and the reason this is a legal finding rather than a copy edit: the brief's
+footer stakes its value on "사실관계는 앱 설정 파일과 서버 상태에서 직접 확인한 내용입니다."
+That claim was true when written. Facts verified from configuration go stale the moment someone
+probes behaviour instead — which is the same lesson this repo keeps relearning in
+`session-handoff.md` §3-ter, one layer up: **reading the config tells you what was asked for, not
+what the system does.**
