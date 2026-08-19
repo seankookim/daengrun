@@ -252,13 +252,12 @@ Your answer, one letter:
 - plus **D1/D2** above when you have a view
 –––––[end of report; nothing above is your ruling until you answer]–––––
 
-## 0-terdecies. 🔵 RELAYED RULING #14 (via ui2, late 2026-08-19) — pickup point → nearest point on the route
+## 0-terdecies. ✅ RULING #14 — on origin at e13b579 (`docs/labs/RULINGS-2026-08-19-journey.md` #14, verbatim; relayed first via ui2, verified by the announcer) — pickup point → nearest point on the route
 
 ui2 reports Sean ruled in its session, verbatim as ui2 recorded it: *"pick up point should be wherever
 the home owner puts, and the app should recommend the nearest path. the runner should start at the put
 starting point and should be led by the app to the nearest point in the path from that starting point,
-from which then on the runner will start the lap."* **[end of his words as relayed]** — becomes ✅ when
-ui2's `docs/labs/RULINGS-2026-08-19-journey.md` #14 commit is on origin. ui2 takes the client side
+from which then on the runner will start the lap."* **[end of his words]** — on origin at e13b579, verified. ui2 takes the client side
 (route ranking by nearest point ON the trace; approach leg pickup→entry; lap rotated at the entry;
 onboarding leads to the address pin); no server change claimed; route geometry asked for the routes-side
 read (catalog offline). Nothing for Sean unless a server angle appears.
