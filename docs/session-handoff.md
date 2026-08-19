@@ -1,3 +1,42 @@
+# CATALOG — 0112 P0 CLOSED (2026-08-19 overnight). Trace revoke is step 3 and is NOT done.
+
+**Live and verified:** `anon UPDATE=refused 42501 | anon DELETE=refused 42501 | anon SELECT rows=68
+| views still writable by a client role: NONE`.
+
+## What the hole was, because the lesson generalises
+
+`routes_public` (my 0110) is a SINGLE-TABLE view → `is_insertable_into = YES`, and the postgres
+default ACL grants `anon`/`authenticated` INSERT/UPDATE/DELETE on every new relation. 0110 granted
+SELECT and never revoked the rest. Measured as anon, rolled back: **UPDATE changed 1 row; DELETE got
+past privilege AND past RLS, stopped only by a foreign key.** A route with no bookings would have
+been deleted by an anonymous caller.
+
+**RLS did not save it and structurally could not.** A view without `security_invoker` executes
+against its base tables as the VIEW'S OWNER, so RLS on `routes` never runs. Hence:
+- **a TABLE** with client DML is fine — RLS stands behind the privilege (60 of 62 base tables rely
+  on exactly this, measured; a schema-wide default-privilege revoke would break the app).
+- **a definer VIEW** with client DML has nothing behind it.
+The rule is view-specific. Suite 147 D3 enumerates the schema so the next definer view cannot be
+born writable.
+
+## ⚠ STEP 3 (the trace revoke) IS NOT DONE, AND HAS A PRECONDITION NOBODY HAS CHECKED
+
+ui shipped `fetchRoutes`/`fetchRouteById` onto `routes_public` (trunk c73cea5, verified on a
+SIMULATOR). That is **not** evidence about binaries already installed on real devices. Revoking
+`select (trace, trace_thumb)` on `routes` breaks any older build still selecting `trace` — PostgREST
+403s the whole request, so the catalog goes empty for those users. This is the 0082 §A-3 concern
+verbatim ("kept so pre-0082 app builds keep working across a non-atomic Expo rollout") and the
+0088/0091 outage shape.
+
+**Before landing the revoke, establish: is there any installed/TestFlight build older than
+c73cea5 that reads `routes.trace`?** If the answer is "no released binaries yet" the revoke is free.
+If it is "yes", it waits for turnover. Nobody has measured this; do not infer it from a simulator.
+
+## Deploy path
+
+`bash scripts/deploy-migrations.sh` (dry-run, prints pending set) then `--push <exact filenames>`.
+Verified by me: `--push` on a HELD file exits 3, on a non-pending file exits 4, dry-run exits 0.
+
 # CATALOG — 0110 `routes_public` IS LIVE; the revoke is NOT (2026-08-19, overnight)
 
 **Live in production and probed:** `candidate base=200 pub=200 | lat=37.5298 (4dp) | evidence=absent
