@@ -202,10 +202,15 @@ mutations, every one reddening its named set.
   **alternating between two runners re-fires indefinitely**, pushing 「지명 러닝 요청」 at each new
   target and 「지명이 변경됐어요」 at each displaced one. A push-spam channel at two strangers with
   fixed system copy. The fix belongs in `request_runner` — adjacent slice, same file as O-5.
-- **`dogs.memo` reaches a nominated stranger pre-acceptance.** The 요청 탭 card renders `req.memo`
-  (`app/runner/requests.tsx:264-266` ← `api.ts:768` ← `dogs.memo`); the attacker owns the dog, so it
-  is attacker-controlled free text arriving on a nomination alone, needing no thread and no accept.
-  Quieter than a lock-screen push, not nothing. Client fix is **ui2's**.
+- **Four owner-authored strings reach a nominated stranger pre-acceptance on the 요청 탭 card** (reviewer of 0114,
+  executed): `dogs.memo` (`app/runner/requests.tsx:264-266` ← `api.ts:768`, `numberOfLines={2}`), **`dogs.preferences.tags[]`**
+  (`:257`, each element a chip, UNBOUNDED array, no line cap — arguably the larger channel), `dogs.name` / `dogs.breed`
+  (`:235`, verbatim, uncapped — kept by §C.6 on "a dog's name is not a message", made knowing they are unbounded), and
+  🔴 **`bookings.pace_label`** (`:239`) — NOT a dogs column: an unvalidated passthrough from the `create-booking-hold` request
+  body (`handler.ts:213`, `pace_label: b.pace_label ?? null`, no whitelist anywhere). The attacker owns the dog and the
+  body, so this is attacker-controlled text arriving on a nomination alone, needing no thread and no accept. Quieter than a
+  lock-screen push, not nothing. Client fix is **ui2's** — do not render ANY free-text field on a `runner_pending` card
+  (memo, tags, pace_label); server fix for `pace_label` is a whitelist in `create-booking-hold` (adjacent, small).
 - **B-11.1 — `payment_ok` still verifies nothing.** A booking still reaches `matching` with zero
   money moved. O-5 (pay-after-run) deletes the arm.
 - **CSO #13** (`request_runner` lacks a `club_session_id` check) and the latent
