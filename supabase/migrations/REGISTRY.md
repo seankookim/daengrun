@@ -179,6 +179,32 @@ everyone to skip claiming, which is worse than no table. **`shared` means "tell 
 edit the same FUNCTION", not "stay out".** Two sessions in one file is usually fine; the same
 function is the problem.
 
+⚠ **THE HOOK ITSELF CAN BE SILENTLY OFF — trust, 2026-08-15, measured across every worktree.**
+`core.hooksPath` was set **per worktree** to an ABSOLUTE path inside one particular worktree
+(`daengrun-redesign-v4-77ea99/.githooks`). Five worktrees pointed there, including money,
+announcer, ui and session-handoff-docs. **A worktree is disposable — this session's own was
+recycled the same day** — and git does not warn when `hooksPath` names a directory that no longer
+exists. It just runs no hooks. So the single mechanism this repo built *because protocols fail
+under parallelism* was one `rm -rf` away from silently not running, for four active sessions,
+during heavy parallel migration work.
+
+Repaired by REMOVING the per-worktree override so every tree inherits the clone-level default,
+which was already correct:
+
+    git config --worktree --unset core.hooksPath     # drop the fragile override
+    git config --local core.hooksPath /path/to/clone/.githooks   # once per clone, stable
+
+⚠ **`CLAUDE.md` currently prescribes `git config core.hooksPath "$(git rev-parse --show-toplevel)/.githooks"`,
+and in a worktree `--show-toplevel` is THAT WORKTREE** — so the documented instruction is what
+produces the fragile config. It wants `--local` on the clone, not per worktree. Flagged rather
+than edited: `CLAUDE.md` is Sean's standing-instructions file.
+
+**The generalisation, and it is the sharpest one this file holds:** the repo's own argument for
+the hook is *mechanisms beat discipline, because nobody can violate a mechanism by being briefly
+confident.* That argument silently assumes the mechanism is running. **A guard whose installation
+is itself a convention inherits every weakness of a convention** — verify the guard is armed the
+same way you verify anything else: by executing it, not by believing it was set up.
+
 ⚠ **A CLEAN-MERGE REPORT IS NOT THE MERGE YOU ARE ABOUT TO PERFORM — route geometry,
 2026-08-14.** They were told their branch merged clean into trunk: `git merge-tree`, 0 conflicts.
 Performing the merge produced **three real conflicts**, one in `app/src/lib/api.ts`, where trunk
