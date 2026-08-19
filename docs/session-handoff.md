@@ -198,6 +198,24 @@ reachable* when the truth was that I had asked through the wrong door — PostgR
 the same reason that path also sees past RLS. Generalises well past Vault: **an empty result
 through an anon key means hidden, not empty, and a 404 from one door is not absence.**
 
+**THE UNIFIED FORM, and it is the day's most transferable finding — trust named it after five
+instances across three sessions.** Every one of my three failures below, and two of theirs, is the
+same move: **reading the ABSENCE of a negative signal as a positive one.**
+
+    mine    `bookings.run_ended_at` was null      → "the run never ended"  (wrong column)
+            Vault returned nothing through REST   → "unreachable, unknowable"  (wrong door)
+            `git show … && echo "✅"` printed no error → "it is on trunk"  (it had not pushed)
+    trust's no ~/.supabase/access-token file      → "no credential"  (it is in the keychain)
+            no commit recording a deploy          → "nothing was deployed"
+
+**A check that can only print on success cannot distinguish success from not-running.** That is
+the whole of it, and it is the default failure mode of every verification written quickly —
+including the ones written by someone actively being careful, which all five of these were.
+
+The fix is mechanical, not attitudinal: **make the failure branch print.** `if … then ON TRUNK;
+else ABSENT; fi`, never `cmd && echo ok`. Same reason a hook that refuses to run beats a hook that
+skips silently, and the same reason `ON_ERROR_STOP` is load-bearing in the harness.
+
 A third, from the next day and cheaper to make than either: **`bookings.run_ended_at` is not
 `runs.ended_at`.** I read the booking's column, got null, and reported that a run had never ended
 when it had. Same-sounding column, different table — and it produced a *false all-clear*, which is
