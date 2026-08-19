@@ -265,3 +265,7 @@ two false "stranded work" alarms on day one.
   `routes`, so 0107/0110/0112/0113 leave a leaked service key unmitigated — a different control entirely if that ever matters.
 - **Cherry-picking the REGISTRY row tried to come back within a day of being named (catalog, self-reported):** caught by
   `git patch-id --stable` on both sides, then reset. The habit outlives the rule; the patch-id check is the constraint.
+- **"Refused for the wrong reason" reads as PASS (catalog, pre-flighting the 0114 probe):** a positional third argument to
+  `open_incident_tx` is severity, not a note — a probe written from a misremembered signature would have been refused by the
+  severity whitelist at `runner_pending` and looked green. Check the signature of every function a negative pin calls, and make
+  the positive arm prove the call SHAPE succeeds before the negative arm proves the GATE refuses.
