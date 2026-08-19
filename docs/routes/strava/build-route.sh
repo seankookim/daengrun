@@ -113,14 +113,24 @@ pick_first_hit () {
 }
 
 fill_last () {
-  local R
-  R=$(panel_refs | tail -1)
-  [ -z "$R" ] && { echo "    no panel field" >&2; return 1; }
-  B click "$R" >/dev/null 2>&1
-  B press "Meta+A" >/dev/null 2>&1
-  B type "$1" >/dev/null 2>&1
-  sleep 4
-  pick_first_hit
+  # Type a query into the LAST panel textbox and take the first suggestion.
+  # RETRIES THE WHOLE TYPE-AND-PICK, not just the pick: the same query that
+  # resolved a few minutes earlier ("황학동롯데캐슬") returned NO HIT on the next
+  # run, and a probe right after showed every name resolving fine. The
+  # suggestion popover is simply flaky — it sometimes does not open at all, so
+  # re-polling for a popover that never appeared cannot help; retyping does.
+  local R attempt
+  for attempt in 1 2 3; do
+    R=$(panel_refs | tail -1)
+    [ -z "$R" ] && { echo "    no panel field" >&2; return 1; }
+    B click "$R" >/dev/null 2>&1
+    B press "Meta+A" >/dev/null 2>&1
+    B type "$1" >/dev/null 2>&1
+    sleep 4
+    pick_first_hit && return 0
+    [ "$attempt" -lt 3 ] && { echo "    (retyping '$1', attempt $((attempt+1)))" >&2; sleep 3; }
+  done
+  return 1
 }
 
 btn () { B snapshot -i 2>&1 | grep -E "\[button\] \"$1\"" | grep -v disabled | head -1 | grep -oE "@e[0-9]+"; }
