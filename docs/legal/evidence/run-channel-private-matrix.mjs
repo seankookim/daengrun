@@ -29,6 +29,27 @@
 // disabling public channels project-wide also breaks them is UNTESTED. Test on a non-production
 // project before flipping. If they break, they need their own private-mode + policies.
 //
+// ─────────────────────────────────────────────────────────────────────────────
+// THE CLOSURE GATE — agreed 2026-08-19. Re-running THIS FILE is half of it.
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// After `private_only` is flipped, closure requires BOTH instruments in ONE run, on a real build
+// before the flip and on production after:
+//
+//   negative (this file): stranger refused — CHANNEL_ERROR on all four cells.
+//   positive (ui's test): the booking's real owner, signed in, private:true + setAuth() →
+//                         SUBSCRIBED and receives. Same for a real chat thread and a real
+//                         booking-status subscription, since those families convert together.
+//
+// FAIL EITHER AND IT IS NOT CLOSED. This file alone CANNOT prove closure, and it is important to
+// say so at the top of the file that will be re-run: all four cells go CHANNEL_ERROR just as
+// readily against a broken policy, a killed transport, or a client that never connects. A
+// stranger-only instrument cannot tell "shut" from "dead".
+//
+// That is the general rule this exposure produced three times — negative-only on the first test,
+// private-only after 0103, stranger-only on this gate: **every instrument that can only observe
+// failure will report success when the system is dead.** (Fleet roster §7.)
+//
 // Run: DAENGRUN_APP_DIR=/path/to/app node docs/legal/evidence/run-channel-private-matrix.mjs
 
 import fs from 'fs';

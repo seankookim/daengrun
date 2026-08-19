@@ -273,6 +273,23 @@ private-requesting clients" is honest — but either sentence alone reads as *cl
 not. The accurate line is: **server half correct and live; the channel remains publicly joinable
 by any client that asks for public, measured 2026-08-19 post-0103.**
 
+**The agreed closure gate**, recorded here because this file's probes are the instrument it names.
+After `private_only` is flipped, on a real build before and on production after, in ONE run:
+
+- **negative** (`run-channel-private-matrix.mjs`) — stranger refused, CHANNEL_ERROR on all four cells.
+- **positive** (ui's test) — the booking's real owner, signed in, `private: true` + `setAuth()`,
+  SUBSCRIBED and receiving; likewise a real chat thread and a real booking-status subscription,
+  since those families convert at the same time.
+
+Fail either and it is not closed. The negative instrument alone cannot prove closure: all four
+cells go CHANNEL_ERROR just as readily against a broken policy, a killed transport, or a client
+that never connects. **A stranger-only instrument cannot tell "shut" from "dead."**
+
+This exposure produced that mistake three times — negative-only on the first test, `private:
+true`-only after 0103, stranger-only on this gate — which is why it is now one rule rather than
+three incidents: **every instrument that can only observe failure will report success when the
+system is dead.**
+
 ## 7. The question with a clock, and it is not yet asked
 
 Everything above concerns what the product must do before launch. One question runs the other
