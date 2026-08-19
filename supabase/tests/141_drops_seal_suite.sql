@@ -1,4 +1,4 @@
--- ═══ 141 drops seal — 0106 pins (D1-D18) ═══
+-- ═══ 141 drops seal — 0106 pins (D1-D20) ═══
 -- What this suite pins: a reward drop is a SERVER fact. `drops self open` (0002:131) was a bare
 -- `for update using (runner_id = auth.uid())` — no WITH CHECK, no trigger — and `open-drop`
 -- (service_role) reads `contents` off the row and pays it. Measured on the harness DB at 0105:
@@ -15,7 +15,7 @@
 do $$
 declare
   v_a uuid; v_b uuid;
-  v_open uuid; v_unopened uuid; v_pick uuid; v_theirs uuid; v_gear uuid;
+  v_open uuid; v_unopened uuid; v_pick uuid; v_pick2 uuid; v_theirs uuid; v_gear uuid;
   v_msg text; v_bad text; v_n int; v_c jsonb; v_t timestamptz; v_txt text; v_id uuid;
 begin
   v_a := gen_random_uuid(); v_b := gen_random_uuid();
@@ -29,6 +29,8 @@ begin
     values (v_a,'mini',15,'{"miles":600,"card":"드랍 카드"}') returning id into v_unopened;
   insert into drops(runner_id,kind,run_count_at,contents)
     values (v_a,'pick',10,'{"options":["boost","miles","gear"]}') returning id into v_pick;
+  insert into drops(runner_id,kind,run_count_at,contents)
+    values (v_a,'pick',20,'{"options":["boost","miles","gear"]}') returning id into v_pick2;
   insert into drops(runner_id,kind,run_count_at,contents)
     values (v_b,'mini',5,'{"miles":800}') returning id into v_theirs;
   insert into gear_claims(profile_id,side,item,milestone,status)
@@ -128,7 +130,17 @@ begin
   if not has_table_privilege('authenticated','public.drops','SELECT') then v_bad := v_bad || ' auth lost SELECT drops'; end if;
   if not has_table_privilege('authenticated','public.gear_claims','SELECT') then v_bad := v_bad || ' auth lost SELECT gear_claims'; end if;
   if exists (select 1 from pg_policy where polname in ('drops self open','gear self claim')) then v_bad := v_bad || ' 0002 write policy still present'; end if;
-  if v_bad = '' then call _pass('dseal','D6 그랜트 법 — anon/authenticated는 drops·gear_claims에 SELECT뿐, 0002 쓰기 정책 없음');
+  -- (review F3) service_role: the four DML verbs and nothing structural
+  if has_table_privilege('service_role','public.drops','TRIGGER') or has_table_privilege('service_role','public.gear_claims','TRIGGER')
+     then v_bad := v_bad || ' service_role TRIGGER'; end if;
+  if has_table_privilege('service_role','public.drops','TRUNCATE') or has_table_privilege('service_role','public.gear_claims','TRUNCATE')
+     then v_bad := v_bad || ' service_role TRUNCATE'; end if;
+  if has_table_privilege('service_role','public.drops','REFERENCES') or has_table_privilege('service_role','public.gear_claims','REFERENCES')
+     then v_bad := v_bad || ' service_role REFERENCES'; end if;
+  if not (has_table_privilege('service_role','public.drops','SELECT') and has_table_privilege('service_role','public.drops','INSERT')
+          and has_table_privilege('service_role','public.drops','UPDATE') and has_table_privilege('service_role','public.gear_claims','INSERT'))
+     then v_bad := v_bad || ' service_role lost a DML verb open-drop needs'; end if;
+  if v_bad = '' then call _pass('dseal','D6 그랜트 법 — anon/authenticated는 drops·gear_claims에 SELECT뿐, 0002 쓰기 정책 없음; service_role은 DML 4종뿐(TRIGGER/TRUNCATE/REFERENCES 없음)');
   else v_msg := v_bad; call _fail('dseal','D6 그랜트', v_msg); end if;
 
   -- ---------- [D7] someone else's drop: write refused, read still own-only, own read alive ----------
@@ -146,7 +158,7 @@ begin
     select count(*) into v_n from drops where id = v_theirs;
     if v_n <> 0 then v_bad := v_bad || ' 남의 드랍이 읽힌다'; end if;
     select count(*) into v_n from drops where runner_id = v_a;
-    if v_n <> 3 then v_bad := v_bad || ' 내 드랍 read가 죽었다 (fetchDrops) n=' || v_n; end if;
+    if v_n <> 4 then v_bad := v_bad || ' 내 드랍 read가 죽었다 (fetchDrops) n=' || v_n; end if;
     select count(*) into v_n from gear_claims where profile_id = v_a;
     if v_n <> 1 then v_bad := v_bad || ' 내 교환권 read가 죽었다 (fetchGearClaims)'; end if;
   exception when others then v_bad := v_bad || ' read가 예외 [' || sqlstate || ' ' || sqlerrm || ']';
@@ -380,7 +392,20 @@ begin
     update gear_claims set status = 'shipped', claimed_at = now() where id = v_gear;
   exception when others then v_bad := v_bad || ' service_role의 status 처리(이행 경로)가 막혔다 [' || sqlstate || ']'; end;
   reset role;
-  if v_bad = '' then call _pass('dseal','D16 gear_claims — 러너는 I/U/D 전부 42501; service_role은 item/milestone/profile_id 불변, status/shipped_to/claimed_at은 처리 가능');
+  -- (review F2) item length CHECK, both ends, as the writer that actually inserts (service_role)
+  begin
+    set local role service_role;
+    insert into gear_claims(profile_id,side,item,milestone,status) values (v_a,'runner',repeat('x',81),16,'claimable');
+    v_bad := v_bad || ' 81자 item 통과';
+  exception when others then if sqlstate <> '23514' then v_bad := v_bad || ' 81자[' || sqlstate || ']'; end if; end;
+  reset role;
+  begin
+    set local role service_role;
+    insert into gear_claims(profile_id,side,item,milestone,status) values (v_a,'runner','',17,'claimable');
+    v_bad := v_bad || ' 빈 item 통과';
+  exception when others then if sqlstate <> '23514' then v_bad := v_bad || ' 빈item[' || sqlstate || ']'; end if; end;
+  reset role;
+  if v_bad = '' then call _pass('dseal','D16 gear_claims — 러너는 I/U/D 전부 42501; service_role은 item/milestone/profile_id 불변, status/shipped_to/claimed_at은 처리 가능; item 81자·빈 문자열 23514');
   else v_msg := v_bad; call _fail('dseal','D16 gear_claims', v_msg); end if;
 
   -- ---------- [D17] THE BELT: undo §1 in-transaction, the trigger alone still refuses ----------
@@ -417,4 +442,64 @@ begin
   end;
   if v_bad = '' then call _pass('dseal','D18 소유자(postgres)만 opened_at을 되돌릴 수 있다 — 운영 수리 경로는 SQL 에디터, API가 아니다');
   else v_msg := v_bad; call _fail('dseal','D18 소유자 예외', v_msg); end if;
+
+  -- ---------- [D19] (review F1) catalog sweep — no client-callable function touches drops/gear_claims ----------
+  -- 98 H1 idiom. A SECURITY DEFINER granted to authenticated runs as the owner, and D18 is the
+  -- owner's door. So the door is only safe while no such function exists; this pin watches the
+  -- whole schema for one. Comments are stripped first: 'drops' is an English verb in two
+  -- unrelated definers' comments (incident_contact, _club_incident_can_open — measured), and a
+  -- sweep that reads prose is a sweep nobody trusts. The regex is proven non-vacuous on
+  -- settle_run_tx (owner-only, the minter) in the same pin.
+  v_bad := '';
+  select count(*) into v_n
+    from pg_proc p join pg_namespace ns on ns.oid = p.pronamespace
+   where ns.nspname = 'public'
+     and regexp_replace(p.prosrc, '--[^' || chr(10) || ']*', '', 'g') ~* ('\m(public\.)?(drops|gear_claims)\M')
+     and (has_function_privilege('anon', p.oid, 'EXECUTE') or has_function_privilege('authenticated', p.oid, 'EXECUTE'));
+  if v_n <> 0 then v_bad := ' 클라가 실행할 수 있는 함수 ' || v_n || '개가 drops/gear_claims를 만진다 (D18의 문이 API가 된다)'; end if;
+  select count(*) into v_n
+    from pg_proc p join pg_namespace ns on ns.oid = p.pronamespace
+   where ns.nspname = 'public' and p.proname = 'settle_run_tx'
+     and regexp_replace(p.prosrc, '--[^' || chr(10) || ']*', '', 'g') ~* ('\m(public\.)?(drops|gear_claims)\M');
+  if v_n <> 1 then v_bad := v_bad || ' 스윕 정규식이 settle_run_tx(민터)를 못 본다 — 스윕이 공허하다'; end if;
+  if v_bad = '' then call _pass('dseal','D19 카탈로그 스윕 — anon/authenticated가 실행 가능한 public 함수 중 drops/gear_claims를 참조하는 것 0개 (민터 settle_run_tx는 보이되 owner-only)');
+  else v_msg := v_bad; call _fail('dseal','D19 카탈로그 스윕', v_msg); end if;
+
+  -- ---------- [D19b] (review F1) owner + client JWT = service_role tier ----------
+  -- What a definer called through PostgREST looks like from inside the trigger: current_user is
+  -- the owner, request.jwt.claim.role is 'authenticated'. The exemption must not fire.
+  v_bad := '';
+  perform set_config('request.jwt.claim.role', 'authenticated', true);
+  begin
+    update drops set contents = '{"miles":5000}' where id = v_open;   -- as postgres, JWT role = authenticated
+    v_bad := ' 소유자+클라 JWT로 contents가 바뀌었다 (definer RPC 경로가 열려 있다)';
+  exception when others then
+    if sqlstate <> 'P0001' or sqlerrm not like '%drop_immutable_columns%' then v_bad := ' 트리거가 아닌 이유로 실패했다 [' || sqlstate || ' ' || sqlerrm || ']'; end if;
+  end;
+  begin
+    update drops set opened_at = null where id = v_open;
+    v_bad := v_bad || ' 소유자+클라 JWT로 opened_at이 리셋됐다';
+  exception when others then
+    if sqlstate <> 'P0001' then v_bad := v_bad || ' [' || sqlstate || ']'; end if;
+  end;
+  perform set_config('request.jwt.claim.role', '', true);
+  select contents into v_c from drops where id = v_open;
+  if v_c <> '{"miles":700}'::jsonb then v_bad := v_bad || ' 행이 바뀌었다'; end if;
+  if v_bad = '' then call _pass('dseal','D19b 소유자라도 요청에 클라 JWT(authenticated)가 실리면 service_role 등급 — contents 불변·opened_at 리셋 불가 (미래의 definer RPC 봉인)');
+  else v_msg := v_bad; call _fail('dseal','D19b 소유자+JWT', v_msg); end if;
+
+  -- ---------- [D20] (review F5) a pick drop cannot be stamped without a choice ----------
+  v_bad := '';
+  begin
+    set local role service_role;
+    update drops set opened_at = now(), pick_choice = null where id = v_pick2 and opened_at is null;
+    v_bad := ' 선택 없는 pick 오픈이 통과했다 (수리 불가한 태운 드랍)';
+  exception when others then
+    if sqlstate <> '23514' or sqlerrm not like '%drops_pick_opened_has_choice%' then v_bad := ' CHECK가 아닌 이유로 실패했다 [' || sqlstate || ' ' || sqlerrm || ']'; end if;
+  end;
+  reset role;
+  select opened_at into v_t from drops where id = v_pick2;
+  if v_t is not null then v_bad := v_bad || ' 행이 열렸다'; end if;
+  if v_bad = '' then call _pass('dseal','D20 pick 드랍은 pick_choice 없이 도장 불가 (23514, 행은 안 열린 채) — open-drop의 실제 pick 경로(D14c)와 mini 경로(D8)는 그대로');
+  else v_msg := v_bad; call _fail('dseal','D20 pick 무선택 오픈', v_msg); end if;
 end $$;

@@ -64,13 +64,14 @@
 --   · `"gear self claim"`   ← 0002:134 — **DROPPED**. Same.
 --   · `"drops self read"` / `"gear self read"` ← 0002:130/133 — UNTOUCHED (the app's two selects).
 --   NEW and owned here: `_drop_contents_ok`, `_guard_drop_cols` + trigger, `_guard_gear_claim_cols`
---   + trigger, constraints `drops_contents_shape`, `drops_pick_choice_shape`, `gear_claims_item_len`.
+--   + trigger, constraints `drops_contents_shape`, `drops_pick_choice_shape`,
+--   `drops_pick_opened_has_choice`, `gear_claims_item_len`.
 --
 -- ═══ §0e DOCTRINE (0059 money-path list) ═══
 -- self-contained · every function carries `set search_path = public, pg_temp` IN THE BODY (98 H1)
 -- · role judgement is `current_user` in an INVOKER trigger (0083's trap: `current_user` inside a
 -- DEFINER is always the owner) · views via create or replace only (none touched) · mutation-proven
--- pins (`141_drops_seal_suite.sql`, D1-D18).
+-- pins (`141_drops_seal_suite.sql`, D1-D20).
 --
 -- ═══ §0f MUTATION TABLE — MEASURED 2026-08-19: each mutation applied in a transaction on the
 --        harness DB after all migrations, suite 141 run inside it, rolled back. "red" = the pins
@@ -81,11 +82,13 @@
 --   M2  `drop trigger _guard_drop_cols_tg on drops` (undo §3)        → D9 D9b D10 D12 (service_role
 --                                                                     mutations land) · D11 (the
 --                                                                     re-armed row opens twice) ·
---                                                                     D17 (belt gone)     6 red
+--                                                                     D17 (belt gone) · D19b
+--                                                                     (post-review)      7 red
 --   M3  `_drop_contents_ok` without the miles ceiling (weaken §2)    → D13 (5001 and 9,999,999
 --                                                                     accepted)          1 red
 --   M4  trigger arm that lets opened_at return to null (keeps        → D10 · D11 (cascade: the
---       the re-stamp refusal)                                          reset row opens again) 2 red
+--       the re-stamp refusal)                                          reset row opens again) ·
+--                                                                     D19b (post-review) 3 red
 --   M5  trigger arm that lets an opened row be re-stamped (keeps     → D12 (second stamp without
 --       only the → null refusal)                                       the CAS predicate lands)
 --                                                                     D11 stays green — the CAS
@@ -97,6 +100,16 @@
 --   M7  re-create `"drops self open"` (grants stay revoked)          → D6 (policy pin) — and D1-D5
 --                                                                     stay green: the grant alone
 --                                                                     holds              1 red
+--   ── after adversarial review (APPROVE-WITH-FIXES, same day) ──
+--   M8  `alter table gear_claims drop constraint gear_claims_item_len` → D16 (81-char / empty
+--                                                                     item accepted)    1 red
+--   M9  trigger owner-exemption WITHOUT the JWT-role clause (undo F1) → D19b (owner + client
+--                                                                     JWT rewrites contents) 1 red
+--   M10 `grant trigger on drops, gear_claims to service_role` (undo F3)→ D6           1 red
+--   M11 `drop constraint drops_pick_opened_has_choice` (undo F5)     → D20 (pick stamped with
+--                                                                     no choice)      1 red
+--   M12 a SECURITY DEFINER granted to authenticated that updates      → D19 (catalog sweep)
+--       drops (the reviewer's temp function)                                          1 red
 --   Note under M2, D17 first read `42501 permission denied for function _drop_contents_ok`
 --   rather than a CHECK verdict — which is why §2's helper is granted to public (see there);
 --   re-measured after the grant: `23514 … drops_contents_shape` — the CHECK's own verdict, and
@@ -122,6 +135,12 @@ grant select on table drops       to authenticated;
 grant select on table gear_claims to authenticated;
 drop policy if exists "drops self open" on drops;
 drop policy if exists "gear self claim" on gear_claims;
+-- service_role keeps SELECT/INSERT/UPDATE/DELETE (open-drop needs the first three) and loses the
+-- three it never needed: TRIGGER (review F3 — the reviewer created a trigger on `drops` AS
+-- service_role, which would run ahead of §3 in name order), TRUNCATE (not subject to RLS or to
+-- §3), REFERENCES. Scoped to these two tables; the repo-wide anon/authenticated TRUNCATE sweep
+-- is 0109's, not this file's.
+revoke trigger, truncate, references on table drops, gear_claims from service_role;
 
 -- ═══════════════════════════════════════════════════════════════════════════════════════
 -- §2 THE SHAPE — what `contents` may be, decided by the minter's own two shapes
@@ -187,6 +206,15 @@ alter table drops add constraint drops_pick_choice_shape check (
   and (pick_choice is null or opened_at is not null)
 );
 
+-- (review F5) A pick drop stamped with NO choice is burned: open-drop's pick arm applies nothing,
+-- and §3 forbids writing pick_choice afterwards. open-drop always sends one for a pick
+-- (`rewards.tsx:144` open(d, k)) and validates it before paying, so this arm is unreachable by
+-- the real path — it exists so a future caller cannot create the unrepairable row.
+alter table drops drop constraint if exists drops_pick_opened_has_choice;
+alter table drops add constraint drops_pick_opened_has_choice check (
+  not (kind = 'pick' and opened_at is not null and pick_choice is null)
+);
+
 alter table gear_claims drop constraint if exists gear_claims_item_len;
 alter table gear_claims add constraint gear_claims_item_len check (length(item) between 1 and 80);
 
@@ -207,10 +235,21 @@ alter table gear_claims add constraint gear_claims_item_len check (length(item) 
 --     statement that stamps `opened_at`. INSERT and DELETE are allowed (nothing forbids
 --     service_role minting or ops removal — the money is in the mutation, not the row's life).
 --   · the table owner (`postgres` — migrations, `settle_run_tx` and every definer) and superusers
---     → exempt. This is where an ops repair of a wrongly-stamped drop lives; it is a SQL-editor
---     act by Sean, not an API. Judged by `pg_class.relowner` / `pg_roles.rolsuper`, not by a role
---     name, so a differently-named owner would still be exempt and a differently-named service
---     account would still be guarded.
+--     → exempt **unless the request carries a client JWT** (review F1). A SECURITY DEFINER RPC
+--     granted to authenticated runs as the owner, so an owner exemption keyed on `current_user`
+--     alone would let a future definer rewrite drops on a runner's behalf (the reviewer proved it
+--     with a temp function; no such function exists today — 141 D19 sweeps the catalog for one).
+--     So the exemption also requires `request.jwt.claim.role` NOT to be authenticated/anon: a
+--     definer called through PostgREST by a client is judged at the service_role tier (columns
+--     frozen, opened_at once). The bare-owner path — the SQL editor, migrations, the harness,
+--     `settle_run_tx` invoked by settle-run (service_role JWT) — is where an ops repair of a
+--     wrongly-stamped drop lives; it is a SQL-editor act by Sean, not an API. Judged by
+--     `pg_class.relowner` / `pg_roles.rolsuper`, not by a role name, so a differently-named owner
+--     would still be exempt and a differently-named service account would still be guarded.
+--   · (review F4, documented allowance) service_role may DELETE a row and INSERT a fresh one —
+--     "row replacement" — because INSERT/DELETE are not frozen at that tier; the money is in the
+--     mutation of a row open-drop is about to pay, and a replaced row is a new unopened mint
+--     with a new id, which is service_role's to make anyway. Not guarded, by decision.
 -- INVOKER, for 0083's reason: `current_user` inside a DEFINER is always the owner and would
 -- exempt everybody.
 create or replace function _guard_drop_cols() returns trigger
@@ -226,7 +265,10 @@ begin
 
   select r.rolname into v_owner from pg_class c join pg_roles r on r.oid = c.relowner where c.oid = tg_relid;
   select rolsuper into v_super from pg_roles where rolname = current_user;
-  if current_user = v_owner or coalesce(v_super, false) then
+  -- owner/superuser exempt ONLY when no client JWT is on the request (F1): a definer RPC called
+  -- by an authenticated user is judged like service_role below.
+  if (current_user = v_owner or coalesce(v_super, false))
+     and coalesce(current_setting('request.jwt.claim.role', true), '') not in ('authenticated', 'anon') then
     return case when tg_op = 'DELETE' then old else new end;
   end if;
 
@@ -258,7 +300,7 @@ create trigger _guard_drop_cols_tg before insert or update or delete on drops
   for each row execute function _guard_drop_cols();
 
 comment on function _guard_drop_cols is
-  '0106 §3: the drops seal belt. authenticated/anon: every op refused. Any non-owner non-superuser role (service_role): contents/kind/runner_id/run_count_at/created_at frozen after insert; opened_at may be stamped once and never moves again (no reset to null, no re-stamp); pick_choice freezes with it. Owner/superuser exempt (ops repair). INVOKER — current_user in a DEFINER is always the owner.';
+  '0106 §3: the drops seal belt. authenticated/anon: every op refused. Any non-owner non-superuser role (service_role) — and the owner when the request carries a client JWT (a definer RPC called by a user): contents/kind/runner_id/run_count_at/created_at frozen after insert; opened_at may be stamped once and never moves again (no reset to null, no re-stamp); pick_choice freezes with it. Bare owner/superuser exempt (ops repair). INVOKER — current_user in a DEFINER is always the owner.';
 
 -- ═══════════════════════════════════════════════════════════════════════════════════════
 -- §4 _guard_gear_claim_cols — the same belt on `gear_claims`
@@ -281,7 +323,8 @@ begin
 
   select r.rolname into v_owner from pg_class c join pg_roles r on r.oid = c.relowner where c.oid = tg_relid;
   select rolsuper into v_super from pg_roles where rolname = current_user;
-  if current_user = v_owner or coalesce(v_super, false) then
+  if (current_user = v_owner or coalesce(v_super, false))
+     and coalesce(current_setting('request.jwt.claim.role', true), '') not in ('authenticated', 'anon') then
     return case when tg_op = 'DELETE' then old else new end;
   end if;
 
