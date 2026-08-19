@@ -219,6 +219,42 @@ this file, not worth its own slice.
 
 ---
 
+## 4-bis. What is TRUE about charging, for the UI slice
+
+Written for whoever fixes the payment surface under Sean's option A. **This is the money owner's
+statement of fact; build against it rather than against the code's intent.**
+
+**Today, and until `payments_live_since` is set:**
+
+- **Nothing is charged, ever, by any path.** Not at booking, not at run end, not later. Four
+  independent layers (§0), and the `payments` table has zero rows.
+- **No card is stored for anybody.** `billing_keys` is empty. There is no owner with a payment
+  method on file, so "your card" refers to nothing for every user alive.
+- **The runner IS credited.** `ledger_items` has real rows for completed runs — the runner-side
+  ledger is live and truthful. Do not let a "payments are off" message imply the runner was not
+  recorded as owed.
+- **Money moves by manual transfer, arranged off-app.** That is the pilot, not a fallback.
+
+**What the screen may NOT say**, because none of it is true:
+- 결제 완료 / 자동 결제 / 결제 수단 — there is no payment, no automation, no method.
+- Any card CTA that does not open a working register flow. `payments.tsx:26` already refuses this
+  one and says why; keep that discipline.
+- Any owner-facing "charged" or "paid" state derived from anything other than a real `payments`
+  row. There are none, so there is nothing to derive.
+
+**What it MAY say, bound to real fields:**
+- The booking's own frozen price (`bookings.total_price` and its components) — that is a real
+  number about what the run costs, and it is not a claim that anything was charged.
+- That payment is arranged directly during the pilot, in whatever words the copy owner picks.
+- The existing 준비 중 empty state, which is honest as written.
+
+⚠ **The trap to avoid is the tempting one:** showing a total and letting placement imply it was
+collected. An amount next to a date, on a screen called 결제 관리, reads as a receipt whether or
+not the word appears. If the screen shows an amount, it has to say what happened to it.
+
+**When the flag flips, this section is wrong** and the payment surface becomes the real thing.
+Whoever moves the flag should come back here — it is listed in §5 for that reason.
+
 ## 5. First ten minutes after the flip
 
 Run in this order; stop at the first surprise.
