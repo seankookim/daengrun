@@ -232,6 +232,47 @@ reading the applied version: the footer still dates all facts to 08-15 and still
 as config-derived, which undersells the one piece of execution evidence in the document; and
 **Question 4 was not updated**, so the brief now states the exposure without asking about it.
 
+## 6-bis. Post-0103 re-measurement — the P0 is NOT closed
+
+`0103` (the server half: `realtime.messages` RLS) was deployed the same day. Re-measured against
+production immediately after, `docs/legal/evidence/run-channel-private-matrix.mjs`:
+
+```
+existing namespace             private=true  -> CHANNEL_ERROR     ← 0103 works
+existing namespace             private=false -> SUBSCRIBED        ← and is bypassable
+hypothetical bumped namespace  private=true  -> CHANNEL_ERROR
+hypothetical bumped namespace  private=false -> SUBSCRIBED        ← rename cannot help
+```
+
+The original end-to-end probe still completes unchanged: stranger SUBSCRIBED → publish ok →
+payload received.
+
+**0103 is correct and does its job.** `realtime.messages` policies are only consulted for
+channels joined *as private*, and against those it holds. But **privacy is the joining client's
+choice, not the server's** — and an attacker is not using our client. They pass `private: false`
+and the policy is never reached.
+
+**A topic-namespace rename is obscurity, not a control**, and the matrix demonstrates it rather
+than arguing it: neither probed topic belongs to any booking, and one is a namespace that does
+not exist. Public joins succeed on **arbitrary** topic names. Renaming helps only against a stale
+subscriber still sitting on the old topic — worth having, not the control — and the new name
+ships inside the client bundle, which is public by construction.
+
+Closure requires **project-level enforcement refusing public channels outright**, so that
+`private: false` stops being an available answer. That is project configuration, not a migration,
+and it must be flipped *together with* the client half or the live map breaks for every real user.
+
+**Untested and deliberately not assumed:** `chat-*` and `bk-*` are `postgres_changes` — a
+different mechanism from broadcast, but riding the same channel transport. Whether disabling
+public channels project-wide also breaks them is unknown. It needs testing on a non-production
+project before any flip; if they break, they need their own private mode and policies, which is a
+larger slice than the one in flight.
+
+**Reporting consequence.** "0103 deployed and verified live" is true, and "authorized for
+private-requesting clients" is honest — but either sentence alone reads as *closed*, and it is
+not. The accurate line is: **server half correct and live; the channel remains publicly joinable
+by any client that asks for public, measured 2026-08-19 post-0103.**
+
 ## 7. The question with a clock, and it is not yet asked
 
 Everything above concerns what the product must do before launch. One question runs the other
