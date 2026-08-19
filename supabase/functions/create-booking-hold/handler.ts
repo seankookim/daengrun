@@ -1,7 +1,9 @@
 // 원자적 슬롯 홀드 + 서버 가격 산정 (calendar.md 더블부킹 방지).
 // input: { dog_id, route_id?, address_id?, scheduled_at, km, pace_label?, addons: string[] }
 //        ⚠ NO `runner_id` — see the §0111 block below. A body carrying one is a 400.
-// out:   { booking_id, hold_expires_at, total_price, paid_path }
+// out:   { booking_id, hold_expires_at, total_price, paid_path, booking_status }
+//        `booking_status` is what the row IS when this function returns ("matching" | "payment_hold").
+//        A client must never have to infer whether a further call is required — see the §O-5 block.
 //
 // ═══ [0111] THIS FUNCTION NO LONGER NOMINATES A RUNNER ═══════════════════════════════════════
 // It used to take `runner_id` from the REQUEST BODY and, after an existence check against
@@ -27,17 +29,41 @@
 //
 // Split out of index.ts for the same reason confirm-payment (0076) and settle-run were: while
 // `Deno.serve` runs at module top level no test can import this code. The pre-slice body below is
-// unchanged — the charge slice adds two owner-level facts near the top (the debt lock and the
-// billing-key lookup) and the card path's instant CAS at the bottom.
+// unchanged — the charge slice added two owner-level facts near the top (the debt lock and the
+// billing-key lookup), O-5 added a third (the cutover flag), and the instant CAS lives at the
+// bottom.
 //
-// ═══ Two ways out of this function (toss-plan §0-ter) ═══
-//  · widget — no billing key: the booking stops at `payment_hold` exactly as before and §2's Toss
-//    widget (today: the mock `payment_ok`) moves it. An abandoned one dies silently at 30 minutes
-//    (0060 e_hold), which is that flow's DESIGNED ending, pinned by 100 W7.
-//  · card   — a billing key exists: this same request CASes `payment_hold → matching`, so
-//    `payment_hold` is a transient instant state and no new transition-map edge is needed (105 E7
-//    stays intact). NOTHING is charged here. Under post-pay the money moves at settle time; a
-//    booking is free to make, which is the whole model.
+// ═══ [O-5] PAY AFTER THE RUN — the pilot has no pre-run payment step ═════════════════════════
+// Sean's journey ruling #1 (2026-08-19): *"Payment comes AFTER the run and after handoff-back.
+// Not between reserve and live."* Contract: `docs/contracts/pay-after-run-contract.md` §C.1/§C.3.
+//
+// The rule this function now implements, in one line: **while `ops_flags.payments_live_since` is
+// NULL, a booking is free to make, so BOTH paths CAS `payment_hold → matching` in this request.**
+//
+//  · charging OFF (the pilot, and the state of production today) — widget AND card both land in
+//    `matching` before this function returns. `payment_hold` is a transient instant state for
+//    everyone, exactly as it already was for the card path. No new transition-map edge (105 E7 /
+//    109 P6 unchanged), no migration, no enum value.
+//  · charging ON, card    — unchanged: CAS to `matching`, and the money moves at settle time via
+//    `mint_settle_charge_intent`. NOTHING is charged here, ever, by any path.
+//  · charging ON, widget  — REFUSED before any write, `card_required` (§C.3). It must not silently
+//    become a stranded `payment_hold` again: the screen that used to move that row is deleted.
+//
+// ⚠ What this deliberately gives up, stated rather than discovered (§C.1a): an abandoned booking
+// used to die SILENTLY at 30 minutes (`e_hold`, 0080:948-955, pinned by 100 W7). It is now
+// `matching` from hold-creation, so it is in `marketplace_open_requests` immediately and instead
+// expires at `scheduled_at` via `e_match` WITH a notification whose post-pay arm already says the
+// honest thing (0080:944-946). The owner is not trapped: `matching → cancelled_owner` is in the map
+// and `marketplace_cancel_fee` returns 0 on an unmatched booking (0066:46/:77) — under the old flow
+// they had no cancel CTA at all. Accepted with the exit pinned (contract P6/P7).
+//
+// ⚠ `e_hold` therefore has no pilot input any more. Its pin stays green because 100 W7 inserts its
+// fixtures directly in SQL; the reaper is still correct, the product just stopped producing rows
+// for it (a lost card CAS whose `compensate()` fails is the one residual that still can).
+//
+// ⚠ This is NOT the only entry that skips the hold, and it never was: `generate_recurring_bookings`
+// (0111:369-376) has inserted straight at `matching`/`runner_pending` since 0026. C.1 does not
+// invent a shape — it makes this function CONSISTENT with the one the product already had.
 import { SupabaseClient } from "jsr:@supabase/supabase-js@2";
 import { caller, HttpError, PRICING } from "../_shared/ctx.ts";
 
@@ -167,6 +193,54 @@ export async function createBookingHold(req: Request, db: SupabaseClient) {
   if (cardErr) throw new HttpError(500, cardErr.message);
   const paidPath: "card" | "widget" = card ? "card" : "widget";
 
+  // ── [O-5 §C.1] the cutover flag — asked HERE, beside the billing key, before any write ────────
+  // This is a NEW HARD DEPENDENCY and it is said out loud rather than left in the diff: before
+  // O-5 this function never touched `ops_flags`, and after it **every booking in the product**
+  // depends on that one row being readable. `service_role` holds SELECT on it (verified against
+  // production), so no grant change and no RPC is needed.
+  //
+  // FAIL-CLOSED, the same shape as the debt lock above: a read error is a 500 and no booking is
+  // created. Swallowing it into "assume charging is off" would be a money gate failing open —
+  // it would hand out free bookings on the strength of a failed query. Pinned (contract N10),
+  // not assumed, and mutation-verified.
+  //
+  // ⚠ Do NOT describe `ops_flags` as "sealed" in a privilege sense. `anon`/`authenticated` still
+  // hold table-level DML on it; RLS-enabled-with-ZERO-policies (0080:187) is the only thing
+  // standing there — the same shape as 0111's R5 finding on `slot_holds`. Nothing in this slice
+  // changes that, and nothing in this slice may claim credit for it.
+  const { data: flags, error: fErr } = await db.from("ops_flags").select("payments_live_since").maybeSingle();
+  if (fErr) throw new HttpError(500, fErr.message);
+  const chargingLive = !!flags?.payments_live_since;
+
+  // ── [O-5 §C.3] post-flip, a card-less owner is REFUSED — never silently held ──────────────────
+  // The day Sean sets `payments_live_since`, a widget-path booking would start stopping at
+  // `payment_hold` again — with the screen that used to move it deleted. That is the original
+  // strand rebuilt on a timer. So it refuses HERE, with the other pre-write gates: no booking row,
+  // no `slot_holds` row, nothing to strand and nothing to compensate.
+  //
+  // The token comes first so a client can branch on it (`candidate_ack_required`'s shape), and the
+  // sentence follows so a client that does not know the token still tells the owner something true.
+  // The product answer is a one-step consent sheet inline at first booking, not an onboarding step
+  // (`docs/decisions/card-registration-placement.md:6`).
+  //
+  // ⚠ UNREACHABLE TODAY (the flag is NULL in production) and pinned as defence against the flip
+  // (contract N6). Whether refusing is the right product answer post-flip — versus letting them
+  // book and catching them with the debt lock after one uncollected run — is Sean's open question
+  // (contract §F.1), and his answer must be applied to `generate_recurring_bookings` in the same
+  // breath: that surface PAUSES with a notification instead (0111:339-355), deliberately, because
+  // a cron has no screen on which to show a card sheet.
+  //
+  // ⚠ What this does NOT cover: the bookings that already exist on flip day. The mint keys on RUN
+  // END (0084:265-266), not on booking creation, so every in-flight card-less booking whose run
+  // finishes after the flip becomes a failed charge → an owner notification → a debt lock. That
+  // needs its own cut-over rule and it is the money session's slice (contract §C.3a).
+  if (chargingLive && paidPath === "widget") {
+    throw new HttpError(
+      409,
+      "card_required — 결제 카드를 먼저 등록해주세요. 카드를 등록하면 바로 예약할 수 있어요",
+    );
+  }
+
   const start = new Date(b.scheduled_at);
   // An unparseable date became `Invalid Date`, whose toISOString() throws a RangeError — a 500
   // with a stack instead of a 400 with a reason. Same class as the km bounds above.
@@ -176,6 +250,16 @@ export async function createBookingHold(req: Request, db: SupabaseClient) {
 
   // 같은 강아지 중복 예약 가드 — 겹치는 시간대의 살아있는 예약이 있으면 거절.
   // (라이브 커밋 상태만 검사 — draft/payment_hold 잔재나 종결 상태는 차단 사유가 아니다)
+  //
+  // [O-5 §C.1b] The LIVE list still deliberately excludes `payment_hold`, and that is still
+  // correct: a stale hold must never block a retry. But it had a consequence nobody designed —
+  // TWO overlapping holds for the same dog could both be created, because neither was `matching`
+  // yet when the other ran this guard, and the second only failed later, if at all.
+  // After §C.1 the first booking is ALREADY `matching` when the second request reaches this line,
+  // so the second is refused below with the sentence that was always there. An undesigned
+  // improvement is exactly the kind a later refactor removes without noticing it existed, so it is
+  // pinned as a POSITIVE (contract P8) rather than left as a footnote. Do not "tidy" the list by
+  // adding `payment_hold` to it — that would re-block the retry this exclusion exists to allow.
   const LIVE = ["matching", "runner_pending", "confirmed", "runner_enroute", "picked_up", "active"];
   const { data: near, error: nearErr } = await db.from("bookings")
     .select("id, scheduled_at, km")
@@ -238,21 +322,41 @@ export async function createBookingHold(req: Request, db: SupabaseClient) {
   });
   if (hErr) throw new HttpError(500, hErr.message);
 
-  // ── card path: the hold is in place, so close the payment step in this same request ──────────
-  // The CAS is the statement `payment_ok` uses (transition-booking:42-46), not a new edge. It is a
-  // CAS rather than a plain write for the same reason it is there: only a row still sitting in
-  // `payment_hold` may move, so a lost race (0060's expiry sweep, a concurrent client) shows up as
-  // 0 rows instead of quietly reviving a dead booking.
-  if (paidPath === "card") {
+  // What the row IS when we return. Derived from what actually happened below, never asserted:
+  // if the CAS is skipped the answer is the truth (`payment_hold`), and the client is told so
+  // instead of being left to infer it from `paid_path`.
+  let bookingStatus: "matching" | "payment_hold" = "payment_hold";
+
+  // ── the hold is in place, so close the (non-)payment step in this same request ────────────────
+  // [O-5 §E.6a] This CAS is the statement `payment_ok` USED to share — `payment_ok` is deleted
+  // (§C.2) and this is now the only writer of `payment_hold → matching` on this path. **The
+  // statement outlived its other caller**; the edge itself is untouched and still pinned by
+  // 109 P6. It is a CAS rather than a plain write for the same reason it always was: only a row
+  // still sitting in `payment_hold` may move, so a lost race (0060's expiry sweep, a concurrent
+  // sweep) shows up as 0 rows instead of quietly reviving a dead booking.
+  //
+  // WHO takes it: a card owner always, and — while charging is off — everyone else too (§C.1).
+  // Written as two named conditions rather than `true` on purpose. Today the §C.3 gate above makes
+  // `chargingLive && widget` unreachable, so this branch is in fact always taken; the day Sean
+  // answers §F.1 with "let them book, the debt lock handles it" that gate is deleted and
+  // `!chargingLive` becomes the load-bearing half. Collapsing this to an unconditional CAS now
+  // would silently book card-less owners for free post-flip (contract Alt-3, rejected for this
+  // slice) and there would be nothing left in the code saying a decision had ever been made.
+  if (paidPath === "card" || !chargingLive) {
     const { data: matched, error: casErr } = await db.from("bookings")
       .update({ status: "matching" })
       .eq("id", booking.id).eq("status", "payment_hold").select("id");
     if (casErr || !matched || matched.length === 0) {
-      // §0-ter #7/#15. A card-linked booking may NEVER be left in `payment_hold`: e_hold's silent
-      // death is the WIDGET flow's designed ending (0060, W7), and this owner has no widget to
-      // come back to — the row would expire unspoken 30 minutes from now with a slot held against
-      // it. So undo what this request made: the hold first (it references the booking), then the
-      // booking. Then say so, out loud, instead of returning a booking id that is about to rot.
+      // §0-ter #7/#15. A booking that takes this branch may NEVER be left in `payment_hold` — the
+      // row would expire unspoken 30 minutes from now (e_hold, 0060/0080:948-955) with a slot held
+      // against it. The reason used to be "a card owner has no widget to come back to"; after O-5
+      // §C.1 it is stronger and simpler: **NOBODY has a widget to come back to**, `payment_ok` is
+      // deleted and no client screen moves that row any more. So undo what this request made: the
+      // hold first (it references the booking), then the booking. Then say so, out loud, instead of
+      // returning a booking id that is about to rot.
+      //
+      // This is also the one residual that still feeds `e_hold` at all: a lost CAS whose
+      // `compensate()` itself fails leaves a genuine stuck `payment_hold` row for the reaper.
       const cleaned = await compensate(db, booking.id, casErr?.message ?? "cas_zero_rows");
       // Two different truths, two different sentences. Claiming "남은 예약도 없어요" after a
       // compensating delete that ERRORED is a lie told on a money screen (honesty law) — and the
@@ -265,6 +369,7 @@ export async function createBookingHold(req: Request, db: SupabaseClient) {
           : "예약을 만들지 못했어요 — 청구된 금액은 없어요. 다만 만들다 만 예약이 목록에 잠시 남을 수 있어요 (결제되지 않은 상태로 자동 정리돼요). 그대로 두고 다시 시도해주세요",
       );
     }
+    bookingStatus = "matching";
   }
 
   return {
@@ -272,11 +377,18 @@ export async function createBookingHold(req: Request, db: SupabaseClient) {
     hold_expires_at: expires.toISOString(),
     total_price: total,
     paid_path: paidPath,
+    // [O-5 §C.1] Which path the owner is on (`paid_path`) and what the row IS (`booking_status`)
+    // are two different questions, and the client used to be able to ask neither — it dropped
+    // `paid_path` entirely and inferred the rest. A client must never have to GUESS whether a
+    // further call is required, so the server states it.
+    booking_status: bookingStatus,
   };
 }
 
 /**
- * Undo a half-made card-path booking. Best-effort on each statement and loud on failure: the
+ * Undo a half-made booking whose closing CAS did not land. (Named "card-path" before O-5 §C.1,
+ * when the card path was the only one that CASed; the widget path takes this branch too now.)
+ * Best-effort on each statement and loud on failure: the
  * caller is already about to throw, and turning a failed cleanup into a different exception would
  * only replace an honest error with a confusing one. A leftover row here is visible (a
  * `payment_hold` booking with no owner-facing id) and 0060's sweep still reaps it.

@@ -1,7 +1,37 @@
 // 예약 상태 전이 — 액션 기반. DB 트리거가 최종 검증하고, 여기서 부수효과(알림·양측 인계) 처리.
 // input: { booking_id, action, meta? }
-// actions: payment_ok | runner_accept | runner_decline | enroute | arrived | confirm_handoff | start_run | cancel_owner
+// actions: runner_accept | runner_decline | request_runner | enroute | arrived | confirm_handoff
+//        | start_run | cancel_owner
 //        | request_reschedule | accept_reschedule | decline_reschedule | withdraw_reschedule (0016)
+//
+// ═══ [O-5 §C.2] `payment_ok` IS DELETED — there is no pre-run payment step ════════════════════
+// Sean's journey ruling #1 (2026-08-19): payment comes AFTER the run and after handoff-back.
+// Contract: `docs/contracts/pay-after-run-contract.md` §C.2.
+//
+// What it was: a bare owner-gated CAS `payment_hold → matching` that read no `payments` row, no
+// `billing_keys` row, no `ops_flags`, no amount and no Toss anything. It was named for money and
+// moved none — a costume, which is the exact shape this repo's honesty law is about. The 0111
+// reviewer had already recorded it as such (0111:66, :77).
+//
+// What replaces it: NOTHING. `create-booking-hold` now CASes the booking to `matching` inside the
+// request that creates it, for both paths, while charging is off (§C.1). The edge itself is
+// unchanged and still pinned by 109 P6 — only this second, redundant writer of it is gone.
+//
+// An `action: 'payment_ok'` now falls through to the default arm at the bottom of the switch and
+// gets **400 `unknown action payment_ok`**, which is the correct answer to a caller asking for a
+// step that no longer exists. A STRANGER still gets 403 `not a party` from the gate above the
+// switch — two different refusals for two different reasons, and neither is a 200.
+//
+// ⚠ That 400 is pinned (contract N9, `_test/transition_booking_actions_test.ts`) and the pin is
+// load-bearing: NOTHING in this repo asserted `payment_ok` before it was deleted — not one SQL
+// suite, not one Deno test (146 D-15 pins `request_runner`'s CAS, not this one). Without the pin
+// the removal is invisible to every gate in the repo and the next reader cannot tell "deliberately
+// deleted" from "never existed".
+//
+// ⚠ This does NOT narrow the nomination chain (/cso #2 F2 / B-11). `create-booking-hold` (own dog)
+// → `request_runner` (any real runner) still yields `runner_id = victim` at `runner_pending`
+// without acceptance, because `is_booking_party` has no status filter (0002:15-22). That is the
+// D2-narrow slice and it is different work. Nobody may report a security win from this change.
 import { admin, caller, handle, HttpError } from "../_shared/ctx.ts";
 import { cancelOwner } from "./cancel_owner.ts";
 import { startRun } from "./start_run.ts";
@@ -26,29 +56,8 @@ Deno.serve(handle(async (req) => {
     db.from("notifications").insert({ profile_id, kind: "booking", title, body, ref_id: booking_id });
 
   switch (action) {
-    case "payment_ok": {
-      if (!isOwner) throw new HttpError(403, "owner only");
-      // [웨이브 3] CAS — payment_hold일 때만 matching으로. 0060의 홀드 만료(30분, e_hold)와
-      // 결제 완료가 경합하면 여기서 0행이 나온다. 스냅샷 기반 무조건 쓰기는 그 레이스에서
-      // 만료된 예약을 조용히 되살리거나(트리거가 막으면 e.message 그대로 새는) 거짓 성공을 준다.
-      // pay.tsx에는 타이머가 없다 — 세워둔 결제 화면이 유예창 밖으로 나가는 것은 설계된 열화이고,
-      // 그때 보호자가 받아야 할 답은 '만료됐으니 다시 만들어라'라는 사실 한 문장이다.
-      // matching이 유일한 목표: 기존 `bk.runner_id ? "runner_pending" : "matching"` 분기는
-      // **죽은 코드**였다 — payment_hold→runner_pending이 0047 전이 맵에 없어 트리거가 거부한다.
-      // (주의: '클라가 runner_id를 안 보낸다'는 이유가 아니다 — create-booking-hold는 공개
-      //  HTTP 엔드포인트라 본문에 runner_id를 실을 수 있다. TS 래퍼 부재는 방어가 아니다.
-      //  적대 리뷰 P2 지적. 실제 근거는 전이 맵 하나뿐이고, 그것으로 충분하다.)
-      // 도달 불가능한 데다 도달하면 실패하는 분기를 '되는 것처럼' 보존하지 않는다.
-      // 같은 조건(bk.runner_id)에 걸려 있던 '새 러닝 요청' 알림도 함께 은퇴 — 이제 이 전이의
-      // 결과는 언제나 matching이라 그 알림은 러너에게 응답할 수 없는 요청을 알리는 거짓말이 된다.
-      const { data: paid, error: pe } = await db.from("bookings")
-        .update({ status: "matching" })
-        .eq("id", booking_id).eq("status", "payment_hold").select("id");
-      if (pe) throw new HttpError(409, pe.message);
-      if (!paid || paid.length === 0) throw new HttpError(409, "결제 시간이 만료됐어요 — 예약을 다시 만들어주세요");
-      break;
-    }
-
+    // [O-5 §C.2] `case "payment_ok"` stood HERE and is deleted — see the file header. The CAS
+    // statement it ran survives, in `create-booking-hold/handler.ts`, which is now its only writer.
     case "runner_accept": {
       const { data: r } = await db.from("runners").select("profile_id, tier").eq("profile_id", uid).single();
       if (!r) throw new HttpError(403, "runner only");
