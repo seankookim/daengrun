@@ -75,9 +75,18 @@ deploy rather than a decision for Sean; it is not a guarantee about tomorrow.
 
 ## 4. Corrections to facts other documents assert
 
-- **`ledger_items` is 8 rows, not 0.** §3 ⑦'s cutover gate re-anchors the sweep onto that exact
-  table, so it is **not** the empty surface the plan assumes. Whoever builds the re-anchor and the
-  `set_payments_live_since` hard refusals must handle existing rows.
+- **`ledger_items` is 8 rows, not 0.** ⚠ **CORRECTED 2026-08-14 — I appended a false inference to
+  a true number, and money caught it.** The count is right; the clause *"not the empty surface the
+  plan assumes"* was mine and is wrong. **§3 ⑦ never assumes that table is empty** — 8 ledger rows
+  against 8 `completed` bookings is exactly what its design expects. I measured something real,
+  then invented a consequence for it, which is the same defect as the `club_sessions` severity
+  scenario and is the fourth time today. **A measurement does not license a conclusion about a
+  document you have not re-read.**
+  The load-bearing fact money found by chasing the number is the opposite kind: **`runs.settled_at`
+  is NULL on all 9 runs, including the 8 that are settled and carry ledger rows** — those runs
+  predate `0083`, which is where `settle_run_tx` began writing it. So on historical rows
+  **"settled_at is null" does NOT mean unpaid; the ledger row is the evidence.** Money owns it;
+  it is §2-ter of `docs/pre-charging-checklist.md`.
 - **The edge functions were never undeployed.** The handoff's P0 #1 and the retro's closing
   section both said `0085`/`0086` were unreachable and a cancelled runner was getting ₩0. False
   when written — both callers were already in the live bundles. Corrected in place in both files,

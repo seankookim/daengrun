@@ -48,6 +48,32 @@ then `set local role anon` and COUNT each one. Include `relkind in ('v','m')` �
 other miss; `available_runners` and `marketplace_open_requests` are anon-readable definer views
 that no `pg_policies` query returns at all.
 
+**③ WHEN THE GRANT AND ITS PROTECTION LIVE IN DIFFERENT PLACES, NEITHER SWEEP TELLS THE TRUTH.**
+Found by money on `runs`, 2026-08-14, verified by me: `has_table_privilege` says **anon AND
+authenticated hold INSERT**, while `runs` carries exactly two policies — `runs party read`
+(SELECT) and `runs runner update` (UPDATE) — and **no INSERT policy at all**, so RLS default-deny
+is the only thing refusing the write. `0087` dropped the old `runs runner write` policy and left
+the grant standing.
+
+Harmless today. **The hazard is the shape:** the privilege says yes and the missing policy says
+no, so a later convenience feature that adds a permissive INSERT policy reopens `0087`'s forgery
+hole **with no grant change for a grants audit to see**. And it is exactly the blind spot detector
+① and the corrected ② each have on their own — a privilege enumerator reports INSERT granted and
+shrugs; a policy sweep finds nothing to flag. **Only the JOIN of the two is a control.**
+
+    -- tables where a role holds a write privilege that no policy grants
+    select c.relname, has_table_privilege('anon', c.oid, 'INSERT') as anon_ins,
+           (select count(*) from pg_policies p where p.tablename = c.relname and p.cmd = 'INSERT') as ins_policies
+    from pg_class c join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname='public' and c.relkind='r' and has_table_privilege('anon', c.oid, 'INSERT');
+
+⚠ **And this one has a money consequence, which is why it is written here rather than left tidy:**
+`0087` closing that path is the stated reason a **blocking cutover gate was downgraded** (the
+charge sweep re-anchoring off client-writable `runs` data). If the grant ever becomes live again,
+it silently re-arms a money-path risk that a cutover document now records as handled. **A
+downgrade that rests on a precondition must name the precondition, or the precondition can rot
+without the downgrade noticing.**
+
 **② A `using (true)` policy is neither a finding nor a pass — the GRANT decides.** `0093`
 deliberately LEFT `using (true)` in place and closed its hole with a revoke; `profiles` still
 carries a no-caller-term policy and is shut. So a sweep that greps `0002_rls.sql` for a missing
