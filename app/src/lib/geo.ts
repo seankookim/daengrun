@@ -339,6 +339,17 @@ const PUB_MIN_MS = 3000;
 // 빼먹으면 구독도 발행도 조용히 실패하고, 화면에는 '아직 안 옴'과 구별되지 않는다.
 const REALTIME_PRIVATE = { config: { private: true } } as const;
 
+// 토픽 네임스페이스는 **서버 정책과 글자 단위로 맞아야 한다** (0104: `^run2-`). 한 곳에만 둔다 —
+// 세 호출부에 문자열이 흩어져 있으면 다음 범프 때 하나가 남고, 그 증상은 '조용히 빈 지도'다.
+//
+// ⚠ 왜 `run2-`인가 (이유가 한 번 바뀌었다): 0104의 원래 근거는 "구버전(public 채널) 바이너리가
+// 0103을 우회할지도 모른다"였다. 그 질문은 이후 실측으로 **답이 났다 — 우회는 없다**(public
+// 구독자는 private 발행을 받지 못한다). 그래서 원래 근거는 사라졌고, 남은 근거는 더 약하지만
+// 여전히 참이다: 격리가 **우리가 통제하지 않는 realtime 동작**(한 버전에서 한 번 측정한 것)에
+// 기대는 대신 **다른 토픽이라는 구조**에 기대게 된다. 그 동작이 언젠가 회귀해도 `run-`에 있는
+// 구버전은 `run2-` 트래픽에 닿지 못한다.
+const RUN_TOPIC = (bookingId: string) => `run2-${bookingId}`;
+
 /** 구독/발행 직전에 realtime 소켓을 현재 세션으로 무장시킨다. 인자 없는 setAuth()는
  *  supabase-js가 현재 세션 토큰을 집어 쓴다(2.109). 실패는 삼키지 않고 subscribe 상태로 드러난다. */
 async function armRealtime(): Promise<void> {
@@ -376,7 +387,7 @@ export function publishPos(bookingId: string, pos: LivePos): void {
     if (pubCh) supabase.removeChannel(pubCh);
     pubJoined = false;
     pubLastAt = 0;
-    pubCh = supabase.channel(`run-${bookingId}`, REALTIME_PRIVATE);
+    pubCh = supabase.channel(RUN_TOPIC(bookingId), REALTIME_PRIVATE);
     pubId = bookingId;
     hookTokenRefresh();
     // 무장 → 구독 순서를 지킨다. 그 사이 픽스는 아래 `!pubJoined` 가드가 흘려보내고,
@@ -409,7 +420,7 @@ export function subscribePos(
   onState?: (s: LiveLinkState) => void,
 ): () => void {
   const ch = supabase
-    .channel(`run-${bookingId}`, REALTIME_PRIVATE)
+    .channel(RUN_TOPIC(bookingId), REALTIME_PRIVATE)
     .on('broadcast', { event: 'pos' }, ({ payload }) => onPos(payload as LivePos));
   let dropped = false;
   hookTokenRefresh();
@@ -433,7 +444,7 @@ export function createPosPublisher(bookingIds: string[]): { publish: (pos: LiveP
   hookTokenRefresh();
   const chs = bookingIds.map((id) => {
     // 같은 결함의 세 번째 자리 — 클럽 러닝은 러너 하나가 보호자 채널 N개로 방송한다.
-    const c = { joined: false, ch: supabase.channel(`run-${id}`, REALTIME_PRIVATE) };
+    const c = { joined: false, ch: supabase.channel(RUN_TOPIC(id), REALTIME_PRIVATE) };
     void armRealtime().then(() => {
       c.ch.subscribe((status: string) => { c.joined = status === 'SUBSCRIBED'; });
     });

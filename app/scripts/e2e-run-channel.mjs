@@ -249,7 +249,7 @@ async function main() {
     .select('id').single();
   if (be) { console.error('부킹 생성 실패 — 스키마가 바뀌었을 수 있습니다:', be.message); process.exit(2); }
   made.bookingId = bk.id;
-  const TOPIC = `run-${bk.id}`;
+  const TOPIC = `run2-${bk.id}`;   // 0104 네임스페이스 — 서버 정책과 일치해야 한다
 
   // ── 양성 팔을 먼저 세운다. 이게 죽어 있으면 아래 음성 팔의 초록은 전부 무의미하다 (legal ①).
   const ownerSub = await probe(owner, TOPIC);
@@ -311,7 +311,7 @@ async function main() {
   else ok('보호자 발행 — 거절됨');
 
   // 존재하지 않는 부킹의 토픽 — 토픽 문자열이 곧 권한이 아님을 확인
-  const fake = await probe(stranger, `run-00000000-0000-4000-8000-000000000000`);
+  const fake = await probe(stranger, `run2-00000000-0000-4000-8000-000000000000`);
   assertDenied('존재하지 않는 부킹 토픽 구독', fake.status);
   fake.close();
 
@@ -336,7 +336,7 @@ async function main() {
     owner_id: owner.id, runner_id: runner.id, dog_id: dog.id, status: 'runner_enroute',
     km: 3, scheduled_at: new Date().toISOString(), base_fare: 0, distance_fare: 0, total_price: 0,
   }).select('id').single();
-  const TOPIC2 = `run-${bk2.id}`;
+  const TOPIC2 = `run2-${bk2.id}`;
   // 취소 **전에** 접근이 실제로 있었다는 양성 대조 — 없으면 '차단됨'은 아무것도 증명하지 않는다.
   const beforeCancel = await probe(owner, TOPIC2);
   if (beforeCancel.status === 'SUBSCRIBED') ok('취소 전 보호자 구독 가능 (차단 검사의 양성 대조)');
