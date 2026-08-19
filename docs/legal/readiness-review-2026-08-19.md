@@ -55,22 +55,35 @@ READ, `supabase/migrations/0082_route_ladder.sql:178` (`promote_route_from_run`)
 timestamps *are* dropped — the function rebuilds each point as
 `jsonb_build_object('lat', lat, 'lng', lng)`. So far, as described.
 
-But the published `routes` row then **gains** two identifiers the review did not know about:
+But the published `routes` row then **gains four identifiers** the review did not know about
+(corrected 2026-08-19 — the first pass of this file found two of them):
 
-- `verified_run_id` — a `uuid unique references runs` (`0082:112`), i.e. a direct foreign key
-  from the public course to the one specific run that produced it, and through it to that run's
-  booking, owner, runner and dog.
-- `checked_at` — set from `runs.ended_at` (`0083:75`), i.e. the run's actual end time.
+- `verified_run_id` — `uuid unique references runs` (`0082:112`), a direct foreign key from the
+  public course to the one specific run that produced it, and through it to that run's booking,
+  owner and dog.
+- `verified_runner_id` — `uuid references profiles` (`0082:111`), **a direct foreign key from a
+  public course row to a named person.** This is the sharpest of the four and the one most
+  clearly outside any anonymity claim.
+- `checked_by` — the curator who approved activation (`0082:120`).
+- `checked_at` — set from `runs.ended_at` (`0083:75`), the run's actual end time.
 
 And `0082:99` is `create policy "routes public read" on routes for select using (true)` — every
-row, every status, no auth term.
+row, every status, no auth term. `0099:45`'s own comment independently records the same fact
+("`routes` is anon-readable").
 
 **MEASURED**, logged out, public anon key only:
 
 ```
-GET /rest/v1/routes?select=id,name,status,verified_run_id,checked_at
-→ 200, rows returned, both columns present
+GET /rest/v1/routes?select=id,name,status,verified_run_id,verified_runner_id,checked_by,checked_at
+→ 200, rows returned, all four columns present
 ```
+
+**The remedy is a grant/projection change, never a column drop.** `routes_active_is_earned`
+(`0082:127`) is a CHECK constraint requiring `checked_at is not null and verified_run_id is not
+null` for any route in `active` status — the evidence columns are load-bearing for the activation
+invariant. Dropping them would break the route ladder. The 0088 shape is the right one: revoke
+the columns from `anon`, or route public reads through a whitelisted view, and leave the table
+alone.
 
 So the published artefact is not "a route with the time removed." It is a route carrying the
 run's UUID and the run's date, published to anonymous readers. That is a stronger re-identification
@@ -167,7 +180,8 @@ buildable, in this order:
 
 1. **Private the `run-*` channel** before anything else, because it is live, measured, and
    contradicted by a document we are about to publish. — trust
-2. **Drop or restrict `verified_run_id` / `checked_at` from public route reads** before the first
+2. **Revoke `verified_run_id` / `verified_runner_id` / `checked_by` / `checked_at` from anon
+   route reads** (grant change, not a column drop — see ⓑ) before the first
    course is ever promoted. Cheap now, incident later. — backend/catalog
 3. **Insert the statutory location-consent gate ahead of `geo.ts:199`**, and split a
    위치기반서비스 이용약관 out of the privacy policy draft. — client + legal
