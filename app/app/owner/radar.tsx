@@ -62,7 +62,7 @@ function Ripple({ delay }: { delay: number }) {
 type Card = Awaited<ReturnType<typeof fetchBookingCard>>;
 
 export default function Radar() {
-  // The booking comes from the draft (home hero / pay), or from a `bid` param so a push
+  // The booking comes from the draft (home hero / request, which sets it right after the hold), or from a `bid` param so a push
   // notification or deep link can land here directly. The param wins when present.
   const { bid: bidParam } = useLocalSearchParams<{ bid?: string }>();
   const bookingId = (typeof bidParam === 'string' && bidParam) || draft.bookingId;

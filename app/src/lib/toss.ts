@@ -1,10 +1,13 @@
 // Toss payments — client-side config for the real-money path (payments-toss-plan.md §3).
 //
-// THE FLAG: TOSS_ENABLED is false. Today's pay surface still runs the simulated path
-// (transition-booking {action:'payment_ok'}), which is the ONLY route a booking has into
-// `matching`. Nothing here may change that until confirm-payment is live and the sandbox
-// matrix (plan §4-2) has passed — the plan's own correction note is explicit that flipping
-// early bricks the app.
+// THE FLAG: TOSS_ENABLED is false. ⚠ [O-5 §E.6a, 2026-08-19] This comment used to say the pay
+// surface ran a simulated path (`transition-booking {action:'payment_ok'}`) that was "the ONLY
+// route a booking has into `matching`". Both halves are now false: `payment_ok` is DELETED
+// (transition-booking v34 answers it with 400 unknown action), and `create-booking-hold` v10
+// closes `payment_hold → matching` itself inside the hold request while charging is off. There is
+// no client-driven confirm step at all — `/owner/pay` is unreachable in the pilot and read-only.
+// Nothing here may change until confirm-payment is live and the sandbox matrix (plan §4-2) has
+// passed — the plan's own correction note is explicit that flipping early bricks the app.
 //
 // Flipping the flag is NOT a JS-only change: the widget renders inside react-native-webview,
 // so a native rebuild (expo prebuild + device build) must ship first.

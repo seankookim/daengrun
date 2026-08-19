@@ -607,8 +607,11 @@ export default function Schedule() {
                         : `취소 수수료는 시간을 비워둔 러너에게 ${Math.round(cancelPolicy.runnerShare * 100)}%, 도그스하이에 ${Math.round((1 - cancelPolicy.runnerShare) * 100)}% 배분돼요.\n시작 24시간 전까지는 수수료가 없어요.`}
                     </Text>
                     {/* TODO(widget slice, R3 P3-8): both sentences assume no captured payment —
-                        true today (TOSS_ENABLED=false, payment_ok writes no payments row, so no
-                        confirmed row can exist), FALSE for a widget-prepaid booking the day that
+                        true today, and MORE true after O-5: the conclusion survives but the
+                        mechanism named here does not. `payment_ok` is deleted (it never wrote a
+                        payments row anyway); today nothing before the run writes one at all —
+                        TOSS_ENABLED=false and money is only taken at settle. FALSE for a
+                        widget-prepaid booking the day that
                         slice ships. The server already branches on payments.status='confirmed'
                         (cancel_owner.ts isPrepaid); this sheet must branch the same way
                         (fetchBookingPayments) before widget payments go live. */}

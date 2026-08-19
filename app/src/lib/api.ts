@@ -357,7 +357,18 @@ export async function uploadDogPhoto(dogId: string, base64: string): Promise<str
 }
 
 // ---------- bookings (edge functions) ----------
-export interface HoldResult { booking_id: string; hold_expires_at: string; total_price: number }
+// [O-5 §C.1 · create-booking-hold v10] The server answers two different questions and the client
+// must guess neither: `paid_path` = which path this owner is on, `booking_status` = what the row
+// IS at the moment this call returns. While charging is off BOTH paths close the payment step in
+// the same request, so the honest answer is `matching` — and `payment_ok` no longer exists to move
+// a row that stopped short. A caller therefore BRANCHES on `booking_status`; it never assumes it.
+export interface HoldResult {
+  booking_id: string;
+  hold_expires_at: string;
+  total_price: number;
+  paid_path: 'card' | 'widget';
+  booking_status: 'matching' | 'payment_hold';
+}
 
 export async function createBookingHold(p: {
   dog_id: string;
@@ -399,13 +410,10 @@ export async function pauseRecurringSeries(seriesId: string): Promise<void> {
   if (error) throw error;
 }
 
-export async function confirmPayment(bookingId: string): Promise<void> {
-  const { data, error } = await supabase.functions.invoke('transition-booking', {
-    body: { booking_id: bookingId, action: 'payment_ok' },
-  });
-  if (error) throw error;
-  if (data?.error) throw new Error(data.error);
-}
+// [O-5 §C.2] `confirmPayment` is DELETED, with the server action it called. `payment_ok` verified
+// nothing about payment and moved no money — `transition-booking` now answers it with
+// 400 `unknown action payment_ok`. `create-booking-hold` closes that step itself (§C.1), so there
+// is no second writer of `payment_hold → matching` and no client call to make. Do not re-add it.
 
 // ---------- 토스페이먼츠 실결제 (payments-toss-plan.md §2) ----------
 // CLIENT CONTRACT ONLY — both edge functions are built in a parallel lane. Nothing calls these
