@@ -178,8 +178,9 @@ number.
 Nothing here argues with the review's RED. It sharpens it into three things that are actually
 buildable, in this order:
 
-1. **Private the `run-*` channel** before anything else, because it is live, measured, and
-   contradicted by a document we are about to publish. — trust
+1. ~~**Private the `run-*` channel**~~ — **DONE 2026-08-19**, closed at the realtime boundary
+   (§6-ter): `private_only=true`, both instruments green on production. Took three passes —
+   server RLS alone was bypassable, and the namespace bump was obscurity.
 2. **Revoke `verified_run_id` / `verified_runner_id` / `checked_by` / `checked_at` from anon
    route reads** (grant change, not a column drop — see ⓑ) before the first
    course is ever promoted. Cheap now, incident later. — backend/catalog
@@ -309,9 +310,24 @@ consistent with a dead credential or a down project. Same anon key, same project
 `HTTP 200`. The key is valid and the project is up, so the refusals are genuine authorization
 decisions. The negative instrument says shut, and is not merely broken.
 
-Per §6-bis this is **half** the gate. Closure still requires ui's positive arms green on
-production (owner receives on `run`/`chat`/`bk`, host on `club-chat`), and the flip is revertible
-in one PATCH if any family fails.
+Per §6-bis this is **half** the gate. **The other half came back green the same day** — ui's
+positive arms against production, post-flip: party channels 6/6 (owner receives on `chat` and
+`bk`; both stranger `private=false` lines flipped SUBSCRIBED → CHANNEL_ERROR), `run` channel 21/21
+(owner receives the runner's position; an attacker's public publish returns `false` — cannot even
+connect), and `club-chat` verified on device as host. Recorded by the announcer at `d67d6f0`.
+
+**Both instruments, one run, on production. The P0 is CLOSED at the realtime boundary.**
+
+### ⚠ Constraint released — but only this one
+
+§2ⓒ made publication of the privacy policy conditional: `privacy-policy.md:81` states 제공 대상 is
+the booking's owner only, which was false while the channel was public. **That statement is now
+true, and this session releases that specific blocker.**
+
+Nothing else about publication is released. The policy remains unpublishable for the reasons in
+§1 and §2ⓐ — it is an unreviewed draft with no 시행일, there is still no separate 위치기반서비스
+이용약관, the 신고 has not been made, and the retention row (§3, "필요한 기간") is not a period.
+A released blocker is not an approval, and this one was narrow.
 
 ### The window, and who was actually in it
 
