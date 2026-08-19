@@ -306,7 +306,7 @@ zero — so the exclusion is already applied by your judgement and is simply und
 migration: a recorded owner id + a documented count query. One line from you confirms this is the
 flagged-test-owner policy, and then it gets written into the PR-0 doc.
 
-## 0-octies. 🔴 /cso AUDIT 2026-08-19 — three P0 fixes routed, none need Sean; one launch gate parked for catalog
+## 0-octies. /cso AUDIT 2026-08-19 — P0 status: 1 CLOSED (GPS), 2 CLOSED (drops), 1 IN REBUILD (booking) — none need Sean
 
 Full JSON at `.gstack/security-reports/2026-08-19-cso.json` (local). Owners already messaged;
 recorded here so nothing lives only in chat.
@@ -322,9 +322,15 @@ recorded here so nothing lives only in chat.
   public 2026-07-25 → 08-19 (25 days); 9 runs carried location, ALL with runner = owner = the same
   account, and that account is `aa73ce8a…` = `s4kim2025` — Sean's confirmed test account. **No third
   party's location was ever on the channel; real data did traverse it (say it that way, not
-  "population zero").** GATE STILL OPEN on the positive instrument: ui must confirm on production that the real
-  owner/host still RECEIVES on chat, bk, club-chat and run2 — until then this reads "negative arm
-  proven, positive arm pending"; revert = one PATCH `private_only=false`.** Earlier honest line kept
+  "population zero").** **✅ CLOSED 2026-08-19 — both instruments, one run, production.** Positive arms (ui, raw): party
+  channels 6/6 (owner receives chat + bk; stranger private=false → CHANNEL_ERROR, was SUBSCRIBED);
+  run channel 21/21 (owner receives runner's position; old-style public client → CHANNEL_ERROR;
+  attacker public publish → cannot even connect, `send false`; anon/unrelated/loser/former runner
+  all CHANNEL_ERROR); club-chat verified on the simulator as host s4kim2025 on a8791733… — a
+  service-inserted row appeared live through the private channel, no refresh. Negative instrument
+  (legal, independent re-run + shut-vs-dead control): all cells CHANNEL_ERROR with the same anon
+  key returning REST 200. Closure statement: **the unauthorized operation is rejected at the
+  realtime boundary.** Earlier honest line kept
   for the record: **server half correct and live (0103/0104), client half shipped (`f106b2b`, all run
   channels private + setAuth, 16/16 with mutation check) — but the channel is STILL publicly
   joinable by any client that asks for `private:false`, on any topic name; measured post-0103 by
@@ -337,10 +343,16 @@ recorded here so nothing lives only in chat.
   Ordering: `docs/legal/privacy-policy.md:81` cannot publish until the flip lands.
 - **HIGH — `bookings owner insert` forges party status** (any dog, any runner) → push text to
   any runner, fake public review, chat, dog read. Executed, rolled back. → **trust.**
-- **HIGH — `drops` UPDATE unguarded; open-drop pays from it.** Executed on a staged row. → **trust.**
+- **HIGH — `drops` UPDATE unguarded; open-drop pays from it.** ✅ **CLOSED 2026-08-19** — 0106
+  deployed (615/0, 12 mutations, adversarially reviewed); the exact attack live post-deploy →
+  `permission denied for table drops`; open-drop's CAS still works. Rejected at the DB boundary.
 - **Dashboard (Sean, minutes):** email provider OFF · redirect allowlist → `daengrun://login` only.
-- **LATENT launch gate → catalog (offline when routed; parked here):** four route evidence
-  columns are anon-readable (`verified_run_id`, `verified_runner_id` → profiles, `checked_at`,
+- ✅ **CLOSED 2026-08-19 — 0107 deployed** (600/0, 9 mutations, catalog's four pre-push catches +
+  chained-view transitive walk folded in): three identity columns (`verified_run_id`,
+  `verified_runner_id`, `checked_by`) revoked from anon+authenticated at the column level, whitelist
+  of the 17 the app reads granted; verified OVER THE WIRE as anon — app's column list 200,
+  `verified_runner_id` 401/42501; promotion raises until a de-identified `routes_public` exists.
+  (`checked_at` stays granted — the app renders it.) Was: four route evidence columns anon-readable (`verified_run_id`, `verified_runner_id` → profiles, `checked_at`,
   `checked_by`) and LOAD-BEARING for `routes_active_is_earned` — **revoke/view, never drop.**
   No route may be promoted until closed. Legal's find; every value NULL today.
 

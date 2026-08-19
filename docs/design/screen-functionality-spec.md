@@ -17,9 +17,11 @@ Format: **must show** (real-bound) · **must do** (every visible action has a re
 
 ### `owner/home` — the one screen that must be right
 **Must show:**
-- **GO disc** = the single call to action, coloured by state law (coral = your turn: idle GO / LIVE ·
-  blue = waiting: searching / directed · sage = ready: confirmed / handoff). State from `liveNext.status`
-  + `matched`, never inferred from time.
+- **The primary action, carrying the GO state law** — Sean chose lab ⑧ v2 (his word, in ui's
+  session, 2026-08-19 afternoon): **the disc retires; its state law is carried by the number of
+  buttons + an alert line, colours inherited verbatim** (coral = your turn: idle GO / LIVE · blue =
+  waiting: searching / directed · sage = ready: confirmed / handoff). Same law, different vessel.
+  State from `liveNext.status` + `matched`, never inferred from time.
 - **Next booking card** (`fetchMyBookings` → nearest non-terminal): dog, runner (name/avatar from the
   6-column public profile — no phone), when, course name, status chip from `rawStatus`.
 - **Live strip when a run is live** → tap to `owner/live`. Only when status ∈ {runner_enroute, picked_up, active}.
