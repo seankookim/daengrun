@@ -91,13 +91,23 @@ const ok = (n) => { results.push([true, n]); console.log(`✅ ${n}`); };
 const bad = (n, d) => { results.push([false, n]); console.log(`❌ ${n} — ${d}`); };
 
 const PW = 'e2e-run-channel-pw-1';
-const made = { users: [], bookingId: null };
+const made = { users: [], bookingId: null, dogId: null };
 
 async function mkUser(tag) {
   const email = `e2e-run-${tag}-${TS}@example.com`;
   const { data, error } = await svc.auth.admin.createUser({ email, password: PW, email_confirm: true });
   if (error) throw new Error(`createUser(${tag}): ${error.message}`);
   made.users.push(data.user.id);
+  // 프로필은 실앱에서 역할 선택이 만든다. 이 테스트는 채널 인가만 보므로 여기서 직접 세운다
+  // (dogs·bookings의 FK 대상이 auth.users가 아니라 profiles다).
+  const { error: pe } = await svc.from('profiles')
+    .upsert({ id: data.user.id, name: `e2e-${tag}`, role: tag === 'runner' || tag === 'exrunner' ? 'runner' : 'owner' });
+  if (pe) throw new Error(`profile(${tag}): ${pe.message}`);
+  // bookings.runner_id 는 runners(profile_id)를 가리킨다 — 러너 역할은 러너 행도 필요하다.
+  if (tag === 'runner' || tag === 'exrunner') {
+    const { error: re } = await svc.from('runners').upsert({ profile_id: data.user.id });
+    if (re) throw new Error(`runner(${tag}): ${re.message}`);
+  }
   const c = createClient(URL, ANON, { auth: { persistSession: false } });
   const { data: s, error: se } = await c.auth.signInWithPassword({ email, password: PW });
   if (se) throw new Error(`signIn(${tag}): ${se.message}`);
@@ -225,8 +235,17 @@ async function main() {
   const anon = { client: createClient(URL, ANON, { auth: { persistSession: false } }), token: ANON, tag: 'anon' };
 
   // 부킹 하나 — 이 채널의 유일한 정당 당사자는 owner(구독)와 runner(발행)다.
+  const { data: dog, error: de } = await svc.from('dogs')
+    .insert({ owner_id: owner.id, name: 'e2e-dog' }).select('id').single();
+  if (de) { console.error('개 생성 실패:', de.message); process.exit(2); }
+  made.dogId = dog.id;
+  // 요금 필드는 NOT NULL 이고 기본값이 없다 — 이 테스트는 채널 인가만 보므로 최소 유효값을 넣는다.
   const { data: bk, error: be } = await svc.from('bookings')
-    .insert({ owner_id: owner.id, runner_id: runner.id, status: 'active', km: 3, scheduled_at: new Date().toISOString() })
+    .insert({
+      owner_id: owner.id, runner_id: runner.id, dog_id: dog.id, status: 'active',
+      km: 3, scheduled_at: new Date().toISOString(),
+      base_fare: 0, distance_fare: 0, total_price: 0,
+    })
     .select('id').single();
   if (be) { console.error('부킹 생성 실패 — 스키마가 바뀌었을 수 있습니다:', be.message); process.exit(2); }
   made.bookingId = bk.id;
@@ -243,6 +262,30 @@ async function main() {
   await new Promise((r) => setTimeout(r, SETTLE_MS));
   if (pub.status === 'SUBSCRIBED' && pub.sendOk) ok('양성 팔 — 배정 러너 발행 허용'); else bad('양성 팔 — 배정 러너 발행', `${pub.status} / sendOk=${pub.sendOk}`);
   if (ownerSub.got.length > 0) ok('양성 팔 — 보호자가 러너 위치를 실제로 수신'); else bad('양성 팔 — 보호자 수신', '러너가 발행했는데 보호자가 아무것도 받지 못했다 (음성 팔의 초록은 이 상태에서 무의미하다)');
+
+  // ── 🔴 격리 검사: 구버전 바이너리(public 채널)가 private 브로드캐스트를 엿듣는가 ──
+  //
+  // 이게 "구멍이 닫혔다"고 말할 수 있는지를 결정한다. realtime.messages RLS는 클라이언트가
+  // **private으로 표시한** 채널에만 적용된다. de95efb 이전 바이너리는 public 채널을 요청하므로
+  // 정책의 적용 대상이 아니다 — 거절되는 게 아니라 **바깥에 있다**. realtime이 토픽을 privacy
+  // 모드와 무관하게 하나로 취급한다면, 구버전은 신버전이 쏘는 좌표를 계속 받는다.
+  {
+    const legacy = createClient(URL, ANON, { auth: { persistSession: false } });   // 로그인 없음 = 구버전 익명 클라이언트
+    const lch = legacy.channel(TOPIC);                                             // ← private 플래그 **없음**
+    const heard = [];
+    lch.on('broadcast', { event: 'pos' }, ({ payload }) => heard.push(payload));
+    const lst = await new Promise((r) => { const t = setTimeout(() => r('NO_STATUS'), STATUS_MS);
+      lch.subscribe((x) => { if (['SUBSCRIBED','CHANNEL_ERROR','TIMED_OUT'].includes(x)) { clearTimeout(t); r(x); } }); });
+    // 정당한 러너가 private으로 발행한다 — 실제 운영과 같은 모양
+    await publish(runner, TOPIC, { lat: 37.5111, lng: 126.9961, km: 2.4, paceSec: 320 });
+    await new Promise((r) => setTimeout(r, SETTLE_MS));
+    if (heard.length > 0) {
+      bad('격리 — 구버전(public) 클라이언트', `public 채널이 private 브로드캐스트 ${heard.length}건을 수신했다 — 정책이 구버전을 막지 못한다`);
+    } else {
+      ok(`격리 — 구버전(public) 클라이언트는 수신하지 못함 (상태 ${lst})`);
+    }
+    legacy.removeChannel(lch);
+  }
 
   // ── 음성 팔 ──
   for (const [name, actor] of [
@@ -275,18 +318,58 @@ async function main() {
   ownerSub.close();
 
   // ── 종료/취소 후 즉시 차단 ──
-  for (const st of ['cancelled_owner', 'completed']) {
-    await svc.from('bookings').update({ status: st }).eq('id', bk.id);   // ⚠ service role 모사
-    const after = await probe(owner, TOPIC);
-    assertDenied(`상태=${st} 이후 보호자 구독`, after.status);
-    after.close();
-    const afterRun = await probe(runner, TOPIC);
-    assertDenied(`상태=${st} 이후 러너 구독`, afterRun.status);
-    afterRun.close();
+  //
+  // ⚠ 여기서 한 번 **가짜 취약점을 보고했다**. `active → cancelled_owner`는 부킹 상태기계가
+  // 금지하는 전이라(`enforce_booking_transition`: active에서는 completed·incident_review만)
+  // UPDATE가 거부됐는데 나는 그 에러를 확인하지 않았다. 상태는 여전히 active였고, 그래서
+  // 구독은 **정당하게** 성공했으며, 테스트는 그걸 "취소 후에도 위치가 보인다"고 읽었다.
+  // 전제를 검증하지 않는 단정은 없는 구멍을 만들어낸다 — 그래서 이제 전이가 실제로 반영됐는지
+  // 먼저 확인하고, 아니면 보안 결론 대신 **픽스처 실패**로 보고한다.
+  async function setStatus(id, st) {
+    const { error } = await svc.from('bookings').update({ status: st }).eq('id', id);
+    const { data } = await svc.from('bookings').select('status').eq('id', id).single();
+    return { moved: !error && data?.status === st, now: data?.status, error: error?.message };
+  }
+
+  // ⓐ 취소: active에서는 취소가 불가능하므로 취소가 **가능한** 라이브 상태로 따로 만든다.
+  const { data: bk2 } = await svc.from('bookings').insert({
+    owner_id: owner.id, runner_id: runner.id, dog_id: dog.id, status: 'runner_enroute',
+    km: 3, scheduled_at: new Date().toISOString(), base_fare: 0, distance_fare: 0, total_price: 0,
+  }).select('id').single();
+  const TOPIC2 = `run-${bk2.id}`;
+  // 취소 **전에** 접근이 실제로 있었다는 양성 대조 — 없으면 '차단됨'은 아무것도 증명하지 않는다.
+  const beforeCancel = await probe(owner, TOPIC2);
+  if (beforeCancel.status === 'SUBSCRIBED') ok('취소 전 보호자 구독 가능 (차단 검사의 양성 대조)');
+  else bad('취소 전 보호자 구독', `라이브 상태인데 구독하지 못했다 (${beforeCancel.status}) — 아래 차단 결과는 무의미하다`);
+  beforeCancel.close();
+
+  const cancelled = await setStatus(bk2.id, 'cancelled_owner');
+  if (!cancelled.moved) {
+    bad('취소 전이 적용', `상태가 ${cancelled.now}에 머물렀다 (${cancelled.error ?? '전이 거부'}) — 차단 여부를 판정할 수 없다`);
+  } else {
+    for (const [who, actor] of [['보호자', owner], ['러너', runner]]) {
+      const a = await probe(actor, TOPIC2);
+      assertDenied(`취소(cancelled_owner) 이후 ${who} 구독`, a.status);
+      a.close();
+    }
+  }
+  await svc.from('bookings').delete().eq('id', bk2.id);
+
+  // ⓑ 종료: active → completed 는 합법 전이다.
+  const done = await setStatus(bk.id, 'completed');
+  if (!done.moved) {
+    bad('종료 전이 적용', `상태가 ${done.now}에 머물렀다 (${done.error ?? '전이 거부'}) — 차단 여부를 판정할 수 없다`);
+  } else {
+    for (const [who, actor] of [['보호자', owner], ['러너', runner]]) {
+      const a = await probe(actor, TOPIC);
+      assertDenied(`종료(completed) 이후 ${who} 구독`, a.status);
+      a.close();
+    }
   }
 
   // ── 정리 ──
   if (made.bookingId) await svc.from('bookings').delete().eq('id', made.bookingId);
+  if (made.dogId) await svc.from('dogs').delete().eq('id', made.dogId);
   for (const u of made.users) await svc.auth.admin.deleteUser(u).catch(() => {});
 
   const failed = results.filter(([p]) => !p);
