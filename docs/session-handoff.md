@@ -1,3 +1,47 @@
+# CATALOG — MEASURED, NOT FIXED: 3 routes whose `km` disagrees with their own line (2026-08-19)
+
+Measured across all **68** catalog rows (the catalog has grown past 32 — geometry keeps ingesting).
+Cumulative trace length vs the `km` column, drift > 0.15 km:
+
+    서리풀–몽마르뜨 종주 5km   km=5.0  measured=4.84
+    한강 반포–잠원 7km        km=7.0  measured=6.72
+    반포한강 그랜드 루프       km=5.0  measured=4.78
+
+All three are **original 0078 seeds**: `km` was TYPED when the row was created and the geometry was
+DRAWN later by the OSM seeder, so the two were never derived from each other. Every GPX-ingested
+row agrees with its line.
+
+## Why this is not a billing defect — checked before reporting it as one
+
+`bookings.km` comes from the **owner's distance dial** (`app/app/owner/request.tsx:94`, 0.5 km
+steps), NOT from `routes.km`; the route is only *recommended* to match (`autoPick(km)`, :170). No
+server path copies `routes.km` into a booking. So an owner dials 5 km and is billed for 5 km. The
+defect is honesty, not money: the catalog advertises 5.0 for a line that measures 4.78, and with
+Sean's #14/#15 the run is approach-leg + route anyway.
+
+## ⚠ MY OWN 0100 CONSTRAINT BLOCKS THE OBVIOUS FIX — this is the part to read
+
+`routes_name_km_agrees` requires a trailing `<number>km` token in the NAME to round to the `km`
+COLUMN. Two of these three carry such a token (`…종주 5km`, `…반포–잠원 7km`). So correcting
+`km` 5.0 → 4.8 **is refused by the constraint** unless the name changes in the same statement.
+
+That is the constraint working as designed (a length in a name must stay true), and it means the
+honest data fix requires **renaming user-facing course names** — a product decision, not a cleanup.
+I did not do it overnight. Options for Sean:
+  ⓐ rename to the measured figure (`서리풀–몽마르뜨 종주 4.8km`) and correct `km` in one statement;
+  ⓑ drop the km token from those names and correct `km` freely — but check the unique
+    `(town, name)` index first, the way the 몽마르뜨 trio blocked exactly this in 0100;
+  ⓒ re-cut the geometry to actually be 5 km and leave both alone.
+`반포한강 그랜드 루프` has no token, so its `km` can be corrected on its own at any time.
+
+## What I deliberately did NOT do
+
+- No overnight rename of user-facing names.
+- Did not take the 맹견 gate (offered by announcer): dogs schema + booking-time refusal is
+  custody's surface, not catalog's.
+- The anchor `근사값 — 소비 금지` contract stays unflipped — with the entry point computed from the
+  trace (#14/#15) the anchor is a bounding-box prefilter, which the comment already permits.
+
 # CATALOG — THE THREE-STEP GEOMETRY SEQUENCE IS COMPLETE (2026-08-19 overnight)
 
 **0110 → ui (c73cea5) → 0113, all live and verified.** Final probe:
