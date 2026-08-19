@@ -24,6 +24,7 @@
 // 로딩 중엔 두 옵션을 그리지 않는다 — 모르는 상태 위에 결정을 얹지 않는다. 실패는 실패로.
 import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useDisplayFont } from '../lib/displayFont';
 import { haptic } from '../lib/haptics';
 import { draft } from '../store';
 import { paper } from '../theme';
@@ -54,6 +55,8 @@ const WAIT_BLUE = '#6C5CE7'; // lilac.accent — 대기
 
 export function HomeHero({ state, next, dogName, loadState, onRetry, ddayLabel, liveWidget }: Props) {
   const name = dogName ?? '우리 아이';
+  // 디스플레이 서체는 지연 로드 — 하드코딩하면 로드 전엔 시스템 폰트로 뜬다 (실측). 집 규칙대로 훅을 쓴다.
+  const df = useDisplayFont();
 
   // 지금 찾기 = 요청 화면의 pickEarliest 경로. 새 화면 없음 — 홈이 그걸 묻어 두던 걸 그만둘 뿐.
   const findNow = () => { haptic('light'); draft.autoEarliest = true; router.push('/owner/request'); };
@@ -70,7 +73,7 @@ export function HomeHero({ state, next, dogName, loadState, onRetry, ddayLabel, 
   if (loadState === 'loading') {
     return (
       <View style={s.wrap}>
-        <Text style={s.title}>{name}, 오늘은?</Text>
+        <Text style={[s.title, df]}>{name}, 오늘은?</Text>
         <Text style={s.quiet}>예약을 확인하는 중이에요</Text>
       </View>
     );
@@ -136,7 +139,7 @@ export function HomeHero({ state, next, dogName, loadState, onRetry, ddayLabel, 
         </Pressable>
       )}
 
-      <Text style={s.title}>{inFlight ? '다른 날도 잡아둘까요?' : `${name}, 오늘은?`}</Text>
+      <Text style={[s.title, df]}>{inFlight ? '다른 날도 잡아둘까요?' : `${name}, 오늘은?`}</Text>
 
       <View style={{ marginTop: 14, gap: 9 }}>
         {/* 지금 찾기 — none 에서만. 진행 중이면 자기 자신과 경쟁시키는 것이다. */}
@@ -144,7 +147,7 @@ export function HomeHero({ state, next, dogName, loadState, onRetry, ddayLabel, 
           <Pressable onPress={findNow} style={({ pressed }) => [s.opt, s.optA, pressed && { opacity: 0.92 }]}
             accessibilityRole="button" accessibilityLabel="지금 찾기">
             <View>
-              <Text style={[s.optT, { color: '#fff' }]}>지금 찾기</Text>
+              <Text style={[s.optT, df, { color: '#fff' }]}>지금 찾기</Text>
               <Text style={[s.optD, { color: '#FFD9CE' }]}>가장 빠른 시간 · 5km · {name}</Text>
             </View>
             <Text style={[s.optArr, { color: '#FFD9CE' }]}>›</Text>
@@ -153,7 +156,7 @@ export function HomeHero({ state, next, dogName, loadState, onRetry, ddayLabel, 
         <Pressable onPress={schedule} style={({ pressed }) => [s.opt, s.optB, pressed && { backgroundColor: paper.wash }]}
           accessibilityRole="button" accessibilityLabel="예약하기">
           <View>
-            <Text style={[s.optT, { color: paper.ink }]}>예약하기</Text>
+            <Text style={[s.optT, df, { color: paper.ink }]}>예약하기</Text>
             <Text style={[s.optD, { color: paper.dim }]}>날짜와 시간을 골라 잡아둬요</Text>
           </View>
           <Text style={[s.optArr, { color: paper.ink }]}>›</Text>
@@ -166,7 +169,7 @@ export function HomeHero({ state, next, dogName, loadState, onRetry, ddayLabel, 
 const s = StyleSheet.create({
   wrap: { paddingHorizontal: 18, paddingTop: 12, paddingBottom: 6 },
   wrapTight: { paddingHorizontal: 18, paddingTop: 12, paddingBottom: 6 },
-  title: { fontFamily: 'BlackHanSans', fontSize: 24, color: paper.ink, marginTop: 8, lineHeight: 30 },
+  title: { fontSize: 24, fontWeight: '900', color: paper.ink, marginTop: 8, lineHeight: 30 },
   quiet: { fontSize: 14, color: paper.dim, marginTop: 8, lineHeight: 20 },
   // 알림 줄 부품 — 점 · 굵은 줄 · 얇은 줄 · 우측 행동. 카드 아님, 룰 하나(아래).
   alertRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#EEEEEE', minHeight: 44 },
@@ -179,7 +182,7 @@ const s = StyleSheet.create({
   opt: { paddingVertical: 19, paddingHorizontal: 16, minHeight: 104, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
   optA: { backgroundColor: paper.action },
   optB: { backgroundColor: paper.canvas, borderWidth: 1.5, borderColor: paper.ink },
-  optT: { fontFamily: 'BlackHanSans', fontSize: 24, lineHeight: 28 },
+  optT: { fontSize: 24, fontWeight: '900', lineHeight: 28 },
   optD: { fontSize: 14, marginTop: 5, lineHeight: 19 },
   optArr: { fontSize: 22, lineHeight: 26 },
 });
