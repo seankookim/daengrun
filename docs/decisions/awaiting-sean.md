@@ -264,6 +264,22 @@ Your answer, one letter:
 - plus **D1/D2** above when you have a view
 –––––[end of report; nothing above is your ruling until you answer]–––––
 
+## 0-quindecies. 📋 LEGAL'S NON-LOCATION REVIEW — on trunk; one counsel item for you, one small build gap (2026-08-19 night)
+
+`docs/legal/readiness-review-nonlocation-2026-08-19.md` (legal, docs-only, merged yours→trunk). Headline: the non-location
+surface is in better shape than the location half, largely because most of it is not built. **For you (errand, not
+decision): §4 goes to counsel WITH the control table** — the terms claim pure intermediation and runner independence while
+the code holds every economic control (prices, runner pay constants, commission server-side, who may see work, the
+cancellation ladder, GPS), no runner-set price exists anywhere, and `0101:63-71` lets a price revision reprice an unsettled
+run's PAYOUT while the CHARGE stays frozen — against 2024두32973 that is the worker-status question made factual; counsel
+decides, not us. Also to counsel as a question: §10.4 variable post-service charges on a stored key with no pre-charge amount
+notice (ruling ② cancelled per-charge notice) — not the fixed-amount subscription the source review answered. **Build gap
+(small, queued, not tonight's priority): `맹견` appears nowhere** — no dog-profile field, no booking-time refusal; real before
+real owners. Relief: no vehicle pickup (동물운송업 not in play), shop is a preview shell, points are non-transferable
+(마일리지 shape). Latent: reviews RLS is party-scoped while the client queries all public runner reviews (anon → 401, 1 row;
+not exposed) — widening that read path is the moment §11 goes live, so it is a legal decision, not a UI fix; the community
+feed has no reports/moderation table (임시조치 will be needed there first).
+
 ## 0-overnight. 🔵 DECISIONS TAKEN UNDER THE OVERNIGHT GRANT (2026-08-19 → 20) — each reversible in one word
 
 | # | Item | Decided by | Decision | Basis (one line; full reasoning in the linked record) |
