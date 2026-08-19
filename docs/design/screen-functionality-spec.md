@@ -30,8 +30,10 @@ Format: **must show** (real-bound) · **must do** (every visible action has a re
   in the 나 chunk (weekly km vs `dogs.weekly_goal_km` — real; streak). ⚠ 체력나이 delta is
   mock-derived (fake-inventory 🟡) — the ⑧ mocks omit it. The DO-NOT-REFACTOR collapsing hero is
   `owner/fitness`'s (the screen), NOT home's — do not block the ⑧ build on that freeze.
-- **Runners nearby** (`fetchAvailableRunners` / `fetchCertifiedRunners`): count + avatars. This view is
-  anon-readable by design; show only the six public columns.
+- **Runners nearby** (`fetchCertifiedRunners`; the roster strip): count + avatars. This view is
+  anon-readable by design; show only the public columns (the `available_runners` view / `runners_available_for`
+  RPC expose nine: profile_id, name, district, avatar_url, tier, bio, avg_pace_sec_per_km, total_runs,
+  respond_rate_pct — corrected 2026-08-19 night; the doc said "six").
 - **Unread badge** (`fetchUnreadCount`), **moments** (`fetchRecentMoments` — real feed rows only),
   **dog-board ticker** (`fetchDogBoardDelta`) — each renders nothing when empty, never a placeholder.
 - **Reward beacon** (`fetchRewardBeacon`) — only if a real unopened drop exists (drops are sealed
@@ -58,13 +60,18 @@ distance + addons — real server-priced fields on the draft), runner nomination
 40 m ("언덕 많음") is ruled and pending.
 
 ### `owner/matching` / `owner/radar`
-Show: state (searching vs directed-and-waiting), elapsed, candidate runners' public cards, decline
-history. Do: cancel (real `cancel_owner`, fee text from server), re-nominate. Not: fake progress bars.
+Show: state (searching vs directed-and-waiting — the radar is a function of `rawStatus`), candidate
+runners' public cards with a real 지명 › (`request_runner`), NO clock (RULING 7: animation ≠ counter). Do:
+cancel (real `cancel_owner`, fee text from server), nominate / re-nominate. Not: fake progress bars.
+⚠ Decline history is NOT owner-readable (`booking_declines` is runner-self-read RLS, 0056) — it needs a
+server slice; do not render it (corrected 2026-08-19 night).
 
 ### `owner/meetup` (handoff)
-Show: runner card, meeting anchor (**anchor_name + anchor_detail** are the truth; `anchor_lat/lng`
-are 근사값 — do not consume), ETA only if the runner is publishing (`runner_enroute`), both
-handoff stamps (server), the exact `confirmHandoff` flow. FROZEN stage machine — styling only.
+Show: runner card, meeting place = the owner's pickup address (`addresses.label / addr / detail` via
+`fetchOwnerPickupCoords`; the pin is the coordinate truth — 0065). ⚠ `anchor_name/anchor_detail/anchor_lat/
+anchor_lng` are NOT granted to the client since 0107 (zero client reads) — the older "anchor_name is the
+truth" line was stale (corrected 2026-08-19 night). ETA only if the runner is publishing (`runner_enroute`),
+both handoff stamps (server), the exact `confirmHandoff` flow. FROZEN stage machine — styling only.
 Not: hardcoded pickup coordinates (fake-inventory 🟡 — 서울숲/뚝섬로 273 must go).
 
 ### `owner/live`
@@ -128,7 +135,8 @@ open-drop is the only writer. Review: bound target.
 ### `runner/earnings`, `runner/rewards`, `runner/calendar`, `runner/availability`, `runner/apply`
 Earnings: `ledger_items` by month; state plainly that payouts begin at cutover. Rewards: ⚪ real
 `drops`/`miles_ledger` exist — bind reads, no client writes (sealed). Calendar/availability: own rules
-+ exceptions (real tables). Apply: ⚪ KYC funnel is mock — for the pilot show the manual process copy
++ exceptions (real tables). Apply: bound to `runner_my_application()` (nine real states) — the older "KYC
+funnel is mock" line was stale (corrected 2026-08-19 night); the pilot shows the manual 3-step process copy
 ("운영자가 화상으로 확인") and nothing that looks like automated verification.
 
 ## SHARED

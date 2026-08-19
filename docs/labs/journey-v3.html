@@ -77,7 +77,7 @@
   <tr><td>7</td><td>리포트 (14) — 기록 · 별점 · 사진 · <b>다음 주 같은 시간 예약</b> · <b>카드 공유</b></td><td>“계좌이체 안내 ›” 한 줄</td></tr>
   <tr><td>8</td><td><b>결제</b> — 확정 금액 + 이체 안내 (파일럿) / 위젯 (PG 후)</td><td>확정 금액</td></tr>
 </table>
-<p class="sub"><b>코드에서:</b> <code>request.tsx:395</code>가 홀드 생성 뒤 <code>/owner/pay</code>로 밀어 넣습니다 — 토스 위젯 계획의 잔재. 이 한 줄이 <code>/owner/radar</code>로 바뀌고, <code>pay</code>는 리포트에서 진입합니다. 그러면 Sean이 시뮬레이터에서 <b>결제 없이 레이더 이후를 볼 수 있습니다</b> — 지금 못 보는 이유가 정확히 그 한 줄입니다.</p>
+<p class="sub"><b>코드에서:</b> <code>request.tsx</code>가 홀드 생성 뒤 <code>/owner/pay</code>로 밀어 넣었습니다 — 토스 위젯 계획의 잔재. <b>2026-08-19 밤 해결됨</b>: 서버가 홀드를 바로 <code>matching</code>으로 만들고(§E.5), 클라이언트는 <code>/owner/radar</code>로 갑니다. <code>pay</code>는 파일럿에서 도달 불가. 그러면 Sean이 시뮬레이터에서 <b>결제 없이 레이더 이후를 볼 수 있습니다</b> — 지금 못 보는 이유가 정확히 그 한 줄입니다.</p>
 
 <!-- ══════ 온보딩 ══════ -->
 <h2><span class="n">B</span>온보딩 — 주소 · 위치 권한 추가</h2>
