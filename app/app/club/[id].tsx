@@ -10,6 +10,7 @@ import {
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { haptic } from '../../src/lib/haptics';
+import { routeDisplayName } from '../../src/lib/route-name';
 import { AckStack } from '../../src/components/club-acks';
 import { ClubCta, ClubTag, Ticket } from '../../src/components/club-ui';
 import { lilac, lilacRadius, lilacShadow, paper } from '../../src/theme';
@@ -606,7 +607,7 @@ export default function ClubPage() {
             )}
             {routes.map((r, i) => (
               <Pressable key={r.id} onPress={() => setRouteIdx(i)} style={[s.chip, routeIdx === i && s.chipOn]}>
-                <Text style={{ fontSize: 15, lineHeight: 20, fontWeight: '800', color: routeIdx === i ? '#fff' : L.text }}>{/* CLUB15 */}{r.name} {r.km}km</Text>
+                <Text style={{ fontSize: 15, lineHeight: 20, fontWeight: '800', color: routeIdx === i ? '#fff' : L.text }}>{/* CLUB15 */}{routeDisplayName(r.name)} {r.km}km</Text>
               </Pressable>
             ))}
           </Row>
