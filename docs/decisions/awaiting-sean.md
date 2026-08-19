@@ -274,7 +274,16 @@ call rather than a security one.
 - **Keep, minus the sharp fields** — browse survives; `meetup_point` and host ids need a session.
 - **Keep as-is** — a recorded acceptance rather than an inherited default.
 
-**Not urgent on today's data.** It becomes urgent the moment a *future-dated* session exists.
+**Not urgent on today's data, and there are TWO separate thresholds — don't merge them.**
+A **future-dated session** makes the place and time live: someone could show up. A **host
+appearing in `available_runners`** makes it a *named person*; today `runners` carries no name
+column at all, so anon has a UUID plus tier/bio/stats and nothing else. Neither holds now, and
+they can arrive independently. (Two-threshold framing: trust, 2026-08-15, measured — collapsing
+them is how this entry would re-acquire the exact claim it retracts.)
+
+⚠ One soft channel, a stay of execution rather than a control: `bio` is unvetted free text on 9
+anon-readable rows, and nothing stops a host typing their own name into it. Measured today: 0
+bios contain their owner's name. Same shape as §1's phone-was-null argument.
 
 ⚠ **The detector that missed this is fixed in REGISTRY:** trust grepped for policies lacking
 `auth.uid()`, and `runners` reads `tier <> 'applicant' OR profile_id = auth.uid()` — **a caller
