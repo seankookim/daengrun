@@ -22,8 +22,12 @@ OWNER (exclusive) of `app/app/owner/home.tsx`, `owner/course-map.tsx`, `app/app/
 `owner/request.tsx` + new onboarding routes / `home-*` components; SHARED on `app/src/store.ts` and
 `app/src/lib/api.ts` (function-level tell-before-edit); REGISTRY in-flight row rides its first commit.
 Verified before naming: main checkout otherwise clean; the old client tree (club-delegation-money-gaps,
-branch `claude/daengrun-client-domain-5588b2`) clean at 9012d7a, 75 behind, nothing in flight. A session
-in that old tree re-appeared as `…-81`; told it does not own those four paths. ui2 inherits the 18 vs 44 pt
+branch `claude/daengrun-client-domain-5588b2`) clean at 9012d7a, 75 behind, nothing in flight. The session
+in that old tree (`…-81`) answered: it is the OUTGOING client session, standing down, nothing
+uncommitted/unpushed, all four files released — the handoff working, not a collision. **Its lesson,
+recorded at its request: a worktree folder name is not a role.** `club-delegation-money-gaps-…` was a
+fossil from a track that ended 2026-08-13; the previous announcer routed club/notification work to it
+on the strength of the name. Route by branch + what the session says it holds, never by directory. ui2 inherits the 18 vs 44 pt
 anchor screenshots owed to Sean. The iOS simulator is held by ui2's home agent (~1 h) — ask before using it.
 **Roster change:** catalog compacted mid-slice (0110 routes_public handoff on trunk at `149f2e3`; 0110
 claimed, designed, not built); announcer v2 and the unmapped session are gone. Live: ui, legal, route
