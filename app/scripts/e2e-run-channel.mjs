@@ -121,9 +121,15 @@ const STATUS_MS = 8000;      // 종단 상태 대기 상한
  * 채널 하나를 열어 종단 상태와 수신 메시지를 돌려준다.
  * ⚠ setAuth 는 구독 **전에** — 이걸 빼면 두 팔이 모두 실패하고 '보안 동작'처럼 읽힌다 (legal ②).
  */
-async function probe(actor, topic) {
+async function probe(actor, topic, mode = 'private') {
   await actor.client.realtime.setAuth(actor.token);
-  const ch = actor.client.channel(topic, { config: { private: true } });
+  // ⚠ privacy 는 **접속하는 쪽이 고르는 값**이다 (legal 실측). 공격자는 우리 클라이언트를 쓰지
+  // 않으므로 `private: false`로 들어온다. 음성 팔을 private 으로만 돌리면 "예의 바르게 private을
+  // 선언한 공격자는 거절된다"만 증명하고 초록이 되는데, 그건 위협 모델이 아니다 — 그리고 이 초록은
+  // **진짜 수정이 들어간 뒤에** 켜지므로 확인처럼 읽힌다. 그래서 두 모드를 모두 돌린다.
+  const ch = mode === 'private'
+    ? actor.client.channel(topic, { config: { private: true } })
+    : actor.client.channel(topic);
   const got = [];
   ch.on('broadcast', { event: 'pos' }, ({ payload }) => got.push(payload));
   const status = await new Promise((resolve) => {
@@ -137,8 +143,13 @@ async function probe(actor, topic) {
   return { ch, status, got, close: () => actor.client.removeChannel(ch) };
 }
 async function publish(actor, topic, payload) {
-  await actor.client.realtime.setAuth(actor.token);
-  const ch = actor.client.channel(topic, { config: { private: true } });
+  // ⚠ **전용 클라이언트**로 발행한다. actor.client 를 재사용하면 그 클라이언트가 이미 같은 토픽에
+  // (읽기 권한으로 정당하게) 구독해 둔 채널을 supabase-js 가 토픽 키로 재사용해서, 쓰기 거부가
+  // '성공'처럼 보인다 — 실제로 이 스크립트에서 보호자 발행 검사가 그렇게 뒤집혔다.
+  // 읽기 권한이 쓰기 결과를 오염시키면 그 단정은 정책이 아니라 캐시를 측정한 것이다.
+  const c = createClient(URL, ANON, { auth: { persistSession: false } });
+  await c.realtime.setAuth(actor.token);
+  const ch = c.channel(topic, { config: { private: true } });
   const status = await new Promise((resolve) => {
     const timer = setTimeout(() => resolve('NO_STATUS'), STATUS_MS);
     ch.subscribe((st) => {
@@ -150,7 +161,7 @@ async function publish(actor, topic, payload) {
     try { const r = await ch.send({ type: 'broadcast', event: 'pos', payload }); sendOk = r === 'ok'; }
     catch { sendOk = false; }
   }
-  actor.client.removeChannel(ch);
+  c.removeChannel(ch);
   return { status, sendOk };
 }
 
@@ -287,17 +298,52 @@ async function main() {
     legacy.removeChannel(lch);
   }
 
+  // ── 🔴 주입 방향: public 발행자 → private 구독자 ──
+  //
+  // 격리 검사의 반대 방향이고, 더 나쁜 쪽이다. 엿듣기는 프라이버시 침해지만, 주입은 **보호자
+  // 지도에 가짜 위치를 그리는 것**이다 — 개가 실제로 있는 곳과 다른 곳을 보여주는 것.
+  // 공격자는 private을 선언할 이유가 없으므로 public으로 쏜다. 정당한 보호자는 private으로 듣는다.
+  {
+    const attacker = createClient(URL, ANON, { auth: { persistSession: false } });  // 로그인 없음
+    const ach = attacker.channel(TOPIC);                                            // ← private 플래그 없음
+    const ast = await new Promise((r) => { const t = setTimeout(() => r('NO_STATUS'), STATUS_MS);
+      ach.subscribe((x) => { if (['SUBSCRIBED','CHANNEL_ERROR','TIMED_OUT'].includes(x)) { clearTimeout(t); r(x); } }); });
+    const victim = await probe(owner, TOPIC, 'private');   // 정당한 보호자, private
+    let sent = false;
+    if (ast === 'SUBSCRIBED') {
+      try { sent = (await ach.send({ type: 'broadcast', event: 'pos', payload: { lat: 1.111, lng: 2.222, km: 99, paceSec: 1 } })) === 'ok'; }
+      catch { sent = false; }
+    }
+    await new Promise((r) => setTimeout(r, SETTLE_MS));
+    const injected = victim.got.some((g) => g && g.lat === 1.111);
+    if (injected) bad('주입 — public 발행 → private 구독', `공격자가 보호자 지도에 가짜 좌표를 그렸다 (발행 ${sent})`);
+    else ok(`주입 — public 발행은 private 구독자에게 닿지 않음 (공격자 상태 ${ast}, send ${sent})`);
+    victim.close();
+    attacker.removeChannel(ach);
+  }
+
   // ── 음성 팔 ──
   for (const [name, actor] of [
-    ['익명(비로그인) 구독', anon],
-    ['무관한 로그인 사용자 구독', stranger],
-    ['탈락한 지원자 구독', applicant],
-    ['재배정된 前 러너 구독', exRunner],
+    ['익명(비로그인)', anon],
+    ['무관한 로그인 사용자', stranger],
+    ['탈락한 지원자', applicant],
+    ['재배정된 前 러너', exRunner],
   ]) {
-    const p = await probe(actor, TOPIC);
-    assertDenied(name, p.status);
-    if (p.got.length > 0) bad(`${name} — 수신`, `권한 없는 주체가 좌표 ${p.got.length}건을 받았다`);
+    // private 모드: 정책이 명시적으로 거절해야 한다
+    const p = await probe(actor, TOPIC, 'private');
+    assertDenied(`${name} 구독(private)`, p.status);
+    if (p.got.length > 0) bad(`${name} 수신(private)`, `권한 없는 주체가 좌표 ${p.got.length}건을 받았다`);
     p.close();
+
+    // public 모드: 공격자의 실제 선택. 접속 자체는 성립할 수 있다 — 중요한 건 **아무것도 듣지
+    // 못하는 것**이다. 상태만 보면 전송 오류로도 통과하고, 침묵만 보면 아무도 발행하지 않아서
+    // 통과한다. 그래서 정당한 러너가 private 으로 발행하는 **동안** 침묵을 확인한다.
+    const q = await probe(actor, TOPIC, 'public');
+    await publish(runner, TOPIC, { lat: 37.5122, lng: 126.9971, km: 3.1, paceSec: 315 });
+    await new Promise((r) => setTimeout(r, SETTLE_MS));
+    if (q.got.length > 0) bad(`${name} 수신(public)`, `public 으로 접속해 private 발행 ${q.got.length}건을 들었다`);
+    else ok(`${name} — public 접속으로도 듣지 못함 (상태 ${q.status})`);
+    q.close();
   }
 
   // 익명 발행 — 주입(가짜 위치를 보호자 지도에 밀어넣기)이 막히는가
@@ -305,10 +351,21 @@ async function main() {
   if (anonPub.status === 'SUBSCRIBED' && anonPub.sendOk) bad('익명 발행', '익명이 보호자 지도에 좌표를 주입할 수 있다');
   else ok('익명 발행 — 거절됨');
 
-  // 보호자는 **보는 쪽**이다: 발행은 허용되면 안 된다
-  const ownerPub = await publish(owner, TOPIC, { lat: 0, lng: 0, km: 0, paceSec: 0 });
-  if (ownerPub.status === 'SUBSCRIBED' && ownerPub.sendOk) bad('보호자 발행', '보호자가 위치를 발행할 수 있다 (읽기 전용이어야 한다)');
-  else ok('보호자 발행 — 거절됨');
+  // 보호자는 **보는 쪽**이다: 발행은 허용되면 안 된다.
+  //
+  // ⚠ `send()` 가 'ok' 를 돌려준 것은 **소켓이 받았다**는 뜻이지 RLS 가 승인했다는 뜻이 아니다.
+  // 처음엔 그 반환값으로 단정했는데, 앞에 다른 검사를 넣자 결과가 뒤집혔다 — 반환값이 인가를
+  // 측정하고 있지 않았다는 증거다. 쓰기 권한의 정직한 관측은 **정당한 구독자에게 실제로 배달됐는가**다.
+  {
+    const listener = await probe(runner, TOPIC, 'private');   // 러너는 읽기 허용 당사자
+    const marker = 4.444;
+    const ownerPub = await publish(owner, TOPIC, { lat: marker, lng: 0, km: 0, paceSec: 0 });
+    await new Promise((r) => setTimeout(r, SETTLE_MS));
+    const delivered = listener.got.some((g) => g && g.lat === marker);
+    if (delivered) bad('보호자 발행', `보호자가 발행한 좌표가 실제로 배달됐다 (읽기 전용이어야 한다)`);
+    else ok(`보호자 발행 — 배달되지 않음 (send 반환 ${ownerPub.sendOk}, 이 값은 인가의 증거가 아니다)`);
+    listener.close();
+  }
 
   // 존재하지 않는 부킹의 토픽 — 토픽 문자열이 곧 권한이 아님을 확인
   const fake = await probe(stranger, `run2-00000000-0000-4000-8000-000000000000`);
