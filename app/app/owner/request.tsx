@@ -1,4 +1,3 @@
-import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -10,7 +9,7 @@ import { HeatTrace } from '../../src/components/runcard';
 import { traceToBox } from '../../src/lib/trace';
 import { Avatar, Icon, Row, Skeleton } from '../../src/components/ui';
 import { emptyChipCopy, matchesChips, RouteChipRow, useRouteChips } from '../../src/components/route-chips';
-import { orderByProximity, PickResult, pickRoute } from '../../src/lib/route-pick';
+import { orderByProximity, PickResult, pickRoute, totalKmFor } from '../../src/lib/route-pick';
 import { haptic } from '../../src/lib/haptics';
 import { AddonKey, draft, fmtWon, RouteInfo } from '../../src/store';
 import { colors, layout, paper, pricing } from '../../src/theme';
@@ -22,6 +21,12 @@ import { colors, layout, paper, pricing } from '../../src/theme';
 // Same handlers, same server calls, same honesty gates; only the SEQUENCING changed.
 // The 3/5/7 chip row is replaced by a gear-style horizontal dial (min 1km, 0.5 steps,
 // snap-to-detent) — Sean 2026-08-11. Course still follows km (pickRouteForKm).
+// [2026-08-19 journey-v3 §C · RULINGS 4·5·6] The 3-step stepper is retired: ONE scrolling
+// screen with every value pre-filled, the dial kept verbatim (Sean likes it), the estimate
+// shown exactly ONCE as a quiet line under the dial, course promoted to a BIG nudge panel,
+// and a fixed bottom CTA. Nothing was deleted — pace / add-ons / 매주 반복 / the route
+// carousel + RouteChipRow moved behind one fold row. Honest states (loud-fail strips, real
+// empties, km-mismatch and dark-slot notes) stay OUTSIDE every fold, as always.
 
 const CERT_BLUE = '#3d8fd4'; // 안심 코스 인증 블루 — certification only (semantic, survives repaint)
 const PACES = ["가볍게 8'+", "보통 7'", "신나게 6'"];
@@ -40,6 +45,19 @@ const TICK_W = 26; // px per 0.5km detent — the snapToInterval unit
 const KM_VALUES = Array.from({ length: Math.round((KM_MAX - KM_MIN) / KM_STEP) + 1 }, (_, i) => KM_MIN + i * KM_STEP);
 const clampKm = (v: number) => Math.min(KM_MAX, Math.max(KM_MIN, Math.round(v * 2) / 2));
 const fmtKm = (v: number) => (Number.isInteger(v) ? String(v) : v.toFixed(1));
+// 코스 넛지의 지도 칸 높이 — HeatTrace는 명시 width/height를 요구한다 (auto layout 불가)
+const NUDGE_MAP_H = 86;
+// 미터 → 사람이 읽는 거리. 1km 미만은 10m 단위로 반올림한다 — 직선거리에 1m 정밀도를 붙이면
+// 있지도 않은 정확도를 주장하게 된다 (게다가 이 화면이 쥔 트레이스는 trace_thumb, ≤50점이다).
+const fmtDist = (m: number) => (m < 1000 ? `${Math.round(m / 10) * 10}m` : `${(m / 1000).toFixed(1)}km`);
+
+// Ruling #15 — the door-to-door estimate, appended to a route row's km. Empty string when there is
+// no pickup pin or the route has no measurable entry: an estimate we cannot make is not shown as 0,
+// and the lap km beside it stays visible either way (it is the fare's authority, T-KM).
+const totalSuffix = (r: RouteInfo, p: { lat: number; lng: number } | null) => {
+  const t = p ? totalKmFor(r, p) : null;
+  return t ? ` · 이동 포함 약 ${fmtKm(t.totalKm)}km` : '';
+};
 
 // 실제 오늘부터 7일 — 컴포넌트 안에서 생성 (모듈 로드 고정은 자정을 넘기면 '오늘'이 어제가 됐다)
 const buildDates = () => Array.from({ length: 7 }, (_, i) => {
@@ -64,11 +82,8 @@ const toDate = (dateIdx: number, t: string): Date => {
   return new Date(base.getFullYear(), base.getMonth(), base.getDate(), h, m);
 };
 
-type Step = 0 | 1 | 2; // 언제 → 몇 km → 확인 (Ⓒ①)
-
 export default function Request() {
   const insets = useSafeAreaInsets();
-  const df = useDisplayFont(); // display face budget (1/screen) — spent on the step question
   const nf = useNumFont(); // [V4] numerals = Oswald — total, distance, countdown, prices
   // 날짜 스트립 갱신 — 마운트 시점 기준 (자정 넘김 스테일 방지)
   useMemo(() => { DATES = buildDates(); }, []);
@@ -114,15 +129,11 @@ export default function Request() {
   const [addrState, setAddrState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [dogIdx, setDogIdx] = useState(0);
 
-  // Ⓒ① stepper state — the flow is a re-sequencing, not a rewrite: every handler below
-  // survives untouched. Folds are progressive disclosure, never removal (§7b: honest states
-  // — loud-fail strips, real empties — always render OUTSIDE the folds).
-  const [step, setStep] = useState<Step>(0);
-  const [whoOpen, setWhoOpen] = useState(false); // step 0: 누가·어디서 fold
-  const [courseOpen, setCourseOpen] = useState(false); // step 1: course carousel fold
-  const [paceOpen, setPaceOpen] = useState(false); // step 2: pace fold
-  const [optsOpen, setOptsOpen] = useState(false); // step 2: addons + weekly-recurring fold
-  const pageRef = useRef<ScrollView>(null);
+  // §C fold state — the flow is a re-sequencing, not a rewrite: every handler below survives
+  // untouched. Folds are progressive disclosure, never removal (§7b: honest states — loud-fail
+  // strips, real empties — always render OUTSIDE the folds).
+  const [dogOpen, setDogOpen] = useState(false); // 누가 row → the multi-dog picker (was whoOpen)
+  const [moreOpen, setMoreOpen] = useState(false); // 페이스 · 옵션 · 매주 반복 · 코스 목록
 
   // 코스가 km을 따른다 (2026-07-28 결정) — 가격·정산의 진실은 km. km 변경 시 최근접 실코스 자동 선택,
   // 수동으로 다른 코스를 고르면 존중하되 불일치를 배지로 정직하게 표기 (find-now와 동일 원칙)
@@ -252,8 +263,12 @@ export default function Request() {
   const [holdLive, setHoldLive] = useState<null | boolean>(null); // null=진행, true=서버 홀드, false=목업 폴백
   const [dateIdx, setDateIdx] = useState(0);
 
-  // 지명 러너 컨텍스트 — 그 러너의 가용시간 밖 슬롯은 비활성
-  const preferred = draft.preferredRunnerId;
+  // 지명 러너 컨텍스트 — 그 러너의 가용시간 밖 슬롯은 비활성.
+  // [2026-08-19 §C] draft에서 **한 번 읽고 끝나던** 값이 상태가 됐다: 러너 프로필에서 지명하고
+  // 돌아오면 이 화면은 이미 마운트돼 있어, 모듈 객체를 렌더 중에 읽어도 리렌더가 걸리지 않는다.
+  // 아래 syncFromDraft(포커스)가 이 상태를 갱신한다.
+  const [preferred, setPreferred] = useState(draft.preferredRunnerId);
+  const [preferredName, setPreferredName] = useState(draft.preferredRunnerName);
   const [prefRules, setPrefRules] = useState<AvailRule[] | null>(null);
   useEffect(() => {
     if (!preferred) { setPrefRules(null); return; }
@@ -279,11 +294,21 @@ export default function Request() {
   const toggleAddon = (k: AddonKey) =>
     setAddons((a) => (a.includes(k) ? a.filter((x) => x !== k) : [...a, k]));
 
+  // 이 화면이 마지막으로 **소비한** draft.scheduledAtIso. 포커스 동기화가 '내가 고른 시각'과
+  // '다른 화면이 써 넣은 시각'을 구분하는 유일한 방법이다 — draft.timeLabel은 pay()에서만
+  // 갱신되므로(Object.assign), 무조건 draft를 믿으면 방금 고른 시각이 옛 라벨로 덮인다.
+  const syncedIso = useRef<string | null>(draft.scheduledAtIso);
+  // '가장 빠른' 배지의 진실 — 자동으로 잡힌 슬롯을 사용자가 손대지 않았을 때만 참이다.
+  const [autoPicked, setAutoPicked] = useState(false);
+
   const pickSlot = (t: string, di = dateIdx) => {
     const when = toDate(di, t);
-    draft.scheduledAtIso = when.toISOString(); // 실제 예약 시각 — +3h 하드코드 은퇴
+    const iso = when.toISOString();
+    draft.scheduledAtIso = iso; // 실제 예약 시각 — +3h 하드코드 은퇴
+    syncedIso.current = iso;
     const day = DATES[di].label ?? `${when.getMonth() + 1}월 ${when.getDate()}일`;
     setTimeLabel(`${day} ${t}`);
+    setAutoPicked(false); // 손으로 골랐다 — pickEarliest가 뒤이어 참으로 되돌린다
     setSlotSheet(false);
   };
 
@@ -292,31 +317,93 @@ export default function Request() {
     for (let di = 0; di < DATES.length; di++) {
       for (const g of SLOT_GROUPS) {
         for (const t of g.times) {
-          if (slotAllowed(di, t)) { setDateIdx(di); pickSlot(t, di); return; }
+          if (slotAllowed(di, t)) { setDateIdx(di); pickSlot(t, di); setAutoPicked(true); return; }
         }
       }
     }
   };
 
   // 홈 ⑧ '지금 찾기': 플래그가 켜져 들어왔으면 가장 빠른 슬롯을 스스로 고르고 플래그를 끈다.
-  // 슬롯 데이터가 아직 없을 때 pickEarliest 는 아무것도 못 고르므로, 슬롯이 실릴 때까지 기다린다
-  // (의존성에 slotsReady 계열이 없으면 첫 렌더에서 헛돌고 끝난다 — 그러면 버튼은 죽은 버튼이다).
+  // [2026-08-19 §C] 여기에 **기본값 규칙**이 붙었다: 이 화면은 안 건드려도 넘어가야 하므로,
+  // 시각이 비었거나 지난 방문의 시각이 2시간 통보 바닥을 못 넘기면 그 값을 지우고 다시 고른다.
+  //   ⚠ 지우는 게 핵심이다 — home-hero의 schedule() 경로는 draft.scheduledAtIso를 비우지 않는다.
+  //   지난주의 시각을 '기본값'으로 그대로 보여 주면 CTA는 통과하고 서버가 거절한다(= 거짓 준비).
   useEffect(() => {
-    if (!draft.autoEarliest) return;
-    // 한 번만: 다음 방문까지 따라붙지 않게 먼저 끈다
-    draft.autoEarliest = false;
-    pickEarliest();
+    const auto = draft.autoEarliest;
+    draft.autoEarliest = false; // 한 번만: 다음 방문까지 따라붙지 않게 먼저 끈다
+    const iso = draft.scheduledAtIso;
+    const stale = !iso || new Date(iso).getTime() < Date.now() + 2 * 3600_000;
+    if (stale) {
+      draft.scheduledAtIso = null;
+      syncedIso.current = null;
+      setTimeLabel('시간을 선택해주세요');
+    }
+    if (auto || stale) pickEarliest();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- 마운트 1회 + 플래그 소비. pickEarliest 는 렌더마다 새 함수라 넣으면 매 렌더 재실행된다.
   }, []);
 
-  // Honest, reversible progress: forward past step 0 requires a REAL chosen time
-  // (a step is never "done" until its value exists); backward is always free.
-  const goStep = (n: Step) => {
-    if (n > 0 && !draft.scheduledAtIso) { setStep(0); return; }
-    haptic('light');
-    setStep(n);
-    pageRef.current?.scrollTo({ y: 0, animated: false });
-  };
+  // ═══ 포커스 동기화 — 다른 화면이 draft에 써 넣고 돌아오는 왕복을 받는다 ═══
+  // 이게 없으면 코스 지도 왕복이 **조용히 사라진다**: course-map은 draft.routeId만 바꾸고
+  // router.back() 하는데, 이 화면은 계속 마운트돼 있어서 useState 초기화자가 다시 돌지 않는다.
+  // (지도 진입 위 주석이 "지도는 draft.routeId만 바꾸고 돌아온다"고 적어 둔 채로, 받는 쪽이
+  //  없었다.) 지명 러너·러너 프로필이 덮어쓴 시각도 같은 통로로 들어온다.
+  //   · candidate 코스는 여기서도 **확인 의식을 거친다** — 서버가 candidate_ack 없이 거절하므로
+  //     조용한 ack는 나중에 이유 없는 에러가 된다. 취소하면 draft를 되돌려 지도와 어긋나지 않게 한다.
+  const seenDraft = useRef({ routeId: draft.routeId, pref: draft.preferredRunnerId });
+  useFocusEffect(useCallback(() => {
+    // ── 코스 ──
+    if (draft.routeId !== seenDraft.current.routeId) {
+      const incoming = draft.routeId;
+      // pay()가 Object.assign으로 **우리 값**을 draft에 써 넣은 경우 — 새 선택이 아니다.
+      // 소비만 한다 (여기서 adopt하면 결제 화면에서 뒤로 온 것만으로 pickSource가 'manual'로
+      // 뒤집혀 오버라이드 지표가 오염된다).
+      const r = incoming === routeId ? null : (routes.find((x) => x.id === incoming) ?? null);
+      if (incoming === routeId) {
+        seenDraft.current.routeId = incoming;
+      } else if (r) {
+        // 목록이 실린 뒤에만 소비한다 — 못 찾았으면 다음 실행(routes 로드)에서 다시 시도
+        seenDraft.current.routeId = incoming;
+        const take = () => {
+          setRouteId(r.id);
+          // 지도에서 고른 것도 분명한 수동 의도다. 서버 체크 제약(0082)이 허용하는 값은
+          // auto|carousel|detail_cta|quick_book 넷뿐이라 'map'을 새로 만들 수 없다 —
+          // 새 값은 마이그레이션(서버 슬라이스)이 필요하다. 목록에서 고른 행위이므로 carousel.
+          setPickSource({ mode: 'manual', origin: 'carousel' });
+        };
+        if (r.status === 'candidate' && candidateAck !== r.id) {
+          Alert.alert(
+            '아직 점검 전 코스예요',
+            `${r.name}은 지도에 그려두기만 했고, 아직 반려견과 함께 달려본 적이 없어요. 첫 러닝이 이 코스의 점검이 됩니다.`,
+            [
+              {
+                text: '다른 코스 볼게요',
+                style: 'cancel',
+                onPress: () => { draft.routeId = routeId; seenDraft.current.routeId = routeId; },
+              },
+              { text: '점검 전 코스로 예약', onPress: () => { setCandidateAck(r.id); take(); } },
+            ],
+          );
+        } else {
+          take();
+        }
+      }
+    }
+    // ── 시각 (러너 프로필의 confirmSlot이 지명과 함께 써 넣는다) ──
+    if (draft.scheduledAtIso && draft.scheduledAtIso !== syncedIso.current) {
+      syncedIso.current = draft.scheduledAtIso;
+      setTimeLabel(draft.timeLabel);
+      setAutoPicked(false); // 다른 화면이 고른 시각이다 — '가장 빠른'이라고 주장하지 않는다
+      const when = new Date(draft.scheduledAtIso);
+      const di = DATES.findIndex((d) => d.date.toDateString() === when.toDateString());
+      if (di >= 0) setDateIdx(di); // 시트가 그 날짜에서 열리도록
+    }
+    // ── 지명 러너 ──
+    if (draft.preferredRunnerId !== seenDraft.current.pref) {
+      seenDraft.current.pref = draft.preferredRunnerId;
+      setPreferred(draft.preferredRunnerId);
+      setPreferredName(draft.preferredRunnerName);
+    }
+  }, [routes, routeId, candidateAck]));
 
   const pay = async () => {
     // 청구 잠금이 반려견 게이트보다 앞선다 — 서버가 어차피 409로 막을 요청을 만들지 않는다.
@@ -415,8 +502,88 @@ export default function Request() {
 
   const selRoute = routes.find((r) => r.id === routeId) ?? null;
 
-  // ---- shared slot picker pieces — rendered inline on step 0 AND inside the bottom sheet
-  // (the sheet survives: ticket time chip + 확인-step 언제 row reopen it)
+  // ═══ 코스 큰 넛지 (RULING 5 + Sean 2026-08-19: "픽업은 보호자가 두는 곳, 앱은 가장 가까운
+  //     코스를 추천한다") — 넛지는 **추천 코스를 앞세운다**. ═══
+  //
+  // ⚠ '가장 가까운'은 픽업 좌표가 있을 때만 주장할 수 있다: orderByProximity는 pickup이 null이면
+  //    정렬하지 않고 원래 순서를 그대로 돌려준다. 그때 [0]을 '가장 가까운'이라 부르면 지어낸
+  //    주장이다. 좌표가 없으면 넛지는 추천 대신 **핀을 맞추라는 문을** 연다.
+  // ⚠ 동네 이름을 붙이지 않는다: 이 화면은 fetchRoutes()를 필터 없이 부르고, 필터를 걸어도
+  //    api.ts:191-193이 동네가 안 맞으면 조용히 전체로 폴백한다 — "반포동 코스 9개"는 지어낸 주장.
+  // ⚠ "안 고르면 러너가 정해요"도 쓰지 않는다: 자동 배정은 status='active'만 보는데 카탈로그는
+  //    전부 candidate라, 안 고르면 실제로는 코스 없이 접수된다. 아래에서 두 경우를 갈라 말한다.
+  const nearestRoute = pickup && shownRoutes.length > 0 ? shownRoutes[0] : null;
+  const nudgeRoute = selRoute ?? nearestRoute;
+  // ⛳ HOOK — 코스 km + 이동 거리 (rulings #14 and #15). The approach is measured to the NEAREST
+  //    POINT ON THE TRACE, not to `trace[0]`, and it COUNTS: the title shows the lap and the one-way
+  //    walk separately, and a quiet second line shows the door-to-door total (approach counted twice
+  //    — out to the entry and back to the pickup for the return handoff).
+  //    route-pick owns the measurement so the ranking and the label can never quote two different
+  //    distances; this screen only formats.
+  //    Both numbers are STRAIGHT-LINE estimates (labelled 약): there is no routing engine here, and
+  //    this screen holds `trace_thumb` (≤50 pts). Lap km is never replaced by the total — the lap is
+  //    what the fare is built on (T-KM).
+  const nudgeTotals = pickup && nudgeRoute ? totalKmFor(nudgeRoute, pickup) : null;
+  // 픽업 좌표가 없다 = 추천이 불가능하다. 그 사실과 고치는 길을 같이 말한다.
+  const needsPin = pickup == null;
+  const pinTarget = () => (pickupAddr
+    ? router.push({ pathname: '/owner/address-pin', params: { id: pickupAddr.id } })
+    : router.push('/owner/addresses'));
+
+  // 제목은 코스 이름 RAW, 그것뿐이다. 이름이 이미 km 토큰을 지니고 있어서(0100) 여기에 코스 km을
+  // 또 붙이면 "한강 반포–잠원 7km · 코스 7km"처럼 같은 숫자를 두 번 말한다 (시뮬레이터에서 관측).
+  // 랩 km은 이름이 계속 보여주고, 아래 줄은 이름이 말하지 **않는** 것 — 이동 거리 — 만 말한다.
+  const nudgeTitle = routesState !== 'ready' || !nudgeRoute ? '코스를 골라볼까요?' : nudgeRoute.name;
+  const nudgeTotalLine = nudgeTotals
+    ? `입구까지 약 ${fmtDist(nudgeTotals.approachM)} · 왕복 포함 약 ${fmtKm(nudgeTotals.totalKm)}km`
+    : null;
+
+  // What really happens when the owner picks nothing — three truths, never a guess:
+  // auto-assign (status='active' only) found nothing → 코스 없이; it picked this very route → 이 코스로;
+  // it picked a different route → name that route (the old "코스 없이" here was wrong once any route went active).
+  const recommendedRoute = recommendedRouteId ? routes.find((r) => r.id === recommendedRouteId) ?? null : null;
+  const autoAssignTail = !recommendedRoute ? '안 고르면 코스 없이 접수돼요'
+    : nudgeRoute && recommendedRoute.id === nudgeRoute.id ? '안 고르면 이 코스로 배정돼요'
+    : `안 고르면 ${recommendedRoute.name}(으)로 배정돼요`;
+
+  const courseNudgeSub = routesState === 'loading' ? '코스 목록을 불러오는 중'
+    : routesState === 'error' ? '지도에서 다시 시도할 수 있어요'
+    : routes.length === 0 ? '지금 예약할 수 있는 코스가 없어요'
+    : selRoute ? `내가 고른 코스${selRoute.status === 'candidate' ? ' · 점검 전 코스' : ''}`
+    : needsPin ? '픽업 위치를 지도에서 맞추면 가까운 코스를 추천해요'
+    : nudgeRoute ? `픽업 위치에서 가장 가까운 코스 · ${autoAssignTail}`
+    : `코스 ${routes.length}개 · ${autoAssignTail}`;
+
+  // 접힌 폴드가 무엇을 쥐고 있는지 한 줄로 — 값이 켜져 있는데 안 보이는 상태를 만들지 않는다
+  const moreSummary = `${pace} · ${addons.length > 0 ? addons.map((k) => pricing.addons[k].label).join(' · ') : '옵션 없음'} · 매주 반복 ${recurringOn ? '켜짐' : '꺼짐'}`;
+
+  // CTA 라벨 스왑 = 이 화면의 문법 (티켓 푸터에서 그대로 옮겨왔다). 버튼을 disabled로 죽이지
+  // 않는다 — 누르면 다음에 해야 할 일로 데려간다. 마지막 칸이 '예약 확인'인 이유: 이 버튼은
+  // /owner/pay로 간다. 그 화면의 제목은 '예약 확정 전이에요'이고 버튼은 '예약 확정하기'다 —
+  // 여기서 '러너 찾기'라고 쓰면 목적지와 어긋나는 라벨 거짓말이 된다.
+  const ctaLabel = chargeLocked ? '결제 문제부터'
+    : dogsState === 'error' ? '반려견 확인 다시'
+    : dogsState === 'loading' && !myDog ? '반려견 확인 중'
+    : !myDog ? '반려견부터'
+    : !draft.scheduledAtIso ? '시간부터'
+    : '예약 확인';
+  // ── 하단 CTA 도크 ──────────────────────────────────────────────────────────────────
+  // 도크는 **화면 맨 아래(bottom: 0)까지 불투명**하다. 예전처럼 버튼만 인셋 위에 띄우면
+  // 바와 홈 인디케이터 사이의 틈으로 스크롤 콘텐츠(페이스 칩)가 그대로 비쳐 보인다 —
+  // 떠 있는 바가 아니라 '반쯤 가린 콘텐츠'로 읽힌다. 세이프에어리어는 도크 **안쪽**
+  // 패딩으로 존중한다.
+  const ctaDockPadBottom = insets.bottom + 12;
+  // 도크 전체 높이 = 위 패딩 12 + 버튼(16+16+라벨 ~22) + 아래 패딩. ScrollView는 이만큼을
+  // 예약해야 폴드 마지막 줄에 손이 닿는다 (absolute는 레이아웃을 밀지 않는다).
+  const ctaDockH = 12 + 54 + ctaDockPadBottom;
+  // 메모하는 이유: contentContainerStyle에 매 렌더 새 객체를 주면 ScrollView가 계속 재측정한다.
+  const pageStyle = useMemo(
+    () => ({ paddingHorizontal: layout.gutter, paddingTop: 6, paddingBottom: ctaDockH + 20 }),
+    [ctaDockH],
+  );
+
+  // ---- shared slot picker pieces — the bottom sheet is now their ONLY mount
+  // (the 언제 row and the CTA's '시간부터 ›' label-swap both open it)
   const renderDateStrip = () => (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
       {DATES.map((d, i) => (
@@ -458,35 +625,31 @@ export default function Request() {
 
   return (
     <View style={{ flex: 1, backgroundColor: paper.canvas }}>
-      <ScrollView ref={pageRef} style={{ flex: 1 }} contentContainerStyle={{ padding: layout.gutter, paddingTop: 56, paddingBottom: step === 2 ? 210 : 48 }}>
-        {/* 190 → 210: 티켓이 세이프에어리어만큼(=20) 올라갔으므로 마지막 행이 그만큼 더 가려진다.
-            티켓은 absolute라 레이아웃을 밀지 않는다 — 이 예약분이 유일한 확보 수단이다. */}
-        {/* header — ‹ walks the stepper back before it leaves the screen */}
+      {/* ── 고정 헤더 — 랩 §C의 `.top` 바 (ScrollView **밖**) ──
+          스크롤 안에 두면 헤더가 상태바 밑으로 미끄러져 들어가 ‹ 가 시계와 겹친다.
+          세이프에어리어 위에 캔버스 면을 깔고, 스크롤은 그 아래에서 시작한다.
+          스텝이 사라졌으므로 ‹ 는 그냥 뒤로. */}
+      <View style={[s.topBar, { paddingTop: insets.top + 8 }]}>
         <Row style={{ gap: 12 }}>
-          <Pressable onPress={() => (step === 0 ? router.back() : goStep((step - 1) as Step))} style={s.circleBtn} accessibilityRole="button" accessibilityLabel={step === 0 ? '뒤로' : '이전 단계'}>
+          <Pressable onPress={() => router.back()} style={s.circleBtn} accessibilityRole="button" accessibilityLabel="뒤로">
             <Text style={{ fontSize: 20.5, color: paper.ink }}>‹</Text>
           </Pressable>
           <View style={{ flex: 1 }}>
-            {/* §3b: display face moved to the step question — nav title is a plain 20/800 header */}
             <Text style={{ fontSize: 20, fontWeight: '800', color: paper.ink }}>러닝 요청</Text>
           </View>
-          {/* 지명 러너 상태 칩 (§3b status chip: 16/800, tinted fill, no border).
-              '안심 결제' 장식 칩은 은퇴 — Ⓒ① 목업·§7b 데클러터 (상태가 아니라 장식이었다) */}
+          {/* 지명 러너 상태 칩 (§3b status chip: 16/800, tinted fill, no border) */}
           {preferred && (
             <View style={s.prefChip}>
-              <Text style={{ fontSize: 16, fontWeight: '800', color: paper.ink }}>★ {draft.preferredRunnerName ?? '지명'} 러너</Text>
+              <Text style={{ fontSize: 16, fontWeight: '800', color: paper.ink }}>★ {preferredName ?? '지명'} 러너</Text>
             </View>
           )}
         </Row>
+      </View>
 
-        {/* step bar — position, not decoration; completed segments are tappable (reversible) */}
-        <View style={{ flexDirection: 'row', gap: 5, marginTop: 14 }} accessibilityLabel={`3단계 중 ${step + 1}단계`}>
-          {([0, 1, 2] as Step[]).map((i) => (
-            <Pressable key={i} disabled={i >= step} onPress={() => goStep(i)} hitSlop={12} style={[s.stepSeg, i <= step && { backgroundColor: paper.line }]} />
-          ))}
-        </View>
-
-        {/* 청구 잠금 배너 — 접힘 밖, 모든 스텝에서 보인다 (§7b: 정직한 상태는 클러터가 아니다).
+      {/* CTA 도크는 absolute라 레이아웃을 밀지 않는다 — pageStyle의 paddingBottom 예약이
+          마지막 행에 손이 닿게 하는 유일한 수단 */}
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={pageStyle}>
+        {/* 청구 잠금 배너 — 접힘 밖 (§7b: 정직한 상태는 클러터가 아니다).
             예약을 만들 수 없다는 사실은 마지막 CTA에서가 아니라 화면에 들어온 순간 알아야 한다. */}
         {chargeLocked && (
           <ChargeBanner
@@ -497,473 +660,424 @@ export default function Request() {
           />
         )}
 
-        {/* ════════ STEP 0 — 언제 ════════ */}
-        {step === 0 && (
-          <>
-            {/* 누가·어디서 — collapsed summary row (fold). Honest states never collapse:
-                loading ≠ error ≠ real-zero each render their own row in this slot. */}
-            {dogsState === 'loading' ? (
-              <View style={s.foldRow}>
-                <Row style={{ gap: 12 }}>
-                  <Skeleton width={42} height={42} radius={0} />
-                  <View style={{ gap: 7 }}>
-                    <Skeleton width={120} height={15} radius={0} />
-                    <Skeleton width={180} height={13} radius={0} />
-                  </View>
-                </Row>
-              </View>
-            ) : dogsState === 'error' ? (
-              // 실패: 라우드 페일 + 재시도. 등록 CTA는 절대 띄우지 않는다 — '모른다'는 '아이가 없다'가 아니다.
-              <View style={[s.dogFailStrip, { marginTop: 14 }]}>
-                <Text style={s.routeFailTxt}>반려견 정보를 불러오지 못했어요</Text>
-                <Pressable onPress={loadDogs} hitSlop={8} accessibilityRole="button" accessibilityLabel="다시 시도">
-                  <Text style={s.routeFailRetry}>다시 시도</Text>
-                </Pressable>
-              </View>
-            ) : dogsEmpty ? (
-              // 진짜 0마리: 그 자리에서 등록 초대 (같은 슬롯 — 화면이 튀지 않는다)
-              <Pressable onPress={() => router.push('/owner/dog')} style={[s.foldRow, { flexDirection: 'row', alignItems: 'center', gap: 12 }]} accessibilityRole="button" accessibilityLabel="반려견 등록">
-                <View style={s.dogAddPlate}><Text style={{ fontSize: 20, fontWeight: '800', color: paper.line }}>＋</Text></View>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 16.5, fontWeight: '800', color: paper.ink }}>반려견을 등록해주세요</Text>
-                  <Text style={{ fontSize: 14.5, color: paper.dim, marginTop: 2 }}>이름·품종·체중이 러너에게 전달돼요</Text>
-                </View>
-                <Text style={{ fontSize: 14, fontWeight: '800', color: paper.line }}>등록 ›</Text>
+        {/* ════════ 언제 ════════ */}
+        <View style={s.rowGroup}>
+          <Pressable onPress={() => setSlotSheet(true)} style={s.prefRow} accessibilityRole="button" accessibilityLabel={`언제 ${timeLabel} 변경`}>
+            <Text style={s.prefLabel}>언제</Text>
+            <View style={s.prefValueBox}>
+              {/* 시각이 없으면 그건 값이 아니라 **상태**다 — 굵은 잉크로 그리면 고른 시각으로 읽힌다.
+                  (모든 슬롯이 지명 러너 가용시간 밖이면 pickEarliest가 아무것도 못 고른다) */}
+              <Text style={draft.scheduledAtIso ? s.prefValue : s.prefValueState} numberOfLines={1}>
+                {timeLabel}
+                {/* '가장 빠른'은 자동으로 잡혔고 아직 손대지 않았을 때만 — 배지는 사실이어야 한다 */}
+                {autoPicked && draft.scheduledAtIso ? <Text style={s.prefValueSoft}> · 가장 빠른</Text> : null}
+              </Text>
+            </View>
+            <Text style={s.prefAction}>변경 ›</Text>
+          </Pressable>
+        </View>
+        {preferred && (
+          <Text style={s.quietNote}>★ {preferredName ?? '지명'} 러너의 가능 시간만 선택할 수 있어요</Text>
+        )}
+
+        {/* ════════ km 다이얼 — 현재 UI 그대로 (Sean RULING 4) ════════ */}
+        <View style={{ marginTop: 22 }}>
+          <KmDial km={km} onChange={(v) => { setKm(v); pickRouteForKm(v); }} />
+        </View>
+
+        {/* 예상 금액 — 이 화면에서 금액이 나오는 **유일한** 자리 (다이얼 내부 가격 줄은 은퇴).
+            숫자는 total 하나에서만 온다 (클라 공식 == create-booking-hold 공식).
+            fmtWon은 '원'을 이미 붙이므로 여기선 쓰지 않는다 — '원 원' 이중 출력 전례가 있다. */}
+        <Text style={s.estimate}>
+          예상 금액 <Text style={[s.estimateNum, nf]}>{total.toLocaleString('ko-KR')}</Text>원
+        </Text>
+
+        {/* ════════ 코스 큰 넛지 (RULING 5: 한 줄이 아니라 큰 면) ════════ */}
+        {/* 보더는 **잉크** 1.5px — 랩 §C와 같고, 이 프레임의 채도 예산은 하단 코랄 CTA가 가져간다.
+            면 전체는 항상 지도 화면으로 간다; 픽업 핀이 없으면 '핀부터 맞추기' 한 줄이 그 위에
+            얹혀 먼저 잡힌다 (추천이 불가능한 이유와 고치는 길을 같은 자리에서 말한다). */}
+        <Pressable onPress={() => router.push('/owner/course-map')} style={s.nudge} accessibilityRole="button" accessibilityLabel="지도에서 코스 고르기">
+          {nudgeRoute && nudgeRoute.trace.length > 1 ? (
+            // 다크 플레이트 유지 — HeatTrace는 어두운 면 위에서 그리도록 만들어진 컴포넌트다
+            <View style={s.nudgeMap}>
+              <HeatTrace points={traceToBox(nudgeRoute.trace)} width={96} height={NUDGE_MAP_H} />
+            </View>
+          ) : (
+            // 실좌표가 없으면 코스 모양을 지어내지 않는다. 로딩 ≠ '지도 준비 중' ≠ '미정' — 셋은 다른 사실이다.
+            <View style={s.nudgeBlank}>
+              <Text style={s.mapPendingTxt}>
+                {routesState === 'loading' ? '불러오는 중' : nudgeRoute ? '지도 준비 중' : '코스 미정'}
+              </Text>
+            </View>
+          )}
+          <View style={{ flex: 1, paddingHorizontal: 13, paddingVertical: 12 }}>
+            {/* 코스 이름은 RAW — km 토큰이 다섯 행에서는 코스를 구분하는 유일한 것이다 (routeDisplayName은 은퇴) */}
+            <Text style={{ fontSize: 15, fontWeight: '800', color: paper.ink, lineHeight: 20 }} numberOfLines={2}>{nudgeTitle}</Text>
+            {/* 왕복 포함 총거리 — 조용한 줄. 코스 km을 대체하지 않고 **옆에** 선다 (요금의 진실은 코스 km) */}
+            {nudgeTotalLine && (
+              <Text style={{ fontSize: 14, color: paper.faint, marginTop: 2, lineHeight: 19 }} numberOfLines={1}>{nudgeTotalLine}</Text>
+            )}
+            <Text style={{ fontSize: 14, color: paper.dim, marginTop: 3, lineHeight: 19 }} numberOfLines={2}>{courseNudgeSub}</Text>
+            {needsPin && (
+              <Pressable onPress={pinTarget} hitSlop={10} style={{ marginTop: 7, alignSelf: 'flex-start' }} accessibilityRole="button" accessibilityLabel="픽업 위치 맞추기">
+                <Text style={{ fontSize: 14, fontWeight: '800', color: paper.line }}>픽업 위치 맞추기 ›</Text>
               </Pressable>
-            ) : (
-              <>
-                <Pressable onPress={() => setWhoOpen((v) => !v)} style={s.foldRow} accessibilityRole="button" accessibilityLabel={`누가 어디서 ${whoOpen ? '접기' : '변경'}`}>
-                  <Row style={{ justifyContent: 'space-between' }}>
-                    <Text style={{ flex: 1, fontSize: 16, fontWeight: '800', color: paper.ink }} numberOfLines={1}>
-                      {myDog ? myDog.name : dogTicketLabel} · {pickupAddr ? pickupAddr.label : addrState === 'error' ? '주소 확인 실패' : addrState === 'loading' ? '주소 확인 중' : '픽업 주소 미등록'}
-                    </Text>
-                    <Text style={{ fontSize: 14, fontWeight: '800', color: paper.dim }}>{whoOpen ? '접기 ▴' : '변경 ▾'}</Text>
-                  </Row>
-                  {/* [0065 · DS-6] default address without coords = one coral invitation line — must
-                      survive the fold collapsed too (booking-quality signal, not clutter) */}
-                  {!whoOpen && pickupAddr && pickupAddr.lat == null && (
-                    <Pressable
-                      onPress={() => router.push({ pathname: '/owner/address-pin', params: { id: pickupAddr.id } })}
-                      hitSlop={10}
-                      style={{ marginTop: 6, alignSelf: 'flex-start' }}
-                      accessibilityRole="button"
-                      accessibilityLabel="픽업 위치 지정"
-                    >
-                      <Text style={{ fontSize: 14, fontWeight: '800', color: paper.line }}>픽업 위치 지정 필요 ›</Text>
+            )}
+            <Text style={{ fontSize: 14, fontWeight: '800', color: paper.ink, marginTop: 7 }}>지도에서 고르기 ›</Text>
+          </View>
+        </Pressable>
+
+        {/* 배정 결과에 대한 고지 — 폴드 밖. 칩은 필터고 이건 사실이다 (필터를 꺼도 안 변한다) */}
+        {selRoute && darkSlot && selRoute.lighting === 'none' && (
+          <Text style={s.warnNote}>이 시간대엔 조명이 없는 코스예요 — 다른 코스나 시간을 확인해주세요</Text>
+        )}
+        {selRoute && selRoute.km !== km && (
+          <Text style={s.warnNote}>선택 거리와 달라요 — 요금·기록은 {fmtKm(km)}km 기준</Text>
+        )}
+        {routesState === 'error' && (
+          <View style={[s.routeFailStrip, { marginTop: 12, marginBottom: 0 }]}>
+            <Text style={s.routeFailTxt}>코스를 불러오지 못했어요 — 이대로 예약하면 코스 없이 접수돼요</Text>
+            <Pressable onPress={loadRoutes} hitSlop={8} accessibilityRole="button" accessibilityLabel="다시 시도">
+              <Text style={s.routeFailRetry}>다시 시도</Text>
+            </Pressable>
+          </View>
+        )}
+
+        {/* ════════ 러너 · 어디서 · 누가 ════════ */}
+        <View style={s.rowGroup}>
+          {/* 러너 — 예약 전 러너를 고르는 실제 경로는 리더보드 → 러너 프로필 하나뿐이다.
+              (matching/radar는 draft.bookingId를 요구하므로 여기서 열면 죽은 문이 된다) */}
+          <Pressable onPress={() => router.push('/leaderboard')} style={s.prefRow} accessibilityRole="button" accessibilityLabel="러너 직접 고르기">
+            <Text style={s.prefLabel}>러너</Text>
+            <View style={s.prefValueBox}>
+              <Text style={s.prefValue} numberOfLines={1}>{preferred ? (preferredName ?? '지명 러너') : '자동 매칭'}</Text>
+            </View>
+            <Text style={s.prefAction}>{preferred ? '다시 고르기 ›' : '직접 고르기 ›'}</Text>
+          </Pressable>
+
+          {/* 어디서 — 준비 전에는 주소를 그리지 않는다. 로딩·실패·미등록을 각각 말한다 */}
+          <Pressable onPress={() => router.push('/owner/addresses')} style={s.prefRow} accessibilityRole="button" accessibilityLabel="픽업 주소 변경">
+            <Text style={s.prefLabel}>어디서</Text>
+            <View style={s.prefValueBox}>
+              {pickupAddr ? (
+                <Text style={s.prefValue} numberOfLines={1}>{pickupAddr.label}</Text>
+              ) : (
+                <Text style={[s.prefValueState, addrState === 'error' && { color: paper.critical }]} numberOfLines={1}>
+                  {addrState === 'error' ? '주소를 불러오지 못했어요'
+                    : addrState === 'loading' ? '주소 확인 중'
+                    : '픽업 주소를 등록해주세요'}
+                </Text>
+              )}
+              {/* [0065 · DS-6] 좌표 없는 기본 주소 = 코랄 초대 한 줄 (예약 품질 신호, 클러터 아님) */}
+              {pickupAddr && pickupAddr.lat == null && (
+                <Pressable
+                  onPress={() => router.push({ pathname: '/owner/address-pin', params: { id: pickupAddr.id } })}
+                  hitSlop={10}
+                  style={{ marginTop: 4 }}
+                  accessibilityRole="button"
+                  accessibilityLabel="픽업 위치 지정"
+                >
+                  <Text style={{ fontSize: 14, fontWeight: '800', color: paper.line }}>픽업 위치 지정 필요 ›</Text>
+                </Pressable>
+              )}
+            </View>
+            <Text style={s.prefAction}>변경 ›</Text>
+          </Pressable>
+
+          {/* 누가 — 로딩 ≠ 실패 ≠ 진짜 0마리. 셋 다 같은 슬롯에서 각자 말한다 (화면이 튀지 않는다) */}
+          {dogsState === 'loading' ? (
+            <View style={s.prefRow}>
+              <Text style={s.prefLabel}>누가</Text>
+              <View style={s.prefValueBox}><Skeleton width={120} height={15} radius={0} /></View>
+            </View>
+          ) : dogsState === 'error' ? (
+            // 실패: 라우드 페일 + 재시도. 등록 CTA는 절대 띄우지 않는다 — '모른다'는 '아이가 없다'가 아니다.
+            <View style={[s.dogFailStrip, { marginTop: 8, marginBottom: 8 }]}>
+              <Text style={s.routeFailTxt}>반려견 정보를 불러오지 못했어요</Text>
+              <Pressable onPress={loadDogs} hitSlop={8} accessibilityRole="button" accessibilityLabel="다시 시도">
+                <Text style={s.routeFailRetry}>다시 시도</Text>
+              </Pressable>
+            </View>
+          ) : dogsEmpty ? (
+            // 진짜 0마리: 그 자리에서 등록 초대 (같은 슬롯)
+            <Pressable onPress={() => router.push('/owner/dog')} style={s.prefRow} accessibilityRole="button" accessibilityLabel="반려견 등록">
+              <Text style={s.prefLabel}>누가</Text>
+              <View style={s.prefValueBox}>
+                <Text style={s.prefValue}>반려견을 등록해주세요</Text>
+                <Text style={{ fontSize: 14, color: paper.dim, marginTop: 2 }}>이름·품종·체중이 러너에게 전달돼요</Text>
+              </View>
+              <Text style={s.prefAction}>등록 ›</Text>
+            </Pressable>
+          ) : (
+            <>
+              <Pressable onPress={() => setDogOpen((v) => !v)} style={s.prefRow} accessibilityRole="button" accessibilityLabel={`누가 ${myDog ? myDog.name : ''} ${dogOpen ? '접기' : '변경'}`}>
+                <Text style={s.prefLabel}>누가</Text>
+                <View style={s.prefValueBox}>
+                  <Text style={s.prefValue} numberOfLines={1}>
+                    {myDog ? myDog.name : dogTicketLabel}
+                    {/* 품종·체중은 있는 것만 — 목업 폴백 은퇴 ('· kg' 같은 빈 구분자 금지) */}
+                    {dogMeta ? <Text style={s.prefValueSoft}>{`  ·  ${dogMeta}`}</Text> : null}
+                  </Text>
+                </View>
+                <Text style={s.prefAction}>{dogOpen ? '접기 ▴' : '변경 ▾'}</Text>
+              </Pressable>
+              {dogOpen && (
+                <View style={{ paddingBottom: 14 }}>
+                  {myDog && (
+                    <Pressable onPress={() => router.push('/owner/dog')} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 6 }}>
+                      <Avatar url={myDog.photoUrl} char={myDog.name.slice(0, 1)} bg={colors.ink} size={42} />
+                      <Text style={{ flex: 1, fontSize: 16.5, fontWeight: '800', color: paper.ink }}>
+                        <Text style={{ fontWeight: '900' }}>{myDog.name}</Text>
+                        {dogMeta ? `  ·  ${dogMeta}` : ''}
+                      </Text>
+                      <Text style={{ fontSize: 14, fontWeight: '800', color: paper.dim }}>프로필 ›</Text>
                     </Pressable>
                   )}
-                </Pressable>
-                {whoOpen && (
-                  <>
-                    <View style={[s.card, { marginTop: 8 }]}>
-                      {myDog && (
-                        <>
-                          <Pressable onPress={() => router.push('/owner/dog')} style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                            <Avatar url={myDog.photoUrl} char={myDog.name.slice(0, 1)} bg={colors.ink} size={42} />
-                            <Text style={{ flex: 1, fontSize: 16.5, fontWeight: '800', color: paper.ink }}>
-                              <Text style={{ fontWeight: '900' }}>{myDog.name}</Text>
-                              {/* 품종·체중은 있는 것만 — 목업 폴백(?? dog.breed) 은퇴 */}
-                              {dogMeta ? `  ·  ${dogMeta}` : ''}
-                            </Text>
-                            <Text style={{ fontSize: 14, fontWeight: '800', color: paper.dim }}>프로필 ›</Text>
-                          </Pressable>
-                          {/* 카드 내부 행 구분 — addresses pinStrip 문법: 코랄 1px, 카드 폭 풀블리드 */}
-                          <View style={{ height: 1, backgroundColor: paper.line, marginHorizontal: -16, marginVertical: 13 }} />
-                        </>
-                      )}
-                      <Pressable onPress={() => router.push('/owner/addresses')} style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                        <View style={s.addrIcon}><Text style={{ fontSize: 17, color: paper.dim }}>➤</Text></View>
-                        <View style={{ flex: 1 }}>
-                          <Text style={{ fontSize: 16, fontWeight: '900', color: pickupAddr == null && addrState === 'error' ? paper.critical : paper.ink }} numberOfLines={1}>
-                            {pickupAddr ? pickupAddr.label
-                              : addrState === 'error' ? '주소를 불러오지 못했어요'
-                              : addrState === 'loading' ? '주소 확인 중...'
-                              : '픽업 주소를 등록해주세요'}
-                          </Text>
-                          <Text style={{ fontSize: 14.5, color: paper.dim, marginTop: 2 }} numberOfLines={1}>
-                            {pickupAddr ? pickupAddr.addr
-                              : addrState === 'error' ? '주소 관리에서 다시 확인해주세요'
-                              : addrState === 'loading' ? '잠시만요'
-                              : '첫 주소가 기본 픽업이 돼요'}
-                          </Text>
-                          {pickupAddr && pickupAddr.lat == null && (
-                            <Pressable
-                              onPress={() => router.push({ pathname: '/owner/address-pin', params: { id: pickupAddr.id } })}
-                              hitSlop={10}
-                              style={{ marginTop: 4, alignSelf: 'flex-start' }}
-                              accessibilityRole="button"
-                              accessibilityLabel="픽업 위치 지정"
-                            >
-                              <Text style={{ fontSize: 14, fontWeight: '800', color: paper.line }}>픽업 위치 지정 필요 ›</Text>
-                            </Pressable>
-                          )}
-                        </View>
-                        <Text style={{ fontSize: 15, fontWeight: '800', color: paper.dim }}>변경 ›</Text>
+                  {/* 다견 선택 + 추가 */}
+                  <Row style={{ gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                    {myDogs.length > 1 && myDogs.map((d, i) => (
+                      <Pressable key={d.id} onPress={() => setDogIdx(i)} style={[s.dogSelChip, dogIdx === i && { backgroundColor: paper.ink, borderColor: paper.ink }]}>
+                        <Text style={{ fontSize: 14, fontWeight: '800', color: dogIdx === i ? '#fff' : paper.text }}>{d.name}</Text>
                       </Pressable>
-                    </View>
-                    {/* 다견 선택 + 추가 */}
-                    <Row style={{ gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-                      {myDogs.length > 1 && myDogs.map((d, i) => (
-                        <Pressable key={d.id} onPress={() => setDogIdx(i)} style={[s.dogSelChip, dogIdx === i && { backgroundColor: paper.ink, borderColor: paper.ink }]}>
-                          <Text style={{ fontSize: 14, fontWeight: '800', color: dogIdx === i ? '#fff' : paper.text }}>{d.name}</Text>
-                        </Pressable>
-                      ))}
-                      <Pressable
-                        style={s.dogSelChip}
-                        onPress={() => {
-                          Alert.prompt?.('반려견 추가', '이름을 입력해주세요', async (n) => {
-                            if (!n?.trim()) return;
-                            try {
-                              const id = await addDog(n.trim());
-                              const list = await fetchMyDogs();
-                              setMyDogs(list);
-                              setDogsState('ready'); // 방금 읽은 사실 — 직전이 실패였어도 카드는 이 목록을 말한다
-                              setDogIdx(Math.max(list.findIndex((d) => d.id === id), 0));
-                              router.push({ pathname: '/owner/dog', params: { dogId: id } });
-                            } catch (e) { Alert.alert('추가 실패', (e as Error).message); }
-                          }) ?? Alert.alert('반려견 추가', 'iOS에서 지원돼요');
-                        }}
-                      >
-                        <Text style={{ fontSize: 14, fontWeight: '800', color: paper.text }}>＋ 반려견 추가</Text>
-                      </Pressable>
-                    </Row>
-                  </>
-                )}
-              </>
-            )}
+                    ))}
+                    <Pressable
+                      style={s.dogSelChip}
+                      onPress={() => {
+                        Alert.prompt?.('반려견 추가', '이름을 입력해주세요', async (n) => {
+                          if (!n?.trim()) return;
+                          try {
+                            const id = await addDog(n.trim());
+                            const list = await fetchMyDogs();
+                            setMyDogs(list);
+                            setDogsState('ready'); // 방금 읽은 사실 — 직전이 실패였어도 카드는 이 목록을 말한다
+                            setDogIdx(Math.max(list.findIndex((d) => d.id === id), 0));
+                            router.push({ pathname: '/owner/dog', params: { dogId: id } });
+                          } catch (e) { Alert.alert('추가 실패', (e as Error).message); }
+                        }) ?? Alert.alert('반려견 추가', 'iOS에서 지원돼요');
+                      }}
+                    >
+                      <Text style={{ fontSize: 14, fontWeight: '800', color: paper.text }}>＋ 반려견 추가</Text>
+                    </Pressable>
+                  </Row>
+                </View>
+              )}
+            </>
+          )}
+        </View>
 
-            {/* the ONE question */}
-            <Text style={[{ fontSize: 25, color: paper.ink, lineHeight: 34, marginTop: 22 }, df]}>언제 달릴까요?</Text>
-            <Text style={{ fontSize: 14, color: paper.dim, marginTop: 4 }}>지금부터 2시간 이후만 선택할 수 있어요</Text>
-            {preferred && (
-              <Text style={{ fontSize: 14, color: paper.dim, marginTop: 4, fontWeight: '700' }}>
-                ★ {draft.preferredRunnerName ?? '지명'} 러너의 가능 시간만 선택할 수 있어요
-              </Text>
-            )}
-            <View style={{ marginTop: 14 }}>{renderDateStrip()}</View>
-            {renderSlotGroups()}
+        {/* 기본값 고지 — 위 행들이 보여 주는 값이 곧 접수되는 값이다.
+            '기본값이 다 채워져 있다'고 쓰지 않는 이유: 주소는 등록 전이면 없고, 카탈로그에
+            active 코스가 0이라 코스도 '미정'으로 접수된다. 화면은 그 사실을 그대로 가리킨다. */}
+        <Text style={s.quietNote}>코스·러너·주소는 지금 안 정해도 돼요 — 위에 보이는 그대로 접수돼요</Text>
 
-            {/* next renders ONLY once a real time exists — no dead forward button (§7) */}
-            {draft.scheduledAtIso ? (
-              <Pressable onPress={() => goStep(1)} style={({ pressed }) => [s.nextBtn, pressed && { backgroundColor: paper.actionPressed }]} accessibilityRole="button" accessibilityLabel="다음 단계">
-                <Text style={{ fontSize: 17, fontWeight: '800', color: '#FFFFFF' }}>{timeLabel} — 다음 ›</Text>
-              </Pressable>
-            ) : null}
-            <Pressable onPress={() => { pickEarliest(); }} style={({ pressed }) => [s.earliestBtn, pressed && { backgroundColor: paper.wash }]} accessibilityRole="button" accessibilityLabel="가장 빠른 시간 선택">
-              <Text style={{ fontSize: 16, fontWeight: '800', color: paper.ink }}>가장 빠른 시간으로 ›</Text>
-            </Pressable>
-          </>
-        )}
+        {/* ════════ 폴드 — 페이스 · 옵션 · 매주 반복 · 코스 목록 ════════ */}
+        {/* 아무것도 지우지 않았다: 페이스 칩, 애드온 그리드, 매주 반복 토글, RouteChipRow(‘아직
+            안 재본 코스 N개’ 정직 줄의 집), 캐러셀(candidate 확인 의식)이 전부 이 안에 있다.
+            코스 발견 가능성은 폴드가 아니라 위의 큰 넛지가 진다 (PR-0 계측: 오버라이드율이
+            수요를 재야지 발견 가능성을 재면 안 된다). */}
+        <View style={s.rowGroup}>
+          <Pressable onPress={() => setMoreOpen((v) => !v)} style={s.moreRow} accessibilityRole="button" accessibilityLabel={`페이스 옵션 매주 반복 코스 목록 ${moreOpen ? '접기' : '열기'}`}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 15, fontWeight: '800', color: paper.ink }} numberOfLines={1}>페이스 · 옵션 · 매주 반복 · 코스 목록</Text>
+              <Text style={{ fontSize: 14, color: paper.dim, marginTop: 3 }} numberOfLines={1}>{moreSummary}</Text>
+            </View>
+            <Text style={s.prefAction}>{moreOpen ? '접기 ▴' : '열기 ▾'}</Text>
+          </Pressable>
+        </View>
 
-        {/* ════════ STEP 1 — 몇 km ════════ */}
-        {step === 1 && (
+        {moreOpen && (
           <>
-            {/* chosen time — collapsed summary row back to step 0 */}
-            <Pressable onPress={() => goStep(0)} style={s.foldRow} accessibilityRole="button" accessibilityLabel={`언제 ${timeLabel} 변경`}>
-              <Row style={{ justifyContent: 'space-between' }}>
-                <Text style={{ fontSize: 16, fontWeight: '800', color: paper.ink }} numberOfLines={1}>
-                  {myDog ? `${myDog.name} · ` : ''}{timeLabel}
-                </Text>
-                <Text style={{ fontSize: 14, fontWeight: '800', color: paper.dim }}>변경 ›</Text>
-              </Row>
-            </Pressable>
+            {/* ── 페이스 ── */}
+            <Text style={s.foldHead}>페이스</Text>
+            <Row style={{ gap: 10, marginTop: 8 }}>
+              {PACES.map((pc) => {
+                const sel = pace === pc;
+                return (
+                  <Pressable key={pc} onPress={() => setPace(pc)} style={[s.paceChip, sel && s.paceChipSel]}>
+                    <Row style={{ gap: 2.5, alignItems: 'flex-end', marginBottom: 7 }}>
+                      {[7, 10, 13].map((h, bi) => (
+                        <View key={bi} style={{
+                          width: 4.5, height: h,
+                          backgroundColor: sel ? (bi < 2 ? '#FFFFFF' : '#555555') : (bi < 2 ? '#BBBBBB' : '#E8E8E8'),
+                        }} />
+                      ))}
+                    </Row>
+                    <Text style={{ fontSize: 15.5, fontWeight: '900', color: sel ? '#fff' : paper.ink }}>{pc}</Text>
+                  </Pressable>
+                );
+              })}
+            </Row>
 
-            <Text style={[{ fontSize: 25, color: paper.ink, lineHeight: 34, marginTop: 22 }, df]}>몇 km 달릴까요?</Text>
-            <Text style={{ fontSize: 14, color: paper.dim, marginTop: 4 }}>코스는 거리에 맞는 안심 코스로 자동 배정돼요</Text>
-
-            <View style={{ marginTop: 20 }}>
-              <KmDial km={km} onChange={(v) => { setKm(v); pickRouteForKm(v); }} />
+            {/* ── 옵션 ── */}
+            <Text style={s.foldHead}>옵션</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 8 }}>
+              {(Object.keys(pricing.addons) as AddonKey[]).map((k) => {
+                const a = pricing.addons[k];
+                const sel = addons.includes(k);
+                // 선택 = 코랄 보더 + 코랄 체크 (볼트 필 은퇴) — 잉크 필은 칩 전용, 카드는 보더로 말한다
+                return (
+                  <Pressable key={k} onPress={() => toggleAddon(k)} style={[s.addon, sel && { borderColor: paper.line }]}>
+                    <Row style={{ justifyContent: 'space-between' }}>
+                      <View style={s.addonIcon}><Icon name={ADDON_ICONS[k] ?? 'Plus'} glyph="●" size={16} color={paper.dim} /></View>
+                      <View style={[s.checkCircle, sel && { borderColor: paper.line }]}>
+                        {sel && <Text style={{ fontSize: 11.5, fontWeight: '900', color: paper.line }}>✓</Text>}
+                      </View>
+                    </Row>
+                    <Text style={{ fontSize: 16, fontWeight: '900', color: paper.ink, marginTop: 10 }}>{a.label}</Text>
+                    <Text style={{ fontSize: 14.5, color: paper.dim, marginTop: 2 }}>{a.desc}</Text>
+                    {/* price = Oswald — lineHeight 19 ≥ 1.26x (BUG A) */}
+                    <Text style={[{ fontSize: 15, fontWeight: '900', color: paper.ink, marginTop: 8, lineHeight: 19 }, nf]}>+{a.price.toLocaleString()}원</Text>
+                  </Pressable>
+                );
+              })}
             </View>
 
-            {/* course — auto-assigned summary line; honest states render outside the fold
-                (로딩 ≠ 실패 ≠ 진짜 0건 — 셋을 각각 말한다, 접힘 뒤에 숨기지 않는다) */}
-            {routesState === 'error' ? (
-              <View style={[s.routeFailStrip, { marginTop: 20, marginBottom: 0 }]}>
-                <Text style={s.routeFailTxt}>코스를 불러오지 못했어요 — 이대로 예약하면 코스 없이 접수돼요</Text>
-                <Pressable onPress={loadRoutes} hitSlop={8} accessibilityRole="button" accessibilityLabel="다시 시도">
-                  <Text style={s.routeFailRetry}>다시 시도</Text>
-                </Pressable>
+            {/* 매주 반복 (0026) — 구독형 동의: 가격·주기·해지 자유를 토글 안에 전부 명시 (다크패턴 금지) */}
+            <Pressable
+              onPress={() => setRecurringOn((v) => !v)}
+              style={[s.recurRow, recurringOn && { borderColor: paper.line }]}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 16, fontWeight: '900', color: paper.ink }}>⟳ 매주 반복</Text>
+                <Text style={{ fontSize: 14.5, color: paper.dim, marginTop: 3, lineHeight: 18 }}>
+                  매주 같은 요일·시간에 자동 예약 · 회당 {fmtWon(total)} · 같은 러너 우선 · 일정 탭에서 언제든 해지
+                </Text>
               </View>
-            ) : routesState === 'loading' ? (
-              <Text style={[s.routeNote, { marginTop: 20, marginBottom: 0 }]}>코스를 불러오는 중...</Text>
+              <View style={[s.checkCircle, recurringOn && { borderColor: paper.line }]}>
+                {recurringOn && <Text style={{ fontSize: 11.5, fontWeight: '900', color: paper.line }}>✓</Text>}
+              </View>
+            </Pressable>
+
+            {/* ── 코스 목록 ── 로딩 ≠ 실패 ≠ 진짜 0건. 실패는 위 라우드 페일 스트립이 이미 말했다 */}
+            <Text style={s.foldHead}>코스 목록</Text>
+            {routesState === 'loading' ? (
+              <Text style={[s.routeNote, { marginTop: 8, marginBottom: 0 }]}>코스를 불러오는 중...</Text>
+            ) : routesState === 'error' ? (
+              <Text style={[s.routeNote, { marginTop: 8, marginBottom: 0 }]}>코스를 불러오지 못했어요 — 위에서 다시 시도할 수 있어요</Text>
             ) : routes.length === 0 ? (
-              <Text style={[s.routeNote, { marginTop: 20, marginBottom: 0 }]}>지금 예약할 수 있는 코스가 없어요 — 이대로 예약하면 코스 없이 접수돼요</Text>
+              <Text style={[s.routeNote, { marginTop: 8, marginBottom: 0 }]}>지금 예약할 수 있는 코스가 없어요 — 이대로 예약하면 코스 없이 접수돼요</Text>
             ) : (
               <>
-                {/* ── 제약 칩: 폴드 **밖**. 코스 선택이 존재한다는 사실이 접기 상태와 무관하게 보여야
-                    오버라이드율이 수요를 재지, 발견 가능성을 재지 않는다 (PR-0 계측 무결성) ── */}
+                {/* 제약 칩 — '정보가 아직 없는 코스 N개는 빠졌어요' 정직 줄이 이 컴포넌트 안에 산다 */}
                 <RouteChipRow
                   routes={routes} chips={chips} litAuto={litAuto}
-                  onToggle={toggleChip} style={{ marginTop: 20 }}
+                  onToggle={toggleChip} style={{ marginTop: 10 }}
                 />
-
-                {/* 지도로 보기 — 코스 선택을 폴드 밖으로 한 번 더 꺼내는 출구. 지도 화면은
-                    draft.routeId만 바꾸고 돌아오므로, candidate 확인 의식과 스냅샷 스탬프는
-                    이 화면이 계속 소유한다(게이트가 두 곳에 흩어지면 둘 다 반쪽이 된다). */}
-                <Pressable
-                  onPress={() => router.push('/owner/course-map')}
-                  style={[s.mapEntry, { marginTop: 12 }]}
-                  accessibilityRole="button"
-                  accessibilityLabel="코스를 지도로 보기"
-                >
-                  <Text style={{ fontSize: 14.5, fontWeight: '800', color: paper.ink }}>지도로 코스 보기</Text>
-                  <Text style={{ fontSize: 14, fontWeight: '800', color: paper.dim }}>›</Text>
-                </Pressable>
-
-                <Pressable onPress={() => setCourseOpen((v) => !v)} style={[s.foldRow, { marginTop: 8 }]} accessibilityRole="button" accessibilityLabel="배정 코스 변경">
-                  <Row style={{ justifyContent: 'space-between' }}>
-                    <Text style={{ flex: 1, fontSize: 14.5, color: paper.text }} numberOfLines={1}>
-                      배정 코스 — <Text style={{ fontWeight: '800', color: paper.ink }}>{selRoute?.name ?? '미배정'}</Text>
-                      {selRoute ? ` · ${selRoute.km}km · ${selRoute.checkedAt}` : ''}
-                    </Text>
-                    <Text style={{ fontSize: 14, fontWeight: '800', color: paper.dim }}>{courseOpen ? '접기 ▴' : '변경 ▾'}</Text>
-                  </Row>
-                  {/* 어두운 슬롯 × 조명 없는 코스 = 칩과 무관하게 항상 말한다. 칩은 필터고,
-                      이건 배정 결과에 대한 안전 고지다 — 필터를 꺼도 사실은 변하지 않는다. */}
-                  {selRoute && darkSlot && selRoute.lighting === 'none' && (
-                    <Text style={{ fontSize: 14, fontWeight: '800', color: paper.pending, marginTop: 5 }}>
-                      이 시간대엔 조명이 없는 코스예요 — 다른 코스나 시간을 확인해주세요
-                    </Text>
-                  )}
-                  {/* km 불일치는 접혀 있어도 정직하게 (find-now와 동일 원칙) */}
-                  {selRoute && selRoute.km !== km && (
-                    <Text style={{ fontSize: 14, fontWeight: '800', color: paper.pending, marginTop: 5 }}>
-                      선택 거리와 달라요 — 요금·기록은 {fmtKm(km)}km 기준
-                    </Text>
-                  )}
-                </Pressable>
-                {courseOpen && (
-                  <>
-                    {/* 지리 고지 — 코스와 픽업지는 별개라는 걸 예약 전에 정직하게 (좌표 모델링 전 v1) */}
-                    <Text style={{ fontSize: 14, color: paper.dim, marginTop: 10, marginBottom: 10 }}>
-                      픽업 후 코스까지는 러너가 아이와 함께 이동해요
-                      {/* 정렬 근거를 말한다 — 그리고 **직선거리**라고 말한다. 하버사인은 이동
-                          거리가 아니라 두 점 사이 직선이라, 강·울타리·고가로 막힌 300m가
-                          돌아가면 1.5km일 수 있다. '가장 빠른'이라고 하면 그건 거짓말이다. */}
-                      {pickup ? '\n픽업지에서 가까운 순으로 보여드려요 (직선거리 기준)' : ''}
-                    </Text>
-                    {shownRoutes.length === 0 && (
-                      // 막다른 길을 만들지 않는다: 어떤 조건이 0으로 만들었는지 이름을 대고,
-                      // 한 탭으로 풀 수 있게 한다. '조건에 맞는 코스가 없어요'로 끝내면 의도가
-                      // 가장 높은 순간에 화면이 멈춘다.
-                      <View style={{ marginBottom: 10 }}>
-                        <Text style={[s.routeNote, { marginTop: 0, marginBottom: 8 }]}>
-                          {emptyChipCopy(chips)}
-                        </Text>
-                        <Pressable
-                          onPress={clearChips}
-                          style={s.filterChip} accessibilityRole="button" accessibilityLabel="필터 모두 해제"
-                        >
-                          <Text style={{ fontSize: 14, fontWeight: '800', color: paper.ink }}>필터 해제</Text>
-                        </Pressable>
-                      </View>
-                    )}
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingRight: 12 }}>
-                      {shownRoutes.map((r) => {
-                        const sel = routeId === r.id;
-                        return (
-                          <Pressable
-                            key={r.id}
-                            onPress={() => {
-                              if (r.status === 'candidate' && candidateAck !== r.id) {
-                                // 점검 전 코스는 '알고 고르는' 행위여야 한다. 확인 없이는 선택도
-                                // 되지 않는다 — 서버도 candidate_ack 없이는 거절하므로, 여기서
-                                // 막지 않으면 보호자는 나중에 이유 없는 에러를 만난다.
-                                Alert.alert(
-                                  '아직 점검 전 코스예요',
-                                  `${r.name}은 지도에 그려두기만 했고, 아직 반려견과 함께 달려본 적이 없어요. 첫 러닝이 이 코스의 점검이 됩니다.`,
-                                  [
-                                    { text: '다른 코스 볼게요', style: 'cancel' },
-                                    {
-                                      text: '점검 전 코스로 예약',
-                                      onPress: () => {
-                                        setCandidateAck(r.id);
-                                        setRouteId(r.id);
-                                        setPickSource({ mode: 'manual', origin: 'carousel' });
-                                      },
-                                    },
-                                  ],
-                                );
-                                return;
-                              }
-                              setRouteId(r.id);
-                              setPickSource({ mode: 'manual', origin: 'carousel' });
-                            }}
-                            style={[s.routeCard, sel && { borderColor: paper.line, borderWidth: 2 }]}
-                          >
-                            {/* 적합도·★추천 배지 퇴역 (item 6) — 실 스코어러 없음. 모든 코스는 동등한 '안심 코스' */}
-                            {/* 선택 = 2px 코랄 보더 (볼트 글로우 은퇴) — 다크는 포토맵 안에만 남는다 */}
-                            {/* candidate는 '안심 코스'라고 부르지 않는다 — 점검을 주장하지 않는 게
-                                이 배지의 유일한 일. (0082 D-VIS: 예약은 되지만 의도적으로만) */}
-                            <View style={[s.routeTab, r.status === 'candidate' && { backgroundColor: paper.pending }]}>
-                              <Text style={{ fontSize: 14, fontWeight: '900', color: '#fff' }}>
-                                {r.status === 'candidate' ? '점검 예정' : '안심 코스'}
-                              </Text>
-                            </View>
-
-                            <Row style={{ gap: 5, marginTop: 22 }}>
-                              <Text style={{ fontSize: 17, fontWeight: '900', color: paper.ink }} numberOfLines={1}>{r.name}</Text>
-                              {/* ✓는 실제로 점검된 코스에만. checkedAt이 null인데 ✓를 그리던 자리 = 하지 않은 점검의 주장 */}
-                              {r.status === 'active' && (
-                                <View style={s.certBadge}><Text style={{ fontSize: 9, fontWeight: '900', color: '#fff' }}>✓</Text></View>
-                              )}
-                            </Row>
-                            <Text style={{ fontSize: 14, color: paper.text, marginTop: 2 }}>
-                              {/* checkedAt이 이미 '7.15 점검' 형태 — '점검' 재접미 금지 (점검 점검 버그) */}
-                              {r.area} · {r.km}km · {r.terrain} · {r.checkedAt}
-                            </Text>
-                            {r.km !== km && (
-                              <View style={s.kmMismatch}>
-                                <Text style={{ fontSize: 14, fontWeight: '800', color: paper.pending }}>
-                                  선택 거리와 달라요 — 요금·기록은 {fmtKm(km)}km 기준
-                                </Text>
-                              </View>
-                            )}
-
-                            <View style={s.routeMap}>
-                              {/* 실좌표(routes.trace)가 없으면 코스 모양을 지어내지 않는다 — 빈 슬롯이 정직 */}
-                              {r.trace.length > 1 ? (
-                                <HeatTrace points={traceToBox(r.trace)} width={208} height={92} />
-                              ) : (
-                                <View style={s.mapPending}>
-                                  <Text style={s.mapPendingTxt}>코스 지도 준비 중</Text>
-                                </View>
-                              )}
-                              {/* 코스 미리보기 — 트레이스·설명·점검일·우리 기록 (탭=선택은 카드가, 미리보기는 이 칩만) */}
-                              <Pressable onPress={() => router.push(`/course/${r.id}`)} style={s.previewChip} hitSlop={6}>
-                                <Text style={{ fontSize: 14, fontWeight: '900', color: paper.ink }}>미리보기 ›</Text>
-                              </Pressable>
-                            </View>
-
-                            <Row style={{ gap: 4, marginTop: 9, flexWrap: 'wrap' }}>
-                              {r.tags.map((tag) => (
-                                <View key={tag} style={s.routeTag}>
-                                  <Text style={{ fontSize: 14, fontWeight: '700', color: paper.text }}>{tag}</Text>
-                                </View>
-                              ))}
-                            </Row>
-                            <Text style={{ fontSize: 14, color: paper.text, marginTop: 8, lineHeight: 17 }} numberOfLines={2}>{r.desc}</Text>
-                          </Pressable>
-                        );
-                      })}
-                    </ScrollView>
-                  </>
-                )}
-              </>
-            )}
-
-            <Pressable onPress={() => goStep(2)} style={({ pressed }) => [s.nextBtn, pressed && { backgroundColor: paper.actionPressed }]} accessibilityRole="button" accessibilityLabel="다음 단계">
-              <Text style={{ fontSize: 17, fontWeight: '800', color: '#FFFFFF' }}>{fmtKm(km)}km — 다음 ›</Text>
-            </Pressable>
-          </>
-        )}
-
-        {/* ════════ STEP 2 — 확인 ════════ */}
-        {step === 2 && (
-          <>
-            <Text style={[{ fontSize: 25, color: paper.ink, lineHeight: 34, marginTop: 22 }, df]}>이대로 예약할까요?</Text>
-
-            {/* every row is a door back to its step — progress stays reversible */}
-            <View style={s.sumCard}>
-              <Pressable onPress={() => goStep(0)} style={s.sumRow} accessibilityRole="button" accessibilityLabel="누가 어디서 변경">
-                <Text style={s.sumLabel}>누가 · 어디서</Text>
-                <Text style={s.sumValue} numberOfLines={1}>
-                  {myDog ? myDog.name : dogTicketLabel} · {pickupAddr ? pickupAddr.label : addrState === 'error' ? '주소 확인 실패' : addrState === 'loading' ? '주소 확인 중' : '주소 미등록'}
+                {/* 지리 고지 — 코스와 픽업지는 별개라는 걸 예약 전에 정직하게 (좌표 모델링 전 v1) */}
+                <Text style={{ fontSize: 14, color: paper.dim, marginTop: 10, marginBottom: 10 }}>
+                  픽업 후 코스까지는 러너가 아이와 함께 이동해요
+                  {/* 정렬 근거를 말한다 — 그리고 **직선거리**라고 말한다. 하버사인은 이동
+                      거리가 아니라 두 점 사이 직선이라, 강·울타리·고가로 막힌 300m가
+                      돌아가면 1.5km일 수 있다. '가장 빠른'이라고 하면 그건 거짓말이다. */}
+                  {pickup ? '\n픽업지에서 가까운 순으로 보여드려요 (직선거리 기준)' : ''}
                 </Text>
-                <Text style={s.sumGlyph}>›</Text>
-              </Pressable>
-              <Pressable onPress={() => setSlotSheet(true)} style={s.sumRow} accessibilityRole="button" accessibilityLabel="시간 변경">
-                <Text style={s.sumLabel}>언제</Text>
-                <Text style={s.sumValue} numberOfLines={1}>{timeLabel}</Text>
-                <Text style={s.sumGlyph}>›</Text>
-              </Pressable>
-              <Pressable onPress={() => goStep(1)} style={s.sumRow} accessibilityRole="button" accessibilityLabel="거리와 코스 변경">
-                <Text style={s.sumLabel}>거리 · 코스</Text>
-                <View style={{ flex: 1, alignItems: 'flex-end' }}>
-                  <Text style={[s.sumValue, { flex: 0 }]} numberOfLines={1}>
-                    {fmtKm(km)}km · {selRoute?.name ?? '코스 없이 예약'}
-                  </Text>
-                  {selRoute && selRoute.km !== km && (
-                    <Text style={{ fontSize: 14, fontWeight: '800', color: paper.pending, marginTop: 2 }}>요금·기록은 {fmtKm(km)}km 기준</Text>
-                  )}
-                </View>
-                <Text style={s.sumGlyph}>›</Text>
-              </Pressable>
-              <Pressable onPress={() => setPaceOpen((v) => !v)} style={s.sumRow} accessibilityRole="button" accessibilityLabel="페이스 변경">
-                <Text style={s.sumLabel}>페이스</Text>
-                <Text style={s.sumValue} numberOfLines={1}>{pace}</Text>
-                <Text style={s.sumGlyph}>{paceOpen ? '▴' : '▾'}</Text>
-              </Pressable>
-              {paceOpen && (
-                <Row style={{ gap: 10, paddingHorizontal: 12, paddingBottom: 13 }}>
-                  {PACES.map((pc) => {
-                    const sel = pace === pc;
+                {shownRoutes.length === 0 && (
+                  // 막다른 길을 만들지 않는다: 어떤 조건이 0으로 만들었는지 이름을 대고,
+                  // 한 탭으로 풀 수 있게 한다.
+                  <View style={{ marginBottom: 10 }}>
+                    <Text style={[s.routeNote, { marginTop: 0, marginBottom: 8 }]}>
+                      {emptyChipCopy(chips)}
+                    </Text>
+                    <Pressable
+                      onPress={clearChips}
+                      style={s.filterChip} accessibilityRole="button" accessibilityLabel="필터 모두 해제"
+                    >
+                      <Text style={{ fontSize: 14, fontWeight: '800', color: paper.ink }}>필터 해제</Text>
+                    </Pressable>
+                  </View>
+                )}
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingRight: 12 }}>
+                  {shownRoutes.map((r) => {
+                    const sel = routeId === r.id;
                     return (
-                      <Pressable key={pc} onPress={() => setPace(pc)} style={[s.paceChip, sel && s.paceChipSel]}>
-                        <Row style={{ gap: 2.5, alignItems: 'flex-end', marginBottom: 7 }}>
-                          {[7, 10, 13].map((h, bi) => (
-                            <View key={bi} style={{
-                              width: 4.5, height: h,
-                              backgroundColor: sel ? (bi < 2 ? '#FFFFFF' : '#555555') : (bi < 2 ? '#BBBBBB' : '#E8E8E8'),
-                            }} />
+                      <Pressable
+                        key={r.id}
+                        onPress={() => {
+                          if (r.status === 'candidate' && candidateAck !== r.id) {
+                            // 점검 전 코스는 '알고 고르는' 행위여야 한다. 확인 없이는 선택도
+                            // 되지 않는다 — 서버도 candidate_ack 없이는 거절하므로, 여기서
+                            // 막지 않으면 보호자는 나중에 이유 없는 에러를 만난다.
+                            Alert.alert(
+                              '아직 점검 전 코스예요',
+                              `${r.name}은 지도에 그려두기만 했고, 아직 반려견과 함께 달려본 적이 없어요. 첫 러닝이 이 코스의 점검이 됩니다.`,
+                              [
+                                { text: '다른 코스 볼게요', style: 'cancel' },
+                                {
+                                  text: '점검 전 코스로 예약',
+                                  onPress: () => {
+                                    setCandidateAck(r.id);
+                                    setRouteId(r.id);
+                                    setPickSource({ mode: 'manual', origin: 'carousel' });
+                                  },
+                                },
+                              ],
+                            );
+                            return;
+                          }
+                          setRouteId(r.id);
+                          setPickSource({ mode: 'manual', origin: 'carousel' });
+                        }}
+                        style={[s.routeCard, sel && { borderColor: paper.line, borderWidth: 2 }]}
+                      >
+                        {/* 적합도·★추천 배지 퇴역 (item 6) — 실 스코어러 없음. 모든 코스는 동등한 '안심 코스' */}
+                        {/* candidate는 '안심 코스'라고 부르지 않는다 — 점검을 주장하지 않는 게
+                            이 배지의 유일한 일. (0082 D-VIS: 예약은 되지만 의도적으로만) */}
+                        <View style={[s.routeTab, r.status === 'candidate' && { backgroundColor: paper.pending }]}>
+                          <Text style={{ fontSize: 14, fontWeight: '900', color: '#fff' }}>
+                            {r.status === 'candidate' ? '점검 예정' : '안심 코스'}
+                          </Text>
+                        </View>
+
+                        <Row style={{ gap: 5, marginTop: 22 }}>
+                          <Text style={{ fontSize: 17, fontWeight: '900', color: paper.ink }} numberOfLines={1}>{r.name}</Text>
+                          {/* ✓는 실제로 점검된 코스에만. checkedAt이 null인데 ✓를 그리던 자리 = 하지 않은 점검의 주장 */}
+                          {r.status === 'active' && (
+                            <View style={s.certBadge}><Text style={{ fontSize: 9, fontWeight: '900', color: '#fff' }}>✓</Text></View>
+                          )}
+                        </Row>
+                        <Text style={{ fontSize: 14, color: paper.text, marginTop: 2 }}>
+                          {/* checkedAt이 이미 '7.15 점검' 형태 — '점검' 재접미 금지 (점검 점검 버그) */}
+                          {r.area} · {r.km}km · {r.terrain} · {r.checkedAt}{totalSuffix(r, pickup)}
+                        </Text>
+                        {r.km !== km && (
+                          <View style={s.kmMismatch}>
+                            <Text style={{ fontSize: 14, fontWeight: '800', color: paper.pending }}>
+                              선택 거리와 달라요 — 요금·기록은 {fmtKm(km)}km 기준
+                            </Text>
+                          </View>
+                        )}
+
+                        <View style={s.routeMap}>
+                          {/* 실좌표(routes.trace)가 없으면 코스 모양을 지어내지 않는다 — 빈 슬롯이 정직 */}
+                          {r.trace.length > 1 ? (
+                            <HeatTrace points={traceToBox(r.trace)} width={208} height={92} />
+                          ) : (
+                            <View style={s.mapPending}>
+                              <Text style={s.mapPendingTxt}>코스 지도 준비 중</Text>
+                            </View>
+                          )}
+                          {/* 코스 미리보기 — 트레이스·설명·점검일·우리 기록 (탭=선택은 카드가, 미리보기는 이 칩만) */}
+                          <Pressable onPress={() => router.push(`/course/${r.id}`)} style={s.previewChip} hitSlop={6}>
+                            <Text style={{ fontSize: 14, fontWeight: '900', color: paper.ink }}>미리보기 ›</Text>
+                          </Pressable>
+                        </View>
+
+                        <Row style={{ gap: 4, marginTop: 9, flexWrap: 'wrap' }}>
+                          {r.tags.map((tag) => (
+                            <View key={tag} style={s.routeTag}>
+                              <Text style={{ fontSize: 14, fontWeight: '700', color: paper.text }}>{tag}</Text>
+                            </View>
                           ))}
                         </Row>
-                        <Text style={{ fontSize: 15.5, fontWeight: '900', color: sel ? '#fff' : paper.ink }}>{pc}</Text>
+                        <Text style={{ fontSize: 14, color: paper.text, marginTop: 8, lineHeight: 17 }} numberOfLines={2}>{r.desc}</Text>
                       </Pressable>
                     );
                   })}
-                </Row>
-              )}
-              <Pressable onPress={() => setOptsOpen((v) => !v)} style={[s.sumRow, !optsOpen && { borderBottomWidth: 0 }]} accessibilityRole="button" accessibilityLabel="옵션과 매주 반복 변경">
-                <Text style={s.sumLabel}>옵션 · 매주 반복</Text>
-                <Text style={s.sumValue} numberOfLines={1}>
-                  {addons.length > 0 ? addons.map((k) => pricing.addons[k].label).join(' · ') : '없음'} · {recurringOn ? '켜짐' : '꺼짐'}
-                </Text>
-                <Text style={s.sumGlyph}>{optsOpen ? '▴' : '▾'}</Text>
-              </Pressable>
-              {optsOpen && (
-                <View style={{ paddingHorizontal: 12, paddingBottom: 13 }}>
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-                    {(Object.keys(pricing.addons) as AddonKey[]).map((k) => {
-                      const a = pricing.addons[k];
-                      const sel = addons.includes(k);
-                      // 선택 = 코랄 보더 + 코랄 체크 (볼트 필 은퇴) — 잉크 필은 칩 전용, 카드는 보더로 말한다
-                      return (
-                        <Pressable key={k} onPress={() => toggleAddon(k)} style={[s.addon, sel && { borderColor: paper.line }]}>
-                          <Row style={{ justifyContent: 'space-between' }}>
-                            <View style={s.addonIcon}><Icon name={ADDON_ICONS[k] ?? 'Plus'} glyph="●" size={16} color={paper.dim} /></View>
-                            <View style={[s.checkCircle, sel && { borderColor: paper.line }]}>
-                              {sel && <Text style={{ fontSize: 11.5, fontWeight: '900', color: paper.line }}>✓</Text>}
-                            </View>
-                          </Row>
-                          <Text style={{ fontSize: 16, fontWeight: '900', color: paper.ink, marginTop: 10 }}>{a.label}</Text>
-                          <Text style={{ fontSize: 14.5, color: paper.dim, marginTop: 2 }}>{a.desc}</Text>
-                          {/* price = Oswald — lineHeight 19 ≥ 1.26x (BUG A) */}
-                          <Text style={[{ fontSize: 15, fontWeight: '900', color: paper.ink, marginTop: 8, lineHeight: 19 }, nf]}>+{a.price.toLocaleString()}원</Text>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                  {/* 매주 반복 (0026) — 구독형 동의: 가격·주기·해지 자유를 토글 안에 전부 명시 (다크패턴 금지) */}
-                  <Pressable
-                    onPress={() => setRecurringOn((v) => !v)}
-                    style={[s.recurRow, recurringOn && { borderColor: paper.line }]}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 16, fontWeight: '900', color: paper.ink }}>⟳ 매주 반복</Text>
-                      <Text style={{ fontSize: 14.5, color: paper.dim, marginTop: 3, lineHeight: 18 }}>
-                        매주 같은 요일·시간에 자동 예약 · 회당 {fmtWon(total)} · 같은 러너 우선 · 일정 탭에서 언제든 해지
-                      </Text>
-                    </View>
-                    <View style={[s.checkCircle, recurringOn && { borderColor: paper.line }]}>
-                      {recurringOn && <Text style={{ fontSize: 11.5, fontWeight: '900', color: paper.line }}>✓</Text>}
-                    </View>
-                  </Pressable>
-                </View>
-              )}
-            </View>
+                </ScrollView>
+              </>
+            )}
 
-            {/* price breakdown — the 확인 step carries the money truth; total lives on the ticket */}
+            {/* 금액 내역 — 위의 '예상 금액'과 같은 total에서 나온 분해다 (두 번째 가격이 아니라 내역) */}
             <View style={s.feeCard}>
               <FeeRow label="기본 요금" value={fmtWon(pricing.ownerBaseFare)} />
               <FeeRow label={`거리 (${fmtKm(km)}km)`} value={fmtWon(km * pricing.perKm)} />
@@ -974,64 +1088,24 @@ export default function Request() {
         )}
       </ScrollView>
 
-      {/* 티켓 푸터 — 확인 단계에만 (Ⓒ①: 최종 화면이 가격과 단 하나의 CTA를 진다) */}
-      {/* [Sean 2026-08-11] 티켓이 기기 하단 베젤에 붙어 보이던 문제 — bottom이 고정 26이었다.
-          홈 인디케이터 인셋만 34라서 26은 인디케이터보다 아래로 깔렸고, '떠 있는 티켓'이 아니라
-          '바닥에 낀 바'로 읽혔다. 인셋 + 12로 띄운다 (인디케이터 없는 기기에서는 12+0 → 종전보다
-          낮지 않게 최소 18을 깐다). 이 화면의 유일한 CTA라 Fitts상으로도 바닥에 붙일 이유가 없다. */}
-      {step === 2 && (
-        <View style={[s.ticket, { bottom: Math.max(18, insets.bottom + 12) }]}>
-          <Row style={{ gap: 11, alignItems: 'center' }}>
-            {/* 아이가 확인되기 전엔 아바타도 이름도 없다 — 목업 초코 얼굴이 티켓에 앉아 있던 자리 */}
-            {myDog && <Avatar url={myDog.photoUrl} char={myDog.name.slice(0, 1)} bg={colors.ink} size={40} />}
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 16, fontWeight: '900', color: '#fff' }} numberOfLines={1}>
-                {myDog
-                  ? <Text>{myDog.name}</Text>
-                  : <Text style={{ fontSize: 14.5, fontWeight: '700', color: '#B8B8B8' }}>{dogTicketLabel}</Text>}
-                {/* km 하이라이트 — 탱 → 코랄 (잉크 티켓 위 브랜드 라인 색으로 승계) */}
-                {' · '}<Text style={{ color: paper.line }}>{fmtKm(km)}km</Text> · {pace}
-              </Text>
-              <Text style={{ fontSize: 14.5, color: '#B8B8B8', marginTop: 2 }} numberOfLines={1}>
-                {routes.find((r) => r.id === routeId)?.name ?? '코스 없이 예약돼요'}{/* [리뷰 F3] '코스 선택'은 불가능한 지시였다 — 정직하게 결과를 말한다 */}
-              </Text>
-            </View>
-            <Pressable onPress={() => setSlotSheet(true)} style={s.timeChip}>
-              {/* 16pt button floor — maxWidth 144 fits "8월 12일 19:30"; numberOfLines guards overflow */}
-              <Text style={{ fontSize: 16, fontWeight: '900', color: paper.ink }} numberOfLines={1}>
-                {draft.scheduledAtIso ? timeLabel : '시간 선택 ›'}
-              </Text>
-            </Pressable>
-          </Row>
-
-          {/* 절취선 */}
-          <View style={{ marginVertical: 13, height: 1 }}>
-            <View style={s.tickDash} />
-            <View style={[s.notch, { left: -28 }]} />
-            <View style={[s.notch, { right: -28 }]} />
-          </View>
-
-          <Row style={{ alignItems: 'center' }}>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 14, color: '#999999' }}>총 결제 금액</Text>
-              {/* total = Oswald + explicit lineHeight 36 (1.26x) — BUG A: ascenders clip without it */}
-              <Text style={[{ fontSize: 28.5, fontWeight: '900', color: '#fff', marginTop: 1, lineHeight: 36 }, nf]}>
-                {/* [2026-08-10] fmtWon appends 원 — the extra suffix span double-printed it ("24,900원 원",
-                    pre-existing). Raw digits keep the Oswald run pure; the small suffix carries the unit. */}
-                {total.toLocaleString('ko-KR')}<Text style={{ fontSize: 15, color: '#B8B8B8' }}> 원</Text>
-              </Text>
-            </View>
-            {/* PaperBtn-primary 문법 + scale 0.96 프레스 (하우스 패턴) — 잉크 티켓 위라 코랄 1px가 면을 세운다 */}
-            <Pressable onPress={pay} style={({ pressed }) => [s.payBtn, pressed && { transform: [{ scale: 0.96 }] }]}>
-              {/* 라벨 스왑 = 이 화면의 문법 ('시간부터 ›' 선례). 버튼을 disabled로 죽이지 않는다 —
-                  누르면 다음에 해야 할 일로 데려간다 (등록 → 시간 → 결제) */}
-              <Text style={{ fontSize: 17, fontWeight: '800', color: '#FFFFFF' }}>
-                {chargeLocked ? '결제 문제부터 ›' : dogsState === 'error' ? '반려견 확인 다시 ›' : dogsState === 'loading' && !myDog ? '반려견 확인 중 ›' : !myDog ? '반려견부터 ›' : !draft.scheduledAtIso ? '시간부터 ›' : '결제하기 ›'}
-              </Text>
-            </Pressable>
-          </Row>
-        </View>
-      )}
+      {/* ════════ 고정 CTA 도크 (RULING 6: 굵은 글자 + 작은 화살표) ════════ */}
+      {/* 도크는 화면 맨 아래까지 **불투명**하다 — 바와 홈 인디케이터 사이로 스크롤 콘텐츠가
+          비쳐 보이면 '떠 있는 CTA'가 아니라 반쯤 가린 콘텐츠로 읽힌다. 세이프에어리어는
+          도크 안쪽 패딩으로 존중한다. 위 가장자리는 코랄 헤어라인 1px.
+          라벨 스왑 = 이 화면의 문법 — 버튼을 disabled로 죽이지 않는다. 누르면 다음에 해야 할
+          일로 데려간다 (결제 관리 → 반려견 등록 → 시간 시트 → 예약 확인). */}
+      <View style={[s.ctaDock, { paddingBottom: ctaDockPadBottom }]}>
+        <Pressable
+          onPress={pay}
+          style={({ pressed }) => [s.ctaBar, pressed && { backgroundColor: paper.actionPressed }]}
+          accessibilityRole="button"
+          accessibilityLabel={ctaLabel}
+        >
+          <Text style={{ fontSize: 17, fontWeight: '800', color: '#FFFFFF' }}>
+            {ctaLabel}<Text style={{ fontSize: 14 }}> ›</Text>
+          </Text>
+        </Pressable>
+      </View>
 
       {/* ---------- time-slot bottom sheet ---------- */}
       <Modal visible={slotSheet} transparent animationType="slide" onRequestClose={() => setSlotSheet(false)}>
@@ -1155,9 +1229,10 @@ function KmDial({ km, onChange }: { km: number; onChange: (v: number) => void })
         <Text style={[{ fontSize: 54, fontWeight: '900', color: paper.ink, lineHeight: 68 }, nf]}>
           {fmtKm(km)}<Text style={{ fontSize: 21 }}>km</Text>
         </Text>
-        <Text style={[{ fontSize: 17, fontWeight: '800', color: paper.text, lineHeight: 22 }, nf]}>
-          {price.toLocaleString('ko-KR')}원
-        </Text>
+        {/* [2026-08-19 §C] 다이얼 내부의 17pt 가격 줄은 은퇴했다 — 예상 금액은 화면에 한 번만
+            나오고, 그 한 번은 부모가 total(애드온 포함)로 그린다. 여기 남기면 애드온을 더한
+            순간 두 숫자가 서로 다른 금액을 주장한다. accessibilityValue의 가격은 남는다:
+            스크린리더 경로는 '보이는 두 번째 금액'이 아니다. */}
       </View>
 
       <Row style={{ gap: 10, marginTop: 14, alignItems: 'center' }}>
@@ -1213,11 +1288,6 @@ const s = StyleSheet.create({
   // ── 페이퍼 크롬 (2026-08-10 리페인트) — 샤프 코너 · 코랄 1px · 잉크 선택 문법 ──
   // [2026-08-11 Ⓒ①] SectionHead(글리프 키커·서브) 은퇴 — §3b: 섹션 장식 없이 스텝 질문이 헤더다
   // km 불일치 고지 — 앰버는 시맨틱(대기/주의)이라 생존, 크롬만 샤프 (pending 잉크 + 1px 보더)
-  mapEntry: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    borderWidth: 1.5, borderColor: paper.line, paddingHorizontal: 13,
-    minHeight: 44,   // 44pt 터치 타깃
-  },
   filterChip: {
     backgroundColor: '#FFFFFF', borderWidth: 1.5, borderColor: paper.line,
     paddingVertical: 7, paddingHorizontal: 12, alignSelf: 'flex-start',
@@ -1230,27 +1300,59 @@ const s = StyleSheet.create({
   circleBtn: { width: 40, height: 40, backgroundColor: paper.canvas, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: paper.line },
   // 지명 러너 상태 칩 — §3b status chip (16/800 · tinted fill · no border)
   prefChip: { backgroundColor: paper.wash, paddingVertical: 8, paddingHorizontal: 12, alignSelf: 'center' },
-  // ── Ⓒ① stepper chrome ──
-  stepSeg: { flex: 1, height: 4, backgroundColor: '#EEEEEE' },
-  // collapsed summary/fold row — the off-surface home of every non-question decision
-  foldRow: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE', paddingVertical: 13, paddingHorizontal: 14, marginTop: 14 },
-  // step primary — §3b primary button (ink face · white 17/800 · padding ≥15 · radius 0)
-  // [액션] 스텝 진행 = 이 화면이 원하는 단 하나 -> 프라이머리 코랄.
-  nextBtn: { backgroundColor: paper.action, paddingVertical: 16, alignItems: 'center', marginTop: 20 },
-  // §3b secondary — canvas + coral 1px, ink 16/800, wash pressed
-  earliestBtn: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line, paddingVertical: 15, alignItems: 'center', marginTop: 10 },
-  // 확인 summary card — the one emphasis card (coral 1px); rows split by neutral hairlines
-  sumCard: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line, marginTop: 16 },
-  sumRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: '#F4F4F4' },
-  sumLabel: { fontSize: 14, color: paper.dim, width: 104 },
-  sumValue: { flex: 1, fontSize: 15, fontWeight: '800', color: paper.ink, textAlign: 'right' },
-  sumGlyph: { fontSize: 14, fontWeight: '800', color: paper.dim, marginLeft: 10 },
-  feeCard: { borderWidth: 1, borderColor: '#EEEEEE', padding: 12, paddingTop: 6, marginTop: 14 },
+  // ── §C preference rows — 랩의 `.row` 문법: 딤 라벨 왼쪽 · 굵은 값 오른쪽 · 작은 액션 링크 ──
+  // 그룹 위 헤어라인은 뉴트럴(#EEE)이다: 코랄 풀블리드 룰은 **섹션 구분**의 문법이고, 이건
+  // 한 목록 안의 행 구분선이다 (기존 sumRow가 쓰던 것과 같은 계급).
+  rowGroup: { marginTop: 18, borderTopWidth: 1, borderTopColor: '#EEEEEE' },
+  prefRow: {
+    flexDirection: 'row', alignItems: 'flex-start',
+    paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#EEEEEE',
+    minHeight: 52,   // 44pt 터치 타깃 이상
+  },
+  prefLabel: { fontSize: 14, color: paper.dim, width: 56, marginTop: 1 },
+  prefValueBox: { flex: 1, alignItems: 'flex-end' },
+  prefValue: { fontSize: 15, fontWeight: '800', color: paper.ink, textAlign: 'right' },
+  // 값 옆의 부연(‘· 가장 빠른’, 품종·체중) — 값과 같은 줄이되 사실의 무게가 다르다
+  prefValueSoft: { fontSize: 14, fontWeight: '600', color: paper.dim },
+  // 값이 아니라 **상태**를 말하는 자리 (주소 로딩·실패·미등록) — 굵은 잉크로 그리면 주소로 읽힌다
+  prefValueState: { fontSize: 14, color: paper.dim, textAlign: 'right' },
+  prefAction: { fontSize: 14, fontWeight: '800', color: paper.ink, marginLeft: 10, marginTop: 1 },
+  moreRow: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#EEEEEE',
+    minHeight: 52,
+  },
+  foldHead: { fontSize: 14, fontWeight: '800', color: paper.text, marginTop: 18 },
+  // 조용한 고지 줄 — 14pt 디테일 플로어 (§3)
+  quietNote: { fontSize: 14, color: paper.dim, marginTop: 10, lineHeight: 19 },
+  // 예상 금액 — 이 화면의 유일한 금액. 숫자만 Oswald, lineHeight 19 ≥ 1.26x (BUG A)
+  estimate: { fontSize: 14, color: paper.dim, textAlign: 'center', marginTop: 10, lineHeight: 19 },
+  estimateNum: { fontSize: 15, fontWeight: '800', color: paper.ink, lineHeight: 19 },
+  // 배정 결과 고지 (조명 없음 · km 불일치) — 앰버는 시맨틱이라 생존
+  warnNote: { fontSize: 14, fontWeight: '800', color: paper.pending, marginTop: 8, lineHeight: 19 },
+  // ── 코스 큰 넛지 (RULING 5) — 잉크 1.5px 면, 왼쪽에 지도 칸 ──
+  nudge: { flexDirection: 'row', alignItems: 'stretch', borderWidth: 1.5, borderColor: paper.ink, marginTop: 18 },
+  nudgeMap: { width: 96, backgroundColor: '#0e150f', alignItems: 'center', justifyContent: 'center' },
+  nudgeBlank: {
+    width: 96, minHeight: NUDGE_MAP_H, backgroundColor: paper.canvas,
+    borderRightWidth: 1, borderRightColor: '#EEEEEE',
+    alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6,
+  },
+  // ── 고정 헤더 — 랩 §C의 `.top`. paddingTop은 JSX가 세이프에어리어로 주입한다 ──
+  topBar: { backgroundColor: paper.canvas, paddingHorizontal: layout.gutter, paddingBottom: 10 },
+  // ── 고정 CTA 도크 — bottom: 0까지 불투명한 캔버스 면 + 코랄 헤어라인 1px.
+  //    paddingBottom은 JSX가 세이프에어리어로 주입한다 (여기 고정값을 두면 그 값이 이긴다) ──
+  ctaDock: {
+    position: 'absolute', left: 0, right: 0, bottom: 0,
+    backgroundColor: paper.canvas, borderTopWidth: 1, borderTopColor: paper.line,
+    paddingTop: 12, paddingHorizontal: layout.gutter,
+  },
+  // 버튼 자체 — nextBtn 문법(코랄 면 · 흰 17/800) 그대로, 이제 도크 안의 인플로우 요소다
+  ctaBar: { backgroundColor: paper.action, paddingVertical: 16, alignItems: 'center' },
+  feeCard: { borderWidth: 1, borderColor: '#EEEEEE', padding: 12, paddingTop: 6, marginTop: 18 },
   // ── distance dial ──
   dialStepBtn: { width: 44, height: 44, backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line, alignItems: 'center', justifyContent: 'center' },
   dialNeedle: { position: 'absolute', left: '50%', marginLeft: -1, top: -4, width: 2, height: 32, backgroundColor: paper.line },
-  // 누가·어디서 = 강조 카드 (addresses 카드 문법: 캔버스 + 코랄 1px)
-  card: { backgroundColor: paper.canvas, padding: 16, borderWidth: 1, borderColor: paper.line },
   dogSelChip: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE', paddingVertical: 8, paddingHorizontal: 15 },
   // route carousel — 뉴트럴 카드 (#EEE 1px), 선택은 JSX에서 2px 코랄
   routeCard: { width: 240, backgroundColor: paper.canvas, padding: 14, paddingTop: 12, borderWidth: 1, borderColor: '#EEEEEE', overflow: 'hidden' },
@@ -1261,10 +1363,6 @@ const s = StyleSheet.create({
     alignItems: 'center', borderWidth: 1, borderColor: '#EEEEEE',
   },
   paceChipSel: { backgroundColor: paper.ink, borderColor: paper.ink },
-  addrIcon: {
-    width: 34, height: 34, backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE',
-    alignItems: 'center', justifyContent: 'center',
-  },
   // 인증 배지 — CERT_BLUE는 시맨틱(인증 전용)이라 생존, 코너만 스퀘어
   certBadge: {
     width: 15, height: 15, backgroundColor: CERT_BLUE,
@@ -1287,11 +1385,6 @@ const s = StyleSheet.create({
     backgroundColor: paper.criticalWash, borderTopWidth: 1, borderBottomWidth: 1, borderColor: paper.critical,
     paddingVertical: 11, paddingHorizontal: 12,
   },
-  // 등록 전 아바타 슬롯 — 초대(등록)라서 코랄 아웃라인 (실패 아님 — criticalWash 금지)
-  dogAddPlate: {
-    width: 42, height: 42, borderWidth: 1, borderColor: paper.line,
-    backgroundColor: paper.canvas, alignItems: 'center', justifyContent: 'center',
-  },
   routeFailTxt: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: paper.critical, flex: 1 },
   routeFailRetry: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },
   routeNote: { fontSize: 14, color: paper.dim, marginBottom: 10 },
@@ -1301,25 +1394,8 @@ const s = StyleSheet.create({
   addonIcon: { width: 34, height: 34, backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE', alignItems: 'center', justifyContent: 'center' },
   // 체크 슬롯 — 스퀘어 오프. 선택 = 코랄 보더 + 코랄 ✓ (JSX), 볼트 필 은퇴
   checkCircle: { width: 22, height: 22, borderWidth: 1, borderColor: '#EEEEEE', alignItems: 'center', justifyContent: 'center' },
-  ticket: {
-    // 세미 투명 (86%) — 뒤로 스크롤 콘텐츠가 은은히 비치는 플로팅 티켓 (Sean, 2026-07-28).
-    // 다크 티켓 = 아티팩트 (섀도 생존 — 진짜 떠 있다) · 포레스트 → 잉크 패밀리 · 스퀘어 + 코랄 탑 헤어라인
-    // bottom은 JSX에서 세이프에어리어로 주입한다 (아래 주석) — 여기 고정값을 두면 그 값이 이긴다.
-    position: 'absolute', left: 10, right: 10, backgroundColor: '#111111DC',
-    padding: 17, overflow: 'hidden', borderTopWidth: 1, borderTopColor: paper.line,
-    shadowColor: '#111111', shadowOpacity: 0.35, shadowRadius: 10, shadowOffset: { width: 0, height: 5 },
-  },
-  tickDash: { height: 1, borderWidth: 0.7, borderColor: '#3A3A3A', borderStyle: 'dashed' },
-  // 절취 노치 — 티켓 아티팩트의 펀치 홀 (원형이어야 노치로 읽힌다: 크롬 라운드가 아니라 물성)
-  notch: {
-    position: 'absolute', top: -8, width: 16, height: 16, borderRadius: 8, backgroundColor: paper.canvas,
-  },
-  timeChip: {
-    backgroundColor: paper.canvas, paddingVertical: 9, paddingHorizontal: 13,
-    maxWidth: 144, // cage widened for the 16pt label promotion (128 -> 144)
-  },
-  // PaperBtn-primary 문법 — 잉크 면 + 흰 라벨. 잉크 티켓 위라 코랄 1px가 면을 세운다 (§3b: 15pt pad · 17/800)
-  payBtn: { backgroundColor: paper.ink, borderWidth: 1, borderColor: paper.line, paddingVertical: 15, paddingHorizontal: 12 },
+  // [2026-08-19 §C] 다크 티켓 푸터(ticket/tickDash/notch/timeChip/payBtn)는 은퇴했다 —
+  // 확인 스텝이 사라지면서 그 자리가 없어졌고, 총액은 다이얼 아래 예상 금액 한 줄이 진다.
   // slot sheet — 화이트 샤프 시트
   sheetBackdrop: { flex: 1, backgroundColor: '#00000055' },
   sheet: { backgroundColor: paper.canvas, padding: 16, paddingBottom: 40 },
