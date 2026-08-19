@@ -53,6 +53,17 @@ const TOWN = [
   [/^영등포/, '문래동'],      // 영등포구; 현대2차 sits by 문래·안양천
   [/^강서/, '구암동'],        // 강서구
   [/^도봉/, '방학동'],        // 도봉구
+  [/^강북/, '번동'],  // 강북구
+  [/^노원/, '상계동'],  // 노원구
+  [/^금천/, '독산동'],  // 금천구
+  [/^동대문/, '제기동'],  // 동대문구
+  [/^관악/, '봉천동'],  // 관악구
+  [/^양천/, '목동'],  // 양천구
+  [/^구로/, '구로동'],  // 구로구
+  [/^강동/, '강일동'],  // 강동구
+  [/^중랑/, '면목동'],  // 중랑구
+  [/^광진/, '광장동'],  // 광진구
+  [/^종로/, '평창동'],  // 종로구
   [/^중구/, '황학동'],  // 중구; 황학동롯데캐슬
   [/^은평/, '신사동'],  // 은평구; 정은노블스 sits in 신사동(은평)
   [/^서대문/, '홍은동'],  // 서대문구; 홍제마체스터   // 동작구; 경동아파트 sits in 노량진 rather than 동작동
@@ -91,9 +102,21 @@ for (const f of readdirSync(DIR).filter(x => x.endsWith('.gpx'))) {
   const town = (TOWN.find(([re]) => re.test(f)) || [null, null])[1];
   if (!town) { console.error(`SKIP ${f}: no town mapping`); continue; }
 
+  // km must round the way POSTGRES rounds, because routes_name_km_agrees (0100)
+  // checks round(name_km, 1) = km. JS toFixed rounds half-to-even-ish on binary
+  // floats and Postgres rounds half-up: for a measured 5.749 km named "5.75km",
+  // toFixed(1) gave 5.7 while round(5.75,1) gives 5.8, and the INSERT was
+  // rejected. Silently — because I had piped the ingest to /dev/null. Round
+  // half-up explicitly so both sides agree, and never suppress ingest errors.
+  // And the km column comes from the km IN THE NAME when the name carries one,
+  // because that is what the constraint compares. The name and the geometry
+  // already agree within 2% (checked above); the constraint needs them to agree
+  // at 1 decimal, which the geometry-derived value cannot guarantee (5.749 vs a
+  // name of 5.75). One source for two fields, so they cannot disagree.
+  const kmRounded = !isNaN(claimed) ? Math.round(claimed * 10 + 1e-9) / 10 : Math.round(km * 10 + 1e-9) / 10;
   out.push({
     name, town, area: town,
-    km: +km.toFixed(1),
+    km: kmRounded,
     measuredKm: +km.toFixed(3),
     elevationGainM: Math.round(gain),   // no column yet — carried for whoever adds one
     anchor_lat: pts[0].lat, anchor_lng: pts[0].lon,
