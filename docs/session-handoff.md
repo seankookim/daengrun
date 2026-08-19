@@ -1,3 +1,29 @@
+# CATALOG — a length in `routes.name` must agree with `km` (0100, 2026-08-15)
+
+**Live in production.** If a route name ends in a `<number>km` token, that token must round to the
+`km` column. Names without a token are unaffected and always valid.
+
+⚠ **Read this before "cleaning up" route names, because the obvious fix is wrong twice.**
+It was reported that names DISAGREE with `km`. They do not: 26 of 32 names carry a token and
+**all 26 already round to their `km`.** `2.78km` beside `km=2.8` is the name carrying more
+precision than `numeric(4,1)`, not a contradiction — ui handled that at display, correctly.
+And stripping the token from all names is **impossible**: `routes_town_name_key` (0078:36) is
+UNIQUE on `(town, name)`, and three 반포동 loops (1.6 / 4.8 / 5.4 km) share the base name
+`몽마르뜨 언덕 루프`. There the km token is doing IDENTIFICATION work. Renaming them is a product
+decision about what to call three loops, not a data cleanup.
+
+**What the constraint actually buys** is temporal. The names agree because someone kept them
+agreeing by hand every time geometry moved, and that bill was already paid once — upstream re-cut
+`반포 서래섬 리버 루프 3.71km` into a `3.31km` loop mid-sprint and had to remember to rename it.
+Nothing would have complained if they had not. **Now: change `km` without changing the name and
+the write is refused.** Change both in one statement and it passes.
+
+⚠ For anyone writing a table CHECK after this one: mutation M2 removed the `$` anchor from the
+extractor's regex, which made it match mid-name, which made the `::numeric` cast RAISE instead of
+returning false — and the failure surfaced in `70_axes_suite`, which has nothing to do with route
+names. **A table CHECK's blast radius is every writer of the table**, and a predicate that can
+raise instead of returning false turns a validation into an outage.
+
 # CATALOG — `routes.trace` has an element contract (0099, 2026-08-15)
 
 **`routes.trace` and `routes.trace_thumb` are now constrained: an array of `{lat, lng}` objects,
