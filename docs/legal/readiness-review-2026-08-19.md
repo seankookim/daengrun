@@ -290,6 +290,59 @@ true`-only after 0103, stranger-only on this gate — which is why it is now one
 three incidents: **every instrument that can only observe failure will report success when the
 system is dead.**
 
+## 6-ter. CLOSED (negative half), and the exposure window is now bounded and small
+
+`private_only = true` was set via the management API on 2026-08-19. **Re-measured independently
+by this session** — not accepted as relayed:
+
+```
+existing namespace             private=true  -> CHANNEL_ERROR
+existing namespace             private=false -> CHANNEL_ERROR
+hypothetical bumped namespace  private=true  -> CHANNEL_ERROR
+hypothetical bumped namespace  private=false -> CHANNEL_ERROR
+
+end-to-end probe: stranger CHANNEL_ERROR · publisher CHANNEL_ERROR · STRANGER RECEIVED: null
+```
+
+**Control run, because this file's own rule demands it** — an all-CHANNEL_ERROR result is equally
+consistent with a dead credential or a down project. Same anon key, same project, REST read:
+`HTTP 200`. The key is valid and the project is up, so the refusals are genuine authorization
+decisions. The negative instrument says shut, and is not merely broken.
+
+Per §6-bis this is **half** the gate. Closure still requires ui's positive arms green on
+production (owner receives on `run`/`chat`/`bk`, host on `club-chat`), and the flip is revertible
+in one PATCH if any family fails.
+
+### The window, and who was actually in it
+
+Counsel needs this for the §7 question, and it turns out to be the fact that right-sizes
+everything above.
+
+- **Capability window:** the live-map broadcast shipped `2026-07-25` (`ec8ec95`, "real distance,
+  traces, live map"); the club multi-publisher followed `2026-08-02` (`572e9f1`). Closed
+  `2026-08-19`.
+- **Actual data flow — MEASURED against production:** **9 runs, all inside the window**, first
+  `2026-07-28`, last `2026-08-11`. So the channel did carry real 개인위치정보; "no build shipped
+  to the App Store" is true but is not the same statement.
+- **Affected data subjects — MEASURED:** **one distinct runner and one distinct owner**, and
+  across all 9 runs `runner_id = owner_id` — **the same account on both sides.**
+
+So every byte of personal location information that ever traversed the public channel belonged to
+a single self-testing account that was simultaneously the runner and the recipient. **No third
+party's location was ever on it.**
+
+**What this does and does not license.** It does not make the defect less real: the capability was
+live for 25 days and was closed only after being measured. It does substantially change §7 — the
+notification duty under 개인정보 보호법 제34조 runs to affected 정보주체, and the affected
+population here is one account that was its own recipient. That is a materially different question
+from the one §7 poses in the abstract, and counsel should be asked it *with these numbers
+attached* rather than in general terms.
+
+**The honest limit of this finding:** this session established that one account occupied both
+roles in all 9 runs. It did **not** establish *whose* account it is. That it is the founder's own
+test account is overwhelmingly likely and is not verified here — and the difference matters
+precisely because the reassuring reading depends on it. Confirm before relying on it.
+
 ## 7. The question with a clock, and it is not yet asked
 
 Everything above concerns what the product must do before launch. One question runs the other
