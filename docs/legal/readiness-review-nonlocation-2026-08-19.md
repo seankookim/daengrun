@@ -53,8 +53,25 @@ So the platform can unilaterally change what a runner earns for work already und
 *독립적으로 이윤과 손실을 추구할 기회* — and on these facts the runner has none. Their entire
 autonomy is choosing which fixed-price job to accept.
 
-**This does not decide the question — a court weighs the whole relationship, and free acceptance
-from an open pool is a genuine point on the other side.** But 제3조's *독립적으로* and 제2조's
+**⚠ Corrected 2026-08-19, later the same night: the first version of this section understated the
+runner's autonomy, and the correction is material because this goes to counsel.** Three further
+facts, all cutting the other way:
+
+- **Runners set their own schedule.** `runner_availability_rules` and
+  `runner_availability_exceptions` are runner-owned (`0002:76`, `for all using (runner_id =
+  auth.uid())`). Availability is not company-controlled.
+- **There is no exclusivity or non-compete anywhere** — nothing in the terms or the schema stops a
+  runner working other platforms.
+- **The company never assigns.** The 지명 in recurring bookings comes from the **owner**, not the
+  platform, and the runner still responds (`0026:143`, *"요청 탭에서 응답해주세요"*). No
+  auto-assignment path exists.
+
+So the honest summary is narrower and better: **the runner decides *when* and *whether*; the
+company decides *how much*.** My earlier phrasing — that the runner's entire autonomy is choosing
+which fixed-price job to take — was wrong, and would have skewed the brief.
+
+**This does not decide the question — a court weighs the whole relationship, and the autonomy
+facts above are genuine points on the other side.** But 제3조's *독립적으로* and 제2조's
 *거래 당사자가 아닙니다* are the two sentences least supported by the code, and they are load-bearing
 for the 통신판매중개자 posture, the 전자상거래법 duties that follow from it, and the worker-status
 analysis. The terms' own drafter flagged exactly this inline (*"회사가 러너를 심사·배정하고 요금을
