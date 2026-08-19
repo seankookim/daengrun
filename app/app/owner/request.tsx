@@ -11,6 +11,7 @@ import { traceToBox } from '../../src/lib/trace';
 import { Avatar, Icon, Row, Skeleton } from '../../src/components/ui';
 import { emptyChipCopy, matchesChips, RouteChipRow, useRouteChips } from '../../src/components/route-chips';
 import { orderByProximity, PickResult, pickRoute } from '../../src/lib/route-pick';
+import { routeDisplayName } from '../../src/lib/route-name';
 import { haptic } from '../../src/lib/haptics';
 import { AddonKey, draft, fmtWon, RouteInfo } from '../../src/store';
 import { colors, layout, paper, pricing } from '../../src/theme';
@@ -702,7 +703,7 @@ export default function Request() {
                 <Pressable onPress={() => setCourseOpen((v) => !v)} style={[s.foldRow, { marginTop: 8 }]} accessibilityRole="button" accessibilityLabel="배정 코스 변경">
                   <Row style={{ justifyContent: 'space-between' }}>
                     <Text style={{ flex: 1, fontSize: 14.5, color: paper.text }} numberOfLines={1}>
-                      배정 코스 — <Text style={{ fontWeight: '800', color: paper.ink }}>{selRoute?.name ?? '미배정'}</Text>
+                      배정 코스 — <Text style={{ fontWeight: '800', color: paper.ink }}>{routeDisplayName(selRoute?.name) || '미배정'}</Text>
                       {selRoute ? ` · ${selRoute.km}km · ${selRoute.checkedAt}` : ''}
                     </Text>
                     <Text style={{ fontSize: 14, fontWeight: '800', color: paper.dim }}>{courseOpen ? '접기 ▴' : '변경 ▾'}</Text>
@@ -760,7 +761,7 @@ export default function Request() {
                                 // 막지 않으면 보호자는 나중에 이유 없는 에러를 만난다.
                                 Alert.alert(
                                   '아직 점검 전 코스예요',
-                                  `${r.name}은 지도에 그려두기만 했고, 아직 반려견과 함께 달려본 적이 없어요. 첫 러닝이 이 코스의 점검이 됩니다.`,
+                                  `${routeDisplayName(r.name)}은 지도에 그려두기만 했고, 아직 반려견과 함께 달려본 적이 없어요. 첫 러닝이 이 코스의 점검이 됩니다.`,
                                   [
                                     { text: '다른 코스 볼게요', style: 'cancel' },
                                     {
@@ -791,7 +792,7 @@ export default function Request() {
                             </View>
 
                             <Row style={{ gap: 5, marginTop: 22 }}>
-                              <Text style={{ fontSize: 17, fontWeight: '900', color: paper.ink }} numberOfLines={1}>{r.name}</Text>
+                              <Text style={{ fontSize: 17, fontWeight: '900', color: paper.ink }} numberOfLines={1}>{routeDisplayName(r.name)}</Text>
                               {/* ✓는 실제로 점검된 코스에만. checkedAt이 null인데 ✓를 그리던 자리 = 하지 않은 점검의 주장 */}
                               {r.status === 'active' && (
                                 <View style={s.certBadge}><Text style={{ fontSize: 9, fontWeight: '900', color: '#fff' }}>✓</Text></View>
@@ -870,7 +871,7 @@ export default function Request() {
                 <Text style={s.sumLabel}>거리 · 코스</Text>
                 <View style={{ flex: 1, alignItems: 'flex-end' }}>
                   <Text style={[s.sumValue, { flex: 0 }]} numberOfLines={1}>
-                    {fmtKm(km)}km · {selRoute?.name ?? '코스 없이 예약'}
+                    {fmtKm(km)}km · {routeDisplayName(selRoute?.name) || '코스 없이 예약'}
                   </Text>
                   {selRoute && selRoute.km !== km && (
                     <Text style={{ fontSize: 14, fontWeight: '800', color: paper.pending, marginTop: 2 }}>요금·기록은 {fmtKm(km)}km 기준</Text>
@@ -982,7 +983,7 @@ export default function Request() {
                 {' · '}<Text style={{ color: paper.line }}>{fmtKm(km)}km</Text> · {pace}
               </Text>
               <Text style={{ fontSize: 14.5, color: '#B8B8B8', marginTop: 2 }} numberOfLines={1}>
-                {routes.find((r) => r.id === routeId)?.name ?? '코스 없이 예약돼요'}{/* [리뷰 F3] '코스 선택'은 불가능한 지시였다 — 정직하게 결과를 말한다 */}
+                {routeDisplayName(routes.find((r) => r.id === routeId)?.name) || '코스 없이 예약돼요'}{/* [리뷰 F3] '코스 선택'은 불가능한 지시였다 — 정직하게 결과를 말한다 */}
               </Text>
             </View>
             <Pressable onPress={() => setSlotSheet(true)} style={s.timeChip}>

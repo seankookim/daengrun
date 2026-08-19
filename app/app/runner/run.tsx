@@ -414,9 +414,11 @@ export default function ActiveRun() {
       return { text: '이 코스는 아직 실측 전이에요 — 코스 선 없이 내 기록만 그려져요', warn: false };
     }
     // 선은 그려지지만 아직 아무도 개와 함께 달려보지 않은 경우. 러너에게 이걸 말하지 않으면
-    // 점선을 실측 코스로 믿고 따라가게 된다 — 그건 우리가 만든 오해다 (0082 source='algo').
+    // 선을 실측 코스로 믿고 따라가게 된다 — 그건 우리가 만든 오해다 (0082 source='algo').
+    // ⚠ '점선'이라 부르지 않는다: 대시는 f0ceed4에서 은퇴했고, 러너에게 화면에 없는 것을
+    // 찾으라고 말하는 순간 안내가 아니라 혼란이 된다.
     if (routeGeo && traceKind(routeGeo) === 'planned') {
-      return { text: '점선은 예정 경로예요 — 아직 실측 전이라 현장과 다를 수 있어요', warn: false };
+      return { text: '이 선은 예정 경로예요 — 아직 실측 전이라 현장과 다를 수 있어요', warn: false };
     }
     return null;
   })();
