@@ -35,7 +35,7 @@ begin
   insert into bookings (id, owner_id, dog_id, runner_id, status, scheduled_at, km, base_fare, distance_fare, total_price)
     values (gen_random_uuid(), v_stranger, v_dog2, null, 'active', now(), 3, 7900, 9000, 16900)
     returning id into v_other_bk;
-  v_topic := 'run-' || v_bk::text;
+  v_topic := 'run2-' || v_bk::text;
 
   -- ---------- [L1] the owner receives, and cannot publish ----------
   -- The asymmetry is the point: the owner watching is the product; the owner INJECTING a position
@@ -86,7 +86,7 @@ begin
       insert into bookings (owner_id, dog_id, runner_id, status, scheduled_at, km, base_fare, distance_fare, total_price)
         values (v_owner, v_dog, v_runner, v_st::booking_status, now(), 3, 7900, 9000, 16900)
         returning id into v_tmp;
-      v_tt := 'run-' || v_tmp::text;
+      v_tt := 'run2-' || v_tmp::text;
       if run_channel_allowed(v_tt, v_owner,  'read')  then v_bad := v_bad || ' ' || v_st || '에서 오너가 본다'; end if;
       if run_channel_allowed(v_tt, v_runner, 'write') then v_bad := v_bad || ' ' || v_st || '에서 러너가 발행한다'; end if;
     end loop;
@@ -96,9 +96,13 @@ begin
 
   -- ---------- [L6] topic substitution and malformed topics ----------
   v_bad := '';
-  if run_channel_allowed('run-' || v_other_bk::text, v_owner, 'read') then v_bad := v_bad || ' 남의 예약 토픽이 열린다'; end if;
-  if run_channel_allowed('run-not-a-uuid',      v_owner, 'read') then v_bad := v_bad || ' 잘못된 토픽이 통과'; end if;
+  if run_channel_allowed('run2-' || v_other_bk::text, v_owner, 'read') then v_bad := v_bad || ' 남의 예약 토픽이 열린다'; end if;
+  if run_channel_allowed('run2-not-a-uuid',     v_owner, 'read') then v_bad := v_bad || ' 잘못된 토픽이 통과'; end if;
   if run_channel_allowed('chat-' || v_bk::text, v_owner, 'read') then v_bad := v_bad || ' 다른 네임스페이스가 통과'; end if;
+  -- 0104: the LEGACY public namespace must be refused here. Not because refusing it protects
+  -- anything — a public channel never asks RLS — but because accepting it would let a new client
+  -- believe `run-` is policy-bound when it is not.
+  if run_channel_allowed('run-' || v_bk::text, v_owner, 'read') then v_bad := v_bad || ' 레거시 run- 네임스페이스가 인가된다(거짓 안심)'; end if;
   if run_channel_allowed(null,                  v_owner, 'read') then v_bad := v_bad || ' null 토픽이 통과'; end if;
   if run_channel_allowed(v_topic,               null,    'read') then v_bad := v_bad || ' null uid가 통과(익명)'; end if;
   if run_channel_allowed(v_topic, v_owner, 'delete')             then v_bad := v_bad || ' 알 수 없는 op가 통과'; end if;
