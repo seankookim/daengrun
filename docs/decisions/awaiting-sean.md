@@ -280,6 +280,14 @@ real owners. Relief: no vehicle pickup (동물운송업 not in play), shop is a 
 not exposed) — widening that read path is the moment §11 goes live, so it is a legal decision, not a UI fix; the community
 feed has no reports/moderation table (임시조치 will be needed there first).
 
+## 0-novodecies. 👀 TWO SMALL LOOKS FROM UI2'S OVERNIGHT PASS (2026-08-20 morning)
+
+1. **run.tsx R4 colour law:** the runner run screen has two corals (progress bar + strip) and a VOLT main CTA where lab 13 wants
+   coral — the "one coral per frame" rule vs the lab; ui2 left it for you rather than guess. Pick by looking.
+2. **Legacy feed posts read 「러닝 기록」 instead of 「완주」** — old `runs` rows carry no `endReason` on the post, so the honest
+   label is the generic one; a server backfill from `runs.end_reason` would reclassify them if you want that. **A** backfill ·
+   **B** leave as is. (Not decided under the grant: it rewrites what users already see.)
+
 ## 0-octodecies. 🟡 THREE ROUTE NAMES ADVERTISE A LENGTH THE LINE DOES NOT HAVE — a naming call, yours (catalog, 2026-08-20 ~04:00)
 
 Measured across all 68 routes (handoff on trunk at 726838c): three original 0078 seeds carry a typed `km` the later-drawn geometry
