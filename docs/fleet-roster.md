@@ -214,3 +214,31 @@ two false "stranded work" alarms on day one.
   Saying "withdrawn" alone nearly caused a revert that would have broken production twice.
 - **Trust review is standing:** any slice touching RLS, policies, grants, or `search_path` goes
   to trust at PLAN time, not push time. And a reviewer never reviews their own build.
+
+### 7-bis. Paid for on 2026-08-19 evening (announcer v3: 0109 + 0111 + the wrapper), one line each
+- **Unpushed ≠ unmerged.** Verify `origin/<branch>..HEAD` AND `origin/redesign-v4..origin/<branch>`; say which. The announcer
+  wrote the second after measuring the first and legal's 15-commit audit was invisible to the coordinator.
+- **`db push --include-all` ships every pending file, held ones included** — measured: with 0105 in the tree the dry-run listed
+  0105; with it aside, nothing. Five hand-steps became `scripts/deploy-migrations.sh` + `supabase/migrations/HELD`;
+  the wrapper refuses anything not named by exact filename. HELD is supposed to be empty most of its life.
+- **Never follow the CLI's `migration repair --status reverted …` hint from a stale tree** — it marks applied migrations reverted.
+- **Suite pins were one-directional.** 0109's T1–T4 and 0111's effects pins detect under-revoking, never over-revoking;
+  a `service_role` in the revoke list passed every pin and would have stopped production. Every revoke migration now carries
+  a catalog pin asserting the role that must KEEP the privilege still holds it, and a pre-existing-table positive control.
+- **A header's scope claim is gate-worthy.** 0105 was rejected for carrying a false premise; 0109's header said 65/68 when
+  production had moved to 63; 0111's belt was described as "a second belt against re-grant" while being fare-blind. Measure the
+  sentence the same way you measure the pin — then the number the header quotes is the number the file produces.
+- **Grantor, not just grantee.** A REVOKE only removes aclitems it issued; inventory `aclexplode(relacl).grantor` on production
+  before a sweep (0109: 130/130 postgres — fine, but nobody had looked). Default ACLs are per CREATOR role; storage's
+  `supabase_storage_admin` rows are out of `postgres`'s reach — record as residual, don't pretend.
+- **Dual voices earn their cost on security migrations.** The single adversarial reviewer cleared 0109; the eng dual voices
+  (Claude subagent + Codex) independently found the grantor gap and the one-directional pins. Run both for anything touching grants.
+- **A relayed ruling flips to ✅ only after you read the commit.** Ruling #14 arrived via ui2 as text, was recorded 🔵, and
+  became ✅ when `e13b579` was read on origin — minutes, not a debate.
+- **A worktree folder name is not a role** (outgoing ui, in its own words): `club-delegation-money-gaps-…` was a fossil; route by
+  branch + what the session says it holds. Same family as author-name-is-not-a-session.
+- **Name one owner before work proceeds, and verify the claim first.** ui2 vs the recycled client session looked like a collision;
+  three measurements (main checkout clean, old tree clean, handoff-client on trunk) made it a handoff. Ten minutes, no race.
+- **The contract before the code, attacked before implemented.** 0111's contract was executed in a scratch cluster first;
+  the reviewer found B-11 (the legit nomination chain) and that the slice would have recorded F2 as closed. That finding cost
+  nothing to fix in a document and would have been a false "CLOSED" in production.

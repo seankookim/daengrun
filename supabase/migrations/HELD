@@ -9,4 +9,10 @@
 # and kept out of every deploy by hand ("mv 0105 aside"). The same day, catalog measured that
 # `db push --include-all` from any tree carrying it lists 0105 to push. Five hand-steps became this
 # file plus a script.
-0105_booking_insert_party_guard.sql
+#
+# 2026-08-19 (evening): the 0105 line is GONE — the file was SUPERSEDED and deleted by
+# `0111_booking_entry_rebuild.sql` in the same commit (REGISTRY rows 0105 and 0111). Removing it
+# here in that same commit is the rule three lines up, and skipping it would make
+# `scripts/deploy-migrations.sh` print `warning: HELD names 0105… but trunk has no such file
+# (stale line?)` on EVERY future deploy — a warning that fires every time is a warning nobody reads.
+# This file is now empty of entries, which is the state it is supposed to spend most of its life in.

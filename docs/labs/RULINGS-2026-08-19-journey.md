@@ -42,3 +42,17 @@ Recorded the moment they arrived so nothing drops. Each line: what he said → w
 - "why is payment between reserve and live?" → because `owner/pay` is pushed from request step 3
   today (request.tsx → /owner/pay). That is a leftover of the Toss-widget plan; the pilot is manual
   transfer, so there is nothing to collect pre-run. Moving it post-run matches money §4-bis.
+
+## Pickup point · nearest path · entry point (Sean, 2026-08-19 evening, verbatim)
+14. *"pick up point should be wherever the home owner puts, and the app should recommend the
+    nearest path. the runner should start at the put starting point and should be led by the app
+    to the nearest point in the path from that starting point, from which then on the runner will
+    start the lap."* [end of his words]
+    → **Pickup = the owner's placed point** (the pin is the coordinate truth — 0065 doctrine
+    already says so; onboarding must therefore lead to the pin, not leave it behind a door).
+    → **Recommendation = nearest PATH to the pickup**, measured to the nearest point ON the route,
+    not to `trace[0]` (the old "rank from trace[0]" was a stand-in for "not anchor_lat/lng"; the
+    nearest-point metric supersedes it).
+    → **Runner guidance = pickup → entry point → lap.** The runner leaves the pickup, is led to the
+    nearest point of the route (the entry), and the lap starts there — the loop is rotated to begin
+    at the entry. Approach leg and lap are drawn as two things; the approach is not part of the km.

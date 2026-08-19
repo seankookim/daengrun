@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Course-map anchors, 18 vs 44 pt</title></head><body><style>
+:root{--bg:#FFFFFF;--ink:#111111;--text:#333333;--dim:#666666;--faint:#999999;--line:#E8552F;--wash:#FFF6F4;--action:#C6472C;--plate:#F5F4F2}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#1C1837;--ink:#F4F2FB;--text:#D9D5EA;--dim:#B9B3D9;--faint:#8F88B8;--line:#F0765A;--wash:#2A2347;--action:#F0765A;--plate:#262046}}
+:root[data-theme="dark"]{--bg:#1C1837;--ink:#F4F2FB;--text:#D9D5EA;--dim:#B9B3D9;--faint:#8F88B8;--line:#F0765A;--wash:#2A2347;--action:#F0765A;--plate:#262046}
+body{background:var(--bg);color:var(--text);font-family:"IBM Plex Sans KR","Apple SD Gothic Neo",-apple-system,system-ui,sans-serif;-webkit-font-smoothing:antialiased;padding:40px 22px 90px;margin:0}
+.wrap{max-width:1180px;margin:0 auto}
+h1{font-size:30px;font-weight:800;color:var(--ink);margin:0;line-height:1.2;text-wrap:balance}
+.law{font-size:12px;letter-spacing:2.4px;text-transform:uppercase;color:var(--faint);font-weight:700;margin:10px 0 16px}
+.lede{font-size:15px;line-height:1.75;max-width:68ch;color:var(--text)}.lede b{color:var(--ink)}
+h2{font-size:20px;font-weight:800;color:var(--ink);margin:44px 0 6px;padding-top:20px;border-top:1px solid var(--line)}
+h2 .n{font-family:Oswald,"Helvetica Neue",sans-serif;color:var(--line);margin-right:10px;font-weight:700}
+.sub{font-size:14.5px;color:var(--dim);line-height:1.7;max-width:68ch;margin:0 0 18px}
+.rail{display:flex;gap:22px;flex-wrap:wrap;align-items:flex-start}
+.col{flex:1 1 340px;max-width:560px}
+.cap{font-size:16px;font-weight:800;color:var(--ink);margin:0 0 4px}.cap b{font-family:Oswald,"Helvetica Neue",sans-serif;color:var(--line);margin-right:8px}
+.why{font-size:13.5px;color:var(--dim);line-height:1.65;margin:0 0 10px;min-height:66px}.why b{color:var(--ink)}
+.shot{border:1px solid var(--plate);background:var(--plate);overflow:hidden}
+.shot img{display:block;width:100%;height:auto}
+.meta{font-size:12.5px;color:var(--faint);margin-top:6px;font-variant-numeric:tabular-nums}
+table{border-collapse:collapse;font-size:13.5px;width:100%;max-width:880px;margin-top:10px}
+th,td{border-bottom:1px solid var(--plate);padding:8px 10px;text-align:left;vertical-align:top}
+th{font-size:11.5px;letter-spacing:1.3px;text-transform:uppercase;color:var(--dim);font-weight:700}
+td b{color:var(--ink)}
+.foot{margin-top:54px;padding-top:18px;border-top:1px solid var(--line);font-size:13.5px;color:var(--dim);line-height:1.8;max-width:72ch}.foot b{color:var(--ink)}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;background:var(--plate);padding:1px 5px}
+.pick{display:inline-block;background:var(--wash);border-left:3px solid var(--action);padding:8px 12px;font-size:14px;color:var(--ink);font-weight:700;margin-top:8px}
+</style>
+<div class="wrap">
+<h1>Course-map anchors — 18 pt vs 44 pt</h1>
+<div class="law">2026-08-19 · owner/course-map · same camera, same catalog · pick by looking</div>
+<p class="lede">Sean asked to <b>see</b> both before choosing. Both frames are the real simulator at the same camera (Banpo, 500 m scale, 54 courses on the map). <b>A</b> is the app as it ships today. <b>B</b> makes the anchor 44 × 44 pt — visible and tappable — which is the HIG floor the rest of the app honours. Nothing else changed between the two shots.</p>
+
+<h2><span class="n">A · B</span>Two frames</h2>
+<div class="rail">
+  <div class="col"><div class="cap"><b>A</b>18 pt — as-is</div>
+    <p class="why">Glyph 18 × 18 pt, tap area 18 × 18 pt (the Naver SDK has no hit-slop; the tap box <b>is</b> the icon box). Dense clusters stay readable; the target is 17 % of the HIG floor's area.</p>
+    <div class="shot"><img alt="18 pt anchors at Banpo" src="anchors/anchor-18-banpo.png"></div>
+    <div class="meta">daengrun://owner/course-map · selected anchor 26 pt</div>
+  </div>
+  <div class="col"><div class="cap"><b>B</b>44 pt — visible + tappable</div>
+    <p class="why">Glyph 44 × 44 pt, tap area 44 × 44 pt. Every anchor meets the floor; at this zoom the Banpo cluster <b>overlaps</b> — anchors stack on 잠수교/세빛섬. Zooming in separates them.</p>
+    <div class="shot"><img alt="44 pt anchors at Banpo" src="anchors/anchor-44-banpo.png"></div>
+    <div class="meta">daengrun://owner/course-map?anchor=44 · selected anchor 52 pt</div>
+  </div>
+</div>
+
+<h2><span class="n">C</span>The option that does not exist on this SDK</h2>
+<p class="sub">"Keep 18 pt visible, grow only the invisible tap area to 44 pt" sounds like the free lunch. It is not available: <code>@mj-studio/react-native-naver-map</code> markers have no hit-slop prop, so the only route is the SDK's custom-React-View marker (transparent 44 pt box with an 18 pt image inside). Measured on the simulator: <b>most markers do not render</b> through that path on iOS (2 of ~10 drawn, the rest missing). That is the frame below — evidence, not a proposal.</p>
+<div class="rail"><div class="col">
+  <div class="cap"><b>C</b>18 pt glyph · 44 pt hit box (custom-view marker)</div>
+  <p class="why">Same camera. Only two anchors survive the custom-view path; the rest never draw. <b>Not shippable.</b></p>
+  <div class="shot"><img alt="custom-view marker variant, most anchors missing" src="anchors/anchor-44h-banpo.png"></div>
+  <div class="meta">daengrun://owner/course-map?anchor=44h · dev-only knob</div>
+</div></div>
+
+<h2><span class="n">D</span>What each pick means</h2>
+<table>
+<tr><th>Pick</th><th>Ships</th><th>Trade</th></tr>
+<tr><td><b>A</b> — 18 pt</td><td>Nothing changes. Remove the dev knob.</td><td>Targets stay under the floor on the one screen where the user is hunting for a small thing on a map; other screens honour 44 pt.</td></tr>
+<tr><td><b>B</b> — 44 pt</td><td><code>ANCHOR_BASE = 44</code> in course-map.tsx; selected stays +8. Remove the knob.</td><td>Clusters overlap until the user zooms; the map reads heavier. Could pair with a lighter glyph (outline diamond) at 44 — a second lab if you want it.</td></tr>
+<tr><td><b>A′</b> — 18 pt now, size by zoom later</td><td>Same as A today; a follow-up scales the glyph with the camera zoom (small when dense, 44 when the cluster spreads).</td><td>More code on a screen that already carries a lazy native map; not a lunchtime change.</td></tr>
+</table>
+<div class="pick">Reply with a letter — A · B · A′ — and I remove the knob and ship it.</div>
+
+<div class="foot">
+<b>How the shots were made:</b> deep link → three pinch steps to the 500 m scale over 반포 → screenshot; the <code>?anchor=</code> param keeps the camera, so A/B/C are the same frame. Full-screen originals are in the session scratchpad (<code>anchors/anchor-{18,44,44h}-banpo.png</code>) and the knob lives at <code>app/app/owner/course-map.tsx</code> (dev-only; default path unchanged).<br>
+<b>Provenance:</b> the "44 pt floor" line in the spec was the announcer's inference, not a ruling (handoff-client.md §6). This page exists so the ruling is Sean's, by looking.
+</div>
+</div>
+
+</body></html>

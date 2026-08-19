@@ -1,6 +1,29 @@
 // 원자적 슬롯 홀드 + 서버 가격 산정 (calendar.md 더블부킹 방지).
-// input: { runner_id?, dog_id, route_id?, address_id?, scheduled_at, km, pace_label?, addons: string[] }
+// input: { dog_id, route_id?, address_id?, scheduled_at, km, pace_label?, addons: string[] }
+//        ⚠ NO `runner_id` — see the §0111 block below. A body carrying one is a 400.
 // out:   { booking_id, hold_expires_at, total_price, paid_path }
+//
+// ═══ [0111] THIS FUNCTION NO LONGER NOMINATES A RUNNER ═══════════════════════════════════════
+// It used to take `runner_id` from the REQUEST BODY and, after an existence check against
+// `runners` that the FK already enforced, write it into both the booking and the `slot_holds` row
+// — as `service_role`, so nothing else stood behind it. That is the same forgery `0111` closes on
+// the SQL side (`bookings owner insert` / the `recurring_series` mirror), reached through a
+// trusted path instead of a client one: `runner_availability_rules` is readable by any logged-in
+// user, so an attacker read a victim's published schedule, picked a passing slot, and landed
+// `owner_id = attacker, runner_id = victim` — which is what `is_booking_party()` reads.
+//
+// Blast radius MEASURED, not reasoned: no call site sends the field. The parameter type at
+// `app/src/lib/api.ts:359-378` has no `runner_id`, and neither caller
+// (`app/app/owner/request.tsx:358-375`, `app/app/owner/home.tsx:599-611`) sends one. Nomination
+// happens AFTER payment, through `transition-booking` action `request_runner` — owner-gated,
+// state-gated, real-runner-checked, clash-checked, atomic CAS. `transition-booking:37-42` already
+// records that the `payment_hold → runner_pending` branch was dead code because the transition map
+// forbids it, i.e. a body-supplied `runner_id` never had a legitimate destination anyway.
+//
+// ⚠ REAL SEMANTIC CHANGE, stated here rather than discovered later: **the hold row no longer names
+// a runner.** A nominated hold used to block that runner's slot through `is_slot_available`
+// (`0003_availability.sql:58+`); it now blocks nobody. That is a no-op in practice (no client ever
+// nominated at hold time) but it is a genuine change to what a `slot_holds` row means.
 //
 // Split out of index.ts for the same reason confirm-payment (0076) and settle-run were: while
 // `Deno.serve` runs at module top level no test can import this code. The pre-slice body below is
@@ -21,6 +44,22 @@ import { caller, HttpError, PRICING } from "../_shared/ctx.ts";
 export async function createBookingHold(req: Request, db: SupabaseClient) {
   const uid = await caller(req, db);
   const b = await req.json();
+
+  // ── [0111] the body may not nominate a runner — REFUSED, not stripped ────────────────────────
+  // Refused at the validation head, before any DB work, so this can never pass by accident through
+  // a later failure. Silently dropping the field is what "delete the `if (b.runner_id)` block"
+  // literally produces, and it is worse than it looks: a caller that sends `runner_id` and gets a
+  // 200 WITH A BOOKING ID has every reason to believe the nomination happened, and nothing in the
+  // response says otherwise. This repo's honesty law is about exactly that shape. No client sends
+  // the field today (measured: zero call sites), so a 400 cannot break anyone — it can only catch
+  // a future caller, or someone probing the surface, at the moment they are wrong instead of an
+  // hour later.
+  // An explicit `runner_id: null` is deliberately NOT refused: it asks for no runner, which is
+  // exactly what the server now always does, so there is no divergence between what the caller
+  // asked for and what happened — the only thing this 400 exists to prevent.
+  if (b.runner_id !== undefined && b.runner_id !== null) {
+    throw new HttpError(400, "runner_id_not_accepted_here");
+  }
 
   if (!b.dog_id || !b.scheduled_at || !b.km) throw new HttpError(400, "missing fields");
 
@@ -151,21 +190,9 @@ export async function createBookingHold(req: Request, db: SupabaseClient) {
   });
   if (clash) throw new HttpError(409, "이 시간대에 같은 아이의 예약이 이미 있어요");
 
-  // 지정 러너면 가용성 검사 (자동매칭은 matching 단계에서)
-  if (b.runner_id) {
-    // [적대 리뷰 P2] runner_id도 본문에서 오는 FK다 — dog_id·address_id와 같은 계급.
-    // 서비스롤이라 RLS가 대신 막아주지 않는다. 없는 러너를 실어 보내면 예약이
-    // status=matching + runner_id=<타인>으로 앉고, 수락 경로(runner_pending 요구)로는
-    // 영영 못 푼다. 존재 검증만 한다 (지명 자체는 공개 행위 — 소유권 개념이 없다).
-    const { data: rExists } = await db.from("runners").select("profile_id")
-      .eq("profile_id", b.runner_id).maybeSingle();
-    if (!rExists) throw new HttpError(403, "forbidden");
-    const { data: ok, error } = await db.rpc("is_slot_available", {
-      p_runner: b.runner_id, p_start: start.toISOString(), p_end: end.toISOString(),
-    });
-    if (error) throw new HttpError(500, error.message);
-    if (!ok) throw new HttpError(409, "slot_unavailable");
-  }
+  // [0111] the body's 지정 러너 availability check lived here and is GONE, together with the
+  // `runner_id` it read — see the file header. Nomination is `request_runner`'s job, and it runs
+  // its own availability/clash gate at the moment it actually assigns.
 
   // 서버 가격 — 클라이언트 금액은 신뢰하지 않음
   const addons: string[] = Array.isArray(b.addons) ? b.addons : [];
@@ -178,7 +205,9 @@ export async function createBookingHold(req: Request, db: SupabaseClient) {
 
   // booking(draft→quoted→payment_hold) + hold, 한 흐름으로
   const { data: booking, error: bErr } = await db.from("bookings").insert({
-    owner_id: uid, dog_id: b.dog_id, runner_id: b.runner_id ?? null,
+    // [0111] runner_id is a LITERAL null, never `b.runner_id ?? null` — the body cannot reach this
+    // column, and writing the expression would leave the field one careless edit from returning.
+    owner_id: uid, dog_id: b.dog_id, runner_id: null,
     route_id: b.route_id ?? null, address_id: b.address_id ?? null,
     status: "draft", scheduled_at: start.toISOString(), km,
     pace_label: b.pace_label ?? null,
@@ -203,7 +232,7 @@ export async function createBookingHold(req: Request, db: SupabaseClient) {
 
   const expires = new Date(Date.now() + 5 * 60_000);
   const { error: hErr } = await db.from("slot_holds").insert({
-    runner_id: b.runner_id ?? null, owner_id: uid,
+    runner_id: null, owner_id: uid,   // [0111] the hold names no runner — see the file header
     starts_at: start.toISOString(), ends_at: end.toISOString(),
     expires_at: expires.toISOString(), booking_id: booking.id,
   });

@@ -195,7 +195,22 @@ in the background for weeks) or commit to manual and delete the charge machine.*
 Consequence either way: the no-card empty state **is** the pilot, and the current payment surface
 implies automation that does not exist — an honesty-law item, now client's to fix once you pick.
 
-## 0-decies. 🟡 LOOKUP — trust is offline and nobody is rebuilding 0105, the last open P0 (announcer v3, 2026-08-19 evening)
+## 0-decies. ✅→📋 CLOSED AT THE BOUNDARY under your default — 0111 DEPLOYED late 2026-08-19; only D1/D2 remains yours
+
+**Outcome (measured, not relayed):** with no answer from you, default **A** ran: contract → attacked in a
+scratch cluster (21/21, B-3 reproduced) → F1–F12 folded → 0111 implemented (harness 655/0, Deno 191/0,
+eight mutations) → independent adversarial reviewer (FIX-FIRST on a fare-blind belt claim; fence
+unbreakable by direct / CTE / INSERT…SELECT / view / definer / role) → round 2 (657/0) → trunk →
+`create-booking-hold` v9 + 0111 applied via the wrapper → verified live: client INSERT on
+`bookings`/`recurring_series`/`slot_holds` = 0 grants, forged INSERT and forged series UPDATE as
+`authenticated` → 42501 (rolled back), `paused` is the only client-writable series column, cron +
+service_role untouched. 0105 file deleted, HELD empty, REGISTRY rows 0105 SUPERSEDED / 0111 DEPLOYED.
+**/cso #2 is PARTIALLY CLOSED:** F1/F3/F4 closed; **F2 stays open** — the legit nomination chain (own
+dog → `payment_ok` → `request_runner` = any runner, no acceptance) still opens chat/push/reviews/incidents
+because `is_booking_party` has no status filter. That is **your D1/D2 below**; it decides the shape of
+the adjacent slice, and nobody builds it until you answer. Original lookup text kept below for the record.
+
+## 0-decies (original). 🟡 LOOKUP — trust is offline and nobody is rebuilding 0105, the last open P0 (announcer v3, 2026-08-19 evening)
 
 –––––REPORT–––––
 **Measured, not relayed:** trust's session has been off the roster for hours. The 0105 *file* is on
@@ -236,6 +251,22 @@ Your answer, one letter:
 - **C** — a session name of your choosing
 - plus **D1/D2** above when you have a view
 –––––[end of report; nothing above is your ruling until you answer]–––––
+
+## 0-terdecies. ✅ RULING #14 — on origin at e13b579 (`docs/labs/RULINGS-2026-08-19-journey.md` #14, verbatim; relayed first via ui2, verified by the announcer) — pickup point → nearest point on the route
+
+ui2 reports Sean ruled in its session, verbatim as ui2 recorded it: *"pick up point should be wherever
+the home owner puts, and the app should recommend the nearest path. the runner should start at the put
+starting point and should be led by the app to the nearest point in the path from that starting point,
+from which then on the runner will start the lap."* **[end of his words]** — on origin at e13b579, verified. ui2 takes the client side
+(route ranking by nearest point ON the trace; approach leg pickup→entry; lap rotated at the entry;
+onboarding leads to the address pin); no server change claimed; route geometry asked for the routes-side
+read (catalog offline). Nothing for Sean unless a server angle appears.
+
+## 0-quaterdecies. 👀 THE 18 vs 44 pt ANCHOR LAB IS PUBLISHED — pick by looking (ui2, late 2026-08-19)
+
+https://claude.ai/code/artifact/baed214a-80ff-4741-9ca9-d197d76755b0 · `docs/labs/anchor-tap-target-lab.html`.
+Options as drawn: **A** / **B** / **A′**. The 44-pt line was the previous announcer's inference, not your
+ruling — you asked to see both; this is both.
 
 ## 0-duodecies. 📋 SMOKE-LIST LINE for your first hardware build (legal, 2026-08-19 evening) — not a decision
 
