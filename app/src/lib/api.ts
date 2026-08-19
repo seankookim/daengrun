@@ -7,6 +7,9 @@ import type { BookingStatus as DbBookingStatus } from './payphase';
 import { MEDIA_BUCKET } from './media';
 import { supabase } from './supabase';
 
+// 실시간 채널 3족(chat·bk·club-chat)은 geo.ts의 run 채널과 **같은** private+setAuth 경로를 쓴다 —
+// setAuth 함정(소켓 토큰 미무장 = 조용한 실패)의 사본이 둘이면 하나는 반드시 낡는다.
+import { armRealtime, hookTokenRefresh, REALTIME_PRIVATE } from './geo';
 // Edge Function 오류 본문에서 실제 메시지 추출 ("non-2xx" 무의미 문구 대체)
 async function fnError(error: unknown, data?: any): Promise<Error> {
   if (data?.error) return new Error(data.error);
@@ -2430,13 +2433,20 @@ export async function sendChatPhoto(threadId: string, base64: string): Promise<v
 
 // 새 메시지 실시간 구독 — 해제 함수 반환
 export function subscribeMessages(threadId: string, uid: string | null, onMsg: (m: ChatMsg) => void): () => void {
+  // P0-1 후속(0108): chat 채널은 postgres_changes 전용이라 브로드캐스트 노출은 없었지만,
+  // 프로젝트 전역 private_only 가 켜지는 순간 public 채널은 **전부** 죽는다. 서버 정책(0108)이
+  // 이 토픽족을 인가하므로 private 으로 요청하고, 구독 전에 소켓을 무장시킨다.
+  hookTokenRefresh();
   const ch = supabase
-    .channel(`chat-${threadId}`)
+    .channel(`chat-${threadId}`, REALTIME_PRIVATE)
     .on('postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `thread_id=eq.${threadId}` },
       (payload) => onMsg(mapMsg(payload.new, uid)))
-    .subscribe();
-  return () => { supabase.removeChannel(ch); };
+    ;
+  // 무장 → 구독 순서. 그 사이 도착한 변경은 화면의 폴백 폴링이 잡는다(각 소비처가 폴링을 유지한다).
+  let dropped = false;
+  void armRealtime().then(() => { if (!dropped) ch.subscribe(); });
+  return () => { dropped = true; supabase.removeChannel(ch); };
 }
 
 // 예약 상태 실시간 구독 — 폴링을 대체 (폴백 폴링은 화면이 유지)
@@ -2472,13 +2482,20 @@ export async function fetchRecentReviews(): Promise<PublicReview[]> {
 }
 
 export function subscribeBooking(bookingId: string, onChange: () => void): () => void {
+  // P0-1 후속(0108): bk 채널은 postgres_changes 전용이라 브로드캐스트 노출은 없었지만,
+  // 프로젝트 전역 private_only 가 켜지는 순간 public 채널은 **전부** 죽는다. 서버 정책(0108)이
+  // 이 토픽족을 인가하므로 private 으로 요청하고, 구독 전에 소켓을 무장시킨다.
+  hookTokenRefresh();
   const ch = supabase
-    .channel(`bk-${bookingId}`)
+    .channel(`bk-${bookingId}`, REALTIME_PRIVATE)
     .on('postgres_changes',
       { event: 'UPDATE', schema: 'public', table: 'bookings', filter: `id=eq.${bookingId}` },
       () => onChange())
-    .subscribe();
-  return () => { supabase.removeChannel(ch); };
+    ;
+  // 무장 → 구독 순서. 그 사이 도착한 변경은 화면의 폴백 폴링이 잡는다(각 소비처가 폴링을 유지한다).
+  let dropped = false;
+  void armRealtime().then(() => { if (!dropped) ch.subscribe(); });
+  return () => { dropped = true; supabase.removeChannel(ch); };
 }
 
 // 채팅 컨텍스트 — 상대 이름 + 예약 라벨
@@ -3188,13 +3205,20 @@ export async function sendClubChatPhoto(
   if (e2) throw e2;
 }
 export function subscribeClubChat(sessionId: string, onInsert: () => void): () => void {
+  // P0-1 후속(0108): club-chat 채널은 postgres_changes 전용이라 브로드캐스트 노출은 없었지만,
+  // 프로젝트 전역 private_only 가 켜지는 순간 public 채널은 **전부** 죽는다. 서버 정책(0108)이
+  // 이 토픽족을 인가하므로 private 으로 요청하고, 구독 전에 소켓을 무장시킨다.
+  hookTokenRefresh();
   const ch = supabase
-    .channel(`club-chat-${sessionId}`)
+    .channel(`club-chat-${sessionId}`, REALTIME_PRIVATE)
     .on('postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'club_chat_messages', filter: `session_id=eq.${sessionId}` },
       () => onInsert())
-    .subscribe();
-  return () => { supabase.removeChannel(ch); };
+    ;
+  // 무장 → 구독 순서. 그 사이 도착한 변경은 화면의 폴백 폴링이 잡는다(각 소비처가 폴링을 유지한다).
+  let dropped = false;
+  void armRealtime().then(() => { if (!dropped) ch.subscribe(); });
+  return () => { dropped = true; supabase.removeChannel(ch); };
 }
 // [감사 11] 삭제가 사진 원본을 스토리지에 남기던 것 — 말풍선만 지워지고 공개 URL은 살아 있었다.
 // RPC(본인 5분 내만)가 성공한 뒤에만 원본을 지운다. 원본 정리는 베스트에포트 —

@@ -51,7 +51,25 @@
 --         `routes_active_is_earned` catches the hand-flip instead. The check constraint and
 --         the process gate are independent layers, which is the point of having both.
 
+--
+-- ─── [0107, 2026-08-19] A pinned PRECONDITION legitimately changed — updated in the same slice ───
+--   0107 §E makes `promote_route_from_run` FAIL CLOSED (`route_public_projection_missing`) unless a
+--   view `public.routes_public` exists and exposes none of `verified_run_id / verified_runner_id /
+--   checked_by`. The migration deliberately does NOT build that view (the raise is the containment;
+--   the de-identified projection is a later slice), so R6/R11/R12's happy-path promotions would
+--   otherwise die at the new gate for a reason unrelated to what they pin (t/v stripping, idempotence,
+--   the anchor). This suite therefore creates a TEST-ONLY compliant `routes_public` before the do
+--   block and DROPS it after, so the schema 142 inspects afterwards is the shipped one (no view).
+--   The gate itself — absent view raises, identity-column view raises, compliant view proceeds —
+--   is owned by 142 V4/V5/V6, not here. ⚠ Nothing else about R1-R13 changed; every mutation in the
+--   map above still reddens the pin it names.
+
 set client_min_messages = warning;
+
+-- [0107] test-only de-identified projection — see the header note. Owned by postgres, never
+-- granted, dropped at the end of this file. NOT the production view (that is a later slice).
+create view routes_public as
+  select id, name, area, km, town, status, trace_thumb from routes;
 
 -- Synthetic GPS trace: p_n points stepping north from (p_lat,p_lng). Carries `t`/`v` exactly
 -- like a real runs.trace (0001:243) so R6 can prove promotion strips them.
@@ -340,3 +358,7 @@ begin
   delete from routes where name like 'rtl %';
   perform set_config('request.jwt.claim.sub', '', false);
 end $$;
+
+-- [0107] the test-only projection leaves with this file — 142 must see the SHIPPED schema
+-- (no routes_public), or its fail-closed pin would be measuring this fixture instead of 0107.
+drop view routes_public;
