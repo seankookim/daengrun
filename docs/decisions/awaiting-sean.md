@@ -34,6 +34,15 @@
 > reviews the key handling. The in-app version and the push emitter (nothing emits today —
 > 0096/0097 are pull-only) both remain open items, deliberately unsmuggled into this slice.
 
+> **⚡ 2026-08-15, later: STANDING AUTONOMY GRANT.** Sean, verbatim: *"tell the conversations they
+> dont have to ask me for permission on things they have fruitful as i want full speed on this app
+> production."* **[end of Sean's words]** Applied as: sessions build, gate, and ship fruitful work
+> on their owned surfaces WITHOUT asking first. What this does NOT waive (structural, not
+> ceremony): credential VALUES stay physically his · facts only he holds still require his answer ·
+> irreversible destruction of real production data still gets one confirmation · every quality gate
+> (harness, /autoplan on migrations and money paths, trust's plan-time review, the commit gates)
+> stays — those are how full speed stays speed instead of rework.
+
 **Purpose: this queue existed only inside one session's conversation.** The announcing session
 asked for it to be written down, applying the day's first rule to itself: *unpushed reserves
 nothing.* If that session runs out of context the way the 반포 route session did, an
