@@ -257,3 +257,11 @@ two false "stranded work" alarms on day one.
   NOT revoke default DML schema-wide; revoke on every view and keep the watchdog pin.
 - **"Is there an older binary in the field?" is a measurement, not a guess (catalog, trace revoke):** a simulator pass says nothing
   about installed builds; `eas build:list` / `update:list` and the TestFlight state do. Tonight: zero builds ever → the revoke was free.
+- **A fixture may borrow state; it may not set it (catalog, third instance tonight — 142→147, 145→148):** a suite fixture that
+  leaves the property under test established makes the next suite green with the migration deleted. Capture the state you find and
+  restore exactly that. And: **assert by executing; a privilege listing is not proof** — the author of that law broke it in the very
+  next suite (has_column_privilege instead of a real read). Mutation testing found both; review had not.
+- **You cannot fence `service_role` out of a column with a column revoke (catalog, 0113):** service_role holds TABLE-WIDE SELECT on
+  `routes`, so 0107/0110/0112/0113 leave a leaked service key unmitigated — a different control entirely if that ever matters.
+- **Cherry-picking the REGISTRY row tried to come back within a day of being named (catalog, self-reported):** caught by
+  `git patch-id --stable` on both sides, then reset. The habit outlives the rule; the patch-id check is the constraint.
