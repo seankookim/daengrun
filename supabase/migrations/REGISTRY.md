@@ -148,7 +148,8 @@ touched it and name whose version you build on in your file header.
 | 0106 | `0106_drops_seal.sql` | 141 | 🔴 P0-3 reward drops — revoke client I/U/D on `drops`+`gear_claims`, immutable-once-opened trigger, contents CHECK; open-drop stays service (announcer-spawned builder, tree `p0-drops`) | **CLAIMED 2026-08-19** — Sean's remediation order §3 |
 | 0107 | `0107_route_evidence_revoke.sql` | 142 | 🟡 route evidence columns (`verified_run_id`,`verified_runner_id`,`checked_at`,`checked_by`) column-REVOKE from anon+authenticated; promotion fails closed until a de-identified projection exists — REVOKE never DROP, `routes_active_is_earned` depends on them (announcer-spawned builder, tree `p0-routes`) | **CLAIMED 2026-08-19** — Sean's remediation order §5; catalog offline |
 | 0108 | `0108_realtime_chat_bk_policies.sql` | 143 | 🔴 realtime.messages policies for `chat-<thread>`, `bk-<booking>`, `club-chat-<session>` (party-bound, same shape as 0103/0104) — prerequisite for the `private_only` flip (announcer-spawned builder, tree `p0-realtime`) | **CLAIMED 2026-08-19** — coordinate with trust (0103/0104 author) |
-| 0109 | *(next free)* | 144 | — | available |
+| 0109 | `0109_revoke_truncate.sql` | 144 | 🟡 defense-in-depth: REVOKE TRUNCATE on every public table from anon+authenticated + `alter default privileges` so future tables don't regain it (TRUNCATE ignores RLS; 65 tables held it; 0 reachable paths today — no callable fn contains TRUNCATE, PostgREST has no verb) (announcer-spawned builder, tree `p0-truncate`) | **CLAIMED 2026-08-19** — found by the 0106 builder |
+| 0110 | *(next free)* | 145 | — | available |
 
 ## Where a number comes from: THIS FILE, never a message
 
