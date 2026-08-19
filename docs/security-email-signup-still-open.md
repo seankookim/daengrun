@@ -71,3 +71,48 @@ That 9th row is an `auth.users` without a `profiles` row — so **signup can hal
 creates the user, the client's role-pick upsert never runs, and the account exists with no
 profile. Harmless here (it never signed in), but it means "a user exists" and "a user finished
 signing up" are different facts, and anything counting users should say which it means.
+
+---
+
+# Addendum 2026-08-15 — the full auth config is readable after all, and it holds a second finding
+
+## ⚠ First, a correction to this memo's own claim
+
+The section above said the remaining auth settings "wa[nt] the management-API read that we do not
+have." **False.** The Supabase CLI stores its access token in the **macOS keychain**, not in
+`~/.supabase/access-token`. I checked for a file, found none, and recorded a tooling limit as a
+fact about the world — absence of evidence in the one place I happened to look. `GET
+/v1/projects/<ref>/config/auth` returns **242 fields**, including everything this memo listed as
+unpinnable.
+
+## 🔴 SECOND FINDING: the OAuth redirect allowlist permits any Expo host
+
+Measured live:
+
+```
+daengrun://login                      ← the real one
+daengrun://**                         ← wildcard, own scheme
+exp://**                              ← 🔴 WILDCARD: ANY Expo host
+exp://10.16.75.70:8081/--/login       ← a dev machine's LAN IP
+exp://172.30.1.44:8081/--/login       ← another
+exp://172.30.1.44:8081
+```
+
+**In an OAuth flow the redirect URI is where the token lands.** `exp://**` means Kakao can be
+asked to deliver a completed session to *any* `exp://` target. The classic shape: get a victim to
+start auth with `redirect_to=exp://attacker-host/...`, they complete a genuine Kakao login, and
+the session arrives at the attacker's host. It is a textbook open-redirect on the one flow that is
+now the **only** way into the product.
+
+**Exploitability today is moderate, not critical** — it needs the victim to follow a crafted link
+and to have Expo Go, and the pilot's user set is tiny. It is a launch item, not an incident. But
+it is exactly the kind of thing that is free to fix now and expensive to discover later, and
+`exp://` entries have no business existing in a production auth config at all.
+
+**Fix (dashboard, Sean's):** drop `exp://**` and both LAN-IP entries; keep `daengrun://login`.
+Narrow `daengrun://**` to the paths actually used if that is cheap. Dev machines can be re-added
+temporarily while developing and removed again — that is what makes them dev entries.
+
+**It is now PINNED**, which is the part that outlives the fix: `supabase/auth-surface.expected.json`
+records the current list and `check-auth-surface.mjs` reddens on any change. It cannot widen
+silently again, and the mutation that proved the check works was precisely a widened allowlist.
