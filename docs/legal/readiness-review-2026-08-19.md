@@ -86,9 +86,9 @@ the columns from `anon`, or route public reads through a whitelisted view, and l
 alone.
 
 So the published artefact is not "a route with the time removed." It is a route carrying the
-run's UUID and the run's date, published to anonymous readers. That is a stronger re-identification
-handle than the review's §5.6 anticipated, and it defeats "effectively anonymous" before any of
-the spatial arguments are reached.
+run, the runner, the curator and the date, published to anonymous readers. That is a stronger
+re-identification handle than the review's §5.6 anticipated — it does not require the spatial
+re-identification argument at all, because the identity is a foreign key rather than an inference.
 
 **It has not fired yet.** Every `verified_run_id` in production is currently NULL — no route has
 been promoted from a real run. And `promote_route_from_run` is deliberately **admin SQL only, not
