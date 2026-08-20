@@ -75,10 +75,18 @@ export function TabSwipe({ children }: { children: React.ReactNode }) {
   //   · a FAST second tab change → the previous spring is still running, its callback fires after
   //     the new effect has already set the incoming snapshot, and clears it — the incoming screen
   //     loses its snapshot and the transition shows the ghost this callback exists to prevent.
-  // The fix guards the setState and takes ownership of the timer. It deliberately does NOT stop the
-  // animation and does NOT skip `releaseCapture`: the callback must still run on `finished=false`
-  // (see below), and the temp jpg must be reclaimed even when we are unmounting — so cleanup
-  // releases immediately instead of cancelling the release.
+  // The fix guards the setState, and clears the release timer IF ONE EXISTS AT CLEANUP.
+  // ⚠ Precisely: cleanup can only clear a timer that has already been scheduled. In the
+  // fast-tab-change path — the common one — cleanup runs BEFORE the spring completes, so `release`
+  // and `pendingUri` are still null and there is nothing to clear; effect 1's callback then fires
+  // post-cleanup and schedules a fresh 500 ms timer on a dead effect. That is harmless TODAY and is
+  // left alone deliberately: the orphaned timer only calls `reclaim(uri)` — no setState — and
+  // reclaiming is what we want anyway, so the temp file is collected either way.
+  // **Do not read this teardown as covering that callback.** If anything with a side effect is ever
+  // added to it, the callback needs its own guard; the cleanup below will not save you.
+  // It deliberately does NOT stop the animation and does NOT skip `releaseCapture`: the callback
+  // must still run on `finished=false` (see below), and the temp jpg must be reclaimed even when we
+  // are unmounting — so cleanup releases immediately instead of cancelling the release.
   useEffect(() => {
     let alive = true;
     let release: ReturnType<typeof setTimeout> | null = null;
