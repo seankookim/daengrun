@@ -3,13 +3,19 @@
 # Paced at 4s: the public Overpass endpoint throttles on bursts and then returns
 # EMPTY results that look exactly like "this area has no streets".
 D="$(cd "$(dirname "$0")" && pwd)"; mkdir -p "$D/_base"
+# Route list derives from manifest.json, which is in git. This previously read
+# /tmp/routes-data.json, a scratch file from an earlier session: /tmp got wiped
+# once already (§24.4), and worse, a STALE copy silently hid every route built
+# after it was written — four routes on 2026-08-20 were skipped with no error
+# line at all.
 node -e '
 const fs=require("fs");
-const d=JSON.parse(fs.readFileSync("/tmp/routes-data.json","utf8"));
+const d=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));
+if(!d.length){console.error("manifest.json is empty — refusing");process.exit(1)}
 for(const r of d){
-  const la=r.trace.map(p=>p[0]), lo=r.trace.map(p=>p[1]), pad=0.0035;
+  const la=r.trace.map(p=>p.lat), lo=r.trace.map(p=>p.lng), pad=0.0035;
   console.log(r.name+"\t"+[Math.min(...la)-pad,Math.min(...lo)-pad,Math.max(...la)+pad,Math.max(...lo)+pad].map(x=>x.toFixed(4)).join(","));
-}' | while IFS=$'\t' read -r NAME BB; do
+}' "$D/../strava/manifest.json" | while IFS=$'\t' read -r NAME BB; do
   # NOT tr: it is BYTE-oriented, and '·' is two UTF-8 bytes, so one middle dot
   # became TWO underscores while build-route.sh left it alone. Three basemaps
   # existed under mangled names and looked simply missing. Fourth time today that

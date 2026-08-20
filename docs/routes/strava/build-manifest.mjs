@@ -61,6 +61,9 @@ const TOWN = [
   [/^강북/, '번동'],  // 강북구
   [/^노원/, '상계동'],  // 노원구
   [/^금천/, '독산동'],  // 금천구
+  // Specific rows FIRST — the generic 구 rows below flatten every 동 in the 구
+  // into one, which mislabeled 장안동 as 제기동 (4 km apart) on 2026-08-20.
+  [/^동대문.*장안/, '장안동'],  // 동대문구; 장안삼성래미안2차
   [/^동대문/, '제기동'],  // 동대문구
   [/^관악/, '봉천동'],  // 관악구
   [/^양천/, '목동'],  // 양천구
