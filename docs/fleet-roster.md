@@ -288,3 +288,9 @@ two false "stranded work" alarms on day one.
   something if the thing existed** — grep for the SYMBOL (which had zero hits, correctly) rather than a guessed filename, or list the
   directory and read it. Same family as ui2's truncated-`head` negative, and the reason both are in this file: a false negative wears
   the same confident tone as a true one.
+- **A grep HIT count is not a defect count (laughing-elgamal, 2026-08-20):** four hits for a retired identifier looked like four
+  stale references; two were load-bearing (a deliberate history note, and the announcer's own corrected record). Read every hit
+  before calling any of them stale — the mirror of the rule above: prove a 0 would have matched, and prove a hit is actually wrong.
+- **Unquoted `git commit -m "…"` lets the SHELL eat backticked identifiers (laughing-elgamal, measured):** `ede1b65`'s message lost
+  three identifiers to command substitution; the same content committed via `git commit -F -` with a quoted heredoc survived intact
+  (verified by grepping the committed message). Every session here writes identifier-dense messages — use the heredoc form.

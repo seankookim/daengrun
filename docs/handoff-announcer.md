@@ -29,6 +29,7 @@ comments say why and name 146 D-4/5/6/11/20). `_guard_booking_insert_cols` is no
 construction and its blacklist property is unpinned — whoever ever re-grants client INSERT gets it back
 untested (recorded in 119/125). Trust, if you return: this is your surface; the contract, the reviewer's
 executed evidence and the row are the record — verify, don't relay.
+**Unowned work, known and not urgent (2026-08-20):** react-doctor flags an ERROR-level `setState in onScroll` at `app/app/shot/[bid].tsx:549` (snap-carousel index tracking — a genuine per-frame-setState smell), plus 17 warnings on that file; all PRE-EXISTING and react-doctor is advisory here, not a gate. Also `docs/plans/action-system-plan.md:87` still says owner home has `BrandLockup` — deliberately NOT edited: it is a dated 2026-08-11 plan, and rewriting a dated plan to match today's tree destroys the record instead of correcting it.
 **Ruling #14 (Sean, in ui2's session, on origin at e13b579, verbatim in `docs/labs/RULINGS-2026-08-19-journey.md`):**
 pickup = wherever the owner pins; app recommends the nearest route; runner is led to the nearest point ON
 the route and the lap starts there. Route geometry's measured read (46 routes): rank by distance-to-TRACE
