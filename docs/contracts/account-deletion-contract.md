@@ -828,7 +828,7 @@ function owns that column (§C.1.c step 5, F15).
    배정을 철회한 뒤 다시 시도해주세요."*). Under the honesty laws a refusal is shown as a refusal
    — **no silent catch, no happy UI**. **Eleven tokens, eleven copy entries** (§D.N2 pins the set
    equality, and F3 added two of them).
-3b. 🔴 **`auth_delete_failed` is a screen, not a toast (F15).** A 500 with that token means the
+3b. 🔴 **`auth_delete_pending` is a screen, not a toast (F15).** ⚠ AS BUILT: **HTTP 202, token `auth_delete_pending`** — there is ONE token (the "500 `auth_delete_failed`" this section first specified was superseded; see :777 and the handler). A 202 with that token means the
    data is already redacted and the credential is not yet gone. Render
    **"탈퇴 처리 중 — 잠시 후 다시 시도해주세요."**, keep the user signed in (the JWT is still
    needed for the retry), and offer one button that re-invokes `delete-account` — which
@@ -1116,7 +1116,7 @@ against `HttpError`, English-sentence test names. `deno test -A supabase/functio
    tables, only `rpc:delete_my_account_tx` plus storage calls.
 6. `"delete-account: storage failure does not abort the deletion"` — `remove()` throws; assert
    `auth.admin.deleteUser` is still called and the result reports `storage_removed: 0`.
-7. `"delete-account: auth.admin.deleteUser failure returns 500 auth_delete_failed, and the log row
+7. `"delete-account: auth.admin.deleteUser failure returns 202 auth_delete_pending, and the log row
    records it"` — assert the result does **not** claim success **and** that
    `update:account_deletions` with `auth_deleted = false` appears in `db.log` **after**
    `rpc:delete_my_account_tx`, never inside it (F15).
@@ -1221,7 +1221,7 @@ Added by the announcer at the adversarial review, same standing, same visibility
 - 🔵 **Visibility is fixed in the VIEW plus a narrow tombstone policy, not by narrowing
   `profiles public runner read`** (F6/F7/F8, §C.1.a 2b).
 - 🔵 **`dogs.name` is kept** (F16, §C.1.b ③).
-- 🔵 **No sweeper cron for `auth_delete_failed` rows — an ops script instead** (F15, §C.1.c 5).
+- 🔵 **No sweeper cron for `auth_delete_pending` rows — an ops script instead** (F15, §C.1.c 5).
 
 ---
 
@@ -1285,7 +1285,7 @@ finding below is applied above; this log is the index, not the argument.
 | **F12** | — | N4's definer list: **three** `_owner_la_*` triggers, not four; `notify_chat_message` was missing and degrades to `탈퇴한 사용자님이 메시지를 보냈어요` | §D.N4, N4-a |
 | **F13** | — | `active_recurring` = `paused = false`, and the row is **KEPT** — `0111:192` revoked client DELETE, `:193` granted `update (paused)` only. "REFUSE-then-DELETE" was never expressible | §A.2.c, §C.1.b ②, §C.2 ③ |
 | **F14** | — | Deno test 8's rationale was wrong — enumeration runs on `admin()` (`ctx.ts:22-27`), not on the caller's JWT. Storage-before-auth is still right, for **orphan avoidance** | §D Deno plan 8 |
-| **F15** | — | `account_deletions.auth_deleted` moves into the edge function after step 5; `auth_delete_failed` becomes a defined UI state with a retry; **no cron — an ops script**, stated as a decision | §C.1.c 5, §C.2 3b, §D.P6/P7 |
+| **F15** | — | `account_deletions.auth_deleted` moves into the edge function after step 5; `auth_delete_pending` (as built) becomes a defined UI state with a retry; **no cron — an ops script**, stated as a decision | §C.1.c 5, §C.2 3b, §D.P6/P7 |
 | **F16** | 🔵 | write the `dogs` UPDATE explicitly: null `photo_url`/`memo`, **keep `name`** (multi-dog owners; kept-booking identity) | §C.1.b ③, §D.P2 |
 
 **The 🔵 decisions taken at this review** — all also listed in §F, where the other product calls
