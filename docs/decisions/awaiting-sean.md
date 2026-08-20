@@ -280,6 +280,13 @@ real owners. Relief: no vehicle pickup (동물운송업 not in play), shop is a 
 not exposed) — widening that read path is the moment §11 goes live, so it is a legal decision, not a UI fix; the community
 feed has no reports/moderation table (임시조치 will be needed there first).
 
+## 0-vicies. 🟡 ONE-LINE LOOKUPS FROM UI2 (2026-08-20 morning)
+
+1. **Your stale Aug-4 booking fixture** — delete it or keep it? It is on your account and it shapes what you see on the sim.
+   **A** delete · **B** keep. (Not decided under the grant: it is your data.)
+2. **Runner R6 return seal + R1c work-gate are NOT built** (ui2 measured the gap; server slice). Unowned — trust's surface.
+   Nobody is on it; say if it should be tonight's/today's next server slice or wait for trust.
+
 ## 0-novodecies. 👀 TWO SMALL LOOKS FROM UI2'S OVERNIGHT PASS (2026-08-20 morning)
 
 1. **run.tsx R4 colour law:** the runner run screen has two corals (progress bar + strip) and a VOLT main CTA where lab 13 wants
