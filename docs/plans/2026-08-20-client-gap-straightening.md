@@ -28,8 +28,13 @@ at the gate before implementation.
   refactors, not against bug fixes. Sean's gate approval = Sean's word for these.
 - **P4.** The known handoff-CTA off-by-one stays QUEUED (it has its own pending ruling); nothing
   here preempts it.
-- **P5.** Everything lands behind the four gates (tsc · check-rpc · route-native-imports · lint=6),
-  sim-verified where verifiable, honestly marked unverified where hardware is required.
+- **P5.** Everything lands behind the **five** gates (tsc · check-rpc · route-native-imports ·
+  **check-embed-fk** · lint=6) — corrected 2026-08-20 evening: this plan itself was written before
+  `check-embed-fk.mjs` existed (it was added by E1, in this same plan), so it shipped a gate list
+  that omitted its own gate. A peer client session caught it after running only four and believing
+  it was done. Both halves of the lesson are the same one this repo keeps relearning: a written
+  list of gates goes stale the moment a gate is added, and the artifact looked current.
+  Work is sim-verified where verifiable, and honestly marked unverified where hardware is required.
 
 ---
 
@@ -264,7 +269,7 @@ with a home exit (A5/A6).
 HOUR 1: E1 (one line + gate script) — nomination lives again. HOUR 2: A1+F2+E3 (safety + money
 truth). HOUR 3-4: E2, B1, C1/C2, E4. HOUR 5-6: state arms (B2-B7), realtime (D1-D4). HOUR 6+:
 honesty sweep (F*), structure (A2-A6), long tail. Order is blast-radius-ascending within
-severity; every hour ends commit-clean behind the four gates.
+severity; every hour ends commit-clean behind the five gates.
 
 ## 0F. Mode selection
 SELECTIVE EXPANSION (per /autoplan override) — confirmed coherent with the directive: hold the
