@@ -32,6 +32,16 @@ const N = Number(process.argv[2] || 6);
 const CONC = Number(process.argv[3] || 4);
 const GREEN_M = 60;          // a trace must pass this close to count as reaching it
 const MIN_KM = 1.5, MAX_KM = 7.5;
+// PAIR MODE (arg 4 = "pair"): route anchor -> green A -> green B -> home instead of
+// lapping one green. Sean, 2026-08-20: "pair greens for longer routes."
+// Single-lap routes come out 1.6-2.9 km because a tight lap around a NEAR green is
+// short by construction — the length has nowhere to come from. Pairing takes the
+// length from a SECOND green rather than from walking further out, which keeps R1
+// intact: both destinations are still real greens the route actually reaches, and
+// neither was chosen to make a distance come out.
+const PAIR = process.argv[4] === 'pair';
+const PAIR_MIN_SEP = 500;    // B must be this far from A or it adds no length
+const PAIR_MAX_FROM_ANCHOR = 1800;
 
 const feats = JSON.parse(readFileSync(join(DIR, 'features.json'), 'utf8')).features;
 // NOTE: the field is `category`, not `kind`. An ad-hoc check that filtered on
@@ -45,7 +55,10 @@ const gaps = spawnSync(process.execPath, [join(DIR, 'coverage-gaps.mjs'), String
 const lines = gaps.stdout.split('\n');
 const picks = [];
 for (let i = 0; i < lines.length; i++) {
-  const head = /^\s*(\d+)\.\s+\+(\d+) complexes \| (\S+)\s+\| (.+)$/.exec(lines[i]);
+  // \+\s*(\d+) — NOT \+(\d+). The ranker pads the count to width 3, so "+135" has
+  // no space but "+ 95" does. The tight regex matched only 3-digit gaps and silently
+  // parsed zero once the counts dropped to two digits.
+  const head = /^\s*(\d+)\.\s+\+\s*(\d+) complexes \| (\S+)\s+\| (.+)$/.exec(lines[i]);
   if (!head) continue;
   const body = /^\s+anchor ([\d.]+),([\d.]+)\s+->\s+(.+?)(?: @([\d.]+),([\d.]+))?$/.exec(lines[i + 1] || '');
   if (!body) continue;
@@ -72,9 +85,51 @@ const bearing = (aLat, aLng, bLat, bLng) => {
   return (deg(Math.atan2(y, x)) + 360) % 360;
 };
 
+// Second green for pair mode: far enough from A to add real length, close enough
+// to the anchor that the route does not become a march. Nearest such wins — the
+// same nearest-first rule, applied to the second destination.
+function secondGreen(p) {
+  let best = null;
+  for (const g of greens) {
+    const fromAnchor = metres(p.lat, p.lng, g.lat, g.lng);
+    if (fromAnchor > PAIR_MAX_FROM_ANCHOR) continue;
+    const fromA = metres(p.dLat, p.dLng, g.lat, g.lng);
+    if (fromA < PAIR_MIN_SEP) continue;
+    if (!best || fromAnchor < best.fromAnchor) best = { ...g, fromAnchor, fromA };
+  }
+  return best;
+}
+
 async function build(p) {
   if (p.dLat == null) return { p, skip: 'no green in reach — needs a hand-built residential loop' };
   const outb = bearing(p.lat, p.lng, p.dLat, p.dLng);
+
+  if (PAIR) {
+    const b = secondGreen(p);
+    if (!b) return { p, skip: `no second green ${PAIR_MIN_SEP}m+ from the first and within ${PAIR_MAX_FROM_ANCHOR}m — single-lap only here` };
+    const destName = (p.dest.split(' (')[0] || 'green').trim().replace(/["']/g, '');
+    const name = `${p.gu.replace(/구$/, '')} ${destName.slice(0, 10)}·${(b.name || '').slice(0, 10)} 루프`;
+    const r = spawnSync(process.execPath, [
+      join(DIR, '..', 'strava', 'naver-route.mjs'), name,
+      `${p.lng},${p.lat}`, `${p.dLng},${p.dLat}`, `${b.lng},${b.lat}`, `${p.lng},${p.lat}`,
+    ], { encoding: 'utf8' });
+    if (r.status !== 0) return { p, skip: 'pair route was out of range or unroutable' };
+    const saved = /saved (\S+\.gpx)/.exec(r.stdout)?.[1];
+    if (!saved) return { p, skip: 'pair route saved no file' };
+    // BOTH greens must be reached, or the name is claiming one it never touched.
+    const gpx = readFileSync(join(DIR, '..', 'strava', saved), 'utf8');
+    const pts = [...gpx.matchAll(/lat="([\d.]+)" lon="([\d.]+)"/g)].map((m) => [+m[1], +m[2]]);
+    const near = (lat, lng) => Math.min(...pts.map((q) => metres(q[0], q[1], lat, lng)));
+    const dA = near(p.dLat, p.dLng), dB = near(b.lat, b.lng);
+    if (dA > GREEN_M || dB > GREEN_M) {
+      spawnSync('bash', ['-c', `cd ${JSON.stringify(join(DIR, '..', 'strava'))} && rm -f ${JSON.stringify(saved)} && grep -v ${JSON.stringify('^' + saved.replace(/\.gpx$/, '').replace(/_/g, ' ') + '|')} manifest.psv > /tmp/mp$$ && mv /tmp/mp$$ manifest.psv`]);
+      return { p, skip: `pair route missed a green (A ${Math.round(dA)}m, B ${Math.round(dB)}m)` };
+    }
+    return { p, ok: true, km: Number(/measured: ([\d.]+) km/.exec(r.stdout)?.[1] || 0), saved,
+      greenM: Math.round(Math.max(dA, dB)), greenName: `${destName} + ${b.name}`,
+      shape: /verified: (\S+)/.exec(r.stdout)?.[1] };
+  }
+
   // Lap the green: a point on the far side of the destination. Return: off the
   // outbound bearing so the way home is different ground (R2/R3).
   const attempts = [
