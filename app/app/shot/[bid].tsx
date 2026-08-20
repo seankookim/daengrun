@@ -49,9 +49,19 @@ function IconChip({ size, df }: { size: number; df: any }) {
       alignItems: 'center', justifyContent: 'center',
       shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 4, shadowOffset: { width: 0, height: 2 },
     }}>
-      {/* [D13 2026-08-12] 로고 아트워크 예외 (DESIGN.md §3) — 이 두 줄은 문장이 아니라 **마크**다
-          (size 24에서 5.8/7.7pt). 예외를 타려면 선언이 필요하다: 보조기술에는 장식으로 감춘다.
-          바깥 BrandLockup이 읽을 이름을 갖는다. 데이터는 한 글자도 여기 들어오지 않는다. */}
+      {/* [D13 2026-08-12] Logo-artwork exception (DESIGN.md §3) — these two lines are a **mark**,
+          not a sentence (5.8/7.7pt at size 24), so the 14pt detail floor does not apply. Taking the
+          exception requires a declaration: they are hidden from assistive tech as decoration, and
+          not one character of data ever enters here.
+          ⚠ The accessible name comes from `Lockup` (:79), THIS FILE's local brand device that wraps
+          this chip — not from any shared component. It renders visible 「도그스하이 DOGS HIGH」 with
+          no a11y hiding, so a screen reader reads the brand once from the wrapper while the tiny
+          mark inside stays silent. That is what makes hiding these two lines correct rather than a
+          gap. [2026-08-20] This line used to say "바깥 BrandLockup" — the claim was right but the
+          NAME was not: `BrandLockup` was a different, shared component (src/components/brandmark),
+          retired when owner-home dropped its wordmarks. It never lived in this file, so the comment
+          pointed at a symbol that now resolves to nothing and read as a live dependency to anyone
+          grepping. Naming the local `Lockup` makes it true for the first time. */}
       <Text accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[{ fontSize: size * 0.24, color: colors.volt, fontWeight: '900', lineHeight: size * 0.28 }, df]}>도그스</Text>
       <Text accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[{ fontSize: size * 0.32, color: colors.volt, fontWeight: '900', lineHeight: size * 0.36, letterSpacing: 1 }, df]}>하이</Text>
     </View>
