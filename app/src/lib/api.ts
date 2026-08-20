@@ -180,6 +180,15 @@ export async function fetchRoutes(town?: string | null): Promise<RouteInfo[]> {
   const rows = await forTown(town ?? null);
   if (rows.length > 0 || !town) return rows.map((r) => toRouteInfo(r, r.trace_thumb)).filter(isOfferable);
 
+  // Same token, administrative suffix only: district '성수' ↔ town '성수동'. This is NOT the geographic
+  // judgement the comment below refuses (뚝섬 → 성수동); it is the one normalisation that cannot be wrong,
+  // and it is what made Sean's own account (district '성수') fall through to the unfiltered list while a
+  // 반포동 owner saw only 반포동 — two owners, two rules. (2026-08-20)
+  if (!town.endsWith('동')) {
+    const suffixed = await forTown(`${town}동`);
+    if (suffixed.length > 0) return suffixed.map((r) => toRouteInfo(r, r.trace_thumb)).filter(isOfferable);
+  }
+
   // ── 동네 어휘 폴백 (플랜 "Town vocabulary" — 명세돼 있었지만 만들어지지 않았던 팔) ──
   // `profiles.district`와 `routes.town`은 **서로 다른 어휘**다. 실측(2026-08-13):
   // district = {null, 반포동, 성수, 뚝섬, 서울숲} · town = {반포동, 성수동} — 겹치는 값은
@@ -2484,21 +2493,68 @@ export async function sendChatPhoto(threadId: string, base64: string): Promise<v
 }
 
 // 새 메시지 실시간 구독 — 해제 함수 반환
+// ── Shared realtime channels — one channel per topic, fan-out to N listeners ───────────────────
+// supabase-js dedupes channels BY TOPIC and throws "cannot add `postgres_changes` callbacks … after
+// `subscribe()`" when a second mounted screen attaches to an already-subscribed channel. Expo Router
+// keeps previous screens mounted, so the same booking / thread / club session watched from two screens
+// (owner live → home → meetup; chat opened from meetup and from schedule) crashed. Measured 2026-08-19
+// on owner/meetup. `removeChannel` AWAITS the leave before teardown, so the registry keeps the entry
+// until that resolves; a listener arriving during teardown waits and then opens a fresh channel.
+// Every consumer keeps its poll fallback — nothing here changes what a screen does on an event.
+type SharedWatcher<P> = { listeners: Set<(p: P) => void>; ch: ReturnType<typeof supabase.channel>; dropped: boolean; teardown: Promise<void> | null };
+const sharedWatchers = new Map<string, SharedWatcher<any>>();
+function subscribeShared<P>(
+  topic: string,
+  attach: (ch: ReturnType<typeof supabase.channel>, emit: (p: P) => void) => ReturnType<typeof supabase.channel>,
+  listener: (p: P) => void,
+): () => void {
+  hookTokenRefresh();
+  let w = sharedWatchers.get(topic) as SharedWatcher<P> | undefined;
+  if (w && w.teardown) {
+    let cancelled = false;
+    let inner: (() => void) | null = null;
+    void w.teardown.then(() => { if (!cancelled) inner = subscribeShared<P>(topic, attach, listener); });
+    return () => { cancelled = true; inner?.(); };
+  }
+  if (!w) {
+    const listeners = new Set<(p: P) => void>();
+    const ch = attach(
+      supabase.channel(topic, REALTIME_PRIVATE),
+      (p) => { for (const fn of Array.from(listeners)) fn(p); },
+    );
+    w = { listeners, ch, dropped: false, teardown: null };
+    sharedWatchers.set(topic, w);
+    const mine = w;
+    // 무장 → 구독 순서. 그 사이 도착한 변경은 화면의 폴백 폴링이 잡는다(각 소비처가 폴링을 유지한다).
+    void armRealtime().then(() => { if (!mine.dropped) mine.ch.subscribe(); });
+  }
+  w.listeners.add(listener);
+  const mine = w;
+  return () => {
+    const cur = sharedWatchers.get(topic);
+    if (cur !== mine) return;
+    cur.listeners.delete(listener);
+    if (cur.listeners.size === 0 && !cur.teardown) {
+      cur.dropped = true;
+      cur.teardown = Promise.resolve(supabase.removeChannel(cur.ch))
+        .then(() => undefined, () => undefined)
+        .finally(() => { if (sharedWatchers.get(topic) === cur) sharedWatchers.delete(topic); });
+    }
+  };
+}
+
 export function subscribeMessages(threadId: string, uid: string | null, onMsg: (m: ChatMsg) => void): () => void {
   // P0-1 후속(0108): chat 채널은 postgres_changes 전용이라 브로드캐스트 노출은 없었지만,
   // 프로젝트 전역 private_only 가 켜지는 순간 public 채널은 **전부** 죽는다. 서버 정책(0108)이
-  // 이 토픽족을 인가하므로 private 으로 요청하고, 구독 전에 소켓을 무장시킨다.
-  hookTokenRefresh();
-  const ch = supabase
-    .channel(`chat-${threadId}`, REALTIME_PRIVATE)
-    .on('postgres_changes',
+  // 이 토픽족을 인가하므로 private 으로 요청하고, 구독 전에 소켓을 무장시킨다. (shared registry —
+  // see subscribeShared; the message is mapped per listener so each screen sees its own `mine`.)
+  return subscribeShared<any>(
+    `chat-${threadId}`,
+    (ch, emit) => ch.on('postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `thread_id=eq.${threadId}` },
-      (payload) => onMsg(mapMsg(payload.new, uid)))
-    ;
-  // 무장 → 구독 순서. 그 사이 도착한 변경은 화면의 폴백 폴링이 잡는다(각 소비처가 폴링을 유지한다).
-  let dropped = false;
-  void armRealtime().then(() => { if (!dropped) ch.subscribe(); });
-  return () => { dropped = true; supabase.removeChannel(ch); };
+      (payload) => emit(payload.new)),
+    (row) => onMsg(mapMsg(row, uid)),
+  );
 }
 
 // 예약 상태 실시간 구독 — 폴링을 대체 (폴백 폴링은 화면이 유지)
@@ -2560,62 +2616,18 @@ export async function fetchRecentReviews(): Promise<PublicReview[]> {
   }));
 }
 
-// One realtime channel per booking, shared by every screen that watches it.
-// supabase-js returns the SAME channel object for the same topic, and throws
-// "cannot add `postgres_changes` callbacks … after `subscribe()`" when a second screen
-// attaches a callback to an already-subscribed channel. That is exactly what happens when the
-// owner walks live → home → meetup (or meetup auto-transitions to live) for one booking, because
-// Expo Router keeps the previous screen mounted. Measured on the simulator 2026-08-19 (render
-// error on owner/meetup). So: a registry keyed by booking id, fan-out to N listeners, the channel
-// is created on the first listener and removed when the last one leaves. Each screen keeps its
-// poll fallback; nothing here changes what a screen does on a change.
-// ⚠ supabase-js dedupes channels by topic and `removeChannel` AWAITS the leave before teardown,
-// so when the last listener leaves we must keep the registry entry until that teardown resolves;
-// a remount in that window would otherwise be handed the dying channel object. A listener that
-// arrives during the teardown waits for it and then opens a fresh channel.
-type BookingWatcher = { listeners: Set<() => void>; ch: ReturnType<typeof supabase.channel>; dropped: boolean; teardown: Promise<void> | null };
-const bookingWatchers = new Map<string, BookingWatcher>();
-
 export function subscribeBooking(bookingId: string, onChange: () => void): () => void {
   // P0-1 후속(0108): bk 채널은 postgres_changes 전용이라 브로드캐스트 노출은 없었지만,
   // 프로젝트 전역 private_only 가 켜지는 순간 public 채널은 **전부** 죽는다. 서버 정책(0108)이
-  // 이 토픽족을 인가하므로 private 으로 요청하고, 구독 전에 소켓을 무장시킨다.
-  hookTokenRefresh();
-  let w = bookingWatchers.get(bookingId);
-  if (w && w.teardown) {
-    // The previous channel is being torn down — wait for it, then subscribe for real.
-    let cancelled = false;
-    let inner: (() => void) | null = null;
-    void w.teardown.then(() => { if (!cancelled) inner = subscribeBooking(bookingId, onChange); });
-    return () => { cancelled = true; inner?.(); };
-  }
-  if (!w) {
-    const listeners = new Set<() => void>();
-    const ch = supabase
-      .channel(`bk-${bookingId}`, REALTIME_PRIVATE)
-      .on('postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'bookings', filter: `id=eq.${bookingId}` },
-        () => { for (const fn of Array.from(listeners)) fn(); })
-      ;
-    w = { listeners, ch, dropped: false, teardown: null };
-    bookingWatchers.set(bookingId, w);
-    // 무장 → 구독 순서. 그 사이 도착한 변경은 화면의 폴백 폴링이 잡는다(각 소비처가 폴링을 유지한다).
-    const mine = w;
-    void armRealtime().then(() => { if (!mine.dropped) mine.ch.subscribe(); });
-  }
-  w.listeners.add(onChange);
-  const mine = w;
-  return () => {
-    const cur = bookingWatchers.get(bookingId);
-    if (cur !== mine) return;
-    cur.listeners.delete(onChange);
-    if (cur.listeners.size === 0 && !cur.teardown) {
-      cur.dropped = true;
-      cur.teardown = Promise.resolve(supabase.removeChannel(cur.ch))
-        .then(() => undefined, () => undefined)
-        .finally(() => { if (bookingWatchers.get(bookingId) === cur) bookingWatchers.delete(bookingId); });
-    }
-  };
+  // 이 토픽족을 인가하므로 private 으로 요청하고, 구독 전에 소켓을 무장시킨다. (shared registry —
+  // see subscribeShared above; the double-subscribe crash was measured on owner/meetup after owner/live.)
+  return subscribeShared<void>(
+    `bk-${bookingId}`,
+    (ch, emit) => ch.on('postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'bookings', filter: `id=eq.${bookingId}` },
+      () => emit(undefined as void)),
+    () => onChange(),
+  );
 }
 
 // 채팅 컨텍스트 — 상대 이름 + 예약 라벨
@@ -3333,18 +3345,14 @@ export async function sendClubChatPhoto(
 export function subscribeClubChat(sessionId: string, onInsert: () => void): () => void {
   // P0-1 후속(0108): club-chat 채널은 postgres_changes 전용이라 브로드캐스트 노출은 없었지만,
   // 프로젝트 전역 private_only 가 켜지는 순간 public 채널은 **전부** 죽는다. 서버 정책(0108)이
-  // 이 토픽족을 인가하므로 private 으로 요청하고, 구독 전에 소켓을 무장시킨다.
-  hookTokenRefresh();
-  const ch = supabase
-    .channel(`club-chat-${sessionId}`, REALTIME_PRIVATE)
-    .on('postgres_changes',
+  // 이 토픽족을 인가하므로 private 으로 요청하고, 구독 전에 소켓을 무장시킨다. (shared registry.)
+  return subscribeShared<void>(
+    `club-chat-${sessionId}`,
+    (ch, emit) => ch.on('postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'club_chat_messages', filter: `session_id=eq.${sessionId}` },
-      () => onInsert())
-    ;
-  // 무장 → 구독 순서. 그 사이 도착한 변경은 화면의 폴백 폴링이 잡는다(각 소비처가 폴링을 유지한다).
-  let dropped = false;
-  void armRealtime().then(() => { if (!dropped) ch.subscribe(); });
-  return () => { dropped = true; supabase.removeChannel(ch); };
+      () => emit(undefined as void)),
+    () => onInsert(),
+  );
 }
 // [감사 11] 삭제가 사진 원본을 스토리지에 남기던 것 — 말풍선만 지워지고 공개 URL은 살아 있었다.
 // RPC(본인 5분 내만)가 성공한 뒤에만 원본을 지운다. 원본 정리는 베스트에포트 —

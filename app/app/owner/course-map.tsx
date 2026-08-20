@@ -21,7 +21,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated, Dimensions, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, View,
 } from 'react-native';
-import { fetchAddresses, fetchMyProfile, fetchRoutes } from '../../src/lib/api';
+import { fetchAddresses, fetchRoutes } from '../../src/lib/api';
 import { CourseDetailBody, traceKind, TRACE_NOTE } from '../../src/components/course-detail';
 import { emptyChipCopy, matchesChips, RouteChipRow, useRouteChips } from '../../src/components/route-chips';
 import { StatusBarCover } from '../../src/components/status-bar-cover';
@@ -138,8 +138,11 @@ export default function CourseMap() {
   // ── 데이터 ────────────────────────────────────────────────────────────────
   const load = useCallback(() => {
     setState('loading');
-    fetchMyProfile()
-      .then((p) => fetchRoutes(p?.district ?? null))
+    // Whole catalog, like request.tsx — ruling #14/#15: discovery is ranked by distance from the
+    // PICKUP (orderByProximity below), not fenced by profiles.district. Two screens on two different
+    // queries also dropped course-map picks that request.tsx could not find in its own list (review
+    // 2026-08-19). The camera, not the query, keeps the view local (see `region`).
+    fetchRoutes()
       .then((rs) => {
         setRoutes(rs);
         setState('ready');
@@ -228,10 +231,18 @@ export default function CourseMap() {
   // **id가 그대로인 채 트레이스 내용만 바뀌면 카메라가 다시 맞지 않는다**(카탈로그가 코스를
   // 다시 자르고 재조회한 경우가 정확히 그 모양이다). 게다가 복합식이라 린터가 검사할 수도 없었다.
   // eslint react-hooks/exhaustive-deps 가 잡아 준 실제 결함이다.
-  const region = useMemo(
-    () => (sel ? regionOf([sel.trace]) : regionOf(withTrace.map((r) => r.trace))),
-    [sel, withTrace],
-  );
+  // Camera: the selected course, else — when a pickup pin exists — the pin plus the nearest few courses
+  // (withTrace is already ordered by distance from the pickup), else everything. Fitting all 50+ routes
+  // gave a city-wide view where anchors are dots; the owner's question is "what is near my pickup".
+  const NEAR_FIT = 6;
+  const region = useMemo(() => {
+    if (sel) return regionOf([sel.trace]);
+    if (pickup && withTrace.length > 0) {
+      const near = withTrace.slice(0, NEAR_FIT).map((r) => r.trace);
+      return regionOf([...near, [{ lat: pickup.lat, lng: pickup.lng }]]);
+    }
+    return regionOf(withTrace.map((r) => r.trace));
+  }, [sel, withTrace, pickup]);
 
   const mapNode = !maps ? (
     <View style={[StyleSheet.absoluteFill, s.center]}>

@@ -12,9 +12,11 @@ GPX files of running routes in Seoul, plus a record of each route's measured pro
 dog-running marketplace's route catalog. Owners browse these routes and pick one when booking a
 runner for their dog.
 
-**A route is: start and end at the SAME residential anchor**, passing residential streets and
-(optionally) a park, stream, riverside or hill. Target distances **2 / 3 / 5 / 7 km**. Many
-variations per district. Districts of interest: 반포동 · 잠원동 · 압구정동 · 도곡동 · 잠실동 ·
+**A route is: start and end at the SAME residential anchor**, go to the nearest park / stream /
+river, **lap it**, and come back. Distances anywhere in **1.5–7.5 km** — non-integer is fine, and
+the name carries the measured value. **Many variations per town** is an explicit requirement, not a
+nice-to-have: the owner asked for "a large variety of routes" because the app shows the total
+distance including the walk from the pickup pin to the route. Districts of interest: 반포동 · 잠원동 · 압구정동 · 도곡동 · 잠실동 ·
 이촌동 · 성수동, expanding to all 25 자치구 of Seoul.
 
 Deliverables per route: the `.gpx` file, measured distance, measured elevation gain, point count,
@@ -52,15 +54,32 @@ Do this instead:
    it is the start AND end of the route.
 2. Choose waypoints only from features **actually near that cluster** — the ones a person could
    walk to.
-3. **Chain 5–8 waypoints, not 2–3. This is the highest-leverage single change.** **MEASURED:** with
-   2–3 waypoints the router takes the shortest path out and the same path home, producing 78–81%
-   retrace on nearly every route built. More waypoints, spread around the anchor, force an outbound
-   and a return leg that differ.
-4. **Order the waypoints by compass bearing around the start anchor** (e.g. N → E → S → W). This
-   is the systematic way to force the route to encircle the block instead of doubling back. It is
-   arithmetic, not judgment. **UNVERIFIED — this was designed but never tested; validate it.**
-5. Distance is set by how far apart the anchors are. Tight cluster → 2–3 km. Cluster + river
-   crossing + park → 5–7 km.
+3. **Use 2–4 waypoints. 2–3 is the sweet spot. MEASURED, and this REVERSES an earlier rule.**
+   A previous version of this brief said "chain 5–8 waypoints", from a true measurement: 2–3
+   waypoints did produce 78–81% retrace. But forcing 5–8 points around a tight anchor makes the
+   router **zigzag between them**, and the product owner rejected the result on sight — *"there are
+   too many spiky points and seen-twice routes ... two or three way points excluding the start/end
+   point should be the sweet spot."* The old rule optimised a NUMBER and degraded the THING THE
+   NUMBER STOOD FOR.
+4. **Go to the green FIRST — the route is destination-led, not a ring of waypoints.** Owner's words:
+   *"if the resident area and the river/park area is near by, ... start from the residential area and
+   go first and foremost to these geographical areas, then make a route there before turning back
+   with either the same or a different route back. if there are no parks or rivers near by, make a
+   simple loop."*
+   Concretely: **(a)** the destination is the **NEAREST** qualifying green — never the one that
+   happens to sit at the radius that makes your target distance come out. Choosing by distance-fit
+   is how you walk past the near park to reach a far one, and it caused every rejection in a
+   31-route review. **(b)** Add one point close to it so the green section has LENGTH — *"do a lap,
+   then come back"*, *"did not even go deep into the park"*. **(c)** Optionally one return point,
+   never on the opposite bearing — *"you start near the river bed and you go the opposite
+   direction?"*
+5. **Distance comes from the LAP, not from walking further out.** If a route is too short, lap more
+   of the green; do not pick a further destination.
+6. **Not destinations**: parking lots, factories, stations, terminals — *"why are we stranding off
+   into a random factory parking lot"*, *"no need to go all the way up to the station"*. A "trail"
+   in an OSM index is usually a named ROAD; picking one is how a route ends up *"all concrete no
+   park"*. A flat park beats a hill: *"a mountain is a big climb"* for a dog. The route must touch
+   residential streets.
 
 **Shape is a characteristic, not a grade.** Loop, lollipop, figure-eight, out-and-back are all fine
 routes to walk a dog on. Do not optimize for topological purity — the product owner explicitly
@@ -84,6 +103,21 @@ each. For each 자치구 collect, with coordinates:
   linear parks.
 - **Crossings**: see §4. Load-bearing.
 - **Streets** that can carry a return leg.
+
+### Two naming traps that cost whole routes
+
+**ON A LONG RIVER, NAME A BRIDGE — NOT THE RIVER. MEASURED, twice.** A route using `안양천`
+measured **12.96 km on two identical runs**; the same route with `오목교` measured 5.44 km and came
+out a genuine loop at 15% retrace. `중랑천` gave 8.37 km; `겸재교` gave 3.54 km. A bare river name on
+a 30 km waterway is a coin flip on WHICH point the geocoder picks, and viewport bias only sometimes
+saves it. A bridge is a point — and it also hands the router a way across and back, which is why
+those loops closed instead of doubling back.
+
+**A NAME THAT COULD BE ANYWHERE IS ANYWHERE. MEASURED:** `어울림공원` in a 강서 route produced
+**27.64 km** — that park name exists in many Korean cities. Same for 중앙공원 · 근린공원 ·
+체육공원 · 생태공원 · 시민공원 · 평화공원 · 호수공원 · 가족공원 · 문화공원. Do not drop them
+blindly — with a close anchor they often resolve correctly — but flag them, and let the
+measure-before-save gate catch the ones that do not. It caught this one.
 
 ### Streams are the highest-yield category
 
