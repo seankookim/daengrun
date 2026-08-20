@@ -378,7 +378,16 @@ export default function Matching() {
             <Text style={{ fontSize: 14, color: lilac.text, textAlign: 'center', lineHeight: 21 }}>
               러너 목록을 불러오지 못했어요{'\n'}{rosterError}
             </Text>
-            <Pressable onPress={loadRoster} disabled={rosterLoading} style={{ marginTop: 12, paddingVertical: 12, paddingHorizontal: 26, borderRadius: 10, backgroundColor: lilac.inset, borderWidth: 1, borderColor: lilac.hair, alignSelf: 'center', opacity: rosterLoading ? 0.5 : 1 }}>
+            {/* opacity is presentation, not state (theme.ts:205-207) — the dim, `disabled` and
+                what a screen reader is told all hang off one predicate (chat.tsx [dead button]) */}
+            <Pressable
+              onPress={loadRoster}
+              disabled={rosterLoading}
+              accessibilityRole="button"
+              accessibilityLabel="다시 시도"
+              accessibilityState={{ disabled: rosterLoading }}
+              style={{ marginTop: 12, paddingVertical: 12, paddingHorizontal: 26, borderRadius: 10, backgroundColor: lilac.inset, borderWidth: 1, borderColor: lilac.hair, alignSelf: 'center', opacity: rosterLoading ? 0.5 : 1 }}
+            >
               <Text style={{ fontSize: 14, fontWeight: '800', color: lilac.head }}>다시 시도</Text>
             </Pressable>
           </View>
@@ -525,6 +534,9 @@ export default function Matching() {
               disabled={nominating !== null} /* 전송 중 잠금 = 이중 지명 방지 (디렉터 판정: 안전 우선) */
               accessibilityRole="button"
               accessibilityLabel={`${sel.r.name} 러너 지명 요청`}
+              /* The lock was visible (opacity) and enforced (disabled) but never announced —
+                 VoiceOver read a live 지명 요청 button mid-send. Same predicate, three outputs. */
+              accessibilityState={{ disabled: nominating !== null }}
               style={[s.cta, { backgroundColor: CORAL_DEEP }, nominating !== null && { opacity: 0.55 }]}
             >
               <Row style={{ gap: 10 }}>

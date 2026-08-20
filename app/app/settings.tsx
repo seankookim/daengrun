@@ -93,9 +93,14 @@ export default function Settings() {
       )}
 
       {/* 준비 중 — 정직 라벨. 계정 삭제는 실동작이 되어 위 카드로 떠났다 (O-6). */}
+      {/* [2026-08-20] The card was painted `opacity: 0.55`, the alpha trick theme.ts:205-207
+          bans for disabled surfaces. Measured, that alpha put the label at 2.99:1 and the value
+          at 4.06:1 over white — both under the 4.5 floor, i.e. the "준비 중" signal was being
+          paid for in legibility. Explicit disabled paint instead: disabledFill面 + dim ink,
+          measured 5.13:1. The row is not pressable, so nothing else changes. */}
       <Text style={s.section}>준비 중</Text>
-      <View style={[s.card, { opacity: 0.55 }]}>
-        <InfoRow label="알림 설정" value="푸시 도입 후" />
+      <View style={[s.card, s.cardPending]}>
+        <InfoRow label="알림 설정" value="푸시 도입 후" muted />
       </View>
 
       <Text style={{ fontSize: 14, color: colors.dim, textAlign: 'center', marginTop: 18 }}>
@@ -108,11 +113,12 @@ export default function Settings() {
   );
 }
 
-function InfoRow({ label, value }: { label: string; value: string }) {
+// muted = the 준비 중 card's non-interactive row. Ink, not alpha (theme.ts:205-207).
+function InfoRow({ label, value, muted }: { label: string; value: string; muted?: boolean }) {
   return (
     <Row style={{ justifyContent: 'space-between', paddingVertical: 12 }}>
-      <Text style={{ fontSize: 15.5, color: '#3d453d' }}>{label}</Text>
-      <Text style={{ fontSize: 15.5, fontWeight: '700', color: paper.ink }} numberOfLines={1}>{value}</Text>
+      <Text style={{ fontSize: 15.5, color: muted ? paper.dim : '#3d453d' }}>{label}</Text>
+      <Text style={{ fontSize: 15.5, fontWeight: '700', color: muted ? paper.dim : paper.ink }} numberOfLines={1}>{value}</Text>
     </Row>
   );
 }
@@ -121,6 +127,7 @@ const s = StyleSheet.create({
   backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DCD6C4' },
   section: { fontSize: 17, fontWeight: '900', color: paper.ink, marginTop: 20, marginBottom: 8 },
   card: { backgroundColor: '#fff', borderRadius: 16, paddingHorizontal: 15, borderWidth: 1, borderColor: '#DCD6C4' },
+  cardPending: { backgroundColor: paper.disabledFill }, // 준비 중 card — explicit fill, no alpha
   div: { height: 1, backgroundColor: '#f0eee3' },
   actionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 14 },
   actionText: { fontSize: 16, fontWeight: '700', color: paper.ink },

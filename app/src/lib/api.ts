@@ -2539,49 +2539,115 @@ export async function sendChatPhoto(threadId: string, base64: string): Promise<v
 // on owner/meetup. `removeChannel` AWAITS the leave before teardown, so the registry keeps the entry
 // until that resolves; a listener arriving during teardown waits and then opens a fresh channel.
 // Every consumer keeps its poll fallback — nothing here changes what a screen does on an event.
-type SharedWatcher<P> = { listeners: Set<(p: P) => void>; ch: ReturnType<typeof supabase.channel>; dropped: boolean; teardown: Promise<void> | null };
+//
+// What a shared channel may tell its screens about itself. Deliberately NARROWER than geo.ts's
+// LiveLinkState: 'denied' there is decided by deniedLike(err) because the owner's map has to say
+// two different sentences (geo.ts:449-450). The topics in this registry (chat / bookings / club
+// chat) act the same way either way — degrade to the poll. What they may NOT do is keep printing
+// 「실시간 연결됨」 over a channel that never joined (chat.tsx did exactly that until 2026-08-20).
+export type ChannelLink = 'connecting' | 'live' | 'error';
+type SharedWatcher<P> = {
+  listeners: Set<(p: P) => void>;
+  links: Set<(s: ChannelLink) => void>;
+  link: ChannelLink;
+  // Has this channel joined since its last failure? Decides retire-vs-wait below — not cosmetic.
+  joined: boolean;
+  ch: ReturnType<typeof supabase.channel>;
+  dropped: boolean;
+  teardown: Promise<void> | null;
+};
 const sharedWatchers = new Map<string, SharedWatcher<any>>();
+// Retire one entry. The map row is deleted only when the leave RESOLVES — deleting it eagerly is
+// the double-subscribe crash this registry exists to prevent (header above): a fresh channel on a
+// topic whose leave is still in flight. Both exits (last listener gone · dead channel) use this.
+function retireShared(topic: string, w: SharedWatcher<any>): void {
+  if (w.teardown) return;
+  w.dropped = true;
+  w.teardown = Promise.resolve(supabase.removeChannel(w.ch))
+    .then(() => undefined, () => undefined)
+    .finally(() => { if (sharedWatchers.get(topic) === w) sharedWatchers.delete(topic); });
+}
 function subscribeShared<P>(
   topic: string,
   attach: (ch: ReturnType<typeof supabase.channel>, emit: (p: P) => void) => ReturnType<typeof supabase.channel>,
   listener: (p: P) => void,
+  onLink?: (s: ChannelLink) => void,
 ): () => void {
   hookTokenRefresh();
   let w = sharedWatchers.get(topic) as SharedWatcher<P> | undefined;
   if (w && w.teardown) {
     let cancelled = false;
     let inner: (() => void) | null = null;
-    void w.teardown.then(() => { if (!cancelled) inner = subscribeShared<P>(topic, attach, listener); });
+    void w.teardown.then(() => { if (!cancelled) inner = subscribeShared<P>(topic, attach, listener, onLink); });
     return () => { cancelled = true; inner?.(); };
   }
   if (!w) {
     const listeners = new Set<(p: P) => void>();
+    const links = new Set<(s: ChannelLink) => void>();
     const ch = attach(
       supabase.channel(topic, REALTIME_PRIVATE),
       (p) => { for (const fn of Array.from(listeners)) fn(p); },
     );
-    w = { listeners, ch, dropped: false, teardown: null };
+    w = { listeners, links, link: 'connecting', joined: false, ch, dropped: false, teardown: null };
     sharedWatchers.set(topic, w);
     const mine = w;
+    const say = (s: ChannelLink) => { mine.link = s; for (const fn of Array.from(mine.links)) fn(s); };
     // 무장 → 구독 순서. 그 사이 도착한 변경은 화면의 폴백 폴링이 잡는다(각 소비처가 폴링을 유지한다).
-    void armRealtime().then(() => { if (!mine.dropped) mine.ch.subscribe(); });
+    void armRealtime().then(() => {
+      if (mine.dropped) return;
+      // [2026-08-20] subscribe() used to be called with NO callback, so CHANNEL_ERROR and
+      // TIMED_OUT were invisible: the entry stayed in sharedWatchers looking healthy and every
+      // later attach on this topic was handed the same dead channel — leaving the screen and
+      // coming back did NOT help. CHANNEL_ERROR is exactly how a private-channel policy denial
+      // surfaces (geo.ts:447-451 reads it that way for the position channel).
+      mine.ch.subscribe((status) => {
+        if (status === 'SUBSCRIBED') { mine.joined = true; say('live'); return; }
+        if (status !== 'CHANNEL_ERROR' && status !== 'TIMED_OUT') return; // CLOSED = our own leave
+        // ⚠ NOT every CHANNEL_ERROR is a dead channel, which is why this retire is conditional.
+        // phoenix pushes an error to EVERY channel when the socket closes
+        // (@supabase/phoenix/assets/js/phoenix/socket.js:547-550 onConnClose → triggerChanError),
+        // and that happens on every backgrounding; it then heals itself on reconnect
+        // (phoenix/channel.js:50-53 — onOpen → if (isErrored()) rejoin()). Retiring on THAT error
+        // would remove the channel, cancel that rejoin, and leave the whole app poll-only after
+        // the first background cycle — a worse bug than the one above.
+        // The two cases separate cleanly: a REFUSED JOIN (policy denial, expired token) is
+        // answered by a server that is right there, so the socket is up and phoenix will retry the
+        // same refused payload forever (channel.js:61-65 — schedule only `if socket.isConnected()`);
+        // a TRANSPORT loss errors with the socket down and repairs itself. So: retire only a
+        // channel that has not joined since its last failure AND failed while connected. A rejoin
+        // that keeps being refused lands here on its next error, which bounds it.
+        const dead = !mine.joined && supabase.realtime.isConnected();
+        mine.joined = false;
+        say('error');
+        if (dead) retireShared(topic, mine);
+      });
+    });
   }
   w.listeners.add(listener);
   const mine = w;
+  // Replay the current link to a late listener — the subscribe() callback above fires once per
+  // channel, so a screen attaching to an already-joined topic would otherwise wait forever for a
+  // status it already missed and render "connecting" over a live channel.
+  if (onLink) { mine.links.add(onLink); onLink(mine.link); }
   return () => {
-    const cur = sharedWatchers.get(topic);
-    if (cur !== mine) return;
-    cur.listeners.delete(listener);
-    if (cur.listeners.size === 0 && !cur.teardown) {
-      cur.dropped = true;
-      cur.teardown = Promise.resolve(supabase.removeChannel(cur.ch))
-        .then(() => undefined, () => undefined)
-        .finally(() => { if (sharedWatchers.get(topic) === cur) sharedWatchers.delete(topic); });
-    }
+    // Detach from MY entry even if it is no longer the registry's (retired above / replaced):
+    // between retire and the leave resolving the channel can still deliver, and an unmounted
+    // screen's setState is not a thing a message may cause.
+    mine.listeners.delete(listener);
+    if (onLink) mine.links.delete(onLink);
+    // Only the topic's current owner may tear it down — a superseded entry must not kill its successor.
+    if (sharedWatchers.get(topic) === mine && mine.listeners.size === 0) retireShared(topic, mine);
   };
 }
 
-export function subscribeMessages(threadId: string, uid: string | null, onMsg: (m: ChatMsg) => void): () => void {
+// `onLink` is how the chat header stops lying: the 「● 실시간 연결됨」 line used to be keyed on the
+// FETCH succeeding, so a channel the server refused still printed a live link while the runner's
+// 「5분 늦어요」 went nowhere (chat.tsx, fixed 2026-08-20). Optional — the other consumers of this
+// topic family do not print a link state.
+export function subscribeMessages(
+  threadId: string, uid: string | null, onMsg: (m: ChatMsg) => void,
+  onLink?: (s: ChannelLink) => void,
+): () => void {
   // P0-1 후속(0108): chat 채널은 postgres_changes 전용이라 브로드캐스트 노출은 없었지만,
   // 프로젝트 전역 private_only 가 켜지는 순간 public 채널은 **전부** 죽는다. 서버 정책(0108)이
   // 이 토픽족을 인가하므로 private 으로 요청하고, 구독 전에 소켓을 무장시킨다. (shared registry —
@@ -2592,6 +2658,7 @@ export function subscribeMessages(threadId: string, uid: string | null, onMsg: (
       { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `thread_id=eq.${threadId}` },
       (payload) => emit(payload.new)),
     (row) => onMsg(mapMsg(row, uid)),
+    onLink,
   );
 }
 

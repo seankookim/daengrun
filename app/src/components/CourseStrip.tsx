@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { fetchMyDistrict, fetchRoutes } from '../lib/api';
 import { RouteInfo } from '../store';
@@ -19,32 +19,75 @@ import { traceToBox } from '../lib/trace';
 // headerPad: 풀블리드 컨테이너(오너 홈)에서 헤더 텍스트만 안쪽 거터를 받는다 — 러너 홈(컨테이너 패딩 유지)은 0
 // bleed: 패딩 있는 컨테이너(러너 홈)에서 §3b 코랄 룰을 음수 마진으로 화면 끝까지 뚫는 양 — 풀블리드 컨테이너는 0
 export function CourseStrip({ title = '동네 코스', headerPad = 0, bleed = 0 }: { title?: string; headerPad?: number; bleed?: number }) {
-  const [routes, setRoutes] = useState<RouteInfo[]>([]);
+  // [honesty 2026-08-20] `fetchRoutes().catch(() => [])` fed an early-return on `length === 0`,
+  // so a failed load, a load still in flight, and "there are genuinely no offerable courses"
+  // were ONE state: the whole 동네 코스 module disappeared from both homes without a word, and
+  // nothing on either screen could ever bring it back (no retry exists for a module that is not
+  // rendered). null = loading · failed = the fetch threw · [] = the server really returned none.
+  const [routes, setRoutes] = useState<RouteInfo[] | null>(null);
+  const [failed, setFailed] = useState(false);
   const nf = useNumFont();
+  const alive = useRef(true);
+  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
 
-  useEffect(() => {
-    let alive = true;
+  const load = useCallback(() => {
+    setFailed(false);
     Promise.all([
-      fetchRoutes().catch(() => [] as RouteInfo[]),
+      fetchRoutes(),
+      // district only orders the deck (local courses first) — losing it is not losing the deck
       fetchMyDistrict().catch(() => null),
     ]).then(([rs, district]) => {
-      if (!alive) return;
+      if (!alive.current) return;
       const sorted = district ? [...rs].sort((a, b) => Number(b.area === district) - Number(a.area === district)) : rs;
       setRoutes(sorted.slice(0, 6));
+    }).catch((e) => {
+      if (!alive.current) return;
+      console.warn('[courses] load:', (e as Error)?.message ?? e);
+      setFailed(true);
     });
-    return () => { alive = false; };
   }, []);
+  useEffect(() => { load(); }, [load]);
 
-  if (routes.length === 0) return null; // 없는 데이터는 그리지 않는다
+  // The failure row keeps the module's own header, so what failed is readable from the slot
+  // it failed in. Loud-fail grammar copied from the neighbouring module on the same home
+  // (clubcard.tsx s.cFail): canvas面 + critical hairlines + 14/700 ink + underlined 다시 시도.
+  const header = (
+    <View style={{ marginHorizontal: -bleed, paddingHorizontal: bleed + headerPad, marginBottom: 8 }}>
+      <Text style={{ fontSize: 15, lineHeight: 20, fontWeight: '800', color: paper.ink }}>{title}</Text>
+    </View>
+  );
+
+  if (failed) {
+    return (
+      <View style={{ marginTop: 18 }}>
+        {header}
+        <View style={{
+          marginHorizontal: -bleed, paddingHorizontal: bleed + headerPad, paddingVertical: 11,
+          flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 9,
+          backgroundColor: paper.canvas, borderTopWidth: 1, borderBottomWidth: 1, borderColor: paper.critical,
+        }}>
+          <Text style={{ flex: 1, fontSize: 14, lineHeight: 18, fontWeight: '700', color: paper.critical }}>
+            코스를 불러오지 못했어요
+          </Text>
+          <Pressable onPress={load} hitSlop={8} accessibilityRole="button" accessibilityLabel="다시 시도">
+            <Text style={{ fontSize: 14, lineHeight: 18, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' }}>
+              다시 시도
+            </Text>
+          </Pressable>
+        </View>
+      </View>
+    );
+  }
+  // Loading and a truly empty deck both stay silent: neither has a picture to draw, and
+  // neither is a claim. Only the failure speaks.
+  if (routes == null || routes.length === 0) return null;
 
   return (
     <View style={{ marginTop: 18 }}>
       {/* [2026-08-19 랩 ⑧] 모듈 헤더 = modh 문법 — 15/800 잉크 타이틀 한 줄. 구 문법의 풀블리드
           코랄 룰 + 20/800 타이틀은 Sean이 첫날 clutter라 부른 그 선이라 은퇴했다 (홈의 덩어리
           경계는 이제 여백 + 킥커 하나가 만든다). 'VERIFIED COURSES' 라틴 키커는 §3b에서 이미 은퇴. */}
-      <View style={{ marginHorizontal: -bleed, paddingHorizontal: bleed + headerPad, marginBottom: 8 }}>
-        <Text style={{ fontSize: 15, lineHeight: 20, fontWeight: '800', color: paper.ink }}>{title}</Text>
-      </View>
+      {header}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingLeft: headerPad, paddingRight: 12 }}>
         {routes.map((r) => {
           const w = worldOf(r.km); // [V4] 거리 = 색 세계 (TRAIL 테라 · FOREST 볼트 · RIVER 스카이 · NIGHT 바이올렛)

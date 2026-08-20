@@ -104,11 +104,27 @@ export default function Community() {
   // 탭: 피드(실) | 러너 후기(실 공개 리뷰). 챌린지는 실시스템 생기면 추가 — 가짜 탭 금지.
   const [tab, setTab] = useState<'feed' | 'reviews'>('feed');
   const [reviews, setReviews] = useState<PublicReview[] | null>(null);
+  // [honesty 2026-08-20] `.catch(() => setReviews([]))` turned a failed fetch into the empty
+  // state at :375 — 「아직 공개 후기가 없어요 · 첫 후기를 남겨보세요」 — which states an error as
+  // a fact about the product AND invites the reader to fix a problem they do not have. The feed
+  // tab three states away already separates 로딩 ≠ 에러 ≠ 빈 (:418-437); the reviews tab gets the
+  // same three. reviewsErr also keeps the tab counter blank instead of printing a confident 00.
+  const [reviewsErr, setReviewsErr] = useState<string | null>(null);
+  // The in-flight ref is what lets the retry clear the error without the effect double-firing
+  // on the same render pass (the effect re-runs the moment reviewsErr goes back to null).
+  const reviewsBusy = useRef(false);
+  const loadReviews = useCallback(() => {
+    if (reviewsBusy.current) return;
+    reviewsBusy.current = true;
+    setReviewsErr(null);
+    fetchRecentReviews()
+      .then((r) => setReviews(r))
+      .catch((e) => setReviewsErr((e as Error)?.message ?? '후기를 불러오지 못했어요'))
+      .finally(() => { reviewsBusy.current = false; });
+  }, []);
   useEffect(() => {
-    if (tab === 'reviews' && reviews == null) {
-      fetchRecentReviews().then(setReviews).catch(() => setReviews([]));
-    }
-  }, [tab, reviews]);
+    if (tab === 'reviews' && reviews == null && reviewsErr == null) loadReviews();
+  }, [tab, reviews, reviewsErr, loadReviews]);
   const [loaded, setLoaded] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [feedError, setFeedError] = useState<string | null>(null);
@@ -200,6 +216,9 @@ export default function Community() {
     setComments([]);
     loadComments(p.id);
   };
+
+  // The send button's single source of truth — literally the guard submitComment returns on.
+  const sendBlocked = sending || commentInput.trim().length === 0;
 
   const submitComment = async (postId: string) => {
     const body = commentInput.trim();
@@ -339,7 +358,18 @@ export default function Community() {
         {/* ───────── 러너 후기 탭 — 실 공개 리뷰 ───────── */}
         {tab === 'reviews' && (
           <View style={{ paddingHorizontal: GUTTER, marginTop: 12, gap: 11 }}>
-            {reviews == null && <Text style={{ fontSize: 14, color: lilac.dim, textAlign: 'center', marginTop: 30 }}>불러오는 중...</Text>}
+            {reviews == null && reviewsErr == null && <Text style={{ fontSize: 14, color: lilac.dim, textAlign: 'center', marginTop: 30 }}>불러오는 중...</Text>}
+            {/* Loud fail — same criticalWash strip + underlined 다시 시도 the feed tab uses.
+                Margins zeroed: this column already carries the GUTTER the strip adds on the feed. */}
+            {reviewsErr != null && (
+              <View style={[s.failStrip, { marginHorizontal: 0, marginTop: 0 }]}>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: paper.critical }}>후기를 불러오지 못했어요</Text>
+                <Text style={{ fontSize: 14, color: paper.critical, marginTop: 3 }} numberOfLines={2}>{reviewsErr}</Text>
+                <Pressable onPress={loadReviews} style={s.retryBtn} accessibilityRole="button" accessibilityLabel="다시 시도">
+                  <Text style={{ fontSize: 16, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' }}>다시 시도</Text>
+                </Pressable>
+              </View>
+            )}
             {reviews != null && reviews.length === 0 && (
               <View style={s.revCard}>
                 <Text style={{ fontSize: 14.5, color: lilac.dim, textAlign: 'center', lineHeight: 22 }}>
@@ -663,7 +693,21 @@ export default function Community() {
                     onSubmitEditing={() => submitComment(p.id)}
                     returnKeyType="send"
                   />
-                  <Pressable onPress={() => submitComment(p.id)} style={[s.commentSend, sending && { opacity: 0.5 }]}>
+                  {/* [dead button 2026-08-20] This was `sending && {opacity:0.5}` and nothing
+                      else: with an empty input the button stayed fully opaque and did nothing on
+                      tap (submitComment returns on `!body || sending`, :225), and while sending it
+                      looked dim but was still pressable. Opacity is presentation, not state —
+                      app/chat.tsx fixed the identical bug on its 보내기 button ([dead button
+                      2026-08-19]: "불투명도는 표현이지 상태가 아니다").
+                      One predicate now drives disabled · a11y · the dim. */}
+                  <Pressable
+                    onPress={() => submitComment(p.id)}
+                    disabled={sendBlocked}
+                    style={[s.commentSend, sendBlocked && { opacity: 0.5 }]}
+                    accessibilityRole="button"
+                    accessibilityLabel="댓글 보내기"
+                    accessibilityState={{ disabled: sendBlocked }}
+                  >
                     <Text style={{ fontSize: 16, fontWeight: '700', color: '#fff' }}>↑</Text>
                   </Pressable>
                 </Row>
